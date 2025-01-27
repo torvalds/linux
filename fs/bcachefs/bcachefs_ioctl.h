@@ -87,6 +87,7 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_FSCK_OFFLINE	_IOW(0xbc,	19,  struct bch_ioctl_fsck_offline)
 #define BCH_IOCTL_FSCK_ONLINE	_IOW(0xbc,	20,  struct bch_ioctl_fsck_online)
 #define BCH_IOCTL_QUERY_ACCOUNTING _IOW(0xbc,	21,  struct bch_ioctl_query_accounting)
+#define BCH_IOCTL_QUERY_COUNTERS _IOW(0xbc,	21,  struct bch_ioctl_query_counters)
 
 /* ioctl below act on a particular file, not the filesystem as a whole: */
 
@@ -441,6 +442,15 @@ struct bch_ioctl_query_accounting {
 	__u32			accounting_types_mask; /* input parameter */
 
 	struct bkey_i_accounting accounting[];
+};
+
+#define BCH_IOCTL_QUERY_COUNTERS_MOUNT	(1 << 0)
+
+struct bch_ioctl_query_counters {
+	__u16			nr;
+	__u16			flags;
+	__u32			pad;
+	__u64			d[];
 };
 
 #endif /* _BCACHEFS_IOCTL_H */

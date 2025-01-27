@@ -11,6 +11,7 @@
 #include "move.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-counters.h"
 #include "super-io.h"
 #include "thread_with_file.h"
 
@@ -710,6 +711,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
 	case BCH_IOCTL_QUERY_ACCOUNTING:
 		return bch2_ioctl_query_accounting(c, arg);
+	case BCH_IOCTL_QUERY_COUNTERS:
+		return bch2_ioctl_query_counters(c, arg);
 	default:
 		return -ENOTTY;
 	}

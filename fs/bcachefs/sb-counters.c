@@ -11,6 +11,13 @@ static const u8 counters_to_stable_map[] = {
 #undef x
 };
 
+const char * const bch2_counter_names[] = {
+#define x(t, n, ...) (#t),
+	BCH_PERSISTENT_COUNTERS()
+#undef x
+	NULL
+};
+
 static size_t bch2_sb_counter_nr_entries(struct bch_sb_field_counters *ctrs)
 {
 	if (!ctrs)
@@ -102,3 +109,39 @@ const struct bch_sb_field_ops bch_sb_field_ops_counters = {
 	.validate	= bch2_sb_counters_validate,
 	.to_text	= bch2_sb_counters_to_text,
 };
+
+#ifndef NO_BCACHEFS_CHARDEV
+long bch2_ioctl_query_counters(struct bch_fs *c,
+			struct bch_ioctl_query_counters __user *user_arg)
+{
+	struct bch_ioctl_query_counters arg;
+	int ret = copy_from_user_errcode(&arg, user_arg, sizeof(arg));
+	if (ret)
+		return ret;
+
+	if ((arg.flags & ~BCH_IOCTL_QUERY_COUNTERS_MOUNT) ||
+	    arg.pad)
+		return -EINVAL;
+
+	arg.nr = min(arg.nr, BCH_COUNTER_NR);
+	ret = put_user(arg.nr, &user_arg->nr);
+	if (ret)
+		return ret;
+
+	for (unsigned i = 0; i < BCH_COUNTER_NR; i++) {
+		unsigned stable = counters_to_stable_map[i];
+
+		if (stable < arg.nr) {
+			u64 v = !(arg.flags & BCH_IOCTL_QUERY_COUNTERS_MOUNT)
+				? percpu_u64_get(&c->counters[i])
+				: c->counters_on_mount[i];
+
+			ret = put_user(v, &user_arg->d[stable]);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+#endif
