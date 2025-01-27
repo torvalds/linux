@@ -3505,10 +3505,7 @@ static void clear_extent_buffer_reading(struct extent_buffer *eb)
 static void end_bbio_meta_read(struct btrfs_bio *bbio)
 {
 	struct extent_buffer *eb = bbio->private;
-	struct btrfs_fs_info *fs_info = eb->fs_info;
 	bool uptodate = !bbio->bio.bi_status;
-	struct folio_iter fi;
-	u32 bio_offset = 0;
 
 	/*
 	 * If the extent buffer is marked UPTODATE before the read operation
@@ -3528,19 +3525,6 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 	} else {
 		clear_extent_buffer_uptodate(eb);
 		set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
-	}
-
-	bio_for_each_folio_all(fi, &bbio->bio) {
-		struct folio *folio = fi.folio;
-		u64 start = eb->start + bio_offset;
-		u32 len = fi.length;
-
-		if (uptodate)
-			btrfs_folio_set_uptodate(fs_info, folio, start, len);
-		else
-			btrfs_folio_clear_uptodate(fs_info, folio, start, len);
-
-		bio_offset += len;
 	}
 
 	clear_extent_buffer_reading(eb);
