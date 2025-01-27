@@ -210,6 +210,26 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #define __must_be_cstr(p) \
 	__BUILD_BUG_ON_ZERO_MSG(__annotated(p, nonstring), "must be cstr (NUL-terminated)")
 
+/*
+ * Use __typeof_unqual__() when available.
+ *
+ * XXX: Remove test for __CHECKER__ once
+ * sparse learns about __typeof_unqual__().
+ */
+#if CC_HAS_TYPEOF_UNQUAL && !defined(__CHECKER__)
+# define USE_TYPEOF_UNQUAL 1
+#endif
+
+/*
+ * Define TYPEOF_UNQUAL() to use __typeof_unqual__() as typeof
+ * operator when available, to return an unqualified type of the exp.
+ */
+#if defined(USE_TYPEOF_UNQUAL)
+# define TYPEOF_UNQUAL(exp) __typeof_unqual__(exp)
+#else
+# define TYPEOF_UNQUAL(exp) __typeof__(exp)
+#endif
+
 #endif /* __KERNEL__ */
 
 /**
