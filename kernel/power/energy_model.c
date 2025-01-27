@@ -774,7 +774,8 @@ static void em_check_capacity_update(void)
 		}
 		cpufreq_cpu_put(policy);
 
-		pd = em_cpu_get(cpu);
+		dev = get_cpu_device(cpu);
+		pd = em_pd_get(dev);
 		if (!pd || em_is_artificial(pd))
 			continue;
 
@@ -798,7 +799,6 @@ static void em_check_capacity_update(void)
 		pr_debug("updating cpu%d cpu_cap=%lu old capacity=%lu\n",
 			 cpu, cpu_capacity, em_max_perf);
 
-		dev = get_cpu_device(cpu);
 		em_adjust_new_capacity(dev, pd);
 	}
 
