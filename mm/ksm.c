@@ -3262,6 +3262,25 @@ static void wait_while_offlining(void)
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
 #ifdef CONFIG_PROC_FS
+/*
+ * The process is mergeable only if any VMA is currently
+ * applicable to KSM.
+ *
+ * The mmap lock must be held in read mode.
+ */
+bool ksm_process_mergeable(struct mm_struct *mm)
+{
+	struct vm_area_struct *vma;
+
+	mmap_assert_locked(mm);
+	VMA_ITERATOR(vmi, mm, 0);
+	for_each_vma(vmi, vma)
+		if (vma->vm_flags & VM_MERGEABLE)
+			return true;
+
+	return false;
+}
+
 long ksm_process_profit(struct mm_struct *mm)
 {
 	return (long)(mm->ksm_merging_pages + mm_ksm_zero_pages(mm)) * PAGE_SIZE -

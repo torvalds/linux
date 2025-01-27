@@ -1146,11 +1146,8 @@ void __init e820__reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = memblock_alloc(sizeof(*res) * e820_table->nr_entries,
+	res = memblock_alloc_or_panic(sizeof(*res) * e820_table->nr_entries,
 			     SMP_CACHE_BYTES);
-	if (!res)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*res) * e820_table->nr_entries);
 	e820_res = res;
 
 	for (i = 0; i < e820_table->nr_entries; i++) {

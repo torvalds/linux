@@ -57,7 +57,7 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
         KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
 	*ppages = pages;
 
-	got = alloc_pages_bulk_array(GFP_KERNEL, npages, pages);
+	got = alloc_pages_bulk(GFP_KERNEL, npages, pages);
 	if (got != npages) {
 		release_pages(pages, got);
 		KUNIT_ASSERT_EQ(test, got, npages);
