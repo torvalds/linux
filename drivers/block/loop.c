@@ -1281,8 +1281,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 	partscan = !(lo->lo_flags & LO_FLAGS_PARTSCAN) &&
 		(info->lo_flags & LO_FLAGS_PARTSCAN);
 
-	lo->lo_flags &= ~(LOOP_SET_STATUS_SETTABLE_FLAGS |
-			  LOOP_SET_STATUS_CLEARABLE_FLAGS);
+	lo->lo_flags &= ~LOOP_SET_STATUS_CLEARABLE_FLAGS;
 	lo->lo_flags |= (info->lo_flags & LOOP_SET_STATUS_SETTABLE_FLAGS);
 
 	if (size_changed) {
