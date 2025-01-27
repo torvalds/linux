@@ -1704,7 +1704,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 			phys_as = entry->eax & 0xff;
 			g_phys_as = phys_as;
 			if (kvm_mmu_get_max_tdp_level() < 5)
-				g_phys_as = min(g_phys_as, 48);
+				g_phys_as = min(g_phys_as, 48U);
 		}
 
 		entry->eax = phys_as | (virt_as << 8) | (g_phys_as << 16);
