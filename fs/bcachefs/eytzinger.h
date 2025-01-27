@@ -244,6 +244,11 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 	     (_i) != -1;				\
 	     (_i) = eytzinger0_next((_i), (_size)))
 
+#define eytzinger0_for_each_prev(_i, _size)		\
+	for (unsigned (_i) = eytzinger0_last((_size));	\
+	     (_i) != -1;				\
+	     (_i) = eytzinger0_prev((_i), (_size)))
+
 /* return greatest node <= @search, or -1 if not found */
 static inline int eytzinger0_find_le(void *base, size_t nr, size_t size,
 				     cmp_func_t cmp, const void *search)
