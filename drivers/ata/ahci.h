@@ -328,7 +328,7 @@ struct ahci_port_priv {
 struct ahci_host_priv {
 	/* Input fields */
 	unsigned int		flags;		/* AHCI_HFLAG_* */
-	u32			mask_port_map;	/* mask out particular bits */
+	u32			mask_port_map;	/* Mask of valid ports */
 
 	void __iomem *		mmio;		/* bus-independent mem map */
 	u32			cap;		/* cap to use */
@@ -378,6 +378,17 @@ struct ahci_host_priv {
 	int			(*get_irq_vector)(struct ata_host *host,
 						  int port);
 };
+
+/*
+ * Return true if a port should be ignored because it is excluded from
+ * the host port map.
+ */
+static inline bool ahci_ignore_port(struct ahci_host_priv *hpriv,
+				    unsigned int portid)
+{
+	return portid >= hpriv->nports ||
+		!(hpriv->mask_port_map & (1 << portid));
+}
 
 extern int ahci_ignore_sss;
 
