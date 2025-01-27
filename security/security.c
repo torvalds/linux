@@ -5999,6 +5999,18 @@ int security_uring_cmd(struct io_uring_cmd *ioucmd)
 {
 	return call_int_hook(uring_cmd, ioucmd);
 }
+
+/**
+ * security_uring_allowed() - Check if io_uring_setup() is allowed
+ *
+ * Check whether the current task is allowed to call io_uring_setup().
+ *
+ * Return: Returns 0 if permission is granted.
+ */
+int security_uring_allowed(void)
+{
+	return call_int_hook(uring_allowed);
+}
 #endif /* CONFIG_IO_URING */
 
 /**

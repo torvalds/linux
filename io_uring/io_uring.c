@@ -3800,7 +3800,7 @@ static inline int io_uring_allowed(void)
 		return -EPERM;
 
 	if (disabled == 0 || capable(CAP_SYS_ADMIN))
-		return 0;
+		goto allowed_lsm;
 
 	io_uring_group = make_kgid(&init_user_ns, sysctl_io_uring_group);
 	if (!gid_valid(io_uring_group))
@@ -3809,7 +3809,8 @@ static inline int io_uring_allowed(void)
 	if (!in_group_p(io_uring_group))
 		return -EPERM;
 
-	return 0;
+allowed_lsm:
+	return security_uring_allowed();
 }
 
 SYSCALL_DEFINE2(io_uring_setup, u32, entries,
