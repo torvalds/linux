@@ -76,9 +76,6 @@
 
 #include "dml2/dml2_wrapper.h"
 
-#include "sspl/dc_spl_scl_easf_filters.h"
-#include "sspl/dc_spl_isharp_filters.h"
-
 #define DC_LOGGER_INIT(logger)
 
 enum dcn401_clk_src_array_id {
@@ -2189,8 +2186,6 @@ static bool dcn401_resource_construct(
 	dc->dml2_options.det_segment_size = DCN4_01_CRB_SEGMENT_SIZE_KB;
 
 	/* SPL */
-	spl_init_easf_filter_coeffs();
-	spl_init_blur_scale_coeffs();
 	dc->caps.scl_caps.sharpener_support = true;
 
 	return true;
