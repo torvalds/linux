@@ -28,24 +28,24 @@
  *   the first 128 E820 memory entries in boot_params.e820_table and the remaining
  *   (if any) entries of the SETUP_E820_EXT nodes. We use this to:
  *
- *       - inform the user about the firmware's notion of memory layout
- *         via /sys/firmware/memmap
- *
  *       - the hibernation code uses it to generate a kernel-independent CRC32
  *         checksum of the physical memory layout of a system.
  *
  * - 'e820_table_kexec': a slightly modified (by the kernel) firmware version
  *   passed to us by the bootloader - the major difference between
- *   e820_table_firmware[] and this one is that, the latter marks the setup_data
- *   list created by the EFI boot stub as reserved, so that kexec can reuse the
- *   setup_data information in the second kernel. Besides, e820_table_kexec[]
- *   might also be modified by the kexec itself to fake a mptable.
+ *   e820_table_firmware[] and this one is that e820_table_kexec[]
+ *   might be modified by the kexec itself to fake an mptable.
  *   We use this to:
  *
  *       - kexec, which is a bootloader in disguise, uses the original E820
  *         layout to pass to the kexec-ed kernel. This way the original kernel
  *         can have a restricted E820 map while the kexec()-ed kexec-kernel
  *         can have access to full memory - etc.
+ *
+ *         Export the memory layout via /sys/firmware/memmap. kexec-tools uses
+ *         the entries to create an E820 table for the kexec kernel.
+ *
+ *         kexec_file_load in-kernel code uses the table for the kexec kernel.
  *
  * - 'e820_table': this is the main E820 table that is massaged by the
  *   low level x86 platform code, or modified by boot parameters, before
@@ -1117,9 +1117,9 @@ void __init e820__reserve_resources(void)
 		res++;
 	}
 
-	/* Expose the bootloader-provided memory layout to the sysfs. */
-	for (i = 0; i < e820_table_firmware->nr_entries; i++) {
-		struct e820_entry *entry = e820_table_firmware->entries + i;
+	/* Expose the kexec e820 table to the sysfs. */
+	for (i = 0; i < e820_table_kexec->nr_entries; i++) {
+		struct e820_entry *entry = e820_table_kexec->entries + i;
 
 		firmware_map_add_early(entry->addr, entry->addr + entry->size, e820_type_to_string(entry));
 	}
