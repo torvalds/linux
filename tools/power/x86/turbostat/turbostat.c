@@ -2063,6 +2063,8 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 {
 	int retval, pkg_no, core_no, thread_no, node_no;
 
+	retval = 0;
+
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
 		for (node_no = 0; node_no < topo.nodes_per_pkg; node_no++) {
 			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
@@ -2078,14 +2080,12 @@ int for_all_cpus(int (func) (struct thread_data *, struct core_data *, struct pk
 					c = GET_CORE(core_base, core_no, node_no, pkg_no);
 					p = GET_PKG(pkg_base, pkg_no);
 
-					retval = func(t, c, p);
-					if (retval)
-						return retval;
+					retval |= func(t, c, p);
 				}
 			}
 		}
 	}
-	return 0;
+	return retval;
 }
 
 int is_cpu_first_thread_in_core(struct thread_data *t, struct core_data *c, struct pkg_data *p)
@@ -3620,12 +3620,10 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 
 	/* always calculate thread delta */
 	retval = delta_thread(t, t2, c2);	/* c2 is core delta */
-	if (retval)
-		return retval;
 
 	/* calculate package delta only for 1st core in package */
 	if (is_cpu_first_core_in_package(t, c, p))
-		retval = delta_package(p, p2);
+		retval |= delta_package(p, p2);
 
 	return retval;
 }
@@ -5748,6 +5746,8 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 {
 	int retval, pkg_no, node_no, core_no, thread_no;
 
+	retval = 0;
+
 	for (pkg_no = 0; pkg_no < topo.num_packages; ++pkg_no) {
 		for (node_no = 0; node_no < topo.nodes_per_pkg; ++node_no) {
 			for (core_no = 0; core_no < topo.cores_per_node; ++core_no) {
@@ -5769,14 +5769,12 @@ int for_all_cpus_2(int (func) (struct thread_data *, struct core_data *,
 					p = GET_PKG(pkg_base, pkg_no);
 					p2 = GET_PKG(pkg_base2, pkg_no);
 
-					retval = func(t, c, p, t2, c2, p2);
-					if (retval)
-						return retval;
+					retval |= func(t, c, p, t2, c2, p2);
 				}
 			}
 		}
 	}
-	return 0;
+	return retval;
 }
 
 /*
@@ -9462,10 +9460,9 @@ int fork_it(char **argv)
 	timersub(&tv_odd, &tv_even, &tv_delta);
 	if (for_all_cpus_2(delta_cpu, ODD_COUNTERS, EVEN_COUNTERS))
 		fprintf(outf, "%s: Counter reset detected\n", progname);
-	else {
-		compute_average(EVEN_COUNTERS);
-		format_all_counters(EVEN_COUNTERS);
-	}
+
+	compute_average(EVEN_COUNTERS);
+	format_all_counters(EVEN_COUNTERS);
 
 	fprintf(outf, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec / 1000000.0);
 
