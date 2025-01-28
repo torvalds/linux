@@ -1317,8 +1317,6 @@ static void cfe_stop_streaming(struct vb2_queue *vq)
 }
 
 static const struct vb2_ops cfe_video_qops = {
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.queue_setup = cfe_queue_setup,
 	.buf_prepare = cfe_buffer_prepare,
 	.buf_queue = cfe_buffer_queue,
