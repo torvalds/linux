@@ -257,16 +257,7 @@ static const struct mtu3_file_map mtu3_ep_files[] = {
 
 static int mtu3_ep_open(struct inode *inode, struct file *file)
 {
-	const char *file_name = file_dentry(file)->d_iname;
-	const struct mtu3_file_map *f_map;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mtu3_ep_files); i++) {
-		f_map = &mtu3_ep_files[i];
-
-		if (strcmp(f_map->name, file_name) == 0)
-			break;
-	}
+	const struct mtu3_file_map *f_map = debugfs_get_aux(file);
 
 	return single_open(file, f_map->show, inode->i_private);
 }
@@ -289,17 +280,8 @@ static const struct debugfs_reg32 mtu3_prb_regs[] = {
 
 static int mtu3_probe_show(struct seq_file *sf, void *unused)
 {
-	const char *file_name = file_dentry(sf->file)->d_iname;
 	struct mtu3 *mtu = sf->private;
-	const struct debugfs_reg32 *regs;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mtu3_prb_regs); i++) {
-		regs = &mtu3_prb_regs[i];
-
-		if (strcmp(regs->name, file_name) == 0)
-			break;
-	}
+	const struct debugfs_reg32 *regs = debugfs_get_aux(sf->file);
 
 	seq_printf(sf, "0x%04x - 0x%08x\n", (u32)regs->offset,
 		   mtu3_readl(mtu->ippc_base, (u32)regs->offset));
@@ -315,13 +297,11 @@ static int mtu3_probe_open(struct inode *inode, struct file *file)
 static ssize_t mtu3_probe_write(struct file *file, const char __user *ubuf,
 				size_t count, loff_t *ppos)
 {
-	const char *file_name = file_dentry(file)->d_iname;
 	struct seq_file *sf = file->private_data;
 	struct mtu3 *mtu = sf->private;
-	const struct debugfs_reg32 *regs;
+	const struct debugfs_reg32 *regs = debugfs_get_aux(file);
 	char buf[32];
 	u32 val;
-	int i;
 
 	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
 		return -EFAULT;
@@ -329,12 +309,6 @@ static ssize_t mtu3_probe_write(struct file *file, const char __user *ubuf,
 	if (kstrtou32(buf, 0, &val))
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(mtu3_prb_regs); i++) {
-		regs = &mtu3_prb_regs[i];
-
-		if (strcmp(regs->name, file_name) == 0)
-			break;
-	}
 	mtu3_writel(mtu->ippc_base, (u32)regs->offset, val);
 
 	return count;
@@ -359,8 +333,8 @@ static void mtu3_debugfs_create_prb_files(struct mtu3 *mtu)
 
 	for (i = 0; i < ARRAY_SIZE(mtu3_prb_regs); i++) {
 		regs = &mtu3_prb_regs[i];
-		debugfs_create_file(regs->name, 0644, dir_prb,
-				    mtu, &mtu3_probe_fops);
+		debugfs_create_file_aux(regs->name, 0644, dir_prb,
+				    mtu, regs, &mtu3_probe_fops);
 	}
 
 	mtu3_debugfs_regset(mtu, mtu->ippc_base, mtu3_prb_regs,
@@ -380,8 +354,8 @@ static void mtu3_debugfs_create_ep_dir(struct mtu3_ep *mep,
 	for (i = 0; i < ARRAY_SIZE(mtu3_ep_files); i++) {
 		files = &mtu3_ep_files[i];
 
-		debugfs_create_file(files->name, 0444, dir_ep,
-				    mep, &mtu3_ep_fops);
+		debugfs_create_file_aux(files->name, 0444, dir_ep,
+				    mep, files, &mtu3_ep_fops);
 	}
 }
 

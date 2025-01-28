@@ -1310,7 +1310,7 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_WO(new_device);
 
-static int __i2c_find_user_addr(struct device *dev, void *addrp)
+static int __i2c_find_user_addr(struct device *dev, const void *addrp)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
 	unsigned short addr = *(unsigned short *)addrp;
