@@ -147,6 +147,9 @@ static int pci1xxxx_gpio_set_config(struct gpio_chip *gpio, unsigned int offset,
 	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 		pci1xxx_assign_bit(priv->reg_base, OPENDRAIN_OFFSET(offset), (offset % 32), true);
 		break;
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		pci1xxx_assign_bit(priv->reg_base, OPENDRAIN_OFFSET(offset), (offset % 32), false);
+		break;
 	default:
 		ret = -ENOTSUPP;
 		break;

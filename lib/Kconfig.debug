@@ -2492,6 +2492,17 @@ config TEST_RHASHTABLE
 config TEST_IDA
 	tristate "Perform selftest on IDA functions"
 
+config TEST_MISC_MINOR
+	tristate "Basic misc minor Kunit test" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Kunit test for the misc minor.
+	  It tests misc minor functions for dynamic and misc dynamic minor.
+	  This include misc_xxx functions
+
+	  If unsure, say N.
+
 config TEST_PARMAN
 	tristate "Perform selftest on priority array manager"
 	depends on PARMAN
