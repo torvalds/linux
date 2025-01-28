@@ -1230,13 +1230,12 @@ out:
 	return -1;
 }
 
-static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
-			    const bool recheck_after_trace)
+static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 {
 	u32 filter_ret, action;
+	struct seccomp_data sd;
 	struct seccomp_filter *match = NULL;
 	int data;
-	struct seccomp_data sd_local;
 
 	/*
 	 * Make sure that any changes to mode from another thread have
@@ -1244,12 +1243,9 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 	 */
 	smp_rmb();
 
-	if (!sd) {
-		populate_seccomp_data(&sd_local);
-		sd = &sd_local;
-	}
+	populate_seccomp_data(&sd);
 
-	filter_ret = seccomp_run_filters(sd, &match);
+	filter_ret = seccomp_run_filters(&sd, &match);
 	data = filter_ret & SECCOMP_RET_DATA;
 	action = filter_ret & SECCOMP_RET_ACTION_FULL;
 
@@ -1307,13 +1303,13 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 		 * a reload of all registers. This does not goto skip since
 		 * a skip would have already been reported.
 		 */
-		if (__seccomp_filter(this_syscall, NULL, true))
+		if (__seccomp_filter(this_syscall, true))
 			return -1;
 
 		return 0;
 
 	case SECCOMP_RET_USER_NOTIF:
-		if (seccomp_do_user_notification(this_syscall, match, sd))
+		if (seccomp_do_user_notification(this_syscall, match, &sd))
 			goto skip;
 
 		return 0;
@@ -1355,8 +1351,7 @@ skip:
 	return -1;
 }
 #else
-static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
-			    const bool recheck_after_trace)
+static int __seccomp_filter(int this_syscall, const bool recheck_after_trace)
 {
 	BUG();
 
@@ -1380,7 +1375,7 @@ int __secure_computing(void)
 		__secure_computing_strict(this_syscall);  /* may call do_exit */
 		return 0;
 	case SECCOMP_MODE_FILTER:
-		return __seccomp_filter(this_syscall, NULL, false);
+		return __seccomp_filter(this_syscall, false);
 	/* Surviving SECCOMP_RET_KILL_* must be proactively impossible. */
 	case SECCOMP_MODE_DEAD:
 		WARN_ON_ONCE(1);
