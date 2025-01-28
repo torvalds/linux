@@ -285,6 +285,44 @@ unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 }
 
 /**
+ * cpumask_next_and_wrap - get the next cpu in *src1p & *src2p, starting from
+ *			   @n+1. If nothing found, wrap around and start from
+ *			   the beginning
+ * @n: the cpu prior to the place to search (i.e. search starts from @n+1)
+ * @src1p: the first cpumask pointer
+ * @src2p: the second cpumask pointer
+ *
+ * Return: next set bit, wrapped if needed, or >= nr_cpu_ids if @src1p & @src2p is empty.
+ */
+static __always_inline
+unsigned int cpumask_next_and_wrap(int n, const struct cpumask *src1p,
+			      const struct cpumask *src2p)
+{
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpumask_check(n);
+	return find_next_and_bit_wrap(cpumask_bits(src1p), cpumask_bits(src2p),
+		small_cpumask_bits, n + 1);
+}
+
+/**
+ * cpumask_next_wrap - get the next cpu in *src, starting from @n+1. If nothing
+ *		       found, wrap around and start from the beginning
+ * @n: the cpu prior to the place to search (i.e. search starts from @n+1)
+ * @src: cpumask pointer
+ *
+ * Return: next set bit, wrapped if needed, or >= nr_cpu_ids if @src is empty.
+ */
+static __always_inline
+unsigned int cpumask_next_wrap(int n, const struct cpumask *src)
+{
+	/* -1 is a legal arg here. */
+	if (n != -1)
+		cpumask_check(n);
+	return find_next_bit_wrap(cpumask_bits(src), small_cpumask_bits, n + 1);
+}
+
+/**
  * for_each_cpu - iterate over every cpu in a mask
  * @cpu: the (optionally unsigned) integer iterator
  * @mask: the cpumask pointer
