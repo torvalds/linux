@@ -29,12 +29,10 @@
 #include <linux/syscalls.h>
 #include <linux/sysctl.h>
 
+#include <asm/syscall.h>
+
 /* Not exposed in headers: strictly internal use only. */
 #define SECCOMP_MODE_DEAD	(SECCOMP_MODE_FILTER + 1)
-
-#ifdef CONFIG_HAVE_ARCH_SECCOMP_FILTER
-#include <asm/syscall.h>
-#endif
 
 #ifdef CONFIG_SECCOMP_FILTER
 #include <linux/file.h>
@@ -1073,6 +1071,14 @@ void secure_computing_strict(int this_syscall)
 		__secure_computing_strict(this_syscall);
 	else
 		BUG();
+}
+int __secure_computing(const struct seccomp_data *sd)
+{
+	int this_syscall = sd ? sd->nr :
+		syscall_get_nr(current, current_pt_regs());
+
+	secure_computing_strict(this_syscall);
+	return 0;
 }
 #else
 
