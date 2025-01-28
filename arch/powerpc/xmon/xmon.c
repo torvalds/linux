@@ -1271,11 +1271,7 @@ static int xmon_batch_next_cpu(void)
 {
 	unsigned long cpu;
 
-	while (!cpumask_empty(&xmon_batch_cpus)) {
-		cpu = cpumask_next_wrap(smp_processor_id(), &xmon_batch_cpus,
-					xmon_batch_start_cpu, true);
-		if (cpu >= nr_cpu_ids)
-			break;
+	for_each_cpu_wrap(cpu, &xmon_batch_cpus, xmon_batch_start_cpu) {
 		if (xmon_batch_start_cpu == -1)
 			xmon_batch_start_cpu = cpu;
 		if (xmon_switch_cpu(cpu))
