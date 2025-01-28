@@ -1309,9 +1309,7 @@ void io_rw_cache_free(const void *entry)
 {
 	struct io_async_rw *rw = (struct io_async_rw *) entry;
 
-#if !defined(CONFIG_KASAN)
 	if (rw->free_iovec)
 		io_rw_iovec_free(rw);
-#endif
 	kfree(rw);
 }

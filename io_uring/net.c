@@ -1813,10 +1813,8 @@ void io_netmsg_cache_free(const void *entry)
 {
 	struct io_async_msghdr *kmsg = (struct io_async_msghdr *) entry;
 
-#if !defined(CONFIG_KASAN)
 	if (kmsg->free_iov)
 		io_netmsg_iovec_free(kmsg);
-#endif
 	kfree(kmsg);
 }
 #endif
