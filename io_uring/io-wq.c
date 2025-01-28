@@ -604,7 +604,9 @@ static void io_worker_handle_work(struct io_wq_acct *acct,
 		do {
 			struct io_wq_work *next_hashed, *linked;
 			unsigned int work_flags = atomic_read(&work->flags);
-			unsigned int hash = __io_get_work_hash(work_flags);
+			unsigned int hash = __io_wq_is_hashed(work_flags)
+				? __io_get_work_hash(work_flags)
+				: -1U;
 
 			next_hashed = wq_next_work(work);
 
