@@ -1746,6 +1746,48 @@ static void test_stream_transport_uaf_server(const struct test_opts *opts)
 	control_expectln("DONE");
 }
 
+static void test_stream_connect_retry_client(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		fprintf(stderr, "Unexpected connect() #1 success\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("LISTEN");
+	control_expectln("LISTENING");
+
+	if (vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		perror("connect() #2");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_connect_retry_server(const struct test_opts *opts)
+{
+	int fd;
+
+	control_expectln("LISTEN");
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1895,6 +1937,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM transport release use-after-free",
 		.run_client = test_stream_transport_uaf_client,
 		.run_server = test_stream_transport_uaf_server,
+	},
+	{
+		.name = "SOCK_STREAM retry failed connect()",
+		.run_client = test_stream_connect_retry_client,
+		.run_server = test_stream_connect_retry_server,
 	},
 	{},
 };
