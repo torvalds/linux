@@ -169,7 +169,7 @@ void btrfs_folio_inc_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *
 {
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_meta_is_subpage(fs_info))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio->mapping);
@@ -183,7 +183,7 @@ void btrfs_folio_dec_eb_refs(const struct btrfs_fs_info *fs_info, struct folio *
 {
 	struct btrfs_subpage *subpage;
 
-	if (!btrfs_is_subpage(fs_info, folio->mapping))
+	if (!btrfs_meta_is_subpage(fs_info))
 		return;
 
 	ASSERT(folio_test_private(folio) && folio->mapping);
