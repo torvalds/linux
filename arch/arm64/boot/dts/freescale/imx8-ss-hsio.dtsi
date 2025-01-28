@@ -80,6 +80,25 @@ hsio_subsys: bus@5f000000 {
 		status = "disabled";
 	};
 
+	pcieb_ep: pcie-ep@5f010000 {
+		compatible = "fsl,imx8q-pcie-ep";
+		reg = <0x5f010000 0x00010000>,
+		      <0x80000000 0x10000000>;
+		reg-names = "dbi", "addr_space";
+		num-lanes = <1>;
+		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "dma";
+		clocks = <&pcieb_lpcg IMX_LPCG_CLK_6>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_4>,
+			 <&pcieb_lpcg IMX_LPCG_CLK_5>;
+		clock-names = "dbi", "mstr", "slv";
+		power-domains = <&pd IMX_SC_R_PCIE_B>;
+		fsl,max-link-speed = <3>;
+		num-ib-windows = <6>;
+		num-ob-windows = <6>;
+		status = "disabled";
+	};
+
 	pcieb_lpcg: clock-controller@5f060000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x5f060000 0x10000>;
