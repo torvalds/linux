@@ -2,6 +2,10 @@
 
 obj-y += core.o
 
+# jump tables are emitted using absolute references in non-PIC code
+# so they cannot be used in the early SEV startup code
+CFLAGS_core.o += -fno-jump-tables
+
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_core.o = -pg
 endif
