@@ -249,7 +249,7 @@ config MACH_LOONGSON64
 	def_bool 64BIT
 
 config FIX_EARLYCON_MEM
-	def_bool y
+	def_bool !ARCH_IOREMAP
 
 config PGTABLE_2LEVEL
 	bool
@@ -400,6 +400,7 @@ endchoice
 config BUILTIN_DTB
 	bool "Enable built-in dtb in kernel"
 	depends on OF
+	select GENERIC_BUILTIN_DTB
 	help
 	  Some existing systems do not provide a canonical device tree to
 	  the kernel at boot time. Let's provide a device tree table in the

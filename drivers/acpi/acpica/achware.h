@@ -103,8 +103,6 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info *gpe_event_info,
 
 acpi_status acpi_hw_enable_all_runtime_gpes(void);
 
-acpi_status acpi_hw_enable_all_wakeup_gpes(void);
-
 u8 acpi_hw_check_all_gpes(acpi_handle gpe_skip_device, u32 gpe_skip_number);
 
 acpi_status
