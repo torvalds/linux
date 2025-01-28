@@ -402,59 +402,59 @@ void hp_82341_return_to_local(gpib_board_t *board)
 	tms9914_return_to_local(board, &priv->tms9914_priv);
 }
 
-gpib_interface_t hp_82341_unaccel_interface = {
-name: "hp_82341_unaccel",
-attach : hp_82341_attach,
-detach : hp_82341_detach,
-read : hp_82341_read,
-write : hp_82341_write,
-command : hp_82341_command,
-request_system_control : hp_82341_request_system_control,
-take_control : hp_82341_take_control,
-go_to_standby : hp_82341_go_to_standby,
-interface_clear : hp_82341_interface_clear,
-remote_enable : hp_82341_remote_enable,
-enable_eos : hp_82341_enable_eos,
-disable_eos : hp_82341_disable_eos,
-parallel_poll : hp_82341_parallel_poll,
-parallel_poll_configure : hp_82341_parallel_poll_configure,
-parallel_poll_response : hp_82341_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : hp_82341_line_status,
-update_status : hp_82341_update_status,
-primary_address : hp_82341_primary_address,
-secondary_address : hp_82341_secondary_address,
-serial_poll_response : hp_82341_serial_poll_response,
-serial_poll_status : hp_82341_serial_poll_status,
-t1_delay : hp_82341_t1_delay,
-return_to_local : hp_82341_return_to_local,
+static gpib_interface_t hp_82341_unaccel_interface = {
+	.name = "hp_82341_unaccel",
+	.attach = hp_82341_attach,
+	.detach = hp_82341_detach,
+	.read = hp_82341_read,
+	.write = hp_82341_write,
+	.command = hp_82341_command,
+	.request_system_control = hp_82341_request_system_control,
+	.take_control = hp_82341_take_control,
+	.go_to_standby = hp_82341_go_to_standby,
+	.interface_clear = hp_82341_interface_clear,
+	.remote_enable = hp_82341_remote_enable,
+	.enable_eos = hp_82341_enable_eos,
+	.disable_eos = hp_82341_disable_eos,
+	.parallel_poll = hp_82341_parallel_poll,
+	.parallel_poll_configure = hp_82341_parallel_poll_configure,
+	.parallel_poll_response = hp_82341_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = hp_82341_line_status,
+	.update_status = hp_82341_update_status,
+	.primary_address = hp_82341_primary_address,
+	.secondary_address = hp_82341_secondary_address,
+	.serial_poll_response = hp_82341_serial_poll_response,
+	.serial_poll_status = hp_82341_serial_poll_status,
+	.t1_delay = hp_82341_t1_delay,
+	.return_to_local = hp_82341_return_to_local,
 };
 
-gpib_interface_t hp_82341_interface = {
-name: "hp_82341",
-attach : hp_82341_attach,
-detach : hp_82341_detach,
-read : hp_82341_accel_read,
-write : hp_82341_accel_write,
-command : hp_82341_command,
-request_system_control : hp_82341_request_system_control,
-take_control : hp_82341_take_control,
-go_to_standby : hp_82341_go_to_standby,
-interface_clear : hp_82341_interface_clear,
-remote_enable : hp_82341_remote_enable,
-enable_eos : hp_82341_enable_eos,
-disable_eos : hp_82341_disable_eos,
-parallel_poll : hp_82341_parallel_poll,
-parallel_poll_configure : hp_82341_parallel_poll_configure,
-parallel_poll_response : hp_82341_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : hp_82341_line_status,
-update_status : hp_82341_update_status,
-primary_address : hp_82341_primary_address,
-secondary_address : hp_82341_secondary_address,
-serial_poll_response : hp_82341_serial_poll_response,
-t1_delay : hp_82341_t1_delay,
-return_to_local : hp_82341_return_to_local,
+static gpib_interface_t hp_82341_interface = {
+	.name = "hp_82341",
+	.attach = hp_82341_attach,
+	.detach = hp_82341_detach,
+	.read = hp_82341_accel_read,
+	.write = hp_82341_accel_write,
+	.command = hp_82341_command,
+	.request_system_control = hp_82341_request_system_control,
+	.take_control = hp_82341_take_control,
+	.go_to_standby = hp_82341_go_to_standby,
+	.interface_clear = hp_82341_interface_clear,
+	.remote_enable = hp_82341_remote_enable,
+	.enable_eos = hp_82341_enable_eos,
+	.disable_eos = hp_82341_disable_eos,
+	.parallel_poll = hp_82341_parallel_poll,
+	.parallel_poll_configure = hp_82341_parallel_poll_configure,
+	.parallel_poll_response = hp_82341_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = hp_82341_line_status,
+	.update_status = hp_82341_update_status,
+	.primary_address = hp_82341_primary_address,
+	.secondary_address = hp_82341_secondary_address,
+	.serial_poll_response = hp_82341_serial_poll_response,
+	.t1_delay = hp_82341_t1_delay,
+	.return_to_local = hp_82341_return_to_local,
 };
 
 int hp_82341_allocate_private(gpib_board_t *board)
@@ -807,8 +807,21 @@ MODULE_DEVICE_TABLE(pnp, hp_82341_pnp_table);
 
 static int __init hp_82341_init_module(void)
 {
-	gpib_register_driver(&hp_82341_unaccel_interface, THIS_MODULE);
-	gpib_register_driver(&hp_82341_interface, THIS_MODULE);
+	int ret;
+
+	ret = gpib_register_driver(&hp_82341_unaccel_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&hp_82341_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		gpib_unregister_driver(&hp_82341_unaccel_interface);
+		return ret;
+	}
+
 	return 0;
 }
 

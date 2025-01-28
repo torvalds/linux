@@ -116,7 +116,7 @@ static inline void tnt_paged_writeb(struct tnt4882_priv *priv, unsigned int valu
 /* readb/writeb wrappers */
 static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.mmiobase + offset;
+	void __iomem *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	unsigned short retval;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
@@ -154,7 +154,7 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 
 static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, unsigned long offset)
 {
-	void *address = priv->nec7210_priv.mmiobase + offset;
+	void __iomem *address = priv->nec7210_priv.mmiobase + offset;
 	unsigned long flags;
 	spinlock_t *register_lock = &priv->nec7210_priv.register_page_lock;
 
@@ -890,285 +890,285 @@ void tnt4882_return_to_local(gpib_board_t *board)
 	nec7210_return_to_local(board, &priv->nec7210_priv);
 }
 
-gpib_interface_t ni_pci_interface = {
-name: "ni_pci",
-attach :  ni_pci_attach,
-detach :  ni_pci_detach,
-read :  tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_pci_interface = {
+	.name = "ni_pci",
+	.attach = ni_pci_attach,
+	.detach = ni_pci_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_pci_accel_interface = {
-name: "ni_pci_accel",
-attach : ni_pci_attach,
-detach : ni_pci_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_pci_accel_interface = {
+	.name = "ni_pci_accel",
+	.attach = ni_pci_attach,
+	.detach = ni_pci_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_isa_interface = {
-name: "ni_isa",
-attach : ni_tnt_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_isa_interface = {
+	.name = "ni_isa",
+	.attach = ni_tnt_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_nat4882_isa_interface = {
-name: "ni_nat4882_isa",
-attach : ni_nat4882_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_read,
-write : tnt4882_write,
-command : tnt4882_command_unaccel,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_nat4882_isa_interface = {
+	.name = "ni_nat4882_isa",
+	.attach = ni_nat4882_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_read,
+	.write = tnt4882_write,
+	.command = tnt4882_command_unaccel,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_nec_isa_interface = {
-name: "ni_nec_isa",
-attach : ni_nec_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_read,
-write : tnt4882_write,
-command : tnt4882_command_unaccel,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : NULL,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response : tnt4882_serial_poll_response,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_nec_isa_interface = {
+	.name = "ni_nec_isa",
+	.attach = ni_nec_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_read,
+	.write = tnt4882_write,
+	.command = tnt4882_command_unaccel,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = NULL,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_isa_accel_interface = {
-name: "ni_isa_accel",
-attach : ni_tnt_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_isa_accel_interface = {
+	.name = "ni_isa_accel",
+	.attach = ni_tnt_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_nat4882_isa_accel_interface = {
-name: "ni_nat4882_isa_accel",
-attach : ni_nat4882_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command_unaccel,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response2 : tnt4882_serial_poll_response2,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_nat4882_isa_accel_interface = {
+	.name = "ni_nat4882_isa_accel",
+	.attach = ni_nat4882_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command_unaccel,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response2 = tnt4882_serial_poll_response2,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_nec_isa_accel_interface = {
-name: "ni_nec_isa_accel",
-attach : ni_nec_isa_attach,
-detach : ni_isa_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command_unaccel,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : NULL,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response : tnt4882_serial_poll_response,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_nec_isa_accel_interface = {
+	.name = "ni_nec_isa_accel",
+	.attach = ni_nec_isa_attach,
+	.detach = ni_isa_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command_unaccel,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = NULL,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
 #ifdef GPIB_PCMCIA
-gpib_interface_t ni_pcmcia_interface = {
-name: "ni_pcmcia",
-attach : ni_pcmcia_attach,
-detach : ni_pcmcia_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response : tnt4882_serial_poll_response,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_pcmcia_interface = {
+	.name = "ni_pcmcia",
+	.attach = ni_pcmcia_attach,
+	.detach = ni_pcmcia_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 
-gpib_interface_t ni_pcmcia_accel_interface = {
-name: "ni_pcmcia_accel",
-attach : ni_pcmcia_attach,
-detach : ni_pcmcia_detach,
-read : tnt4882_accel_read,
-write : tnt4882_accel_write,
-command : tnt4882_command,
-take_control : tnt4882_take_control,
-go_to_standby : tnt4882_go_to_standby,
-request_system_control : tnt4882_request_system_control,
-interface_clear : tnt4882_interface_clear,
-remote_enable : tnt4882_remote_enable,
-enable_eos : tnt4882_enable_eos,
-disable_eos : tnt4882_disable_eos,
-parallel_poll : tnt4882_parallel_poll,
-parallel_poll_configure : tnt4882_parallel_poll_configure,
-parallel_poll_response : tnt4882_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : tnt4882_line_status,
-update_status : tnt4882_update_status,
-primary_address : tnt4882_primary_address,
-secondary_address : tnt4882_secondary_address,
-serial_poll_response : tnt4882_serial_poll_response,
-serial_poll_status : tnt4882_serial_poll_status,
-t1_delay : tnt4882_t1_delay,
-return_to_local : tnt4882_return_to_local,
+static gpib_interface_t ni_pcmcia_accel_interface = {
+	.name = "ni_pcmcia_accel",
+	.attach = ni_pcmcia_attach,
+	.detach = ni_pcmcia_detach,
+	.read = tnt4882_accel_read,
+	.write = tnt4882_accel_write,
+	.command = tnt4882_command,
+	.take_control = tnt4882_take_control,
+	.go_to_standby = tnt4882_go_to_standby,
+	.request_system_control = tnt4882_request_system_control,
+	.interface_clear = tnt4882_interface_clear,
+	.remote_enable = tnt4882_remote_enable,
+	.enable_eos = tnt4882_enable_eos,
+	.disable_eos = tnt4882_disable_eos,
+	.parallel_poll = tnt4882_parallel_poll,
+	.parallel_poll_configure = tnt4882_parallel_poll_configure,
+	.parallel_poll_response = tnt4882_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = tnt4882_line_status,
+	.update_status = tnt4882_update_status,
+	.primary_address = tnt4882_primary_address,
+	.secondary_address = tnt4882_secondary_address,
+	.serial_poll_response = tnt4882_serial_poll_response,
+	.serial_poll_status = tnt4882_serial_poll_status,
+	.t1_delay = tnt4882_t1_delay,
+	.return_to_local = tnt4882_return_to_local,
 };
 #endif
 
@@ -1516,29 +1516,109 @@ static int __init tnt4882_init_module(void)
 
 	result = pci_register_driver(&tnt4882_pci_driver);
 	if (result) {
-		pr_err("tnt4882: pci_driver_register failed!\n");
+		pr_err("tnt4882_gpib: pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	gpib_register_driver(&ni_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nat4882_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nat4882_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nec_isa_interface, THIS_MODULE);
-	gpib_register_driver(&ni_nec_isa_accel_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pci_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pci_accel_interface, THIS_MODULE);
+	result = gpib_register_driver(&ni_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_isa;
+	}
+
+	result = gpib_register_driver(&ni_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_nat4882_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nat4882_isa;
+	}
+
+	result = gpib_register_driver(&ni_nat4882_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nat4882_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_nec_isa_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nec_isa;
+	}
+
+	result = gpib_register_driver(&ni_nec_isa_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_nec_isa_accel;
+	}
+
+	result = gpib_register_driver(&ni_pci_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci;
+	}
+
+	result = gpib_register_driver(&ni_pci_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pci_accel;
+	}
+
 #ifdef GPIB_PCMCIA
-	gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
-	gpib_register_driver(&ni_pcmcia_accel_interface, THIS_MODULE);
-	if (init_ni_gpib_cs() < 0)
-		return -1;
+	result = gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pcmcia;
+	}
+
+	result = gpib_register_driver(&ni_pcmcia_accel_interface, THIS_MODULE);
+	if (result) {
+		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		goto err_pcmcia_accel;
+	}
+
+	result = init_ni_gpib_cs();
+	if (result) {
+		pr_err("tnt4882_gpib: pcmcia_register_driver failed: error = %d\n", result);
+		goto err_pcmcia_driver;
+	}
 #endif
 
 	mite_init();
 	mite_list_devices();
 
 	return 0;
+
+#ifdef GPIB_PCMCIA
+err_pcmcia_driver:
+	gpib_unregister_driver(&ni_pcmcia_accel_interface);
+err_pcmcia_accel:
+	gpib_unregister_driver(&ni_pcmcia_interface);
+err_pcmcia:
+#endif
+	gpib_unregister_driver(&ni_pci_accel_interface);
+err_pci_accel:
+	gpib_unregister_driver(&ni_pci_interface);
+err_pci:
+	gpib_unregister_driver(&ni_nec_isa_accel_interface);
+err_nec_isa_accel:
+	gpib_unregister_driver(&ni_nec_isa_interface);
+err_nec_isa:
+	gpib_unregister_driver(&ni_nat4882_isa_accel_interface);
+err_nat4882_isa_accel:
+	gpib_unregister_driver(&ni_nat4882_isa_interface);
+err_nat4882_isa:
+	gpib_unregister_driver(&ni_isa_accel_interface);
+err_isa_accel:
+	gpib_unregister_driver(&ni_isa_interface);
+err_isa:
+	pci_unregister_driver(&tnt4882_pci_driver);
+
+	return result;
 }
 
 static void __exit tnt4882_exit_module(void)
@@ -1816,8 +1896,8 @@ int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv->offset = atgpib_reg_offset;
 
 	DEBUG(0, "ioport1 window attributes: 0x%lx\n", curr_dev->resource[0]->flags);
-	if (request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
-			   "tnt4882") == 0) {
+	if (!request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
+			    "tnt4882")) {
 		pr_err("gpib: ioports starting at 0x%lx are already in use\n",
 		       (unsigned long)curr_dev->resource[0]->start);
 		return -EIO;
