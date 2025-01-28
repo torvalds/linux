@@ -290,17 +290,17 @@ static inline int eytzinger0_find_ge(void *base, size_t nr, size_t size,
 
 #define eytzinger0_find(base, nr, size, _cmp, search)			\
 ({									\
-	void *_base		= (base);				\
+	size_t _size		= (size);				\
+	void *_base1		= (void *)(base) - _size;		\
 	const void *_search	= (search);				\
 	size_t _nr		= (nr);					\
-	size_t _size		= (size);				\
-	size_t _i		= 0;					\
+	size_t _i		= 1;					\
 	int _res;							\
 									\
-	while (_i < _nr &&						\
-	       (_res = _cmp(_search, _base + _i * _size)))		\
-		_i = eytzinger0_child(_i, _res > 0);			\
-	_i;								\
+	while (_i <= _nr &&						\
+	       (_res = _cmp(_search, _base1 + _i * _size)))		\
+		_i = eytzinger1_child(_i, _res > 0);			\
+	_i - 1;								\
 })
 
 void eytzinger0_sort_r(void *, size_t, size_t,
