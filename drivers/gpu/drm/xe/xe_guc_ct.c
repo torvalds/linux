@@ -1724,7 +1724,7 @@ void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 			   snapshot->g2h_outstanding);
 
 		if (snapshot->ctb) {
-			drm_printf(p, "[CTB].length: 0x%lx\n", snapshot->ctb_size);
+			drm_printf(p, "[CTB].length: 0x%zx\n", snapshot->ctb_size);
 			xe_print_blob_ascii85(p, "[CTB].data", '\n',
 					      snapshot->ctb, 0, snapshot->ctb_size);
 		}
