@@ -163,6 +163,8 @@ struct hubp_funcs {
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			enum hubp_ind_block_size blk_size);
 
+	void (*hubp_reset)(struct hubp *hubp);
+
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
 			const struct rect *viewport,

@@ -1352,6 +1352,14 @@ static int gfx_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	}
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(12, 0, 0):
+	case IP_VERSION(12, 0, 1):
+		if (adev->gfx.me_fw_version  >= 2480 &&
+		    adev->gfx.pfp_fw_version >= 2530 &&
+		    adev->gfx.mec_fw_version >= 2680 &&
+		    adev->mes.fw_version[0] >= 100)
+			adev->gfx.enable_cleaner_shader = true;
+		break;
 	default:
 		adev->gfx.enable_cleaner_shader = false;
 		break;
