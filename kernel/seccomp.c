@@ -1072,10 +1072,9 @@ void secure_computing_strict(int this_syscall)
 	else
 		BUG();
 }
-int __secure_computing(const struct seccomp_data *sd)
+int __secure_computing(void)
 {
-	int this_syscall = sd ? sd->nr :
-		syscall_get_nr(current, current_pt_regs());
+	int this_syscall = syscall_get_nr(current, current_pt_regs());
 
 	secure_computing_strict(this_syscall);
 	return 0;
@@ -1365,7 +1364,7 @@ static int __seccomp_filter(int this_syscall, const struct seccomp_data *sd,
 }
 #endif
 
-int __secure_computing(const struct seccomp_data *sd)
+int __secure_computing(void)
 {
 	int mode = current->seccomp.mode;
 	int this_syscall;
@@ -1374,15 +1373,14 @@ int __secure_computing(const struct seccomp_data *sd)
 	    unlikely(current->ptrace & PT_SUSPEND_SECCOMP))
 		return 0;
 
-	this_syscall = sd ? sd->nr :
-		syscall_get_nr(current, current_pt_regs());
+	this_syscall = syscall_get_nr(current, current_pt_regs());
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
 		__secure_computing_strict(this_syscall);  /* may call do_exit */
 		return 0;
 	case SECCOMP_MODE_FILTER:
-		return __seccomp_filter(this_syscall, sd, false);
+		return __seccomp_filter(this_syscall, NULL, false);
 	/* Surviving SECCOMP_RET_KILL_* must be proactively impossible. */
 	case SECCOMP_MODE_DEAD:
 		WARN_ON_ONCE(1);
