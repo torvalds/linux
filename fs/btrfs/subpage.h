@@ -98,7 +98,8 @@ static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct folio *folio, enum btrfs_subpage_type type);
-void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio);
+void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio,
+			  enum btrfs_subpage_type type);
 
 /* Allocate additional data where page represents more than one sector */
 struct btrfs_subpage *btrfs_alloc_subpage(const struct btrfs_fs_info *fs_info,

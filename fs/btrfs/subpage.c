@@ -104,7 +104,11 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 		ASSERT(folio_test_locked(folio));
 
 	/* Either not subpage, or the folio already has private attached. */
-	if (!btrfs_is_subpage(fs_info, folio->mapping) || folio_test_private(folio))
+	if (folio_test_private(folio))
+		return 0;
+	if (type == BTRFS_SUBPAGE_METADATA && !btrfs_meta_is_subpage(fs_info))
+		return 0;
+	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio->mapping))
 		return 0;
 
 	subpage = btrfs_alloc_subpage(fs_info, type);
@@ -115,12 +119,17 @@ int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio)
+void btrfs_detach_subpage(const struct btrfs_fs_info *fs_info, struct folio *folio,
+			  enum btrfs_subpage_type type)
 {
 	struct btrfs_subpage *subpage;
 
 	/* Either not subpage, or the folio already has private attached. */
-	if (!btrfs_is_subpage(fs_info, folio->mapping) || !folio_test_private(folio))
+	if (!folio_test_private(folio))
+		return;
+	if (type == BTRFS_SUBPAGE_METADATA && !btrfs_meta_is_subpage(fs_info))
+		return;
+	if (type == BTRFS_SUBPAGE_DATA && !btrfs_is_subpage(fs_info, folio->mapping))
 		return;
 
 	subpage = folio_detach_private(folio);
