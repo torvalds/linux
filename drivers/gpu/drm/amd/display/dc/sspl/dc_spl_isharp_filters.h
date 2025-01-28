@@ -13,11 +13,12 @@ const uint32_t *spl_get_filter_isharp_1D_lut_1p0x(void);
 const uint32_t *spl_get_filter_isharp_1D_lut_1p5x(void);
 const uint32_t *spl_get_filter_isharp_1D_lut_2p0x(void);
 const uint32_t *spl_get_filter_isharp_1D_lut_3p0x(void);
-uint16_t *spl_get_filter_isharp_bs_4tap_in_6_64p(void);
-uint16_t *spl_get_filter_isharp_bs_4tap_64p(void);
-uint16_t *spl_get_filter_isharp_bs_3tap_64p(void);
+const uint16_t *spl_get_filter_isharp_bs_4tap_in_6_64p(void);
+const uint16_t *spl_get_filter_isharp_bs_4tap_64p(void);
+const uint16_t *spl_get_filter_isharp_bs_3tap_64p(void);
 const uint16_t *spl_get_filter_isharp_wide_6tap_64p(void);
-uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps);
+const uint16_t *spl_dscl_get_blur_scale_coeffs_64p(int taps);
+const uint16_t *spl_dscl_get_blur_scale_coeffs_64p_s1_10(int taps);
 
 #define NUM_SHARPNESS_ADJ_LEVELS 6
 struct scale_ratio_to_sharpness_level_adj {
@@ -40,7 +41,6 @@ enum system_setup {
 	NUM_SHARPNESS_SETUPS
 };
 
-void spl_init_blur_scale_coeffs(void);
 void spl_set_blur_scale_data(struct dscl_prog_data *dscl_prog_data,
 	const struct spl_scaler_data *data);
 
