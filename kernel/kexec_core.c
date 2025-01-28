@@ -925,7 +925,7 @@ static int kexec_limit_handler(const struct ctl_table *table, int write,
 	return proc_dointvec(&tmp, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table kexec_core_sysctls[] = {
+static const struct ctl_table kexec_core_sysctls[] = {
 	{
 		.procname	= "kexec_load_disabled",
 		.data		= &kexec_load_disabled,

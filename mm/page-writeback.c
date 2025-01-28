@@ -2298,7 +2298,7 @@ static int page_writeback_cpu_online(unsigned int cpu)
 /* this is needed for the proc_doulongvec_minmax of vm_dirty_bytes */
 static const unsigned long dirty_bytes_min = 2 * PAGE_SIZE;
 
-static struct ctl_table vm_page_writeback_sysctls[] = {
+static const struct ctl_table vm_page_writeback_sysctls[] = {
 	{
 		.procname   = "dirty_background_ratio",
 		.data       = &dirty_background_ratio,

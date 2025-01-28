@@ -21,7 +21,7 @@
 int page_table_allocate_pgste = 0;
 EXPORT_SYMBOL(page_table_allocate_pgste);
 
-static struct ctl_table page_table_sysctl[] = {
+static const struct ctl_table page_table_sysctl[] = {
 	{
 		.procname	= "allocate_pgste",
 		.data		= &page_table_allocate_pgste,

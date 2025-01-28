@@ -2159,7 +2159,7 @@ static int proc_dointvec_minmax_coredump(const struct ctl_table *table, int writ
 	return error;
 }
 
-static struct ctl_table fs_exec_sysctls[] = {
+static const struct ctl_table fs_exec_sysctls[] = {
 	{
 		.procname	= "suid_dumpable",
 		.data		= &suid_dumpable,

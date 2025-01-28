@@ -650,7 +650,7 @@ static struct ipmi_smi_watcher smi_watcher = {
 #ifdef CONFIG_PROC_FS
 #include <linux/sysctl.h>
 
-static struct ctl_table ipmi_table[] = {
+static const struct ctl_table ipmi_table[] = {
 	{ .procname	= "poweroff_powercycle",
 	  .data		= &poweroff_powercycle,
 	  .maxlen	= sizeof(poweroff_powercycle),

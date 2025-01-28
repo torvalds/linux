@@ -45,7 +45,7 @@ static int stack_erasing_sysctl(const struct ctl_table *table, int write,
 					str_enabled_disabled(state));
 	return ret;
 }
-static struct ctl_table stackleak_sysctls[] = {
+static const struct ctl_table stackleak_sysctls[] = {
 	{
 		.procname	= "stack_erasing",
 		.data		= NULL,

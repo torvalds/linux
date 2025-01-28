@@ -2450,7 +2450,7 @@ static int seccomp_actions_logged_handler(const struct ctl_table *ro_table, int 
 	return ret;
 }
 
-static struct ctl_table seccomp_sysctl_table[] = {
+static const struct ctl_table seccomp_sysctl_table[] = {
 	{
 		.procname	= "actions_avail",
 		.data		= (void *) &seccomp_actions_avail,

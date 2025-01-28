@@ -141,7 +141,7 @@ static int sysctl_record_panic_msg = 1;
  * sysctl option to allow the user to control whether kmsg data should be
  * reported to Hyper-V on panic.
  */
-static struct ctl_table hv_ctl_table[] = {
+static const struct ctl_table hv_ctl_table[] = {
 	{
 		.procname	= "hyperv_record_panic_msg",
 		.data		= &sysctl_record_panic_msg,

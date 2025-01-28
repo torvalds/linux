@@ -64,7 +64,7 @@ static int sysctl_delayacct(const struct ctl_table *table, int write, void *buff
 	return err;
 }
 
-static struct ctl_table kern_delayacct_table[] = {
+static const struct ctl_table kern_delayacct_table[] = {
 	{
 		.procname       = "task_delayacct",
 		.data           = NULL,

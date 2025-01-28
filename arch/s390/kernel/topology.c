@@ -667,7 +667,7 @@ static int polarization_ctl_handler(const struct ctl_table *ctl, int write,
 	return set_polarization(polarization);
 }
 
-static struct ctl_table topology_ctl_table[] = {
+static const struct ctl_table topology_ctl_table[] = {
 	{
 		.procname	= "topology",
 		.mode		= 0644,

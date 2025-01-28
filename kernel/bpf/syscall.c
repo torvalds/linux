@@ -6128,7 +6128,7 @@ static int bpf_unpriv_handler(const struct ctl_table *table, int write,
 	return ret;
 }
 
-static struct ctl_table bpf_syscall_table[] = {
+static const struct ctl_table bpf_syscall_table[] = {
 	{
 		.procname	= "unprivileged_bpf_disabled",
 		.data		= &sysctl_unprivileged_bpf_disabled,
