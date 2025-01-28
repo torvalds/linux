@@ -35,19 +35,28 @@
 
 static void get_exec_path(char *tpath, size_t size)
 {
-	char *path;
-	ssize_t len;
+    char *path;
+    ssize_t len;
 
-	snprintf(tpath, size, "/proc/%d/exe", (int) getpid());
-	tpath[size - 1] = 0;
+    snprintf(tpath, size, "/proc/%d/exe", (int)getpid());
+    tpath[size - 1] = 0;
 
-	path = strdup(tpath);
-	assert(path);
+    path = strdup(tpath);
+    assert(path);
 
-	len = readlink(path, tpath, size);
-	tpath[len] = 0;
+    len = readlink(path, tpath, size);
+    if (len < 0) { 
+        perror("readlink failed");
+        free(path);
+        return; 
+    }
+    if ((size_t)len < size) {
+        tpath[len] = 0;
+    } else {
+        tpath[size - 1] = 0; 
+    }
 
-	free(path);
+    free(path);
 }
 
 static void get_asm_insns(uint8_t *image, size_t len, int opcodes)
