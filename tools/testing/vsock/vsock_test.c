@@ -113,24 +113,9 @@ static void test_stream_bind_only_client(const struct test_opts *opts)
 
 static void test_stream_bind_only_server(const struct test_opts *opts)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = opts->peer_port,
-			.svm_cid = VMADDR_CID_ANY,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(VMADDR_CID_ANY, opts->peer_port, SOCK_STREAM);
 
 	/* Notify the client that the server is ready */
 	control_writeln("BIND");

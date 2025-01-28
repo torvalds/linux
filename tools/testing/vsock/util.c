@@ -96,14 +96,33 @@ void vsock_wait_remote_close(int fd)
 	close(epollfd);
 }
 
+/* Create socket <type>, bind to <cid, port> and return the file descriptor. */
+int vsock_bind(unsigned int cid, unsigned int port, int type)
+{
+	struct sockaddr_vm sa = {
+		.svm_family = AF_VSOCK,
+		.svm_cid = cid,
+		.svm_port = port,
+	};
+	int fd;
+
+	fd = socket(AF_VSOCK, type, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (bind(fd, (struct sockaddr *)&sa, sizeof(sa))) {
+		perror("bind");
+		exit(EXIT_FAILURE);
+	}
+
+	return fd;
+}
+
 /* Bind to <bind_port>, connect to <cid, port> and return the file descriptor. */
 int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_port, int type)
 {
-	struct sockaddr_vm sa_client = {
-		.svm_family = AF_VSOCK,
-		.svm_cid = VMADDR_CID_ANY,
-		.svm_port = bind_port,
-	};
 	struct sockaddr_vm sa_server = {
 		.svm_family = AF_VSOCK,
 		.svm_cid = cid,
@@ -112,16 +131,7 @@ int vsock_bind_connect(unsigned int cid, unsigned int port, unsigned int bind_po
 
 	int client_fd, ret;
 
-	client_fd = socket(AF_VSOCK, type, 0);
-	if (client_fd < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	if (bind(client_fd, (struct sockaddr *)&sa_client, sizeof(sa_client))) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	client_fd = vsock_bind(VMADDR_CID_ANY, bind_port, type);
 
 	timeout_begin(TIMEOUT);
 	do {
@@ -192,28 +202,9 @@ int vsock_seqpacket_connect(unsigned int cid, unsigned int port)
 /* Listen on <cid, port> and return the file descriptor. */
 static int vsock_listen(unsigned int cid, unsigned int port, int type)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = port,
-			.svm_cid = cid,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, type, 0);
-	if (fd < 0) {
-		perror("socket");
-		exit(EXIT_FAILURE);
-	}
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(cid, port, type);
 
 	if (listen(fd, 1) < 0) {
 		perror("listen");
