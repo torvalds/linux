@@ -521,6 +521,21 @@ static void *lkl_shmem_mmap(void *addr, unsigned long pg_off,
 }
 #endif // LKL_HOST_CONFIG_MMU
 
+static void *posix_malloc(unsigned long size)
+{
+	return malloc((size_t)size);
+}
+
+static void *posix_memcpy(void *dest, const void *src, unsigned long n)
+{
+	return memcpy(dest, src, (size_t)n);
+}
+
+static void *posix_memset(void *s, int c, unsigned long n)
+{
+	return memset(s, c, (size_t)n);
+}
+
 struct lkl_host_operations lkl_host_ops = {
 	.panic = panic,
 	.thread_create = thread_create,
@@ -547,7 +562,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.timer_set_oneshot = timer_set_oneshot,
 	.timer_free = timer_free,
 	.print = print,
-	.mem_alloc = malloc,
+	.mem_alloc = posix_malloc,
 	.mem_free = free,
 	.page_alloc = page_alloc,
 	.page_free = page_free,
@@ -557,8 +572,8 @@ struct lkl_host_operations lkl_host_ops = {
 	.gettid = _gettid,
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
-	.memcpy = memcpy,
-	.memset = memset,
+	.memcpy = posix_memcpy,
+	.memset = posix_memset,
 	.mmap = lkl_mmap,
 	.munmap = lkl_munmap,
 #ifdef LKL_HOST_CONFIG_MMU
