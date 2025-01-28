@@ -8,18 +8,14 @@
  */
 #define IO_ALLOC_CACHE_MAX	128
 
-#if defined(CONFIG_KASAN)
 static inline void io_alloc_cache_kasan(struct iovec **iov, int *nr)
 {
-	kfree(*iov);
-	*iov = NULL;
-	*nr = 0;
+	if (IS_ENABLED(CONFIG_KASAN)) {
+		kfree(*iov);
+		*iov = NULL;
+		*nr = 0;
+	}
 }
-#else
-static inline void io_alloc_cache_kasan(struct iovec **iov, int *nr)
-{
-}
-#endif
 
 static inline bool io_alloc_cache_put(struct io_alloc_cache *cache,
 				      void *entry)
