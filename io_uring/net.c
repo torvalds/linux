@@ -280,11 +280,12 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			ret = -EINVAL;
 			goto ua_end;
 		} else {
+			struct iovec __user *uiov = msg->msg_iov;
+
 			/* we only need the length for provided buffers */
-			if (!access_ok(&msg->msg_iov[0].iov_len, sizeof(__kernel_size_t)))
+			if (!access_ok(&uiov->iov_len, sizeof(uiov->iov_len)))
 				goto ua_end;
-			unsafe_get_user(iov->iov_len, &msg->msg_iov[0].iov_len,
-					ua_end);
+			unsafe_get_user(iov->iov_len, &uiov->iov_len, ua_end);
 			sr->len = iov->iov_len;
 		}
 		ret = 0;
