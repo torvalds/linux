@@ -903,9 +903,8 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wq *wq)
 	} while (work);
 }
 
-static void io_wq_insert_work(struct io_wq *wq, struct io_wq_work *work)
+static void io_wq_insert_work(struct io_wq *wq, struct io_wq_acct *acct, struct io_wq_work *work)
 {
-	struct io_wq_acct *acct = io_work_get_acct(wq, work);
 	unsigned int hash;
 	struct io_wq_work *tail;
 
@@ -951,7 +950,7 @@ void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work)
 	}
 
 	raw_spin_lock(&acct->lock);
-	io_wq_insert_work(wq, work);
+	io_wq_insert_work(wq, acct, work);
 	clear_bit(IO_ACCT_STALLED_BIT, &acct->flags);
 	raw_spin_unlock(&acct->lock);
 
@@ -1021,10 +1020,10 @@ static bool io_wq_worker_cancel(struct io_worker *worker, void *data)
 }
 
 static inline void io_wq_remove_pending(struct io_wq *wq,
+					struct io_wq_acct *acct,
 					 struct io_wq_work *work,
 					 struct io_wq_work_node *prev)
 {
-	struct io_wq_acct *acct = io_work_get_acct(wq, work);
 	unsigned int hash = io_get_work_hash(work);
 	struct io_wq_work *prev_work = NULL;
 
@@ -1051,7 +1050,7 @@ static bool io_acct_cancel_pending_work(struct io_wq *wq,
 		work = container_of(node, struct io_wq_work, list);
 		if (!match->fn(work, match->data))
 			continue;
-		io_wq_remove_pending(wq, work, prev);
+		io_wq_remove_pending(wq, acct, work, prev);
 		raw_spin_unlock(&acct->lock);
 		io_run_cancel(work, wq);
 		match->nr_pending++;
