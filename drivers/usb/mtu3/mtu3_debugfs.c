@@ -7,6 +7,7 @@
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
+#include <linux/string_choices.h>
 #include <linux/uaccess.h>
 
 #include "mtu3.h"
@@ -479,7 +480,7 @@ static int ssusb_vbus_show(struct seq_file *sf, void *unused)
 	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
 
 	seq_printf(sf, "vbus state: %s\n(echo on/off)\n",
-		   regulator_is_enabled(otg_sx->vbus) ? "on" : "off");
+		   str_on_off(regulator_is_enabled(otg_sx->vbus)));
 
 	return 0;
 }

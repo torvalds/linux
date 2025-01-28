@@ -107,7 +107,7 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 
 	/* 1. setup usbip_header */
 	setup_ret_submit_pdu(&pdu_header, urb_p);
-	usbip_dbg_stub_tx("setup txdata seqnum: %d\n",
+	usbip_dbg_stub_tx("setup txdata seqnum: %u\n",
 			  pdu_header.base.seqnum);
 	usbip_header_correct_endian(&pdu_header, 1);
 
