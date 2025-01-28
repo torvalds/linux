@@ -30,7 +30,6 @@ enum {
 	IO_WORKER_F_UP		= 0,	/* up and active */
 	IO_WORKER_F_RUNNING	= 1,	/* account as running */
 	IO_WORKER_F_FREE	= 2,	/* worker on free list */
-	IO_WORKER_F_BOUND	= 3,	/* is doing bounded work */
 };
 
 enum {
@@ -46,12 +45,12 @@ enum {
  */
 struct io_worker {
 	refcount_t ref;
-	int create_index;
 	unsigned long flags;
 	struct hlist_nulls_node nulls_node;
 	struct list_head all_list;
 	struct task_struct *task;
 	struct io_wq *wq;
+	struct io_wq_acct *acct;
 
 	struct io_wq_work *cur_work;
 	raw_spinlock_t lock;
@@ -79,7 +78,6 @@ struct io_worker {
 struct io_wq_acct {
 	unsigned nr_workers;
 	unsigned max_workers;
-	int index;
 	atomic_t nr_running;
 	raw_spinlock_t lock;
 	struct io_wq_work_list work_list;
@@ -135,7 +133,7 @@ struct io_cb_cancel_data {
 	bool cancel_all;
 };
 
-static bool create_io_worker(struct io_wq *wq, int index);
+static bool create_io_worker(struct io_wq *wq, struct io_wq_acct *acct);
 static void io_wq_dec_running(struct io_worker *worker);
 static bool io_acct_cancel_pending_work(struct io_wq *wq,
 					struct io_wq_acct *acct,
@@ -167,7 +165,7 @@ static inline struct io_wq_acct *io_work_get_acct(struct io_wq *wq,
 
 static inline struct io_wq_acct *io_wq_get_acct(struct io_worker *worker)
 {
-	return io_get_acct(worker->wq, test_bit(IO_WORKER_F_BOUND, &worker->flags));
+	return worker->acct;
 }
 
 static void io_worker_ref_put(struct io_wq *wq)
@@ -323,7 +321,7 @@ static bool io_wq_create_worker(struct io_wq *wq, struct io_wq_acct *acct)
 	raw_spin_unlock(&wq->lock);
 	atomic_inc(&acct->nr_running);
 	atomic_inc(&wq->worker_refs);
-	return create_io_worker(wq, acct->index);
+	return create_io_worker(wq, acct);
 }
 
 static void io_wq_inc_running(struct io_worker *worker)
@@ -343,7 +341,7 @@ static void create_worker_cb(struct callback_head *cb)
 
 	worker = container_of(cb, struct io_worker, create_work);
 	wq = worker->wq;
-	acct = &wq->acct[worker->create_index];
+	acct = worker->acct;
 	raw_spin_lock(&wq->lock);
 
 	if (acct->nr_workers < acct->max_workers) {
@@ -352,7 +350,7 @@ static void create_worker_cb(struct callback_head *cb)
 	}
 	raw_spin_unlock(&wq->lock);
 	if (do_create) {
-		create_io_worker(wq, worker->create_index);
+		create_io_worker(wq, acct);
 	} else {
 		atomic_dec(&acct->nr_running);
 		io_worker_ref_put(wq);
@@ -384,7 +382,6 @@ static bool io_queue_worker_create(struct io_worker *worker,
 
 	atomic_inc(&wq->worker_refs);
 	init_task_work(&worker->create_work, func);
-	worker->create_index = acct->index;
 	if (!task_work_add(wq->task, &worker->create_work, TWA_SIGNAL)) {
 		/*
 		 * EXIT may have been set after checking it above, check after
@@ -821,9 +818,8 @@ static void io_workqueue_create(struct work_struct *work)
 		kfree(worker);
 }
 
-static bool create_io_worker(struct io_wq *wq, int index)
+static bool create_io_worker(struct io_wq *wq, struct io_wq_acct *acct)
 {
-	struct io_wq_acct *acct = &wq->acct[index];
 	struct io_worker *worker;
 	struct task_struct *tsk;
 
@@ -842,11 +838,9 @@ fail:
 
 	refcount_set(&worker->ref, 1);
 	worker->wq = wq;
+	worker->acct = acct;
 	raw_spin_lock_init(&worker->lock);
 	init_completion(&worker->ref_done);
-
-	if (index == IO_WQ_ACCT_BOUND)
-		set_bit(IO_WORKER_F_BOUND, &worker->flags);
 
 	tsk = create_io_thread(io_wq_worker, worker, NUMA_NO_NODE);
 	if (!IS_ERR(tsk)) {
@@ -1176,7 +1170,6 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	for (i = 0; i < IO_WQ_ACCT_NR; i++) {
 		struct io_wq_acct *acct = &wq->acct[i];
 
-		acct->index = i;
 		atomic_set(&acct->nr_running, 0);
 		INIT_WQ_LIST(&acct->work_list);
 		raw_spin_lock_init(&acct->lock);
