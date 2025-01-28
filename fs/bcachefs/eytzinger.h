@@ -253,27 +253,27 @@ static inline unsigned inorder_to_eytzinger0(unsigned i, unsigned size)
 static inline int eytzinger0_find_le(void *base, size_t nr, size_t size,
 				     cmp_func_t cmp, const void *search)
 {
-	unsigned i, n = 0;
+	void *base1 = base - size;
+	unsigned i, n = 1;
 
 	if (!nr)
 		return -1;
 
 	do {
 		i = n;
-		n = eytzinger0_child(i, cmp(base + i * size, search) <= 0);
-	} while (n < nr);
+		n = eytzinger1_child(i, cmp(base1 + i * size, search) <= 0);
+	} while (n <= nr);
 
-	if (n & 1) {
+	if (!(n & 1)) {
 		/*
 		 * @i was greater than @search, return previous node:
 		 *
 		 * if @i was leftmost/smallest element,
-		 * eytzinger0_prev(eytzinger0_first())) returns -1, as expected
+		 * eytzinger1_prev(eytzinger1_first())) returns 0, as expected
 		 */
-		return eytzinger0_prev(i, nr);
-	} else {
-		return i;
+		i = eytzinger1_prev(i, nr);
 	}
+	return i - 1;
 }
 
 static inline int eytzinger0_find_gt(void *base, size_t nr, size_t size,
