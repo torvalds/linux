@@ -30,6 +30,7 @@
 #include "xe_pm.h"
 #include "xe_sriov.h"
 #include "xe_step.h"
+#include "xe_survivability_mode.h"
 #include "xe_tile.h"
 
 enum toggle_d3cold {
@@ -761,6 +762,9 @@ static void xe_pci_remove(struct pci_dev *pdev)
 	if (IS_SRIOV_PF(xe))
 		xe_pci_sriov_configure(pdev, 0);
 
+	if (xe_survivability_mode_enabled(xe))
+		return xe_survivability_mode_remove(xe);
+
 	xe_device_remove(xe);
 	xe_pm_runtime_fini(xe);
 	pci_set_drvdata(pdev, NULL);
@@ -833,8 +837,19 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	err = xe_device_probe_early(xe);
-	if (err)
+
+	/*
+	 * In Boot Survivability mode, no drm card is exposed
+	 * and driver is loaded with bare minimum to allow
+	 * for firmware to be flashed through mei. Return
+	 * success if survivability mode is enabled.
+	 */
+	if (err) {
+		if (xe_survivability_mode_enabled(xe))
+			return 0;
+
 		return err;
+	}
 
 	err = xe_info_init(xe, desc->graphics, desc->media);
 	if (err)
@@ -921,9 +936,13 @@ static void d3cold_toggle(struct pci_dev *pdev, enum toggle_d3cold toggle)
 static int xe_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct xe_device *xe = pdev_to_xe_device(pdev);
 	int err;
 
-	err = xe_pm_suspend(pdev_to_xe_device(pdev));
+	if (xe_survivability_mode_enabled(xe))
+		return -EBUSY;
+
+	err = xe_pm_suspend(xe);
 	if (err)
 		return err;
 

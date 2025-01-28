@@ -145,6 +145,19 @@ static void enable_survivability_mode(struct pci_dev *pdev)
 }
 
 /**
+ * xe_survivability_mode_enabled - check if survivability mode is enabled
+ * @xe: xe device instance
+ *
+ * Returns true if in survivability mode, false otherwise
+ */
+bool xe_survivability_mode_enabled(struct xe_device *xe)
+{
+	struct xe_survivability *survivability = &xe->survivability;
+
+	return survivability->mode;
+}
+
+/**
  * xe_survivability_mode_required - checks if survivability mode is required
  * @xe: xe device instance
  *
@@ -157,6 +170,9 @@ bool xe_survivability_mode_required(struct xe_device *xe)
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	u32 data;
+
+	if (!IS_DGFX(xe) || xe->info.platform < XE_BATTLEMAGE)
+		return false;
 
 	data = xe_mmio_read32(mmio, PCODE_SCRATCH(0));
 	survivability->boot_status = REG_FIELD_GET(BOOT_STATUS, data);
