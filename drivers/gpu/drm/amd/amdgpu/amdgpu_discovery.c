@@ -612,7 +612,7 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 	struct binary_header *bhdr;
 	struct ip_discovery_header *ihdr;
 	struct die_header *dhdr;
-	struct ip_v4 *ip;
+	struct ip *ip;
 	uint16_t die_offset, ip_offset, num_dies, num_ips;
 	uint16_t hw_id;
 	uint8_t inst;
@@ -631,13 +631,14 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 		ip_offset = die_offset + sizeof(*dhdr);
 
 		for (j = 0; j < num_ips; j++) {
-			ip = (struct ip_v4 *)(adev->mman.discovery_bin + ip_offset);
-			inst = ip->instance_number;
+			ip = (struct ip *)(adev->mman.discovery_bin +
+					   ip_offset);
+			inst = ip->number_instance;
 			hw_id = le16_to_cpu(ip->hw_id);
 			if (amdgpu_discovery_validate_ip(adev, inst, hw_id))
 				goto next_ip;
 
-			if (le16_to_cpu(ip->variant) == 1) {
+			if (ip->harvest == 1) {
 				switch (hw_id) {
 				case VCN_HWID:
 					(*vcn_harvest_count)++;
@@ -663,10 +664,8 @@ static void amdgpu_discovery_read_harvest_bit_per_ip(struct amdgpu_device *adev,
 				}
 			}
 next_ip:
-			if (ihdr->base_addr_64_bit)
-				ip_offset += struct_size(ip, base_address_64, ip->num_base_address);
-			else
-				ip_offset += struct_size(ip, base_address, ip->num_base_address);
+			ip_offset += struct_size(ip, base_address,
+						 ip->num_base_address);
 		}
 	}
 }
@@ -1474,18 +1473,24 @@ next_ip:
 
 static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 {
+	struct ip_discovery_header *ihdr;
+	struct binary_header *bhdr;
 	int vcn_harvest_count = 0;
 	int umc_harvest_count = 0;
+	uint16_t offset, ihdr_ver;
 
+	bhdr = (struct binary_header *)adev->mman.discovery_bin;
+	offset = le16_to_cpu(bhdr->table_list[IP_DISCOVERY].offset);
+	ihdr = (struct ip_discovery_header *)(adev->mman.discovery_bin +
+					      offset);
+	ihdr_ver = le16_to_cpu(ihdr->version);
 	/*
 	 * Harvest table does not fit Navi1x and legacy GPUs,
 	 * so read harvest bit per IP data structure to set
 	 * harvest configuration.
 	 */
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 2, 0) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 3) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 5, 0)) {
+	    ihdr_ver <= 2) {
 		if ((adev->pdev->device == 0x731E &&
 			(adev->pdev->revision == 0xC6 ||
 			 adev->pdev->revision == 0xC7)) ||
