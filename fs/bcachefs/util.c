@@ -719,12 +719,6 @@ void eytzinger1_test(void)
 		if (!(size % 4096))
 			pr_info("tree size %u\n", size);
 
-		BUG_ON(eytzinger1_prev(0, size) != eytzinger1_last(size));
-		BUG_ON(eytzinger1_next(0, size) != eytzinger1_first(size));
-
-		BUG_ON(eytzinger1_prev(eytzinger1_first(size), size)	!= 0);
-		BUG_ON(eytzinger1_next(eytzinger1_last(size), size)	!= 0);
-
 		inorder = 1;
 		eytzinger1_for_each(eytz, size) {
 			BUG_ON(__inorder_to_eytzinger1(inorder, size, extra) != eytz);
@@ -752,12 +746,6 @@ void eytzinger0_test(void)
 
 		if (!(size % 4096))
 			pr_info("tree size %u\n", size);
-
-		BUG_ON(eytzinger0_prev(-1, size) != eytzinger0_last(size));
-		BUG_ON(eytzinger0_next(-1, size) != eytzinger0_first(size));
-
-		BUG_ON(eytzinger0_prev(eytzinger0_first(size), size)	!= -1);
-		BUG_ON(eytzinger0_next(eytzinger0_last(size), size)	!= -1);
 
 		inorder = 0;
 		eytzinger0_for_each(eytz, size) {

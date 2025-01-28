@@ -57,24 +57,14 @@ static inline unsigned eytzinger1_last(unsigned size)
 	return rounddown_pow_of_two(size + 1) - 1;
 }
 
-/*
- * eytzinger1_next() and eytzinger1_prev() have the nice properties that
- *
- * eytzinger1_next(0) == eytzinger1_first())
- * eytzinger1_prev(0) == eytzinger1_last())
- *
- * eytzinger1_prev(eytzinger1_first()) == 0
- * eytzinger1_next(eytzinger1_last()) == 0
- */
-
 static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 {
-	EYTZINGER_BUG_ON(i > size);
+	EYTZINGER_BUG_ON(i == 0 || i > size);
 
 	if (eytzinger1_right_child(i) <= size) {
 		i = eytzinger1_right_child(i);
 
-		i <<= __fls(size + 1) - __fls(i);
+		i <<= __fls(size) - __fls(i);
 		i >>= i > size;
 	} else {
 		i >>= ffz(i) + 1;
@@ -85,12 +75,12 @@ static inline unsigned eytzinger1_next(unsigned i, unsigned size)
 
 static inline unsigned eytzinger1_prev(unsigned i, unsigned size)
 {
-	EYTZINGER_BUG_ON(i > size);
+	EYTZINGER_BUG_ON(i == 0 || i > size);
 
 	if (eytzinger1_left_child(i) <= size) {
 		i = eytzinger1_left_child(i) + 1;
 
-		i <<= __fls(size + 1) - __fls(i);
+		i <<= __fls(size) - __fls(i);
 		i -= 1;
 		i >>= i > size;
 	} else {
