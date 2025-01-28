@@ -128,12 +128,6 @@ struct nfsd_net {
 	seqlock_t writeverf_lock;
 	unsigned char writeverf[8];
 
-	/*
-	 * Max number of connections this nfsd container will allow. Defaults
-	 * to '0' which is means that it bases this on the number of threads.
-	 */
-	unsigned int max_connections;
-
 	u32 clientid_base;
 	u32 clientid_counter;
 	u32 clverifier_counter;

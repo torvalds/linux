@@ -381,6 +381,8 @@ __fh_verify(struct svc_rqst *rqstp,
 	if (error)
 		goto out;
 
+	svc_xprt_set_valid(rqstp->rq_xprt);
+
 	/* Finally, check access permissions. */
 	error = nfsd_permission(cred, exp, dentry, access);
 out:

@@ -70,16 +70,6 @@ static __be32			nfsd_init_request(struct svc_rqst *,
  */
 DEFINE_MUTEX(nfsd_mutex);
 
-/*
- * nfsd_drc_lock protects nfsd_drc_max_pages and nfsd_drc_pages_used.
- * nfsd_drc_max_pages limits the total amount of memory available for
- * version 4.1 DRC caches.
- * nfsd_drc_pages_used tracks the current version 4.1 DRC memory usage.
- */
-DEFINE_SPINLOCK(nfsd_drc_lock);
-unsigned long	nfsd_drc_max_mem;
-unsigned long	nfsd_drc_mem_used;
-
 #if IS_ENABLED(CONFIG_NFS_LOCALIO)
 static const struct svc_version *localio_versions[] = {
 	[1] = &localio_version1,
@@ -575,27 +565,6 @@ void nfsd_reset_versions(struct nfsd_net *nn)
 		}
 }
 
-/*
- * Each session guarantees a negotiated per slot memory cache for replies
- * which in turn consumes memory beyond the v2/v3/v4.0 server. A dedicated
- * NFSv4.1 server might want to use more memory for a DRC than a machine
- * with mutiple services.
- *
- * Impose a hard limit on the number of pages for the DRC which varies
- * according to the machines free pages. This is of course only a default.
- *
- * For now this is a #defined shift which could be under admin control
- * in the future.
- */
-static void set_max_drc(void)
-{
-	#define NFSD_DRC_SIZE_SHIFT	7
-	nfsd_drc_max_mem = (nr_free_buffer_pages()
-					>> NFSD_DRC_SIZE_SHIFT) * PAGE_SIZE;
-	nfsd_drc_mem_used = 0;
-	dprintk("%s nfsd_drc_max_mem %lu \n", __func__, nfsd_drc_max_mem);
-}
-
 static int nfsd_get_default_max_blksize(void)
 {
 	struct sysinfo i;
@@ -668,7 +637,6 @@ int nfsd_create_serv(struct net *net)
 	if (serv == NULL)
 		return -ENOMEM;
 
-	serv->sv_maxconn = nn->max_connections;
 	error = svc_bind(serv, net);
 	if (error < 0) {
 		svc_destroy(&serv);
@@ -678,7 +646,6 @@ int nfsd_create_serv(struct net *net)
 	nn->nfsd_serv = serv;
 	spin_unlock(&nfsd_notifier_lock);
 
-	set_max_drc();
 	/* check if the notifier is already set */
 	if (atomic_inc_return(&nfsd_notifier_refcount) == 1) {
 		register_inetaddr_notifier(&nfsd_inetaddr_notifier);
@@ -954,11 +921,7 @@ nfsd(void *vrqstp)
 	 * The main request loop
 	 */
 	while (!svc_thread_should_stop(rqstp)) {
-		/* Update sv_maxconn if it has changed */
-		rqstp->rq_server->sv_maxconn = nn->max_connections;
-
 		svc_recv(rqstp);
-
 		nfsd_file_net_dispose(nn);
 	}
 
