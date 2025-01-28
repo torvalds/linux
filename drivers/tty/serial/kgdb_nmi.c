@@ -27,18 +27,6 @@
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
 
-static int kgdb_nmi_knock = 1;
-module_param_named(knock, kgdb_nmi_knock, int, 0600);
-MODULE_PARM_DESC(knock, "if set to 1 (default), the special '$3#33' command " \
-			"must be used to enter the debugger; when set to 0, " \
-			"hitting return key is enough to enter the debugger; " \
-			"when set to -1, the debugger is entered immediately " \
-			"upon NMI");
-
-static char *kgdb_nmi_magic = "$3#33";
-module_param_named(magic, kgdb_nmi_magic, charp, 0600);
-MODULE_PARM_DESC(magic, "magic sequence to enter NMI debugger (default $3#33)");
-
 static atomic_t kgdb_nmi_num_readers = ATOMIC_INIT(0);
 
 static int kgdb_nmi_console_setup(struct console *co, char *options)
@@ -94,95 +82,6 @@ struct kgdb_nmi_tty_priv {
 };
 
 static struct tty_port *kgdb_nmi_port;
-
-static void kgdb_tty_recv(int ch)
-{
-	struct kgdb_nmi_tty_priv *priv;
-	char c = ch;
-
-	if (!kgdb_nmi_port || ch < 0)
-		return;
-	/*
-	 * Can't use port->tty->driver_data as tty might be not there. Timer
-	 * will check for tty and will get the ref, but here we don't have to
-	 * do that, and actually, we can't: we're in NMI context, no locks are
-	 * possible.
-	 */
-	priv = container_of(kgdb_nmi_port, struct kgdb_nmi_tty_priv, port);
-	kfifo_in(&priv->fifo, &c, 1);
-}
-
-static int kgdb_nmi_poll_one_knock(void)
-{
-	static int n;
-	int c;
-	const char *magic = kgdb_nmi_magic;
-	size_t m = strlen(magic);
-	bool printch = false;
-
-	c = dbg_io_ops->read_char();
-	if (c == NO_POLL_CHAR)
-		return c;
-
-	if (!kgdb_nmi_knock && (c == '\r' || c == '\n')) {
-		return 1;
-	} else if (c == magic[n]) {
-		n = (n + 1) % m;
-		if (!n)
-			return 1;
-		printch = true;
-	} else {
-		n = 0;
-	}
-
-	if (atomic_read(&kgdb_nmi_num_readers)) {
-		kgdb_tty_recv(c);
-		return 0;
-	}
-
-	if (printch) {
-		kdb_printf("%c", c);
-		return 0;
-	}
-
-	kdb_printf("\r%s %s to enter the debugger> %*s",
-		   kgdb_nmi_knock ? "Type" : "Hit",
-		   kgdb_nmi_knock ? magic  : "<return>", (int)m, "");
-	while (m--)
-		kdb_printf("\b");
-	return 0;
-}
-
-/**
- * kgdb_nmi_poll_knock - Check if it is time to enter the debugger
- *
- * "Serial ports are often noisy, especially when muxed over another port (we
- * often use serial over the headset connector). Noise on the async command
- * line just causes characters that are ignored, on a command line that blocked
- * execution noise would be catastrophic." -- Colin Cross
- *
- * So, this function implements KGDB/KDB knocking on the serial line: we won't
- * enter the debugger until we receive a known magic phrase (which is actually
- * "$3#33", known as "escape to KDB" command. There is also a relaxed variant
- * of knocking, i.e. just pressing the return key is enough to enter the
- * debugger. And if knocking is disabled, the function always returns 1.
- */
-bool kgdb_nmi_poll_knock(void)
-{
-	if (kgdb_nmi_knock < 0)
-		return true;
-
-	while (1) {
-		int ret;
-
-		ret = kgdb_nmi_poll_one_knock();
-		if (ret == NO_POLL_CHAR)
-			return false;
-		else if (ret == 1)
-			break;
-	}
-	return true;
-}
 
 /*
  * The tasklet is cheap, it does not cause wakeups when reschedules itself,
