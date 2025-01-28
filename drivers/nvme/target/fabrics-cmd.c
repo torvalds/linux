@@ -287,7 +287,7 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	args.subsysnqn = d->subsysnqn;
 	args.hostnqn = d->hostnqn;
 	args.hostid = &d->hostid;
-	args.kato = c->kato;
+	args.kato = le32_to_cpu(c->kato);
 
 	ctrl = nvmet_alloc_ctrl(&args);
 	if (!ctrl)
