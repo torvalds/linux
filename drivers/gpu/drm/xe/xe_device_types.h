@@ -22,6 +22,7 @@
 #include "xe_pt_types.h"
 #include "xe_sriov_types.h"
 #include "xe_step_types.h"
+#include "xe_survivability_mode_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
 #define TEST_VM_OPS_ERROR
@@ -330,6 +331,9 @@ struct xe_device {
 		/** @info.skip_pcode: skip access to PCODE uC */
 		u8 skip_pcode:1;
 	} info;
+
+	/** @survivability: survivability information for device */
+	struct xe_survivability survivability;
 
 	/** @irq: device interrupt state */
 	struct {
