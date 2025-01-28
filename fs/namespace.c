@@ -3002,24 +3002,22 @@ static struct file *open_detached_copy(struct path *path, bool recursive)
 	return file;
 }
 
-SYSCALL_DEFINE3(open_tree, int, dfd, const char __user *, filename, unsigned, flags)
+static struct file *vfs_open_tree(int dfd, const char __user *filename, unsigned int flags)
 {
-	struct file *file;
-	struct path path;
+	int ret;
+	struct path path __free(path_put) = {};
 	int lookup_flags = LOOKUP_AUTOMOUNT | LOOKUP_FOLLOW;
 	bool detached = flags & OPEN_TREE_CLONE;
-	int error;
-	int fd;
 
 	BUILD_BUG_ON(OPEN_TREE_CLOEXEC != O_CLOEXEC);
 
 	if (flags & ~(AT_EMPTY_PATH | AT_NO_AUTOMOUNT | AT_RECURSIVE |
 		      AT_SYMLINK_NOFOLLOW | OPEN_TREE_CLONE |
 		      OPEN_TREE_CLOEXEC))
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	if ((flags & (AT_RECURSIVE | OPEN_TREE_CLONE)) == AT_RECURSIVE)
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 
 	if (flags & AT_NO_AUTOMOUNT)
 		lookup_flags &= ~LOOKUP_AUTOMOUNT;
@@ -3029,27 +3027,32 @@ SYSCALL_DEFINE3(open_tree, int, dfd, const char __user *, filename, unsigned, fl
 		lookup_flags |= LOOKUP_EMPTY;
 
 	if (detached && !may_mount())
-		return -EPERM;
+		return ERR_PTR(-EPERM);
+
+	ret = user_path_at(dfd, filename, lookup_flags, &path);
+	if (unlikely(ret))
+		return ERR_PTR(ret);
+
+	if (detached)
+		return open_detached_copy(&path, flags & AT_RECURSIVE);
+
+	return dentry_open(&path, O_PATH, current_cred());
+}
+
+SYSCALL_DEFINE3(open_tree, int, dfd, const char __user *, filename, unsigned, flags)
+{
+	int fd;
+	struct file *file __free(fput) = NULL;
+
+	file = vfs_open_tree(dfd, filename, flags);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
 
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
 		return fd;
 
-	error = user_path_at(dfd, filename, lookup_flags, &path);
-	if (unlikely(error)) {
-		file = ERR_PTR(error);
-	} else {
-		if (detached)
-			file = open_detached_copy(&path, flags & AT_RECURSIVE);
-		else
-			file = dentry_open(&path, O_PATH, current_cred());
-		path_put(&path);
-	}
-	if (IS_ERR(file)) {
-		put_unused_fd(fd);
-		return PTR_ERR(file);
-	}
-	fd_install(fd, file);
+	fd_install(fd, no_free_ptr(file));
 	return fd;
 }
 
