@@ -170,9 +170,9 @@ static inline struct io_wq_acct *io_get_acct(struct io_wq *wq, bool bound)
 }
 
 static inline struct io_wq_acct *io_work_get_acct(struct io_wq *wq,
-						  struct io_wq_work *work)
+						  unsigned int work_flags)
 {
-	return io_get_acct(wq, !(atomic_read(&work->flags) & IO_WQ_WORK_UNBOUND));
+	return io_get_acct(wq, !(work_flags & IO_WQ_WORK_UNBOUND));
 }
 
 static inline struct io_wq_acct *io_wq_get_acct(struct io_worker *worker)
@@ -457,9 +457,14 @@ static void __io_worker_idle(struct io_wq_acct *acct, struct io_worker *worker)
 	}
 }
 
+static inline unsigned int __io_get_work_hash(unsigned int work_flags)
+{
+	return work_flags >> IO_WQ_HASH_SHIFT;
+}
+
 static inline unsigned int io_get_work_hash(struct io_wq_work *work)
 {
-	return atomic_read(&work->flags) >> IO_WQ_HASH_SHIFT;
+	return __io_get_work_hash(atomic_read(&work->flags));
 }
 
 static bool io_wait_on_hash(struct io_wq *wq, unsigned int hash)
@@ -489,17 +494,19 @@ static struct io_wq_work *io_get_next_work(struct io_wq_acct *acct,
 	struct io_wq *wq = worker->wq;
 
 	wq_list_for_each(node, prev, &acct->work_list) {
+		unsigned int work_flags;
 		unsigned int hash;
 
 		work = container_of(node, struct io_wq_work, list);
 
 		/* not hashed, can run anytime */
-		if (!io_wq_is_hashed(work)) {
+		work_flags = atomic_read(&work->flags);
+		if (!__io_wq_is_hashed(work_flags)) {
 			wq_list_del(&acct->work_list, node, prev);
 			return work;
 		}
 
-		hash = io_get_work_hash(work);
+		hash = __io_get_work_hash(work_flags);
 		/* all items with this hash lie in [work, tail] */
 		tail = wq->hash_tail[hash];
 
@@ -596,12 +603,13 @@ static void io_worker_handle_work(struct io_wq_acct *acct,
 		/* handle a whole dependent link */
 		do {
 			struct io_wq_work *next_hashed, *linked;
-			unsigned int hash = io_get_work_hash(work);
+			unsigned int work_flags = atomic_read(&work->flags);
+			unsigned int hash = __io_get_work_hash(work_flags);
 
 			next_hashed = wq_next_work(work);
 
 			if (do_kill &&
-			    (atomic_read(&work->flags) & IO_WQ_WORK_UNBOUND))
+			    (work_flags & IO_WQ_WORK_UNBOUND))
 				atomic_or(IO_WQ_WORK_CANCEL, &work->flags);
 			wq->do_work(work);
 			io_assign_current_work(worker, NULL);
@@ -917,18 +925,19 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wq *wq)
 	} while (work);
 }
 
-static void io_wq_insert_work(struct io_wq *wq, struct io_wq_acct *acct, struct io_wq_work *work)
+static void io_wq_insert_work(struct io_wq *wq, struct io_wq_acct *acct,
+			      struct io_wq_work *work, unsigned int work_flags)
 {
 	unsigned int hash;
 	struct io_wq_work *tail;
 
-	if (!io_wq_is_hashed(work)) {
+	if (!__io_wq_is_hashed(work_flags)) {
 append:
 		wq_list_add_tail(&work->list, &acct->work_list);
 		return;
 	}
 
-	hash = io_get_work_hash(work);
+	hash = __io_get_work_hash(work_flags);
 	tail = wq->hash_tail[hash];
 	wq->hash_tail[hash] = work;
 	if (!tail)
@@ -944,8 +953,8 @@ static bool io_wq_work_match_item(struct io_wq_work *work, void *data)
 
 void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work)
 {
-	struct io_wq_acct *acct = io_work_get_acct(wq, work);
 	unsigned int work_flags = atomic_read(&work->flags);
+	struct io_wq_acct *acct = io_work_get_acct(wq, work_flags);
 	struct io_cb_cancel_data match = {
 		.fn		= io_wq_work_match_item,
 		.data		= work,
@@ -964,7 +973,7 @@ void io_wq_enqueue(struct io_wq *wq, struct io_wq_work *work)
 	}
 
 	raw_spin_lock(&acct->lock);
-	io_wq_insert_work(wq, acct, work);
+	io_wq_insert_work(wq, acct, work, work_flags);
 	clear_bit(IO_ACCT_STALLED_BIT, &acct->flags);
 	raw_spin_unlock(&acct->lock);
 
