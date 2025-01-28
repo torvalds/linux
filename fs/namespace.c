@@ -89,6 +89,7 @@ static LIST_HEAD(mnt_ns_list); /* protected by mnt_ns_tree_lock */
 
 enum mount_kattr_flags_t {
 	MOUNT_KATTR_RECURSE		= (1 << 0),
+	MOUNT_KATTR_IDMAP_REPLACE	= (1 << 1),
 };
 
 struct mount_kattr {
@@ -4612,11 +4613,10 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 		return -EINVAL;
 
 	/*
-	 * Once a mount has been idmapped we don't allow it to change its
-	 * mapping. It makes things simpler and callers can just create
-	 * another bind-mount they can idmap if they want to.
+	 * We only allow an mount to change it's idmapping if it has
+	 * never been accessible to userspace.
 	 */
-	if (is_idmapped_mnt(m))
+	if (!(kattr->kflags & MOUNT_KATTR_IDMAP_REPLACE) && is_idmapped_mnt(m))
 		return -EPERM;
 
 	/* The underlying filesystem doesn't support idmapped mounts yet. */
@@ -4706,18 +4706,16 @@ static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 {
+	struct mnt_idmap *old_idmap;
+
 	if (!kattr->mnt_idmap)
 		return;
 
-	/*
-	 * Pairs with smp_load_acquire() in mnt_idmap().
-	 *
-	 * Since we only allow a mount to change the idmapping once and
-	 * verified this in can_idmap_mount() we know that the mount has
-	 * @nop_mnt_idmap attached to it. So there's no need to drop any
-	 * references.
-	 */
+	old_idmap = mnt_idmap(&mnt->mnt);
+
+	/* Pairs with smp_load_acquire() in mnt_idmap(). */
 	smp_store_release(&mnt->mnt.mnt_idmap, mnt_idmap_get(kattr->mnt_idmap));
+	mnt_idmap_put(old_idmap);
 }
 
 static void mount_setattr_commit(struct mount_kattr *kattr, struct mount *mnt)
@@ -4826,13 +4824,23 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	if (!((attr->attr_set | attr->attr_clr) & MOUNT_ATTR_IDMAP))
 		return 0;
 
-	/*
-	 * We currently do not support clearing an idmapped mount. If this ever
-	 * is a use-case we can revisit this but for now let's keep it simple
-	 * and not allow it.
-	 */
-	if (attr->attr_clr & MOUNT_ATTR_IDMAP)
-		return -EINVAL;
+	if (attr->attr_clr & MOUNT_ATTR_IDMAP) {
+		/*
+		 * We can only remove an idmapping if it's never been
+		 * exposed to userspace.
+		 */
+		if (!(kattr->kflags & MOUNT_KATTR_IDMAP_REPLACE))
+			return -EINVAL;
+
+		/*
+		 * Removal of idmappings is equivalent to setting
+		 * nop_mnt_idmap.
+		 */
+		if (!(attr->attr_set & MOUNT_ATTR_IDMAP)) {
+			kattr->mnt_idmap = &nop_mnt_idmap;
+			return 0;
+		}
+	}
 
 	if (attr->userns_fd > INT_MAX)
 		return -EINVAL;
@@ -4923,8 +4931,10 @@ static int build_mount_kattr(const struct mount_attr *attr, size_t usize,
 
 static void finish_mount_kattr(struct mount_kattr *kattr)
 {
-	put_user_ns(kattr->mnt_userns);
-	kattr->mnt_userns = NULL;
+	if (kattr->mnt_userns) {
+		put_user_ns(kattr->mnt_userns);
+		kattr->mnt_userns = NULL;
+	}
 
 	if (kattr->mnt_idmap)
 		mnt_idmap_put(kattr->mnt_idmap);
@@ -5019,6 +5029,7 @@ SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
 		int ret;
 		struct mount_kattr kattr = {};
 
+		kattr.kflags = MOUNT_KATTR_IDMAP_REPLACE;
 		if (flags & AT_RECURSIVE)
 			kattr.kflags |= MOUNT_KATTR_RECURSE;
 
