@@ -7,38 +7,6 @@
 #include <linux/memblock.h>
 #include <linux/numa.h>
 
-/**
- * cpumask_next_wrap_old - helper to implement for_each_cpu_wrap
- * @n: the cpu prior to the place to search
- * @mask: the cpumask pointer
- * @start: the start point of the iteration
- * @wrap: assume @n crossing @start terminates the iteration
- *
- * Return: >= nr_cpu_ids on completion
- *
- * Note: the @wrap argument is required for the start condition when
- * we cannot assume @start is set in @mask.
- */
-unsigned int cpumask_next_wrap_old(int n, const struct cpumask *mask, int start, bool wrap)
-{
-	unsigned int next;
-
-again:
-	next = cpumask_next(n, mask);
-
-	if (wrap && n < start && next >= start) {
-		return nr_cpumask_bits;
-
-	} else if (next >= nr_cpumask_bits) {
-		wrap = true;
-		n = -1;
-		goto again;
-	}
-
-	return next;
-}
-EXPORT_SYMBOL(cpumask_next_wrap_old);
-
 /* These are not inline because of header tangles. */
 #ifdef CONFIG_CPUMASK_OFFSTACK
 /**
