@@ -942,21 +942,12 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 	adev->gfx.funcs = &gfx_v9_4_3_gfx_funcs;
 	adev->gfx.ras = &gfx_v9_4_3_ras;
 
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 4, 4):
-	case IP_VERSION(9, 5, 0):
-		adev->gfx.config.max_hw_contexts = 8;
-		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
-		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
-		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
-		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
-		gb_addr_config = RREG32_SOC15(GC, GET_INST(GC, 0), regGB_ADDR_CONFIG);
-		break;
-	default:
-		BUG();
-		break;
-	}
+	adev->gfx.config.max_hw_contexts = 8;
+	adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+	adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+	adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+	adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
+	gb_addr_config = RREG32_SOC15(GC, GET_INST(GC, 0), regGB_ADDR_CONFIG);
 
 	adev->gfx.config.gb_addr_config = gb_addr_config;
 
@@ -2795,16 +2786,10 @@ static int gfx_v9_4_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 		return 0;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 4, 4):
-		for (i = 0; i < num_xcc; i++)
-			gfx_v9_4_3_xcc_update_gfx_clock_gating(
-				adev, state == AMD_CG_STATE_GATE, i);
-		break;
-	default:
-		break;
-	}
+	for (i = 0; i < num_xcc; i++)
+		gfx_v9_4_3_xcc_update_gfx_clock_gating(
+			adev, state == AMD_CG_STATE_GATE, i);
+
 	return 0;
 }
 
@@ -4867,34 +4852,13 @@ static void gfx_v9_4_3_set_rlc_funcs(struct amdgpu_device *adev)
 
 static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 {
-	/* init asci gds info */
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 4, 4):
-	case IP_VERSION(9, 5, 0):
-		/* 9.4.3 removed all the GDS internal memory,
-		 * only support GWS opcode in kernel, like barrier
-		 * semaphore.etc */
-		adev->gds.gds_size = 0;
-		break;
-	default:
-		adev->gds.gds_size = 0x10000;
-		break;
-	}
+	/* 9.4.3 variants removed all the GDS internal memory,
+	 * only support GWS opcode in kernel, like barrier
+	 * semaphore.etc */
 
-	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
-	case IP_VERSION(9, 4, 3):
-	case IP_VERSION(9, 4, 4):
-	case IP_VERSION(9, 5, 0):
-		/* deprecated for 9.4.3, no usage at all */
-		adev->gds.gds_compute_max_wave_id = 0;
-		break;
-	default:
-		/* this really depends on the chip */
-		adev->gds.gds_compute_max_wave_id = 0x7ff;
-		break;
-	}
-
+	/* init asic gds info */
+	adev->gds.gds_size = 0;
+	adev->gds.gds_compute_max_wave_id = 0;
 	adev->gds.gws_size = 64;
 	adev->gds.oa_size = 16;
 }
