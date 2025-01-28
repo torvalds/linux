@@ -4995,6 +4995,45 @@ SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
 	return err;
 }
 
+SYSCALL_DEFINE5(open_tree_attr, int, dfd, const char __user *, filename,
+		unsigned, flags, struct mount_attr __user *, uattr,
+		size_t, usize)
+{
+	struct file __free(fput) *file = NULL;
+	int fd;
+
+	if (!uattr && usize)
+		return -EINVAL;
+
+	file = vfs_open_tree(dfd, filename, flags);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	if (uattr) {
+		int ret;
+		struct mount_kattr kattr = {
+			.recurse = !!(flags & AT_RECURSIVE),
+		};
+
+		ret = copy_mount_setattr(uattr, usize, &kattr);
+		if (ret)
+			return ret;
+
+		ret = do_mount_setattr(&file->f_path, &kattr);
+		if (ret)
+			return ret;
+
+		finish_mount_kattr(&kattr);
+	}
+
+	fd = get_unused_fd_flags(flags & O_CLOEXEC);
+	if (fd < 0)
+		return fd;
+
+	fd_install(fd, no_free_ptr(file));
+	return fd;
+}
+
 int show_path(struct seq_file *m, struct dentry *root)
 {
 	if (root->d_sb->s_op->show_path)
