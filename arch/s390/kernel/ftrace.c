@@ -266,18 +266,13 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
 	unsigned long *parent = &arch_ftrace_regs(fregs)->regs.gprs[14];
-	int bit;
 
 	if (unlikely(ftrace_graph_is_dead()))
 		return;
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
-	bit = ftrace_test_recursion_trylock(ip, *parent);
-	if (bit < 0)
-		return;
 	if (!function_graph_enter_regs(*parent, ip, 0, parent, fregs))
 		*parent = (unsigned long)&return_to_handler;
-	ftrace_test_recursion_unlock(bit);
 }
 
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
