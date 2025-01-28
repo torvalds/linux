@@ -899,10 +899,8 @@ skip:
 	 * and the f2fs is not read only, check and fix zoned block devices'
 	 * write pointer consistency.
 	 */
-	if (!err) {
+	if (!err)
 		err = f2fs_check_and_fix_write_pointer(sbi);
-		ret = err;
-	}
 
 	if (!err)
 		clear_sbi_flag(sbi, SBI_POR_DOING);
