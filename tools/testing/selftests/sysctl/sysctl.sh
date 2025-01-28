@@ -21,7 +21,7 @@ TEST_FILE=$(mktemp)
 # ENABLED: 1 if enabled, 0 otherwise
 # TARGET: test target file required on the test_sysctl module
 # SKIP_NO_TARGET: 1 skip if TARGET not there
-#                 0 run eventhough TARGET not there
+#                 0 run even though TARGET not there
 #
 # Once these are enabled please leave them as-is. Write your own test,
 # we have tons of space.
@@ -764,7 +764,7 @@ sysctl_test_0007()
 	fi
 
 	if [ ! -f /proc/cmdline ]; then
-		echo -e "SKIPPING\nThere is no /proc/cmdline to check for paramter"
+		echo -e "SKIPPING\nThere is no /proc/cmdline to check for parameter"
 		return $ksft_skip
 	fi
 
@@ -898,7 +898,7 @@ usage()
 	echo Example uses:
 	echo
 	echo "$TEST_NAME.sh            -- executes all tests"
-	echo "$TEST_NAME.sh -t 0002    -- Executes test ID 0002 number of times is recomended"
+	echo "$TEST_NAME.sh -t 0002    -- Executes test ID 0002 number of times is recommended"
 	echo "$TEST_NAME.sh -w 0002    -- Watch test ID 0002 run until an error occurs"
 	echo "$TEST_NAME.sh -s 0002    -- Run test ID 0002 once"
 	echo "$TEST_NAME.sh -c 0002 3  -- Run test ID 0002 three times"
