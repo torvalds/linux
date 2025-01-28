@@ -147,7 +147,7 @@ static bool vcpu_aarch64_only(struct kvm_vcpu *vcpu)
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 
 	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0), val);
-	return el0 == ID_AA64PFR0_EL1_ELx_64BIT_ONLY;
+	return el0 == ID_AA64PFR0_EL1_EL0_IMP;
 }
 
 int main(void)

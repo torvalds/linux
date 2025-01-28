@@ -666,7 +666,7 @@ int main(void)
 	/* Check for AARCH64 only system */
 	val = vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(SYS_ID_AA64PFR0_EL1));
 	el0 = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64PFR0_EL1_EL0), val);
-	aarch64_only = (el0 == ID_AA64PFR0_EL1_ELx_64BIT_ONLY);
+	aarch64_only = (el0 == ID_AA64PFR0_EL1_EL0_IMP);
 
 	ksft_print_header();
 

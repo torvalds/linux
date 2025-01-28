@@ -2064,6 +2064,18 @@ Field	17:16	ZEN
 Res0	15:0
 EndSysreg
 
+Sysreg	TRFCR_EL1	3	0	1	2	1
+Res0	63:7
+UnsignedEnum	6:5	TS
+	0b0001	VIRTUAL
+	0b0010	GUEST_PHYSICAL
+	0b0011	PHYSICAL
+EndEnum
+Res0	4:2
+Field	1	ExTRE
+Field	0	E0TRE
+EndSysregFields
+
 Sysreg	SMPRI_EL1	3	0	1	2	4
 Res0	63:4
 Field	3:0	PRIORITY
@@ -2613,6 +2625,22 @@ Field	1	ICIALLU
 Field	0	ICIALLUIS
 EndSysreg
 
+Sysreg TRFCR_EL2	3	4	1	2	1
+Res0	63:7
+UnsignedEnum	6:5	TS
+	0b0000	USE_TRFCR_EL1_TS
+	0b0001	VIRTUAL
+	0b0010	GUEST_PHYSICAL
+	0b0011	PHYSICAL
+EndEnum
+Res0	4
+Field	3	CX
+Res0	2
+Field	1	E2TRE
+Field	0	E0HTRE
+EndSysreg
+
+
 Sysreg HDFGRTR_EL2	3	4	3	1	4
 Field	63	PMBIDR_EL1
 Field	62	nPMSNEVFR_EL1
@@ -3021,6 +3049,10 @@ EndSysreg
 
 Sysreg	ZCR_EL12	3	5	1	2	0
 Mapping	ZCR_EL1
+EndSysreg
+
+Sysreg	TRFCR_EL12	3	5	1	2	1
+Mapping	TRFCR_EL1
 EndSysreg
 
 Sysreg	SMCR_EL12	3	5	1	2	6
