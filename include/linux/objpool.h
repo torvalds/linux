@@ -170,17 +170,16 @@ static inline void *objpool_pop(struct objpool_head *pool)
 {
 	void *obj = NULL;
 	unsigned long flags;
-	int i, cpu;
+	int start, cpu;
 
 	/* disable local irq to avoid preemption & interruption */
 	raw_local_irq_save(flags);
 
-	cpu = raw_smp_processor_id();
-	for (i = 0; i < pool->nr_possible_cpus; i++) {
+	start = raw_smp_processor_id();
+	for_each_possible_cpu_wrap(cpu, start) {
 		obj = __objpool_try_get_slot(pool, cpu);
 		if (obj)
 			break;
-		cpu = cpumask_next_wrap(cpu, cpu_possible_mask, -1, 1);
 	}
 	raw_local_irq_restore(flags);
 
