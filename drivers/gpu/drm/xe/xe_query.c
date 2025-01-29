@@ -24,6 +24,7 @@
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_oa.h"
+#include "xe_pxp.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_wa.h"
 
@@ -698,6 +699,33 @@ static int query_oa_units(struct xe_device *xe,
 	return ret ? -EFAULT : 0;
 }
 
+static int query_pxp_status(struct xe_device *xe, struct drm_xe_device_query *query)
+{
+	struct drm_xe_query_pxp_status __user *query_ptr = u64_to_user_ptr(query->data);
+	size_t size = sizeof(struct drm_xe_query_pxp_status);
+	struct drm_xe_query_pxp_status resp = { 0 };
+	int ret;
+
+	if (query->size == 0) {
+		query->size = size;
+		return 0;
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
+		return -EINVAL;
+	}
+
+	ret = xe_pxp_get_readiness_status(xe->pxp);
+	if (ret < 0)
+		return ret;
+
+	resp.status = ret;
+	resp.supported_session_types = BIT(DRM_XE_PXP_TYPE_HWDRM);
+
+	if (copy_to_user(query_ptr, &resp, size))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int (* const xe_query_funcs[])(struct xe_device *xe,
 				      struct drm_xe_device_query *query) = {
 	query_engines,
@@ -709,6 +737,7 @@ static int (* const xe_query_funcs[])(struct xe_device *xe,
 	query_engine_cycles,
 	query_uc_fw_version,
 	query_oa_units,
+	query_pxp_status,
 };
 
 int xe_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

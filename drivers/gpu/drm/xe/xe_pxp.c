@@ -80,6 +80,38 @@ static bool pxp_prerequisites_done(const struct xe_pxp *pxp)
 	return ready;
 }
 
+/**
+ * xe_pxp_get_readiness_status - check whether PXP is ready for userspace use
+ * @pxp: the xe_pxp pointer (can be NULL if PXP is disabled)
+ *
+ * Returns: 0 if PXP is not ready yet, 1 if it is ready, a negative errno value
+ * if PXP is not supported/enabled or if something went wrong in the
+ * initialization of the prerequisites. Note that the return values of this
+ * function follow the uapi (see drm_xe_query_pxp_status), so they can be used
+ * directly in the query ioctl.
+ */
+int xe_pxp_get_readiness_status(struct xe_pxp *pxp)
+{
+	int ret = 0;
+
+	if (!xe_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	/* if the GSC or HuC FW are in an error state, PXP will never work */
+	if (xe_uc_fw_status_to_error(pxp->gt->uc.huc.fw.status) ||
+	    xe_uc_fw_status_to_error(pxp->gt->uc.gsc.fw.status))
+		return -EIO;
+
+	xe_pm_runtime_get(pxp->xe);
+
+	/* PXP requires both HuC loaded and GSC proxy initialized */
+	if (pxp_prerequisites_done(pxp))
+		ret = 1;
+
+	xe_pm_runtime_put(pxp->xe);
+	return ret;
+}
+
 static bool pxp_session_is_in_play(struct xe_pxp *pxp, u32 id)
 {
 	struct xe_gt *gt = pxp->gt;

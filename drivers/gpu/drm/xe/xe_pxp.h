@@ -14,6 +14,7 @@ struct xe_pxp;
 
 bool xe_pxp_is_supported(const struct xe_device *xe);
 bool xe_pxp_is_enabled(const struct xe_pxp *pxp);
+int xe_pxp_get_readiness_status(struct xe_pxp *pxp);
 
 int xe_pxp_init(struct xe_device *xe);
 void xe_pxp_irq_handler(struct xe_device *xe, u16 iir);
