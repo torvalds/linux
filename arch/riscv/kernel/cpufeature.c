@@ -54,9 +54,7 @@ u32 thead_vlenb_of;
  */
 unsigned long riscv_isa_extension_base(const unsigned long *isa_bitmap)
 {
-	if (!isa_bitmap)
-		return riscv_isa[0];
-	return isa_bitmap[0];
+	return !isa_bitmap ? riscv_isa[0] : isa_bitmap[0];
 }
 EXPORT_SYMBOL_GPL(riscv_isa_extension_base);
 
@@ -77,7 +75,7 @@ bool __riscv_isa_extension_available(const unsigned long *isa_bitmap, unsigned i
 	if (bit >= RISCV_ISA_EXT_MAX)
 		return false;
 
-	return test_bit(bit, bmap) ? true : false;
+	return test_bit(bit, bmap);
 }
 EXPORT_SYMBOL_GPL(__riscv_isa_extension_available);
 
