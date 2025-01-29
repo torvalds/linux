@@ -1355,6 +1355,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 	void __iomem *reg;
 	unsigned long pending;
 
+	chained_irq_enter(chip, desc);
+
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < vg->chip.ngpio; base += 32) {
 		reg = byt_gpio_reg(vg, base, BYT_INT_STAT_REG);
@@ -1369,7 +1371,8 @@ static void byt_gpio_irq_handler(struct irq_desc *desc)
 		for_each_set_bit(pin, &pending, 32)
 			generic_handle_domain_irq(vg->chip.irq.domain, base + pin);
 	}
-	chip->irq_eoi(data);
+
+	chained_irq_exit(chip, desc);
 }
 
 static bool byt_direct_irq_sanity_check(struct intel_pinctrl *vg, int pin, u32 conf0)
