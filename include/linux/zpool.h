@@ -4,9 +4,8 @@
  *
  * Copyright (C) 2014 Dan Streetman
  *
- * This is a common frontend for the zbud and zsmalloc memory
- * storage pool implementations.  Typically, this is used to
- * store compressed memory.
+ * This is a common frontend for the zswap compressed memory storage
+ * implementations.
  */
 
 #ifndef _ZPOOL_H_
