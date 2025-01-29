@@ -391,7 +391,7 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
-	int i, num_bpc;
+	int num_bpc;
 	u8 dsc_bpc[3] = {};
 	int min_bpp, max_bpp, sink_min_bpp, sink_max_bpp;
 	int min_compressed_bpp, max_compressed_bpp;
@@ -405,15 +405,8 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 	drm_dbg_kms(display->drm, "DSC Source supported min bpp %d max bpp %d\n",
 		    min_bpp, max_bpp);
 
-	sink_max_bpp = dsc_bpc[0] * 3;
-	sink_min_bpp = sink_max_bpp;
-
-	for (i = 1; i < num_bpc; i++) {
-		if (sink_min_bpp > dsc_bpc[i] * 3)
-			sink_min_bpp = dsc_bpc[i] * 3;
-		if (sink_max_bpp < dsc_bpc[i] * 3)
-			sink_max_bpp = dsc_bpc[i] * 3;
-	}
+	sink_min_bpp = min_array(dsc_bpc, num_bpc) * 3;
+	sink_max_bpp = max_array(dsc_bpc, num_bpc) * 3;
 
 	drm_dbg_kms(display->drm, "DSC Sink supported min bpp %d max bpp %d\n",
 		    sink_min_bpp, sink_max_bpp);
