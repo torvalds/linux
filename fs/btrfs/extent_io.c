@@ -1786,6 +1786,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
+	const int num_folios = num_extent_folios(eb);
 
 	prepare_eb_write(eb);
 
@@ -1797,38 +1798,21 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 	wbc_init_bio(wbc, &bbio->bio);
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
-	if (btrfs_meta_is_subpage(fs_info)) {
-		struct folio *folio = eb->folios[0];
-		bool ret;
+	for (int i = 0; i < num_folios; i++) {
+		struct folio *folio = eb->folios[i];
+		u64 range_start = max_t(u64, eb->start, folio_pos(folio));
+		u32 range_len = min_t(u64, folio_pos(folio) + folio_size(folio),
+				      eb->start + eb->len) - range_start;
 
 		folio_lock(folio);
-		btrfs_subpage_set_writeback(fs_info, folio, eb->start, eb->len);
-		if (btrfs_subpage_clear_and_test_dirty(fs_info, folio, eb->start,
-						       eb->len)) {
-			folio_clear_dirty_for_io(folio);
-			wbc->nr_to_write--;
-		}
-		ret = bio_add_folio(&bbio->bio, folio, eb->len,
-				    eb->start - folio_pos(folio));
-		ASSERT(ret);
-		wbc_account_cgroup_owner(wbc, folio, eb->len);
-		folio_unlock(folio);
-	} else {
-		int num_folios = num_extent_folios(eb);
-
-		for (int i = 0; i < num_folios; i++) {
-			struct folio *folio = eb->folios[i];
-			bool ret;
-
-			folio_lock(folio);
-			folio_clear_dirty_for_io(folio);
-			folio_start_writeback(folio);
-			ret = bio_add_folio(&bbio->bio, folio, eb->folio_size, 0);
-			ASSERT(ret);
-			wbc_account_cgroup_owner(wbc, folio, eb->folio_size);
+		btrfs_meta_folio_clear_dirty(fs_info, folio, eb->start, eb->len);
+		btrfs_meta_folio_set_writeback(fs_info, folio, eb->start, eb->len);
+		if (!folio_test_dirty(folio))
 			wbc->nr_to_write -= folio_nr_pages(folio);
-			folio_unlock(folio);
-		}
+		bio_add_folio_nofail(&bbio->bio, folio, range_len,
+				     offset_in_folio(folio, range_start));
+		wbc_account_cgroup_owner(wbc, folio, range_len);
+		folio_unlock(folio);
 	}
 	btrfs_submit_bbio(bbio, 0);
 }
