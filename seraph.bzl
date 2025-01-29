@@ -88,6 +88,7 @@ def define_seraph():
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/tmecom/tmecom-intf.ko",
         "drivers/spmi/spmi-pmic-arb.ko",
+        "drivers/spmi/spmi-pmic-arb-debug.ko",
         "drivers/usb/dwc3/dwc3-msm.ko",
         "drivers/usb/gadget/function/usb_f_ccid.ko",
         "drivers/usb/gadget/function/usb_f_cdev.ko",
