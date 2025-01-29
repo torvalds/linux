@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
 #include <linux/sizes.h>
+#include "btrfs_inode.h"
 #include "fs.h"
 
 struct address_space;
@@ -83,7 +84,13 @@ static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
 {
 	return fs_info->nodesize < PAGE_SIZE;
 }
-bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping);
+static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
+				    struct address_space *mapping)
+{
+	if (mapping && mapping->host)
+		ASSERT(is_data_inode(BTRFS_I(mapping->host)));
+	return fs_info->sectorsize < PAGE_SIZE;
+}
 #else
 static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
 {
@@ -92,6 +99,8 @@ static inline bool btrfs_meta_is_subpage(const struct btrfs_fs_info *fs_info)
 static inline bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info,
 				    struct address_space *mapping)
 {
+	if (mapping && mapping->host)
+		ASSERT(is_data_inode(BTRFS_I(mapping->host)));
 	return false;
 }
 #endif

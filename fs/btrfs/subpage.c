@@ -64,30 +64,6 @@
  *   This means a slightly higher tree locking latency.
  */
 
-#if PAGE_SIZE > SZ_4K
-bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space *mapping)
-{
-	if (fs_info->sectorsize >= PAGE_SIZE)
-		return false;
-
-	/*
-	 * Only data pages (either through DIO or compression) can have no
-	 * mapping. And if mapping->host is data inode, it's subpage.
-	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
-	 */
-	if (!mapping || !mapping->host || is_data_inode(BTRFS_I(mapping->host)))
-		return true;
-
-	/*
-	 * Now the only remaining case is metadata, which we only go subpage
-	 * routine if nodesize < PAGE_SIZE.
-	 */
-	if (fs_info->nodesize < PAGE_SIZE)
-		return true;
-	return false;
-}
-#endif
-
 int btrfs_attach_subpage(const struct btrfs_fs_info *fs_info,
 			 struct folio *folio, enum btrfs_subpage_type type)
 {

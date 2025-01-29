@@ -284,8 +284,8 @@ blk_status_t btree_csum_one_bio(struct btrfs_bio *bbio)
 
 	if (WARN_ON_ONCE(found_start != eb->start))
 		return BLK_STS_IOERR;
-	if (WARN_ON(!btrfs_folio_test_uptodate(fs_info, eb->folios[0],
-					       eb->start, eb->len)))
+	if (WARN_ON(!btrfs_meta_folio_test_uptodate(fs_info, eb->folios[0],
+						    eb->start, eb->len)))
 		return BLK_STS_IOERR;
 
 	ASSERT(memcmp_extent_buffer(eb, fs_info->fs_devices->metadata_uuid,
