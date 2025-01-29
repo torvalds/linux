@@ -781,6 +781,29 @@ void btrfs_folio_set_lock(const struct btrfs_fs_info *fs_info,
 	spin_unlock_irqrestore(&subpage->lock, flags);
 }
 
+/*
+ * Clear the dirty flag for the folio.
+ *
+ * If the affected folio is no longer dirty, return true. Otherwise return false.
+ */
+bool btrfs_meta_folio_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
+					   struct folio *folio, u64 start, u32 len)
+{
+	bool last;
+
+	if (!btrfs_meta_is_subpage(fs_info)) {
+		folio_clear_dirty_for_io(folio);
+		return true;
+	}
+
+	last = btrfs_subpage_clear_and_test_dirty(fs_info, folio, start, len);
+	if (last) {
+		folio_clear_dirty_for_io(folio);
+		return true;
+	}
+	return false;
+}
+
 void __cold btrfs_subpage_dump_bitmap(const struct btrfs_fs_info *fs_info,
 				      struct folio *folio, u64 start, u32 len)
 {

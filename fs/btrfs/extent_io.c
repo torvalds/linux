@@ -3337,11 +3337,10 @@ void free_extent_buffer_stale(struct extent_buffer *eb)
 	release_extent_buffer(eb);
 }
 
-static void btree_clear_folio_dirty(struct folio *folio)
+static void btree_clear_folio_dirty_tag(struct folio *folio)
 {
-	ASSERT(folio_test_dirty(folio));
+	ASSERT(!folio_test_dirty(folio));
 	ASSERT(folio_test_locked(folio));
-	folio_clear_dirty_for_io(folio);
 	xa_lock_irq(&folio->mapping->i_pages);
 	if (!folio_test_dirty(folio))
 		__xa_clear_mark(&folio->mapping->i_pages,
@@ -3349,26 +3348,11 @@ static void btree_clear_folio_dirty(struct folio *folio)
 	xa_unlock_irq(&folio->mapping->i_pages);
 }
 
-static void clear_subpage_extent_buffer_dirty(const struct extent_buffer *eb)
-{
-	struct btrfs_fs_info *fs_info = eb->fs_info;
-	struct folio *folio = eb->folios[0];
-	bool last;
-
-	/* btree_clear_folio_dirty() needs page locked. */
-	folio_lock(folio);
-	last = btrfs_subpage_clear_and_test_dirty(fs_info, folio, eb->start, eb->len);
-	if (last)
-		btree_clear_folio_dirty(folio);
-	folio_unlock(folio);
-	WARN_ON(atomic_read(&eb->refs) == 0);
-}
-
 void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int num_folios;
+	const int num_folios = num_extent_folios(eb);
 
 	btrfs_assert_tree_write_locked(eb);
 
@@ -3395,17 +3379,17 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -eb->len,
 				 fs_info->dirty_metadata_batch);
 
-	if (btrfs_meta_is_subpage(fs_info))
-		return clear_subpage_extent_buffer_dirty(eb);
-
-	num_folios = num_extent_folios(eb);
 	for (int i = 0; i < num_folios; i++) {
 		struct folio *folio = eb->folios[i];
+		bool last;
 
 		if (!folio_test_dirty(folio))
 			continue;
 		folio_lock(folio);
-		btree_clear_folio_dirty(folio);
+		last = btrfs_meta_folio_clear_and_test_dirty(fs_info, folio,
+							     eb->start, eb->len);
+		if (last)
+			btree_clear_folio_dirty_tag(folio);
 		folio_unlock(folio);
 	}
 	WARN_ON(atomic_read(&eb->refs) == 0);
@@ -3430,12 +3414,12 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 
 		/*
 		 * For subpage case, we can have other extent buffers in the
-		 * same page, and in clear_subpage_extent_buffer_dirty() we
+		 * same page, and in clear_extent_buffer_dirty() we
 		 * have to clear page dirty without subpage lock held.
 		 * This can cause race where our page gets dirty cleared after
 		 * we just set it.
 		 *
-		 * Thankfully, clear_subpage_extent_buffer_dirty() has locked
+		 * Thankfully, clear_extent_buffer_dirty() has locked
 		 * its page for other reasons, we can use page lock to prevent
 		 * the above race.
 		 */
