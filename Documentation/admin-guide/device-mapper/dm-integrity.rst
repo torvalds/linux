@@ -92,6 +92,11 @@ Target arguments:
 		allowed. This mode is useful for data recovery if the
 		device cannot be activated in any of the other standard
 		modes.
+	I - inline mode - in this mode, dm-integrity will store integrity
+		data directly in the underlying device sectors.
+		The underlying device must have an integrity profile that
+		allows storing user integrity data and provides enough
+		space for the selected integrity tag.
 
 5. the number of additional arguments
 
