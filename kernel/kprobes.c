@@ -946,7 +946,7 @@ static int proc_kprobes_optimization_handler(const struct ctl_table *table,
 	return ret;
 }
 
-static struct ctl_table kprobe_sysctls[] = {
+static const struct ctl_table kprobe_sysctls[] = {
 	{
 		.procname	= "kprobes-optimization",
 		.data		= &sysctl_kprobes_optimization,

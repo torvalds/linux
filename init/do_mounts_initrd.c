@@ -21,7 +21,7 @@ phys_addr_t phys_initrd_start __initdata;
 unsigned long phys_initrd_size __initdata;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_do_mounts_initrd_table[] = {
+static const struct ctl_table kern_do_mounts_initrd_table[] = {
 	{
 		.procname       = "real-root-dev",
 		.data           = &real_root_dev,

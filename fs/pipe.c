@@ -1478,7 +1478,7 @@ static int proc_dopipe_max_size(const struct ctl_table *table, int write,
 				 do_proc_dopipe_max_size_conv, NULL);
 }
 
-static struct ctl_table fs_pipe_sysctls[] = {
+static const struct ctl_table fs_pipe_sysctls[] = {
 	{
 		.procname	= "pipe-max-size",
 		.data		= &pipe_max_size,

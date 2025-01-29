@@ -274,7 +274,7 @@ static int proc_dohung_task_timeout_secs(const struct ctl_table *table, int writ
  * and hung_task_check_interval_secs
  */
 static const unsigned long hung_task_timeout_max = (LONG_MAX / HZ);
-static struct ctl_table hung_task_sysctls[] = {
+static const struct ctl_table hung_task_sysctls[] = {
 #ifdef CONFIG_SMP
 	{
 		.procname	= "hung_task_all_cpu_backtrace",

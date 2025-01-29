@@ -184,7 +184,7 @@ static int proc_nr_inodes(const struct ctl_table *table, int write, void *buffer
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table inodes_sysctls[] = {
+static const struct ctl_table inodes_sysctls[] = {
 	{
 		.procname	= "inode-nr",
 		.data		= &inodes_stat,

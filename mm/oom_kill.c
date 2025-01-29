@@ -705,7 +705,7 @@ static void queue_oom_reaper(struct task_struct *tsk)
 }
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table vm_oom_kill_table[] = {
+static const struct ctl_table vm_oom_kill_table[] = {
 	{
 		.procname	= "panic_on_oom",
 		.data		= &sysctl_panic_on_oom,

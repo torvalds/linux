@@ -79,7 +79,7 @@ module_param(lock_stat, int, 0644);
 #endif
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table kern_lockdep_table[] = {
+static const struct ctl_table kern_lockdep_table[] = {
 #ifdef CONFIG_PROVE_LOCKING
 	{
 		.procname       = "prove_locking",

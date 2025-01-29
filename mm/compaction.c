@@ -3272,7 +3272,7 @@ static int proc_dointvec_minmax_warn_RT_change(const struct ctl_table *table,
 	return ret;
 }
 
-static struct ctl_table vm_compaction[] = {
+static const struct ctl_table vm_compaction[] = {
 	{
 		.procname	= "compact_memory",
 		.data		= &sysctl_compact_memory,

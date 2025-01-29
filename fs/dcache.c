@@ -192,7 +192,7 @@ static int proc_nr_dentry(const struct ctl_table *table, int write, void *buffer
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table fs_dcache_sysctls[] = {
+static const struct ctl_table fs_dcache_sysctls[] = {
 	{
 		.procname	= "dentry-state",
 		.data		= &dentry_stat,

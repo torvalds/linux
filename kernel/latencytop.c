@@ -77,7 +77,7 @@ static int sysctl_latencytop(const struct ctl_table *table, int write, void *buf
 	return err;
 }
 
-static struct ctl_table latencytop_sysctl[] = {
+static const struct ctl_table latencytop_sysctl[] = {
 	{
 		.procname   = "latencytop",
 		.data       = &latencytop_enabled,
