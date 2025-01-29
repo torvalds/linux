@@ -6,15 +6,13 @@ config FW_CS_DSP
 
 config FW_CS_DSP_KUNIT_TEST_UTILS
 	tristate
-	depends on KUNIT
-	select REGMAP
+	depends on KUNIT && REGMAP
 	select FW_CS_DSP
 
 config FW_CS_DSP_KUNIT_TEST
 	tristate "KUnit tests for Cirrus Logic cs_dsp" if !KUNIT_ALL_TESTS
-	depends on KUNIT
+	depends on KUNIT && REGMAP
 	default KUNIT_ALL_TESTS
-	select REGMAP
 	select FW_CS_DSP
 	select FW_CS_DSP_KUNIT_TEST_UTILS
 	help
