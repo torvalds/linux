@@ -10,9 +10,9 @@
 #include <linux/types.h>
 
 struct drm_gem_object;
-struct intel_pxp;
+struct xe_pxp;
 
-static inline int intel_pxp_key_check(struct intel_pxp *pxp,
+static inline int intel_pxp_key_check(struct xe_pxp *pxp,
 				      struct drm_gem_object *obj,
 				      bool assign)
 {
