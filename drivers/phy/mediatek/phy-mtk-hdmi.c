@@ -75,6 +75,28 @@ static void mtk_hdmi_phy_clk_get_data(struct mtk_hdmi_phy *hdmi_phy,
 	clk_init->ops = hdmi_phy->conf->hdmi_phy_clk_ops;
 }
 
+static int mtk_hdmi_phy_register_regulators(struct mtk_hdmi_phy *hdmi_phy)
+{
+	const struct regulator_desc *vreg_desc = hdmi_phy->conf->hdmi_phy_regulator_desc;
+	const struct regulator_init_data vreg_init_data = {
+		.constraints = {
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		}
+	};
+	struct regulator_config vreg_config = {
+		.dev = hdmi_phy->dev,
+		.driver_data = hdmi_phy,
+		.init_data = &vreg_init_data,
+		.of_node = hdmi_phy->dev->of_node
+	};
+
+	hdmi_phy->rdev = devm_regulator_register(hdmi_phy->dev, vreg_desc, &vreg_config);
+	if (IS_ERR(hdmi_phy->rdev))
+		return PTR_ERR(hdmi_phy->rdev);
+
+	return 0;
+}
+
 static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -149,6 +171,12 @@ static int mtk_hdmi_phy_probe(struct platform_device *pdev)
 
 	if (hdmi_phy->conf->pll_default_off)
 		hdmi_phy->conf->hdmi_phy_disable_tmds(hdmi_phy);
+
+	if (hdmi_phy->conf->hdmi_phy_regulator_desc) {
+		ret = mtk_hdmi_phy_register_regulators(hdmi_phy);
+		if (ret)
+			return ret;
+	}
 
 	return of_clk_add_provider(dev->of_node, of_clk_src_simple_get,
 				   hdmi_phy->pll);
