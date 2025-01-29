@@ -452,9 +452,8 @@ static const struct imx415_clk_params imx415_clk_params[] = {
 	},
 };
 
-/* all-pixel 2-lane 720 Mbps 15.74 Hz mode */
-static const struct cci_reg_sequence imx415_mode_2_720[] = {
-	{ IMX415_LANEMODE, IMX415_LANEMODE_2 },
+/* 720 Mbps CSI configuration */
+static const struct cci_reg_sequence imx415_linkrate_720mbps[] = {
 	{ IMX415_TCLKPOST, 0x006F },
 	{ IMX415_TCLKPREPARE, 0x002F },
 	{ IMX415_TCLKTRAIL, 0x002F },
@@ -466,9 +465,8 @@ static const struct cci_reg_sequence imx415_mode_2_720[] = {
 	{ IMX415_TLPX, 0x0027 },
 };
 
-/* all-pixel 2-lane 1440 Mbps 30.01 Hz mode */
-static const struct cci_reg_sequence imx415_mode_2_1440[] = {
-	{ IMX415_LANEMODE, IMX415_LANEMODE_2 },
+/* 1440 Mbps CSI configuration */
+static const struct cci_reg_sequence imx415_linkrate_1440mbps[] = {
 	{ IMX415_TCLKPOST, 0x009F },
 	{ IMX415_TCLKPREPARE, 0x0057 },
 	{ IMX415_TCLKTRAIL, 0x0057 },
@@ -480,9 +478,8 @@ static const struct cci_reg_sequence imx415_mode_2_1440[] = {
 	{ IMX415_TLPX, 0x004F },
 };
 
-/* all-pixel 4-lane 891 Mbps 30 Hz mode */
-static const struct cci_reg_sequence imx415_mode_4_891[] = {
-	{ IMX415_LANEMODE, IMX415_LANEMODE_4 },
+/* 891 Mbps CSI configuration */
+static const struct cci_reg_sequence imx415_linkrate_891mbps[] = {
 	{ IMX415_TCLKPOST, 0x007F },
 	{ IMX415_TCLKPREPARE, 0x0037 },
 	{ IMX415_TCLKTRAIL, 0x0037 },
@@ -501,8 +498,7 @@ struct imx415_mode_reg_list {
 
 struct imx415_mode {
 	u64 lane_rate;
-	u32 lanes;
-	u32 hmax_min;
+	u32 hmax_min[2];
 	struct imx415_mode_reg_list reg_list;
 };
 
@@ -510,29 +506,26 @@ struct imx415_mode {
 static const struct imx415_mode supported_modes[] = {
 	{
 		.lane_rate = 720000000,
-		.lanes = 2,
-		.hmax_min = 2032,
+		.hmax_min = { 2032, 1066 },
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_2_720),
-			.regs = imx415_mode_2_720,
+			.num_of_regs = ARRAY_SIZE(imx415_linkrate_720mbps),
+			.regs = imx415_linkrate_720mbps,
 		},
 	},
 	{
 		.lane_rate = 1440000000,
-		.lanes = 2,
-		.hmax_min = 1066,
+		.hmax_min = { 1066, 533 },
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_2_1440),
-			.regs = imx415_mode_2_1440,
+			.num_of_regs = ARRAY_SIZE(imx415_linkrate_1440mbps),
+			.regs = imx415_linkrate_1440mbps,
 		},
 	},
 	{
 		.lane_rate = 891000000,
-		.lanes = 4,
-		.hmax_min = 1100,
+		.hmax_min = { 2200, 1100 },
 		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(imx415_mode_4_891),
-			.regs = imx415_mode_4_891,
+			.num_of_regs = ARRAY_SIZE(imx415_linkrate_891mbps),
+			.regs = imx415_linkrate_891mbps,
 		},
 	},
 };
@@ -784,7 +777,8 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 {
 	struct v4l2_fwnode_device_properties props;
 	struct v4l2_ctrl *ctrl;
-	u64 lane_rate = supported_modes[sensor->cur_mode].lane_rate;
+	const struct imx415_mode *cur_mode = &supported_modes[sensor->cur_mode];
+	u64 lane_rate = cur_mode->lane_rate;
 	u32 exposure_max = IMX415_PIXEL_ARRAY_HEIGHT +
 			   IMX415_PIXEL_ARRAY_VBLANK -
 			   IMX415_EXPOSURE_OFFSET;
@@ -825,7 +819,7 @@ static int imx415_ctrls_init(struct imx415 *sensor)
 			  IMX415_AGAIN_MAX, IMX415_AGAIN_STEP,
 			  IMX415_AGAIN_MIN);
 
-	hblank_min = (supported_modes[sensor->cur_mode].hmax_min *
+	hblank_min = (cur_mode->hmax_min[sensor->num_data_lanes == 2 ? 0 : 1] *
 		      IMX415_HMAX_MULTIPLIER) - IMX415_PIXEL_ARRAY_WIDTH;
 	hblank_max = (IMX415_HMAX_MAX * IMX415_HMAX_MULTIPLIER) -
 		     IMX415_PIXEL_ARRAY_WIDTH;
@@ -887,7 +881,12 @@ static int imx415_set_mode(struct imx415 *sensor, int mode)
 			    IMX415_NUM_CLK_PARAM_REGS,
 			    &ret);
 
-	return 0;
+	ret = cci_write(sensor->regmap, IMX415_LANEMODE,
+			sensor->num_data_lanes == 2 ? IMX415_LANEMODE_2 :
+						      IMX415_LANEMODE_4,
+			NULL);
+
+	return ret;
 }
 
 static int imx415_setup(struct imx415 *sensor, struct v4l2_subdev_state *state)
@@ -1298,8 +1297,6 @@ static int imx415_parse_hw_config(struct imx415 *sensor)
 		}
 
 		for (j = 0; j < ARRAY_SIZE(supported_modes); ++j) {
-			if (sensor->num_data_lanes != supported_modes[j].lanes)
-				continue;
 			if (bus_cfg.link_frequencies[i] * 2 !=
 			    supported_modes[j].lane_rate)
 				continue;
