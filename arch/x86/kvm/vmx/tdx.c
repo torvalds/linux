@@ -2,6 +2,7 @@
 #include <linux/cleanup.h>
 #include <linux/cpu.h>
 #include <asm/cpufeature.h>
+#include <asm/fpu/xcr.h>
 #include <linux/misc_cgroup.h>
 #include <linux/mmu_context.h>
 #include <asm/tdx.h>
@@ -740,6 +741,30 @@ static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 				 BIT_ULL(VCPU_REGS_R14) | \
 				 BIT_ULL(VCPU_REGS_R15))
 
+static void tdx_load_host_xsave_state(struct kvm_vcpu *vcpu)
+{
+	struct kvm_tdx *kvm_tdx = to_kvm_tdx(vcpu->kvm);
+
+	/*
+	 * All TDX hosts support PKRU; but even if they didn't,
+	 * vcpu->arch.host_pkru would be 0 and the wrpkru would be
+	 * skipped.
+	 */
+	if (vcpu->arch.host_pkru != 0)
+		wrpkru(vcpu->arch.host_pkru);
+
+	if (kvm_host.xcr0 != (kvm_tdx->xfam & kvm_caps.supported_xcr0))
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, kvm_host.xcr0);
+
+	/*
+	 * Likewise, even if a TDX hosts didn't support XSS both arms of
+	 * the comparison would be 0 and the wrmsrl would be skipped.
+	 */
+	if (kvm_host.xss != (kvm_tdx->xfam & kvm_caps.supported_xss))
+		wrmsrl(MSR_IA32_XSS, kvm_host.xss);
+}
+EXPORT_SYMBOL_GPL(kvm_load_host_xsave_state);
+
 fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 {
 	/*
@@ -755,6 +780,8 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	trace_kvm_entry(vcpu, force_immediate_exit);
 
 	tdx_vcpu_enter_exit(vcpu);
+
+	tdx_load_host_xsave_state(vcpu);
 
 	vcpu->arch.regs_avail &= TDX_REGS_AVAIL_SET;
 
@@ -2329,6 +2356,11 @@ int __init tdx_bringup(void)
 
 	if (!tdp_mmu_enabled || !enable_mmio_caching || !enable_ept_ad_bits) {
 		pr_err("TDP MMU and MMIO caching and EPT A/D bit is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!cpu_feature_enabled(X86_FEATURE_OSXSAVE)) {
+		pr_err("tdx: OSXSAVE is required for TDX\n");
 		goto success_disable_tdx;
 	}
 
