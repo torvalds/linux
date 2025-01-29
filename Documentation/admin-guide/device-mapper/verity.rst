@@ -87,6 +87,15 @@ panic_on_corruption
     Panic the device when a corrupted block is discovered. This option is
     not compatible with ignore_corruption and restart_on_corruption.
 
+restart_on_error
+    Restart the system when an I/O error is detected.
+    This option can be combined with the restart_on_corruption option.
+
+panic_on_error
+    Panic the device when an I/O error is detected. This option is
+    not compatible with the restart_on_error option but can be combined
+    with the panic_on_corruption option.
+
 ignore_zero_blocks
     Do not verify blocks that are expected to contain zeroes and always return
     zeroes instead. This may be useful if the partition contains unused blocks
