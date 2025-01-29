@@ -306,14 +306,6 @@ extern const struct kgdb_arch		arch_kgdb_ops;
 
 extern unsigned long kgdb_arch_pc(int exception, struct pt_regs *regs);
 
-#ifdef CONFIG_SERIAL_KGDB_NMI
-extern int kgdb_register_nmi_console(void);
-extern int kgdb_unregister_nmi_console(void);
-#else
-static inline int kgdb_register_nmi_console(void) { return 0; }
-static inline int kgdb_unregister_nmi_console(void) { return 0; }
-#endif
-
 extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
 extern void kgdb_unregister_io_module(struct kgdb_io *local_kgdb_io_ops);
 extern struct kgdb_io *dbg_io_ops;
