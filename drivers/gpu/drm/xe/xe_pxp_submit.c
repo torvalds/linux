@@ -15,9 +15,13 @@
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
 #include "xe_lrc.h"
+#include "xe_map.h"
 #include "xe_pxp_types.h"
 #include "xe_sched_job.h"
 #include "xe_vm.h"
+#include "abi/gsc_command_header_abi.h"
+#include "abi/gsc_pxp_commands_abi.h"
+#include "instructions/xe_gsc_commands.h"
 #include "instructions/xe_mfx_commands.h"
 #include "instructions/xe_mi_commands.h"
 
@@ -310,4 +314,228 @@ int xe_pxp_submit_session_termination(struct xe_pxp *pxp, u32 id)
 		return timeout;
 
 	return 0;
+}
+
+static bool
+is_fw_err_platform_config(u32 type)
+{
+	switch (type) {
+	case PXP_STATUS_ERROR_API_VERSION:
+	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
+	case PXP_STATUS_PLATFCONFIG_FIXED_KF1_NOT_SUPPORTED:
+		return true;
+	default:
+		break;
+	}
+	return false;
+}
+
+static const char *
+fw_err_to_string(u32 type)
+{
+	switch (type) {
+	case PXP_STATUS_ERROR_API_VERSION:
+		return "ERR_API_VERSION";
+	case PXP_STATUS_NOT_READY:
+		return "ERR_NOT_READY";
+	case PXP_STATUS_PLATFCONFIG_KF1_NOVERIF:
+	case PXP_STATUS_PLATFCONFIG_KF1_BAD:
+	case PXP_STATUS_PLATFCONFIG_FIXED_KF1_NOT_SUPPORTED:
+		return "ERR_PLATFORM_CONFIG";
+	default:
+		break;
+	}
+	return NULL;
+}
+
+static int pxp_pkt_submit(struct xe_exec_queue *q, u64 batch_addr)
+{
+	struct xe_gt *gt = q->gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	struct xe_sched_job *job;
+	struct dma_fence *fence;
+	long timeout;
+
+	xe_assert(xe, q->hwe->engine_id == XE_HW_ENGINE_GSCCS0);
+
+	job = xe_sched_job_create(q, &batch_addr);
+	if (IS_ERR(job))
+		return PTR_ERR(job);
+
+	xe_sched_job_arm(job);
+	fence = dma_fence_get(&job->drm.s_fence->finished);
+	xe_sched_job_push(job);
+
+	timeout = dma_fence_wait_timeout(fence, false, HZ);
+	dma_fence_put(fence);
+	if (timeout < 0)
+		return timeout;
+	else if (!timeout)
+		return -ETIME;
+
+	return 0;
+}
+
+static void emit_pxp_heci_cmd(struct xe_device *xe, struct iosys_map *batch,
+			      u64 addr_in, u32 size_in, u64 addr_out, u32 size_out)
+{
+	u32 len = 0;
+
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, GSC_HECI_CMD_PKT);
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, lower_32_bits(addr_in));
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, upper_32_bits(addr_in));
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, size_in);
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, lower_32_bits(addr_out));
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, upper_32_bits(addr_out));
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, size_out);
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, 0);
+	xe_map_wr(xe, batch, len++ * sizeof(u32), u32, MI_BATCH_BUFFER_END);
+}
+
+#define GSC_PENDING_RETRY_MAXCOUNT 40
+#define GSC_PENDING_RETRY_PAUSE_MS 50
+static int gsccs_send_message(struct xe_pxp_gsc_client_resources *gsc_res,
+			      void *msg_in, size_t msg_in_size,
+			      void *msg_out, size_t msg_out_size_max)
+{
+	struct xe_device *xe = gsc_res->vm->xe;
+	const size_t max_msg_size = gsc_res->inout_size - sizeof(struct intel_gsc_mtl_header);
+	u32 wr_offset;
+	u32 rd_offset;
+	u32 reply_size;
+	u32 min_reply_size = 0;
+	int ret;
+	int retry = GSC_PENDING_RETRY_MAXCOUNT;
+
+	if (msg_in_size > max_msg_size || msg_out_size_max > max_msg_size)
+		return -ENOSPC;
+
+	wr_offset = xe_gsc_emit_header(xe, &gsc_res->msg_in, 0,
+				       HECI_MEADDRESS_PXP,
+				       gsc_res->host_session_handle,
+				       msg_in_size);
+
+	/* NOTE: zero size packets are used for session-cleanups */
+	if (msg_in && msg_in_size) {
+		xe_map_memcpy_to(xe, &gsc_res->msg_in, wr_offset,
+				 msg_in, msg_in_size);
+		min_reply_size = sizeof(struct pxp_cmd_header);
+	}
+
+	/* Make sure the reply header does not contain stale data */
+	xe_gsc_poison_header(xe, &gsc_res->msg_out, 0);
+
+	/*
+	 * The BO is mapped at address 0 of the PPGTT, so no need to add its
+	 * base offset when calculating the in/out addresses.
+	 */
+	emit_pxp_heci_cmd(xe, &gsc_res->batch, PXP_BB_SIZE,
+			  wr_offset + msg_in_size, PXP_BB_SIZE + gsc_res->inout_size,
+			  wr_offset + msg_out_size_max);
+
+	xe_device_wmb(xe);
+
+	/*
+	 * If the GSC needs to communicate with CSME to complete our request,
+	 * it'll set the "pending" flag in the return header. In this scenario
+	 * we're expected to wait 50ms to give some time to the proxy code to
+	 * handle the GSC<->CSME communication and then try again. Note that,
+	 * although in most case the 50ms window is enough, the proxy flow is
+	 * not actually guaranteed to complete within that time period, so we
+	 * might have to try multiple times, up to a worst case of 2 seconds,
+	 * after which the request is considered aborted.
+	 */
+	do {
+		ret = pxp_pkt_submit(gsc_res->q, 0);
+		if (ret)
+			break;
+
+		if (xe_gsc_check_and_update_pending(xe, &gsc_res->msg_in, 0,
+						    &gsc_res->msg_out, 0)) {
+			ret = -EAGAIN;
+			msleep(GSC_PENDING_RETRY_PAUSE_MS);
+		}
+	} while (--retry && ret == -EAGAIN);
+
+	if (ret) {
+		drm_err(&xe->drm, "failed to submit GSC PXP message (%pe)\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	ret = xe_gsc_read_out_header(xe, &gsc_res->msg_out, 0,
+				     min_reply_size, &rd_offset);
+	if (ret) {
+		drm_err(&xe->drm, "invalid GSC reply for PXP (%pe)\n", ERR_PTR(ret));
+		return ret;
+	}
+
+	if (msg_out && min_reply_size) {
+		reply_size = xe_map_rd_field(xe, &gsc_res->msg_out, rd_offset,
+					     struct pxp_cmd_header, buffer_len);
+		reply_size += sizeof(struct pxp_cmd_header);
+
+		if (reply_size > msg_out_size_max) {
+			drm_warn(&xe->drm, "PXP reply size overflow: %u (%zu)\n",
+				 reply_size, msg_out_size_max);
+			reply_size = msg_out_size_max;
+		}
+
+		xe_map_memcpy_from(xe, msg_out, &gsc_res->msg_out,
+				   rd_offset, reply_size);
+	}
+
+	xe_gsc_poison_header(xe, &gsc_res->msg_in, 0);
+
+	return ret;
+}
+
+/**
+ * xe_pxp_submit_session_invalidation - submits a PXP GSC invalidation
+ * @gsc_res: the pxp client resources
+ * @id: the session to invalidate
+ *
+ * Submit a message to the GSC FW to notify it that a session has been
+ * terminated and is therefore invalid.
+ *
+ * Returns 0 if the submission is successful, an errno value otherwise.
+ */
+int xe_pxp_submit_session_invalidation(struct xe_pxp_gsc_client_resources *gsc_res, u32 id)
+{
+	struct xe_device *xe = gsc_res->vm->xe;
+	struct pxp43_inv_stream_key_in msg_in = {0};
+	struct pxp43_inv_stream_key_out msg_out = {0};
+	int ret = 0;
+
+	/*
+	 * Stream key invalidation reuses the same version 4.2 input/output
+	 * command format but firmware requires 4.3 API interaction
+	 */
+	msg_in.header.api_version = PXP_APIVER(4, 3);
+	msg_in.header.command_id = PXP43_CMDID_INVALIDATE_STREAM_KEY;
+	msg_in.header.buffer_len = sizeof(msg_in) - sizeof(msg_in.header);
+
+	msg_in.header.stream_id = FIELD_PREP(PXP_CMDHDR_EXTDATA_SESSION_VALID, 1);
+	msg_in.header.stream_id |= FIELD_PREP(PXP_CMDHDR_EXTDATA_APP_TYPE, 0);
+	msg_in.header.stream_id |= FIELD_PREP(PXP_CMDHDR_EXTDATA_SESSION_ID, id);
+
+	ret = gsccs_send_message(gsc_res, &msg_in, sizeof(msg_in),
+				 &msg_out, sizeof(msg_out));
+	if (ret) {
+		drm_err(&xe->drm, "Failed to invalidate PXP stream-key %u (%pe)\n",
+			id, ERR_PTR(ret));
+	} else if (msg_out.header.status != 0) {
+		ret = -EIO;
+
+		if (is_fw_err_platform_config(msg_out.header.status))
+			drm_info_once(&xe->drm,
+				      "Failed to invalidate PXP stream-key %u: BIOS/SOC 0x%08x(%s)\n",
+				      id, msg_out.header.status,
+				      fw_err_to_string(msg_out.header.status));
+		else
+			drm_dbg(&xe->drm, "Failed to invalidate stream-key %u, s=0x%08x\n",
+				id, msg_out.header.status);
+	}
+
+	return ret;
 }
