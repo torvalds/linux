@@ -436,6 +436,8 @@ void bch2_data_update_read_done(struct data_update *m,
 	m->op.crc = crc;
 	m->op.wbio.bio.bi_iter.bi_size = crc.compressed_size << 9;
 
+	this_cpu_add(m->op.c->counters[BCH_COUNTER_move_extent_write], m->k.k->k.size);
+
 	closure_call(&m->op.cl, bch2_write, NULL, NULL);
 }
 
