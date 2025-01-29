@@ -48,10 +48,13 @@ enum vcpu_tdx_state {
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
 	struct vcpu_vt vt;
+	struct tdx_module_args vp_enter_args;
 
 	struct tdx_vp vp;
 
 	struct list_head cpu_list;
+
+	u64 vp_enter_ret;
 
 	enum vcpu_tdx_state state;
 };

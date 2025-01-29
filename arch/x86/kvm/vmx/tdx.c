@@ -12,6 +12,8 @@
 #include "vmx.h"
 #include "mmu/spte.h"
 #include "common.h"
+#include <trace/events/kvm.h>
+#include "trace.h"
 
 #pragma GCC poison to_vmx
 
@@ -660,6 +662,66 @@ void tdx_vcpu_free(struct kvm_vcpu *vcpu)
 	tdx->state = VCPU_TD_STATE_UNINITIALIZED;
 }
 
+int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
+{
+	if (unlikely(to_tdx(vcpu)->state != VCPU_TD_STATE_INITIALIZED ||
+		     to_kvm_tdx(vcpu->kvm)->state != TD_STATE_RUNNABLE))
+		return -EINVAL;
+
+	return 1;
+}
+
+static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	guest_state_enter_irqoff();
+
+	tdx->vp_enter_ret = tdh_vp_enter(&tdx->vp, &tdx->vp_enter_args);
+
+	guest_state_exit_irqoff();
+}
+
+#define TDX_REGS_AVAIL_SET	(BIT_ULL(VCPU_EXREG_EXIT_INFO_1) | \
+				 BIT_ULL(VCPU_EXREG_EXIT_INFO_2) | \
+				 BIT_ULL(VCPU_REGS_RAX) | \
+				 BIT_ULL(VCPU_REGS_RBX) | \
+				 BIT_ULL(VCPU_REGS_RCX) | \
+				 BIT_ULL(VCPU_REGS_RDX) | \
+				 BIT_ULL(VCPU_REGS_RBP) | \
+				 BIT_ULL(VCPU_REGS_RSI) | \
+				 BIT_ULL(VCPU_REGS_RDI) | \
+				 BIT_ULL(VCPU_REGS_R8) | \
+				 BIT_ULL(VCPU_REGS_R9) | \
+				 BIT_ULL(VCPU_REGS_R10) | \
+				 BIT_ULL(VCPU_REGS_R11) | \
+				 BIT_ULL(VCPU_REGS_R12) | \
+				 BIT_ULL(VCPU_REGS_R13) | \
+				 BIT_ULL(VCPU_REGS_R14) | \
+				 BIT_ULL(VCPU_REGS_R15))
+
+fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
+{
+	/*
+	 * force_immediate_exit requires vCPU entering for events injection with
+	 * an immediately exit followed. But The TDX module doesn't guarantee
+	 * entry, it's already possible for KVM to _think_ it completely entry
+	 * to the guest without actually having done so.
+	 * Since KVM never needs to force an immediate exit for TDX, and can't
+	 * do direct injection, just warn on force_immediate_exit.
+	 */
+	WARN_ON_ONCE(force_immediate_exit);
+
+	trace_kvm_entry(vcpu, force_immediate_exit);
+
+	tdx_vcpu_enter_exit(vcpu);
+
+	vcpu->arch.regs_avail &= TDX_REGS_AVAIL_SET;
+
+	trace_kvm_exit(vcpu, KVM_ISA_VMX);
+
+	return EXIT_FASTPATH_NONE;
+}
 
 void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
 {
