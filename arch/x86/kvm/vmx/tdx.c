@@ -3,6 +3,7 @@
 #include <linux/cpu.h>
 #include <asm/cpufeature.h>
 #include <linux/misc_cgroup.h>
+#include <linux/mmu_context.h>
 #include <asm/tdx.h>
 #include "capabilities.h"
 #include "mmu.h"
@@ -12,6 +13,7 @@
 #include "vmx.h"
 #include "mmu/spte.h"
 #include "common.h"
+#include "posted_intr.h"
 #include <trace/events/kvm.h>
 #include "trace.h"
 
@@ -627,6 +629,44 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	list_add(&tdx->cpu_list, &per_cpu(associated_tdvcpus, cpu));
 	local_irq_enable();
+}
+
+/*
+ * Compared to vmx_prepare_switch_to_guest(), there is not much to do
+ * as SEAMCALL/SEAMRET calls take care of most of save and restore.
+ */
+void tdx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vt *vt = to_vt(vcpu);
+
+	if (vt->guest_state_loaded)
+		return;
+
+	if (likely(is_64bit_mm(current->mm)))
+		vt->msr_host_kernel_gs_base = current->thread.gsbase;
+	else
+		vt->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
+
+	vt->guest_state_loaded = true;
+}
+
+static void tdx_prepare_switch_to_host(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vt *vt = to_vt(vcpu);
+
+	if (!vt->guest_state_loaded)
+		return;
+
+	++vcpu->stat.host_state_reload;
+	wrmsrl(MSR_KERNEL_GS_BASE, vt->msr_host_kernel_gs_base);
+
+	vt->guest_state_loaded = false;
+}
+
+void tdx_vcpu_put(struct kvm_vcpu *vcpu)
+{
+	vmx_vcpu_pi_put(vcpu);
+	tdx_prepare_switch_to_host(vcpu);
 }
 
 void tdx_vcpu_free(struct kvm_vcpu *vcpu)
