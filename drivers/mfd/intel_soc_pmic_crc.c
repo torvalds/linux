@@ -113,7 +113,6 @@ static const struct regmap_config crystal_cove_regmap_config = {
 	.val_bits = 8,
 
 	.max_register = CRYSTAL_COVE_MAX_REGISTER,
-	.cache_type = REGCACHE_NONE,
 };
 
 static const struct regmap_irq crystal_cove_irqs[] = {
