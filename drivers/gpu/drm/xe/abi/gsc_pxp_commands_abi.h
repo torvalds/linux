@@ -6,12 +6,19 @@
 #ifndef _ABI_GSC_PXP_COMMANDS_ABI_H
 #define _ABI_GSC_PXP_COMMANDS_ABI_H
 
+#include <linux/sizes.h>
 #include <linux/types.h>
 
 /* Heci client ID for PXP commands */
 #define HECI_MEADDRESS_PXP 17
 
 #define PXP_APIVER(x, y) (((x) & 0xFFFF) << 16 | ((y) & 0xFFFF))
+
+/*
+ * A PXP sub-section in an HECI packet can be up to 64K big in each direction.
+ * This does not include the top-level GSC header.
+ */
+#define PXP_MAX_PACKET_SIZE SZ_64K
 
 /*
  * there are a lot of status codes for PXP, but we only define the cross-API

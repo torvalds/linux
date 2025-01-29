@@ -18,6 +18,8 @@ struct drm_file;
 
 struct ttm_buffer_object;
 
+struct dma_fence;
+
 struct xe_exec_queue;
 struct xe_file;
 struct xe_sync_entry;
@@ -246,6 +248,10 @@ int xe_vm_lock_vma(struct drm_exec *exec, struct xe_vma *vma);
 
 int xe_vm_validate_rebind(struct xe_vm *vm, struct drm_exec *exec,
 			  unsigned int num_fences);
+
+struct dma_fence *xe_vm_bind_kernel_bo(struct xe_vm *vm, struct xe_bo *bo,
+				       struct xe_exec_queue *q, u64 addr,
+				       enum xe_cache_level cache_lvl);
 
 /**
  * xe_vm_resv() - Return's the vm's reservation object

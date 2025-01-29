@@ -153,6 +153,9 @@ struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *v
 	struct xe_exec_queue *q;
 	int err;
 
+	/* VMs for GSCCS queues (and only those) must have the XE_VM_FLAG_GSC flag */
+	xe_assert(xe, !vm || (!!(vm->flags & XE_VM_FLAG_GSC) == !!(hwe->engine_id == XE_HW_ENGINE_GSCCS0)));
+
 	q = __xe_exec_queue_alloc(xe, vm, logical_mask, width, hwe, flags,
 				  extensions);
 	if (IS_ERR(q))

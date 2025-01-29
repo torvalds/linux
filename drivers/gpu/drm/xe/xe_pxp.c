@@ -12,6 +12,7 @@
 #include "xe_gt.h"
 #include "xe_gt_types.h"
 #include "xe_mmio.h"
+#include "xe_pxp_submit.h"
 #include "xe_pxp_types.h"
 #include "xe_uc_fw.h"
 #include "regs/xe_pxp_regs.h"
@@ -48,6 +49,20 @@ static int kcr_pxp_set_status(const struct xe_pxp *pxp, bool enable)
 static int kcr_pxp_enable(const struct xe_pxp *pxp)
 {
 	return kcr_pxp_set_status(pxp, true);
+}
+
+static int kcr_pxp_disable(const struct xe_pxp *pxp)
+{
+	return kcr_pxp_set_status(pxp, false);
+}
+
+static void pxp_fini(void *arg)
+{
+	struct xe_pxp *pxp = arg;
+
+	xe_pxp_destroy_execution_resources(pxp);
+
+	/* no need to explicitly disable KCR since we're going to do an FLR */
 }
 
 /**
@@ -97,10 +112,16 @@ int xe_pxp_init(struct xe_device *xe)
 	if (err)
 		goto out_free;
 
+	err = xe_pxp_allocate_execution_resources(pxp);
+	if (err)
+		goto out_kcr_disable;
+
 	xe->pxp = pxp;
 
-	return 0;
+	return devm_add_action_or_reset(xe->drm.dev, pxp_fini, pxp);
 
+out_kcr_disable:
+	kcr_pxp_disable(pxp);
 out_free:
 	drmm_kfree(&xe->drm, pxp);
 	return err;
