@@ -9206,6 +9206,8 @@ static s64 get_constant_map_key(struct bpf_verifier_env *env,
 	return reg->var_off.value;
 }
 
+static bool can_elide_value_nullness(enum bpf_map_type type);
+
 static int check_func_arg(struct bpf_verifier_env *env, u32 arg,
 			  struct bpf_call_arg_meta *meta,
 			  const struct bpf_func_proto *fn,
@@ -9354,9 +9356,11 @@ skip_type_check:
 		err = check_helper_mem_access(env, regno, key_size, BPF_READ, false, NULL);
 		if (err)
 			return err;
-		meta->const_map_key = get_constant_map_key(env, reg, key_size);
-		if (meta->const_map_key < 0 && meta->const_map_key != -EOPNOTSUPP)
-			return meta->const_map_key;
+		if (can_elide_value_nullness(meta->map_ptr->map_type)) {
+			meta->const_map_key = get_constant_map_key(env, reg, key_size);
+			if (meta->const_map_key < 0 && meta->const_map_key != -EOPNOTSUPP)
+				return meta->const_map_key;
+		}
 		break;
 	case ARG_PTR_TO_MAP_VALUE:
 		if (type_may_be_null(arg_type) && register_is_null(reg))
