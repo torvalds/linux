@@ -688,6 +688,8 @@ void tdx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 	else
 		vt->msr_host_kernel_gs_base = read_msr(MSR_KERNEL_GS_BASE);
 
+	vt->host_debugctlmsr = get_debugctlmsr();
+
 	vt->guest_state_loaded = true;
 }
 
@@ -831,11 +833,15 @@ static void tdx_load_host_xsave_state(struct kvm_vcpu *vcpu)
 	if (kvm_host.xss != (kvm_tdx->xfam & kvm_caps.supported_xss))
 		wrmsrl(MSR_IA32_XSS, kvm_host.xss);
 }
-EXPORT_SYMBOL_GPL(kvm_load_host_xsave_state);
+
+#define TDX_DEBUGCTL_PRESERVED (DEBUGCTLMSR_BTF | \
+				DEBUGCTLMSR_FREEZE_PERFMON_ON_PMI | \
+				DEBUGCTLMSR_FREEZE_IN_SMM)
 
 fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	struct vcpu_vt *vt = to_vt(vcpu);
 
 	/*
 	 * force_immediate_exit requires vCPU entering for events injection with
@@ -850,6 +856,9 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	trace_kvm_entry(vcpu, force_immediate_exit);
 
 	tdx_vcpu_enter_exit(vcpu);
+
+	if (vt->host_debugctlmsr & ~TDX_DEBUGCTL_PRESERVED)
+		update_debugctlmsr(vt->host_debugctlmsr);
 
 	tdx_load_host_xsave_state(vcpu);
 	tdx->guest_entered = true;
