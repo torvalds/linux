@@ -20,6 +20,7 @@ icc-rpmh.ko
 icc-debug.ko
 qnoc-qos.ko
 qnoc-seraph.ko
+spmi-pmic-arb.ko
 stub-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
