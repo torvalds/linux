@@ -1243,10 +1243,6 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		bytes = min_t(size_t, bytes, fc->max_write - count);
 
  again:
-		err = -EFAULT;
-		if (fault_in_iov_iter_readable(ii, bytes))
-			break;
-
 		folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
 					    mapping_gfp_mask(mapping));
 		if (IS_ERR(folio)) {
@@ -1263,6 +1259,16 @@ static ssize_t fuse_fill_write_pages(struct fuse_io_args *ia,
 		if (!tmp) {
 			folio_unlock(folio);
 			folio_put(folio);
+
+			/*
+			 * Ensure forward progress by faulting in
+			 * while not holding the folio lock:
+			 */
+			if (fault_in_iov_iter_readable(ii, bytes)) {
+				err = -EFAULT;
+				break;
+			}
+
 			goto again;
 		}
 
