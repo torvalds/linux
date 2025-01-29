@@ -1342,17 +1342,18 @@ int btrfs_read_policy_to_enum(const char *str, s64 *value_ret)
 	/* Separate value from input in policy:value format. */
 	value_str = strchr(param, ':');
 	if (value_str) {
-		int ret;
+		char *retptr;
 
 		*value_str = 0;
 		value_str++;
 		if (!value_ret)
 			return -EINVAL;
-		ret = kstrtos64(value_str, 10, value_ret);
-		if (ret)
+
+		*value_ret = memparse(value_str, &retptr);
+		/* There could be any trailing typos after the value. */
+		retptr = skip_spaces(retptr);
+		if (*retptr != 0 || *value_ret <= 0)
 			return -EINVAL;
-		if (*value_ret < 0)
-			return -ERANGE;
 	}
 #endif
 
