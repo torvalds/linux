@@ -10,6 +10,7 @@
 
 #include <linux/dmi.h>
 #include <linux/fault-inject.h>
+#include <linux/pm_runtime.h>
 
 #ifdef CONFIG_FAULT_INJECTION
 DECLARE_FAULT_ATTR(ivpu_hw_failure);
@@ -331,7 +332,9 @@ irqreturn_t ivpu_hw_irq_handler(int irq, void *ptr)
 	/* Re-enable global interrupts to re-trigger MSI for pending interrupts */
 	ivpu_hw_btrs_global_int_enable(vdev);
 
-	if (ip_handled || btrs_handled)
-		return IRQ_HANDLED;
-	return IRQ_NONE;
+	if (!ip_handled && !btrs_handled)
+		return IRQ_NONE;
+
+	pm_runtime_mark_last_busy(vdev->drm.dev);
+	return IRQ_HANDLED;
 }
