@@ -8,6 +8,7 @@
 
 #include <linux/iosys-map.h>
 #include <linux/types.h>
+#include <linux/workqueue.h>
 
 struct xe_bo;
 struct xe_exec_queue;
@@ -69,6 +70,18 @@ struct xe_pxp {
 
 	/** @gsc_res: kernel-owned objects for PXP submissions to the GSCCS */
 	struct xe_pxp_gsc_client_resources gsc_res;
+
+	/** @irq: wrapper for the worker and queue used for PXP irq support */
+	struct {
+		/** @irq.work: worker that manages irq events. */
+		struct work_struct work;
+		/** @irq.wq: workqueue on which to queue the irq work. */
+		struct workqueue_struct *wq;
+		/** @irq.events: pending events, protected with xe->irq.lock. */
+		u32 events;
+#define PXP_TERMINATION_REQUEST  BIT(0)
+#define PXP_TERMINATION_COMPLETE BIT(1)
+	} irq;
 };
 
 #endif /* __XE_PXP_TYPES_H__ */
