@@ -133,6 +133,7 @@ struct nvkm_gsp {
 		struct sg_table sgt;
 		struct nvkm_gsp_radix3 radix3;
 		struct nvkm_gsp_mem meta;
+		struct sg_table fbsr;
 	} sr;
 
 	struct {

@@ -1730,6 +1730,7 @@ lvl1_fail:
 int
 r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 {
+	struct nvkm_rm *rm = gsp->rm;
 	int ret;
 
 	if (suspend) {
@@ -1754,6 +1755,14 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 		sr->revision = GSP_FW_SR_META_REVISION;
 		sr->sysmemAddrOfSuspendResumeData = gsp->sr.radix3.lvl0.addr;
 		sr->sizeOfSuspendResumeData = len;
+
+		ret = rm->api->fbsr->suspend(gsp);
+		if (ret) {
+			nvkm_gsp_mem_dtor(&gsp->sr.meta);
+			nvkm_gsp_radix3_dtor(gsp, &gsp->sr.radix3);
+			nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.sgt);
+			return ret;
+		}
 	}
 
 	ret = r535_gsp_rpc_unloading_guest_driver(gsp, suspend);
@@ -1787,6 +1796,8 @@ r535_gsp_init(struct nvkm_gsp *gsp)
 
 done:
 	if (gsp->sr.meta.data) {
+		gsp->rm->api->fbsr->resume(gsp);
+
 		nvkm_gsp_mem_dtor(&gsp->sr.meta);
 		nvkm_gsp_radix3_dtor(gsp, &gsp->sr.radix3);
 		nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.sgt);

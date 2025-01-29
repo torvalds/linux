@@ -201,21 +201,18 @@ fbsr_inst(struct fbsr *fbsr, const char *type, struct nvkm_memory *memory)
 }
 
 static void
-r535_instmem_resume(struct nvkm_instmem *imem)
+r535_fbsr_resume(struct nvkm_gsp *gsp)
 {
 	/* RM has restored VRAM contents already, so just need to free the sysmem buffer. */
-	if (imem->rm.fbsr_valid) {
-		nvkm_gsp_sg_free(imem->subdev.device, &imem->rm.fbsr);
-		imem->rm.fbsr_valid = false;
-	}
+	nvkm_gsp_sg_free(gsp->subdev.device, &gsp->sr.fbsr);
 }
 
 static int
-r535_instmem_suspend(struct nvkm_instmem *imem)
+r535_fbsr_suspend(struct nvkm_gsp *gsp)
 {
-	struct nvkm_subdev *subdev = &imem->subdev;
+	struct nvkm_subdev *subdev = &gsp->subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_gsp *gsp = device->gsp;
+	struct nvkm_instmem *imem = device->imem;
 	struct nvkm_instobj *iobj;
 	struct fbsr fbsr = {};
 	struct fbsr_item *item, *temp;
@@ -256,7 +253,7 @@ r535_instmem_suspend(struct nvkm_instmem *imem)
 	fbsr.size += gsp->fb.bios.vga_workspace.size;
 	nvkm_debug(subdev, "fbsr: size: 0x%llx bytes\n", fbsr.size);
 
-	ret = nvkm_gsp_sg(gsp->subdev.device, fbsr.size, &imem->rm.fbsr);
+	ret = nvkm_gsp_sg(gsp->subdev.device, fbsr.size, &gsp->sr.fbsr);
 	if (ret)
 		goto done;
 
@@ -265,7 +262,7 @@ r535_instmem_suspend(struct nvkm_instmem *imem)
 	if (ret)
 		goto done_sgt;
 
-	ret = fbsr_init(&fbsr, &imem->rm.fbsr, items_size);
+	ret = fbsr_init(&fbsr, &gsp->sr.fbsr, items_size);
 	if (WARN_ON(ret))
 		goto done_sgt;
 
@@ -276,12 +273,10 @@ r535_instmem_suspend(struct nvkm_instmem *imem)
 			goto done_sgt;
 	}
 
-	imem->rm.fbsr_valid = true;
-
 	/* Cleanup everything except the sysmem backup, which will be removed after resume. */
 done_sgt:
 	if (ret) /* ... unless we failed already. */
-		nvkm_gsp_sg_free(device, &imem->rm.fbsr);
+		nvkm_gsp_sg_free(device, &gsp->sr.fbsr);
 done:
 	list_for_each_entry_safe(item, temp, &fbsr.items, head) {
 		list_del(&item->head);
@@ -292,6 +287,12 @@ done:
 	nvkm_gsp_client_dtor(&fbsr.client);
 	return ret;
 }
+
+const struct nvkm_rm_api_fbsr
+r535_fbsr = {
+	.suspend = r535_fbsr_suspend,
+	.resume = r535_fbsr_resume,
+};
 
 static void *
 r535_instmem_dtor(struct nvkm_instmem *imem)
@@ -313,8 +314,6 @@ r535_instmem_new(const struct nvkm_instmem_func *hw,
 
 	rm->dtor = r535_instmem_dtor;
 	rm->fini = hw->fini;
-	rm->suspend = r535_instmem_suspend;
-	rm->resume  = r535_instmem_resume;
 	rm->memory_new = hw->memory_new;
 	rm->memory_wrap = hw->memory_wrap;
 	rm->zero = false;
