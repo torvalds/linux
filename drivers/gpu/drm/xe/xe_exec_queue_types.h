@@ -132,6 +132,8 @@ struct xe_exec_queue {
 
 	/** @pxp: PXP info tracking */
 	struct {
+		/** @pxp.type: PXP session type used by this queue */
+		u8 type;
 		/** @pxp.link: link into the list of PXP exec queues */
 		struct list_head link;
 	} pxp;

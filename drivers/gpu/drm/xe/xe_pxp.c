@@ -6,6 +6,7 @@
 #include "xe_pxp.h"
 
 #include <drm/drm_managed.h>
+#include <uapi/drm/xe_drm.h>
 
 #include "xe_device_types.h"
 #include "xe_exec_queue.h"
@@ -47,7 +48,7 @@ bool xe_pxp_is_supported(const struct xe_device *xe)
 	return xe->info.has_pxp && IS_ENABLED(CONFIG_INTEL_MEI_GSC_PROXY);
 }
 
-static bool pxp_is_enabled(const struct xe_pxp *pxp)
+bool xe_pxp_is_enabled(const struct xe_pxp *pxp)
 {
 	return pxp;
 }
@@ -249,7 +250,7 @@ void xe_pxp_irq_handler(struct xe_device *xe, u16 iir)
 {
 	struct xe_pxp *pxp = xe->pxp;
 
-	if (!pxp_is_enabled(pxp)) {
+	if (!xe_pxp_is_enabled(pxp)) {
 		drm_err(&xe->drm, "PXP irq 0x%x received with PXP disabled!\n", iir);
 		return;
 	}
@@ -424,6 +425,27 @@ out_force_wake:
 	return ret;
 }
 
+/**
+ * xe_pxp_exec_queue_set_type - Mark a queue as using PXP
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ * @q: the queue to mark as using PXP
+ * @type: the type of PXP session this queue will use
+ *
+ * Returns 0 if the selected PXP type is supported, -ENODEV otherwise.
+ */
+int xe_pxp_exec_queue_set_type(struct xe_pxp *pxp, struct xe_exec_queue *q, u8 type)
+{
+	if (!xe_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	/* we only support HWDRM sessions right now */
+	xe_assert(pxp->xe, type == DRM_XE_PXP_TYPE_HWDRM);
+
+	q->pxp.type = type;
+
+	return 0;
+}
+
 static void __exec_queue_add(struct xe_pxp *pxp, struct xe_exec_queue *q)
 {
 	spin_lock_irq(&pxp->queues.lock);
@@ -449,8 +471,11 @@ int xe_pxp_exec_queue_add(struct xe_pxp *pxp, struct xe_exec_queue *q)
 {
 	int ret = 0;
 
-	if (!pxp_is_enabled(pxp))
+	if (!xe_pxp_is_enabled(pxp))
 		return -ENODEV;
+
+	/* we only support HWDRM sessions right now */
+	xe_assert(pxp->xe, q->pxp.type == DRM_XE_PXP_TYPE_HWDRM);
 
 	/*
 	 * Runtime suspend kills PXP, so we take a reference to prevent it from
@@ -589,7 +614,7 @@ void xe_pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q)
 {
 	bool need_pm_put = false;
 
-	if (!pxp_is_enabled(pxp))
+	if (!xe_pxp_is_enabled(pxp))
 		return;
 
 	spin_lock_irq(&pxp->queues.lock);
@@ -598,6 +623,8 @@ void xe_pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q)
 		list_del_init(&q->pxp.link);
 		need_pm_put = true;
 	}
+
+	q->pxp.type = DRM_XE_PXP_TYPE_NONE;
 
 	spin_unlock_irq(&pxp->queues.lock);
 
