@@ -606,8 +606,15 @@ struct kvm_pmu {
 struct kvm_pmu_ops;
 
 enum {
-	KVM_DEBUGREG_BP_ENABLED = 1,
-	KVM_DEBUGREG_WONT_EXIT = 2,
+	KVM_DEBUGREG_BP_ENABLED		= BIT(0),
+	KVM_DEBUGREG_WONT_EXIT		= BIT(1),
+	/*
+	 * Guest debug registers (DR0-3, DR6 and DR7) are saved/restored by
+	 * hardware on exit from or enter to guest. KVM needn't switch them.
+	 * DR0-3, DR6 and DR7 are set to their architectural INIT value on VM
+	 * exit, host values need to be restored.
+	 */
+	KVM_DEBUGREG_AUTO_SWITCH	= BIT(2),
 };
 
 struct kvm_mtrr {
