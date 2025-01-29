@@ -9,6 +9,15 @@
 #include "ivpu_hw_ip.h"
 
 #include <linux/dmi.h>
+#include <linux/fault-inject.h>
+
+#ifdef CONFIG_FAULT_INJECTION
+DECLARE_FAULT_ATTR(ivpu_hw_failure);
+
+static char *ivpu_fail_hw;
+module_param_named_unsafe(fail_hw, ivpu_fail_hw, charp, 0444);
+MODULE_PARM_DESC(fail_hw, "<interval>,<probability>,<space>,<times>");
+#endif
 
 static char *platform_to_str(u32 platform)
 {
@@ -246,6 +255,11 @@ int ivpu_hw_init(struct ivpu_device *vdev)
 	wa_init(vdev);
 	timeouts_init(vdev);
 	atomic_set(&vdev->hw->firewall_irq_counter, 0);
+
+#ifdef CONFIG_FAULT_INJECTION
+	if (ivpu_fail_hw)
+		setup_fault_attr(&ivpu_hw_failure, ivpu_fail_hw);
+#endif
 
 	return 0;
 }

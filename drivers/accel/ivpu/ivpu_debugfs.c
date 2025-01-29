@@ -4,6 +4,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/fault-inject.h>
 
 #include <drm/drm_debugfs.h>
 #include <drm/drm_file.h>
@@ -430,4 +431,8 @@ void ivpu_debugfs_init(struct ivpu_device *vdev)
 				    debugfs_root, vdev, &fw_profiling_freq_fops);
 		debugfs_create_file("dct", 0644, debugfs_root, vdev, &ivpu_dct_fops);
 	}
+
+#ifdef CONFIG_FAULT_INJECTION
+	fault_create_debugfs_attr("fail_hw", debugfs_root, &ivpu_hw_failure);
+#endif
 }
