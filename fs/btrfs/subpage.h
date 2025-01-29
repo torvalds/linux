@@ -128,6 +128,13 @@ void btrfs_folio_end_lock_bitmap(const struct btrfs_fs_info *fs_info,
  * btrfs_folio_clamp_*() are similar to btrfs_folio_*(), except the range doesn't
  * need to be inside the page. Those functions will truncate the range
  * automatically.
+ *
+ * Both btrfs_folio_*() and btrfs_folio_clamp_*() are for data folios.
+ *
+ * For metadata, one should use btrfs_meta_folio_*() helpers instead, and there
+ * is no clamp version for metadata helpers, as we either go subpage
+ * (nodesize < PAGE_SIZE) or go regular folio helpers (nodesize >= PAGE_SIZE,
+ * and our folio is never larger than nodesize).
  */
 #define DECLARE_BTRFS_SUBPAGE_OPS(name)					\
 void btrfs_subpage_set_##name(const struct btrfs_fs_info *fs_info,	\
@@ -147,7 +154,13 @@ void btrfs_folio_clamp_set_##name(const struct btrfs_fs_info *fs_info,	\
 void btrfs_folio_clamp_clear_##name(const struct btrfs_fs_info *fs_info,	\
 		struct folio *folio, u64 start, u32 len);			\
 bool btrfs_folio_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
-		struct folio *folio, u64 start, u32 len);
+		struct folio *folio, u64 start, u32 len);		\
+void btrfs_meta_folio_set_##name(const struct btrfs_fs_info *fs_info,	\
+		struct folio *folio, u64 start, u32 len);		\
+void btrfs_meta_folio_clear_##name(const struct btrfs_fs_info *fs_info,	\
+		struct folio *folio, u64 start, u32 len);		\
+bool btrfs_meta_folio_test_##name(const struct btrfs_fs_info *fs_info,	\
+		struct folio *folio, u64 start, u32 len);		\
 
 DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);

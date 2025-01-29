@@ -3442,8 +3442,8 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 		if (subpage)
 			folio_lock(eb->folios[0]);
 		for (int i = 0; i < num_folios; i++)
-			btrfs_folio_set_dirty(eb->fs_info, eb->folios[i],
-					      eb->start, eb->len);
+			btrfs_meta_folio_set_dirty(eb->fs_info, eb->folios[i],
+						   eb->start, eb->len);
 		if (subpage)
 			folio_unlock(eb->folios[0]);
 		percpu_counter_add_batch(&eb->fs_info->dirty_metadata_bytes,
@@ -3468,15 +3468,7 @@ void clear_extent_buffer_uptodate(struct extent_buffer *eb)
 		if (!folio)
 			continue;
 
-		/*
-		 * This is special handling for metadata subpage, as regular
-		 * btrfs_is_subpage() can not handle cloned/dummy metadata.
-		 */
-		if (!btrfs_meta_is_subpage(fs_info))
-			folio_clear_uptodate(folio);
-		else
-			btrfs_subpage_clear_uptodate(fs_info, folio,
-						     eb->start, eb->len);
+		btrfs_meta_folio_clear_uptodate(fs_info, folio, eb->start, eb->len);
 	}
 }
 
@@ -3489,15 +3481,7 @@ void set_extent_buffer_uptodate(struct extent_buffer *eb)
 	for (int i = 0; i < num_folios; i++) {
 		struct folio *folio = eb->folios[i];
 
-		/*
-		 * This is special handling for metadata subpage, as regular
-		 * btrfs_is_subpage() can not handle cloned/dummy metadata.
-		 */
-		if (!btrfs_meta_is_subpage(fs_info))
-			folio_mark_uptodate(folio);
-		else
-			btrfs_subpage_set_uptodate(fs_info, folio,
-						   eb->start, eb->len);
+		btrfs_meta_folio_set_uptodate(fs_info, folio, eb->start, eb->len);
 	}
 }
 
