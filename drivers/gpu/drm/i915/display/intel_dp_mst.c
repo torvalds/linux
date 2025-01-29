@@ -211,9 +211,8 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 
 int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
-				   int max_bpp, int min_bpp,
 				   struct drm_connector_state *conn_state,
-				   int step, bool dsc)
+				   int min_bpp, int max_bpp, int step, bool dsc)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_atomic_state *state = crtc_state->uapi.state;
@@ -380,9 +379,8 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 	mst_state->pbn_div = drm_dp_get_vc_payload_bw(crtc_state->port_clock,
 						      crtc_state->lane_count);
 
-	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state,
-					      max_bpp, min_bpp,
-					      conn_state, step, dsc);
+	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state, conn_state,
+					      min_bpp, max_bpp, step, dsc);
 }
 
 static int mst_stream_compute_link_config(struct intel_dp *intel_dp,

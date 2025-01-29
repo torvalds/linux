@@ -2643,9 +2643,9 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		if (!ret && intel_dp_is_uhbr(pipe_config))
 			ret = intel_dp_mtp_tu_compute_config(intel_dp,
 							     pipe_config,
-							     pipe_config->pipe_bpp,
-							     pipe_config->pipe_bpp,
 							     conn_state,
+							     pipe_config->pipe_bpp,
+							     pipe_config->pipe_bpp,
 							     0, false);
 		if (ret)
 			dsc_needed = true;
