@@ -130,6 +130,12 @@ struct xe_exec_queue {
 		struct list_head link;
 	} lr;
 
+	/** @pxp: PXP info tracking */
+	struct {
+		/** @pxp.link: link into the list of PXP exec queues */
+		struct list_head link;
+	} pxp;
+
 	/** @ops: submission backend exec queue operations */
 	const struct xe_exec_queue_ops *ops;
 

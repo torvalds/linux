@@ -6,7 +6,10 @@
 #ifndef __XE_PXP_TYPES_H__
 #define __XE_PXP_TYPES_H__
 
+#include <linux/completion.h>
 #include <linux/iosys-map.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -15,6 +18,16 @@ struct xe_exec_queue;
 struct xe_device;
 struct xe_gt;
 struct xe_vm;
+
+enum xe_pxp_status {
+	XE_PXP_ERROR = -1,
+	XE_PXP_NEEDS_TERMINATION = 0, /* starting status */
+	XE_PXP_NEEDS_ADDITIONAL_TERMINATION,
+	XE_PXP_TERMINATION_IN_PROGRESS,
+	XE_PXP_READY_TO_START,
+	XE_PXP_START_IN_PROGRESS,
+	XE_PXP_ACTIVE,
+};
 
 /**
  * struct xe_pxp_gsc_client_resources - resources for GSC submission by a PXP
@@ -82,6 +95,23 @@ struct xe_pxp {
 #define PXP_TERMINATION_REQUEST  BIT(0)
 #define PXP_TERMINATION_COMPLETE BIT(1)
 	} irq;
+
+	/** @mutex: protects the pxp status and the queue list */
+	struct mutex mutex;
+	/** @status: the current pxp status */
+	enum xe_pxp_status status;
+	/** @activation: completion struct that tracks pxp start */
+	struct completion activation;
+	/** @termination: completion struct that tracks terminations */
+	struct completion termination;
+
+	/** @queues: management of exec_queues that use PXP */
+	struct {
+		/** @queues.lock: spinlock protecting the queue management */
+		spinlock_t lock;
+		/** @queues.list: list of exec_queues that use PXP */
+		struct list_head list;
+	} queues;
 };
 
 #endif /* __XE_PXP_TYPES_H__ */
