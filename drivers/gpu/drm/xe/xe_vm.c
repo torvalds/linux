@@ -33,6 +33,7 @@
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
 #include "xe_pt.h"
+#include "xe_pxp.h"
 #include "xe_res_cursor.h"
 #include "xe_sync.h"
 #include "xe_trace_bo.h"
@@ -2726,7 +2727,8 @@ ALLOW_ERROR_INJECTION(vm_bind_ioctl_ops_execute, ERRNO);
 	(DRM_XE_VM_BIND_FLAG_READONLY | \
 	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | \
 	 DRM_XE_VM_BIND_FLAG_NULL | \
-	 DRM_XE_VM_BIND_FLAG_DUMPABLE)
+	 DRM_XE_VM_BIND_FLAG_DUMPABLE | \
+	 DRM_XE_VM_BIND_FLAG_CHECK_PXP)
 
 #ifdef TEST_VM_OPS_ERROR
 #define SUPPORTED_FLAGS	(SUPPORTED_FLAGS_STUB | FORCE_OP_ERROR)
@@ -2889,7 +2891,7 @@ static void xe_vma_ops_init(struct xe_vma_ops *vops, struct xe_vm *vm,
 
 static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 					u64 addr, u64 range, u64 obj_offset,
-					u16 pat_index)
+					u16 pat_index, u32 op, u32 bind_flags)
 {
 	u16 coh_mode;
 
@@ -2932,6 +2934,12 @@ static int xe_vm_bind_ioctl_validate_bo(struct xe_device *xe, struct xe_bo *bo,
 		 */
 		return  -EINVAL;
 	}
+
+	/* If a BO is protected it can only be mapped if the key is still valid */
+	if ((bind_flags & DRM_XE_VM_BIND_FLAG_CHECK_PXP) && xe_bo_is_protected(bo) &&
+	    op != DRM_XE_VM_BIND_OP_UNMAP && op != DRM_XE_VM_BIND_OP_UNMAP_ALL)
+		if (XE_IOCTL_DBG(xe, xe_pxp_bo_key_check(xe->pxp, bo) != 0))
+			return -ENOEXEC;
 
 	return 0;
 }
@@ -3022,6 +3030,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		u32 obj = bind_ops[i].obj;
 		u64 obj_offset = bind_ops[i].obj_offset;
 		u16 pat_index = bind_ops[i].pat_index;
+		u32 op = bind_ops[i].op;
+		u32 bind_flags = bind_ops[i].flags;
 
 		if (!obj)
 			continue;
@@ -3034,7 +3044,8 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		bos[i] = gem_to_xe_bo(gem_obj);
 
 		err = xe_vm_bind_ioctl_validate_bo(xe, bos[i], addr, range,
-						   obj_offset, pat_index);
+						   obj_offset, pat_index, op,
+						   bind_flags);
 		if (err)
 			goto put_obj;
 	}
@@ -3332,6 +3343,35 @@ wait:
 	vma->tile_invalidated = vma->tile_mask;
 
 	return ret;
+}
+
+int xe_vm_validate_protected(struct xe_vm *vm)
+{
+	struct drm_gpuva *gpuva;
+	int err = 0;
+
+	if (!vm)
+		return -ENODEV;
+
+	mutex_lock(&vm->snap_mutex);
+
+	drm_gpuvm_for_each_va(gpuva, &vm->gpuvm) {
+		struct xe_vma *vma = gpuva_to_vma(gpuva);
+		struct xe_bo *bo = vma->gpuva.gem.obj ?
+			gem_to_xe_bo(vma->gpuva.gem.obj) : NULL;
+
+		if (!bo)
+			continue;
+
+		if (xe_bo_is_protected(bo)) {
+			err = xe_pxp_bo_key_check(vm->xe->pxp, bo);
+			if (err)
+				break;
+		}
+	}
+
+	mutex_unlock(&vm->snap_mutex);
+	return err;
 }
 
 struct xe_vm_snapshot {

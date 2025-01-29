@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+struct drm_gem_object;
+struct xe_bo;
 struct xe_device;
 struct xe_exec_queue;
 struct xe_pxp;
@@ -22,5 +24,9 @@ void xe_pxp_irq_handler(struct xe_device *xe, u16 iir);
 int xe_pxp_exec_queue_set_type(struct xe_pxp *pxp, struct xe_exec_queue *q, u8 type);
 int xe_pxp_exec_queue_add(struct xe_pxp *pxp, struct xe_exec_queue *q);
 void xe_pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q);
+
+int xe_pxp_key_assign(struct xe_pxp *pxp, struct xe_bo *bo);
+int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo);
+int xe_pxp_obj_key_check(struct xe_pxp *pxp, struct drm_gem_object *obj);
 
 #endif /* __XE_PXP_H__ */

@@ -112,6 +112,17 @@ struct xe_pxp {
 		/** @queues.list: list of exec_queues that use PXP */
 		struct list_head list;
 	} queues;
+
+	/**
+	 * @key_instance: keep track of the current iteration of the PXP key.
+	 * Note that, due to the time needed for PXP termination and re-start
+	 * to complete, the minimum time between 2 subsequent increases of this
+	 * variable is 50ms, and even that only if there is a continuous attack;
+	 * normal behavior is for this to increase much much slower than that.
+	 * This means that we don't expect this to ever wrap and don't implement
+	 * that case in the code.
+	 */
+	u32 key_instance;
 };
 
 #endif /* __XE_PXP_TYPES_H__ */

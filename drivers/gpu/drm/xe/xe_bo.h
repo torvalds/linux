@@ -186,6 +186,11 @@ static inline bool xe_bo_is_pinned(struct xe_bo *bo)
 	return bo->ttm.pin_count;
 }
 
+static inline bool xe_bo_is_protected(const struct xe_bo *bo)
+{
+	return bo->pxp_key_instance;
+}
+
 static inline void xe_bo_unpin_map_no_vm(struct xe_bo *bo)
 {
 	if (likely(bo)) {

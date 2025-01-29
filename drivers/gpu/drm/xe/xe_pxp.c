@@ -8,6 +8,8 @@
 #include <drm/drm_managed.h>
 #include <uapi/drm/xe_drm.h>
 
+#include "xe_bo.h"
+#include "xe_bo_types.h"
 #include "xe_device_types.h"
 #include "xe_exec_queue.h"
 #include "xe_force_wake.h"
@@ -184,6 +186,9 @@ static void pxp_terminate(struct xe_pxp *pxp)
 	mutex_lock(&pxp->mutex);
 
 	pxp_invalidate_queues(pxp);
+
+	if (pxp->status == XE_PXP_ACTIVE)
+		pxp->key_instance++;
 
 	/*
 	 * If we have a termination already in progress, we need to wait for
@@ -384,6 +389,8 @@ int xe_pxp_init(struct xe_device *xe)
 	INIT_WORK(&pxp->irq.work, pxp_irq_work);
 	pxp->xe = xe;
 	pxp->gt = gt;
+
+	pxp->key_instance = 1;
 
 	/*
 	 * we'll use the completions to check if there is an action pending,
@@ -688,4 +695,87 @@ static void pxp_invalidate_queues(struct xe_pxp *pxp)
 	}
 
 	spin_unlock_irq(&pxp->queues.lock);
+}
+
+/**
+ * xe_pxp_key_assign - mark a BO as using the current PXP key iteration
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ * @bo: the BO to mark
+ *
+ * Returns: -ENODEV if PXP is disabled, 0 otherwise.
+ */
+int xe_pxp_key_assign(struct xe_pxp *pxp, struct xe_bo *bo)
+{
+	if (!xe_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	xe_assert(pxp->xe, !bo->pxp_key_instance);
+
+	/*
+	 * Note that the PXP key handling is inherently racey, because the key
+	 * can theoretically change at any time (although it's unlikely to do
+	 * so without triggers), even right after we copy it. Taking a lock
+	 * wouldn't help because the value might still change as soon as we
+	 * release the lock.
+	 * Userspace needs to handle the fact that their BOs can go invalid at
+	 * any point.
+	 */
+	bo->pxp_key_instance = pxp->key_instance;
+
+	return 0;
+}
+
+/**
+ * xe_pxp_bo_key_check - check if the key used by a xe_bo is valid
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ * @bo: the BO we want to check
+ *
+ * Checks whether a BO was encrypted with the current key or an obsolete one.
+ *
+ * Returns: 0 if the key is valid, -ENODEV if PXP is disabled, -EINVAL if the
+ * BO is not using PXP,  -ENOEXEC if the key is not valid.
+ */
+int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo)
+{
+	if (!xe_pxp_is_enabled(pxp))
+		return -ENODEV;
+
+	if (!xe_bo_is_protected(bo))
+		return -EINVAL;
+
+	xe_assert(pxp->xe, bo->pxp_key_instance);
+
+	/*
+	 * Note that the PXP key handling is inherently racey, because the key
+	 * can theoretically change at any time (although it's unlikely to do
+	 * so without triggers), even right after we check it. Taking a lock
+	 * wouldn't help because the value might still change as soon as we
+	 * release the lock.
+	 * We mitigate the risk by checking the key at multiple points (on each
+	 * submission involving the BO and right before flipping it on the
+	 * display), but there is still a very small chance that we could
+	 * operate on an invalid BO for a single submission or a single frame
+	 * flip. This is a compromise made to protect the encrypted data (which
+	 * is what the key termination is for).
+	 */
+	if (bo->pxp_key_instance != pxp->key_instance)
+		return -ENOEXEC;
+
+	return 0;
+}
+
+/**
+ * xe_pxp_obj_key_check - check if the key used by a drm_gem_obj is valid
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ * @obj: the drm_gem_obj we want to check
+ *
+ * Checks whether a drm_gem_obj was encrypted with the current key or an
+ * obsolete one.
+ *
+ * Returns: 0 if the key is valid, -ENODEV if PXP is disabled, -EINVAL if the
+ * obj is not using PXP,  -ENOEXEC if the key is not valid.
+ */
+int xe_pxp_obj_key_check(struct xe_pxp *pxp, struct drm_gem_object *obj)
+{
+	return xe_pxp_bo_key_check(pxp, gem_to_xe_bo(obj));
 }

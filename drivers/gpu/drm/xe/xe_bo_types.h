@@ -57,6 +57,12 @@ struct xe_bo {
 	 */
 	struct list_head client_link;
 #endif
+	/**
+	 * @pxp_key_instance: PXP key instance this BO was created against. A
+	 * 0 in this variable indicates that the BO does not use PXP encryption.
+	 */
+	u32 pxp_key_instance;
+
 	/** @freed: List node for delayed put. */
 	struct llist_node freed;
 	/** @update_index: Update index if PT BO */

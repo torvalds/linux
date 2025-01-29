@@ -6,6 +6,7 @@
 #include "xe_bo.h"
 
 #include <linux/dma-buf.h>
+#include <linux/nospec.h>
 
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_ttm_helper.h>
@@ -26,6 +27,7 @@
 #include "xe_migrate.h"
 #include "xe_pm.h"
 #include "xe_preempt_fence.h"
+#include "xe_pxp.h"
 #include "xe_res_cursor.h"
 #include "xe_trace_bo.h"
 #include "xe_ttm_stolen_mgr.h"
@@ -2155,6 +2157,93 @@ void xe_bo_vunmap(struct xe_bo *bo)
 	__xe_bo_vunmap(bo);
 }
 
+static int gem_create_set_pxp_type(struct xe_device *xe, struct xe_bo *bo, u64 value)
+{
+	if (value == DRM_XE_PXP_TYPE_NONE)
+		return 0;
+
+	/* we only support DRM_XE_PXP_TYPE_HWDRM for now */
+	if (XE_IOCTL_DBG(xe, value != DRM_XE_PXP_TYPE_HWDRM))
+		return -EINVAL;
+
+	return xe_pxp_key_assign(xe->pxp, bo);
+}
+
+typedef int (*xe_gem_create_set_property_fn)(struct xe_device *xe,
+					     struct xe_bo *bo,
+					     u64 value);
+
+static const xe_gem_create_set_property_fn gem_create_set_property_funcs[] = {
+	[DRM_XE_GEM_CREATE_EXTENSION_SET_PROPERTY] = gem_create_set_pxp_type,
+};
+
+static int gem_create_user_ext_set_property(struct xe_device *xe,
+					    struct xe_bo *bo,
+					    u64 extension)
+{
+	u64 __user *address = u64_to_user_ptr(extension);
+	struct drm_xe_ext_set_property ext;
+	int err;
+	u32 idx;
+
+	err = __copy_from_user(&ext, address, sizeof(ext));
+	if (XE_IOCTL_DBG(xe, err))
+		return -EFAULT;
+
+	if (XE_IOCTL_DBG(xe, ext.property >=
+			 ARRAY_SIZE(gem_create_set_property_funcs)) ||
+	    XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.property != DRM_XE_GEM_CREATE_EXTENSION_SET_PROPERTY))
+		return -EINVAL;
+
+	idx = array_index_nospec(ext.property, ARRAY_SIZE(gem_create_set_property_funcs));
+	if (!gem_create_set_property_funcs[idx])
+		return -EINVAL;
+
+	return gem_create_set_property_funcs[idx](xe, bo, ext.value);
+}
+
+typedef int (*xe_gem_create_user_extension_fn)(struct xe_device *xe,
+					       struct xe_bo *bo,
+					       u64 extension);
+
+static const xe_gem_create_user_extension_fn gem_create_user_extension_funcs[] = {
+	[DRM_XE_GEM_CREATE_EXTENSION_SET_PROPERTY] = gem_create_user_ext_set_property,
+};
+
+#define MAX_USER_EXTENSIONS	16
+static int gem_create_user_extensions(struct xe_device *xe, struct xe_bo *bo,
+				      u64 extensions, int ext_number)
+{
+	u64 __user *address = u64_to_user_ptr(extensions);
+	struct drm_xe_user_extension ext;
+	int err;
+	u32 idx;
+
+	if (XE_IOCTL_DBG(xe, ext_number >= MAX_USER_EXTENSIONS))
+		return -E2BIG;
+
+	err = __copy_from_user(&ext, address, sizeof(ext));
+	if (XE_IOCTL_DBG(xe, err))
+		return -EFAULT;
+
+	if (XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.name >= ARRAY_SIZE(gem_create_user_extension_funcs)))
+		return -EINVAL;
+
+	idx = array_index_nospec(ext.name,
+				 ARRAY_SIZE(gem_create_user_extension_funcs));
+	err = gem_create_user_extension_funcs[idx](xe, bo, extensions);
+	if (XE_IOCTL_DBG(xe, err))
+		return err;
+
+	if (ext.next_extension)
+		return gem_create_user_extensions(xe, bo, ext.next_extension,
+						  ++ext_number);
+
+	return 0;
+}
+
 int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file)
 {
@@ -2167,8 +2256,7 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	u32 handle;
 	int err;
 
-	if (XE_IOCTL_DBG(xe, args->extensions) ||
-	    XE_IOCTL_DBG(xe, args->pad[0] || args->pad[1] || args->pad[2]) ||
+	if (XE_IOCTL_DBG(xe, args->pad[0] || args->pad[1] || args->pad[2]) ||
 	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
@@ -2248,6 +2336,12 @@ int xe_gem_create_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(bo)) {
 		err = PTR_ERR(bo);
 		goto out_vm;
+	}
+
+	if (args->extensions) {
+		err = gem_create_user_extensions(xe, bo, args->extensions, 0);
+		if (err)
+			goto out_bulk;
 	}
 
 	err = drm_gem_handle_create(file, &bo->ttm.base, &handle);
