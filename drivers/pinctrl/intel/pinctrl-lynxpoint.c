@@ -549,6 +549,8 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 	unsigned long pending;
 	u32 base, pin;
 
+	chained_irq_enter(chip, desc);
+
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < lg->chip.ngpio; base += 32) {
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
@@ -560,7 +562,8 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 		for_each_set_bit(pin, &pending, 32)
 			generic_handle_domain_irq(lg->chip.irq.domain, base + pin);
 	}
-	chip->irq_eoi(data);
+
+	chained_irq_exit(chip, desc);
 }
 
 static void lp_irq_ack(struct irq_data *d)
