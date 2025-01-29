@@ -161,11 +161,6 @@ void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason)
 		return;
 	}
 
-	if (ivpu_is_fpga(vdev)) {
-		ivpu_err(vdev, "Recovery not available on FPGA\n");
-		return;
-	}
-
 	/* Trigger recovery if it's not in progress */
 	if (atomic_cmpxchg(&vdev->pm->reset_pending, 0, 1) == 0) {
 		ivpu_hw_diagnose_failure(vdev);

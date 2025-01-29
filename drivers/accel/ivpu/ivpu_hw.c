@@ -58,7 +58,7 @@ static void platform_init(struct ivpu_device *vdev)
 
 static void wa_init(struct ivpu_device *vdev)
 {
-	vdev->wa.punit_disabled = ivpu_is_fpga(vdev);
+	vdev->wa.punit_disabled = false;
 	vdev->wa.clear_runtime_mem = false;
 
 	if (ivpu_hw_btrs_gen(vdev) == IVPU_HW_BTRS_MTL)
@@ -87,12 +87,12 @@ static void timeouts_init(struct ivpu_device *vdev)
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = -1;
 	} else if (ivpu_is_fpga(vdev)) {
-		vdev->timeout.boot = 100000;
-		vdev->timeout.jsm = 50000;
-		vdev->timeout.tdr = 2000000;
+		vdev->timeout.boot = 50;
+		vdev->timeout.jsm = 15000;
+		vdev->timeout.tdr = 30000;
 		vdev->timeout.autosuspend = -1;
 		vdev->timeout.d0i3_entry_msg = 500;
-		vdev->timeout.state_dump_msg = 10;
+		vdev->timeout.state_dump_msg = 10000;
 	} else if (ivpu_is_simics(vdev)) {
 		vdev->timeout.boot = 50;
 		vdev->timeout.jsm = 500;
