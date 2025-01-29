@@ -375,7 +375,6 @@ void ivpu_context_abort_locked(struct ivpu_file_priv *file_priv)
 		ivpu_jsm_context_release(vdev, file_priv->ctx.id);
 
 	ivpu_mmu_disable_ssid_events(vdev, file_priv->ctx.id);
-	ivpu_mmu_discard_events(vdev);
 
 	file_priv->aborted = true;
 }
@@ -979,6 +978,13 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 		mutex_unlock(&file_priv->lock);
 	}
 	mutex_unlock(&vdev->context_list_lock);
+
+	/*
+	 * We will not receive new MMU event interrupts until existing events are discarded
+	 * however, we want to discard these events only after aborting the faulty context
+	 * to avoid generating new faults from that context
+	 */
+	ivpu_mmu_discard_events(vdev);
 
 	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
 		return;
