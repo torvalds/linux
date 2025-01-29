@@ -1941,7 +1941,7 @@ static bool is_bw_sufficient_for_dsc_config(u16 compressed_bppx16, u32 link_cloc
 
 static int dsc_compute_link_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *pipe_config,
-				   struct link_config_limits *limits,
+				   const struct link_config_limits *limits,
 				   u16 compressed_bppx16,
 				   int timeslots)
 {
@@ -2061,7 +2061,7 @@ static int dsc_src_max_compressed_bpp(struct intel_dp *intel_dp)
 static int
 icl_dsc_compute_link_config(struct intel_dp *intel_dp,
 			    struct intel_crtc_state *pipe_config,
-			    struct link_config_limits *limits,
+			    const struct link_config_limits *limits,
 			    int dsc_max_bpp,
 			    int dsc_min_bpp,
 			    int pipe_bpp,
@@ -2104,7 +2104,7 @@ static int
 xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 			      const struct intel_connector *connector,
 			      struct intel_crtc_state *pipe_config,
-			      struct link_config_limits *limits,
+			      const struct link_config_limits *limits,
 			      int dsc_max_bpp,
 			      int dsc_min_bpp,
 			      int pipe_bpp,
@@ -2153,7 +2153,7 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 				      const struct intel_connector *connector,
 				      struct intel_crtc_state *pipe_config,
-				      struct link_config_limits *limits,
+				      const struct link_config_limits *limits,
 				      int pipe_bpp,
 				      int timeslots)
 {
@@ -2185,7 +2185,7 @@ int intel_dp_dsc_min_src_input_bpc(void)
 }
 
 static
-bool is_dsc_pipe_bpp_sufficient(struct link_config_limits *limits,
+bool is_dsc_pipe_bpp_sufficient(const struct link_config_limits *limits,
 				int pipe_bpp)
 {
 	return pipe_bpp >= limits->pipe.min_bpp &&
@@ -2194,7 +2194,7 @@ bool is_dsc_pipe_bpp_sufficient(struct link_config_limits *limits,
 
 static
 int intel_dp_force_dsc_pipe_bpp(struct intel_dp *intel_dp,
-				struct link_config_limits *limits)
+				const struct link_config_limits *limits)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int forced_bpp;
@@ -2220,7 +2220,7 @@ int intel_dp_force_dsc_pipe_bpp(struct intel_dp *intel_dp,
 static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 					 struct intel_crtc_state *pipe_config,
 					 struct drm_connector_state *conn_state,
-					 struct link_config_limits *limits,
+					 const struct link_config_limits *limits,
 					 int timeslots)
 {
 	const struct intel_connector *connector =
@@ -2270,7 +2270,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 static int intel_edp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 					  struct intel_crtc_state *pipe_config,
 					  struct drm_connector_state *conn_state,
-					  struct link_config_limits *limits)
+					  const struct link_config_limits *limits)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector =
@@ -2335,7 +2335,7 @@ static void intel_dp_fec_compute_config(struct intel_dp *intel_dp,
 int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
-				struct link_config_limits *limits,
+				const struct link_config_limits *limits,
 				int timeslots,
 				bool compute_pipe_bpp)
 {
