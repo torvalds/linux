@@ -5,15 +5,21 @@
 
 #include "xe_pxp_submit.h"
 
+#include <linux/delay.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "xe_device_types.h"
+#include "xe_bb.h"
 #include "xe_bo.h"
 #include "xe_exec_queue.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
+#include "xe_lrc.h"
 #include "xe_pxp_types.h"
+#include "xe_sched_job.h"
 #include "xe_vm.h"
+#include "instructions/xe_mfx_commands.h"
+#include "instructions/xe_mi_commands.h"
 
 /*
  * The VCS is used for kernel-owned GGTT submissions to issue key termination.
@@ -196,4 +202,112 @@ void xe_pxp_destroy_execution_resources(struct xe_pxp *pxp)
 {
 	destroy_gsc_client_resources(&pxp->gsc_res);
 	destroy_vcs_execution_resources(pxp);
+}
+
+#define emit_cmd(xe_, map_, offset_, val_) \
+	xe_map_wr(xe_, map_, (offset_) * sizeof(u32), u32, val_)
+
+/* stall until prior PXP and MFX/HCP/HUC objects are completed */
+#define MFX_WAIT_PXP (MFX_WAIT | \
+		      MFX_WAIT_DW0_PXP_SYNC_CONTROL_FLAG | \
+		      MFX_WAIT_DW0_MFX_SYNC_CONTROL_FLAG)
+static u32 pxp_emit_wait(struct xe_device *xe, struct iosys_map *batch, u32 offset)
+{
+	/* wait for cmds to go through */
+	emit_cmd(xe, batch, offset++, MFX_WAIT_PXP);
+	emit_cmd(xe, batch, offset++, 0);
+
+	return offset;
+}
+
+static u32 pxp_emit_session_selection(struct xe_device *xe, struct iosys_map *batch,
+				      u32 offset, u32 idx)
+{
+	offset = pxp_emit_wait(xe, batch, offset);
+
+	/* pxp off */
+	emit_cmd(xe, batch, offset++, MI_FLUSH_DW | MI_FLUSH_IMM_DW);
+	emit_cmd(xe, batch, offset++, 0);
+	emit_cmd(xe, batch, offset++, 0);
+	emit_cmd(xe, batch, offset++, 0);
+
+	/* select session */
+	emit_cmd(xe, batch, offset++, MI_SET_APPID | MI_SET_APPID_SESSION_ID(idx));
+	emit_cmd(xe, batch, offset++, 0);
+
+	offset = pxp_emit_wait(xe, batch, offset);
+
+	/* pxp on */
+	emit_cmd(xe, batch, offset++, MI_FLUSH_DW |
+				      MI_FLUSH_DW_PROTECTED_MEM_EN |
+				      MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_STORE_INDEX |
+				      MI_FLUSH_IMM_DW);
+	emit_cmd(xe, batch, offset++, LRC_PPHWSP_PXP_INVAL_SCRATCH_ADDR |
+				      MI_FLUSH_DW_USE_GTT);
+	emit_cmd(xe, batch, offset++, 0);
+	emit_cmd(xe, batch, offset++, 0);
+
+	offset = pxp_emit_wait(xe, batch, offset);
+
+	return offset;
+}
+
+static u32 pxp_emit_inline_termination(struct xe_device *xe,
+				       struct iosys_map *batch, u32 offset)
+{
+	/* session inline termination */
+	emit_cmd(xe, batch, offset++, CRYPTO_KEY_EXCHANGE);
+	emit_cmd(xe, batch, offset++, 0);
+
+	return offset;
+}
+
+static u32 pxp_emit_session_termination(struct xe_device *xe, struct iosys_map *batch,
+					u32 offset, u32 idx)
+{
+	offset = pxp_emit_session_selection(xe, batch, offset, idx);
+	offset = pxp_emit_inline_termination(xe, batch, offset);
+
+	return offset;
+}
+
+/**
+ * xe_pxp_submit_session_termination - submits a PXP inline termination
+ * @pxp: the xe_pxp structure
+ * @id: the session to terminate
+ *
+ * Emit an inline termination via the VCS engine to terminate a session.
+ *
+ * Returns 0 if the submission is successful, an errno value otherwise.
+ */
+int xe_pxp_submit_session_termination(struct xe_pxp *pxp, u32 id)
+{
+	struct xe_sched_job *job;
+	struct dma_fence *fence;
+	long timeout;
+	u32 offset = 0;
+	u64 addr = xe_bo_ggtt_addr(pxp->vcs_exec.bo);
+
+	offset = pxp_emit_session_termination(pxp->xe, &pxp->vcs_exec.bo->vmap, offset, id);
+	offset = pxp_emit_wait(pxp->xe, &pxp->vcs_exec.bo->vmap, offset);
+	emit_cmd(pxp->xe, &pxp->vcs_exec.bo->vmap, offset, MI_BATCH_BUFFER_END);
+
+	job = xe_sched_job_create(pxp->vcs_exec.q, &addr);
+	if (IS_ERR(job))
+		return PTR_ERR(job);
+
+	xe_sched_job_arm(job);
+	fence = dma_fence_get(&job->drm.s_fence->finished);
+	xe_sched_job_push(job);
+
+	timeout = dma_fence_wait_timeout(fence, false, HZ);
+
+	dma_fence_put(fence);
+
+	if (!timeout)
+		return -ETIMEDOUT;
+	else if (timeout < 0)
+		return timeout;
+
+	return 0;
 }
