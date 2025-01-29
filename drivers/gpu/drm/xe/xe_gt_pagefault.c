@@ -264,12 +264,13 @@ static void print_pagefault(struct xe_device *xe, struct pagefault *pf)
 		 "\tFaultType: %d\n"
 		 "\tAccessType: %d\n"
 		 "\tFaultLevel: %d\n"
-		 "\tEngineClass: %d\n"
+		 "\tEngineClass: %d %s\n"
 		 "\tEngineInstance: %d\n",
 		 pf->asid, pf->vfid, pf->pdata, upper_32_bits(pf->page_addr),
 		 lower_32_bits(pf->page_addr),
 		 pf->fault_type, pf->access_type, pf->fault_level,
-		 pf->engine_class, pf->engine_instance);
+		 pf->engine_class, xe_hw_engine_class_to_str(pf->engine_class),
+		 pf->engine_instance);
 }
 
 #define PF_MSG_LEN_DW	4
