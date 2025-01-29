@@ -362,7 +362,6 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 					      struct intel_crtc_state *crtc_state,
 					      int max_bpp, int min_bpp,
-					      const struct link_config_limits *limits,
 					      struct drm_connector_state *conn_state,
 					      int step, bool dsc)
 {
@@ -372,9 +371,6 @@ static int mst_stream_find_vcpi_slots_for_bpp(struct intel_dp *intel_dp,
 	mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
 	if (IS_ERR(mst_state))
 		return PTR_ERR(mst_state);
-
-	crtc_state->lane_count = limits->max_lane_count;
-	crtc_state->port_clock = limits->max_rate;
 
 	mst_state->pbn_div = drm_dp_get_vc_payload_bw(crtc_state->port_clock,
 						      crtc_state->lane_count);
@@ -388,6 +384,9 @@ static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
 					  struct drm_connector_state *conn_state,
 					  const struct link_config_limits *limits)
 {
+	crtc_state->lane_count = limits->max_lane_count;
+	crtc_state->port_clock = limits->max_rate;
+
 	/*
 	 * FIXME: allocate the BW according to link_bpp, which in the case of
 	 * YUV420 is only half of the pipe bpp value.
@@ -395,7 +394,6 @@ static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
 	return mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state,
 						  fxp_q4_to_int(limits->link.max_bpp_x16),
 						  fxp_q4_to_int(limits->link.min_bpp_x16),
-						  limits,
 						  conn_state, 2 * 3, false);
 }
 
@@ -453,8 +451,11 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 	min_compressed_bpp = intel_dp_dsc_nearest_valid_bpp(display, min_compressed_bpp,
 							    crtc_state->pipe_bpp);
 
+	crtc_state->lane_count = limits->max_lane_count;
+	crtc_state->port_clock = limits->max_rate;
+
 	return mst_stream_find_vcpi_slots_for_bpp(intel_dp, crtc_state, max_compressed_bpp,
-						  min_compressed_bpp, limits,
+						  min_compressed_bpp,
 						  conn_state, 1, true);
 }
 
