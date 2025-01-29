@@ -325,6 +325,15 @@ config NVMEM_REBOOT_MODE
 	  then the bootloader can read it and take different
 	  action according to the mode.
 
+config NVMEM_IMEM
+	tristate "IMEM Support"
+	depends on ARCH_QCOM
+	help
+	  Say y here will enable nvmem provider driver.This provides access
+          functions for IMEM memory  data to rest of the drivers via nvmem
+          interface. This driver supports the Shared IMEM memory Module on
+          Qualcomm Technologies, Inc.
+
 config POWER_RESET_QCOM_VM
 	tristate "Qualcomm Technologies, Inc. MSM VM power-off driver"
 	depends on OF
