@@ -132,6 +132,14 @@ static int pxp_wait_for_session_state(struct xe_pxp *pxp, u32 id, bool in_play)
 
 static void pxp_invalidate_queues(struct xe_pxp *pxp);
 
+static void pxp_invalidate_state(struct xe_pxp *pxp)
+{
+	pxp_invalidate_queues(pxp);
+
+	if (pxp->status == XE_PXP_ACTIVE)
+		pxp->key_instance++;
+}
+
 static int pxp_terminate_hw(struct xe_pxp *pxp)
 {
 	struct xe_gt *gt = pxp->gt;
@@ -185,10 +193,16 @@ static void pxp_terminate(struct xe_pxp *pxp)
 
 	mutex_lock(&pxp->mutex);
 
-	pxp_invalidate_queues(pxp);
+	pxp_invalidate_state(pxp);
 
-	if (pxp->status == XE_PXP_ACTIVE)
-		pxp->key_instance++;
+	/*
+	 * we'll mark the status as needing termination on resume, so no need to
+	 * emit a termination now.
+	 */
+	if (pxp->status == XE_PXP_SUSPENDED) {
+		mutex_unlock(&pxp->mutex);
+		return;
+	}
 
 	/*
 	 * If we have a termination already in progress, we need to wait for
@@ -219,11 +233,13 @@ static void pxp_terminate(struct xe_pxp *pxp)
 static void pxp_terminate_complete(struct xe_pxp *pxp)
 {
 	/*
-	 * We expect PXP to be in one of 2 states when we get here:
+	 * We expect PXP to be in one of 3 states when we get here:
 	 * - XE_PXP_TERMINATION_IN_PROGRESS: a single termination event was
 	 * requested and it is now completing, so we're ready to start.
 	 * - XE_PXP_NEEDS_ADDITIONAL_TERMINATION: a second termination was
 	 * requested while the first one was still being processed.
+	 * - XE_PXP_SUSPENDED: PXP is now suspended, so we defer everything to
+	 * when we come back on resume.
 	 */
 	mutex_lock(&pxp->mutex);
 
@@ -233,6 +249,9 @@ static void pxp_terminate_complete(struct xe_pxp *pxp)
 		break;
 	case XE_PXP_NEEDS_ADDITIONAL_TERMINATION:
 		pxp->status = XE_PXP_NEEDS_TERMINATION;
+		break;
+	case XE_PXP_SUSPENDED:
+		/* Nothing to do */
 		break;
 	default:
 		drm_err(&pxp->xe->drm,
@@ -391,6 +410,7 @@ int xe_pxp_init(struct xe_device *xe)
 	pxp->gt = gt;
 
 	pxp->key_instance = 1;
+	pxp->last_suspend_key_instance = 1;
 
 	/*
 	 * we'll use the completions to check if there is an action pending,
@@ -574,6 +594,7 @@ wait_for_idle:
 		XE_WARN_ON(completion_done(&pxp->termination));
 		mutex_unlock(&pxp->mutex);
 		goto wait_for_idle;
+	case XE_PXP_SUSPENDED:
 	default:
 		drm_err(&pxp->xe->drm, "unexpected state during PXP start: %u\n", pxp->status);
 		ret = -EIO;
@@ -778,4 +799,104 @@ int xe_pxp_bo_key_check(struct xe_pxp *pxp, struct xe_bo *bo)
 int xe_pxp_obj_key_check(struct xe_pxp *pxp, struct drm_gem_object *obj)
 {
 	return xe_pxp_bo_key_check(pxp, gem_to_xe_bo(obj));
+}
+
+/**
+ * xe_pxp_pm_suspend - prepare PXP for HW suspend
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ *
+ * Makes sure all PXP actions have completed and invalidates all PXP queues
+ * and objects before we go into a suspend state.
+ *
+ * Returns: 0 if successful, a negative errno value otherwise.
+ */
+int xe_pxp_pm_suspend(struct xe_pxp *pxp)
+{
+	int ret = 0;
+
+	if (!xe_pxp_is_enabled(pxp))
+		return 0;
+
+wait_for_activation:
+	if (!wait_for_completion_timeout(&pxp->activation,
+					 msecs_to_jiffies(PXP_ACTIVATION_TIMEOUT_MS)))
+		ret = -ETIMEDOUT;
+
+	mutex_lock(&pxp->mutex);
+
+	switch (pxp->status) {
+	case XE_PXP_ERROR:
+	case XE_PXP_READY_TO_START:
+	case XE_PXP_SUSPENDED:
+	case XE_PXP_TERMINATION_IN_PROGRESS:
+	case XE_PXP_NEEDS_ADDITIONAL_TERMINATION:
+		/*
+		 * If PXP is not running there is nothing to cleanup. If there
+		 * is a termination pending then no need to issue another one.
+		 */
+		break;
+	case XE_PXP_START_IN_PROGRESS:
+		mutex_unlock(&pxp->mutex);
+		goto wait_for_activation;
+	case XE_PXP_NEEDS_TERMINATION:
+		/* If PXP was never used we can skip the cleanup */
+		if (pxp->key_instance == pxp->last_suspend_key_instance)
+			break;
+		fallthrough;
+	case XE_PXP_ACTIVE:
+		pxp_invalidate_state(pxp);
+		break;
+	default:
+		drm_err(&pxp->xe->drm, "unexpected state during PXP suspend: %u",
+			pxp->status);
+		ret = -EIO;
+		goto out;
+	}
+
+	/*
+	 * We set this even if we were in error state, hoping the suspend clears
+	 * the error. Worse case we fail again and go in error state again.
+	 */
+	pxp->status = XE_PXP_SUSPENDED;
+
+	mutex_unlock(&pxp->mutex);
+
+	/*
+	 * if there is a termination in progress, wait for it.
+	 * We need to wait outside the lock because the completion is done from
+	 * within the lock
+	 */
+	if (!wait_for_completion_timeout(&pxp->termination,
+					 msecs_to_jiffies(PXP_TERMINATION_TIMEOUT_MS)))
+		ret = -ETIMEDOUT;
+
+	pxp->last_suspend_key_instance = pxp->key_instance;
+
+out:
+	return ret;
+}
+
+/**
+ * xe_pxp_pm_resume - re-init PXP after HW suspend
+ * @pxp: the xe->pxp pointer (it will be NULL if PXP is disabled)
+ */
+void xe_pxp_pm_resume(struct xe_pxp *pxp)
+{
+	int err;
+
+	if (!xe_pxp_is_enabled(pxp))
+		return;
+
+	err = kcr_pxp_enable(pxp);
+
+	mutex_lock(&pxp->mutex);
+
+	xe_assert(pxp->xe, pxp->status == XE_PXP_SUSPENDED);
+
+	if (err)
+		pxp->status = XE_PXP_ERROR;
+	else
+		pxp->status = XE_PXP_NEEDS_TERMINATION;
+
+	mutex_unlock(&pxp->mutex);
 }

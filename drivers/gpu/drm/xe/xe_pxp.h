@@ -21,6 +21,9 @@ int xe_pxp_get_readiness_status(struct xe_pxp *pxp);
 int xe_pxp_init(struct xe_device *xe);
 void xe_pxp_irq_handler(struct xe_device *xe, u16 iir);
 
+int xe_pxp_pm_suspend(struct xe_pxp *pxp);
+void xe_pxp_pm_resume(struct xe_pxp *pxp);
+
 int xe_pxp_exec_queue_set_type(struct xe_pxp *pxp, struct xe_exec_queue *q, u8 type);
 int xe_pxp_exec_queue_add(struct xe_pxp *pxp, struct xe_exec_queue *q);
 void xe_pxp_exec_queue_remove(struct xe_pxp *pxp, struct xe_exec_queue *q);

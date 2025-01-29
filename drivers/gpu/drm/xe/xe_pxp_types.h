@@ -27,6 +27,7 @@ enum xe_pxp_status {
 	XE_PXP_READY_TO_START,
 	XE_PXP_START_IN_PROGRESS,
 	XE_PXP_ACTIVE,
+	XE_PXP_SUSPENDED,
 };
 
 /**
@@ -123,6 +124,12 @@ struct xe_pxp {
 	 * that case in the code.
 	 */
 	u32 key_instance;
+	/**
+	 * @last_suspend_key_instance: value of key_instance at the last
+	 * suspend. Used to check if any PXP session has been created between
+	 * suspend cycles.
+	 */
+	u32 last_suspend_key_instance;
 };
 
 #endif /* __XE_PXP_TYPES_H__ */
