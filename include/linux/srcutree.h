@@ -231,17 +231,24 @@ static inline struct srcu_ctr __percpu *__srcu_ctr_to_ptr(struct srcu_struct *ss
  * srcu_struct.  Returns a pointer that must be passed to the matching
  * srcu_read_unlock_fast().
  *
- * Note that this_cpu_inc() is an RCU read-side critical section either
- * because it disables interrupts, because it is a single instruction,
- * or because it is a read-modify-write atomic operation, depending on
- * the whims of the architecture.
+ * Note that both this_cpu_inc() and atomic_long_inc() are RCU read-side
+ * critical sections either because they disables interrupts, because they
+ * are a single instruction, or because they are a read-modify-write atomic
+ * operation, depending on the whims of the architecture.
+ *
+ * This means that __srcu_read_lock_fast() is not all that fast
+ * on architectures that support NMIs but do not supply NMI-safe
+ * implementations of this_cpu_inc().
  */
 static inline struct srcu_ctr __percpu *__srcu_read_lock_fast(struct srcu_struct *ssp)
 {
 	struct srcu_ctr __percpu *scp = READ_ONCE(ssp->srcu_ctrp);
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_lock_fast().");
-	this_cpu_inc(scp->srcu_locks.counter); /* Y */
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_locks.counter); /* Y */
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_locks));  /* Z */
 	barrier(); /* Avoid leaking the critical section. */
 	return scp;
 }
@@ -252,15 +259,22 @@ static inline struct srcu_ctr __percpu *__srcu_read_lock_fast(struct srcu_struct
  * different CPU than that which was incremented by the corresponding
  * srcu_read_lock_fast(), but it must be within the same task.
  *
- * Note that this_cpu_inc() is an RCU read-side critical section either
- * because it disables interrupts, because it is a single instruction,
- * or because it is a read-modify-write atomic operation, depending on
- * the whims of the architecture.
+ * Note that both this_cpu_inc() and atomic_long_inc() are RCU read-side
+ * critical sections either because they disables interrupts, because they
+ * are a single instruction, or because they are a read-modify-write atomic
+ * operation, depending on the whims of the architecture.
+ *
+ * This means that __srcu_read_unlock_fast() is not all that fast
+ * on architectures that support NMIs but do not supply NMI-safe
+ * implementations of this_cpu_inc().
  */
 static inline void __srcu_read_unlock_fast(struct srcu_struct *ssp, struct srcu_ctr __percpu *scp)
 {
 	barrier();  /* Avoid leaking the critical section. */
-	this_cpu_inc(scp->srcu_unlocks.counter);  /* Z */
+	if (!IS_ENABLED(CONFIG_NEED_SRCU_NMI_SAFE))
+		this_cpu_inc(scp->srcu_unlocks.counter);  /* Z */
+	else
+		atomic_long_inc(raw_cpu_ptr(&scp->srcu_unlocks));  /* Z */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "RCU must be watching srcu_read_unlock_fast().");
 }
 
