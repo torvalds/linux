@@ -89,6 +89,8 @@ proxy-consumer.ko
 bq256xx_charger.ko
 gh_virt_wdt.ko
 crypto-qti.ko
+bq27xxx_battery.ko
+bq27xxx_battery_i2c.ko
 hwkm.ko
 tmecom-intf.ko
 qti-fixed-regulator.ko
