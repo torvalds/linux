@@ -253,6 +253,26 @@ static void XRGB8888_read_line(const struct vkms_plane_state *plane, int x_start
 	}
 }
 
+static void ABGR8888_read_line(const struct vkms_plane_state *plane, int x_start, int y_start,
+			       enum pixel_read_direction direction, int count,
+			       struct pixel_argb_u16 out_pixel[])
+{
+	struct pixel_argb_u16 *end = out_pixel + count;
+	u8 *src_pixels;
+
+	packed_pixels_addr_1x1(plane->frame_info, x_start, y_start, 0, &src_pixels);
+
+	int step = get_block_step_bytes(plane->frame_info->fb, direction, 0);
+
+	while (out_pixel < end) {
+		u8 *px = (u8 *)src_pixels;
+		/* Switch blue and red pixels. */
+		*out_pixel = argb_u16_from_u8888(px[3], px[0], px[1], px[2]);
+		out_pixel += 1;
+		src_pixels += step;
+	}
+}
+
 static void ARGB16161616_read_line(const struct vkms_plane_state *plane, int x_start,
 				   int y_start, enum pixel_read_direction direction, int count,
 				   struct pixel_argb_u16 out_pixel[])
@@ -344,6 +364,14 @@ static void argb_u16_to_XRGB8888(u8 *out_pixel, const struct pixel_argb_u16 *in_
 	out_pixel[0] = DIV_ROUND_CLOSEST(in_pixel->b, 257);
 }
 
+static void argb_u16_to_ABGR8888(u8 *out_pixel, const struct pixel_argb_u16 *in_pixel)
+{
+	out_pixel[3] = DIV_ROUND_CLOSEST(in_pixel->a, 257);
+	out_pixel[2] = DIV_ROUND_CLOSEST(in_pixel->b, 257);
+	out_pixel[1] = DIV_ROUND_CLOSEST(in_pixel->g, 257);
+	out_pixel[0] = DIV_ROUND_CLOSEST(in_pixel->r, 257);
+}
+
 static void argb_u16_to_ARGB16161616(u8 *out_pixel, const struct pixel_argb_u16 *in_pixel)
 {
 	__le16 *pixel = (__le16 *)out_pixel;
@@ -420,6 +448,8 @@ pixel_read_line_t get_pixel_read_line_function(u32 format)
 		return &ARGB8888_read_line;
 	case DRM_FORMAT_XRGB8888:
 		return &XRGB8888_read_line;
+	case DRM_FORMAT_ABGR8888:
+		return &ABGR8888_read_line;
 	case DRM_FORMAT_ARGB16161616:
 		return &ARGB16161616_read_line;
 	case DRM_FORMAT_XRGB16161616:
@@ -453,6 +483,8 @@ pixel_write_t get_pixel_write_function(u32 format)
 		return &argb_u16_to_ARGB8888;
 	case DRM_FORMAT_XRGB8888:
 		return &argb_u16_to_XRGB8888;
+	case DRM_FORMAT_ABGR8888:
+		return &argb_u16_to_ABGR8888;
 	case DRM_FORMAT_ARGB16161616:
 		return &argb_u16_to_ARGB16161616;
 	case DRM_FORMAT_XRGB16161616:
