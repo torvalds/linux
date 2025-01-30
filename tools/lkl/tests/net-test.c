@@ -127,7 +127,7 @@ static int lkl_test_icmp(void)
 	}
 
 	for (i = 0; i < NUM_ICMP; i++) {
-		icmp = malloc(sizeof(struct lkl_icmphdr *));
+		icmp = malloc(sizeof(*icmp));
 		icmp->type = LKL_ICMP_ECHO;
 		icmp->code = 0;
 		icmp->checksum = 0;
