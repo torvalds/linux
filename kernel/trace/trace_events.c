@@ -745,6 +745,48 @@ void trace_event_enable_tgid_record(bool enable)
 	} while_for_each_event_file();
 }
 
+/*
+ * SPDX-Req-ID: [TODO: automatically generate it]
+ * SPDX-Req-Ref: [TODO add the SPDX-Req-ID of __ftrace_set_clr_event_nolock]
+ * SPDX-Text:
+ * __ftrace_event_enable_disable - enable or disable a trace event
+ * @file: trace event file associated with the event
+ * @enable: 0 or 1 respectively to disable/enable the event (any other value is
+ * invalid)
+ * @soft_disable: 1 or 0 respectively to mark if the enable parameter IS or
+ * IS NOT a soft enable/disable
+ *
+ * The enable parameter shall be evaluated:
+ * if it is set to disable:
+ *  1) evaluate soft_disable: if set decrement the soft-mode reference counter
+ *  and return if the same has not reached zero. If it has reached 0:
+ *    a) clear the SOFT_MODE flag;
+ *    b) if the SOFT_DISABLED flag is set, prepare to disable tracing the
+ *       event;
+ *    c) disable buffering the events.
+ *  If soft_disable is not set but the SOFT_MODE flag is set, just set
+ *  the SOFT_DISABLED flag without taking any action on the event tracing, else
+ *  prepare to disable tracing the event;
+ *
+ *  2) If the ENABLED flag is set (hence tracing the event is actually enabled):
+ *     a) clear the flag
+ *     b) if the RECORDED_CMD flag is set, clear it and stop tracing command
+ *     line at sched switches
+ *     c) if the RECORDED_TGID flag is set, clear it and stop tracing tgids at
+ *     sched switches
+ *     d) invoke the event class callback to unregister the event tracepoint
+ *     e) clear the SOFT_DISABLED flag
+ *
+ * if the enable parameter is set to enable:
+ * [TODO: I stopped here since, looking at the text above, it already seems
+ * quite messy and confusing. Maybe this req must be split into multiple ones
+ * or some code aspects shall not be captured]
+ *
+ * NOTE: in order to invoke this code in a thread-safe way, event_mutex shall
+ * be locked before calling it.
+ * NOTE: the validity of the input pointer file shall be checked by the caller
+ *
+ */
 static int __ftrace_event_enable_disable(struct trace_event_file *file,
 					 int enable, int soft_disable)
 {
@@ -1276,7 +1318,42 @@ static void remove_event_file_dir(struct trace_event_file *file)
 }
 
 /*
- * __ftrace_set_clr_event(NULL, NULL, NULL, set) will set/unset all events.
+ * SPDX-Req-ID: [TODO: automatically generate it]
+ * SPDX-Req-Ref: [TODO: link the SPDX-Req-ID of trace_set_clr_event]
+ * SPDX-Req-Ref: [TODO: link the SPDX-Req-ID of trace_array_set_clr_event]
+ * SPDX-Text:
+ * __ftrace_set_clr_event_nolock - enable or disable an event within a system
+ * (thread-unsafe)
+ * @tr: target trace_array containing the events list (shall be a non-NULL
+ * valid pointer)
+ * @match: target system or event name (NULL for any)
+ * @sub: target system name (NULL for any)
+ * @event: target event name (NULL for any)
+ * @set: 1 to enable, 0 to disable (any other value is invalid)
+ *
+ * for each event in the list:
+ * 1) skip the event if any of the following condition is true:
+ *    a) the trace event class is NULL, OR
+ *    b) the event name in NULL, OR
+ *    c) the reg callback of the trace event class is NULL,
+ *    d) in the event call the IGNORE_ENABLE flag is set;
+ * 2) if "match" is defined, check if the current event's name or system match
+ *    the "match" string, if a match is not found move on to the next event;
+ * 3) if "sub" is defined, check if the current event's system match the "sub"
+ *    string, if no match is found, move on to the next event;
+ * 4) if "event" is defined, check if the current event's system match the
+ *    "event" string, if no match is found, move on to the next event;
+ * 5) invokes ftrace_event_enable_disable that in turns invokes
+ *    __ftrace_event_enable_disable passing the same parameters with the
+ *    soft_disable flag not set.
+ *
+ * Returns 0 on success, -EINVAL if the parameters do not match any registered
+ * events or the error condition returned by the first call to
+ * ftrace_event_enable_disable that returned and error.
+ *
+ * NOTE: in order to invoke this code in a thread-safe way, event_mutex shall
+ * be locked before calling it.
+ * NOTE: the validity of the input pointer tr shall be checked by the caller
  */
 static int
 __ftrace_set_clr_event_nolock(struct trace_array *tr, const char *match,
@@ -1419,16 +1496,25 @@ int ftrace_set_clr_event(struct trace_array *tr, char *buf, int set)
 }
 
 /**
- * trace_set_clr_event - enable or disable an event
- * @system: system name to match (NULL for any system)
- * @event: event name to match (NULL for all events, within system)
- * @set: 1 to enable, 0 to disable
+ * SPDX-Req-ID: [TODO automatically generate it]
+ * SPDX-Req-Text:
+ * trace_set_clr_event - enable or disable an event within a system
+ * @system: system name (NULL for any system)
+ * @event: event name (NULL for all events, within system)
+ * @set: 1 to enable, 0 to disable (any other value is invalid)
  *
  * This is a way for other parts of the kernel to enable or disable
  * event recording.
  *
- * Returns 0 on success, -EINVAL if the parameters do not match any
- * registered events.
+ * sequence of events:
+ * 1) retrieve the global tracer
+ * 2) locks the global event_mutex
+ * 3) invokes __ftrace_set_clr_event_nolock
+ * 4) unlocks the global event_mutex
+ *
+ * Returns 0 on success, -ENODEV if the global tracer cannot be retrieved,
+ * -EINVAL if the parameters do not match any registered events, any other
+ * error condition returned by __ftrace_set_clr_event_nolock
  */
 int trace_set_clr_event(const char *system, const char *event, int set)
 {
@@ -1442,17 +1528,27 @@ int trace_set_clr_event(const char *system, const char *event, int set)
 EXPORT_SYMBOL_GPL(trace_set_clr_event);
 
 /**
- * trace_array_set_clr_event - enable or disable an event for a trace array.
- * @tr: concerned trace array.
- * @system: system name to match (NULL for any system)
- * @event: event name to match (NULL for all events, within system)
+ * SPDX-Req-ID: [TODO automatically generate it]
+ * SPDX-Req-Text:
+ * trace_array_set_clr_event - enable or disable an event within a system for
+ * a trace array.
+ * @tr: input trace array.
+ * @system: system name (NULL for any system)
+ * @event: event name (NULL for all events, within system)
  * @enable: true to enable, false to disable
  *
  * This is a way for other parts of the kernel to enable or disable
  * event recording.
  *
- * Returns 0 on success, -EINVAL if the parameters do not match any
- * registered events.
+ * sequence of events:
+ * 1) check the input tr to be valid
+ * 2) locks the global event_mutex
+ * 3) invokes __ftrace_set_clr_event_nolock
+ * 4) unlocks the global event_mutex
+ *
+ * Returns 0 on success, -ENOENT if the input tr is NULL,
+ * -EINVAL if the parameters do not match any registered events, any other
+ * error condition returned by __ftrace_set_clr_event_nolock
  */
 int trace_array_set_clr_event(struct trace_array *tr, const char *system,
 		const char *event, bool enable)
