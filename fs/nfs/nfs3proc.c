@@ -192,7 +192,7 @@ __nfs3_proc_lookup(struct inode *dir, const char *name, size_t len,
 }
 
 static int
-nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
+nfs3_proc_lookup(struct inode *dir, struct dentry *dentry, const struct qstr *name,
 		 struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	unsigned short task_flags = 0;
@@ -202,8 +202,7 @@ nfs3_proc_lookup(struct inode *dir, struct dentry *dentry,
 		task_flags |= RPC_TASK_TIMEOUT;
 
 	dprintk("NFS call  lookup %pd2\n", dentry);
-	return __nfs3_proc_lookup(dir, dentry->d_name.name,
-				  dentry->d_name.len, fhandle, fattr,
+	return __nfs3_proc_lookup(dir, name->name, name->len, fhandle, fattr,
 				  task_flags);
 }
 
