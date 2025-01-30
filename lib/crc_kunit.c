@@ -32,7 +32,8 @@ static size_t test_buflen;
  * @poly: The generator polynomial with the highest-order term omitted.
  *	  Bit-reversed if @le is true.
  * @func: The function to compute a CRC.  The type signature uses u64 so that it
- *	  can fit any CRC up to CRC-64.
+ *	  can fit any CRC up to CRC-64.  The function is expected to *not*
+ *	  invert the CRC at the beginning and end.
  * @combine_func: Optional function to combine two CRCs.
  */
 struct crc_variant {
@@ -407,6 +408,31 @@ static void crc64_be_benchmark(struct kunit *test)
 	crc_benchmark(test, crc64_be_wrapper);
 }
 
+/* crc64_nvme */
+
+static u64 crc64_nvme_wrapper(u64 crc, const u8 *p, size_t len)
+{
+	/* The inversions that crc64_nvme() does have to be undone here. */
+	return ~crc64_nvme(~crc, p, len);
+}
+
+static const struct crc_variant crc_variant_crc64_nvme = {
+	.bits = 64,
+	.le = true,
+	.poly = 0x9a6c9329ac4bc9b5,
+	.func = crc64_nvme_wrapper,
+};
+
+static void crc64_nvme_test(struct kunit *test)
+{
+	crc_test(test, &crc_variant_crc64_nvme);
+}
+
+static void crc64_nvme_benchmark(struct kunit *test)
+{
+	crc_benchmark(test, crc64_nvme_wrapper);
+}
+
 static struct kunit_case crc_test_cases[] = {
 	KUNIT_CASE(crc16_test),
 	KUNIT_CASE(crc16_benchmark),
@@ -420,6 +446,8 @@ static struct kunit_case crc_test_cases[] = {
 	KUNIT_CASE(crc32c_benchmark),
 	KUNIT_CASE(crc64_be_test),
 	KUNIT_CASE(crc64_be_benchmark),
+	KUNIT_CASE(crc64_nvme_test),
+	KUNIT_CASE(crc64_nvme_benchmark),
 	{},
 };
 
