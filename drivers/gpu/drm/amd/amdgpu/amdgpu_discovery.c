@@ -2796,6 +2796,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->nbio.hdp_flush_reg = &nbio_v7_4_hdp_flush_reg;
 		break;
 	case IP_VERSION(7, 9, 0):
+	case IP_VERSION(7, 9, 1):
 		adev->nbio.funcs = &nbio_v7_9_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_9_hdp_flush_reg;
 		break;
