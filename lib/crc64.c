@@ -22,8 +22,8 @@
  * x^24 + x^23 + x^22 + x^21 + x^19 + x^17 + x^13 + x^12 + x^10 + x^9 +
  * x^7 + x^4 + x + 1
  *
- * crc64rocksoft[256] table is from the Rocksoft specification polynomial
- * defined as,
+ * crc64nvmetable[256] uses the CRC64 polynomial from the NVME NVM Command Set
+ * Specification and uses least-significant-bit first bit order:
  *
  * x^64 + x^63 + x^61 + x^59 + x^58 + x^56 + x^55 + x^52 + x^49 + x^48 + x^47 +
  * x^46 + x^44 + x^41 + x^37 + x^36 + x^34 + x^32 + x^31 + x^28 + x^26 + x^23 +
@@ -63,7 +63,7 @@ u64 __pure crc64_be(u64 crc, const void *p, size_t len)
 }
 EXPORT_SYMBOL_GPL(crc64_be);
 
-u64 __pure crc64_rocksoft_generic(u64 crc, const void *p, size_t len)
+u64 __pure crc64_nvme_generic(u64 crc, const void *p, size_t len)
 {
 	const unsigned char *_p = p;
 	size_t i;
@@ -71,8 +71,8 @@ u64 __pure crc64_rocksoft_generic(u64 crc, const void *p, size_t len)
 	crc = ~crc;
 
 	for (i = 0; i < len; i++)
-		crc = (crc >> 8) ^ crc64rocksofttable[(crc & 0xff) ^ *_p++];
+		crc = (crc >> 8) ^ crc64nvmetable[(crc & 0xff) ^ *_p++];
 
 	return ~crc;
 }
-EXPORT_SYMBOL_GPL(crc64_rocksoft_generic);
+EXPORT_SYMBOL_GPL(crc64_nvme_generic);
