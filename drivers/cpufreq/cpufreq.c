@@ -1410,10 +1410,6 @@ static int cpufreq_online(unsigned int cpu)
 			goto out_free_policy;
 		}
 
-		/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
-		if (cpufreq_boost_enabled() && policy_has_boost_freq(policy))
-			policy->boost_enabled = true;
-
 		/*
 		 * The initialization has succeeded and the policy is online.
 		 * If there is a problem with its frequency table, take it
@@ -1476,6 +1472,10 @@ static int cpufreq_online(unsigned int cpu)
 
 		blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 				CPUFREQ_CREATE_POLICY, policy);
+	} else {
+		ret = freq_qos_update_request(policy->max_freq_req, policy->max);
+		if (ret < 0)
+			goto out_destroy_policy;
 	}
 
 	if (cpufreq_driver->get && has_target()) {
@@ -1569,6 +1569,18 @@ static int cpufreq_online(unsigned int cpu)
 	/* Register cpufreq cooling only for a new policy */
 	if (new_policy && cpufreq_thermal_control_enabled(cpufreq_driver))
 		policy->cdev = of_cpufreq_cooling_register(policy);
+
+	/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
+	if (policy->boost_enabled != cpufreq_boost_enabled()) {
+		policy->boost_enabled = cpufreq_boost_enabled();
+		ret = cpufreq_driver->set_boost(policy, policy->boost_enabled);
+		if (ret) {
+			/* If the set_boost fails, the online operation is not affected */
+			pr_info("%s: CPU%d: Cannot %s BOOST\n", __func__, policy->cpu,
+				policy->boost_enabled ? "enable" : "disable");
+			policy->boost_enabled = !policy->boost_enabled;
+		}
+	}
 
 	pr_debug("initialization complete\n");
 
