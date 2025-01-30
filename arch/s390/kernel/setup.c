@@ -157,6 +157,12 @@ u64 __bootdata_preserved(stfle_fac_list[16]);
 EXPORT_SYMBOL(stfle_fac_list);
 struct oldmem_data __bootdata_preserved(oldmem_data);
 
+char __bootdata(boot_rb)[PAGE_SIZE * 2];
+bool __bootdata(boot_earlyprintk);
+size_t __bootdata(boot_rb_off);
+char __bootdata(bootdebug_filter)[128];
+bool __bootdata(bootdebug);
+
 unsigned long __bootdata_preserved(VMALLOC_START);
 EXPORT_SYMBOL(VMALLOC_START);
 
@@ -686,7 +692,7 @@ static void __init reserve_physmem_info(void)
 {
 	unsigned long addr, size;
 
-	if (get_physmem_reserved(RR_MEM_DETECT_EXTENDED, &addr, &size))
+	if (get_physmem_reserved(RR_MEM_DETECT_EXT, &addr, &size))
 		memblock_reserve(addr, size);
 }
 
@@ -694,7 +700,7 @@ static void __init free_physmem_info(void)
 {
 	unsigned long addr, size;
 
-	if (get_physmem_reserved(RR_MEM_DETECT_EXTENDED, &addr, &size))
+	if (get_physmem_reserved(RR_MEM_DETECT_EXT, &addr, &size))
 		memblock_phys_free(addr, size);
 }
 
@@ -724,7 +730,7 @@ static void __init reserve_lowcore(void)
 	void *lowcore_end = lowcore_start + sizeof(struct lowcore);
 	void *start, *end;
 
-	if ((void *)__identity_base < lowcore_end) {
+	if (absolute_pointer(__identity_base) < lowcore_end) {
 		start = max(lowcore_start, (void *)__identity_base);
 		end = min(lowcore_end, (void *)(__identity_base + ident_map_size));
 		memblock_reserve(__pa(start), __pa(end));
@@ -866,6 +872,23 @@ static void __init log_component_list(void)
 }
 
 /*
+ * Print avoiding interpretation of % in buf and taking bootdebug option
+ * into consideration.
+ */
+static void __init print_rb_entry(const char *buf)
+{
+	char fmt[] = KERN_SOH "0boot: %s";
+	int level = printk_get_level(buf);
+
+	buf = skip_timestamp(printk_skip_level(buf));
+	if (level == KERN_DEBUG[1] && (!bootdebug || !bootdebug_filter_match(buf)))
+		return;
+
+	fmt[1] = level;
+	printk(fmt, buf);
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -884,6 +907,9 @@ void __init setup_arch(char **cmdline_p)
 		pr_info("Linux is running natively in 64-bit mode\n");
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
+	/* Print decompressor messages if not already printed */
+	if (!boot_earlyprintk)
+		boot_rb_foreach(print_rb_entry);
 
 	if (have_relocated_lowcore())
 		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
@@ -986,4 +1012,9 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Add system specific data to the random pool */
 	setup_randomness();
+}
+
+void __init arch_cpu_finalize_init(void)
+{
+	sclp_init();
 }

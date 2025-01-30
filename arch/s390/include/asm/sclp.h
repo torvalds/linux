@@ -172,6 +172,7 @@ void sclp_early_printk(const char *s);
 void __sclp_early_printk(const char *s, unsigned int len);
 void sclp_emergency_printk(const char *s);
 
+int sclp_init(void);
 int sclp_early_get_memsize(unsigned long *mem);
 int sclp_early_get_hsa_size(unsigned long *hsa_size);
 int _sclp_get_core_info(struct sclp_core_info *info);
