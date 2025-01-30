@@ -95,6 +95,13 @@ enum bch_persistent_counters {
 	BCH_COUNTER_NR
 };
 
+enum bch_persistent_counters_stable {
+#define x(t, n, ...) BCH_COUNTER_STABLE_##t = n,
+	BCH_PERSISTENT_COUNTERS()
+#undef x
+	BCH_COUNTER_STABLE_NR
+};
+
 struct bch_sb_field_counters {
 	struct bch_sb_field	field;
 	__le64			d[];
