@@ -25,10 +25,10 @@ operations.
 The ``power_save`` option is exported as writable.  This means you can
 adjust the value via sysfs on the fly.  For example, to turn on the
 automatic power-save mode with 10 seconds, write to
-``/sys/modules/snd_ac97_codec/parameters/power_save`` (usually as root):
+``/sys/module/snd_ac97_codec/parameters/power_save`` (usually as root):
 ::
 
-	# echo 10 > /sys/modules/snd_ac97_codec/parameters/power_save
+	# echo 10 > /sys/module/snd_ac97_codec/parameters/power_save
 
 
 Note that you might hear click noise/pop when changing the power
