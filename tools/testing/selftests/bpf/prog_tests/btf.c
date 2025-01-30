@@ -3866,7 +3866,7 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "vlen != 0",
 },
 {
-	.descr = "decl_tag test #8, invalid kflag",
+	.descr = "decl_tag test #8, tag with kflag",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_VAR_ENC(NAME_TBD, 1, 0),			/* [2] */
@@ -3881,8 +3881,6 @@ static struct btf_raw_test raw_tests[] = {
 	.key_type_id = 1,
 	.value_type_id = 1,
 	.max_entries = 1,
-	.btf_load_err = true,
-	.err_str = "Invalid btf_info kind_flag",
 },
 {
 	.descr = "decl_tag test #9, var, invalid component_idx",
