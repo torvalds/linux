@@ -1244,7 +1244,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	uint64_t ign_error_code;					\
 	uint8_t vector;							\
 									\
-	asm volatile(KVM_ASM_SAFE(insn)					\
+	asm volatile(KVM_ASM_SAFE_FEP(insn)				\
 		     : KVM_ASM_SAFE_OUTPUTS(vector, ign_error_code)	\
 		     : inputs						\
 		     : KVM_ASM_SAFE_CLOBBERS);				\
