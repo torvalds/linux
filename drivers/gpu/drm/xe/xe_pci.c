@@ -56,6 +56,7 @@ struct xe_device_desc {
 	enum xe_platform platform;
 
 	u8 dma_mask_size;
+	u8 max_remote_tiles:2;
 
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
@@ -138,7 +139,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
 
 	XE_HP_FEATURES,
-	.max_remote_tiles = 1,
 	.va_bits = 57,
 	.vm_max_level = 4,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
@@ -331,6 +331,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.dma_mask_size = 52,
 	.has_display = false,
 	.has_heci_gscfi = 1,
+	.max_remote_tiles = 1,
 	.require_force_probe = true,
 };
 
@@ -641,6 +642,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
 				 xe_modparam.probe_display &&
 				 desc->has_display;
+	xe->info.tile_count = 1 + desc->max_remote_tiles;
 
 	err = xe_tile_init_early(xe_device_get_root_tile(xe), xe, 0);
 	if (err)
@@ -707,17 +709,6 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
 	xe->info.has_usm = graphics_desc->has_usm;
 
-	/*
-	 * All platforms have at least one primary GT.  Any platform with media
-	 * version 13 or higher has an additional dedicated media GT.  And
-	 * depending on the graphics IP there may be additional "remote tiles."
-	 * All of these together determine the overall GT count.
-	 *
-	 * FIXME: 'tile_count' here is misnamed since the rest of the driver
-	 * treats it as the number of GTs rather than just the number of tiles.
-	 */
-	xe->info.tile_count = 1 + graphics_desc->max_remote_tiles;
-
 	for_each_remote_tile(tile, xe, id) {
 		int err;
 
@@ -726,6 +717,12 @@ static int xe_info_init(struct xe_device *xe,
 			return err;
 	}
 
+	/*
+	 * All platforms have at least one primary GT.  Any platform with media
+	 * version 13 or higher has an additional dedicated media GT.  And
+	 * depending on the graphics IP there may be additional "remote tiles."
+	 * All of these together determine the overall GT count.
+	 */
 	for_each_tile(tile, xe, id) {
 		gt = tile->primary_gt;
 		gt->info.id = xe->info.gt_count++;

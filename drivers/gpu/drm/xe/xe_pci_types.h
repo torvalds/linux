@@ -19,8 +19,6 @@ struct xe_graphics_desc {
 
 	u64 hw_engine_mask;	/* hardware engines provided by graphics IP */
 
-	u8 max_remote_tiles:2;
-
 	u8 has_asid:1;
 	u8 has_atomic_enable_pte_bit:1;
 	u8 has_flat_ccs:1;
