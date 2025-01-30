@@ -84,7 +84,7 @@ struct btrfs_fs_context {
 	u32 thread_pool_size;
 	unsigned long long mount_opt;
 	unsigned long compress_type:4;
-	unsigned int compress_level;
+	int compress_level;
 	refcount_t refs;
 };
 

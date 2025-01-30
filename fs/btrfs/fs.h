@@ -486,7 +486,7 @@ struct btrfs_fs_info {
 	unsigned long long mount_opt;
 
 	unsigned long compress_type:4;
-	unsigned int compress_level;
+	int compress_level;
 	u32 commit_interval;
 	/*
 	 * It is a suggestive number, the read side is safe even it gets a
