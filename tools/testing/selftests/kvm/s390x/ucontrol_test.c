@@ -210,9 +210,12 @@ TEST_F(uc_kvm, uc_attr_mem_limit)
 	struct kvm_device_attr attr = {
 		.group = KVM_S390_VM_MEM_CTRL,
 		.attr = KVM_S390_VM_MEM_LIMIT_SIZE,
-		.addr = (unsigned long)&limit,
+		.addr = (u64)&limit,
 	};
 	int rc;
+
+	rc = ioctl(self->vm_fd, KVM_HAS_DEVICE_ATTR, &attr);
+	EXPECT_EQ(0, rc);
 
 	rc = ioctl(self->vm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	EXPECT_EQ(0, rc);
@@ -633,6 +636,173 @@ TEST_F(uc_kvm, uc_skey)
 	ASSERT_EQ(skeyvalue & 0xfa, sync_regs->gprs[1]);
 	ASSERT_EQ(0, sync_regs->gprs[1] & 0x04);
 	uc_assert_diag44(self);
+}
+
+static char uc_flic_b[PAGE_SIZE];
+static struct kvm_s390_io_adapter uc_flic_ioa = { .id = 0 };
+static struct kvm_s390_io_adapter_req uc_flic_ioam = { .id = 0 };
+static struct kvm_s390_ais_req uc_flic_asim = { .isc = 0 };
+static struct kvm_s390_ais_all uc_flic_asima = { .simm = 0 };
+static struct uc_flic_attr_test {
+	char *name;
+	struct kvm_device_attr a;
+	int hasrc;
+	int geterrno;
+	int seterrno;
+} uc_flic_attr_tests[] = {
+	{
+		.name = "KVM_DEV_FLIC_GET_ALL_IRQS",
+		.seterrno = EINVAL,
+		.a = {
+			.group = KVM_DEV_FLIC_GET_ALL_IRQS,
+			.addr = (u64)&uc_flic_b,
+			.attr = PAGE_SIZE,
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_ENQUEUE",
+		.geterrno = EINVAL,
+		.a = { .group = KVM_DEV_FLIC_ENQUEUE, },
+	},
+	{
+		.name = "KVM_DEV_FLIC_CLEAR_IRQS",
+		.geterrno = EINVAL,
+		.a = { .group = KVM_DEV_FLIC_CLEAR_IRQS, },
+	},
+	{
+		.name = "KVM_DEV_FLIC_ADAPTER_REGISTER",
+		.geterrno = EINVAL,
+		.a = {
+			.group = KVM_DEV_FLIC_ADAPTER_REGISTER,
+			.addr = (u64)&uc_flic_ioa,
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_ADAPTER_MODIFY",
+		.geterrno = EINVAL,
+		.seterrno = EINVAL,
+		.a = {
+			.group = KVM_DEV_FLIC_ADAPTER_MODIFY,
+			.addr = (u64)&uc_flic_ioam,
+			.attr = sizeof(uc_flic_ioam),
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_CLEAR_IO_IRQ",
+		.geterrno = EINVAL,
+		.seterrno = EINVAL,
+		.a = {
+			.group = KVM_DEV_FLIC_CLEAR_IO_IRQ,
+			.attr = 32,
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_AISM",
+		.geterrno = EINVAL,
+		.seterrno = ENOTSUP,
+		.a = {
+			.group = KVM_DEV_FLIC_AISM,
+			.addr = (u64)&uc_flic_asim,
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_AIRQ_INJECT",
+		.geterrno = EINVAL,
+		.a = { .group = KVM_DEV_FLIC_AIRQ_INJECT, },
+	},
+	{
+		.name = "KVM_DEV_FLIC_AISM_ALL",
+		.geterrno = ENOTSUP,
+		.seterrno = ENOTSUP,
+		.a = {
+			.group = KVM_DEV_FLIC_AISM_ALL,
+			.addr = (u64)&uc_flic_asima,
+			.attr = sizeof(uc_flic_asima),
+		},
+	},
+	{
+		.name = "KVM_DEV_FLIC_APF_ENABLE",
+		.geterrno = EINVAL,
+		.seterrno = EINVAL,
+		.a = { .group = KVM_DEV_FLIC_APF_ENABLE, },
+	},
+	{
+		.name = "KVM_DEV_FLIC_APF_DISABLE_WAIT",
+		.geterrno = EINVAL,
+		.seterrno = EINVAL,
+		.a = { .group = KVM_DEV_FLIC_APF_DISABLE_WAIT, },
+	},
+};
+
+TEST_F(uc_kvm, uc_flic_attrs)
+{
+	struct kvm_create_device cd = { .type = KVM_DEV_TYPE_FLIC };
+	struct kvm_device_attr attr;
+	u64 value;
+	int rc, i;
+
+	rc = ioctl(self->vm_fd, KVM_CREATE_DEVICE, &cd);
+	ASSERT_EQ(0, rc) TH_LOG("create device failed with err %s (%i)",
+				strerror(errno), errno);
+
+	for (i = 0; i < ARRAY_SIZE(uc_flic_attr_tests); i++) {
+		TH_LOG("test %s", uc_flic_attr_tests[i].name);
+		attr = (struct kvm_device_attr) {
+			.group = uc_flic_attr_tests[i].a.group,
+			.attr = uc_flic_attr_tests[i].a.attr,
+			.addr = uc_flic_attr_tests[i].a.addr,
+		};
+		if (attr.addr == 0)
+			attr.addr = (u64)&value;
+
+		rc = ioctl(cd.fd, KVM_HAS_DEVICE_ATTR, &attr);
+		EXPECT_EQ(uc_flic_attr_tests[i].hasrc, !!rc)
+			TH_LOG("expected dev attr missing %s",
+			       uc_flic_attr_tests[i].name);
+
+		rc = ioctl(cd.fd, KVM_GET_DEVICE_ATTR, &attr);
+		EXPECT_EQ(!!uc_flic_attr_tests[i].geterrno, !!rc)
+			TH_LOG("get dev attr rc not expected on %s %s (%i)",
+			       uc_flic_attr_tests[i].name,
+			       strerror(errno), errno);
+		if (uc_flic_attr_tests[i].geterrno)
+			EXPECT_EQ(uc_flic_attr_tests[i].geterrno, errno)
+				TH_LOG("get dev attr errno not expected on %s %s (%i)",
+				       uc_flic_attr_tests[i].name,
+				       strerror(errno), errno);
+
+		rc = ioctl(cd.fd, KVM_SET_DEVICE_ATTR, &attr);
+		EXPECT_EQ(!!uc_flic_attr_tests[i].seterrno, !!rc)
+			TH_LOG("set sev attr rc not expected on %s %s (%i)",
+			       uc_flic_attr_tests[i].name,
+			       strerror(errno), errno);
+		if (uc_flic_attr_tests[i].seterrno)
+			EXPECT_EQ(uc_flic_attr_tests[i].seterrno, errno)
+				TH_LOG("set dev attr errno not expected on %s %s (%i)",
+				       uc_flic_attr_tests[i].name,
+				       strerror(errno), errno);
+	}
+
+	close(cd.fd);
+}
+
+TEST_F(uc_kvm, uc_set_gsi_routing)
+{
+	struct kvm_irq_routing *routing = kvm_gsi_routing_create();
+	struct kvm_irq_routing_entry ue = {
+		.type = KVM_IRQ_ROUTING_S390_ADAPTER,
+		.gsi = 1,
+		.u.adapter = (struct kvm_irq_routing_s390_adapter) {
+			.ind_addr = 0,
+		},
+	};
+	int rc;
+
+	routing->entries[0] = ue;
+	routing->nr = 1;
+	rc = ioctl(self->vm_fd, KVM_SET_GSI_ROUTING, routing);
+	ASSERT_EQ(-1, rc) TH_LOG("err %s (%i)", strerror(errno), errno);
+	ASSERT_EQ(EINVAL, errno) TH_LOG("err %s (%i)", strerror(errno), errno);
 }
 
 TEST_HARNESS_MAIN

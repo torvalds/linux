@@ -5,15 +5,49 @@
 
 #include <linux/bitops.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_atomic.h"
 #include "intel_bw.h"
 #include "intel_cdclk.h"
 #include "intel_de.h"
 #include "intel_display_trace.h"
 #include "intel_pmdemand.h"
+#include "intel_step.h"
 #include "skl_watermark.h"
+
+struct pmdemand_params {
+	u16 qclk_gv_bw;
+	u8 voltage_index;
+	u8 qclk_gv_index;
+	u8 active_pipes;
+	u8 active_dbufs;	/* pre-Xe3 only */
+	/* Total number of non type C active phys from active_phys_mask */
+	u8 active_phys;
+	u8 plls;
+	u16 cdclk_freq_mhz;
+	/* max from ddi_clocks[] */
+	u16 ddiclk_max;
+	u8 scalers;		/* pre-Xe3 only */
+};
+
+struct intel_pmdemand_state {
+	struct intel_global_state base;
+
+	/* Maintain a persistent list of port clocks across all crtcs */
+	int ddi_clocks[I915_MAX_PIPES];
+
+	/* Maintain a persistent list of non type C phys mask */
+	u16 active_combo_phys_mask;
+
+	/* Parameters to be configured in the pmdemand registers */
+	struct pmdemand_params params;
+};
+
+struct intel_pmdemand_state *to_intel_pmdemand_state(struct intel_global_state *obj_state)
+{
+	return container_of(obj_state, struct intel_pmdemand_state, base);
+}
 
 static struct intel_global_state *
 intel_pmdemand_duplicate_state(struct intel_global_obj *obj)
@@ -41,10 +75,10 @@ static const struct intel_global_state_funcs intel_pmdemand_funcs = {
 static struct intel_pmdemand_state *
 intel_atomic_get_pmdemand_state(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_global_state *pmdemand_state =
 		intel_atomic_get_global_obj_state(state,
-						  &i915->display.pmdemand.obj);
+						  &display->pmdemand.obj);
 
 	if (IS_ERR(pmdemand_state))
 		return ERR_CAST(pmdemand_state);
@@ -55,10 +89,10 @@ intel_atomic_get_pmdemand_state(struct intel_atomic_state *state)
 static struct intel_pmdemand_state *
 intel_atomic_get_old_pmdemand_state(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_global_state *pmdemand_state =
 		intel_atomic_get_old_global_obj_state(state,
-						      &i915->display.pmdemand.obj);
+						      &display->pmdemand.obj);
 
 	if (!pmdemand_state)
 		return NULL;
@@ -69,10 +103,10 @@ intel_atomic_get_old_pmdemand_state(struct intel_atomic_state *state)
 static struct intel_pmdemand_state *
 intel_atomic_get_new_pmdemand_state(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_global_state *pmdemand_state =
 		intel_atomic_get_new_global_obj_state(state,
-						      &i915->display.pmdemand.obj);
+						      &display->pmdemand.obj);
 
 	if (!pmdemand_state)
 		return NULL;
@@ -80,7 +114,7 @@ intel_atomic_get_new_pmdemand_state(struct intel_atomic_state *state)
 	return to_intel_pmdemand_state(pmdemand_state);
 }
 
-int intel_pmdemand_init(struct drm_i915_private *i915)
+int intel_pmdemand_init(struct intel_display *display)
 {
 	struct intel_pmdemand_state *pmdemand_state;
 
@@ -88,32 +122,32 @@ int intel_pmdemand_init(struct drm_i915_private *i915)
 	if (!pmdemand_state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(i915, &i915->display.pmdemand.obj,
+	intel_atomic_global_obj_init(display, &display->pmdemand.obj,
 				     &pmdemand_state->base,
 				     &intel_pmdemand_funcs);
 
-	if (IS_DISPLAY_VERx100_STEP(i915, 1400, STEP_A0, STEP_C0))
+	if (IS_DISPLAY_VERx100_STEP(display, 1400, STEP_A0, STEP_C0))
 		/* Wa_14016740474 */
-		intel_de_rmw(i915, XELPD_CHICKEN_DCPR_3, 0, DMD_RSP_TIMEOUT_DISABLE);
+		intel_de_rmw(display, XELPD_CHICKEN_DCPR_3, 0, DMD_RSP_TIMEOUT_DISABLE);
 
 	return 0;
 }
 
-void intel_pmdemand_init_early(struct drm_i915_private *i915)
+void intel_pmdemand_init_early(struct intel_display *display)
 {
-	mutex_init(&i915->display.pmdemand.lock);
-	init_waitqueue_head(&i915->display.pmdemand.waitqueue);
+	mutex_init(&display->pmdemand.lock);
+	init_waitqueue_head(&display->pmdemand.waitqueue);
 }
 
 void
-intel_pmdemand_update_phys_mask(struct drm_i915_private *i915,
+intel_pmdemand_update_phys_mask(struct intel_display *display,
 				struct intel_encoder *encoder,
 				struct intel_pmdemand_state *pmdemand_state,
 				bool set_bit)
 {
 	enum phy phy;
 
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
 	if (!encoder)
@@ -131,18 +165,18 @@ intel_pmdemand_update_phys_mask(struct drm_i915_private *i915,
 }
 
 void
-intel_pmdemand_update_port_clock(struct drm_i915_private *i915,
+intel_pmdemand_update_port_clock(struct intel_display *display,
 				 struct intel_pmdemand_state *pmdemand_state,
 				 enum pipe pipe, int port_clock)
 {
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
 	pmdemand_state->ddi_clocks[pipe] = port_clock;
 }
 
 static void
-intel_pmdemand_update_max_ddiclk(struct drm_i915_private *i915,
+intel_pmdemand_update_max_ddiclk(struct intel_display *display,
 				 struct intel_atomic_state *state,
 				 struct intel_pmdemand_state *pmdemand_state)
 {
@@ -152,7 +186,7 @@ intel_pmdemand_update_max_ddiclk(struct drm_i915_private *i915,
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
-		intel_pmdemand_update_port_clock(i915, pmdemand_state,
+		intel_pmdemand_update_port_clock(display, pmdemand_state,
 						 crtc->pipe,
 						 new_crtc_state->port_clock);
 
@@ -163,7 +197,7 @@ intel_pmdemand_update_max_ddiclk(struct drm_i915_private *i915,
 }
 
 static void
-intel_pmdemand_update_connector_phys(struct drm_i915_private *i915,
+intel_pmdemand_update_connector_phys(struct intel_display *display,
 				     struct intel_atomic_state *state,
 				     struct drm_connector_state *conn_state,
 				     bool set_bit,
@@ -184,12 +218,12 @@ intel_pmdemand_update_connector_phys(struct drm_i915_private *i915,
 	if (!crtc_state->hw.active)
 		return;
 
-	intel_pmdemand_update_phys_mask(i915, encoder, pmdemand_state,
+	intel_pmdemand_update_phys_mask(display, encoder, pmdemand_state,
 					set_bit);
 }
 
 static void
-intel_pmdemand_update_active_non_tc_phys(struct drm_i915_private *i915,
+intel_pmdemand_update_active_non_tc_phys(struct intel_display *display,
 					 struct intel_atomic_state *state,
 					 struct intel_pmdemand_state *pmdemand_state)
 {
@@ -204,12 +238,12 @@ intel_pmdemand_update_active_non_tc_phys(struct drm_i915_private *i915,
 			continue;
 
 		/* First clear the active phys in the old connector state */
-		intel_pmdemand_update_connector_phys(i915, state,
+		intel_pmdemand_update_connector_phys(display, state,
 						     old_conn_state, false,
 						     pmdemand_state);
 
 		/* Then set the active phys in new connector state */
-		intel_pmdemand_update_connector_phys(i915, state,
+		intel_pmdemand_update_connector_phys(display, state,
 						     new_conn_state, true,
 						     pmdemand_state);
 	}
@@ -220,7 +254,7 @@ intel_pmdemand_update_active_non_tc_phys(struct drm_i915_private *i915,
 }
 
 static bool
-intel_pmdemand_encoder_has_tc_phy(struct drm_i915_private *i915,
+intel_pmdemand_encoder_has_tc_phy(struct intel_display *display,
 				  struct intel_encoder *encoder)
 {
 	return encoder && intel_encoder_is_tc(encoder);
@@ -229,7 +263,7 @@ intel_pmdemand_encoder_has_tc_phy(struct drm_i915_private *i915,
 static bool
 intel_pmdemand_connector_needs_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct drm_connector_state *old_conn_state;
 	struct drm_connector_state *new_conn_state;
 	struct drm_connector *connector;
@@ -246,8 +280,8 @@ intel_pmdemand_connector_needs_update(struct intel_atomic_state *state)
 			continue;
 
 		if (old_encoder == new_encoder ||
-		    (intel_pmdemand_encoder_has_tc_phy(i915, old_encoder) &&
-		     intel_pmdemand_encoder_has_tc_phy(i915, new_encoder)))
+		    (intel_pmdemand_encoder_has_tc_phy(display, old_encoder) &&
+		     intel_pmdemand_encoder_has_tc_phy(display, new_encoder)))
 			continue;
 
 		return true;
@@ -304,13 +338,13 @@ static bool intel_pmdemand_needs_update(struct intel_atomic_state *state)
 
 int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_bw_state *new_bw_state;
 	const struct intel_cdclk_state *new_cdclk_state;
 	const struct intel_dbuf_state *new_dbuf_state;
 	struct intel_pmdemand_state *new_pmdemand_state;
 
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return 0;
 
 	if (!intel_pmdemand_needs_update(state))
@@ -332,14 +366,14 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 	if (IS_ERR(new_dbuf_state))
 		return PTR_ERR(new_dbuf_state);
 
-	if (DISPLAY_VER(i915) < 30) {
+	if (DISPLAY_VER(display) < 30) {
 		new_pmdemand_state->params.active_dbufs =
 			min_t(u8, hweight8(new_dbuf_state->enabled_slices), 3);
 		new_pmdemand_state->params.active_pipes =
 			min_t(u8, hweight8(new_dbuf_state->active_pipes), 3);
 	} else {
 		new_pmdemand_state->params.active_pipes =
-			min_t(u8, hweight8(new_dbuf_state->active_pipes), INTEL_NUM_PIPES(i915));
+			min_t(u8, hweight8(new_dbuf_state->active_pipes), INTEL_NUM_PIPES(display));
 	}
 
 	new_cdclk_state = intel_atomic_get_cdclk_state(state);
@@ -351,9 +385,9 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 	new_pmdemand_state->params.cdclk_freq_mhz =
 		DIV_ROUND_UP(new_cdclk_state->actual.cdclk, 1000);
 
-	intel_pmdemand_update_max_ddiclk(i915, state, new_pmdemand_state);
+	intel_pmdemand_update_max_ddiclk(display, state, new_pmdemand_state);
 
-	intel_pmdemand_update_active_non_tc_phys(i915, state, new_pmdemand_state);
+	intel_pmdemand_update_active_non_tc_phys(display, state, new_pmdemand_state);
 
 	/*
 	 * Active_PLLs starts with 1 because of CDCLK PLL.
@@ -374,36 +408,36 @@ int intel_pmdemand_atomic_check(struct intel_atomic_state *state)
 		return intel_atomic_lock_global_state(&new_pmdemand_state->base);
 }
 
-static bool intel_pmdemand_check_prev_transaction(struct drm_i915_private *i915)
+static bool intel_pmdemand_check_prev_transaction(struct intel_display *display)
 {
-	return !(intel_de_wait_for_clear(i915,
+	return !(intel_de_wait_for_clear(display,
 					 XELPDP_INITIATE_PMDEMAND_REQUEST(1),
 					 XELPDP_PMDEMAND_REQ_ENABLE, 10) ||
-		 intel_de_wait_for_clear(i915,
+		 intel_de_wait_for_clear(display,
 					 GEN12_DCPR_STATUS_1,
 					 XELPDP_PMDEMAND_INFLIGHT_STATUS, 10));
 }
 
 void
-intel_pmdemand_init_pmdemand_params(struct drm_i915_private *i915,
+intel_pmdemand_init_pmdemand_params(struct intel_display *display,
 				    struct intel_pmdemand_state *pmdemand_state)
 {
 	u32 reg1, reg2;
 
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
-	mutex_lock(&i915->display.pmdemand.lock);
-	if (drm_WARN_ON(&i915->drm,
-			!intel_pmdemand_check_prev_transaction(i915))) {
+	mutex_lock(&display->pmdemand.lock);
+	if (drm_WARN_ON(display->drm,
+			!intel_pmdemand_check_prev_transaction(display))) {
 		memset(&pmdemand_state->params, 0,
 		       sizeof(pmdemand_state->params));
 		goto unlock;
 	}
 
-	reg1 = intel_de_read(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(0));
+	reg1 = intel_de_read(display, XELPDP_INITIATE_PMDEMAND_REQUEST(0));
 
-	reg2 = intel_de_read(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1));
+	reg2 = intel_de_read(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1));
 
 	pmdemand_state->params.qclk_gv_bw =
 		REG_FIELD_GET(XELPDP_PMDEMAND_QCLK_GV_BW_MASK, reg1);
@@ -419,7 +453,7 @@ intel_pmdemand_init_pmdemand_params(struct drm_i915_private *i915,
 	pmdemand_state->params.ddiclk_max =
 		REG_FIELD_GET(XELPDP_PMDEMAND_DDICLK_FREQ_MASK, reg2);
 
-	if (DISPLAY_VER(i915) >= 30) {
+	if (DISPLAY_VER(display) >= 30) {
 		pmdemand_state->params.active_pipes =
 			REG_FIELD_GET(XE3_PMDEMAND_PIPES_MASK, reg1);
 	} else {
@@ -433,49 +467,49 @@ intel_pmdemand_init_pmdemand_params(struct drm_i915_private *i915,
 	}
 
 unlock:
-	mutex_unlock(&i915->display.pmdemand.lock);
+	mutex_unlock(&display->pmdemand.lock);
 }
 
-static bool intel_pmdemand_req_complete(struct drm_i915_private *i915)
+static bool intel_pmdemand_req_complete(struct intel_display *display)
 {
-	return !(intel_de_read(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1)) &
+	return !(intel_de_read(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1)) &
 		 XELPDP_PMDEMAND_REQ_ENABLE);
 }
 
-static void intel_pmdemand_wait(struct drm_i915_private *i915)
+static void intel_pmdemand_wait(struct intel_display *display)
 {
-	if (!wait_event_timeout(i915->display.pmdemand.waitqueue,
-				intel_pmdemand_req_complete(i915),
+	if (!wait_event_timeout(display->pmdemand.waitqueue,
+				intel_pmdemand_req_complete(display),
 				msecs_to_jiffies_timeout(10)))
-		drm_err(&i915->drm,
+		drm_err(display->drm,
 			"timed out waiting for Punit PM Demand Response\n");
 }
 
 /* Required to be programmed during Display Init Sequences. */
-void intel_pmdemand_program_dbuf(struct drm_i915_private *i915,
+void intel_pmdemand_program_dbuf(struct intel_display *display,
 				 u8 dbuf_slices)
 {
 	u32 dbufs = min_t(u32, hweight8(dbuf_slices), 3);
 
 	/* PM Demand only tracks active dbufs on pre-Xe3 platforms */
-	if (DISPLAY_VER(i915) >= 30)
+	if (DISPLAY_VER(display) >= 30)
 		return;
 
-	mutex_lock(&i915->display.pmdemand.lock);
-	if (drm_WARN_ON(&i915->drm,
-			!intel_pmdemand_check_prev_transaction(i915)))
+	mutex_lock(&display->pmdemand.lock);
+	if (drm_WARN_ON(display->drm,
+			!intel_pmdemand_check_prev_transaction(display)))
 		goto unlock;
 
-	intel_de_rmw(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(0),
+	intel_de_rmw(display, XELPDP_INITIATE_PMDEMAND_REQUEST(0),
 		     XELPDP_PMDEMAND_DBUFS_MASK,
 		     REG_FIELD_PREP(XELPDP_PMDEMAND_DBUFS_MASK, dbufs));
-	intel_de_rmw(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1), 0,
+	intel_de_rmw(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1), 0,
 		     XELPDP_PMDEMAND_REQ_ENABLE);
 
-	intel_pmdemand_wait(i915);
+	intel_pmdemand_wait(display);
 
 unlock:
-	mutex_unlock(&i915->display.pmdemand.lock);
+	mutex_unlock(&display->pmdemand.lock);
 }
 
 static void
@@ -535,38 +569,37 @@ intel_pmdemand_update_params(struct intel_display *display,
 }
 
 static void
-intel_pmdemand_program_params(struct drm_i915_private *i915,
+intel_pmdemand_program_params(struct intel_display *display,
 			      const struct intel_pmdemand_state *new,
 			      const struct intel_pmdemand_state *old,
 			      bool serialized)
 {
-	struct intel_display *display = &i915->display;
 	bool changed = false;
 	u32 reg1, mod_reg1;
 	u32 reg2, mod_reg2;
 
-	mutex_lock(&i915->display.pmdemand.lock);
-	if (drm_WARN_ON(&i915->drm,
-			!intel_pmdemand_check_prev_transaction(i915)))
+	mutex_lock(&display->pmdemand.lock);
+	if (drm_WARN_ON(display->drm,
+			!intel_pmdemand_check_prev_transaction(display)))
 		goto unlock;
 
-	reg1 = intel_de_read(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(0));
+	reg1 = intel_de_read(display, XELPDP_INITIATE_PMDEMAND_REQUEST(0));
 	mod_reg1 = reg1;
 
-	reg2 = intel_de_read(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1));
+	reg2 = intel_de_read(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1));
 	mod_reg2 = reg2;
 
 	intel_pmdemand_update_params(display, new, old, &mod_reg1, &mod_reg2,
 				     serialized);
 
 	if (reg1 != mod_reg1) {
-		intel_de_write(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(0),
+		intel_de_write(display, XELPDP_INITIATE_PMDEMAND_REQUEST(0),
 			       mod_reg1);
 		changed = true;
 	}
 
 	if (reg2 != mod_reg2) {
-		intel_de_write(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
+		intel_de_write(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1),
 			       mod_reg2);
 		changed = true;
 	}
@@ -575,17 +608,17 @@ intel_pmdemand_program_params(struct drm_i915_private *i915,
 	if (!changed)
 		goto unlock;
 
-	drm_dbg_kms(&i915->drm,
+	drm_dbg_kms(display->drm,
 		    "initate pmdemand request values: (0x%x 0x%x)\n",
 		    mod_reg1, mod_reg2);
 
-	intel_de_rmw(i915, XELPDP_INITIATE_PMDEMAND_REQUEST(1), 0,
+	intel_de_rmw(display, XELPDP_INITIATE_PMDEMAND_REQUEST(1), 0,
 		     XELPDP_PMDEMAND_REQ_ENABLE);
 
-	intel_pmdemand_wait(i915);
+	intel_pmdemand_wait(display);
 
 unlock:
-	mutex_unlock(&i915->display.pmdemand.lock);
+	mutex_unlock(&display->pmdemand.lock);
 }
 
 static bool
@@ -597,13 +630,13 @@ intel_pmdemand_state_changed(const struct intel_pmdemand_state *new,
 
 void intel_pmdemand_pre_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_pmdemand_state *new_pmdemand_state =
 		intel_atomic_get_new_pmdemand_state(state);
 	const struct intel_pmdemand_state *old_pmdemand_state =
 		intel_atomic_get_old_pmdemand_state(state);
 
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
 	if (!new_pmdemand_state ||
@@ -613,20 +646,20 @@ void intel_pmdemand_pre_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_pmdemand_state->base.changed);
 
-	intel_pmdemand_program_params(i915, new_pmdemand_state,
+	intel_pmdemand_program_params(display, new_pmdemand_state,
 				      old_pmdemand_state,
 				      intel_atomic_global_state_is_serialized(state));
 }
 
 void intel_pmdemand_post_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_pmdemand_state *new_pmdemand_state =
 		intel_atomic_get_new_pmdemand_state(state);
 	const struct intel_pmdemand_state *old_pmdemand_state =
 		intel_atomic_get_old_pmdemand_state(state);
 
-	if (DISPLAY_VER(i915) < 14)
+	if (DISPLAY_VER(display) < 14)
 		return;
 
 	if (!new_pmdemand_state ||
@@ -636,6 +669,6 @@ void intel_pmdemand_post_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_pmdemand_state->base.changed);
 
-	intel_pmdemand_program_params(i915, new_pmdemand_state, NULL,
+	intel_pmdemand_program_params(display, new_pmdemand_state, NULL,
 				      intel_atomic_global_state_is_serialized(state));
 }

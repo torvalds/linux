@@ -545,6 +545,7 @@ static int exfat_extend_valid_size(struct file *file, loff_t new_valid_size)
 	while (pos < new_valid_size) {
 		u32 len;
 		struct folio *folio;
+		unsigned long off;
 
 		len = PAGE_SIZE - (pos & (PAGE_SIZE - 1));
 		if (pos + len > new_valid_size)
@@ -554,6 +555,9 @@ static int exfat_extend_valid_size(struct file *file, loff_t new_valid_size)
 		if (err)
 			goto out;
 
+		off = offset_in_folio(folio, pos);
+		folio_zero_new_buffers(folio, off, off + len);
+
 		err = ops->write_end(file, mapping, pos, len, len, folio, NULL);
 		if (err < 0)
 			goto out;
@@ -562,6 +566,8 @@ static int exfat_extend_valid_size(struct file *file, loff_t new_valid_size)
 		balance_dirty_pages_ratelimited(mapping);
 		cond_resched();
 	}
+
+	return 0;
 
 out:
 	return err;

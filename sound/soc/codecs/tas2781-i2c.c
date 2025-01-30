@@ -78,7 +78,7 @@ static const struct bulk_reg_val tas2781_cali_start_reg[] = {
 	X2781_CL_STT_VAL(TAS2781_PRM_INT_MASK_REG, 0xfe, false),
 	X2781_CL_STT_VAL(TAS2781_PRM_CLK_CFG_REG, 0xdd, false),
 	X2781_CL_STT_VAL(TAS2781_PRM_RSVD_REG, 0x20, false),
-	X2781_CL_STT_VAL(TAS2781_PRM_TEST_57_REG, 0x14, false),
+	X2781_CL_STT_VAL(TAS2781_PRM_TEST_57_REG, 0x14, true),
 	X2781_CL_STT_VAL(TAS2781_PRM_TEST_62_REG, 0x45, true),
 	X2781_CL_STT_VAL(TAS2781_PRM_PVDD_UVLO_REG, 0x03, false),
 	X2781_CL_STT_VAL(TAS2781_PRM_CHNL_0_REG, 0xa8, false),
@@ -370,7 +370,7 @@ static void sngl_calib_start(struct tasdevice_priv *tas_priv, int i,
 			tasdevice_dev_read(tas_priv, i, p[j].reg,
 				(int *)&p[j].val[0]);
 		} else {
-			switch (p[j].reg) {
+			switch (tas2781_cali_start_reg[j].reg) {
 			case 0: {
 				if (!reg[0])
 					continue;

@@ -3819,6 +3819,7 @@ out_unregister:
 }
 
 static struct net *rtnl_get_peer_net(const struct rtnl_link_ops *ops,
+				     struct nlattr *tbp[],
 				     struct nlattr *data[],
 				     struct netlink_ext_ack *extack)
 {
@@ -3826,7 +3827,7 @@ static struct net *rtnl_get_peer_net(const struct rtnl_link_ops *ops,
 	int err;
 
 	if (!data || !data[ops->peer_type])
-		return NULL;
+		return rtnl_link_get_net_ifla(tbp);
 
 	err = rtnl_nla_parse_ifinfomsg(tb, data[ops->peer_type], extack);
 	if (err < 0)
@@ -3971,9 +3972,11 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		if (ops->peer_type) {
-			peer_net = rtnl_get_peer_net(ops, data, extack);
-			if (IS_ERR(peer_net))
+			peer_net = rtnl_get_peer_net(ops, tb, data, extack);
+			if (IS_ERR(peer_net)) {
+				ret = PTR_ERR(peer_net);
 				goto put_ops;
+			}
 			if (peer_net)
 				rtnl_nets_add(&rtnl_nets, peer_net);
 		}

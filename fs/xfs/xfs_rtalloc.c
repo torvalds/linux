@@ -1827,7 +1827,7 @@ xfs_rtallocate_rtg(
 	 * For an allocation to an empty file at offset 0, pick an extent that
 	 * will space things out in the rt area.
 	 */
-	if (bno_hint)
+	if (bno_hint != NULLFSBLOCK)
 		start = xfs_rtb_to_rtx(args.mp, bno_hint);
 	else if (!xfs_has_rtgroups(args.mp) && initial_user_data)
 		start = xfs_rtpick_extent(args.rtg, tp, maxlen);

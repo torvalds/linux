@@ -784,7 +784,6 @@ void xe_exec_queue_update_run_ticks(struct xe_exec_queue *q)
 	/* Synchronize with unbind while holding the xe file open */
 	if (!drm_dev_enter(&xe->drm, &idx))
 		return;
-
 	/*
 	 * Only sample the first LRC. For parallel submission, all of them are
 	 * scheduled together and we compensate that below by multiplying by

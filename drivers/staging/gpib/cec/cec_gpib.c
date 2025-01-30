@@ -297,8 +297,8 @@ int cec_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 
 	cec_priv->plx_iobase = pci_resource_start(cec_priv->pci_device, 1);
 	pr_info(" plx9050 base address 0x%lx\n", cec_priv->plx_iobase);
-	nec_priv->iobase = (void *)(pci_resource_start(cec_priv->pci_device, 3));
-	pr_info(" nec7210 base address 0x%p\n", nec_priv->iobase);
+	nec_priv->iobase = pci_resource_start(cec_priv->pci_device, 3);
+	pr_info(" nec7210 base address 0x%x\n", nec_priv->iobase);
 
 	isr_flags |= IRQF_SHARED;
 	if (request_irq(cec_priv->pci_device->irq, cec_interrupt, isr_flags, "pci-gpib", board)) {

@@ -3358,6 +3358,7 @@ int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn)
 					     p_ptt, &nvm_info.num_images);
 	if (rc == -EOPNOTSUPP) {
 		DP_INFO(p_hwfn, "DRV_MSG_CODE_BIST_TEST is not supported\n");
+		nvm_info.num_images = 0;
 		goto out;
 	} else if (rc || !nvm_info.num_images) {
 		DP_ERR(p_hwfn, "Failed getting number of images\n");

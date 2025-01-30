@@ -24,6 +24,7 @@
 #include <linux/backlight.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_panel.h>
@@ -413,7 +414,7 @@ bool drm_is_panel_follower(struct device *dev)
 	 * don't bother trying to parse it here. We just need to know if the
 	 * property is there.
 	 */
-	return of_property_read_bool(dev->of_node, "panel");
+	return of_property_present(dev->of_node, "panel");
 }
 EXPORT_SYMBOL(drm_is_panel_follower);
 

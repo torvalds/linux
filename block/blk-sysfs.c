@@ -263,7 +263,7 @@ static ssize_t queue_nr_zones_show(struct gendisk *disk, char *page)
 
 static ssize_t queue_iostats_passthrough_show(struct gendisk *disk, char *page)
 {
-	return queue_var_show(blk_queue_passthrough_stat(disk->queue), page);
+	return queue_var_show(!!blk_queue_passthrough_stat(disk->queue), page);
 }
 
 static ssize_t queue_iostats_passthrough_store(struct gendisk *disk,

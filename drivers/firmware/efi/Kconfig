@@ -76,10 +76,6 @@ config EFI_ZBOOT
 	bool "Enable the generic EFI decompressor"
 	depends on EFI_GENERIC_STUB && !ARM
 	select HAVE_KERNEL_GZIP
-	select HAVE_KERNEL_LZ4
-	select HAVE_KERNEL_LZMA
-	select HAVE_KERNEL_LZO
-	select HAVE_KERNEL_XZ
 	select HAVE_KERNEL_ZSTD
 	help
 	  Create the bootable image as an EFI application that carries the

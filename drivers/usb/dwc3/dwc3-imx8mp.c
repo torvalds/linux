@@ -129,6 +129,16 @@ static void dwc3_imx8mp_wakeup_disable(struct dwc3_imx8mp *dwc3_imx)
 	writel(val, dwc3_imx->hsio_blk_base + USB_WAKEUP_CTRL);
 }
 
+static const struct property_entry dwc3_imx8mp_properties[] = {
+	PROPERTY_ENTRY_BOOL("xhci-missing-cas-quirk"),
+	PROPERTY_ENTRY_BOOL("xhci-skip-phy-init-quirk"),
+	{},
+};
+
+static const struct software_node dwc3_imx8mp_swnode = {
+	.properties = dwc3_imx8mp_properties,
+};
+
 static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 {
 	struct dwc3_imx8mp	*dwc3_imx = _dwc3_imx;
@@ -146,17 +156,6 @@ static irqreturn_t dwc3_imx8mp_interrupt(int irq, void *_dwc3_imx)
 		pm_runtime_get(dwc->dev);
 
 	return IRQ_HANDLED;
-}
-
-static int dwc3_imx8mp_set_software_node(struct device *dev)
-{
-	struct property_entry props[3] = { 0 };
-	int prop_idx = 0;
-
-	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-missing-cas-quirk");
-	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-skip-phy-init-quirk");
-
-	return device_create_managed_software_node(dev, props, NULL);
 }
 
 static int dwc3_imx8mp_probe(struct platform_device *pdev)
@@ -221,17 +220,17 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto disable_rpm;
 
-	err = dwc3_imx8mp_set_software_node(dev);
+	err = device_add_software_node(dev, &dwc3_imx8mp_swnode);
 	if (err) {
 		err = -ENODEV;
-		dev_err(dev, "failed to create software node\n");
+		dev_err(dev, "failed to add software node\n");
 		goto disable_rpm;
 	}
 
 	err = of_platform_populate(node, NULL, NULL, dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to create dwc3 core\n");
-		goto disable_rpm;
+		goto remove_swnode;
 	}
 
 	dwc3_imx->dwc3 = of_find_device_by_node(dwc3_np);
@@ -255,6 +254,8 @@ static int dwc3_imx8mp_probe(struct platform_device *pdev)
 
 depopulate:
 	of_platform_depopulate(dev);
+remove_swnode:
+	device_remove_software_node(dev);
 disable_rpm:
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
@@ -268,6 +269,7 @@ static void dwc3_imx8mp_remove(struct platform_device *pdev)
 
 	pm_runtime_get_sync(dev);
 	of_platform_depopulate(dev);
+	device_remove_software_node(dev);
 
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);

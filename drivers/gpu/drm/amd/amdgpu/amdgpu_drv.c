@@ -23,7 +23,7 @@
  */
 
 #include <drm/amdgpu_drm.h>
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem.h>
@@ -280,7 +280,7 @@ module_param_named(gartsize, amdgpu_gart_size, uint, 0600);
 /**
  * DOC: gttsize (int)
  * Restrict the size of GTT domain (for userspace use) in MiB for testing.
- * The default is -1 (Use 1/2 RAM, minimum value is 3GB).
+ * The default is -1 (Use value specified by TTM).
  */
 MODULE_PARM_DESC(gttsize, "Size of the GTT userspace domain in megabytes (-1 = auto)");
 module_param_named(gttsize, amdgpu_gtt_size, int, 0600);
@@ -399,7 +399,7 @@ module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
  * the kernel log for the list of IPs on the asic. The default is 0xffffffff (enable all blocks on a device).
  */
 MODULE_PARM_DESC(ip_block_mask, "IP Block Mask (all blocks enabled (default))");
-module_param_named(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
+module_param_named_unsafe(ip_block_mask, amdgpu_ip_block_mask, uint, 0444);
 
 /**
  * DOC: bapm (int)
@@ -457,7 +457,7 @@ module_param_named(vm_update_mode, amdgpu_vm_update_mode, int, 0444);
  * Enable experimental hw support (1 = enable). The default is 0 (disabled).
  */
 MODULE_PARM_DESC(exp_hw_support, "experimental hw support (1 = enable, 0 = disable (default))");
-module_param_named(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
+module_param_named_unsafe(exp_hw_support, amdgpu_exp_hw_support, int, 0444);
 
 /**
  * DOC: dc (int)
@@ -568,14 +568,14 @@ module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
  * Set to enable GPU recovery mechanism (1 = enable, 0 = disable). The default is -1 (auto, disabled except SRIOV).
  */
 MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto)");
-module_param_named(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
+module_param_named_unsafe(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
 
 /**
  * DOC: emu_mode (int)
  * Set value 1 to enable emulation mode. This is only needed when running on an emulator. The default is 0 (disabled).
  */
 MODULE_PARM_DESC(emu_mode, "Emulation mode, (1 = enable, 0 = disable)");
-module_param_named(emu_mode, amdgpu_emu_mode, int, 0444);
+module_param_named_unsafe(emu_mode, amdgpu_emu_mode, int, 0444);
 
 /**
  * DOC: ras_enable (int)
@@ -730,7 +730,7 @@ module_param_named(noretry, amdgpu_noretry, int, 0644);
  */
 MODULE_PARM_DESC(force_asic_type,
 	"A non negative value used to specify the asic type for all supported GPUs");
-module_param_named(force_asic_type, amdgpu_force_asic_type, int, 0444);
+module_param_named_unsafe(force_asic_type, amdgpu_force_asic_type, int, 0444);
 
 /**
  * DOC: use_xgmi_p2p (int)
@@ -749,7 +749,7 @@ module_param_named(use_xgmi_p2p, amdgpu_use_xgmi_p2p, int, 0444);
  * assigns queues to HQDs.
  */
 int sched_policy = KFD_SCHED_POLICY_HWS;
-module_param(sched_policy, int, 0444);
+module_param_unsafe(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
 	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
 
@@ -799,7 +799,7 @@ MODULE_PARM_DESC(send_sigterm,
  * Setting 1 enables halt on hang.
  */
 int halt_if_hws_hang;
-module_param(halt_if_hws_hang, int, 0644);
+module_param_unsafe(halt_if_hws_hang, int, 0644);
 MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
 
 /**
@@ -808,7 +808,7 @@ MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (defau
  * check says. Default value: false (rely on MEC2 firmware version check).
  */
 bool hws_gws_support;
-module_param(hws_gws_support, bool, 0444);
+module_param_unsafe(hws_gws_support, bool, 0444);
 MODULE_PARM_DESC(hws_gws_support, "Assume MEC2 FW supports GWS barriers (false = rely on FW version check (Default), true = force supported)");
 
 /**
@@ -841,7 +841,7 @@ MODULE_PARM_DESC(no_system_mem_limit, "disable system memory limit (false = defa
  */
 int amdgpu_no_queue_eviction_on_vm_fault;
 MODULE_PARM_DESC(no_queue_eviction_on_vm_fault, "No queue eviction on VM fault (0 = queue eviction, 1 = no queue eviction)");
-module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm_fault, int, 0444);
+module_param_named_unsafe(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm_fault, int, 0444);
 #endif
 
 /**
@@ -849,7 +849,7 @@ module_param_named(no_queue_eviction_on_vm_fault, amdgpu_no_queue_eviction_on_vm
  */
 int amdgpu_mtype_local;
 MODULE_PARM_DESC(mtype_local, "MTYPE for local memory (0 = MTYPE_RW (default), 1 = MTYPE_NC, 2 = MTYPE_CC)");
-module_param_named(mtype_local, amdgpu_mtype_local, int, 0444);
+module_param_named_unsafe(mtype_local, amdgpu_mtype_local, int, 0444);
 
 /**
  * DOC: pcie_p2p (bool)
@@ -953,7 +953,7 @@ module_param_named(freesync_video, amdgpu_freesync_vid_mode, uint, 0444);
  * GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco)
  */
 MODULE_PARM_DESC(reset_method, "GPU reset method (-1 = auto (default), 0 = legacy, 1 = mode0, 2 = mode1, 3 = mode2, 4 = baco/bamaco)");
-module_param_named(reset_method, amdgpu_reset_method, int, 0644);
+module_param_named_unsafe(reset_method, amdgpu_reset_method, int, 0644);
 
 /**
  * DOC: bad_page_threshold (int) Bad page threshold is specifies the
@@ -1049,7 +1049,7 @@ module_param_named(seamless, amdgpu_seamless, int, 0444);
  * - 0x4: Disable GPU soft recovery, always do a full reset
  */
 MODULE_PARM_DESC(debug_mask, "debug options for amdgpu, disabled by default");
-module_param_named(debug_mask, amdgpu_debug_mask, uint, 0444);
+module_param_named_unsafe(debug_mask, amdgpu_debug_mask, uint, 0444);
 
 /**
  * DOC: agp (int)
@@ -2552,7 +2552,6 @@ static int amdgpu_pmops_freeze(struct device *dev)
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 	int r;
 
-	adev->in_s4 = true;
 	r = amdgpu_device_suspend(drm_dev, true);
 	adev->in_s4 = false;
 	if (r)
@@ -2916,7 +2915,6 @@ static const struct drm_driver amdgpu_kms_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,
@@ -2940,7 +2938,6 @@ const struct drm_driver amdgpu_partition_driver = {
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
 	.major = KMS_DRIVER_MAJOR,
 	.minor = KMS_DRIVER_MINOR,
 	.patchlevel = KMS_DRIVER_PATCHLEVEL,

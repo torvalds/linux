@@ -1914,6 +1914,9 @@ No flags are specified so far, the corresponding field must be set to zero.
   #define KVM_IRQ_ROUTING_HV_SINT 4
   #define KVM_IRQ_ROUTING_XEN_EVTCHN 5
 
+On s390, adding a KVM_IRQ_ROUTING_S390_ADAPTER is rejected on ucontrol VMs with
+error -EINVAL.
+
 flags:
 
 - KVM_MSI_VALID_DEVID: used along with KVM_IRQ_ROUTING_MSI routing entry

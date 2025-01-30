@@ -505,7 +505,7 @@ bool try_to_configure_aux_timeout(struct ddc_service *ddc,
 	bool result = false;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 
-	if ((ddc->link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+	if (((ddc->link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			!ddc->link->dc->debug.disable_fixed_vs_aux_timeout_wa &&
 			ddc->ctx->dce_version == DCN_VERSION_3_1) {
 		/* Fixed VS workaround for AUX timeout */

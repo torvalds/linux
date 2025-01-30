@@ -1177,6 +1177,7 @@ static int st7701_probe(struct device *dev, int connector_type)
 		return dev_err_probe(dev, ret, "Failed to get orientation\n");
 
 	drm_panel_init(&st7701->panel, dev, &st7701_funcs, connector_type);
+	st7701->panel.prepare_prev_first = true;
 
 	/**
 	 * Once sleep out has been issued, ST7701 IC required to wait 120ms

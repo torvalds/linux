@@ -996,9 +996,9 @@ void set_replay_coasting_vtotal(struct dc_link *link,
 	link->replay_settings.coasting_vtotal_table[type] = vtotal;
 }
 
-void set_replay_ips_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal)
+void set_replay_low_rr_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal)
 {
-	link->replay_settings.abm_with_ips_on_full_screen_video_pseudo_vtotal = vtotal;
+	link->replay_settings.low_rr_full_screen_video_pseudo_vtotal = vtotal;
 }
 
 void calculate_replay_link_off_frame_count(struct dc_link *link,
@@ -1038,4 +1038,9 @@ bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_back
 	caps->num_data_points = custom_backlight_profiles[config_no].num_data_points;
 	memcpy(caps->data_points, custom_backlight_profiles[config_no].data_points, data_points_size);
 	return true;
+}
+
+void reset_replay_dsync_error_count(struct dc_link *link)
+{
+	link->replay_settings.replay_desync_error_fail_count = 0;
 }

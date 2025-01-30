@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
+#include "i9xx_wm_regs.h"
 #include "intel_atomic.h"
 #include "intel_bo.h"
 #include "intel_display.h"

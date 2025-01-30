@@ -9,6 +9,11 @@
 #include "i915_reg_defs.h"
 #include "intel_display_limits.h"
 
+/* DDI Buffer Control */
+#define _DDI_CLK_VALFREQ_A		0x64030
+#define _DDI_CLK_VALFREQ_B		0x64130
+#define DDI_CLK_VALFREQ(port)		_MMIO_PORT(port, _DDI_CLK_VALFREQ_A, _DDI_CLK_VALFREQ_B)
+
 /*
  * Wrapper macro to convert from port number to the index used in some of the
  * registers. For Display version 20 and above it converts the port number to a
