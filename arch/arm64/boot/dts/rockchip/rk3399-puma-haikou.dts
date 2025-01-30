@@ -154,6 +154,10 @@
 	status = "okay";
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -189,6 +193,10 @@
 &i2c6 {
 	status = "okay";
 	clock-frequency = <400000>;
+};
+
+&i2s2 {
+	status = "okay";
 };
 
 &pcie_phy {
