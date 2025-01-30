@@ -65,7 +65,7 @@ nv50_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 
 	spin_lock_irqsave(&imem->base.lock, flags);
 	if (unlikely(imem->addr != base)) {
-		nvkm_wr32(device, 0x001700, base >> 16);
+		imem->base.func->set_bar0_window_addr(device, base);
 		imem->addr = base;
 	}
 	nvkm_wr32(device, 0x700000 + addr, data);
@@ -85,7 +85,7 @@ nv50_instobj_rd32_slow(struct nvkm_memory *memory, u64 offset)
 
 	spin_lock_irqsave(&imem->base.lock, flags);
 	if (unlikely(imem->addr != base)) {
-		nvkm_wr32(device, 0x001700, base >> 16);
+		imem->base.func->set_bar0_window_addr(device, base);
 		imem->addr = base;
 	}
 	data = nvkm_rd32(device, 0x700000 + addr);
@@ -395,6 +395,12 @@ nv50_instobj_new(struct nvkm_instmem *imem, u32 size, u32 align, bool zero,
  *****************************************************************************/
 
 static void
+nv50_instmem_set_bar0_window_addr(struct nvkm_device *device, u64 addr)
+{
+	nvkm_wr32(device, 0x001700, addr >> 16);
+}
+
+static void
 nv50_instmem_fini(struct nvkm_instmem *base)
 {
 	nv50_instmem(base)->addr = ~0ULL;
@@ -415,6 +421,7 @@ nv50_instmem = {
 	.memory_new = nv50_instobj_new,
 	.memory_wrap = nv50_instobj_wrap,
 	.zero = false,
+	.set_bar0_window_addr = nv50_instmem_set_bar0_window_addr,
 };
 
 int

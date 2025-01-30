@@ -317,6 +317,7 @@ r535_instmem_new(const struct nvkm_instmem_func *hw,
 	rm->memory_new = hw->memory_new;
 	rm->memory_wrap = hw->memory_wrap;
 	rm->zero = false;
+	rm->set_bar0_window_addr = hw->set_bar0_window_addr;
 
 	ret = nv50_instmem_new_(rm, device, type, inst, pinstmem);
 	if (ret)

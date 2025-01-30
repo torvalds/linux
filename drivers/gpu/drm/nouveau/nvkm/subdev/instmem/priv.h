@@ -16,6 +16,7 @@ struct nvkm_instmem_func {
 			  bool zero, struct nvkm_memory **);
 	int (*memory_wrap)(struct nvkm_instmem *, struct nvkm_memory *, struct nvkm_memory **);
 	bool zero;
+	void (*set_bar0_window_addr)(struct nvkm_device *, u64 addr);
 };
 
 int nv50_instmem_new_(const struct nvkm_instmem_func *, struct nvkm_device *,
