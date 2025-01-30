@@ -1923,6 +1923,7 @@ static bool dcn401_resource_construct(
 	dc->config.dc_mode_clk_limit_support = true;
 	dc->config.enable_windowed_mpo_odm = true;
 	dc->config.set_pipe_unlock_order = true; /* Need to ensure DET gets freed before allocating */
+
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {
