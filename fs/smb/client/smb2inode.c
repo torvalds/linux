@@ -1058,10 +1058,11 @@ int smb2_query_path_info(const unsigned int xid,
 		 * Skip SMB2_OP_GET_REPARSE if symlink already parsed in create
 		 * response.
 		 */
-		if (data->reparse.tag != IO_REPARSE_TAG_SYMLINK)
+		if (data->reparse.tag != IO_REPARSE_TAG_SYMLINK) {
 			cmds[num_cmds++] = SMB2_OP_GET_REPARSE;
-		if (!tcon->posix_extensions)
-			cmds[num_cmds++] = SMB2_OP_QUERY_WSL_EA;
+			if (!tcon->posix_extensions)
+				cmds[num_cmds++] = SMB2_OP_QUERY_WSL_EA;
+		}
 
 		oparms = CIFS_OPARMS(cifs_sb, tcon, full_path,
 				     FILE_READ_ATTRIBUTES |
