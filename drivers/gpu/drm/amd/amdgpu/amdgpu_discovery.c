@@ -2939,6 +2939,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		adev->smuio.funcs = &smuio_v13_0_funcs;
 		break;
 	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 11):
 		adev->smuio.funcs = &smuio_v13_0_3_funcs;
 		if (adev->smuio.funcs->get_pkg_type(adev) == AMDGPU_PKG_TYPE_APU) {
 			adev->flags |= AMD_IS_APU;
