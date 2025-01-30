@@ -6017,21 +6017,6 @@ static const struct hash_testvec rmd160_tv_template[] = {
 	}
 };
 
-static const u8 zeroes[4096] = { [0 ... 4095] = 0 };
-static const u8 ones[4096] = { [0 ... 4095] = 0xff };
-
-static const struct hash_testvec crc64_rocksoft_tv_template[] = {
-	{
-		.plaintext	= zeroes,
-		.psize		= 4096,
-		.digest         = "\x4e\xb6\x22\xeb\x67\xd3\x82\x64",
-	}, {
-		.plaintext	= ones,
-		.psize		= 4096,
-		.digest         = "\xac\xa3\xec\x02\x73\xba\xdd\xc0",
-	}
-};
-
 static const struct hash_testvec crct10dif_tv_template[] = {
 	{
 		.plaintext	= "abc",

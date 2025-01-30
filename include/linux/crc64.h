@@ -7,8 +7,6 @@
 
 #include <linux/types.h>
 
-#define CRC64_ROCKSOFT_STRING "crc64-rocksoft"
-
 u64 __pure crc64_be(u64 crc, const void *p, size_t len);
 u64 __pure crc64_rocksoft_generic(u64 crc, const void *p, size_t len);
 
