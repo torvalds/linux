@@ -12,6 +12,7 @@
 #include "nvrm/msgfn.h"
 
 #include <core/pci.h>
+#include <subdev/pci/priv.h>
 
 static u32
 r570_gsp_sr_data_size(struct nvkm_gsp *gsp)
@@ -157,8 +158,8 @@ r570_gsp_set_system_info(struct nvkm_gsp *gsp)
 	info->gpuPhysInstAddr = device->func->resource_addr(device, 3);
 	info->nvDomainBusDeviceFunc = pci_dev_id(pdev);
 	info->maxUserVa = TASK_SIZE;
-	info->pciConfigMirrorBase = 0x088000;
-	info->pciConfigMirrorSize = 0x001000;
+	info->pciConfigMirrorBase = device->pci->func->cfg.addr;
+	info->pciConfigMirrorSize = device->pci->func->cfg.size;
 	info->PCIDeviceID = (pdev->device << 16) | pdev->vendor;
 	info->PCISubDeviceID = (pdev->subsystem_device << 16) | pdev->subsystem_vendor;
 	info->PCIRevisionID = pdev->revision;

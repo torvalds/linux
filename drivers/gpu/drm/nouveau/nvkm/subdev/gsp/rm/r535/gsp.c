@@ -24,6 +24,7 @@
 #include "priv.h"
 
 #include <core/pci.h>
+#include <subdev/pci/priv.h>
 #include <subdev/timer.h>
 #include <subdev/vfn.h>
 #include <engine/fifo/chan.h>
@@ -905,8 +906,8 @@ r535_gsp_set_system_info(struct nvkm_gsp *gsp)
 	info->gpuPhysInstAddr = device->func->resource_addr(device, 3);
 	info->nvDomainBusDeviceFunc = pci_dev_id(pdev->pdev);
 	info->maxUserVa = TASK_SIZE;
-	info->pciConfigMirrorBase = 0x088000;
-	info->pciConfigMirrorSize = 0x001000;
+	info->pciConfigMirrorBase = device->pci->func->cfg.addr;
+	info->pciConfigMirrorSize = device->pci->func->cfg.size;
 	r535_gsp_acpi_info(gsp, &info->acpiMethodData);
 
 	return nvkm_gsp_rpc_wr(gsp, info, NVKM_GSP_RPC_REPLY_NOWAIT);
