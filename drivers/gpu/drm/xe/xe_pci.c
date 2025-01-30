@@ -55,6 +55,8 @@ struct xe_device_desc {
 
 	enum xe_platform platform;
 
+	u8 dma_mask_size;
+
 	u8 require_force_probe:1;
 	u8 is_dgfx:1;
 
@@ -85,7 +87,6 @@ static const struct xe_graphics_desc graphics_xelp = {
 
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
 
-	.dma_mask_size = 39,
 	.va_bits = 48,
 	.vm_max_level = 3,
 };
@@ -97,14 +98,12 @@ static const struct xe_graphics_desc graphics_xelpp = {
 
 	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
 
-	.dma_mask_size = 39,
 	.va_bits = 48,
 	.vm_max_level = 3,
 };
 
 #define XE_HP_FEATURES \
 	.has_range_tlb_invalidation = true, \
-	.dma_mask_size = 46, \
 	.va_bits = 48, \
 	.vm_max_level = 3
 
@@ -139,7 +138,6 @@ static const struct xe_graphics_desc graphics_xehpc = {
 		BIT(XE_HW_ENGINE_CCS2) | BIT(XE_HW_ENGINE_CCS3),
 
 	XE_HP_FEATURES,
-	.dma_mask_size = 52,
 	.max_remote_tiles = 1,
 	.va_bits = 57,
 	.vm_max_level = 4,
@@ -160,7 +158,6 @@ static const struct xe_graphics_desc graphics_xelpg = {
 };
 
 #define XE2_GFX_FEATURES \
-	.dma_mask_size = 46, \
 	.has_asid = 1, \
 	.has_atomic_enable_pte_bit = 1, \
 	.has_flat_ccs = 1, \
@@ -220,6 +217,7 @@ static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(TIGERLAKE),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -229,6 +227,7 @@ static const struct xe_device_desc rkl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(ROCKETLAKE),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -240,6 +239,7 @@ static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(ALDERLAKE_S),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -255,6 +255,7 @@ static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(ALDERLAKE_P),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -268,6 +269,7 @@ static const struct xe_device_desc adl_n_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
 	PLATFORM(ALDERLAKE_N),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -281,6 +283,7 @@ static const struct xe_device_desc dg1_desc = {
 	.media = &media_xem,
 	DGFX_FEATURES,
 	PLATFORM(DG1),
+	.dma_mask_size = 39,
 	.has_display = true,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
@@ -304,6 +307,7 @@ static const u16 dg2_g12_ids[] = { INTEL_DG2_G12_IDS(NOP), 0 };
 static const struct xe_device_desc ats_m_desc = {
 	.graphics = &graphics_xehpg,
 	.media = &media_xehpm,
+	.dma_mask_size = 46,
 	.require_force_probe = true,
 
 	DG2_FEATURES,
@@ -313,6 +317,7 @@ static const struct xe_device_desc ats_m_desc = {
 static const struct xe_device_desc dg2_desc = {
 	.graphics = &graphics_xehpg,
 	.media = &media_xehpm,
+	.dma_mask_size = 46,
 	.require_force_probe = true,
 
 	DG2_FEATURES,
@@ -323,6 +328,7 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.graphics = &graphics_xehpc,
 	DGFX_FEATURES,
 	PLATFORM(PVC),
+	.dma_mask_size = 52,
 	.has_display = false,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
@@ -332,12 +338,14 @@ static const struct xe_device_desc mtl_desc = {
 	/* .graphics and .media determined via GMD_ID */
 	.require_force_probe = true,
 	PLATFORM(METEORLAKE),
+	.dma_mask_size = 46,
 	.has_display = true,
 	.has_pxp = true,
 };
 
 static const struct xe_device_desc lnl_desc = {
 	PLATFORM(LUNARLAKE),
+	.dma_mask_size = 46,
 	.has_display = true,
 	.has_pxp = true,
 };
@@ -345,12 +353,14 @@ static const struct xe_device_desc lnl_desc = {
 static const struct xe_device_desc bmg_desc = {
 	DGFX_FEATURES,
 	PLATFORM(BATTLEMAGE),
+	.dma_mask_size = 46,
 	.has_display = true,
 	.has_heci_cscfi = 1,
 };
 
 static const struct xe_device_desc ptl_desc = {
 	PLATFORM(PANTHERLAKE),
+	.dma_mask_size = 46,
 	.has_display = true,
 	.require_force_probe = true,
 };
@@ -617,6 +627,7 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
 
+	xe->info.dma_mask_size = desc->dma_mask_size;
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
 	xe->info.has_heci_cscfi = desc->has_heci_cscfi;
@@ -682,7 +693,6 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.graphics_name = graphics_desc->name;
 	xe->info.media_name = media_desc ? media_desc->name : "none";
 
-	xe->info.dma_mask_size = graphics_desc->dma_mask_size;
 	xe->info.vram_flags = graphics_desc->vram_flags;
 	xe->info.va_bits = graphics_desc->va_bits;
 	xe->info.vm_max_level = graphics_desc->vm_max_level;
