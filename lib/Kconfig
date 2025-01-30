@@ -201,6 +201,13 @@ config CRC64
 	  the kernel tree does. Such modules that use library CRC64
 	  functions require M here.
 
+config ARCH_HAS_CRC64
+	bool
+
+config CRC64_ARCH
+	tristate
+	default CRC64 if ARCH_HAS_CRC64 && CRC_OPTIMIZATIONS
+
 config CRC4
 	tristate "CRC4 functions"
 	help

@@ -41,38 +41,18 @@
 MODULE_DESCRIPTION("CRC64 calculations");
 MODULE_LICENSE("GPL v2");
 
-/**
- * crc64_be - Calculate bitwise big-endian ECMA-182 CRC64
- * @crc: seed value for computation. 0 or (u64)~0 for a new CRC calculation,
- *       or the previous crc64 value if computing incrementally.
- * @p: pointer to buffer over which CRC64 is run
- * @len: length of buffer @p
- */
-u64 __pure crc64_be(u64 crc, const void *p, size_t len)
+u64 crc64_be_generic(u64 crc, const u8 *p, size_t len)
 {
-	size_t i, t;
-
-	const unsigned char *_p = p;
-
-	for (i = 0; i < len; i++) {
-		t = ((crc >> 56) ^ (*_p++)) & 0xFF;
-		crc = crc64table[t] ^ (crc << 8);
-	}
-
+	while (len--)
+		crc = (crc << 8) ^ crc64table[(crc >> 56) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL_GPL(crc64_be);
+EXPORT_SYMBOL_GPL(crc64_be_generic);
 
-u64 __pure crc64_nvme_generic(u64 crc, const void *p, size_t len)
+u64 crc64_nvme_generic(u64 crc, const u8 *p, size_t len)
 {
-	const unsigned char *_p = p;
-	size_t i;
-
-	crc = ~crc;
-
-	for (i = 0; i < len; i++)
-		crc = (crc >> 8) ^ crc64nvmetable[(crc & 0xff) ^ *_p++];
-
-	return ~crc;
+	while (len--)
+		crc = (crc >> 8) ^ crc64nvmetable[(crc & 0xff) ^ *p++];
+	return crc;
 }
 EXPORT_SYMBOL_GPL(crc64_nvme_generic);
