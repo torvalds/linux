@@ -53,15 +53,15 @@ struct journal_buf {
  */
 
 enum journal_pin_type {
-	JOURNAL_PIN_btree,
-	JOURNAL_PIN_key_cache,
-	JOURNAL_PIN_other,
-	JOURNAL_PIN_NR,
+	JOURNAL_PIN_TYPE_btree,
+	JOURNAL_PIN_TYPE_key_cache,
+	JOURNAL_PIN_TYPE_other,
+	JOURNAL_PIN_TYPE_NR,
 };
 
 struct journal_entry_pin_list {
-	struct list_head		list[JOURNAL_PIN_NR];
-	struct list_head		flushed;
+	struct list_head		unflushed[JOURNAL_PIN_TYPE_NR];
+	struct list_head		flushed[JOURNAL_PIN_TYPE_NR];
 	atomic_t			count;
 	struct bch_devs_list		devs;
 };
@@ -226,6 +226,7 @@ struct journal {
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
+	struct closure_waitlist	reclaim_flush_wait;
 
 	struct delayed_work	write_work;
 	struct workqueue_struct *wq;

@@ -113,11 +113,10 @@ journal_seq_to_buf(struct journal *j, u64 seq)
 
 static void journal_pin_list_init(struct journal_entry_pin_list *p, int count)
 {
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(p->list); i++)
-		INIT_LIST_HEAD(&p->list[i]);
-	INIT_LIST_HEAD(&p->flushed);
+	for (unsigned i = 0; i < ARRAY_SIZE(p->unflushed); i++)
+		INIT_LIST_HEAD(&p->unflushed[i]);
+	for (unsigned i = 0; i < ARRAY_SIZE(p->flushed); i++)
+		INIT_LIST_HEAD(&p->flushed[i]);
 	atomic_set(&p->count, count);
 	p->devs.nr = 0;
 }
@@ -601,6 +600,16 @@ out:
 		: -BCH_ERR_journal_res_get_blocked;
 }
 
+static unsigned max_dev_latency(struct bch_fs *c)
+{
+	u64 nsecs = 0;
+
+	for_each_rw_member(c, ca)
+		nsecs = max(nsecs, ca->io_latency[WRITE].stats.max_duration);
+
+	return nsecs_to_jiffies(nsecs);
+}
+
 /*
  * Essentially the entry function to the journaling code. When bcachefs is doing
  * a btree insert, it calls this function to get the current journal write.
@@ -612,17 +621,31 @@ out:
  * btree node write locks.
  */
 int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
-				  unsigned flags)
+				  unsigned flags,
+				  struct btree_trans *trans)
 {
 	int ret;
 
 	if (closure_wait_event_timeout(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK),
-		   HZ * 10))
+		   HZ))
 		return ret;
 
+	if (trans)
+		bch2_trans_unlock_long(trans);
+
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+	int remaining_wait = max(max_dev_latency(c) * 2, HZ * 10);
+
+	remaining_wait = max(0, remaining_wait - HZ);
+
+	if (closure_wait_event_timeout(&j->async_wait,
+		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
+		   (flags & JOURNAL_RES_GET_NONBLOCK),
+		   remaining_wait))
+		return ret;
+
 	struct printbuf buf = PRINTBUF;
 	bch2_journal_debug_to_text(&buf, j);
 	bch_err(c, "Journal stuck? Waited for 10 seconds...\n%s",
@@ -727,7 +750,7 @@ recheck_need_open:
 		 * livelock:
 		 */
 		sched_annotate_sleep();
-		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
+		ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0, NULL);
 		if (ret)
 			return ret;
 
@@ -848,7 +871,7 @@ out:
 static int __bch2_journal_meta(struct journal *j)
 {
 	struct journal_res res = {};
-	int ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0);
+	int ret = bch2_journal_res_get(j, &res, jset_u64s(0), 0, NULL);
 	if (ret)
 		return ret;
 
@@ -1601,55 +1624,4 @@ void bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	spin_lock(&j->lock);
 	__bch2_journal_debug_to_text(out, j);
 	spin_unlock(&j->lock);
-}
-
-bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 *seq)
-{
-	struct journal_entry_pin_list *pin_list;
-	struct journal_entry_pin *pin;
-
-	spin_lock(&j->lock);
-	if (!test_bit(JOURNAL_running, &j->flags)) {
-		spin_unlock(&j->lock);
-		return true;
-	}
-
-	*seq = max(*seq, j->pin.front);
-
-	if (*seq >= j->pin.back) {
-		spin_unlock(&j->lock);
-		return true;
-	}
-
-	out->atomic++;
-
-	pin_list = journal_seq_pin(j, *seq);
-
-	prt_printf(out, "%llu: count %u\n", *seq, atomic_read(&pin_list->count));
-	printbuf_indent_add(out, 2);
-
-	for (unsigned i = 0; i < ARRAY_SIZE(pin_list->list); i++)
-		list_for_each_entry(pin, &pin_list->list[i], list)
-			prt_printf(out, "\t%px %ps\n", pin, pin->flush);
-
-	if (!list_empty(&pin_list->flushed))
-		prt_printf(out, "flushed:\n");
-
-	list_for_each_entry(pin, &pin_list->flushed, list)
-		prt_printf(out, "\t%px %ps\n", pin, pin->flush);
-
-	printbuf_indent_sub(out, 2);
-
-	--out->atomic;
-	spin_unlock(&j->lock);
-
-	return false;
-}
-
-void bch2_journal_pins_to_text(struct printbuf *out, struct journal *j)
-{
-	u64 seq = 0;
-
-	while (!bch2_journal_seq_pins_to_text(out, j, &seq))
-		seq++;
 }

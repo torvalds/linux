@@ -312,7 +312,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 }
 
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
-				  unsigned);
+				  unsigned, struct btree_trans *);
 
 /* First bits for BCH_WATERMARK: */
 enum journal_res_flags {
@@ -368,7 +368,8 @@ static inline int journal_res_get_fast(struct journal *j,
 }
 
 static inline int bch2_journal_res_get(struct journal *j, struct journal_res *res,
-				       unsigned u64s, unsigned flags)
+				       unsigned u64s, unsigned flags,
+				       struct btree_trans *trans)
 {
 	int ret;
 
@@ -380,7 +381,7 @@ static inline int bch2_journal_res_get(struct journal *j, struct journal_res *re
 	if (journal_res_get_fast(j, res, flags))
 		goto out;
 
-	ret = bch2_journal_res_get_slowpath(j, res, flags);
+	ret = bch2_journal_res_get_slowpath(j, res, flags, trans);
 	if (ret)
 		return ret;
 out:
@@ -429,8 +430,6 @@ struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *, u
 
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);
-void bch2_journal_pins_to_text(struct printbuf *, struct journal *);
-bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);

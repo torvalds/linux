@@ -406,7 +406,7 @@ static void __bch2_write_op_error(struct printbuf *out, struct bch_write_op *op,
 		   op->flags & BCH_WRITE_MOVE ? "(internal move)" : "");
 }
 
-static void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
+void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
 {
 	__bch2_write_op_error(out, op, op->pos.offset);
 }
@@ -873,7 +873,7 @@ static enum prep_encoded_ret {
 		if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 			return PREP_ENCODED_CHECKSUM_ERR;
 
-		if (bch2_bio_uncompress_inplace(c, bio, &op->crc))
+		if (bch2_bio_uncompress_inplace(op, bio))
 			return PREP_ENCODED_ERR;
 	}
 
