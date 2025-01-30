@@ -11,7 +11,7 @@
 struct xe_device;
 struct xe_reg;
 
-int xe_mmio_init(struct xe_device *xe);
+int xe_mmio_probe_early(struct xe_device *xe);
 int xe_mmio_probe_tiles(struct xe_device *xe);
 
 u8 xe_mmio_read8(struct xe_mmio *mmio, struct xe_reg reg);

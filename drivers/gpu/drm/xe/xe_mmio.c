@@ -60,7 +60,7 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 
 	/*
 	 * Nothing to be done as tile 0 has already been setup earlier with the
-	 * entire BAR mapped - see xe_mmio_init()
+	 * entire BAR mapped - see xe_mmio_probe_early()
 	 */
 	if (xe->info.tile_count == 1)
 		return;
@@ -74,7 +74,7 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 		/*
 		 * Although the per-tile mmio regs are not yet initialized, this
 		 * is fine as it's going to the root tile's mmio, that's
-		 * guaranteed to be initialized earlier in xe_mmio_init()
+		 * guaranteed to be initialized earlier in xe_mmio_probe_early()
 		 */
 		mtcfg = xe_mmio_read64_2x32(mmio, XEHP_MTCFG_ADDR);
 		tile_count = REG_FIELD_GET(TILE_COUNT, mtcfg) + 1;
@@ -122,7 +122,7 @@ static void mmio_fini(void *arg)
 	root_tile->mmio.regs = NULL;
 }
 
-int xe_mmio_init(struct xe_device *xe)
+int xe_mmio_probe_early(struct xe_device *xe)
 {
 	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);

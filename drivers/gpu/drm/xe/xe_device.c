@@ -692,7 +692,7 @@ int xe_device_probe_early(struct xe_device *xe)
 {
 	int err;
 
-	err = xe_mmio_init(xe);
+	err = xe_mmio_probe_early(xe);
 	if (err)
 		return err;
 
