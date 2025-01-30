@@ -6708,7 +6708,7 @@ void napi_resume_irqs(unsigned int napi_id)
 static void __napi_hash_add_with_id(struct napi_struct *napi,
 				    unsigned int napi_id)
 {
-	napi->napi_id = napi_id;
+	WRITE_ONCE(napi->napi_id, napi_id);
 	hlist_add_head_rcu(&napi->napi_hash_node,
 			   &napi_hash[napi->napi_id % HASH_SIZE(napi_hash)]);
 }
@@ -9924,6 +9924,10 @@ static int dev_xdp_attach(struct net_device *dev, struct netlink_ext_ack *extack
 			NL_SET_ERR_MSG(extack, "Program bound to different device");
 			return -EINVAL;
 		}
+		if (bpf_prog_is_dev_bound(new_prog->aux) && mode == XDP_MODE_SKB) {
+			NL_SET_ERR_MSG(extack, "Can't attach device-bound programs in generic mode");
+			return -EINVAL;
+		}
 		if (new_prog->expected_attach_type == BPF_XDP_DEVMAP) {
 			NL_SET_ERR_MSG(extack, "BPF_XDP_DEVMAP programs can not be attached to a device");
 			return -EINVAL;
@@ -10260,37 +10264,14 @@ static bool from_cleanup_net(void)
 #endif
 }
 
-static void rtnl_drop_if_cleanup_net(void)
-{
-	if (from_cleanup_net())
-		__rtnl_unlock();
-}
-
-static void rtnl_acquire_if_cleanup_net(void)
-{
-	if (from_cleanup_net())
-		rtnl_lock();
-}
-
 /* Delayed registration/unregisteration */
 LIST_HEAD(net_todo_list);
-static LIST_HEAD(net_todo_list_for_cleanup_net);
-
-/* TODO: net_todo_list/net_todo_list_for_cleanup_net should probably
- * be provided by callers, instead of being static, rtnl protected.
- */
-static struct list_head *todo_list(void)
-{
-	return from_cleanup_net() ? &net_todo_list_for_cleanup_net :
-				    &net_todo_list;
-}
-
 DECLARE_WAIT_QUEUE_HEAD(netdev_unregistering_wq);
 atomic_t dev_unreg_count = ATOMIC_INIT(0);
 
 static void net_set_todo(struct net_device *dev)
 {
-	list_add_tail(&dev->todo_list, todo_list());
+	list_add_tail(&dev->todo_list, &net_todo_list);
 }
 
 static netdev_features_t netdev_sync_upper_features(struct net_device *lower,
@@ -11140,7 +11121,7 @@ void netdev_run_todo(void)
 #endif
 
 	/* Snapshot list, allow later requests */
-	list_replace_init(todo_list(), &list);
+	list_replace_init(&net_todo_list, &list);
 
 	__rtnl_unlock();
 
@@ -11785,11 +11766,9 @@ void unregister_netdevice_many_notify(struct list_head *head,
 		WRITE_ONCE(dev->reg_state, NETREG_UNREGISTERING);
 		netdev_unlock(dev);
 	}
-
-	rtnl_drop_if_cleanup_net();
 	flush_all_backlogs();
+
 	synchronize_net();
-	rtnl_acquire_if_cleanup_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
 		struct sk_buff *skb = NULL;
@@ -11849,9 +11828,7 @@ void unregister_netdevice_many_notify(struct list_head *head,
 #endif
 	}
 
-	rtnl_drop_if_cleanup_net();
 	synchronize_net();
-	rtnl_acquire_if_cleanup_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
 		netdev_put(dev, &dev->dev_registered_tracker);
