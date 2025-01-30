@@ -1091,7 +1091,8 @@ get_bio:
 	if (rbio->bounce)
 		trace_and_count(c, read_bounce, &rbio->bio);
 
-	this_cpu_add(c->counters[BCH_COUNTER_io_read], bio_sectors(&rbio->bio));
+	if (!(flags & BCH_READ_NODECODE))
+		this_cpu_add(c->counters[BCH_COUNTER_io_read], bio_sectors(&rbio->bio));
 	bch2_increment_clock(c, bio_sectors(&rbio->bio), READ);
 
 	/*

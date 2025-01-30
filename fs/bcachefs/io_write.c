@@ -1644,7 +1644,8 @@ CLOSURE_CALLBACK(bch2_write)
 		goto err;
 	}
 
-	this_cpu_add(c->counters[BCH_COUNTER_io_write], bio_sectors(bio));
+	if (!(op->flags & BCH_WRITE_MOVE))
+		this_cpu_add(c->counters[BCH_COUNTER_io_write], bio_sectors(bio));
 	bch2_increment_clock(c, bio_sectors(bio), WRITE);
 
 	data_len = min_t(u64, bio->bi_iter.bi_size,
