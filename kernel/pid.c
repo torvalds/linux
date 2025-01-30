@@ -564,15 +564,29 @@ struct pid *pidfd_get_pid(unsigned int fd, unsigned int *flags)
  */
 struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags)
 {
-	unsigned int f_flags;
+	unsigned int f_flags = 0;
 	struct pid *pid;
 	struct task_struct *task;
+	enum pid_type type;
 
-	pid = pidfd_get_pid(pidfd, &f_flags);
-	if (IS_ERR(pid))
-		return ERR_CAST(pid);
+	switch (pidfd) {
+	case  PIDFD_SELF_THREAD:
+		type = PIDTYPE_PID;
+		pid = get_task_pid(current, type);
+		break;
+	case  PIDFD_SELF_THREAD_GROUP:
+		type = PIDTYPE_TGID;
+		pid = get_task_pid(current, type);
+		break;
+	default:
+		pid = pidfd_get_pid(pidfd, &f_flags);
+		if (IS_ERR(pid))
+			return ERR_CAST(pid);
+		type = PIDTYPE_TGID;
+		break;
+	}
 
-	task = get_pid_task(pid, PIDTYPE_TGID);
+	task = get_pid_task(pid, type);
 	put_pid(pid);
 	if (!task)
 		return ERR_PTR(-ESRCH);
