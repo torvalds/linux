@@ -190,6 +190,15 @@ config QCOM_GENI_SE
 	  driver is also used to manage the common aspects of multiple Serial
 	  Engines present in the QUP.
 
+config QCOM_GENI_SE_MSM
+	tristate "MSM GENI Serial Engine Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  This driver is used to manage Generic Interface (GENI) firmware based
+	  Qualcomm Technologies, Inc. Universal Peripheral (QUP) Wrapper. This
+	  driver is also used to manage the SCMI of multiple Serial
+	  Engines present in the QUP.
+
 config QCOM_GENI_SE_SSC
 	tristate "QCOM GENI SSC Serial Engine Driver"
 	depends on QCOM_GENI_SE
