@@ -1987,8 +1987,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	DRM_INFO("amdgpu: %uM of GTT memory ready.\n",
 		 (unsigned int)(gtt_size / (1024 * 1024)));
 
-	if (adev->flags & AMD_IS_APU)
-		adev->apu_prefer_gtt = true;
+	if (adev->flags & AMD_IS_APU) {
+		if (adev->gmc.real_vram_size < gtt_size)
+			adev->apu_prefer_gtt = true;
+	}
 
 	/* Initialize doorbell pool on PCI BAR */
 	r = amdgpu_ttm_init_on_chip(adev, AMDGPU_PL_DOORBELL, adev->doorbell.size / PAGE_SIZE);
