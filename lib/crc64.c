@@ -63,13 +63,6 @@ u64 __pure crc64_be(u64 crc, const void *p, size_t len)
 }
 EXPORT_SYMBOL_GPL(crc64_be);
 
-/**
- * crc64_rocksoft_generic - Calculate bitwise Rocksoft CRC64
- * @crc: seed value for computation. 0 for a new CRC calculation, or the
- * 	 previous crc64 value if computing incrementally.
- * @p: pointer to buffer over which CRC64 is run
- * @len: length of buffer @p
- */
 u64 __pure crc64_rocksoft_generic(u64 crc, const void *p, size_t len)
 {
 	const unsigned char *_p = p;
