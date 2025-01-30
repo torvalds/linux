@@ -575,6 +575,10 @@ struct ath12k_debug {
 	struct dentry *debugfs_pdev;
 	struct dentry *debugfs_pdev_symlink;
 	struct ath12k_dbg_htt_stats htt_stats;
+	enum wmi_halphy_ctrl_path_stats_id tpc_stats_type;
+	bool tpc_request;
+	struct completion tpc_complete;
+	struct wmi_tpc_stats_arg *tpc_stats;
 };
 
 struct ath12k_per_peer_tx_stats {

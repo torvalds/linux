@@ -517,6 +517,9 @@ enum wmi_tlv_cmd_id {
 	WMI_REQUEST_RCPI_CMDID,
 	WMI_REQUEST_PEER_STATS_INFO_CMDID,
 	WMI_REQUEST_RADIO_CHAN_STATS_CMDID,
+	WMI_REQUEST_WLM_STATS_CMDID,
+	WMI_REQUEST_CTRL_PATH_STATS_CMDID,
+	WMI_REQUEST_HALPHY_CTRL_PATH_STATS_CMDID = WMI_REQUEST_CTRL_PATH_STATS_CMDID + 3,
 	WMI_SET_ARP_NS_OFFLOAD_CMDID = WMI_TLV_CMD(WMI_GRP_ARP_NS_OFL),
 	WMI_ADD_PROACTIVE_ARP_RSP_PATTERN_CMDID,
 	WMI_DEL_PROACTIVE_ARP_RSP_PATTERN_CMDID,
@@ -786,6 +789,9 @@ enum wmi_tlv_event_id {
 	WMI_UPDATE_RCPI_EVENTID,
 	WMI_PEER_STATS_INFO_EVENTID,
 	WMI_RADIO_CHAN_STATS_EVENTID,
+	WMI_WLM_STATS_EVENTID,
+	WMI_CTRL_PATH_STATS_EVENTID,
+	WMI_HALPHY_STATS_CTRL_PATH_EVENTID,
 	WMI_NLO_MATCH_EVENTID = WMI_TLV_CMD(WMI_GRP_NLO_OFL),
 	WMI_NLO_SCAN_COMPLETE_EVENTID,
 	WMI_APFIND_EVENTID,
@@ -1192,6 +1198,7 @@ enum wmi_tlv_tag {
 	WMI_TAG_ARRAY_BYTE,
 	WMI_TAG_ARRAY_STRUCT,
 	WMI_TAG_ARRAY_FIXED_STRUCT,
+	WMI_TAG_ARRAY_INT16,
 	WMI_TAG_LAST_ARRAY_ENUM = 31,
 	WMI_TAG_SERVICE_READY_EVENT,
 	WMI_TAG_HAL_REG_CAPABILITIES,
@@ -1942,6 +1949,12 @@ enum wmi_tlv_tag {
 	WMI_TAG_MAC_PHY_CAPABILITIES_EXT = 0x36F,
 	WMI_TAG_REGULATORY_RULE_EXT_STRUCT = 0x3A9,
 	WMI_TAG_REG_CHAN_LIST_CC_EXT_EVENT,
+	WMI_TAG_TPC_STATS_GET_CMD = 0x38B,
+	WMI_TAG_TPC_STATS_EVENT_FIXED_PARAM,
+	WMI_TAG_TPC_STATS_CONFIG_EVENT,
+	WMI_TAG_TPC_STATS_REG_PWR_ALLOWED,
+	WMI_TAG_TPC_STATS_RATES_ARRAY,
+	WMI_TAG_TPC_STATS_CTL_PWR_TABLE_EVENT,
 	WMI_TAG_EHT_RATE_SET = 0x3C4,
 	WMI_TAG_DCS_AWGN_INT_TYPE = 0x3C5,
 	WMI_TAG_MLO_TX_SEND_PARAMS,
@@ -1959,6 +1972,8 @@ enum wmi_tlv_tag {
 	WMI_TAG_PDEV_SET_BIOS_SAR_TABLE_CMD = 0x3D8,
 	WMI_TAG_PDEV_SET_BIOS_GEO_TABLE_CMD = 0x3D9,
 	WMI_TAG_PDEV_SET_BIOS_INTERFACE_CMD = 0x3FB,
+	WMI_TAG_HALPHY_CTRL_PATH_CMD_FIXED_PARAM = 0x442,
+	WMI_TAG_HALPHY_CTRL_PATH_EVENT_FIXED_PARAM,
 	WMI_TAG_MAX
 };
 
@@ -5769,6 +5784,126 @@ struct ath12k_fw_stats_req_params {
 	u32 pdev_id;
 };
 
+#define WMI_REQ_CTRL_PATH_PDEV_TX_STAT		1
+#define WMI_REQUEST_CTRL_PATH_STAT_GET		1
+
+#define WMI_TPC_CONFIG			BIT(1)
+#define WMI_TPC_REG_PWR_ALLOWED		BIT(2)
+#define WMI_TPC_RATES_ARRAY1		BIT(3)
+#define WMI_TPC_RATES_ARRAY2		BIT(4)
+#define WMI_TPC_RATES_DL_OFDMA_ARRAY	BIT(5)
+#define WMI_TPC_CTL_PWR_ARRAY		BIT(6)
+#define WMI_TPC_CONFIG_PARAM		0x1
+#define ATH12K_TPC_RATE_ARRAY_MU	GENMASK(15, 8)
+#define ATH12K_TPC_RATE_ARRAY_SU	GENMASK(7, 0)
+#define TPC_STATS_REG_PWR_ALLOWED_TYPE	0
+
+enum wmi_halphy_ctrl_path_stats_id {
+	WMI_HALPHY_PDEV_TX_SU_STATS = 0,
+	WMI_HALPHY_PDEV_TX_SUTXBF_STATS,
+	WMI_HALPHY_PDEV_TX_MU_STATS,
+	WMI_HALPHY_PDEV_TX_MUTXBF_STATS,
+	WMI_HALPHY_PDEV_TX_STATS_MAX,
+};
+
+enum ath12k_wmi_tpc_stats_rates_array {
+	ATH12K_TPC_STATS_RATES_ARRAY1,
+	ATH12K_TPC_STATS_RATES_ARRAY2,
+};
+
+enum ath12k_wmi_tpc_stats_ctl_array {
+	ATH12K_TPC_STATS_CTL_ARRAY,
+	ATH12K_TPC_STATS_CTL_160ARRAY,
+};
+
+enum ath12k_wmi_tpc_stats_events {
+	ATH12K_TPC_STATS_CONFIG_REG_PWR_EVENT,
+	ATH12K_TPC_STATS_RATES_EVENT1,
+	ATH12K_TPC_STATS_RATES_EVENT2,
+	ATH12K_TPC_STATS_CTL_TABLE_EVENT
+};
+
+struct wmi_request_halphy_ctrl_path_stats_cmd_fixed_params {
+	__le32 tlv_header;
+	__le32 stats_id_mask;
+	__le32 request_id;
+	__le32 action;
+	__le32 subid;
+} __packed;
+
+struct ath12k_wmi_pdev_tpc_stats_event_fixed_params {
+	__le32 pdev_id;
+	__le32 end_of_event;
+	__le32 event_count;
+} __packed;
+
+struct wmi_tpc_config_params {
+	__le32 reg_domain;
+	__le32 chan_freq;
+	__le32 phy_mode;
+	__le32 twice_antenna_reduction;
+	__le32 twice_max_reg_power;
+	__le32 twice_antenna_gain;
+	__le32 power_limit;
+	__le32 rate_max;
+	__le32 num_tx_chain;
+	__le32 ctl;
+	__le32 flags;
+	__le32 caps;
+} __packed;
+
+struct wmi_max_reg_power_fixed_params {
+	__le32 reg_power_type;
+	__le32 reg_array_len;
+	__le32 d1;
+	__le32 d2;
+	__le32 d3;
+	__le32 d4;
+} __packed;
+
+struct wmi_max_reg_power_allowed_arg {
+	struct wmi_max_reg_power_fixed_params tpc_reg_pwr;
+	s16 *reg_pwr_array;
+};
+
+struct wmi_tpc_rates_array_fixed_params {
+	__le32 rate_array_type;
+	__le32 rate_array_len;
+} __packed;
+
+struct wmi_tpc_rates_array_arg {
+	struct wmi_tpc_rates_array_fixed_params tpc_rates_array;
+	s16 *rate_array;
+};
+
+struct wmi_tpc_ctl_pwr_fixed_params {
+	__le32 ctl_array_type;
+	__le32 ctl_array_len;
+	__le32 end_of_ctl_pwr;
+	__le32 ctl_pwr_count;
+	__le32 d1;
+	__le32 d2;
+	__le32 d3;
+	__le32 d4;
+} __packed;
+
+struct wmi_tpc_ctl_pwr_table_arg {
+	struct wmi_tpc_ctl_pwr_fixed_params tpc_ctl_pwr;
+	s8 *ctl_pwr_table;
+};
+
+struct wmi_tpc_stats_arg {
+	u32 pdev_id;
+	u32 event_count;
+	u32 end_of_event;
+	u32 tlvs_rcvd;
+	struct wmi_max_reg_power_allowed_arg max_reg_allowed_power;
+	struct wmi_tpc_rates_array_arg rates_array1;
+	struct wmi_tpc_rates_array_arg rates_array2;
+	struct wmi_tpc_config_params tpc_config;
+	struct wmi_tpc_ctl_pwr_table_arg ctl_array;
+};
+
 void ath12k_wmi_init_qcn9274(struct ath12k_base *ab,
 			     struct ath12k_wmi_resource_config_arg *config);
 void ath12k_wmi_init_wcn7850(struct ath12k_base *ab,
@@ -5897,6 +6032,10 @@ int ath12k_wmi_set_bios_geo_cmd(struct ath12k_base *ab, const u8 *pgeo_table);
 int ath12k_wmi_send_stats_request_cmd(struct ath12k *ar, u32 stats_id,
 				      u32 vdev_id, u32 pdev_id);
 __le32 ath12k_wmi_tlv_hdr(u32 cmd, u32 len);
+
+int ath12k_wmi_send_tpc_stats_request(struct ath12k *ar,
+				      enum wmi_halphy_ctrl_path_stats_id tpc_stats_type);
+void ath12k_wmi_free_tpc_stats_mem(struct ath12k *ar);
 
 static inline u32
 ath12k_wmi_caps_ext_get_pdev_id(const struct ath12k_wmi_caps_ext_params *param)

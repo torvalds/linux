@@ -32,6 +32,99 @@ static const struct file_operations fops_simulate_radar = {
 	.open = simple_open
 };
 
+static int ath12k_debug_tpc_stats_request(struct ath12k *ar)
+{
+	enum wmi_halphy_ctrl_path_stats_id tpc_stats_sub_id;
+	struct ath12k_base *ab = ar->ab;
+	int ret;
+
+	lockdep_assert_wiphy(ath12k_ar_to_hw(ar)->wiphy);
+
+	reinit_completion(&ar->debug.tpc_complete);
+
+	spin_lock_bh(&ar->data_lock);
+	ar->debug.tpc_request = true;
+	tpc_stats_sub_id = ar->debug.tpc_stats_type;
+	spin_unlock_bh(&ar->data_lock);
+
+	ret = ath12k_wmi_send_tpc_stats_request(ar, tpc_stats_sub_id);
+	if (ret) {
+		ath12k_warn(ab, "failed to request pdev tpc stats: %d\n", ret);
+		spin_lock_bh(&ar->data_lock);
+		ar->debug.tpc_request = false;
+		spin_unlock_bh(&ar->data_lock);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath12k_open_tpc_stats(struct inode *inode, struct file *file)
+{
+	struct ath12k *ar = inode->i_private;
+	struct ath12k_hw *ah = ath12k_ar_to_ah(ar);
+	int ret;
+
+	guard(wiphy)(ath12k_ar_to_hw(ar)->wiphy);
+
+	if (ah->state != ATH12K_HW_STATE_ON) {
+		ath12k_warn(ar->ab, "Interface not up\n");
+		return -ENETDOWN;
+	}
+
+	void *buf __free(kfree) = kzalloc(ATH12K_TPC_STATS_BUF_SIZE, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = ath12k_debug_tpc_stats_request(ar);
+	if (ret) {
+		ath12k_warn(ar->ab, "failed to request tpc stats: %d\n",
+			    ret);
+		return ret;
+	}
+
+	if (!wait_for_completion_timeout(&ar->debug.tpc_complete, TPC_STATS_WAIT_TIME)) {
+		spin_lock_bh(&ar->data_lock);
+		ath12k_wmi_free_tpc_stats_mem(ar);
+		ar->debug.tpc_request = false;
+		spin_unlock_bh(&ar->data_lock);
+		return -ETIMEDOUT;
+	}
+
+	file->private_data = no_free_ptr(buf);
+
+	spin_lock_bh(&ar->data_lock);
+	ath12k_wmi_free_tpc_stats_mem(ar);
+	spin_unlock_bh(&ar->data_lock);
+
+	return 0;
+}
+
+static ssize_t ath12k_read_tpc_stats(struct file *file,
+				     char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	const char *buf = file->private_data;
+	size_t len = strlen(buf);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static int ath12k_release_tpc_stats(struct inode *inode,
+				    struct file *file)
+{
+	kfree(file->private_data);
+	return 0;
+}
+
+static const struct file_operations fops_tpc_stats = {
+	.open = ath12k_open_tpc_stats,
+	.release = ath12k_release_tpc_stats,
+	.read = ath12k_read_tpc_stats,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
@@ -467,6 +560,9 @@ void ath12k_debugfs_register(struct ath12k *ar)
 				    ar->debug.debugfs_pdev, ar,
 				    &fops_simulate_radar);
 	}
+
+	debugfs_create_file("tpc_stats", 0400, ar->debug.debugfs_pdev, ar,
+			    &fops_tpc_stats);
 
 	ath12k_debugfs_htt_stats_register(ar);
 	ath12k_debugfs_fw_stats_register(ar);

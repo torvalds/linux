@@ -15,6 +15,12 @@ void ath12k_debugfs_unregister(struct ath12k *ar);
 void ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 				     struct ath12k_fw_stats *stats);
 void ath12k_debugfs_fw_stats_reset(struct ath12k *ar);
+
+#define TPC_STATS_WAIT_TIME		(1 * HZ)
+#define TPC_STATS_TOT_ROW		700
+#define TPC_STATS_TOT_COLUMN		100
+#define ATH12K_TPC_STATS_BUF_SIZE	(TPC_STATS_TOT_ROW * TPC_STATS_TOT_COLUMN)
+
 #else
 static inline void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
