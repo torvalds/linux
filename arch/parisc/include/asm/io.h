@@ -135,9 +135,6 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 
 #define pci_iounmap			pci_iounmap
 
-void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
-#define memcpy_fromio memcpy_fromio
-
 /* Port-space IO */
 
 #define inb_p inb

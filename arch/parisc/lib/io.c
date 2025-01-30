@@ -13,67 +13,6 @@
 #include <asm/io.h>
 
 /*
-** Copies a block of memory from a device in an efficient manner.
-** Assumes the device can cope with 32-bit transfers.  If it can't,
-** don't use this function.
-**
-** CR16 counts on C3000 reading 256 bytes from Symbios 896 RAM:
-**	27341/64    = 427 cyc per int
-**	61311/128   = 478 cyc per short
-**	122637/256  = 479 cyc per byte
-** Ergo bus latencies dominant (not transfer size).
-**      Minimize total number of transfers at cost of CPU cycles.
-**	TODO: only look at src alignment and adjust the stores to dest.
-*/
-void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
-{
-	/* first compare alignment of src/dst */ 
-	if ( (((unsigned long)dst ^ (unsigned long)src) & 1) || (count < 2) )
-		goto bytecopy;
-
-	if ( (((unsigned long)dst ^ (unsigned long)src) & 2) || (count < 4) )
-		goto shortcopy;
-
-	/* Then check for misaligned start address */
-	if ((unsigned long)src & 1) {
-		*(u8 *)dst = readb(src);
-		src++;
-		dst++;
-		count--;
-		if (count < 2) goto bytecopy;
-	}
-
-	if ((unsigned long)src & 2) {
-		*(u16 *)dst = __raw_readw(src);
-		src += 2;
-		dst += 2;
-		count -= 2;
-	}
-
-	while (count > 3) {
-		*(u32 *)dst = __raw_readl(src);
-		dst += 4;
-		src += 4;
-		count -= 4;
-	}
-
- shortcopy:
-	while (count > 1) {
-		*(u16 *)dst = __raw_readw(src);
-		src += 2;
-		dst += 2;
-		count -= 2;
-	}
-
- bytecopy:
-	while (count--) {
-		*(char *)dst = readb(src);
-		src++;
-		dst++;
-	}
-}
-
-/*
  * Read COUNT 8-bit bytes from port PORT into memory starting at
  * SRC.
  */
