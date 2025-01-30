@@ -1897,7 +1897,10 @@ commit:
 	if (ret)
 		goto out;
 
-	count_event(c, bucket_discard);
+	if (!fastpath)
+		count_event(c, bucket_discard);
+	else
+		count_event(c, bucket_discard_fast);
 out:
 fsck_err:
 	if (discard_locked)

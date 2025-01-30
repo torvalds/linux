@@ -13,6 +13,7 @@ enum counters_flags {
 	x(io_move,					2,	TYPE_SECTORS)	\
 	x(bucket_invalidate,				3,	TYPE_COUNTER)	\
 	x(bucket_discard,				4,	TYPE_COUNTER)	\
+	x(bucket_discard_fast,				79,	TYPE_COUNTER)	\
 	x(bucket_alloc,					5,	TYPE_COUNTER)	\
 	x(bucket_alloc_fail,				6,	TYPE_COUNTER)	\
 	x(btree_cache_scan,				7,	TYPE_COUNTER)	\
