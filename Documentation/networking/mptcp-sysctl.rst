@@ -41,7 +41,7 @@ blackhole_timeout - INTEGER (seconds)
 	MPTCP is re-enabled and will reset to the initial value when the
 	blackhole issue goes away.
 
-	0 to disable the blackhole detection.
+	0 to disable the blackhole detection. This is a per-namespace sysctl.
 
 	Default: 3600
 
