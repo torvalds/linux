@@ -113,24 +113,9 @@ static void test_stream_bind_only_client(const struct test_opts *opts)
 
 static void test_stream_bind_only_server(const struct test_opts *opts)
 {
-	union {
-		struct sockaddr sa;
-		struct sockaddr_vm svm;
-	} addr = {
-		.svm = {
-			.svm_family = AF_VSOCK,
-			.svm_port = opts->peer_port,
-			.svm_cid = VMADDR_CID_ANY,
-		},
-	};
 	int fd;
 
-	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
-
-	if (bind(fd, &addr.sa, sizeof(addr.svm)) < 0) {
-		perror("bind");
-		exit(EXIT_FAILURE);
-	}
+	fd = vsock_bind(VMADDR_CID_ANY, opts->peer_port, SOCK_STREAM);
 
 	/* Notify the client that the server is ready */
 	control_writeln("BIND");
@@ -1708,6 +1693,101 @@ static void test_stream_msgzcopy_leak_zcskb_server(const struct test_opts *opts)
 	close(fd);
 }
 
+#define MAX_PORT_RETRIES	24	/* net/vmw_vsock/af_vsock.c */
+
+/* Test attempts to trigger a transport release for an unbound socket. This can
+ * lead to a reference count mishandling.
+ */
+static void test_stream_transport_uaf_client(const struct test_opts *opts)
+{
+	int sockets[MAX_PORT_RETRIES];
+	struct sockaddr_vm addr;
+	int fd, i, alen;
+
+	fd = vsock_bind(VMADDR_CID_ANY, VMADDR_PORT_ANY, SOCK_STREAM);
+
+	alen = sizeof(addr);
+	if (getsockname(fd, (struct sockaddr *)&addr, &alen)) {
+		perror("getsockname");
+		exit(EXIT_FAILURE);
+	}
+
+	for (i = 0; i < MAX_PORT_RETRIES; ++i)
+		sockets[i] = vsock_bind(VMADDR_CID_ANY, ++addr.svm_port,
+					SOCK_STREAM);
+
+	close(fd);
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!vsock_connect_fd(fd, addr.svm_cid, addr.svm_port)) {
+		perror("Unexpected connect() #1 success");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Vulnerable system may crash now. */
+	if (!vsock_connect_fd(fd, VMADDR_CID_HOST, VMADDR_PORT_ANY)) {
+		perror("Unexpected connect() #2 success");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+	while (i--)
+		close(sockets[i]);
+
+	control_writeln("DONE");
+}
+
+static void test_stream_transport_uaf_server(const struct test_opts *opts)
+{
+	control_expectln("DONE");
+}
+
+static void test_stream_connect_retry_client(const struct test_opts *opts)
+{
+	int fd;
+
+	fd = socket(AF_VSOCK, SOCK_STREAM, 0);
+	if (fd < 0) {
+		perror("socket");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		fprintf(stderr, "Unexpected connect() #1 success\n");
+		exit(EXIT_FAILURE);
+	}
+
+	control_writeln("LISTEN");
+	control_expectln("LISTENING");
+
+	if (vsock_connect_fd(fd, opts->peer_cid, opts->peer_port)) {
+		perror("connect() #2");
+		exit(EXIT_FAILURE);
+	}
+
+	close(fd);
+}
+
+static void test_stream_connect_retry_server(const struct test_opts *opts)
+{
+	int fd;
+
+	control_expectln("LISTEN");
+
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
+	if (fd < 0) {
+		perror("accept");
+		exit(EXIT_FAILURE);
+	}
+
+	vsock_wait_remote_close(fd);
+	close(fd);
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1852,6 +1932,16 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM MSG_ZEROCOPY leak completion skb",
 		.run_client = test_stream_msgzcopy_leak_zcskb_client,
 		.run_server = test_stream_msgzcopy_leak_zcskb_server,
+	},
+	{
+		.name = "SOCK_STREAM transport release use-after-free",
+		.run_client = test_stream_transport_uaf_client,
+		.run_server = test_stream_transport_uaf_server,
+	},
+	{
+		.name = "SOCK_STREAM retry failed connect()",
+		.run_client = test_stream_connect_retry_client,
+		.run_server = test_stream_connect_retry_server,
 	},
 	{},
 };
