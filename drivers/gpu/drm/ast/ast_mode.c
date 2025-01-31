@@ -1035,8 +1035,6 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 			return MODE_OK;
 		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
 			return MODE_OK;
-		if ((mode->hdisplay == 1152) && (mode->vdisplay == 864))
-			return MODE_OK;
 
 		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
 		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
