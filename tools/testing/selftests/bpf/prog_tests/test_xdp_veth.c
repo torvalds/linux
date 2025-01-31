@@ -75,6 +75,8 @@ static struct veth_configuration net_config[VETH_PAIRS_COUNT] = {
 struct prog_configuration {
 	char local_name[PROG_NAME_MAX_LEN]; /* BPF prog to attach to local_veth */
 	char remote_name[PROG_NAME_MAX_LEN]; /* BPF prog to attach to remote_veth */
+	u32 local_flags; /* XDP flags to use on local_veth */
+	u32 remote_flags; /* XDP flags to use on remote_veth */
 };
 
 static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
@@ -104,7 +106,8 @@ static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
 	if (!ASSERT_NEQ(interface, 0, "non zero interface index"))
 		return -1;
 
-	ret = bpf_xdp_attach(interface, bpf_program__fd(local_prog), 0, NULL);
+	ret = bpf_xdp_attach(interface, bpf_program__fd(local_prog),
+			     prog[index].local_flags, NULL);
 	if (!ASSERT_OK(ret, "attach xdp program to local veth"))
 		return -1;
 
@@ -118,7 +121,8 @@ static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
 		return -1;
 	}
 
-	ret = bpf_xdp_attach(interface, bpf_program__fd(remote_prog), 0, NULL);
+	ret = bpf_xdp_attach(interface, bpf_program__fd(remote_prog),
+			     prog[index].remote_flags, NULL);
 	if (!ASSERT_OK(ret, "attach xdp program to remote veth")) {
 		close_netns(nstoken);
 		return -1;
@@ -176,14 +180,20 @@ void test_xdp_veth_redirect(void)
 		{
 			.local_name = "xdp_redirect_map_0",
 			.remote_name = "xdp_dummy_prog",
+			.local_flags = 0,
+			.remote_flags = 0,
 		},
 		{
 			.local_name = "xdp_redirect_map_1",
 			.remote_name = "xdp_tx",
+			.local_flags = 0,
+			.remote_flags = 0,
 		},
 		{
 			.local_name = "xdp_redirect_map_2",
 			.remote_name = "xdp_dummy_prog",
+			.local_flags = 0,
+			.remote_flags = 0,
 		}
 	};
 	struct bpf_object *bpf_objs[VETH_REDIRECT_SKEL_NB];
