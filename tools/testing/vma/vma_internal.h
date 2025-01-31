@@ -796,12 +796,12 @@ static inline void vma_start_write(struct vm_area_struct *vma)
 static inline void vma_adjust_trans_huge(struct vm_area_struct *vma,
 					 unsigned long start,
 					 unsigned long end,
-					 long adjust_next)
+					 struct vm_area_struct *next)
 {
 	(void)vma;
 	(void)start;
 	(void)end;
-	(void)adjust_next;
+	(void)next;
 }
 
 static inline void vma_iter_free(struct vma_iterator *vmi)
