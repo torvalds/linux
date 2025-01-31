@@ -358,18 +358,14 @@ struct ast_vbios_dclk_info {
 	u8 param3;
 };
 
-struct ast_vbios_mode_info {
-	const struct ast_vbios_stdtable *std_table;
-	const struct ast_vbios_enhtable *enh_table;
-};
-
 struct ast_crtc_state {
 	struct drm_crtc_state base;
 
 	/* Last known format of primary plane */
 	const struct drm_format_info *format;
 
-	struct ast_vbios_mode_info vbios_mode_info;
+	const struct ast_vbios_stdtable *std_table;
+	const struct ast_vbios_enhtable *vmode;
 };
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)

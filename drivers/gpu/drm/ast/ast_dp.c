@@ -323,11 +323,10 @@ static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder
 	struct drm_device *dev = encoder->dev;
 	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
-	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 	int mode_index;
 	u8 vgacre0, vgacre1, vgacre2;
 
-	mode_index = ast_astdp_get_mode_index(vbios_mode_info->enh_table);
+	mode_index = ast_astdp_get_mode_index(ast_crtc_state->vmode);
 	if (drm_WARN_ON(dev, mode_index < 0))
 		return;
 
