@@ -172,6 +172,9 @@
 #elif defined(__TARGET_ARCH_riscv)
 #define SYSCALL_WRAPPER 1
 #define SYS_PREFIX "__riscv_"
+#elif defined(__TARGET_ARCH_powerpc)
+#define SYSCALL_WRAPPER 1
+#define SYS_PREFIX ""
 #else
 #define SYSCALL_WRAPPER 0
 #define SYS_PREFIX "__se_"
