@@ -177,7 +177,7 @@ bool xe_survivability_mode_required(struct xe_device *xe)
 	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	u32 data;
 
-	if (!IS_DGFX(xe) || xe->info.platform < XE_BATTLEMAGE)
+	if (!IS_DGFX(xe) || xe->info.platform < XE_BATTLEMAGE || IS_SRIOV_VF(xe))
 		return false;
 
 	data = xe_mmio_read32(mmio, PCODE_SCRATCH(0));
