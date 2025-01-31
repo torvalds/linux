@@ -231,7 +231,7 @@ test_cgroup() {
 
 test_leader_sampling() {
   echo "Basic leader sampling test"
-  if ! perf record -o "${perfdata}" -e "{instructions,instructions}:Su" -- \
+  if ! perf record -o "${perfdata}" -e "{cycles,cycles}:Su" -- \
     perf test -w brstack 2> /dev/null
   then
     echo "Leader sampling [Failed record]"
@@ -243,15 +243,15 @@ test_leader_sampling() {
   while IFS= read -r line
   do
     # Check if the two instruction counts are equal in each record
-    instructions=$(echo $line | awk '{for(i=1;i<=NF;i++) if($i=="instructions:") print $(i-1)}')
-    if [ $(($index%2)) -ne 0 ] && [ ${instructions}x != ${prev_instructions}x ]
+    cycles=$(echo $line | awk '{for(i=1;i<=NF;i++) if($i=="cycles:") print $(i-1)}')
+    if [ $(($index%2)) -ne 0 ] && [ ${cycles}x != ${prev_cycles}x ]
     then
-      echo "Leader sampling [Failed inconsistent instructions count]"
+      echo "Leader sampling [Failed inconsistent cycles count]"
       err=1
       return
     fi
     index=$(($index+1))
-    prev_instructions=$instructions
+    prev_cycles=$cycles
   done < $script_output
   echo "Basic leader sampling test [Success]"
 }
