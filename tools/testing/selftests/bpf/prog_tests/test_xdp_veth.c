@@ -33,6 +33,7 @@
 #include "xdp_dummy.skel.h"
 #include "xdp_redirect_map.skel.h"
 #include "xdp_tx.skel.h"
+#include <uapi/linux/if_link.h>
 
 #define VETH_PAIRS_COUNT	3
 #define VETH_NAME_MAX_LEN	32
@@ -187,26 +188,26 @@ static void cleanup_network(struct veth_configuration *net_config)
 }
 
 #define VETH_REDIRECT_SKEL_NB	3
-void test_xdp_veth_redirect(void)
+static void xdp_veth_redirect(u32 flags)
 {
 	struct prog_configuration ping_config[VETH_PAIRS_COUNT] = {
 		{
 			.local_name = "xdp_redirect_map_0",
 			.remote_name = "xdp_dummy_prog",
-			.local_flags = 0,
-			.remote_flags = 0,
+			.local_flags = flags,
+			.remote_flags = flags,
 		},
 		{
 			.local_name = "xdp_redirect_map_1",
 			.remote_name = "xdp_tx",
-			.local_flags = 0,
-			.remote_flags = 0,
+			.local_flags = flags,
+			.remote_flags = flags,
 		},
 		{
 			.local_name = "xdp_redirect_map_2",
 			.remote_name = "xdp_dummy_prog",
-			.local_flags = 0,
-			.remote_flags = 0,
+			.local_flags = flags,
+			.remote_flags = flags,
 		}
 	};
 	struct veth_configuration net_config[VETH_PAIRS_COUNT];
@@ -270,4 +271,16 @@ destroy_xdp_dummy:
 	xdp_dummy__destroy(xdp_dummy);
 
 	cleanup_network(net_config);
+}
+
+void test_xdp_veth_redirect(void)
+{
+	if (test__start_subtest("0"))
+		xdp_veth_redirect(0);
+
+	if (test__start_subtest("DRV_MODE"))
+		xdp_veth_redirect(XDP_FLAGS_DRV_MODE);
+
+	if (test__start_subtest("SKB_MODE"))
+		xdp_veth_redirect(XDP_FLAGS_SKB_MODE);
 }
