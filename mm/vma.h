@@ -82,11 +82,7 @@ struct vma_merge_struct {
 	struct vm_area_struct *prev;
 	struct vm_area_struct *middle;
 	struct vm_area_struct *next;
-	/*
-	 * This is the VMA we ultimately target to become the merged VMA, except
-	 * for the one exception of merge right, shrink next (for details of
-	 * this scenario see vma_merge_existing_range()).
-	 */
+	/* This is the VMA we ultimately target to become the merged VMA. */
 	struct vm_area_struct *target;
 	/*
 	 * Initially, the start, end, pgoff fields are provided by the caller
