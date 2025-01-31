@@ -493,6 +493,13 @@ properties:
               - renesas,r9a07g044l2 # Dual Cortex-A55 RZ/G2L
           - const: renesas,r9a07g044
 
+      - items:
+          - enum:
+              # MYIR Remi Pi SBC (MYB-YG2LX-REMI)
+              - myir,remi-pi
+          - const: renesas,r9a07g044l2
+          - const: renesas,r9a07g044
+
       - description: RZ/V2L (R9A07G054)
         items:
           - enum:
