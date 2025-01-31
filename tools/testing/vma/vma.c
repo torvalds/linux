@@ -149,11 +149,16 @@ static void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
 	vmg->prev = NULL;
 	vmg->middle = NULL;
 	vmg->next = NULL;
+	vmg->target = NULL;
 
 	vmg->start = start;
 	vmg->end = end;
 	vmg->pgoff = pgoff;
 	vmg->flags = flags;
+
+	vmg->just_expand = false;
+	vmg->__remove_middle = false;
+	vmg->__remove_next = false;
 }
 
 /*
@@ -1546,7 +1551,7 @@ static bool test_expand_only_mode(void)
 	/*
 	 * Place a VMA prior to the one we're expanding so we assert that we do
 	 * not erroneously try to traverse to the previous VMA even though we
-	 * have, through the use of VMG_FLAG_JUST_EXPAND, indicated we do not
+	 * have, through the use of the just_expand flag, indicated we do not
 	 * need to do so.
 	 */
 	alloc_and_link_vma(&mm, 0, 0x2000, 0, flags);
@@ -1558,7 +1563,7 @@ static bool test_expand_only_mode(void)
 	vma_iter_set(&vmi, 0x3000);
 	vma_prev = alloc_and_link_vma(&mm, 0x3000, 0x5000, 3, flags);
 	vmg.prev = vma_prev;
-	vmg.merge_flags = VMG_FLAG_JUST_EXPAND;
+	vmg.just_expand = true;
 
 	vma = vma_merge_new_range(&vmg);
 	ASSERT_NE(vma, NULL);
