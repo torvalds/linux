@@ -2507,6 +2507,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	MetricsTableV2_t *metrics_v2;
 	struct amdgpu_xcp *xcp;
 	u16 link_width_level;
+	u8 num_jpeg_rings;
 	u32 inst_mask;
 	bool per_inst;
 
@@ -2643,6 +2644,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	per_inst = smu_v13_0_6_cap_supported(smu, SMU_CAP(PER_INST_METRICS));
 
+	num_jpeg_rings = max_t(u8, adev->jpeg.num_jpeg_rings, 8);
 	for_each_xcp(adev->xcp_mgr, xcp, i) {
 		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
 		idx = 0;
@@ -2650,11 +2652,11 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 			/* Both JPEG and VCN has same instances */
 			inst = GET_INST(VCN, k);
 
-			for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
+			for (j = 0; j < num_jpeg_rings; ++j) {
 				gpu_metrics->xcp_stats[i].jpeg_busy
-					[(idx * adev->jpeg.num_jpeg_rings) + j] =
+					[(idx * num_jpeg_rings) + j] =
 					SMUQ10_ROUND(GET_METRIC_FIELD(JpegBusy, version)
-							[(inst * adev->jpeg.num_jpeg_rings) + j]);
+							[(inst * num_jpeg_rings) + j]);
 			}
 			gpu_metrics->xcp_stats[i].vcn_busy[idx] =
 			       SMUQ10_ROUND(GET_METRIC_FIELD(VcnBusy, version)[inst]);
