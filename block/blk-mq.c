@@ -210,12 +210,12 @@ int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,
 }
 EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_wait_timeout);
 
-void blk_mq_freeze_queue(struct request_queue *q)
+void blk_mq_freeze_queue_nomemsave(struct request_queue *q)
 {
 	blk_freeze_queue_start(q);
 	blk_mq_freeze_queue_wait(q);
 }
-EXPORT_SYMBOL_GPL(blk_mq_freeze_queue);
+EXPORT_SYMBOL_GPL(blk_mq_freeze_queue_nomemsave);
 
 bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic)
 {
@@ -236,12 +236,12 @@ bool __blk_mq_unfreeze_queue(struct request_queue *q, bool force_atomic)
 	return unfreeze;
 }
 
-void blk_mq_unfreeze_queue(struct request_queue *q)
+void blk_mq_unfreeze_queue_nomemrestore(struct request_queue *q)
 {
 	if (__blk_mq_unfreeze_queue(q, false))
 		blk_unfreeze_release_lock(q);
 }
-EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue);
+EXPORT_SYMBOL_GPL(blk_mq_unfreeze_queue_nomemrestore);
 
 /*
  * non_owner variant of blk_freeze_queue_start
@@ -4223,13 +4223,14 @@ static void blk_mq_update_tag_set_shared(struct blk_mq_tag_set *set,
 					 bool shared)
 {
 	struct request_queue *q;
+	unsigned int memflags;
 
 	lockdep_assert_held(&set->tag_list_lock);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list) {
-		blk_mq_freeze_queue(q);
+		memflags = blk_mq_freeze_queue(q);
 		queue_set_hctx_shared(q, shared);
-		blk_mq_unfreeze_queue(q);
+		blk_mq_unfreeze_queue(q, memflags);
 	}
 }
 
@@ -4992,6 +4993,7 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	struct request_queue *q;
 	LIST_HEAD(head);
 	int prev_nr_hw_queues = set->nr_hw_queues;
+	unsigned int memflags;
 	int i;
 
 	lockdep_assert_held(&set->tag_list_lock);
@@ -5003,8 +5005,10 @@ static void __blk_mq_update_nr_hw_queues(struct blk_mq_tag_set *set,
 	if (set->nr_maps == 1 && nr_hw_queues == set->nr_hw_queues)
 		return;
 
+	memflags = memalloc_noio_save();
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
-		blk_mq_freeze_queue(q);
+		blk_mq_freeze_queue_nomemsave(q);
+
 	/*
 	 * Switch IO scheduler to 'none', cleaning up the data associated
 	 * with the previous scheduler. We will switch back once we are done
@@ -5052,7 +5056,8 @@ switch_back:
 		blk_mq_elv_switch_back(&head, q);
 
 	list_for_each_entry(q, &set->tag_list, tag_set_list)
-		blk_mq_unfreeze_queue(q);
+		blk_mq_unfreeze_queue_nomemrestore(q);
+	memalloc_noio_restore(memflags);
 
 	/* Free the excess tags when nr_hw_queues shrink. */
 	for (i = set->nr_hw_queues; i < prev_nr_hw_queues; i++)
