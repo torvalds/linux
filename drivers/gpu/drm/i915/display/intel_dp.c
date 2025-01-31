@@ -2075,8 +2075,12 @@ static bool intel_dp_dsc_valid_bpp(struct intel_dp *intel_dp, int bpp_x16)
 	struct intel_display *display = to_intel_display(intel_dp);
 	int i;
 
-	if (DISPLAY_VER(display) >= 13)
+	if (DISPLAY_VER(display) >= 13) {
+		if (intel_dp->force_dsc_fractional_bpp_en && !fxp_q4_to_frac(bpp_x16))
+			return false;
+
 		return true;
+	}
 
 	if (fxp_q4_to_frac(bpp_x16))
 		return false;
@@ -2143,9 +2147,9 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 	int ret;
 
 	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
-		if (intel_dp->force_dsc_fractional_bpp_en &&
-		    !fxp_q4_to_frac(bpp_x16))
+		if (!intel_dp_dsc_valid_bpp(intel_dp, bpp_x16))
 			continue;
+
 		ret = dsc_compute_link_config(intel_dp,
 					      pipe_config,
 					      limits,
