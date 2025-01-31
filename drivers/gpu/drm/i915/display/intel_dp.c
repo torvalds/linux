@@ -1941,6 +1941,7 @@ static bool is_bw_sufficient_for_dsc_config(int dsc_bpp_x16, u32 link_clock,
 
 static int dsc_compute_link_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *pipe_config,
+				   struct drm_connector_state *conn_state,
 				   const struct link_config_limits *limits,
 				   int dsc_bpp_x16,
 				   int timeslots)
@@ -2098,13 +2099,14 @@ static bool intel_dp_dsc_valid_bpp(struct intel_dp *intel_dp, int bpp_x16)
  * try depend on the source (platform) and sink.
  */
 static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
-				      const struct intel_connector *connector,
 				      struct intel_crtc_state *pipe_config,
+				      struct drm_connector_state *conn_state,
 				      const struct link_config_limits *limits,
 				      int pipe_bpp,
 				      int timeslots)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
+	const struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int output_bpp;
 	int dsc_min_bpp;
@@ -2138,6 +2140,7 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 
 		ret = dsc_compute_link_config(intel_dp,
 					      pipe_config,
+					      conn_state,
 					      limits,
 					      bpp_x16,
 					      timeslots);
@@ -2209,7 +2212,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	forced_bpp = intel_dp_force_dsc_pipe_bpp(intel_dp, limits);
 
 	if (forced_bpp) {
-		ret = dsc_compute_compressed_bpp(intel_dp, connector, pipe_config,
+		ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
 						 limits, forced_bpp, timeslots);
 		if (ret == 0) {
 			pipe_config->pipe_bpp = forced_bpp;
@@ -2227,7 +2230,7 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 		if (pipe_bpp < limits->pipe.min_bpp || pipe_bpp > limits->pipe.max_bpp)
 			continue;
 
-		ret = dsc_compute_compressed_bpp(intel_dp, connector, pipe_config,
+		ret = dsc_compute_compressed_bpp(intel_dp, pipe_config, conn_state,
 						 limits, pipe_bpp, timeslots);
 		if (ret == 0) {
 			pipe_config->pipe_bpp = pipe_bpp;
