@@ -205,7 +205,7 @@ struct ast_device {
 		} astdp;
 	} output;
 
-	bool support_wide_screen;
+	bool support_wsxga_p; /* 1680x1050 */
 
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */

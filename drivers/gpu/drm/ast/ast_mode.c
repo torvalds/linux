@@ -1024,7 +1024,7 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 	enum drm_mode_status status;
 	uint32_t jtemp;
 
-	if (ast->support_wide_screen) {
+	if (ast->support_wsxga_p) {
 		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
 			return MODE_OK;
 		if ((mode->hdisplay == 1280) && (mode->vdisplay == 800))

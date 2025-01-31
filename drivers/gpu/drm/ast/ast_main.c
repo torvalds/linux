@@ -43,24 +43,24 @@ static void ast_detect_widescreen(struct ast_device *ast)
 	/* Check if we support wide screen */
 	switch (AST_GEN(ast)) {
 	case 1:
-		ast->support_wide_screen = false;
+		ast->support_wsxga_p = false;
 		break;
 	default:
 		vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
 		if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
-			ast->support_wide_screen = true;
+			ast->support_wsxga_p = true;
 		else if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
-			ast->support_wide_screen = true;
+			ast->support_wsxga_p = true;
 		else {
-			ast->support_wide_screen = false;
+			ast->support_wsxga_p = false;
 			if (ast->chip == AST1300)
-				ast->support_wide_screen = true;
+				ast->support_wsxga_p = true;
 			if (ast->chip == AST1400)
-				ast->support_wide_screen = true;
+				ast->support_wsxga_p = true;
 			if (ast->chip == AST2510)
-				ast->support_wide_screen = true;
+				ast->support_wsxga_p = true;
 			if (IS_AST_GEN7(ast))
-				ast->support_wide_screen = true;
+				ast->support_wsxga_p = true;
 		}
 		break;
 	}
