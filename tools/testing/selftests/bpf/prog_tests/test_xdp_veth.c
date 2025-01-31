@@ -3,17 +3,27 @@
 /* Create 3 namespaces with 3 veth peers, and forward packets in-between using
  * native XDP
  *
- *                      XDP_TX
- * NS1(veth11)        NS2(veth22)        NS3(veth33)
- *      |                  |                  |
- *      |                  |                  |
- *   (veth1,            (veth2,            (veth3,
- *   id:111)            id:122)            id:133)
- *     ^ |                ^ |                ^ |
- *     | |  XDP_REDIRECT  | |  XDP_REDIRECT  | |
- *     | ------------------ ------------------ |
- *     -----------------------------------------
- *                    XDP_REDIRECT
+ * Network topology:
+ *  ----------        ----------       ----------
+ *  |  NS1   |        |  NS2   |       |  NS3   |
+ *  | veth11 |        | veth22 |       | veth33 |
+ *  ----|-----        -----|----       -----|----
+ *      |                  |                |
+ *    veth1              veth2            veth3
+ *
+ * Test cases:
+ *  - [test_xdp_veth_redirect] : ping veth33 from veth11
+ *
+ *    veth11             veth22              veth33
+ *  (XDP_PASS)          (XDP_TX)           (XDP_PASS)
+ *       |                  |                  |
+ *       |                  |                  |
+ *     veth1             veth2              veth3
+ * (XDP_REDIRECT)     (XDP_REDIRECT)     (XDP_REDIRECT)
+ *      ^ |                ^ |                ^ |
+ *      | |                | |                | |
+ *      | ------------------ ------------------ |
+ *      -----------------------------------------
  */
 
 #define _GNU_SOURCE
@@ -119,12 +129,9 @@ static int attach_programs_to_veth_pair(struct skeletons *skeletons, int index)
 	return 0;
 }
 
-static int configure_network(struct skeletons *skeletons)
+static int create_network(void)
 {
-	int interface_id;
-	int map_fd;
-	int err;
-	int i = 0;
+	int i;
 
 	/* First create and configure all interfaces */
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
@@ -139,27 +146,11 @@ static int configure_network(struct skeletons *skeletons)
 		    config[i].remote_veth);
 	}
 
-	/* Then configure the redirect map and attach programs to interfaces */
-	map_fd = bpf_map__fd(skeletons->xdp_redirect_maps->maps.tx_port);
-	if (!ASSERT_GE(map_fd, 0, "open redirect map"))
-		goto fail;
-	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
-		int next_veth = config[i].next_veth;
-
-		interface_id = if_nametoindex(config[next_veth].local_veth);
-		if (!ASSERT_NEQ(interface_id, 0, "non zero interface index"))
-			goto fail;
-		err = bpf_map_update_elem(map_fd, &i, &interface_id, BPF_ANY);
-		if (!ASSERT_OK(err, "configure interface redirection through map"))
-			goto fail;
-		if (attach_programs_to_veth_pair(skeletons, i))
-			goto fail;
-	}
-
 	return 0;
 
 fail:
 	return -1;
+
 }
 
 static void cleanup_network(void)
@@ -175,6 +166,8 @@ static void cleanup_network(void)
 void test_xdp_veth_redirect(void)
 {
 	struct skeletons skeletons = {};
+	int map_fd;
+	int i;
 
 	skeletons.xdp_dummy = xdp_dummy__open_and_load();
 	if (!ASSERT_OK_PTR(skeletons.xdp_dummy, "xdp_dummy__open_and_load"))
@@ -188,8 +181,28 @@ void test_xdp_veth_redirect(void)
 	if (!ASSERT_OK_PTR(skeletons.xdp_redirect_maps, "xdp_redirect_map__open_and_load"))
 		goto destroy_xdp_tx;
 
-	if (configure_network(&skeletons))
+	if (!ASSERT_OK(create_network(), "create_network"))
 		goto destroy_xdp_redirect_map;
+
+	/* Then configure the redirect map and attach programs to interfaces */
+	map_fd = bpf_map__fd(skeletons.xdp_redirect_maps->maps.tx_port);
+	if (!ASSERT_OK_FD(map_fd, "open redirect map"))
+		goto destroy_xdp_redirect_map;
+
+	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
+		int next_veth = config[i].next_veth;
+		int interface_id;
+		int err;
+
+		interface_id = if_nametoindex(config[next_veth].local_veth);
+		if (!ASSERT_NEQ(interface_id, 0, "non zero interface index"))
+			goto destroy_xdp_redirect_map;
+		err = bpf_map_update_elem(map_fd, &i, &interface_id, BPF_ANY);
+		if (!ASSERT_OK(err, "configure interface redirection through map"))
+			goto destroy_xdp_redirect_map;
+		if (attach_programs_to_veth_pair(&skeletons, i))
+			goto destroy_xdp_redirect_map;
+	}
 
 	/* Test: if all interfaces are properly configured, we must be able to ping
 	 * veth33 from veth11
