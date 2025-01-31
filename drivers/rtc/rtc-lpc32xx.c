@@ -257,7 +257,7 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "Can't request interrupt.\n");
 			rtc->irq = -1;
 		} else {
-			device_init_wakeup(&pdev->dev, 1);
+			device_init_wakeup(&pdev->dev, true);
 		}
 	}
 

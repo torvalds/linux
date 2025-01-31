@@ -187,7 +187,7 @@ static int as3722_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	as3722_rtc->rtc = devm_rtc_device_register(&pdev->dev, "as3722-rtc",
 				&as3722_rtc_ops, THIS_MODULE);
