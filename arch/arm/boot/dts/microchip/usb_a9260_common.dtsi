@@ -122,7 +122,7 @@
 
 		user_led {
 			label = "user_led";
-			gpios = <&pioB 21 GPIO_ACTIVE_LOW>;
+			gpios = <&pioB 21 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
