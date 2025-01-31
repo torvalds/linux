@@ -146,6 +146,7 @@ struct sched_ext_entity {
 	u32			weight;
 	s32			sticky_cpu;
 	s32			holding_cpu;
+	s32			selected_cpu;
 	u32			kf_mask;	/* see scx_kf_mask above */
 	struct task_struct	*kf_tasks[2];	/* see SCX_CALL_OP_TASK() */
 	atomic_long_t		ops_state;

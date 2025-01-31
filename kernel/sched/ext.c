@@ -1444,6 +1444,11 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
  * Collection of event counters. Event types are placed in descending order.
  */
 struct scx_event_stats {
+	/*
+	 * If ops.select_cpu() returns a CPU which can't be used by the task,
+	 * the core scheduler code silently picks a fallback CPU.
+	 */
+	u64		SCX_EV_SELECT_CPU_FALLBACK;
 };
 
 /*
@@ -2170,6 +2175,10 @@ static void enqueue_task_scx(struct rq *rq, struct task_struct *p, int enq_flags
 	do_enqueue_task(rq, p, enq_flags, sticky_cpu);
 out:
 	rq->scx.flags &= ~SCX_RQ_IN_WAKEUP;
+
+	if ((enq_flags & SCX_ENQ_CPU_SELECTED) &&
+	    unlikely(cpu_of(rq) != p->scx.selected_cpu))
+		__scx_add_event(SCX_EV_SELECT_CPU_FALLBACK, 1);
 }
 
 static void ops_dequeue(struct task_struct *p, u64 deq_flags)
@@ -3240,6 +3249,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 
 		cpu = SCX_CALL_OP_TASK_RET(SCX_KF_ENQUEUE | SCX_KF_SELECT_CPU,
 					   select_cpu, p, prev_cpu, wake_flags);
+		p->scx.selected_cpu = cpu;
 		*ddsp_taskp = NULL;
 		if (ops_cpu_valid(cpu, "from ops.select_cpu()"))
 			return cpu;
@@ -3250,6 +3260,7 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 		s32 cpu;
 
 		cpu = scx_select_cpu_dfl(p, prev_cpu, wake_flags, &found);
+		p->scx.selected_cpu = cpu;
 		if (found) {
 			p->scx.slice = SCX_SLICE_DFL;
 			p->scx.ddsp_dsq_id = SCX_DSQ_LOCAL;
@@ -4957,6 +4968,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	dump_line(&s, "--------------");
 
 	scx_bpf_events(&events, sizeof(events));
+	scx_dump_event(s, &events, SCX_EV_SELECT_CPU_FALLBACK);
 
 	if (seq_buf_has_overflowed(&s) && dump_len >= sizeof(trunc_marker))
 		memcpy(ei->dump + dump_len - sizeof(trunc_marker),
@@ -7090,6 +7102,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 	memset(&e_sys, 0, sizeof(e_sys));
 	for_each_possible_cpu(cpu) {
 		e_cpu = per_cpu_ptr(&event_stats_cpu, cpu);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
 	}
 
 	/*
