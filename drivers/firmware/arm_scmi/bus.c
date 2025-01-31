@@ -17,6 +17,8 @@
 
 #include "common.h"
 
+#define SCMI_UEVENT_MODALIAS_FMT	"%s:%02x:%s"
+
 BLOCKING_NOTIFIER_HEAD(scmi_requested_devices_nh);
 EXPORT_SYMBOL_GPL(scmi_requested_devices_nh);
 
@@ -276,11 +278,47 @@ static void scmi_dev_remove(struct device *dev)
 		scmi_drv->remove(scmi_dev);
 }
 
+static int scmi_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
+{
+	const struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return add_uevent_var(env, "MODALIAS=" SCMI_UEVENT_MODALIAS_FMT,
+			      dev_name(&scmi_dev->dev), scmi_dev->protocol_id,
+			      scmi_dev->name);
+}
+
+static ssize_t protocol_id_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sprintf(buf, "0x%02x\n", scmi_dev->protocol_id);
+}
+static DEVICE_ATTR_RO(protocol_id);
+
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sprintf(buf, "%s\n", scmi_dev->name);
+}
+static DEVICE_ATTR_RO(name);
+
+static struct attribute *scmi_device_attributes_attrs[] = {
+	&dev_attr_protocol_id.attr,
+	&dev_attr_name.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(scmi_device_attributes);
+
 const struct bus_type scmi_bus_type = {
 	.name =	"scmi_protocol",
 	.match = scmi_dev_match,
 	.probe = scmi_dev_probe,
 	.remove = scmi_dev_remove,
+	.uevent	= scmi_device_uevent,
+	.dev_groups = scmi_device_attributes_groups,
 };
 EXPORT_SYMBOL_GPL(scmi_bus_type);
 
