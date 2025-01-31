@@ -39,6 +39,14 @@ properties:
           - const: marvell,armada-ap806-quad
           - const: marvell,armada-ap806
 
+      - description: Armada 8080 SoC
+        items:
+          - enum:
+              - marvell,armada-8080-db
+          - const: marvell,armada-8080
+          - const: marvell,armada-ap810-octa
+          - const: marvell,armada-ap810
+
       - description: Armada CN9130 SoC with no external CP
         items:
           - const: marvell,cn9130
