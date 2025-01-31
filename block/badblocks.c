@@ -7,15 +7,6 @@
  * Copyright (c) 2015, Intel Corporation.
  */
 
-#include <linux/badblocks.h>
-#include <linux/seqlock.h>
-#include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/stddef.h>
-#include <linux/types.h>
-#include <linux/slab.h>
-
 /*
  * The purpose of badblocks set/clear is to manage bad blocks ranges which are
  * identified by LBA addresses.
@@ -550,12 +541,11 @@ static bool can_merge_behind(struct badblocks *bb,
  * Do backward merge for range indicated by 'bad' and the bad range
  * (from the bad table) indexed by 'behind'. The return value is merged
  * sectors from bad->len.
- */
-static int behind_merge(struct badblocks *bb, struct badblocks_context *bad,
+ */ int behind_merge(struct badblocks *bb, struct badblocks_context *bad,
 			int behind)
 {
 	sector_t sectors = bad->len;
-	sector_t s = bad->start;
+	sebad->start;
 	u64 *p = bb->page;
 	int merged = 0;
 
