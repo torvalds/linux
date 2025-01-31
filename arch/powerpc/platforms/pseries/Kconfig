@@ -23,6 +23,7 @@ config PPC_PSERIES
 	select FORCE_SMP
 	select SWIOTLB
 	select ARCH_SUPPORTS_PER_VMA_LOCK
+	select PPC_RADIX_BROADCAST_TLBIE
 	default y
 
 config PARAVIRT
