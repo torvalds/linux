@@ -273,27 +273,42 @@ test_topdown_leader_sampling() {
 }
 
 test_precise_max() {
+  local -i skipped=0
+
   echo "precise_max attribute test"
-  if ! perf stat -e "cycles,instructions" true 2> /dev/null
+  # Just to make sure event cycles is supported for sampling
+  if perf record -o "${perfdata}" -e "cycles" true 2> /dev/null
+  then
+    if ! perf record -o "${perfdata}" -e "cycles:P" true 2> /dev/null
+    then
+      echo "precise_max attribute [Failed cycles:P event]"
+      err=1
+      return
+    fi
+  else
+    echo "precise_max attribute [Skipped no cycles:P event]"
+    ((skipped+=1))
+  fi
+  # On s390 event instructions is not supported for perf record
+  if perf record -o "${perfdata}" -e "instructions" true 2> /dev/null
+  then
+    # On AMD, cycles and instructions events are treated differently
+    if ! perf record -o "${perfdata}" -e "instructions:P" true 2> /dev/null
+    then
+      echo "precise_max attribute [Failed instructions:P event]"
+      err=1
+      return
+    fi
+  else
+    echo "precise_max attribute [Skipped no instructions:P event]"
+    ((skipped+=1))
+  fi
+  if [ $skipped -eq 2 ]
   then
     echo "precise_max attribute [Skipped no hardware events]"
-    return
+  else
+    echo "precise_max attribute test [Success]"
   fi
-  # Just to make sure it doesn't fail
-  if ! perf record -o "${perfdata}" -e "cycles:P" true 2> /dev/null
-  then
-    echo "precise_max attribute [Failed cycles:P event]"
-    err=1
-    return
-  fi
-  # On AMD, cycles and instructions events are treated differently
-  if ! perf record -o "${perfdata}" -e "instructions:P" true 2> /dev/null
-  then
-    echo "precise_max attribute [Failed instructions:P event]"
-    err=1
-    return
-  fi
-  echo "precise_max attribute test [Success]"
 }
 
 # raise the limit of file descriptors to minimum
