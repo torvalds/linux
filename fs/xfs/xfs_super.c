@@ -111,6 +111,7 @@ enum {
 	Opt_prjquota, Opt_uquota, Opt_gquota, Opt_pquota,
 	Opt_uqnoenforce, Opt_gqnoenforce, Opt_pqnoenforce, Opt_qnoenforce,
 	Opt_discard, Opt_nodiscard, Opt_dax, Opt_dax_enum, Opt_max_open_zones,
+	Opt_lifetime, Opt_nolifetime,
 };
 
 static const struct fs_parameter_spec xfs_fs_parameters[] = {
@@ -156,6 +157,8 @@ static const struct fs_parameter_spec xfs_fs_parameters[] = {
 	fsparam_flag("dax",		Opt_dax),
 	fsparam_enum("dax",		Opt_dax_enum, dax_param_enums),
 	fsparam_u32("max_open_zones",	Opt_max_open_zones),
+	fsparam_flag("lifetime",	Opt_lifetime),
+	fsparam_flag("nolifetime",	Opt_nolifetime),
 	{}
 };
 
@@ -184,6 +187,7 @@ xfs_fs_show_options(
 		{ XFS_FEAT_LARGE_IOSIZE,	",largeio" },
 		{ XFS_FEAT_DAX_ALWAYS,		",dax=always" },
 		{ XFS_FEAT_DAX_NEVER,		",dax=never" },
+		{ XFS_FEAT_NOLIFETIME,		",nolifetime" },
 		{ 0, NULL }
 	};
 	struct xfs_mount	*mp = XFS_M(root->d_sb);
@@ -1091,6 +1095,11 @@ xfs_finish_flags(
 "max_open_zones mount option only supported on zoned file systems.");
 			return -EINVAL;
 		}
+		if (mp->m_features & XFS_FEAT_NOLIFETIME) {
+			xfs_warn(mp,
+"nolifetime mount option only supported on zoned file systems.");
+			return -EINVAL;
+		}
 	}
 
 	return 0;
@@ -1477,6 +1486,12 @@ xfs_fs_parse_param(
 		return 0;
 	case Opt_max_open_zones:
 		parsing_mp->m_max_open_zones = result.uint_32;
+		return 0;
+	case Opt_lifetime:
+		parsing_mp->m_features &= ~XFS_FEAT_NOLIFETIME;
+		return 0;
+	case Opt_nolifetime:
+		parsing_mp->m_features |= XFS_FEAT_NOLIFETIME;
 		return 0;
 	default:
 		xfs_warn(parsing_mp, "unknown mount option [%s].", param->key);

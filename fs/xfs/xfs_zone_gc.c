@@ -547,7 +547,7 @@ xfs_zone_gc_select_target(
 
 	ASSERT(zi->zi_nr_open_zones <=
 		mp->m_max_open_zones - XFS_OPEN_GC_ZONES);
-	oz = xfs_open_zone(mp, true);
+	oz = xfs_open_zone(mp, WRITE_LIFE_NOT_SET, true);
 	if (oz)
 		trace_xfs_zone_gc_target_opened(oz->oz_rtg);
 	spin_lock(&zi->zi_open_zones_lock);
@@ -1117,7 +1117,7 @@ xfs_zone_gc_mount(
 	    zi->zi_nr_open_zones == mp->m_max_open_zones)
 		oz = xfs_zone_gc_steal_open(zi);
 	else
-		oz = xfs_open_zone(mp, true);
+		oz = xfs_open_zone(mp, WRITE_LIFE_NOT_SET, true);
 	if (!oz) {
 		xfs_warn(mp, "unable to allocate a zone for gc");
 		error = -EIO;

@@ -373,6 +373,7 @@ typedef struct xfs_mount {
 #define XFS_FEAT_ZONED		(1ULL << 29)	/* zoned RT device */
 
 /* Mount features */
+#define XFS_FEAT_NOLIFETIME	(1ULL << 47)	/* disable lifetime hints */
 #define XFS_FEAT_NOATTR2	(1ULL << 48)	/* disable attr2 creation */
 #define XFS_FEAT_NOALIGN	(1ULL << 49)	/* ignore alignment */
 #define XFS_FEAT_ALLOCSIZE	(1ULL << 50)	/* user specified allocation size */
@@ -428,6 +429,7 @@ __XFS_HAS_FEAT(large_extent_counts, NREXT64)
 __XFS_HAS_FEAT(exchange_range, EXCHANGE_RANGE)
 __XFS_HAS_FEAT(metadir, METADIR)
 __XFS_HAS_FEAT(zoned, ZONED)
+__XFS_HAS_FEAT(nolifetime, NOLIFETIME)
 
 static inline bool xfs_has_rtgroups(const struct xfs_mount *mp)
 {

@@ -27,6 +27,12 @@ struct xfs_open_zone {
 	xfs_rgblock_t		oz_written;
 
 	/*
+	 * Write hint (data temperature) assigned to this zone, or
+	 * WRITE_LIFE_NOT_SET if none was set.
+	 */
+	enum rw_hint		oz_write_hint;
+
+	/*
 	 * Is this open zone used for garbage collection?  There can only be a
 	 * single open GC zone, which is pointed to by zi_open_gc_zone in
 	 * struct xfs_zone_info.  Constant over the life time of an open zone.
@@ -100,7 +106,8 @@ struct xfs_zone_info {
 
 };
 
-struct xfs_open_zone *xfs_open_zone(struct xfs_mount *mp, bool is_gc);
+struct xfs_open_zone *xfs_open_zone(struct xfs_mount *mp,
+		enum rw_hint write_hint, bool is_gc);
 
 int xfs_zone_gc_reset_sync(struct xfs_rtgroup *rtg);
 bool xfs_zoned_need_gc(struct xfs_mount *mp);
