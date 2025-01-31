@@ -211,8 +211,6 @@ static inline void loop_update_dio(struct loop_device *lo)
 	WARN_ON_ONCE(lo->lo_state == Lo_bound &&
 		     lo->lo_queue->mq_freeze_depth == 0);
 
-	if (lo->lo_backing_file->f_flags & O_DIRECT)
-		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && !lo_can_use_dio(lo))
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
 
@@ -579,6 +577,8 @@ static void loop_assign_backing_file(struct loop_device *lo, struct file *file)
 	lo->old_gfp_mask = mapping_gfp_mask(file->f_mapping);
 	mapping_set_gfp_mask(file->f_mapping,
 			lo->old_gfp_mask & ~(__GFP_IO | __GFP_FS));
+	if (lo->lo_backing_file->f_flags & O_DIRECT)
+		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 }
 
 /*
