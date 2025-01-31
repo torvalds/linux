@@ -1791,7 +1791,7 @@ int intel_dp_dsc_max_src_input_bpc(struct intel_display *display)
 	if (DISPLAY_VER(display) == 11)
 		return 10;
 
-	return 0;
+	return intel_dp_dsc_min_src_input_bpc();
 }
 
 int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
