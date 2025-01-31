@@ -2055,6 +2055,21 @@ static int dsc_src_max_compressed_bpp(struct intel_dp *intel_dp)
 }
 
 /*
+ * Note: for pre-13 display you still need to check the validity of each step.
+ */
+static int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector)
+{
+	struct intel_display *display = to_intel_display(connector);
+	u8 incr = drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd);
+
+	if (DISPLAY_VER(display) < 14 || !incr)
+		return fxp_q4_from_int(1);
+
+	/* fxp q4 */
+	return fxp_q4_from_int(1) / incr;
+}
+
+/*
  * From a list of valid compressed bpps try different compressed bpp and find a
  * suitable link configuration that can support it.
  */
@@ -2110,16 +2125,12 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 			      int timeslots)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	u8 bppx16_incr = drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd);
 	int output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
 	u16 compressed_bppx16;
 	u8 bppx16_step;
 	int ret;
 
-	if (DISPLAY_VER(display) < 14 || bppx16_incr <= 1)
-		bppx16_step = 16;
-	else
-		bppx16_step = 16 / bppx16_incr;
+	bppx16_step = intel_dp_dsc_bpp_step_x16(connector);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
 	dsc_max_bpp = min(dsc_max_bpp << 4, (output_bpp << 4) - bppx16_step);
