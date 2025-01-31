@@ -2077,8 +2077,8 @@ static int
 icl_dsc_compute_link_config(struct intel_dp *intel_dp,
 			    struct intel_crtc_state *pipe_config,
 			    const struct link_config_limits *limits,
-			    int dsc_max_bpp,
-			    int dsc_min_bpp,
+			    int min_bpp_x16,
+			    int max_bpp_x16,
 			    int pipe_bpp,
 			    int timeslots)
 {
@@ -2086,11 +2086,11 @@ icl_dsc_compute_link_config(struct intel_dp *intel_dp,
 	int output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
-	dsc_max_bpp = min(dsc_max_bpp, output_bpp - 1);
+	max_bpp_x16 = min(max_bpp_x16, fxp_q4_from_int(output_bpp - 1));
 
 	for (i = ARRAY_SIZE(valid_dsc_bpp) - 1; i >= 0; i--) {
-		if (valid_dsc_bpp[i] < dsc_min_bpp ||
-		    valid_dsc_bpp[i] > dsc_max_bpp)
+		if (valid_dsc_bpp[i] < fxp_q4_to_int(min_bpp_x16) ||
+		    valid_dsc_bpp[i] > fxp_q4_to_int(max_bpp_x16))
 			continue;
 
 		ret = dsc_compute_link_config(intel_dp,
@@ -2119,8 +2119,8 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 			      const struct intel_connector *connector,
 			      struct intel_crtc_state *pipe_config,
 			      const struct link_config_limits *limits,
-			      int dsc_max_bpp,
-			      int dsc_min_bpp,
+			      int min_bpp_x16,
+			      int max_bpp_x16,
 			      int pipe_bpp,
 			      int timeslots)
 {
@@ -2132,10 +2132,9 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 	bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
-	dsc_max_bpp = min(dsc_max_bpp << 4, (output_bpp << 4) - bpp_step_x16);
-	dsc_min_bpp = dsc_min_bpp << 4;
+	max_bpp_x16 = min(max_bpp_x16, fxp_q4_from_int(output_bpp) - bpp_step_x16);
 
-	for (bpp_x16 = dsc_max_bpp; bpp_x16 >= dsc_min_bpp; bpp_x16 -= bpp_step_x16) {
+	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
 		if (intel_dp->force_dsc_fractional_bpp_en &&
 		    !fxp_q4_to_frac(bpp_x16))
 			continue;
@@ -2168,6 +2167,7 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int dsc_min_bpp;
 	int dsc_max_bpp;
+	int min_bpp_x16, max_bpp_x16;
 	int dsc_joiner_max_bpp;
 	int num_joined_pipes = intel_crtc_num_joined_pipes(pipe_config);
 
@@ -2178,11 +2178,15 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 								num_joined_pipes);
 	dsc_max_bpp = min(dsc_joiner_max_bpp, fxp_q4_to_int(limits->link.max_bpp_x16));
 
+	/* FIXME: remove the round trip via integers */
+	min_bpp_x16 = fxp_q4_from_int(dsc_min_bpp);
+	max_bpp_x16 = fxp_q4_from_int(dsc_max_bpp);
+
 	if (DISPLAY_VER(display) >= 13)
 		return xelpd_dsc_compute_link_config(intel_dp, connector, pipe_config, limits,
-						     dsc_max_bpp, dsc_min_bpp, pipe_bpp, timeslots);
+						     min_bpp_x16, max_bpp_x16, pipe_bpp, timeslots);
 	return icl_dsc_compute_link_config(intel_dp, pipe_config, limits,
-					   dsc_max_bpp, dsc_min_bpp, pipe_bpp, timeslots);
+					   min_bpp_x16, max_bpp_x16, pipe_bpp, timeslots);
 }
 
 int intel_dp_dsc_min_src_input_bpc(void)
