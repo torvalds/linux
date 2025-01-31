@@ -34,8 +34,13 @@ struct annotated_data_type;
 #define ANNOTATION__BR_CNTR_WIDTH 30
 #define ANNOTATION_DUMMY_LEN	256
 
-// llvm, capstone, objdump
-#define MAX_DISASSEMBLERS 3
+enum perf_disassembler {
+	PERF_DISASM_UNKNOWN = 0,
+	PERF_DISASM_LLVM,
+	PERF_DISASM_CAPSTONE,
+	PERF_DISASM_OBJDUMP,
+};
+#define MAX_DISASSEMBLERS (PERF_DISASM_OBJDUMP + 1)
 
 struct annotation_options {
 	bool hide_src_code,
@@ -52,14 +57,12 @@ struct annotation_options {
 	     annotate_src,
 	     full_addr;
 	u8   offset_level;
-	u8   nr_disassemblers;
+	u8   disassemblers[MAX_DISASSEMBLERS];
 	int  min_pcnt;
 	int  max_lines;
 	int  context;
 	char *objdump_path;
 	char *disassembler_style;
-	const char *disassemblers_str;
-	const char *disassemblers[MAX_DISASSEMBLERS];
 	const char *prefix;
 	const char *prefix_strip;
 	unsigned int percent_type;
@@ -133,6 +136,8 @@ struct disasm_line {
 	/* This needs to be at the end. */
 	struct annotation_line	 al;
 };
+
+extern const char * const perf_disassembler__strs[];
 
 void annotation_line__add(struct annotation_line *al, struct list_head *head);
 
