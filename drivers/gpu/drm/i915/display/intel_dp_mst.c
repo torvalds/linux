@@ -212,7 +212,7 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *crtc_state,
 				   struct drm_connector_state *conn_state,
-				   int min_bpp, int max_bpp, int step, bool dsc)
+				   int min_bpp_x16, int max_bpp_x16, int bpp_step_x16, bool dsc)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	struct drm_atomic_state *state = crtc_state->uapi.state;
@@ -222,9 +222,14 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	bool is_mst = intel_dp->is_mst;
-	int bpp, slots = -EINVAL;
+	int bpp_x16, slots = -EINVAL;
 	int dsc_slice_count = 0;
-	int max_dpt_bpp;
+	int max_dpt_bpp_x16;
+
+	/* shouldn't happen, sanity check */
+	drm_WARN_ON(display->drm, !dsc && (fxp_q4_to_frac(min_bpp_x16) ||
+					   fxp_q4_to_frac(max_bpp_x16) ||
+					   fxp_q4_to_frac(bpp_step_x16)));
 
 	if (is_mst) {
 		mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
@@ -242,15 +247,15 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		crtc_state->fec_enable = !intel_dp_is_uhbr(crtc_state);
 	}
 
-	max_dpt_bpp = intel_dp_mst_max_dpt_bpp(crtc_state, dsc);
-	if (max_bpp > max_dpt_bpp) {
-		drm_dbg_kms(display->drm, "Limiting bpp to max DPT bpp (%d -> %d)\n",
-			    max_bpp, max_dpt_bpp);
-		max_bpp = max_dpt_bpp;
+	max_dpt_bpp_x16 = fxp_q4_from_int(intel_dp_mst_max_dpt_bpp(crtc_state, dsc));
+	if (max_bpp_x16 > max_dpt_bpp_x16) {
+		drm_dbg_kms(display->drm, "Limiting bpp to max DPT bpp (" FXP_Q4_FMT " -> " FXP_Q4_FMT ")\n",
+			    FXP_Q4_ARGS(max_bpp_x16), FXP_Q4_ARGS(max_dpt_bpp_x16));
+		max_bpp_x16 = max_dpt_bpp_x16;
 	}
 
-	drm_dbg_kms(display->drm, "Looking for slots in range min bpp %d max bpp %d\n",
-		    min_bpp, max_bpp);
+	drm_dbg_kms(display->drm, "Looking for slots in range min bpp " FXP_Q4_FMT " max bpp " FXP_Q4_FMT "\n",
+		    FXP_Q4_ARGS(min_bpp_x16), FXP_Q4_ARGS(max_bpp_x16));
 
 	if (dsc) {
 		dsc_slice_count = intel_dp_mst_dsc_get_slice_count(connector, crtc_state);
@@ -261,14 +266,15 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		}
 	}
 
-	for (bpp = max_bpp; bpp >= min_bpp; bpp -= step) {
+	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
 		int local_bw_overhead;
 		int link_bpp_x16;
 
-		drm_dbg_kms(display->drm, "Trying bpp %d\n", bpp);
+		drm_dbg_kms(display->drm, "Trying bpp " FXP_Q4_FMT "\n", FXP_Q4_ARGS(bpp_x16));
 
-		link_bpp_x16 = fxp_q4_from_int(dsc ? bpp :
-					       intel_dp_output_bpp(crtc_state->output_format, bpp));
+		link_bpp_x16 = dsc ? bpp_x16 :
+			fxp_q4_from_int(intel_dp_output_bpp(crtc_state->output_format,
+							    fxp_q4_to_int(bpp_x16)));
 
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
@@ -356,12 +362,12 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	}
 
 	if (!dsc)
-		crtc_state->pipe_bpp = bpp;
+		crtc_state->pipe_bpp = fxp_q4_to_int(bpp_x16);
 	else
-		crtc_state->dsc.compressed_bpp_x16 = fxp_q4_from_int(bpp);
+		crtc_state->dsc.compressed_bpp_x16 = bpp_x16;
 
-	drm_dbg_kms(display->drm, "Got %d slots for pipe bpp %d dsc %d\n",
-		    slots, bpp, dsc);
+	drm_dbg_kms(display->drm, "Got %d slots for pipe bpp " FXP_Q4_FMT " dsc %d\n",
+		    slots, FXP_Q4_ARGS(bpp_x16), dsc);
 
 	return 0;
 }
@@ -379,9 +385,9 @@ static int mst_stream_compute_link_config(struct intel_dp *intel_dp,
 	 * YUV420 is only half of the pipe bpp value.
 	 */
 	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state, conn_state,
-					      fxp_q4_to_int(limits->link.min_bpp_x16),
-					      fxp_q4_to_int(limits->link.max_bpp_x16),
-					      2 * 3, false);
+					      limits->link.min_bpp_x16,
+					      limits->link.max_bpp_x16,
+					      fxp_q4_from_int(2 * 3), false);
 }
 
 static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
@@ -435,7 +441,9 @@ static int mst_stream_dsc_compute_link_config(struct intel_dp *intel_dp,
 	crtc_state->port_clock = limits->max_rate;
 
 	return intel_dp_mtp_tu_compute_config(intel_dp, crtc_state, conn_state,
-					      min_compressed_bpp, max_compressed_bpp, 1, true);
+					      fxp_q4_from_int(min_compressed_bpp),
+					      fxp_q4_from_int(max_compressed_bpp),
+					      fxp_q4_from_int(1), true);
 }
 
 static int mst_stream_update_slots(struct intel_dp *intel_dp,

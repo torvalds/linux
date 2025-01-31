@@ -2616,8 +2616,8 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			ret = intel_dp_mtp_tu_compute_config(intel_dp,
 							     pipe_config,
 							     conn_state,
-							     pipe_config->pipe_bpp,
-							     pipe_config->pipe_bpp,
+							     fxp_q4_from_int(pipe_config->pipe_bpp),
+							     fxp_q4_from_int(pipe_config->pipe_bpp),
 							     0, false);
 		if (ret)
 			dsc_needed = true;
