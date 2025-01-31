@@ -1440,6 +1440,64 @@ static struct task_struct *scx_task_iter_next_locked(struct scx_task_iter *iter)
 	return p;
 }
 
+/*
+ * Collection of event counters. Event types are placed in descending order.
+ */
+struct scx_event_stats {
+};
+
+/*
+ * The event counter is organized by a per-CPU variable to minimize the
+ * accounting overhead without synchronization. A system-wide view on the
+ * event counter is constructed when requested by scx_bpf_get_event_stat().
+ */
+static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
+
+/**
+ * scx_add_event - Increase an event counter for 'name' by 'cnt'
+ * @name: an event name defined in struct scx_event_stats
+ * @cnt: the number of the event occured
+ *
+ * This can be used when preemption is not disabled.
+ */
+#define scx_add_event(name, cnt) do {						\
+	this_cpu_add(event_stats_cpu.name, cnt);				\
+} while(0)
+
+/**
+ * __scx_add_event - Increase an event counter for 'name' by 'cnt'
+ * @name: an event name defined in struct scx_event_stats
+ * @cnt: the number of the event occured
+ *
+ * This should be used only when preemption is disabled.
+ */
+#define __scx_add_event(name, cnt) do {						\
+	__this_cpu_add(event_stats_cpu.name, cnt);				\
+} while(0)
+
+/**
+ * scx_agg_event - Aggregate an event counter 'kind' from 'src_e' to 'dst_e'
+ * @dst_e: destination event stats
+ * @src_e: source event stats
+ * @kind: a kind of event to be aggregated
+ */
+#define scx_agg_event(dst_e, src_e, kind) do {					\
+	(dst_e)->kind += READ_ONCE((src_e)->kind);				\
+} while(0)
+
+/**
+ * scx_dump_event - Dump an event 'kind' in 'events' to 's'
+ * @s: output seq_buf
+ * @events: event stats
+ * @kind: a kind of event to dump
+ */
+#define scx_dump_event(s, events, kind) do {					\
+	dump_line(&(s), "%30s: %16llu", #kind, (events)->kind);			\
+} while (0)
+
+
+static void scx_bpf_events(struct scx_event_stats *events, size_t events__sz);
+
 static enum scx_ops_enable_state scx_ops_enable_state(void)
 {
 	return atomic_read(&scx_ops_enable_state_var);
@@ -4785,6 +4843,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 		.at_jiffies = jiffies,
 	};
 	struct seq_buf s;
+	struct scx_event_stats events;
 	unsigned long flags;
 	char *buf;
 	int cpu;
@@ -4893,6 +4952,12 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 		rq_unlock(rq, &rf);
 	}
 
+	dump_newline(&s);
+	dump_line(&s, "Event counters");
+	dump_line(&s, "--------------");
+
+	scx_bpf_events(&events, sizeof(events));
+
 	if (seq_buf_has_overflowed(&s) && dump_len >= sizeof(trunc_marker))
 		memcpy(ei->dump + dump_len - sizeof(trunc_marker),
 		       trunc_marker, sizeof(trunc_marker));
@@ -4999,6 +5064,15 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	}
 
 	mutex_lock(&scx_ops_enable_mutex);
+
+	/*
+	 * Clear event counters so a new scx scheduler gets
+	 * fresh event counter values.
+	 */
+	for_each_possible_cpu(cpu) {
+		struct scx_event_stats *e = per_cpu_ptr(&event_stats_cpu, cpu);
+		memset(e, 0, sizeof(*e));
+	}
 
 	if (!scx_ops_helper) {
 		WRITE_ONCE(scx_ops_helper,
@@ -7001,6 +7075,34 @@ __bpf_kfunc u64 scx_bpf_now(void)
 	return clock;
 }
 
+/*
+ * scx_bpf_events - Get a system-wide event counter to
+ * @events: output buffer from a BPF program
+ * @events__sz: @events len, must end in '__sz'' for the verifier
+ */
+__bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
+				size_t events__sz)
+{
+	struct scx_event_stats e_sys, *e_cpu;
+	int cpu;
+
+	/* Aggregate per-CPU event counters into the system-wide counters. */
+	memset(&e_sys, 0, sizeof(e_sys));
+	for_each_possible_cpu(cpu) {
+		e_cpu = per_cpu_ptr(&event_stats_cpu, cpu);
+	}
+
+	/*
+	 * We cannot entirely trust a BPF-provided size since a BPF program
+	 * might be compiled against a different vmlinux.h, of which
+	 * scx_event_stats would be larger (a newer vmlinux.h) or smaller
+	 * (an older vmlinux.h). Hence, we use the smaller size to avoid
+	 * memory corruption.
+	 */
+	events__sz = min(events__sz, sizeof(*events));
+	memcpy(events, &e_sys, events__sz);
+}
+
 __bpf_kfunc_end_defs();
 
 BTF_KFUNCS_START(scx_kfunc_ids_any)
@@ -7033,6 +7135,7 @@ BTF_ID_FLAGS(func, scx_bpf_cpu_rq)
 BTF_ID_FLAGS(func, scx_bpf_task_cgroup, KF_RCU | KF_ACQUIRE)
 #endif
 BTF_ID_FLAGS(func, scx_bpf_now)
+BTF_ID_FLAGS(func, scx_bpf_events, KF_TRUSTED_ARGS)
 BTF_KFUNCS_END(scx_kfunc_ids_any)
 
 static const struct btf_kfunc_id_set scx_kfunc_set_any = {
