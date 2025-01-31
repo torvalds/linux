@@ -261,7 +261,7 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 
 	pr_warn("vmg %px state: mm %px pgoff %lx\n"
 		"vmi %px [%lx,%lx)\n"
-		"prev %px next %px vma %px\n"
+		"prev %px middle %px next %px target %px\n"
 		"start %lx end %lx flags %lx\n"
 		"file %px anon_vma %px policy %px\n"
 		"uffd_ctx %px\n"
@@ -270,7 +270,7 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		vmg, vmg->mm, vmg->pgoff,
 		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
 		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
-		vmg->prev, vmg->next, vmg->vma,
+		vmg->prev, vmg->middle, vmg->next, vmg->target,
 		vmg->start, vmg->end, vmg->flags,
 		vmg->file, vmg->anon_vma, vmg->policy,
 #ifdef CONFIG_USERFAULTFD
@@ -288,18 +288,18 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		pr_warn("vmg %px mm: (NULL)\n", vmg);
 	}
 
-	if (vmg->vma) {
-		pr_warn("vmg %px vma:\n", vmg);
-		dump_vma(vmg->vma);
-	} else {
-		pr_warn("vmg %px vma: (NULL)\n", vmg);
-	}
-
 	if (vmg->prev) {
 		pr_warn("vmg %px prev:\n", vmg);
 		dump_vma(vmg->prev);
 	} else {
 		pr_warn("vmg %px prev: (NULL)\n", vmg);
+	}
+
+	if (vmg->middle) {
+		pr_warn("vmg %px middle:\n", vmg);
+		dump_vma(vmg->middle);
+	} else {
+		pr_warn("vmg %px middle: (NULL)\n", vmg);
 	}
 
 	if (vmg->next) {

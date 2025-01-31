@@ -69,16 +69,48 @@ enum vma_merge_flags {
 	VMG_FLAG_JUST_EXPAND = 1 << 0,
 };
 
-/* Represents a VMA merge operation. */
+/*
+ * Describes a VMA merge operation and is threaded throughout it.
+ *
+ * Any of the fields may be mutated by the merge operation, so no guarantees are
+ * made to the contents of this structure after a merge operation has completed.
+ */
 struct vma_merge_struct {
 	struct mm_struct *mm;
 	struct vma_iterator *vmi;
-	pgoff_t pgoff;
+	/*
+	 * Adjacent VMAs, any of which may be NULL if not present:
+	 *
+	 * |------|--------|------|
+	 * | prev | middle | next |
+	 * |------|--------|------|
+	 *
+	 * middle may not yet exist in the case of a proposed new VMA being
+	 * merged, or it may be an existing VMA.
+	 *
+	 * next may be assigned by the caller.
+	 */
 	struct vm_area_struct *prev;
-	struct vm_area_struct *next; /* Modified by vma_merge(). */
-	struct vm_area_struct *vma; /* Either a new VMA or the one being modified. */
+	struct vm_area_struct *middle;
+	struct vm_area_struct *next;
+	/*
+	 * This is the VMA we ultimately target to become the merged VMA, except
+	 * for the one exception of merge right, shrink next (for details of
+	 * this scenario see vma_merge_existing_range()).
+	 */
+	struct vm_area_struct *target;
+	/*
+	 * Initially, the start, end, pgoff fields are provided by the caller
+	 * and describe the proposed new VMA range, whether modifying an
+	 * existing VMA (which will be 'middle'), or adding a new one.
+	 *
+	 * During the merge process these fields are updated to describe the new
+	 * range _including those VMAs which will be merged_.
+	 */
 	unsigned long start;
 	unsigned long end;
+	pgoff_t pgoff;
+
 	unsigned long flags;
 	struct file *file;
 	struct anon_vma *anon_vma;
@@ -118,8 +150,8 @@ static inline pgoff_t vma_pgoff_offset(struct vm_area_struct *vma,
 		.mm = vma_->vm_mm,				\
 		.vmi = vmi_,					\
 		.prev = prev_,					\
+		.middle = vma_,					\
 		.next = NULL,					\
-		.vma = vma_,					\
 		.start = start_,				\
 		.end = end_,					\
 		.flags = vma_->vm_flags,			\
