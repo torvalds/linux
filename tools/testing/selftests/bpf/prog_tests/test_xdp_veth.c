@@ -53,7 +53,7 @@ struct veth_configuration {
 	char *remote_addr; /* IP address of the remote veth */
 };
 
-static struct veth_configuration config[VETH_PAIRS_COUNT] = {
+static struct veth_configuration net_config[VETH_PAIRS_COUNT] = {
 	{
 		.local_veth = "veth1",
 		.remote_veth = "veth11",
@@ -105,17 +105,17 @@ static int attach_programs_to_veth_pair(struct skeletons *skeletons, int index)
 		remote_link = &skeletons->xdp_dummy->links.xdp_dummy_prog;
 		break;
 	}
-	interface = if_nametoindex(config[index].local_veth);
+	interface = if_nametoindex(net_config[index].local_veth);
 	if (!ASSERT_NEQ(interface, 0, "non zero interface index"))
 		return -1;
 	link = bpf_program__attach_xdp(local_prog, interface);
 	if (!ASSERT_OK_PTR(link, "attach xdp program to local veth"))
 		return -1;
 	*local_link = link;
-	nstoken = open_netns(config[index].namespace);
+	nstoken = open_netns(net_config[index].namespace);
 	if (!ASSERT_OK_PTR(nstoken, "switch to remote veth namespace"))
 		return -1;
-	interface = if_nametoindex(config[index].remote_veth);
+	interface = if_nametoindex(net_config[index].remote_veth);
 	if (!ASSERT_NEQ(interface, 0, "non zero interface index")) {
 		close_netns(nstoken);
 		return -1;
@@ -135,15 +135,15 @@ static int create_network(void)
 
 	/* First create and configure all interfaces */
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
-		SYS(fail, "ip netns add %s", config[i].namespace);
+		SYS(fail, "ip netns add %s", net_config[i].namespace);
 		SYS(fail, "ip link add %s type veth peer name %s netns %s",
-		    config[i].local_veth, config[i].remote_veth, config[i].namespace);
-		SYS(fail, "ip link set dev %s up", config[i].local_veth);
-		if (config[i].remote_addr)
-			SYS(fail, "ip -n %s addr add %s/24 dev %s",	config[i].namespace,
-			    config[i].remote_addr, config[i].remote_veth);
-		SYS(fail, "ip -n %s link set dev %s up", config[i].namespace,
-		    config[i].remote_veth);
+		    net_config[i].local_veth, net_config[i].remote_veth, net_config[i].namespace);
+		SYS(fail, "ip link set dev %s up", net_config[i].local_veth);
+		if (net_config[i].remote_addr)
+			SYS(fail, "ip -n %s addr add %s/24 dev %s",	net_config[i].namespace,
+			    net_config[i].remote_addr, net_config[i].remote_veth);
+		SYS(fail, "ip -n %s link set dev %s up", net_config[i].namespace,
+		    net_config[i].remote_veth);
 	}
 
 	return 0;
@@ -160,7 +160,7 @@ static void cleanup_network(void)
 	/* Deleting namespaces is enough to automatically remove veth pairs as well
 	 */
 	for (i = 0; i < VETH_PAIRS_COUNT; i++)
-		SYS_NOFAIL("ip netns del %s", config[i].namespace);
+		SYS_NOFAIL("ip netns del %s", net_config[i].namespace);
 }
 
 void test_xdp_veth_redirect(void)
@@ -190,11 +190,11 @@ void test_xdp_veth_redirect(void)
 		goto destroy_xdp_redirect_map;
 
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
-		int next_veth = config[i].next_veth;
+		int next_veth = net_config[i].next_veth;
 		int interface_id;
 		int err;
 
-		interface_id = if_nametoindex(config[next_veth].local_veth);
+		interface_id = if_nametoindex(net_config[next_veth].local_veth);
 		if (!ASSERT_NEQ(interface_id, 0, "non zero interface index"))
 			goto destroy_xdp_redirect_map;
 		err = bpf_map_update_elem(map_fd, &i, &interface_id, BPF_ANY);
@@ -208,7 +208,7 @@ void test_xdp_veth_redirect(void)
 	 * veth33 from veth11
 	 */
 	ASSERT_OK(SYS_NOFAIL("ip netns exec %s ping -c 1 -W 1 %s > /dev/null",
-			     config[0].namespace, IP_DST), "ping");
+			     net_config[0].namespace, IP_DST), "ping");
 
 destroy_xdp_redirect_map:
 	xdp_redirect_map__destroy(skeletons.xdp_redirect_maps);
