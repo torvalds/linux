@@ -10,8 +10,6 @@
 /dts-v1/;
 
 / {
-	model = "Marvell Armada AP810";
-	compatible = "marvell,armada-ap810";
 	#address-cells = <2>;
 	#size-cells = <2>;
 

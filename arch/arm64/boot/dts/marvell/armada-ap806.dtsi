@@ -8,11 +8,6 @@
 #define AP_NAME		ap806
 #include "armada-ap80x.dtsi"
 
-/ {
-	model = "Marvell Armada AP806";
-	compatible = "marvell,armada-ap806";
-};
-
 &ap_syscon0 {
 	ap_clk: clock {
 		compatible = "marvell,ap806-clock";
