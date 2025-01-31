@@ -2126,31 +2126,28 @@ xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	int output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
-	u16 compressed_bppx16;
-	u8 bppx16_step;
+	int bpp_x16, bpp_step_x16;
 	int ret;
 
-	bppx16_step = intel_dp_dsc_bpp_step_x16(connector);
+	bpp_step_x16 = intel_dp_dsc_bpp_step_x16(connector);
 
 	/* Compressed BPP should be less than the Input DSC bpp */
-	dsc_max_bpp = min(dsc_max_bpp << 4, (output_bpp << 4) - bppx16_step);
+	dsc_max_bpp = min(dsc_max_bpp << 4, (output_bpp << 4) - bpp_step_x16);
 	dsc_min_bpp = dsc_min_bpp << 4;
 
-	for (compressed_bppx16 = dsc_max_bpp;
-	     compressed_bppx16 >= dsc_min_bpp;
-	     compressed_bppx16 -= bppx16_step) {
+	for (bpp_x16 = dsc_max_bpp; bpp_x16 >= dsc_min_bpp; bpp_x16 -= bpp_step_x16) {
 		if (intel_dp->force_dsc_fractional_bpp_en &&
-		    !fxp_q4_to_frac(compressed_bppx16))
+		    !fxp_q4_to_frac(bpp_x16))
 			continue;
 		ret = dsc_compute_link_config(intel_dp,
 					      pipe_config,
 					      limits,
-					      compressed_bppx16,
+					      bpp_x16,
 					      timeslots);
 		if (ret == 0) {
-			pipe_config->dsc.compressed_bpp_x16 = compressed_bppx16;
+			pipe_config->dsc.compressed_bpp_x16 = bpp_x16;
 			if (intel_dp->force_dsc_fractional_bpp_en &&
-			    fxp_q4_to_frac(compressed_bppx16))
+			    fxp_q4_to_frac(bpp_x16))
 				drm_dbg_kms(display->drm,
 					    "Forcing DSC fractional bpp\n");
 
