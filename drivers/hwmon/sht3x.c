@@ -44,8 +44,6 @@ static const unsigned char sht3x_cmd_read_status_reg[]         = { 0xf3, 0x2d };
 static const unsigned char sht3x_cmd_clear_status_reg[]        = { 0x30, 0x41 };
 static const unsigned char sht3x_cmd_read_serial_number[]      = { 0x37, 0x80 };
 
-static struct dentry *debugfs;
-
 /* delays for single-shot mode i2c commands, both in us */
 #define SHT3X_SINGLE_WAIT_TIME_HPM  15000
 #define SHT3X_SINGLE_WAIT_TIME_MPM   6000
@@ -167,7 +165,6 @@ struct sht3x_data {
 	enum sht3x_chips chip_id;
 	struct mutex i2c_lock; /* lock for sending i2c commands */
 	struct mutex data_lock; /* lock for updating driver data */
-	struct dentry *sensor_dir;
 
 	u8 mode;
 	const unsigned char *command;
@@ -837,23 +834,7 @@ static int sht3x_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static void sht3x_debugfs_init(struct sht3x_data *data)
-{
-	char name[32];
-
-	snprintf(name, sizeof(name), "i2c%u-%02x",
-		 data->client->adapter->nr, data->client->addr);
-	data->sensor_dir = debugfs_create_dir(name, debugfs);
-	debugfs_create_u32("serial_number", 0444,
-			   data->sensor_dir, &data->serial_number);
-}
-
-static void sht3x_debugfs_remove(void *sensor_dir)
-{
-	debugfs_remove_recursive(sensor_dir);
-}
-
-static int sht3x_serial_number_read(struct sht3x_data *data)
+static void sht3x_serial_number_read(struct sht3x_data *data)
 {
 	int ret;
 	char buffer[SHT3X_RESPONSE_LENGTH];
@@ -864,11 +845,12 @@ static int sht3x_serial_number_read(struct sht3x_data *data)
 				      buffer,
 				      SHT3X_RESPONSE_LENGTH, 0);
 	if (ret)
-		return ret;
+		return;
 
 	data->serial_number = (buffer[0] << 24) | (buffer[1] << 16) |
 			      (buffer[3] << 8) | buffer[4];
-	return ret;
+
+	debugfs_create_u32("serial_number", 0444, client->debugfs, &data->serial_number);
 }
 
 static const struct hwmon_ops sht3x_ops = {
@@ -930,28 +912,14 @@ static int sht3x_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = sht3x_serial_number_read(data);
-	if (ret) {
-		dev_dbg(dev, "unable to read serial number\n");
-	} else {
-		sht3x_debugfs_init(data);
-		ret = devm_add_action_or_reset(dev,
-					       sht3x_debugfs_remove,
-					       data->sensor_dir);
-		if (ret)
-			return ret;
-	}
-
-	hwmon_dev = devm_hwmon_device_register_with_info(dev,
-							 client->name,
-							 data,
-							 &sht3x_chip_info,
-							 sht3x_groups);
-
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name, data,
+							 &sht3x_chip_info, sht3x_groups);
 	if (IS_ERR(hwmon_dev))
-		dev_dbg(dev, "unable to register hwmon device\n");
+		return PTR_ERR(hwmon_dev);
 
-	return PTR_ERR_OR_ZERO(hwmon_dev);
+	sht3x_serial_number_read(data);
+
+	return 0;
 }
 
 /* device ID table */
@@ -968,20 +936,7 @@ static struct i2c_driver sht3x_i2c_driver = {
 	.probe       = sht3x_probe,
 	.id_table    = sht3x_ids,
 };
-
-static int __init sht3x_init(void)
-{
-	debugfs = debugfs_create_dir("sht3x", NULL);
-	return i2c_add_driver(&sht3x_i2c_driver);
-}
-module_init(sht3x_init);
-
-static void __exit sht3x_cleanup(void)
-{
-	debugfs_remove_recursive(debugfs);
-	i2c_del_driver(&sht3x_i2c_driver);
-}
-module_exit(sht3x_cleanup);
+module_i2c_driver(sht3x_i2c_driver);
 
 MODULE_AUTHOR("David Frey <david.frey@sensirion.com>");
 MODULE_AUTHOR("Pascal Sachs <pascal.sachs@sensirion.com>");
