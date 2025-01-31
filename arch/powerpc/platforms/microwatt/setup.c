@@ -34,10 +34,19 @@ static void __init microwatt_setup_arch(void)
 	microwatt_rng_init();
 }
 
+static void microwatt_idle(void)
+{
+	if (!prep_irq_for_idle_irqsoff())
+		return;
+
+	__asm__ __volatile__ ("wait");
+}
+
 define_machine(microwatt) {
 	.name			= "microwatt",
 	.compatible		= "microwatt-soc",
 	.init_IRQ		= microwatt_init_IRQ,
 	.setup_arch		= microwatt_setup_arch,
 	.progress		= udbg_progress,
+	.power_save		= microwatt_idle,
 };
