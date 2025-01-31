@@ -2827,6 +2827,10 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 
 	Q2SPI_DBG_2(q2spi, "%s PID:%d q2spi:%p xfer:%p wait for gsi_lock 2\n",
 		    __func__, current->pid, q2spi, xfer);
+	if (q2spi->port_release) {
+		Q2SPI_DEBUG(q2spi, "%s Err Port in closed state, return\n", __func__);
+		return -ENOENT;
+	}
 	mutex_lock(&q2spi->gsi_lock);
 	Q2SPI_DBG_2(q2spi, "%s PID=%d acquired gsi_lock 2\n", __func__, current->pid);
 	ret = q2spi_setup_gsi_xfer(q2spi_pkt);
