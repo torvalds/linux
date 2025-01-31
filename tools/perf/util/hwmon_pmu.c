@@ -108,20 +108,6 @@ struct hwmon_pmu {
 };
 
 /**
- * union hwmon_pmu_event_key: Key for hwmon_pmu->events as such each key
- * represents an event.
- *
- * Related hwmon files start <type><number> that this key represents.
- */
-union hwmon_pmu_event_key {
-	long type_and_num;
-	struct {
-		int num :16;
-		enum hwmon_type type :8;
-	};
-};
-
-/**
  * struct hwmon_pmu_event_value: Value in hwmon_pmu->events.
  *
  * Hwmon files are of the form <type><number>_<item> and may have a suffix
