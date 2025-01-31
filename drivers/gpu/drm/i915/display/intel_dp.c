@@ -2069,6 +2069,26 @@ static int intel_dp_dsc_bpp_step_x16(const struct intel_connector *connector)
 	return fxp_q4_from_int(1) / incr;
 }
 
+/* Note: This is not universally usable! */
+static bool intel_dp_dsc_valid_bpp(struct intel_dp *intel_dp, int bpp_x16)
+{
+	struct intel_display *display = to_intel_display(intel_dp);
+	int i;
+
+	if (DISPLAY_VER(display) >= 13)
+		return true;
+
+	if (fxp_q4_to_frac(bpp_x16))
+		return false;
+
+	for (i = 0; i < ARRAY_SIZE(valid_dsc_bpp); i++) {
+		if (fxp_q4_to_int(bpp_x16) == valid_dsc_bpp[i])
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * From a list of valid compressed bpps try different compressed bpp and find a
  * suitable link configuration that can support it.
@@ -2082,21 +2102,20 @@ icl_dsc_compute_link_config(struct intel_dp *intel_dp,
 			    int bpp_step_x16,
 			    int timeslots)
 {
-	int i, ret;
+	int bpp_x16;
+	int ret;
 
-	for (i = ARRAY_SIZE(valid_dsc_bpp) - 1; i >= 0; i--) {
-		if (valid_dsc_bpp[i] < fxp_q4_to_int(min_bpp_x16) ||
-		    valid_dsc_bpp[i] > fxp_q4_to_int(max_bpp_x16))
+	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
+		if (!intel_dp_dsc_valid_bpp(intel_dp, bpp_x16))
 			continue;
 
 		ret = dsc_compute_link_config(intel_dp,
 					      pipe_config,
 					      limits,
-					      valid_dsc_bpp[i] << 4,
+					      bpp_x16,
 					      timeslots);
 		if (ret == 0) {
-			pipe_config->dsc.compressed_bpp_x16 =
-				fxp_q4_from_int(valid_dsc_bpp[i]);
+			pipe_config->dsc.compressed_bpp_x16 = bpp_x16;
 			return 0;
 		}
 	}
