@@ -49,14 +49,31 @@ static bool __ast_2100_detect_wsxga_p(struct ast_device *ast)
 	return false;
 }
 
+/* Try to detect WUXGA on Gen2+ */
+static bool __ast_2100_detect_wuxga(struct ast_device *ast)
+{
+	u8 vgacrd1;
+
+	if (ast->support_fullhd) {
+		vgacrd1 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd1);
+		if (!(vgacrd1 & AST_IO_VGACRD1_SUPPORTS_WUXGA))
+			return true;
+	}
+
+	return false;
+}
+
 static void ast_detect_widescreen(struct ast_device *ast)
 {
 	ast->support_wsxga_p = false;
 	ast->support_fullhd = false;
+	ast->support_wuxga = false;
 
 	if (AST_GEN(ast) >= 7) {
 		ast->support_wsxga_p = true;
 		ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	} else if (AST_GEN(ast) >= 6) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
@@ -64,6 +81,8 @@ static void ast_detect_widescreen(struct ast_device *ast)
 			ast->support_wsxga_p = true;
 		if (ast->support_wsxga_p)
 			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	} else if (AST_GEN(ast) >= 5) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
@@ -71,6 +90,8 @@ static void ast_detect_widescreen(struct ast_device *ast)
 			ast->support_wsxga_p = true;
 		if (ast->support_wsxga_p)
 			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	} else if (AST_GEN(ast) >= 4) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
@@ -78,6 +99,8 @@ static void ast_detect_widescreen(struct ast_device *ast)
 			ast->support_wsxga_p = true;
 		if (ast->support_wsxga_p)
 			ast->support_fullhd = true;
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	} else if (AST_GEN(ast) >= 3) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
@@ -85,6 +108,8 @@ static void ast_detect_widescreen(struct ast_device *ast)
 			if (ast->chip == AST2200)
 				ast->support_fullhd = true;
 		}
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	} else if (AST_GEN(ast) >= 2) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
@@ -92,6 +117,8 @@ static void ast_detect_widescreen(struct ast_device *ast)
 			if (ast->chip == AST2100)
 				ast->support_fullhd = true;
 		}
+		if (__ast_2100_detect_wuxga(ast))
+			ast->support_wuxga = true;
 	}
 }
 

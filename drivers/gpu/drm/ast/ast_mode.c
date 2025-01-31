@@ -1022,7 +1022,6 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 {
 	struct ast_device *ast = to_ast_device(crtc->dev);
 	enum drm_mode_status status;
-	uint32_t jtemp;
 
 	if (ast->support_wsxga_p) {
 		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
@@ -1041,11 +1040,10 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 				return MODE_OK;
 
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
-				jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
-				if (jtemp & 0x01)
-					return MODE_NOMODE;
-				else
+				if (ast->support_wuxga)
 					return MODE_OK;
+				else
+					return MODE_NOMODE;
 			}
 		}
 	}

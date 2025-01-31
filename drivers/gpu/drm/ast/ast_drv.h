@@ -207,6 +207,7 @@ struct ast_device {
 
 	bool support_wsxga_p; /* 1680x1050 */
 	bool support_fullhd; /* 1920x1080 */
+	bool support_wuxga; /* 1920x1200 */
 
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
