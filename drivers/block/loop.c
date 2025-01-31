@@ -54,7 +54,8 @@ struct loop_device {
 	int		lo_flags;
 	char		lo_file_name[LO_NAME_SIZE];
 
-	struct file *	lo_backing_file;
+	struct file	*lo_backing_file;
+	unsigned int	lo_min_dio_size;
 	struct block_device *lo_device;
 
 	gfp_t		old_gfp_mask;
@@ -169,29 +170,14 @@ static loff_t get_loop_size(struct loop_device *lo, struct file *file)
  * of backing device, and the logical block size of loop is bigger than that of
  * the backing device.
  */
-static bool lo_bdev_can_use_dio(struct loop_device *lo,
-		struct block_device *backing_bdev)
-{
-	unsigned int sb_bsize = bdev_logical_block_size(backing_bdev);
-
-	if (queue_logical_block_size(lo->lo_queue) < sb_bsize)
-		return false;
-	if (lo->lo_offset & (sb_bsize - 1))
-		return false;
-	return true;
-}
-
 static bool lo_can_use_dio(struct loop_device *lo)
 {
-	struct inode *inode = lo->lo_backing_file->f_mapping->host;
-
 	if (!(lo->lo_backing_file->f_mode & FMODE_CAN_ODIRECT))
 		return false;
-
-	if (S_ISBLK(inode->i_mode))
-		return lo_bdev_can_use_dio(lo, I_BDEV(inode));
-	if (inode->i_sb->s_bdev)
-		return lo_bdev_can_use_dio(lo, inode->i_sb->s_bdev);
+	if (queue_logical_block_size(lo->lo_queue) < lo->lo_min_dio_size)
+		return false;
+	if (lo->lo_offset & (lo->lo_min_dio_size - 1))
+		return false;
 	return true;
 }
 
@@ -539,6 +525,28 @@ static void loop_reread_partitions(struct loop_device *lo)
 			__func__, lo->lo_number, lo->lo_file_name, rc);
 }
 
+static unsigned int loop_query_min_dio_size(struct loop_device *lo)
+{
+	struct file *file = lo->lo_backing_file;
+	struct block_device *sb_bdev = file->f_mapping->host->i_sb->s_bdev;
+	struct kstat st;
+
+	/*
+	 * Use the minimal dio alignment of the file system if provided.
+	 */
+	if (!vfs_getattr(&file->f_path, &st, STATX_DIOALIGN, 0) &&
+	    (st.result_mask & STATX_DIOALIGN))
+		return st.dio_offset_align;
+
+	/*
+	 * In a perfect world this wouldn't be needed, but as of Linux 6.13 only
+	 * a handful of file systems support the STATX_DIOALIGN flag.
+	 */
+	if (sb_bdev)
+		return bdev_logical_block_size(sb_bdev);
+	return SECTOR_SIZE;
+}
+
 static inline int is_loop_device(struct file *file)
 {
 	struct inode *i = file->f_mapping->host;
@@ -579,6 +587,7 @@ static void loop_assign_backing_file(struct loop_device *lo, struct file *file)
 			lo->old_gfp_mask & ~(__GFP_IO | __GFP_FS));
 	if (lo->lo_backing_file->f_flags & O_DIRECT)
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
+	lo->lo_min_dio_size = loop_query_min_dio_size(lo);
 }
 
 /*
@@ -976,12 +985,11 @@ loop_set_status_from_info(struct loop_device *lo,
 	return 0;
 }
 
-static unsigned int loop_default_blocksize(struct loop_device *lo,
-		struct block_device *backing_bdev)
+static unsigned int loop_default_blocksize(struct loop_device *lo)
 {
-	/* In case of direct I/O, match underlying block size */
-	if ((lo->lo_flags & LO_FLAGS_DIRECT_IO) && backing_bdev)
-		return bdev_logical_block_size(backing_bdev);
+	/* In case of direct I/O, match underlying minimum I/O size */
+	if (lo->lo_flags & LO_FLAGS_DIRECT_IO)
+		return lo->lo_min_dio_size;
 	return SECTOR_SIZE;
 }
 
@@ -999,7 +1007,7 @@ static void loop_update_limits(struct loop_device *lo, struct queue_limits *lim,
 		backing_bdev = inode->i_sb->s_bdev;
 
 	if (!bsize)
-		bsize = loop_default_blocksize(lo, backing_bdev);
+		bsize = loop_default_blocksize(lo);
 
 	loop_get_discard_config(lo, &granularity, &max_discard_sectors);
 
