@@ -2094,47 +2094,11 @@ static bool intel_dp_dsc_valid_bpp(struct intel_dp *intel_dp, int bpp_x16)
 }
 
 /*
- * From a list of valid compressed bpps try different compressed bpp and find a
- * suitable link configuration that can support it.
+ * Find the max compressed BPP we can find a link configuration for. The BPPs to
+ * try depend on the source (platform) and sink.
  */
 static int
-icl_dsc_compute_link_config(struct intel_dp *intel_dp,
-			    struct intel_crtc_state *pipe_config,
-			    const struct link_config_limits *limits,
-			    int min_bpp_x16,
-			    int max_bpp_x16,
-			    int bpp_step_x16,
-			    int timeslots)
-{
-	int bpp_x16;
-	int ret;
-
-	for (bpp_x16 = max_bpp_x16; bpp_x16 >= min_bpp_x16; bpp_x16 -= bpp_step_x16) {
-		if (!intel_dp_dsc_valid_bpp(intel_dp, bpp_x16))
-			continue;
-
-		ret = dsc_compute_link_config(intel_dp,
-					      pipe_config,
-					      limits,
-					      bpp_x16,
-					      timeslots);
-		if (ret == 0) {
-			pipe_config->dsc.compressed_bpp_x16 = bpp_x16;
-			return 0;
-		}
-	}
-
-	return -EINVAL;
-}
-
-/*
- * From XE_LPD onwards we supports compression bpps in steps of 1 up to
- * uncompressed bpp-1. So we start from max compressed bpp and see if any
- * link configuration is able to support that compressed bpp, if not we
- * step down and check for lower compressed bpp.
- */
-static int
-xelpd_dsc_compute_link_config(struct intel_dp *intel_dp,
+do_dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *pipe_config,
 			      const struct link_config_limits *limits,
 			      int min_bpp_x16,
@@ -2201,11 +2165,8 @@ static int dsc_compute_compressed_bpp(struct intel_dp *intel_dp,
 	output_bpp = intel_dp_output_bpp(pipe_config->output_format, pipe_bpp);
 	max_bpp_x16 = min(max_bpp_x16, fxp_q4_from_int(output_bpp) - bpp_step_x16);
 
-	if (DISPLAY_VER(display) >= 13)
-		return xelpd_dsc_compute_link_config(intel_dp, pipe_config, limits,
-						     min_bpp_x16, max_bpp_x16, bpp_step_x16, timeslots);
-	return icl_dsc_compute_link_config(intel_dp, pipe_config, limits,
-					   min_bpp_x16, max_bpp_x16, bpp_step_x16, timeslots);
+	return do_dsc_compute_compressed_bpp(intel_dp, pipe_config, limits,
+					     min_bpp_x16, max_bpp_x16, bpp_step_x16, timeslots);
 }
 
 int intel_dp_dsc_min_src_input_bpc(void)
