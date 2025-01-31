@@ -98,6 +98,18 @@ int send_recv_data(int lfd, int fd, uint32_t total_bytes);
 int make_netns(const char *name);
 int remove_netns(const char *name);
 
+/**
+ * append_tid() - Append thread ID to the given string.
+ *
+ * @str: string to extend
+ * @sz: string's size
+ *
+ * 8 characters are used to append the thread ID (7 digits + '\0')
+ *
+ * Returns -1 on errors, 0 otherwise
+ */
+int append_tid(char *str, size_t sz);
+
 static __u16 csum_fold(__u32 csum)
 {
 	csum = (csum & 0xffff) + (csum >> 16);
