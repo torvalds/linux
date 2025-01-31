@@ -950,65 +950,13 @@ static enum drm_mode_status
 ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 {
 	struct ast_device *ast = to_ast_device(crtc->dev);
-	enum drm_mode_status status;
+	const struct ast_vbios_enhtable *vmode;
 
-	if (ast->support_wsxga_p) {
-		if ((mode->hdisplay == 1680) && (mode->vdisplay == 1050))
-			return MODE_OK;
-		if ((mode->hdisplay == 1280) && (mode->vdisplay == 800))
-			return MODE_OK;
-		if ((mode->hdisplay == 1440) && (mode->vdisplay == 900))
-			return MODE_OK;
-		if ((mode->hdisplay == 1360) && (mode->vdisplay == 768))
-			return MODE_OK;
-		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
-			return MODE_OK;
+	vmode = ast_vbios_find_mode(ast, mode);
+	if (!vmode)
+		return MODE_NOMODE;
 
-		if (ast->support_fullhd) {
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
-				return MODE_OK;
-
-			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1200)) {
-				if (ast->support_wuxga)
-					return MODE_OK;
-				else
-					return MODE_NOMODE;
-			}
-		}
-	}
-
-	status = MODE_NOMODE;
-
-	switch (mode->hdisplay) {
-	case 640:
-		if (mode->vdisplay == 480)
-			status = MODE_OK;
-		break;
-	case 800:
-		if (mode->vdisplay == 600)
-			status = MODE_OK;
-		break;
-	case 1024:
-		if (mode->vdisplay == 768)
-			status = MODE_OK;
-		break;
-	case 1152:
-		if (mode->vdisplay == 864)
-			status = MODE_OK;
-		break;
-	case 1280:
-		if (mode->vdisplay == 1024)
-			status = MODE_OK;
-		break;
-	case 1600:
-		if (mode->vdisplay == 1200)
-			status = MODE_OK;
-		break;
-	default:
-		break;
-	}
-
-	return status;
+	return MODE_OK;
 }
 
 static void ast_crtc_helper_mode_set_nofb(struct drm_crtc *crtc)
