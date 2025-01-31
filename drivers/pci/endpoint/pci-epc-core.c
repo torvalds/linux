@@ -639,6 +639,33 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 EXPORT_SYMBOL_GPL(pci_epc_set_bar);
 
 /**
+ * pci_epc_bar_size_to_rebar_cap() - convert a size to the representation used
+ *				     by the Resizable BAR Capability Register
+ * @size: the size to convert
+ * @cap: where to store the result
+ *
+ * Returns 0 on success and a negative error code in case of error.
+ */
+int pci_epc_bar_size_to_rebar_cap(size_t size, u32 *cap)
+{
+	/*
+	 * As per PCIe r6.0, sec 7.8.6.2, min size for a resizable BAR is 1 MB,
+	 * thus disallow a requested BAR size smaller than 1 MB.
+	 * Disallow a requested BAR size larger than 128 TB.
+	 */
+	if (size < SZ_1M || (u64)size > (SZ_128G * 1024))
+		return -EINVAL;
+
+	*cap = ilog2(size) - ilog2(SZ_1M);
+
+	/* Sizes in REBAR_CAP start at BIT(4). */
+	*cap = BIT(*cap + 4);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pci_epc_bar_size_to_rebar_cap);
+
+/**
  * pci_epc_write_header() - write standard configuration header
  * @epc: the EPC device to which the configuration header should be written
  * @func_no: the physical endpoint function number in the EPC device
