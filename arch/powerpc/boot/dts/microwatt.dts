@@ -142,6 +142,36 @@
 			ibm,mmu-lpid-bits = <12>;
 			ibm,mmu-pid-bits = <20>;
 		};
+
+		PowerPC,Microwatt@1 {
+			i-cache-sets = <2>;
+			ibm,dec-bits = <64>;
+			reservation-granule-size = <64>;
+			clock-frequency = <100000000>;
+			timebase-frequency = <100000000>;
+			i-tlb-sets = <1>;
+			ibm,ppc-interrupt-server#s = <1>;
+			i-cache-block-size = <64>;
+			d-cache-block-size = <64>;
+			d-cache-sets = <2>;
+			i-tlb-size = <64>;
+			cpu-version = <0x990000>;
+			status = "okay";
+			i-cache-size = <0x1000>;
+			ibm,processor-radix-AP-encodings = <0x0c 0xa0000010 0x20000015 0x4000001e>;
+			tlb-size = <0>;
+			tlb-sets = <0>;
+			device_type = "cpu";
+			d-tlb-size = <128>;
+			d-tlb-sets = <2>;
+			reg = <1>;
+			general-purpose;
+			64-bit;
+			d-cache-size = <0x1000>;
+			ibm,chip-id = <0>;
+			ibm,mmu-lpid-bits = <12>;
+			ibm,mmu-pid-bits = <20>;
+		};
 	};
 
 	soc@c0000000 {
@@ -154,8 +184,8 @@
 
 		interrupt-controller@4000 {
 			compatible = "openpower,xics-presentation", "ibm,ppc-xicp";
-			ibm,interrupt-server-ranges = <0x0 0x1>;
-			reg = <0x4000 0x100>;
+			ibm,interrupt-server-ranges = <0x0 0x2>;
+			reg = <0x4000 0x10 0x4010 0x10>;
 		};
 
 		ICS: interrupt-controller@5000 {
