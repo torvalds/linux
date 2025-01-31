@@ -36,33 +36,43 @@
 
 #include "ast_drv.h"
 
+/* Try to detect WSXGA+ on Gen2+ */
+static bool __ast_2100_detect_wsxga_p(struct ast_device *ast)
+{
+	u8 vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
+
+	if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
+		return true;
+	if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
+		return true;
+
+	return false;
+}
+
 static void ast_detect_widescreen(struct ast_device *ast)
 {
-	u8 vgacrd0;
+	ast->support_wsxga_p = false;
 
-	/* Check if we support wide screen */
-	switch (AST_GEN(ast)) {
-	case 1:
-		ast->support_wsxga_p = false;
-		break;
-	default:
-		vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
-		if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
+	if (AST_GEN(ast) >= 7) {
+		ast->support_wsxga_p = true;
+	} else if (AST_GEN(ast) >= 6) {
+		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
-		else if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
+		else if (ast->chip == AST2510)
 			ast->support_wsxga_p = true;
-		else {
-			ast->support_wsxga_p = false;
-			if (ast->chip == AST1300)
-				ast->support_wsxga_p = true;
-			if (ast->chip == AST1400)
-				ast->support_wsxga_p = true;
-			if (ast->chip == AST2510)
-				ast->support_wsxga_p = true;
-			if (IS_AST_GEN7(ast))
-				ast->support_wsxga_p = true;
-		}
-		break;
+	} else if (AST_GEN(ast) >= 5) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		else if (ast->chip == AST1400)
+			ast->support_wsxga_p = true;
+	} else if (AST_GEN(ast) >= 4) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		else if (ast->chip == AST1300)
+			ast->support_wsxga_p = true;
+	} else if (AST_GEN(ast) >= 2) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
 	}
 }
 
