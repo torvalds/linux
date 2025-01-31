@@ -51,6 +51,7 @@ static int uml_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int uml_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
+	struct timespec64 ts;
 	unsigned long long secs;
 
 	if (!enable && !uml_rtc_alarm_enabled)
@@ -58,7 +59,8 @@ static int uml_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 
 	uml_rtc_alarm_enabled = enable;
 
-	secs = uml_rtc_alarm_time - ktime_get_real_seconds();
+	read_persistent_clock64(&ts);
+	secs = uml_rtc_alarm_time - ts.tv_sec;
 
 	if (time_travel_mode == TT_MODE_OFF) {
 		if (!enable) {
@@ -73,7 +75,8 @@ static int uml_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 
 		if (enable)
 			time_travel_add_event_rel(&uml_rtc_alarm_event,
-						  secs * NSEC_PER_SEC);
+						  secs * NSEC_PER_SEC -
+						  ts.tv_nsec);
 	}
 
 	return 0;
