@@ -996,32 +996,34 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	}
 
 	/*
-	 * Find the VBIOS mode and adjust the DRM display mode accordingly.
+	 * Find the VBIOS mode and adjust the DRM display mode accordingly
+	 * if a full modeset is required. Otherwise keep the existing values.
 	 */
+	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		vmode = ast_vbios_find_mode(ast, &crtc_state->mode);
+		if (!vmode)
+			return -EINVAL;
+		ast_state->vmode = vmode;
 
-	vmode = ast_vbios_find_mode(ast, &crtc_state->mode);
-	if (!vmode)
-		return -EINVAL;
-	ast_state->vmode = vmode;
+		if (vmode->flags & HBorder)
+			hborder = 8;
+		if (vmode->flags & VBorder)
+			vborder = 8;
 
-	if (vmode->flags & HBorder)
-		hborder = 8;
-	if (vmode->flags & VBorder)
-		vborder = 8;
+		adjusted_mode->crtc_hdisplay = vmode->hde;
+		adjusted_mode->crtc_hblank_start = vmode->hde + hborder;
+		adjusted_mode->crtc_hblank_end = vmode->ht - hborder;
+		adjusted_mode->crtc_hsync_start = vmode->hde + hborder + vmode->hfp;
+		adjusted_mode->crtc_hsync_end = vmode->hde + hborder + vmode->hfp + vmode->hsync;
+		adjusted_mode->crtc_htotal = vmode->ht;
 
-	adjusted_mode->crtc_hdisplay = vmode->hde;
-	adjusted_mode->crtc_hblank_start = vmode->hde + hborder;
-	adjusted_mode->crtc_hblank_end = vmode->ht - hborder;
-	adjusted_mode->crtc_hsync_start = vmode->hde + hborder + vmode->hfp;
-	adjusted_mode->crtc_hsync_end = vmode->hde + hborder + vmode->hfp + vmode->hsync;
-	adjusted_mode->crtc_htotal = vmode->ht;
-
-	adjusted_mode->crtc_vdisplay = vmode->vde;
-	adjusted_mode->crtc_vblank_start = vmode->vde + vborder;
-	adjusted_mode->crtc_vblank_end = vmode->vt - vborder;
-	adjusted_mode->crtc_vsync_start = vmode->vde + vborder + vmode->vfp;
-	adjusted_mode->crtc_vsync_end = vmode->vde + vborder + vmode->vfp + vmode->vsync;
-	adjusted_mode->crtc_vtotal = vmode->vt;
+		adjusted_mode->crtc_vdisplay = vmode->vde;
+		adjusted_mode->crtc_vblank_start = vmode->vde + vborder;
+		adjusted_mode->crtc_vblank_end = vmode->vt - vborder;
+		adjusted_mode->crtc_vsync_start = vmode->vde + vborder + vmode->vfp;
+		adjusted_mode->crtc_vsync_end = vmode->vde + vborder + vmode->vfp + vmode->vsync;
+		adjusted_mode->crtc_vtotal = vmode->vt;
+	}
 
 	return 0;
 }
