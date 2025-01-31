@@ -38,7 +38,7 @@
 
 static void ast_detect_widescreen(struct ast_device *ast)
 {
-	u8 jreg;
+	u8 vgacrd0;
 
 	/* Check if we support wide screen */
 	switch (AST_GEN(ast)) {
@@ -46,10 +46,10 @@ static void ast_detect_widescreen(struct ast_device *ast)
 		ast->support_wide_screen = false;
 		break;
 	default:
-		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
-		if (!(jreg & 0x80))
+		vgacrd0 = ast_get_index_reg(ast, AST_IO_VGACRI, 0xd0);
+		if (!(vgacrd0 & AST_IO_VGACRD0_VRAM_INIT_BY_BMC))
 			ast->support_wide_screen = true;
-		else if (jreg & 0x01)
+		else if (vgacrd0 & AST_IO_VGACRD0_IKVM_WIDESCREEN)
 			ast->support_wide_screen = true;
 		else {
 			ast->support_wide_screen = false;
