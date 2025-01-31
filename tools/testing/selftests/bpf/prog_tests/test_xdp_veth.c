@@ -25,11 +25,9 @@
 #include "xdp_tx.skel.h"
 
 #define VETH_PAIRS_COUNT	3
-#define NS_SUFFIX_LEN		6
 #define VETH_NAME_MAX_LEN	16
 #define IP_SRC				"10.1.1.11"
 #define IP_DST				"10.1.1.33"
-#define IP_CMD_MAX_LEN		128
 
 struct skeletons {
 	struct xdp_dummy *xdp_dummy;
