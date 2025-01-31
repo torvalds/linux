@@ -1926,7 +1926,7 @@ static bool intel_dp_dsc_supports_format(const struct intel_connector *connector
 	return drm_dp_dsc_sink_supports_format(connector->dp.dsc_dpcd, sink_dsc_format);
 }
 
-static bool is_bw_sufficient_for_dsc_config(u16 compressed_bppx16, u32 link_clock,
+static bool is_bw_sufficient_for_dsc_config(int dsc_bpp_x16, u32 link_clock,
 					    u32 lane_count, u32 mode_clock,
 					    enum intel_output_format output_format,
 					    int timeslots)
@@ -1934,7 +1934,7 @@ static bool is_bw_sufficient_for_dsc_config(u16 compressed_bppx16, u32 link_cloc
 	u32 available_bw, required_bw;
 
 	available_bw = (link_clock * lane_count * timeslots * 16)  / 8;
-	required_bw = compressed_bppx16 * (intel_dp_mode_to_fec_clock(mode_clock));
+	required_bw = dsc_bpp_x16 * (intel_dp_mode_to_fec_clock(mode_clock));
 
 	return available_bw > required_bw;
 }
@@ -1942,7 +1942,7 @@ static bool is_bw_sufficient_for_dsc_config(u16 compressed_bppx16, u32 link_cloc
 static int dsc_compute_link_config(struct intel_dp *intel_dp,
 				   struct intel_crtc_state *pipe_config,
 				   const struct link_config_limits *limits,
-				   u16 compressed_bppx16,
+				   int dsc_bpp_x16,
 				   int timeslots)
 {
 	const struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
@@ -1957,7 +1957,7 @@ static int dsc_compute_link_config(struct intel_dp *intel_dp,
 		for (lane_count = limits->min_lane_count;
 		     lane_count <= limits->max_lane_count;
 		     lane_count <<= 1) {
-			if (!is_bw_sufficient_for_dsc_config(compressed_bppx16, link_rate,
+			if (!is_bw_sufficient_for_dsc_config(dsc_bpp_x16, link_rate,
 							     lane_count, adjusted_mode->clock,
 							     pipe_config->output_format,
 							     timeslots))
