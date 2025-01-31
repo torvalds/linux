@@ -287,6 +287,17 @@ static int scmi_device_uevent(const struct device *dev, struct kobj_uevent_env *
 			      scmi_dev->name);
 }
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct scmi_device *scmi_dev = to_scmi_dev(dev);
+
+	return sysfs_emit(buf, SCMI_UEVENT_MODALIAS_FMT,
+			  dev_name(&scmi_dev->dev), scmi_dev->protocol_id,
+			  scmi_dev->name);
+}
+static DEVICE_ATTR_RO(modalias);
+
 static ssize_t protocol_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
@@ -308,6 +319,7 @@ static DEVICE_ATTR_RO(name);
 static struct attribute *scmi_device_attributes_attrs[] = {
 	&dev_attr_protocol_id.attr,
 	&dev_attr_name.attr,
+	&dev_attr_modalias.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(scmi_device_attributes);
