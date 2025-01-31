@@ -609,6 +609,10 @@ int pci_epc_set_bar(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
 	if (!epc_features)
 		return -EINVAL;
 
+	if (epc_features->bar[bar].type == BAR_RESIZABLE &&
+	    (epf_bar->size < SZ_1M || (u64)epf_bar->size > (SZ_128G * 1024)))
+		return -EINVAL;
+
 	if (epc_features->bar[bar].type == BAR_FIXED &&
 	    (epc_features->bar[bar].fixed_size != epf_bar->size))
 		return -EINVAL;
