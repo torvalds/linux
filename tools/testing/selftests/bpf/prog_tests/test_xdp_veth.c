@@ -35,40 +35,42 @@
 #include "xdp_tx.skel.h"
 
 #define VETH_PAIRS_COUNT	3
-#define VETH_NAME_MAX_LEN	16
+#define VETH_NAME_MAX_LEN	32
+#define IP_MAX_LEN		16
 #define IP_SRC				"10.1.1.11"
 #define IP_DST				"10.1.1.33"
 #define PROG_NAME_MAX_LEN	128
+#define NS_NAME_MAX_LEN		32
 
 struct veth_configuration {
 	char local_veth[VETH_NAME_MAX_LEN]; /* Interface in main namespace */
 	char remote_veth[VETH_NAME_MAX_LEN]; /* Peer interface in dedicated namespace*/
-	const char *namespace; /* Namespace for the remote veth */
+	char namespace[NS_NAME_MAX_LEN]; /* Namespace for the remote veth */
 	int next_veth; /* Local interface to redirect traffic to */
-	char *remote_addr; /* IP address of the remote veth */
+	char remote_addr[IP_MAX_LEN]; /* IP address of the remote veth */
 };
 
-static struct veth_configuration net_config[VETH_PAIRS_COUNT] = {
+static const struct veth_configuration default_config[VETH_PAIRS_COUNT] = {
 	{
-		.local_veth = "veth1",
+		.local_veth = "veth1-",
 		.remote_veth = "veth11",
 		.next_veth = 1,
 		.remote_addr = IP_SRC,
-		.namespace = "ns-veth11"
+		.namespace = "ns-veth11-"
 	},
 	{
-		.local_veth = "veth2",
+		.local_veth = "veth2-",
 		.remote_veth = "veth22",
 		.next_veth = 2,
-		.remote_addr = NULL,
-		.namespace = "ns-veth22"
+		.remote_addr = "",
+		.namespace = "ns-veth22-"
 	},
 	{
-		.local_veth = "veth3",
+		.local_veth = "veth3-",
 		.remote_veth = "veth33",
 		.next_veth = 0,
 		.remote_addr = IP_DST,
-		.namespace = "ns-veth33"
+		.namespace = "ns-veth33-"
 	}
 };
 
@@ -80,6 +82,7 @@ struct prog_configuration {
 };
 
 static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
+					struct veth_configuration *net_config,
 					struct prog_configuration *prog, int index)
 {
 	struct bpf_program *local_prog, *remote_prog;
@@ -132,17 +135,27 @@ static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
 	return 0;
 }
 
-static int create_network(void)
+static int create_network(struct veth_configuration *net_config)
 {
-	int i;
+	int i, err;
+
+	memcpy(net_config, default_config, VETH_PAIRS_COUNT * sizeof(struct veth_configuration));
 
 	/* First create and configure all interfaces */
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
+		err = append_tid(net_config[i].namespace, NS_NAME_MAX_LEN);
+		if (!ASSERT_OK(err, "append TID to ns name"))
+			return -1;
+
+		err = append_tid(net_config[i].local_veth, VETH_NAME_MAX_LEN);
+		if (!ASSERT_OK(err, "append TID to local veth name"))
+			return -1;
+
 		SYS(fail, "ip netns add %s", net_config[i].namespace);
 		SYS(fail, "ip link add %s type veth peer name %s netns %s",
 		    net_config[i].local_veth, net_config[i].remote_veth, net_config[i].namespace);
 		SYS(fail, "ip link set dev %s up", net_config[i].local_veth);
-		if (net_config[i].remote_addr)
+		if (net_config[i].remote_addr[0])
 			SYS(fail, "ip -n %s addr add %s/24 dev %s",	net_config[i].namespace,
 			    net_config[i].remote_addr, net_config[i].remote_veth);
 		SYS(fail, "ip -n %s link set dev %s up", net_config[i].namespace,
@@ -155,7 +168,7 @@ fail:
 	return -1;
 }
 
-static void cleanup_network(void)
+static void cleanup_network(struct veth_configuration *net_config)
 {
 	struct nstoken *nstoken;
 	int i;
@@ -196,6 +209,7 @@ void test_xdp_veth_redirect(void)
 			.remote_flags = 0,
 		}
 	};
+	struct veth_configuration net_config[VETH_PAIRS_COUNT];
 	struct bpf_object *bpf_objs[VETH_REDIRECT_SKEL_NB];
 	struct xdp_redirect_map *xdp_redirect_map;
 	struct xdp_dummy *xdp_dummy;
@@ -215,7 +229,7 @@ void test_xdp_veth_redirect(void)
 	if (!ASSERT_OK_PTR(xdp_redirect_map, "xdp_redirect_map__open_and_load"))
 		goto destroy_xdp_tx;
 
-	if (!ASSERT_OK(create_network(), "create_network"))
+	if (!ASSERT_OK(create_network(net_config), "create network"))
 		goto destroy_xdp_redirect_map;
 
 	/* Then configure the redirect map and attach programs to interfaces */
@@ -237,7 +251,8 @@ void test_xdp_veth_redirect(void)
 		err = bpf_map_update_elem(map_fd, &i, &interface_id, BPF_ANY);
 		if (!ASSERT_OK(err, "configure interface redirection through map"))
 			goto destroy_xdp_redirect_map;
-		if (attach_programs_to_veth_pair(bpf_objs, VETH_REDIRECT_SKEL_NB, ping_config, i))
+		if (attach_programs_to_veth_pair(bpf_objs, VETH_REDIRECT_SKEL_NB,
+						 net_config, ping_config, i))
 			goto destroy_xdp_redirect_map;
 	}
 
@@ -254,5 +269,5 @@ destroy_xdp_tx:
 destroy_xdp_dummy:
 	xdp_dummy__destroy(xdp_dummy);
 
-	cleanup_network();
+	cleanup_network(net_config);
 }
