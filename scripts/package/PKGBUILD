@@ -22,7 +22,6 @@ license=(GPL-2.0-only)
 makedepends=(
 	bc
 	bison
-	cpio
 	flex
 	gettext
 	kmod
