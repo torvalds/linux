@@ -2307,8 +2307,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
 				const struct link_config_limits *limits,
-				int timeslots,
-				bool compute_pipe_bpp)
+				int timeslots)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
 	const struct intel_connector *connector =
@@ -2316,6 +2315,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	int num_joined_pipes = intel_crtc_num_joined_pipes(pipe_config);
+	bool is_mst = intel_crtc_has_type(pipe_config, INTEL_OUTPUT_DP_MST);
 	int ret;
 
 	intel_dp_fec_compute_config(intel_dp, pipe_config);
@@ -2324,12 +2324,10 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		return -EINVAL;
 
 	/*
-	 * compute pipe bpp is set to false for DP MST DSC case
-	 * and compressed_bpp is calculated same time once
-	 * vpci timeslots are allocated, because overall bpp
-	 * calculation procedure is bit different for MST case.
+	 * Link parameters, pipe bpp and compressed bpp have already been
+	 * figured out for DP MST DSC.
 	 */
-	if (compute_pipe_bpp) {
+	if (!is_mst) {
 		if (intel_dp_is_edp(intel_dp))
 			ret = intel_edp_dsc_compute_pipe_bpp(intel_dp, pipe_config,
 							     conn_state, limits);
@@ -2640,7 +2638,7 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			return -EINVAL;
 
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
-						  conn_state, &limits, 64, true);
+						  conn_state, &limits, 64);
 		if (ret < 0)
 			return ret;
 	}

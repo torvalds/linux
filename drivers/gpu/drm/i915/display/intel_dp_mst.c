@@ -657,7 +657,7 @@ static int mst_stream_compute_config(struct intel_encoder *encoder,
 
 		ret = intel_dp_dsc_compute_config(intel_dp, pipe_config,
 						  conn_state, &limits,
-						  pipe_config->dp_m_n.tu, false);
+						  pipe_config->dp_m_n.tu);
 	}
 
 	if (ret)

@@ -76,8 +76,7 @@ int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config,
 				struct drm_connector_state *conn_state,
 				const struct link_config_limits *limits,
-				int timeslots,
-				bool recompute_pipe_bpp);
+				int timeslots);
 void intel_dp_audio_compute_config(struct intel_encoder *encoder,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state);
