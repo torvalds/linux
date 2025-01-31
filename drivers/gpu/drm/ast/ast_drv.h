@@ -39,6 +39,8 @@
 
 #include "ast_reg.h"
 
+struct ast_vbios_enhtable;
+
 #define DRIVER_AUTHOR		"Dave Airlie"
 
 #define DRIVER_NAME		"ast"
@@ -348,22 +350,6 @@ struct ast_vbios_stdtable {
 	u8 crtc[25];
 	u8 ar[20];
 	u8 gr[9];
-};
-
-struct ast_vbios_enhtable {
-	u32 ht;
-	u32 hde;
-	u32 hfp;
-	u32 hsync;
-	u32 vt;
-	u32 vde;
-	u32 vfp;
-	u32 vsync;
-	u32 dclk_index;
-	u32 flags;
-	u32 refresh_rate;
-	u32 refresh_rate_index;
-	u32 mode_id;
 };
 
 struct ast_vbios_dclk_info {

@@ -47,6 +47,7 @@
 
 #include "ast_drv.h"
 #include "ast_tables.h"
+#include "ast_vbios.h"
 
 #define AST_LUT_SIZE 256
 
@@ -106,14 +107,12 @@ static void ast_crtc_set_gamma(struct ast_device *ast,
 	}
 }
 
-static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
+static bool ast_get_vbios_mode_info(struct ast_device *ast,
+				    const struct drm_format_info *format,
 				    const struct drm_display_mode *mode,
 				    struct drm_display_mode *adjusted_mode,
 				    struct ast_vbios_mode_info *vbios_mode)
 {
-	u32 refresh_rate_index = 0, refresh_rate;
-	const struct ast_vbios_enhtable *best = NULL;
-	const struct ast_vbios_enhtable *loop;
 	u32 hborder, vborder;
 
 	switch (format->cpp[0] * 8) {
@@ -131,72 +130,9 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 		return false;
 	}
 
-	switch (mode->hdisplay) {
-	case 640:
-		vbios_mode->enh_table = &res_640x480[refresh_rate_index];
-		break;
-	case 800:
-		vbios_mode->enh_table = &res_800x600[refresh_rate_index];
-		break;
-	case 1024:
-		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
-		break;
-	case 1152:
-		vbios_mode->enh_table = &res_1152x864[refresh_rate_index];
-		break;
-	case 1280:
-		if (mode->vdisplay == 800)
-			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
-		break;
-	case 1360:
-		vbios_mode->enh_table = &res_1360x768[refresh_rate_index];
-		break;
-	case 1440:
-		vbios_mode->enh_table = &res_1440x900[refresh_rate_index];
-		break;
-	case 1600:
-		if (mode->vdisplay == 900)
-			vbios_mode->enh_table = &res_1600x900[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1600x1200[refresh_rate_index];
-		break;
-	case 1680:
-		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
-		break;
-	case 1920:
-		if (mode->vdisplay == 1080)
-			vbios_mode->enh_table = &res_1920x1080[refresh_rate_index];
-		else
-			vbios_mode->enh_table = &res_1920x1200[refresh_rate_index];
-		break;
-	default:
+	vbios_mode->enh_table = ast_vbios_find_mode(ast, mode);
+	if (!vbios_mode->enh_table)
 		return false;
-	}
-
-	refresh_rate = drm_mode_vrefresh(mode);
-
-	loop = vbios_mode->enh_table;
-
-	while (ast_vbios_mode_is_valid(loop)) {
-		if (((mode->flags & DRM_MODE_FLAG_NVSYNC) && (loop->flags & PVSync))  ||
-		    ((mode->flags & DRM_MODE_FLAG_PVSYNC) && (loop->flags & NVSync))  ||
-		    ((mode->flags & DRM_MODE_FLAG_NHSYNC) && (loop->flags & PHSync))  ||
-		    ((mode->flags & DRM_MODE_FLAG_PHSYNC) && (loop->flags & NHSync))) {
-			loop++;
-			continue;
-		}
-		if (loop->refresh_rate <= refresh_rate &&
-		    (!best || loop->refresh_rate > best->refresh_rate))
-			best = loop;
-		loop++;
-	}
-
-	if (!best)
-		return false;
-
-	vbios_mode->enh_table = best;
 
 	hborder = (vbios_mode->enh_table->flags & HBorder) ? 8 : 0;
 	vborder = (vbios_mode->enh_table->flags & VBorder) ? 8 : 0;
@@ -1109,6 +1045,7 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 	struct drm_device *dev = crtc->dev;
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
@@ -1143,7 +1080,7 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		}
 	}
 
-	succ = ast_get_vbios_mode_info(format, &crtc_state->mode,
+	succ = ast_get_vbios_mode_info(ast, format, &crtc_state->mode,
 				       &crtc_state->adjusted_mode,
 				       &ast_state->vbios_mode_info);
 	if (!succ)

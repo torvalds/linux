@@ -12,6 +12,7 @@
 #include <drm/drm_probe_helper.h>
 
 #include "ast_drv.h"
+#include "ast_vbios.h"
 
 static bool ast_astdp_is_connected(struct ast_device *ast)
 {
