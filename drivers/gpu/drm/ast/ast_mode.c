@@ -1036,10 +1036,7 @@ ast_crtc_helper_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode 
 		if ((mode->hdisplay == 1600) && (mode->vdisplay == 900))
 			return MODE_OK;
 
-		if ((ast->chip == AST2100) || // GEN2, but not AST1100 (?)
-		    (ast->chip == AST2200) || // GEN3, but not AST2150 (?)
-		    IS_AST_GEN4(ast) || IS_AST_GEN5(ast) ||
-		    IS_AST_GEN6(ast) || IS_AST_GEN7(ast)) {
+		if (ast->support_fullhd) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 
@@ -1371,12 +1368,7 @@ int ast_mode_config_init(struct ast_device *ast)
 	dev->mode_config.min_height = 0;
 	dev->mode_config.preferred_depth = 24;
 
-	if (ast->chip == AST2100 || // GEN2, but not AST1100 (?)
-	    ast->chip == AST2200 || // GEN3, but not AST2150 (?)
-	    IS_AST_GEN7(ast) ||
-	    IS_AST_GEN6(ast) ||
-	    IS_AST_GEN5(ast) ||
-	    IS_AST_GEN4(ast)) {
+	if (ast->support_fullhd) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {

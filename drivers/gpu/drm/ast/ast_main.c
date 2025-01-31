@@ -52,27 +52,46 @@ static bool __ast_2100_detect_wsxga_p(struct ast_device *ast)
 static void ast_detect_widescreen(struct ast_device *ast)
 {
 	ast->support_wsxga_p = false;
+	ast->support_fullhd = false;
 
 	if (AST_GEN(ast) >= 7) {
 		ast->support_wsxga_p = true;
+		ast->support_fullhd = true;
 	} else if (AST_GEN(ast) >= 6) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
 		else if (ast->chip == AST2510)
 			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
 	} else if (AST_GEN(ast) >= 5) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
 		else if (ast->chip == AST1400)
 			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
 	} else if (AST_GEN(ast) >= 4) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
 		else if (ast->chip == AST1300)
 			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p)
+			ast->support_fullhd = true;
+	} else if (AST_GEN(ast) >= 3) {
+		if (__ast_2100_detect_wsxga_p(ast))
+			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p) {
+			if (ast->chip == AST2200)
+				ast->support_fullhd = true;
+		}
 	} else if (AST_GEN(ast) >= 2) {
 		if (__ast_2100_detect_wsxga_p(ast))
 			ast->support_wsxga_p = true;
+		if (ast->support_wsxga_p) {
+			if (ast->chip == AST2100)
+				ast->support_fullhd = true;
+		}
 	}
 }
 
