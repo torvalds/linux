@@ -170,15 +170,6 @@ static void cleanup_network(void)
 		SYS_NOFAIL("ip netns del %s", config[i].namespace);
 }
 
-static int check_ping(struct skeletons *skeletons)
-{
-	/* Test: if all interfaces are properly configured, we must be able to ping
-	 * veth33 from veth11
-	 */
-	return SYS_NOFAIL("ip netns exec %s ping -c 1 -W 1 %s > /dev/null",
-					  config[0].namespace, IP_DST);
-}
-
 void test_xdp_veth_redirect(void)
 {
 	struct skeletons skeletons = {};
@@ -198,7 +189,11 @@ void test_xdp_veth_redirect(void)
 	if (configure_network(&skeletons))
 		goto destroy_xdp_redirect_map;
 
-	ASSERT_OK(check_ping(&skeletons), "ping");
+	/* Test: if all interfaces are properly configured, we must be able to ping
+	 * veth33 from veth11
+	 */
+	ASSERT_OK(SYS_NOFAIL("ip netns exec %s ping -c 1 -W 1 %s > /dev/null",
+			     config[0].namespace, IP_DST), "ping");
 
 destroy_xdp_redirect_map:
 	xdp_redirect_map__destroy(skeletons.xdp_redirect_maps);
