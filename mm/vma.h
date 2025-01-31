@@ -121,6 +121,16 @@ struct vma_merge_struct {
 	/* Internal flags set during merge process: */
 
 	/*
+	 * Internal flag indicating the merge increases vmg->middle->vm_start
+	 * (and thereby, vmg->prev->vm_end).
+	 */
+	bool __adjust_middle_start :1;
+	/*
+	 * Internal flag indicating the merge decreases vmg->next->vm_start
+	 * (and thereby, vmg->middle->vm_end).
+	 */
+	bool __adjust_next_start :1;
+	/*
 	 * Internal flag used during the merge operation to indicate we will
 	 * remove vmg->middle.
 	 */

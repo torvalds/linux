@@ -267,7 +267,9 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 		"uffd_ctx %px\n"
 		"anon_name %px\n"
 		"state %x\n"
-		"just_expand %d __remove_middle %d __remove_next %d\n",
+		"just_expand %d\n"
+		"__adjust_middle_start %d __adjust_next_start %d\n"
+		"__remove_middle %d __remove_next %d\n",
 		vmg, vmg->mm, vmg->pgoff,
 		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
 		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
@@ -281,7 +283,9 @@ void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
 #endif
 		vmg->anon_name,
 		(int)vmg->state,
-		vmg->just_expand, vmg->__remove_middle, vmg->__remove_next);
+		vmg->just_expand,
+		vmg->__adjust_middle_start, vmg->__adjust_next_start,
+		vmg->__remove_middle, vmg->__remove_next);
 
 	if (vmg->mm) {
 		pr_warn("vmg %px mm:\n", vmg);

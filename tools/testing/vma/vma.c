@@ -159,6 +159,8 @@ static void vmg_set_range(struct vma_merge_struct *vmg, unsigned long start,
 	vmg->just_expand = false;
 	vmg->__remove_middle = false;
 	vmg->__remove_next = false;
+	vmg->__adjust_middle_start = false;
+	vmg->__adjust_next_start = false;
 }
 
 /*
