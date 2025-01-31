@@ -1449,6 +1449,12 @@ struct scx_event_stats {
 	 * the core scheduler code silently picks a fallback CPU.
 	 */
 	u64		SCX_EV_SELECT_CPU_FALLBACK;
+
+	/*
+	 * When dispatching to a local DSQ, the CPU may have gone offline in
+	 * the meantime. In this case, the task is bounced to the global DSQ.
+	 */
+	u64		SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE;
 };
 
 /*
@@ -2643,6 +2649,7 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 	if (unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
 		dispatch_enqueue(find_global_dsq(p), p,
 				 enq_flags | SCX_ENQ_CLEAR_OPSS);
+		__scx_add_event(SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE, 1);
 		return;
 	}
 
@@ -4969,6 +4976,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 
 	scx_bpf_events(&events, sizeof(events));
 	scx_dump_event(s, &events, SCX_EV_SELECT_CPU_FALLBACK);
+	scx_dump_event(s, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 
 	if (seq_buf_has_overflowed(&s) && dump_len >= sizeof(trunc_marker))
 		memcpy(ei->dump + dump_len - sizeof(trunc_marker),
@@ -7103,6 +7111,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 	for_each_possible_cpu(cpu) {
 		e_cpu = per_cpu_ptr(&event_stats_cpu, cpu);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	}
 
 	/*
