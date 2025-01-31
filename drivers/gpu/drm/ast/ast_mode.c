@@ -179,7 +179,7 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 
 	loop = vbios_mode->enh_table;
 
-	while (loop->refresh_rate != 0xff) {
+	while (ast_vbios_mode_is_valid(loop)) {
 		if (((mode->flags & DRM_MODE_FLAG_NVSYNC) && (loop->flags & PVSync))  ||
 		    ((mode->flags & DRM_MODE_FLAG_PVSYNC) && (loop->flags & NVSync))  ||
 		    ((mode->flags & DRM_MODE_FLAG_NHSYNC) && (loop->flags & PHSync))  ||
