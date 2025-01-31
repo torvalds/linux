@@ -222,7 +222,8 @@ struct io_alloc_cache {
 	void			**entries;
 	unsigned int		nr_cached;
 	unsigned int		max_cached;
-	size_t			elem_size;
+	unsigned int		elem_size;
+	unsigned int		init_clear;
 };
 
 struct io_ring_ctx {

@@ -2,6 +2,8 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
+#include <linux/lockdep.h>
+
 #define IO_NODE_ALLOC_CACHE_MAX 32
 
 #define IO_RSRC_TAG_TABLE_SHIFT	(PAGE_SHIFT - 3)
@@ -43,7 +45,7 @@ struct io_imu_folio_data {
 	unsigned int	nr_folios;
 };
 
-struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type);
+struct io_rsrc_node *io_rsrc_node_alloc(int type);
 void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node);
 void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data);
 int io_rsrc_data_alloc(struct io_rsrc_data *data, unsigned nr);
@@ -80,6 +82,7 @@ static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data
 
 static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
+	lockdep_assert_held(&ctx->uring_lock);
 	if (node && !--node->refs)
 		io_free_rsrc_node(ctx, node);
 }
