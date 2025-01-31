@@ -39,7 +39,7 @@ struct veth_configuration {
 	char local_veth[VETH_NAME_MAX_LEN]; /* Interface in main namespace */
 	char remote_veth[VETH_NAME_MAX_LEN]; /* Peer interface in dedicated namespace*/
 	const char *namespace; /* Namespace for the remote veth */
-	char next_veth[VETH_NAME_MAX_LEN]; /* Local interface to redirect traffic to */
+	int next_veth; /* Local interface to redirect traffic to */
 	char *remote_addr; /* IP address of the remote veth */
 };
 
@@ -47,21 +47,21 @@ static struct veth_configuration config[VETH_PAIRS_COUNT] = {
 	{
 		.local_veth = "veth1",
 		.remote_veth = "veth11",
-		.next_veth = "veth2",
+		.next_veth = 1,
 		.remote_addr = IP_SRC,
 		.namespace = "ns-veth11"
 	},
 	{
 		.local_veth = "veth2",
 		.remote_veth = "veth22",
-		.next_veth = "veth3",
+		.next_veth = 2,
 		.remote_addr = NULL,
 		.namespace = "ns-veth22"
 	},
 	{
 		.local_veth = "veth3",
 		.remote_veth = "veth33",
-		.next_veth = "veth1",
+		.next_veth = 0,
 		.remote_addr = IP_DST,
 		.namespace = "ns-veth33"
 	}
@@ -144,7 +144,9 @@ static int configure_network(struct skeletons *skeletons)
 	if (!ASSERT_GE(map_fd, 0, "open redirect map"))
 		goto fail;
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
-		interface_id = if_nametoindex(config[i].next_veth);
+		int next_veth = config[i].next_veth;
+
+		interface_id = if_nametoindex(config[next_veth].local_veth);
 		if (!ASSERT_NEQ(interface_id, 0, "non zero interface index"))
 			goto fail;
 		err = bpf_map_update_elem(map_fd, &i, &interface_id, BPF_ANY);
