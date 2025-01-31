@@ -432,7 +432,7 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	 * for the new COTable. Initially pin the buffer object to make sure
 	 * we can use tryreserve without failure.
 	 */
-	ret = vmw_gem_object_create(dev_priv, &bo_params, &buf);
+	ret = vmw_bo_create(dev_priv, &bo_params, &buf);
 	if (ret) {
 		DRM_ERROR("Failed initializing new cotable MOB.\n");
 		goto out_done;

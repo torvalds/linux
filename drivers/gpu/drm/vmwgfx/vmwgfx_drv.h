@@ -822,9 +822,7 @@ static inline bool vmw_resource_mob_attached(const struct vmw_resource *res)
  * GEM related functionality - vmwgfx_gem.c
  */
 struct vmw_bo_params;
-int vmw_gem_object_create(struct vmw_private *vmw,
-			  struct vmw_bo_params *params,
-			  struct vmw_bo **p_vbo);
+extern const struct drm_gem_object_funcs vmw_gem_object_funcs;
 extern int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 					     struct drm_file *filp,
 					     uint32_t size,

@@ -445,7 +445,7 @@ vmw_sou_primary_plane_prepare_fb(struct drm_plane *plane,
 	 * resume the overlays, this is preferred to failing to alloc.
 	 */
 	vmw_overlay_pause_all(dev_priv);
-	ret = vmw_gem_object_create(dev_priv, &bo_params, &vps->uo.buffer);
+	ret = vmw_bo_create(dev_priv, &bo_params, &vps->uo.buffer);
 	vmw_overlay_resume_all(dev_priv);
 	if (ret)
 		return ret;

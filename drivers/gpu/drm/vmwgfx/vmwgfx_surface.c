@@ -830,9 +830,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			.pin = false
 		};
 
-		ret = vmw_gem_object_create(dev_priv,
-					    &params,
-					    &res->guest_memory_bo);
+		ret = vmw_bo_create(dev_priv, &params, &res->guest_memory_bo);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;

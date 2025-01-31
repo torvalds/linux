@@ -204,12 +204,12 @@ static inline void vmw_bo_unreference(struct vmw_bo **buf)
 
 	*buf = NULL;
 	if (tmp_buf)
-		ttm_bo_put(&tmp_buf->tbo);
+		drm_gem_object_put(&tmp_buf->tbo.base);
 }
 
 static inline struct vmw_bo *vmw_bo_reference(struct vmw_bo *buf)
 {
-	ttm_bo_get(&buf->tbo);
+	drm_gem_object_get(&buf->tbo.base);
 	return buf;
 }
 
