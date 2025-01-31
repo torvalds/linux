@@ -14,80 +14,74 @@
 #include "ast_drv.h"
 #include "ast_vbios.h"
 
-static int ast_astdp_get_mode_index(const struct ast_vbios_enhtable *vmode)
+struct ast_astdp_mode_index_table_entry {
+	unsigned int hdisplay;
+	unsigned int vdisplay;
+	unsigned int mode_index;
+};
+
+/* FIXME: Do refresh rate and flags actually matter? */
+static const struct ast_astdp_mode_index_table_entry ast_astdp_mode_index_table[] = {
+	{  320,  240, ASTDP_320x240_60 },
+	{  400,  300, ASTDP_400x300_60 },
+	{  512,  384, ASTDP_512x384_60 },
+	{  640,  480, ASTDP_640x480_60 },
+	{  800,  600, ASTDP_800x600_56 },
+	{ 1024,  768, ASTDP_1024x768_60 },
+	{ 1152,  864, ASTDP_1152x864_75 },
+	{ 1280,  800, ASTDP_1280x800_60_RB },
+	{ 1280, 1024, ASTDP_1280x1024_60 },
+	{ 1360,  768, ASTDP_1366x768_60 }, // same as 1366x786
+	{ 1366,  768, ASTDP_1366x768_60 },
+	{ 1440,  900, ASTDP_1440x900_60_RB },
+	{ 1600,  900, ASTDP_1600x900_60_RB },
+	{ 1600, 1200, ASTDP_1600x1200_60 },
+	{ 1680, 1050, ASTDP_1680x1050_60_RB },
+	{ 1920, 1080, ASTDP_1920x1080_60 },
+	{ 1920, 1200, ASTDP_1920x1200_60 },
+	{ 0 }
+};
+
+static int __ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdisplay)
 {
-	u8 refresh_rate_index;
+	const struct ast_astdp_mode_index_table_entry *entry = ast_astdp_mode_index_table;
 
-	if (vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255)
-		return -EINVAL;
-
-	refresh_rate_index = vmode->refresh_rate_index - 1;
-
-	switch (vmode->hde) {
-	case 320:
-		if (vmode->vde == 240)
-			return ASTDP_320x240_60;
-		break;
-	case 400:
-		if (vmode->vde == 300)
-			return ASTDP_400x300_60;
-		break;
-	case 512:
-		if (vmode->vde == 384)
-			return ASTDP_512x384_60;
-		break;
-	case 640:
-		if (vmode->vde == 480)
-			return (u8)(ASTDP_640x480_60 + (u8)refresh_rate_index);
-		break;
-	case 800:
-		if (vmode->vde == 600)
-			return (u8)(ASTDP_800x600_56 + (u8)refresh_rate_index);
-		break;
-	case 1024:
-		if (vmode->vde == 768)
-			return (u8)(ASTDP_1024x768_60 + (u8)refresh_rate_index);
-		break;
-	case 1152:
-		if (vmode->vde == 864)
-			return ASTDP_1152x864_75;
-		break;
-	case 1280:
-		if (vmode->vde == 800)
-			return (u8)(ASTDP_1280x800_60_RB - (u8)refresh_rate_index);
-		if (vmode->vde == 1024)
-			return (u8)(ASTDP_1280x1024_60 + (u8)refresh_rate_index);
-		break;
-	case 1360:
-	case 1366:
-		if (vmode->vde == 768)
-			return ASTDP_1366x768_60;
-		break;
-	case 1440:
-		if (vmode->vde == 900)
-			return (u8)(ASTDP_1440x900_60_RB - (u8)refresh_rate_index);
-		break;
-	case 1600:
-		if (vmode->vde == 900)
-			return (u8)(ASTDP_1600x900_60_RB - (u8)refresh_rate_index);
-		if (vmode->vde == 1200)
-			return ASTDP_1600x1200_60;
-		break;
-	case 1680:
-		if (vmode->vde == 1050)
-			return (u8)(ASTDP_1680x1050_60_RB - (u8)refresh_rate_index);
-		break;
-	case 1920:
-		if (vmode->vde == 1080)
-			return ASTDP_1920x1080_60;
-		if (vmode->vde == 1200)
-			return ASTDP_1920x1200_60;
-		break;
-	default:
-		break;
+	while (entry->hdisplay && entry->vdisplay) {
+		if (entry->hdisplay == hdisplay && entry->vdisplay == vdisplay)
+			return entry->mode_index;
+		++entry;
 	}
 
 	return -EINVAL;
+}
+
+static int ast_astdp_get_mode_index(const struct ast_vbios_enhtable *vmode)
+{
+	int mode_index;
+	u8 refresh_rate_index;
+
+	mode_index = __ast_astdp_get_mode_index(vmode->hde, vmode->vde);
+	if (mode_index < 0)
+		return mode_index;
+
+	if (vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255)
+		return -EINVAL;
+	refresh_rate_index = vmode->refresh_rate_index - 1;
+
+	/* FIXME: Why are we doing this? */
+	switch (mode_index) {
+	case ASTDP_1280x800_60_RB:
+	case ASTDP_1440x900_60_RB:
+	case ASTDP_1600x900_60_RB:
+	case ASTDP_1680x1050_60_RB:
+		mode_index = (u8)(mode_index - (u8)refresh_rate_index);
+		break;
+	default:
+		mode_index = (u8)(mode_index + (u8)refresh_rate_index);
+		break;
+	}
+
+	return mode_index;
 }
 
 static bool ast_astdp_is_connected(struct ast_device *ast)
