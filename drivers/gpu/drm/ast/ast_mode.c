@@ -113,8 +113,8 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 {
 	u32 refresh_rate_index = 0, refresh_rate;
 	const struct ast_vbios_enhtable *best = NULL;
+	const struct ast_vbios_enhtable *loop;
 	u32 hborder, vborder;
-	bool check_sync;
 
 	switch (format->cpp[0] * 8) {
 	case 8:
@@ -176,36 +176,27 @@ static bool ast_get_vbios_mode_info(const struct drm_format_info *format,
 	}
 
 	refresh_rate = drm_mode_vrefresh(mode);
-	check_sync = vbios_mode->enh_table->flags & WideScreenMode;
 
-	while (1) {
-		const struct ast_vbios_enhtable *loop = vbios_mode->enh_table;
+	loop = vbios_mode->enh_table;
 
-		while (loop->refresh_rate != 0xff) {
-			if ((check_sync) &&
-			    (((mode->flags & DRM_MODE_FLAG_NVSYNC)  &&
-			      (loop->flags & PVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PVSYNC)  &&
-			      (loop->flags & NVSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_NHSYNC)  &&
-			      (loop->flags & PHSync))  ||
-			     ((mode->flags & DRM_MODE_FLAG_PHSYNC)  &&
-			      (loop->flags & NHSync)))) {
-				loop++;
-				continue;
-			}
-			if (loop->refresh_rate <= refresh_rate
-			    && (!best || loop->refresh_rate > best->refresh_rate))
-				best = loop;
+	while (loop->refresh_rate != 0xff) {
+		if (((mode->flags & DRM_MODE_FLAG_NVSYNC) && (loop->flags & PVSync))  ||
+		    ((mode->flags & DRM_MODE_FLAG_PVSYNC) && (loop->flags & NVSync))  ||
+		    ((mode->flags & DRM_MODE_FLAG_NHSYNC) && (loop->flags & PHSync))  ||
+		    ((mode->flags & DRM_MODE_FLAG_PHSYNC) && (loop->flags & NHSync))) {
 			loop++;
+			continue;
 		}
-		if (best || !check_sync)
-			break;
-		check_sync = 0;
+		if (loop->refresh_rate <= refresh_rate &&
+		    (!best || loop->refresh_rate > best->refresh_rate))
+			best = loop;
+		loop++;
 	}
 
-	if (best)
-		vbios_mode->enh_table = best;
+	if (!best)
+		return false;
+
+	vbios_mode->enh_table = best;
 
 	hborder = (vbios_mode->enh_table->flags & HBorder) ? 8 : 0;
 	vborder = (vbios_mode->enh_table->flags & VBorder) ? 8 : 0;
