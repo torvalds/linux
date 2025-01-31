@@ -46,3 +46,4 @@ gh_virt_wdt.ko
 qcom-cpufreq-hw.ko
 clk-rpmh.ko
 sched-walt.ko
+gic_intr_routing.ko
