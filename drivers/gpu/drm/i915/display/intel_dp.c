@@ -2202,8 +2202,6 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 {
 	const struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
-	int dsc_max_bpp;
-	int dsc_min_bpp;
 	u8 dsc_bpc[3] = {};
 	int forced_bpp, pipe_bpp;
 	int num_bpc, i, ret;
@@ -2219,9 +2217,6 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 		}
 	}
 
-	dsc_max_bpp = limits->pipe.max_bpp;
-	dsc_min_bpp = limits->pipe.min_bpp;
-
 	/*
 	 * Get the maximum DSC bpc that will be supported by any valid
 	 * link configuration and compressed bpp.
@@ -2229,10 +2224,9 @@ static int intel_dp_dsc_compute_pipe_bpp(struct intel_dp *intel_dp,
 	num_bpc = drm_dp_dsc_sink_supported_input_bpcs(connector->dp.dsc_dpcd, dsc_bpc);
 	for (i = 0; i < num_bpc; i++) {
 		pipe_bpp = dsc_bpc[i] * 3;
-		if (pipe_bpp < dsc_min_bpp)
-			break;
-		if (pipe_bpp > dsc_max_bpp)
+		if (pipe_bpp < limits->pipe.min_bpp || pipe_bpp > limits->pipe.max_bpp)
 			continue;
+
 		ret = dsc_compute_compressed_bpp(intel_dp, connector, pipe_config,
 						 limits, pipe_bpp, timeslots);
 		if (ret == 0) {
