@@ -583,6 +583,9 @@ static int i2c_device_probe(struct device *dev)
 		goto err_detach_pm_domain;
 	}
 
+	client->debugfs = debugfs_create_dir(dev_name(&client->dev),
+					     client->adapter->debugfs);
+
 	if (driver->probe)
 		status = driver->probe(client);
 	else
@@ -602,6 +605,7 @@ static int i2c_device_probe(struct device *dev)
 	return 0;
 
 err_release_driver_resources:
+	debugfs_remove_recursive(client->debugfs);
 	devres_release_group(&client->dev, client->devres_group_id);
 err_detach_pm_domain:
 	dev_pm_domain_detach(&client->dev, do_power_on);
@@ -626,6 +630,8 @@ static void i2c_device_remove(struct device *dev)
 
 		driver->remove(client);
 	}
+
+	debugfs_remove_recursive(client->debugfs);
 
 	devres_release_group(&client->dev, client->devres_group_id);
 
@@ -1015,8 +1021,6 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
 	if (status)
 		goto out_remove_swnode;
 
-	client->debugfs = debugfs_create_dir(dev_name(&client->dev), adap->debugfs);
-
 	dev_dbg(&adap->dev, "client [%s] registered with bus id %s\n",
 		client->name, dev_name(&client->dev));
 
@@ -1061,7 +1065,6 @@ void i2c_unregister_device(struct i2c_client *client)
 	if (ACPI_COMPANION(&client->dev))
 		acpi_device_clear_enumerated(ACPI_COMPANION(&client->dev));
 
-	debugfs_remove_recursive(client->debugfs);
 	device_remove_software_node(&client->dev);
 	device_unregister(&client->dev);
 }
