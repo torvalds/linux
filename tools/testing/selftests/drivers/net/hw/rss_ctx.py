@@ -252,6 +252,7 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         try:
             # this targets queue 4, which doesn't exist
             ntuple2 = ethtool_create(cfg, "-N", flow)
+            defer(ethtool, f"-N {cfg.ifname} delete {ntuple2}")
         except CmdExitFailure:
             pass
         else:
@@ -260,6 +261,7 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 1 0")
         # ntuple rule therefore targets queues 1 and 3
         ntuple2 = ethtool_create(cfg, "-N", flow)
+        defer(ethtool, f"-N {cfg.ifname} delete {ntuple2}")
         # should replace existing filter
         ksft_eq(ntuple, ntuple2)
         _send_traffic_check(cfg, port, ctx_ref, { 'target': (1, 3),
