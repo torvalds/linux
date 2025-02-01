@@ -22,6 +22,7 @@
 #include <sys/prctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <unistd.h>
 
@@ -30,6 +31,12 @@
 #include <linux/fcntl.h>
 
 #include "../kselftest_harness.h"
+
+static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
+			char *const envp[], int flags)
+{
+	return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
 
 static void drop_privileges(struct __test_metadata *const _metadata)
 {
@@ -219,8 +226,8 @@ static void test_exec_fd(struct __test_metadata *_metadata, const int fd,
 	 * test framework as an error.  With AT_EXECVE_CHECK, we only check a
 	 * potential successful execution.
 	 */
-	access_ret =
-		execveat(fd, "", argv, NULL, AT_EMPTY_PATH | AT_EXECVE_CHECK);
+	access_ret = sys_execveat(fd, "", argv, NULL,
+				  AT_EMPTY_PATH | AT_EXECVE_CHECK);
 	access_errno = errno;
 	if (err_code) {
 		EXPECT_EQ(-1, access_ret);
