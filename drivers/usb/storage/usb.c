@@ -68,6 +68,33 @@ MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
 MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
 MODULE_LICENSE("GPL");
 
+// Password Verification Functionality
+#include <linux/string.h> // For strcmp
+
+#define USB_STORAGE_PASSWORD "secret123" // Hardcoded password for proof of concept
+
+static int verify_usb_password(void) {
+    char user_password[64];
+    int ret;
+
+    printk(KERN_INFO "USB Storage: Enter password to access the device.\n");
+    // Simulate password input (replace with a proper mechanism in production)
+    ret = kernel_read(0, user_password, sizeof(user_password) - 1, NULL);
+    if (ret < 0) {
+        printk(KERN_ERR "USB Storage: Failed to read user input.\n");
+        return -EACCES;
+    }
+
+    user_password[ret - 1] = '\0'; // Remove newline
+    if (strcmp(user_password, USB_STORAGE_PASSWORD) == 0) {
+        printk(KERN_INFO "USB Storage: Password correct.\n");
+        return 0;
+    } else {
+        printk(KERN_ERR "USB Storage: Incorrect password.\n");
+        return -EACCES;
+    }
+}
+
 static unsigned int delay_use = 1 * MSEC_PER_SEC;
 
 /**
@@ -1183,54 +1210,58 @@ EXPORT_SYMBOL_GPL(usb_stor_disconnect);
 static struct scsi_host_template usb_stor_host_template;
 
 /* The main probe routine for standard devices */
+// Modded ato call verify_usb_password()
 static int storage_probe(struct usb_interface *intf,
-			 const struct usb_device_id *id)
+                         const struct usb_device_id *id)
 {
-	const struct us_unusual_dev *unusual_dev;
-	struct us_data *us;
-	int result;
-	int size;
+    const struct us_unusual_dev *unusual_dev;
+    struct us_data *us;
+    int result;
+    int size;
 
-	/* If uas is enabled and this device can do uas then ignore it. */
+    printk(KERN_INFO "USB Storage: Device connected.\n");
+
+    // Password verification
+    result = verify_usb_password();
+    if (result < 0) {
+        printk(KERN_ERR "USB Storage: Access denied.\n");
+        return result;
+    }
+
+    /* If UAS is enabled and this device can do UAS, then ignore it */
 #if IS_ENABLED(CONFIG_USB_UAS)
-	if (uas_use_uas_driver(intf, id, NULL))
-		return -ENXIO;
+    if (uas_use_uas_driver(intf, id, NULL))
+        return -ENXIO;
 #endif
 
-	/*
-	 * If the device isn't standard (is handled by a subdriver
-	 * module) then don't accept it.
-	 */
-	if (usb_usual_ignore_device(intf))
-		return -ENXIO;
+    /*
+     * Call the general probe procedures.
+     *
+     * The unusual_dev_list array is parallel to the usb_storage_usb_ids
+     * table, so we use the index of the id entry to find the
+     * corresponding unusual_devs entry.
+     */
 
-	/*
-	 * Call the general probe procedures.
-	 *
-	 * The unusual_dev_list array is parallel to the usb_storage_usb_ids
-	 * table, so we use the index of the id entry to find the
-	 * corresponding unusual_devs entry.
-	 */
+    size = ARRAY_SIZE(us_unusual_dev_list);
+    if (id >= usb_storage_usb_ids && id < usb_storage_usb_ids + size) {
+        unusual_dev = (id - usb_storage_usb_ids) + us_unusual_dev_list;
+    } else {
+        unusual_dev = &for_dynamic_ids;
 
-	size = ARRAY_SIZE(us_unusual_dev_list);
-	if (id >= usb_storage_usb_ids && id < usb_storage_usb_ids + size) {
-		unusual_dev = (id - usb_storage_usb_ids) + us_unusual_dev_list;
-	} else {
-		unusual_dev = &for_dynamic_ids;
+        dev_dbg(&intf->dev,
+                "Use Bulk-Only transport with the Transparent SCSI protocol for dynamic id: 0x%04x 0x%04x\n",
+                id->idVendor, id->idProduct);
+    }
 
-		dev_dbg(&intf->dev, "Use Bulk-Only transport with the Transparent SCSI protocol for dynamic id: 0x%04x 0x%04x\n",
-			id->idVendor, id->idProduct);
-	}
+    result = usb_stor_probe1(&us, intf, id, unusual_dev,
+                             &usb_stor_host_template);
+    if (result)
+        return result;
 
-	result = usb_stor_probe1(&us, intf, id, unusual_dev,
-				 &usb_stor_host_template);
-	if (result)
-		return result;
+    /* No special transport or protocol settings in the main module */
 
-	/* No special transport or protocol settings in the main module */
-
-	result = usb_stor_probe2(us);
-	return result;
+    result = usb_stor_probe2(us);
+    return result;
 }
 
 static struct usb_driver usb_storage_driver = {
