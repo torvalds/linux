@@ -94,6 +94,7 @@ static int __debugfs_file_get(struct dentry *dentry, enum dbgfs_get_mode mode)
 		fsd = d_fsd;
 	} else {
 		struct inode *inode = dentry->d_inode;
+		unsigned int methods = 0;
 
 		if (WARN_ON(mode == DBGFS_GET_ALREADY))
 			return -EINVAL;
@@ -106,25 +107,28 @@ static int __debugfs_file_get(struct dentry *dentry, enum dbgfs_get_mode mode)
 			const struct debugfs_short_fops *ops;
 			ops = fsd->short_fops = DEBUGFS_I(inode)->short_fops;
 			if (ops->llseek)
-				fsd->methods |= HAS_LSEEK;
+				methods |= HAS_LSEEK;
 			if (ops->read)
-				fsd->methods |= HAS_READ;
+				methods |= HAS_READ;
 			if (ops->write)
-				fsd->methods |= HAS_WRITE;
+				methods |= HAS_WRITE;
+			fsd->real_fops = NULL;
 		} else {
 			const struct file_operations *ops;
 			ops = fsd->real_fops = DEBUGFS_I(inode)->real_fops;
 			if (ops->llseek)
-				fsd->methods |= HAS_LSEEK;
+				methods |= HAS_LSEEK;
 			if (ops->read)
-				fsd->methods |= HAS_READ;
+				methods |= HAS_READ;
 			if (ops->write)
-				fsd->methods |= HAS_WRITE;
+				methods |= HAS_WRITE;
 			if (ops->unlocked_ioctl)
-				fsd->methods |= HAS_IOCTL;
+				methods |= HAS_IOCTL;
 			if (ops->poll)
-				fsd->methods |= HAS_POLL;
+				methods |= HAS_POLL;
+			fsd->short_fops = NULL;
 		}
+		fsd->methods = methods;
 		refcount_set(&fsd->active_users, 1);
 		init_completion(&fsd->active_users_drained);
 		INIT_LIST_HEAD(&fsd->cancellations);
