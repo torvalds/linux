@@ -3354,10 +3354,7 @@ static bool dct_ecc_enabled(struct amd64_pvt *pvt)
 
 	edac_dbg(3, "Node %d: DRAM ECC %s.\n", nid, str_enabled_disabled(ecc_en));
 
-	if (!ecc_en || !nb_mce_en)
-		return false;
-	else
-		return true;
+	return ecc_en && nb_mce_en;
 }
 
 static bool umc_ecc_enabled(struct amd64_pvt *pvt)
