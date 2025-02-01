@@ -205,28 +205,32 @@ static inline void pgalloc_tag_sub(struct page *page, unsigned int nr)
 	}
 }
 
-static inline struct alloc_tag *pgalloc_tag_get(struct page *page)
+/* Should be called only if mem_alloc_profiling_enabled() */
+static inline struct alloc_tag *__pgalloc_tag_get(struct page *page)
 {
 	struct alloc_tag *tag = NULL;
+	union pgtag_ref_handle handle;
+	union codetag_ref ref;
 
-	if (mem_alloc_profiling_enabled()) {
-		union pgtag_ref_handle handle;
-		union codetag_ref ref;
-
-		if (get_page_tag_ref(page, &ref, &handle)) {
-			alloc_tag_sub_check(&ref);
-			if (ref.ct)
-				tag = ct_to_alloc_tag(ref.ct);
-			put_page_tag_ref(handle);
-		}
+	if (get_page_tag_ref(page, &ref, &handle)) {
+		alloc_tag_sub_check(&ref);
+		if (ref.ct)
+			tag = ct_to_alloc_tag(ref.ct);
+		put_page_tag_ref(handle);
 	}
 
 	return tag;
 }
 
-static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr)
+static inline void pgalloc_tag_sub_pages(struct page *page, unsigned int nr)
 {
-	if (mem_alloc_profiling_enabled() && tag)
+	struct alloc_tag *tag;
+
+	if (!mem_alloc_profiling_enabled())
+		return;
+
+	tag = __pgalloc_tag_get(page);
+	if (tag)
 		this_cpu_sub(tag->counters->bytes, PAGE_SIZE * nr);
 }
 
@@ -241,8 +245,7 @@ static inline void clear_page_tag_ref(struct page *page) {}
 static inline void pgalloc_tag_add(struct page *page, struct task_struct *task,
 				   unsigned int nr) {}
 static inline void pgalloc_tag_sub(struct page *page, unsigned int nr) {}
-static inline struct alloc_tag *pgalloc_tag_get(struct page *page) { return NULL; }
-static inline void pgalloc_tag_sub_pages(struct alloc_tag *tag, unsigned int nr) {}
+static inline void pgalloc_tag_sub_pages(struct page *page, unsigned int nr) {}
 static inline void alloc_tag_sec_init(void) {}
 static inline void pgalloc_tag_split(struct folio *folio, int old_order, int new_order) {}
 static inline void pgalloc_tag_swap(struct folio *new, struct folio *old) {}
