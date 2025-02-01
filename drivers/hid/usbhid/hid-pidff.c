@@ -591,12 +591,9 @@ static void pidff_modify_actuators_state(struct pidff_device *pidff, bool enable
 
 /*
  * Reset the device, stop all effects, enable actuators
- * Refetch pool report
  */
 static void pidff_reset(struct pidff_device *pidff)
 {
-	int i = 0;
-
 	/* We reset twice as sometimes hid_wait_io isn't waiting long enough */
 	pidff_send_device_control(pidff, PID_RESET);
 	pidff_send_device_control(pidff, PID_RESET);
@@ -604,23 +601,29 @@ static void pidff_reset(struct pidff_device *pidff)
 
 	pidff_send_device_control(pidff, PID_STOP_ALL_EFFECTS);
 	pidff_modify_actuators_state(pidff, 1);
+}
 
-	/* pool report is sometimes messed up, refetch it */
-	hid_hw_request(pidff->hid, pidff->reports[PID_POOL], HID_REQ_GET_REPORT);
-	hid_hw_wait(pidff->hid);
+/*
+ * Refetch pool report
+ */
+static void pidff_fetch_pool(struct pidff_device *pidff)
+{
+	if (!pidff->pool[PID_SIMULTANEOUS_MAX].value)
+		return;
 
-	if (pidff->pool[PID_SIMULTANEOUS_MAX].value) {
-		while (pidff->pool[PID_SIMULTANEOUS_MAX].value[0] < 2) {
-			if (i++ > 20) {
-				hid_warn(pidff->hid,
-					 "device reports %d simultaneous effects\n",
-					 pidff->pool[PID_SIMULTANEOUS_MAX].value[0]);
-				break;
-			}
-			hid_dbg(pidff->hid, "pid_pool requested again\n");
-			hid_hw_request(pidff->hid, pidff->reports[PID_POOL],
-					  HID_REQ_GET_REPORT);
-			hid_hw_wait(pidff->hid);
+	int i = 0;
+	while (pidff->pool[PID_SIMULTANEOUS_MAX].value[0] < 2) {
+		hid_dbg(pidff->hid, "pid_pool requested again\n");
+		hid_hw_request(pidff->hid, pidff->reports[PID_POOL],
+				HID_REQ_GET_REPORT);
+		hid_hw_wait(pidff->hid);
+
+		/* break after 20 tries with SIMULTANEOUS_MAX < 2 */
+		if (i++ > 20) {
+			hid_warn(pidff->hid,
+				 "device reports %d simultaneous effects\n",
+				 pidff->pool[PID_SIMULTANEOUS_MAX].value[0]);
+			break;
 		}
 	}
 }
@@ -916,9 +919,7 @@ static void pidff_autocenter(struct pidff_device *pidff, u16 magnitude)
  */
 static void pidff_set_autocenter(struct input_dev *dev, u16 magnitude)
 {
-	struct pidff_device *pidff = dev->ff->private;
-
-	pidff_autocenter(pidff, magnitude);
+	pidff_autocenter(dev->ff->private, magnitude);
 }
 
 /*
@@ -1424,6 +1425,8 @@ int hid_pidff_init_with_quirks(struct hid_device *hid, u32 initial_quirks)
 	if (error)
 		goto fail;
 
+	/* pool report is sometimes messed up, refetch it */
+	pidff_fetch_pool(pidff);
 	pidff_set_gain_report(pidff, U16_MAX);
 	error = pidff_check_autocenter(pidff, dev);
 	if (error)
