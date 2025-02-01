@@ -3262,20 +3262,21 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (use_master_clock)
 		vcpu->hv_clock.flags |= PVCLOCK_TSC_STABLE_BIT;
 
-	if (vcpu->pv_time.active
-#ifdef CONFIG_KVM_XEN
-	 || vcpu->xen.vcpu_info_cache.active
-	 || vcpu->xen.vcpu_time_info_cache.active
-#endif
-	    ) {
+	if (vcpu->pv_time.active) {
+		/*
+		 * GUEST_STOPPED is only supported by kvmclock, and KVM's
+		 * historic behavior is to only process the request if kvmclock
+		 * is active/enabled.
+		 */
 		if (vcpu->pvclock_set_guest_stopped_request) {
 			vcpu->hv_clock.flags |= PVCLOCK_GUEST_STOPPED;
 			vcpu->pvclock_set_guest_stopped_request = false;
 		}
+		kvm_setup_guest_pvclock(v, &vcpu->pv_time, 0, false);
+
+		vcpu->hv_clock.flags &= ~PVCLOCK_GUEST_STOPPED;
 	}
 
-	if (vcpu->pv_time.active)
-		kvm_setup_guest_pvclock(v, &vcpu->pv_time, 0, false);
 #ifdef CONFIG_KVM_XEN
 	if (vcpu->xen.vcpu_info_cache.active)
 		kvm_setup_guest_pvclock(v, &vcpu->xen.vcpu_info_cache,
