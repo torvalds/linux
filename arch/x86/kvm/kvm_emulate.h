@@ -44,6 +44,8 @@ struct x86_instruction_info {
 	u64 dst_val;            /* value of destination operand         */
 	u8  src_bytes;          /* size of source operand               */
 	u8  dst_bytes;          /* size of destination operand          */
+	u8  src_type;		/* type of source operand		*/
+	u8  dst_type;		/* type of destination operand		*/
 	u8  ad_bytes;           /* size of src/dst address              */
 	u64 next_rip;           /* rip following the instruction        */
 };
