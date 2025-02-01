@@ -240,7 +240,8 @@ bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name);
 size_t perf_pmu__num_events(struct perf_pmu *pmu);
 int perf_pmu__for_each_event(struct perf_pmu *pmu, bool skip_duplicate_pmus,
 			     void *state, pmu_event_callback cb);
-bool pmu__name_match(const struct perf_pmu *pmu, const char *pmu_name);
+bool perf_pmu__name_wildcard_match(const struct perf_pmu *pmu, const char *to_match);
+bool perf_pmu__name_no_suffix_match(const struct perf_pmu *pmu, const char *to_match);
 
 /**
  * perf_pmu_is_software - is the PMU a software PMU as in it uses the
@@ -275,7 +276,7 @@ void perf_pmu__warn_invalid_config(struct perf_pmu *pmu, __u64 config,
 				   const char *config_name);
 void perf_pmu__warn_invalid_formats(struct perf_pmu *pmu);
 
-bool perf_pmu__match(const struct perf_pmu *pmu, const char *tok);
+bool perf_pmu__wildcard_match(const struct perf_pmu *pmu, const char *wildcard_to_match);
 
 int perf_pmu__event_source_devices_scnprintf(char *pathname, size_t size);
 int perf_pmu__pathname_scnprintf(char *buf, size_t size,

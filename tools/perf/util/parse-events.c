@@ -1660,7 +1660,7 @@ int parse_events_multi_pmu_add_or_add_pmu(struct parse_events_state *parse_state
 	/* Failed to add, try wildcard expansion of event_or_pmu as a PMU name. */
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
 		if (!parse_events__filter_pmu(parse_state, pmu) &&
-		    perf_pmu__match(pmu, event_or_pmu)) {
+		    perf_pmu__wildcard_match(pmu, event_or_pmu)) {
 			bool auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
 
 			if (!parse_events_add_pmu(parse_state, *listp, pmu,
