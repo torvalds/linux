@@ -794,7 +794,7 @@ static unsigned int alloc_swap_scan_cluster(struct swap_info_struct *si,
 		if (!cluster_scan_range(si, ci, offset, nr_pages, &need_reclaim))
 			continue;
 		if (need_reclaim) {
-			ret = cluster_reclaim_range(si, ci, start, end);
+			ret = cluster_reclaim_range(si, ci, offset, offset + nr_pages);
 			/*
 			 * Reclaim drops ci->lock and cluster could be used
 			 * by another order. Not checking flag as off-list
