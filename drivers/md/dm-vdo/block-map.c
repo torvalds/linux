@@ -1544,7 +1544,7 @@ static void write_page_if_not_dirtied(struct vdo_waiter *waiter, void *context)
 
 static void return_to_pool(struct block_map_zone *zone, struct pooled_vio *vio)
 {
-	return_vio_to_pool(zone->vio_pool, vio);
+	return_vio_to_pool(vio);
 	check_for_drain_complete(zone);
 }
 
@@ -1837,7 +1837,7 @@ static void finish_block_map_page_load(struct vdo_completion *completion)
 
 	if (!vdo_copy_valid_page(vio->data, nonce, pbn, page))
 		vdo_format_block_map_page(page, nonce, pbn, false);
-	return_vio_to_pool(zone->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 
 	/* Release our claim to the load and wake any waiters */
 	release_page_lock(data_vio, "load");
@@ -1851,10 +1851,9 @@ static void handle_io_error(struct vdo_completion *completion)
 	struct vio *vio = as_vio(completion);
 	struct pooled_vio *pooled = container_of(vio, struct pooled_vio, vio);
 	struct data_vio *data_vio = completion->parent;
-	struct block_map_zone *zone = pooled->context;
 
 	vio_record_metadata_io_error(vio);
-	return_vio_to_pool(zone->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 	abort_load(data_vio, result);
 }
 
@@ -2499,7 +2498,7 @@ static void finish_cursor(struct cursor *cursor)
 	struct cursors *cursors = cursor->parent;
 	struct vdo_completion *completion = cursors->completion;
 
-	return_vio_to_pool(cursors->pool, vdo_forget(cursor->vio));
+	return_vio_to_pool(vdo_forget(cursor->vio));
 	if (--cursors->active_roots > 0)
 		return;
 

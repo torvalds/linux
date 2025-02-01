@@ -30,6 +30,8 @@ struct pooled_vio {
 	void *context;
 	/* The list entry used by the pool */
 	struct list_head pool_entry;
+	/* The pool this vio is allocated from */
+	struct vio_pool *pool;
 };
 
 /**
@@ -194,6 +196,6 @@ int __must_check make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t th
 void free_vio_pool(struct vio_pool *pool);
 bool __must_check is_vio_pool_busy(struct vio_pool *pool);
 void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter);
-void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio);
+void return_vio_to_pool(struct pooled_vio *vio);
 
 #endif /* VIO_H */

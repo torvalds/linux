@@ -414,8 +414,7 @@ static void complete_reaping(struct vdo_completion *completion)
 {
 	struct slab_journal *journal = completion->parent;
 
-	return_vio_to_pool(journal->slab->allocator->vio_pool,
-			   vio_as_pooled_vio(as_vio(vdo_forget(completion))));
+	return_vio_to_pool(vio_as_pooled_vio(as_vio(completion)));
 	finish_reaping(journal);
 	reap_slab_journal(journal);
 }
@@ -698,7 +697,7 @@ static void complete_write(struct vdo_completion *completion)
 	sequence_number_t committed = get_committing_sequence_number(pooled);
 
 	list_del_init(&pooled->list_entry);
-	return_vio_to_pool(journal->slab->allocator->vio_pool, vdo_forget(pooled));
+	return_vio_to_pool(pooled);
 
 	if (result != VDO_SUCCESS) {
 		vio_record_metadata_io_error(as_vio(completion));
@@ -1076,7 +1075,7 @@ static void finish_reference_block_write(struct vdo_completion *completion)
 	/* Release the slab journal lock. */
 	adjust_slab_journal_block_reference(&slab->journal,
 					    block->slab_journal_lock_to_release, -1);
-	return_vio_to_pool(slab->allocator->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 
 	/*
 	 * We can't clear the is_writing flag earlier as releasing the slab journal lock may cause
@@ -1170,7 +1169,7 @@ static void handle_io_error(struct vdo_completion *completion)
 	struct vdo_slab *slab = ((struct reference_block *) completion->parent)->slab;
 
 	vio_record_metadata_io_error(vio);
-	return_vio_to_pool(slab->allocator->vio_pool, vio_as_pooled_vio(vio));
+	return_vio_to_pool(vio_as_pooled_vio(vio));
 	slab->active_count--;
 	vdo_enter_read_only_mode(slab->allocator->depot->vdo, result);
 	check_if_slab_drained(slab);
@@ -2242,7 +2241,7 @@ static void finish_reference_block_load(struct vdo_completion *completion)
 	struct vdo_slab *slab = block->slab;
 
 	unpack_reference_block((struct packed_reference_block *) vio->data, block);
-	return_vio_to_pool(slab->allocator->vio_pool, pooled);
+	return_vio_to_pool(pooled);
 	slab->active_count--;
 	clear_provisional_references(block);
 
@@ -2429,7 +2428,7 @@ static void finish_loading_journal(struct vdo_completion *completion)
 		initialize_journal_state(journal);
 	}
 
-	return_vio_to_pool(slab->allocator->vio_pool, vio_as_pooled_vio(vio));
+	return_vio_to_pool(vio_as_pooled_vio(vio));
 	vdo_finish_loading_with_result(&slab->state, allocate_counters_if_clean(slab));
 }
 
@@ -2449,7 +2448,7 @@ static void handle_load_error(struct vdo_completion *completion)
 	struct vio *vio = as_vio(completion);
 
 	vio_record_metadata_io_error(vio);
-	return_vio_to_pool(journal->slab->allocator->vio_pool, vio_as_pooled_vio(vio));
+	return_vio_to_pool(vio_as_pooled_vio(vio));
 	vdo_finish_loading_with_result(&journal->slab->state, result);
 }
 

@@ -345,6 +345,7 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 		}
 
 		pooled->context = context;
+		pooled->pool = pool;
 		list_add_tail(&pooled->pool_entry, &pool->available);
 	}
 
@@ -419,12 +420,13 @@ void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter)
 }
 
 /**
- * return_vio_to_pool() - Return a vio to the pool
- * @pool: The vio pool.
+ * return_vio_to_pool() - Return a vio to its pool
  * @vio: The pooled vio to return.
  */
-void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio)
+void return_vio_to_pool(struct pooled_vio *vio)
 {
+	struct vio_pool *pool = vio->pool;
+
 	VDO_ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
 			    "vio pool entry returned on same thread as it was acquired");
 
