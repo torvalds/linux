@@ -260,7 +260,12 @@ def test_rss_queue_reconfigure(cfg, main_ctx=True):
         # change the table to target queues 0 and 2
         ethtool(f"-X {cfg.ifname} {ctx_ref} weight 1 0 1 0")
         # ntuple rule therefore targets queues 1 and 3
-        ntuple2 = ethtool_create(cfg, "-N", flow)
+        try:
+            ntuple2 = ethtool_create(cfg, "-N", flow)
+        except CmdExitFailure:
+            ksft_pr("Driver does not support rss + queue offset")
+            return
+
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple2}")
         # should replace existing filter
         ksft_eq(ntuple, ntuple2)
