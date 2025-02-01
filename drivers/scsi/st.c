@@ -4703,6 +4703,24 @@ options_show(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR_RO(options);
 
+/**
+ * position_lost_in_reset_show - Value 1 indicates that reads, writes, etc.
+ * are blocked because a device reset has occurred and no operation positioning
+ * the tape has been issued.
+ * @dev: struct device
+ * @attr: attribute structure
+ * @buf: buffer to return formatted data in
+ */
+static ssize_t position_lost_in_reset_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct st_modedef *STm = dev_get_drvdata(dev);
+	struct scsi_tape *STp = STm->tape;
+
+	return sprintf(buf, "%d", STp->pos_unknown);
+}
+static DEVICE_ATTR_RO(position_lost_in_reset);
+
 /* Support for tape stats */
 
 /**
@@ -4887,6 +4905,7 @@ static struct attribute *st_dev_attrs[] = {
 	&dev_attr_default_density.attr,
 	&dev_attr_default_compression.attr,
 	&dev_attr_options.attr,
+	&dev_attr_position_lost_in_reset.attr,
 	NULL,
 };
 
