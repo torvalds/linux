@@ -8007,12 +8007,11 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_check_and_set(X86_FEATURE_WAITPKG);
 }
 
-static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
+static bool vmx_is_io_intercepted(struct kvm_vcpu *vcpu,
 				  struct x86_instruction_info *info)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	unsigned short port;
-	bool intercept;
 	int size;
 
 	if (info->intercept == x86_intercept_in ||
@@ -8032,13 +8031,9 @@ static int vmx_check_intercept_io(struct kvm_vcpu *vcpu,
 	 * Otherwise, IO instruction VM-exits are controlled by the IO bitmaps.
 	 */
 	if (!nested_cpu_has(vmcs12, CPU_BASED_USE_IO_BITMAPS))
-		intercept = nested_cpu_has(vmcs12,
-					   CPU_BASED_UNCOND_IO_EXITING);
-	else
-		intercept = nested_vmx_check_io_bitmaps(vcpu, port, size);
+		return nested_cpu_has(vmcs12, CPU_BASED_UNCOND_IO_EXITING);
 
-	/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
-	return intercept ? X86EMUL_UNHANDLEABLE : X86EMUL_CONTINUE;
+	return nested_vmx_check_io_bitmaps(vcpu, port, size);
 }
 
 int vmx_check_intercept(struct kvm_vcpu *vcpu,
@@ -8067,7 +8062,9 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	case x86_intercept_ins:
 	case x86_intercept_out:
 	case x86_intercept_outs:
-		return vmx_check_intercept_io(vcpu, info);
+		if (!vmx_is_io_intercepted(vcpu, info))
+			return X86EMUL_CONTINUE;
+		break;
 
 	case x86_intercept_lgdt:
 	case x86_intercept_lidt:
@@ -8079,8 +8076,6 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 	case x86_intercept_str:
 		if (!nested_cpu_has2(vmcs12, SECONDARY_EXEC_DESC))
 			return X86EMUL_CONTINUE;
-
-		/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
 		break;
 
 	case x86_intercept_hlt:
@@ -8108,6 +8103,7 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		break;
 	}
 
+	/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
 	return X86EMUL_UNHANDLEABLE;
 }
 
