@@ -3280,6 +3280,8 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		hv_clock.flags &= ~PVCLOCK_GUEST_STOPPED;
 	}
 
+	kvm_hv_setup_tsc_page(v->kvm, &hv_clock);
+
 #ifdef CONFIG_KVM_XEN
 	if (vcpu->xen.vcpu_info_cache.active)
 		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->xen.vcpu_info_cache,
@@ -3289,7 +3291,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->xen.vcpu_time_info_cache, 0,
 					xen_pvclock_tsc_unstable);
 #endif
-	kvm_hv_setup_tsc_page(v->kvm, &hv_clock);
 	return 0;
 }
 
