@@ -4618,7 +4618,7 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
  */
 static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			   u32 vm_exit_reason, u32 exit_intr_info,
-			   unsigned long exit_qualification)
+			   unsigned long exit_qualification, u32 exit_insn_len)
 {
 	/* update exit information fields: */
 	vmcs12->vm_exit_reason = vm_exit_reason;
@@ -4646,7 +4646,7 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 					  vm_exit_reason, exit_intr_info);
 
 		vmcs12->vm_exit_intr_info = exit_intr_info;
-		vmcs12->vm_exit_instruction_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
+		vmcs12->vm_exit_instruction_len = exit_insn_len;
 		vmcs12->vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
 
 		/*
@@ -4930,8 +4930,9 @@ vmabort:
  * and modify vmcs12 to make it see what it would expect to see there if
  * L2 was its real guest. Must only be called when in L2 (is_guest_mode())
  */
-void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
-		       u32 exit_intr_info, unsigned long exit_qualification)
+void __nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
+			 u32 exit_intr_info, unsigned long exit_qualification,
+			 u32 exit_insn_len)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
@@ -4981,7 +4982,8 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 vm_exit_reason,
 
 		if (vm_exit_reason != -1)
 			prepare_vmcs12(vcpu, vmcs12, vm_exit_reason,
-				       exit_intr_info, exit_qualification);
+				       exit_intr_info, exit_qualification,
+				       exit_insn_len);
 
 		/*
 		 * Must happen outside of sync_vmcs02_to_vmcs12() as it will
