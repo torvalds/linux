@@ -56,6 +56,7 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 
+#include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
 #include "pnfs.h"
@@ -285,6 +286,8 @@ static void nfs_direct_read_completion(struct nfs_pgio_header *hdr)
 
 	nfs_direct_count_bytes(dreq, hdr);
 	spin_unlock(&dreq->lock);
+
+	nfs_update_delegated_atime(dreq->inode);
 
 	while (!list_empty(&hdr->pages)) {
 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
@@ -779,6 +782,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 
 	spin_lock(&inode->i_lock);
 	nfs_direct_file_adjust_size_locked(inode, dreq->io_start, dreq->count);
+	nfs_update_delegated_mtime_locked(dreq->inode);
 	spin_unlock(&inode->i_lock);
 
 	while (!list_empty(&hdr->pages)) {
