@@ -119,6 +119,7 @@ struct evsel {
 	bool			errored;
 	bool			needs_auxtrace_mmap;
 	bool			default_metricgroup; /* A member of the Default metricgroup */
+	bool			needs_uniquify;
 	struct hashmap		*per_pkg_mask;
 	int			err;
 	int			script_output_type;
