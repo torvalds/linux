@@ -1041,6 +1041,84 @@ static void kernel_init_pages(struct page *page, int numpages)
 	kasan_enable_current();
 }
 
+#ifdef CONFIG_MEM_ALLOC_PROFILING
+
+/* Should be called only if mem_alloc_profiling_enabled() */
+void __clear_page_tag_ref(struct page *page)
+{
+	union pgtag_ref_handle handle;
+	union codetag_ref ref;
+
+	if (get_page_tag_ref(page, &ref, &handle)) {
+		set_codetag_empty(&ref);
+		update_page_tag_ref(handle, &ref);
+		put_page_tag_ref(handle);
+	}
+}
+
+/* Should be called only if mem_alloc_profiling_enabled() */
+static noinline
+void __pgalloc_tag_add(struct page *page, struct task_struct *task,
+		       unsigned int nr)
+{
+	union pgtag_ref_handle handle;
+	union codetag_ref ref;
+
+	if (get_page_tag_ref(page, &ref, &handle)) {
+		alloc_tag_add(&ref, task->alloc_tag, PAGE_SIZE * nr);
+		update_page_tag_ref(handle, &ref);
+		put_page_tag_ref(handle);
+	}
+}
+
+static inline void pgalloc_tag_add(struct page *page, struct task_struct *task,
+				   unsigned int nr)
+{
+	if (mem_alloc_profiling_enabled())
+		__pgalloc_tag_add(page, task, nr);
+}
+
+/* Should be called only if mem_alloc_profiling_enabled() */
+static noinline
+void __pgalloc_tag_sub(struct page *page, unsigned int nr)
+{
+	union pgtag_ref_handle handle;
+	union codetag_ref ref;
+
+	if (get_page_tag_ref(page, &ref, &handle)) {
+		alloc_tag_sub(&ref, PAGE_SIZE * nr);
+		update_page_tag_ref(handle, &ref);
+		put_page_tag_ref(handle);
+	}
+}
+
+static inline void pgalloc_tag_sub(struct page *page, unsigned int nr)
+{
+	if (mem_alloc_profiling_enabled())
+		__pgalloc_tag_sub(page, nr);
+}
+
+static inline void pgalloc_tag_sub_pages(struct page *page, unsigned int nr)
+{
+	struct alloc_tag *tag;
+
+	if (!mem_alloc_profiling_enabled())
+		return;
+
+	tag = __pgalloc_tag_get(page);
+	if (tag)
+		this_cpu_sub(tag->counters->bytes, PAGE_SIZE * nr);
+}
+
+#else /* CONFIG_MEM_ALLOC_PROFILING */
+
+static inline void pgalloc_tag_add(struct page *page, struct task_struct *task,
+				   unsigned int nr) {}
+static inline void pgalloc_tag_sub(struct page *page, unsigned int nr) {}
+static inline void pgalloc_tag_sub_pages(struct page *page, unsigned int nr) {}
+
+#endif /* CONFIG_MEM_ALLOC_PROFILING */
+
 __always_inline bool free_pages_prepare(struct page *page,
 			unsigned int order)
 {
