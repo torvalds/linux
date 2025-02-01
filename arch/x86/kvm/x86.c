@@ -3178,7 +3178,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	struct kvm_arch *ka = &v->kvm->arch;
 	s64 kernel_ns;
 	u64 tsc_timestamp, host_tsc;
-	u8 pvclock_flags;
 	bool use_master_clock;
 #ifdef CONFIG_KVM_XEN
 	/*
@@ -3261,11 +3260,9 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->last_guest_tsc = tsc_timestamp;
 
 	/* If the host uses TSC clocksource, then it is stable */
-	pvclock_flags = 0;
+	vcpu->hv_clock.flags = 0;
 	if (use_master_clock)
-		pvclock_flags |= PVCLOCK_TSC_STABLE_BIT;
-
-	vcpu->hv_clock.flags = pvclock_flags;
+		vcpu->hv_clock.flags |= PVCLOCK_TSC_STABLE_BIT;
 
 	if (vcpu->pv_time.active)
 		kvm_setup_guest_pvclock(v, &vcpu->pv_time, 0, false);
