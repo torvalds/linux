@@ -144,7 +144,7 @@ rusttestlib-kernel: private rustc_target_flags = --extern ffi \
     --extern bindings --extern uapi
 rusttestlib-kernel: $(src)/kernel/lib.rs \
     rusttestlib-bindings rusttestlib-uapi rusttestlib-build_error \
-    $(obj)/libmacros.so $(obj)/bindings.o FORCE
+    $(obj)/$(libmacros_name) $(obj)/bindings.o FORCE
 	+$(call if_changed,rustc_test_library)
 
 rusttestlib-bindings: private rustc_target_flags = --extern ffi
