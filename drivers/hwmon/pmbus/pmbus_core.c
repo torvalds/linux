@@ -3568,12 +3568,12 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	/*
 	 * Allocate the max possible entries we need.
 	 * device specific:
-	 *	ARRAY_SIZE(pmbus_debugfs_block_data) + 1
+	 *	ARRAY_SIZE(pmbus_debugfs_block_data) + 2
 	 * page specific:
 	 *	ARRAY_SIZE(pmbus_debugfs_status_data) + 1
 	 */
 	entries = devm_kcalloc(data->dev,
-			       ARRAY_SIZE(pmbus_debugfs_block_data) + 1 +
+			       ARRAY_SIZE(pmbus_debugfs_block_data) + 2 +
 			       data->info->pages * (ARRAY_SIZE(pmbus_debugfs_status_data) + 1),
 			       sizeof(*entries), GFP_KERNEL);
 	if (!entries)
@@ -3587,6 +3587,15 @@ static void pmbus_init_debugfs(struct i2c_client *client,
 	 * assume that values of the following registers are the same for all
 	 * pages and report values only for page 0.
 	 */
+	if (!(data->flags & PMBUS_NO_CAPABILITY) &&
+	    pmbus_check_byte_register(client, 0, PMBUS_CAPABILITY)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_CAPABILITY;
+		debugfs_create_file("capability", 0444, debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops);
+	}
 	if (pmbus_check_byte_register(client, 0, PMBUS_REVISION)) {
 		entries[idx].client = client;
 		entries[idx].page = 0;
