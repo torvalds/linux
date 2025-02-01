@@ -45,8 +45,8 @@ static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
 		return -EINVAL;
 	}
 
-	np = of_get_child_by_name(dev->of_node, "zap-shader");
-	if (!of_device_is_available(np)) {
+	np = of_get_available_child_by_name(dev->of_node, "zap-shader");
+	if (!np) {
 		zap_available = false;
 		return -ENODEV;
 	}
