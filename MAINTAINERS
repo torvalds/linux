@@ -19453,7 +19453,7 @@ F:	drivers/misc/fastrpc.c
 F:	include/uapi/misc/fastrpc.h
 
 QUALCOMM HEXAGON ARCHITECTURE
-M:	Brian Cain <bcain@quicinc.com>
+M:	Brian Cain <brian.cain@oss.qualcomm.com>
 L:	linux-hexagon@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bcain/linux.git
