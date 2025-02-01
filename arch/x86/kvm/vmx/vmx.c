@@ -8083,6 +8083,11 @@ int vmx_check_intercept(struct kvm_vcpu *vcpu,
 		/* FIXME: produce nested vmexit and return X86EMUL_INTERCEPTED.  */
 		break;
 
+	case x86_intercept_hlt:
+		if (!nested_cpu_has(vmcs12, CPU_BASED_HLT_EXITING))
+			return X86EMUL_CONTINUE;
+		break;
+
 	case x86_intercept_pause:
 		/*
 		 * PAUSE is a single-byte NOP with a REPE prefix, i.e. collides
