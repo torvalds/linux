@@ -1,0 +1,65 @@
+name: "lint"
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  shellcheck:
+    # This workflow gets injected into other Linux repositories, but we don't
+    # want it to run there.
+    if: ${{ github.repository == 'kernel-patches/vmtest' }}
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        env:
+          SHELLCHECK_OPTS: --severity=warning --exclude=SC1091
+
+  # Ensure some consistency in the formatting.
+  lint:
+    if: ${{ github.repository == 'kernel-patches/vmtest' }}
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run black
+        uses: psf/black@stable
+        with:
+          src: ./.github/scripts
+
+  validate_matrix:
+    if: ${{ github.repository == 'kernel-patches/vmtest' }}
+    name: Validate matrix.py
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_REPOSITORY_OWNER: ${{ matrix.owner }}
+      GITHUB_REPOSITORY: ${{ matrix.repository }}
+      GITHUB_OUTPUT: /dev/stdout
+    strategy:
+      matrix:
+        owner: ['kernel-patches', 'foo']
+        repository: ['bpf', 'vmtest', 'bar']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: run script
+        run: |
+          python3 .github/scripts/matrix.py
+
+  unittests:
+    if: ${{ github.repository == 'kernel-patches/vmtest' }}
+    name: Unittests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Run unittests
+        run: python3 -m unittest scripts/tests/*.py
+        working-directory: .github

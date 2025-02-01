@@ -1,0 +1,31 @@
+From d31a7125891994681503770cff46a119692fb2b9 Mon Sep 17 00:00:00 2001
+From: Andrii Nakryiko <andrii@kernel.org>
+Date: Mon, 11 Dec 2023 17:09:38 -0800
+Subject: [PATCH 1/1] selftests/bpf: work around latest Clang smartness
+
+Work around the issue while we deal with it in the Clang itself.
+See [0].
+
+  [0] https://github.com/llvm/llvm-project/pull/73662#issuecomment-1849281758
+
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+---
+ tools/testing/selftests/bpf/progs/iters.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/bpf/progs/iters.c b/tools/testing/selftests/bpf/progs/iters.c
+index 3aca3dc145b5..929ba6fa2105 100644
+--- a/tools/testing/selftests/bpf/progs/iters.c
++++ b/tools/testing/selftests/bpf/progs/iters.c
+@@ -1420,7 +1420,7 @@ SEC("raw_tp")
+ __success
+ int iter_arr_with_actual_elem_count(const void *ctx)
+ {
+-	int i, n = loop_data.n, sum = 0;
++	unsigned i, n = loop_data.n, sum = 0;
+ 
+ 	if (n > ARRAY_SIZE(loop_data.data))
+ 		return 0;
+-- 
+2.34.1
+

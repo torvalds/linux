@@ -1,0 +1,1 @@
+netcnt              # with kvm enabled, fail with packets unexpected packets: actual 10001 != expected 10000

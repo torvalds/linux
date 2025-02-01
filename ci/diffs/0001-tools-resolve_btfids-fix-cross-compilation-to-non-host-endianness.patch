@@ -1,0 +1,142 @@
+From 3772e6cdb51f21a11df2acf6aa431cc8b9137bfb Mon Sep 17 00:00:00 2001
+From: Viktor Malik <vmalik@redhat.com>
+Date: Tue, 6 Feb 2024 13:46:09 +0100
+Subject: [PATCH 1/2] tools/resolve_btfids: Refactor set sorting with types
+ from btf_ids.h
+
+Instead of using magic offsets to access BTF ID set data, leverage types
+from btf_ids.h (btf_id_set and btf_id_set8) which define the actual
+layout of the data. Thanks to this change, set sorting should also
+continue working if the layout changes.
+
+This requires to sync the definition of 'struct btf_id_set8' from
+include/linux/btf_ids.h to tools/include/linux/btf_ids.h. We don't sync
+the rest of the file at the moment, b/c that would require to also sync
+multiple dependent headers and we don't need any other defs from
+btf_ids.h.
+
+Signed-off-by: Viktor Malik <vmalik@redhat.com>
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+Acked-by: Daniel Xu <dxu@dxuuu.xyz>
+Link: https://lore.kernel.org/bpf/ff7f062ddf6a00815fda3087957c4ce667f50532.1707223196.git.vmalik@redhat.com
+---
+ tools/bpf/resolve_btfids/main.c | 35 ++++++++++++++++++++-------------
+ tools/include/linux/btf_ids.h   |  9 +++++++++
+ 2 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/tools/bpf/resolve_btfids/main.c b/tools/bpf/resolve_btfids/main.c
+index 27a23196d58e..32634f00abba 100644
+--- a/tools/bpf/resolve_btfids/main.c
++++ b/tools/bpf/resolve_btfids/main.c
+@@ -70,6 +70,7 @@
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <errno.h>
++#include <linux/btf_ids.h>
+ #include <linux/rbtree.h>
+ #include <linux/zalloc.h>
+ #include <linux/err.h>
+@@ -78,7 +79,7 @@
+ #include <subcmd/parse-options.h>
+ 
+ #define BTF_IDS_SECTION	".BTF_ids"
+-#define BTF_ID		"__BTF_ID__"
++#define BTF_ID_PREFIX	"__BTF_ID__"
+ 
+ #define BTF_STRUCT	"struct"
+ #define BTF_UNION	"union"
+@@ -161,7 +162,7 @@ static int eprintf(int level, int var, const char *fmt, ...)
+ 
+ static bool is_btf_id(const char *name)
+ {
+-	return name && !strncmp(name, BTF_ID, sizeof(BTF_ID) - 1);
++	return name && !strncmp(name, BTF_ID_PREFIX, sizeof(BTF_ID_PREFIX) - 1);
+ }
+ 
+ static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
+@@ -441,7 +442,7 @@ static int symbols_collect(struct object *obj)
+ 		 * __BTF_ID__TYPE__vfs_truncate__0
+ 		 * prefix =  ^
+ 		 */
+-		prefix = name + sizeof(BTF_ID) - 1;
++		prefix = name + sizeof(BTF_ID_PREFIX) - 1;
+ 
+ 		/* struct */
+ 		if (!strncmp(prefix, BTF_STRUCT, sizeof(BTF_STRUCT) - 1)) {
+@@ -649,19 +650,18 @@ static int cmp_id(const void *pa, const void *pb)
+ static int sets_patch(struct object *obj)
+ {
+ 	Elf_Data *data = obj->efile.idlist;
+-	int *ptr = data->d_buf;
+ 	struct rb_node *next;
+ 
+ 	next = rb_first(&obj->sets);
+ 	while (next) {
+-		unsigned long addr, idx;
++		struct btf_id_set8 *set8;
++		struct btf_id_set *set;
++		unsigned long addr, off;
+ 		struct btf_id *id;
+-		int *base;
+-		int cnt;
+ 
+ 		id   = rb_entry(next, struct btf_id, rb_node);
+ 		addr = id->addr[0];
+-		idx  = addr - obj->efile.idlist_addr;
++		off = addr - obj->efile.idlist_addr;
+ 
+ 		/* sets are unique */
+ 		if (id->addr_cnt != 1) {
+@@ -670,14 +670,21 @@ static int sets_patch(struct object *obj)
+ 			return -1;
+ 		}
+ 
+-		idx = idx / sizeof(int);
+-		base = &ptr[idx] + (id->is_set8 ? 2 : 1);
+-		cnt = ptr[idx];
++		if (id->is_set) {
++			set = data->d_buf + off;
++			qsort(set->ids, set->cnt, sizeof(set->ids[0]), cmp_id);
++		} else {
++			set8 = data->d_buf + off;
++			/*
++			 * Make sure id is at the beginning of the pairs
++			 * struct, otherwise the below qsort would not work.
++			 */
++			BUILD_BUG_ON(set8->pairs != &set8->pairs[0].id);
++			qsort(set8->pairs, set8->cnt, sizeof(set8->pairs[0]), cmp_id);
++		}
+ 
+ 		pr_debug("sorting  addr %5lu: cnt %6d [%s]\n",
+-			 (idx + 1) * sizeof(int), cnt, id->name);
+-
+-		qsort(base, cnt, id->is_set8 ? sizeof(uint64_t) : sizeof(int), cmp_id);
++			 off, id->is_set ? set->cnt : set8->cnt, id->name);
+ 
+ 		next = rb_next(next);
+ 	}
+diff --git a/tools/include/linux/btf_ids.h b/tools/include/linux/btf_ids.h
+index 2f882d5cb30f..72535f00572f 100644
+--- a/tools/include/linux/btf_ids.h
++++ b/tools/include/linux/btf_ids.h
+@@ -8,6 +8,15 @@ struct btf_id_set {
+ 	u32 ids[];
+ };
+ 
++struct btf_id_set8 {
++	u32 cnt;
++	u32 flags;
++	struct {
++		u32 id;
++		u32 flags;
++	} pairs[];
++};
++
+ #ifdef CONFIG_DEBUG_INFO_BTF
+ 
+ #include <linux/compiler.h> /* for __PASTE */
+-- 
+2.39.3
+
+
+

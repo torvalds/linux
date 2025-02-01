@@ -1,0 +1,46 @@
+From faf291ff4beaef8dedebd166f11f815cdee257dc Mon Sep 17 00:00:00 2001
+From: "Masami Hiramatsu (Google)" <mhiramat@kernel.org>
+Date: Wed, 29 Jan 2025 00:29:37 +0900
+Subject: [PATCH 2000/2001] s390: fgraph: Fix to remove
+ ftrace_test_recursion_trylock()
+
+Fix to remove ftrace_test_recursion_trylock() from ftrace_graph_func()
+because commit d576aec24df9 ("fgraph: Get ftrace recursion lock in
+function_graph_enter") has been moved it to function_graph_enter_regs()
+already.
+
+Reported-by: Jiri Olsa <olsajiri@gmail.com>
+Closes: https://lore.kernel.org/all/Z5O0shrdgeExZ2kF@krava/
+Fixes: d576aec24df9 ("fgraph: Get ftrace recursion lock in function_graph_enter")
+Signed-off-by: Masami Hiramatsu (Google) <mhiramat@kernel.org>
+Tested-by: Jiri Olsa <jolsa@kernel.org>
+---
+ arch/s390/kernel/ftrace.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/arch/s390/kernel/ftrace.c b/arch/s390/kernel/ftrace.c
+index c0b2c97efefb..63ba6306632e 100644
+--- a/arch/s390/kernel/ftrace.c
++++ b/arch/s390/kernel/ftrace.c
+@@ -266,18 +266,13 @@ void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
+ 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
+ {
+ 	unsigned long *parent = &arch_ftrace_regs(fregs)->regs.gprs[14];
+-	int bit;
+ 
+ 	if (unlikely(ftrace_graph_is_dead()))
+ 		return;
+ 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+ 		return;
+-	bit = ftrace_test_recursion_trylock(ip, *parent);
+-	if (bit < 0)
+-		return;
+ 	if (!function_graph_enter_regs(*parent, ip, 0, parent, fregs))
+ 		*parent = (unsigned long)&return_to_handler;
+-	ftrace_test_recursion_unlock(bit);
+ }
+ 
+ #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
+-- 
+2.48.1
+

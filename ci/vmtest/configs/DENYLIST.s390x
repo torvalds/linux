@@ -1,0 +1,11 @@
+deny_namespace                           # not yet in bpf denylist
+tc_redirect/tc_redirect_dtime            # very flaky
+lru_bug                                  # not yet in bpf-next denylist
+# Disabled temporarily for a crash.
+# https://lore.kernel.org/bpf/c9923c1d-971d-4022-8dc8-1364e929d34c@gmail.com/
+dummy_st_ops/dummy_init_ptr_arg
+fexit_bpf2bpf
+tailcalls
+trace_ext
+xdp_bpf2bpf
+xdp_metadata

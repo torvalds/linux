@@ -1,0 +1,49 @@
+name: 'run-veristat'
+description: 'Run veristat benchmark'
+inputs:
+  veristat_output:
+    description: 'Veristat output filepath'
+    required: true
+  baseline_name:
+    description: 'Veristat baseline cache name'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.baseline_name }}
+        if-no-files-found: error
+        path: ${{ github.workspace }}/${{ inputs.veristat_output }}
+
+    # For pull request:
+    # - get baseline log from cache
+    # - compare it to current run
+    - if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/cache/restore@v4
+      with:
+        key: ${{ inputs.baseline_name }}
+        restore-keys: |
+          ${{ inputs.baseline_name }}-
+        path: '${{ github.workspace }}/${{ inputs.baseline_name }}'
+
+    - if: ${{ github.event_name == 'pull_request' }}
+      name: Show veristat comparison
+      shell: bash
+      run: ./.github/scripts/compare-veristat-results.sh
+      env:
+        BASELINE_PATH: ${{ github.workspace }}/${{ inputs.baseline_name }}
+        VERISTAT_OUTPUT: ${{ inputs.veristat_output }}
+
+    # For push: just put baseline log to cache
+    - if: ${{ github.event_name == 'push' }}
+      shell: bash
+      run: |
+        mv "${{ github.workspace }}/${{ inputs.veristat_output }}" \
+           "${{ github.workspace }}/${{ inputs.baseline_name }}"
+
+    - if: ${{ github.event_name == 'push' }}
+      uses: actions/cache/save@v4
+      with:
+        key: ${{ inputs.baseline_name }}-${{ github.run_id }}
+        path: '${{ github.workspace }}/${{ inputs.baseline_name }}'

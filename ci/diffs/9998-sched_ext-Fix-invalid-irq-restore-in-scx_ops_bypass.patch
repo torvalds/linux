@@ -1,0 +1,56 @@
+From 10e1d78546b3dd4ea9d773c0b0257064a99211e9 Mon Sep 17 00:00:00 2001
+From: Tejun Heo <tj@kernel.org>
+Date: Wed, 11 Dec 2024 11:01:51 -1000
+Subject: [PATCH] sched_ext: Fix invalid irq restore in scx_ops_bypass()
+
+While adding outer irqsave/restore locking, 0e7ffff1b811 ("scx: Fix raciness
+in scx_ops_bypass()") forgot to convert an inner rq_unlock_irqrestore() to
+rq_unlock() which could re-enable IRQ prematurely leading to the following
+warning:
+
+  raw_local_irq_restore() called with IRQs enabled
+  WARNING: CPU: 1 PID: 96 at kernel/locking/irqflag-debug.c:10 warn_bogus_irq_restore+0x30/0x40
+  ...
+  Sched_ext: create_dsq (enabling)
+  pstate: 60400005 (nZCv daif +PAN -UAO -TCO -DIT -SSBS BTYPE=--)
+  pc : warn_bogus_irq_restore+0x30/0x40
+  lr : warn_bogus_irq_restore+0x30/0x40
+  ...
+  Call trace:
+   warn_bogus_irq_restore+0x30/0x40 (P)
+   warn_bogus_irq_restore+0x30/0x40 (L)
+   scx_ops_bypass+0x224/0x3b8
+   scx_ops_enable.isra.0+0x2c8/0xaa8
+   bpf_scx_reg+0x18/0x30
+  ...
+  irq event stamp: 33739
+  hardirqs last  enabled at (33739): [<ffff8000800b699c>] scx_ops_bypass+0x174/0x3b8
+  hardirqs last disabled at (33738): [<ffff800080d48ad4>] _raw_spin_lock_irqsave+0xb4/0xd8
+
+Drop the stray _irqrestore().
+
+Signed-off-by: Tejun Heo <tj@kernel.org>
+Reported-by: Ihor Solodrai <ihor.solodrai@pm.me>
+Link: http://lkml.kernel.org/r/qC39k3UsonrBYD_SmuxHnZIQLsuuccoCrkiqb_BT7DvH945A1_LZwE4g-5Pu9FcCtqZt4lY1HhIPi0homRuNWxkgo1rgP3bkxa0donw8kV4=@pm.me
+Fixes: 0e7ffff1b811 ("scx: Fix raciness in scx_ops_bypass()")
+Cc: stable@vger.kernel.org # v6.12
+---
+ kernel/sched/ext.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/kernel/sched/ext.c b/kernel/sched/ext.c
+index 7fff1d045477..98519e6d0dcd 100644
+--- a/kernel/sched/ext.c
++++ b/kernel/sched/ext.c
+@@ -4763,7 +4763,7 @@ static void scx_ops_bypass(bool bypass)
+ 		 * sees scx_rq_bypassing() before moving tasks to SCX.
+ 		 */
+ 		if (!scx_enabled()) {
+-			rq_unlock_irqrestore(rq, &rf);
++			rq_unlock(rq, &rf);
+ 			continue;
+ 		}
+ 
+-- 
+2.47.1
+

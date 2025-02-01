@@ -1,0 +1,4 @@
+cgrp_local_storage                  # libbpf: prog 'update_cookie_tracing': failed to attach: ERROR: strerror_r(-524)=22
+core_reloc_btfgen                   # run_core_reloc_tests:FAIL:run_btfgen unexpected error: 32512 (errno 22)
+usdt/multispec                      # usdt_300_bad_attach unexpected pointer: 0x558c63d8f0
+xdp_bonding                         # whole test suite is very unstable on aarch64

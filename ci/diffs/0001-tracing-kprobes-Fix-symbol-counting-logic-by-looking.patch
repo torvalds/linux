@@ -1,0 +1,65 @@
+From 08969a676d234a178ff9f8c67936a2ad98a741eb Mon Sep 17 00:00:00 2001
+From: Andrii Nakryiko <andrii@kernel.org>
+Date: Fri, 27 Oct 2023 16:22:24 -0700
+Subject: [PATCH] tracing/kprobes: Fix symbol counting logic by looking at
+ modules as well
+
+Recent changes to count number of matching symbols when creating
+a kprobe event failed to take into account kernel modules. As such, it
+breaks kprobes on kernel module symbols, by assuming there is no match.
+
+Fix this my calling module_kallsyms_on_each_symbol() in addition to
+kallsyms_on_each_match_symbol() to perform a proper counting.
+
+Cc: Francis Laniel <flaniel@linux.microsoft.com>
+Cc: stable@vger.kernel.org
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>
+Fixes: b022f0c7e404 ("tracing/kprobes: Return EADDRNOTAVAIL when func matches several symbols")
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+---
+ kernel/trace/trace_kprobe.c | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/trace/trace_kprobe.c b/kernel/trace/trace_kprobe.c
+index effcaede4759..1efb27f35963 100644
+--- a/kernel/trace/trace_kprobe.c
++++ b/kernel/trace/trace_kprobe.c
+@@ -714,14 +714,30 @@ static int count_symbols(void *data, unsigned long unused)
+ 	return 0;
+ }
+ 
++struct sym_count_ctx {
++	unsigned int count;
++	const char *name;
++};
++
++static int count_mod_symbols(void *data, const char *name, unsigned long unused)
++{
++	struct sym_count_ctx *ctx = data;
++
++	if (strcmp(name, ctx->name) == 0)
++		ctx->count++;
++
++	return 0;
++}
++
+ static unsigned int number_of_same_symbols(char *func_name)
+ {
+-	unsigned int count;
++	struct sym_count_ctx ctx = { .count = 0, .name = func_name };
++
++	kallsyms_on_each_match_symbol(count_symbols, func_name, &ctx.count);
+ 
+-	count = 0;
+-	kallsyms_on_each_match_symbol(count_symbols, func_name, &count);
++	module_kallsyms_on_each_symbol(NULL, count_mod_symbols, &ctx);
+ 
+-	return count;
++	return ctx.count;
+ }
+ 
+ static int __trace_kprobe_create(int argc, const char *argv[])
+-- 
+2.34.1
+

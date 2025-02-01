@@ -1,0 +1,63 @@
+From bab18c7db44d3aa6c84450095451580922359c7a Mon Sep 17 00:00:00 2001
+From: Ihor Solodrai <ihor.solodrai@pm.me>
+Date: Tue, 7 Jan 2025 23:58:18 +0000
+Subject: [PATCH] selftests/bpf: add -std=gnu11 to BPF_CFLAGS and CFLAGS
+
+Latest versions of GCC BPF use C23 standard by default. This causes
+compilation errors in vmlinux.h due to bool types declarations.
+
+Add -std=gnu11 to BPF_CFLAGS and CFLAGS. This aligns with the version
+of the standard used when building the kernel currently [1].
+
+For more details see the discussions at [2] and [3].
+
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Makefile#n465
+[2] https://lore.kernel.org/bpf/EYcXjcKDCJY7Yb0GGtAAb7nLKPEvrgWdvWpuNzXm2qi6rYMZDixKv5KwfVVMBq17V55xyC-A1wIjrqG3aw-Imqudo9q9X7D7nLU2gWgbN0w=@pm.me/
+[3] https://lore.kernel.org/bpf/20250106202715.1232864-1-ihor.solodrai@pm.me/
+
+CC: Jose E. Marchesi <jose.marchesi@oracle.com>
+Signed-off-by: Ihor Solodrai <ihor.solodrai@pm.me>
+Link: https://lore.kernel.org/r/20250107235813.2964472-1-ihor.solodrai@pm.me
+Signed-off-by: Alexei Starovoitov <ast@kernel.org>
+---
+ tools/testing/selftests/bpf/Makefile | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index d5be2f94deef..ea9cee5de0f8 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -41,7 +41,7 @@ srctree := $(patsubst %/,%,$(dir $(srctree)))
+ srctree := $(patsubst %/,%,$(dir $(srctree)))
+ endif
+ 
+-CFLAGS += -g $(OPT_FLAGS) -rdynamic					\
++CFLAGS += -g $(OPT_FLAGS) -rdynamic -std=gnu11				\
+ 	  -Wall -Werror -fno-omit-frame-pointer				\
+ 	  $(GENFLAGS) $(SAN_CFLAGS) $(LIBELF_CFLAGS)			\
+ 	  -I$(CURDIR) -I$(INCLUDE_DIR) -I$(GENDIR) -I$(LIBDIR)		\
+@@ -447,6 +447,7 @@ CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG),$(CLANG_TARGET_ARCH))
+ BPF_CFLAGS = -g -Wall -Werror -D__TARGET_ARCH_$(SRCARCH) $(MENDIAN)	\
+ 	     -I$(INCLUDE_DIR) -I$(CURDIR) -I$(APIDIR)			\
+ 	     -I$(abspath $(OUTPUT)/../usr/include)			\
++	     -std=gnu11		 					\
+ 	     -fno-strict-aliasing 					\
+ 	     -Wno-compare-distinct-pointer-types
+ # TODO: enable me -Wsign-compare
+@@ -787,9 +788,12 @@ $(OUTPUT)/xdp_features: xdp_features.c $(OUTPUT)/network_helpers.o $(OUTPUT)/xdp
+ 	$(Q)$(CC) $(CFLAGS) $(filter %.a %.o %.c,$^) $(LDLIBS) -o $@
+ 
+ # Make sure we are able to include and link libbpf against c++.
++CXXFLAGS += $(CFLAGS)
++CXXFLAGS := $(subst -D_GNU_SOURCE=,,$(CXXFLAGS))
++CXXFLAGS := $(subst -std=gnu11,-std=gnu++11,$(CXXFLAGS))
+ $(OUTPUT)/test_cpp: test_cpp.cpp $(OUTPUT)/test_core_extern.skel.h $(BPFOBJ)
+ 	$(call msg,CXX,,$@)
+-	$(Q)$(CXX) $(subst -D_GNU_SOURCE=,,$(CFLAGS)) $(filter %.a %.o %.cpp,$^) $(LDLIBS) -o $@
++	$(Q)$(CXX) $(CXXFLAGS) $(filter %.a %.o %.cpp,$^) $(LDLIBS) -o $@
+ 
+ # Benchmark runner
+ $(OUTPUT)/bench_%.o: benchs/bench_%.c bench.h $(BPFOBJ)
+-- 
+2.47.1
+

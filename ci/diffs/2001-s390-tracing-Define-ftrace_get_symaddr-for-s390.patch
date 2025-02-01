@@ -1,0 +1,28 @@
+From 04fce0d606f59a62105729094013c4784492ec7b Mon Sep 17 00:00:00 2001
+From: "Masami Hiramatsu (Google)" <mhiramat@kernel.org>
+Date: Wed, 29 Jan 2025 00:29:48 +0900
+Subject: [PATCH 2001/2001] s390: tracing: Define ftrace_get_symaddr() for s390
+
+Add ftrace_get_symaddr() for s390, which returns the symbol address
+from ftrace's 'ip' parameter.
+
+Signed-off-by: Masami Hiramatsu (Google) <mhiramat@kernel.org>
+---
+ arch/s390/include/asm/ftrace.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/s390/include/asm/ftrace.h b/arch/s390/include/asm/ftrace.h
+index a3b73a4f626e..185331e91f83 100644
+--- a/arch/s390/include/asm/ftrace.h
++++ b/arch/s390/include/asm/ftrace.h
+@@ -51,6 +51,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
+ {
+ 	return addr;
+ }
++#define ftrace_get_symaddr(fentry_ip) ((unsigned long)(fentry_ip))
+ 
+ #include <linux/ftrace_regs.h>
+ 
+-- 
+2.48.1
+

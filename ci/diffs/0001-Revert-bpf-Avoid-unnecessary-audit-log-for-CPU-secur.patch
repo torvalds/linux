@@ -1,0 +1,33 @@
+From 5440a12ac8fb2a8e051c597fcf5d85b427fe612a Mon Sep 17 00:00:00 2001
+From: Andrii Nakryiko <andrii@kernel.org>
+Date: Fri, 13 Oct 2023 12:44:34 -0700
+Subject: [PATCH] Revert "bpf: Avoid unnecessary audit log for CPU security
+ mitigations"
+
+This reverts commit 236334aeec0f93217cf9235f2004e61a0a1a5985.
+---
+ include/linux/bpf.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+index f0891ba24cb1..61bde4520f5c 100644
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -2164,12 +2164,12 @@ static inline bool bpf_allow_uninit_stack(void)
+ 
+ static inline bool bpf_bypass_spec_v1(void)
+ {
+-	return cpu_mitigations_off() || perfmon_capable();
++	return perfmon_capable() || cpu_mitigations_off();
+ }
+ 
+ static inline bool bpf_bypass_spec_v4(void)
+ {
+-	return cpu_mitigations_off() || perfmon_capable();
++	return perfmon_capable() || cpu_mitigations_off();
+ }
+ 
+ int bpf_map_new_fd(struct bpf_map *map, int flags);
+-- 
+2.34.1
+

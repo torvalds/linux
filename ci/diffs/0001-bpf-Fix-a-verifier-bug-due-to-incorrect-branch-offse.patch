@@ -1,0 +1,67 @@
+From dfce9cb3140592b886838e06f3e0c25fea2a9cae Mon Sep 17 00:00:00 2001
+From: Yonghong Song <yonghong.song@linux.dev>
+Date: Thu, 30 Nov 2023 18:46:40 -0800
+Subject: [PATCH 1/1] bpf: Fix a verifier bug due to incorrect branch offset
+ comparison with cpu=v4
+
+Bpf cpu=v4 support is introduced in [1] and Commit 4cd58e9af8b9
+("bpf: Support new 32bit offset jmp instruction") added support for new
+32bit offset jmp instruction. Unfortunately, in function
+bpf_adj_delta_to_off(), for new branch insn with 32bit offset, the offset
+(plus/minor a small delta) compares to 16-bit offset bound
+[S16_MIN, S16_MAX], which caused the following verification failure:
+  $ ./test_progs-cpuv4 -t verif_scale_pyperf180
+  ...
+  insn 10 cannot be patched due to 16-bit range
+  ...
+  libbpf: failed to load object 'pyperf180.bpf.o'
+  scale_test:FAIL:expect_success unexpected error: -12 (errno 12)
+  #405     verif_scale_pyperf180:FAIL
+
+Note that due to recent llvm18 development, the patch [2] (already applied
+in bpf-next) needs to be applied to bpf tree for testing purpose.
+
+The fix is rather simple. For 32bit offset branch insn, the adjusted
+offset compares to [S32_MIN, S32_MAX] and then verification succeeded.
+
+  [1] https://lore.kernel.org/all/20230728011143.3710005-1-yonghong.song@linux.dev
+  [2] https://lore.kernel.org/bpf/20231110193644.3130906-1-yonghong.song@linux.dev
+
+Fixes: 4cd58e9af8b9 ("bpf: Support new 32bit offset jmp instruction")
+Signed-off-by: Yonghong Song <yonghong.song@linux.dev>
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+Link: https://lore.kernel.org/bpf/20231201024640.3417057-1-yonghong.song@linux.dev
+---
+ kernel/bpf/core.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/kernel/bpf/core.c b/kernel/bpf/core.c
+index cd3afe57ece3..fe254ae035fe 100644
+--- a/kernel/bpf/core.c
++++ b/kernel/bpf/core.c
+@@ -371,14 +371,18 @@ static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, s32 end_old,
+ static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
+ 				s32 end_new, s32 curr, const bool probe_pass)
+ {
+-	const s32 off_min = S16_MIN, off_max = S16_MAX;
++	s64 off_min, off_max, off;
+ 	s32 delta = end_new - end_old;
+-	s32 off;
+ 
+-	if (insn->code == (BPF_JMP32 | BPF_JA))
++	if (insn->code == (BPF_JMP32 | BPF_JA)) {
+ 		off = insn->imm;
+-	else
++		off_min = S32_MIN;
++		off_max = S32_MAX;
++	} else {
+ 		off = insn->off;
++		off_min = S16_MIN;
++		off_max = S16_MAX;
++	}
+ 
+ 	if (curr < pos && curr + off + 1 >= end_old)
+ 		off += delta;
+-- 
+2.34.1
+

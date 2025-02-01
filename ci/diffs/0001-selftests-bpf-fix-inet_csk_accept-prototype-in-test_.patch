@@ -1,0 +1,32 @@
+From 0daad0a615e687e1247230f3d0c31ae60ba32314 Mon Sep 17 00:00:00 2001
+From: Andrii Nakryiko <andrii@kernel.org>
+Date: Tue, 28 May 2024 15:29:38 -0700
+Subject: [PATCH bpf-next] selftests/bpf: fix inet_csk_accept prototype in
+ test_sk_storage_tracing.c
+
+Recent kernel change ([0]) changed inet_csk_accept() prototype. Adapt
+progs/test_sk_storage_tracing.c to take that into account.
+
+  [0] 92ef0fd55ac8 ("net: change proto and proto_ops accept type")
+
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+---
+ tools/testing/selftests/bpf/progs/test_sk_storage_tracing.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/bpf/progs/test_sk_storage_tracing.c b/tools/testing/selftests/bpf/progs/test_sk_storage_tracing.c
+index 02e718f06e0f..40531e56776e 100644
+--- a/tools/testing/selftests/bpf/progs/test_sk_storage_tracing.c
++++ b/tools/testing/selftests/bpf/progs/test_sk_storage_tracing.c
+@@ -84,7 +84,7 @@ int BPF_PROG(trace_tcp_connect, struct sock *sk)
+ }
+ 
+ SEC("fexit/inet_csk_accept")
+-int BPF_PROG(inet_csk_accept, struct sock *sk, int flags, int *err, bool kern,
++int BPF_PROG(inet_csk_accept, struct sock *sk, struct proto_accept_arg *arg,
+ 	     struct sock *accepted_sk)
+ {
+ 	set_task_info(accepted_sk);
+-- 
+2.43.0
+

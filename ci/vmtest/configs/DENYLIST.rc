@@ -1,0 +1,3 @@
+send_signal/send_signal_nmi            # PMU events configure correctly but don't trigger NMI's for some reason (AMD nested virt)
+send_signal/send_signal_nmi_thread     # Same as above
+token/obj_priv_implicit_token_envvar   # Unknown root cause, but reliably fails

@@ -1,0 +1,89 @@
+From fe69a1b1b6ed9ffc2c578c63f526026a8ab74f0c Mon Sep 17 00:00:00 2001
+From: Anders Roxell <anders.roxell@linaro.org>
+Date: Thu, 9 Nov 2023 18:43:28 +0100
+Subject: [PATCH] selftests: bpf: xskxceiver: ksft_print_msg: fix format type
+ error
+
+Crossbuilding selftests/bpf for architecture arm64, format specifies
+type error show up like.
+
+xskxceiver.c:912:34: error: format specifies type 'int' but the argument
+has type '__u64' (aka 'unsigned long long') [-Werror,-Wformat]
+ ksft_print_msg("[%s] expected meta_count [%d], got meta_count [%d]\n",
+                                                                ~~
+                                                                %llu
+                __func__, pkt->pkt_nb, meta->count);
+                                       ^~~~~~~~~~~
+xskxceiver.c:929:55: error: format specifies type 'unsigned long long' but
+ the argument has type 'u64' (aka 'unsigned long') [-Werror,-Wformat]
+ ksft_print_msg("Frag invalid addr: %llx len: %u\n", addr, len);
+                                    ~~~~             ^~~~
+
+Fixing the issues by casting to (unsigned long long) and changing the
+specifiers to be %llu from %d and %u, since with u64s it might be %llx
+or %lx, depending on architecture.
+
+Signed-off-by: Anders Roxell <anders.roxell@linaro.org>
+Link: https://lore.kernel.org/r/20231109174328.1774571-1-anders.roxell@linaro.org
+Signed-off-by: Alexei Starovoitov <ast@kernel.org>
+---
+ tools/testing/selftests/bpf/xskxceiver.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/xskxceiver.c b/tools/testing/selftests/bpf/xskxceiver.c
+index 591ca9637b23..b604c570309a 100644
+--- a/tools/testing/selftests/bpf/xskxceiver.c
++++ b/tools/testing/selftests/bpf/xskxceiver.c
+@@ -908,8 +908,9 @@ static bool is_metadata_correct(struct pkt *pkt, void *buffer, u64 addr)
+ 	struct xdp_info *meta = data - sizeof(struct xdp_info);
+ 
+ 	if (meta->count != pkt->pkt_nb) {
+-		ksft_print_msg("[%s] expected meta_count [%d], got meta_count [%d]\n",
+-			       __func__, pkt->pkt_nb, meta->count);
++		ksft_print_msg("[%s] expected meta_count [%d], got meta_count [%llu]\n",
++			       __func__, pkt->pkt_nb,
++			       (unsigned long long)meta->count);
+ 		return false;
+ 	}
+ 
+@@ -926,11 +927,13 @@ static bool is_frag_valid(struct xsk_umem_info *umem, u64 addr, u32 len, u32 exp
+ 
+ 	if (addr >= umem->num_frames * umem->frame_size ||
+ 	    addr + len > umem->num_frames * umem->frame_size) {
+-		ksft_print_msg("Frag invalid addr: %llx len: %u\n", addr, len);
++		ksft_print_msg("Frag invalid addr: %llx len: %u\n",
++			       (unsigned long long)addr, len);
+ 		return false;
+ 	}
+ 	if (!umem->unaligned_mode && addr % umem->frame_size + len > umem->frame_size) {
+-		ksft_print_msg("Frag crosses frame boundary addr: %llx len: %u\n", addr, len);
++		ksft_print_msg("Frag crosses frame boundary addr: %llx len: %u\n",
++			       (unsigned long long)addr, len);
+ 		return false;
+ 	}
+ 
+@@ -1029,7 +1032,8 @@ static int complete_pkts(struct xsk_socket_info *xsk, int batch_size)
+ 			u64 addr = *xsk_ring_cons__comp_addr(&xsk->umem->cq, idx + rcvd - 1);
+ 
+ 			ksft_print_msg("[%s] Too many packets completed\n", __func__);
+-			ksft_print_msg("Last completion address: %llx\n", addr);
++			ksft_print_msg("Last completion address: %llx\n",
++				       (unsigned long long)addr);
+ 			return TEST_FAILURE;
+ 		}
+ 
+@@ -1513,8 +1517,9 @@ static int validate_tx_invalid_descs(struct ifobject *ifobject)
+ 	}
+ 
+ 	if (stats.tx_invalid_descs != ifobject->xsk->pkt_stream->nb_pkts / 2) {
+-		ksft_print_msg("[%s] tx_invalid_descs incorrect. Got [%u] expected [%u]\n",
+-			       __func__, stats.tx_invalid_descs,
++		ksft_print_msg("[%s] tx_invalid_descs incorrect. Got [%llu] expected [%u]\n",
++			       __func__,
++			       (unsigned long long)stats.tx_invalid_descs,
+ 			       ifobject->xsk->pkt_stream->nb_pkts);
+ 		return TEST_FAILURE;
+ 	}
+-- 
+2.34.1
+

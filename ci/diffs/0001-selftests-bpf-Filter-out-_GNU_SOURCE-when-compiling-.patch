@@ -1,0 +1,51 @@
+From 41c24102af7b6236277a214428b203d51a3462df Mon Sep 17 00:00:00 2001
+From: Stanislav Fomichev <sdf@fomichev.me>
+Date: Thu, 25 Jul 2024 14:40:29 -0700
+Subject: [PATCH 1/1] selftests/bpf: Filter out _GNU_SOURCE when compiling
+ test_cpp
+
+Jakub reports build failures when merging linux/master with net tree:
+
+CXX      test_cpp
+In file included from <built-in>:454:
+<command line>:2:9: error: '_GNU_SOURCE' macro redefined [-Werror,-Wmacro-redefined]
+    2 | #define _GNU_SOURCE
+      |         ^
+<built-in>:445:9: note: previous definition is here
+  445 | #define _GNU_SOURCE 1
+
+The culprit is commit cc937dad85ae ("selftests: centralize -D_GNU_SOURCE= to
+CFLAGS in lib.mk") which unconditionally added -D_GNU_SOUCE to CLFAGS.
+Apparently clang++ also unconditionally adds it for the C++ targets [0]
+which causes a conflict. Add small change in the selftests makefile
+to filter it out for test_cpp.
+
+Not sure which tree it should go via, targeting bpf for now, but net
+might be better?
+
+0: https://stackoverflow.com/questions/11670581/why-is-gnu-source-defined-by-default-and-how-to-turn-it-off
+
+Signed-off-by: Stanislav Fomichev <sdf@fomichev.me>
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+Acked-by: Jiri Olsa <jolsa@kernel.org>
+Link: https://lore.kernel.org/bpf/20240725214029.1760809-1-sdf@fomichev.me
+---
+ tools/testing/selftests/bpf/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index dd49c1d23a60..81d4757ecd4c 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -713,7 +713,7 @@ $(OUTPUT)/xdp_features: xdp_features.c $(OUTPUT)/network_helpers.o $(OUTPUT)/xdp
+ # Make sure we are able to include and link libbpf against c++.
+ $(OUTPUT)/test_cpp: test_cpp.cpp $(OUTPUT)/test_core_extern.skel.h $(BPFOBJ)
+ 	$(call msg,CXX,,$@)
+-	$(Q)$(CXX) $(CFLAGS) $(filter %.a %.o %.cpp,$^) $(LDLIBS) -o $@
++	$(Q)$(CXX) $(subst -D_GNU_SOURCE=,,$(CFLAGS)) $(filter %.a %.o %.cpp,$^) $(LDLIBS) -o $@
+ 
+ # Benchmark runner
+ $(OUTPUT)/bench_%.o: benchs/bench_%.c bench.h $(BPFOBJ)
+-- 
+2.43.0
+

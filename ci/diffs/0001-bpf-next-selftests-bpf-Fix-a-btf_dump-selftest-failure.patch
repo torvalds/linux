@@ -1,0 +1,40 @@
+From patchwork Fri Aug  2 18:54:34 2024
+From: Yonghong Song <yonghong.song@linux.dev>
+Subject: [PATCH bpf-next] selftests/bpf: Fix a btf_dump selftest failure
+
+Jakub reported bpf selftest "btf_dump" failure after forwarding to
+v6.11-rc1 with netdev.
+  Error: #33 btf_dump
+  Error: #33/15 btf_dump/btf_dump: var_data
+    btf_dump_data:FAIL:find type id unexpected find type id: actual -2 < expected 0
+
+The reason for the failure is due to
+  commit 94ede2a3e913 ("profiling: remove stale percpu flip buffer variables")
+where percpu static variable "cpu_profile_flip" is removed.
+
+Let us replace "cpu_profile_flip" with a variable in bpf subsystem
+so whenever that variable gets deleted or renamed, we can detect the
+failure immediately. In this case, I picked a static percpu variable
+"bpf_cgrp_storage_busy" which is defined in kernel/bpf/bpf_cgrp_storage.c.
+
+Reported-by: Jakub Kicinski <kuba@kernel.org>
+Signed-off-by: Yonghong Song <yonghong.song@linux.dev>
+---
+ tools/testing/selftests/bpf/prog_tests/btf_dump.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/btf_dump.c b/tools/testing/selftests/bpf/prog_tests/btf_dump.c
+index 09a8e6f9b379..b293b8501fd6 100644
+--- a/tools/testing/selftests/bpf/prog_tests/btf_dump.c
++++ b/tools/testing/selftests/bpf/prog_tests/btf_dump.c
+@@ -805,8 +805,8 @@ static void test_btf_dump_var_data(struct btf *btf, struct btf_dump *d,
+ 	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_number", int, BTF_F_COMPACT,
+ 			  "int cpu_number = (int)100", 100);
+ #endif
+-	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "cpu_profile_flip", int, BTF_F_COMPACT,
+-			  "static int cpu_profile_flip = (int)2", 2);
++	TEST_BTF_DUMP_VAR(btf, d, NULL, str, "bpf_cgrp_storage_busy", int, BTF_F_COMPACT,
++			  "static int bpf_cgrp_storage_busy = (int)2", 2);
+ }
+ 
+ static void test_btf_datasec(struct btf *btf, struct btf_dump *d, char *str,

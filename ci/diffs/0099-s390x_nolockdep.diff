@@ -1,0 +1,48 @@
+From 470d0c7874ac638ea62cddc3a20ec047fa4ab539 Mon Sep 17 00:00:00 2001
+From: Manu Bretelle <chantr4@gmail.com>
+Date: Wed, 14 Feb 2024 17:25:35 -0800
+Subject: [PATCH] bpf/selftests: disable lockdep on s390x
+
+Tests are slow to run on s390x, this should make them faster.
+
+Signed-off-by: Manu Bretelle <chantr4@gmail.com>
+---
+ tools/testing/selftests/bpf/config.s390x | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/config.s390x b/tools/testing/selftests/bpf/config.s390x
+index 706931a8c2c69..67bfd62b0b582 100644
+--- a/tools/testing/selftests/bpf/config.s390x
++++ b/tools/testing/selftests/bpf/config.s390x
+@@ -23,11 +23,11 @@ CONFIG_CPUSETS=y
+ CONFIG_CRASH_DUMP=y
+ CONFIG_CRYPTO_USER_API_RNG=y
+ CONFIG_CRYPTO_USER_API_SKCIPHER=y
+-CONFIG_DEBUG_ATOMIC_SLEEP=y
++CONFIG_DEBUG_ATOMIC_SLEEP=n
+ CONFIG_DEBUG_INFO_BTF=y
+ CONFIG_DEBUG_INFO_DWARF4=y
+ CONFIG_DEBUG_LIST=y
+-CONFIG_DEBUG_LOCKDEP=y
++CONFIG_DEBUG_LOCKDEP=n
+ CONFIG_DEBUG_NOTIFIERS=y
+ CONFIG_DEBUG_PAGEALLOC=y
+ CONFIG_DEBUG_SECTION_MISMATCH=y
+@@ -71,7 +71,7 @@ CONFIG_KRETPROBES=y
+ CONFIG_KSM=y
+ CONFIG_LATENCYTOP=y
+ CONFIG_LIVEPATCH=y
+-CONFIG_LOCK_STAT=y
++CONFIG_LOCK_STAT=n
+ CONFIG_MACVLAN=y
+ CONFIG_MACVTAP=y
+ CONFIG_MAGIC_SYSRQ=y
+@@ -101,7 +101,7 @@ CONFIG_PCI=y
+ CONFIG_POSIX_MQUEUE=y
+ CONFIG_PROC_KCORE=y
+ CONFIG_PROFILING=y
+-CONFIG_PROVE_LOCKING=y
++CONFIG_PROVE_LOCKING=n
+ CONFIG_PTDUMP_DEBUGFS=y
+ CONFIG_RC_DEVICES=y
+ CONFIG_RC_LOOPBACK=y

@@ -1,0 +1,15 @@
+# TEMPORARY
+btf_dump/btf_dump: syntax
+kprobe_multi_bench_attach
+core_reloc/enum64val
+core_reloc/size___diff_sz
+core_reloc/type_based___diff_sz
+test_ima	# All of CI is broken on it following 6.3-rc1 merge
+
+lwt_reroute      # crashes kernel after netnext merge from 2ab1efad60ad "net/sched: cls_api: complement tcf_tfilter_dump_policy"
+tc_links_ingress # started failing after net-next merge from 2ab1efad60ad "net/sched: cls_api: complement tcf_tfilter_dump_policy"
+xdp_bonding/xdp_bonding_features     # started failing after net merge from 359e54a93ab4 "l2tp: pass correct message length to ip6_append_data"
+tc_redirect/tc_redirect_dtime # uapi breakage after net-next commit 885c36e59f46 ("net: Re-use and set mono_delivery_time bit for userspace tstamp packets")
+migrate_reuseport/IPv4 TCP_NEW_SYN_RECV reqsk_timer_handler # flaky, under investigation
+migrate_reuseport/IPv6 TCP_NEW_SYN_RECV reqsk_timer_handler # flaky, under investigation
+connect_force_port # unreliably fails

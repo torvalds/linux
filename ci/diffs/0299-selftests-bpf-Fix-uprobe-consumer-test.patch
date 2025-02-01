@@ -1,0 +1,58 @@
+From affb32e4f056883f285f8535b766293b85752fb4 Mon Sep 17 00:00:00 2001
+From: Jiri Olsa <jolsa@kernel.org>
+Date: Tue, 24 Sep 2024 13:07:30 +0200
+Subject: [PATCH] selftests/bpf: Fix uprobe consumer test
+
+With newly merged code the uprobe behaviour is slightly different
+and affects uprobe consumer test.
+
+We no longer need to check if the uprobe object is still preserved
+after removing last uretprobe, because it stays as long as there's
+pending/installed uretprobe instance.
+
+This allows to run uretprobe consumers registered 'after' uprobe was
+hit even if previous uretprobe got unregistered before being hit.
+
+The uprobe object will be now removed after the last uprobe ref is
+released and in such case it's held by ri->uprobe (return instance)
+which is released after the uretprobe is hit.
+
+Reported-by: Ihor Solodrai <ihor.solodrai@pm.me>
+Signed-off-by: Jiri Olsa <jolsa@kernel.org>
+Signed-off-by: Daniel Borkmann <daniel@iogearbox.net>
+Tested-by: Ihor Solodrai <ihor.solodrai@pm.me>
+Closes: https://lore.kernel.org/bpf/w6U8Z9fdhjnkSp2UaFaV1fGqJXvfLEtDKEUyGDkwmoruDJ_AgF_c0FFhrkeKW18OqiP-05s9yDKiT6X-Ns-avN_ABf0dcUkXqbSJN1TQSXo=@pm.me/
+---
+ .../testing/selftests/bpf/prog_tests/uprobe_multi_test.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/uprobe_multi_test.c b/tools/testing/selftests/bpf/prog_tests/uprobe_multi_test.c
+index 844f6fc8487b..c1ac813ff9ba 100644
+--- a/tools/testing/selftests/bpf/prog_tests/uprobe_multi_test.c
++++ b/tools/testing/selftests/bpf/prog_tests/uprobe_multi_test.c
+@@ -869,21 +869,14 @@ static void consumer_test(struct uprobe_multi_consumers *skel,
+ 			fmt = "prog 0/1: uprobe";
+ 		} else {
+ 			/*
+-			 * uprobe return is tricky ;-)
+-			 *
+ 			 * to trigger uretprobe consumer, the uretprobe needs to be installed,
+ 			 * which means one of the 'return' uprobes was alive when probe was hit:
+ 			 *
+ 			 *   idxs: 2/3 uprobe return in 'installed' mask
+-			 *
+-			 * in addition if 'after' state removes everything that was installed in
+-			 * 'before' state, then uprobe kernel object goes away and return uprobe
+-			 * is not installed and we won't hit it even if it's in 'after' state.
+ 			 */
+ 			unsigned long had_uretprobes  = before & 0b1100; /* is uretprobe installed */
+-			unsigned long probe_preserved = before & after;  /* did uprobe go away */
+ 
+-			if (had_uretprobes && probe_preserved && test_bit(idx, after))
++			if (had_uretprobes && test_bit(idx, after))
+ 				val++;
+ 			fmt = "idx 2/3: uretprobe";
+ 		}
+-- 
+2.34.1
+

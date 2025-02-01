@@ -1,0 +1,41 @@
+From 42839864a62ee244ec280b09149b1cb439f681db Mon Sep 17 00:00:00 2001
+From: Manu Bretelle <chantr4@gmail.com>
+Date: Fri, 27 Oct 2023 18:25:39 -0700
+Subject: [PATCH bpf-next] selftests/bpf: disable detection of llvm when
+ building bpftool
+
+The VMs in which we run the selftests do not have llvm installed.
+We build selftests/bpftool in a host that have llvm.
+bpftool currently will use llvm first and fallback to libbfd but there
+is no way to disable detection from the command line.
+
+Removing it from the feature detection should force us to use libbfd.
+
+Signed-off-by: Manu Bretelle <chantr4@gmail.com>
+---
+ tools/bpf/bpftool/Makefile | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/tools/bpf/bpftool/Makefile b/tools/bpf/bpftool/Makefile
+index e9154ace80ff..01314458e25e 100644
+--- a/tools/bpf/bpftool/Makefile
++++ b/tools/bpf/bpftool/Makefile
+@@ -95,7 +95,6 @@ RM ?= rm -f
+ FEATURE_USER = .bpftool
+ 
+ FEATURE_TESTS := clang-bpf-co-re
+-FEATURE_TESTS += llvm
+ FEATURE_TESTS += libcap
+ FEATURE_TESTS += libbfd
+ FEATURE_TESTS += libbfd-liberty
+@@ -104,7 +103,6 @@ FEATURE_TESTS += disassembler-four-args
+ FEATURE_TESTS += disassembler-init-styled
+ 
+ FEATURE_DISPLAY := clang-bpf-co-re
+-FEATURE_DISPLAY += llvm
+ FEATURE_DISPLAY += libcap
+ FEATURE_DISPLAY += libbfd
+ FEATURE_DISPLAY += libbfd-liberty
+-- 
+2.39.3
+

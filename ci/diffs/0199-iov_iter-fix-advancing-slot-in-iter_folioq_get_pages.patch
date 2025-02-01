@@ -1,0 +1,46 @@
+From 0d24852bd71ec85ca0016b6d6fc997e6a3381552 Mon Sep 17 00:00:00 2001
+From: Omar Sandoval <osandov@fb.com>
+Date: Mon, 30 Sep 2024 11:55:00 -0700
+Subject: [PATCH] iov_iter: fix advancing slot in iter_folioq_get_pages()
+
+iter_folioq_get_pages() decides to advance to the next folioq slot when
+it has reached the end of the current folio. However, it is checking
+offset, which is the beginning of the current part, instead of
+iov_offset, which is adjusted to the end of the current part, so it
+doesn't advance the slot when it's supposed to. As a result, on the next
+iteration, we'll use the same folio with an out-of-bounds offset and
+return an unrelated page.
+
+This manifested as various crashes and other failures in 9pfs in drgn's
+VM testing setup and BPF CI.
+
+Fixes: db0aa2e9566f ("mm: Define struct folio_queue and ITER_FOLIOQ to handle a sequence of folios")
+Link: https://lore.kernel.org/linux-fsdevel/20240923183432.1876750-1-chantr4@gmail.com/
+Tested-by: Manu Bretelle <chantr4@gmail.com>
+Signed-off-by: Omar Sandoval <osandov@fb.com>
+Link: https://lore.kernel.org/r/cbaf141ba6c0e2e209717d02746584072844841a.1727722269.git.osandov@fb.com
+Tested-by: Eduard Zingerman <eddyz87@gmail.com>
+Tested-by: Leon Romanovsky <leon@kernel.org>
+Tested-by: Joey Gouly <joey.gouly@arm.com>
+Acked-by: David Howells <dhowells@redhat.com>
+Signed-off-by: Christian Brauner <brauner@kernel.org>
+---
+ lib/iov_iter.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/iov_iter.c b/lib/iov_iter.c
+index 97003155b..1abb32c0d 100644
+--- a/lib/iov_iter.c
++++ b/lib/iov_iter.c
+@@ -1033,7 +1033,7 @@ static ssize_t iter_folioq_get_pages(struct iov_iter *iter,
+ 		if (maxpages == 0 || extracted >= maxsize)
+ 			break;
+ 
+-		if (offset >= fsize) {
++		if (iov_offset >= fsize) {
+ 			iov_offset = 0;
+ 			slot++;
+ 			if (slot == folioq_nr_slots(folioq) && folioq->next) {
+-- 
+2.34.1
+

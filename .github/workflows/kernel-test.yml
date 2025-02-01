@@ -1,0 +1,88 @@
+name: Reusable test workflow
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+        description: The architecture to build against, e.g x86_64, aarch64, s390x...
+      toolchain_full:
+        required: true
+        type: string
+        description: The toolchain and for llvm, its version, e.g gcc, llvm-15
+      runs_on:
+        required: true
+        type: string
+        description: The runners to run the test on. This is a json string representing an array of labels.
+      kernel:
+        required: true
+        type: string
+        description: The kernel to run the test against. For KPD this is always LATEST, which runs against a newly built kernel.
+      test:
+        required: true
+        type: string
+        description: The test to run in the vm, e.g test_progs, test_maps, test_progs_no_alu32...
+      continue_on_error:
+        required: true
+        type: string
+        description: Whether to continue on error. This is typically set to true for parallel tests which are currently known to fail, but we don't want to fail the whole CI because of that.
+      timeout_minutes:
+        required: true
+        type: number
+        description: In case a test runs for too long, after how many seconds shall we timeout and error.
+
+jobs:
+  test:
+    name: ${{ inputs.test }} on ${{ inputs.arch }} with ${{ inputs.toolchain_full }}
+    runs-on: ${{ fromJSON(inputs.runs_on) }}
+    timeout-minutes: 100
+    env:
+      ARCH: ${{ inputs.arch }}
+      KERNEL: ${{ inputs.kernel }}
+      REPO_ROOT: ${{ github.workspace }}
+      REPO_PATH: ""
+      # https://github.com/actions/runner/issues/1483#issuecomment-1031671517
+      # booleans are weird in GH.
+      CONTINUE_ON_ERROR: ${{ inputs.continue_on_error }}
+      DEPLOYMENT: ${{ github.repository == 'kernel-patches/bpf' && 'prod' || 'rc' }}
+      ALLOWLIST_FILE: /tmp/allowlist
+      DENYLIST_FILE: /tmp/denylist
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}
+          path: .
+
+      - name: Untar artifacts
+        # zstd is installed by default in the runner images.
+        run: zstd -d -T0  vmlinux-${{ inputs.arch }}-${{ inputs.toolchain_full }}.tar.zst --stdout | tar -xf -
+
+      - name: Run selftests
+        uses: libbpf/ci/run-vmtest@v3
+        # https://github.com/actions/runner/issues/1483#issuecomment-1031671517
+        # booleans are weird in GH.
+        continue-on-error: ${{ fromJSON(env.CONTINUE_ON_ERROR) }}
+        timeout-minutes: ${{ inputs.timeout_minutes }}
+        env:
+          ARCH: ${{ inputs.arch }}
+          DEPLOYMENT: ${{ env.DEPLOYMENT }}
+          KERNEL_TEST: ${{ inputs.test }}
+          SELFTESTS_BPF: ${{ github.workspace }}/selftests/bpf
+          VMTEST_CONFIGS: ${{ github.workspace }}/ci/vmtest/configs
+          TEST_PROGS_WATCHDOG_TIMEOUT: 300
+        with:
+          arch: ${{ inputs.arch }}
+          vmlinuz: '${{ github.workspace }}/vmlinuz'
+          kernel-root: ${{ env.REPO_ROOT }}
+          max-cpu: 8
+          kernel-test: ${{ inputs.test }}
+          # Here we must use kbuild-output local to the repo, because
+          # it was extracted from the artifacts.
+          kbuild-output: ${{ env.REPO_ROOT }}/kbuild-output

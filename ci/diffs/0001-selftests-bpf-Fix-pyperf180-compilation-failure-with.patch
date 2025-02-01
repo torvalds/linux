@@ -1,0 +1,78 @@
+From 100888fb6d8a185866b1520031ee7e3182b173de Mon Sep 17 00:00:00 2001
+From: Yonghong Song <yonghong.song@linux.dev>
+Date: Fri, 10 Nov 2023 11:36:44 -0800
+Subject: [PATCH] selftests/bpf: Fix pyperf180 compilation failure with clang18
+
+With latest clang18 (main branch of llvm-project repo), when building bpf selftests,
+    [~/work/bpf-next (master)]$ make -C tools/testing/selftests/bpf LLVM=1 -j
+
+The following compilation error happens:
+    fatal error: error in backend: Branch target out of insn range
+    ...
+    Stack dump:
+    0.      Program arguments: clang -g -Wall -Werror -D__TARGET_ARCH_x86 -mlittle-endian
+      -I/home/yhs/work/bpf-next/tools/testing/selftests/bpf/tools/include
+      -I/home/yhs/work/bpf-next/tools/testing/selftests/bpf -I/home/yhs/work/bpf-next/tools/include/uapi
+      -I/home/yhs/work/bpf-next/tools/testing/selftests/usr/include -idirafter
+      /home/yhs/work/llvm-project/llvm/build.18/install/lib/clang/18/include -idirafter /usr/local/include
+      -idirafter /usr/include -Wno-compare-distinct-pointer-types -DENABLE_ATOMICS_TESTS -O2 --target=bpf
+      -c progs/pyperf180.c -mcpu=v3 -o /home/yhs/work/bpf-next/tools/testing/selftests/bpf/pyperf180.bpf.o
+    1.      <eof> parser at end of file
+    2.      Code generation
+    ...
+
+The compilation failure only happens to cpu=v2 and cpu=v3. cpu=v4 is okay
+since cpu=v4 supports 32-bit branch target offset.
+
+The above failure is due to upstream llvm patch [1] where some inlining behavior
+are changed in clang18.
+
+To workaround the issue, previously all 180 loop iterations are fully unrolled.
+The bpf macro __BPF_CPU_VERSION__ (implemented in clang18 recently) is used to avoid
+unrolling changes if cpu=v4. If __BPF_CPU_VERSION__ is not available and the
+compiler is clang18, the unrollng amount is unconditionally reduced.
+
+  [1] https://github.com/llvm/llvm-project/commit/1a2e77cf9e11dbf56b5720c607313a566eebb16e
+
+Signed-off-by: Yonghong Song <yonghong.song@linux.dev>
+Signed-off-by: Andrii Nakryiko <andrii@kernel.org>
+Tested-by: Alan Maguire <alan.maguire@oracle.com>
+Link: https://lore.kernel.org/bpf/20231110193644.3130906-1-yonghong.song@linux.dev
+---
+ tools/testing/selftests/bpf/progs/pyperf180.c | 22 +++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/tools/testing/selftests/bpf/progs/pyperf180.c b/tools/testing/selftests/bpf/progs/pyperf180.c
+index c39f559d3100..42c4a8b62e36 100644
+--- a/tools/testing/selftests/bpf/progs/pyperf180.c
++++ b/tools/testing/selftests/bpf/progs/pyperf180.c
+@@ -1,4 +1,26 @@
+ // SPDX-License-Identifier: GPL-2.0
+ // Copyright (c) 2019 Facebook
+ #define STACK_MAX_LEN 180
++
++/* llvm upstream commit at clang18
++ *   https://github.com/llvm/llvm-project/commit/1a2e77cf9e11dbf56b5720c607313a566eebb16e
++ * changed inlining behavior and caused compilation failure as some branch
++ * target distance exceeded 16bit representation which is the maximum for
++ * cpu v1/v2/v3. Macro __BPF_CPU_VERSION__ is later implemented in clang18
++ * to specify which cpu version is used for compilation. So a smaller
++ * unroll_count can be set if __BPF_CPU_VERSION__ is less than 4, which
++ * reduced some branch target distances and resolved the compilation failure.
++ *
++ * To capture the case where a developer/ci uses clang18 but the corresponding
++ * repo checkpoint does not have __BPF_CPU_VERSION__, a smaller unroll_count
++ * will be set as well to prevent potential compilation failures.
++ */
++#ifdef __BPF_CPU_VERSION__
++#if __BPF_CPU_VERSION__ < 4
++#define UNROLL_COUNT 90
++#endif
++#elif __clang_major__ == 18
++#define UNROLL_COUNT 90
++#endif
++
+ #include "pyperf.h"
+-- 
+2.34.1
+

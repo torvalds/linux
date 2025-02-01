@@ -1,0 +1,65 @@
+name: veristat_kernel
+
+on:
+  workflow_call:
+    inputs:
+      arch:
+        required: true
+        type: string
+        description: The architecture to build against, e.g x86_64, aarch64, s390x...
+      toolchain:
+        required: true
+        type: string
+        description: The toolchain, e.g gcc, llvm
+      runs_on:
+        required: true
+        type: string
+        description: The runners to run the test on. This is a json string representing an array of labels.
+
+jobs:
+  veristat:
+    name: ${{ inputs.arch }}-${{ inputs.toolchain }} veristat_kernel
+    runs-on: ${{ fromJSON(inputs.runs_on) }}
+    timeout-minutes: 100
+    permissions:
+        id-token: write
+        contents: read
+    env:
+      KERNEL: LATEST
+      REPO_ROOT: ${{ github.workspace }}
+      REPO_PATH: ""
+      KBUILD_OUTPUT: kbuild-output/
+      ARCH_AND_TOOL: ${{ inputs.arch }}-${{ inputs.toolchain }}
+
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            ci
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vmlinux-${{ env.ARCH_AND_TOOL }}
+          path: .
+
+      - name: Untar artifacts
+        run: zstd -d -T0  vmlinux-${{ env.ARCH_AND_TOOL }}.tar.zst --stdout | tar -xf -
+
+      - name: Run veristat
+        uses: libbpf/ci/run-vmtest@v3
+        with:
+          arch: x86_64
+          vmlinuz: '${{ github.workspace }}/vmlinuz'
+          kernel-root: '.'
+          max-cpu: 8
+          kernel-test: 'run_veristat_kernel'
+          output-dir: '${{ github.workspace }}'
+
+      - name: Compare and save veristat.kernel.csv
+        uses: ./.github/actions/veristat_baseline_compare
+        with:
+          veristat_output: veristat-kernel
+          baseline_name: ${{ env.ARCH_AND_TOOL}}-baseline-veristat-kernel
+

@@ -1,0 +1,13 @@
+diff --git a/tools/testing/selftests/bpf/Makefile b/tools/testing/selftests/bpf/Makefile
+index a38a3001527c..af68528cc944 100644
+--- a/tools/testing/selftests/bpf/Makefile
++++ b/tools/testing/selftests/bpf/Makefile
+@@ -304,7 +304,7 @@ $(OUTPUT)/test_maps: $(TESTING_HELPERS)
+ $(OUTPUT)/test_verifier: $(TESTING_HELPERS) $(CAP_HELPERS) $(UNPRIV_HELPERS)
+ $(OUTPUT)/xsk.o: $(BPFOBJ)
+ 
+-BPFTOOL ?= $(DEFAULT_BPFTOOL)
++BPFTOOL ?= $(TRUNNER_BPFTOOL)
+ $(DEFAULT_BPFTOOL): $(wildcard $(BPFTOOLDIR)/*.[ch] $(BPFTOOLDIR)/Makefile)    \
+ 		    $(HOST_BPFOBJ) | $(HOST_BUILD_DIR)/bpftool
+ 	$(Q)$(MAKE) $(submake_extras)  -C $(BPFTOOLDIR)			       \

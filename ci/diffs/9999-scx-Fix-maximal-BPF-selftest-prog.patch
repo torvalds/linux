@@ -1,0 +1,56 @@
+From 70414cacbe536a197d56f58a42f9563e5a01b8ec Mon Sep 17 00:00:00 2001
+From: David Vernet <void@manifault.com>
+Date: Mon, 9 Dec 2024 09:29:24 -0600
+Subject: [PATCH] scx: Fix maximal BPF selftest prog
+
+maximal.bpf.c is still dispatching to and consuming from SCX_DSQ_GLOBAL.
+Let's have it use its own DSQ to avoid any runtime errors.
+
+Signed-off-by: David Vernet <void@manifault.com>
+---
+ tools/testing/selftests/sched_ext/maximal.bpf.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/tools/testing/selftests/sched_ext/maximal.bpf.c b/tools/testing/selftests/sched_ext/maximal.bpf.c
+index 4c005fa71810..430f5e13bf55 100644
+--- a/tools/testing/selftests/sched_ext/maximal.bpf.c
++++ b/tools/testing/selftests/sched_ext/maximal.bpf.c
+@@ -12,6 +12,8 @@
+ 
+ char _license[] SEC("license") = "GPL";
+ 
++#define DSQ_ID 0
++
+ s32 BPF_STRUCT_OPS(maximal_select_cpu, struct task_struct *p, s32 prev_cpu,
+ 		   u64 wake_flags)
+ {
+@@ -20,7 +22,7 @@ s32 BPF_STRUCT_OPS(maximal_select_cpu, struct task_struct *p, s32 prev_cpu,
+ 
+ void BPF_STRUCT_OPS(maximal_enqueue, struct task_struct *p, u64 enq_flags)
+ {
+-	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, DSQ_ID, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ void BPF_STRUCT_OPS(maximal_dequeue, struct task_struct *p, u64 deq_flags)
+@@ -28,7 +30,7 @@ void BPF_STRUCT_OPS(maximal_dequeue, struct task_struct *p, u64 deq_flags)
+ 
+ void BPF_STRUCT_OPS(maximal_dispatch, s32 cpu, struct task_struct *prev)
+ {
+-	scx_bpf_dsq_move_to_local(SCX_DSQ_GLOBAL);
++	scx_bpf_dsq_move_to_local(DSQ_ID);
+ }
+ 
+ void BPF_STRUCT_OPS(maximal_runnable, struct task_struct *p, u64 enq_flags)
+@@ -123,7 +125,7 @@ void BPF_STRUCT_OPS(maximal_cgroup_set_weight, struct cgroup *cgrp, u32 weight)
+ 
+ s32 BPF_STRUCT_OPS_SLEEPABLE(maximal_init)
+ {
+-	return 0;
++	return scx_bpf_create_dsq(DSQ_ID, -1);
+ }
+ 
+ void BPF_STRUCT_OPS(maximal_exit, struct scx_exit_info *info)
+-- 
+2.47.1
+

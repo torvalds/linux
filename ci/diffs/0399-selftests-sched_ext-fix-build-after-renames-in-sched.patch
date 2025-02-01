@@ -1,0 +1,231 @@
+From 5565144e82b97c5d2082ab19866836dfe5b2e592 Mon Sep 17 00:00:00 2001
+From: Ihor Solodrai <ihor.solodrai@pm.me>
+Date: Thu, 21 Nov 2024 13:20:46 -0800
+Subject: [PATCH] selftests/sched_ext: fix build after renames in sched_ext API
+
+The selftests are falining to build on current tip of bpf-next and
+sched_ext [1]. This has broken BPF CI [2] after merge from upstream.
+
+Use appropriate function names in the selftests according to the
+recent changes in the sched_ext API [3].
+
+[1]
+https://git.kernel.org/pub/scm/linux/kernel/git/bpf/bpf-next.git/commit/?id=fc39fb56917bb3cb53e99560ca3612a84456ada2
+[2] https://github.com/kernel-patches/bpf/actions/runs/11959327258/job/33340923745
+[3] https://lore.kernel.org/all/20241109194853.580310-1-tj@kernel.org/
+
+Signed-off-by: Ihor Solodrai <ihor.solodrai@pm.me>
+---
+ .../testing/selftests/sched_ext/ddsp_bogus_dsq_fail.bpf.c | 2 +-
+ .../selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c        | 4 ++--
+ tools/testing/selftests/sched_ext/dsp_local_on.bpf.c      | 2 +-
+ .../selftests/sched_ext/enq_select_cpu_fails.bpf.c        | 2 +-
+ tools/testing/selftests/sched_ext/exit.bpf.c              | 4 ++--
+ tools/testing/selftests/sched_ext/maximal.bpf.c           | 4 ++--
+ tools/testing/selftests/sched_ext/select_cpu_dfl.bpf.c    | 2 +-
+ .../selftests/sched_ext/select_cpu_dfl_nodispatch.bpf.c   | 2 +-
+ .../testing/selftests/sched_ext/select_cpu_dispatch.bpf.c | 2 +-
+ .../selftests/sched_ext/select_cpu_dispatch_bad_dsq.bpf.c | 2 +-
+ .../selftests/sched_ext/select_cpu_dispatch_dbl_dsp.bpf.c | 4 ++--
+ tools/testing/selftests/sched_ext/select_cpu_vtime.bpf.c  | 8 ++++----
+ 12 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/tools/testing/selftests/sched_ext/ddsp_bogus_dsq_fail.bpf.c b/tools/testing/selftests/sched_ext/ddsp_bogus_dsq_fail.bpf.c
+index 37d9bf6fb745..6f4c3f5a1c5d 100644
+--- a/tools/testing/selftests/sched_ext/ddsp_bogus_dsq_fail.bpf.c
++++ b/tools/testing/selftests/sched_ext/ddsp_bogus_dsq_fail.bpf.c
+@@ -20,7 +20,7 @@ s32 BPF_STRUCT_OPS(ddsp_bogus_dsq_fail_select_cpu, struct task_struct *p,
+ 		 * If we dispatch to a bogus DSQ that will fall back to the
+ 		 * builtin global DSQ, we fail gracefully.
+ 		 */
+-		scx_bpf_dispatch_vtime(p, 0xcafef00d, SCX_SLICE_DFL,
++		scx_bpf_dsq_insert_vtime(p, 0xcafef00d, SCX_SLICE_DFL,
+ 				       p->scx.dsq_vtime, 0);
+ 		return cpu;
+ 	}
+diff --git a/tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c b/tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c
+index dffc97d9cdf1..e4a55027778f 100644
+--- a/tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c
++++ b/tools/testing/selftests/sched_ext/ddsp_vtimelocal_fail.bpf.c
+@@ -17,8 +17,8 @@ s32 BPF_STRUCT_OPS(ddsp_vtimelocal_fail_select_cpu, struct task_struct *p,
+ 
+ 	if (cpu >= 0) {
+ 		/* Shouldn't be allowed to vtime dispatch to a builtin DSQ. */
+-		scx_bpf_dispatch_vtime(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL,
+-				       p->scx.dsq_vtime, 0);
++		scx_bpf_dsq_insert_vtime(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL,
++					 p->scx.dsq_vtime, 0);
+ 		return cpu;
+ 	}
+ 
+diff --git a/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c b/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
+index 6a7db1502c29..6325bf76f47e 100644
+--- a/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
++++ b/tools/testing/selftests/sched_ext/dsp_local_on.bpf.c
+@@ -45,7 +45,7 @@ void BPF_STRUCT_OPS(dsp_local_on_dispatch, s32 cpu, struct task_struct *prev)
+ 
+ 	target = bpf_get_prandom_u32() % nr_cpus;
+ 
+-	scx_bpf_dispatch(p, SCX_DSQ_LOCAL_ON | target, SCX_SLICE_DFL, 0);
++	scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL_ON | target, SCX_SLICE_DFL, 0);
+ 	bpf_task_release(p);
+ }
+ 
+diff --git a/tools/testing/selftests/sched_ext/enq_select_cpu_fails.bpf.c b/tools/testing/selftests/sched_ext/enq_select_cpu_fails.bpf.c
+index 1efb50d61040..a7cf868d5e31 100644
+--- a/tools/testing/selftests/sched_ext/enq_select_cpu_fails.bpf.c
++++ b/tools/testing/selftests/sched_ext/enq_select_cpu_fails.bpf.c
+@@ -31,7 +31,7 @@ void BPF_STRUCT_OPS(enq_select_cpu_fails_enqueue, struct task_struct *p,
+ 	/* Can only call from ops.select_cpu() */
+ 	scx_bpf_select_cpu_dfl(p, 0, 0, &found);
+ 
+-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ SEC(".struct_ops.link")
+diff --git a/tools/testing/selftests/sched_ext/exit.bpf.c b/tools/testing/selftests/sched_ext/exit.bpf.c
+index d75d4faf07f6..4bc36182d3ff 100644
+--- a/tools/testing/selftests/sched_ext/exit.bpf.c
++++ b/tools/testing/selftests/sched_ext/exit.bpf.c
+@@ -33,7 +33,7 @@ void BPF_STRUCT_OPS(exit_enqueue, struct task_struct *p, u64 enq_flags)
+ 	if (exit_point == EXIT_ENQUEUE)
+ 		EXIT_CLEANLY();
+ 
+-	scx_bpf_dispatch(p, DSQ_ID, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, DSQ_ID, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ void BPF_STRUCT_OPS(exit_dispatch, s32 cpu, struct task_struct *p)
+@@ -41,7 +41,7 @@ void BPF_STRUCT_OPS(exit_dispatch, s32 cpu, struct task_struct *p)
+ 	if (exit_point == EXIT_DISPATCH)
+ 		EXIT_CLEANLY();
+ 
+-	scx_bpf_consume(DSQ_ID);
++	scx_bpf_dsq_move_to_local(DSQ_ID);
+ }
+ 
+ void BPF_STRUCT_OPS(exit_enable, struct task_struct *p)
+diff --git a/tools/testing/selftests/sched_ext/maximal.bpf.c b/tools/testing/selftests/sched_ext/maximal.bpf.c
+index 4d4cd8d966db..4c005fa71810 100644
+--- a/tools/testing/selftests/sched_ext/maximal.bpf.c
++++ b/tools/testing/selftests/sched_ext/maximal.bpf.c
+@@ -20,7 +20,7 @@ s32 BPF_STRUCT_OPS(maximal_select_cpu, struct task_struct *p, s32 prev_cpu,
+ 
+ void BPF_STRUCT_OPS(maximal_enqueue, struct task_struct *p, u64 enq_flags)
+ {
+-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ void BPF_STRUCT_OPS(maximal_dequeue, struct task_struct *p, u64 deq_flags)
+@@ -28,7 +28,7 @@ void BPF_STRUCT_OPS(maximal_dequeue, struct task_struct *p, u64 deq_flags)
+ 
+ void BPF_STRUCT_OPS(maximal_dispatch, s32 cpu, struct task_struct *prev)
+ {
+-	scx_bpf_consume(SCX_DSQ_GLOBAL);
++	scx_bpf_dsq_move_to_local(SCX_DSQ_GLOBAL);
+ }
+ 
+ void BPF_STRUCT_OPS(maximal_runnable, struct task_struct *p, u64 enq_flags)
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_dfl.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_dfl.bpf.c
+index f171ac470970..13d0f5be788d 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_dfl.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_dfl.bpf.c
+@@ -30,7 +30,7 @@ void BPF_STRUCT_OPS(select_cpu_dfl_enqueue, struct task_struct *p,
+ 	}
+ 	scx_bpf_put_idle_cpumask(idle_mask);
+ 
+-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ SEC(".struct_ops.link")
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_dfl_nodispatch.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_dfl_nodispatch.bpf.c
+index 9efdbb7da928..815f1d5d61ac 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_dfl_nodispatch.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_dfl_nodispatch.bpf.c
+@@ -67,7 +67,7 @@ void BPF_STRUCT_OPS(select_cpu_dfl_nodispatch_enqueue, struct task_struct *p,
+ 		saw_local = true;
+ 	}
+ 
+-	scx_bpf_dispatch(p, dsq_id, SCX_SLICE_DFL, enq_flags);
++	scx_bpf_dsq_insert(p, dsq_id, SCX_SLICE_DFL, enq_flags);
+ }
+ 
+ s32 BPF_STRUCT_OPS(select_cpu_dfl_nodispatch_init_task,
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_dispatch.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_dispatch.bpf.c
+index 59bfc4f36167..4bb99699e920 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_dispatch.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_dispatch.bpf.c
+@@ -29,7 +29,7 @@ s32 BPF_STRUCT_OPS(select_cpu_dispatch_select_cpu, struct task_struct *p,
+ 	cpu = prev_cpu;
+ 
+ dispatch:
+-	scx_bpf_dispatch(p, dsq_id, SCX_SLICE_DFL, 0);
++	scx_bpf_dsq_insert(p, dsq_id, SCX_SLICE_DFL, 0);
+ 	return cpu;
+ }
+ 
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_dispatch_bad_dsq.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_dispatch_bad_dsq.bpf.c
+index 3bbd5fcdfb18..2a75de11b2cf 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_dispatch_bad_dsq.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_dispatch_bad_dsq.bpf.c
+@@ -18,7 +18,7 @@ s32 BPF_STRUCT_OPS(select_cpu_dispatch_bad_dsq_select_cpu, struct task_struct *p
+ 		   s32 prev_cpu, u64 wake_flags)
+ {
+ 	/* Dispatching to a random DSQ should fail. */
+-	scx_bpf_dispatch(p, 0xcafef00d, SCX_SLICE_DFL, 0);
++	scx_bpf_dsq_insert(p, 0xcafef00d, SCX_SLICE_DFL, 0);
+ 
+ 	return prev_cpu;
+ }
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_dispatch_dbl_dsp.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_dispatch_dbl_dsp.bpf.c
+index 0fda57fe0ecf..99d075695c97 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_dispatch_dbl_dsp.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_dispatch_dbl_dsp.bpf.c
+@@ -18,8 +18,8 @@ s32 BPF_STRUCT_OPS(select_cpu_dispatch_dbl_dsp_select_cpu, struct task_struct *p
+ 		   s32 prev_cpu, u64 wake_flags)
+ {
+ 	/* Dispatching twice in a row is disallowed. */
+-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
+-	scx_bpf_dispatch(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
++	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
++	scx_bpf_dsq_insert(p, SCX_DSQ_GLOBAL, SCX_SLICE_DFL, 0);
+ 
+ 	return prev_cpu;
+ }
+diff --git a/tools/testing/selftests/sched_ext/select_cpu_vtime.bpf.c b/tools/testing/selftests/sched_ext/select_cpu_vtime.bpf.c
+index e6c67bcf5e6e..bfcb96cd4954 100644
+--- a/tools/testing/selftests/sched_ext/select_cpu_vtime.bpf.c
++++ b/tools/testing/selftests/sched_ext/select_cpu_vtime.bpf.c
+@@ -2,8 +2,8 @@
+ /*
+  * A scheduler that validates that enqueue flags are properly stored and
+  * applied at dispatch time when a task is directly dispatched from
+- * ops.select_cpu(). We validate this by using scx_bpf_dispatch_vtime(), and
+- * making the test a very basic vtime scheduler.
++ * ops.select_cpu(). We validate this by using scx_bpf_dsq_insert_vtime(),
++ * and making the test a very basic vtime scheduler.
+  *
+  * Copyright (c) 2024 Meta Platforms, Inc. and affiliates.
+  * Copyright (c) 2024 David Vernet <dvernet@meta.com>
+@@ -47,13 +47,13 @@ s32 BPF_STRUCT_OPS(select_cpu_vtime_select_cpu, struct task_struct *p,
+ 	cpu = prev_cpu;
+ 	scx_bpf_test_and_clear_cpu_idle(cpu);
+ ddsp:
+-	scx_bpf_dispatch_vtime(p, VTIME_DSQ, SCX_SLICE_DFL, task_vtime(p), 0);
++	scx_bpf_dsq_insert_vtime(p, VTIME_DSQ, SCX_SLICE_DFL, task_vtime(p), 0);
+ 	return cpu;
+ }
+ 
+ void BPF_STRUCT_OPS(select_cpu_vtime_dispatch, s32 cpu, struct task_struct *p)
+ {
+-	if (scx_bpf_consume(VTIME_DSQ))
++	if (scx_bpf_dsq_move_to_local(VTIME_DSQ))
+ 		consumed = true;
+ }
+ 
+-- 
+2.47.0
+

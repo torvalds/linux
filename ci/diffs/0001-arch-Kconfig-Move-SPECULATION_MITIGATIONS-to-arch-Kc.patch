@@ -1,0 +1,69 @@
+From c71766e8ff7a7f950522d25896fba758585500df Mon Sep 17 00:00:00 2001
+From: Song Liu <song@kernel.org>
+Date: Mon, 22 Apr 2024 21:14:40 -0700
+Subject: [PATCH] arch/Kconfig: Move SPECULATION_MITIGATIONS to arch/Kconfig
+
+SPECULATION_MITIGATIONS is currently defined only for x86. As a result,
+IS_ENABLED(CONFIG_SPECULATION_MITIGATIONS) is always false for other
+archs. f337a6a21e2f effectively set "mitigations=off" by default on
+non-x86 archs, which is not desired behavior. Jakub observed this
+change when running bpf selftests on s390 and arm64.
+
+Fix this by moving SPECULATION_MITIGATIONS to arch/Kconfig so that it is
+available in all archs and thus can be used safely in kernel/cpu.c
+
+Fixes: f337a6a21e2f ("x86/cpu: Actually turn off mitigations by default for SPECULATION_MITIGATIONS=n")
+Cc: stable@vger.kernel.org
+Cc: Sean Christopherson <seanjc@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Daniel Sneddon <daniel.sneddon@linux.intel.com>
+Cc: Jakub Kicinski <kuba@kernel.org>
+Signed-off-by: Song Liu <song@kernel.org>
+---
+ arch/Kconfig     | 10 ++++++++++
+ arch/x86/Kconfig | 10 ----------
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 9f066785bb71..8f4af75005f8 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -1609,4 +1609,14 @@ config CC_HAS_SANE_FUNCTION_ALIGNMENT
+ 	# strict alignment always, even with -falign-functions.
+ 	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
+ 
++menuconfig SPECULATION_MITIGATIONS
++	bool "Mitigations for speculative execution vulnerabilities"
++	default y
++	help
++	  Say Y here to enable options which enable mitigations for
++	  speculative execution hardware vulnerabilities.
++
++	  If you say N, all mitigations will be disabled. You really
++	  should know what you are doing to say so.
++
+ endmenu
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 39886bab943a..50c890fce5e0 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -2486,16 +2486,6 @@ config PREFIX_SYMBOLS
+ 	def_bool y
+ 	depends on CALL_PADDING && !CFI_CLANG
+ 
+-menuconfig SPECULATION_MITIGATIONS
+-	bool "Mitigations for speculative execution vulnerabilities"
+-	default y
+-	help
+-	  Say Y here to enable options which enable mitigations for
+-	  speculative execution hardware vulnerabilities.
+-
+-	  If you say N, all mitigations will be disabled. You really
+-	  should know what you are doing to say so.
+-
+ if SPECULATION_MITIGATIONS
+ 
+ config MITIGATION_PAGE_TABLE_ISOLATION
+-- 
+2.43.0
+

@@ -1,0 +1,50 @@
+From f3d2080e8cf23125f79e345061149ae40f66816f Mon Sep 17 00:00:00 2001
+From: Song Liu <song@kernel.org>
+Date: Mon, 3 Jun 2024 23:43:17 -0700
+Subject: [PATCH bpf-next] selftests/bpf: Fix bpf_cookie and find_vma in nested
+ VM
+
+bpf_cookie and find_vma are flaky in nested VMs, which is used by some CI
+systems. It turns out these failures are caused by unreliable perf event
+in nested VM. Fix these by:
+
+  1. Use PERF_COUNT_SW_CPU_CLOCK in find_vma;
+  2. Increase sample_freq in bpf_cookie.
+
+Signed-off-by: Song Liu <song@kernel.org>
+---
+ tools/testing/selftests/bpf/prog_tests/bpf_cookie.c | 2 +-
+ tools/testing/selftests/bpf/prog_tests/find_vma.c   | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/tools/testing/selftests/bpf/prog_tests/bpf_cookie.c b/tools/testing/selftests/bpf/prog_tests/bpf_cookie.c
+index 4407ea428e77..070c52c312e5 100644
+--- a/tools/testing/selftests/bpf/prog_tests/bpf_cookie.c
++++ b/tools/testing/selftests/bpf/prog_tests/bpf_cookie.c
+@@ -451,7 +451,7 @@ static void pe_subtest(struct test_bpf_cookie *skel)
+ 	attr.type = PERF_TYPE_SOFTWARE;
+ 	attr.config = PERF_COUNT_SW_CPU_CLOCK;
+ 	attr.freq = 1;
+-	attr.sample_freq = 1000;
++	attr.sample_freq = 10000;
+ 	pfd = syscall(__NR_perf_event_open, &attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
+ 	if (!ASSERT_GE(pfd, 0, "perf_fd"))
+ 		goto cleanup;
+diff --git a/tools/testing/selftests/bpf/prog_tests/find_vma.c b/tools/testing/selftests/bpf/prog_tests/find_vma.c
+index 5165b38f0e59..f7619e0ade10 100644
+--- a/tools/testing/selftests/bpf/prog_tests/find_vma.c
++++ b/tools/testing/selftests/bpf/prog_tests/find_vma.c
+@@ -29,8 +29,8 @@ static int open_pe(void)
+ 
+ 	/* create perf event */
+ 	attr.size = sizeof(attr);
+-	attr.type = PERF_TYPE_HARDWARE;
+-	attr.config = PERF_COUNT_HW_CPU_CYCLES;
++	attr.type = PERF_TYPE_SOFTWARE;
++	attr.config = PERF_COUNT_SW_CPU_CLOCK;
+ 	attr.freq = 1;
+ 	attr.sample_freq = 1000;
+ 	pfd = syscall(__NR_perf_event_open, &attr, 0, -1, -1, PERF_FLAG_FD_CLOEXEC);
+-- 
+2.43.0
+
