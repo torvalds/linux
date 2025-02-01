@@ -2970,7 +2970,7 @@ static int nested_check_vm_entry_controls(struct kvm_vcpu *vcpu,
 		case INTR_TYPE_SOFT_EXCEPTION:
 		case INTR_TYPE_SOFT_INTR:
 		case INTR_TYPE_PRIV_SW_EXCEPTION:
-			if (CC(vmcs12->vm_entry_instruction_len > 15) ||
+			if (CC(vmcs12->vm_entry_instruction_len > X86_MAX_INSTRUCTION_LENGTH) ||
 			    CC(vmcs12->vm_entry_instruction_len == 0 &&
 			    CC(!nested_cpu_has_zero_length_injection(vcpu))))
 				return -EINVAL;

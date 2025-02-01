@@ -275,8 +275,10 @@ struct operand {
 	};
 };
 
+#define X86_MAX_INSTRUCTION_LENGTH	15
+
 struct fetch_cache {
-	u8 data[15];
+	u8 data[X86_MAX_INSTRUCTION_LENGTH];
 	u8 *ptr;
 	u8 *end;
 };
