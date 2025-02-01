@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -39,7 +39,7 @@ struct hgsl_gmugos {
 int hgsl_init_gmugos(struct platform_device *pdev,
 				struct hgsl_context *ctxt, u32 irq_idx);
 void hgsl_gmugos_irq_trigger(struct hgsl_gmugos *gmugos,
-				u32 id);
+				u32 irq_idx, u32 bit_id);
 void hgsl_gmugos_irq_enable(struct hgsl_gmugos_irq *gmugos_irq,
 				u32 mask_bits);
 void hgsl_gmugos_irq_disable(struct hgsl_gmugos_irq *gmugos_irq,

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef GSL_HYP_INCLUDED
@@ -553,7 +553,7 @@ int hgsl_hyp_notify_cleanup(struct hgsl_hab_channel_t *hab_channel, uint32_t tim
 
 int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhandle,
 	uint32_t ctxthandle, uint32_t length, uint32_t *db_signal, uint32_t *queue_gmuaddr,
-	uint32_t *irq_idx);
+	uint32_t *irq_bit_idx);
 
 int hgsl_hyp_context_register_dbcq(struct hgsl_hab_channel_t *hab_channel,
 	uint32_t devhandle, uint32_t ctxthandle, struct dma_buf *dma_buf, uint32_t size,

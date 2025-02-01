@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -36,7 +36,7 @@ u32 hgsl_regmap_read(struct regmap *regmap, u32 offset)
 	return val;
 }
 
-void hgsl_regmap_write(struct regmap *regmap, u32 value, u32 offset)
+void hgsl_regmap_write(struct regmap *regmap, u32 offset, u32 value)
 {
 	/* Ensure all previous writes has completed */
 	wmb();
@@ -71,7 +71,7 @@ static irqreturn_t hgsl_gmugos_isr(int num, void *data)
 	val = hgsl_regmap_read(gmugos_irq->regmap, GMUGOS_REG_STATUS);
 	hgsl_regmap_write(gmugos_irq->regmap, GMUGOS_REG_CLR, val);
 
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static int hgsl_gmugos_request_irq(struct platform_device *pdev, const  char *name,
@@ -175,15 +175,15 @@ void hgsl_gmugos_irq_disable(
 }
 
 void hgsl_gmugos_irq_trigger(struct hgsl_gmugos *gmugos,
-				u32 id)
+				u32 irq_idx, u32 bit_id)
 {
-	if (!gmugos || id >= HGSL_GMUGOS_IRQ_NUM) {
-		LOGE("Invalid gmugos or Invalid irq index %u", id);
+	if (!gmugos || irq_idx >= HGSL_GMUGOS_IRQ_NUM) {
+		LOGE("Invalid gmugos or Invalid irq index %u", irq_idx);
 		return;
 	}
 
-	hgsl_regmap_write(gmugos->irq[id].regmap,
-		GMUGOS_REG_SET, BIT(id));
+	hgsl_regmap_write(gmugos->irq[irq_idx].regmap,
+		GMUGOS_REG_SET, BIT(bit_id));
 }
 
 void hgsl_gmugos_irq_free(struct hgsl_gmugos_irq *irq)
@@ -229,6 +229,7 @@ int hgsl_init_gmugos(struct platform_device *pdev,
 
 	snprintf(irq_name, sizeof(irq_name), "hgsl_gmugos%u_irq%u",
 			dev_id, irq_idx);
+
 	ret = hgsl_gmugos_request_irq(pdev, irq_name, hgsl_gmugos_isr,
 				hgsl_gmugos_ts_retire, gmugos_irq);
 	if (ret < 0) {
@@ -238,6 +239,7 @@ int hgsl_init_gmugos(struct platform_device *pdev,
 	}
 	gmugos_irq->id = irq_idx;
 	gmugos_irq->num = ret;
+	ret = 0;
 
 	hgsl_gmugos_irq_enable(gmugos_irq, GMUGOS_IRQ_MASK);
 out:
