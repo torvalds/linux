@@ -641,15 +641,19 @@ static struct btrfs_path *alloc_path_for_send(void)
 
 static int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off)
 {
-	int ret;
+	ssize_t ret;
 	u32 pos = 0;
 
 	while (pos < len) {
-		ret = kernel_write(filp, buf + pos, len - pos, off);
+		u32 write_size = min_t(u32, len - pos, MAX_RW_COUNT);
+		ret = kernel_write(filp, buf + pos, write_size, off);
 		if (ret < 0)
 			return ret;
 		if (ret == 0)
 			return -EIO;
+		if (pos > UINT_MAX - ret)
+			return -EOVERFLOW;
+		
 		pos += ret;
 	}
 
