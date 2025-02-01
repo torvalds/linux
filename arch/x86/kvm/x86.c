@@ -3119,8 +3119,7 @@ u64 get_kvmclock_ns(struct kvm *kvm)
 static void kvm_setup_guest_pvclock(struct pvclock_vcpu_time_info *ref_hv_clock,
 				    struct kvm_vcpu *vcpu,
 				    struct gfn_to_pfn_cache *gpc,
-				    unsigned int offset,
-				    bool force_tsc_unstable)
+				    unsigned int offset)
 {
 	struct pvclock_vcpu_time_info *guest_hv_clock;
 	struct pvclock_vcpu_time_info hv_clock;
@@ -3155,9 +3154,6 @@ static void kvm_setup_guest_pvclock(struct pvclock_vcpu_time_info *ref_hv_clock,
 
 	memcpy(guest_hv_clock, &hv_clock, sizeof(*guest_hv_clock));
 
-	if (force_tsc_unstable)
-		guest_hv_clock->flags &= ~PVCLOCK_TSC_STABLE_BIT;
-
 	smp_wmb();
 
 	guest_hv_clock->version = ++hv_clock.version;
@@ -3178,16 +3174,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	s64 kernel_ns;
 	u64 tsc_timestamp, host_tsc;
 	bool use_master_clock;
-#ifdef CONFIG_KVM_XEN
-	/*
-	 * For Xen guests we may need to override PVCLOCK_TSC_STABLE_BIT as unless
-	 * explicitly told to use TSC as its clocksource Xen will not set this bit.
-	 * This default behaviour led to bugs in some guest kernels which cause
-	 * problems if they observe PVCLOCK_TSC_STABLE_BIT in the pvclock flags.
-	 */
-	bool xen_pvclock_tsc_unstable =
-		ka->xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE;
-#endif
 
 	kernel_ns = 0;
 	host_tsc = 0;
@@ -3275,7 +3261,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 			hv_clock.flags |= PVCLOCK_GUEST_STOPPED;
 			vcpu->pvclock_set_guest_stopped_request = false;
 		}
-		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->pv_time, 0, false);
+		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->pv_time, 0);
 
 		hv_clock.flags &= ~PVCLOCK_GUEST_STOPPED;
 	}
@@ -3283,13 +3269,22 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	kvm_hv_setup_tsc_page(v->kvm, &hv_clock);
 
 #ifdef CONFIG_KVM_XEN
+	/*
+	 * For Xen guests we may need to override PVCLOCK_TSC_STABLE_BIT as unless
+	 * explicitly told to use TSC as its clocksource Xen will not set this bit.
+	 * This default behaviour led to bugs in some guest kernels which cause
+	 * problems if they observe PVCLOCK_TSC_STABLE_BIT in the pvclock flags.
+	 *
+	 * Note!  Clear TSC_STABLE only for Xen clocks, i.e. the order matters!
+	 */
+	if (ka->xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE)
+		hv_clock.flags &= ~PVCLOCK_TSC_STABLE_BIT;
+
 	if (vcpu->xen.vcpu_info_cache.active)
 		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->xen.vcpu_info_cache,
-					offsetof(struct compat_vcpu_info, time),
-					xen_pvclock_tsc_unstable);
+					offsetof(struct compat_vcpu_info, time));
 	if (vcpu->xen.vcpu_time_info_cache.active)
-		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->xen.vcpu_time_info_cache, 0,
-					xen_pvclock_tsc_unstable);
+		kvm_setup_guest_pvclock(&hv_clock, v, &vcpu->xen.vcpu_time_info_cache, 0);
 #endif
 	return 0;
 }
