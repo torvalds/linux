@@ -3999,7 +3999,7 @@ static int __must_check initialize_block_allocator(struct slab_depot *depot,
 		return result;
 
 	vdo_initialize_completion(&allocator->completion, vdo, VDO_BLOCK_ALLOCATOR_COMPLETION);
-	result = make_vio_pool(vdo, BLOCK_ALLOCATOR_VIO_POOL_SIZE, allocator->thread_id,
+	result = make_vio_pool(vdo, BLOCK_ALLOCATOR_VIO_POOL_SIZE, 1, allocator->thread_id,
 			       VIO_TYPE_SLAB_JOURNAL, VIO_PRIORITY_METADATA,
 			       allocator, &allocator->vio_pool);
 	if (result != VDO_SUCCESS)

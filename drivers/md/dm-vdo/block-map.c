@@ -2745,7 +2745,7 @@ static int __must_check initialize_block_map_zone(struct block_map *map,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = make_vio_pool(vdo, BLOCK_MAP_VIO_POOL_SIZE,
+	result = make_vio_pool(vdo, BLOCK_MAP_VIO_POOL_SIZE, 1,
 			       zone->thread_id, VIO_TYPE_BLOCK_MAP_INTERIOR,
 			       VIO_PRIORITY_METADATA, zone, &zone->vio_pool);
 	if (result != VDO_SUCCESS)

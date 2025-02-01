@@ -301,6 +301,7 @@ void vio_record_metadata_io_error(struct vio *vio)
  * make_vio_pool() - Create a new vio pool.
  * @vdo: The vdo.
  * @pool_size: The number of vios in the pool.
+ * @block_count: The number of 4k blocks per vio.
  * @thread_id: The ID of the thread using this pool.
  * @vio_type: The type of vios in the pool.
  * @priority: The priority with which vios from the pool should be enqueued.
@@ -309,13 +310,14 @@ void vio_record_metadata_io_error(struct vio *vio)
  *
  * Return: A success or error code.
  */
-int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
+int make_vio_pool(struct vdo *vdo, size_t pool_size, size_t block_count, thread_id_t thread_id,
 		  enum vio_type vio_type, enum vio_priority priority, void *context,
 		  struct vio_pool **pool_ptr)
 {
 	struct vio_pool *pool;
 	char *ptr;
 	int result;
+	size_t per_vio_size = VDO_BLOCK_SIZE * block_count;
 
 	result = vdo_allocate_extended(struct vio_pool, pool_size, struct pooled_vio,
 				       __func__, &pool);
@@ -326,7 +328,7 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 	INIT_LIST_HEAD(&pool->available);
 	INIT_LIST_HEAD(&pool->busy);
 
-	result = vdo_allocate(pool_size * VDO_BLOCK_SIZE, char,
+	result = vdo_allocate(pool_size * per_vio_size, char,
 			      "VIO pool buffer", &pool->buffer);
 	if (result != VDO_SUCCESS) {
 		free_vio_pool(pool);
@@ -334,10 +336,10 @@ int make_vio_pool(struct vdo *vdo, size_t pool_size, thread_id_t thread_id,
 	}
 
 	ptr = pool->buffer;
-	for (pool->size = 0; pool->size < pool_size; pool->size++, ptr += VDO_BLOCK_SIZE) {
+	for (pool->size = 0; pool->size < pool_size; pool->size++, ptr += per_vio_size) {
 		struct pooled_vio *pooled = &pool->vios[pool->size];
 
-		result = allocate_vio_components(vdo, vio_type, priority, NULL, 1, ptr,
+		result = allocate_vio_components(vdo, vio_type, priority, NULL, block_count, ptr,
 						 &pooled->vio);
 		if (result != VDO_SUCCESS) {
 			free_vio_pool(pool);
