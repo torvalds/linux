@@ -150,11 +150,46 @@ static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static int xen_get_guest_pvclock(struct kvm_vcpu *vcpu,
+				 struct pvclock_vcpu_time_info *hv_clock,
+				 struct gfn_to_pfn_cache *gpc,
+				 unsigned int offset)
+{
+	unsigned long flags;
+	int r;
+
+	read_lock_irqsave(&gpc->lock, flags);
+	while (!kvm_gpc_check(gpc, offset + sizeof(*hv_clock))) {
+		read_unlock_irqrestore(&gpc->lock, flags);
+
+		r = kvm_gpc_refresh(gpc, offset + sizeof(*hv_clock));
+		if (r)
+			return r;
+
+		read_lock_irqsave(&gpc->lock, flags);
+	}
+
+	memcpy(hv_clock, gpc->khva + offset, sizeof(*hv_clock));
+	read_unlock_irqrestore(&gpc->lock, flags);
+
+	/*
+	 * Sanity check TSC shift+multiplier to verify the guest's view of time
+	 * is more or less consistent.
+	 */
+	if (hv_clock->tsc_shift != vcpu->arch.hv_clock.tsc_shift ||
+	    hv_clock->tsc_to_system_mul != vcpu->arch.hv_clock.tsc_to_system_mul)
+		return -EINVAL;
+
+	return 0;
+}
+
 static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs,
 				bool linux_wa)
 {
+	struct kvm_vcpu_xen *xen = &vcpu->arch.xen;
 	int64_t kernel_now, delta;
 	uint64_t guest_now;
+	int r = -EOPNOTSUPP;
 
 	/*
 	 * The guest provides the requested timeout in absolute nanoseconds
@@ -173,9 +208,28 @@ static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs,
 	 * the absolute CLOCK_MONOTONIC time at which the timer should
 	 * fire.
 	 */
-	if (vcpu->arch.hv_clock.version && vcpu->kvm->arch.use_master_clock &&
-	    static_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
+	do {
+		struct pvclock_vcpu_time_info hv_clock;
 		uint64_t host_tsc, guest_tsc;
+
+		if (!static_cpu_has(X86_FEATURE_CONSTANT_TSC) ||
+		    !vcpu->kvm->arch.use_master_clock)
+			break;
+
+		/*
+		 * If both Xen PV clocks are active, arbitrarily try to use the
+		 * compat clock first, but also try to use the non-compat clock
+		 * if the compat clock is unusable.  The two PV clocks hold the
+		 * same information, but it's possible one (or both) is stale
+		 * and/or currently unreachable.
+		 */
+		if (xen->vcpu_info_cache.active)
+			r = xen_get_guest_pvclock(vcpu, &hv_clock, &xen->vcpu_info_cache,
+						  offsetof(struct compat_vcpu_info, time));
+		if (r && xen->vcpu_time_info_cache.active)
+			r = xen_get_guest_pvclock(vcpu, &hv_clock, &xen->vcpu_time_info_cache, 0);
+		if (r)
+			break;
 
 		if (!IS_ENABLED(CONFIG_64BIT) ||
 		    !kvm_get_monotonic_and_clockread(&kernel_now, &host_tsc)) {
@@ -197,9 +251,10 @@ static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 guest_abs,
 
 		/* Calculate the guest kvmclock as the guest would do it. */
 		guest_tsc = kvm_read_l1_tsc(vcpu, host_tsc);
-		guest_now = __pvclock_read_cycles(&vcpu->arch.hv_clock,
-						  guest_tsc);
-	} else {
+		guest_now = __pvclock_read_cycles(&hv_clock, guest_tsc);
+	} while (0);
+
+	if (r) {
 		/*
 		 * Without CONSTANT_TSC, get_kvmclock_ns() is the only option.
 		 *
