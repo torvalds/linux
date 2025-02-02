@@ -432,7 +432,7 @@ void bpf_rcu_read_unlock(void) __ksym;
  */
 static inline s64 time_delta(u64 after, u64 before)
 {
-	return (s64)(after - before) > 0 ? : 0;
+	return (s64)(after - before) > 0 ? (s64)(after - before) : 0;
 }
 
 /**
