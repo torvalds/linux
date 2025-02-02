@@ -559,17 +559,6 @@ struct link_encoder *link_enc_cfg_get_next_avail_link_enc(struct dc *dc)
 	return link_enc;
 }
 
-struct link_encoder *link_enc_cfg_get_link_enc_used_by_stream(
-		struct dc *dc,
-		const struct dc_stream_state *stream)
-{
-	struct link_encoder *link_enc;
-
-	link_enc = link_enc_cfg_get_link_enc_used_by_link(dc, stream->link);
-
-	return link_enc;
-}
-
 struct link_encoder *link_enc_cfg_get_link_enc(
 		const struct dc_link *link)
 {
