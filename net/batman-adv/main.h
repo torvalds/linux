@@ -22,6 +22,8 @@
 #define BATADV_THROUGHPUT_MAX_VALUE 0xFFFFFFFF
 #define BATADV_JITTER 20
 
+#define BATADV_MAX_MTU (ETH_MAX_MTU - batadv_max_header_len())
+
 /* Time To Live of broadcast messages */
 #define BATADV_TTL 50
 
