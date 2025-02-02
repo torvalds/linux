@@ -446,6 +446,7 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	int aggregated_bytes = forw_packet->packet_len + packet_len;
 	struct batadv_hard_iface *primary_if = NULL;
+	u8 packet_num = forw_packet->num_packets + 1;
 	bool res = false;
 	unsigned long aggregation_end_time;
 
@@ -466,6 +467,9 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 		return false;
 
 	if (aggregated_bytes > BATADV_MAX_AGGREGATION_BYTES)
+		return false;
+
+	if (packet_num >= BITS_PER_TYPE(forw_packet->direct_link_flags))
 		return false;
 
 	/* packet is not leaving on the same interface. */
