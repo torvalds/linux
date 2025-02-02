@@ -131,10 +131,10 @@
 #define BATADV_TP_MAX_NUM 5
 
 /**
- * enum batadv_mesh_state - State of a soft interface
+ * enum batadv_mesh_state - State of a mesh interface
  */
 enum batadv_mesh_state {
-	/** @BATADV_MESH_INACTIVE: soft interface is not yet running */
+	/** @BATADV_MESH_INACTIVE: mesh interface is not yet running */
 	BATADV_MESH_INACTIVE,
 
 	/** @BATADV_MESH_ACTIVE: interface is up and running */
@@ -240,8 +240,8 @@ extern unsigned int batadv_hardif_generation;
 extern unsigned char batadv_broadcast_addr[];
 extern struct workqueue_struct *batadv_event_workqueue;
 
-int batadv_mesh_init(struct net_device *soft_iface);
-void batadv_mesh_free(struct net_device *soft_iface);
+int batadv_mesh_init(struct net_device *mesh_iface);
+void batadv_mesh_free(struct net_device *mesh_iface);
 bool batadv_is_my_mac(struct batadv_priv *bat_priv, const u8 *addr);
 int batadv_max_header_len(void);
 void batadv_skb_set_priority(struct sk_buff *skb, int offset);
@@ -347,8 +347,8 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
 /**
- * batadv_add_counter() - Add to per cpu statistics counter of soft interface
- * @bat_priv: the bat priv with all the soft interface information
+ * batadv_add_counter() - Add to per cpu statistics counter of mesh interface
+ * @bat_priv: the bat priv with all the mesh interface information
  * @idx: counter index which should be modified
  * @count: value to increase counter by
  *
@@ -361,8 +361,8 @@ static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 }
 
 /**
- * batadv_inc_counter() - Increase per cpu statistics counter of soft interface
- * @b: the bat priv with all the soft interface information
+ * batadv_inc_counter() - Increase per cpu statistics counter of mesh interface
+ * @b: the bat priv with all the mesh interface information
  * @i: counter index which should be modified
  */
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)

@@ -20,7 +20,7 @@
 /**
  * batadv_gw_tvlv_container_update() - update the gw tvlv container after
  *  gateway setting change
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  */
 void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 {
@@ -48,7 +48,7 @@ void batadv_gw_tvlv_container_update(struct batadv_priv *bat_priv)
 
 /**
  * batadv_gw_tvlv_ogm_handler_v1() - process incoming gateway tvlv container
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  * @orig: the orig_node of the ogm
  * @flags: flags indicating the tvlv state (see batadv_tvlv_handler_flags)
  * @tvlv_value: tvlv buffer containing the gateway data
@@ -89,7 +89,7 @@ static void batadv_gw_tvlv_ogm_handler_v1(struct batadv_priv *bat_priv,
 
 /**
  * batadv_gw_init() - initialise the gateway handling internals
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  */
 void batadv_gw_init(struct batadv_priv *bat_priv)
 {
@@ -105,7 +105,7 @@ void batadv_gw_init(struct batadv_priv *bat_priv)
 
 /**
  * batadv_gw_free() - free the gateway handling internals
- * @bat_priv: the bat priv with all the soft interface information
+ * @bat_priv: the bat priv with all the mesh interface information
  */
 void batadv_gw_free(struct batadv_priv *bat_priv)
 {
