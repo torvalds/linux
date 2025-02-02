@@ -942,7 +942,7 @@ long do_arch_prctl_64(struct task_struct *task, int option, unsigned long arg2)
 	case ARCH_MAP_VDSO_X32:
 		return prctl_map_vdso(&vdso_image_x32, arg2);
 # endif
-# if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+# ifdef CONFIG_IA32_EMULATION
 	case ARCH_MAP_VDSO_32:
 		return prctl_map_vdso(&vdso_image_32, arg2);
 # endif
