@@ -1582,8 +1582,6 @@ bool dc_validate_boot_timing(const struct dc *dc,
 
 enum dc_status dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
 
-void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info);
-
 enum dc_status dc_validate_with_context(struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
