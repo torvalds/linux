@@ -4328,7 +4328,7 @@ static int test_sig_one(struct crypto_sig *tfm, const struct sig_testvec *vecs)
 	if (vecs->public_key_vec)
 		return 0;
 
-	sig_size = crypto_sig_keysize(tfm);
+	sig_size = crypto_sig_maxsize(tfm);
 	if (sig_size < vecs->c_size) {
 		pr_err("alg: sig: invalid maxsize %u\n", sig_size);
 		return -EINVAL;
@@ -4340,13 +4340,14 @@ static int test_sig_one(struct crypto_sig *tfm, const struct sig_testvec *vecs)
 
 	/* Run asymmetric signature generation */
 	err = crypto_sig_sign(tfm, vecs->m, vecs->m_size, sig, sig_size);
-	if (err) {
+	if (err < 0) {
 		pr_err("alg: sig: sign test failed: err %d\n", err);
 		return err;
 	}
 
 	/* Verify that generated signature equals cooked signature */
-	if (memcmp(sig, vecs->c, vecs->c_size) ||
+	if (err != vecs->c_size ||
+	    memcmp(sig, vecs->c, vecs->c_size) ||
 	    memchr_inv(sig + vecs->c_size, 0, sig_size - vecs->c_size)) {
 		pr_err("alg: sig: sign test failed: invalid output\n");
 		hexdump(sig, sig_size);
