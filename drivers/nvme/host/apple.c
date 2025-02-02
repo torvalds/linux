@@ -221,7 +221,7 @@ static unsigned int apple_nvme_queue_depth(struct apple_nvme_queue *q)
 	return APPLE_ANS_MAX_QUEUE_DEPTH;
 }
 
-static void apple_nvme_rtkit_crashed(void *cookie)
+static void apple_nvme_rtkit_crashed(void *cookie, const void *crashlog, size_t crashlog_size)
 {
 	struct apple_nvme *anv = cookie;
 
