@@ -532,7 +532,7 @@ batadv_forw_packet_alloc(struct batadv_hard_iface *if_incoming,
 	forw_packet->queue_left = queue_left;
 	forw_packet->if_incoming = if_incoming;
 	forw_packet->if_outgoing = if_outgoing;
-	forw_packet->num_packets = 0;
+	forw_packet->num_packets = 1;
 
 	return forw_packet;
 

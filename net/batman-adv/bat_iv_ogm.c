@@ -446,7 +446,7 @@ batadv_iv_ogm_can_aggregate(const struct batadv_ogm_packet *new_bat_ogm_packet,
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	int aggregated_bytes = forw_packet->packet_len + packet_len;
 	struct batadv_hard_iface *primary_if = NULL;
-	u8 packet_num = forw_packet->num_packets + 1;
+	u8 packet_num = forw_packet->num_packets;
 	bool res = false;
 	unsigned long aggregation_end_time;
 
@@ -600,12 +600,13 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 {
 	skb_put_data(forw_packet_aggr->skb, packet_buff, packet_len);
 	forw_packet_aggr->packet_len += packet_len;
-	forw_packet_aggr->num_packets++;
 
 	/* save packet direct link flag status */
 	if (direct_link)
 		set_bit(forw_packet_aggr->num_packets,
 			forw_packet_aggr->direct_link_flags);
+
+	forw_packet_aggr->num_packets++;
 }
 
 /**
