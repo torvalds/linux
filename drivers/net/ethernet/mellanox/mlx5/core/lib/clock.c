@@ -878,10 +878,8 @@ static int mlx5_query_mtpps_pin_mode(struct mlx5_core_dev *mdev, u8 pin,
 				    mtpps_size, MLX5_REG_MTPPS, 0, 0);
 }
 
-static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
+static int mlx5_get_pps_pin_mode(struct mlx5_core_dev *mdev, u8 pin)
 {
-	struct mlx5_core_dev *mdev = container_of(clock, struct mlx5_core_dev, clock);
-
 	u32 out[MLX5_ST_SZ_DW(mtpps_reg)] = {};
 	u8 mode;
 	int err;
@@ -900,8 +898,9 @@ static int mlx5_get_pps_pin_mode(struct mlx5_clock *clock, u8 pin)
 	return PTP_PF_NONE;
 }
 
-static void mlx5_init_pin_config(struct mlx5_clock *clock)
+static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 {
+	struct mlx5_clock *clock = &mdev->clock;
 	int i;
 
 	if (!clock->ptp_info.n_pins)
@@ -922,7 +921,7 @@ static void mlx5_init_pin_config(struct mlx5_clock *clock)
 			 sizeof(clock->ptp_info.pin_config[i].name),
 			 "mlx5_pps%d", i);
 		clock->ptp_info.pin_config[i].index = i;
-		clock->ptp_info.pin_config[i].func = mlx5_get_pps_pin_mode(clock, i);
+		clock->ptp_info.pin_config[i].func = mlx5_get_pps_pin_mode(mdev, i);
 		clock->ptp_info.pin_config[i].chan = 0;
 	}
 }
@@ -1041,10 +1040,10 @@ static void mlx5_timecounter_init(struct mlx5_core_dev *mdev)
 			 ktime_to_ns(ktime_get_real()));
 }
 
-static void mlx5_init_overflow_period(struct mlx5_clock *clock)
+static void mlx5_init_overflow_period(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_core_dev *mdev = container_of(clock, struct mlx5_core_dev, clock);
 	struct mlx5_ib_clock_info *clock_info = mdev->clock_info;
+	struct mlx5_clock *clock = &mdev->clock;
 	struct mlx5_timer *timer = &clock->timer;
 	u64 overflow_cycles;
 	u64 frac = 0;
@@ -1135,7 +1134,7 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 
 	mlx5_timecounter_init(mdev);
 	mlx5_init_clock_info(mdev);
-	mlx5_init_overflow_period(clock);
+	mlx5_init_overflow_period(mdev);
 
 	if (mlx5_real_time_mode(mdev)) {
 		struct timespec64 ts;
@@ -1147,13 +1146,11 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 
 static void mlx5_init_pps(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
-
 	if (!MLX5_PPS_CAP(mdev))
 		return;
 
 	mlx5_get_pps_caps(mdev);
-	mlx5_init_pin_config(clock);
+	mlx5_init_pin_config(mdev);
 }
 
 void mlx5_init_clock(struct mlx5_core_dev *mdev)
