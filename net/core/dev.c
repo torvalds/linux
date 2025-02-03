@@ -7071,6 +7071,9 @@ void __netif_napi_del_locked(struct napi_struct *napi)
 	if (!test_and_clear_bit(NAPI_STATE_LISTED, &napi->state))
 		return;
 
+	/* Make sure NAPI is disabled (or was never enabled). */
+	WARN_ON(!test_bit(NAPI_STATE_SCHED, &napi->state));
+
 	if (napi->config) {
 		napi->index = -1;
 		napi->config = NULL;
