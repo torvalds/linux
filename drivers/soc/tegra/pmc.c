@@ -1178,6 +1178,7 @@ static int tegra_pmc_power_off_handler(struct sys_off_data *data)
 
 static int powergate_show(struct seq_file *s, void *data)
 {
+	struct tegra_pmc *pmc = data;
 	unsigned int i;
 	int status;
 
@@ -3097,7 +3098,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	if (pmc->soc->set_wake_filters)
 		pmc->soc->set_wake_filters(pmc);
 
-	debugfs_create_file("powergate", 0444, NULL, NULL, &powergate_fops);
+	debugfs_create_file("powergate", 0444, NULL, pmc, &powergate_fops);
 
 	return 0;
 
