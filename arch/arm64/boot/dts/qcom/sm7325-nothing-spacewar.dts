@@ -843,7 +843,15 @@
 };
 
 &cci0_i2c0 {
-	/* sony,imx471 (Front) */
+	/* D-PHY sony,imx471 (Front) @ 0x1a */
+
+	camf_p24c64f: eeprom@52 {
+		compatible = "puya,p24c64f",
+			     "atmel,24c64";
+		reg = <0x52>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &cci1 {
@@ -851,11 +859,29 @@
 };
 
 &cci1_i2c0 {
-	/* samsung,s5kjn1 (Rear-aux UW) */
+	/* actuator (For Ultra Wide sensor) @ 0xc */
+	/* D-PHY samsung,s5kjn1 (Ultra Wide) @ 0x2d */
+
+	camu_gt24p128e: eeprom@51 {
+		compatible = "giantec,gt24p128e",
+			     "atmel,24c128";
+		reg = <0x51>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &cci1_i2c1 {
-	/* sony,imx766 (Rear Wide) */
+	/* actuator (For Wide sensor) @ 0xc */
+	/* C-PHY sony,imx766 (Wide) @ 0x10 */
+
+	camw_gt24p128e: eeprom@50 {
+		compatible = "giantec,gt24p128e",
+			     "atmel,24c128";
+		reg = <0x50>;
+		vcc-supply = <&vreg_cam_vio_1p8>;
+		read-only;
+	};
 };
 
 &gcc {
