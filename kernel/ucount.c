@@ -146,25 +146,16 @@ static void hlist_add_ucounts(struct ucounts *ucounts)
 	spin_unlock_irq(&ucounts_lock);
 }
 
-static inline bool get_ucounts_or_wrap(struct ucounts *ucounts)
-{
-	/* Returns true on a successful get, false if the count wraps. */
-	return !atomic_add_negative(1, &ucounts->count);
-}
-
 struct ucounts *get_ucounts(struct ucounts *ucounts)
 {
-	if (!get_ucounts_or_wrap(ucounts)) {
-		put_ucounts(ucounts);
-		ucounts = NULL;
-	}
-	return ucounts;
+	if (atomic_inc_not_zero(&ucounts->count))
+		return ucounts;
+	return NULL;
 }
 
 struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 {
 	struct hlist_head *hashent = ucounts_hashentry(ns, uid);
-	bool wrapped;
 	struct ucounts *ucounts, *new = NULL;
 
 	spin_lock_irq(&ucounts_lock);
@@ -189,14 +180,11 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 			return new;
 		}
 	}
-
-	wrapped = !get_ucounts_or_wrap(ucounts);
+	if (!atomic_inc_not_zero(&ucounts->count))
+		ucounts = NULL;
 	spin_unlock_irq(&ucounts_lock);
 	kfree(new);
-	if (wrapped) {
-		put_ucounts(ucounts);
-		return NULL;
-	}
+
 	return ucounts;
 }
 
