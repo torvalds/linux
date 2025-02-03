@@ -1838,7 +1838,7 @@ bool dc_validate_boot_timing(const struct dc *dc,
 			uint32_t pixels_per_cycle = se->funcs->get_pixels_per_cycle(se);
 
 			if (pixels_per_cycle != 1 && !dc->debug.enable_dp_dig_pixel_rate_div_policy) {
-				pr_info("boot timing validation failed due to pixels_per_cycle\n");
+				DC_LOG_DEBUG("boot timing validation failed due to pixels_per_cycle\n");
 				return false;
 			}
 
