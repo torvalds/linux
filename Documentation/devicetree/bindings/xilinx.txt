@@ -118,13 +118,6 @@
       property, and may include other common network device properties
       like local-mac-address.
 
-      iv) Xilinx Uartlite
-
-      Xilinx uartlite devices are simple fixed speed serial ports.
-
-      Required properties:
-       - current-speed : Baud rate of uartlite
-
       v) Xilinx hwicap
 
 		Xilinx hwicap devices provide access to the configuration logic
