@@ -374,6 +374,23 @@
 			};
 		};
 
+		edma0: dma-controller@40144000 {
+			compatible = "nxp,s32g3-edma", "nxp,s32g2-edma";
+			reg = <0x40144000 0x24000>,
+			      <0x4012c000 0x3000>,
+			      <0x40130000 0x3000>;
+			#dma-cells = <2>;
+			dma-channels = <32>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx-0-15",
+					  "tx-16-31",
+					  "err";
+			clocks = <&clks 63>, <&clks 64>;
+			clock-names = "dmamux0", "dmamux1";
+		};
+
 		uart0: serial@401c8000 {
 			compatible = "nxp,s32g3-linflexuart",
 				     "fsl,s32v234-linflexuart";
@@ -424,6 +441,23 @@
 			clocks = <&clks 40>;
 			clock-names = "ipg";
 			status = "disabled";
+		};
+
+		edma1: dma-controller@40244000 {
+			compatible = "nxp,s32g3-edma", "nxp,s32g2-edma";
+			reg = <0x40244000 0x24000>,
+			      <0x4022c000 0x3000>,
+			      <0x40230000 0x3000>;
+			#dma-cells = <2>;
+			dma-channels = <32>;
+			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "tx-0-15",
+					  "tx-16-31",
+					  "err";
+			clocks = <&clks 63>, <&clks 64>;
+			clock-names = "dmamux0", "dmamux1";
 		};
 
 		uart2: serial@402bc000 {
