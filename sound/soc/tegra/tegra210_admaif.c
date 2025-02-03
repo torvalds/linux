@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-// SPDX-FileCopyrightText: Copyright (c) 2020-2024 NVIDIA CORPORATION & AFFILIATES.
+// SPDX-FileCopyrightText: Copyright (c) 2020-2025 NVIDIA CORPORATION & AFFILIATES.
 // All rights reserved.
 //
 // tegra210_admaif.c - Tegra ADMAIF driver
@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include "tegra_isomgr_bw.h"
 #include "tegra210_admaif.h"
 #include "tegra_cif.h"
 #include "tegra_pcm.h"
@@ -260,6 +261,18 @@ static int tegra_admaif_set_pack_mode(struct regmap *map, unsigned int reg,
 	}
 
 	return 0;
+}
+
+static int tegra_admaif_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	return tegra_isomgr_adma_setbw(substream, dai, true);
+}
+
+static void tegra_admaif_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
+{
+	tegra_isomgr_adma_setbw(substream, dai, false);
 }
 
 static int tegra_admaif_hw_params(struct snd_pcm_substream *substream,
@@ -554,6 +567,8 @@ static const struct snd_soc_dai_ops tegra_admaif_dai_ops = {
 	.probe		= tegra_admaif_dai_probe,
 	.hw_params	= tegra_admaif_hw_params,
 	.trigger	= tegra_admaif_trigger,
+	.shutdown	= tegra_admaif_shutdown,
+	.prepare	= tegra_admaif_prepare,
 };
 
 #define DAI(dai_name)					\
@@ -800,6 +815,12 @@ static int tegra_admaif_probe(struct platform_device *pdev)
 
 	regcache_cache_only(admaif->regmap, true);
 
+	err = tegra_isomgr_adma_register(&pdev->dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to add interconnect path\n");
+		return err;
+	}
+
 	regmap_update_bits(admaif->regmap, admaif->soc_data->global_base +
 			   TEGRA_ADMAIF_GLOBAL_ENABLE, 1, 1);
 
@@ -851,6 +872,7 @@ static int tegra_admaif_probe(struct platform_device *pdev)
 
 static void tegra_admaif_remove(struct platform_device *pdev)
 {
+	tegra_isomgr_adma_unregister(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
 
