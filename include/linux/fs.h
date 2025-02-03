@@ -222,7 +222,6 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define FMODE_FSNOTIFY_HSM(mode)	0
 #endif
 
-
 /*
  * Attribute flags.  These should be or-ed together to figure out what
  * has been changed!
@@ -3138,6 +3137,12 @@ static inline void exe_file_allow_write_access(struct file *exe_file)
 	if (unlikely(!exe_file || FMODE_FSNOTIFY_HSM(exe_file->f_mode)))
 		return;
 	allow_write_access(exe_file);
+}
+
+static inline void file_set_fsnotify_mode(struct file *file, fmode_t mode)
+{
+	file->f_mode &= ~FMODE_FSNOTIFY_MASK;
+	file->f_mode |= mode;
 }
 
 static inline bool inode_is_open_for_write(const struct inode *inode)
