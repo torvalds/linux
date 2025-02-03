@@ -58,6 +58,7 @@ struct mlx5_clock {
 	struct ptp_clock_info      ptp_info;
 	struct mlx5_pps            pps_info;
 	struct mlx5_timer          timer;
+	bool                       shared;
 };
 
 static inline bool mlx5_is_real_time_rq(struct mlx5_core_dev *mdev)
