@@ -202,18 +202,20 @@
 #define  TEGRA_SMC_PMC_WRITE	0xbb
 
 struct pmc_clk {
-	struct clk_hw	hw;
-	unsigned long	offs;
-	u32		mux_shift;
-	u32		force_en_shift;
+	struct clk_hw hw;
+	struct tegra_pmc *pmc;
+	unsigned long offs;
+	u32 mux_shift;
+	u32 force_en_shift;
 };
 
 #define to_pmc_clk(_hw) container_of(_hw, struct pmc_clk, hw)
 
 struct pmc_clk_gate {
-	struct clk_hw	hw;
-	unsigned long	offs;
-	u32		shift;
+	struct clk_hw hw;
+	struct tegra_pmc *pmc;
+	unsigned long offs;
+	u32 shift;
 };
 
 #define to_pmc_clk_gate(_hw) container_of(_hw, struct pmc_clk_gate, hw)
@@ -2601,7 +2603,7 @@ static int tegra_pmc_clk_notify_cb(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static void pmc_clk_fence_udelay(u32 offset)
+static void pmc_clk_fence_udelay(struct tegra_pmc *pmc, u32 offset)
 {
 	tegra_pmc_readl(pmc, offset);
 	/* pmc clk propagation delay 2 us */
@@ -2613,7 +2615,7 @@ static u8 pmc_clk_mux_get_parent(struct clk_hw *hw)
 	struct pmc_clk *clk = to_pmc_clk(hw);
 	u32 val;
 
-	val = tegra_pmc_readl(pmc, clk->offs) >> clk->mux_shift;
+	val = tegra_pmc_readl(clk->pmc, clk->offs) >> clk->mux_shift;
 	val &= PMC_CLK_OUT_MUX_MASK;
 
 	return val;
@@ -2624,11 +2626,11 @@ static int pmc_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	struct pmc_clk *clk = to_pmc_clk(hw);
 	u32 val;
 
-	val = tegra_pmc_readl(pmc, clk->offs);
+	val = tegra_pmc_readl(clk->pmc, clk->offs);
 	val &= ~(PMC_CLK_OUT_MUX_MASK << clk->mux_shift);
 	val |= index << clk->mux_shift;
-	tegra_pmc_writel(pmc, val, clk->offs);
-	pmc_clk_fence_udelay(clk->offs);
+	tegra_pmc_writel(clk->pmc, val, clk->offs);
+	pmc_clk_fence_udelay(clk->pmc, clk->offs);
 
 	return 0;
 }
@@ -2638,26 +2640,27 @@ static int pmc_clk_is_enabled(struct clk_hw *hw)
 	struct pmc_clk *clk = to_pmc_clk(hw);
 	u32 val;
 
-	val = tegra_pmc_readl(pmc, clk->offs) & BIT(clk->force_en_shift);
+	val = tegra_pmc_readl(clk->pmc, clk->offs) & BIT(clk->force_en_shift);
 
 	return val ? 1 : 0;
 }
 
-static void pmc_clk_set_state(unsigned long offs, u32 shift, int state)
+static void pmc_clk_set_state(struct tegra_pmc *pmc, unsigned long offs,
+			      u32 shift, int state)
 {
 	u32 val;
 
 	val = tegra_pmc_readl(pmc, offs);
 	val = state ? (val | BIT(shift)) : (val & ~BIT(shift));
 	tegra_pmc_writel(pmc, val, offs);
-	pmc_clk_fence_udelay(offs);
+	pmc_clk_fence_udelay(pmc, offs);
 }
 
 static int pmc_clk_enable(struct clk_hw *hw)
 {
 	struct pmc_clk *clk = to_pmc_clk(hw);
 
-	pmc_clk_set_state(clk->offs, clk->force_en_shift, 1);
+	pmc_clk_set_state(clk->pmc, clk->offs, clk->force_en_shift, 1);
 
 	return 0;
 }
@@ -2666,7 +2669,7 @@ static void pmc_clk_disable(struct clk_hw *hw)
 {
 	struct pmc_clk *clk = to_pmc_clk(hw);
 
-	pmc_clk_set_state(clk->offs, clk->force_en_shift, 0);
+	pmc_clk_set_state(clk->pmc, clk->offs, clk->force_en_shift, 0);
 }
 
 static const struct clk_ops pmc_clk_ops = {
@@ -2698,6 +2701,7 @@ tegra_pmc_clk_out_register(struct tegra_pmc *pmc,
 		     CLK_SET_PARENT_GATE;
 
 	pmc_clk->hw.init = &init;
+	pmc_clk->pmc = pmc;
 	pmc_clk->offs = offset;
 	pmc_clk->mux_shift = data->mux_shift;
 	pmc_clk->force_en_shift = data->force_en_shift;
@@ -2708,15 +2712,16 @@ tegra_pmc_clk_out_register(struct tegra_pmc *pmc,
 static int pmc_clk_gate_is_enabled(struct clk_hw *hw)
 {
 	struct pmc_clk_gate *gate = to_pmc_clk_gate(hw);
+	u32 value = tegra_pmc_readl(gate->pmc, gate->offs);
 
-	return tegra_pmc_readl(pmc, gate->offs) & BIT(gate->shift) ? 1 : 0;
+	return value & BIT(gate->shift) ? 1 : 0;
 }
 
 static int pmc_clk_gate_enable(struct clk_hw *hw)
 {
 	struct pmc_clk_gate *gate = to_pmc_clk_gate(hw);
 
-	pmc_clk_set_state(gate->offs, gate->shift, 1);
+	pmc_clk_set_state(gate->pmc, gate->offs, gate->shift, 1);
 
 	return 0;
 }
@@ -2725,7 +2730,7 @@ static void pmc_clk_gate_disable(struct clk_hw *hw)
 {
 	struct pmc_clk_gate *gate = to_pmc_clk_gate(hw);
 
-	pmc_clk_set_state(gate->offs, gate->shift, 0);
+	pmc_clk_set_state(gate->pmc, gate->offs, gate->shift, 0);
 }
 
 static const struct clk_ops pmc_clk_gate_ops = {
@@ -2753,6 +2758,7 @@ tegra_pmc_clk_gate_register(struct tegra_pmc *pmc, const char *name,
 	init.flags = 0;
 
 	gate->hw.init = &init;
+	gate->pmc = pmc;
 	gate->offs = offset;
 	gate->shift = shift;
 
