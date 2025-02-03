@@ -137,8 +137,6 @@ static void ae4_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id ae4_pci_table[] = {
-	{ PCI_VDEVICE(AMD, 0x14C8), },
-	{ PCI_VDEVICE(AMD, 0x14DC), },
 	{ PCI_VDEVICE(AMD, 0x149B), },
 	/* Last entry must be zero */
 	{ 0, }
