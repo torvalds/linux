@@ -110,7 +110,7 @@
 			};
 		};
 
-		pmc8380-6-thermal {
+		pmc8380_6_thermal: pmc8380-6-thermal {
 			polling-delay-passive = <100>;
 
 			thermal-sensors = <&pmc8380_6_temp_alarm>;

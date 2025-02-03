@@ -252,7 +252,7 @@
 				};
 			};
 
-			cluster2 {
+			cpu_map_cluster2: cluster2 {
 				core0 {
 					cpu = <&cpu8>;
 				};
@@ -8212,9 +8212,22 @@
 		};
 
 		/* cluster0 */
-		pmu@240b3400 {
+		bwmon_cluster0: pmu@240b3400 {
 			compatible = "qcom,x1e80100-cpu-bwmon", "qcom,sdm845-bwmon";
 			reg = <0 0x240b3400 0 0x600>;
+
+			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
+
+			interconnects = <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
+					 &gem_noc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
+
+			operating-points-v2 = <&cpu_bwmon_opp_table>;
+		};
+
+		/* cluster2 */
+		bwmon_cluster2: pmu@240b5400 {
+			compatible = "qcom,x1e80100-cpu-bwmon", "qcom,sdm845-bwmon";
+			reg = <0 0x240b5400 0 0x600>;
 
 			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -8250,19 +8263,6 @@
 					opp-peak-kBps = <17064000>;
 				};
 			};
-		};
-
-		/* cluster2 */
-		pmu@240b5400 {
-			compatible = "qcom,x1e80100-cpu-bwmon", "qcom,sdm845-bwmon";
-			reg = <0 0x240b5400 0 0x600>;
-
-			interrupts = <GIC_SPI 581 IRQ_TYPE_LEVEL_HIGH>;
-
-			interconnects = <&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ACTIVE_ONLY
-					 &gem_noc SLAVE_LLCC QCOM_ICC_TAG_ACTIVE_ONLY>;
-
-			operating-points-v2 = <&cpu_bwmon_opp_table>;
 		};
 
 		/* cluster1 */
