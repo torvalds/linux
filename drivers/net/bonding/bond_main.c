@@ -432,9 +432,6 @@ static struct net_device *bond_ipsec_dev(struct xfrm_state *xs)
 	struct bonding *bond;
 	struct slave *slave;
 
-	if (!bond_dev)
-		return NULL;
-
 	bond = netdev_priv(bond_dev);
 	if (BOND_MODE(bond) != BOND_MODE_ACTIVEBACKUP)
 		return NULL;
