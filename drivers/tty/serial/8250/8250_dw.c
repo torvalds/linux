@@ -459,8 +459,8 @@ static void dw8250_prepare_rx_dma(struct uart_8250_port *p)
 
 static void dw8250_quirks(struct uart_port *p, struct dw8250_data *data)
 {
-	unsigned int quirks = data->pdata ? data->pdata->quirks : 0;
-	u32 cpr_value = data->pdata ? data->pdata->cpr_value : 0;
+	unsigned int quirks = data->pdata->quirks;
+	u32 cpr_value = data->pdata->cpr_value;
 
 	if (quirks & DW_UART_QUIRK_CPR_VALUE)
 		data->data.cpr_value = cpr_value;
