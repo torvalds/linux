@@ -367,6 +367,22 @@ static const u32 uvc_control_classes[] = {
 
 static const int exposure_auto_mapping[] = { 2, 1, 4, 8 };
 
+static s32 uvc_mapping_get_s32(struct uvc_control_mapping *mapping,
+			       u8 query, const void *data_in)
+{
+	s32 data_out = 0;
+
+	mapping->get(mapping, query, data_in, sizeof(data_out), &data_out);
+
+	return data_out;
+}
+
+static void uvc_mapping_set_s32(struct uvc_control_mapping *mapping,
+				s32 data_in, void *data_out)
+{
+	mapping->set(mapping, sizeof(data_in), &data_in, data_out);
+}
+
 /*
  * This function translates the V4L2 menu index @idx, as exposed to userspace as
  * the V4L2 control value, to the corresponding UVC control value used by the
@@ -405,58 +421,93 @@ uvc_mapping_get_menu_name(const struct uvc_control_mapping *mapping, u32 idx)
 	return v4l2_ctrl_get_menu(mapping->id)[idx];
 }
 
-static s32 uvc_ctrl_get_zoom(struct uvc_control_mapping *mapping,
-	u8 query, const u8 *data)
+static int uvc_ctrl_get_zoom(struct uvc_control_mapping *mapping, u8 query,
+			     const void *uvc_in, size_t v4l2_size,
+			     void *v4l2_out)
 {
-	s8 zoom = (s8)data[0];
+	u8 value = ((u8 *)uvc_in)[2];
+	s8 sign = ((s8 *)uvc_in)[0];
+	s32 *out = v4l2_out;
+
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
 
 	switch (query) {
 	case UVC_GET_CUR:
-		return (zoom == 0) ? 0 : (zoom > 0 ? data[2] : -data[2]);
+		*out = (sign == 0) ? 0 : (sign > 0 ? value : -value);
+		return 0;
 
 	case UVC_GET_MIN:
 	case UVC_GET_MAX:
 	case UVC_GET_RES:
 	case UVC_GET_DEF:
 	default:
-		return data[2];
+		*out = value;
+		return 0;
 	}
 }
 
-static void uvc_ctrl_set_zoom(struct uvc_control_mapping *mapping,
-	s32 value, u8 *data)
+static int uvc_ctrl_set_zoom(struct uvc_control_mapping *mapping,
+			     size_t v4l2_size, const void *v4l2_in,
+			     void *uvc_out)
 {
-	data[0] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
-	data[2] = min((int)abs(value), 0xff);
+	u8 *out = uvc_out;
+	s32 value;
+
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
+
+	value = *(u32 *)v4l2_in;
+	out[0] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
+	out[2] = min_t(int, abs(value), 0xff);
+
+	return 0;
 }
 
-static s32 uvc_ctrl_get_rel_speed(struct uvc_control_mapping *mapping,
-	u8 query, const u8 *data)
+static int uvc_ctrl_get_rel_speed(struct uvc_control_mapping *mapping,
+				  u8 query, const void *uvc_in,
+				  size_t v4l2_size, void *v4l2_out)
 {
 	unsigned int first = mapping->offset / 8;
-	s8 rel = (s8)data[first];
+	u8 value = ((u8 *)uvc_in)[first + 1];
+	s8 sign = ((s8 *)uvc_in)[first];
+	s32 *out = v4l2_out;
+
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
 
 	switch (query) {
 	case UVC_GET_CUR:
-		return (rel == 0) ? 0 : (rel > 0 ? data[first+1]
-						 : -data[first+1]);
+		*out = (sign == 0) ? 0 : (sign > 0 ? value : -value);
+		return 0;
 	case UVC_GET_MIN:
-		return -data[first+1];
+		*out = -value;
+		return 0;
 	case UVC_GET_MAX:
 	case UVC_GET_RES:
 	case UVC_GET_DEF:
 	default:
-		return data[first+1];
+		*out = value;
+		return 0;
 	}
 }
 
-static void uvc_ctrl_set_rel_speed(struct uvc_control_mapping *mapping,
-	s32 value, u8 *data)
+static int uvc_ctrl_set_rel_speed(struct uvc_control_mapping *mapping,
+				  size_t v4l2_size, const void *v4l2_in,
+				  void *uvc_out)
 {
 	unsigned int first = mapping->offset / 8;
+	u8 *out = uvc_out;
+	s32 value;
 
-	data[first] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
-	data[first+1] = min_t(int, abs(value), 0xff);
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
+
+	value = *(u32 *)v4l2_in;
+	out[first] = value == 0 ? 0 : (value > 0) ? 1 : 0xff;
+	out[first + 1] = min_t(int, abs(value), 0xff);
+
+	return 0;
 }
 
 static const struct uvc_control_mapping uvc_ctrl_power_line_mapping_limited = {
@@ -887,13 +938,19 @@ static s32 uvc_menu_to_v4l2_menu(struct uvc_control_mapping *mapping, s32 val)
  * a signed 32bit integer. Sign extension will be performed if the mapping
  * references a signed data type.
  */
-static s32 uvc_get_le_value(struct uvc_control_mapping *mapping,
-	u8 query, const u8 *data)
+static int uvc_get_le_value(struct uvc_control_mapping *mapping,
+			    u8 query, const void *uvc_in, size_t v4l2_size,
+			    void *v4l2_out)
 {
-	int bits = mapping->size;
 	int offset = mapping->offset;
+	int bits = mapping->size;
+	const u8 *data = uvc_in;
+	s32 *out = v4l2_out;
 	s32 value = 0;
 	u8 mask;
+
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
 
 	data += offset / 8;
 	offset &= 7;
@@ -916,28 +973,40 @@ static s32 uvc_get_le_value(struct uvc_control_mapping *mapping,
 		value |= -(value & (1 << (mapping->size - 1)));
 
 	/* If it is a menu, convert from uvc to v4l2. */
-	if (mapping->v4l2_type != V4L2_CTRL_TYPE_MENU)
-		return value;
+	if (mapping->v4l2_type != V4L2_CTRL_TYPE_MENU) {
+		*out = value;
+		return 0;
+	}
 
 	switch (query) {
 	case UVC_GET_CUR:
 	case UVC_GET_DEF:
-		return uvc_menu_to_v4l2_menu(mapping, value);
+		*out = uvc_menu_to_v4l2_menu(mapping, value);
+		return 0;
 	}
 
-	return value;
+	*out = value;
+	return 0;
 }
 
 /*
  * Set the bit string specified by mapping->offset and mapping->size
  * in the little-endian data stored at 'data' to the value 'value'.
  */
-static void uvc_set_le_value(struct uvc_control_mapping *mapping,
-	s32 value, u8 *data)
+static int uvc_set_le_value(struct uvc_control_mapping *mapping,
+			    size_t v4l2_size, const void *v4l2_in,
+			    void *uvc_out)
 {
-	int bits = mapping->size;
 	int offset = mapping->offset;
+	int bits = mapping->size;
+	u8 *data = uvc_out;
+	s32 value;
 	u8 mask;
+
+	if (WARN_ON(v4l2_size != sizeof(s32)))
+		return -EINVAL;
+
+	value = *(s32 *)v4l2_in;
 
 	switch (mapping->v4l2_type) {
 	case V4L2_CTRL_TYPE_MENU:
@@ -966,6 +1035,8 @@ static void uvc_set_le_value(struct uvc_control_mapping *mapping,
 		bits -= 8 - offset;
 		offset = 0;
 	}
+
+	return 0;
 }
 
 /* ------------------------------------------------------------------------
@@ -1147,8 +1218,8 @@ static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 	if (ret < 0)
 		return ret;
 
-	*value = mapping->get(mapping, UVC_GET_CUR,
-			      uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
+	*value = uvc_mapping_get_s32(mapping, UVC_GET_CUR,
+				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	return 0;
 }
@@ -1281,12 +1352,12 @@ static u32 uvc_get_ctrl_bitmap(struct uvc_control *ctrl,
 	 * as supported.
 	 */
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_RES)
-		return mapping->get(mapping, UVC_GET_RES,
-				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		return uvc_mapping_get_s32(mapping, UVC_GET_RES,
+					   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MAX)
-		return mapping->get(mapping, UVC_GET_MAX,
-				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+		return uvc_mapping_get_s32(mapping, UVC_GET_MAX,
+					   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
 
 	return ~0;
 }
@@ -1331,8 +1402,8 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	}
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_DEF) {
-		v4l2_ctrl->default_value = mapping->get(mapping, UVC_GET_DEF,
-				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
+		v4l2_ctrl->default_value = uvc_mapping_get_s32(mapping,
+				UVC_GET_DEF, uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
 	}
 
 	switch (mapping->v4l2_type) {
@@ -1365,16 +1436,16 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 	}
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MIN)
-		v4l2_ctrl->minimum = mapping->get(mapping, UVC_GET_MIN,
-				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+		v4l2_ctrl->minimum = uvc_mapping_get_s32(mapping, UVC_GET_MIN,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_MAX)
-		v4l2_ctrl->maximum = mapping->get(mapping, UVC_GET_MAX,
-				     uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+		v4l2_ctrl->maximum = uvc_mapping_get_s32(mapping, UVC_GET_MAX,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
 
 	if (ctrl->info.flags & UVC_CTRL_FLAG_GET_RES)
-		v4l2_ctrl->step = mapping->get(mapping, UVC_GET_RES,
-				  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		v4l2_ctrl->step = uvc_mapping_get_s32(mapping, UVC_GET_RES,
+				uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 
 	return 0;
 }
@@ -1625,7 +1696,7 @@ void uvc_ctrl_status_event(struct uvc_video_chain *chain,
 		uvc_ctrl_set_handle(handle, ctrl, NULL);
 
 	list_for_each_entry(mapping, &ctrl->info.mappings, list) {
-		s32 value = mapping->get(mapping, UVC_GET_CUR, data);
+		s32 value = uvc_mapping_get_s32(mapping, UVC_GET_CUR, data);
 
 		/*
 		 * handle may be NULL here if the device sends auto-update
@@ -1974,8 +2045,8 @@ int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
 			if (ret < 0)
 				return ret;
 		}
-		xctrl->value = mapping->get(mapping, UVC_GET_DEF,
-					    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
+		xctrl->value = uvc_mapping_get_s32(mapping, UVC_GET_DEF,
+						   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_DEF));
 		return 0;
 	}
 
@@ -2014,12 +2085,12 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 				return ret;
 		}
 
-		min = mapping->get(mapping, UVC_GET_MIN,
-				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
-		max = mapping->get(mapping, UVC_GET_MAX,
-				   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
-		step = mapping->get(mapping, UVC_GET_RES,
-				    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
+		min = uvc_mapping_get_s32(mapping, UVC_GET_MIN,
+					  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MIN));
+		max = uvc_mapping_get_s32(mapping, UVC_GET_MAX,
+					  uvc_ctrl_data(ctrl, UVC_CTRL_DATA_MAX));
+		step = uvc_mapping_get_s32(mapping, UVC_GET_RES,
+					   uvc_ctrl_data(ctrl, UVC_CTRL_DATA_RES));
 		if (step == 0)
 			step = 1;
 
@@ -2098,8 +2169,8 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 		       ctrl->info.size);
 	}
 
-	mapping->set(mapping, value,
-		uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
+	uvc_mapping_set_s32(mapping, value,
+			    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	ctrl->dirty = 1;
 	ctrl->modified = 1;

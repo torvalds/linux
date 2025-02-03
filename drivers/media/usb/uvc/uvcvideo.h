@@ -132,10 +132,10 @@ struct uvc_control_mapping {
 	const struct uvc_control_mapping *(*filter_mapping)
 				(struct uvc_video_chain *chain,
 				struct uvc_control *ctrl);
-	s32 (*get)(struct uvc_control_mapping *mapping, u8 query,
-		   const u8 *data);
-	void (*set)(struct uvc_control_mapping *mapping, s32 value,
-		    u8 *data);
+	int (*get)(struct uvc_control_mapping *mapping, u8 query,
+		   const void *uvc_in, size_t v4l2_size, void *v4l2_out);
+	int (*set)(struct uvc_control_mapping *mapping, size_t v4l2_size,
+		   const void *v4l2_in, void *uvc_out);
 };
 
 struct uvc_control {
