@@ -3751,7 +3751,7 @@
 
 			status = "disabled";
 
-			zap-shader {
+			gpu_zap_shader: zap-shader {
 				memory-region = <&gpu_microcode_mem>;
 			};
 
