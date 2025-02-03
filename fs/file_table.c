@@ -194,6 +194,11 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	 * refcount bumps we should reinitialize the reused file first.
 	 */
 	file_ref_init(&f->f_ref, 1);
+	/*
+	 * Disable permission and pre-content events for all files by default.
+	 * They may be enabled later by file_set_fsnotify_mode_from_watchers().
+	 */
+	file_set_fsnotify_mode(f, FMODE_NONOTIFY_PERM);
 	return 0;
 }
 
