@@ -9,7 +9,6 @@ title: Qualcomm Technologies ath12k wireless devices (PCIe) with WSI interface
 
 maintainers:
   - Jeff Johnson <jjohnson@kernel.org>
-  - Kalle Valo <kvalo@kernel.org>
 
 description: |
   Qualcomm Technologies IEEE 802.11be PCIe devices with WSI interface.

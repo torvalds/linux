@@ -8,7 +8,6 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Technologies ath11k wireless devices (PCIe)
 
 maintainers:
-  - Kalle Valo <kvalo@kernel.org>
   - Jeff Johnson <jjohnson@kernel.org>
 
 description: |
