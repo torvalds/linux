@@ -119,6 +119,13 @@ static u32 mlx5_ptp_shift_constant(u32 dev_freq_khz)
 		   ilog2((U32_MAX / NSEC_PER_MSEC) * dev_freq_khz));
 }
 
+static s32 mlx5_clock_getmaxphase(struct mlx5_core_dev *mdev)
+{
+	return MLX5_CAP_MCAM_FEATURE(mdev, mtutc_time_adjustment_extended_range) ?
+		       MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX :
+			     MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX;
+}
+
 static s32 mlx5_ptp_getmaxphase(struct ptp_clock_info *ptp)
 {
 	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
@@ -126,14 +133,12 @@ static s32 mlx5_ptp_getmaxphase(struct ptp_clock_info *ptp)
 
 	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
-	return MLX5_CAP_MCAM_FEATURE(mdev, mtutc_time_adjustment_extended_range) ?
-		       MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX :
-			     MLX5_MTUTC_OPERATION_ADJUST_TIME_MAX;
+	return mlx5_clock_getmaxphase(mdev);
 }
 
 static bool mlx5_is_mtutc_time_adj_cap(struct mlx5_core_dev *mdev, s64 delta)
 {
-	s64 max = mlx5_ptp_getmaxphase(&mdev->clock.ptp_info);
+	s64 max = mlx5_clock_getmaxphase(mdev);
 
 	if (delta < -max || delta > max)
 		return false;
@@ -361,14 +366,11 @@ static int mlx5_ptp_settime_real_time(struct mlx5_core_dev *mdev,
 	return mlx5_set_mtutc(mdev, in, sizeof(in));
 }
 
-static int mlx5_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 *ts)
+static int mlx5_clock_settime(struct mlx5_core_dev *mdev, struct mlx5_clock *clock,
+			      const struct timespec64 *ts)
 {
-	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
 	struct mlx5_timer *timer = &clock->timer;
-	struct mlx5_core_dev *mdev;
 	unsigned long flags;
-
-	mdev = container_of(clock, struct mlx5_core_dev, clock);
 
 	if (mlx5_modify_mtutc_allowed(mdev)) {
 		int err = mlx5_ptp_settime_real_time(mdev, ts);
@@ -383,6 +385,16 @@ static int mlx5_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 
 	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	return 0;
+}
+
+static int mlx5_ptp_settime(struct ptp_clock_info *ptp, const struct timespec64 *ts)
+{
+	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock, ptp_info);
+	struct mlx5_core_dev *mdev;
+
+	mdev = container_of(clock, struct mlx5_core_dev, clock);
+
+	return  mlx5_clock_settime(mdev, clock, ts);
 }
 
 static
@@ -1129,7 +1141,7 @@ static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 		struct timespec64 ts;
 
 		ktime_get_real_ts64(&ts);
-		mlx5_ptp_settime(&clock->ptp_info, &ts);
+		mlx5_clock_settime(mdev, clock, &ts);
 	}
 }
 
