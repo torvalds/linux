@@ -139,6 +139,7 @@ void symbol_free(void);
 
 enum die_state {
 	DIE_INCOMPLETE,
+	DIE_FQN,
 	DIE_UNEXPANDED,
 	DIE_COMPLETE,
 	DIE_SYMBOL,
@@ -170,6 +171,7 @@ static inline const char *die_state_name(enum die_state state)
 {
 	switch (state) {
 	CASE_CONST_TO_STR(DIE_INCOMPLETE)
+	CASE_CONST_TO_STR(DIE_FQN)
 	CASE_CONST_TO_STR(DIE_UNEXPANDED)
 	CASE_CONST_TO_STR(DIE_COMPLETE)
 	CASE_CONST_TO_STR(DIE_SYMBOL)
