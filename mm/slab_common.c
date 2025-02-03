@@ -1284,7 +1284,7 @@ EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
 EXPORT_TRACEPOINT_SYMBOL(kfree);
 EXPORT_TRACEPOINT_SYMBOL(kmem_cache_free);
 
-#ifdef CONFIG_TINY_RCU
+#ifndef CONFIG_KVFREE_RCU_BATCHED
 
 void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 {
@@ -1301,7 +1301,11 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 }
 EXPORT_SYMBOL_GPL(kvfree_call_rcu);
 
-#endif
+void __init kvfree_rcu_init(void)
+{
+}
+
+#else /* CONFIG_KVFREE_RCU_BATCHED */
 
 /*
  * This rcu parameter is runtime-read-only. It reflects
@@ -1879,8 +1883,6 @@ add_ptr_to_bulk_krc_lock(struct kfree_rcu_cpu **krcp,
 	return true;
 }
 
-#if !defined(CONFIG_TINY_RCU)
-
 static enum hrtimer_restart
 schedule_page_work_fn(struct hrtimer *t)
 {
@@ -2089,8 +2091,6 @@ void kvfree_rcu_barrier(void)
 }
 EXPORT_SYMBOL_GPL(kvfree_rcu_barrier);
 
-#endif /* #if !defined(CONFIG_TINY_RCU) */
-
 static unsigned long
 kfree_rcu_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
@@ -2180,3 +2180,6 @@ void __init kvfree_rcu_init(void)
 
 	shrinker_register(kfree_rcu_shrinker);
 }
+
+#endif /* CONFIG_KVFREE_RCU_BATCHED */
+
