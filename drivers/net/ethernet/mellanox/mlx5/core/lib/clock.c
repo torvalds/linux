@@ -1153,17 +1153,11 @@ static void mlx5_init_pps(struct mlx5_core_dev *mdev)
 	mlx5_init_pin_config(mdev);
 }
 
-void mlx5_init_clock(struct mlx5_core_dev *mdev)
+static void mlx5_init_clock_dev(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_clock *clock = &mdev->clock;
 
-	if (!MLX5_CAP_GEN(mdev, device_frequency_khz)) {
-		mlx5_core_warn(mdev, "invalid device_frequency_khz, aborting HW clock init\n");
-		return;
-	}
-
 	seqlock_init(&clock->lock);
-	INIT_WORK(&clock->pps_info.out_work, mlx5_pps_out);
 
 	/* Initialize the device clock */
 	mlx5_init_timer_clock(mdev);
@@ -1179,11 +1173,41 @@ void mlx5_init_clock(struct mlx5_core_dev *mdev)
 		clock->ptp = NULL;
 	}
 
-	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
-	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
-
 	if (clock->ptp)
 		ptp_schedule_worker(clock->ptp, 0);
+}
+
+static void mlx5_destroy_clock_dev(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock = &mdev->clock;
+
+	if (clock->ptp) {
+		ptp_clock_unregister(clock->ptp);
+		clock->ptp = NULL;
+	}
+
+	if (mdev->clock_info) {
+		free_page((unsigned long)mdev->clock_info);
+		mdev->clock_info = NULL;
+	}
+
+	kfree(clock->ptp_info.pin_config);
+}
+
+void mlx5_init_clock(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock = &mdev->clock;
+
+	if (!MLX5_CAP_GEN(mdev, device_frequency_khz)) {
+		mlx5_core_warn(mdev, "invalid device_frequency_khz, aborting HW clock init\n");
+		return;
+	}
+
+	mlx5_init_clock_dev(mdev);
+
+	INIT_WORK(&clock->pps_info.out_work, mlx5_pps_out);
+	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
+	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
 }
 
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
@@ -1194,17 +1218,7 @@ void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 		return;
 
 	mlx5_eq_notifier_unregister(mdev, &clock->pps_nb);
-	if (clock->ptp) {
-		ptp_clock_unregister(clock->ptp);
-		clock->ptp = NULL;
-	}
-
 	cancel_work_sync(&clock->pps_info.out_work);
 
-	if (mdev->clock_info) {
-		free_page((unsigned long)mdev->clock_info);
-		mdev->clock_info = NULL;
-	}
-
-	kfree(clock->ptp_info.pin_config);
+	mlx5_destroy_clock_dev(mdev);
 }
