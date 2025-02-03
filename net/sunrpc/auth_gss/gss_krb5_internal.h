@@ -155,10 +155,6 @@ static inline int krb5_derive_key(struct krb5_ctx *kctx,
 
 void krb5_make_confounder(u8 *p, int conflen);
 
-u32 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
-		  struct xdr_buf *body, int body_offset, u8 *cksumkey,
-		  unsigned int usage, struct xdr_netobj *cksumout);
-
 u32 gss_krb5_checksum(struct crypto_ahash *tfm, char *header, int hdrlen,
 		      const struct xdr_buf *body, int body_offset,
 		      struct xdr_netobj *cksumout);
