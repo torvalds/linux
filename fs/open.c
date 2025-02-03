@@ -936,8 +936,8 @@ static int do_dentry_open(struct file *f,
 
 	/*
 	 * Set FMODE_NONOTIFY_* bits according to existing permission watches.
-	 * If FMODE_NONOTIFY was already set for an fanotify fd, this doesn't
-	 * change anything.
+	 * If FMODE_NONOTIFY mode was already set for an fanotify fd or for a
+	 * pseudo file, this call will not change the mode.
 	 */
 	file_set_fsnotify_mode_from_watchers(f);
 	error = fsnotify_open_perm(f);
