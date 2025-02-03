@@ -351,7 +351,7 @@ union test_small_start {
 	} big;
 };
 
-/* Mismatched sizes, with one and two being small */
+/* Mismatched sizes, with three and four being small */
 union test_small_end {
 	short one;
 	unsigned long two;
