@@ -2531,6 +2531,74 @@ Field	1	AFSR1_EL1
 Field	0	AFSR0_EL1
 EndSysregFields
 
+Sysreg	HCR_EL2		3	4	1	1	0
+Field	63:60	TWEDEL
+Field	59	TWEDEn
+Field	58	TID5
+Field	57	DCT
+Field	56	ATA
+Field	55	TTLBOS
+Field	54	TTLBIS
+Field	53	EnSCXT
+Field	52	TOCU
+Field	51	AMVOFFEN
+Field	50	TICAB
+Field	49	TID4
+Field	48	GPF
+Field	47	FIEN
+Field	46	FWB
+Field	45	NV2
+Field	44	AT
+Field	43	NV1
+Field	42	NV
+Field	41	API
+Field	40	APK
+Field	39	TME
+Field	38	MIOCNCE
+Field	37	TEA
+Field	36	TERR
+Field	35	TLOR
+Field	34	E2H
+Field	33	ID
+Field	32	CD
+Field	31	RW
+Field	30	TRVM
+Field	29	HCD
+Field	28	TDZ
+Field	27	TGE
+Field	26	TVM
+Field	25	TTLB
+Field	24	TPU
+Field	23	TPCP
+Field	22	TSW
+Field	21	TACR
+Field	20	TIDCP
+Field	19	TSC
+Field	18	TID3
+Field	17	TID2
+Field	16	TID1
+Field	15	TID0
+Field	14	TWE
+Field	13	TWI
+Field	12	DC
+UnsignedEnum	11:10	BSU
+	0b00	NONE
+	0b01	IS
+	0b10	OS
+	0b11	FS
+EndEnum
+Field	9	FB
+Field	8	VSE
+Field	7	VI
+Field	6	VF
+Field	5	AMO
+Field	4	IMO
+Field	3	FMO
+Field	2	PTW
+Field	1	SWIO
+Field	0	VM
+EndSysreg
+
 Sysreg MDCR_EL2		3	4	1	1	1
 Res0	63:51
 Field	50	EnSTEPOP
