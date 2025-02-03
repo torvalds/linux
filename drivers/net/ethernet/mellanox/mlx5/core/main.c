@@ -1364,6 +1364,8 @@ static int mlx5_load(struct mlx5_core_dev *dev)
 		goto err_eq_table;
 	}
 
+	mlx5_clock_load(dev);
+
 	err = mlx5_fw_tracer_init(dev->tracer);
 	if (err) {
 		mlx5_core_err(dev, "Failed to init FW tracer %d\n", err);
@@ -1447,6 +1449,7 @@ err_fpga_start:
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
 	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
+	mlx5_clock_unload(dev);
 	mlx5_eq_table_destroy(dev);
 err_eq_table:
 	mlx5_irq_table_destroy(dev);
@@ -1473,6 +1476,7 @@ static void mlx5_unload(struct mlx5_core_dev *dev)
 	mlx5_hv_vhca_cleanup(dev->hv_vhca);
 	mlx5_fw_reset_events_stop(dev);
 	mlx5_fw_tracer_cleanup(dev->tracer);
+	mlx5_clock_unload(dev);
 	mlx5_eq_table_destroy(dev);
 	mlx5_irq_table_destroy(dev);
 	mlx5_pagealloc_stop(dev);

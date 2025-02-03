@@ -90,6 +90,7 @@ struct mlx5_clock_priv {
 	struct mlx5_clock clock;
 	struct mlx5_core_dev *mdev;
 	struct mutex lock; /* protect mdev and used in PTP callbacks */
+	struct mlx5_core_dev *event_mdev;
 };
 
 static struct mlx5_clock_priv *clock_priv(struct mlx5_clock *clock)
@@ -691,6 +692,11 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 		goto unlock;
 
 	err = mlx5_set_mtppse(mdev, pin, 0, MLX5_EVENT_MODE_REPETETIVE & on);
+	if (err)
+		goto unlock;
+
+	clock->pps_info.pin_armed[pin] = on;
+	clock_priv(clock)->event_mdev = mdev;
 
 unlock:
 	mlx5_clock_unlock(clock);
@@ -1417,6 +1423,90 @@ static void mlx5_shared_clock_unregister(struct mlx5_core_dev *mdev)
 	mlx5_devcom_unregister_component(mdev->clock_state->compdev);
 }
 
+static void mlx5_clock_arm_pps_in_event(struct mlx5_clock *clock,
+					struct mlx5_core_dev *new_mdev,
+					struct mlx5_core_dev *old_mdev)
+{
+	struct ptp_clock_info *ptp_info = &clock->ptp_info;
+	struct mlx5_clock_priv *cpriv = clock_priv(clock);
+	int i;
+
+	for (i = 0; i < ptp_info->n_pins; i++) {
+		if (ptp_info->pin_config[i].func != PTP_PF_EXTTS ||
+		    !clock->pps_info.pin_armed[i])
+			continue;
+
+		if (new_mdev) {
+			mlx5_set_mtppse(new_mdev, i, 0, MLX5_EVENT_MODE_REPETETIVE);
+			cpriv->event_mdev = new_mdev;
+		} else {
+			cpriv->event_mdev = NULL;
+		}
+
+		if (old_mdev)
+			mlx5_set_mtppse(old_mdev, i, 0, MLX5_EVENT_MODE_DISABLE);
+	}
+}
+
+void mlx5_clock_load(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock = mdev->clock;
+	struct mlx5_clock_priv *cpriv;
+
+	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
+		return;
+
+	INIT_WORK(&mdev->clock_state->out_work, mlx5_pps_out);
+	MLX5_NB_INIT(&mdev->clock_state->pps_nb, mlx5_pps_event, PPS_EVENT);
+	mlx5_eq_notifier_register(mdev, &mdev->clock_state->pps_nb);
+
+	if (!clock->shared) {
+		mlx5_clock_arm_pps_in_event(clock, mdev, NULL);
+		return;
+	}
+
+	cpriv = clock_priv(clock);
+	mlx5_devcom_comp_lock(mdev->clock_state->compdev);
+	mlx5_clock_lock(clock);
+	if (mdev == cpriv->mdev && mdev != cpriv->event_mdev)
+		mlx5_clock_arm_pps_in_event(clock, mdev, cpriv->event_mdev);
+	mlx5_clock_unlock(clock);
+	mlx5_devcom_comp_unlock(mdev->clock_state->compdev);
+}
+
+void mlx5_clock_unload(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_core_dev *peer_dev, *next = NULL;
+	struct mlx5_clock *clock = mdev->clock;
+	struct mlx5_devcom_comp_dev *pos;
+
+	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
+		return;
+
+	if (!clock->shared) {
+		mlx5_clock_arm_pps_in_event(clock, NULL, mdev);
+		goto out;
+	}
+
+	mlx5_devcom_comp_lock(mdev->clock_state->compdev);
+	mlx5_devcom_for_each_peer_entry(mdev->clock_state->compdev, peer_dev, pos) {
+		if (peer_dev->clock && peer_dev != mdev) {
+			next = peer_dev;
+			break;
+		}
+	}
+
+	mlx5_clock_lock(clock);
+	if (mdev == clock_priv(clock)->event_mdev)
+		mlx5_clock_arm_pps_in_event(clock, next, mdev);
+	mlx5_clock_unlock(clock);
+	mlx5_devcom_comp_unlock(mdev->clock_state->compdev);
+
+out:
+	mlx5_eq_notifier_unregister(mdev, &mdev->clock_state->pps_nb);
+	cancel_work_sync(&mdev->clock_state->out_work);
+}
+
 static struct mlx5_clock null_clock;
 
 int mlx5_init_clock(struct mlx5_core_dev *mdev)
@@ -1456,10 +1546,6 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 		}
 	}
 
-	INIT_WORK(&mdev->clock_state->out_work, mlx5_pps_out);
-	MLX5_NB_INIT(&mdev->clock_state->pps_nb, mlx5_pps_event, PPS_EVENT);
-	mlx5_eq_notifier_register(mdev, &mdev->clock_state->pps_nb);
-
 	return 0;
 }
 
@@ -1467,9 +1553,6 @@ void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 {
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
 		return;
-
-	mlx5_eq_notifier_unregister(mdev, &mdev->clock_state->pps_nb);
-	cancel_work_sync(&mdev->clock_state->out_work);
 
 	if (mdev->clock->shared)
 		mlx5_shared_clock_unregister(mdev);

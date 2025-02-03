@@ -42,6 +42,7 @@ struct mlx5_pps {
 	u8                         enabled;
 	u64                        min_npps_period;
 	u64                        min_out_pulse_duration_ns;
+	bool                       pin_armed[MAX_PIN_NUM];
 };
 
 struct mlx5_timer {
@@ -84,6 +85,8 @@ typedef ktime_t (*cqe_ts_to_ns)(struct mlx5_clock *, u64);
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
 int mlx5_init_clock(struct mlx5_core_dev *mdev);
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev);
+void mlx5_clock_load(struct mlx5_core_dev *mdev);
+void mlx5_clock_unload(struct mlx5_core_dev *mdev);
 
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
@@ -117,6 +120,8 @@ static inline ktime_t mlx5_real_time_cyc2time(struct mlx5_clock *clock,
 #else
 static inline int mlx5_init_clock(struct mlx5_core_dev *mdev) { return 0; }
 static inline void mlx5_cleanup_clock(struct mlx5_core_dev *mdev) {}
+static inline void mlx5_clock_load(struct mlx5_core_dev *mdev) {}
+static inline void mlx5_clock_unload(struct mlx5_core_dev *mdev) {}
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
 	return -1;
