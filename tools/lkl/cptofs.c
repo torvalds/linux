@@ -263,6 +263,9 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 
 	if (cptofs) {
 		ret = lstat(path, &stat);
+		if (ret)
+			goto err_out;
+
 		if (type)
 			*type = stat.st_mode & S_IFMT;
 		if (mode)
@@ -279,6 +282,9 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 		}
 	} else {
 		ret = lkl_sys_lstat(path, &lkl_stat);
+		if (ret)
+			goto err_out;
+
 		if (type)
 			*type = lkl_stat.st_mode & S_IFMT;
 		if (mode)
@@ -295,6 +301,7 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 		}
 	}
 
+err_out:
 	if (ret)
 		fprintf(stderr, "fsimg lstat(%s) error: %s\n",
 			path, cptofs ? strerror(errno) : lkl_strerror(ret));
@@ -430,6 +437,8 @@ static int do_entry(const char *_src, const char *_dst, const char *name, uid_t 
 	snprintf(dst, sizeof(dst), "%s/%s", _dst, name);
 
 	ret = stat_src(src, &type, &mode, NULL, &mtime, &atime);
+	if (ret)
+		goto err_out;
 
 	switch (type) {
 	case S_IFREG:
@@ -472,6 +481,7 @@ static int do_entry(const char *_src, const char *_dst, const char *name, uid_t 
 		}
 	}
 
+err_out:
 	if (ret)
 		printf("error processing entry %s, aborting\n", src);
 
