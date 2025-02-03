@@ -178,6 +178,7 @@ extern const struct nvkm_rm_impl r570_rm_tu102;
 extern const struct nvkm_rm_impl r570_rm_ga102;
 extern const struct nvkm_rm_impl r570_rm_gh100;
 extern const struct nvkm_rm_impl r570_rm_gb10x;
+extern const struct nvkm_rm_impl r570_rm_gb20x;
 extern const struct nvkm_rm_api_gsp r570_gsp;
 extern const struct nvkm_rm_api_client r570_client;
 extern const struct nvkm_rm_api_fbsr r570_fbsr;

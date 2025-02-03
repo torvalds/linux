@@ -13,6 +13,7 @@ nvkm-y += nvkm/subdev/gsp/rm/ga1xx.o
 nvkm-y += nvkm/subdev/gsp/rm/ad10x.o
 nvkm-y += nvkm/subdev/gsp/rm/gh100.o
 nvkm-y += nvkm/subdev/gsp/rm/gb10x.o
+nvkm-y += nvkm/subdev/gsp/rm/gb20x.o
 
 include $(src)/nvkm/subdev/gsp/rm/r535/Kbuild
 include $(src)/nvkm/subdev/gsp/rm/r570/Kbuild

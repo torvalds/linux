@@ -511,6 +511,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		case AMPERE_CHANNEL_GPFIFO_B:
 		case HOPPER_CHANNEL_GPFIFO_A:
 		case BLACKWELL_CHANNEL_GPFIFO_A:
+		case BLACKWELL_CHANNEL_GPFIFO_B:
 			ret = gv100_fence_create(drm);
 			break;
 		default:

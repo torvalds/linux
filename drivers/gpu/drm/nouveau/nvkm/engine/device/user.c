@@ -150,6 +150,7 @@ nvkm_udevice_info(struct nvkm_udevice *udev, void *data, u32 size)
 	case AD100: args->v0.family = NV_DEVICE_INFO_V0_ADA; break;
 	case GH100: args->v0.family = NV_DEVICE_INFO_V0_HOPPER; break;
 	case GB10x: args->v0.family = NV_DEVICE_INFO_V0_BLACKWELL; break;
+	case GB20x: args->v0.family = NV_DEVICE_INFO_V0_BLACKWELL; break;
 	default:
 		args->v0.family = 0;
 		break;

@@ -507,6 +507,22 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 			continue;
 		}
 
+		/* Skip SW engine - there's currently no support for NV SW classes. */
+		if (type == NVKM_ENGINE_SW)
+			continue;
+
+		/* Skip lone GRCEs (ones not paired with GR on a runlist), as they
+		 * don't appear to function as async copy engines.
+		 */
+		if (type == NVKM_ENGINE_CE &&
+		     rm->gpu->ce.grce_mask &&
+		    (rm->gpu->ce.grce_mask(device) & BIT(inst)) &&
+		    !nvkm_runl_find_engn(engn, runl, engn->engine->subdev.type == NVKM_ENGINE_GR)) {
+			RUNL_DEBUG(runl, "skip LCE %d - GRCE without GR", inst);
+			nvkm_runl_del(runl);
+			continue;
+		}
+
 		ret = nvkm_rm_engine_new(gsp->rm, type, inst);
 		if (ret) {
 			nvkm_runl_del(runl);

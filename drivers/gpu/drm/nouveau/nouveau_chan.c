@@ -249,6 +249,7 @@ nouveau_channel_ctor(struct nouveau_cli *cli, bool priv, u64 runm,
 		     struct nouveau_channel **pchan)
 {
 	const struct nvif_mclass hosts[] = {
+		{ BLACKWELL_CHANNEL_GPFIFO_B, 0 },
 		{ BLACKWELL_CHANNEL_GPFIFO_A, 0 },
 		{    HOPPER_CHANNEL_GPFIFO_A, 0 },
 		{    AMPERE_CHANNEL_GPFIFO_B, 0 },

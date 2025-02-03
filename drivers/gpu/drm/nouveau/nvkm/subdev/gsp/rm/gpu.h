@@ -31,6 +31,7 @@ struct nvkm_rm_gpu {
 
 	struct {
 		u32 class;
+		u32 (*grce_mask)(struct nvkm_device *);
 	} ce;
 
 	struct {
@@ -65,4 +66,5 @@ extern const struct nvkm_rm_gpu ga1xx_gpu;
 extern const struct nvkm_rm_gpu ad10x_gpu;
 extern const struct nvkm_rm_gpu gh100_gpu;
 extern const struct nvkm_rm_gpu gb10x_gpu;
+extern const struct nvkm_rm_gpu gb20x_gpu;
 #endif

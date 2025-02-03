@@ -208,6 +208,8 @@ extern const struct nvkm_engn_func ga100_engn_ce;
 extern const struct nvkm_cgrp_func ga100_cgrp;
 extern const struct nvkm_chan_func ga100_chan;
 
+u32 gb202_chan_doorbell_handle(struct nvkm_chan *);
+
 int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
 		   void *argv, u32 argc, struct nvkm_object **);
 int nvkm_ucgrp_new(struct nvkm_fifo *, const struct nvkm_oclass *, void *argv, u32 argc,
