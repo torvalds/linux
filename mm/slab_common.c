@@ -1290,7 +1290,7 @@ void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 {
 	if (head) {
 		kasan_record_aux_stack(ptr);
-		call_rcu(head, (rcu_callback_t) ((void *) head - ptr));
+		call_rcu(head, kvfree_rcu_cb);
 		return;
 	}
 
@@ -1551,8 +1551,7 @@ kvfree_rcu_list(struct rcu_head *head)
 		rcu_lock_acquire(&rcu_callback_map);
 		trace_rcu_invoke_kvfree_callback("slab", head, offset);
 
-		if (!WARN_ON_ONCE(!__is_kvfree_rcu_offset(offset)))
-			kvfree(ptr);
+		kvfree(ptr);
 
 		rcu_lock_release(&rcu_callback_map);
 		cond_resched_tasks_rcu_qs();
