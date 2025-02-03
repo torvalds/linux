@@ -77,9 +77,19 @@ enum {
 	MLX5_MTUTC_OPERATION_ADJUST_TIME_EXTENDED_MAX = 200000,
 };
 
+struct mlx5_clock_priv {
+	struct mlx5_clock clock;
+	struct mlx5_core_dev *mdev;
+};
+
+static struct mlx5_clock_priv *clock_priv(struct mlx5_clock *clock)
+{
+	return container_of(clock, struct mlx5_clock_priv, clock);
+}
+
 static struct mlx5_core_dev *mlx5_clock_mdev_get(struct mlx5_clock *clock)
 {
-	return container_of(clock, struct mlx5_core_dev, clock);
+	return clock_priv(clock)->mdev;
 }
 
 static bool mlx5_real_time_mode(struct mlx5_core_dev *mdev)
@@ -219,7 +229,7 @@ static int mlx5_mtctr_syncdevicetime(ktime_t *device_time,
 	if (real_time_mode)
 		*device_time = ns_to_ktime(REAL_TIME_TO_NS(device >> 32, device & U32_MAX));
 	else
-		*device_time = mlx5_timecounter_cyc2time(&mdev->clock, device);
+		*device_time = mlx5_timecounter_cyc2time(mdev->clock, device);
 
 	return 0;
 }
@@ -281,7 +291,7 @@ static u64 read_internal_timer(const struct cyclecounter *cc)
 static void mlx5_update_clock_info_page(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_ib_clock_info *clock_info = mdev->clock_info;
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	struct mlx5_timer *timer;
 	u32 sign;
 
@@ -599,7 +609,7 @@ static int mlx5_extts_configure(struct ptp_clock_info *ptp,
 
 static u64 find_target_cycles(struct mlx5_core_dev *mdev, s64 target_ns)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	u64 cycles_now, cycles_delta;
 	u64 nsec_now, nsec_delta;
 	struct mlx5_timer *timer;
@@ -658,7 +668,7 @@ static int mlx5_perout_conf_out_pulse_duration(struct mlx5_core_dev *mdev,
 					       struct ptp_clock_request *rq,
 					       u32 *out_pulse_duration_ns)
 {
-	struct mlx5_pps *pps_info = &mdev->clock.pps_info;
+	struct mlx5_pps *pps_info = &mdev->clock->pps_info;
 	u32 out_pulse_duration;
 	struct timespec64 ts;
 
@@ -691,7 +701,7 @@ static int perout_conf_npps_real_time(struct mlx5_core_dev *mdev, struct ptp_clo
 				      u32 *field_select, u32 *out_pulse_duration_ns,
 				      u64 *period, u64 *time_stamp)
 {
-	struct mlx5_pps *pps_info = &mdev->clock.pps_info;
+	struct mlx5_pps *pps_info = &mdev->clock->pps_info;
 	struct ptp_clock_time *time = &rq->perout.start;
 	struct timespec64 ts;
 
@@ -901,7 +911,7 @@ static int mlx5_get_pps_pin_mode(struct mlx5_core_dev *mdev, u8 pin)
 
 static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	int i;
 
 	if (!clock->ptp_info.n_pins)
@@ -929,8 +939,8 @@ static void mlx5_init_pin_config(struct mlx5_core_dev *mdev)
 
 static void mlx5_get_pps_caps(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
 	u32 out[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
+	struct mlx5_clock *clock = mdev->clock;
 
 	mlx5_query_mtpps(mdev, out, sizeof(out));
 
@@ -1025,7 +1035,7 @@ static int mlx5_pps_event(struct notifier_block *nb,
 
 static void mlx5_timecounter_init(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	struct mlx5_timer *timer = &clock->timer;
 	u32 dev_freq;
 
@@ -1044,7 +1054,7 @@ static void mlx5_timecounter_init(struct mlx5_core_dev *mdev)
 static void mlx5_init_overflow_period(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_ib_clock_info *clock_info = mdev->clock_info;
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	struct mlx5_timer *timer = &clock->timer;
 	u64 overflow_cycles;
 	u64 frac = 0;
@@ -1077,7 +1087,7 @@ static void mlx5_init_overflow_period(struct mlx5_core_dev *mdev)
 
 static void mlx5_init_clock_info(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	struct mlx5_ib_clock_info *info;
 	struct mlx5_timer *timer;
 
@@ -1100,7 +1110,7 @@ static void mlx5_init_clock_info(struct mlx5_core_dev *mdev)
 
 static void mlx5_init_timer_max_freq_adjustment(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 	u32 out[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(mtutc_reg)] = {};
 	u8 log_max_freq_adjustment = 0;
@@ -1119,7 +1129,7 @@ static void mlx5_init_timer_max_freq_adjustment(struct mlx5_core_dev *mdev)
 
 static void mlx5_init_timer_clock(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 
 	/* Configure the PHC */
 	clock->ptp_info = mlx5_ptp_clock_info;
@@ -1156,7 +1166,7 @@ static void mlx5_init_pps(struct mlx5_core_dev *mdev)
 
 static void mlx5_init_clock_dev(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 
 	seqlock_init(&clock->lock);
 
@@ -1180,7 +1190,7 @@ static void mlx5_init_clock_dev(struct mlx5_core_dev *mdev)
 
 static void mlx5_destroy_clock_dev(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 
 	if (clock->ptp) {
 		ptp_clock_unregister(clock->ptp);
@@ -1195,25 +1205,60 @@ static void mlx5_destroy_clock_dev(struct mlx5_core_dev *mdev)
 	kfree(clock->ptp_info.pin_config);
 }
 
-void mlx5_init_clock(struct mlx5_core_dev *mdev)
+static void mlx5_clock_free(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock_priv *cpriv = clock_priv(mdev->clock);
+
+	mlx5_destroy_clock_dev(mdev);
+	kfree(cpriv);
+	mdev->clock = NULL;
+}
+
+static int mlx5_clock_alloc(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock_priv *cpriv;
+	struct mlx5_clock *clock;
+
+	cpriv = kzalloc(sizeof(*cpriv), GFP_KERNEL);
+	if (!cpriv)
+		return -ENOMEM;
+
+	cpriv->mdev = mdev;
+	clock = &cpriv->clock;
+	mdev->clock = clock;
+	mlx5_init_clock_dev(mdev);
+
+	return 0;
+}
+
+static struct mlx5_clock null_clock;
+
+int mlx5_init_clock(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_clock *clock;
+	int err;
 
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz)) {
+		mdev->clock = &null_clock;
 		mlx5_core_warn(mdev, "invalid device_frequency_khz, aborting HW clock init\n");
-		return;
+		return 0;
 	}
 
-	mlx5_init_clock_dev(mdev);
+	err = mlx5_clock_alloc(mdev);
+	if (err)
+		return err;
+	clock = mdev->clock;
 
 	INIT_WORK(&clock->pps_info.out_work, mlx5_pps_out);
 	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
 	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
+
+	return 0;
 }
 
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = &mdev->clock;
+	struct mlx5_clock *clock = mdev->clock;
 
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
 		return;
@@ -1221,5 +1266,5 @@ void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 	mlx5_eq_notifier_unregister(mdev, &clock->pps_nb);
 	cancel_work_sync(&clock->pps_info.out_work);
 
-	mlx5_destroy_clock_dev(mdev);
+	mlx5_clock_free(mdev);
 }

@@ -33,6 +33,35 @@
 #ifndef __LIB_CLOCK_H__
 #define __LIB_CLOCK_H__
 
+#include <linux/ptp_clock_kernel.h>
+
+#define MAX_PIN_NUM	8
+struct mlx5_pps {
+	u8                         pin_caps[MAX_PIN_NUM];
+	struct work_struct         out_work;
+	u64                        start[MAX_PIN_NUM];
+	u8                         enabled;
+	u64                        min_npps_period;
+	u64                        min_out_pulse_duration_ns;
+};
+
+struct mlx5_timer {
+	struct cyclecounter        cycles;
+	struct timecounter         tc;
+	u32                        nominal_c_mult;
+	unsigned long              overflow_period;
+};
+
+struct mlx5_clock {
+	struct mlx5_nb             pps_nb;
+	seqlock_t                  lock;
+	struct hwtstamp_config     hwtstamp_config;
+	struct ptp_clock          *ptp;
+	struct ptp_clock_info      ptp_info;
+	struct mlx5_pps            pps_info;
+	struct mlx5_timer          timer;
+};
+
 static inline bool mlx5_is_real_time_rq(struct mlx5_core_dev *mdev)
 {
 	u8 rq_ts_format_cap = MLX5_CAP_GEN(mdev, rq_ts_format);
@@ -54,12 +83,12 @@ static inline bool mlx5_is_real_time_sq(struct mlx5_core_dev *mdev)
 typedef ktime_t (*cqe_ts_to_ns)(struct mlx5_clock *, u64);
 
 #if IS_ENABLED(CONFIG_PTP_1588_CLOCK)
-void mlx5_init_clock(struct mlx5_core_dev *mdev);
+int mlx5_init_clock(struct mlx5_core_dev *mdev);
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev);
 
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
-	return mdev->clock.ptp ? ptp_clock_index(mdev->clock.ptp) : -1;
+	return mdev->clock->ptp ? ptp_clock_index(mdev->clock->ptp) : -1;
 }
 
 static inline ktime_t mlx5_timecounter_cyc2time(struct mlx5_clock *clock,
@@ -87,7 +116,7 @@ static inline ktime_t mlx5_real_time_cyc2time(struct mlx5_clock *clock,
 	return ns_to_ktime(time);
 }
 #else
-static inline void mlx5_init_clock(struct mlx5_core_dev *mdev) {}
+static inline int mlx5_init_clock(struct mlx5_core_dev *mdev) { return 0; }
 static inline void mlx5_cleanup_clock(struct mlx5_core_dev *mdev) {}
 static inline int mlx5_clock_get_ptp_index(struct mlx5_core_dev *mdev)
 {
