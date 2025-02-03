@@ -115,6 +115,37 @@ struct krb5_crypto_profile {
 #define round16(x) (((x) + 15) & ~15)
 
 /*
+ * Self-testing data.
+ */
+struct krb5_prf_test {
+	u32 etype;
+	const char *name, *key, *octet, *prf;
+};
+
+struct krb5_key_test_one {
+	u32 use;
+	const char *key;
+};
+
+struct krb5_key_test {
+	u32 etype;
+	const char *name, *key;
+	struct krb5_key_test_one Kc, Ke, Ki;
+};
+
+struct krb5_enc_test {
+	u32 etype;
+	u32 usage;
+	const char *name, *plain, *conf, *K0, *Ke, *Ki, *ct;
+};
+
+struct krb5_mic_test {
+	u32 etype;
+	u32 usage;
+	const char *name, *plain, *K0, *Kc, *mic;
+};
+
+/*
  * krb5_api.c
  */
 struct crypto_aead *krb5_prepare_encryption(const struct krb5_enctype *krb5,
@@ -197,3 +228,20 @@ extern const struct krb5_enctype krb5_camellia256_cts_cmac;
  */
 extern const struct krb5_enctype krb5_aes128_cts_hmac_sha256_128;
 extern const struct krb5_enctype krb5_aes256_cts_hmac_sha384_192;
+
+/*
+ * selftest.c
+ */
+#ifdef CONFIG_CRYPTO_KRB5_SELFTESTS
+int krb5_selftest(void);
+#else
+static inline int krb5_selftest(void) { return 0; }
+#endif
+
+/*
+ * selftest_data.c
+ */
+extern const struct krb5_prf_test krb5_prf_tests[];
+extern const struct krb5_key_test krb5_key_tests[];
+extern const struct krb5_enc_test krb5_enc_tests[];
+extern const struct krb5_mic_test krb5_mic_tests[];

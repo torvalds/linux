@@ -17,3 +17,10 @@ config CRYPTO_KRB5
 	help
 	  Provide a library for provision of Kerberos-5-based crypto.  This is
 	  intended for network filesystems to use.
+
+config CRYPTO_KRB5_SELFTESTS
+	bool "Kerberos 5 crypto selftests"
+	depends on CRYPTO_KRB5
+	help
+	  Turn on some self-testing for the kerberos 5 crypto functions.  These
+	  will be performed on module load or boot, if compiled in.
