@@ -178,7 +178,7 @@ ga102_gsp = {
 
 static struct nvkm_gsp_fwif
 ga102_gsps[] = {
-	{  0,  r535_gsp_load, &ga102_gsp_r535_113_01, "535.113.01" },
+	{  0, tu102_gsp_load, &ga102_gsp_r535_113_01, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &ga102_gsp },
 	{}
 };
@@ -189,3 +189,9 @@ ga102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	return nvkm_gsp_new_(ga102_gsps, device, type, inst, pgsp);
 }
+
+NVKM_GSP_FIRMWARE_BOOTER(ga102, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga103, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga104, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga106, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(ga107, 535.113.01);

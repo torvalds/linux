@@ -1960,19 +1960,6 @@ r535_gsp_elf_section(struct nvkm_gsp *gsp, const char *name, const u8 **pdata, u
 	return -ENOENT;
 }
 
-static void
-r535_gsp_dtor_fws(struct nvkm_gsp *gsp)
-{
-	nvkm_firmware_put(gsp->fws.bl);
-	gsp->fws.bl = NULL;
-	nvkm_firmware_put(gsp->fws.booter.unload);
-	gsp->fws.booter.unload = NULL;
-	nvkm_firmware_put(gsp->fws.booter.load);
-	gsp->fws.booter.load = NULL;
-	nvkm_firmware_put(gsp->fws.rm);
-	gsp->fws.rm = NULL;
-}
-
 #ifdef CONFIG_DEBUG_FS
 
 struct r535_gsp_log {
@@ -2209,7 +2196,7 @@ r535_gsp_dtor(struct nvkm_gsp *gsp)
 	mutex_destroy(&gsp->msgq.mutex);
 	mutex_destroy(&gsp->cmdq.mutex);
 
-	r535_gsp_dtor_fws(gsp);
+	nvkm_gsp_dtor_fws(gsp);
 
 	nvkm_gsp_mem_dtor(&gsp->rmargs);
 	nvkm_gsp_mem_dtor(&gsp->wpr_meta);
@@ -2284,7 +2271,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 		return ret;
 
 	/* Release FW images - we've copied them to DMA buffers now. */
-	r535_gsp_dtor_fws(gsp);
+	nvkm_gsp_dtor_fws(gsp);
 
 	/* Calculate FB layout. */
 	gsp->fb.wpr2.frts.size = 0x100000;
@@ -2349,64 +2336,3 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	idr_init(&gsp->client_id.idr);
 	return 0;
 }
-
-static int
-r535_gsp_load_fw(struct nvkm_gsp *gsp, const char *name, const char *ver,
-		 const struct firmware **pfw)
-{
-	char fwname[64];
-
-	snprintf(fwname, sizeof(fwname), "gsp/%s-%s", name, ver);
-	return nvkm_firmware_get(&gsp->subdev, fwname, 0, pfw);
-}
-
-int
-r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
-{
-	struct nvkm_subdev *subdev = &gsp->subdev;
-	int ret;
-	bool enable_gsp = fwif->enable;
-
-#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
-	enable_gsp = true;
-#endif
-	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))
-		return -EINVAL;
-
-	if ((ret = r535_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm)) ||
-	    (ret = r535_gsp_load_fw(gsp, "booter_load", fwif->ver, &gsp->fws.booter.load)) ||
-	    (ret = r535_gsp_load_fw(gsp, "booter_unload", fwif->ver, &gsp->fws.booter.unload)) ||
-	    (ret = r535_gsp_load_fw(gsp, "bootloader", fwif->ver, &gsp->fws.bl))) {
-		r535_gsp_dtor_fws(gsp);
-		return ret;
-	}
-
-	return 0;
-}
-
-#define NVKM_GSP_FIRMWARE(chip)                                  \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-535.113.01.bin");   \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-535.113.01.bin"); \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-535.113.01.bin");    \
-MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-535.113.01.bin")
-
-NVKM_GSP_FIRMWARE(tu102);
-NVKM_GSP_FIRMWARE(tu104);
-NVKM_GSP_FIRMWARE(tu106);
-
-NVKM_GSP_FIRMWARE(tu116);
-NVKM_GSP_FIRMWARE(tu117);
-
-NVKM_GSP_FIRMWARE(ga100);
-
-NVKM_GSP_FIRMWARE(ga102);
-NVKM_GSP_FIRMWARE(ga103);
-NVKM_GSP_FIRMWARE(ga104);
-NVKM_GSP_FIRMWARE(ga106);
-NVKM_GSP_FIRMWARE(ga107);
-
-NVKM_GSP_FIRMWARE(ad102);
-NVKM_GSP_FIRMWARE(ad103);
-NVKM_GSP_FIRMWARE(ad104);
-NVKM_GSP_FIRMWARE(ad106);
-NVKM_GSP_FIRMWARE(ad107);

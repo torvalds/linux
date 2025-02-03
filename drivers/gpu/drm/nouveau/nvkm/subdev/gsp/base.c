@@ -80,6 +80,19 @@ nvkm_gsp_oneinit(struct nvkm_subdev *subdev)
 	return gsp->func->oneinit(gsp);
 }
 
+void
+nvkm_gsp_dtor_fws(struct nvkm_gsp *gsp)
+{
+	nvkm_firmware_put(gsp->fws.bl);
+	gsp->fws.bl = NULL;
+	nvkm_firmware_put(gsp->fws.booter.unload);
+	gsp->fws.booter.unload = NULL;
+	nvkm_firmware_put(gsp->fws.booter.load);
+	gsp->fws.booter.load = NULL;
+	nvkm_firmware_put(gsp->fws.rm);
+	gsp->fws.rm = NULL;
+}
+
 static void *
 nvkm_gsp_dtor(struct nvkm_subdev *subdev)
 {
@@ -99,6 +112,16 @@ nvkm_gsp = {
 	.init = nvkm_gsp_init,
 	.fini = nvkm_gsp_fini,
 };
+
+int
+nvkm_gsp_load_fw(struct nvkm_gsp *gsp, const char *name, const char *ver,
+		 const struct firmware **pfw)
+{
+	char fwname[64];
+
+	snprintf(fwname, sizeof(fwname), "gsp/%s-%s", name, ver);
+	return nvkm_firmware_get(&gsp->subdev, fwname, 0, pfw);
+}
 
 int
 nvkm_gsp_new_(const struct nvkm_gsp_fwif *fwif, struct nvkm_device *device,

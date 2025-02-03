@@ -183,9 +183,55 @@ tu102_gsp_r535_113_01 = {
 	.rm = &r535_gsp_rm,
 };
 
+static int
+tu102_gsp_load_rm(struct nvkm_gsp *gsp, const struct nvkm_gsp_fwif *fwif)
+{
+	struct nvkm_subdev *subdev = &gsp->subdev;
+	bool enable_gsp = fwif->enable;
+	int ret;
+
+#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
+	enable_gsp = true;
+#endif
+	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))
+		return -EINVAL;
+
+	ret = nvkm_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gsp_load_fw(gsp, "bootloader", fwif->ver, &gsp->fws.bl);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int
+tu102_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
+{
+	int ret;
+
+	ret = tu102_gsp_load_rm(gsp, fwif);
+	if (ret)
+		goto done;
+
+	ret = nvkm_gsp_load_fw(gsp, "booter_load", fwif->ver, &gsp->fws.booter.load);
+	if (ret)
+		goto done;
+
+	ret = nvkm_gsp_load_fw(gsp, "booter_unload", fwif->ver, &gsp->fws.booter.unload);
+
+done:
+	if (ret)
+		nvkm_gsp_dtor_fws(gsp);
+
+	return ret;
+}
+
 static struct nvkm_gsp_fwif
 tu102_gsps[] = {
-	{  0,  r535_gsp_load, &tu102_gsp_r535_113_01, "535.113.01" },
+	{  0, tu102_gsp_load, &tu102_gsp_r535_113_01, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
@@ -196,3 +242,7 @@ tu102_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 {
 	return nvkm_gsp_new_(tu102_gsps, device, type, inst, pgsp);
 }
+
+NVKM_GSP_FIRMWARE_BOOTER(tu102, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(tu104, 535.113.01);
+NVKM_GSP_FIRMWARE_BOOTER(tu106, 535.113.01);

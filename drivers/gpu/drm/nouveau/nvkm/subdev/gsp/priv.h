@@ -15,8 +15,18 @@ struct nvkm_gsp_fwif {
 	bool enable;
 };
 
+int nvkm_gsp_load_fw(struct nvkm_gsp *, const char *name, const char *ver,
+		     const struct firmware **);
+void nvkm_gsp_dtor_fws(struct nvkm_gsp *);
+
 int gv100_gsp_nofw(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
-int  r535_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+int tu102_gsp_load(struct nvkm_gsp *, int, const struct nvkm_gsp_fwif *);
+
+#define NVKM_GSP_FIRMWARE_BOOTER(chip,vers)                      \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_load-"#vers".bin");   \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/booter_unload-"#vers".bin"); \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/bootloader-"#vers".bin");    \
+MODULE_FIRMWARE("nvidia/"#chip"/gsp/gsp-"#vers".bin")
 
 struct nvkm_gsp_func {
 	const struct nvkm_falcon_func *flcn;
