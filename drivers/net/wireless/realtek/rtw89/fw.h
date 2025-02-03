@@ -1801,7 +1801,8 @@ struct rtw89_h2c_lps_ch_info {
 
 struct rtw89_h2c_lps_ml_cmn_info {
 	u8 fmt_id;
-	u8 rsvd0[3];
+	u8 rfe_type;
+	u8 rsvd0[2];
 	__le32 mlo_dbcc_mode;
 	u8 central_ch[RTW89_PHY_NUM];
 	u8 pri_ch[RTW89_PHY_NUM];
@@ -1812,6 +1813,9 @@ struct rtw89_h2c_lps_ml_cmn_info {
 	__le16 tia_gain[RTW89_PHY_NUM][TIA_GAIN_NUM];
 	u8 lna_gain[RTW89_PHY_NUM][LNA_GAIN_NUM];
 	u8 rsvd2[2];
+	u8 tia_lna_op1db[RTW89_PHY_NUM][LNA_GAIN_NUM + 1];
+	u8 lna_op1db[RTW89_PHY_NUM][LNA_GAIN_NUM];
+	u8 dup_bcn_ofst[RTW89_PHY_NUM];
 } __packed;
 
 static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)

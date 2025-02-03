@@ -2192,8 +2192,11 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 		}
 		pkt_stat->beacon_nr++;
 
-		if (phy_ppdu)
+		if (phy_ppdu) {
 			ewma_rssi_add(&rtwdev->phystat.bcn_rssi, phy_ppdu->rssi_avg);
+			if (!test_bit(RTW89_FLAG_LOW_POWER_MODE, rtwdev->flags))
+				rtwvif_link->bcn_bw_idx = phy_ppdu->bw_idx;
+		}
 
 		pkt_stat->beacon_rate = desc_info->data_rate;
 	}
