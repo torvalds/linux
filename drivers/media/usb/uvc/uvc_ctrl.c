@@ -367,6 +367,11 @@ static const u32 uvc_control_classes[] = {
 
 static const int exposure_auto_mapping[] = { 2, 1, 4, 8 };
 
+static bool uvc_ctrl_mapping_is_compound(struct uvc_control_mapping *mapping)
+{
+	return mapping->v4l2_type >= V4L2_CTRL_COMPOUND_TYPES;
+}
+
 static s32 uvc_mapping_get_s32(struct uvc_control_mapping *mapping,
 			       u8 query, const void *data_in)
 {
@@ -1055,7 +1060,7 @@ static int uvc_entity_match_guid(const struct uvc_entity *entity,
 
 static void __uvc_find_control(struct uvc_entity *entity, u32 v4l2_id,
 	struct uvc_control_mapping **mapping, struct uvc_control **control,
-	int next)
+	int next, int next_compound)
 {
 	struct uvc_control *ctrl;
 	struct uvc_control_mapping *map;
@@ -1070,14 +1075,16 @@ static void __uvc_find_control(struct uvc_entity *entity, u32 v4l2_id,
 			continue;
 
 		list_for_each_entry(map, &ctrl->info.mappings, list) {
-			if ((map->id == v4l2_id) && !next) {
+			if (map->id == v4l2_id && !next && !next_compound) {
 				*control = ctrl;
 				*mapping = map;
 				return;
 			}
 
 			if ((*mapping == NULL || (*mapping)->id > map->id) &&
-			    (map->id > v4l2_id) && next) {
+			    (map->id > v4l2_id) &&
+			    (uvc_ctrl_mapping_is_compound(map) ?
+			     next_compound : next)) {
 				*control = ctrl;
 				*mapping = map;
 			}
@@ -1091,6 +1098,7 @@ static struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 	struct uvc_control *ctrl = NULL;
 	struct uvc_entity *entity;
 	int next = v4l2_id & V4L2_CTRL_FLAG_NEXT_CTRL;
+	int next_compound = v4l2_id & V4L2_CTRL_FLAG_NEXT_COMPOUND;
 
 	*mapping = NULL;
 
@@ -1099,12 +1107,13 @@ static struct uvc_control *uvc_find_control(struct uvc_video_chain *chain,
 
 	/* Find the control. */
 	list_for_each_entry(entity, &chain->entities, chain) {
-		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next);
-		if (ctrl && !next)
+		__uvc_find_control(entity, v4l2_id, mapping, &ctrl, next,
+				   next_compound);
+		if (ctrl && !next && !next_compound)
 			return ctrl;
 	}
 
-	if (ctrl == NULL && !next)
+	if (!ctrl && !next && !next_compound)
 		uvc_dbg(chain->dev, CONTROL, "Control 0x%08x not found\n",
 			v4l2_id);
 
@@ -1227,7 +1236,8 @@ static int __uvc_ctrl_get(struct uvc_video_chain *chain,
 static int __uvc_query_v4l2_class(struct uvc_video_chain *chain, u32 req_id,
 				  u32 found_id)
 {
-	bool find_next = req_id & V4L2_CTRL_FLAG_NEXT_CTRL;
+	bool find_next = req_id &
+		(V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND);
 	unsigned int i;
 
 	req_id &= V4L2_CTRL_ID_MASK;
@@ -1317,10 +1327,12 @@ int uvc_ctrl_is_accessible(struct uvc_video_chain *chain, u32 v4l2_id,
 	}
 
 	__uvc_find_control(ctrl->entity, mapping->master_id, &master_map,
-			   &master_ctrl, 0);
+			   &master_ctrl, 0, 0);
 
 	if (!master_ctrl || !(master_ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR))
 		return 0;
+	if (WARN_ON(uvc_ctrl_mapping_is_compound(master_map)))
+		return -EIO;
 
 	ret = __uvc_ctrl_get(chain, master_ctrl, master_map, &val);
 	if (ret >= 0 && val != mapping->master_manual)
@@ -1384,15 +1396,29 @@ static int __uvc_query_v4l2_ctrl(struct uvc_video_chain *chain,
 
 	if (mapping->master_id)
 		__uvc_find_control(ctrl->entity, mapping->master_id,
-				   &master_map, &master_ctrl, 0);
+				   &master_map, &master_ctrl, 0, 0);
 	if (master_ctrl && (master_ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR)) {
 		s32 val;
-		int ret = __uvc_ctrl_get(chain, master_ctrl, master_map, &val);
+		int ret;
+
+		if (WARN_ON(uvc_ctrl_mapping_is_compound(master_map)))
+			return -EIO;
+
+		ret = __uvc_ctrl_get(chain, master_ctrl, master_map, &val);
 		if (ret < 0)
 			return ret;
 
 		if (val != mapping->master_manual)
 				v4l2_ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
+	}
+
+	if (v4l2_ctrl->type >= V4L2_CTRL_COMPOUND_TYPES) {
+		v4l2_ctrl->flags |= V4L2_CTRL_FLAG_HAS_PAYLOAD;
+		v4l2_ctrl->default_value = 0;
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 0;
+		v4l2_ctrl->step = 0;
+		return 0;
 	}
 
 	if (!ctrl->cached) {
@@ -1635,11 +1661,12 @@ static void uvc_ctrl_send_slave_event(struct uvc_video_chain *chain,
 	u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
 	s32 val = 0;
 
-	__uvc_find_control(master->entity, slave_id, &mapping, &ctrl, 0);
+	__uvc_find_control(master->entity, slave_id, &mapping, &ctrl, 0, 0);
 	if (ctrl == NULL)
 		return;
 
-	if (__uvc_ctrl_get(chain, ctrl, mapping, &val) == 0)
+	if (uvc_ctrl_mapping_is_compound(mapping) ||
+	    __uvc_ctrl_get(chain, ctrl, mapping, &val) == 0)
 		changes |= V4L2_EVENT_CTRL_CH_VALUE;
 
 	uvc_ctrl_send_event(chain, handle, ctrl, mapping, val, changes);
@@ -1696,7 +1723,12 @@ void uvc_ctrl_status_event(struct uvc_video_chain *chain,
 		uvc_ctrl_set_handle(handle, ctrl, NULL);
 
 	list_for_each_entry(mapping, &ctrl->info.mappings, list) {
-		s32 value = uvc_mapping_get_s32(mapping, UVC_GET_CUR, data);
+		s32 value;
+
+		if (uvc_ctrl_mapping_is_compound(mapping))
+			value = 0;
+		else
+			value = uvc_mapping_get_s32(mapping, UVC_GET_CUR, data);
 
 		/*
 		 * handle may be NULL here if the device sends auto-update
@@ -1780,6 +1812,7 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 
 	for (i = 0; i < xctrls_count; ++i) {
 		u32 changes = V4L2_EVENT_CTRL_CH_VALUE;
+		s32 value;
 
 		ctrl = uvc_find_control(handle->chain, xctrls[i].id, &mapping);
 		if (ctrl->info.flags & UVC_CTRL_FLAG_ASYNCHRONOUS)
@@ -1804,6 +1837,10 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 						  slave_id);
 		}
 
+		if (uvc_ctrl_mapping_is_compound(mapping))
+			value = 0;
+		else
+			value = xctrls[i].value;
 		/*
 		 * If the master is being modified in the same transaction
 		 * flags may change too.
@@ -1814,7 +1851,7 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 			changes |= V4L2_EVENT_CTRL_CH_FLAGS;
 
 		uvc_ctrl_send_event(handle->chain, handle, ctrl, mapping,
-				    xctrls[i].value, changes);
+				    value, changes);
 	}
 }
 
@@ -1846,7 +1883,8 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
 		s32 val = 0;
 
-		if (__uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
+		if (uvc_ctrl_mapping_is_compound(mapping) ||
+		    __uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
 			changes |= V4L2_EVENT_CTRL_CH_VALUE;
 
 		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
@@ -1986,7 +2024,7 @@ static int uvc_ctrl_find_ctrl_idx(struct uvc_entity *entity,
 
 	for (i = 0; i < ctrls->count; i++) {
 		__uvc_find_control(entity, ctrls->controls[i].id, &mapping,
-				   &ctrl_found, 0);
+				   &ctrl_found, 0, 0);
 		if (uvc_control == ctrl_found)
 			return i;
 	}
@@ -2022,19 +2060,64 @@ done:
 	return ret;
 }
 
-int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
-		 struct v4l2_ext_control *xctrl)
+static int uvc_mapping_get_xctrl_compound(struct uvc_video_chain *chain,
+					  struct uvc_control *ctrl,
+					  struct uvc_control_mapping *mapping,
+					  u32 which,
+					  struct v4l2_ext_control *xctrl)
 {
-	struct uvc_control *ctrl;
-	struct uvc_control_mapping *mapping;
+	u8 *data __free(kfree) = NULL;
+	size_t size;
+	u8 query;
+	int ret;
+	int id;
 
-	if (__uvc_query_v4l2_class(chain, xctrl->id, 0) >= 0)
-		return -EACCES;
-
-	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
-	if (ctrl == NULL)
+	switch (which) {
+	case V4L2_CTRL_WHICH_CUR_VAL:
+		ret = __uvc_ctrl_load_cur(chain, ctrl);
+		if (ret < 0)
+			return ret;
+		id = UVC_CTRL_DATA_CURRENT;
+		query = UVC_GET_CUR;
+		break;
+	case V4L2_CTRL_WHICH_DEF_VAL:
+		ret = uvc_ctrl_populate_cache(chain, ctrl);
+		if (ret < 0)
+			return ret;
+		id = UVC_CTRL_DATA_DEF;
+		query = UVC_GET_DEF;
+		break;
+	default:
 		return -EINVAL;
+	}
 
+	size = DIV_ROUND_UP(mapping->size, 8);
+	if (xctrl->size < size) {
+		xctrl->size = size;
+		return -ENOSPC;
+	}
+
+	data = kmalloc(size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	ret = mapping->get(mapping, query, uvc_ctrl_data(ctrl, id), size, data);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * v4l2_ext_control does not have enough room to fit a compound control.
+	 * Instead, the value is in the user memory at xctrl->ptr. The v4l2
+	 * ioctl helper does not copy it for us.
+	 */
+	return copy_to_user(xctrl->ptr, data, size) ? -EFAULT : 0;
+}
+
+static int uvc_mapping_get_xctrl_std(struct uvc_video_chain *chain,
+				     struct uvc_control *ctrl,
+				     struct uvc_control_mapping *mapping,
+				     u32 which, struct v4l2_ext_control *xctrl)
+{
 	switch (which) {
 	case V4L2_CTRL_WHICH_CUR_VAL:
 		return __uvc_ctrl_get(chain, ctrl, mapping, &xctrl->value);
@@ -2051,6 +2134,33 @@ int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
 	}
 
 	return -EINVAL;
+}
+
+static int uvc_mapping_get_xctrl(struct uvc_video_chain *chain,
+				 struct uvc_control *ctrl,
+				 struct uvc_control_mapping *mapping,
+				 u32 which, struct v4l2_ext_control *xctrl)
+{
+	if (uvc_ctrl_mapping_is_compound(mapping))
+		return uvc_mapping_get_xctrl_compound(chain, ctrl, mapping,
+						      which, xctrl);
+	return uvc_mapping_get_xctrl_std(chain, ctrl, mapping, which, xctrl);
+}
+
+int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
+		 struct v4l2_ext_control *xctrl)
+{
+	struct uvc_control *ctrl;
+	struct uvc_control_mapping *mapping;
+
+	if (__uvc_query_v4l2_class(chain, xctrl->id, 0) >= 0)
+		return -EACCES;
+
+	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
+	if (!ctrl)
+		return -EINVAL;
+
+	return uvc_mapping_get_xctrl(chain, ctrl, mapping, which, xctrl);
 }
 
 static int uvc_ctrl_clamp(struct uvc_video_chain *chain,
@@ -2136,6 +2246,42 @@ static int uvc_ctrl_clamp(struct uvc_video_chain *chain,
 	return 0;
 }
 
+static int uvc_mapping_set_xctrl_compound(struct uvc_control *ctrl,
+					  struct uvc_control_mapping *mapping,
+					  struct v4l2_ext_control *xctrl)
+{
+	u8 *data __free(kfree) = NULL;
+	size_t size;
+
+	size = DIV_ROUND_UP(mapping->size, 8);
+	if (xctrl->size != size)
+		return -EINVAL;
+
+	/*
+	 * v4l2_ext_control does not have enough room to fit a compound control.
+	 * Instead, the value is in the user memory at xctrl->ptr. The v4l2
+	 * ioctl helper does not copy it for us.
+	 */
+	data = memdup_user(xctrl->ptr, size);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	return mapping->set(mapping, size, data,
+			    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
+}
+
+static int uvc_mapping_set_xctrl(struct uvc_control *ctrl,
+				 struct uvc_control_mapping *mapping,
+				 struct v4l2_ext_control *xctrl)
+{
+	if (uvc_ctrl_mapping_is_compound(mapping))
+		return uvc_mapping_set_xctrl_compound(ctrl, mapping, xctrl);
+
+	uvc_mapping_set_s32(mapping, xctrl->value,
+			    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
+	return 0;
+}
+
 int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl)
 {
 	struct uvc_video_chain *chain = handle->chain;
@@ -2175,8 +2321,9 @@ int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl)
 		       ctrl->info.size);
 	}
 
-	uvc_mapping_set_s32(mapping, xctrl->value,
-			    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
+	ret = uvc_mapping_set_xctrl(ctrl, mapping, xctrl);
+	if (ret)
+		return ret;
 
 	ctrl->dirty = 1;
 	ctrl->modified = 1;
@@ -2551,6 +2698,7 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	struct uvc_control_mapping *map;
 	unsigned int size;
 	unsigned int i;
+	int ret;
 
 	/*
 	 * Most mappings come from static kernel data, and need to be duplicated.
@@ -2591,6 +2739,12 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 			goto err_nomem;
 	}
 
+	if (uvc_ctrl_mapping_is_compound(map))
+		if (WARN_ON(!map->set || !map->get)) {
+			ret = -EIO;
+			goto free_mem;
+		}
+
 	if (map->get == NULL)
 		map->get = uvc_get_le_value;
 	if (map->set == NULL)
@@ -2612,11 +2766,13 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	return 0;
 
 err_nomem:
+	ret = -ENOMEM;
+free_mem:
 	kfree(map->menu_names);
 	kfree(map->menu_mapping);
 	kfree(map->name);
 	kfree(map);
-	return -ENOMEM;
+	return ret;
 }
 
 int uvc_ctrl_add_mapping(struct uvc_video_chain *chain,

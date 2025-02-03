@@ -116,7 +116,12 @@ struct uvc_control_mapping {
 	u8 entity[16];
 	u8 selector;
 
+	/*
+	 * Size of the control data in the payload of the UVC control GET and
+	 * SET requests, expressed in bits.
+	 */
 	u8 size;
+
 	u8 offset;
 	enum v4l2_ctrl_type v4l2_type;
 	u32 data_type;
