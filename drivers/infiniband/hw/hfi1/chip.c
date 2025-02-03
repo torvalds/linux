@@ -12882,22 +12882,6 @@ u32 chip_to_opa_pstate(struct hfi1_devdata *dd, u32 chip_pstate)
 	}
 }
 
-/* return the OPA port logical state name */
-const char *opa_lstate_name(u32 lstate)
-{
-	static const char * const port_logical_names[] = {
-		"PORT_NOP",
-		"PORT_DOWN",
-		"PORT_INIT",
-		"PORT_ARMED",
-		"PORT_ACTIVE",
-		"PORT_ACTIVE_DEFER",
-	};
-	if (lstate < ARRAY_SIZE(port_logical_names))
-		return port_logical_names[lstate];
-	return "unknown";
-}
-
 /* return the OPA port physical state name */
 const char *opa_pstate_name(u32 pstate)
 {
@@ -12956,8 +12940,6 @@ static void update_statusp(struct hfi1_pportdata *ppd, u32 state)
 			break;
 		}
 	}
-	dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
-		    opa_lstate_name(state), state);
 }
 
 /**
