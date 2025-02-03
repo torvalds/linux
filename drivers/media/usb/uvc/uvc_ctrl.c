@@ -358,6 +358,24 @@ static const struct uvc_control_info uvc_ctrls[] = {
 		.flags		= UVC_CTRL_FLAG_GET_CUR
 				| UVC_CTRL_FLAG_AUTO_UPDATE,
 	},
+	/*
+	 * UVC_CTRL_FLAG_AUTO_UPDATE is needed because the RoI may get updated
+	 * by sensors.
+	 * "This RoI should be the same as specified in most recent SET_CUR
+	 * except in the case where the ‘Auto Detect and Track’ and/or
+	 * ‘Image Stabilization’ bit have been set."
+	 * 4.2.2.1.20 Digital Region of Interest (ROI) Control
+	 */
+	{
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_REGION_OF_INTEREST_CONTROL,
+		.index		= 21,
+		.size		= 10,
+		.flags		= UVC_CTRL_FLAG_SET_CUR | UVC_CTRL_FLAG_GET_CUR
+				| UVC_CTRL_FLAG_GET_MIN | UVC_CTRL_FLAG_GET_MAX
+				| UVC_CTRL_FLAG_GET_DEF
+				| UVC_CTRL_FLAG_AUTO_UPDATE,
+	},
 };
 
 static const u32 uvc_control_classes[] = {
@@ -601,6 +619,44 @@ end:
 		       buf, sizeof(*buf));
 
 	return out_mapping;
+}
+
+static int uvc_get_rect(struct uvc_control_mapping *mapping, u8 query,
+			const void *uvc_in, size_t v4l2_size, void *v4l2_out)
+{
+	const struct uvc_rect *uvc_rect = uvc_in;
+	struct v4l2_rect *v4l2_rect = v4l2_out;
+
+	if (WARN_ON(v4l2_size != sizeof(struct v4l2_rect)))
+		return -EINVAL;
+
+	if (uvc_rect->left > uvc_rect->right ||
+	    uvc_rect->top > uvc_rect->bottom)
+		return -EIO;
+
+	v4l2_rect->top = uvc_rect->top;
+	v4l2_rect->left = uvc_rect->left;
+	v4l2_rect->height = uvc_rect->bottom - uvc_rect->top + 1;
+	v4l2_rect->width = uvc_rect->right - uvc_rect->left + 1;
+
+	return 0;
+}
+
+static int uvc_set_rect(struct uvc_control_mapping *mapping, size_t v4l2_size,
+			const void *v4l2_in, void *uvc_out)
+{
+	struct uvc_rect *uvc_rect = uvc_out;
+	const struct v4l2_rect *v4l2_rect = v4l2_in;
+
+	if (WARN_ON(v4l2_size != sizeof(struct v4l2_rect)))
+		return -EINVAL;
+
+	uvc_rect->top = min(0xffff, v4l2_rect->top);
+	uvc_rect->left = min(0xffff, v4l2_rect->left);
+	uvc_rect->bottom = min(0xffff, v4l2_rect->top + v4l2_rect->height - 1);
+	uvc_rect->right = min(0xffff, v4l2_rect->left + v4l2_rect->width - 1);
+
+	return 0;
 }
 
 static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
@@ -896,6 +952,28 @@ static const struct uvc_control_mapping uvc_ctrl_mappings[] = {
 		.entity		= UVC_GUID_UVC_PROCESSING,
 		.selector	= UVC_PU_POWER_LINE_FREQUENCY_CONTROL,
 		.filter_mapping	= uvc_ctrl_filter_plf_mapping,
+	},
+	{
+		.id		= V4L2_CID_UVC_REGION_OF_INTEREST_RECT,
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_REGION_OF_INTEREST_CONTROL,
+		.size		= sizeof(struct uvc_rect) * 8,
+		.offset		= 0,
+		.v4l2_type	= V4L2_CTRL_TYPE_RECT,
+		.data_type	= UVC_CTRL_DATA_TYPE_RECT,
+		.get		= uvc_get_rect,
+		.set		= uvc_set_rect,
+		.name		= "Region of Interest Rectangle",
+	},
+	{
+		.id		= V4L2_CID_UVC_REGION_OF_INTEREST_AUTO,
+		.entity		= UVC_GUID_UVC_CAMERA,
+		.selector	= UVC_CT_REGION_OF_INTEREST_CONTROL,
+		.size		= 16,
+		.offset		= 64,
+		.v4l2_type	= V4L2_CTRL_TYPE_BITMASK,
+		.data_type	= UVC_CTRL_DATA_TYPE_BITMASK,
+		.name		= "Region of Interest Auto Ctrls",
 	},
 };
 
@@ -1473,6 +1551,9 @@ static int __uvc_queryctrl_boundaries(struct uvc_video_chain *chain,
 
 static size_t uvc_mapping_v4l2_size(struct uvc_control_mapping *mapping)
 {
+	if (mapping->v4l2_type == V4L2_CTRL_TYPE_RECT)
+		return sizeof(struct v4l2_rect);
+
 	if (uvc_ctrl_mapping_is_compound(mapping))
 		return DIV_ROUND_UP(mapping->size, 8);
 

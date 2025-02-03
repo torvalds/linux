@@ -543,6 +543,13 @@ struct uvc_device_info {
 	u16	uvc_version;
 };
 
+struct uvc_rect {
+	u16 top;
+	u16 left;
+	u16 bottom;
+	u16 right;
+} __packed;
+
 struct uvc_status_streaming {
 	u8	button;
 } __packed;
