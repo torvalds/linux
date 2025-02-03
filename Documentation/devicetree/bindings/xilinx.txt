@@ -102,15 +102,6 @@
                                            Default is <d#1024 d#480>.
        - rotate-display (empty) : rotate display 180 degrees.
 
-      ii) Xilinx SystemACE
-
-      The Xilinx SystemACE device is used to program FPGAs from an FPGA
-      bitstream stored on a CF card.  It can also be used as a generic CF
-      interface device.
-
-      Optional properties:
-       - 8-bit (empty) : Set this property for SystemACE in 8 bit mode
-
       iii) Xilinx EMAC and Xilinx TEMAC
 
       Xilinx Ethernet devices.  In addition to general xilinx properties
