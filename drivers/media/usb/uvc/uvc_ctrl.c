@@ -2053,30 +2053,17 @@ int uvc_ctrl_get(struct uvc_video_chain *chain, u32 which,
 	return -EINVAL;
 }
 
-int uvc_ctrl_set(struct uvc_fh *handle,
-	struct v4l2_ext_control *xctrl)
+static int uvc_ctrl_clamp(struct uvc_video_chain *chain,
+			  struct uvc_control *ctrl,
+			  struct uvc_control_mapping *mapping,
+			  s32 *value_in_out)
 {
-	struct uvc_video_chain *chain = handle->chain;
-	struct uvc_control *ctrl;
-	struct uvc_control_mapping *mapping;
-	s32 value;
+	s32 value = *value_in_out;
 	u32 step;
 	s32 min;
 	s32 max;
 	int ret;
 
-	lockdep_assert_held(&chain->ctrl_mutex);
-
-	if (__uvc_query_v4l2_class(chain, xctrl->id, 0) >= 0)
-		return -EACCES;
-
-	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
-	if (ctrl == NULL)
-		return -EINVAL;
-	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
-		return -EACCES;
-
-	/* Clamp out of range values. */
 	switch (mapping->v4l2_type) {
 	case V4L2_CTRL_TYPE_INTEGER:
 		if (!ctrl->cached) {
@@ -2094,14 +2081,13 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 		if (step == 0)
 			step = 1;
 
-		xctrl->value = min + DIV_ROUND_CLOSEST((u32)(xctrl->value - min),
-							step) * step;
+		value = min + DIV_ROUND_CLOSEST((u32)(value - min), step) * step;
 		if (mapping->data_type == UVC_CTRL_DATA_TYPE_SIGNED)
-			xctrl->value = clamp(xctrl->value, min, max);
+			value = clamp(value, min, max);
 		else
-			xctrl->value = clamp_t(u32, xctrl->value, min, max);
-		value = xctrl->value;
-		break;
+			value = clamp_t(u32, value, min, max);
+		*value_in_out = value;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BITMASK:
 		if (!ctrl->cached) {
@@ -2110,21 +2096,20 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 				return ret;
 		}
 
-		xctrl->value &= uvc_get_ctrl_bitmap(ctrl, mapping);
-		value = xctrl->value;
-		break;
+		value &= uvc_get_ctrl_bitmap(ctrl, mapping);
+		*value_in_out = value;
+		return 0;
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
-		xctrl->value = clamp(xctrl->value, 0, 1);
-		value = xctrl->value;
-		break;
+		*value_in_out = clamp(value, 0, 1);
+		return 0;
 
 	case V4L2_CTRL_TYPE_MENU:
-		if (xctrl->value < (ffs(mapping->menu_mask) - 1) ||
-		    xctrl->value > (fls(mapping->menu_mask) - 1))
+		if (value < (ffs(mapping->menu_mask) - 1) ||
+		    value > (fls(mapping->menu_mask) - 1))
 			return -ERANGE;
 
-		if (!test_bit(xctrl->value, &mapping->menu_mask))
+		if (!test_bit(value, &mapping->menu_mask))
 			return -EINVAL;
 
 		/*
@@ -2132,8 +2117,7 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 		 * UVC controls that support it.
 		 */
 		if (mapping->data_type == UVC_CTRL_DATA_TYPE_BITMASK) {
-			int val = uvc_mapping_get_menu_value(mapping,
-							     xctrl->value);
+			int val = uvc_mapping_get_menu_value(mapping, value);
 			if (!ctrl->cached) {
 				ret = uvc_ctrl_populate_cache(chain, ctrl);
 				if (ret < 0)
@@ -2143,14 +2127,36 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 			if (!(uvc_get_ctrl_bitmap(ctrl, mapping) & val))
 				return -EINVAL;
 		}
-		value = xctrl->value;
-		break;
+		return 0;
 
 	default:
-		value = xctrl->value;
-		break;
+		return 0;
 	}
 
+	return 0;
+}
+
+int uvc_ctrl_set(struct uvc_fh *handle, struct v4l2_ext_control *xctrl)
+{
+	struct uvc_video_chain *chain = handle->chain;
+	struct uvc_control_mapping *mapping;
+	struct uvc_control *ctrl;
+	int ret;
+
+	lockdep_assert_held(&chain->ctrl_mutex);
+
+	if (__uvc_query_v4l2_class(chain, xctrl->id, 0) >= 0)
+		return -EACCES;
+
+	ctrl = uvc_find_control(chain, xctrl->id, &mapping);
+	if (!ctrl)
+		return -EINVAL;
+	if (!(ctrl->info.flags & UVC_CTRL_FLAG_SET_CUR))
+		return -EACCES;
+
+	ret = uvc_ctrl_clamp(chain, ctrl, mapping, &xctrl->value);
+	if (ret)
+		return ret;
 	/*
 	 * If the mapping doesn't span the whole UVC control, the current value
 	 * needs to be loaded from the device to perform the read-modify-write
@@ -2169,7 +2175,7 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 		       ctrl->info.size);
 	}
 
-	uvc_mapping_set_s32(mapping, value,
+	uvc_mapping_set_s32(mapping, xctrl->value,
 			    uvc_ctrl_data(ctrl, UVC_CTRL_DATA_CURRENT));
 
 	ctrl->dirty = 1;
