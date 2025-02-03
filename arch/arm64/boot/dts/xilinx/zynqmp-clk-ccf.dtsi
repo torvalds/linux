@@ -8,7 +8,7 @@
  * Michal Simek <michal.simek@amd.com>
  */
 
-#include <dt-bindings/clock/xlnx-zynqmp-clk.h>
+#include "xlnx-zynqmp-clk.h"
 / {
 	pss_ref_clk: pss-ref-clk {
 		bootph-all;
