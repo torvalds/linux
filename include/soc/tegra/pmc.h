@@ -16,6 +16,7 @@
 
 struct clk;
 struct reset_control;
+struct tegra_pmc;
 
 bool tegra_pmc_cpu_is_powered(unsigned int cpuid);
 int tegra_pmc_cpu_power_on(unsigned int cpuid);
@@ -149,11 +150,24 @@ enum tegra_io_pad {
 };
 
 #ifdef CONFIG_SOC_TEGRA_PMC
+struct tegra_pmc *devm_tegra_pmc_get(struct device *dev);
+
+int tegra_pmc_powergate_power_on(struct tegra_pmc *pmc, unsigned int id);
+int tegra_pmc_powergate_power_off(struct tegra_pmc *pmc, unsigned int id);
+int tegra_pmc_powergate_remove_clamping(struct tegra_pmc *pmc, unsigned int id);
+
+/* Must be called with clk disabled, and returns with clk enabled */
+int tegra_pmc_powergate_sequence_power_up(struct tegra_pmc *pmc,
+					  unsigned int id, struct clk *clk,
+					  struct reset_control *rst);
+int tegra_pmc_io_pad_power_enable(struct tegra_pmc *pmc, enum tegra_io_pad id);
+int tegra_pmc_io_pad_power_disable(struct tegra_pmc *pmc, enum tegra_io_pad id);
+
+/* legacy */
 int tegra_powergate_power_on(unsigned int id);
 int tegra_powergate_power_off(unsigned int id);
 int tegra_powergate_remove_clamping(unsigned int id);
 
-/* Must be called with clk disabled, and returns with clk enabled */
 int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 				      struct reset_control *rst);
 
@@ -166,6 +180,50 @@ void tegra_pmc_enter_suspend_mode(enum tegra_suspend_mode mode);
 bool tegra_pmc_core_domain_state_synced(void);
 
 #else
+static inline struct tegra_pmc *devm_tegra_pmc_get(struct device *dev)
+{
+	return ERR_PTR(-ENOSYS);
+}
+
+static inline int
+tegra_pmc_powergate_power_on(struct tegra_pmc *pmc, unsigned int id)
+{
+	return -ENOSYS;
+}
+
+static inline int
+tegra_pmc_powergate_power_off(struct tegra_pmc *pmc, unsigned int id)
+{
+	return -ENOSYS;
+}
+
+static inline int
+tegra_pmc_powergate_remove_clamping(struct tegra_pmc *pmc, unsigned int id)
+{
+	return -ENOSYS;
+}
+
+/* Must be called with clk disabled, and returns with clk enabled */
+static inline int
+tegra_pmc_powergate_sequence_power_up(struct tegra_pmc *pmc, unsigned int id,
+				      struct clk *clk,
+				      struct reset_control *rst)
+{
+	return -ENOSYS;
+}
+
+static inline int
+tegra_pmc_io_pad_power_enable(struct tegra_pmc *pmc, enum tegra_io_pad id)
+{
+	return -ENOSYS;
+}
+
+static inline int
+tegra_pmc_io_pad_power_disable(struct tegra_pmc *pmc, enum tegra_io_pad id)
+{
+	return -ENOSYS;
+}
+
 static inline int tegra_powergate_power_on(unsigned int id)
 {
 	return -ENOSYS;
