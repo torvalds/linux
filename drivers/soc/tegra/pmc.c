@@ -2944,6 +2944,8 @@ static int tegra_pmc_regmap_init(struct tegra_pmc *pmc)
 
 static void tegra_pmc_reset_suspend_mode(void *data)
 {
+	struct tegra_pmc *pmc = data;
+
 	pmc->suspend_mode = TEGRA_SUSPEND_NOT_READY;
 }
 
@@ -2966,7 +2968,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		return err;
 
 	err = devm_add_action_or_reset(&pdev->dev, tegra_pmc_reset_suspend_mode,
-				       NULL);
+				       pmc);
 	if (err)
 		return err;
 
