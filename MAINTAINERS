@@ -6318,15 +6318,6 @@ F:	drivers/misc/cxl/
 F:	include/misc/cxl*
 F:	include/uapi/misc/cxl.h
 
-CXLFLASH (IBM Coherent Accelerator Processor Interface CAPI Flash) SCSI DRIVER
-M:	Manoj N. Kumar <manoj@linux.ibm.com>
-M:	Uma Krishnan <ukrishn@linux.ibm.com>
-L:	linux-scsi@vger.kernel.org
-S:	Obsolete
-F:	Documentation/arch/powerpc/cxlflash.rst
-F:	drivers/scsi/cxlflash/
-F:	include/uapi/scsi/cxlflash_ioctl.h
-
 CYBERPRO FB DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
