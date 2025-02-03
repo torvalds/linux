@@ -1438,15 +1438,15 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	switch (chip->tpin) {
 	case 20:
 		strscpy(chip->name, cy8c95x0_id[0].name);
-		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 3 * MUXED_STRIDE;
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 3 * MUXED_STRIDE - 1;
 		break;
 	case 40:
 		strscpy(chip->name, cy8c95x0_id[1].name);
-		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 6 * MUXED_STRIDE;
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 6 * MUXED_STRIDE - 1;
 		break;
 	case 60:
 		strscpy(chip->name, cy8c95x0_id[2].name);
-		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 8 * MUXED_STRIDE;
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 8 * MUXED_STRIDE - 1;
 		break;
 	default:
 		return -ENODEV;
