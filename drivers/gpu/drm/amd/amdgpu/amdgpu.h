@@ -795,6 +795,7 @@ enum amd_hw_ip_block_type {
 	DCI_HWIP,
 	PCIE_HWIP,
 	ISP_HWIP,
+	ATU_HWIP,
 	MAX_HWIP
 };
 
