@@ -80,7 +80,10 @@ enum {
 };
 
 struct mlx5_clock_dev_state {
+	struct mlx5_core_dev *mdev;
 	struct mlx5_devcom_comp_dev *compdev;
+	struct mlx5_nb pps_nb;
+	struct work_struct out_work;
 };
 
 struct mlx5_clock_priv {
@@ -336,11 +339,10 @@ static void mlx5_update_clock_info_page(struct mlx5_core_dev *mdev)
 
 static void mlx5_pps_out(struct work_struct *work)
 {
-	struct mlx5_pps *pps_info = container_of(work, struct mlx5_pps,
-						 out_work);
-	struct mlx5_clock *clock = container_of(pps_info, struct mlx5_clock,
-						pps_info);
-	struct mlx5_core_dev *mdev = mlx5_clock_mdev_get(clock);
+	struct mlx5_clock_dev_state *clock_state = container_of(work, struct mlx5_clock_dev_state,
+								out_work);
+	struct mlx5_core_dev *mdev = clock_state->mdev;
+	struct mlx5_clock *clock = mdev->clock;
 	u32 in[MLX5_ST_SZ_DW(mtpps_reg)] = {0};
 	unsigned long flags;
 	int i;
@@ -1012,15 +1014,15 @@ static u64 perout_conf_next_event_timer(struct mlx5_core_dev *mdev,
 static int mlx5_pps_event(struct notifier_block *nb,
 			  unsigned long type, void *data)
 {
-	struct mlx5_clock *clock = mlx5_nb_cof(nb, struct mlx5_clock, pps_nb);
+	struct mlx5_clock_dev_state *clock_state = mlx5_nb_cof(nb, struct mlx5_clock_dev_state,
+							       pps_nb);
+	struct mlx5_core_dev *mdev = clock_state->mdev;
+	struct mlx5_clock *clock = mdev->clock;
 	struct ptp_clock_event ptp_event;
 	struct mlx5_eqe *eqe = data;
 	int pin = eqe->data.pps.pin;
-	struct mlx5_core_dev *mdev;
 	unsigned long flags;
 	u64 ns;
-
-	mdev = mlx5_clock_mdev_get(clock);
 
 	switch (clock->ptp_info.pin_config[pin].func) {
 	case PTP_PF_EXTTS:
@@ -1045,7 +1047,7 @@ static int mlx5_pps_event(struct notifier_block *nb,
 		write_seqlock_irqsave(&clock->lock, flags);
 		clock->pps_info.start[pin] = ns;
 		write_sequnlock_irqrestore(&clock->lock, flags);
-		schedule_work(&clock->pps_info.out_work);
+		schedule_work(&clock_state->out_work);
 		break;
 	default:
 		mlx5_core_err(mdev, " Unhandled clock PPS event, func %d\n",
@@ -1271,7 +1273,6 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 {
 	u8 identity[MLX5_RT_CLOCK_IDENTITY_SIZE];
 	struct mlx5_clock_dev_state *clock_state;
-	struct mlx5_clock *clock;
 	u64 key;
 	int err;
 
@@ -1284,6 +1285,7 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 	clock_state = kzalloc(sizeof(*clock_state), GFP_KERNEL);
 	if (!clock_state)
 		return -ENOMEM;
+	clock_state->mdev = mdev;
 	mdev->clock_state = clock_state;
 
 	if (MLX5_CAP_MCAM_REG3(mdev, mrtcq) && mlx5_real_time_mode(mdev)) {
@@ -1301,24 +1303,21 @@ int mlx5_init_clock(struct mlx5_core_dev *mdev)
 		mdev->clock_state = NULL;
 		return err;
 	}
-	clock = mdev->clock;
 
-	INIT_WORK(&clock->pps_info.out_work, mlx5_pps_out);
-	MLX5_NB_INIT(&clock->pps_nb, mlx5_pps_event, PPS_EVENT);
-	mlx5_eq_notifier_register(mdev, &clock->pps_nb);
+	INIT_WORK(&mdev->clock_state->out_work, mlx5_pps_out);
+	MLX5_NB_INIT(&mdev->clock_state->pps_nb, mlx5_pps_event, PPS_EVENT);
+	mlx5_eq_notifier_register(mdev, &mdev->clock_state->pps_nb);
 
 	return 0;
 }
 
 void mlx5_cleanup_clock(struct mlx5_core_dev *mdev)
 {
-	struct mlx5_clock *clock = mdev->clock;
-
 	if (!MLX5_CAP_GEN(mdev, device_frequency_khz))
 		return;
 
-	mlx5_eq_notifier_unregister(mdev, &clock->pps_nb);
-	cancel_work_sync(&clock->pps_info.out_work);
+	mlx5_eq_notifier_unregister(mdev, &mdev->clock_state->pps_nb);
+	cancel_work_sync(&mdev->clock_state->out_work);
 
 	mlx5_clock_free(mdev);
 	mlx5_shared_clock_unregister(mdev);

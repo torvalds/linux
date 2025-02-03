@@ -38,7 +38,6 @@
 #define MAX_PIN_NUM	8
 struct mlx5_pps {
 	u8                         pin_caps[MAX_PIN_NUM];
-	struct work_struct         out_work;
 	u64                        start[MAX_PIN_NUM];
 	u8                         enabled;
 	u64                        min_npps_period;
@@ -53,7 +52,6 @@ struct mlx5_timer {
 };
 
 struct mlx5_clock {
-	struct mlx5_nb             pps_nb;
 	seqlock_t                  lock;
 	struct hwtstamp_config     hwtstamp_config;
 	struct ptp_clock          *ptp;
