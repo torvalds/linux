@@ -44,3 +44,10 @@ Description:
 		- "SAFE": DP is in safe mode
 		- "TBT": TBT enabled
 		- "USB4": USB4 enabled
+
+What:		/sys/class/chromeos/cros_ec/ap_mode_entry
+Date:		February 2025
+Description:
+		Show if the AP mode entry EC feature is supported.
+		It indicates whether the EC waits for direction from the AP
+		to enter Type-C altmodes or USB4 mode.

@@ -345,6 +345,16 @@ static ssize_t usbpdmuxinfo_show(struct device *dev,
 	return count ? : -EIO;
 }
 
+static ssize_t ap_mode_entry_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	const bool ap_driven_altmode = cros_ec_check_features(
+		ec, EC_FEATURE_TYPEC_REQUIRE_AP_MODE_ENTRY);
+
+	return sysfs_emit(buf, "%s\n", ap_driven_altmode ? "yes" : "no");
+}
+
 /* Module initialization */
 
 static DEVICE_ATTR_RW(reboot);
@@ -352,6 +362,7 @@ static DEVICE_ATTR_RO(version);
 static DEVICE_ATTR_RO(flashinfo);
 static DEVICE_ATTR_RW(kb_wake_angle);
 static DEVICE_ATTR_RO(usbpdmuxinfo);
+static DEVICE_ATTR_RO(ap_mode_entry);
 
 static struct attribute *__ec_attrs[] = {
 	&dev_attr_kb_wake_angle.attr,
@@ -359,6 +370,7 @@ static struct attribute *__ec_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_flashinfo.attr,
 	&dev_attr_usbpdmuxinfo.attr,
+	&dev_attr_ap_mode_entry.attr,
 	NULL,
 };
 
@@ -371,7 +383,8 @@ static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
 	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
 		return 0;
 
-	if (a == &dev_attr_usbpdmuxinfo.attr) {
+	if (a == &dev_attr_usbpdmuxinfo.attr ||
+		a == &dev_attr_ap_mode_entry.attr) {
 		struct cros_ec_platform *ec_platform = dev_get_platdata(ec->dev);
 
 		if (strcmp(ec_platform->ec_name, CROS_EC_DEV_NAME))
