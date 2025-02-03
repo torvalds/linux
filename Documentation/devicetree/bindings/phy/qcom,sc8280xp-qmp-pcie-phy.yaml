@@ -220,12 +220,6 @@ allOf:
           minItems: 2
         reset-names:
           minItems: 2
-    else:
-      properties:
-        resets:
-          maxItems: 1
-        reset-names:
-          maxItems: 1
 
   - if:
       properties:
