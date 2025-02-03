@@ -526,28 +526,6 @@ out:
 	return res;
 }
 
-u32 mlx4_zone_free_entries(struct mlx4_zone_allocator *zones, u32 uid, u32 obj, u32 count)
-{
-	struct mlx4_zone_entry *zone;
-	int res = 0;
-
-	spin_lock(&zones->lock);
-
-	zone = __mlx4_find_zone_by_uid(zones, uid);
-
-	if (NULL == zone) {
-		res = -1;
-		goto out;
-	}
-
-	__mlx4_free_from_zone(zone, obj, count);
-
-out:
-	spin_unlock(&zones->lock);
-
-	return res;
-}
-
 u32 mlx4_zone_free_entries_unique(struct mlx4_zone_allocator *zones, u32 obj, u32 count)
 {
 	struct mlx4_zone_entry *zone;

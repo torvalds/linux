@@ -147,26 +147,6 @@ static int mlx4_set_port_mac_table(struct mlx4_dev *dev, u8 port,
 	return err;
 }
 
-int mlx4_find_cached_mac(struct mlx4_dev *dev, u8 port, u64 mac, int *idx)
-{
-	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
-	struct mlx4_mac_table *table = &info->mac_table;
-	int i;
-
-	for (i = 0; i < MLX4_MAX_MAC_NUM; i++) {
-		if (!table->refs[i])
-			continue;
-
-		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
-			*idx = i;
-			return 0;
-		}
-	}
-
-	return -ENOENT;
-}
-EXPORT_SYMBOL_GPL(mlx4_find_cached_mac);
-
 static bool mlx4_need_mf_bond(struct mlx4_dev *dev)
 {
 	int i, num_eth_ports = 0;
