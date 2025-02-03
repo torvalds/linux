@@ -185,3 +185,9 @@ int rfc3961_verify_mic(const struct krb5_enctype *krb5,
  */
 extern const struct krb5_enctype krb5_aes128_cts_hmac_sha1_96;
 extern const struct krb5_enctype krb5_aes256_cts_hmac_sha1_96;
+
+/*
+ * rfc8009_aes2.c
+ */
+extern const struct krb5_enctype krb5_aes128_cts_hmac_sha256_128;
+extern const struct krb5_enctype krb5_aes256_cts_hmac_sha384_192;
