@@ -11,7 +11,7 @@
 struct ucounts init_ucounts = {
 	.ns    = &init_user_ns,
 	.uid   = GLOBAL_ROOT_UID,
-	.count = ATOMIC_INIT(1),
+	.count = RCUREF_INIT(1),
 };
 
 #define UCOUNTS_HASHTABLE_BITS 10
@@ -138,7 +138,7 @@ static struct ucounts *find_ucounts(struct user_namespace *ns, kuid_t uid,
 	guard(rcu)();
 	hlist_nulls_for_each_entry_rcu(ucounts, pos, hashent, node) {
 		if (uid_eq(ucounts->uid, uid) && (ucounts->ns == ns)) {
-			if (atomic_inc_not_zero(&ucounts->count))
+			if (rcuref_get(&ucounts->count))
 				return ucounts;
 		}
 	}
@@ -152,13 +152,6 @@ static void hlist_add_ucounts(struct ucounts *ucounts)
 	spin_lock_irq(&ucounts_lock);
 	hlist_nulls_add_head_rcu(&ucounts->node, hashent);
 	spin_unlock_irq(&ucounts_lock);
-}
-
-struct ucounts *get_ucounts(struct ucounts *ucounts)
-{
-	if (atomic_inc_not_zero(&ucounts->count))
-		return ucounts;
-	return NULL;
 }
 
 struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
@@ -176,7 +169,7 @@ struct ucounts *alloc_ucounts(struct user_namespace *ns, kuid_t uid)
 
 	new->ns = ns;
 	new->uid = uid;
-	atomic_set(&new->count, 1);
+	rcuref_init(&new->count, 1);
 
 	spin_lock_irq(&ucounts_lock);
 	ucounts = find_ucounts(ns, uid, hashent);
@@ -196,7 +189,8 @@ void put_ucounts(struct ucounts *ucounts)
 {
 	unsigned long flags;
 
-	if (atomic_dec_and_lock_irqsave(&ucounts->count, &ucounts_lock, flags)) {
+	if (rcuref_put(&ucounts->count)) {
+		spin_lock_irqsave(&ucounts_lock, flags);
 		hlist_nulls_del_rcu(&ucounts->node);
 		spin_unlock_irqrestore(&ucounts_lock, flags);
 
