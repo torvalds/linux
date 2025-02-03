@@ -21,7 +21,7 @@
 #include "virtio_crypto_common.h"
 
 struct virtio_crypto_rsa_ctx {
-	MPI n;
+	unsigned int key_size;
 };
 
 struct virtio_crypto_akcipher_ctx {
@@ -352,10 +352,7 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 	int node = virtio_crypto_get_current_node();
 	uint32_t keytype;
 	int ret;
-
-	/* mpi_free will test n, just free it. */
-	mpi_free(rsa_ctx->n);
-	rsa_ctx->n = NULL;
+	MPI n;
 
 	if (private) {
 		keytype = VIRTIO_CRYPTO_AKCIPHER_KEY_TYPE_PRIVATE;
@@ -368,9 +365,12 @@ static int virtio_crypto_rsa_set_key(struct crypto_akcipher *tfm,
 	if (ret)
 		return ret;
 
-	rsa_ctx->n = mpi_read_raw_data(rsa_key.n, rsa_key.n_sz);
-	if (!rsa_ctx->n)
+	n = mpi_read_raw_data(rsa_key.n, rsa_key.n_sz);
+	if (!n)
 		return -ENOMEM;
+
+	rsa_ctx->key_size = mpi_get_size(n);
+	mpi_free(n);
 
 	if (!ctx->vcrypto) {
 		vcrypto = virtcrypto_get_dev_node(node, VIRTIO_CRYPTO_SERVICE_AKCIPHER,
@@ -442,7 +442,7 @@ static unsigned int virtio_crypto_rsa_max_size(struct crypto_akcipher *tfm)
 	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
 	struct virtio_crypto_rsa_ctx *rsa_ctx = &ctx->rsa_ctx;
 
-	return mpi_get_size(rsa_ctx->n);
+	return rsa_ctx->key_size;
 }
 
 static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
@@ -460,12 +460,9 @@ static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
 static void virtio_crypto_rsa_exit_tfm(struct crypto_akcipher *tfm)
 {
 	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
-	struct virtio_crypto_rsa_ctx *rsa_ctx = &ctx->rsa_ctx;
 
 	virtio_crypto_alg_akcipher_close_session(ctx);
 	virtcrypto_dev_put(ctx->vcrypto);
-	mpi_free(rsa_ctx->n);
-	rsa_ctx->n = NULL;
 }
 
 static struct virtio_crypto_akcipher_algo virtio_crypto_akcipher_algs[] = {
