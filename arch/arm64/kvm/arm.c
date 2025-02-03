@@ -2290,6 +2290,19 @@ static int __init init_subsystems(void)
 		break;
 	case -ENODEV:
 	case -ENXIO:
+		/*
+		 * No VGIC? No pKVM for you.
+		 *
+		 * Protected mode assumes that VGICv3 is present, so no point
+		 * in trying to hobble along if vgic initialization fails.
+		 */
+		if (is_protected_kvm_enabled())
+			goto out;
+
+		/*
+		 * Otherwise, userspace could choose to implement a GIC for its
+		 * guest on non-cooperative hardware.
+		 */
 		vgic_present = false;
 		err = 0;
 		break;
