@@ -372,8 +372,8 @@ static void pxp_fini(void *arg)
  * are performed asynchronously as part of the GSC init. PXP can only be used
  * after both this function and the async worker have completed.
  *
- * Returns -EOPNOTSUPP if PXP is not supported, 0 if PXP initialization is
- * successful, other errno value if there is an error during the init.
+ * Returns 0 if PXP is not supported or if PXP initialization is successful,
+ * other errno value if there is an error during the init.
  */
 int xe_pxp_init(struct xe_device *xe)
 {
@@ -382,26 +382,28 @@ int xe_pxp_init(struct xe_device *xe)
 	int err;
 
 	if (!xe_pxp_is_supported(xe))
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* we only support PXP on single tile devices with a media GT */
 	if (xe->info.tile_count > 1 || !gt)
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* The GSCCS is required for submissions to the GSC FW */
 	if (!(gt->info.engine_mask & BIT(XE_HW_ENGINE_GSCCS0)))
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* PXP requires both GSC and HuC firmwares to be available */
 	if (!xe_uc_fw_is_loadable(&gt->uc.gsc.fw) ||
 	    !xe_uc_fw_is_loadable(&gt->uc.huc.fw)) {
 		drm_info(&xe->drm, "skipping PXP init due to missing FW dependencies");
-		return -EOPNOTSUPP;
+		return 0;
 	}
 
 	pxp = drmm_kzalloc(&xe->drm, sizeof(struct xe_pxp), GFP_KERNEL);
-	if (!pxp)
-		return -ENOMEM;
+	if (!pxp) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	INIT_LIST_HEAD(&pxp->queues.list);
 	spin_lock_init(&pxp->queues.lock);
@@ -448,6 +450,8 @@ out_wq:
 	destroy_workqueue(pxp->irq.wq);
 out_free:
 	drmm_kfree(&xe->drm, pxp);
+out:
+	drm_err(&xe->drm, "PXP initialization failed: %pe\n", ERR_PTR(err));
 	return err;
 }
 
