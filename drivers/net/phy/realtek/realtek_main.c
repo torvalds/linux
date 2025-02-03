@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/string_choices.h>
 
 #include "realtek.h"
 
@@ -422,11 +423,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	} else if (ret) {
 		dev_dbg(dev,
 			"%s 2ns TX delay (and changing the value from pin-strapping RXD1 or the bootloader)\n",
-			val_txdly ? "Enabling" : "Disabling");
+			str_enable_disable(val_txdly));
 	} else {
 		dev_dbg(dev,
 			"2ns TX delay was already %s (by pin-strapping RXD1 or bootloader configuration)\n",
-			val_txdly ? "enabled" : "disabled");
+			str_enabled_disabled(val_txdly));
 	}
 
 	ret = phy_modify_paged_changed(phydev, 0xd08, 0x15, RTL8211F_RX_DELAY,
@@ -437,11 +438,11 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	} else if (ret) {
 		dev_dbg(dev,
 			"%s 2ns RX delay (and changing the value from pin-strapping RXD0 or the bootloader)\n",
-			val_rxdly ? "Enabling" : "Disabling");
+			str_enable_disable(val_rxdly));
 	} else {
 		dev_dbg(dev,
 			"2ns RX delay was already %s (by pin-strapping RXD0 or bootloader configuration)\n",
-			val_rxdly ? "enabled" : "disabled");
+			str_enabled_disabled(val_rxdly));
 	}
 
 	if (priv->has_phycr2) {
