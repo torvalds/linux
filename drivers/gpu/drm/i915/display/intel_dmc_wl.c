@@ -102,6 +102,7 @@ static const struct intel_dmc_wl_range xe3lpd_dc5_dc6_dmc_ranges[] = {
 	{ .start = 0x42088 }, /* CHICKEN_MISC_3 */
 	{ .start = 0x46160 }, /* CMTG_CLK_SEL */
 	{ .start = 0x8f000, .end = 0x8ffff }, /* Main DMC registers */
+	{ .start = 0x45230 }, /* INITIATE_PM_DMD_REQ */
 
 	{},
 };
