@@ -803,6 +803,14 @@ DEFINE_EVENT(nfsd_cs_slot_class, nfsd_##name, \
 DEFINE_CS_SLOT_EVENT(slot_seqid_conf);
 DEFINE_CS_SLOT_EVENT(slot_seqid_unconf);
 
+#define show_nfs_slot_flags(val)					\
+	__print_flags(val, "|",						\
+		{ NFSD4_SLOT_INUSE,		"INUSE" },		\
+		{ NFSD4_SLOT_CACHETHIS,		"CACHETHIS" },		\
+		{ NFSD4_SLOT_INITIALIZED,	"INITIALIZED" },	\
+		{ NFSD4_SLOT_CACHED,		"CACHED" },		\
+		{ NFSD4_SLOT_REUSED,		"REUSED" })
+
 TRACE_EVENT(nfsd_slot_seqid_sequence,
 	TP_PROTO(
 		const struct nfs4_client *clp,
@@ -813,10 +821,11 @@ TRACE_EVENT(nfsd_slot_seqid_sequence,
 	TP_STRUCT__entry(
 		__field(u32, seqid)
 		__field(u32, slot_seqid)
+		__field(u32, slot_index)
+		__field(unsigned long, slot_flags)
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
-		__field(bool, in_use)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
@@ -825,11 +834,13 @@ TRACE_EVENT(nfsd_slot_seqid_sequence,
 				  clp->cl_cb_conn.cb_addrlen);
 		__entry->seqid = seq->seqid;
 		__entry->slot_seqid = slot->sl_seqid;
+		__entry->slot_index = seq->slotid;
+		__entry->slot_flags = slot->sl_flags;
 	),
-	TP_printk("addr=%pISpc client %08x:%08x seqid=%u slot_seqid=%u (%sin use)",
+	TP_printk("addr=%pISpc client %08x:%08x idx=%u seqid=%u slot_seqid=%u flags=%s",
 		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
-		__entry->seqid, __entry->slot_seqid,
-		__entry->in_use ? "" : "not "
+		__entry->slot_index, __entry->seqid, __entry->slot_seqid,
+		show_nfs_slot_flags(__entry->slot_flags)
 	)
 );
 
