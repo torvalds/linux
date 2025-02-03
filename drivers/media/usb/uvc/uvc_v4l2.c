@@ -1030,6 +1030,9 @@ static int uvc_ioctl_g_ext_ctrls(struct file *file, void *fh,
 	u32 which;
 	int ret;
 
+	if (!ctrls->count)
+		return 0;
+
 	switch (ctrls->which) {
 	case V4L2_CTRL_WHICH_DEF_VAL:
 	case V4L2_CTRL_WHICH_CUR_VAL:
@@ -1069,6 +1072,9 @@ static int uvc_ioctl_s_try_ext_ctrls(struct uvc_fh *handle,
 	struct uvc_video_chain *chain = handle->chain;
 	unsigned int i;
 	int ret;
+
+	if (!ctrls->count)
+		return 0;
 
 	ret = uvc_ctrl_check_access(chain, ctrls, ioctl);
 	if (ret < 0)
