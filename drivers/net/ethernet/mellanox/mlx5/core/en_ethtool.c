@@ -952,6 +952,7 @@ static const u32 pplm_fec_2_ethtool[] = {
 	[MLX5E_FEC_RS_528_514] = ETHTOOL_FEC_RS,
 	[MLX5E_FEC_RS_544_514] = ETHTOOL_FEC_RS,
 	[MLX5E_FEC_LLRS_272_257_1] = ETHTOOL_FEC_LLRS,
+	[MLX5E_FEC_RS_544_514_INTERLEAVED_QUAD] = ETHTOOL_FEC_RS,
 };
 
 static u32 pplm2ethtool_fec(u_long fec_mode, unsigned long size)
