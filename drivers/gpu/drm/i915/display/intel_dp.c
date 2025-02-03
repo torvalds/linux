@@ -1958,14 +1958,36 @@ static int dsc_compute_link_config(struct intel_dp *intel_dp,
 		for (lane_count = limits->min_lane_count;
 		     lane_count <= limits->max_lane_count;
 		     lane_count <<= 1) {
-			if (!is_bw_sufficient_for_dsc_config(dsc_bpp_x16, link_rate,
-							     lane_count, adjusted_mode->clock,
-							     pipe_config->output_format,
-							     timeslots))
-				continue;
 
+			/*
+			 * FIXME: intel_dp_mtp_tu_compute_config() requires
+			 * ->lane_count and ->port_clock set before we know
+			 * they'll work. If we end up failing altogether,
+			 * they'll remain in crtc state. This shouldn't matter,
+			 * as we'd then bail out from compute config, but it's
+			 * just ugly.
+			 */
 			pipe_config->lane_count = lane_count;
 			pipe_config->port_clock = link_rate;
+
+			if (drm_dp_is_uhbr_rate(link_rate)) {
+				int ret;
+
+				ret = intel_dp_mtp_tu_compute_config(intel_dp,
+								     pipe_config,
+								     conn_state,
+								     dsc_bpp_x16,
+								     dsc_bpp_x16,
+								     0, true);
+				if (ret)
+					continue;
+			} else {
+				if (!is_bw_sufficient_for_dsc_config(dsc_bpp_x16, link_rate,
+								     lane_count, adjusted_mode->clock,
+								     pipe_config->output_format,
+								     timeslots))
+					continue;
+			}
 
 			return 0;
 		}
@@ -2493,9 +2515,6 @@ intel_dp_compute_config_limits(struct intel_dp *intel_dp,
 	limits->min_rate = intel_dp_min_link_rate(intel_dp);
 	limits->max_rate = intel_dp_max_link_rate(intel_dp);
 
-	/* FIXME 128b/132b SST+DSC support missing */
-	if (!is_mst && dsc)
-		limits->max_rate = min(limits->max_rate, 810000);
 	limits->min_rate = min(limits->min_rate, limits->max_rate);
 
 	limits->min_lane_count = intel_dp_min_lane_count(intel_dp);
