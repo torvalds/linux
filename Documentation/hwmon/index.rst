@@ -53,6 +53,7 @@ Hardware Monitoring Kernel Drivers
    bel-pfe
    bpa-rs600
    bt1-pvt
+   cgbc-hwmon
    chipcap2
    coretemp
    corsair-cpro
