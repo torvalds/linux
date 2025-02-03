@@ -46,8 +46,8 @@ static int ae4_get_irqs(struct ae4_device *ae4)
 
 	} else {
 		ae4_msix->msix_count = ret;
-		for (i = 0; i < MAX_AE4_HW_QUEUES; i++)
-			ae4->ae4_irq[i] = ae4_msix->msix_entry[i].vector;
+		for (i = 0; i < ae4_msix->msix_count; i++)
+			ae4->ae4_irq[i] = pci_irq_vector(pdev, i);
 	}
 
 	return ret;
