@@ -546,12 +546,7 @@ static void tegra_pmc_scratch_writel(struct tegra_pmc *pmc, u32 value,
 		writel(value, pmc->scratch + offset);
 }
 
-/*
- * TODO Figure out a way to call this with the struct tegra_pmc * passed in.
- * This currently doesn't work because readx_poll_timeout() can only operate
- * on functions that take a single argument.
- */
-static inline bool tegra_powergate_state(int id)
+static inline bool tegra_powergate_state(struct tegra_pmc *pmc, int id)
 {
 	if (id == TEGRA_POWERGATE_3D && pmc->soc->has_gpu_clamps)
 		return (tegra_pmc_readl(pmc, GPU_RG_CNTRL) & 0x1) == 0;
@@ -603,8 +598,9 @@ static int tegra20_powergate_set(struct tegra_pmc *pmc, unsigned int id,
 		tegra_pmc_writel(pmc, PWRGATE_TOGGLE_START | id, PWRGATE_TOGGLE);
 
 		/* wait for PMC to execute the command */
-		ret = readx_poll_timeout(tegra_powergate_state, id, status,
-					 status == new_state, 1, 10);
+		ret = read_poll_timeout(tegra_powergate_state, status,
+					status == new_state, 1, 10, false,
+					pmc, id);
 	} while (ret == -ETIMEDOUT && retries--);
 
 	return ret;
@@ -636,8 +632,9 @@ static int tegra114_powergate_set(struct tegra_pmc *pmc, unsigned int id,
 		return err;
 
 	/* wait for PMC to execute the command */
-	err = readx_poll_timeout(tegra_powergate_state, id, status,
-				 status == new_state, 10, 100000);
+	err = read_poll_timeout(tegra_powergate_state, status,
+				status == new_state, 10, 100000, false,
+				pmc, id);
 	if (err)
 		return err;
 
@@ -660,7 +657,7 @@ static int tegra_powergate_set(struct tegra_pmc *pmc, unsigned int id,
 
 	mutex_lock(&pmc->powergates_lock);
 
-	if (tegra_powergate_state(id) == new_state) {
+	if (tegra_powergate_state(pmc, id) == new_state) {
 		mutex_unlock(&pmc->powergates_lock);
 		return 0;
 	}
@@ -981,7 +978,7 @@ static int tegra_powergate_is_powered(struct tegra_pmc *pmc, unsigned int id)
 	if (!tegra_powergate_is_valid(pmc, id))
 		return -EINVAL;
 
-	return tegra_powergate_state(id);
+	return tegra_powergate_state(pmc, id);
 }
 
 /**
