@@ -463,22 +463,24 @@ static int do_entry(const char *_src, const char *_dst, const char *name, uid_t 
 		printf("skipping %s: unsupported entry type %d\n", src, type);
 	}
 
-	if (!ret) {
-		if (cptofs) {
-			struct lkl_timespec lkl_ts[] = { atime, mtime };
+	if (ret)
+		goto err_out;
 
-			ret = lkl_sys_utimensat(LKL_AT_FDCWD, dst,
-						(struct __lkl__kernel_timespec
-						 *)lkl_ts,
-						LKL_AT_SYMLINK_NOFOLLOW);
-		} else {
-			struct timespec ts[] = {
-				{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
-				{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
-			};
+	if (cptofs) {
+		struct __lkl__kernel_timespec lkl_ts[] = {
+			{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
+			{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
+		};
 
-			ret = utimensat(AT_FDCWD, dst, ts, AT_SYMLINK_NOFOLLOW);
-		}
+		ret = lkl_sys_utimensat(LKL_AT_FDCWD, dst, lkl_ts,
+					LKL_AT_SYMLINK_NOFOLLOW);
+	} else {
+		struct timespec ts[] = {
+			{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
+			{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
+		};
+
+		ret = utimensat(AT_FDCWD, dst, ts, AT_SYMLINK_NOFOLLOW);
 	}
 
 err_out:

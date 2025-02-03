@@ -276,7 +276,7 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
 				  lkl_fd_set *efds, struct lkl_timeval *tv)
 {
 	long data[2] = { 0, _LKL_NSIG/8 };
-	struct lkl_timespec ts;
+	struct __lkl__kernel_timespec ts;
 
 	if (tv) {
 		if (tv->tv_sec < 0 || tv->tv_usec < 0)
@@ -285,8 +285,7 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
 		ts.tv_sec = tv->tv_sec;
 		ts.tv_nsec = tv->tv_usec * 1000;
 	}
-	return lkl_sys_pselect6(n, rfds, wfds, efds, tv ?
-				(struct __lkl__kernel_timespec *)&ts : 0, data);
+	return lkl_sys_pselect6(n, rfds, wfds, efds, tv ?  &ts : 0, data);
 }
 #endif
 
@@ -296,11 +295,15 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
  */
 static inline long lkl_sys_poll(struct lkl_pollfd *fds, int n, int timeout)
 {
-	return lkl_sys_ppoll(fds, n, timeout >= 0 ?
-			     (struct __lkl__kernel_timespec *)
-			     &((struct lkl_timespec){ .tv_sec = timeout/1000,
-				   .tv_nsec = timeout%1000*1000000 }) : 0,
-			     0, _LKL_NSIG/8);
+	struct __lkl__kernel_timespec ts;
+
+	if (timeout >= 0)
+		ts = (struct __lkl__kernel_timespec){
+			.tv_sec = timeout / 1000,
+			.tv_nsec = timeout % 1000 * 1000000,
+		};
+
+	return lkl_sys_ppoll(fds, n, timeout >= 0 ? &ts : 0, 0, _LKL_NSIG/8);
 }
 #endif
 

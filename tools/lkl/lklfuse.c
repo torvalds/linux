@@ -503,19 +503,16 @@ static int lklfuse_utimens(const char *path, const struct timespec tv[2],
 			   struct fuse_file_info *fi)
 {
 	int ret;
-	struct lkl_timespec ts[2] = {
+	struct __lkl__kernel_timespec ts[2] = {
 		{ .tv_sec = tv[0].tv_sec, .tv_nsec = tv[0].tv_nsec },
 		{ .tv_sec = tv[1].tv_sec, .tv_nsec = tv[1].tv_nsec },
 	};
 
 	if (fi)
-		ret = lkl_sys_utimensat(fi->fh, NULL,
-					(struct __lkl__kernel_timespec *)ts,
-					0);
+		ret = lkl_sys_utimensat(fi->fh, NULL, ts, 0);
 	else
-		ret = lkl_sys_utimensat(-1, path,
-					(struct __lkl__kernel_timespec *)ts,
-					LKL_AT_SYMLINK_NOFOLLOW);
+		ret = lkl_sys_utimensat(-1, path, ts, LKL_AT_SYMLINK_NOFOLLOW);
+
 	return ret;
 }
 
@@ -686,7 +683,7 @@ static int start_lkl(void)
 	long ret;
 	char mpoint[32];
 	struct timespec walltime;
-	struct lkl_timespec ts;
+	struct __lkl__kernel_timespec ts;
 	int mount_flags = 0;
 	char remaining_mopts[4096] = { 0 };
 
@@ -709,10 +706,9 @@ static int start_lkl(void)
 	if (ret < 0)
 		goto out_halt;
 
-	ts = (struct lkl_timespec){ .tv_sec = walltime.tv_sec,
-				    .tv_nsec = walltime.tv_nsec };
-	ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME,
-				    (struct __lkl__kernel_timespec *)&ts);
+	ts = (struct __lkl__kernel_timespec){ .tv_sec = walltime.tv_sec,
+					      .tv_nsec = walltime.tv_nsec };
+	ret = lkl_sys_clock_settime(LKL_CLOCK_REALTIME, &ts);
 	if (ret < 0) {
 		fprintf(stderr, "lkl_sys_clock_settime() failed: %s\n",
 			lkl_strerror(ret));
