@@ -125,16 +125,6 @@
 		- compatible : should contain "xlnx,xps-hwicap-1.00.a" or
 				"xlnx,opb-hwicap-1.00.b".
 
-      vi) Xilinx Uart 16550
-
-      Xilinx UART 16550 devices are very similar to the NS16550 but with
-      different register spacing and an offset from the base address.
-
-      Required properties:
-       - clock-frequency : Frequency of the clock input
-       - reg-offset : A value of 3 is required
-       - reg-shift : A value of 2 is required
-
       vii) Xilinx USB Host controller
 
       The Xilinx USB host controller is EHCI compatible but with a different
