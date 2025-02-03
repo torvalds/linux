@@ -26,7 +26,6 @@ struct virtio_crypto_rsa_ctx {
 
 struct virtio_crypto_akcipher_ctx {
 	struct virtio_crypto *vcrypto;
-	struct crypto_akcipher *tfm;
 	bool session_valid;
 	__u64 session_id;
 	union {
@@ -447,10 +446,6 @@ static unsigned int virtio_crypto_rsa_max_size(struct crypto_akcipher *tfm)
 
 static int virtio_crypto_rsa_init_tfm(struct crypto_akcipher *tfm)
 {
-	struct virtio_crypto_akcipher_ctx *ctx = akcipher_tfm_ctx(tfm);
-
-	ctx->tfm = tfm;
-
 	akcipher_set_reqsize(tfm,
 			     sizeof(struct virtio_crypto_akcipher_request));
 

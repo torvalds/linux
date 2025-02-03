@@ -17,7 +17,6 @@
 
 struct virtio_crypto_skcipher_ctx {
 	struct virtio_crypto *vcrypto;
-	struct crypto_skcipher *tfm;
 
 	struct virtio_crypto_sym_session_info enc_sess_info;
 	struct virtio_crypto_sym_session_info dec_sess_info;
@@ -515,10 +514,7 @@ static int virtio_crypto_skcipher_decrypt(struct skcipher_request *req)
 
 static int virtio_crypto_skcipher_init(struct crypto_skcipher *tfm)
 {
-	struct virtio_crypto_skcipher_ctx *ctx = crypto_skcipher_ctx(tfm);
-
 	crypto_skcipher_set_reqsize(tfm, sizeof(struct virtio_crypto_sym_request));
-	ctx->tfm = tfm;
 
 	return 0;
 }
