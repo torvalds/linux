@@ -101,22 +101,38 @@ static inline void iowrite64be_lo_hi(u64 val, void __iomem *addr)
 
 #ifndef ioread64
 #define ioread64_is_nonatomic
+#if defined(CONFIG_GENERIC_IOMAP) && defined(CONFIG_64BIT)
+#define ioread64 __ioread64_lo_hi
+#else
 #define ioread64 ioread64_lo_hi
+#endif
 #endif
 
 #ifndef iowrite64
 #define iowrite64_is_nonatomic
+#if defined(CONFIG_GENERIC_IOMAP) && defined(CONFIG_64BIT)
+#define iowrite64 __iowrite64_lo_hi
+#else
 #define iowrite64 iowrite64_lo_hi
+#endif
 #endif
 
 #ifndef ioread64be
 #define ioread64be_is_nonatomic
+#if defined(CONFIG_GENERIC_IOMAP) && defined(CONFIG_64BIT)
+#define ioread64be __ioread64be_lo_hi
+#else
 #define ioread64be ioread64be_lo_hi
+#endif
 #endif
 
 #ifndef iowrite64be
 #define iowrite64be_is_nonatomic
+#if defined(CONFIG_GENERIC_IOMAP) && defined(CONFIG_64BIT)
+#define iowrite64be __iowrite64be_lo_hi
+#else
 #define iowrite64be iowrite64be_lo_hi
+#endif
 #endif
 
 #endif	/* _LINUX_IO_64_NONATOMIC_LO_HI_H_ */
