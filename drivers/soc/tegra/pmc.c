@@ -268,6 +268,17 @@ static const struct pmc_clk_init_data tegra_pmc_clks_data[] = {
 	},
 };
 
+struct tegra_pmc_core_pd {
+	struct generic_pm_domain genpd;
+	struct tegra_pmc *pmc;
+};
+
+static inline struct tegra_pmc_core_pd *
+to_core_pd(struct generic_pm_domain *genpd)
+{
+	return container_of(genpd, struct tegra_pmc_core_pd, genpd);
+}
+
 struct tegra_powergate {
 	struct generic_pm_domain genpd;
 	struct tegra_pmc *pmc;
@@ -1387,6 +1398,8 @@ static int
 tegra_pmc_core_pd_set_performance_state(struct generic_pm_domain *genpd,
 					unsigned int level)
 {
+	struct tegra_pmc_core_pd *pd = to_core_pd(genpd);
+	struct tegra_pmc *pmc = pd->pmc;
 	struct dev_pm_opp *opp;
 	int err;
 
@@ -1414,30 +1427,31 @@ tegra_pmc_core_pd_set_performance_state(struct generic_pm_domain *genpd,
 
 static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 {
-	struct generic_pm_domain *genpd;
 	const char *rname[] = { "core", NULL};
+	struct tegra_pmc_core_pd *pd;
 	int err;
 
-	genpd = devm_kzalloc(pmc->dev, sizeof(*genpd), GFP_KERNEL);
-	if (!genpd)
+	pd = devm_kzalloc(pmc->dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd)
 		return -ENOMEM;
 
-	genpd->name = "core";
-	genpd->flags = GENPD_FLAG_NO_SYNC_STATE;
-	genpd->set_performance_state = tegra_pmc_core_pd_set_performance_state;
+	pd->genpd.name = "core";
+	pd->genpd.flags = GENPD_FLAG_NO_SYNC_STATE;
+	pd->genpd.set_performance_state = tegra_pmc_core_pd_set_performance_state;
+	pd->pmc = pmc;
 
 	err = devm_pm_opp_set_regulators(pmc->dev, rname);
 	if (err)
 		return dev_err_probe(pmc->dev, err,
 				     "failed to set core OPP regulator\n");
 
-	err = pm_genpd_init(genpd, NULL, false);
+	err = pm_genpd_init(&pd->genpd, NULL, false);
 	if (err) {
 		dev_err(pmc->dev, "failed to init core genpd: %d\n", err);
 		return err;
 	}
 
-	err = of_genpd_add_provider_simple(np, genpd);
+	err = of_genpd_add_provider_simple(np, &pd->genpd);
 	if (err) {
 		dev_err(pmc->dev, "failed to add core genpd: %d\n", err);
 		goto remove_genpd;
@@ -1446,7 +1460,7 @@ static int tegra_pmc_core_pd_add(struct tegra_pmc *pmc, struct device_node *np)
 	return 0;
 
 remove_genpd:
-	pm_genpd_remove(genpd);
+	pm_genpd_remove(&pd->genpd);
 
 	return err;
 }
@@ -1509,7 +1523,7 @@ static void tegra_powergate_remove(struct generic_pm_domain *genpd)
 
 	kfree(pg->clks);
 
-	set_bit(pg->id, pmc->powergates_available);
+	set_bit(pg->id, pg->pmc->powergates_available);
 
 	kfree(pg);
 }
