@@ -1802,7 +1802,8 @@ static int cfg80211_rtw_set_txpower(struct wiphy *wiphy,
 }
 
 static int cfg80211_rtw_get_txpower(struct wiphy *wiphy,
-				    struct wireless_dev *wdev, int *dbm)
+				    struct wireless_dev *wdev,
+				    unsigned int link_id, int *dbm)
 {
 	*dbm = (12);
 

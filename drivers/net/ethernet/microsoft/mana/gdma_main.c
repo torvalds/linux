@@ -1318,7 +1318,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 				   GFP_KERNEL);
 	if (!gc->irq_contexts) {
 		err = -ENOMEM;
-		goto free_irq_vector;
+		goto free_irq_array;
 	}
 
 	for (i = 0; i < nvec; i++) {
@@ -1375,6 +1375,7 @@ static int mana_gd_setup_irqs(struct pci_dev *pdev)
 	gc->max_num_msix = nvec;
 	gc->num_msix_usable = nvec;
 	cpus_read_unlock();
+	kfree(irqs);
 	return 0;
 
 free_irq:
@@ -1387,8 +1388,9 @@ free_irq:
 	}
 
 	kfree(gc->irq_contexts);
-	kfree(irqs);
 	gc->irq_contexts = NULL;
+free_irq_array:
+	kfree(irqs);
 free_irq_vector:
 	cpus_read_unlock();
 	pci_free_irq_vectors(pdev);
@@ -1654,9 +1656,9 @@ static int __init mana_driver_init(void)
 
 static void __exit mana_driver_exit(void)
 {
-	debugfs_remove(mana_debugfs_root);
-
 	pci_unregister_driver(&mana_driver);
+
+	debugfs_remove(mana_debugfs_root);
 }
 
 module_init(mana_driver_init);

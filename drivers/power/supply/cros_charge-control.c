@@ -7,8 +7,10 @@
 #include <acpi/battery.h>
 #include <linux/container_of.h>
 #include <linux/dmi.h>
+#include <linux/lockdep.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
@@ -49,6 +51,7 @@ struct cros_chctl_priv {
 	struct attribute *attributes[_CROS_CHCTL_ATTR_COUNT];
 	struct attribute_group group;
 
+	struct mutex lock; /* protects fields below and cros_ec */
 	enum power_supply_charge_behaviour current_behaviour;
 	u8 current_start_threshold, current_end_threshold;
 };
@@ -84,6 +87,8 @@ static int cros_chctl_send_charge_control_cmd(struct cros_ec_device *cros_ec,
 static int cros_chctl_configure_ec(struct cros_chctl_priv *priv)
 {
 	struct ec_params_charge_control req = {};
+
+	lockdep_assert_held(&priv->lock);
 
 	req.cmd = EC_CHARGE_CONTROL_CMD_SET;
 
@@ -134,11 +139,15 @@ static ssize_t cros_chctl_store_threshold(struct device *dev, struct cros_chctl_
 		return -EINVAL;
 
 	if (is_end_threshold) {
-		if (val <= priv->current_start_threshold)
+		/* Start threshold is not exposed, use fixed value */
+		if (priv->cmd_version == 2)
+			priv->current_start_threshold = val == 100 ? 0 : val;
+
+		if (val < priv->current_start_threshold)
 			return -EINVAL;
 		priv->current_end_threshold = val;
 	} else {
-		if (val >= priv->current_end_threshold)
+		if (val > priv->current_end_threshold)
 			return -EINVAL;
 		priv->current_start_threshold = val;
 	}
@@ -159,6 +168,7 @@ static ssize_t charge_control_start_threshold_show(struct device *dev,
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_START_THRESHOLD);
 
+	guard(mutex)(&priv->lock);
 	return sysfs_emit(buf, "%u\n", (unsigned int)priv->current_start_threshold);
 }
 
@@ -169,6 +179,7 @@ static ssize_t charge_control_start_threshold_store(struct device *dev,
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_START_THRESHOLD);
 
+	guard(mutex)(&priv->lock);
 	return cros_chctl_store_threshold(dev, priv, 0, buf, count);
 }
 
@@ -178,6 +189,7 @@ static ssize_t charge_control_end_threshold_show(struct device *dev, struct devi
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_END_THRESHOLD);
 
+	guard(mutex)(&priv->lock);
 	return sysfs_emit(buf, "%u\n", (unsigned int)priv->current_end_threshold);
 }
 
@@ -187,6 +199,7 @@ static ssize_t charge_control_end_threshold_store(struct device *dev, struct dev
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_END_THRESHOLD);
 
+	guard(mutex)(&priv->lock);
 	return cros_chctl_store_threshold(dev, priv, 1, buf, count);
 }
 
@@ -195,6 +208,7 @@ static ssize_t charge_behaviour_show(struct device *dev, struct device_attribute
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(&attr->attr,
 							       CROS_CHCTL_ATTR_CHARGE_BEHAVIOUR);
 
+	guard(mutex)(&priv->lock);
 	return power_supply_charge_behaviour_show(dev, EC_CHARGE_CONTROL_BEHAVIOURS,
 						  priv->current_behaviour, buf);
 }
@@ -210,6 +224,7 @@ static ssize_t charge_behaviour_store(struct device *dev, struct device_attribut
 	if (ret < 0)
 		return ret;
 
+	guard(mutex)(&priv->lock);
 	priv->current_behaviour = ret;
 
 	ret = cros_chctl_configure_ec(priv);
@@ -223,12 +238,10 @@ static umode_t cros_chtl_attr_is_visible(struct kobject *kobj, struct attribute 
 {
 	struct cros_chctl_priv *priv = cros_chctl_attr_to_priv(attr, n);
 
-	if (priv->cmd_version < 2) {
-		if (n == CROS_CHCTL_ATTR_START_THRESHOLD)
-			return 0;
-		if (n == CROS_CHCTL_ATTR_END_THRESHOLD)
-			return 0;
-	}
+	if (n == CROS_CHCTL_ATTR_START_THRESHOLD && priv->cmd_version < 3)
+		return 0;
+	else if (n == CROS_CHCTL_ATTR_END_THRESHOLD && priv->cmd_version < 2)
+		return 0;
 
 	return attr->mode;
 }
@@ -290,6 +303,10 @@ static int cros_chctl_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	ret = devm_mutex_init(dev, &priv->lock);
+	if (ret)
+		return ret;
+
 	ret = cros_ec_get_cmd_versions(cros_ec, EC_CMD_CHARGE_CONTROL);
 	if (ret < 0)
 		return ret;
@@ -327,7 +344,8 @@ static int cros_chctl_probe(struct platform_device *pdev)
 	priv->current_end_threshold = 100;
 
 	/* Bring EC into well-known state */
-	ret = cros_chctl_configure_ec(priv);
+	scoped_guard(mutex, &priv->lock)
+		ret = cros_chctl_configure_ec(priv);
 	if (ret < 0)
 		return ret;
 

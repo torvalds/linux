@@ -183,16 +183,18 @@ config S390
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_ARGS
+	select HAVE_FTRACE_REGS_HAVING_PT_REGS
 	select HAVE_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 	select HAVE_EBPF_JIT if HAVE_MARCH_Z196_FEATURES
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_GUP_FAST
 	select HAVE_FENTRY
+	select HAVE_FTRACE_GRAPH_FUNC
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_FUNCTION_ERROR_INJECTION
-	select HAVE_FUNCTION_GRAPH_RETVAL
+	select HAVE_FUNCTION_GRAPH_FREGS
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
@@ -233,6 +235,7 @@ config S390
 	select HAVE_VIRT_CPU_ACCOUNTING_IDLE
 	select IOMMU_HELPER		if PCI
 	select IOMMU_SUPPORT		if PCI
+	select KASAN_VMALLOC if KASAN
 	select LOCK_MM_AND_FIND_VMA
 	select MMU_GATHER_MERGE_VMAS
 	select MMU_GATHER_NO_GATHER
@@ -255,6 +258,7 @@ config S390
 	select USER_STACKTRACE_SUPPORT
 	select VDSO_GETRANDOM
 	select VIRT_CPU_ACCOUNTING
+	select VMAP_STACK
 	select ZONE_DMA
 	# Note: keep the above list sorted alphabetically
 
@@ -687,32 +691,6 @@ config MAX_PHYSMEM_BITS
 	  in bits. Supported is any size between 2^42 (4TB) and 2^53 (8PB).
 	  Increasing the number of bits also increases the kernel image size.
 	  By default 46 bits (64TB) are supported.
-
-config CHECK_STACK
-	def_bool y
-	depends on !VMAP_STACK
-	prompt "Detect kernel stack overflow"
-	help
-	  This option enables the compiler option -mstack-guard and
-	  -mstack-size if they are available. If the compiler supports them
-	  it will emit additional code to each function prolog to trigger
-	  an illegal operation if the kernel stack is about to overflow.
-
-	  Say N if you are unsure.
-
-config STACK_GUARD
-	int "Size of the guard area (128-1024)"
-	range 128 1024
-	depends on CHECK_STACK
-	default "256"
-	help
-	  This allows you to specify the size of the guard area at the lower
-	  end of the kernel stack. If the kernel stack points into the guard
-	  area on function entry an illegal operation is triggered. The size
-	  needs to be a power of 2. Please keep in mind that the size of an
-	  interrupt frame is 184 bytes for 31 bit and 328 bytes on 64 bit.
-	  The minimum size for the stack guard should be 256 for 31 bit and
-	  512 for 64 bit.
 
 endmenu
 

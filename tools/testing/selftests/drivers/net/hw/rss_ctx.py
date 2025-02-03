@@ -3,7 +3,8 @@
 
 import datetime
 import random
-from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt
+import re
+from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt, ksft_true
 from lib.py import NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily
 from lib.py import KsftSkipEx, KsftFailEx
@@ -94,6 +95,13 @@ def _send_traffic_check(cfg, port, name, params):
     if params.get('empty'):
         ksft_eq(sum(cnts[i] for i in params['empty']), 0,
                 f"traffic on inactive queues ({name}): " + str(cnts))
+
+
+def _ntuple_rule_check(cfg, rule_id, ctx_id):
+    """Check that ntuple rule references RSS context ID"""
+    text = ethtool(f"-n {cfg.ifname} rule {rule_id}").stdout
+    pattern = f"RSS Context (ID: )?{ctx_id}"
+    ksft_true(re.search(pattern, text), "RSS context not referenced in ntuple rule")
 
 
 def test_rss_key_indir(cfg):
@@ -458,6 +466,8 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
         flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port {ports[i]} context {ctx_id}"
         ntuple = ethtool_create(cfg, "-N", flow)
         defer(ethtool, f"-N {cfg.ifname} delete {ntuple}")
+
+        _ntuple_rule_check(cfg, ntuple, ctx_id)
 
     for i in range(ctx_cnt):
         _send_traffic_check(cfg, ports[i], f"context {i}",

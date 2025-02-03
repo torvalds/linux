@@ -10,7 +10,9 @@ import time
 
 
 class CmdExitFailure(Exception):
-    pass
+    def __init__(self, msg, cmd_obj):
+        super().__init__(msg)
+        self.cmd = cmd_obj
 
 
 class cmd:
@@ -48,7 +50,7 @@ class cmd:
             if len(stderr) > 0 and stderr[-1] == "\n":
                 stderr = stderr[:-1]
             raise CmdExitFailure("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
-                                 (self.proc.args, stdout, stderr))
+                                 (self.proc.args, stdout, stderr), self)
 
 
 class bkg(cmd):

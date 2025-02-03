@@ -2386,6 +2386,19 @@ config MFD_INTEL_M10_BMC_PMCI
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
 
+config MFD_QNAP_MCU
+	tristate "QNAP microcontroller unit core driver"
+	depends on SERIAL_DEV_BUS
+	select MFD_CORE
+	help
+	  Select this to get support for the QNAP MCU device found in
+	  several devices of QNAP network attached storage products that
+	  implements additional functionality for the device, like fan
+	  and LED control.
+
+	  This driver implements the base serial protocol to talk to the
+	  device and provides functions for the other parts to hook into.
+
 config MFD_RSMU_I2C
 	tristate "Renesas Synchronization Management Unit with I2C"
 	depends on I2C && OF
@@ -2413,6 +2426,18 @@ config MFD_RSMU_SPI
 	  This driver provides common support for accessing the device.
 	  Additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_UPBOARD_FPGA
+	tristate "Support for the AAeon UP board FPGA"
+	depends on (X86 && ACPI)
+	select MFD_CORE
+	help
+	  Select this option to enable the AAEON UP and UP^2 onboard FPGA.
+	  This is the core driver of this FPGA, which has a pin controller and a
+	  LED controller.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called upboard-fpga.
 
 endmenu
 endif

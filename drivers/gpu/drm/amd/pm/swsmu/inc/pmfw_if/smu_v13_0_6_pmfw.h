@@ -34,6 +34,8 @@
 #define NUM_PCIE_BITRATES     4
 #define NUM_XGMI_BITRATES     4
 #define NUM_XGMI_WIDTHS       3
+#define NUM_SOC_P2S_TABLES    3
+#define NUM_TDP_GROUPS        4
 
 typedef enum {
 /*0*/   FEATURE_DATA_CALCULATION            = 0,
@@ -80,8 +82,10 @@ typedef enum {
 /*41*/  FEATURE_CXL_QOS                     = 41,
 /*42*/  FEATURE_SOC_DC_RTC                  = 42,
 /*43*/  FEATURE_GFX_DC_RTC                  = 43,
+/*44*/  FEATURE_DVM_MIN_PSM                 = 44,
+/*45*/  FEATURE_PRC                         = 45,
 
-/*44*/  NUM_FEATURES                        = 44
+/*46*/  NUM_FEATURES                        = 46
 } FEATURE_LIST_e;
 
 //enum for MPIO PCIe gen speed msgs
@@ -123,7 +127,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0xE
+#define SMU_METRICS_TABLE_VERSION 0xF
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -234,6 +238,9 @@ typedef struct __attribute__((packed, aligned(4))) {
 
   //PCIE BW Data and error count
   uint32_t PCIeOtherEndRecoveryAcc;       // The Pcie counter itself is accumulated
+
+  //Total App Clock Counter
+  uint64_t GfxclkBelowHostLimitAcc[8];
 } MetricsTableX_t;
 
 typedef struct __attribute__((packed, aligned(4))) {
@@ -328,13 +335,14 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint32_t JpegBusy[32];
 } MetricsTableA_t;
 
-#define SMU_VF_METRICS_TABLE_VERSION 0x3
+#define SMU_VF_METRICS_TABLE_VERSION 0x5
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
   uint32_t InstGfxclk_TargFreq;
   uint64_t AccGfxclk_TargFreq;
   uint64_t AccGfxRsmuDpm_Busy;
+  uint64_t AccGfxclkBelowHostLimit;
 } VfMetricsTable_t;
 
 #endif

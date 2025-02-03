@@ -99,8 +99,8 @@ module_param(debug, int, 0644);
 #define USB_GPIB_DEBUG_ON    "\nIBDE\xAA\n"
 #define USB_GPIB_SET_LISTEN  "\nIBDT0\n"
 #define USB_GPIB_SET_TALK    "\nIBDT1\n"
-#define USB_GPIB_SET_LINES   "\nIBDC\n"
-#define USB_GPIB_SET_DATA    "\nIBDM\n"
+#define USB_GPIB_SET_LINES   "\nIBDC.\n"
+#define USB_GPIB_SET_DATA    "\nIBDM.\n"
 #define USB_GPIB_READ_LINES  "\nIBD?C\n"
 #define USB_GPIB_READ_DATA   "\nIBD?M\n"
 #define USB_GPIB_READ_BUS    "\nIBD??\n"
@@ -210,7 +210,7 @@ static int skel_do_release(gpib_board_t *);
  *		 (unix time in sec and NANOsec)
  */
 
-inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
+static inline int usec_diff(struct timespec64 *a, struct timespec64 *b)
 {
 	return ((a->tv_sec - b->tv_sec) * 1000000 +
 		(a->tv_nsec - b->tv_nsec) / 1000);
@@ -436,7 +436,7 @@ static void set_timeout(gpib_board_t *board)
 static int usb_gpib_attach(gpib_board_t *board, const gpib_board_config_t *config)
 {
 	int retval, j;
-	int base = (long)config->ibbase;
+	u32 base = config->ibbase;
 	char *device_path;
 	int match;
 	struct usb_device *udev;
@@ -589,7 +589,7 @@ static int usb_gpib_command(gpib_board_t *board,
 			    size_t *bytes_written)
 {
 	int i, retval;
-	char command[6] = "IBc\n";
+	char command[6] = "IBc.\n";
 
 	DIA_LOG(1, "enter %p\n", board);
 
@@ -608,7 +608,7 @@ static int usb_gpib_command(gpib_board_t *board,
 }
 
 /**
- * disable_eos() - Disable END on eos byte (END on EOI only)
+ * usb_gpib_disable_eos() - Disable END on eos byte (END on EOI only)
  *
  * @board:    the gpib_board data area for this gpib interface
  *
@@ -624,7 +624,7 @@ static void usb_gpib_disable_eos(gpib_board_t *board)
 }
 
 /**
- * enable_eos() - Enable END for reads when eos byte is received.
+ * usb_gpib_enable_eos() - Enable END for reads when eos byte is received.
  *
  * @board:    the gpib_board data area for this gpib interface
  * @eos_byte: the 'eos' byte
@@ -647,7 +647,7 @@ static int usb_gpib_enable_eos(gpib_board_t *board,
 }
 
 /**
- * go_to_standby() - De-assert ATN
+ * usb_gpib_go_to_standby() - De-assert ATN
  *
  * @board:    the gpib_board data area for this gpib interface
  */
@@ -664,7 +664,7 @@ static int usb_gpib_go_to_standby(gpib_board_t *board)
 }
 
 /**
- * interface_clear() - Assert or de-assert IFC
+ * usb_gpib_interface_clear() - Assert or de-assert IFC
  *
  * @board:    the gpib_board data area for this gpib interface
  * assert:    1: assert IFC;  0: de-assert IFC
@@ -901,7 +901,7 @@ static int usb_gpib_read(gpib_board_t *board,
 
 		} else {
 			/* we are in the closing <DLE><ETX> sequence */
-
+			c = nc;
 			if (c == ETX) {
 				c = one_char(board, &b);
 				if (c == ACK) {

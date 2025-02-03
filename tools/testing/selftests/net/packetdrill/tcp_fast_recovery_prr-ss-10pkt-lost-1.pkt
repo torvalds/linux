@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test PRR-slowstart implementation.
+// In this variant we test a simple case where in-flight == ssthresh
+// all the way through recovery, so during fast recovery we send one segment
+// for each segment SACKed/ACKed.
+
+// Set up config.
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+// RTT 100ms
+  +.1 < . 1:1(0) ack 1 win 320
+   +0 accept(3, ..., ...) = 4
+
+// Send 10 data segments.
+   +0 write(4, ..., 10000) = 10000
+   +0 > P. 1:10001(10000) ack 1
+
+// Lost packet 1:1001.
+ +.11 < . 1:1(0) ack 1 win 320 <sack 1001:2001,nop,nop>
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:3001,nop,nop>
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:4001,nop,nop>
+// Enter fast recovery.
+   +0 > . 1:1001(1000) ack 1
+ +.01 %{
+assert tcpi_ca_state == TCP_CA_Recovery, tcpi_ca_state
+assert tcpi_snd_cwnd == 7, tcpi_snd_cwnd
+assert tcpi_snd_ssthresh == 7, tcpi_snd_ssthresh
+}%
+
+// Write some more, which we will send 1 MSS at a time,
+// as in-flight segments are SACKed or ACKed.
+ +.01 write(4, ..., 7000) = 7000
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:5001,nop,nop>
+   +0 > . 10001:11001(1000) ack 1
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:6001,nop,nop>
+   +0 > . 11001:12001(1000) ack 1
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:7001,nop,nop>
+   +0 > . 12001:13001(1000) ack 1
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:8001,nop,nop>
+   +0 > . 13001:14001(1000) ack 1
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:9001,nop,nop>
+   +0 > . 14001:15001(1000) ack 1
+
+ +.01 < . 1:1(0) ack 1 win 320 <sack 1001:10001,nop,nop>
+   +0 > . 15001:16001(1000) ack 1
+
+ +.02 < . 1:1(0) ack 10001 win 320
+   +0 > P. 16001:17001(1000) ack 1
+// Leave fast recovery.
+ +.01 %{
+assert tcpi_ca_state == TCP_CA_Open, tcpi_ca_state
+assert tcpi_snd_cwnd == 7, tcpi_snd_cwnd
+assert tcpi_snd_ssthresh == 7, tcpi_snd_ssthresh
+}%
+
+ +.03 < . 1:1(0) ack 12001 win 320
+ +.02 < . 1:1(0) ack 14001 win 320
+ +.02 < . 1:1(0) ack 16001 win 320
+ +.02 < . 1:1(0) ack 17001 win 320

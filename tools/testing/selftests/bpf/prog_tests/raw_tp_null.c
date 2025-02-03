@@ -3,10 +3,13 @@
 
 #include <test_progs.h>
 #include "raw_tp_null.skel.h"
+#include "raw_tp_null_fail.skel.h"
 
 void test_raw_tp_null(void)
 {
 	struct raw_tp_null *skel;
+
+	RUN_TESTS(raw_tp_null_fail);
 
 	skel = raw_tp_null__open_and_load();
 	if (!ASSERT_OK_PTR(skel, "raw_tp_null__open_and_load"))

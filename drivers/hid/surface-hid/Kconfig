@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0+
 menu "Surface System Aggregator Module HID support"
 	depends on SURFACE_AGGREGATOR
-	depends on INPUT
 
 config SURFACE_HID
 	tristate "HID transport driver for Surface System Aggregator Module"
@@ -39,4 +38,3 @@ endmenu
 
 config SURFACE_HID_CORE
 	tristate
-	select HID

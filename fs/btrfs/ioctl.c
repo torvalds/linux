@@ -403,86 +403,6 @@ update_flags:
 	return ret;
 }
 
-/*
- * Start exclusive operation @type, return true on success
- */
-bool btrfs_exclop_start(struct btrfs_fs_info *fs_info,
-			enum btrfs_exclusive_operation type)
-{
-	bool ret = false;
-
-	spin_lock(&fs_info->super_lock);
-	if (fs_info->exclusive_operation == BTRFS_EXCLOP_NONE) {
-		fs_info->exclusive_operation = type;
-		ret = true;
-	}
-	spin_unlock(&fs_info->super_lock);
-
-	return ret;
-}
-
-/*
- * Conditionally allow to enter the exclusive operation in case it's compatible
- * with the running one.  This must be paired with btrfs_exclop_start_unlock and
- * btrfs_exclop_finish.
- *
- * Compatibility:
- * - the same type is already running
- * - when trying to add a device and balance has been paused
- * - not BTRFS_EXCLOP_NONE - this is intentionally incompatible and the caller
- *   must check the condition first that would allow none -> @type
- */
-bool btrfs_exclop_start_try_lock(struct btrfs_fs_info *fs_info,
-				 enum btrfs_exclusive_operation type)
-{
-	spin_lock(&fs_info->super_lock);
-	if (fs_info->exclusive_operation == type ||
-	    (fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED &&
-	     type == BTRFS_EXCLOP_DEV_ADD))
-		return true;
-
-	spin_unlock(&fs_info->super_lock);
-	return false;
-}
-
-void btrfs_exclop_start_unlock(struct btrfs_fs_info *fs_info)
-{
-	spin_unlock(&fs_info->super_lock);
-}
-
-void btrfs_exclop_finish(struct btrfs_fs_info *fs_info)
-{
-	spin_lock(&fs_info->super_lock);
-	WRITE_ONCE(fs_info->exclusive_operation, BTRFS_EXCLOP_NONE);
-	spin_unlock(&fs_info->super_lock);
-	sysfs_notify(&fs_info->fs_devices->fsid_kobj, NULL, "exclusive_operation");
-}
-
-void btrfs_exclop_balance(struct btrfs_fs_info *fs_info,
-			  enum btrfs_exclusive_operation op)
-{
-	switch (op) {
-	case BTRFS_EXCLOP_BALANCE_PAUSED:
-		spin_lock(&fs_info->super_lock);
-		ASSERT(fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE ||
-		       fs_info->exclusive_operation == BTRFS_EXCLOP_DEV_ADD ||
-		       fs_info->exclusive_operation == BTRFS_EXCLOP_NONE ||
-		       fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED);
-		fs_info->exclusive_operation = BTRFS_EXCLOP_BALANCE_PAUSED;
-		spin_unlock(&fs_info->super_lock);
-		break;
-	case BTRFS_EXCLOP_BALANCE:
-		spin_lock(&fs_info->super_lock);
-		ASSERT(fs_info->exclusive_operation == BTRFS_EXCLOP_BALANCE_PAUSED);
-		fs_info->exclusive_operation = BTRFS_EXCLOP_BALANCE;
-		spin_unlock(&fs_info->super_lock);
-		break;
-	default:
-		btrfs_warn(fs_info,
-			"invalid exclop balance operation %d requested", op);
-	}
-}
-
 static int btrfs_ioctl_getversion(struct inode *inode, int __user *arg)
 {
 	return put_user(inode->i_generation, arg);
@@ -549,17 +469,6 @@ static noinline int btrfs_ioctl_fitrim(struct btrfs_fs_info *fs_info,
 		return -EFAULT;
 
 	return ret;
-}
-
-int __pure btrfs_is_empty_uuid(const u8 *uuid)
-{
-	int i;
-
-	for (i = 0; i < BTRFS_UUID_SIZE; i++) {
-		if (uuid[i])
-			return 0;
-	}
-	return 1;
 }
 
 /*
@@ -3007,7 +2916,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 
 	btrfs_cpu_key_to_disk(&disk_key, &new_root->root_key);
 	btrfs_set_dir_item_key(path->nodes[0], di, &disk_key);
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 	btrfs_release_path(path);
 
 	btrfs_set_fs_incompat(fs_info, DEFAULT_SUBVOL);
@@ -4878,25 +4786,29 @@ out_fail:
 	return ret;
 }
 
+struct btrfs_uring_encoded_data {
+	struct btrfs_ioctl_encoded_io_args args;
+	struct iovec iovstack[UIO_FASTIOV];
+	struct iovec *iov;
+	struct iov_iter iter;
+};
+
 static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue_flags)
 {
 	size_t copy_end_kernel = offsetofend(struct btrfs_ioctl_encoded_io_args, flags);
 	size_t copy_end;
-	struct btrfs_ioctl_encoded_io_args args = { 0 };
 	int ret;
 	u64 disk_bytenr, disk_io_size;
 	struct file *file;
 	struct btrfs_inode *inode;
 	struct btrfs_fs_info *fs_info;
 	struct extent_io_tree *io_tree;
-	struct iovec iovstack[UIO_FASTIOV];
-	struct iovec *iov = iovstack;
-	struct iov_iter iter;
 	loff_t pos;
 	struct kiocb kiocb;
 	struct extent_state *cached_state = NULL;
 	u64 start, lockend;
 	void __user *sqe_addr;
+	struct btrfs_uring_encoded_data *data = io_uring_cmd_get_async_data(cmd)->op_data;
 
 	if (!capable(CAP_SYS_ADMIN)) {
 		ret = -EPERM;
@@ -4910,43 +4822,64 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 
 	if (issue_flags & IO_URING_F_COMPAT) {
 #if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
-		struct btrfs_ioctl_encoded_io_args_32 args32;
-
 		copy_end = offsetofend(struct btrfs_ioctl_encoded_io_args_32, flags);
-		if (copy_from_user(&args32, sqe_addr, copy_end)) {
-			ret = -EFAULT;
-			goto out_acct;
-		}
-		args.iov = compat_ptr(args32.iov);
-		args.iovcnt = args32.iovcnt;
-		args.offset = args32.offset;
-		args.flags = args32.flags;
 #else
 		return -ENOTTY;
 #endif
 	} else {
 		copy_end = copy_end_kernel;
-		if (copy_from_user(&args, sqe_addr, copy_end)) {
-			ret = -EFAULT;
+	}
+
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_NOFS);
+		if (!data) {
+			ret = -ENOMEM;
 			goto out_acct;
+		}
+
+		io_uring_cmd_get_async_data(cmd)->op_data = data;
+
+		if (issue_flags & IO_URING_F_COMPAT) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+			struct btrfs_ioctl_encoded_io_args_32 args32;
+
+			if (copy_from_user(&args32, sqe_addr, copy_end)) {
+				ret = -EFAULT;
+				goto out_acct;
+			}
+
+			data->args.iov = compat_ptr(args32.iov);
+			data->args.iovcnt = args32.iovcnt;
+			data->args.offset = args32.offset;
+			data->args.flags = args32.flags;
+#endif
+		} else {
+			if (copy_from_user(&data->args, sqe_addr, copy_end)) {
+				ret = -EFAULT;
+				goto out_acct;
+			}
+		}
+
+		if (data->args.flags != 0) {
+			ret = -EINVAL;
+			goto out_acct;
+		}
+
+		data->iov = data->iovstack;
+		ret = import_iovec(ITER_DEST, data->args.iov, data->args.iovcnt,
+				   ARRAY_SIZE(data->iovstack), &data->iov,
+				   &data->iter);
+		if (ret < 0)
+			goto out_acct;
+
+		if (iov_iter_count(&data->iter) == 0) {
+			ret = 0;
+			goto out_free;
 		}
 	}
 
-	if (args.flags != 0)
-		return -EINVAL;
-
-	ret = import_iovec(ITER_DEST, args.iov, args.iovcnt, ARRAY_SIZE(iovstack),
-			   &iov, &iter);
-	if (ret < 0)
-		goto out_acct;
-
-	if (iov_iter_count(&iter) == 0) {
-		ret = 0;
-		goto out_free;
-	}
-
-	pos = args.offset;
-	ret = rw_verify_area(READ, file, &pos, args.len);
+	pos = data->args.offset;
+	ret = rw_verify_area(READ, file, &pos, data->args.len);
 	if (ret < 0)
 		goto out_free;
 
@@ -4959,15 +4892,16 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 	start = ALIGN_DOWN(pos, fs_info->sectorsize);
 	lockend = start + BTRFS_MAX_UNCOMPRESSED - 1;
 
-	ret = btrfs_encoded_read(&kiocb, &iter, &args, &cached_state,
+	ret = btrfs_encoded_read(&kiocb, &data->iter, &data->args, &cached_state,
 				 &disk_bytenr, &disk_io_size);
 	if (ret < 0 && ret != -EIOCBQUEUED)
 		goto out_free;
 
 	file_accessed(file);
 
-	if (copy_to_user(sqe_addr + copy_end, (const char *)&args + copy_end_kernel,
-			 sizeof(args) - copy_end_kernel)) {
+	if (copy_to_user(sqe_addr + copy_end,
+			 (const char *)&data->args + copy_end_kernel,
+			 sizeof(data->args) - copy_end_kernel)) {
 		if (ret == -EIOCBQUEUED) {
 			unlock_extent(io_tree, start, lockend, &cached_state);
 			btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
@@ -4977,46 +4911,150 @@ static int btrfs_uring_encoded_read(struct io_uring_cmd *cmd, unsigned int issue
 	}
 
 	if (ret == -EIOCBQUEUED) {
-		u64 count;
-
-		/*
-		 * If we've optimized things by storing the iovecs on the stack,
-		 * undo this.
-		 */
-		if (!iov) {
-			iov = kmalloc(sizeof(struct iovec) * args.iovcnt, GFP_NOFS);
-			if (!iov) {
-				unlock_extent(io_tree, start, lockend, &cached_state);
-				btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
-				ret = -ENOMEM;
-				goto out_acct;
-			}
-
-			memcpy(iov, iovstack, sizeof(struct iovec) * args.iovcnt);
-		}
-
-		count = min_t(u64, iov_iter_count(&iter), disk_io_size);
+		u64 count = min_t(u64, iov_iter_count(&data->iter), disk_io_size);
 
 		/* Match ioctl by not returning past EOF if uncompressed. */
-		if (!args.compression)
-			count = min_t(u64, count, args.len);
+		if (!data->args.compression)
+			count = min_t(u64, count, data->args.len);
 
-		ret = btrfs_uring_read_extent(&kiocb, &iter, start, lockend,
-					      cached_state, disk_bytenr,
-					      disk_io_size, count,
-					      args.compression, iov, cmd);
+		ret = btrfs_uring_read_extent(&kiocb, &data->iter, start, lockend,
+					      cached_state, disk_bytenr, disk_io_size,
+					      count, data->args.compression,
+					      data->iov, cmd);
 
 		goto out_acct;
 	}
 
 out_free:
-	kfree(iov);
+	kfree(data->iov);
 
 out_acct:
 	if (ret > 0)
 		add_rchar(current, ret);
 	inc_syscr(current);
 
+	return ret;
+}
+
+static int btrfs_uring_encoded_write(struct io_uring_cmd *cmd, unsigned int issue_flags)
+{
+	loff_t pos;
+	struct kiocb kiocb;
+	struct file *file;
+	ssize_t ret;
+	void __user *sqe_addr;
+	struct btrfs_uring_encoded_data *data = io_uring_cmd_get_async_data(cmd)->op_data;
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		ret = -EPERM;
+		goto out_acct;
+	}
+
+	file = cmd->file;
+	sqe_addr = u64_to_user_ptr(READ_ONCE(cmd->sqe->addr));
+
+	if (!(file->f_mode & FMODE_WRITE)) {
+		ret = -EBADF;
+		goto out_acct;
+	}
+
+	if (!data) {
+		data = kzalloc(sizeof(*data), GFP_NOFS);
+		if (!data) {
+			ret = -ENOMEM;
+			goto out_acct;
+		}
+
+		io_uring_cmd_get_async_data(cmd)->op_data = data;
+
+		if (issue_flags & IO_URING_F_COMPAT) {
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+			struct btrfs_ioctl_encoded_io_args_32 args32;
+
+			if (copy_from_user(&args32, sqe_addr, sizeof(args32))) {
+				ret = -EFAULT;
+				goto out_acct;
+			}
+			data->args.iov = compat_ptr(args32.iov);
+			data->args.iovcnt = args32.iovcnt;
+			data->args.offset = args32.offset;
+			data->args.flags = args32.flags;
+			data->args.len = args32.len;
+			data->args.unencoded_len = args32.unencoded_len;
+			data->args.unencoded_offset = args32.unencoded_offset;
+			data->args.compression = args32.compression;
+			data->args.encryption = args32.encryption;
+			memcpy(data->args.reserved, args32.reserved,
+			       sizeof(data->args.reserved));
+#else
+			ret = -ENOTTY;
+			goto out_acct;
+#endif
+		} else {
+			if (copy_from_user(&data->args, sqe_addr, sizeof(data->args))) {
+				ret = -EFAULT;
+				goto out_acct;
+			}
+		}
+
+		ret = -EINVAL;
+		if (data->args.flags != 0)
+			goto out_acct;
+		if (memchr_inv(data->args.reserved, 0, sizeof(data->args.reserved)))
+			goto out_acct;
+		if (data->args.compression == BTRFS_ENCODED_IO_COMPRESSION_NONE &&
+		    data->args.encryption == BTRFS_ENCODED_IO_ENCRYPTION_NONE)
+			goto out_acct;
+		if (data->args.compression >= BTRFS_ENCODED_IO_COMPRESSION_TYPES ||
+		    data->args.encryption >= BTRFS_ENCODED_IO_ENCRYPTION_TYPES)
+			goto out_acct;
+		if (data->args.unencoded_offset > data->args.unencoded_len)
+			goto out_acct;
+		if (data->args.len > data->args.unencoded_len - data->args.unencoded_offset)
+			goto out_acct;
+
+		data->iov = data->iovstack;
+		ret = import_iovec(ITER_SOURCE, data->args.iov, data->args.iovcnt,
+				   ARRAY_SIZE(data->iovstack), &data->iov,
+				   &data->iter);
+		if (ret < 0)
+			goto out_acct;
+
+		if (iov_iter_count(&data->iter) == 0) {
+			ret = 0;
+			goto out_iov;
+		}
+	}
+
+	if (issue_flags & IO_URING_F_NONBLOCK) {
+		ret = -EAGAIN;
+		goto out_acct;
+	}
+
+	pos = data->args.offset;
+	ret = rw_verify_area(WRITE, file, &pos, data->args.len);
+	if (ret < 0)
+		goto out_iov;
+
+	init_sync_kiocb(&kiocb, file);
+	ret = kiocb_set_rw_flags(&kiocb, 0, WRITE);
+	if (ret)
+		goto out_iov;
+	kiocb.ki_pos = pos;
+
+	file_start_write(file);
+
+	ret = btrfs_do_write_iter(&kiocb, &data->iter, &data->args);
+	if (ret > 0)
+		fsnotify_modify(file);
+
+	file_end_write(file);
+out_iov:
+	kfree(data->iov);
+out_acct:
+	if (ret > 0)
+		add_wchar(current, ret);
+	inc_syscw(current);
 	return ret;
 }
 
@@ -5028,6 +5066,12 @@ int btrfs_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	case BTRFS_IOC_ENCODED_READ_32:
 #endif
 		return btrfs_uring_encoded_read(cmd, issue_flags);
+
+	case BTRFS_IOC_ENCODED_WRITE:
+#if defined(CONFIG_64BIT) && defined(CONFIG_COMPAT)
+	case BTRFS_IOC_ENCODED_WRITE_32:
+#endif
+		return btrfs_uring_encoded_write(cmd, issue_flags);
 	}
 
 	return -EINVAL;
@@ -5300,6 +5344,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return fsverity_ioctl_enable(file, (const void __user *)argp);
 	case FS_IOC_MEASURE_VERITY:
 		return fsverity_ioctl_measure(file, argp);
+	case FS_IOC_READ_VERITY_METADATA:
+		return fsverity_ioctl_read_metadata(file, argp);
 	case BTRFS_IOC_ENCODED_READ:
 		return btrfs_ioctl_encoded_read(file, argp, false);
 	case BTRFS_IOC_ENCODED_WRITE:

@@ -293,7 +293,7 @@ void ath9k_beacon_ensure_primary_slot(struct ath_softc *sc)
 	/* Modify TSF as required and update the HW. */
 	avp->chanctx->tsf_val += tsfadjust;
 	if (sc->cur_chan == avp->chanctx) {
-		offset = ath9k_hw_get_tsf_offset(&avp->chanctx->tsf_ts, NULL);
+		offset = ath9k_hw_get_tsf_offset(avp->chanctx->tsf_ts, 0);
 		ath9k_hw_settsf64(sc->sc_ah, avp->chanctx->tsf_val + offset);
 	}
 

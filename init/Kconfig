@@ -129,6 +129,9 @@ config CC_HAS_COUNTED_BY
 	# https://github.com/llvm/llvm-project/pull/112636
 	depends on !(CC_IS_CLANG && CLANG_VERSION < 190103)
 
+config RUSTC_HAS_COERCE_POINTEE
+	def_bool RUSTC_VERSION >= 108400
+
 config PAHOLE_VERSION
 	int
 	default $(shell,$(srctree)/scripts/pahole-version.sh $(PAHOLE))
@@ -1128,6 +1131,7 @@ config CGROUP_PIDS
 
 config CGROUP_RDMA
 	bool "RDMA controller"
+	select PAGE_COUNTER
 	help
 	  Provides enforcement of RDMA resources defined by IB stack.
 	  It is fairly easy for consumers to exhaust RDMA resources, which
@@ -1135,6 +1139,16 @@ config CGROUP_RDMA
 	  RDMA controller is designed to stop this from happening.
 	  Attaching processes with active RDMA resources to the cgroup
 	  hierarchy is allowed even if can cross the hierarchy's limit.
+
+config CGROUP_DMEM
+	bool "Device memory controller (DMEM)"
+	select PAGE_COUNTER
+	help
+	  The DMEM controller allows compatible devices to restrict device
+	  memory usage based on the cgroup hierarchy.
+
+	  As an example, it allows you to restrict VRAM usage for applications
+	  in the DRM subsystem.
 
 config CGROUP_FREEZER
 	bool "Freezer controller"
@@ -1989,8 +2003,10 @@ config BINDGEN_VERSION_TEXT
 	string
 	depends on RUST
 	# The dummy parameter `workaround-for-0.69.0` is required to support 0.69.0
-	# (https://github.com/rust-lang/rust-bindgen/pull/2678). It can be removed when
-	# the minimum version is upgraded past that (0.69.1 already fixed the issue).
+	# (https://github.com/rust-lang/rust-bindgen/pull/2678) and 0.71.0
+	# (https://github.com/rust-lang/rust-bindgen/pull/3040). It can be removed
+	# when the minimum version is upgraded past the latter (0.69.1 and 0.71.1
+	# both fixed the issue).
 	default "$(shell,$(BINDGEN) --version workaround-for-0.69.0 2>/dev/null)"
 
 #

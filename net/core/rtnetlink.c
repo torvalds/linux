@@ -84,7 +84,6 @@ int rtnl_lock_killable(void)
 {
 	return mutex_lock_killable(&rtnl_mutex);
 }
-EXPORT_SYMBOL(rtnl_lock_killable);
 
 static struct sk_buff *defer_kfree_skb_list;
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail)
@@ -220,6 +219,16 @@ int rtnl_net_trylock(struct net *net)
 	return ret;
 }
 EXPORT_SYMBOL(rtnl_net_trylock);
+
+int rtnl_net_lock_killable(struct net *net)
+{
+	int ret = rtnl_lock_killable();
+
+	if (!ret)
+		__rtnl_net_lock(net);
+
+	return ret;
+}
 
 static int rtnl_net_cmp_locks(const struct net *net_a, const struct net *net_b)
 {
@@ -3746,6 +3755,7 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 			       const struct rtnl_link_ops *ops,
 			       struct net *tgt_net, struct net *link_net,
+			       struct net *peer_net,
 			       const struct nlmsghdr *nlh,
 			       struct nlattr **tb, struct nlattr **data,
 			       struct netlink_ext_ack *extack)
@@ -3776,8 +3786,13 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 
 	dev->ifindex = ifm->ifi_index;
 
+	if (link_net)
+		net = link_net;
+	if (peer_net)
+		net = peer_net;
+
 	if (ops->newlink)
-		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
+		err = ops->newlink(net, dev, tb, data, extack);
 	else
 		err = register_netdevice(dev);
 	if (err < 0) {
@@ -3812,40 +3827,34 @@ out_unregister:
 	goto out;
 }
 
-static int rtnl_add_peer_net(struct rtnl_nets *rtnl_nets,
-			     const struct rtnl_link_ops *ops,
-			     struct nlattr *data[],
-			     struct netlink_ext_ack *extack)
+static struct net *rtnl_get_peer_net(const struct rtnl_link_ops *ops,
+				     struct nlattr *tbp[],
+				     struct nlattr *data[],
+				     struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[IFLA_MAX + 1];
-	struct net *net;
 	int err;
 
 	if (!data || !data[ops->peer_type])
-		return 0;
+		return rtnl_link_get_net_ifla(tbp);
 
 	err = rtnl_nla_parse_ifinfomsg(tb, data[ops->peer_type], extack);
 	if (err < 0)
-		return err;
+		return ERR_PTR(err);
 
 	if (ops->validate) {
 		err = ops->validate(tb, NULL, extack);
 		if (err < 0)
-			return err;
+			return ERR_PTR(err);
 	}
 
-	net = rtnl_link_get_net_ifla(tb);
-	if (IS_ERR(net))
-		return PTR_ERR(net);
-	if (net)
-		rtnl_nets_add(rtnl_nets, net);
-
-	return 0;
+	return rtnl_link_get_net_ifla(tb);
 }
 
 static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  const struct rtnl_link_ops *ops,
 			  struct net *tgt_net, struct net *link_net,
+			  struct net *peer_net,
 			  struct rtnl_newlink_tbs *tbs,
 			  struct nlattr **data,
 			  struct netlink_ext_ack *extack)
@@ -3894,14 +3903,15 @@ static int __rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EOPNOTSUPP;
 	}
 
-	return rtnl_newlink_create(skb, ifm, ops, tgt_net, link_net, nlh, tb, data, extack);
+	return rtnl_newlink_create(skb, ifm, ops, tgt_net, link_net, peer_net, nlh,
+				   tb, data, extack);
 }
 
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct net *tgt_net, *link_net = NULL, *peer_net = NULL;
 	struct nlattr **tb, **linkinfo, **data = NULL;
-	struct net *tgt_net, *link_net = NULL;
 	struct rtnl_link_ops *ops = NULL;
 	struct rtnl_newlink_tbs *tbs;
 	struct rtnl_nets rtnl_nets;
@@ -3971,9 +3981,13 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 
 		if (ops->peer_type) {
-			ret = rtnl_add_peer_net(&rtnl_nets, ops, data, extack);
-			if (ret < 0)
+			peer_net = rtnl_get_peer_net(ops, tb, data, extack);
+			if (IS_ERR(peer_net)) {
+				ret = PTR_ERR(peer_net);
 				goto put_ops;
+			}
+			if (peer_net)
+				rtnl_nets_add(&rtnl_nets, peer_net);
 		}
 	}
 
@@ -4004,7 +4018,7 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 
 	rtnl_nets_lock(&rtnl_nets);
-	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, tbs, data, extack);
+	ret = __rtnl_newlink(skb, nlh, ops, tgt_net, link_net, peer_net, tbs, data, extack);
 	rtnl_nets_unlock(&rtnl_nets);
 
 put_net:
@@ -4760,15 +4774,16 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 			      int *idx,
 			      struct netdev_hw_addr_list *list)
 {
+	struct ndo_fdb_dump_context *ctx = (void *)cb->ctx;
 	struct netdev_hw_addr *ha;
-	int err;
 	u32 portid, seq;
+	int err;
 
 	portid = NETLINK_CB(cb->skb).portid;
 	seq = cb->nlh->nlmsg_seq;
 
 	list_for_each_entry(ha, &list->list, list) {
-		if (*idx < cb->args[2])
+		if (*idx < ctx->fdb_idx)
 			goto skip;
 
 		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr, 0,
@@ -4907,18 +4922,16 @@ static int valid_fdb_dump_legacy(const struct nlmsghdr *nlh,
 
 static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net_device *dev;
-	struct net_device *br_dev = NULL;
-	const struct net_device_ops *ops = NULL;
-	const struct net_device_ops *cops = NULL;
+	const struct net_device_ops *ops = NULL, *cops = NULL;
+	struct ndo_fdb_dump_context *ctx = (void *)cb->ctx;
+	struct net_device *dev, *br_dev = NULL;
 	struct net *net = sock_net(skb->sk);
-	struct hlist_head *head;
 	int brport_idx = 0;
 	int br_idx = 0;
-	int h, s_h;
-	int idx = 0, s_idx;
-	int err = 0;
 	int fidx = 0;
+	int err;
+
+	NL_ASSERT_CTX_FITS(struct ndo_fdb_dump_context);
 
 	if (cb->strict_check)
 		err = valid_fdb_dump_strict(cb->nlh, &br_idx, &brport_idx,
@@ -4937,70 +4950,51 @@ static int rtnl_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		ops = br_dev->netdev_ops;
 	}
 
-	s_h = cb->args[0];
-	s_idx = cb->args[1];
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		if (brport_idx && (dev->ifindex != brport_idx))
+			continue;
 
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[h];
-		hlist_for_each_entry(dev, head, index_hlist) {
-
-			if (brport_idx && (dev->ifindex != brport_idx))
+		if (!br_idx) { /* user did not specify a specific bridge */
+			if (netif_is_bridge_port(dev)) {
+				br_dev = netdev_master_upper_dev_get(dev);
+				cops = br_dev->netdev_ops;
+			}
+		} else {
+			if (dev != br_dev &&
+			    !netif_is_bridge_port(dev))
 				continue;
 
-			if (!br_idx) { /* user did not specify a specific bridge */
-				if (netif_is_bridge_port(dev)) {
-					br_dev = netdev_master_upper_dev_get(dev);
-					cops = br_dev->netdev_ops;
-				}
-			} else {
-				if (dev != br_dev &&
-				    !netif_is_bridge_port(dev))
-					continue;
-
-				if (br_dev != netdev_master_upper_dev_get(dev) &&
-				    !netif_is_bridge_master(dev))
-					continue;
-				cops = ops;
-			}
-
-			if (idx < s_idx)
-				goto cont;
-
-			if (netif_is_bridge_port(dev)) {
-				if (cops && cops->ndo_fdb_dump) {
-					err = cops->ndo_fdb_dump(skb, cb,
-								br_dev, dev,
-								&fidx);
-					if (err == -EMSGSIZE)
-						goto out;
-				}
-			}
-
-			if (dev->netdev_ops->ndo_fdb_dump)
-				err = dev->netdev_ops->ndo_fdb_dump(skb, cb,
-								    dev, NULL,
-								    &fidx);
-			else
-				err = ndo_dflt_fdb_dump(skb, cb, dev, NULL,
-							&fidx);
-			if (err == -EMSGSIZE)
-				goto out;
-
-			cops = NULL;
-
-			/* reset fdb offset to 0 for rest of the interfaces */
-			cb->args[2] = 0;
-			fidx = 0;
-cont:
-			idx++;
+			if (br_dev != netdev_master_upper_dev_get(dev) &&
+			    !netif_is_bridge_master(dev))
+				continue;
+			cops = ops;
 		}
+
+		if (netif_is_bridge_port(dev)) {
+			if (cops && cops->ndo_fdb_dump) {
+				err = cops->ndo_fdb_dump(skb, cb, br_dev, dev,
+							&fidx);
+				if (err == -EMSGSIZE)
+					break;
+			}
+		}
+
+		if (dev->netdev_ops->ndo_fdb_dump)
+			err = dev->netdev_ops->ndo_fdb_dump(skb, cb, dev, NULL,
+							    &fidx);
+		else
+			err = ndo_dflt_fdb_dump(skb, cb, dev, NULL, &fidx);
+		if (err == -EMSGSIZE)
+			break;
+
+		cops = NULL;
+
+		/* reset fdb offset to 0 for rest of the interfaces */
+		ctx->fdb_idx = 0;
+		fidx = 0;
 	}
 
-out:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-	cb->args[2] = fidx;
+	ctx->fdb_idx = fidx;
 
 	return skb->len;
 }

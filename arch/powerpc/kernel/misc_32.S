@@ -28,32 +28,6 @@
 	.text
 
 /*
- * This returns the high 64 bits of the product of two 64-bit numbers.
- */
-_GLOBAL(mulhdu)
-	cmpwi	r6,0
-	cmpwi	cr1,r3,0
-	mr	r10,r4
-	mulhwu	r4,r4,r5
-	beq	1f
-	mulhwu	r0,r10,r6
-	mullw	r7,r10,r5
-	addc	r7,r0,r7
-	addze	r4,r4
-1:	beqlr	cr1		/* all done if high part of A is 0 */
-	mullw	r9,r3,r5
-	mulhwu	r10,r3,r5
-	beq	2f
-	mullw	r0,r3,r6
-	mulhwu	r8,r3,r6
-	addc	r7,r0,r7
-	adde	r4,r4,r8
-	addze	r10,r10
-2:	addc	r4,r4,r9
-	addze	r3,r10
-	blr
-
-/*
  * reloc_got2 runs through the .got2 section adding an offset
  * to each entry.
  */

@@ -1204,7 +1204,16 @@ xfs_file_ioctl(
 		struct xfs_buftarg	*target = xfs_inode_buftarg(ip);
 		struct dioattr		da;
 
-		da.d_mem =  da.d_miniosz = target->bt_logical_sectorsize;
+		da.d_mem = target->bt_logical_sectorsize;
+
+		/*
+		 * See xfs_report_dioalign() for an explanation about why this
+		 * reports a value larger than the sector size for COW inodes.
+		 */
+		if (xfs_is_cow_inode(ip))
+			da.d_miniosz = xfs_inode_alloc_unitsize(ip);
+		else
+			da.d_miniosz = target->bt_logical_sectorsize;
 		da.d_maxiosz = INT_MAX & ~(da.d_miniosz - 1);
 
 		if (copy_to_user(arg, &da, sizeof(da)))

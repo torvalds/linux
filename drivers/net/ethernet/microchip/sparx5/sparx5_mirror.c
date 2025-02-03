@@ -12,7 +12,6 @@
 #define SPX5_MIRROR_DISABLED 0
 #define SPX5_MIRROR_EGRESS 1
 #define SPX5_MIRROR_INGRESS 2
-#define SPX5_MIRROR_MONITOR_PORT_DEFAULT 65
 #define SPX5_QFWD_MP_OFFSET 9 /* Mirror port offset in the QFWD register */
 
 /* Convert from bool ingress/egress to mirror direction */
@@ -200,7 +199,7 @@ void sparx5_mirror_del(struct sparx5_mall_entry *entry)
 
 	sparx5_mirror_monitor_set(sparx5,
 				  mirror_idx,
-				  SPX5_MIRROR_MONITOR_PORT_DEFAULT);
+				  sparx5->data->consts->n_ports);
 }
 
 void sparx5_mirror_stats(struct sparx5_mall_entry *entry,

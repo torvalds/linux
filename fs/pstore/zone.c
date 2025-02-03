@@ -1212,6 +1212,11 @@ static struct pstore_zone **psz_init_zones(enum pstore_type_id type,
 	}
 
 	c = total_size / record_size;
+	if (unlikely(!c)) {
+		pr_err("zone %s total_size too small\n", name);
+		return ERR_PTR(-EINVAL);
+	}
+
 	zones = kcalloc(c, sizeof(*zones), GFP_KERNEL);
 	if (!zones) {
 		pr_err("allocate for zones %s failed\n", name);

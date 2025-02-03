@@ -2094,7 +2094,8 @@ int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
 	count = resource_get_odm_slice_count(otg_master);
 	h_active = timing->h_addressable +
 			timing->h_border_left +
-			timing->h_border_right;
+			timing->h_border_right +
+			otg_master->hblank_borrow;
 	width = h_active / count;
 
 	if (otg_master->stream_res.tg)
@@ -4027,6 +4028,41 @@ fail:
 }
 
 /**
+ * decide_hblank_borrow - Decides the horizontal blanking borrow value for a given pipe context.
+ * @pipe_ctx: Pointer to the pipe context structure.
+ *
+ * This function calculates the horizontal blanking borrow value for a given pipe context based on the
+ * display stream compression (DSC) configuration. If the horizontal active pixels (hactive) are less
+ * than the total width of the DSC slices, it sets the hblank_borrow value to the difference. If the
+ * total horizontal timing minus the hblank_borrow value is less than 32, it resets the hblank_borrow
+ * value to 0.
+ */
+static void decide_hblank_borrow(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t hactive;
+	uint32_t ceil_slice_width;
+	struct dc_stream_state *stream = NULL;
+
+	if (!pipe_ctx)
+		return;
+
+	stream = pipe_ctx->stream;
+
+	if (stream->timing.flags.DSC) {
+		hactive = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
+
+		/* Assume if determined slices does not divide Hactive evenly, Hborrow is needed for padding*/
+		if (hactive % stream->timing.dsc_cfg.num_slices_h != 0) {
+			ceil_slice_width = (hactive / stream->timing.dsc_cfg.num_slices_h) + 1;
+			pipe_ctx->hblank_borrow = ceil_slice_width * stream->timing.dsc_cfg.num_slices_h - hactive;
+
+			if (stream->timing.h_total - hactive - pipe_ctx->hblank_borrow < 32)
+				pipe_ctx->hblank_borrow = 0;
+		}
+	}
+}
+
+/**
  * dc_validate_global_state() - Determine if hardware can support a given state
  *
  * @dc: dc struct for this driver
@@ -4063,6 +4099,10 @@ enum dc_status dc_validate_global_state(
 
 			if (pipe_ctx->stream != stream)
 				continue;
+
+			/* Decide whether hblank borrow is needed and save it in pipe_ctx */
+			if (dc->debug.enable_hblank_borrow)
+				decide_hblank_borrow(pipe_ctx);
 
 			if (dc->res_pool->funcs->patch_unknown_plane_state &&
 					pipe_ctx->plane_state &&
@@ -4438,7 +4478,7 @@ static void set_hfvs_info_packet(
 static void adaptive_sync_override_dp_info_packets_sdp_line_num(
 		const struct dc_crtc_timing *timing,
 		struct enc_sdp_line_num *sdp_line_num,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+		unsigned int vstartup_start)
 {
 	uint32_t asic_blank_start = 0;
 	uint32_t asic_blank_end   = 0;
@@ -4453,8 +4493,8 @@ static void adaptive_sync_override_dp_info_packets_sdp_line_num(
 	asic_blank_end = (asic_blank_start - tg->v_border_bottom -
 						tg->v_addressable - tg->v_border_top);
 
-	if (pipe_dlg_param->vstartup_start > asic_blank_end) {
-		v_update = (tg->v_total - (pipe_dlg_param->vstartup_start - asic_blank_end));
+	if (vstartup_start > asic_blank_end) {
+		v_update = (tg->v_total - (vstartup_start - asic_blank_end));
 		sdp_line_num->adaptive_sync_line_num_valid = true;
 		sdp_line_num->adaptive_sync_line_num = (tg->v_total - v_update - 1);
 	} else {
@@ -4467,7 +4507,7 @@ static void set_adaptive_sync_info_packet(
 		struct dc_info_packet *info_packet,
 		const struct dc_stream_state *stream,
 		struct encoder_info_frame *info_frame,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dlg_param)
+		unsigned int vstartup_start)
 {
 	if (!stream->adaptive_sync_infopacket.valid)
 		return;
@@ -4475,7 +4515,7 @@ static void set_adaptive_sync_info_packet(
 	adaptive_sync_override_dp_info_packets_sdp_line_num(
 			&stream->timing,
 			&info_frame->sdp_line_num,
-			pipe_dlg_param);
+			vstartup_start);
 
 	*info_packet = stream->adaptive_sync_infopacket;
 }
@@ -4508,6 +4548,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 {
 	enum signal_type signal = SIGNAL_TYPE_NONE;
 	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
+	unsigned int vstartup_start = 0;
 
 	/* default all packets to invalid */
 	info->avi.valid = false;
@@ -4520,6 +4561,9 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info->vtem.valid = false;
 	info->adaptive_sync.valid = false;
 	signal = pipe_ctx->stream->signal;
+
+	if (pipe_ctx->stream->ctx->dc->res_pool->funcs->get_vstartup_for_pipe)
+		vstartup_start = pipe_ctx->stream->ctx->dc->res_pool->funcs->get_vstartup_for_pipe(pipe_ctx);
 
 	/* HDMi and DP have different info packets*/
 	if (dc_is_hdmi_signal(signal)) {
@@ -4542,7 +4586,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_adaptive_sync_info_packet(&info->adaptive_sync,
 										pipe_ctx->stream,
 										info,
-										&pipe_ctx->pipe_dlg_param);
+										vstartup_start);
 	}
 
 	patch_gamut_packet_checksum(&info->gamut);

@@ -939,7 +939,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 
 module_phy_driver(mv88q2xxx_driver);
 
-static struct mdio_device_id __maybe_unused mv88q2xxx_tbl[] = {
+static const struct mdio_device_id __maybe_unused mv88q2xxx_tbl[] = {
 	{ MARVELL_PHY_ID_88Q2110, MARVELL_PHY_ID_MASK },
 	{ MARVELL_PHY_ID_88Q2220, MARVELL_PHY_ID_MASK },
 	{ /*sentinel*/ }

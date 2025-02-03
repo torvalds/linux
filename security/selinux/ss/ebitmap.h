@@ -120,7 +120,7 @@ static inline void ebitmap_node_clr_bit(struct ebitmap_node *n, u32 bit)
 	     (bit) < ebitmap_length(e);               \
 	     (bit) = ebitmap_next_positive(e, &(n), bit))
 
-int ebitmap_cmp(const struct ebitmap *e1, const struct ebitmap *e2);
+bool ebitmap_equal(const struct ebitmap *e1, const struct ebitmap *e2);
 int ebitmap_cpy(struct ebitmap *dst, const struct ebitmap *src);
 int ebitmap_and(struct ebitmap *dst, const struct ebitmap *e1,
 		const struct ebitmap *e2);
@@ -129,8 +129,9 @@ int ebitmap_contains(const struct ebitmap *e1, const struct ebitmap *e2,
 int ebitmap_get_bit(const struct ebitmap *e, u32 bit);
 int ebitmap_set_bit(struct ebitmap *e, u32 bit, int value);
 void ebitmap_destroy(struct ebitmap *e);
-int ebitmap_read(struct ebitmap *e, void *fp);
-int ebitmap_write(const struct ebitmap *e, void *fp);
+struct policy_file;
+int ebitmap_read(struct ebitmap *e, struct policy_file *fp);
+int ebitmap_write(const struct ebitmap *e, struct policy_file *fp);
 u32 ebitmap_hash(const struct ebitmap *e, u32 hash);
 
 #ifdef CONFIG_NETLABEL

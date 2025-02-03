@@ -231,7 +231,8 @@ void mt76_connac3_mac_decode_eht_radiotap(struct sk_buff *skb, __le32 *rxv,
 		EHT_PREP(DATA0_PE_DISAMBIGUITY_OM, PE_DISAMBIG, rxv[5]) |
 		EHT_PREP(DATA0_LDPC_EXTRA_SYM_OM, LDPC_EXT_SYM, rxv[4]);
 
-	eht->data[7] |= le32_encode_bits(status->nss, IEEE80211_RADIOTAP_EHT_DATA7_NSS_S);
+	/* iwlwifi and wireshark expect radiotap to report zero-based NSS, so subtract 1. */
+	eht->data[7] |= le32_encode_bits(status->nss - 1, IEEE80211_RADIOTAP_EHT_DATA7_NSS_S);
 
 	eht->user_info[0] |=
 		EHT_BITS(USER_INFO_MCS_KNOWN) |
@@ -240,7 +241,7 @@ void mt76_connac3_mac_decode_eht_radiotap(struct sk_buff *skb, __le32 *rxv,
 		EHT_BITS(USER_INFO_BEAMFORMING_KNOWN_O) |
 		EHT_BITS(USER_INFO_DATA_FOR_USER) |
 		le32_encode_bits(status->rate_idx, IEEE80211_RADIOTAP_EHT_USER_INFO_MCS) |
-		le32_encode_bits(status->nss, IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_O);
+		le32_encode_bits(status->nss - 1, IEEE80211_RADIOTAP_EHT_USER_INFO_NSS_O);
 
 	if (le32_to_cpu(rxv[0]) & MT_PRXV_TXBF)
 		eht->user_info[0] |= EHT_BITS(USER_INFO_BEAMFORMING_O);

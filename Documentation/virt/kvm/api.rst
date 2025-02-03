@@ -1914,6 +1914,9 @@ No flags are specified so far, the corresponding field must be set to zero.
   #define KVM_IRQ_ROUTING_HV_SINT 4
   #define KVM_IRQ_ROUTING_XEN_EVTCHN 5
 
+On s390, adding a KVM_IRQ_ROUTING_S390_ADAPTER is rejected on ucontrol VMs with
+error -EINVAL.
+
 flags:
 
 - KVM_MSI_VALID_DEVID: used along with KVM_IRQ_ROUTING_MSI routing entry
@@ -5574,7 +5577,7 @@ KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA
   in guest physical address space. This attribute should be used in
   preference to KVM_XEN_ATTR_TYPE_SHARED_INFO as it avoids
   unnecessary invalidation of an internal cache when the page is
-  re-mapped in guest physcial address space.
+  re-mapped in guest physical address space.
 
   Setting the hva to zero will disable the shared_info page.
 

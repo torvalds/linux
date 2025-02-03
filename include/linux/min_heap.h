@@ -15,8 +15,8 @@
  */
 #define MIN_HEAP_PREALLOCATED(_type, _name, _nr)	\
 struct _name {	\
-	int nr;	\
-	int size;	\
+	size_t nr;	\
+	size_t size;	\
 	_type *data;	\
 	_type preallocated[_nr];	\
 }

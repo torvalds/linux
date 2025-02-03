@@ -164,6 +164,7 @@ enum amd_pp_task {
 };
 
 enum PP_SMC_POWER_PROFILE {
+	PP_SMC_POWER_PROFILE_UNKNOWN = -1,
 	PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT = 0x0,
 	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x1,
 	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x2,
@@ -420,7 +421,9 @@ struct amd_pm_funcs {
 	int (*load_firmware)(void *handle);
 	int (*wait_for_fw_loading_complete)(void *handle);
 	int (*set_powergating_by_smu)(void *handle,
-				uint32_t block_type, bool gate);
+				uint32_t block_type,
+				bool gate,
+				int inst);
 	int (*set_clockgating_by_smu)(void *handle, uint32_t msg_id);
 	int (*set_power_limit)(void *handle, uint32_t n);
 	int (*get_power_limit)(void *handle, uint32_t *limit,

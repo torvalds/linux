@@ -556,6 +556,16 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 	}
 }
 
+static int __init detect_polarization(union topology_entry *tle)
+{
+	struct topology_core *tl_core;
+
+	while (tle->nl)
+		tle = next_tle(tle);
+	tl_core = (struct topology_core *)tle;
+	return tl_core->pp != POLARIZATION_HRZ;
+}
+
 void __init topology_init_early(void)
 {
 	struct sysinfo_15_1_x *info;
@@ -575,6 +585,7 @@ void __init topology_init_early(void)
 		      __func__, PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
+	cpu_management = detect_polarization(info->tle);
 	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
 		info->mag[0], info->mag[1], info->mag[2], info->mag[3],
 		info->mag[4], info->mag[5], info->mnest);

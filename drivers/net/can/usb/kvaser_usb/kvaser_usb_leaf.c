@@ -1120,10 +1120,8 @@ kvaser_usb_leaf_rx_error_update_can_state(struct kvaser_usb_net_priv *priv,
 static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 				     const struct kvaser_usb_err_summary *es)
 {
-	struct can_frame *cf;
-	struct can_frame tmp_cf = { .can_id = CAN_ERR_FLAG,
-				    .len = CAN_ERR_DLC };
-	struct sk_buff *skb;
+	struct can_frame *cf = NULL;
+	struct sk_buff *skb = NULL;
 	struct net_device_stats *stats;
 	struct kvaser_usb_net_priv *priv;
 	struct kvaser_usb_net_leaf_priv *leaf;
@@ -1143,18 +1141,10 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 	if (!netif_running(priv->netdev))
 		return;
 
-	/* Update all of the CAN interface's state and error counters before
-	 * trying any memory allocation that can actually fail with -ENOMEM.
-	 *
-	 * We send a temporary stack-allocated error CAN frame to
-	 * can_change_state() for the very same reason.
-	 *
-	 * TODO: Split can_change_state() responsibility between updating the
-	 * CAN interface's state and counters, and the setting up of CAN error
-	 * frame ID and data to userspace. Remove stack allocation afterwards.
-	 */
 	old_state = priv->can.state;
-	kvaser_usb_leaf_rx_error_update_can_state(priv, es, &tmp_cf);
+	if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+		skb = alloc_can_err_skb(priv->netdev, &cf);
+	kvaser_usb_leaf_rx_error_update_can_state(priv, es, cf);
 	new_state = priv->can.state;
 
 	/* If there are errors, request status updates periodically as we do
@@ -1168,13 +1158,6 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 		schedule_delayed_work(&leaf->chip_state_req_work,
 				      msecs_to_jiffies(500));
 
-	skb = alloc_can_err_skb(priv->netdev, &cf);
-	if (!skb) {
-		stats->rx_dropped++;
-		return;
-	}
-	memcpy(cf, &tmp_cf, sizeof(*cf));
-
 	if (new_state != old_state) {
 		if (es->status &
 		    (M16C_STATE_BUS_OFF | M16C_STATE_BUS_RESET)) {
@@ -1187,9 +1170,18 @@ static void kvaser_usb_leaf_rx_error(const struct kvaser_usb *dev,
 		if (priv->can.restart_ms &&
 		    old_state == CAN_STATE_BUS_OFF &&
 		    new_state < CAN_STATE_BUS_OFF) {
-			cf->can_id |= CAN_ERR_RESTARTED;
+			if (cf)
+				cf->can_id |= CAN_ERR_RESTARTED;
 			netif_carrier_on(priv->netdev);
 		}
+	}
+
+	if (!skb) {
+		if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING) {
+			stats->rx_dropped++;
+			netdev_warn(priv->netdev, "No memory left for err_skb\n");
+		}
+		return;
 	}
 
 	switch (dev->driver_info->family) {

@@ -5,7 +5,6 @@ bpf-syscall*
 test_verifier
 test_maps
 test_lru_map
-test_lpm_map
 test_tag
 FEATURE-DUMP.libbpf
 FEATURE-DUMP.selftests

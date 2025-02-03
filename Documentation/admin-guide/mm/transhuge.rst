@@ -436,7 +436,7 @@ AnonHugePmdMapped).
 The number of file transparent huge pages mapped to userspace is available
 by reading ShmemPmdMapped and ShmemHugePages fields in ``/proc/meminfo``.
 To identify what applications are mapping file transparent huge pages, it
-is necessary to read ``/proc/PID/smaps`` and count the FileHugeMapped fields
+is necessary to read ``/proc/PID/smaps`` and count the FilePmdMapped fields
 for each mapping.
 
 Note that reading the smaps file is expensive and reading it

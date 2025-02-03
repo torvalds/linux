@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test for blocking read.
+--tolerance_usecs=10000
+
+`./defaults.sh`
+
+// Establish a connection.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+  +.1 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+
+   +0...0.100 read(4, ..., 2000) = 2000
+  +.1 < P. 1:2001(2000) ack 1 win 257
+   +0 > . 1:1(0) ack 2001
+
+  +.1...0.200 read(4, ..., 2000) = 2000
+  +.1 < P. 2001:4001(2000) ack 1 win 257
+   +0 > . 1:1(0) ack 4001
+
+  +.1 < P. 4001:6001(2000) ack 1 win 257
+   +0 > . 1:1(0) ack 6001
+   +0...0.000 read(4, ..., 1000) = 1000
+   +0...0.000 read(4, ..., 1000) = 1000

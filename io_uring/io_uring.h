@@ -8,9 +8,11 @@
 #include <linux/poll.h>
 #include <linux/io_uring_types.h>
 #include <uapi/linux/eventpoll.h>
+#include "alloc_cache.h"
 #include "io-wq.h"
 #include "slist.h"
 #include "filetable.h"
+#include "opdef.h"
 
 #ifndef CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
@@ -125,6 +127,9 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 #if defined(CONFIG_PROVE_LOCKING)
 	lockdep_assert(in_task());
 
+	if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+		lockdep_assert_held(&ctx->uring_lock);
+
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		lockdep_assert_held(&ctx->uring_lock);
 	} else if (!ctx->task_complete) {
@@ -136,9 +141,7 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 		 * Not from an SQE, as those cannot be submitted, but via
 		 * updating tagged resources.
 		 */
-		if (percpu_ref_is_dying(&ctx->refs))
-			lockdep_assert(current_work());
-		else
+		if (!percpu_ref_is_dying(&ctx->refs))
 			lockdep_assert(current == ctx->submitter_task);
 	}
 #endif
@@ -220,6 +223,27 @@ static inline void io_req_set_res(struct io_kiocb *req, s32 res, u32 cflags)
 {
 	req->cqe.res = res;
 	req->cqe.flags = cflags;
+}
+
+static inline void *io_uring_alloc_async_data(struct io_alloc_cache *cache,
+					      struct io_kiocb *req,
+					      void (*init_once)(void *obj))
+{
+	req->async_data = io_cache_alloc(cache, GFP_KERNEL, init_once);
+	if (req->async_data)
+		req->flags |= REQ_F_ASYNC_DATA;
+	return req->async_data;
+}
+
+static inline void *io_uring_alloc_async_data_nocache(struct io_kiocb *req)
+{
+	const struct io_issue_def *def = &io_issue_defs[req->opcode];
+
+	WARN_ON_ONCE(!def->async_size);
+	req->async_data = kmalloc(def->async_size, GFP_KERNEL);
+	if (req->async_data)
+		req->flags |= REQ_F_ASYNC_DATA;
+	return req->async_data;
 }
 
 static inline bool req_has_async_data(struct io_kiocb *req)

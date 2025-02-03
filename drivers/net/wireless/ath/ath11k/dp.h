@@ -165,7 +165,6 @@ struct ath11k_mon_data {
 	struct ath11k_pdev_mon_stats rx_mon_stats;
 	/* lock for monitor data */
 	spinlock_t mon_lock;
-	struct sk_buff_head rx_status_q;
 };
 
 struct ath11k_pdev_dp {
