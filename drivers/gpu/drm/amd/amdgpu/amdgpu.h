@@ -798,7 +798,7 @@ enum amd_hw_ip_block_type {
 	MAX_HWIP
 };
 
-#define HWIP_MAX_INSTANCE	44
+#define HWIP_MAX_INSTANCE	48
 
 #define HW_ID_MAX		300
 #define IP_VERSION_FULL(mj, mn, rv, var, srev) \
