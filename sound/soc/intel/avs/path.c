@@ -115,6 +115,156 @@ avs_path_find_variant(struct avs_dev *adev,
 	return NULL;
 }
 
+static void avs_init_node_id(union avs_connector_node_id *node_id,
+			     struct avs_tplg_modcfg_ext *te, u32 dma_id)
+{
+	node_id->val = 0;
+	node_id->dma_type = te->copier.dma_type;
+
+	switch (node_id->dma_type) {
+	case AVS_DMA_DMIC_LINK_INPUT:
+	case AVS_DMA_I2S_LINK_OUTPUT:
+	case AVS_DMA_I2S_LINK_INPUT:
+		/* Gateway's virtual index is statically assigned in the topology. */
+		node_id->vindex = te->copier.vindex.val;
+		break;
+
+	case AVS_DMA_HDA_HOST_OUTPUT:
+	case AVS_DMA_HDA_HOST_INPUT:
+		/* Gateway's virtual index is dynamically assigned with DMA ID */
+		node_id->vindex = dma_id;
+		break;
+
+	case AVS_DMA_HDA_LINK_OUTPUT:
+	case AVS_DMA_HDA_LINK_INPUT:
+		node_id->vindex = te->copier.vindex.val | dma_id;
+		break;
+
+	default:
+		*node_id = INVALID_NODE_ID;
+		break;
+	}
+}
+
+/* Every BLOB contains at least gateway attributes. */
+static struct acpi_nhlt_config *default_blob = (struct acpi_nhlt_config *)&(u32[2]) {4};
+
+static struct acpi_nhlt_config *
+avs_nhlt_config_or_default(struct avs_dev *adev, struct avs_tplg_module *t)
+{
+	struct acpi_nhlt_format_config *fmtcfg;
+	struct avs_tplg_modcfg_ext *te;
+	struct avs_audio_format *fmt;
+	int link_type, dev_type;
+	int bus_id, dir;
+
+	te = t->cfg_ext;
+
+	switch (te->copier.dma_type) {
+	case AVS_DMA_I2S_LINK_OUTPUT:
+		link_type = ACPI_NHLT_LINKTYPE_SSP;
+		dev_type = ACPI_NHLT_DEVICETYPE_CODEC;
+		bus_id = te->copier.vindex.i2s.instance;
+		dir = SNDRV_PCM_STREAM_PLAYBACK;
+		fmt = te->copier.out_fmt;
+		break;
+
+	case AVS_DMA_I2S_LINK_INPUT:
+		link_type = ACPI_NHLT_LINKTYPE_SSP;
+		dev_type = ACPI_NHLT_DEVICETYPE_CODEC;
+		bus_id = te->copier.vindex.i2s.instance;
+		dir = SNDRV_PCM_STREAM_CAPTURE;
+		fmt = t->in_fmt;
+		break;
+
+	case AVS_DMA_DMIC_LINK_INPUT:
+		link_type = ACPI_NHLT_LINKTYPE_PDM;
+		dev_type = -1; /* ignored */
+		bus_id = 0;
+		dir = SNDRV_PCM_STREAM_CAPTURE;
+		fmt = t->in_fmt;
+		break;
+
+	default:
+		return default_blob;
+	}
+
+	/* Override format selection if necessary. */
+	if (te->copier.blob_fmt)
+		fmt = te->copier.blob_fmt;
+
+	fmtcfg = acpi_nhlt_find_fmtcfg(link_type, dev_type, dir, bus_id,
+				       fmt->num_channels, fmt->sampling_freq, fmt->valid_bit_depth,
+				       fmt->bit_depth);
+	if (!fmtcfg) {
+		dev_warn(adev->dev, "Endpoint format configuration not found.\n");
+		return ERR_PTR(-ENOENT);
+	}
+
+	if (fmtcfg->config.capabilities_size < default_blob->capabilities_size)
+		return ERR_PTR(-ETOOSMALL);
+	/* The firmware expects the payload to be DWORD-aligned. */
+	if (fmtcfg->config.capabilities_size % sizeof(u32))
+		return ERR_PTR(-EINVAL);
+
+	return &fmtcfg->config;
+}
+
+static int avs_fill_gtw_config(struct avs_dev *adev, struct avs_copier_gtw_cfg *gtw,
+			       struct avs_tplg_module *t, size_t *cfg_size)
+{
+	struct acpi_nhlt_config *blob;
+	size_t gtw_size;
+
+	blob = avs_nhlt_config_or_default(adev, t);
+	if (IS_ERR(blob))
+		return PTR_ERR(blob);
+
+	gtw_size = blob->capabilities_size;
+	if (*cfg_size + gtw_size > AVS_MAILBOX_SIZE)
+		return -E2BIG;
+
+	gtw->config_length = gtw_size / sizeof(u32);
+	memcpy(gtw->config.blob, blob->capabilities, blob->capabilities_size);
+	*cfg_size += gtw_size;
+
+	return 0;
+}
+
+static __maybe_unused int avs_copier_create2(struct avs_dev *adev, struct avs_path_module *mod)
+{
+	struct avs_tplg_module *t = mod->template;
+	struct avs_tplg_modcfg_ext *te;
+	struct avs_copier_cfg *cfg;
+	size_t cfg_size;
+	u32 dma_id;
+	int ret;
+
+	te = t->cfg_ext;
+	cfg = adev->modcfg_buf;
+	dma_id = mod->owner->owner->dma_id;
+	cfg_size = offsetof(struct avs_copier_cfg, gtw_cfg.config);
+
+	ret = avs_fill_gtw_config(adev, &cfg->gtw_cfg, t, &cfg_size);
+	if (ret)
+		return ret;
+
+	cfg->base.cpc = t->cfg_base->cpc;
+	cfg->base.ibs = t->cfg_base->ibs;
+	cfg->base.obs = t->cfg_base->obs;
+	cfg->base.is_pages = t->cfg_base->is_pages;
+	cfg->base.audio_fmt = *t->in_fmt;
+	cfg->out_fmt = *te->copier.out_fmt;
+	cfg->feature_mask = te->copier.feature_mask;
+	avs_init_node_id(&cfg->gtw_cfg.node_id, te, dma_id);
+	cfg->gtw_cfg.dma_buffer_size = te->copier.dma_buffer_size;
+	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
+
+	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
+				  t->domain, cfg, cfg_size, &mod->instance_id);
+	return ret;
+}
+
 __maybe_unused
 static bool avs_dma_type_is_host(u32 dma_type)
 {
