@@ -3558,8 +3558,10 @@
 				      "pipe",
 				      "pipediv2";
 
-			resets = <&gcc GCC_PCIE_5_PHY_BCR>;
-			reset-names = "phy";
+			resets = <&gcc GCC_PCIE_5_PHY_BCR>,
+				 <&gcc GCC_PCIE_5_NOCSR_COM_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_nocsr";
 
 			assigned-clocks = <&gcc GCC_PCIE_5_PHY_RCHNG_CLK>;
 			assigned-clock-rates = <100000000>;
@@ -3692,8 +3694,10 @@
 				      "pipe",
 				      "pipediv2";
 
-			resets = <&gcc GCC_PCIE_4_PHY_BCR>;
-			reset-names = "phy";
+			resets = <&gcc GCC_PCIE_4_PHY_BCR>,
+				 <&gcc GCC_PCIE_4_NOCSR_COM_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_nocsr";
 
 			assigned-clocks = <&gcc GCC_PCIE_4_PHY_RCHNG_CLK>;
 			assigned-clock-rates = <100000000>;
