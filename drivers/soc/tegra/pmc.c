@@ -1138,7 +1138,7 @@ static int tegra_pmc_reboot_notify(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static void tegra_pmc_restart(void)
+static void tegra_pmc_restart(struct tegra_pmc *pmc)
 {
 	u32 value;
 
@@ -1150,13 +1150,17 @@ static void tegra_pmc_restart(void)
 
 static int tegra_pmc_restart_handler(struct sys_off_data *data)
 {
-	tegra_pmc_restart();
+	struct tegra_pmc *pmc = data->cb_data;
+
+	tegra_pmc_restart(pmc);
 
 	return NOTIFY_DONE;
 }
 
 static int tegra_pmc_power_off_handler(struct sys_off_data *data)
 {
+	struct tegra_pmc *pmc = data->cb_data;
+
 	/*
 	 * Reboot Nexus 7 into special bootloader mode if USB cable is
 	 * connected in order to display battery status and power off.
@@ -1166,7 +1170,7 @@ static int tegra_pmc_power_off_handler(struct sys_off_data *data)
 		const u32 go_to_charger_mode = 0xa5a55a5a;
 
 		tegra_pmc_writel(pmc, go_to_charger_mode, PMC_SCRATCH37);
-		tegra_pmc_restart();
+		tegra_pmc_restart(pmc);
 	}
 
 	return NOTIFY_DONE;
@@ -3011,7 +3015,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	err = devm_register_sys_off_handler(&pdev->dev,
 					    SYS_OFF_MODE_RESTART,
 					    SYS_OFF_PRIO_LOW,
-					    tegra_pmc_restart_handler, NULL);
+					    tegra_pmc_restart_handler,
+					    pmc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
 			err);
@@ -3025,7 +3030,8 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	err = devm_register_sys_off_handler(&pdev->dev,
 					    SYS_OFF_MODE_POWER_OFF,
 					    SYS_OFF_PRIO_FIRMWARE,
-					    tegra_pmc_power_off_handler, NULL);
+					    tegra_pmc_power_off_handler,
+					    pmc);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register sys-off handler: %d\n",
 			err);
