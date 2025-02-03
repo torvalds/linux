@@ -74,8 +74,6 @@ struct avs_tplg_modcfg_ext {
 			union avs_virtual_index vindex;
 			u32 dma_type;
 			u32 dma_buffer_size;
-			u32 config_length;
-			/* config_data part of priv data */
 		} copier;
 		struct {
 			u32 out_channel_config;
