@@ -1082,6 +1082,11 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 #define kfree_rcu_mightsleep(ptr) kvfree_rcu_arg_1(ptr)
 #define kvfree_rcu_mightsleep(ptr) kvfree_rcu_arg_1(ptr)
 
+/*
+ * In mm/slab_common.c, no suitable header to include here.
+ */
+void kvfree_call_rcu(struct rcu_head *head, void *ptr);
+
 #define kvfree_rcu_arg_2(ptr, rhf)					\
 do {									\
 	typeof (ptr) ___p = (ptr);					\

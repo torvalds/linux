@@ -16,6 +16,7 @@
 #include <linux/gfp.h>
 #include <linux/overflow.h>
 #include <linux/types.h>
+#include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 #include <linux/percpu-refcount.h>
 #include <linux/cleanup.h>
@@ -1081,6 +1082,19 @@ DEFINE_FREE(kvfree, void *, if (!IS_ERR_OR_NULL(_T)) kvfree(_T))
 extern void kvfree_sensitive(const void *addr, size_t len);
 
 unsigned int kmem_cache_size(struct kmem_cache *s);
+
+#ifdef CONFIG_TINY_RCU
+static inline void kvfree_rcu_barrier(void)
+{
+	rcu_barrier();
+}
+
+static inline void kfree_rcu_scheduler_running(void) { }
+#else
+void kvfree_rcu_barrier(void);
+
+void kfree_rcu_scheduler_running(void);
+#endif
 
 /**
  * kmalloc_size_roundup - Report allocation bucket size for the given size
