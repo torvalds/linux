@@ -45,7 +45,7 @@ bool fuse_request_expired(struct fuse_conn *fc, struct list_head *list)
 	return time_is_before_jiffies(req->create_time + fc->timeout.req_timeout);
 }
 
-bool fuse_fpq_processing_expired(struct fuse_conn *fc, struct list_head *processing)
+static bool fuse_fpq_processing_expired(struct fuse_conn *fc, struct list_head *processing)
 {
 	int i;
 
