@@ -717,6 +717,12 @@ patch in the permanent changelog.  If the ``from`` line is missing,
 then the ``From:`` line from the email header will be used to determine
 the patch author in the changelog.
 
+The author may indicate their affiliation or the sponsor of the work
+by adding the name of an organization to the ``from`` and ``SoB`` lines,
+e.g.:
+
+	From: Patch Author (Company) <author@example.com>
+
 Explanation Body
 ^^^^^^^^^^^^^^^^
 
