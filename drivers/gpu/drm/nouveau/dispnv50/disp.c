@@ -279,6 +279,16 @@ nv50_dmac_create(struct nouveau_drm *drm,
 	if (syncbuf < 0)
 		return 0;
 
+	/* No CTXDMAs on Blackwell. */
+	if (disp->oclass >= GB202_DISP) {
+		/* "handle != NULL_HANDLE" is used to determine enable status
+		 * in a number of places, so fill in some fake object handles.
+		 */
+		dmac->sync.handle = NV50_DISP_HANDLE_SYNCBUF;
+		dmac->vram.handle = NV50_DISP_HANDLE_VRAM;
+		return 0;
+	}
+
 	ret = nvif_object_ctor(&dmac->base.user, "kmsSyncCtxDma", NV50_DISP_HANDLE_SYNCBUF,
 			       NV_DMA_IN_MEMORY,
 			       &(struct nv_dma_v0) {

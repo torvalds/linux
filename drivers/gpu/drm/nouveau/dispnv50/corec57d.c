@@ -22,6 +22,7 @@
 #include "core.h"
 #include "head.h"
 
+#include <nvif/class.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc57d.h>
@@ -63,6 +64,7 @@ corec57d = {
 	.init = corec57d_init,
 	.ntfy_init = corec37d_ntfy_init,
 	.caps_init = corec37d_caps_init,
+	.caps_class = GV100_DISP_CAPS,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
 	.wndw.owner = corec37d_wndw_owner,

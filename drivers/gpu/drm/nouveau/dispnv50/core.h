@@ -7,7 +7,10 @@
 
 struct nv50_core {
 	const struct nv50_core_func *func;
+	struct nv50_disp *disp;
+
 	struct nv50_dmac chan;
+
 	bool assign_windows;
 };
 
@@ -18,6 +21,7 @@ struct nv50_core_func {
 	int (*init)(struct nv50_core *);
 	void (*ntfy_init)(struct nouveau_bo *, u32 offset);
 	int (*caps_init)(struct nouveau_drm *, struct nv50_disp *);
+	u32 caps_class;
 	int (*ntfy_wait_done)(struct nouveau_bo *, u32 offset,
 			      struct nvif_device *);
 	int (*update)(struct nv50_core *, u32 *interlock, bool ntfy);
@@ -70,4 +74,6 @@ int corec37d_wndw_owner(struct nv50_core *);
 extern const struct nv50_outp_func sorc37d;
 
 int corec57d_new(struct nouveau_drm *, s32, struct nv50_core **);
+
+int coreca7d_new(struct nouveau_drm *, s32, struct nv50_core **);
 #endif
