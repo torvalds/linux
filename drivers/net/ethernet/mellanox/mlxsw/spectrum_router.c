@@ -8184,41 +8184,6 @@ mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
 	return NULL;
 }
 
-bool mlxsw_sp_rif_exists(struct mlxsw_sp *mlxsw_sp,
-			 const struct net_device *dev)
-{
-	struct mlxsw_sp_rif *rif;
-
-	mutex_lock(&mlxsw_sp->router->lock);
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	mutex_unlock(&mlxsw_sp->router->lock);
-
-	return rif;
-}
-
-u16 mlxsw_sp_rif_vid(struct mlxsw_sp *mlxsw_sp, const struct net_device *dev)
-{
-	struct mlxsw_sp_rif *rif;
-	u16 vid = 0;
-
-	mutex_lock(&mlxsw_sp->router->lock);
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!rif)
-		goto out;
-
-	/* We only return the VID for VLAN RIFs. Otherwise we return an
-	 * invalid value (0).
-	 */
-	if (rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN)
-		goto out;
-
-	vid = mlxsw_sp_fid_8021q_vid(rif->fid);
-
-out:
-	mutex_unlock(&mlxsw_sp->router->lock);
-	return vid;
-}
-
 static int mlxsw_sp_router_rif_disable(struct mlxsw_sp *mlxsw_sp, u16 rif)
 {
 	char ritr_pl[MLXSW_REG_RITR_LEN];
@@ -8415,19 +8380,6 @@ u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif)
 u16 mlxsw_sp_ipip_lb_rif_index(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
 {
 	return lb_rif->common.rif_index;
-}
-
-u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
-{
-	struct net_device *dev = mlxsw_sp_rif_dev(&lb_rif->common);
-	u32 ul_tb_id = mlxsw_sp_ipip_dev_ul_tb_id(dev);
-	struct mlxsw_sp_vr *ul_vr;
-
-	ul_vr = mlxsw_sp_vr_get(lb_rif->common.mlxsw_sp, ul_tb_id, NULL);
-	if (WARN_ON(IS_ERR(ul_vr)))
-		return 0;
-
-	return ul_vr->id;
 }
 
 u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif)
