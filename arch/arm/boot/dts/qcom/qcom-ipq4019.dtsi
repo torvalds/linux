@@ -126,7 +126,7 @@
 		opp-716000000 {
 			opp-hz = /bits/ 64 <716000000>;
 			clock-latency-ns = <256000>;
- 		};
+		};
 	};
 
 	memory {
