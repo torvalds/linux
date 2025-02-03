@@ -1084,7 +1084,7 @@ MAINTAINER field selection options:
     --moderated => include moderated lists(s) if any (default: true)
     --s => include subscriber only list(s) if any (default: false)
     --remove-duplicates => minimize duplicate email names/addresses
-    --roles => show roles (status:subsystem, git-signer, list, etc...)
+    --roles => show roles (role:subsystem, git-signer, list, etc...)
     --rolestats => show roles and statistics (commits/total_commits, %)
     --substatus => show subsystem status if not Maintained (default: match --roles when output is tty)"
     --file-emails => add email addresses found in -f file (default: 0 (off))
@@ -1298,8 +1298,9 @@ sub get_maintainer_role {
     my $start = find_starting_index($index);
     my $end = find_ending_index($index);
 
-    my $role = "unknown";
+    my $role = "maintainer";
     my $subsystem = get_subsystem_name($index);
+    my $status = "unknown";
 
     for ($i = $start + 1; $i < $end; $i++) {
 	my $tv = $typevalue[$i];
@@ -1307,23 +1308,13 @@ sub get_maintainer_role {
 	    my $ptype = $1;
 	    my $pvalue = $2;
 	    if ($ptype eq "S") {
-		$role = $pvalue;
+		$status = $pvalue;
 	    }
 	}
     }
 
-    $role = lc($role);
-    if      ($role eq "supported") {
-	$role = "supporter";
-    } elsif ($role eq "maintained") {
-	$role = "maintainer";
-    } elsif ($role eq "odd fixes") {
-	$role = "odd fixer";
-    } elsif ($role eq "orphan") {
-	$role = "orphan minder";
-    } elsif ($role eq "obsolete") {
-	$role = "obsolete minder";
-    } elsif ($role eq "buried alive in reporters") {
+    $status = lc($status);
+    if ($status eq "buried alive in reporters") {
 	$role = "chief penguin";
     }
 
