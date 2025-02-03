@@ -76,6 +76,15 @@ struct avs_tplg_modcfg_ext {
 			u32 dma_buffer_size;
 		} copier;
 		struct {
+			struct avs_audio_format *ref_fmt;
+			struct avs_audio_format *out_fmt;
+			u32 wake_tick_period;
+			union avs_virtual_index vindex;
+			u32 dma_type;
+			u32 dma_buffer_size;
+			struct avs_audio_format *blob_fmt; /* optional override */
+		} whm;
+		struct {
 			u32 out_channel_config;
 			u32 coefficients_select;
 			s32 coefficients[AVS_CHANNELS_MAX];
