@@ -3764,6 +3764,8 @@ static void mark_seamless_boot_stream(const struct dc  *dc,
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 
+	DC_LOGGER_INIT(dc->ctx->logger);
+
 	if (stream->apply_seamless_boot_optimization)
 		return;
 	if (!dc->config.allow_seamless_boot_optimization)
@@ -3772,7 +3774,7 @@ static void mark_seamless_boot_stream(const struct dc  *dc,
 		return;
 	if (dc_validate_boot_timing(dc, stream->sink, &stream->timing)) {
 		stream->apply_seamless_boot_optimization = true;
-		DC_LOG_INFO("Marked stream for seamless boot optimization\n");
+		DC_LOG_DC("Marked stream for seamless boot optimization\n");
 	}
 }
 
