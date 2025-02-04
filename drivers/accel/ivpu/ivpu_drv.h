@@ -111,6 +111,7 @@ struct ivpu_wa_table {
 	bool disable_clock_relinquish;
 	bool disable_d0i3_msg;
 	bool wp0_during_power_up;
+	bool disable_d0i2;
 };
 
 struct ivpu_hw_info;
@@ -208,6 +209,7 @@ extern bool ivpu_force_snoop;
 #define IVPU_TEST_MODE_TURBO		  BIT(9)
 #define IVPU_TEST_MODE_CLK_RELINQ_DISABLE BIT(10)
 #define IVPU_TEST_MODE_CLK_RELINQ_ENABLE  BIT(11)
+#define IVPU_TEST_MODE_D0I2_DISABLE       BIT(12)
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);

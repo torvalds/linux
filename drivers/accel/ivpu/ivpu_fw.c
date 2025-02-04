@@ -534,6 +534,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->d0i3_entry_vpu_ts);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
 		 boot_params->system_time_us);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.power_profile = %u\n",
+		 boot_params->power_profile);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -634,6 +636,8 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 		boot_params->d0i3_delayed_entry = 1;
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
+	if (IVPU_WA(disable_d0i2))
+		boot_params->power_profile = 1;
 
 	boot_params->system_time_us = ktime_to_us(ktime_get_real());
 	wmb(); /* Flush WC buffers after writing bootparams */
