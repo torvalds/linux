@@ -1934,7 +1934,7 @@ static void dcn401_program_tg(
 		hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
 }
 
-static void dcn401_program_pipe(
+void dcn401_program_pipe(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
