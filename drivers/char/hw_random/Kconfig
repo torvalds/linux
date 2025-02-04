@@ -606,7 +606,8 @@ config HW_RANDOM_ROCKCHIP
 	default HW_RANDOM
 	help
 	  This driver provides kernel-side support for the True Random Number
-	  Generator hardware found on some Rockchip SoC like RK3566 or RK3568.
+	  Generator hardware found on some Rockchip SoCs like RK3566, RK3568
+	  or RK3588.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rockchip-rng.
