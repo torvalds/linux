@@ -1469,6 +1469,11 @@ struct scx_event_stats {
 	u64		SCX_EV_ENQ_SKIP_EXITING;
 
 	/*
+	 * The total duration of bypass modes in nanoseconds.
+	 */
+	u64		SCX_EV_BYPASS_DURATION;
+
+	/*
 	 * The number of tasks dispatched in the bypassing mode.
 	 */
 	u64		SCX_EV_BYPASS_DISPATCH;
@@ -4408,6 +4413,8 @@ static void scx_clear_softlockup(void)
 static void scx_ops_bypass(bool bypass)
 {
 	static DEFINE_RAW_SPINLOCK(bypass_lock);
+	static unsigned long bypass_timestamp;
+
 	int cpu;
 	unsigned long flags;
 
@@ -4417,12 +4424,15 @@ static void scx_ops_bypass(bool bypass)
 		WARN_ON_ONCE(scx_ops_bypass_depth <= 0);
 		if (scx_ops_bypass_depth != 1)
 			goto unlock;
+		bypass_timestamp = ktime_get_ns();
 		scx_add_event(SCX_EV_BYPASS_ACTIVATE, 1);
 	} else {
 		scx_ops_bypass_depth--;
 		WARN_ON_ONCE(scx_ops_bypass_depth < 0);
 		if (scx_ops_bypass_depth != 0)
 			goto unlock;
+		scx_add_event(SCX_EV_BYPASS_DURATION,
+			      ktime_get_ns() - bypass_timestamp);
 	}
 
 	atomic_inc(&scx_ops_breather_depth);
@@ -5013,6 +5023,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_EXITING);
+	scx_dump_event(s, &events, SCX_EV_BYPASS_DURATION);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_DISPATCH);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_ACTIVATE);
 
@@ -7152,6 +7163,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DURATION);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DISPATCH);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_ACTIVATE);
 	}
