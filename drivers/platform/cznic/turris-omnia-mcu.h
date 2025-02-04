@@ -18,6 +18,11 @@
 #include <linux/watchdog.h>
 #include <linux/workqueue.h>
 
+enum {
+	OMNIA_MCU_CRYPTO_PUBLIC_KEY_LEN	= 1 + 32,
+	OMNIA_MCU_CRYPTO_SIGNATURE_LEN	= 64,
+};
+
 struct i2c_client;
 struct rtc_device;
 
@@ -56,6 +61,12 @@ struct rtc_device;
  * @wdt:			watchdog driver structure
  * @trng:			RNG driver structure
  * @trng_entropy_ready:		RNG entropy ready completion
+ * @msg_signed:			message signed completion
+ * @sign_lock:			mutex to protect message signing state
+ * @sign_requested:		flag indicating that message signing was requested but not completed
+ * @sign_err:			message signing error number, filled in interrupt handler
+ * @signature:			message signing signature, filled in interrupt handler
+ * @board_public_key:		board public key, if stored in MCU
  */
 struct omnia_mcu {
 	struct i2c_client *client;
@@ -89,6 +100,15 @@ struct omnia_mcu {
 	struct hwrng trng;
 	struct completion trng_entropy_ready;
 #endif
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_KEYCTL
+	struct completion msg_signed;
+	struct mutex sign_lock;
+	bool sign_requested;
+	int sign_err;
+	u8 signature[OMNIA_MCU_CRYPTO_SIGNATURE_LEN];
+	u8 board_public_key[OMNIA_MCU_CRYPTO_PUBLIC_KEY_LEN];
+#endif
 };
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_GPIO
@@ -98,6 +118,15 @@ int omnia_mcu_request_irq(struct omnia_mcu *mcu, u32 spec,
 			  irq_handler_t thread_fn, const char *devname);
 #else
 static inline int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_TURRIS_OMNIA_MCU_KEYCTL
+int omnia_mcu_register_keyctl(struct omnia_mcu *mcu);
+#else
+static inline int omnia_mcu_register_keyctl(struct omnia_mcu *mcu)
 {
 	return 0;
 }
