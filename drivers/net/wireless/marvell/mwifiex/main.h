@@ -1571,8 +1571,6 @@ void mwifiex_uap_set_channel(struct mwifiex_private *priv,
 			     struct cfg80211_chan_def chandef);
 int mwifiex_config_start_uap(struct mwifiex_private *priv,
 			     struct mwifiex_uap_bss_param *bss_cfg);
-void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
-			      struct mwifiex_sta_node *node);
 
 void mwifiex_config_uap_11d(struct mwifiex_private *priv,
 			    struct cfg80211_beacon_data *beacon_data);
