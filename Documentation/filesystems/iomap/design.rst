@@ -356,6 +356,11 @@ operations:
    ``IOMAP_NOWAIT`` is often set on behalf of ``IOCB_NOWAIT`` or
    ``RWF_NOWAIT``.
 
+ * ``IOMAP_DONTCACHE`` is set when the caller wishes to perform a
+   buffered file I/O and would like the kernel to drop the pagecache
+   after the I/O completes, if it isn't already being used by another
+   thread.
+
 If it is necessary to read existing file contents from a `different
 <https://lore.kernel.org/all/20191008071527.29304-9-hch@lst.de/>`_
 device or address range on a device, the filesystem should return that
