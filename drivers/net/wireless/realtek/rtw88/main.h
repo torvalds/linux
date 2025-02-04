@@ -1130,14 +1130,26 @@ struct rtw_rfe_def {
  * For 2G there are cck rate and ofdm rate with different settings.
  */
 struct rtw_pwr_track_tbl {
+	const u8 *pwrtrk_5gd_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gd_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gc_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5gb_p[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_n[RTW_PWR_TRK_5G_NUM];
 	const u8 *pwrtrk_5ga_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_2gd_n;
+	const u8 *pwrtrk_2gd_p;
+	const u8 *pwrtrk_2gc_n;
+	const u8 *pwrtrk_2gc_p;
 	const u8 *pwrtrk_2gb_n;
 	const u8 *pwrtrk_2gb_p;
 	const u8 *pwrtrk_2ga_n;
 	const u8 *pwrtrk_2ga_p;
+	const u8 *pwrtrk_2g_cckd_n;
+	const u8 *pwrtrk_2g_cckd_p;
+	const u8 *pwrtrk_2g_cckc_n;
+	const u8 *pwrtrk_2g_cckc_p;
 	const u8 *pwrtrk_2g_cckb_n;
 	const u8 *pwrtrk_2g_cckb_p;
 	const u8 *pwrtrk_2g_ccka_n;
