@@ -1494,6 +1494,7 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	struct cxl_dev_state *cxlds;
 	struct cxl_mockmem_data *mdata;
 	struct cxl_mailbox *cxl_mbox;
+	struct cxl_dpa_info range_info = { 0 };
 	int rc;
 
 	mdata = devm_kzalloc(dev, sizeof(*mdata), GFP_KERNEL);
@@ -1554,7 +1555,11 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	rc = cxl_mem_create_range_info(mds);
+	rc = cxl_mem_dpa_fetch(mds, &range_info);
+	if (rc)
+		return rc;
+
+	rc = cxl_dpa_setup(cxlds, &range_info);
 	if (rc)
 		return rc;
 

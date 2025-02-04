@@ -97,6 +97,24 @@ int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			 resource_size_t base, resource_size_t len,
 			 resource_size_t skipped);
 
+enum cxl_partition_mode {
+	CXL_PARTMODE_RAM,
+	CXL_PARTMODE_PMEM,
+};
+
+#define CXL_NR_PARTITIONS_MAX 2
+
+struct cxl_dpa_info {
+	u64 size;
+	struct cxl_dpa_part_info {
+		struct range range;
+		enum cxl_partition_mode mode;
+	} part[CXL_NR_PARTITIONS_MAX];
+	int nr_partitions;
+};
+
+int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info);
+
 static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
 					 struct cxl_memdev *cxlmd)
 {
@@ -409,6 +427,18 @@ struct cxl_dpa_perf {
 };
 
 /**
+ * struct cxl_dpa_partition - DPA partition descriptor
+ * @res: shortcut to the partition in the DPA resource tree (cxlds->dpa_res)
+ * @perf: performance attributes of the partition from CDAT
+ * @mode: operation mode for the DPA capacity, e.g. ram, pmem, dynamic...
+ */
+struct cxl_dpa_partition {
+	struct resource res;
+	struct cxl_dpa_perf perf;
+	enum cxl_partition_mode mode;
+};
+
+/**
  * struct cxl_dev_state - The driver device state
  *
  * cxl_dev_state represents the CXL driver/device state.  It provides an
@@ -423,8 +453,8 @@ struct cxl_dpa_perf {
  * @rcd: operating in RCD mode (CXL 3.0 9.11.8 CXL Devices Attached to an RCH)
  * @media_ready: Indicate whether the device media is usable
  * @dpa_res: Overall DPA resource tree for the device
- * @_pmem_res: Active Persistent memory capacity configuration
- * @_ram_res: Active Volatile memory capacity configuration
+ * @part: DPA partition array
+ * @nr_partitions: Number of DPA partitions
  * @serial: PCIe Device Serial Number
  * @type: Generic Memory Class device or Vendor Specific Memory device
  * @cxl_mbox: CXL mailbox context
@@ -438,21 +468,47 @@ struct cxl_dev_state {
 	bool rcd;
 	bool media_ready;
 	struct resource dpa_res;
-	struct resource _pmem_res;
-	struct resource _ram_res;
+	struct cxl_dpa_partition part[CXL_NR_PARTITIONS_MAX];
+	unsigned int nr_partitions;
 	u64 serial;
 	enum cxl_devtype type;
 	struct cxl_mailbox cxl_mbox;
 };
 
-static inline struct resource *to_ram_res(struct cxl_dev_state *cxlds)
+
+/* Static RAM is only expected at partition 0. */
+static inline const struct resource *to_ram_res(struct cxl_dev_state *cxlds)
 {
-	return &cxlds->_ram_res;
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return NULL;
+	return &cxlds->part[0].res;
 }
 
-static inline struct resource *to_pmem_res(struct cxl_dev_state *cxlds)
+/*
+ * Static PMEM may be at partition index 0 when there is no static RAM
+ * capacity.
+ */
+static inline const struct resource *to_pmem_res(struct cxl_dev_state *cxlds)
 {
-	return &cxlds->_pmem_res;
+	for (int i = 0; i < cxlds->nr_partitions; i++)
+		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
+			return &cxlds->part[i].res;
+	return NULL;
+}
+
+static inline struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
+{
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return NULL;
+	return &cxlds->part[0].perf;
+}
+
+static inline struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
+{
+	for (int i = 0; i < cxlds->nr_partitions; i++)
+		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
+			return &cxlds->part[i].perf;
+	return NULL;
 }
 
 static inline resource_size_t cxl_ram_size(struct cxl_dev_state *cxlds)
@@ -499,8 +555,6 @@ static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
  * @active_persistent_bytes: sum of hard + soft persistent
  * @next_volatile_bytes: volatile capacity change pending device reset
  * @next_persistent_bytes: persistent capacity change pending device reset
- * @_ram_perf: performance data entry matched to RAM partition
- * @_pmem_perf: performance data entry matched to PMEM partition
  * @event: event log driver state
  * @poison: poison driver state info
  * @security: security driver state info
@@ -524,28 +578,11 @@ struct cxl_memdev_state {
 	u64 next_volatile_bytes;
 	u64 next_persistent_bytes;
 
-	struct cxl_dpa_perf _ram_perf;
-	struct cxl_dpa_perf _pmem_perf;
-
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
 	struct cxl_security_state security;
 	struct cxl_fw_state fw;
 };
-
-static inline struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
-{
-	struct cxl_memdev_state *mds = container_of(cxlds, typeof(*mds), cxlds);
-
-	return &mds->_ram_perf;
-}
-
-static inline struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
-{
-	struct cxl_memdev_state *mds = container_of(cxlds, typeof(*mds), cxlds);
-
-	return &mds->_pmem_perf;
-}
 
 static inline struct cxl_memdev_state *
 to_cxl_memdev_state(struct cxl_dev_state *cxlds)
@@ -860,7 +897,7 @@ int cxl_internal_send_cmd(struct cxl_mailbox *cxl_mbox,
 int cxl_dev_state_identify(struct cxl_memdev_state *mds);
 int cxl_await_media_ready(struct cxl_dev_state *cxlds);
 int cxl_enumerate_cmds(struct cxl_memdev_state *mds);
-int cxl_mem_create_range_info(struct cxl_memdev_state *mds);
+int cxl_mem_dpa_fetch(struct cxl_memdev_state *mds, struct cxl_dpa_info *info);
 struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev);
 void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 				unsigned long *cmds);

@@ -327,9 +327,9 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	cxled->dpa_res = res;
 	cxled->skip = skipped;
 
-	if (resource_contains(to_pmem_res(cxlds), res))
+	if (to_pmem_res(cxlds) && resource_contains(to_pmem_res(cxlds), res))
 		cxled->mode = CXL_DECODER_PMEM;
-	else if (resource_contains(to_ram_res(cxlds), res))
+	else if (to_ram_res(cxlds) && resource_contains(to_ram_res(cxlds), res))
 		cxled->mode = CXL_DECODER_RAM;
 	else {
 		dev_warn(dev, "decoder%d.%d: %pr does not map any partition\n",
@@ -341,6 +341,90 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	get_device(&cxled->cxld.dev);
 	return 0;
 }
+
+static int add_dpa_res(struct device *dev, struct resource *parent,
+		       struct resource *res, resource_size_t start,
+		       resource_size_t size, const char *type)
+{
+	int rc;
+
+	*res = (struct resource) {
+		.name = type,
+		.start = start,
+		.end =  start + size - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	if (resource_size(res) == 0) {
+		dev_dbg(dev, "DPA(%s): no capacity\n", res->name);
+		return 0;
+	}
+	rc = request_resource(parent, res);
+	if (rc) {
+		dev_err(dev, "DPA(%s): failed to track %pr (%d)\n", res->name,
+			res, rc);
+		return rc;
+	}
+
+	dev_dbg(dev, "DPA(%s): %pr\n", res->name, res);
+
+	return 0;
+}
+
+static const char *cxl_mode_name(enum cxl_partition_mode mode)
+{
+	switch (mode) {
+	case CXL_PARTMODE_RAM:
+		return "ram";
+	case CXL_PARTMODE_PMEM:
+		return "pmem";
+	default:
+		return "";
+	};
+}
+
+/* if this fails the caller must destroy @cxlds, there is no recovery */
+int cxl_dpa_setup(struct cxl_dev_state *cxlds, const struct cxl_dpa_info *info)
+{
+	struct device *dev = cxlds->dev;
+
+	guard(rwsem_write)(&cxl_dpa_rwsem);
+
+	if (cxlds->nr_partitions)
+		return -EBUSY;
+
+	if (!info->size || !info->nr_partitions) {
+		cxlds->dpa_res = DEFINE_RES_MEM(0, 0);
+		cxlds->nr_partitions = 0;
+		return 0;
+	}
+
+	cxlds->dpa_res = DEFINE_RES_MEM(0, info->size);
+
+	for (int i = 0; i < info->nr_partitions; i++) {
+		const struct cxl_dpa_part_info *part = &info->part[i];
+		int rc;
+
+		cxlds->part[i].perf.qos_class = CXL_QOS_CLASS_INVALID;
+		cxlds->part[i].mode = part->mode;
+
+		/* Require ordered + contiguous partitions */
+		if (i) {
+			const struct cxl_dpa_part_info *prev = &info->part[i - 1];
+
+			if (prev->range.end + 1 != part->range.start)
+				return -EINVAL;
+		}
+		rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->part[i].res,
+				 part->range.start, range_len(&part->range),
+				 cxl_mode_name(part->mode));
+		if (rc)
+			return rc;
+		cxlds->nr_partitions++;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cxl_dpa_setup);
 
 int devm_cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 				resource_size_t base, resource_size_t len,

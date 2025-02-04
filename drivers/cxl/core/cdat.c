@@ -261,27 +261,20 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 	struct device *dev = cxlds->dev;
 	struct dsmas_entry *dent;
 	unsigned long index;
-	const struct resource *partition[] = {
-		to_ram_res(cxlds),
-		to_pmem_res(cxlds),
-	};
-	struct cxl_dpa_perf *perf[] = {
-		to_ram_perf(cxlds),
-		to_pmem_perf(cxlds),
-	};
 
 	xa_for_each(dsmas_xa, index, dent) {
 		bool found = false;
 
-		for (int i = 0; i < ARRAY_SIZE(partition); i++) {
-			const struct resource *res = partition[i];
+		for (int i = 0; i < cxlds->nr_partitions; i++) {
+			struct resource *res = &cxlds->part[i].res;
 			struct range range = {
 				.start = res->start,
 				.end = res->end,
 			};
 
 			if (range_contains(&range, &dent->dpa_range)) {
-				update_perf_entry(dev, dent, perf[i]);
+				update_perf_entry(dev, dent,
+						  &cxlds->part[i].perf);
 				found = true;
 				break;
 			}

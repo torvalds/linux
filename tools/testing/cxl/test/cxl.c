@@ -1001,26 +1001,19 @@ static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)
 	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct access_coordinate ep_c[ACCESS_COORDINATE_MAX];
-	const struct resource *partition[] = {
-		to_ram_res(cxlds),
-		to_pmem_res(cxlds),
-	};
-	struct cxl_dpa_perf *perf[] = {
-		to_ram_perf(cxlds),
-		to_pmem_perf(cxlds),
-	};
 
 	if (!cxl_root)
 		return;
 
-	for (int i = 0; i < ARRAY_SIZE(partition); i++) {
-		const struct resource *res = partition[i];
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		struct resource *res = &cxlds->part[i].res;
+		struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
 		struct range range = {
 			.start = res->start,
 			.end = res->end,
 		};
 
-		dpa_perf_setup(port, &range, perf[i]);
+		dpa_perf_setup(port, &range, perf);
 	}
 
 	cxl_memdev_update_perf(cxlmd);

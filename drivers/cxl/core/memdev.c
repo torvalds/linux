@@ -80,7 +80,7 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = resource_size(to_ram_res(cxlds));
+	unsigned long long len = cxl_ram_size(cxlds);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
