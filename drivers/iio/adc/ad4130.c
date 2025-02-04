@@ -939,8 +939,15 @@ static const struct iio_enum ad4130_filter_mode_enum = {
 };
 
 static const struct iio_chan_spec_ext_info ad4130_filter_mode_ext_info[] = {
+	/*
+	 * Intentional duplication of attributes to keep backwards compatibility
+	 * while standardizing over the main IIO ABI for digital filtering.
+	 */
 	IIO_ENUM("filter_mode", IIO_SEPARATE, &ad4130_filter_mode_enum),
 	IIO_ENUM_AVAILABLE("filter_mode", IIO_SHARED_BY_TYPE,
+			   &ad4130_filter_mode_enum),
+	IIO_ENUM("filter_type", IIO_SEPARATE, &ad4130_filter_mode_enum),
+	IIO_ENUM_AVAILABLE("filter_type", IIO_SHARED_BY_TYPE,
 			   &ad4130_filter_mode_enum),
 	{ }
 };
