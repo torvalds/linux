@@ -5008,6 +5008,7 @@ struct kstatmount {
 	struct statmount __user *buf;
 	size_t bufsize;
 	struct vfsmount *mnt;
+	struct mnt_idmap *idmap;
 	u64 mask;
 	struct path root;
 	struct statmount sm;
@@ -5278,6 +5279,46 @@ static int statmount_opt_sec_array(struct kstatmount *s, struct seq_file *seq)
 	return 0;
 }
 
+static inline int statmount_mnt_uidmap(struct kstatmount *s, struct seq_file *seq)
+{
+	int ret;
+
+	ret = statmount_mnt_idmap(s->idmap, seq, true);
+	if (ret < 0)
+		return ret;
+
+	s->sm.mnt_uidmap_num = ret;
+	/*
+	 * Always raise STATMOUNT_MNT_UIDMAP even if there are no valid
+	 * mappings. This allows userspace to distinguish between a
+	 * non-idmapped mount and an idmapped mount where none of the
+	 * individual mappings are valid in the caller's idmapping.
+	 */
+	if (is_valid_mnt_idmap(s->idmap))
+		s->sm.mask |= STATMOUNT_MNT_UIDMAP;
+	return 0;
+}
+
+static inline int statmount_mnt_gidmap(struct kstatmount *s, struct seq_file *seq)
+{
+	int ret;
+
+	ret = statmount_mnt_idmap(s->idmap, seq, false);
+	if (ret < 0)
+		return ret;
+
+	s->sm.mnt_gidmap_num = ret;
+	/*
+	 * Always raise STATMOUNT_MNT_GIDMAP even if there are no valid
+	 * mappings. This allows userspace to distinguish between a
+	 * non-idmapped mount and an idmapped mount where none of the
+	 * individual mappings are valid in the caller's idmapping.
+	 */
+	if (is_valid_mnt_idmap(s->idmap))
+		s->sm.mask |= STATMOUNT_MNT_GIDMAP;
+	return 0;
+}
+
 static int statmount_string(struct kstatmount *s, u64 flag)
 {
 	int ret = 0;
@@ -5318,6 +5359,14 @@ static int statmount_string(struct kstatmount *s, u64 flag)
 	case STATMOUNT_SB_SOURCE:
 		sm->sb_source = start;
 		ret = statmount_sb_source(s, seq);
+		break;
+	case STATMOUNT_MNT_UIDMAP:
+		sm->mnt_uidmap = start;
+		ret = statmount_mnt_uidmap(s, seq);
+		break;
+	case STATMOUNT_MNT_GIDMAP:
+		sm->mnt_gidmap = start;
+		ret = statmount_mnt_gidmap(s, seq);
 		break;
 	default:
 		WARN_ON_ONCE(true);
@@ -5443,6 +5492,7 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 		return err;
 
 	s->root = root;
+	s->idmap = mnt_idmap(s->mnt);
 	if (s->mask & STATMOUNT_SB_BASIC)
 		statmount_sb_basic(s);
 
@@ -5476,6 +5526,12 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 	if (!err && s->mask & STATMOUNT_SB_SOURCE)
 		err = statmount_string(s, STATMOUNT_SB_SOURCE);
 
+	if (!err && s->mask & STATMOUNT_MNT_UIDMAP)
+		err = statmount_string(s, STATMOUNT_MNT_UIDMAP);
+
+	if (!err && s->mask & STATMOUNT_MNT_GIDMAP)
+		err = statmount_string(s, STATMOUNT_MNT_GIDMAP);
+
 	if (!err && s->mask & STATMOUNT_MNT_NS_ID)
 		statmount_mnt_ns_id(s, ns);
 
@@ -5499,7 +5555,8 @@ static inline bool retry_statmount(const long ret, size_t *seq_size)
 #define STATMOUNT_STRING_REQ (STATMOUNT_MNT_ROOT | STATMOUNT_MNT_POINT | \
 			      STATMOUNT_FS_TYPE | STATMOUNT_MNT_OPTS | \
 			      STATMOUNT_FS_SUBTYPE | STATMOUNT_SB_SOURCE | \
-			      STATMOUNT_OPT_ARRAY | STATMOUNT_OPT_SEC_ARRAY)
+			      STATMOUNT_OPT_ARRAY | STATMOUNT_OPT_SEC_ARRAY | \
+			      STATMOUNT_MNT_UIDMAP | STATMOUNT_MNT_GIDMAP)
 
 static int prepare_kstatmount(struct kstatmount *ks, struct mnt_id_req *kreq,
 			      struct statmount __user *buf, size_t bufsize,

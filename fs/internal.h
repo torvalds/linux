@@ -338,3 +338,4 @@ static inline bool path_mounted(const struct path *path)
 	return path->mnt->mnt_root == path->dentry;
 }
 void file_f_owner_release(struct file *file);
+int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map);
