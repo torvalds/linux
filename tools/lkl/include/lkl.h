@@ -277,17 +277,13 @@ static inline long lkl_sys_select(int n, lkl_fd_set *rfds, lkl_fd_set *wfds,
 {
 	long data[2] = { 0, _LKL_NSIG/8 };
 	struct lkl_timespec ts;
-	lkl_time_t extra_secs;
-	const lkl_time_t max_time = ((1ULL<<8)*sizeof(time_t)-1)-1;
 
 	if (tv) {
 		if (tv->tv_sec < 0 || tv->tv_usec < 0)
 			return -LKL_EINVAL;
 
-		extra_secs = tv->tv_usec / 1000000;
-		ts.tv_nsec = tv->tv_usec % 1000000 * 1000;
-		ts.tv_sec = extra_secs > max_time - tv->tv_sec ?
-			max_time : tv->tv_sec + extra_secs;
+		ts.tv_sec = tv->tv_sec;
+		ts.tv_nsec = tv->tv_usec * 1000;
 	}
 	return lkl_sys_pselect6(n, rfds, wfds, efds, tv ?
 				(struct __lkl__kernel_timespec *)&ts : 0, data);
