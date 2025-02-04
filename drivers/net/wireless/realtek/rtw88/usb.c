@@ -881,7 +881,7 @@ static void rtw_usb_dynamic_rx_agg(struct rtw_dev *rtwdev, bool enable)
 	}
 }
 
-static struct rtw_hci_ops rtw_usb_ops = {
+static const struct rtw_hci_ops rtw_usb_ops = {
 	.tx_write = rtw_usb_tx_write,
 	.tx_kick_off = rtw_usb_tx_kick_off,
 	.setup = rtw_usb_setup,
