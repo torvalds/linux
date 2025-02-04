@@ -2291,6 +2291,14 @@ Description:
 		* "sinc3+pf3" - Sinc3 + device specific Post Filter 3.
 		* "sinc3+pf4" - Sinc3 + device specific Post Filter 4.
 
+What:		/sys/bus/iio/devices/iio:deviceX/filter_type
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY-voltageZ_filter_type
+KernelVersion:	6.1
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Specifies which filter type apply to the channel. The possible
+		values are given by the filter_type_available attribute.
+
 What:		/sys/.../events/in_proximity_thresh_either_runningperiod
 KernelVersion:	6.6
 Contact:	linux-iio@vger.kernel.org
