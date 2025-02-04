@@ -42,6 +42,16 @@ static const struct ast_astdp_mode_index_table_entry ast_astdp_mode_index_table[
 	{ 0 }
 };
 
+struct ast_astdp_connector_state {
+	struct drm_connector_state base;
+};
+
+static struct ast_astdp_connector_state *
+to_ast_astdp_connector_state(const struct drm_connector_state *state)
+{
+	return container_of(state, struct ast_astdp_connector_state, base);
+}
+
 static int __ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdisplay)
 {
 	const struct ast_astdp_mode_index_table_entry *entry = ast_astdp_mode_index_table;
@@ -442,17 +452,57 @@ static const struct drm_connector_helper_funcs ast_astdp_connector_helper_funcs 
 	.detect_ctx = ast_astdp_connector_helper_detect_ctx,
 };
 
+static void ast_astdp_connector_reset(struct drm_connector *connector)
+{
+	struct ast_astdp_connector_state *astdp_state =
+		kzalloc(sizeof(*astdp_state), GFP_KERNEL);
+
+	if (connector->state)
+		connector->funcs->atomic_destroy_state(connector, connector->state);
+
+	if (astdp_state)
+		__drm_atomic_helper_connector_reset(connector, &astdp_state->base);
+	else
+		__drm_atomic_helper_connector_reset(connector, NULL);
+}
+
+static struct drm_connector_state *
+ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
+{
+	struct ast_astdp_connector_state *new_astdp_state;
+	struct drm_device *dev = connector->dev;
+
+	if (drm_WARN_ON(dev, !connector->state))
+		return NULL;
+
+	new_astdp_state = kmalloc(sizeof(*new_astdp_state), GFP_KERNEL);
+	if (!new_astdp_state)
+		return NULL;
+	__drm_atomic_helper_connector_duplicate_state(connector, &new_astdp_state->base);
+
+	return &new_astdp_state->base;
+}
+
+static void ast_astdp_connector_atomic_destroy_state(struct drm_connector *connector,
+						     struct drm_connector_state *state)
+{
+	struct ast_astdp_connector_state *astdp_state = to_ast_astdp_connector_state(state);
+
+	__drm_atomic_helper_connector_destroy_state(&astdp_state->base);
+	kfree(astdp_state);
+}
+
+static const struct drm_connector_funcs ast_astdp_connector_funcs = {
+	.reset = ast_astdp_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = ast_astdp_connector_atomic_duplicate_state,
+	.atomic_destroy_state = ast_astdp_connector_atomic_destroy_state,
+};
+
 /*
  * Output
  */
-
-static const struct drm_connector_funcs ast_astdp_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
 
 int ast_astdp_output_init(struct ast_device *ast)
 {
