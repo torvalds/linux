@@ -111,7 +111,7 @@ static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
 		&crtc_state->hw.adjusted_mode;
 
 	if (!intel_dp_is_uhbr(crtc_state) || DISPLAY_VER(display) >= 20 || !dsc)
-		return INT_MAX;
+		return 0;
 
 	/*
 	 * DSC->DPT interface width:
@@ -270,7 +270,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 	}
 
 	max_dpt_bpp_x16 = fxp_q4_from_int(intel_dp_mst_max_dpt_bpp(crtc_state, dsc));
-	if (max_bpp_x16 > max_dpt_bpp_x16) {
+	if (max_dpt_bpp_x16 && max_bpp_x16 > max_dpt_bpp_x16) {
 		drm_dbg_kms(display->drm, "Limiting bpp to max DPT bpp (" FXP_Q4_FMT " -> " FXP_Q4_FMT ")\n",
 			    FXP_Q4_ARGS(max_bpp_x16), FXP_Q4_ARGS(max_dpt_bpp_x16));
 		max_bpp_x16 = max_dpt_bpp_x16;
