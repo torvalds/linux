@@ -243,6 +243,7 @@
 		battery_power: battery-power {
 			compatible = "x-powers,axp717-battery-power-supply";
 			monitored-battery = <&battery>;
+			x-powers,no-thermistor;
 		};
 
 		regulators {
