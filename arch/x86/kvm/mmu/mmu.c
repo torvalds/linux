@@ -971,7 +971,6 @@ static unsigned long kvm_rmap_get(struct kvm_rmap_head *rmap_head)
  * actual locking is the same, but the caller is disallowed from modifying the
  * rmap, and so the unlock flow is a nop if the rmap is/was empty.
  */
-__maybe_unused
 static unsigned long kvm_rmap_lock_readonly(struct kvm_rmap_head *rmap_head)
 {
 	unsigned long rmap_val;
@@ -985,7 +984,6 @@ static unsigned long kvm_rmap_lock_readonly(struct kvm_rmap_head *rmap_head)
 	return rmap_val;
 }
 
-__maybe_unused
 static void kvm_rmap_unlock_readonly(struct kvm_rmap_head *rmap_head,
 				     unsigned long old_val)
 {
@@ -1706,37 +1704,48 @@ static void rmap_add(struct kvm_vcpu *vcpu, const struct kvm_memory_slot *slot,
 }
 
 static bool kvm_rmap_age_gfn_range(struct kvm *kvm,
-				   struct kvm_gfn_range *range, bool test_only)
+				   struct kvm_gfn_range *range,
+				   bool test_only)
 {
-	struct slot_rmap_walk_iterator iterator;
+	struct kvm_rmap_head *rmap_head;
 	struct rmap_iterator iter;
+	unsigned long rmap_val;
 	bool young = false;
 	u64 *sptep;
+	gfn_t gfn;
+	int level;
+	u64 spte;
 
-	for_each_slot_rmap_range(range->slot, PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
-				 range->start, range->end - 1, &iterator) {
-		for_each_rmap_spte(iterator.rmap, &iter, sptep) {
-			u64 spte = *sptep;
+	for (level = PG_LEVEL_4K; level <= KVM_MAX_HUGEPAGE_LEVEL; level++) {
+		for (gfn = range->start; gfn < range->end;
+		     gfn += KVM_PAGES_PER_HPAGE(level)) {
+			rmap_head = gfn_to_rmap(gfn, level, range->slot);
+			rmap_val = kvm_rmap_lock_readonly(rmap_head);
 
-			if (!is_accessed_spte(spte))
-				continue;
+			for_each_rmap_spte_lockless(rmap_head, &iter, sptep, spte) {
+				if (!is_accessed_spte(spte))
+					continue;
 
-			if (test_only)
-				return true;
+				if (test_only) {
+					kvm_rmap_unlock_readonly(rmap_head, rmap_val);
+					return true;
+				}
 
-			if (spte_ad_enabled(spte)) {
-				clear_bit((ffs(shadow_accessed_mask) - 1),
-					(unsigned long *)sptep);
-			} else {
-				/*
-				 * WARN if mmu_spte_update() signals the need
-				 * for a TLB flush, as Access tracking a SPTE
-				 * should never trigger an _immediate_ flush.
-				 */
-				spte = mark_spte_for_access_track(spte);
-				WARN_ON_ONCE(mmu_spte_update(sptep, spte));
+				if (spte_ad_enabled(spte))
+					clear_bit((ffs(shadow_accessed_mask) - 1),
+						  (unsigned long *)sptep);
+				else
+					/*
+					 * If the following cmpxchg fails, the
+					 * spte is being concurrently modified
+					 * and should most likely stay young.
+					 */
+					cmpxchg64(sptep, spte,
+					      mark_spte_for_access_track(spte));
+				young = true;
 			}
-			young = true;
+
+			kvm_rmap_unlock_readonly(rmap_head, rmap_val);
 		}
 	}
 	return young;
@@ -1754,11 +1763,8 @@ bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	if (tdp_mmu_enabled)
 		young = kvm_tdp_mmu_age_gfn_range(kvm, range);
 
-	if (kvm_may_have_shadow_mmu_sptes(kvm)) {
-		write_lock(&kvm->mmu_lock);
+	if (kvm_may_have_shadow_mmu_sptes(kvm))
 		young |= kvm_rmap_age_gfn_range(kvm, range, false);
-		write_unlock(&kvm->mmu_lock);
-	}
 
 	return young;
 }
@@ -1770,11 +1776,11 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	if (tdp_mmu_enabled)
 		young = kvm_tdp_mmu_test_age_gfn(kvm, range);
 
-	if (!young && kvm_may_have_shadow_mmu_sptes(kvm)) {
-		write_lock(&kvm->mmu_lock);
+	if (young)
+		return young;
+
+	if (kvm_may_have_shadow_mmu_sptes(kvm))
 		young |= kvm_rmap_age_gfn_range(kvm, range, true);
-		write_unlock(&kvm->mmu_lock);
-	}
 
 	return young;
 }
