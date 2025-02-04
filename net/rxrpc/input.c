@@ -448,11 +448,19 @@ static void rxrpc_input_queue_data(struct rxrpc_call *call, struct sk_buff *skb,
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	bool last = sp->hdr.flags & RXRPC_LAST_PACKET;
 
-	skb_queue_tail(&call->recvmsg_queue, skb);
+	spin_lock_irq(&call->recvmsg_queue.lock);
+
+	__skb_queue_tail(&call->recvmsg_queue, skb);
 	rxrpc_input_update_ack_window(call, window, wtop);
 	trace_rxrpc_receive(call, last ? why + 1 : why, sp->hdr.serial, sp->hdr.seq);
 	if (last)
+		/* Change the state inside the lock so that recvmsg syncs
+		 * correctly with it and using sendmsg() to send a reply
+		 * doesn't race.
+		 */
 		rxrpc_end_rx_phase(call, sp->hdr.serial);
+
+	spin_unlock_irq(&call->recvmsg_queue.lock);
 }
 
 /*
