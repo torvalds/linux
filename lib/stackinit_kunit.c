@@ -75,8 +75,10 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
  */
 #ifdef CONFIG_M68K
 #define FILL_SIZE_STRING		8
+#define FILL_SIZE_ARRAY			2
 #else
 #define FILL_SIZE_STRING		16
+#define FILL_SIZE_ARRAY			8
 #endif
 
 #define INIT_CLONE_SCALAR		/**/
@@ -345,7 +347,7 @@ union test_small_start {
 	short three;
 	unsigned long four;
 	struct big_struct {
-		unsigned long array[8];
+		unsigned long array[FILL_SIZE_ARRAY];
 	} big;
 };
 
