@@ -529,6 +529,20 @@ static inline resource_size_t cxl_pmem_size(struct cxl_dev_state *cxlds)
 	return resource_size(res);
 }
 
+/*
+ * Translate the operational mode of memory capacity with the
+ * operational mode of a decoder
+ * TODO: kill 'enum cxl_decoder_mode' to obviate this helper
+ */
+static inline enum cxl_decoder_mode cxl_part_mode(enum cxl_partition_mode mode)
+{
+	if (mode == CXL_PARTMODE_RAM)
+		return CXL_DECODER_RAM;
+	if (mode == CXL_PARTMODE_PMEM)
+		return CXL_DECODER_PMEM;
+	return CXL_DECODER_NONE;
+}
+
 static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
 {
 	return dev_get_drvdata(cxl_mbox->host);
