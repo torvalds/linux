@@ -295,12 +295,12 @@ TRACE_EVENT(write_super,
 
 /* io.c: */
 
-DEFINE_EVENT(bio, read_promote,
+DEFINE_EVENT(bio, io_read_promote,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)
 );
 
-TRACE_EVENT(read_nopromote,
+TRACE_EVENT(io_read_nopromote,
 	TP_PROTO(struct bch_fs *c, int ret),
 	TP_ARGS(c, ret),
 
@@ -319,22 +319,22 @@ TRACE_EVENT(read_nopromote,
 		  __entry->ret)
 );
 
-DEFINE_EVENT(bio, read_bounce,
+DEFINE_EVENT(bio, io_read_bounce,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)
 );
 
-DEFINE_EVENT(bio, read_split,
+DEFINE_EVENT(bio, io_read_split,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)
 );
 
-DEFINE_EVENT(bio, read_retry,
+DEFINE_EVENT(bio, io_read_retry,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)
 );
 
-DEFINE_EVENT(bio, read_reuse_race,
+DEFINE_EVENT(bio, io_read_reuse_race,
 	TP_PROTO(struct bio *bio),
 	TP_ARGS(bio)
 );
@@ -797,32 +797,32 @@ TRACE_EVENT(bucket_invalidate,
 
 /* Moving IO */
 
-DEFINE_EVENT(fs_str, move_extent,
+DEFINE_EVENT(fs_str, io_move,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(fs_str, move_extent_read,
+DEFINE_EVENT(fs_str, io_move_read,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(fs_str, move_extent_write,
+DEFINE_EVENT(fs_str, io_move_write,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(fs_str, move_extent_finish,
+DEFINE_EVENT(fs_str, io_move_finish,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(fs_str, move_extent_fail,
+DEFINE_EVENT(fs_str, io_move_fail,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );
 
-DEFINE_EVENT(fs_str, move_extent_start_fail,
+DEFINE_EVENT(fs_str, io_move_start_fail,
 	TP_PROTO(struct bch_fs *c, const char *str),
 	TP_ARGS(c, str)
 );

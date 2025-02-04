@@ -181,7 +181,7 @@ static noinline void promote_start(struct bch_read_bio *rbio)
 {
 	struct promote_op *op = container_of(rbio, struct promote_op, write.rbio);
 
-	trace_and_count(op->write.op.c, read_promote, &rbio->bio);
+	trace_and_count(op->write.op.c, io_read_promote, &rbio->bio);
 
 	INIT_WORK(&op->work, promote_start_work);
 	queue_work(rbio->c->write_ref_wq, &op->work);
@@ -320,7 +320,7 @@ static struct bch_read_bio *promote_alloc(struct btree_trans *trans,
 	*read_full	= promote_full;
 	return promote;
 nopromote:
-	trace_read_nopromote(c, ret);
+	trace_io_read_nopromote(c, ret);
 	return NULL;
 }
 
@@ -463,7 +463,9 @@ static void bch2_rbio_retry(struct work_struct *work)
 	};
 	struct bch_io_failures failed = { .nr = 0 };
 
-	trace_and_count(c, read_retry, &rbio->bio);
+	trace_io_read_retry(&rbio->bio);
+	this_cpu_add(c->counters[BCH_COUNTER_io_read_retry],
+		     bvec_iter_sectors(rbio->bvec_iter));
 
 	if (rbio->retry == READ_RETRY_AVOID)
 		bch2_mark_io_failure(&failed, &rbio->pick);
@@ -802,7 +804,7 @@ static void bch2_read_endio(struct bio *bio)
 
 	if (((rbio->flags & BCH_READ_retry_if_stale) && race_fault()) ||
 	    (ca && dev_ptr_stale(ca, &rbio->pick.ptr))) {
-		trace_and_count(c, read_reuse_race, &rbio->bio);
+		trace_and_count(c, io_read_reuse_race, &rbio->bio);
 
 		if (rbio->flags & BCH_READ_retry_if_stale)
 			bch2_rbio_error(rbio, READ_RETRY, BLK_STS_AGAIN);
@@ -891,6 +893,8 @@ int __bch2_read_extent(struct btree_trans *trans, struct bch_read_bio *orig,
 		swap(iter.bi_size, bytes);
 		bio_advance_iter(&orig->bio, &iter, bytes);
 		zero_fill_bio_iter(&orig->bio, iter);
+		this_cpu_add(c->counters[BCH_COUNTER_io_read_inline],
+			     bvec_iter_sectors(iter));
 		goto out_read_done;
 	}
 retry_pick:
@@ -1069,10 +1073,12 @@ retry_pick:
 	rbio->bio.bi_end_io	= bch2_read_endio;
 
 	if (rbio->bounce)
-		trace_and_count(c, read_bounce, &rbio->bio);
+		trace_and_count(c, io_read_bounce, &rbio->bio);
 
 	if (!(flags & BCH_READ_data_update))
 		this_cpu_add(c->counters[BCH_COUNTER_io_read], bio_sectors(&rbio->bio));
+	else
+		this_cpu_add(c->counters[BCH_COUNTER_io_move_read], bio_sectors(&rbio->bio));
 	bch2_increment_clock(c, bio_sectors(&rbio->bio), READ);
 
 	/*
@@ -1085,7 +1091,7 @@ retry_pick:
 
 	if (!(flags & (BCH_READ_in_retry|BCH_READ_last_fragment))) {
 		bio_inc_remaining(&orig->bio);
-		trace_and_count(c, read_split, &orig->bio);
+		trace_and_count(c, io_read_split, &orig->bio);
 	}
 
 	/*
@@ -1173,6 +1179,8 @@ err:
 	goto out_read_done;
 
 hole:
+	this_cpu_add(c->counters[BCH_COUNTER_io_read_hole],
+		     bvec_iter_sectors(iter));
 	/*
 	 * won't normally happen in the BCH_READ_data_update
 	 * (bch2_move_extent()) path, but if we retry and the extent we wanted

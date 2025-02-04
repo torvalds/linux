@@ -93,7 +93,7 @@ static bool bkey_nocow_lock(struct bch_fs *c, struct moving_context *ctxt, struc
 	return true;
 }
 
-static noinline void trace_move_extent_finish2(struct data_update *u,
+static noinline void trace_io_move_finish2(struct data_update *u,
 					       struct bkey_i *new,
 					       struct bkey_i *insert)
 {
@@ -113,11 +113,11 @@ static noinline void trace_move_extent_finish2(struct data_update *u,
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 	prt_newline(&buf);
 
-	trace_move_extent_finish(c, buf.buf);
+	trace_io_move_finish(c, buf.buf);
 	printbuf_exit(&buf);
 }
 
-static void trace_move_extent_fail2(struct data_update *m,
+static void trace_io_move_fail2(struct data_update *m,
 			 struct bkey_s_c new,
 			 struct bkey_s_c wrote,
 			 struct bkey_i *insert,
@@ -128,7 +128,7 @@ static void trace_move_extent_fail2(struct data_update *m,
 	struct printbuf buf = PRINTBUF;
 	unsigned rewrites_found = 0;
 
-	if (!trace_move_extent_fail_enabled())
+	if (!trace_io_move_fail_enabled())
 		return;
 
 	prt_str(&buf, msg);
@@ -168,7 +168,7 @@ static void trace_move_extent_fail2(struct data_update *m,
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 	}
 
-	trace_move_extent_fail(c, buf.buf);
+	trace_io_move_fail(c, buf.buf);
 	printbuf_exit(&buf);
 }
 
@@ -216,7 +216,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
 		if (!bch2_extents_match(k, old)) {
-			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i),
+			trace_io_move_fail2(m, k, bkey_i_to_s_c(&new->k_i),
 						NULL, "no match:");
 			goto nowork;
 		}
@@ -256,7 +256,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 		if (m->data_opts.rewrite_ptrs &&
 		    !rewrites_found &&
 		    bch2_bkey_durability(c, k) >= m->op.opts.data_replicas) {
-			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "no rewrites found:");
+			trace_io_move_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "no rewrites found:");
 			goto nowork;
 		}
 
@@ -273,7 +273,7 @@ restart_drop_conflicting_replicas:
 			}
 
 		if (!bkey_val_u64s(&new->k)) {
-			trace_move_extent_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "new replicas conflicted:");
+			trace_io_move_fail2(m, k, bkey_i_to_s_c(&new->k_i), insert, "new replicas conflicted:");
 			goto nowork;
 		}
 
@@ -387,9 +387,9 @@ restart_drop_extra_replicas:
 		if (!ret) {
 			bch2_btree_iter_set_pos(&iter, next_pos);
 
-			this_cpu_add(c->counters[BCH_COUNTER_move_extent_finish], new->k.size);
-			if (trace_move_extent_finish_enabled())
-				trace_move_extent_finish2(m, &new->k_i, insert);
+			this_cpu_add(c->counters[BCH_COUNTER_io_move_finish], new->k.size);
+			if (trace_io_move_finish_enabled())
+				trace_io_move_finish2(m, &new->k_i, insert);
 		}
 err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -411,7 +411,7 @@ nowork:
 				     &m->stats->sectors_raced);
 		}
 
-		count_event(c, move_extent_fail);
+		count_event(c, io_move_fail);
 
 		bch2_btree_iter_advance(&iter);
 		goto next;
@@ -439,7 +439,7 @@ void bch2_data_update_read_done(struct data_update *m)
 	m->op.crc = m->rbio.pick.crc;
 	m->op.wbio.bio.bi_iter.bi_size = m->op.crc.compressed_size << 9;
 
-	this_cpu_add(m->op.c->counters[BCH_COUNTER_move_extent_write], m->k.k->k.size);
+	this_cpu_add(m->op.c->counters[BCH_COUNTER_io_move_write], m->k.k->k.size);
 
 	closure_call(&m->op.cl, bch2_write, NULL, NULL);
 }

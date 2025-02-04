@@ -38,28 +38,28 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k,
+static void trace_io_move2(struct bch_fs *c, struct bkey_s_c k,
 			       struct bch_io_opts *io_opts,
 			       struct data_update_opts *data_opts)
 {
-	if (trace_move_extent_enabled()) {
+	if (trace_io_move_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, k);
 		prt_newline(&buf);
 		bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
-		trace_move_extent(c, buf.buf);
+		trace_io_move(c, buf.buf);
 		printbuf_exit(&buf);
 	}
 }
 
-static void trace_move_extent_read2(struct bch_fs *c, struct bkey_s_c k)
+static void trace_io_move_read2(struct bch_fs *c, struct bkey_s_c k)
 {
-	if (trace_move_extent_read_enabled()) {
+	if (trace_io_move_read_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, k);
-		trace_move_extent_read(c, buf.buf);
+		trace_io_move_read(c, buf.buf);
 		printbuf_exit(&buf);
 	}
 }
@@ -132,12 +132,12 @@ static void move_write(struct moving_io *io)
 		return;
 	}
 
-	if (trace_move_extent_write_enabled()) {
+	if (trace_io_move_write_enabled()) {
 		struct bch_fs *c = io->write.op.c;
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(io->write.k.k));
-		trace_move_extent_write(c, buf.buf);
+		trace_io_move_write(c, buf.buf);
 		printbuf_exit(&buf);
 	}
 
@@ -273,7 +273,8 @@ int bch2_move_extent(struct moving_context *ctxt,
 	struct bch_fs *c = trans->c;
 	int ret = -ENOMEM;
 
-	trace_move_extent2(c, k, &io_opts, &data_opts);
+	trace_io_move2(c, k, &io_opts, &data_opts);
+	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
 
 	if (ctxt->stats)
 		ctxt->stats->pos = BBPOS(iter->btree_id, iter->pos);
@@ -338,9 +339,7 @@ int bch2_move_extent(struct moving_context *ctxt,
 		atomic_inc(&io->b->count);
 	}
 
-	this_cpu_add(c->counters[BCH_COUNTER_io_move], k.k->size);
-	this_cpu_add(c->counters[BCH_COUNTER_move_extent_read], k.k->size);
-	trace_move_extent_read2(c, k);
+	trace_io_move_read2(c, k);
 
 	mutex_lock(&ctxt->lock);
 	atomic_add(io->read_sectors, &ctxt->read_sectors);
@@ -374,15 +373,15 @@ err:
 	    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		return ret;
 
-	count_event(c, move_extent_start_fail);
+	count_event(c, io_move_start_fail);
 
-	if (trace_move_extent_start_fail_enabled()) {
+	if (trace_io_move_start_fail_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, k);
 		prt_str(&buf, ": ");
 		prt_str(&buf, bch2_err_str(ret));
-		trace_move_extent_start_fail(c, buf.buf);
+		trace_io_move_start_fail(c, buf.buf);
 		printbuf_exit(&buf);
 	}
 	return ret;
