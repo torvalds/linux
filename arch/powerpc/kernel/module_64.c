@@ -258,10 +258,6 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 			break;
 		}
 	}
-	if (i == hdr->e_shnum) {
-		pr_err("%s: doesn't contain __patchable_function_entries.\n", me->name);
-		return -ENOEXEC;
-	}
 #endif
 
 	pr_debug("Looks like a total of %lu stubs, max\n", relocs);
