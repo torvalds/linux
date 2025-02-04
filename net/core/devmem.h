@@ -115,6 +115,8 @@ struct net_iov *
 net_devmem_alloc_dmabuf(struct net_devmem_dmabuf_binding *binding);
 void net_devmem_free_dmabuf(struct net_iov *ppiov);
 
+bool net_is_devmem_iov(struct net_iov *niov);
+
 #else
 struct net_devmem_dmabuf_binding;
 
@@ -162,6 +164,11 @@ static inline unsigned long net_iov_virtual_addr(const struct net_iov *niov)
 static inline u32 net_devmem_iov_binding_id(const struct net_iov *niov)
 {
 	return 0;
+}
+
+static inline bool net_is_devmem_iov(struct net_iov *niov)
+{
+	return false;
 }
 #endif
 
