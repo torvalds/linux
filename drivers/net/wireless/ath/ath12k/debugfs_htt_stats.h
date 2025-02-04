@@ -136,6 +136,7 @@ enum ath12k_dbg_htt_ext_stats_type {
 	ATH12K_DBG_HTT_EXT_STATS_SFM_INFO		= 16,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_MU		= 17,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_CCA_STATS		= 19,
+	ATH12K_DBG_HTT_EXT_STATS_TX_SOUNDING_INFO	= 22,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_OBSS_PD_STATS	= 23,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_RX_RATE_EXT	= 30,
 	ATH12K_DBG_HTT_EXT_STATS_PDEV_TX_RATE_TXBF	= 31,
@@ -200,6 +201,7 @@ enum ath12k_dbg_htt_tlv_tag {
 	HTT_STATS_PDEV_CCA_STAT_CUMULATIVE_TAG		= 72,
 	HTT_STATS_PDEV_CCA_COUNTERS_TAG			= 73,
 	HTT_STATS_TX_PDEV_MPDU_STATS_TAG		= 74,
+	HTT_STATS_TX_SOUNDING_STATS_TAG			= 80,
 	HTT_STATS_SCHED_TXQ_SCHED_ORDER_SU_TAG		= 86,
 	HTT_STATS_SCHED_TXQ_SCHED_INELIGIBILITY_TAG	= 87,
 	HTT_STATS_PDEV_OBSS_PD_TAG			= 88,
@@ -1238,6 +1240,82 @@ struct ath12k_htt_pdev_cca_stats_hist_v1_tlv {
 	__le32 num_records;
 	__le32 valid_cca_counters_bitmap;
 	__le32 collection_interval;
+} __packed;
+
+#define ATH12K_HTT_TX_CV_CORR_MAX_NUM_COLUMNS		8
+#define ATH12K_HTT_TX_NUM_AC_MUMIMO_USER_STATS		4
+#define ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS          8
+#define ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS		8
+#define ATH12K_HTT_TX_PDEV_STATS_NUM_BW_COUNTERS	4
+#define ATH12K_HTT_TX_NUM_MCS_CNTRS			12
+#define ATH12K_HTT_TX_NUM_EXTRA_MCS_CNTRS		2
+
+#define ATH12K_HTT_TX_NUM_OF_SOUNDING_STATS_WORDS \
+	(ATH12K_HTT_TX_PDEV_STATS_NUM_BW_COUNTERS * \
+	 ATH12K_HTT_TX_NUM_AX_MUMIMO_USER_STATS)
+
+enum ath12k_htt_txbf_sound_steer_modes {
+	ATH12K_HTT_IMPL_STEER_STATS		= 0,
+	ATH12K_HTT_EXPL_SUSIFS_STEER_STATS	= 1,
+	ATH12K_HTT_EXPL_SURBO_STEER_STATS	= 2,
+	ATH12K_HTT_EXPL_MUSIFS_STEER_STATS	= 3,
+	ATH12K_HTT_EXPL_MURBO_STEER_STATS	= 4,
+	ATH12K_HTT_TXBF_MAX_NUM_OF_MODES	= 5
+};
+
+enum ath12k_htt_stats_sounding_tx_mode {
+	ATH12K_HTT_TX_AC_SOUNDING_MODE		= 0,
+	ATH12K_HTT_TX_AX_SOUNDING_MODE		= 1,
+	ATH12K_HTT_TX_BE_SOUNDING_MODE		= 2,
+	ATH12K_HTT_TX_CMN_SOUNDING_MODE		= 3,
+};
+
+struct ath12k_htt_tx_sounding_stats_tlv {
+	__le32 tx_sounding_mode;
+	__le32 cbf_20[ATH12K_HTT_TXBF_MAX_NUM_OF_MODES];
+	__le32 cbf_40[ATH12K_HTT_TXBF_MAX_NUM_OF_MODES];
+	__le32 cbf_80[ATH12K_HTT_TXBF_MAX_NUM_OF_MODES];
+	__le32 cbf_160[ATH12K_HTT_TXBF_MAX_NUM_OF_MODES];
+	__le32 sounding[ATH12K_HTT_TX_NUM_OF_SOUNDING_STATS_WORDS];
+	__le32 cv_nc_mismatch_err;
+	__le32 cv_fcs_err;
+	__le32 cv_frag_idx_mismatch;
+	__le32 cv_invalid_peer_id;
+	__le32 cv_no_txbf_setup;
+	__le32 cv_expiry_in_update;
+	__le32 cv_pkt_bw_exceed;
+	__le32 cv_dma_not_done_err;
+	__le32 cv_update_failed;
+	__le32 cv_total_query;
+	__le32 cv_total_pattern_query;
+	__le32 cv_total_bw_query;
+	__le32 cv_invalid_bw_coding;
+	__le32 cv_forced_sounding;
+	__le32 cv_standalone_sounding;
+	__le32 cv_nc_mismatch;
+	__le32 cv_fb_type_mismatch;
+	__le32 cv_ofdma_bw_mismatch;
+	__le32 cv_bw_mismatch;
+	__le32 cv_pattern_mismatch;
+	__le32 cv_preamble_mismatch;
+	__le32 cv_nr_mismatch;
+	__le32 cv_in_use_cnt_exceeded;
+	__le32 cv_found;
+	__le32 cv_not_found;
+	__le32 sounding_320[ATH12K_HTT_TX_NUM_BE_MUMIMO_USER_STATS];
+	__le32 cbf_320[ATH12K_HTT_TXBF_MAX_NUM_OF_MODES];
+	__le32 cv_ntbr_sounding;
+	__le32 cv_found_upload_in_progress;
+	__le32 cv_expired_during_query;
+	__le32 cv_dma_timeout_error;
+	__le32 cv_buf_ibf_uploads;
+	__le32 cv_buf_ebf_uploads;
+	__le32 cv_buf_received;
+	__le32 cv_buf_fed_back;
+	__le32 cv_total_query_ibf;
+	__le32 cv_found_ibf;
+	__le32 cv_not_found_ibf;
+	__le32 cv_expired_during_query_ibf;
 } __packed;
 
 struct ath12k_htt_pdev_obss_pd_stats_tlv {
