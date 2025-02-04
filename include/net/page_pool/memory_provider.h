@@ -18,4 +18,23 @@ struct memory_provider_ops {
 	void (*uninstall)(void *mp_priv, struct netdev_rx_queue *rxq);
 };
 
+bool net_mp_niov_set_dma_addr(struct net_iov *niov, dma_addr_t addr);
+void net_mp_niov_set_page_pool(struct page_pool *pool, struct net_iov *niov);
+void net_mp_niov_clear_page_pool(struct net_iov *niov);
+
+/**
+  * net_mp_netmem_place_in_cache() - give a netmem to a page pool
+  * @pool:      the page pool to place the netmem into
+  * @netmem:    netmem to give
+  *
+  * Push an accounted netmem into the page pool's allocation cache. The caller
+  * must ensure that there is space in the cache. It should only be called off
+  * the mp_ops->alloc_netmems() path.
+  */
+static inline void net_mp_netmem_place_in_cache(struct page_pool *pool,
+						netmem_ref netmem)
+{
+	pool->alloc.cache[pool->alloc.count++] = netmem;
+}
+
 #endif
