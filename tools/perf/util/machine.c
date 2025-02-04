@@ -886,26 +886,6 @@ size_t machines__fprintf_dsos_buildid(struct machines *machines, FILE *fp,
 	return ret;
 }
 
-size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp)
-{
-	int i;
-	size_t printed = 0;
-	struct dso *kdso = machine__kernel_dso(machine);
-
-	if (dso__has_build_id(kdso)) {
-		char filename[PATH_MAX];
-
-		if (dso__build_id_filename(kdso, filename, sizeof(filename), false))
-			printed += fprintf(fp, "[0] %s\n", filename);
-	}
-
-	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
-		printed += fprintf(fp, "[%d] %s\n", i + dso__has_build_id(kdso),
-				   vmlinux_path[i]);
-	}
-	return printed;
-}
-
 struct machine_fprintf_cb_args {
 	FILE *fp;
 	size_t printed;
