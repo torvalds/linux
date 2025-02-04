@@ -174,6 +174,30 @@ static int exynos_usi_configure(struct exynos_usi *usi)
 	return 0;
 }
 
+static void exynos_usi_unconfigure(void *data)
+{
+	struct exynos_usi *usi = data;
+	u32 val;
+	int ret;
+
+	ret = clk_bulk_prepare_enable(usi->data->num_clks, usi->clks);
+	if (ret)
+		return;
+
+	/* Make sure that we've stopped providing the clock to USI IP */
+	val = readl(usi->regs + USI_OPTION);
+	val &= ~USI_OPTION_CLKREQ_ON;
+	val |= ~USI_OPTION_CLKSTOP_ON;
+	writel(val, usi->regs + USI_OPTION);
+
+	/* Set USI block state to reset */
+	val = readl(usi->regs + USI_CON);
+	val |= USI_CON_RESET;
+	writel(val, usi->regs + USI_CON);
+
+	clk_bulk_disable_unprepare(usi->data->num_clks, usi->clks);
+}
+
 static int exynos_usi_parse_dt(struct device_node *np, struct exynos_usi *usi)
 {
 	int ret;
@@ -248,6 +272,10 @@ static int exynos_usi_probe(struct platform_device *pdev)
 	}
 
 	ret = exynos_usi_configure(usi);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(&pdev->dev, exynos_usi_unconfigure, usi);
 	if (ret)
 		return ret;
 
