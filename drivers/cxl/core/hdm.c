@@ -332,9 +332,9 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	else if (resource_contains(&cxlds->ram_res, res))
 		cxled->mode = CXL_DECODER_RAM;
 	else {
-		dev_warn(dev, "decoder%d.%d: %pr mixed mode not supported\n",
-			 port->id, cxled->cxld.id, cxled->dpa_res);
-		cxled->mode = CXL_DECODER_MIXED;
+		dev_warn(dev, "decoder%d.%d: %pr does not map any partition\n",
+			 port->id, cxled->cxld.id, res);
+		cxled->mode = CXL_DECODER_NONE;
 	}
 
 	port->hdm_end++;

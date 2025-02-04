@@ -380,7 +380,6 @@ enum cxl_decoder_mode {
 	CXL_DECODER_NONE,
 	CXL_DECODER_RAM,
 	CXL_DECODER_PMEM,
-	CXL_DECODER_MIXED,
 	CXL_DECODER_DEAD,
 };
 
@@ -390,10 +389,9 @@ static inline const char *cxl_decoder_mode_name(enum cxl_decoder_mode mode)
 		[CXL_DECODER_NONE] = "none",
 		[CXL_DECODER_RAM] = "ram",
 		[CXL_DECODER_PMEM] = "pmem",
-		[CXL_DECODER_MIXED] = "mixed",
 	};
 
-	if (mode >= CXL_DECODER_NONE && mode <= CXL_DECODER_MIXED)
+	if (mode >= CXL_DECODER_NONE && mode < CXL_DECODER_DEAD)
 		return names[mode];
 	return "mixed";
 }

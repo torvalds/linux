@@ -2738,18 +2738,6 @@ static int poison_by_decoder(struct device *dev, void *arg)
 	if (!cxled->dpa_res || !resource_size(cxled->dpa_res))
 		return rc;
 
-	/*
-	 * Regions are only created with single mode decoders: pmem or ram.
-	 * Linux does not support mixed mode decoders. This means that
-	 * reading poison per endpoint decoder adheres to the requirement
-	 * that poison reads of pmem and ram must be separated.
-	 * CXL 3.0 Spec 8.2.9.8.4.1
-	 */
-	if (cxled->mode == CXL_DECODER_MIXED) {
-		dev_dbg(dev, "poison list read unsupported in mixed mode\n");
-		return rc;
-	}
-
 	cxlmd = cxled_to_memdev(cxled);
 	if (cxled->skip) {
 		offset = cxled->dpa_res->start - cxled->skip;
