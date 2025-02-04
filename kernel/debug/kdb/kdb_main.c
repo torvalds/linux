@@ -105,7 +105,7 @@ static kdbmsg_t kdbmsgs[] = {
 	KDBMSG(NOENVVALUE, "Environment variable should have value"),
 	KDBMSG(NOTIMP, "Command not implemented"),
 	KDBMSG(ENVFULL, "Environment full"),
-	KDBMSG(ENVBUFFULL, "Environment buffer full"),
+	KDBMSG(KMALLOCFAILED, "Failed to allocate memory"),
 	KDBMSG(TOOMANYBPT, "Too many breakpoints defined"),
 #ifdef CONFIG_CPU_XSCALE
 	KDBMSG(TOOMANYDBREGS, "More breakpoints than ibcr registers defined"),
@@ -130,13 +130,9 @@ static const int __nkdb_err = ARRAY_SIZE(kdbmsgs);
 
 
 /*
- * Initial environment.   This is all kept static and local to
- * this file.   We don't want to rely on the memory allocation
- * mechanisms in the kernel, so we use a very limited allocate-only
- * heap for new and altered environment variables.  The entire
- * environment is limited to a fixed number of entries (add more
- * to __env[] if required) and a fixed amount of heap (add more to
- * KDB_ENVBUFSIZE if required).
+ * Initial environment. This is all kept static and local to this file.
+ * The entire environment is limited to a fixed number of entries
+ * (add more to __env[] if required)
  */
 
 static char *__env[31] = {
@@ -259,35 +255,6 @@ char *kdbgetenv(const char *match)
 }
 
 /*
- * kdballocenv - This function is used to allocate bytes for
- *	environment entries.
- * Parameters:
- *	bytes	The number of bytes to allocate in the static buffer.
- * Returns:
- *	A pointer to the allocated space in the buffer on success.
- *	NULL if bytes > size available in the envbuffer.
- * Remarks:
- *	We use a static environment buffer (envbuffer) to hold the values
- *	of dynamically generated environment variables (see kdb_set).  Buffer
- *	space once allocated is never free'd, so over time, the amount of space
- *	(currently 512 bytes) will be exhausted if env variables are changed
- *	frequently.
- */
-static char *kdballocenv(size_t bytes)
-{
-#define	KDB_ENVBUFSIZE	512
-	static char envbuffer[KDB_ENVBUFSIZE];
-	static int envbufsize;
-	char *ep = NULL;
-
-	if ((KDB_ENVBUFSIZE - envbufsize) >= bytes) {
-		ep = &envbuffer[envbufsize];
-		envbufsize += bytes;
-	}
-	return ep;
-}
-
-/*
  * kdbgetulenv - This function will return the value of an unsigned
  *	long-valued environment variable.
  * Parameters:
@@ -348,9 +315,9 @@ static int kdb_setenv(const char *var, const char *val)
 
 	varlen = strlen(var);
 	vallen = strlen(val);
-	ep = kdballocenv(varlen + vallen + 2);
-	if (ep == (char *)0)
-		return KDB_ENVBUFFULL;
+	ep = kmalloc(varlen + vallen + 2, GFP_KDB);
+	if (!ep)
+		return KDB_KMALLOCFAILED;
 
 	sprintf(ep, "%s=%s", var, val);
 
@@ -359,6 +326,7 @@ static int kdb_setenv(const char *var, const char *val)
 		 && ((strncmp(__env[i], var, varlen) == 0)
 		   && ((__env[i][varlen] == '\0')
 		    || (__env[i][varlen] == '=')))) {
+			kfree_const(__env[i]);
 			__env[i] = ep;
 			return 0;
 		}
