@@ -52,7 +52,7 @@ to_ast_astdp_connector_state(const struct drm_connector_state *state)
 	return container_of(state, struct ast_astdp_connector_state, base);
 }
 
-static int __ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdisplay)
+static int ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdisplay)
 {
 	const struct ast_astdp_mode_index_table_entry *entry = ast_astdp_mode_index_table;
 
@@ -63,35 +63,6 @@ static int __ast_astdp_get_mode_index(unsigned int hdisplay, unsigned int vdispl
 	}
 
 	return -EINVAL;
-}
-
-static int ast_astdp_get_mode_index(const struct ast_vbios_enhtable *vmode)
-{
-	int mode_index;
-	u8 refresh_rate_index;
-
-	mode_index = __ast_astdp_get_mode_index(vmode->hde, vmode->vde);
-	if (mode_index < 0)
-		return mode_index;
-
-	if (vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255)
-		return -EINVAL;
-	refresh_rate_index = vmode->refresh_rate_index - 1;
-
-	/* FIXME: Why are we doing this? */
-	switch (mode_index) {
-	case ASTDP_1280x800_60_RB:
-	case ASTDP_1440x900_60_RB:
-	case ASTDP_1600x900_60_RB:
-	case ASTDP_1680x1050_60_RB:
-		mode_index = (u8)(mode_index - (u8)refresh_rate_index);
-		break;
-	default:
-		mode_index = (u8)(mode_index + (u8)refresh_rate_index);
-		break;
-	}
-
-	return mode_index;
 }
 
 static bool ast_astdp_is_connected(struct ast_device *ast)
@@ -333,12 +304,31 @@ static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder
 	struct drm_device *dev = encoder->dev;
 	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
+	const struct ast_vbios_enhtable *vmode = ast_crtc_state->vmode;
 	int mode_index;
+	u8 refresh_rate_index;
 	u8 vgacre0, vgacre1, vgacre2;
 
-	mode_index = ast_astdp_get_mode_index(ast_crtc_state->vmode);
+	mode_index = ast_astdp_get_mode_index(vmode->hde, vmode->vde);
 	if (drm_WARN_ON(dev, mode_index < 0))
 		return;
+
+	if (drm_WARN_ON(dev, vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255))
+		return;
+	refresh_rate_index = vmode->refresh_rate_index - 1;
+
+	/* FIXME: Why are we doing this? */
+	switch (mode_index) {
+	case ASTDP_1280x800_60_RB:
+	case ASTDP_1440x900_60_RB:
+	case ASTDP_1600x900_60_RB:
+	case ASTDP_1680x1050_60_RB:
+		mode_index = (u8)(mode_index - (u8)refresh_rate_index);
+		break;
+	default:
+		mode_index = (u8)(mode_index + (u8)refresh_rate_index);
+		break;
+	}
 
 	/*
 	 * CRE0[7:0]: MISC0 ((0x00: 18-bpp) or (0x20: 24-bpp)
