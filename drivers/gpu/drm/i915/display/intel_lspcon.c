@@ -126,7 +126,7 @@ static u32 get_hdr_status_reg(struct intel_lspcon *lspcon)
 		return DPCD_PARADE_LSPCON_HDR_STATUS;
 }
 
-bool lspcon_detect_hdr_capability(struct intel_digital_port *dig_port)
+bool intel_lspcon_detect_hdr_capability(struct intel_digital_port *dig_port)
 {
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
@@ -661,14 +661,14 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 	return val;
 }
 
-void lspcon_wait_pcon_mode(struct intel_digital_port *dig_port)
+void intel_lspcon_wait_pcon_mode(struct intel_digital_port *dig_port)
 {
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
 
 	lspcon_wait_mode(lspcon, DRM_LSPCON_MODE_PCON);
 }
 
-bool lspcon_init(struct intel_digital_port *dig_port)
+bool intel_lspcon_init(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_dp *intel_dp = &dig_port->dp;
@@ -714,7 +714,7 @@ u32 intel_lspcon_infoframes_enabled(struct intel_encoder *encoder,
 	return dig_port->infoframes_enabled(encoder, pipe_config);
 }
 
-void lspcon_resume(struct intel_digital_port *dig_port)
+void intel_lspcon_resume(struct intel_digital_port *dig_port)
 {
 	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_lspcon *lspcon = &dig_port->lspcon;
@@ -724,7 +724,7 @@ void lspcon_resume(struct intel_digital_port *dig_port)
 		return;
 
 	if (!lspcon->active) {
-		if (!lspcon_init(dig_port)) {
+		if (!intel_lspcon_init(dig_port)) {
 			drm_err(display->drm, "LSPCON init failed on port %c\n",
 				port_name(dig_port->base.port));
 			return;

@@ -3521,7 +3521,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 	} else {
 		struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
-		lspcon_resume(dig_port);
+		intel_lspcon_resume(dig_port);
 
 		/* Write the source OUI as early as possible */
 		intel_dp_init_source_oui(intel_dp);
@@ -3538,7 +3538,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 		}
 
 		if (ret == 1 && intel_lspcon_active(dig_port))
-			lspcon_wait_pcon_mode(dig_port);
+			intel_lspcon_wait_pcon_mode(dig_port);
 	}
 
 	if (ret != 1)
@@ -5388,7 +5388,7 @@ intel_dp_detect_dpcd(struct intel_dp *intel_dp)
 	if (drm_WARN_ON(display->drm, intel_dp_is_edp(intel_dp)))
 		return connector_status_connected;
 
-	lspcon_resume(dig_port);
+	intel_lspcon_resume(dig_port);
 
 	if (!intel_dp_get_dpcd(intel_dp))
 		return connector_status_disconnected;
@@ -5883,8 +5883,8 @@ intel_dp_connector_register(struct drm_connector *connector)
 	 * ToDo: Clean this up to handle lspcon init and resume more
 	 * efficiently and streamlined.
 	 */
-	if (lspcon_init(dig_port)) {
-		if (lspcon_detect_hdr_capability(dig_port))
+	if (intel_lspcon_init(dig_port)) {
+		if (intel_lspcon_detect_hdr_capability(dig_port))
 			drm_connector_attach_hdr_output_metadata_property(connector);
 	}
 
