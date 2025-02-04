@@ -54,6 +54,7 @@ struct rk_rng {
 	void __iomem *base;
 	int clk_num;
 	struct clk_bulk_data *clk_bulks;
+	struct device *dev;
 };
 
 /* The mask in the upper 16 bits determines the bits that are updated */
@@ -70,8 +71,7 @@ static int rk_rng_init(struct hwrng *rng)
 	/* start clocks */
 	ret = clk_bulk_prepare_enable(rk_rng->clk_num, rk_rng->clk_bulks);
 	if (ret < 0) {
-		dev_err((struct device *) rk_rng->rng.priv,
-			"Failed to enable clks %d\n", ret);
+		dev_err(rk_rng->dev, "Failed to enable clocks: %d\n", ret);
 		return ret;
 	}
 
@@ -105,7 +105,7 @@ static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	u32 reg;
 	int ret = 0;
 
-	ret = pm_runtime_resume_and_get((struct device *) rk_rng->rng.priv);
+	ret = pm_runtime_resume_and_get(rk_rng->dev);
 	if (ret < 0)
 		return ret;
 
@@ -122,8 +122,8 @@ static int rk_rng_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 	/* Read random data stored in the registers */
 	memcpy_fromio(buf, rk_rng->base + TRNG_RNG_DOUT, to_read);
 out:
-	pm_runtime_mark_last_busy((struct device *) rk_rng->rng.priv);
-	pm_runtime_put_sync_autosuspend((struct device *) rk_rng->rng.priv);
+	pm_runtime_mark_last_busy(rk_rng->dev);
+	pm_runtime_put_sync_autosuspend(rk_rng->dev);
 
 	return (ret < 0) ? ret : to_read;
 }
@@ -164,7 +164,7 @@ static int rk_rng_probe(struct platform_device *pdev)
 		rk_rng->rng.cleanup = rk_rng_cleanup;
 	}
 	rk_rng->rng.read = rk_rng_read;
-	rk_rng->rng.priv = (unsigned long) dev;
+	rk_rng->dev = dev;
 	rk_rng->rng.quality = 900;
 
 	pm_runtime_set_autosuspend_delay(dev, RK_RNG_AUTOSUSPEND_DELAY);
