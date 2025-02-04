@@ -117,8 +117,8 @@ TEST_PROGS := test_kmod.sh \
 	test_xsk.sh \
 	test_xdp_features.sh
 
-TEST_PROGS_EXTENDED := with_addr.sh \
-	with_tunnels.sh ima_setup.sh verify_sig_setup.sh \
+TEST_PROGS_EXTENDED := \
+	ima_setup.sh verify_sig_setup.sh \
 	test_xdp_vlan.sh test_bpftool.py
 
 TEST_KMODS := bpf_testmod.ko bpf_test_no_cfi.ko bpf_test_modorder_x.ko \
