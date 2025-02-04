@@ -550,11 +550,10 @@ static int ad7124_disable_one(struct ad_sigma_delta *sd, unsigned int chan)
 
 static int ad7124_disable_all(struct ad_sigma_delta *sd)
 {
-	struct ad7124_state *st = container_of(sd, struct ad7124_state, sd);
 	int ret;
 	int i;
 
-	for (i = 0; i < st->num_channels; i++) {
+	for (i = 0; i < 16; i++) {
 		ret = ad7124_disable_one(sd, i);
 		if (ret < 0)
 			return ret;
@@ -1017,10 +1016,9 @@ static int ad7124_setup(struct ad7124_state *st)
 		 * set all channels to this default value.
 		 */
 		ad7124_set_channel_odr(st, i, 10);
-
-		/* Disable all channels to prevent unintended conversions. */
-		ad_sd_write_reg(&st->sd, AD7124_CHANNEL(i), 2, 0);
 	}
+
+	ad7124_disable_all(&st->sd);
 
 	ret = ad_sd_write_reg(&st->sd, AD7124_ADC_CONTROL, 2, st->adc_control);
 	if (ret < 0)
