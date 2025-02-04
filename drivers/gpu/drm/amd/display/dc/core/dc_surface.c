@@ -270,8 +270,8 @@ void dc_3dlut_func_retain(struct dc_3dlut *lut)
 	kref_get(&lut->refcount);
 }
 
-void dc_plane_force_update_for_panic(struct dc_plane_state *plane_state,
-				     bool clear_tiling)
+void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
+					   bool clear_tiling)
 {
 	struct dc *dc;
 	int i;

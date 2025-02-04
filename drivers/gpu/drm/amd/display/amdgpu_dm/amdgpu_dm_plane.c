@@ -1430,7 +1430,7 @@ static void amdgpu_dm_plane_panic_flush(struct drm_plane *plane)
 
 	dc_plane_state = dm_plane_state->dc_state;
 
-	dc_plane_force_update_for_panic(dc_plane_state, fb->modifier ? true : false);
+	dc_plane_force_dcc_and_tiling_disable(dc_plane_state, fb->modifier ? true : false);
 }
 
 static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
