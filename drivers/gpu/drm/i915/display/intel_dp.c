@@ -3519,9 +3519,10 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 
 		ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_SET_POWER, mode);
 	} else {
+		struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 		struct intel_lspcon *lspcon = dp_to_lspcon(intel_dp);
 
-		lspcon_resume(dp_to_dig_port(intel_dp));
+		lspcon_resume(dig_port);
 
 		/* Write the source OUI as early as possible */
 		intel_dp_init_source_oui(intel_dp);
@@ -3537,7 +3538,7 @@ void intel_dp_set_power(struct intel_dp *intel_dp, u8 mode)
 			msleep(1);
 		}
 
-		if (ret == 1 && lspcon->active)
+		if (ret == 1 && intel_lspcon_active(dig_port))
 			lspcon_wait_pcon_mode(lspcon);
 	}
 
@@ -5588,7 +5589,7 @@ intel_dp_update_420(struct intel_dp *intel_dp)
 						  intel_dp->downstream_ports);
 	/* on-board LSPCON always assumed to support 4:4:4->4:2:0 conversion */
 	intel_dp->dfp.ycbcr_444_to_420 =
-		dp_to_dig_port(intel_dp)->lspcon.active ||
+		intel_lspcon_active(dp_to_dig_port(intel_dp)) ||
 		drm_dp_downstream_444_to_420_conversion(intel_dp->dpcd,
 							intel_dp->downstream_ports);
 	intel_dp->dfp.rgb_to_ycbcr =

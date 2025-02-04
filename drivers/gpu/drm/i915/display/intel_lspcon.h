@@ -16,6 +16,7 @@ struct intel_encoder;
 struct intel_lspcon;
 
 bool lspcon_init(struct intel_digital_port *dig_port);
+bool intel_lspcon_active(struct intel_digital_port *dig_port);
 void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon);
 void lspcon_resume(struct intel_digital_port *dig_port);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);

@@ -689,6 +689,13 @@ bool lspcon_init(struct intel_digital_port *dig_port)
 	return true;
 }
 
+bool intel_lspcon_active(struct intel_digital_port *dig_port)
+{
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
+
+	return lspcon->active;
+}
+
 u32 intel_lspcon_infoframes_enabled(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *pipe_config)
 {
