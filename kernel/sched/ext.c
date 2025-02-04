@@ -1469,6 +1469,11 @@ struct scx_event_stats {
 	u64		SCX_EV_ENQ_SKIP_EXITING;
 
 	/*
+	 * The number of tasks dispatched in the bypassing mode.
+	 */
+	u64		SCX_EV_BYPASS_DISPATCH;
+
+	/*
 	 * The number of times the bypassing mode has been activated.
 	 */
 	u64		SCX_EV_BYPASS_ACTIVATE;
@@ -2071,8 +2076,10 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 	if (!scx_rq_online(rq))
 		goto local;
 
-	if (scx_rq_bypassing(rq))
+	if (scx_rq_bypassing(rq)) {
+		__scx_add_event(SCX_EV_BYPASS_DISPATCH, 1);
 		goto global;
+	}
 
 	if (p->scx.ddsp_dsq_id != SCX_DSQ_INVALID)
 		goto direct;
@@ -3253,6 +3260,8 @@ bool scx_prio_less(const struct task_struct *a, const struct task_struct *b,
 
 static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flags)
 {
+	bool rq_bypass;
+
 	/*
 	 * sched_exec() calls with %WF_EXEC when @p is about to exec(2) as it
 	 * can be a good migration opportunity with low cache and memory
@@ -3266,7 +3275,8 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 	if (unlikely(wake_flags & WF_EXEC))
 		return prev_cpu;
 
-	if (SCX_HAS_OP(select_cpu) && !scx_rq_bypassing(task_rq(p))) {
+	rq_bypass = scx_rq_bypassing(task_rq(p));
+	if (SCX_HAS_OP(select_cpu) && !rq_bypass) {
 		s32 cpu;
 		struct task_struct **ddsp_taskp;
 
@@ -3292,6 +3302,9 @@ static int select_task_rq_scx(struct task_struct *p, int prev_cpu, int wake_flag
 			p->scx.slice = SCX_SLICE_DFL;
 			p->scx.ddsp_dsq_id = SCX_DSQ_LOCAL;
 		}
+
+		if (rq_bypass)
+			__scx_add_event(SCX_EV_BYPASS_DISPATCH, 1);
 		return cpu;
 	}
 }
@@ -5000,6 +5013,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
 	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_EXITING);
+	scx_dump_event(s, &events, SCX_EV_BYPASS_DISPATCH);
 	scx_dump_event(s, &events, SCX_EV_BYPASS_ACTIVATE);
 
 	if (seq_buf_has_overflowed(&s) && dump_len >= sizeof(trunc_marker))
@@ -7138,6 +7152,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_DISPATCH);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_BYPASS_ACTIVATE);
 	}
 
