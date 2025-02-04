@@ -1320,6 +1320,7 @@ static void exynos_ufs_fmp_init(struct ufs_hba *hba, struct exynos_ufs *ufs)
 		return;
 	}
 	profile->max_dun_bytes_supported = AES_BLOCK_SIZE;
+	profile->key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	profile->dev = hba->dev;
 	profile->modes_supported[BLK_ENCRYPTION_MODE_AES_256_XTS] =
 		DATA_UNIT_SIZE;
@@ -1366,7 +1367,7 @@ static int exynos_ufs_fmp_fill_prdt(struct ufs_hba *hba,
 				    void *prdt, unsigned int num_segments)
 {
 	struct fmp_sg_entry *fmp_prdt = prdt;
-	const u8 *enckey = crypt_ctx->bc_key->raw;
+	const u8 *enckey = crypt_ctx->bc_key->bytes;
 	const u8 *twkey = enckey + AES_KEYSIZE_256;
 	u64 dun_lo = crypt_ctx->bc_dun[0];
 	u64 dun_hi = crypt_ctx->bc_dun[1];
