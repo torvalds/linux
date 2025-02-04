@@ -1359,7 +1359,6 @@ static struct bnxt_re_dev *bnxt_re_dev_add(struct auxiliary_device *adev,
 		return NULL;
 	}
 	/* Default values */
-	rdev->nb.notifier_call = NULL;
 	rdev->netdev = en_dev->net;
 	rdev->en_dev = en_dev;
 	rdev->adev = adev;
@@ -2354,15 +2353,6 @@ exit:
 static void bnxt_re_remove_device(struct bnxt_re_dev *rdev, u8 op_type,
 				  struct auxiliary_device *aux_dev)
 {
-	if (rdev->nb.notifier_call) {
-		unregister_netdevice_notifier(&rdev->nb);
-		rdev->nb.notifier_call = NULL;
-	} else {
-		/* If notifier is null, we should have already done a
-		 * clean up before coming here.
-		 */
-		return;
-	}
 	bnxt_re_setup_cc(rdev, false);
 	ib_unregister_device(&rdev->ibdev);
 	bnxt_re_dev_uninit(rdev, op_type);
