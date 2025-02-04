@@ -964,7 +964,7 @@ static void rtw8822b_set_tx_power_index(struct rtw_dev *rtwdev)
 	int rs, path;
 
 	for (path = 0; path < hal->rf_path_num; path++) {
-		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
+		for (rs = 0; rs < RTW_RATE_SECTION_NUM; rs++)
 			rtw8822b_set_tx_power_index_by_rate(rtwdev, path, rs,
 							    &phy_pwr_idx);
 	}

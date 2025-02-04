@@ -168,7 +168,7 @@ enum rtw_rate_section {
 	RTW_RATE_SECTION_VHT_2S,
 
 	/* keep last */
-	RTW_RATE_SECTION_MAX,
+	RTW_RATE_SECTION_NUM,
 };
 
 enum rtw_wireless_set {
@@ -1937,7 +1937,7 @@ union rtw_sar_cfg {
 
 struct rtw_sar {
 	enum rtw_sar_sources src;
-	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_MAX];
+	union rtw_sar_cfg cfg[RTW_RF_PATH_MAX][RTW_RATE_SECTION_NUM];
 };
 
 struct rtw_hal {
@@ -1981,16 +1981,16 @@ struct rtw_hal {
 	s8 tx_pwr_by_rate_offset_5g[RTW_RF_PATH_MAX]
 				   [DESC_RATE_MAX];
 	s8 tx_pwr_by_rate_base_2g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_by_rate_base_5g[RTW_RF_PATH_MAX]
-				 [RTW_RATE_SECTION_MAX];
+				 [RTW_RATE_SECTION_NUM];
 	s8 tx_pwr_limit_2g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_2G];
 	s8 tx_pwr_limit_5g[RTW_REGD_MAX]
 			  [RTW_CHANNEL_WIDTH_MAX]
-			  [RTW_RATE_SECTION_MAX]
+			  [RTW_RATE_SECTION_NUM]
 			  [RTW_MAX_CHANNEL_NUM_5G];
 	s8 tx_pwr_tbl[RTW_RF_PATH_MAX]
 		     [DESC_RATE_MAX];

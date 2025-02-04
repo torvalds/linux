@@ -88,14 +88,14 @@ const u8 rtw_vht_2s_rates[] = {
 	DESC_RATEVHT2SS_MCS8, DESC_RATEVHT2SS_MCS9
 };
 
-const u8 * const rtw_rate_section[RTW_RATE_SECTION_MAX] = {
+const u8 * const rtw_rate_section[RTW_RATE_SECTION_NUM] = {
 	rtw_cck_rates, rtw_ofdm_rates,
 	rtw_ht_1s_rates, rtw_ht_2s_rates,
 	rtw_vht_1s_rates, rtw_vht_2s_rates
 };
 EXPORT_SYMBOL(rtw_rate_section);
 
-const u8 rtw_rate_size[RTW_RATE_SECTION_MAX] = {
+const u8 rtw_rate_size[RTW_RATE_SECTION_NUM] = {
 	ARRAY_SIZE(rtw_cck_rates),
 	ARRAY_SIZE(rtw_ofdm_rates),
 	ARRAY_SIZE(rtw_ht_1s_rates),
@@ -1596,7 +1596,7 @@ static void rtw_phy_set_tx_power_limit(struct rtw_dev *rtwdev, u8 regd, u8 band,
 	ch_idx = rtw_channel_to_idx(band, ch);
 
 	if (regd >= RTW_REGD_MAX || bw >= RTW_CHANNEL_WIDTH_MAX ||
-	    rs >= RTW_RATE_SECTION_MAX || ch_idx < 0) {
+	    rs >= RTW_RATE_SECTION_NUM || ch_idx < 0) {
 		WARN(1,
 		     "wrong txpwr_lmt regd=%u, band=%u bw=%u, rs=%u, ch_idx=%u, pwr_limit=%d\n",
 		     regd, band, bw, rs, ch_idx, pwr_limit);
@@ -1701,7 +1701,7 @@ rtw_cfg_txpwr_lmt_by_alt(struct rtw_dev *rtwdev, u8 regd, u8 regd_alt)
 	u8 bw, rs;
 
 	for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
-		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
+		for (rs = 0; rs < RTW_RATE_SECTION_NUM; rs++)
 			__cfg_txpwr_lmt_by_alt(&rtwdev->hal, regd, regd_alt,
 					       bw, rs);
 }
@@ -2060,7 +2060,7 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 	return tx_power;
 }
 
-/* return RTW_RATE_SECTION_MAX to indicate rate is invalid */
+/* return RTW_RATE_SECTION_NUM to indicate rate is invalid */
 static u8 rtw_phy_rate_to_rate_section(u8 rate)
 {
 	if (rate >= DESC_RATE1M && rate <= DESC_RATE11M)
@@ -2076,7 +2076,7 @@ static u8 rtw_phy_rate_to_rate_section(u8 rate)
 	else if (rate >= DESC_RATEVHT2SS_MCS0 && rate <= DESC_RATEVHT2SS_MCS9)
 		return RTW_RATE_SECTION_VHT_2S;
 	else
-		return RTW_RATE_SECTION_MAX;
+		return RTW_RATE_SECTION_NUM;
 }
 
 static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
@@ -2094,7 +2094,7 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 	if (regd > RTW_REGD_WW)
 		return power_limit;
 
-	if (rs == RTW_RATE_SECTION_MAX)
+	if (rs == RTW_RATE_SECTION_NUM)
 		goto err;
 
 	/* only 20M BW with cck and ofdm */
@@ -2138,7 +2138,7 @@ static s8 rtw_phy_get_tx_power_sar(struct rtw_dev *rtwdev, u8 sar_band,
 		.rs = rs,
 	};
 
-	if (rs == RTW_RATE_SECTION_MAX)
+	if (rs == RTW_RATE_SECTION_NUM)
 		goto err;
 
 	return rtw_query_sar(rtwdev, &arg);
@@ -2227,7 +2227,7 @@ static void rtw_phy_set_tx_power_index_by_rs(struct rtw_dev *rtwdev,
 	u8 bw;
 	int i;
 
-	if (rs >= RTW_RATE_SECTION_MAX)
+	if (rs >= RTW_RATE_SECTION_NUM)
 		return;
 
 	rates = rtw_rate_section[rs];
@@ -2258,7 +2258,7 @@ static void rtw_phy_set_tx_power_level_by_path(struct rtw_dev *rtwdev,
 	else
 		rs = RTW_RATE_SECTION_OFDM;
 
-	for (; rs < RTW_RATE_SECTION_MAX; rs++)
+	for (; rs < RTW_RATE_SECTION_NUM; rs++)
 		rtw_phy_set_tx_power_index_by_rs(rtwdev, ch, path, rs);
 }
 
@@ -2353,7 +2353,7 @@ void rtw_phy_tx_power_limit_config(struct rtw_hal *hal)
 
 	for (regd = 0; regd < RTW_REGD_MAX; regd++)
 		for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
-			for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
+			for (rs = 0; rs < RTW_RATE_SECTION_NUM; rs++)
 				__rtw_phy_tx_power_limit_config(hal, regd, bw, rs);
 }
 
@@ -2389,7 +2389,7 @@ void rtw_phy_init_tx_power(struct rtw_dev *rtwdev)
 	/* init tx power limit */
 	for (regd = 0; regd < RTW_REGD_MAX; regd++)
 		for (bw = 0; bw < RTW_CHANNEL_WIDTH_MAX; bw++)
-			for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++)
+			for (rs = 0; rs < RTW_RATE_SECTION_NUM; rs++)
 				rtw_phy_init_tx_power_limit(rtwdev, regd, bw,
 							    rs);
 }
