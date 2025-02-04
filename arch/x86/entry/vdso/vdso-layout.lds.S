@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <asm/vdso.h>
 #include <asm/vdso/vsyscall.h>
+#include <vdso/datapage.h>
 
 /*
  * Linker script for vDSO.  This is an ELF shared object prelinked to
@@ -17,16 +18,15 @@ SECTIONS
 	 * segment.
 	 */
 
-	vvar_start = . - __VVAR_PAGES * PAGE_SIZE;
-	vvar_page  = vvar_start;
+	VDSO_VVAR_SYMS
 
-	vdso_rng_data = vvar_page + __VDSO_RND_DATA_OFFSET;
-
-	timens_page  = vvar_start + PAGE_SIZE;
-
-	vclock_pages = VDSO_VCLOCK_PAGES_START(vvar_start);
+	vclock_pages = VDSO_VCLOCK_PAGES_START(vdso_u_data);
 	pvclock_page = vclock_pages + VDSO_PAGE_PVCLOCK_OFFSET * PAGE_SIZE;
 	hvclock_page = vclock_pages + VDSO_PAGE_HVCLOCK_OFFSET * PAGE_SIZE;
+
+	/* For compatibility with vdso2c */
+	vvar_page = vdso_u_data;
+	vvar_start = vdso_u_data;
 
 	. = SIZEOF_HEADERS;
 
