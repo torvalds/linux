@@ -10822,7 +10822,7 @@ S:	Odd Fixes
 F:	drivers/tty/hvc/
 
 I2C ACPI SUPPORT
-M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Mika Westerberg <westeri@kernel.org>
 L:	linux-i2c@vger.kernel.org
 L:	linux-acpi@vger.kernel.org
 S:	Maintained
