@@ -229,6 +229,17 @@ Description:
 		encryption, refer to Documentation/block/inline-encryption.rst.
 
 
+What:		/sys/block/<disk>/queue/crypto/hw_wrapped_keys
+Date:		February 2025
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] The presence of this file indicates that the device
+		supports hardware-wrapped inline encryption keys, i.e. key blobs
+		that can only be unwrapped and used by dedicated hardware.  For
+		more information about hardware-wrapped inline encryption keys,
+		see Documentation/block/inline-encryption.rst.
+
+
 What:		/sys/block/<disk>/queue/crypto/max_dun_bits
 Date:		February 2022
 Contact:	linux-block@vger.kernel.org
@@ -265,6 +276,15 @@ Contact:	linux-block@vger.kernel.org
 Description:
 		[RO] This file shows the number of keyslots the device has for
 		use with inline encryption.
+
+
+What:		/sys/block/<disk>/queue/crypto/raw_keys
+Date:		February 2025
+Contact:	linux-block@vger.kernel.org
+Description:
+		[RO] The presence of this file indicates that the device
+		supports raw inline encryption keys, i.e. keys that are managed
+		in raw, plaintext form in software.
 
 
 What:		/sys/block/<disk>/queue/dax
