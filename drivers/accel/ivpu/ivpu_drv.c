@@ -452,7 +452,7 @@ static const struct drm_driver driver = {
 	.postclose = ivpu_postclose,
 
 	.gem_create_object = ivpu_gem_create_object,
-	.gem_prime_import_sg_table = drm_gem_shmem_prime_import_sg_table,
+	.gem_prime_import = ivpu_gem_prime_import,
 
 	.ioctls = ivpu_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(ivpu_drm_ioctls),
