@@ -13147,8 +13147,11 @@ void dml2_core_calcs_get_informative(const struct dml2_core_internal_display_mod
 	out->informative.watermarks.temp_read_or_ppt_watermark_us = dml_get_wm_temp_read_or_ppt(mode_lib);
 
 	out->informative.mall.total_surface_size_in_mall_bytes = 0;
-	for (k = 0; k < out->display_config.num_planes; ++k)
+	out->informative.dpp.total_num_dpps_required = 0;
+	for (k = 0; k < out->display_config.num_planes; ++k) {
 		out->informative.mall.total_surface_size_in_mall_bytes += mode_lib->mp.SurfaceSizeInTheMALL[k];
+		out->informative.dpp.total_num_dpps_required += mode_lib->mp.NoOfDPP[k];
+	}
 
 	out->informative.qos.min_return_latency_in_dcfclk = mode_lib->mp.min_return_latency_in_dcfclk;
 	out->informative.qos.urgent_latency_us = dml_get_urgent_latency(mode_lib);

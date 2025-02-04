@@ -454,6 +454,10 @@ struct dml2_display_cfg_programming {
 		} plane_info[DML2_MAX_PLANES];
 
 		struct {
+			unsigned int total_num_dpps_required;
+		} dpp;
+
+		struct {
 			unsigned long long total_surface_size_in_mall_bytes;
 			unsigned int subviewport_lines_needed_in_mall[DML2_MAX_PLANES];
 		} mall;
