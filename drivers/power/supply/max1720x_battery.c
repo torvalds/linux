@@ -29,6 +29,11 @@
 /* ModelGauge m5 */
 #define MAX172XX_STATUS			0x00	/* Status */
 #define MAX172XX_STATUS_BAT_ABSENT	BIT(3)	/* Battery absent */
+#define MAX172XX_STATUS_IMX		BIT(6)	/* Maximum Current Alert Threshold Exceeded */
+#define MAX172XX_STATUS_VMN		BIT(8)	/* Minimum Voltage Alert Threshold Exceeded */
+#define MAX172XX_STATUS_TMN		BIT(9)	/* Minimum Temperature Alert Threshold Exceeded */
+#define MAX172XX_STATUS_VMX		BIT(12)	/* Maximum Voltage Alert Threshold Exceeded */
+#define MAX172XX_STATUS_TMX		BIT(13)	/* Maximum Temperature Alert Threshold Exceeded */
 #define MAX172XX_REPCAP			0x05	/* Average capacity */
 #define MAX172XX_REPSOC			0x06	/* Percentage of charge */
 #define MAX172XX_TEMP			0x08	/* Temperature */
@@ -250,6 +255,7 @@ static const struct nvmem_cell_info max1720x_nvmem_cells[] = {
 };
 
 static const enum power_supply_property max1720x_battery_props[] = {
+	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -314,6 +320,43 @@ static int max172xx_current_to_voltage(unsigned int reg)
 	return val * 156252;
 }
 
+static int max172xx_battery_health(struct max1720x_device_info *info,
+				   unsigned int *health)
+{
+	unsigned int status;
+	int ret;
+
+	ret = regmap_read(info->regmap, MAX172XX_STATUS, &status);
+	if (ret < 0)
+		return ret;
+
+	if (status & MAX172XX_STATUS_VMN)
+		*health = POWER_SUPPLY_HEALTH_DEAD;
+	else if (status & MAX172XX_STATUS_VMX)
+		*health = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
+	else if (status & MAX172XX_STATUS_TMN)
+		*health = POWER_SUPPLY_HEALTH_COLD;
+	else if (status & MAX172XX_STATUS_TMX)
+		*health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (status & MAX172XX_STATUS_IMX)
+		*health = POWER_SUPPLY_HEALTH_OVERCURRENT;
+	else
+		*health = POWER_SUPPLY_HEALTH_GOOD;
+
+	/* Clear events which are not self-clearing to detect next events */
+	if (status > 0 && status != MAX172XX_STATUS_IMX) {
+		ret = regmap_set_bits(info->regmap, MAX172XX_STATUS,
+				      MAX172XX_STATUS_VMN |
+				      MAX172XX_STATUS_VMX |
+				      MAX172XX_STATUS_TMN |
+				      MAX172XX_STATUS_TMX);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max1720x_battery_get_property(struct power_supply *psy,
 					 enum power_supply_property psp,
 					 union power_supply_propval *val)
@@ -323,6 +366,10 @@ static int max1720x_battery_get_property(struct power_supply *psy,
 	int ret = 0;
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_HEALTH:
+		ret = max172xx_battery_health(info, &reg_val);
+		val->intval = reg_val;
+		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		/*
 		 * POWER_SUPPLY_PROP_PRESENT will always readable via
