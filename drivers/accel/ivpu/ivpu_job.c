@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
+#include <linux/pm_runtime.h>
 #include <linux/module.h>
 #include <uapi/drm/ivpu_accel.h>
 
@@ -965,6 +966,9 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 	unsigned long ctx_id;
 	unsigned long id;
 
+	if (drm_WARN_ON(&vdev->drm, pm_runtime_get_if_active(vdev->drm.dev) <= 0))
+		return;
+
 	if (vdev->fw->sched_mode == VPU_SCHEDULING_MODE_HW)
 		ivpu_jsm_reset_engine(vdev, 0);
 
@@ -987,7 +991,7 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 	ivpu_mmu_discard_events(vdev);
 
 	if (vdev->fw->sched_mode != VPU_SCHEDULING_MODE_HW)
-		return;
+		goto runtime_put;
 
 	ivpu_jsm_hws_resume_engine(vdev, 0);
 	/*
@@ -1000,4 +1004,8 @@ void ivpu_context_abort_work_fn(struct work_struct *work)
 		if (job->file_priv->aborted)
 			ivpu_job_signal_and_destroy(vdev, job->job_id, DRM_IVPU_JOB_STATUS_ABORTED);
 	mutex_unlock(&vdev->submitted_jobs_lock);
+
+runtime_put:
+	pm_runtime_mark_last_busy(vdev->drm.dev);
+	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
