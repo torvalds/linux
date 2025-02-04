@@ -77,7 +77,7 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 
 void update_vsyscall(struct timekeeper *tk)
 {
-	struct vdso_data *vdata = __arch_get_k_vdso_data();
+	struct vdso_data *vdata = vdso_k_time_data;
 	struct vdso_timestamp *vdso_ts;
 	s32 clock_mode;
 	u64 nsec;
@@ -128,7 +128,7 @@ void update_vsyscall(struct timekeeper *tk)
 
 void update_vsyscall_tz(void)
 {
-	struct vdso_data *vdata = __arch_get_k_vdso_data();
+	struct vdso_data *vdata = vdso_k_time_data;
 
 	vdata[CS_HRES_COARSE].tz_minuteswest = sys_tz.tz_minuteswest;
 	vdata[CS_HRES_COARSE].tz_dsttime = sys_tz.tz_dsttime;
@@ -150,7 +150,7 @@ void update_vsyscall_tz(void)
  */
 unsigned long vdso_update_begin(void)
 {
-	struct vdso_data *vdata = __arch_get_k_vdso_data();
+	struct vdso_data *vdata = vdso_k_time_data;
 	unsigned long flags = timekeeper_lock_irqsave();
 
 	vdso_write_begin(vdata);
@@ -167,7 +167,7 @@ unsigned long vdso_update_begin(void)
  */
 void vdso_update_end(unsigned long flags)
 {
-	struct vdso_data *vdata = __arch_get_k_vdso_data();
+	struct vdso_data *vdata = vdso_k_time_data;
 
 	vdso_write_end(vdata);
 	__arch_sync_vdso_data(vdata);

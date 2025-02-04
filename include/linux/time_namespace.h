@@ -8,6 +8,7 @@
 #include <linux/ns_common.h>
 #include <linux/err.h>
 #include <linux/time64.h>
+#include <vdso/datapage.h>
 
 struct user_namespace;
 extern struct user_namespace init_user_ns;

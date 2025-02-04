@@ -5,6 +5,9 @@
 #include <vdso/datapage.h>
 #include <vdso/helpers.h>
 
+/* Bring in default accessors */
+#include <vdso/vsyscall.h>
+
 #ifndef vdso_calc_ns
 
 #ifdef VDSO_DELTA_NOMASK
@@ -69,6 +72,16 @@ static inline bool vdso_cycles_ok(u64 cycles)
 #endif
 
 #ifdef CONFIG_TIME_NS
+
+#ifdef CONFIG_GENERIC_VDSO_DATA_STORE
+static __always_inline
+const struct vdso_time_data *__arch_get_vdso_u_timens_data(const struct vdso_time_data *vd)
+{
+	return (void *)vd + PAGE_SIZE;
+}
+#define __arch_get_timens_vdso_data(vd) __arch_get_vdso_u_timens_data(vd)
+#endif /* CONFIG_GENERIC_VDSO_DATA_STORE */
+
 static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
 					  struct __kernel_timespec *ts)
 {
@@ -282,7 +295,7 @@ __cvdso_clock_gettime_data(const struct vdso_data *vd, clockid_t clock,
 static __maybe_unused int
 __cvdso_clock_gettime(clockid_t clock, struct __kernel_timespec *ts)
 {
-	return __cvdso_clock_gettime_data(__arch_get_vdso_data(), clock, ts);
+	return __cvdso_clock_gettime_data(__arch_get_vdso_u_time_data(), clock, ts);
 }
 
 #ifdef BUILD_VDSO32
@@ -308,7 +321,7 @@ __cvdso_clock_gettime32_data(const struct vdso_data *vd, clockid_t clock,
 static __maybe_unused int
 __cvdso_clock_gettime32(clockid_t clock, struct old_timespec32 *res)
 {
-	return __cvdso_clock_gettime32_data(__arch_get_vdso_data(), clock, res);
+	return __cvdso_clock_gettime32_data(__arch_get_vdso_u_time_data(), clock, res);
 }
 #endif /* BUILD_VDSO32 */
 
@@ -342,7 +355,7 @@ __cvdso_gettimeofday_data(const struct vdso_data *vd,
 static __maybe_unused int
 __cvdso_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
 {
-	return __cvdso_gettimeofday_data(__arch_get_vdso_data(), tv, tz);
+	return __cvdso_gettimeofday_data(__arch_get_vdso_u_time_data(), tv, tz);
 }
 
 #ifdef VDSO_HAS_TIME
@@ -365,7 +378,7 @@ __cvdso_time_data(const struct vdso_data *vd, __kernel_old_time_t *time)
 
 static __maybe_unused __kernel_old_time_t __cvdso_time(__kernel_old_time_t *time)
 {
-	return __cvdso_time_data(__arch_get_vdso_data(), time);
+	return __cvdso_time_data(__arch_get_vdso_u_time_data(), time);
 }
 #endif /* VDSO_HAS_TIME */
 
@@ -425,7 +438,7 @@ int __cvdso_clock_getres_data(const struct vdso_data *vd, clockid_t clock,
 static __maybe_unused
 int __cvdso_clock_getres(clockid_t clock, struct __kernel_timespec *res)
 {
-	return __cvdso_clock_getres_data(__arch_get_vdso_data(), clock, res);
+	return __cvdso_clock_getres_data(__arch_get_vdso_u_time_data(), clock, res);
 }
 
 #ifdef BUILD_VDSO32
@@ -451,7 +464,7 @@ __cvdso_clock_getres_time32_data(const struct vdso_data *vd, clockid_t clock,
 static __maybe_unused int
 __cvdso_clock_getres_time32(clockid_t clock, struct old_timespec32 *res)
 {
-	return __cvdso_clock_getres_time32_data(__arch_get_vdso_data(),
+	return __cvdso_clock_getres_time32_data(__arch_get_vdso_u_time_data(),
 						clock, res);
 }
 #endif /* BUILD_VDSO32 */

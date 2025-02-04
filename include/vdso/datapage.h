@@ -45,11 +45,11 @@ struct arch_vdso_time_data {};
  *
  * There is one vdso_timestamp object in vvar for each vDSO-accelerated
  * clock_id. For high-resolution clocks, this encodes the time
- * corresponding to vdso_data.cycle_last. For coarse clocks this encodes
+ * corresponding to vdso_time_data.cycle_last. For coarse clocks this encodes
  * the actual time.
  *
  * To be noticed that for highres clocks nsec is left-shifted by
- * vdso_data.cs[x].shift.
+ * vdso_time_data[x].shift.
  */
 struct vdso_timestamp {
 	u64	sec;
@@ -57,7 +57,7 @@ struct vdso_timestamp {
 };
 
 /**
- * struct vdso_data - vdso datapage representation
+ * struct vdso_time_data - vdso datapage representation
  * @seq:		timebase sequence counter
  * @clock_mode:		clock mode
  * @cycle_last:		timebase at clocksource init
@@ -74,7 +74,7 @@ struct vdso_timestamp {
  * @arch_data:		architecture specific data (optional, defaults
  *			to an empty struct)
  *
- * vdso_data will be accessed by 64 bit and compat code at the same time
+ * vdso_time_data will be accessed by 64 bit and compat code at the same time
  * so we should be careful before modifying this structure.
  *
  * The ordering of the struct members is optimized to have fast access to the
@@ -92,7 +92,7 @@ struct vdso_timestamp {
  * For clocks which are not affected by time namespace adjustment the
  * offset must be zero.
  */
-struct vdso_data {
+struct vdso_time_data {
 	u32			seq;
 
 	s32			clock_mode;
@@ -117,6 +117,8 @@ struct vdso_data {
 	struct arch_vdso_time_data arch_data;
 };
 
+#define vdso_data vdso_time_data
+
 /**
  * struct vdso_rng_data - vdso RNG state information
  * @generation:	counter representing the number of RNG reseeds
@@ -136,17 +138,33 @@ struct vdso_rng_data {
  * With the hidden visibility, the compiler simply generates a PC-relative
  * relocation, and this is what we need.
  */
-extern struct vdso_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")));
-extern struct vdso_data _timens_data[CS_BASES] __attribute__((visibility("hidden")));
+#ifndef CONFIG_GENERIC_VDSO_DATA_STORE
+extern struct vdso_time_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")));
+extern struct vdso_time_data _timens_data[CS_BASES] __attribute__((visibility("hidden")));
 extern struct vdso_rng_data _vdso_rng_data __attribute__((visibility("hidden")));
+#else
+extern struct vdso_time_data vdso_u_time_data[CS_BASES] __attribute__((visibility("hidden")));
+
+extern struct vdso_time_data *vdso_k_time_data;
+#endif
 
 /**
  * union vdso_data_store - Generic vDSO data page
  */
 union vdso_data_store {
-	struct vdso_data	data[CS_BASES];
+	struct vdso_time_data	data[CS_BASES];
 	u8			page[1U << CONFIG_PAGE_SHIFT];
 };
+
+#ifdef CONFIG_GENERIC_VDSO_DATA_STORE
+
+enum vdso_pages {
+	VDSO_TIME_PAGE_OFFSET,
+	VDSO_TIMENS_PAGE_OFFSET,
+	VDSO_NR_PAGES
+};
+
+#endif /* CONFIG_GENERIC_VDSO_DATA_STORE */
 
 /*
  * The generic vDSO implementation requires that gettimeofday.h
@@ -163,6 +181,13 @@ union vdso_data_store {
 #else
 #include <asm/vdso/gettimeofday.h>
 #endif /* ENABLE_COMPAT_VDSO */
+
+#else /* !__ASSEMBLY__ */
+
+#define VDSO_VVAR_SYMS						\
+	PROVIDE(vdso_u_data = . - __VDSO_PAGES * PAGE_SIZE);	\
+	PROVIDE(vdso_u_time_data = vdso_u_data);		\
+
 
 #endif /* !__ASSEMBLY__ */
 
