@@ -23,6 +23,30 @@
 
 #define PIDFD_INFO_SIZE_VER0		64 /* sizeof first published struct */
 
+/*
+ * The concept of process and threads in userland and the kernel is a confusing
+ * one - within the kernel every thread is a 'task' with its own individual PID,
+ * however from userland's point of view threads are grouped by a single PID,
+ * which is that of the 'thread group leader', typically the first thread
+ * spawned.
+ *
+ * To cut the Gideon knot, for internal kernel usage, we refer to
+ * PIDFD_SELF_THREAD to refer to the current thread (or task from a kernel
+ * perspective), and PIDFD_SELF_THREAD_GROUP to refer to the current thread
+ * group leader...
+ */
+#define PIDFD_SELF_THREAD		-10000 /* Current thread. */
+#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+
+/*
+ * ...and for userland we make life simpler - PIDFD_SELF refers to the current
+ * thread, PIDFD_SELF_PROCESS refers to the process thread group leader.
+ *
+ * For nearly all practical uses, a user will want to use PIDFD_SELF.
+ */
+#define PIDFD_SELF		PIDFD_SELF_THREAD
+#define PIDFD_SELF_PROCESS	PIDFD_SELF_THREAD_GROUP
+
 struct pidfd_info {
 	/*
 	 * This mask is similar to the request_mask in statx(2).
