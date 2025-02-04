@@ -13,6 +13,10 @@ extern const u8 rtw_ht_1s_rates[];
 extern const u8 rtw_ht_2s_rates[];
 extern const u8 rtw_vht_1s_rates[];
 extern const u8 rtw_vht_2s_rates[];
+extern const u8 rtw_ht_3s_rates[];
+extern const u8 rtw_ht_4s_rates[];
+extern const u8 rtw_vht_3s_rates[];
+extern const u8 rtw_vht_4s_rates[];
 extern const u8 * const rtw_rate_section[];
 extern const u8 rtw_rate_size[];
 

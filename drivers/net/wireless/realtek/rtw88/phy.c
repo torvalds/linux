@@ -88,10 +88,40 @@ const u8 rtw_vht_2s_rates[] = {
 	DESC_RATEVHT2SS_MCS8, DESC_RATEVHT2SS_MCS9
 };
 
+const u8 rtw_ht_3s_rates[] = {
+	DESC_RATEMCS16, DESC_RATEMCS17, DESC_RATEMCS18,
+	DESC_RATEMCS19, DESC_RATEMCS20, DESC_RATEMCS21,
+	DESC_RATEMCS22, DESC_RATEMCS23
+};
+
+const u8 rtw_ht_4s_rates[] = {
+	DESC_RATEMCS24, DESC_RATEMCS25, DESC_RATEMCS26,
+	DESC_RATEMCS27, DESC_RATEMCS28, DESC_RATEMCS29,
+	DESC_RATEMCS30, DESC_RATEMCS31
+};
+
+const u8 rtw_vht_3s_rates[] = {
+	DESC_RATEVHT3SS_MCS0, DESC_RATEVHT3SS_MCS1,
+	DESC_RATEVHT3SS_MCS2, DESC_RATEVHT3SS_MCS3,
+	DESC_RATEVHT3SS_MCS4, DESC_RATEVHT3SS_MCS5,
+	DESC_RATEVHT3SS_MCS6, DESC_RATEVHT3SS_MCS7,
+	DESC_RATEVHT3SS_MCS8, DESC_RATEVHT3SS_MCS9
+};
+
+const u8 rtw_vht_4s_rates[] = {
+	DESC_RATEVHT4SS_MCS0, DESC_RATEVHT4SS_MCS1,
+	DESC_RATEVHT4SS_MCS2, DESC_RATEVHT4SS_MCS3,
+	DESC_RATEVHT4SS_MCS4, DESC_RATEVHT4SS_MCS5,
+	DESC_RATEVHT4SS_MCS6, DESC_RATEVHT4SS_MCS7,
+	DESC_RATEVHT4SS_MCS8, DESC_RATEVHT4SS_MCS9
+};
+
 const u8 * const rtw_rate_section[RTW_RATE_SECTION_NUM] = {
 	rtw_cck_rates, rtw_ofdm_rates,
 	rtw_ht_1s_rates, rtw_ht_2s_rates,
-	rtw_vht_1s_rates, rtw_vht_2s_rates
+	rtw_vht_1s_rates, rtw_vht_2s_rates,
+	rtw_ht_3s_rates, rtw_ht_4s_rates,
+	rtw_vht_3s_rates, rtw_vht_4s_rates
 };
 EXPORT_SYMBOL(rtw_rate_section);
 
@@ -101,16 +131,13 @@ const u8 rtw_rate_size[RTW_RATE_SECTION_NUM] = {
 	ARRAY_SIZE(rtw_ht_1s_rates),
 	ARRAY_SIZE(rtw_ht_2s_rates),
 	ARRAY_SIZE(rtw_vht_1s_rates),
-	ARRAY_SIZE(rtw_vht_2s_rates)
+	ARRAY_SIZE(rtw_vht_2s_rates),
+	ARRAY_SIZE(rtw_ht_3s_rates),
+	ARRAY_SIZE(rtw_ht_4s_rates),
+	ARRAY_SIZE(rtw_vht_3s_rates),
+	ARRAY_SIZE(rtw_vht_4s_rates)
 };
 EXPORT_SYMBOL(rtw_rate_size);
-
-static const u8 rtw_cck_size = ARRAY_SIZE(rtw_cck_rates);
-static const u8 rtw_ofdm_size = ARRAY_SIZE(rtw_ofdm_rates);
-static const u8 rtw_ht_1s_size = ARRAY_SIZE(rtw_ht_1s_rates);
-static const u8 rtw_ht_2s_size = ARRAY_SIZE(rtw_ht_2s_rates);
-static const u8 rtw_vht_1s_size = ARRAY_SIZE(rtw_vht_1s_rates);
-static const u8 rtw_vht_2s_size = ARRAY_SIZE(rtw_vht_2s_rates);
 
 enum rtw_phy_band_type {
 	PHY_BAND_2G	= 0,
@@ -1640,11 +1667,15 @@ rtw_xref_5g_txpwr_lmt(struct rtw_dev *rtwdev, u8 regd,
 static void
 rtw_xref_txpwr_lmt_by_rs(struct rtw_dev *rtwdev, u8 regd, u8 bw, u8 ch_idx)
 {
+	static const u8 rs_cmp[4][2] = {
+		{RTW_RATE_SECTION_HT_1S, RTW_RATE_SECTION_VHT_1S},
+		{RTW_RATE_SECTION_HT_2S, RTW_RATE_SECTION_VHT_2S},
+		{RTW_RATE_SECTION_HT_3S, RTW_RATE_SECTION_VHT_3S},
+		{RTW_RATE_SECTION_HT_4S, RTW_RATE_SECTION_VHT_4S}
+	};
 	u8 rs_idx, rs_ht, rs_vht;
-	u8 rs_cmp[2][2] = {{RTW_RATE_SECTION_HT_1S, RTW_RATE_SECTION_VHT_1S},
-			   {RTW_RATE_SECTION_HT_2S, RTW_RATE_SECTION_VHT_2S} };
 
-	for (rs_idx = 0; rs_idx < 2; rs_idx++) {
+	for (rs_idx = 0; rs_idx < 4; rs_idx++) {
 		rs_ht = rs_cmp[rs_idx][0];
 		rs_vht = rs_cmp[rs_idx][1];
 
@@ -1965,10 +1996,10 @@ static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
 					u8 rate, u8 group)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	u8 tx_power;
-	bool mcs_rate;
-	bool above_2ss;
+	bool above_2ss, above_3ss, above_4ss;
 	u8 factor = chip->txgi_factor;
+	bool mcs_rate;
+	u8 tx_power;
 
 	if (rate <= DESC_RATE11M)
 		tx_power = pwr_idx_2g->cck_base[group];
@@ -1978,11 +2009,15 @@ static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
 	if (rate >= DESC_RATE6M && rate <= DESC_RATE54M)
 		tx_power += pwr_idx_2g->ht_1s_diff.ofdm * factor;
 
-	mcs_rate = (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS15) ||
+	mcs_rate = (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS31) ||
 		   (rate >= DESC_RATEVHT1SS_MCS0 &&
-		    rate <= DESC_RATEVHT2SS_MCS9);
-	above_2ss = (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15) ||
+		    rate <= DESC_RATEVHT4SS_MCS9);
+	above_2ss = (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS31) ||
 		    (rate >= DESC_RATEVHT2SS_MCS0);
+	above_3ss = (rate >= DESC_RATEMCS16 && rate <= DESC_RATEMCS31) ||
+		    (rate >= DESC_RATEVHT3SS_MCS0);
+	above_4ss = (rate >= DESC_RATEMCS24 && rate <= DESC_RATEMCS31) ||
+		    (rate >= DESC_RATEVHT4SS_MCS0);
 
 	if (!mcs_rate)
 		return tx_power;
@@ -1995,11 +2030,19 @@ static u8 rtw_phy_get_2g_tx_power_index(struct rtw_dev *rtwdev,
 		tx_power += pwr_idx_2g->ht_1s_diff.bw20 * factor;
 		if (above_2ss)
 			tx_power += pwr_idx_2g->ht_2s_diff.bw20 * factor;
+		if (above_3ss)
+			tx_power += pwr_idx_2g->ht_3s_diff.bw20 * factor;
+		if (above_4ss)
+			tx_power += pwr_idx_2g->ht_4s_diff.bw20 * factor;
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		/* bw40 is the base power */
 		if (above_2ss)
 			tx_power += pwr_idx_2g->ht_2s_diff.bw40 * factor;
+		if (above_3ss)
+			tx_power += pwr_idx_2g->ht_3s_diff.bw40 * factor;
+		if (above_4ss)
+			tx_power += pwr_idx_2g->ht_4s_diff.bw40 * factor;
 		break;
 	}
 
@@ -2012,19 +2055,23 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 					u8 rate, u8 group)
 {
 	const struct rtw_chip_info *chip = rtwdev->chip;
-	u8 tx_power;
+	bool above_2ss, above_3ss, above_4ss;
+	u8 factor = chip->txgi_factor;
 	u8 upper, lower;
 	bool mcs_rate;
-	bool above_2ss;
-	u8 factor = chip->txgi_factor;
+	u8 tx_power;
 
 	tx_power = pwr_idx_5g->bw40_base[group];
 
-	mcs_rate = (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS15) ||
+	mcs_rate = (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS31) ||
 		   (rate >= DESC_RATEVHT1SS_MCS0 &&
-		    rate <= DESC_RATEVHT2SS_MCS9);
-	above_2ss = (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15) ||
+		    rate <= DESC_RATEVHT4SS_MCS9);
+	above_2ss = (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS31) ||
 		    (rate >= DESC_RATEVHT2SS_MCS0);
+	above_3ss = (rate >= DESC_RATEMCS16 && rate <= DESC_RATEMCS31) ||
+		    (rate >= DESC_RATEVHT3SS_MCS0);
+	above_4ss = (rate >= DESC_RATEMCS24 && rate <= DESC_RATEMCS31) ||
+		    (rate >= DESC_RATEVHT4SS_MCS0);
 
 	if (!mcs_rate) {
 		tx_power += pwr_idx_5g->ht_1s_diff.ofdm * factor;
@@ -2039,11 +2086,19 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 		tx_power += pwr_idx_5g->ht_1s_diff.bw20 * factor;
 		if (above_2ss)
 			tx_power += pwr_idx_5g->ht_2s_diff.bw20 * factor;
+		if (above_3ss)
+			tx_power += pwr_idx_5g->ht_3s_diff.bw20 * factor;
+		if (above_4ss)
+			tx_power += pwr_idx_5g->ht_4s_diff.bw20 * factor;
 		break;
 	case RTW_CHANNEL_WIDTH_40:
 		/* bw40 is the base power */
 		if (above_2ss)
 			tx_power += pwr_idx_5g->ht_2s_diff.bw40 * factor;
+		if (above_3ss)
+			tx_power += pwr_idx_5g->ht_3s_diff.bw40 * factor;
+		if (above_4ss)
+			tx_power += pwr_idx_5g->ht_4s_diff.bw40 * factor;
 		break;
 	case RTW_CHANNEL_WIDTH_80:
 		/* the base idx of bw80 is the average of bw40+/bw40- */
@@ -2054,6 +2109,10 @@ static u8 rtw_phy_get_5g_tx_power_index(struct rtw_dev *rtwdev,
 		tx_power += pwr_idx_5g->vht_1s_diff.bw80 * factor;
 		if (above_2ss)
 			tx_power += pwr_idx_5g->vht_2s_diff.bw80 * factor;
+		if (above_3ss)
+			tx_power += pwr_idx_5g->vht_3s_diff.bw80 * factor;
+		if (above_4ss)
+			tx_power += pwr_idx_5g->vht_4s_diff.bw80 * factor;
 		break;
 	}
 
@@ -2071,10 +2130,18 @@ static u8 rtw_phy_rate_to_rate_section(u8 rate)
 		return RTW_RATE_SECTION_HT_1S;
 	else if (rate >= DESC_RATEMCS8 && rate <= DESC_RATEMCS15)
 		return RTW_RATE_SECTION_HT_2S;
+	else if (rate >= DESC_RATEMCS16 && rate <= DESC_RATEMCS23)
+		return RTW_RATE_SECTION_HT_3S;
+	else if (rate >= DESC_RATEMCS24 && rate <= DESC_RATEMCS31)
+		return RTW_RATE_SECTION_HT_4S;
 	else if (rate >= DESC_RATEVHT1SS_MCS0 && rate <= DESC_RATEVHT1SS_MCS9)
 		return RTW_RATE_SECTION_VHT_1S;
 	else if (rate >= DESC_RATEVHT2SS_MCS0 && rate <= DESC_RATEVHT2SS_MCS9)
 		return RTW_RATE_SECTION_VHT_2S;
+	else if (rate >= DESC_RATEVHT3SS_MCS0 && rate <= DESC_RATEVHT3SS_MCS9)
+		return RTW_RATE_SECTION_VHT_3S;
+	else if (rate >= DESC_RATEVHT4SS_MCS0 && rate <= DESC_RATEVHT4SS_MCS9)
+		return RTW_RATE_SECTION_VHT_4S;
 	else
 		return RTW_RATE_SECTION_NUM;
 }
@@ -2102,7 +2169,7 @@ static s8 rtw_phy_get_tx_power_limit(struct rtw_dev *rtwdev, u8 band,
 		bw = RTW_CHANNEL_WIDTH_20;
 
 	/* only 20/40M BW with ht */
-	if (rs == RTW_RATE_SECTION_HT_1S || rs == RTW_RATE_SECTION_HT_2S)
+	if (rate >= DESC_RATEMCS0 && rate <= DESC_RATEMCS31)
 		bw = min_t(u8, bw, RTW_CHANNEL_WIDTH_40);
 
 	/* select min power limit among [20M BW ~ current BW] */
@@ -2286,7 +2353,7 @@ rtw_phy_tx_power_by_rate_config_by_path(struct rtw_hal *hal, u8 path,
 	u8 base_idx, rate_idx;
 	s8 base_2g, base_5g;
 
-	if (rs >= RTW_RATE_SECTION_VHT_1S)
+	if (size == 10) /* VHT rates */
 		base_idx = rates[size - 3];
 	else
 		base_idx = rates[size - 1];
@@ -2303,28 +2370,12 @@ rtw_phy_tx_power_by_rate_config_by_path(struct rtw_hal *hal, u8 path,
 
 void rtw_phy_tx_power_by_rate_config(struct rtw_hal *hal)
 {
-	u8 path;
+	u8 path, rs;
 
-	for (path = 0; path < RTW_RF_PATH_MAX; path++) {
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_CCK,
-				rtw_cck_size, rtw_cck_rates);
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_OFDM,
-				rtw_ofdm_size, rtw_ofdm_rates);
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_HT_1S,
-				rtw_ht_1s_size, rtw_ht_1s_rates);
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_HT_2S,
-				rtw_ht_2s_size, rtw_ht_2s_rates);
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_VHT_1S,
-				rtw_vht_1s_size, rtw_vht_1s_rates);
-		rtw_phy_tx_power_by_rate_config_by_path(hal, path,
-				RTW_RATE_SECTION_VHT_2S,
-				rtw_vht_2s_size, rtw_vht_2s_rates);
-	}
+	for (path = 0; path < RTW_RF_PATH_MAX; path++)
+		for (rs = 0; rs < RTW_RATE_SECTION_NUM; rs++)
+			rtw_phy_tx_power_by_rate_config_by_path(hal, path, rs,
+				rtw_rate_size[rs], rtw_rate_section[rs]);
 }
 
 static void
