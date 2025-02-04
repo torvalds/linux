@@ -100,15 +100,18 @@ const char * const amdgpu_pp_profile_name[] = {
 /**
  * amdgpu_pm_dev_state_check - Check if device can be accessed.
  * @adev: Target device.
+ * @runpm: Check runpm status for suspend state checks.
  *
  * Checks the state of the @adev for access. Return 0 if the device is
  * accessible or a negative error code otherwise.
  */
-static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev)
+static int amdgpu_pm_dev_state_check(struct amdgpu_device *adev, bool runpm)
 {
+	bool runpm_check = runpm ? adev->in_runpm : false;
+
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
+	if (adev->in_suspend && !runpm_check)
 		return -EPERM;
 
 	return 0;
@@ -126,7 +129,7 @@ static int amdgpu_pm_get_access(struct amdgpu_device *adev)
 {
 	int ret;
 
-	ret = amdgpu_pm_dev_state_check(adev);
+	ret = amdgpu_pm_dev_state_check(adev, true);
 	if (ret)
 		return ret;
 
@@ -145,13 +148,18 @@ static int amdgpu_pm_get_access_if_active(struct amdgpu_device *adev)
 {
 	int ret;
 
-	ret = amdgpu_pm_dev_state_check(adev);
+	/* Ignore runpm status. If device is in suspended state, deny access */
+	ret = amdgpu_pm_dev_state_check(adev, false);
 	if (ret)
 		return ret;
 
+	/*
+	 * Allow only if device is active. If runpm is disabled also, as in
+	 * kernels without CONFIG_PM, allow access.
+	 */
 	ret = pm_runtime_get_if_active(adev->dev);
-	if (ret <= 0)
-		return ret ?: -EPERM;
+	if (!ret)
+		return -EPERM;
 
 	return 0;
 }
@@ -469,7 +477,7 @@ static ssize_t amdgpu_get_pp_force_state(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int ret;
 
-	ret = amdgpu_pm_dev_state_check(adev);
+	ret = amdgpu_pm_dev_state_check(adev, true);
 	if (ret)
 		return ret;
 
@@ -1562,7 +1570,7 @@ static ssize_t amdgpu_get_unique_id(struct device *dev,
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	int r;
 
-	r = amdgpu_pm_dev_state_check(adev);
+	r = amdgpu_pm_dev_state_check(adev, true);
 	if (r)
 		return r;
 	if (adev->unique_id)
@@ -2150,7 +2158,7 @@ static ssize_t amdgpu_get_pm_policy_attr(struct device *dev,
 	policy_attr =
 		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
 
-	r = amdgpu_pm_dev_state_check(adev);
+	r = amdgpu_pm_dev_state_check(adev, true);
 	if (r)
 		return r;
 
@@ -4674,7 +4682,7 @@ static ssize_t amdgpu_pm_prv_buffer_read(struct file *f, char __user *buf,
 	void *smu_prv_buf;
 	int ret = 0;
 
-	ret = amdgpu_pm_dev_state_check(adev);
+	ret = amdgpu_pm_dev_state_check(adev, true);
 	if (ret)
 		return ret;
 
