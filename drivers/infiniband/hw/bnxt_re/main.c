@@ -396,10 +396,15 @@ free_dcb:
 
 static void bnxt_re_async_notifier(void *handle, struct hwrm_async_event_cmpl *cmpl)
 {
-	struct bnxt_re_dev *rdev = (struct bnxt_re_dev *)handle;
+	struct bnxt_re_en_dev_info *en_info = auxiliary_get_drvdata(handle);
 	struct bnxt_re_dcb_work *dcb_work;
+	struct bnxt_re_dev *rdev;
 	u32 data1, data2;
 	u16 event_id;
+
+	rdev = en_info->rdev;
+	if (!rdev)
+		return;
 
 	event_id = le16_to_cpu(cmpl->event_id);
 	data1 = le32_to_cpu(cmpl->event_data1);
