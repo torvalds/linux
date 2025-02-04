@@ -42,6 +42,87 @@ static inline int dev_isalive(const struct net_device *dev)
 	return READ_ONCE(dev->reg_state) <= NETREG_REGISTERED;
 }
 
+/* There is a possible ABBA deadlock between rtnl_lock and kernfs_node->active,
+ * when unregistering a net device and accessing associated sysfs files. The
+ * potential deadlock is as follow:
+ *
+ *         CPU 0                                         CPU 1
+ *
+ *    rtnl_lock                                   vfs_read
+ *    unregister_netdevice_many                   kernfs_seq_start
+ *    device_del / kobject_put                      kernfs_get_active (kn->active++)
+ *    kernfs_drain                                sysfs_kf_seq_show
+ *    wait_event(                                 rtnl_lock
+ *       kn->active == KN_DEACTIVATED_BIAS)       -> waits on CPU 0 to release
+ *    -> waits on CPU 1 to decrease kn->active       the rtnl lock.
+ *
+ * The historical fix was to use rtnl_trylock with restart_syscall to bail out
+ * of sysfs operations when the lock couldn't be taken. This fixed the above
+ * issue as it allowed CPU 1 to bail out of the ABBA situation.
+ *
+ * But it came with performances issues, as syscalls are being restarted in
+ * loops when there was contention on the rtnl lock, with huge slow downs in
+ * specific scenarios (e.g. lots of virtual interfaces created and userspace
+ * daemons querying their attributes).
+ *
+ * The idea below is to bail out of the active kernfs_node protection
+ * (kn->active) while trying to take the rtnl lock.
+ *
+ * This replaces rtnl_lock() and still has to be used with rtnl_unlock(). The
+ * net device is guaranteed to be alive if this returns successfully.
+ */
+static int sysfs_rtnl_lock(struct kobject *kobj, struct attribute *attr,
+			   struct net_device *ndev)
+{
+	struct kernfs_node *kn;
+	int ret = 0;
+
+	/* First, we hold a reference to the net device as the unregistration
+	 * path might run in parallel. This will ensure the net device and the
+	 * associated sysfs objects won't be freed while we try to take the rtnl
+	 * lock.
+	 */
+	dev_hold(ndev);
+	/* sysfs_break_active_protection was introduced to allow self-removal of
+	 * devices and their associated sysfs files by bailing out of the
+	 * sysfs/kernfs protection. We do this here to allow the unregistration
+	 * path to complete in parallel. The following takes a reference on the
+	 * kobject and the kernfs_node being accessed.
+	 *
+	 * This works because we hold a reference onto the net device and the
+	 * unregistration path will wait for us eventually in netdev_run_todo
+	 * (outside an rtnl lock section).
+	 */
+	kn = sysfs_break_active_protection(kobj, attr);
+	/* We can now try to take the rtnl lock. This can't deadlock us as the
+	 * unregistration path is able to drain sysfs files (kernfs_node) thanks
+	 * to the above dance.
+	 */
+	if (rtnl_lock_interruptible()) {
+		ret = -ERESTARTSYS;
+		goto unbreak;
+	}
+	/* Check dismantle on the device hasn't started, otherwise deny the
+	 * operation.
+	 */
+	if (!dev_isalive(ndev)) {
+		rtnl_unlock();
+		ret = -ENODEV;
+		goto unbreak;
+	}
+	/* We are now sure the device dismantle hasn't started nor that it can
+	 * start before we exit the locking section as we hold the rtnl lock.
+	 * There's no need to keep unbreaking the sysfs protection nor to hold
+	 * a net device reference from that point; that was only needed to take
+	 * the rtnl lock.
+	 */
+unbreak:
+	sysfs_unbreak_active_protection(kn);
+	dev_put(ndev);
+
+	return ret;
+}
+
 /* use same locking rules as GIF* ioctl's */
 static ssize_t netdev_show(const struct device *dev,
 			   struct device_attribute *attr, char *buf,
@@ -95,14 +176,14 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		goto err;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		goto err;
 
-	if (dev_isalive(netdev)) {
-		ret = (*set)(netdev, new);
-		if (ret == 0)
-			ret = len;
-	}
+	ret = (*set)(netdev, new);
+	if (ret == 0)
+		ret = len;
+
 	rtnl_unlock();
  err:
 	return ret;
@@ -220,7 +301,7 @@ static ssize_t carrier_store(struct device *dev, struct device_attribute *attr,
 	struct net_device *netdev = to_net_dev(dev);
 
 	/* The check is also done in change_carrier; this helps returning early
-	 * without hitting the trylock/restart in netdev_store.
+	 * without hitting the locking section in netdev_store.
 	 */
 	if (!netdev->netdev_ops->ndo_change_carrier)
 		return -EOPNOTSUPP;
@@ -234,8 +315,9 @@ static ssize_t carrier_show(struct device *dev,
 	struct net_device *netdev = to_net_dev(dev);
 	int ret = -EINVAL;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
 	if (netif_running(netdev)) {
 		/* Synchronize carrier state with link watch,
@@ -245,8 +327,8 @@ static ssize_t carrier_show(struct device *dev,
 
 		ret = sysfs_emit(buf, fmt_dec, !!netif_carrier_ok(netdev));
 	}
-	rtnl_unlock();
 
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR_RW(carrier);
@@ -258,13 +340,14 @@ static ssize_t speed_show(struct device *dev,
 	int ret = -EINVAL;
 
 	/* The check is also done in __ethtool_get_link_ksettings; this helps
-	 * returning early without hitting the trylock/restart below.
+	 * returning early without hitting the locking section below.
 	 */
 	if (!netdev->ethtool_ops->get_link_ksettings)
 		return ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
 	if (netif_running(netdev)) {
 		struct ethtool_link_ksettings cmd;
@@ -284,13 +367,14 @@ static ssize_t duplex_show(struct device *dev,
 	int ret = -EINVAL;
 
 	/* The check is also done in __ethtool_get_link_ksettings; this helps
-	 * returning early without hitting the trylock/restart below.
+	 * returning early without hitting the locking section below.
 	 */
 	if (!netdev->ethtool_ops->get_link_ksettings)
 		return ret;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
 	if (netif_running(netdev)) {
 		struct ethtool_link_ksettings cmd;
@@ -490,16 +574,15 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	if (len >  0 && buf[len - 1] == '\n')
 		--count;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
-	if (dev_isalive(netdev)) {
-		ret = dev_set_alias(netdev, buf, count);
-		if (ret < 0)
-			goto err;
-		ret = len;
-		netdev_state_change(netdev);
-	}
+	ret = dev_set_alias(netdev, buf, count);
+	if (ret < 0)
+		goto err;
+	ret = len;
+	netdev_state_change(netdev);
 err:
 	rtnl_unlock();
 
@@ -551,24 +634,23 @@ static ssize_t phys_port_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct net_device *netdev = to_net_dev(dev);
+	struct netdev_phys_item_id ppid;
 	ssize_t ret = -EINVAL;
 
 	/* The check is also done in dev_get_phys_port_id; this helps returning
-	 * early without hitting the trylock/restart below.
+	 * early without hitting the locking section below.
 	 */
 	if (!netdev->netdev_ops->ndo_get_phys_port_id)
 		return -EOPNOTSUPP;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
-	if (dev_isalive(netdev)) {
-		struct netdev_phys_item_id ppid;
+	ret = dev_get_phys_port_id(netdev, &ppid);
+	if (!ret)
+		ret = sysfs_emit(buf, "%*phN\n", ppid.id_len, ppid.id);
 
-		ret = dev_get_phys_port_id(netdev, &ppid);
-		if (!ret)
-			ret = sysfs_emit(buf, "%*phN\n", ppid.id_len, ppid.id);
-	}
 	rtnl_unlock();
 
 	return ret;
@@ -580,24 +662,23 @@ static ssize_t phys_port_name_show(struct device *dev,
 {
 	struct net_device *netdev = to_net_dev(dev);
 	ssize_t ret = -EINVAL;
+	char name[IFNAMSIZ];
 
 	/* The checks are also done in dev_get_phys_port_name; this helps
-	 * returning early without hitting the trylock/restart below.
+	 * returning early without hitting the locking section below.
 	 */
 	if (!netdev->netdev_ops->ndo_get_phys_port_name &&
 	    !netdev->devlink_port)
 		return -EOPNOTSUPP;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
-	if (dev_isalive(netdev)) {
-		char name[IFNAMSIZ];
+	ret = dev_get_phys_port_name(netdev, name, sizeof(name));
+	if (!ret)
+		ret = sysfs_emit(buf, "%s\n", name);
 
-		ret = dev_get_phys_port_name(netdev, name, sizeof(name));
-		if (!ret)
-			ret = sysfs_emit(buf, "%s\n", name);
-	}
 	rtnl_unlock();
 
 	return ret;
@@ -608,26 +689,25 @@ static ssize_t phys_switch_id_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct net_device *netdev = to_net_dev(dev);
+	struct netdev_phys_item_id ppid = { };
 	ssize_t ret = -EINVAL;
 
 	/* The checks are also done in dev_get_phys_port_name; this helps
-	 * returning early without hitting the trylock/restart below. This works
+	 * returning early without hitting the locking section below. This works
 	 * because recurse is false when calling dev_get_port_parent_id.
 	 */
 	if (!netdev->netdev_ops->ndo_get_port_parent_id &&
 	    !netdev->devlink_port)
 		return -EOPNOTSUPP;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	ret = sysfs_rtnl_lock(&dev->kobj, &attr->attr, netdev);
+	if (ret)
+		return ret;
 
-	if (dev_isalive(netdev)) {
-		struct netdev_phys_item_id ppid = { };
+	ret = dev_get_port_parent_id(netdev, &ppid, false);
+	if (!ret)
+		ret = sysfs_emit(buf, "%*phN\n", ppid.id_len, ppid.id);
 
-		ret = dev_get_port_parent_id(netdev, &ppid, false);
-		if (!ret)
-			ret = sysfs_emit(buf, "%*phN\n", ppid.id_len, ppid.id);
-	}
 	rtnl_unlock();
 
 	return ret;
