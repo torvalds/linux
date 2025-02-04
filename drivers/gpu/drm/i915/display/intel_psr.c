@@ -2804,34 +2804,30 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 					     old_crtc_state->uapi.encoder_mask) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 		struct intel_psr *psr = &intel_dp->psr;
-		bool needs_to_disable = false;
 
 		mutex_lock(&psr->lock);
 
-		/*
-		 * Reasons to disable:
-		 * - PSR disabled in new state
-		 * - All planes will go inactive
-		 * - Changing between PSR versions
-		 * - Region Early Transport changing
-		 * - Display WA #1136: skl, bxt
-		 */
-		needs_to_disable |= intel_crtc_needs_modeset(new_crtc_state);
-		needs_to_disable |= !new_crtc_state->has_psr;
-		needs_to_disable |= !new_crtc_state->active_planes;
-		needs_to_disable |= new_crtc_state->has_sel_update != psr->sel_update_enabled;
-		needs_to_disable |= new_crtc_state->enable_psr2_su_region_et !=
-			psr->su_region_et_enabled;
-		needs_to_disable |= new_crtc_state->has_panel_replay !=
-			psr->panel_replay_enabled;
-		needs_to_disable |= DISPLAY_VER(i915) < 11 &&
-			new_crtc_state->wm_level_disabled;
-
-		if (psr->enabled && needs_to_disable)
-			intel_psr_disable_locked(intel_dp);
-		else if (psr->enabled && new_crtc_state->wm_level_disabled)
-			/* Wa_14015648006 */
-			wm_optimization_wa(intel_dp, new_crtc_state);
+		if (psr->enabled) {
+			/*
+			 * Reasons to disable:
+			 * - PSR disabled in new state
+			 * - All planes will go inactive
+			 * - Changing between PSR versions
+			 * - Region Early Transport changing
+			 * - Display WA #1136: skl, bxt
+			 */
+			if (intel_crtc_needs_modeset(new_crtc_state) ||
+			    !new_crtc_state->has_psr ||
+			    !new_crtc_state->active_planes ||
+			    new_crtc_state->has_sel_update != psr->sel_update_enabled ||
+			    new_crtc_state->enable_psr2_su_region_et != psr->su_region_et_enabled ||
+			    new_crtc_state->has_panel_replay != psr->panel_replay_enabled ||
+			    (DISPLAY_VER(i915) < 11 && new_crtc_state->wm_level_disabled))
+				intel_psr_disable_locked(intel_dp);
+			else if (new_crtc_state->wm_level_disabled)
+				/* Wa_14015648006 */
+				wm_optimization_wa(intel_dp, new_crtc_state);
+		}
 
 		mutex_unlock(&psr->lock);
 	}
