@@ -1464,9 +1464,7 @@ static inline bool pid_is_meaningful(const struct gfs2_holder *gh)
 {
         if (!(gh->gh_flags & GL_NOPID))
                 return true;
-        if (gh->gh_state == LM_ST_UNLOCKED)
-                return true;
-        return false;
+	return !test_bit(HIF_HOLDER, &gh->gh_iflags);
 }
 
 /**
