@@ -306,9 +306,6 @@ static int match_cxlrd_qos_class(struct device *dev, void *data)
 
 static void reset_dpa_perf(struct cxl_dpa_perf *dpa_perf)
 {
-	if (!dpa_perf)
-		return;
-
 	*dpa_perf = (struct cxl_dpa_perf) {
 		.qos_class = CXL_QOS_CLASS_INVALID,
 	};
@@ -317,9 +314,6 @@ static void reset_dpa_perf(struct cxl_dpa_perf *dpa_perf)
 static bool cxl_qos_match(struct cxl_port *root_port,
 			  struct cxl_dpa_perf *dpa_perf)
 {
-	if (!dpa_perf)
-		return false;
-
 	if (dpa_perf->qos_class == CXL_QOS_CLASS_INVALID)
 		return false;
 
@@ -351,37 +345,46 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 	return 0;
 }
 
-static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
+static void cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_dpa_perf *ram_perf = to_ram_perf(cxlds),
-			    *pmem_perf = to_pmem_perf(cxlds);
 	struct cxl_port *root_port;
-	int rc;
 
 	struct cxl_root *cxl_root __free(put_cxl_root) =
 		find_cxl_root(cxlmd->endpoint);
 
+	/*
+	 * No need to reset_dpa_perf() here as find_cxl_root() is guaranteed to
+	 * succeed when called in the cxl_endpoint_port_probe() path.
+	 */
 	if (!cxl_root)
-		return -ENODEV;
+		return;
 
 	root_port = &cxl_root->port;
 
-	/* Check that the QTG IDs are all sane between end device and root decoders */
-	if (!cxl_qos_match(root_port, ram_perf))
-		reset_dpa_perf(ram_perf);
-	if (!cxl_qos_match(root_port, pmem_perf))
-		reset_dpa_perf(pmem_perf);
+	/*
+	 * Save userspace from needing to check if a qos class has any matches
+	 * by hiding qos class info if the memdev is not mapped by a root
+	 * decoder, or the partition class does not match any root decoder
+	 * class.
+	 */
+	if (!device_for_each_child(&root_port->dev,
+				   cxlmd->endpoint->host_bridge,
+				   match_cxlrd_hb)) {
+		for (int i = 0; i < cxlds->nr_partitions; i++) {
+			struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
 
-	/* Check to make sure that the device's host bridge is under a root decoder */
-	rc = device_for_each_child(&root_port->dev,
-				   cxlmd->endpoint->host_bridge, match_cxlrd_hb);
-	if (!rc) {
-		reset_dpa_perf(ram_perf);
-		reset_dpa_perf(pmem_perf);
+			reset_dpa_perf(perf);
+		}
+		return;
 	}
 
-	return rc;
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		struct cxl_dpa_perf *perf = &cxlds->part[i].perf;
+
+		if (!cxl_qos_match(root_port, perf))
+			reset_dpa_perf(perf);
+	}
 }
 
 static void discard_dsmas(struct xarray *xa)

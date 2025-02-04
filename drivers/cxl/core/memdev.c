@@ -75,6 +75,14 @@ static ssize_t label_storage_size_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(label_storage_size);
 
+static resource_size_t cxl_ram_size(struct cxl_dev_state *cxlds)
+{
+	/* Static RAM is only expected at partition 0. */
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return 0;
+	return resource_size(&cxlds->part[0].res);
+}
+
 static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -399,6 +407,14 @@ static struct attribute *cxl_memdev_attributes[] = {
 	NULL,
 };
 
+static struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
+{
+	for (int i = 0; i < cxlds->nr_partitions; i++)
+		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
+			return &cxlds->part[i].perf;
+	return NULL;
+}
+
 static ssize_t pmem_qos_class_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -416,6 +432,13 @@ static struct attribute *cxl_memdev_pmem_attributes[] = {
 	&dev_attr_pmem_qos_class.attr,
 	NULL,
 };
+
+static struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
+{
+	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
+		return NULL;
+	return &cxlds->part[0].perf;
+}
 
 static ssize_t ram_qos_class_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)

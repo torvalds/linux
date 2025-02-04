@@ -470,58 +470,16 @@ struct cxl_dev_state {
 	struct cxl_mailbox cxl_mbox;
 };
 
-
-/* Static RAM is only expected at partition 0. */
-static inline const struct resource *to_ram_res(struct cxl_dev_state *cxlds)
-{
-	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
-		return NULL;
-	return &cxlds->part[0].res;
-}
-
-/*
- * Static PMEM may be at partition index 0 when there is no static RAM
- * capacity.
- */
-static inline const struct resource *to_pmem_res(struct cxl_dev_state *cxlds)
-{
-	for (int i = 0; i < cxlds->nr_partitions; i++)
-		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
-			return &cxlds->part[i].res;
-	return NULL;
-}
-
-static inline struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
-{
-	if (cxlds->part[0].mode != CXL_PARTMODE_RAM)
-		return NULL;
-	return &cxlds->part[0].perf;
-}
-
-static inline struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
-{
-	for (int i = 0; i < cxlds->nr_partitions; i++)
-		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
-			return &cxlds->part[i].perf;
-	return NULL;
-}
-
-static inline resource_size_t cxl_ram_size(struct cxl_dev_state *cxlds)
-{
-	const struct resource *res = to_ram_res(cxlds);
-
-	if (!res)
-		return 0;
-	return resource_size(res);
-}
-
 static inline resource_size_t cxl_pmem_size(struct cxl_dev_state *cxlds)
 {
-	const struct resource *res = to_pmem_res(cxlds);
-
-	if (!res)
-		return 0;
-	return resource_size(res);
+	/*
+	 * Static PMEM may be at partition index 0 when there is no static RAM
+	 * capacity.
+	 */
+	for (int i = 0; i < cxlds->nr_partitions; i++)
+		if (cxlds->part[i].mode == CXL_PARTMODE_PMEM)
+			return resource_size(&cxlds->part[i].res);
+	return 0;
 }
 
 static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
