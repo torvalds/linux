@@ -165,7 +165,7 @@ Configuring the kernel
 
      "make xconfig"     Qt based configuration tool.
 
-     "make gconfig"     GTK+ based configuration tool.
+     "make gconfig"     GTK based configuration tool.
 
      "make oldconfig"   Default all questions based on the contents of
                         your existing ./.config file and asking about
