@@ -15,10 +15,6 @@
 	.set noat
 	.cfi_sections	.debug_frame
 
-/* Stack offsets.  */
-#define SP_OFF			184
-#define SWITCH_STACK_SIZE	64
-
 .macro	CFI_START_OSF_FRAME	func
 	.align	4
 	.globl	\func
