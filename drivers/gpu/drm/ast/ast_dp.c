@@ -5,6 +5,7 @@
 #include <linux/firmware.h>
 #include <linux/delay.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_modeset_helper_vtables.h>
@@ -44,6 +45,8 @@ static const struct ast_astdp_mode_index_table_entry ast_astdp_mode_index_table[
 
 struct ast_astdp_connector_state {
 	struct drm_connector_state base;
+
+	int mode_index;
 };
 
 static struct ast_astdp_connector_state *
@@ -305,13 +308,11 @@ static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder
 	struct ast_device *ast = to_ast_device(dev);
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	const struct ast_vbios_enhtable *vmode = ast_crtc_state->vmode;
-	int mode_index;
+	struct ast_astdp_connector_state *astdp_conn_state =
+		to_ast_astdp_connector_state(conn_state);
+	int mode_index = astdp_conn_state->mode_index;
 	u8 refresh_rate_index;
 	u8 vgacre0, vgacre1, vgacre2;
-
-	mode_index = ast_astdp_get_mode_index(vmode->hde, vmode->vde);
-	if (drm_WARN_ON(dev, mode_index < 0))
-		return;
 
 	if (drm_WARN_ON(dev, vmode->refresh_rate_index < 1 || vmode->refresh_rate_index > 255))
 		return;
@@ -368,10 +369,30 @@ static void ast_astdp_encoder_helper_atomic_disable(struct drm_encoder *encoder,
 	ast_dp_set_phy_sleep(ast, true);
 }
 
+static int ast_astdp_encoder_helper_atomic_check(struct drm_encoder *encoder,
+						 struct drm_crtc_state *crtc_state,
+						 struct drm_connector_state *conn_state)
+{
+	const struct drm_display_mode *mode = &crtc_state->mode;
+	struct ast_astdp_connector_state *astdp_conn_state =
+		to_ast_astdp_connector_state(conn_state);
+	int res;
+
+	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		res = ast_astdp_get_mode_index(mode->hdisplay, mode->vdisplay);
+		if (res < 0)
+			return res;
+		astdp_conn_state->mode_index = res;
+	}
+
+	return 0;
+}
+
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
 	.atomic_mode_set = ast_astdp_encoder_helper_atomic_mode_set,
 	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
 	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
+	.atomic_check = ast_astdp_encoder_helper_atomic_check,
 };
 
 /*
@@ -459,7 +480,7 @@ static void ast_astdp_connector_reset(struct drm_connector *connector)
 static struct drm_connector_state *
 ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
 {
-	struct ast_astdp_connector_state *new_astdp_state;
+	struct ast_astdp_connector_state *new_astdp_state, *astdp_state;
 	struct drm_device *dev = connector->dev;
 
 	if (drm_WARN_ON(dev, !connector->state))
@@ -469,6 +490,10 @@ ast_astdp_connector_atomic_duplicate_state(struct drm_connector *connector)
 	if (!new_astdp_state)
 		return NULL;
 	__drm_atomic_helper_connector_duplicate_state(connector, &new_astdp_state->base);
+
+	astdp_state = to_ast_astdp_connector_state(connector->state);
+
+	new_astdp_state->mode_index = astdp_state->mode_index;
 
 	return &new_astdp_state->base;
 }
