@@ -1,0 +1,82 @@
+name: sync
+
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-test-${{ github.workflow }}-${{ github.ref_name }}
+
+jobs:
+  sync_repo:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/linux-riscv/pw-builder:latest
+      volumes:
+        - /home/github/ramdisk/build:/build
+        - /home/github/ccache:/build/ccache
+        - /home/github/gitref:/build/gitref
+    steps:
+      - name: Configure git
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global user.name "Linux RISC-V bot"
+          git config --global user.email "linux.riscv.bot@gmail.com"
+      - name: Checkout git
+        run: |
+          mkdir -p /build/linux
+          cd /build/linux
+          git clone https://github.com/${{ github.repository }} .
+          git log --oneline -4
+      - name: Sync Linus master
+        env:
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/sync.sh "git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git" master master workflow "https://github.com/linux-riscv/github-ci.git"
+      - name: Sync RISC-V for-next
+        env:
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/sync.sh "git://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git" for-next master__riscv__for-next workflow__riscv__for-next "https://github.com/linux-riscv/github-ci.git"
+      - name: Sync RISC-V fixes
+        env:
+          ACTION_TOKEN: ${{ secrets.ACTION_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/sync.sh "git://git.kernel.org/pub/scm/linux/kernel/git/riscv/linux.git" fixes master__riscv__fixes workflow__riscv__fixes "https://github.com/linux-riscv/github-ci.git"
+
+      - name: Create and activate virtual environment
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          echo "PATH=$PATH" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: |
+          pip install -r /build/linux/.github/scripts/requirements.txt
+
+      - name: Sync Patchwork
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          PATCHWORK_TOKEN: ${{ secrets.PATCHWORK_TOKEN }}
+          PATCHWORK_USER: ""
+          EMAIL_TOKEN: ${{ secrets.EMAIL_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/sync_patchwork.py -c ./.github/scripts/config.json -s /build/linux -b workflow__riscv__fixes -b workflow__riscv__for-next -b workflow linux-riscv/linux
+
+      - name: Clean PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.ACTION_TOKEN }}
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        run: |
+          cd /build/linux
+          ./.github/scripts/cleanup_pr.py linux-riscv/linux

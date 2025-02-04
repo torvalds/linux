@@ -1,0 +1,28 @@
+From a28da2534fd8273eab88228749786ddfdd463184 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn@rivosinc.com>
+Date: Wed, 11 Sep 2024 09:53:21 +0200
+Subject: [PATCH 6/6] Add missing net/lib kselftest target
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Signed-off-by: Björn Töpel <bjorn@rivosinc.com>
+---
+ tools/testing/selftests/Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/tools/testing/selftests/Makefile b/tools/testing/selftests/Makefile
+index bc8fe9e8f7f2..cf166c64a5d3 100644
+--- a/tools/testing/selftests/Makefile
++++ b/tools/testing/selftests/Makefile
+@@ -64,6 +64,7 @@ TARGETS += net
+ TARGETS += net/af_unix
+ TARGETS += net/forwarding
+ TARGETS += net/hsr
++TARGETS += net/lib
+ TARGETS += net/mptcp
+ TARGETS += net/openvswitch
+ TARGETS += net/tcp_ao
+-- 
+2.43.0
+
