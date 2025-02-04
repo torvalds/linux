@@ -290,21 +290,7 @@ void dc_plane_force_dcc_and_tiling_disable(struct dc_plane_state *plane_state,
 		if (!pipe_ctx)
 			continue;
 
-		if (dc->ctx->dce_version >= DCE_VERSION_MAX) {
-			if (dc->hwss.clear_surface_dcc_and_tiling)
-				dc->hwss.clear_surface_dcc_and_tiling(pipe_ctx, plane_state, clear_tiling);
-		} else {
-			struct mem_input *mi = pipe_ctx->plane_res.mi;
-			if (!mi)
-				continue;
-			/* if framebuffer is tiled, disable tiling */
-			if (clear_tiling && mi->funcs->mem_input_clear_tiling)
-				mi->funcs->mem_input_clear_tiling(mi);
-
-			/* force page flip to see the new content of the framebuffer */
-			mi->funcs->mem_input_program_surface_flip_and_addr(mi,
-									   &plane_state->address,
-									   true);
-		}
+		if (dc->hwss.clear_surface_dcc_and_tiling)
+			dc->hwss.clear_surface_dcc_and_tiling(pipe_ctx, plane_state, clear_tiling);
 	}
 }

@@ -33,6 +33,7 @@
 #include "dce110_hwseq.h"
 #include "dce110/dce110_timing_generator.h"
 #include "dce/dce_hwseq.h"
+#include "dce100/dce100_hwseq.h"
 #include "gpio_service_interface.h"
 
 #include "dce110/dce110_compressor.h"
@@ -3332,6 +3333,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.post_unlock_program_front_end = dce110_post_unlock_program_front_end,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
+	.clear_surface_dcc_and_tiling = dce100_reset_surface_dcc_and_tiling,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dce110_enable_timing_synchronization,
 	.enable_per_frame_crtc_position_reset = dce110_enable_per_frame_crtc_position_reset,
