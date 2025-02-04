@@ -1211,9 +1211,6 @@ struct adapter {
 	struct timer_list flower_stats_timer;
 	struct work_struct flower_stats_work;
 
-	/* Ethtool Dump */
-	struct ethtool_dump eth_dump;
-
 	/* HMA */
 	struct hma_data hma;
 
@@ -1233,6 +1230,10 @@ struct adapter {
 
 	/* Ethtool n-tuple */
 	struct cxgb4_ethtool_filter *ethtool_filters;
+
+	/* Ethtool Dump */
+	/* Must be last - ends in a flex-array member. */
+	struct ethtool_dump eth_dump;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
