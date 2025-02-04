@@ -475,11 +475,6 @@ static ssize_t amdgpu_get_pp_force_state(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int ret;
-
-	ret = amdgpu_pm_dev_state_check(adev, true);
-	if (ret)
-		return ret;
 
 	if (adev->pm.pp_force_state_enabled)
 		return amdgpu_get_pp_cur_state(dev, attr, buf);
@@ -1568,11 +1563,7 @@ static ssize_t amdgpu_get_unique_id(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int r;
 
-	r = amdgpu_pm_dev_state_check(adev, true);
-	if (r)
-		return r;
 	if (adev->unique_id)
 		return sysfs_emit(buf, "%016llx\n", adev->unique_id);
 
@@ -2153,14 +2144,9 @@ static ssize_t amdgpu_get_pm_policy_attr(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	struct amdgpu_pm_policy_attr *policy_attr;
-	int r;
 
 	policy_attr =
 		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
-
-	r = amdgpu_pm_dev_state_check(adev, true);
-	if (r)
-		return r;
 
 	return amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, buf);
 }
