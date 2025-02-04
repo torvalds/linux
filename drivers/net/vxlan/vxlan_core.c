@@ -434,8 +434,12 @@ static struct vxlan_fdb *vxlan_find_mac(struct vxlan_dev *vxlan,
 	struct vxlan_fdb *f;
 
 	f = __vxlan_find_mac(vxlan, mac, vni);
-	if (f && READ_ONCE(f->used) != jiffies)
-		WRITE_ONCE(f->used, jiffies);
+	if (f) {
+		unsigned long now = jiffies;
+
+		if (READ_ONCE(f->used) != now)
+			WRITE_ONCE(f->used, now);
+	}
 
 	return f;
 }
