@@ -1013,12 +1013,10 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 	    !(f->flags & NTF_VXLAN_ADDED_BY_USER)) {
 		if (f->state != state) {
 			f->state = state;
-			WRITE_ONCE(f->updated, jiffies);
 			notify = 1;
 		}
 		if (f->flags != fdb_flags) {
 			f->flags = fdb_flags;
-			WRITE_ONCE(f->updated, jiffies);
 			notify = 1;
 		}
 	}
@@ -1060,6 +1058,7 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 		if (rd == NULL)
 			rd = first_remote_rtnl(f);
 
+		WRITE_ONCE(f->updated, jiffies);
 		err = vxlan_fdb_notify(vxlan, f, rd, RTM_NEWNEIGH,
 				       swdev_notify, extack);
 		if (err)
