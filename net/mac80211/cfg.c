@@ -89,15 +89,14 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 
 	/* check flags first */
 	if (params->flags && ieee80211_sdata_running(sdata)) {
-		u32 mask = MONITOR_FLAG_COOK_FRAMES | MONITOR_FLAG_ACTIVE;
+		u32 mask = MONITOR_FLAG_ACTIVE;
 
 		/*
-		 * Prohibit MONITOR_FLAG_COOK_FRAMES and
-		 * MONITOR_FLAG_ACTIVE to be changed while the
-		 * interface is up.
+		 * Prohibit MONITOR_FLAG_ACTIVE to be changed
+		 * while the interface is up.
 		 * Else we would need to add a lot of cruft
 		 * to update everything:
-		 *	cooked_mntrs, monitor and all fif_* counters
+		 *	monitor and all fif_* counters
 		 *	reconfigure hardware
 		 */
 		if ((params->flags & mask) != (sdata->u.mntr.flags & mask))

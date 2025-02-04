@@ -5617,7 +5617,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	if (!copy)
 		return bcn;
 
-	ieee80211_tx_monitor(hw_to_local(hw), copy, 1, false, NULL);
+	ieee80211_tx_monitor(hw_to_local(hw), copy, 1, NULL);
 
 	return bcn;
 }
