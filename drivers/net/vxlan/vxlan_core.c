@@ -1051,8 +1051,10 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 		notify |= rc;
 	}
 
-	if (ndm_flags & NTF_USE)
+	if (ndm_flags & NTF_USE) {
 		WRITE_ONCE(f->used, jiffies);
+		WRITE_ONCE(f->updated, jiffies);
+	}
 
 	if (notify) {
 		if (rd == NULL)
