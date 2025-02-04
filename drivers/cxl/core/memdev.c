@@ -198,17 +198,8 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 	int rc = 0;
 
 	/* CXL 3.0 Spec 8.2.9.8.4.1 Separate pmem and ram poison requests */
-	if (cxl_pmem_size(cxlds)) {
-		const struct resource *res = to_pmem_res(cxlds);
-
-		offset = res->start;
-		length = resource_size(res);
-		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
-		if (rc)
-			return rc;
-	}
-	if (cxl_ram_size(cxlds)) {
-		const struct resource *res = to_ram_res(cxlds);
+	for (int i = 0; i < cxlds->nr_partitions; i++) {
+		const struct resource *res = &cxlds->part[i].res;
 
 		offset = res->start;
 		length = resource_size(res);
@@ -217,7 +208,7 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 		 * Invalid Physical Address is not an error for
 		 * volatile addresses. Device support is optional.
 		 */
-		if (rc == -EFAULT)
+		if (rc == -EFAULT && cxlds->part[i].mode == CXL_PARTMODE_RAM)
 			rc = 0;
 	}
 	return rc;

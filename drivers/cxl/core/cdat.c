@@ -579,23 +579,15 @@ static bool dpa_perf_contains(struct cxl_dpa_perf *perf,
 	return range_contains(&perf->dpa_range, &dpa);
 }
 
-static struct cxl_dpa_perf *cxled_get_dpa_perf(struct cxl_endpoint_decoder *cxled,
-					       enum cxl_decoder_mode mode)
+static struct cxl_dpa_perf *cxled_get_dpa_perf(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_dpa_perf *perf;
 
-	switch (mode) {
-	case CXL_DECODER_RAM:
-		perf = to_ram_perf(cxlds);
-		break;
-	case CXL_DECODER_PMEM:
-		perf = to_pmem_perf(cxlds);
-		break;
-	default:
+	if (cxled->part < 0)
 		return ERR_PTR(-EINVAL);
-	}
+	perf = &cxlds->part[cxled->part].perf;
 
 	if (!perf)
 		return ERR_PTR(-EINVAL);
@@ -659,7 +651,7 @@ static int cxl_endpoint_gather_bandwidth(struct cxl_region *cxlr,
 	if (cxlds->rcd)
 		return -ENODEV;
 
-	perf = cxled_get_dpa_perf(cxled, cxlr->mode);
+	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))
 		return PTR_ERR(perf);
 
@@ -1065,7 +1057,7 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 
 	lockdep_assert_held(&cxl_dpa_rwsem);
 
-	perf = cxled_get_dpa_perf(cxled, cxlr->mode);
+	perf = cxled_get_dpa_perf(cxled);
 	if (IS_ERR(perf))
 		return;
 

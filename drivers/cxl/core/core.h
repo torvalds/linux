@@ -72,8 +72,8 @@ void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 				   resource_size_t length);
 
 struct dentry *cxl_debugfs_create_dir(const char *dir);
-int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
-		     enum cxl_decoder_mode mode);
+int cxl_dpa_set_part(struct cxl_endpoint_decoder *cxled,
+		     enum cxl_partition_mode mode);
 int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size);
 int cxl_dpa_free(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled);

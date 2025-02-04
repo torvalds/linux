@@ -144,7 +144,7 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 	rc = down_read_interruptible(&cxl_region_rwsem);
 	if (rc)
 		return rc;
-	if (cxlr->mode != CXL_DECODER_PMEM)
+	if (cxlr->mode != CXL_PARTMODE_PMEM)
 		rc = sysfs_emit(buf, "\n");
 	else
 		rc = sysfs_emit(buf, "%pUb\n", &p->uuid);
@@ -441,7 +441,7 @@ static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
 	 * Support tooling that expects to find a 'uuid' attribute for all
 	 * regions regardless of mode.
 	 */
-	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_DECODER_PMEM)
+	if (a == &dev_attr_uuid.attr && cxlr->mode != CXL_PARTMODE_PMEM)
 		return 0444;
 	return a->mode;
 }
@@ -603,8 +603,16 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct cxl_region *cxlr = to_cxl_region(dev);
+	const char *desc;
 
-	return sysfs_emit(buf, "%s\n", cxl_decoder_mode_name(cxlr->mode));
+	if (cxlr->mode == CXL_PARTMODE_RAM)
+		desc = "ram";
+	else if (cxlr->mode == CXL_PARTMODE_PMEM)
+		desc = "pmem";
+	else
+		desc = "";
+
+	return sysfs_emit(buf, "%s\n", desc);
 }
 static DEVICE_ATTR_RO(mode);
 
@@ -630,7 +638,7 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 
 	/* ways, granularity and uuid (if PMEM) need to be set before HPA */
 	if (!p->interleave_ways || !p->interleave_granularity ||
-	    (cxlr->mode == CXL_DECODER_PMEM && uuid_is_null(&p->uuid)))
+	    (cxlr->mode == CXL_PARTMODE_PMEM && uuid_is_null(&p->uuid)))
 		return -ENXIO;
 
 	div64_u64_rem(size, (u64)SZ_256M * p->interleave_ways, &remainder);
@@ -1888,6 +1896,7 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_region_params *p = &cxlr->params;
 	struct cxl_port *ep_port, *root_port;
 	struct cxl_dport *dport;
@@ -1902,15 +1911,15 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		return rc;
 	}
 
-	if (cxled->mode != cxlr->mode) {
-		dev_dbg(&cxlr->dev, "%s region mode: %d mismatch: %d\n",
-			dev_name(&cxled->cxld.dev), cxlr->mode, cxled->mode);
-		return -EINVAL;
-	}
-
-	if (cxled->mode == CXL_DECODER_DEAD) {
+	if (cxled->part < 0) {
 		dev_dbg(&cxlr->dev, "%s dead\n", dev_name(&cxled->cxld.dev));
 		return -ENODEV;
+	}
+
+	if (cxlds->part[cxled->part].mode != cxlr->mode) {
+		dev_dbg(&cxlr->dev, "%s region mode: %d mismatch\n",
+			dev_name(&cxled->cxld.dev), cxlr->mode);
+		return -EINVAL;
 	}
 
 	/* all full of members, or interleave config not established? */
@@ -2115,7 +2124,7 @@ out:
 void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
 {
 	down_write(&cxl_region_rwsem);
-	cxled->mode = CXL_DECODER_DEAD;
+	cxled->part = -1;
 	cxl_region_detach(cxled);
 	up_write(&cxl_region_rwsem);
 }
@@ -2471,7 +2480,7 @@ static int cxl_region_calculate_adistance(struct notifier_block *nb,
  */
 static struct cxl_region *devm_cxl_add_region(struct cxl_root_decoder *cxlrd,
 					      int id,
-					      enum cxl_decoder_mode mode,
+					      enum cxl_partition_mode mode,
 					      enum cxl_decoder_type type)
 {
 	struct cxl_port *port = to_cxl_port(cxlrd->cxlsd.cxld.dev.parent);
@@ -2525,13 +2534,13 @@ static ssize_t create_ram_region_show(struct device *dev,
 }
 
 static struct cxl_region *__create_region(struct cxl_root_decoder *cxlrd,
-					  enum cxl_decoder_mode mode, int id)
+					  enum cxl_partition_mode mode, int id)
 {
 	int rc;
 
 	switch (mode) {
-	case CXL_DECODER_RAM:
-	case CXL_DECODER_PMEM:
+	case CXL_PARTMODE_RAM:
+	case CXL_PARTMODE_PMEM:
 		break;
 	default:
 		dev_err(&cxlrd->cxlsd.cxld.dev, "unsupported mode %d\n", mode);
@@ -2551,7 +2560,7 @@ static struct cxl_region *__create_region(struct cxl_root_decoder *cxlrd,
 }
 
 static ssize_t create_region_store(struct device *dev, const char *buf,
-				   size_t len, enum cxl_decoder_mode mode)
+				   size_t len, enum cxl_partition_mode mode)
 {
 	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
 	struct cxl_region *cxlr;
@@ -2572,7 +2581,7 @@ static ssize_t create_pmem_region_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t len)
 {
-	return create_region_store(dev, buf, len, CXL_DECODER_PMEM);
+	return create_region_store(dev, buf, len, CXL_PARTMODE_PMEM);
 }
 DEVICE_ATTR_RW(create_pmem_region);
 
@@ -2580,7 +2589,7 @@ static ssize_t create_ram_region_store(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
 {
-	return create_region_store(dev, buf, len, CXL_DECODER_RAM);
+	return create_region_store(dev, buf, len, CXL_PARTMODE_RAM);
 }
 DEVICE_ATTR_RW(create_ram_region);
 
@@ -2678,7 +2687,7 @@ EXPORT_SYMBOL_NS_GPL(to_cxl_pmem_region, "CXL");
 
 struct cxl_poison_context {
 	struct cxl_port *port;
-	enum cxl_decoder_mode mode;
+	int part;
 	u64 offset;
 };
 
@@ -2686,49 +2695,45 @@ static int cxl_get_poison_unmapped(struct cxl_memdev *cxlmd,
 				   struct cxl_poison_context *ctx)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	const struct resource *res;
+	struct resource *p, *last;
 	u64 offset, length;
 	int rc = 0;
 
-	/*
-	 * Collect poison for the remaining unmapped resources
-	 * after poison is collected by committed endpoints.
-	 *
-	 * Knowing that PMEM must always follow RAM, get poison
-	 * for unmapped resources based on the last decoder's mode:
-	 *	ram: scan remains of ram range, then any pmem range
-	 *	pmem: scan remains of pmem range
-	 */
-
-	if (ctx->mode == CXL_DECODER_RAM) {
-		offset = ctx->offset;
-		length = cxl_ram_size(cxlds) - offset;
-		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
-		if (rc == -EFAULT)
-			rc = 0;
-		if (rc)
-			return rc;
-	}
-	if (ctx->mode == CXL_DECODER_PMEM) {
-		offset = ctx->offset;
-		length = resource_size(&cxlds->dpa_res) - offset;
-		if (!length)
-			return 0;
-	} else if (cxl_pmem_size(cxlds)) {
-		const struct resource *res = to_pmem_res(cxlds);
-
-		offset = res->start;
-		length = resource_size(res);
-	} else {
+	if (ctx->part < 0)
 		return 0;
+
+	/*
+	 * Collect poison for the remaining unmapped resources after
+	 * poison is collected by committed endpoints decoders.
+	 */
+	for (int i = ctx->part; i < cxlds->nr_partitions; i++) {
+		res = &cxlds->part[i].res;
+		for (p = res->child, last = NULL; p; p = p->sibling)
+			last = p;
+		if (last)
+			offset = last->end + 1;
+		else
+			offset = res->start;
+		length = res->end - offset + 1;
+		if (!length)
+			break;
+		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
+		if (rc == -EFAULT && cxlds->part[i].mode == CXL_PARTMODE_RAM)
+			continue;
+		if (rc)
+			break;
 	}
 
-	return cxl_mem_get_poison(cxlmd, offset, length, NULL);
+	return rc;
 }
 
 static int poison_by_decoder(struct device *dev, void *arg)
 {
 	struct cxl_poison_context *ctx = arg;
 	struct cxl_endpoint_decoder *cxled;
+	enum cxl_partition_mode mode;
+	struct cxl_dev_state *cxlds;
 	struct cxl_memdev *cxlmd;
 	u64 offset, length;
 	int rc = 0;
@@ -2737,15 +2742,18 @@ static int poison_by_decoder(struct device *dev, void *arg)
 		return rc;
 
 	cxled = to_cxl_endpoint_decoder(dev);
-	if (!cxled->dpa_res || !resource_size(cxled->dpa_res))
+	if (!cxled->dpa_res)
 		return rc;
 
 	cxlmd = cxled_to_memdev(cxled);
+	cxlds = cxlmd->cxlds;
+	mode = cxlds->part[cxled->part].mode;
+
 	if (cxled->skip) {
 		offset = cxled->dpa_res->start - cxled->skip;
 		length = cxled->skip;
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
-		if (rc == -EFAULT && cxled->mode == CXL_DECODER_RAM)
+		if (rc == -EFAULT && mode == CXL_PARTMODE_RAM)
 			rc = 0;
 		if (rc)
 			return rc;
@@ -2754,7 +2762,7 @@ static int poison_by_decoder(struct device *dev, void *arg)
 	offset = cxled->dpa_res->start;
 	length = cxled->dpa_res->end - offset + 1;
 	rc = cxl_mem_get_poison(cxlmd, offset, length, cxled->cxld.region);
-	if (rc == -EFAULT && cxled->mode == CXL_DECODER_RAM)
+	if (rc == -EFAULT && mode == CXL_PARTMODE_RAM)
 		rc = 0;
 	if (rc)
 		return rc;
@@ -2762,7 +2770,7 @@ static int poison_by_decoder(struct device *dev, void *arg)
 	/* Iterate until commit_end is reached */
 	if (cxled->cxld.id == ctx->port->commit_end) {
 		ctx->offset = cxled->dpa_res->end + 1;
-		ctx->mode = cxled->mode;
+		ctx->part = cxled->part;
 		return 1;
 	}
 
@@ -2775,7 +2783,8 @@ int cxl_get_poison_by_endpoint(struct cxl_port *port)
 	int rc = 0;
 
 	ctx = (struct cxl_poison_context) {
-		.port = port
+		.port = port,
+		.part = -1,
 	};
 
 	rc = device_for_each_child(&port->dev, &ctx, poison_by_decoder);
@@ -3220,14 +3229,18 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_port *port = cxlrd_to_port(cxlrd);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct range *hpa = &cxled->cxld.hpa_range;
+	int rc, part = READ_ONCE(cxled->part);
 	struct cxl_region_params *p;
 	struct cxl_region *cxlr;
 	struct resource *res;
-	int rc;
+
+	if (part < 0)
+		return ERR_PTR(-EBUSY);
 
 	do {
-		cxlr = __create_region(cxlrd, cxled->mode,
+		cxlr = __create_region(cxlrd, cxlds->part[part].mode,
 				       atomic_read(&cxlrd->region_id));
 	} while (IS_ERR(cxlr) && PTR_ERR(cxlr) == -EBUSY);
 
@@ -3430,9 +3443,9 @@ out:
 		return rc;
 
 	switch (cxlr->mode) {
-	case CXL_DECODER_PMEM:
+	case CXL_PARTMODE_PMEM:
 		return devm_cxl_add_pmem_region(cxlr);
-	case CXL_DECODER_RAM:
+	case CXL_PARTMODE_RAM:
 		/*
 		 * The region can not be manged by CXL if any portion of
 		 * it is already online as 'System RAM'

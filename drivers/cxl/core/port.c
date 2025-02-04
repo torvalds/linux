@@ -194,25 +194,35 @@ static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
+	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	/* without @cxl_dpa_rwsem, make sure @part is not reloaded */
+	int part = READ_ONCE(cxled->part);
+	const char *desc;
 
-	return sysfs_emit(buf, "%s\n", cxl_decoder_mode_name(cxled->mode));
+	if (part < 0)
+		desc = "none";
+	else
+		desc = cxlds->part[part].res.name;
+
+	return sysfs_emit(buf, "%s\n", desc);
 }
 
 static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t len)
 {
 	struct cxl_endpoint_decoder *cxled = to_cxl_endpoint_decoder(dev);
-	enum cxl_decoder_mode mode;
+	enum cxl_partition_mode mode;
 	ssize_t rc;
 
 	if (sysfs_streq(buf, "pmem"))
-		mode = CXL_DECODER_PMEM;
+		mode = CXL_PARTMODE_PMEM;
 	else if (sysfs_streq(buf, "ram"))
-		mode = CXL_DECODER_RAM;
+		mode = CXL_PARTMODE_RAM;
 	else
 		return -EINVAL;
 
-	rc = cxl_dpa_set_mode(cxled, mode);
+	rc = cxl_dpa_set_part(cxled, mode);
 	if (rc)
 		return rc;
 
@@ -1899,6 +1909,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 		return ERR_PTR(-ENOMEM);
 
 	cxled->pos = -1;
+	cxled->part = -1;
 	cxld = &cxled->cxld;
 	rc = cxl_decoder_init(port, cxld);
 	if (rc)	 {

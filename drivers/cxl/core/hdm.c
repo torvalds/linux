@@ -359,7 +359,6 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	struct cxl_port *port = cxled_to_port(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *dev = &port->dev;
-	enum cxl_decoder_mode mode;
 	struct resource *res;
 	int rc;
 
@@ -406,17 +405,21 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	cxled->dpa_res = res;
 	cxled->skip = skipped;
 
-	mode = CXL_DECODER_NONE;
-	for (int i = 0; cxlds->nr_partitions; i++)
-		if (resource_contains(&cxlds->part[i].res, res)) {
-			mode = cxl_part_mode(cxlds->part[i].mode);
-			break;
-		}
+	/*
+	 * When allocating new capacity, ->part is already set, when
+	 * discovering decoder settings at initial enumeration, ->part
+	 * is not set.
+	 */
+	if (cxled->part < 0)
+		for (int i = 0; cxlds->nr_partitions; i++)
+			if (resource_contains(&cxlds->part[i].res, res)) {
+				cxled->part = i;
+				break;
+			}
 
-	if (mode == CXL_DECODER_NONE)
+	if (cxled->part < 0)
 		dev_warn(dev, "decoder%d.%d: %pr does not map any partition\n",
 			 port->id, cxled->cxld.id, res);
-	cxled->mode = mode;
 
 	port->hdm_end++;
 	get_device(&cxled->cxld.dev);
@@ -583,40 +586,33 @@ out:
 	return rc;
 }
 
-int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
-		     enum cxl_decoder_mode mode)
+int cxl_dpa_set_part(struct cxl_endpoint_decoder *cxled,
+		     enum cxl_partition_mode mode)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *dev = &cxled->cxld.dev;
-
-	switch (mode) {
-	case CXL_DECODER_RAM:
-	case CXL_DECODER_PMEM:
-		break;
-	default:
-		dev_dbg(dev, "unsupported mode: %d\n", mode);
-		return -EINVAL;
-	}
+	int part;
 
 	guard(rwsem_write)(&cxl_dpa_rwsem);
 	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE)
 		return -EBUSY;
 
-	/*
-	 * Only allow modes that are supported by the current partition
-	 * configuration
-	 */
-	if (mode == CXL_DECODER_PMEM && !cxl_pmem_size(cxlds)) {
-		dev_dbg(dev, "no available pmem capacity\n");
-		return -ENXIO;
+	for (part = 0; part < cxlds->nr_partitions; part++)
+		if (cxlds->part[part].mode == mode)
+			break;
+
+	if (part >= cxlds->nr_partitions) {
+		dev_dbg(dev, "unsupported mode: %d\n", mode);
+		return -EINVAL;
 	}
-	if (mode == CXL_DECODER_RAM && !cxl_ram_size(cxlds)) {
-		dev_dbg(dev, "no available ram capacity\n");
+
+	if (!resource_size(&cxlds->part[part].res)) {
+		dev_dbg(dev, "no available capacity for mode: %d\n", mode);
 		return -ENXIO;
 	}
 
-	cxled->mode = mode;
+	cxled->part = part;
 	return 0;
 }
 
@@ -645,15 +641,9 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 		goto out;
 	}
 
-	part = -1;
-	for (int i = 0; i < cxlds->nr_partitions; i++) {
-		if (cxled->mode == cxl_part_mode(cxlds->part[i].mode)) {
-			part = i;
-			break;
-		}
-	}
-
+	part = cxled->part;
 	if (part < 0) {
+		dev_dbg(dev, "partition not set\n");
 		rc = -EBUSY;
 		goto out;
 	}
@@ -694,7 +684,7 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 
 	if (size > avail) {
 		dev_dbg(dev, "%pa exceeds available %s capacity: %pa\n", &size,
-			cxl_decoder_mode_name(cxled->mode), &avail);
+			res->name, &avail);
 		rc = -ENOSPC;
 		goto out;
 	}
