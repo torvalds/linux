@@ -77,4 +77,9 @@ config TURRIS_OMNIA_MCU_TRNG
 
 endif # TURRIS_OMNIA_MCU
 
+config TURRIS_SIGNING_KEY
+	tristate
+	depends on KEYS
+	depends on ASYMMETRIC_KEY_TYPE
+
 endif # CZNIC_PLATFORMS
