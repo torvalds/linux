@@ -35,13 +35,5 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config);
 u32 intel_lspcon_infoframes_enabled(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *pipe_config);
-void hsw_write_infoframe(struct intel_encoder *encoder,
-			 const struct intel_crtc_state *crtc_state,
-			 unsigned int type,
-			 const void *frame, ssize_t len);
-void hsw_read_infoframe(struct intel_encoder *encoder,
-			const struct intel_crtc_state *crtc_state,
-			unsigned int type,
-			void *frame, ssize_t len);
 
 #endif /* __INTEL_LSPCON_H__ */
