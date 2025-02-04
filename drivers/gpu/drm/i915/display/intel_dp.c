@@ -5863,7 +5863,6 @@ intel_dp_connector_register(struct drm_connector *connector)
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_dp *intel_dp = intel_attached_dp(to_intel_connector(connector));
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	int ret;
 
 	ret = intel_connector_register(connector);
@@ -5886,8 +5885,7 @@ intel_dp_connector_register(struct drm_connector *connector)
 	 * efficiently and streamlined.
 	 */
 	if (lspcon_init(dig_port)) {
-		lspcon_detect_hdr_capability(lspcon);
-		if (lspcon->hdr_supported)
+		if (lspcon_detect_hdr_capability(dig_port))
 			drm_connector_attach_hdr_output_metadata_property(connector);
 	}
 

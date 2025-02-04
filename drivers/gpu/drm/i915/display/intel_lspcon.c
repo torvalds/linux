@@ -121,8 +121,9 @@ static u32 get_hdr_status_reg(struct intel_lspcon *lspcon)
 		return DPCD_PARADE_LSPCON_HDR_STATUS;
 }
 
-void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon)
+bool lspcon_detect_hdr_capability(struct intel_digital_port *dig_port)
 {
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
 	struct intel_dp *intel_dp = lspcon_to_intel_dp(lspcon);
 	struct intel_display *display = to_intel_display(intel_dp);
 	u8 hdr_caps;
@@ -138,6 +139,8 @@ void lspcon_detect_hdr_capability(struct intel_lspcon *lspcon)
 		drm_dbg_kms(display->drm, "LSPCON capable of HDR\n");
 		lspcon->hdr_supported = true;
 	}
+
+	return lspcon->hdr_supported;
 }
 
 static enum drm_lspcon_mode lspcon_get_current_mode(struct intel_lspcon *lspcon)
