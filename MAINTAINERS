@@ -21662,7 +21662,6 @@ F:	drivers/video/fbdev/sm712*
 
 SILVACO I3C DUAL-ROLE MASTER
 M:	Miquel Raynal <miquel.raynal@bootlin.com>
-M:	Conor Culhane <conor.culhane@silvaco.com>
 L:	linux-i3c@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/devicetree/bindings/i3c/silvaco,i3c-master.yaml

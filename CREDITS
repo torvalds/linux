@@ -855,6 +855,10 @@ N: John Crispin
 E: john@phrozen.org
 D: MediaTek MT7623 Gigabit ethernet support
 
+N: Conor Culhane
+E: conor.culhane@silvaco.com
+D: Silvaco I3C master driver
+
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
 D: Wrote the initial alpha SLIP code
