@@ -1466,6 +1466,10 @@ static enum skb_drop_reason vxlan_snoop(struct net_device *dev,
 	f = vxlan_find_mac(vxlan, src_mac, vni);
 	if (likely(f)) {
 		struct vxlan_rdst *rdst = first_remote_rcu(f);
+		unsigned long now = jiffies;
+
+		if (READ_ONCE(f->updated) != now)
+			WRITE_ONCE(f->updated, now);
 
 		if (likely(vxlan_addr_equal(&rdst->remote_ip, src_ip) &&
 			   rdst->remote_ifindex == ifindex))
@@ -1485,7 +1489,6 @@ static enum skb_drop_reason vxlan_snoop(struct net_device *dev,
 				    src_mac, &rdst->remote_ip.sa, &src_ip->sa);
 
 		rdst->remote_ip = *src_ip;
-		WRITE_ONCE(f->updated, jiffies);
 		vxlan_fdb_notify(vxlan, f, rdst, RTM_NEWNEIGH, true, NULL);
 	} else {
 		u32 hash_index = fdb_head_index(vxlan, src_mac, vni);
