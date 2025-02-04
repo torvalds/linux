@@ -16465,6 +16465,12 @@ F:	include/uapi/linux/ethtool*
 F:	net/ethtool/
 F:	tools/testing/selftests/drivers/net/*/ethtool*
 
+NETWORKING [ETHTOOL CABLE TEST]
+M:	Andrew Lunn <andrew@lunn.ch>
+F:	net/ethtool/cabletest.c
+F:	tools/testing/selftests/drivers/net/*/ethtool*
+K:	cable_test
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
