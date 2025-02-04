@@ -8,18 +8,16 @@
 
 #include <linux/types.h>
 
-struct drm_connector;
 struct drm_connector_state;
 struct intel_crtc_state;
 struct intel_digital_port;
 struct intel_encoder;
-struct intel_lspcon;
 
 bool lspcon_init(struct intel_digital_port *dig_port);
 bool intel_lspcon_active(struct intel_digital_port *dig_port);
 bool lspcon_detect_hdr_capability(struct intel_digital_port *dig_port);
 void lspcon_resume(struct intel_digital_port *dig_port);
-void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
+void lspcon_wait_pcon_mode(struct intel_digital_port *dig_port);
 void lspcon_write_infoframe(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state,
 			    unsigned int type,

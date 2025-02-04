@@ -656,8 +656,10 @@ u32 lspcon_infoframes_enabled(struct intel_encoder *encoder,
 	return val;
 }
 
-void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon)
+void lspcon_wait_pcon_mode(struct intel_digital_port *dig_port)
 {
+	struct intel_lspcon *lspcon = &dig_port->lspcon;
+
 	lspcon_wait_mode(lspcon, DRM_LSPCON_MODE_PCON);
 }
 
