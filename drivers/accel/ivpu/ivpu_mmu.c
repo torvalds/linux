@@ -895,6 +895,9 @@ static int ivpu_mmu_evtq_disable(struct ivpu_device *vdev)
 
 void ivpu_mmu_discard_events(struct ivpu_device *vdev)
 {
+	struct ivpu_mmu_info *mmu = vdev->mmu;
+
+	mutex_lock(&mmu->lock);
 	/*
 	 * Disable event queue (stop MMU from updating the producer)
 	 * to allow synchronization of consumer and producer indexes
@@ -908,6 +911,8 @@ void ivpu_mmu_discard_events(struct ivpu_device *vdev)
 	ivpu_mmu_evtq_enable(vdev);
 
 	drm_WARN_ON_ONCE(&vdev->drm, vdev->mmu->evtq.cons != vdev->mmu->evtq.prod);
+
+	mutex_unlock(&mmu->lock);
 }
 
 int ivpu_mmu_disable_ssid_events(struct ivpu_device *vdev, u32 ssid)
@@ -920,6 +925,8 @@ int ivpu_mmu_disable_ssid_events(struct ivpu_device *vdev, u32 ssid)
 	if (ssid > IVPU_MMU_CDTAB_ENT_COUNT)
 		return -EINVAL;
 
+	mutex_lock(&mmu->lock);
+
 	entry = cdtab->base + (ssid * IVPU_MMU_CDTAB_ENT_SIZE);
 
 	val = READ_ONCE(entry[0]);
@@ -931,6 +938,8 @@ int ivpu_mmu_disable_ssid_events(struct ivpu_device *vdev, u32 ssid)
 
 	ivpu_mmu_cmdq_write_cfgi_all(vdev);
 	ivpu_mmu_cmdq_sync(vdev);
+
+	mutex_unlock(&mmu->lock);
 
 	return 0;
 }
