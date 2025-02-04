@@ -191,6 +191,7 @@ enum rtw_chip_type {
 	RTW_CHIP_TYPE_8703B,
 	RTW_CHIP_TYPE_8821A,
 	RTW_CHIP_TYPE_8812A,
+	RTW_CHIP_TYPE_8814A,
 };
 
 enum rtw_tx_queue_type {
