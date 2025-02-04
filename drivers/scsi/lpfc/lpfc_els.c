@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2025 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -9569,17 +9569,15 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	mbx_tmo_err = test_bit(MBX_TMO_ERR, &phba->bit_flags);
 	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "2243 iotag = 0x%x cmd_flag = 0x%x "
-				 "ulp_command = 0x%x this_vport %x "
-				 "sli_flag = 0x%x\n",
-				 piocb->iotag, piocb->cmd_flag,
-				 get_job_cmnd(phba, piocb),
-				 (piocb->vport == vport),
-				 phba->sli.sli_flag);
-
 		if (piocb->vport != vport)
 			continue;
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "2243 iotag = 0x%x cmd_flag = 0x%x "
+				 "ulp_command = 0x%x sli_flag = 0x%x\n",
+				 piocb->iotag, piocb->cmd_flag,
+				 get_job_cmnd(phba, piocb),
+				 phba->sli.sli_flag);
 
 		if ((phba->sli.sli_flag & LPFC_SLI_ACTIVE) && !mbx_tmo_err) {
 			if (piocb->cmd_flag & LPFC_IO_LIBDFC)
