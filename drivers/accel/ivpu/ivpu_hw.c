@@ -68,6 +68,12 @@ static void wa_init(struct ivpu_device *vdev)
 	    ivpu_revision(vdev) < IVPU_HW_IP_REV_LNL_B0)
 		vdev->wa.disable_clock_relinquish = true;
 
+	if (ivpu_test_mode & IVPU_TEST_MODE_CLK_RELINQ_ENABLE)
+		vdev->wa.disable_clock_relinquish = false;
+
+	if (ivpu_test_mode & IVPU_TEST_MODE_CLK_RELINQ_DISABLE)
+		vdev->wa.disable_clock_relinquish = true;
+
 	if (ivpu_hw_ip_gen(vdev) == IVPU_HW_IP_37XX)
 		vdev->wa.wp0_during_power_up = true;
 
