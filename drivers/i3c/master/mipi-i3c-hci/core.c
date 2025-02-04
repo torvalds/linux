@@ -367,7 +367,7 @@ out:
 }
 
 static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
-			     const struct i2c_msg *i2c_xfers, int nxfers)
+			     struct i2c_msg *i2c_xfers, int nxfers)
 {
 	struct i3c_master_controller *m = i2c_dev_get_master(dev);
 	struct i3c_hci *hci = to_i3c_hci(m);
