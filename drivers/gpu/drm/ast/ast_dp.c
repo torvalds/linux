@@ -300,6 +300,19 @@ static const struct drm_encoder_funcs ast_astdp_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status
+ast_astdp_encoder_helper_mode_valid(struct drm_encoder *encoder,
+				    const struct drm_display_mode *mode)
+{
+	int res;
+
+	res = ast_astdp_get_mode_index(mode->hdisplay, mode->vdisplay);
+	if (res < 0)
+		return MODE_NOMODE;
+
+	return MODE_OK;
+}
+
 static void ast_astdp_encoder_helper_atomic_mode_set(struct drm_encoder *encoder,
 						     struct drm_crtc_state *crtc_state,
 						     struct drm_connector_state *conn_state)
@@ -389,6 +402,7 @@ static int ast_astdp_encoder_helper_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs ast_astdp_encoder_helper_funcs = {
+	.mode_valid = ast_astdp_encoder_helper_mode_valid,
 	.atomic_mode_set = ast_astdp_encoder_helper_atomic_mode_set,
 	.atomic_enable = ast_astdp_encoder_helper_atomic_enable,
 	.atomic_disable = ast_astdp_encoder_helper_atomic_disable,
