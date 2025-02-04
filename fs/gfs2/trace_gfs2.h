@@ -64,7 +64,8 @@
 	{(1UL << GLF_INSTANTIATE_NEEDED),	"n" },		\
 	{(1UL << GLF_INSTANTIATE_IN_PROG),	"N" },		\
 	{(1UL << GLF_TRY_TO_EVICT),		"e" },		\
-	{(1UL << GLF_VERIFY_DELETE),		"E" })
+	{(1UL << GLF_VERIFY_DELETE),		"E" },		\
+	{(1UL << GLF_DEFER_DELETE),		"s" })
 
 #ifndef NUMPTY
 #define NUMPTY

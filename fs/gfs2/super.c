@@ -1329,7 +1329,8 @@ static enum evict_behavior evict_should_delete(struct inode *inode,
 	if (unlikely(test_bit(GIF_ALLOC_FAILED, &ip->i_flags)))
 		goto should_delete;
 
-	if (test_bit(GIF_DEFER_DELETE, &ip->i_flags))
+	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
+	    test_bit(GLF_DEFER_DELETE, &ip->i_iopen_gh.gh_gl->gl_flags))
 		return EVICT_SHOULD_DEFER_DELETE;
 
 	/* Deletes should never happen under memory pressure anymore.  */

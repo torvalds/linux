@@ -991,15 +991,15 @@ static void gfs2_try_evict(struct gfs2_glock *gl)
 		}
 	}
 	if (ip) {
-		set_bit(GIF_DEFER_DELETE, &ip->i_flags);
+		set_bit(GLF_DEFER_DELETE, &gl->gl_flags);
 		d_prune_aliases(&ip->i_inode);
 		iput(&ip->i_inode);
+		clear_bit(GLF_DEFER_DELETE, &gl->gl_flags);
 
 		/* If the inode was evicted, gl->gl_object will now be NULL. */
 		spin_lock(&gl->gl_lockref.lock);
 		ip = gl->gl_object;
 		if (ip) {
-			clear_bit(GIF_DEFER_DELETE, &ip->i_flags);
 			if (!igrab(&ip->i_inode))
 				ip = NULL;
 		}
@@ -2350,6 +2350,8 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'e';
 	if (test_bit(GLF_VERIFY_DELETE, gflags))
 		*p++ = 'E';
+	if (test_bit(GLF_DEFER_DELETE, gflags))
+		*p++ = 's';
 	*p = 0;
 	return buf;
 }
