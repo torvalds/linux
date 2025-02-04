@@ -2701,7 +2701,7 @@ static int cxl_get_poison_unmapped(struct cxl_memdev *cxlmd,
 
 	if (ctx->mode == CXL_DECODER_RAM) {
 		offset = ctx->offset;
-		length = resource_size(&cxlds->ram_res) - offset;
+		length = cxl_ram_size(cxlds) - offset;
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
 		if (rc == -EFAULT)
 			rc = 0;
@@ -2713,9 +2713,11 @@ static int cxl_get_poison_unmapped(struct cxl_memdev *cxlmd,
 		length = resource_size(&cxlds->dpa_res) - offset;
 		if (!length)
 			return 0;
-	} else if (resource_size(&cxlds->pmem_res)) {
-		offset = cxlds->pmem_res.start;
-		length = resource_size(&cxlds->pmem_res);
+	} else if (cxl_pmem_size(cxlds)) {
+		const struct resource *res = to_pmem_res(cxlds);
+
+		offset = res->start;
+		length = resource_size(res);
 	} else {
 		return 0;
 	}

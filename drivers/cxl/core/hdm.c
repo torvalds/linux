@@ -327,9 +327,9 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	cxled->dpa_res = res;
 	cxled->skip = skipped;
 
-	if (resource_contains(&cxlds->pmem_res, res))
+	if (resource_contains(to_pmem_res(cxlds), res))
 		cxled->mode = CXL_DECODER_PMEM;
-	else if (resource_contains(&cxlds->ram_res, res))
+	else if (resource_contains(to_ram_res(cxlds), res))
 		cxled->mode = CXL_DECODER_RAM;
 	else {
 		dev_warn(dev, "decoder%d.%d: %pr does not map any partition\n",
@@ -442,11 +442,11 @@ int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
 	 * Only allow modes that are supported by the current partition
 	 * configuration
 	 */
-	if (mode == CXL_DECODER_PMEM && !resource_size(&cxlds->pmem_res)) {
+	if (mode == CXL_DECODER_PMEM && !cxl_pmem_size(cxlds)) {
 		dev_dbg(dev, "no available pmem capacity\n");
 		return -ENXIO;
 	}
-	if (mode == CXL_DECODER_RAM && !resource_size(&cxlds->ram_res)) {
+	if (mode == CXL_DECODER_RAM && !cxl_ram_size(cxlds)) {
 		dev_dbg(dev, "no available ram capacity\n");
 		return -ENXIO;
 	}
@@ -464,6 +464,8 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 	struct device *dev = &cxled->cxld.dev;
 	resource_size_t start, avail, skip;
 	struct resource *p, *last;
+	const struct resource *ram_res = to_ram_res(cxlds);
+	const struct resource *pmem_res = to_pmem_res(cxlds);
 	int rc;
 
 	down_write(&cxl_dpa_rwsem);
@@ -480,37 +482,37 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 		goto out;
 	}
 
-	for (p = cxlds->ram_res.child, last = NULL; p; p = p->sibling)
+	for (p = ram_res->child, last = NULL; p; p = p->sibling)
 		last = p;
 	if (last)
 		free_ram_start = last->end + 1;
 	else
-		free_ram_start = cxlds->ram_res.start;
+		free_ram_start = ram_res->start;
 
-	for (p = cxlds->pmem_res.child, last = NULL; p; p = p->sibling)
+	for (p = pmem_res->child, last = NULL; p; p = p->sibling)
 		last = p;
 	if (last)
 		free_pmem_start = last->end + 1;
 	else
-		free_pmem_start = cxlds->pmem_res.start;
+		free_pmem_start = pmem_res->start;
 
 	if (cxled->mode == CXL_DECODER_RAM) {
 		start = free_ram_start;
-		avail = cxlds->ram_res.end - start + 1;
+		avail = ram_res->end - start + 1;
 		skip = 0;
 	} else if (cxled->mode == CXL_DECODER_PMEM) {
 		resource_size_t skip_start, skip_end;
 
 		start = free_pmem_start;
-		avail = cxlds->pmem_res.end - start + 1;
+		avail = pmem_res->end - start + 1;
 		skip_start = free_ram_start;
 
 		/*
 		 * If some pmem is already allocated, then that allocation
 		 * already handled the skip.
 		 */
-		if (cxlds->pmem_res.child &&
-		    skip_start == cxlds->pmem_res.child->start)
+		if (pmem_res->child &&
+		    skip_start == pmem_res->child->start)
 			skip_end = skip_start - 1;
 		else
 			skip_end = start - 1;

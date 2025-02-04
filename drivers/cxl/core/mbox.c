@@ -1270,24 +1270,26 @@ static int add_dpa_res(struct device *dev, struct resource *parent,
 int cxl_mem_create_range_info(struct cxl_memdev_state *mds)
 {
 	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct resource *ram_res = to_ram_res(cxlds);
+	struct resource *pmem_res = to_pmem_res(cxlds);
 	struct device *dev = cxlds->dev;
 	int rc;
 
 	if (!cxlds->media_ready) {
 		cxlds->dpa_res = DEFINE_RES_MEM(0, 0);
-		cxlds->ram_res = DEFINE_RES_MEM(0, 0);
-		cxlds->pmem_res = DEFINE_RES_MEM(0, 0);
+		*ram_res = DEFINE_RES_MEM(0, 0);
+		*pmem_res = DEFINE_RES_MEM(0, 0);
 		return 0;
 	}
 
 	cxlds->dpa_res = DEFINE_RES_MEM(0, mds->total_bytes);
 
 	if (mds->partition_align_bytes == 0) {
-		rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->ram_res, 0,
+		rc = add_dpa_res(dev, &cxlds->dpa_res, ram_res, 0,
 				 mds->volatile_only_bytes, "ram");
 		if (rc)
 			return rc;
-		return add_dpa_res(dev, &cxlds->dpa_res, &cxlds->pmem_res,
+		return add_dpa_res(dev, &cxlds->dpa_res, pmem_res,
 				   mds->volatile_only_bytes,
 				   mds->persistent_only_bytes, "pmem");
 	}
@@ -1298,11 +1300,11 @@ int cxl_mem_create_range_info(struct cxl_memdev_state *mds)
 		return rc;
 	}
 
-	rc = add_dpa_res(dev, &cxlds->dpa_res, &cxlds->ram_res, 0,
+	rc = add_dpa_res(dev, &cxlds->dpa_res, ram_res, 0,
 			 mds->active_volatile_bytes, "ram");
 	if (rc)
 		return rc;
-	return add_dpa_res(dev, &cxlds->dpa_res, &cxlds->pmem_res,
+	return add_dpa_res(dev, &cxlds->dpa_res, pmem_res,
 			   mds->active_volatile_bytes,
 			   mds->active_persistent_bytes, "pmem");
 }
@@ -1450,8 +1452,8 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mds->cxlds.reg_map.host = dev;
 	mds->cxlds.reg_map.resource = CXL_RESOURCE_NONE;
 	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
-	mds->ram_perf.qos_class = CXL_QOS_CLASS_INVALID;
-	mds->pmem_perf.qos_class = CXL_QOS_CLASS_INVALID;
+	to_ram_perf(&mds->cxlds)->qos_class = CXL_QOS_CLASS_INVALID;
+	to_pmem_perf(&mds->cxlds)->qos_class = CXL_QOS_CLASS_INVALID;
 
 	return mds;
 }

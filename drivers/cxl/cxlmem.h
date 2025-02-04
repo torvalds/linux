@@ -423,8 +423,8 @@ struct cxl_dpa_perf {
  * @rcd: operating in RCD mode (CXL 3.0 9.11.8 CXL Devices Attached to an RCH)
  * @media_ready: Indicate whether the device media is usable
  * @dpa_res: Overall DPA resource tree for the device
- * @pmem_res: Active Persistent memory capacity configuration
- * @ram_res: Active Volatile memory capacity configuration
+ * @_pmem_res: Active Persistent memory capacity configuration
+ * @_ram_res: Active Volatile memory capacity configuration
  * @serial: PCIe Device Serial Number
  * @type: Generic Memory Class device or Vendor Specific Memory device
  * @cxl_mbox: CXL mailbox context
@@ -438,12 +438,40 @@ struct cxl_dev_state {
 	bool rcd;
 	bool media_ready;
 	struct resource dpa_res;
-	struct resource pmem_res;
-	struct resource ram_res;
+	struct resource _pmem_res;
+	struct resource _ram_res;
 	u64 serial;
 	enum cxl_devtype type;
 	struct cxl_mailbox cxl_mbox;
 };
+
+static inline struct resource *to_ram_res(struct cxl_dev_state *cxlds)
+{
+	return &cxlds->_ram_res;
+}
+
+static inline struct resource *to_pmem_res(struct cxl_dev_state *cxlds)
+{
+	return &cxlds->_pmem_res;
+}
+
+static inline resource_size_t cxl_ram_size(struct cxl_dev_state *cxlds)
+{
+	const struct resource *res = to_ram_res(cxlds);
+
+	if (!res)
+		return 0;
+	return resource_size(res);
+}
+
+static inline resource_size_t cxl_pmem_size(struct cxl_dev_state *cxlds)
+{
+	const struct resource *res = to_pmem_res(cxlds);
+
+	if (!res)
+		return 0;
+	return resource_size(res);
+}
 
 static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
 {
@@ -471,8 +499,8 @@ static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
  * @active_persistent_bytes: sum of hard + soft persistent
  * @next_volatile_bytes: volatile capacity change pending device reset
  * @next_persistent_bytes: persistent capacity change pending device reset
- * @ram_perf: performance data entry matched to RAM partition
- * @pmem_perf: performance data entry matched to PMEM partition
+ * @_ram_perf: performance data entry matched to RAM partition
+ * @_pmem_perf: performance data entry matched to PMEM partition
  * @event: event log driver state
  * @poison: poison driver state info
  * @security: security driver state info
@@ -496,14 +524,28 @@ struct cxl_memdev_state {
 	u64 next_volatile_bytes;
 	u64 next_persistent_bytes;
 
-	struct cxl_dpa_perf ram_perf;
-	struct cxl_dpa_perf pmem_perf;
+	struct cxl_dpa_perf _ram_perf;
+	struct cxl_dpa_perf _pmem_perf;
 
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
 	struct cxl_security_state security;
 	struct cxl_fw_state fw;
 };
+
+static inline struct cxl_dpa_perf *to_ram_perf(struct cxl_dev_state *cxlds)
+{
+	struct cxl_memdev_state *mds = container_of(cxlds, typeof(*mds), cxlds);
+
+	return &mds->_ram_perf;
+}
+
+static inline struct cxl_dpa_perf *to_pmem_perf(struct cxl_dev_state *cxlds)
+{
+	struct cxl_memdev_state *mds = container_of(cxlds, typeof(*mds), cxlds);
+
+	return &mds->_pmem_perf;
+}
 
 static inline struct cxl_memdev_state *
 to_cxl_memdev_state(struct cxl_dev_state *cxlds)

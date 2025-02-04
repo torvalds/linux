@@ -80,7 +80,7 @@ static ssize_t ram_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = resource_size(&cxlds->ram_res);
+	unsigned long long len = resource_size(to_ram_res(cxlds));
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -93,7 +93,7 @@ static ssize_t pmem_size_show(struct device *dev, struct device_attribute *attr,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	unsigned long long len = resource_size(&cxlds->pmem_res);
+	unsigned long long len = cxl_pmem_size(cxlds);
 
 	return sysfs_emit(buf, "%#llx\n", len);
 }
@@ -198,16 +198,20 @@ static int cxl_get_poison_by_memdev(struct cxl_memdev *cxlmd)
 	int rc = 0;
 
 	/* CXL 3.0 Spec 8.2.9.8.4.1 Separate pmem and ram poison requests */
-	if (resource_size(&cxlds->pmem_res)) {
-		offset = cxlds->pmem_res.start;
-		length = resource_size(&cxlds->pmem_res);
+	if (cxl_pmem_size(cxlds)) {
+		const struct resource *res = to_pmem_res(cxlds);
+
+		offset = res->start;
+		length = resource_size(res);
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
 		if (rc)
 			return rc;
 	}
-	if (resource_size(&cxlds->ram_res)) {
-		offset = cxlds->ram_res.start;
-		length = resource_size(&cxlds->ram_res);
+	if (cxl_ram_size(cxlds)) {
+		const struct resource *res = to_ram_res(cxlds);
+
+		offset = res->start;
+		length = resource_size(res);
 		rc = cxl_mem_get_poison(cxlmd, offset, length, NULL);
 		/*
 		 * Invalid Physical Address is not an error for
@@ -409,9 +413,8 @@ static ssize_t pmem_qos_class_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%d\n", mds->pmem_perf.qos_class);
+	return sysfs_emit(buf, "%d\n", to_pmem_perf(cxlds)->qos_class);
 }
 
 static struct device_attribute dev_attr_pmem_qos_class =
@@ -428,9 +431,8 @@ static ssize_t ram_qos_class_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 
-	return sysfs_emit(buf, "%d\n", mds->ram_perf.qos_class);
+	return sysfs_emit(buf, "%d\n", to_ram_perf(cxlds)->qos_class);
 }
 
 static struct device_attribute dev_attr_ram_qos_class =
@@ -466,11 +468,11 @@ static umode_t cxl_ram_visible(struct kobject *kobj, struct attribute *a, int n)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dpa_perf *perf = to_ram_perf(cxlmd->cxlds);
 
-	if (a == &dev_attr_ram_qos_class.attr)
-		if (mds->ram_perf.qos_class == CXL_QOS_CLASS_INVALID)
-			return 0;
+	if (a == &dev_attr_ram_qos_class.attr &&
+	    (!perf || perf->qos_class == CXL_QOS_CLASS_INVALID))
+		return 0;
 
 	return a->mode;
 }
@@ -485,11 +487,11 @@ static umode_t cxl_pmem_visible(struct kobject *kobj, struct attribute *a, int n
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dpa_perf *perf = to_pmem_perf(cxlmd->cxlds);
 
-	if (a == &dev_attr_pmem_qos_class.attr)
-		if (mds->pmem_perf.qos_class == CXL_QOS_CLASS_INVALID)
-			return 0;
+	if (a == &dev_attr_pmem_qos_class.attr &&
+	    (!perf || perf->qos_class == CXL_QOS_CLASS_INVALID))
+		return 0;
 
 	return a->mode;
 }

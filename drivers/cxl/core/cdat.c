@@ -258,27 +258,36 @@ static void update_perf_entry(struct device *dev, struct dsmas_entry *dent,
 static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 				     struct xarray *dsmas_xa)
 {
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	struct device *dev = cxlds->dev;
-	struct range pmem_range = {
-		.start = cxlds->pmem_res.start,
-		.end = cxlds->pmem_res.end,
-	};
-	struct range ram_range = {
-		.start = cxlds->ram_res.start,
-		.end = cxlds->ram_res.end,
-	};
 	struct dsmas_entry *dent;
 	unsigned long index;
+	const struct resource *partition[] = {
+		to_ram_res(cxlds),
+		to_pmem_res(cxlds),
+	};
+	struct cxl_dpa_perf *perf[] = {
+		to_ram_perf(cxlds),
+		to_pmem_perf(cxlds),
+	};
 
 	xa_for_each(dsmas_xa, index, dent) {
-		if (resource_size(&cxlds->ram_res) &&
-		    range_contains(&ram_range, &dent->dpa_range))
-			update_perf_entry(dev, dent, &mds->ram_perf);
-		else if (resource_size(&cxlds->pmem_res) &&
-			 range_contains(&pmem_range, &dent->dpa_range))
-			update_perf_entry(dev, dent, &mds->pmem_perf);
-		else
+		bool found = false;
+
+		for (int i = 0; i < ARRAY_SIZE(partition); i++) {
+			const struct resource *res = partition[i];
+			struct range range = {
+				.start = res->start,
+				.end = res->end,
+			};
+
+			if (range_contains(&range, &dent->dpa_range)) {
+				update_perf_entry(dev, dent, perf[i]);
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
 			dev_dbg(dev, "no partition for dsmas dpa: %pra\n",
 				&dent->dpa_range);
 	}
@@ -304,6 +313,9 @@ static int match_cxlrd_qos_class(struct device *dev, void *data)
 
 static void reset_dpa_perf(struct cxl_dpa_perf *dpa_perf)
 {
+	if (!dpa_perf)
+		return;
+
 	*dpa_perf = (struct cxl_dpa_perf) {
 		.qos_class = CXL_QOS_CLASS_INVALID,
 	};
@@ -312,6 +324,9 @@ static void reset_dpa_perf(struct cxl_dpa_perf *dpa_perf)
 static bool cxl_qos_match(struct cxl_port *root_port,
 			  struct cxl_dpa_perf *dpa_perf)
 {
+	if (!dpa_perf)
+		return false;
+
 	if (dpa_perf->qos_class == CXL_QOS_CLASS_INVALID)
 		return false;
 
@@ -346,7 +361,8 @@ static int match_cxlrd_hb(struct device *dev, void *data)
 static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct cxl_dpa_perf *ram_perf = to_ram_perf(cxlds),
+			    *pmem_perf = to_pmem_perf(cxlds);
 	struct cxl_port *root_port;
 	int rc;
 
@@ -359,17 +375,17 @@ static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 	root_port = &cxl_root->port;
 
 	/* Check that the QTG IDs are all sane between end device and root decoders */
-	if (!cxl_qos_match(root_port, &mds->ram_perf))
-		reset_dpa_perf(&mds->ram_perf);
-	if (!cxl_qos_match(root_port, &mds->pmem_perf))
-		reset_dpa_perf(&mds->pmem_perf);
+	if (!cxl_qos_match(root_port, ram_perf))
+		reset_dpa_perf(ram_perf);
+	if (!cxl_qos_match(root_port, pmem_perf))
+		reset_dpa_perf(pmem_perf);
 
 	/* Check to make sure that the device's host bridge is under a root decoder */
 	rc = device_for_each_child(&root_port->dev,
 				   cxlmd->endpoint->host_bridge, match_cxlrd_hb);
 	if (!rc) {
-		reset_dpa_perf(&mds->ram_perf);
-		reset_dpa_perf(&mds->pmem_perf);
+		reset_dpa_perf(ram_perf);
+		reset_dpa_perf(pmem_perf);
 	}
 
 	return rc;
@@ -574,19 +590,22 @@ static struct cxl_dpa_perf *cxled_get_dpa_perf(struct cxl_endpoint_decoder *cxle
 					       enum cxl_decoder_mode mode)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_dpa_perf *perf;
 
 	switch (mode) {
 	case CXL_DECODER_RAM:
-		perf = &mds->ram_perf;
+		perf = to_ram_perf(cxlds);
 		break;
 	case CXL_DECODER_PMEM:
-		perf = &mds->pmem_perf;
+		perf = to_pmem_perf(cxlds);
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (!perf)
+		return ERR_PTR(-EINVAL);
 
 	if (!dpa_perf_contains(perf, cxled->dpa_res))
 		return ERR_PTR(-EINVAL);
