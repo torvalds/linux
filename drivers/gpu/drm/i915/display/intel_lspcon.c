@@ -55,6 +55,11 @@
 #define  LSPCON_PARADE_AVI_IF_KICKOFF (1 << 7)
 #define LSPCON_PARADE_AVI_IF_DATA_SIZE 32
 
+static struct intel_lspcon *enc_to_intel_lspcon(struct intel_encoder *encoder)
+{
+	return &enc_to_dig_port(encoder)->lspcon;
+}
+
 static struct intel_dp *lspcon_to_intel_dp(struct intel_lspcon *lspcon)
 {
 	struct intel_digital_port *dig_port =

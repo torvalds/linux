@@ -1983,22 +1983,10 @@ static inline bool intel_encoder_is_hdmi(struct intel_encoder *encoder)
 	}
 }
 
-static inline struct intel_lspcon *
-enc_to_intel_lspcon(struct intel_encoder *encoder)
-{
-	return &enc_to_dig_port(encoder)->lspcon;
-}
-
 static inline struct intel_digital_port *
 dp_to_dig_port(struct intel_dp *intel_dp)
 {
 	return container_of(intel_dp, struct intel_digital_port, dp);
-}
-
-static inline struct intel_lspcon *
-dp_to_lspcon(struct intel_dp *intel_dp)
-{
-	return &dp_to_dig_port(intel_dp)->lspcon;
 }
 
 static inline struct intel_digital_port *
