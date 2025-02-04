@@ -1461,6 +1461,12 @@ struct scx_event_stats {
 	 * continued to run because there were no other tasks on the CPU.
 	 */
 	u64		SCX_EV_DISPATCH_KEEP_LAST;
+
+	/*
+	 * If SCX_OPS_ENQ_EXITING is not set, the number of times that a task
+	 * is dispatched to a local DSQ when exiting.
+	 */
+	u64		SCX_EV_ENQ_SKIP_EXITING;
 };
 
 /*
@@ -2068,8 +2074,10 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 
 	/* see %SCX_OPS_ENQ_EXITING */
 	if (!static_branch_unlikely(&scx_ops_enq_exiting) &&
-	    unlikely(p->flags & PF_EXITING))
+	    unlikely(p->flags & PF_EXITING)) {
+		__scx_add_event(SCX_EV_ENQ_SKIP_EXITING, 1);
 		goto local;
+	}
 
 	if (!SCX_HAS_OP(enqueue))
 		goto global;
@@ -4985,6 +4993,7 @@ static void scx_dump_state(struct scx_exit_info *ei, size_t dump_len)
 	scx_dump_event(s, &events, SCX_EV_SELECT_CPU_FALLBACK);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 	scx_dump_event(s, &events, SCX_EV_DISPATCH_KEEP_LAST);
+	scx_dump_event(s, &events, SCX_EV_ENQ_SKIP_EXITING);
 
 	if (seq_buf_has_overflowed(&s) && dump_len >= sizeof(trunc_marker))
 		memcpy(ei->dump + dump_len - sizeof(trunc_marker),
@@ -7121,6 +7130,7 @@ __bpf_kfunc void scx_bpf_events(struct scx_event_stats *events,
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_SELECT_CPU_FALLBACK);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
 		scx_agg_event(&e_sys, e_cpu, SCX_EV_DISPATCH_KEEP_LAST);
+		scx_agg_event(&e_sys, e_cpu, SCX_EV_ENQ_SKIP_EXITING);
 	}
 
 	/*
