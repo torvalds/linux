@@ -12,6 +12,7 @@
 #include <linux/gpio/driver.h>
 #include <linux/hw_random.h>
 #include <linux/if_ether.h>
+#include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -91,9 +92,10 @@ struct omnia_mcu {
 };
 
 #ifdef CONFIG_TURRIS_OMNIA_MCU_GPIO
-extern const u8 omnia_int_to_gpio_idx[32];
 extern const struct attribute_group omnia_mcu_gpio_group;
 int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu);
+int omnia_mcu_request_irq(struct omnia_mcu *mcu, u32 spec,
+			  irq_handler_t thread_fn, const char *devname);
 #else
 static inline int omnia_mcu_register_gpiochip(struct omnia_mcu *mcu)
 {
