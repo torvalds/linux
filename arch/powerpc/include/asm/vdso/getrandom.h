@@ -43,20 +43,21 @@ static __always_inline ssize_t getrandom_syscall(void *buffer, size_t len, unsig
 			    (unsigned long)len, (unsigned long)flags);
 }
 
-static __always_inline struct vdso_rng_data *__arch_get_vdso_rng_data(void)
+static __always_inline const struct vdso_rng_data *__arch_get_vdso_u_rng_data(void)
 {
-	struct vdso_arch_data *data;
+	struct vdso_rng_data *data;
 
 	asm (
 		"	bcl	20, 31, .+4 ;"
 		"0:	mflr	%0 ;"
-		"	addis	%0, %0, (_vdso_datapage - 0b)@ha ;"
-		"	addi	%0, %0, (_vdso_datapage - 0b)@l  ;"
+		"	addis	%0, %0, (vdso_u_rng_data - 0b)@ha ;"
+		"	addi	%0, %0, (vdso_u_rng_data - 0b)@l  ;"
 		: "=r" (data) : : "lr"
 	);
 
-	return &data->rng_data;
+	return data;
 }
+#define __arch_get_vdso_u_rng_data __arch_get_vdso_u_rng_data
 
 ssize_t __c_kernel_getrandom(void *buffer, size_t len, unsigned int flags, void *opaque_state,
 			     size_t opaque_len);
