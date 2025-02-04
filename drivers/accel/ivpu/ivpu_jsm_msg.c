@@ -7,6 +7,7 @@
 #include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_jsm_msg.h"
+#include "vpu_jsm_api.h"
 
 const char *ivpu_jsm_msg_type_to_str(enum vpu_ipc_msg_type type)
 {
@@ -407,26 +408,18 @@ int ivpu_jsm_hws_setup_priority_bands(struct ivpu_device *vdev)
 {
 	struct vpu_jsm_msg req = { .type = VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP };
 	struct vpu_jsm_msg resp;
+	struct ivpu_hw_info *hw = vdev->hw;
+	struct vpu_ipc_msg_payload_hws_priority_band_setup *setup =
+		&req.payload.hws_priority_band_setup;
 	int ret;
 
-	/* Idle */
-	req.payload.hws_priority_band_setup.grace_period[0] = 0;
-	req.payload.hws_priority_band_setup.process_grace_period[0] = 50000;
-	req.payload.hws_priority_band_setup.process_quantum[0] = 160000;
-	/* Normal */
-	req.payload.hws_priority_band_setup.grace_period[1] = 50000;
-	req.payload.hws_priority_band_setup.process_grace_period[1] = 50000;
-	req.payload.hws_priority_band_setup.process_quantum[1] = 300000;
-	/* Focus */
-	req.payload.hws_priority_band_setup.grace_period[2] = 50000;
-	req.payload.hws_priority_band_setup.process_grace_period[2] = 50000;
-	req.payload.hws_priority_band_setup.process_quantum[2] = 200000;
-	/* Realtime */
-	req.payload.hws_priority_band_setup.grace_period[3] = 0;
-	req.payload.hws_priority_band_setup.process_grace_period[3] = 50000;
-	req.payload.hws_priority_band_setup.process_quantum[3] = 200000;
-
-	req.payload.hws_priority_band_setup.normal_band_percentage = 10;
+	for (int band = VPU_JOB_SCHEDULING_PRIORITY_BAND_IDLE;
+	     band < VPU_JOB_SCHEDULING_PRIORITY_BAND_COUNT; band++) {
+		setup->grace_period[band] = hw->hws.grace_period[band];
+		setup->process_grace_period[band] = hw->hws.process_grace_period[band];
+		setup->process_quantum[band] = hw->hws.process_quantum[band];
+	}
+	setup->normal_band_percentage = 10;
 
 	ret = ivpu_ipc_send_receive_internal(vdev, &req, VPU_JSM_MSG_SET_PRIORITY_BAND_SETUP_RSP,
 					     &resp, VPU_IPC_CHAN_ASYNC_CMD, vdev->timeout.jsm);
