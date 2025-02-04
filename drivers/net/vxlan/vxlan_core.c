@@ -2860,7 +2860,7 @@ static void vxlan_cleanup(struct timer_list *t)
 			if (f->flags & NTF_EXT_LEARNED)
 				continue;
 
-			timeout = READ_ONCE(f->used) + vxlan->cfg.age_interval * HZ;
+			timeout = READ_ONCE(f->updated) + vxlan->cfg.age_interval * HZ;
 			if (time_before_eq(timeout, jiffies)) {
 				netdev_dbg(vxlan->dev,
 					   "garbage collect %pM\n",
