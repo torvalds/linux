@@ -34,13 +34,13 @@
 
 bool intel_encoder_is_c10phy(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 
-	if (IS_PANTHERLAKE(i915) && phy == PHY_A)
+	if (display->platform.pantherlake && phy == PHY_A)
 		return true;
 
-	if ((IS_LUNARLAKE(i915) || IS_METEORLAKE(i915)) && phy < PHY_C)
+	if ((display->platform.lunarlake || display->platform.meteorlake) && phy < PHY_C)
 		return true;
 
 	return false;
@@ -3216,12 +3216,11 @@ void intel_mtl_pll_enable(struct intel_encoder *encoder,
 static u8 cx0_power_control_disable_val(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 
 	if (intel_encoder_is_c10phy(encoder))
 		return CX0_P2PG_STATE_DISABLE;
 
-	if ((IS_BATTLEMAGE(i915) && encoder->port == PORT_A) ||
+	if ((display->platform.battlemage && encoder->port == PORT_A) ||
 	    (DISPLAY_VER(display) >= 30 && encoder->type == INTEL_OUTPUT_EDP))
 		return CX0_P2PG_STATE_DISABLE;
 
