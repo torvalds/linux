@@ -974,31 +974,21 @@ void kvm_timer_sync_nested(struct kvm_vcpu *vcpu)
 	 * which allows trapping of the timer registers even with NV2.
 	 * Still, this is still worse than FEAT_NV on its own. Meh.
 	 */
-	if (!vcpu_el2_e2h_is_set(vcpu)) {
-		if (cpus_have_final_cap(ARM64_HAS_ECV))
-			return;
-
-		/*
-		 * A non-VHE guest hypervisor doesn't have any direct access
-		 * to its timers: the EL2 registers trap (and the HW is
-		 * fully emulated), while the EL0 registers access memory
-		 * despite the access being notionally direct. Boo.
-		 *
-		 * We update the hardware timer registers with the
-		 * latest value written by the guest to the VNCR page
-		 * and let the hardware take care of the rest.
-		 */
-		write_sysreg_el0(__vcpu_sys_reg(vcpu, CNTV_CTL_EL0),  SYS_CNTV_CTL);
-		write_sysreg_el0(__vcpu_sys_reg(vcpu, CNTV_CVAL_EL0), SYS_CNTV_CVAL);
-		write_sysreg_el0(__vcpu_sys_reg(vcpu, CNTP_CTL_EL0),  SYS_CNTP_CTL);
-		write_sysreg_el0(__vcpu_sys_reg(vcpu, CNTP_CVAL_EL0), SYS_CNTP_CVAL);
-	} else {
+	if (!cpus_have_final_cap(ARM64_HAS_ECV)) {
 		/*
 		 * For a VHE guest hypervisor, the EL2 state is directly
-		 * stored in the host EL1 timers, while the emulated EL0
+		 * stored in the host EL1 timers, while the emulated EL1
 		 * state is stored in the VNCR page. The latter could have
 		 * been updated behind our back, and we must reset the
 		 * emulation of the timers.
+		 *
+		 * A non-VHE guest hypervisor doesn't have any direct access
+		 * to its timers: the EL2 registers trap despite being
+		 * notionally direct (we use the EL1 HW, as for VHE), while
+		 * the EL1 registers access memory.
+		 *
+		 * In both cases, process the emulated timers on each guest
+		 * exit. Boo.
 		 */
 		struct timer_map map;
 		get_timer_map(vcpu, &map);
