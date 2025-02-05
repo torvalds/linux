@@ -10,6 +10,7 @@
 
 #include <linux/acpi.h>
 #include <linux/device.h>
+#include <linux/dev_printk.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/soundwire/sdw.h>
@@ -21,7 +22,7 @@ static int patch_sdca_function_type(u32 interface_revision, u32 *function_type)
 {
 	/*
 	 * Unfortunately early SDCA specifications used different indices for Functions,
-	 * for backwards compatibility we have to reorder the values found
+	 * for backwards compatibility we have to reorder the values found.
 	 */
 	if (interface_revision < 0x0801) {
 		switch (*function_type) {
@@ -85,7 +86,7 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 	struct fwnode_handle *control5; /* used to identify function type */
 	const char *function_name;
 	u32 function_type;
-	int func_index;
+	int function_index;
 	u64 addr;
 	int ret;
 
@@ -145,24 +146,35 @@ static int find_sdca_function(struct acpi_device *adev, void *data)
 		 function_name, function_type, addr);
 
 	/* store results */
-	func_index = sdca_data->num_functions;
-	sdca_data->sdca_func[func_index].adr = addr;
-	sdca_data->sdca_func[func_index].type = function_type;
-	sdca_data->sdca_func[func_index].name = function_name;
+	function_index = sdca_data->num_functions;
+	sdca_data->function[function_index].adr = addr;
+	sdca_data->function[function_index].type = function_type;
+	sdca_data->function[function_index].name = function_name;
 	sdca_data->num_functions++;
 
 	return 0;
 }
 
+/**
+ * sdca_lookup_functions - Parse sdca_device_desc for each Function
+ * @slave: SoundWire slave device to be processed.
+ *
+ * Iterate through the available SDCA Functions and fill in a short
+ * descriptor (struct sdca_function_desc) for each function, this
+ * information is stored along with the SoundWire slave device and
+ * used for adding drivers and quirks before the devices have fully
+ * probed.
+ */
 void sdca_lookup_functions(struct sdw_slave *slave)
 {
 	struct device *dev = &slave->dev;
 	struct acpi_device *adev = to_acpi_device_node(dev->fwnode);
 
 	if (!adev) {
-		dev_info(dev, "No matching ACPI device found, ignoring peripheral\n");
+		dev_info(dev, "no matching ACPI device found, ignoring peripheral\n");
 		return;
 	}
+
 	acpi_dev_for_each_child(adev, find_sdca_function, &slave->sdca_data);
 }
 EXPORT_SYMBOL_NS(sdca_lookup_functions, "SND_SOC_SDCA");
