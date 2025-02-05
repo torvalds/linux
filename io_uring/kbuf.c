@@ -70,9 +70,7 @@ bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 
 void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags)
 {
-	spin_lock(&req->ctx->completion_lock);
 	__io_put_kbuf_list(req, len);
-	spin_unlock(&req->ctx->completion_lock);
 }
 
 static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
@@ -345,7 +343,9 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 		struct io_buffer *nxt;
 
 		nxt = list_first_entry(&bl->buf_list, struct io_buffer, list);
-		list_move(&nxt->list, &ctx->io_buffers_cache);
+		list_del(&nxt->list);
+		kfree(nxt);
+
 		if (++i == nbufs)
 			return i;
 		cond_resched();
@@ -363,8 +363,6 @@ static void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl)
 void io_destroy_buffers(struct io_ring_ctx *ctx)
 {
 	struct io_buffer_list *bl;
-	struct list_head *item, *tmp;
-	struct io_buffer *buf;
 
 	while (1) {
 		unsigned long index = 0;
@@ -377,19 +375,6 @@ void io_destroy_buffers(struct io_ring_ctx *ctx)
 		if (!bl)
 			break;
 		io_put_bl(ctx, bl);
-	}
-
-	/*
-	 * Move deferred locked entries to cache before pruning
-	 */
-	spin_lock(&ctx->completion_lock);
-	if (!list_empty(&ctx->io_buffers_comp))
-		list_splice_init(&ctx->io_buffers_comp, &ctx->io_buffers_cache);
-	spin_unlock(&ctx->completion_lock);
-
-	list_for_each_safe(item, tmp, &ctx->io_buffers_cache) {
-		buf = list_entry(item, struct io_buffer, list);
-		kfree(buf);
 	}
 }
 
@@ -479,33 +464,6 @@ int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	return 0;
 }
 
-static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
-{
-	struct io_buffer *buf;
-
-	/*
-	 * Completions that don't happen inline (eg not under uring_lock) will
-	 * add to ->io_buffers_comp. If we don't have any free buffers, check
-	 * the completion list and splice those entries first.
-	 */
-	if (!list_empty_careful(&ctx->io_buffers_comp)) {
-		spin_lock(&ctx->completion_lock);
-		if (!list_empty(&ctx->io_buffers_comp)) {
-			list_splice_init(&ctx->io_buffers_comp,
-						&ctx->io_buffers_cache);
-			spin_unlock(&ctx->completion_lock);
-			return 0;
-		}
-		spin_unlock(&ctx->completion_lock);
-	}
-
-	buf = kmalloc(sizeof(*buf), GFP_KERNEL_ACCOUNT);
-	if (!buf)
-		return -ENOMEM;
-	list_add_tail(&buf->list, &ctx->io_buffers_cache);
-	return 0;
-}
-
 static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 			  struct io_buffer_list *bl)
 {
@@ -514,12 +472,11 @@ static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 	int i, bid = pbuf->bid;
 
 	for (i = 0; i < pbuf->nbufs; i++) {
-		if (list_empty(&ctx->io_buffers_cache) &&
-		    io_refill_buffer_cache(ctx))
+		buf = kmalloc(sizeof(*buf), GFP_KERNEL_ACCOUNT);
+		if (!buf)
 			break;
-		buf = list_first_entry(&ctx->io_buffers_cache, struct io_buffer,
-					list);
-		list_move_tail(&buf->list, &bl->buf_list);
+
+		list_add_tail(&buf->list, &bl->buf_list);
 		buf->addr = addr;
 		buf->len = min_t(__u32, pbuf->len, MAX_RW_COUNT);
 		buf->bid = bid;
