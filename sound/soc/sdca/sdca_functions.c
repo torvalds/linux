@@ -242,6 +242,537 @@ static int find_sdca_init_table(struct device *dev,
 	return 0;
 }
 
+static const char *find_sdca_control_label(const struct sdca_entity *entity,
+					   const struct sdca_control *control)
+{
+	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+	case SDCA_CTL_TYPE_S(IT, MIC_BIAS):
+		return SDCA_CTL_MIC_BIAS_NAME;
+	case SDCA_CTL_TYPE_S(IT, USAGE):
+	case SDCA_CTL_TYPE_S(OT, USAGE):
+		return SDCA_CTL_USAGE_NAME;
+	case SDCA_CTL_TYPE_S(IT, LATENCY):
+	case SDCA_CTL_TYPE_S(OT, LATENCY):
+	case SDCA_CTL_TYPE_S(MU, LATENCY):
+	case SDCA_CTL_TYPE_S(SU, LATENCY):
+	case SDCA_CTL_TYPE_S(FU, LATENCY):
+	case SDCA_CTL_TYPE_S(XU, LATENCY):
+	case SDCA_CTL_TYPE_S(CRU, LATENCY):
+	case SDCA_CTL_TYPE_S(UDMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(MFPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SAPU, LATENCY):
+	case SDCA_CTL_TYPE_S(PPU, LATENCY):
+		return SDCA_CTL_LATENCY_NAME;
+	case SDCA_CTL_TYPE_S(IT, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(CRU, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(UDMPU, CLUSTERINDEX):
+	case SDCA_CTL_TYPE_S(MFPU, CLUSTERINDEX):
+		return SDCA_CTL_CLUSTERINDEX_NAME;
+	case SDCA_CTL_TYPE_S(IT, DATAPORT_SELECTOR):
+	case SDCA_CTL_TYPE_S(OT, DATAPORT_SELECTOR):
+		return SDCA_CTL_DATAPORT_SELECTOR_NAME;
+	case SDCA_CTL_TYPE_S(IT, MATCHING_GUID):
+	case SDCA_CTL_TYPE_S(OT, MATCHING_GUID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, MATCHING_GUID):
+		return SDCA_CTL_MATCHING_GUID_NAME;
+	case SDCA_CTL_TYPE_S(IT, KEEP_ALIVE):
+	case SDCA_CTL_TYPE_S(OT, KEEP_ALIVE):
+		return SDCA_CTL_KEEP_ALIVE_NAME;
+	case SDCA_CTL_TYPE_S(IT, NDAI_STREAM):
+	case SDCA_CTL_TYPE_S(OT, NDAI_STREAM):
+		return SDCA_CTL_NDAI_STREAM_NAME;
+	case SDCA_CTL_TYPE_S(IT, NDAI_CATEGORY):
+	case SDCA_CTL_TYPE_S(OT, NDAI_CATEGORY):
+		return SDCA_CTL_NDAI_CATEGORY_NAME;
+	case SDCA_CTL_TYPE_S(IT, NDAI_CODINGTYPE):
+	case SDCA_CTL_TYPE_S(OT, NDAI_CODINGTYPE):
+		return SDCA_CTL_NDAI_CODINGTYPE_NAME;
+	case SDCA_CTL_TYPE_S(IT, NDAI_PACKETTYPE):
+	case SDCA_CTL_TYPE_S(OT, NDAI_PACKETTYPE):
+		return SDCA_CTL_NDAI_PACKETTYPE_NAME;
+	case SDCA_CTL_TYPE_S(MU, MIXER):
+		return SDCA_CTL_MIXER_NAME;
+	case SDCA_CTL_TYPE_S(SU, SELECTOR):
+		return SDCA_CTL_SELECTOR_NAME;
+	case SDCA_CTL_TYPE_S(FU, MUTE):
+		return SDCA_CTL_MUTE_NAME;
+	case SDCA_CTL_TYPE_S(FU, CHANNEL_VOLUME):
+		return SDCA_CTL_CHANNEL_VOLUME_NAME;
+	case SDCA_CTL_TYPE_S(FU, AGC):
+		return SDCA_CTL_AGC_NAME;
+	case SDCA_CTL_TYPE_S(FU, BASS_BOOST):
+		return SDCA_CTL_BASS_BOOST_NAME;
+	case SDCA_CTL_TYPE_S(FU, LOUDNESS):
+		return SDCA_CTL_LOUDNESS_NAME;
+	case SDCA_CTL_TYPE_S(FU, GAIN):
+		return SDCA_CTL_GAIN_NAME;
+	case SDCA_CTL_TYPE_S(XU, BYPASS):
+	case SDCA_CTL_TYPE_S(MFPU, BYPASS):
+		return SDCA_CTL_BYPASS_NAME;
+	case SDCA_CTL_TYPE_S(XU, XU_ID):
+		return SDCA_CTL_XU_ID_NAME;
+	case SDCA_CTL_TYPE_S(XU, XU_VERSION):
+		return SDCA_CTL_XU_VERSION_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_CURRENTOWNER):
+		return SDCA_CTL_FDL_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGEOFFSET):
+		return SDCA_CTL_FDL_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGELENGTH):
+		return SDCA_CTL_FDL_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_STATUS):
+		return SDCA_CTL_FDL_STATUS_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_SET_INDEX):
+		return SDCA_CTL_FDL_SET_INDEX_NAME;
+	case SDCA_CTL_TYPE_S(XU, FDL_HOST_REQUEST):
+		return SDCA_CTL_FDL_HOST_REQUEST_NAME;
+	case SDCA_CTL_TYPE_S(CS, CLOCK_VALID):
+		return SDCA_CTL_CLOCK_VALID_NAME;
+	case SDCA_CTL_TYPE_S(CS, SAMPLERATEINDEX):
+		return SDCA_CTL_SAMPLERATEINDEX_NAME;
+	case SDCA_CTL_TYPE_S(CX, CLOCK_SELECT):
+		return SDCA_CTL_CLOCK_SELECT_NAME;
+	case SDCA_CTL_TYPE_S(PDE, REQUESTED_PS):
+		return SDCA_CTL_REQUESTED_PS_NAME;
+	case SDCA_CTL_TYPE_S(PDE, ACTUAL_PS):
+		return SDCA_CTL_ACTUAL_PS_NAME;
+	case SDCA_CTL_TYPE_S(GE, SELECTED_MODE):
+		return SDCA_CTL_SELECTED_MODE_NAME;
+	case SDCA_CTL_TYPE_S(GE, DETECTED_MODE):
+		return SDCA_CTL_DETECTED_MODE_NAME;
+	case SDCA_CTL_TYPE_S(SPE, PRIVATE):
+		return SDCA_CTL_PRIVATE_NAME;
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_POLICY):
+		return SDCA_CTL_PRIVACY_POLICY_NAME;
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_LOCKSTATE):
+		return SDCA_CTL_PRIVACY_LOCKSTATE_NAME;
+	case SDCA_CTL_TYPE_S(SPE, PRIVACY_OWNER):
+		return SDCA_CTL_PRIVACY_OWNER_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_CURRENTOWNER):
+		return SDCA_CTL_AUTHTX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGEOFFSET):
+		return SDCA_CTL_AUTHTX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGELENGTH):
+		return SDCA_CTL_AUTHTX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_CURRENTOWNER):
+		return SDCA_CTL_AUTHRX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGEOFFSET):
+		return SDCA_CTL_AUTHRX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGELENGTH):
+		return SDCA_CTL_AUTHRX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, ACOUSTIC_ENERGY_LEVEL_MONITOR):
+		return SDCA_CTL_ACOUSTIC_ENERGY_LEVEL_MONITOR_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, ULTRASOUND_LOOP_GAIN):
+		return SDCA_CTL_ULTRASOUND_LOOP_GAIN_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_0):
+		return SDCA_CTL_OPAQUESET_0_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_1):
+		return SDCA_CTL_OPAQUESET_1_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_2):
+		return SDCA_CTL_OPAQUESET_2_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_3):
+		return SDCA_CTL_OPAQUESET_3_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_4):
+		return SDCA_CTL_OPAQUESET_4_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_5):
+		return SDCA_CTL_OPAQUESET_5_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_6):
+		return SDCA_CTL_OPAQUESET_6_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_7):
+		return SDCA_CTL_OPAQUESET_7_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_8):
+		return SDCA_CTL_OPAQUESET_8_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_9):
+		return SDCA_CTL_OPAQUESET_9_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_10):
+		return SDCA_CTL_OPAQUESET_10_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_11):
+		return SDCA_CTL_OPAQUESET_11_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_12):
+		return SDCA_CTL_OPAQUESET_12_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_13):
+		return SDCA_CTL_OPAQUESET_13_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_14):
+		return SDCA_CTL_OPAQUESET_14_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_15):
+		return SDCA_CTL_OPAQUESET_15_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_16):
+		return SDCA_CTL_OPAQUESET_16_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_17):
+		return SDCA_CTL_OPAQUESET_17_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_18):
+		return SDCA_CTL_OPAQUESET_18_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_19):
+		return SDCA_CTL_OPAQUESET_19_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_20):
+		return SDCA_CTL_OPAQUESET_20_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_21):
+		return SDCA_CTL_OPAQUESET_21_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_22):
+		return SDCA_CTL_OPAQUESET_22_NAME;
+	case SDCA_CTL_TYPE_S(UDMPU, OPAQUESET_23):
+		return SDCA_CTL_OPAQUESET_23_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_READY):
+		return SDCA_CTL_ALGORITHM_READY_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_ENABLE):
+		return SDCA_CTL_ALGORITHM_ENABLE_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, ALGORITHM_PREPARE):
+		return SDCA_CTL_ALGORITHM_PREPARE_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, CENTER_FREQUENCY_INDEX):
+		return SDCA_CTL_CENTER_FREQUENCY_INDEX_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, ULTRASOUND_LEVEL):
+		return SDCA_CTL_ULTRASOUND_LEVEL_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, AE_NUMBER):
+		return SDCA_CTL_AE_NUMBER_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, AE_CURRENTOWNER):
+		return SDCA_CTL_AE_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGEOFFSET):
+		return SDCA_CTL_AE_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGELENGTH):
+		return SDCA_CTL_AE_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_ENABLE):
+		return SDCA_CTL_TRIGGER_ENABLE_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_STATUS):
+		return SDCA_CTL_TRIGGER_STATUS_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_BUFFER_MODE):
+		return SDCA_CTL_HIST_BUFFER_MODE_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_BUFFER_PREAMBLE):
+		return SDCA_CTL_HIST_BUFFER_PREAMBLE_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_ERROR):
+		return SDCA_CTL_HIST_ERROR_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_EXTENSION):
+		return SDCA_CTL_TRIGGER_EXTENSION_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, TRIGGER_READY):
+		return SDCA_CTL_TRIGGER_READY_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_CURRENTOWNER):
+		return SDCA_CTL_HIST_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGEOFFSET):
+		return SDCA_CTL_HIST_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGELENGTH):
+		return SDCA_CTL_HIST_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_CURRENTOWNER):
+		return SDCA_CTL_DTODTX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGEOFFSET):
+		return SDCA_CTL_DTODTX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGELENGTH):
+		return SDCA_CTL_DTODTX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_CURRENTOWNER):
+		return SDCA_CTL_DTODRX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGEOFFSET):
+		return SDCA_CTL_DTODRX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGELENGTH):
+		return SDCA_CTL_DTODRX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, PROTECTION_MODE):
+		return SDCA_CTL_PROTECTION_MODE_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, PROTECTION_STATUS):
+		return SDCA_CTL_PROTECTION_STATUS_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, OPAQUESETREQ_INDEX):
+		return SDCA_CTL_OPAQUESETREQ_INDEX_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_CURRENTOWNER):
+		return SDCA_CTL_DTODTX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGEOFFSET):
+		return SDCA_CTL_DTODTX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGELENGTH):
+		return SDCA_CTL_DTODTX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_CURRENTOWNER):
+		return SDCA_CTL_DTODRX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGEOFFSET):
+		return SDCA_CTL_DTODRX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGELENGTH):
+		return SDCA_CTL_DTODRX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(PPU, POSTURENUMBER):
+		return SDCA_CTL_POSTURENUMBER_NAME;
+	case SDCA_CTL_TYPE_S(PPU, POSTUREEXTENSION):
+		return SDCA_CTL_POSTUREEXTENSION_NAME;
+	case SDCA_CTL_TYPE_S(PPU, HORIZONTALBALANCE):
+		return SDCA_CTL_HORIZONTALBALANCE_NAME;
+	case SDCA_CTL_TYPE_S(PPU, VERTICALBALANCE):
+		return SDCA_CTL_VERTICALBALANCE_NAME;
+	case SDCA_CTL_TYPE_S(TG, TONE_DIVIDER):
+		return SDCA_CTL_TONE_DIVIDER_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_CURRENTOWNER):
+		return SDCA_CTL_HIDTX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGEOFFSET):
+		return SDCA_CTL_HIDTX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGELENGTH):
+		return SDCA_CTL_HIDTX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_CURRENTOWNER):
+		return SDCA_CTL_HIDRX_CURRENTOWNER_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGEOFFSET):
+		return SDCA_CTL_HIDRX_MESSAGEOFFSET_NAME;
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGELENGTH):
+		return SDCA_CTL_HIDRX_MESSAGELENGTH_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, COMMIT_GROUP_MASK):
+		return SDCA_CTL_COMMIT_GROUP_MASK_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_SDCA_VERSION):
+		return SDCA_CTL_FUNCTION_SDCA_VERSION_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_TYPE):
+		return SDCA_CTL_FUNCTION_TYPE_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_MANUFACTURER_ID):
+		return SDCA_CTL_FUNCTION_MANUFACTURER_ID_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_ID):
+		return SDCA_CTL_FUNCTION_ID_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_VERSION):
+		return SDCA_CTL_FUNCTION_VERSION_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_EXTENSION_ID):
+		return SDCA_CTL_FUNCTION_EXTENSION_ID_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_EXTENSION_VERSION):
+		return SDCA_CTL_FUNCTION_EXTENSION_VERSION_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_STATUS):
+		return SDCA_CTL_FUNCTION_STATUS_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_ACTION):
+		return SDCA_CTL_FUNCTION_ACTION_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_MANUFACTURER_ID):
+		return SDCA_CTL_DEVICE_MANUFACTURER_ID_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_PART_ID):
+		return SDCA_CTL_DEVICE_PART_ID_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_VERSION):
+		return SDCA_CTL_DEVICE_VERSION_NAME;
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_SDCA_VERSION):
+		return SDCA_CTL_DEVICE_SDCA_VERSION_NAME;
+	default:
+		return NULL;
+	}
+}
+
+static unsigned int find_sdca_control_bits(const struct sdca_entity *entity,
+					   const struct sdca_control *control)
+{
+	switch (SDCA_CTL_TYPE(entity->type, control->sel)) {
+	case SDCA_CTL_TYPE_S(IT, LATENCY):
+	case SDCA_CTL_TYPE_S(OT, LATENCY):
+	case SDCA_CTL_TYPE_S(MU, LATENCY):
+	case SDCA_CTL_TYPE_S(SU, LATENCY):
+	case SDCA_CTL_TYPE_S(FU, LATENCY):
+	case SDCA_CTL_TYPE_S(XU, LATENCY):
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(XU, FDL_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SPE, AUTHTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SPE, AUTHRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(CRU, LATENCY):
+	case SDCA_CTL_TYPE_S(UDMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(MFPU, LATENCY):
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(MFPU, AE_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, HIST_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, DTODTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SMPU, DTODRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SAPU, LATENCY):
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SAPU, DTODTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(SAPU, DTODRX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(PPU, LATENCY):
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(HIDE, HIDTX_MESSAGELENGTH):
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGEOFFSET):
+	case SDCA_CTL_TYPE_S(HIDE, HIDRX_MESSAGELENGTH):
+		return 32;
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_MANUFACTURER_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, FUNCTION_EXTENSION_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_MANUFACTURER_ID):
+	case SDCA_CTL_TYPE_S(ENTITY_0, DEVICE_PART_ID):
+	case SDCA_CTL_TYPE_S(IT, DATAPORT_SELECTOR):
+	case SDCA_CTL_TYPE_S(OT, DATAPORT_SELECTOR):
+	case SDCA_CTL_TYPE_S(MU, MIXER):
+	case SDCA_CTL_TYPE_S(FU, CHANNEL_VOLUME):
+	case SDCA_CTL_TYPE_S(FU, GAIN):
+	case SDCA_CTL_TYPE_S(XU, XU_ID):
+	case SDCA_CTL_TYPE_S(UDMPU, ACOUSTIC_ENERGY_LEVEL_MONITOR):
+	case SDCA_CTL_TYPE_S(UDMPU, ULTRASOUND_LOOP_GAIN):
+	case SDCA_CTL_TYPE_S(MFPU, ULTRASOUND_LEVEL):
+	case SDCA_CTL_TYPE_S(PPU, HORIZONTALBALANCE):
+	case SDCA_CTL_TYPE_S(PPU, VERTICALBALANCE):
+		return 16;
+	case SDCA_CTL_TYPE_S(FU, MUTE):
+	case SDCA_CTL_TYPE_S(FU, AGC):
+	case SDCA_CTL_TYPE_S(FU, BASS_BOOST):
+	case SDCA_CTL_TYPE_S(FU, LOUDNESS):
+	case SDCA_CTL_TYPE_S(XU, BYPASS):
+	case SDCA_CTL_TYPE_S(MFPU, BYPASS):
+		return 1;
+	default:
+		return 8;
+	}
+}
+
+/*
+ * TODO: Add support for -cn- properties, allowing different channels to have
+ * different defaults etc.
+ */
+static int find_sdca_entity_control(struct device *dev, struct sdca_entity *entity,
+				    struct fwnode_handle *control_node,
+				    struct sdca_control *control)
+{
+	u32 tmp;
+	int ret;
+
+	ret = fwnode_property_read_u32(control_node, "mipi-sdca-control-access-mode", &tmp);
+	if (ret) {
+		dev_err(dev, "%s: control %#x: access mode missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
+	}
+
+	control->mode = tmp;
+
+	ret = fwnode_property_read_u32(control_node, "mipi-sdca-control-access-layer", &tmp);
+	if (ret) {
+		dev_err(dev, "%s: control %#x: access layer missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
+	}
+
+	control->layers = tmp;
+
+	switch (control->mode) {
+	case SDCA_ACCESS_MODE_DC:
+		ret = fwnode_property_read_u32(control_node,
+					       "mipi-sdca-control-dc-value",
+					       &tmp);
+		if (ret) {
+			dev_err(dev, "%s: control %#x: dc value missing: %d\n",
+				entity->label, control->sel, ret);
+			return ret;
+		}
+
+		control->value = tmp;
+		control->has_fixed = true;
+		break;
+	case SDCA_ACCESS_MODE_RW:
+	case SDCA_ACCESS_MODE_DUAL:
+		ret = fwnode_property_read_u32(control_node,
+					       "mipi-sdca-control-default-value",
+					       &tmp);
+		if (!ret) {
+			control->value = tmp;
+			control->has_default = true;
+		}
+
+		ret = fwnode_property_read_u32(control_node,
+					       "mipi-sdca-control-fixed-value",
+					       &tmp);
+		if (!ret) {
+			if (control->has_default && control->value != tmp) {
+				dev_err(dev,
+					"%s: control %#x: default and fixed value don't match\n",
+					entity->label, control->sel);
+				return -EINVAL;
+			}
+
+			control->value = tmp;
+			control->has_fixed = true;
+		}
+
+		control->deferrable = fwnode_property_read_bool(control_node,
+								"mipi-sdca-control-deferrable");
+		break;
+	default:
+		break;
+	}
+
+	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",
+				       &control->cn_list);
+	if (ret == -EINVAL) {
+		/* Spec allows not specifying cn-list if only the first number is used */
+		control->cn_list = 0x1;
+	} else if (ret || !control->cn_list) {
+		dev_err(dev, "%s: control %#x: cn list missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
+	}
+
+	ret = fwnode_property_read_u32(control_node,
+				       "mipi-sdca-control-interrupt-position",
+				       &tmp);
+	if (!ret)
+		control->interrupt_position = tmp;
+
+	control->label = find_sdca_control_label(entity, control);
+	if (!control->label) {
+		dev_err(dev, "%s: control %#x: name not found\n",
+			entity->label, control->sel);
+		return -EINVAL;
+	}
+
+	control->nbits = find_sdca_control_bits(entity, control);
+
+	dev_info(dev, "%s: %s: control %#x mode %#x layers %#x cn %#llx int %d value %#x %s\n",
+		 entity->label, control->label, control->sel,
+		 control->mode, control->layers, control->cn_list,
+		 control->interrupt_position, control->value,
+		 control->deferrable ? "deferrable" : "");
+
+	return 0;
+}
+
+static int find_sdca_entity_controls(struct device *dev,
+				     struct fwnode_handle *entity_node,
+				     struct sdca_entity *entity)
+{
+	struct sdca_control *controls;
+	int num_controls;
+	u64 control_list;
+	int control_sel;
+	int i, ret;
+
+	ret = fwnode_property_read_u64(entity_node, "mipi-sdca-control-list", &control_list);
+	if (ret == -EINVAL) {
+		/* Allow missing control lists, assume no controls. */
+		dev_warn(dev, "%s: missing control list\n", entity->label);
+		return 0;
+	} else if (ret) {
+		dev_err(dev, "%s: failed to read control list: %d\n", entity->label, ret);
+		return ret;
+	} else if (!control_list) {
+		return 0;
+	}
+
+	num_controls = hweight64(control_list);
+	controls = devm_kcalloc(dev, num_controls, sizeof(*controls), GFP_KERNEL);
+	if (!controls)
+		return -ENOMEM;
+
+	i = 0;
+	for_each_set_bit(control_sel, (unsigned long *)&control_list,
+			 BITS_PER_TYPE(control_list)) {
+		struct fwnode_handle *control_node;
+		char control_property[SDCA_PROPERTY_LENGTH];
+
+		/* DisCo uses upper-case for hex numbers */
+		snprintf(control_property, sizeof(control_property),
+			 "mipi-sdca-control-0x%X-subproperties", control_sel);
+
+		control_node = fwnode_get_named_child_node(entity_node, control_property);
+		if (!control_node) {
+			dev_err(dev, "%s: control node %s not found\n",
+				entity->label, control_property);
+			return -EINVAL;
+		}
+
+		controls[i].sel = control_sel;
+
+		ret = find_sdca_entity_control(dev, entity, control_node, &controls[i]);
+		fwnode_handle_put(control_node);
+		if (ret)
+			return ret;
+
+		i++;
+	}
+
+	entity->num_controls = num_controls;
+	entity->controls = controls;
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -268,6 +799,10 @@ static int find_sdca_entity(struct device *dev,
 
 	dev_info(dev, "%s: entity %#x type %#x\n",
 		 entity->label, entity->id, entity->type);
+
+	ret = find_sdca_entity_controls(dev, entity_node, entity);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -337,6 +872,10 @@ static int find_sdca_entities(struct device *dev,
 	 * all the Entity searches involved in creating connections.
 	 */
 	entities[num_entities].label = "entity0";
+
+	ret = find_sdca_entity_controls(dev, function_node, &entities[num_entities]);
+	if (ret)
+		return ret;
 
 	function->num_entities = num_entities + 1;
 	function->entities = entities;
