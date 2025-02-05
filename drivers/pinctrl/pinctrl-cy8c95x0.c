@@ -137,7 +137,7 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
  * @irq_trig_low:   I/O bits affected by a low voltage level
  * @irq_trig_high:  I/O bits affected by a high voltage level
  * @push_pull:      I/O bits configured as push pull driver
- * @shiftmask:      Mask used to compensate for Gport2 width
+ * @map:            Mask used to compensate for Gport2 width
  * @nport:          Number of Gports in this chip
  * @gpio_chip:      gpiolib chip
  * @driver_data:    private driver data
@@ -158,7 +158,7 @@ struct cy8c95x0_pinctrl {
 	DECLARE_BITMAP(irq_trig_low, MAX_LINE);
 	DECLARE_BITMAP(irq_trig_high, MAX_LINE);
 	DECLARE_BITMAP(push_pull, MAX_LINE);
-	DECLARE_BITMAP(shiftmask, MAX_LINE);
+	DECLARE_BITMAP(map, MAX_LINE);
 	unsigned int nport;
 	struct gpio_chip gpio_chip;
 	unsigned long driver_data;
@@ -622,13 +622,8 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
-	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
-	bitmap_shift_left(tmask, tmask, 4, MAX_LINE);
-	bitmap_replace(tmask, tmask, mask, chip->shiftmask, BANK_SZ * 3);
-
-	bitmap_andnot(tval, val, chip->shiftmask, MAX_LINE);
-	bitmap_shift_left(tval, tval, 4, MAX_LINE);
-	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
+	bitmap_scatter(tmask, mask, chip->map, MAX_LINE);
+	bitmap_scatter(tval, val, chip->map, MAX_LINE);
 
 	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
@@ -653,19 +648,13 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 {
 	DECLARE_BITMAP(tmask, MAX_LINE);
 	DECLARE_BITMAP(tval, MAX_LINE);
-	DECLARE_BITMAP(tmp, MAX_LINE);
 	int read_val;
 	u8 bits;
 	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
-	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
-	bitmap_shift_left(tmask, tmask, 4, MAX_LINE);
-	bitmap_replace(tmask, tmask, mask, chip->shiftmask, BANK_SZ * 3);
-
-	bitmap_andnot(tval, val, chip->shiftmask, MAX_LINE);
-	bitmap_shift_left(tval, tval, 4, MAX_LINE);
-	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
+	bitmap_scatter(tmask, mask, chip->map, MAX_LINE);
+	bitmap_scatter(tval, val, chip->map, MAX_LINE);
 
 	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
@@ -685,8 +674,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	}
 
 	/* Fill the 4 bit gap of Gport2 */
-	bitmap_shift_right(tmp, tval, 4, MAX_LINE);
-	bitmap_replace(val, tmp, tval, chip->shiftmask, MAX_LINE);
+	bitmap_gather(val, tval, chip->map, MAX_LINE);
 
 	return 0;
 }
@@ -1486,8 +1474,11 @@ static int cy8c95x0_probe(struct i2c_client *client)
 		return PTR_ERR(chip->regmap);
 
 	bitmap_zero(chip->push_pull, MAX_LINE);
-	bitmap_zero(chip->shiftmask, MAX_LINE);
-	bitmap_set(chip->shiftmask, 0, 20);
+
+	/* Setup HW pins mapping */
+	bitmap_fill(chip->map, MAX_LINE);
+	bitmap_clear(chip->map, 20, 4);
+
 	mutex_init(&chip->i2c_lock);
 
 	if (dmi_first_match(cy8c95x0_dmi_acpi_irq_info)) {
