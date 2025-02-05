@@ -575,12 +575,13 @@ static int cy8c95x0_regmap_update_bits(struct cy8c95x0_pinctrl *chip, unsigned i
 }
 
 /**
- * cy8c95x0_regmap_read() - reads a register using the regmap cache
+ * cy8c95x0_regmap_read_bits() - reads a register using the regmap cache
  * @chip: The pinctrl to work on
  * @reg: The register to read from. Can be direct access or muxed register.
  * @port: The port to be used for muxed registers or quick path direct access
  *        registers. Otherwise unused.
- * @read_val: Value read from hardware or cache
+ * @mask: Bitmask to apply
+ * @val: Value read from hardware or cache
  *
  * This function handles the register reads from the direct access registers and
  * the muxed registers while caching all register accesses, internally handling
@@ -590,10 +591,12 @@ static int cy8c95x0_regmap_update_bits(struct cy8c95x0_pinctrl *chip, unsigned i
  *
  * Return: 0 for successful request, else a corresponding error value
  */
-static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
-				unsigned int port, unsigned int *read_val)
+static int cy8c95x0_regmap_read_bits(struct cy8c95x0_pinctrl *chip, unsigned int reg,
+				     unsigned int port, unsigned int mask, unsigned int *val)
 {
-	int off, ret;
+	unsigned int off;
+	unsigned int tmp;
+	int ret;
 
 	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
@@ -605,11 +608,14 @@ static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 		else
 			off = reg;
 	}
-	guard(mutex)(&chip->i2c_lock);
 
-	ret = regmap_read(chip->regmap, off, read_val);
+	scoped_guard(mutex, &chip->i2c_lock)
+		ret = regmap_read(chip->regmap, off, &tmp);
+	if (ret)
+		return ret;
 
-	return ret;
+	*val = tmp & mask;
+	return 0;
 }
 
 static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
@@ -646,7 +652,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	DECLARE_BITMAP(tmask, MAX_LINE);
 	DECLARE_BITMAP(tval, MAX_LINE);
 	unsigned long bits, offset;
-	int read_val;
+	unsigned int read_val;
 	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
@@ -656,13 +662,12 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	for_each_set_clump8(offset, bits, tmask, chip->tpin) {
 		unsigned int i = offset / 8;
 
-		ret = cy8c95x0_regmap_read(chip, reg, i, &read_val);
+		ret = cy8c95x0_regmap_read_bits(chip, reg, i, bits, &read_val);
 		if (ret < 0) {
 			dev_err(chip->dev, "failed reading register %d, port %u: err %d\n", reg, i, ret);
 			return ret;
 		}
 
-		read_val &= bits;
 		read_val |= bitmap_get_value8(tval, offset) & ~bits;
 		bitmap_set_value8(tval, read_val, offset);
 	}
@@ -699,10 +704,10 @@ static int cy8c95x0_gpio_get_value(struct gpio_chip *gc, unsigned int off)
 	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
 	u8 port = cypress_get_port(chip, off);
 	u8 bit = cypress_get_pin_mask(chip, off);
-	u32 reg_val;
+	unsigned int reg_val;
 	int ret;
 
-	ret = cy8c95x0_regmap_read(chip, CY8C95X0_INPUT, port, &reg_val);
+	ret = cy8c95x0_regmap_read_bits(chip, CY8C95X0_INPUT, port, bit, &reg_val);
 	if (ret < 0) {
 		/*
 		 * NOTE:
@@ -713,7 +718,7 @@ static int cy8c95x0_gpio_get_value(struct gpio_chip *gc, unsigned int off)
 		return 0;
 	}
 
-	return !!(reg_val & bit);
+	return reg_val ? 1 : 0;
 }
 
 static void cy8c95x0_gpio_set_value(struct gpio_chip *gc, unsigned int off,
@@ -731,14 +736,14 @@ static int cy8c95x0_gpio_get_direction(struct gpio_chip *gc, unsigned int off)
 	struct cy8c95x0_pinctrl *chip = gpiochip_get_data(gc);
 	u8 port = cypress_get_port(chip, off);
 	u8 bit = cypress_get_pin_mask(chip, off);
-	u32 reg_val;
+	unsigned int reg_val;
 	int ret;
 
-	ret = cy8c95x0_regmap_read(chip, CY8C95X0_DIRECTION, port, &reg_val);
+	ret = cy8c95x0_regmap_read_bits(chip, CY8C95X0_DIRECTION, port, bit, &reg_val);
 	if (ret < 0)
 		return ret;
 
-	if (reg_val & bit)
+	if (reg_val)
 		return GPIO_LINE_DIRECTION_IN;
 
 	return GPIO_LINE_DIRECTION_OUT;
@@ -751,8 +756,8 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	enum pin_config_param param = pinconf_to_config_param(*config);
 	u8 port = cypress_get_port(chip, off);
 	u8 bit = cypress_get_pin_mask(chip, off);
+	unsigned int reg_val;
 	unsigned int reg;
-	u32 reg_val;
 	u16 arg = 0;
 	int ret;
 
@@ -809,11 +814,11 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	 * Writing 1 to one of the drive mode registers will automatically
 	 * clear conflicting set bits in the other drive mode registers.
 	 */
-	ret = cy8c95x0_regmap_read(chip, reg, port, &reg_val);
+	ret = cy8c95x0_regmap_read_bits(chip, reg, port, bit, &reg_val);
 	if (ret < 0)
 		return ret;
 
-	if (reg_val & bit)
+	if (reg_val)
 		arg = 1;
 	if (param == PIN_CONFIG_OUTPUT_ENABLE)
 		arg = !arg;
