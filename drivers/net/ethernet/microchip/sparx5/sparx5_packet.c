@@ -375,6 +375,6 @@ irqreturn_t sparx5_xtr_handler(int irq, void *_sparx5)
 
 void sparx5_port_inj_timer_setup(struct sparx5_port *port)
 {
-	hrtimer_init(&port->inj_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	port->inj_timer.function = sparx5_injection_timeout;
+	hrtimer_setup(&port->inj_timer, sparx5_injection_timeout, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 }
