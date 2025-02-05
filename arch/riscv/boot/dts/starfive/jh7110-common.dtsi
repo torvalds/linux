@@ -233,7 +233,7 @@
 				regulator-always-on;
 				regulator-min-microvolt = <500000>;
 				regulator-max-microvolt = <1540000>;
-				regulator-name = "vdd-cpu";
+				regulator-name = "vdd_cpu";
 			};
 
 			emmc_vdd: aldo4 {
