@@ -248,7 +248,7 @@ static inline unsigned int pipe_update_tail(struct pipe_inode_info *pipe,
 }
 
 static ssize_t
-pipe_read(struct kiocb *iocb, struct iov_iter *to)
+anon_pipe_read(struct kiocb *iocb, struct iov_iter *to)
 {
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
@@ -404,8 +404,15 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	if (wake_next_reader)
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
 	kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
+	return ret;
+}
+
+static ssize_t
+fifo_pipe_read(struct kiocb *iocb, struct iov_iter *to)
+{
+	int ret = anon_pipe_read(iocb, to);
 	if (ret > 0)
-		file_accessed(filp);
+		file_accessed(iocb->ki_filp);
 	return ret;
 }
 
@@ -426,7 +433,7 @@ static inline bool pipe_writable(const struct pipe_inode_info *pipe)
 }
 
 static ssize_t
-pipe_write(struct kiocb *iocb, struct iov_iter *from)
+anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
@@ -604,11 +611,21 @@ out:
 	kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	if (wake_next_writer)
 		wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
-	if (ret > 0 && sb_start_write_trylock(file_inode(filp)->i_sb)) {
-		int err = file_update_time(filp);
-		if (err)
-			ret = err;
-		sb_end_write(file_inode(filp)->i_sb);
+	return ret;
+}
+
+static ssize_t
+fifo_pipe_write(struct kiocb *iocb, struct iov_iter *from)
+{
+	int ret = anon_pipe_write(iocb, from);
+	if (ret > 0) {
+		struct file *filp = iocb->ki_filp;
+		if (sb_start_write_trylock(file_inode(filp)->i_sb)) {
+			int err = file_update_time(filp);
+			if (err)
+				ret = err;
+			sb_end_write(file_inode(filp)->i_sb);
+		}
 	}
 	return ret;
 }
@@ -1234,8 +1251,8 @@ err:
 
 const struct file_operations pipefifo_fops = {
 	.open		= fifo_open,
-	.read_iter	= pipe_read,
-	.write_iter	= pipe_write,
+	.read_iter	= fifo_pipe_read,
+	.write_iter	= fifo_pipe_write,
 	.poll		= pipe_poll,
 	.unlocked_ioctl	= pipe_ioctl,
 	.release	= pipe_release,
@@ -1245,8 +1262,8 @@ const struct file_operations pipefifo_fops = {
 
 static const struct file_operations pipeanon_fops = {
 	.open		= fifo_open,
-	.read_iter	= pipe_read,
-	.write_iter	= pipe_write,
+	.read_iter	= anon_pipe_read,
+	.write_iter	= anon_pipe_write,
 	.poll		= pipe_poll,
 	.unlocked_ioctl	= pipe_ioctl,
 	.release	= pipe_release,
