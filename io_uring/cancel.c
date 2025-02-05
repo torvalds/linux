@@ -362,3 +362,24 @@ bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 
 	return found;
 }
+
+int io_cancel_remove(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
+		     unsigned int issue_flags, struct hlist_head *list,
+		     bool (*cancel)(struct io_kiocb *))
+{
+	struct hlist_node *tmp;
+	struct io_kiocb *req;
+	int nr = 0;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	hlist_for_each_entry_safe(req, tmp, list, hash_node) {
+		if (!io_cancel_req_match(req, cd))
+			continue;
+		if (cancel(req))
+			nr++;
+		if (!(cd->flags & IORING_ASYNC_CANCEL_ALL))
+			break;
+	}
+	io_ring_submit_unlock(ctx, issue_flags);
+	return nr ?: -ENOENT;
+}
