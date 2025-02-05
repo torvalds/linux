@@ -1764,8 +1764,8 @@ void pm_runtime_init(struct device *dev)
 	INIT_WORK(&dev->power.work, pm_runtime_work);
 
 	dev->power.timer_expires = 0;
-	hrtimer_init(&dev->power.suspend_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	dev->power.suspend_timer.function = pm_suspend_timer_fn;
+	hrtimer_setup(&dev->power.suspend_timer, pm_suspend_timer_fn, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_ABS);
 
 	init_waitqueue_head(&dev->power.wait_queue);
 }
