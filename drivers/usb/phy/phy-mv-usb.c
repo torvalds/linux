@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/workqueue.h>
 #include <linux/platform_device.h>
+#include <linux/string_choices.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
@@ -217,7 +218,7 @@ static void mv_otg_start_periphrals(struct mv_otg *mvotg, int on)
 	if (!otg->gadget)
 		return;
 
-	dev_info(mvotg->phy.dev, "gadget %s\n", on ? "on" : "off");
+	dev_info(mvotg->phy.dev, "gadget %s\n", str_on_off(on));
 
 	if (on)
 		usb_gadget_vbus_connect(otg->gadget);

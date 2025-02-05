@@ -2229,7 +2229,8 @@ static const struct resource_funcs dcn20_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.set_mcif_arb_params = dcn20_set_mcif_arb_params,
 	.populate_dml_pipes = dcn20_populate_dml_pipes_from_context,
-	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link
+	.find_first_free_match_stream_enc_for_link = dcn10_find_first_free_match_stream_enc_for_link,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 bool dcn20_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)

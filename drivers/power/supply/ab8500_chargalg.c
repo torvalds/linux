@@ -844,10 +844,9 @@ static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 	}
 }
 
-static int ab8500_chargalg_get_ext_psy_data(struct device *dev, void *data)
+static int ab8500_chargalg_get_ext_psy_data(struct power_supply *ext, void *data)
 {
 	struct power_supply *psy;
-	struct power_supply *ext = dev_get_drvdata(dev);
 	const char **supplicants = (const char **)ext->supplied_to;
 	struct ab8500_chargalg *di;
 	union power_supply_propval ret;
@@ -1231,7 +1230,7 @@ static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 	int ret;
 
 	/* Collect data from all power_supply class devices */
-	power_supply_for_each_device(di->chargalg_psy, ab8500_chargalg_get_ext_psy_data);
+	power_supply_for_each_psy(di->chargalg_psy, ab8500_chargalg_get_ext_psy_data);
 
 	ab8500_chargalg_end_of_charge(di);
 	ab8500_chargalg_check_temp(di);

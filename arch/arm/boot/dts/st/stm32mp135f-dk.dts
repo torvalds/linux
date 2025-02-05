@@ -440,6 +440,9 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 	status = "disabled";
+	counter {
+		status = "okay";
+	};
 	pwm {
 		/* PWM output on pin 7 of the expansion connector (CN8.7) using TIM3_CH4 func */
 		pinctrl-0 = <&pwm3_pins_a>;
@@ -456,6 +459,9 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 	status = "disabled";
+	counter {
+		status = "okay";
+	};
 	pwm {
 		/* PWM output on pin 31 of the expansion connector (CN8.31) using TIM4_CH2 func */
 		pinctrl-0 = <&pwm4_pins_a>;
@@ -472,6 +478,9 @@
 	/delete-property/dmas;
 	/delete-property/dma-names;
 	status = "disabled";
+	counter {
+		status = "okay";
+	};
 	pwm {
 		/* PWM output on pin 32 of the expansion connector (CN8.32) using TIM8_CH3 func */
 		pinctrl-0 = <&pwm8_pins_a>;
@@ -486,6 +495,9 @@
 
 &timers14 {
 	status = "disabled";
+	counter {
+		status = "okay";
+	};
 	pwm {
 		/* PWM output on pin 33 of the expansion connector (CN8.33) using TIM14_CH1 func */
 		pinctrl-0 = <&pwm14_pins_a>;

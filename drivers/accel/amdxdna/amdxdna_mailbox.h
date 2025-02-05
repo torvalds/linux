@@ -39,9 +39,9 @@ struct xdna_mailbox_msg {
  * @mbox_size:		mailbox size
  */
 struct xdna_mailbox_res {
-	u64		ringbuf_base;
+	void __iomem	*ringbuf_base;
 	size_t		ringbuf_size;
-	u64		mbox_base;
+	void __iomem	*mbox_base;
 	size_t		mbox_size;
 	const char	*name;
 };

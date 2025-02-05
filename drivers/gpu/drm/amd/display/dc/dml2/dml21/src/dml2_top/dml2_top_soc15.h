@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Copyright 2024 Advanced Micro Devices, Inc.
+
 #ifndef __DML2_TOP_SOC15_H__
 #define __DML2_TOP_SOC15_H__
 #include "dml2_internal_shared_types.h"

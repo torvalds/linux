@@ -15,7 +15,6 @@ bool dml2_initialize_instance(struct dml2_initialize_instance_in_out *in_out)
 {
 	switch (in_out->options.project_id) {
 	case dml2_project_dcn4x_stage1:
-		return false;
 	case dml2_project_dcn4x_stage2:
 	case dml2_project_dcn4x_stage2_auto_drr_svp:
 		return dml2_top_soc15_initialize_instance(in_out);

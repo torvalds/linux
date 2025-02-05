@@ -67,8 +67,7 @@ static void ath_tx_txqaddbuf(struct ath_softc *sc, struct ath_txq *txq,
 static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
 			     struct ath_tx_status *ts, int nframes, int nbad,
 			     int txok);
-static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
-			      struct ath_buf *bf);
+static void ath_tx_update_baw(struct ath_atx_tid *tid, struct ath_buf *bf);
 static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 					   struct ath_txq *txq,
 					   struct ath_atx_tid *tid,
@@ -208,10 +207,10 @@ static void ath_set_rates(struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 				       ARRAY_SIZE(bf->rates));
 }
 
-static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
-			     struct sk_buff *skb)
+static void ath_txq_skb_done(struct ath_softc *sc, struct sk_buff *skb)
 {
 	struct ath_frame_info *fi = get_frame_info(skb);
+	struct ath_txq *txq;
 	int q = fi->txq;
 
 	if (q < 0)
@@ -224,7 +223,7 @@ static void ath_txq_skb_done(struct ath_softc *sc, struct ath_txq *txq,
 }
 
 static struct ath_atx_tid *
-ath_get_skb_tid(struct ath_softc *sc, struct ath_node *an, struct sk_buff *skb)
+ath_get_skb_tid(struct ath_node *an, struct sk_buff *skb)
 {
 	u8 tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	return ATH_AN_2_TID(an, tidno);
@@ -294,13 +293,13 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 		fi = get_frame_info(skb);
 		bf = fi->bf;
 		if (!bf) {
-			ath_txq_skb_done(sc, txq, skb);
+			ath_txq_skb_done(sc, skb);
 			ieee80211_free_txskb(sc->hw, skb);
 			continue;
 		}
 
 		if (fi->baw_tracked) {
-			ath_tx_update_baw(sc, tid, bf);
+			ath_tx_update_baw(tid, bf);
 			sendbar = true;
 		}
 
@@ -315,8 +314,7 @@ static void ath_tx_flush_tid(struct ath_softc *sc, struct ath_atx_tid *tid)
 	}
 }
 
-static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
-			      struct ath_buf *bf)
+static void ath_tx_update_baw(struct ath_atx_tid *tid, struct ath_buf *bf)
 {
 	struct ath_frame_info *fi = get_frame_info(bf->bf_mpdu);
 	u16 seqno = bf->bf_state.seqno;
@@ -338,8 +336,7 @@ static void ath_tx_update_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
 	}
 }
 
-static void ath_tx_addto_baw(struct ath_softc *sc, struct ath_atx_tid *tid,
-			     struct ath_buf *bf)
+static void ath_tx_addto_baw(struct ath_atx_tid *tid, struct ath_buf *bf)
 {
 	struct ath_frame_info *fi = get_frame_info(bf->bf_mpdu);
 	u16 seqno = bf->bf_state.seqno;
@@ -452,9 +449,8 @@ static struct ath_buf* ath_clone_txbuf(struct ath_softc *sc, struct ath_buf *bf)
 	return tbf;
 }
 
-static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
-			        struct ath_tx_status *ts, int txok,
-			        int *nframes, int *nbad)
+static void ath_tx_count_frames(struct ath_buf *bf, struct ath_tx_status *ts,
+				int txok, int *nframes, int *nbad)
 {
 	u16 seq_st = 0;
 	u32 ba[WME_BA_BMP_SIZE >> 5];
@@ -557,7 +553,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			/*
 			 * AR5416 can become deaf/mute when BA
 			 * issue happens. Chip needs to be reset.
-			 * But AP code may have sychronization issues
+			 * But AP code may have synchronization issues
 			 * when perform internal reset in this routine.
 			 * Only enable reset in STA mode for now.
 			 */
@@ -568,7 +564,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 
 	__skb_queue_head_init(&bf_pending);
 
-	ath_tx_count_frames(sc, bf, ts, txok, &nframes, &nbad);
+	ath_tx_count_frames(bf, ts, txok, &nframes, &nbad);
 	while (bf) {
 		u16 seqno = bf->bf_state.seqno;
 
@@ -621,7 +617,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 			 * complete the acked-ones/xretried ones; update
 			 * block-ack window
 			 */
-			ath_tx_update_baw(sc, tid, bf);
+			ath_tx_update_baw(tid, bf);
 
 			if (rc_update && (acked_cnt == 1 || txfail_cnt == 1)) {
 				memcpy(tx_info->control.rates, rates, sizeof(rates));
@@ -651,7 +647,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 				 * run out of tx buf.
 				 */
 				if (!tbf) {
-					ath_tx_update_baw(sc, tid, bf);
+					ath_tx_update_baw(tid, bf);
 
 					ath_tx_complete_buf(sc, bf, txq,
 							    &bf_head, NULL, ts,
@@ -752,7 +748,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr1, hdr->addr2);
 	if (sta) {
 		struct ath_node *an = (struct ath_node *)sta->drv_priv;
-		tid = ath_get_skb_tid(sc, an, bf->bf_mpdu);
+		tid = ath_get_skb_tid(an, bf->bf_mpdu);
 		ath_tx_count_airtime(sc, sta, bf, ts, tid->tidno);
 		if (ts->ts_status & (ATH9K_TXERR_FILT | ATH9K_TXERR_XRETRY))
 			tid->clear_ps_filter = true;
@@ -962,7 +958,7 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 			bf->bf_state.stale = false;
 
 		if (!bf) {
-			ath_txq_skb_done(sc, txq, skb);
+			ath_txq_skb_done(sc, skb);
 			ieee80211_free_txskb(sc->hw, skb);
 			continue;
 		}
@@ -1012,13 +1008,13 @@ ath_tx_get_tid_subframe(struct ath_softc *sc, struct ath_txq *txq,
 
 			INIT_LIST_HEAD(&bf_head);
 			list_add(&bf->list, &bf_head);
-			ath_tx_update_baw(sc, tid, bf);
+			ath_tx_update_baw(tid, bf);
 			ath_tx_complete_buf(sc, bf, txq, &bf_head, NULL, &ts, 0);
 			continue;
 		}
 
 		if (bf_isampdu(bf))
-			ath_tx_addto_baw(sc, tid, bf);
+			ath_tx_addto_baw(tid, bf);
 
 		break;
 	}
@@ -1114,8 +1110,8 @@ finish:
  * width  - 0 for 20 MHz, 1 for 40 MHz
  * half_gi - to use 4us v/s 3.6 us for symbol time
  */
-u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
-		     int width, int half_gi, bool shortPreamble)
+u32 ath_pkt_duration(u8 rix, int pktlen, int width,
+		     int half_gi, bool shortPreamble)
 {
 	u32 nbits, nsymbits, duration, nsymbols;
 	int streams;
@@ -1327,7 +1323,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 			info->rates[i].Rate = rix | 0x80;
 			info->rates[i].ChSel = ath_txchainmask_reduction(sc,
 					ah->txchainmask, info->rates[i].Rate);
-			info->rates[i].PktDuration = ath_pkt_duration(sc, rix, len,
+			info->rates[i].PktDuration = ath_pkt_duration(rix, len,
 				 is_40, is_sgi, is_sp);
 			if (rix < 8 && (tx_info->flags & IEEE80211_TX_CTL_STBC))
 				info->rates[i].RateFlags |= ATH9K_RATESERIES_STBC;
@@ -2122,7 +2118,7 @@ static void ath_tx_send_normal(struct ath_softc *sc, struct ath_txq *txq,
 	bf->bf_state.bf_type = 0;
 	if (tid && (tx_info->flags & IEEE80211_TX_CTL_AMPDU)) {
 		bf->bf_state.bf_type = BUF_AMPDU;
-		ath_tx_addto_baw(sc, tid, bf);
+		ath_tx_addto_baw(tid, bf);
 	}
 
 	bf->bf_next = NULL;
@@ -2368,7 +2364,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	if (txctl->sta) {
 		an = (struct ath_node *) sta->drv_priv;
-		tid = ath_get_skb_tid(sc, an, skb);
+		tid = ath_get_skb_tid(an, skb);
 	}
 
 	ath_txq_lock(sc, txq);
@@ -2379,7 +2375,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	bf = ath_tx_setup_buffer(sc, txq, tid, skb);
 	if (!bf) {
-		ath_txq_skb_done(sc, txq, skb);
+		ath_txq_skb_done(sc, skb);
 		if (txctl->paprd)
 			dev_kfree_skb_any(skb);
 		else
@@ -2514,7 +2510,7 @@ static void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 	}
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
-	ath_txq_skb_done(sc, txq, skb);
+	ath_txq_skb_done(sc, skb);
 	tx_info->status.status_driver_data[0] = sta;
 	__skb_queue_tail(&txq->complete_q, skb);
 }

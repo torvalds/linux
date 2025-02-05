@@ -36,17 +36,17 @@ use core::{
 ///
 /// // Check the nodes we just inserted.
 /// {
-///     assert_eq!(tree.get(&10).unwrap(), &100);
-///     assert_eq!(tree.get(&20).unwrap(), &200);
-///     assert_eq!(tree.get(&30).unwrap(), &300);
+///     assert_eq!(tree.get(&10), Some(&100));
+///     assert_eq!(tree.get(&20), Some(&200));
+///     assert_eq!(tree.get(&30), Some(&300));
 /// }
 ///
 /// // Iterate over the nodes we just inserted.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -61,9 +61,9 @@ use core::{
 /// // Check that the tree reflects the replacement.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &1000));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &1000)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -73,9 +73,9 @@ use core::{
 /// // Check that the tree reflects the update.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &1000));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &3000));
+///     assert_eq!(iter.next(), Some((&10, &1000)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &3000)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -85,8 +85,8 @@ use core::{
 /// // Check that the tree reflects the removal.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &3000));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &3000)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -128,20 +128,20 @@ use core::{
 /// // Check the nodes we just inserted.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
-///     assert_eq!(iter.next().unwrap(), (&30, &300));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
+///     assert_eq!(iter.next(), Some((&30, &300)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
 /// // Remove a node, getting back ownership of it.
-/// let existing = tree.remove(&30).unwrap();
+/// let existing = tree.remove(&30);
 ///
 /// // Check that the tree reflects the removal.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
 ///     assert!(iter.next().is_none());
 /// }
 ///
@@ -155,9 +155,9 @@ use core::{
 /// // Check that the tree reflect the new insertion.
 /// {
 ///     let mut iter = tree.iter();
-///     assert_eq!(iter.next().unwrap(), (&10, &100));
-///     assert_eq!(iter.next().unwrap(), (&15, &150));
-///     assert_eq!(iter.next().unwrap(), (&20, &200));
+///     assert_eq!(iter.next(), Some((&10, &100)));
+///     assert_eq!(iter.next(), Some((&15, &150)));
+///     assert_eq!(iter.next(), Some((&20, &200)));
 ///     assert!(iter.next().is_none());
 /// }
 ///

@@ -37,6 +37,8 @@
 #define DC_LOGGER dc->ctx->logger
 #ifndef MIN
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
+#endif
+#ifndef MAX
 #define MAX(x, y) ((x > y) ? x : y)
 #endif
 

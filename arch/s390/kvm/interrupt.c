@@ -2678,9 +2678,13 @@ static int flic_set_attr(struct kvm_device *dev, struct kvm_device_attr *attr)
 		kvm_s390_clear_float_irqs(dev->kvm);
 		break;
 	case KVM_DEV_FLIC_APF_ENABLE:
+		if (kvm_is_ucontrol(dev->kvm))
+			return -EINVAL;
 		dev->kvm->arch.gmap->pfault_enabled = 1;
 		break;
 	case KVM_DEV_FLIC_APF_DISABLE_WAIT:
+		if (kvm_is_ucontrol(dev->kvm))
+			return -EINVAL;
 		dev->kvm->arch.gmap->pfault_enabled = 0;
 		/*
 		 * Make sure no async faults are in transition when
@@ -2894,6 +2898,8 @@ int kvm_set_routing_entry(struct kvm *kvm,
 	switch (ue->type) {
 	/* we store the userspace addresses instead of the guest addresses */
 	case KVM_IRQ_ROUTING_S390_ADAPTER:
+		if (kvm_is_ucontrol(kvm))
+			return -EINVAL;
 		e->set = set_adapter_int;
 		uaddr =  gmap_translate(kvm->arch.gmap, ue->u.adapter.summary_addr);
 		if (uaddr == -EFAULT)

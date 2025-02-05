@@ -161,6 +161,7 @@ struct max1363_chip_info {
  * @vref_uv:		Actual (external or internal) reference voltage
  * @send:		function used to send data to the chip
  * @recv:		function used to receive data from the chip
+ * @data:		buffer to store channel data and timestamp
  */
 struct max1363_state {
 	struct i2c_client		*client;
@@ -186,6 +187,10 @@ struct max1363_state {
 						const char *buf, int count);
 	int				(*recv)(const struct i2c_client *client,
 						char *buf, int count);
+	struct {
+		u8 buf[MAX1363_MAX_CHANNELS * 2];
+		aligned_s64 ts;
+	} data;
 };
 
 #define MAX1363_MODE_SINGLE(_num, _mask) {				\
@@ -1462,22 +1467,10 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct max1363_state *st = iio_priv(indio_dev);
-	__u8 *rxbuf;
 	int b_sent;
-	size_t d_size;
 	unsigned long numvals = bitmap_weight(st->current_mode->modemask,
 					      MAX1363_MAX_CHANNELS);
 
-	/* Ensure the timestamp is 8 byte aligned */
-	if (st->chip_info->bits != 8)
-		d_size = numvals*2;
-	else
-		d_size = numvals;
-	if (indio_dev->scan_timestamp) {
-		d_size += sizeof(s64);
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
 	/* Monitor mode prevents reading. Whilst not currently implemented
 	 * might as well have this test in here in the meantime as it does
 	 * no harm.
@@ -1485,21 +1478,16 @@ static irqreturn_t max1363_trigger_handler(int irq, void *p)
 	if (numvals == 0)
 		goto done;
 
-	rxbuf = kmalloc(d_size,	GFP_KERNEL);
-	if (rxbuf == NULL)
-		goto done;
 	if (st->chip_info->bits != 8)
-		b_sent = st->recv(st->client, rxbuf, numvals * 2);
+		b_sent = st->recv(st->client, st->data.buf, numvals * 2);
 	else
-		b_sent = st->recv(st->client, rxbuf, numvals);
+		b_sent = st->recv(st->client, st->data.buf, numvals);
 	if (b_sent < 0)
-		goto done_free;
+		goto done;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, rxbuf,
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->data,
 					   iio_get_time_ns(indio_dev));
 
-done_free:
-	kfree(rxbuf);
 done:
 	iio_trigger_notify_done(indio_dev->trig);
 

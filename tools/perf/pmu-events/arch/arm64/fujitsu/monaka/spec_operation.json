@@ -1,0 +1,171 @@
+[
+    {
+        "ArchStdEvent": "BR_MIS_PRED",
+        "BriefDescription": "This event counts each correction to the predicted program flow that occurs because of a misprediction from, or no prediction from, the branch prediction resources and that relates to instructions that the branch prediction resources are capable of predicting."
+    },
+    {
+        "ArchStdEvent": "BR_PRED",
+        "BriefDescription": "This event counts every branch or other change in the program flow that the branch prediction resources are capable of predicting."
+    },
+    {
+        "ArchStdEvent": "INST_SPEC",
+        "BriefDescription": "This event counts every architecturally executed instruction."
+    },
+    {
+        "ArchStdEvent": "OP_SPEC",
+        "BriefDescription": "This event counts every speculatively executed micro-operation."
+    },
+    {
+        "ArchStdEvent": "LDREX_SPEC",
+        "BriefDescription": "This event counts architecturally executed load-exclusive instructions."
+    },
+    {
+        "ArchStdEvent": "STREX_SPEC",
+        "BriefDescription": "This event counts architecturally executed store-exclusive instructions."
+    },
+    {
+        "ArchStdEvent": "LD_SPEC",
+        "BriefDescription": "This event counts architecturally executed memory-reading instructions, as defined by the LD_RETIRED event."
+    },
+    {
+        "ArchStdEvent": "ST_SPEC",
+        "BriefDescription": "This event counts architecturally executed memory-writing instructions, as defined by the ST_RETIRED event. This event counts DCZVA as a store operation."
+    },
+    {
+        "ArchStdEvent": "LDST_SPEC",
+        "BriefDescription": "This event counts architecturally executed memory-reading instructions and memory-writing instructions, as defined by the LD_RETIRED and ST_RETIRED events."
+    },
+    {
+        "ArchStdEvent": "DP_SPEC",
+        "BriefDescription": "This event counts architecturally executed integer data-processing instructions. See DP_SPEC of ARMv9 Reference Manual for more information."
+    },
+    {
+        "ArchStdEvent": "ASE_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD data-processing instructions."
+    },
+    {
+        "ArchStdEvent": "VFP_SPEC",
+        "BriefDescription": "This event counts architecturally executed floating-point data-processing instructions."
+    },
+    {
+        "ArchStdEvent": "PC_WRITE_SPEC",
+        "BriefDescription": "This event counts only software changes of the PC that defined by the instruction architecturally executed, condition code check pass, software change of the PC event."
+    },
+    {
+        "ArchStdEvent": "CRYPTO_SPEC",
+        "BriefDescription": "This event counts architecturally executed cryptographic instructions, except PMULL and VMULL."
+    },
+    {
+        "ArchStdEvent": "BR_IMMED_SPEC",
+        "BriefDescription": "This event counts architecturally executed immediate branch instructions."
+    },
+    {
+        "ArchStdEvent": "BR_RETURN_SPEC",
+        "BriefDescription": "This event counts architecturally executed procedure return operations that defined by the BR_RETURN_RETIRED event."
+    },
+    {
+        "ArchStdEvent": "BR_INDIRECT_SPEC",
+        "BriefDescription": "This event counts architecturally executed indirect branch instructions that includes software change of the PC other than exception-generating instructions and immediate branch instructions."
+    },
+    {
+        "ArchStdEvent": "ISB_SPEC",
+        "BriefDescription": "This event counts architecturally executed Instruction Synchronization Barrier instructions."
+    },
+    {
+        "ArchStdEvent": "DSB_SPEC",
+        "BriefDescription": "This event counts architecturally executed Data Synchronization Barrier instructions."
+    },
+    {
+        "ArchStdEvent": "DMB_SPEC",
+        "BriefDescription": "This event counts architecturally executed Data Memory Barrier instructions, excluding the implied barrier operations of load/store operations with release consistency semantics."
+    },
+    {
+        "ArchStdEvent": "CSDB_SPEC",
+        "BriefDescription": "This event counts speculatively executed control speculation barrier instructions."
+    },
+    {
+        "EventCode": "0x0108",
+        "EventName": "PRD_SPEC",
+        "BriefDescription": "This event counts architecturally executed operations that using predicate register."
+    },
+    {
+        "EventCode": "0x0109",
+        "EventName": "IEL_SPEC",
+        "BriefDescription": "This event counts architecturally executed inter-element manipulation operations."
+    },
+    {
+        "EventCode": "0x010A",
+        "EventName": "IREG_SPEC",
+        "BriefDescription": "This event counts architecturally executed inter-register manipulation operations."
+    },
+    {
+        "EventCode": "0x011A",
+        "EventName": "BC_LD_SPEC",
+        "BriefDescription": "This event counts architecturally executed SIMD broadcast floating-point load operations."
+    },
+    {
+        "EventCode": "0x011B",
+        "EventName": "DCZVA_SPEC",
+        "BriefDescription": "This event counts architecturally executed zero blocking operations due to the DC ZVA instruction."
+    },
+    {
+        "EventCode": "0x0121",
+        "EventName": "EFFECTIVE_INST_SPEC",
+        "BriefDescription": "This event counts architecturally executed instructions, excluding the MOVPRFX instruction."
+    },
+    {
+        "EventCode": "0x0123",
+        "EventName": "PRE_INDEX_SPEC",
+        "BriefDescription": "This event counts architecturally executed operations that uses pre-index as its addressing mode."
+    },
+    {
+        "EventCode": "0x0124",
+        "EventName": "POST_INDEX_SPEC",
+        "BriefDescription": "This event counts architecturally executed operations that uses post-index as its addressing mode."
+    },
+    {
+        "EventCode": "0x0139",
+        "EventName": "UOP_SPLIT",
+        "BriefDescription": "This event counts the occurrence count of the micro-operation split."
+    },
+    {
+        "ArchStdEvent": "ASE_INST_SPEC",
+        "BriefDescription": "This event counts architecturally executed Advanced SIMD operations."
+    },
+    {
+        "ArchStdEvent": "INT_SPEC",
+        "BriefDescription": "This event counts architecturally executed operations due to scalar, Advanced SIMD, and SVE instructions listed in Integer instructions section of ARMv9 Reference Manual."
+    },
+    {
+        "ArchStdEvent": "INT_DIV_SPEC",
+        "BriefDescription": "This event counts architecturally executed integer divide operation."
+    },
+    {
+        "ArchStdEvent": "INT_DIV64_SPEC",
+        "BriefDescription": "This event counts architecturally executed 64-bit integer divide operation."
+    },
+    {
+        "ArchStdEvent": "INT_MUL_SPEC",
+        "BriefDescription": "This event counts architecturally executed integer multiply operation."
+    },
+    {
+        "ArchStdEvent": "INT_MUL64_SPEC",
+        "BriefDescription": "This event counts architecturally executed integer 64-bit x 64-bit multiply operation."
+    },
+    {
+        "ArchStdEvent": "INT_MULH64_SPEC",
+        "BriefDescription": "This event counts architecturally executed integer 64-bit x 64-bit multiply returning high part operation."
+    },
+    {
+        "ArchStdEvent": "NONFP_SPEC",
+        "BriefDescription": "This event counts architecturally executed non-floating-point operations."
+    },
+    {
+        "ArchStdEvent": "INT_SCALE_OPS_SPEC",
+        "BriefDescription": "This event counts each integer ALU operation counted by SVE_INT_SPEC. See ALU operation counts section of ARMv9 Reference Manual for information on the counter increment for different types of instruction."
+    },
+    {
+        "ArchStdEvent": "INT_FIXED_OPS_SPEC",
+        "BriefDescription": "This event counts each integer ALU operation counted by INT_SPEC that is not counted by SVE_INT_SPEC. See ALU operation counts section of ARMv9 Reference Manual for information on the counter increment for different types of instruction."
+    }
+]

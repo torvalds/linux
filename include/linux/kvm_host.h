@@ -255,11 +255,17 @@ union kvm_mmu_notifier_arg {
 	unsigned long attributes;
 };
 
+enum kvm_gfn_range_filter {
+	KVM_FILTER_SHARED		= BIT(0),
+	KVM_FILTER_PRIVATE		= BIT(1),
+};
+
 struct kvm_gfn_range {
 	struct kvm_memory_slot *slot;
 	gfn_t start;
 	gfn_t end;
 	union kvm_mmu_notifier_arg arg;
+	enum kvm_gfn_range_filter attr_filter;
 	bool may_block;
 };
 bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range);
@@ -596,7 +602,12 @@ struct kvm_memory_slot {
 
 #ifdef CONFIG_KVM_PRIVATE_MEM
 	struct {
-		struct file __rcu *file;
+		/*
+		 * Writes protected by kvm->slots_lock.  Acquiring a
+		 * reference via kvm_gmem_get_file() is protected by
+		 * either kvm->slots_lock or kvm->srcu.
+		 */
+		struct file *file;
 		pgoff_t pgoff;
 	} gmem;
 #endif
@@ -963,6 +974,15 @@ static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 {
 	int num_vcpus = atomic_read(&kvm->online_vcpus);
+
+	/*
+	 * Explicitly verify the target vCPU is online, as the anti-speculation
+	 * logic only limits the CPU's ability to speculate, e.g. given a "bad"
+	 * index, clamping the index to 0 would return vCPU0, not NULL.
+	 */
+	if (i >= num_vcpus)
+		return NULL;
+
 	i = array_index_nospec(i, num_vcpus);
 
 	/* Pairs with smp_wmb() in kvm_vm_ioctl_create_vcpu.  */
@@ -970,9 +990,10 @@ static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
 	return xa_load(&kvm->vcpu_array, i);
 }
 
-#define kvm_for_each_vcpu(idx, vcpup, kvm)		   \
-	xa_for_each_range(&kvm->vcpu_array, idx, vcpup, 0, \
-			  (atomic_read(&kvm->online_vcpus) - 1))
+#define kvm_for_each_vcpu(idx, vcpup, kvm)				\
+	if (atomic_read(&kvm->online_vcpus))				\
+		xa_for_each_range(&kvm->vcpu_array, idx, vcpup, 0,	\
+				  (atomic_read(&kvm->online_vcpus) - 1))
 
 static inline struct kvm_vcpu *kvm_get_vcpu_by_id(struct kvm *kvm, int id)
 {
@@ -1183,7 +1204,7 @@ struct kvm_memory_slot *kvm_vcpu_gfn_to_memslot(struct kvm_vcpu *vcpu, gfn_t gfn
  *   -- just change its flags
  *
  * Since flags can be changed by some of these operations, the following
- * differentiation is the best we can do for __kvm_set_memory_region():
+ * differentiation is the best we can do for kvm_set_memory_region():
  */
 enum kvm_mr_change {
 	KVM_MR_CREATE,
@@ -1192,10 +1213,8 @@ enum kvm_mr_change {
 	KVM_MR_FLAGS_ONLY,
 };
 
-int kvm_set_memory_region(struct kvm *kvm,
-			  const struct kvm_userspace_memory_region2 *mem);
-int __kvm_set_memory_region(struct kvm *kvm,
-			    const struct kvm_userspace_memory_region2 *mem);
+int kvm_set_internal_memslot(struct kvm *kvm,
+			     const struct kvm_userspace_memory_region2 *mem);
 void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *slot);
 void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen);
 int kvm_arch_prepare_memory_region(struct kvm *kvm,

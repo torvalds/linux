@@ -420,6 +420,49 @@ u32 udp_ehashfn(const struct net *net, const __be32 laddr, const __u16 lport,
 }
 EXPORT_SYMBOL(udp_ehashfn);
 
+/**
+ * udp4_lib_lookup1() - Simplified lookup using primary hash (destination port)
+ * @net:	Network namespace
+ * @saddr:	Source address, network order
+ * @sport:	Source port, network order
+ * @daddr:	Destination address, network order
+ * @hnum:	Destination port, host order
+ * @dif:	Destination interface index
+ * @sdif:	Destination bridge port index, if relevant
+ * @udptable:	Set of UDP hash tables
+ *
+ * Simplified lookup to be used as fallback if no sockets are found due to a
+ * potential race between (receive) address change, and lookup happening before
+ * the rehash operation. This function ignores SO_REUSEPORT groups while scoring
+ * result sockets, because if we have one, we don't need the fallback at all.
+ *
+ * Called under rcu_read_lock().
+ *
+ * Return: socket with highest matching score if any, NULL if none
+ */
+static struct sock *udp4_lib_lookup1(const struct net *net,
+				     __be32 saddr, __be16 sport,
+				     __be32 daddr, unsigned int hnum,
+				     int dif, int sdif,
+				     const struct udp_table *udptable)
+{
+	unsigned int slot = udp_hashfn(net, hnum, udptable->mask);
+	struct udp_hslot *hslot = &udptable->hash[slot];
+	struct sock *sk, *result = NULL;
+	int score, badness = 0;
+
+	sk_for_each_rcu(sk, &hslot->head) {
+		score = compute_score(sk, net,
+				      saddr, sport, daddr, hnum, dif, sdif);
+		if (score > badness) {
+			result = sk;
+			badness = score;
+		}
+	}
+
+	return result;
+}
+
 /* called with rcu_read_lock() */
 static struct sock *udp4_lib_lookup2(const struct net *net,
 				     __be32 saddr, __be16 sport,
@@ -533,7 +576,7 @@ begin:
 	return NULL;
 }
 
-/* In hash4, rehash can happen in connect(), where hash4_cnt keeps unchanged. */
+/* udp_rehash4() only checks hslot4, and hash4_cnt is not processed. */
 static void udp_rehash4(struct udp_table *udptable, struct sock *sk,
 			u16 newhash4)
 {
@@ -582,15 +625,13 @@ void udp_lib_hash4(struct sock *sk, u16 hash)
 	struct net *net = sock_net(sk);
 	struct udp_table *udptable;
 
-	/* Connected udp socket can re-connect to another remote address,
-	 * so rehash4 is needed.
+	/* Connected udp socket can re-connect to another remote address, which
+	 * will be handled by rehash. Thus no need to redo hash4 here.
 	 */
-	udptable = net->ipv4.udp_table;
-	if (udp_hashed4(sk)) {
-		udp_rehash4(udptable, sk, hash);
+	if (udp_hashed4(sk))
 		return;
-	}
 
+	udptable = net->ipv4.udp_table;
 	hslot = udp_hashslot(udptable, net, udp_sk(sk)->udp_port_hash);
 	hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 	hslot4 = udp_hashslot4(udptable, hash);
@@ -683,6 +724,19 @@ struct sock *__udp4_lib_lookup(const struct net *net, __be32 saddr,
 	result = udp4_lib_lookup2(net, saddr, sport,
 				  htonl(INADDR_ANY), hnum, dif, sdif,
 				  hslot2, skb);
+	if (!IS_ERR_OR_NULL(result))
+		goto done;
+
+	/* Primary hash (destination port) lookup as fallback for this race:
+	 *   1. __ip4_datagram_connect() sets sk_rcv_saddr
+	 *   2. lookup (this function): new sk_rcv_saddr, hashes not updated yet
+	 *   3. rehash operation updating _secondary and four-tuple_ hashes
+	 * The primary hash doesn't need an update after 1., so, thanks to this
+	 * further step, 1. and 3. don't need to be atomic against the lookup.
+	 */
+	result = udp4_lib_lookup1(net, saddr, sport, daddr, hnum, dif, sdif,
+				  udptable);
+
 done:
 	if (IS_ERR(result))
 		return NULL;
@@ -2173,14 +2227,14 @@ void udp_lib_rehash(struct sock *sk, u16 newhash, u16 newhash4)
 		struct udp_table *udptable = udp_get_table_prot(sk);
 		struct udp_hslot *hslot, *hslot2, *nhslot2;
 
+		hslot = udp_hashslot(udptable, sock_net(sk),
+				     udp_sk(sk)->udp_port_hash);
 		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 		nhslot2 = udp_hashslot2(udptable, newhash);
 		udp_sk(sk)->udp_portaddr_hash = newhash;
 
 		if (hslot2 != nhslot2 ||
 		    rcu_access_pointer(sk->sk_reuseport_cb)) {
-			hslot = udp_hashslot(udptable, sock_net(sk),
-					     udp_sk(sk)->udp_port_hash);
 			/* we must lock primary chain too */
 			spin_lock_bh(&hslot->lock);
 			if (rcu_access_pointer(sk->sk_reuseport_cb))
@@ -2199,19 +2253,29 @@ void udp_lib_rehash(struct sock *sk, u16 newhash, u16 newhash4)
 				spin_unlock(&nhslot2->lock);
 			}
 
-			if (udp_hashed4(sk)) {
-				udp_rehash4(udptable, sk, newhash4);
+			spin_unlock_bh(&hslot->lock);
+		}
 
-				if (hslot2 != nhslot2) {
-					spin_lock(&hslot2->lock);
-					udp_hash4_dec(hslot2);
-					spin_unlock(&hslot2->lock);
+		/* Now process hash4 if necessary:
+		 * (1) update hslot4;
+		 * (2) update hslot2->hash4_cnt.
+		 * Note that hslot2/hslot4 should be checked separately, as
+		 * either of them may change with the other unchanged.
+		 */
+		if (udp_hashed4(sk)) {
+			spin_lock_bh(&hslot->lock);
 
-					spin_lock(&nhslot2->lock);
-					udp_hash4_inc(nhslot2);
-					spin_unlock(&nhslot2->lock);
-				}
+			udp_rehash4(udptable, sk, newhash4);
+			if (hslot2 != nhslot2) {
+				spin_lock(&hslot2->lock);
+				udp_hash4_dec(hslot2);
+				spin_unlock(&hslot2->lock);
+
+				spin_lock(&nhslot2->lock);
+				udp_hash4_inc(nhslot2);
+				spin_unlock(&nhslot2->lock);
 			}
+
 			spin_unlock_bh(&hslot->lock);
 		}
 	}

@@ -258,6 +258,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 	const char *s;
 	char *copy;
 	struct perf_cpu_map *cpu_map = NULL;
+	int ret;
 
 	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
@@ -283,7 +284,9 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 			rec_argv[i++] = "-e";
 			rec_argv[i++] = copy;
 
-			cpu_map = perf_cpu_map__merge(cpu_map, pmu->cpus);
+			ret = perf_cpu_map__merge(&cpu_map, pmu->cpus);
+			if (ret < 0)
+				return ret;
 		}
 	}
 

@@ -40,7 +40,9 @@
 #include "mgb4_trigger.h"
 #include "mgb4_core.h"
 
-#define MGB4_USER_IRQS 16
+#define MGB4_USER_IRQS  16
+#define MGB4_MGB4_BAR_ID 0
+#define MGB4_XDMA_BAR_ID 1
 
 #define DIGITEQ_VID 0x1ed8
 #define T100_DID    0x0101
@@ -123,7 +125,7 @@ static const struct hwmon_chip_info temp_chip_info = {
 };
 #endif
 
-static int match_i2c_adap(struct device *dev, void *data)
+static int match_i2c_adap(struct device *dev, const void *data)
 {
 	return i2c_verify_adapter(dev) ? 1 : 0;
 }
@@ -139,7 +141,7 @@ static struct i2c_adapter *get_i2c_adap(struct platform_device *pdev)
 	return dev ? to_i2c_adapter(dev) : NULL;
 }
 
-static int match_spi_adap(struct device *dev, void *data)
+static int match_spi_adap(struct device *dev, const void *data)
 {
 	return to_spi_device(dev) ? 1 : 0;
 }

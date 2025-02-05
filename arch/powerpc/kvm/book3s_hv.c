@@ -4957,7 +4957,7 @@ int kvmhv_run_single_vcpu(struct kvm_vcpu *vcpu, u64 time_limit,
 			 * states are synchronized from L0 to L1. L1 needs to inform L0 about
 			 * MER=1 only when there are pending external interrupts.
 			 * In the above if check, MER bit is set if there are pending
-			 * external interrupts. Hence, explicity mask off MER bit
+			 * external interrupts. Hence, explicitly mask off MER bit
 			 * here as otherwise it may generate spurious interrupts in L2 KVM
 			 * causing an endless loop, which results in L2 guest getting hung.
 			 */

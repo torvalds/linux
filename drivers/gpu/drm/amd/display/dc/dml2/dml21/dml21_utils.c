@@ -142,108 +142,21 @@ int dml21_find_dc_pipes_for_plane(const struct dc *in_dc,
 	return num_pipes;
 }
 
-
-void dml21_update_pipe_ctx_dchub_regs(struct dml2_display_rq_regs *rq_regs,
-	struct dml2_display_dlg_regs *disp_dlg_regs,
-	struct dml2_display_ttu_regs *disp_ttu_regs,
-	struct pipe_ctx *out)
+void dml21_pipe_populate_global_sync(struct dml2_context *dml_ctx,
+	struct dc_state *context,
+	struct pipe_ctx *pipe_ctx,
+	struct dml2_per_stream_programming *stream_programming)
 {
-	memset(&out->rq_regs, 0, sizeof(out->rq_regs));
-	out->rq_regs.rq_regs_l.chunk_size = rq_regs->rq_regs_l.chunk_size;
-	out->rq_regs.rq_regs_l.min_chunk_size = rq_regs->rq_regs_l.min_chunk_size;
-	//out->rq_regs.rq_regs_l.meta_chunk_size = rq_regs->rq_regs_l.meta_chunk_size;
-	//out->rq_regs.rq_regs_l.min_meta_chunk_size = rq_regs->rq_regs_l.min_meta_chunk_size;
-	out->rq_regs.rq_regs_l.dpte_group_size = rq_regs->rq_regs_l.dpte_group_size;
-	out->rq_regs.rq_regs_l.mpte_group_size = rq_regs->rq_regs_l.mpte_group_size;
-	out->rq_regs.rq_regs_l.swath_height = rq_regs->rq_regs_l.swath_height;
-	out->rq_regs.rq_regs_l.pte_row_height_linear = rq_regs->rq_regs_l.pte_row_height_linear;
+	union dml2_global_sync_programming *global_sync = &stream_programming->global_sync;
 
-	out->rq_regs.rq_regs_c.chunk_size = rq_regs->rq_regs_c.chunk_size;
-	out->rq_regs.rq_regs_c.min_chunk_size = rq_regs->rq_regs_c.min_chunk_size;
-	//out->rq_regs.rq_regs_c.meta_chunk_size = rq_regs->rq_regs_c.meta_chunk_size;
-	//out->rq_regs.rq_regs_c.min_meta_chunk_size = rq_regs->rq_regs_c.min_meta_chunk_size;
-	out->rq_regs.rq_regs_c.dpte_group_size = rq_regs->rq_regs_c.dpte_group_size;
-	out->rq_regs.rq_regs_c.mpte_group_size = rq_regs->rq_regs_c.mpte_group_size;
-	out->rq_regs.rq_regs_c.swath_height = rq_regs->rq_regs_c.swath_height;
-	out->rq_regs.rq_regs_c.pte_row_height_linear = rq_regs->rq_regs_c.pte_row_height_linear;
+	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
+		/* phantom has its own global sync */
+		global_sync = &stream_programming->phantom_stream.global_sync;
+	}
 
-	out->rq_regs.drq_expansion_mode = rq_regs->drq_expansion_mode;
-	out->rq_regs.prq_expansion_mode = rq_regs->prq_expansion_mode;
-	//out->rq_regs.mrq_expansion_mode = rq_regs->mrq_expansion_mode;
-	out->rq_regs.crq_expansion_mode = rq_regs->crq_expansion_mode;
-	out->rq_regs.plane1_base_address = rq_regs->plane1_base_address;
-	out->unbounded_req = rq_regs->unbounded_request_enabled;
-
-	memset(&out->dlg_regs, 0, sizeof(out->dlg_regs));
-	out->dlg_regs.refcyc_h_blank_end = disp_dlg_regs->refcyc_h_blank_end;
-	out->dlg_regs.dlg_vblank_end = disp_dlg_regs->dlg_vblank_end;
-	out->dlg_regs.min_dst_y_next_start = disp_dlg_regs->min_dst_y_next_start;
-	out->dlg_regs.refcyc_per_htotal = disp_dlg_regs->refcyc_per_htotal;
-	out->dlg_regs.refcyc_x_after_scaler = disp_dlg_regs->refcyc_x_after_scaler;
-	out->dlg_regs.dst_y_after_scaler = disp_dlg_regs->dst_y_after_scaler;
-	out->dlg_regs.dst_y_prefetch = disp_dlg_regs->dst_y_prefetch;
-	out->dlg_regs.dst_y_per_vm_vblank = disp_dlg_regs->dst_y_per_vm_vblank;
-	out->dlg_regs.dst_y_per_row_vblank = disp_dlg_regs->dst_y_per_row_vblank;
-	out->dlg_regs.dst_y_per_vm_flip = disp_dlg_regs->dst_y_per_vm_flip;
-	out->dlg_regs.dst_y_per_row_flip = disp_dlg_regs->dst_y_per_row_flip;
-	out->dlg_regs.ref_freq_to_pix_freq = disp_dlg_regs->ref_freq_to_pix_freq;
-	out->dlg_regs.vratio_prefetch = disp_dlg_regs->vratio_prefetch;
-	out->dlg_regs.vratio_prefetch_c = disp_dlg_regs->vratio_prefetch_c;
-	out->dlg_regs.refcyc_per_tdlut_group = disp_dlg_regs->refcyc_per_tdlut_group;
-	out->dlg_regs.refcyc_per_pte_group_vblank_l = disp_dlg_regs->refcyc_per_pte_group_vblank_l;
-	out->dlg_regs.refcyc_per_pte_group_vblank_c = disp_dlg_regs->refcyc_per_pte_group_vblank_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_vblank_l = disp_dlg_regs->refcyc_per_meta_chunk_vblank_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_vblank_c = disp_dlg_regs->refcyc_per_meta_chunk_vblank_c;
-	out->dlg_regs.refcyc_per_pte_group_flip_l = disp_dlg_regs->refcyc_per_pte_group_flip_l;
-	out->dlg_regs.refcyc_per_pte_group_flip_c = disp_dlg_regs->refcyc_per_pte_group_flip_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_flip_l = disp_dlg_regs->refcyc_per_meta_chunk_flip_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_flip_c = disp_dlg_regs->refcyc_per_meta_chunk_flip_c;
-	out->dlg_regs.dst_y_per_pte_row_nom_l = disp_dlg_regs->dst_y_per_pte_row_nom_l;
-	out->dlg_regs.dst_y_per_pte_row_nom_c = disp_dlg_regs->dst_y_per_pte_row_nom_c;
-	out->dlg_regs.refcyc_per_pte_group_nom_l = disp_dlg_regs->refcyc_per_pte_group_nom_l;
-	out->dlg_regs.refcyc_per_pte_group_nom_c = disp_dlg_regs->refcyc_per_pte_group_nom_c;
-	//out->dlg_regs.dst_y_per_meta_row_nom_l = disp_dlg_regs->dst_y_per_meta_row_nom_l;
-	//out->dlg_regs.dst_y_per_meta_row_nom_c = disp_dlg_regs->dst_y_per_meta_row_nom_c;
-	//out->dlg_regs.refcyc_per_meta_chunk_nom_l = disp_dlg_regs->refcyc_per_meta_chunk_nom_l;
-	//out->dlg_regs.refcyc_per_meta_chunk_nom_c = disp_dlg_regs->refcyc_per_meta_chunk_nom_c;
-	out->dlg_regs.refcyc_per_line_delivery_pre_l = disp_dlg_regs->refcyc_per_line_delivery_pre_l;
-	out->dlg_regs.refcyc_per_line_delivery_pre_c = disp_dlg_regs->refcyc_per_line_delivery_pre_c;
-	out->dlg_regs.refcyc_per_line_delivery_l = disp_dlg_regs->refcyc_per_line_delivery_l;
-	out->dlg_regs.refcyc_per_line_delivery_c = disp_dlg_regs->refcyc_per_line_delivery_c;
-	out->dlg_regs.refcyc_per_vm_group_vblank = disp_dlg_regs->refcyc_per_vm_group_vblank;
-	out->dlg_regs.refcyc_per_vm_group_flip = disp_dlg_regs->refcyc_per_vm_group_flip;
-	out->dlg_regs.refcyc_per_vm_req_vblank = disp_dlg_regs->refcyc_per_vm_req_vblank;
-	out->dlg_regs.refcyc_per_vm_req_flip = disp_dlg_regs->refcyc_per_vm_req_flip;
-	out->dlg_regs.dst_y_offset_cur0 = disp_dlg_regs->dst_y_offset_cur0;
-	out->dlg_regs.chunk_hdl_adjust_cur0 = disp_dlg_regs->chunk_hdl_adjust_cur0;
-	//out->dlg_regs.dst_y_offset_cur1 = disp_dlg_regs->dst_y_offset_cur1;
-	//out->dlg_regs.chunk_hdl_adjust_cur1 = disp_dlg_regs->chunk_hdl_adjust_cur1;
-	out->dlg_regs.vready_after_vcount0 = disp_dlg_regs->vready_after_vcount0;
-	out->dlg_regs.dst_y_delta_drq_limit = disp_dlg_regs->dst_y_delta_drq_limit;
-	out->dlg_regs.refcyc_per_vm_dmdata = disp_dlg_regs->refcyc_per_vm_dmdata;
-	out->dlg_regs.dmdata_dl_delta = disp_dlg_regs->dmdata_dl_delta;
-
-	memset(&out->ttu_regs, 0, sizeof(out->ttu_regs));
-	out->ttu_regs.qos_level_low_wm = disp_ttu_regs->qos_level_low_wm;
-	out->ttu_regs.qos_level_high_wm = disp_ttu_regs->qos_level_high_wm;
-	out->ttu_regs.min_ttu_vblank = disp_ttu_regs->min_ttu_vblank;
-	out->ttu_regs.qos_level_flip = disp_ttu_regs->qos_level_flip;
-	out->ttu_regs.refcyc_per_req_delivery_l = disp_ttu_regs->refcyc_per_req_delivery_l;
-	out->ttu_regs.refcyc_per_req_delivery_c = disp_ttu_regs->refcyc_per_req_delivery_c;
-	out->ttu_regs.refcyc_per_req_delivery_cur0 = disp_ttu_regs->refcyc_per_req_delivery_cur0;
-	//out->ttu_regs.refcyc_per_req_delivery_cur1 = disp_ttu_regs->refcyc_per_req_delivery_cur1;
-	out->ttu_regs.refcyc_per_req_delivery_pre_l = disp_ttu_regs->refcyc_per_req_delivery_pre_l;
-	out->ttu_regs.refcyc_per_req_delivery_pre_c = disp_ttu_regs->refcyc_per_req_delivery_pre_c;
-	out->ttu_regs.refcyc_per_req_delivery_pre_cur0 = disp_ttu_regs->refcyc_per_req_delivery_pre_cur0;
-	//out->ttu_regs.refcyc_per_req_delivery_pre_cur1 = disp_ttu_regs->refcyc_per_req_delivery_pre_cur1;
-	out->ttu_regs.qos_level_fixed_l = disp_ttu_regs->qos_level_fixed_l;
-	out->ttu_regs.qos_level_fixed_c = disp_ttu_regs->qos_level_fixed_c;
-	out->ttu_regs.qos_level_fixed_cur0 = disp_ttu_regs->qos_level_fixed_cur0;
-	//out->ttu_regs.qos_level_fixed_cur1 = disp_ttu_regs->qos_level_fixed_cur1;
-	out->ttu_regs.qos_ramp_disable_l = disp_ttu_regs->qos_ramp_disable_l;
-	out->ttu_regs.qos_ramp_disable_c = disp_ttu_regs->qos_ramp_disable_c;
-	out->ttu_regs.qos_ramp_disable_cur0 = disp_ttu_regs->qos_ramp_disable_cur0;
-	//out->ttu_regs.qos_ramp_disable_cur1 = disp_ttu_regs->qos_ramp_disable_cur1;
+	memcpy(&pipe_ctx->global_sync,
+		global_sync,
+		sizeof(union dml2_global_sync_programming));
 }
 
 void dml21_populate_mall_allocation_size(struct dc_state *context,
@@ -301,28 +214,16 @@ void dml21_program_dc_pipe(struct dml2_context *dml_ctx, struct dc_state *contex
 {
 	unsigned int pipe_reg_index = 0;
 
-	dml21_populate_pipe_ctx_dlg_params(dml_ctx, context, pipe_ctx, stream_prog);
+	dml21_pipe_populate_global_sync(dml_ctx, context, pipe_ctx, stream_prog);
 	find_pipe_regs_idx(dml_ctx, pipe_ctx, &pipe_reg_index);
 
 	if (dml_ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe_ctx) == SUBVP_PHANTOM) {
 		memcpy(&pipe_ctx->hubp_regs, pln_prog->phantom_plane.pipe_regs[pipe_reg_index], sizeof(struct dml2_dchub_per_pipe_register_set));
 		pipe_ctx->unbounded_req = false;
-
-		/* legacy only, should be removed later */
-		dml21_update_pipe_ctx_dchub_regs(&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->rq_regs,
-				&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->dlg_regs,
-				&pln_prog->phantom_plane.pipe_regs[pipe_reg_index]->ttu_regs, pipe_ctx);
-
 		pipe_ctx->det_buffer_size_kb = 0;
 	} else {
 		memcpy(&pipe_ctx->hubp_regs, pln_prog->pipe_regs[pipe_reg_index], sizeof(struct dml2_dchub_per_pipe_register_set));
 		pipe_ctx->unbounded_req = pln_prog->pipe_regs[pipe_reg_index]->rq_regs.unbounded_request_enabled;
-
-		/* legacy only, should be removed later */
-		dml21_update_pipe_ctx_dchub_regs(&pln_prog->pipe_regs[pipe_reg_index]->rq_regs,
-				&pln_prog->pipe_regs[pipe_reg_index]->dlg_regs,
-				&pln_prog->pipe_regs[pipe_reg_index]->ttu_regs, pipe_ctx);
-
 		pipe_ctx->det_buffer_size_kb = pln_prog->pipe_regs[pipe_reg_index]->det_size * 64;
 	}
 

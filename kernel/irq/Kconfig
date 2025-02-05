@@ -31,6 +31,10 @@ config GENERIC_IRQ_EFFECTIVE_AFF_MASK
 config GENERIC_PENDING_IRQ
 	bool
 
+# Deduce delayed migration from top-level interrupt chip flags
+config GENERIC_PENDING_IRQ_CHIPFLAGS
+	bool
+
 # Support for generic irq migrating off cpu before the cpu is offline.
 config GENERIC_IRQ_MIGRATION
 	bool
@@ -140,6 +144,12 @@ config GENERIC_IRQ_DEBUGFS
 	  developers and debugging of hard to diagnose interrupt problems.
 
 	  If you don't know what to do here, say N.
+
+# Clear forwarded VM interrupts during kexec.
+# This option ensures the kernel clears active states for interrupts
+# forwarded to virtual machines (VMs) during a machine kexec.
+config GENERIC_IRQ_KEXEC_CLEAR_VM_FORWARD
+	bool
 
 endmenu
 

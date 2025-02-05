@@ -342,7 +342,7 @@ static int qca8k_read_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 	dev_queue_xmit(skb);
 
 	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
-					  msecs_to_jiffies(QCA8K_ETHERNET_TIMEOUT));
+					  QCA8K_ETHERNET_TIMEOUT);
 
 	*val = mgmt_eth_data->data[0];
 	if (len > QCA_HDR_MGMT_DATA1_LEN)
@@ -394,7 +394,7 @@ static int qca8k_write_eth(struct qca8k_priv *priv, u32 reg, u32 *val, int len)
 	dev_queue_xmit(skb);
 
 	ret = wait_for_completion_timeout(&mgmt_eth_data->rw_done,
-					  msecs_to_jiffies(QCA8K_ETHERNET_TIMEOUT));
+					  QCA8K_ETHERNET_TIMEOUT);
 
 	ack = mgmt_eth_data->ack;
 
@@ -1019,7 +1019,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 
 		of_get_phy_mode(port, &mode);
 
-		if (of_property_read_bool(port, "phy-handle") &&
+		if (of_property_present(port, "phy-handle") &&
 		    mode != PHY_INTERFACE_MODE_INTERNAL)
 			external_mdio_mask |= BIT(reg);
 		else
@@ -1491,7 +1491,7 @@ static struct qca8k_pcs *pcs_to_qca8k_pcs(struct phylink_pcs *pcs)
 	return container_of(pcs, struct qca8k_pcs, pcs);
 }
 
-static void qca8k_pcs_get_state(struct phylink_pcs *pcs,
+static void qca8k_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 				struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = pcs_to_qca8k_pcs(pcs)->priv;
@@ -2016,7 +2016,7 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_ethtool_stats	= qca8k_get_ethtool_stats,
 	.get_sset_count		= qca8k_get_sset_count,
 	.set_ageing_time	= qca8k_set_ageing_time,
-	.get_mac_eee		= qca8k_get_mac_eee,
+	.support_eee		= dsa_supports_eee,
 	.set_mac_eee		= qca8k_set_mac_eee,
 	.port_enable		= qca8k_port_enable,
 	.port_disable		= qca8k_port_disable,

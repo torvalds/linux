@@ -867,7 +867,7 @@ int osnoise_set_workload(struct osnoise_context *context, bool onoff)
 
 	retval = osnoise_options_set_option("OSNOISE_WORKLOAD", onoff);
 	if (retval < 0)
-		return -1;
+		return -2;
 
 	context->opt_workload = onoff;
 
@@ -1077,6 +1077,42 @@ struct osnoise_tool *osnoise_init_trace_tool(char *tracer)
 out_err:
 	osnoise_destroy_tool(trace);
 	return NULL;
+}
+
+bool osnoise_trace_is_off(struct osnoise_tool *tool, struct osnoise_tool *record)
+{
+	/*
+	 * The tool instance is always present, it is the one used to collect
+	 * data.
+	 */
+	if (!tracefs_trace_is_on(tool->trace.inst))
+		return true;
+
+	/*
+	 * The trace record instance is only enabled when -t is set. IOW, when the system
+	 * is tracing.
+	 */
+	return record && !tracefs_trace_is_on(record->trace.inst);
+}
+
+/*
+ * osnoise_report_missed_events - report number of events dropped by trace
+ * buffer
+ */
+void
+osnoise_report_missed_events(struct osnoise_tool *tool)
+{
+	unsigned long long total_events;
+
+	if (tool->trace.missed_events == UINT64_MAX)
+		printf("unknown number of events missed, results might not be accurate\n");
+	else if (tool->trace.missed_events > 0) {
+		total_events = tool->trace.processed_events + tool->trace.missed_events;
+
+		printf("%lld (%.2f%%) events missed, results might not be accurate\n",
+		       tool->trace.missed_events,
+		       (double) tool->trace.missed_events / total_events * 100.0);
+	}
 }
 
 static void osnoise_usage(int err)

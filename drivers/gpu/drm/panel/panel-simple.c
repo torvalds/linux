@@ -4454,6 +4454,37 @@ static const struct panel_desc ti_nspire_classic_lcd_panel = {
 	.bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE,
 };
 
+static const struct display_timing topland_tian_g07017_01_timing = {
+	.pixelclock = { 44900000, 51200000, 63000000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 16, 160, 216 },
+	.hback_porch = { 160, 160, 160 },
+	.hsync_len = { 1, 1, 140 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 1, 12, 127 },
+	.vback_porch = { 23, 23, 23 },
+	.vsync_len = { 1, 1, 20 },
+};
+
+static const struct panel_desc topland_tian_g07017_01 = {
+	.timings = &topland_tian_g07017_01_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 154,
+		.height = 86,
+	},
+	.delay = {
+		.prepare = 1, /* 6.5 - 150µs PLL wake-up time */
+		.enable = 100,  /* 6.4 - Power on: 6 VSyncs */
+		.disable = 84, /* 6.4 - Power off: 5 Vsyncs */
+		.unprepare = 50, /* 6.4 - Power off: 3 Vsyncs */
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+	.connector_type = DRM_MODE_CONNECTOR_LVDS,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH,
+};
+
 static const struct drm_display_mode toshiba_lt089ac29000_mode = {
 	.clock = 79500,
 	.hdisplay = 1280,
@@ -5139,6 +5170,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "toshiba,lt089ac29000",
 		.data = &toshiba_lt089ac29000,
+	}, {
+		.compatible = "topland,tian-g07017-01",
+		.data = &topland_tian_g07017_01,
 	}, {
 		.compatible = "tpk,f07a-0102",
 		.data = &tpk_f07a_0102,

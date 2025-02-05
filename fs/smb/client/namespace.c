@@ -196,11 +196,28 @@ static struct vfsmount *cifs_do_automount(struct path *path)
 	struct smb3_fs_context tmp;
 	char *full_path;
 	struct vfsmount *mnt;
+	struct cifs_sb_info *mntpt_sb;
+	struct cifs_ses *ses;
 
 	if (IS_ROOT(mntpt))
 		return ERR_PTR(-ESTALE);
 
-	cur_ctx = CIFS_SB(mntpt->d_sb)->ctx;
+	mntpt_sb = CIFS_SB(mntpt->d_sb);
+	ses = cifs_sb_master_tcon(mntpt_sb)->ses;
+	cur_ctx = mntpt_sb->ctx;
+
+	/*
+	 * At this point, the root session should be in the mntpt sb. We should
+	 * bring the sb context passwords in sync with the root session's
+	 * passwords. This would help prevent unnecessary retries and password
+	 * swaps for automounts.
+	 */
+	mutex_lock(&ses->session_mutex);
+	rc = smb3_sync_session_ctx_passwords(mntpt_sb, ses);
+	mutex_unlock(&ses->session_mutex);
+
+	if (rc)
+		return ERR_PTR(rc);
 
 	fc = fs_context_for_submount(path->mnt->mnt_sb->s_type, mntpt);
 	if (IS_ERR(fc))

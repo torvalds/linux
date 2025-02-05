@@ -199,7 +199,7 @@ MODULE_PARM_DESC(debug_level, "Debug level for driver (default=0)");
 /*
  * PCI table for all supported controllers.
  */
-static struct pci_device_id pci_id_table_g[] =  {
+static const struct pci_device_id pci_id_table_g[] =  {
 	{
 		PCI_VENDOR_ID_DELL,
 		PCI_DEVICE_ID_PERC4_DI_DISCOVERY,
@@ -621,7 +621,7 @@ megaraid_io_attach(adapter_t *adapter)
 	host = scsi_host_alloc(&megaraid_template_g, 8);
 	if (!host) {
 		con_log(CL_ANN, (KERN_WARNING
-			"megaraid mbox: scsi_register failed\n"));
+			"megaraid mbox: scsi_host_alloc failed\n"));
 
 		return -1;
 	}

@@ -410,7 +410,7 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 static int
 mwifiex_cfg80211_get_tx_power(struct wiphy *wiphy,
 			      struct wireless_dev *wdev,
-			      int *dbm)
+			      unsigned int link_id, int *dbm)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 	struct mwifiex_private *priv = mwifiex_get_priv(adapter,

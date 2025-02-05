@@ -287,8 +287,9 @@ static bool want_demangle(bool is_kernel_sym)
  * Demangle C++ function signature, typically replaced by demangle-cxx.cpp
  * version.
  */
-__weak char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
-			      bool modifiers __maybe_unused)
+#ifndef HAVE_CXA_DEMANGLE_SUPPORT
+char *cxx_demangle_sym(const char *str __maybe_unused, bool params __maybe_unused,
+		       bool modifiers __maybe_unused)
 {
 #ifdef HAVE_LIBBFD_SUPPORT
 	int flags = (params ? DMGL_PARAMS : 0) | (modifiers ? DMGL_ANSI : 0);
@@ -302,6 +303,7 @@ __weak char *cxx_demangle_sym(const char *str __maybe_unused, bool params __mayb
 	return NULL;
 #endif
 }
+#endif /* !HAVE_CXA_DEMANGLE_SUPPORT */
 
 static char *demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {

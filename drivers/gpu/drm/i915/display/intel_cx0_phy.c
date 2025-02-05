@@ -3081,7 +3081,10 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
 
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));
 
-	clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
+	if (DISPLAY_VER(display) >= 30)
+		clock = REG_FIELD_GET(XE3_DDI_CLOCK_SELECT_MASK, val);
+	else
+		clock = REG_FIELD_GET(XELPDP_DDI_CLOCK_SELECT_MASK, val);
 
 	drm_WARN_ON(display->drm, !(val & XELPDP_FORWARD_CLOCK_UNGATE));
 	drm_WARN_ON(display->drm, !(val & XELPDP_TBT_CLOCK_REQUEST));
@@ -3096,13 +3099,18 @@ int intel_mtl_tbt_calc_port_clock(struct intel_encoder *encoder)
 		return 540000;
 	case XELPDP_DDI_CLOCK_SELECT_TBT_810:
 		return 810000;
+	case XELPDP_DDI_CLOCK_SELECT_TBT_312_5:
+		return 1000000;
+	case XELPDP_DDI_CLOCK_SELECT_TBT_625:
+		return 2000000;
 	default:
 		MISSING_CASE(clock);
 		return 162000;
 	}
 }
 
-static int intel_mtl_tbt_clock_select(int clock)
+static int intel_mtl_tbt_clock_select(struct intel_display *display,
+				      int clock)
 {
 	switch (clock) {
 	case 162000:
@@ -3113,6 +3121,18 @@ static int intel_mtl_tbt_clock_select(int clock)
 		return XELPDP_DDI_CLOCK_SELECT_TBT_540;
 	case 810000:
 		return XELPDP_DDI_CLOCK_SELECT_TBT_810;
+	case 1000000:
+		if (DISPLAY_VER(display) < 30) {
+			drm_WARN_ON(display->drm, "UHBR10 not supported for the platform\n");
+			return XELPDP_DDI_CLOCK_SELECT_TBT_162;
+		}
+		return XELPDP_DDI_CLOCK_SELECT_TBT_312_5;
+	case 2000000:
+		if (DISPLAY_VER(display) < 30) {
+			drm_WARN_ON(display->drm, "UHBR20 not supported for the platform\n");
+			return XELPDP_DDI_CLOCK_SELECT_TBT_162;
+		}
+		return XELPDP_DDI_CLOCK_SELECT_TBT_625;
 	default:
 		MISSING_CASE(clock);
 		return XELPDP_DDI_CLOCK_SELECT_TBT_162;
@@ -3125,15 +3145,26 @@ static void intel_mtl_tbt_pll_enable(struct intel_encoder *encoder,
 	struct intel_display *display = to_intel_display(encoder);
 	enum phy phy = intel_encoder_to_phy(encoder);
 	u32 val = 0;
+	u32 mask;
 
 	/*
 	 * 1. Program PORT_CLOCK_CTL REGISTER to configure
 	 * clock muxes, gating and SSC
 	 */
-	val |= XELPDP_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(crtc_state->port_clock));
+
+	if (DISPLAY_VER(display) >= 30) {
+		mask = XE3_DDI_CLOCK_SELECT_MASK;
+		val |= XE3_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+	} else {
+		mask = XELPDP_DDI_CLOCK_SELECT_MASK;
+		val |= XELPDP_DDI_CLOCK_SELECT(intel_mtl_tbt_clock_select(display, crtc_state->port_clock));
+	}
+
+	mask |= XELPDP_FORWARD_CLOCK_UNGATE;
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
+
 	intel_de_rmw(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port),
-		     XELPDP_DDI_CLOCK_SELECT_MASK | XELPDP_FORWARD_CLOCK_UNGATE, val);
+		     mask, val);
 
 	/* 2. Read back PORT_CLOCK_CTL REGISTER */
 	val = intel_de_read(display, XELPDP_PORT_CLOCK_CTL(display, encoder->port));

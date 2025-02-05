@@ -155,8 +155,6 @@ extern struct cred *prepare_creds(void);
 extern struct cred *prepare_exec_creds(void);
 extern int commit_creds(struct cred *);
 extern void abort_creds(struct cred *);
-extern const struct cred *override_creds(const struct cred *);
-extern void revert_creds(const struct cred *);
 extern struct cred *prepare_kernel_cred(struct task_struct *);
 extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
@@ -172,12 +170,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
 					  cred->cap_inheritable));
 }
 
-/*
- * Override creds without bumping reference count. Caller must ensure
- * reference remains valid or has taken reference. Almost always not the
- * interface you want. Use override_creds()/revert_creds() instead.
- */
-static inline const struct cred *override_creds_light(const struct cred *override_cred)
+static inline const struct cred *override_creds(const struct cred *override_cred)
 {
 	const struct cred *old = current->cred;
 
@@ -185,35 +178,12 @@ static inline const struct cred *override_creds_light(const struct cred *overrid
 	return old;
 }
 
-static inline void revert_creds_light(const struct cred *revert_cred)
+static inline const struct cred *revert_creds(const struct cred *revert_cred)
 {
+	const struct cred *override_cred = current->cred;
+
 	rcu_assign_pointer(current->cred, revert_cred);
-}
-
-/**
- * get_new_cred_many - Get references on a new set of credentials
- * @cred: The new credentials to reference
- * @nr: Number of references to acquire
- *
- * Get references on the specified set of new credentials.  The caller must
- * release all acquired references.
- */
-static inline struct cred *get_new_cred_many(struct cred *cred, int nr)
-{
-	atomic_long_add(nr, &cred->usage);
-	return cred;
-}
-
-/**
- * get_new_cred - Get a reference on a new set of credentials
- * @cred: The new credentials to reference
- *
- * Get a reference on the specified set of new credentials.  The caller must
- * release the reference.
- */
-static inline struct cred *get_new_cred(struct cred *cred)
-{
-	return get_new_cred_many(cred, 1);
+	return override_cred;
 }
 
 /**
@@ -236,7 +206,8 @@ static inline const struct cred *get_cred_many(const struct cred *cred, int nr)
 	if (!cred)
 		return cred;
 	nonconst_cred->non_rcu = 0;
-	return get_new_cred_many(nonconst_cred, nr);
+	atomic_long_add(nr, &nonconst_cred->usage);
+	return cred;
 }
 
 /*

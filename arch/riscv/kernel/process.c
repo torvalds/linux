@@ -190,7 +190,7 @@ void flush_thread(void)
 void arch_release_task_struct(struct task_struct *tsk)
 {
 	/* Free the vector context of datap. */
-	if (has_vector())
+	if (has_vector() || has_xtheadvector())
 		riscv_v_thread_free(tsk);
 }
 
@@ -240,7 +240,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		p->thread.s[0] = 0;
 	}
 	p->thread.riscv_v_flags = 0;
-	if (has_vector())
+	if (has_vector() || has_xtheadvector())
 		riscv_v_thread_alloc(p);
 	p->thread.ra = (unsigned long)ret_from_fork;
 	p->thread.sp = (unsigned long)childregs; /* kernel sp */
@@ -364,7 +364,7 @@ static bool try_to_set_pmm(unsigned long value)
  * disable it for tasks that already opted in to the relaxed ABI.
  */
 
-static struct ctl_table tagged_addr_sysctl_table[] = {
+static const struct ctl_table tagged_addr_sysctl_table[] = {
 	{
 		.procname	= "tagged_addr_disabled",
 		.mode		= 0644,

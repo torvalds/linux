@@ -684,14 +684,6 @@ config CRYPTO_HCTR2
 
 	  See https://eprint.iacr.org/2021/1441
 
-config CRYPTO_KEYWRAP
-	tristate "KW (AES Key Wrap)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  KW (AES Key Wrap) authenticated encryption mode (NIST SP800-38F
-	  and RFC3394) without padding.
-
 config CRYPTO_LRW
 	tristate "LRW (Liskov Rivest Wagner)"
 	select CRYPTO_LIB_GF128MUL
@@ -1029,16 +1021,6 @@ config CRYPTO_STREEBOG
 	  https://tc26.ru/upload/iblock/fed/feddbb4d26b685903faa2ba11aea43f6.pdf
 	  https://tools.ietf.org/html/rfc6986
 
-config CRYPTO_VMAC
-	tristate "VMAC"
-	select CRYPTO_HASH
-	select CRYPTO_MANAGER
-	help
-	  VMAC is a message authentication algorithm designed for
-	  very high speed on 64-bit architectures.
-
-	  See https://fastcrypto.org/vmac for further information.
-
 config CRYPTO_WP512
 	tristate "Whirlpool"
 	select CRYPTO_HASH
@@ -1102,6 +1084,7 @@ config CRYPTO_CRC32
 config CRYPTO_CRCT10DIF
 	tristate "CRCT10DIF"
 	select CRYPTO_HASH
+	select CRC_T10DIF
 	help
 	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
 

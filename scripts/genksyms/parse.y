@@ -12,6 +12,7 @@
 %{
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include "genksyms.h"
@@ -148,32 +149,45 @@ simple_declaration:
 		    current_name = NULL;
 		  }
 		  $$ = $3;
+		  dont_want_type_specifier = false;
 		}
 	;
 
 init_declarator_list_opt:
-	/* empty */				{ $$ = NULL; }
-	| init_declarator_list
+	/* empty */			{ $$ = NULL; }
+	| init_declarator_list		{ free_list(decl_spec, NULL); $$ = $1; }
 	;
 
 init_declarator_list:
 	init_declarator
 		{ struct string_list *decl = *$1;
 		  *$1 = NULL;
+
+		  /* avoid sharing among multiple init_declarators */
+		  if (decl_spec)
+		    decl_spec = copy_list_range(decl_spec, NULL);
+
 		  add_symbol(current_name,
 			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
 		  current_name = NULL;
 		  $$ = $1;
+		  dont_want_type_specifier = true;
 		}
-	| init_declarator_list ',' init_declarator
-		{ struct string_list *decl = *$3;
-		  *$3 = NULL;
+	| init_declarator_list ',' attribute_opt init_declarator
+		{ struct string_list *decl = *$4;
+		  *$4 = NULL;
 		  free_list(*$2, NULL);
 		  *$2 = decl_spec;
+
+		  /* avoid sharing among multiple init_declarators */
+		  if (decl_spec)
+		    decl_spec = copy_list_range(decl_spec, NULL);
+
 		  add_symbol(current_name,
 			     is_typedef ? SYM_TYPEDEF : SYM_NORMAL, decl, is_extern);
 		  current_name = NULL;
-		  $$ = $3;
+		  $$ = $4;
+		  dont_want_type_specifier = true;
 		}
 	;
 
@@ -189,8 +203,9 @@ decl_specifier_seq_opt:
 	;
 
 decl_specifier_seq:
-	decl_specifier				{ decl_spec = *$1; }
+	attribute_opt decl_specifier		{ decl_spec = *$2; }
 	| decl_specifier_seq decl_specifier	{ decl_spec = *$2; }
+	| decl_specifier_seq ATTRIBUTE_PHRASE	{ decl_spec = *$2; }
 	;
 
 decl_specifier:
@@ -200,7 +215,8 @@ decl_specifier:
 		  remove_node($1);
 		  $$ = $1;
 		}
-	| type_specifier
+	| type_specifier	{ dont_want_type_specifier = true; $$ = $1; }
+	| type_qualifier
 	;
 
 storage_class_specifier:
@@ -213,24 +229,23 @@ storage_class_specifier:
 
 type_specifier:
 	simple_type_specifier
-	| cvar_qualifier
 	| TYPEOF_KEYW '(' parameter_declaration ')'
 	| TYPEOF_PHRASE
 
 	/* References to s/u/e's defined elsewhere.  Rearrange things
 	   so that it is easier to expand the definition fully later.  */
-	| STRUCT_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_STRUCT; $$ = $2; }
-	| UNION_KEYW IDENT
-		{ remove_node($1); (*$2)->tag = SYM_UNION; $$ = $2; }
+	| STRUCT_KEYW attribute_opt IDENT
+		{ remove_node($1); (*$3)->tag = SYM_STRUCT; $$ = $3; }
+	| UNION_KEYW attribute_opt IDENT
+		{ remove_node($1); (*$3)->tag = SYM_UNION; $$ = $3; }
 	| ENUM_KEYW IDENT
 		{ remove_node($1); (*$2)->tag = SYM_ENUM; $$ = $2; }
 
 	/* Full definitions of an s/u/e.  Record it.  */
-	| STRUCT_KEYW IDENT class_body
-		{ record_compound($1, $2, $3, SYM_STRUCT); $$ = $3; }
-	| UNION_KEYW IDENT class_body
-		{ record_compound($1, $2, $3, SYM_UNION); $$ = $3; }
+	| STRUCT_KEYW attribute_opt IDENT class_body
+		{ record_compound($1, $3, $4, SYM_STRUCT); $$ = $4; }
+	| UNION_KEYW attribute_opt IDENT class_body
+		{ record_compound($1, $3, $4, SYM_UNION); $$ = $4; }
 	| ENUM_KEYW IDENT enum_body
 		{ record_compound($1, $2, $3, SYM_ENUM); $$ = $3; }
 	/*
@@ -239,8 +254,8 @@ type_specifier:
 	| ENUM_KEYW enum_body
 		{ add_symbol(NULL, SYM_ENUM, NULL, 0); $$ = $2; }
 	/* Anonymous s/u definitions.  Nothing needs doing.  */
-	| STRUCT_KEYW class_body			{ $$ = $2; }
-	| UNION_KEYW class_body				{ $$ = $2; }
+	| STRUCT_KEYW attribute_opt class_body		{ $$ = $3; }
+	| UNION_KEYW attribute_opt class_body		{ $$ = $3; }
 	;
 
 simple_type_specifier:
@@ -260,22 +275,24 @@ simple_type_specifier:
 	;
 
 ptr_operator:
-	'*' cvar_qualifier_seq_opt
+	'*' type_qualifier_seq_opt
 		{ $$ = $2 ? $2 : $1; }
 	;
 
-cvar_qualifier_seq_opt:
+type_qualifier_seq_opt:
 	/* empty */					{ $$ = NULL; }
-	| cvar_qualifier_seq
+	| type_qualifier_seq
 	;
 
-cvar_qualifier_seq:
-	cvar_qualifier
-	| cvar_qualifier_seq cvar_qualifier		{ $$ = $2; }
+type_qualifier_seq:
+	type_qualifier
+	| ATTRIBUTE_PHRASE
+	| type_qualifier_seq type_qualifier		{ $$ = $2; }
+	| type_qualifier_seq ATTRIBUTE_PHRASE		{ $$ = $2; }
 	;
 
-cvar_qualifier:
-	CONST_KEYW | VOLATILE_KEYW | ATTRIBUTE_PHRASE
+type_qualifier:
+	CONST_KEYW | VOLATILE_KEYW
 	| RESTRICT_KEYW
 		{ /* restrict has no effect in prototypes so ignore it */
 		  remove_node($1);
@@ -297,15 +314,7 @@ direct_declarator:
 		    current_name = (*$1)->string;
 		    $$ = $1;
 		  }
-		}
-	| TYPE
-		{ if (current_name != NULL) {
-		    error_with_pos("unexpected second declaration name");
-		    YYERROR;
-		  } else {
-		    current_name = (*$1)->string;
-		    $$ = $1;
-		  }
+		  dont_want_type_specifier = false;
 		}
 	| direct_declarator '(' parameter_declaration_clause ')'
 		{ $$ = $4; }
@@ -325,16 +334,19 @@ nested_declarator:
 	;
 
 direct_nested_declarator:
-	IDENT
-	| TYPE
-	| direct_nested_declarator '(' parameter_declaration_clause ')'
+	direct_nested_declarator1
+	| direct_nested_declarator1 '(' parameter_declaration_clause ')'
 		{ $$ = $4; }
-	| direct_nested_declarator '(' error ')'
+	;
+
+direct_nested_declarator1:
+	IDENT	{ $$ = $1; dont_want_type_specifier = false; }
+	| direct_nested_declarator1 '(' error ')'
 		{ $$ = $4; }
-	| direct_nested_declarator BRACKET_PHRASE
+	| direct_nested_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
-	| '(' nested_declarator ')'
-		{ $$ = $3; }
+	| '(' attribute_opt nested_declarator ')'
+		{ $$ = $4; }
 	| '(' error ')'
 		{ $$ = $3; }
 	;
@@ -352,45 +364,57 @@ parameter_declaration_list_opt:
 
 parameter_declaration_list:
 	parameter_declaration
+		{ $$ = $1; dont_want_type_specifier = false; }
 	| parameter_declaration_list ',' parameter_declaration
-		{ $$ = $3; }
+		{ $$ = $3; dont_want_type_specifier = false; }
 	;
 
 parameter_declaration:
-	decl_specifier_seq m_abstract_declarator
+	decl_specifier_seq abstract_declarator_opt
 		{ $$ = $2 ? $2 : $1; }
 	;
 
-m_abstract_declarator:
-	ptr_operator m_abstract_declarator
-		{ $$ = $2 ? $2 : $1; }
-	| direct_m_abstract_declarator
+abstract_declarator_opt:
+	/* empty */				{ $$ = NULL; }
+	| abstract_declarator
 	;
 
-direct_m_abstract_declarator:
-	/* empty */					{ $$ = NULL; }
-	| IDENT
+abstract_declarator:
+	ptr_operator
+	| ptr_operator abstract_declarator
+		{ $$ = $2 ? $2 : $1; }
+	| direct_abstract_declarator attribute_opt
+		{ $$ = $2; dont_want_type_specifier = false; }
+	;
+
+direct_abstract_declarator:
+	direct_abstract_declarator1
+	| direct_abstract_declarator1 open_paren parameter_declaration_clause ')'
+		{ $$ = $4; }
+	| open_paren parameter_declaration_clause ')'
+		{ $$ = $3; }
+	;
+
+direct_abstract_declarator1:
+	  IDENT
 		{ /* For version 2 checksums, we don't want to remember
 		     private parameter names.  */
 		  remove_node($1);
 		  $$ = $1;
 		}
-	/* This wasn't really a typedef name but an identifier that
-	   shadows one.  */
-	| TYPE
-		{ remove_node($1);
-		  $$ = $1;
-		}
-	| direct_m_abstract_declarator '(' parameter_declaration_clause ')'
+	| direct_abstract_declarator1 open_paren error ')'
 		{ $$ = $4; }
-	| direct_m_abstract_declarator '(' error ')'
-		{ $$ = $4; }
-	| direct_m_abstract_declarator BRACKET_PHRASE
+	| direct_abstract_declarator1 BRACKET_PHRASE
 		{ $$ = $2; }
-	| '(' m_abstract_declarator ')'
+	| open_paren attribute_opt abstract_declarator ')'
+		{ $$ = $4; }
+	| open_paren error ')'
 		{ $$ = $3; }
-	| '(' error ')'
-		{ $$ = $3; }
+	| BRACKET_PHRASE
+	;
+
+open_paren:
+	'('	{ $$ = $1; dont_want_type_specifier = false; }
 	;
 
 function_definition:
@@ -430,9 +454,9 @@ member_specification:
 
 member_declaration:
 	decl_specifier_seq_opt member_declarator_list_opt ';'
-		{ $$ = $3; }
+		{ $$ = $3; dont_want_type_specifier = false; }
 	| error ';'
-		{ $$ = $2; }
+		{ $$ = $2; dont_want_type_specifier = false; }
 	;
 
 member_declarator_list_opt:
@@ -442,7 +466,9 @@ member_declarator_list_opt:
 
 member_declarator_list:
 	member_declarator
-	| member_declarator_list ',' member_declarator	{ $$ = $3; }
+		{ $$ = $1; dont_want_type_specifier = true; }
+	| member_declarator_list ',' member_declarator
+		{ $$ = $3; dont_want_type_specifier = true; }
 	;
 
 member_declarator:
@@ -457,7 +483,7 @@ member_bitfield_declarator:
 
 attribute_opt:
 	/* empty */					{ $$ = NULL; }
-	| attribute_opt ATTRIBUTE_PHRASE
+	| attribute_opt ATTRIBUTE_PHRASE		{ $$ = $2; }
 	;
 
 enum_body:
@@ -472,12 +498,12 @@ enumerator_list:
 enumerator:
 	IDENT
 		{
-			const char *name = strdup((*$1)->string);
+			const char *name = (*$1)->string;
 			add_symbol(name, SYM_ENUM_CONST, NULL, 0);
 		}
 	| IDENT '=' EXPRESSION_PHRASE
 		{
-			const char *name = strdup((*$1)->string);
+			const char *name = (*$1)->string;
 			struct string_list *expr = copy_list_range(*$3, *$2);
 			add_symbol(name, SYM_ENUM_CONST, expr, 0);
 		}

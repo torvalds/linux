@@ -154,6 +154,44 @@ static int parse_config_arg(char *arg, char **var, char **value)
 	return 0;
 }
 
+int perf_config__set_variable(const char *var, const char *value)
+{
+	char path[PATH_MAX];
+	char *user_config = mkpath(path, sizeof(path), "%s/.perfconfig", getenv("HOME"));
+	const char *config_filename;
+	struct perf_config_set *set;
+	int ret = -1;
+
+	if (use_system_config)
+		config_exclusive_filename = perf_etc_perfconfig();
+	else if (use_user_config)
+		config_exclusive_filename = user_config;
+
+	if (!config_exclusive_filename)
+		config_filename = user_config;
+	else
+		config_filename = config_exclusive_filename;
+
+	set = perf_config_set__new();
+	if (!set)
+		goto out_err;
+
+	if (perf_config_set__collect(set, config_filename, var, value) < 0) {
+		pr_err("Failed to add '%s=%s'\n", var, value);
+		goto out_err;
+	}
+
+	if (set_config(set, config_filename) < 0) {
+		pr_err("Failed to set the configs on %s\n", config_filename);
+		goto out_err;
+	}
+
+	ret = 0;
+out_err:
+	perf_config_set__delete(set);
+	return ret;
+}
+
 int cmd_config(int argc, const char **argv)
 {
 	int i, ret = -1;

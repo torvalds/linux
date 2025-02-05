@@ -7,6 +7,7 @@
 
 #include <linux/fault-inject.h>
 #include <linux/pm_runtime.h>
+#include <linux/suspend.h>
 
 #include <drm/drm_managed.h>
 #include <drm/ttm/ttm_placement.h>
@@ -390,7 +391,7 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 
 	/*
 	 * Applying lock for entire list op as xe_ttm_bo_destroy and xe_bo_move_notify
-	 * also checks and delets bo entry from user fault list.
+	 * also checks and deletes bo entry from user fault list.
 	 */
 	mutex_lock(&xe->mem_access.vram_userfault.lock);
 	list_for_each_entry_safe(bo, on,
@@ -607,7 +608,8 @@ static bool xe_pm_suspending_or_resuming(struct xe_device *xe)
 	struct device *dev = xe->drm.dev;
 
 	return dev->power.runtime_status == RPM_SUSPENDING ||
-		dev->power.runtime_status == RPM_RESUMING;
+		dev->power.runtime_status == RPM_RESUMING ||
+		pm_suspend_target_state != PM_SUSPEND_ON;
 #else
 	return false;
 #endif

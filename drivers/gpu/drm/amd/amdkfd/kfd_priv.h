@@ -32,7 +32,7 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
-#include <linux/kfd_ioctl.h>
+#include <uapi/linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>

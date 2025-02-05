@@ -163,7 +163,7 @@ static int snd_sh_dac_pcm_copy(struct snd_pcm_substream *substream,
 	/* channel is not used (interleaved data) */
 	struct snd_sh_dac *chip = snd_pcm_substream_chip(substream);
 
-	if (copy_from_iter(chip->data_buffer + pos, src, count) != count)
+	if (copy_from_iter(chip->data_buffer + pos, count, src) != count)
 		return -EFAULT;
 	chip->buffer_end = chip->data_buffer + pos + count;
 

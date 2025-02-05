@@ -100,7 +100,6 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.load_eoi_exitmap = vmx_load_eoi_exitmap,
 	.apicv_pre_state_restore = vmx_apicv_pre_state_restore,
 	.required_apicv_inhibits = VMX_REQUIRED_APICV_INHIBITS,
-	.hwapic_irr_update = vmx_hwapic_irr_update,
 	.hwapic_isr_update = vmx_hwapic_isr_update,
 	.sync_pir_to_irr = vmx_sync_pir_to_irr,
 	.deliver_interrupt = vmx_deliver_interrupt,
@@ -111,6 +110,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
+	.get_entry_info = vmx_get_entry_info,
 
 	.vcpu_after_set_cpuid = vmx_vcpu_after_set_cpuid,
 
@@ -126,7 +126,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.check_intercept = vmx_check_intercept,
 	.handle_exit_irqoff = vmx_handle_exit_irqoff,
 
-	.cpu_dirty_log_size = PML_ENTITY_NUM,
+	.cpu_dirty_log_size = PML_LOG_NR_ENTRIES,
 	.update_cpu_dirty_logging = vmx_update_cpu_dirty_logging,
 
 	.nested_ops = &vmx_nested_ops,

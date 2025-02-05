@@ -104,13 +104,10 @@ struct fbnic_napi_vector {
 	struct device *dev;		/* Device for DMA unmapping */
 	struct page_pool *page_pool;
 	struct fbnic_dev *fbd;
-	char name[IFNAMSIZ + 9];
 
 	u16 v_idx;
 	u8 txt_count;
 	u8 rxt_count;
-
-	struct list_head napis;
 
 	struct fbnic_q_triad qt[];
 };
@@ -123,10 +120,18 @@ netdev_features_t
 fbnic_features_check(struct sk_buff *skb, struct net_device *dev,
 		     netdev_features_t features);
 
+void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *rxr);
+void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *txr);
+
 int fbnic_alloc_napi_vectors(struct fbnic_net *fbn);
 void fbnic_free_napi_vectors(struct fbnic_net *fbn);
 int fbnic_alloc_resources(struct fbnic_net *fbn);
 void fbnic_free_resources(struct fbnic_net *fbn);
+int fbnic_set_netif_queues(struct fbnic_net *fbn);
+void fbnic_reset_netif_queues(struct fbnic_net *fbn);
+irqreturn_t fbnic_msix_clean_rings(int irq, void *data);
 void fbnic_napi_enable(struct fbnic_net *fbn);
 void fbnic_napi_disable(struct fbnic_net *fbn);
 void fbnic_enable(struct fbnic_net *fbn);
@@ -136,5 +141,10 @@ void fbnic_fill(struct fbnic_net *fbn);
 
 void fbnic_napi_depletion_check(struct net_device *netdev);
 int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail);
+
+static inline int fbnic_napi_idx(const struct fbnic_napi_vector *nv)
+{
+	return nv->v_idx - FBNIC_NON_NAPI_VECTORS;
+}
 
 #endif /* _FBNIC_TXRX_H_ */

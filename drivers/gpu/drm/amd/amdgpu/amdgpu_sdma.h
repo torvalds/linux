@@ -107,6 +107,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	doorbell_invalid_irq;
 	struct amdgpu_irq_src	pool_timeout_irq;
 	struct amdgpu_irq_src	srbm_write_irq;
+	struct amdgpu_irq_src	ctxt_empty_irq;
 
 	int			num_instances;
 	uint32_t 		sdma_mask;

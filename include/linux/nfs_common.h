@@ -9,9 +9,10 @@
 #include <uapi/linux/nfs.h>
 
 /* Mapping from NFS error code to "errno" error code. */
-#define errno_NFSERR_IO EIO
 
 int nfs_stat_to_errno(enum nfs_stat status);
 int nfs4_stat_to_errno(int stat);
+
+__u32 nfs_localio_errno_to_nfs4_stat(int errno);
 
 #endif /* _LINUX_NFS_COMMON_H */

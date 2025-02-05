@@ -362,7 +362,7 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 
 	/*
 	 * So we don't need to worry about 64K GGTT layout when dealing with
-	 * scratch entires, rather keep the scratch page in system memory on
+	 * scratch entries, rather keep the scratch page in system memory on
 	 * platforms where 64K pages are needed for VRAM.
 	 */
 	flags = XE_BO_FLAG_PINNED;

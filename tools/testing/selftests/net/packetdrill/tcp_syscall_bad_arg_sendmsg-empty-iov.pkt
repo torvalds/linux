@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test that we correctly skip zero-length IOVs.
+`./defaults.sh`
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,wscale 8>
+ +.01 < . 1:1(0) ack 1 win 257
+   +0 accept(3, ..., ...) = 4
+   +0 setsockopt(4, SOL_TCP, TCP_NODELAY, [1], 4) = 0
+
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(4)=[{..., 0}, {..., 40}, {..., 0}, {..., 20}],
+                  msg_flags=0}, 0) = 60
+   +0 > P. 1:61(60) ack 1
+ +.01 < . 1:1(0) ack 61 win 257
+
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(4)=[{..., 0}, {..., 0}, {..., 0}, {..., 0}],
+                  msg_flags=0}, MSG_ZEROCOPY) = 0
+
+   +0 sendmsg(4, {msg_name(...)=...,
+                  msg_iov(4)=[{..., 0}, {..., 10}, {..., 0}, {..., 50}],
+                  msg_flags=0}, MSG_ZEROCOPY) = 60
+   +0 > P. 61:121(60) ack 1
+ +.01 < . 1:1(0) ack 121 win 257

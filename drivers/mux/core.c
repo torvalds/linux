@@ -42,7 +42,7 @@ struct mux_state {
 	unsigned int state;
 };
 
-static struct class mux_class = {
+static const struct class mux_class = {
 	.name = "mux",
 };
 

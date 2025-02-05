@@ -498,11 +498,11 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 	struct trace_uprobe *old_tu;
 	int ret;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	ret = validate_ref_ctr_offset(tu);
 	if (ret)
-		goto end;
+		return ret;
 
 	/* register as an event */
 	old_tu = find_probe_event(trace_probe_name(&tu->tp),
@@ -511,11 +511,9 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 		if (is_ret_probe(tu) != is_ret_probe(old_tu)) {
 			trace_probe_log_set_index(0);
 			trace_probe_log_err(0, DIFF_PROBE_TYPE);
-			ret = -EEXIST;
-		} else {
-			ret = append_trace_uprobe(tu, old_tu);
+			return -EEXIST;
 		}
-		goto end;
+		return append_trace_uprobe(tu, old_tu);
 	}
 
 	ret = register_uprobe_event(tu);
@@ -525,13 +523,10 @@ static int register_trace_uprobe(struct trace_uprobe *tu)
 			trace_probe_log_err(0, EVENT_EXIST);
 		} else
 			pr_warn("Failed to register probe event(%d)\n", ret);
-		goto end;
+		return ret;
 	}
 
 	dyn_event_add(&tu->devent, trace_probe_event_call(&tu->tp));
-
-end:
-	mutex_unlock(&event_mutex);
 
 	return ret;
 }

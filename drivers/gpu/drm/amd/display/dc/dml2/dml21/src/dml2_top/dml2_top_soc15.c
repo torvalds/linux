@@ -545,6 +545,7 @@ bool dml2_top_mcache_validate_admissability(struct top_mcache_validate_admissabi
 		if (odm_combine_factor > 1) {
 			max_per_pipe_vp_p0 = plane->surface.plane0.width;
 			temp = (unsigned int)math_ceil(plane->composition.scaler_info.plane0.h_ratio * stream->timing.h_active / odm_combine_factor);
+
 			if (temp < max_per_pipe_vp_p0)
 				max_per_pipe_vp_p0 = temp;
 

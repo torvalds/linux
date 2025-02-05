@@ -8,7 +8,7 @@
  * PAGE_SHIFT determines the page size.
  *
  * Note: This definition is required because PAGE_SHIFT is used
- * in several places throuout the codebase.
+ * in several places throughout the codebase.
  */
 #define PAGE_SHIFT      CONFIG_PAGE_SHIFT
 

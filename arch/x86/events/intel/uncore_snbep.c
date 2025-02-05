@@ -6684,22 +6684,38 @@ void spr_uncore_mmio_init(void)
 /* GNR uncore support */
 
 #define UNCORE_GNR_NUM_UNCORE_TYPES	23
-#define UNCORE_GNR_TYPE_15		15
-#define UNCORE_GNR_B2UPI		18
-#define UNCORE_GNR_TYPE_21		21
-#define UNCORE_GNR_TYPE_22		22
 
 int gnr_uncore_units_ignore[] = {
-	UNCORE_SPR_UPI,
-	UNCORE_GNR_TYPE_15,
-	UNCORE_GNR_B2UPI,
-	UNCORE_GNR_TYPE_21,
-	UNCORE_GNR_TYPE_22,
 	UNCORE_IGNORE_END
 };
 
 static struct intel_uncore_type gnr_uncore_ubox = {
 	.name			= "ubox",
+	.attr_update		= uncore_alias_groups,
+};
+
+static struct intel_uncore_type gnr_uncore_pciex8 = {
+	SPR_UNCORE_PCI_COMMON_FORMAT(),
+	.name			= "pciex8",
+};
+
+static struct intel_uncore_type gnr_uncore_pciex16 = {
+	SPR_UNCORE_PCI_COMMON_FORMAT(),
+	.name			= "pciex16",
+};
+
+static struct intel_uncore_type gnr_uncore_upi = {
+	SPR_UNCORE_PCI_COMMON_FORMAT(),
+	.name			= "upi",
+};
+
+static struct intel_uncore_type gnr_uncore_b2upi = {
+	SPR_UNCORE_PCI_COMMON_FORMAT(),
+	.name			= "b2upi",
+};
+
+static struct intel_uncore_type gnr_uncore_b2hot = {
+	.name			= "b2hot",
 	.attr_update		= uncore_alias_groups,
 };
 
@@ -6727,21 +6743,21 @@ static struct intel_uncore_type *gnr_uncores[UNCORE_GNR_NUM_UNCORE_TYPES] = {
 	&gnr_uncore_ubox,
 	&spr_uncore_imc,
 	NULL,
+	&gnr_uncore_upi,
 	NULL,
 	NULL,
 	NULL,
+	&spr_uncore_cxlcm,
+	&spr_uncore_cxldp,
 	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	&gnr_uncore_b2hot,
 	&gnr_uncore_b2cmi,
 	&gnr_uncore_b2cxl,
-	NULL,
+	&gnr_uncore_b2upi,
 	NULL,
 	&gnr_uncore_mdf_sbo,
-	NULL,
-	NULL,
+	&gnr_uncore_pciex16,
+	&gnr_uncore_pciex8,
 };
 
 static struct freerunning_counters gnr_iio_freerunning[] = {

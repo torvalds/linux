@@ -36,102 +36,6 @@ static void *io_mem_alloc_compound(struct page **pages, int nr_pages,
 	return page_address(page);
 }
 
-static void *io_mem_alloc_single(struct page **pages, int nr_pages, size_t size,
-				 gfp_t gfp)
-{
-	void *ret;
-	int i;
-
-	for (i = 0; i < nr_pages; i++) {
-		pages[i] = alloc_page(gfp);
-		if (!pages[i])
-			goto err;
-	}
-
-	ret = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (ret)
-		return ret;
-err:
-	while (i--)
-		put_page(pages[i]);
-	return ERR_PTR(-ENOMEM);
-}
-
-void *io_pages_map(struct page ***out_pages, unsigned short *npages,
-		   size_t size)
-{
-	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
-	struct page **pages;
-	int nr_pages;
-	void *ret;
-
-	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	pages = kvmalloc_array(nr_pages, sizeof(struct page *), gfp);
-	if (!pages)
-		return ERR_PTR(-ENOMEM);
-
-	ret = io_mem_alloc_compound(pages, nr_pages, size, gfp);
-	if (!IS_ERR(ret))
-		goto done;
-	if (nr_pages == 1)
-		goto fail;
-
-	ret = io_mem_alloc_single(pages, nr_pages, size, gfp);
-	if (!IS_ERR(ret)) {
-done:
-		*out_pages = pages;
-		*npages = nr_pages;
-		return ret;
-	}
-fail:
-	kvfree(pages);
-	*out_pages = NULL;
-	*npages = 0;
-	return ret;
-}
-
-void io_pages_unmap(void *ptr, struct page ***pages, unsigned short *npages,
-		    bool put_pages)
-{
-	bool do_vunmap = false;
-
-	if (!ptr)
-		return;
-
-	if (put_pages && *npages) {
-		struct page **to_free = *pages;
-		int i;
-
-		/*
-		 * Only did vmap for the non-compound multiple page case.
-		 * For the compound page, we just need to put the head.
-		 */
-		if (PageCompound(to_free[0]))
-			*npages = 1;
-		else if (*npages > 1)
-			do_vunmap = true;
-		for (i = 0; i < *npages; i++)
-			put_page(to_free[i]);
-	}
-	if (do_vunmap)
-		vunmap(ptr);
-	kvfree(*pages);
-	*pages = NULL;
-	*npages = 0;
-}
-
-void io_pages_free(struct page ***pages, int npages)
-{
-	struct page **page_array = *pages;
-
-	if (!page_array)
-		return;
-
-	unpin_user_pages(page_array, npages);
-	kvfree(page_array);
-	*pages = NULL;
-}
-
 struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 {
 	unsigned long start, end, nr_pages;
@@ -174,64 +78,127 @@ struct page **io_pin_pages(unsigned long uaddr, unsigned long len, int *npages)
 	return ERR_PTR(ret);
 }
 
-void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
-		     unsigned long uaddr, size_t size)
-{
-	struct page **page_array;
-	unsigned int nr_pages;
-	void *page_addr;
-
-	*npages = 0;
-
-	if (uaddr & (PAGE_SIZE - 1) || !size)
-		return ERR_PTR(-EINVAL);
-
-	nr_pages = 0;
-	page_array = io_pin_pages(uaddr, size, &nr_pages);
-	if (IS_ERR(page_array))
-		return page_array;
-
-	page_addr = vmap(page_array, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (page_addr) {
-		*pages = page_array;
-		*npages = nr_pages;
-		return page_addr;
-	}
-
-	io_pages_free(&page_array, nr_pages);
-	return ERR_PTR(-ENOMEM);
-}
+enum {
+	/* memory was vmap'ed for the kernel, freeing the region vunmap's it */
+	IO_REGION_F_VMAP			= 1,
+	/* memory is provided by user and pinned by the kernel */
+	IO_REGION_F_USER_PROVIDED		= 2,
+	/* only the first page in the array is ref'ed */
+	IO_REGION_F_SINGLE_REF			= 4,
+};
 
 void io_free_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr)
 {
 	if (mr->pages) {
-		unpin_user_pages(mr->pages, mr->nr_pages);
+		long nr_refs = mr->nr_pages;
+
+		if (mr->flags & IO_REGION_F_SINGLE_REF)
+			nr_refs = 1;
+
+		if (mr->flags & IO_REGION_F_USER_PROVIDED)
+			unpin_user_pages(mr->pages, nr_refs);
+		else
+			release_pages(mr->pages, nr_refs);
+
 		kvfree(mr->pages);
 	}
-	if (mr->vmap_ptr)
-		vunmap(mr->vmap_ptr);
+	if ((mr->flags & IO_REGION_F_VMAP) && mr->ptr)
+		vunmap(mr->ptr);
 	if (mr->nr_pages && ctx->user)
 		__io_unaccount_mem(ctx->user, mr->nr_pages);
 
 	memset(mr, 0, sizeof(*mr));
 }
 
-int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
-		     struct io_uring_region_desc *reg)
+static int io_region_init_ptr(struct io_mapped_region *mr)
 {
-	int pages_accounted = 0;
+	struct io_imu_folio_data ifd;
+	void *ptr;
+
+	if (io_check_coalesce_buffer(mr->pages, mr->nr_pages, &ifd)) {
+		if (ifd.nr_folios == 1) {
+			mr->ptr = page_address(mr->pages[0]);
+			return 0;
+		}
+	}
+	ptr = vmap(mr->pages, mr->nr_pages, VM_MAP, PAGE_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	mr->ptr = ptr;
+	mr->flags |= IO_REGION_F_VMAP;
+	return 0;
+}
+
+static int io_region_pin_pages(struct io_ring_ctx *ctx,
+				struct io_mapped_region *mr,
+				struct io_uring_region_desc *reg)
+{
+	unsigned long size = mr->nr_pages << PAGE_SHIFT;
 	struct page **pages;
+	int nr_pages;
+
+	pages = io_pin_pages(reg->user_addr, size, &nr_pages);
+	if (IS_ERR(pages))
+		return PTR_ERR(pages);
+	if (WARN_ON_ONCE(nr_pages != mr->nr_pages))
+		return -EFAULT;
+
+	mr->pages = pages;
+	mr->flags |= IO_REGION_F_USER_PROVIDED;
+	return 0;
+}
+
+static int io_region_allocate_pages(struct io_ring_ctx *ctx,
+				    struct io_mapped_region *mr,
+				    struct io_uring_region_desc *reg,
+				    unsigned long mmap_offset)
+{
+	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN;
+	unsigned long size = mr->nr_pages << PAGE_SHIFT;
+	unsigned long nr_allocated;
+	struct page **pages;
+	void *p;
+
+	pages = kvmalloc_array(mr->nr_pages, sizeof(*pages), gfp);
+	if (!pages)
+		return -ENOMEM;
+
+	p = io_mem_alloc_compound(pages, mr->nr_pages, size, gfp);
+	if (!IS_ERR(p)) {
+		mr->flags |= IO_REGION_F_SINGLE_REF;
+		goto done;
+	}
+
+	nr_allocated = alloc_pages_bulk_node(gfp, NUMA_NO_NODE,
+					     mr->nr_pages, pages);
+	if (nr_allocated != mr->nr_pages) {
+		if (nr_allocated)
+			release_pages(pages, nr_allocated);
+		kvfree(pages);
+		return -ENOMEM;
+	}
+done:
+	reg->mmap_offset = mmap_offset;
+	mr->pages = pages;
+	return 0;
+}
+
+int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
+		     struct io_uring_region_desc *reg,
+		     unsigned long mmap_offset)
+{
 	int nr_pages, ret;
-	void *vptr;
 	u64 end;
 
-	if (WARN_ON_ONCE(mr->pages || mr->vmap_ptr || mr->nr_pages))
+	if (WARN_ON_ONCE(mr->pages || mr->ptr || mr->nr_pages))
 		return -EFAULT;
 	if (memchr_inv(&reg->__resv, 0, sizeof(reg->__resv)))
 		return -EINVAL;
-	if (reg->flags != IORING_MEM_REGION_TYPE_USER)
+	if (reg->flags & ~IORING_MEM_REGION_TYPE_USER)
 		return -EINVAL;
-	if (!reg->user_addr)
+	/* user_addr should be set IFF it's a user memory backed region */
+	if ((reg->flags & IORING_MEM_REGION_TYPE_USER) != !!reg->user_addr)
 		return -EFAULT;
 	if (!reg->size || reg->mmap_offset || reg->id)
 		return -EINVAL;
@@ -242,94 +209,120 @@ int io_create_region(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
 	if (check_add_overflow(reg->user_addr, reg->size, &end))
 		return -EOVERFLOW;
 
-	pages = io_pin_pages(reg->user_addr, reg->size, &nr_pages);
-	if (IS_ERR(pages))
-		return PTR_ERR(pages);
-
+	nr_pages = reg->size >> PAGE_SHIFT;
 	if (ctx->user) {
 		ret = __io_account_mem(ctx->user, nr_pages);
 		if (ret)
-			goto out_free;
-		pages_accounted = nr_pages;
+			return ret;
 	}
-
-	vptr = vmap(pages, nr_pages, VM_MAP, PAGE_KERNEL);
-	if (!vptr) {
-		ret = -ENOMEM;
-		goto out_free;
-	}
-
-	mr->pages = pages;
-	mr->vmap_ptr = vptr;
 	mr->nr_pages = nr_pages;
+
+	if (reg->flags & IORING_MEM_REGION_TYPE_USER)
+		ret = io_region_pin_pages(ctx, mr, reg);
+	else
+		ret = io_region_allocate_pages(ctx, mr, reg, mmap_offset);
+	if (ret)
+		goto out_free;
+
+	ret = io_region_init_ptr(mr);
+	if (ret)
+		goto out_free;
 	return 0;
 out_free:
-	if (pages_accounted)
-		__io_unaccount_mem(ctx->user, pages_accounted);
-	io_pages_free(&pages, nr_pages);
+	io_free_region(ctx, mr);
 	return ret;
+}
+
+int io_create_region_mmap_safe(struct io_ring_ctx *ctx, struct io_mapped_region *mr,
+				struct io_uring_region_desc *reg,
+				unsigned long mmap_offset)
+{
+	struct io_mapped_region tmp_mr;
+	int ret;
+
+	memcpy(&tmp_mr, mr, sizeof(tmp_mr));
+	ret = io_create_region(ctx, &tmp_mr, reg, mmap_offset);
+	if (ret)
+		return ret;
+
+	/*
+	 * Once published mmap can find it without holding only the ->mmap_lock
+	 * and not ->uring_lock.
+	 */
+	guard(mutex)(&ctx->mmap_lock);
+	memcpy(mr, &tmp_mr, sizeof(tmp_mr));
+	return 0;
+}
+
+static struct io_mapped_region *io_mmap_get_region(struct io_ring_ctx *ctx,
+						   loff_t pgoff)
+{
+	loff_t offset = pgoff << PAGE_SHIFT;
+	unsigned int bgid;
+
+	switch (offset & IORING_OFF_MMAP_MASK) {
+	case IORING_OFF_SQ_RING:
+	case IORING_OFF_CQ_RING:
+		return &ctx->ring_region;
+	case IORING_OFF_SQES:
+		return &ctx->sq_region;
+	case IORING_OFF_PBUF_RING:
+		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
+		return io_pbuf_get_region(ctx, bgid);
+	case IORING_MAP_OFF_PARAM_REGION:
+		return &ctx->param_region;
+	}
+	return NULL;
+}
+
+static void *io_region_validate_mmap(struct io_ring_ctx *ctx,
+				     struct io_mapped_region *mr)
+{
+	lockdep_assert_held(&ctx->mmap_lock);
+
+	if (!io_region_is_set(mr))
+		return ERR_PTR(-EINVAL);
+	if (mr->flags & IO_REGION_F_USER_PROVIDED)
+		return ERR_PTR(-EINVAL);
+
+	return io_region_get_ptr(mr);
 }
 
 static void *io_uring_validate_mmap_request(struct file *file, loff_t pgoff,
 					    size_t sz)
 {
 	struct io_ring_ctx *ctx = file->private_data;
-	loff_t offset = pgoff << PAGE_SHIFT;
+	struct io_mapped_region *region;
 
-	switch ((pgoff << PAGE_SHIFT) & IORING_OFF_MMAP_MASK) {
-	case IORING_OFF_SQ_RING:
-	case IORING_OFF_CQ_RING:
-		/* Don't allow mmap if the ring was setup without it */
-		if (ctx->flags & IORING_SETUP_NO_MMAP)
-			return ERR_PTR(-EINVAL);
-		if (!ctx->rings)
-			return ERR_PTR(-EFAULT);
-		return ctx->rings;
-	case IORING_OFF_SQES:
-		/* Don't allow mmap if the ring was setup without it */
-		if (ctx->flags & IORING_SETUP_NO_MMAP)
-			return ERR_PTR(-EINVAL);
-		if (!ctx->sq_sqes)
-			return ERR_PTR(-EFAULT);
-		return ctx->sq_sqes;
-	case IORING_OFF_PBUF_RING: {
-		struct io_buffer_list *bl;
-		unsigned int bgid;
-		void *ptr;
-
-		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		bl = io_pbuf_get_bl(ctx, bgid);
-		if (IS_ERR(bl))
-			return bl;
-		ptr = bl->buf_ring;
-		io_put_bl(ctx, bl);
-		return ptr;
-		}
-	}
-
-	return ERR_PTR(-EINVAL);
-}
-
-int io_uring_mmap_pages(struct io_ring_ctx *ctx, struct vm_area_struct *vma,
-			struct page **pages, int npages)
-{
-	unsigned long nr_pages = npages;
-
-	vm_flags_set(vma, VM_DONTEXPAND);
-	return vm_insert_pages(vma, vma->vm_start, pages, &nr_pages);
+	region = io_mmap_get_region(ctx, pgoff);
+	if (!region)
+		return ERR_PTR(-EINVAL);
+	return io_region_validate_mmap(ctx, region);
 }
 
 #ifdef CONFIG_MMU
+
+static int io_region_mmap(struct io_ring_ctx *ctx,
+			  struct io_mapped_region *mr,
+			  struct vm_area_struct *vma,
+			  unsigned max_pages)
+{
+	unsigned long nr_pages = min(mr->nr_pages, max_pages);
+
+	vm_flags_set(vma, VM_DONTEXPAND);
+	return vm_insert_pages(vma, vma->vm_start, mr->pages, &nr_pages);
+}
 
 __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct io_ring_ctx *ctx = file->private_data;
 	size_t sz = vma->vm_end - vma->vm_start;
 	long offset = vma->vm_pgoff << PAGE_SHIFT;
-	unsigned int npages;
+	unsigned int page_limit = UINT_MAX;
+	struct io_mapped_region *region;
 	void *ptr;
 
-	guard(mutex)(&ctx->resize_lock);
+	guard(mutex)(&ctx->mmap_lock);
 
 	ptr = io_uring_validate_mmap_request(file, vma->vm_pgoff, sz);
 	if (IS_ERR(ptr))
@@ -338,16 +331,12 @@ __cold int io_uring_mmap(struct file *file, struct vm_area_struct *vma)
 	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
-		npages = min(ctx->n_ring_pages, (sz + PAGE_SIZE - 1) >> PAGE_SHIFT);
-		return io_uring_mmap_pages(ctx, vma, ctx->ring_pages, npages);
-	case IORING_OFF_SQES:
-		return io_uring_mmap_pages(ctx, vma, ctx->sqe_pages,
-						ctx->n_sqe_pages);
-	case IORING_OFF_PBUF_RING:
-		return io_pbuf_mmap(file, vma);
+		page_limit = (sz + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		break;
 	}
 
-	return -EINVAL;
+	region = io_mmap_get_region(ctx, vma->vm_pgoff);
+	return io_region_mmap(ctx, region, vma, page_limit);
 }
 
 unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
@@ -365,7 +354,7 @@ unsigned long io_uring_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (addr)
 		return -EINVAL;
 
-	guard(mutex)(&ctx->resize_lock);
+	guard(mutex)(&ctx->mmap_lock);
 
 	ptr = io_uring_validate_mmap_request(filp, pgoff, len);
 	if (IS_ERR(ptr))
@@ -415,7 +404,7 @@ unsigned long io_uring_get_unmapped_area(struct file *file, unsigned long addr,
 	struct io_ring_ctx *ctx = file->private_data;
 	void *ptr;
 
-	guard(mutex)(&ctx->resize_lock);
+	guard(mutex)(&ctx->mmap_lock);
 
 	ptr = io_uring_validate_mmap_request(file, pgoff, len);
 	if (IS_ERR(ptr))

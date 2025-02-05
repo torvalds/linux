@@ -7,7 +7,7 @@
 #include <linux/init.h>
 #include <linux/sysctl.h>
 
-static struct ctl_table fs_shared_sysctls[] = {
+static const struct ctl_table fs_shared_sysctls[] = {
 	{
 		.procname	= "overflowuid",
 		.data		= &fs_overflowuid,

@@ -17,6 +17,9 @@
 #include "sb-clean.h"
 #include "trace.h"
 
+#include <linux/ioprio.h>
+#include <linux/string_choices.h>
+
 void bch2_journal_pos_from_member_info_set(struct bch_fs *c)
 {
 	lockdep_assert_held(&c->sb_lock);
@@ -299,7 +302,7 @@ static void journal_entry_err_msg(struct printbuf *out,
 	journal_entry_err_msg(&_buf, version, jset, entry);		\
 	prt_printf(&_buf, msg, ##__VA_ARGS__);				\
 									\
-	switch (flags & BCH_VALIDATE_write) {				\
+	switch (from.flags & BCH_VALIDATE_write) {			\
 	case READ:							\
 		mustfix_fsck_err(c, _err, "%s", _buf.buf);		\
 		break;							\
@@ -325,11 +328,11 @@ static void journal_entry_err_msg(struct printbuf *out,
 static int journal_validate_key(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
-				unsigned level, enum btree_id btree_id,
 				struct bkey_i *k,
-				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from,
+				unsigned version, int big_endian)
 {
+	enum bch_validate_flags flags = from.flags;
 	int write = flags & BCH_VALIDATE_write;
 	void *next = vstruct_next(entry);
 	int ret = 0;
@@ -364,11 +367,10 @@ static int journal_validate_key(struct bch_fs *c,
 	}
 
 	if (!write)
-		bch2_bkey_compat(level, btree_id, version, big_endian,
+		bch2_bkey_compat(from.level, from.btree, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 
-	ret = bch2_bkey_validate(c, bkey_i_to_s_c(k),
-				 __btree_node_type(level, btree_id), write);
+	ret = bch2_bkey_validate(c, bkey_i_to_s_c(k), from);
 	if (ret == -BCH_ERR_fsck_delete_bkey) {
 		le16_add_cpu(&entry->u64s, -((u16) k->k.u64s));
 		memmove(k, bkey_next(k), next - (void *) bkey_next(k));
@@ -379,7 +381,7 @@ static int journal_validate_key(struct bch_fs *c,
 		goto fsck_err;
 
 	if (write)
-		bch2_bkey_compat(level, btree_id, version, big_endian,
+		bch2_bkey_compat(from.level, from.btree, version, big_endian,
 				 write, NULL, bkey_to_packed(k));
 fsck_err:
 	return ret;
@@ -389,16 +391,15 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct bkey_i *k = entry->start;
 
+	from.level	= entry->level;
+	from.btree	= entry->btree_id;
+
 	while (k != vstruct_last(entry)) {
-		int ret = journal_validate_key(c, jset, entry,
-					       entry->level,
-					       entry->btree_id,
-					       k, version, big_endian,
-					       flags|BCH_VALIDATE_journal);
+		int ret = journal_validate_key(c, jset, entry, k, from, version, big_endian);
 		if (ret == FSCK_DELETED_KEY)
 			continue;
 		else if (ret)
@@ -421,7 +422,8 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 			bch2_prt_jset_entry_type(out, entry->type);
 			prt_str(out, ": ");
 		}
-		prt_printf(out, "btree=%s l=%u ", bch2_btree_id_str(entry->btree_id), entry->level);
+		bch2_btree_id_level_to_text(out, entry->btree_id, entry->level);
+		prt_char(out, ' ');
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
 		first = false;
 	}
@@ -431,10 +433,14 @@ static int journal_entry_btree_root_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct bkey_i *k = entry->start;
 	int ret = 0;
+
+	from.root	= true;
+	from.level	= entry->level + 1;
+	from.btree	= entry->btree_id;
 
 	if (journal_entry_err_on(!entry->u64s ||
 				 le16_to_cpu(entry->u64s) != k->k.u64s,
@@ -452,8 +458,7 @@ static int journal_entry_btree_root_validate(struct bch_fs *c,
 		return 0;
 	}
 
-	ret = journal_validate_key(c, jset, entry, 1, entry->btree_id, k,
-				   version, big_endian, flags);
+	ret = journal_validate_key(c, jset, entry, k, from, version, big_endian);
 	if (ret == FSCK_DELETED_KEY)
 		ret = 0;
 fsck_err:
@@ -470,7 +475,7 @@ static int journal_entry_prio_ptrs_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	/* obsolete, don't care: */
 	return 0;
@@ -485,7 +490,7 @@ static int journal_entry_blacklist_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	int ret = 0;
 
@@ -512,7 +517,7 @@ static int journal_entry_blacklist_v2_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct jset_entry_blacklist_v2 *bl_entry;
 	int ret = 0;
@@ -554,7 +559,7 @@ static int journal_entry_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct jset_entry_usage *u =
 		container_of(entry, struct jset_entry_usage, entry);
@@ -588,7 +593,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct jset_entry_data_usage *u =
 		container_of(entry, struct jset_entry_data_usage, entry);
@@ -632,7 +637,7 @@ static int journal_entry_clock_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct jset_entry_clock *clock =
 		container_of(entry, struct jset_entry_clock, entry);
@@ -665,14 +670,14 @@ static void journal_entry_clock_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_clock *clock =
 		container_of(entry, struct jset_entry_clock, entry);
 
-	prt_printf(out, "%s=%llu", clock->rw ? "write" : "read", le64_to_cpu(clock->time));
+	prt_printf(out, "%s=%llu", str_write_read(clock->rw), le64_to_cpu(clock->time));
 }
 
 static int journal_entry_dev_usage_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	struct jset_entry_dev_usage *u =
 		container_of(entry, struct jset_entry_dev_usage, entry);
@@ -729,7 +734,7 @@ static int journal_entry_log_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	return 0;
 }
@@ -738,19 +743,19 @@ static void journal_entry_log_to_text(struct printbuf *out, struct bch_fs *c,
 				      struct jset_entry *entry)
 {
 	struct jset_entry_log *l = container_of(entry, struct jset_entry_log, entry);
-	unsigned bytes = vstruct_bytes(entry) - offsetof(struct jset_entry_log, d);
 
-	prt_printf(out, "%.*s", bytes, l->d);
+	prt_printf(out, "%.*s", jset_entry_log_msg_bytes(l), l->d);
 }
 
 static int journal_entry_overwrite_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
+	from.flags = 0;
 	return journal_entry_btree_keys_validate(c, jset, entry,
-				version, big_endian, READ);
+				version, big_endian, from);
 }
 
 static void journal_entry_overwrite_to_text(struct printbuf *out, struct bch_fs *c,
@@ -763,10 +768,10 @@ static int journal_entry_write_buffer_keys_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	return journal_entry_btree_keys_validate(c, jset, entry,
-				version, big_endian, READ);
+				version, big_endian, from);
 }
 
 static void journal_entry_write_buffer_keys_to_text(struct printbuf *out, struct bch_fs *c,
@@ -779,7 +784,7 @@ static int journal_entry_datetime_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	unsigned bytes = vstruct_bytes(entry);
 	unsigned expected = 16;
@@ -809,7 +814,7 @@ static void journal_entry_datetime_to_text(struct printbuf *out, struct bch_fs *
 struct jset_entry_ops {
 	int (*validate)(struct bch_fs *, struct jset *,
 			struct jset_entry *, unsigned, int,
-			enum bch_validate_flags);
+			struct bkey_validate_context);
 	void (*to_text)(struct printbuf *, struct bch_fs *, struct jset_entry *);
 };
 
@@ -827,11 +832,11 @@ int bch2_journal_entry_validate(struct bch_fs *c,
 				struct jset *jset,
 				struct jset_entry *entry,
 				unsigned version, int big_endian,
-				enum bch_validate_flags flags)
+				struct bkey_validate_context from)
 {
 	return entry->type < BCH_JSET_ENTRY_NR
 		? bch2_jset_entry_ops[entry->type].validate(c, jset, entry,
-				version, big_endian, flags)
+				version, big_endian, from)
 		: 0;
 }
 
@@ -849,10 +854,18 @@ void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 static int jset_validate_entries(struct bch_fs *c, struct jset *jset,
 				 enum bch_validate_flags flags)
 {
+	struct bkey_validate_context from = {
+		.flags		= flags,
+		.from		= BKEY_VALIDATE_journal,
+		.journal_seq	= le64_to_cpu(jset->seq),
+	};
+
 	unsigned version = le32_to_cpu(jset->version);
 	int ret = 0;
 
 	vstruct_for_each(jset, entry) {
+		from.journal_offset = (u64 *) entry - jset->_data;
+
 		if (journal_entry_err_on(vstruct_next(entry) > vstruct_last(jset),
 				c, version, jset, entry,
 				journal_entry_past_jset_end,
@@ -861,8 +874,8 @@ static int jset_validate_entries(struct bch_fs *c, struct jset *jset,
 			break;
 		}
 
-		ret = bch2_journal_entry_validate(c, jset, entry,
-					version, JSET_BIG_ENDIAN(jset), flags);
+		ret = bch2_journal_entry_validate(c, jset, entry, version,
+						  JSET_BIG_ENDIAN(jset), from);
 		if (ret)
 			break;
 	}
@@ -875,13 +888,17 @@ static int jset_validate(struct bch_fs *c,
 			 struct jset *jset, u64 sector,
 			 enum bch_validate_flags flags)
 {
-	unsigned version;
+	struct bkey_validate_context from = {
+		.flags		= flags,
+		.from		= BKEY_VALIDATE_journal,
+		.journal_seq	= le64_to_cpu(jset->seq),
+	};
 	int ret = 0;
 
 	if (le64_to_cpu(jset->magic) != jset_magic(c))
 		return JOURNAL_ENTRY_NONE;
 
-	version = le32_to_cpu(jset->version);
+	unsigned version = le32_to_cpu(jset->version);
 	if (journal_entry_err_on(!bch2_version_compatible(version),
 			c, version, jset, NULL,
 			jset_unsupported_version,
@@ -926,15 +943,16 @@ static int jset_validate_early(struct bch_fs *c,
 			 unsigned bucket_sectors_left,
 			 unsigned sectors_read)
 {
-	size_t bytes = vstruct_bytes(jset);
-	unsigned version;
-	enum bch_validate_flags flags = BCH_VALIDATE_journal;
+	struct bkey_validate_context from = {
+		.from		= BKEY_VALIDATE_journal,
+		.journal_seq	= le64_to_cpu(jset->seq),
+	};
 	int ret = 0;
 
 	if (le64_to_cpu(jset->magic) != jset_magic(c))
 		return JOURNAL_ENTRY_NONE;
 
-	version = le32_to_cpu(jset->version);
+	unsigned version = le32_to_cpu(jset->version);
 	if (journal_entry_err_on(!bch2_version_compatible(version),
 			c, version, jset, NULL,
 			jset_unsupported_version,
@@ -947,6 +965,7 @@ static int jset_validate_early(struct bch_fs *c,
 		return -EINVAL;
 	}
 
+	size_t bytes = vstruct_bytes(jset);
 	if (bytes > (sectors_read << 9) &&
 	    sectors_read < bucket_sectors_left)
 		return JOURNAL_ENTRY_REREAD;
@@ -1231,8 +1250,6 @@ int bch2_journal_read(struct bch_fs *c,
 	 * those entries will be blacklisted:
 	 */
 	genradix_for_each_reverse(&c->journal_entries, radix_iter, _i) {
-		enum bch_validate_flags flags = BCH_VALIDATE_journal;
-
 		i = *_i;
 
 		if (journal_replay_ignore(i))
@@ -1252,6 +1269,10 @@ int bch2_journal_read(struct bch_fs *c,
 			continue;
 		}
 
+		struct bkey_validate_context from = {
+			.from		= BKEY_VALIDATE_journal,
+			.journal_seq	= le64_to_cpu(i->j.seq),
+		};
 		if (journal_entry_err_on(le64_to_cpu(i->j.last_seq) > le64_to_cpu(i->j.seq),
 					 c, le32_to_cpu(i->j.version), &i->j, NULL,
 					 jset_last_seq_newer_than_seq,
@@ -1411,27 +1432,50 @@ fsck_err:
 
 /* journal write: */
 
+static void journal_advance_devs_to_next_bucket(struct journal *j,
+						struct dev_alloc_list *devs,
+						unsigned sectors, u64 seq)
+{
+	struct bch_fs *c = container_of(j, struct bch_fs, journal);
+
+	darray_for_each(*devs, i) {
+		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
+		if (!ca)
+			continue;
+
+		struct journal_device *ja = &ca->journal;
+
+		if (sectors > ja->sectors_free &&
+		    sectors <= ca->mi.bucket_size &&
+		    bch2_journal_dev_buckets_available(j, ja,
+					journal_space_discarded)) {
+			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
+			ja->sectors_free = ca->mi.bucket_size;
+
+			/*
+			 * ja->bucket_seq[ja->cur_idx] must always have
+			 * something sensible:
+			 */
+			ja->bucket_seq[ja->cur_idx] = le64_to_cpu(seq);
+		}
+	}
+}
+
 static void __journal_write_alloc(struct journal *j,
 				  struct journal_buf *w,
-				  struct dev_alloc_list *devs_sorted,
+				  struct dev_alloc_list *devs,
 				  unsigned sectors,
 				  unsigned *replicas,
 				  unsigned replicas_want)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_device *ja;
-	struct bch_dev *ca;
-	unsigned i;
 
-	if (*replicas >= replicas_want)
-		return;
-
-	for (i = 0; i < devs_sorted->nr; i++) {
-		ca = rcu_dereference(c->devs[devs_sorted->devs[i]]);
+	darray_for_each(*devs, i) {
+		struct bch_dev *ca = rcu_dereference(c->devs[*i]);
 		if (!ca)
 			continue;
 
-		ja = &ca->journal;
+		struct journal_device *ja = &ca->journal;
 
 		/*
 		 * Check that we can use this device, and aren't already using
@@ -1477,65 +1521,53 @@ static int journal_write_alloc(struct journal *j, struct journal_buf *w)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_devs_mask devs;
-	struct journal_device *ja;
-	struct bch_dev *ca;
 	struct dev_alloc_list devs_sorted;
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 	unsigned target = c->opts.metadata_target ?:
 		c->opts.foreground_target;
-	unsigned i, replicas = 0, replicas_want =
+	unsigned replicas = 0, replicas_want =
 		READ_ONCE(c->opts.metadata_replicas);
 	unsigned replicas_need = min_t(unsigned, replicas_want,
 				       READ_ONCE(c->opts.metadata_replicas_required));
+	bool advance_done = false;
 
 	rcu_read_lock();
-retry:
-	devs = target_rw_devs(c, BCH_DATA_journal, target);
 
-	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
-
-	__journal_write_alloc(j, w, &devs_sorted,
-			      sectors, &replicas, replicas_want);
-
-	if (replicas >= replicas_want)
-		goto done;
-
-	for (i = 0; i < devs_sorted.nr; i++) {
-		ca = rcu_dereference(c->devs[devs_sorted.devs[i]]);
-		if (!ca)
-			continue;
-
-		ja = &ca->journal;
-
-		if (sectors > ja->sectors_free &&
-		    sectors <= ca->mi.bucket_size &&
-		    bch2_journal_dev_buckets_available(j, ja,
-					journal_space_discarded)) {
-			ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
-			ja->sectors_free = ca->mi.bucket_size;
-
-			/*
-			 * ja->bucket_seq[ja->cur_idx] must always have
-			 * something sensible:
-			 */
-			ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
-		}
+	/* We might run more than once if we have to stop and do discards: */
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(&w->key));
+	bkey_for_each_ptr(ptrs, p) {
+		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p->dev);
+		if (ca)
+			replicas += ca->mi.durability;
 	}
 
-	__journal_write_alloc(j, w, &devs_sorted,
-			      sectors, &replicas, replicas_want);
+retry_target:
+	devs = target_rw_devs(c, BCH_DATA_journal, target);
+	devs_sorted = bch2_dev_alloc_list(c, &j->wp.stripe, &devs);
+retry_alloc:
+	__journal_write_alloc(j, w, &devs_sorted, sectors, &replicas, replicas_want);
+
+	if (likely(replicas >= replicas_want))
+		goto done;
+
+	if (!advance_done) {
+		journal_advance_devs_to_next_bucket(j, &devs_sorted, sectors, w->data->seq);
+		advance_done = true;
+		goto retry_alloc;
+	}
 
 	if (replicas < replicas_want && target) {
 		/* Retry from all devices: */
 		target = 0;
-		goto retry;
+		advance_done = false;
+		goto retry_target;
 	}
 done:
 	rcu_read_unlock();
 
 	BUG_ON(bkey_val_u64s(&w->key.k) > BCH_REPLICAS_MAX);
 
-	return replicas >= replicas_need ? 0 : -EROFS;
+	return replicas >= replicas_need ? 0 : -BCH_ERR_insufficient_journal_devices;
 }
 
 static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
@@ -1732,6 +1764,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;
 		bio->bi_private		= ca;
+		bio->bi_ioprio		= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, 0);
 
 		BUG_ON(bio->bi_iter.bi_sector == ca->prev_journal_sector);
 		ca->prev_journal_sector = bio->bi_iter.bi_sector;
@@ -2023,19 +2056,21 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		bch2_journal_do_discards(j);
 	}
 
-	if (ret) {
+	if (ret && !bch2_journal_error(j)) {
 		struct printbuf buf = PRINTBUF;
 		buf.atomic++;
 
-		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write at seq %llu: %s"),
+		prt_printf(&buf, bch2_fmt(c, "Unable to allocate journal write at seq %llu for %zu sectors: %s"),
 					  le64_to_cpu(w->data->seq),
+					  vstruct_sectors(w->data, c->block_bits),
 					  bch2_err_str(ret));
 		__bch2_journal_debug_to_text(&buf, j);
 		spin_unlock(&j->lock);
 		bch2_print_string_as_lines(KERN_ERR, buf.buf);
 		printbuf_exit(&buf);
-		goto err;
 	}
+	if (ret)
+		goto err;
 
 	/*
 	 * write is allocated, no longer need to account for it in

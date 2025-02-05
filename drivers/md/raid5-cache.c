@@ -313,10 +313,6 @@ void r5c_handle_cached_data_endio(struct r5conf *conf,
 		if (sh->dev[i].written) {
 			set_bit(R5_UPTODATE, &sh->dev[i].flags);
 			r5c_return_dev_pending_writes(conf, &sh->dev[i]);
-			conf->mddev->bitmap_ops->endwrite(conf->mddev,
-					sh->sector, RAID5_STRIPE_SECTORS(conf),
-					!test_bit(STRIPE_DEGRADED, &sh->state),
-					false);
 		}
 	}
 }
@@ -1023,10 +1019,10 @@ int r5l_write_stripe(struct r5l_log *log, struct stripe_head *sh)
 		/* checksum is already calculated in last run */
 		if (test_bit(STRIPE_LOG_TRAPPED, &sh->state))
 			continue;
-		addr = kmap_atomic(sh->dev[i].page);
+		addr = kmap_local_page(sh->dev[i].page);
 		sh->dev[i].log_checksum = crc32c_le(log->uuid_checksum,
 						    addr, PAGE_SIZE);
-		kunmap_atomic(addr);
+		kunmap_local(addr);
 	}
 	parity_pages = 1 + !!(sh->qd_idx >= 0);
 	data_pages = write_disks - parity_pages;
@@ -1979,9 +1975,9 @@ r5l_recovery_verify_data_checksum(struct r5l_log *log,
 	u32 checksum;
 
 	r5l_recovery_read_page(log, ctx, page, log_offset);
-	addr = kmap_atomic(page);
+	addr = kmap_local_page(page);
 	checksum = crc32c_le(log->uuid_checksum, addr, PAGE_SIZE);
-	kunmap_atomic(addr);
+	kunmap_local(addr);
 	return (le32_to_cpu(log_checksum) == checksum) ? 0 : -EINVAL;
 }
 
@@ -2381,11 +2377,11 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 				payload->size = cpu_to_le32(BLOCK_SECTORS);
 				payload->location = cpu_to_le64(
 					raid5_compute_blocknr(sh, i, 0));
-				addr = kmap_atomic(dev->page);
+				addr = kmap_local_page(dev->page);
 				payload->checksum[0] = cpu_to_le32(
 					crc32c_le(log->uuid_checksum, addr,
 						  PAGE_SIZE));
-				kunmap_atomic(addr);
+				kunmap_local(addr);
 				sync_page_io(log->rdev, write_pos, PAGE_SIZE,
 					     dev->page, REQ_OP_WRITE, false);
 				write_pos = r5l_ring_add(log, write_pos,
@@ -2888,10 +2884,10 @@ int r5c_cache_data(struct r5l_log *log, struct stripe_head *sh)
 
 		if (!test_bit(R5_Wantwrite, &sh->dev[i].flags))
 			continue;
-		addr = kmap_atomic(sh->dev[i].page);
+		addr = kmap_local_page(sh->dev[i].page);
 		sh->dev[i].log_checksum = crc32c_le(log->uuid_checksum,
 						    addr, PAGE_SIZE);
-		kunmap_atomic(addr);
+		kunmap_local(addr);
 		pages++;
 	}
 	WARN_ON(pages == 0);

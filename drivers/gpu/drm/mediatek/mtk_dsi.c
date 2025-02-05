@@ -139,11 +139,11 @@
 #define CLK_HS_POST			GENMASK(15, 8)
 #define CLK_HS_EXIT			GENMASK(23, 16)
 
-#define DSI_VM_CMD_CON		0x130
+/* DSI_VM_CMD_CON */
 #define VM_CMD_EN			BIT(0)
 #define TS_VFP_EN			BIT(5)
 
-#define DSI_SHADOW_DEBUG	0x190U
+/* DSI_SHADOW_DEBUG */
 #define FORCE_COMMIT			BIT(0)
 #define BYPASS_SHADOW			BIT(1)
 
@@ -187,6 +187,8 @@ struct phy;
 
 struct mtk_dsi_driver_data {
 	const u32 reg_cmdq_off;
+	const u32 reg_vm_cmd_off;
+	const u32 reg_shadow_dbg_off;
 	bool has_shadow_ctl;
 	bool has_size_ctl;
 	bool cmdq_long_packet_ctl;
@@ -246,23 +248,22 @@ static void mtk_dsi_phy_timconfig(struct mtk_dsi *dsi)
 	u32 data_rate_mhz = DIV_ROUND_UP(dsi->data_rate, HZ_PER_MHZ);
 	struct mtk_phy_timing *timing = &dsi->phy_timing;
 
-	timing->lpx = (80 * data_rate_mhz / (8 * 1000)) + 1;
-	timing->da_hs_prepare = (59 * data_rate_mhz + 4 * 1000) / 8000 + 1;
-	timing->da_hs_zero = (163 * data_rate_mhz + 11 * 1000) / 8000 + 1 -
+	timing->lpx = (60 * data_rate_mhz / (8 * 1000)) + 1;
+	timing->da_hs_prepare = (80 * data_rate_mhz + 4 * 1000) / 8000;
+	timing->da_hs_zero = (170 * data_rate_mhz + 10 * 1000) / 8000 + 1 -
 			     timing->da_hs_prepare;
-	timing->da_hs_trail = (78 * data_rate_mhz + 7 * 1000) / 8000 + 1;
+	timing->da_hs_trail = timing->da_hs_prepare + 1;
 
-	timing->ta_go = 4 * timing->lpx;
-	timing->ta_sure = 3 * timing->lpx / 2;
-	timing->ta_get = 5 * timing->lpx;
-	timing->da_hs_exit = (118 * data_rate_mhz / (8 * 1000)) + 1;
+	timing->ta_go = 4 * timing->lpx - 2;
+	timing->ta_sure = timing->lpx + 2;
+	timing->ta_get = 4 * timing->lpx;
+	timing->da_hs_exit = 2 * timing->lpx + 1;
 
-	timing->clk_hs_prepare = (57 * data_rate_mhz / (8 * 1000)) + 1;
-	timing->clk_hs_post = (65 * data_rate_mhz + 53 * 1000) / 8000 + 1;
-	timing->clk_hs_trail = (78 * data_rate_mhz + 7 * 1000) / 8000 + 1;
-	timing->clk_hs_zero = (330 * data_rate_mhz / (8 * 1000)) + 1 -
-			      timing->clk_hs_prepare;
-	timing->clk_hs_exit = (118 * data_rate_mhz / (8 * 1000)) + 1;
+	timing->clk_hs_prepare = 70 * data_rate_mhz / (8 * 1000);
+	timing->clk_hs_post = timing->clk_hs_prepare + 8;
+	timing->clk_hs_trail = timing->clk_hs_prepare;
+	timing->clk_hs_zero = timing->clk_hs_trail * 4;
+	timing->clk_hs_exit = 2 * timing->clk_hs_trail;
 
 	timcon0 = FIELD_PREP(LPX, timing->lpx) |
 		  FIELD_PREP(HS_PREP, timing->da_hs_prepare) |
@@ -367,8 +368,8 @@ static void mtk_dsi_set_mode(struct mtk_dsi *dsi)
 
 static void mtk_dsi_set_vm_cmd(struct mtk_dsi *dsi)
 {
-	mtk_dsi_mask(dsi, DSI_VM_CMD_CON, VM_CMD_EN, VM_CMD_EN);
-	mtk_dsi_mask(dsi, DSI_VM_CMD_CON, TS_VFP_EN, TS_VFP_EN);
+	mtk_dsi_mask(dsi, dsi->driver_data->reg_vm_cmd_off, VM_CMD_EN, VM_CMD_EN);
+	mtk_dsi_mask(dsi, dsi->driver_data->reg_vm_cmd_off, TS_VFP_EN, TS_VFP_EN);
 }
 
 static void mtk_dsi_rxtx_control(struct mtk_dsi *dsi)
@@ -714,7 +715,7 @@ static int mtk_dsi_poweron(struct mtk_dsi *dsi)
 
 	if (dsi->driver_data->has_shadow_ctl)
 		writel(FORCE_COMMIT | BYPASS_SHADOW,
-		       dsi->regs + DSI_SHADOW_DEBUG);
+		       dsi->regs + dsi->driver_data->reg_shadow_dbg_off);
 
 	mtk_dsi_reset_engine(dsi);
 	mtk_dsi_phy_timconfig(dsi);
@@ -1263,26 +1264,36 @@ static void mtk_dsi_remove(struct platform_device *pdev)
 
 static const struct mtk_dsi_driver_data mt8173_dsi_driver_data = {
 	.reg_cmdq_off = 0x200,
+	.reg_vm_cmd_off = 0x130,
+	.reg_shadow_dbg_off = 0x190
 };
 
 static const struct mtk_dsi_driver_data mt2701_dsi_driver_data = {
 	.reg_cmdq_off = 0x180,
+	.reg_vm_cmd_off = 0x130,
+	.reg_shadow_dbg_off = 0x190
 };
 
 static const struct mtk_dsi_driver_data mt8183_dsi_driver_data = {
 	.reg_cmdq_off = 0x200,
+	.reg_vm_cmd_off = 0x130,
+	.reg_shadow_dbg_off = 0x190,
 	.has_shadow_ctl = true,
 	.has_size_ctl = true,
 };
 
 static const struct mtk_dsi_driver_data mt8186_dsi_driver_data = {
 	.reg_cmdq_off = 0xd00,
+	.reg_vm_cmd_off = 0x200,
+	.reg_shadow_dbg_off = 0xc00,
 	.has_shadow_ctl = true,
 	.has_size_ctl = true,
 };
 
 static const struct mtk_dsi_driver_data mt8188_dsi_driver_data = {
 	.reg_cmdq_off = 0xd00,
+	.reg_vm_cmd_off = 0x200,
+	.reg_shadow_dbg_off = 0xc00,
 	.has_shadow_ctl = true,
 	.has_size_ctl = true,
 	.cmdq_long_packet_ctl = true,

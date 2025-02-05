@@ -29,7 +29,7 @@ BGRT_SHOW(type, image_type);
 BGRT_SHOW(xoffset, image_offset_x);
 BGRT_SHOW(yoffset, image_offset_y);
 
-static BIN_ATTR_SIMPLE_RO(image);
+static __ro_after_init BIN_ATTR_SIMPLE_RO(image);
 
 static struct attribute *bgrt_attributes[] = {
 	&bgrt_attr_version.attr,
@@ -40,14 +40,14 @@ static struct attribute *bgrt_attributes[] = {
 	NULL,
 };
 
-static struct bin_attribute *bgrt_bin_attributes[] = {
+static const struct bin_attribute *const bgrt_bin_attributes[] = {
 	&bin_attr_image,
 	NULL,
 };
 
 static const struct attribute_group bgrt_attribute_group = {
 	.attrs = bgrt_attributes,
-	.bin_attrs = bgrt_bin_attributes,
+	.bin_attrs_new = bgrt_bin_attributes,
 };
 
 int __init acpi_parse_bgrt(struct acpi_table_header *table)

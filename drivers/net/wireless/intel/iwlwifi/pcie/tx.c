@@ -1449,7 +1449,9 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		spin_unlock_irqrestore(&txq->lock, flags);
 
 		IWL_ERR(trans, "No space in command queue\n");
-		iwl_op_mode_cmd_queue_full(trans->op_mode);
+		iwl_op_mode_nic_error(trans->op_mode,
+				      IWL_ERR_TYPE_CMD_QUEUE_FULL);
+		iwl_trans_schedule_reset(trans, IWL_ERR_TYPE_CMD_QUEUE_FULL);
 		idx = -ENOSPC;
 		goto free_dup_buf;
 	}

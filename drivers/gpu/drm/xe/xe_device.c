@@ -325,7 +325,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 	xe->info.revid = pdev->revision;
 	xe->info.force_execlist = xe_modparam.force_execlist;
 
-	spin_lock_init(&xe->irq.lock);
+	err = xe_irq_init(xe);
+	if (err)
+		goto err;
 
 	init_waitqueue_head(&xe->ufence_wq);
 
@@ -519,7 +521,7 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 	drm_dbg(&xe->drm, "Waiting for lmem initialization\n");
 
 	start = jiffies;
-	timeout = start + msecs_to_jiffies(60 * 1000); /* 60 sec! */
+	timeout = start + secs_to_jiffies(60); /* 60 sec! */
 
 	do {
 		if (signal_pending(current))
@@ -604,7 +606,7 @@ static int probe_has_flat_ccs(struct xe_device *xe)
 	u32 reg;
 
 	/* Always enabled/disabled, no runtime check to do */
-	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs)
+	if (GRAPHICS_VER(xe) < 20 || !xe->info.has_flat_ccs || IS_SRIOV_VF(xe))
 		return 0;
 
 	gt = xe_root_mmio_gt(xe);
@@ -997,7 +999,7 @@ static void xe_device_wedged_fini(struct drm_device *drm, void *arg)
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
  *
- * This is a final state that can only be cleared with a mudule
+ * This is a final state that can only be cleared with a module
  * re-probe (unbind + bind).
  * In this state every IOCTL will be blocked so the GT cannot be used.
  * In general it will be called upon any critical error such as gt reset

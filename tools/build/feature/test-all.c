@@ -58,8 +58,8 @@
 # include "test-libelf-getshdrstrndx.c"
 #undef main
 
-#define main main_test_libunwind
-# include "test-libunwind.c"
+#define main main_test_libelf_zstd
+# include "test-libelf-zstd.c"
 #undef main
 
 #define main main_test_libslang
@@ -170,6 +170,14 @@
 # include "test-libzstd.c"
 #undef main
 
+#define main main_test_libtraceevent
+# include "test-libtraceevent.c"
+#undef main
+
+#define main main_test_libtracefs
+# include "test-libtracefs.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -184,7 +192,6 @@ int main(int argc, char *argv[])
 	main_test_libelf_getphdrnum();
 	main_test_libelf_gelf_getnote();
 	main_test_libelf_getshdrstrndx();
-	main_test_libunwind();
 	main_test_libslang();
 	main_test_libbfd();
 	main_test_libbfd_buildid();
@@ -208,6 +215,8 @@ int main(int argc, char *argv[])
 	main_test_reallocarray();
 	main_test_disassembler_four_args();
 	main_test_libzstd();
+	main_test_libtraceevent();
+	main_test_libtracefs();
 
 	return 0;
 }

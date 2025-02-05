@@ -583,4 +583,4 @@ out_err:
 	goto out;
 }
 
-DEFINE_SUITE("Track with sched_switch", switch_tracking);
+DEFINE_SUITE_EXCLUSIVE("Track with sched_switch", switch_tracking);

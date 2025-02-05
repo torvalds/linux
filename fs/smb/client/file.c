@@ -227,7 +227,8 @@ static void cifs_issue_read(struct netfs_io_subrequest *subreq)
 	return;
 
 failed:
-	netfs_read_subreq_terminated(subreq, rc, false);
+	subreq->error = rc;
+	netfs_read_subreq_terminated(subreq);
 }
 
 /*
@@ -990,7 +991,11 @@ int cifs_open(struct inode *inode, struct file *file)
 	}
 
 	/* Get the cached handle as SMB2 close is deferred */
-	rc = cifs_get_readable_path(tcon, full_path, &cfile);
+	if (OPEN_FMODE(file->f_flags) & FMODE_WRITE) {
+		rc = cifs_get_writable_path(tcon, full_path, FIND_WR_FSUID_ONLY, &cfile);
+	} else {
+		rc = cifs_get_readable_path(tcon, full_path, &cfile);
+	}
 	if (rc == 0) {
 		if (file->f_flags == cfile->f_flags) {
 			file->private_data = cfile;

@@ -92,10 +92,10 @@ The system wide settings are configured under the /proc virtual file system:
 /proc/sys/kernel/sched_rt_runtime_us:
   A global limit on how much time real-time scheduling may use. This is always
   less or equal to the period_us, as it denotes the time allocated from the
-  period_us for the real-time tasks. Even without CONFIG_RT_GROUP_SCHED enabled,
-  this will limit time reserved to real-time processes. With
-  CONFIG_RT_GROUP_SCHED=y it signifies the total bandwidth available to all
-  real-time groups.
+  period_us for the real-time tasks. Without CONFIG_RT_GROUP_SCHED enabled,
+  this only serves for admission control of deadline tasks. With
+  CONFIG_RT_GROUP_SCHED=y it also signifies the total bandwidth available to
+  all real-time groups.
 
   * Time is specified in us because the interface is s32. This gives an
     operating range from 1us to about 35 minutes.

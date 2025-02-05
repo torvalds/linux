@@ -370,14 +370,13 @@ struct rxe_port {
 	u32			qp_gsi_index;
 };
 
+#define	RXE_PORT	1
 struct rxe_dev {
 	struct ib_device	ib_dev;
 	struct ib_device_attr	attr;
 	int			max_ucontext;
 	int			max_inline_data;
 	struct mutex	usdev_lock;
-
-	struct net_device	*ndev;
 
 	struct rxe_pool		uc_pool;
 	struct rxe_pool		pd_pool;
@@ -405,6 +404,11 @@ struct rxe_dev {
 	struct rxe_port		port;
 	struct crypto_shash	*tfm;
 };
+
+static inline struct net_device *rxe_ib_device_get_netdev(struct ib_device *dev)
+{
+	return ib_device_get_netdev(dev, RXE_PORT);
+}
 
 static inline void rxe_counter_inc(struct rxe_dev *rxe, enum rxe_counters index)
 {
@@ -471,6 +475,7 @@ static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
 	return to_rpd(mw->ibmw.pd);
 }
 
-int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name,
+						struct net_device *ndev);
 
 #endif /* RXE_VERBS_H */

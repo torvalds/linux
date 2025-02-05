@@ -128,8 +128,8 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 
 #define KONEPLUS_SYSFS_W(thingy, THINGY) \
 static ssize_t koneplus_sysfs_write_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return koneplus_sysfs_write(fp, kobj, buf, off, count, \
 			KONEPLUS_SIZE_ ## THINGY, KONEPLUS_COMMAND_ ## THINGY); \
@@ -137,8 +137,8 @@ static ssize_t koneplus_sysfs_write_ ## thingy(struct file *fp, \
 
 #define KONEPLUS_SYSFS_R(thingy, THINGY) \
 static ssize_t koneplus_sysfs_read_ ## thingy(struct file *fp, \
-		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
-		loff_t off, size_t count) \
+		struct kobject *kobj, const struct bin_attribute *attr, \
+		char *buf, loff_t off, size_t count) \
 { \
 	return koneplus_sysfs_read(fp, kobj, buf, off, count, \
 			KONEPLUS_SIZE_ ## THINGY, KONEPLUS_COMMAND_ ## THINGY); \
@@ -150,27 +150,27 @@ KONEPLUS_SYSFS_R(thingy, THINGY)
 
 #define KONEPLUS_BIN_ATTRIBUTE_RW(thingy, THINGY) \
 KONEPLUS_SYSFS_RW(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
+static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0660 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.read = koneplus_sysfs_read_ ## thingy, \
-	.write = koneplus_sysfs_write_ ## thingy \
+	.read_new = koneplus_sysfs_read_ ## thingy, \
+	.write_new = koneplus_sysfs_write_ ## thingy \
 }
 
 #define KONEPLUS_BIN_ATTRIBUTE_R(thingy, THINGY) \
 KONEPLUS_SYSFS_R(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
+static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0440 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.read = koneplus_sysfs_read_ ## thingy, \
+	.read_new = koneplus_sysfs_read_ ## thingy, \
 }
 
 #define KONEPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
 KONEPLUS_SYSFS_W(thingy, THINGY); \
-static struct bin_attribute bin_attr_##thingy = { \
+static const struct bin_attribute bin_attr_##thingy = { \
 	.attr = { .name = #thingy, .mode = 0220 }, \
 	.size = KONEPLUS_SIZE_ ## THINGY, \
-	.write = koneplus_sysfs_write_ ## thingy \
+	.write_new = koneplus_sysfs_write_ ## thingy \
 }
 KONEPLUS_BIN_ATTRIBUTE_W(control, CONTROL);
 KONEPLUS_BIN_ATTRIBUTE_W(talk, TALK);
@@ -183,8 +183,8 @@ KONEPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS);
 KONEPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS);
 
 static ssize_t koneplus_sysfs_read_profilex_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
@@ -201,8 +201,8 @@ static ssize_t koneplus_sysfs_read_profilex_settings(struct file *fp,
 }
 
 static ssize_t koneplus_sysfs_read_profilex_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj)->parent->parent;
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
@@ -219,16 +219,16 @@ static ssize_t koneplus_sysfs_read_profilex_buttons(struct file *fp,
 }
 
 #define PROFILE_ATTR(number)						\
-static struct bin_attribute bin_attr_profile##number##_settings = {	\
+static const struct bin_attribute bin_attr_profile##number##_settings = {	\
 	.attr = { .name = "profile" #number "_settings", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_SETTINGS,				\
-	.read = koneplus_sysfs_read_profilex_settings,			\
+	.read_new = koneplus_sysfs_read_profilex_settings,		\
 	.private = &profile_numbers[number-1],				\
 };									\
-static struct bin_attribute bin_attr_profile##number##_buttons = {	\
+static const struct bin_attribute bin_attr_profile##number##_buttons = {	\
 	.attr = { .name = "profile" #number "_buttons", .mode = 0440 },	\
 	.size = KONEPLUS_SIZE_PROFILE_BUTTONS,				\
-	.read = koneplus_sysfs_read_profilex_buttons,			\
+	.read_new = koneplus_sysfs_read_profilex_buttons,		\
 	.private = &profile_numbers[number-1],				\
 };
 PROFILE_ATTR(1);
@@ -321,7 +321,7 @@ static struct attribute *koneplus_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *koneplus_bin_attributes[] = {
+static const struct bin_attribute *const koneplus_bin_attributes[] = {
 	&bin_attr_control,
 	&bin_attr_talk,
 	&bin_attr_macro,
@@ -346,7 +346,7 @@ static struct bin_attribute *koneplus_bin_attributes[] = {
 
 static const struct attribute_group koneplus_group = {
 	.attrs = koneplus_attrs,
-	.bin_attrs = koneplus_bin_attributes,
+	.bin_attrs_new = koneplus_bin_attributes,
 };
 
 static const struct attribute_group *koneplus_groups[] = {

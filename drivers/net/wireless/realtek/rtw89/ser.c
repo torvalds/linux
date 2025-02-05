@@ -365,6 +365,7 @@ static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 		ser_reset_vif(rtwdev, rtwvif);
 
 	rtwdev->total_sta_assoc = 0;
+	refcount_set(&rtwdev->refcount_ap_info, 0);
 }
 
 /* hal function */

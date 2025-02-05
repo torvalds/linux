@@ -20,7 +20,6 @@
 #include "internal.h"
 
 static int afs_file_mmap(struct file *file, struct vm_area_struct *vma);
-static int afs_symlink_read_folio(struct file *file, struct folio *folio);
 
 static ssize_t afs_file_read_iter(struct kiocb *iocb, struct iov_iter *iter);
 static ssize_t afs_file_splice_read(struct file *in, loff_t *ppos,
@@ -59,13 +58,6 @@ const struct address_space_operations afs_file_aops = {
 	.invalidate_folio = netfs_invalidate_folio,
 	.migrate_folio	= filemap_migrate_folio,
 	.writepages	= afs_writepages,
-};
-
-const struct address_space_operations afs_symlink_aops = {
-	.read_folio	= afs_symlink_read_folio,
-	.release_folio	= netfs_release_folio,
-	.invalidate_folio = netfs_invalidate_folio,
-	.migrate_folio	= filemap_migrate_folio,
 };
 
 static const struct vm_operations_struct afs_vm_ops = {
@@ -208,49 +200,12 @@ int afs_release(struct inode *inode, struct file *file)
 	return ret;
 }
 
-/*
- * Allocate a new read record.
- */
-struct afs_read *afs_alloc_read(gfp_t gfp)
-{
-	struct afs_read *req;
-
-	req = kzalloc(sizeof(struct afs_read), gfp);
-	if (req)
-		refcount_set(&req->usage, 1);
-
-	return req;
-}
-
-/*
- * Dispose of a ref to a read record.
- */
-void afs_put_read(struct afs_read *req)
-{
-	if (refcount_dec_and_test(&req->usage)) {
-		if (req->cleanup)
-			req->cleanup(req);
-		key_put(req->key);
-		kfree(req);
-	}
-}
-
 static void afs_fetch_data_notify(struct afs_operation *op)
 {
-	struct afs_read *req = op->fetch.req;
-	struct netfs_io_subrequest *subreq = req->subreq;
-	int error = afs_op_error(op);
+	struct netfs_io_subrequest *subreq = op->fetch.subreq;
 
-	req->error = error;
-	if (subreq) {
-		subreq->rreq->i_size = req->file_size;
-		if (req->pos + req->actual_len >= req->file_size)
-			__set_bit(NETFS_SREQ_HIT_EOF, &subreq->flags);
-		netfs_read_subreq_terminated(subreq, error, false);
-		req->subreq = NULL;
-	} else if (req->done) {
-		req->done(req);
-	}
+	subreq->error = afs_op_error(op);
+	netfs_read_subreq_terminated(subreq);
 }
 
 static void afs_fetch_data_success(struct afs_operation *op)
@@ -260,7 +215,7 @@ static void afs_fetch_data_success(struct afs_operation *op)
 	_enter("op=%08x", op->debug_id);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_stat_v(vnode, n_fetches);
-	atomic_long_add(op->fetch.req->actual_len, &op->net->n_fetch_bytes);
+	atomic_long_add(op->fetch.subreq->transferred, &op->net->n_fetch_bytes);
 	afs_fetch_data_notify(op);
 }
 
@@ -270,107 +225,188 @@ static void afs_fetch_data_aborted(struct afs_operation *op)
 	afs_fetch_data_notify(op);
 }
 
-static void afs_fetch_data_put(struct afs_operation *op)
-{
-	op->fetch.req->error = afs_op_error(op);
-	afs_put_read(op->fetch.req);
-}
-
-static const struct afs_operation_ops afs_fetch_data_operation = {
+const struct afs_operation_ops afs_fetch_data_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_data,
 	.issue_yfs_rpc	= yfs_fs_fetch_data,
 	.success	= afs_fetch_data_success,
 	.aborted	= afs_fetch_data_aborted,
 	.failed		= afs_fetch_data_notify,
-	.put		= afs_fetch_data_put,
 };
+
+static void afs_issue_read_call(struct afs_operation *op)
+{
+	op->call_responded = false;
+	op->call_error = 0;
+	op->call_abort_code = 0;
+	if (test_bit(AFS_SERVER_FL_IS_YFS, &op->server->flags))
+		yfs_fs_fetch_data(op);
+	else
+		afs_fs_fetch_data(op);
+}
+
+static void afs_end_read(struct afs_operation *op)
+{
+	if (op->call_responded && op->server)
+		set_bit(AFS_SERVER_FL_RESPONDING, &op->server->flags);
+
+	if (!afs_op_error(op))
+		afs_fetch_data_success(op);
+	else if (op->cumul_error.aborted)
+		afs_fetch_data_aborted(op);
+	else
+		afs_fetch_data_notify(op);
+
+	afs_end_vnode_operation(op);
+	afs_put_operation(op);
+}
+
+/*
+ * Perform I/O processing on an asynchronous call.  The work item carries a ref
+ * to the call struct that we either need to release or to pass on.
+ */
+static void afs_read_receive(struct afs_call *call)
+{
+	struct afs_operation *op = call->op;
+	enum afs_call_state state;
+
+	_enter("");
+
+	state = READ_ONCE(call->state);
+	if (state == AFS_CALL_COMPLETE)
+		return;
+	trace_afs_read_recv(op, call);
+
+	while (state < AFS_CALL_COMPLETE && READ_ONCE(call->need_attention)) {
+		WRITE_ONCE(call->need_attention, false);
+		afs_deliver_to_call(call);
+		state = READ_ONCE(call->state);
+	}
+
+	if (state < AFS_CALL_COMPLETE) {
+		netfs_read_subreq_progress(op->fetch.subreq);
+		if (rxrpc_kernel_check_life(call->net->socket, call->rxcall))
+			return;
+		/* rxrpc terminated the call. */
+		afs_set_call_complete(call, call->error, call->abort_code);
+	}
+
+	op->call_abort_code	= call->abort_code;
+	op->call_error		= call->error;
+	op->call_responded	= call->responded;
+	op->call		= NULL;
+	call->op		= NULL;
+	afs_put_call(call);
+
+	/* If the call failed, then we need to crank the server rotation
+	 * handle and try the next.
+	 */
+	if (afs_select_fileserver(op)) {
+		afs_issue_read_call(op);
+		return;
+	}
+
+	afs_end_read(op);
+}
+
+void afs_fetch_data_async_rx(struct work_struct *work)
+{
+	struct afs_call *call = container_of(work, struct afs_call, async_work);
+
+	afs_read_receive(call);
+	afs_put_call(call);
+}
+
+void afs_fetch_data_immediate_cancel(struct afs_call *call)
+{
+	if (call->async) {
+		afs_get_call(call, afs_call_trace_wake);
+		if (!queue_work(afs_async_calls, &call->async_work))
+			afs_deferred_put_call(call);
+		flush_work(&call->async_work);
+	}
+}
 
 /*
  * Fetch file data from the volume.
  */
-int afs_fetch_data(struct afs_vnode *vnode, struct afs_read *req)
+static void afs_issue_read(struct netfs_io_subrequest *subreq)
 {
 	struct afs_operation *op;
+	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
+	struct key *key = subreq->rreq->netfs_priv;
 
 	_enter("%s{%llx:%llu.%u},%x,,,",
 	       vnode->volume->name,
 	       vnode->fid.vid,
 	       vnode->fid.vnode,
 	       vnode->fid.unique,
-	       key_serial(req->key));
+	       key_serial(key));
 
-	op = afs_alloc_operation(req->key, vnode->volume);
+	op = afs_alloc_operation(key, vnode->volume);
 	if (IS_ERR(op)) {
-		if (req->subreq)
-			netfs_read_subreq_terminated(req->subreq, PTR_ERR(op), false);
-		return PTR_ERR(op);
+		subreq->error = PTR_ERR(op);
+		netfs_read_subreq_terminated(subreq);
+		return;
 	}
 
 	afs_op_set_vnode(op, 0, vnode);
 
-	op->fetch.req	= afs_get_read(req);
+	op->fetch.subreq = subreq;
 	op->ops		= &afs_fetch_data_operation;
-	return afs_do_sync_operation(op);
-}
-
-static void afs_read_worker(struct work_struct *work)
-{
-	struct netfs_io_subrequest *subreq = container_of(work, struct netfs_io_subrequest, work);
-	struct afs_vnode *vnode = AFS_FS_I(subreq->rreq->inode);
-	struct afs_read *fsreq;
-
-	fsreq = afs_alloc_read(GFP_NOFS);
-	if (!fsreq)
-		return netfs_read_subreq_terminated(subreq, -ENOMEM, false);
-
-	fsreq->subreq	= subreq;
-	fsreq->pos	= subreq->start + subreq->transferred;
-	fsreq->len	= subreq->len   - subreq->transferred;
-	fsreq->key	= key_get(subreq->rreq->netfs_priv);
-	fsreq->vnode	= vnode;
-	fsreq->iter	= &subreq->io_iter;
 
 	trace_netfs_sreq(subreq, netfs_sreq_trace_submit);
-	afs_fetch_data(fsreq->vnode, fsreq);
-	afs_put_read(fsreq);
-}
 
-static void afs_issue_read(struct netfs_io_subrequest *subreq)
-{
-	INIT_WORK(&subreq->work, afs_read_worker);
-	queue_work(system_long_wq, &subreq->work);
-}
+	if (subreq->rreq->origin == NETFS_READAHEAD ||
+	    subreq->rreq->iocb) {
+		op->flags |= AFS_OPERATION_ASYNC;
 
-static int afs_symlink_read_folio(struct file *file, struct folio *folio)
-{
-	struct afs_vnode *vnode = AFS_FS_I(folio->mapping->host);
-	struct afs_read *fsreq;
-	int ret;
+		if (!afs_begin_vnode_operation(op)) {
+			subreq->error = afs_put_operation(op);
+			netfs_read_subreq_terminated(subreq);
+			return;
+		}
 
-	fsreq = afs_alloc_read(GFP_NOFS);
-	if (!fsreq)
-		return -ENOMEM;
+		if (!afs_select_fileserver(op)) {
+			afs_end_read(op);
+			return;
+		}
 
-	fsreq->pos	= folio_pos(folio);
-	fsreq->len	= folio_size(folio);
-	fsreq->vnode	= vnode;
-	fsreq->iter	= &fsreq->def_iter;
-	iov_iter_xarray(&fsreq->def_iter, ITER_DEST, &folio->mapping->i_pages,
-			fsreq->pos, fsreq->len);
-
-	ret = afs_fetch_data(fsreq->vnode, fsreq);
-	if (ret == 0)
-		folio_mark_uptodate(folio);
-	folio_unlock(folio);
-	return ret;
+		afs_issue_read_call(op);
+	} else {
+		afs_do_sync_operation(op);
+	}
 }
 
 static int afs_init_request(struct netfs_io_request *rreq, struct file *file)
 {
+	struct afs_vnode *vnode = AFS_FS_I(rreq->inode);
+
 	if (file)
 		rreq->netfs_priv = key_get(afs_file_key(file));
 	rreq->rsize = 256 * 1024;
 	rreq->wsize = 256 * 1024 * 1024;
+
+	switch (rreq->origin) {
+	case NETFS_READ_SINGLE:
+		if (!file) {
+			struct key *key = afs_request_key(vnode->volume->cell);
+
+			if (IS_ERR(key))
+				return PTR_ERR(key);
+			rreq->netfs_priv = key;
+		}
+		break;
+	case NETFS_WRITEBACK:
+	case NETFS_WRITETHROUGH:
+	case NETFS_UNBUFFERED_WRITE:
+	case NETFS_DIO_WRITE:
+		if (S_ISREG(rreq->inode->i_mode))
+			rreq->io_streams[0].avail = true;
+		break;
+	case NETFS_WRITEBACK_SINGLE:
+	default:
+		break;
+	}
 	return 0;
 }
 

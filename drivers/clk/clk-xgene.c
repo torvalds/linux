@@ -7,6 +7,7 @@
  */
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/string_choices.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/clkdev.h>
@@ -520,8 +521,7 @@ static int xgene_clk_is_enabled(struct clk_hw *hw)
 		data = xgene_clk_read(pclk->param.csr_reg +
 					pclk->param.reg_clk_offset);
 		pr_debug("%s clock is %s\n", clk_hw_get_name(hw),
-			data & pclk->param.reg_clk_mask ? "enabled" :
-							"disabled");
+			str_enabled_disabled(data & pclk->param.reg_clk_mask));
 	} else {
 		return 1;
 	}

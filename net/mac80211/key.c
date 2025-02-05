@@ -1409,7 +1409,7 @@ ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
 	if (sdata->u.mgd.mfp != IEEE80211_MFP_DISABLED)
 		key->conf.flags |= IEEE80211_KEY_FLAG_RX_MGMT;
 
-	key->conf.link_id = link_id;
+	key->conf.link_id = link_data->link_id;
 
 	err = ieee80211_key_link(key, link_data, NULL);
 	if (err)

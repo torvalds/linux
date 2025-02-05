@@ -13,6 +13,8 @@
 #include <linux/module.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/machine.h>
 #include <linux/types.h>
 
 struct mtk_hdmi_phy;
@@ -20,6 +22,7 @@ struct mtk_hdmi_phy;
 struct mtk_hdmi_phy_conf {
 	unsigned long flags;
 	bool pll_default_off;
+	const struct regulator_desc *hdmi_phy_regulator_desc;
 	const struct clk_ops *hdmi_phy_clk_ops;
 	void (*hdmi_phy_enable_tmds)(struct mtk_hdmi_phy *hdmi_phy);
 	void (*hdmi_phy_disable_tmds)(struct mtk_hdmi_phy *hdmi_phy);
@@ -32,6 +35,7 @@ struct mtk_hdmi_phy {
 	struct mtk_hdmi_phy_conf *conf;
 	struct clk *pll;
 	struct clk_hw pll_hw;
+	struct regulator_dev *rdev;
 	unsigned long pll_rate;
 	unsigned char drv_imp_clk;
 	unsigned char drv_imp_d2;

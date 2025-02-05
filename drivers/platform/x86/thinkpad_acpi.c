@@ -184,7 +184,8 @@ enum tpacpi_hkey_event_t {
 						   */
 	TP_HKEY_EV_AMT_TOGGLE		= 0x131a, /* Toggle AMT on/off */
 	TP_HKEY_EV_DOUBLETAP_TOGGLE	= 0x131c, /* Toggle trackpoint doubletap on/off */
-	TP_HKEY_EV_PROFILE_TOGGLE	= 0x131f, /* Toggle platform profile */
+	TP_HKEY_EV_PROFILE_TOGGLE	= 0x131f, /* Toggle platform profile in 2024 systems */
+	TP_HKEY_EV_PROFILE_TOGGLE2	= 0x1401, /* Toggle platform profile in 2025 + systems */
 
 	/* Reasons for waking up from S3/S4 */
 	TP_HKEY_EV_WKUP_S3_UNDOCK	= 0x2304, /* undock requested, S3 */
@@ -962,6 +963,7 @@ static const struct proc_ops dispatch_proc_ops = {
 static struct platform_device *tpacpi_pdev;
 static struct platform_device *tpacpi_sensors_pdev;
 static struct device *tpacpi_hwmon;
+static struct device *tpacpi_pprof;
 static struct input_dev *tpacpi_inputdev;
 static struct mutex tpacpi_inputdev_send_mutex;
 static LIST_HEAD(tpacpi_all_drivers);
@@ -3274,6 +3276,7 @@ static const struct key_entry keymap_lenovo[] __initconst = {
 	 * scancodes to preserve uAPI compatibility, see tpacpi_input_send_key().
 	 */
 	{ KE_KEY, 0x131d, { KEY_VENDOR } }, /* System debug info, similar to old ThinkPad key */
+	{ KE_KEY, 0x1320, { KEY_LINK_PHONE } },
 	{ KE_KEY, TP_HKEY_EV_TRACK_DOUBLETAP /* 0x8036 */, { KEY_PROG4 } },
 	{ KE_END }
 };
@@ -10414,7 +10417,7 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
  * dytc_profile_get: Function to register with platform_profile
  * handler. Returns current platform profile.
  */
-static int dytc_profile_get(struct platform_profile_handler *pprof,
+static int dytc_profile_get(struct device *dev,
 			    enum platform_profile_option *profile)
 {
 	*profile = dytc_current_profile;
@@ -10489,7 +10492,7 @@ static int dytc_cql_command(int command, int *output)
  * dytc_profile_set: Function to register with platform_profile
  * handler. Sets current platform profile.
  */
-static int dytc_profile_set(struct platform_profile_handler *pprof,
+static int dytc_profile_set(struct device *dev,
 			    enum platform_profile_option profile)
 {
 	int perfmode;
@@ -10538,6 +10541,21 @@ unlock:
 	return err;
 }
 
+static int dytc_profile_probe(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
+
+	return 0;
+}
+
+static const struct platform_profile_ops dytc_profile_ops = {
+	.probe = dytc_profile_probe,
+	.profile_get = dytc_profile_get,
+	.profile_set = dytc_profile_set,
+};
+
 static void dytc_profile_refresh(void)
 {
 	enum platform_profile_option profile;
@@ -10566,23 +10584,13 @@ static void dytc_profile_refresh(void)
 	err = convert_dytc_to_profile(funcmode, perfmode, &profile);
 	if (!err && profile != dytc_current_profile) {
 		dytc_current_profile = profile;
-		platform_profile_notify();
+		platform_profile_notify(tpacpi_pprof);
 	}
 }
-
-static struct platform_profile_handler dytc_profile = {
-	.profile_get = dytc_profile_get,
-	.profile_set = dytc_profile_set,
-};
 
 static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 {
 	int err, output;
-
-	/* Setup supported modes */
-	set_bit(PLATFORM_PROFILE_LOW_POWER, dytc_profile.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED, dytc_profile.choices);
-	set_bit(PLATFORM_PROFILE_PERFORMANCE, dytc_profile.choices);
 
 	err = dytc_command(DYTC_CMD_QUERY, &output);
 	if (err)
@@ -10638,12 +10646,13 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 			"DYTC version %d: thermal mode available\n", dytc_version);
 
 	/* Create platform_profile structure and register */
-	err = platform_profile_register(&dytc_profile);
+	tpacpi_pprof = devm_platform_profile_register(&tpacpi_pdev->dev, "thinkpad-acpi",
+						      NULL, &dytc_profile_ops);
 	/*
 	 * If for some reason platform_profiles aren't enabled
 	 * don't quit terminally.
 	 */
-	if (err)
+	if (IS_ERR(tpacpi_pprof))
 		return -ENODEV;
 
 	/* Ensure initial values are correct */
@@ -10656,14 +10665,8 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
-static void dytc_profile_exit(void)
-{
-	platform_profile_remove();
-}
-
 static struct ibm_struct  dytc_profile_driver_data = {
 	.name = "dytc-profile",
-	.exit = dytc_profile_exit,
 };
 
 /*************************************************************************
@@ -11200,6 +11203,7 @@ static bool tpacpi_driver_event(const unsigned int hkey_event)
 		tp_features.trackpoint_doubletap = !tp_features.trackpoint_doubletap;
 		return true;
 	case TP_HKEY_EV_PROFILE_TOGGLE:
+	case TP_HKEY_EV_PROFILE_TOGGLE2:
 		platform_profile_cycle();
 		return true;
 	}
@@ -11679,7 +11683,7 @@ static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
 			if (strlen(val) > sizeof(ibms_init[i].param) - 1)
 				return -ENOSPC;
-			strcpy(ibms_init[i].param, val);
+			strscpy(ibms_init[i].param, val);
 			return 0;
 		}
 	}

@@ -63,8 +63,8 @@ examples:
             #size-cells = <0>;
 
             ethernet@1 {
-               compatible = "usbb95,772b";
-               reg = <1>;
+                compatible = "usbb95,772b";
+                reg = <1>;
             };
         };
     };

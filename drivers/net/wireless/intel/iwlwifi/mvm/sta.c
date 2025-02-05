@@ -1520,7 +1520,12 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm,
 					   add_stream_wk);
 
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
+
+	/* will reschedule to run after restart */
+	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status) ||
+	    test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return;
 
 	iwl_mvm_inactivity_check(mvm, IWL_INVALID_STA);
 
@@ -1564,8 +1569,6 @@ void iwl_mvm_add_new_dqa_stream_wk(struct work_struct *wk)
 		iwl_mvm_mac_itxq_xmit(mvm->hw, txq);
 		local_bh_enable();
 	}
-
-	mutex_unlock(&mvm->mutex);
 }
 
 static int iwl_mvm_reserve_sta_stream(struct iwl_mvm *mvm,
@@ -2045,9 +2048,9 @@ int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
  * Returns if we're done with removing the station, either
  * with error or success
  */
-bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+void iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta,
-		     struct ieee80211_link_sta *link_sta, int *ret)
+		     struct ieee80211_link_sta *link_sta)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_vif_link_info *mvm_link =
@@ -2063,38 +2066,12 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					  lockdep_is_held(&mvm->mutex));
 	sta_id = mvm_link_sta->sta_id;
 
-	/* If there is a TXQ still marked as reserved - free it */
-	if (mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) {
-		u8 reserved_txq = mvm_sta->reserved_queue;
-		enum iwl_mvm_queue_status *status;
-
-		/*
-		 * If no traffic has gone through the reserved TXQ - it
-		 * is still marked as IWL_MVM_QUEUE_RESERVED, and
-		 * should be manually marked as free again
-		 */
-		status = &mvm->queue_info[reserved_txq].status;
-		if (WARN((*status != IWL_MVM_QUEUE_RESERVED) &&
-			 (*status != IWL_MVM_QUEUE_FREE),
-			 "sta_id %d reserved txq %d status %d",
-			 sta_id, reserved_txq, *status)) {
-			*ret = -EINVAL;
-			return true;
-		}
-
-		*status = IWL_MVM_QUEUE_FREE;
-	}
-
 	if (vif->type == NL80211_IFTYPE_STATION &&
 	    mvm_link->ap_sta_id == sta_id) {
-		/* if associated - we can't remove the AP STA now */
-		if (vif->cfg.assoc)
-			return true;
-
 		/* first remove remaining keys */
-		iwl_mvm_sec_key_remove_ap(mvm, vif, mvm_link, 0);
+		iwl_mvm_sec_key_remove_ap(mvm, vif, mvm_link,
+					  link_sta->link_id);
 
-		/* unassoc - go ahead - remove the AP STA now */
 		mvm_link->ap_sta_id = IWL_INVALID_STA;
 	}
 
@@ -2106,8 +2083,6 @@ bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		mvm->tdls_cs.peer.sta_id = IWL_INVALID_STA;
 		cancel_delayed_work(&mvm->tdls_cs.dwork);
 	}
-
-	return false;
 }
 
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
@@ -2143,8 +2118,27 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 	iwl_mvm_disable_sta_queues(mvm, vif, sta);
 
-	if (iwl_mvm_sta_del(mvm, vif, sta, &sta->deflink, &ret))
-		return ret;
+	/* If there is a TXQ still marked as reserved - free it */
+	if (mvm_sta->reserved_queue != IEEE80211_INVAL_HW_QUEUE) {
+		u8 reserved_txq = mvm_sta->reserved_queue;
+		enum iwl_mvm_queue_status *status;
+
+		/*
+		 * If no traffic has gone through the reserved TXQ - it
+		 * is still marked as IWL_MVM_QUEUE_RESERVED, and
+		 * should be manually marked as free again
+		 */
+		status = &mvm->queue_info[reserved_txq].status;
+		if (WARN((*status != IWL_MVM_QUEUE_RESERVED) &&
+			 (*status != IWL_MVM_QUEUE_FREE),
+			 "sta_id %d reserved txq %d status %d",
+			 mvm_sta->deflink.sta_id, reserved_txq, *status))
+			return -EINVAL;
+
+		*status = IWL_MVM_QUEUE_FREE;
+	}
+
+	iwl_mvm_sta_del(mvm, vif, sta, &sta->deflink);
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvm_sta->deflink.sta_id);
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[mvm_sta->deflink.sta_id], NULL);
@@ -2912,7 +2906,7 @@ int iwl_mvm_sta_rx_agg(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		/*
 		 * The division below will be OK if either the cache line size
 		 * can be divided by the entry size (ALIGN will round up) or if
-		 * if the entry size can be divided by the cache line size, in
+		 * the entry size can be divided by the cache line size, in
 		 * which case the ALIGN() will do nothing.
 		 */
 		BUILD_BUG_ON(SMP_CACHE_BYTES % sizeof(baid_data->entries[0]) &&

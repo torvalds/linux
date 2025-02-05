@@ -224,24 +224,24 @@ static ssize_t arvo_sysfs_read(struct file *fp,
 }
 
 static ssize_t arvo_sysfs_write_button(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	return arvo_sysfs_write(fp, kobj, buf, off, count,
 			sizeof(struct arvo_button), ARVO_COMMAND_BUTTON);
 }
-static BIN_ATTR(button, 0220, NULL, arvo_sysfs_write_button,
-		sizeof(struct arvo_button));
+static const BIN_ATTR(button, 0220, NULL, arvo_sysfs_write_button,
+		      sizeof(struct arvo_button));
 
 static ssize_t arvo_sysfs_read_info(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
 {
 	return arvo_sysfs_read(fp, kobj, buf, off, count,
 			sizeof(struct arvo_info), ARVO_COMMAND_INFO);
 }
-static BIN_ATTR(info, 0440, arvo_sysfs_read_info, NULL,
-		sizeof(struct arvo_info));
+static const BIN_ATTR(info, 0440, arvo_sysfs_read_info, NULL,
+		      sizeof(struct arvo_info));
 
 static struct attribute *arvo_attrs[] = {
 	&dev_attr_mode_key.attr,
@@ -250,7 +250,7 @@ static struct attribute *arvo_attrs[] = {
 	NULL,
 };
 
-static struct bin_attribute *arvo_bin_attributes[] = {
+static const struct bin_attribute *const arvo_bin_attributes[] = {
 	&bin_attr_button,
 	&bin_attr_info,
 	NULL,
@@ -258,7 +258,7 @@ static struct bin_attribute *arvo_bin_attributes[] = {
 
 static const struct attribute_group arvo_group = {
 	.attrs = arvo_attrs,
-	.bin_attrs = arvo_bin_attributes,
+	.bin_attrs_new = arvo_bin_attributes,
 };
 
 static const struct attribute_group *arvo_groups[] = {

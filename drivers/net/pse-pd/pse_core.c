@@ -6,6 +6,7 @@
 //
 
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/of.h>
 #include <linux/pse-pd/pse.h>
 #include <linux/regulator/driver.h>
@@ -210,16 +211,25 @@ out:
 static int pse_pi_is_enabled(struct regulator_dev *rdev)
 {
 	struct pse_controller_dev *pcdev = rdev_get_drvdata(rdev);
+	struct pse_admin_state admin_state = {0};
 	const struct pse_controller_ops *ops;
 	int id, ret;
 
 	ops = pcdev->ops;
-	if (!ops->pi_is_enabled)
+	if (!ops->pi_get_admin_state)
 		return -EOPNOTSUPP;
 
 	id = rdev_get_id(rdev);
 	mutex_lock(&pcdev->lock);
-	ret = ops->pi_is_enabled(pcdev, id);
+	ret = ops->pi_get_admin_state(pcdev, id, &admin_state);
+	if (ret)
+		goto out;
+
+	if (admin_state.podl_admin_state == ETHTOOL_PODL_PSE_ADMIN_STATE_ENABLED ||
+	    admin_state.c33_admin_state == ETHTOOL_C33_PSE_ADMIN_STATE_ENABLED)
+		ret = 1;
+
+out:
 	mutex_unlock(&pcdev->lock);
 
 	return ret;
@@ -291,33 +301,25 @@ static int pse_pi_get_voltage(struct regulator_dev *rdev)
 	return ret;
 }
 
-static int _pse_ethtool_get_status(struct pse_controller_dev *pcdev,
-				   int id,
-				   struct netlink_ext_ack *extack,
-				   struct pse_control_status *status);
-
 static int pse_pi_get_current_limit(struct regulator_dev *rdev)
 {
 	struct pse_controller_dev *pcdev = rdev_get_drvdata(rdev);
 	const struct pse_controller_ops *ops;
-	struct netlink_ext_ack extack = {};
-	struct pse_control_status st = {};
-	int id, uV, ret;
+	int id, uV, mW, ret;
 	s64 tmp_64;
 
 	ops = pcdev->ops;
 	id = rdev_get_id(rdev);
-	mutex_lock(&pcdev->lock);
-	if (ops->pi_get_current_limit) {
-		ret = ops->pi_get_current_limit(pcdev, id);
-		goto out;
-	}
+	if (!ops->pi_get_pw_limit || !ops->pi_get_voltage)
+		return -EOPNOTSUPP;
 
-	/* If pi_get_current_limit() callback not populated get voltage
-	 * from pi_get_voltage() and power limit from ethtool_get_status()
-	 *  to calculate current limit.
-	 */
-	ret = _pse_pi_get_voltage(rdev);
+	mutex_lock(&pcdev->lock);
+	ret = ops->pi_get_pw_limit(pcdev, id);
+	if (ret < 0)
+		goto out;
+	mW = ret;
+
+	ret = pse_pi_get_voltage(rdev);
 	if (!ret) {
 		dev_err(pcdev->dev, "Voltage null\n");
 		ret = -ERANGE;
@@ -327,16 +329,7 @@ static int pse_pi_get_current_limit(struct regulator_dev *rdev)
 		goto out;
 	uV = ret;
 
-	ret = _pse_ethtool_get_status(pcdev, id, &extack, &st);
-	if (ret)
-		goto out;
-
-	if (!st.c33_avail_pw_limit) {
-		ret = -ENODATA;
-		goto out;
-	}
-
-	tmp_64 = st.c33_avail_pw_limit;
+	tmp_64 = mW;
 	tmp_64 *= 1000000000ull;
 	/* uA = mW * 1000000000 / uV */
 	ret = DIV_ROUND_CLOSEST_ULL(tmp_64, uV);
@@ -351,15 +344,33 @@ static int pse_pi_set_current_limit(struct regulator_dev *rdev, int min_uA,
 {
 	struct pse_controller_dev *pcdev = rdev_get_drvdata(rdev);
 	const struct pse_controller_ops *ops;
-	int id, ret;
+	int id, mW, ret;
+	s64 tmp_64;
 
 	ops = pcdev->ops;
-	if (!ops->pi_set_current_limit)
+	if (!ops->pi_set_pw_limit || !ops->pi_get_voltage)
 		return -EOPNOTSUPP;
+
+	if (max_uA > MAX_PI_CURRENT)
+		return -ERANGE;
 
 	id = rdev_get_id(rdev);
 	mutex_lock(&pcdev->lock);
-	ret = ops->pi_set_current_limit(pcdev, id, max_uA);
+	ret = pse_pi_get_voltage(rdev);
+	if (!ret) {
+		dev_err(pcdev->dev, "Voltage null\n");
+		ret = -ERANGE;
+		goto out;
+	}
+	if (ret < 0)
+		goto out;
+
+	tmp_64 = ret;
+	tmp_64 *= max_uA;
+	/* mW = uA * uV / 1000000000 */
+	mW = DIV_ROUND_CLOSEST_ULL(tmp_64, 1000000000);
+	ret = ops->pi_set_pw_limit(pcdev, id, mW);
+out:
 	mutex_unlock(&pcdev->lock);
 
 	return ret;
@@ -403,17 +414,16 @@ devm_pse_pi_regulator_register(struct pse_controller_dev *pcdev,
 
 	rinit_data->constraints.valid_ops_mask = REGULATOR_CHANGE_STATUS;
 
-	if (pcdev->ops->pi_set_current_limit) {
+	if (pcdev->ops->pi_set_pw_limit)
 		rinit_data->constraints.valid_ops_mask |=
 			REGULATOR_CHANGE_CURRENT;
-		rinit_data->constraints.max_uA = MAX_PI_CURRENT;
-	}
 
 	rinit_data->supply_regulator = "vpwr";
 
 	rconfig.dev = pcdev->dev;
 	rconfig.driver_data = pcdev;
 	rconfig.init_data = rinit_data;
+	rconfig.of_node = pcdev->pi[id].np;
 
 	rdev = devm_regulator_register(pcdev->dev, rdesc, &rconfig);
 	if (IS_ERR(rdev)) {
@@ -443,6 +453,13 @@ int pse_controller_register(struct pse_controller_dev *pcdev)
 
 	if (!pcdev->nr_lines)
 		pcdev->nr_lines = 1;
+
+	if (!pcdev->ops->pi_get_admin_state ||
+	    !pcdev->ops->pi_get_pw_status) {
+		dev_err(pcdev->dev,
+			"Mandatory status report callbacks are missing");
+		return -EINVAL;
+	}
 
 	ret = of_load_pse_pis(pcdev);
 	if (ret)
@@ -736,23 +753,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(of_pse_control_get);
 
-static int _pse_ethtool_get_status(struct pse_controller_dev *pcdev,
-				   int id,
-				   struct netlink_ext_ack *extack,
-				   struct pse_control_status *status)
-{
-	const struct pse_controller_ops *ops;
-
-	ops = pcdev->ops;
-	if (!ops->ethtool_get_status) {
-		NL_SET_ERR_MSG(extack,
-			       "PSE driver does not support status report");
-		return -EOPNOTSUPP;
-	}
-
-	return ops->ethtool_get_status(pcdev, id, extack, status);
-}
-
 /**
  * pse_ethtool_get_status - get status of PSE control
  * @psec: PSE control pointer
@@ -763,15 +763,81 @@ static int _pse_ethtool_get_status(struct pse_controller_dev *pcdev,
  */
 int pse_ethtool_get_status(struct pse_control *psec,
 			   struct netlink_ext_ack *extack,
-			   struct pse_control_status *status)
+			   struct ethtool_pse_control_status *status)
 {
-	int err;
+	struct pse_admin_state admin_state = {0};
+	struct pse_pw_status pw_status = {0};
+	const struct pse_controller_ops *ops;
+	struct pse_controller_dev *pcdev;
+	int ret;
 
-	mutex_lock(&psec->pcdev->lock);
-	err = _pse_ethtool_get_status(psec->pcdev, psec->id, extack, status);
+	pcdev = psec->pcdev;
+	ops = pcdev->ops;
+	mutex_lock(&pcdev->lock);
+	ret = ops->pi_get_admin_state(pcdev, psec->id, &admin_state);
+	if (ret)
+		goto out;
+	status->podl_admin_state = admin_state.podl_admin_state;
+	status->c33_admin_state = admin_state.c33_admin_state;
+
+	ret = ops->pi_get_pw_status(pcdev, psec->id, &pw_status);
+	if (ret)
+		goto out;
+	status->podl_pw_status = pw_status.podl_pw_status;
+	status->c33_pw_status = pw_status.c33_pw_status;
+
+	if (ops->pi_get_ext_state) {
+		struct pse_ext_state_info ext_state_info = {0};
+
+		ret = ops->pi_get_ext_state(pcdev, psec->id,
+					    &ext_state_info);
+		if (ret)
+			goto out;
+
+		memcpy(&status->c33_ext_state_info,
+		       &ext_state_info.c33_ext_state_info,
+		       sizeof(status->c33_ext_state_info));
+	}
+
+	if (ops->pi_get_pw_class) {
+		ret = ops->pi_get_pw_class(pcdev, psec->id);
+		if (ret < 0)
+			goto out;
+
+		status->c33_pw_class = ret;
+	}
+
+	if (ops->pi_get_actual_pw) {
+		ret = ops->pi_get_actual_pw(pcdev, psec->id);
+		if (ret < 0)
+			goto out;
+
+		status->c33_actual_pw = ret;
+	}
+
+	if (ops->pi_get_pw_limit) {
+		ret = ops->pi_get_pw_limit(pcdev, psec->id);
+		if (ret < 0)
+			goto out;
+
+		status->c33_avail_pw_limit = ret;
+	}
+
+	if (ops->pi_get_pw_limit_ranges) {
+		struct pse_pw_limit_ranges pw_limit_ranges = {0};
+
+		ret = ops->pi_get_pw_limit_ranges(pcdev, psec->id,
+						  &pw_limit_ranges);
+		if (ret < 0)
+			goto out;
+
+		status->c33_pw_limit_ranges =
+			pw_limit_ranges.c33_pw_limit_ranges;
+		status->c33_pw_limit_nb_ranges = ret;
+	}
+out:
 	mutex_unlock(&psec->pcdev->lock);
-
-	return err;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pse_ethtool_get_status);
 
@@ -875,6 +941,9 @@ int pse_ethtool_set_pw_limit(struct pse_control *psec,
 {
 	int uV, uA, ret;
 	s64 tmp_64;
+
+	if (pw_limit > MAX_PI_PW)
+		return -ERANGE;
 
 	ret = regulator_get_voltage(psec->ps);
 	if (!ret) {

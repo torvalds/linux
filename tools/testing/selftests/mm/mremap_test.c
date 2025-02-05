@@ -34,7 +34,7 @@ struct config {
 	unsigned long long dest_alignment;
 	unsigned long long region_size;
 	int overlapping;
-	int dest_preamble_size;
+	unsigned int dest_preamble_size;
 };
 
 struct test {
@@ -328,7 +328,7 @@ static void mremap_move_within_range(unsigned int pattern_seed, char *rand_addr)
 {
 	char *test_name = "mremap mremap move within range";
 	void *src, *dest;
-	int i, success = 1;
+	unsigned int i, success = 1;
 
 	size_t size = SIZE_MB(20);
 	void *ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
@@ -384,7 +384,7 @@ out:
 static long long remap_region(struct config c, unsigned int threshold_mb,
 			      char *rand_addr)
 {
-	void *addr, *src_addr, *dest_addr, *dest_preamble_addr;
+	void *addr, *src_addr, *dest_addr, *dest_preamble_addr = NULL;
 	unsigned long long t, d;
 	struct timespec t_start = {0, 0}, t_end = {0, 0};
 	long long  start_ns, end_ns, align_mask, ret, offset;
@@ -569,7 +569,7 @@ static void mremap_move_1mb_from_start(unsigned int pattern_seed,
 {
 	char *test_name = "mremap move 1mb from start at 1MB+256KB aligned src";
 	void *src = NULL, *dest = NULL;
-	int i, success = 1;
+	unsigned int i, success = 1;
 
 	/* Config to reuse get_source_mapping() to do an aligned mmap. */
 	struct config c = {
@@ -636,7 +636,7 @@ out:
 
 static void run_mremap_test_case(struct test test_case, int *failures,
 				 unsigned int threshold_mb,
-				 unsigned int pattern_seed, char *rand_addr)
+				 char *rand_addr)
 {
 	long long remap_time = remap_region(test_case.config, threshold_mb,
 					    rand_addr);
@@ -708,7 +708,8 @@ static int parse_args(int argc, char **argv, unsigned int *threshold_mb,
 int main(int argc, char **argv)
 {
 	int failures = 0;
-	int i, run_perf_tests;
+	unsigned int i;
+	int run_perf_tests;
 	unsigned int threshold_mb = VALIDATION_DEFAULT_THRESHOLD;
 
 	/* hard-coded test configs */
@@ -831,7 +832,7 @@ int main(int argc, char **argv)
 
 	for (i = 0; i < ARRAY_SIZE(test_cases); i++)
 		run_mremap_test_case(test_cases[i], &failures, threshold_mb,
-				     pattern_seed, rand_addr);
+				     rand_addr);
 
 	maps_fp = fopen("/proc/self/maps", "r");
 
@@ -853,7 +854,7 @@ int main(int argc, char **argv)
 		 "mremap HAVE_MOVE_PMD/PUD optimization time comparison for 1GB region:");
 		for (i = 0; i < ARRAY_SIZE(perf_test_cases); i++)
 			run_mremap_test_case(perf_test_cases[i], &failures,
-					     threshold_mb, pattern_seed,
+					     threshold_mb,
 					     rand_addr);
 	}
 

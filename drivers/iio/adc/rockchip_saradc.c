@@ -363,10 +363,12 @@ static irqreturn_t rockchip_saradc_trigger_handler(int irq, void *p)
 	 */
 	struct {
 		u16 values[SARADC_MAX_CHANNELS];
-		int64_t timestamp;
+		aligned_s64 timestamp;
 	} data;
 	int ret;
 	int i, j = 0;
+
+	memset(&data, 0, sizeof(data));
 
 	mutex_lock(&info->lock);
 

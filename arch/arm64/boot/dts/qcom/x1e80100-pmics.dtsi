@@ -491,6 +491,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		status = "disabled";
+
 		smb2360_0_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";
 			reg = <0xfd00>;
@@ -503,6 +505,8 @@
 		reg = <0xa SPMI_USID>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+
+		status = "disabled";
 
 		smb2360_1_eusb2_repeater: phy@fd00 {
 			compatible = "qcom,smb2360-eusb2-repeater";

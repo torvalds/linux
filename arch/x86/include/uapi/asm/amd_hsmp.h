@@ -50,6 +50,12 @@ enum hsmp_message_ids {
 	HSMP_GET_METRIC_TABLE_VER,	/* 23h Get metrics table version */
 	HSMP_GET_METRIC_TABLE,		/* 24h Get metrics table */
 	HSMP_GET_METRIC_TABLE_DRAM_ADDR,/* 25h Get metrics table dram address */
+	HSMP_SET_XGMI_PSTATE_RANGE,	/* 26h Set xGMI P-state range */
+	HSMP_CPU_RAIL_ISO_FREQ_POLICY,	/* 27h Get/Set Cpu Iso frequency policy */
+	HSMP_DFC_ENABLE_CTRL,		/* 28h Enable/Disable DF C-state */
+	HSMP_GET_RAPL_UNITS = 0x30,	/* 30h Get scaling factor for energy */
+	HSMP_GET_RAPL_CORE_COUNTER,	/* 31h Get core energy counter value */
+	HSMP_GET_RAPL_PACKAGE_COUNTER,	/* 32h Get package energy counter value */
 	HSMP_MSG_ID_MAX,
 };
 
@@ -65,6 +71,7 @@ enum hsmp_msg_type {
 	HSMP_RSVD = -1,
 	HSMP_SET  = 0,
 	HSMP_GET  = 1,
+	HSMP_SET_GET	= 2,
 };
 
 enum hsmp_proto_versions {
@@ -72,7 +79,8 @@ enum hsmp_proto_versions {
 	HSMP_PROTO_VER3,
 	HSMP_PROTO_VER4,
 	HSMP_PROTO_VER5,
-	HSMP_PROTO_VER6
+	HSMP_PROTO_VER6,
+	HSMP_PROTO_VER7
 };
 
 struct hsmp_msg_desc {
@@ -300,7 +308,7 @@ static const struct hsmp_msg_desc hsmp_msg_desc_table[]
 	 * HSMP_SET_POWER_MODE, num_args = 1, response_sz = 0
 	 * input: args[0] = power efficiency mode[2:0]
 	 */
-	{1, 0, HSMP_SET},
+	{1, 1, HSMP_SET_GET},
 
 	/*
 	 * HSMP_SET_PSTATE_MAX_MIN, num_args = 1, response_sz = 0
@@ -325,6 +333,58 @@ static const struct hsmp_msg_desc hsmp_msg_desc_table[]
 	 * output: args[1] = upper 32 bits of the address
 	 */
 	{0, 2, HSMP_GET},
+
+	/*
+	 * HSMP_SET_XGMI_PSTATE_RANGE, num_args = 1, response_sz = 0
+	 * input: args[0] = min xGMI p-state[15:8] + max xGMI p-state[7:0]
+	 */
+	{1, 0, HSMP_SET},
+
+	/*
+	 * HSMP_CPU_RAIL_ISO_FREQ_POLICY, num_args = 1, response_sz = 1
+	 * input: args[0] = set/get policy[31] +
+	 * disable/enable independent control[0]
+	 * output: args[0] = current policy[0]
+	 */
+	{1, 1, HSMP_SET_GET},
+
+	/*
+	 * HSMP_DFC_ENABLE_CTRL, num_args = 1, response_sz = 1
+	 * input: args[0] = set/get policy[31] + enable/disable DFC[0]
+	 * output: args[0] = current policy[0]
+	 */
+	{1, 1, HSMP_SET_GET},
+
+	/* RESERVED(0x29-0x2f) */
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+	{0, 0, HSMP_RSVD},
+
+	/*
+	 * HSMP_GET_RAPL_UNITS, response_sz = 1
+	 * output: args[0] = tu value[19:16] + esu value[12:8]
+	 */
+	{0, 1, HSMP_GET},
+
+	/*
+	 * HSMP_GET_RAPL_CORE_COUNTER, num_args = 1, response_sz = 1
+	 * input: args[0] = apic id[15:0]
+	 * output: args[0] = lower 32 bits of energy
+	 * output: args[1] = upper 32 bits of energy
+	 */
+	{1, 2, HSMP_GET},
+
+	/*
+	 * HSMP_GET_RAPL_PACKAGE_COUNTER, num_args = 0, response_sz = 1
+	 * output: args[0] = lower 32 bits of energy
+	 * output: args[1] = upper 32 bits of energy
+	 */
+	{0, 2, HSMP_GET},
+
 };
 
 /* Metrics table (supported only with proto version 6) */

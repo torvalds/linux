@@ -287,6 +287,8 @@ delay-objtool := $(or $(CONFIG_LTO_CLANG),$(CONFIG_X86_KERNEL_IBT))
 cmd_objtool = $(if $(objtool-enabled), ; $(objtool) $(objtool-args) $@)
 cmd_gen_objtooldep = $(if $(objtool-enabled), { echo ; echo '$@: $$(wildcard $(objtool))' ; } >> $(dot-target).cmd)
 
+objtool-enabled := y
+
 endif # CONFIG_OBJTOOL
 
 # Useful for describing the dependency of composite objects
@@ -302,11 +304,11 @@ endef
 # ===========================================================================
 # These are shared by some Makefile.* files.
 
-objtool-enabled := y
-
 ifdef CONFIG_LTO_CLANG
-# objtool cannot process LLVM IR. Make $(LD) covert LLVM IR to ELF here.
-cmd_ld_single = $(if $(objtool-enabled), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
+# Run $(LD) here to covert LLVM IR to ELF in the following cases:
+#  - when this object needs objtool processing, as objtool cannot process LLVM IR
+#  - when this is a single-object module, as modpost cannot process LLVM IR
+cmd_ld_single = $(if $(objtool-enabled)$(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
 endif
 
 quiet_cmd_cc_o_c = CC $(quiet_modtag)  $@
@@ -373,6 +375,9 @@ quiet_cmd_ar = AR      $@
 
 quiet_cmd_objcopy = OBJCOPY $@
 cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
+
+quiet_cmd_strip_relocs = RSTRIP  $@
+cmd_strip_relocs = $(OBJCOPY) --remove-section='.rel*' $@
 
 # Gzip
 # ---------------------------------------------------------------------------

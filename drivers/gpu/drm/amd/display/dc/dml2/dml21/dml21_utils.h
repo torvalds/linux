@@ -18,10 +18,10 @@ struct dml2_display_ttu_regs;
 int dml21_helper_find_dml_pipe_idx_by_stream_id(struct dml2_context *ctx, unsigned int stream_id);
 int dml21_find_dml_pipe_idx_by_plane_id(struct dml2_context *ctx, unsigned int plane_id);
 bool dml21_get_plane_id(const struct dc_state *state, const struct dc_plane_state *plane, unsigned int *plane_id);
-void dml21_update_pipe_ctx_dchub_regs(struct dml2_display_rq_regs *rq_regs,
-	struct dml2_display_dlg_regs *disp_dlg_regs,
-	struct dml2_display_ttu_regs *disp_ttu_regs,
-	struct pipe_ctx *out);
+void dml21_pipe_populate_global_sync(struct dml2_context *dml_ctx,
+		struct dc_state *context,
+		struct pipe_ctx *pipe_ctx,
+		struct dml2_per_stream_programming *stream_programming);
 void dml21_populate_mall_allocation_size(struct dc_state *context,
 		struct dml2_context *in_ctx,
 		struct dml2_per_plane_programming *pln_prog,

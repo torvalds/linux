@@ -118,7 +118,7 @@ static bool test_vendor_specific_check(const struct resctrl_test *test)
 
 static void run_single_test(const struct resctrl_test *test, const struct user_params *uparams)
 {
-	int ret;
+	int ret, snc_mode;
 
 	if (test->disabled)
 		return;
@@ -128,7 +128,14 @@ static void run_single_test(const struct resctrl_test *test, const struct user_p
 		return;
 	}
 
+	snc_mode = snc_nodes_per_l3_cache();
+
 	ksft_print_msg("Starting %s test ...\n", test->name);
+
+	if (snc_mode == 1 && snc_unreliable && get_vendor() == ARCH_INTEL) {
+		ksft_test_result_skip("SNC detection unreliable due to offline CPUs. Test results may not be accurate if SNC enabled.\n");
+		return;
+	}
 
 	if (test_prepare(test)) {
 		ksft_exit_fail_msg("Abnormal failure when preparing for the test\n");

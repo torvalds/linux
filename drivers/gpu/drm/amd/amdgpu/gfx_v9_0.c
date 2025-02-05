@@ -4964,8 +4964,6 @@ static void gfx_v9_0_update_medium_grain_clock_gating(struct amdgpu_device *adev
 {
 	uint32_t data, def;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
-
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
 		/* 1 - RLC_CGTT_MGCG_OVERRIDE */
@@ -5030,8 +5028,6 @@ static void gfx_v9_0_update_medium_grain_clock_gating(struct amdgpu_device *adev
 			WREG32_SOC15(GC, 0, mmCP_MEM_SLP_CNTL, data);
 		}
 	}
-
-	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 }
 
 static void gfx_v9_0_update_3d_clock_gating(struct amdgpu_device *adev,
@@ -5041,8 +5037,6 @@ static void gfx_v9_0_update_3d_clock_gating(struct amdgpu_device *adev,
 
 	if (!adev->gfx.num_gfx_rings)
 		return;
-
-	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	/* Enable 3D CGCG/CGLS */
 	if (enable) {
@@ -5085,16 +5079,12 @@ static void gfx_v9_0_update_3d_clock_gating(struct amdgpu_device *adev,
 		if (def != data)
 			WREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL_3D, data);
 	}
-
-	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 }
 
 static void gfx_v9_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
 						      bool enable)
 {
 	uint32_t def, data;
-
-	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
 		def = data = RREG32_SOC15(GC, 0, mmRLC_CGTT_MGCG_OVERRIDE);
@@ -5137,13 +5127,12 @@ static void gfx_v9_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 		if (def != data)
 			WREG32_SOC15(GC, 0, mmRLC_CGCG_CGLS_CTRL, data);
 	}
-
-	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 }
 
 static int gfx_v9_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 					    bool enable)
 {
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 	if (enable) {
 		/* CGCG/CGLS should be enabled after MGCG/MGLS
 		 * ===  MGCG + MGLS ===
@@ -5163,6 +5152,7 @@ static int gfx_v9_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 		/* ===  MGCG + MGLS === */
 		gfx_v9_0_update_medium_grain_clock_gating(adev, enable);
 	}
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 	return 0;
 }
 

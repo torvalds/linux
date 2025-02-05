@@ -13,7 +13,6 @@
 #include <linux/mutex.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
-#include <linux/blk-mq-pci.h>
 #include <linux/refcount.h>
 #include <linux/crash_dump.h>
 #include <linux/trace_events.h>
@@ -1934,7 +1933,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 }
 
 static int
-qla2xxx_slave_alloc(struct scsi_device *sdev)
+qla2xxx_sdev_init(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
@@ -1947,7 +1946,7 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-qla2xxx_slave_configure(struct scsi_device *sdev)
+qla2xxx_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	scsi_qla_host_t *vha = shost_priv(sdev->host);
 	struct req_que *req = vha->req;
@@ -1957,7 +1956,7 @@ qla2xxx_slave_configure(struct scsi_device *sdev)
 }
 
 static void
-qla2xxx_slave_destroy(struct scsi_device *sdev)
+qla2xxx_sdev_destroy(struct scsi_device *sdev)
 {
 	sdev->hostdata = NULL;
 }
@@ -8071,7 +8070,8 @@ static void qla2xxx_map_queues(struct Scsi_Host *shost)
 	if (USER_CTRL_IRQ(vha->hw) || !vha->hw->mqiobase)
 		blk_mq_map_queues(qmap);
 	else
-		blk_mq_pci_map_queues(qmap, vha->hw->pdev, vha->irq_offset);
+		blk_mq_map_hw_queues(qmap, &vha->hw->pdev->dev,
+				       vha->irq_offset);
 }
 
 struct scsi_host_template qla2xxx_driver_template = {
@@ -8087,10 +8087,10 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.eh_bus_reset_handler	= qla2xxx_eh_bus_reset,
 	.eh_host_reset_handler	= qla2xxx_eh_host_reset,
 
-	.slave_configure	= qla2xxx_slave_configure,
+	.sdev_configure		= qla2xxx_sdev_configure,
 
-	.slave_alloc		= qla2xxx_slave_alloc,
-	.slave_destroy		= qla2xxx_slave_destroy,
+	.sdev_init		= qla2xxx_sdev_init,
+	.sdev_destroy		= qla2xxx_sdev_destroy,
 	.scan_finished		= qla2xxx_scan_finished,
 	.scan_start		= qla2xxx_scan_start,
 	.change_queue_depth	= scsi_change_queue_depth,
@@ -8116,7 +8116,7 @@ static const struct pci_error_handlers qla2xxx_err_handler = {
 	.reset_done = qla_pci_reset_done,
 };
 
-static struct pci_device_id qla2xxx_pci_tbl[] = {
+static const struct pci_device_id qla2xxx_pci_tbl[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2100) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2200) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, PCI_DEVICE_ID_QLOGIC_ISP2300) },

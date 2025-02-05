@@ -431,7 +431,7 @@ static void __init resource_init(void)
 
 	num_standard_resources = memblock.memory.cnt;
 	res_size = num_standard_resources * sizeof(*standard_resources);
-	standard_resources = memblock_alloc(res_size, SMP_CACHE_BYTES);
+	standard_resources = memblock_alloc_or_panic(res_size, SMP_CACHE_BYTES);
 
 	for_each_mem_region(region) {
 		res = &standard_resources[i++];

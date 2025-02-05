@@ -212,7 +212,7 @@ static bool add_margin_and_round_to_dfs_grainularity(double clock_khz, double ma
 
 	clock_khz *= 1.0 + margin;
 
-	divider = (unsigned int)(DFS_DIVIDER_RANGE_SCALE_FACTOR * (vco_freq_khz / clock_khz));
+	divider = (unsigned int)((int)DFS_DIVIDER_RANGE_SCALE_FACTOR * (vco_freq_khz / clock_khz));
 
 	/* we want to floor here to get higher clock than required rather than lower */
 	if (divider < DFS_DIVIDER_RANGE_2_START) {
@@ -417,11 +417,11 @@ static bool map_min_clocks_to_dpm(const struct dml2_core_mode_support_result *mo
 
 static bool are_timings_trivially_synchronizable(struct dml2_display_cfg *display_config, int mask)
 {
-	unsigned char i;
+	unsigned int i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned char remap_array[DML2_MAX_PLANES];
-	unsigned char remap_array_size = 0;
+	unsigned int remap_array[DML2_MAX_PLANES];
+	unsigned int remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->num_streams; i++) {
@@ -456,10 +456,10 @@ static bool are_timings_trivially_synchronizable(struct dml2_display_cfg *displa
 
 static int find_smallest_idle_time_in_vblank_us(struct dml2_dpmm_map_mode_to_soc_dpm_params_in_out *in_out, int mask)
 {
-	unsigned char i;
+	unsigned int i;
 	int min_idle_us = 0;
-	unsigned char remap_array[DML2_MAX_PLANES];
-	unsigned char remap_array_size = 0;
+	unsigned int remap_array[DML2_MAX_PLANES];
+	unsigned int remap_array_size = 0;
 	const struct dml2_core_mode_support_result *mode_support_result = &in_out->display_cfg->mode_support_result;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies

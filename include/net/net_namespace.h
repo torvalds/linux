@@ -210,6 +210,8 @@ void net_ns_barrier(void);
 
 struct ns_common *get_net_ns(struct ns_common *ns);
 struct net *get_net_ns_by_fd(int fd);
+extern struct task_struct *cleanup_net_task;
+
 #else /* CONFIG_NET_NS */
 #include <linux/sched.h>
 #include <linux/nsproxy.h>

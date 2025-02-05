@@ -2120,7 +2120,7 @@ static int pf_validate_vf_config(struct xe_gt *gt, unsigned int vfid)
 	valid_any = valid_any || (valid_ggtt && is_primary);
 
 	if (IS_DGFX(xe)) {
-		bool valid_lmem = pf_get_vf_config_ggtt(primary_gt, vfid);
+		bool valid_lmem = pf_get_vf_config_lmem(primary_gt, vfid);
 
 		valid_any = valid_any || (valid_lmem && is_primary);
 		valid_all = valid_all && valid_lmem;
@@ -2161,7 +2161,7 @@ bool xe_gt_sriov_pf_config_is_empty(struct xe_gt *gt, unsigned int vfid)
  *
  * This function can only be called on PF.
  *
- * Return: mininum size of the buffer or the number of bytes saved,
+ * Return: minimum size of the buffer or the number of bytes saved,
  *         or a negative error code on failure.
  */
 ssize_t xe_gt_sriov_pf_config_save(struct xe_gt *gt, unsigned int vfid, void *buf, size_t size)

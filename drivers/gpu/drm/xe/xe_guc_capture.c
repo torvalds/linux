@@ -1955,7 +1955,7 @@ xe_engine_snapshot_capture_for_queue(struct xe_exec_queue *q)
 }
 
 /*
- * xe_guc_capture_put_matched_nodes - Cleanup macthed nodes
+ * xe_guc_capture_put_matched_nodes - Cleanup matched nodes
  * @guc: The GuC object
  *
  * Free matched node and all nodes with the equal guc_id from
