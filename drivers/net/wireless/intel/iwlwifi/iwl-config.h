@@ -552,9 +552,6 @@ extern const char iwl_fm_name[];
 extern const char iwl_wh_name[];
 extern const char iwl_gl_name[];
 extern const char iwl_mtp_name[];
-extern const char iwl_sc_name[];
-extern const char iwl_sc2_name[];
-extern const char iwl_sc2f_name[];
 extern const char iwl_dr_name[];
 extern const char iwl_br_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
