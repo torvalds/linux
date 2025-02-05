@@ -222,29 +222,8 @@ static int sdw_master_read_intel_prop(struct sdw_bus *bus)
 
 static int intel_prop_read(struct sdw_bus *bus)
 {
-	struct sdw_master_prop *prop;
-
 	/* Initialize with default handler to read all DisCo properties */
 	sdw_master_read_prop(bus);
-
-	/*
-	 * Only one bus frequency is supported so far, filter
-	 * frequencies reported in the DSDT
-	 */
-	prop = &bus->prop;
-	if (prop->clk_freq && prop->num_clk_freq > 1) {
-		unsigned int default_bus_frequency;
-
-		default_bus_frequency =
-			prop->default_frame_rate *
-			prop->default_row *
-			prop->default_col /
-			SDW_DOUBLE_RATE_FACTOR;
-
-		prop->num_clk_freq = 1;
-		prop->clk_freq[0] = default_bus_frequency;
-		prop->max_clk_freq = default_bus_frequency;
-	}
 
 	/* read Intel-specific properties */
 	sdw_master_read_intel_prop(bus);
