@@ -2954,7 +2954,7 @@ static int lpuart_probe(struct platform_device *pdev)
 		goto failed_attach_port;
 
 	ret = devm_request_irq(&pdev->dev, sport->port.irq, handler, 0,
-				DRIVER_NAME, sport);
+			       dev_name(&pdev->dev), sport);
 	if (ret)
 		goto failed_irq_request;
 
