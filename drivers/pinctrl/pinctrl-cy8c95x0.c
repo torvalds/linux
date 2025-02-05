@@ -502,7 +502,8 @@ static int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
 	if (ret < 0)
 		return ret;
 
-	/* Mimic what hardware does and update the cache when a WC bit is written.
+	/*
+	 * Mimic what hardware does and update the cache when a WC bit is written.
 	 * Allows to mark the registers as non-volatile and reduces I/O cycles.
 	 */
 	if (cy8c95x0_wc_register(reg) && (mask & val)) {
