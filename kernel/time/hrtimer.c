@@ -1597,11 +1597,6 @@ static inline int hrtimer_clockid_to_base(clockid_t clock_id)
 	return HRTIMER_BASE_MONOTONIC;
 }
 
-static enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
-{
-	return HRTIMER_NORESTART;
-}
-
 static void __hrtimer_init(struct hrtimer *timer, clockid_t clock_id,
 			   enum hrtimer_mode mode)
 {

@@ -223,6 +223,11 @@ static inline void hrtimer_cancel_wait_running(struct hrtimer *timer)
 }
 #endif
 
+static inline enum hrtimer_restart hrtimer_dummy_timeout(struct hrtimer *unused)
+{
+	return HRTIMER_NORESTART;
+}
+
 /* Exported timer functions: */
 
 /* Initialize timers: */
