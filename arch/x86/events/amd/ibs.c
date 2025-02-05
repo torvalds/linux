@@ -629,6 +629,7 @@ PMU_EVENT_ATTR_STRING(l3missonly, op_l3missonly, "config:16");
 PMU_EVENT_ATTR_STRING(ldlat, ibs_op_ldlat_format, "config1:0-11");
 PMU_EVENT_ATTR_STRING(zen4_ibs_extensions, zen4_ibs_extensions, "1");
 PMU_EVENT_ATTR_STRING(ldlat, ibs_op_ldlat_cap, "1");
+PMU_EVENT_ATTR_STRING(dtlb_pgsize, ibs_op_dtlb_pgsize_cap, "1");
 
 static umode_t
 zen4_ibs_extensions_is_visible(struct kobject *kobj, struct attribute *attr, int i)
@@ -640,6 +641,12 @@ static umode_t
 ibs_op_ldlat_is_visible(struct kobject *kobj, struct attribute *attr, int i)
 {
 	return ibs_caps & IBS_CAPS_OPLDLAT ? attr->mode : 0;
+}
+
+static umode_t
+ibs_op_dtlb_pgsize_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return ibs_caps & IBS_CAPS_OPDTLBPGSIZE ? attr->mode : 0;
 }
 
 static struct attribute *fetch_attrs[] = {
@@ -660,6 +667,11 @@ static struct attribute *zen4_ibs_extensions_attrs[] = {
 
 static struct attribute *ibs_op_ldlat_cap_attrs[] = {
 	&ibs_op_ldlat_cap.attr.attr,
+	NULL,
+};
+
+static struct attribute *ibs_op_dtlb_pgsize_cap_attrs[] = {
+	&ibs_op_dtlb_pgsize_cap.attr.attr,
 	NULL,
 };
 
@@ -684,6 +696,12 @@ static struct attribute_group group_ibs_op_ldlat_cap = {
 	.name = "caps",
 	.attrs = ibs_op_ldlat_cap_attrs,
 	.is_visible = ibs_op_ldlat_is_visible,
+};
+
+static struct attribute_group group_ibs_op_dtlb_pgsize_cap = {
+	.name = "caps",
+	.attrs = ibs_op_dtlb_pgsize_cap_attrs,
+	.is_visible = ibs_op_dtlb_pgsize_is_visible,
 };
 
 static const struct attribute_group *fetch_attr_groups[] = {
@@ -759,6 +777,7 @@ static const struct attribute_group *op_attr_update[] = {
 	&group_zen4_ibs_extensions,
 	&group_ibs_op_ldlat_cap,
 	&group_ibs_op_ldlat_format,
+	&group_ibs_op_dtlb_pgsize_cap,
 	NULL,
 };
 
@@ -1005,6 +1024,10 @@ static void perf_ibs_get_tlb_lvl(union ibs_op_data3 *op_data3,
 	data_src->mem_dtlb = PERF_MEM_TLB_NA;
 
 	if (!op_data3->dc_lin_addr_valid)
+		return;
+
+	if ((ibs_caps & IBS_CAPS_OPDTLBPGSIZE) &&
+	    !op_data3->dc_phy_addr_valid)
 		return;
 
 	if (!op_data3->dc_l1tlb_miss) {
