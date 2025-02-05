@@ -699,7 +699,7 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 	if (min_perf < lowest_nonlinear_perf)
 		min_perf = lowest_nonlinear_perf;
 
-	max_perf = cap_perf;
+	max_perf = cpudata->max_limit_perf;
 	if (max_perf < min_perf)
 		max_perf = min_perf;
 
