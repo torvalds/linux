@@ -21,6 +21,9 @@
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
 #include "xfs_trace.h"
+#include "xfs_rtalloc.h"
+#include "xfs_rtrmap_btree.h"
+#include "xfs_rtrefcount_btree.h"
 
 /*
  * Write new AG headers to disk. Non-transactional, but need to be
@@ -87,6 +90,7 @@ xfs_growfs_data_private(
 	struct xfs_mount	*mp,		/* mount point for filesystem */
 	struct xfs_growfs_data	*in)		/* growfs data input struct */
 {
+	xfs_agnumber_t		oagcount = mp->m_sb.sb_agcount;
 	struct xfs_buf		*bp;
 	int			error;
 	xfs_agnumber_t		nagcount;
@@ -94,7 +98,6 @@ xfs_growfs_data_private(
 	xfs_rfsblock_t		nb, nb_div, nb_mod;
 	int64_t			delta;
 	bool			lastag_extended = false;
-	xfs_agnumber_t		oagcount;
 	struct xfs_trans	*tp;
 	struct aghdr_init_data	id = {};
 	struct xfs_perag	*last_pag;
@@ -112,6 +115,12 @@ xfs_growfs_data_private(
 			return error;
 		xfs_buf_relse(bp);
 	}
+
+	/* Make sure the new fs size won't cause problems with the log. */
+	error = xfs_growfs_check_rtgeom(mp, nb, mp->m_sb.sb_rblocks,
+			mp->m_sb.sb_rextsize);
+	if (error)
+		return error;
 
 	nb_div = nb;
 	nb_mod = do_div(nb_div, mp->m_sb.sb_agblocks);
@@ -138,16 +147,14 @@ xfs_growfs_data_private(
 	if (delta == 0)
 		return 0;
 
-	oagcount = mp->m_sb.sb_agcount;
-	/* allocate the new per-ag structures */
-	if (nagcount > oagcount) {
-		error = xfs_initialize_perag(mp, nagcount, nb, &nagimax);
-		if (error)
-			return error;
-	} else if (nagcount < oagcount) {
-		/* TODO: shrinking the entire AGs hasn't yet completed */
+	/* TODO: shrinking the entire AGs hasn't yet completed */
+	if (nagcount < oagcount)
 		return -EINVAL;
-	}
+
+	/* allocate the new per-ag structures */
+	error = xfs_initialize_perag(mp, oagcount, nagcount, nb, &nagimax);
+	if (error)
+		return error;
 
 	if (delta > 0)
 		error = xfs_trans_alloc(mp, &M_RES(mp)->tr_growdata,
@@ -164,9 +171,7 @@ xfs_growfs_data_private(
 		error = xfs_resizefs_init_new_ags(tp, &id, oagcount, nagcount,
 				delta, last_pag, &lastag_extended);
 	} else {
-		xfs_warn_mount(mp, XFS_OPSTATE_WARNED_SHRINK,
-	"EXPERIMENTAL online shrink feature in use. Use at your own risk!");
-
+		xfs_warn_experimental(mp, XFS_EXPERIMENTAL_SHRINK);
 		error = xfs_ag_shrink_space(last_pag, &tp, -delta);
 	}
 	xfs_perag_put(last_pag);
@@ -213,10 +218,8 @@ xfs_growfs_data_private(
 			struct xfs_perag	*pag;
 
 			pag = xfs_perag_get(mp, id.agno);
-			error = xfs_ag_resv_free(pag);
+			xfs_ag_resv_free(pag);
 			xfs_perag_put(pag);
-			if (error)
-				return error;
 		}
 		/*
 		 * Reserve AG metadata blocks. ENOSPC here does not mean there
@@ -226,14 +229,19 @@ xfs_growfs_data_private(
 		error = xfs_fs_reserve_ag_blocks(mp);
 		if (error == -ENOSPC)
 			error = 0;
+
+		/* Compute new maxlevels for rt btrees. */
+		xfs_rtrmapbt_compute_maxlevels(mp);
+		xfs_rtrefcountbt_compute_maxlevels(mp);
 	}
+
 	return error;
 
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 out_free_unused_perag:
 	if (nagcount > oagcount)
-		xfs_free_unused_perag_range(mp, oagcount, nagcount);
+		xfs_free_perag_range(mp, oagcount, nagcount);
 	return error;
 }
 
@@ -385,14 +393,14 @@ xfs_reserve_blocks(
 	 */
 	if (mp->m_resblks > request) {
 		lcounter = mp->m_resblks_avail - request;
-		if (lcounter  > 0) {		/* release unused blocks */
+		if (lcounter > 0) {		/* release unused blocks */
 			fdblks_delta = lcounter;
 			mp->m_resblks_avail -= lcounter;
 		}
 		mp->m_resblks = request;
 		if (fdblks_delta) {
 			spin_unlock(&mp->m_sb_lock);
-			error = xfs_mod_fdblocks(mp, fdblks_delta, 0);
+			xfs_add_fdblocks(mp, fdblks_delta);
 			spin_lock(&mp->m_sb_lock);
 		}
 
@@ -428,9 +436,9 @@ xfs_reserve_blocks(
 		 */
 		fdblks_delta = min(free, delta);
 		spin_unlock(&mp->m_sb_lock);
-		error = xfs_mod_fdblocks(mp, -fdblks_delta, 0);
+		error = xfs_dec_fdblocks(mp, fdblks_delta, 0);
 		if (!error)
-			xfs_mod_fdblocks(mp, fdblks_delta, 0);
+			xfs_add_fdblocks(mp, fdblks_delta);
 		spin_lock(&mp->m_sb_lock);
 	}
 out:
@@ -487,7 +495,7 @@ xfs_do_force_shutdown(
 	const char	*why;
 
 
-	if (test_and_set_bit(XFS_OPSTATE_SHUTDOWN, &mp->m_opstate)) {
+	if (xfs_set_shutdown(mp)) {
 		xlog_shutdown_wait(mp->m_log);
 		return;
 	}
@@ -532,13 +540,12 @@ int
 xfs_fs_reserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
-	struct xfs_perag	*pag;
+	struct xfs_perag	*pag = NULL;
 	int			error = 0;
 	int			err2;
 
 	mp->m_finobt_nores = false;
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		err2 = xfs_ag_resv_init(pag, NULL);
 		if (err2 && !error)
 			error = err2;
@@ -548,6 +555,19 @@ xfs_fs_reserve_ag_blocks(
 		xfs_warn(mp,
 	"Error %d reserving per-AG metadata reserve pool.", error);
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		return error;
+	}
+
+	if (xfs_has_realtime(mp)) {
+		err2 = xfs_rt_resv_init(mp);
+		if (err2 && err2 != -ENOSPC) {
+			xfs_warn(mp,
+		"Error %d reserving realtime metadata reserve pool.", err2);
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		}
+
+		if (err2 && !error)
+			error = err2;
 	}
 
 	return error;
@@ -556,24 +576,15 @@ xfs_fs_reserve_ag_blocks(
 /*
  * Free space reserved for per-AG metadata.
  */
-int
+void
 xfs_fs_unreserve_ag_blocks(
 	struct xfs_mount	*mp)
 {
-	xfs_agnumber_t		agno;
-	struct xfs_perag	*pag;
-	int			error = 0;
-	int			err2;
+	struct xfs_perag	*pag = NULL;
 
-	for_each_perag(mp, agno, pag) {
-		err2 = xfs_ag_resv_free(pag);
-		if (err2 && !error)
-			error = err2;
-	}
+	if (xfs_has_realtime(mp))
+		xfs_rt_resv_free(mp);
 
-	if (error)
-		xfs_warn(mp,
-	"Error %d freeing per-AG metadata reserve pool.", error);
-
-	return error;
+	while ((pag = xfs_perag_next(mp, pag)))
+		xfs_ag_resv_free(pag);
 }

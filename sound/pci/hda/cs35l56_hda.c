@@ -50,10 +50,18 @@ static const struct reg_sequence cs35l56_hda_dai_config[] = {
 
 };
 
+static void cs35l56_hda_wait_dsp_ready(struct cs35l56_hda *cs35l56)
+{
+	/* Wait for patching to complete */
+	flush_work(&cs35l56->dsp_work);
+}
+
 static void cs35l56_hda_play(struct cs35l56_hda *cs35l56)
 {
 	unsigned int val;
 	int ret;
+
+	cs35l56_hda_wait_dsp_ready(cs35l56);
 
 	pm_runtime_get_sync(cs35l56->base.dev);
 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_PLAY);
@@ -143,10 +151,6 @@ static int cs35l56_hda_runtime_resume(struct device *dev)
 		}
 	}
 
-	ret = cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
-	if (ret)
-		goto err;
-
 	return 0;
 
 err:
@@ -180,6 +184,8 @@ static int cs35l56_hda_mixer_get(struct snd_kcontrol *kcontrol,
 	unsigned int reg_val;
 	int i;
 
+	cs35l56_hda_wait_dsp_ready(cs35l56);
+
 	regmap_read(cs35l56->base.regmap, kcontrol->private_value, &reg_val);
 	reg_val &= CS35L56_ASP_TXn_SRC_MASK;
 
@@ -202,6 +208,8 @@ static int cs35l56_hda_mixer_put(struct snd_kcontrol *kcontrol,
 
 	if (item >= CS35L56_NUM_INPUT_SRC)
 		return -EINVAL;
+
+	cs35l56_hda_wait_dsp_ready(cs35l56);
 
 	regmap_update_bits_check(cs35l56->base.regmap, kcontrol->private_value,
 				 CS35L56_INPUT_MASK, cs35l56_tx_input_values[item],
@@ -227,6 +235,8 @@ static int cs35l56_hda_posture_get(struct snd_kcontrol *kcontrol,
 	unsigned int pos;
 	int ret;
 
+	cs35l56_hda_wait_dsp_ready(cs35l56);
+
 	ret = regmap_read(cs35l56->base.regmap, CS35L56_MAIN_POSTURE_NUMBER, &pos);
 	if (ret)
 		return ret;
@@ -247,6 +257,8 @@ static int cs35l56_hda_posture_put(struct snd_kcontrol *kcontrol,
 	if ((pos < CS35L56_MAIN_POSTURE_MIN) ||
 	    (pos > CS35L56_MAIN_POSTURE_MAX))
 		return -EINVAL;
+
+	cs35l56_hda_wait_dsp_ready(cs35l56);
 
 	ret = regmap_update_bits_check(cs35l56->base.regmap,
 				       CS35L56_MAIN_POSTURE_NUMBER,
@@ -291,6 +303,8 @@ static int cs35l56_hda_vol_get(struct snd_kcontrol *kcontrol,
 	int vol;
 	int ret;
 
+	cs35l56_hda_wait_dsp_ready(cs35l56);
+
 	ret = regmap_read(cs35l56->base.regmap, CS35L56_MAIN_RENDER_USER_VOLUME, &raw_vol);
 
 	if (ret)
@@ -322,6 +336,8 @@ static int cs35l56_hda_vol_put(struct snd_kcontrol *kcontrol,
 
 	raw_vol = (vol + CS35L56_MAIN_RENDER_USER_VOLUME_MIN) <<
 		  CS35L56_MAIN_RENDER_USER_VOLUME_SHIFT;
+
+	cs35l56_hda_wait_dsp_ready(cs35l56);
 
 	ret = regmap_update_bits_check(cs35l56->base.regmap,
 				       CS35L56_MAIN_RENDER_USER_VOLUME,
@@ -393,7 +409,7 @@ static void cs35l56_hda_remove_controls(struct cs35l56_hda *cs35l56)
 }
 
 static const struct cs_dsp_client_ops cs35l56_hda_client_ops = {
-	.control_remove = hda_cs_dsp_control_remove,
+	/* cs_dsp requires the client to provide this even if it is empty */
 };
 
 static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
@@ -539,17 +555,6 @@ static void cs35l56_hda_release_firmware_files(const struct firmware *wmfw_firmw
 	kfree(coeff_filename);
 }
 
-static void cs35l56_hda_add_dsp_controls(struct cs35l56_hda *cs35l56)
-{
-	struct hda_cs_dsp_ctl_info info;
-
-	info.device_name = cs35l56->amp_name;
-	info.fw_type = HDA_CS_DSP_FW_MISC;
-	info.card = cs35l56->codec->card;
-
-	hda_cs_dsp_add_controls(&cs35l56->cs_dsp, &info);
-}
-
 static void cs35l56_hda_apply_calibration(struct cs35l56_hda *cs35l56)
 {
 	int ret;
@@ -566,7 +571,7 @@ static void cs35l56_hda_apply_calibration(struct cs35l56_hda *cs35l56)
 		dev_info(cs35l56->base.dev, "Calibration applied\n");
 }
 
-static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
+static void cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 {
 	const struct firmware *coeff_firmware = NULL;
 	const struct firmware *wmfw_firmware = NULL;
@@ -574,15 +579,23 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	char *wmfw_filename = NULL;
 	unsigned int preloaded_fw_ver;
 	bool firmware_missing;
-	int ret = 0;
+	int ret;
 
-	/* Prepare for a new DSP power-up */
+	/*
+	 * Prepare for a new DSP power-up. If the DSP has had firmware
+	 * downloaded previously then it needs to be powered down so that it
+	 * can be updated.
+	 */
 	if (cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 
 	cs35l56->base.fw_patched = false;
 
-	pm_runtime_get_sync(cs35l56->base.dev);
+	ret = pm_runtime_resume_and_get(cs35l56->base.dev);
+	if (ret < 0) {
+		dev_err(cs35l56->base.dev, "Failed to resume and get %d\n", ret);
+		return;
+	}
 
 	/*
 	 * The firmware can only be upgraded if it is currently running
@@ -606,7 +619,6 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	 */
 	if (!coeff_firmware && firmware_missing) {
 		dev_err(cs35l56->base.dev, ".bin file required but not found\n");
-		ret = -ENOENT;
 		goto err_fw_release;
 	}
 
@@ -644,6 +656,8 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
 			goto err_powered_up;
+
+		regcache_cache_only(cs35l56->base.regmap, false);
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
@@ -676,34 +690,36 @@ err_fw_release:
 					   coeff_firmware, coeff_filename);
 err_pm_put:
 	pm_runtime_put(cs35l56->base.dev);
+}
 
-	return ret;
+static void cs35l56_hda_dsp_work(struct work_struct *work)
+{
+	struct cs35l56_hda *cs35l56 = container_of(work, struct cs35l56_hda, dsp_work);
+
+	cs35l56_hda_fw_load(cs35l56);
 }
 
 static int cs35l56_hda_bind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
-	int ret;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
 
-	if (!comps || cs35l56->index < 0 || cs35l56->index >= HDA_MAX_COMPONENTS)
+	comp = hda_component_from_index(parent, cs35l56->index);
+	if (!comp)
 		return -EINVAL;
 
-	comps = &comps[cs35l56->index];
-	if (comps->dev)
+	if (comp->dev)
 		return -EBUSY;
 
-	comps->dev = dev;
-	cs35l56->codec = comps->codec;
-	strscpy(comps->name, dev_name(dev), sizeof(comps->name));
-	comps->playback_hook = cs35l56_hda_playback_hook;
+	comp->dev = dev;
+	cs35l56->codec = parent->codec;
+	strscpy(comp->name, dev_name(dev), sizeof(comp->name));
+	comp->playback_hook = cs35l56_hda_playback_hook;
 
-	ret = cs35l56_hda_fw_load(cs35l56);
-	if (ret)
-		return ret;
+	queue_work(system_long_wq, &cs35l56->dsp_work);
 
 	cs35l56_hda_create_controls(cs35l56);
-	cs35l56_hda_add_dsp_controls(cs35l56);
 
 #if IS_ENABLED(CONFIG_SND_DEBUG)
 	cs35l56->debugfs_root = debugfs_create_dir(dev_name(cs35l56->base.dev), sound_debugfs_root);
@@ -718,7 +734,10 @@ static int cs35l56_hda_bind(struct device *dev, struct device *master, void *mas
 static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *master_data)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
-	struct hda_component *comps = master_data;
+	struct hda_component_parent *parent = master_data;
+	struct hda_component *comp;
+
+	cancel_work_sync(&cs35l56->dsp_work);
 
 	cs35l56_hda_remove_controls(cs35l56);
 
@@ -730,10 +749,11 @@ static void cs35l56_hda_unbind(struct device *dev, struct device *master, void *
 	if (cs35l56->base.fw_patched)
 		cs_dsp_power_down(&cs35l56->cs_dsp);
 
-	cs_dsp_remove(&cs35l56->cs_dsp);
+	comp = hda_component_from_index(parent, cs35l56->index);
+	if (comp && (comp->dev == dev))
+		memset(comp, 0, sizeof(*comp));
 
-	if (comps[cs35l56->index].dev == dev)
-		memset(&comps[cs35l56->index], 0, sizeof(*comps));
+	cs35l56->codec = NULL;
 
 	dev_dbg(cs35l56->base.dev, "Unbound\n");
 }
@@ -746,6 +766,8 @@ static const struct component_ops cs35l56_hda_comp_ops = {
 static int cs35l56_hda_system_suspend(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
+
+	cs35l56_hda_wait_dsp_ready(cs35l56);
 
 	if (cs35l56->playing)
 		cs35l56_hda_pause(cs35l56);
@@ -840,13 +862,13 @@ static int cs35l56_hda_system_resume(struct device *dev)
 
 	cs35l56->suspended = false;
 
+	if (!cs35l56->codec)
+		return 0;
+
 	ret = cs35l56_is_fw_reload_needed(&cs35l56->base);
 	dev_dbg(cs35l56->base.dev, "fw_reload_needed: %d\n", ret);
-	if (ret > 0) {
-		ret = cs35l56_hda_fw_load(cs35l56);
-		if (ret)
-			return ret;
-	}
+	if (ret > 0)
+		queue_work(system_long_wq, &cs35l56->dsp_work);
 
 	if (cs35l56->playing)
 		cs35l56_hda_play(cs35l56);
@@ -964,6 +986,8 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	mutex_init(&cs35l56->base.irq_lock);
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
+	INIT_WORK(&cs35l56->dsp_work, cs35l56_hda_dsp_work);
+
 	ret = cs35l56_hda_read_acpi(cs35l56, hid, id);
 	if (ret)
 		goto err;
@@ -975,7 +999,7 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 		goto err;
 	}
 
-	cs35l56->base.cal_index = cs35l56->index;
+	cs35l56->base.cal_index = -1;
 
 	cs35l56_init_cs_dsp(&cs35l56->base, &cs35l56->cs_dsp);
 	cs35l56->cs_dsp.client_ops = &cs35l56_hda_client_ops;
@@ -1001,6 +1025,8 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 	if (ret)
 		goto err;
+
+	regcache_cache_only(cs35l56->base.regmap, false);
 
 	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
@@ -1029,9 +1055,6 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 
 	regmap_multi_reg_write(cs35l56->base.regmap, cs35l56_hda_dai_config,
 			       ARRAY_SIZE(cs35l56_hda_dai_config));
-	ret = cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
-	if (ret)
-		goto err;
 
 	/*
 	 * By default only enable one ASP1TXn, where n=amplifier index,
@@ -1057,29 +1080,32 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 
 pm_err:
 	pm_runtime_disable(cs35l56->base.dev);
+	cs_dsp_remove(&cs35l56->cs_dsp);
 err:
 	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_common_probe, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_common_probe, "SND_HDA_SCODEC_CS35L56");
 
 void cs35l56_hda_remove(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
+	component_del(cs35l56->base.dev, &cs35l56_hda_comp_ops);
+
 	pm_runtime_dont_use_autosuspend(cs35l56->base.dev);
 	pm_runtime_get_sync(cs35l56->base.dev);
 	pm_runtime_disable(cs35l56->base.dev);
 
-	component_del(cs35l56->base.dev, &cs35l56_hda_comp_ops);
+	cs_dsp_remove(&cs35l56->cs_dsp);
 
 	kfree(cs35l56->system_name);
 	pm_runtime_put_noidle(cs35l56->base.dev);
 
 	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, "SND_HDA_SCODEC_CS35L56");
 
 const struct dev_pm_ops cs35l56_hda_pm_ops = {
 	RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
@@ -1089,14 +1115,14 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_no_irq,
 				  cs35l56_hda_system_resume_no_irq)
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, "SND_HDA_SCODEC_CS35L56");
 
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
-MODULE_IMPORT_NS(FW_CS_DSP);
-MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
-MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("FW_CS_DSP");
+MODULE_IMPORT_NS("SND_HDA_CIRRUS_SCODEC");
+MODULE_IMPORT_NS("SND_HDA_CS_DSP_CONTROLS");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

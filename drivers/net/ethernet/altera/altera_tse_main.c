@@ -788,7 +788,7 @@ static int tse_change_mtu(struct net_device *dev, int new_mtu)
 		return -EBUSY;
 	}
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	netdev_update_features(dev);
 
 	return 0;
@@ -1519,7 +1519,7 @@ MODULE_DEVICE_TABLE(of, altera_tse_ids);
 
 static struct platform_driver altera_tse_driver = {
 	.probe		= altera_tse_probe,
-	.remove_new	= altera_tse_remove,
+	.remove		= altera_tse_remove,
 	.suspend	= NULL,
 	.resume		= NULL,
 	.driver		= {

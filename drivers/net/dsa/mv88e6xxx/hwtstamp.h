@@ -121,7 +121,7 @@ void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 			     struct sk_buff *skb);
 
 int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
-			  struct ethtool_ts_info *info);
+			  struct kernel_ethtool_ts_info *info);
 
 int mv88e6xxx_hwtstamp_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_hwtstamp_free(struct mv88e6xxx_chip *chip);
@@ -157,7 +157,7 @@ static inline void mv88e6xxx_port_txtstamp(struct dsa_switch *ds, int port,
 }
 
 static inline int mv88e6xxx_get_ts_info(struct dsa_switch *ds, int port,
-					struct ethtool_ts_info *info)
+					struct kernel_ethtool_ts_info *info)
 {
 	return -EOPNOTSUPP;
 }

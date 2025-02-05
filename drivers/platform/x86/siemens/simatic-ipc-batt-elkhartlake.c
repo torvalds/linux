@@ -37,7 +37,7 @@ static int simatic_ipc_batt_elkhartlake_probe(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_batt_driver = {
 	.probe = simatic_ipc_batt_elkhartlake_probe,
-	.remove_new = simatic_ipc_batt_elkhartlake_remove,
+	.remove = simatic_ipc_batt_elkhartlake_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},
@@ -45,6 +45,7 @@ static struct platform_driver simatic_ipc_batt_driver = {
 
 module_platform_driver(simatic_ipc_batt_driver);
 
+MODULE_DESCRIPTION("CMOS Battery monitoring for Simatic IPCs based on Elkhart Lake GPIO");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_SOFTDEP("pre: simatic-ipc-batt platform:elkhartlake-pinctrl");

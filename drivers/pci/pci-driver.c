@@ -1503,7 +1503,7 @@ EXPORT_SYMBOL(pci_dev_driver);
  * system is in its list of supported devices. Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  */
-static int pci_bus_match(struct device *dev, struct device_driver *drv)
+static int pci_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct pci_driver *pci_drv;
@@ -1512,7 +1512,7 @@ static int pci_bus_match(struct device *dev, struct device_driver *drv)
 	if (!pci_dev->match_driver)
 		return 0;
 
-	pci_drv = to_pci_driver(drv);
+	pci_drv = (struct pci_driver *)to_pci_driver(drv);
 	found_id = pci_match_device(pci_drv, pci_dev);
 	if (found_id)
 		return 1;
@@ -1670,13 +1670,27 @@ static void pci_dma_cleanup(struct device *dev)
 		iommu_device_unuse_default_domain(dev);
 }
 
-struct bus_type pci_bus_type = {
+/*
+ * pci_device_irq_get_affinity - get IRQ affinity mask for device
+ * @dev: ptr to dev structure
+ * @irq_vec: interrupt vector number
+ *
+ * Return the CPU affinity mask for @dev and @irq_vec.
+ */
+static const struct cpumask *pci_device_irq_get_affinity(struct device *dev,
+					unsigned int irq_vec)
+{
+	return pci_irq_get_affinity(to_pci_dev(dev), irq_vec);
+}
+
+const struct bus_type pci_bus_type = {
 	.name		= "pci",
 	.match		= pci_bus_match,
 	.uevent		= pci_uevent,
 	.probe		= pci_device_probe,
 	.remove		= pci_device_remove,
 	.shutdown	= pci_device_shutdown,
+	.irq_get_affinity = pci_device_irq_get_affinity,
 	.dev_groups	= pci_dev_groups,
 	.bus_groups	= pci_bus_groups,
 	.drv_groups	= pci_drv_groups,
@@ -1688,10 +1702,10 @@ struct bus_type pci_bus_type = {
 EXPORT_SYMBOL(pci_bus_type);
 
 #ifdef CONFIG_PCIEPORTBUS
-static int pcie_port_bus_match(struct device *dev, struct device_driver *drv)
+static int pcie_port_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct pcie_device *pciedev;
-	struct pcie_port_service_driver *driver;
+	const struct pcie_port_service_driver *driver;
 
 	if (drv->bus != &pcie_port_bus_type || dev->bus != &pcie_port_bus_type)
 		return 0;

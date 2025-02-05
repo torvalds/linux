@@ -19,9 +19,6 @@
  *
  * Copyright (c) 2021, Google LLC.
  */
-
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <pthread.h>
 #include <linux/sizes.h>
@@ -29,6 +26,7 @@
 #include <sys/sysinfo.h>
 
 #include "timer_test.h"
+#include "ucall_common.h"
 
 struct test_args test_args = {
 	.nr_vcpus = NR_VCPUS_DEF,

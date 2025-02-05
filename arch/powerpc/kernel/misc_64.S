@@ -74,7 +74,7 @@ _GLOBAL(rmci_off)
 	blr
 #endif /* CONFIG_PPC_EARLY_DEBUG_BOOTX */
 
-#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
+#ifdef CONFIG_PPC_PMAC
 
 /*
  * Do an IO access in real mode
@@ -137,7 +137,7 @@ _GLOBAL(real_writeb)
 	sync
 	isync
 	blr
-#endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE) */
+#endif // CONFIG_PPC_PMAC
 
 #ifdef CONFIG_PPC_PASEMI
 
@@ -174,7 +174,7 @@ _GLOBAL(real_205_writeb)
 #endif /* CONFIG_PPC_PASEMI */
 
 
-#if defined(CONFIG_CPU_FREQ_PMAC64) || defined(CONFIG_CPU_FREQ_MAPLE)
+#ifdef CONFIG_CPU_FREQ_PMAC64
 /*
  * SCOM access functions for 970 (FX only for now)
  *
@@ -192,7 +192,7 @@ _GLOBAL(scom970_read)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd,
 	 * and finally or in RW bit
 	 */
@@ -226,7 +226,7 @@ _GLOBAL(scom970_write)
 	xori	r0,r0,MSR_EE
 	mtmsrd	r0,1
 
-	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	/* rotate 24 bits SCOM address 8 bits left and mask out its low 8 bits
 	 * (including parity). On current CPUs they must be 0'd.
 	 */
 
@@ -243,7 +243,7 @@ _GLOBAL(scom970_write)
 	/* restore interrupts */
 	mtmsrd	r5,1
 	blr
-#endif /* CONFIG_CPU_FREQ_PMAC64 || CONFIG_CPU_FREQ_MAPLE */
+#endif // CONFIG_CPU_FREQ_PMAC64
 
 /* kexec_wait(phys_cpu)
  *

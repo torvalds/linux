@@ -343,8 +343,8 @@ EXPORT_SYMBOL(seq_lseek);
 
 /**
  *	seq_release -	free the structures associated with sequential file.
- *	@file: file in question
  *	@inode: its inode
+ *	@file: file in question
  *
  *	Frees the structures associated with sequential file; can be used
  *	as ->f_op->release() if you don't have private data to destroy.
@@ -669,18 +669,11 @@ void seq_putc(struct seq_file *m, char c)
 }
 EXPORT_SYMBOL(seq_putc);
 
-void seq_puts(struct seq_file *m, const char *s)
+void __seq_puts(struct seq_file *m, const char *s)
 {
-	int len = strlen(s);
-
-	if (m->count + len >= m->size) {
-		seq_set_overflow(m);
-		return;
-	}
-	memcpy(m->buf + m->count, s, len);
-	m->count += len;
+	seq_write(m, s, strlen(s));
 }
-EXPORT_SYMBOL(seq_puts);
+EXPORT_SYMBOL(__seq_puts);
 
 /**
  * seq_put_decimal_ull_width - A helper routine for putting decimal numbers

@@ -724,7 +724,6 @@ static int mxs_lradc_adc_probe(struct platform_device *pdev)
 	iio->dev.of_node = dev->parent->of_node;
 	iio->info = &mxs_lradc_adc_iio_info;
 	iio->modes = INDIO_DIRECT_MODE;
-	iio->masklength = LRADC_MAX_TOTAL_CHANS;
 
 	if (lradc->soc == IMX23_LRADC) {
 		iio->channels = mx23_lradc_chan_spec;
@@ -820,10 +819,10 @@ static void mxs_lradc_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver mxs_lradc_adc_driver = {
 	.driver = {
-		.name	= "mxs-lradc-adc",
+		.name = "mxs-lradc-adc",
 	},
-	.probe	= mxs_lradc_adc_probe,
-	.remove_new = mxs_lradc_adc_remove,
+	.probe = mxs_lradc_adc_probe,
+	.remove = mxs_lradc_adc_remove,
 };
 module_platform_driver(mxs_lradc_adc_driver);
 

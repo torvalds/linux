@@ -124,10 +124,8 @@ static void *alloc_quote_buf(void)
 	if (!addr)
 		return NULL;
 
-	if (set_memory_decrypted((unsigned long)addr, count)) {
-		free_pages_exact(addr, len);
+	if (set_memory_decrypted((unsigned long)addr, count))
 		return NULL;
-	}
 
 	return addr;
 }
@@ -249,6 +247,28 @@ done:
 	return ret;
 }
 
+static bool tdx_report_attr_visible(int n)
+{
+	switch (n) {
+	case TSM_REPORT_GENERATION:
+	case TSM_REPORT_PROVIDER:
+		return true;
+	}
+
+	return false;
+}
+
+static bool tdx_report_bin_attr_visible(int n)
+{
+	switch (n) {
+	case TSM_REPORT_INBLOB:
+	case TSM_REPORT_OUTBLOB:
+		return true;
+	}
+
+	return false;
+}
+
 static long tdx_guest_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
@@ -263,7 +283,6 @@ static long tdx_guest_ioctl(struct file *file, unsigned int cmd,
 static const struct file_operations tdx_guest_fops = {
 	.owner = THIS_MODULE,
 	.unlocked_ioctl = tdx_guest_ioctl,
-	.llseek = no_llseek,
 };
 
 static struct miscdevice tdx_misc_dev = {
@@ -281,6 +300,8 @@ MODULE_DEVICE_TABLE(x86cpu, tdx_guest_ids);
 static const struct tsm_ops tdx_tsm_ops = {
 	.name = KBUILD_MODNAME,
 	.report_new = tdx_report_new,
+	.report_attr_visible = tdx_report_attr_visible,
+	.report_bin_attr_visible = tdx_report_bin_attr_visible,
 };
 
 static int __init tdx_guest_init(void)
@@ -301,7 +322,7 @@ static int __init tdx_guest_init(void)
 		goto free_misc;
 	}
 
-	ret = tsm_register(&tdx_tsm_ops, NULL, NULL);
+	ret = tsm_register(&tdx_tsm_ops, NULL);
 	if (ret)
 		goto free_quote;
 

@@ -307,6 +307,14 @@ bool dcn31_clk_src_construct(
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask);
 
+bool dcn401_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
 /* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
 struct pixel_rate_range_table_entry {
 	unsigned int range_min_khz;

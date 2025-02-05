@@ -69,9 +69,13 @@ e per revisionare interi file per individuare errori nello stile di codifica,
 refusi e possibili miglioramenti.  Inoltre è utile anche per classificare gli
 ``#includes``, per allineare variabili/macro, per testi derivati ed altri
 compiti del genere.  Consultate il file
-:ref:`Documentation/translations/it_IT/process/clang-format.rst <clangformat>`
+:ref:`Documentation/translations/it_IT/dev-tools/clang-format.rst <clangformat>`
 per maggiori dettagli
 
+Se utilizzate un programma compatibile con EditorConfig, allora alcune
+configurazioni basilari come l'indentazione e la fine delle righe verranno
+applicate automaticamente. Per maggiori informazioni consultate la pagina:
+https://editorconfig.org/
 
 Livelli di astrazione
 *********************

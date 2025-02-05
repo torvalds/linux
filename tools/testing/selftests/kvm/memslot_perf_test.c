@@ -113,6 +113,9 @@ static_assert(ATOMIC_BOOL_LOCK_FREE == 2, "atomic bool is not lockless");
 static sem_t vcpu_ready;
 
 static bool map_unmap_verify;
+#ifdef __x86_64__
+static bool disable_slot_zap_quirk;
+#endif
 
 static bool verbose;
 #define pr_info_v(...)				\
@@ -414,7 +417,7 @@ static bool _guest_should_exit(void)
  */
 static noinline void host_perform_sync(struct sync_area *sync)
 {
-	alarm(2);
+	alarm(10);
 
 	atomic_store_explicit(&sync->sync_flag, true, memory_order_release);
 	while (atomic_load_explicit(&sync->sync_flag, memory_order_acquire))
@@ -577,6 +580,11 @@ static bool test_memslot_move_prepare(struct vm_data *data,
 {
 	uint32_t guest_page_size = data->vm->page_size;
 	uint64_t movesrcgpa, movetestgpa;
+
+#ifdef __x86_64__
+	if (disable_slot_zap_quirk)
+		vm_enable_cap(data->vm, KVM_CAP_DISABLE_QUIRKS2, KVM_X86_QUIRK_SLOT_ZAP_ALL);
+#endif
 
 	movesrcgpa = vm_slot2gpa(data, data->nslots - 1);
 
@@ -896,6 +904,7 @@ static void help(char *name, struct test_args *targs)
 	pr_info(" -h: print this help screen.\n");
 	pr_info(" -v: enable verbose mode (not for benchmarking).\n");
 	pr_info(" -d: enable extra debug checks.\n");
+	pr_info(" -q: Disable memslot zap quirk during memslot move.\n");
 	pr_info(" -s: specify memslot count cap (-1 means no cap; currently: %i)\n",
 		targs->nslots);
 	pr_info(" -f: specify the first test to run (currently: %i; max %zu)\n",
@@ -954,7 +963,7 @@ static bool parse_args(int argc, char *argv[],
 	uint32_t max_mem_slots;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "hvds:f:e:l:r:")) != -1) {
+	while ((opt = getopt(argc, argv, "hvdqs:f:e:l:r:")) != -1) {
 		switch (opt) {
 		case 'h':
 		default:
@@ -966,6 +975,13 @@ static bool parse_args(int argc, char *argv[],
 		case 'd':
 			map_unmap_verify = true;
 			break;
+#ifdef __x86_64__
+		case 'q':
+			disable_slot_zap_quirk = true;
+			TEST_REQUIRE(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) &
+				     KVM_X86_QUIRK_SLOT_ZAP_ALL);
+			break;
+#endif
 		case 's':
 			targs->nslots = atoi_paranoid(optarg);
 			if (targs->nslots <= 1 && targs->nslots != -1) {

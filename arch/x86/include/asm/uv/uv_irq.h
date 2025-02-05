@@ -31,7 +31,6 @@ enum {
 	UV_AFFINITY_CPU
 };
 
-extern int uv_irq_2_mmr_info(int, unsigned long *, int *);
 extern int uv_setup_irq(char *, int, int, unsigned long, int);
 extern void uv_teardown_irq(unsigned int);
 

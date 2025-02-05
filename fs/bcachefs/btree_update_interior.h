@@ -52,7 +52,7 @@ struct btree_update {
 	struct list_head		unwritten_list;
 
 	enum btree_update_mode		mode;
-	enum bch_watermark		watermark;
+	enum bch_trans_commit_flags	flags;
 	unsigned			nodes_written:1;
 	unsigned			took_gc_lock:1;
 
@@ -144,6 +144,9 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 
 	EBUG_ON(!btree_node_locked(path, level));
 
+	if (bch2_btree_node_merging_disabled)
+		return 0;
+
 	b = path->l[level].b;
 	if (b->sib_u64s[sib] > trans->c->btree_foreground_merge_threshold)
 		return 0;
@@ -156,6 +159,8 @@ static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
 					      unsigned level,
 					      unsigned flags)
 {
+	bch2_trans_verify_not_unlocked_or_in_restart(trans);
+
 	return  bch2_foreground_maybe_merge_sibling(trans, path, level, flags,
 						    btree_prev_sib) ?:
 		bch2_foreground_maybe_merge_sibling(trans, path, level, flags,
@@ -172,6 +177,8 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *, struct btree *,
 					struct bkey_i *, unsigned, bool);
 
 void bch2_btree_set_root_for_read(struct bch_fs *, struct btree *);
+
+int bch2_btree_root_alloc_fake_trans(struct btree_trans *, enum btree_id, unsigned);
 void bch2_btree_root_alloc_fake(struct bch_fs *, enum btree_id, unsigned);
 
 static inline unsigned btree_update_reserve_required(struct bch_fs *c,
@@ -327,8 +334,11 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
 					struct jset_entry *, unsigned long);
 
+void bch2_async_btree_node_rewrites_flush(struct bch_fs *);
 void bch2_do_pending_node_rewrites(struct bch_fs *);
 void bch2_free_pending_node_rewrites(struct bch_fs *);
+
+void bch2_btree_reserve_cache_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *);
 void bch2_fs_btree_interior_update_init_early(struct bch_fs *);

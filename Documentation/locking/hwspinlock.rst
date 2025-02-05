@@ -87,6 +87,17 @@ Should be called from a process context (might sleep).
 
 ::
 
+  int hwspin_lock_bust(struct hwspinlock *hwlock, unsigned int id);
+
+After verifying the owner of the hwspinlock, release a previously acquired
+hwspinlock; returns 0 on success, or an appropriate error code on failure
+(e.g. -EOPNOTSUPP if the bust operation is not defined for the specific
+hwspinlock).
+
+Should be called from a process context (might sleep).
+
+::
+
   int hwspin_lock_timeout(struct hwspinlock *hwlock, unsigned int timeout);
 
 Lock a previously-assigned hwspinlock with a timeout limit (specified in

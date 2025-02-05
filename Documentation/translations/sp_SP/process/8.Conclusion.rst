@@ -1,0 +1,82 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/8.Conclusion.rst
+:Translator: Carlos Bilbao <carlos.bilbao.osdev@gmail.com> and Avadhut Naik <avadhut.naik@amd.com>
+
+.. _sp_development_conclusion:
+
+Para más información
+====================
+
+Hay numerosas fuentes de información sobre el desarrollo del kernel de
+Linux y temas relacionados. La primera de ellas será el directorio de
+Documentación (Documentation) que se encuentra en la distribución del
+código fuente del kernel. Comience con el nivel superior
+:ref:`Documentation/translations/sp_SP/process/howto.rst <sp_process_howto>`;
+también lea
+:ref:`Documentation/translations/sp_SP/process/submitting-patches.rst <sp_submittingpatches>`.
+Muchas API internas del kernel están documentadas utilizando el mecanismo
+de kerneldoc; “make htmldocs” o “make pdfdocs” se pueden usar para
+generar esos documentos en formato HTML o PDF (aunque la versión de TeX
+incluida en algunas distribuciones tiene límites internos y no procesa
+los documentos correctamente).
+
+Varios sitios web discuten el desarrollo del kernel en todos los niveles
+de detalle. A su autor le gustaría sugerir humildemente https://lwn.net/
+como fuente. La información sobre muchos temas específicos del kernel se
+puede encontrar a través del índice del kernel de LWN en:
+
+	https://lwn.net/Kernel/Index/
+
+Más allá de eso, un recurso valioso para los desarrolladores del kernel
+es:
+
+	https://kernelnewbies.org/
+
+Y, por supuesto, no se debe olvidar https://kernel.org/, la ubicación
+definitiva para información de lanzamiento del kernel.
+
+Hay varios libros sobre el desarrollo del kernel:
+
+	Linux Device Drivers, 3rd Edition (Jonathan Corbet, Alessandro
+	Rubini, and Greg Kroah-Hartman).  En linea en
+	https://lwn.net/Kernel/LDD3/.
+
+	Linux Kernel Development (Robert Love).
+
+	Understanding the Linux Kernel (Daniel Bovet and Marco Cesati).
+
+Todos estos libros padecen un defecto común: suelen estar algo obsoletos
+cuando llegan a las estanterías, y ya llevan un tiempo en las estanterías.
+Aun así, hay bastante buena información que se puede encontrar allí.
+
+La documentación de git se puede encontrar en:
+
+	https://www.kernel.org/pub/software/scm/git/docs/
+
+	https://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+
+Conclusión
+==========
+
+Felicitaciones a todos los que han logrado leer este extenso documento.
+Con suerte, ha proporcionado una comprensión útil de cómo se desarrolla
+el kernel Linux y cómo puede participar en ese proceso.
+
+Al final, lo que importa es la participación. Cualquier proyecto de
+software de código abierto no es más que la suma de lo que sus
+colaboradores aportan. El kernel Linux ha progresado tan rápido y tan como
+lo ha hecho porque ha sido ayudado por un grupo impresionantemente grande
+de desarrolladores, todos los cuales están trabajando para mejorarlo. El
+kernel es un excelente ejemplo de lo que se puede lograr cuando miles de
+personas trabajan juntas hacia un objetivo común.
+
+Sin embargo, el kernel siempre puede beneficiarse de una base de
+desarrolladores más grande. Siempre hay más trabajo por hacer. Pero, lo
+que es igual de importante, la mayoría de los demás participantes en el
+ecosistema Linux pueden beneficiarse contribuyendo al kernel. Introducir
+código en el mainline es la clave para una mayor calidad del código,
+menores costes de mantenimiento y distribución, un mayor nivel de
+influencia sobre la dirección del desarrollo del kernel y más. Es una
+situación en la que todos los involucrados ganan. Encienda su editor y
+únase a nosotros; será más que bienvenido.

@@ -3,12 +3,6 @@
 # Building vDSO images for x86.
 #
 
-# do not instrument on vdso because KASAN is not compatible with user mode
-KASAN_SANITIZE			:= n
-
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
-KCOV_INSTRUMENT                := n
-
 VDSO64-y		:= y
 
 vdso-install-$(VDSO64-y)	+= vdso.so
@@ -62,8 +56,6 @@ CFLAGS_REMOVE_um_vdso.o = -pg -fprofile-arcs -ftest-coverage
 quiet_cmd_vdso = VDSO    $@
       cmd_vdso = $(CC) -nostdlib -o $@ \
 		       $(CC_FLAGS_LTO) $(VDSO_LDFLAGS) $(VDSO_LDFLAGS_$(filter %.lds,$(^F))) \
-		       -Wl,-T,$(filter %.lds,$^) $(filter %.o,$^) && \
-		 sh $(srctree)/$(src)/checkundef.sh '$(NM)' '$@'
+		       -Wl,-T,$(filter %.lds,$^) $(filter %.o,$^)
 
-VDSO_LDFLAGS = -fPIC -shared -Wl,--hash-style=sysv -z noexecstack
-GCOV_PROFILE := n
+VDSO_LDFLAGS = -fPIC -shared -Wl,--hash-style=sysv -z noexecstack -Wl,--no-undefined

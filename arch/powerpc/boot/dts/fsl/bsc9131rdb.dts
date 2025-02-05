@@ -15,7 +15,7 @@
 		device_type = "memory";
 	};
 
-	board_ifc: ifc: ifc@ff71e000 {
+	board_ifc: ifc: memory-controller@ff71e000 {
 		/* NAND Flash on board */
 		ranges = <0x0 0x0 0x0 0xff800000 0x00004000>;
 		reg = <0x0 0xff71e000 0x0 0x2000>;

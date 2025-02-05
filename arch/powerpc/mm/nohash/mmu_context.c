@@ -219,9 +219,6 @@ static void set_context(unsigned long id, pgd_t *pgd)
 		/* sync */
 		mb();
 	} else if (kuap_is_disabled()) {
-		if (IS_ENABLED(CONFIG_40x))
-			mb();	/* sync */
-
 		mtspr(SPRN_PID, id);
 		isync();
 	}
@@ -306,7 +303,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	if (IS_ENABLED(CONFIG_BDI_SWITCH))
 		abatron_pteptrs[1] = next->pgd;
 	set_context(id, next->pgd);
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	tsk->thread.pid = id;
 #endif
 	raw_spin_unlock(&context_lock);
@@ -388,21 +385,11 @@ void __init mmu_context_init(void)
 	/*
 	 * Allocate the maps used by context management
 	 */
-	context_map = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
-	if (!context_map)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      CTX_MAP_SIZE);
-	context_mm = memblock_alloc(sizeof(void *) * (LAST_CONTEXT + 1),
+	context_map = memblock_alloc_or_panic(CTX_MAP_SIZE, SMP_CACHE_BYTES);
+	context_mm = memblock_alloc_or_panic(sizeof(void *) * (LAST_CONTEXT + 1),
 				    SMP_CACHE_BYTES);
-	if (!context_mm)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(void *) * (LAST_CONTEXT + 1));
 	if (IS_ENABLED(CONFIG_SMP)) {
-		stale_map[boot_cpuid] = memblock_alloc(CTX_MAP_SIZE, SMP_CACHE_BYTES);
-		if (!stale_map[boot_cpuid])
-			panic("%s: Failed to allocate %zu bytes\n", __func__,
-			      CTX_MAP_SIZE);
-
+		stale_map[boot_cpuid] = memblock_alloc_or_panic(CTX_MAP_SIZE, SMP_CACHE_BYTES);
 		cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
 					  "powerpc/mmu/ctx:prepare",
 					  mmu_ctx_cpu_prepare, mmu_ctx_cpu_dead);

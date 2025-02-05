@@ -297,9 +297,7 @@ static void ldom_startcpu_cpuid(unsigned int cpu, unsigned long thread_reg,
 	unsigned long hv_err;
 	int i;
 
-	hdesc = kzalloc(sizeof(*hdesc) +
-			(sizeof(struct hvtramp_mapping) *
-			 num_kernel_image_mappings - 1),
+	hdesc = kzalloc(struct_size(hdesc, maps, num_kernel_image_mappings),
 			GFP_KERNEL);
 	if (!hdesc) {
 		printk(KERN_ERR "ldom_startcpu_cpuid: Cannot allocate "
@@ -1214,20 +1212,6 @@ void __init smp_setup_processor_id(void)
 		xcall_deliver_impl = cheetah_xcall_deliver;
 	else
 		xcall_deliver_impl = hypervisor_xcall_deliver;
-}
-
-void __init smp_fill_in_cpu_possible_map(void)
-{
-	int possible_cpus = num_possible_cpus();
-	int i;
-
-	if (possible_cpus > nr_cpu_ids)
-		possible_cpus = nr_cpu_ids;
-
-	for (i = 0; i < possible_cpus; i++)
-		set_cpu_possible(i, true);
-	for (; i < NR_CPUS; i++)
-		set_cpu_possible(i, false);
 }
 
 void smp_fill_in_sib_core_maps(void)

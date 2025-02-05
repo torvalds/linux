@@ -153,7 +153,7 @@
 	.result = REJECT,
 	.errstr = "variable untrusted_ptr_ access var_off=(0x0; 0x7) disallowed",
 },
-/* Tests for unreferened PTR_TO_BTF_ID */
+/* Tests for unreferenced PTR_TO_BTF_ID */
 {
 	"map_kptr: unref: reject btf_struct_ids_match == false",
 	.insns = {
@@ -373,7 +373,7 @@
 	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
-	.errstr = "Unreleased reference id=5 alloc_insn=20",
+	.errstr = "Unreleased reference id=4 alloc_insn=20",
 	.fixup_kfunc_btf_id = {
 		{ "bpf_kfunc_call_test_acquire", 15 },
 	}

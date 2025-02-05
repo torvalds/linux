@@ -447,7 +447,7 @@ static int ve_spc_cpufreq_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
+static void ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev;
 
@@ -455,11 +455,10 @@ static int ve_spc_cpufreq_exit(struct cpufreq_policy *policy)
 	if (!cpu_dev) {
 		pr_err("%s: failed to get cpu%d device\n", __func__,
 		       policy->cpu);
-		return -ENODEV;
+		return;
 	}
 
 	put_cluster_clk_and_freq_table(cpu_dev, policy->related_cpus);
-	return 0;
 }
 
 static struct cpufreq_driver ve_spc_cpufreq_driver = {
@@ -566,7 +565,7 @@ static struct platform_driver ve_spc_cpufreq_platdrv = {
 		.name	= "vexpress-spc-cpufreq",
 	},
 	.probe		= ve_spc_cpufreq_probe,
-	.remove_new	= ve_spc_cpufreq_remove,
+	.remove		= ve_spc_cpufreq_remove,
 };
 module_platform_driver(ve_spc_cpufreq_platdrv);
 

@@ -28,7 +28,7 @@ static int bma400_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bma400_i2c_ids[] = {
-	{ "bma400", 0 },
+	{ "bma400" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bma400_i2c_ids);
@@ -53,4 +53,4 @@ module_i2c_driver(bma400_i2c_driver);
 MODULE_AUTHOR("Dan Robertson <dan@dlrobertson.com>");
 MODULE_DESCRIPTION("Bosch BMA400 triaxial acceleration sensor (I2C)");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_BMA400);
+MODULE_IMPORT_NS("IIO_BMA400");

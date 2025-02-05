@@ -713,7 +713,7 @@ MODULE_DEVICE_TABLE(of, xlnx_formatter_pcm_of_match);
 
 static struct platform_driver xlnx_formatter_pcm_driver = {
 	.probe	= xlnx_formatter_pcm_probe,
-	.remove_new = xlnx_formatter_pcm_remove,
+	.remove = xlnx_formatter_pcm_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.of_match_table	= xlnx_formatter_pcm_of_match,
@@ -721,5 +721,7 @@ static struct platform_driver xlnx_formatter_pcm_driver = {
 };
 
 module_platform_driver(xlnx_formatter_pcm_driver);
+
+MODULE_DESCRIPTION("ASoC driver for Xilinx audio formatter");
 MODULE_AUTHOR("Maruthi Srinivas Bayyavarapu <maruthis@xilinx.com>");
 MODULE_LICENSE("GPL v2");

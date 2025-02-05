@@ -22,6 +22,7 @@ struct hsr_frame_info {
 	struct hsr_node *node_src;
 	u16 sequence_nr;
 	bool is_supervision;
+	bool is_proxy_supervision;
 	bool is_vlan;
 	bool is_local_dest;
 	bool is_local_exclusive;
@@ -35,6 +36,7 @@ struct hsr_node *hsr_get_node(struct hsr_port *port, struct list_head *node_db,
 			      enum hsr_port_type rx_port);
 void hsr_handle_sup_frame(struct hsr_frame_info *frame);
 bool hsr_addr_is_self(struct hsr_priv *hsr, unsigned char *addr);
+bool hsr_addr_is_redbox(struct hsr_priv *hsr, unsigned char *addr);
 
 void hsr_addr_subst_source(struct hsr_node *node, struct sk_buff *skb);
 void hsr_addr_subst_dest(struct hsr_node *node_src, struct sk_buff *skb,
@@ -46,6 +48,7 @@ int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
 			   u16 sequence_nr);
 
 void hsr_prune_nodes(struct timer_list *t);
+void hsr_prune_proxy_nodes(struct timer_list *t);
 
 int hsr_create_self_node(struct hsr_priv *hsr,
 			 const unsigned char addr_a[ETH_ALEN],
@@ -66,6 +69,9 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 void prp_handle_san_frame(bool san, enum hsr_port_type port,
 			  struct hsr_node *node);
 void prp_update_san_info(struct hsr_node *node, bool is_sup);
+
+bool hsr_is_node_in_db(struct list_head *node_db,
+		       const unsigned char addr[ETH_ALEN]);
 
 struct hsr_node {
 	struct list_head	mac_list;

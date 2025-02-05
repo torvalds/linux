@@ -78,6 +78,14 @@ int powercap_get_enabled(int *mode)
 }
 
 /*
+ * TODO: implement function. Returns dummy 0 for now.
+ */
+int powercap_set_enabled(int mode)
+{
+	return 0;
+}
+
+/*
  * Hardcoded, because rapl is the only powercap implementation
 - * this needs to get more generic if more powercap implementations
  * should show up

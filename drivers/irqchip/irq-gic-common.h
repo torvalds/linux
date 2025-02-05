@@ -8,6 +8,7 @@
 
 #include <linux/of.h>
 #include <linux/irqdomain.h>
+#include <linux/msi.h>
 #include <linux/irqchip/arm-gic-common.h>
 
 struct gic_quirk {
@@ -20,14 +21,15 @@ struct gic_quirk {
 };
 
 int gic_configure_irq(unsigned int irq, unsigned int type,
-                       void __iomem *base, void (*sync_access)(void));
-void gic_dist_config(void __iomem *base, int gic_irqs,
-		     void (*sync_access)(void));
-void gic_cpu_config(void __iomem *base, int nr, void (*sync_access)(void));
+                       void __iomem *base);
+void gic_dist_config(void __iomem *base, int gic_irqs, u8 priority);
+void gic_cpu_config(void __iomem *base, int nr, u8 priority);
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data);
 void gic_enable_of_quirks(const struct device_node *np,
 			  const struct gic_quirk *quirks, void *data);
+
+extern const struct msi_parent_ops gic_v3_its_msi_parent_ops;
 
 #define RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING    (1 << 0)
 #define RDIST_FLAGS_RD_TABLES_PREALLOCATED     (1 << 1)

@@ -145,7 +145,7 @@ static inline bool guc_load_done(struct intel_uncore *uncore, u32 *status, bool 
  * an end user should hit the timeout is in case of extreme thermal throttling.
  * And a system that is that hot during boot is probably dead anyway!
  */
-#if defined(CONFIG_DRM_I915_DEBUG_GEM)
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
 #define GUC_LOAD_RETRY_LIMIT	20
 #else
 #define GUC_LOAD_RETRY_LIMIT	3

@@ -12,7 +12,7 @@
 #include <linux/net_tstamp.h>
 #include "net_driver.h"
 
-struct ethtool_ts_info;
+struct kernel_ethtool_ts_info;
 void efx_siena_ptp_defer_probe_with_channel(struct efx_nic *efx);
 struct efx_channel *efx_siena_ptp_channel(struct efx_nic *efx);
 int efx_siena_ptp_set_ts_config(struct efx_nic *efx,
@@ -21,14 +21,14 @@ int efx_siena_ptp_set_ts_config(struct efx_nic *efx,
 int efx_siena_ptp_get_ts_config(struct efx_nic *efx,
 				struct kernel_hwtstamp_config *config);
 void efx_siena_ptp_get_ts_info(struct efx_nic *efx,
-			       struct ethtool_ts_info *ts_info);
+			       struct kernel_ethtool_ts_info *ts_info);
 bool efx_siena_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 int efx_siena_ptp_get_mode(struct efx_nic *efx);
 int efx_siena_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 			      unsigned int new_mode);
 int efx_siena_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 void efx_siena_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
-size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 *strings);
+size_t efx_siena_ptp_describe_stats(struct efx_nic *efx, u8 **strings);
 size_t efx_siena_ptp_update_stats(struct efx_nic *efx, u64 *stats);
 void efx_siena_time_sync_event(struct efx_channel *channel, efx_qword_t *ev);
 void __efx_siena_rx_skb_attach_timestamp(struct efx_channel *channel,

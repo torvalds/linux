@@ -333,7 +333,7 @@ static int host1x_del_client(struct host1x *host1x,
 	return -ENODEV;
 }
 
-static int host1x_device_match(struct device *dev, struct device_driver *drv)
+static int host1x_device_match(struct device *dev, const struct device_driver *drv)
 {
 	return strcmp(dev_name(dev), drv->name) == 0;
 }

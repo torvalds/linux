@@ -1358,7 +1358,7 @@ static int xgmac_change_mtu(struct net_device *dev, int new_mtu)
 
 	/* Bring interface down, change mtu and bring interface back up */
 	xgmac_stop(dev);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return xgmac_open(dev);
 }
 
@@ -1919,7 +1919,7 @@ static struct platform_driver xgmac_driver = {
 		.pm = &xgmac_pm_ops,
 	},
 	.probe = xgmac_probe,
-	.remove_new = xgmac_remove,
+	.remove = xgmac_remove,
 };
 
 module_platform_driver(xgmac_driver);

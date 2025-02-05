@@ -91,6 +91,16 @@ the below options are available:
   behaviour when encountering a data race is deemed safe.  Please see
   `"Marking Shared-Memory Accesses" in the LKMM`_ for more information.
 
+* Similar to ``data_race(...)``, the type qualifier ``__data_racy`` can be used
+  to document that all data races due to accesses to a variable are intended
+  and should be ignored by KCSAN::
+
+    struct foo {
+        ...
+        int __data_racy stats_counter;
+        ...
+    };
+
 * Disabling data race detection for entire functions can be accomplished by
   using the function attribute ``__no_kcsan``::
 
@@ -351,7 +361,8 @@ Alternatives Considered
 -----------------------
 
 An alternative data race detection approach for the kernel can be found in the
-`Kernel Thread Sanitizer (KTSAN) <https://github.com/google/ktsan/wiki>`_.
+`Kernel Thread Sanitizer (KTSAN)
+<https://github.com/google/kernel-sanitizers/blob/master/KTSAN.md>`_.
 KTSAN is a happens-before data race detector, which explicitly establishes the
 happens-before order between memory operations, which can then be used to
 determine data races as defined in `Data Races`_.

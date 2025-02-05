@@ -7,6 +7,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/array_size.h>
 #include <linux/bitmap.h>
 #include <linux/cleanup.h>
 #include <linux/completion.h>
@@ -20,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irq_sim.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/minmax.h>
@@ -227,6 +227,27 @@ static void gpio_sim_free(struct gpio_chip *gc, unsigned int offset)
 	}
 }
 
+static int gpio_sim_irq_requested(struct irq_domain *domain,
+				  irq_hw_number_t hwirq, void *data)
+{
+	struct gpio_sim_chip *chip = data;
+
+	return gpiochip_lock_as_irq(&chip->gc, hwirq);
+}
+
+static void gpio_sim_irq_released(struct irq_domain *domain,
+				  irq_hw_number_t hwirq, void *data)
+{
+	struct gpio_sim_chip *chip = data;
+
+	gpiochip_unlock_as_irq(&chip->gc, hwirq);
+}
+
+static const struct irq_sim_ops gpio_sim_irq_sim_ops = {
+	.irq_sim_irq_requested = gpio_sim_irq_requested,
+	.irq_sim_irq_released = gpio_sim_irq_released,
+};
+
 static void gpio_sim_dbg_show(struct seq_file *seq, struct gpio_chip *gc)
 {
 	struct gpio_sim_chip *chip = gpiochip_get_data(gc);
@@ -306,13 +327,6 @@ static ssize_t gpio_sim_sysfs_pull_store(struct device *dev,
 		return ret;
 
 	return len;
-}
-
-static void gpio_sim_mutex_destroy(void *data)
-{
-	struct mutex *lock = data;
-
-	mutex_destroy(lock);
 }
 
 static void gpio_sim_put_device(void *data)
@@ -399,11 +413,6 @@ static int gpio_sim_setup_sysfs(struct gpio_sim_chip *chip)
 	return devm_add_action_or_reset(dev, gpio_sim_sysfs_remove, chip);
 }
 
-static int gpio_sim_dev_match_fwnode(struct device *dev, void *data)
-{
-	return device_match_fwnode(dev, data);
-}
-
 static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 {
 	struct gpio_sim_chip *chip;
@@ -450,7 +459,9 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 	if (!chip->pull_map)
 		return -ENOMEM;
 
-	chip->irq_sim = devm_irq_domain_create_sim(dev, swnode, num_lines);
+	chip->irq_sim = devm_irq_domain_create_sim_full(dev, swnode, num_lines,
+							&gpio_sim_irq_sim_ops,
+							chip);
 	if (IS_ERR(chip->irq_sim))
 		return PTR_ERR(chip->irq_sim);
 
@@ -458,9 +469,7 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 	if (ret)
 		return ret;
 
-	mutex_init(&chip->lock);
-	ret = devm_add_action_or_reset(dev, gpio_sim_mutex_destroy,
-				       &chip->lock);
+	ret = devm_mutex_init(dev, &chip->lock);
 	if (ret)
 		return ret;
 
@@ -489,7 +498,7 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 	if (ret)
 		return ret;
 
-	chip->dev = device_find_child(dev, swnode, gpio_sim_dev_match_fwnode);
+	chip->dev = device_find_child(dev, swnode, device_match_fwnode);
 	if (!chip->dev)
 		return -ENODEV;
 
@@ -506,15 +515,12 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 static int gpio_sim_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *swnode;
 	int ret;
 
-	device_for_each_child_node(dev, swnode) {
+	device_for_each_child_node_scoped(dev, swnode) {
 		ret = gpio_sim_add_bank(swnode, dev);
-		if (ret) {
-			fwnode_handle_put(swnode);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;
@@ -581,19 +587,19 @@ static int gpio_sim_bus_notifier_call(struct notifier_block *nb,
 
 	snprintf(devname, sizeof(devname), "gpio-sim.%u", simdev->id);
 
-	if (strcmp(dev_name(dev), devname) == 0) {
-		if (action == BUS_NOTIFY_BOUND_DRIVER)
-			simdev->driver_bound = true;
-		else if (action == BUS_NOTIFY_DRIVER_NOT_BOUND)
-			simdev->driver_bound = false;
-		else
-			return NOTIFY_DONE;
+	if (!device_match_name(dev, devname))
+		return NOTIFY_DONE;
 
-		complete(&simdev->probe_completion);
-		return NOTIFY_OK;
-	}
+	if (action == BUS_NOTIFY_BOUND_DRIVER)
+		simdev->driver_bound = true;
+	else if (action == BUS_NOTIFY_DRIVER_NOT_BOUND)
+		simdev->driver_bound = false;
+	else
+		return NOTIFY_DONE;
 
-	return NOTIFY_DONE;
+	complete(&simdev->probe_completion);
+
+	return NOTIFY_OK;
 }
 
 static struct gpio_sim_device *to_gpio_sim_device(struct config_item *item)
@@ -1016,6 +1022,30 @@ static void gpio_sim_device_deactivate(struct gpio_sim_device *dev)
 	dev->pdev = NULL;
 }
 
+static void
+gpio_sim_device_lockup_configfs(struct gpio_sim_device *dev, bool lock)
+{
+	struct configfs_subsystem *subsys = dev->group.cg_subsys;
+	struct gpio_sim_bank *bank;
+	struct gpio_sim_line *line;
+
+	/*
+	 * The device only needs to depend on leaf line entries. This is
+	 * sufficient to lock up all the configfs entries that the
+	 * instantiated, alive device depends on.
+	 */
+	list_for_each_entry(bank, &dev->bank_list, siblings) {
+		list_for_each_entry(line, &bank->line_list, siblings) {
+			if (lock)
+				WARN_ON(configfs_depend_item_unlocked(
+						subsys, &line->group.cg_item));
+			else
+				configfs_undepend_item_unlocked(
+						&line->group.cg_item);
+		}
+	}
+}
+
 static ssize_t
 gpio_sim_device_config_live_store(struct config_item *item,
 				  const char *page, size_t count)
@@ -1028,14 +1058,24 @@ gpio_sim_device_config_live_store(struct config_item *item,
 	if (ret)
 		return ret;
 
-	guard(mutex)(&dev->lock);
+	if (live)
+		gpio_sim_device_lockup_configfs(dev, true);
 
-	if (live == gpio_sim_device_is_live(dev))
-		ret = -EPERM;
-	else if (live)
-		ret = gpio_sim_device_activate(dev);
-	else
-		gpio_sim_device_deactivate(dev);
+	scoped_guard(mutex, &dev->lock) {
+		if (live == gpio_sim_device_is_live(dev))
+			ret = -EPERM;
+		else if (live)
+			ret = gpio_sim_device_activate(dev);
+		else
+			gpio_sim_device_deactivate(dev);
+	}
+
+	/*
+	 * Undepend is required only if device disablement (live == 0)
+	 * succeeds or if device enablement (live == 1) fails.
+	 */
+	if (live == !!ret)
+		gpio_sim_device_lockup_configfs(dev, false);
 
 	return ret ?: count;
 }

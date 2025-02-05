@@ -26,11 +26,7 @@ def get_current_cpu():
     if utils.get_gdbserver_type() == utils.GDBSERVER_QEMU:
         return gdb.selected_thread().num - 1
     elif utils.get_gdbserver_type() == utils.GDBSERVER_KGDB:
-        tid = gdb.selected_thread().ptid[2]
-        if tid > (0x100000000 - MAX_CPUS - 2):
-            return 0x100000000 - tid - 2
-        else:
-            return tasks.get_thread_info(tasks.get_task_by_pid(tid))['cpu']
+        return gdb.parse_and_eval("kgdb_active.counter")
     else:
         raise gdb.GdbError("Sorry, obtaining the current CPU is not yet "
                            "supported with this gdb server.")
@@ -152,9 +148,8 @@ Note that VAR has to be quoted as string."""
     def __init__(self):
         super(PerCpu, self).__init__("lx_per_cpu")
 
-    def invoke(self, var_name, cpu=-1):
-        var_ptr = gdb.parse_and_eval("&" + var_name.string())
-        return per_cpu(var_ptr, cpu)
+    def invoke(self, var, cpu=-1):
+        return per_cpu(var.address, cpu)
 
 
 PerCpu()
@@ -172,7 +167,7 @@ def get_current_task(cpu):
             var_ptr = gdb.parse_and_eval("&pcpu_hot.current_task")
             return per_cpu(var_ptr, cpu).dereference()
     elif utils.is_target_arch("aarch64"):
-        current_task_addr = gdb.parse_and_eval("$SP_EL0")
+        current_task_addr = gdb.parse_and_eval("(unsigned long)$SP_EL0")
         if (current_task_addr >> 63) != 0:
             current_task = current_task_addr.cast(task_ptr_type)
             return current_task.dereference()

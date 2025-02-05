@@ -480,14 +480,12 @@ unregister_notifier:
 	return ret;
 }
 
-static int extcon_cros_ec_remove(struct platform_device *pdev)
+static void extcon_cros_ec_remove(struct platform_device *pdev)
 {
 	struct cros_ec_extcon_info *info = platform_get_drvdata(pdev);
 
 	blocking_notifier_chain_unregister(&info->ec->event_notifier,
 					   &info->notifier);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

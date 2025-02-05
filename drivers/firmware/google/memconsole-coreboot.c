@@ -113,4 +113,5 @@ static struct coreboot_driver memconsole_driver = {
 module_coreboot_driver(memconsole_driver);
 
 MODULE_AUTHOR("Google, Inc.");
+MODULE_DESCRIPTION("Memory based BIOS console accessed through coreboot table");
 MODULE_LICENSE("GPL");

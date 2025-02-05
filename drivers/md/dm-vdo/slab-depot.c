@@ -1287,7 +1287,7 @@ static struct reference_block * __must_check get_reference_block(struct vdo_slab
  * slab_block_number_from_pbn() - Determine the index within the slab of a particular physical
  *                                block number.
  * @slab: The slab.
- * @physical_block_number: The physical block number.
+ * @pbn: The physical block number.
  * @slab_block_number_ptr: A pointer to the slab block number.
  *
  * Return: VDO_SUCCESS or an error code.
@@ -1459,7 +1459,6 @@ static int increment_for_data(struct vdo_slab *slab, struct reference_block *blo
  * @block_number: The block to update.
  * @old_status: The reference status of the data block before this decrement.
  * @updater: The reference updater doing this operation in case we need to look up the pbn lock.
- * @lock: The pbn_lock associated with the block being decremented (may be NULL).
  * @counter_ptr: A pointer to the count for the data block (in, out).
  * @adjust_block_count: Whether to update the allocator's free block count.
  *
@@ -3232,8 +3231,7 @@ int vdo_enqueue_clean_slab_waiter(struct block_allocator *allocator,
 /**
  * vdo_modify_reference_count() - Modify the reference count of a block by first making a slab
  *                                journal entry and then updating the reference counter.
- *
- * @data_vio: The data_vio for which to add the entry.
+ * @completion: The data_vio completion for which to add the entry.
  * @updater: Which of the data_vio's reference updaters is being submitted.
  */
 void vdo_modify_reference_count(struct vdo_completion *completion,
@@ -3288,7 +3286,8 @@ int vdo_release_block_reference(struct block_allocator *allocator,
  * Thus, the ordering is reversed from the usual sense since min_heap returns smaller elements
  * before larger ones.
  */
-static bool slab_status_is_less_than(const void *item1, const void *item2)
+static bool slab_status_is_less_than(const void *item1, const void *item2,
+					void __always_unused *args)
 {
 	const struct slab_status *info1 = item1;
 	const struct slab_status *info2 = item2;
@@ -3300,18 +3299,9 @@ static bool slab_status_is_less_than(const void *item1, const void *item2)
 	return info1->slab_number < info2->slab_number;
 }
 
-static void swap_slab_statuses(void *item1, void *item2)
-{
-	struct slab_status *info1 = item1;
-	struct slab_status *info2 = item2;
-
-	swap(*info1, *info2);
-}
-
 static const struct min_heap_callbacks slab_status_min_heap = {
-	.elem_size = sizeof(struct slab_status),
 	.less = slab_status_is_less_than,
-	.swp = swap_slab_statuses,
+	.swp = NULL,
 };
 
 /* Inform the slab actor that a action has finished on some slab; used by apply_to_slabs(). */
@@ -3509,7 +3499,7 @@ static int get_slab_statuses(struct block_allocator *allocator,
 static int __must_check vdo_prepare_slabs_for_allocation(struct block_allocator *allocator)
 {
 	struct slab_status current_slab_status;
-	struct min_heap heap;
+	DEFINE_MIN_HEAP(struct slab_status, heap) heap;
 	int result;
 	struct slab_status *slab_statuses;
 	struct slab_depot *depot = allocator->depot;
@@ -3521,12 +3511,12 @@ static int __must_check vdo_prepare_slabs_for_allocation(struct block_allocator 
 		return result;
 
 	/* Sort the slabs by cleanliness, then by emptiness hint. */
-	heap = (struct min_heap) {
+	heap = (struct heap) {
 		.data = slab_statuses,
 		.nr = allocator->slab_count,
 		.size = allocator->slab_count,
 	};
-	min_heapify_all(&heap, &slab_status_min_heap);
+	min_heapify_all(&heap, &slab_status_min_heap, NULL);
 
 	while (heap.nr > 0) {
 		bool high_priority;
@@ -3534,7 +3524,7 @@ static int __must_check vdo_prepare_slabs_for_allocation(struct block_allocator 
 		struct slab_journal *journal;
 
 		current_slab_status = slab_statuses[0];
-		min_heap_pop(&heap, &slab_status_min_heap);
+		min_heap_pop(&heap, &slab_status_min_heap, NULL);
 		slab = depot->slabs[current_slab_status.slab_number];
 
 		if ((depot->load_type == VDO_SLAB_DEPOT_REBUILD_LOAD) ||
@@ -4750,8 +4740,7 @@ void vdo_use_new_slabs(struct slab_depot *depot, struct vdo_completion *parent)
 /**
  * stop_scrubbing() - Tell the scrubber to stop scrubbing after it finishes the slab it is
  *                    currently working on.
- * @scrubber: The scrubber to stop.
- * @parent: The completion to notify when scrubbing has stopped.
+ * @allocator: The block allocator owning the scrubber to stop.
  */
 static void stop_scrubbing(struct block_allocator *allocator)
 {

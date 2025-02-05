@@ -464,9 +464,11 @@ static int anx7625_odfc_config(struct anx7625_data *ctx,
  */
 static int anx7625_set_k_value(struct anx7625_data *ctx)
 {
-	struct edid *edid = (struct edid *)ctx->slimport_edid_p.edid_raw_data;
+	struct drm_edid_product_id id;
 
-	if (edid->mfg_id[0] == IVO_MID0 && edid->mfg_id[1] == IVO_MID1)
+	drm_edid_get_product_id(ctx->cached_drm_edid, &id);
+
+	if (be16_to_cpu(id.manufacturer_name) == IVO_MID)
 		return anx7625_reg_write(ctx, ctx->i2c.rx_p1_client,
 					 MIPI_DIGITAL_ADJ_1, 0x3B);
 
@@ -1526,7 +1528,8 @@ static int anx7625_wait_hpd_asserted(struct drm_dp_aux *aux,
 
 static void anx7625_remove_edid(struct anx7625_data *ctx)
 {
-	ctx->slimport_edid_p.edid_block_num = -1;
+	drm_edid_free(ctx->cached_drm_edid);
+	ctx->cached_drm_edid = NULL;
 }
 
 static void anx7625_dp_adjust_swing(struct anx7625_data *ctx)
@@ -1644,25 +1647,15 @@ static int anx7625_get_swing_setting(struct device *dev,
 {
 	int num_regs;
 
-	if (of_get_property(dev->of_node,
-			    "analogix,lane0-swing", &num_regs)) {
-		if (num_regs > DP_TX_SWING_REG_CNT)
-			num_regs = DP_TX_SWING_REG_CNT;
-
+	num_regs = of_property_read_variable_u8_array(dev->of_node, "analogix,lane0-swing",
+						      pdata->lane0_reg_data, 1, DP_TX_SWING_REG_CNT);
+	if (num_regs > 0)
 		pdata->dp_lane0_swing_reg_cnt = num_regs;
-		of_property_read_u8_array(dev->of_node, "analogix,lane0-swing",
-					  pdata->lane0_reg_data, num_regs);
-	}
 
-	if (of_get_property(dev->of_node,
-			    "analogix,lane1-swing", &num_regs)) {
-		if (num_regs > DP_TX_SWING_REG_CNT)
-			num_regs = DP_TX_SWING_REG_CNT;
-
+	num_regs = of_property_read_variable_u8_array(dev->of_node, "analogix,lane1-swing",
+						      pdata->lane1_reg_data, 1, DP_TX_SWING_REG_CNT);
+	if (num_regs > 0)
 		pdata->dp_lane1_swing_reg_cnt = num_regs;
-		of_property_read_u8_array(dev->of_node, "analogix,lane1-swing",
-					  pdata->lane1_reg_data, num_regs);
-	}
 
 	return 0;
 }
@@ -1787,27 +1780,32 @@ static ssize_t anx7625_aux_transfer(struct drm_dp_aux *aux,
 static const struct drm_edid *anx7625_edid_read(struct anx7625_data *ctx)
 {
 	struct device *dev = ctx->dev;
-	struct s_edid_data *p_edid = &ctx->slimport_edid_p;
+	u8 *edid_buf;
 	int edid_num;
 
-	if (ctx->slimport_edid_p.edid_block_num > 0)
+	if (ctx->cached_drm_edid)
 		goto out;
+
+	edid_buf = kmalloc(FOUR_BLOCK_SIZE, GFP_KERNEL);
+	if (!edid_buf)
+		return NULL;
 
 	pm_runtime_get_sync(dev);
 	_anx7625_hpd_polling(ctx, 5000 * 100);
-	edid_num = sp_tx_edid_read(ctx, p_edid->edid_raw_data);
+	edid_num = sp_tx_edid_read(ctx, edid_buf);
 	pm_runtime_put_sync(dev);
 
 	if (edid_num < 1) {
 		DRM_DEV_ERROR(dev, "Fail to read EDID: %d\n", edid_num);
+		kfree(edid_buf);
 		return NULL;
 	}
 
-	p_edid->edid_block_num = edid_num;
+	ctx->cached_drm_edid = drm_edid_alloc(edid_buf, FOUR_BLOCK_SIZE);
+	kfree(edid_buf);
 
 out:
-	return drm_edid_alloc(ctx->slimport_edid_p.edid_raw_data,
-			      FOUR_BLOCK_SIZE);
+	return drm_edid_dup(ctx->cached_drm_edid);
 }
 
 static enum drm_connector_status anx7625_sink_detect(struct anx7625_data *ctx)
@@ -1954,7 +1952,8 @@ static void anx7625_audio_shutdown(struct device *dev, void *data)
 }
 
 static int anx7625_hdmi_i2s_get_dai_id(struct snd_soc_component *component,
-				       struct device_node *endpoint)
+				       struct device_node *endpoint,
+				       void *data)
 {
 	struct of_endpoint of_ep;
 	int ret;
@@ -2004,8 +2003,10 @@ static int anx7625_audio_get_eld(struct device *dev, void *data,
 		memset(buf, 0, len);
 	} else {
 		dev_dbg(dev, "audio copy eld\n");
+		mutex_lock(&ctx->connector->eld_mutex);
 		memcpy(buf, ctx->connector->eld,
 		       min(sizeof(ctx->connector->eld), len));
+		mutex_unlock(&ctx->connector->eld_mutex);
 	}
 
 	return 0;
@@ -2139,49 +2140,6 @@ static void hdcp_check_work_func(struct work_struct *work)
 	drm_modeset_unlock(&drm_dev->mode_config.connection_mutex);
 }
 
-static int anx7625_connector_atomic_check(struct anx7625_data *ctx,
-					  struct drm_connector_state *state)
-{
-	struct device *dev = ctx->dev;
-	int cp;
-
-	dev_dbg(dev, "hdcp state check\n");
-	cp = state->content_protection;
-
-	if (cp == ctx->hdcp_cp)
-		return 0;
-
-	if (cp == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
-		if (ctx->dp_en) {
-			dev_dbg(dev, "enable HDCP\n");
-			anx7625_hdcp_enable(ctx);
-
-			queue_delayed_work(ctx->hdcp_workqueue,
-					   &ctx->hdcp_work,
-					   msecs_to_jiffies(2000));
-		}
-	}
-
-	if (cp == DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-		if (ctx->hdcp_cp != DRM_MODE_CONTENT_PROTECTION_ENABLED) {
-			dev_err(dev, "current CP is not ENABLED\n");
-			return -EINVAL;
-		}
-		anx7625_hdcp_disable(ctx);
-		ctx->hdcp_cp = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-		drm_hdcp_update_content_protection(ctx->connector,
-						   ctx->hdcp_cp);
-		dev_dbg(dev, "update CP to UNDESIRE\n");
-	}
-
-	if (cp == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
-		dev_err(dev, "Userspace illegal set to PROTECTION ENABLE\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int anx7625_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -2192,11 +2150,6 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 	DRM_DEV_DEBUG_DRIVER(dev, "drm attach\n");
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR))
 		return -EINVAL;
-
-	if (!bridge->encoder) {
-		DRM_DEV_ERROR(dev, "Parent encoder object not found");
-		return -ENODEV;
-	}
 
 	ctx->aux.drm_dev = bridge->dev;
 	err = drm_dp_aux_register(&ctx->aux);
@@ -2423,7 +2376,7 @@ static int anx7625_bridge_atomic_check(struct drm_bridge *bridge,
 	anx7625_bridge_mode_fixup(bridge, &crtc_state->mode,
 				  &crtc_state->adjusted_mode);
 
-	return anx7625_connector_atomic_check(ctx, conn_state);
+	return 0;
 }
 
 static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
@@ -2432,13 +2385,9 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
 	struct device *dev = ctx->dev;
 	struct drm_connector *connector;
+	struct drm_connector_state *conn_state;
 
 	dev_dbg(dev, "drm atomic enable\n");
-
-	if (!bridge->encoder) {
-		dev_err(dev, "Parent encoder object not found");
-		return;
-	}
 
 	connector = drm_atomic_get_new_connector_for_encoder(state->base.state,
 							     bridge->encoder);
@@ -2451,6 +2400,22 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	_anx7625_hpd_polling(ctx, 5000 * 100);
 
 	anx7625_dp_start(ctx);
+
+	conn_state = drm_atomic_get_new_connector_state(state->base.state, connector);
+
+	if (WARN_ON(!conn_state))
+		return;
+
+	if (conn_state->content_protection == DRM_MODE_CONTENT_PROTECTION_DESIRED) {
+		if (ctx->dp_en) {
+			dev_dbg(dev, "enable HDCP\n");
+			anx7625_hdcp_enable(ctx);
+
+			queue_delayed_work(ctx->hdcp_workqueue,
+					   &ctx->hdcp_work,
+					   msecs_to_jiffies(2000));
+		}
+	}
 }
 
 static void anx7625_bridge_atomic_disable(struct drm_bridge *bridge,
@@ -2460,6 +2425,17 @@ static void anx7625_bridge_atomic_disable(struct drm_bridge *bridge,
 	struct device *dev = ctx->dev;
 
 	dev_dbg(dev, "drm atomic disable\n");
+
+	flush_workqueue(ctx->hdcp_workqueue);
+
+	if (ctx->connector &&
+	    ctx->hdcp_cp == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
+		anx7625_hdcp_disable(ctx);
+		ctx->hdcp_cp = DRM_MODE_CONTENT_PROTECTION_DESIRED;
+		drm_hdcp_update_content_protection(ctx->connector,
+						   ctx->hdcp_cp);
+		dev_dbg(dev, "update CP to DESIRE\n");
+	}
 
 	ctx->connector = NULL;
 	anx7625_dp_stop(ctx);
@@ -2563,6 +2539,8 @@ static int __maybe_unused anx7625_runtime_pm_suspend(struct device *dev)
 	mutex_lock(&ctx->lock);
 
 	anx7625_stop_dp_work(ctx);
+	if (!ctx->pdata.panel_bridge)
+		anx7625_remove_edid(ctx);
 	anx7625_power_standby(ctx);
 
 	mutex_unlock(&ctx->lock);
@@ -2805,7 +2783,7 @@ static void anx7625_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id anx7625_id[] = {
-	{"anx7625", 0},
+	{ "anx7625" },
 	{}
 };
 

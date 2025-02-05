@@ -335,7 +335,6 @@ static u32 cpg_quirks __initdata;
 
 #define RCKCR_CKSEL	BIT(1)		/* Manual RCLK parent selection */
 
-
 static const struct soc_device_attribute cpg_quirks_match[] __initconst = {
 	{
 		.soc_id = "r8a7796", .revision = "ES1.0",
@@ -550,8 +549,6 @@ int __init rcar_gen3_cpg_init(const struct rcar_gen3_cpg_pll_config *config,
 	if (attr)
 		cpg_quirks = (uintptr_t)attr->data;
 	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
-
-	spin_lock_init(&cpg_lock);
 
 	return 0;
 }

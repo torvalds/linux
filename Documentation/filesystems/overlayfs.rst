@@ -156,7 +156,7 @@ A directory is made opaque by setting the xattr "trusted.overlay.opaque"
 to "y".  Where the upper filesystem contains an opaque directory, any
 directory in the lower filesystem with the same name is ignored.
 
-An opaque directory should not conntain any whiteouts, because they do not
+An opaque directory should not contain any whiteouts, because they do not
 serve any purpose.  A merge directory containing regular files with the xattr
 "trusted.overlay.whiteout", should be additionally marked by setting the xattr
 "trusted.overlay.opaque" to "x" on the merge directory itself.
@@ -266,7 +266,7 @@ Non-directories
 Objects that are not directories (files, symlinks, device-special
 files etc.) are presented either from the upper or lower filesystem as
 appropriate.  When a file in the lower filesystem is accessed in a way
-the requires write-access, such as opening for write access, changing
+that requires write-access, such as opening for write access, changing
 some metadata etc., the file is first copied from the lower filesystem
 to the upper filesystem (copy_up).  Note that creating a hard-link
 also requires copy_up, though of course creation of a symlink does
@@ -367,8 +367,11 @@ Metadata only copy up
 
 When the "metacopy" feature is enabled, overlayfs will only copy
 up metadata (as opposed to whole file), when a metadata specific operation
-like chown/chmod is performed. Full file will be copied up later when
-file is opened for WRITE operation.
+like chown/chmod is performed. An upper file in this state is marked with
+"trusted.overlayfs.metacopy" xattr which indicates that the upper file
+contains no data.  The data will be copied up later when file is opened for
+WRITE operation.  After the lower file's data is copied up,
+the "trusted.overlayfs.metacopy" xattr is removed from the upper file.
 
 In other words, this is delayed data copy up operation and data is copied
 up when there is a need to actually modify data.
@@ -435,6 +438,23 @@ For example::
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l3", 0);
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do1", 0);
   fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do2", 0);
+
+
+Specifying layers via file descriptors
+--------------------------------------
+
+Since kernel v6.13, overlayfs supports specifying layers via file descriptors in
+addition to specifying them as paths. This feature is available for the
+"datadir+", "lowerdir+", "upperdir", and "workdir+" mount options with the
+fsconfig syscall from the new mount api::
+
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower1);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower2);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "lowerdir+", NULL, fd_lower3);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "datadir+", NULL, fd_data1);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "datadir+", NULL, fd_data2);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "workdir", NULL, fd_work);
+  fsconfig(fs_fd, FSCONFIG_SET_FD, "upperdir", NULL, fd_upper);
 
 
 fs-verity support
@@ -529,8 +549,8 @@ Nesting overlayfs mounts
 
 It is possible to use a lower directory that is stored on an overlayfs
 mount. For regular files this does not need any special care. However, files
-that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs will be
-interpreted by the underlying overlayfs mount and stripped out. In order to
+that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs, will
+be interpreted by the underlying overlayfs mount and stripped out. In order to
 allow the second overlayfs mount to see the attributes they must be escaped.
 
 Overlayfs specific xattrs are escaped by using a special prefix of

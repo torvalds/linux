@@ -1090,7 +1090,7 @@ MODULE_DEVICE_TABLE(of, dim2_of_match);
 
 static struct platform_driver dim2_driver = {
 	.probe = dim2_probe,
-	.remove_new = dim2_remove,
+	.remove = dim2_remove,
 	.driver = {
 		.name = "hdm_dim2",
 		.of_match_table = dim2_of_match,

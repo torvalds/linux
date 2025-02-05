@@ -252,16 +252,16 @@ static void vg_dump_clk_registers(struct clk_state_registers_and_bypass *regs_an
 	regs_and_bypass->dppclk = internal.CLK1_CLK1_CURRENT_CNT / 10;
 
 	regs_and_bypass->dppclk_bypass = internal.CLK1_CLK1_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dppclk_bypass < 0 || regs_and_bypass->dppclk_bypass > 4)
+	if (regs_and_bypass->dppclk_bypass > 4)
 		regs_and_bypass->dppclk_bypass = 0;
 	regs_and_bypass->dcfclk_bypass = internal.CLK1_CLK3_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dcfclk_bypass < 0 || regs_and_bypass->dcfclk_bypass > 4)
+	if (regs_and_bypass->dcfclk_bypass > 4)
 		regs_and_bypass->dcfclk_bypass = 0;
 	regs_and_bypass->dispclk_bypass = internal.CLK1_CLK0_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dispclk_bypass < 0 || regs_and_bypass->dispclk_bypass > 4)
+	if (regs_and_bypass->dispclk_bypass > 4)
 		regs_and_bypass->dispclk_bypass = 0;
 	regs_and_bypass->dprefclk_bypass = internal.CLK1_CLK2_BYPASS_CNTL & 0x0007;
-	if (regs_and_bypass->dprefclk_bypass < 0 || regs_and_bypass->dprefclk_bypass > 4)
+	if (regs_and_bypass->dprefclk_bypass > 4)
 		regs_and_bypass->dprefclk_bypass = 0;
 
 	if (log_info->enabled) {
@@ -731,7 +731,7 @@ void vg_clk_mgr_construct(
 	clk_mgr->base.base.bw_params = &vg_bw_params;
 
 	vg_get_dpm_table_from_smu(&clk_mgr->base, &smu_dpm_clks);
-	if (ctx->dc_bios && ctx->dc_bios->integrated_info) {
+	if (ctx->dc_bios->integrated_info) {
 		vg_clk_mgr_helper_populate_bw_params(
 				&clk_mgr->base,
 				ctx->dc_bios->integrated_info,

@@ -71,6 +71,10 @@ properties:
       - const: iahb
       - const: venci
 
+  power-domains:
+    maxItems: 1
+    description: phandle to the associated power domain
+
   resets:
     minItems: 3
 
@@ -129,6 +133,7 @@ examples:
         reset-names = "hdmitx_apb", "hdmitx", "hdmitx_phy";
         clocks = <&clk_isfr>, <&clk_iahb>, <&clk_venci>;
         clock-names = "isfr", "iahb", "venci";
+        power-domains = <&pd_vpu>;
         #address-cells = <1>;
         #size-cells = <0>;
 
@@ -143,10 +148,10 @@ examples:
 
         /* TMDS Output */
         hdmi_tx_tmds_port: port@1 {
-             reg = <1>;
+            reg = <1>;
 
-             hdmi_tx_tmds_out: endpoint {
-                 remote-endpoint = <&hdmi_connector_in>;
-             };
+            hdmi_tx_tmds_out: endpoint {
+                remote-endpoint = <&hdmi_connector_in>;
+            };
         };
     };

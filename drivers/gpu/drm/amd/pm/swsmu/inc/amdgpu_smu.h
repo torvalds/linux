@@ -362,6 +362,27 @@ struct smu_table_context {
 	void				*gpu_metrics_table;
 };
 
+struct smu_context;
+struct smu_dpm_policy;
+
+struct smu_dpm_policy_desc {
+	const char *name;
+	char *(*get_desc)(struct smu_dpm_policy *dpm_policy, int level);
+};
+
+struct smu_dpm_policy {
+	struct smu_dpm_policy_desc *desc;
+	enum pp_pm_policy policy_type;
+	unsigned long level_mask;
+	int current_level;
+	int (*set_policy)(struct smu_context *ctxt, int level);
+};
+
+struct smu_dpm_policy_ctxt {
+	struct smu_dpm_policy policies[PP_PM_POLICY_NUM];
+	unsigned long policy_mask;
+};
+
 struct smu_dpm_context {
 	uint32_t dpm_context_size;
 	void *dpm_context;
@@ -372,12 +393,13 @@ struct smu_dpm_context {
 	struct smu_power_state *dpm_request_power_state;
 	struct smu_power_state *dpm_current_power_state;
 	struct mclock_latency_table *mclk_latency_table;
+	struct smu_dpm_policy_ctxt *dpm_policies;
 };
 
 struct smu_power_gate {
 	bool uvd_gated;
 	bool vce_gated;
-	atomic_t vcn_gated;
+	atomic_t vcn_gated[AMDGPU_MAX_VCN_INSTANCES];
 	atomic_t jpeg_gated;
 	atomic_t vpe_gated;
 	atomic_t umsch_mm_gated;
@@ -473,6 +495,12 @@ struct stb_context {
 	spinlock_t lock;
 };
 
+enum smu_fw_status {
+	SMU_FW_INIT = 0,
+	SMU_FW_RUNTIME,
+	SMU_FW_HANG,
+};
+
 #define WORKLOAD_POLICY_MAX 7
 
 /*
@@ -528,11 +556,13 @@ struct smu_context {
 	uint32_t hard_min_uclk_req_from_dal;
 	bool disable_uclk_switch;
 
+	/* asic agnostic workload mask */
 	uint32_t workload_mask;
-	uint32_t workload_prority[WORKLOAD_POLICY_MAX];
-	uint32_t workload_setting[WORKLOAD_POLICY_MAX];
+	/* default/user workload preference */
 	uint32_t power_profile_mode;
-	uint32_t default_power_profile_mode;
+	uint32_t workload_refcount[PP_SMC_POWER_PROFILE_COUNT];
+	/* backend specific custom workload settings */
+	long *custom_profile_params;
 	bool pm_enabled;
 	bool is_apu;
 
@@ -540,6 +570,7 @@ struct smu_context {
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
 	uint32_t smc_fw_caps;
+	uint8_t smc_fw_state;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
@@ -579,8 +610,6 @@ struct smu_context {
 	u32 debug_resp_reg;
 
 	struct delayed_work		swctf_delayed_work;
-
-	enum pp_xgmi_plpd_mode plpd_mode;
 
 	/* data structures for wbrf feature support */
 	bool				wbrf_supported;
@@ -704,15 +733,18 @@ struct pptable_funcs {
 	 * @set_power_profile_mode: Set a power profile mode. Also used to
 	 *                          create/set custom power profile modes.
 	 * &input: Power profile mode parameters.
-	 * &size: Size of &input.
+	 * &workload_mask: mask of workloads to enable
+	 * &custom_params: custom profile parameters
+	 * &custom_params_max_idx: max valid idx into custom_params
 	 */
-	int (*set_power_profile_mode)(struct smu_context *smu, long *input, uint32_t size);
+	int (*set_power_profile_mode)(struct smu_context *smu, u32 workload_mask,
+				      long *custom_params, u32 custom_params_max_idx);
 
 	/**
 	 * @dpm_set_vcn_enable: Enable/disable VCN engine dynamic power
 	 *                      management.
 	 */
-	int (*dpm_set_vcn_enable)(struct smu_context *smu, bool enable);
+	int (*dpm_set_vcn_enable)(struct smu_context *smu, bool enable, int inst);
 
 	/**
 	 * @dpm_set_jpeg_enable: Enable/disable JPEG engine dynamic power
@@ -832,11 +864,6 @@ struct pptable_funcs {
 	int (*display_disable_memory_clock_switch)(struct smu_context *smu, bool disable_memory_clock_switch);
 
 	/**
-	 * @dump_pptable: Print the power play table to the system log.
-	 */
-	void (*dump_pptable)(struct smu_context *smu);
-
-	/**
 	 * @get_power_limit: Get the device's power limits.
 	 */
 	int (*get_power_limit)(struct smu_context *smu,
@@ -855,12 +882,6 @@ struct pptable_funcs {
 	 * @set_df_cstate: Set data fabric cstate.
 	 */
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
-
-	/**
-	 * @select_xgmi_plpd_policy: Select xgmi per-link power down policy.
-	 */
-	int (*select_xgmi_plpd_policy)(struct smu_context *smu,
-				       enum pp_xgmi_plpd_mode mode);
 
 	/**
 	 * @update_pcie_parameters: Update and upload the system's PCIe
@@ -1239,7 +1260,8 @@ struct pptable_funcs {
 	 * @set_soft_freq_limited_range: Set the soft frequency range of a clock
 	 *                               domain in MHz.
 	 */
-	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max,
+					   bool automatic);
 
 	/**
 	 * @set_power_source: Notify the SMU of the current power source.
@@ -1351,6 +1373,11 @@ struct pptable_funcs {
 	int (*send_rma_reason)(struct smu_context *smu);
 
 	/**
+	 * @reset_sdma: message SMU to soft reset sdma instance.
+	 */
+	int (*reset_sdma)(struct smu_context *smu, uint32_t inst_mask);
+
+	/**
 	 * @get_ecc_table:  message SMU to get ECC INFO table.
 	 */
 	ssize_t (*get_ecc_info)(struct smu_context *smu, void *table);
@@ -1393,6 +1420,11 @@ struct pptable_funcs {
 	 *                       management.
 	 */
 	int (*dpm_set_umsch_mm_enable)(struct smu_context *smu, bool enable);
+
+	/**
+	 * @set_mall_enable: Init MALL power gating control.
+	 */
+	int (*set_mall_enable)(struct smu_context *smu);
 
 	/**
 	 * @notify_rlc_state: Notify RLC power state to SMU.
@@ -1551,6 +1583,12 @@ typedef struct {
 	uint32_t		MmHubPadding[8];
 } WifiBandEntryTable_t;
 
+#define STR_SOC_PSTATE_POLICY "soc_pstate"
+#define STR_XGMI_PLPD_POLICY "xgmi_plpd"
+
+struct smu_dpm_policy *smu_get_pm_policy(struct smu_context *smu,
+					 enum pp_pm_policy p_type);
+
 #if !defined(SWSMU_CODE_LAYER_L2) && !defined(SWSMU_CODE_LAYER_L3) && !defined(SWSMU_CODE_LAYER_L4)
 int smu_get_power_limit(void *handle,
 			uint32_t *limit,
@@ -1598,5 +1636,11 @@ void amdgpu_smu_stb_debug_fs_init(struct amdgpu_device *adev);
 int smu_send_hbm_bad_pages_num(struct smu_context *smu, uint32_t size);
 int smu_send_hbm_bad_channel_flag(struct smu_context *smu, uint32_t size);
 int smu_send_rma_reason(struct smu_context *smu);
+int smu_reset_sdma(struct smu_context *smu, uint32_t inst_mask);
+int smu_set_pm_policy(struct smu_context *smu, enum pp_pm_policy p_type,
+		      int level);
+ssize_t smu_get_pm_policy_info(struct smu_context *smu,
+			       enum pp_pm_policy p_type, char *sysbuf);
+
 #endif
 #endif

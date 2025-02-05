@@ -4,7 +4,7 @@
  * Copyright (C) 2022 Jonathan Lemon <jonathan.lemon@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/ptp_classify.h>
@@ -841,7 +841,7 @@ static int bcm_ptp_hwtstamp(struct mii_timestamper *mii_ts,
 }
 
 static int bcm_ptp_ts_info(struct mii_timestamper *mii_ts,
-			   struct ethtool_ts_info *ts_info)
+			   struct kernel_ethtool_ts_info *ts_info)
 {
 	struct bcm_ptp_private *priv = mii2priv(mii_ts);
 
@@ -930,6 +930,9 @@ struct bcm_ptp_private *bcm_ptp_probe(struct phy_device *phydev)
 	if (IS_ERR(clock))
 		return ERR_CAST(clock);
 	priv->ptp_clock = clock;
+
+	/* Timestamp selected by default to keep legacy API */
+	phydev->default_timestamp = true;
 
 	priv->phydev = phydev;
 	bcm_ptp_init(priv);

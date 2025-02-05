@@ -835,9 +835,8 @@ static int sx9324_init_compensation(struct iio_dev *indio_dev)
 	int ret;
 
 	/* run the compensation phase on all channels */
-	ret = regmap_update_bits(data->regmap, SX9324_REG_STAT2,
-				 SX9324_REG_STAT2_COMPSTAT_MASK,
-				 SX9324_REG_STAT2_COMPSTAT_MASK);
+	ret = regmap_set_bits(data->regmap, SX9324_REG_STAT2,
+			      SX9324_REG_STAT2_COMPSTAT_MASK);
 	if (ret)
 		return ret;
 
@@ -867,6 +866,26 @@ static u8 sx9324_parse_phase_prop(struct device *dev,
 		       SX9324_REG_AFE_PH0_PIN_MASK(pin);
 
 	return raw;
+}
+
+static void sx_common_get_raw_register_config(struct device *dev,
+					      struct sx_common_reg_default *reg_def)
+{
+#ifdef CONFIG_ACPI
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	u32 raw = 0, ret;
+	char prop[80];
+
+	if (!reg_def->property || !adev)
+		return;
+
+	snprintf(prop, ARRAY_SIZE(prop), "%s,reg_%s", acpi_device_hid(adev), reg_def->property);
+	ret = device_property_read_u32(dev, prop, &raw);
+	if (ret)
+		return;
+
+	reg_def->def = raw;
+#endif
 }
 
 static const struct sx_common_reg_default *
@@ -1136,4 +1155,4 @@ module_i2c_driver(sx9324_driver);
 MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX9324 proximity sensor");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SEMTECH_PROX);
+MODULE_IMPORT_NS("SEMTECH_PROX");

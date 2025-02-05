@@ -81,6 +81,7 @@ int drm_mode_object_add(struct drm_device *dev,
 {
 	return __drm_mode_object_add(dev, obj, obj_type, true, NULL);
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_mode_object_add);
 
 void drm_mode_object_register(struct drm_device *dev,
 			      struct drm_mode_object *obj)
@@ -478,6 +479,7 @@ struct drm_property *drm_mode_obj_find_prop_id(struct drm_mode_object *obj,
 
 	return NULL;
 }
+EXPORT_SYMBOL_FOR_TESTS_ONLY(drm_mode_obj_find_prop_id);
 
 static int set_property_legacy(struct drm_mode_object *obj,
 			       struct drm_property *prop,

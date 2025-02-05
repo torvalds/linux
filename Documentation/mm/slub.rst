@@ -80,7 +80,7 @@ to the dentry cache with::
 
 Debugging options may require the minimum possible slab order to increase as
 a result of storing the metadata (for example, caches with PAGE_SIZE object
-sizes).  This has a higher liklihood of resulting in slab allocation errors
+sizes).  This has a higher likelihood of resulting in slab allocation errors
 in low memory situations or if there's high fragmentation of memory.  To
 switch off debugging for such caches by default, use::
 
@@ -174,6 +174,15 @@ can be influenced by kernel parameters:
 	``debug_guardpage_minorder=N`` (N > 0), forces setting
 	``slab_max_order`` to 0, what cause minimum possible order of
 	slabs allocation.
+
+``slab_strict_numa``
+        Enables the application of memory policies on each
+        allocation. This results in more accurate placement of
+        objects which may result in the reduction of accesses
+        to remote nodes. The default is to only apply memory
+        policies at the folio level when a new folio is acquired
+        or a folio is retrieved from the lists. Enabling this
+        option reduces the fastpath performance of the slab allocator.
 
 SLUB Debug output
 =================

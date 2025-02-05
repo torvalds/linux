@@ -11,3 +11,5 @@ Hyper-V Enlightenments
    vmbus
    clocks
    vpci
+   hibernation
+   coco

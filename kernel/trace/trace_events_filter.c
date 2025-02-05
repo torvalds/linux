@@ -1616,7 +1616,7 @@ static int parse_pred(const char *str, void *data,
 				goto err_free;
 			}
 
-			strncpy(num_buf, str + s, len);
+			memcpy(num_buf, str + s, len);
 			num_buf[len] = 0;
 
 			ret = kstrtoul(num_buf, 0, &ip);
@@ -1694,7 +1694,7 @@ static int parse_pred(const char *str, void *data,
 		if (!pred->regex)
 			goto err_mem;
 		pred->regex->len = len;
-		strncpy(pred->regex->pattern, str + s, len);
+		memcpy(pred->regex->pattern, str + s, len);
 		pred->regex->pattern[len] = 0;
 
 	} else if (!strncmp(str + i, "CPUS", 4)) {
@@ -1859,7 +1859,7 @@ static int parse_pred(const char *str, void *data,
 		if (!pred->regex)
 			goto err_mem;
 		pred->regex->len = len;
-		strncpy(pred->regex->pattern, str + s, len);
+		memcpy(pred->regex->pattern, str + s, len);
 		pred->regex->pattern[len] = 0;
 
 		filter_build_regex(pred);
@@ -1919,7 +1919,7 @@ static int parse_pred(const char *str, void *data,
 			goto err_free;
 		}
 
-		strncpy(num_buf, str + s, len);
+		memcpy(num_buf, str + s, len);
 		num_buf[len] = 0;
 
 		/* Make sure it is a value */
@@ -2405,13 +2405,11 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 	struct event_filter *filter = NULL;
 	int err = 0;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	/* Make sure the system still has events */
-	if (!dir->nr_events) {
-		err = -ENODEV;
-		goto out_unlock;
-	}
+	if (!dir->nr_events)
+		return -ENODEV;
 
 	if (!strcmp(strstrip(filter_string), "0")) {
 		filter_free_subsystem_preds(dir, tr);
@@ -2422,7 +2420,7 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 		tracepoint_synchronize_unregister();
 		filter_free_subsystem_filters(dir, tr);
 		__free_filter(filter);
-		goto out_unlock;
+		return 0;
 	}
 
 	err = create_system_filter(dir, filter_string, &filter);
@@ -2434,8 +2432,6 @@ int apply_subsystem_event_filter(struct trace_subsystem_dir *dir,
 		__free_filter(system->filter);
 		system->filter = filter;
 	}
-out_unlock:
-	mutex_unlock(&event_mutex);
 
 	return err;
 }
@@ -2612,17 +2608,15 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	struct event_filter *filter = NULL;
 	struct trace_event_call *call;
 
-	mutex_lock(&event_mutex);
+	guard(mutex)(&event_mutex);
 
 	call = event->tp_event;
 
-	err = -EINVAL;
 	if (!call)
-		goto out_unlock;
+		return -EINVAL;
 
-	err = -EEXIST;
 	if (event->filter)
-		goto out_unlock;
+		return -EEXIST;
 
 	err = create_filter(NULL, call, filter_str, false, &filter);
 	if (err)
@@ -2636,9 +2630,6 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 free_filter:
 	if (err || ftrace_event_is_function(call))
 		__free_filter(filter);
-
-out_unlock:
-	mutex_unlock(&event_mutex);
 
 	return err;
 }

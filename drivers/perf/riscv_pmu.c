@@ -39,7 +39,6 @@ void arch_perf_update_userpage(struct perf_event *event,
 	userpg->cap_user_time_short = 0;
 	userpg->cap_user_rdpmc = riscv_perf_user_access(event);
 
-#ifdef CONFIG_RISCV_PMU
 	/*
 	 * The counters are 64-bit but the priv spec doesn't mandate all the
 	 * bits to be implemented: that's why, counter width can vary based on
@@ -47,7 +46,6 @@ void arch_perf_update_userpage(struct perf_event *event,
 	 */
 	if (userpg->cap_user_rdpmc)
 		userpg->pmc_width = to_riscv_pmu(event->pmu)->ctr_get_width(event->hw.idx) + 1;
-#endif
 
 	do {
 		rd = sched_clock_read_begin(&seq);
@@ -167,7 +165,7 @@ u64 riscv_pmu_event_update(struct perf_event *event)
 	unsigned long cmask;
 	u64 oldval, delta;
 
-	if (!rvpmu->ctr_read)
+	if (!rvpmu->ctr_read || (hwc->state & PERF_HES_UPTODATE))
 		return 0;
 
 	cmask = riscv_pmu_ctr_get_width_mask(event);
@@ -190,8 +188,6 @@ void riscv_pmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct riscv_pmu *rvpmu = to_riscv_pmu(event->pmu);
-
-	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 
 	if (!(hwc->state & PERF_HES_STOPPED)) {
 		if (rvpmu->ctr_stop) {
@@ -408,6 +404,7 @@ struct riscv_pmu *riscv_pmu_alloc(void)
 		cpuc->n_events = 0;
 		for (i = 0; i < RISCV_MAX_COUNTERS; i++)
 			cpuc->events[i] = NULL;
+		cpuc->snapshot_addr = NULL;
 	}
 	pmu->pmu = (struct pmu) {
 		.event_init	= riscv_pmu_event_init,

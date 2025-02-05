@@ -8,7 +8,7 @@
  *
  */
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bcd.h>
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
@@ -669,7 +669,7 @@ static int max31335_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max31335_id[] = {
-	{ "max31335", 0 },
+	{ "max31335" },
 	{ }
 };
 

@@ -62,7 +62,7 @@ config INTEL_INT0002_VGPIO
 
 config INTEL_OAKTRAIL
 	tristate "Intel Oaktrail Platform Extras"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on ACPI_VIDEO || ACPI_VIDEO=n
 	depends on RFKILL && BACKLIGHT_CLASS_DEVICE && ACPI
 	help
@@ -83,6 +83,7 @@ config INTEL_BXTWC_PMIC_TMU
 config INTEL_BYTCRC_PWRSRC
 	tristate "Intel Bay Trail Crystal Cove power source driver"
 	depends on INTEL_SOC_PMIC
+	depends on POWER_SUPPLY
 	help
 	  This option adds a power source driver for Crystal Cove PMICs
 	  on Intel Bay Trail devices.
@@ -192,10 +193,14 @@ config INTEL_SMARTCONNECT
 	  This driver checks to determine whether the device has Intel Smart
 	  Connect enabled, and if so disables it.
 
+config INTEL_TPMI_POWER_DOMAINS
+	tristate
+
 config INTEL_TPMI
 	tristate "Intel Topology Aware Register and PM Capsule Interface (TPMI)"
 	depends on INTEL_VSEC
 	depends on X86_64
+	select INTEL_TPMI_POWER_DOMAINS
 	help
 	  The Intel Topology Aware Register and PM Capsule Interface (TPMI),
 	  provides enumerable MMIO interface for power management features.
@@ -204,6 +209,13 @@ config INTEL_TPMI
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called intel_vsec_tpmi.
+
+config INTEL_PLR_TPMI
+        tristate "Intel SoC TPMI Power Limit Reasons driver"
+        depends on INTEL_TPMI
+        help
+          This driver provides the TPMI power limit reasons status information
+          via debugfs files.
 
 config INTEL_TURBO_MAX_3
 	bool "Intel Turbo Boost Max Technology 3.0 enumeration driver"

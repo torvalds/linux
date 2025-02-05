@@ -68,10 +68,10 @@ int cond_destroy_bool(void *key, void *datum, void *p);
 
 int cond_index_bool(void *key, void *datum, void *datap);
 
-int cond_read_bool(struct policydb *p, struct symtab *s, void *fp);
-int cond_read_list(struct policydb *p, void *fp);
+int cond_read_bool(struct policydb *p, struct symtab *s, struct policy_file *fp);
+int cond_read_list(struct policydb *p, struct policy_file *fp);
 int cond_write_bool(void *key, void *datum, void *ptr);
-int cond_write_list(struct policydb *p, void *fp);
+int cond_write_list(struct policydb *p, struct policy_file *fp);
 
 void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 		     struct av_decision *avd, struct extended_perms *xperms);
@@ -79,6 +79,6 @@ void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
 			 struct extended_perms_decision *xpermd);
 void evaluate_cond_nodes(struct policydb *p);
 void cond_policydb_destroy_dup(struct policydb *p);
-int cond_policydb_dup(struct policydb *new, struct policydb *orig);
+int cond_policydb_dup(struct policydb *new, const struct policydb *orig);
 
 #endif /* _CONDITIONAL_H_ */

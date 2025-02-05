@@ -60,7 +60,7 @@ struct mag3110_data {
 	struct {
 		__be16 channels[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 
@@ -624,7 +624,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(mag3110_pm_ops, mag3110_suspend,
 				mag3110_resume);
 
 static const struct i2c_device_id mag3110_id[] = {
-	{ "mag3110", 0 },
+	{ "mag3110" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mag3110_id);

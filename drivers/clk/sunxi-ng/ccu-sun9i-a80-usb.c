@@ -68,7 +68,7 @@ static struct clk_hw_onecell_data sun9i_a80_usb_hw_clks = {
 	.num	= CLK_NUMBER,
 };
 
-static struct ccu_reset_map sun9i_a80_usb_resets[] = {
+static const struct ccu_reset_map sun9i_a80_usb_resets[] = {
 	[RST_USB0_HCI]		= { 0x0, BIT(17) },
 	[RST_USB1_HCI]		= { 0x0, BIT(18) },
 	[RST_USB2_HCI]		= { 0x0, BIT(19) },
@@ -127,6 +127,7 @@ static const struct of_device_id sun9i_a80_usb_clk_ids[] = {
 	{ .compatible = "allwinner,sun9i-a80-usb-clks" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, sun9i_a80_usb_clk_ids);
 
 static struct platform_driver sun9i_a80_usb_clk_driver = {
 	.probe	= sun9i_a80_usb_clk_probe,
@@ -137,5 +138,6 @@ static struct platform_driver sun9i_a80_usb_clk_driver = {
 };
 module_platform_driver(sun9i_a80_usb_clk_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
+MODULE_DESCRIPTION("Support for the Allwinner A80 USB CCU");
 MODULE_LICENSE("GPL");

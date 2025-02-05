@@ -81,14 +81,12 @@ static int seg_led_probe(struct platform_device *pdev)
 	return linedisp_register(&priv->linedisp, dev, 1, &seg_led_linedisp_ops);
 }
 
-static int seg_led_remove(struct platform_device *pdev)
+static void seg_led_remove(struct platform_device *pdev)
 {
 	struct seg_led_priv *priv = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&priv->work);
 	linedisp_unregister(&priv->linedisp);
-
-	return 0;
 }
 
 static const struct of_device_id seg_led_of_match[] = {
@@ -110,4 +108,4 @@ module_platform_driver(seg_led_driver);
 MODULE_AUTHOR("Chris Packham <chris.packham@alliedtelesis.co.nz>");
 MODULE_DESCRIPTION("7 segment LED driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(LINEDISP);
+MODULE_IMPORT_NS("LINEDISP");

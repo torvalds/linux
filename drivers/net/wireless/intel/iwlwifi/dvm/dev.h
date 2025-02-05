@@ -19,7 +19,7 @@
 #include <linux/mutex.h>
 
 #include "fw/img.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 #include "iwl-csr.h"
 #include "iwl-debug.h"
 #include "iwl-agn-hw.h"

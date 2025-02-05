@@ -465,7 +465,7 @@ uvc_register_video(struct uvc_device *uvc)
 		memcpy(mem, desc, (desc)->bLength); \
 		*(dst)++ = mem; \
 		mem += (desc)->bLength; \
-	} while (0);
+	} while (0)
 
 #define UVC_COPY_DESCRIPTORS(mem, dst, src) \
 	do { \
@@ -991,6 +991,8 @@ static void uvc_function_unbind(struct usb_configuration *c,
 
 	uvcg_info(f, "%s()\n", __func__);
 
+	kthread_cancel_work_sync(&video->hw_submit);
+
 	if (video->async_wq)
 		destroy_workqueue(video->async_wq);
 
@@ -1118,5 +1120,6 @@ err_config:
 }
 
 DECLARE_USB_FUNCTION_INIT(uvc, uvc_alloc_inst, uvc_alloc);
+MODULE_DESCRIPTION("USB Video Class Gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Laurent Pinchart");

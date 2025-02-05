@@ -23,11 +23,6 @@ u32 brcmstb_uart_config[3] = {
 	0,
 };
 
-static void __init brcmstb_init_irq(void)
-{
-	irqchip_init();
-}
-
 static const char *const brcmstb_match[] __initconst = {
 	"brcm,bcm7445",
 	"brcm,brcmstb",
@@ -36,5 +31,4 @@ static const char *const brcmstb_match[] __initconst = {
 
 DT_MACHINE_START(BRCMSTB, "Broadcom STB (Flattened Device Tree)")
 	.dt_compat	= brcmstb_match,
-	.init_irq	= brcmstb_init_irq,
 MACHINE_END

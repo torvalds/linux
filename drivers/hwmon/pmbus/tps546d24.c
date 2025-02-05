@@ -42,7 +42,7 @@ static int tps546d24_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps546d24_id[] = {
-	{"tps546d24", 0},
+	{"tps546d24"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tps546d24_id);
@@ -68,4 +68,4 @@ module_i2c_driver(tps546d24_driver);
 MODULE_AUTHOR("Duke Du <dukedu83@gmail.com>");
 MODULE_DESCRIPTION("PMBus driver for TI tps546d24");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

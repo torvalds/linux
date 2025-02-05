@@ -27,9 +27,11 @@
 #include <linux/uaccess.h>
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
+#include <linux/kmsan.h>
 #include <asm/asm-extable.h>
 #include <asm/vtime.h>
 #include <asm/fpu.h>
+#include <asm/fault.h>
 #include "entry.h"
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
@@ -262,6 +264,11 @@ static void monitor_event_exception(struct pt_regs *regs)
 
 void kernel_stack_overflow(struct pt_regs *regs)
 {
+	/*
+	 * Normally regs are unpoisoned by the generic entry code, but
+	 * kernel_stack_overflow() is a rare case that is called bypassing it.
+	 */
+	kmsan_unpoison_entry_regs(regs);
 	bust_spinlocks(1);
 	printk("Kernel stack overflow.\n");
 	show_regs(regs);
@@ -288,15 +295,16 @@ static void __init test_monitor_call(void)
 
 void __init trap_init(void)
 {
+	struct lowcore *lc = get_lowcore();
 	unsigned long flags;
 	struct ctlreg cr0;
 
 	local_irq_save(flags);
 	cr0 = local_ctl_clear_bit(0, CR0_LOW_ADDRESS_PROTECTION_BIT);
-	psw_bits(S390_lowcore.external_new_psw).mcheck = 1;
-	psw_bits(S390_lowcore.program_new_psw).mcheck = 1;
-	psw_bits(S390_lowcore.svc_new_psw).mcheck = 1;
-	psw_bits(S390_lowcore.io_new_psw).mcheck = 1;
+	psw_bits(lc->external_new_psw).mcheck = 1;
+	psw_bits(lc->program_new_psw).mcheck = 1;
+	psw_bits(lc->svc_new_psw).mcheck = 1;
+	psw_bits(lc->io_new_psw).mcheck = 1;
 	local_ctl_load(0, &cr0);
 	local_irq_restore(flags);
 	local_mcck_enable();
@@ -307,11 +315,27 @@ static void (*pgm_check_table[128])(struct pt_regs *regs);
 
 void noinstr __do_pgm_check(struct pt_regs *regs)
 {
-	unsigned int trapnr;
+	struct lowcore *lc = get_lowcore();
 	irqentry_state_t state;
+	unsigned int trapnr;
+	union teid teid;
 
-	regs->int_code = S390_lowcore.pgm_int_code;
-	regs->int_parm_long = S390_lowcore.trans_exc_code;
+	teid.val = lc->trans_exc_code;
+	regs->int_code = lc->pgm_int_code;
+	regs->int_parm_long = teid.val;
+
+	/*
+	 * In case of a guest fault, short-circuit the fault handler and return.
+	 * This way the sie64a() function will return 0; fault address and
+	 * other relevant bits are saved in current->thread.gmap_teid, and
+	 * the fault number in current->thread.gmap_int_code. KVM will be
+	 * able to use this information to handle the fault.
+	 */
+	if (test_pt_regs_flag(regs, PIF_GUEST_FAULT)) {
+		current->thread.gmap_teid.val = regs->int_parm_long;
+		current->thread.gmap_int_code = regs->int_code & 0xffff;
+		return;
+	}
 
 	state = irqentry_enter(regs);
 
@@ -324,19 +348,19 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 		current->thread.last_break = regs->last_break;
 	}
 
-	if (S390_lowcore.pgm_code & 0x0200) {
+	if (lc->pgm_code & 0x0200) {
 		/* transaction abort */
-		current->thread.trap_tdb = S390_lowcore.pgm_tdb;
+		current->thread.trap_tdb = lc->pgm_tdb;
 	}
 
-	if (S390_lowcore.pgm_code & PGM_INT_CODE_PER) {
+	if (lc->pgm_code & PGM_INT_CODE_PER) {
 		if (user_mode(regs)) {
 			struct per_event *ev = &current->thread.per_event;
 
 			set_thread_flag(TIF_PER_TRAP);
-			ev->address = S390_lowcore.per_address;
-			ev->cause = S390_lowcore.per_code_combined;
-			ev->paid = S390_lowcore.per_access_id;
+			ev->address = lc->per_address;
+			ev->cause = lc->per_code_combined;
+			ev->paid = lc->per_access_id;
 		} else {
 			/* PER event in kernel is kprobes */
 			__arch_local_irq_ssm(regs->psw.mask & ~PSW_MASK_PER);
@@ -400,8 +424,8 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	[0x3b]		= do_dat_exception,
 	[0x3c]		= default_trap_handler,
 	[0x3d]		= do_secure_storage_access,
-	[0x3e]		= do_non_secure_storage_access,
-	[0x3f]		= do_secure_storage_violation,
+	[0x3e]		= default_trap_handler,
+	[0x3f]		= default_trap_handler,
 	[0x40]		= monitor_event_exception,
 	[0x41 ... 0x7f] = default_trap_handler,
 };
@@ -412,5 +436,3 @@ static void (*pgm_check_table[128])(struct pt_regs *regs) = {
 	__stringify(default_trap_handler))
 
 COND_TRAP(do_secure_storage_access);
-COND_TRAP(do_non_secure_storage_access);
-COND_TRAP(do_secure_storage_violation);

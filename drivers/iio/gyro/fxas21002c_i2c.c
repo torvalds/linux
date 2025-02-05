@@ -39,7 +39,7 @@ static void fxas21002c_i2c_remove(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id fxas21002c_i2c_id[] = {
-	{ "fxas21002c", 0 },
+	{ "fxas21002c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxas21002c_i2c_id);
@@ -65,4 +65,4 @@ module_i2c_driver(fxas21002c_i2c_driver);
 MODULE_AUTHOR("Rui Miguel Silva <rui.silva@linaro.org>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("FXAS21002C I2C Gyro driver");
-MODULE_IMPORT_NS(IIO_FXAS21002C);
+MODULE_IMPORT_NS("IIO_FXAS21002C");

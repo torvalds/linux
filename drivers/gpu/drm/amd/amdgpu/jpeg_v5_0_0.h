@@ -24,6 +24,12 @@
 #ifndef __JPEG_V5_0_0_H__
 #define __JPEG_V5_0_0_H__
 
+#define vcnipJPEG_CGC_GATE                                 0x4160
+#define vcnipJPEG_CGC_CTRL                                 0x4161
+#define vcnipJPEG_SYS_INT_EN                               0x4141
+#define vcnipUVD_NO_OP                                     0x0029
+#define vcnipJPEG_DEC_GFX10_ADDR_CONFIG                    0x404A
+
 extern const struct amdgpu_ip_block_version jpeg_v5_0_0_ip_block;
 
 #endif /* __JPEG_V5_0_0_H__ */

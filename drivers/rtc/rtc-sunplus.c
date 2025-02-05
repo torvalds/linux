@@ -269,7 +269,7 @@ static int sp_rtc_probe(struct platform_device *plat_dev)
 	if (ret)
 		goto free_reset_assert;
 
-	device_init_wakeup(&plat_dev->dev, 1);
+	device_init_wakeup(&plat_dev->dev, true);
 	dev_set_drvdata(&plat_dev->dev, sp_rtc);
 
 	sp_rtc->rtc = devm_rtc_allocate_device(&plat_dev->dev);
@@ -307,7 +307,7 @@ static void sp_rtc_remove(struct platform_device *plat_dev)
 {
 	struct sunplus_rtc *sp_rtc = dev_get_drvdata(&plat_dev->dev);
 
-	device_init_wakeup(&plat_dev->dev, 0);
+	device_init_wakeup(&plat_dev->dev, false);
 	reset_control_assert(sp_rtc->rstc);
 	clk_disable_unprepare(sp_rtc->rtcclk);
 }
@@ -344,7 +344,7 @@ static SIMPLE_DEV_PM_OPS(sp_rtc_pm_ops, sp_rtc_suspend, sp_rtc_resume);
 
 static struct platform_driver sp_rtc_driver = {
 	.probe   = sp_rtc_probe,
-	.remove_new = sp_rtc_remove,
+	.remove = sp_rtc_remove,
 	.driver  = {
 		.name	= "sp7021-rtc",
 		.of_match_table = sp_rtc_of_match,

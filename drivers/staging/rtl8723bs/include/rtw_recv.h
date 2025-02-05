@@ -9,8 +9,6 @@
 
 #define NR_RECVBUFF (8)
 
-#define NR_PREALLOC_RECV_SKB (8)
-
 #define NR_RECVFRAME 256
 
 #define RXFRAME_ALIGN	8
@@ -18,20 +16,10 @@
 
 #define DRVINFO_SZ	4 /*  unit is 8bytes */
 
-#define MAX_RXFRAME_CNT	512
 #define MAX_RX_NUMBLKS		(32)
 #define RECVFRAME_HDR_ALIGN 128
 
-
-#define PHY_RSSI_SLID_WIN_MAX				100
-#define PHY_LINKQUALITY_SLID_WIN_MAX		20
-
-
 #define SNAP_SIZE sizeof(struct ieee80211_snap_hdr)
-
-#define RX_MPDU_QUEUE				0
-#define RX_CMD_QUEUE				1
-#define RX_MAX_QUEUE				2
 
 #define MAX_SUBFRAME_COUNT	64
 
@@ -101,21 +89,6 @@ struct phy_info {
 	u8 btCoexPwrAdjust;
 };
 
-#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-struct rx_raw_rssi {
-	u8 data_rate;
-	u8 pwdball;
-	s8 pwr_all;
-
-	u8 mimo_signal_strength[4];/*  in 0~100 index */
-	u8 mimo_signal_quality[4];
-
-	s8 ofdm_pwr[4];
-	u8 ofdm_snr[4];
-
-};
-#endif
-
 struct rx_pkt_attrib	{
 	u16 pkt_len;
 	u8 physt;
@@ -178,7 +151,6 @@ struct rx_pkt_attrib	{
 #define RECVBUFF_ALIGN_SZ 8
 
 #define RXDESC_SIZE	24
-#define RXDESC_OFFSET RXDESC_SIZE
 
 struct recv_stat {
 	__le32 rxdw0;
@@ -190,8 +162,6 @@ struct recv_stat {
 	__le32 rxdw5;
 #endif /* if BUF_DESC_ARCH is defined, rx_buf_desc occupy 4 double words */
 };
-
-#define EOR BIT(30)
 
 /*
 accesser of recv_priv: rtw_recv_entry(dispatch / passive level); recv_thread(passive) ; returnpkt(dispatch)
@@ -236,9 +206,6 @@ struct recv_priv {
 	u8 signal_strength;
 	u8 signal_qual;
 	s8 rssi;	/* translate_percentage_to_dbm(ptarget_wlan->network.PhyInfo.SignalStrength); */
-	#ifdef DBG_RX_SIGNAL_DISPLAY_RAW_DATA
-	struct rx_raw_rssi raw_rssi_info;
-	#endif
 	/* s8 rxpwdb; */
 	s16 noise;
 	/* int RxSNRdB[2]; */
@@ -363,7 +330,6 @@ extern union recv_frame *_rtw_alloc_recvframe(struct __queue *pfree_recv_queue);
 extern union recv_frame *rtw_alloc_recvframe(struct __queue *pfree_recv_queue);  /* get a free recv_frame from pfree_recv_queue */
 extern int	 rtw_free_recvframe(union recv_frame *precvframe, struct __queue *pfree_recv_queue);
 
-#define rtw_dequeue_recvframe(queue) rtw_alloc_recvframe(queue)
 extern int _rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
 extern int rtw_enqueue_recvframe(union recv_frame *precvframe, struct __queue *queue);
 
@@ -457,16 +423,6 @@ static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, signed int s
 	precvframe->u.hdr.len -= sz;
 
 	return precvframe->u.hdr.rx_tail;
-
-}
-
-static inline union recv_frame *rxmem_to_recvframe(u8 *rxmem)
-{
-	/* due to the design of 2048 bytes alignment of recv_frame, we can reference the union recv_frame */
-	/* from any given member of recv_frame. */
-	/*  rxmem indicates the any member/address in recv_frame */
-
-	return (union recv_frame *)(((SIZE_PTR)rxmem >> RXFRAME_ALIGN) << RXFRAME_ALIGN);
 
 }
 

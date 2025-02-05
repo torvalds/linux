@@ -12,7 +12,6 @@
 
 /dts-v1/;
 #include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
 
 / {
 	model = "Kobol Helios64";
@@ -24,7 +23,7 @@
 		mmc1 = &sdhci;
 	};
 
-	avdd_0v9_s0: avdd-0v9-s0 {
+	avdd_0v9_s0: regulator-avdd-0v9-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_0v9_s0";
 		regulator-always-on;
@@ -34,7 +33,7 @@
 		vin-supply = <&vcc1v8_sys_s3>;
 	};
 
-	avdd_1v8_s0: avdd-1v8-s0 {
+	avdd_1v8_s0: regulator-avdd-1v8-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "avdd_1v8_s0";
 		regulator-always-on;
@@ -87,7 +86,7 @@
 		};
 	};
 
-	hdd_a_power: hdd-a-power {
+	hdd_a_power: regulator-hdd-a-power {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA0 GPIO_ACTIVE_HIGH>;
@@ -99,7 +98,7 @@
 		startup-delay-us = <2000000>;
 	};
 
-	hdd_b_power: hdd-b-power {
+	hdd_b_power: regulator-hdd-b-power {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PA1 GPIO_ACTIVE_HIGH>;
@@ -111,7 +110,7 @@
 		startup-delay-us = <2000000>;
 	};
 
-	pcie_power: pcie-power {
+	pcie_power: regulator-pcie-power {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
@@ -123,7 +122,7 @@
 		vin-supply = <&vcc5v0_perdev>;
 	};
 
-	usblan_power: usblan-power {
+	usblan_power: regulator-usblan-power {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
@@ -135,7 +134,7 @@
 		vin-supply = <&vcc5v0_usb>;
 	};
 
-	vcc1v8_sys_s0: vcc1v8-sys-s0 {
+	vcc1v8_sys_s0: regulator-vcc1v8-sys-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc1v8_sys_s0";
 		regulator-always-on;
@@ -145,7 +144,7 @@
 		vin-supply = <&vcc1v8_sys_s3>;
 	};
 
-	vcc3v0_sd: vcc3v0-sd {
+	vcc3v0_sd: regulator-vcc3v0-sd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio0 RK_PA1 GPIO_ACTIVE_HIGH>;
@@ -158,7 +157,7 @@
 		vin-supply = <&vcc3v3_sys_s3>;
 	};
 
-	vcc3v3_sys_s3: vcc_lan: vcc3v3-sys-s3 {
+	vcc3v3_sys_s3: vcc_lan: regulator-vcc3v3-sys-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys_s3";
 		regulator-always-on;
@@ -172,7 +171,7 @@
 		};
 	};
 
-	vcc5v0_perdev: vcc5v0-perdev {
+	vcc5v0_perdev: regulator-vcc5v0-perdev {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_perdev";
 		regulator-always-on;
@@ -182,7 +181,7 @@
 		vin-supply = <&vcc12v_dcin_bkup>;
 	};
 
-	vcc5v0_sys: vcc5v0-sys {
+	vcc5v0_sys: regulator-vcc5v0-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_sys";
 		regulator-always-on;
@@ -196,7 +195,7 @@
 		};
 	};
 
-	vcc5v0_usb: vcc5v0-usb {
+	vcc5v0_usb: regulator-vcc5v0-usb {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
@@ -210,7 +209,7 @@
 		vin-supply = <&vcc5v0_perdev>;
 	};
 
-	vcc12v_dcin: vcc12v-dcin {
+	vcc12v_dcin: regulator-vcc12v-dcin {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin";
 		regulator-always-on;
@@ -219,7 +218,7 @@
 		regulator-max-microvolt = <12000000>;
 	};
 
-	vcc12v_dcin_bkup: vcc12v-dcin-bkup {
+	vcc12v_dcin_bkup: regulator-vcc12v-dcin-bkup {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc12v_dcin_bkup";
 		regulator-always-on;
@@ -310,7 +309,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
 		vcc3-supply = <&vcc5v0_sys>;

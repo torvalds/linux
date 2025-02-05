@@ -36,19 +36,25 @@ struct acpi_gtdt_descriptor {
 
 static struct acpi_gtdt_descriptor acpi_gtdt_desc __initdata;
 
-static inline __init void *next_platform_timer(void *platform_timer)
+static __init bool platform_timer_valid(void *platform_timer)
 {
 	struct acpi_gtdt_header *gh = platform_timer;
 
-	platform_timer += gh->length;
-	if (platform_timer < acpi_gtdt_desc.gtdt_end)
-		return platform_timer;
+	return (platform_timer >= (void *)(acpi_gtdt_desc.gtdt + 1) &&
+		platform_timer < acpi_gtdt_desc.gtdt_end &&
+		gh->length != 0 &&
+		platform_timer + gh->length <= acpi_gtdt_desc.gtdt_end);
+}
 
-	return NULL;
+static __init void *next_platform_timer(void *platform_timer)
+{
+	struct acpi_gtdt_header *gh = platform_timer;
+
+	return platform_timer + gh->length;
 }
 
 #define for_each_platform_timer(_g)				\
-	for (_g = acpi_gtdt_desc.platform_timer; _g;	\
+	for (_g = acpi_gtdt_desc.platform_timer; platform_timer_valid(_g);\
 	     _g = next_platform_timer(_g))
 
 static inline bool is_timer_block(void *platform_timer)
@@ -157,6 +163,7 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 {
 	void *platform_timer;
 	struct acpi_table_gtdt *gtdt;
+	int cnt = 0;
 
 	gtdt = container_of(table, struct acpi_table_gtdt, header);
 	acpi_gtdt_desc.gtdt = gtdt;
@@ -176,12 +183,16 @@ int __init acpi_gtdt_init(struct acpi_table_header *table,
 		return 0;
 	}
 
-	platform_timer = (void *)gtdt + gtdt->platform_timer_offset;
-	if (platform_timer < (void *)table + sizeof(struct acpi_table_gtdt)) {
+	acpi_gtdt_desc.platform_timer = (void *)gtdt + gtdt->platform_timer_offset;
+	for_each_platform_timer(platform_timer)
+		cnt++;
+
+	if (cnt != gtdt->platform_timer_count) {
+		acpi_gtdt_desc.platform_timer = NULL;
 		pr_err(FW_BUG "invalid timer data.\n");
 		return -EINVAL;
 	}
-	acpi_gtdt_desc.platform_timer = platform_timer;
+
 	if (platform_timer_count)
 		*platform_timer_count = gtdt->platform_timer_count;
 
@@ -283,7 +294,7 @@ error:
 		if (frame->virt_irq > 0)
 			acpi_unregister_gsi(gtdt_frame->virtual_timer_interrupt);
 		frame->virt_irq = 0;
-	} while (i-- >= 0 && gtdt_frame--);
+	} while (i-- > 0 && gtdt_frame--);
 
 	return -EINVAL;
 }
@@ -352,7 +363,7 @@ static int __init gtdt_import_sbsa_gwdt(struct acpi_gtdt_watchdog *wd,
 	}
 
 	irq = map_gt_gsi(wd->timer_interrupt, wd->timer_flags);
-	res[2] = (struct resource)DEFINE_RES_IRQ(irq);
+	res[2] = DEFINE_RES_IRQ(irq);
 	if (irq <= 0) {
 		pr_warn("failed to map the Watchdog interrupt.\n");
 		nr_res--;

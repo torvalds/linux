@@ -38,21 +38,19 @@ static __always_inline unsigned long __arch_xchg(unsigned long x, __volatile__ v
 
 /* bug catcher for when unsupported size is used - won't link */
 void __cmpxchg_called_with_bad_pointer(void);
-/* we only need to support cmpxchg of a u32 on sparc */
-unsigned long __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
+u8 __cmpxchg_u8(volatile u8 *m, u8 old, u8 new_);
+u16 __cmpxchg_u16(volatile u16 *m, u16 old, u16 new_);
+u32 __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
 
 /* don't worry...optimizer will get rid of most of this */
 static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 {
-	switch (size) {
-	case 4:
-		return __cmpxchg_u32((u32 *)ptr, (u32)old, (u32)new_);
-	default:
-		__cmpxchg_called_with_bad_pointer();
-		break;
-	}
-	return old;
+	return
+		size == 1 ? __cmpxchg_u8(ptr, old, new_) :
+		size == 2 ? __cmpxchg_u16(ptr, old, new_) :
+		size == 4 ? __cmpxchg_u32(ptr, old, new_) :
+			(__cmpxchg_called_with_bad_pointer(), old);
 }
 
 #define arch_cmpxchg(ptr, o, n)						\
@@ -63,7 +61,7 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 			(unsigned long)_n_, sizeof(*(ptr)));		\
 })
 
-u64 __cmpxchg_u64(u64 *ptr, u64 old, u64 new);
+u64 __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new);
 #define arch_cmpxchg64(ptr, old, new)	__cmpxchg_u64(ptr, old, new)
 
 #include <asm-generic/cmpxchg-local.h>

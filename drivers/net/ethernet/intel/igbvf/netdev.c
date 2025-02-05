@@ -1656,12 +1656,9 @@ static int igbvf_sw_init(struct igbvf_adapter *adapter)
 	if (igbvf_alloc_queues(adapter))
 		return -ENOMEM;
 
-	spin_lock_init(&adapter->tx_queue_lock);
-
 	/* Explicitly disable IRQ since the NIC can be in any state. */
 	igbvf_irq_disable(adapter);
 
-	spin_lock_init(&adapter->stats_lock);
 	spin_lock_init(&adapter->hw.mbx_lock);
 
 	set_bit(__IGBVF_DOWN, &adapter->state);
@@ -2434,7 +2431,7 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 
 	netdev_dbg(netdev, "changing MTU from %d to %d\n",
 		   netdev->mtu, new_mtu);
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		igbvf_up(adapter);
@@ -2470,7 +2467,7 @@ static int igbvf_suspend(struct device *dev_d)
 	return 0;
 }
 
-static int __maybe_unused igbvf_resume(struct device *dev_d)
+static int igbvf_resume(struct device *dev_d)
 {
 	struct pci_dev *pdev = to_pci_dev(dev_d);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -2957,7 +2954,7 @@ static const struct pci_device_id igbvf_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, igbvf_pci_tbl);
 
-static SIMPLE_DEV_PM_OPS(igbvf_pm_ops, igbvf_suspend, igbvf_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(igbvf_pm_ops, igbvf_suspend, igbvf_resume);
 
 /* PCI Device API Driver */
 static struct pci_driver igbvf_driver = {
@@ -2965,7 +2962,7 @@ static struct pci_driver igbvf_driver = {
 	.id_table	= igbvf_pci_tbl,
 	.probe		= igbvf_probe,
 	.remove		= igbvf_remove,
-	.driver.pm	= &igbvf_pm_ops,
+	.driver.pm	= pm_sleep_ptr(&igbvf_pm_ops),
 	.shutdown	= igbvf_shutdown,
 	.err_handler	= &igbvf_err_handler
 };
@@ -3001,7 +2998,6 @@ static void __exit igbvf_exit_module(void)
 }
 module_exit(igbvf_exit_module);
 
-MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Virtual Function Network Driver");
 MODULE_LICENSE("GPL v2");
 

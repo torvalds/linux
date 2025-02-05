@@ -81,6 +81,24 @@ static void rt711_sdca_reset(struct rt711_sdca_priv *rt711)
 		RT711_HDA_LEGACY_RESET_CTL, 0x1, 0x1);
 }
 
+static void rt711_sdca_ge_force_jack_type(struct rt711_sdca_priv *rt711, unsigned int det_mode)
+{
+	switch (det_mode) {
+	case 0x00:
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG, RT711_COMBO_JACK_AUTO_CTL1, 0x8400, 0x0000);
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_HDA_CTL, RT711_PUSH_BTN_INT_CTL0, 0x10, 0x00);
+		break;
+	case 0x03:
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG, RT711_COMBO_JACK_AUTO_CTL1, 0x8400, 0x8000);
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_HDA_CTL, RT711_PUSH_BTN_INT_CTL0, 0x17, 0x13);
+		break;
+	case 0x05:
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_REG, RT711_COMBO_JACK_AUTO_CTL1, 0x8400, 0x8400);
+		rt711_sdca_index_update_bits(rt711, RT711_VENDOR_HDA_CTL, RT711_PUSH_BTN_INT_CTL0, 0x17, 0x15);
+		break;
+	}
+}
+
 static int rt711_sdca_calibration(struct rt711_sdca_priv *rt711)
 {
 	unsigned int val, loop_rc = 0, loop_dc = 0;
@@ -247,6 +265,8 @@ static int rt711_sdca_headset_detect(struct rt711_sdca_priv *rt711)
 {
 	unsigned int det_mode;
 	int ret;
+
+	rt711_sdca_ge_force_jack_type(rt711, rt711->ge_mode_override);
 
 	/* get detected_mode */
 	ret = regmap_read(rt711->regmap,
@@ -790,6 +810,56 @@ static int rt711_sdca_fu0f_capture_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
+static int rt711_sdca_ge_select_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	unsigned int val, item;
+
+	val = (rt711->ge_mode_override >> e->shift_l) & e->mask;
+	item = snd_soc_enum_val_to_item(e, val);
+	ucontrol->value.enumerated.item[0] = item;
+	return 0;
+}
+
+static int rt711_sdca_ge_select_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	unsigned int *item = ucontrol->value.enumerated.item;
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct rt711_sdca_priv *rt711 = snd_soc_component_get_drvdata(component);
+	unsigned int val, change = 0;
+
+	if (item[0] >= e->items)
+		return -EINVAL;
+
+	val = snd_soc_enum_item_to_val(e, item[0]) << e->shift_l;
+	if (rt711->ge_mode_override != val) {
+		rt711->ge_mode_override = val;
+		change = 1;
+	}
+
+	return change;
+}
+
+static const char * const rt711_sdca_ge_select[] = {
+	"Auto",
+	"Headphone",
+	"Headset",
+};
+
+static int rt711_sdca_ge_select_values[] = {
+	0,
+	3,
+	5,
+};
+
+static SOC_VALUE_ENUM_SINGLE_DECL(rt711_sdca_ge_mode_enum, SND_SOC_NOPM,
+	0, 0x7, rt711_sdca_ge_select, rt711_sdca_ge_select_values);
+
 static const DECLARE_TLV_DB_SCALE(out_vol_tlv, -6525, 75, 0);
 static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
@@ -824,6 +894,8 @@ static const struct snd_kcontrol_new rt711_sdca_snd_controls[] = {
 		SDW_SDCA_CTL(FUNC_NUM_MIC_ARRAY, RT711_SDCA_ENT_PLATFORM_FU15, RT711_SDCA_CTL_FU_CH_GAIN, CH_R),
 		8, 3, 0,
 		rt711_sdca_set_gain_get, rt711_sdca_set_gain_put, mic_vol_tlv),
+	SOC_ENUM_EXT("GE49 Selected Mode", rt711_sdca_ge_mode_enum,
+		rt711_sdca_ge_select_get, rt711_sdca_ge_select_put),
 };
 
 static int rt711_sdca_mux_get(struct snd_kcontrol *kcontrol,

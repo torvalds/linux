@@ -1079,7 +1079,6 @@ const struct file_operations relay_file_operations = {
 	.poll		= relay_file_poll,
 	.mmap		= relay_file_mmap,
 	.read		= relay_file_read,
-	.llseek		= no_llseek,
 	.release	= relay_file_release,
 };
 EXPORT_SYMBOL_GPL(relay_file_operations);

@@ -315,4 +315,5 @@ static struct kunit_suite drm_plane_helper_test_suite = {
 
 kunit_test_suite(drm_plane_helper_test_suite);
 
+MODULE_DESCRIPTION("Test cases for the drm_plane_helper functions");
 MODULE_LICENSE("GPL");

@@ -212,8 +212,8 @@ fw_handle_concurrency(struct wil6210_priv *wil, const void *data,
 	}
 
 	n_combos = le16_to_cpu(rec->n_combos);
-	remain = size - offsetof(struct wil_fw_record_concurrency, combos);
-	combo = rec->combos;
+	remain = size - sizeof(struct wil_fw_record_concurrency);
+	combo = (const struct wil_fw_concurrency_combo *)(rec + 1);
 	for (i = 0; i < n_combos; i++) {
 		if (remain < sizeof(*combo))
 			goto out_short;

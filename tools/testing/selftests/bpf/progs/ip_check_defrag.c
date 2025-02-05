@@ -12,7 +12,7 @@
 #define IP_OFFSET		0x1FFF
 #define NEXTHDR_FRAGMENT	44
 
-extern int bpf_dynptr_from_skb(struct sk_buff *skb, __u64 flags,
+extern int bpf_dynptr_from_skb(struct __sk_buff *skb, __u64 flags,
 			      struct bpf_dynptr *ptr__uninit) __ksym;
 extern void *bpf_dynptr_slice(const struct bpf_dynptr *ptr, uint32_t offset,
 			      void *buffer, uint32_t buffer__sz) __ksym;
@@ -42,7 +42,7 @@ static bool is_frag_v6(struct ipv6hdr *ip6h)
 	return ip6h->nexthdr == NEXTHDR_FRAGMENT;
 }
 
-static int handle_v4(struct sk_buff *skb)
+static int handle_v4(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
 	u8 iph_buf[20] = {};
@@ -64,7 +64,7 @@ static int handle_v4(struct sk_buff *skb)
 	return NF_ACCEPT;
 }
 
-static int handle_v6(struct sk_buff *skb)
+static int handle_v6(struct __sk_buff *skb)
 {
 	struct bpf_dynptr ptr;
 	struct ipv6hdr *ip6h;
@@ -89,9 +89,9 @@ static int handle_v6(struct sk_buff *skb)
 SEC("netfilter")
 int defrag(struct bpf_nf_ctx *ctx)
 {
-	struct sk_buff *skb = ctx->skb;
+	struct __sk_buff *skb = (struct __sk_buff *)ctx->skb;
 
-	switch (bpf_ntohs(skb->protocol)) {
+	switch (bpf_ntohs(ctx->skb->protocol)) {
 	case ETH_P_IP:
 		return handle_v4(skb);
 	case ETH_P_IPV6:

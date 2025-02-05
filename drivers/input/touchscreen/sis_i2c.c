@@ -15,7 +15,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define SIS_I2C_NAME		"sis_i2c_ts"
 
@@ -374,8 +374,8 @@ MODULE_DEVICE_TABLE(of, sis_ts_dt_ids);
 #endif
 
 static const struct i2c_device_id sis_ts_id[] = {
-	{ SIS_I2C_NAME,	0 },
-	{ "9200-ts",	0 },
+	{ SIS_I2C_NAME },
+	{ "9200-ts" },
 	{ /* sentinel */  }
 };
 MODULE_DEVICE_TABLE(i2c, sis_ts_id);

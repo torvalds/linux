@@ -10,7 +10,7 @@
 #define _LINUX_PM_WAKEUP_H
 
 #ifndef _DEVICE_H_
-# error "please don't include this file directly"
+# error "Please do not include this file directly."
 #endif
 
 #include <linux/types.h>
@@ -107,7 +107,7 @@ extern void wakeup_sources_read_unlock(int idx);
 extern struct wakeup_source *wakeup_sources_walk_start(void);
 extern struct wakeup_source *wakeup_sources_walk_next(struct wakeup_source *ws);
 extern int device_wakeup_enable(struct device *dev);
-extern int device_wakeup_disable(struct device *dev);
+extern void device_wakeup_disable(struct device *dev);
 extern void device_set_wakeup_capable(struct device *dev, bool capable);
 extern int device_set_wakeup_enable(struct device *dev, bool enable);
 extern void __pm_stay_awake(struct wakeup_source *ws);
@@ -154,10 +154,9 @@ static inline int device_wakeup_enable(struct device *dev)
 	return 0;
 }
 
-static inline int device_wakeup_disable(struct device *dev)
+static inline void device_wakeup_disable(struct device *dev)
 {
 	dev->power.should_wakeup = false;
-	return 0;
 }
 
 static inline int device_set_wakeup_enable(struct device *dev, bool enable)
@@ -235,11 +234,27 @@ static inline int device_init_wakeup(struct device *dev, bool enable)
 	if (enable) {
 		device_set_wakeup_capable(dev, true);
 		return device_wakeup_enable(dev);
-	} else {
-		device_wakeup_disable(dev);
-		device_set_wakeup_capable(dev, false);
-		return 0;
 	}
+	device_wakeup_disable(dev);
+	device_set_wakeup_capable(dev, false);
+	return 0;
+}
+
+static void device_disable_wakeup(void *dev)
+{
+	device_init_wakeup(dev, false);
+}
+
+/**
+ * devm_device_init_wakeup - Resource managed device wakeup initialization.
+ * @dev: Device to handle.
+ *
+ * This function is the devm managed version of device_init_wakeup(dev, true).
+ */
+static inline int devm_device_init_wakeup(struct device *dev)
+{
+	device_init_wakeup(dev, true);
+	return devm_add_action_or_reset(dev, device_disable_wakeup, dev);
 }
 
 #endif /* _LINUX_PM_WAKEUP_H */

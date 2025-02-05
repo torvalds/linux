@@ -12,7 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/greybus.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "arpc.h"
 #include "greybus_trace.h"
@@ -1456,5 +1456,6 @@ static struct usb_driver es2_ap_driver = {
 
 module_usb_driver(es2_ap_driver);
 
+MODULE_DESCRIPTION("Greybus AP USB driver for ES2 controller chips");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org>");

@@ -38,6 +38,8 @@ IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
 IWL_BIOS_TABLE_LOADER_DATA(mcc, char);
 IWL_BIOS_TABLE_LOADER_DATA(eckv, u32);
+IWL_BIOS_TABLE_LOADER_DATA(wbem, u32);
+IWL_BIOS_TABLE_LOADER_DATA(dsbr, u32);
 
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
@@ -97,6 +99,11 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "Honor",
 	  .matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
+	{ .ident = "WIKO",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "WIKO"),
 		},
 	},
 	{}
@@ -347,7 +354,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 					"PPAG table rev is %d, send truncated table\n",
 					fwrt->ppag_ver);
 		}
-	} else if (cmd_ver >= 2 && cmd_ver <= 5) {
+	} else if (cmd_ver >= 2 && cmd_ver <= 6) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 		gain = cmd->v2.gain[0];
 		*cmd_size = sizeof(cmd->v2);
@@ -423,27 +430,33 @@ bool iwl_is_tas_approved(void)
 }
 IWL_EXPORT_SYMBOL(iwl_is_tas_approved);
 
-int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
-			    struct iwl_tas_data *tas_data,
-			    const u32 tas_selection)
+struct iwl_tas_selection_data
+iwl_parse_tas_selection(const u32 tas_selection_in, const u8 tbl_rev)
 {
-	u8 override_iec = u32_get_bits(tas_selection,
+	struct iwl_tas_selection_data tas_selection_out = {};
+	u8 override_iec = u32_get_bits(tas_selection_in,
 				       IWL_WTAS_OVERRIDE_IEC_MSK);
-	u8 enabled_iec = u32_get_bits(tas_selection, IWL_WTAS_ENABLE_IEC_MSK);
-	u8 usa_tas_uhb = u32_get_bits(tas_selection, IWL_WTAS_USA_UHB_MSK);
-	int enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+	u8 canada_tas_uhb = u32_get_bits(tas_selection_in,
+					 IWL_WTAS_CANADA_UHB_MSK);
+	u8 enabled_iec = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_ENABLE_IEC_MSK);
+	u8 usa_tas_uhb = u32_get_bits(tas_selection_in,
+				      IWL_WTAS_USA_UHB_MSK);
 
-	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
-			tas_selection);
+	if (tbl_rev > 0) {
+		tas_selection_out.usa_tas_uhb_allowed = usa_tas_uhb;
+		tas_selection_out.override_tas_iec = override_iec;
+		tas_selection_out.enable_tas_iec = enabled_iec;
+	}
 
-	tas_data->usa_tas_uhb_allowed = usa_tas_uhb;
-	tas_data->override_tas_iec = override_iec;
-	tas_data->enable_tas_iec = enabled_iec;
+	if (tbl_rev > 1)
+		tas_selection_out.canada_tas_uhb_allowed = canada_tas_uhb;
 
-	return enabled;
+	return tas_selection_out;
 }
+IWL_EXPORT_SYMBOL(iwl_parse_tas_selection);
 
-__le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
+static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
 	u32 val;
@@ -490,7 +503,154 @@ __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 
 	return config_bitmap;
 }
-IWL_EXPORT_SYMBOL(iwl_get_lari_config_bitmap);
+
+static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
+{
+	size_t cmd_size;
+
+	switch (cmd_ver) {
+	case 12:
+	case 11:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
+		break;
+	case 10:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v10);
+		break;
+	case 9:
+	case 8:
+	case 7:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);
+		break;
+	case 6:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v6);
+		break;
+	case 5:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v5);
+		break;
+	case 4:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v4);
+		break;
+	case 3:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v3);
+		break;
+	case 2:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v2);
+		break;
+	default:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd_v1);
+		break;
+	}
+	return cmd_size;
+}
+
+int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
+			 struct iwl_lari_config_change_cmd *cmd,
+			 size_t *cmd_size)
+{
+	int ret;
+	u32 value;
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE), 1);
+
+	memset(cmd, 0, sizeof(*cmd));
+	*cmd_size = iwl_get_lari_config_cmd_size(cmd_ver);
+
+	cmd->config_bitmap = iwl_get_lari_config_bitmap(fwrt);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
+	if (!ret)
+		cmd->oem_11ax_allow_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
+	if (!ret) {
+		value &= DSM_UNII4_ALLOW_BITMAP;
+
+		/* Since version 9, bits 4 and 5 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 9 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_5G9_FOR_CA))
+			value &= ~(DSM_VALUE_UNII4_CANADA_OVERRIDE_MSK |
+				   DSM_VALUE_UNII4_CANADA_EN_MSK);
+
+		cmd->oem_unii4_allow_bitmap = cpu_to_le32(value);
+	}
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ACTIVATE_CHANNEL, &value);
+	if (!ret) {
+		if (cmd_ver < 8)
+			value &= ~ACTIVATE_5G2_IN_WW_MASK;
+
+		/* Since version 12, bits 5 and 6 are supported
+		 * regardless of this capability.
+		 */
+		if (cmd_ver < 12 &&
+		    !fw_has_capa(&fwrt->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_BIOS_OVERRIDE_UNII4_US_CA))
+			value &= CHAN_STATE_ACTIVE_BITMAP_CMD_V11;
+
+		cmd->chan_state_active_bitmap = cpu_to_le32(value);
+	}
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_6E, &value);
+	if (!ret)
+		cmd->oem_uhb_allow_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_FORCE_DISABLE_CHANNELS, &value);
+	if (!ret)
+		cmd->force_disable_channels_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
+			       &value);
+	if (!ret)
+		cmd->edt_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_wbem(fwrt, &value);
+	if (!ret)
+		cmd->oem_320mhz_allow_bitmap = cpu_to_le32(value);
+
+	ret = iwl_bios_get_dsm(fwrt, DSM_FUNC_ENABLE_11BE, &value);
+	if (!ret)
+		cmd->oem_11be_allow_bitmap = cpu_to_le32(value);
+
+	if (cmd->config_bitmap ||
+	    cmd->oem_uhb_allow_bitmap ||
+	    cmd->oem_11ax_allow_bitmap ||
+	    cmd->oem_unii4_allow_bitmap ||
+	    cmd->chan_state_active_bitmap ||
+	    cmd->force_disable_channels_bitmap ||
+	    cmd->edt_bitmap ||
+	    cmd->oem_320mhz_allow_bitmap ||
+	    cmd->oem_11be_allow_bitmap) {
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd->config_bitmap),
+				le32_to_cpu(cmd->oem_11ax_allow_bitmap));
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, oem_unii4_allow_bitmap=0x%x, chan_state_active_bitmap=0x%x, cmd_ver=%d\n",
+				le32_to_cpu(cmd->oem_unii4_allow_bitmap),
+				le32_to_cpu(cmd->chan_state_active_bitmap),
+				cmd_ver);
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x, force_disable_channels_bitmap=0x%x\n",
+				le32_to_cpu(cmd->oem_uhb_allow_bitmap),
+				le32_to_cpu(cmd->force_disable_channels_bitmap));
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x, oem_320mhz_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd->edt_bitmap),
+				le32_to_cpu(cmd->oem_320mhz_allow_bitmap));
+		IWL_DEBUG_RADIO(fwrt,
+				"sending LARI_CONFIG_CHANGE, oem_11be_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd->oem_11be_allow_bitmap));
+	} else {
+		return 1;
+	}
+
+	return 0;
+}
+IWL_EXPORT_SYMBOL(iwl_fill_lari_config);
 
 int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value)
@@ -498,3 +658,19 @@ int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 	GET_BIOS_TABLE(dsm, fwrt, func, value);
 }
 IWL_EXPORT_SYMBOL(iwl_bios_get_dsm);
+
+bool iwl_puncturing_is_allowed_in_bios(u32 puncturing, u16 mcc)
+{
+	/* Some kind of regulatory mess means we need to currently disallow
+	 * puncturing in the US and Canada unless enabled in BIOS.
+	 */
+	switch (mcc) {
+	case IWL_MCC_US:
+		return puncturing & IWL_UEFI_CNV_PUNCTURING_USA_EN_MSK;
+	case IWL_MCC_CANADA:
+		return puncturing & IWL_UEFI_CNV_PUNCTURING_CANADA_EN_MSK;
+	default:
+		return true;
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_puncturing_is_allowed_in_bios);

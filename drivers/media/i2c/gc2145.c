@@ -21,7 +21,6 @@
 #include <media/v4l2-cci.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-event.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-mediabus.h>
 
@@ -68,8 +67,7 @@
 #define GC2145_DPHY_CLK_DELAY		BIT(4)
 #define GC2145_DPHY_LANE0_DELAY		BIT(5)
 #define GC2145_DPHY_LANE1_DELAY		BIT(6)
-#define GC2145_REG_FIFO_FULL_LVL_LOW	CCI_REG8(0x04)
-#define GC2145_REG_FIFO_FULL_LVL_HIGH	CCI_REG8(0x05)
+#define GC2145_REG_FIFO_FULL_LVL	CCI_REG16_LE(0x04)
 #define GC2145_REG_FIFO_MODE		CCI_REG8(0x06)
 #define GC2145_FIFO_MODE_READ_GATE	BIT(3)
 #define GC2145_FIFO_MODE_MIPI_CLK_MODULE	BIT(7)
@@ -79,8 +77,7 @@
 #define GC2145_CSI2_MODE_MIPI_EN	BIT(4)
 #define GC2145_CSI2_MODE_EN		BIT(7)
 #define GC2145_REG_MIPI_DT	CCI_REG8(0x11)
-#define GC2145_REG_LWC_LOW	CCI_REG8(0x12)
-#define GC2145_REG_LWC_HIGH	CCI_REG8(0x13)
+#define GC2145_REG_LWC		CCI_REG16_LE(0x12)
 #define GC2145_REG_DPHY_MODE	CCI_REG8(0x15)
 #define GC2145_DPHY_MODE_TRIGGER_PROG	BIT(4)
 #define GC2145_REG_FIFO_GATE_MODE	CCI_REG8(0x17)
@@ -542,44 +539,81 @@ static const struct gc2145_mode supported_modes[] = {
 /**
  * struct gc2145_format - GC2145 pixel format description
  * @code: media bus (MBUS) associated code
+ * @colorspace: V4L2 colorspace
  * @datatype: MIPI CSI2 data type
  * @output_fmt: GC2145 output format
  * @switch_bit: GC2145 first/second switch
+ * @row_col_switch: GC2145 switch row and/or column
  */
 struct gc2145_format {
 	unsigned int code;
+	unsigned int colorspace;
 	unsigned char datatype;
 	unsigned char output_fmt;
 	bool switch_bit;
+	unsigned char row_col_switch;
 };
 
 /* All supported formats */
 static const struct gc2145_format supported_formats[] = {
 	{
 		.code		= MEDIA_BUS_FMT_UYVY8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.datatype	= MIPI_CSI2_DT_YUV422_8B,
 		.output_fmt	= 0x00,
 	},
 	{
 		.code		= MEDIA_BUS_FMT_VYUY8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.datatype	= MIPI_CSI2_DT_YUV422_8B,
 		.output_fmt	= 0x01,
 	},
 	{
 		.code		= MEDIA_BUS_FMT_YUYV8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.datatype	= MIPI_CSI2_DT_YUV422_8B,
 		.output_fmt	= 0x02,
 	},
 	{
 		.code		= MEDIA_BUS_FMT_YVYU8_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.datatype	= MIPI_CSI2_DT_YUV422_8B,
 		.output_fmt	= 0x03,
 	},
 	{
 		.code		= MEDIA_BUS_FMT_RGB565_1X16,
+		.colorspace	= V4L2_COLORSPACE_SRGB,
 		.datatype	= MIPI_CSI2_DT_RGB565,
 		.output_fmt	= 0x06,
 		.switch_bit	= true,
+	},
+	{
+		.code           = MEDIA_BUS_FMT_SGRBG8_1X8,
+		.colorspace     = V4L2_COLORSPACE_RAW,
+		.datatype       = MIPI_CSI2_DT_RAW8,
+		.output_fmt     = 0x17,
+		.row_col_switch = GC2145_SYNC_MODE_COL_SWITCH,
+	},
+	{
+		.code           = MEDIA_BUS_FMT_SRGGB8_1X8,
+		.colorspace     = V4L2_COLORSPACE_RAW,
+		.datatype       = MIPI_CSI2_DT_RAW8,
+		.output_fmt     = 0x17,
+		.row_col_switch = GC2145_SYNC_MODE_COL_SWITCH | GC2145_SYNC_MODE_ROW_SWITCH,
+	},
+	{
+		.code           = MEDIA_BUS_FMT_SBGGR8_1X8,
+		.colorspace     = V4L2_COLORSPACE_RAW,
+		.datatype       = MIPI_CSI2_DT_RAW8,
+		.output_fmt     = 0x17,
+		.row_col_switch = 0,
+	},
+	{
+		.code           = MEDIA_BUS_FMT_SGBRG8_1X8,
+		.colorspace     = V4L2_COLORSPACE_RAW,
+		.datatype       = MIPI_CSI2_DT_RAW8,
+		.output_fmt     = 0x17,
+		.row_col_switch = GC2145_SYNC_MODE_ROW_SWITCH,
 	},
 };
 
@@ -641,7 +675,8 @@ gc2145_get_format_code(struct gc2145 *gc2145, u32 code)
 
 static void gc2145_update_pad_format(struct gc2145 *gc2145,
 				     const struct gc2145_mode *mode,
-				     struct v4l2_mbus_framefmt *fmt, u32 code)
+				     struct v4l2_mbus_framefmt *fmt, u32 code,
+				     u32 colorspace)
 {
 	fmt->code = code;
 	fmt->width = mode->width;
@@ -663,7 +698,8 @@ static int gc2145_init_state(struct v4l2_subdev *sd,
 	/* Initialize pad format */
 	format = v4l2_subdev_state_get_format(state, 0);
 	gc2145_update_pad_format(gc2145, &supported_modes[0], format,
-				 MEDIA_BUS_FMT_RGB565_1X16);
+				 MEDIA_BUS_FMT_RGB565_1X16,
+				 V4L2_COLORSPACE_SRGB);
 
 	/* Initialize crop rectangle. */
 	crop = v4l2_subdev_state_get_crop(state, 0);
@@ -754,7 +790,13 @@ static int gc2145_set_pad_format(struct v4l2_subdev *sd,
 				      width, height,
 				      fmt->format.width, fmt->format.height);
 
-	gc2145_update_pad_format(gc2145, mode, &fmt->format, gc2145_fmt->code);
+	/* In RAW mode, VGA is not possible so use 720p instead */
+	if (gc2145_fmt->colorspace == V4L2_COLORSPACE_RAW &&
+	    mode == &supported_modes[GC2145_MODE_640X480])
+		mode = &supported_modes[GC2145_MODE_1280X720];
+
+	gc2145_update_pad_format(gc2145, mode, &fmt->format, gc2145_fmt->code,
+				 gc2145_fmt->colorspace);
 	framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 		gc2145->mode = mode;
@@ -811,9 +853,12 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	 * For RAW8, LWC = image width
 	 * For RAW10, LWC = image width * 1.25
 	 */
-	lwc = gc2145->mode->width * 2;
-	cci_write(gc2145->regmap, GC2145_REG_LWC_HIGH, lwc >> 8, &ret);
-	cci_write(gc2145->regmap, GC2145_REG_LWC_LOW, lwc & 0xff, &ret);
+	if (gc2145_format->colorspace != V4L2_COLORSPACE_RAW)
+		lwc = gc2145->mode->width * 2;
+	else
+		lwc = gc2145->mode->width;
+
+	cci_write(gc2145->regmap, GC2145_REG_LWC, lwc, &ret);
 
 	/*
 	 * Adjust the MIPI FIFO Full Level
@@ -821,21 +866,25 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	 * 1280x720 / 1600x1200 (aka no scaler) non RAW: 0x0001
 	 * 1600x1200 RAW: 0x0190
 	 */
-	if (gc2145->mode->width == 1280 || gc2145->mode->width == 1600)
-		fifo_full_lvl = 0x0001;
-	else
+	if (gc2145_format->colorspace != V4L2_COLORSPACE_RAW) {
+		if (gc2145->mode->width == 1280 || gc2145->mode->width == 1600)
+			fifo_full_lvl = 0x0001;
+		else
+			fifo_full_lvl = 0x0190;
+	} else {
 		fifo_full_lvl = 0x0190;
+	}
 
-	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL_HIGH,
-		  fifo_full_lvl >> 8, &ret);
-	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL_LOW,
-		  fifo_full_lvl & 0xff, &ret);
+	cci_write(gc2145->regmap, GC2145_REG_FIFO_FULL_LVL,
+		  fifo_full_lvl, &ret);
 
 	/*
 	 * Set the FIFO gate mode / MIPI wdiv set:
 	 * 0xf1 in case of RAW mode and 0xf0 otherwise
 	 */
-	cci_write(gc2145->regmap, GC2145_REG_FIFO_GATE_MODE, 0xf0, &ret);
+	cci_write(gc2145->regmap, GC2145_REG_FIFO_GATE_MODE,
+		  gc2145_format->colorspace == V4L2_COLORSPACE_RAW ?
+		  0xf1 : 0xf0, &ret);
 
 	/* Set the MIPI data type */
 	cci_write(gc2145->regmap, GC2145_REG_MIPI_DT,
@@ -849,9 +898,11 @@ static int gc2145_config_mipi_mode(struct gc2145 *gc2145,
 	return ret;
 }
 
-static int gc2145_start_streaming(struct gc2145 *gc2145,
-				  struct v4l2_subdev_state *state)
+static int gc2145_enable_streams(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *state, u32 pad,
+				 u64 streams_mask)
 {
+	struct gc2145 *gc2145 = to_gc2145(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&gc2145->sd);
 	const struct gc2145_format *gc2145_format;
 	struct v4l2_mbus_framefmt *fmt;
@@ -883,6 +934,10 @@ static int gc2145_start_streaming(struct gc2145 *gc2145,
 			GC2145_BYPASS_MODE_SWITCH,
 			gc2145_format->switch_bit ? GC2145_BYPASS_MODE_SWITCH
 						  : 0, &ret);
+	cci_update_bits(gc2145->regmap, GC2145_REG_SYNC_MODE,
+			GC2145_SYNC_MODE_COL_SWITCH |
+			GC2145_SYNC_MODE_ROW_SWITCH,
+			gc2145_format->row_col_switch, &ret);
 	if (ret) {
 		dev_err(&client->dev, "%s failed to write regs\n", __func__);
 		goto err_rpm_put;
@@ -913,8 +968,11 @@ err_rpm_put:
 	return ret;
 }
 
-static void gc2145_stop_streaming(struct gc2145 *gc2145)
+static int gc2145_disable_streams(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *state, u32 pad,
+				  u64 streams_mask)
 {
+	struct gc2145 *gc2145 = to_gc2145(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&gc2145->sd);
 	int ret = 0;
 
@@ -929,22 +987,6 @@ static void gc2145_stop_streaming(struct gc2145 *gc2145)
 
 	pm_runtime_mark_last_busy(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
-}
-
-static int gc2145_set_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct gc2145 *gc2145 = to_gc2145(sd);
-	struct v4l2_subdev_state *state;
-	int ret = 0;
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
-
-	if (enable)
-		ret = gc2145_start_streaming(gc2145, state);
-	else
-		gc2145_stop_streaming(gc2145);
-
-	v4l2_subdev_unlock_state(state);
 
 	return ret;
 }
@@ -1069,13 +1111,8 @@ static const u8 test_pattern_val[] = {
 	GC2145_TEST_UNIFORM | GC2145_TEST_BLACK,
 };
 
-static const struct v4l2_subdev_core_ops gc2145_core_ops = {
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
 static const struct v4l2_subdev_video_ops gc2145_video_ops = {
-	.s_stream = gc2145_set_stream,
+	.s_stream = v4l2_subdev_s_stream_helper,
 };
 
 static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
@@ -1084,10 +1121,11 @@ static const struct v4l2_subdev_pad_ops gc2145_pad_ops = {
 	.set_fmt = gc2145_set_pad_format,
 	.get_selection = gc2145_get_selection,
 	.enum_frame_size = gc2145_enum_frame_size,
+	.enable_streams = gc2145_enable_streams,
+	.disable_streams = gc2145_disable_streams,
 };
 
 static const struct v4l2_subdev_ops gc2145_subdev_ops = {
-	.core = &gc2145_core_ops,
 	.video = &gc2145_video_ops,
 	.pad = &gc2145_pad_ops,
 };
@@ -1353,8 +1391,7 @@ static int gc2145_probe(struct i2c_client *client)
 		goto error_power_off;
 
 	/* Initialize subdev */
-	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
-			    V4L2_SUBDEV_FL_HAS_EVENTS;
+	gc2145->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	gc2145->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	/* Initialize source pad */

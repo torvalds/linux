@@ -12,7 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/ieee80211.h>
 #include <linux/gfp.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/mac80211.h>
 #include <crypto/aes.h>
 #include <crypto/utils.h>
@@ -598,9 +598,6 @@ static void gcmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *j_0, u8 *aad,
 
 	memcpy(j_0, hdr->addr2, ETH_ALEN);
 	memcpy(&j_0[ETH_ALEN], pn, IEEE80211_GCMP_PN_LEN);
-	j_0[13] = 0;
-	j_0[14] = 0;
-	j_0[AES_BLOCK_SIZE - 1] = 0x01;
 
 	ccmp_gcmp_aad(skb, aad, spp_amsdu);
 }
@@ -895,7 +892,8 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
 
 	info = IEEE80211_SKB_CB(skb);
 
-	if (info->control.hw_key)
+	if (info->control.hw_key &&
+	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
 		return TX_CONTINUE;
 
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
@@ -910,6 +908,9 @@ ieee80211_crypto_aes_cmac_256_encrypt(struct ieee80211_tx_data *tx)
 	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	bip_ipn_set64(mmie->sequence_number, pn64);
+
+	if (info->control.hw_key)
+		return TX_CONTINUE;
 
 	bip_aad(skb, aad);
 
@@ -1040,7 +1041,8 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
 
 	info = IEEE80211_SKB_CB(skb);
 
-	if (info->control.hw_key)
+	if (info->control.hw_key &&
+	    !(key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIE))
 		return TX_CONTINUE;
 
 	if (WARN_ON(skb_tailroom(skb) < sizeof(*mmie)))
@@ -1055,6 +1057,9 @@ ieee80211_crypto_aes_gmac_encrypt(struct ieee80211_tx_data *tx)
 	pn64 = atomic64_inc_return(&key->conf.tx_pn);
 
 	bip_ipn_set64(mmie->sequence_number, pn64);
+
+	if (info->control.hw_key)
+		return TX_CONTINUE;
 
 	bip_aad(skb, aad);
 

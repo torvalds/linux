@@ -1395,7 +1395,7 @@ static void dp83640_txtstamp(struct mii_timestamper *mii_ts,
 }
 
 static int dp83640_ts_info(struct mii_timestamper *mii_ts,
-			   struct ethtool_ts_info *info)
+			   struct kernel_ethtool_ts_info *info)
 {
 	struct dp83640_private *dp83640 =
 		container_of(mii_ts, struct dp83640_private, mii_ts);
@@ -1447,6 +1447,8 @@ static int dp83640_probe(struct phy_device *phydev)
 	for (i = 0; i < MAX_RXTS; i++)
 		list_add(&dp83640->rx_pool_data[i].list, &dp83640->rxpool);
 
+	/* Timestamp selected by default to keep legacy API */
+	phydev->default_timestamp = true;
 	phydev->mii_ts = &dp83640->mii_ts;
 	phydev->priv = dp83640;
 
@@ -1546,7 +1548,7 @@ MODULE_LICENSE("GPL");
 module_init(dp83640_init);
 module_exit(dp83640_exit);
 
-static struct mdio_device_id __maybe_unused dp83640_tbl[] = {
+static const struct mdio_device_id __maybe_unused dp83640_tbl[] = {
 	{ DP83640_PHY_ID, 0xfffffff0 },
 	{ }
 };

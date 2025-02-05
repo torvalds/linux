@@ -116,11 +116,6 @@ static int simple_bridge_attach(struct drm_bridge *bridge,
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
 		return 0;
 
-	if (!bridge->encoder) {
-		DRM_ERROR("Missing encoder\n");
-		return -ENODEV;
-	}
-
 	drm_connector_helper_add(&sbridge->connector,
 				 &simple_bridge_con_helper_funcs);
 	ret = drm_connector_init_with_ddc(bridge->dev, &sbridge->connector,
@@ -175,7 +170,6 @@ static int simple_bridge_probe(struct platform_device *pdev)
 	sbridge = devm_kzalloc(&pdev->dev, sizeof(*sbridge), GFP_KERNEL);
 	if (!sbridge)
 		return -ENOMEM;
-	platform_set_drvdata(pdev, sbridge);
 
 	sbridge->info = of_device_get_match_data(&pdev->dev);
 
@@ -213,16 +207,7 @@ static int simple_bridge_probe(struct platform_device *pdev)
 	sbridge->bridge.of_node = pdev->dev.of_node;
 	sbridge->bridge.timings = sbridge->info->timings;
 
-	drm_bridge_add(&sbridge->bridge);
-
-	return 0;
-}
-
-static void simple_bridge_remove(struct platform_device *pdev)
-{
-	struct simple_bridge *sbridge = platform_get_drvdata(pdev);
-
-	drm_bridge_remove(&sbridge->bridge);
+	return devm_drm_bridge_add(&pdev->dev, &sbridge->bridge);
 }
 
 /*
@@ -299,7 +284,6 @@ MODULE_DEVICE_TABLE(of, simple_bridge_match);
 
 static struct platform_driver simple_bridge_driver = {
 	.probe	= simple_bridge_probe,
-	.remove_new = simple_bridge_remove,
 	.driver		= {
 		.name		= "simple-bridge",
 		.of_match_table	= simple_bridge_match,

@@ -229,26 +229,11 @@ static const struct drm_crtc_funcs mgag200_g200wb_crtc_funcs = {
 	MGAG200_CRTC_FUNCS,
 };
 
-static const struct drm_encoder_funcs mgag200_g200wb_dac_encoder_funcs = {
-	MGAG200_DAC_ENCODER_FUNCS,
-};
-
-static const struct drm_connector_helper_funcs mgag200_g200wb_vga_connector_helper_funcs = {
-	MGAG200_VGA_CONNECTOR_HELPER_FUNCS,
-};
-
-static const struct drm_connector_funcs mgag200_g200wb_vga_connector_funcs = {
-	MGAG200_VGA_CONNECTOR_FUNCS,
-};
-
 static int mgag200_g200wb_pipeline_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	struct drm_plane *primary_plane = &mdev->primary_plane;
 	struct drm_crtc *crtc = &mdev->crtc;
-	struct drm_encoder *encoder = &mdev->encoder;
-	struct mga_i2c_chan *i2c = &mdev->i2c;
-	struct drm_connector *connector = &mdev->connector;
 	int ret;
 
 	ret = drm_universal_plane_init(dev, primary_plane, 0,
@@ -276,35 +261,9 @@ static int mgag200_g200wb_pipeline_init(struct mga_device *mdev)
 	drm_mode_crtc_set_gamma_size(crtc, MGAG200_LUT_SIZE);
 	drm_crtc_enable_color_mgmt(crtc, 0, false, MGAG200_LUT_SIZE);
 
-	encoder->possible_crtcs = drm_crtc_mask(crtc);
-	ret = drm_encoder_init(dev, encoder, &mgag200_g200wb_dac_encoder_funcs,
-			       DRM_MODE_ENCODER_DAC, NULL);
-	if (ret) {
-		drm_err(dev, "drm_encoder_init() failed: %d\n", ret);
+	ret = mgag200_vga_bmc_output_init(mdev);
+	if (ret)
 		return ret;
-	}
-
-	ret = mgag200_i2c_init(mdev, i2c);
-	if (ret) {
-		drm_err(dev, "failed to add DDC bus: %d\n", ret);
-		return ret;
-	}
-
-	ret = drm_connector_init_with_ddc(dev, connector,
-					  &mgag200_g200wb_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA,
-					  &i2c->adapter);
-	if (ret) {
-		drm_err(dev, "drm_connector_init_with_ddc() failed: %d\n", ret);
-		return ret;
-	}
-	drm_connector_helper_add(connector, &mgag200_g200wb_vga_connector_helper_funcs);
-
-	ret = drm_connector_attach_encoder(connector, encoder);
-	if (ret) {
-		drm_err(dev, "drm_connector_attach_encoder() failed: %d\n", ret);
-		return ret;
-	}
 
 	return 0;
 }
@@ -317,8 +276,6 @@ static const struct mgag200_device_info mgag200_g200wb_device_info =
 	MGAG200_DEVICE_INFO_INIT(1280, 1024, 31877, true, 0, 1, false);
 
 static const struct mgag200_device_funcs mgag200_g200wb_device_funcs = {
-	.disable_vidrst = mgag200_bmc_disable_vidrst,
-	.enable_vidrst = mgag200_bmc_enable_vidrst,
 	.pixpllc_atomic_check = mgag200_g200wb_pixpllc_atomic_check,
 	.pixpllc_atomic_update = mgag200_g200wb_pixpllc_atomic_update,
 };
@@ -363,6 +320,7 @@ struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const stru
 		return ERR_PTR(ret);
 
 	drm_mode_config_reset(dev);
+	drm_kms_helper_poll_init(dev);
 
 	return mdev;
 }

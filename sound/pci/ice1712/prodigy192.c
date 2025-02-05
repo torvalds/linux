@@ -170,14 +170,9 @@ static int stac9460_dac_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	tmp = stac9460_get(ice, idx);
 	ovol = 0x7f - (tmp & 0x7f);
 	change = (ovol != nvol);
-	if (change) {
-		ovol =  (0x7f - nvol) | (tmp & 0x80);
-		/*
-		dev_dbg(ice->card->dev, "DAC Volume: reg 0x%02x: 0x%02x\n",
-		       idx, ovol);
-		*/
+	if (change)
 		stac9460_put(ice, idx, (0x7f - nvol) | (tmp & 0x80));
-	}
+
 	return change;
 }
 

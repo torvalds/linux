@@ -57,4 +57,5 @@ module_init(test_static_key_base_init);
 module_exit(test_static_key_base_exit);
 
 MODULE_AUTHOR("Jason Baron <jbaron@akamai.com>");
+MODULE_DESCRIPTION("Kernel module to support testing static keys");
 MODULE_LICENSE("GPL");

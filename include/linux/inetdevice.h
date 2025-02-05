@@ -141,7 +141,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 							  ARP_EVICT_NOCARRIER)
 
 struct in_ifaddr {
-	struct hlist_node	hash;
+	struct hlist_node	addr_lst;
 	struct in_ifaddr	__rcu *ifa_next;
 	struct in_device	*ifa_dev;
 	struct rcu_head		rcu_head;
@@ -226,6 +226,10 @@ static __inline__ bool bad_mask(__be32 mask, __be32 addr)
 	for (ifa = rtnl_dereference((in_dev)->ifa_list); ifa;	\
 	     ifa = rtnl_dereference(ifa->ifa_next))
 
+#define in_dev_for_each_ifa_rtnl_net(net, ifa, in_dev)			\
+	for (ifa = rtnl_net_dereference(net, (in_dev)->ifa_list); ifa;	\
+	     ifa = rtnl_net_dereference(net, ifa->ifa_next))
+
 #define in_dev_for_each_ifa_rcu(ifa, in_dev)			\
 	for (ifa = rcu_dereference((in_dev)->ifa_list); ifa;	\
 	     ifa = rcu_dereference(ifa->ifa_next))
@@ -250,6 +254,11 @@ static inline struct in_device *in_dev_get(const struct net_device *dev)
 static inline struct in_device *__in_dev_get_rtnl(const struct net_device *dev)
 {
 	return rtnl_dereference(dev->ip_ptr);
+}
+
+static inline struct in_device *__in_dev_get_rtnl_net(const struct net_device *dev)
+{
+	return rtnl_net_dereference(dev_net(dev), dev->ip_ptr);
 }
 
 /* called with rcu_read_lock or rtnl held */

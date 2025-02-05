@@ -33,6 +33,7 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_utils.h>
 
+#include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/uaccess.h>
 
@@ -218,11 +219,11 @@ void drm_connector_free_work_fn(struct work_struct *work)
 	}
 }
 
-static int __drm_connector_init(struct drm_device *dev,
-				struct drm_connector *connector,
-				const struct drm_connector_funcs *funcs,
-				int connector_type,
-				struct i2c_adapter *ddc)
+static int drm_connector_init_only(struct drm_device *dev,
+				   struct drm_connector *connector,
+				   const struct drm_connector_funcs *funcs,
+				   int connector_type,
+				   struct i2c_adapter *ddc)
 {
 	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
@@ -273,11 +274,15 @@ static int __drm_connector_init(struct drm_device *dev,
 	/* provide ddc symlink in sysfs */
 	connector->ddc = ddc;
 
+	INIT_LIST_HEAD(&connector->head);
 	INIT_LIST_HEAD(&connector->global_connector_list_entry);
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	mutex_init(&connector->mutex);
+	mutex_init(&connector->eld_mutex);
 	mutex_init(&connector->edid_override_mutex);
+	mutex_init(&connector->hdmi.infoframes.lock);
+	mutex_init(&connector->hdmi_audio.lock);
 	connector->edid_blob_ptr = NULL;
 	connector->epoch_counter = 0;
 	connector->tile_blob_ptr = NULL;
@@ -286,14 +291,6 @@ static int __drm_connector_init(struct drm_device *dev,
 		DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
 
 	drm_connector_get_cmdline_mode(connector);
-
-	/* We should add connectors at the end to avoid upsetting the connector
-	 * index too much.
-	 */
-	spin_lock_irq(&config->connector_list_lock);
-	list_add_tail(&connector->head, &config->connector_list);
-	config->num_connector++;
-	spin_unlock_irq(&config->connector_list_lock);
 
 	if (connector_type != DRM_MODE_CONNECTOR_VIRTUAL &&
 	    connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
@@ -331,6 +328,54 @@ out_put:
 	return ret;
 }
 
+static void drm_connector_add(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (drm_WARN_ON(dev, !list_empty(&connector->head)))
+		return;
+
+	spin_lock_irq(&config->connector_list_lock);
+	list_add_tail(&connector->head, &config->connector_list);
+	config->num_connector++;
+	spin_unlock_irq(&config->connector_list_lock);
+}
+
+static void drm_connector_remove(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+
+	/*
+	 * For dynamic connectors drm_connector_cleanup() can call this function
+	 * before the connector is registered and added to the list.
+	 */
+	if (list_empty(&connector->head))
+		return;
+
+	spin_lock_irq(&dev->mode_config.connector_list_lock);
+	list_del_init(&connector->head);
+	dev->mode_config.num_connector--;
+	spin_unlock_irq(&dev->mode_config.connector_list_lock);
+}
+
+static int drm_connector_init_and_add(struct drm_device *dev,
+				      struct drm_connector *connector,
+				      const struct drm_connector_funcs *funcs,
+				      int connector_type,
+				      struct i2c_adapter *ddc)
+{
+	int ret;
+
+	ret = drm_connector_init_only(dev, connector, funcs, connector_type, ddc);
+	if (ret)
+		return ret;
+
+	drm_connector_add(connector);
+
+	return 0;
+}
+
 /**
  * drm_connector_init - Init a preallocated connector
  * @dev: DRM device
@@ -360,9 +405,50 @@ int drm_connector_init(struct drm_device *dev,
 	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
 		return -EINVAL;
 
-	return __drm_connector_init(dev, connector, funcs, connector_type, NULL);
+	return drm_connector_init_and_add(dev, connector, funcs, connector_type, NULL);
 }
 EXPORT_SYMBOL(drm_connector_init);
+
+/**
+ * drm_connector_dynamic_init - Init a preallocated dynamic connector
+ * @dev: DRM device
+ * @connector: the connector to init
+ * @funcs: callbacks for this connector
+ * @connector_type: user visible type of the connector
+ * @ddc: pointer to the associated ddc adapter
+ *
+ * Initialises a preallocated dynamic connector. Connectors should be
+ * subclassed as part of driver connector objects. The connector
+ * structure should not be allocated with devm_kzalloc().
+ *
+ * Drivers should call this for dynamic connectors which can be hotplugged
+ * after drm_dev_register() has been called already, e.g. DP MST connectors.
+ * For all other - static - connectors, drivers should call one of the
+ * drm_connector_init*()/drmm_connector_init*() functions.
+ *
+ * After calling this function the drivers must call
+ * drm_connector_dynamic_register().
+ *
+ * To remove the connector the driver must call drm_connector_unregister()
+ * followed by drm_connector_put(). Putting the last reference will call the
+ * driver's &drm_connector_funcs.destroy hook, which in turn must call
+ * drm_connector_cleanup() and free the connector structure.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_dynamic_init(struct drm_device *dev,
+			       struct drm_connector *connector,
+			       const struct drm_connector_funcs *funcs,
+			       int connector_type,
+			       struct i2c_adapter *ddc)
+{
+	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
+		return -EINVAL;
+
+	return drm_connector_init_only(dev, connector, funcs, connector_type, ddc);
+}
+EXPORT_SYMBOL(drm_connector_dynamic_init);
 
 /**
  * drm_connector_init_with_ddc - Init a preallocated connector
@@ -397,7 +483,7 @@ int drm_connector_init_with_ddc(struct drm_device *dev,
 	if (drm_WARN_ON(dev, !(funcs && funcs->destroy)))
 		return -EINVAL;
 
-	return __drm_connector_init(dev, connector, funcs, connector_type, ddc);
+	return drm_connector_init_and_add(dev, connector, funcs, connector_type, ddc);
 }
 EXPORT_SYMBOL(drm_connector_init_with_ddc);
 
@@ -425,6 +511,8 @@ static void drm_connector_cleanup_action(struct drm_device *dev,
  *
  * The connector structure should be allocated with drmm_kzalloc().
  *
+ * The @drm_connector_funcs.destroy hook must be NULL.
+ *
  * Returns:
  * Zero on success, error code on failure.
  */
@@ -439,7 +527,7 @@ int drmm_connector_init(struct drm_device *dev,
 	if (drm_WARN_ON(dev, funcs && funcs->destroy))
 		return -EINVAL;
 
-	ret = __drm_connector_init(dev, connector, funcs, connector_type, ddc);
+	ret = drm_connector_init_and_add(dev, connector, funcs, connector_type, ddc);
 	if (ret)
 		return ret;
 
@@ -451,6 +539,91 @@ int drmm_connector_init(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drmm_connector_init);
+
+/**
+ * drmm_connector_hdmi_init - Init a preallocated HDMI connector
+ * @dev: DRM device
+ * @connector: A pointer to the HDMI connector to init
+ * @vendor: HDMI Controller Vendor name
+ * @product: HDMI Controller Product name
+ * @funcs: callbacks for this connector
+ * @hdmi_funcs: HDMI-related callbacks for this connector
+ * @connector_type: user visible type of the connector
+ * @ddc: optional pointer to the associated ddc adapter
+ * @supported_formats: Bitmask of @hdmi_colorspace listing supported output formats
+ * @max_bpc: Maximum bits per char the HDMI connector supports
+ *
+ * Initialises a preallocated HDMI connector. Connectors can be
+ * subclassed as part of driver connector objects.
+ *
+ * Cleanup is automatically handled with a call to
+ * drm_connector_cleanup() in a DRM-managed action.
+ *
+ * The connector structure should be allocated with drmm_kzalloc().
+ *
+ * The @drm_connector_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drmm_connector_hdmi_init(struct drm_device *dev,
+			     struct drm_connector *connector,
+			     const char *vendor, const char *product,
+			     const struct drm_connector_funcs *funcs,
+			     const struct drm_connector_hdmi_funcs *hdmi_funcs,
+			     int connector_type,
+			     struct i2c_adapter *ddc,
+			     unsigned long supported_formats,
+			     unsigned int max_bpc)
+{
+	int ret;
+
+	if (!vendor || !product)
+		return -EINVAL;
+
+	if ((strlen(vendor) > DRM_CONNECTOR_HDMI_VENDOR_LEN) ||
+	    (strlen(product) > DRM_CONNECTOR_HDMI_PRODUCT_LEN))
+		return -EINVAL;
+
+	if (!(connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	      connector_type == DRM_MODE_CONNECTOR_HDMIB))
+		return -EINVAL;
+
+	if (!supported_formats || !(supported_formats & BIT(HDMI_COLORSPACE_RGB)))
+		return -EINVAL;
+
+	if (connector->ycbcr_420_allowed != !!(supported_formats & BIT(HDMI_COLORSPACE_YUV420)))
+		return -EINVAL;
+
+	if (!(max_bpc == 8 || max_bpc == 10 || max_bpc == 12))
+		return -EINVAL;
+
+	ret = drmm_connector_init(dev, connector, funcs, connector_type, ddc);
+	if (ret)
+		return ret;
+
+	connector->hdmi.supported_formats = supported_formats;
+	strtomem_pad(connector->hdmi.vendor, vendor, 0);
+	strtomem_pad(connector->hdmi.product, product, 0);
+
+	/*
+	 * drm_connector_attach_max_bpc_property() requires the
+	 * connector to have a state.
+	 */
+	if (connector->funcs->reset)
+		connector->funcs->reset(connector);
+
+	drm_connector_attach_max_bpc_property(connector, 8, max_bpc);
+	connector->max_bpc = max_bpc;
+
+	if (max_bpc > 8)
+		drm_connector_attach_hdr_output_metadata_property(connector);
+
+	connector->hdmi.funcs = hdmi_funcs;
+
+	return 0;
+}
+EXPORT_SYMBOL(drmm_connector_hdmi_init);
 
 /**
  * drm_connector_attach_edid_property - attach edid property.
@@ -546,6 +719,8 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		    DRM_CONNECTOR_REGISTERED))
 		drm_connector_unregister(connector);
 
+	platform_device_unregister(connector->hdmi_audio.codec_pdev);
+
 	if (connector->privacy_screen) {
 		drm_privacy_screen_put(connector->privacy_screen);
 		connector->privacy_screen = NULL;
@@ -574,16 +749,16 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	connector->name = NULL;
 	fwnode_handle_put(connector->fwnode);
 	connector->fwnode = NULL;
-	spin_lock_irq(&dev->mode_config.connector_list_lock);
-	list_del(&connector->head);
-	dev->mode_config.num_connector--;
-	spin_unlock_irq(&dev->mode_config.connector_list_lock);
+
+	drm_connector_remove(connector);
 
 	WARN_ON(connector->state && !connector->funcs->atomic_destroy_state);
 	if (connector->state && connector->funcs->atomic_destroy_state)
 		connector->funcs->atomic_destroy_state(connector,
 						       connector->state);
 
+	mutex_destroy(&connector->hdmi_audio.lock);
+	mutex_destroy(&connector->hdmi.infoframes.lock);
 	mutex_destroy(&connector->mutex);
 
 	memset(connector, 0, sizeof(*connector));
@@ -597,13 +772,16 @@ EXPORT_SYMBOL(drm_connector_cleanup);
  * drm_connector_register - register a connector
  * @connector: the connector to register
  *
- * Register userspace interfaces for a connector. Only call this for connectors
- * which can be hotplugged after drm_dev_register() has been called already,
- * e.g. DP MST connectors. All other connectors will be registered automatically
- * when calling drm_dev_register().
+ * Register userspace interfaces for a connector. Drivers shouldn't call this
+ * function. Static connectors will be registered automatically by DRM core
+ * from drm_dev_register(), dynamic connectors (MST) should be registered by
+ * drivers calling drm_connector_dynamic_register().
  *
  * When the connector is no longer available, callers must call
  * drm_connector_unregister().
+ *
+ * Note: Existing uses of this function in drivers should be a nop already and
+ * are scheduled to be removed.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -664,12 +842,43 @@ unlock:
 EXPORT_SYMBOL(drm_connector_register);
 
 /**
+ * drm_connector_dynamic_register - register a dynamic connector
+ * @connector: the connector to register
+ *
+ * Register userspace interfaces for a connector. Only call this for connectors
+ * initialized by calling drm_connector_dynamic_init(). All other connectors
+ * will be registered automatically when calling drm_dev_register().
+ *
+ * When the connector is no longer available the driver must call
+ * drm_connector_unregister().
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_connector_dynamic_register(struct drm_connector *connector)
+{
+	/* Was the connector inited already? */
+	if (WARN_ON(!(connector->funcs && connector->funcs->destroy)))
+		return -EINVAL;
+
+	drm_connector_add(connector);
+
+	return drm_connector_register(connector);
+}
+EXPORT_SYMBOL(drm_connector_dynamic_register);
+
+/**
  * drm_connector_unregister - unregister a connector
  * @connector: the connector to unregister
  *
- * Unregister userspace interfaces for a connector. Only call this for
- * connectors which have been registered explicitly by calling
- * drm_connector_register().
+ * Unregister userspace interfaces for a connector. Drivers should call this
+ * for dynamic connectors (MST) only, which were registered explicitly by
+ * calling drm_connector_dynamic_register(). All other - static - connectors
+ * will be unregistered automatically by DRM core and drivers shouldn't call
+ * this function for those.
+ *
+ * Note: Existing uses of this function in drivers for static connectors
+ * should be a nop already and are scheduled to be removed.
  */
 void drm_connector_unregister(struct drm_connector *connector)
 {
@@ -1005,6 +1214,7 @@ static const struct drm_prop_enum_list drm_tv_mode_enum_list[] = {
 	{ DRM_MODE_TV_MODE_PAL_M, "PAL-M" },
 	{ DRM_MODE_TV_MODE_PAL_N, "PAL-N" },
 	{ DRM_MODE_TV_MODE_SECAM, "SECAM" },
+	{ DRM_MODE_TV_MODE_MONOCHROME, "Mono" },
 };
 DRM_ENUM_NAME_FN(drm_get_tv_mode_name, drm_tv_mode_enum_list)
 
@@ -1143,6 +1353,53 @@ static const u32 dp_colorspaces =
 	BIT(DRM_MODE_COLORIMETRY_OPYCC_601) |
 	BIT(DRM_MODE_COLORIMETRY_BT2020_CYCC) |
 	BIT(DRM_MODE_COLORIMETRY_BT2020_YCC);
+
+static const struct drm_prop_enum_list broadcast_rgb_names[] = {
+	{ DRM_HDMI_BROADCAST_RGB_AUTO, "Automatic" },
+	{ DRM_HDMI_BROADCAST_RGB_FULL, "Full" },
+	{ DRM_HDMI_BROADCAST_RGB_LIMITED, "Limited 16:235" },
+};
+
+/*
+ * drm_hdmi_connector_get_broadcast_rgb_name - Return a string for HDMI connector RGB broadcast selection
+ * @broadcast_rgb: Broadcast RGB selection to compute name of
+ *
+ * Returns: the name of the Broadcast RGB selection, or NULL if the type
+ * is not valid.
+ */
+const char *
+drm_hdmi_connector_get_broadcast_rgb_name(enum drm_hdmi_broadcast_rgb broadcast_rgb)
+{
+	if (broadcast_rgb >= ARRAY_SIZE(broadcast_rgb_names))
+		return NULL;
+
+	return broadcast_rgb_names[broadcast_rgb].name;
+}
+EXPORT_SYMBOL(drm_hdmi_connector_get_broadcast_rgb_name);
+
+static const char * const output_format_str[] = {
+	[HDMI_COLORSPACE_RGB]		= "RGB",
+	[HDMI_COLORSPACE_YUV420]	= "YUV 4:2:0",
+	[HDMI_COLORSPACE_YUV422]	= "YUV 4:2:2",
+	[HDMI_COLORSPACE_YUV444]	= "YUV 4:4:4",
+};
+
+/*
+ * drm_hdmi_connector_get_output_format_name() - Return a string for HDMI connector output format
+ * @fmt: Output format to compute name of
+ *
+ * Returns: the name of the output format, or NULL if the type is not
+ * valid.
+ */
+const char *
+drm_hdmi_connector_get_output_format_name(enum hdmi_colorspace fmt)
+{
+	if (fmt >= ARRAY_SIZE(output_format_str))
+		return NULL;
+
+	return output_format_str[fmt];
+}
+EXPORT_SYMBOL(drm_hdmi_connector_get_output_format_name);
 
 /**
  * DOC: standard connector properties
@@ -1616,6 +1873,38 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
 /**
  * DOC: HDMI connector properties
  *
+ * Broadcast RGB (HDMI specific)
+ *      Indicates the Quantization Range (Full vs Limited) used. The color
+ *      processing pipeline will be adjusted to match the value of the
+ *      property, and the Infoframes will be generated and sent accordingly.
+ *
+ *      This property is only relevant if the HDMI output format is RGB. If
+ *      it's one of the YCbCr variant, it will be ignored.
+ *
+ *      The CRTC attached to the connector must be configured by user-space to
+ *      always produce full-range pixels.
+ *
+ *      The value of this property can be one of the following:
+ *
+ *      Automatic:
+ *              The quantization range is selected automatically based on the
+ *              mode according to the HDMI specifications (HDMI 1.4b - Section
+ *              6.6 - Video Quantization Ranges).
+ *
+ *      Full:
+ *              Full quantization range is forced.
+ *
+ *      Limited 16:235:
+ *              Limited quantization range is forced. Unlike the name suggests,
+ *              this works for any number of bits-per-component.
+ *
+ *      Property values other than Automatic can result in colors being off (if
+ *      limited is selected but the display expects full), or a black screen
+ *      (if full is selected but the display expects limited).
+ *
+ *      Drivers can set up this property by calling
+ *      drm_connector_attach_broadcast_rgb_property().
+ *
  * content type (HDMI specific):
  *	Indicates content type setting to be used in HDMI infoframes to indicate
  *	content type for the external device, so that it adjusts its display
@@ -1696,6 +1985,12 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *
  *		TV Mode is CCIR System B (aka 625-lines) together with
  *		the SECAM Color Encoding.
+ *
+ *	Mono:
+ *
+ *		Use timings appropriate to the DRM mode, including
+ *		equalizing pulses for a 525-line or 625-line mode,
+ *		with no pedestal or color encoding.
  *
  *	Drivers can set up this property by calling
  *	drm_mode_create_tv_properties().
@@ -2147,24 +2442,71 @@ EXPORT_SYMBOL(drm_mode_create_aspect_ratio_property);
  * DOC: standard connector properties
  *
  * Colorspace:
- *     This property helps select a suitable colorspace based on the sink
- *     capability. Modern sink devices support wider gamut like BT2020.
- *     This helps switch to BT2020 mode if the BT2020 encoded video stream
- *     is being played by the user, same for any other colorspace. Thereby
- *     giving a good visual experience to users.
+ *	This property is used to inform the driver about the color encoding
+ *	user space configured the pixel operation properties to produce.
+ *	The variants set the colorimetry, transfer characteristics, and which
+ *	YCbCr conversion should be used when necessary.
+ *	The transfer characteristics from HDR_OUTPUT_METADATA takes precedence
+ *	over this property.
+ *	User space always configures the pixel operation properties to produce
+ *	full quantization range data (see the Broadcast RGB property).
  *
- *     The expectation from userspace is that it should parse the EDID
- *     and get supported colorspaces. Use this property and switch to the
- *     one supported. Sink supported colorspaces should be retrieved by
- *     userspace from EDID and driver will not explicitly expose them.
+ *	Drivers inform the sink about what colorimetry, transfer
+ *	characteristics, YCbCr conversion, and quantization range to expect
+ *	(this can depend on the output mode, output format and other
+ *	properties). Drivers also convert the user space provided data to what
+ *	the sink expects.
  *
- *     Basically the expectation from userspace is:
- *      - Set up CRTC DEGAMMA/CTM/GAMMA to convert to some sink
- *        colorspace
- *      - Set this new property to let the sink know what it
- *        converted the CRTC output to.
- *      - This property is just to inform sink what colorspace
- *        source is trying to drive.
+ *	User space has to check if the sink supports all of the possible
+ *	colorimetries that the driver is allowed to pick by parsing the EDID.
+ *
+ *	For historical reasons this property exposes a number of variants which
+ *	result in undefined behavior.
+ *
+ *	Default:
+ *		The behavior is driver-specific.
+ *
+ *	BT2020_RGB:
+ *
+ *	BT2020_YCC:
+ *		User space configures the pixel operation properties to produce
+ *		RGB content with Rec. ITU-R BT.2020 colorimetry, Rec.
+ *		ITU-R BT.2020 (Table 4, RGB) transfer characteristics and full
+ *		quantization range.
+ *		User space can use the HDR_OUTPUT_METADATA property to set the
+ *		transfer characteristics to PQ (Rec. ITU-R BT.2100 Table 4) or
+ *		HLG (Rec. ITU-R BT.2100 Table 5) in which case, user space
+ *		configures pixel operation properties to produce content with
+ *		the respective transfer characteristics.
+ *		User space has to make sure the sink supports Rec.
+ *		ITU-R BT.2020 R'G'B' and Rec. ITU-R BT.2020 Y'C'BC'R
+ *		colorimetry.
+ *		Drivers can configure the sink to use an RGB format, tell the
+ *		sink to expect Rec. ITU-R BT.2020 R'G'B' colorimetry and convert
+ *		to the appropriate quantization range.
+ *		Drivers can configure the sink to use a YCbCr format, tell the
+ *		sink to expect Rec. ITU-R BT.2020 Y'C'BC'R colorimetry, convert
+ *		to YCbCr using the Rec. ITU-R BT.2020 non-constant luminance
+ *		conversion matrix and convert to the appropriate quantization
+ *		range.
+ *		The variants BT2020_RGB and BT2020_YCC are equivalent and the
+ *		driver chooses between RGB and YCbCr on its own.
+ *
+ *	SMPTE_170M_YCC:
+ *	BT709_YCC:
+ *	XVYCC_601:
+ *	XVYCC_709:
+ *	SYCC_601:
+ *	opYCC_601:
+ *	opRGB:
+ *	BT2020_CYCC:
+ *	DCI-P3_RGB_D65:
+ *	DCI-P3_RGB_Theater:
+ *	RGB_WIDE_FIXED:
+ *	RGB_WIDE_FLOAT:
+ *
+ *	BT601_YCC:
+ *		The behavior is undefined.
  *
  * Because between HDMI and DP have different colorspaces,
  * drm_mode_create_hdmi_colorspace_property() is used for HDMI connector and
@@ -2477,6 +2819,39 @@ int drm_connector_attach_hdr_output_metadata_property(struct drm_connector *conn
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_hdr_output_metadata_property);
+
+/**
+ * drm_connector_attach_broadcast_rgb_property - attach "Broadcast RGB" property
+ * @connector: connector to attach the property on.
+ *
+ * This is used to add support for forcing the RGB range on a connector
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_attach_broadcast_rgb_property(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	prop = connector->broadcast_rgb_property;
+	if (!prop) {
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
+						"Broadcast RGB",
+						broadcast_rgb_names,
+						ARRAY_SIZE(broadcast_rgb_names));
+		if (!prop)
+			return -EINVAL;
+
+		connector->broadcast_rgb_property = prop;
+	}
+
+	drm_object_attach_property(&connector->base, prop,
+				   DRM_HDMI_BROADCAST_RGB_AUTO);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_broadcast_rgb_property);
 
 /**
  * drm_connector_attach_colorspace_property - attach "Colorspace" property
@@ -2940,7 +3315,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 						     dev->mode_config.max_width,
 						     dev->mode_config.max_height);
 		else
-			drm_dbg_kms(dev, "User-space requested a forced probe on [CONNECTOR:%d:%s] but is not the DRM master, demoting to read-only probe",
+			drm_dbg_kms(dev, "User-space requested a forced probe on [CONNECTOR:%d:%s] but is not the DRM master, demoting to read-only probe\n",
 				    connector->base.id, connector->name);
 	}
 

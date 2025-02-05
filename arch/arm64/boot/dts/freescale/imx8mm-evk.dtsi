@@ -72,6 +72,20 @@
 		enable-active-high;
 	};
 
+	reg_1v5: regulator-1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reg_vddext_3v3: regulator-vddext-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDEXT_3V3";
@@ -166,12 +180,21 @@
 		};
 	};
 
+	spdif_out: spdif-out {
+		compatible = "linux,spdif-dit";
+		#sound-dai-cells = <0>;
+	};
+
+	spdif_in: spdif-in {
+		compatible = "linux,spdif-dir";
+		#sound-dai-cells = <0>;
+	};
+
 	sound-spdif {
 		compatible = "fsl,imx-audio-spdif";
 		model = "imx-spdif";
-		spdif-controller = <&spdif1>;
-		spdif-out;
-		spdif-in;
+		audio-cpu = <&spdif1>;
+		audio-codec = <&spdif_out>, <&spdif_in>;
 	};
 };
 
@@ -381,12 +404,12 @@
 	};
 
 	ptn5110: tcpc@50 {
-		compatible = "nxp,ptn5110";
+		compatible = "nxp,ptn5110", "tcpci";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec1>;
 		reg = <0x50>;
 		interrupt-parent = <&gpio2>;
-		interrupts = <11 8>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 		status = "okay";
 
 		typec1_con: connector {
@@ -441,6 +464,9 @@
 		assigned-clock-rates = <24000000>;
 		powerdown-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		DOVDD-supply = <&buck5_reg>;
+		AVDD-supply = <&reg_1v8>;
+		DVDD-supply = <&reg_1v5>;
 
 		port {
 			ov5640_to_mipi_csi2: endpoint {

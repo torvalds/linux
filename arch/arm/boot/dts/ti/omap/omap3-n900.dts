@@ -754,7 +754,7 @@
 		ti,current-limit = <100>;
 		ti,weak-battery-voltage = <3400>;
 		ti,battery-regulation-voltage = <4200>;
-		ti,charge-current = <650>;
+		ti,charge-current = <950>;
 		ti,termination-current = <100>;
 		ti,resistor-sense = <68>;
 
@@ -781,7 +781,7 @@
 
 		mount-matrix =	 "-1",  "0",  "0",
 				  "0",  "1",  "0",
-				  "0",  "0",  "1";
+				  "0",  "0",  "-1";
 	};
 
 	cam1: camera@3e {

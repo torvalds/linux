@@ -17,6 +17,12 @@ endif
 DEBUG_CFLAGS	+= $(debug-flags-y)
 KBUILD_AFLAGS	+= $(debug-flags-y)
 
+ifdef CONFIG_DEBUG_INFO_DWARF4
+DEBUG_RUSTFLAGS	+= -Zdwarf-version=4
+else ifdef CONFIG_DEBUG_INFO_DWARF5
+DEBUG_RUSTFLAGS	+= -Zdwarf-version=5
+endif
+
 ifdef CONFIG_DEBUG_INFO_REDUCED
 DEBUG_CFLAGS	+= -fno-var-tracking
 DEBUG_RUSTFLAGS	+= -Cdebuginfo=1
@@ -29,10 +35,12 @@ endif
 
 ifdef CONFIG_DEBUG_INFO_COMPRESSED_ZLIB
 DEBUG_CFLAGS	+= -gz=zlib
+DEBUG_RUSTFLAGS	+= -Zdebuginfo-compression=zlib
 KBUILD_AFLAGS	+= -gz=zlib
 KBUILD_LDFLAGS	+= --compress-debug-sections=zlib
 else ifdef CONFIG_DEBUG_INFO_COMPRESSED_ZSTD
 DEBUG_CFLAGS	+= -gz=zstd
+DEBUG_RUSTFLAGS	+= -Zdebuginfo-compression=zstd
 KBUILD_AFLAGS	+= -gz=zstd
 KBUILD_LDFLAGS	+= --compress-debug-sections=zstd
 endif

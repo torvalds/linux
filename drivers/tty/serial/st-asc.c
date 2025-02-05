@@ -387,9 +387,9 @@ static unsigned int asc_get_mctrl(struct uart_port *port)
 /* There are probably characters waiting to be transmitted. */
 static void asc_start_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 
-	if (!uart_circ_empty(xmit))
+	if (!kfifo_is_empty(&tport->xmit_fifo))
 		asc_enable_tx_interrupts(port);
 }
 
@@ -808,7 +808,6 @@ static void asc_serial_remove(struct platform_device *pdev)
 	uart_remove_one_port(&asc_uart_driver, port);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int asc_serial_suspend(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
@@ -822,8 +821,6 @@ static int asc_serial_resume(struct device *dev)
 
 	return uart_resume_port(&asc_uart_driver, port);
 }
-
-#endif /* CONFIG_PM_SLEEP */
 
 /*----------------------------------------------------------------------*/
 
@@ -932,16 +929,15 @@ static struct uart_driver asc_uart_driver = {
 	.cons		= ASC_SERIAL_CONSOLE,
 };
 
-static const struct dev_pm_ops asc_serial_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(asc_serial_suspend, asc_serial_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(asc_serial_pm_ops, asc_serial_suspend,
+						   asc_serial_resume);
 
 static struct platform_driver asc_serial_driver = {
 	.probe		= asc_serial_probe,
-	.remove_new	= asc_serial_remove,
+	.remove		= asc_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
-		.pm	= &asc_serial_pm_ops,
+		.pm	= pm_sleep_ptr(&asc_serial_pm_ops),
 		.of_match_table = of_match_ptr(asc_match),
 	},
 };

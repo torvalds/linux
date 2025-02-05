@@ -15,14 +15,19 @@ struct qat_alg_buf {
 } __packed;
 
 struct qat_alg_buf_list {
-	u64 resrvd;
-	u32 num_bufs;
-	u32 num_mapped_bufs;
+	/* New members must be added within the __struct_group() macro below. */
+	__struct_group(qat_alg_buf_list_hdr, hdr, __packed,
+		u64 resrvd;
+		u32 num_bufs;
+		u32 num_mapped_bufs;
+	);
 	struct qat_alg_buf buffers[];
 } __packed;
+static_assert(offsetof(struct qat_alg_buf_list, buffers) == sizeof(struct qat_alg_buf_list_hdr),
+	      "struct member likely outside of __struct_group()");
 
 struct qat_alg_fixed_buf_list {
-	struct qat_alg_buf_list sgl_hdr;
+	struct qat_alg_buf_list_hdr sgl_hdr;
 	struct qat_alg_buf descriptors[QAT_MAX_BUFF_DESC];
 } __packed __aligned(64);
 

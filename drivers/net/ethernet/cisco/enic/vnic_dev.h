@@ -31,6 +31,11 @@ static inline void writeq(u64 val, void __iomem *reg)
 #undef pr_fmt
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#define VNIC_DESC_SIZE_ALIGN	16
+#define VNIC_DESC_COUNT_ALIGN	32
+#define VNIC_DESC_BASE_ALIGN	512
+#define VNIC_DESC_MAX_COUNT	4096
+
 enum vnic_dev_intr_mode {
 	VNIC_DEV_INTR_MODE_UNKNOWN,
 	VNIC_DEV_INTR_MODE_INTX,

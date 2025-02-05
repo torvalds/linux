@@ -292,7 +292,7 @@ MODULE_DEVICE_TABLE(of, msm_ci_dt_match);
 
 static struct platform_driver ci_hdrc_msm_driver = {
 	.probe = ci_hdrc_msm_probe,
-	.remove_new = ci_hdrc_msm_remove,
+	.remove = ci_hdrc_msm_remove,
 	.driver = {
 		.name = "msm_hsusb",
 		.of_match_table = msm_ci_dt_match,
@@ -303,4 +303,5 @@ module_platform_driver(ci_hdrc_msm_driver);
 
 MODULE_ALIAS("platform:msm_hsusb");
 MODULE_ALIAS("platform:ci13xxx_msm");
+MODULE_DESCRIPTION("ChipIdea Highspeed Dual Role Controller");
 MODULE_LICENSE("GPL v2");

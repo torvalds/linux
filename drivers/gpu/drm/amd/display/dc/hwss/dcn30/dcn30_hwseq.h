@@ -27,7 +27,7 @@
 #define __DC_HWSS_DCN30_H__
 
 #include "hw_sequencer_private.h"
-#include "dcn20/dcn20_hwseq.h"
+
 struct dc;
 
 void dcn30_init_hw(struct dc *dc);
@@ -95,5 +95,7 @@ void dcn30_set_hubp_blank(const struct dc *dc,
 
 void dcn30_prepare_bandwidth(struct dc *dc,
 	struct dc_state *context);
+
+void dcn30_wait_for_all_pending_updates(const struct pipe_ctx *pipe_ctx);
 
 #endif /* __DC_HWSS_DCN30_H__ */

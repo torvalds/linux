@@ -6,6 +6,7 @@
  * DSOs and symbol information, sort them and produce a diff.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/debug.h"
 #include "util/event.h"
@@ -388,7 +389,7 @@ struct hist_entry_ops block_hist_ops = {
 	.free   = block_hist_free,
 };
 
-static int diff__process_sample_event(struct perf_tool *tool,
+static int diff__process_sample_event(const struct perf_tool *tool,
 				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct evsel *evsel,
@@ -431,8 +432,8 @@ static int diff__process_sample_event(struct perf_tool *tool,
 			goto out;
 		}
 
-		hist__account_cycles(sample->branch_stack, &al, sample, false,
-				     NULL);
+		hist__account_cycles(sample->branch_stack, &al, sample,
+				     false, NULL, evsel);
 		break;
 
 	case COMPUTE_STREAM:
@@ -467,29 +468,15 @@ out:
 	return ret;
 }
 
-static struct perf_diff pdiff = {
-	.tool = {
-		.sample	= diff__process_sample_event,
-		.mmap	= perf_event__process_mmap,
-		.mmap2	= perf_event__process_mmap2,
-		.comm	= perf_event__process_comm,
-		.exit	= perf_event__process_exit,
-		.fork	= perf_event__process_fork,
-		.lost	= perf_event__process_lost,
-		.namespaces = perf_event__process_namespaces,
-		.cgroup = perf_event__process_cgroup,
-		.ordered_events = true,
-		.ordering_requires_timestamps = true,
-	},
-};
+static struct perf_diff pdiff;
 
-static struct evsel *evsel_match(struct evsel *evsel,
-				      struct evlist *evlist)
+static struct evsel *evsel_match(struct evsel *evsel, struct evlist *evlist)
 {
 	struct evsel *e;
 
 	evlist__for_each_entry(evlist, e) {
-		if (evsel__match2(evsel, e))
+		if ((evsel->core.attr.type == e->core.attr.type) &&
+		    (evsel->core.attr.config == e->core.attr.config))
 			return e;
 	}
 
@@ -705,7 +692,7 @@ static void hists__precompute(struct hists *hists)
 		if (compute == COMPUTE_CYCLES) {
 			bh = container_of(he, struct block_hist, he);
 			init_block_hist(bh);
-			block_info__process_sym(he, bh, NULL, 0);
+			block_info__process_sym(he, bh, NULL, 0, 0);
 		}
 
 		data__for_each_file_new(i, d) {
@@ -728,7 +715,7 @@ static void hists__precompute(struct hists *hists)
 				pair_bh = container_of(pair, struct block_hist,
 						       he);
 				init_block_hist(pair_bh);
-				block_info__process_sym(pair, pair_bh, NULL, 0);
+				block_info__process_sym(pair, pair_bh, NULL, 0, 0);
 
 				bh = container_of(he, struct block_hist, he);
 
@@ -1033,12 +1020,12 @@ static int process_base_stream(struct data__file *data_base,
 			continue;
 
 		es_base = evsel_streams__entry(data_base->evlist_streams,
-					       evsel_base->core.idx);
+					       evsel_base);
 		if (!es_base)
 			return -1;
 
 		es_pair = evsel_streams__entry(data_pair->evlist_streams,
-					       evsel_pair->core.idx);
+					       evsel_pair);
 		if (!es_pair)
 			return -1;
 
@@ -1958,6 +1945,18 @@ int cmd_diff(int argc, const char **argv)
 
 	if (ret < 0)
 		return ret;
+
+	perf_tool__init(&pdiff.tool, /*ordered_events=*/true);
+	pdiff.tool.sample	= diff__process_sample_event;
+	pdiff.tool.mmap	= perf_event__process_mmap;
+	pdiff.tool.mmap2	= perf_event__process_mmap2;
+	pdiff.tool.comm	= perf_event__process_comm;
+	pdiff.tool.exit	= perf_event__process_exit;
+	pdiff.tool.fork	= perf_event__process_fork;
+	pdiff.tool.lost	= perf_event__process_lost;
+	pdiff.tool.namespaces = perf_event__process_namespaces;
+	pdiff.tool.cgroup = perf_event__process_cgroup;
+	pdiff.tool.ordering_requires_timestamps = true;
 
 	perf_config(diff__config, NULL);
 

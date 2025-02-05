@@ -169,11 +169,17 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 				ret = -1 - SIX_LOCK_write;
 		}
 	} else if (type == SIX_LOCK_write && lock->readers) {
-		if (try) {
+		if (try)
 			atomic_add(SIX_LOCK_HELD_write, &lock->state);
-			smp_mb__after_atomic();
-		}
 
+		/*
+		 * Make sure atomic_add happens before pcpu_read_count and
+		 * six_set_bitmask in slow path happens before pcpu_read_count.
+		 *
+		 * Paired with the smp_mb() in read lock fast path (per-cpu mode)
+		 * and the one before atomic_read in read unlock path.
+		 */
+		smp_mb();
 		ret = !pcpu_read_count(lock);
 
 		if (try && !ret) {
@@ -335,7 +341,7 @@ static inline bool six_owner_running(struct six_lock *lock)
 	 */
 	rcu_read_lock();
 	struct task_struct *owner = READ_ONCE(lock->owner);
-	bool ret = owner ? owner_on_cpu(owner) : !rt_task(current);
+	bool ret = owner ? owner_on_cpu(owner) : !rt_or_dl_task(current);
 	rcu_read_unlock();
 
 	return ret;
@@ -485,8 +491,12 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 				list_del(&wait->list);
 			raw_spin_unlock(&lock->wait_lock);
 
-			if (unlikely(acquired))
+			if (unlikely(acquired)) {
 				do_six_unlock_type(lock, type);
+			} else if (type == SIX_LOCK_write) {
+				six_clear_bitmask(lock, SIX_LOCK_HELD_write);
+				six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
+			}
 			break;
 		}
 
@@ -495,10 +505,6 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 
 	__set_current_state(TASK_RUNNING);
 out:
-	if (ret && type == SIX_LOCK_write) {
-		six_clear_bitmask(lock, SIX_LOCK_HELD_write);
-		six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
-	}
 	trace_contention_end(lock, 0);
 
 	return ret;
@@ -610,14 +616,21 @@ void six_unlock_ip(struct six_lock *lock, enum six_lock_type type, unsigned long
 
 	if (type != SIX_LOCK_write)
 		six_release(&lock->dep_map, ip);
-	else
-		lock->seq++;
 
 	if (type == SIX_LOCK_intent &&
 	    lock->intent_lock_recurse) {
 		--lock->intent_lock_recurse;
 		return;
 	}
+
+	if (type == SIX_LOCK_write &&
+	    lock->write_lock_recurse) {
+		--lock->write_lock_recurse;
+		return;
+	}
+
+	if (type == SIX_LOCK_write)
+		lock->seq++;
 
 	do_six_unlock_type(lock, type);
 }
@@ -729,12 +742,12 @@ void six_lock_increment(struct six_lock *lock, enum six_lock_type type)
 			atomic_add(l[type].lock_val, &lock->state);
 		}
 		break;
+	case SIX_LOCK_write:
+		lock->write_lock_recurse++;
+		fallthrough;
 	case SIX_LOCK_intent:
 		EBUG_ON(!(atomic_read(&lock->state) & SIX_LOCK_HELD_intent));
 		lock->intent_lock_recurse++;
-		break;
-	case SIX_LOCK_write:
-		BUG();
 		break;
 	}
 }

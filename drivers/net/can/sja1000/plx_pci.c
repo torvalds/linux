@@ -122,7 +122,6 @@ struct plx_pci_card {
 #define TEWS_PCI_VENDOR_ID		0x1498
 #define TEWS_PCI_DEVICE_ID_TMPC810	0x032A
 
-#define CTI_PCI_VENDOR_ID		0x12c4
 #define CTI_PCI_DEVICE_ID_CRG001	0x0900
 
 #define MOXA_PCI_VENDOR_ID		0x1393
@@ -358,7 +357,7 @@ static const struct pci_device_id plx_pci_tbl[] = {
 	{
 		/* Connect Tech Inc. CANpro/104-Plus Opto (CRG001) card */
 		PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9030,
-		CTI_PCI_VENDOR_ID, CTI_PCI_DEVICE_ID_CRG001,
+		PCI_SUBVENDOR_ID_CONNECT_TECH, CTI_PCI_DEVICE_ID_CRG001,
 		0, 0,
 		(kernel_ulong_t)&plx_pci_card_info_cti
 	},

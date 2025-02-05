@@ -4516,7 +4516,8 @@ static bool floppy_available(int drive)
 static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct queue_limits lim = {
-		.max_hw_sectors = 64,
+		.max_hw_sectors		= 64,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	struct gendisk *disk;
 
@@ -4595,7 +4596,6 @@ static int __init do_floppy_init(void)
 		tag_sets[drive].nr_maps = 1;
 		tag_sets[drive].queue_depth = 2;
 		tag_sets[drive].numa_node = NUMA_NO_NODE;
-		tag_sets[drive].flags = BLK_MQ_F_SHOULD_MERGE;
 		err = blk_mq_alloc_tag_set(&tag_sets[drive]);
 		if (err)
 			goto out_put_disk;
@@ -5016,6 +5016,7 @@ module_param(floppy, charp, 0);
 module_param(FLOPPY_IRQ, int, 0);
 module_param(FLOPPY_DMA, int, 0);
 MODULE_AUTHOR("Alain L. Knaff");
+MODULE_DESCRIPTION("Normal floppy disk support");
 MODULE_LICENSE("GPL");
 
 /* This doesn't actually get used other than for module information */

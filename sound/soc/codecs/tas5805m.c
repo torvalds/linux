@@ -474,7 +474,7 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	tas5805m = devm_kzalloc(dev, sizeof(struct tas5805m_priv), GFP_KERNEL);
+	tas5805m = devm_kzalloc(dev, sizeof(*tas5805m), GFP_KERNEL);
 	if (!tas5805m)
 		return -ENOMEM;
 

@@ -30,7 +30,7 @@
 #define CPG_ADSPCKCR		0x025c
 #define CPG_RCANCKCR		0x0270
 
-static spinlock_t cpg_lock;
+static DEFINE_SPINLOCK(cpg_lock);
 
 /*
  * Z Clock
@@ -386,8 +386,6 @@ int __init rcar_gen2_cpg_init(const struct rcar_gen2_cpg_pll_config *config,
 	if (attr)
 		cpg_quirks = (uintptr_t)attr->data;
 	pr_debug("%s: mode = 0x%x quirks = 0x%x\n", __func__, mode, cpg_quirks);
-
-	spin_lock_init(&cpg_lock);
 
 	return 0;
 }

@@ -229,9 +229,9 @@ static ssize_t frame_rate_show(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vout_dev *voutdev = video_get_drvdata(vdev);
 	u32 period = mgb4_read_reg(&voutdev->mgbdev->video,
-				   voutdev->config->regs.frame_period);
+				   voutdev->config->regs.frame_limit);
 
-	return sprintf(buf, "%u\n", 125000000 / period);
+	return sprintf(buf, "%u\n", period ? MGB4_HW_FREQ / period : 0);
 }
 
 /*
@@ -245,14 +245,15 @@ static ssize_t frame_rate_store(struct device *dev,
 	struct video_device *vdev = to_video_device(dev);
 	struct mgb4_vout_dev *voutdev = video_get_drvdata(vdev);
 	unsigned long val;
-	int ret;
+	int limit, ret;
 
 	ret = kstrtoul(buf, 10, &val);
 	if (ret)
 		return ret;
 
+	limit = val ? MGB4_HW_FREQ / val : 0;
 	mgb4_write_reg(&voutdev->mgbdev->video,
-		       voutdev->config->regs.frame_period, 125000000 / val);
+		       voutdev->config->regs.frame_limit, limit);
 
 	return count;
 }

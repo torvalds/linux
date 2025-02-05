@@ -1119,7 +1119,6 @@ struct aic7770_identity {
 	ahc_device_setup_t	*setup;
 };
 extern struct aic7770_identity aic7770_ident_table[];
-extern const int ahc_num_aic7770_devs;
 
 #define AHC_EISA_SLOT_OFFSET	0xc00
 #define AHC_EISA_IOSIZE		0x100
@@ -1135,7 +1134,6 @@ int			 ahc_pci_test_register_access(struct ahc_softc *);
 void __maybe_unused	 ahc_pci_resume(struct ahc_softc *ahc);
 
 /*************************** EISA/VL Front End ********************************/
-struct aic7770_identity *aic7770_find_device(uint32_t);
 int			 aic7770_config(struct ahc_softc *ahc,
 					struct aic7770_identity *,
 					u_int port);

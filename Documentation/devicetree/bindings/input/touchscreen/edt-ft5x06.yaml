@@ -39,7 +39,11 @@ properties:
       - edt,edt-ft5406
       - edt,edt-ft5506
       - evervision,ev-ft5726
+      - focaltech,ft5426
+      - focaltech,ft5452
       - focaltech,ft6236
+      - focaltech,ft8201
+      - focaltech,ft8719
 
   reg:
     maxItems: 1
@@ -122,7 +126,7 @@ examples:
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
-      edt-ft5x06@38 {
+      touchscreen@38 {
         compatible = "edt,edt-ft5406";
         reg = <0x38>;
         interrupt-parent = <&gpio2>;

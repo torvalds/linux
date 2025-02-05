@@ -268,9 +268,7 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 					 struct device_node *parent,
 					 struct generic_pm_domain *genpd_parent)
 {
-	struct device_node *np;
-
-	for_each_child_of_node(parent, np) {
+	for_each_child_of_node_scoped(parent, np) {
 		struct rmobile_pm_domain *pd;
 		u32 idx = ~0;
 
@@ -279,10 +277,8 @@ static int __init rmobile_add_pm_domains(void __iomem *base,
 		}
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
-		if (!pd) {
-			of_node_put(np);
+		if (!pd)
 			return -ENOMEM;
-		}
 
 		pd->genpd.name = np->name;
 		pd->base = base;

@@ -155,22 +155,17 @@ static irqreturn_t xps2_interrupt(int irq, void *dev_id)
 static int sxps2_write(struct serio *pserio, unsigned char c)
 {
 	struct xps2data *drvdata = pserio->port_data;
-	unsigned long flags;
 	u32 sr;
-	int status = -1;
 
-	spin_lock_irqsave(&drvdata->lock, flags);
+	guard(spinlock_irqsave)(&drvdata->lock);
 
 	/* If the PS/2 transmitter is empty send a byte of data */
 	sr = in_be32(drvdata->base_address + XPS2_STATUS_OFFSET);
-	if (!(sr & XPS2_STATUS_TX_FULL)) {
-		out_be32(drvdata->base_address + XPS2_TX_DATA_OFFSET, c);
-		status = 0;
-	}
+	if (sr & XPS2_STATUS_TX_FULL)
+		return -EAGAIN;
 
-	spin_unlock_irqrestore(&drvdata->lock, flags);
-
-	return status;
+	out_be32(drvdata->base_address + XPS2_TX_DATA_OFFSET, c);
+	return 0;
 }
 
 /**
@@ -252,8 +247,8 @@ static int xps2_of_probe(struct platform_device *ofdev)
 		return -ENODEV;
 	}
 
-	drvdata = kzalloc(sizeof(struct xps2data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	drvdata = kzalloc(sizeof(*drvdata), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!drvdata || !serio) {
 		error = -ENOMEM;
 		goto failed1;
@@ -358,7 +353,7 @@ static struct platform_driver xps2_of_driver = {
 		.of_match_table = xps2_of_match,
 	},
 	.probe		= xps2_of_probe,
-	.remove_new	= xps2_of_remove,
+	.remove		= xps2_of_remove,
 };
 module_platform_driver(xps2_of_driver);
 

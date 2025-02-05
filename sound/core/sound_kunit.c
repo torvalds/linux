@@ -45,7 +45,7 @@ struct avail_test_data {
 	snd_pcm_uframes_t expected_avail;
 };
 
-static struct snd_format_test_data valid_fmt[] = {
+static const struct snd_format_test_data valid_fmt[] = {
 	DEFINE_FORMAT(S8, 8, 8, -1, 1, SILENCE()),
 	DEFINE_FORMAT(U8, 8, 8, -1, 0, SILENCE(0x80)),
 	DEFINE_FORMAT(S16_LE, 16, 16, 1, 1, SILENCE()),
@@ -154,7 +154,7 @@ static void test_format_endianness(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, snd_pcm_format_big_endian(WRONG_FORMAT_2), -EINVAL);
 }
 
-static void _test_fill_silence(struct kunit *test, struct snd_format_test_data *data,
+static void _test_fill_silence(struct kunit *test, const struct snd_format_test_data *data,
 			       u8 *buffer, size_t samples_count)
 {
 	size_t sample_bytes = data->physical_bits >> 3;
@@ -167,11 +167,12 @@ static void _test_fill_silence(struct kunit *test, struct snd_format_test_data *
 
 static void test_format_fill_silence(struct kunit *test)
 {
-	u32 buf_samples[] = { 10, 20, 32, 64, 129, SILENCE_BUFFER_MAX_FRAMES };
+	static const u32 buf_samples[] = { 10, 20, 32, 64, 129, SILENCE_BUFFER_MAX_FRAMES };
 	u8 *buffer;
 	u32 i, j;
 
 	buffer = kunit_kzalloc(test, SILENCE_BUFFER_SIZE, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
 
 	for (i = 0; i < ARRAY_SIZE(buf_samples); i++) {
 		for (j = 0; j < ARRAY_SIZE(valid_fmt); j++)
@@ -191,7 +192,7 @@ static snd_pcm_uframes_t calculate_boundary(snd_pcm_uframes_t buffer_size)
 	return boundary;
 }
 
-static struct avail_test_data p_avail_data[] = {
+static const struct avail_test_data p_avail_data[] = {
 	/* buf_size + hw_ptr < appl_ptr => avail = buf_size + hw_ptr - appl_ptr + boundary */
 	{ 128, 1000, 1129, 1073741824UL - 1 },
 	/*
@@ -208,8 +209,12 @@ static void test_playback_avail(struct kunit *test)
 	struct snd_pcm_runtime *r = kunit_kzalloc(test, sizeof(*r), GFP_KERNEL);
 	u32 i;
 
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r);
+
 	r->status = kunit_kzalloc(test, sizeof(*r->status), GFP_KERNEL);
 	r->control = kunit_kzalloc(test, sizeof(*r->control), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r->status);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r->control);
 
 	for (i = 0; i < ARRAY_SIZE(p_avail_data); i++) {
 		r->buffer_size = p_avail_data[i].buffer_size;
@@ -220,7 +225,7 @@ static void test_playback_avail(struct kunit *test)
 	}
 }
 
-static struct avail_test_data c_avail_data[] = {
+static const struct avail_test_data c_avail_data[] = {
 	/* hw_ptr - appl_ptr < 0 => avail = hw_ptr - appl_ptr + boundary */
 	{ 128, 1000, 1001, 1073741824UL - 1 },
 	/* standard case: avail = hw_ptr - appl_ptr */
@@ -232,8 +237,12 @@ static void test_capture_avail(struct kunit *test)
 	struct snd_pcm_runtime *r = kunit_kzalloc(test, sizeof(*r), GFP_KERNEL);
 	u32 i;
 
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r);
+
 	r->status = kunit_kzalloc(test, sizeof(*r->status), GFP_KERNEL);
 	r->control = kunit_kzalloc(test, sizeof(*r->control), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r->status);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, r->control);
 
 	for (i = 0; i < ARRAY_SIZE(c_avail_data); i++) {
 		r->buffer_size = c_avail_data[i].buffer_size;
@@ -247,6 +256,7 @@ static void test_capture_avail(struct kunit *test)
 static void test_card_set_id(struct kunit *test)
 {
 	struct snd_card *card = kunit_kzalloc(test, sizeof(*card), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, card);
 
 	snd_card_set_id(card, VALID_NAME);
 	KUNIT_EXPECT_STREQ(test, card->id, VALID_NAME);
@@ -280,6 +290,7 @@ static void test_pcm_format_name(struct kunit *test)
 static void test_card_add_component(struct kunit *test)
 {
 	struct snd_card *card = kunit_kzalloc(test, sizeof(*card), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, card);
 
 	snd_component_add(card, TEST_FIRST_COMPONENT);
 	KUNIT_ASSERT_STREQ(test, card->components, TEST_FIRST_COMPONENT);
@@ -308,5 +319,6 @@ static struct kunit_suite sound_utils_suite = {
 };
 
 kunit_test_suite(sound_utils_suite);
+MODULE_DESCRIPTION("Sound core KUnit test");
 MODULE_AUTHOR("Ivan Orlov");
 MODULE_LICENSE("GPL");

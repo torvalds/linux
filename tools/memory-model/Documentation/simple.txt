@@ -266,5 +266,5 @@ More complex use cases
 ======================
 
 If the alternatives above do not do what you need, please look at the
-recipes-pairs.txt file to peel off the next layer of the memory-ordering
+recipes.txt file to peel off the next layer of the memory-ordering
 onion.

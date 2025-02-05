@@ -45,6 +45,10 @@ properties:
   '#size-cells':
     const: 0
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 additionalProperties: false
 
 required:

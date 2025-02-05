@@ -158,7 +158,7 @@ static int add_packet(struct fhci_usb *usb, struct ed *ed, struct td *td)
 	struct packet *pkt;
 	u8 *data = NULL;
 
-	/* calcalate data address,len and toggle and then add the transaction */
+	/* calculate data address,len and toggle and then add the transaction */
 	if (td->toggle == USB_TD_TOGGLE_CARRY)
 		td->toggle = ed->toggle_carry;
 
@@ -679,7 +679,7 @@ static void process_done_list(unsigned long data)
 
 DECLARE_TASKLET_OLD(fhci_tasklet, process_done_list);
 
-/* transfer complted callback */
+/* transfer completed callback */
 u32 fhci_transfer_confirm_callback(struct fhci_hcd *fhci)
 {
 	if (!fhci->process_done_task->state)

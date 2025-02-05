@@ -1,0 +1,62 @@
+// check RST packet that doesn't exactly match expected next sequence
+// number still transitions conntrack state to CLOSE iff its already in
+// FIN/CLOSE_WAIT.
+
+`packetdrill/common.sh`
+
+//  5.771921 server_ip > client_ip TLSv1.2 337 [Packet size limited during capture]
+//  5.771994 server_ip > client_ip TLSv1.2 337 [Packet size limited during capture]
+//  5.772212 client_ip > server_ip TCP 66 45020 > 443 [ACK] Seq=1905874048 Ack=781810658 Win=36352 Len=0 TSval=3317842872 TSecr=675936334
+//  5.787924 server_ip > client_ip TLSv1.2 1300 [Packet size limited during capture]
+//  5.788126 server_ip > client_ip TLSv1.2 90 Application Data
+//  5.788207 server_ip > client_ip TCP 66 443 > 45020 [FIN, ACK] Seq=781811916 Ack=1905874048 Win=31104 Len=0 TSval=675936350 TSecr=3317842872
+//  5.788447 client_ip > server_ip TLSv1.2 90 Application Data
+//  5.788479 client_ip > server_ip TCP 66 45020 > 443 [RST, ACK] Seq=1905874072 Ack=781811917 Win=39040 Len=0 TSval=3317842889 TSecr=675936350
+//  5.788581 server_ip > client_ip TCP 54 8443 > 45020 [RST] Seq=781811892 Win=0 Len=0
+
++0 `iptables -A INPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
++0 `iptables -A OUTPUT -p tcp -m conntrack --ctstate INVALID -j DROP`
+
++0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0 fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+0.1 connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+
+0.1 > S 0:0(0) win 65535 <mss 1460,sackOK,TS val 1 ecr 0,nop,wscale 8>
+
++0.1 < S. 1:1(0) ack 1 win 65535 <mss 1460>
+
++0 > . 1:1(0) ack 1 win 65535
++0 < . 1:1001(1000) ack 1 win 65535
++0 < . 1001:2001(1000) ack 1 win 65535
++0 < . 2001:3001(1000) ack 1 win 65535
+
++0 > . 1:1(0) ack 1001 win 65535
++0 > . 1:1(0) ack 2001 win 65535
++0 > . 1:1(0) ack 3001 win 65535
+
++0 write(3, ..., 1000) = 1000
+
++0.0 > P. 1:1001(1000) ack 3001 win 65535
+
++0.1 read(3, ..., 1000) = 1000
+
+// Conntrack should move to FIN_WAIT, then CLOSE_WAIT.
++0 < F. 3001:3001(0) ack 1001 win 65535
++0 >  . 1001:1001(0) ack 3002 win 65535
+
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q CLOSE_WAIT`
+
++1 close(3) = 0
+// RST: unread data. FIN was seen, hence ack + 1
++0 > R. 1001:1001(0) ack 3002 win 65535
+// ... and then, CLOSE.
++0 `conntrack -f $NFCT_IP_VERSION -L -p tcp --dport 8080 2>/dev/null |grep -q CLOSE\ `
+
+// Spurious RST from peer -- no sk state.  Should NOT get
+// marked INVALID, because conntrack is already closing.
++0.1 < R 2001:2001(0) win 0
+
+// No packets should have been marked INVALID
++0 `iptables -v -S INPUT  | grep INVALID | grep -q -- "-c 0 0"`
++0 `iptables -v -S OUTPUT | grep INVALID | grep -q -- "-c 0 0"`

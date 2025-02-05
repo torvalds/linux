@@ -91,6 +91,12 @@ config REGULATOR_88PM8607
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
 
+config REGULATOR_88PM886
+	tristate "Marvell 88PM886 voltage regulators"
+	depends on MFD_88PM886_PMIC
+	help
+	  This driver implements support for Marvell 88PM886 voltage regulators.
+
 config REGULATOR_ACT8865
 	tristate "Active-semi act8865 voltage regulator"
 	depends on I2C
@@ -267,6 +273,18 @@ config REGULATOR_BD957XMUF
 
 	  This driver can also be built as a module. If so, the module
 	  will be called bd9576-regulator.
+
+config REGULATOR_BD96801
+	tristate "ROHM BD96801 Power Regulator"
+	depends on MFD_ROHM_BD96801
+	select REGULATOR_ROHM
+	help
+	  This driver supports voltage regulators on ROHM BD96801 PMIC.
+	  This will enable support for the software controllable buck
+	  and LDO regulators.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called bd96801-regulator.
 
 config REGULATOR_CPCAP
 	tristate "Motorola CPCAP regulator"
@@ -1027,6 +1045,13 @@ config REGULATOR_PWM
 	  This driver supports PWM controlled voltage regulators. PWM
 	  duty cycle can increase or decrease the voltage.
 
+config REGULATOR_QCOM_PM8008
+	tristate "Qualcomm PM8008 PMIC regulators"
+	depends on MFD_QCOM_PM8008
+	help
+	  Select this option to enable support for the voltage regulators in
+	  Qualcomm PM8008 PMICs.
+
 config REGULATOR_QCOM_REFGEN
 	tristate "Qualcomm REFGEN regulator driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -1348,13 +1373,6 @@ config REGULATOR_SLG51000
 	  The SLG51000 is seven compact and customizable low dropout
 	  regulators.
 
-config REGULATOR_SM5703
-	tristate "Silicon Mitus SM5703 regulators"
-	depends on MFD_SM5703
-	help
-	  This driver provides support for voltage regulators of SM5703
-	  multi-function device.
-
 config REGULATOR_STM32_BOOSTER
 	tristate "STMicroelectronics STM32 BOOSTER"
 	depends on ARCH_STM32 || COMPILE_TEST
@@ -1414,6 +1432,14 @@ config REGULATOR_STW481X_VMMC
 	help
 	  This driver supports the internal VMMC regulator in the STw481x
 	  PMIC chips.
+
+config REGULATOR_SUN20I
+	tristate "Allwinner D1 internal LDOs"
+	depends on ARCH_SUNXI || COMPILE_TEST
+	select MFD_SYSCON
+	default ARCH_SUNXI
+	help
+	  This driver supports the internal LDOs in the Allwinner D1 SoC.
 
 config REGULATOR_SY7636A
 	tristate "Silergy SY7636A voltage regulator"
@@ -1563,13 +1589,15 @@ config REGULATOR_TPS6594
 	depends on MFD_TPS6594 && OF
 	default MFD_TPS6594
 	help
-	  This driver supports TPS6594 voltage regulator chips.
+	  This driver supports TPS6594 series and TPS65224 voltage regulator chips.
 	  TPS6594 series of PMICs have 5 BUCKs and 4 LDOs
 	  voltage regulators.
 	  BUCKs 1,2,3,4 can be used in single phase or multiphase mode.
 	  Part number defines which single or multiphase mode is i used.
 	  It supports software based voltage control
 	  for different voltage domains.
+	  TPS65224 PMIC has 4 BUCKs and 3 LDOs. BUCK12 can be used in dual phase.
+	  All BUCKs and LDOs volatge can be controlled through software.
 
 config REGULATOR_TPS6524X
 	tristate "TI TPS6524X Power regulators"
@@ -1623,6 +1651,15 @@ config REGULATOR_UNIPHIER
 	default ARCH_UNIPHIER
 	help
 	  Support for regulators implemented on Socionext UniPhier SoCs.
+
+config REGULATOR_RZG2L_VBCTRL
+	tristate "Renesas RZ/G2L USB VBUS regulator driver"
+	depends on RESET_RZG2L_USBPHY_CTRL || COMPILE_TEST
+	depends on OF
+	select REGMAP_MMIO
+	default RESET_RZG2L_USBPHY_CTRL
+	help
+	  Support for VBUS regulators implemented on Renesas RZ/G2L SoCs.
 
 config REGULATOR_VCTRL
 	tristate "Voltage controlled regulators"

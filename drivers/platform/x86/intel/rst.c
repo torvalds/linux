@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
+MODULE_DESCRIPTION("Intel Rapid Start Technology Driver");
 MODULE_LICENSE("GPL");
 
 static ssize_t irst_show_wakeup_events(struct device *dev,
@@ -125,7 +126,6 @@ static const struct acpi_device_id irst_ids[] = {
 };
 
 static struct acpi_driver irst_driver = {
-	.owner = THIS_MODULE,
 	.name = "intel_rapid_start",
 	.class = "intel_rapid_start",
 	.ids = irst_ids,

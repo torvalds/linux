@@ -168,7 +168,7 @@ static int krb5_DK(const struct gss_krb5_enctype *gk5e,
 		goto err_return;
 	blocksize = crypto_sync_skcipher_blocksize(cipher);
 	if (crypto_sync_skcipher_setkey(cipher, inkey->data, inkey->len))
-		goto err_return;
+		goto err_free_cipher;
 
 	ret = -ENOMEM;
 	inblockdata = kmalloc(blocksize, gfp_mask);

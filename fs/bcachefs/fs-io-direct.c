@@ -70,6 +70,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	struct bch_io_opts opts;
 	struct dio_read *dio;
 	struct bio *bio;
+	struct blk_plug plug;
 	loff_t offset = req->ki_pos;
 	bool sync = is_sync_kiocb(req);
 	size_t shorten;
@@ -128,6 +129,8 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	 */
 	dio->should_dirty = iter_is_iovec(iter);
 
+	blk_start_plug(&plug);
+
 	goto start;
 	while (iter->count) {
 		bio = bio_alloc_bioset(NULL,
@@ -160,6 +163,8 @@ start:
 		bch2_read(c, rbio_init(bio, opts), inode_inum(inode));
 	}
 
+	blk_finish_plug(&plug);
+
 	iter->count += shorten;
 
 	if (sync) {
@@ -179,7 +184,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct address_space *mapping = file->f_mapping;
 	size_t count = iov_iter_count(iter);
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	if (!count)
 		return 0; /* skip atime */
@@ -205,7 +210,7 @@ ssize_t bch2_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 			iocb->ki_pos += ret;
 	} else {
 		bch2_pagecache_add_get(inode);
-		ret = generic_file_read_iter(iocb, iter);
+		ret = filemap_read(iocb, iter, ret);
 		bch2_pagecache_add_put(inode);
 	}
 out:
@@ -254,7 +259,7 @@ retry:
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_extents,
 			   SPOS(inum.inum, offset, snapshot),
-			   BTREE_ITER_SLOTS, k, err) {
+			   BTREE_ITER_slots, k, err) {
 		if (bkey_ge(bkey_start_pos(k.k), POS(inum.inum, end)))
 			break;
 
@@ -369,6 +374,7 @@ static noinline void bch2_dio_write_flush(struct dio_write *dio)
 
 static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 {
+	struct bch_fs *c = dio->op.c;
 	struct kiocb *req = dio->req;
 	struct bch_inode_info *inode = dio->inode;
 	bool sync = dio->sync;
@@ -387,7 +393,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
 
-	bch2_write_ref_put(dio->op.c, BCH_WRITE_REF_dio_write);
+	bch2_write_ref_put(c, BCH_WRITE_REF_dio_write);
 
 	/* inode->i_dio_count is our ref on inode and thus bch_fs */
 	inode_dio_end(&inode->v);
@@ -500,7 +506,7 @@ static __always_inline long bch2_dio_write_loop(struct dio_write *dio)
 		dio->op.target		= dio->op.opts.foreground_target;
 		dio->op.write_point	= writepoint_hashed((unsigned long) current);
 		dio->op.nr_replicas	= dio->op.opts.data_replicas;
-		dio->op.subvol		= inode->ei_subvol;
+		dio->op.subvol		= inode->ei_inum.subvol;
 		dio->op.pos		= POS(inode->v.i_ino, (u64) req->ki_pos >> 9);
 		dio->op.devs_need_flush	= &inode->ei_devs_need_flush;
 
@@ -609,8 +615,10 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	if (unlikely(ret))
 		goto err_put_write_ref;
 
-	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1)))
+	if (unlikely((req->ki_pos|iter->count) & (block_bytes(c) - 1))) {
+		ret = -EINVAL;
 		goto err_put_write_ref;
+	}
 
 	inode_dio_begin(&inode->v);
 	bch2_pagecache_block_get(inode);

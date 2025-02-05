@@ -452,8 +452,6 @@ static const struct vb2_ops go7007_video_qops = {
 	.buf_finish     = go7007_buf_finish,
 	.start_streaming = go7007_start_streaming,
 	.stop_streaming = go7007_stop_streaming,
-	.wait_prepare   = vb2_ops_wait_prepare,
-	.wait_finish    = vb2_ops_wait_finish,
 };
 
 static int vidioc_g_parm(struct file *filp, void *priv,

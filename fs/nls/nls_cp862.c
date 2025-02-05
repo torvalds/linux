@@ -418,4 +418,5 @@ static void __exit exit_nls_cp862(void)
 module_init(init_nls_cp862)
 module_exit(exit_nls_cp862)
 
+MODULE_DESCRIPTION("NLS Codepage 862 (Hebrew)");
 MODULE_LICENSE("Dual BSD/GPL");

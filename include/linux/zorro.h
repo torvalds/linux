@@ -52,7 +52,7 @@ struct zorro_driver {
     struct device_driver driver;
 };
 
-#define	to_zorro_driver(drv)	container_of(drv, struct zorro_driver, driver)
+#define	to_zorro_driver(drv)	container_of_const(drv, struct zorro_driver, driver)
 
 
 #define zorro_for_each_dev(dev)	\

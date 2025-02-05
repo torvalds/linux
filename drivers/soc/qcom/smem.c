@@ -359,6 +359,32 @@ static struct qcom_smem *__smem;
 /* Timeout (ms) for the trylock of remote spinlocks */
 #define HWSPINLOCK_TIMEOUT	1000
 
+/* The qcom hwspinlock id is always plus one from the smem host id */
+#define SMEM_HOST_ID_TO_HWSPINLOCK_ID(__x) ((__x) + 1)
+
+/**
+ * qcom_smem_bust_hwspin_lock_by_host() - bust the smem hwspinlock for a host
+ * @host:	remote processor id
+ *
+ * Busts the hwspin_lock for the given smem host id. This helper is intended
+ * for remoteproc drivers that manage remoteprocs with an equivalent smem
+ * driver instance in the remote firmware. Drivers can force a release of the
+ * smem hwspin_lock if the rproc unexpectedly goes into a bad state.
+ *
+ * Context: Process context.
+ *
+ * Returns: 0 on success, otherwise negative errno.
+ */
+int qcom_smem_bust_hwspin_lock_by_host(unsigned int host)
+{
+	/* This function is for remote procs, so ignore SMEM_HOST_APPS */
+	if (host == SMEM_HOST_APPS || host >= SMEM_HOST_COUNT)
+		return -EINVAL;
+
+	return hwspin_lock_bust(__smem->hwlock, SMEM_HOST_ID_TO_HWSPINLOCK_ID(host));
+}
+EXPORT_SYMBOL_GPL(qcom_smem_bust_hwspin_lock_by_host);
+
 /**
  * qcom_smem_is_available() - Check if SMEM is available
  *
@@ -473,6 +499,8 @@ static int qcom_smem_alloc_global(struct qcom_smem *smem,
  *
  * Allocate space for a given smem item of size @size, given that the item is
  * not yet allocated.
+ *
+ * Return: 0 on success, negative errno on failure.
  */
 int qcom_smem_alloc(unsigned host, unsigned item, size_t size)
 {
@@ -651,6 +679,8 @@ invalid_canary:
  *
  * Looks up smem item and returns pointer to it. Size of smem
  * item is returned in @size.
+ *
+ * Return: a pointer to an SMEM item on success, ERR_PTR() on failure.
  */
 void *qcom_smem_get(unsigned host, unsigned item, size_t *size)
 {
@@ -683,6 +713,8 @@ EXPORT_SYMBOL_GPL(qcom_smem_get);
  *
  * To be used by smem clients as a quick way to determine if any new
  * allocations has been made.
+ *
+ * Return: number of available bytes on success, negative errno on failure.
  */
 int qcom_smem_get_free_space(unsigned host)
 {
@@ -732,7 +764,7 @@ static bool addr_in_range(void __iomem *base, size_t size, void *addr)
  * with an smem item pointer (previously returned by qcom_smem_get()
  * @p:	the virtual address to convert
  *
- * Returns 0 if the pointer provided is not within any smem region.
+ * Return: physical address of the SMEM item (if found), 0 otherwise
  */
 phys_addr_t qcom_smem_virt_to_phys(void *p)
 {
@@ -794,6 +826,39 @@ int qcom_smem_get_soc_id(u32 *id)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_smem_get_soc_id);
+
+/**
+ * qcom_smem_get_feature_code() - return the feature code
+ * @code: On success, return the feature code here.
+ *
+ * Look up the feature code identifier from SMEM and return it.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int qcom_smem_get_feature_code(u32 *code)
+{
+	struct socinfo *info;
+	u32 raw_code;
+
+	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_HW_SW_BUILD_ID, NULL);
+	if (IS_ERR(info))
+		return PTR_ERR(info);
+
+	/* This only makes sense for socinfo >= 16 */
+	if (__le32_to_cpu(info->fmt) < SOCINFO_VERSION(0, 16))
+		return -EOPNOTSUPP;
+
+	raw_code = __le32_to_cpu(info->feature_code);
+
+	/* Ensure the value makes sense */
+	if (raw_code > SOCINFO_FC_INT_MAX)
+		raw_code = SOCINFO_FC_UNKNOWN;
+
+	*code = raw_code;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qcom_smem_get_feature_code);
 
 static int qcom_smem_get_sbl_version(struct qcom_smem *smem)
 {
@@ -1121,11 +1186,9 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	}
 
 	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
-	if (hwlock_id < 0) {
-		if (hwlock_id != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "failed to retrieve hwlock\n");
-		return hwlock_id;
-	}
+	if (hwlock_id < 0)
+		return dev_err_probe(&pdev->dev, hwlock_id,
+				     "failed to retrieve hwlock\n");
 
 	smem->hwlock = hwspin_lock_request_specific(hwlock_id);
 	if (!smem->hwlock)
@@ -1192,7 +1255,7 @@ MODULE_DEVICE_TABLE(of, qcom_smem_of_match);
 
 static struct platform_driver qcom_smem_driver = {
 	.probe = qcom_smem_probe,
-	.remove_new = qcom_smem_remove,
+	.remove = qcom_smem_remove,
 	.driver  = {
 		.name = "qcom-smem",
 		.of_match_table = qcom_smem_of_match,

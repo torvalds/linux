@@ -13,7 +13,6 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 		container_of(pd->device, struct mana_ib_dev, ib_dev);
 	struct mana_ib_create_wq ucmd = {};
 	struct mana_ib_wq *wq;
-	struct ib_umem *umem;
 	int err;
 
 	if (udata->inlen < sizeof(ucmd))
@@ -32,38 +31,17 @@ struct ib_wq *mana_ib_create_wq(struct ib_pd *pd,
 
 	ibdev_dbg(&mdev->ib_dev, "ucmd wq_buf_addr 0x%llx\n", ucmd.wq_buf_addr);
 
-	umem = ib_umem_get(pd->device, ucmd.wq_buf_addr, ucmd.wq_buf_size,
-			   IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(umem)) {
-		err = PTR_ERR(umem);
+	err = mana_ib_create_queue(mdev, ucmd.wq_buf_addr, ucmd.wq_buf_size, &wq->queue);
+	if (err) {
 		ibdev_dbg(&mdev->ib_dev,
-			  "Failed to get umem for create wq, err %d\n", err);
+			  "Failed to create queue for create wq, %d\n", err);
 		goto err_free_wq;
 	}
 
-	wq->umem = umem;
 	wq->wqe = init_attr->max_wr;
 	wq->wq_buf_size = ucmd.wq_buf_size;
 	wq->rx_object = INVALID_MANA_HANDLE;
-
-	err = mana_ib_create_zero_offset_dma_region(mdev, wq->umem, &wq->gdma_region);
-	if (err) {
-		ibdev_dbg(&mdev->ib_dev,
-			  "Failed to create dma region for create wq, %d\n",
-			  err);
-		goto err_release_umem;
-	}
-
-	ibdev_dbg(&mdev->ib_dev,
-		  "create_dma_region ret %d gdma_region 0x%llx\n",
-		  err, wq->gdma_region);
-
-	/* WQ ID is returned at wq_create time, doesn't know the value yet */
-
 	return &wq->ibwq;
-
-err_release_umem:
-	ib_umem_release(umem);
 
 err_free_wq:
 	kfree(wq);
@@ -86,8 +64,7 @@ int mana_ib_destroy_wq(struct ib_wq *ibwq, struct ib_udata *udata)
 
 	mdev = container_of(ib_dev, struct mana_ib_dev, ib_dev);
 
-	mana_ib_gd_destroy_dma_region(mdev, wq->gdma_region);
-	ib_umem_release(wq->umem);
+	mana_ib_destroy_queue(mdev, &wq->queue);
 
 	kfree(wq);
 

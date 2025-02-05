@@ -17,6 +17,7 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/string_choices.h>
 
 #include <linux/usb/cdc.h>
 
@@ -558,7 +559,7 @@ static void ncm_do_notify(struct f_ncm *ncm)
 		req->length = sizeof *event;
 
 		DBG(cdev, "notify connect %s\n",
-				ncm->is_open ? "true" : "false");
+				str_true_false(ncm->is_open));
 		ncm->notify_state = NCM_NOTIFY_NONE;
 		break;
 
@@ -1797,5 +1798,6 @@ static struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(ncm, ncm_alloc_inst, ncm_alloc);
+MODULE_DESCRIPTION("USB CDC Network (NCM) link function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yauheni Kaliuta");

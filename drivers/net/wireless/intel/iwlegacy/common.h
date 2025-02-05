@@ -553,12 +553,24 @@ struct il_device_cmd {
 		u8 val8;
 		u16 val16;
 		u32 val32;
-		struct il_tx_cmd tx;
+		struct il_tx_cmd_hdr tx;
 		u8 payload[DEF_CMD_PAYLOAD_SIZE];
 	} __packed cmd;
 } __packed;
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct il_device_cmd))
+
+/**
+ * struct il_device_cmd_huge
+ *
+ * For use when sending huge commands.
+ */
+struct il_device_cmd_huge {
+	struct il_cmd_header hdr;	/* uCode API */
+	union {
+		u8 payload[IL_MAX_CMD_SIZE - sizeof(struct il_cmd_header)];
+	} __packed cmd;
+} __packed;
 
 struct il_host_cmd {
 	const void *data;
@@ -1693,7 +1705,6 @@ int il_full_rxon_required(struct il_priv *il);
 int il_set_rxon_channel(struct il_priv *il, struct ieee80211_channel *ch);
 void il_set_flags_for_band(struct il_priv *il, enum nl80211_band band,
 			   struct ieee80211_vif *vif);
-u8 il_get_single_channel_number(struct il_priv *il, enum nl80211_band band);
 void il_set_rxon_ht(struct il_priv *il, struct il_ht_config *ht_conf);
 bool il_is_ht40_tx_allowed(struct il_priv *il,
 			   struct ieee80211_sta_ht_cap *ht_cap);

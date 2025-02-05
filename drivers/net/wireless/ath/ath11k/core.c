@@ -62,7 +62,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = false,
 		.rxdma1_enable = true,
-		.num_rxmda_per_pdev = 1,
+		.num_rxdma_per_pdev = 1,
 		.rx_mac_buf_ring = false,
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
@@ -123,6 +123,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
 		.smp2p_wow_exit = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ6018_HW10,
@@ -148,7 +149,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = false,
 		.rxdma1_enable = true,
-		.num_rxmda_per_pdev = 1,
+		.num_rxdma_per_pdev = 1,
 		.rx_mac_buf_ring = false,
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
@@ -207,6 +208,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qca6390 hw2.0",
@@ -232,7 +234,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = true,
 		.rxdma1_enable = false,
-		.num_rxmda_per_pdev = 2,
+		.num_rxdma_per_pdev = 2,
 		.rx_mac_buf_ring = true,
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
@@ -247,7 +249,10 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_P2P_DEVICE) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					BIT(NL80211_IFTYPE_P2P_GO),
 		.supports_monitor = false,
 		.full_monitor_mode = false,
 		.supports_shadow_regs = true,
@@ -293,6 +298,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qcn9074 hw1.0",
@@ -317,7 +323,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map_len = 18,
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.rxdma1_enable = true,
-		.num_rxmda_per_pdev = 1,
+		.num_rxdma_per_pdev = 1,
 		.rx_mac_buf_ring = false,
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
@@ -376,6 +382,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6855 hw2.0",
@@ -401,7 +408,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = true,
 		.rxdma1_enable = false,
-		.num_rxmda_per_pdev = 2,
+		.num_rxdma_per_pdev = 2,
 		.rx_mac_buf_ring = true,
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
@@ -416,7 +423,10 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_P2P_DEVICE) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					BIT(NL80211_IFTYPE_P2P_GO),
 		.supports_monitor = false,
 		.full_monitor_mode = false,
 		.supports_shadow_regs = true,
@@ -462,6 +472,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6855 hw2.1",
@@ -486,7 +497,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.svc_to_ce_map_len = 14,
 		.single_pdev_only = true,
 		.rxdma1_enable = false,
-		.num_rxmda_per_pdev = 2,
+		.num_rxdma_per_pdev = 2,
 		.rx_mac_buf_ring = true,
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
@@ -501,7 +512,10 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_P2P_DEVICE) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					BIT(NL80211_IFTYPE_P2P_GO),
 		.supports_monitor = false,
 		.supports_shadow_regs = true,
 		.idle_ps = true,
@@ -546,6 +560,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "wcn6750 hw1.0",
@@ -571,7 +586,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = true,
 		.rxdma1_enable = false,
-		.num_rxmda_per_pdev = 1,
+		.num_rxdma_per_pdev = 1,
 		.rx_mac_buf_ring = true,
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
@@ -595,7 +610,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
-		.num_vdevs = 16 + 1,
+		.num_vdevs = 3,
 		.num_peers = 512,
 		.supports_suspend = false,
 		.hal_desc_sz = sizeof(struct hal_rx_desc_qcn9074),
@@ -607,7 +622,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = false,
 		.supports_rssi_stats = true,
-		.fw_wmi_diag_event = false,
+		.fw_wmi_diag_event = true,
 		.current_cc_support = true,
 		.dbr_debug_support = false,
 		.global_reset = false,
@@ -628,6 +643,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = true,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = false,
+		.pdev_suspend = true,
 	},
 	{
 		.hw_rev = ATH11K_HW_IPQ5018_HW10,
@@ -664,7 +680,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq5018,
 		.ce_remap = &ath11k_ce_remap_ipq5018,
 		.rxdma1_enable = true,
-		.num_rxmda_per_pdev = RXDMA_PER_PDEV_5018,
+		.num_rxdma_per_pdev = RXDMA_PER_PDEV_5018,
 		.rx_mac_buf_ring = false,
 		.vdev_start_delay = false,
 		.htt_peer_map_v2 = true,
@@ -710,6 +726,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = false,
 		.support_dual_stations = false,
+		.pdev_suspend = false,
 	},
 	{
 		.name = "qca2066 hw2.1",
@@ -735,7 +752,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
 		.single_pdev_only = true,
 		.rxdma1_enable = false,
-		.num_rxmda_per_pdev = 2,
+		.num_rxdma_per_pdev = 2,
 		.rx_mac_buf_ring = true,
 		.vdev_start_delay = true,
 		.htt_peer_map_v2 = false,
@@ -750,7 +767,10 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		},
 
 		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
-					BIT(NL80211_IFTYPE_AP),
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_P2P_DEVICE) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					BIT(NL80211_IFTYPE_P2P_GO),
 		.supports_monitor = false,
 		.full_monitor_mode = false,
 		.supports_shadow_regs = true,
@@ -796,6 +816,94 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.smp2p_wow_exit = false,
 		.support_fw_mac_sequence = true,
 		.support_dual_stations = true,
+	},
+	{
+		.name = "qca6698aq hw2.1",
+		.hw_rev = ATH11K_HW_QCA6698AQ_HW21,
+		.fw = {
+			.dir = "QCA6698AQ/hw2.1",
+			.board_size = 256 * 1024,
+			.cal_offset = 128 * 1024,
+		},
+		.max_radios = 3,
+		.bdf_addr = 0x4B0C0000,
+		.hw_ops = &wcn6855_ops,
+		.ring_mask = &ath11k_hw_ring_mask_qca6390,
+		.internal_sleep_clock = true,
+		.regs = &wcn6855_regs,
+		.qmi_service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_QCA6390,
+		.host_ce_config = ath11k_host_ce_config_qca6390,
+		.ce_count = 9,
+		.target_ce_config = ath11k_target_ce_config_wlan_qca6390,
+		.target_ce_count = 9,
+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_qca6390,
+		.svc_to_ce_map_len = 14,
+		.single_pdev_only = true,
+		.rxdma1_enable = false,
+		.num_rxdma_per_pdev = 2,
+		.rx_mac_buf_ring = true,
+		.vdev_start_delay = true,
+		.htt_peer_map_v2 = false,
+
+		.spectral = {
+			.fft_sz = 0,
+			.fft_pad_sz = 0,
+			.summary_pad_sz = 0,
+			.fft_hdr_len = 0,
+			.max_fft_bins = 0,
+			.fragment_160mhz = false,
+		},
+
+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
+					BIT(NL80211_IFTYPE_AP) |
+					BIT(NL80211_IFTYPE_P2P_DEVICE) |
+					BIT(NL80211_IFTYPE_P2P_CLIENT) |
+					BIT(NL80211_IFTYPE_P2P_GO),
+		.supports_monitor = false,
+		.supports_shadow_regs = true,
+		.idle_ps = true,
+		.supports_sta_ps = true,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
+		.cbcal_restart_fw = false,
+		.fw_mem_mode = 0,
+		.num_vdevs = 2 + 1,
+		.num_peers = 512,
+		.supports_suspend = true,
+		.hal_desc_sz = sizeof(struct hal_rx_desc_wcn6855),
+		.supports_regdb = true,
+		.fix_l1ss = false,
+		.credit_flow = true,
+		.max_tx_ring = DP_TCL_NUM_RING_MAX_QCA6390,
+		.hal_params = &ath11k_hw_hal_params_qca6390,
+		.supports_dynamic_smps_6ghz = false,
+		.alloc_cacheable_memory = false,
+		.supports_rssi_stats = true,
+		.fw_wmi_diag_event = true,
+		.current_cc_support = true,
+		.dbr_debug_support = false,
+		.global_reset = true,
+		.bios_sar_capa = &ath11k_hw_sar_capa_wcn6855,
+		.m3_fw_support = true,
+		.fixed_bdf_addr = false,
+		.fixed_mem_region = false,
+		.static_window_map = false,
+		.hybrid_bus_type = false,
+		.fixed_fw_mem = false,
+		.support_off_channel_tx = true,
+		.supports_multi_bssid = true,
+
+		.sram_dump = {
+			.start = 0x01400000,
+			.end = 0x0177ffff,
+		},
+
+		.tcl_ring_retry = true,
+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+		.smp2p_wow_exit = false,
+		.support_fw_mac_sequence = true,
+		.support_dual_stations = true,
+		.pdev_suspend = false,
 	},
 };
 
@@ -1657,11 +1765,47 @@ err_pdev_debug:
 	return ret;
 }
 
+static void ath11k_core_pdev_suspend_target(struct ath11k_base *ab)
+{
+	struct ath11k *ar;
+	struct ath11k_pdev *pdev;
+	unsigned long time_left;
+	int ret;
+	int i;
+
+	if (!ab->hw_params.pdev_suspend)
+		return;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+
+		reinit_completion(&ab->htc_suspend);
+
+		ret = ath11k_wmi_pdev_suspend(ar, WMI_PDEV_SUSPEND_AND_DISABLE_INTR,
+					      pdev->pdev_id);
+		if (ret) {
+			ath11k_warn(ab, "could not suspend target :%d\n", ret);
+			/* pointless to try other pdevs */
+			return;
+		}
+
+		time_left = wait_for_completion_timeout(&ab->htc_suspend, 3 * HZ);
+
+		if (!time_left) {
+			ath11k_warn(ab, "suspend timed out - target pause event never came\n");
+			/* pointless to try other pdevs */
+			return;
+		}
+	}
+}
+
 static void ath11k_core_pdev_destroy(struct ath11k_base *ab)
 {
 	ath11k_spectral_deinit(ab);
 	ath11k_thermal_unregister(ab);
 	ath11k_mac_unregister(ab);
+	ath11k_core_pdev_suspend_target(ab);
 	ath11k_hif_irq_disable(ab);
 	ath11k_dp_pdev_free(ab);
 	ath11k_debugfs_pdev_destroy(ab);
@@ -1749,7 +1893,7 @@ static int ath11k_core_start(struct ath11k_base *ab)
 	}
 
 	/* put hardware to DBS mode */
-	if (ab->hw_params.single_pdev_only && ab->hw_params.num_rxmda_per_pdev > 1) {
+	if (ab->hw_params.single_pdev_only && ab->hw_params.num_rxdma_per_pdev > 1) {
 		ret = ath11k_wmi_set_hw_mode(ab, WMI_HOST_HW_MODE_DBS);
 		if (ret) {
 			ath11k_err(ab, "failed to send dbs mode: %d\n", ret);
@@ -1926,23 +2070,20 @@ static void ath11k_update_11d(struct work_struct *work)
 	struct ath11k_base *ab = container_of(work, struct ath11k_base, update_11d_work);
 	struct ath11k *ar;
 	struct ath11k_pdev *pdev;
-	struct wmi_set_current_country_params set_current_param = {};
 	int ret, i;
-
-	spin_lock_bh(&ab->base_lock);
-	memcpy(&set_current_param.alpha2, &ab->new_alpha2, 2);
-	spin_unlock_bh(&ab->base_lock);
-
-	ath11k_dbg(ab, ATH11K_DBG_WMI, "update 11d new cc %c%c\n",
-		   set_current_param.alpha2[0],
-		   set_current_param.alpha2[1]);
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
 
-		memcpy(&ar->alpha2, &set_current_param.alpha2, 2);
-		ret = ath11k_wmi_send_set_current_country_cmd(ar, &set_current_param);
+		spin_lock_bh(&ab->base_lock);
+		memcpy(&ar->alpha2, &ab->new_alpha2, 2);
+		spin_unlock_bh(&ab->base_lock);
+
+		ath11k_dbg(ab, ATH11K_DBG_WMI, "update 11d new cc %c%c for pdev %d\n",
+			   ar->alpha2[0], ar->alpha2[1], i);
+
+		ret = ath11k_reg_set_cc(ar);
 		if (ret)
 			ath11k_warn(ar->ab,
 				    "pdev id %d failed set current country code: %d\n",

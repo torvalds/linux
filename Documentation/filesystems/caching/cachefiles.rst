@@ -115,7 +115,7 @@ set up cache ready for use.  The following script commands are available:
 
 	This mask can also be set through sysfs, eg::
 
-		echo 5 >/sys/modules/cachefiles/parameters/debug
+		echo 5 > /sys/module/cachefiles/parameters/debug
 
 
 Starting the Cache

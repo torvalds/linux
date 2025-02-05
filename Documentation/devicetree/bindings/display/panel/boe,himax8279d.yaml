@@ -18,9 +18,11 @@ properties:
       - const: boe,himax8279d8p
       - const: boe,himax8279d10p
 
+  reg:
+    maxItems: 1
+
   backlight: true
   enable-gpios: true
-  reg: true
 
   pp33-gpios:
     maxItems: 1

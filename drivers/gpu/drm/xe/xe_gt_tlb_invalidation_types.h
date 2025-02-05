@@ -8,6 +8,8 @@
 
 #include <linux/dma-fence.h>
 
+struct xe_gt;
+
 /**
  * struct xe_gt_tlb_invalidation_fence - XE GT TLB invalidation fence
  *
@@ -17,6 +19,8 @@
 struct xe_gt_tlb_invalidation_fence {
 	/** @base: dma fence base */
 	struct dma_fence base;
+	/** @gt: GT which fence belong to */
+	struct xe_gt *gt;
 	/** @link: link into list of pending tlb fences */
 	struct list_head link;
 	/** @seqno: seqno of TLB invalidation to signal fence one */

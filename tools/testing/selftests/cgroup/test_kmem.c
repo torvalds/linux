@@ -192,7 +192,7 @@ static int test_kmem_memcg_deletion(const char *root)
 		goto cleanup;
 
 	sum = anon + file + kernel + sock;
-	if (abs(sum - current) < MAX_VMSTAT_ERROR) {
+	if (labs(sum - current) < MAX_VMSTAT_ERROR) {
 		ret = KSFT_PASS;
 	} else {
 		printf("memory.current = %ld\n", current);
@@ -380,7 +380,7 @@ static int test_percpu_basic(const char *root)
 	current = cg_read_long(parent, "memory.current");
 	percpu = cg_read_key_long(parent, "memory.stat", "percpu ");
 
-	if (current > 0 && percpu > 0 && abs(current - percpu) <
+	if (current > 0 && percpu > 0 && labs(current - percpu) <
 	    MAX_VMSTAT_ERROR)
 		ret = KSFT_PASS;
 	else
@@ -420,7 +420,7 @@ int main(int argc, char **argv)
 	char root[PATH_MAX];
 	int i, ret = EXIT_SUCCESS;
 
-	if (cg_find_unified_root(root, sizeof(root)))
+	if (cg_find_unified_root(root, sizeof(root), NULL))
 		ksft_exit_skip("cgroup v2 isn't mounted\n");
 
 	/*

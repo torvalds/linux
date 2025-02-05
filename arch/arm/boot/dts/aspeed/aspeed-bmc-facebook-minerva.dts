@@ -1,0 +1,1631 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2023 Facebook Inc.
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/i2c/i2c.h>
+
+/ {
+	model = "Facebook Minerva CMM";
+	compatible = "facebook,minerva-cmc", "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+		serial5 = &uart6;
+		/*
+		 * PCA9548 (2-0077) provides 8 channels connecting to
+		 * 6 pcs of FCB (Fan Controller Board).
+		 */
+		i2c16 = &imux16;
+		i2c17 = &imux17;
+		i2c18 = &imux18;
+		i2c19 = &imux19;
+		i2c20 = &imux20;
+		i2c21 = &imux21;
+		i2c22 = &imux22;
+		i2c23 = &imux23;
+		i2c24 = &imux24;
+		i2c25 = &imux25;
+		i2c26 = &imux26;
+		i2c27 = &imux27;
+		i2c28 = &imux28;
+		i2c29 = &imux29;
+		i2c30 = &imux30;
+		i2c31 = &imux31;
+		i2c32 = &imux32;
+		i2c33 = &imux33;
+		i2c34 = &imux34;
+		i2c35 = &imux35;
+		i2c36 = &imux36;
+		i2c37 = &imux37;
+		i2c38 = &imux38;
+		i2c39 = &imux39;
+		i2c40 = &imux40;
+		i2c41 = &imux41;
+		i2c42 = &imux42;
+		i2c43 = &imux43;
+		i2c44 = &imux44;
+		i2c45 = &imux45;
+		i2c46 = &imux46;
+		i2c47 = &imux47;
+
+		spi1 = &spi_gpio;
+	};
+
+	chosen {
+		stdout-path = "serial5:57600n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+			<&adc1 2>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-0 {
+			label = "bmc_heartbeat_amber";
+			gpios = <&gpio0 ASPEED_GPIO(P, 7) GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led-1 {
+			label = "fp_id_amber";
+			default-state = "off";
+			gpios = <&gpio0 ASPEED_GPIO(B, 5) GPIO_ACTIVE_HIGH>;
+		};
+
+		led-2 {
+			label = "power_blue";
+			default-state = "off";
+			gpios = <&gpio0 ASPEED_GPIO(P, 4) GPIO_ACTIVE_HIGH>;
+		};
+
+		led-3 {
+			label = "fan_status_led";
+			gpios = <&leds_gpio 9 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-4 {
+			label = "fan_fault_led_n";
+			gpios = <&leds_gpio 10 GPIO_ACTIVE_LOW>;
+			default-state = "off";
+		};
+
+		led-5 {
+			label = "bmc_ready_noled";
+			gpios = <&sgpiom0 141 (GPIO_ACTIVE_HIGH|GPIO_TRANSITORY)>;
+		};
+	};
+
+	spi_gpio: spi {
+		status = "okay";
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		sck-gpios = <&gpio0 ASPEED_GPIO(Z, 3) GPIO_ACTIVE_HIGH>;
+		mosi-gpios = <&gpio0 ASPEED_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+		miso-gpios = <&gpio0 ASPEED_GPIO(Z, 5) GPIO_ACTIVE_HIGH>;
+		num-chipselects = <1>;
+		cs-gpios = <&gpio0 ASPEED_GPIO(Z, 0) GPIO_ACTIVE_LOW>;
+
+		tpm@0 {
+			compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+			spi-max-frequency = <33000000>;
+			reg = <0>;
+		};
+	};
+};
+
+&uart6 {
+	status = "okay";
+};
+
+&wdt1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdtrst1_default>;
+	aspeed,reset-type = "soc";
+	aspeed,external-signal;
+	aspeed,ext-push-pull;
+	aspeed,ext-active-high;
+	aspeed,ext-pulse-duration = <256>;
+};
+
+&mac3 {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii4_default>;
+	fixed-link {
+		speed = <100>;
+		full-duplex;
+	};
+};
+
+&mdio3 {
+	status = "okay";
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "bmc";
+		spi-max-frequency = <50000000>;
+#include "openbmc-flash-layout-128.dtsi"
+	};
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "alt-bmc";
+		spi-max-frequency = <50000000>;
+	};
+};
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+	bus-frequency = <2000000>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	power-monitor@40 {
+		compatible = "ti,ina230";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
+
+	power-monitor@41 {
+		compatible = "ti,ina230";
+		reg = <0x41>;
+		shunt-resistor = <1000>;
+	};
+
+	power-monitor@44 {
+		compatible = "lltc,ltc4287";
+		reg = <0x44>;
+		shunt-resistor-micro-ohms = <2000>;
+	};
+
+	power-monitor@43 {
+		compatible = "infineon,xdp710";
+		reg = <0x43>;
+	};
+
+	leds_gpio: gpio@19 {
+		compatible = "nxp,pca9555";
+		reg = <0x19>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gpio@11 {
+		compatible = "nxp,pca9555";
+		reg = <0x11>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <238 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"PWRGD_P24V_SMPWROK", "P1V5_PWROK",
+		"P3V3_PWROK", "P5V_PWROK",
+		"P12V_SCM_PWROK", "P12V_PWROK",
+		"P24V_PWROK", "P48V_HSC_PWROK",
+		"ERR_GPIO_IRQ", "TMP75_ALERT_N",
+		"BMC_PWROK", "P12V_INA230_ALERT_N",
+		"P24V_INA230_ALERT_N","",
+		"P48V_HSC_ALERT_N", "P1V05_PWROK";
+	};
+
+	gpio@12 {
+		compatible = "nxp,pca9555";
+		reg = <0x12>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <240 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"P1V05_PWR_FAIL", "P1V5_PWR_FAIL",
+		"P24V_PWR_FAIL", "P24V_SM_PWR_FAIL",
+		"IRQ_NW0/1/2_N", "IRQ_NW3/4/5_N",
+		"RTC_INT_N_R", "ERR_GPIO_IRQ",
+		"", "",
+		"", "",
+		"", "",
+		"", "";
+	};
+
+	gpio@13 {
+		compatible = "nxp,pca9555";
+		reg = <0x13>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&sgpiom0>;
+		interrupts = <242 IRQ_TYPE_LEVEL_LOW>;
+
+		gpio-line-names =
+		"", "",
+		"", "",
+		"", "",
+		"", "",
+		"RACKMON_A_1", "RACKMON_A_2",
+		"RACKMON_B_1", "RACKMON_B_2",
+		"", "",
+		"", "";
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	temperature-sensor@4b {
+		compatible = "ti,tmp75";
+		reg = <0x4b>;
+	};
+
+	temperature-sensor@4f {
+		compatible = "ti,tmp75";
+		reg = <0x4f>;
+	};
+
+	eeprom@54 {
+		compatible = "atmel,24c128";
+		reg = <0x54>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	i2c-mux@77 {
+		compatible = "nxp,pca9548";
+		reg = <0x77>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
+
+		// FCB 1
+		imux16: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <218 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN1_PWRGD_R", "P48V_FAN2_PWRGD_R",
+				"P48V_FAN3_PWRGD_R", "P48V_FAN4_PWRGD_R",
+				"FCB_1_P48V_ZONE0_PWRGD_R", "FCB_1_P48V_ZONE1_PWRGD_R",
+				"FCB_1_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <218 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN1_ALERT_N", "INA238_FAN2_ALERT_N",
+				"INA238_FAN3_ALERT_N", "INA238_FAN4_ALERT_N",
+				"FCB_1_TMP75_ALERT_N", "",
+				"", "",
+				"FAN1_PRSNT", "FAN2_PRSNT",
+				"FAN3_PRSNT", "FAN4_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <218 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN1_IL_TACH_ALERT", "FAN1_OL_TACH_ALERT",
+				"FAN2_IL_TACH_ALERT", "FAN2_OL_TACH_ALERT",
+				"FAN3_IL_TACH_ALERT", "FAN3_OL_TACH_ALERT",
+				"FAN4_IL_TACH_ALERT", "FAN4_IL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <218 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_1_P1V0_POWER_FAIL", "FCB_1_P1V8_POWER_FAIL",
+				"FCB_1_P48V_ZONE0_POWER_FAIL", "FAN1_POWER_FAIL",
+				"FAN2_POWER_FAIL", "FAN3_POWER_FAIL",
+				"FAN4_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+		// FCB 2
+		imux17: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <220 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN5_PWRGD_R", "P48V_FAN6_PWRGD_R",
+				"P48V_FAN7_PWRGD_R", "P48V_FAN8_PWRGD_R",
+				"FCB_2_P48V_ZONE0_PWRGD_R", "FCB_2_P48V_ZONE1_PWRGD_R",
+				"FCB_2_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <220 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN5_ALERT_N", "INA238_FAN6_ALERT_N",
+				"INA238_FAN7_ALERT_N", "INA238_FAN8_ALERT_N",
+				"FCB_2_TMP75_ALERT_N", "",
+				"", "",
+				"FAN5_PRSNT", "FAN6_PRSNT",
+				"FAN7_PRSNT", "FAN8_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <220 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN5_IL_TACH_ALERT", "FAN5_OL_TACH_ALERT",
+				"FAN6_IL_TACH_ALERT", "FAN6_OL_TACH_ALERT",
+				"FAN7_IL_TACH_ALERT", "FAN7_OL_TACH_ALERT",
+				"FAN8_IL_TACH_ALERT", "FAN8_IL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <220 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_2_P1V0_POWER_FAIL", "FCB_2_P1V8_POWER_FAIL",
+				"FCB_2_P48V_ZONE0_POWER_FAIL", "FAN5_POWER_FAIL",
+				"FAN6_POWER_FAIL", "FAN7_POWER_FAIL",
+				"FAN8_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+		// FCB 3
+		imux18: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <230 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN9_PWRGD_R", "P48V_FAN10_PWRGD_R",
+				"P48V_FAN11_PWRGD_R", "P48V_FAN12_PWRGD_R",
+				"FCB_3_P48V_ZONE0_PWRGD_R", "FCB_3_P48V_ZONE1_PWRGD_R",
+				"FCB_3_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <230 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN9_ALERT_N", "INA238_FAN10_ALERT_N",
+				"INA238_FAN11_ALERT_N", "INA238_FAN12_ALERT_N",
+				"FCB_3_TMP75_ALERT_N", "",
+				"", "",
+				"FAN9_PRSNT", "FAN10_PRSNT",
+				"FAN11_PRSNT", "FAN12_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <230 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN9_IL_TACH_ALERT", "FAN9_OL_TACH_ALERT",
+				"FAN10_IL_TACH_ALERT", "FAN10_OL_TACH_ALERT",
+				"FAN11_IL_TACH_ALERT", "FAN11_OL_TACH_ALERT",
+				"FAN12_IL_TACH_ALERT", "FAN12_IL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <230 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_3_P1V0_POWER_FAIL", "FCB_3_P1V8_POWER_FAIL",
+				"FCB_3_P48V_ZONE0_POWER_FAIL", "FAN9_POWER_FAIL",
+				"FAN10_POWER_FAIL", "FAN11_POWER_FAIL",
+				"FAN12_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+		// FCB 4
+		imux19: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <232 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN13_PWRGD_R", "P48V_FAN14_PWRGD_R",
+				"P48V_FAN15_PWRGD_R", "P48V_FAN16_PWRGD_R",
+				"FCB_4_P48V_ZONE0_PWRGD_R", "FCB_4_P48V_ZONE1_PWRGD_R",
+				"FCB_4_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <232 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN13_ALERT_N", "INA238_FAN14_ALERT_N",
+				"INA238_FAN15_ALERT_N", "INA238_FAN16_ALERT_N",
+				"FCB_4_TMP75_ALERT_N", "",
+				"", "",
+				"FAN13_PRSNT", "FAN14_PRSNT",
+				"FAN15_PRSNT", "FAN16_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <232 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN13_IL_TACH_ALERT", "FAN13_OL_TACH_ALERT",
+				"FAN14_IL_TACH_ALERT", "FAN14_OL_TACH_ALERT",
+				"FAN15_IL_TACH_ALERT", "FAN15_OL_TACH_ALERT",
+				"FAN16_IL_TACH_ALERT", "FAN16_IL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <232 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_4_P1V0_POWER_FAIL", "FCB_4_P1V8_POWER_FAIL",
+				"FCB_4_P48V_ZONE0_POWER_FAIL", "FAN13_POWER_FAIL",
+				"FAN14_POWER_FAIL", "FAN15_POWER_FAIL",
+				"FAN16_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+		// FCB 5
+		imux20: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <4>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <254 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN20_PWRGD_R", "P48V_FAN19_PWRGD_R",
+				"P48V_FAN18_PWRGD_R", "P48V_FAN17_PWRGD_R",
+				"FCB_5_P48V_ZONE0_PWRGD_R", "FCB_5_P48V_ZONE1_PWRGD_R",
+				"FCB_5_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <254 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN20_ALERT_N", "INA238_FAN19_ALERT_N",
+				"INA238_FAN18_ALERT_N", "INA238_FAN17_ALERT_N",
+				"FCB_5_TMP75_ALERT_N", "",
+				"", "",
+				"FAN20_PRSNT", "FAN19_PRSNT",
+				"FAN18_PRSNT", "FAN17_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <254 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN20_IL_TACH_ALERT", "FAN20_OL_TACH_ALERT",
+				"FAN19_IL_TACH_ALERT", "FAN19_OL_TACH_ALERT",
+				"FAN18_IL_TACH_ALERT", "FAN18_OL_TACH_ALERT",
+				"FAN17_IL_TACH_ALERT", "FAN17_OL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <254 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_5_P1V0_POWER_FAIL", "FCB_5_P1V8_POWER_FAIL",
+				"FCB_5_P48V_ZONE0_POWER_FAIL", "FAN20_POWER_FAIL",
+				"FAN19_POWER_FAIL", "FAN18_POWER_FAIL",
+				"FAN17_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+		// FCB 6
+		imux21: i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <5>;
+
+			eeprom@50 {
+				compatible = "atmel,24c128";
+				reg = <0x50>;
+			};
+
+			pwm@5e{
+				compatible = "max31790";
+				reg = <0x5e>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			power-sensor@40 {
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@41 {
+				compatible = "ti,ina238";
+				reg = <0x41>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@44 {
+				compatible = "ti,ina238";
+				reg = <0x44>;
+				shunt-resistor = <1000>;
+			};
+
+			power-sensor@45 {
+				compatible = "ti,ina238";
+				reg = <0x45>;
+				shunt-resistor = <1000>;
+			};
+			temperature-sensor@4b {
+				compatible = "ti,tmp75";
+				reg = <0x4b>;
+			};
+
+			gpio@11 {
+				compatible = "nxp,pca9555";
+				reg = <0x11>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <252 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"P48V_FAN24_PWRGD_R", "P48V_FAN23_PWRGD_R",
+				"P48V_FAN22_PWRGD_R", "P48V_FAN21_PWRGD_R",
+				"FCB_6_P48V_ZONE0_PWRGD_R", "FCB_6_P48V_ZONE1_PWRGD_R",
+				"FCB_6_PWRGD_P3V3_R", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@12 {
+				compatible = "nxp,pca9555";
+				reg = <0x12>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <252 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"INA238_FAN24_ALERT_N", "INA238_FAN23_ALERT_N",
+				"INA238_FAN22_ALERT_N", "INA238_FAN21_ALERT_N",
+				"FCB_6_TMP75_ALERT_N", "",
+				"", "",
+				"FAN24_PRSNT", "FAN23_PRSNT",
+				"FAN22_PRSNT", "FAN21_PRSNT",
+				"", "",
+				"", "";
+			};
+
+			gpio@13 {
+				compatible = "nxp,pca9555";
+				reg = <0x13>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <252 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FAN24_IL_TACH_ALERT", "FAN24_OL_TACH_ALERT",
+				"FAN23_IL_TACH_ALERT", "FAN23_OL_TACH_ALERT",
+				"FAN22_IL_TACH_ALERT", "FAN22_OL_TACH_ALERT",
+				"FAN21_IL_TACH_ALERT", "FAN21_OL_TACH_ALERT",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+
+			gpio@17 {
+				compatible = "nxp,pca9555";
+				reg = <0x17>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-parent = <&sgpiom0>;
+				interrupts = <252 IRQ_TYPE_LEVEL_LOW>;
+
+				gpio-line-names =
+				"FCB_6_P1V0_POWER_FAIL", "FCB_6_P1V8_POWER_FAIL",
+				"FCB_6_P48V_ZONE0_POWER_FAIL", "FAN24_POWER_FAIL",
+				"FAN23_POWER_FAIL", "FAN22_POWER_FAIL",
+				"FAN21_POWER_FAIL", "",
+				"", "",
+				"", "",
+				"", "",
+				"", "";
+			};
+		};
+
+		imux22: i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <6>;
+		};
+
+		imux23: i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <7>;
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	i2c-mux@72 {
+		compatible = "nxp,pca9545";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux24: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux25: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux26: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux27: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+
+	i2c-mux@72 {
+		compatible = "nxp,pca9545";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux28: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux29: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux30: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux31: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+	};
+};
+
+&i2c5 {
+	status = "okay";
+
+	i2c-mux@72 {
+		compatible = "nxp,pca9545";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux32: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux33: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux34: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux35: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+	};
+};
+
+&i2c6 {
+	status = "okay";
+
+	i2c-mux@72 {
+		compatible = "nxp,pca9545";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux36: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux37: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux38: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux39: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+	};
+};
+
+&i2c7 {
+	status = "okay";
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2c9 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	rtc@51 {
+		compatible = "nxp,pcf8563";
+		reg = <0x51>;
+	};
+
+	rtc@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+	};
+};
+
+&i2c12 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9545";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux40: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux41: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux42: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux43: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
+};
+
+&i2c13 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9545";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		imux44: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux45: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux46: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@50 {
+				compatible = "atmel,24c64";
+				reg = <0x50>;
+			};
+		};
+
+		imux47: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
+};
+
+&i2c14 {
+	status = "okay";
+	multi-master;
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+		i2c-protocol;
+	};
+};
+
+&i2c15 {
+	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c128";
+		reg = <0x50>;
+	};
+
+	eeprom@56 {
+		compatible = "atmel,24c64";
+		reg = <0x56>;
+	};
+};
+
+&adc0 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+	pinctrl-0 = <&pinctrl_adc10_default>;
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&ehci1 {
+	status = "okay";
+};
+
+&uhci {
+	status = "okay";
+};
+
+&gpio0 {
+	gpio-line-names =
+	/*A0-A7*/	"","","","","","","","",
+	/*B0-B7*/	"","","","","","","","",
+	/*C0-C7*/	"","","","","BLADE_UART_SEL2","","","",
+	/*D0-D7*/	"","","","","","","","",
+	/*E0-E7*/	"","","","","","","","",
+	/*F0-F7*/	"","","","","","","","",
+	/*G0-G7*/	"","","","","","","","",
+	/*H0-H7*/	"","","","","","","","",
+	/*I0-I7*/	"","","","","","","","",
+	/*J0-J7*/	"","","","","","","","",
+	/*K0-K7*/	"","","","","","","","",
+	/*L0-L7*/	"","","","","BLADE_UART_SEL0","","","",
+	/*M0-M7*/	"","","","","","BLADE_UART_SEL1","","",
+	/*N0-N7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","","","","","",
+	/*P0-P7*/	"","","","","","","","",
+	/*Q0-Q7*/	"","","","","","power-chassis-control","","",
+	/*R0-R7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","","","","host0-ready",
+	/*T0-T7*/	"","","","","","","","",
+	/*U0-U7*/	"","","","","","","","",
+	/*V0-V7*/	"","","","","BAT_DETECT","","power-chassis-good","",
+	/*W0-W7*/	"","","","","","","","",
+	/*X0-X7*/	"","","BLADE_UART_SEL3","","","","","",
+	/*Y0-Y7*/	"","","","","","","","",
+	/*Z0-Z7*/	"","","","","","","","";
+};
+
+&sgpiom0 {
+	gpio-line-names =
+	/*"input pin","output pin"*/
+	/*A0 - A7*/
+	"PRSNT_MTIA_BLADE1_N","PWREN_MTIA_BLADE1_EN_N",
+	"PRSNT_MTIA_BLADE2_N","PWREN_MTIA_BLADE2_EN_N",
+	"PRSNT_MTIA_BLADE3_N","PWREN_MTIA_BLADE3_EN_N",
+	"PRSNT_MTIA_BLADE4_N","PWREN_MTIA_BLADE4_EN_N",
+	"PRSNT_MTIA_BLADE5_N","PWREN_MTIA_BLADE5_EN_N",
+	"PRSNT_MTIA_BLADE6_N","PWREN_MTIA_BLADE6_EN_N",
+	"PRSNT_MTIA_BLADE7_N","PWREN_MTIA_BLADE7_EN_N",
+	"PRSNT_MTIA_BLADE8_N","PWREN_MTIA_BLADE8_EN_N",
+	/*B0 - B7*/
+	"PRSNT_MTIA_BLADE9_N","PWREN_MTIA_BLADE9_EN_N",
+	"PRSNT_MTIA_BLADE10_N","PWREN_MTIA_BLADE10_EN_N",
+	"PRSNT_MTIA_BLADE11_N","PWREN_MTIA_BLADE11_EN_N",
+	"PRSNT_MTIA_BLADE12_N","PWREN_MTIA_BLADE12_EN_N",
+	"PRSNT_MTIA_BLADE13_N","PWREN_MTIA_BLADE13_EN_N",
+	"PRSNT_MTIA_BLADE14_N","PWREN_MTIA_BLADE14_EN_N",
+	"PRSNT_MTIA_BLADE15_N","PWREN_MTIA_BLADE15_EN_N",
+	"PRSNT_MTIA_BLADE16_N","PWREN_MTIA_BLADE16_EN_N",
+	/*C0 - C7*/
+	"PRSNT_NW_BLADE1_N","PWREN_NW_BLADE1_EN_N",
+	"PRSNT_NW_BLADE2_N","PWREN_NW_BLADE2_EN_N",
+	"PRSNT_NW_BLADE3_N","PWREN_NW_BLADE3_EN_N",
+	"PRSNT_NW_BLADE4_N","PWREN_NW_BLADE4_EN_N",
+	"PRSNT_NW_BLADE5_N","PWREN_NW_BLADE5_EN_N",
+	"PRSNT_NW_BLADE6_N","PWREN_NW_BLADE6_EN_N",
+	"PRSNT_FCB_1_N","PWREN_MTIA_BLADE1_HSC_EN_N",
+	"PRSNT_FCB_2_N","PWREN_MTIA_BLADE2_HSC_EN_N",
+	/*D0 - D7*/
+	"PRSNT_FCB_3_N","PWREN_MTIA_BLADE3_HSC_EN_N",
+	"PRSNT_FCB_4_N","PWREN_MTIA_BLADE4_HSC_EN_N",
+	"PRSNT_FCB_6_N","PWREN_MTIA_BLADE5_HSC_EN_N",
+	"PRSNT_FCB_5_N","PWREN_MTIA_BLADE6_HSC_EN_N",
+	"PWRGD_MTIA_BLADE1_PWROK_N","PWREN_MTIA_BLADE7_HSC_EN_N",
+	"PWRGD_MTIA_BLADE2_PWROK_N","PWREN_MTIA_BLADE8_HSC_EN_N",
+	"PWRGD_MTIA_BLADE3_PWROK_N","PWREN_MTIA_BLADE9_HSC_EN_N",
+	"PWRGD_MTIA_BLADE4_PWROK_N","PWREN_MTIA_BLADE10_HSC_EN_N",
+	/*E0 - E7*/
+	"PWRGD_MTIA_BLADE5_PWROK_N","PWREN_MTIA_BLADE11_HSC_EN_N",
+	"PWRGD_MTIA_BLADE6_PWROK_N","PWREN_MTIA_BLADE12_HSC_EN_N",
+	"PWRGD_MTIA_BLADE7_PWROK_N","PWREN_MTIA_BLADE13_HSC_EN_N",
+	"PWRGD_MTIA_BLADE8_PWROK_N","PWREN_MTIA_BLADE14_HSC_EN_N",
+	"PWRGD_MTIA_BLADE9_PWROK_N","PWREN_MTIA_BLADE15_HSC_EN_N",
+	"PWRGD_MTIA_BLADE10_PWROK_N","PWREN_MTIA_BLADE16_HSC_EN_N",
+	"PWRGD_MTIA_BLADE11_PWROK_N","PWREN_NW_BLADE1_HSC_EN_N",
+	"PWRGD_MTIA_BLADE12_PWROK_N","PWREN_NW_BLADE2_HSC_EN_N",
+	/*F0 - F7*/
+	"PWRGD_MTIA_BLADE13_PWROK_N","PWREN_NW_BLADE3_HSC_EN_N",
+	"PWRGD_MTIA_BLADE14_PWROK_N","PWREN_NW_BLADE4_HSC_EN_N",
+	"PWRGD_MTIA_BLADE15_PWROK_N","PWREN_NW_BLADE5_HSC_EN_N",
+	"PWRGD_MTIA_BLADE16_PWROK_N","PWREN_NW_BLADE6_HSC_EN_N",
+	"PWRGD_NW_BLADE1_PWROK_N","PWREN_SGPIO_FCB_2_EN_N",
+	"PWRGD_NW_BLADE2_PWROK_N","PWREN_SGPIO_FCB_1_EN_N",
+	"PWRGD_NW_BLADE3_PWROK_N","PWREN_SGPIO_FCB_4_EN_N",
+	"PWRGD_NW_BLADE4_PWROK_N","PWREN_SGPIO_FCB_3_EN_N",
+	/*G0 - G7*/
+	"PWRGD_NW_BLADE5_PWROK_N","PWREN_SGPIO_FCB_5_EN_N",
+	"PWRGD_NW_BLADE6_PWROK_N","PWREN_SGPIO_FCB_6_EN_N",
+	"PWRGD_FCB_1","FM_BMC_RST_RTCRST_R",
+	"PWRGD_FCB_2","",
+	"PWRGD_FCB_3","FM_MDIO_SW_SEL",
+	"PWRGD_FCB_4","FM_P24V_SMPWR_EN",
+	"PWRGD_FCB_6","",
+	"PWRGD_FCB_5","",
+	/*H0 - H7*/
+	"LEAK_DETECT_MTIA_BLADE1_N","",
+	"LEAK_DETECT_MTIA_BLADE2_N","",
+	"LEAK_DETECT_MTIA_BLADE3_N","",
+	"LEAK_DETECT_MTIA_BLADE4_N","",
+	"LEAK_DETECT_MTIA_BLADE5_N","",
+	"LEAK_DETECT_MTIA_BLADE6_N","",
+	"LEAK_DETECT_MTIA_BLADE7_N","ERR_INJECT_CMM_PWR_FAIL_N",
+	"LEAK_DETECT_MTIA_BLADE8_N","",
+	/*I0 - I7*/
+	"LEAK_DETECT_MTIA_BLADE9_N","RST_I2CRST_FCB_5_N",
+	"LEAK_DETECT_MTIA_BLADE10_N","RST_I2CRST_FCB_6_N",
+	"LEAK_DETECT_MTIA_BLADE11_N","RST_I2CRST_FCB_4_N",
+	"LEAK_DETECT_MTIA_BLADE12_N","RST_I2CRST_FCB_3_N",
+	"LEAK_DETECT_MTIA_BLADE13_N","RST_I2CRST_FCB_2_N",
+	"LEAK_DETECT_MTIA_BLADE14_N","RST_I2CRST_FCB_1_N",
+	"LEAK_DETECT_MTIA_BLADE15_N","BMC_READY",
+	"LEAK_DETECT_MTIA_BLADE16_N","FM_88E6393X_BIN_UPDATE_EN_N",
+	/*J0 - J7*/
+	"LEAK_DETECT_NW_BLADE1_N","WATER_VALVE_CLOSED_N",
+	"LEAK_DETECT_NW_BLADE2_N","",
+	"LEAK_DETECT_NW_BLADE3_N","",
+	"LEAK_DETECT_NW_BLADE4_N","",
+	"LEAK_DETECT_NW_BLADE5_N","",
+	"LEAK_DETECT_NW_BLADE6_N","",
+	"PWRGD_MTIA_BLADE1_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE2_HSC_PWROK_N","",
+	/*K0 - K7*/
+	"PWRGD_MTIA_BLADE3_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE4_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE5_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE6_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE7_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE8_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE9_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE10_HSC_PWROK_N","",
+	/*L0 - L7*/
+	"PWRGD_MTIA_BLADE11_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE12_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE13_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE14_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE15_HSC_PWROK_N","",
+	"PWRGD_MTIA_BLADE16_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE1_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE2_HSC_PWROK_N","",
+	/*M0 - M7*/
+	"PWRGD_NW_BLADE3_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE4_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE5_HSC_PWROK_N","",
+	"PWRGD_NW_BLADE6_HSC_PWROK_N","",
+	"RPU_READY","",
+	"IT_GEAR_RPU_LINK_N","",
+	"IT_GEAR_LEAK","",
+	"WATER_VALVE_CLOSED_N","",
+	/*N0 - N7*/
+	"VALVE_STATUS_0","",
+	"VALVE_STATUS_1","",
+	"PCA9555_IRQ1_N","",
+	"PCA9555_IRQ2_N","",
+	"CR_TOGGLE_BOOT_N","",
+	"IRQ_FCB_1_N","",
+	"IRQ_FCB_2_N","",
+	"CMM_CABLE_CARTRIDGE_PRSNT_BOT_N","",
+	/*O0 - O7*/
+	"CMM_CABLE_CARTRIDGE_PRSNT_TOP_N","",
+	"BOT_BCB_CABLE_PRSNT_N","",
+	"TOP_BCB_CABLE_PRSNT_N","",
+	"IRQ_FCB_3_N","",
+	"IRQ_FCB_4_N","",
+	"CHASSIS_LEAK0_DETECT_N","",
+	"CHASSIS_LEAK1_DETECT_N","",
+	"PCA9555_IRQ3_N","",
+	/*P0 - P7*/
+	"PCA9555_IRQ4_N","",
+	"PCA9555_IRQ5_N","",
+	"CMM_AC_PWR_BTN_N","",
+	"RPU_READY_SPARE","",
+	"IT_GEAR_LEAK_SPARE","",
+	"IT_GEAR_RPU_LINK_SPARE_N","",
+	"IRQ_FCB_6_N","",
+	"IRQ_FCB_5_N","";
+};

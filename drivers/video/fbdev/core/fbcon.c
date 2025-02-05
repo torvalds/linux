@@ -64,6 +64,8 @@
 #include <linux/console.h>
 #include <linux/string.h>
 #include <linux/kd.h>
+#include <linux/panic.h>
+#include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/fbcon.h>
@@ -270,12 +272,24 @@ static int fbcon_get_rotate(struct fb_info *info)
 	return (ops) ? ops->rotate : 0;
 }
 
+static bool fbcon_skip_panic(struct fb_info *info)
+{
+/* panic_cpu is not exported, and can't be used if built as module. Use
+ * oops_in_progress instead, but non-fatal oops won't be printed.
+ */
+#if defined(MODULE)
+	return (info->skip_panic && unlikely(oops_in_progress));
+#else
+	return (info->skip_panic && unlikely(atomic_read(&panic_cpu) != PANIC_CPU_INVALID));
+#endif
+}
+
 static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	return (info->state != FBINFO_STATE_RUNNING ||
-		vc->vc_mode != KD_TEXT || ops->graphics);
+		vc->vc_mode != KD_TEXT || ops->graphics || fbcon_skip_panic(info));
 }
 
 static int get_color(struct vc_data *vc, struct fb_info *info,
@@ -498,8 +512,10 @@ static int search_fb_in_map(int idx)
 	int i, retval = 0;
 
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
-		if (con2fb_map[i] == idx)
+		if (con2fb_map[i] == idx) {
 			retval = 1;
+			break;
+		}
 	}
 	return retval;
 }
@@ -509,8 +525,10 @@ static int search_for_mapped_con(void)
 	int i, retval = 0;
 
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
-		if (con2fb_map[i] != -1)
+		if (con2fb_map[i] != -1) {
 			retval = 1;
+			break;
+		}
 	}
 	return retval;
 }
@@ -847,6 +865,8 @@ static int set_con2fb_map(int unit, int newidx, int user)
 			return err;
 
 		fbcon_add_cursor_work(info);
+	} else if (vc) {
+		set_blitting_type(vc, info);
 	}
 
 	con2fb_map[unit] = newidx;
@@ -2907,7 +2927,7 @@ void fbcon_remap_all(struct fb_info *info)
 static void fbcon_select_primary(struct fb_info *info)
 {
 	if (!map_override && primary_device == -1 &&
-	    fb_is_primary_device(info)) {
+	    video_is_primary_device(info->device)) {
 		int i;
 
 		printk(KERN_INFO "fbcon: %s (fb%i) is primary device\n",

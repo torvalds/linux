@@ -71,8 +71,3 @@ static struct pci_driver xlgmac_pci_driver = {
 };
 
 module_pci_driver(xlgmac_pci_driver);
-
-MODULE_DESCRIPTION(XLGMAC_DRV_DESC);
-MODULE_VERSION(XLGMAC_DRV_VERSION);
-MODULE_AUTHOR("Jie Deng <jiedeng@synopsys.com>");
-MODULE_LICENSE("Dual BSD/GPL");

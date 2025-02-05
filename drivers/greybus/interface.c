@@ -693,6 +693,7 @@ static void gb_interface_release(struct device *dev)
 
 	trace_gb_interface_release(intf);
 
+	cancel_work_sync(&intf->mode_switch_work);
 	kfree(intf);
 }
 
@@ -779,7 +780,7 @@ const struct device_type greybus_interface_type = {
  * The position of interface within the Endo is encoded in "interface_id"
  * argument.
  *
- * Returns a pointer to the new interfce or a null pointer if a
+ * Returns a pointer to the new interface or a null pointer if a
  * failure occurs due to memory exhaustion.
  */
 struct gb_interface *gb_interface_create(struct gb_module *module,

@@ -142,7 +142,7 @@
 		compatible = "samsung,s6sy761";
 		reg = <0x48>;
 		interrupt-parent = <&tlmm>;
-		interrupts = <22 0x2008>;
+		interrupts = <22 IRQ_TYPE_LEVEL_LOW>;
 
 		vdd-supply = <&pm6125_l13>;
 		avdd-supply = <&touch_avdd>;

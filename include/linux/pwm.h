@@ -2,9 +2,13 @@
 #ifndef __LINUX_PWM_H
 #define __LINUX_PWM_H
 
+#include <linux/device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
+
+MODULE_IMPORT_NS("PWM");
 
 struct pwm_chip;
 
@@ -43,6 +47,31 @@ struct pwm_args {
 enum {
 	PWMF_REQUESTED = 0,
 	PWMF_EXPORTED = 1,
+};
+
+/**
+ * struct pwm_waveform - description of a PWM waveform
+ * @period_length_ns: PWM period
+ * @duty_length_ns: PWM duty cycle
+ * @duty_offset_ns: offset of the rising edge from the period's start
+ *
+ * This is a representation of a PWM waveform alternative to struct pwm_state
+ * below. It's more expressive than struct pwm_state as it contains a
+ * duty_offset_ns and so can represent offsets other than zero (with .polarity =
+ * PWM_POLARITY_NORMAL) and period - duty_cycle (.polarity =
+ * PWM_POLARITY_INVERSED).
+ *
+ * Note there is no explicit bool for enabled. A "disabled" PWM is represented
+ * by .period_length_ns = 0. Note further that the behaviour of a "disabled" PWM
+ * is undefined. Depending on the hardware's capabilities it might drive the
+ * active or inactive level, go high-z or even continue to toggle.
+ *
+ * The unit for all three members is nanoseconds.
+ */
+struct pwm_waveform {
+	u64 period_length_ns;
+	u64 duty_length_ns;
+	u64 duty_offset_ns;
 };
 
 /*
@@ -247,16 +276,30 @@ struct pwm_capture {
  * @request: optional hook for requesting a PWM
  * @free: optional hook for freeing a PWM
  * @capture: capture and report PWM signal
+ * @sizeof_wfhw: size (in bytes) of driver specific waveform presentation
+ * @round_waveform_tohw: convert a struct pwm_waveform to driver specific presentation
+ * @round_waveform_fromhw: convert a driver specific waveform presentation to struct pwm_waveform
+ * @read_waveform: read driver specific waveform presentation from hardware
+ * @write_waveform: write driver specific waveform presentation to hardware
  * @apply: atomically apply a new PWM config
- * @get_state: get the current PWM state. This function is only
- *	       called once per PWM device when the PWM chip is
- *	       registered.
+ * @get_state: get the current PWM state.
  */
 struct pwm_ops {
 	int (*request)(struct pwm_chip *chip, struct pwm_device *pwm);
 	void (*free)(struct pwm_chip *chip, struct pwm_device *pwm);
 	int (*capture)(struct pwm_chip *chip, struct pwm_device *pwm,
 		       struct pwm_capture *result, unsigned long timeout);
+
+	size_t sizeof_wfhw;
+	int (*round_waveform_tohw)(struct pwm_chip *chip, struct pwm_device *pwm,
+				   const struct pwm_waveform *wf, void *wfhw);
+	int (*round_waveform_fromhw)(struct pwm_chip *chip, struct pwm_device *pwm,
+				     const void *wfhw, struct pwm_waveform *wf);
+	int (*read_waveform)(struct pwm_chip *chip, struct pwm_device *pwm,
+			    void *wfhw);
+	int (*write_waveform)(struct pwm_chip *chip, struct pwm_device *pwm,
+			      const void *wfhw);
+
 	int (*apply)(struct pwm_chip *chip, struct pwm_device *pwm,
 		     const struct pwm_state *state);
 	int (*get_state)(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -272,11 +315,14 @@ struct pwm_ops {
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @atomic: can the driver's ->apply() be called in atomic context
- * @driver_data: Private pointer for driver specific info
+ * @uses_pwmchip_alloc: signals if pwmchip_allow was used to allocate this chip
+ * @operational: signals if the chip can be used (or is already deregistered)
+ * @nonatomic_lock: mutex for nonatomic chips
+ * @atomic_lock: mutex for atomic chips
  * @pwms: array of PWM devices allocated by the framework
  */
 struct pwm_chip {
-	struct device *dev;
+	struct device dev;
 	const struct pwm_ops *ops;
 	struct module *owner;
 	unsigned int id;
@@ -287,37 +333,61 @@ struct pwm_chip {
 	bool atomic;
 
 	/* only used internally by the PWM framework */
-	void *driver_data;
-	struct pwm_device *pwms;
+	bool uses_pwmchip_alloc;
+	bool operational;
+	union {
+		/*
+		 * depending on the chip being atomic or not either the mutex or
+		 * the spinlock is used. It protects .operational and
+		 * synchronizes the callbacks in .ops
+		 */
+		struct mutex nonatomic_lock;
+		spinlock_t atomic_lock;
+	};
+	struct pwm_device pwms[] __counted_by(npwm);
 };
+
+/**
+ * pwmchip_supports_waveform() - checks if the given chip supports waveform callbacks
+ * @chip: The pwm_chip to test
+ *
+ * Returns true iff the pwm chip support the waveform functions like
+ * pwm_set_waveform_might_sleep() and pwm_round_waveform_might_sleep()
+ */
+static inline bool pwmchip_supports_waveform(struct pwm_chip *chip)
+{
+	/*
+	 * only check for .write_waveform(). If that is available,
+	 * .round_waveform_tohw() and .round_waveform_fromhw() asserted to be
+	 * available, too, in pwmchip_add().
+	 */
+	return chip->ops->write_waveform != NULL;
+}
 
 static inline struct device *pwmchip_parent(const struct pwm_chip *chip)
 {
-	return chip->dev;
+	return chip->dev.parent;
 }
 
 static inline void *pwmchip_get_drvdata(struct pwm_chip *chip)
 {
-	/*
-	 * After pwm_chip got a dedicated struct device, this can be replaced by
-	 * dev_get_drvdata(&chip->dev);
-	 */
-	return chip->driver_data;
+	return dev_get_drvdata(&chip->dev);
 }
 
 static inline void pwmchip_set_drvdata(struct pwm_chip *chip, void *data)
 {
-	/*
-	 * After pwm_chip got a dedicated struct device, this can be replaced by
-	 * dev_set_drvdata(&chip->dev, data);
-	 */
-	chip->driver_data = data;
+	dev_set_drvdata(&chip->dev, data);
 }
 
 #if IS_ENABLED(CONFIG_PWM)
-/* PWM user APIs */
+
+/* PWM consumer APIs */
+int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf);
+int pwm_get_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf);
+int pwm_set_waveform_might_sleep(struct pwm_device *pwm, const struct pwm_waveform *wf, bool exact);
 int pwm_apply_might_sleep(struct pwm_device *pwm, const struct pwm_state *state);
 int pwm_apply_atomic(struct pwm_device *pwm, const struct pwm_state *state);
+int pwm_get_state_hw(struct pwm_device *pwm, struct pwm_state *state);
 int pwm_adjust_config(struct pwm_device *pwm);
 
 /**
@@ -400,9 +470,6 @@ static inline bool pwm_might_sleep(struct pwm_device *pwm)
 }
 
 /* PWM provider APIs */
-int pwm_capture(struct pwm_device *pwm, struct pwm_capture *result,
-		unsigned long timeout);
-
 void pwmchip_put(struct pwm_chip *chip);
 struct pwm_chip *pwmchip_alloc(struct device *parent, unsigned int npwm, size_t sizeof_priv);
 struct pwm_chip *devm_pwmchip_alloc(struct device *parent, unsigned int npwm, size_t sizeof_priv);
@@ -413,10 +480,6 @@ void pwmchip_remove(struct pwm_chip *chip);
 
 int __devm_pwmchip_add(struct device *dev, struct pwm_chip *chip, struct module *owner);
 #define devm_pwmchip_add(dev, chip) __devm_pwmchip_add(dev, chip, THIS_MODULE)
-
-struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-					 unsigned int index,
-					 const char *label);
 
 struct pwm_device *of_pwm_xlate_with_flags(struct pwm_chip *chip,
 		const struct of_phandle_args *args);
@@ -449,6 +512,11 @@ static inline int pwm_apply_atomic(struct pwm_device *pwm,
 	return -EOPNOTSUPP;
 }
 
+static inline int pwm_get_state_hw(struct pwm_device *pwm, struct pwm_state *state)
+{
+	return -EOPNOTSUPP;
+}
+
 static inline int pwm_adjust_config(struct pwm_device *pwm)
 {
 	return -EOPNOTSUPP;
@@ -470,13 +538,6 @@ static inline int pwm_enable(struct pwm_device *pwm)
 static inline void pwm_disable(struct pwm_device *pwm)
 {
 	might_sleep();
-}
-
-static inline int pwm_capture(struct pwm_device *pwm,
-			      struct pwm_capture *result,
-			      unsigned long timeout)
-{
-	return -EINVAL;
 }
 
 static inline void pwmchip_put(struct pwm_chip *chip)
@@ -510,14 +571,6 @@ static inline int pwmchip_remove(struct pwm_chip *chip)
 static inline int devm_pwmchip_add(struct device *dev, struct pwm_chip *chip)
 {
 	return -EINVAL;
-}
-
-static inline struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
-						       unsigned int index,
-						       const char *label)
-{
-	might_sleep();
-	return ERR_PTR(-ENODEV);
 }
 
 static inline struct pwm_device *pwm_get(struct device *dev,
@@ -581,13 +634,6 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	pwm_apply_might_sleep(pwm, &state);
 }
 
-/* only for backwards-compatibility, new code should not use this */
-static inline int pwm_apply_state(struct pwm_device *pwm,
-				  const struct pwm_state *state)
-{
-	return pwm_apply_might_sleep(pwm, state);
-}
-
 struct pwm_lookup {
 	struct list_head list;
 	const char *provider;
@@ -627,18 +673,5 @@ static inline void pwm_remove_table(struct pwm_lookup *table, size_t num)
 {
 }
 #endif
-
-#ifdef CONFIG_PWM_SYSFS
-void pwmchip_sysfs_export(struct pwm_chip *chip);
-void pwmchip_sysfs_unexport(struct pwm_chip *chip);
-#else
-static inline void pwmchip_sysfs_export(struct pwm_chip *chip)
-{
-}
-
-static inline void pwmchip_sysfs_unexport(struct pwm_chip *chip)
-{
-}
-#endif /* CONFIG_PWM_SYSFS */
 
 #endif /* __LINUX_PWM_H */

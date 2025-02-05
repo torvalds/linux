@@ -573,7 +573,7 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 	if (!iio_dev)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev, (void *)iio_dev);
+	dev_set_drvdata(dev, iio_dev);
 
 	hw = iio_priv(iio_dev);
 	hw->name = name;
@@ -649,7 +649,7 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 
 	return devm_iio_device_register(hw->dev, iio_dev);
 }
-EXPORT_SYMBOL_NS(hts221_probe, IIO_HTS221);
+EXPORT_SYMBOL_NS(hts221_probe, "IIO_HTS221");
 
 static int hts221_suspend(struct device *dev)
 {

@@ -2,7 +2,7 @@
 /*
  * linux/can/isotp.h
  *
- * Definitions for isotp CAN sockets (ISO 15765-2:2016)
+ * Definitions for ISO 15765-2 CAN transport protocol sockets
  *
  * Copyright (c) 2020 Volkswagen Group Electronic Research
  * All rights reserved.

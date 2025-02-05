@@ -13,21 +13,17 @@ static int touch_cap_queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				 struct device *alloc_devs[])
 {
 	struct vivid_dev *dev = vb2_get_drv_priv(vq);
-	unsigned int q_num_bufs = vb2_get_num_buffers(vq);
 	struct v4l2_pix_format *f = &dev->tch_format;
 	unsigned int size = f->sizeimage;
 
 	if (*nplanes) {
-		if (sizes[0] < size)
+		if (*nplanes != 1)
 			return -EINVAL;
-	} else {
-		sizes[0] = size;
+		return sizes[0] < size ? -EINVAL : 0;
 	}
 
-	if (q_num_bufs + *nbuffers < 2)
-		*nbuffers = 2 - q_num_bufs;
-
 	*nplanes = 1;
+	sizes[0] = size;
 	return 0;
 }
 
@@ -114,8 +110,6 @@ const struct vb2_ops vivid_touch_cap_qops = {
 	.start_streaming	= touch_cap_start_streaming,
 	.stop_streaming		= touch_cap_stop_streaming,
 	.buf_request_complete	= touch_cap_buf_request_complete,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 int vivid_enum_fmt_tch(struct file *file, void  *priv, struct v4l2_fmtdesc *f)

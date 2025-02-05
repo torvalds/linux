@@ -518,6 +518,24 @@ struct nfsd4_free_stateid {
 	stateid_t	fr_stateid;         /* request */
 };
 
+struct nfsd4_get_dir_delegation {
+	/* request */
+	u32			gdda_signal_deleg_avail;
+	u32			gdda_notification_types[1];
+	struct timespec64	gdda_child_attr_delay;
+	struct timespec64	gdda_dir_attr_delay;
+	u32			gdda_child_attributes[3];
+	u32			gdda_dir_attributes[3];
+	/* response */
+	u32			gddrnf_status;
+	nfs4_verifier		gddr_cookieverf;
+	stateid_t		gddr_stateid;
+	u32			gddr_notification[1];
+	u32			gddr_child_attributes[3];
+	u32			gddr_dir_attributes[3];
+	bool			gddrnf_will_signal_deleg_avail;
+};
+
 /* also used for NVERIFY */
 struct nfsd4_verify {
 	u32		ve_bmval[3];        /* request */
@@ -549,6 +567,7 @@ struct nfsd4_exchange_id {
 	struct xdr_netobj nii_domain;
 	struct xdr_netobj nii_name;
 	struct timespec64 nii_time;
+	char		*server_impl_name;
 };
 
 struct nfsd4_sequence {
@@ -557,9 +576,7 @@ struct nfsd4_sequence {
 	u32			slotid;			/* request/response */
 	u32			maxslots;		/* request/response */
 	u32			cachethis;		/* request */
-#if 0
 	u32			target_maxslots;	/* response */
-#endif /* not yet */
 	u32			status_flags;		/* response */
 };
 
@@ -657,6 +674,7 @@ struct nfsd4_cb_offload {
 	struct nfsd4_callback	co_cb;
 	struct nfsd42_write_res	co_res;
 	__be32			co_nfserr;
+	unsigned int		co_retries;
 	struct knfsd_fh		co_fh;
 };
 
@@ -674,10 +692,16 @@ struct nfsd4_copy {
 #define NFSD4_COPY_F_INTRA		(1)
 #define NFSD4_COPY_F_SYNCHRONOUS	(2)
 #define NFSD4_COPY_F_COMMITTED		(3)
+#define NFSD4_COPY_F_COMPLETED		(4)
+#define NFSD4_COPY_F_OFFLOAD_DONE	(5)
 
 	/* response */
+	__be32			nfserr;
 	struct nfsd42_write_res	cp_res;
 	struct knfsd_fh		fh;
+
+	/* offload callback */
+	struct nfsd4_cb_offload	cp_cb_offload;
 
 	struct nfs4_client      *cp_clp;
 
@@ -689,10 +713,12 @@ struct nfsd4_copy {
 	struct list_head	copies;
 	struct task_struct	*copy_task;
 	refcount_t		refcount;
+	unsigned int		cp_ttl;
 
 	struct nfsd4_ssc_umount_item *ss_nsui;
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
+	struct nfsd_net		*cp_nn;
 };
 
 static inline void nfsd4_copy_set_sync(struct nfsd4_copy *copy, bool sync)
@@ -735,7 +761,8 @@ struct nfsd4_offload_status {
 
 	/* response */
 	u64		count;
-	u32		status;
+	__be32		status;
+	bool		completed;
 };
 
 struct nfsd4_copy_notify {
@@ -797,6 +824,7 @@ struct nfsd4_op {
 		struct nfsd4_reclaim_complete	reclaim_complete;
 		struct nfsd4_test_stateid	test_stateid;
 		struct nfsd4_free_stateid	free_stateid;
+		struct nfsd4_get_dir_delegation	get_dir_delegation;
 		struct nfsd4_getdeviceinfo	getdeviceinfo;
 		struct nfsd4_layoutget		layoutget;
 		struct nfsd4_layoutcommit	layoutcommit;
@@ -907,6 +935,7 @@ extern __be32 nfsd4_setclientid(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
+void nfsd4_exchange_id_release(union nfsd4_op_u *u);
 extern __be32 nfsd4_exchange_id(struct svc_rqst *rqstp,
 		struct nfsd4_compound_state *, union nfsd4_op_u *u);
 extern __be32 nfsd4_backchannel_ctl(struct svc_rqst *,

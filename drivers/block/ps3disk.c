@@ -384,13 +384,13 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 	unsigned int devidx;
 	struct queue_limits lim = {
 		.logical_block_size	= dev->blk_size,
-		.max_hw_sectors		= dev->bounce_size >> 9,
+		.max_hw_sectors		= BOUNCE_SIZE >> 9,
 		.max_segments		= -1,
-		.max_segment_size	= dev->bounce_size,
+		.max_segment_size	= BOUNCE_SIZE,
 		.dma_alignment		= dev->blk_size - 1,
+		.features		= BLK_FEAT_WRITE_CACHE |
+					  BLK_FEAT_ROTATIONAL,
 	};
-
-	struct request_queue *queue;
 	struct gendisk *gendisk;
 
 	if (dev->blk_size < 512) {
@@ -434,8 +434,7 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	ps3disk_identify(dev);
 
-	error = blk_mq_alloc_sq_tag_set(&priv->tag_set, &ps3disk_mq_ops, 1,
-					BLK_MQ_F_SHOULD_MERGE);
+	error = blk_mq_alloc_sq_tag_set(&priv->tag_set, &ps3disk_mq_ops, 1, 0);
 	if (error)
 		goto fail_teardown;
 
@@ -446,10 +445,6 @@ static int ps3disk_probe(struct ps3_system_bus_device *_dev)
 		error = PTR_ERR(gendisk);
 		goto fail_free_tag_set;
 	}
-
-	queue = gendisk->queue;
-
-	blk_queue_write_cache(queue, true, false);
 
 	priv->gendisk = gendisk;
 	gendisk->major = ps3disk_major;

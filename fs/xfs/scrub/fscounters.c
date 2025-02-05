@@ -19,6 +19,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
+#include "xfs_rtgroup.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -74,10 +75,9 @@ xchk_fscount_warmup(
 	struct xfs_buf		*agi_bp = NULL;
 	struct xfs_buf		*agf_bp = NULL;
 	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno;
 	int			error = 0;
 
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 		if (xfs_perag_initialised_agi(pag) &&
@@ -85,7 +85,7 @@ xchk_fscount_warmup(
 			continue;
 
 		/* Lock both AG headers. */
-		error = xfs_ialloc_read_agi(pag, sc->tp, &agi_bp);
+		error = xfs_ialloc_read_agi(pag, sc->tp, 0, &agi_bp);
 		if (error)
 			break;
 		error = xfs_alloc_read_agf(pag, sc->tp, 0, &agf_bp);
@@ -261,7 +261,7 @@ xchk_fscount_btreeblks(
 	struct xchk_fscounters	*fsc,
 	xfs_agnumber_t		agno)
 {
-	xfs_extlen_t		blocks;
+	xfs_filblks_t		blocks;
 	int			error;
 
 	error = xchk_ag_init_existing(sc, agno, &sc->sa);
@@ -295,9 +295,8 @@ xchk_fscount_aggregate_agcounts(
 	struct xchk_fscounters	*fsc)
 {
 	struct xfs_mount	*mp = sc->mp;
-	struct xfs_perag	*pag;
+	struct xfs_perag	*pag = NULL;
 	uint64_t		delayed;
-	xfs_agnumber_t		agno;
 	int			tries = 8;
 	int			error = 0;
 
@@ -306,7 +305,7 @@ retry:
 	fsc->ifree = 0;
 	fsc->fdblocks = 0;
 
-	for_each_perag(mp, agno, pag) {
+	while ((pag = xfs_perag_next(mp, pag))) {
 		if (xchk_should_terminate(sc, &error))
 			break;
 
@@ -327,7 +326,7 @@ retry:
 		if (xfs_has_lazysbcount(sc->mp)) {
 			fsc->fdblocks += pag->pagf_btreeblks;
 		} else {
-			error = xchk_fscount_btreeblks(sc, fsc, agno);
+			error = xchk_fscount_btreeblks(sc, fsc, pag_agno(pag));
 			if (error)
 				break;
 		}
@@ -388,7 +387,7 @@ retry:
 #ifdef CONFIG_XFS_RT
 STATIC int
 xchk_fscount_add_frextent(
-	struct xfs_mount		*mp,
+	struct xfs_rtgroup		*rtg,
 	struct xfs_trans		*tp,
 	const struct xfs_rtalloc_rec	*rec,
 	void				*priv)
@@ -409,23 +408,28 @@ xchk_fscount_count_frextents(
 	struct xchk_fscounters	*fsc)
 {
 	struct xfs_mount	*mp = sc->mp;
+	struct xfs_rtgroup	*rtg = NULL;
 	int			error;
 
 	fsc->frextents = 0;
+	fsc->frextents_delayed = 0;
 	if (!xfs_has_realtime(mp))
 		return 0;
 
-	xfs_ilock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	error = xfs_rtalloc_query_all(sc->mp, sc->tp,
-			xchk_fscount_add_frextent, fsc);
-	if (error) {
-		xchk_set_incomplete(sc);
-		goto out_unlock;
+	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
+		xfs_rtgroup_lock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		error = xfs_rtalloc_query_all(rtg, sc->tp,
+				xchk_fscount_add_frextent, fsc);
+		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_BITMAP_SHARED);
+		if (error) {
+			xchk_set_incomplete(sc);
+			xfs_rtgroup_rele(rtg);
+			return error;
+		}
 	}
 
-out_unlock:
-	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
-	return error;
+	fsc->frextents_delayed = percpu_counter_sum(&mp->m_delalloc_rtextents);
+	return 0;
 }
 #else
 STATIC int
@@ -434,6 +438,7 @@ xchk_fscount_count_frextents(
 	struct xchk_fscounters	*fsc)
 {
 	fsc->frextents = 0;
+	fsc->frextents_delayed = 0;
 	return 0;
 }
 #endif /* CONFIG_XFS_RT */
@@ -517,7 +522,7 @@ xchk_fscounters(
 
 	/*
 	 * If the filesystem is not frozen, the counter summation calls above
-	 * can race with xfs_mod_freecounter, which subtracts a requested space
+	 * can race with xfs_dec_freecounter, which subtracts a requested space
 	 * reservation from the counter and undoes the subtraction if that made
 	 * the counter go negative.  Therefore, it's possible to see negative
 	 * values here, and we should only flag that as a corruption if we
@@ -593,7 +598,7 @@ xchk_fscounters(
 	}
 
 	if (!xchk_fscount_within_range(sc, frextents, &mp->m_frextents,
-			fsc->frextents)) {
+			fsc->frextents - fsc->frextents_delayed)) {
 		if (fsc->frozen)
 			xchk_set_corrupt(sc);
 		else

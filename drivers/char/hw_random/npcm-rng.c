@@ -176,7 +176,7 @@ static struct platform_driver npcm_rng_driver = {
 		.of_match_table = of_match_ptr(rng_dt_id),
 	},
 	.probe		= npcm_rng_probe,
-	.remove_new	= npcm_rng_remove,
+	.remove		= npcm_rng_remove,
 };
 
 module_platform_driver(npcm_rng_driver);

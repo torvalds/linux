@@ -122,8 +122,8 @@
 			reg = <0x1e6c0080 0x80>;
 		};
 
-		cvic: copro-interrupt-controller@1e6c2000 {
-			compatible = "aspeed,ast2400-cvic", "aspeed-cvic";
+		cvic: interrupt-controller@1e6c2000 {
+			compatible = "aspeed,ast2400-cvic", "aspeed,cvic";
 			valid-sources = <0x7fffffff>;
 			reg = <0x1e6c2000 0x80>;
 		};
@@ -230,6 +230,9 @@
 			sram: sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x8000>;	// 32K
+				ranges;
+				#address-cells = <1>;
+				#size-cells = <1>;
 			};
 
 			video: video@1e700000 {
@@ -463,7 +466,7 @@
 		interrupt-controller;
 	};
 
-	i2c0: i2c-bus@40 {
+	i2c0: i2c@40 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -478,7 +481,7 @@
 		/* Does not need pinctrl properties */
 	};
 
-	i2c1: i2c-bus@80 {
+	i2c1: i2c@80 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -493,7 +496,7 @@
 		/* Does not need pinctrl properties */
 	};
 
-	i2c2: i2c-bus@c0 {
+	i2c2: i2c@c0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -509,7 +512,7 @@
 		status = "disabled";
 	};
 
-	i2c3: i2c-bus@100 {
+	i2c3: i2c@100 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -525,7 +528,7 @@
 		status = "disabled";
 	};
 
-	i2c4: i2c-bus@140 {
+	i2c4: i2c@140 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -541,7 +544,7 @@
 		status = "disabled";
 	};
 
-	i2c5: i2c-bus@180 {
+	i2c5: i2c@180 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -557,7 +560,7 @@
 		status = "disabled";
 	};
 
-	i2c6: i2c-bus@1c0 {
+	i2c6: i2c@1c0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -573,7 +576,7 @@
 		status = "disabled";
 	};
 
-	i2c7: i2c-bus@300 {
+	i2c7: i2c@300 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -589,7 +592,7 @@
 		status = "disabled";
 	};
 
-	i2c8: i2c-bus@340 {
+	i2c8: i2c@340 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -605,7 +608,7 @@
 		status = "disabled";
 	};
 
-	i2c9: i2c-bus@380 {
+	i2c9: i2c@380 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -621,7 +624,7 @@
 		status = "disabled";
 	};
 
-	i2c10: i2c-bus@3c0 {
+	i2c10: i2c@3c0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -637,7 +640,7 @@
 		status = "disabled";
 	};
 
-	i2c11: i2c-bus@400 {
+	i2c11: i2c@400 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -653,7 +656,7 @@
 		status = "disabled";
 	};
 
-	i2c12: i2c-bus@440 {
+	i2c12: i2c@440 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -669,7 +672,7 @@
 		status = "disabled";
 	};
 
-	i2c13: i2c-bus@480 {
+	i2c13: i2c@480 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 

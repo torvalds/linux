@@ -179,7 +179,7 @@ static void nvmet_execute_disc_get_log_page(struct nvmet_req *req)
 	if (req->cmd->get_log_page.lid != NVME_LOG_DISC) {
 		req->error_loc =
 			offsetof(struct nvme_get_log_page_command, lid);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -187,7 +187,7 @@ static void nvmet_execute_disc_get_log_page(struct nvmet_req *req)
 	if (offset & 0x3) {
 		req->error_loc =
 			offsetof(struct nvme_get_log_page_command, lpo);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -224,6 +224,9 @@ static void nvmet_execute_disc_get_log_page(struct nvmet_req *req)
 	}
 
 	list_for_each_entry(r, &req->port->referrals, entry) {
+		if (r->disc_addr.trtype == NVMF_TRTYPE_PCI)
+			continue;
+
 		nvmet_format_discovery_entry(hdr, r,
 				NVME_DISC_SUBSYS_NAME,
 				r->disc_addr.traddr,
@@ -256,7 +259,7 @@ static void nvmet_execute_disc_identify(struct nvmet_req *req)
 
 	if (req->cmd->identify.cns != NVME_ID_CNS_CTRL) {
 		req->error_loc = offsetof(struct nvme_identify, cns);
-		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		goto out;
 	}
 
@@ -320,7 +323,7 @@ static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 	default:
 		req->error_loc =
 			offsetof(struct nvme_common_command, cdw10);
-		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		stat = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		break;
 	}
 
@@ -345,11 +348,25 @@ static void nvmet_execute_disc_get_features(struct nvmet_req *req)
 	default:
 		req->error_loc =
 			offsetof(struct nvme_common_command, cdw10);
-		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
+		stat = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
 		break;
 	}
 
 	nvmet_req_complete(req, stat);
+}
+
+u32 nvmet_discovery_cmd_data_len(struct nvmet_req *req)
+{
+	struct nvme_command *cmd = req->cmd;
+
+	switch (cmd->common.opcode) {
+	case nvme_admin_get_log_page:
+		return nvmet_get_log_page_len(req->cmd);
+	case nvme_admin_identify:
+		return NVME_IDENTIFY_DATA_SIZE;
+	default:
+		return 0;
+	}
 }
 
 u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
@@ -361,7 +378,7 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 		       cmd->common.opcode);
 		req->error_loc =
 			offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+		return NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
 	}
 
 	switch (cmd->common.opcode) {
@@ -386,7 +403,7 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	default:
 		pr_debug("unhandled cmd %d\n", cmd->common.opcode);
 		req->error_loc = offsetof(struct nvme_common_command, opcode);
-		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+		return NVME_SC_INVALID_OPCODE | NVME_STATUS_DNR;
 	}
 
 }

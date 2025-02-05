@@ -23,33 +23,30 @@
 #define STUB_START stub_start
 #define STUB_CODE STUB_START
 #define STUB_DATA (STUB_CODE + UM_KERN_PAGE_SIZE)
-#define STUB_DATA_PAGES 1 /* must be a power of two */
+#define STUB_DATA_PAGES 2 /* must be a power of two */
 #define STUB_END (STUB_DATA + STUB_DATA_PAGES * UM_KERN_PAGE_SIZE)
 
 #ifndef __ASSEMBLY__
 
 #include <sysdep/ptrace.h>
 
-struct cpu_task {
-	int pid;
-	void *task;
-};
+struct task_struct;
+extern struct task_struct *cpu_tasks[];
 
-extern struct cpu_task cpu_tasks[];
+extern unsigned long long physmem_size;
 
 extern unsigned long high_physmem;
 extern unsigned long uml_physmem;
 extern unsigned long uml_reserved;
 extern unsigned long end_vm;
 extern unsigned long start_vm;
-extern unsigned long long highmem;
 
 extern unsigned long brk_start;
 
 extern unsigned long host_task_size;
 extern unsigned long stub_start;
 
-extern int linux_main(int argc, char **argv);
+extern int linux_main(int argc, char **argv, char **envp);
 extern void uml_finishsetup(void);
 
 struct siginfo;

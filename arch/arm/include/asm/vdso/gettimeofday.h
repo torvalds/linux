@@ -15,8 +15,6 @@
 
 #define VDSO_HAS_CLOCK_GETRES		1
 
-extern struct vdso_data *__get_datapage(void);
-
 static __always_inline int gettimeofday_fallback(
 				struct __kernel_old_timeval *_tv,
 				struct timezone *_tz)
@@ -139,7 +137,7 @@ static __always_inline u64 __arch_get_hw_counter(int clock_mode,
 
 static __always_inline const struct vdso_data *__arch_get_vdso_data(void)
 {
-	return __get_datapage();
+	return _vdso_data;
 }
 
 #endif /* !__ASSEMBLY__ */

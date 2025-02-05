@@ -226,7 +226,7 @@ static irqreturn_t pic32_sqi_isr(int irq, void *dev_id)
 	if (status & PESQI_PKTCOMP) {
 		/* mask all interrupts */
 		enable = 0;
-		/* complete trasaction */
+		/* complete transaction */
 		complete(&sqi->xfer_done);
 	}
 
@@ -344,7 +344,7 @@ static int pic32_sqi_one_message(struct spi_controller *host,
 	struct spi_transfer *xfer;
 	struct pic32_sqi *sqi;
 	int ret = 0, mode;
-	unsigned long timeout;
+	unsigned long time_left;
 	u32 val;
 
 	sqi = spi_controller_get_devdata(host);
@@ -410,8 +410,8 @@ static int pic32_sqi_one_message(struct spi_controller *host,
 	writel(val, sqi->regs + PESQI_BD_CTRL_REG);
 
 	/* wait for xfer completion */
-	timeout = wait_for_completion_timeout(&sqi->xfer_done, 5 * HZ);
-	if (timeout == 0) {
+	time_left = wait_for_completion_timeout(&sqi->xfer_done, 5 * HZ);
+	if (time_left == 0) {
 		dev_err(&sqi->host->dev, "wait timedout/interrupted\n");
 		ret = -ETIMEDOUT;
 		msg->status = ret;
@@ -682,7 +682,7 @@ static struct platform_driver pic32_sqi_driver = {
 		.of_match_table = of_match_ptr(pic32_sqi_of_ids),
 	},
 	.probe = pic32_sqi_probe,
-	.remove_new = pic32_sqi_remove,
+	.remove = pic32_sqi_remove,
 };
 
 module_platform_driver(pic32_sqi_driver);

@@ -5,13 +5,13 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2021-2023  Intel Corporation
+ * Copyright 2021-2024  Intel Corporation
  */
 
 #include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "mesh.h"
@@ -696,6 +696,23 @@ static void ieee80211_handle_smps_status(struct ieee80211_sub_if_data *sdata,
 	wiphy_work_queue(sdata->local->hw.wiphy, &link->u.mgd.recalc_smps);
 }
 
+static void
+ieee80211_handle_teardown_ttlm_status(struct ieee80211_sub_if_data *sdata,
+				      bool acked)
+{
+	if (!sdata || !ieee80211_sdata_running(sdata))
+		return;
+
+	if (!acked)
+		return;
+
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return;
+
+	wiphy_work_queue(sdata->local->hw.wiphy,
+			 &sdata->u.mgd.teardown_ttlm_work);
+}
+
 static void ieee80211_report_used_skb(struct ieee80211_local *local,
 				      struct sk_buff *skb, bool dropped,
 				      ktime_t ack_hwtstamp)
@@ -772,6 +789,9 @@ static void ieee80211_report_used_skb(struct ieee80211_local *local,
 		case IEEE80211_STATUS_TYPE_SMPS:
 			ieee80211_handle_smps_status(sdata, acked,
 						     info->status_data);
+			break;
+		case IEEE80211_STATUS_TYPE_NEG_TTLM:
+			ieee80211_handle_teardown_ttlm_status(sdata, acked);
 			break;
 		}
 		rcu_read_unlock();
@@ -905,6 +925,9 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
 			if (!ieee80211_sdata_running(sdata))
+				continue;
+
+			if (sdata->u.mntr.flags & MONITOR_FLAG_SKIP_TX)
 				continue;
 
 			if ((sdata->u.mntr.flags & MONITOR_FLAG_COOK_FRAMES) &&
@@ -1079,7 +1102,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	 * This is a bit racy but we can avoid a lot of work
 	 * with this test...
 	 */
-	if (!local->monitors && (!send_to_cooked || !local->cooked_mntrs)) {
+	if (!local->tx_mntrs && (!send_to_cooked || !local->cooked_mntrs)) {
 		if (status->free_list)
 			list_add_tail(&skb->list, status->free_list);
 		else
@@ -1281,3 +1304,4 @@ void ieee80211_purge_tx_queue(struct ieee80211_hw *hw,
 	while ((skb = __skb_dequeue(skbs)))
 		ieee80211_free_txskb(hw, skb);
 }
+EXPORT_SYMBOL(ieee80211_purge_tx_queue);

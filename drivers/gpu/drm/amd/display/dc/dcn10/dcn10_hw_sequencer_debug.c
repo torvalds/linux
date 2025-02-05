@@ -40,13 +40,13 @@
 #include "ipp.h"
 #include "mpc.h"
 #include "reg_helper.h"
-#include "dcn10_hubp.h"
-#include "dcn10_hubbub.h"
+#include "dcn10/dcn10_hubp.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
 __printf(3, 4)
-unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, const char *fmt, ...)
 {
 	int ret_vsnprintf;
 	unsigned int chars_printed;

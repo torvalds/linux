@@ -44,9 +44,34 @@ static const unsigned int tps6287x_voltage_range_sel[] = {
 	0x0, 0x1, 0x2, 0x3
 };
 
+static const unsigned int tps6287x_voltage_range_prefix[] = {
+	0x000, 0x100, 0x200, 0x300
+};
+
 static const unsigned int tps6287x_ramp_table[] = {
 	10000, 5000, 1250, 500
 };
+
+struct tps6287x_reg_data {
+	int range;
+};
+
+static int tps6287x_best_range(struct regulator_config *config, const struct regulator_desc *desc)
+{
+	const struct linear_range *r;
+	int i;
+
+	if (!config->init_data->constraints.apply_uV)
+		return -1;
+
+	for (i = 0; i < desc->n_linear_ranges; i++) {
+		r = &desc->linear_ranges[i];
+		if (r->min <= config->init_data->constraints.min_uV &&
+		    config->init_data->constraints.max_uV <= linear_range_get_max_value(r))
+			return i;
+	}
+	return -1;
+}
 
 static int tps6287x_set_mode(struct regulator_dev *rdev, unsigned int mode)
 {
@@ -91,6 +116,28 @@ static unsigned int tps6287x_of_map_mode(unsigned int mode)
 	}
 }
 
+static int tps6287x_map_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
+{
+	struct tps6287x_reg_data *data = (struct tps6287x_reg_data *)rdev->reg_data;
+	struct linear_range selected_range;
+	int selector, voltage;
+
+	if (!data || data->range == -1)
+		return regulator_map_voltage_pickable_linear_range(rdev, min_uV, max_uV);
+
+	selected_range = rdev->desc->linear_ranges[data->range];
+	selector = DIV_ROUND_UP(min_uV - selected_range.min, selected_range.step);
+	if (selector < selected_range.min_sel || selector > selected_range.max_sel)
+		return -EINVAL;
+
+	selector |= tps6287x_voltage_range_prefix[data->range];
+	voltage = rdev->desc->ops->list_voltage(rdev, selector);
+	if (voltage < min_uV || voltage > max_uV)
+		return -EINVAL;
+
+	return selector;
+}
+
 static const struct regulator_ops tps6287x_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -100,10 +147,11 @@ static const struct regulator_ops tps6287x_regulator_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_pickable_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_pickable_regmap,
 	.list_voltage = regulator_list_voltage_pickable_linear_range,
+	.map_voltage = tps6287x_map_voltage,
 	.set_ramp_delay = regulator_set_ramp_delay_regmap,
 };
 
-static struct regulator_desc tps6287x_reg = {
+static const struct regulator_desc tps6287x_reg = {
 	.name = "tps6287x",
 	.owner = THIS_MODULE,
 	.ops = &tps6287x_regulator_ops,
@@ -115,6 +163,7 @@ static struct regulator_desc tps6287x_reg = {
 	.vsel_mask = 0xFF,
 	.vsel_range_reg = TPS6287X_CTRL2,
 	.vsel_range_mask = TPS6287X_CTRL2_VRANGE,
+	.range_applied_by_vsel = true,
 	.ramp_reg = TPS6287X_CTRL1,
 	.ramp_mask = TPS6287X_CTRL1_VRAMP,
 	.ramp_delay_table = tps6287x_ramp_table,
@@ -129,7 +178,13 @@ static int tps6287x_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct regulator_config config = {};
+	struct tps6287x_reg_data *reg_data;
 	struct regulator_dev *rdev;
+
+	reg_data = devm_kzalloc(dev, sizeof(struct tps6287x_reg_data), GFP_KERNEL);
+
+	if (!reg_data)
+		return -ENOMEM;
 
 	config.regmap = devm_regmap_init_i2c(i2c, &tps6287x_regmap_config);
 	if (IS_ERR(config.regmap)) {
@@ -142,12 +197,15 @@ static int tps6287x_i2c_probe(struct i2c_client *i2c)
 	config.init_data = of_get_regulator_init_data(dev, dev->of_node,
 						      &tps6287x_reg);
 
+	reg_data->range = tps6287x_best_range(&config, &tps6287x_reg);
+
 	rdev = devm_regulator_register(dev, &tps6287x_reg, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(dev, "Failed to register regulator\n");
 		return PTR_ERR(rdev);
 	}
 
+	rdev->reg_data = (void *)reg_data;
 	dev_dbg(dev, "Probed regulator\n");
 
 	return 0;
@@ -164,11 +222,11 @@ static const struct of_device_id tps6287x_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, tps6287x_dt_ids);
 
 static const struct i2c_device_id tps6287x_i2c_id[] = {
-	{ "tps62870", 0 },
-	{ "tps62871", 0 },
-	{ "tps62872", 0 },
-	{ "tps62873", 0 },
-	{},
+	{ "tps62870" },
+	{ "tps62871" },
+	{ "tps62872" },
+	{ "tps62873" },
+	{}
 };
 
 MODULE_DEVICE_TABLE(i2c, tps6287x_i2c_id);

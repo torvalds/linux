@@ -102,7 +102,7 @@
 	};
 
 	pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a57-pmu";
 		interrupts = <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
@@ -134,7 +134,6 @@
 		brcm,pcie-ob;
 		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x00000000>;
-		brcm,pcie-ob-window-size = <256>;
 
 		status = "disabled";
 
@@ -165,7 +164,6 @@
 		brcm,pcie-ob;
 		brcm,pcie-ob-oarr-size;
 		brcm,pcie-ob-axi-offset = <0x30000000>;
-		brcm,pcie-ob-window-size = <256>;
 
 		status = "disabled";
 

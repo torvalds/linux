@@ -36,7 +36,7 @@ properties:
   clock-controller:
     # Child node
     type: object
-    $ref: ../clock/canaan,k210-clk.yaml
+    $ref: /schemas/clock/canaan,k210-clk.yaml
     description:
       Clock controller for the SoC clocks. This child node definition
       should follow the bindings specified in
@@ -45,7 +45,7 @@ properties:
   reset-controller:
     # Child node
     type: object
-    $ref: ../reset/canaan,k210-rst.yaml
+    $ref: /schemas/reset/canaan,k210-rst.yaml
     description:
       Reset controller for the SoC. This child node definition
       should follow the bindings specified in
@@ -54,7 +54,7 @@ properties:
   syscon-reboot:
     # Child node
     type: object
-    $ref: ../power/reset/syscon-reboot.yaml
+    $ref: /schemas/power/reset/syscon-reboot.yaml
     description:
       Reboot method for the SoC. This child node definition
       should follow the bindings specified in

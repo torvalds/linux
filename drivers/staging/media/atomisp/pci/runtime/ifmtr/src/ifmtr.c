@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include "system_global.h"
@@ -381,17 +372,6 @@ int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 			      * vmem_increment);
 
 	vectors_per_buffer = buffer_height * buffer_width / ISP_VEC_NELEMS;
-
-	if (config->mode == IA_CSS_INPUT_MODE_TPG &&
-	    ((binary && binary->info->sp.pipeline.mode == IA_CSS_BINARY_MODE_VIDEO) ||
-	     (!binary))) {
-		/* !binary -> sp raw copy pipe */
-		/* workaround for TPG in video mode */
-		start_line = 0;
-		start_column = 0;
-		cropped_height -= start_line;
-		width_a -= start_column;
-	}
 
 	if_a_config.start_line = start_line;
 	if_a_config.start_column = start_column;

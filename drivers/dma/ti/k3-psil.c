@@ -106,4 +106,5 @@ int psil_set_new_ep_config(struct device *dev, const char *name,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(psil_set_new_ep_config);
+MODULE_DESCRIPTION("K3 PSI-L endpoint configuration");
 MODULE_LICENSE("GPL v2");

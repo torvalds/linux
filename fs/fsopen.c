@@ -78,7 +78,6 @@ static int fscontext_release(struct inode *inode, struct file *file)
 const struct file_operations fscontext_fops = {
 	.read		= fscontext_read,
 	.release	= fscontext_release,
-	.llseek		= no_llseek,
 };
 
 /*
@@ -220,10 +219,6 @@ static int vfs_cmd_create(struct fs_context *fc, bool exclusive)
 	if (!mount_capable(fc))
 		return -EPERM;
 
-	/* require the new mount api */
-	if (exclusive && fc->ops == &legacy_fs_context_ops)
-		return -EOPNOTSUPP;
-
 	fc->phase = FS_CONTEXT_CREATING;
 	fc->exclusive = exclusive;
 
@@ -354,7 +349,6 @@ SYSCALL_DEFINE5(fsconfig,
 		int, aux)
 {
 	struct fs_context *fc;
-	struct fd f;
 	int ret;
 	int lookup_flags = 0;
 
@@ -397,31 +391,28 @@ SYSCALL_DEFINE5(fsconfig,
 		return -EOPNOTSUPP;
 	}
 
-	f = fdget(fd);
-	if (!f.file)
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
 		return -EBADF;
-	ret = -EINVAL;
-	if (f.file->f_op != &fscontext_fops)
-		goto out_f;
+	if (fd_file(f)->f_op != &fscontext_fops)
+		return -EINVAL;
 
-	fc = f.file->private_data;
+	fc = fd_file(f)->private_data;
 	if (fc->ops == &legacy_fs_context_ops) {
 		switch (cmd) {
 		case FSCONFIG_SET_BINARY:
 		case FSCONFIG_SET_PATH:
 		case FSCONFIG_SET_PATH_EMPTY:
 		case FSCONFIG_SET_FD:
-			ret = -EOPNOTSUPP;
-			goto out_f;
+		case FSCONFIG_CMD_CREATE_EXCL:
+			return -EOPNOTSUPP;
 		}
 	}
 
 	if (_key) {
 		param.key = strndup_user(_key, 256);
-		if (IS_ERR(param.key)) {
-			ret = PTR_ERR(param.key);
-			goto out_f;
-		}
+		if (IS_ERR(param.key))
+			return PTR_ERR(param.key);
 	}
 
 	switch (cmd) {
@@ -451,7 +442,7 @@ SYSCALL_DEFINE5(fsconfig,
 		fallthrough;
 	case FSCONFIG_SET_PATH:
 		param.type = fs_value_is_filename;
-		param.name = getname_flags(_value, lookup_flags, NULL);
+		param.name = getname_flags(_value, lookup_flags);
 		if (IS_ERR(param.name)) {
 			ret = PTR_ERR(param.name);
 			goto out_key;
@@ -500,7 +491,5 @@ SYSCALL_DEFINE5(fsconfig,
 	}
 out_key:
 	kfree(param.key);
-out_f:
-	fdput(f);
 	return ret;
 }

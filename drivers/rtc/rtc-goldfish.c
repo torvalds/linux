@@ -203,4 +203,5 @@ static struct platform_driver goldfish_rtc = {
 
 module_platform_driver(goldfish_rtc);
 
+MODULE_DESCRIPTION("Android Goldfish Real Time Clock driver");
 MODULE_LICENSE("GPL v2");

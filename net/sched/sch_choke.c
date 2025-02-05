@@ -123,10 +123,10 @@ static void choke_drop_by_idx(struct Qdisc *sch, unsigned int idx,
 	if (idx == q->tail)
 		choke_zap_tail_holes(q);
 
+	--sch->q.qlen;
 	qdisc_qstats_backlog_dec(sch, skb);
 	qdisc_tree_reduce_backlog(sch, 1, qdisc_pkt_len(skb));
 	qdisc_drop(skb, sch, to_free);
-	--sch->q.qlen;
 }
 
 struct choke_skb_cb {
@@ -356,7 +356,7 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	    tb[TCA_CHOKE_STAB] == NULL)
 		return -EINVAL;
 
-	max_P = tb[TCA_CHOKE_MAX_P] ? nla_get_u32(tb[TCA_CHOKE_MAX_P]) : 0;
+	max_P = nla_get_u32_default(tb[TCA_CHOKE_MAX_P], 0);
 
 	ctl = nla_data(tb[TCA_CHOKE_PARMS]);
 	stab = nla_data(tb[TCA_CHOKE_STAB]);
@@ -405,8 +405,8 @@ static int choke_change(struct Qdisc *sch, struct nlattr *opt,
 	} else
 		sch_tree_lock(sch);
 
-	q->flags = ctl->flags;
-	q->limit = ctl->limit;
+	WRITE_ONCE(q->flags, ctl->flags);
+	WRITE_ONCE(q->limit, ctl->limit);
 
 	red_set_parms(&q->parms, ctl->qth_min, ctl->qth_max, ctl->Wlog,
 		      ctl->Plog, ctl->Scell_log,
@@ -431,15 +431,16 @@ static int choke_init(struct Qdisc *sch, struct nlattr *opt,
 static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct choke_sched_data *q = qdisc_priv(sch);
+	u8 Wlog = READ_ONCE(q->parms.Wlog);
 	struct nlattr *opts = NULL;
 	struct tc_red_qopt opt = {
-		.limit		= q->limit,
-		.flags		= q->flags,
-		.qth_min	= q->parms.qth_min >> q->parms.Wlog,
-		.qth_max	= q->parms.qth_max >> q->parms.Wlog,
-		.Wlog		= q->parms.Wlog,
-		.Plog		= q->parms.Plog,
-		.Scell_log	= q->parms.Scell_log,
+		.limit		= READ_ONCE(q->limit),
+		.flags		= READ_ONCE(q->flags),
+		.qth_min	= READ_ONCE(q->parms.qth_min) >> Wlog,
+		.qth_max	= READ_ONCE(q->parms.qth_max) >> Wlog,
+		.Wlog		= Wlog,
+		.Plog		= READ_ONCE(q->parms.Plog),
+		.Scell_log	= READ_ONCE(q->parms.Scell_log),
 	};
 
 	opts = nla_nest_start_noflag(skb, TCA_OPTIONS);
@@ -447,7 +448,7 @@ static int choke_dump(struct Qdisc *sch, struct sk_buff *skb)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_CHOKE_PARMS, sizeof(opt), &opt) ||
-	    nla_put_u32(skb, TCA_CHOKE_MAX_P, q->parms.max_P))
+	    nla_put_u32(skb, TCA_CHOKE_MAX_P, READ_ONCE(q->parms.max_P)))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 

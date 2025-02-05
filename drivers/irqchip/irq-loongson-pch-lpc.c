@@ -15,6 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/syscore_ops.h>
 
+#include "irq-loongson.h"
+
 /* Registers */
 #define LPC_INT_CTL		0x00
 #define LPC_INT_ENA		0x04

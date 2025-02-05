@@ -23,7 +23,6 @@ struct pci_epf_group {
 	struct config_group group;
 	struct config_group primary_epc_group;
 	struct config_group secondary_epc_group;
-	struct config_group *type_group;
 	struct delayed_work cfs_work;
 	struct pci_epf *epf;
 	int index;
@@ -63,6 +62,9 @@ static int pci_secondary_epc_epf_link(struct config_item *epf_item,
 		pci_epc_remove_epf(epc, epf, SECONDARY_INTERFACE);
 		return ret;
 	}
+
+	/* Send any pending EPC initialization complete to the EPF driver */
+	pci_epc_notify_pending_init(epc, epf);
 
 	return 0;
 }
@@ -124,6 +126,9 @@ static int pci_primary_epc_epf_link(struct config_item *epf_item,
 		pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 		return ret;
 	}
+
+	/* Send any pending EPC initialization complete to the EPF driver */
+	pci_epc_notify_pending_init(epc, epf);
 
 	return 0;
 }
@@ -229,6 +234,9 @@ static int pci_epc_epf_link(struct config_item *epc_item,
 		pci_epc_remove_epf(epc, epf, PRIMARY_INTERFACE);
 		return ret;
 	}
+
+	/* Send any pending EPC initialization complete to the EPF driver */
+	pci_epc_notify_pending_init(epc, epf);
 
 	return 0;
 }

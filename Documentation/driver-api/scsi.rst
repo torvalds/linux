@@ -20,7 +20,7 @@ Although the old parallel (fast/wide/ultra) SCSI bus has largely fallen
 out of use, the SCSI command set is more widely used than ever to
 communicate with devices over a number of different busses.
 
-The `SCSI protocol <http://www.t10.org/scsi-3.htm>`__ is a big-endian
+The `SCSI protocol <https://www.t10.org/scsi-3.htm>`__ is a big-endian
 peer-to-peer packet based protocol. SCSI commands are 6, 10, 12, or 16
 bytes long, often followed by an associated data payload.
 
@@ -28,8 +28,7 @@ SCSI commands can be transported over just about any kind of bus, and
 are the default protocol for storage devices attached to USB, SATA, SAS,
 Fibre Channel, FireWire, and ATAPI devices. SCSI packets are also
 commonly exchanged over Infiniband,
-`I2O <http://i2o.shadowconnect.com/faq.php>`__, TCP/IP
-(`iSCSI <https://en.wikipedia.org/wiki/ISCSI>`__), even `Parallel
+TCP/IP (`iSCSI <https://en.wikipedia.org/wiki/ISCSI>`__), even `Parallel
 ports <http://cyberelk.net/tim/parport/parscsi.html>`__.
 
 Design of the Linux SCSI subsystem
@@ -127,7 +126,7 @@ Manage scsi_dev_info_list, which tracks blacklisted and whitelisted
 devices.
 
 .. kernel-doc:: drivers/scsi/scsi_devinfo.c
-   :internal:
+   :export:
 
 drivers/scsi/scsi_ioctl.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -163,16 +162,15 @@ statistics and to pass information directly to the lowlevel driver. I.E.
 plumbing to manage /proc/scsi/\*
 
 .. kernel-doc:: drivers/scsi/scsi_proc.c
-   :internal:
 
 drivers/scsi/scsi_netlink.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Infrastructure to provide async events from transports to userspace via
 netlink, using a single NETLINK_SCSITRANSPORT protocol for all
-transports. See `the original patch
-submission <http://marc.info/?l=linux-scsi&m=115507374832500&w=2>`__ for
-more details.
+transports. See `the original patch submission
+<https://lore.kernel.org/linux-scsi/1155070439.6275.5.camel@localhost.localdomain/>`__
+for more details.
 
 .. kernel-doc:: drivers/scsi/scsi_netlink.c
    :internal:
@@ -194,7 +192,7 @@ else, sequentially scan LUNs up until some maximum is reached, or a LUN
 is seen that cannot have a device attached to it.
 
 .. kernel-doc:: drivers/scsi/scsi_scan.c
-   :internal:
+   :export:
 
 drivers/scsi/scsi_sysctl.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -259,7 +257,7 @@ attributes for Serial Attached SCSI, a variant of SATA aimed at large
 high-end systems.
 
 The SAS transport class contains common code to deal with SAS HBAs, an
-aproximated representation of SAS topologies in the driver model, and
+approximated representation of SAS topologies in the driver model, and
 various sysfs attributes to expose these topologies and management
 interfaces to userspace.
 
@@ -328,11 +326,11 @@ the ordinary is seen.
 To be more realistic, the simulated devices have the transport
 attributes of SAS disks.
 
-For documentation see http://sg.danny.cz/sg/sdebug26.html
+For documentation see http://sg.danny.cz/sg/scsi_debug.html
 
 todo
 ~~~~
 
 Parallel (fast/wide/ultra) SCSI, USB, SATA, SAS, Fibre Channel,
-FireWire, ATAPI devices, Infiniband, I2O, Parallel ports,
+FireWire, ATAPI devices, Infiniband, Parallel ports,
 netlink...

@@ -72,7 +72,6 @@ static int create_beep_ctls(struct hda_codec *codec)
 #define create_beep_ctls(codec)		0
 #endif
 
-#ifdef CONFIG_PM
 static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 				hda_nid_t hp)
 {
@@ -118,7 +117,6 @@ static int ad198x_suspend(struct hda_codec *codec)
 	ad198x_power_eapd(codec);
 	return 0;
 }
-#endif
 
 /* follow EAPD via vmaster hook */
 static void ad_vmaster_eapd_hook(void *private_data, int enabled)
@@ -158,10 +156,8 @@ static const struct hda_codec_ops ad198x_auto_patch_ops = {
 	.init = snd_hda_gen_init,
 	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
-#ifdef CONFIG_PM
 	.check_power_status = snd_hda_gen_check_power_status,
 	.suspend = ad198x_suspend,
-#endif
 };
 
 
@@ -349,7 +345,7 @@ static const struct hda_fixup ad1986a_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk ad1986a_fixup_tbl[] = {
+static const struct hda_quirk ad1986a_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x30af, "HP B2800", AD1986A_FIXUP_LAPTOP_IMIC),
 	SND_PCI_QUIRK(0x1043, 0x1153, "ASUS M9V", AD1986A_FIXUP_LAPTOP_IMIC),
 	SND_PCI_QUIRK(0x1043, 0x1443, "ASUS Z99He", AD1986A_FIXUP_EAPD),
@@ -592,7 +588,7 @@ static const struct hda_fixup ad1981_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk ad1981_fixup_tbl[] = {
+static const struct hda_quirk ad1981_fixup_tbl[] = {
 	SND_PCI_QUIRK_VENDOR(0x1014, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1981_FIXUP_HP_EAPD),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", AD1981_FIXUP_AMP_OVERRIDE),
@@ -1065,7 +1061,7 @@ static const struct hda_fixup ad1884_fixups[] = {
 	},
 };
 
-static const struct snd_pci_quirk ad1884_fixup_tbl[] = {
+static const struct hda_quirk ad1884_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a82, "HP Touchsmart", AD1884_FIXUP_HP_TOUCHSMART),
 	SND_PCI_QUIRK_VENDOR(0x103c, "HP", AD1884_FIXUP_HP_EAPD),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo Thinkpad", AD1884_FIXUP_THINKPAD),

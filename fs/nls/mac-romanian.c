@@ -598,4 +598,5 @@ static void __exit exit_nls_macromanian(void)
 module_init(init_nls_macromanian)
 module_exit(exit_nls_macromanian)
 
+MODULE_DESCRIPTION("NLS Codepage macromanian");
 MODULE_LICENSE("Dual BSD/GPL");

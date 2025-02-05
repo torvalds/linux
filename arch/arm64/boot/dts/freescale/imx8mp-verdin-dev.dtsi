@@ -4,6 +4,18 @@
  */
 
 / {
+	native-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X37";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	reg_eth2phy: regulator-eth2phy {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -22,7 +34,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&codec_dai>;
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "imx8mp-nau8822";
+		simple-audio-card,name = "verdin-nau8822";
 		simple-audio-card,routing =
 			"Headphones", "LHP",
 			"Headphones", "RHP",
@@ -50,6 +62,11 @@
 			sound-dai = <&sai1>;
 		};
 	};
+};
+
+/* Verdin HDMI_1 Audio */
+&aud2htx {
+	status = "okay";
 };
 
 &backlight {
@@ -93,9 +110,35 @@
 	status = "okay";
 };
 
+&gpio4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
+};
+
 &gpio_expander_21 {
 	status = "okay";
 	vcc-supply = <&reg_1p8v>;
+};
+
+/* Verdin HDMI_1 */
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
 };
 
 /* Current measurement into module VCC */
@@ -129,6 +172,15 @@
 		pinctrl-0 = <&pinctrl_sai1>;
 		#sound-dai-cells = <0>;
 	};
+};
+
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	status = "okay";
+};
+
+&lcdif3 {
+	status = "okay";
 };
 
 /* Verdin PCIE_1 */
@@ -165,6 +217,11 @@
 	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
 	assigned-clock-rates = <24576000>;
 	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
+/* Verdin HDMI_1 Audio */
+&sound_hdmi {
 	status = "okay";
 };
 

@@ -37,6 +37,7 @@ static struct nvmet_type_name_map nvmet_transport[] = {
 	{ NVMF_TRTYPE_RDMA,	"rdma" },
 	{ NVMF_TRTYPE_FC,	"fc" },
 	{ NVMF_TRTYPE_TCP,	"tcp" },
+	{ NVMF_TRTYPE_PCI,	"pci" },
 	{ NVMF_TRTYPE_LOOP,	"loop" },
 };
 
@@ -46,6 +47,7 @@ static const struct nvmet_type_name_map nvmet_addr_family[] = {
 	{ NVMF_ADDR_FAMILY_IP6,		"ipv6" },
 	{ NVMF_ADDR_FAMILY_IB,		"ib" },
 	{ NVMF_ADDR_FAMILY_FC,		"fc" },
+	{ NVMF_ADDR_FAMILY_PCI,		"pci" },
 	{ NVMF_ADDR_FAMILY_LOOP,	"loop" },
 };
 
@@ -410,7 +412,29 @@ static ssize_t nvmet_addr_tsas_show(struct config_item *item,
 				return sprintf(page, "%s\n", nvmet_addr_tsas_rdma[i].name);
 		}
 	}
-	return sprintf(page, "reserved\n");
+	return sprintf(page, "\n");
+}
+
+static u8 nvmet_addr_tsas_rdma_store(const char *page)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_rdma); i++) {
+		if (sysfs_streq(page, nvmet_addr_tsas_rdma[i].name))
+			return nvmet_addr_tsas_rdma[i].type;
+	}
+	return NVMF_RDMA_QPTYPE_INVALID;
+}
+
+static u8 nvmet_addr_tsas_tcp_store(const char *page)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_tcp); i++) {
+		if (sysfs_streq(page, nvmet_addr_tsas_tcp[i].name))
+			return nvmet_addr_tsas_tcp[i].type;
+	}
+	return NVMF_TCP_SECTYPE_INVALID;
 }
 
 static ssize_t nvmet_addr_tsas_store(struct config_item *item,
@@ -418,20 +442,19 @@ static ssize_t nvmet_addr_tsas_store(struct config_item *item,
 {
 	struct nvmet_port *port = to_nvmet_port(item);
 	u8 treq = nvmet_port_disc_addr_treq_mask(port);
-	u8 sectype;
-	int i;
+	u8 sectype, qptype;
 
 	if (nvmet_is_port_enabled(port, __func__))
 		return -EACCES;
 
-	if (port->disc_addr.trtype != NVMF_TRTYPE_TCP)
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(nvmet_addr_tsas_tcp); i++) {
-		if (sysfs_streq(page, nvmet_addr_tsas_tcp[i].name)) {
-			sectype = nvmet_addr_tsas_tcp[i].type;
+	if (port->disc_addr.trtype == NVMF_TRTYPE_RDMA) {
+		qptype = nvmet_addr_tsas_rdma_store(page);
+		if (qptype == port->disc_addr.tsas.rdma.qptype)
+			return count;
+	} else if (port->disc_addr.trtype == NVMF_TRTYPE_TCP) {
+		sectype = nvmet_addr_tsas_tcp_store(page);
+		if (sectype != NVMF_TCP_SECTYPE_INVALID)
 			goto found;
-		}
 	}
 
 	pr_err("Invalid value '%s' for tsas\n", page);
@@ -676,10 +699,18 @@ static ssize_t nvmet_ns_enable_store(struct config_item *item,
 	if (kstrtobool(page, &enable))
 		return -EINVAL;
 
+	/*
+	 * take a global nvmet_config_sem because the disable routine has a
+	 * window where it releases the subsys-lock, giving a chance to
+	 * a parallel enable to concurrently execute causing the disable to
+	 * have a misaccounting of the ns percpu_ref.
+	 */
+	down_write(&nvmet_config_sem);
 	if (enable)
 		ret = nvmet_ns_enable(ns);
 	else
 		nvmet_ns_disable(ns);
+	up_write(&nvmet_config_sem);
 
 	return ret ? ret : count;
 }
@@ -740,6 +771,32 @@ static ssize_t nvmet_ns_revalidate_size_store(struct config_item *item,
 
 CONFIGFS_ATTR_WO(nvmet_ns_, revalidate_size);
 
+static ssize_t nvmet_ns_resv_enable_show(struct config_item *item, char *page)
+{
+	return sysfs_emit(page, "%d\n", to_nvmet_ns(item)->pr.enable);
+}
+
+static ssize_t nvmet_ns_resv_enable_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_ns *ns = to_nvmet_ns(item);
+	bool val;
+
+	if (kstrtobool(page, &val))
+		return -EINVAL;
+
+	mutex_lock(&ns->subsys->lock);
+	if (ns->enabled) {
+		pr_err("the ns:%d is already enabled.\n", ns->nsid);
+		mutex_unlock(&ns->subsys->lock);
+		return -EINVAL;
+	}
+	ns->pr.enable = val;
+	mutex_unlock(&ns->subsys->lock);
+	return count;
+}
+CONFIGFS_ATTR(nvmet_ns_, resv_enable);
+
 static struct configfs_attribute *nvmet_ns_attrs[] = {
 	&nvmet_ns_attr_device_path,
 	&nvmet_ns_attr_device_nguid,
@@ -748,6 +805,7 @@ static struct configfs_attribute *nvmet_ns_attrs[] = {
 	&nvmet_ns_attr_enable,
 	&nvmet_ns_attr_buffered_io,
 	&nvmet_ns_attr_revalidate_size,
+	&nvmet_ns_attr_resv_enable,
 #ifdef CONFIG_PCI_P2PDMA
 	&nvmet_ns_attr_p2pmem,
 #endif
@@ -1344,6 +1402,49 @@ out_unlock:
 }
 CONFIGFS_ATTR(nvmet_subsys_, attr_cntlid_max);
 
+static ssize_t nvmet_subsys_attr_vendor_id_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "0x%x\n", to_subsys(item)->vendor_id);
+}
+
+static ssize_t nvmet_subsys_attr_vendor_id_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	u16 vid;
+
+	if (kstrtou16(page, 0, &vid))
+		return -EINVAL;
+
+	down_write(&nvmet_config_sem);
+	to_subsys(item)->vendor_id = vid;
+	up_write(&nvmet_config_sem);
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_vendor_id);
+
+static ssize_t nvmet_subsys_attr_subsys_vendor_id_show(struct config_item *item,
+		char *page)
+{
+	return snprintf(page, PAGE_SIZE, "0x%x\n",
+			to_subsys(item)->subsys_vendor_id);
+}
+
+static ssize_t nvmet_subsys_attr_subsys_vendor_id_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	u16 ssvid;
+
+	if (kstrtou16(page, 0, &ssvid))
+		return -EINVAL;
+
+	down_write(&nvmet_config_sem);
+	to_subsys(item)->subsys_vendor_id = ssvid;
+	up_write(&nvmet_config_sem);
+	return count;
+}
+CONFIGFS_ATTR(nvmet_subsys_, attr_subsys_vendor_id);
+
 static ssize_t nvmet_subsys_attr_model_show(struct config_item *item,
 					    char *page)
 {
@@ -1572,6 +1673,8 @@ static struct configfs_attribute *nvmet_subsys_attrs[] = {
 	&nvmet_subsys_attr_attr_serial,
 	&nvmet_subsys_attr_attr_cntlid_min,
 	&nvmet_subsys_attr_attr_cntlid_max,
+	&nvmet_subsys_attr_attr_vendor_id,
+	&nvmet_subsys_attr_attr_subsys_vendor_id,
 	&nvmet_subsys_attr_attr_model,
 	&nvmet_subsys_attr_attr_qid_max,
 	&nvmet_subsys_attr_attr_ieee_oui,
@@ -1726,6 +1829,7 @@ static struct config_group *nvmet_referral_make(
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&port->entry);
+	port->disc_addr.trtype = NVMF_TRTYPE_MAX;
 	config_group_init_type_name(&port->group, name, &nvmet_referral_type);
 
 	return &port->group;
@@ -1951,6 +2055,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 	port->inline_data_size = -1;	/* < 0 == let the transport choose */
 	port->max_queue_size = -1;	/* < 0 == let the transport choose */
 
+	port->disc_addr.trtype = NVMF_TRTYPE_MAX;
 	port->disc_addr.portid = cpu_to_le16(portid);
 	port->disc_addr.adrfam = NVMF_ADDR_FAMILY_MAX;
 	port->disc_addr.treq = NVMF_TREQ_DISABLE_SQFLOW;
@@ -1995,11 +2100,17 @@ static struct config_group nvmet_ports_group;
 static ssize_t nvmet_host_dhchap_key_show(struct config_item *item,
 		char *page)
 {
-	u8 *dhchap_secret = to_host(item)->dhchap_secret;
+	u8 *dhchap_secret;
+	ssize_t ret;
 
+	down_read(&nvmet_config_sem);
+	dhchap_secret = to_host(item)->dhchap_secret;
 	if (!dhchap_secret)
-		return sprintf(page, "\n");
-	return sprintf(page, "%s\n", dhchap_secret);
+		ret = sprintf(page, "\n");
+	else
+		ret = sprintf(page, "%s\n", dhchap_secret);
+	up_read(&nvmet_config_sem);
+	return ret;
 }
 
 static ssize_t nvmet_host_dhchap_key_store(struct config_item *item,
@@ -2023,10 +2134,16 @@ static ssize_t nvmet_host_dhchap_ctrl_key_show(struct config_item *item,
 		char *page)
 {
 	u8 *dhchap_secret = to_host(item)->dhchap_ctrl_secret;
+	ssize_t ret;
 
+	down_read(&nvmet_config_sem);
+	dhchap_secret = to_host(item)->dhchap_ctrl_secret;
 	if (!dhchap_secret)
-		return sprintf(page, "\n");
-	return sprintf(page, "%s\n", dhchap_secret);
+		ret = sprintf(page, "\n");
+	else
+		ret = sprintf(page, "%s\n", dhchap_secret);
+	up_read(&nvmet_config_sem);
+	return ret;
 }
 
 static ssize_t nvmet_host_dhchap_ctrl_key_store(struct config_item *item,
@@ -2174,11 +2291,16 @@ static ssize_t nvmet_root_discovery_nqn_store(struct config_item *item,
 		const char *page, size_t count)
 {
 	struct list_head *entry;
+	char *old_nqn, *new_nqn;
 	size_t len;
 
 	len = strcspn(page, "\n");
 	if (!len || len > NVMF_NQN_FIELD_LEN - 1)
 		return -EINVAL;
+
+	new_nqn = kstrndup(page, len, GFP_KERNEL);
+	if (!new_nqn)
+		return -ENOMEM;
 
 	down_write(&nvmet_config_sem);
 	list_for_each(entry, &nvmet_subsystems_group.cg_children) {
@@ -2188,13 +2310,15 @@ static ssize_t nvmet_root_discovery_nqn_store(struct config_item *item,
 		if (!strncmp(config_item_name(item), page, len)) {
 			pr_err("duplicate NQN %s\n", config_item_name(item));
 			up_write(&nvmet_config_sem);
+			kfree(new_nqn);
 			return -EINVAL;
 		}
 	}
-	memset(nvmet_disc_subsys->subsysnqn, 0, NVMF_NQN_FIELD_LEN);
-	memcpy(nvmet_disc_subsys->subsysnqn, page, len);
+	old_nqn = nvmet_disc_subsys->subsysnqn;
+	nvmet_disc_subsys->subsysnqn = new_nqn;
 	up_write(&nvmet_config_sem);
 
+	kfree(old_nqn);
 	return len;
 }
 

@@ -102,9 +102,9 @@ int main(int argc, char **argv)
 	printf("[OK]\n");
 
 	set_tz(min, dst);
-	return ksft_exit_pass();
+	ksft_exit_pass();
 
 err:
 	set_tz(min, dst);
-	return ksft_exit_fail();
+	ksft_exit_fail();
 }

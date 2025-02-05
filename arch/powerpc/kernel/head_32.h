@@ -21,17 +21,9 @@
 	mtspr	SPRN_SPRG_SCRATCH1,r11
 	mfspr	r10, SPRN_SPRG_THREAD
 	.if	\handle_dar_dsisr
-#ifdef CONFIG_40x
-	mfspr	r11, SPRN_DEAR
-#else
 	mfspr	r11, SPRN_DAR
-#endif
 	stw	r11, DAR(r10)
-#ifdef CONFIG_40x
-	mfspr	r11, SPRN_ESR
-#else
 	mfspr	r11, SPRN_DSISR
-#endif
 	stw	r11, DSISR(r10)
 	.endif
 	mfspr	r11, SPRN_SRR0
@@ -96,9 +88,7 @@
 	.endif
 	lwz	r9, SRR1(r12)
 	lwz	r12, SRR0(r12)
-#ifdef CONFIG_40x
-	rlwinm	r9,r9,0,14,12		/* clear MSR_WE (necessary?) */
-#elif defined(CONFIG_PPC_8xx)
+#ifdef CONFIG_PPC_8xx
 	mtspr	SPRN_EID, r2		/* Set MSR_RI */
 #else
 	li	r10, MSR_KERNEL		/* can take exceptions */

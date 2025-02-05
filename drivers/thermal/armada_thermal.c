@@ -763,7 +763,6 @@ static void armada_set_sane_name(struct platform_device *pdev,
 				 struct armada_thermal_priv *priv)
 {
 	const char *name = dev_name(&pdev->dev);
-	char *insane_char;
 
 	if (strlen(name) > THERMAL_NAME_LENGTH) {
 		/*
@@ -781,12 +780,8 @@ static void armada_set_sane_name(struct platform_device *pdev,
 	/* Save the name locally */
 	strscpy(priv->zone_name, name, THERMAL_NAME_LENGTH);
 
-	/* Then check there are no '-' or hwmon core will complain */
-	do {
-		insane_char = strpbrk(priv->zone_name, "-");
-		if (insane_char)
-			*insane_char = '_';
-	} while (insane_char);
+	/* Then ensure there are no '-' or hwmon core will complain */
+	strreplace(priv->zone_name, '-', '_');
 }
 
 /*
@@ -975,7 +970,7 @@ static void armada_thermal_exit(struct platform_device *pdev)
 
 static struct platform_driver armada_thermal_driver = {
 	.probe = armada_thermal_probe,
-	.remove_new = armada_thermal_exit,
+	.remove = armada_thermal_exit,
 	.driver = {
 		.name = "armada_thermal",
 		.of_match_table = armada_thermal_id_table,

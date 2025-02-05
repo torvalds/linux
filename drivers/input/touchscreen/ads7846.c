@@ -30,7 +30,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * This code has been heavily tested on a Nokia 770, and lightly
@@ -138,6 +138,7 @@ struct ads7846 {
 	void			*filter_data;
 	int			(*get_pendown_state)(void);
 	struct gpio_desc	*gpio_pendown;
+	struct gpio_desc	*gpio_hsync;
 
 	void			(*wait_for_sync)(void);
 };
@@ -330,7 +331,7 @@ struct ser_req {
 	u8			ref_off;
 	u16			scratch;
 	struct spi_message	msg;
-	struct spi_transfer	xfer[6];
+	struct spi_transfer	xfer[8];
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
@@ -404,8 +405,18 @@ static int ads7846_read12_ser(struct device *dev, unsigned command)
 
 	req->xfer[5].rx_buf = &req->scratch;
 	req->xfer[5].len = 2;
-	CS_CHANGE(req->xfer[5]);
 	spi_message_add_tail(&req->xfer[5], &req->msg);
+
+	/* clear the command register */
+	req->scratch = 0;
+	req->xfer[6].tx_buf = &req->scratch;
+	req->xfer[6].len = 1;
+	spi_message_add_tail(&req->xfer[6], &req->msg);
+
+	req->xfer[7].rx_buf = &req->scratch;
+	req->xfer[7].len = 2;
+	CS_CHANGE(req->xfer[7]);
+	spi_message_add_tail(&req->xfer[7], &req->msg);
 
 	mutex_lock(&ts->lock);
 	ads7846_stop(ts);
@@ -634,10 +645,6 @@ ATTRIBUTE_GROUPS(ads784x);
 
 /*--------------------------------------------------------------------------*/
 
-static void null_wait_for_sync(void)
-{
-}
-
 static int ads7846_debounce_filter(void *ads, int data_idx, int *val)
 {
 	struct ads7846 *ts = ads;
@@ -790,6 +797,28 @@ static int ads7846_filter(struct ads7846 *ts)
 	return 0;
 }
 
+static void ads7846_wait_for_hsync(struct ads7846 *ts)
+{
+	if (ts->wait_for_sync) {
+		ts->wait_for_sync();
+		return;
+	}
+
+	if (!ts->gpio_hsync)
+		return;
+
+	/*
+	 * Wait for HSYNC to assert the line should be flagged
+	 * as active low so here we are waiting for it to assert
+	 */
+	while (!gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+
+	/* Then we wait for it do de-assert */
+	while (gpiod_get_value(ts->gpio_hsync))
+		cpu_relax();
+}
+
 static void ads7846_read_state(struct ads7846 *ts)
 {
 	struct ads7846_packet *packet = ts->packet;
@@ -800,12 +829,12 @@ static void ads7846_read_state(struct ads7846 *ts)
 	packet->last_cmd_idx = 0;
 
 	while (true) {
-		ts->wait_for_sync();
+		ads7846_wait_for_hsync(ts);
 
 		m = &ts->msg[msg_idx];
 		error = spi_sync(ts->spi, m);
 		if (error) {
-			dev_err(&ts->spi->dev, "spi_sync --> %d\n", error);
+			dev_err_ratelimited(&ts->spi->dev, "spi_sync --> %d\n", error);
 			packet->ignore = true;
 			return;
 		}
@@ -1111,6 +1140,16 @@ static const struct of_device_id ads7846_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, ads7846_dt_ids);
 
+static const struct spi_device_id ads7846_spi_ids[] = {
+	{ "tsc2046", 7846 },
+	{ "ads7843", 7843 },
+	{ "ads7845", 7845 },
+	{ "ads7846", 7846 },
+	{ "ads7873", 7873 },
+	{ },
+};
+MODULE_DEVICE_TABLE(spi, ads7846_spi_ids);
+
 static const struct ads7846_platform_data *ads7846_get_props(struct device *dev)
 {
 	struct ads7846_platform_data *pdata;
@@ -1258,7 +1297,11 @@ static int ads7846_probe(struct spi_device *spi)
 		ts->penirq_recheck_delay_usecs =
 				pdata->penirq_recheck_delay_usecs;
 
-	ts->wait_for_sync = pdata->wait_for_sync ? : null_wait_for_sync;
+	ts->wait_for_sync = pdata->wait_for_sync;
+
+	ts->gpio_hsync = devm_gpiod_get_optional(dev, "ti,hsync", GPIOD_IN);
+	if (IS_ERR(ts->gpio_hsync))
+		return PTR_ERR(ts->gpio_hsync);
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(dev));
 	snprintf(ts->name, sizeof(ts->name), "ADS%d Touchscreen", ts->model);
@@ -1386,10 +1429,10 @@ static struct spi_driver ads7846_driver = {
 	},
 	.probe		= ads7846_probe,
 	.remove		= ads7846_remove,
+	.id_table	= ads7846_spi_ids,
 };
 
 module_spi_driver(ads7846_driver);
 
 MODULE_DESCRIPTION("ADS7846 TouchScreen Driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("spi:ads7846");

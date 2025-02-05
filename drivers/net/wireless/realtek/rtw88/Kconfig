@@ -12,6 +12,7 @@ if RTW88
 
 config RTW88_CORE
 	tristate
+	select WANT_DEV_COREDUMP
 
 config RTW88_PCI
 	tristate
@@ -28,11 +29,30 @@ config RTW88_8822B
 config RTW88_8822C
 	tristate
 
+config RTW88_8723X
+	tristate
+
+config RTW88_8703B
+	tristate
+	select RTW88_8723X
+
 config RTW88_8723D
 	tristate
+	select RTW88_8723X
 
 config RTW88_8821C
 	tristate
+
+config RTW88_88XXA
+	tristate
+
+config RTW88_8821A
+	tristate
+	select RTW88_88XXA
+
+config RTW88_8812A
+	tristate
+	select RTW88_88XXA
 
 config RTW88_8822BE
 	tristate "Realtek 8822BE PCI wireless network adapter"
@@ -122,6 +142,20 @@ config RTW88_8723DS
 
 	  802.11n SDIO wireless network adapter
 
+config RTW88_8723CS
+	tristate "Realtek 8723CS SDIO wireless network adapter"
+	depends on MMC
+	select RTW88_CORE
+	select RTW88_SDIO
+	select RTW88_8703B
+	help
+	  Select this option to enable support for 8723CS chipset (EXPERIMENTAL)
+
+	  This module adds support for the 8723CS 802.11n SDIO
+	  wireless network adapter.
+
+	  If you choose to build a module, it'll be called rtw88_8723cs.
+
 config RTW88_8723DU
 	tristate "Realtek 8723DU USB wireless network adapter"
 	depends on USB
@@ -166,6 +200,28 @@ config RTW88_8821CU
 
 	  802.11ac USB wireless network adapter
 
+config RTW88_8821AU
+	tristate "Realtek 8821AU/8811AU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8821A
+	help
+	  Select this option will enable support for 8821AU and 8811AU chipset
+
+	  802.11ac USB wireless network adapter
+
+config RTW88_8812AU
+	tristate "Realtek 8812AU USB wireless network adapter"
+	depends on USB
+	select RTW88_CORE
+	select RTW88_USB
+	select RTW88_8812A
+	help
+	  Select this option will enable support for 8812AU chipset
+
+	  802.11ac USB wireless network adapter
+
 config RTW88_DEBUG
 	bool "Realtek rtw88 debug support"
 	depends on RTW88_CORE
@@ -181,5 +237,10 @@ config RTW88_DEBUGFS
 	  Enable debug support
 
 	  If unsure, say Y to simplify debug problems
+
+config RTW88_LEDS
+	bool
+	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211
+	default y
 
 endif

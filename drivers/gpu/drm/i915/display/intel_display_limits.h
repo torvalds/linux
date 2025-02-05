@@ -50,6 +50,16 @@ enum transcoder {
 };
 
 /*
+ * Global legacy plane identifier. Valid only for primary/sprite
+ * planes on pre-g4x, and only for primary planes on g4x-bdw.
+ */
+enum i9xx_plane_id {
+	PLANE_A,
+	PLANE_B,
+	PLANE_C,
+};
+
+/*
  * Per-pipe plane identifier.
  * I915_MAX_PLANES in the enum below is the maximum (across all platforms)
  * number of planes per CRTC.  Not all platforms really have this many planes,
@@ -60,16 +70,23 @@ enum transcoder {
  * (eg. PLANE_CTL(), PS_PLANE_SEL(), etc.) so adjust with care.
  */
 enum plane_id {
-	PLANE_PRIMARY,
-	PLANE_SPRITE0,
-	PLANE_SPRITE1,
-	PLANE_SPRITE2,
-	PLANE_SPRITE3,
-	PLANE_SPRITE4,
-	PLANE_SPRITE5,
+	/* skl+ universal plane names */
+	PLANE_1,
+	PLANE_2,
+	PLANE_3,
+	PLANE_4,
+	PLANE_5,
+	PLANE_6,
+	PLANE_7,
+
 	PLANE_CURSOR,
 
 	I915_MAX_PLANES,
+
+	/* pre-skl plane names */
+	PLANE_PRIMARY = PLANE_1,
+	PLANE_SPRITE0,
+	PLANE_SPRITE1,
 };
 
 enum port {

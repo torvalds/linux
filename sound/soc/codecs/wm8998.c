@@ -1426,7 +1426,7 @@ static struct platform_driver wm8998_codec_driver = {
 		.name = "wm8998-codec",
 	},
 	.probe = wm8998_probe,
-	.remove_new = wm8998_remove,
+	.remove = wm8998_remove,
 };
 
 module_platform_driver(wm8998_codec_driver);

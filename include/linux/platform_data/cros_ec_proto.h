@@ -42,6 +42,11 @@
 #define EC_MAX_RESPONSE_OVERHEAD	32
 
 /*
+ * ACPI notify value for MKBP host event.
+ */
+#define ACPI_NOTIFY_CROS_EC_MKBP 0x80
+
+/*
  * EC panic is not covered by the standard (0-F) ACPI notify values.
  * Arbitrarily choosing B0 to notify ec panic, which is in the 84-BF
  * device specific ACPI notify range.
@@ -185,7 +190,7 @@ struct cros_ec_device {
 	bool host_sleep_v1;
 	struct blocking_notifier_head event_notifier;
 
-	struct ec_response_get_next_event_v1 event_data;
+	struct ec_response_get_next_event_v3 event_data;
 	int event_size;
 	u32 host_event_wake_mask;
 	u32 last_resume_result;
@@ -246,6 +251,8 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
+int cros_ec_rwsig_continue(struct cros_ec_device *ec_dev);
+
 int cros_ec_query_all(struct cros_ec_device *ec_dev);
 
 int cros_ec_get_next_event(struct cros_ec_device *ec_dev,
@@ -260,6 +267,10 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec);
 
 int cros_ec_cmd(struct cros_ec_device *ec_dev, unsigned int version, int command, const void *outdata,
 		    size_t outsize, void *indata, size_t insize);
+
+int cros_ec_cmd_readmem(struct cros_ec_device *ec_dev, u8 offset, u8 size, void *dest);
+
+int cros_ec_get_cmd_versions(struct cros_ec_device *ec_dev, u16 cmd);
 
 /**
  * cros_ec_get_time_ns() - Return time in ns.

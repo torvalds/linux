@@ -32,3 +32,11 @@ int BPF_PROG(test_skb_field, struct sock *sk, struct sk_buff *skb)
 	bpf_sk_storage_get(&sk_storage_map, skb->sk, 0, 0);
 	return 0;
 }
+
+SEC("tp_btf/task_newtask")
+__success
+int BPF_PROG(test_nested_offset, struct task_struct *task, u64 clone_flags)
+{
+	bpf_cpumask_first_zero(&task->cpus_mask);
+	return 0;
+}

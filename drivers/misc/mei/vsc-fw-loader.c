@@ -15,7 +15,7 @@
 #include <linux/string_helpers.h>
 #include <linux/types.h>
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "vsc-tp.h"
 
@@ -204,7 +204,7 @@ struct vsc_img_frag {
 
 /**
  * struct vsc_fw_loader - represent vsc firmware loader
- * @dev: device used to request fimware
+ * @dev: device used to request firmware
  * @tp: transport layer used with the firmware loader
  * @csi: CSI image
  * @ace: ACE image
@@ -252,7 +252,7 @@ static int vsc_get_sensor_name(struct vsc_fw_loader *fw_loader,
 {
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER };
 	union acpi_object obj = {
-		.type = ACPI_TYPE_INTEGER,
+		.integer.type = ACPI_TYPE_INTEGER,
 		.integer.value = 1,
 	};
 	struct acpi_object_list arg_list = {
@@ -317,28 +317,34 @@ static int vsc_identify_silicon(struct vsc_fw_loader *fw_loader)
 	cmd->data.dump_mem.addr = cpu_to_le32(VSC_EFUSE_ADDR);
 	cmd->data.dump_mem.len = cpu_to_le16(sizeof(__le32));
 	ret = vsc_tp_rom_xfer(fw_loader->tp, cmd, ack, VSC_ROM_PKG_SIZE);
-	if (ret)
-		return ret;
-	if (ack->token == VSC_TOKEN_ERROR)
-		return -EINVAL;
+	if (ret || ack->token == VSC_TOKEN_ERROR) {
+		dev_err(fw_loader->dev, "CMD_DUMP_MEM error %d token %d\n", ret, ack->token);
+		return ret ?: -EINVAL;
+	}
 
 	cmd->magic = cpu_to_le32(VSC_MAGIC_NUM);
 	cmd->cmd_id = VSC_CMD_GET_CONT;
 	ret = vsc_tp_rom_xfer(fw_loader->tp, cmd, ack, VSC_ROM_PKG_SIZE);
-	if (ret)
-		return ret;
-	if (ack->token != VSC_TOKEN_DUMP_RESP)
-		return -EINVAL;
+	if (ret || ack->token != VSC_TOKEN_DUMP_RESP) {
+		dev_err(fw_loader->dev, "CMD_GETCONT error %d token %d\n", ret, ack->token);
+		return ret ?: -EINVAL;
+	}
 
 	version = FIELD_GET(VSC_MAINSTEPPING_VERSION_MASK, ack->payload[0]);
 	sub_version = FIELD_GET(VSC_SUBSTEPPING_VERSION_MASK, ack->payload[0]);
 
-	if (version != VSC_MAINSTEPPING_VERSION_A)
+	if (version != VSC_MAINSTEPPING_VERSION_A) {
+		dev_err(fw_loader->dev, "mainstepping mismatch expected %d got %d\n",
+			VSC_MAINSTEPPING_VERSION_A, version);
 		return -EINVAL;
+	}
 
 	if (sub_version != VSC_SUBSTEPPING_VERSION_0 &&
-	    sub_version != VSC_SUBSTEPPING_VERSION_1)
+	    sub_version != VSC_SUBSTEPPING_VERSION_1) {
+		dev_err(fw_loader->dev, "substepping %d is out of supported range %d - %d\n",
+			sub_version, VSC_SUBSTEPPING_VERSION_0, VSC_SUBSTEPPING_VERSION_1);
 		return -EINVAL;
+	}
 
 	dev_info(fw_loader->dev, "silicon stepping version is %u:%u\n",
 		 version, sub_version);
@@ -767,4 +773,4 @@ err_release_csi:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_init, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_init, "VSC_TP");

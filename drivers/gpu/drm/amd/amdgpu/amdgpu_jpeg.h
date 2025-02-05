@@ -27,7 +27,8 @@
 #include "amdgpu_ras.h"
 
 #define AMDGPU_MAX_JPEG_INSTANCES	4
-#define AMDGPU_MAX_JPEG_RINGS		8
+#define AMDGPU_MAX_JPEG_RINGS           10
+#define AMDGPU_MAX_JPEG_RINGS_4_0_3     8
 
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
 #define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)
@@ -59,6 +60,37 @@
 			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\
 		RREG32_SOC15(JPEG, inst_idx, mmUVD_DPG_LMA_DATA);				\
 	})
+
+#define WREG32_SOC24_JPEG_DPG_MODE(inst_idx, offset, value, indirect)		\
+	do {									\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			     regUVD_DPG_LMA_DATA, value);			\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			     regUVD_DPG_LMA_MASK, 0xFFFFFFFF);			\
+		WREG32_SOC15(							\
+			JPEG, GET_INST(JPEG, inst_idx),				\
+			regUVD_DPG_LMA_CTL,					\
+			(UVD_DPG_LMA_CTL__READ_WRITE_MASK |			\
+			 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT |	\
+			 indirect << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT));	\
+	} while (0)
+
+#define RREG32_SOC24_JPEG_DPG_MODE(inst_idx, offset, mask_en)			\
+	do {									\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			regUVD_DPG_LMA_MASK, 0xFFFFFFFF);			\
+		WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+			regUVD_DPG_LMA_CTL,					\
+			(UVD_DPG_LMA_CTL__MASK_EN_MASK |			\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));	\
+		RREG32_SOC15(JPEG, inst_idx, regUVD_DPG_LMA_DATA);		\
+	} while (0)
+
+#define ADD_SOC24_JPEG_TO_DPG_SRAM(inst_idx, offset, value, indirect)		\
+	do {									\
+		*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ = offset;	\
+		*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ = value;	\
+	} while (0)
 
 struct amdgpu_jpeg_reg{
 	unsigned jpeg_pitch[AMDGPU_MAX_JPEG_RINGS];
@@ -97,6 +129,7 @@ struct amdgpu_jpeg {
 	uint16_t inst_mask;
 	uint8_t num_inst_per_aid;
 	bool	indirect_sram;
+	uint32_t supported_reset;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
@@ -118,5 +151,8 @@ int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev,
 int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 			       enum AMDGPU_UCODE_ID ucode_id);
+void amdgpu_debugfs_jpeg_sched_mask_init(struct amdgpu_device *adev);
+int amdgpu_jpeg_sysfs_reset_mask_init(struct amdgpu_device *adev);
+void amdgpu_jpeg_sysfs_reset_mask_fini(struct amdgpu_device *adev);
 
 #endif /*__AMDGPU_JPEG_H__*/

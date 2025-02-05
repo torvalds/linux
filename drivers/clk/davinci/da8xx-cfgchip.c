@@ -508,13 +508,12 @@ da8xx_cfgchip_register_usb0_clk48(struct device *dev,
 	const char * const parent_names[] = { "usb_refclkin", "pll0_auxclk" };
 	struct clk *fck_clk;
 	struct da8xx_usb0_clk48 *usb0;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	fck_clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(fck_clk)) {
-		dev_err_probe(dev, PTR_ERR(fck_clk), "Missing fck clock\n");
-		return ERR_CAST(fck_clk);
+		return dev_err_cast_probe(dev, fck_clk, "Missing fck clock\n");
 	}
 
 	usb0 = devm_kzalloc(dev, sizeof(*usb0), GFP_KERNEL);
@@ -583,7 +582,7 @@ da8xx_cfgchip_register_usb1_clk48(struct device *dev,
 {
 	const char * const parent_names[] = { "usb0_clk48", "usb_refclkin" };
 	struct da8xx_usb1_clk48 *usb1;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	usb1 = devm_kzalloc(dev, sizeof(*usb1), GFP_KERNEL);
@@ -749,11 +748,9 @@ static int da8xx_cfgchip_probe(struct platform_device *pdev)
 
 	clk_init = device_get_match_data(dev);
 	if (clk_init) {
-		struct device_node *parent;
+		struct device_node *parent __free(device_node) = of_get_parent(dev->of_node);
 
-		parent = of_get_parent(dev->of_node);
 		regmap = syscon_node_to_regmap(parent);
-		of_node_put(parent);
 	} else if (pdev->id_entry && pdata) {
 		clk_init = (void *)pdev->id_entry->driver_data;
 		regmap = pdata->cfgchip;

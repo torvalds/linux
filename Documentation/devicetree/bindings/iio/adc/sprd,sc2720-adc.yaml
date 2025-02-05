@@ -85,23 +85,6 @@ examples:
     pmic {
         #address-cells = <1>;
         #size-cells = <0>;
-        adc@480 {
-            compatible = "sprd,sc2731-adc";
-            reg = <0x480>;
-            interrupt-parent = <&sc2731_pmic>;
-            interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
-            #io-channel-cells = <1>;
-            hwlocks = <&hwlock 4>;
-            nvmem-cells = <&adc_big_scale>, <&adc_small_scale>;
-            nvmem-cell-names = "big_scale_calib", "small_scale_calib";
-        };
-    };
-
-  - |
-    #include <dt-bindings/interrupt-controller/irq.h>
-    pmic {
-        #address-cells = <1>;
-        #size-cells = <0>;
         adc@504 {
             compatible = "sprd,ump9620-adc";
             reg = <0x504>;

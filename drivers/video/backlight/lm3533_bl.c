@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/backlight.h>
-#include <linux/fb.h>
 #include <linux/slab.h>
 
 #include <linux/mfd/lm3533.h>
@@ -344,7 +343,7 @@ static void lm3533_bl_remove(struct platform_device *pdev)
 
 	dev_dbg(&bd->dev, "%s\n", __func__);
 
-	bd->props.power = FB_BLANK_POWERDOWN;
+	bd->props.power = BACKLIGHT_POWER_OFF;
 	bd->props.brightness = 0;
 
 	lm3533_ctrlbank_disable(&bl->cb);
@@ -388,7 +387,7 @@ static struct platform_driver lm3533_bl_driver = {
 		.pm	= &lm3533_bl_pm_ops,
 	},
 	.probe		= lm3533_bl_probe,
-	.remove_new	= lm3533_bl_remove,
+	.remove		= lm3533_bl_remove,
 	.shutdown	= lm3533_bl_shutdown,
 };
 module_platform_driver(lm3533_bl_driver);

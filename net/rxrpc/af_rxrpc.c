@@ -65,7 +65,7 @@ static void rxrpc_write_space(struct sock *sk)
 
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible(&wq->wait);
-		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
+		sk_wake_async_rcu(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 	rcu_read_unlock();
 }
@@ -408,9 +408,9 @@ void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call)
 
 		/* Make sure we're not going to call back into a kernel service */
 		if (call->notify_rx) {
-			spin_lock(&call->notify_lock);
+			spin_lock_irq(&call->notify_lock);
 			call->notify_rx = rxrpc_dummy_notify_rx;
-			spin_unlock(&call->notify_lock);
+			spin_unlock_irq(&call->notify_lock);
 		}
 	}
 	mutex_unlock(&call->user_mutex);
@@ -707,9 +707,10 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			ret = -EISCONN;
 			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
-			ret = copy_from_sockptr(&min_sec_level, optval,
-				       sizeof(unsigned int));
-			if (ret < 0)
+			ret = copy_safe_from_sockptr(&min_sec_level,
+						     sizeof(min_sec_level),
+						     optval, optlen);
+			if (ret)
 				goto error;
 			ret = -EINVAL;
 			if (min_sec_level > RXRPC_SECURITY_MAX)

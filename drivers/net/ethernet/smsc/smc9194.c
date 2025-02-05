@@ -1501,6 +1501,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 #ifdef MODULE
 
 static struct net_device *devSMC9194;
+MODULE_DESCRIPTION("SMC 9194 Ethernet driver");
 MODULE_LICENSE("GPL");
 
 module_param_hw(io, int, ioport, 0);

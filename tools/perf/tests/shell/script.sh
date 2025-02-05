@@ -17,7 +17,7 @@ cleanup()
 	sane=$(echo "${temp_dir}" | cut -b 1-21)
 	if [ "${sane}" = "/tmp/perf-test-script" ] ; then
 		echo "--- Cleaning up ---"
-		rm -f "${temp_dir}/"*
+		rm -rf "${temp_dir:?}/"*
 		rmdir "${temp_dir}"
 	fi
 }
@@ -61,11 +61,38 @@ _end_of_file_
 	esac
 
 	perf record $cmd_flags -o "${perfdatafile}" true
+	# Disable lsan to avoid warnings about python memory leaks.
+	export ASAN_OPTIONS=detect_leaks=0
 	perf script -i "${perfdatafile}" -s "${db_test}"
+	export ASAN_OPTIONS=
 	echo "DB test [Success]"
 }
 
+test_parallel_perf()
+{
+	echo "parallel-perf test"
+	if ! python3 --version >/dev/null 2>&1 ; then
+		echo "SKIP: no python3"
+		err=2
+		return
+	fi
+	pp=$(dirname "$0")/../../scripts/python/parallel-perf.py
+	if [ ! -f "${pp}" ] ; then
+		echo "SKIP: parallel-perf.py script not found "
+		err=2
+		return
+	fi
+	perf_data="${temp_dir}/pp-perf.data"
+	output1_dir="${temp_dir}/output1"
+	output2_dir="${temp_dir}/output2"
+	perf record -o "${perf_data}" --sample-cpu uname
+	python3 "${pp}" -o "${output1_dir}" --jobs 4 --verbose -- perf script -i "${perf_data}"
+	python3 "${pp}" -o "${output2_dir}" --jobs 4 --verbose --per-cpu -- perf script -i "${perf_data}"
+	echo "parallel-perf test [Success]"
+}
+
 test_db
+test_parallel_perf
 
 cleanup
 

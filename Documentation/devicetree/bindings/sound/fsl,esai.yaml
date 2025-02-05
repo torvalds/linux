@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/fsl,esai.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Enhanced Serial Audio Interface (ESAI) Controller
+
+maintainers:
+  - Shengjiu Wang <shengjiu.wang@nxp.com>
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  The Enhanced Serial Audio Interface (ESAI) provides a full-duplex serial port
+  for serial communication with a variety of serial devices, including industry
+  standard codecs, Sony/Phillips Digital Interface (S/PDIF) transceivers, and
+  other DSPs. It has up to six transmitters and four receivers.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - fsl,imx35-esai
+          - fsl,imx6ull-esai
+          - fsl,vf610-esai
+      - items:
+          - enum:
+              - fsl,imx8qm-esai
+          - const: fsl,imx6ull-esai
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 3
+    items:
+      - description:
+          The core clock used to access registers.
+      - description:
+          The esai baud clock for esai controller used to
+          derive HCK, SCK and FS.
+      - description:
+          The system clock derived from ahb clock used to
+          derive HCK, SCK and FS.
+      - description:
+          The spba clock is required when ESAI is placed as a
+          bus slave of the Shared Peripheral Bus and when two
+          or more bus masters (CPU, DMA or DSP) try to access
+          it. This property is optional depending on the SoC
+          design.
+
+  clock-names:
+    minItems: 3
+    items:
+      - const: core
+      - const: extal
+      - const: fsys
+      - const: spba
+
+  dmas:
+    minItems: 2
+    maxItems: 2
+
+  dma-names:
+    items:
+      - const: rx
+      - const: tx
+
+  power-domains:
+    maxItems: 1
+
+  fsl,fifo-depth:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 64
+    description:
+      The number of elements in the transmit and receive
+      FIFOs. This number is the maximum allowed value for
+      TFCR[TFWM] or RFCR[RFWM].
+
+  fsl,esai-synchronous:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      This is a boolean property. If present, indicating
+      that ESAI would work in the synchronous mode, which
+      means all the settings for Receiving would be
+      duplicated from Transmission related registers.
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If this property is absent, the native endian mode
+      will be in use as default, or the big endian mode
+      will be in use for all the device registers.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - dmas
+  - dma-names
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8qm-esai
+    then:
+      required:
+        - power-domains
+    else:
+      properties:
+        power-domains: false
+
+examples:
+  - |
+    esai@2024000 {
+      compatible = "fsl,imx35-esai";
+      reg = <0x02024000 0x4000>;
+      interrupts = <0 51 0x04>;
+      clocks = <&clks 208>, <&clks 118>, <&clks 208>;
+      clock-names = "core", "extal", "fsys";
+      dmas = <&sdma 23 21 0>, <&sdma 24 21 0>;
+      dma-names = "rx", "tx";
+      fsl,fifo-depth = <128>;
+      fsl,esai-synchronous;
+      big-endian;
+    };

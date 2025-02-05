@@ -4,6 +4,7 @@
 
 #include <linux/args.h>
 #include <linux/array_size.h>
+#include <linux/cleanup.h>	/* for DEFINE_FREE() */
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>	/* for size_t */
 #include <linux/stddef.h>	/* for NULL */
@@ -14,8 +15,8 @@
 #include <uapi/linux/string.h>
 
 extern char *strndup_user(const char __user *, long);
-extern void *memdup_user(const void __user *, size_t);
-extern void *vmemdup_user(const void __user *, size_t);
+extern void *memdup_user(const void __user *, size_t) __realloc_size(2);
+extern void *vmemdup_user(const void __user *, size_t) __realloc_size(2);
 extern void *memdup_user_nul(const void __user *, size_t);
 
 /**
@@ -27,7 +28,8 @@ extern void *memdup_user_nul(const void __user *, size_t);
  * Return: an ERR_PTR() on failure. Result is physically
  * contiguous, to be freed by kfree().
  */
-static inline void *memdup_array_user(const void __user *src, size_t n, size_t size)
+static inline __realloc_size(2, 3)
+void *memdup_array_user(const void __user *src, size_t n, size_t size)
 {
 	size_t nbytes;
 
@@ -46,7 +48,8 @@ static inline void *memdup_array_user(const void __user *src, size_t n, size_t s
  * Return: an ERR_PTR() on failure. Result may be not
  * physically contiguous. Use kvfree() to free.
  */
-static inline void *vmemdup_array_user(const void __user *src, size_t n, size_t size)
+static inline __realloc_size(2, 3)
+void *vmemdup_array_user(const void __user *src, size_t n, size_t size)
 {
 	size_t nbytes;
 
@@ -74,12 +77,16 @@ ssize_t sized_strscpy(char *, const char *, size_t);
  * known size.
  */
 #define __strscpy0(dst, src, ...)	\
-	sized_strscpy(dst, src, sizeof(dst) + __must_be_array(dst))
-#define __strscpy1(dst, src, size)	sized_strscpy(dst, src, size)
+	sized_strscpy(dst, src, sizeof(dst) + __must_be_array(dst) +	\
+				__must_be_cstr(dst) + __must_be_cstr(src))
+#define __strscpy1(dst, src, size)	\
+	sized_strscpy(dst, src, size + __must_be_cstr(dst) + __must_be_cstr(src))
 
 #define __strscpy_pad0(dst, src, ...)	\
-	sized_strscpy_pad(dst, src, sizeof(dst) + __must_be_array(dst))
-#define __strscpy_pad1(dst, src, size)	sized_strscpy_pad(dst, src, size)
+	sized_strscpy_pad(dst, src, sizeof(dst) + __must_be_array(dst) +	\
+				    __must_be_cstr(dst) + __must_be_cstr(src))
+#define __strscpy_pad1(dst, src, size)	\
+	sized_strscpy_pad(dst, src, size + __must_be_cstr(dst) + __must_be_cstr(src))
 
 /**
  * strscpy - Copy a C-string into a sized buffer
@@ -277,19 +284,36 @@ static inline void memcpy_flushcache(void *dst, const void *src, size_t cnt)
 void *memchr_inv(const void *s, int c, size_t n);
 char *strreplace(char *str, char old, char new);
 
+/**
+ * mem_is_zero - Check if an area of memory is all 0's.
+ * @s: The memory area
+ * @n: The size of the area
+ *
+ * Return: True if the area of memory is all 0's.
+ */
+static inline bool mem_is_zero(const void *s, size_t n)
+{
+	return !memchr_inv(s, 0, n);
+}
+
 extern void kfree_const(const void *x);
 
 extern char *kstrdup(const char *s, gfp_t gfp) __malloc;
 extern const char *kstrdup_const(const char *s, gfp_t gfp);
 extern char *kstrndup(const char *s, size_t len, gfp_t gfp);
-extern void *kmemdup(const void *src, size_t len, gfp_t gfp) __realloc_size(2);
+extern void *kmemdup_noprof(const void *src, size_t len, gfp_t gfp) __realloc_size(2);
+#define kmemdup(...)	alloc_hooks(kmemdup_noprof(__VA_ARGS__))
+
 extern void *kvmemdup(const void *src, size_t len, gfp_t gfp) __realloc_size(2);
 extern char *kmemdup_nul(const char *s, size_t len, gfp_t gfp);
-extern void *kmemdup_array(const void *src, size_t element_size, size_t count, gfp_t gfp);
+extern void *kmemdup_array(const void *src, size_t count, size_t element_size, gfp_t gfp)
+		__realloc_size(2, 3);
 
 /* lib/argv_split.c */
 extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
 extern void argv_free(char **argv);
+
+DEFINE_FREE(argv_free, char **, if (!IS_ERR_OR_NULL(_T)) argv_free(_T))
 
 /* lib/cmdline.c */
 extern int get_option(char **str, int *pint);
@@ -314,7 +338,6 @@ int __sysfs_match_string(const char * const *array, size_t n, const char *s);
 #ifdef CONFIG_BINARY_PRINTF
 int vbin_printf(u32 *bin_buf, size_t size, const char *fmt, va_list args);
 int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf);
-int bprintf(u32 *bin_buf, size_t size, const char *fmt, ...) __printf(3, 4);
 #endif
 
 extern ssize_t memory_read_from_buffer(void *to, size_t count, loff_t *ppos,
@@ -420,6 +443,55 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
 	BUILD_BUG_ON(!__builtin_constant_p(_dest_len) ||		\
 		     _dest_len == (size_t)-1);				\
 	memcpy(dest, src, strnlen(src, min(_src_len, _dest_len)));	\
+} while (0)
+
+/**
+ * memtostr - Copy a possibly non-NUL-term string to a NUL-term string
+ * @dest: Pointer to destination NUL-terminates string
+ * @src: Pointer to character array (likely marked as __nonstring)
+ *
+ * This is a replacement for strncpy() uses where the source is not
+ * a NUL-terminated string.
+ *
+ * Note that sizes of @dest and @src must be known at compile-time.
+ */
+#define memtostr(dest, src)	do {					\
+	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _src_len = __builtin_object_size(src, 1);		\
+	const size_t _src_chars = strnlen(src, _src_len);		\
+	const size_t _copy_len = min(_dest_len - 1, _src_chars);	\
+									\
+	BUILD_BUG_ON(!__builtin_constant_p(_dest_len) ||		\
+		     !__builtin_constant_p(_src_len) ||			\
+		     _dest_len == 0 || _dest_len == (size_t)-1 ||	\
+		     _src_len == 0 || _src_len == (size_t)-1);		\
+	memcpy(dest, src, _copy_len);					\
+	dest[_copy_len] = '\0';						\
+} while (0)
+
+/**
+ * memtostr_pad - Copy a possibly non-NUL-term string to a NUL-term string
+ *                with NUL padding in the destination
+ * @dest: Pointer to destination NUL-terminates string
+ * @src: Pointer to character array (likely marked as __nonstring)
+ *
+ * This is a replacement for strncpy() uses where the source is not
+ * a NUL-terminated string.
+ *
+ * Note that sizes of @dest and @src must be known at compile-time.
+ */
+#define memtostr_pad(dest, src)		do {				\
+	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _src_len = __builtin_object_size(src, 1);		\
+	const size_t _src_chars = strnlen(src, _src_len);		\
+	const size_t _copy_len = min(_dest_len - 1, _src_chars);	\
+									\
+	BUILD_BUG_ON(!__builtin_constant_p(_dest_len) ||		\
+		     !__builtin_constant_p(_src_len) ||			\
+		     _dest_len == 0 || _dest_len == (size_t)-1 ||	\
+		     _src_len == 0 || _src_len == (size_t)-1);		\
+	memcpy(dest, src, _copy_len);					\
+	memset(&dest[_copy_len], 0, _dest_len - _copy_len);		\
 } while (0)
 
 /**

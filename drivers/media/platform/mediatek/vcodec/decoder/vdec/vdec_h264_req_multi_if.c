@@ -51,7 +51,7 @@ struct vdec_h264_slice_lat_dec_param {
  * struct vdec_h264_slice_info - decode information
  *
  * @nal_info:		nal info of current picture
- * @timeout:		Decode timeout: 1 timeout, 0 no timeount
+ * @timeout:		Decode timeout: 1 timeout, 0 no timeout
  * @bs_buf_size:	bitstream size
  * @bs_buf_addr:	bitstream buffer dma address
  * @y_fb_dma:		Y frame buffer dma address
@@ -131,9 +131,9 @@ struct vdec_h264_slice_share_info {
 /**
  * struct vdec_h264_slice_inst - h264 decoder instance
  *
- * @slice_dec_num:	how many picture be decoded
+ * @slice_dec_num:	Number of frames to be decoded
  * @ctx:		point to mtk_vcodec_dec_ctx
- * @pred_buf:		HW working predication buffer
+ * @pred_buf:		HW working prediction buffer
  * @mv_buf:		HW working motion vector buffer
  * @vpu:		VPU instance
  * @vsi:		vsi used for lat
@@ -724,11 +724,16 @@ static int vdec_h264_slice_single_decode(void *h_vdec, struct mtk_vcodec_mem *bs
 		return vpu_dec_reset(vpu);
 
 	fb = inst->ctx->dev->vdec_pdata->get_cap_buffer(inst->ctx);
+	if (!fb) {
+		mtk_vdec_err(inst->ctx, "fb buffer is NULL");
+		return -ENOMEM;
+	}
+
 	src_buf_info = container_of(bs, struct mtk_video_dec_buf, bs_buffer);
 	dst_buf_info = container_of(fb, struct mtk_video_dec_buf, frame_buffer);
 
-	y_fb_dma = fb ? (u64)fb->base_y.dma_addr : 0;
-	c_fb_dma = fb ? (u64)fb->base_c.dma_addr : 0;
+	y_fb_dma = fb->base_y.dma_addr;
+	c_fb_dma = fb->base_c.dma_addr;
 	mtk_vdec_debug(inst->ctx, "[h264-dec] [%d] y_dma=%llx c_dma=%llx",
 		       inst->ctx->decoded_frame_cnt, y_fb_dma, c_fb_dma);
 

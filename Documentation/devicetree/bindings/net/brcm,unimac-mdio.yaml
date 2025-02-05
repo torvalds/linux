@@ -26,6 +26,7 @@ properties:
       - brcm,asp-v2.1-mdio
       - brcm,asp-v2.2-mdio
       - brcm,unimac-mdio
+      - brcm,bcm6846-mdio
 
   reg:
     minItems: 1

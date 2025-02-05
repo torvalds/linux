@@ -695,6 +695,7 @@ static void is1_entry_set(struct ocelot *ocelot, int ix,
 	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_L2_MC, filter->dmac_mc);
 	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_L2_BC, filter->dmac_bc);
 	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_VLAN_TAGGED, tag->tagged);
+	vcap_key_bit_set(vcap, &data, VCAP_IS1_HK_TPID, tag->tpid);
 	vcap_key_set(vcap, &data, VCAP_IS1_HK_VID,
 		     tag->vid.value, tag->vid.mask);
 	vcap_key_set(vcap, &data, VCAP_IS1_HK_PCP,

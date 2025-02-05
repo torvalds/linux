@@ -35,7 +35,7 @@
 		};
 	};
 
-	vcc_host0_5v: usb-host0-regulator {
+	vcc_host0_5v: regulator-usb-host0 {
 		compatible = "regulator-fixed";
 		gpio = <&gpio2 13 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
@@ -47,7 +47,7 @@
 		vin-supply = <&vdd_in_otg_out>;
 	};
 
-	vcc_host1_5v: usb-host1-regulator {
+	vcc_host1_5v: regulator-usb-host1 {
 		compatible = "regulator-fixed";
 		gpio = <&gpio2 0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
@@ -59,7 +59,7 @@
 		vin-supply = <&vdd_in_otg_out>;
 	};
 
-	vcc_otg_5v: usb-otg-regulator {
+	vcc_otg_5v: regulator-usb-otg {
 		compatible = "regulator-fixed";
 		gpio = <&gpio2 12 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";

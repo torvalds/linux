@@ -146,8 +146,6 @@
 #define HCLK_S_CRYPTO		477
 #define HCLK_PERI		478
 
-#define CLK_NR_CLKS		(HCLK_PERI + 1)
-
 /* soft-reset indices */
 #define SRST_CORE0_PO		0
 #define SRST_CORE1_PO		1

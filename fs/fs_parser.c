@@ -13,7 +13,7 @@
 #include <linux/namei.h>
 #include "internal.h"
 
-static const struct constant_table bool_names[] = {
+const struct constant_table bool_names[] = {
 	{ "0",		false },
 	{ "1",		true },
 	{ "false",	false },
@@ -22,6 +22,7 @@ static const struct constant_table bool_names[] = {
 	{ "yes",	true },
 	{ },
 };
+EXPORT_SYMBOL(bool_names);
 
 static const struct constant_table *
 __lookup_constant(const struct constant_table *tbl, const char *name)
@@ -156,6 +157,7 @@ int fs_lookup_param(struct fs_context *fc,
 		f = getname_kernel(param->string);
 		if (IS_ERR(f))
 			return PTR_ERR(f);
+		param->dirfd = AT_FDCWD;
 		put_f = true;
 		break;
 	case fs_value_is_filename:
@@ -307,6 +309,60 @@ int fs_param_is_fd(struct p_log *log, const struct fs_parameter_spec *p,
 	return fs_param_bad_value(log, param);
 }
 EXPORT_SYMBOL(fs_param_is_fd);
+
+int fs_param_is_file_or_string(struct p_log *log,
+			       const struct fs_parameter_spec *p,
+			       struct fs_parameter *param,
+			       struct fs_parse_result *result)
+{
+	switch (param->type) {
+	case fs_value_is_string:
+		return fs_param_is_string(log, p, param, result);
+	case fs_value_is_file:
+		result->uint_32 = param->dirfd;
+		if (result->uint_32 <= INT_MAX)
+			return 0;
+		break;
+	default:
+		break;
+	}
+	return fs_param_bad_value(log, param);
+}
+EXPORT_SYMBOL(fs_param_is_file_or_string);
+
+int fs_param_is_uid(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	kuid_t uid;
+
+	if (fs_param_is_u32(log, p, param, result) != 0)
+		return fs_param_bad_value(log, param);
+
+	uid = make_kuid(current_user_ns(), result->uint_32);
+	if (!uid_valid(uid))
+		return inval_plog(log, "Invalid uid '%s'", param->string);
+
+	result->uid = uid;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_uid);
+
+int fs_param_is_gid(struct p_log *log, const struct fs_parameter_spec *p,
+		    struct fs_parameter *param, struct fs_parse_result *result)
+{
+	kgid_t gid;
+
+	if (fs_param_is_u32(log, p, param, result) != 0)
+		return fs_param_bad_value(log, param);
+
+	gid = make_kgid(current_user_ns(), result->uint_32);
+	if (!gid_valid(gid))
+		return inval_plog(log, "Invalid gid '%s'", param->string);
+
+	result->gid = gid;
+	return 0;
+}
+EXPORT_SYMBOL(fs_param_is_gid);
 
 int fs_param_is_blockdev(struct p_log *log, const struct fs_parameter_spec *p,
 		  struct fs_parameter *param, struct fs_parse_result *result)

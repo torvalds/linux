@@ -7,7 +7,7 @@ What is the tip tree?
 ---------------------
 
 The tip tree is a collection of several subsystems and areas of
-development. The tip tree is both a direct development tree and a
+development. The tip tree is both a direct development tree and an
 aggregation tree for several sub-maintainer trees. The tip tree gitweb URL
 is: https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git
 
@@ -121,7 +121,7 @@ The tip tree preferred format for patch subject prefixes is
 prefix. 'git log path/to/file' should give you a reasonable hint in most
 cases.
 
-The condensed patch description in the subject line should start with a
+The condensed patch description in the subject line should start with an
 uppercase letter and should be written in imperative tone.
 
 
@@ -154,7 +154,7 @@ Examples for illustration:
 
     We modify the hot cpu handling to cancel the delayed work on the dying
     cpu and run the worker immediately on a different cpu in same domain. We
-    donot flush the worker because the MBM overflow worker reschedules the
+    do not flush the worker because the MBM overflow worker reschedules the
     worker on same CPU and scans the domain->cpu_mask to get the domain
     pointer.
 
@@ -270,7 +270,7 @@ Ordering of commit tags
 To have a uniform view of the commit tags, the tip maintainers use the
 following tag ordering scheme:
 
- - Fixes: 12char-SHA1 ("sub/sys: Original subject line")
+ - Fixes: 12+char-SHA1 ("sub/sys: Original subject line")
 
    A Fixes tag should be added even for changes which do not need to be
    backported to stable kernels, i.e. when addressing a recently introduced
@@ -372,17 +372,31 @@ following tag ordering scheme:
 
  - Link: ``https://link/to/information``
 
-   For referring to an email on LKML or other kernel mailing lists,
-   please use the lore.kernel.org redirector URL::
+   For referring to an email posted to the kernel mailing lists, please
+   use the lore.kernel.org redirector URL::
 
-     https://lore.kernel.org/r/email-message@id
+     Link: https://lore.kernel.org/email-message-id@here
 
-   The kernel.org redirector is considered a stable URL, unlike other email
-   archives.
+   This URL should be used when referring to relevant mailing list
+   topics, related patch sets, or other notable discussion threads.
+   A convenient way to associate ``Link:`` trailers with the commit
+   message is to use markdown-like bracketed notation, for example::
 
-   Maintainers will add a Link tag referencing the email of the patch
-   submission when they apply a patch to the tip tree. This tag is useful
-   for later reference and is also used for commit notifications.
+     A similar approach was attempted before as part of a different
+     effort [1], but the initial implementation caused too many
+     regressions [2], so it was backed out and reimplemented.
+
+     Link: https://lore.kernel.org/some-msgid@here # [1]
+     Link: https://bugzilla.example.org/bug/12345  # [2]
+
+   You can also use ``Link:`` trailers to indicate the origin of the
+   patch when applying it to your git tree. In that case, please use the
+   dedicated ``patch.msgid.link`` domain instead of ``lore.kernel.org``.
+   This practice makes it possible for automated tooling to identify
+   which link to use to retrieve the original patch submission. For
+   example::
+
+     Link: https://patch.msgid.link/patch-source-message-id@here
 
 Please do not use combined tags, e.g. ``Reported-and-tested-by``, as
 they just complicate automated extraction of tags.
@@ -409,19 +423,19 @@ See :ref:`resend_reminders`.
 Merge window
 ^^^^^^^^^^^^
 
-Please do not expect large patch series to be handled during the merge
-window or even during the week before.  Such patches should be submitted in
-mergeable state *at* *least* a week before the merge window opens.
-Exceptions are made for bug fixes and *sometimes* for small standalone
-drivers for new hardware or minimally invasive patches for hardware
-enablement.
+Please do not expect patches to be reviewed or merged by tip
+maintainers around or during the merge window.  The trees are closed
+to all but urgent fixes during this time.  They reopen once the merge
+window closes and a new -rc1 kernel has been released.
+
+Large series should be submitted in mergeable state *at* *least* a week
+before the merge window opens.  Exceptions are made for bug fixes and
+*sometimes* for small standalone drivers for new hardware or minimally
+invasive patches for hardware enablement.
 
 During the merge window, the maintainers instead focus on following the
 upstream changes, fixing merge window fallout, collecting bug fixes, and
 allowing themselves a breath. Please respect that.
-
-The release candidate -rc1 is the starting point for new patches to be
-applied which are targeted for the next merge window.
 
 So called _urgent_ branches will be merged into mainline during the
 stabilization phase of each release.

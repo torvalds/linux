@@ -4,13 +4,14 @@
 #ifndef VCHIQ_DEBUGFS_H
 #define VCHIQ_DEBUGFS_H
 
-#include "vchiq_core.h"
+struct vchiq_state;
+struct vchiq_instance;
 
 struct vchiq_debugfs_node {
 	struct dentry *dentry;
 };
 
-void vchiq_debugfs_init(void);
+void vchiq_debugfs_init(struct vchiq_state *state);
 
 void vchiq_debugfs_deinit(void);
 

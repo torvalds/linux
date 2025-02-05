@@ -7,6 +7,8 @@
 
 #include <kunit/test.h>
 
+#include "of_private.h"
+
 /*
  * Test that the root node "/" can be found by path.
  */
@@ -36,6 +38,7 @@ static struct kunit_case of_dtb_test_cases[] = {
 
 static int of_dtb_test_init(struct kunit *test)
 {
+	of_root_kunit_skip(test);
 	if (!IS_ENABLED(CONFIG_OF_EARLY_FLATTREE))
 		kunit_skip(test, "requires CONFIG_OF_EARLY_FLATTREE");
 
@@ -54,4 +57,5 @@ static struct kunit_suite of_dtb_suite = {
 kunit_test_suites(
 	&of_dtb_suite,
 );
+MODULE_DESCRIPTION("KUnit tests for OF APIs");
 MODULE_LICENSE("GPL");

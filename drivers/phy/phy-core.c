@@ -20,7 +20,12 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 
-static struct class *phy_class;
+static void phy_release(struct device *dev);
+static const struct class phy_class = {
+	.name = "phy",
+	.dev_release = phy_release,
+};
+
 static struct dentry *phy_debugfs_root;
 static DEFINE_MUTEX(phy_provider_mutex);
 static LIST_HEAD(phy_provider_list);
@@ -140,8 +145,10 @@ static struct phy_provider *of_phy_provider_lookup(struct device_node *node)
 			return phy_provider;
 
 		for_each_child_of_node(phy_provider->children, child)
-			if (child == node)
+			if (child == node) {
+				of_node_put(child);
 				return phy_provider;
+			}
 	}
 
 	return ERR_PTR(-EPROBE_DEFER);
@@ -624,8 +631,10 @@ static struct phy *_of_phy_get(struct device_node *np, int index)
 		return ERR_PTR(-ENODEV);
 
 	/* This phy type handled by the usb-phy subsystem for now */
-	if (of_device_is_compatible(args.np, "usb-nop-xceiv"))
-		return ERR_PTR(-ENODEV);
+	if (of_device_is_compatible(args.np, "usb-nop-xceiv")) {
+		phy = ERR_PTR(-ENODEV);
+		goto out_put_node;
+	}
 
 	mutex_lock(&phy_provider_mutex);
 	phy_provider = of_phy_provider_lookup(args.np);
@@ -647,6 +656,7 @@ out_put_module:
 
 out_unlock:
 	mutex_unlock(&phy_provider_mutex);
+out_put_node:
 	of_node_put(args.np);
 
 	return phy;
@@ -659,7 +669,7 @@ out_unlock:
  *
  * Returns the phy driver, after getting a refcount to it; or
  * -ENODEV if there is no such phy. The caller is responsible for
- * calling phy_put() to release that count.
+ * calling of_phy_put() to release that count.
  */
 struct phy *of_phy_get(struct device_node *np, const char *con_id)
 {
@@ -732,15 +742,15 @@ void devm_phy_put(struct device *dev, struct phy *phy)
 	if (!phy)
 		return;
 
-	r = devres_destroy(dev, devm_phy_release, devm_phy_match, phy);
+	r = devres_release(dev, devm_phy_release, devm_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
 }
 EXPORT_SYMBOL_GPL(devm_phy_put);
 
 /**
  * of_phy_simple_xlate() - returns the phy instance from phy provider
- * @dev: the PHY provider device
- * @args: of_phandle_args (not used here)
+ * @dev: the PHY provider device (not used here)
+ * @args: of_phandle_args
  *
  * Intended to be used by phy provider for the common case where #phy-cells is
  * 0. For other cases where #phy-cells is greater than '0', the phy provider
@@ -750,21 +760,14 @@ EXPORT_SYMBOL_GPL(devm_phy_put);
 struct phy *of_phy_simple_xlate(struct device *dev,
 				const struct of_phandle_args *args)
 {
-	struct phy *phy;
-	struct class_dev_iter iter;
+	struct device *target_dev;
 
-	class_dev_iter_init(&iter, phy_class, NULL, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		phy = to_phy(dev);
-		if (args->np != phy->dev.of_node)
-			continue;
+	target_dev = class_find_device_by_of_node(&phy_class, args->np);
+	if (!target_dev)
+		return ERR_PTR(-ENODEV);
 
-		class_dev_iter_exit(&iter);
-		return phy;
-	}
-
-	class_dev_iter_exit(&iter);
-	return ERR_PTR(-ENODEV);
+	put_device(target_dev);
+	return to_phy(target_dev);
 }
 EXPORT_SYMBOL_GPL(of_phy_simple_xlate);
 
@@ -1016,7 +1019,7 @@ struct phy *phy_create(struct device *dev, struct device_node *node,
 	device_initialize(&phy->dev);
 	mutex_init(&phy->mutex);
 
-	phy->dev.class = phy_class;
+	phy->dev.class = &phy_class;
 	phy->dev.parent = dev;
 	phy->dev.of_node = node ?: dev->of_node;
 	phy->id = id;
@@ -1116,7 +1119,7 @@ void devm_phy_destroy(struct device *dev, struct phy *phy)
 {
 	int r;
 
-	r = devres_destroy(dev, devm_phy_consume, devm_phy_match, phy);
+	r = devres_release(dev, devm_phy_consume, devm_phy_match, phy);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY resource\n");
 }
 EXPORT_SYMBOL_GPL(devm_phy_destroy);
@@ -1254,12 +1257,12 @@ EXPORT_SYMBOL_GPL(of_phy_provider_unregister);
  * of_phy_provider_unregister to unregister the phy provider.
  */
 void devm_of_phy_provider_unregister(struct device *dev,
-	struct phy_provider *phy_provider)
+				     struct phy_provider *phy_provider)
 {
 	int r;
 
-	r = devres_destroy(dev, devm_phy_provider_release, devm_phy_match,
-		phy_provider);
+	r = devres_release(dev, devm_phy_provider_release, devm_phy_match,
+			   phy_provider);
 	dev_WARN_ONCE(dev, r, "couldn't find PHY provider device resource\n");
 }
 EXPORT_SYMBOL_GPL(devm_of_phy_provider_unregister);
@@ -1285,14 +1288,13 @@ static void phy_release(struct device *dev)
 
 static int __init phy_core_init(void)
 {
-	phy_class = class_create("phy");
-	if (IS_ERR(phy_class)) {
-		pr_err("failed to create phy class --> %ld\n",
-			PTR_ERR(phy_class));
-		return PTR_ERR(phy_class);
-	}
+	int err;
 
-	phy_class->dev_release = phy_release;
+	err = class_register(&phy_class);
+	if (err) {
+		pr_err("failed to register phy class");
+		return err;
+	}
 
 	phy_debugfs_root = debugfs_create_dir("phy", NULL);
 
@@ -1303,6 +1305,6 @@ device_initcall(phy_core_init);
 static void __exit phy_core_exit(void)
 {
 	debugfs_remove_recursive(phy_debugfs_root);
-	class_destroy(phy_class);
+	class_unregister(&phy_class);
 }
 module_exit(phy_core_exit);

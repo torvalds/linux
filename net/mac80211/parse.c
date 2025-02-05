@@ -44,6 +44,9 @@ struct ieee80211_elems_parse {
 	/* The reconfiguration Multi-Link element in the original elements */
 	const struct element *ml_reconf_elem;
 
+	/* The EPCS Multi-Link element in the original elements */
+	const struct element *ml_epcs_elem;
+
 	/*
 	 * scratch buffer that can be used for various element parsing related
 	 * tasks, e.g., element de-fragmentation etc.
@@ -111,7 +114,7 @@ ieee80211_parse_extension_element(u32 *crc,
 		if (params->mode < IEEE80211_CONN_MODE_HE)
 			break;
 		if (len >= sizeof(*elems->he_spr) &&
-		    len >= ieee80211_he_spr_size(data))
+		    len >= ieee80211_he_spr_size(data) - 1)
 			elems->he_spr = data;
 		break;
 	case WLAN_EID_EXT_HE_6GHZ_CAPA:
@@ -159,6 +162,9 @@ ieee80211_parse_extension_element(u32 *crc,
 			case IEEE80211_ML_CONTROL_TYPE_RECONF:
 				elems_parse->ml_reconf_elem = elem;
 				break;
+			case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
+				elems_parse->ml_epcs_elem = elem;
+				break;
 			default:
 				break;
 			}
@@ -185,6 +191,84 @@ ieee80211_parse_extension_element(u32 *crc,
 
 	if (crc && calc_crc)
 		*crc = crc32_be(*crc, (void *)elem, elem->datalen + 2);
+}
+
+static void ieee80211_parse_tpe(struct ieee80211_parsed_tpe *tpe,
+				const u8 *data, u8 len)
+{
+	const struct ieee80211_tx_pwr_env *env = (const void *)data;
+	u8 count, interpret, category;
+	u8 *out, N, *cnt_out = NULL, *N_out = NULL;
+
+	if (!ieee80211_valid_tpe_element(data, len))
+		return;
+
+	count = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_COUNT);
+	interpret = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_INTERPRET);
+	category = u8_get_bits(env->info, IEEE80211_TX_PWR_ENV_INFO_CATEGORY);
+
+	switch (interpret) {
+	case IEEE80211_TPE_LOCAL_EIRP:
+		out = tpe->max_local[category].power;
+		cnt_out = &tpe->max_local[category].count;
+		tpe->max_local[category].valid = true;
+		break;
+	case IEEE80211_TPE_REG_CLIENT_EIRP:
+		out = tpe->max_reg_client[category].power;
+		cnt_out = &tpe->max_reg_client[category].count;
+		tpe->max_reg_client[category].valid = true;
+		break;
+	case IEEE80211_TPE_LOCAL_EIRP_PSD:
+		out = tpe->psd_local[category].power;
+		cnt_out = &tpe->psd_local[category].count;
+		N_out = &tpe->psd_local[category].n;
+		tpe->psd_local[category].valid = true;
+		break;
+	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
+		out = tpe->psd_reg_client[category].power;
+		cnt_out = &tpe->psd_reg_client[category].count;
+		N_out = &tpe->psd_reg_client[category].n;
+		tpe->psd_reg_client[category].valid = true;
+		break;
+	}
+
+	switch (interpret) {
+	case IEEE80211_TPE_LOCAL_EIRP:
+	case IEEE80211_TPE_REG_CLIENT_EIRP:
+		/* count was validated <= 3, plus 320 MHz */
+		BUILD_BUG_ON(IEEE80211_TPE_EIRP_ENTRIES_320MHZ < 5);
+		memcpy(out, env->variable, count + 1);
+		*cnt_out = count + 1;
+		/* separately take 320 MHz if present */
+		if (count == 3 && len > sizeof(*env) + count + 1) {
+			out[4] = env->variable[4];
+			*cnt_out = 5;
+		}
+		break;
+	case IEEE80211_TPE_LOCAL_EIRP_PSD:
+	case IEEE80211_TPE_REG_CLIENT_EIRP_PSD:
+		if (!count) {
+			memset(out, env->variable[0],
+			       IEEE80211_TPE_PSD_ENTRIES_320MHZ);
+			*cnt_out = IEEE80211_TPE_PSD_ENTRIES_320MHZ;
+			break;
+		}
+
+		N = 1 << (count - 1);
+		memcpy(out, env->variable, N);
+		*cnt_out = N;
+		*N_out = N;
+
+		if (len > sizeof(*env) + N) {
+			int K = u8_get_bits(env->variable[N],
+					    IEEE80211_TX_PWR_ENV_EXT_COUNT);
+
+			K = min(K, IEEE80211_TPE_PSD_ENTRIES_320MHZ - N);
+			memcpy(out + N, env->variable + N + 1, K);
+			(*cnt_out) += K;
+		}
+		break;
+	}
 }
 
 static u32
@@ -529,6 +613,13 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 					elem_parse_failed =
 						IEEE80211_PARSE_ERR_BAD_ELEM_SIZE;
 			}
+
+			subelem = cfg80211_find_ext_elem(WLAN_EID_TX_POWER_ENVELOPE,
+							 pos, elen);
+			if (subelem)
+				ieee80211_parse_tpe(&elems->csa_tpe,
+						    subelem->data + 1,
+						    subelem->datalen - 1);
 			break;
 		case WLAN_EID_COUNTRY:
 			elems->country_elem = pos;
@@ -593,16 +684,9 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 			elems->rsnx_len = elen;
 			break;
 		case WLAN_EID_TX_POWER_ENVELOPE:
-			if (elen < 1 ||
-			    elen > sizeof(struct ieee80211_tx_pwr_env))
+			if (params->mode < IEEE80211_CONN_MODE_HE)
 				break;
-
-			if (elems->tx_pwr_env_num >= ARRAY_SIZE(elems->tx_pwr_env))
-				break;
-
-			elems->tx_pwr_env[elems->tx_pwr_env_num] = (void *)pos;
-			elems->tx_pwr_env_len[elems->tx_pwr_env_num] = elen;
-			elems->tx_pwr_env_num++;
+			ieee80211_parse_tpe(&elems->tpe, pos, elen);
 			break;
 		case WLAN_EID_EXTENSION:
 			ieee80211_parse_extension_element(calc_crc ?
@@ -865,6 +949,27 @@ ieee80211_mle_defrag_reconf(struct ieee80211_elems_parse *elems_parse)
 	elems_parse->scratch_pos += ml_len;
 }
 
+static void
+ieee80211_mle_defrag_epcs(struct ieee80211_elems_parse *elems_parse)
+{
+	struct ieee802_11_elems *elems = &elems_parse->elems;
+	ssize_t ml_len;
+
+	ml_len = cfg80211_defragment_element(elems_parse->ml_epcs_elem,
+					     elems->ie_start,
+					     elems->total_len,
+					     elems_parse->scratch_pos,
+					     elems_parse->scratch +
+						elems_parse->scratch_len -
+						elems_parse->scratch_pos,
+					     WLAN_EID_FRAGMENT);
+	if (ml_len < 0)
+		return;
+	elems->ml_epcs = (void *)elems_parse->scratch_pos;
+	elems->ml_epcs_len = ml_len;
+	elems_parse->scratch_pos += ml_len;
+}
+
 struct ieee802_11_elems *
 ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 {
@@ -888,6 +993,10 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	elems = &elems_parse->elems;
 	elems->ie_start = params->start;
 	elems->total_len = params->len;
+
+	/* set all TPE entries to unlimited (but invalid) */
+	ieee80211_clear_tpe(&elems->tpe);
+	ieee80211_clear_tpe(&elems->csa_tpe);
 
 	nontransmitted_profile = elems_parse->scratch_pos;
 	nontransmitted_profile_len =
@@ -918,6 +1027,8 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	ieee80211_mle_parse_link(elems_parse, params);
 
 	ieee80211_mle_defrag_reconf(elems_parse);
+
+	ieee80211_mle_defrag_epcs(elems_parse);
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;

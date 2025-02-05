@@ -296,7 +296,7 @@ cumanascsi_2_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
  * Params   : host - driver host structure to return info for.
  * Returns  : pointer to a static buffer containing null terminated string.
  */
-const char *cumanascsi_2_info(struct Scsi_Host *host)
+static const char *cumanascsi_2_info(struct Scsi_Host *host)
 {
 	struct cumanascsi2_info *info = (struct cumanascsi2_info *)host->hostdata;
 	static char string[150];

@@ -60,6 +60,53 @@ static void memfd_tag_pins(struct xa_state *xas)
 }
 
 /*
+ * This is a helper function used by memfd_pin_user_pages() in GUP (gup.c).
+ * It is mainly called to allocate a folio in a memfd when the caller
+ * (memfd_pin_folios()) cannot find a folio in the page cache at a given
+ * index in the mapping.
+ */
+struct folio *memfd_alloc_folio(struct file *memfd, pgoff_t idx)
+{
+#ifdef CONFIG_HUGETLB_PAGE
+	struct folio *folio;
+	gfp_t gfp_mask;
+	int err;
+
+	if (is_file_hugepages(memfd)) {
+		/*
+		 * The folio would most likely be accessed by a DMA driver,
+		 * therefore, we have zone memory constraints where we can
+		 * alloc from. Also, the folio will be pinned for an indefinite
+		 * amount of time, so it is not expected to be migrated away.
+		 */
+		struct hstate *h = hstate_file(memfd);
+
+		gfp_mask = htlb_alloc_mask(h);
+		gfp_mask &= ~(__GFP_HIGHMEM | __GFP_MOVABLE);
+		idx >>= huge_page_order(h);
+
+		folio = alloc_hugetlb_folio_reserve(h,
+						    numa_node_id(),
+						    NULL,
+						    gfp_mask);
+		if (folio) {
+			err = hugetlb_add_to_page_cache(folio,
+							memfd->f_mapping,
+							idx);
+			if (err) {
+				folio_put(folio);
+				return ERR_PTR(err);
+			}
+			folio_unlock(folio);
+			return folio;
+		}
+		return ERR_PTR(-ENOMEM);
+	}
+#endif
+	return shmem_read_folio(memfd->f_mapping, idx);
+}
+
+/*
  * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
  * via get_user_pages(), drivers might have some pending I/O without any active
  * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all folios
@@ -280,15 +327,51 @@ static int check_sysctl_memfd_noexec(unsigned int *flags)
 	return 0;
 }
 
-SYSCALL_DEFINE2(memfd_create,
-		const char __user *, uname,
-		unsigned int, flags)
+static inline bool is_write_sealed(unsigned int seals)
 {
-	unsigned int *file_seals;
-	struct file *file;
-	int fd, error;
-	char *name;
-	long len;
+	return seals & (F_SEAL_WRITE | F_SEAL_FUTURE_WRITE);
+}
+
+static int check_write_seal(unsigned long *vm_flags_ptr)
+{
+	unsigned long vm_flags = *vm_flags_ptr;
+	unsigned long mask = vm_flags & (VM_SHARED | VM_WRITE);
+
+	/* If a private matting then writability is irrelevant. */
+	if (!(mask & VM_SHARED))
+		return 0;
+
+	/*
+	 * New PROT_WRITE and MAP_SHARED mmaps are not allowed when
+	 * write seals are active.
+	 */
+	if (mask & VM_WRITE)
+		return -EPERM;
+
+	/*
+	 * This is a read-only mapping, disallow mprotect() from making a
+	 * write-sealed mapping writable in future.
+	 */
+	*vm_flags_ptr &= ~VM_MAYWRITE;
+
+	return 0;
+}
+
+int memfd_check_seals_mmap(struct file *file, unsigned long *vm_flags_ptr)
+{
+	int err = 0;
+	unsigned int *seals_ptr = memfd_file_seals_ptr(file);
+	unsigned int seals = seals_ptr ? *seals_ptr : 0;
+
+	if (is_write_sealed(seals))
+		err = check_write_seal(vm_flags_ptr);
+
+	return err;
+}
+
+static int sanitize_flags(unsigned int *flags_ptr)
+{
+	unsigned int flags = *flags_ptr;
 
 	if (!(flags & MFD_HUGETLB)) {
 		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
@@ -304,50 +387,52 @@ SYSCALL_DEFINE2(memfd_create,
 	if ((flags & MFD_EXEC) && (flags & MFD_NOEXEC_SEAL))
 		return -EINVAL;
 
-	error = check_sysctl_memfd_noexec(&flags);
-	if (error < 0)
-		return error;
+	return check_sysctl_memfd_noexec(flags_ptr);
+}
 
-	/* length includes terminating zero */
-	len = strnlen_user(uname, MFD_NAME_MAX_LEN + 1);
-	if (len <= 0)
-		return -EFAULT;
-	if (len > MFD_NAME_MAX_LEN + 1)
-		return -EINVAL;
+static char *alloc_name(const char __user *uname)
+{
+	int error;
+	char *name;
+	long len;
 
-	name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_KERNEL);
+	name = kmalloc(NAME_MAX + 1, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	strcpy(name, MFD_NAME_PREFIX);
-	if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
+	/* returned length does not include terminating zero */
+	len = strncpy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, MFD_NAME_MAX_LEN + 1);
+	if (len < 0) {
 		error = -EFAULT;
+		goto err_name;
+	} else if (len > MFD_NAME_MAX_LEN) {
+		error = -EINVAL;
 		goto err_name;
 	}
 
-	/* terminating-zero may have changed after strnlen_user() returned */
-	if (name[len + MFD_NAME_PREFIX_LEN - 1]) {
-		error = -EFAULT;
-		goto err_name;
-	}
+	return name;
 
-	fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
-	if (fd < 0) {
-		error = fd;
-		goto err_name;
-	}
+err_name:
+	kfree(name);
+	return ERR_PTR(error);
+}
+
+static struct file *alloc_file(const char *name, unsigned int flags)
+{
+	unsigned int *file_seals;
+	struct file *file;
 
 	if (flags & MFD_HUGETLB) {
 		file = hugetlb_file_setup(name, 0, VM_NORESERVE,
 					HUGETLB_ANONHUGE_INODE,
 					(flags >> MFD_HUGE_SHIFT) &
 					MFD_HUGE_MASK);
-	} else
+	} else {
 		file = shmem_file_setup(name, 0, VM_NORESERVE);
-	if (IS_ERR(file)) {
-		error = PTR_ERR(file);
-		goto err_fd;
 	}
+	if (IS_ERR(file))
+		return file;
 	file->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
 	file->f_flags |= O_LARGEFILE;
 
@@ -365,6 +450,37 @@ SYSCALL_DEFINE2(memfd_create,
 		file_seals = memfd_file_seals_ptr(file);
 		if (file_seals)
 			*file_seals &= ~F_SEAL_SEAL;
+	}
+
+	return file;
+}
+
+SYSCALL_DEFINE2(memfd_create,
+		const char __user *, uname,
+		unsigned int, flags)
+{
+	struct file *file;
+	int fd, error;
+	char *name;
+
+	error = sanitize_flags(&flags);
+	if (error < 0)
+		return error;
+
+	name = alloc_name(uname);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
+
+	fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
+	if (fd < 0) {
+		error = fd;
+		goto err_name;
+	}
+
+	file = alloc_file(name, flags);
+	if (IS_ERR(file)) {
+		error = PTR_ERR(file);
+		goto err_fd;
 	}
 
 	fd_install(fd, file);

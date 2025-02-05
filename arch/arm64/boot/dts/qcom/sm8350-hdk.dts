@@ -42,6 +42,7 @@
 		compatible = "qcom,sm8350-pmic-glink", "qcom,pmic-glink";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		orientation-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
 
 		connector@0 {
 			compatible = "usb-c-connector";
@@ -381,10 +382,6 @@
 	firmware-name = "qcom/sm8350/cdsp.mbn";
 };
 
-&dispcc {
-	status = "okay";
-};
-
 &mdss_dsi0 {
 	vdda-supply = <&vreg_l6b_1p2>;
 	status = "okay";
@@ -485,17 +482,10 @@
 
 &mdss_dp {
 	status = "okay";
+};
 
-	ports {
-		port@1 {
-			reg = <1>;
-
-			mdss_dp0_out: endpoint {
-				data-lanes = <0 1>;
-				remote-endpoint = <&usb_1_qmpphy_dp_in>;
-			};
-		};
-	};
+&mdss_dp_out {
+	data-lanes = <0 1>;
 };
 
 &mpss {
@@ -863,10 +853,6 @@
 	remote-endpoint = <&pmic_glink_hs_in>;
 };
 
-&usb_1_dwc3_ss {
-	remote-endpoint = <&usb_1_qmpphy_usb_ss_in>;
-};
-
 &usb_1_hsphy {
 	status = "okay";
 
@@ -880,20 +866,10 @@
 
 	vdda-phy-supply = <&vreg_l6b_1p2>;
 	vdda-pll-supply = <&vreg_l1b_0p88>;
-
-	orientation-switch;
-};
-
-&usb_1_qmpphy_dp_in {
-	remote-endpoint = <&mdss_dp0_out>;
 };
 
 &usb_1_qmpphy_out {
 	remote-endpoint = <&pmic_glink_ss_in>;
-};
-
-&usb_1_qmpphy_usb_ss_in {
-	remote-endpoint = <&usb_1_dwc3_ss>;
 };
 
 &usb_2 {
@@ -948,4 +924,11 @@
 			bias-disable;
 		};
 	};
+};
+
+&ipa {
+	qcom,gsi-loader = "self";
+	memory-region = <&pil_ipa_fw_mem>;
+	status = "okay";
+	firmware-name = "qcom/sm8350/ipa_fws.mbn";
 };

@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/property.h>
 #include <linux/sysfs.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "common.h"
 

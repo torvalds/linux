@@ -126,7 +126,7 @@ mlxreg_io_attr_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_unlock(&priv->io_lock);
 
-	return sprintf(buf, "%u\n", regval);
+	return sysfs_emit(buf, "%u\n", regval);
 
 access_error:
 	mutex_unlock(&priv->io_lock);
@@ -275,7 +275,7 @@ static struct platform_driver mlxreg_io_driver = {
 	    .name = "mlxreg-io",
 	},
 	.probe = mlxreg_io_probe,
-	.remove_new = mlxreg_io_remove,
+	.remove = mlxreg_io_remove,
 };
 
 module_platform_driver(mlxreg_io_driver);

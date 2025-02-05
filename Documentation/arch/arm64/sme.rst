@@ -346,6 +346,10 @@ The regset data starts with struct user_za_header, containing:
 
 * Writes to NT_ARM_ZT will set PSTATE.ZA to 1.
 
+* If any register data is provided along with SME_PT_VL_ONEXEC then the
+  registers data will be interpreted with the current vector length, not
+  the vector length configured for use on exec.
+
 
 8.  ELF coredump extensions
 ---------------------------

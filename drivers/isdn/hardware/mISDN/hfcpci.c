@@ -48,6 +48,7 @@ static struct timer_list hfc_tl;
 static unsigned long hfc_jiffies;
 
 MODULE_AUTHOR("Karsten Keil");
+MODULE_DESCRIPTION("mISDN driver for CCD's hfc-pci based cards");
 MODULE_LICENSE("GPL");
 module_param(debug, uint, S_IRUGO | S_IWUSR);
 module_param(poll, uint, S_IRUGO | S_IWUSR);

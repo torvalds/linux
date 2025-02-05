@@ -175,7 +175,7 @@ static u32 dln2_i2c_func(struct i2c_adapter *a)
 }
 
 static const struct i2c_algorithm dln2_i2c_usb_algorithm = {
-	.master_xfer = dln2_i2c_xfer,
+	.xfer = dln2_i2c_xfer,
 	.functionality = dln2_i2c_func,
 };
 
@@ -245,12 +245,12 @@ static void dln2_i2c_remove(struct platform_device *pdev)
 static struct platform_driver dln2_i2c_driver = {
 	.driver.name	= "dln2-i2c",
 	.probe		= dln2_i2c_probe,
-	.remove_new	= dln2_i2c_remove,
+	.remove		= dln2_i2c_remove,
 };
 
 module_platform_driver(dln2_i2c_driver);
 
 MODULE_AUTHOR("Laurentiu Palcu <laurentiu.palcu@intel.com>");
-MODULE_DESCRIPTION("Driver for the Diolan DLN2 I2C master interface");
+MODULE_DESCRIPTION("Driver for the Diolan DLN2 I2C controller interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:dln2-i2c");

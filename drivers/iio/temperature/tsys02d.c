@@ -168,7 +168,7 @@ static int tsys02d_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsys02d_id[] = {
-	{"tsys02d", 0},
+	{ "tsys02d" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tsys02d_id);
@@ -187,4 +187,4 @@ MODULE_DESCRIPTION("Measurement-Specialties tsys02d temperature driver");
 MODULE_AUTHOR("William Markezana <william.markezana@meas-spec.com>");
 MODULE_AUTHOR("Ludovic Tancerel <ludovic.tancerel@maplehightech.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_MEAS_SPEC_SENSORS);
+MODULE_IMPORT_NS("IIO_MEAS_SPEC_SENSORS");

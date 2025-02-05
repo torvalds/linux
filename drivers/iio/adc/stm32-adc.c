@@ -1261,7 +1261,7 @@ static int stm32_adc_conf_scan_seq(struct iio_dev *indio_dev,
 	stm32_adc_writel(adc, adc->cfg->regs->smpr[0], adc->smpr_val[0]);
 	stm32_adc_writel(adc, adc->cfg->regs->smpr[1], adc->smpr_val[1]);
 
-	for_each_set_bit(bit, scan_mask, indio_dev->masklength) {
+	for_each_set_bit(bit, scan_mask, iio_get_masklength(indio_dev)) {
 		chan = indio_dev->channels + bit;
 		/*
 		 * Assign one channel per SQ entry in regular
@@ -1408,7 +1408,7 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 	struct stm32_adc *adc = iio_priv(indio_dev);
 	struct device *dev = indio_dev->dev.parent;
 	const struct stm32_adc_regspec *regs = adc->cfg->regs;
-	long timeout;
+	long time_left;
 	u32 val;
 	int ret;
 
@@ -1440,12 +1440,12 @@ static int stm32_adc_single_conv(struct iio_dev *indio_dev,
 
 	adc->cfg->start_conv(indio_dev, false);
 
-	timeout = wait_for_completion_interruptible_timeout(
+	time_left = wait_for_completion_interruptible_timeout(
 					&adc->completion, STM32_ADC_TIMEOUT);
-	if (timeout == 0) {
+	if (time_left == 0) {
 		ret = -ETIMEDOUT;
-	} else if (timeout < 0) {
-		ret = timeout;
+	} else if (time_left < 0) {
+		ret = time_left;
 	} else {
 		*res = adc->buffer[0];
 		ret = IIO_VAL_INT;
@@ -1619,7 +1619,7 @@ static int stm32_adc_update_scan_mode(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
-	adc->num_conv = bitmap_weight(scan_mask, indio_dev->masklength);
+	adc->num_conv = bitmap_weight(scan_mask, iio_get_masklength(indio_dev));
 
 	ret = stm32_adc_conf_scan_seq(indio_dev, scan_mask);
 	pm_runtime_mark_last_busy(dev);
@@ -2187,58 +2187,52 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 				       struct iio_chan_spec *channels)
 {
 	const struct stm32_adc_info *adc_info = adc->cfg->adc_info;
-	struct fwnode_handle *child;
+	struct device *dev = &indio_dev->dev;
 	const char *name;
 	int val, scan_index = 0, ret;
 	bool differential;
 	u32 vin[2];
 
-	device_for_each_child_node(&indio_dev->dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		ret = fwnode_property_read_u32(child, "reg", &val);
-		if (ret) {
-			dev_err(&indio_dev->dev, "Missing channel index %d\n", ret);
-			goto err;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Missing channel index\n");
 
 		ret = fwnode_property_read_string(child, "label", &name);
 		/* label is optional */
 		if (!ret) {
-			if (strlen(name) >= STM32_ADC_CH_SZ) {
-				dev_err(&indio_dev->dev, "Label %s exceeds %d characters\n",
-					name, STM32_ADC_CH_SZ);
-				ret = -EINVAL;
-				goto err;
-			}
+			if (strlen(name) >= STM32_ADC_CH_SZ)
+				return dev_err_probe(dev, -EINVAL,
+						     "Label %s exceeds %d characters\n",
+						     name, STM32_ADC_CH_SZ);
+
 			strscpy(adc->chan_name[val], name, STM32_ADC_CH_SZ);
 			ret = stm32_adc_populate_int_ch(indio_dev, name, val);
 			if (ret == -ENOENT)
 				continue;
 			else if (ret)
-				goto err;
+				return ret;
 		} else if (ret != -EINVAL) {
-			dev_err(&indio_dev->dev, "Invalid label %d\n", ret);
-			goto err;
+			return dev_err_probe(dev, ret, "Invalid label\n");
 		}
 
-		if (val >= adc_info->max_channels) {
-			dev_err(&indio_dev->dev, "Invalid channel %d\n", val);
-			ret = -EINVAL;
-			goto err;
-		}
+		if (val >= adc_info->max_channels)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid channel %d\n", val);
 
 		differential = false;
 		ret = fwnode_property_read_u32_array(child, "diff-channels", vin, 2);
 		/* diff-channels is optional */
 		if (!ret) {
 			differential = true;
-			if (vin[0] != val || vin[1] >= adc_info->max_channels) {
-				dev_err(&indio_dev->dev, "Invalid channel in%d-in%d\n",
-					vin[0], vin[1]);
-				goto err;
-			}
+			if (vin[0] != val || vin[1] >= adc_info->max_channels)
+				return dev_err_probe(dev, -EINVAL,
+						     "Invalid channel in%d-in%d\n",
+						     vin[0], vin[1]);
 		} else if (ret != -EINVAL) {
-			dev_err(&indio_dev->dev, "Invalid diff-channels property %d\n", ret);
-			goto err;
+			return dev_err_probe(dev, ret,
+					     "Invalid diff-channels property\n");
 		}
 
 		stm32_adc_chan_init_one(indio_dev, &channels[scan_index], val,
@@ -2247,11 +2241,9 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 		val = 0;
 		ret = fwnode_property_read_u32(child, "st,min-sample-time-ns", &val);
 		/* st,min-sample-time-ns is optional */
-		if (ret && ret != -EINVAL) {
-			dev_err(&indio_dev->dev, "Invalid st,min-sample-time-ns property %d\n",
-				ret);
-			goto err;
-		}
+		if (ret && ret != -EINVAL)
+			return dev_err_probe(dev, ret,
+					     "Invalid st,min-sample-time-ns property\n");
 
 		stm32_adc_smpr_init(adc, channels[scan_index].channel, val);
 		if (differential)
@@ -2261,11 +2253,6 @@ static int stm32_adc_generic_chan_init(struct iio_dev *indio_dev,
 	}
 
 	return scan_index;
-
-err:
-	fwnode_handle_put(child);
-
-	return ret;
 }
 
 static int stm32_adc_chan_fw_init(struct iio_dev *indio_dev, bool timestamping)
@@ -2651,13 +2638,13 @@ static const struct of_device_id stm32_adc_of_match[] = {
 	{ .compatible = "st,stm32h7-adc", .data = (void *)&stm32h7_adc_cfg },
 	{ .compatible = "st,stm32mp1-adc", .data = (void *)&stm32mp1_adc_cfg },
 	{ .compatible = "st,stm32mp13-adc", .data = (void *)&stm32mp13_adc_cfg },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, stm32_adc_of_match);
 
 static struct platform_driver stm32_adc_driver = {
 	.probe = stm32_adc_probe,
-	.remove_new = stm32_adc_remove,
+	.remove = stm32_adc_remove,
 	.driver = {
 		.name = "stm32-adc",
 		.of_match_table = stm32_adc_of_match,

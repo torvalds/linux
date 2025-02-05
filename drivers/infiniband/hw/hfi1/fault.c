@@ -203,7 +203,6 @@ static const struct file_operations __fault_opcodes_fops = {
 	.open = fault_opcodes_open,
 	.read = fault_opcodes_read,
 	.write = fault_opcodes_write,
-	.llseek = no_llseek
 };
 
 void hfi1_fault_exit_debugfs(struct hfi1_ibdev *ibd)

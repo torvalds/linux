@@ -19,11 +19,8 @@ static ssize_t bt_coex_state_show(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	len = PAGE_SIZE;
-
 	mutex_lock(&wl->mutex);
-	len = snprintf(buf, len, "%d\n\n0 - off\n1 - on\n",
-		       wl->sg_enabled);
+	len = sysfs_emit(buf, "%d\n\n0 - off\n1 - on\n", wl->sg_enabled);
 	mutex_unlock(&wl->mutex);
 
 	return len;
@@ -78,13 +75,11 @@ static ssize_t hw_pg_ver_show(struct device *dev,
 	struct wl1271 *wl = dev_get_drvdata(dev);
 	ssize_t len;
 
-	len = PAGE_SIZE;
-
 	mutex_lock(&wl->mutex);
 	if (wl->hw_pg_ver >= 0)
-		len = snprintf(buf, len, "%d\n", wl->hw_pg_ver);
+		len = sysfs_emit(buf, "%d\n", wl->hw_pg_ver);
 	else
-		len = snprintf(buf, len, "n/a\n");
+		len = sysfs_emit(buf, "n/a\n");
 	mutex_unlock(&wl->mutex);
 
 	return len;
@@ -93,7 +88,7 @@ static ssize_t hw_pg_ver_show(struct device *dev,
 static DEVICE_ATTR_RO(hw_pg_ver);
 
 static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
-				       struct bin_attribute *bin_attr,
+				       const struct bin_attribute *bin_attr,
 				       char *buffer, loff_t pos, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -126,7 +121,7 @@ static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
 
 static const struct bin_attribute fwlog_attr = {
 	.attr = { .name = "fwlog", .mode = 0400 },
-	.read = wl1271_sysfs_read_fwlog,
+	.read_new = wl1271_sysfs_read_fwlog,
 };
 
 int wlcore_sysfs_init(struct wl1271 *wl)

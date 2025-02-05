@@ -10,8 +10,6 @@
 /plugin/;
 
 &{/} {
-	/delete-node/ panel;
-
 	hdmi: connector-hdmi {
 		compatible = "hdmi-connector";
 		label = "hdmi";
@@ -36,9 +34,7 @@
 
 &display0 {
 	status = "okay";
-};
 
-&display0 {
 	port@1 {
 		display0_out: endpoint {
 			remote-endpoint = <&sii9022_in>;
@@ -82,6 +78,6 @@
 	};
 };
 
-&tve {
+&panel_dpi {
 	status = "disabled";
 };

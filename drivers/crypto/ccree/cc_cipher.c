@@ -179,7 +179,7 @@ static int cc_cipher_init(struct crypto_tfm *tfm)
 		}
 		max_key_buf_size <<= 1;
 
-		/* Alloc fallabck tfm or essiv when key size != 256 bit */
+		/* Alloc fallback tfm or essiv when key size != 256 bit */
 		ctx_p->fallback_tfm =
 			crypto_alloc_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK | CRYPTO_ALG_ASYNC);
 
@@ -260,12 +260,6 @@ static void cc_cipher_exit(struct crypto_tfm *tfm)
 	dev_dbg(dev, "Free key buffer in context. key=@%p\n", ctx_p->user.key);
 	kfree_sensitive(ctx_p->user.key);
 }
-
-struct tdes_keys {
-	u8	key1[DES_KEY_SIZE];
-	u8	key2[DES_KEY_SIZE];
-	u8	key3[DES_KEY_SIZE];
-};
 
 static enum cc_hw_crypto_key cc_slot_to_hw_key(u8 slot_num)
 {

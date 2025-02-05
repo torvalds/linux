@@ -7,6 +7,7 @@
  * a histogram of results, along various sorting keys.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/color.h"
 #include <linux/list.h>
@@ -37,11 +38,13 @@
 #include "util/map_symbol.h"
 #include "util/branch.h"
 #include "util/util.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
+#include <inttypes.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
@@ -217,9 +220,10 @@ static int process_branch_callback(struct evsel *evsel,
 	}
 
 	if (a.map != NULL)
-		map__dso(a.map)->hit = 1;
+		dso__set_hit(map__dso(a.map));
 
-	hist__account_cycles(sample->branch_stack, al, sample, false, NULL);
+	hist__account_cycles(sample->branch_stack, al, sample, false,
+			     NULL, evsel);
 
 	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
 out:
@@ -252,7 +256,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 		if (al->sym != NULL) {
 			struct dso *dso = map__dso(al->map);
 
-			rb_erase_cached(&al->sym->rb_node, &dso->symbols);
+			rb_erase_cached(&al->sym->rb_node, dso__symbols(dso));
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(dso);
 		}
@@ -277,7 +281,7 @@ static int evsel__add_sample(struct evsel *evsel, struct perf_sample *sample,
 	return ret;
 }
 
-static int process_sample_event(struct perf_tool *tool,
+static int process_sample_event(const struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
 				struct evsel *evsel,
@@ -327,77 +331,6 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 	return symbol__tty_annotate2(&he->ms, evsel);
 }
 
-static void print_annotated_data_header(struct hist_entry *he, struct evsel *evsel)
-{
-	struct dso *dso = map__dso(he->ms.map);
-	int nr_members = 1;
-	int nr_samples = he->stat.nr_events;
-
-	if (evsel__is_group_event(evsel)) {
-		struct hist_entry *pair;
-
-		list_for_each_entry(pair, &he->pairs.head, pairs.node)
-			nr_samples += pair->stat.nr_events;
-	}
-
-	printf("Annotate type: '%s' in %s (%d samples):\n",
-	       he->mem_type->self.type_name, dso->name, nr_samples);
-
-	if (evsel__is_group_event(evsel)) {
-		struct evsel *pos;
-		int i = 0;
-
-		for_each_group_evsel(pos, evsel)
-			printf(" event[%d] = %s\n", i++, pos->name);
-
-		nr_members = evsel->core.nr_members;
-	}
-
-	printf("============================================================================\n");
-	printf("%*s %10s %10s  %s\n", 11 * nr_members, "samples", "offset", "size", "field");
-}
-
-static void print_annotated_data_type(struct annotated_data_type *mem_type,
-				      struct annotated_member *member,
-				      struct evsel *evsel, int indent)
-{
-	struct annotated_member *child;
-	struct type_hist *h = mem_type->histograms[evsel->core.idx];
-	int i, nr_events = 1, samples = 0;
-
-	for (i = 0; i < member->size; i++)
-		samples += h->addr[member->offset + i].nr_samples;
-	printf(" %10d", samples);
-
-	if (evsel__is_group_event(evsel)) {
-		struct evsel *pos;
-
-		for_each_group_member(pos, evsel) {
-			h = mem_type->histograms[pos->core.idx];
-
-			samples = 0;
-			for (i = 0; i < member->size; i++)
-				samples += h->addr[member->offset + i].nr_samples;
-			printf(" %10d", samples);
-		}
-		nr_events = evsel->core.nr_members;
-	}
-
-	printf(" %10d %10d  %*s%s\t%s",
-	       member->offset, member->size, indent, "", member->type_name,
-	       member->var_name ?: "");
-
-	if (!list_empty(&member->children))
-		printf(" {\n");
-
-	list_for_each_entry(child, &member->children, node)
-		print_annotated_data_type(mem_type, child, evsel, indent + 4);
-
-	if (!list_empty(&member->children))
-		printf("%*s}", 11 * nr_events + 24 + indent, "");
-	printf(";\n");
-}
-
 static void print_annotate_data_stat(struct annotated_data_stat *s)
 {
 #define PRINT_STAT(fld) if (s->fld) printf("%10d : %s\n", s->fld, #fld)
@@ -430,6 +363,7 @@ static void print_annotate_data_stat(struct annotated_data_stat *s)
 	PRINT_STAT(no_typeinfo);
 	PRINT_STAT(invalid_size);
 	PRINT_STAT(bad_offset);
+	PRINT_STAT(insn_track);
 	printf("\n");
 
 #undef PRINT_STAT
@@ -464,10 +398,10 @@ static void print_annotate_item_stat(struct list_head *head, const char *title)
 	printf("total %d, ok %d (%.1f%%), bad %d (%.1f%%)\n\n", total,
 	       total_good, 100.0 * total_good / (total ?: 1),
 	       total_bad, 100.0 * total_bad / (total ?: 1));
-	printf("  %-10s: %5s %5s\n", "Name", "Good", "Bad");
+	printf("  %-20s: %5s %5s\n", "Name/opcode", "Good", "Bad");
 	printf("-----------------------------------------------------------\n");
 	list_for_each_entry(istat, head, list)
-		printf("  %-10s: %5d %5d\n", istat->name, istat->good, istat->bad);
+		printf("  %-20s: %5d %5d\n", istat->name, istat->good, istat->bad);
 	printf("\n");
 }
 
@@ -487,7 +421,7 @@ static void hists__find_annotations(struct hists *hists,
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct annotation *notes;
 
-		if (he->ms.sym == NULL || map__dso(he->ms.map)->annotate_warned)
+		if (he->ms.sym == NULL || dso__annotate_warned(map__dso(he->ms.map)))
 			goto find_next;
 
 		if (ann->sym_hist_filter &&
@@ -537,10 +471,32 @@ find_next:
 					goto find_next;
 			}
 
-			print_annotated_data_header(he, evsel);
-			print_annotated_data_type(he->mem_type, &he->mem_type->self, evsel, 0);
-			printf("\n");
-			goto find_next;
+			if (use_browser == 1)
+				key = hist_entry__annotate_data_tui(he, evsel, NULL);
+			else
+				key = hist_entry__annotate_data_tty(he, evsel);
+
+			switch (key) {
+			case -1:
+				if (!ann->skip_missing)
+					return;
+				/* fall through */
+			case K_RIGHT:
+			case '>':
+				next = rb_next(nd);
+				break;
+			case K_LEFT:
+			case '<':
+				next = rb_prev(nd);
+				break;
+			default:
+				return;
+			}
+
+			if (use_browser == 0 || next != NULL)
+				nd = next;
+
+			continue;
 		}
 
 		if (use_browser == 2) {
@@ -617,8 +573,8 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		goto out;
 
 	if (dump_trace) {
-		perf_session__fprintf_nr_events(session, stdout, false);
-		evlist__fprintf_nr_events(session->evlist, stdout, false);
+		perf_session__fprintf_nr_events(session, stdout);
+		evlist__fprintf_nr_events(session->evlist, stdout);
 		goto out;
 	}
 
@@ -632,13 +588,23 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_samples;
+		struct ui_progress prog;
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
-			hists__collapse_resort(hists, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Merging related events...");
+			hists__collapse_resort(hists, &prog);
+			ui_progress__finish();
+
 			/* Don't sort callchain */
 			evsel__reset_sample_bit(pos, CALLCHAIN);
-			evsel__output_resort(pos, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Sorting events for output...");
+			evsel__output_resort(pos, &prog);
+			ui_progress__finish();
 
 			/*
 			 * An event group needs to display other events too.
@@ -668,12 +634,22 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_samples;
+		struct ui_progress prog;
+		struct evsel *evsel;
+
+		if (!symbol_conf.event_group || !evsel__is_group_leader(pos))
+			continue;
+
+		for_each_group_member(evsel, pos)
+			nr_samples += evsel__hists(evsel)->stats.nr_samples;
 
 		if (nr_samples == 0)
 			continue;
 
-		if (!symbol_conf.event_group || !evsel__is_group_leader(pos))
-			continue;
+		ui_progress__init(&prog, nr_samples,
+				  "Sorting group events for output...");
+		evsel__output_resort(pos, &prog);
+		ui_progress__finish();
 
 		hists__find_annotations(hists, pos, ann);
 	}
@@ -722,28 +698,7 @@ static const char * const annotate_usage[] = {
 
 int cmd_annotate(int argc, const char **argv)
 {
-	struct perf_annotate annotate = {
-		.tool = {
-			.sample	= process_sample_event,
-			.mmap	= perf_event__process_mmap,
-			.mmap2	= perf_event__process_mmap2,
-			.comm	= perf_event__process_comm,
-			.exit	= perf_event__process_exit,
-			.fork	= perf_event__process_fork,
-			.namespaces = perf_event__process_namespaces,
-			.attr	= perf_event__process_attr,
-			.build_id = perf_event__process_build_id,
-#ifdef HAVE_LIBTRACEEVENT
-			.tracing_data   = perf_event__process_tracing_data,
-#endif
-			.id_index	= perf_event__process_id_index,
-			.auxtrace_info	= perf_event__process_auxtrace_info,
-			.auxtrace	= perf_event__process_auxtrace,
-			.feature	= process_feature_event,
-			.ordered_events = true,
-			.ordering_requires_timestamps = true,
-		},
-	};
+	struct perf_annotate annotate = {};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
 	};
@@ -809,8 +764,6 @@ int cmd_annotate(int argc, const char **argv)
 		    "Enable symbol demangling"),
 	OPT_BOOLEAN(0, "demangle-kernel", &symbol_conf.demangle_kernel,
 		    "Enable kernel symbol demangling"),
-	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
-		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
@@ -833,6 +786,8 @@ int cmd_annotate(int argc, const char **argv)
 		    "Show stats for the data type annotation"),
 	OPT_BOOLEAN(0, "insn-stat", &annotate.insn_stat,
 		    "Show instruction stats for the data type annotation"),
+	OPT_BOOLEAN(0, "skip-empty", &symbol_conf.skip_empty,
+		    "Do not display empty (or dummy) events in the output"),
 	OPT_END()
 	};
 	int ret;
@@ -886,7 +841,7 @@ int cmd_annotate(int argc, const char **argv)
 	}
 #endif
 
-#ifndef HAVE_DWARF_GETLOCATIONS_SUPPORT
+#ifndef HAVE_LIBDW_SUPPORT
 	if (annotate.data_type) {
 		pr_err("Error: Data type profiling is disabled due to missing DWARF support\n");
 		return -ENOTSUP;
@@ -901,6 +856,25 @@ int cmd_annotate(int argc, const char **argv)
 		perf_quiet_option();
 
 	data.path = input_name;
+
+	perf_tool__init(&annotate.tool, /*ordered_events=*/true);
+	annotate.tool.sample	= process_sample_event;
+	annotate.tool.mmap	= perf_event__process_mmap;
+	annotate.tool.mmap2	= perf_event__process_mmap2;
+	annotate.tool.comm	= perf_event__process_comm;
+	annotate.tool.exit	= perf_event__process_exit;
+	annotate.tool.fork	= perf_event__process_fork;
+	annotate.tool.namespaces = perf_event__process_namespaces;
+	annotate.tool.attr	= perf_event__process_attr;
+	annotate.tool.build_id = perf_event__process_build_id;
+#ifdef HAVE_LIBTRACEEVENT
+	annotate.tool.tracing_data   = perf_event__process_tracing_data;
+#endif
+	annotate.tool.id_index	= perf_event__process_id_index;
+	annotate.tool.auxtrace_info	= perf_event__process_auxtrace_info;
+	annotate.tool.auxtrace	= perf_event__process_auxtrace;
+	annotate.tool.feature	= process_feature_event;
+	annotate.tool.ordering_requires_timestamps = true;
 
 	annotate.session = perf_session__new(&data, &annotate.tool);
 	if (IS_ERR(annotate.session))
@@ -935,9 +909,7 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 #endif
 
-	/* FIXME: only support stdio for now */
 	if (annotate.data_type) {
-		use_browser = 0;
 		annotate_opts.annotate_src = false;
 		symbol_conf.annotate_data_member = true;
 		symbol_conf.annotate_data_sample = true;
@@ -956,11 +928,15 @@ int cmd_annotate(int argc, const char **argv)
 		sort_order = "dso,symbol";
 
 	/*
-	 * Set SORT_MODE__BRANCH so that annotate display IPC/Cycle
-	 * if branch info is in perf data in TUI mode.
+	 * Set SORT_MODE__BRANCH so that annotate displays IPC/Cycle and
+	 * branch counters, if the corresponding branch info is available
+	 * in the perf data in the TUI mode.
 	 */
-	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack)
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
+		if (annotate.session->evlist->nr_br_cntr > 0)
+			annotate_opts.show_br_cntr = true;
+	}
 
 	if (setup_sorting(NULL) < 0)
 		usage_with_options(annotate_usage, options);

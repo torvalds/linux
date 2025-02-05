@@ -54,7 +54,14 @@ struct sdw_slave;
 #define REGMAP_UPSHIFT(s)	(-(s))
 #define REGMAP_DOWNSHIFT(s)	(s)
 
-/* An enum of all the supported cache types */
+/*
+ * The supported cache types, the default is no cache.  Any new caches
+ * should usually use the maple tree cache unless they specifically
+ * require that there are never any allocations at runtime and can't
+ * provide defaults in which case they should use the flat cache.  The
+ * rbtree cache *may* have some performance advantage for very low end
+ * systems that make heavy use of cache syncs but is mainly legacy.
+ */
 enum regcache_type {
 	REGCACHE_NONE,
 	REGCACHE_RBTREE,
@@ -106,17 +113,17 @@ struct reg_sequence {
  * @addr: Address to poll
  * @val: Unsigned integer variable to read the value into
  * @cond: Break condition (usually involving @val)
- * @sleep_us: Maximum time to sleep between reads in us (0
- *            tight-loops).  Should be less than ~20ms since usleep_range
- *            is used (see Documentation/timers/timers-howto.rst).
+ * @sleep_us: Maximum time to sleep between reads in us (0 tight-loops). Please
+ *            read usleep_range() function description for details and
+ *            limitations.
  * @timeout_us: Timeout in us, 0 means never timeout
  *
- * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
+ * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
+ *
+ * Returns: 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
  * error return value in case of a error read. In the two former cases,
  * the last read value at @addr is stored in @val. Must not be called
  * from atomic context if sleep_us or timeout_us are used.
- *
- * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
  */
 #define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
 ({ \
@@ -133,20 +140,20 @@ struct reg_sequence {
  * @addr: Address to poll
  * @val: Unsigned integer variable to read the value into
  * @cond: Break condition (usually involving @val)
- * @delay_us: Time to udelay between reads in us (0 tight-loops).
- *            Should be less than ~10us since udelay is used
- *            (see Documentation/timers/timers-howto.rst).
+ * @delay_us: Time to udelay between reads in us (0 tight-loops). Please
+ *            read udelay() function description for details and
+ *            limitations.
  * @timeout_us: Timeout in us, 0 means never timeout
- *
- * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
- * error return value in case of a error read. In the two former cases,
- * the last read value at @addr is stored in @val.
  *
  * This is modelled after the readx_poll_timeout_atomic macros in linux/iopoll.h.
  *
  * Note: In general regmap cannot be used in atomic context. If you want to use
  * this macro then first setup your regmap for atomic use (flat or no cache
  * and MMIO regmap).
+ *
+ * Returns: 0 on success and -ETIMEDOUT upon a timeout or the regmap_read
+ * error return value in case of a error read. In the two former cases,
+ * the last read value at @addr is stored in @val.
  */
 #define regmap_read_poll_timeout_atomic(map, addr, val, cond, delay_us, timeout_us) \
 ({ \
@@ -177,17 +184,17 @@ struct reg_sequence {
  * @field: Regmap field to read from
  * @val: Unsigned integer variable to read the value into
  * @cond: Break condition (usually involving @val)
- * @sleep_us: Maximum time to sleep between reads in us (0
- *            tight-loops).  Should be less than ~20ms since usleep_range
- *            is used (see Documentation/timers/timers-howto.rst).
+ * @sleep_us: Maximum time to sleep between reads in us (0 tight-loops). Please
+ *            read usleep_range() function description for details and
+ *            limitations.
  * @timeout_us: Timeout in us, 0 means never timeout
  *
- * Returns 0 on success and -ETIMEDOUT upon a timeout or the regmap_field_read
+ * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
+ *
+ * Returns: 0 on success and -ETIMEDOUT upon a timeout or the regmap_field_read
  * error return value in case of a error read. In the two former cases,
  * the last read value at @addr is stored in @val. Must not be called
  * from atomic context if sleep_us or timeout_us are used.
- *
- * This is modelled after the readx_poll_timeout macros in linux/iopoll.h.
  */
 #define regmap_field_read_poll_timeout(field, val, cond, sleep_us, timeout_us) \
 ({ \
@@ -297,15 +304,6 @@ typedef void (*regmap_unlock)(void *);
  *			performed on such table (a register is no increment
  *			readable if it belongs to one of the ranges specified
  *			by rd_noinc_table).
- * @disable_locking: This regmap is either protected by external means or
- *                   is guaranteed not to be accessed from multiple threads.
- *                   Don't use any locking mechanisms.
- * @lock:	  Optional lock callback (overrides regmap's default lock
- *		  function, based on spinlock or mutex).
- * @unlock:	  As above for unlocking.
- * @lock_arg:	  this field is passed as the only argument of lock/unlock
- *		  functions (ignored in case regular lock/unlock functions
- *		  are not overridden).
  * @reg_read:	  Optional callback that if filled will be used to perform
  *           	  all the reads from the registers. Should only be provided for
  *		  devices whose read operation cannot be represented as a simple
@@ -323,6 +321,7 @@ typedef void (*regmap_unlock)(void *);
  * @write: Same as above for writing.
  * @max_raw_read: Max raw read size that can be used on the device.
  * @max_raw_write: Max raw write size that can be used on the device.
+ * @can_sleep:	  Optional, specifies whether regmap operations can sleep.
  * @fast_io:	  Register IO is fast. Use a spinlock instead of a mutex
  *	     	  to perform locking. This field is ignored if custom lock/unlock
  *	     	  functions are used (see fields lock/unlock of struct regmap_config).
@@ -331,6 +330,15 @@ typedef void (*regmap_unlock)(void *);
  *		   Use it only for "no-bus" cases.
  * @io_port:	  Support IO port accessors. Makes sense only when MMIO vs. IO port
  *		  access can be distinguished.
+ * @disable_locking: This regmap is either protected by external means or
+ *		     is guaranteed not to be accessed from multiple threads.
+ *		     Don't use any locking mechanisms.
+ * @lock:	  Optional lock callback (overrides regmap's default lock
+ *		  function, based on spinlock or mutex).
+ * @unlock:	  As above for unlocking.
+ * @lock_arg:	  This field is passed as the only argument of lock/unlock
+ *		  functions (ignored in case regular lock/unlock functions
+ *		  are not overridden).
  * @max_register: Optional, specifies the maximum valid register address.
  * @max_register_is_0: Optional, specifies that zero value in @max_register
  *                     should be taken into account. This is a workaround to
@@ -373,21 +381,20 @@ typedef void (*regmap_unlock)(void *);
  * @reg_defaults_raw: Power on reset values for registers (for use with
  *                    register cache support).
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
- * @reg_format_endian: Endianness for formatted register addresses. If this is
- *                     DEFAULT, the @reg_format_endian_default value from the
- *                     regmap bus is used.
- * @val_format_endian: Endianness for formatted register values. If this is
- *                     DEFAULT, the @reg_format_endian_default value from the
- *                     regmap bus is used.
- *
- * @ranges: Array of configuration entries for virtual address ranges.
- * @num_ranges: Number of range configuration entries.
  * @use_hwlock: Indicate if a hardware spinlock should be used.
  * @use_raw_spinlock: Indicate if a raw spinlock should be used.
  * @hwlock_id: Specify the hardware spinlock id.
  * @hwlock_mode: The hardware spinlock mode, should be HWLOCK_IRQSTATE,
  *		 HWLOCK_IRQ or 0.
- * @can_sleep: Optional, specifies whether regmap operations can sleep.
+ * @reg_format_endian: Endianness for formatted register addresses. If this is
+ *		       DEFAULT, the @reg_format_endian_default value from the
+ *		       regmap bus is used.
+ * @val_format_endian: Endianness for formatted register values. If this is
+ *		       DEFAULT, the @reg_format_endian_default value from the
+ *		       regmap bus is used.
+ *
+ * @ranges: Array of configuration entries for virtual address ranges.
+ * @num_ranges: Number of range configuration entries.
  */
 struct regmap_config {
 	const char *name;
@@ -406,11 +413,6 @@ struct regmap_config {
 	bool (*writeable_noinc_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_noinc_reg)(struct device *dev, unsigned int reg);
 
-	bool disable_locking;
-	regmap_lock lock;
-	regmap_unlock unlock;
-	void *lock_arg;
-
 	int (*reg_read)(void *context, unsigned int reg, unsigned int *val);
 	int (*reg_write)(void *context, unsigned int reg, unsigned int val);
 	int (*reg_update_bits)(void *context, unsigned int reg,
@@ -422,8 +424,15 @@ struct regmap_config {
 	size_t max_raw_read;
 	size_t max_raw_write;
 
+	bool can_sleep;
+
 	bool fast_io;
 	bool io_port;
+
+	bool disable_locking;
+	regmap_lock lock;
+	regmap_unlock unlock;
+	void *lock_arg;
 
 	unsigned int max_register;
 	bool max_register_is_0;
@@ -448,18 +457,16 @@ struct regmap_config {
 	bool use_relaxed_mmio;
 	bool can_multi_write;
 
-	enum regmap_endian reg_format_endian;
-	enum regmap_endian val_format_endian;
-
-	const struct regmap_range_cfg *ranges;
-	unsigned int num_ranges;
-
 	bool use_hwlock;
 	bool use_raw_spinlock;
 	unsigned int hwlock_id;
 	unsigned int hwlock_mode;
 
-	bool can_sleep;
+	enum regmap_endian reg_format_endian;
+	enum regmap_endian val_format_endian;
+
+	const struct regmap_range_cfg *ranges;
+	unsigned int num_ranges;
 };
 
 /**
@@ -497,6 +504,32 @@ struct regmap_range_cfg {
 	/* Data window (per each page) */
 	unsigned int window_start;
 	unsigned int window_len;
+};
+
+/**
+ * struct regmap_sdw_mbq_cfg - Configuration for Multi-Byte Quantities
+ *
+ * @mbq_size: Callback returning the actual size of the given register.
+ * @deferrable: Callback returning true if the hardware can defer
+ *              transactions to the given register. Deferral should
+ *              only be used by SDCA parts and typically which controls
+ *              are deferrable will be specified in either as a hard
+ *              coded list or from the DisCo tables in the platform
+ *              firmware.
+ *
+ * @timeout_us: The time in microseconds after which waiting for a deferred
+ *              transaction should time out.
+ * @retry_us: The time in microseconds between polls of the function busy
+ *            status whilst waiting for an opportunity to retry a deferred
+ *            transaction.
+ *
+ * Provides additional configuration required for SoundWire MBQ register maps.
+ */
+struct regmap_sdw_mbq_cfg {
+	int (*mbq_size)(struct device *dev, unsigned int reg);
+	bool (*deferrable)(struct device *dev, unsigned int reg);
+	unsigned long timeout_us;
+	unsigned long retry_us;
 };
 
 struct regmap_async;
@@ -645,6 +678,7 @@ struct regmap *__regmap_init_sdw(struct sdw_slave *sdw,
 				 const char *lock_name);
 struct regmap *__regmap_init_sdw_mbq(struct sdw_slave *sdw,
 				     const struct regmap_config *config,
+				     const struct regmap_sdw_mbq_cfg *mbq_config,
 				     struct lock_class_key *lock_key,
 				     const char *lock_name);
 struct regmap *__regmap_init_spi_avmm(struct spi_device *spi,
@@ -706,6 +740,7 @@ struct regmap *__devm_regmap_init_sdw(struct sdw_slave *sdw,
 				 const char *lock_name);
 struct regmap *__devm_regmap_init_sdw_mbq(struct sdw_slave *sdw,
 					  const struct regmap_config *config,
+					  const struct regmap_sdw_mbq_cfg *mbq_config,
 					  struct lock_class_key *lock_key,
 					  const char *lock_name);
 struct regmap *__devm_regmap_init_slimbus(struct slim_device *slimbus,
@@ -935,7 +970,22 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define regmap_init_sdw_mbq(sdw, config)					\
 	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,		\
-				sdw, config)
+				sdw, config, NULL)
+
+/**
+ * regmap_init_sdw_mbq_cfg() - Initialise MBQ SDW register map with config
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ * @mbq_config: Properties for the MBQ registers
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap. The regmap will be automatically freed by the
+ * device management code.
+ */
+#define regmap_init_sdw_mbq_cfg(sdw, config, mbq_config)		\
+	__regmap_lockdep_wrapper(__regmap_init_sdw_mbq, #config,	\
+				sdw, config, mbq_config)
 
 /**
  * regmap_init_spi_avmm() - Initialize register map for Intel SPI Slave
@@ -1148,7 +1198,22 @@ bool regmap_ac97_default_volatile(struct device *dev, unsigned int reg);
  */
 #define devm_regmap_init_sdw_mbq(sdw, config)			\
 	__regmap_lockdep_wrapper(__devm_regmap_init_sdw_mbq, #config,   \
-				sdw, config)
+				sdw, config, NULL)
+
+/**
+ * devm_regmap_init_sdw_mbq_cfg() - Initialise managed MBQ SDW register map with config
+ *
+ * @sdw: Device that will be interacted with
+ * @config: Configuration for register map
+ * @mbq_config: Properties for the MBQ registers
+ *
+ * The return value will be an ERR_PTR() on error or a valid pointer
+ * to a struct regmap. The regmap will be automatically freed by the
+ * device management code.
+ */
+#define devm_regmap_init_sdw_mbq_cfg(sdw, config, mbq_config)	\
+	__regmap_lockdep_wrapper(__devm_regmap_init_sdw_mbq,	\
+				#config, sdw, config, mbq_config)
 
 /**
  * devm_regmap_init_slimbus() - Initialise managed register map
@@ -1230,12 +1295,15 @@ int regmap_multi_reg_write_bypassed(struct regmap *map,
 int regmap_raw_write_async(struct regmap *map, unsigned int reg,
 			   const void *val, size_t val_len);
 int regmap_read(struct regmap *map, unsigned int reg, unsigned int *val);
+int regmap_read_bypassed(struct regmap *map, unsigned int reg, unsigned int *val);
 int regmap_raw_read(struct regmap *map, unsigned int reg,
 		    void *val, size_t val_len);
 int regmap_noinc_read(struct regmap *map, unsigned int reg,
 		      void *val, size_t val_len);
 int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 		     size_t val_count);
+int regmap_multi_reg_read(struct regmap *map, const unsigned int *reg, void *val,
+			  size_t val_count);
 int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 			    unsigned int mask, unsigned int val,
 			    bool *change, bool async, bool force);
@@ -1323,6 +1391,15 @@ static inline int regmap_clear_bits(struct regmap *map,
 				    unsigned int reg, unsigned int bits)
 {
 	return regmap_update_bits_base(map, reg, bits, 0, NULL, false, false);
+}
+
+static inline int regmap_assign_bits(struct regmap *map, unsigned int reg,
+				     unsigned int bits, bool value)
+{
+	if (value)
+		return regmap_set_bits(map, reg, bits);
+	else
+		return regmap_clear_bits(map, reg, bits);
 }
 
 int regmap_test_bits(struct regmap *map, unsigned int reg, unsigned int bits);
@@ -1518,6 +1595,9 @@ struct regmap_irq_chip_data;
  * struct regmap_irq_chip - Description of a generic regmap irq_chip.
  *
  * @name:        Descriptive name for IRQ controller.
+ * @domain_suffix: Name suffix to be appended to end of IRQ domain name. Needed
+ *		   when multiple regmap-IRQ controllers are created from same
+ *		   device.
  *
  * @main_status: Base main status register address. For chips which have
  *		 interrupts arranged in separate sub-irq blocks with own IRQ
@@ -1603,10 +1683,11 @@ struct regmap_irq_chip_data;
  */
 struct regmap_irq_chip {
 	const char *name;
+	const char *domain_suffix;
 
 	unsigned int main_status;
 	unsigned int num_main_status_bits;
-	struct regmap_irq_sub_irq_map *sub_reg_offsets;
+	const struct regmap_irq_sub_irq_map *sub_reg_offsets;
 	int num_main_regs;
 
 	unsigned int status_base;
@@ -1739,6 +1820,13 @@ static inline int regmap_read(struct regmap *map, unsigned int reg,
 	return -EINVAL;
 }
 
+static inline int regmap_read_bypassed(struct regmap *map, unsigned int reg,
+				       unsigned int *val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
 static inline int regmap_raw_read(struct regmap *map, unsigned int reg,
 				  void *val, size_t val_len)
 {
@@ -1777,6 +1865,13 @@ static inline int regmap_set_bits(struct regmap *map,
 
 static inline int regmap_clear_bits(struct regmap *map,
 				    unsigned int reg, unsigned int bits)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_assign_bits(struct regmap *map, unsigned int reg,
+				     unsigned int bits, bool value)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;

@@ -15,6 +15,12 @@
 	compatible = "renesas,spider-cpu", "renesas,r8a779f0";
 
 	aliases {
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
 		serial0 = &hscif0;
 		serial1 = &scif0;
 	};
@@ -165,7 +171,7 @@
 };
 
 &pciec0 {
-	reset-gpio = <&gpio_exp_20 0 GPIO_ACTIVE_LOW>;
+	reset-gpios = <&gpio_exp_20 0 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

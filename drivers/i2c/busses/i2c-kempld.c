@@ -276,8 +276,8 @@ static u32 kempld_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm kempld_i2c_algorithm = {
-	.master_xfer	= kempld_i2c_xfer,
-	.functionality	= kempld_i2c_func,
+	.xfer = kempld_i2c_xfer,
+	.functionality = kempld_i2c_func,
 };
 
 static const struct i2c_adapter kempld_i2c_adapter = {
@@ -385,7 +385,7 @@ static struct platform_driver kempld_i2c_driver = {
 		.pm = pm_sleep_ptr(&kempld_i2c_pm_ops),
 	},
 	.probe		= kempld_i2c_probe,
-	.remove_new	= kempld_i2c_remove,
+	.remove		= kempld_i2c_remove,
 };
 
 module_platform_driver(kempld_i2c_driver);

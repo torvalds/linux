@@ -414,7 +414,7 @@ mv_xor_tx_submit(struct dma_async_tx_descriptor *tx)
 		if (!mv_chan_is_busy(mv_chan)) {
 			u32 current_desc = mv_chan_get_current_desc(mv_chan);
 			/*
-			 * and the curren desc is the end of the chain before
+			 * and the current desc is the end of the chain before
 			 * the append, then we need to start the channel
 			 */
 			if (current_desc == old_chain_tail->async_tx.phys)
@@ -1074,7 +1074,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	if (!mv_chan->dma_desc_pool_virt)
 		return ERR_PTR(-ENOMEM);
 
-	/* discover transaction capabilites from the platform data */
+	/* discover transaction capabilities from the platform data */
 	dma_dev->cap_mask = cap_mask;
 
 	INIT_LIST_HEAD(&dma_dev->channels);
@@ -1369,10 +1369,9 @@ static int mv_xor_probe(struct platform_device *pdev)
 		return 0;
 
 	if (pdev->dev.of_node) {
-		struct device_node *np;
 		int i = 0;
 
-		for_each_child_of_node(pdev->dev.of_node, np) {
+		for_each_child_of_node_scoped(pdev->dev.of_node, np) {
 			struct mv_xor_chan *chan;
 			dma_cap_mask_t cap_mask;
 			int irq;

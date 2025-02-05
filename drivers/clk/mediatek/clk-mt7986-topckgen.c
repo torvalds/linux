@@ -306,11 +306,13 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7986_topckgen);
 
 static struct platform_driver clk_mt7986_topckgen_drv = {
 	.probe = mtk_clk_simple_probe,
-	.remove_new = mtk_clk_simple_remove,
+	.remove = mtk_clk_simple_remove,
 	.driver = {
 		.name = "clk-mt7986-topckgen",
 		.of_match_table = of_match_clk_mt7986_topckgen,
 	},
 };
 module_platform_driver(clk_mt7986_topckgen_drv);
+
+MODULE_DESCRIPTION("MediaTek MT7986 top clock generators driver");
 MODULE_LICENSE("GPL");

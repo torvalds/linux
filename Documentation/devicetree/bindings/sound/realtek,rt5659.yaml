@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/realtek,rt5659.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: RT5659/RT5658 audio CODEC
+
+maintainers:
+  - Animesh Agarwal <animeshagarwal28@gmail.com>
+
+description: |
+  This device supports I2C only.
+
+  Pins on the device (for linking into audio routes) for RT5659/RT5658:
+    * DMIC L1
+    * DMIC R1
+    * DMIC L2
+    * DMIC R2
+    * IN1P
+    * IN1N
+    * IN2P
+    * IN2N
+    * IN3P
+    * IN3N
+    * IN4P
+    * IN4N
+    * HPOL
+    * HPOR
+    * SPOL
+    * SPOR
+    * LOUTL
+    * LOUTR
+    * MONOOUT
+    * PDML
+    * PDMR
+    * SPDIF
+
+allOf:
+  - $ref: dai-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - realtek,rt5659
+      - realtek,rt5658
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: mclk
+
+  realtek,dmic1-data-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # dmic1 is not used
+      - 1 # using IN2N pin as dmic1 data pin
+      - 2 # using GPIO5 pin as dmic1 data pin
+      - 3 # using GPIO9 pin as dmic1 data pin
+      - 4 # using GPIO11 pin as dmic1 data pin
+    description: Specify which pin to be used as DMIC1 data pin.
+    default: 0
+
+  realtek,dmic2-data-pin:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # dmic2 is not used
+      - 1 # using IN2P pin as dmic2 data pin
+      - 2 # using GPIO6 pin as dmic2 data pin
+      - 3 # using GPIO10 pin as dmic2 data pin
+      - 4 # using GPIO12 pin as dmic2 data pin
+    description: Specify which pin to be used as DMIC2 data pin.
+    default: 0
+
+  realtek,jd-src:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum:
+      - 0 # No JD is used
+      - 1 # using JD3 as JD source
+      - 2 # JD source for Intel HDA header
+    description: Specify which JD source be used.
+    default: 0
+
+  realtek,ldo1-en-gpios:
+    maxItems: 1
+    description: CODEC's LDO1_EN pin.
+
+  realtek,reset-gpios:
+    maxItems: 1
+    description: CODEC's RESET pin.
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@1b {
+            compatible = "realtek,rt5659";
+            reg = <0x1b>;
+            interrupt-parent = <&gpio>;
+            interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+            realtek,ldo1-en-gpios = <&gpio 3 GPIO_ACTIVE_HIGH>;
+        };
+    };

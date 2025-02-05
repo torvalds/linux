@@ -1,6 +1,7 @@
 [
     {
         "BriefDescription": "Counts the number of cache lines replaced in L1 data cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x51",
         "EventName": "L1D.REPLACEMENT",
         "PublicDescription": "Counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace.",
@@ -9,6 +10,7 @@
     },
     {
         "BriefDescription": "Number of cycles a demand request has waited due to L1D Fill Buffer (FB) unavailability.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
         "PublicDescription": "Counts number of cycles a demand request has waited due to L1D Fill Buffer (FB) unavailability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
@@ -17,6 +19,7 @@
     },
     {
         "BriefDescription": "Number of phases a demand request has waited due to L1D Fill Buffer (FB) unavailability.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EdgeDetect": "1",
         "EventCode": "0x48",
@@ -27,6 +30,7 @@
     },
     {
         "BriefDescription": "Number of cycles a demand request has waited due to L1D due to lack of L2 resources.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.L2_STALL",
         "PublicDescription": "Counts number of cycles a demand request has waited due to L1D due to lack of L2 resources. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
@@ -35,6 +39,7 @@
     },
     {
         "BriefDescription": "Number of L1D misses that are outstanding",
+        "Counter": "0,1,2,3",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING",
         "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
@@ -43,6 +48,7 @@
     },
     {
         "BriefDescription": "Cycles with L1D load Misses outstanding.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.PENDING_CYCLES",
@@ -52,6 +58,7 @@
     },
     {
         "BriefDescription": "L2 cache lines filling L2",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF1",
         "EventName": "L2_LINES_IN.ALL",
         "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
@@ -60,6 +67,7 @@
     },
     {
         "BriefDescription": "Modified cache lines that are evicted by L2 cache when triggered by an L2 cache fill.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.NON_SILENT",
         "PublicDescription": "Counts the number of lines that are evicted by L2 cache when triggered by an L2 cache fill. Those lines are in Modified state. Modified lines are written back to L3",
@@ -68,6 +76,7 @@
     },
     {
         "BriefDescription": "Non-modified cache lines that are silently dropped by L2 cache when triggered by an L2 cache fill.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF2",
         "EventName": "L2_LINES_OUT.SILENT",
         "PublicDescription": "Counts the number of lines that are silently dropped by L2 cache when triggered by an L2 cache fill. These lines are typically in Shared or Exclusive state. A non-threaded event.",
@@ -76,6 +85,7 @@
     },
     {
         "BriefDescription": "Cache lines that have been L2 hardware prefetched but not used by demand accesses",
+        "Counter": "0,1,2,3",
         "EventCode": "0xf2",
         "EventName": "L2_LINES_OUT.USELESS_HWPF",
         "PublicDescription": "Counts the number of cache lines that have been prefetched by the L2 hardware prefetcher but not used by demand access when evicted from the L2 cache",
@@ -84,6 +94,7 @@
     },
     {
         "BriefDescription": "L2 code requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_CODE_RD",
         "PublicDescription": "Counts the total number of L2 code requests.",
@@ -92,6 +103,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
         "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
@@ -100,6 +112,7 @@
     },
     {
         "BriefDescription": "Demand requests that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
         "PublicDescription": "Counts demand requests that miss L2 cache.",
@@ -108,6 +121,7 @@
     },
     {
         "BriefDescription": "Demand requests to L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_REFERENCES",
         "PublicDescription": "Counts demand requests to L2 cache.",
@@ -116,6 +130,7 @@
     },
     {
         "BriefDescription": "RFO requests to L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_RFO",
         "PublicDescription": "Counts the total number of RFO (read for ownership) requests to L2 cache. L2 RFO requests include both L1D demand RFO misses as well as L1D RFO prefetches.",
@@ -124,6 +139,7 @@
     },
     {
         "BriefDescription": "L2 cache hits when fetching instructions, code reads.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_HIT",
         "PublicDescription": "Counts L2 cache hits when fetching instructions, code reads.",
@@ -132,6 +148,7 @@
     },
     {
         "BriefDescription": "L2 cache misses when fetching instructions",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.CODE_RD_MISS",
         "PublicDescription": "Counts L2 cache misses when fetching instructions.",
@@ -140,6 +157,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests that hit L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
         "PublicDescription": "Counts the number of demand Data Read requests initiated by load instructions that hit L2 cache.",
@@ -148,6 +166,7 @@
     },
     {
         "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
@@ -156,6 +175,7 @@
     },
     {
         "BriefDescription": "This event is deprecated.",
+        "Counter": "0,1,2,3",
         "Deprecated": "1",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
@@ -164,6 +184,7 @@
     },
     {
         "BriefDescription": "This event is deprecated.",
+        "Counter": "0,1,2,3",
         "Deprecated": "1",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
@@ -172,6 +193,7 @@
     },
     {
         "BriefDescription": "RFO requests that hit L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_HIT",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache.",
@@ -180,6 +202,7 @@
     },
     {
         "BriefDescription": "RFO requests that miss L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.RFO_MISS",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that miss L2 cache.",
@@ -188,6 +211,7 @@
     },
     {
         "BriefDescription": "SW prefetch requests that hit L2 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_HIT",
         "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
@@ -196,6 +220,7 @@
     },
     {
         "BriefDescription": "SW prefetch requests that miss L2 cache.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.SWPF_MISS",
         "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
@@ -204,6 +229,7 @@
     },
     {
         "BriefDescription": "L2 writebacks that access L2 cache",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF0",
         "EventName": "L2_TRANS.L2_WB",
         "PublicDescription": "Counts L2 writebacks that access L2 cache.",
@@ -212,6 +238,7 @@
     },
     {
         "BriefDescription": "Core-originated cacheable requests that missed L3  (Except hardware prefetches to the L3)",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
         "EventName": "LONGEST_LAT_CACHE.MISS",
         "PublicDescription": "Counts core-originated cacheable requests that miss the L3 cache (Longest Latency cache). Requests include data and code reads, Reads-for-Ownership (RFOs), speculative accesses and hardware prefetches to the L1 and L2.  It does not include hardware prefetches to the L3, and may not count other types of requests to the L3.",
@@ -220,6 +247,7 @@
     },
     {
         "BriefDescription": "Retired load instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_LOADS",
@@ -230,6 +258,7 @@
     },
     {
         "BriefDescription": "Retired store instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ALL_STORES",
@@ -240,6 +269,7 @@
     },
     {
         "BriefDescription": "All retired memory instructions.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.ANY",
@@ -250,6 +280,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with locked access.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.LOCK_LOADS",
@@ -260,6 +291,7 @@
     },
     {
         "BriefDescription": "Retired load instructions that split across a cacheline boundary.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_LOADS",
@@ -270,6 +302,7 @@
     },
     {
         "BriefDescription": "Retired store instructions that split across a cacheline boundary.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.SPLIT_STORES",
@@ -280,6 +313,7 @@
     },
     {
         "BriefDescription": "Retired load instructions that miss the STLB.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_LOADS",
@@ -290,6 +324,7 @@
     },
     {
         "BriefDescription": "Retired store instructions that miss the STLB.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_INST_RETIRED.STLB_MISS_STORES",
@@ -300,6 +335,7 @@
     },
     {
         "BriefDescription": "Retired load instructions whose data sources were L3 and cross-core snoop hits in on-pkg core cache",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HIT",
@@ -310,6 +346,7 @@
     },
     {
         "BriefDescription": "Retired load instructions whose data sources were HitM responses from shared L3",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_HITM",
@@ -320,6 +357,7 @@
     },
     {
         "BriefDescription": "Retired load instructions whose data sources were L3 hit and cross-core snoop missed in on-pkg core cache.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_MISS",
@@ -330,6 +368,7 @@
     },
     {
         "BriefDescription": "Retired load instructions whose data sources were hits in L3 without snoops required",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd2",
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NONE",
@@ -340,6 +379,7 @@
     },
     {
         "BriefDescription": "Retired instructions with at least 1 uncacheable load or Bus Lock.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd4",
         "EventName": "MEM_LOAD_MISC_RETIRED.UC",
@@ -350,6 +390,7 @@
     },
     {
         "BriefDescription": "Number of completed demand load requests that missed the L1, but hit the FB(fill buffer), because a preceding miss to the same cacheline initiated the line to be brought into L1, but data is not yet ready in L1.",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.FB_HIT",
@@ -360,6 +401,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L1 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_HIT",
@@ -370,6 +412,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L1 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L1_MISS",
@@ -380,6 +423,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L2 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_HIT",
@@ -390,6 +434,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L2 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L2_MISS",
@@ -400,6 +445,7 @@
     },
     {
         "BriefDescription": "Retired load instructions with L3 cache hits as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_HIT",
@@ -410,6 +456,7 @@
     },
     {
         "BriefDescription": "Retired load instructions missed L3 cache as data sources",
+        "Counter": "0,1,2,3",
         "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_RETIRED.L3_MISS",
@@ -420,6 +467,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -429,6 +477,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -438,6 +487,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -447,6 +497,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -456,6 +507,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -465,6 +517,7 @@
     },
     {
         "BriefDescription": "Counts demand instruction fetches and L1 instruction cache prefetches that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_CODE_RD.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -474,6 +527,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -483,6 +537,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -492,6 +547,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -501,6 +557,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -510,6 +567,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -519,6 +577,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -528,6 +587,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -537,6 +597,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -546,6 +607,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -555,6 +617,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -564,6 +627,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -573,6 +637,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -582,6 +647,7 @@
     },
     {
         "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -591,6 +657,7 @@
     },
     {
         "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -600,6 +667,7 @@
     },
     {
         "BriefDescription": "Counts L1 data cache prefetch requests and software prefetches (except PREFETCHW) that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L1D_AND_SWPF.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -609,6 +677,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -618,6 +687,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -627,6 +697,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -636,6 +707,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -645,6 +717,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -654,6 +727,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch data reads (which bring data to L2)  that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_DATA_RD.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -663,6 +737,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -672,6 +747,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop hit in another cores caches, data forwarding is required as the data is modified.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -681,6 +757,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -690,6 +767,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -699,6 +777,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -708,6 +787,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetch RFOs (which bring data to L2) that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L2_RFO.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -717,6 +797,7 @@
     },
     {
         "BriefDescription": "Counts hardware prefetches to the L3 only that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.HWPF_L3.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -726,6 +807,7 @@
     },
     {
         "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that hit a cacheline in the L3 where a snoop hit in another core, data forwarding is not required.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_HIT.SNOOP_HIT_NO_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -735,6 +817,7 @@
     },
     {
         "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that hit a cacheline in the L3 where a snoop was sent but no other cores had the data.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_HIT.SNOOP_MISS",
         "MSRIndex": "0x1a6,0x1a7",
@@ -744,6 +827,7 @@
     },
     {
         "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that hit a cacheline in the L3 where a snoop was not needed to satisfy the request.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_HIT.SNOOP_NOT_NEEDED",
         "MSRIndex": "0x1a6,0x1a7",
@@ -753,6 +837,7 @@
     },
     {
         "BriefDescription": "Counts miscellaneous requests, such as I/O and un-cacheable accesses that hit a cacheline in the L3 where a snoop was sent.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.OTHER.L3_HIT.SNOOP_SENT",
         "MSRIndex": "0x1a6,0x1a7",
@@ -762,6 +847,7 @@
     },
     {
         "BriefDescription": "Counts streaming stores that hit a cacheline in the L3 where a snoop was sent or not.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB7, 0xBB",
         "EventName": "OCR.STREAMING_WR.L3_HIT.ANY",
         "MSRIndex": "0x1a6,0x1a7",
@@ -771,6 +857,7 @@
     },
     {
         "BriefDescription": "Demand and prefetch data reads",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.ALL_DATA_RD",
         "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
@@ -779,6 +866,7 @@
     },
     {
         "BriefDescription": "Counts memory transactions sent to the uncore.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xB0",
         "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "PublicDescription": "Counts memory transactions sent to the uncore including requests initiated by the core, all L3 prefetches, reads resulting from page walks, and snoop responses.",
@@ -787,6 +875,7 @@
     },
     {
         "BriefDescription": "Demand Data Read requests sent to uncore",
+        "Counter": "0,1,2,3",
         "EventCode": "0xb0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_DATA_RD",
         "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFCORE_REQUESTS_OUTSTANDING to determine average latency in the uncore.",
@@ -795,6 +884,7 @@
     },
     {
         "BriefDescription": "Demand RFO requests including regular RFOs, locks, ItoM",
+        "Counter": "0,1,2,3",
         "EventCode": "0xb0",
         "EventName": "OFFCORE_REQUESTS.DEMAND_RFO",
         "PublicDescription": "Counts the demand RFO (read for ownership) requests including regular RFOs, locks, ItoM.",
@@ -803,6 +893,7 @@
     },
     {
         "BriefDescription": "For every cycle, increments by the number of outstanding data read requests pending.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "PublicDescription": "For every cycle, increments by the number of outstanding data read requests pending.  Data read requests include cacheable demand reads and L2 prefetches, but do not include RFOs, code reads or prefetches to the L3.  Reads due to page walks resulting from any request type will also be counted.  Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
@@ -811,6 +902,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 1 outstanding data read request is pending.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
@@ -820,6 +912,7 @@
     },
     {
         "BriefDescription": "Cycles where at least 1 outstanding Demand RFO request is pending.",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
@@ -829,6 +922,7 @@
     },
     {
         "BriefDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_DATA_RD",
         "PublicDescription": "For every cycle, increments by the number of outstanding demand data read requests pending.   Requests are considered outstanding from the time they miss the core's L2 cache until the transaction completion message is sent to the requestor.",
@@ -837,6 +931,7 @@
     },
     {
         "BriefDescription": "Store Read transactions pending for off-core. Highly correlated.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x60",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO",
         "PublicDescription": "Counts the number of off-core outstanding read-for-ownership (RFO) store transactions every cycle. An RFO transaction is considered to be in the Off-core outstanding state between L2 cache miss and transaction completion.",
@@ -845,6 +940,7 @@
     },
     {
         "BriefDescription": "Counts bus locks, accounts for cache line split locks and UC locks.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xF4",
         "EventName": "SQ_MISC.BUS_LOCK",
         "PublicDescription": "Counts the more expensive bus lock needed to enforce cache coherency for certain memory accesses that need to be done atomically.  Can be created by issuing an atomic instruction (via the LOCK prefix) which causes a cache line split or accesses uncacheable memory.",
@@ -853,6 +949,7 @@
     },
     {
         "BriefDescription": "Cycles the queue waiting for offcore responses is full.",
+        "Counter": "0,1,2,3",
         "EventCode": "0xf4",
         "EventName": "SQ_MISC.SQ_FULL",
         "PublicDescription": "Counts the cycles for which the thread is active and the queue waiting for responses from the uncore cannot take any more entries.",
@@ -860,7 +957,16 @@
         "UMask": "0x4"
     },
     {
+        "BriefDescription": "Counts the number of PREFETCHNTA, PREFETCHW, PREFETCHT0, PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "SW_PREFETCH_ACCESS.ANY",
+        "SampleAfterValue": "100003",
+        "UMask": "0xf"
+    },
+    {
         "BriefDescription": "Number of PREFETCHNTA instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.NTA",
         "PublicDescription": "Counts the number of PREFETCHNTA instructions executed.",
@@ -869,6 +975,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHW instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
         "PublicDescription": "Counts the number of PREFETCHW instructions executed.",
@@ -877,6 +984,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHT0 instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.T0",
         "PublicDescription": "Counts the number of PREFETCHT0 instructions executed.",
@@ -885,6 +993,7 @@
     },
     {
         "BriefDescription": "Number of PREFETCHT1 or PREFETCHT2 instructions executed.",
+        "Counter": "0,1,2,3",
         "EventCode": "0x32",
         "EventName": "SW_PREFETCH_ACCESS.T1_T2",
         "PublicDescription": "Counts the number of PREFETCHT1 or PREFETCHT2 instructions executed.",

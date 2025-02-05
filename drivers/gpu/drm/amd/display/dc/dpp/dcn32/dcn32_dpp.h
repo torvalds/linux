@@ -27,6 +27,7 @@
 
 #include "dcn20/dcn20_dpp.h"
 #include "dcn30/dcn30_dpp.h"
+#include "spl/dc_spl_types.h"
 
 bool dpp32_construct(struct dcn3_dpp *dpp3,
 	struct dc_context *ctx,
@@ -34,5 +35,12 @@ bool dpp32_construct(struct dcn3_dpp *dpp3,
 	const struct dcn3_dpp_registers *tf_regs,
 	const struct dcn3_dpp_shift *tf_shift,
 	const struct dcn3_dpp_mask *tf_mask);
+
+void dscl32_spl_calc_lb_num_partitions(
+		bool alpha_en,
+		const struct spl_scaler_data *scl_data,
+		enum lb_memory_config lb_config,
+		int *num_part_y,
+		int *num_part_c);
 
 #endif /* __DCN32_DPP_H__ */

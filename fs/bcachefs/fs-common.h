@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_FS_COMMON_H
 #define _BCACHEFS_FS_COMMON_H
 
+#include "dirent.h"
+
 struct posix_acl;
 
 #define BCH_CREATE_TMPFILE		(1U << 0)
@@ -39,5 +41,7 @@ int bch2_rename_trans(struct btree_trans *,
 
 bool bch2_reinherit_attrs(struct bch_inode_unpacked *,
 			  struct bch_inode_unpacked *);
+
+int bch2_inum_to_path(struct btree_trans *, subvol_inum, struct printbuf *);
 
 #endif /* _BCACHEFS_FS_COMMON_H */

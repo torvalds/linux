@@ -178,7 +178,7 @@ static const struct of_device_id open_dice_of_match[] = {
 };
 
 static struct platform_driver open_dice_driver = {
-	.remove_new = open_dice_remove,
+	.remove = open_dice_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = open_dice_of_match,
@@ -201,5 +201,6 @@ static void __exit open_dice_exit(void)
 module_init(open_dice_init);
 module_exit(open_dice_exit);
 
+MODULE_DESCRIPTION("Driver for Open Profile for DICE.");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("David Brazdil <dbrazdil@google.com>");

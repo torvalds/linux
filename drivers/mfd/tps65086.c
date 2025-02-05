@@ -45,7 +45,7 @@ static const struct regmap_irq tps65086_irqs[] = {
 	REGMAP_IRQ_REG(TPS65086_IRQ_FAULT, 0, TPS65086_IRQ_FAULT_MASK),
 };
 
-static struct regmap_irq_chip tps65086_irq_chip = {
+static const struct regmap_irq_chip tps65086_irq_chip = {
 	.name = "tps65086",
 	.status_base = TPS65086_IRQ,
 	.mask_base = TPS65086_IRQ_MASK,
@@ -127,7 +127,7 @@ static void tps65086_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tps65086_id_table[] = {
-	{ "tps65086", 0 },
+	{ "tps65086" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, tps65086_id_table);

@@ -43,7 +43,7 @@ static const struct device_type spmi_ctrl_type = {
 	.release	= spmi_ctrl_release,
 };
 
-static int spmi_device_match(struct device *dev, struct device_driver *drv)
+static int spmi_device_match(struct device *dev, const struct device_driver *drv)
 {
 	if (of_driver_match_device(dev, drv))
 		return 1;
@@ -378,7 +378,7 @@ static int spmi_drv_uevent(const struct device *dev, struct kobj_uevent_env *env
 	return 0;
 }
 
-static struct bus_type spmi_bus_type = {
+static const struct bus_type spmi_bus_type = {
 	.name		= "spmi",
 	.match		= spmi_device_match,
 	.probe		= spmi_drv_probe,
@@ -517,7 +517,7 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 		if (!sdev)
 			continue;
 
-		sdev->dev.of_node = node;
+		device_set_node(&sdev->dev, of_fwnode_handle(node));
 		sdev->usid = (u8)reg[0];
 
 		err = spmi_device_add(sdev);

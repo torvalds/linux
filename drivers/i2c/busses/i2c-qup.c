@@ -17,9 +17,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/scatterlist.h>
 
 /* QUP Registers */
@@ -793,10 +793,8 @@ static int qup_i2c_bam_schedule_desc(struct qup_i2c_dev *qup)
 		dma_async_issue_pending(qup->brx.dma);
 	}
 
-	if (!wait_for_completion_timeout(&qup->xfer, qup->xfer_timeout)) {
-		dev_err(qup->dev, "normal trans timed out\n");
+	if (!wait_for_completion_timeout(&qup->xfer, qup->xfer_timeout))
 		ret = -ETIMEDOUT;
-	}
 
 	if (ret || qup->bus_err || qup->qup_err) {
 		reinit_completion(&qup->xfer);
@@ -1650,7 +1648,7 @@ static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
 
 static const struct acpi_device_id qup_i2c_acpi_match[] = {
 	{ "QCOM8010"},
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
 
@@ -1685,7 +1683,7 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,i2c-qup-v1.1.1")) {
+	if (device_is_compatible(&pdev->dev, "qcom,i2c-qup-v1.1.1")) {
 		qup->adap.algo = &qup_i2c_algo;
 		qup->adap.quirks = &qup_i2c_quirks;
 		is_qup_v1 = true;
@@ -1976,7 +1974,7 @@ MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
 
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,
-	.remove_new = qup_i2c_remove,
+	.remove = qup_i2c_remove,
 	.driver = {
 		.name = "i2c_qup",
 		.pm = pm_ptr(&qup_i2c_qup_pm_ops),
@@ -1987,5 +1985,6 @@ static struct platform_driver qup_i2c_driver = {
 
 module_platform_driver(qup_i2c_driver);
 
+MODULE_DESCRIPTION("Qualcomm QUP based I2C controller");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:i2c_qup");

@@ -9,6 +9,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/spinlock.h>
 #include <linux/pfn_t.h>
+#include <linux/vmalloc.h>
 
 #include <drm/drm_prime.h>
 #include <drm/drm_vma_manager.h>
@@ -1022,8 +1023,8 @@ struct sg_table *omap_gem_get_sg(struct drm_gem_object *obj,
 
 	if (addr) {
 		for_each_sg(sgt->sgl, sg, count, i) {
-			sg_set_page(sg, phys_to_page(addr), len,
-				offset_in_page(addr));
+			sg_set_page(sg, pfn_to_page(__phys_to_pfn(addr)),
+				    len, offset_in_page(addr));
 			sg_dma_address(sg) = addr;
 			sg_dma_len(sg) = len;
 
@@ -1401,8 +1402,6 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 
 	omap_obj = to_omap_bo(obj);
 
-	mutex_lock(&omap_obj->lock);
-
 	omap_obj->sgt = sgt;
 
 	if (omap_gem_sgt_is_contiguous(sgt, size)) {
@@ -1417,21 +1416,17 @@ struct drm_gem_object *omap_gem_new_dmabuf(struct drm_device *dev, size_t size,
 		pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
 		if (!pages) {
 			omap_gem_free_object(obj);
-			obj = ERR_PTR(-ENOMEM);
-			goto done;
+			return ERR_PTR(-ENOMEM);
 		}
 
 		omap_obj->pages = pages;
 		ret = drm_prime_sg_to_page_array(sgt, pages, npages);
 		if (ret) {
 			omap_gem_free_object(obj);
-			obj = ERR_PTR(-ENOMEM);
-			goto done;
+			return ERR_PTR(-ENOMEM);
 		}
 	}
 
-done:
-	mutex_unlock(&omap_obj->lock);
 	return obj;
 }
 

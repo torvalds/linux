@@ -3,14 +3,14 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2018-2022 Intel Corporation
 //
 // Author: Keyon Jie <yang.jie@linux.intel.com>
 //
 
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/platform_device.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"

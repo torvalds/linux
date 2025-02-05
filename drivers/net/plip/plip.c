@@ -815,7 +815,7 @@ plip_send_packet(struct net_device *dev, struct net_local *nl,
 				return HS_TIMEOUT;
 			}
 		}
-		break;
+		fallthrough;
 
 	case PLIP_PK_LENGTH_LSB:
 		if (plip_send(nibble_timeout, dev,
@@ -1358,7 +1358,6 @@ static struct parport_driver plip_driver = {
 	.probe		= plip_probe,
 	.match_port	= plip_attach,
 	.detach		= plip_detach,
-	.devmodel	= true,
 };
 
 static void __exit plip_cleanup_module (void)

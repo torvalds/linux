@@ -2,6 +2,10 @@
 
 //! Crate for all kernel procedural macros.
 
+// When fixdep scans this, it will find this string `CONFIG_RUSTC_VERSION_TEXT`
+// and thus add a dependency on `include/config/RUSTC_VERSION_TEXT`, which is
+// touched by Kconfig when the version string from the compiler changes.
+
 #[macro_use]
 mod quote;
 mod concat_idents;
@@ -26,7 +30,7 @@ use proc_macro::TokenStream;
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use kernel::prelude::*;
 ///
 /// module!{
@@ -35,33 +39,61 @@ use proc_macro::TokenStream;
 ///     author: "Rust for Linux Contributors",
 ///     description: "My very own kernel module!",
 ///     license: "GPL",
+///     alias: ["alternate_module_name"],
 /// }
 ///
-/// struct MyModule;
+/// struct MyModule(i32);
 ///
 /// impl kernel::Module for MyModule {
-///     fn init() -> Result<Self> {
-///         // If the parameter is writeable, then the kparam lock must be
-///         // taken to read the parameter:
-///         {
-///             let lock = THIS_MODULE.kernel_param_lock();
-///             pr_info!("i32 param is:  {}\n", writeable_i32.read(&lock));
-///         }
-///         // If the parameter is read only, it can be read without locking
-///         // the kernel parameters:
-///         pr_info!("i32 param is:  {}\n", my_i32.read());
+///     fn init(_module: &'static ThisModule) -> Result<Self> {
+///         let foo: i32 = 42;
+///         pr_info!("I contain:  {}\n", foo);
+///         Ok(Self(foo))
+///     }
+/// }
+/// # fn main() {}
+/// ```
+///
+/// ## Firmware
+///
+/// The following example shows how to declare a kernel module that needs
+/// to load binary firmware files. You need to specify the file names of
+/// the firmware in the `firmware` field. The information is embedded
+/// in the `modinfo` section of the kernel module. For example, a tool to
+/// build an initramfs uses this information to put the firmware files into
+/// the initramfs image.
+///
+/// ```
+/// use kernel::prelude::*;
+///
+/// module!{
+///     type: MyDeviceDriverModule,
+///     name: "my_device_driver_module",
+///     author: "Rust for Linux Contributors",
+///     description: "My device driver requires firmware",
+///     license: "GPL",
+///     firmware: ["my_device_firmware1.bin", "my_device_firmware2.bin"],
+/// }
+///
+/// struct MyDeviceDriverModule;
+///
+/// impl kernel::Module for MyDeviceDriverModule {
+///     fn init(_module: &'static ThisModule) -> Result<Self> {
 ///         Ok(Self)
 ///     }
 /// }
+/// # fn main() {}
 /// ```
 ///
 /// # Supported argument types
 ///   - `type`: type which implements the [`Module`] trait (required).
-///   - `name`: byte array of the name of the kernel module (required).
-///   - `author`: byte array of the author of the kernel module.
-///   - `description`: byte array of the description of the kernel module.
-///   - `license`: byte array of the license of the kernel module (required).
-///   - `alias`: byte array of alias name of the kernel module.
+///   - `name`: ASCII string literal of the name of the kernel module (required).
+///   - `author`: string literal of the author of the kernel module.
+///   - `description`: string literal of the description of the kernel module.
+///   - `license`: ASCII string literal of the license of the kernel module (required).
+///   - `alias`: array of ASCII string literals of the alias names of the kernel module.
+///   - `firmware`: array of ASCII string literals of the firmware files of
+///     the kernel module.
 #[proc_macro]
 pub fn module(ts: TokenStream) -> TokenStream {
     module::module(ts)
@@ -91,12 +123,12 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// used on the Rust side, it should not be possible to call the default
 /// implementation. This is done to ensure that we call the vtable methods
 /// through the C vtable, and not through the Rust vtable. Therefore, the
-/// default implementation should call `kernel::build_error`, which prevents
+/// default implementation should call `build_error!`, which prevents
 /// calls to this function at compile time:
 ///
 /// ```compile_fail
-/// # use kernel::error::VTABLE_DEFAULT_ERROR;
-/// kernel::build_error(VTABLE_DEFAULT_ERROR)
+/// # // Intentionally missing `use`s to simplify `rusttest`.
+/// build_error!(VTABLE_DEFAULT_ERROR)
 /// ```
 ///
 /// Note that you might need to import [`kernel::error::VTABLE_DEFAULT_ERROR`].
@@ -105,7 +137,7 @@ pub fn module(ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```
 /// use kernel::error::VTABLE_DEFAULT_ERROR;
 /// use kernel::prelude::*;
 ///
@@ -113,11 +145,11 @@ pub fn module(ts: TokenStream) -> TokenStream {
 /// #[vtable]
 /// pub trait Operations: Send + Sync + Sized {
 ///     fn foo(&self) -> Result<()> {
-///         kernel::build_error(VTABLE_DEFAULT_ERROR)
+///         build_error!(VTABLE_DEFAULT_ERROR)
 ///     }
 ///
 ///     fn bar(&self) -> Result<()> {
-///         kernel::build_error(VTABLE_DEFAULT_ERROR)
+///         build_error!(VTABLE_DEFAULT_ERROR)
 ///     }
 /// }
 ///
@@ -150,12 +182,27 @@ pub fn vtable(attr: TokenStream, ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```ignore
-/// use kernel::macro::concat_idents;
+/// ```
+/// # const binder_driver_return_protocol_BR_OK: u32 = 0;
+/// # const binder_driver_return_protocol_BR_ERROR: u32 = 1;
+/// # const binder_driver_return_protocol_BR_TRANSACTION: u32 = 2;
+/// # const binder_driver_return_protocol_BR_REPLY: u32 = 3;
+/// # const binder_driver_return_protocol_BR_DEAD_REPLY: u32 = 4;
+/// # const binder_driver_return_protocol_BR_TRANSACTION_COMPLETE: u32 = 5;
+/// # const binder_driver_return_protocol_BR_INCREFS: u32 = 6;
+/// # const binder_driver_return_protocol_BR_ACQUIRE: u32 = 7;
+/// # const binder_driver_return_protocol_BR_RELEASE: u32 = 8;
+/// # const binder_driver_return_protocol_BR_DECREFS: u32 = 9;
+/// # const binder_driver_return_protocol_BR_NOOP: u32 = 10;
+/// # const binder_driver_return_protocol_BR_SPAWN_LOOPER: u32 = 11;
+/// # const binder_driver_return_protocol_BR_DEAD_BINDER: u32 = 12;
+/// # const binder_driver_return_protocol_BR_CLEAR_DEATH_NOTIFICATION_DONE: u32 = 13;
+/// # const binder_driver_return_protocol_BR_FAILED_REPLY: u32 = 14;
+/// use kernel::macros::concat_idents;
 ///
 /// macro_rules! pub_no_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
-///         $(pub(crate) const $newname: u32 = kernel::macros::concat_idents!($prefix, $newname);)+
+///         $(pub(crate) const $newname: u32 = concat_idents!($prefix, $newname);)+
 ///     };
 /// }
 ///
@@ -201,21 +248,35 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use std::{sync::Mutex, process::Command};
+/// # use kernel::macros::pin_data;
 /// #[pin_data]
 /// struct DriverData {
 ///     #[pin]
-///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
+///     queue: Mutex<KVec<Command>>,
+///     buf: KBox<[u8; 1024 * 1024]>,
 /// }
 /// ```
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use std::{sync::Mutex, process::Command};
+/// # use core::pin::Pin;
+/// # pub struct Info;
+/// # mod bindings {
+/// #     pub unsafe fn destroy_info(_ptr: *mut super::Info) {}
+/// # }
+/// use kernel::macros::{pin_data, pinned_drop};
+///
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
-///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
+///     queue: Mutex<KVec<Command>>,
+///     buf: KBox<[u8; 1024 * 1024]>,
 ///     raw_info: *mut Info,
 /// }
 ///
@@ -225,6 +286,7 @@ pub fn concat_idents(ts: TokenStream) -> TokenStream {
 ///         unsafe { bindings::destroy_info(self.raw_info) };
 ///     }
 /// }
+/// # fn main() {}
 /// ```
 ///
 /// [`pin_init!`]: ../kernel/macro.pin_init.html
@@ -240,13 +302,22 @@ pub fn pin_data(inner: TokenStream, item: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// # #![feature(lint_reasons)]
+/// # use kernel::prelude::*;
+/// # use macros::{pin_data, pinned_drop};
+/// # use std::{sync::Mutex, process::Command};
+/// # use core::pin::Pin;
+/// # mod bindings {
+/// #     pub struct Info;
+/// #     pub unsafe fn destroy_info(_ptr: *mut Info) {}
+/// # }
 /// #[pin_data(PinnedDrop)]
 /// struct DriverData {
 ///     #[pin]
-///     queue: Mutex<Vec<Command>>,
-///     buf: Box<[u8; 1024 * 1024]>,
-///     raw_info: *mut Info,
+///     queue: Mutex<KVec<Command>>,
+///     buf: KBox<[u8; 1024 * 1024]>,
+///     raw_info: *mut bindings::Info,
 /// }
 ///
 /// #[pinned_drop]
@@ -272,12 +343,25 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// # Example
 ///
-/// ```ignore
-/// use kernel::macro::paste;
-///
+/// ```
+/// # const binder_driver_return_protocol_BR_OK: u32 = 0;
+/// # const binder_driver_return_protocol_BR_ERROR: u32 = 1;
+/// # const binder_driver_return_protocol_BR_TRANSACTION: u32 = 2;
+/// # const binder_driver_return_protocol_BR_REPLY: u32 = 3;
+/// # const binder_driver_return_protocol_BR_DEAD_REPLY: u32 = 4;
+/// # const binder_driver_return_protocol_BR_TRANSACTION_COMPLETE: u32 = 5;
+/// # const binder_driver_return_protocol_BR_INCREFS: u32 = 6;
+/// # const binder_driver_return_protocol_BR_ACQUIRE: u32 = 7;
+/// # const binder_driver_return_protocol_BR_RELEASE: u32 = 8;
+/// # const binder_driver_return_protocol_BR_DECREFS: u32 = 9;
+/// # const binder_driver_return_protocol_BR_NOOP: u32 = 10;
+/// # const binder_driver_return_protocol_BR_SPAWN_LOOPER: u32 = 11;
+/// # const binder_driver_return_protocol_BR_DEAD_BINDER: u32 = 12;
+/// # const binder_driver_return_protocol_BR_CLEAR_DEATH_NOTIFICATION_DONE: u32 = 13;
+/// # const binder_driver_return_protocol_BR_FAILED_REPLY: u32 = 14;
 /// macro_rules! pub_no_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
-///         paste! {
+///         kernel::macros::paste! {
 ///             $(pub(crate) const $newname: u32 = [<$prefix $newname>];)+
 ///         }
 ///     };
@@ -312,17 +396,30 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Currently supported modifiers are:
 /// * `span`: change the span of concatenated identifier to the span of the specified token. By
-/// default the span of the `[< >]` group is used.
+///   default the span of the `[< >]` group is used.
 /// * `lower`: change the identifier to lower case.
 /// * `upper`: change the identifier to upper case.
 ///
-/// ```ignore
-/// use kernel::macro::paste;
-///
+/// ```
+/// # const binder_driver_return_protocol_BR_OK: u32 = 0;
+/// # const binder_driver_return_protocol_BR_ERROR: u32 = 1;
+/// # const binder_driver_return_protocol_BR_TRANSACTION: u32 = 2;
+/// # const binder_driver_return_protocol_BR_REPLY: u32 = 3;
+/// # const binder_driver_return_protocol_BR_DEAD_REPLY: u32 = 4;
+/// # const binder_driver_return_protocol_BR_TRANSACTION_COMPLETE: u32 = 5;
+/// # const binder_driver_return_protocol_BR_INCREFS: u32 = 6;
+/// # const binder_driver_return_protocol_BR_ACQUIRE: u32 = 7;
+/// # const binder_driver_return_protocol_BR_RELEASE: u32 = 8;
+/// # const binder_driver_return_protocol_BR_DECREFS: u32 = 9;
+/// # const binder_driver_return_protocol_BR_NOOP: u32 = 10;
+/// # const binder_driver_return_protocol_BR_SPAWN_LOOPER: u32 = 11;
+/// # const binder_driver_return_protocol_BR_DEAD_BINDER: u32 = 12;
+/// # const binder_driver_return_protocol_BR_CLEAR_DEATH_NOTIFICATION_DONE: u32 = 13;
+/// # const binder_driver_return_protocol_BR_FAILED_REPLY: u32 = 14;
 /// macro_rules! pub_no_prefix {
 ///     ($prefix:ident, $($newname:ident),+) => {
 ///         kernel::macros::paste! {
-///             $(pub(crate) const fn [<$newname:lower:span>]: u32 = [<$prefix $newname:span>];)+
+///             $(pub(crate) const fn [<$newname:lower:span>]() -> u32 { [<$prefix $newname:span>] })+
 ///         }
 ///     };
 /// }
@@ -353,7 +450,7 @@ pub fn pinned_drop(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// Literals can also be concatenated with other identifiers:
 ///
-/// ```ignore
+/// ```
 /// macro_rules! create_numbered_fn {
 ///     ($name:literal, $val:literal) => {
 ///         kernel::macros::paste! {
@@ -381,7 +478,9 @@ pub fn paste(input: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```rust,ignore
+/// ```
+/// use kernel::macros::Zeroable;
+///
 /// #[derive(Zeroable)]
 /// pub struct DriverData {
 ///     id: i64,

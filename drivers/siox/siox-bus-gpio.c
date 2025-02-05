@@ -148,5 +148,6 @@ static struct platform_driver siox_gpio_driver = {
 module_platform_driver(siox_gpio_driver);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>");
+MODULE_DESCRIPTION("SIOX GPIO bus driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

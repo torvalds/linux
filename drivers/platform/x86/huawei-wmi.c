@@ -379,7 +379,7 @@ static ssize_t charge_control_start_threshold_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", start);
+	return sysfs_emit(buf, "%d\n", start);
 }
 
 static ssize_t charge_control_end_threshold_show(struct device *dev,
@@ -392,7 +392,7 @@ static ssize_t charge_control_end_threshold_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", end);
+	return sysfs_emit(buf, "%d\n", end);
 }
 
 static ssize_t charge_control_thresholds_show(struct device *dev,
@@ -405,7 +405,7 @@ static ssize_t charge_control_thresholds_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d %d\n", start, end);
+	return sysfs_emit(buf, "%d %d\n", start, end);
 }
 
 static ssize_t charge_control_start_threshold_store(struct device *dev,
@@ -562,7 +562,7 @@ static ssize_t fn_lock_state_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sprintf(buf, "%d\n", on);
+	return sysfs_emit(buf, "%d\n", on);
 }
 
 static ssize_t fn_lock_state_store(struct device *dev,
@@ -734,26 +734,14 @@ static void huawei_wmi_process_key(struct input_dev *idev, int code)
 	sparse_keymap_report_entry(idev, key, 1, true);
 }
 
-static void huawei_wmi_input_notify(u32 value, void *context)
+static void huawei_wmi_input_notify(union acpi_object *obj, void *context)
 {
 	struct input_dev *idev = (struct input_dev *)context;
-	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	acpi_status status;
 
-	status = wmi_get_event_data(value, &response);
-	if (ACPI_FAILURE(status)) {
-		dev_err(&idev->dev, "Unable to get event data\n");
-		return;
-	}
-
-	obj = (union acpi_object *)response.pointer;
 	if (obj && obj->type == ACPI_TYPE_INTEGER)
 		huawei_wmi_process_key(idev, obj->integer.value);
 	else
 		dev_err(&idev->dev, "Bad response type\n");
-
-	kfree(response.pointer);
 }
 
 static int huawei_wmi_input_setup(struct device *dev, const char *guid)
@@ -854,7 +842,7 @@ static struct platform_driver huawei_wmi_driver = {
 		.name = "huawei-wmi",
 	},
 	.probe = huawei_wmi_probe,
-	.remove_new = huawei_wmi_remove,
+	.remove = huawei_wmi_remove,
 };
 
 static __init int huawei_wmi_init(void)

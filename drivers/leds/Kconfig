@@ -179,6 +179,21 @@ config LEDS_CR0014114
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-cr0014114.
 
+config LEDS_CROS_EC
+	tristate "LED Support for ChromeOS EC"
+	depends on MFD_CROS_EC_DEV
+	depends on LEDS_CLASS_MULTICOLOR
+	select LEDS_TRIGGERS
+	default MFD_CROS_EC_DEV
+	help
+	  This option enables support for LEDs managed by ChromeOS ECs.
+	  All LEDs exposed by the EC are supported in multicolor mode.
+	  A hardware trigger to switch back to the automatic behaviour is
+	  provided.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-cros_ec.
+
 config LEDS_EL15203000
 	tristate "LED Support for Crane EL15203000"
 	depends on LEDS_CLASS
@@ -202,6 +217,8 @@ config LEDS_TURRIS_OMNIA
 	depends on I2C
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on OF
+	depends on TURRIS_OMNIA_MCU
+	depends on TURRIS_OMNIA_MCU_GPIO
 	select LEDS_TRIGGERS
 	help
 	  This option enables basic support for the LEDs found on the front
@@ -414,7 +431,7 @@ config LEDS_LP50XX
 	  module will be called leds-lp50xx.
 
 config LEDS_LP55XX_COMMON
-	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
+	tristate "Common Driver for TI/National LP5521/5523/55231/5562/5569/8501"
 	depends on LEDS_CLASS
 	depends on LEDS_CLASS_MULTICOLOR
 	depends on OF
@@ -422,8 +439,8 @@ config LEDS_LP55XX_COMMON
 	select FW_LOADER
 	select FW_LOADER_USER_HELPER
 	help
-	  This option supports common operations for LP5521/5523/55231/5562/8501
-	  devices.
+	  This option supports common operations for LP5521/5523/55231/5562/5569/
+	  8501 devices.
 
 config LEDS_LP5521
 	tristate "LED Support for N.S. LP5521 LED driver chip"
@@ -456,6 +473,16 @@ config LEDS_LP5562
 	  Driver provides direct control via LED class and interface for
 	  programming the engines.
 
+config LEDS_LP5569
+	tristate "LED Support for TI LP5569 LED driver chip"
+	depends on LEDS_CLASS && I2C
+	depends on LEDS_LP55XX_COMMON
+	help
+	  If you say yes here you get support for TI LP5569 LED driver.
+	  It is 9 channels chip with programmable engines.
+	  Driver provides direct control via LED class and interface for
+	  programming the engines.
+
 config LEDS_LP8501
 	tristate "LED Support for TI LP8501 LED driver chip"
 	depends on LEDS_CLASS && I2C
@@ -485,6 +512,18 @@ config LEDS_LP8860
 	  This option enables support for the display cluster LEDs
 	  on the LP8860 4 channel LED driver using the I2C communication
 	  bus.
+
+config LEDS_LP8864
+	tristate "LED support for the TI LP8864/LP8866 4/6 channel LED drivers"
+	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TI LP8864-Q1,
+	  LP8864S-Q1, LP8866-Q1, LP8866S-Q1 4/6 channel LED backlight
+	  drivers with I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp8864.
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
@@ -554,6 +593,17 @@ config LEDS_PCA995X
 	  This option enables support for LEDs connected to PCA995x
 	  LED driver chips accessed via the I2C bus. Supported
 	  devices include PCA9955BTW, PCA9952TW and PCA9955TW.
+
+config LEDS_QNAP_MCU
+	tristate "LED Support for QNAP MCU controllers"
+	depends on LEDS_CLASS
+	depends on MFD_QNAP_MCU
+	help
+	  This option enables support for LEDs available on embedded
+	  controllers used in QNAP NAS devices.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called qnap-mcu-leds.
 
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"
@@ -790,6 +840,15 @@ config LEDS_SC27XX_BLTC
 	  This driver can also be built as a module. If so the module will be
 	  called leds-sc27xx-bltc.
 
+config LEDS_UPBOARD
+	tristate "LED support for the UP board"
+	depends on LEDS_CLASS && MFD_UPBOARD_FPGA
+	help
+	  This option enables support for the UP board LEDs.
+
+	  This driver can also be built as a module. If so the module will be
+	  called leds-upboard.
+
 comment "LED driver for blink(1) USB RGB LED is under Special HID drivers (HID_THINGM)"
 
 config LEDS_BLINKM
@@ -799,6 +858,14 @@ config LEDS_BLINKM
 	help
 	  This option enables support for the BlinkM RGB LED connected
 	  through I2C. Say Y to enable support for the BlinkM LED.
+
+config LEDS_BLINKM_MULTICOLOR
+	bool "Enable multicolor support for BlinkM I2C RGB LED"
+	depends on LEDS_BLINKM
+	depends on LEDS_CLASS_MULTICOLOR=y || LEDS_CLASS_MULTICOLOR=LEDS_BLINKM
+	help
+	  This option enables multicolor sysfs class support for BlinkM LED and
+	  disables the older, separated sysfs interface
 
 config LEDS_POWERNV
 	tristate "LED support for PowerNV Platform"
@@ -869,7 +936,6 @@ config LEDS_SPI_BYTE
 	tristate "LED support for SPI LED controller with a single byte"
 	depends on LEDS_CLASS
 	depends on SPI
-	depends on OF
 	help
 	  This option enables support for LED controller which use a single byte
 	  for controlling the brightness. Currently the following controller is
@@ -898,6 +964,16 @@ config LEDS_LM36274
 	help
 	  Say Y to enable the LM36274 LED driver for TI LMU devices.
 	  This supports the LED device LM36274.
+
+config LEDS_ST1202
+	tristate "LED Support for STMicroelectronics LED1202 I2C chips"
+	depends on LEDS_CLASS
+	depends on I2C
+	depends on OF
+	select LEDS_TRIGGERS
+	help
+	  Say Y to enable support for LEDs connected to LED1202
+	  LED driver chips accessed via the I2C bus.
 
 config LEDS_TPS6105X
 	tristate "LED support for TI TPS6105X"

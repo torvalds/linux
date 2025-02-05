@@ -214,9 +214,15 @@ class id_parser(object):
                 # Remove trailing xml comment closure
                 if line.strip().endswith('-->'):
                     expr = expr.rstrip('-->').strip()
+                # Remove trailing Jinja2 comment closure
+                if line.strip().endswith('#}'):
+                    expr = expr.rstrip('#}').strip()
                 # Special case for SH magic boot code files
                 if line.startswith('LIST \"'):
                     expr = expr.rstrip('\"').strip()
+                # Remove j2 comment closure
+                if line.startswith('{#'):
+                    expr = expr.rstrip('#}').strip()
                 self.parse(expr)
                 self.spdx_valid += 1
                 #
@@ -412,6 +418,9 @@ if __name__ == '__main__':
                 if parser.checked:
                     pc = int(100 * parser.spdx_valid / parser.checked)
                     sys.stderr.write('Files with SPDX:   %12d %3d%%\n' %(parser.spdx_valid, pc))
+                    missing = parser.checked - parser.spdx_valid
+                    mpc = int(100 * missing / parser.checked)
+                    sys.stderr.write('Files without SPDX:%12d %3d%%\n' %(missing, mpc))
                 sys.stderr.write('Files with errors: %12d\n' %parser.spdx_errors)
                 if ndirs:
                     sys.stderr.write('\n')

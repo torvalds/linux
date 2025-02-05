@@ -45,7 +45,7 @@
 	};
 
 	/* The voltage to the MMC card is hardwired at 3.3V */
-	vmmc: fixedregulator@0 {
+	vmmc: regulator-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
 		regulator-min-microvolt = <3300000>;
@@ -53,13 +53,13 @@
 		regulator-boot-on;
         };
 
-	xtal24mhz: xtal24mhz@24M {
+	xtal24mhz: mclk: kmiclk: sspclk: uartclk: wdogclk: clock-24000000 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
 	};
 
-	timclk: timclk@1M {
+	timclk: clock-1000000 {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
 		clock-div = <24>;
@@ -67,48 +67,8 @@
 		clocks = <&xtal24mhz>;
 	};
 
-	mclk: mclk@24M {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
-	kmiclk: kmiclk@24M {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
-	sspclk: sspclk@24M {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
-	uartclk: uartclk@24M {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
-	wdogclk: wdogclk@24M {
-		#clock-cells = <0>;
-		compatible = "fixed-factor-clock";
-		clock-div = <1>;
-		clock-mult = <1>;
-		clocks = <&xtal24mhz>;
-	};
-
 	/* FIXME: this actually hangs off the PLL clocks */
-	pclk: pclk@0 {
+	pclk: clock-pclk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <0>;

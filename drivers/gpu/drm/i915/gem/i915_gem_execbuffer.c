@@ -12,8 +12,6 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_syncobj.h>
 
-#include "display/intel_frontbuffer.h"
-
 #include "gem/i915_gem_ioctls.h"
 #include "gt/intel_context.h"
 #include "gt/intel_gpu_commands.h"
@@ -340,7 +338,7 @@ static int eb_create(struct i915_execbuffer *eb)
 		 * Without a 1:1 association between relocation handles and
 		 * the execobject[] index, we instead create a hashtable.
 		 * We size it dynamically based on available memory, starting
-		 * first with 1:1 assocative hash and scaling back until
+		 * first with 1:1 associative hash and scaling back until
 		 * the allocation succeeds.
 		 *
 		 * Later on we use a positive lut_size to indicate we are
@@ -917,7 +915,7 @@ static struct i915_vma *eb_lookup_vma(struct i915_execbuffer *eb, u32 handle)
 		 */
 		if (i915_gem_context_uses_protected_content(eb->gem_context) &&
 		    i915_gem_object_is_protected(obj)) {
-			err = intel_pxp_key_check(eb->i915->pxp, obj, true);
+			err = intel_pxp_key_check(eb->i915->pxp, intel_bo_to_drm_bo(obj), true);
 			if (err) {
 				i915_gem_object_put(obj);
 				return ERR_PTR(err);

@@ -144,11 +144,8 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 
 		/* Now cleanup the PCI device */
 		solo_irq_off(solo_dev, ~0);
-		free_irq(pdev->irq, solo_dev);
-		pci_iounmap(pdev, solo_dev->reg_base);
 	}
 
-	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	v4l2_device_unregister(&solo_dev->v4l2_dev);
 	pci_set_drvdata(pdev, NULL);
@@ -365,7 +362,7 @@ static ssize_t sdram_offsets_show(struct device *dev,
 }
 
 static ssize_t sdram_show(struct file *file, struct kobject *kobj,
-			  struct bin_attribute *a, char *buf,
+			  const struct bin_attribute *a, char *buf,
 			  loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -435,7 +432,7 @@ static int solo_sysfs_init(struct solo_dev *solo_dev)
 	sysfs_attr_init(&sdram_attr->attr);
 	sdram_attr->attr.name = "sdram";
 	sdram_attr->attr.mode = 0440;
-	sdram_attr->read = sdram_show;
+	sdram_attr->read_new = sdram_show;
 	sdram_attr->size = solo_dev->sdram_size;
 
 	if (device_create_bin_file(dev, sdram_attr)) {
@@ -480,15 +477,10 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_write_config_byte(pdev, 0x40, 0x00);
 	pci_write_config_byte(pdev, 0x41, 0x00);
 
-	ret = pci_request_regions(pdev, SOLO6X10_NAME);
+	ret = pcim_iomap_regions(pdev, BIT(0), SOLO6X10_NAME);
 	if (ret)
 		goto fail_probe;
-
-	solo_dev->reg_base = pci_ioremap_bar(pdev, 0);
-	if (solo_dev->reg_base == NULL) {
-		ret = -ENOMEM;
-		goto fail_probe;
-	}
+	solo_dev->reg_base = pcim_iomap_table(pdev)[0];
 
 	chip_id = solo_reg_read(solo_dev, SOLO_CHIP_OPTION) &
 				SOLO_CHIP_ID_MASK;
@@ -551,8 +543,8 @@ static int solo_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* PLL locking time of 1ms */
 	mdelay(1);
 
-	ret = request_irq(pdev->irq, solo_isr, IRQF_SHARED, SOLO6X10_NAME,
-			  solo_dev);
+	ret = devm_request_irq(&pdev->dev, pdev->irq, solo_isr, IRQF_SHARED,
+			       SOLO6X10_NAME, solo_dev);
 	if (ret)
 		goto fail_probe;
 

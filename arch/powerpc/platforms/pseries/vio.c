@@ -611,7 +611,7 @@ static const struct dma_map_ops vio_dma_mapping_ops = {
 	.get_required_mask = dma_iommu_get_required_mask,
 	.mmap		   = dma_common_mmap,
 	.get_sgtable	   = dma_common_get_sgtable,
-	.alloc_pages	   = dma_common_alloc_pages,
+	.alloc_pages_op	   = dma_common_alloc_pages,
 	.free_pages	   = dma_common_free_pages,
 };
 
@@ -1576,10 +1576,10 @@ void vio_unregister_device(struct vio_dev *viodev)
 }
 EXPORT_SYMBOL(vio_unregister_device);
 
-static int vio_bus_match(struct device *dev, struct device_driver *drv)
+static int vio_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct vio_dev *vio_dev = to_vio_dev(dev);
-	struct vio_driver *vio_drv = to_vio_driver(drv);
+	const struct vio_driver *vio_drv = to_vio_driver(drv);
 	const struct vio_device_id *ids = vio_drv->id_table;
 
 	return (ids != NULL) && (vio_match_device(ids, vio_dev) != NULL);
@@ -1592,13 +1592,9 @@ static int vio_hotplug(const struct device *dev, struct kobj_uevent_env *env)
 	const char *cp;
 
 	dn = dev->of_node;
-	if (!dn)
-		return -ENODEV;
-	cp = of_get_property(dn, "compatible", NULL);
-	if (!cp)
-		return -ENODEV;
+	if (dn && (cp = of_get_property(dn, "compatible", NULL)))
+		add_uevent_var(env, "MODALIAS=vio:T%sS%s", vio_dev->type, cp);
 
-	add_uevent_var(env, "MODALIAS=vio:T%sS%s", vio_dev->type, cp);
 	return 0;
 }
 
@@ -1693,7 +1689,7 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 	/* construct the kobject name from the device node */
 	if (of_node_is_type(vnode_parent, "vdevice")) {
 		const __be32 *prop;
-		
+
 		prop = of_get_property(vnode, "reg", NULL);
 		if (!prop)
 			goto out;

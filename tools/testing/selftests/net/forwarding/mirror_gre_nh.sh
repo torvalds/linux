@@ -75,42 +75,31 @@ cleanup()
 test_gretap()
 {
 	RET=0
-	mirror_install $swp1 ingress gt4 "matchall $tcflags"
+	mirror_install $swp1 ingress gt4 "matchall"
 
 	# For IPv4, test that there's no mirroring without the route directing
 	# the traffic to tunnel remote address. Then add it and test that
 	# mirroring starts. For IPv6 we can't test this due to the limitation
 	# that routes for locally-specified IPv6 addresses can't be added.
-	fail_test_span_gre_dir gt4 ingress
+	fail_test_span_gre_dir gt4
 
 	ip route add 192.0.2.130/32 via 192.0.2.162
-	quick_test_span_gre_dir gt4 ingress
+	quick_test_span_gre_dir gt4
 	ip route del 192.0.2.130/32 via 192.0.2.162
 
 	mirror_uninstall $swp1 ingress
-	log_test "mirror to gre with next-hop remote ($tcflags)"
+	log_test "mirror to gre with next-hop remote"
 }
 
 test_ip6gretap()
 {
 	RET=0
 
-	mirror_install $swp1 ingress gt6 "matchall $tcflags"
-	quick_test_span_gre_dir gt6 ingress
+	mirror_install $swp1 ingress gt6 "matchall"
+	quick_test_span_gre_dir gt6
 	mirror_uninstall $swp1 ingress
 
-	log_test "mirror to ip6gre with next-hop remote ($tcflags)"
-}
-
-test_all()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
+	log_test "mirror to ip6gre with next-hop remote"
 }
 
 trap cleanup EXIT
@@ -118,14 +107,6 @@ trap cleanup EXIT
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-test_all
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	test_all
-fi
+tests_run
 
 exit $EXIT_STATUS

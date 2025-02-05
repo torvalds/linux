@@ -172,6 +172,7 @@ err_init_txq:
 	hinic_sq_dbgfs_uninit(nic_dev);
 
 	devm_kfree(&netdev->dev, nic_dev->txqs);
+	nic_dev->txqs = NULL;
 	return err;
 }
 
@@ -268,6 +269,7 @@ err_init_rxq:
 	hinic_rq_dbgfs_uninit(nic_dev);
 
 	devm_kfree(&netdev->dev, nic_dev->rxqs);
+	nic_dev->rxqs = NULL;
 	return err;
 }
 
@@ -581,7 +583,7 @@ static int hinic_change_mtu(struct net_device *netdev, int new_mtu)
 	if (err)
 		netif_err(nic_dev, drv, netdev, "Failed to set port mtu\n");
 	else
-		netdev->mtu = new_mtu;
+		WRITE_ONCE(netdev->mtu, new_mtu);
 
 	return err;
 }

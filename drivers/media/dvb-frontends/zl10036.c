@@ -89,7 +89,7 @@ static int zl10036_write(struct zl10036_state *state, u8 buf[], u8 count)
 	int ret;
 
 	if (zl10036_debug & 0x02) {
-		/* every 8bit-value satisifes this!
+		/* every 8bit-value satisfies this!
 		 * so only check for debug log */
 		if ((buf[0] & 0x80) == 0x00)
 			reg = 2;

@@ -38,8 +38,6 @@ register/unregister functions::
 
   void hwmon_device_unregister(struct device *dev);
 
-  void devm_hwmon_device_unregister(struct device *dev);
-
   char *hwmon_sanitize_name(const char *name);
 
   char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
@@ -64,14 +62,10 @@ monitoring device structure. This function must be called from the driver
 remove function if the hardware monitoring device was registered with
 hwmon_device_register_with_info.
 
-devm_hwmon_device_unregister does not normally have to be called. It is only
-needed for error handling, and only needed if the driver probe fails after
-the call to devm_hwmon_device_register_with_info and if the automatic (device
-managed) removal would be too late.
-
 All supported hwmon device registration functions only accept valid device
 names. Device names including invalid characters (whitespace, '*', or '-')
-will be rejected. The 'name' parameter is mandatory.
+will be rejected. If NULL is passed as name parameter, the hardware monitoring
+device name will be derived from the parent device name.
 
 If the driver doesn't use a static device name (for example it uses
 dev_name()), and therefore cannot make sure the name only contains valid

@@ -920,7 +920,7 @@ static struct platform_driver ti_msgmgr_driver = {
 	.probe = ti_msgmgr_probe,
 	.driver = {
 		   .name = "ti-msgmgr",
-		   .of_match_table = of_match_ptr(ti_msgmgr_of_match),
+		   .of_match_table = ti_msgmgr_of_match,
 		   .pm = &ti_msgmgr_pm_ops,
 	},
 };

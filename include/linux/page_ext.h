@@ -4,7 +4,6 @@
 
 #include <linux/types.h>
 #include <linux/stacktrace.h>
-#include <linux/stackdepot.h>
 
 struct pglist_data;
 
@@ -78,7 +77,7 @@ static inline void page_ext_init(void)
 }
 #endif
 
-extern struct page_ext *page_ext_get(struct page *page);
+extern struct page_ext *page_ext_get(const struct page *page);
 extern void page_ext_put(struct page_ext *page_ext);
 
 static inline void *page_ext_data(struct page_ext *page_ext,
@@ -118,7 +117,7 @@ static inline void page_ext_init_flatmem(void)
 {
 }
 
-static inline struct page_ext *page_ext_get(struct page *page)
+static inline struct page_ext *page_ext_get(const struct page *page)
 {
 	return NULL;
 }

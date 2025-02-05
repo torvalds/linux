@@ -58,7 +58,7 @@ static ssize_t payload_max_show(struct device *dev,
 
 	if (!mds)
 		return sysfs_emit(buf, "\n");
-	return sysfs_emit(buf, "%zu\n", mds->payload_size);
+	return sysfs_emit(buf, "%zu\n", cxlds->cxl_mbox.payload_size);
 }
 static DEVICE_ATTR_RO(payload_max);
 
@@ -124,15 +124,16 @@ static ssize_t security_state_show(struct device *dev,
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
 	unsigned long state = mds->security.state;
 	int rc = 0;
 
 	/* sync with latest submission state */
-	mutex_lock(&mds->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	if (mds->security.sanitize_active)
 		rc = sysfs_emit(buf, "sanitize\n");
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 	if (rc)
 		return rc;
 
@@ -249,51 +250,7 @@ int cxl_trigger_poison_list(struct cxl_memdev *cxlmd)
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_trigger_poison_list, CXL);
-
-struct cxl_dpa_to_region_context {
-	struct cxl_region *cxlr;
-	u64 dpa;
-};
-
-static int __cxl_dpa_to_region(struct device *dev, void *arg)
-{
-	struct cxl_dpa_to_region_context *ctx = arg;
-	struct cxl_endpoint_decoder *cxled;
-	u64 dpa = ctx->dpa;
-
-	if (!is_endpoint_decoder(dev))
-		return 0;
-
-	cxled = to_cxl_endpoint_decoder(dev);
-	if (!cxled->dpa_res || !resource_size(cxled->dpa_res))
-		return 0;
-
-	if (dpa > cxled->dpa_res->end || dpa < cxled->dpa_res->start)
-		return 0;
-
-	dev_dbg(dev, "dpa:0x%llx mapped in region:%s\n", dpa,
-		dev_name(&cxled->cxld.region->dev));
-
-	ctx->cxlr = cxled->cxld.region;
-
-	return 1;
-}
-
-static struct cxl_region *cxl_dpa_to_region(struct cxl_memdev *cxlmd, u64 dpa)
-{
-	struct cxl_dpa_to_region_context ctx;
-	struct cxl_port *port;
-
-	ctx = (struct cxl_dpa_to_region_context) {
-		.dpa = dpa,
-	};
-	port = cxlmd->endpoint;
-	if (port && is_cxl_endpoint(port) && cxl_num_decoders_committed(port))
-		device_for_each_child(&port->dev, &ctx, __cxl_dpa_to_region);
-
-	return ctx.cxlr;
-}
+EXPORT_SYMBOL_NS_GPL(cxl_trigger_poison_list, "CXL");
 
 static int cxl_validate_poison_dpa(struct cxl_memdev *cxlmd, u64 dpa)
 {
@@ -321,7 +278,7 @@ static int cxl_validate_poison_dpa(struct cxl_memdev *cxlmd, u64 dpa)
 
 int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
 	struct cxl_mbox_inject_poison inject;
 	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
@@ -351,13 +308,13 @@ int cxl_inject_poison(struct cxl_memdev *cxlmd, u64 dpa)
 		.size_in = sizeof(inject),
 		.payload_in = &inject,
 	};
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc)
 		goto out;
 
 	cxlr = cxl_dpa_to_region(cxlmd, dpa);
 	if (cxlr)
-		dev_warn_once(mds->cxlds.dev,
+		dev_warn_once(cxl_mbox->host,
 			      "poison inject dpa:%#llx region: %s\n", dpa,
 			      dev_name(&cxlr->dev));
 
@@ -372,11 +329,11 @@ out:
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_inject_poison, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_inject_poison, "CXL");
 
 int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 {
-	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
+	struct cxl_mailbox *cxl_mbox = &cxlmd->cxlds->cxl_mbox;
 	struct cxl_mbox_clear_poison clear;
 	struct cxl_poison_record record;
 	struct cxl_mbox_cmd mbox_cmd;
@@ -415,13 +372,13 @@ int cxl_clear_poison(struct cxl_memdev *cxlmd, u64 dpa)
 		.payload_in = &clear,
 	};
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc)
 		goto out;
 
 	cxlr = cxl_dpa_to_region(cxlmd, dpa);
 	if (cxlr)
-		dev_warn_once(mds->cxlds.dev,
+		dev_warn_once(cxl_mbox->host,
 			      "poison clear dpa:%#llx region: %s\n", dpa,
 			      dev_name(&cxlr->dev));
 
@@ -436,7 +393,7 @@ out:
 
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(cxl_clear_poison, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_clear_poison, "CXL");
 
 static struct attribute *cxl_memdev_attributes[] = {
 	&dev_attr_serial.attr,
@@ -580,7 +537,7 @@ void cxl_memdev_update_perf(struct cxl_memdev *cxlmd)
 	sysfs_update_group(&cxlmd->dev.kobj, &cxl_memdev_ram_attribute_group);
 	sysfs_update_group(&cxlmd->dev.kobj, &cxl_memdev_pmem_attribute_group);
 }
-EXPORT_SYMBOL_NS_GPL(cxl_memdev_update_perf, CXL);
+EXPORT_SYMBOL_NS_GPL(cxl_memdev_update_perf, "CXL");
 
 static const struct device_type cxl_memdev_type = {
 	.name = "cxl_memdev",
@@ -593,7 +550,7 @@ bool is_cxl_memdev(const struct device *dev)
 {
 	return dev->type == &cxl_memdev_type;
 }
-EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, CXL);
+EXPORT_SYMBOL_NS_GPL(is_cxl_memdev, "CXL");
 
 /**
  * set_exclusive_cxl_commands() - atomically disable user cxl commands
@@ -612,7 +569,7 @@ void set_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 		  CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, CXL);
+EXPORT_SYMBOL_NS_GPL(set_exclusive_cxl_commands, "CXL");
 
 /**
  * clear_exclusive_cxl_commands() - atomically enable user cxl commands
@@ -627,7 +584,7 @@ void clear_exclusive_cxl_commands(struct cxl_memdev_state *mds,
 		      CXL_MEM_COMMAND_ID_MAX);
 	up_write(&cxl_memdev_rwsem);
 }
-EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, CXL);
+EXPORT_SYMBOL_NS_GPL(clear_exclusive_cxl_commands, "CXL");
 
 static void cxl_memdev_shutdown(struct device *dev)
 {
@@ -758,6 +715,7 @@ static int cxl_memdev_release_file(struct inode *inode, struct file *file)
  */
 static int cxl_mem_get_fw_info(struct cxl_memdev_state *mds)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_get_fw_info info;
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
@@ -768,7 +726,7 @@ static int cxl_mem_get_fw_info(struct cxl_memdev_state *mds)
 		.payload_out = &info,
 	};
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0)
 		return rc;
 
@@ -792,6 +750,7 @@ static int cxl_mem_get_fw_info(struct cxl_memdev_state *mds)
  */
 static int cxl_mem_activate_fw(struct cxl_memdev_state *mds, int slot)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_activate_fw activate;
 	struct cxl_mbox_cmd mbox_cmd;
 
@@ -808,7 +767,7 @@ static int cxl_mem_activate_fw(struct cxl_memdev_state *mds, int slot)
 	activate.action = CXL_FW_ACTIVATE_OFFLINE;
 	activate.slot = slot;
 
-	return cxl_internal_send_cmd(mds, &mbox_cmd);
+	return cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 }
 
 /**
@@ -823,6 +782,7 @@ static int cxl_mem_activate_fw(struct cxl_memdev_state *mds, int slot)
  */
 static int cxl_mem_abort_fw_xfer(struct cxl_memdev_state *mds)
 {
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct cxl_mbox_transfer_fw *transfer;
 	struct cxl_mbox_cmd mbox_cmd;
 	int rc;
@@ -842,7 +802,7 @@ static int cxl_mem_abort_fw_xfer(struct cxl_memdev_state *mds)
 
 	transfer->action = CXL_FW_TRANSFER_ACTION_ABORT;
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	kfree(transfer);
 	return rc;
 }
@@ -873,12 +833,13 @@ static enum fw_upload_err cxl_fw_prepare(struct fw_upload *fwl, const u8 *data,
 {
 	struct cxl_memdev_state *mds = fwl->dd_handle;
 	struct cxl_mbox_transfer_fw *transfer;
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 
 	if (!size)
 		return FW_UPLOAD_ERR_INVALID_SIZE;
 
 	mds->fw.oneshot = struct_size(transfer, data, size) <
-			    mds->payload_size;
+			    cxl_mbox->payload_size;
 
 	if (cxl_mem_get_fw_info(mds))
 		return FW_UPLOAD_ERR_HW_ERROR;
@@ -898,6 +859,7 @@ static enum fw_upload_err cxl_fw_write(struct fw_upload *fwl, const u8 *data,
 {
 	struct cxl_memdev_state *mds = fwl->dd_handle;
 	struct cxl_dev_state *cxlds = &mds->cxlds;
+	struct cxl_mailbox *cxl_mbox = &cxlds->cxl_mbox;
 	struct cxl_memdev *cxlmd = cxlds->cxlmd;
 	struct cxl_mbox_transfer_fw *transfer;
 	struct cxl_mbox_cmd mbox_cmd;
@@ -921,7 +883,7 @@ static enum fw_upload_err cxl_fw_write(struct fw_upload *fwl, const u8 *data,
 	 * sizeof(*transfer) is 128.  These constraints imply that @cur_size
 	 * will always be 128b aligned.
 	 */
-	cur_size = min_t(size_t, size, mds->payload_size - sizeof(*transfer));
+	cur_size = min_t(size_t, size, cxl_mbox->payload_size - sizeof(*transfer));
 
 	remaining = size - cur_size;
 	size_in = struct_size(transfer, data, cur_size);
@@ -965,7 +927,7 @@ static enum fw_upload_err cxl_fw_write(struct fw_upload *fwl, const u8 *data,
 		.poll_count = 30,
 	};
 
-	rc = cxl_internal_send_cmd(mds, &mbox_cmd);
+	rc = cxl_internal_send_cmd(cxl_mbox, &mbox_cmd);
 	if (rc < 0) {
 		rc = FW_UPLOAD_ERR_RW_ERROR;
 		goto out_free;
@@ -1044,7 +1006,7 @@ int devm_cxl_setup_fw_upload(struct device *host, struct cxl_memdev_state *mds)
 		return PTR_ERR(fwl);
 	return devm_add_action_or_reset(host, cxl_remove_fw_upload, fwl);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fw_upload, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_fw_upload, "CXL");
 
 static const struct file_operations cxl_memdev_fops = {
 	.owner = THIS_MODULE,
@@ -1098,21 +1060,22 @@ err:
 	put_device(dev);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_memdev, "CXL");
 
 static void sanitize_teardown_notifier(void *data)
 {
 	struct cxl_memdev_state *mds = data;
+	struct cxl_mailbox *cxl_mbox = &mds->cxlds.cxl_mbox;
 	struct kernfs_node *state;
 
 	/*
 	 * Prevent new irq triggered invocations of the workqueue and
 	 * flush inflight invocations.
 	 */
-	mutex_lock(&mds->mbox_mutex);
+	mutex_lock(&cxl_mbox->mbox_mutex);
 	state = mds->security.sanitize_node;
 	mds->security.sanitize_node = NULL;
-	mutex_unlock(&mds->mbox_mutex);
+	mutex_unlock(&cxl_mbox->mbox_mutex);
 
 	cancel_delayed_work_sync(&mds->security.poll_dwork);
 	sysfs_put(state);
@@ -1142,7 +1105,7 @@ int devm_cxl_sanitize_setup_notifier(struct device *host,
 
 	return devm_add_action_or_reset(host, sanitize_teardown_notifier, mds);
 }
-EXPORT_SYMBOL_NS_GPL(devm_cxl_sanitize_setup_notifier, CXL);
+EXPORT_SYMBOL_NS_GPL(devm_cxl_sanitize_setup_notifier, "CXL");
 
 __init int cxl_memdev_init(void)
 {

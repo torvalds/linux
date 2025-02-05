@@ -934,7 +934,6 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 {
 	struct sprd_pinctrl_soc_info *info = sprd_pctl->info;
 	struct device_node *np = sprd_pctl->dev->of_node;
-	struct device_node *child, *sub_child;
 	struct sprd_pin_group *grp;
 	const char **temp;
 	int ret;
@@ -962,25 +961,20 @@ static int sprd_pinctrl_parse_dt(struct sprd_pinctrl *sprd_pctl)
 	temp = info->grp_names;
 	grp = info->groups;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		ret = sprd_pinctrl_parse_groups(child, sprd_pctl, grp);
-		if (ret) {
-			of_node_put(child);
+		if (ret)
 			return ret;
-		}
 
 		*temp++ = grp->name;
 		grp++;
 
 		if (of_get_child_count(child) > 0) {
-			for_each_child_of_node(child, sub_child) {
+			for_each_child_of_node_scoped(child, sub_child) {
 				ret = sprd_pinctrl_parse_groups(sub_child,
 								sprd_pctl, grp);
-				if (ret) {
-					of_node_put(sub_child);
-					of_node_put(child);
+				if (ret)
 					return ret;
-				}
 
 				*temp++ = grp->name;
 				grp++;

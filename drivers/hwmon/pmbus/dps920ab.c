@@ -190,12 +190,19 @@ static const struct of_device_id __maybe_unused dps920ab_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, dps920ab_of_match);
 
+static const struct i2c_device_id dps920ab_device_id[] = {
+	{ "dps920ab" },
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, dps920ab_device_id);
+
 static struct i2c_driver dps920ab_driver = {
 	.driver = {
 		   .name = "dps920ab",
 		   .of_match_table = of_match_ptr(dps920ab_of_match),
 	},
 	.probe = dps920ab_probe,
+	.id_table = dps920ab_device_id,
 };
 
 module_i2c_driver(dps920ab_driver);
@@ -203,4 +210,4 @@ module_i2c_driver(dps920ab_driver);
 MODULE_AUTHOR("Robert Marko <robert.marko@sartura.hr>");
 MODULE_DESCRIPTION("PMBus driver for Delta DPS920AB PSU");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

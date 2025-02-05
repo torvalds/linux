@@ -21,8 +21,14 @@
 static int require_nphie(void)
 {
 	SKIP_IF_MSG(!dexcr_exists(), "DEXCR not supported");
+
+	pr_set_dexcr(PR_PPC_DEXCR_NPHIE, PR_PPC_DEXCR_CTRL_SET | PR_PPC_DEXCR_CTRL_SET_ONEXEC);
+
+	if (get_dexcr(EFFECTIVE) & DEXCR_PR_NPHIE)
+		return 0;
+
 	SKIP_IF_MSG(!(get_dexcr(EFFECTIVE) & DEXCR_PR_NPHIE),
-		    "DEXCR[NPHIE] not enabled");
+		    "Failed to enable DEXCR[NPHIE]");
 
 	return 0;
 }

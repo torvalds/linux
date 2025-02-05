@@ -175,7 +175,7 @@ static int ads8344_probe(struct spi_device *spi)
 
 static const struct of_device_id ads8344_of_match[] = {
 	{ .compatible = "ti,ads8344", },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ads8344_of_match);
 

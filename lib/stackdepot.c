@@ -624,20 +624,21 @@ depot_stack_handle_t stack_depot_save_flags(unsigned long *entries,
 	 * we won't be able to do that under the lock.
 	 */
 	if (unlikely(can_alloc && !READ_ONCE(new_pool))) {
-		/*
-		 * Zero out zone modifiers, as we don't have specific zone
-		 * requirements. Keep the flags related to allocation in atomic
-		 * contexts, I/O, nolockdep.
-		 */
-		alloc_flags &= ~GFP_ZONEMASK;
-		alloc_flags &= (GFP_ATOMIC | GFP_KERNEL | __GFP_NOLOCKDEP);
-		alloc_flags |= __GFP_NOWARN;
-		page = alloc_pages(alloc_flags, DEPOT_POOL_ORDER);
+		page = alloc_pages(gfp_nested_mask(alloc_flags),
+				   DEPOT_POOL_ORDER);
 		if (page)
 			prealloc = page_address(page);
 	}
 
-	raw_spin_lock_irqsave(&pool_lock, flags);
+	if (in_nmi()) {
+		/* We can never allocate in NMI context. */
+		WARN_ON_ONCE(can_alloc);
+		/* Best effort; bail if we fail to take the lock. */
+		if (!raw_spin_trylock_irqsave(&pool_lock, flags))
+			goto exit;
+	} else {
+		raw_spin_lock_irqsave(&pool_lock, flags);
+	}
 	printk_deferred_enter();
 
 	/* Try to find again, to avoid concurrently inserting duplicates. */

@@ -199,7 +199,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_start_xmit = spl2sw_ethernet_start_xmit,
 	.ndo_set_rx_mode = spl2sw_ethernet_set_rx_mode,
 	.ndo_set_mac_address = spl2sw_ethernet_set_mac_address,
-	.ndo_do_ioctl = phy_do_ioctl,
+	.ndo_eth_ioctl = phy_do_ioctl,
 	.ndo_tx_timeout = spl2sw_ethernet_tx_timeout,
 };
 
@@ -549,7 +549,7 @@ MODULE_DEVICE_TABLE(of, spl2sw_of_match);
 
 static struct platform_driver spl2sw_driver = {
 	.probe = spl2sw_probe,
-	.remove_new = spl2sw_remove,
+	.remove = spl2sw_remove,
 	.driver = {
 		.name = "sp7021_emac",
 		.of_match_table = spl2sw_of_match,

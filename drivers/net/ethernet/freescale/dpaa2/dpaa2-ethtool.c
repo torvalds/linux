@@ -217,20 +217,15 @@ static int dpaa2_eth_set_pauseparam(struct net_device *net_dev,
 static void dpaa2_eth_get_strings(struct net_device *netdev, u32 stringset,
 				  u8 *data)
 {
-	u8 *p = data;
 	int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
-		for (i = 0; i < DPAA2_ETH_NUM_STATS; i++) {
-			strscpy(p, dpaa2_ethtool_stats[i], ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		for (i = 0; i < DPAA2_ETH_NUM_EXTRA_STATS; i++) {
-			strscpy(p, dpaa2_ethtool_extras[i], ETH_GSTRING_LEN);
-			p += ETH_GSTRING_LEN;
-		}
-		dpaa2_mac_get_strings(p);
+		for (i = 0; i < DPAA2_ETH_NUM_STATS; i++)
+			ethtool_puts(&data, dpaa2_ethtool_stats[i]);
+		for (i = 0; i < DPAA2_ETH_NUM_EXTRA_STATS; i++)
+			ethtool_puts(&data, dpaa2_ethtool_extras[i]);
+		dpaa2_mac_get_strings(&data);
 		break;
 	}
 }
@@ -794,7 +789,7 @@ int dpaa2_phc_index = -1;
 EXPORT_SYMBOL(dpaa2_phc_index);
 
 static int dpaa2_eth_get_ts_info(struct net_device *dev,
-				 struct ethtool_ts_info *info)
+				 struct kernel_ethtool_ts_info *info)
 {
 	if (!dpaa2_ptp)
 		return ethtool_op_get_ts_info(dev, info);

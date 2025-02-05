@@ -405,11 +405,9 @@ static int ipmi_probe(struct platform_device *pdev)
 	return platform_ipmi_probe(pdev);
 }
 
-static int ipmi_remove(struct platform_device *pdev)
+static void ipmi_remove(struct platform_device *pdev)
 {
 	ipmi_si_remove_by_dev(&pdev->dev);
-
-	return 0;
 }
 
 static int pdev_match_name(struct device *dev, const void *data)

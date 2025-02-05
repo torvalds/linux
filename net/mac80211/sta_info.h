@@ -169,7 +169,7 @@ struct sta_info;
  * @buf_size: reorder buffer size at receiver
  * @failed_bar_ssn: ssn of the last failed BAR tx attempt
  * @bar_pending: BAR needs to be re-sent
- * @amsdu: support A-MSDU withing A-MDPU
+ * @amsdu: support A-MSDU within A-MDPU
  * @ssn: starting sequence number of the session
  *
  * This structure's lifetime is managed by RCU, assignments to
@@ -512,6 +512,10 @@ struct ieee80211_fragment_cache {
  * @status_stats.avg_ack_signal: average ACK signal
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
+ * @rx_omi_bw_rx: RX OMI bandwidth restriction to apply for RX
+ * @rx_omi_bw_tx: RX OMI bandwidth restriction to apply for TX
+ * @rx_omi_bw_staging: RX OMI bandwidth restriction to apply later
+ *	during finalize
  * @debugfs_dir: debug filesystem directory dentry
  * @pub: public (driver visible) link STA data
  * TODO Move other link params from sta_info as required for MLD operation
@@ -561,6 +565,9 @@ struct link_sta_info {
 	} tx_stats;
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+	enum ieee80211_sta_rx_bandwidth rx_omi_bw_rx,
+					rx_omi_bw_tx,
+					rx_omi_bw_staging;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
@@ -727,6 +734,12 @@ struct sta_info {
 	struct ieee80211_sta sta;
 };
 
+static inline int ieee80211_tdls_sta_link_id(struct sta_info *sta)
+{
+	/* TDLS STA can only have a single link */
+	return sta->sta.valid_links ? __ffs(sta->sta.valid_links) : 0;
+}
+
 static inline enum nl80211_plink_state sta_plink_state(struct sta_info *sta)
 {
 #ifdef CONFIG_MAC80211_MESH
@@ -886,21 +899,22 @@ void sta_info_stop(struct ieee80211_local *local);
 /**
  * __sta_info_flush - flush matching STA entries from the STA table
  *
- * Returns the number of removed STA entries.
+ * Return: the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
  * @vlans: if the given interface is an AP interface, also flush VLANs
  * @link_id: if given (>=0), all those STA entries using @link_id only
  *	     will be removed. If -1 is passed, all STA entries will be
  *	     removed.
+ * @do_not_flush_sta: a station that shouldn't be flushed.
  */
 int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
-		     int link_id);
+		     int link_id, struct sta_info *do_not_flush_sta);
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
  *
- * Returns the number of removed STA entries.
+ * Return: the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
  * @link_id: if given (>=0), all those STA entries using @link_id only
@@ -910,7 +924,7 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
 static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata,
 				 int link_id)
 {
-	return __sta_info_flush(sdata, false, link_id);
+	return __sta_info_flush(sdata, false, link_id, NULL);
 }
 
 void sta_set_rate_info_tx(struct sta_info *sta,

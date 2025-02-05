@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2023-2024 Intel Corporation
  */
 /*
  * Please use this file (commands.h) only for uCode API definitions.
@@ -177,7 +177,7 @@ enum {
  *
  *****************************************************************************/
 
-/**
+/*
  * iwlagn rate_n_flags bit fields
  *
  * rate_n_flags format is used in following iwlagn commands:
@@ -251,7 +251,7 @@ enum {
 #define RATE_MCS_SGI_POS 13
 #define RATE_MCS_SGI_MSK 0x2000
 
-/**
+/*
  * rate_n_flags Tx antenna masks
  * bit14:16
  */
@@ -2767,7 +2767,7 @@ struct iwl_missed_beacon_notif {
  *
  *****************************************************************************/
 
-/**
+/*
  * SENSITIVITY_CMD = 0xa8 (command, has simple generic response)
  *
  * This command sets up the Rx signal detector for a sensitivity level that

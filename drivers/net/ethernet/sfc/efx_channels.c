@@ -1100,6 +1100,10 @@ void efx_start_channels(struct efx_nic *efx)
 			atomic_inc(&efx->active_queues);
 		}
 
+		/* reset per-queue stats */
+		channel->old_n_rx_hw_drops = efx_get_queue_stat_rx_hw_drops(channel);
+		channel->old_n_rx_hw_drop_overruns = channel->n_rx_nodesc_trunc;
+
 		efx_for_each_channel_rx_queue(rx_queue, channel) {
 			efx_init_rx_queue(rx_queue);
 			atomic_inc(&efx->active_queues);
@@ -1209,6 +1213,8 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 						  tx_queue->pkts_compl,
 						  tx_queue->bytes_compl);
 		}
+		tx_queue->complete_packets += tx_queue->pkts_compl;
+		tx_queue->complete_bytes += tx_queue->bytes_compl;
 	}
 
 	/* Receive any packets we queued up */
@@ -1260,7 +1266,8 @@ static int efx_poll(struct napi_struct *napi, int budget)
 
 	spent = efx_process_channel(channel, budget);
 
-	xdp_do_flush();
+	if (budget)
+		xdp_do_flush();
 
 	if (spent < budget) {
 		if (efx_channel_has_rx_queue(channel) &&

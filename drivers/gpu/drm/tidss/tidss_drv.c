@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
@@ -109,9 +110,9 @@ static const struct drm_driver tidss_driver = {
 	.fops			= &tidss_fops,
 	.release		= tidss_release,
 	DRM_GEM_DMA_DRIVER_OPS_VMAP,
+	DRM_FBDEV_DMA_DRIVER_OPS,
 	.name			= "tidss",
 	.desc			= "TI Keystone DSS",
-	.date			= "20180215",
 	.major			= 1,
 	.minor			= 0,
 };
@@ -138,7 +139,7 @@ static int tidss_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tidss);
 
-	spin_lock_init(&tidss->wait_lock);
+	spin_lock_init(&tidss->irq_lock);
 
 	ret = dispc_init(tidss);
 	if (ret) {
@@ -186,7 +187,7 @@ static int tidss_probe(struct platform_device *pdev)
 		goto err_irq_uninstall;
 	}
 
-	drm_fbdev_dma_setup(ddev, 32);
+	drm_client_setup(ddev, NULL);
 
 	dev_dbg(dev, "%s done\n", __func__);
 
@@ -250,7 +251,7 @@ MODULE_DEVICE_TABLE(of, tidss_of_table);
 
 static struct platform_driver tidss_platform_driver = {
 	.probe		= tidss_probe,
-	.remove_new	= tidss_remove,
+	.remove		= tidss_remove,
 	.shutdown	= tidss_shutdown,
 	.driver		= {
 		.name	= "tidss",

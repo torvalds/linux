@@ -266,7 +266,6 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 	struct ksz_port *prt;
 	struct dsa_port *dp;
 	bool tag_en = false;
-	int ret;
 
 	dsa_switch_for_each_user_port(dp, dev->ds) {
 		prt = &dev->ports[dp->index];
@@ -277,9 +276,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 	}
 
 	if (tag_en) {
-		ret = ptp_schedule_worker(ptp_data->clock, 0);
-		if (ret)
-			return ret;
+		ptp_schedule_worker(ptp_data->clock, 0);
 	} else {
 		ptp_cancel_worker_sync(ptp_data->clock);
 	}
@@ -293,7 +290,7 @@ static int ksz_ptp_enable_mode(struct ksz_device *dev)
 /* The function is return back the capability of timestamping feature when
  * requested through ethtool -T <interface> utility
  */
-int ksz_get_ts_info(struct dsa_switch *ds, int port, struct ethtool_ts_info *ts)
+int ksz_get_ts_info(struct dsa_switch *ds, int port, struct kernel_ethtool_ts_info *ts)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_ptp_data *ptp_data;
@@ -1109,7 +1106,7 @@ static int ksz_ptp_msg_irq_setup(struct ksz_port *port, u8 n)
 	ptpmsg_irq->port = port;
 	ptpmsg_irq->ts_reg = ops->get_port_addr(port->num, ts_reg[n]);
 
-	snprintf(ptpmsg_irq->name, sizeof(ptpmsg_irq->name), name[n]);
+	strscpy(ptpmsg_irq->name, name[n]);
 
 	ptpmsg_irq->num = irq_find_mapping(port->ptpirq.domain, n);
 	if (ptpmsg_irq->num < 0)

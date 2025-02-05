@@ -666,4 +666,4 @@ MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
 MODULE_AUTHOR("Iwona Winiarska <iwona.winiarska@intel.com>");
 MODULE_DESCRIPTION("PECI dimmtemp driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PECI_CPU);
+MODULE_IMPORT_NS("PECI_CPU");

@@ -57,7 +57,7 @@ static void cs35l56_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cs35l56_id_i2c[] = {
-	{ "cs35l56", 0 },
+	{ "cs35l56" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs35l56_id_i2c);
@@ -84,8 +84,8 @@ static struct i2c_driver cs35l56_i2c_driver = {
 module_i2c_driver(cs35l56_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS35L56 I2C driver");
-MODULE_IMPORT_NS(SND_SOC_CS35L56_CORE);
-MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
+MODULE_IMPORT_NS("SND_SOC_CS35L56_CORE");
+MODULE_IMPORT_NS("SND_SOC_CS35L56_SHARED");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

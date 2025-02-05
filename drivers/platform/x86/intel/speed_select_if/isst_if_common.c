@@ -316,7 +316,9 @@ static struct pci_dev *_isst_if_get_pci_dev(int cpu, int bus_no, int dev, int fn
 	    cpu >= nr_cpu_ids || cpu >= num_possible_cpus())
 		return NULL;
 
-	pkg_id = topology_physical_package_id(cpu);
+	pkg_id = topology_logical_package_id(cpu);
+	if (pkg_id >= topology_max_packages())
+		return NULL;
 
 	bus_number = isst_cpu_info[cpu].bus_info[bus_no];
 	if (bus_number < 0)
@@ -651,10 +653,6 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 /* Lock to prevent module registration when already opened by user space */
 static DEFINE_MUTEX(punit_misc_dev_open_lock);
-/* Lock to allow one shared misc device for all ISST interfaces */
-static DEFINE_MUTEX(punit_misc_dev_reg_lock);
-static int misc_usage_count;
-static int misc_device_ret;
 static int misc_device_open;
 
 static int isst_if_open(struct inode *inode, struct file *file)
@@ -718,54 +716,25 @@ static struct miscdevice isst_if_char_driver = {
 	.fops		= &isst_if_char_driver_ops,
 };
 
-static const struct x86_cpu_id hpm_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_D,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(GRANITERAPIDS_X,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_CRESTMONT_X,	NULL),
-	{}
-};
-
 static int isst_misc_reg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_device_ret)
-		goto unlock_exit;
+	int ret;
 
-	if (!misc_usage_count) {
-		const struct x86_cpu_id *id;
+	ret = isst_if_cpu_info_init();
+	if (ret)
+		return ret;
 
-		id = x86_match_cpu(hpm_cpu_ids);
-		if (id)
-			isst_hpm_support = true;
+	ret = misc_register(&isst_if_char_driver);
+	if (ret)
+		isst_if_cpu_info_exit();
 
-		misc_device_ret = isst_if_cpu_info_init();
-		if (misc_device_ret)
-			goto unlock_exit;
-
-		misc_device_ret = misc_register(&isst_if_char_driver);
-		if (misc_device_ret) {
-			isst_if_cpu_info_exit();
-			goto unlock_exit;
-		}
-	}
-	misc_usage_count++;
-
-unlock_exit:
-	mutex_unlock(&punit_misc_dev_reg_lock);
-
-	return misc_device_ret;
+	return ret;
 }
 
 static void isst_misc_unreg(void)
 {
-	mutex_lock(&punit_misc_dev_reg_lock);
-	if (misc_usage_count)
-		misc_usage_count--;
-	if (!misc_usage_count && !misc_device_ret) {
-		misc_deregister(&isst_if_char_driver);
-		isst_if_cpu_info_exit();
-	}
-	mutex_unlock(&punit_misc_dev_reg_lock);
+	misc_deregister(&isst_if_char_driver);
+	isst_if_cpu_info_exit();
 }
 
 /**
@@ -785,10 +754,11 @@ static void isst_misc_unreg(void)
  */
 int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 {
-	int ret;
-
 	if (device_type >= ISST_IF_DEV_MAX)
 		return -EINVAL;
+
+	if (device_type < ISST_IF_DEV_TPMI && isst_hpm_support)
+		return -ENODEV;
 
 	mutex_lock(&punit_misc_dev_open_lock);
 	/* Device is already open, we don't want to add new callbacks */
@@ -804,15 +774,6 @@ int isst_if_cdev_register(int device_type, struct isst_if_cmd_cb *cb)
 	punit_callbacks[device_type].registered = 1;
 	mutex_unlock(&punit_misc_dev_open_lock);
 
-	ret = isst_misc_reg();
-	if (ret) {
-		/*
-		 * No need of mutex as the misc device register failed
-		 * as no one can open device yet. Hence no contention.
-		 */
-		punit_callbacks[device_type].registered = 0;
-		return ret;
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(isst_if_cdev_register);
@@ -828,7 +789,6 @@ EXPORT_SYMBOL_GPL(isst_if_cdev_register);
  */
 void isst_if_cdev_unregister(int device_type)
 {
-	isst_misc_unreg();
 	mutex_lock(&punit_misc_dev_open_lock);
 	punit_callbacks[device_type].def_ioctl = NULL;
 	punit_callbacks[device_type].registered = 0;
@@ -838,4 +798,53 @@ void isst_if_cdev_unregister(int device_type)
 }
 EXPORT_SYMBOL_GPL(isst_if_cdev_unregister);
 
+#define SST_HPM_SUPPORTED	0x01
+#define SST_MBOX_SUPPORTED	0x02
+
+static const struct x86_cpu_id isst_cpu_ids[] = {
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_ATOM_CRESTMONT_X,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_ATOM_DARKMONT_X,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_EMERALDRAPIDS_X,	0),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_D,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_GRANITERAPIDS_X,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_ICELAKE_D,		0),
+	X86_MATCH_VFM(INTEL_ICELAKE_X,		0),
+	X86_MATCH_VFM(INTEL_PANTHERCOVE_X,	SST_HPM_SUPPORTED),
+	X86_MATCH_VFM(INTEL_SAPPHIRERAPIDS_X,	0),
+	X86_MATCH_VFM(INTEL_SKYLAKE_X,		SST_MBOX_SUPPORTED),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, isst_cpu_ids);
+
+static int __init isst_if_common_init(void)
+{
+	const struct x86_cpu_id *id;
+
+	id = x86_match_cpu(isst_cpu_ids);
+	if (!id)
+		return -ENODEV;
+
+	if (id->driver_data == SST_HPM_SUPPORTED) {
+		isst_hpm_support = true;
+	} else if (id->driver_data == SST_MBOX_SUPPORTED) {
+		u64 data;
+
+		/* Can fail only on some Skylake-X generations */
+		if (rdmsrl_safe(MSR_OS_MAILBOX_INTERFACE, &data) ||
+		    rdmsrl_safe(MSR_OS_MAILBOX_DATA, &data))
+			return -ENODEV;
+	}
+
+	return isst_misc_reg();
+}
+module_init(isst_if_common_init)
+
+static void __exit isst_if_common_exit(void)
+{
+	isst_misc_unreg();
+}
+module_exit(isst_if_common_exit)
+
+MODULE_DESCRIPTION("ISST common interface module");
 MODULE_LICENSE("GPL v2");

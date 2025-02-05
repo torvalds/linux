@@ -18,11 +18,12 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/seq_file.h>
 #include <linux/irqdomain.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm.h>
+#include <linux/property.h>
+#include <linux/seq_file.h>
 
 #define GPIO_BANK(x)		((x) >> 5)
 #define GPIO_PORT(x)		(((x) >> 3) & 0x3)
@@ -599,7 +600,7 @@ static void tegra_gpio_irq_print_chip(struct irq_data *d, struct seq_file *s)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(d);
 
-	seq_printf(s, dev_name(chip->parent));
+	seq_puts(s, dev_name(chip->parent));
 }
 
 static const struct irq_chip tegra_gpio_irq_chip = {
@@ -755,7 +756,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	}
 
 	irq = &tgi->gc.irq;
-	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
+	irq->fwnode = dev_fwnode(&pdev->dev);
 	irq->child_to_parent_hwirq = tegra_gpio_child_to_parent_hwirq;
 	irq->populate_parent_alloc_arg = tegra_gpio_populate_parent_fwspec;
 	irq->handler = handle_simple_irq;

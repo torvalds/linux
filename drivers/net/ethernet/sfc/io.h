@@ -217,28 +217,4 @@ _efx_writed_page(struct efx_nic *efx, const efx_dword_t *value,
 					   (reg) != 0xa1c),		\
 			 page)
 
-/* Write TIMER_COMMAND.  This is a page-mapped 32-bit CSR, but a bug
- * in the BIU means that writes to TIMER_COMMAND[0] invalidate the
- * collector register.
- */
-static inline void _efx_writed_page_locked(struct efx_nic *efx,
-					   const efx_dword_t *value,
-					   unsigned int reg,
-					   unsigned int page)
-{
-	unsigned long flags __attribute__ ((unused));
-
-	if (page == 0) {
-		spin_lock_irqsave(&efx->biu_lock, flags);
-		efx_writed(efx, value, efx_paged_reg(efx, page, reg));
-		spin_unlock_irqrestore(&efx->biu_lock, flags);
-	} else {
-		efx_writed(efx, value, efx_paged_reg(efx, page, reg));
-	}
-}
-#define efx_writed_page_locked(efx, value, reg, page)			\
-	_efx_writed_page_locked(efx, value,				\
-				reg + BUILD_BUG_ON_ZERO((reg) != 0x420), \
-				page)
-
 #endif /* EFX_IO_H */

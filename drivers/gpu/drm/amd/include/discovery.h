@@ -31,15 +31,15 @@
 #define HARVEST_TABLE_SIGNATURE         0x56524148
 #define VCN_INFO_TABLE_ID               0x004E4356
 #define MALL_INFO_TABLE_ID              0x4C4C414D
+#define NPS_INFO_TABLE_ID 0x0053504E
 
-typedef enum
-{
+typedef enum {
 	IP_DISCOVERY = 0,
 	GC,
 	HARVEST_INFO,
 	VCN_INFO,
 	MALL_INFO,
-	RESERVED_1,
+	NPS_INFO,
 	TOTAL_TABLES = 6
 } table;
 
@@ -258,6 +258,48 @@ struct gc_info_v1_2 {
 	uint32_t gc_gl2c_per_gpu;
 };
 
+struct gc_info_v1_3 {
+    struct gpu_info_header header;
+    uint32_t gc_num_se;
+    uint32_t gc_num_wgp0_per_sa;
+    uint32_t gc_num_wgp1_per_sa;
+    uint32_t gc_num_rb_per_se;
+    uint32_t gc_num_gl2c;
+    uint32_t gc_num_gprs;
+    uint32_t gc_num_max_gs_thds;
+    uint32_t gc_gs_table_depth;
+    uint32_t gc_gsprim_buff_depth;
+    uint32_t gc_parameter_cache_depth;
+    uint32_t gc_double_offchip_lds_buffer;
+    uint32_t gc_wave_size;
+    uint32_t gc_max_waves_per_simd;
+    uint32_t gc_max_scratch_slots_per_cu;
+    uint32_t gc_lds_size;
+    uint32_t gc_num_sc_per_se;
+    uint32_t gc_num_sa_per_se;
+    uint32_t gc_num_packer_per_sc;
+    uint32_t gc_num_gl2a;
+    uint32_t gc_num_tcp_per_sa;
+    uint32_t gc_num_sdp_interface;
+    uint32_t gc_num_tcps;
+    uint32_t gc_num_tcp_per_wpg;
+    uint32_t gc_tcp_l1_size;
+    uint32_t gc_num_sqc_per_wgp;
+    uint32_t gc_l1_instruction_cache_size_per_sqc;
+    uint32_t gc_l1_data_cache_size_per_sqc;
+    uint32_t gc_gl1c_per_sa;
+    uint32_t gc_gl1c_size_per_instance;
+    uint32_t gc_gl2c_per_gpu;
+    uint32_t gc_tcp_size_per_cu;
+    uint32_t gc_tcp_cache_line_size;
+    uint32_t gc_instruction_cache_size_per_sqc;
+    uint32_t gc_instruction_cache_line_size;
+    uint32_t gc_scalar_data_cache_size_per_sqc;
+    uint32_t gc_scalar_data_cache_line_size;
+    uint32_t gc_tcc_size;
+    uint32_t gc_tcc_cache_line_size;
+};
+
 struct gc_info_v2_0 {
 	struct gpu_info_header header;
 
@@ -378,6 +420,28 @@ struct vcn_info_v1_0 {
 	uint32_t num_of_instances; /* number of entries used in instance_info below*/
 	struct vcn_instance_info_v1_0 instance_info[VCN_INFO_TABLE_MAX_NUM_INSTANCES];
 	uint32_t reserved[4];
+};
+
+#define NPS_INFO_TABLE_MAX_NUM_INSTANCES 12
+
+struct nps_info_header {
+	uint32_t table_id; /* table ID */
+	uint16_t version_major; /* table version */
+	uint16_t version_minor; /* table version */
+	uint32_t size_bytes; /* size of the entire header+data in bytes = 0x000000D4 (212) */
+};
+
+struct nps_instance_info_v1_0 {
+	uint64_t base_address;
+	uint64_t limit_address;
+};
+
+struct nps_info_v1_0 {
+	struct nps_info_header header;
+	uint32_t nps_type;
+	uint32_t count;
+	struct nps_instance_info_v1_0
+		instance_info[NPS_INFO_TABLE_MAX_NUM_INSTANCES];
 };
 
 #pragma pack()

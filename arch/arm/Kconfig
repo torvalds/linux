@@ -5,11 +5,15 @@ config ARM
 	select ARCH_32BIT_OFF_T
 	select ARCH_CORRECT_STACKTRACE_ON_KRETPROBE if HAVE_KRETPROBES && FRAME_POINTER && !ARM_UNWIND
 	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CACHE_LINE_SIZE if OF
 	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
+	select ARCH_HAS_CRC32 if KERNEL_MODE_NEON
+	select ARCH_HAS_CRC_T10DIF if KERNEL_MODE_NEON
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DMA_ALLOC if MMU
+	select ARCH_HAS_DMA_OPS
 	select ARCH_HAS_DMA_WRITE_COMBINE if !ARM_DMA_MEM_BUFFERABLE
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FORTIFY_SOURCE
@@ -34,7 +38,9 @@ config ARM
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
+	select ARCH_NEED_CMPXCHG_1_EMU if CPU_V6
 	select ARCH_SUPPORTS_ATOMIC_RMW
+	select ARCH_SUPPORTS_CFI_CLANG
 	select ARCH_SUPPORTS_HUGETLBFS if ARM_LPAE
 	select ARCH_SUPPORTS_PER_VMA_LOCK
 	select ARCH_USE_BUILTIN_BSWAP
@@ -52,7 +58,6 @@ config ARM
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select DMA_DECLARE_COHERENT
 	select DMA_GLOBAL_POOL if !MMU
-	select DMA_OPS
 	select DMA_NONCOHERENT_MMAP if MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
@@ -62,6 +67,7 @@ config ARM
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
 	select GENERIC_IRQ_IPI if SMP
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_CPU_DEVICES
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_MULTI_HANDLER
@@ -85,6 +91,7 @@ config ARM
 	select HAVE_ARCH_PFN_VALID
 	select HAVE_ARCH_SECCOMP
 	select HAVE_ARCH_SECCOMP_FILTER if AEABI && !OABI_COMPAT
+	select HAVE_ARCH_STACKLEAK
 	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if ARM_LPAE
@@ -99,7 +106,7 @@ config ARM
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_EXIT_THREAD
-	select HAVE_FAST_GUP if ARM_LPAE
+	select HAVE_GUP_FAST if ARM_LPAE
 	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
 	select HAVE_FUNCTION_ERROR_INJECTION
 	select HAVE_FUNCTION_GRAPH_TRACER
@@ -114,6 +121,7 @@ config ARM
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES if !XIP_KERNEL && !CPU_ENDIAN_BE32 && !CPU_V7M
 	select HAVE_KRETPROBES if HAVE_KPROBES
+	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION if (LD_VERSION >= 23600 || LD_IS_LLD)
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_OPTPROBES if !THUMB2_KERNEL
@@ -734,7 +742,7 @@ config ARM_ERRATA_764319
 	bool "ARM errata: Read to DBGPRSR and DBGOSLSR may generate Undefined instruction"
 	depends on CPU_V7
 	help
-	  This option enables the workaround for the 764319 Cortex A-9 erratum.
+	  This option enables the workaround for the 764319 Cortex-A9 erratum.
 	  CP14 read accesses to the DBGPRSR and DBGOSLSR registers generate an
 	  unexpected Undefined Instruction exception when the DBGSWENABLE
 	  external pin is set to 0, even when the CP14 accesses are performed
@@ -1233,9 +1241,9 @@ config HIGHPTE
 	  consumed by page tables.  Setting this option will allow
 	  user-space 2nd level page tables to reside in high memory.
 
-config CPU_SW_DOMAIN_PAN
-	bool "Enable use of CPU domains to implement privileged no-access"
-	depends on MMU && !ARM_LPAE
+config ARM_PAN
+	bool "Enable privileged no-access"
+	depends on MMU
 	default y
 	help
 	  Increase kernel security by ensuring that normal kernel accesses
@@ -1244,9 +1252,25 @@ config CPU_SW_DOMAIN_PAN
 	  by ensuring that magic values (such as LIST_POISON) will always
 	  fault when dereferenced.
 
+	  The implementation uses CPU domains when !CONFIG_ARM_LPAE and
+	  disabling of TTBR0 page table walks with CONFIG_ARM_LPAE.
+
+config CPU_SW_DOMAIN_PAN
+	def_bool y
+	depends on ARM_PAN && !ARM_LPAE
+	help
+	  Enable use of CPU domains to implement privileged no-access.
+
 	  CPUs with low-vector mappings use a best-efforts implementation.
 	  Their lower 1MB needs to remain accessible for the vectors, but
 	  the remainder of userspace will become appropriately inaccessible.
+
+config CPU_TTBR0_PAN
+	def_bool y
+	depends on ARM_PAN && ARM_LPAE
+	help
+	  Enable privileged no-access by disabling TTBR0 page table walks when
+	  running in kernel mode.
 
 config HW_PERF_EVENTS
 	def_bool y
@@ -1465,7 +1489,8 @@ config ARM_ATAG_DTB_COMPAT
 	  from the ATAG list and store it at run time into the appended DTB.
 
 choice
-	prompt "Kernel command line type" if ARM_ATAG_DTB_COMPAT
+	prompt "Kernel command line type"
+	depends on ARM_ATAG_DTB_COMPAT
 	default ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
 
 config ARM_ATAG_DTB_COMPAT_CMDLINE_FROM_BOOTLOADER
@@ -1494,7 +1519,8 @@ config CMDLINE
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
 
 choice
-	prompt "Kernel command line type" if CMDLINE != ""
+	prompt "Kernel command line type"
+	depends on CMDLINE != ""
 	default CMDLINE_FROM_BOOTLOADER
 
 config CMDLINE_FROM_BOOTLOADER
@@ -1573,6 +1599,9 @@ config ATAGS_PROC
 	  file in procfs. Useful with kexec.
 
 config ARCH_SUPPORTS_CRASH_DUMP
+	def_bool y
+
+config ARCH_DEFAULT_CRASH_DUMP
 	def_bool y
 
 config AUTO_ZRELADDR
@@ -1725,5 +1754,3 @@ config ARCH_HIBERNATION_POSSIBLE
 	default y if ARCH_SUSPEND_POSSIBLE
 
 endmenu
-
-source "arch/arm/Kconfig.assembler"

@@ -4,6 +4,7 @@
 #define _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 
 #include <linux/compiler.h>
+#include <linux/cleanup.h>
 #include <linux/efi.h>
 #include <linux/kernel.h>
 #include <linux/kern_levels.h>
@@ -122,11 +123,10 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 #define efi_get_handle_num(size)					\
 	((size) / (efi_is_native() ? sizeof(efi_handle_t) : sizeof(u32)))
 
-#define for_each_efi_handle(handle, array, size, i)			\
-	for (i = 0;							\
-	     i < efi_get_handle_num(size) &&				\
-		((handle = efi_get_handle_at((array), i)) || true);	\
-	     i++)
+#define for_each_efi_handle(handle, array, num)				\
+	for (int __i = 0; __i < (num) &&				\
+		((handle = efi_get_handle_at((array), __i)) || true);	\
+	     __i++)
 
 static inline
 void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
@@ -171,7 +171,7 @@ void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
  * the EFI memory map. Other related structures, e.g. x86 e820ext, need
  * to factor in this headroom requirement as well.
  */
-#define EFI_MMAP_NR_SLACK_SLOTS	8
+#define EFI_MMAP_NR_SLACK_SLOTS	32
 
 typedef struct efi_generic_dev_path efi_device_path_protocol_t;
 
@@ -314,7 +314,9 @@ union efi_boot_services {
 		void *close_protocol;
 		void *open_protocol_information;
 		void *protocols_per_handle;
-		void *locate_handle_buffer;
+		efi_status_t (__efiapi *locate_handle_buffer)(int, efi_guid_t *,
+							      void *, unsigned long *,
+							      efi_handle_t **);
 		efi_status_t (__efiapi *locate_protocol)(efi_guid_t *, void *,
 							 void **);
 		efi_status_t (__efiapi *install_multiple_protocol_interfaces)(efi_handle_t *, ...);
@@ -1053,10 +1055,11 @@ void efi_puts(const char *str);
 __printf(1, 2) int efi_printk(char const *fmt, ...);
 
 void efi_free(unsigned long size, unsigned long addr);
+DEFINE_FREE(efi_pool, void *, if (_T) efi_bs_call(free_pool, _T));
 
 void efi_apply_loadoptions_quirk(const void **load_options, u32 *load_options_size);
 
-char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len);
+char *efi_convert_cmdline(efi_loaded_image_t *image);
 
 efi_status_t efi_get_memory_map(struct efi_boot_memmap **map,
 				bool install_cfg_tbl);
@@ -1082,8 +1085,7 @@ efi_status_t efi_parse_options(char const *cmdline);
 
 void efi_parse_option_graphics(char *option);
 
-efi_status_t efi_setup_gop(struct screen_info *si, efi_guid_t *proto,
-			   unsigned long size);
+efi_status_t efi_setup_gop(struct screen_info *si);
 
 efi_status_t handle_cmdline_files(efi_loaded_image_t *image,
 				  const efi_char16_t *optstr,
@@ -1204,14 +1206,13 @@ struct efi_smbios_type4_record {
 	u16				thread_enabled;
 };
 
-#define efi_get_smbios_string(__record, __type, __name) ({		\
-	int off = offsetof(struct efi_smbios_type ## __type ## _record,	\
-			   __name);					\
-	__efi_get_smbios_string((__record), __type, off);		\
+#define efi_get_smbios_string(__record, __field) ({			\
+	__typeof__(__record) __rec = __record;				\
+	__efi_get_smbios_string(&__rec->header, &__rec->__field);	\
 })
 
 const u8 *__efi_get_smbios_string(const struct efi_smbios_record *record,
-				  u8 type, int offset);
+				  const u8 *offset);
 
 void efi_remap_image(unsigned long image_base, unsigned alloc_size,
 		     unsigned long code_size);
@@ -1230,7 +1231,7 @@ efi_zboot_entry(efi_handle_t handle, efi_system_table_t *systab);
 efi_status_t allocate_unaccepted_bitmap(__u32 nr_desc,
 					struct efi_boot_memmap *map);
 void process_unaccepted_memory(u64 start, u64 end);
-void accept_memory(phys_addr_t start, phys_addr_t end);
+void accept_memory(phys_addr_t start, unsigned long size);
 void arch_accept_memory(phys_addr_t start, phys_addr_t end);
 
 #endif

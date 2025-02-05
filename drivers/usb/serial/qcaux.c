@@ -72,7 +72,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver qcaux_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"qcaux",
 	},
 	.id_table =		id_table,
@@ -84,4 +83,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 module_usb_serial_driver(serial_drivers, id_table);
+MODULE_DESCRIPTION("Qualcomm USB Auxiliary Serial Port driver");
 MODULE_LICENSE("GPL v2");

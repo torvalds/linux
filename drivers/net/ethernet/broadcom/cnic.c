@@ -31,6 +31,7 @@
 #include <linux/if_vlan.h>
 #include <linux/prefetch.h>
 #include <linux/random.h>
+#include <linux/workqueue.h>
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define BCM_VLAN 1
 #endif
@@ -3015,9 +3016,9 @@ static int cnic_service_bnx2(void *data, void *status_blk)
 	return cnic_service_bnx2_queues(dev);
 }
 
-static void cnic_service_bnx2_msix(struct tasklet_struct *t)
+static void cnic_service_bnx2_msix(struct work_struct *work)
 {
-	struct cnic_local *cp = from_tasklet(cp, t, cnic_irq_task);
+	struct cnic_local *cp = from_work(cp, work, cnic_irq_bh_work);
 	struct cnic_dev *dev = cp->dev;
 
 	cp->last_status_idx = cnic_service_bnx2_queues(dev);
@@ -3036,7 +3037,7 @@ static void cnic_doirq(struct cnic_dev *dev)
 		prefetch(cp->status_blk.gen);
 		prefetch(&cp->kcq1.kcq[KCQ_PG(prod)][KCQ_IDX(prod)]);
 
-		tasklet_schedule(&cp->cnic_irq_task);
+		queue_work(system_bh_wq, &cp->cnic_irq_bh_work);
 	}
 }
 
@@ -3140,9 +3141,9 @@ static u32 cnic_service_bnx2x_kcq(struct cnic_dev *dev, struct kcq_info *info)
 	return last_status;
 }
 
-static void cnic_service_bnx2x_bh(struct tasklet_struct *t)
+static void cnic_service_bnx2x_bh_work(struct work_struct *work)
 {
-	struct cnic_local *cp = from_tasklet(cp, t, cnic_irq_task);
+	struct cnic_local *cp = from_work(cp, work, cnic_irq_bh_work);
 	struct cnic_dev *dev = cp->dev;
 	struct bnx2x *bp = netdev_priv(dev->netdev);
 	u32 status_idx, new_status_idx;
@@ -3682,7 +3683,8 @@ static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 #if defined(CONFIG_INET)
 	struct rtable *rt;
 
-	rt = ip_route_output(&init_net, dst_addr->sin_addr.s_addr, 0, 0, 0);
+	rt = ip_route_output(&init_net, dst_addr->sin_addr.s_addr, 0, 0, 0,
+			     RT_SCOPE_UNIVERSE);
 	if (!IS_ERR(rt)) {
 		*dst = &rt->dst;
 		return 0;
@@ -4427,7 +4429,7 @@ static void cnic_free_irq(struct cnic_dev *dev)
 
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
 		cp->disable_int_sync(dev);
-		tasklet_kill(&cp->cnic_irq_task);
+		cancel_work_sync(&cp->cnic_irq_bh_work);
 		free_irq(ethdev->irq_arr[0].vector, dev);
 	}
 }
@@ -4440,7 +4442,7 @@ static int cnic_request_irq(struct cnic_dev *dev)
 
 	err = request_irq(ethdev->irq_arr[0].vector, cnic_irq, 0, "cnic", dev);
 	if (err)
-		tasklet_disable(&cp->cnic_irq_task);
+		disable_work_sync(&cp->cnic_irq_bh_work);
 
 	return err;
 }
@@ -4463,7 +4465,7 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 		CNIC_WR(dev, base + BNX2_HC_CMD_TICKS_OFF, (64 << 16) | 220);
 
 		cp->last_status_idx = cp->status_blk.bnx2->status_idx;
-		tasklet_setup(&cp->cnic_irq_task, cnic_service_bnx2_msix);
+		INIT_WORK(&cp->cnic_irq_bh_work, cnic_service_bnx2_msix);
 		err = cnic_request_irq(dev);
 		if (err)
 			return err;
@@ -4872,7 +4874,7 @@ static int cnic_init_bnx2x_irq(struct cnic_dev *dev)
 	struct cnic_eth_dev *ethdev = cp->ethdev;
 	int err = 0;
 
-	tasklet_setup(&cp->cnic_irq_task, cnic_service_bnx2x_bh);
+	INIT_WORK(&cp->cnic_irq_bh_work, cnic_service_bnx2x_bh_work);
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX)
 		err = cnic_request_irq(dev);
 

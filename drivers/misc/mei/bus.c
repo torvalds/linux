@@ -19,7 +19,7 @@
 #include "mei_dev.h"
 #include "client.h"
 
-#define to_mei_cl_driver(d) container_of(d, struct mei_cl_driver, driver)
+#define to_mei_cl_driver(d) container_of_const(d, struct mei_cl_driver, driver)
 
 /**
  * __mei_cl_send - internal client send (write)
@@ -145,8 +145,8 @@ out:
  * @cl: host client
  * @buf: buffer to receive
  * @length: buffer length
- * @mode: io mode
  * @vtag: virtual tag
+ * @mode: io mode
  * @timeout: recv timeout, 0 for infinite timeout
  *
  * Return: read size in bytes of < 0 on error
@@ -1124,7 +1124,7 @@ struct mei_cl_device_id *mei_cl_device_find(const struct mei_cl_device *cldev,
  *
  * Return:  1 if matching device was found 0 otherwise
  */
-static int mei_cl_device_match(struct device *dev, struct device_driver *drv)
+static int mei_cl_device_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct mei_cl_device *cldev = to_mei_cl_device(dev);
 	const struct mei_cl_driver *cldrv = to_mei_cl_driver(drv);
@@ -1327,7 +1327,7 @@ static int mei_cl_device_uevent(const struct device *dev, struct kobj_uevent_env
 	return 0;
 }
 
-static struct bus_type mei_cl_bus_type = {
+static const struct bus_type mei_cl_bus_type = {
 	.name		= "mei",
 	.dev_groups	= mei_cldev_groups,
 	.match		= mei_cl_device_match,

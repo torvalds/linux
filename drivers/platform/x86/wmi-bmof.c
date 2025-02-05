@@ -20,66 +20,66 @@
 
 #define WMI_BMOF_GUID "05901221-D566-11D1-B2F0-00A0C9062910"
 
-struct bmof_priv {
-	union acpi_object *bmofdata;
-	struct bin_attribute bmof_bin_attr;
-};
-
-static ssize_t read_bmof(struct file *filp, struct kobject *kobj, struct bin_attribute *attr,
+static ssize_t bmof_read(struct file *filp, struct kobject *kobj, const struct bin_attribute *attr,
 			 char *buf, loff_t off, size_t count)
 {
-	struct bmof_priv *priv = container_of(attr, struct bmof_priv, bmof_bin_attr);
+	struct device *dev = kobj_to_dev(kobj);
+	union acpi_object *obj = dev_get_drvdata(dev);
 
-	return memory_read_from_buffer(buf, count, &off, priv->bmofdata->buffer.pointer,
-				       priv->bmofdata->buffer.length);
+	return memory_read_from_buffer(buf, count, &off, obj->buffer.pointer, obj->buffer.length);
 }
+
+static const BIN_ATTR_ADMIN_RO(bmof, 0);
+
+static const struct bin_attribute * const bmof_attrs[] = {
+	&bin_attr_bmof,
+	NULL
+};
+
+static size_t bmof_bin_size(struct kobject *kobj, const struct bin_attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	union acpi_object *obj = dev_get_drvdata(dev);
+
+	return obj->buffer.length;
+}
+
+static const struct attribute_group bmof_group = {
+	.bin_size = bmof_bin_size,
+	.bin_attrs_new = bmof_attrs,
+};
+
+static const struct attribute_group *bmof_groups[] = {
+	&bmof_group,
+	NULL
+};
 
 static int wmi_bmof_probe(struct wmi_device *wdev, const void *context)
 {
-	struct bmof_priv *priv;
-	int ret;
+	union acpi_object *obj;
 
-	priv = devm_kzalloc(&wdev->dev, sizeof(struct bmof_priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	dev_set_drvdata(&wdev->dev, priv);
-
-	priv->bmofdata = wmidev_block_query(wdev, 0);
-	if (!priv->bmofdata) {
+	obj = wmidev_block_query(wdev, 0);
+	if (!obj) {
 		dev_err(&wdev->dev, "failed to read Binary MOF\n");
 		return -EIO;
 	}
 
-	if (priv->bmofdata->type != ACPI_TYPE_BUFFER) {
+	if (obj->type != ACPI_TYPE_BUFFER) {
 		dev_err(&wdev->dev, "Binary MOF is not a buffer\n");
-		ret = -EIO;
-		goto err_free;
+		kfree(obj);
+		return -EIO;
 	}
 
-	sysfs_bin_attr_init(&priv->bmof_bin_attr);
-	priv->bmof_bin_attr.attr.name = "bmof";
-	priv->bmof_bin_attr.attr.mode = 0400;
-	priv->bmof_bin_attr.read = read_bmof;
-	priv->bmof_bin_attr.size = priv->bmofdata->buffer.length;
-
-	ret = device_create_bin_file(&wdev->dev, &priv->bmof_bin_attr);
-	if (ret)
-		goto err_free;
+	dev_set_drvdata(&wdev->dev, obj);
 
 	return 0;
-
- err_free:
-	kfree(priv->bmofdata);
-	return ret;
 }
 
 static void wmi_bmof_remove(struct wmi_device *wdev)
 {
-	struct bmof_priv *priv = dev_get_drvdata(&wdev->dev);
+	union acpi_object *obj = dev_get_drvdata(&wdev->dev);
 
-	device_remove_bin_file(&wdev->dev, &priv->bmof_bin_attr);
-	kfree(priv->bmofdata);
+	kfree(obj);
 }
 
 static const struct wmi_device_id wmi_bmof_id_table[] = {
@@ -90,6 +90,7 @@ static const struct wmi_device_id wmi_bmof_id_table[] = {
 static struct wmi_driver wmi_bmof_driver = {
 	.driver = {
 		.name = "wmi-bmof",
+		.dev_groups = bmof_groups,
 	},
 	.probe = wmi_bmof_probe,
 	.remove = wmi_bmof_remove,

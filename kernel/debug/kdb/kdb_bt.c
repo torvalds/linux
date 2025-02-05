@@ -144,7 +144,7 @@ kdb_bt(int argc, const char **argv)
 			kdb_ps_suppressed();
 		/* Run the active tasks first */
 		for_each_online_cpu(cpu) {
-			p = kdb_curr_task(cpu);
+			p = curr_task(cpu);
 			if (kdb_bt1(p, mask, btaprompt))
 				return 0;
 		}

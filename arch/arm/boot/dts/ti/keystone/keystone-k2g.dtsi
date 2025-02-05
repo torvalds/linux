@@ -256,11 +256,6 @@
 
 		pmmc: system-controller@2921c00 {
 			compatible = "ti,k2g-sci";
-			/*
-			 * In case of rare platforms that does not use k2g as
-			 * system master, use /delete-property/
-			 */
-			ti,system-reboot-controller;
 			mbox-names = "rx", "tx";
 			mboxes = <&msgmgr 5 2>,
 				<&msgmgr 0 0>;

@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __IA_CSS_UTIL_H__
@@ -98,17 +89,6 @@ bool ia_css_util_res_leq(
  * @returns true if resolution is zero
  */
 bool ia_css_util_resolution_is_zero(
-    const struct ia_css_resolution resolution);
-
-/* ISP2401 */
-/**
- * @brief Check if resolution is even
- *
- * @param[in] resolution The resolution to check
- *
- * @returns true if resolution is even
- */
-bool ia_css_util_resolution_is_even(
     const struct ia_css_resolution resolution);
 
 /* @brief check width and height

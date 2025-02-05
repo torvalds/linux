@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/pgtable.h>
+#include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
@@ -51,11 +52,11 @@ static inline int __diag308(unsigned long subcode, void *addr)
 		: [r1] "+&d" (r1.pair),
 		  [reg1] "=&d" (reg1),
 		  [reg2] "=&a" (reg2),
-		  "+Q" (S390_lowcore.program_new_psw),
+		  "+Q" (get_lowcore()->program_new_psw),
 		  "=Q" (old)
 		: [subcode] "d" (subcode),
 		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&S390_lowcore.program_new_psw)
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
 		: "cc", "memory");
 	return r1.odd;
 }
@@ -214,7 +215,7 @@ static void check_cleared_facilities(void)
 
 	for (i = 0; i < ARRAY_SIZE(als); i++) {
 		if ((stfle_fac_list[i] & als[i]) != als[i]) {
-			sclp_early_printk("Warning: The Linux kernel requires facilities cleared via command line option\n");
+			boot_emerg("The Linux kernel requires facilities cleared via command line option\n");
 			print_missing_facilities();
 			break;
 		}
@@ -310,5 +311,25 @@ void parse_boot_command_line(void)
 				prot_virt_host = 1;
 		}
 #endif
+		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
+			relocate_lowcore = 1;
+		if (!strcmp(param, "earlyprintk"))
+			boot_earlyprintk = true;
+		if (!strcmp(param, "debug"))
+			boot_console_loglevel = CONSOLE_LOGLEVEL_DEBUG;
+		if (!strcmp(param, "bootdebug")) {
+			bootdebug = true;
+			if (val)
+				strncpy(bootdebug_filter, val, sizeof(bootdebug_filter) - 1);
+		}
+		if (!strcmp(param, "quiet"))
+			boot_console_loglevel = CONSOLE_LOGLEVEL_QUIET;
+		if (!strcmp(param, "ignore_loglevel"))
+			boot_ignore_loglevel = true;
+		if (!strcmp(param, "loglevel")) {
+			boot_console_loglevel = simple_strtoull(val, NULL, 10);
+			if (boot_console_loglevel < CONSOLE_LOGLEVEL_MIN)
+				boot_console_loglevel = CONSOLE_LOGLEVEL_MIN;
+		}
 	}
 }

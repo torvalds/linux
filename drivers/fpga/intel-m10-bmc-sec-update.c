@@ -529,11 +529,12 @@ static enum fw_upload_err m10bmc_sec_prepare(struct fw_upload *fwl,
 					     const u8 *data, u32 size)
 {
 	struct m10bmc_sec *sec = fwl->dd_handle;
+	const struct m10bmc_csr_map *csr_map = sec->m10bmc->info->csr_map;
 	u32 ret;
 
 	sec->cancel_request = false;
 
-	if (!size || size > M10BMC_STAGING_SIZE)
+	if (!size || size > csr_map->staging_size)
 		return FW_UPLOAD_ERR_INVALID_SIZE;
 
 	if (sec->m10bmc->flash_bulk_ops)
@@ -758,7 +759,7 @@ MODULE_DEVICE_TABLE(platform, intel_m10bmc_sec_ids);
 
 static struct platform_driver intel_m10bmc_sec_driver = {
 	.probe = m10bmc_sec_probe,
-	.remove_new = m10bmc_sec_remove,
+	.remove = m10bmc_sec_remove,
 	.driver = {
 		.name = "intel-m10bmc-sec-update",
 		.dev_groups = m10bmc_sec_attr_groups,
@@ -770,4 +771,4 @@ module_platform_driver(intel_m10bmc_sec_driver);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel MAX10 BMC Secure Update");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(INTEL_M10_BMC_CORE);
+MODULE_IMPORT_NS("INTEL_M10_BMC_CORE");

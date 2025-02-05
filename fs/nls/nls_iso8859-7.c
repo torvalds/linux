@@ -314,4 +314,5 @@ static void __exit exit_nls_iso8859_7(void)
 module_init(init_nls_iso8859_7)
 module_exit(exit_nls_iso8859_7)
 
+MODULE_DESCRIPTION("NLS ISO 8859-7 (Modern Greek)");
 MODULE_LICENSE("Dual BSD/GPL");

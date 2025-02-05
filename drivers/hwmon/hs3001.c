@@ -175,7 +175,7 @@ static const struct hwmon_chip_info hs3001_chip_info = {
 
 /* device ID table */
 static const struct i2c_device_id hs3001_ids[] = {
-	{ "hs3001", 0 },
+	{ "hs3001" },
 	{ },
 };
 

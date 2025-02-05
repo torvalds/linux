@@ -551,14 +551,12 @@ static int tegra194_cpufreq_offline(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int tegra194_cpufreq_exit(struct cpufreq_policy *policy)
+static void tegra194_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev = get_cpu_device(policy->cpu);
 
 	dev_pm_opp_remove_all_dynamic(cpu_dev);
 	dev_pm_opp_of_cpumask_remove_table(policy->related_cpus);
-
-	return 0;
 }
 
 static int tegra194_cpufreq_set_target(struct cpufreq_policy *policy,
@@ -820,7 +818,7 @@ static struct platform_driver tegra194_ccplex_driver = {
 		.of_match_table = tegra194_cpufreq_of_match,
 	},
 	.probe = tegra194_cpufreq_probe,
-	.remove_new = tegra194_cpufreq_remove,
+	.remove = tegra194_cpufreq_remove,
 };
 module_platform_driver(tegra194_ccplex_driver);
 

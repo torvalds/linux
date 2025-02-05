@@ -153,13 +153,13 @@ nfs_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 }
 
 static int
-nfs_proc_lookup(struct inode *dir, struct dentry *dentry,
+nfs_proc_lookup(struct inode *dir, struct dentry *dentry, const struct qstr *name,
 		struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
 	struct nfs_diropargs	arg = {
 		.fh		= NFS_FH(dir),
-		.name		= dentry->d_name.name,
-		.len		= dentry->d_name.len
+		.name		= name->name,
+		.len		= name->len
 	};
 	struct nfs_diropok	res = {
 		.fh		= fhandle,
@@ -687,14 +687,22 @@ out_einval:
 	return -EINVAL;
 }
 
-static int nfs_have_delegation(struct inode *inode, fmode_t flags)
+static int nfs_have_delegation(struct inode *inode, fmode_t type, int flags)
 {
+	return 0;
+}
+
+static int nfs_return_delegation(struct inode *inode)
+{
+	if (S_ISREG(inode->i_mode))
+		nfs_wb_all(inode);
 	return 0;
 }
 
 static const struct inode_operations nfs_dir_inode_operations = {
 	.create		= nfs_create,
 	.lookup		= nfs_lookup,
+	.atomic_open	= nfs_atomic_open_v23,
 	.link		= nfs_link,
 	.unlink		= nfs_unlink,
 	.symlink	= nfs_symlink,
@@ -756,6 +764,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.lock_check_bounds = nfs_lock_check_bounds,
 	.close_context	= nfs_close_context,
 	.have_delegation = nfs_have_delegation,
+	.return_delegation = nfs_return_delegation,
 	.alloc_client	= nfs_alloc_client,
 	.init_client	= nfs_init_client,
 	.free_client	= nfs_free_client,

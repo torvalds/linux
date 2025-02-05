@@ -123,14 +123,12 @@ return_dummy:
  */
 void *kmsan_get_metadata(void *address, bool is_origin)
 {
-	u64 addr = (u64)address, pad, off;
+	u64 addr = (u64)address, off;
 	struct page *page;
 	void *ret;
 
-	if (is_origin && !IS_ALIGNED(addr, KMSAN_ORIGIN_SIZE)) {
-		pad = addr % KMSAN_ORIGIN_SIZE;
-		addr -= pad;
-	}
+	if (is_origin)
+		addr = ALIGN_DOWN(addr, KMSAN_ORIGIN_SIZE);
 	address = (void *)addr;
 	if (kmsan_internal_is_vmalloc_addr(address) ||
 	    kmsan_internal_is_module_addr(address))
@@ -243,7 +241,6 @@ int kmsan_vmap_pages_range_noflush(unsigned long start, unsigned long end,
 		s_pages[i] = shadow_page_for(pages[i]);
 		o_pages[i] = origin_page_for(pages[i]);
 	}
-	prot = __pgprot(pgprot_val(prot) | _PAGE_NX);
 	prot = PAGE_KERNEL;
 
 	origin_start = vmalloc_meta((void *)start, KMSAN_META_ORIGIN);
@@ -283,12 +280,8 @@ void __init kmsan_init_alloc_meta_for_range(void *start, void *end)
 
 	start = (void *)PAGE_ALIGN_DOWN((u64)start);
 	size = PAGE_ALIGN((u64)end - (u64)start);
-	shadow = memblock_alloc(size, PAGE_SIZE);
-	origin = memblock_alloc(size, PAGE_SIZE);
-
-	if (!shadow || !origin)
-		panic("%s: Failed to allocate metadata memory for early boot range of size %llu",
-		      __func__, size);
+	shadow = memblock_alloc_or_panic(size, PAGE_SIZE);
+	origin = memblock_alloc_or_panic(size, PAGE_SIZE);
 
 	for (u64 addr = 0; addr < size; addr += PAGE_SIZE) {
 		page = virt_to_page_or_null((char *)start + addr);

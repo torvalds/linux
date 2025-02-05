@@ -75,7 +75,7 @@ static int regmap_encx24j600_sfr_read(void *context, u8 reg, u8 *val,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		/* Translate registers that are more effecient using
+		/* Translate registers that are more efficient using
 		 * 3-byte SPI commands
 		 */
 		switch (reg) {
@@ -129,7 +129,7 @@ static int regmap_encx24j600_sfr_update(struct encx24j600_context *ctx,
 		if (unlikely(ret))
 			return ret;
 	} else {
-		/* Translate registers that are more effecient using
+		/* Translate registers that are more efficient using
 		 * 3-byte SPI commands
 		 */
 		switch (reg) {
@@ -474,13 +474,13 @@ static struct regmap_config regcfg = {
 	.unlock = regmap_unlock_mutex,
 };
 
-static struct regmap_bus regmap_encx24j600 = {
+static const struct regmap_bus regmap_encx24j600 = {
 	.write = regmap_encx24j600_write,
 	.read = regmap_encx24j600_read,
 	.reg_update_bits = regmap_encx24j600_reg_update_bits,
 };
 
-static struct regmap_config phycfg = {
+static const struct regmap_config phycfg = {
 	.name = "phy",
 	.reg_bits = 8,
 	.val_bits = 16,
@@ -492,7 +492,7 @@ static struct regmap_config phycfg = {
 	.volatile_reg = encx24j600_phymap_volatile,
 };
 
-static struct regmap_bus phymap_encx24j600 = {
+static const struct regmap_bus phymap_encx24j600 = {
 	.reg_write = regmap_encx24j600_phy_reg_write,
 	.reg_read = regmap_encx24j600_phy_reg_read,
 };

@@ -290,7 +290,7 @@ static void idma64_desc_fill(struct idma64_chan *idma64c,
 		desc->length += hw->len;
 	} while (i);
 
-	/* Trigger an interrupt after the last block is transfered */
+	/* Trigger an interrupt after the last block is transferred */
 	lli->ctllo |= IDMA64C_CTLL_INT_EN;
 
 	/* Disable LLP transfer in the last block */
@@ -364,7 +364,7 @@ static size_t idma64_active_desc_size(struct idma64_chan *idma64c)
 	if (!i)
 		return bytes;
 
-	/* The current chunk is not fully transfered yet */
+	/* The current chunk is not fully transferred yet */
 	bytes += desc->hw[--i].len;
 
 	return bytes - IDMA64C_CTLH_BLOCK_TS(ctlhi);
@@ -693,7 +693,7 @@ static const struct dev_pm_ops idma64_dev_pm_ops = {
 
 static struct platform_driver idma64_platform_driver = {
 	.probe		= idma64_platform_probe,
-	.remove_new	= idma64_platform_remove,
+	.remove		= idma64_platform_remove,
 	.driver = {
 		.name	= LPSS_IDMA64_DRIVER_NAME,
 		.pm	= &idma64_dev_pm_ops,

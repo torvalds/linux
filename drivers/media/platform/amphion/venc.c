@@ -52,6 +52,7 @@ struct venc_t {
 	u32 ready_count;
 	u32 enable;
 	u32 stopped;
+	u32 memory_resource_configured;
 
 	u32 skipped_count;
 	u32 skipped_bytes;
@@ -518,7 +519,6 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct venc_t *venc = inst->priv;
 	int ret = 0;
 
-	vpu_inst_lock(inst);
 	switch (ctrl->id) {
 	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
 		venc->params.profile = ctrl->val;
@@ -579,7 +579,6 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = -EINVAL;
 		break;
 	}
-	vpu_inst_unlock(inst);
 
 	return ret;
 }
@@ -679,6 +678,9 @@ static int venc_ctrl_init(struct vpu_inst *inst)
 			       V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME,
 			       ~(1 << V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME),
 			       V4L2_MPEG_VIDEO_HEADER_MODE_JOINED_WITH_1ST_FRAME);
+
+	v4l2_ctrl_new_std(&inst->ctrl_handler, NULL,
+			  V4L2_CID_MPEG_VIDEO_AVERAGE_QP, 0, 51, 1, 0);
 
 	if (inst->ctrl_handler.error) {
 		ret = inst->ctrl_handler.error;
@@ -819,6 +821,7 @@ static int venc_get_one_encoded_frame(struct vpu_inst *inst,
 	vbuf->field = inst->cap_format.field;
 	vbuf->flags |= frame->info.pic_type;
 	vpu_set_buffer_state(vbuf, VPU_BUF_STATE_IDLE);
+	vpu_set_buffer_average_qp(vbuf, frame->info.average_qp);
 	dev_dbg(inst->dev, "[%d][OUTPUT TS]%32lld\n", inst->id, vbuf->vb2_buf.timestamp);
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
 	venc->ready_count++;
@@ -941,9 +944,18 @@ static int venc_start_session(struct vpu_inst *inst, u32 type)
 	ret = vpu_iface_set_encode_params(inst, &venc->params, 0);
 	if (ret)
 		goto error;
+
+	venc->memory_resource_configured = false;
 	ret = vpu_session_configure_codec(inst);
 	if (ret)
 		goto error;
+
+	if (!venc->memory_resource_configured) {
+		vb2_queue_error(v4l2_m2m_get_src_vq(inst->fh.m2m_ctx));
+		vb2_queue_error(v4l2_m2m_get_dst_vq(inst->fh.m2m_ctx));
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	inst->state = VPU_CODEC_STATE_CONFIGURED;
 	/*vpu_iface_config_memory_resource*/
@@ -983,6 +995,7 @@ static void venc_cleanup_mem_resource(struct vpu_inst *inst)
 	u32 i;
 
 	venc = inst->priv;
+	venc->memory_resource_configured = false;
 
 	for (i = 0; i < ARRAY_SIZE(venc->enc); i++)
 		vpu_free_dma(&venc->enc[i]);
@@ -1046,6 +1059,7 @@ static void venc_request_mem_resource(struct vpu_inst *inst,
 		vpu_iface_config_memory_resource(inst, MEM_RES_REF, i, &venc->ref[i]);
 	for (i = 0; i < act_frame_num; i++)
 		vpu_iface_config_memory_resource(inst, MEM_RES_ACT, i, &venc->act[i]);
+	venc->memory_resource_configured = true;
 }
 
 static void venc_cleanup_frames(struct venc_t *venc)

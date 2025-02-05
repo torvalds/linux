@@ -44,6 +44,11 @@ Edge detection must be enabled for the input line using either
 both. Edge events are then generated whenever edge interrupts are detected on
 the input line.
 
+Edges are defined in terms of changes to the logical line value, so an inactive
+to active transition is a rising edge.  If ``GPIOHANDLE_REQUEST_ACTIVE_LOW`` is
+set then logical polarity is the opposite of physical polarity, and
+``GPIOEVENT_REQUEST_RISING_EDGE`` then corresponds to a falling physical edge.
+
 The kernel captures and timestamps edge events as close as possible to their
 occurrence and stores them in a buffer from where they can be read by
 userspace at its convenience using `read()`.

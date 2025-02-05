@@ -565,7 +565,7 @@ mlx5e_xmit_xdp_frame(struct mlx5e_xdpsq *sq, struct mlx5e_xmit_data *xdptxd,
 	linear = !!(dma_len - inline_hdr_sz);
 	ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT + linear + !!inline_hdr_sz;
 
-	/* check_result must be 0 if sinfo is passed. */
+	/* check_result must be 0 if xdptxd->has_frags is true. */
 	if (!check_result) {
 		int stop_room = 1;
 
@@ -865,7 +865,7 @@ int mlx5e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 	if (unlikely(sq_num >= priv->channels.num))
 		return -ENXIO;
 
-	sq = &priv->channels.c[sq_num]->xdpsq;
+	sq = priv->channels.c[sq_num]->xdpsq;
 
 	for (i = 0; i < n; i++) {
 		struct mlx5e_xmit_data_frags xdptxdf = {};

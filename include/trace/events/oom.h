@@ -55,8 +55,8 @@ TRACE_EVENT(reclaim_retry_zone,
 	),
 
 	TP_fast_assign(
-		__entry->node = zone_to_nid(zoneref->zone);
-		__entry->zone_idx = zoneref->zone_idx;
+		__entry->node = zonelist_node_idx(zoneref);
+		__entry->zone_idx = zonelist_zone_idx(zoneref);
 		__entry->order = order;
 		__entry->reclaimable = reclaimable;
 		__entry->available = available;
@@ -92,7 +92,7 @@ TRACE_EVENT(mark_victim,
 
 	TP_fast_assign(
 		__entry->pid = task->pid;
-		__assign_str(comm, task->comm);
+		__assign_str(comm);
 		__entry->total_vm = PG_COUNT_TO_KB(task->mm->total_vm);
 		__entry->anon_rss = PG_COUNT_TO_KB(get_mm_counter(task->mm, MM_ANONPAGES));
 		__entry->file_rss = PG_COUNT_TO_KB(get_mm_counter(task->mm, MM_FILEPAGES));

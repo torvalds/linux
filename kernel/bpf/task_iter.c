@@ -5,7 +5,6 @@
 #include <linux/namei.h>
 #include <linux/pid_namespace.h>
 #include <linux/fs.h>
-#include <linux/fdtable.h>
 #include <linux/filter.h>
 #include <linux/bpf_mem_alloc.h>
 #include <linux/btf_ids.h>
@@ -99,7 +98,7 @@ static struct task_struct *task_seq_get_next(struct bpf_iter_seq_task_common *co
 		rcu_read_lock();
 		pid = find_pid_ns(common->pid, common->ns);
 		if (pid) {
-			task = get_pid_task(pid, PIDTYPE_TGID);
+			task = get_pid_task(pid, PIDTYPE_PID);
 			*tid = common->pid;
 		}
 		rcu_read_unlock();
@@ -261,6 +260,7 @@ task_file_seq_get_next(struct bpf_iter_seq_task_file_info *info)
 	u32 saved_tid = info->tid;
 	struct task_struct *curr_task;
 	unsigned int curr_fd = info->fd;
+	struct file *f;
 
 	/* If this function returns a non-NULL file object,
 	 * it held a reference to the task/file.
@@ -285,21 +285,14 @@ again:
 			curr_fd = 0;
 	}
 
-	rcu_read_lock();
-	for (;; curr_fd++) {
-		struct file *f;
-		f = task_lookup_next_fdget_rcu(curr_task, &curr_fd);
-		if (!f)
-			break;
-
+	f = fget_task_next(curr_task, &curr_fd);
+	if (f) {
 		/* set info->fd */
 		info->fd = curr_fd;
-		rcu_read_unlock();
 		return f;
 	}
 
 	/* the current task is done, go to the next task */
-	rcu_read_unlock();
 	put_task_struct(curr_task);
 
 	if (info->common.type == BPF_TASK_ITER_TID) {

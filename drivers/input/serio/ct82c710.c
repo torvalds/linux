@@ -158,7 +158,7 @@ static int __init ct82c710_detect(void)
 
 static int ct82c710_probe(struct platform_device *dev)
 {
-	ct82c710_port = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	ct82c710_port = kzalloc(sizeof(*ct82c710_port), GFP_KERNEL);
 	if (!ct82c710_port)
 		return -ENOMEM;
 
@@ -190,7 +190,7 @@ static struct platform_driver ct82c710_driver = {
 		.name	= "ct82c710",
 	},
 	.probe		= ct82c710_probe,
-	.remove_new	= ct82c710_remove,
+	.remove		= ct82c710_remove,
 };
 
 

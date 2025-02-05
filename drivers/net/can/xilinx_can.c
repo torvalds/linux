@@ -6,7 +6,7 @@
  * Copyright (C) 2017 - 2018 Sandvik Mining and Construction Oy
  *
  * Description:
- * This driver is developed for Axi CAN IP and for Zynq CANPS Controller.
+ * This driver is developed for AXI CAN IP, AXI CANFD IP, CANPS and CANFD PS Controller.
  */
 
 #include <linux/bitfield.h>
@@ -2103,7 +2103,7 @@ static void xcan_remove(struct platform_device *pdev)
 
 static struct platform_driver xcan_driver = {
 	.probe = xcan_probe,
-	.remove_new = xcan_remove,
+	.remove = xcan_remove,
 	.driver	= {
 		.name = DRIVER_NAME,
 		.pm = &xcan_dev_pm_ops,

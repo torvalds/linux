@@ -23,6 +23,8 @@ properties:
   reg:
     maxItems: 1
 
+  vin-supply: true
+
 patternProperties:
   "^out[pn]$":
     type: object
@@ -65,6 +67,7 @@ examples:
         regulator@3e {
             compatible = "ti,tps65132";
             reg = <0x3e>;
+            vin-supply = <&supply>;
 
             outp {
                 regulator-name = "outp";

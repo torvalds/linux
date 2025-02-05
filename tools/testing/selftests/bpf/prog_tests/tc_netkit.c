@@ -14,7 +14,15 @@
 #include "netlink_helpers.h"
 #include "tc_helpers.h"
 
-#define ICMP_ECHO 8
+#define NETKIT_HEADROOM	32
+#define NETKIT_TAILROOM	8
+
+#define MARK		42
+#define PRIO		0xeb9f
+#define ICMP_ECHO	8
+
+#define FLAG_ADJUST_ROOM (1 << 0)
+#define FLAG_SAME_NETNS  (1 << 1)
 
 struct icmphdr {
 	__u8		type;
@@ -33,7 +41,7 @@ struct iplink_req {
 };
 
 static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
-			 bool same_netns)
+			 int scrub, int peer_scrub, __u32 flags)
 {
 	struct rtnl_handle rth = { .fd = -1 };
 	struct iplink_req req = {};
@@ -58,7 +66,13 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 	data = addattr_nest(&req.n, sizeof(req), IFLA_INFO_DATA);
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_POLICY, policy);
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_PEER_POLICY, peer_policy);
+	addattr32(&req.n, sizeof(req), IFLA_NETKIT_SCRUB, scrub);
+	addattr32(&req.n, sizeof(req), IFLA_NETKIT_PEER_SCRUB, peer_scrub);
 	addattr32(&req.n, sizeof(req), IFLA_NETKIT_MODE, mode);
+	if (flags & FLAG_ADJUST_ROOM) {
+		addattr16(&req.n, sizeof(req), IFLA_NETKIT_HEADROOM, NETKIT_HEADROOM);
+		addattr16(&req.n, sizeof(req), IFLA_NETKIT_TAILROOM, NETKIT_TAILROOM);
+	}
 	addattr_nest_end(&req.n, data);
 	addattr_nest_end(&req.n, linkinfo);
 
@@ -73,7 +87,17 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 			 "up primary");
 	ASSERT_OK(system("ip addr add dev " netkit_name " 10.0.0.1/24"),
 			 "addr primary");
-	if (same_netns) {
+
+	if (mode == NETKIT_L3) {
+		ASSERT_EQ(system("ip link set dev " netkit_name
+				 " addr ee:ff:bb:cc:aa:dd 2> /dev/null"), 512,
+				 "set hwaddress");
+	} else {
+		ASSERT_OK(system("ip link set dev " netkit_name
+				 " addr ee:ff:bb:cc:aa:dd"),
+				 "set hwaddress");
+	}
+	if (flags & FLAG_SAME_NETNS) {
 		ASSERT_OK(system("ip link set dev " netkit_peer " up"),
 				 "up peer");
 		ASSERT_OK(system("ip addr add dev " netkit_peer " 10.0.0.2/24"),
@@ -89,6 +113,16 @@ static int create_netkit(int mode, int policy, int peer_policy, int *ifindex,
 	return err;
 }
 
+static void move_netkit(void)
+{
+	ASSERT_OK(system("ip link set " netkit_peer " netns foo"),
+			 "move peer");
+	ASSERT_OK(system("ip netns exec foo ip link set dev "
+			 netkit_peer " up"), "up peer");
+	ASSERT_OK(system("ip netns exec foo ip addr add dev "
+			 netkit_peer " 10.0.0.2/24"), "addr peer");
+}
+
 static void destroy_netkit(void)
 {
 	ASSERT_OK(system("ip link del dev " netkit_name), "del primary");
@@ -98,9 +132,9 @@ static void destroy_netkit(void)
 
 static int __send_icmp(__u32 dest)
 {
+	int sock, ret, mark = MARK, prio = PRIO;
 	struct sockaddr_in addr;
 	struct icmphdr icmp;
-	int sock, ret;
 
 	ret = write_sysctl("/proc/sys/net/ipv4/ping_group_range", "0 0");
 	if (!ASSERT_OK(ret, "write_sysctl(net.ipv4.ping_group_range)"))
@@ -113,6 +147,15 @@ static int __send_icmp(__u32 dest)
 	ret = setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
 			 netkit_name, strlen(netkit_name) + 1);
 	if (!ASSERT_OK(ret, "setsockopt(SO_BINDTODEVICE)"))
+		goto out;
+
+	ret = setsockopt(sock, SOL_SOCKET, SO_MARK, &mark, sizeof(mark));
+	if (!ASSERT_OK(ret, "setsockopt(SO_MARK)"))
+		goto out;
+
+	ret = setsockopt(sock, SOL_SOCKET, SO_PRIORITY,
+			 &prio, sizeof(prio));
+	if (!ASSERT_OK(ret, "setsockopt(SO_PRIORITY)"))
 		goto out;
 
 	memset(&addr, 0, sizeof(addr));
@@ -151,7 +194,8 @@ void serial_test_tc_netkit_basic(void)
 	int err, ifindex;
 
 	err = create_netkit(NETKIT_L2, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -265,7 +309,8 @@ static void serial_test_tc_netkit_multi_links_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -393,7 +438,8 @@ static void serial_test_tc_netkit_multi_opts_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -507,7 +553,8 @@ void serial_test_tc_netkit_device(void)
 	int err, ifindex, ifindex2;
 
 	err = create_netkit(NETKIT_L3, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, true);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, FLAG_SAME_NETNS);
 	if (err)
 		return;
 
@@ -618,7 +665,8 @@ static void serial_test_tc_netkit_neigh_links_target(int mode, int target)
 	int err, ifindex;
 
 	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
-			    &ifindex, false);
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, 0);
 	if (err)
 		return;
 
@@ -684,4 +732,139 @@ void serial_test_tc_netkit_neigh_links(void)
 {
 	serial_test_tc_netkit_neigh_links_target(NETKIT_L2, BPF_NETKIT_PRIMARY);
 	serial_test_tc_netkit_neigh_links_target(NETKIT_L3, BPF_NETKIT_PRIMARY);
+}
+
+static void serial_test_tc_netkit_pkt_type_mode(int mode)
+{
+	LIBBPF_OPTS(bpf_netkit_opts, optl_nk);
+	LIBBPF_OPTS(bpf_tcx_opts, optl_tcx);
+	int err, ifindex, ifindex2;
+	struct test_tc_link *skel;
+	struct bpf_link *link;
+
+	err = create_netkit(mode, NETKIT_PASS, NETKIT_PASS,
+			    &ifindex, NETKIT_SCRUB_DEFAULT,
+			    NETKIT_SCRUB_DEFAULT, FLAG_SAME_NETNS);
+	if (err)
+		return;
+
+	ifindex2 = if_nametoindex(netkit_peer);
+	ASSERT_NEQ(ifindex, ifindex2, "ifindex_1_2");
+
+	skel = test_tc_link__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		goto cleanup;
+
+	ASSERT_EQ(bpf_program__set_expected_attach_type(skel->progs.tc1,
+		  BPF_NETKIT_PRIMARY), 0, "tc1_attach_type");
+	ASSERT_EQ(bpf_program__set_expected_attach_type(skel->progs.tc7,
+		  BPF_TCX_INGRESS), 0, "tc7_attach_type");
+
+	err = test_tc_link__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+	assert_mprog_count_ifindex(ifindex,  BPF_NETKIT_PRIMARY, 0);
+	assert_mprog_count_ifindex(ifindex2, BPF_TCX_INGRESS, 0);
+
+	link = bpf_program__attach_netkit(skel->progs.tc1, ifindex, &optl_nk);
+	if (!ASSERT_OK_PTR(link, "link_attach"))
+		goto cleanup;
+
+	skel->links.tc1 = link;
+
+	assert_mprog_count_ifindex(ifindex,  BPF_NETKIT_PRIMARY, 1);
+	assert_mprog_count_ifindex(ifindex2, BPF_TCX_INGRESS, 0);
+
+	link = bpf_program__attach_tcx(skel->progs.tc7, ifindex2, &optl_tcx);
+	if (!ASSERT_OK_PTR(link, "link_attach"))
+		goto cleanup;
+
+	skel->links.tc7 = link;
+
+	assert_mprog_count_ifindex(ifindex,  BPF_NETKIT_PRIMARY, 1);
+	assert_mprog_count_ifindex(ifindex2, BPF_TCX_INGRESS, 1);
+
+	move_netkit();
+
+	tc_skel_reset_all_seen(skel);
+	skel->bss->set_type = true;
+	ASSERT_EQ(send_icmp(), 0, "icmp_pkt");
+
+	ASSERT_EQ(skel->bss->seen_tc1, true, "seen_tc1");
+	ASSERT_EQ(skel->bss->seen_tc7, true, "seen_tc7");
+
+	ASSERT_EQ(skel->bss->seen_host,  true, "seen_host");
+	ASSERT_EQ(skel->bss->seen_mcast, true, "seen_mcast");
+cleanup:
+	test_tc_link__destroy(skel);
+
+	assert_mprog_count_ifindex(ifindex,  BPF_NETKIT_PRIMARY, 0);
+	destroy_netkit();
+}
+
+void serial_test_tc_netkit_pkt_type(void)
+{
+	serial_test_tc_netkit_pkt_type_mode(NETKIT_L2);
+	serial_test_tc_netkit_pkt_type_mode(NETKIT_L3);
+}
+
+static void serial_test_tc_netkit_scrub_type(int scrub, bool room)
+{
+	LIBBPF_OPTS(bpf_netkit_opts, optl);
+	struct test_tc_link *skel;
+	struct bpf_link *link;
+	int err, ifindex;
+
+	err = create_netkit(NETKIT_L2, NETKIT_PASS, NETKIT_PASS,
+			    &ifindex, scrub, scrub,
+			    room ? FLAG_ADJUST_ROOM : 0);
+	if (err)
+		return;
+
+	skel = test_tc_link__open();
+	if (!ASSERT_OK_PTR(skel, "skel_open"))
+		goto cleanup;
+
+	ASSERT_EQ(bpf_program__set_expected_attach_type(skel->progs.tc8,
+		  BPF_NETKIT_PRIMARY), 0, "tc8_attach_type");
+
+	err = test_tc_link__load(skel);
+	if (!ASSERT_OK(err, "skel_load"))
+		goto cleanup;
+
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PRIMARY, 0);
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PEER, 0);
+
+	ASSERT_EQ(skel->bss->seen_tc8, false, "seen_tc8");
+
+	link = bpf_program__attach_netkit(skel->progs.tc8, ifindex, &optl);
+	if (!ASSERT_OK_PTR(link, "link_attach"))
+		goto cleanup;
+
+	skel->links.tc8 = link;
+
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PRIMARY, 1);
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PEER, 0);
+
+	tc_skel_reset_all_seen(skel);
+	ASSERT_EQ(send_icmp(), 0, "icmp_pkt");
+
+	ASSERT_EQ(skel->bss->seen_tc8, true, "seen_tc8");
+	ASSERT_EQ(skel->bss->mark, scrub == NETKIT_SCRUB_NONE ? MARK : 0, "mark");
+	ASSERT_EQ(skel->bss->prio, scrub == NETKIT_SCRUB_NONE ? PRIO : 0, "prio");
+	ASSERT_EQ(skel->bss->headroom, room ? NETKIT_HEADROOM : 0, "headroom");
+	ASSERT_EQ(skel->bss->tailroom, room ? NETKIT_TAILROOM : 0, "tailroom");
+cleanup:
+	test_tc_link__destroy(skel);
+
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PRIMARY, 0);
+	assert_mprog_count_ifindex(ifindex, BPF_NETKIT_PEER, 0);
+	destroy_netkit();
+}
+
+void serial_test_tc_netkit_scrub(void)
+{
+	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_DEFAULT, false);
+	serial_test_tc_netkit_scrub_type(NETKIT_SCRUB_NONE, true);
 }

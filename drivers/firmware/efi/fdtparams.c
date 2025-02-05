@@ -8,7 +8,7 @@
 #include <linux/libfdt.h>
 #include <linux/of_fdt.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 enum {
 	SYSTAB,

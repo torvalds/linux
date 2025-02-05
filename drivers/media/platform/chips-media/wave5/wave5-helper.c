@@ -7,6 +7,8 @@
 
 #include "wave5-helper.h"
 
+#define DEFAULT_BS_SIZE(width, height) ((width) * (height) / 8 * 3)
+
 const char *state_to_str(enum vpu_instance_state state)
 {
 	switch (state) {
@@ -29,7 +31,13 @@ void wave5_cleanup_instance(struct vpu_instance *inst)
 {
 	int i;
 
-	if (list_is_singular(&inst->list))
+	/*
+	 * For Wave515 SRAM memory is allocated at
+	 * wave5_vpu_dec_register_device() and freed at
+	 * wave5_vpu_dec_unregister_device().
+	 */
+	if (list_is_singular(&inst->list) &&
+	    inst->dev->product_code != WAVE515_CODE)
 		wave5_vdi_free_sram(inst->dev);
 
 	for (i = 0; i < inst->fbc_buf_count; i++)
@@ -52,11 +60,11 @@ int wave5_vpu_release_device(struct file *filp,
 			     char *name)
 {
 	struct vpu_instance *inst = wave5_to_vpu_inst(filp->private_data);
+	int ret = 0;
 
 	v4l2_m2m_ctx_release(inst->v4l2_fh.m2m_ctx);
 	if (inst->state != VPU_INST_STATE_NONE) {
 		u32 fail_res;
-		int ret;
 
 		ret = close_func(inst, &fail_res);
 		if (fail_res == WAVE5_SYSERR_VPU_STILL_RUNNING) {
@@ -72,7 +80,7 @@ int wave5_vpu_release_device(struct file *filp,
 
 	wave5_cleanup_instance(inst);
 
-	return 0;
+	return ret;
 }
 
 int wave5_vpu_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq,
@@ -210,4 +218,26 @@ void wave5_return_bufs(struct vb2_queue *q, u32 state)
 		v4l2_ctrl_request_complete(vbuf->vb2_buf.req_obj.req, &v4l2_ctrl_hdl);
 		v4l2_m2m_buf_done(vbuf, state);
 	}
+}
+
+void wave5_update_pix_fmt(struct v4l2_pix_format_mplane *pix_mp,
+			  int pix_fmt_type,
+			  unsigned int width,
+			  unsigned int height,
+			  const struct v4l2_frmsize_stepwise *frmsize)
+{
+	v4l2_apply_frmsize_constraints(&width, &height, frmsize);
+
+	if (pix_fmt_type == VPU_FMT_TYPE_CODEC) {
+		pix_mp->width = width;
+		pix_mp->height = height;
+		pix_mp->num_planes = 1;
+		pix_mp->plane_fmt[0].bytesperline = 0;
+		pix_mp->plane_fmt[0].sizeimage = max(DEFAULT_BS_SIZE(width, height),
+						     pix_mp->plane_fmt[0].sizeimage);
+	} else {
+		v4l2_fill_pixfmt_mp(pix_mp, pix_mp->pixelformat, width, height);
+	}
+	pix_mp->flags = 0;
+	pix_mp->field = V4L2_FIELD_NONE;
 }

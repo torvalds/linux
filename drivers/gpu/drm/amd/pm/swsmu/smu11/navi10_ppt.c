@@ -1135,7 +1135,9 @@ static int navi10_set_default_dpm_table(struct smu_context *smu)
 	return 0;
 }
 
-static int navi10_dpm_set_vcn_enable(struct smu_context *smu, bool enable)
+static int navi10_dpm_set_vcn_enable(struct smu_context *smu,
+				      bool enable,
+				      int inst)
 {
 	int ret = 0;
 
@@ -1219,19 +1221,22 @@ static int navi10_get_current_clk_freq_by_table(struct smu_context *smu,
 					   value);
 }
 
-static bool navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu_clk_type clk_type)
+static int navi10_is_support_fine_grained_dpm(struct smu_context *smu, enum smu_clk_type clk_type)
 {
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	DpmDescriptor_t *dpm_desc = NULL;
-	uint32_t clk_index = 0;
+	int clk_index = 0;
 
 	clk_index = smu_cmn_to_asic_specific_index(smu,
 						   CMN2ASIC_MAPPING_CLK,
 						   clk_type);
+	if (clk_index < 0)
+		return clk_index;
+
 	dpm_desc = &pptable->DpmDescriptor[clk_index];
 
 	/* 0 - Fine grained DPM, 1 - Discrete DPM */
-	return dpm_desc->SnapToDiscrete == 0;
+	return dpm_desc->SnapToDiscrete == 0 ? 1 : 0;
 }
 
 static inline bool navi10_od_feature_is_supported(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODFEATURE_CAP cap)
@@ -1287,7 +1292,11 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 		if (ret)
 			return ret;
 
-		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
+		if (ret < 0)
+			return ret;
+
+		if (!ret) {
 			for (i = 0; i < count; i++) {
 				ret = smu_v11_0_get_dpm_freq_by_index(smu,
 								      clk_type, i, &value);
@@ -1381,8 +1390,6 @@ static int navi10_emit_clk_levels(struct smu_context *smu,
 				break;
 			case 2:
 				curve_settings = &od_table->GfxclkFreq3;
-				break;
-			default:
 				break;
 			}
 			*offset += sysfs_emit_at(buf, *offset, "%d: %uMHz %umV\n",
@@ -1496,7 +1503,11 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		if (ret)
 			return size;
 
-		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
+		if (ret < 0)
+			return ret;
+
+		if (!ret) {
 			for (i = 0; i < count; i++) {
 				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
@@ -1583,8 +1594,6 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 			case 2:
 				curve_settings = &od_table->GfxclkFreq3;
 				break;
-			default:
-				break;
 			}
 			size += sysfs_emit_at(buf, size, "%d: %uMHz %umV\n",
 					      i, curve_settings[0],
@@ -1665,7 +1674,11 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_FCLK:
 		/* There is only 2 levels for fine grained DPM */
-		if (navi10_is_support_fine_grained_dpm(smu, clk_type)) {
+		ret = navi10_is_support_fine_grained_dpm(smu, clk_type);
+		if (ret < 0)
+			return ret;
+
+		if (ret) {
 			soft_max_level = (soft_max_level >= 1 ? 1 : 0);
 			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
 		}
@@ -1678,7 +1691,7 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 		if (ret)
 			return 0;
 
-		ret = smu_v11_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq);
+		ret = smu_v11_0_set_soft_freq_limited_range(smu, clk_type, min_freq, max_freq, false);
 		if (ret)
 			return 0;
 		break;
@@ -1978,7 +1991,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 		size += sysfs_emit_at(buf, size, "%19s %d(%13s) %7d %7d %7d %7d %7d %7d %7d %7d %7d\n",
 			" ",
 			2,
-			"MEMLK",
+			"MEMCLK",
 			activity_monitor.Mem_FPS,
 			activity_monitor.Mem_MinFreqStep,
 			activity_monitor.Mem_MinActiveFreqType,
@@ -1993,81 +2006,122 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 	return size;
 }
 
-static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, uint32_t size)
+#define NAVI10_CUSTOM_PARAMS_COUNT 10
+#define NAVI10_CUSTOM_PARAMS_CLOCKS_COUNT 3
+#define NAVI10_CUSTOM_PARAMS_SIZE (NAVI10_CUSTOM_PARAMS_CLOCKS_COUNT * NAVI10_CUSTOM_PARAMS_COUNT * sizeof(long))
+
+static int navi10_set_power_profile_mode_coeff(struct smu_context *smu,
+					       long *input)
 {
 	DpmActivityMonitorCoeffInt_t activity_monitor;
-	int workload_type, ret = 0;
+	int ret, idx;
 
-	smu->power_profile_mode = input[size];
-
-	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
-		return -EINVAL;
+	ret = smu_cmn_update_table(smu,
+				   SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				   (void *)(&activity_monitor), false);
+	if (ret) {
+		dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
+		return ret;
 	}
 
-	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_CUSTOM) {
-
-		ret = smu_cmn_update_table(smu,
-				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), false);
-		if (ret) {
-			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
-			return ret;
-		}
-
-		switch (input[0]) {
-		case 0: /* Gfxclk */
-			activity_monitor.Gfx_FPS = input[1];
-			activity_monitor.Gfx_MinFreqStep = input[2];
-			activity_monitor.Gfx_MinActiveFreqType = input[3];
-			activity_monitor.Gfx_MinActiveFreq = input[4];
-			activity_monitor.Gfx_BoosterFreqType = input[5];
-			activity_monitor.Gfx_BoosterFreq = input[6];
-			activity_monitor.Gfx_PD_Data_limit_c = input[7];
-			activity_monitor.Gfx_PD_Data_error_coeff = input[8];
-			activity_monitor.Gfx_PD_Data_error_rate_coeff = input[9];
-			break;
-		case 1: /* Socclk */
-			activity_monitor.Soc_FPS = input[1];
-			activity_monitor.Soc_MinFreqStep = input[2];
-			activity_monitor.Soc_MinActiveFreqType = input[3];
-			activity_monitor.Soc_MinActiveFreq = input[4];
-			activity_monitor.Soc_BoosterFreqType = input[5];
-			activity_monitor.Soc_BoosterFreq = input[6];
-			activity_monitor.Soc_PD_Data_limit_c = input[7];
-			activity_monitor.Soc_PD_Data_error_coeff = input[8];
-			activity_monitor.Soc_PD_Data_error_rate_coeff = input[9];
-			break;
-		case 2: /* Memlk */
-			activity_monitor.Mem_FPS = input[1];
-			activity_monitor.Mem_MinFreqStep = input[2];
-			activity_monitor.Mem_MinActiveFreqType = input[3];
-			activity_monitor.Mem_MinActiveFreq = input[4];
-			activity_monitor.Mem_BoosterFreqType = input[5];
-			activity_monitor.Mem_BoosterFreq = input[6];
-			activity_monitor.Mem_PD_Data_limit_c = input[7];
-			activity_monitor.Mem_PD_Data_error_coeff = input[8];
-			activity_monitor.Mem_PD_Data_error_rate_coeff = input[9];
-			break;
-		}
-
-		ret = smu_cmn_update_table(smu,
-				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
-				       (void *)(&activity_monitor), true);
-		if (ret) {
-			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
-			return ret;
-		}
+	idx = 0 * NAVI10_CUSTOM_PARAMS_COUNT;
+	if (input[idx]) {
+		/* Gfxclk */
+		activity_monitor.Gfx_FPS = input[idx + 1];
+		activity_monitor.Gfx_MinFreqStep = input[idx + 2];
+		activity_monitor.Gfx_MinActiveFreqType = input[idx + 3];
+		activity_monitor.Gfx_MinActiveFreq = input[idx + 4];
+		activity_monitor.Gfx_BoosterFreqType = input[idx + 5];
+		activity_monitor.Gfx_BoosterFreq = input[idx + 6];
+		activity_monitor.Gfx_PD_Data_limit_c = input[idx + 7];
+		activity_monitor.Gfx_PD_Data_error_coeff = input[idx + 8];
+		activity_monitor.Gfx_PD_Data_error_rate_coeff = input[idx + 9];
+	}
+	idx = 1 * NAVI10_CUSTOM_PARAMS_COUNT;
+	if (input[idx]) {
+		/* Socclk */
+		activity_monitor.Soc_FPS = input[idx + 1];
+		activity_monitor.Soc_MinFreqStep = input[idx + 2];
+		activity_monitor.Soc_MinActiveFreqType = input[idx + 3];
+		activity_monitor.Soc_MinActiveFreq = input[idx + 4];
+		activity_monitor.Soc_BoosterFreqType = input[idx + 5];
+		activity_monitor.Soc_BoosterFreq = input[idx + 6];
+		activity_monitor.Soc_PD_Data_limit_c = input[idx + 7];
+		activity_monitor.Soc_PD_Data_error_coeff = input[idx + 8];
+		activity_monitor.Soc_PD_Data_error_rate_coeff = input[idx + 9];
+	}
+	idx = 2 * NAVI10_CUSTOM_PARAMS_COUNT;
+	if (input[idx]) {
+		/* Memclk */
+		activity_monitor.Mem_FPS = input[idx + 1];
+		activity_monitor.Mem_MinFreqStep = input[idx + 2];
+		activity_monitor.Mem_MinActiveFreqType = input[idx + 3];
+		activity_monitor.Mem_MinActiveFreq = input[idx + 4];
+		activity_monitor.Mem_BoosterFreqType = input[idx + 5];
+		activity_monitor.Mem_BoosterFreq = input[idx + 6];
+		activity_monitor.Mem_PD_Data_limit_c = input[idx + 7];
+		activity_monitor.Mem_PD_Data_error_coeff = input[idx + 8];
+		activity_monitor.Mem_PD_Data_error_rate_coeff = input[idx + 9];
 	}
 
-	/* conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT */
-	workload_type = smu_cmn_to_asic_specific_index(smu,
-						       CMN2ASIC_MAPPING_WORKLOAD,
-						       smu->power_profile_mode);
-	if (workload_type < 0)
-		return -EINVAL;
-	smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
-				    1 << workload_type, NULL);
+	ret = smu_cmn_update_table(smu,
+				   SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
+				   (void *)(&activity_monitor), true);
+	if (ret) {
+		dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int navi10_set_power_profile_mode(struct smu_context *smu,
+					 u32 workload_mask,
+					 long *custom_params,
+					 u32 custom_params_max_idx)
+{
+	u32 backend_workload_mask = 0;
+	int ret, idx = -1, i;
+
+	smu_cmn_get_backend_workload_mask(smu, workload_mask,
+					  &backend_workload_mask);
+
+	if (workload_mask & (1 << PP_SMC_POWER_PROFILE_CUSTOM)) {
+		if (!smu->custom_profile_params) {
+			smu->custom_profile_params = kzalloc(NAVI10_CUSTOM_PARAMS_SIZE, GFP_KERNEL);
+			if (!smu->custom_profile_params)
+				return -ENOMEM;
+		}
+		if (custom_params && custom_params_max_idx) {
+			if (custom_params_max_idx != NAVI10_CUSTOM_PARAMS_COUNT)
+				return -EINVAL;
+			if (custom_params[0] >= NAVI10_CUSTOM_PARAMS_CLOCKS_COUNT)
+				return -EINVAL;
+			idx = custom_params[0] * NAVI10_CUSTOM_PARAMS_COUNT;
+			smu->custom_profile_params[idx] = 1;
+			for (i = 1; i < custom_params_max_idx; i++)
+				smu->custom_profile_params[idx + i] = custom_params[i];
+		}
+		ret = navi10_set_power_profile_mode_coeff(smu,
+							  smu->custom_profile_params);
+		if (ret) {
+			if (idx != -1)
+				smu->custom_profile_params[idx] = 0;
+			return ret;
+		}
+	} else if (smu->custom_profile_params) {
+		memset(smu->custom_profile_params, 0, NAVI10_CUSTOM_PARAMS_SIZE);
+	}
+
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
+					      backend_workload_mask, NULL);
+	if (ret) {
+		dev_err(smu->adev->dev, "Failed to set workload mask 0x%08x\n",
+			workload_mask);
+		if (idx != -1)
+			smu->custom_profile_params[idx] = 0;
+		return ret;
+	}
 
 	return ret;
 }

@@ -29,10 +29,8 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <include/vdso/time64.h>
 #include "../kselftest.h"
-
-#define NSEC_PER_SEC 1000000000LL
-#define USEC_PER_SEC 1000000LL
 
 #define ADJ_SETOFFSET 0x0100
 
@@ -320,10 +318,10 @@ int validate_set_offset(void)
 int main(int argc, char **argv)
 {
 	if (validate_freq())
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
 	if (validate_set_offset())
-		return ksft_exit_fail();
+		ksft_exit_fail();
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

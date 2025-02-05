@@ -342,7 +342,7 @@ static struct platform_driver electra_cf_driver = {
 		.of_match_table = electra_cf_match,
 	},
 	.probe	  = electra_cf_probe,
-	.remove_new = electra_cf_remove,
+	.remove   = electra_cf_remove,
 };
 
 module_platform_driver(electra_cf_driver);

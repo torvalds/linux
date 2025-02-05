@@ -46,7 +46,7 @@
 / {
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <7>;
 		enable-gpios = <&gpio6 31 GPIO_ACTIVE_HIGH>;
@@ -346,7 +346,6 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
@@ -414,7 +413,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_gpio>;
 
-	pinctrl_audmux: audmux {
+	pinctrl_audmux: audmuxgrp {
 		fsl,pins = <
 			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD  0x1b0b0
 			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC  0x1b0b0
@@ -507,7 +506,7 @@
 		>;
 	};
 
-	pinctrl_gpmi_nand: gpmi-nand {
+	pinctrl_gpmi_nand: gpminandgrp {
 		fsl,pins = <
 			MX6QDL_PAD_NANDF_CLE__NAND_CLE     0xb0b1
 			MX6QDL_PAD_NANDF_ALE__NAND_ALE     0xb0b1
@@ -600,11 +599,11 @@
 		>;
 	};
 
-	pinctrl_aristainetos2_usbh1_vbus: aristainetos-usbh1-vbus {
+	pinctrl_aristainetos2_usbh1_vbus: aristainetos-usbh1-vbusgrp {
 		fsl,pins = <MX6QDL_PAD_GPIO_0__USB_H1_PWR 0x130b0>;
 	};
 
-	pinctrl_aristainetos2_usbotg_vbus: aristainetos-usbotg-vbus {
+	pinctrl_aristainetos2_usbotg_vbus: aristainetos-usbotg-vbusgrp {
 		fsl,pins = <MX6QDL_PAD_KEY_ROW4__USB_OTG_PWR 0x130b0>;
 	};
 

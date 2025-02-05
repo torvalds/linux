@@ -345,46 +345,52 @@ int rxe_prepare(struct rxe_av *av, struct rxe_pkt_info *pkt,
 
 static void rxe_skb_tx_dtor(struct sk_buff *skb)
 {
-	struct sock *sk = skb->sk;
-	struct rxe_qp *qp = sk->sk_user_data;
-	int skb_out = atomic_dec_return(&qp->skb_out);
+	struct net_device *ndev = skb->dev;
+	struct rxe_dev *rxe;
+	unsigned int qp_index;
+	struct rxe_qp *qp;
+	int skb_out;
 
-	if (unlikely(qp->need_req_skb &&
-		     skb_out < RXE_INFLIGHT_SKBS_PER_QP_LOW))
-		rxe_sched_task(&qp->req.task);
+	rxe = rxe_get_dev_from_net(ndev);
+	if (!rxe && is_vlan_dev(ndev))
+		rxe = rxe_get_dev_from_net(vlan_dev_real_dev(ndev));
+	if (WARN_ON(!rxe))
+		return;
+
+	qp_index = (int)(uintptr_t)skb->sk->sk_user_data;
+	if (!qp_index)
+		return;
+
+	qp = rxe_pool_get_index(&rxe->qp_pool, qp_index);
+	if (!qp)
+		goto put_dev;
+
+	skb_out = atomic_dec_return(&qp->skb_out);
+	if (qp->need_req_skb && skb_out < RXE_INFLIGHT_SKBS_PER_QP_LOW)
+		rxe_sched_task(&qp->send_task);
 
 	rxe_put(qp);
+put_dev:
+	ib_device_put(&rxe->ib_dev);
+	sock_put(skb->sk);
 }
 
 static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
 	int err;
+	struct sock *sk = pkt->qp->sk->sk;
 
+	sock_hold(sk);
+	skb->sk = sk;
 	skb->destructor = rxe_skb_tx_dtor;
-	skb->sk = pkt->qp->sk->sk;
-
-	rxe_get(pkt->qp);
 	atomic_inc(&pkt->qp->skb_out);
 
-	if (skb->protocol == htons(ETH_P_IP)) {
+	if (skb->protocol == htons(ETH_P_IP))
 		err = ip_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
-	} else if (skb->protocol == htons(ETH_P_IPV6)) {
+	else
 		err = ip6_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
-	} else {
-		rxe_dbg_qp(pkt->qp, "Unknown layer 3 protocol: %d\n",
-				skb->protocol);
-		atomic_dec(&pkt->qp->skb_out);
-		rxe_put(pkt->qp);
-		kfree_skb(skb);
-		return -EINVAL;
-	}
 
-	if (unlikely(net_xmit_eval(err))) {
-		rxe_dbg_qp(pkt->qp, "error sending packet: %d\n", err);
-		return -EAGAIN;
-	}
-
-	return 0;
+	return err;
 }
 
 /* fix up a send packet to match the packets
@@ -392,7 +398,14 @@ static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
  */
 static int rxe_loopback(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 {
+	struct sock *sk = pkt->qp->sk->sk;
+
 	memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
+
+	sock_hold(sk);
+	skb->sk = sk;
+	skb->destructor = rxe_skb_tx_dtor;
+	atomic_inc(&pkt->qp->skb_out);
 
 	if (skb->protocol == htons(ETH_P_IP))
 		skb_pull(skb, sizeof(struct iphdr));
@@ -438,12 +451,6 @@ int rxe_xmit_packet(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 	if (err) {
 		rxe_counter_inc(rxe, RXE_CNT_SEND_ERR);
 		return err;
-	}
-
-	if ((qp_type(qp) != IB_QPT_RC) &&
-	    (pkt->mask & RXE_END_MASK)) {
-		pkt->wqe->state = wqe_state_done;
-		rxe_sched_task(&qp->comp.task);
 	}
 
 	rxe_counter_inc(rxe, RXE_CNT_SENT_PKTS);
@@ -517,7 +524,16 @@ out:
  */
 const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num)
 {
-	return rxe->ndev->name;
+	struct net_device *ndev;
+	char *ndev_name;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return NULL;
+	ndev_name = ndev->name;
+	dev_put(ndev);
+
+	return ndev_name;
 }
 
 int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
@@ -529,9 +545,9 @@ int rxe_net_add(const char *ibdev_name, struct net_device *ndev)
 	if (!rxe)
 		return -ENOMEM;
 
-	rxe->ndev = ndev;
+	ib_mark_name_assigned_by_user(&rxe->ib_dev);
 
-	err = rxe_add(rxe, ndev->mtu, ibdev_name);
+	err = rxe_add(rxe, ndev->mtu, ibdev_name, ndev);
 	if (err) {
 		ib_dealloc_device(&rxe->ib_dev);
 		return err;
@@ -555,11 +571,6 @@ static void rxe_port_event(struct rxe_dev *rxe,
 /* Caller must hold net_info_lock */
 void rxe_port_up(struct rxe_dev *rxe)
 {
-	struct rxe_port *port;
-
-	port = &rxe->port;
-	port->attr.state = IB_PORT_ACTIVE;
-
 	rxe_port_event(rxe, IB_EVENT_PORT_ACTIVE);
 	dev_info(&rxe->ib_dev.dev, "set active\n");
 }
@@ -567,11 +578,6 @@ void rxe_port_up(struct rxe_dev *rxe)
 /* Caller must hold net_info_lock */
 void rxe_port_down(struct rxe_dev *rxe)
 {
-	struct rxe_port *port;
-
-	port = &rxe->port;
-	port->attr.state = IB_PORT_DOWN;
-
 	rxe_port_event(rxe, IB_EVENT_PORT_ERR);
 	rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 	dev_info(&rxe->ib_dev.dev, "set down\n");
@@ -579,10 +585,18 @@ void rxe_port_down(struct rxe_dev *rxe)
 
 void rxe_set_port_state(struct rxe_dev *rxe)
 {
-	if (netif_running(rxe->ndev) && netif_carrier_ok(rxe->ndev))
+	struct net_device *ndev;
+
+	ndev = rxe_ib_device_get_netdev(&rxe->ib_dev);
+	if (!ndev)
+		return;
+
+	if (ib_get_curr_port_state(ndev) == IB_PORT_ACTIVE)
 		rxe_port_up(rxe);
 	else
 		rxe_port_down(rxe);
+
+	dev_put(ndev);
 }
 
 static int rxe_notify(struct notifier_block *not_blk,
@@ -599,18 +613,14 @@ static int rxe_notify(struct notifier_block *not_blk,
 	case NETDEV_UNREGISTER:
 		ib_unregister_device_queued(&rxe->ib_dev);
 		break;
-	case NETDEV_UP:
-		rxe_port_up(rxe);
-		break;
-	case NETDEV_DOWN:
-		rxe_port_down(rxe);
-		break;
 	case NETDEV_CHANGEMTU:
 		rxe_dbg_dev(rxe, "%s changed mtu to %d\n", ndev->name, ndev->mtu);
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
+	case NETDEV_DOWN:
 	case NETDEV_CHANGE:
-		rxe_set_port_state(rxe);
+		if (ib_get_curr_port_state(ndev) == IB_PORT_DOWN)
+			rxe_counter_inc(rxe, RXE_CNT_LINK_DOWNED);
 		break;
 	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:

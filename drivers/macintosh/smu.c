@@ -492,11 +492,7 @@ int __init smu_init (void)
 		goto fail_np;
 	}
 
-	smu = memblock_alloc(sizeof(struct smu_device), SMP_CACHE_BYTES);
-	if (!smu)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(struct smu_device));
-
+	smu = memblock_alloc_or_panic(sizeof(struct smu_device), SMP_CACHE_BYTES);
 	spin_lock_init(&smu->lock);
 	INIT_LIST_HEAD(&smu->cmd_list);
 	INIT_LIST_HEAD(&smu->cmd_i2c_list);
@@ -1314,7 +1310,6 @@ static int smu_release(struct inode *inode, struct file *file)
 
 
 static const struct file_operations smu_device_fops = {
-	.llseek		= no_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
 	.poll		= smu_fpoll,

@@ -49,10 +49,10 @@ struct iaa_wq {
 
 	struct iaa_device	*iaa_device;
 
-	u64			comp_calls;
-	u64			comp_bytes;
-	u64			decomp_calls;
-	u64			decomp_bytes;
+	atomic64_t		comp_calls;
+	atomic64_t		comp_bytes;
+	atomic64_t		decomp_calls;
+	atomic64_t		decomp_bytes;
 };
 
 struct iaa_device_compression_mode {
@@ -73,10 +73,10 @@ struct iaa_device {
 	int				n_wq;
 	struct list_head		wqs;
 
-	u64				comp_calls;
-	u64				comp_bytes;
-	u64				decomp_calls;
-	u64				decomp_bytes;
+	atomic64_t			comp_calls;
+	atomic64_t			comp_bytes;
+	atomic64_t			decomp_calls;
+	atomic64_t			decomp_bytes;
 };
 
 struct wq_table_entry {

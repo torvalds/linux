@@ -2,7 +2,7 @@
 /* Copyright (c) 2021 Facebook */
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-#include "../bpf_testmod/bpf_testmod_kfunc.h"
+#include "../test_kmods/bpf_testmod_kfunc.h"
 
 SEC("tc")
 int kfunc_call_test4(struct __sk_buff *skb)
@@ -175,6 +175,43 @@ int kfunc_call_test_static_unused_arg(struct __sk_buff *skb)
 
 	actual = bpf_kfunc_call_test_static_unused_arg(expected, 0xdeadbeef);
 	return actual != expected ? -1 : 0;
+}
+
+struct ctx_val {
+	struct bpf_testmod_ctx __kptr *ctx;
+};
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, struct ctx_val);
+} ctx_map SEC(".maps");
+
+SEC("tc")
+int kfunc_call_ctx(struct __sk_buff *skb)
+{
+	struct bpf_testmod_ctx *ctx;
+	int err = 0;
+
+	ctx = bpf_testmod_ctx_create(&err);
+	if (!ctx && !err)
+		err = -1;
+	if (ctx) {
+		int key = 0;
+		struct ctx_val *ctx_val = bpf_map_lookup_elem(&ctx_map, &key);
+
+		/* Transfer ctx to map to be freed via implicit dtor call
+		 * on cleanup.
+		 */
+		if (ctx_val)
+			ctx = bpf_kptr_xchg(&ctx_val->ctx, ctx);
+		if (ctx) {
+			bpf_testmod_ctx_release(ctx);
+			err = -1;
+		}
+	}
+	return err;
 }
 
 char _license[] SEC("license") = "GPL";

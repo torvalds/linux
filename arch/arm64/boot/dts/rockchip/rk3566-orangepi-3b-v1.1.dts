@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3566-orangepi-3b.dtsi"
+
+/ {
+	model = "Xunlong Orange Pi 3B v1.1";
+	compatible = "xunlong,orangepi-3b-v1.1", "xunlong,orangepi-3b", "rockchip,rk3566";
+};
+
+&pmu_io_domains {
+	vccio5-supply = <&vcc_3v3>;
+};
+
+&gmac1 {
+	phy-handle = <&rgmii_phy1>;
+	status = "okay";
+};
+
+&mdio1 {
+	rgmii_phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+		reset-assert-us = <20000>;
+		reset-deassert-us = <50000>;
+		reset-gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+	};
+};

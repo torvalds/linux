@@ -9,7 +9,7 @@
 
 #include "../common.h"
 
-extern struct bus_type mhi_bus_type;
+extern const struct bus_type mhi_bus_type;
 
 /* Host request register */
 #define MHI_SOC_RESET_REQ_OFFSET			0xb0
@@ -80,6 +80,7 @@ enum dev_st_transition {
 	DEV_ST_TRANSITION_FP,
 	DEV_ST_TRANSITION_SYS_ERR,
 	DEV_ST_TRANSITION_DISABLE,
+	DEV_ST_TRANSITION_DISABLE_DESTROY_DEVICE,
 	DEV_ST_TRANSITION_MAX,
 };
 
@@ -90,7 +91,8 @@ enum dev_st_transition {
 	dev_st_trans(MISSION_MODE,	"MISSION MODE")		\
 	dev_st_trans(FP,		"FLASH PROGRAMMER")	\
 	dev_st_trans(SYS_ERR,		"SYS ERROR")		\
-	dev_st_trans_end(DISABLE,	"DISABLE")
+	dev_st_trans(DISABLE,		"DISABLE")		\
+	dev_st_trans_end(DISABLE_DESTROY_DEVICE, "DISABLE (DESTROY DEVICE)")
 
 extern const char * const dev_state_tran_str[DEV_ST_TRANSITION_MAX];
 #define TO_DEV_STATE_TRANS_STR(state) (((state) >= DEV_ST_TRANSITION_MAX) ? \
@@ -253,7 +255,7 @@ struct mhi_chan {
 	/*
 	 * Important: When consuming, increment tre_ring first and when
 	 * releasing, decrement buf_ring first. If tre_ring has space, buf_ring
-	 * is guranteed to have space so we do not need to check both rings.
+	 * is guaranteed to have space so we do not need to check both rings.
 	 */
 	struct mhi_ring buf_ring;
 	struct mhi_ring tre_ring;

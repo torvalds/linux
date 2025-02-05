@@ -1021,8 +1021,6 @@ static void adm1031_init_client(struct i2c_client *client)
 	data->update_interval = update_intervals[i];
 }
 
-static const struct i2c_device_id adm1031_id[];
-
 static int adm1031_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -1035,7 +1033,7 @@ static int adm1031_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, data);
 	data->client = client;
-	data->chip_type = i2c_match_id(adm1031_id, client)->driver_data;
+	data->chip_type = (uintptr_t)i2c_get_match_data(client);
 	mutex_init(&data->update_lock);
 
 	if (data->chip_type == adm1030)

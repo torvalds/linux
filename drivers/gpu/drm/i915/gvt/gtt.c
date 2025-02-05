@@ -39,6 +39,7 @@
 #include "trace.h"
 
 #include "gt/intel_gt_regs.h"
+#include <linux/vmalloc.h>
 
 #if defined(VERBOSE_DEBUG)
 #define gvt_vdbg_mm(fmt, args...) gvt_dbg_mm(fmt, ##args)
@@ -1189,7 +1190,7 @@ static int split_2MB_gtt_entry(struct intel_vgpu *vgpu,
 	ppgtt_set_shadow_entry(spt, se, index);
 	return 0;
 err:
-	/* Cancel the existing addess mappings of DMA addr. */
+	/* Cancel the existing address mappings of DMA addr. */
 	for_each_present_shadow_entry(sub_spt, &sub_se, sub_index) {
 		gvt_vdbg_mm("invalidate 4K entry\n");
 		ppgtt_invalidate_pte(sub_spt, &sub_se);

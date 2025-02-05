@@ -54,7 +54,19 @@
 #define LLCC_CAMEXP4	 52
 #define LLCC_DISP_WB	 53
 #define LLCC_DISP_1	 54
+#define LLCC_VIEYE	 57
+#define LLCC_VIDPTH	 58
+#define LLCC_GPUMV	 59
+#define LLCC_EVA_LEFT	 60
+#define LLCC_EVA_RIGHT	 61
+#define LLCC_EVAGAIN	 62
+#define LLCC_VIPTH	 63
 #define LLCC_VIDVSP	 64
+#define LLCC_DISP_LEFT	 65
+#define LLCC_DISP_RIGHT	 66
+#define LLCC_EVCS_LEFT	 67
+#define LLCC_EVCS_RIGHT	 68
+#define LLCC_SPAD	 69
 
 /**
  * struct llcc_slice_desc - Cache slice descriptor
@@ -115,7 +127,8 @@ struct llcc_edac_reg_offset {
 /**
  * struct llcc_drv_data - Data associated with the llcc driver
  * @regmaps: regmaps associated with the llcc device
- * @bcast_regmap: regmap associated with llcc broadcast offset
+ * @bcast_regmap: regmap associated with llcc broadcast OR offset
+ * @bcast_and_regmap: regmap associated with llcc broadcast AND offset
  * @cfg: pointer to the data structure for slice configuration
  * @edac_reg_offset: Offset of the LLCC EDAC registers
  * @lock: mutex associated with each slice
@@ -124,11 +137,13 @@ struct llcc_edac_reg_offset {
  * @num_banks: Number of llcc banks
  * @bitmap: Bit map to track the active slice ids
  * @ecc_irq: interrupt for llcc cache error detection and reporting
+ * @ecc_irq_configured: 'True' if firmware has already configured the irq propagation
  * @version: Indicates the LLCC version
  */
 struct llcc_drv_data {
 	struct regmap **regmaps;
 	struct regmap *bcast_regmap;
+	struct regmap *bcast_and_regmap;
 	const struct llcc_slice_config *cfg;
 	const struct llcc_edac_reg_offset *edac_reg_offset;
 	struct mutex lock;
@@ -137,6 +152,7 @@ struct llcc_drv_data {
 	u32 num_banks;
 	unsigned long *bitmap;
 	int ecc_irq;
+	bool ecc_irq_configured;
 	u32 version;
 };
 

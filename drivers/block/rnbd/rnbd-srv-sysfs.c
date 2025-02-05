@@ -33,7 +33,7 @@ static void rnbd_srv_dev_release(struct kobject *kobj)
 	kfree(dev);
 }
 
-static struct kobj_type dev_ktype = {
+static const struct kobj_type dev_ktype = {
 	.sysfs_ops = &kobj_sysfs_ops,
 	.release = rnbd_srv_dev_release
 };
@@ -184,7 +184,7 @@ static void rnbd_srv_sess_dev_release(struct kobject *kobj)
 	rnbd_destroy_sess_dev(sess_dev, sess_dev->keep_id);
 }
 
-static struct kobj_type rnbd_srv_sess_dev_ktype = {
+static const struct kobj_type rnbd_srv_sess_dev_ktype = {
 	.sysfs_ops	= &kobj_sysfs_ops,
 	.release	= rnbd_srv_sess_dev_release,
 };

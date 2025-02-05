@@ -7,9 +7,12 @@
 
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_oa_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_gt_types.h"
+#include "xe_gt_printk.h"
 #include "xe_platform_types.h"
+#include "xe_reg_sr.h"
 #include "xe_rtp.h"
 #include "xe_step.h"
 
@@ -63,9 +66,64 @@ static const struct xe_rtp_entry_sr register_whitelist[] = {
 		       ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(WHITELIST(CSBE_DEBUG_STATUS(RENDER_RING_BASE), 0))
 	},
-
+	{ XE_RTP_NAME("oa_reg_render"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, XE_RTP_END_VERSION_UNDEFINED),
+		       ENGINE_CLASS(RENDER)),
+	  XE_RTP_ACTIONS(WHITELIST(OAG_MMIOTRIGGER,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RW),
+			 WHITELIST(OAG_OASTATUS,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RD),
+			 WHITELIST(OAG_OAHEADPTR,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RD |
+				   RING_FORCE_TO_NONPRIV_RANGE_4))
+	},
+	{ XE_RTP_NAME("oa_reg_compute"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, XE_RTP_END_VERSION_UNDEFINED),
+		       ENGINE_CLASS(COMPUTE)),
+	  XE_RTP_ACTIONS(WHITELIST(OAG_MMIOTRIGGER,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RW),
+			 WHITELIST(OAG_OASTATUS,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RD),
+			 WHITELIST(OAG_OAHEADPTR,
+				   RING_FORCE_TO_NONPRIV_ACCESS_RD |
+				   RING_FORCE_TO_NONPRIV_RANGE_4))
+	},
 	{}
 };
+
+static void whitelist_apply_to_hwe(struct xe_hw_engine *hwe)
+{
+	struct xe_reg_sr *sr = &hwe->reg_whitelist;
+	struct xe_reg_sr_entry *entry;
+	struct drm_printer p;
+	unsigned long reg;
+	unsigned int slot;
+
+	xe_gt_dbg(hwe->gt, "Add %s whitelist to engine\n", sr->name);
+	p = xe_gt_dbg_printer(hwe->gt);
+
+	slot = 0;
+	xa_for_each(&sr->xa, reg, entry) {
+		struct xe_reg_sr_entry hwe_entry = {
+			.reg = RING_FORCE_TO_NONPRIV(hwe->mmio_base, slot),
+			.set_bits = entry->reg.addr | entry->set_bits,
+			.clr_bits = ~0u,
+			.read_mask = entry->read_mask,
+		};
+
+		if (slot == RING_MAX_NONPRIV_SLOTS) {
+			xe_gt_err(hwe->gt,
+				  "hwe %s: maximum register whitelist slots (%d) reached, refusing to add more\n",
+				  hwe->name, RING_MAX_NONPRIV_SLOTS);
+			break;
+		}
+
+		xe_reg_whitelist_print_entry(&p, 0, reg, entry);
+		xe_reg_sr_add(&hwe->reg_sr, &hwe_entry, hwe->gt);
+
+		slot++;
+	}
+}
 
 /**
  * xe_reg_whitelist_process_engine - process table of registers to whitelist
@@ -80,6 +138,7 @@ void xe_reg_whitelist_process_engine(struct xe_hw_engine *hwe)
 	struct xe_rtp_process_ctx ctx = XE_RTP_PROCESS_CTX_INITIALIZER(hwe);
 
 	xe_rtp_process_to_sr(&ctx, register_whitelist, &hwe->reg_whitelist);
+	whitelist_apply_to_hwe(hwe);
 }
 
 /**

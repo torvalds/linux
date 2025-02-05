@@ -35,7 +35,7 @@ properties:
     maxItems: 1
 
   voltage-regulators:
-    $ref: ../regulator/maxim,max77686.yaml
+    $ref: /schemas/regulator/maxim,max77686.yaml
     description:
       List of child nodes that specify the regulators.
 

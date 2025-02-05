@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/power/charger-manager.h>
 #include <linux/regulator/consumer.h>
+#include <linux/string_choices.h>
 #include <linux/sysfs.h>
 #include <linux/of.h>
 #include <linux/thermal.h>
@@ -221,7 +222,7 @@ static bool is_charging(struct charger_manager *cm)
 
 	/* If at least one of the charger is charging, return yes */
 	for (i = 0; cm->desc->psy_charger_stat[i]; i++) {
-		/* 1. The charger sholuld not be DISABLED */
+		/* 1. The charger should not be DISABLED */
 		if (cm->emergency_stop)
 			continue;
 		if (!cm->charger_enabled)
@@ -1088,7 +1089,7 @@ static ssize_t charger_state_show(struct device *dev,
 	if (!charger->externally_control)
 		state = regulator_is_enabled(charger->consumer);
 
-	return sysfs_emit(buf, "%s\n", state ? "enabled" : "disabled");
+	return sysfs_emit(buf, "%s\n", str_enabled_disabled(state));
 }
 
 static ssize_t charger_externally_control_show(struct device *dev,
@@ -1412,10 +1413,9 @@ static inline struct charger_desc *cm_get_drv_data(struct platform_device *pdev)
 	return dev_get_platdata(&pdev->dev);
 }
 
-static enum alarmtimer_restart cm_timer_func(struct alarm *alarm, ktime_t now)
+static void cm_timer_func(struct alarm *alarm, ktime_t now)
 {
 	cm_timer_set = false;
-	return ALARMTIMER_NORESTART;
 }
 
 static int charger_manager_probe(struct platform_device *pdev)
@@ -1740,7 +1740,7 @@ static struct platform_driver charger_manager_driver = {
 		.of_match_table = charger_manager_match,
 	},
 	.probe = charger_manager_probe,
-	.remove_new = charger_manager_remove,
+	.remove = charger_manager_remove,
 	.id_table = charger_manager_id,
 };
 

@@ -17,10 +17,12 @@ properties:
   compatible:
     const: abt,y030xx067a
 
+  reg:
+    maxItems: 1
+
   backlight: true
   port: true
   power-supply: true
-  reg: true
   reset-gpios: true
 
 required:

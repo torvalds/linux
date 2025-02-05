@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 
-CFLAGS = -g -Wall -O2 -D_FORTIFY_SOURCE=2 -D_GNU_SOURCE
+CFLAGS = -g -Wall -O2 -D_FORTIFY_SOURCE=2
 CFLAGS += $(KHDR_INCLUDES)
 
 TEST_GEN_PROGS := resctrl_tests
 
-include ../lib.mk
+LOCAL_HDRS += $(wildcard *.h)
 
-$(OUTPUT)/resctrl_tests: $(wildcard *.[ch])
+include ../lib.mk
+CFLAGS += -I$(top_srcdir)/tools/include
+
+$(OUTPUT)/resctrl_tests: $(wildcard *.c)

@@ -28,6 +28,7 @@
 #include "cifs_debug.h"
 #include "smb2proto.h"
 #include "smbdirect.h"
+#include "compress.h"
 
 /* Max number of iovectors we can use off the stack when sending requests. */
 #define CIFS_MAX_IOV_SIZE 8
@@ -417,20 +418,20 @@ out:
 	return rc;
 }
 
-struct send_req_vars {
-	struct smb2_transform_hdr tr_hdr;
-	struct smb_rqst rqst[MAX_COMPOUND];
-	struct kvec iov;
-};
-
 static int
 smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 	      struct smb_rqst *rqst, int flags)
 {
-	struct send_req_vars *vars;
-	struct smb_rqst *cur_rqst;
-	struct kvec *iov;
+	struct smb2_transform_hdr tr_hdr;
+	struct smb_rqst new_rqst[MAX_COMPOUND] = {};
+	struct kvec iov = {
+		.iov_base = &tr_hdr,
+		.iov_len = sizeof(tr_hdr),
+	};
 	int rc;
+
+	if (flags & CIFS_COMPRESS_REQ)
+		return smb_compress(server, &rqst[0], __smb_send_rqst);
 
 	if (!(flags & CIFS_TRANSFORM_REQ))
 		return __smb_send_rqst(server, num_rqst, rqst);
@@ -443,26 +444,15 @@ smb_send_rqst(struct TCP_Server_Info *server, int num_rqst,
 		return -EIO;
 	}
 
-	vars = kzalloc(sizeof(*vars), GFP_NOFS);
-	if (!vars)
-		return -ENOMEM;
-	cur_rqst = vars->rqst;
-	iov = &vars->iov;
-
-	iov->iov_base = &vars->tr_hdr;
-	iov->iov_len = sizeof(vars->tr_hdr);
-	cur_rqst[0].rq_iov = iov;
-	cur_rqst[0].rq_nvec = 1;
+	new_rqst[0].rq_iov = &iov;
+	new_rqst[0].rq_nvec = 1;
 
 	rc = server->ops->init_transform_rq(server, num_rqst + 1,
-					    &cur_rqst[0], rqst);
-	if (rc)
-		goto out;
-
-	rc = __smb_send_rqst(server, num_rqst + 1, &cur_rqst[0]);
-	smb3_free_compound_rqst(num_rqst, &cur_rqst[1]);
-out:
-	kfree(vars);
+					    new_rqst, rqst);
+	if (!rc) {
+		rc = __smb_send_rqst(server, num_rqst + 1, new_rqst);
+		smb3_free_compound_rqst(num_rqst, &new_rqst[1]);
+	}
 	return rc;
 }
 
@@ -691,8 +681,8 @@ wait_for_compound_request(struct TCP_Server_Info *server, int num,
 }
 
 int
-cifs_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
-		      unsigned int *num, struct cifs_credits *credits)
+cifs_wait_mtu_credits(struct TCP_Server_Info *server, size_t size,
+		      size_t *num, struct cifs_credits *credits)
 {
 	*num = size;
 	credits->value = 0;
@@ -988,10 +978,10 @@ static void
 cifs_compound_callback(struct mid_q_entry *mid)
 {
 	struct TCP_Server_Info *server = mid->server;
-	struct cifs_credits credits;
-
-	credits.value = server->ops->get_credits(mid);
-	credits.instance = server->reconnect_instance;
+	struct cifs_credits credits = {
+		.value = server->ops->get_credits(mid),
+		.instance = server->reconnect_instance,
+	};
 
 	add_credits(server, &credits, mid->optype);
 
@@ -1289,7 +1279,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 out:
 	/*
 	 * This will dequeue all mids. After this it is important that the
-	 * demultiplex_thread will not process any of these mids any futher.
+	 * demultiplex_thread will not process any of these mids any further.
 	 * This is prevented above by using a noop callback that will not
 	 * wake this thread except for the very last PDU.
 	 */
@@ -1692,7 +1682,7 @@ __cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid,
 static int
 cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	struct cifs_readdata *rdata = mid->callback_data;
+	struct cifs_io_subrequest *rdata = mid->callback_data;
 
 	return  __cifs_readv_discard(server, mid, rdata->result);
 }
@@ -1702,13 +1692,13 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length, len;
 	unsigned int data_offset, data_len;
-	struct cifs_readdata *rdata = mid->callback_data;
+	struct cifs_io_subrequest *rdata = mid->callback_data;
 	char *buf = server->smallbuf;
 	unsigned int buflen = server->pdu_size + HEADER_PREAMBLE_SIZE(server);
 	bool use_rdma_mr = false;
 
-	cifs_dbg(FYI, "%s: mid=%llu offset=%llu bytes=%u\n",
-		 __func__, mid->mid, rdata->offset, rdata->bytes);
+	cifs_dbg(FYI, "%s: mid=%llu offset=%llu bytes=%zu\n",
+		 __func__, mid->mid, rdata->subreq.start, rdata->subreq.len);
 
 	/*
 	 * read the rest of READ_RSP header (sans Data array), or whatever we
@@ -1813,7 +1803,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		length = data_len; /* An RDMA read is already done. */
 	else
 #endif
-		length = cifs_read_iter_from_socket(server, &rdata->iter,
+		length = cifs_read_iter_from_socket(server, &rdata->subreq.io_iter,
 						    data_len);
 	if (length > 0)
 		rdata->got_bytes += length;

@@ -17,6 +17,7 @@
 #include <linux/uidgid.h>
 #include <uapi/linux/nfs4.h>
 #include <linux/sunrpc/msg_prot.h>
+#include <linux/sunrpc/xdrgen/nfs4_1.h>
 
 enum nfs4_acl_whotype {
 	NFS4_ACL_WHO_NAMED = 0,
@@ -281,15 +282,18 @@ enum nfsstat4 {
 	/* nfs42 */
 	NFS4ERR_PARTNER_NOTSUPP	= 10088,
 	NFS4ERR_PARTNER_NO_AUTH	= 10089,
-	NFS4ERR_UNION_NOTSUPP = 10090,
-	NFS4ERR_OFFLOAD_DENIED = 10091,
-	NFS4ERR_WRONG_LFS = 10092,
-	NFS4ERR_BADLABEL = 10093,
-	NFS4ERR_OFFLOAD_NO_REQS = 10094,
+	NFS4ERR_UNION_NOTSUPP	= 10090,
+	NFS4ERR_OFFLOAD_DENIED	= 10091,
+	NFS4ERR_WRONG_LFS	= 10092,
+	NFS4ERR_BADLABEL	= 10093,
+	NFS4ERR_OFFLOAD_NO_REQS	= 10094,
 
 	/* xattr (RFC8276) */
-	NFS4ERR_NOXATTR        = 10095,
-	NFS4ERR_XATTR2BIG      = 10096,
+	NFS4ERR_NOXATTR		= 10095,
+	NFS4ERR_XATTR2BIG	= 10096,
+
+	/* can be used for internal errors */
+	NFS4ERR_FIRST_FREE
 };
 
 /* error codes for internal client use */
@@ -362,11 +366,13 @@ enum limit_by4 {
 	NFS4_LIMIT_BLOCKS = 2
 };
 
-enum open_delegation_type4 {
+enum nfs4_open_delegation_type4 {
 	NFS4_OPEN_DELEGATE_NONE = 0,
 	NFS4_OPEN_DELEGATE_READ = 1,
 	NFS4_OPEN_DELEGATE_WRITE = 2,
 	NFS4_OPEN_DELEGATE_NONE_EXT = 3, /* 4.1 */
+	NFS4_OPEN_DELEGATE_READ_ATTRS_DELEG = 4,
+	NFS4_OPEN_DELEGATE_WRITE_ATTRS_DELEG = 5,
 };
 
 enum why_no_delegation4 { /* new to v4.1 */
@@ -586,6 +592,9 @@ enum {
 #define FATTR4_WORD2_SECURITY_LABEL     BIT(FATTR4_SEC_LABEL - 64)
 #define FATTR4_WORD2_MODE_UMASK		BIT(FATTR4_MODE_UMASK - 64)
 #define FATTR4_WORD2_XATTR_SUPPORT	BIT(FATTR4_XATTR_SUPPORT - 64)
+#define FATTR4_WORD2_TIME_DELEG_ACCESS	BIT(FATTR4_TIME_DELEG_ACCESS - 64)
+#define FATTR4_WORD2_TIME_DELEG_MODIFY	BIT(FATTR4_TIME_DELEG_MODIFY - 64)
+#define FATTR4_WORD2_OPEN_ARGUMENTS	BIT(FATTR4_OPEN_ARGUMENTS - 64)
 
 /* MDS threshold bitmap bits */
 #define THRESHOLD_RD                    (1UL << 0)
@@ -699,6 +708,12 @@ enum state_protect_how4 {
 	SP4_NONE	= 0,
 	SP4_MACH_CRED	= 1,
 	SP4_SSV		= 2
+};
+
+/* GET_DIR_DELEGATION non-fatal status codes */
+enum gddrnf4_status {
+	GDD4_OK		= 0,
+	GDD4_UNAVAIL	= 1
 };
 
 enum pnfs_layouttype {

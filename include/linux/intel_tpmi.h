@@ -21,22 +21,29 @@ enum intel_tpmi_id {
 	TPMI_ID_PEM = 1,	/* Power and Perf excursion Monitor */
 	TPMI_ID_UNCORE = 2,	/* Uncore Frequency Scaling */
 	TPMI_ID_SST = 5,	/* Speed Select Technology */
+	TPMI_ID_PLR = 0xc,	/* Performance Limit Reasons */
 	TPMI_CONTROL_ID = 0x80,	/* Special ID for getting feature status */
 	TPMI_INFO_ID = 0x81,	/* Special ID for PCI BDF and Package ID information */
 };
 
 /**
  * struct intel_tpmi_plat_info - Platform information for a TPMI device instance
- * @package_id:	CPU Package id
- * @bus_number:	PCI bus number
- * @device_number: PCI device number
+ * @cdie_mask:       Mask of all compute dies in the partition
+ * @package_id:      CPU Package id
+ * @partition:       Package partition id when multiple VSEC PCI devices per package
+ * @segment:         PCI segment ID
+ * @bus_number:      PCI bus number
+ * @device_number:   PCI device number
  * @function_number: PCI function number
  *
  * Structure to store platform data for a TPMI device instance. This
  * struct is used to return data via tpmi_get_platform_data().
  */
 struct intel_tpmi_plat_info {
+	u16 cdie_mask;
 	u8 package_id;
+	u8 partition;
+	u8 segment;
 	u8 bus_number;
 	u8 device_number;
 	u8 function_number;
@@ -47,4 +54,5 @@ struct resource *tpmi_get_resource_at_index(struct auxiliary_device *auxdev, int
 int tpmi_get_resource_count(struct auxiliary_device *auxdev);
 int tpmi_get_feature_status(struct auxiliary_device *auxdev, int feature_id, bool *read_blocked,
 			    bool *write_blocked);
+struct dentry *tpmi_get_debugfs_dir(struct auxiliary_device *auxdev);
 #endif

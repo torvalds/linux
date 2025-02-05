@@ -801,10 +801,8 @@ static void adin_get_strings(struct phy_device *phydev, u8 *data)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(adin_hw_stats); i++) {
-		strscpy(&data[i * ETH_GSTRING_LEN],
-			adin_hw_stats[i].string, ETH_GSTRING_LEN);
-	}
+	for (i = 0; i < ARRAY_SIZE(adin_hw_stats); i++)
+		ethtool_puts(&data, adin_hw_stats[i].string);
 }
 
 static int adin_read_mmd_stat_regs(struct phy_device *phydev,
@@ -1040,7 +1038,7 @@ static struct phy_driver adin_driver[] = {
 
 module_phy_driver(adin_driver);
 
-static struct mdio_device_id __maybe_unused adin_tbl[] = {
+static const struct mdio_device_id __maybe_unused adin_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1200) },
 	{ PHY_ID_MATCH_MODEL(PHY_ID_ADIN1300) },
 	{ }

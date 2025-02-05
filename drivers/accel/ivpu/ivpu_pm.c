@@ -9,20 +9,25 @@
 #include <linux/pm_runtime.h>
 #include <linux/reboot.h>
 
-#include "vpu_boot_api.h"
+#include "ivpu_coredump.h"
 #include "ivpu_drv.h"
-#include "ivpu_hw.h"
 #include "ivpu_fw.h"
 #include "ivpu_fw_log.h"
+#include "ivpu_hw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
+#include "ivpu_ms.h"
 #include "ivpu_pm.h"
+#include "ivpu_trace.h"
+#include "vpu_boot_api.h"
 
 static bool ivpu_disable_recovery;
+#if IS_ENABLED(CONFIG_DRM_ACCEL_IVPU_DEBUG)
 module_param_named_unsafe(disable_recovery, ivpu_disable_recovery, bool, 0644);
 MODULE_PARM_DESC(disable_recovery, "Disables recovery when NPU hang is detected");
+#endif
 
 static unsigned long ivpu_tdr_timeout_ms;
 module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, ulong, 0644);
@@ -36,6 +41,7 @@ static void ivpu_pm_prepare_cold_boot(struct ivpu_device *vdev)
 
 	ivpu_cmdq_reset_all_contexts(vdev);
 	ivpu_ipc_reset(vdev);
+	ivpu_fw_log_reset(vdev);
 	ivpu_fw_load(vdev);
 	fw->entry_point = fw->cold_boot_entry_point;
 }
@@ -72,8 +78,8 @@ static int ivpu_resume(struct ivpu_device *vdev)
 	int ret;
 
 retry:
-	pci_restore_state(to_pci_dev(vdev->drm.dev));
 	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
+	pci_restore_state(to_pci_dev(vdev->drm.dev));
 
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
@@ -122,7 +128,8 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	if (ret)
 		ivpu_err(vdev, "Failed to resume NPU: %d\n", ret);
 
-	ivpu_fw_log_dump(vdev);
+	ivpu_jsm_state_dump(vdev);
+	ivpu_dev_coredump(vdev);
 
 	atomic_inc(&vdev->pm->reset_counter);
 	atomic_set(&vdev->pm->reset_pending, 1);
@@ -131,6 +138,7 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
 
 	ret = ivpu_resume(vdev);
 	if (ret)
@@ -193,6 +201,7 @@ int ivpu_pm_suspend_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	unsigned long timeout;
 
+	trace_pm("suspend");
 	ivpu_dbg(vdev, PM, "Suspend..\n");
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.tdr);
@@ -210,6 +219,7 @@ int ivpu_pm_suspend_cb(struct device *dev)
 	ivpu_pm_prepare_warm_boot(vdev);
 
 	ivpu_dbg(vdev, PM, "Suspend done.\n");
+	trace_pm("suspend done");
 
 	return 0;
 }
@@ -220,6 +230,7 @@ int ivpu_pm_resume_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	int ret;
 
+	trace_pm("resume");
 	ivpu_dbg(vdev, PM, "Resume..\n");
 
 	ret = ivpu_resume(vdev);
@@ -227,6 +238,7 @@ int ivpu_pm_resume_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to resume: %d\n", ret);
 
 	ivpu_dbg(vdev, PM, "Resume done.\n");
+	trace_pm("resume done");
 
 	return ret;
 }
@@ -235,42 +247,40 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
-	bool hw_is_idle = true;
-	int ret;
+	int ret, ret_d0i3;
+	bool is_idle;
 
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
 	drm_WARN_ON(&vdev->drm, work_pending(&vdev->pm->recovery_work));
 
+	trace_pm("runtime suspend");
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
-	if (!ivpu_hw_is_idle(vdev) && vdev->pm->suspend_reschedule_counter) {
-		ivpu_dbg(vdev, PM, "Failed to enter idle, rescheduling suspend, retries left %d\n",
-			 vdev->pm->suspend_reschedule_counter);
-		pm_schedule_suspend(dev, vdev->timeout.reschedule_suspend);
-		vdev->pm->suspend_reschedule_counter--;
-		return -EAGAIN;
-	}
+	ivpu_mmu_disable(vdev);
 
-	if (!vdev->pm->suspend_reschedule_counter)
-		hw_is_idle = false;
-	else if (ivpu_jsm_pwr_d0i3_enter(vdev))
-		hw_is_idle = false;
+	is_idle = ivpu_hw_is_idle(vdev) || vdev->pm->dct_active_percent;
+	if (!is_idle)
+		ivpu_err(vdev, "NPU is not idle before autosuspend\n");
+
+	ret_d0i3 = ivpu_jsm_pwr_d0i3_enter(vdev);
+	if (ret_d0i3)
+		ivpu_err(vdev, "Failed to prepare for d0i3: %d\n", ret_d0i3);
 
 	ret = ivpu_suspend(vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to suspend NPU: %d\n", ret);
 
-	if (!hw_is_idle) {
-		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
-		ivpu_fw_log_dump(vdev);
+	if (!is_idle || ret_d0i3) {
+		ivpu_err(vdev, "Forcing cold boot due to previous errors\n");
+		atomic_inc(&vdev->pm->reset_counter);
+		ivpu_dev_coredump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
 		ivpu_pm_prepare_warm_boot(vdev);
 	}
 
-	vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
-
 	ivpu_dbg(vdev, PM, "Runtime suspend done.\n");
+	trace_pm("runtime suspend done");
 
 	return 0;
 }
@@ -281,6 +291,7 @@ int ivpu_pm_runtime_resume_cb(struct device *dev)
 	struct ivpu_device *vdev = to_ivpu_device(drm);
 	int ret;
 
+	trace_pm("runtime resume");
 	ivpu_dbg(vdev, PM, "Runtime resume..\n");
 
 	ret = ivpu_resume(vdev);
@@ -288,6 +299,7 @@ int ivpu_pm_runtime_resume_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to set RESUME state: %d\n", ret);
 
 	ivpu_dbg(vdev, PM, "Runtime resume done.\n");
+	trace_pm("runtime resume done");
 
 	return ret;
 }
@@ -297,17 +309,6 @@ int ivpu_rpm_get(struct ivpu_device *vdev)
 	int ret;
 
 	ret = pm_runtime_resume_and_get(vdev->drm.dev);
-	if (!drm_WARN_ON(&vdev->drm, ret < 0))
-		vdev->pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
-
-	return ret;
-}
-
-int ivpu_rpm_get_if_active(struct ivpu_device *vdev)
-{
-	int ret;
-
-	ret = pm_runtime_get_if_in_use(vdev->drm.dev);
 	drm_WARN_ON(&vdev->drm, ret < 0);
 
 	return ret;
@@ -333,6 +334,8 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 	ivpu_hw_reset(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
 	ivpu_jobs_abort_all(vdev);
+	ivpu_ms_cleanup_all(vdev);
+
 	ivpu_dbg(vdev, PM, "Pre-reset done.\n");
 }
 
@@ -360,7 +363,6 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 	int delay;
 
 	pm->vdev = vdev;
-	pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
 
 	init_rwsem(&pm->reset_lock);
 	atomic_set(&pm->reset_pending, 0);
@@ -376,6 +378,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, delay);
+	pm_runtime_set_active(dev);
 
 	ivpu_dbg(vdev, PM, "Autosuspend delay = %d\n", delay);
 }
@@ -390,7 +393,6 @@ void ivpu_pm_enable(struct ivpu_device *vdev)
 {
 	struct device *dev = vdev->drm.dev;
 
-	pm_runtime_set_active(dev);
 	pm_runtime_allow(dev);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
@@ -400,4 +402,69 @@ void ivpu_pm_disable(struct ivpu_device *vdev)
 {
 	pm_runtime_get_noresume(vdev->drm.dev);
 	pm_runtime_forbid(vdev->drm.dev);
+}
+
+int ivpu_pm_dct_init(struct ivpu_device *vdev)
+{
+	if (vdev->pm->dct_active_percent)
+		return ivpu_pm_dct_enable(vdev, vdev->pm->dct_active_percent);
+
+	return 0;
+}
+
+int ivpu_pm_dct_enable(struct ivpu_device *vdev, u8 active_percent)
+{
+	u32 active_us, inactive_us;
+	int ret;
+
+	if (active_percent == 0 || active_percent > 100)
+		return -EINVAL;
+
+	active_us = (DCT_PERIOD_US * active_percent) / 100;
+	inactive_us = DCT_PERIOD_US - active_us;
+
+	ret = ivpu_jsm_dct_enable(vdev, active_us, inactive_us);
+	if (ret) {
+		ivpu_err_ratelimited(vdev, "Failed to enable DCT: %d\n", ret);
+		return ret;
+	}
+
+	vdev->pm->dct_active_percent = active_percent;
+
+	ivpu_dbg(vdev, PM, "DCT set to %u%% (D0: %uus, D0i2: %uus)\n",
+		 active_percent, active_us, inactive_us);
+	return 0;
+}
+
+int ivpu_pm_dct_disable(struct ivpu_device *vdev)
+{
+	int ret;
+
+	ret = ivpu_jsm_dct_disable(vdev);
+	if (ret) {
+		ivpu_err_ratelimited(vdev, "Failed to disable DCT: %d\n", ret);
+		return ret;
+	}
+
+	vdev->pm->dct_active_percent = 0;
+
+	ivpu_dbg(vdev, PM, "DCT disabled\n");
+	return 0;
+}
+
+void ivpu_pm_dct_irq_thread_handler(struct ivpu_device *vdev)
+{
+	bool enable;
+	int ret;
+
+	if (ivpu_hw_btrs_dct_get_request(vdev, &enable))
+		return;
+
+	if (vdev->pm->dct_active_percent)
+		ret = ivpu_pm_dct_enable(vdev, DCT_DEFAULT_ACTIVE_PERCENT);
+	else
+		ret = ivpu_pm_dct_disable(vdev);
+
+	if (!ret)
+		ivpu_hw_btrs_dct_set_status(vdev, enable, vdev->pm->dct_active_percent);
 }

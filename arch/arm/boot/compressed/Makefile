@@ -9,6 +9,7 @@ OBJS		=
 
 HEAD	= head.o
 OBJS	+= misc.o decompress.o
+CFLAGS_decompress.o += $(DISABLE_STACKLEAK_PLUGIN)
 ifeq ($(CONFIG_DEBUG_UNCOMPRESS),y)
 OBJS	+= debug.o
 AFLAGS_head.o += -DDEBUG
@@ -21,13 +22,6 @@ CFLAGS_string.o	:= -Os
 ifeq ($(CONFIG_ARM_VIRT_EXT),y)
 OBJS		+= hyp-stub.o
 endif
-
-GCOV_PROFILE		:= n
-KASAN_SANITIZE		:= n
-
-# Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
-KCOV_INSTRUMENT		:= n
-UBSAN_SANITIZE		:= n
 
 #
 # Architecture dependencies

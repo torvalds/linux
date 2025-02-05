@@ -82,6 +82,8 @@ static void test_xdp_adjust_tail_grow2(void)
 	/* SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) */
 #if defined(__s390x__)
 	int tailroom = 512;
+#elif defined(__powerpc__)
+	int tailroom = 384;
 #else
 	int tailroom = 320;
 #endif
@@ -222,7 +224,7 @@ static void test_xdp_adjust_frags_tail_grow(void)
 
 	prog = bpf_object__next_program(obj, NULL);
 	if (bpf_object__load(obj))
-		return;
+		goto out;
 
 	prog_fd = bpf_program__fd(prog);
 

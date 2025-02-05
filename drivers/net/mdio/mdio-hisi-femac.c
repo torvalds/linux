@@ -136,7 +136,7 @@ MODULE_DEVICE_TABLE(of, hisi_femac_mdio_dt_ids);
 
 static struct platform_driver hisi_femac_mdio_driver = {
 	.probe = hisi_femac_mdio_probe,
-	.remove_new = hisi_femac_mdio_remove,
+	.remove = hisi_femac_mdio_remove,
 	.driver = {
 		.name = "hisi-femac-mdio",
 		.of_match_table = hisi_femac_mdio_dt_ids,

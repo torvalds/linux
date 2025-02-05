@@ -3425,7 +3425,6 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	struct scsi_info *vscsi;
 	int rc = 0;
 	long hrc = 0;
-	char wq_name[24];
 
 	vscsi = kzalloc(sizeof(*vscsi), GFP_KERNEL);
 	if (!vscsi) {
@@ -3536,8 +3535,8 @@ static int ibmvscsis_probe(struct vio_dev *vdev,
 	init_completion(&vscsi->wait_idle);
 	init_completion(&vscsi->unconfig);
 
-	snprintf(wq_name, 24, "ibmvscsis%s", dev_name(&vdev->dev));
-	vscsi->work_q = create_workqueue(wq_name);
+	vscsi->work_q = alloc_workqueue("ibmvscsis%s", WQ_MEM_RECLAIM, 1,
+					dev_name(&vdev->dev));
 	if (!vscsi->work_q) {
 		rc = -ENOMEM;
 		dev_err(&vscsi->dev, "create_workqueue failed\n");
@@ -3611,12 +3610,6 @@ static void ibmvscsis_remove(struct vio_dev *vdev)
 	list_del(&vscsi->list);
 	spin_unlock_bh(&ibmvscsis_dev_lock);
 	kfree(vscsi);
-}
-
-static ssize_t system_id_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	return sysfs_emit(buf, "%s\n", system_id);
 }
 
 static ssize_t partition_number_show(struct device *dev,
@@ -3982,8 +3975,7 @@ static const struct target_core_fabric_ops ibmvscsis_ops = {
 
 static void ibmvscsis_dev_release(struct device *dev) {};
 
-static struct device_attribute dev_attr_system_id =
-	__ATTR(system_id, S_IRUGO, system_id_show, NULL);
+static DEVICE_STRING_ATTR_RO(system_id, S_IRUGO, system_id);
 
 static struct device_attribute dev_attr_partition_number =
 	__ATTR(partition_number, S_IRUGO, partition_number_show, NULL);
@@ -3992,7 +3984,7 @@ static struct device_attribute dev_attr_unit_address =
 	__ATTR(unit_address, S_IRUGO, unit_address_show, NULL);
 
 static struct attribute *ibmvscsis_dev_attrs[] = {
-	&dev_attr_system_id.attr,
+	&dev_attr_system_id.attr.attr,
 	&dev_attr_partition_number.attr,
 	&dev_attr_unit_address.attr,
 };

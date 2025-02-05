@@ -542,9 +542,15 @@ static int lm3532_parse_als(struct lm3532_data *priv)
 	return ret;
 }
 
+static void gpio_set_low_action(void *data)
+{
+	struct lm3532_data *priv = data;
+
+	gpiod_direction_output(priv->enable_gpio, 0);
+}
+
 static int lm3532_parse_node(struct lm3532_data *priv)
 {
-	struct fwnode_handle *child = NULL;
 	struct lm3532_led *led;
 	int control_bank;
 	u32 ramp_time;
@@ -555,6 +561,12 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 						   "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->enable_gpio))
 		priv->enable_gpio = NULL;
+
+	if (priv->enable_gpio) {
+		ret = devm_add_action(&priv->client->dev, gpio_set_low_action, priv);
+		if (ret)
+			return ret;
+	}
 
 	priv->regulator = devm_regulator_get(&priv->client->dev, "vin");
 	if (IS_ERR(priv->regulator))
@@ -574,7 +586,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 	else
 		priv->runtime_ramp_down = lm3532_get_ramp_index(ramp_time);
 
-	device_for_each_child_node(priv->dev, child) {
+	device_for_each_child_node_scoped(priv->dev, child) {
 		struct led_init_data idata = {
 			.fwnode = child,
 			.default_label = ":",
@@ -586,7 +598,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		ret = fwnode_property_read_u32(child, "reg", &control_bank);
 		if (ret) {
 			dev_err(&priv->client->dev, "reg property missing\n");
-			goto child_out;
+			return ret;
 		}
 
 		if (control_bank > LM3532_CONTROL_C) {
@@ -600,7 +612,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 					       &led->mode);
 		if (ret) {
 			dev_err(&priv->client->dev, "ti,led-mode property missing\n");
-			goto child_out;
+			return ret;
 		}
 
 		if (fwnode_property_present(child, "led-max-microamp") &&
@@ -634,7 +646,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 						    led->num_leds);
 		if (ret) {
 			dev_err(&priv->client->dev, "led-sources property missing\n");
-			goto child_out;
+			return ret;
 		}
 
 		led->priv = priv;
@@ -644,23 +656,20 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		if (ret) {
 			dev_err(&priv->client->dev, "led register err: %d\n",
 				ret);
-			goto child_out;
+			return ret;
 		}
 
 		ret = lm3532_init_registers(led);
 		if (ret) {
 			dev_err(&priv->client->dev, "register init err: %d\n",
 				ret);
-			goto child_out;
+			return ret;
 		}
 
 		i++;
 	}
-	return 0;
 
-child_out:
-	fwnode_handle_put(child);
-	return ret;
+	return 0;
 }
 
 static int lm3532_probe(struct i2c_client *client)
@@ -691,7 +700,10 @@ static int lm3532_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	mutex_init(&drvdata->lock);
+	ret = devm_mutex_init(&client->dev, &drvdata->lock);
+	if (ret)
+		return ret;
+
 	i2c_set_clientdata(client, drvdata);
 
 	ret = lm3532_parse_node(drvdata);
@@ -703,16 +715,6 @@ static int lm3532_probe(struct i2c_client *client)
 	return ret;
 }
 
-static void lm3532_remove(struct i2c_client *client)
-{
-	struct lm3532_data *drvdata = i2c_get_clientdata(client);
-
-	mutex_destroy(&drvdata->lock);
-
-	if (drvdata->enable_gpio)
-		gpiod_direction_output(drvdata->enable_gpio, 0);
-}
-
 static const struct of_device_id of_lm3532_leds_match[] = {
 	{ .compatible = "ti,lm3532", },
 	{},
@@ -720,14 +722,13 @@ static const struct of_device_id of_lm3532_leds_match[] = {
 MODULE_DEVICE_TABLE(of, of_lm3532_leds_match);
 
 static const struct i2c_device_id lm3532_id[] = {
-	{LM3532_NAME, 0},
+	{ LM3532_NAME },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lm3532_id);
 
 static struct i2c_driver lm3532_i2c_driver = {
 	.probe = lm3532_probe,
-	.remove = lm3532_remove,
 	.id_table = lm3532_id,
 	.driver = {
 		.name = LM3532_NAME,

@@ -244,6 +244,99 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 	return 0;
 }
 
+static void switchdev_obj_id_to_helpful_msg(struct net_device *dev,
+					    enum switchdev_obj_id obj_id,
+					    int err, bool add)
+{
+	const char *action = add ? "add" : "del";
+	const char *reason = "";
+	const char *problem;
+	const char *obj_str;
+
+	switch (obj_id) {
+	case SWITCHDEV_OBJ_ID_UNDEFINED:
+		obj_str = "Undefined object";
+		problem = "Attempted operation is undefined, indicating a possible programming\n"
+			  "error.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_VLAN:
+		obj_str = "VLAN entry";
+		problem = "Failure in VLAN settings on this port might disrupt network\n"
+			  "segmentation or traffic isolation, affecting network partitioning.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_PORT_MDB:
+		obj_str = "Port Multicast Database entry";
+		problem = "Failure in updating the port's Multicast Database could lead to\n"
+			  "multicast forwarding issues.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
+		obj_str = "Host Multicast Database entry";
+		problem = "Failure in updating the host's Multicast Database may impact multicast\n"
+			  "group memberships or traffic delivery, affecting multicast\n"
+			  "communication.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_MRP:
+		obj_str = "Media Redundancy Protocol configuration for port";
+		problem = "Failure to set MRP ring ID on this port prevents communication with\n"
+			  "the specified redundancy ring, resulting in an inability to engage\n"
+			  "in MRP-based network operations.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_RING_TEST_MRP:
+		obj_str = "MRP Test Frame Operations for port";
+		problem = "Failure to generate/monitor MRP test frames may lead to inability to\n"
+			  "assess the ring's operational integrity and fault response, hindering\n"
+			  "proactive network management.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_RING_ROLE_MRP:
+		obj_str = "MRP Ring Role Configuration";
+		problem = "Improper MRP ring role configuration may create conflicts in the ring,\n"
+			  "disrupting communication for all participants, or isolate the local\n"
+			  "system from the ring, hindering its ability to communicate with other\n"
+			  "participants.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_RING_STATE_MRP:
+		obj_str = "MRP Ring State Configuration";
+		problem = "Failure to correctly set the MRP ring state can result in network\n"
+			  "loops or leave segments without communication. In a Closed state,\n"
+			  "it maintains loop prevention by blocking one MRM port, while an Open\n"
+			  "state activates in response to failures, changing port states to\n"
+			  "preserve network connectivity.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_IN_TEST_MRP:
+		obj_str = "MRP_InTest Frame Generation Configuration";
+		problem = "Failure in managing MRP_InTest frame generation can misjudge the\n"
+			  "interconnection ring's state, leading to incorrect blocking or\n"
+			  "unblocking of the I/C port. This misconfiguration might result\n"
+			  "in unintended network loops or isolate critical network segments,\n"
+			  "compromising network integrity and reliability.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_IN_ROLE_MRP:
+		obj_str = "Interconnection Ring Role Configuration";
+		problem = "Failure in incorrect assignment of interconnection ring roles\n"
+			  "(MIM/MIC) can impair the formation of the interconnection rings.\n";
+		break;
+	case SWITCHDEV_OBJ_ID_IN_STATE_MRP:
+		obj_str = "Interconnection Ring State Configuration";
+		problem = "Failure in updating the interconnection ring state can lead in\n"
+			  "case of Open state to incorrect blocking or unblocking of the\n"
+			  "I/C port, resulting in unintended network loops or isolation\n"
+			  "of critical network\n";
+		break;
+	default:
+		obj_str = "Unknown object";
+		problem	= "Indicating a possible programming error.\n";
+	}
+
+	switch (err) {
+	case -ENOSPC:
+		reason = "Current HW/SW setup lacks sufficient resources.\n";
+		break;
+	}
+
+	netdev_err(dev, "Failed to %s %s (object id=%d) with error: %pe (%d).\n%s%s\n",
+		   action, obj_str, obj_id, ERR_PTR(err), err, problem, reason);
+}
+
 static void switchdev_port_obj_add_deferred(struct net_device *dev,
 					    const void *data)
 {
@@ -254,8 +347,7 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
 					dev, obj, NULL);
 	if (err && err != -EOPNOTSUPP)
-		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
-			   err, obj->id);
+		switchdev_obj_id_to_helpful_msg(dev, obj->id, err, true);
 	if (obj->complete)
 		obj->complete(dev, err, obj->complete_priv);
 }
@@ -304,8 +396,7 @@ static void switchdev_port_obj_del_deferred(struct net_device *dev,
 
 	err = switchdev_port_obj_del_now(dev, obj);
 	if (err && err != -EOPNOTSUPP)
-		netdev_err(dev, "failed (err=%d) to del object (id=%d)\n",
-			   err, obj->id);
+		switchdev_obj_id_to_helpful_msg(dev, obj->id, err, false);
 	if (obj->complete)
 		obj->complete(dev, err, obj->complete_priv);
 }

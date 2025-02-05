@@ -12,7 +12,7 @@
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <crypto/sha1.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * If you have 32 registers or more, the compiler can (and should)
@@ -137,4 +137,5 @@ void sha1_init(__u32 *buf)
 }
 EXPORT_SYMBOL(sha1_init);
 
+MODULE_DESCRIPTION("SHA-1 Algorithm");
 MODULE_LICENSE("GPL");

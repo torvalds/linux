@@ -29,6 +29,8 @@
 
 /* Static vars */
 static LIST_HEAD(sbridge_edac_list);
+static char sb_msg[256];
+static char sb_msg_full[512];
 
 /*
  * Alter this version for the module when modifications are made
@@ -109,8 +111,8 @@ static const u32 knl_interleave_list[] = {
 	0x104, 0x10c, 0x114, 0x11c,   /* 20-23 */
 };
 #define MAX_INTERLEAVE							\
-	(max_t(unsigned int, ARRAY_SIZE(sbridge_interleave_list),	\
-	       max_t(unsigned int, ARRAY_SIZE(ibridge_interleave_list),	\
+	(MAX_T(unsigned int, ARRAY_SIZE(sbridge_interleave_list),	\
+	       MAX_T(unsigned int, ARRAY_SIZE(ibridge_interleave_list),	\
 		     ARRAY_SIZE(knl_interleave_list))))
 
 struct interleave_pkg {
@@ -3079,7 +3081,6 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	struct mem_ctl_info *new_mci;
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	enum hw_event_mc_err_type tp_event;
-	char *optype, msg[256], msg_full[512];
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
@@ -3095,10 +3096,10 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 * aligned address reported by patrol scrubber.
 	 */
 	u32 lsb = GET_BITFIELD(m->misc, 0, 5);
+	char *optype, *area_type = "DRAM";
 	long channel_mask, first_channel;
 	u8  rank = 0xff, socket, ha;
 	int rc, dimm;
-	char *area_type = "DRAM";
 
 	if (pvt->info.type != SANDY_BRIDGE)
 		recoverable = true;
@@ -3168,32 +3169,32 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 			channel = knl_channel_remap(m->bank == 16, channel);
 			channel_mask = 1 << channel;
 
-			snprintf(msg, sizeof(msg),
-				"%s%s err_code:%04x:%04x channel:%d (DIMM_%c)",
-				overflow ? " OVERFLOW" : "",
-				(uncorrected_error && recoverable)
-				? " recoverable" : " ",
-				mscod, errcode, channel, A + channel);
+			snprintf(sb_msg, sizeof(sb_msg),
+				 "%s%s err_code:%04x:%04x channel:%d (DIMM_%c)",
+				 overflow ? " OVERFLOW" : "",
+				 (uncorrected_error && recoverable)
+				 ? " recoverable" : " ",
+				 mscod, errcode, channel, A + channel);
 			edac_mc_handle_error(tp_event, mci, core_err_cnt,
 				m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 				channel, 0, -1,
-				optype, msg);
+				optype, sb_msg);
 		}
 		return;
 	} else if (lsb < 12) {
 		rc = get_memory_error_data(mci, m->addr, &socket, &ha,
 					   &channel_mask, &rank,
-					   &area_type, msg);
+					   &area_type, sb_msg);
 	} else {
 		rc = get_memory_error_data_from_mce(mci, m, &socket, &ha,
-						    &channel_mask, msg);
+						    &channel_mask, sb_msg);
 	}
 
 	if (rc < 0)
 		goto err_parsing;
 	new_mci = get_mci_for_node_id(socket, ha);
 	if (!new_mci) {
-		strcpy(msg, "Error: socket got corrupted!");
+		strscpy(sb_msg, "Error: socket got corrupted!");
 		goto err_parsing;
 	}
 	mci = new_mci;
@@ -3218,7 +3219,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	 */
 	if (!pvt->is_lockstep && !pvt->is_cur_addr_mirrored && !pvt->is_close_pg)
 		channel = first_channel;
-	snprintf(msg_full, sizeof(msg_full),
+	snprintf(sb_msg_full, sizeof(sb_msg_full),
 		 "%s%s area:%s err_code:%04x:%04x socket:%d ha:%d channel_mask:%ld rank:%d %s",
 		 overflow ? " OVERFLOW" : "",
 		 (uncorrected_error && recoverable) ? " recoverable" : "",
@@ -3226,9 +3227,9 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 		 mscod, errcode,
 		 socket, ha,
 		 channel_mask,
-		 rank, msg);
+		 rank, sb_msg);
 
-	edac_dbg(0, "%s\n", msg_full);
+	edac_dbg(0, "%s\n", sb_msg_full);
 
 	/* FIXME: need support for channel mask */
 
@@ -3239,12 +3240,12 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	edac_mc_handle_error(tp_event, mci, core_err_cnt,
 			     m->addr >> PAGE_SHIFT, m->addr & ~PAGE_MASK, 0,
 			     channel, dimm, -1,
-			     optype, msg_full);
+			     optype, sb_msg_full);
 	return;
 err_parsing:
 	edac_mc_handle_error(tp_event, mci, core_err_cnt, 0, 0, 0,
 			     -1, -1, -1,
-			     msg, "");
+			     sb_msg, "");
 
 }
 
@@ -3546,13 +3547,13 @@ fail0:
 }
 
 static const struct x86_cpu_id sbridge_cpuids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X, &pci_dev_descr_sbridge_table),
-	X86_MATCH_INTEL_FAM6_MODEL(IVYBRIDGE_X,	  &pci_dev_descr_ibridge_table),
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X,	  &pci_dev_descr_haswell_table),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X,	  &pci_dev_descr_broadwell_table),
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_D,	  &pci_dev_descr_broadwell_table),
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,  &pci_dev_descr_knl_table),
-	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,  &pci_dev_descr_knl_table),
+	X86_MATCH_VFM(INTEL_SANDYBRIDGE_X,	&pci_dev_descr_sbridge_table),
+	X86_MATCH_VFM(INTEL_IVYBRIDGE_X,	&pci_dev_descr_ibridge_table),
+	X86_MATCH_VFM(INTEL_HASWELL_X,		&pci_dev_descr_haswell_table),
+	X86_MATCH_VFM(INTEL_BROADWELL_X,	&pci_dev_descr_broadwell_table),
+	X86_MATCH_VFM(INTEL_BROADWELL_D,	&pci_dev_descr_broadwell_table),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNL,	&pci_dev_descr_knl_table),
+	X86_MATCH_VFM(INTEL_XEON_PHI_KNM,	&pci_dev_descr_knl_table),
 	{ }
 };
 MODULE_DEVICE_TABLE(x86cpu, sbridge_cpuids);

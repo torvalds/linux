@@ -227,6 +227,7 @@ static struct platform_driver simatic_ipc_wdt_driver = {
 
 module_platform_driver(simatic_ipc_wdt_driver);
 
+MODULE_DESCRIPTION("Siemens SIMATIC IPC driver for Watchdogs");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" KBUILD_MODNAME);
 MODULE_AUTHOR("Gerd Haeussler <gerd.haeussler.ext@siemens.com>");

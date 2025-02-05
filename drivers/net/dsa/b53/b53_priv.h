@@ -352,18 +352,6 @@ int b53_br_flags(struct dsa_switch *ds, int port,
 		 struct netlink_ext_ack *extack);
 int b53_setup_devlink_resources(struct dsa_switch *ds);
 void b53_port_event(struct dsa_switch *ds, int port);
-void b53_phylink_mac_config(struct dsa_switch *ds, int port,
-			    unsigned int mode,
-			    const struct phylink_link_state *state);
-void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
-			       unsigned int mode,
-			       phy_interface_t interface);
-void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
-			     unsigned int mode,
-			     phy_interface_t interface,
-			     struct phy_device *phydev,
-			     int speed, int duplex,
-			     bool tx_pause, bool rx_pause);
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 		       struct netlink_ext_ack *extack);
 int b53_vlan_add(struct dsa_switch *ds, int port,
@@ -396,7 +384,7 @@ int b53_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
 void b53_disable_port(struct dsa_switch *ds, int port);
 void b53_brcm_hdr_setup(struct dsa_switch *ds, int port);
 int b53_eee_init(struct dsa_switch *ds, int port, struct phy_device *phy);
-int b53_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e);
+bool b53_support_eee(struct dsa_switch *ds, int port);
 int b53_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e);
 
 #endif

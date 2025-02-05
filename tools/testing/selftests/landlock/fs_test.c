@@ -8,20 +8,38 @@
  */
 
 #define _GNU_SOURCE
+#include <asm/termbits.h>
 #include <fcntl.h>
+#include <libgen.h>
+#include <linux/fiemap.h>
 #include <linux/landlock.h>
 #include <linux/magic.h>
 #include <sched.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/capability.h>
+#include <sys/ioctl.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/sendfile.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
+#include <sys/un.h>
 #include <sys/vfs.h>
 #include <unistd.h>
+
+/*
+ * Intentionally included last to work around header conflict.
+ * See https://sourceware.org/glibc/wiki/Synchronizing_Headers.
+ */
+#include <linux/fs.h>
+#include <linux/mount.h>
+
+/* Defines AT_EXECVE_CHECK without type conflicts. */
+#define _ASM_GENERIC_FCNTL_H
+#include <linux/fcntl.h>
 
 #include "common.h"
 
@@ -34,12 +52,24 @@ int renameat2(int olddirfd, const char *oldpath, int newdirfd,
 }
 #endif
 
+#ifndef open_tree
+int open_tree(int dfd, const char *filename, unsigned int flags)
+{
+	return syscall(__NR_open_tree, dfd, filename, flags);
+}
+#endif
+
+static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
+			char *const envp[], int flags)
+{
+	return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
+
 #ifndef RENAME_EXCHANGE
 #define RENAME_EXCHANGE (1 << 1)
 #endif
 
-#define TMP_DIR "tmp"
-#define BINARY_PATH "./true"
+static const char bin_true[] = "./true";
 
 /* Paths (sibling number and depth) */
 static const char dir_s1d1[] = TMP_DIR "/s1d1";
@@ -65,6 +95,9 @@ static const char file1_s3d1[] = TMP_DIR "/s3d1/f1";
 /* dir_s3d2 is a mount point. */
 static const char dir_s3d2[] = TMP_DIR "/s3d1/s3d2";
 static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
+static const char file1_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3/f1";
+static const char dir_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4";
+static const char file1_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4/f1";
 
 /*
  * layout1 hierarchy:
@@ -88,8 +121,11 @@ static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
  * │           └── f2
  * └── s3d1
  *     ├── f1
- *     └── s3d2
- *         └── s3d3
+ *     └── s3d2 [mount point]
+ *         ├── s3d3
+ *         │   └── f1
+ *         └── s3d4
+ *             └── f1
  */
 
 static bool fgrep(FILE *const inf, const char *const str)
@@ -285,15 +321,21 @@ static void prepare_layout_opt(struct __test_metadata *const _metadata,
 
 static void prepare_layout(struct __test_metadata *const _metadata)
 {
-	_metadata->teardown_parent = true;
-
 	prepare_layout_opt(_metadata, &mnt_tmp);
 }
 
 static void cleanup_layout(struct __test_metadata *const _metadata)
 {
 	set_cap(_metadata, CAP_SYS_ADMIN);
-	EXPECT_EQ(0, umount(TMP_DIR));
+	if (umount(TMP_DIR)) {
+		/*
+		 * According to the test environment, the mount point of the
+		 * current directory may be shared or not, which changes the
+		 * visibility of the nested TMP_DIR mount point for the test's
+		 * parent process doing this cleanup.
+		 */
+		ASSERT_EQ(EINVAL, errno);
+	}
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 	EXPECT_EQ(0, remove_path(TMP_DIR));
 }
@@ -307,7 +349,7 @@ FIXTURE_SETUP(layout0)
 	prepare_layout(_metadata);
 }
 
-FIXTURE_TEARDOWN(layout0)
+FIXTURE_TEARDOWN_PARENT(layout0)
 {
 	cleanup_layout(_metadata);
 }
@@ -332,7 +374,8 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 
-	ASSERT_EQ(0, mkdir(dir_s3d3, 0700));
+	create_file(_metadata, file1_s3d3);
+	create_file(_metadata, file1_s3d4);
 }
 
 static void remove_layout1(struct __test_metadata *const _metadata)
@@ -352,7 +395,8 @@ static void remove_layout1(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(dir_s2d2));
 
 	EXPECT_EQ(0, remove_path(file1_s3d1));
-	EXPECT_EQ(0, remove_path(dir_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d4));
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	umount(dir_s3d2);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
@@ -370,7 +414,7 @@ FIXTURE_SETUP(layout1)
 	create_layout1(_metadata);
 }
 
-FIXTURE_TEARDOWN(layout1)
+FIXTURE_TEARDOWN_PARENT(layout1)
 {
 	remove_layout1(_metadata);
 
@@ -529,9 +573,10 @@ TEST_F_FORK(layout1, inval)
 	LANDLOCK_ACCESS_FS_EXECUTE | \
 	LANDLOCK_ACCESS_FS_WRITE_FILE | \
 	LANDLOCK_ACCESS_FS_READ_FILE | \
-	LANDLOCK_ACCESS_FS_TRUNCATE)
+	LANDLOCK_ACCESS_FS_TRUNCATE | \
+	LANDLOCK_ACCESS_FS_IOCTL_DEV)
 
-#define ACCESS_LAST LANDLOCK_ACCESS_FS_TRUNCATE
+#define ACCESS_LAST LANDLOCK_ACCESS_FS_IOCTL_DEV
 
 #define ACCESS_ALL ( \
 	ACCESS_FILE | \
@@ -736,6 +781,9 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 	}
 
 	for (i = 0; rules[i].path; i++) {
+		if (!rules[i].access)
+			continue;
+
 		add_path_beneath(_metadata, ruleset_fd, rules[i].access,
 				 rules[i].path);
 	}
@@ -1927,8 +1975,8 @@ TEST_F_FORK(layout1, relative_chroot_chdir)
 	test_relative_path(_metadata, REL_CHROOT_CHDIR);
 }
 
-static void copy_binary(struct __test_metadata *const _metadata,
-			const char *const dst_path)
+static void copy_file(struct __test_metadata *const _metadata,
+		      const char *const src_path, const char *const dst_path)
 {
 	int dst_fd, src_fd;
 	struct stat statbuf;
@@ -1938,11 +1986,10 @@ static void copy_binary(struct __test_metadata *const _metadata,
 	{
 		TH_LOG("Failed to open \"%s\": %s", dst_path, strerror(errno));
 	}
-	src_fd = open(BINARY_PATH, O_RDONLY | O_CLOEXEC);
+	src_fd = open(src_path, O_RDONLY | O_CLOEXEC);
 	ASSERT_LE(0, src_fd)
 	{
-		TH_LOG("Failed to open \"" BINARY_PATH "\": %s",
-		       strerror(errno));
+		TH_LOG("Failed to open \"%s\": %s", src_path, strerror(errno));
 	}
 	ASSERT_EQ(0, fstat(src_fd, &statbuf));
 	ASSERT_EQ(statbuf.st_size,
@@ -1973,9 +2020,24 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 	ASSERT_EQ(1, WIFEXITED(status));
 	ASSERT_EQ(err ? 2 : 0, WEXITSTATUS(status))
 	{
-		TH_LOG("Unexpected return code for \"%s\": %s", path,
-		       strerror(errno));
+		TH_LOG("Unexpected return code for \"%s\"", path);
 	};
+}
+
+static void test_check_exec(struct __test_metadata *const _metadata,
+			    const int err, const char *const path)
+{
+	int ret;
+	char *const argv[] = { (char *)path, NULL };
+
+	ret = sys_execveat(AT_FDCWD, path, argv, NULL,
+			   AT_EMPTY_PATH | AT_EXECVE_CHECK);
+	if (err) {
+		EXPECT_EQ(-1, ret);
+		EXPECT_EQ(errno, err);
+	} else {
+		EXPECT_EQ(0, ret);
+	}
 }
 
 TEST_F_FORK(layout1, execute)
@@ -1991,9 +2053,13 @@ TEST_F_FORK(layout1, execute)
 		create_ruleset(_metadata, rules[0].access, rules);
 
 	ASSERT_LE(0, ruleset_fd);
-	copy_binary(_metadata, file1_s1d1);
-	copy_binary(_metadata, file1_s1d2);
-	copy_binary(_metadata, file1_s1d3);
+	copy_file(_metadata, bin_true, file1_s1d1);
+	copy_file(_metadata, bin_true, file1_s1d2);
+	copy_file(_metadata, bin_true, file1_s1d3);
+
+	/* Checks before file1_s1d1 being denied. */
+	test_execute(_metadata, 0, file1_s1d1);
+	test_check_exec(_metadata, 0, file1_s1d1);
 
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
@@ -2001,14 +2067,94 @@ TEST_F_FORK(layout1, execute)
 	ASSERT_EQ(0, test_open(dir_s1d1, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY));
 	test_execute(_metadata, EACCES, file1_s1d1);
+	test_check_exec(_metadata, EACCES, file1_s1d1);
 
 	ASSERT_EQ(0, test_open(dir_s1d2, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d2, O_RDONLY));
 	test_execute(_metadata, 0, file1_s1d2);
+	test_check_exec(_metadata, 0, file1_s1d2);
 
 	ASSERT_EQ(0, test_open(dir_s1d3, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 	test_execute(_metadata, 0, file1_s1d3);
+	test_check_exec(_metadata, 0, file1_s1d3);
+}
+
+TEST_F_FORK(layout1, umount_sandboxer)
+{
+	int pipe_child[2], pipe_parent[2];
+	char buf_parent;
+	pid_t child;
+	int status;
+
+	copy_file(_metadata, bin_sandbox_and_launch, file1_s3d3);
+	ASSERT_EQ(0, pipe2(pipe_child, 0));
+	ASSERT_EQ(0, pipe2(pipe_parent, 0));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		char pipe_child_str[12], pipe_parent_str[12];
+		char *const argv[] = { (char *)file1_s3d3,
+				       (char *)bin_wait_pipe, pipe_child_str,
+				       pipe_parent_str, NULL };
+
+		/* Passes the pipe FDs to the executed binary and its child. */
+		EXPECT_EQ(0, close(pipe_child[0]));
+		EXPECT_EQ(0, close(pipe_parent[1]));
+		snprintf(pipe_child_str, sizeof(pipe_child_str), "%d",
+			 pipe_child[1]);
+		snprintf(pipe_parent_str, sizeof(pipe_parent_str), "%d",
+			 pipe_parent[0]);
+
+		/*
+		 * We need bin_sandbox_and_launch (copied inside the mount as
+		 * file1_s3d3) to execute bin_wait_pipe (outside the mount) to
+		 * make sure the mount point will not be EBUSY because of
+		 * file1_s3d3 being in use.  This avoids a potential race
+		 * condition between the following read() and umount() calls.
+		 */
+		ASSERT_EQ(0, execve(argv[0], argv, NULL))
+		{
+			TH_LOG("Failed to execute \"%s\": %s", argv[0],
+			       strerror(errno));
+		};
+		_exit(1);
+		return;
+	}
+
+	EXPECT_EQ(0, close(pipe_child[1]));
+	EXPECT_EQ(0, close(pipe_parent[0]));
+
+	/* Waits for the child to sandbox itself. */
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the sandboxer is tied to its mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	EXPECT_EQ(-1, umount(dir_s3d2));
+	EXPECT_EQ(EBUSY, errno);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Signals the child to launch a grandchild. */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	/* Waits for the grandchild. */
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the domain's sandboxer is not tied to its mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	EXPECT_EQ(0, umount(dir_s3d2))
+	{
+		TH_LOG("Failed to umount \"%s\": %s", dir_s3d2,
+		       strerror(errno));
+	};
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Signals the grandchild to terminate. */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_EQ(1, WIFEXITED(status));
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
 TEST_F_FORK(layout1, link)
@@ -2375,6 +2521,81 @@ TEST_F_FORK(layout1, refer_denied_by_default4)
 {
 	refer_denied_by_default(_metadata, layer_dir_s2d1_execute, EXDEV,
 				layer_dir_s1d1_refer);
+}
+
+/*
+ * Tests walking through a denied root mount.
+ */
+TEST_F_FORK(layout1, refer_mount_root_deny)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_MAKE_DIR,
+	};
+	int root_fd, ruleset_fd;
+
+	/* Creates a mount object from a non-mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	root_fd =
+		open_tree(AT_FDCWD, dir_s1d1,
+			  AT_EMPTY_PATH | OPEN_TREE_CLONE | OPEN_TREE_CLOEXEC);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_LE(0, root_fd);
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0));
+	EXPECT_EQ(0, close(ruleset_fd));
+
+	/* Link denied by Landlock: EACCES. */
+	EXPECT_EQ(-1, linkat(root_fd, ".", root_fd, "does_not_exist", 0));
+	EXPECT_EQ(EACCES, errno);
+
+	/* renameat2() always returns EBUSY. */
+	EXPECT_EQ(-1, renameat2(root_fd, ".", root_fd, "does_not_exist", 0));
+	EXPECT_EQ(EBUSY, errno);
+
+	EXPECT_EQ(0, close(root_fd));
+}
+
+TEST_F_FORK(layout1, refer_part_mount_tree_is_allowed)
+{
+	const struct rule layer1[] = {
+		{
+			/* Parent mount point. */
+			.path = dir_s3d1,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG,
+		},
+		{
+			/*
+			 * Removing the source file is allowed because its
+			 * access rights are already a superset of the
+			 * destination.
+			 */
+			.path = dir_s3d4,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG |
+				  LANDLOCK_ACCESS_FS_REMOVE_FILE,
+		},
+		{},
+	};
+	int ruleset_fd;
+
+	ASSERT_EQ(0, unlink(file1_s3d3));
+	ruleset_fd = create_ruleset(_metadata,
+				    LANDLOCK_ACCESS_FS_REFER |
+					    LANDLOCK_ACCESS_FS_MAKE_REG |
+					    LANDLOCK_ACCESS_FS_REMOVE_FILE,
+				    layer1);
+
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	ASSERT_EQ(0, rename(file1_s3d4, file1_s3d3));
 }
 
 TEST_F_FORK(layout1, reparent_link)
@@ -3444,7 +3665,7 @@ TEST_F_FORK(layout1, truncate_unhandled)
 			      LANDLOCK_ACCESS_FS_WRITE_FILE;
 	int ruleset_fd;
 
-	/* Enable Landlock. */
+	/* Enables Landlock. */
 	ruleset_fd = create_ruleset(_metadata, handled, rules);
 
 	ASSERT_LE(0, ruleset_fd);
@@ -3527,7 +3748,7 @@ TEST_F_FORK(layout1, truncate)
 			      LANDLOCK_ACCESS_FS_TRUNCATE;
 	int ruleset_fd;
 
-	/* Enable Landlock. */
+	/* Enables Landlock. */
 	ruleset_fd = create_ruleset(_metadata, handled, rules);
 
 	ASSERT_LE(0, ruleset_fd);
@@ -3683,7 +3904,7 @@ FIXTURE_SETUP(ftruncate)
 	create_file(_metadata, file1_s1d1);
 }
 
-FIXTURE_TEARDOWN(ftruncate)
+FIXTURE_TEARDOWN_PARENT(ftruncate)
 {
 	EXPECT_EQ(0, remove_path(file1_s1d1));
 	cleanup_layout(_metadata);
@@ -3753,7 +3974,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate)
 	};
 	int fd, ruleset_fd;
 
-	/* Enable Landlock. */
+	/* Enables Landlock. */
 	ruleset_fd = create_ruleset(_metadata, variant->handled, rules);
 	ASSERT_LE(0, ruleset_fd);
 	enforce_ruleset(_metadata, ruleset_fd);
@@ -3830,20 +4051,469 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 	ASSERT_EQ(0, close(socket_fds[1]));
 }
 
-TEST(memfd_ftruncate)
+/* Invokes the FS_IOC_GETFLAGS IOCTL and returns its errno or 0. */
+static int test_fs_ioc_getflags_ioctl(int fd)
 {
-	int fd;
+	uint32_t flags;
 
-	fd = memfd_create("name", MFD_CLOEXEC);
+	if (ioctl(fd, FS_IOC_GETFLAGS, &flags) < 0)
+		return errno;
+	return 0;
+}
+
+TEST(memfd_ftruncate_and_ioctl)
+{
+	const struct landlock_ruleset_attr attr = {
+		.handled_access_fs = ACCESS_ALL,
+	};
+	int ruleset_fd, fd, i;
+
+	/*
+	 * We exercise the same test both with and without Landlock enabled, to
+	 * ensure that it behaves the same in both cases.
+	 */
+	for (i = 0; i < 2; i++) {
+		/* Creates a new memfd. */
+		fd = memfd_create("name", MFD_CLOEXEC);
+		ASSERT_LE(0, fd);
+
+		/*
+		 * Checks that operations associated with the opened file
+		 * (ftruncate, ioctl) are permitted on file descriptors that are
+		 * created in ways other than open(2).
+		 */
+		EXPECT_EQ(0, test_ftruncate(fd));
+		EXPECT_EQ(0, test_fs_ioc_getflags_ioctl(fd));
+
+		ASSERT_EQ(0, close(fd));
+
+		/* Enables Landlock. */
+		ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+		ASSERT_LE(0, ruleset_fd);
+		enforce_ruleset(_metadata, ruleset_fd);
+		ASSERT_EQ(0, close(ruleset_fd));
+	}
+}
+
+static int test_fionread_ioctl(int fd)
+{
+	size_t sz = 0;
+
+	if (ioctl(fd, FIONREAD, &sz) < 0 && errno == EACCES)
+		return errno;
+	return 0;
+}
+
+TEST_F_FORK(layout1, o_path_ftruncate_and_ioctl)
+{
+	const struct landlock_ruleset_attr attr = {
+		.handled_access_fs = ACCESS_ALL,
+	};
+	int ruleset_fd, fd;
+
+	/*
+	 * Checks that for files opened with O_PATH, both ioctl(2) and
+	 * ftruncate(2) yield EBADF, as it is documented in open(2) for the
+	 * O_PATH flag.
+	 */
+	fd = open(dir_s1d1, O_PATH | O_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	EXPECT_EQ(EBADF, test_ftruncate(fd));
+	EXPECT_EQ(EBADF, test_fs_ioc_getflags_ioctl(fd));
+
+	ASSERT_EQ(0, close(fd));
+
+	/* Enables Landlock. */
+	ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/*
+	 * Checks that after enabling Landlock,
+	 * - the file can still be opened with O_PATH
+	 * - both ioctl and truncate still yield EBADF (not EACCES).
+	 */
+	fd = open(dir_s1d1, O_PATH | O_CLOEXEC);
+	ASSERT_LE(0, fd);
+
+	EXPECT_EQ(EBADF, test_ftruncate(fd));
+	EXPECT_EQ(EBADF, test_fs_ioc_getflags_ioctl(fd));
+
+	ASSERT_EQ(0, close(fd));
+}
+
+/*
+ * ioctl_error - generically call the given ioctl with a pointer to a
+ * sufficiently large zeroed-out memory region.
+ *
+ * Returns the IOCTLs error, or 0.
+ */
+static int ioctl_error(struct __test_metadata *const _metadata, int fd,
+		       unsigned int cmd)
+{
+	char buf[128]; /* sufficiently large */
+	int res, stdinbak_fd;
+
+	/*
+	 * Depending on the IOCTL command, parts of the zeroed-out buffer might
+	 * be interpreted as file descriptor numbers.  We do not want to
+	 * accidentally operate on file descriptor 0 (stdin), so we temporarily
+	 * move stdin to a different FD and close FD 0 for the IOCTL call.
+	 */
+	stdinbak_fd = dup(0);
+	ASSERT_LT(0, stdinbak_fd);
+	ASSERT_EQ(0, close(0));
+
+	/* Invokes the IOCTL with a zeroed-out buffer. */
+	bzero(&buf, sizeof(buf));
+	res = ioctl(fd, cmd, &buf);
+
+	/* Restores the old FD 0 and closes the backup FD. */
+	ASSERT_EQ(0, dup2(stdinbak_fd, 0));
+	ASSERT_EQ(0, close(stdinbak_fd));
+
+	if (res < 0)
+		return errno;
+
+	return 0;
+}
+
+/* Define some linux/falloc.h IOCTL commands which are not available in uapi headers. */
+struct space_resv {
+	__s16 l_type;
+	__s16 l_whence;
+	__s64 l_start;
+	__s64 l_len; /* len == 0 means until end of file */
+	__s32 l_sysid;
+	__u32 l_pid;
+	__s32 l_pad[4]; /* reserved area */
+};
+
+#define FS_IOC_RESVSP _IOW('X', 40, struct space_resv)
+#define FS_IOC_UNRESVSP _IOW('X', 41, struct space_resv)
+#define FS_IOC_RESVSP64 _IOW('X', 42, struct space_resv)
+#define FS_IOC_UNRESVSP64 _IOW('X', 43, struct space_resv)
+#define FS_IOC_ZERO_RANGE _IOW('X', 57, struct space_resv)
+
+/*
+ * Tests a series of blanket-permitted and denied IOCTLs.
+ */
+TEST_F_FORK(layout1, blanket_permitted_ioctls)
+{
+	const struct landlock_ruleset_attr attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	};
+	int ruleset_fd, fd;
+
+	/* Enables Landlock. */
+	ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	fd = open("/dev/null", O_RDWR | O_CLOEXEC);
 	ASSERT_LE(0, fd);
 
 	/*
-	 * Checks that ftruncate is permitted on file descriptors that are
-	 * created in ways other than open(2).
+	 * Checks permitted commands.
+	 * These ones may return errors, but should not be blocked by Landlock.
 	 */
-	EXPECT_EQ(0, test_ftruncate(fd));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIOCLEX));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIONCLEX));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIONBIO));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIOASYNC));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIOQSIZE));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIFREEZE));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FITHAW));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FS_IOC_FIEMAP));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIGETBSZ));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FICLONE));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FICLONERANGE));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FIDEDUPERANGE));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FS_IOC_GETFSUUID));
+	EXPECT_NE(EACCES, ioctl_error(_metadata, fd, FS_IOC_GETFSSYSFSPATH));
+
+	/*
+	 * Checks blocked commands.
+	 * A call to a blocked IOCTL command always returns EACCES.
+	 */
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FIONREAD));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_GETFLAGS));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_SETFLAGS));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_FSGETXATTR));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_FSSETXATTR));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FIBMAP));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_RESVSP));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_RESVSP64));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_UNRESVSP));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_UNRESVSP64));
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, FS_IOC_ZERO_RANGE));
+
+	/* Default case is also blocked. */
+	EXPECT_EQ(EACCES, ioctl_error(_metadata, fd, 0xc00ffeee));
 
 	ASSERT_EQ(0, close(fd));
+}
+
+/*
+ * Named pipes are not governed by the LANDLOCK_ACCESS_FS_IOCTL_DEV right,
+ * because they are not character or block devices.
+ */
+TEST_F_FORK(layout1, named_pipe_ioctl)
+{
+	pid_t child_pid;
+	int fd, ruleset_fd;
+	const char *const path = file1_s1d1;
+	const struct landlock_ruleset_attr attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	};
+
+	ASSERT_EQ(0, unlink(path));
+	ASSERT_EQ(0, mkfifo(path, 0600));
+
+	/* Enables Landlock. */
+	ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* The child process opens the pipe for writing. */
+	child_pid = fork();
+	ASSERT_NE(-1, child_pid);
+	if (child_pid == 0) {
+		fd = open(path, O_WRONLY);
+		close(fd);
+		exit(0);
+	}
+
+	fd = open(path, O_RDONLY);
+	ASSERT_LE(0, fd);
+
+	/* FIONREAD is implemented by pipefifo_fops. */
+	EXPECT_EQ(0, test_fionread_ioctl(fd));
+
+	ASSERT_EQ(0, close(fd));
+	ASSERT_EQ(0, unlink(path));
+
+	ASSERT_EQ(child_pid, waitpid(child_pid, NULL, 0));
+}
+
+/* For named UNIX domain sockets, no IOCTL restrictions apply. */
+TEST_F_FORK(layout1, named_unix_domain_socket_ioctl)
+{
+	const char *const path = file1_s1d1;
+	int srv_fd, cli_fd, ruleset_fd;
+	socklen_t size;
+	struct sockaddr_un srv_un, cli_un;
+	const struct landlock_ruleset_attr attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	};
+
+	/* Sets up a server */
+	srv_un.sun_family = AF_UNIX;
+	strncpy(srv_un.sun_path, path, sizeof(srv_un.sun_path));
+
+	ASSERT_EQ(0, unlink(path));
+	srv_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, srv_fd);
+
+	size = offsetof(struct sockaddr_un, sun_path) + strlen(srv_un.sun_path);
+	ASSERT_EQ(0, bind(srv_fd, (struct sockaddr *)&srv_un, size));
+	ASSERT_EQ(0, listen(srv_fd, 10 /* qlen */));
+
+	/* Enables Landlock. */
+	ruleset_fd = landlock_create_ruleset(&attr, sizeof(attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Sets up a client connection to it */
+	cli_un.sun_family = AF_UNIX;
+	cli_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	ASSERT_LE(0, cli_fd);
+
+	size = offsetof(struct sockaddr_un, sun_path) + strlen(cli_un.sun_path);
+	ASSERT_EQ(0, bind(cli_fd, (struct sockaddr *)&cli_un, size));
+
+	bzero(&cli_un, sizeof(cli_un));
+	cli_un.sun_family = AF_UNIX;
+	strncpy(cli_un.sun_path, path, sizeof(cli_un.sun_path));
+	size = offsetof(struct sockaddr_un, sun_path) + strlen(cli_un.sun_path);
+
+	ASSERT_EQ(0, connect(cli_fd, (struct sockaddr *)&cli_un, size));
+
+	/* FIONREAD and other IOCTLs should not be forbidden. */
+	EXPECT_EQ(0, test_fionread_ioctl(cli_fd));
+
+	ASSERT_EQ(0, close(cli_fd));
+}
+
+/* clang-format off */
+FIXTURE(ioctl) {};
+
+FIXTURE_SETUP(ioctl) {};
+
+FIXTURE_TEARDOWN(ioctl) {};
+/* clang-format on */
+
+FIXTURE_VARIANT(ioctl)
+{
+	const __u64 handled;
+	const __u64 allowed;
+	const mode_t open_mode;
+	/*
+	 * FIONREAD is used as a characteristic device-specific IOCTL command.
+	 * It is implemented in fs/ioctl.c for regular files,
+	 * but we do not blanket-permit it for devices.
+	 */
+	const int expected_fionread_result;
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(ioctl, handled_i_allowed_none) {
+	/* clang-format on */
+	.handled = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	.allowed = 0,
+	.open_mode = O_RDWR,
+	.expected_fionread_result = EACCES,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(ioctl, handled_i_allowed_i) {
+	/* clang-format on */
+	.handled = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	.allowed = LANDLOCK_ACCESS_FS_IOCTL_DEV,
+	.open_mode = O_RDWR,
+	.expected_fionread_result = 0,
+};
+
+/* clang-format off */
+FIXTURE_VARIANT_ADD(ioctl, unhandled) {
+	/* clang-format on */
+	.handled = LANDLOCK_ACCESS_FS_EXECUTE,
+	.allowed = LANDLOCK_ACCESS_FS_EXECUTE,
+	.open_mode = O_RDWR,
+	.expected_fionread_result = 0,
+};
+
+TEST_F_FORK(ioctl, handle_dir_access_file)
+{
+	const int flag = 0;
+	const struct rule rules[] = {
+		{
+			.path = "/dev",
+			.access = variant->allowed,
+		},
+		{},
+	};
+	int file_fd, ruleset_fd;
+
+	/* Enables Landlock. */
+	ruleset_fd = create_ruleset(_metadata, variant->handled, rules);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	file_fd = open("/dev/zero", variant->open_mode);
+	ASSERT_LE(0, file_fd);
+
+	/* Checks that IOCTL commands return the expected errors. */
+	EXPECT_EQ(variant->expected_fionread_result,
+		  test_fionread_ioctl(file_fd));
+
+	/* Checks that unrestrictable commands are unrestricted. */
+	EXPECT_EQ(0, ioctl(file_fd, FIOCLEX));
+	EXPECT_EQ(0, ioctl(file_fd, FIONCLEX));
+	EXPECT_EQ(0, ioctl(file_fd, FIONBIO, &flag));
+	EXPECT_EQ(0, ioctl(file_fd, FIOASYNC, &flag));
+	EXPECT_EQ(0, ioctl(file_fd, FIGETBSZ, &flag));
+
+	ASSERT_EQ(0, close(file_fd));
+}
+
+TEST_F_FORK(ioctl, handle_dir_access_dir)
+{
+	const int flag = 0;
+	const struct rule rules[] = {
+		{
+			.path = "/dev",
+			.access = variant->allowed,
+		},
+		{},
+	};
+	int dir_fd, ruleset_fd;
+
+	/* Enables Landlock. */
+	ruleset_fd = create_ruleset(_metadata, variant->handled, rules);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/*
+	 * Ignore variant->open_mode for this test, as we intend to open a
+	 * directory.  If the directory can not be opened, the variant is
+	 * infeasible to test with an opened directory.
+	 */
+	dir_fd = open("/dev", O_RDONLY);
+	if (dir_fd < 0)
+		return;
+
+	/*
+	 * Checks that IOCTL commands return the expected errors.
+	 * We do not use the expected values from the fixture here.
+	 *
+	 * When using IOCTL on a directory, no Landlock restrictions apply.
+	 */
+	EXPECT_EQ(0, test_fionread_ioctl(dir_fd));
+
+	/* Checks that unrestrictable commands are unrestricted. */
+	EXPECT_EQ(0, ioctl(dir_fd, FIOCLEX));
+	EXPECT_EQ(0, ioctl(dir_fd, FIONCLEX));
+	EXPECT_EQ(0, ioctl(dir_fd, FIONBIO, &flag));
+	EXPECT_EQ(0, ioctl(dir_fd, FIOASYNC, &flag));
+	EXPECT_EQ(0, ioctl(dir_fd, FIGETBSZ, &flag));
+
+	ASSERT_EQ(0, close(dir_fd));
+}
+
+TEST_F_FORK(ioctl, handle_file_access_file)
+{
+	const int flag = 0;
+	const struct rule rules[] = {
+		{
+			.path = "/dev/zero",
+			.access = variant->allowed,
+		},
+		{},
+	};
+	int file_fd, ruleset_fd;
+
+	/* Enables Landlock. */
+	ruleset_fd = create_ruleset(_metadata, variant->handled, rules);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	file_fd = open("/dev/zero", variant->open_mode);
+	ASSERT_LE(0, file_fd)
+	{
+		TH_LOG("Failed to open /dev/zero: %s", strerror(errno));
+	}
+
+	/* Checks that IOCTL commands return the expected errors. */
+	EXPECT_EQ(variant->expected_fionread_result,
+		  test_fionread_ioctl(file_fd));
+
+	/* Checks that unrestrictable commands are unrestricted. */
+	EXPECT_EQ(0, ioctl(file_fd, FIOCLEX));
+	EXPECT_EQ(0, ioctl(file_fd, FIONCLEX));
+	EXPECT_EQ(0, ioctl(file_fd, FIONBIO, &flag));
+	EXPECT_EQ(0, ioctl(file_fd, FIOASYNC, &flag));
+	EXPECT_EQ(0, ioctl(file_fd, FIGETBSZ, &flag));
+
+	ASSERT_EQ(0, close(file_fd));
 }
 
 /* clang-format off */
@@ -3861,7 +4531,7 @@ FIXTURE_SETUP(layout1_bind)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-FIXTURE_TEARDOWN(layout1_bind)
+FIXTURE_TEARDOWN_PARENT(layout1_bind)
 {
 	/* umount(dir_s2d2)) is handled by namespace lifetime. */
 
@@ -4266,7 +4936,7 @@ FIXTURE_SETUP(layout2_overlay)
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
 
-FIXTURE_TEARDOWN(layout2_overlay)
+FIXTURE_TEARDOWN_PARENT(layout2_overlay)
 {
 	if (self->skip_test)
 		SKIP(return, "overlayfs is not supported (teardown)");
@@ -4616,7 +5286,6 @@ FIXTURE(layout3_fs)
 {
 	bool has_created_dir;
 	bool has_created_file;
-	char *dir_path;
 	bool skip_test;
 };
 
@@ -4675,11 +5344,24 @@ FIXTURE_VARIANT_ADD(layout3_fs, hostfs) {
 	.cwd_fs_magic = HOSTFS_SUPER_MAGIC,
 };
 
+static char *dirname_alloc(const char *path)
+{
+	char *dup;
+
+	if (!path)
+		return NULL;
+
+	dup = strdup(path);
+	if (!dup)
+		return NULL;
+
+	return dirname(dup);
+}
+
 FIXTURE_SETUP(layout3_fs)
 {
 	struct stat statbuf;
-	const char *slash;
-	size_t dir_len;
+	char *dir_path = dirname_alloc(variant->file_path);
 
 	if (!supports_filesystem(variant->mnt.type) ||
 	    !cwd_matches_fs(variant->cwd_fs_magic)) {
@@ -4687,27 +5369,15 @@ FIXTURE_SETUP(layout3_fs)
 		SKIP(return, "this filesystem is not supported (setup)");
 	}
 
-	_metadata->teardown_parent = true;
-
-	slash = strrchr(variant->file_path, '/');
-	ASSERT_NE(slash, NULL);
-	dir_len = (size_t)slash - (size_t)variant->file_path;
-	ASSERT_LT(0, dir_len);
-	self->dir_path = malloc(dir_len + 1);
-	self->dir_path[dir_len] = '\0';
-	strncpy(self->dir_path, variant->file_path, dir_len);
-
 	prepare_layout_opt(_metadata, &variant->mnt);
 
 	/* Creates directory when required. */
-	if (stat(self->dir_path, &statbuf)) {
+	if (stat(dir_path, &statbuf)) {
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
-		EXPECT_EQ(0, mkdir(self->dir_path, 0700))
+		EXPECT_EQ(0, mkdir(dir_path, 0700))
 		{
 			TH_LOG("Failed to create directory \"%s\": %s",
-			       self->dir_path, strerror(errno));
-			free(self->dir_path);
-			self->dir_path = NULL;
+			       dir_path, strerror(errno));
 		}
 		self->has_created_dir = true;
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
@@ -4728,9 +5398,11 @@ FIXTURE_SETUP(layout3_fs)
 		self->has_created_file = true;
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
 	}
+
+	free(dir_path);
 }
 
-FIXTURE_TEARDOWN(layout3_fs)
+FIXTURE_TEARDOWN_PARENT(layout3_fs)
 {
 	if (self->skip_test)
 		SKIP(return, "this filesystem is not supported (teardown)");
@@ -4746,16 +5418,17 @@ FIXTURE_TEARDOWN(layout3_fs)
 	}
 
 	if (self->has_created_dir) {
+		char *dir_path = dirname_alloc(variant->file_path);
+
 		set_cap(_metadata, CAP_DAC_OVERRIDE);
 		/*
 		 * Don't check for error because the directory might already
 		 * have been removed (cf. release_inode test).
 		 */
-		rmdir(self->dir_path);
+		rmdir(dir_path);
 		clear_cap(_metadata, CAP_DAC_OVERRIDE);
+		free(dir_path);
 	}
-	free(self->dir_path);
-	self->dir_path = NULL;
 
 	cleanup_layout(_metadata);
 }
@@ -4822,7 +5495,10 @@ TEST_F_FORK(layout3_fs, tag_inode_dir_mnt)
 
 TEST_F_FORK(layout3_fs, tag_inode_dir_child)
 {
-	layer3_fs_tag_inode(_metadata, self, variant, self->dir_path);
+	char *dir_path = dirname_alloc(variant->file_path);
+
+	layer3_fs_tag_inode(_metadata, self, variant, dir_path);
+	free(dir_path);
 }
 
 TEST_F_FORK(layout3_fs, tag_inode_file)
@@ -4849,9 +5525,13 @@ TEST_F_FORK(layout3_fs, release_inodes)
 	if (self->has_created_file)
 		EXPECT_EQ(0, remove_path(variant->file_path));
 
-	if (self->has_created_dir)
+	if (self->has_created_dir) {
+		char *dir_path = dirname_alloc(variant->file_path);
+
 		/* Don't check for error because of cgroup specificities. */
-		remove_path(self->dir_path);
+		remove_path(dir_path);
+		free(dir_path);
+	}
 
 	ruleset_fd =
 		create_ruleset(_metadata, LANDLOCK_ACCESS_FS_READ_DIR, layer1);

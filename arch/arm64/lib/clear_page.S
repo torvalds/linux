@@ -15,6 +15,19 @@
  *	x0 - dest
  */
 SYM_FUNC_START(__pi_clear_page)
+#ifdef CONFIG_AS_HAS_MOPS
+	.arch_extension mops
+alternative_if_not ARM64_HAS_MOPS
+	b	.Lno_mops
+alternative_else_nop_endif
+
+	mov	x1, #PAGE_SIZE
+	setpn	[x0]!, x1!, xzr
+	setmn	[x0]!, x1!, xzr
+	seten	[x0]!, x1!, xzr
+	ret
+.Lno_mops:
+#endif
 	mrs	x1, dczid_el0
 	tbnz	x1, #4, 2f	/* Branch if DC ZVA is prohibited */
 	and	w1, w1, #0xf

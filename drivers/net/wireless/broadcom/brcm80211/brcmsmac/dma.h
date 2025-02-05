@@ -88,7 +88,6 @@ bool dma_txreset(struct dma_pub *pub);
 void dma_txinit(struct dma_pub *pub);
 int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	       struct sk_buff *p0);
-void dma_txflush(struct dma_pub *pub);
 int dma_txpending(struct dma_pub *pub);
 void dma_kick_tx(struct dma_pub *pub);
 void dma_txsuspend(struct dma_pub *pub);

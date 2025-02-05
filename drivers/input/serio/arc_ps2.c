@@ -155,7 +155,7 @@ static int arc_ps2_create_port(struct platform_device *pdev,
 	struct arc_ps2_port *port = &arc_ps2->port[index];
 	struct serio *io;
 
-	io = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	io = kzalloc(sizeof(*io), GFP_KERNEL);
 	if (!io)
 		return -ENOMEM;
 
@@ -260,7 +260,7 @@ static struct platform_driver arc_ps2_driver = {
 		.of_match_table	= of_match_ptr(arc_ps2_match),
 	},
 	.probe	= arc_ps2_probe,
-	.remove_new = arc_ps2_remove,
+	.remove	= arc_ps2_remove,
 };
 
 module_platform_driver(arc_ps2_driver);

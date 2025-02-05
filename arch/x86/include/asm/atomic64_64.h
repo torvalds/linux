@@ -80,11 +80,7 @@ static __always_inline s64 arch_atomic64_add_return(s64 i, atomic64_t *v)
 }
 #define arch_atomic64_add_return arch_atomic64_add_return
 
-static __always_inline s64 arch_atomic64_sub_return(s64 i, atomic64_t *v)
-{
-	return arch_atomic64_add_return(-i, v);
-}
-#define arch_atomic64_sub_return arch_atomic64_sub_return
+#define arch_atomic64_sub_return(i, v) arch_atomic64_add_return(-(i), v)
 
 static __always_inline s64 arch_atomic64_fetch_add(s64 i, atomic64_t *v)
 {
@@ -92,11 +88,7 @@ static __always_inline s64 arch_atomic64_fetch_add(s64 i, atomic64_t *v)
 }
 #define arch_atomic64_fetch_add arch_atomic64_fetch_add
 
-static __always_inline s64 arch_atomic64_fetch_sub(s64 i, atomic64_t *v)
-{
-	return xadd(&v->counter, -i);
-}
-#define arch_atomic64_fetch_sub arch_atomic64_fetch_sub
+#define arch_atomic64_fetch_sub(i, v) arch_atomic64_fetch_add(-(i), v)
 
 static __always_inline s64 arch_atomic64_cmpxchg(atomic64_t *v, s64 old, s64 new)
 {

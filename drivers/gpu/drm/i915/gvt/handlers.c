@@ -36,12 +36,17 @@
 
  */
 
+#include <drm/display/drm_dp.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "gvt.h"
 #include "i915_pvinfo.h"
 #include "intel_mchbar_regs.h"
 #include "display/bxt_dpio_phy_regs.h"
+#include "display/i9xx_plane_regs.h"
+#include "display/intel_crt_regs.h"
+#include "display/intel_cursor_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
@@ -51,9 +56,11 @@
 #include "display/intel_pps_regs.h"
 #include "display/intel_psr_regs.h"
 #include "display/intel_sprite_regs.h"
+#include "display/skl_universal_plane_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
 #include "gt/intel_gt_regs.h"
+#include <linux/vmalloc.h>
 
 /* XXX FIXME i915 has changed PP_XXX definition */
 #define PCH_PP_STATUS  _MMIO(0xc7200)
@@ -649,11 +656,12 @@ static u32 skl_vgpu_get_dp_bitrate(struct intel_vgpu *vgpu, enum port port)
 static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 	enum port port;
 	u32 dp_br, link_m, link_n, htotal, vtotal;
 
 	/* Find DDI/PORT assigned to TRANSCODER_A, expect B or D */
-	port = (vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(TRANSCODER_A)) &
+	port = (vgpu_vreg_t(vgpu, TRANS_DDI_FUNC_CTL(display, TRANSCODER_A)) &
 		TRANS_DDI_PORT_MASK) >> TRANS_DDI_PORT_SHIFT;
 	if (port != PORT_B && port != PORT_D) {
 		gvt_dbg_dpy("vgpu-%d unsupported PORT_%c\n", vgpu->id, port_name(port));
@@ -669,12 +677,12 @@ static void vgpu_update_refresh_rate(struct intel_vgpu *vgpu)
 		dp_br = skl_vgpu_get_dp_bitrate(vgpu, port);
 
 	/* Get DP link symbol clock M/N */
-	link_m = vgpu_vreg_t(vgpu, PIPE_LINK_M1(TRANSCODER_A));
-	link_n = vgpu_vreg_t(vgpu, PIPE_LINK_N1(TRANSCODER_A));
+	link_m = vgpu_vreg_t(vgpu, PIPE_LINK_M1(display, TRANSCODER_A));
+	link_n = vgpu_vreg_t(vgpu, PIPE_LINK_N1(display, TRANSCODER_A));
 
 	/* Get H/V total from transcoder timing */
-	htotal = (vgpu_vreg_t(vgpu, TRANS_HTOTAL(TRANSCODER_A)) >> TRANS_HTOTAL_SHIFT);
-	vtotal = (vgpu_vreg_t(vgpu, TRANS_VTOTAL(TRANSCODER_A)) >> TRANS_VTOTAL_SHIFT);
+	htotal = (vgpu_vreg_t(vgpu, TRANS_HTOTAL(display, TRANSCODER_A)) >> TRANS_HTOTAL_SHIFT);
+	vtotal = (vgpu_vreg_t(vgpu, TRANS_VTOTAL(display, TRANSCODER_A)) >> TRANS_VTOTAL_SHIFT);
 
 	if (dp_br && link_n && htotal && vtotal) {
 		u64 pixel_clk = 0;
@@ -877,27 +885,28 @@ static int check_fdi_rx_train_status(struct intel_vgpu *vgpu,
 
 #define INVALID_INDEX (~0U)
 
-static unsigned int calc_index(unsigned int offset, unsigned int start,
-	unsigned int next, unsigned int end, i915_reg_t i915_end)
+static unsigned int calc_index(unsigned int offset, i915_reg_t _start,
+			       i915_reg_t _next, i915_reg_t _end)
 {
-	unsigned int range = next - start;
+	u32 start = i915_mmio_reg_offset(_start);
+	u32 next = i915_mmio_reg_offset(_next);
+	u32 end = i915_mmio_reg_offset(_end);
+	u32 stride = next - start;
 
-	if (!end)
-		end = i915_mmio_reg_offset(i915_end);
 	if (offset < start || offset > end)
 		return INVALID_INDEX;
 	offset -= start;
-	return offset / range;
+	return offset / stride;
 }
 
 #define FDI_RX_CTL_TO_PIPE(offset) \
-	calc_index(offset, _FDI_RXA_CTL, _FDI_RXB_CTL, 0, FDI_RX_CTL(PIPE_C))
+	calc_index(offset, FDI_RX_CTL(PIPE_A), FDI_RX_CTL(PIPE_B), FDI_RX_CTL(PIPE_C))
 
 #define FDI_TX_CTL_TO_PIPE(offset) \
-	calc_index(offset, _FDI_TXA_CTL, _FDI_TXB_CTL, 0, FDI_TX_CTL(PIPE_C))
+	calc_index(offset, FDI_TX_CTL(PIPE_A), FDI_TX_CTL(PIPE_B), FDI_TX_CTL(PIPE_C))
 
 #define FDI_RX_IMR_TO_PIPE(offset) \
-	calc_index(offset, _FDI_RXA_IMR, _FDI_RXB_IMR, 0, FDI_RX_IMR(PIPE_C))
+	calc_index(offset, FDI_RX_IMR(PIPE_A), FDI_RX_IMR(PIPE_B), FDI_RX_IMR(PIPE_C))
 
 static int update_fdi_rx_iir_status(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
@@ -941,7 +950,7 @@ static int update_fdi_rx_iir_status(struct intel_vgpu *vgpu,
 }
 
 #define DP_TP_CTL_TO_PORT(offset) \
-	calc_index(offset, _DP_TP_CTL_A, _DP_TP_CTL_B, 0, DP_TP_CTL(PORT_E))
+	calc_index(offset, DP_TP_CTL(PORT_A), DP_TP_CTL(PORT_B), DP_TP_CTL(PORT_E))
 
 static int dp_tp_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
@@ -1004,22 +1013,23 @@ static int south_chicken2_mmio_write(struct intel_vgpu *vgpu,
 	return 0;
 }
 
-#define DSPSURF_TO_PIPE(offset) \
-	calc_index(offset, _DSPASURF, _DSPBSURF, 0, DSPSURF(PIPE_C))
+#define DSPSURF_TO_PIPE(display, offset) \
+	calc_index(offset, DSPSURF(display, PIPE_A), DSPSURF(display, PIPE_B), DSPSURF(display, PIPE_C))
 
 static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
-	u32 pipe = DSPSURF_TO_PIPE(offset);
+	struct intel_display *display = &dev_priv->display;
+	u32 pipe = DSPSURF_TO_PIPE(display, offset);
 	int event = SKL_FLIP_EVENT(pipe, PLANE_PRIMARY);
 
 	write_vreg(vgpu, offset, p_data, bytes);
-	vgpu_vreg_t(vgpu, DSPSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
+	vgpu_vreg_t(vgpu, DSPSURFLIVE(display, pipe)) = vgpu_vreg(vgpu, offset);
 
-	vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(pipe))++;
+	vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(display, pipe))++;
 
-	if (vgpu_vreg_t(vgpu, DSPCNTR(pipe)) & PLANE_CTL_ASYNC_FLIP)
+	if (vgpu_vreg_t(vgpu, DSPCNTR(display, pipe)) & PLANE_CTL_ASYNC_FLIP)
 		intel_vgpu_trigger_virtual_event(vgpu, event);
 	else
 		set_bit(event, vgpu->irq.flip_done_event[pipe]);
@@ -1028,7 +1038,7 @@ static int pri_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 #define SPRSURF_TO_PIPE(offset) \
-	calc_index(offset, _SPRA_SURF, _SPRB_SURF, 0, SPRSURF(PIPE_C))
+	calc_index(offset, SPRSURF(PIPE_A), SPRSURF(PIPE_B), SPRSURF(PIPE_C))
 
 static int spr_surf_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
@@ -1052,14 +1062,15 @@ static int reg50080_mmio_write(struct intel_vgpu *vgpu,
 			       unsigned int bytes)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 	enum pipe pipe = REG_50080_TO_PIPE(offset);
 	enum plane_id plane = REG_50080_TO_PLANE(offset);
 	int event = SKL_FLIP_EVENT(pipe, plane);
 
 	write_vreg(vgpu, offset, p_data, bytes);
 	if (plane == PLANE_PRIMARY) {
-		vgpu_vreg_t(vgpu, DSPSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
-		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(pipe))++;
+		vgpu_vreg_t(vgpu, DSPSURFLIVE(display, pipe)) = vgpu_vreg(vgpu, offset);
+		vgpu_vreg_t(vgpu, PIPE_FLIPCOUNT_G4X(display, pipe))++;
 	} else {
 		vgpu_vreg_t(vgpu, SPRSURFLIVE(pipe)) = vgpu_vreg(vgpu, offset);
 	}
@@ -1080,13 +1091,13 @@ static int trigger_aux_channel_interrupt(struct intel_vgpu *vgpu,
 
 	if (reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_A)))
 		event = AUX_CHANNEL_A;
-	else if (reg == _PCH_DPB_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_B)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_B)))
 		event = AUX_CHANNEL_B;
-	else if (reg == _PCH_DPC_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_C)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_C)))
 		event = AUX_CHANNEL_C;
-	else if (reg == _PCH_DPD_AUX_CH_CTL ||
+	else if (reg == i915_mmio_reg_offset(PCH_DP_AUX_CH_CTL(AUX_CH_D)) ||
 		 reg == i915_mmio_reg_offset(DP_AUX_CH_CTL(AUX_CH_D)))
 		event = AUX_CHANNEL_D;
 	else {
@@ -1124,36 +1135,38 @@ static int dp_aux_ch_ctl_trans_done(struct intel_vgpu *vgpu, u32 value,
 static void dp_aux_ch_ctl_link_training(struct intel_vgpu_dpcd_data *dpcd,
 		u8 t)
 {
-	if ((t & DPCD_TRAINING_PATTERN_SET_MASK) == DPCD_TRAINING_PATTERN_1) {
+	if ((t & DP_TRAINING_PATTERN_MASK) == DP_TRAINING_PATTERN_1) {
 		/* training pattern 1 for CR */
 		/* set LANE0_CR_DONE, LANE1_CR_DONE */
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_CR_DONE;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_CR_DONE |
+			DP_LANE_CR_DONE << 4;
 		/* set LANE2_CR_DONE, LANE3_CR_DONE */
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_CR_DONE;
-	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
-			DPCD_TRAINING_PATTERN_2) {
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_CR_DONE |
+			DP_LANE_CR_DONE << 4;
+	} else if ((t & DP_TRAINING_PATTERN_MASK) ==
+			DP_TRAINING_PATTERN_2) {
 		/* training pattern 2 for EQ */
 		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane0_1 */
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_LANES_EQ_DONE;
-		dpcd->data[DPCD_LANE0_1_STATUS] |= DPCD_SYMBOL_LOCKED;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_CHANNEL_EQ_DONE |
+			DP_LANE_CHANNEL_EQ_DONE << 4;
+		dpcd->data[DP_LANE0_1_STATUS] |= DP_LANE_SYMBOL_LOCKED |
+			DP_LANE_SYMBOL_LOCKED << 4;
 		/* Set CHANNEL_EQ_DONE and  SYMBOL_LOCKED for Lane2_3 */
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_LANES_EQ_DONE;
-		dpcd->data[DPCD_LANE2_3_STATUS] |= DPCD_SYMBOL_LOCKED;
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_CHANNEL_EQ_DONE |
+			DP_LANE_CHANNEL_EQ_DONE << 4;
+		dpcd->data[DP_LANE2_3_STATUS] |= DP_LANE_SYMBOL_LOCKED |
+			DP_LANE_SYMBOL_LOCKED << 4;
 		/* set INTERLANE_ALIGN_DONE */
-		dpcd->data[DPCD_LANE_ALIGN_STATUS_UPDATED] |=
-			DPCD_INTERLANE_ALIGN_DONE;
-	} else if ((t & DPCD_TRAINING_PATTERN_SET_MASK) ==
-			DPCD_LINK_TRAINING_DISABLED) {
+		dpcd->data[DP_LANE_ALIGN_STATUS_UPDATED] |=
+			DP_INTERLANE_ALIGN_DONE;
+	} else if ((t & DP_TRAINING_PATTERN_MASK) ==
+			DP_TRAINING_PATTERN_DISABLE) {
 		/* finish link training */
 		/* set sink status as synchronized */
-		dpcd->data[DPCD_SINK_STATUS] = DPCD_SINK_IN_SYNC;
+		dpcd->data[DP_SINK_STATUS] = DP_RECEIVE_PORT_0_STATUS |
+			DP_RECEIVE_PORT_1_STATUS;
 	}
 }
-
-#define _REG_HSW_DP_AUX_CH_CTL(dp) \
-	((dp) ? (_PCH_DPB_AUX_CH_CTL + ((dp)-1)*0x100) : 0x64010)
-
-#define _REG_SKL_DP_AUX_CH_CTL(dp) (0x64010 + (dp) * 0x100)
 
 #define OFFSET_TO_DP_AUX_PORT(offset) (((offset) & 0xF00) >> 8)
 
@@ -1178,12 +1191,14 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	write_vreg(vgpu, offset, p_data, bytes);
 	data = vgpu_vreg(vgpu, offset);
 
-	if ((GRAPHICS_VER(vgpu->gvt->gt->i915) >= 9)
-		&& offset != _REG_SKL_DP_AUX_CH_CTL(port_index)) {
+	if (GRAPHICS_VER(vgpu->gvt->gt->i915) >= 9 &&
+	    offset != i915_mmio_reg_offset(DP_AUX_CH_CTL(port_index))) {
 		/* SKL DPB/C/D aux ctl register changed */
 		return 0;
 	} else if (IS_BROADWELL(vgpu->gvt->gt->i915) &&
-		   offset != _REG_HSW_DP_AUX_CH_CTL(port_index)) {
+		   offset != i915_mmio_reg_offset(port_index ?
+						  PCH_DP_AUX_CH_CTL(port_index) :
+						  DP_AUX_CH_CTL(port_index))) {
 		/* write to the data registers */
 		return 0;
 	}
@@ -1204,7 +1219,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 	len = msg & 0xff;
 	op = ctrl >> 4;
 
-	if (op == GVT_AUX_NATIVE_WRITE) {
+	if (op == DP_AUX_NATIVE_WRITE) {
 		int t;
 		u8 buf[16];
 
@@ -1250,7 +1265,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 
 				dpcd->data[p] = buf[t];
 				/* check for link training */
-				if (p == DPCD_TRAINING_PATTERN_SET)
+				if (p == DP_TRAINING_PATTERN_SET)
 					dp_aux_ch_ctl_link_training(dpcd,
 							buf[t]);
 			}
@@ -1263,7 +1278,7 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		return 0;
 	}
 
-	if (op == GVT_AUX_NATIVE_READ) {
+	if (op == DP_AUX_NATIVE_READ) {
 		int idx, i, ret = 0;
 
 		if ((addr + len + 1) >= DPCD_SIZE) {
@@ -2181,6 +2196,7 @@ static int csfe_chicken1_mmio_write(struct intel_vgpu *vgpu,
 static int init_generic_mmio_info(struct intel_gvt *gvt)
 {
 	struct drm_i915_private *dev_priv = gvt->gt->i915;
+	struct intel_display *display = &dev_priv->display;
 	int ret;
 
 	MMIO_RING_DFH(RING_IMR, D_ALL, 0, NULL,
@@ -2269,17 +2285,21 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DFH(GEN7_HALF_SLICE_CHICKEN1, D_ALL, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
 	/* display */
-	MMIO_DH(TRANSCONF(TRANSCODER_A), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(TRANSCONF(TRANSCODER_B), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(TRANSCONF(TRANSCODER_C), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(TRANSCONF(TRANSCODER_EDP), D_ALL, NULL, pipeconf_mmio_write);
-	MMIO_DH(DSPSURF(PIPE_A), D_ALL, NULL, pri_surf_mmio_write);
+	MMIO_DH(TRANSCONF(display, TRANSCODER_A), D_ALL, NULL,
+		pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(display, TRANSCODER_B), D_ALL, NULL,
+		pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(display, TRANSCODER_C), D_ALL, NULL,
+		pipeconf_mmio_write);
+	MMIO_DH(TRANSCONF(display, TRANSCODER_EDP), D_ALL, NULL,
+		pipeconf_mmio_write);
+	MMIO_DH(DSPSURF(display, PIPE_A), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_DH(REG_50080(PIPE_A, PLANE_PRIMARY), D_ALL, NULL,
 		reg50080_mmio_write);
-	MMIO_DH(DSPSURF(PIPE_B), D_ALL, NULL, pri_surf_mmio_write);
+	MMIO_DH(DSPSURF(display, PIPE_B), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_DH(REG_50080(PIPE_B, PLANE_PRIMARY), D_ALL, NULL,
 		reg50080_mmio_write);
-	MMIO_DH(DSPSURF(PIPE_C), D_ALL, NULL, pri_surf_mmio_write);
+	MMIO_DH(DSPSURF(display, PIPE_C), D_ALL, NULL, pri_surf_mmio_write);
 	MMIO_DH(REG_50080(PIPE_C, PLANE_PRIMARY), D_ALL, NULL,
 		reg50080_mmio_write);
 	MMIO_DH(SPRSURF(PIPE_A), D_ALL, NULL, spr_surf_mmio_write);
@@ -2296,12 +2316,12 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 		gmbus_mmio_write);
 	MMIO_F(PCH_GPIO_BASE, 6 * 4, F_UNALIGN, 0, 0, D_ALL, NULL, NULL);
 
-	MMIO_F(_MMIO(_PCH_DPB_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
-	MMIO_F(_MMIO(_PCH_DPC_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
-	MMIO_F(_MMIO(_PCH_DPD_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
-		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_B), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_C), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
+	MMIO_F(PCH_DP_AUX_CH_CTL(AUX_CH_D), 6 * 4, 0, 0, 0, D_PRE_SKL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
 
 	MMIO_DH(PCH_ADPA, D_PRE_SKL, NULL, pch_adpa_mmio_write);
 
@@ -2338,8 +2358,8 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(SBI_DATA, D_ALL, sbi_data_mmio_read, NULL);
 	MMIO_DH(SBI_CTL_STAT, D_ALL, NULL, sbi_ctl_mmio_write);
 
-	MMIO_F(_MMIO(_DPA_AUX_CH_CTL), 6 * 4, 0, 0, 0, D_ALL, NULL,
-		dp_aux_ch_ctl_mmio_write);
+	MMIO_F(DP_AUX_CH_CTL(AUX_CH_A), 6 * 4, 0, 0, 0, D_ALL, NULL,
+	       dp_aux_ch_ctl_mmio_write);
 
 	MMIO_DH(DDI_BUF_CTL(PORT_A), D_ALL, NULL, ddi_buf_ctl_mmio_write);
 	MMIO_DH(DDI_BUF_CTL(PORT_B), D_ALL, NULL, ddi_buf_ctl_mmio_write);
@@ -2676,35 +2696,35 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_DH(PLANE_NV12_BUF_CFG(PIPE_C, 2), D_SKL_PLUS, NULL, NULL);
 	MMIO_DH(PLANE_NV12_BUF_CFG(PIPE_C, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_A, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_A, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_A, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_A, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_A, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_A, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_A, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_A, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_B, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_B, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_B, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_B, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_B, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_B, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_B, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_B, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_C, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_C, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_C, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C0(PIPE_C, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_C, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_C, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_C, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_DIST(PIPE_C, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_A, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_A, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_A, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_A, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_A, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_A, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_A, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_A, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_B, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_B, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_B, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_B, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_B, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_B, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_B, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_B, 3), D_SKL_PLUS, NULL, NULL);
 
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_C, 1)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_C, 2)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_C, 3)), D_SKL_PLUS, NULL, NULL);
-	MMIO_DH(_MMIO(_REG_701C4(PIPE_C, 4)), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_C, 0), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_C, 1), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_C, 2), D_SKL_PLUS, NULL, NULL);
+	MMIO_DH(PLANE_AUX_OFFSET(PIPE_C, 3), D_SKL_PLUS, NULL, NULL);
 
 	MMIO_DFH(BDW_SCRATCH1, D_SKL_PLUS, F_CMD_ACCESS, NULL, NULL);
 

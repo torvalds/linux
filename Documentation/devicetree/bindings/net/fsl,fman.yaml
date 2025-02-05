@@ -1,0 +1,210 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/fsl,fman.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale Frame Manager Device
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  Due to the fact that the FMan is an aggregation of sub-engines (ports, MACs,
+  etc.) the FMan node will have child nodes for each of them.
+
+properties:
+  compatible:
+    enum:
+      - fsl,fman
+    description:
+      FMan version can be determined via FM_IP_REV_1 register in the
+      FMan block. The offset is 0xc4 from the beginning of the
+      Frame Processing Manager memory map (0xc3000 from the
+      beginning of the FMan node).
+
+  cell-index:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Specifies the index of the FMan unit.
+
+      The cell-index value may be used by the SoC, to identify the
+      FMan unit in the SoC memory map. In the table below,
+      there's a description of the cell-index use in each SoC:
+
+      - P1023:
+      register[bit]      FMan unit  cell-index
+      ============================================================
+      DEVDISR[1]      1    0
+
+      - P2041, P3041, P4080 P5020, P5040:
+      register[bit]      FMan unit  cell-index
+      ============================================================
+      DCFG_DEVDISR2[6]    1    0
+      DCFG_DEVDISR2[14]    2    1
+        (Second FM available only in P4080 and P5040)
+
+      - B4860, T1040, T2080, T4240:
+      register[bit]      FMan unit  cell-index
+      ============================================================
+      DCFG_CCSR_DEVDISR2[24]    1    0
+      DCFG_CCSR_DEVDISR2[25]    2    1
+        (Second FM available only in T4240)
+
+      DEVDISR, DCFG_DEVDISR2 and DCFG_CCSR_DEVDISR2 are located in
+      the specific SoC "Device Configuration/Pin Control" Memory
+      Map.
+
+  reg:
+    items:
+      - description: BMI configuration registers.
+      - description: QMI configuration registers.
+      - description: DMA configuration registers.
+      - description: FPM configuration registers.
+      - description: FMan controller configuration registers.
+    minItems: 1
+
+  ranges: true
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: fmanclk
+
+  interrupts:
+    items:
+      - description: The first element is associated with the event interrupts.
+      - description: the second element is associated with the error interrupts.
+
+  dma-coherent: true
+
+  ptimer-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: see ptp/fsl,ptp.yaml
+
+  fsl,qman-channel-range:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      Specifies the range of the available dedicated
+      channels in the FMan. The first cell specifies the beginning
+      of the range and the second cell specifies the number of
+      channels
+    items:
+      - description: The first cell specifies the beginning of the range.
+      - description: |
+          The second cell specifies the number of channels.
+          Further information available at:
+          "Work Queue (WQ) Channel Assignments in the QMan" section
+          in DPAA Reference Manual.
+
+  fsl,qman:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: See soc/fsl/qman.txt
+
+  fsl,bman:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: See soc/fsl/bman.txt
+
+  fsl,erratum-a050385:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: A boolean property. Indicates the presence of the
+      erratum A050385 which indicates that DMA transactions that are
+      split can result in a FMan lock.
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 1
+
+patternProperties:
+  '^muram@[a-f0-9]+$':
+    $ref: fsl,fman-muram.yaml
+
+  '^port@[a-f0-9]+$':
+    $ref: fsl,fman-port.yaml
+
+  '^ethernet@[a-f0-9]+$':
+    $ref: fsl,fman-dtsec.yaml
+
+  '^mdio@[a-f0-9]+$':
+    $ref: fsl,fman-mdio.yaml
+
+  '^phc@[a-f0-9]+$':
+    $ref: /schemas/ptp/fsl,ptp.yaml
+
+required:
+  - compatible
+  - cell-index
+  - reg
+  - ranges
+  - clocks
+  - clock-names
+  - interrupts
+  - fsl,qman-channel-range
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    fman@400000 {
+        compatible = "fsl,fman";
+        reg = <0x400000 0x100000>;
+        ranges = <0 0x400000 0x100000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        cell-index = <1>;
+        clocks = <&fman_clk>;
+        clock-names = "fmanclk";
+        interrupts = <96 IRQ_TYPE_EDGE_FALLING>,
+                     <16 IRQ_TYPE_EDGE_FALLING>;
+        fsl,qman-channel-range = <0x40 0xc>;
+
+        muram@0 {
+            compatible = "fsl,fman-muram";
+            reg = <0x0 0x28000>;
+        };
+
+        port@81000 {
+            cell-index = <1>;
+            compatible = "fsl,fman-v2-port-oh";
+            reg = <0x81000 0x1000>;
+        };
+
+        fman1_rx_0x8: port@88000 {
+            cell-index = <0x8>;
+            compatible = "fsl,fman-v2-port-rx";
+            reg = <0x88000 0x1000>;
+        };
+
+        fman1_tx_0x28: port@a8000 {
+            cell-index = <0x28>;
+            compatible = "fsl,fman-v2-port-tx";
+            reg = <0xa8000 0x1000>;
+        };
+
+        ethernet@e0000 {
+            compatible = "fsl,fman-dtsec";
+            cell-index = <0>;
+            reg = <0xe0000 0x1000>;
+            ptp-timer = <&ptp_timer>;
+            fsl,fman-ports = <&fman1_rx_0x8 &fman1_tx_0x28>;
+            tbi-handle = <&tbi5>;
+        };
+
+        ptp_timer: phc@fe000 {
+            compatible = "fsl,fman-ptp-timer";
+            reg = <0xfe000 0x1000>;
+            interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+        };
+
+        mdio@f1000 {
+            compatible = "fsl,fman-xmdio";
+            reg = <0xf1000 0x1000>;
+            interrupts = <101 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };

@@ -59,6 +59,8 @@ struct tls_rec;
 
 #define TLS_CRYPTO_INFO_READY(info)	((info)->cipher_type)
 
+#define TLS_HANDSHAKE_KEYUPDATE		24	/* rfc8446 B.3: Key update */
+
 #define TLS_AAD_SPACE_SIZE		13
 
 #define TLS_MAX_IV_SIZE			16
@@ -130,6 +132,7 @@ struct tls_sw_context_rx {
 	u8 async_capable:1;
 	u8 zc_capable:1;
 	u8 reader_contended:1;
+	bool key_update_pending;
 
 	struct tls_strparser strp;
 
@@ -362,7 +365,7 @@ static inline bool tls_is_skb_tx_device_offloaded(const struct sk_buff *skb)
 
 static inline struct tls_context *tls_get_ctx(const struct sock *sk)
 {
-	struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	/* Use RCU on icsk_ulp_data only for sock diag code,
 	 * TLS data path doesn't need rcu_dereference().
@@ -390,8 +393,12 @@ tls_offload_ctx_tx(const struct tls_context *tls_ctx)
 
 static inline bool tls_sw_has_ctx_tx(const struct sock *sk)
 {
-	struct tls_context *ctx = tls_get_ctx(sk);
+	struct tls_context *ctx;
 
+	if (!sk_is_inet(sk) || !inet_test_bit(IS_ICSK, sk))
+		return false;
+
+	ctx = tls_get_ctx(sk);
 	if (!ctx)
 		return false;
 	return !!tls_sw_ctx_tx(ctx);
@@ -399,8 +406,12 @@ static inline bool tls_sw_has_ctx_tx(const struct sock *sk)
 
 static inline bool tls_sw_has_ctx_rx(const struct sock *sk)
 {
-	struct tls_context *ctx = tls_get_ctx(sk);
+	struct tls_context *ctx;
 
+	if (!sk_is_inet(sk) || !inet_test_bit(IS_ICSK, sk))
+		return false;
+
+	ctx = tls_get_ctx(sk);
 	if (!ctx)
 		return false;
 	return !!tls_sw_ctx_rx(ctx);

@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/touchscreen/novatek,nvt-ts.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Novatek NVT Touchscreen Controller
+
+maintainers:
+  - Hans de Goede <hdegoede@redhat.com>
+
+allOf:
+  - $ref: touchscreen.yaml#
+
+properties:
+  compatible:
+    enum:
+      - novatek,nt11205-ts
+      - novatek,nt36672a-ts
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+
+  vcc-supply: true
+  iovcc-supply: true
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        touchscreen@1 {
+            compatible = "novatek,nt36672a-ts";
+            reg = <0x01>;
+            interrupts-extended = <&tlmm 31 IRQ_TYPE_EDGE_RISING>;
+            reset-gpios = <&tlmm 32 GPIO_ACTIVE_LOW>;
+            vcc-supply = <&vreg_l22a_2p85>;
+            iovcc-supply = <&vreg_l14a_1p8>;
+            pinctrl-0 = <&ts_int_default &ts_reset_default>;
+            pinctrl-1 = <&ts_int_sleep &ts_reset_sleep>;
+            pinctrl-names = "default", "sleep";
+            touchscreen-size-x = <1080>;
+            touchscreen-size-y = <2246>;
+        };
+    };
+
+...

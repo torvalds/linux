@@ -26,7 +26,7 @@ static int check_maps_cb(struct map *map, void *data)
 
 	if (map__start(map) != merged->start ||
 	    map__end(map) != merged->end ||
-	    strcmp(map__dso(map)->name, merged->name) ||
+	    strcmp(dso__name(map__dso(map)), merged->name) ||
 	    refcount_read(map__refcnt(map)) != 1) {
 		return 1;
 	}
@@ -39,7 +39,7 @@ static int failed_cb(struct map *map, void *data __maybe_unused)
 	pr_debug("\tstart: %" PRIu64 " end: %" PRIu64 " name: '%s' refcnt: %d\n",
 		map__start(map),
 		map__end(map),
-		map__dso(map)->name,
+		dso__name(map__dso(map)),
 		refcount_read(map__refcnt(map)));
 
 	return 0;

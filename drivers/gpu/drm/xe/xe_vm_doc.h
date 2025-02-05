@@ -25,7 +25,7 @@
  * VM bind (create GPU mapping for a BO or userptr)
  * ================================================
  *
- * Creates GPU mapings for a BO or userptr within a VM. VM binds uses the same
+ * Creates GPU mappings for a BO or userptr within a VM. VM binds uses the same
  * in / out fence interface (struct drm_xe_sync) as execs which allows users to
  * think of binds and execs as more or less the same operation.
  *
@@ -64,8 +64,8 @@
  *	update page level 2 PDE[1] to page level 3b phys address (GPU)
  *
  *	bind BO2 0x1ff000-0x201000
- *	update page level 3a PTE[511] to BO2 phys addres (GPU)
- *	update page level 3b PTE[0] to BO2 phys addres + 0x1000 (GPU)
+ *	update page level 3a PTE[511] to BO2 phys address (GPU)
+ *	update page level 3b PTE[0] to BO2 phys address + 0x1000 (GPU)
  *
  * GPU bypass
  * ~~~~~~~~~~
@@ -190,9 +190,9 @@
  * Deferred binds in fault mode
  * ----------------------------
  *
- * In a VM is in fault mode (TODO: link to fault mode), new bind operations that
- * create mappings are by default are deferred to the page fault handler (first
- * use). This behavior can be overriden by setting the flag
+ * If a VM is in fault mode (TODO: link to fault mode), new bind operations that
+ * create mappings are by default deferred to the page fault handler (first
+ * use). This behavior can be overridden by setting the flag
  * DRM_XE_VM_BIND_FLAG_IMMEDIATE which indicates to creating the mapping
  * immediately.
  *
@@ -209,7 +209,7 @@
  *
  * Since this a core kernel managed memory the kernel can move this memory
  * whenever it wants. We register an invalidation MMU notifier to alert XE when
- * a user poiter is about to move. The invalidation notifier needs to block
+ * a user pointer is about to move. The invalidation notifier needs to block
  * until all pending users (jobs or compute mode engines) of the userptr are
  * idle to ensure no faults. This done by waiting on all of VM's dma-resv slots.
  *
@@ -225,7 +225,7 @@
  *
  * A VM in compute mode enables long running workloads and ultra low latency
  * submission (ULLS). ULLS is implemented via a continuously running batch +
- * semaphores. This enables to the user to insert jump to new batch commands
+ * semaphores. This enables the user to insert jump to new batch commands
  * into the continuously running batch. In both cases these batches exceed the
  * time a dma fence is allowed to exist for before signaling, as such dma fences
  * are not used when a VM is in compute mode. User fences (TODO: link user fence
@@ -244,7 +244,7 @@
  * Once all preempt fences are signaled for a VM the kernel can safely move the
  * memory and kick the rebind worker which resumes all the engines execution.
  *
- * A preempt fence, for every engine using the VM, is installed the VM's
+ * A preempt fence, for every engine using the VM, is installed into the VM's
  * dma-resv DMA_RESV_USAGE_PREEMPT_FENCE slot. The same preempt fence, for every
  * engine using the VM, is also installed into the same dma-resv slot of every
  * external BO mapped in the VM.
@@ -252,7 +252,7 @@
  * Rebind worker
  * -------------
  *
- * The rebind worker is very similar to an exec. It is resposible for rebinding
+ * The rebind worker is very similar to an exec. It is responsible for rebinding
  * evicted BOs or userptrs, waiting on those operations, installing new preempt
  * fences, and finally resuming executing of engines in the VM.
  *
@@ -314,14 +314,14 @@
  * signaling, and memory allocation is usually required to resolve a page
  * fault, but memory allocation is not allowed to gate dma fence signaling. As
  * such, dma fences are not allowed when VM is in fault mode. Because dma-fences
- * are not allowed, long running workloads and ULLS are enabled on a faulting
+ * are not allowed, only long running workloads and ULLS are enabled on a faulting
  * VM.
  *
- * Defered VM binds
+ * Deferred VM binds
  * ----------------
  *
  * By default, on a faulting VM binds just allocate the VMA and the actual
- * updating of the page tables is defered to the page fault handler. This
+ * updating of the page tables is deferred to the page fault handler. This
  * behavior can be overridden by setting the flag DRM_XE_VM_BIND_FLAG_IMMEDIATE in
  * the VM bind which will then do the bind immediately.
  *
@@ -399,14 +399,14 @@
  * Notice no rebind is issued in the access counter handler as the rebind will
  * be issued on next page fault.
  *
- * Cavets with eviction / user pointer invalidation
- * ------------------------------------------------
+ * Caveats with eviction / user pointer invalidation
+ * -------------------------------------------------
  *
  * In the case of eviction and user pointer invalidation on a faulting VM, there
  * is no need to issue a rebind rather we just need to blow away the page tables
  * for the VMAs and the page fault handler will rebind the VMAs when they fault.
- * The cavet is to update / read the page table structure the VM global lock is
- * neeeed. In both the case of eviction and user pointer invalidation locks are
+ * The caveat is to update / read the page table structure the VM global lock is
+ * needed. In both the case of eviction and user pointer invalidation locks are
  * held which make acquiring the VM global lock impossible. To work around this
  * every VMA maintains a list of leaf page table entries which should be written
  * to zero to blow away the VMA's page tables. After writing zero to these
@@ -427,9 +427,9 @@
  * VM global lock (vm->lock) - rw semaphore lock. Outer most lock which protects
  * the list of userptrs mapped in the VM, the list of engines using this VM, and
  * the array of external BOs mapped in the VM. When adding or removing any of the
- * aforemented state from the VM should acquire this lock in write mode. The VM
+ * aforementioned state from the VM should acquire this lock in write mode. The VM
  * bind path also acquires this lock in write while the exec / compute mode
- * rebind worker acquire this lock in read mode.
+ * rebind worker acquires this lock in read mode.
  *
  * VM dma-resv lock (vm->ttm.base.resv->lock) - WW lock. Protects VM dma-resv
  * slots which is shared with any private BO in the VM. Expected to be acquired
@@ -500,18 +500,18 @@
  * Slot waiting
  * ------------
  *
- * 1. The exection of all jobs from kernel ops shall wait on all slots
+ * 1. The execution of all jobs from kernel ops shall wait on all slots
  * (DMA_RESV_USAGE_PREEMPT_FENCE) of either an external BO or VM (depends on if
  * kernel op is operating on external or private BO)
  *
- * 2. In non-compute mode, the exection of all jobs from rebinds in execs shall
+ * 2. In non-compute mode, the execution of all jobs from rebinds in execs shall
  * wait on the DMA_RESV_USAGE_KERNEL slot of either an external BO or VM
  * (depends on if the rebind is operatiing on an external or private BO)
  *
- * 3. In non-compute mode, the exection of all jobs from execs shall wait on the
+ * 3. In non-compute mode, the execution of all jobs from execs shall wait on the
  * last rebind job
  *
- * 4. In compute mode, the exection of all jobs from rebinds in the rebind
+ * 4. In compute mode, the execution of all jobs from rebinds in the rebind
  * worker shall wait on the DMA_RESV_USAGE_KERNEL slot of either an external BO
  * or VM (depends on if rebind is operating on external or private BO)
  *

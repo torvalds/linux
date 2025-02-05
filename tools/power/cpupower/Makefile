@@ -57,7 +57,7 @@ LIB_MIN=			1
 
 PACKAGE =			cpupower
 PACKAGE_BUGREPORT =		linux-pm@vger.kernel.org
-LANGUAGES = 			de fr it cs pt ka
+LANGUAGES = 			de fr it cs pt ka zh_CN
 
 
 # Directory definitions. These are default and most probably
@@ -67,6 +67,7 @@ LANGUAGES = 			de fr it cs pt ka
 bindir ?=	/usr/bin
 sbindir ?=	/usr/sbin
 mandir ?=	/usr/man
+libdir ?=	/usr/lib
 includedir ?=	/usr/include
 localedir ?=	/usr/share/locale
 docdir ?=       /usr/share/doc/packages/cpupower
@@ -85,23 +86,22 @@ INSTALL_SCRIPT = ${INSTALL} -m 644
 # If you are running a cross compiler, you may want to set this
 # to something more interesting, like "arm-linux-".  If you want
 # to compile vs uClibc, that can be done here as well.
-CROSS = #/usr/i386-linux-uclibc/usr/bin/i386-uclibc-
+CROSS ?= #/usr/i386-linux-uclibc/usr/bin/i386-uclibc-
+ifneq ($(CROSS), )
 CC = $(CROSS)gcc
 LD = $(CROSS)gcc
 AR = $(CROSS)ar
 STRIP = $(CROSS)strip
 RANLIB = $(CROSS)ranlib
+else
+CC ?= $(CROSS)gcc
+LD ?= $(CROSS)gcc
+AR ?= $(CROSS)ar
+STRIP ?= $(CROSS)strip
+RANLIB ?= $(CROSS)ranlib
+endif
 HOSTCC = gcc
 MKDIR = mkdir
-
-# 64bit library detection
-include ../../scripts/Makefile.arch
-
-ifeq ($(IS_64_BIT), 1)
-libdir ?=	/usr/lib64
-else
-libdir ?=	/usr/lib
-endif
 
 # Now we set up the build system
 #
@@ -226,17 +226,28 @@ else
 endif
 	$(QUIET) $(STRIPCMD) $@
 
+ifeq (, $(shell which xgettext))
+$(warning "Install xgettext to extract translatable strings.")
+else
 $(OUTPUT)po/$(PACKAGE).pot: $(UTIL_SRC)
 	$(ECHO) "  GETTEXT " $@
 	$(QUIET) xgettext --default-domain=$(PACKAGE) --add-comments \
 		--keyword=_ --keyword=N_ $(UTIL_SRC) -p $(@D) -o $(@F)
+endif
 
+ifeq (, $(shell which msgfmt))
+$(warning "Install msgfmt to generate binary message catalogs.")
+else
 $(OUTPUT)po/%.gmo: po/%.po
 	$(ECHO) "  MSGFMT  " $@
 	$(QUIET) msgfmt -o $@ po/$*.po
+endif
 
 create-gmo: ${GMO_FILES}
 
+ifeq (, $(shell which msgmerge))
+$(warning "Install msgmerge to merge translations.")
+else
 update-po: $(OUTPUT)po/$(PACKAGE).pot
 	$(ECHO) "  MSGMRG  " $@
 	$(QUIET) @for HLANG in $(LANGUAGES); do \
@@ -249,6 +260,7 @@ update-po: $(OUTPUT)po/$(PACKAGE).pot
 			rm -f $(OUTPUT)po/$$HLANG.new.po; \
 		fi; \
 	done;
+endif
 
 compile-bench: $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	@V=$(V) confdir=$(confdir) $(MAKE) -C bench O=$(OUTPUT)
@@ -332,4 +344,39 @@ uninstall:
 		rm -f $(DESTDIR)${localedir}/$$HLANG/LC_MESSAGES/cpupower.mo; \
 	  done;
 
-.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean
+help:
+	@echo  'Building targets:'
+	@echo  '  all		  - Default target. Could be omitted. Put build artifacts'
+	@echo  '                    to "O" cmdline option dir (default: current dir)'
+	@echo  '  install	  - Install previously built project files from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir  defined by "DESTDIR" cmdline or'
+	@echo  '                    Makefile config block option (default: "")'
+	@echo  '  install-lib	  - Install previously built library binary from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    and library headers from "lib/" for userspace to the install'
+	@echo  '                    dir  defined by "DESTDIR" cmdline (default: "")'
+	@echo  '  install-tools	  - Install previously built "cpupower" util from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir) and'
+	@echo  '                    "cpupower-completion.sh" script from the src dir to the'
+	@echo  '                    install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-man	  - Install man pages from the "man" src subdir to the'
+	@echo  '                    install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-gmo	  - Install previously built language files from the output'
+	@echo  '                    dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  '  install-bench	  - Install previously built "cpufreq-bench" util files from the'
+	@echo  '                    output dir defined by "O" cmdline option (default: current dir)'
+	@echo  '                    to the install dir  defined by "DESTDIR" cmdline or Makefile'
+	@echo  '                    config block option (default: "")'
+	@echo  ''
+	@echo  'Cleaning targets:'
+	@echo  '  clean		  - Clean build artifacts from the dir defined by "O" cmdline'
+	@echo  '                    option (default: current dir)'
+	@echo  '  uninstall	  - Remove previously installed files from the dir defined by "DESTDIR"'
+	@echo  '                    cmdline or Makefile config block option (default: "")'
+
+.PHONY: all utils libcpupower update-po create-gmo install-lib install-tools install-man install-gmo install uninstall clean help

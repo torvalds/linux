@@ -36,7 +36,7 @@ static int fxos8700_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id fxos8700_i2c_id[] = {
-	{"fxos8700", 0},
+	{ "fxos8700" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, fxos8700_i2c_id);

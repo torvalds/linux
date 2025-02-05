@@ -16,7 +16,18 @@ description: |
 
 properties:
   compatible:
-    const: microchip,lan966x-gck
+    oneOf:
+      - enum:
+          - microchip,lan966x-gck
+          - microchip,lan9691-gck
+      - items:
+          - enum:
+              - microchip,lan9698-gck
+              - microchip,lan9696-gck
+              - microchip,lan9694-gck
+              - microchip,lan9693-gck
+              - microchip,lan9692-gck
+          - const: microchip,lan9691-gck
 
   reg:
     minItems: 1

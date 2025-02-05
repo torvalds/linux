@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 
 #define LTC2309_ADC_RESOLUTION	12
+#define LTC2309_INTERNAL_REF_MV 4096
 
 #define LTC2309_DIN_CH_MASK	GENMASK(7, 4)
 #define LTC2309_DIN_SDN		BIT(7)
@@ -29,14 +30,12 @@
  * struct ltc2309 - internal device data structure
  * @dev:	Device reference
  * @client:	I2C reference
- * @vref:	External reference source
  * @lock:	Lock to serialize data access
  * @vref_mv:	Internal voltage reference
  */
 struct ltc2309 {
 	struct device		*dev;
 	struct i2c_client	*client;
-	struct regulator	*vref;
 	struct mutex		lock; /* serialize data access */
 	int			vref_mv;
 };
@@ -104,7 +103,7 @@ static int ltc2309_read_raw_channel(struct ltc2309 *ltc2309,
 				    unsigned long address, int *val)
 {
 	int ret;
-	u16 buf;
+	__be16 buf;
 	u8 din;
 
 	din = FIELD_PREP(LTC2309_DIN_CH_MASK, address & 0x0f) |
@@ -157,11 +156,6 @@ static const struct iio_info ltc2309_info = {
 	.read_raw = ltc2309_read_raw,
 };
 
-static void ltc2309_regulator_disable(void *regulator)
-{
-	regulator_disable(regulator);
-}
-
 static int ltc2309_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
@@ -175,7 +169,6 @@ static int ltc2309_probe(struct i2c_client *client)
 	ltc2309 = iio_priv(indio_dev);
 	ltc2309->dev = &indio_dev->dev;
 	ltc2309->client = client;
-	ltc2309->vref_mv = 4096; /* Default to the internal ref */
 
 	indio_dev->name = "ltc2309";
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -183,36 +176,12 @@ static int ltc2309_probe(struct i2c_client *client)
 	indio_dev->num_channels = ARRAY_SIZE(ltc2309_channels);
 	indio_dev->info = &ltc2309_info;
 
-	ltc2309->vref = devm_regulator_get_optional(&client->dev, "vref");
-	if (IS_ERR(ltc2309->vref)) {
-		ret = PTR_ERR(ltc2309->vref);
-		if (ret == -ENODEV)
-			ltc2309->vref = NULL;
-		else
-			return ret;
-	}
+	ret = devm_regulator_get_enable_read_voltage(&client->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(ltc2309->dev, ret,
+				     "failed to get vref voltage\n");
 
-	if (ltc2309->vref) {
-		ret = regulator_enable(ltc2309->vref);
-		if (ret)
-			return dev_err_probe(ltc2309->dev, ret,
-					     "failed to enable vref\n");
-
-		ret = devm_add_action_or_reset(ltc2309->dev,
-					       ltc2309_regulator_disable,
-					       ltc2309->vref);
-		if (ret) {
-			return dev_err_probe(ltc2309->dev, ret,
-					     "failed to add regulator_disable action: %d\n",
-					     ret);
-		}
-
-		ret = regulator_get_voltage(ltc2309->vref);
-		if (ret < 0)
-			return ret;
-
-		ltc2309->vref_mv = ret / 1000;
-	}
+	ltc2309->vref_mv = ret == -ENODEV ? LTC2309_INTERNAL_REF_MV : ret / 1000;
 
 	mutex_init(&ltc2309->lock);
 

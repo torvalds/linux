@@ -44,15 +44,11 @@ static int xen_add_device(struct device *dev)
 	}
 #endif
 	if (pci_seg_supported) {
-		struct {
-			struct physdev_pci_device_add add;
-			uint32_t pxm;
-		} add_ext = {
-			.add.seg = pci_domain_nr(pci_dev->bus),
-			.add.bus = pci_dev->bus->number,
-			.add.devfn = pci_dev->devfn
-		};
-		struct physdev_pci_device_add *add = &add_ext.add;
+		DEFINE_RAW_FLEX(struct physdev_pci_device_add, add, optarr, 1);
+
+		add->seg = pci_domain_nr(pci_dev->bus);
+		add->bus = pci_dev->bus->number;
+		add->devfn = pci_dev->devfn;
 
 #ifdef CONFIG_ACPI
 		acpi_handle handle;
@@ -176,6 +172,19 @@ static int xen_remove_device(struct device *dev)
 
 	return r;
 }
+
+int xen_reset_device(const struct pci_dev *dev)
+{
+	struct pci_device_reset device = {
+		.dev.seg = pci_domain_nr(dev->bus),
+		.dev.bus = dev->bus->number,
+		.dev.devfn = dev->devfn,
+		.flags = PCI_DEVICE_RESET_FLR,
+	};
+
+	return HYPERVISOR_physdev_op(PHYSDEVOP_pci_device_reset, &device);
+}
+EXPORT_SYMBOL_GPL(xen_reset_device);
 
 static int xen_pci_notifier(struct notifier_block *nb,
 			    unsigned long action, void *data)

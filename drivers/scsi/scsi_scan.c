@@ -35,7 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/async.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -220,6 +220,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	int new_shift = sbitmap_calculate_shift(depth);
 	bool need_alloc = !sdev->budget_map.map;
 	bool need_free = false;
+	unsigned int memflags;
 	int ret;
 	struct sbitmap sb_backup;
 
@@ -227,7 +228,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 
 	/*
 	 * realloc if new shift is calculated, which is caused by setting
-	 * up one new default queue depth after calling ->slave_configure
+	 * up one new default queue depth after calling ->sdev_configure
 	 */
 	if (!need_alloc && new_shift != sdev->budget_map.shift)
 		need_alloc = need_free = true;
@@ -240,7 +241,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	 * and here disk isn't added yet, so freezing is pretty fast
 	 */
 	if (need_free) {
-		blk_mq_freeze_queue(sdev->request_queue);
+		memflags = blk_mq_freeze_queue(sdev->request_queue);
 		sb_backup = sdev->budget_map;
 	}
 	ret = sbitmap_init_node(&sdev->budget_map,
@@ -256,7 +257,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 		else
 			sbitmap_free(&sb_backup);
 		ret = 0;
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue(sdev->request_queue, memflags);
 	}
 	return ret;
 }
@@ -265,7 +266,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
  * scsi_alloc_sdev - allocate and setup a scsi_Device
  * @starget: which target to allocate a &scsi_device for
  * @lun: which lun
- * @hostdata: usually NULL and set by ->slave_alloc instead
+ * @hostdata: usually NULL and set by ->sdev_init instead
  *
  * Description:
  *     Allocate, initialize for io, and return a pointer to a scsi_Device.
@@ -283,6 +284,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	struct request_queue *q;
 	int display_failure_msg = 1, ret;
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
+	struct queue_limits lim;
 
 	sdev = kzalloc(sizeof(*sdev) + shost->transportt->device_size,
 		       GFP_KERNEL);
@@ -311,11 +313,11 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	sdev->sdev_gendev.parent = get_device(&starget->dev);
 	sdev->sdev_target = starget;
 
-	/* usually NULL and set by ->slave_alloc instead */
+	/* usually NULL and set by ->sdev_init instead */
 	sdev->hostdata = hostdata;
 
 	/* if the device needs this changing, it may do so in the
-	 * slave_configure function */
+	 * sdev_configure function */
 	sdev->max_device_blocked = SCSI_DEFAULT_DEVICE_BLOCKED;
 
 	/*
@@ -332,7 +334,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	sdev->sg_reserved_size = INT_MAX;
 
-	q = blk_mq_alloc_queue(&sdev->host->tag_set, NULL, NULL);
+	scsi_init_limits(shost, &lim);
+	q = blk_mq_alloc_queue(&sdev->host->tag_set, &lim, sdev);
 	if (IS_ERR(q)) {
 		/* release fn is set up in scsi_sysfs_device_initialise, so
 		 * have to free and put manually here */
@@ -342,8 +345,6 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	}
 	kref_get(&sdev->host->tagset_refcnt);
 	sdev->request_queue = q;
-	q->queuedata = sdev;
-	__scsi_init_queue(sdev->host, q);
 
 	depth = sdev->host->cmd_per_lun ?: 1;
 
@@ -363,8 +364,8 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 
 	scsi_sysfs_device_initialize(sdev);
 
-	if (shost->hostt->slave_alloc) {
-		ret = shost->hostt->slave_alloc(sdev);
+	if (shost->hostt->sdev_init) {
+		ret = shost->hostt->sdev_init(sdev);
 		if (ret) {
 			/*
 			 * if LLDD reports slave not present, don't clutter
@@ -873,6 +874,8 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		blist_flags_t *bflags, int async)
 {
+	const struct scsi_host_template *hostt = sdev->host->hostt;
+	struct queue_limits lim;
 	int ret;
 
 	/*
@@ -1004,19 +1007,6 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		sdev->select_no_atn = 1;
 
 	/*
-	 * Maximum 512 sector transfer length
-	 * broken RA4x00 Compaq Disk Array
-	 */
-	if (*bflags & BLIST_MAX_512)
-		blk_queue_max_hw_sectors(sdev->request_queue, 512);
-	/*
-	 * Max 1024 sector transfer length for targets that report incorrect
-	 * max/optimal lengths and relied on the old block layer safe default
-	 */
-	else if (*bflags & BLIST_MAX_1024)
-		blk_queue_max_hw_sectors(sdev->request_queue, 1024);
-
-	/*
 	 * Some devices may not want to have a start command automatically
 	 * issued when a device is added.
 	 */
@@ -1076,27 +1066,43 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	transport_configure_device(&sdev->sdev_gendev);
 
-	if (sdev->host->hostt->slave_configure) {
-		ret = sdev->host->hostt->slave_configure(sdev);
-		if (ret) {
-			/*
-			 * if LLDD reports slave not present, don't clutter
-			 * console with alloc failure messages
-			 */
-			if (ret != -ENXIO) {
-				sdev_printk(KERN_ERR, sdev,
-					"failed to configure device\n");
-			}
-			return SCSI_SCAN_NO_RESPONSE;
-		}
+	/*
+	 * No need to freeze the queue as it isn't reachable to anyone else yet.
+	 */
+	lim = queue_limits_start_update(sdev->request_queue);
+	if (*bflags & BLIST_MAX_512)
+		lim.max_hw_sectors = 512;
+	else if (*bflags & BLIST_MAX_1024)
+		lim.max_hw_sectors = 1024;
 
+	if (hostt->sdev_configure)
+		ret = hostt->sdev_configure(sdev, &lim);
+	if (ret) {
+		queue_limits_cancel_update(sdev->request_queue);
 		/*
-		 * The queue_depth is often changed in ->slave_configure.
-		 * Set up budget map again since memory consumption of
-		 * the map depends on actual queue depth.
+		 * If the LLDD reports device not present, don't clutter the
+		 * console with failure messages.
 		 */
-		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
+		if (ret != -ENXIO)
+			sdev_printk(KERN_ERR, sdev,
+				"failed to configure device\n");
+		return SCSI_SCAN_NO_RESPONSE;
 	}
+
+	ret = queue_limits_commit_update(sdev->request_queue, &lim);
+	if (ret) {
+		sdev_printk(KERN_ERR, sdev, "failed to apply queue limits.\n");
+		return SCSI_SCAN_NO_RESPONSE;
+	}
+
+	/*
+	 * The queue_depth is often changed in ->sdev_configure.
+	 *
+	 * Set up budget map again since memory consumption of the map depends
+	 * on actual queue depth.
+	 */
+	if (hostt->sdev_configure)
+		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
 
 	if (sdev->scsi_level >= SCSI_3)
 		scsi_attach_vpd(sdev);
@@ -1629,6 +1635,24 @@ struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
 }
 EXPORT_SYMBOL(__scsi_add_device);
 
+/**
+ * scsi_add_device - creates a new SCSI (LU) instance
+ * @host: the &Scsi_Host instance where the device is located
+ * @channel: target channel number (rarely other than %0)
+ * @target: target id number
+ * @lun: LUN of target device
+ *
+ * Probe for a specific LUN and add it if found.
+ *
+ * Notes: This call is usually performed internally during a SCSI
+ * bus scan when an HBA is added (i.e. scsi_scan_host()). So it
+ * should only be called if the HBA becomes aware of a new SCSI
+ * device (LU) after scsi_scan_host() has completed. If successful
+ * this call can lead to sdev_init() and sdev_configure() callbacks
+ * into the LLD.
+ *
+ * Return: %0 on success or negative error code on failure
+ */
 int scsi_add_device(struct Scsi_Host *host, uint channel,
 		    uint target, u64 lun)
 {
@@ -2020,6 +2044,8 @@ static void do_scan_async(void *_data, async_cookie_t c)
 /**
  * scsi_scan_host - scan the given adapter
  * @shost:	adapter to scan
+ *
+ * Notes: Should be called after scsi_add_host()
  **/
 void scsi_scan_host(struct Scsi_Host *shost)
 {

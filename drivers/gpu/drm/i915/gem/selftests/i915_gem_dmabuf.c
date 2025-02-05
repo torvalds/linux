@@ -196,7 +196,7 @@ static int verify_access(struct drm_i915_private *i915,
 	if (err)
 		goto out_file;
 
-	mode = intel_gt_coherent_map_type(to_gt(i915), native_obj, true);
+	mode = intel_gt_coherent_map_type(to_gt(i915), native_obj, false);
 	vaddr = i915_gem_object_pin_map_unlocked(native_obj, mode);
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
@@ -506,7 +506,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 		goto out;
 	}
 
-	if (memchr_inv(ptr, 0, dmabuf->size)) {
+	if (!mem_is_zero(ptr, dmabuf->size)) {
 		pr_err("Exported object not initialised to zero!\n");
 		err = -EINVAL;
 		goto out;

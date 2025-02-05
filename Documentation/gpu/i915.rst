@@ -35,10 +35,10 @@ Interrupt Handling
    :functions: intel_irq_init intel_irq_init_hw intel_hpd_init
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
-   :functions: intel_runtime_pm_disable_interrupts
+   :functions: intel_irq_suspend
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
-   :functions: intel_runtime_pm_enable_interrupts
+   :functions: intel_irq_resume
 
 Intel GVT-g Guest Support(vGPU)
 -------------------------------
@@ -150,7 +150,7 @@ High Definition Audio
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :internal:
 
-.. kernel-doc:: include/drm/i915_component.h
+.. kernel-doc:: include/drm/intel/i915_component.h
    :internal:
 
 Intel HDMI LPE Audio Support
@@ -209,9 +209,6 @@ DMC wakelock support
 
 .. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc_wl.c
    :doc: DMC wakelock support
-
-.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dmc_wl.c
-   :internal:
 
 Video BIOS Table (VBT)
 ----------------------

@@ -184,7 +184,6 @@ static int x86_msi_prepare(struct irq_domain *domain, struct device *dev,
 		alloc->type = X86_IRQ_ALLOC_TYPE_PCI_MSI;
 		return 0;
 	case DOMAIN_BUS_PCI_DEVICE_MSIX:
-	case DOMAIN_BUS_PCI_DEVICE_IMS:
 		alloc->type = X86_IRQ_ALLOC_TYPE_PCI_MSIX;
 		return 0;
 	default:
@@ -215,6 +214,7 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 		if (WARN_ON_ONCE(domain != real_parent))
 			return false;
 		info->chip->irq_set_affinity = msi_set_affinity;
+		info->chip->flags |= IRQCHIP_MOVE_DEFERRED;
 		break;
 	case DOMAIN_BUS_DMAR:
 	case DOMAIN_BUS_AMDVI:
@@ -228,10 +228,6 @@ static bool x86_init_dev_msi_info(struct device *dev, struct irq_domain *domain,
 	switch(info->bus_token) {
 	case DOMAIN_BUS_PCI_DEVICE_MSI:
 	case DOMAIN_BUS_PCI_DEVICE_MSIX:
-		break;
-	case DOMAIN_BUS_PCI_DEVICE_IMS:
-		if (!(pops->supported_flags & MSI_FLAG_PCI_IMS))
-			return false;
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -320,7 +316,7 @@ static struct irq_chip dmar_msi_controller = {
 	.irq_retrigger		= irq_chip_retrigger_hierarchy,
 	.irq_compose_msi_msg	= dmar_msi_compose_msg,
 	.irq_write_msi_msg	= dmar_msi_write_msg,
-	.flags			= IRQCHIP_SKIP_SET_WAKE |
+	.flags			= IRQCHIP_SKIP_SET_WAKE | IRQCHIP_MOVE_DEFERRED |
 				  IRQCHIP_AFFINITY_PRE_STARTUP,
 };
 

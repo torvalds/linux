@@ -113,7 +113,7 @@ good_area:
 #if 0
 	WARN_ON(!pte_young(*pte) || (is_write && !pte_dirty(*pte)));
 #endif
-	flush_tlb_page(vma, address);
+
 out:
 	mmap_read_unlock(mm);
 out_nosemaphore:
@@ -201,7 +201,6 @@ void segv_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		   struct uml_pt_regs *regs)
 {
-	jmp_buf *catcher;
 	int si_code;
 	int err;
 	int is_write = FAULT_WRITE(fi);
@@ -210,8 +209,17 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 	if (!is_user && regs)
 		current->thread.segv_regs = container_of(regs, struct pt_regs, regs);
 
-	if (!is_user && (address >= start_vm) && (address < end_vm)) {
-		flush_tlb_kernel_vm();
+	if (!is_user && init_mm.context.sync_tlb_range_to) {
+		/*
+		 * Kernel has pending updates from set_ptes that were not
+		 * flushed yet. Syncing them should fix the pagefault (if not
+		 * we'll get here again and panic).
+		 */
+		err = um_tlb_sync(&init_mm);
+		if (err == -ENOMEM)
+			report_enomem();
+		if (err)
+			panic("Failed to sync kernel TLBs: %d", err);
 		goto out;
 	}
 	else if (current->mm == NULL) {
@@ -237,15 +245,8 @@ unsigned long segv(struct faultinfo fi, unsigned long ip, int is_user,
 		address = 0;
 	}
 
-	catcher = current->thread.fault_catcher;
 	if (!err)
 		goto out;
-	else if (catcher != NULL) {
-		current->thread.fault_addr = (void *) address;
-		UML_LONGJMP(catcher, 1);
-	}
-	else if (current->thread.fault_addr != NULL)
-		panic("fault_addr set but no fault catcher");
 	else if (!is_user && arch_fixup(ip, regs))
 		goto out;
 
@@ -299,14 +300,6 @@ void relay_signal(int sig, struct siginfo *si, struct uml_pt_regs *regs)
 		       sig, code, err);
 		force_sig(sig);
 	}
-}
-
-void bus_handler(int sig, struct siginfo *si, struct uml_pt_regs *regs)
-{
-	if (current->thread.fault_catcher != NULL)
-		UML_LONGJMP(current->thread.fault_catcher, 1);
-	else
-		relay_signal(sig, si, regs);
 }
 
 void winch(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)

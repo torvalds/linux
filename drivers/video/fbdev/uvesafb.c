@@ -1794,7 +1794,7 @@ static void uvesafb_remove(struct platform_device *dev)
 
 static struct platform_driver uvesafb_driver = {
 	.probe  = uvesafb_probe,
-	.remove_new = uvesafb_remove,
+	.remove = uvesafb_remove,
 	.driver = {
 		.name = "uvesafb",
 	},
@@ -1867,7 +1867,7 @@ static ssize_t v86d_show(struct device_driver *dev, char *buf)
 static ssize_t v86d_store(struct device_driver *dev, const char *buf,
 		size_t count)
 {
-	strncpy(v86d_path, buf, PATH_MAX - 1);
+	strscpy_pad(v86d_path, buf);
 	return count;
 }
 static DRIVER_ATTR_RW(v86d);

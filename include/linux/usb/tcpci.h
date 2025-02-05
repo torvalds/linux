@@ -47,6 +47,9 @@
 #define TCPC_SINK_FAST_ROLE_SWAP	BIT(0)
 
 #define TCPC_CONFIG_STD_OUTPUT		0x18
+#define TCPC_CONFIG_STD_OUTPUT_ORIENTATION_MASK		BIT(0)
+#define TCPC_CONFIG_STD_OUTPUT_ORIENTATION_NORMAL	0
+#define TCPC_CONFIG_STD_OUTPUT_ORIENTATION_FLIPPED	1
 
 #define TCPC_TCPC_CTRL			0x19
 #define TCPC_TCPC_CTRL_ORIENTATION	BIT(0)
@@ -60,15 +63,12 @@
 
 #define TCPC_ROLE_CTRL			0x1a
 #define TCPC_ROLE_CTRL_DRP		BIT(6)
-#define TCPC_ROLE_CTRL_RP_VAL_SHIFT	4
-#define TCPC_ROLE_CTRL_RP_VAL_MASK	0x3
+#define TCPC_ROLE_CTRL_RP_VAL		GENMASK(5, 4)
 #define TCPC_ROLE_CTRL_RP_VAL_DEF	0x0
 #define TCPC_ROLE_CTRL_RP_VAL_1_5	0x1
 #define TCPC_ROLE_CTRL_RP_VAL_3_0	0x2
-#define TCPC_ROLE_CTRL_CC2_SHIFT	2
-#define TCPC_ROLE_CTRL_CC2_MASK		0x3
-#define TCPC_ROLE_CTRL_CC1_SHIFT	0
-#define TCPC_ROLE_CTRL_CC1_MASK		0x3
+#define TCPC_ROLE_CTRL_CC2		GENMASK(3, 2)
+#define TCPC_ROLE_CTRL_CC1		GENMASK(1, 0)
 #define TCPC_ROLE_CTRL_CC_RA		0x0
 #define TCPC_ROLE_CTRL_CC_RP		0x1
 #define TCPC_ROLE_CTRL_CC_RD		0x2
@@ -89,11 +89,9 @@
 #define TCPC_CC_STATUS_TERM		BIT(4)
 #define TCPC_CC_STATUS_TERM_RP		0
 #define TCPC_CC_STATUS_TERM_RD		1
+#define TCPC_CC_STATUS_CC2		GENMASK(3, 2)
+#define TCPC_CC_STATUS_CC1		GENMASK(1, 0)
 #define TCPC_CC_STATE_SRC_OPEN		0
-#define TCPC_CC_STATUS_CC2_SHIFT	2
-#define TCPC_CC_STATUS_CC2_MASK		0x3
-#define TCPC_CC_STATUS_CC1_SHIFT	0
-#define TCPC_CC_STATUS_CC1_MASK		0x3
 
 #define TCPC_POWER_STATUS		0x1e
 #define TCPC_POWER_STATUS_DBG_ACC_CON	BIT(7)
@@ -127,12 +125,12 @@
 #define TCPC_DEV_CAP_2			0x26
 #define TCPC_STD_INPUT_CAP		0x28
 #define TCPC_STD_OUTPUT_CAP		0x29
+#define TCPC_STD_OUTPUT_CAP_ORIENTATION	BIT(0)
 
 #define TCPC_MSG_HDR_INFO		0x2e
 #define TCPC_MSG_HDR_INFO_DATA_ROLE	BIT(3)
+#define TCPC_MSG_HDR_INFO_REV		GENMASK(2, 1)
 #define TCPC_MSG_HDR_INFO_PWR_ROLE	BIT(0)
-#define TCPC_MSG_HDR_INFO_REV_SHIFT	1
-#define TCPC_MSG_HDR_INFO_REV_MASK	0x3
 
 #define TCPC_RX_DETECT			0x2f
 #define TCPC_RX_DETECT_HARD_RESET	BIT(5)
@@ -150,10 +148,8 @@
 #define TCPC_RX_DATA			0x34 /* through 0x4f */
 
 #define TCPC_TRANSMIT			0x50
-#define TCPC_TRANSMIT_RETRY_SHIFT	4
-#define TCPC_TRANSMIT_RETRY_MASK	0x3
-#define TCPC_TRANSMIT_TYPE_SHIFT	0
-#define TCPC_TRANSMIT_TYPE_MASK		0x7
+#define TCPC_TRANSMIT_RETRY		GENMASK(5, 4)
+#define TCPC_TRANSMIT_TYPE		GENMASK(2, 0)
 
 #define TCPC_TX_BYTE_CNT		0x51
 #define TCPC_TX_HDR			0x52
@@ -174,8 +170,7 @@
 
 #define tcpc_presenting_rd(reg, cc) \
 	(!(TCPC_ROLE_CTRL_DRP & (reg)) && \
-	 (((reg) & (TCPC_ROLE_CTRL_## cc ##_MASK << TCPC_ROLE_CTRL_## cc ##_SHIFT)) == \
-	  (TCPC_ROLE_CTRL_CC_RD << TCPC_ROLE_CTRL_## cc ##_SHIFT)))
+	 FIELD_GET(TCPC_ROLE_CTRL_## cc, reg) == TCPC_ROLE_CTRL_CC_RD)
 
 struct tcpci;
 
@@ -186,7 +181,7 @@ struct tcpci;
  *		Optional; Callback to perform chip specific operations when FRS
  *		is sourcing vbus.
  * @auto_discharge_disconnect:
- *		Optional; Enables TCPC to autonously discharge vbus on disconnect.
+ *		Optional; Enables TCPC to autonomously discharge vbus on disconnect.
  * @vbus_vsafe0v:
  *		optional; Set when TCPC can detect whether vbus is at VSAFE0V.
  * @set_partner_usb_comm_capable:
@@ -209,6 +204,9 @@ struct tcpci;
  *		swap following Discover Identity on SOP' occurs.
  *		Return true when the TCPM is allowed to request a Vconn swap
  *		after Discovery Identity on SOP.
+ * @set_orientation:
+ *		Optional; Enable setting the connector orientation
+ *		CONFIG_STANDARD_OUTPUT (0x18) bit0.
  */
 struct tcpci_data {
 	struct regmap *regmap;
@@ -216,6 +214,7 @@ struct tcpci_data {
 	unsigned char auto_discharge_disconnect:1;
 	unsigned char vbus_vsafe0v:1;
 	unsigned char cable_comm_capable:1;
+	unsigned char set_orientation:1;
 
 	int (*init)(struct tcpci *tcpci, struct tcpci_data *data);
 	int (*set_vconn)(struct tcpci *tcpci, struct tcpci_data *data,
@@ -248,7 +247,7 @@ static inline enum typec_cc_status tcpci_to_typec_cc(unsigned int cc, bool sink)
 		if (sink)
 			return TYPEC_CC_RP_3_0;
 		fallthrough;
-	case 0x0:
+	case TCPC_CC_STATE_SRC_OPEN:
 	default:
 		return TYPEC_CC_OPEN;
 	}

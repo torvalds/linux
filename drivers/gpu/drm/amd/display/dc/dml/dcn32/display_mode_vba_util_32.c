@@ -1401,13 +1401,13 @@ void dml32_CalculateOutputLink(
 			if (Output == dm_dp2p0) {
 				*OutBpp = 0;
 				if ((OutputLinkDPRate == dm_dp_rate_na || OutputLinkDPRate == dm_dp_rate_uhbr10) &&
-						PHYCLKD32PerState >= 10000 / 32) {
+						PHYCLKD32PerState >= 10000.0 / 32) {
 					*OutBpp = dml32_TruncToValidBPP((1 - Downspreading / 100) * 10000,
 							OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd,
 							ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat,
 							DSCInputBitPerComponent, NumberOfDSCSlices, AudioSampleRate,
 							AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
-					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32 && DSCEnable == true &&
+					if (*OutBpp == 0 && PHYCLKD32PerState < 13500.0 / 32 && DSCEnable == true &&
 							ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
@@ -1423,7 +1423,7 @@ void dml32_CalculateOutputLink(
 					*OutputRate = dm_output_rate_dp_rate_uhbr10;
 				}
 				if ((OutputLinkDPRate == dm_dp_rate_na || OutputLinkDPRate == dm_dp_rate_uhbr13p5) &&
-						*OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32) {
+						*OutBpp == 0 && PHYCLKD32PerState >= 13500.0 / 32) {
 					*OutBpp = dml32_TruncToValidBPP((1 - Downspreading / 100) * 13500,
 							OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd,
 							ForcedOutputLinkBPP, LinkDSCEnable, Output, OutputFormat,
@@ -1595,14 +1595,16 @@ double dml32_TruncToValidBPP(
 	unsigned int   NonDSCBPP0;
 	unsigned int   NonDSCBPP1;
 	unsigned int   NonDSCBPP2;
+	unsigned int   NonDSCBPP3 = BPP_INVALID;
 
 	if (Format == dm_420) {
 		NonDSCBPP0 = 12;
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
-		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
+		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dm_444) {
+		NonDSCBPP3 = 18;
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
 		NonDSCBPP2 = 36;
@@ -1667,6 +1669,8 @@ double dml32_TruncToValidBPP(
 				return NonDSCBPP1;
 			else if (MaxLinkBPP >= NonDSCBPP0)
 				return 16.0;
+			else if ((Output == dm_dp2p0 || Output == dm_dp) && NonDSCBPP3 != BPP_INVALID &&  MaxLinkBPP >= NonDSCBPP3)
+				return NonDSCBPP3; // Special case to allow 6bpc RGB for DP connections.
 			else
 				return BPP_INVALID;
 		}
@@ -4097,12 +4101,9 @@ bool dml32_CalculatePrefetchSchedule(
 
 	if (MyError) {
 		*PrefetchBandwidth = 0;
-		TimeForFetchingMetaPTE = 0;
-		TimeForFetchingRowInVBlank = 0;
 		*DestinationLinesToRequestVMInVBlank = 0;
 		*DestinationLinesToRequestRowInVBlank = 0;
 		*DestinationLinesForPrefetch = 0;
-		LinesToRequestPrefetchPixelData = 0;
 		*VRatioPrefetchY = 0;
 		*VRatioPrefetchC = 0;
 		*RequiredPrefetchPixDataBWLuma = 0;

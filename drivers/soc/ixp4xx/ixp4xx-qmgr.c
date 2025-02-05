@@ -461,10 +461,11 @@ static struct platform_driver ixp4xx_qmgr_driver = {
 		.of_match_table = ixp4xx_qmgr_of_match,
 	},
 	.probe = ixp4xx_qmgr_probe,
-	.remove_new = ixp4xx_qmgr_remove,
+	.remove = ixp4xx_qmgr_remove,
 };
 module_platform_driver(ixp4xx_qmgr_driver);
 
+MODULE_DESCRIPTION("Intel IXP4xx Queue Manager driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Krzysztof Halasa");
 

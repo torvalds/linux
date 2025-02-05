@@ -226,4 +226,5 @@ static int __init imx_clk_disable_uart(void)
 late_initcall_sync(imx_clk_disable_uart);
 #endif
 
+MODULE_DESCRIPTION("Common clock support for NXP i.MX SoC family");
 MODULE_LICENSE("GPL v2");

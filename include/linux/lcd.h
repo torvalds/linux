@@ -12,7 +12,11 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
-#include <linux/fb.h>
+
+#define LCD_POWER_ON			(0)
+#define LCD_POWER_REDUCED		(1) // deprecated; don't use in new code
+#define LCD_POWER_REDUCED_VSYNC_SUSPEND	(2) // deprecated; don't use in new code
+#define LCD_POWER_OFF			(4)
 
 /* Notes on locking:
  *
@@ -30,7 +34,6 @@
  */
 
 struct lcd_device;
-struct fb_info;
 
 struct lcd_properties {
 	/* The maximum value for contrast (read-only) */
@@ -47,11 +50,23 @@ struct lcd_ops {
 	int (*get_contrast)(struct lcd_device *);
 	/* Set LCD panel contrast */
         int (*set_contrast)(struct lcd_device *, int contrast);
-	/* Set LCD panel mode (resolutions ...) */
-	int (*set_mode)(struct lcd_device *, struct fb_videomode *);
-	/* Check if given framebuffer device is the one LCD is bound to;
-	   return 0 if not, !=0 if it is. If NULL, lcd always matches the fb. */
-	int (*check_fb)(struct lcd_device *, struct fb_info *);
+
+	/*
+	 * Set LCD panel mode (resolutions ...)
+	 */
+	int (*set_mode)(struct lcd_device *lcd, u32 xres, u32 yres);
+
+	/*
+	 * Check if the LCD controls the given display device. This
+	 * operation is optional and if not implemented it is assumed that
+	 * the display is always the one controlled by the LCD.
+	 *
+	 * RETURNS:
+	 *
+	 * If display_dev is NULL or display_dev matches the device controlled by
+	 * the LCD, return true. Otherwise return false.
+	 */
+	bool (*controls_device)(struct lcd_device *lcd, struct device *display_device);
 };
 
 struct lcd_device {
@@ -61,7 +76,7 @@ struct lcd_device {
 	   points to something in the body of that driver, it is also invalid. */
 	struct mutex ops_lock;
 	/* If this is NULL, the backing module is unloaded */
-	struct lcd_ops *ops;
+	const struct lcd_ops *ops;
 	/* Serialise access to set_power method */
 	struct mutex update_lock;
 	/* The framebuffer notifier block */
@@ -102,10 +117,10 @@ static inline void lcd_set_power(struct lcd_device *ld, int power)
 }
 
 extern struct lcd_device *lcd_device_register(const char *name,
-	struct device *parent, void *devdata, struct lcd_ops *ops);
+	struct device *parent, void *devdata, const struct lcd_ops *ops);
 extern struct lcd_device *devm_lcd_device_register(struct device *dev,
 	const char *name, struct device *parent,
-	void *devdata, struct lcd_ops *ops);
+	void *devdata, const struct lcd_ops *ops);
 extern void lcd_device_unregister(struct lcd_device *ld);
 extern void devm_lcd_device_unregister(struct device *dev,
 	struct lcd_device *ld);

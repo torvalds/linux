@@ -26,10 +26,6 @@
 
 #define ERRCTL_SPRAM		(1 << 28)
 
-/* errctl access */
-#define read_c0_errctl(x) read_c0_ecc(x)
-#define write_c0_errctl(x) write_c0_ecc(x)
-
 /*
  * Different semantics to the set_c0_* function built by __BUILD_SET_C0
  */

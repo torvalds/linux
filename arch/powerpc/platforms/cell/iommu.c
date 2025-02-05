@@ -424,23 +424,6 @@ static void __init cell_iommu_setup_hardware(struct cbe_iommu *iommu,
 	cell_iommu_enable_hardware(iommu);
 }
 
-#if 0/* Unused for now */
-static struct iommu_window *find_window(struct cbe_iommu *iommu,
-		unsigned long offset, unsigned long size)
-{
-	struct iommu_window *window;
-
-	/* todo: check for overlapping (but not equal) windows) */
-
-	list_for_each_entry(window, &(iommu->windows), list) {
-		if (window->offset == offset && window->size == size)
-			return window;
-	}
-
-	return NULL;
-}
-#endif
-
 static inline u32 cell_iommu_get_ioid(struct device_node *np)
 {
 	const u32 *ioid;
@@ -796,58 +779,41 @@ static int __init cell_iommu_init_disabled(void)
 
 static u64 cell_iommu_get_fixed_address(struct device *dev)
 {
-	u64 cpu_addr, size, best_size, dev_addr = OF_BAD_ADDR;
+	u64 best_size, dev_addr = OF_BAD_ADDR;
 	struct device_node *np;
-	const u32 *ranges = NULL;
-	int i, len, best, naddr, nsize, pna, range_size;
+	struct of_range_parser parser;
+	struct of_range range;
 
 	/* We can be called for platform devices that have no of_node */
 	np = of_node_get(dev->of_node);
 	if (!np)
 		goto out;
 
-	while (1) {
-		naddr = of_n_addr_cells(np);
-		nsize = of_n_size_cells(np);
-		np = of_get_next_parent(np);
-		if (!np)
-			break;
+	while ((np = of_get_next_parent(np))) {
+		if (of_pci_dma_range_parser_init(&parser, np))
+			continue;
 
-		ranges = of_get_property(np, "dma-ranges", &len);
-
-		/* Ignore empty ranges, they imply no translation required */
-		if (ranges && len > 0)
+		if (of_range_count(&parser))
 			break;
 	}
 
-	if (!ranges) {
+	if (!np) {
 		dev_dbg(dev, "iommu: no dma-ranges found\n");
 		goto out;
 	}
 
-	len /= sizeof(u32);
+	best_size = 0;
+	for_each_of_range(&parser, &range) {
+		if (!range.cpu_addr)
+			continue;
 
-	pna = of_n_addr_cells(np);
-	range_size = naddr + nsize + pna;
-
-	/* dma-ranges format:
-	 * child addr	: naddr cells
-	 * parent addr	: pna cells
-	 * size		: nsize cells
-	 */
-	for (i = 0, best = -1, best_size = 0; i < len; i += range_size) {
-		cpu_addr = of_translate_dma_address(np, ranges + i + naddr);
-		size = of_read_number(ranges + i + naddr + pna, nsize);
-
-		if (cpu_addr == 0 && size > best_size) {
-			best = i;
-			best_size = size;
+		if (range.size > best_size) {
+			best_size = range.size;
+			dev_addr = range.bus_addr;
 		}
 	}
 
-	if (best >= 0) {
-		dev_addr = of_read_number(ranges + best, naddr);
-	} else
+	if (!best_size)
 		dev_dbg(dev, "iommu: no suitable range found!\n");
 
 out:

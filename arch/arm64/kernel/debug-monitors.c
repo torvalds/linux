@@ -303,7 +303,6 @@ static int call_break_hook(struct pt_regs *regs, unsigned long esr)
 {
 	struct break_hook *hook;
 	struct list_head *list;
-	int (*fn)(struct pt_regs *regs, unsigned long esr) = NULL;
 
 	list = user_mode(regs) ? &user_break_hook : &kernel_break_hook;
 
@@ -312,13 +311,11 @@ static int call_break_hook(struct pt_regs *regs, unsigned long esr)
 	 * entirely not preemptible, and we can use rcu list safely here.
 	 */
 	list_for_each_entry_rcu(hook, list, node) {
-		unsigned long comment = esr & ESR_ELx_BRK64_ISS_COMMENT_MASK;
-
-		if ((comment & ~hook->mask) == hook->imm)
-			fn = hook->fn;
+		if ((esr_brk_comment(esr) & ~hook->mask) == hook->imm)
+			return hook->fn(regs, esr);
 	}
 
-	return fn ? fn(regs, esr) : DBG_HOOK_ERROR;
+	return DBG_HOOK_ERROR;
 }
 NOKPROBE_SYMBOL(call_break_hook);
 
@@ -441,6 +438,11 @@ NOKPROBE_SYMBOL(kernel_active_single_step);
 void kernel_rewind_single_step(struct pt_regs *regs)
 {
 	set_regs_spsr_ss(regs);
+}
+
+void kernel_fastforward_single_step(struct pt_regs *regs)
+{
+	clear_regs_spsr_ss(regs);
 }
 
 /* ptrace API */

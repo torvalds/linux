@@ -27,7 +27,13 @@ struct btrfs_root_item;
 struct btrfs_root;
 struct btrfs_path;
 
-/* Radix-tree tag for roots that are part of the trasaction. */
+/*
+ * Signal that a direct IO write is in progress, to avoid deadlock for sync
+ * direct IO writes when fsync is called during the direct IO write path.
+ */
+#define BTRFS_TRANS_DIO_WRITE_STUB	((void *) 1)
+
+/* Radix-tree tag for roots that are part of the transaction. */
 #define BTRFS_ROOT_TRANS_TAG			0
 
 enum btrfs_trans_state {
@@ -172,7 +178,7 @@ struct btrfs_trans_handle {
 
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
-	struct inode *dir;
+	struct btrfs_inode *dir;
 	struct btrfs_root *root;
 	struct btrfs_root_item *root_item;
 	struct btrfs_root *snap;
@@ -221,7 +227,21 @@ static inline void btrfs_clear_skip_qgroup(struct btrfs_trans_handle *trans)
 	delayed_refs->qgroup_to_skip = 0;
 }
 
-bool __cold abort_should_print_stack(int error);
+/*
+ * We want the transaction abort to print stack trace only for errors where the
+ * cause could be a bug, eg. due to ENOSPC, and not for common errors that are
+ * caused by external factors.
+ */
+static inline bool btrfs_abort_should_print_stack(int error)
+{
+	switch (error) {
+	case -EIO:
+	case -EROFS:
+	case -ENOMEM:
+		return false;
+	}
+	return true;
+}
 
 /*
  * Call btrfs_abort_transaction as early as possible when an error condition is
@@ -229,12 +249,12 @@ bool __cold abort_should_print_stack(int error);
  */
 #define btrfs_abort_transaction(trans, error)		\
 do {								\
-	bool first = false;					\
+	bool __first = false;					\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
-		first = true;					\
-		if (WARN(abort_should_print_stack(error),	\
+		__first = true;					\
+		if (WARN(btrfs_abort_should_print_stack(error),	\
 			KERN_ERR				\
 			"BTRFS: Transaction aborted (error %d)\n",	\
 			(error))) {					\
@@ -246,7 +266,7 @@ do {								\
 		}						\
 	}							\
 	__btrfs_abort_transaction((trans), __func__,		\
-				  __LINE__, (error), first);	\
+				  __LINE__, (error), __first);	\
 } while (0)
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans);
@@ -268,6 +288,7 @@ void btrfs_maybe_wake_unfinished_drop(struct btrfs_fs_info *fs_info);
 int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
 void btrfs_commit_transaction_async(struct btrfs_trans_handle *trans);
+int btrfs_commit_current_transaction(struct btrfs_root *root);
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans);
 bool btrfs_should_end_transaction(struct btrfs_trans_handle *trans);
 void btrfs_throttle(struct btrfs_fs_info *fs_info);

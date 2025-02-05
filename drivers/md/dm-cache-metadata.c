@@ -170,7 +170,7 @@ struct dm_cache_metadata {
  */
 #define SUPERBLOCK_CSUM_XOR 9031977
 
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b,
 				 size_t sb_block_size)
 {
@@ -195,7 +195,7 @@ static int check_metadata_version(struct cache_disk_superblock *disk_super)
 	return 0;
 }
 
-static int sb_check(struct dm_block_validator *v,
+static int sb_check(const struct dm_block_validator *v,
 		    struct dm_block *b,
 		    size_t sb_block_size)
 {
@@ -228,7 +228,7 @@ static int sb_check(struct dm_block_validator *v,
 	return check_metadata_version(disk_super);
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check
@@ -1218,15 +1218,6 @@ int dm_cache_load_discards(struct dm_cache_metadata *cmd,
 	return r;
 }
 
-int dm_cache_size(struct dm_cache_metadata *cmd, dm_cblock_t *result)
-{
-	READ_LOCK(cmd);
-	*result = cmd->cache_blocks;
-	READ_UNLOCK(cmd);
-
-	return 0;
-}
-
 static int __remove(struct dm_cache_metadata *cmd, dm_cblock_t cblock)
 {
 	int r;
@@ -1281,15 +1272,6 @@ int dm_cache_insert_mapping(struct dm_cache_metadata *cmd,
 
 	return r;
 }
-
-struct thunk {
-	load_mapping_fn fn;
-	void *context;
-
-	struct dm_cache_metadata *cmd;
-	bool respect_dirty_flags;
-	bool hints_valid;
-};
 
 static bool policy_unchanged(struct dm_cache_metadata *cmd,
 			     struct dm_cache_policy *policy)
@@ -1514,30 +1496,6 @@ int dm_cache_load_mappings(struct dm_cache_metadata *cmd,
 	READ_UNLOCK(cmd);
 
 	return r;
-}
-
-static int __dump_mapping(void *context, uint64_t cblock, void *leaf)
-{
-	__le64 value;
-	dm_oblock_t oblock;
-	unsigned int flags;
-
-	memcpy(&value, leaf, sizeof(value));
-	unpack_value(value, &oblock, &flags);
-
-	return 0;
-}
-
-static int __dump_mappings(struct dm_cache_metadata *cmd)
-{
-	return dm_array_walk(&cmd->info, cmd->root, __dump_mapping, NULL);
-}
-
-void dm_cache_dump(struct dm_cache_metadata *cmd)
-{
-	READ_LOCK_VOID(cmd);
-	__dump_mappings(cmd);
-	READ_UNLOCK(cmd);
 }
 
 int dm_cache_changed_this_transaction(struct dm_cache_metadata *cmd)

@@ -276,7 +276,7 @@ static int max1586_pmic_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max1586_id[] = {
-	{ "max1586", 0 },
+	{ "max1586" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max1586_id);

@@ -85,7 +85,7 @@ Alpine (TUI)
 - :menuselection:`Do Not Send Flowed Text` 必须开启
 - :menuselection:`Strip Whitespace Before Sending` 必须关闭
 
-当写邮件时，光标应该放在补丁会出现的地方，然后按下 :kbd:`CTRL-R` 组合键，使指
+当写邮件时，光标应该放在补丁会出现的地方，然后按下 `CTRL-R` 组合键，使指
 定的补丁文件嵌入到邮件中。
 
 Claws Mail (GUI)
@@ -93,7 +93,7 @@ Claws Mail (GUI)
 
 可以用，有人用它成功地发过补丁。
 
-用 :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`) 或外置编辑器插入补丁。
+用 :menuselection:`Message-->Insert File` (`CTRL-I`) 或外置编辑器插入补丁。
 
 若要在Claws编辑窗口重修改插入的补丁，需关闭
 :menuselection:`Configuration-->Preferences-->Compose-->Wrapping`
@@ -105,11 +105,11 @@ Evolution (GUI)
 一些开发者成功的使用它发送补丁。
 
 撰写邮件时：
-从 :menuselection:`格式-->段落样式-->预格式化` (:kbd:`CTRL-7`)
+从 :menuselection:`格式-->段落样式-->预格式化` (`CTRL-7`)
 或工具栏选择 :menuselection:`预格式化` ；
 
 然后使用：
-:menuselection:`插入-->文本文件...` (:kbd:`ALT-N x`) 插入补丁文件。
+:menuselection:`插入-->文本文件...` (`ALT-N x`) 插入补丁文件。
 
 你还可以 ``diff -Nru old.c new.c | xclip`` ，选择 :menuselection:`预格式化` ，
 然后使用鼠标中键进行粘帖。
@@ -197,7 +197,7 @@ Mutt不自带编辑器，所以不管你使用什么编辑器，不自动断行�
 Mutt 是高度可配置的。 这里是个使用mutt通过 Gmail 发送的补丁的最小配置::
 
   # .muttrc
-  # ================  IMAP ====================
+  # ================  IMAP  ====================
   set imap_user = 'yourusername@gmail.com'
   set imap_pass = 'yourpassword'
   set spoolfile = imaps://imap.gmail.com/INBOX
@@ -325,3 +325,10 @@ Gmail网页客户端自动地把制表符转换为空格。
 另一个问题是Gmail还会把任何含有非ASCII的字符的消息改用base64编码，如欧洲人的
 名字。
 
+HacKerMaiL (TUI)
+****************
+
+HacKerMaiL (hkml) 是一个基于公共收件箱的简单邮件管理工具，它不需要订阅邮件列表。
+该工具由 DAMON 维护者开发和维护，旨在支持 DAMON 和通用内核子系统的基本开发工作
+流程。详细信息可参考 HacKerMaiL 的 README 文件
+(https://github.com/sjp38/hackermail/blob/master/README.md)。

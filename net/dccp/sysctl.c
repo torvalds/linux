@@ -11,10 +11,6 @@
 #include "dccp.h"
 #include "feat.h"
 
-#ifndef CONFIG_SYSCTL
-#error This file should not be compiled without CONFIG_SYSCTL defined
-#endif
-
 /* Boundary values */
 static int		u8_max   = 0xFF;
 static unsigned long	seqw_min = DCCPF_SEQ_WMIN,
@@ -90,8 +86,6 @@ static struct ctl_table dccp_default_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
 	},
-
-	{ }
 };
 
 static struct ctl_table_header *dccp_table_header;

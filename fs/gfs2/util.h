@@ -92,7 +92,7 @@ gfs2_consist_rgrpd_i((rgd), __func__, __FILE__, __LINE__)
 
 
 int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *type, const char *function,
+		       const char *function,
 		       char *file, unsigned int line);
 
 static inline int gfs2_meta_check(struct gfs2_sbd *sdp,
@@ -123,7 +123,7 @@ static inline int gfs2_metatype_check_i(struct gfs2_sbd *sdp,
 	u32 magic = be32_to_cpu(mh->mh_magic);
 	u16 t = be32_to_cpu(mh->mh_type);
 	if (unlikely(magic != GFS2_MAGIC))
-		return gfs2_meta_check_ii(sdp, bh, "magic number", function,
+		return gfs2_meta_check_ii(sdp, bh, function,
 					  file, line);
         if (unlikely(t != type))
 		return gfs2_metatype_check_ii(sdp, bh, type, t, function,
@@ -150,7 +150,7 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		        bool verbose);
 int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp);
-void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh);
+void gfs2_freeze_unlock(struct gfs2_sbd *sdp);
 
 #define gfs2_io_error(sdp) \
 gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__)

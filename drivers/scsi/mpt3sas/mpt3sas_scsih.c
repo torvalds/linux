@@ -53,8 +53,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/raid_class.h>
-#include <linux/blk-mq-pci.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "mpt3sas_base.h"
 
@@ -302,8 +301,8 @@ struct _scsi_io_transfer {
 
 /**
  * _scsih_set_debug_level - global setting of ioc->logging_level.
- * @val: ?
- * @kp: ?
+ * @val: value of the parameter to be set
+ * @kp: pointer to kernel_param structure
  *
  * Note: The logging levels are defined in mpt3sas_debug.h.
  */
@@ -2026,14 +2025,14 @@ scsih_target_destroy(struct scsi_target *starget)
 }
 
 /**
- * scsih_slave_alloc - device add routine
+ * scsih_sdev_init - device add routine
  * @sdev: scsi device struct
  *
  * Return: 0 if ok. Any other return is assumed to be an error and
  * the device is ignored.
  */
 static int
-scsih_slave_alloc(struct scsi_device *sdev)
+scsih_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host *shost;
 	struct MPT3SAS_ADAPTER *ioc;
@@ -2108,11 +2107,11 @@ scsih_slave_alloc(struct scsi_device *sdev)
 }
 
 /**
- * scsih_slave_destroy - device destroy routine
+ * scsih_sdev_destroy - device destroy routine
  * @sdev: scsi device struct
  */
 static void
-scsih_slave_destroy(struct scsi_device *sdev)
+scsih_sdev_destroy(struct scsi_device *sdev)
 {
 	struct MPT3SAS_TARGET *sas_target_priv_data;
 	struct scsi_target *starget;
@@ -2497,14 +2496,15 @@ _scsih_enable_tlr(struct MPT3SAS_ADAPTER *ioc, struct scsi_device *sdev)
 }
 
 /**
- * scsih_slave_configure - device configure routine.
+ * scsih_sdev_configure - device configure routine.
  * @sdev: scsi device struct
+ * @lim: queue limits
  *
  * Return: 0 if ok. Any other return is assumed to be an error and
  * the device is ignored.
  */
 static int
-scsih_slave_configure(struct scsi_device *sdev)
+scsih_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct Scsi_Host *shost = sdev->host;
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
@@ -2609,8 +2609,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 			    raid_device->num_pds, ds);
 
 		if (shost->max_sectors > MPT3SAS_RAID_MAX_SECTORS) {
-			blk_queue_max_hw_sectors(sdev->request_queue,
-						MPT3SAS_RAID_MAX_SECTORS);
+			lim->max_hw_sectors = MPT3SAS_RAID_MAX_SECTORS;
 			sdev_printk(KERN_INFO, sdev,
 					"Set queue's max_sector to: %u\n",
 						MPT3SAS_RAID_MAX_SECTORS);
@@ -2675,20 +2674,12 @@ scsih_slave_configure(struct scsi_device *sdev)
 				pcie_device->connector_name);
 
 		if (pcie_device->nvme_mdts)
-			blk_queue_max_hw_sectors(sdev->request_queue,
-					pcie_device->nvme_mdts/512);
+			lim->max_hw_sectors = pcie_device->nvme_mdts / 512;
 
 		pcie_device_put(pcie_device);
 		spin_unlock_irqrestore(&ioc->pcie_device_lock, flags);
 		mpt3sas_scsih_change_queue_depth(sdev, qdepth);
-		/* Enable QUEUE_FLAG_NOMERGES flag, so that IOs won't be
-		 ** merged and can eliminate holes created during merging
-		 ** operation.
-		 **/
-		blk_queue_flag_set(QUEUE_FLAG_NOMERGES,
-				sdev->request_queue);
-		blk_queue_virt_boundary(sdev->request_queue,
-				ioc->page_size - 1);
+		lim->virt_boundary_mask = ioc->page_size - 1;
 		return 0;
 	}
 
@@ -11898,7 +11889,7 @@ static void scsih_map_queues(struct Scsi_Host *shost)
 		 */
 		map->queue_offset = qoff;
 		if (i != HCTX_TYPE_POLL)
-			blk_mq_pci_map_queues(map, ioc->pdev, offset);
+			blk_mq_map_hw_queues(map, &ioc->pdev->dev, offset);
 		else
 			blk_mq_map_queues(map);
 
@@ -11913,10 +11904,10 @@ static const struct scsi_host_template mpt2sas_driver_template = {
 	.proc_name			= MPT2SAS_DRIVER_NAME,
 	.queuecommand			= scsih_qcmd,
 	.target_alloc			= scsih_target_alloc,
-	.slave_alloc			= scsih_slave_alloc,
-	.slave_configure		= scsih_slave_configure,
+	.sdev_init			= scsih_sdev_init,
+	.sdev_configure			= scsih_sdev_configure,
 	.target_destroy			= scsih_target_destroy,
-	.slave_destroy			= scsih_slave_destroy,
+	.sdev_destroy			= scsih_sdev_destroy,
 	.scan_finished			= scsih_scan_finished,
 	.scan_start			= scsih_scan_start,
 	.change_queue_depth		= scsih_change_queue_depth,
@@ -11951,10 +11942,10 @@ static const struct scsi_host_template mpt3sas_driver_template = {
 	.proc_name			= MPT3SAS_DRIVER_NAME,
 	.queuecommand			= scsih_qcmd,
 	.target_alloc			= scsih_target_alloc,
-	.slave_alloc			= scsih_slave_alloc,
-	.slave_configure		= scsih_slave_configure,
+	.sdev_init			= scsih_sdev_init,
+	.sdev_configure			= scsih_sdev_configure,
 	.target_destroy			= scsih_target_destroy,
-	.slave_destroy			= scsih_slave_destroy,
+	.sdev_destroy			= scsih_sdev_destroy,
 	.scan_finished			= scsih_scan_finished,
 	.scan_start			= scsih_scan_start,
 	.change_queue_depth		= scsih_change_queue_depth,
@@ -12309,10 +12300,8 @@ _scsih_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	scsi_host_set_guard(shost, SHOST_DIX_GUARD_CRC);
 
 	/* event thread */
-	snprintf(ioc->firmware_event_name, sizeof(ioc->firmware_event_name),
-	    "fw_event_%s%d", ioc->driver_name, ioc->id);
 	ioc->firmware_event_thread = alloc_ordered_workqueue(
-	    ioc->firmware_event_name, 0);
+		"fw_event_%s%d", 0, ioc->driver_name, ioc->id);
 	if (!ioc->firmware_event_thread) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
 			__FILE__, __LINE__, __func__);
@@ -12573,29 +12562,6 @@ scsih_pci_mmio_enabled(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-/**
- * scsih_ncq_prio_supp - Check for NCQ command priority support
- * @sdev: scsi device struct
- *
- * This is called when a user indicates they would like to enable
- * ncq command priorities. This works only on SATA devices.
- */
-bool scsih_ncq_prio_supp(struct scsi_device *sdev)
-{
-	struct scsi_vpd *vpd;
-	bool ncq_prio_supp = false;
-
-	rcu_read_lock();
-	vpd = rcu_dereference(sdev->vpd_pg89);
-	if (!vpd || vpd->len < 214)
-		goto out;
-
-	ncq_prio_supp = (vpd->data[213] >> 4) & 1;
-out:
-	rcu_read_unlock();
-
-	return ncq_prio_supp;
-}
 /*
  * The pci device ids are defined in mpi/mpi2_cnfg.h.
  */

@@ -8,16 +8,12 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
+#include <sound/soc-acpi-intel-ssp-common.h>
 #include "soc-acpi-intel-sdw-mockup-match.h"
 
 static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.num_codecs = 3,
 	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
-};
-
-static const struct snd_soc_acpi_codecs tgl_codecs = {
-	.num_codecs = 1,
-	.codecs = {"MX98357A"}
 };
 
 static const struct snd_soc_acpi_endpoint single_endpoint = {
@@ -414,11 +410,38 @@ static const struct snd_soc_acpi_link_adr tgl_712_only[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
+	{ /* Jack Playback Endpoint */
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* DMIC Capture Endpoint */
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Jack Capture Endpoint */
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{ /* Speaker Playback Endpoint */
+		.num = 3,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 static const struct snd_soc_acpi_adr_device cs42l43_3_adr[] = {
 	{
 		.adr = 0x00033001FA424301ull,
-		.num_endpoints = 1,
-		.endpoints = &single_endpoint,
+		.num_endpoints = ARRAY_SIZE(cs42l43_endpoints),
+		.endpoints = cs42l43_endpoints,
 		.name_prefix = "cs42l43"
 	}
 };
@@ -443,13 +466,13 @@ static const struct snd_soc_acpi_adr_device cs35l56_1_adr[] = {
 		.adr = 0x00013701FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_l_endpoint,
-		.name_prefix = "AMP8"
+		.name_prefix = "AMP3"
 	},
 	{
 		.adr = 0x00013601FA355601ull,
 		.num_endpoints = 1,
 		.endpoints = &spk_2_endpoint,
-		.name_prefix = "AMP7"
+		.name_prefix = "AMP4"
 	}
 };
 
@@ -472,19 +495,9 @@ static const struct snd_soc_acpi_link_adr tgl_cs42l43_cs35l56[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_codecs tgl_max98373_amp = {
-	.num_codecs = 1,
-	.codecs = {"MX98373"}
-};
-
-static const struct snd_soc_acpi_codecs tgl_rt1011_amp = {
-	.num_codecs = 1,
-	.codecs = {"10EC1011"}
-};
-
 static const struct snd_soc_acpi_codecs tgl_rt5682_rt5682s_hp = {
 	.num_codecs = 2,
-	.codecs = {"10EC5682", "RTL5682"},
+	.codecs = {RT5682_ACPI_HID, RT5682S_ACPI_HID},
 };
 
 static const struct snd_soc_acpi_codecs tgl_lt6911_hdmi = {
@@ -494,27 +507,6 @@ static const struct snd_soc_acpi_codecs tgl_lt6911_hdmi = {
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_codecs,
-		.sof_tplg_filename = "sof-tgl-max98357a-rt5682.tplg",
-	},
-	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_max98373_amp,
-		.sof_tplg_filename = "sof-tgl-max98373-rt5682.tplg",
-	},
-	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_rt1011_amp,
-		.sof_tplg_filename = "sof-tgl-rt1011-rt5682.tplg",
-	},
-	{
 		.comp_ids = &essx_83x6,
 		.drv_name = "sof-essx8336",
 		.sof_tplg_filename = "sof-tgl-es8336", /* the tplg suffix is added at run time */
@@ -522,6 +514,17 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
+	/* place boards for each headphone codec: sof driver will complete the
+	 * tplg name and machine driver will detect the amp type
+	 */
+	{
+		.comp_ids = &tgl_rt5682_rt5682s_hp,
+		.drv_name = "tgl_rt5682_def",
+		.sof_tplg_filename = "sof-tgl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	/* place amp-only boards in the end of table */
 	{
 		.id = "10EC1308",
 		.drv_name = "tgl_rt1308_hdmi_ssp",
@@ -532,6 +535,194 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 	{},
 };
 EXPORT_SYMBOL_GPL(snd_soc_acpi_intel_tgl_machines);
+
+static const struct snd_soc_acpi_endpoint cs35l56_l_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 0,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_r_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 1,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_2_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 2,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_3_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 3,
+		.group_id = 2,
+	},
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_4_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 4,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 4,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_5_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 5,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 5,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_6_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 6,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 6,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_endpoint cs35l56_7_fb_endpoints[] = {
+	{ /* Speaker Playback Endpoint */
+		.num = 0,
+		.aggregated = 1,
+		.group_position = 7,
+		.group_id = 1,
+	},
+	{ /* Feedback Capture Endpoint */
+		.num = 1,
+		.aggregated = 1,
+		.group_position = 7,
+		.group_id = 2,
+	}
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_sdw_eight_1_4_fb_adr[] = {
+	{
+		.adr = 0x00003301fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_l_fb_endpoints),
+		.endpoints = cs35l56_l_fb_endpoints,
+		.name_prefix = "AMP1"
+	},
+	{
+		.adr = 0x00003201fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_2_fb_endpoints),
+		.endpoints = cs35l56_2_fb_endpoints,
+		.name_prefix = "AMP2"
+	},
+	{
+		.adr = 0x00003101fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_4_fb_endpoints),
+		.endpoints = cs35l56_4_fb_endpoints,
+		.name_prefix = "AMP3"
+	},
+	{
+		.adr = 0x00003001fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_6_fb_endpoints),
+		.endpoints = cs35l56_6_fb_endpoints,
+		.name_prefix = "AMP4"
+	},
+};
+
+static const struct snd_soc_acpi_adr_device cs35l56_sdw_eight_5_8_fb_adr[] = {
+	{
+		.adr = 0x00013701fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_r_fb_endpoints),
+		.endpoints = cs35l56_r_fb_endpoints,
+		.name_prefix = "AMP8"
+	},
+	{
+		.adr = 0x00013601fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_3_fb_endpoints),
+		.endpoints = cs35l56_3_fb_endpoints,
+		.name_prefix = "AMP7"
+	},
+	{
+		.adr = 0x00013501fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_5_fb_endpoints),
+		.endpoints = cs35l56_5_fb_endpoints,
+		.name_prefix = "AMP6"
+	},
+	{
+		.adr = 0x00013401fa355601,
+		.num_endpoints = ARRAY_SIZE(cs35l56_7_fb_endpoints),
+		.endpoints = cs35l56_7_fb_endpoints,
+		.name_prefix = "AMP5"
+	},
+};
+
+static const struct snd_soc_acpi_link_adr up_extreme_cs35l56_sdw_eight[] = {
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(cs35l56_sdw_eight_5_8_fb_adr),
+		.adr_d = cs35l56_sdw_eight_5_8_fb_adr,
+	},
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(cs35l56_sdw_eight_1_4_fb_adr),
+		.adr_d = cs35l56_sdw_eight_1_4_fb_adr,
+	},
+	{}
+};
 
 /* this table is used when there is no I2S codec present */
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
@@ -631,6 +822,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_sdw_machines[] = {
 		.links = tgl_rvp_headset_only,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-tgl-rt711.tplg",
+	},
+	{
+		.link_mask = BIT(0) | BIT(1),
+		.links = up_extreme_cs35l56_sdw_eight,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-tgl-cs35l56-l01-fb8.tplg"
 	},
 	{},
 };

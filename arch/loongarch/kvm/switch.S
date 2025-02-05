@@ -277,6 +277,10 @@ SYM_DATA(kvm_enter_guest_size, .quad kvm_enter_guest_end - kvm_enter_guest)
 
 #ifdef CONFIG_CPU_HAS_LBT
 STACK_FRAME_NON_STANDARD kvm_restore_fpu
+#ifdef CONFIG_CPU_HAS_LSX
 STACK_FRAME_NON_STANDARD kvm_restore_lsx
+#endif
+#ifdef CONFIG_CPU_HAS_LASX
 STACK_FRAME_NON_STANDARD kvm_restore_lasx
+#endif
 #endif

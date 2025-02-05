@@ -26,7 +26,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 
 /* NOTES:
@@ -222,10 +222,6 @@ static int mmc_spi_response_get(struct mmc_spi_host *host,
 	u8 	leftover = 0;
 	unsigned short rotator;
 	int 	i;
-	char	tag[32];
-
-	snprintf(tag, sizeof(tag), "  ... CMD%d response SPI_%s",
-		cmd->opcode, maptype(cmd));
 
 	/* Except for data block reads, the whole response will already
 	 * be stored in the scratch buffer.  It's somewhere after the
@@ -378,8 +374,9 @@ checkstatus:
 	}
 
 	if (value < 0)
-		dev_dbg(&host->spi->dev, "%s: resp %04x %08x\n",
-			tag, cmd->resp[0], cmd->resp[1]);
+		dev_dbg(&host->spi->dev,
+			"  ... CMD%d response SPI_%s: resp %04x %08x\n",
+			cmd->opcode, maptype(cmd), cmd->resp[0], cmd->resp[1]);
 
 	/* disable chipselect on errors and some success cases */
 	if (value >= 0 && cs_on)
@@ -1208,7 +1205,10 @@ static int mmc_spi_probe(struct spi_device *spi)
 	 * that's the only reason not to use a few MHz for f_min (until
 	 * the upper layer reads the target frequency from the CSD).
 	 */
-	mmc->f_min = 400000;
+	if (spi->controller->min_speed_hz > 400000)
+		dev_warn(&spi->dev,"Controller unable to reduce bus clock to 400 KHz\n");
+
+	mmc->f_min = max(spi->controller->min_speed_hz, 400000);
 	mmc->f_max = spi->max_speed_hz;
 
 	host = mmc_priv(mmc);

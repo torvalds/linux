@@ -7,7 +7,7 @@
  * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/hid.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -271,10 +271,9 @@ static int surface_kbd_probe(struct platform_device *pdev)
 	return surface_hid_device_add(shid);
 }
 
-static int surface_kbd_remove(struct platform_device *pdev)
+static void surface_kbd_remove(struct platform_device *pdev)
 {
 	surface_hid_device_destroy(platform_get_drvdata(pdev));
-	return 0;
 }
 
 static const struct acpi_device_id surface_kbd_match[] = {

@@ -2216,7 +2216,7 @@ static void omap_sham_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_sham_driver = {
 	.probe	= omap_sham_probe,
-	.remove_new = omap_sham_remove,
+	.remove = omap_sham_remove,
 	.driver	= {
 		.name	= "omap-sham",
 		.of_match_table	= omap_sham_of_match,

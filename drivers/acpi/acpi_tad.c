@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
 
+MODULE_DESCRIPTION("ACPI Time and Alarm (TAD) Device Driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rafael J. Wysocki");
 
@@ -683,7 +684,7 @@ static struct platform_driver acpi_tad_driver = {
 		.acpi_match_table = acpi_tad_ids,
 	},
 	.probe = acpi_tad_probe,
-	.remove_new = acpi_tad_remove,
+	.remove = acpi_tad_remove,
 };
 MODULE_DEVICE_TABLE(acpi, acpi_tad_ids);
 

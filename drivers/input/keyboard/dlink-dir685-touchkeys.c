@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/bitops.h>
 
 struct dir685_touchkeys {
@@ -48,7 +49,7 @@ static irqreturn_t dir685_tk_irq_thread(int irq, void *data)
 	changed = tk->cur_key ^ key;
 	for_each_set_bit(i, &changed, num_bits) {
 		dev_dbg(tk->dev, "key %d is %s\n", i,
-			test_bit(i, &key) ? "down" : "up");
+			str_down_up(test_bit(i, &key)));
 		input_report_key(tk->input, tk->codes[i], test_bit(i, &key));
 	}
 
@@ -127,7 +128,7 @@ static int dir685_tk_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id dir685_tk_id[] = {
-	{ "dir685tk", 0 },
+	{ "dir685tk" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, dir685_tk_id);

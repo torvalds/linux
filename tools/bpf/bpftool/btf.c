@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /* Copyright (C) 2019 Facebook */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <linux/err.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <linux/btf.h>
@@ -19,6 +23,11 @@
 
 #include "json_writer.h"
 #include "main.h"
+
+#define KFUNC_DECL_TAG		"bpf_kfunc"
+#define FASTCALL_DECL_TAG	"bpf_fastcall"
+
+#define MAX_ROOT_IDS		16
 
 static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_UNKN]		= "UNKNOWN",
@@ -41,6 +50,14 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 	[BTF_KIND_TYPE_TAG]	= "TYPE_TAG",
 	[BTF_KIND_ENUM64]	= "ENUM64",
+};
+
+struct sort_datum {
+	int index;
+	int type_rank;
+	const char *sort_name;
+	const char *own_name;
+	__u64 disambig_hash;
 };
 
 static const char *btf_int_enc_str(__u8 encoding)
@@ -274,7 +291,7 @@ static int dump_btf_type(const struct btf *btf, __u32 id,
 			} else {
 				if (btf_kflag(t))
 					printf("\n\t'%s' val=%lldLL", name,
-					       (unsigned long long)val);
+					       (long long)val);
 				else
 					printf("\n\t'%s' val=%lluULL", name,
 					       (unsigned long long)val);
@@ -454,15 +471,307 @@ static int dump_btf_raw(const struct btf *btf,
 	return 0;
 }
 
+struct ptr_array {
+	__u32 cnt;
+	__u32 cap;
+	const void **elems;
+};
+
+static int ptr_array_push(const void *ptr, struct ptr_array *arr)
+{
+	__u32 new_cap;
+	void *tmp;
+
+	if (arr->cnt == arr->cap) {
+		new_cap = (arr->cap ?: 16) * 2;
+		tmp = realloc(arr->elems, sizeof(*arr->elems) * new_cap);
+		if (!tmp)
+			return -ENOMEM;
+		arr->elems = tmp;
+		arr->cap = new_cap;
+	}
+	arr->elems[arr->cnt++] = ptr;
+	return 0;
+}
+
+static void ptr_array_free(struct ptr_array *arr)
+{
+	free(arr->elems);
+}
+
+static int cmp_kfuncs(const void *pa, const void *pb, void *ctx)
+{
+	struct btf *btf = ctx;
+	const struct btf_type *a = *(void **)pa;
+	const struct btf_type *b = *(void **)pb;
+
+	return strcmp(btf__str_by_offset(btf, a->name_off),
+		      btf__str_by_offset(btf, b->name_off));
+}
+
+static int dump_btf_kfuncs(struct btf_dump *d, const struct btf *btf)
+{
+	LIBBPF_OPTS(btf_dump_emit_type_decl_opts, opts);
+	__u32 cnt = btf__type_cnt(btf), i, j;
+	struct ptr_array fastcalls = {};
+	struct ptr_array kfuncs = {};
+	int err = 0;
+
+	printf("\n/* BPF kfuncs */\n");
+	printf("#ifndef BPF_NO_KFUNC_PROTOTYPES\n");
+
+	for (i = 1; i < cnt; i++) {
+		const struct btf_type *t = btf__type_by_id(btf, i);
+		const struct btf_type *ft;
+		const char *name;
+
+		if (!btf_is_decl_tag(t))
+			continue;
+
+		if (btf_decl_tag(t)->component_idx != -1)
+			continue;
+
+		ft = btf__type_by_id(btf, t->type);
+		if (!btf_is_func(ft))
+			continue;
+
+		name = btf__name_by_offset(btf, t->name_off);
+		if (strncmp(name, KFUNC_DECL_TAG, sizeof(KFUNC_DECL_TAG)) == 0) {
+			err = ptr_array_push(ft, &kfuncs);
+			if (err)
+				goto out;
+		}
+
+		if (strncmp(name, FASTCALL_DECL_TAG, sizeof(FASTCALL_DECL_TAG)) == 0) {
+			err = ptr_array_push(ft, &fastcalls);
+			if (err)
+				goto out;
+		}
+	}
+
+	/* Sort kfuncs by name for improved vmlinux.h stability  */
+	qsort_r(kfuncs.elems, kfuncs.cnt, sizeof(*kfuncs.elems), cmp_kfuncs, (void *)btf);
+	for (i = 0; i < kfuncs.cnt; i++) {
+		const struct btf_type *t = kfuncs.elems[i];
+
+		printf("extern ");
+
+		/* Assume small amount of fastcall kfuncs */
+		for (j = 0; j < fastcalls.cnt; j++) {
+			if (fastcalls.elems[j] == t) {
+				printf("__bpf_fastcall ");
+				break;
+			}
+		}
+
+		opts.field_name = btf__name_by_offset(btf, t->name_off);
+		err = btf_dump__emit_type_decl(d, t->type, &opts);
+		if (err)
+			goto out;
+
+		printf(" __weak __ksym;\n");
+	}
+
+	printf("#endif\n\n");
+
+out:
+	ptr_array_free(&fastcalls);
+	ptr_array_free(&kfuncs);
+	return err;
+}
+
 static void __printf(2, 0) btf_dump_printf(void *ctx,
 					   const char *fmt, va_list args)
 {
 	vfprintf(stdout, fmt, args);
 }
 
-static int dump_btf_c(const struct btf *btf,
-		      __u32 *root_type_ids, int root_type_cnt)
+static int btf_type_rank(const struct btf *btf, __u32 index, bool has_name)
 {
+	const struct btf_type *t = btf__type_by_id(btf, index);
+	const int kind = btf_kind(t);
+	const int max_rank = 10;
+
+	if (t->name_off)
+		has_name = true;
+
+	switch (kind) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+		return has_name ? 1 : 0;
+	case BTF_KIND_INT:
+	case BTF_KIND_FLOAT:
+		return 2;
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+		return has_name ? 3 : max_rank;
+	case BTF_KIND_FUNC_PROTO:
+		return has_name ? 4 : max_rank;
+	case BTF_KIND_ARRAY:
+		if (has_name)
+			return btf_type_rank(btf, btf_array(t)->type, has_name);
+		return max_rank;
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		if (has_name)
+			return btf_type_rank(btf, t->type, has_name);
+		return max_rank;
+	default:
+		return max_rank;
+	}
+}
+
+static const char *btf_type_sort_name(const struct btf *btf, __u32 index, bool from_ref)
+{
+	const struct btf_type *t = btf__type_by_id(btf, index);
+
+	switch (btf_kind(t)) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64: {
+		int name_off = t->name_off;
+
+		if (!from_ref && !name_off && btf_vlen(t))
+			name_off = btf_kind(t) == BTF_KIND_ENUM64 ?
+				btf_enum64(t)->name_off :
+				btf_enum(t)->name_off;
+
+		return btf__name_by_offset(btf, name_off);
+	}
+	case BTF_KIND_ARRAY:
+		return btf_type_sort_name(btf, btf_array(t)->type, true);
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		return btf_type_sort_name(btf, t->type, true);
+	default:
+		return btf__name_by_offset(btf, t->name_off);
+	}
+	return NULL;
+}
+
+static __u64 hasher(__u64 hash, __u64 val)
+{
+	return hash * 31 + val;
+}
+
+static __u64 btf_name_hasher(__u64 hash, const struct btf *btf, __u32 name_off)
+{
+	if (!name_off)
+		return hash;
+
+	return hasher(hash, str_hash(btf__name_by_offset(btf, name_off)));
+}
+
+static __u64 btf_type_disambig_hash(const struct btf *btf, __u32 id, bool include_members)
+{
+	const struct btf_type *t = btf__type_by_id(btf, id);
+	int i;
+	size_t hash = 0;
+
+	hash = btf_name_hasher(hash, btf, t->name_off);
+
+	switch (btf_kind(t)) {
+	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
+		for (i = 0; i < btf_vlen(t); i++) {
+			__u32 name_off = btf_is_enum(t) ?
+				btf_enum(t)[i].name_off :
+				btf_enum64(t)[i].name_off;
+
+			hash = btf_name_hasher(hash, btf, name_off);
+		}
+		break;
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+		if (!include_members)
+			break;
+		for (i = 0; i < btf_vlen(t); i++) {
+			const struct btf_member *m = btf_members(t) + i;
+
+			hash = btf_name_hasher(hash, btf, m->name_off);
+			/* resolve field type's name and hash it as well */
+			hash = hasher(hash, btf_type_disambig_hash(btf, m->type, false));
+		}
+		break;
+	case BTF_KIND_TYPE_TAG:
+	case BTF_KIND_CONST:
+	case BTF_KIND_PTR:
+	case BTF_KIND_VOLATILE:
+	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPEDEF:
+	case BTF_KIND_DECL_TAG:
+		hash = hasher(hash, btf_type_disambig_hash(btf, t->type, include_members));
+		break;
+	case BTF_KIND_ARRAY: {
+		struct btf_array *arr = btf_array(t);
+
+		hash = hasher(hash, arr->nelems);
+		hash = hasher(hash, btf_type_disambig_hash(btf, arr->type, include_members));
+		break;
+	}
+	default:
+		break;
+	}
+	return hash;
+}
+
+static int btf_type_compare(const void *left, const void *right)
+{
+	const struct sort_datum *d1 = (const struct sort_datum *)left;
+	const struct sort_datum *d2 = (const struct sort_datum *)right;
+	int r;
+
+	r = d1->type_rank - d2->type_rank;
+	r = r ?: strcmp(d1->sort_name, d2->sort_name);
+	r = r ?: strcmp(d1->own_name, d2->own_name);
+	if (r)
+		return r;
+
+	if (d1->disambig_hash != d2->disambig_hash)
+		return d1->disambig_hash < d2->disambig_hash ? -1 : 1;
+
+	return d1->index - d2->index;
+}
+
+static struct sort_datum *sort_btf_c(const struct btf *btf)
+{
+	struct sort_datum *datums;
+	int n;
+
+	n = btf__type_cnt(btf);
+	datums = malloc(sizeof(struct sort_datum) * n);
+	if (!datums)
+		return NULL;
+
+	for (int i = 0; i < n; ++i) {
+		struct sort_datum *d = datums + i;
+		const struct btf_type *t = btf__type_by_id(btf, i);
+
+		d->index = i;
+		d->type_rank = btf_type_rank(btf, i, false);
+		d->sort_name = btf_type_sort_name(btf, i, false);
+		d->own_name = btf__name_by_offset(btf, t->name_off);
+		d->disambig_hash = btf_type_disambig_hash(btf, i, true);
+	}
+
+	qsort(datums, n, sizeof(struct sort_datum), btf_type_compare);
+
+	return datums;
+}
+
+static int dump_btf_c(const struct btf *btf,
+		      __u32 *root_type_ids, int root_type_cnt, bool sort_dump)
+{
+	struct sort_datum *datums = NULL;
 	struct btf_dump *d;
 	int err = 0, i;
 
@@ -476,6 +785,19 @@ static int dump_btf_c(const struct btf *btf,
 	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
 	printf("#pragma clang attribute push (__attribute__((preserve_access_index)), apply_to = record)\n");
 	printf("#endif\n\n");
+	printf("#ifndef __ksym\n");
+	printf("#define __ksym __attribute__((section(\".ksyms\")))\n");
+	printf("#endif\n\n");
+	printf("#ifndef __weak\n");
+	printf("#define __weak __attribute__((weak))\n");
+	printf("#endif\n\n");
+	printf("#ifndef __bpf_fastcall\n");
+	printf("#if __has_attribute(bpf_fastcall)\n");
+	printf("#define __bpf_fastcall __attribute__((bpf_fastcall))\n");
+	printf("#else\n");
+	printf("#define __bpf_fastcall\n");
+	printf("#endif\n");
+	printf("#endif\n\n");
 
 	if (root_type_cnt) {
 		for (i = 0; i < root_type_cnt; i++) {
@@ -486,11 +808,19 @@ static int dump_btf_c(const struct btf *btf,
 	} else {
 		int cnt = btf__type_cnt(btf);
 
+		if (sort_dump)
+			datums = sort_btf_c(btf);
 		for (i = 1; i < cnt; i++) {
-			err = btf_dump__dump_type(d, i);
+			int idx = datums ? datums[i].index : i;
+
+			err = btf_dump__dump_type(d, idx);
 			if (err)
 				goto done;
 		}
+
+		err = dump_btf_kfuncs(d, btf);
+		if (err)
+			goto done;
 	}
 
 	printf("#ifndef BPF_NO_PRESERVE_ACCESS_INDEX\n");
@@ -500,6 +830,7 @@ static int dump_btf_c(const struct btf *btf,
 	printf("#endif /* __VMLINUX_H__ */\n");
 
 done:
+	free(datums);
 	btf_dump__free(d);
 	return err;
 }
@@ -549,14 +880,16 @@ static bool btf_is_kernel_module(__u32 btf_id)
 
 static int do_dump(int argc, char **argv)
 {
+	bool dump_c = false, sort_dump_c = true;
 	struct btf *btf = NULL, *base = NULL;
-	__u32 root_type_ids[2];
+	__u32 root_type_ids[MAX_ROOT_IDS];
+	bool have_id_filtering;
 	int root_type_cnt = 0;
-	bool dump_c = false;
 	__u32 btf_id = -1;
 	const char *src;
 	int fd = -1;
 	int err = 0;
+	int i;
 
 	if (!REQ_ARGS(2)) {
 		usage();
@@ -644,6 +977,8 @@ static int do_dump(int argc, char **argv)
 		goto done;
 	}
 
+	have_id_filtering = !!root_type_cnt;
+
 	while (argc) {
 		if (is_prefix(*argv, "format")) {
 			NEXT_ARG();
@@ -662,6 +997,39 @@ static int do_dump(int argc, char **argv)
 				err = -EINVAL;
 				goto done;
 			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "root_id")) {
+			__u32 root_id;
+			char *end;
+
+			if (have_id_filtering) {
+				p_err("cannot use root_id with other type filtering");
+				err = -EINVAL;
+				goto done;
+			} else if (root_type_cnt == MAX_ROOT_IDS) {
+				p_err("only %d root_id are supported", MAX_ROOT_IDS);
+				err = -E2BIG;
+				goto done;
+			}
+
+			NEXT_ARG();
+			root_id = strtoul(*argv, &end, 0);
+			if (*end) {
+				err = -1;
+				p_err("can't parse %s as root ID", *argv);
+				goto done;
+			}
+			for (i = 0; i < root_type_cnt; i++) {
+				if (root_type_ids[i] == root_id) {
+					err = -EINVAL;
+					p_err("duplicate root_id %d supplied", root_id);
+					goto done;
+				}
+			}
+			root_type_ids[root_type_cnt++] = root_id;
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "unsorted")) {
+			sort_dump_c = false;
 			NEXT_ARG();
 		} else {
 			p_err("unrecognized option: '%s'", *argv);
@@ -685,13 +1053,24 @@ static int do_dump(int argc, char **argv)
 		}
 	}
 
+	/* Invalid root IDs causes half emitted boilerplate and then unclean
+	 * exit. It's an ugly user experience, so handle common error here.
+	 */
+	for (i = 0; i < root_type_cnt; i++) {
+		if (root_type_ids[i] >= btf__type_cnt(btf)) {
+			err = -EINVAL;
+			p_err("invalid root ID: %u", root_type_ids[i]);
+			goto done;
+		}
+	}
+
 	if (dump_c) {
 		if (json_output) {
 			p_err("JSON output for C-syntax dump is not supported");
 			err = -ENOTSUP;
 			goto done;
 		}
-		err = dump_btf_c(btf, root_type_ids, root_type_cnt);
+		err = dump_btf_c(btf, root_type_ids, root_type_cnt, sort_dump_c);
 	} else {
 		err = dump_btf_raw(btf, root_type_ids, root_type_cnt);
 	}
@@ -1059,11 +1438,11 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s { show | list } [id BTF_ID]\n"
-		"       %1$s %2$s dump BTF_SRC [format FORMAT]\n"
+		"       %1$s %2$s dump BTF_SRC [format FORMAT] [root_id ROOT_ID]\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
-		"       FORMAT  := { raw | c }\n"
+		"       FORMAT  := { raw | c [unsorted] }\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS " |\n"

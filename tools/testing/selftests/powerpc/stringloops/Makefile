@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-# The loops are all 64-bit code
-CFLAGS += -I$(CURDIR)
-
 EXTRA_SOURCES := ../harness.c
 
 build_32bit = $(shell if ($(CC) $(CFLAGS) -m32 -o /dev/null memcmp.c >/dev/null 2>&1) then echo "1"; fi)
@@ -27,9 +24,13 @@ $(OUTPUT)/strlen_32: CFLAGS += -m32
 TEST_GEN_PROGS += strlen_32
 endif
 
-ASFLAGS = $(CFLAGS)
-
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
+
+# The loops are all 64-bit code
+CFLAGS += -I$(CURDIR)
+
+ASFLAGS = $(CFLAGS)
 
 $(TEST_GEN_PROGS): $(EXTRA_SOURCES)

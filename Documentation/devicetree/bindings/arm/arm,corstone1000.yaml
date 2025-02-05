@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: ARM Corstone1000
 
 maintainers:
-  - Vishnu Banavath <vishnu.banavath@arm.com>
-  - Rui Miguel Silva <rui.silva@linaro.org>
+  - Abdellatif El Khlifi <abdellatif.elkhlifi@arm.com>
+  - Hugues Kamba Mpiana <hugues.kambampiana@arm.com>
 
 description: |+
   ARM's Corstone1000 includes pre-verified Corstone SSE-710 subsystem that

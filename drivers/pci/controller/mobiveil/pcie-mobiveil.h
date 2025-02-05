@@ -151,7 +151,7 @@ struct mobiveil_rp_ops {
 struct mobiveil_root_port {
 	void __iomem *config_axi_slave_base;	/* endpoint config base */
 	struct resource *ob_io_res;
-	struct mobiveil_rp_ops *ops;
+	const struct mobiveil_rp_ops *ops;
 	int irq;
 	raw_spinlock_t intx_mask_lock;
 	struct irq_domain *intx_domain;

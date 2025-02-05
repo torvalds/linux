@@ -168,7 +168,7 @@ static void altr_i2c_init(struct altr_i2c_dev *idev)
 	/* SDA Hold Time, 300ns */
 	writel(3 * clk_mhz / 10, idev->base + ALTR_I2C_SDA_HOLD);
 
-	/* Mask all master interrupt bits */
+	/* Mask all interrupt bits */
 	altr_i2c_int_enable(idev, ALTR_I2C_ALL_IRQ, false);
 }
 
@@ -376,7 +376,7 @@ static u32 altr_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm altr_i2c_algo = {
-	.master_xfer = altr_i2c_xfer,
+	.xfer = altr_i2c_xfer,
 	.functionality = altr_i2c_func,
 };
 
@@ -482,7 +482,7 @@ MODULE_DEVICE_TABLE(of, altr_i2c_of_match);
 
 static struct platform_driver altr_i2c_driver = {
 	.probe = altr_i2c_probe,
-	.remove_new = altr_i2c_remove,
+	.remove = altr_i2c_remove,
 	.driver = {
 		.name = "altera-i2c",
 		.of_match_table = altr_i2c_of_match,

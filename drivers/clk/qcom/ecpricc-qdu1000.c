@@ -2439,7 +2439,7 @@ static int ecpri_cc_qdu1000_probe(struct platform_device *pdev)
 	clk_lucid_evo_pll_configure(&ecpri_cc_pll0, regmap, &ecpri_cc_pll0_config);
 	clk_lucid_evo_pll_configure(&ecpri_cc_pll1, regmap, &ecpri_cc_pll1_config);
 
-	return qcom_cc_really_probe(pdev, &ecpri_cc_qdu1000_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &ecpri_cc_qdu1000_desc, regmap);
 }
 
 static struct platform_driver ecpri_cc_qdu1000_driver = {

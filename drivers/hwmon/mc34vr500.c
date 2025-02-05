@@ -235,7 +235,7 @@ static int mc34vr500_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mc34vr500_id[] = {
-	{ "mc34vr500", 0 },
+	{ "mc34vr500" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, mc34vr500_id);

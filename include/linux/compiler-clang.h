@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_COMPILER_TYPES_H
-#error "Please don't include <linux/compiler-clang.h> directly, include <linux/compiler.h> instead."
+#error "Please do not include <linux/compiler-clang.h> directly, include <linux/compiler.h> instead."
 #endif
 
 /* Compiler specific definitions for Clang compiler */
@@ -118,3 +118,13 @@
 
 #define __diag_ignore_all(option, comment) \
 	__diag_clang(13, ignore, option)
+
+/*
+ * clang has horrible behavior with "g" or "rm" constraints for asm
+ * inputs, turning them into something worse than "m". Avoid using
+ * constraints with multiple possible uses (but "ir" seems to be ok):
+ *
+ *	https://github.com/llvm/llvm-project/issues/20571
+ */
+#define ASM_INPUT_G "ir"
+#define ASM_INPUT_RM "r"

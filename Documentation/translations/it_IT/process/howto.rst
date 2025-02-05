@@ -85,8 +85,8 @@ relativi file di documentatione che spiegano come usarele.
 Quando un cambiamento del kernel genera anche un cambiamento nell'interfaccia
 con lo spazio utente, è raccomandabile che inviate una notifica o una
 correzione alle pagine *man* spiegando tale modifica agli amministratori di
-queste pagine all'indirizzo mtk.manpages@gmail.com, aggiungendo
-in CC la lista linux-api@vger.kernel.org.
+queste pagine all'indirizzo alx@kernel.org, aggiungendo in CC la
+lista linux-api@vger.kernel.org.
 
 Di seguito una lista di file che sono presenti nei sorgente del kernel e che
 è richiesto che voi leggiate:
@@ -144,7 +144,7 @@ Di seguito una lista di file che sono presenti nei sorgente del kernel e che
     dello sviluppo di Linux ed è molto importante per le persone che arrivano
     da esperienze con altri Sistemi Operativi.
 
-  :ref:`Documentation/translations/it_IT/admin-guide/security-bugs.rst <it_securitybugs>`
+  :ref:`Documentation/translations/it_IT/process/security-bugs.rst <it_securitybugs>`
     Se ritenete di aver trovato un problema di sicurezza nel kernel Linux,
     seguite i passaggi scritti in questo documento per notificarlo agli
     sviluppatori del kernel, ed aiutare la risoluzione del problema.
@@ -344,7 +344,7 @@ principale 4.x, sarà necessario un test d'integrazione.
 A tale scopo, esiste un repositorio speciale di test nel quale virtualmente
 tutti i rami dei sottosistemi vengono inclusi su base quotidiana:
 
-	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+	https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
 
 In questo modo, i kernel -next offrono uno sguardo riassuntivo su quello che
 ci si aspetterà essere nel kernel principale nel successivo periodo
@@ -389,12 +389,12 @@ sviluppatori del kernel partecipano alla lista di discussione Linux Kernel.
 I dettagli su come iscriversi e disiscriversi dalla lista possono essere
 trovati al sito:
 
-	http://vger.kernel.org/vger-lists.html#linux-kernel
+	https://subspace.kernel.org/subscribing.html
 
 Ci sono diversi archivi della lista di discussione. Usate un qualsiasi motore
 di ricerca per trovarli. Per esempio:
 
-	https://lore.kernel.org/lkml/
+	https://lore.kernel.org/linux-kernel/
 
 É caldamente consigliata una ricerca in questi archivi sul tema che volete
 sollevare, prima di pubblicarlo sulla lista. Molte cose sono già state
@@ -407,13 +407,13 @@ discussione e il loro uso.
 Molte di queste liste sono gestite su kernel.org. Per informazioni consultate
 la seguente pagina:
 
-	http://vger.kernel.org/vger-lists.html
+	https://subspace.kernel.org
 
 Per favore ricordatevi della buona educazione quando utilizzate queste liste.
 Sebbene sia un pò dozzinale, il seguente URL contiene alcune semplici linee
 guida per interagire con la lista (o con qualsiasi altra lista):
 
-	http://www.albion.com/netiquette/
+	https://subspace.kernel.org/etiquette.html
 
 Se diverse persone rispondo alla vostra mail, la lista dei riceventi (copia
 conoscenza) potrebbe diventare abbastanza lunga. Non cancellate nessuno dalla

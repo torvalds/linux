@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 subdir-y += actions
+subdir-y += airoha
 subdir-y += allwinner
 subdir-y += altera
 subdir-y += amazon
@@ -9,6 +10,7 @@ subdir-y += apm
 subdir-y += apple
 subdir-y += arm
 subdir-y += bitmain
+subdir-y += blaize
 subdir-y += broadcom
 subdir-y += cavium
 subdir-y += exynos

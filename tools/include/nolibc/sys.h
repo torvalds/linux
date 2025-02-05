@@ -22,6 +22,8 @@
 #include <linux/stat.h>  /* for statx() */
 #include <linux/prctl.h>
 #include <linux/resource.h>
+#include <linux/utsname.h>
+#include <linux/signal.h>
 
 #include "arch.h"
 #include "errno.h"
@@ -1140,6 +1142,32 @@ int umount2(const char *path, int flags)
 
 
 /*
+ * int uname(struct utsname *buf);
+ */
+
+struct utsname {
+	char sysname[65];
+	char nodename[65];
+	char release[65];
+	char version[65];
+	char machine[65];
+	char domainname[65];
+};
+
+static __attribute__((unused))
+int sys_uname(struct utsname *buf)
+{
+	return my_syscall1(__NR_uname, buf);
+}
+
+static __attribute__((unused))
+int uname(struct utsname *buf)
+{
+	return __sysret(sys_uname(buf));
+}
+
+
+/*
  * int unlink(const char *path);
  */
 
@@ -1195,6 +1223,23 @@ static __attribute__((unused))
 pid_t waitpid(pid_t pid, int *status, int options)
 {
 	return __sysret(sys_wait4(pid, status, options, NULL));
+}
+
+
+/*
+ * int waitid(idtype_t idtype, id_t id, siginfo_t *infop, int options);
+ */
+
+static __attribute__((unused))
+int sys_waitid(int which, pid_t pid, siginfo_t *infop, int options, struct rusage *rusage)
+{
+	return my_syscall5(__NR_waitid, which, pid, infop, options, rusage);
+}
+
+static __attribute__((unused))
+int waitid(int which, pid_t pid, siginfo_t *infop, int options)
+{
+	return __sysret(sys_waitid(which, pid, infop, options, NULL));
 }
 
 

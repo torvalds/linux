@@ -4,8 +4,6 @@
  *
  * Author: Chao Peng <chao.p.peng@linux.intel.com>
  */
-
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -19,8 +17,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "kvm_util.h"
 #include "test_util.h"
-#include "kvm_util_base.h"
 
 static void test_file_read_write(int fd)
 {
@@ -136,7 +134,7 @@ static void test_create_guest_memfd_invalid(struct kvm_vm *vm)
 			    size);
 	}
 
-	for (flag = 0; flag; flag <<= 1) {
+	for (flag = BIT(0); flag; flag <<= 1) {
 		fd = __vm_create_guest_memfd(vm, page_size, flag);
 		TEST_ASSERT(fd == -1 && errno == EINVAL,
 			    "guest_memfd() with flag '0x%lx' should fail with EINVAL",

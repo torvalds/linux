@@ -368,7 +368,7 @@ static const struct {
 #endif
 };
 
-static struct rzg2l_reset r9a07g044_resets[] = {
+static const struct rzg2l_reset r9a07g044_resets[] = {
 	DEF_RST(R9A07G044_GIC600_GICRESET_N, 0x814, 0),
 	DEF_RST(R9A07G044_GIC600_DBG_GICRESET_N, 0x814, 1),
 	DEF_RST(R9A07G044_IA55_RESETN, 0x818, 0),

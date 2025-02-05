@@ -34,8 +34,8 @@
 #include "dm_services.h"
 
 #include "cyan_skillfish_ip_offset.h"
-#include "dcn/dcn_2_0_3_offset.h"
-#include "dcn/dcn_2_0_3_sh_mask.h"
+#include "dcn/dcn_2_0_1_offset.h"
+#include "dcn/dcn_2_0_1_sh_mask.h"
 #include "clk/clk_11_0_1_offset.h"
 #include "clk/clk_11_0_1_sh_mask.h"
 
@@ -112,8 +112,6 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
-
-	clk_mgr_helper_get_active_display_cnt(dc, context);
 
 	if (should_set_clock(safe_to_lower, new_clocks->phyclk_khz, clk_mgr_base->clks.phyclk_khz))
 		clk_mgr_base->clks.phyclk_khz = new_clocks->phyclk_khz;

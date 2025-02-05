@@ -571,10 +571,17 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 			      size_t count, loff_t *ppos)
 
 {
-	struct selinux_fs_info *fsi = file_inode(file)->i_sb->s_fs_info;
+	struct selinux_fs_info *fsi;
 	struct selinux_load_state load_state;
 	ssize_t length;
 	void *data = NULL;
+
+	/* no partial writes */
+	if (*ppos)
+		return -EINVAL;
+	/* no empty policies */
+	if (!count)
+		return -EINVAL;
 
 	mutex_lock(&selinux_state.policy_mutex);
 
@@ -583,26 +590,22 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	if (length)
 		goto out;
 
-	/* No partial writes. */
-	length = -EINVAL;
-	if (*ppos != 0)
-		goto out;
-
-	length = -ENOMEM;
 	data = vmalloc(count);
-	if (!data)
+	if (!data) {
+		length = -ENOMEM;
 		goto out;
-
-	length = -EFAULT;
-	if (copy_from_user(data, buf, count) != 0)
+	}
+	if (copy_from_user(data, buf, count) != 0) {
+		length = -EFAULT;
 		goto out;
+	}
 
 	length = security_load_policy(data, count, &load_state);
 	if (length) {
 		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
 	}
-
+	fsi = file_inode(file)->i_sb->s_fs_info;
 	length = sel_make_policy_nodes(fsi, load_state.policy);
 	if (length) {
 		pr_warn_ratelimited("SELinux: failed to initialize selinuxfs\n");
@@ -611,13 +614,12 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 	}
 
 	selinux_policy_commit(&load_state);
-
 	length = count;
-
 	audit_log(audit_context(), GFP_KERNEL, AUDIT_MAC_POLICY_LOAD,
 		"auid=%u ses=%u lsm=selinux res=1",
 		from_kuid(&init_user_ns, audit_get_loginuid(current)),
 		audit_get_sessionid(current));
+
 out:
 	mutex_unlock(&selinux_state.policy_mutex);
 	vfree(data);
@@ -706,7 +708,7 @@ static ssize_t sel_write_checkreqprot(struct file *file, const char __user *buf,
 	if (new_value) {
 		char comm[sizeof(current->comm)];
 
-		memcpy(comm, current->comm, sizeof(comm));
+		strscpy(comm, current->comm);
 		pr_err("SELinux: %s (%d) set checkreqprot to 1. This is no longer supported.\n",
 		       comm, current->pid);
 	}
@@ -1066,6 +1068,10 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	char *newcon;
 	int rc;
 	u32 i, len, nsids;
+
+	pr_warn_ratelimited("SELinux: %s (%d) wrote to /sys/fs/selinux/user!"
+		" This will not be supported in the future; please update your"
+		" userspace.\n", current->comm, current->pid);
 
 	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
@@ -1509,7 +1515,7 @@ static const struct file_operations sel_avc_hash_stats_ops = {
 #ifdef CONFIG_SECURITY_SELINUX_AVC_STATS
 static struct avc_cache_stats *sel_avc_get_stat_idx(loff_t *idx)
 {
-	int cpu;
+	loff_t cpu;
 
 	for (cpu = *idx; cpu < nr_cpu_ids; ++cpu) {
 		if (!cpu_possible(cpu))
@@ -1995,7 +2001,7 @@ static int sel_fill_super(struct super_block *sb, struct fs_context *fc)
 		[SEL_POLICY] = {"policy", &sel_policy_ops, S_IRUGO},
 		[SEL_VALIDATE_TRANS] = {"validatetrans", &sel_transition_ops,
 					S_IWUGO},
-		/* last one */ {""}
+		/* last one */ {"", NULL, 0}
 	};
 
 	ret = selinux_fs_info_create(sb);
@@ -2160,6 +2166,12 @@ static int __init init_sel_fs(void)
 		selinux_null.dentry = NULL;
 		return err;
 	}
+
+	/*
+	 * Try to pre-allocate the status page, so the sequence number of the
+	 * initial policy load can be stored.
+	 */
+	(void) selinux_kernel_status_page();
 
 	return err;
 }

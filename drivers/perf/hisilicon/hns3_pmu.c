@@ -363,16 +363,6 @@ HNS3_PMU_FILTER_ATTR(global, config1, 52, 52);
 	HNS3_PMU_EVT_PPS_##_name##_TIME,				\
 	HNS3_PMU_FILTER_INTR_##_name})
 
-static ssize_t hns3_pmu_format_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-
 static ssize_t hns3_pmu_event_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -421,7 +411,7 @@ static ssize_t hns3_pmu_filter_mode_show(struct device *dev,
 	})[0].attr.attr)
 
 #define HNS3_PMU_FORMAT_ATTR(_name, _format) \
-	HNS3_PMU_ATTR(_name, hns3_pmu_format_show, (void *)_format)
+	HNS3_PMU_ATTR(_name, device_show_string, _format)
 #define HNS3_PMU_EVENT_ATTR(_name, _event) \
 	HNS3_PMU_ATTR(_name, hns3_pmu_event_show, (void *)_event)
 #define HNS3_PMU_FLT_MODE_ATTR(_name, _event) \
@@ -1085,15 +1075,27 @@ static bool hns3_pmu_validate_event_group(struct perf_event *event)
 			return false;
 
 		for (num = 0; num < counters; num++) {
+			/*
+			 * If we find a related event, then it's a valid group
+			 * since we don't need to allocate a new counter for it.
+			 */
 			if (hns3_pmu_cmp_event(event_group[num], sibling))
 				break;
 		}
+
+		/*
+		 * Otherwise it's a new event but if there's no available counter,
+		 * fail the check since we cannot schedule all the events in
+		 * the group simultaneously.
+		 */
+		if (num == HNS3_PMU_MAX_HW_EVENTS)
+			return false;
 
 		if (num == counters)
 			event_group[counters++] = sibling;
 	}
 
-	return counters <= HNS3_PMU_MAX_HW_EVENTS;
+	return true;
 }
 
 static u32 hns3_pmu_get_filter_condition(struct perf_event *event)
@@ -1419,6 +1421,7 @@ static int hns3_pmu_alloc_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 	hns3_pmu->pmu = (struct pmu) {
 		.name		= name,
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.event_init	= hns3_pmu_event_init,
 		.pmu_enable	= hns3_pmu_enable,
 		.pmu_disable	= hns3_pmu_disable,
@@ -1515,7 +1518,7 @@ static int hns3_pmu_irq_register(struct pci_dev *pdev,
 		return ret;
 	}
 
-	ret = devm_add_action(&pdev->dev, hns3_pmu_free_irq, pdev);
+	ret = devm_add_action_or_reset(&pdev->dev, hns3_pmu_free_irq, pdev);
 	if (ret) {
 		pci_err(pdev, "failed to add free irq action, ret = %d.\n", ret);
 		return ret;

@@ -956,7 +956,7 @@ static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb,
 	struct dst_entry *dst = skb_dst(skb);
 	struct rt6_info *rt;
 
-	rt = (struct rt6_info *) dst;
+	rt = dst_rt6_info(dst);
 	if (dst) {
 		if (proto == htons(ETH_P_IPV6))
 			dst = dst_check(dst, rt6_get_cookie(rt));
@@ -970,15 +970,14 @@ static inline struct dst_entry *qeth_dst_check_rcu(struct sk_buff *skb,
 static inline __be32 qeth_next_hop_v4_rcu(struct sk_buff *skb,
 					  struct dst_entry *dst)
 {
-	struct rtable *rt = (struct rtable *) dst;
-
-	return (rt) ? rt_nexthop(rt, ip_hdr(skb)->daddr) : ip_hdr(skb)->daddr;
+	return (dst) ? rt_nexthop(dst_rtable(dst), ip_hdr(skb)->daddr) :
+		       ip_hdr(skb)->daddr;
 }
 
 static inline struct in6_addr *qeth_next_hop_v6_rcu(struct sk_buff *skb,
 						    struct dst_entry *dst)
 {
-	struct rt6_info *rt = (struct rt6_info *) dst;
+	struct rt6_info *rt = dst_rt6_info(dst);
 
 	if (rt && !ipv6_addr_any(&rt->rt6i_gateway))
 		return &rt->rt6i_gateway;

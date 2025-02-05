@@ -317,7 +317,7 @@ static ssize_t show_wlan(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", enabled);
+	return sysfs_emit(buf, "%i\n", enabled);
 }
 
 static ssize_t store_wlan(struct device *dev,
@@ -341,7 +341,7 @@ static ssize_t show_bluetooth(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", enabled);
+	return sysfs_emit(buf, "%i\n", enabled);
 }
 
 static ssize_t store_bluetooth(struct device *dev,
@@ -364,7 +364,7 @@ static ssize_t show_threeg(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", threeg_s);
+	return sysfs_emit(buf, "%i\n", threeg_s);
 }
 
 static ssize_t store_threeg(struct device *dev,
@@ -383,7 +383,7 @@ static ssize_t show_lcd_level(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t store_lcd_level(struct device *dev,
@@ -413,7 +413,7 @@ static ssize_t show_auto_brightness(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%i\n", ret);
+	return sysfs_emit(buf, "%i\n", ret);
 }
 
 static ssize_t store_auto_brightness(struct device *dev,
@@ -443,7 +443,7 @@ static ssize_t show_touchpad(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TOUCHPAD_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TOUCHPAD_MASK));
 }
 
 static ssize_t show_turbo(struct device *dev,
@@ -457,7 +457,7 @@ static ssize_t show_turbo(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TURBO_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_TURBO_MASK));
 }
 
 static ssize_t show_eco(struct device *dev,
@@ -471,7 +471,7 @@ static ssize_t show_eco(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_ECO_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_ECO_MASK));
 }
 
 static ssize_t show_turbo_cooldown(struct device *dev,
@@ -485,7 +485,7 @@ static ssize_t show_turbo_cooldown(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", (!!(rdata & MSI_STANDARD_EC_TURBO_MASK)) |
+	return sysfs_emit(buf, "%i\n", (!!(rdata & MSI_STANDARD_EC_TURBO_MASK)) |
 		(!!(rdata & MSI_STANDARD_EC_TURBO_COOLDOWN_MASK) << 1));
 }
 
@@ -500,7 +500,7 @@ static ssize_t show_auto_fan(struct device *dev,
 	if (result < 0)
 		return result;
 
-	return sprintf(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_AUTOFAN_MASK));
+	return sysfs_emit(buf, "%i\n", !!(rdata & MSI_STANDARD_EC_AUTOFAN_MASK));
 }
 
 static ssize_t store_auto_fan(struct device *dev,
@@ -806,8 +806,8 @@ static void msi_send_touchpad_key(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(msi_touchpad_dwork, msi_send_touchpad_key);
 
-static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
-				struct serio *port)
+static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str, struct serio *port,
+				    void *context)
 {
 	static bool extended;
 
@@ -996,7 +996,7 @@ static int __init load_scm_model_init(struct platform_device *sdev)
 	if (result)
 		goto fail_input;
 
-	result = i8042_install_filter(msi_laptop_i8042_filter);
+	result = i8042_install_filter(msi_laptop_i8042_filter, NULL);
 	if (result) {
 		pr_err("Unable to install key filter\n");
 		goto fail_filter;

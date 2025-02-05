@@ -26,7 +26,7 @@
 
 	backlight_display: backlight-display {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 5000000>;
+		pwms = <&pwm1 0 5000000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 		status = "okay";
@@ -157,7 +157,7 @@
 			"IN3R", "AMIC";
 		mux-int-port = <2>;
 		mux-ext-port = <3>;
-		hp-det-gpio = <&gpio4 24 GPIO_ACTIVE_LOW>;
+		hp-det-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -314,10 +314,8 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
-	status = "okay";
 };
 
 &snvs_poweroff {
@@ -463,7 +461,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_100mhz: usdhc1grp-100mhz {
+	pinctrl_usdhc1_100mhz: usdhc1-100mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD1_CMD__SD1_CMD	0x170b9
 			MX6SLL_PAD_SD1_CLK__SD1_CLK	0x130b9
@@ -474,7 +472,7 @@
 		>;
 	};
 
-	pinctrl_usdhc1_200mhz: usdhc1grp-200mhz {
+	pinctrl_usdhc1_200mhz: usdhc1-200mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD1_CMD__SD1_CMD	0x170f9
 			MX6SLL_PAD_SD1_CLK__SD1_CLK	0x130f9
@@ -501,7 +499,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_100mhz: usdhc2grp-100mhz {
+	pinctrl_usdhc2_100mhz: usdhc2-100mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD2_CMD__SD2_CMD		0x170b9
 			MX6SLL_PAD_SD2_CLK__SD2_CLK		0x130b9
@@ -517,7 +515,7 @@
 		>;
 	};
 
-	pinctrl_usdhc2_200mhz: usdhc2grp-200mhz {
+	pinctrl_usdhc2_200mhz: usdhc2-200mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD2_CMD__SD2_CMD		0x170f9
 			MX6SLL_PAD_SD2_CLK__SD2_CLK		0x130f9
@@ -551,7 +549,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_100mhz: usdhc3grp-100mhz {
+	pinctrl_usdhc3_100mhz: usdhc3-100mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD3_CMD__SD3_CMD		0x170a1
 			MX6SLL_PAD_SD3_CLK__SD3_CLK		0x130a1
@@ -563,7 +561,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_200mhz: usdhc3grp-200mhz {
+	pinctrl_usdhc3_200mhz: usdhc3-200mhzgrp {
 		fsl,pins = <
 			MX6SLL_PAD_SD3_CMD__SD3_CMD		0x170e9
 			MX6SLL_PAD_SD3_CLK__SD3_CLK		0x130f9

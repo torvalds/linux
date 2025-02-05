@@ -129,6 +129,14 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 	wl1271_free_tx_id(wl, id);
 }
 
+static u8 wl18xx_next_tx_idx(u8 idx)
+{
+	if (++idx >= WL18XX_FW_MAX_TX_STATUS_DESC)
+		idx = 0;
+
+	return idx;
+}
+
 void wl18xx_tx_immediate_complete(struct wl1271 *wl)
 {
 	struct wl18xx_fw_status_priv *status_priv =
@@ -161,9 +169,8 @@ void wl18xx_tx_immediate_complete(struct wl1271 *wl)
 		return;
 	}
 
-	for (i = priv->last_fw_rls_idx;
-	     i != status_priv->fw_release_idx;
-	     i = (i + 1) % WL18XX_FW_MAX_TX_STATUS_DESC) {
+	for (i = priv->last_fw_rls_idx; i != status_priv->fw_release_idx;
+	     i = wl18xx_next_tx_idx(i)) {
 		wl18xx_tx_complete_packet(wl,
 			status_priv->released_tx_desc[i]);
 

@@ -549,4 +549,5 @@ static void __exit agp_amdk7_cleanup(void)
 module_init(agp_amdk7_init);
 module_exit(agp_amdk7_cleanup);
 
+MODULE_DESCRIPTION("AMD K7 AGPGART routines");
 MODULE_LICENSE("GPL and additional rights");

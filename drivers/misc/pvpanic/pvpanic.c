@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/panic_notifier.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/spinlock.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
@@ -35,6 +36,7 @@ struct pvpanic_instance {
 	void __iomem *base;
 	unsigned int capability;
 	unsigned int events;
+	struct sys_off_handler *sys_off;
 	struct list_head list;
 };
 
@@ -78,6 +80,39 @@ static struct notifier_block pvpanic_panic_nb = {
 	.priority = INT_MAX,
 };
 
+static int pvpanic_sys_off(struct sys_off_data *data)
+{
+	pvpanic_send_event(PVPANIC_SHUTDOWN);
+
+	return NOTIFY_DONE;
+}
+
+static void pvpanic_synchronize_sys_off_handler(struct device *dev, struct pvpanic_instance *pi)
+{
+	/* The kernel core has logic to fall back to system halt if no
+	 * sys_off_handler is registered.
+	 * When the pvpanic sys_off_handler is disabled via sysfs the kernel
+	 * should use that fallback logic, so the handler needs to be unregistered.
+	 */
+
+	struct sys_off_handler *sys_off;
+
+	if (!(pi->events & PVPANIC_SHUTDOWN) == !pi->sys_off)
+		return;
+
+	if (!pi->sys_off) {
+		sys_off = register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_LOW,
+						   pvpanic_sys_off, NULL);
+		if (IS_ERR(sys_off))
+			dev_warn(dev, "Could not register sys_off_handler: %pe\n", sys_off);
+		else
+			pi->sys_off = sys_off;
+	} else {
+		unregister_sys_off_handler(pi->sys_off);
+		pi->sys_off = NULL;
+	}
+}
+
 static void pvpanic_remove(void *param)
 {
 	struct pvpanic_instance *pi_cur, *pi_next;
@@ -91,6 +126,8 @@ static void pvpanic_remove(void *param)
 		}
 	}
 	spin_unlock(&pvpanic_lock);
+
+	unregister_sys_off_handler(pi->sys_off);
 }
 
 static ssize_t capability_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -123,6 +160,7 @@ static ssize_t events_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	pi->events = tmp;
+	pvpanic_synchronize_sys_off_handler(dev, pi);
 
 	return count;
 }
@@ -156,11 +194,14 @@ int devm_pvpanic_probe(struct device *dev, void __iomem *base)
 		return -ENOMEM;
 
 	pi->base = base;
-	pi->capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED;
+	pi->capability = PVPANIC_PANICKED | PVPANIC_CRASH_LOADED | PVPANIC_SHUTDOWN;
 
 	/* initlize capability by RDPT */
 	pi->capability &= ioread8(base);
 	pi->events = pi->capability;
+
+	pi->sys_off = NULL;
+	pvpanic_synchronize_sys_off_handler(dev, pi);
 
 	spin_lock(&pvpanic_lock);
 	list_add(&pi->list, &pvpanic_list);

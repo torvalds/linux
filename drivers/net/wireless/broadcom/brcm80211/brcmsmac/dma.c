@@ -558,7 +558,7 @@ struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 	struct si_info *sii = container_of(sih, struct si_info, pub);
 
 	/* allocate private info structure */
-	di = kzalloc(sizeof(struct dma_info), GFP_ATOMIC);
+	di = kzalloc(sizeof(*di), GFP_ATOMIC);
 	if (di == NULL)
 		return NULL;
 
@@ -1424,15 +1424,6 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	di->dma.txavail = 0;
 	di->dma.txnobuf++;
 	return -ENOSPC;
-}
-
-void dma_txflush(struct dma_pub *pub)
-{
-	struct dma_info *di = container_of(pub, struct dma_info, dma);
-	struct brcms_ampdu_session *session = &di->ampdu_session;
-
-	if (!skb_queue_empty(&session->skb_list))
-		ampdu_finalize(di);
 }
 
 int dma_txpending(struct dma_pub *pub)

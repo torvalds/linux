@@ -218,7 +218,6 @@ static int acq_close(struct inode *inode, struct file *file)
 
 static const struct file_operations acq_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= acq_write,
 	.unlocked_ioctl	= acq_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -286,7 +285,7 @@ static void acq_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver acquirewdt_driver = {
-	.remove_new	= acq_remove,
+	.remove		= acq_remove,
 	.shutdown	= acq_shutdown,
 	.driver		= {
 		.name	= DRV_NAME,

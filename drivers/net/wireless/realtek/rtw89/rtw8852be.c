@@ -27,6 +27,7 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.io_rcy_tmr		= MAC_AX_IO_RCY_ANA_TMR_6MS,
 	.rx_ring_eq_is_full	= false,
 	.check_rx_tag		= false,
+	.no_rxbd_fs		= false,
 
 	.init_cfg_reg		= R_AX_PCIE_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN,
@@ -46,6 +47,7 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.rpwm_addr		= R_AX_PCIE_HRPWM,
 	.cpwm_addr		= R_AX_CPWM,
 	.mit_addr		= R_AX_INT_MIT_RX,
+	.wp_sel_addr		= 0,
 	.tx_dma_ch_mask		= BIT(RTW89_TXCH_ACH4) | BIT(RTW89_TXCH_ACH5) |
 				  BIT(RTW89_TXCH_ACH6) | BIT(RTW89_TXCH_ACH7) |
 				  BIT(RTW89_TXCH_CH10) | BIT(RTW89_TXCH_CH11),
@@ -59,10 +61,14 @@ static const struct rtw89_pci_info rtw8852b_pci_info = {
 	.enable_intr		= rtw89_pci_enable_intr,
 	.disable_intr		= rtw89_pci_disable_intr,
 	.recognize_intrs	= rtw89_pci_recognize_intrs,
+
+	.ssid_quirks		= NULL,
 };
 
 static const struct rtw89_driver_info rtw89_8852be_info = {
 	.chip = &rtw8852b_chip_info,
+	.variant = NULL,
+	.quirks = NULL,
 	.bus = {
 		.pci = &rtw8852b_pci_info,
 	},

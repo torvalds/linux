@@ -117,7 +117,6 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	if (nsm != NULL)
 		refcount_inc(&nsm->sm_count);
 	else {
-		host = NULL;
 		nsm = nsm_get_handle(ni->net, ni->sap, ni->salen,
 					ni->hostname, ni->hostname_len);
 		if (unlikely(nsm == NULL)) {
@@ -441,7 +440,7 @@ nlm_bind_host(struct nlm_host *host)
 	if ((clnt = host->h_rpcclnt) != NULL) {
 		nlm_rebind_host(host);
 	} else {
-		unsigned long increment = nlmsvc_timeout;
+		unsigned long increment = nlm_timeout * HZ;
 		struct rpc_timeout timeparms = {
 			.to_initval	= increment,
 			.to_increment	= increment,

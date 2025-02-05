@@ -79,7 +79,7 @@ struct smb2_symlink_err_rsp {
 struct smb2_error_context_rsp {
 	__le32 ErrorDataLength;
 	__le32 ErrorId;
-	__u8  ErrorContextData; /* ErrorDataLength long array */
+	__u8  ErrorContextData[] __counted_by_le(ErrorDataLength);
 } __packed;
 
 /* ErrorId values */
@@ -145,7 +145,7 @@ struct durable_context_v2 {
 } __packed;
 
 struct create_durable_v2 {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct durable_context_v2 dcontext;
 } __packed;
@@ -167,7 +167,7 @@ struct durable_reconnect_context_v2_rsp {
 } __packed;
 
 struct create_durable_handle_reconnect_v2 {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8   Name[8];
 	struct durable_reconnect_context_v2 dcontext;
 	__u8   Pad[4];
@@ -175,7 +175,7 @@ struct create_durable_handle_reconnect_v2 {
 
 /* See MS-SMB2 2.2.13.2.5 */
 struct crt_twarp_ctxt {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8	Name[8];
 	__le64	Timestamp;
 
@@ -183,12 +183,12 @@ struct crt_twarp_ctxt {
 
 /* See MS-SMB2 2.2.13.2.9 */
 struct crt_query_id_ctxt {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8	Name[8];
 } __packed;
 
 struct crt_sd_ctxt {
-	struct create_context ccontext;
+	struct create_context_hdr ccontext;
 	__u8	Name[8];
 	struct smb3_sd sd;
 } __packed;
@@ -364,8 +364,8 @@ struct create_posix_rsp {
 	u32 nlink;
 	u32 reparse_tag;
 	u32 mode;
-	struct cifs_sid owner; /* var-sized on the wire */
-	struct cifs_sid group; /* var-sized on the wire */
+	struct smb_sid owner; /* var-sized on the wire */
+	struct smb_sid group; /* var-sized on the wire */
 } __packed;
 
 #define SMB2_QUERY_DIRECTORY_IOV_SIZE 2
@@ -408,14 +408,14 @@ struct smb2_posix_info {
 struct smb2_posix_info_parsed {
 	const struct smb2_posix_info *base;
 	size_t size;
-	struct cifs_sid owner;
-	struct cifs_sid group;
+	struct smb_sid owner;
+	struct smb_sid group;
 	int name_len;
 	const u8 *name;
 };
 
 struct smb2_create_ea_ctx {
-	struct create_context ctx;
+	struct create_context_hdr ctx;
 	__u8 name[8];
 	struct smb2_file_full_ea_info ea;
 } __packed;

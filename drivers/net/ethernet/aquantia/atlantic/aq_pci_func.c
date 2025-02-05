@@ -162,8 +162,8 @@ int aq_pci_func_alloc_irq(struct aq_nic_s *self, unsigned int i,
 		self->msix_entry_mask |= (1 << i);
 
 		if (pdev->msix_enabled && affinity_mask)
-			irq_set_affinity_hint(pci_irq_vector(pdev, i),
-					      affinity_mask);
+			irq_update_affinity_hint(pci_irq_vector(pdev, i),
+						 affinity_mask);
 	}
 
 	return err;
@@ -187,7 +187,7 @@ void aq_pci_func_free_irqs(struct aq_nic_s *self)
 			continue;
 
 		if (pdev->msix_enabled)
-			irq_set_affinity_hint(pci_irq_vector(pdev, i), NULL);
+			irq_update_affinity_hint(pci_irq_vector(pdev, i), NULL);
 		free_irq(pci_irq_vector(pdev, i), irq_data);
 		self->msix_entry_mask &= ~(1U << i);
 	}
@@ -200,7 +200,7 @@ unsigned int aq_pci_func_get_irq_type(struct aq_nic_s *self)
 	if (self->pdev->msi_enabled)
 		return AQ_HW_IRQ_MSI;
 
-	return AQ_HW_IRQ_LEGACY;
+	return AQ_HW_IRQ_INTX;
 }
 
 static void aq_pci_free_irq_vectors(struct aq_nic_s *self)
@@ -298,11 +298,8 @@ static int aq_pci_probe(struct pci_dev *pdev,
 
 	numvecs += AQ_HW_SERVICE_IRQS;
 	/*enable interrupts */
-#if !AQ_CFG_FORCE_LEGACY_INT
-	err = pci_alloc_irq_vectors(self->pdev, 1, numvecs,
-				    PCI_IRQ_MSIX | PCI_IRQ_MSI |
-				    PCI_IRQ_LEGACY);
-
+#if !AQ_CFG_FORCE_INTX
+	err = pci_alloc_irq_vectors(self->pdev, 1, numvecs, PCI_IRQ_ALL_TYPES);
 	if (err < 0)
 		goto err_hwinit;
 	numvecs = err;

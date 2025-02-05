@@ -340,7 +340,7 @@ again:
 	this_clock = sched_clock_local(my_scd);
 	/*
 	 * We must enforce atomic readout on 32-bit, otherwise the
-	 * update on the remote CPU can hit inbetween the readout of
+	 * update on the remote CPU can hit in between the readout of
 	 * the low 32-bit and the high 32-bit portion.
 	 */
 	remote_clock = cmpxchg64(&scd->clock, 0, 0);
@@ -444,7 +444,7 @@ notrace void sched_clock_tick_stable(void)
 }
 
 /*
- * We are going deep-idle (irqs are disabled):
+ * We are going deep-idle (IRQs are disabled):
  */
 notrace void sched_clock_idle_sleep_event(void)
 {

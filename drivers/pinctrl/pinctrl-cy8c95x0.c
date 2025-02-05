@@ -9,6 +9,7 @@
 
 #include <linux/acpi.h>
 #include <linux/bitmap.h>
+#include <linux/cleanup.h>
 #include <linux/dmi.h>
 #include <linux/gpio/driver.h>
 #include <linux/gpio/consumer.h>
@@ -58,9 +59,14 @@
 
 #define CY8C95X0_PIN_TO_OFFSET(x) (((x) >= 20) ? ((x) + 4) : (x))
 
-#define CY8C95X0_MUX_REGMAP_TO_PORT(x) ((x) / MUXED_STRIDE)
-#define CY8C95X0_MUX_REGMAP_TO_REG(x) (((x) % MUXED_STRIDE) + CY8C95X0_INTMASK)
-#define CY8C95X0_MUX_REGMAP_TO_OFFSET(x, p) ((x) - CY8C95X0_INTMASK + (p) * MUXED_STRIDE)
+#define MAX_BANK		8
+#define BANK_SZ			8
+#define MAX_LINE		(MAX_BANK * BANK_SZ)
+#define MUXED_STRIDE		16
+#define CY8C95X0_GPIO_MASK	GENMASK(7, 0)
+#define CY8C95X0_VIRTUAL	0x40
+#define CY8C95X0_MUX_REGMAP_TO_OFFSET(x, p) \
+	(CY8C95X0_VIRTUAL + (x) - CY8C95X0_PORTSEL + (p) * MUXED_STRIDE)
 
 static const struct i2c_device_id cy8c95x0_id[] = {
 	{ "cy8c9520", 20, },
@@ -95,7 +101,7 @@ static int cy8c95x0_acpi_get_irq(struct device *dev)
 	if (ret)
 		dev_warn(dev, "can't add GPIO ACPI mapping\n");
 
-	ret = acpi_dev_gpio_irq_get_by(ACPI_COMPANION(dev), "irq-gpios", 0);
+	ret = acpi_dev_gpio_irq_get_by(ACPI_COMPANION(dev), "irq", 0);
 	if (ret < 0)
 		return ret;
 
@@ -120,18 +126,11 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
 	{}
 };
 
-#define MAX_BANK 8
-#define BANK_SZ 8
-#define MAX_LINE	(MAX_BANK * BANK_SZ)
-#define MUXED_STRIDE	16
-#define CY8C95X0_GPIO_MASK		GENMASK(7, 0)
-
 /**
  * struct cy8c95x0_pinctrl - driver data
  * @regmap:         Device's regmap. Only direct access registers.
- * @muxed_regmap:   Regmap for all muxed registers.
  * @irq_lock:       IRQ bus lock
- * @i2c_lock:       Mutex for the device internal mux register
+ * @i2c_lock:       Mutex to hold while using the regmap
  * @irq_mask:       I/O bits affected by interrupts
  * @irq_trig_raise: I/O bits affected by raising voltage level
  * @irq_trig_fall:  I/O bits affected by falling voltage level
@@ -142,7 +141,6 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
  * @nport:          Number of Gports in this chip
  * @gpio_chip:      gpiolib chip
  * @driver_data:    private driver data
- * @regulator:      Pointer to the regulator for the IC
  * @dev:            struct device
  * @pctldev:        pin controller device
  * @pinctrl_desc:   pin controller description
@@ -152,7 +150,6 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
  */
 struct cy8c95x0_pinctrl {
 	struct regmap *regmap;
-	struct regmap *muxed_regmap;
 	struct mutex irq_lock;
 	struct mutex i2c_lock;
 	DECLARE_BITMAP(irq_mask, MAX_LINE);
@@ -162,10 +159,9 @@ struct cy8c95x0_pinctrl {
 	DECLARE_BITMAP(irq_trig_high, MAX_LINE);
 	DECLARE_BITMAP(push_pull, MAX_LINE);
 	DECLARE_BITMAP(shiftmask, MAX_LINE);
-	int nport;
+	unsigned int nport;
 	struct gpio_chip gpio_chip;
 	unsigned long driver_data;
-	struct regulator *regulator;
 	struct device *dev;
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_desc pinctrl_desc;
@@ -331,6 +327,13 @@ static int cypress_get_pin_mask(struct cy8c95x0_pinctrl *chip, unsigned int pin)
 
 static bool cy8c95x0_readable_register(struct device *dev, unsigned int reg)
 {
+	/*
+	 * Only 12 registers are present per port (see Table 6 in the
+	 * datasheet).
+	 */
+	if (reg >= CY8C95X0_VIRTUAL && (reg % MUXED_STRIDE) < 12)
+		return true;
+
 	switch (reg) {
 	case 0x24 ... 0x27:
 		return false;
@@ -341,6 +344,9 @@ static bool cy8c95x0_readable_register(struct device *dev, unsigned int reg)
 
 static bool cy8c95x0_writeable_register(struct device *dev, unsigned int reg)
 {
+	if (reg >= CY8C95X0_VIRTUAL)
+		return true;
+
 	switch (reg) {
 	case CY8C95X0_INPUT_(0) ... CY8C95X0_INPUT_(7):
 		return false;
@@ -433,115 +439,34 @@ static bool cy8c95x0_quick_path_register(unsigned int reg)
 	}
 }
 
-static const struct reg_default cy8c95x0_reg_defaults[] = {
-	{ CY8C95X0_OUTPUT_(0), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(1), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(2), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(3), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(4), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(5), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(6), GENMASK(7, 0) },
-	{ CY8C95X0_OUTPUT_(7), GENMASK(7, 0) },
-	{ CY8C95X0_PORTSEL, 0 },
-	{ CY8C95X0_PWMSEL, 0 },
+static const struct regmap_range_cfg cy8c95x0_ranges[] = {
+	{
+		.range_min = CY8C95X0_VIRTUAL,
+		.range_max = 0,		/* Updated at runtime */
+		.selector_reg = CY8C95X0_PORTSEL,
+		.selector_mask = 0x07,
+		.selector_shift = 0x0,
+		.window_start = CY8C95X0_PORTSEL,
+		.window_len = MUXED_STRIDE,
+	}
 };
 
-static int
-cy8c95x0_mux_reg_read(void *context, unsigned int off, unsigned int *val)
-{
-	struct cy8c95x0_pinctrl *chip = context;
-	u8 port = CY8C95X0_MUX_REGMAP_TO_PORT(off);
-	int ret, reg = CY8C95X0_MUX_REGMAP_TO_REG(off);
-
-	mutex_lock(&chip->i2c_lock);
-	/* Select the correct bank */
-	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
-	if (ret < 0)
-		goto out;
-
-	/*
-	 * Read the register through direct access regmap. The target range
-	 * is marked volatile.
-	 */
-	ret = regmap_read(chip->regmap, reg, val);
-out:
-	mutex_unlock(&chip->i2c_lock);
-
-	return ret;
-}
-
-static int
-cy8c95x0_mux_reg_write(void *context, unsigned int off, unsigned int val)
-{
-	struct cy8c95x0_pinctrl *chip = context;
-	u8 port = CY8C95X0_MUX_REGMAP_TO_PORT(off);
-	int ret, reg = CY8C95X0_MUX_REGMAP_TO_REG(off);
-
-	mutex_lock(&chip->i2c_lock);
-	/* Select the correct bank */
-	ret = regmap_write(chip->regmap, CY8C95X0_PORTSEL, port);
-	if (ret < 0)
-		goto out;
-
-	/*
-	 * Write the register through direct access regmap. The target range
-	 * is marked volatile.
-	 */
-	ret = regmap_write(chip->regmap, reg, val);
-out:
-	mutex_unlock(&chip->i2c_lock);
-
-	return ret;
-}
-
-static bool cy8c95x0_mux_accessible_register(struct device *dev, unsigned int off)
-{
-	struct i2c_client *i2c = to_i2c_client(dev);
-	struct cy8c95x0_pinctrl *chip = i2c_get_clientdata(i2c);
-	u8 port = CY8C95X0_MUX_REGMAP_TO_PORT(off);
-	u8 reg = CY8C95X0_MUX_REGMAP_TO_REG(off);
-
-	if (port >= chip->nport)
-		return false;
-
-	return cy8c95x0_muxed_register(reg);
-}
-
-static struct regmap_bus cy8c95x0_regmap_bus = {
-	.reg_read = cy8c95x0_mux_reg_read,
-	.reg_write = cy8c95x0_mux_reg_write,
-};
-
-/* Regmap for muxed registers CY8C95X0_INTMASK - CY8C95X0_DRV_HIZ */
-static const struct regmap_config cy8c95x0_muxed_regmap = {
-	.name = "muxed",
+static const struct regmap_config cy8c9520_i2c_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_FLAT,
-	.use_single_read = true,
-	.use_single_write = true,
-	.max_register = MUXED_STRIDE * BANK_SZ,
-	.num_reg_defaults_raw = MUXED_STRIDE * BANK_SZ,
-	.readable_reg = cy8c95x0_mux_accessible_register,
-	.writeable_reg = cy8c95x0_mux_accessible_register,
-};
-
-/* Direct access regmap */
-static const struct regmap_config cy8c95x0_i2c_regmap = {
-	.name = "direct",
-	.reg_bits = 8,
-	.val_bits = 8,
-
-	.reg_defaults = cy8c95x0_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(cy8c95x0_reg_defaults),
 
 	.readable_reg = cy8c95x0_readable_register,
 	.writeable_reg = cy8c95x0_writeable_register,
 	.volatile_reg = cy8c95x0_volatile_register,
 	.precious_reg = cy8c95x0_precious_register,
 
-	.cache_type = REGCACHE_FLAT,
-	.max_register = CY8C95X0_COMMAND,
+	.cache_type = REGCACHE_MAPLE,
+	.ranges	= NULL,			/* Updated at runtime */
+	.num_ranges = 1,
+	.max_register = 0,		/* Updated at runtime */
+	.num_reg_defaults_raw = 0,	/* Updated at runtime */
+	.use_single_read = true,	/* Workaround for regcache bug */
+	.disable_locking = true,
 };
 
 static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
@@ -552,48 +477,42 @@ static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip
 						   bool *change, bool async,
 						   bool force)
 {
-	struct regmap *regmap;
-	int ret, off, i, read_val;
+	int ret, off, i;
 
 	/* Caller should never modify PORTSEL directly */
 	if (reg == CY8C95X0_PORTSEL)
 		return -EINVAL;
 
-	/* Registers behind the PORTSEL mux have their own regmap */
+	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
-		regmap = chip->muxed_regmap;
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
 	} else {
-		regmap = chip->regmap;
 		/* Quick path direct access registers honor the port argument */
 		if (cy8c95x0_quick_path_register(reg))
 			off = reg + port;
 		else
 			off = reg;
 	}
+	guard(mutex)(&chip->i2c_lock);
 
-	ret = regmap_update_bits_base(regmap, off, mask, val, change, async, force);
+	ret = regmap_update_bits_base(chip->regmap, off, mask, val, change, async, force);
 	if (ret < 0)
 		return ret;
 
-	/* Update the cache when a WC bit is written */
+	/* Mimic what hardware does and update the cache when a WC bit is written.
+	 * Allows to mark the registers as non-volatile and reduces I/O cycles.
+	 */
 	if (cy8c95x0_wc_register(reg) && (mask & val)) {
+		/* Writing a 1 clears set bits in the other drive mode registers */
+		regcache_cache_only(chip->regmap, true);
 		for (i = CY8C95X0_DRV_PU; i <= CY8C95X0_DRV_HIZ; i++) {
 			if (i == reg)
 				continue;
+
 			off = CY8C95X0_MUX_REGMAP_TO_OFFSET(i, port);
-
-			ret = regmap_read(regmap, off, &read_val);
-			if (ret < 0)
-				continue;
-
-			if (!(read_val & mask & val))
-				continue;
-
-			regcache_cache_only(regmap, true);
-			regmap_update_bits(regmap, off, mask & val, 0);
-			regcache_cache_only(regmap, false);
+			regmap_clear_bits(chip->regmap, off, mask & val);
 		}
+		regcache_cache_only(chip->regmap, false);
 	}
 
 	return ret;
@@ -666,23 +585,23 @@ static int cy8c95x0_regmap_update_bits(struct cy8c95x0_pinctrl *chip, unsigned i
 static int cy8c95x0_regmap_read(struct cy8c95x0_pinctrl *chip, unsigned int reg,
 				unsigned int port, unsigned int *read_val)
 {
-	struct regmap *regmap;
-	int off;
+	int off, ret;
 
-	/* Registers behind the PORTSEL mux have their own regmap */
+	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
-		regmap = chip->muxed_regmap;
 		off = CY8C95X0_MUX_REGMAP_TO_OFFSET(reg, port);
 	} else {
-		regmap = chip->regmap;
 		/* Quick path direct access registers honor the port argument */
 		if (cy8c95x0_quick_path_register(reg))
 			off = reg + port;
 		else
 			off = reg;
 	}
+	guard(mutex)(&chip->i2c_lock);
 
-	return regmap_read(regmap, off, read_val);
+	ret = regmap_read(chip->regmap, off, read_val);
+
+	return ret;
 }
 
 static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
@@ -691,9 +610,8 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	DECLARE_BITMAP(tmask, MAX_LINE);
 	DECLARE_BITMAP(tval, MAX_LINE);
 	int write_val;
-	int ret = 0;
-	int i;
 	u8 bits;
+	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
 	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
@@ -704,7 +622,7 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
-	for (i = 0; i < chip->nport; i++) {
+	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
 		bits = bitmap_get_value8(tmask, i * BANK_SZ);
 		if (!bits)
@@ -713,15 +631,13 @@ static int cy8c95x0_write_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 		write_val = bitmap_get_value8(tval, i * BANK_SZ);
 
 		ret = cy8c95x0_regmap_update_bits(chip, reg, i, bits, write_val);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			dev_err(chip->dev, "failed writing register %d, port %u: err %d\n", reg, i, ret);
+			return ret;
+		}
 	}
-out:
 
-	if (ret < 0)
-		dev_err(chip->dev, "failed writing register %d, port %d: err %d\n", reg, i, ret);
-
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
@@ -731,9 +647,8 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	DECLARE_BITMAP(tval, MAX_LINE);
 	DECLARE_BITMAP(tmp, MAX_LINE);
 	int read_val;
-	int ret = 0;
-	int i;
 	u8 bits;
+	int ret;
 
 	/* Add the 4 bit gap of Gport2 */
 	bitmap_andnot(tmask, mask, chip->shiftmask, MAX_LINE);
@@ -744,15 +659,17 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_left(tval, tval, 4, MAX_LINE);
 	bitmap_replace(tval, tval, val, chip->shiftmask, BANK_SZ * 3);
 
-	for (i = 0; i < chip->nport; i++) {
+	for (unsigned int i = 0; i < chip->nport; i++) {
 		/* Skip over unused banks */
 		bits = bitmap_get_value8(tmask, i * BANK_SZ);
 		if (!bits)
 			continue;
 
 		ret = cy8c95x0_regmap_read(chip, reg, i, &read_val);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			dev_err(chip->dev, "failed reading register %d, port %u: err %d\n", reg, i, ret);
+			return ret;
+		}
 
 		read_val &= bits;
 		read_val |= bitmap_get_value8(tval, i * BANK_SZ) & ~bits;
@@ -763,11 +680,7 @@ static int cy8c95x0_read_regs_mask(struct cy8c95x0_pinctrl *chip, int reg,
 	bitmap_shift_right(tmp, tval, 4, MAX_LINE);
 	bitmap_replace(val, tmp, tval, chip->shiftmask, MAX_LINE);
 
-out:
-	if (ret < 0)
-		dev_err(chip->dev, "failed reading register %d, port %d: err %d\n", reg, i, ret);
-
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_gpio_direction_input(struct gpio_chip *gc, unsigned int off)
@@ -833,14 +746,12 @@ static int cy8c95x0_gpio_get_direction(struct gpio_chip *gc, unsigned int off)
 
 	ret = cy8c95x0_regmap_read(chip, CY8C95X0_DIRECTION, port, &reg_val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (reg_val & bit)
 		return GPIO_LINE_DIRECTION_IN;
 
 	return GPIO_LINE_DIRECTION_OUT;
-out:
-	return ret;
 }
 
 static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
@@ -902,8 +813,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	case PIN_CONFIG_SLEEP_HARDWARE_STATE:
 	case PIN_CONFIG_SLEW_RATE:
 	default:
-		ret = -ENOTSUPP;
-		goto out;
+		return -ENOTSUPP;
 	}
 	/*
 	 * Writing 1 to one of the drive mode registers will automatically
@@ -911,7 +821,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	 */
 	ret = cy8c95x0_regmap_read(chip, reg, port, &reg_val);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (reg_val & bit)
 		arg = 1;
@@ -919,8 +829,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 		arg = !arg;
 
 	*config = pinconf_to_config_packed(param, (u16)arg);
-out:
-	return ret;
+	return 0;
 }
 
 static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
@@ -932,7 +841,6 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 	unsigned long param = pinconf_to_config_param(config);
 	unsigned long arg = pinconf_to_config_argument(config);
 	unsigned int reg;
-	int ret;
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_PULL_UP:
@@ -963,22 +871,17 @@ static int cy8c95x0_gpio_set_pincfg(struct cy8c95x0_pinctrl *chip,
 		reg = CY8C95X0_PWMSEL;
 		break;
 	case PIN_CONFIG_OUTPUT_ENABLE:
-		ret = cy8c95x0_pinmux_direction(chip, off, !arg);
-		goto out;
+		return cy8c95x0_pinmux_direction(chip, off, !arg);
 	case PIN_CONFIG_INPUT_ENABLE:
-		ret = cy8c95x0_pinmux_direction(chip, off, arg);
-		goto out;
+		return cy8c95x0_pinmux_direction(chip, off, arg);
 	default:
-		ret = -ENOTSUPP;
-		goto out;
+		return -ENOTSUPP;
 	}
 	/*
 	 * Writing 1 to one of the drive mode registers will automatically
 	 * clear conflicting set bits in the other drive mode registers.
 	 */
-	ret = cy8c95x0_regmap_write_bits(chip, reg, port, bit, bit);
-out:
-	return ret;
+	return cy8c95x0_regmap_write_bits(chip, reg, port, bit, bit);
 }
 
 static int cy8c95x0_gpio_get_multiple(struct gpio_chip *gc,
@@ -1503,89 +1406,76 @@ static int cy8c95x0_detect(struct i2c_client *client,
 	}
 
 	dev_info(&client->dev, "Found a %s chip at 0x%02x.\n", name, client->addr);
-	strscpy(info->type, name, I2C_NAME_SIZE);
+	strscpy(info->type, name);
 
 	return 0;
 }
 
 static int cy8c95x0_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct cy8c95x0_pinctrl *chip;
-	struct regulator *reg;
+	struct regmap_config regmap_conf;
+	struct regmap_range_cfg regmap_range_conf;
 	int ret;
 
-	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
-	chip->dev = &client->dev;
+	chip->dev = dev;
 
 	/* Set the device type */
 	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
 	if (!chip->driver_data)
 		return -ENODEV;
 
-	i2c_set_clientdata(client, chip);
-
 	chip->tpin = chip->driver_data & CY8C95X0_GPIO_MASK;
 	chip->nport = DIV_ROUND_UP(CY8C95X0_PIN_TO_OFFSET(chip->tpin), BANK_SZ);
 
+	memcpy(&regmap_range_conf, &cy8c95x0_ranges[0], sizeof(regmap_range_conf));
+
 	switch (chip->tpin) {
 	case 20:
-		strscpy(chip->name, cy8c95x0_id[0].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[0].name);
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 3 * MUXED_STRIDE;
 		break;
 	case 40:
-		strscpy(chip->name, cy8c95x0_id[1].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[1].name);
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 6 * MUXED_STRIDE;
 		break;
 	case 60:
-		strscpy(chip->name, cy8c95x0_id[2].name, I2C_NAME_SIZE);
+		strscpy(chip->name, cy8c95x0_id[2].name);
+		regmap_range_conf.range_max = CY8C95X0_VIRTUAL + 8 * MUXED_STRIDE;
 		break;
 	default:
 		return -ENODEV;
 	}
 
-	reg = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR(reg)) {
-		if (PTR_ERR(reg) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-	} else {
-		ret = regulator_enable(reg);
-		if (ret) {
-			dev_err(&client->dev, "failed to enable regulator vdd: %d\n", ret);
-			return ret;
-		}
-		chip->regulator = reg;
-	}
+	ret = devm_regulator_get_enable(dev, "vdd");
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable regulator vdd\n");
 
 	/* bring the chip out of reset if reset pin is provided */
-	chip->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
-	if (IS_ERR(chip->gpio_reset)) {
-		ret = dev_err_probe(chip->dev, PTR_ERR(chip->gpio_reset),
-				    "Failed to get GPIO 'reset'\n");
-		goto err_exit;
-	} else if (chip->gpio_reset) {
-		usleep_range(1000, 2000);
+	chip->gpio_reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(chip->gpio_reset))
+		return dev_err_probe(dev, PTR_ERR(chip->gpio_reset), "Failed to get GPIO 'reset'\n");
+	gpiod_set_consumer_name(chip->gpio_reset, "CY8C95X0 RESET");
+	if (chip->gpio_reset) {
+		fsleep(1000);
 		gpiod_set_value_cansleep(chip->gpio_reset, 0);
-		usleep_range(250000, 300000);
-
-		gpiod_set_consumer_name(chip->gpio_reset, "CY8C95X0 RESET");
+		fsleep(250000);
 	}
 
-	/* Generic regmap for direct access registers */
-	chip->regmap = devm_regmap_init_i2c(client, &cy8c95x0_i2c_regmap);
-	if (IS_ERR(chip->regmap)) {
-		ret = PTR_ERR(chip->regmap);
-		goto err_exit;
-	}
+	/* Regmap for direct and paged registers */
+	memcpy(&regmap_conf, &cy8c9520_i2c_regmap, sizeof(regmap_conf));
+	regmap_conf.ranges = &regmap_range_conf;
+	regmap_conf.max_register = regmap_range_conf.range_max;
+	regmap_conf.num_reg_defaults_raw = regmap_range_conf.range_max;
 
-	/* Port specific regmap behind PORTSEL mux */
-	chip->muxed_regmap = devm_regmap_init(&client->dev, &cy8c95x0_regmap_bus,
-					      chip, &cy8c95x0_muxed_regmap);
-	if (IS_ERR(chip->muxed_regmap)) {
-		ret = dev_err_probe(&client->dev, PTR_ERR(chip->muxed_regmap),
-				    "Failed to register muxed regmap\n");
-		goto err_exit;
-	}
+	chip->regmap = devm_regmap_init_i2c(client, &regmap_conf);
+	if (IS_ERR(chip->regmap))
+		return PTR_ERR(chip->regmap);
 
 	bitmap_zero(chip->push_pull, MAX_LINE);
 	bitmap_zero(chip->shiftmask, MAX_LINE);
@@ -1601,31 +1491,14 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	if (client->irq) {
 		ret = cy8c95x0_irq_setup(chip, client->irq);
 		if (ret)
-			goto err_exit;
+			return ret;
 	}
 
 	ret = cy8c95x0_setup_pinctrl(chip);
 	if (ret)
-		goto err_exit;
+		return ret;
 
-	ret = cy8c95x0_setup_gpiochip(chip);
-	if (ret)
-		goto err_exit;
-
-	return 0;
-
-err_exit:
-	if (!IS_ERR_OR_NULL(chip->regulator))
-		regulator_disable(chip->regulator);
-	return ret;
-}
-
-static void cy8c95x0_remove(struct i2c_client *client)
-{
-	struct cy8c95x0_pinctrl *chip = i2c_get_clientdata(client);
-
-	if (!IS_ERR_OR_NULL(chip->regulator))
-		regulator_disable(chip->regulator);
+	return cy8c95x0_setup_gpiochip(chip);
 }
 
 static const struct acpi_device_id cy8c95x0_acpi_ids[] = {
@@ -1641,7 +1514,6 @@ static struct i2c_driver cy8c95x0_driver = {
 		.acpi_match_table = cy8c95x0_acpi_ids,
 	},
 	.probe		= cy8c95x0_probe,
-	.remove		= cy8c95x0_remove,
 	.id_table	= cy8c95x0_id,
 	.detect		= cy8c95x0_detect,
 };

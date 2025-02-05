@@ -12,11 +12,11 @@
 /dts-v1/;
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/linux-event-codes.h>
-#include "rk3399.dtsi"
-#include "rk3399-opp.dtsi"
+#include <dt-bindings/leds/common.h>
+#include "rk3399-s.dtsi"
 
 / {
-	model = "Pine64 PinePhonePro";
+	model = "Pine64 PinePhone Pro";
 	compatible = "pine64,pinephone-pro", "rockchip,rk3399";
 	chassis-type = "handset";
 
@@ -69,14 +69,42 @@
 		};
 	};
 
-	vcc_sys: vcc-sys-regulator {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&red_led_pin &green_led_pin &blue_led_pin>;
+
+		led_red: led-0 {
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
+		};
+
+		led_green: led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
+		};
+
+		led_blue: led-2 {
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&gpio4 RK_PD6 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	multi-led {
+		compatible = "leds-group-multicolor";
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_INDICATOR;
+		leds = <&led_red>, <&led_green>, <&led_blue>;
+	};
+
+	vcc_sys: regulator-vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
 		regulator-always-on;
 		regulator-boot-on;
 	};
 
-	vcc3v3_sys: vcc3v3-sys-regulator {
+	vcc3v3_sys: regulator-vcc3v3-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v3_sys";
 		regulator-always-on;
@@ -86,7 +114,7 @@
 		vin-supply = <&vcc_sys>;
 	};
 
-	vcca1v8_s3: vcc1v8-s3-regulator {
+	vcca1v8_s3: regulator-vcc1v8-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcca1v8_s3";
 		regulator-min-microvolt = <1800000>;
@@ -96,7 +124,7 @@
 		regulator-boot-on;
 	};
 
-	vcc1v8_codec: vcc1v8-codec-regulator {
+	vcc1v8_codec: regulator-vcc1v8-codec {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		gpio = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
@@ -130,7 +158,7 @@
 	};
 
 	/* MIPI DSI panel 1.8v supply */
-	vcc1v8_lcd: vcc1v8-lcd {
+	vcc1v8_lcd: regulator-vcc1v8-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc1v8_lcd";
@@ -138,11 +166,10 @@
 		regulator-max-microvolt = <1800000>;
 		vin-supply = <&vcc3v3_sys>;
 		gpio = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
 	};
 
 	/* MIPI DSI panel 2.8v supply */
-	vcc2v8_lcd: vcc2v8-lcd {
+	vcc2v8_lcd: regulator-vcc2v8-lcd {
 		compatible = "regulator-fixed";
 		enable-active-high;
 		regulator-name = "vcc2v8_lcd";
@@ -150,7 +177,12 @@
 		regulator-max-microvolt = <2800000>;
 		vin-supply = <&vcc3v3_sys>;
 		gpio = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
+	};
+
+	vibrator {
+		compatible = "gpio-vibrator";
+		enable-gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
+		vcc-supply = <&vcc3v3_sys>;
 	};
 };
 
@@ -209,7 +241,7 @@
 		clock-output-names = "xin32k", "rk808-clkout2";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_int_l>;
-		rockchip,system-power-controller;
+		system-power-controller;
 		wakeup-source;
 
 		vcc1-supply = <&vcc_sys>;
@@ -407,24 +439,18 @@
 	};
 };
 
-&cluster0_opp {
-	opp04 {
-		status = "disabled";
-	};
+&i2c4 {
+	i2c-scl-rising-time-ns = <600>;
+	i2c-scl-falling-time-ns = <20>;
+	status = "okay";
 
-	opp05 {
-		status = "disabled";
-	};
-};
-
-&cluster1_opp {
-	opp06 {
-		opp-hz = /bits/ 64 <1500000000>;
-		opp-microvolt = <1100000 1100000 1150000>;
-	};
-
-	opp07 {
-		status = "disabled";
+	/* Accelerometer/gyroscope */
+	mpu6500@68 {
+		compatible = "invensense,mpu6500";
+		reg = <0x68>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC6 IRQ_TYPE_LEVEL_LOW>;
+		vddio-supply = <&vcc_1v8>;
 	};
 };
 
@@ -478,6 +504,20 @@
 	buttons {
 		pwrbtn_pin: pwrbtn-pin {
 			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	leds {
+		red_led_pin: red-led-pin {
+			rockchip,pins = <4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		green_led_pin: green-led-pin {
+			rockchip,pins = <4 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		blue_led_pin: blue-led-pin {
+			rockchip,pins = <4 RK_PD6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
@@ -563,6 +603,16 @@
 	mmc-hs200-1_8v;
 	non-removable;
 	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+	};
 };
 
 &tsadc {

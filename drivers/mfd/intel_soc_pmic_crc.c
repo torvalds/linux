@@ -137,7 +137,9 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 
 /* PWM consumed by the Intel GFX */
 static struct pwm_lookup crc_pwm_lookup[] = {
-	PWM_LOOKUP("crystal_cove_pwm", 0, "0000:00:02.0", "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL),
+	PWM_LOOKUP_WITH_MODULE("crystal_cove_pwm", 0, "0000:00:02.0",
+			       "pwm_pmic_backlight", 0, PWM_POLARITY_NORMAL,
+			       "pwm-crc"),
 };
 
 struct crystal_cove_config {
@@ -257,12 +259,19 @@ static const struct acpi_device_id crystal_cove_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, crystal_cove_acpi_match);
 
+static const struct i2c_device_id crystal_cove_i2c_match[] = {
+	{ "intel_soc_pmic_crc" },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, crystal_cove_i2c_match);
+
 static struct i2c_driver crystal_cove_i2c_driver = {
 	.driver = {
-		.name = "crystal_cove_i2c",
+		.name = "intel_soc_pmic_crc",
 		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
 		.acpi_match_table = crystal_cove_acpi_match,
 	},
+	.id_table = crystal_cove_i2c_match,
 	.probe = crystal_cove_i2c_probe,
 	.remove = crystal_cove_i2c_remove,
 	.shutdown = crystal_cove_shutdown,

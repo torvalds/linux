@@ -88,6 +88,7 @@
 #define STORE_LE32(addr, val)	(*(u32 *)addr = val)
 
 
+MODULE_DESCRIPTION("Mediated virtual PCI display host device driver");
 MODULE_LICENSE("GPL v2");
 
 static int max_mbytes = 256;
@@ -1468,6 +1469,6 @@ static void __exit mbochs_dev_exit(void)
 	class_unregister(&mbochs_class);
 }
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 module_init(mbochs_dev_init)
 module_exit(mbochs_dev_exit)

@@ -81,7 +81,7 @@ int vpu_dec_deinit(struct vdec_vpu_inst *vpu);
 
 /**
  * vpu_dec_reset - reset decoder, use for flush decoder when end of stream or
- *                 seek. Remainig non displayed frame will be pushed to display.
+ *                 seek. Remaining non displayed frame will be pushed to display.
  *
  * @vpu: instance for vdec_vpu_inst
  */
@@ -98,7 +98,7 @@ int vpu_dec_core(struct vdec_vpu_inst *vpu);
 /**
  * vpu_dec_core_end - core end decoding, basically the function will be invoked once
  *               when core HW decoding done and receive interrupt successfully. The
- *               decoder in VPU will updata hardware information and deinit hardware
+ *               decoder in VPU will update hardware information and deinit hardware
  *               and check if there is a new decoded frame available to display.
  *
  * @vpu : instance for vdec_vpu_inst

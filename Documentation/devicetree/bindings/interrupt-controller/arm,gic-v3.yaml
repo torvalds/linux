@@ -60,7 +60,7 @@ properties:
       The 4th cell is a phandle to a node describing a set of CPUs this
       interrupt is affine to. The interrupt must be a PPI, and the node
       pointed must be a subnode of the "ppi-partitions" subnode. For
-      interrupt types other than PPI or PPIs that are not partitionned,
+      interrupt types other than PPI or PPIs that are not partitioned,
       this cell must be zero. See the "ppi-partitions" node description
       below.
 
@@ -132,10 +132,9 @@ properties:
       Address property. Base address of an alias of the GICD region containing
       only the {SET,CLR}SPI registers to be used if isolation is required,
       and if supported by the HW.
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-    items:
-      minItems: 1
-      maxItems: 2
+    oneOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - $ref: /schemas/types.yaml#/definitions/uint64
 
   ppi-partitions:
     type: object
@@ -223,9 +222,8 @@ patternProperties:
           (u32, u32) tuple describing the untranslated
           address and size of the pre-ITS window.
         $ref: /schemas/types.yaml#/definitions/uint32-array
-        items:
-          minItems: 2
-          maxItems: 2
+        minItems: 2
+        maxItems: 2
 
     required:
       - compatible

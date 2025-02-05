@@ -16,7 +16,7 @@ description: |
   maximum throughput of 1.2Gbps/lane.
 
 allOf:
-  - $ref: ../video-interface-devices.yaml#
+  - $ref: /schemas/media/video-interface-devices.yaml#
 
 properties:
   compatible:

@@ -20,6 +20,7 @@
 #define	MASKBYTE1				0xff00
 #define	MASKBYTE2				0xff0000
 #define	MASKBYTE3				0xff000000
+#define	MASKH3BYTES				0xffffff00
 #define	MASKHWORD				0xffff0000
 #define	MASKLWORD				0x0000ffff
 #define	MASKDWORD				0xffffffff
@@ -47,6 +48,10 @@
 #define	MASK4BITS				0x0f
 #define	MASK20BITS				0xfffff
 #define RFREG_OFFSET_MASK			0xfffff
+
+/* For dual MAC RTL8192DU */
+#define	MAC0_ACCESS_PHY1			0x4000
+#define	MAC1_ACCESS_PHY0			0x2000
 
 #define RF_CHANGE_BY_INIT			0
 #define RF_CHANGE_BY_IPS			BIT(28)
@@ -1042,33 +1047,6 @@ struct octet_string {
 	u8 *octet;
 	u16 length;
 };
-
-struct rtl_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
-	u8 payload[];
-} __packed;
-
-struct rtl_info_element {
-	u8 id;
-	u8 len;
-	u8 data[];
-} __packed;
-
-struct rtl_probe_rsp {
-	struct rtl_hdr_3addr header;
-	u32 time_stamp[2];
-	__le16 beacon_interval;
-	__le16 capability;
-	/*SSID, supported rates, FH params, DS params,
-	 * CF params, IBSS params, TIM (if beacon), RSN
-	 */
-	struct rtl_info_element info_element[];
-} __packed;
 
 struct rtl_led_ctl {
 	bool led_opendrain;
@@ -2268,6 +2246,7 @@ struct rtl_hal_ops {
 	bool (*config_bb_with_pgheaderfile)(struct ieee80211_hw *hw,
 					    u8 configtype);
 	void (*phy_lc_calibrate)(struct ieee80211_hw *hw, bool is2t);
+	void (*phy_iq_calibrate)(struct ieee80211_hw *hw);
 	void (*phy_set_bw_mode_callback)(struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower)(struct ieee80211_hw *hw);
 	void (*c2h_command_handle)(struct ieee80211_hw *hw);
@@ -2291,8 +2270,6 @@ struct rtl_intf_ops {
 	/*com */
 	int (*adapter_start)(struct ieee80211_hw *hw);
 	void (*adapter_stop)(struct ieee80211_hw *hw);
-	bool (*check_buddy_priv)(struct ieee80211_hw *hw,
-				 struct rtl_priv **buddy_priv);
 
 	int (*adapter_tx)(struct ieee80211_hw *hw,
 			  struct ieee80211_sta *sta,
@@ -2377,9 +2354,9 @@ struct rtl_hal_cfg {
 	bool write_readback;
 	char *name;
 	char *alt_fw_name;
-	struct rtl_hal_ops *ops;
+	const struct rtl_hal_ops *ops;
 	struct rtl_mod_params *mod_params;
-	struct rtl_hal_usbint_cfg *usb_interface_cfg;
+	const struct rtl_hal_usbint_cfg *usb_interface_cfg;
 	enum rtl_spec_ver spec_ver;
 
 	/*this map used for some registers or vars
@@ -2535,14 +2512,6 @@ struct dig_t {
 	u32 rssi_max;
 };
 
-struct rtl_global_var {
-	/* from this list we can get
-	 * other adapter's rtl_priv
-	 */
-	struct list_head glb_priv_list;
-	spinlock_t glb_list_lock;
-};
-
 #define IN_4WAY_TIMEOUT_TIME	(30 * MSEC_PER_SEC)	/* 30 seconds */
 
 struct rtl_btc_info {
@@ -2688,9 +2657,7 @@ struct rtl_scan_list {
 struct rtl_priv {
 	struct ieee80211_hw *hw;
 	struct completion firmware_loading_complete;
-	struct list_head list;
 	struct rtl_priv *buddy_priv;
-	struct rtl_global_var *glb_var;
 	struct rtl_dmsp_ctl dmsp_ctl;
 	struct rtl_locks locks;
 	struct rtl_works works;
@@ -2728,7 +2695,7 @@ struct rtl_priv {
 	/* hal_cfg : for diff cards
 	 * intf_ops : for diff interrface usb/pcie
 	 */
-	struct rtl_hal_cfg *cfg;
+	const struct rtl_hal_cfg *cfg;
 	const struct rtl_intf_ops *intf_ops;
 
 	/* this var will be set by set_bit,
@@ -2766,6 +2733,12 @@ struct rtl_priv {
 	 * 92ee use new trx flow.
 	 */
 	bool use_new_trx_flow;
+
+	/* For dual MAC RTL8192DU, things shared by the 2 USB interfaces */
+	u32 *curveindex_2g;
+	u32 *curveindex_5g;
+	struct mutex *mutex_for_power_on_off; /* for power on/off */
+	struct mutex *mutex_for_hw_init; /* for hardware init */
 
 #ifdef CONFIG_PM
 	struct wiphy_wowlan_support wowlan;

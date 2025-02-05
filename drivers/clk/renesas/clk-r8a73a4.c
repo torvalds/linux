@@ -30,8 +30,6 @@ struct r8a73a4_cpg {
 #define CPG_PLL2HCR	0xe4
 #define CPG_PLL2SCR	0xf4
 
-#define CLK_ENABLE_ON_INIT BIT(0)
-
 struct div4_clk {
 	const char *name;
 	unsigned int reg;
@@ -65,7 +63,6 @@ r8a73a4_cpg_register_clock(struct device_node *np, struct r8a73a4_cpg *cpg,
 	unsigned int shift, reg;
 	unsigned int mult = 1;
 	unsigned int div = 1;
-
 
 	if (!strcmp(name, "main")) {
 		u32 ckscr = readl(base + CPG_CKSCR);

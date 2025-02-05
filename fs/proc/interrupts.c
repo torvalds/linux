@@ -11,13 +11,13 @@
  */
 static void *int_seq_start(struct seq_file *f, loff_t *pos)
 {
-	return (*pos <= nr_irqs) ? pos : NULL;
+	return *pos <= irq_get_nr_irqs() ? pos : NULL;
 }
 
 static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
 {
 	(*pos)++;
-	if (*pos > nr_irqs)
+	if (*pos > irq_get_nr_irqs())
 		return NULL;
 	return pos;
 }

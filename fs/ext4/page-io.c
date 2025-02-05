@@ -117,7 +117,6 @@ static void ext4_finish_bio(struct bio *bio)
 
 		if (bio->bi_status) {
 			int err = blk_status_to_errno(bio->bi_status);
-			folio_set_error(folio);
 			mapping_set_error(folio->mapping, err);
 		}
 		bh = head = folio_buffers(folio);
@@ -418,11 +417,13 @@ static void io_submit_add_bh(struct ext4_io_submit *io,
 submit_and_retry:
 		ext4_io_submit(io);
 	}
-	if (io->io_bio == NULL)
+	if (io->io_bio == NULL) {
 		io_submit_init_bio(io, bh);
+		io->io_bio->bi_write_hint = inode->i_write_hint;
+	}
 	if (!bio_add_folio(io->io_bio, io_folio, bh->b_size, bh_offset(bh)))
 		goto submit_and_retry;
-	wbc_account_cgroup_owner(io->io_wbc, &folio->page, bh->b_size);
+	wbc_account_cgroup_owner(io->io_wbc, folio, bh->b_size);
 	io->io_next_block++;
 }
 
@@ -440,8 +441,6 @@ int ext4_bio_write_folio(struct ext4_io_submit *io, struct folio *folio,
 
 	BUG_ON(!folio_test_locked(folio));
 	BUG_ON(folio_test_writeback(folio));
-
-	folio_clear_error(folio);
 
 	/*
 	 * Comments copied from block_write_full_folio:

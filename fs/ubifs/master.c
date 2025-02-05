@@ -67,10 +67,13 @@ static int mst_node_check_hash(const struct ubifs_info *c,
 {
 	u8 calc[UBIFS_MAX_HASH_LEN];
 	const void *node = mst;
+	int ret;
 
-	crypto_shash_tfm_digest(c->hash_tfm, node + sizeof(struct ubifs_ch),
+	ret = crypto_shash_tfm_digest(c->hash_tfm, node + sizeof(struct ubifs_ch),
 				UBIFS_MST_NODE_SZ - sizeof(struct ubifs_ch),
 				calc);
+	if (ret)
+		return ret;
 
 	if (ubifs_check_hash(c, expected, calc))
 		return -EPERM;

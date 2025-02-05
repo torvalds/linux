@@ -147,7 +147,7 @@ static ssize_t ccwgroup_online_show(struct device *dev,
 
 	online = (gdev->state == CCWGROUP_ONLINE) ? 1 : 0;
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", online);
+	return sysfs_emit(buf, "%d\n", online);
 }
 
 /*
@@ -550,4 +550,5 @@ void ccwgroup_remove_ccwdev(struct ccw_device *cdev)
 	put_device(&gdev->dev);
 }
 EXPORT_SYMBOL(ccwgroup_remove_ccwdev);
+MODULE_DESCRIPTION("ccwgroup bus driver");
 MODULE_LICENSE("GPL");

@@ -12,7 +12,7 @@
 #include <linux/mfd/dln2.h>
 #include <linux/spi/spi.h>
 #include <linux/pm_runtime.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DLN2_SPI_MODULE_ID		0x02
 #define DLN2_SPI_CMD(cmd)		DLN2_CMD(cmd, DLN2_SPI_MODULE_ID)
@@ -871,7 +871,7 @@ static struct platform_driver spi_dln2_driver = {
 		.pm	= &dln2_spi_pm,
 	},
 	.probe		= dln2_spi_probe,
-	.remove_new	= dln2_spi_remove,
+	.remove		= dln2_spi_remove,
 };
 module_platform_driver(spi_dln2_driver);
 

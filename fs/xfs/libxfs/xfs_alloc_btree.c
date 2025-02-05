@@ -28,7 +28,7 @@ xfs_bnobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_bnobt_init_cursor(cur->bc_mp, cur->bc_tp, cur->bc_ag.agbp,
-			cur->bc_ag.pag);
+			to_perag(cur->bc_group));
 }
 
 STATIC struct xfs_btree_cur *
@@ -36,9 +36,8 @@ xfs_cntbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_cntbt_init_cursor(cur->bc_mp, cur->bc_tp, cur->bc_ag.agbp,
-			cur->bc_ag.pag);
+			to_perag(cur->bc_group));
 }
-
 
 STATIC void
 xfs_allocbt_set_root(
@@ -46,19 +45,20 @@ xfs_allocbt_set_root(
 	const union xfs_btree_ptr	*ptr,
 	int				inc)
 {
-	struct xfs_buf		*agbp = cur->bc_ag.agbp;
-	struct xfs_agf		*agf = agbp->b_addr;
+	struct xfs_perag		*pag = to_perag(cur->bc_group);
+	struct xfs_buf			*agbp = cur->bc_ag.agbp;
+	struct xfs_agf			*agf = agbp->b_addr;
 
 	ASSERT(ptr->s != 0);
 
 	if (xfs_btree_is_bno(cur->bc_ops)) {
 		agf->agf_bno_root = ptr->s;
 		be32_add_cpu(&agf->agf_bno_level, inc);
-		cur->bc_ag.pag->pagf_bno_level += inc;
+		pag->pagf_bno_level += inc;
 	} else {
 		agf->agf_cnt_root = ptr->s;
 		be32_add_cpu(&agf->agf_cnt_level, inc);
-		cur->bc_ag.pag->pagf_cnt_level += inc;
+		pag->pagf_cnt_level += inc;
 	}
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
@@ -75,7 +75,7 @@ xfs_allocbt_alloc_block(
 	xfs_agblock_t		bno;
 
 	/* Allocate the new block from the freelist. If we can't, give up.  */
-	error = xfs_alloc_get_freelist(cur->bc_ag.pag, cur->bc_tp,
+	error = xfs_alloc_get_freelist(to_perag(cur->bc_group), cur->bc_tp,
 			cur->bc_ag.agbp, &bno, 1);
 	if (error)
 		return error;
@@ -86,7 +86,7 @@ xfs_allocbt_alloc_block(
 	}
 
 	atomic64_inc(&cur->bc_mp->m_allocbt_blks);
-	xfs_extent_busy_reuse(cur->bc_mp, cur->bc_ag.pag, bno, 1, false);
+	xfs_extent_busy_reuse(cur->bc_group, bno, 1, false);
 
 	new->s = cpu_to_be32(bno);
 
@@ -104,76 +104,15 @@ xfs_allocbt_free_block(
 	int			error;
 
 	bno = xfs_daddr_to_agbno(cur->bc_mp, xfs_buf_daddr(bp));
-	error = xfs_alloc_put_freelist(cur->bc_ag.pag, cur->bc_tp, agbp, NULL,
-			bno, 1);
+	error = xfs_alloc_put_freelist(to_perag(cur->bc_group), cur->bc_tp,
+			agbp, NULL, bno, 1);
 	if (error)
 		return error;
 
 	atomic64_dec(&cur->bc_mp->m_allocbt_blks);
-	xfs_extent_busy_insert(cur->bc_tp, agbp->b_pag, bno, 1,
+	xfs_extent_busy_insert(cur->bc_tp, pag_group(agbp->b_pag), bno, 1,
 			      XFS_EXTENT_BUSY_SKIP_DISCARD);
 	return 0;
-}
-
-/*
- * Update the longest extent in the AGF
- */
-STATIC void
-xfs_allocbt_update_lastrec(
-	struct xfs_btree_cur		*cur,
-	const struct xfs_btree_block	*block,
-	const union xfs_btree_rec	*rec,
-	int				ptr,
-	int				reason)
-{
-	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
-	struct xfs_perag	*pag;
-	__be32			len;
-	int			numrecs;
-
-	ASSERT(!xfs_btree_is_bno(cur->bc_ops));
-
-	switch (reason) {
-	case LASTREC_UPDATE:
-		/*
-		 * If this is the last leaf block and it's the last record,
-		 * then update the size of the longest extent in the AG.
-		 */
-		if (ptr != xfs_btree_get_numrecs(block))
-			return;
-		len = rec->alloc.ar_blockcount;
-		break;
-	case LASTREC_INSREC:
-		if (be32_to_cpu(rec->alloc.ar_blockcount) <=
-		    be32_to_cpu(agf->agf_longest))
-			return;
-		len = rec->alloc.ar_blockcount;
-		break;
-	case LASTREC_DELREC:
-		numrecs = xfs_btree_get_numrecs(block);
-		if (ptr <= numrecs)
-			return;
-		ASSERT(ptr == numrecs + 1);
-
-		if (numrecs) {
-			xfs_alloc_rec_t *rrp;
-
-			rrp = XFS_ALLOC_REC_ADDR(cur->bc_mp, block, numrecs);
-			len = rrp->ar_blockcount;
-		} else {
-			len = 0;
-		}
-
-		break;
-	default:
-		ASSERT(0);
-		return;
-	}
-
-	agf->agf_longest = len;
-	pag = cur->bc_ag.agbp->b_pag;
-	pag->pagf_longest = be32_to_cpu(len);
-	xfs_alloc_log_agf(cur->bc_tp, cur->bc_ag.agbp, XFS_AGF_LONGEST);
 }
 
 STATIC int
@@ -239,7 +178,7 @@ xfs_allocbt_init_ptr_from_cur(
 {
 	struct xfs_agf		*agf = cur->bc_ag.agbp->b_addr;
 
-	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
+	ASSERT(cur->bc_group->xg_gno == be32_to_cpu(agf->agf_seqno));
 
 	if (xfs_btree_is_bno(cur->bc_ops))
 		ptr->s = agf->agf_bno_root;
@@ -493,7 +432,6 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
-	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
@@ -511,7 +449,6 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 const struct xfs_btree_ops xfs_cntbt_ops = {
 	.name			= "cnt",
 	.type			= XFS_BTREE_TYPE_AG,
-	.geom_flags		= XFS_BTGEO_LASTREC_UPDATE,
 
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
@@ -525,7 +462,6 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
-	.update_lastrec		= xfs_allocbt_update_lastrec,
 	.get_minrecs		= xfs_allocbt_get_minrecs,
 	.get_maxrecs		= xfs_allocbt_get_maxrecs,
 	.init_key_from_rec	= xfs_allocbt_init_key_from_rec,
@@ -556,7 +492,7 @@ xfs_bnobt_init_cursor(
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_bnobt_ops,
 			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	cur->bc_ag.agbp = agbp;
 	if (agbp) {
 		struct xfs_agf		*agf = agbp->b_addr;
@@ -582,7 +518,7 @@ xfs_cntbt_init_cursor(
 
 	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_cntbt_ops,
 			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_group = xfs_group_hold(pag_group(pag));
 	cur->bc_ag.agbp = agbp;
 	if (agbp) {
 		struct xfs_agf		*agf = agbp->b_addr;
@@ -633,11 +569,11 @@ xfs_allocbt_block_maxrecs(
 /*
  * Calculate number of records in an alloc btree block.
  */
-int
+unsigned int
 xfs_allocbt_maxrecs(
 	struct xfs_mount	*mp,
-	int			blocklen,
-	int			leaf)
+	unsigned int		blocklen,
+	bool			leaf)
 {
 	blocklen -= XFS_ALLOC_BLOCK_LEN(mp);
 	return xfs_allocbt_block_maxrecs(blocklen, leaf);

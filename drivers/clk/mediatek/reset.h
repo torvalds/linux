@@ -60,16 +60,6 @@ struct mtk_clk_rst_data {
 };
 
 /**
- * mtk_register_reset_controller - Register MediaTek clock reset controller
- * @np: Pointer to device node.
- * @desc: Constant pointer to description of clock reset.
- *
- * Return: 0 on success and errorno otherwise.
- */
-int mtk_register_reset_controller(struct device_node *np,
-				  const struct mtk_clk_rst_desc *desc);
-
-/**
  * mtk_register_reset_controller - Register mediatek clock reset controller with device
  * @np: Pointer to device.
  * @desc: Constant pointer to description of clock reset.

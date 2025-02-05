@@ -17,6 +17,7 @@ struct target {
 	bool	     default_per_cpu;
 	bool	     per_thread;
 	bool	     use_bpf;
+	bool	     inherit;
 	int	     initial_delay;
 	const char   *attr_map;
 };

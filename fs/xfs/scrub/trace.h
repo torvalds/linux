@@ -17,6 +17,7 @@
 #include "xfs_bit.h"
 #include "xfs_quota_defs.h"
 
+struct xfs_rtgroup;
 struct xfs_scrub;
 struct xfile;
 struct xfarray;
@@ -26,6 +27,10 @@ struct xchk_iscan;
 struct xchk_nlink;
 struct xchk_fscounters;
 struct xfs_rmap_update_params;
+struct xfs_parent_rec;
+enum xchk_dirpath_outcome;
+struct xchk_dirtree;
+struct xchk_dirtree_outcomes;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -35,6 +40,9 @@ struct xfs_rmap_update_params;
  */
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_SHARED);
 TRACE_DEFINE_ENUM(XFS_REFC_DOMAIN_COW);
+
+TRACE_DEFINE_ENUM(XG_TYPE_AG);
+TRACE_DEFINE_ENUM(XG_TYPE_RTG);
 
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_PROBE);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_SB);
@@ -64,6 +72,12 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_QUOTACHECK);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_NLINKS);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_HEALTHY);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_DIRTREE);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_BARRIER);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_METAPATH);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RGSUPER);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RTRMAPBT);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_RTREFCBT);
 
 #define XFS_SCRUB_TYPE_STRINGS \
 	{ XFS_SCRUB_TYPE_PROBE,		"probe" }, \
@@ -93,7 +107,13 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_HEALTHY);
 	{ XFS_SCRUB_TYPE_FSCOUNTERS,	"fscounters" }, \
 	{ XFS_SCRUB_TYPE_QUOTACHECK,	"quotacheck" }, \
 	{ XFS_SCRUB_TYPE_NLINKS,	"nlinks" }, \
-	{ XFS_SCRUB_TYPE_HEALTHY,	"healthy" }
+	{ XFS_SCRUB_TYPE_HEALTHY,	"healthy" }, \
+	{ XFS_SCRUB_TYPE_DIRTREE,	"dirtree" }, \
+	{ XFS_SCRUB_TYPE_BARRIER,	"barrier" }, \
+	{ XFS_SCRUB_TYPE_METAPATH,	"metapath" }, \
+	{ XFS_SCRUB_TYPE_RGSUPER,	"rgsuper" }, \
+	{ XFS_SCRUB_TYPE_RTRMAPBT,	"rtrmapbt" }, \
+	{ XFS_SCRUB_TYPE_RTREFCBT,	"rtrefcountbt" }
 
 #define XFS_SCRUB_FLAG_STRINGS \
 	{ XFS_SCRUB_IFLAG_REPAIR,		"repair" }, \
@@ -169,6 +189,8 @@ DEFINE_EVENT(xchk_class, name, \
 DEFINE_SCRUB_EVENT(xchk_start);
 DEFINE_SCRUB_EVENT(xchk_done);
 DEFINE_SCRUB_EVENT(xchk_deadlock_retry);
+DEFINE_SCRUB_EVENT(xchk_dirtree_start);
+DEFINE_SCRUB_EVENT(xchk_dirtree_done);
 DEFINE_SCRUB_EVENT(xrep_attempt);
 DEFINE_SCRUB_EVENT(xrep_done);
 
@@ -198,6 +220,81 @@ DEFINE_EVENT(xchk_fsgate_class, name, \
 
 DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_enable);
 DEFINE_SCRUB_FSHOOK_EVENT(xchk_fsgates_disable);
+
+DECLARE_EVENT_CLASS(xchk_vector_head_class,
+	TP_PROTO(struct xfs_inode *ip, struct xfs_scrub_vec_head *vhead),
+	TP_ARGS(ip, vhead),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_ino_t, inum)
+		__field(unsigned int, gen)
+		__field(unsigned int, flags)
+		__field(unsigned short, rest_us)
+		__field(unsigned short, nr_vecs)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->agno = vhead->svh_agno;
+		__entry->inum = vhead->svh_ino;
+		__entry->gen = vhead->svh_gen;
+		__entry->flags = vhead->svh_flags;
+		__entry->rest_us = vhead->svh_rest_us;
+		__entry->nr_vecs = vhead->svh_nr;
+	),
+	TP_printk("dev %d:%d ino 0x%llx agno 0x%x inum 0x%llx gen 0x%x flags 0x%x rest_us %u nr_vecs %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->agno,
+		  __entry->inum,
+		  __entry->gen,
+		  __entry->flags,
+		  __entry->rest_us,
+		  __entry->nr_vecs)
+)
+#define DEFINE_SCRUBV_HEAD_EVENT(name) \
+DEFINE_EVENT(xchk_vector_head_class, name, \
+	TP_PROTO(struct xfs_inode *ip, struct xfs_scrub_vec_head *vhead), \
+	TP_ARGS(ip, vhead))
+
+DEFINE_SCRUBV_HEAD_EVENT(xchk_scrubv_start);
+
+DECLARE_EVENT_CLASS(xchk_vector_class,
+	TP_PROTO(struct xfs_mount *mp, struct xfs_scrub_vec_head *vhead,
+		 unsigned int vec_nr, struct xfs_scrub_vec *v),
+	TP_ARGS(mp, vhead, vec_nr, v),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, vec_nr)
+		__field(unsigned int, vec_type)
+		__field(unsigned int, vec_flags)
+		__field(int, vec_ret)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->vec_nr = vec_nr;
+		__entry->vec_type = v->sv_type;
+		__entry->vec_flags = v->sv_flags;
+		__entry->vec_ret = v->sv_ret;
+	),
+	TP_printk("dev %d:%d vec[%u] type %s flags %s ret %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->vec_nr,
+		  __print_symbolic(__entry->vec_type, XFS_SCRUB_TYPE_STRINGS),
+		  __print_flags(__entry->vec_flags, "|", XFS_SCRUB_FLAG_STRINGS),
+		  __entry->vec_ret)
+)
+#define DEFINE_SCRUBV_EVENT(name) \
+DEFINE_EVENT(xchk_vector_class, name, \
+	TP_PROTO(struct xfs_mount *mp, struct xfs_scrub_vec_head *vhead, \
+		 unsigned int vec_nr, struct xfs_scrub_vec *v), \
+	TP_ARGS(mp, vhead, vec_nr, v))
+
+DEFINE_SCRUBV_EVENT(xchk_scrubv_barrier_fail);
+DEFINE_SCRUBV_EVENT(xchk_scrubv_item);
+DEFINE_SCRUBV_EVENT(xchk_scrubv_outcome);
 
 TRACE_EVENT(xchk_op_error,
 	TP_PROTO(struct xfs_scrub *sc, xfs_agnumber_t agno,
@@ -364,6 +461,7 @@ DEFINE_EVENT(xchk_fblock_error_class, name, \
 
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_error);
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_warning);
+DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_preen);
 
 #ifdef CONFIG_XFS_QUOTA
 DECLARE_EVENT_CLASS(xchk_dqiter_class,
@@ -475,7 +573,7 @@ TRACE_EVENT(xchk_btree_op_error,
 
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
@@ -515,10 +613,10 @@ TRACE_EVENT(xchk_ifork_btree_op_error,
 	TP_fast_assign(
 		xfs_fsblock_t fsbno = xchk_btree_cur_fsbno(cur, level);
 		__entry->dev = sc->mp->m_super->s_dev;
-		__entry->ino = sc->ip->i_ino;
+		__entry->ino = cur->bc_ino.ip->i_ino;
 		__entry->whichfork = cur->bc_ino.whichfork;
 		__entry->type = sc->sm->sm_type;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->ptr = cur->bc_levels[level].ptr;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
@@ -558,7 +656,7 @@ TRACE_EVENT(xchk_btree_error,
 		xfs_fsblock_t fsbno = xchk_btree_cur_fsbno(cur, level);
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
@@ -598,7 +696,7 @@ TRACE_EVENT(xchk_ifork_btree_error,
 		__entry->ino = sc->ip->i_ino;
 		__entry->whichfork = cur->bc_ino.whichfork;
 		__entry->type = sc->sm->sm_type;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
@@ -637,7 +735,7 @@ DECLARE_EVENT_CLASS(xchk_sbtree_class,
 
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__assign_str(name, cur->bc_ops->name);
+		__assign_str(name);
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
 		__entry->level = level;
@@ -686,12 +784,12 @@ TRACE_EVENT(xchk_xref_error,
 );
 
 TRACE_EVENT(xchk_iallocbt_check_cluster,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agino_t startino, xfs_daddr_t map_daddr,
-		 unsigned short map_len, unsigned int chunk_ino,
-		 unsigned int nr_inodes, uint16_t cluster_mask,
-		 uint16_t holemask, unsigned int cluster_ino),
-	TP_ARGS(mp, agno, startino, map_daddr, map_len, chunk_ino, nr_inodes,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agino_t startino,
+		 xfs_daddr_t map_daddr,  unsigned short map_len,
+		 unsigned int chunk_ino,  unsigned int nr_inodes,
+		 uint16_t cluster_mask, uint16_t holemask,
+		 unsigned int cluster_ino),
+	TP_ARGS(pag, startino, map_daddr, map_len, chunk_ino, nr_inodes,
 		cluster_mask, holemask, cluster_ino),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -706,8 +804,8 @@ TRACE_EVENT(xchk_iallocbt_check_cluster,
 		__field(uint16_t, holemask)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startino = startino;
 		__entry->map_daddr = map_daddr;
 		__entry->map_len = map_len;
@@ -836,7 +934,8 @@ DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsfreeze);
 DEFINE_XCHK_FSFREEZE_EVENT(xchk_fsthaw);
 
 TRACE_EVENT(xchk_refcount_incorrect,
-	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *irec,
+	TP_PROTO(const struct xfs_perag *pag,
+		 const struct xfs_refcount_irec *irec,
 		 xfs_nlink_t seen),
 	TP_ARGS(pag, irec, seen),
 	TP_STRUCT__entry(
@@ -849,8 +948,8 @@ TRACE_EVENT(xchk_refcount_incorrect,
 		__field(xfs_nlink_t, seen)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->domain = irec->rc_domain;
 		__entry->startblock = irec->rc_startblock;
 		__entry->blockcount = irec->rc_blockcount;
@@ -873,18 +972,16 @@ TRACE_EVENT(xfile_create,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(unsigned long, ino)
-		__array(char, pathname, 256)
+		__array(char, pathname, MAXNAMELEN)
 	),
 	TP_fast_assign(
-		char		pathname[257];
 		char		*path;
 
 		__entry->ino = file_inode(xf->file)->i_ino;
-		memset(pathname, 0, sizeof(pathname));
-		path = file_path(xf->file, pathname, sizeof(pathname) - 1);
+		path = file_path(xf->file, __entry->pathname, MAXNAMELEN);
 		if (IS_ERR(path))
-			path = "(unknown)";
-		strncpy(__entry->pathname, path, sizeof(__entry->pathname));
+			strncpy(__entry->pathname, "(unknown)",
+					sizeof(__entry->pathname));
 	),
 	TP_printk("xfino 0x%lx path '%s'",
 		  __entry->ino,
@@ -947,6 +1044,7 @@ DEFINE_XFILE_EVENT(xfile_store);
 DEFINE_XFILE_EVENT(xfile_seek_data);
 DEFINE_XFILE_EVENT(xfile_get_folio);
 DEFINE_XFILE_EVENT(xfile_put_folio);
+DEFINE_XFILE_EVENT(xfile_discard);
 
 TRACE_EVENT(xfarray_create,
 	TP_PROTO(struct xfarray *xfa, unsigned long long required_capacity),
@@ -1300,7 +1398,7 @@ TRACE_EVENT(xchk_iscan_iget_batch,
 		  __entry->unavail)
 );
 
-TRACE_EVENT(xchk_iscan_iget_retry_wait,
+DECLARE_EVENT_CLASS(xchk_iscan_retry_wait_class,
 	TP_PROTO(struct xchk_iscan *iscan),
 	TP_ARGS(iscan),
 	TP_STRUCT__entry(
@@ -1326,7 +1424,13 @@ TRACE_EVENT(xchk_iscan_iget_retry_wait,
 		  __entry->remaining,
 		  __entry->iget_timeout,
 		  __entry->retry_delay)
-);
+)
+#define DEFINE_ISCAN_RETRY_WAIT_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_retry_wait_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan), \
+	TP_ARGS(iscan))
+DEFINE_ISCAN_RETRY_WAIT_EVENT(xchk_iscan_iget_retry_wait);
+DEFINE_ISCAN_RETRY_WAIT_EVENT(xchk_iscan_agi_retry_wait);
 
 TRACE_EVENT(xchk_nlinks_collect_dirent,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_inode *dp,
@@ -1343,6 +1447,33 @@ TRACE_EVENT(xchk_nlinks_collect_dirent,
 		__entry->dev = mp->m_super->s_dev;
 		__entry->dir = dp->i_ino;
 		__entry->ino = ino;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d dir 0x%llx -> ino 0x%llx name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir,
+		  __entry->ino,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
+TRACE_EVENT(xchk_nlinks_collect_pptr,
+	TP_PROTO(struct xfs_mount *mp, struct xfs_inode *dp,
+		 const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(mp, dp, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->dir = dp->i_ino;
+		__entry->ino = be64_to_cpu(pptr->p_ino);
 		__entry->namelen = name->len;
 		memcpy(__get_str(name), name->name, name->len);
 	),
@@ -1502,76 +1633,413 @@ DEFINE_EVENT(xchk_nlinks_diff_class, name, \
 	TP_ARGS(mp, ip, live))
 DEFINE_SCRUB_NLINKS_DIFF_EVENT(xchk_nlinks_compare_inode);
 
+DECLARE_EVENT_CLASS(xchk_pptr_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_name *name,
+		 xfs_ino_t far_ino),
+	TP_ARGS(ip, name, far_ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+		__field(xfs_ino_t, far_ino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name, name->len);
+		__entry->far_ino = far_ino;
+	),
+	TP_printk("dev %d:%d ino 0x%llx name '%.*s' far_ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->namelen,
+		  __get_str(name),
+		  __entry->far_ino)
+)
+#define DEFINE_XCHK_PPTR_EVENT(name) \
+DEFINE_EVENT(xchk_pptr_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_name *name, \
+		 xfs_ino_t far_ino), \
+	TP_ARGS(ip, name, far_ino))
+DEFINE_XCHK_PPTR_EVENT(xchk_dir_defer);
+DEFINE_XCHK_PPTR_EVENT(xchk_dir_slowpath);
+DEFINE_XCHK_PPTR_EVENT(xchk_dir_ultraslowpath);
+DEFINE_XCHK_PPTR_EVENT(xchk_parent_defer);
+DEFINE_XCHK_PPTR_EVENT(xchk_parent_slowpath);
+DEFINE_XCHK_PPTR_EVENT(xchk_parent_ultraslowpath);
+
+DECLARE_EVENT_CLASS(xchk_dirtree_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip,
+		 unsigned int path_nr, const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(sc, ip, path_nr, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(unsigned int, child_gen)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->child_gen = VFS_I(ip)->i_generation;
+		__entry->parent_ino = be64_to_cpu(pptr->p_ino);
+		__entry->parent_gen = be32_to_cpu(pptr->p_gen);
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d path %u child_ino 0x%llx child_gen 0x%x parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->child_ino,
+		  __entry->child_gen,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+);
+#define DEFINE_XCHK_DIRTREE_EVENT(name) \
+DEFINE_EVENT(xchk_dirtree_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, \
+		 unsigned int path_nr, const struct xfs_name *name, \
+		 const struct xfs_parent_rec *pptr), \
+	TP_ARGS(sc, ip, path_nr, name, pptr))
+DEFINE_XCHK_DIRTREE_EVENT(xchk_dirtree_create_path);
+DEFINE_XCHK_DIRTREE_EVENT(xchk_dirpath_walk_upwards);
+
+DECLARE_EVENT_CLASS(xchk_dirpath_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip,
+		 unsigned int path_nr, unsigned int step_nr,
+		 const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(sc, ip, path_nr, step_nr, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(unsigned int, step_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(unsigned int, child_gen)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->step_nr = step_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->child_gen = VFS_I(ip)->i_generation;
+		__entry->parent_ino = be64_to_cpu(pptr->p_ino);
+		__entry->parent_gen = be32_to_cpu(pptr->p_gen);
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d path %u step %u child_ino 0x%llx child_gen 0x%x parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->step_nr,
+		  __entry->child_ino,
+		  __entry->child_gen,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+);
+#define DEFINE_XCHK_DIRPATH_EVENT(name) \
+DEFINE_EVENT(xchk_dirpath_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, \
+		 unsigned int path_nr, unsigned int step_nr, \
+		 const struct xfs_name *name, \
+		 const struct xfs_parent_rec *pptr), \
+	TP_ARGS(sc, ip, path_nr, step_nr, name, pptr))
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_disappeared);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_badgen);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_nondir_parent);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_unlinked_parent);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_found_next_step);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_crosses_tree);
+
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_SCANNING);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_DELETE);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_CORRUPT);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_LOOP);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_STALE);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_OK);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETED);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTED);
+
+#define XCHK_DIRPATH_OUTCOME_STRINGS \
+	{ XCHK_DIRPATH_SCANNING,	"scanning" }, \
+	{ XCHK_DIRPATH_DELETE,		"delete" }, \
+	{ XCHK_DIRPATH_CORRUPT,		"corrupt" }, \
+	{ XCHK_DIRPATH_LOOP,		"loop" }, \
+	{ XCHK_DIRPATH_STALE,		"stale" }, \
+	{ XCHK_DIRPATH_OK,		"ok" }, \
+	{ XREP_DIRPATH_DELETING,	"deleting" }, \
+	{ XREP_DIRPATH_DELETED,		"deleted" }, \
+	{ XREP_DIRPATH_ADOPTING,	"adopting" }, \
+	{ XREP_DIRPATH_ADOPTED,		"adopted" }
+
+DECLARE_EVENT_CLASS(xchk_dirpath_outcome_class,
+	TP_PROTO(struct xfs_scrub *sc, unsigned long long path_nr,
+		 unsigned int nr_steps, \
+		 unsigned int outcome),
+	TP_ARGS(sc, path_nr, nr_steps, outcome),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long long, path_nr)
+		__field(unsigned int, nr_steps)
+		__field(unsigned int, outcome)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->nr_steps = nr_steps;
+		__entry->outcome = outcome;
+	),
+	TP_printk("dev %d:%d path %llu steps %u outcome %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->nr_steps,
+		  __print_symbolic(__entry->outcome, XCHK_DIRPATH_OUTCOME_STRINGS))
+);
+#define DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(name) \
+DEFINE_EVENT(xchk_dirpath_outcome_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, unsigned long long path_nr, \
+		 unsigned int nr_steps, \
+		 unsigned int outcome), \
+	TP_ARGS(sc, path_nr, nr_steps, outcome))
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xchk_dirpath_set_outcome);
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xchk_dirpath_evaluate_path);
+
+DECLARE_EVENT_CLASS(xchk_dirtree_evaluate_class,
+	TP_PROTO(const struct xchk_dirtree *dl,
+		 const struct xchk_dirtree_outcomes *oc),
+	TP_ARGS(dl, oc),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, rootino)
+		__field(unsigned int, nr_paths)
+		__field(unsigned int, bad)
+		__field(unsigned int, suspect)
+		__field(unsigned int, good)
+		__field(bool, needs_adoption)
+	),
+	TP_fast_assign(
+		__entry->dev = dl->sc->mp->m_super->s_dev;
+		__entry->ino = dl->sc->ip->i_ino;
+		__entry->rootino = dl->root_ino;
+		__entry->nr_paths = dl->nr_paths;
+		__entry->bad = oc->bad;
+		__entry->suspect = oc->suspect;
+		__entry->good = oc->good;
+		__entry->needs_adoption = oc->needs_adoption ? 1 : 0;
+	),
+	TP_printk("dev %d:%d ino 0x%llx rootino 0x%llx nr_paths %u bad %u suspect %u good %u adopt? %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->rootino,
+		  __entry->nr_paths,
+		  __entry->bad,
+		  __entry->suspect,
+		  __entry->good,
+		  __entry->needs_adoption)
+);
+#define DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(name) \
+DEFINE_EVENT(xchk_dirtree_evaluate_class, name, \
+	TP_PROTO(const struct xchk_dirtree *dl, \
+		 const struct xchk_dirtree_outcomes *oc), \
+	TP_ARGS(dl, oc))
+DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(xchk_dirtree_evaluate);
+
+TRACE_EVENT(xchk_dirpath_changed,
+	TP_PROTO(struct xfs_scrub *sc, unsigned int path_nr,
+		 unsigned int step_nr, const struct xfs_inode *dp,
+		 const struct xfs_inode *ip, const struct xfs_name *xname),
+	TP_ARGS(sc, path_nr, step_nr, dp, ip, xname),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(unsigned int, step_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, xname->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->step_nr = step_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->namelen = xname->len;
+		memcpy(__get_str(name), xname->name, xname->len);
+	),
+	TP_printk("dev %d:%d path %u step %u child_ino 0x%llx parent_ino 0x%llx name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->step_nr,
+		  __entry->child_ino,
+		  __entry->parent_ino,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
+TRACE_EVENT(xchk_dirtree_live_update,
+	TP_PROTO(struct xfs_scrub *sc, const struct xfs_inode *dp,
+		 int action, const struct xfs_inode *ip, int delta,
+		 const struct xfs_name *xname),
+	TP_ARGS(sc, dp, action, ip, delta, xname),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, parent_ino)
+		__field(int, action)
+		__field(xfs_ino_t, child_ino)
+		__field(int, delta)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, xname->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->parent_ino = dp->i_ino;
+		__entry->action = action;
+		__entry->child_ino = ip->i_ino;
+		__entry->delta = delta;
+		__entry->namelen = xname->len;
+		memcpy(__get_str(name), xname->name, xname->len);
+	),
+	TP_printk("dev %d:%d parent_ino 0x%llx child_ino 0x%llx nlink_delta %d name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->parent_ino,
+		  __entry->child_ino,
+		  __entry->delta,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
+DECLARE_EVENT_CLASS(xchk_metapath_class,
+	TP_PROTO(struct xfs_scrub *sc, const char *path,
+		 struct xfs_inode *dp, xfs_ino_t ino),
+	TP_ARGS(sc, path, dp, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, scrub_ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(xfs_ino_t, ino)
+		__string(name, path)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->scrub_ino = sc->ip ? sc->ip->i_ino : NULLFSINO;
+		__entry->parent_ino = dp ? dp->i_ino : NULLFSINO;
+		__entry->ino = ino;
+		__assign_str(name);
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx name '%s' ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->scrub_ino,
+		  __entry->parent_ino,
+		  __get_str(name),
+		  __entry->ino)
+);
+#define DEFINE_XCHK_METAPATH_EVENT(name) \
+DEFINE_EVENT(xchk_metapath_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, const char *path, \
+		 struct xfs_inode *dp, xfs_ino_t ino), \
+	TP_ARGS(sc, path, dp, ino))
+DEFINE_XCHK_METAPATH_EVENT(xchk_metapath_lookup);
+
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
 
 DECLARE_EVENT_CLASS(xrep_extent_class,
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len),
-	TP_ARGS(pag, agbno, len),
+	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno,
+		 xfs_extlen_t len),
+	TP_ARGS(xg, agbno, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(enum xfs_group_type, type)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, agbno)
 		__field(xfs_extlen_t, len)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->agno = xg->xg_gno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x",
+	TP_printk("dev %d:%d %sno 0x%x %sbno 0x%x fsbcount 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agno,
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agbno,
 		  __entry->len)
 );
 #define DEFINE_REPAIR_EXTENT_EVENT(name) \
 DEFINE_EVENT(xrep_extent_class, name, \
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len), \
-	TP_ARGS(pag, agbno, len))
+	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno, \
+		 xfs_extlen_t len), \
+	TP_ARGS(xg, agbno, len))
 DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_unmap_extent);
 DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_free_extent);
 DEFINE_REPAIR_EXTENT_EVENT(xreap_agextent_binval);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_bmapi_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
 
 DECLARE_EVENT_CLASS(xrep_reap_find_class,
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len,
-		bool crosslinked),
-	TP_ARGS(pag, agbno, len, crosslinked),
+	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno,
+		 xfs_extlen_t len, bool crosslinked),
+	TP_ARGS(xg, agbno, len, crosslinked),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(enum xfs_group_type, type)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, agbno)
 		__field(xfs_extlen_t, len)
 		__field(bool, crosslinked)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->agno = xg->xg_gno;
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->crosslinked = crosslinked;
 	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x crosslinked %d",
+	TP_printk("dev %d:%d %sno 0x%x %sbno 0x%x fsbcount 0x%x crosslinked %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agno,
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agbno,
 		  __entry->len,
 		  __entry->crosslinked ? 1 : 0)
 );
 #define DEFINE_REPAIR_REAP_FIND_EVENT(name) \
 DEFINE_EVENT(xrep_reap_find_class, name, \
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno, xfs_extlen_t len, \
-		 bool crosslinked), \
-	TP_ARGS(pag, agbno, len, crosslinked))
+	TP_PROTO(const struct xfs_group *xg, xfs_agblock_t agbno, \
+		 xfs_extlen_t len, bool crosslinked), \
+	TP_ARGS(xg, agbno, len, crosslinked))
 DEFINE_REPAIR_REAP_FIND_EVENT(xreap_agextent_select);
+DEFINE_REPAIR_REAP_FIND_EVENT(xreap_bmapi_select);
 
-DECLARE_EVENT_CLASS(xrep_rmap_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len,
-		 uint64_t owner, uint64_t offset, unsigned int flags),
-	TP_ARGS(mp, agno, agbno, len, owner, offset, flags),
+TRACE_EVENT(xrep_ibt_walk_rmap,
+	TP_PROTO(const struct xfs_perag *pag, const struct xfs_rmap_irec *rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1582,13 +2050,13 @@ DECLARE_EVENT_CLASS(xrep_rmap_class,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->agbno = agbno;
-		__entry->len = len;
-		__entry->owner = owner;
-		__entry->offset = offset;
-		__entry->flags = flags;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->agbno = rec->rm_startblock;
+		__entry->len = rec->rm_blockcount;
+		__entry->owner = rec->rm_owner;
+		__entry->offset = rec->rm_offset;
+		__entry->flags = rec->rm_flags;
 	),
 	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
@@ -1599,19 +2067,11 @@ DECLARE_EVENT_CLASS(xrep_rmap_class,
 		  __entry->offset,
 		  __entry->flags)
 );
-#define DEFINE_REPAIR_RMAP_EVENT(name) \
-DEFINE_EVENT(xrep_rmap_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_extlen_t len, \
-		 uint64_t owner, uint64_t offset, unsigned int flags), \
-	TP_ARGS(mp, agno, agbno, len, owner, offset, flags))
-DEFINE_REPAIR_RMAP_EVENT(xrep_ibt_walk_rmap);
-DEFINE_REPAIR_RMAP_EVENT(xrep_bmap_walk_rmap);
 
 TRACE_EVENT(xrep_abt_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(const struct xfs_perag *pag,
 		 const struct xfs_alloc_rec_incore *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1619,8 +2079,8 @@ TRACE_EVENT(xrep_abt_found,
 		__field(xfs_extlen_t, blockcount)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startblock = rec->ar_startblock;
 		__entry->blockcount = rec->ar_blockcount;
 	),
@@ -1632,9 +2092,9 @@ TRACE_EVENT(xrep_abt_found,
 )
 
 TRACE_EVENT(xrep_ibt_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+	TP_PROTO(const struct xfs_perag *pag,
 		 const struct xfs_inobt_rec_incore *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1645,8 +2105,8 @@ TRACE_EVENT(xrep_ibt_found,
 		__field(uint64_t, freemask)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->startino = rec->ir_startino;
 		__entry->holemask = rec->ir_holemask;
 		__entry->count = rec->ir_count;
@@ -1664,28 +2124,33 @@ TRACE_EVENT(xrep_ibt_found,
 )
 
 TRACE_EVENT(xrep_refc_found,
-	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *rec),
-	TP_ARGS(pag, rec),
+	TP_PROTO(const struct xfs_group *xg,
+		 const struct xfs_refcount_irec *rec),
+	TP_ARGS(xg, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(enum xfs_refc_domain, domain)
+		__field(enum xfs_group_type, type)
 		__field(xfs_agblock_t, startblock)
 		__field(xfs_extlen_t, blockcount)
 		__field(xfs_nlink_t, refcount)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->agno = xg->xg_gno;
+		__entry->type = xg->xg_type;
 		__entry->domain = rec->rc_domain;
 		__entry->startblock = rec->rc_startblock;
 		__entry->blockcount = rec->rc_blockcount;
 		__entry->refcount = rec->rc_refcount;
 	),
-	TP_printk("dev %d:%d agno 0x%x dom %s agbno 0x%x fsbcount 0x%x refcount %u",
+	TP_printk("dev %d:%d %sno 0x%x dom %s %sbno 0x%x fsbcount 0x%x refcount %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agno,
 		  __print_symbolic(__entry->domain, XFS_REFC_DOMAIN_STRINGS),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->startblock,
 		  __entry->blockcount,
 		  __entry->refcount)
@@ -1724,9 +2189,8 @@ TRACE_EVENT(xrep_bmap_found,
 );
 
 TRACE_EVENT(xrep_rmap_found,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 const struct xfs_rmap_irec *rec),
-	TP_ARGS(mp, agno, rec),
+	TP_PROTO(const struct xfs_perag *pag, const struct xfs_rmap_irec *rec),
+	TP_ARGS(pag, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1737,8 +2201,8 @@ TRACE_EVENT(xrep_rmap_found,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = rec->rm_startblock;
 		__entry->len = rec->rm_blockcount;
 		__entry->owner = rec->rm_owner;
@@ -1756,9 +2220,9 @@ TRACE_EVENT(xrep_rmap_found,
 );
 
 TRACE_EVENT(xrep_findroot_block,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
 		 uint32_t magic, uint16_t level),
-	TP_ARGS(mp, agno, agbno, magic, level),
+	TP_ARGS(pag, agbno, magic, level),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1767,8 +2231,8 @@ TRACE_EVENT(xrep_findroot_block,
 		__field(uint16_t, level)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->magic = magic;
 		__entry->level = level;
@@ -1781,10 +2245,10 @@ TRACE_EVENT(xrep_findroot_block,
 		  __entry->level)
 )
 TRACE_EVENT(xrep_calc_ag_resblks,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agino_t icount, xfs_agblock_t aglen, xfs_agblock_t freelen,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agino_t icount,
+		 xfs_agblock_t aglen, xfs_agblock_t freelen,
 		 xfs_agblock_t usedlen),
-	TP_ARGS(mp, agno, icount, aglen, freelen, usedlen),
+	TP_ARGS(pag, icount, aglen, freelen, usedlen),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1794,8 +2258,8 @@ TRACE_EVENT(xrep_calc_ag_resblks,
 		__field(xfs_agblock_t, usedlen)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->icount = icount;
 		__entry->aglen = aglen;
 		__entry->freelen = freelen;
@@ -1810,10 +2274,10 @@ TRACE_EVENT(xrep_calc_ag_resblks,
 		  __entry->usedlen)
 )
 TRACE_EVENT(xrep_calc_ag_resblks_btsize,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t bnobt_sz, xfs_agblock_t inobt_sz,
-		 xfs_agblock_t rmapbt_sz, xfs_agblock_t refcbt_sz),
-	TP_ARGS(mp, agno, bnobt_sz, inobt_sz, rmapbt_sz, refcbt_sz),
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t bnobt_sz,
+		 xfs_agblock_t inobt_sz, xfs_agblock_t rmapbt_sz,
+		 xfs_agblock_t refcbt_sz),
+	TP_ARGS(pag, bnobt_sz, inobt_sz, rmapbt_sz, refcbt_sz),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1823,8 +2287,8 @@ TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 		__field(xfs_agblock_t, refcbt_sz)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->bnobt_sz = bnobt_sz;
 		__entry->inobt_sz = inobt_sz;
 		__entry->rmapbt_sz = rmapbt_sz;
@@ -1838,6 +2302,32 @@ TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 		  __entry->rmapbt_sz,
 		  __entry->refcbt_sz)
 )
+
+#ifdef CONFIG_XFS_RT
+TRACE_EVENT(xrep_calc_rtgroup_resblks_btsize,
+	TP_PROTO(struct xfs_mount *mp, xfs_rgnumber_t rgno,
+		 xfs_rgblock_t usedlen, xfs_rgblock_t rmapbt_sz),
+	TP_ARGS(mp, rgno, usedlen, rmapbt_sz),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, usedlen)
+		__field(xfs_rgblock_t, rmapbt_sz)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rgno = rgno;
+		__entry->usedlen = usedlen;
+		__entry->rmapbt_sz = rmapbt_sz;
+	),
+	TP_printk("dev %d:%d rgno 0x%x usedlen %u rmapbt %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->usedlen,
+		  __entry->rmapbt_sz)
+);
+#endif /* CONFIG_XFS_RT */
+
 TRACE_EVENT(xrep_reset_counters,
 	TP_PROTO(struct xfs_mount *mp, struct xchk_fscounters *fsc),
 	TP_ARGS(mp, fsc),
@@ -1864,10 +2354,9 @@ TRACE_EVENT(xrep_reset_counters,
 )
 
 DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agblock_t agbno, xfs_extlen_t len,
-		 int64_t owner),
-	TP_ARGS(mp, agno, agbno, len, owner),
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
+		 xfs_extlen_t len, int64_t owner),
+	TP_ARGS(pag, agbno, len, owner),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -1876,8 +2365,8 @@ DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
 		__field(int64_t, owner)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->len = len;
 		__entry->owner = owner;
@@ -1891,10 +2380,9 @@ DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
 );
 #define DEFINE_NEWBT_EXTENT_EVENT(name) \
 DEFINE_EVENT(xrep_newbt_extent_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 xfs_agblock_t agbno, xfs_extlen_t len, \
-		 int64_t owner), \
-	TP_ARGS(mp, agno, agbno, len, owner))
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno, \
+		 xfs_extlen_t len, int64_t owner), \
+	TP_ARGS(pag, agbno, len, owner))
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_ag_blocks);
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_file_blocks);
 DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_free_blocks);
@@ -2182,7 +2670,7 @@ TRACE_EVENT(xrep_cow_replace_mapping,
 );
 
 TRACE_EVENT(xrep_cow_free_staging,
-	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno,
+	TP_PROTO(const struct xfs_perag *pag, xfs_agblock_t agbno,
 		 xfs_extlen_t blockcount),
 	TP_ARGS(pag, agbno, blockcount),
 	TP_STRUCT__entry(
@@ -2192,8 +2680,8 @@ TRACE_EVENT(xrep_cow_free_staging,
 		__field(xfs_extlen_t, blockcount)
 	),
 	TP_fast_assign(
-		__entry->dev = pag->pag_mount->m_super->s_dev;
-		__entry->agno = pag->pag_agno;
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
 		__entry->agbno = agbno;
 		__entry->blockcount = blockcount;
 	),
@@ -2238,11 +2726,12 @@ DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_update_inode);
 DEFINE_SCRUB_NLINKS_DIFF_EVENT(xrep_nlinks_unfixable_inode);
 
 TRACE_EVENT(xrep_rmap_live_update,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, unsigned int op,
+	TP_PROTO(const struct xfs_group *xg, unsigned int op,
 		 const struct xfs_rmap_update_params *p),
-	TP_ARGS(mp, agno, op, p),
+	TP_ARGS(xg, op, p),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(enum xfs_group_type, type)
 		__field(xfs_agnumber_t, agno)
 		__field(unsigned int, op)
 		__field(xfs_agblock_t, agbno)
@@ -2252,8 +2741,9 @@ TRACE_EVENT(xrep_rmap_live_update,
 		__field(unsigned int, flags)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
+		__entry->dev = xg->xg_mount->m_super->s_dev;
+		__entry->type = xg->xg_type;
+		__entry->agno = xg->xg_gno;
 		__entry->op = op;
 		__entry->agbno = p->startblock;
 		__entry->len = p->blockcount;
@@ -2262,16 +2752,1088 @@ TRACE_EVENT(xrep_rmap_live_update,
 		if (p->unwritten)
 			__entry->flags |= XFS_RMAP_UNWRITTEN;
 	),
-	TP_printk("dev %d:%d agno 0x%x op %d agbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
+	TP_printk("dev %d:%d %sno 0x%x op %d %sbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agno,
 		  __entry->op,
+		  __print_symbolic(__entry->type, XG_TYPE_STRINGS),
 		  __entry->agbno,
 		  __entry->len,
 		  __entry->owner,
 		  __entry->offset,
 		  __entry->flags)
 );
+
+TRACE_EVENT(xrep_tempfile_create,
+	TP_PROTO(struct xfs_scrub *sc),
+	TP_ARGS(sc),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, type)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_ino_t, inum)
+		__field(unsigned int, gen)
+		__field(unsigned int, flags)
+		__field(xfs_ino_t, temp_inum)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->file ? XFS_I(file_inode(sc->file))->i_ino : 0;
+		__entry->type = sc->sm->sm_type;
+		__entry->agno = sc->sm->sm_agno;
+		__entry->inum = sc->sm->sm_ino;
+		__entry->gen = sc->sm->sm_gen;
+		__entry->flags = sc->sm->sm_flags;
+		__entry->temp_inum = sc->tempip->i_ino;
+	),
+	TP_printk("dev %d:%d ino 0x%llx type %s inum 0x%llx gen 0x%x flags 0x%x temp_inum 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
+		  __entry->inum,
+		  __entry->gen,
+		  __entry->flags,
+		  __entry->temp_inum)
+);
+
+DECLARE_EVENT_CLASS(xrep_tempfile_class,
+	TP_PROTO(struct xfs_scrub *sc, int whichfork,
+		 struct xfs_bmbt_irec *irec),
+	TP_ARGS(sc, whichfork, irec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(int, whichfork)
+		__field(xfs_fileoff_t, lblk)
+		__field(xfs_filblks_t, len)
+		__field(xfs_fsblock_t, pblk)
+		__field(int, state)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->tempip->i_ino;
+		__entry->whichfork = whichfork;
+		__entry->lblk = irec->br_startoff;
+		__entry->len = irec->br_blockcount;
+		__entry->pblk = irec->br_startblock;
+		__entry->state = irec->br_state;
+	),
+	TP_printk("dev %d:%d ino 0x%llx whichfork %s fileoff 0x%llx fsbcount 0x%llx startblock 0x%llx state %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
+		  __entry->lblk,
+		  __entry->len,
+		  __entry->pblk,
+		  __entry->state)
+);
+#define DEFINE_XREP_TEMPFILE_EVENT(name) \
+DEFINE_EVENT(xrep_tempfile_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, int whichfork, \
+		 struct xfs_bmbt_irec *irec), \
+	TP_ARGS(sc, whichfork, irec))
+DEFINE_XREP_TEMPFILE_EVENT(xrep_tempfile_prealloc);
+DEFINE_XREP_TEMPFILE_EVENT(xrep_tempfile_copyin);
+
+TRACE_EVENT(xreap_ifork_extent,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, int whichfork,
+		 const struct xfs_bmbt_irec *irec),
+	TP_ARGS(sc, ip, whichfork, irec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(int, whichfork)
+		__field(xfs_fileoff_t, fileoff)
+		__field(xfs_filblks_t, len)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(int, state)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->whichfork = whichfork;
+		__entry->fileoff = irec->br_startoff;
+		__entry->len = irec->br_blockcount;
+		__entry->agno = XFS_FSB_TO_AGNO(sc->mp, irec->br_startblock);
+		__entry->agbno = XFS_FSB_TO_AGBNO(sc->mp, irec->br_startblock);
+		__entry->state = irec->br_state;
+	),
+	TP_printk("dev %d:%d ip 0x%llx whichfork %s agno 0x%x agbno 0x%x fileoff 0x%llx fsbcount 0x%llx state 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->fileoff,
+		  __entry->len,
+		  __entry->state)
+);
+
+TRACE_EVENT(xreap_bmapi_binval_scan,
+	TP_PROTO(struct xfs_scrub *sc, const struct xfs_bmbt_irec *irec,
+		 xfs_extlen_t scan_blocks),
+	TP_ARGS(sc, irec, scan_blocks),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_filblks_t, len)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, scan_blocks)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->len = irec->br_blockcount;
+		__entry->agno = XFS_FSB_TO_AGNO(sc->mp, irec->br_startblock);
+		__entry->agbno = XFS_FSB_TO_AGBNO(sc->mp, irec->br_startblock);
+		__entry->scan_blocks = scan_blocks;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%llx scan_blocks 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->scan_blocks)
+);
+
+TRACE_EVENT(xrep_xattr_recover_leafblock,
+	TP_PROTO(struct xfs_inode *ip, xfs_dablk_t dabno, uint16_t magic),
+	TP_ARGS(ip, dabno, magic),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_dablk_t, dabno)
+		__field(uint16_t, magic)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->dabno = dabno;
+		__entry->magic = magic;
+	),
+	TP_printk("dev %d:%d ino 0x%llx dablk 0x%x magic 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->dabno,
+		  __entry->magic)
+);
+
+DECLARE_EVENT_CLASS(xrep_xattr_salvage_class,
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, char *name,
+		 unsigned int namelen, unsigned int valuelen),
+	TP_ARGS(ip, flags, name, namelen, valuelen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, flags)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, namelen)
+		__field(unsigned int, valuelen)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->flags = flags;
+		__entry->namelen = namelen;
+		memcpy(__get_str(name), name, namelen);
+		__entry->valuelen = valuelen;
+	),
+	TP_printk("dev %d:%d ino 0x%llx flags %s name '%.*s' valuelen 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		   __print_flags(__entry->flags, "|", XFS_ATTR_NAMESPACE_STR),
+		  __entry->namelen,
+		  __get_str(name),
+		  __entry->valuelen)
+);
+#define DEFINE_XREP_XATTR_SALVAGE_EVENT(name) \
+DEFINE_EVENT(xrep_xattr_salvage_class, name, \
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, char *name, \
+		 unsigned int namelen, unsigned int valuelen), \
+	TP_ARGS(ip, flags, name, namelen, valuelen))
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_salvage_rec);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_insert_rec);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_parent_stash_xattr);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_parent_insert_xattr);
+
+DECLARE_EVENT_CLASS(xrep_pptr_salvage_class,
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, const void *name,
+		 unsigned int namelen, const void *value, unsigned int valuelen),
+	TP_ARGS(ip, flags, name, namelen, value, valuelen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, namelen)
+	),
+	TP_fast_assign(
+		const struct xfs_parent_rec	*rec = value;
+
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->parent_ino = be64_to_cpu(rec->p_ino);
+		__entry->parent_gen = be32_to_cpu(rec->p_gen);
+		__entry->namelen = namelen;
+		memcpy(__get_str(name), name, namelen);
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+)
+#define DEFINE_XREP_PPTR_SALVAGE_EVENT(name) \
+DEFINE_EVENT(xrep_pptr_salvage_class, name, \
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, const void *name, \
+		 unsigned int namelen, const void *value, unsigned int valuelen), \
+	TP_ARGS(ip, flags, name, namelen, value, valuelen))
+DEFINE_XREP_PPTR_SALVAGE_EVENT(xrep_xattr_salvage_pptr);
+DEFINE_XREP_PPTR_SALVAGE_EVENT(xrep_xattr_insert_pptr);
+
+TRACE_EVENT(xrep_xattr_class,
+	TP_PROTO(struct xfs_inode *ip, struct xfs_inode *arg_ip),
+	TP_ARGS(ip, arg_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, src_ino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->src_ino = arg_ip->i_ino;
+	),
+	TP_printk("dev %d:%d ino 0x%llx src 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->src_ino)
+)
+#define DEFINE_XREP_XATTR_EVENT(name) \
+DEFINE_EVENT(xrep_xattr_class, name, \
+	TP_PROTO(struct xfs_inode *ip, struct xfs_inode *arg_ip), \
+	TP_ARGS(ip, arg_ip))
+DEFINE_XREP_XATTR_EVENT(xrep_xattr_rebuild_tree);
+DEFINE_XREP_XATTR_EVENT(xrep_xattr_reset_fork);
+DEFINE_XREP_XATTR_EVENT(xrep_xattr_full_reset);
+
+DECLARE_EVENT_CLASS(xrep_xattr_pptr_scan_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_inode *dp,
+		 const struct xfs_name *name),
+	TP_ARGS(ip, dp, name),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->parent_gen = VFS_IC(dp)->i_generation;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+)
+#define DEFINE_XREP_XATTR_PPTR_SCAN_EVENT(name) \
+DEFINE_EVENT(xrep_xattr_pptr_scan_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_inode *dp, \
+		 const struct xfs_name *name), \
+	TP_ARGS(ip, dp, name))
+DEFINE_XREP_XATTR_PPTR_SCAN_EVENT(xrep_xattr_stash_parentadd);
+DEFINE_XREP_XATTR_PPTR_SCAN_EVENT(xrep_xattr_stash_parentremove);
+
+TRACE_EVENT(xrep_dir_recover_dirblock,
+	TP_PROTO(struct xfs_inode *dp, xfs_dablk_t dabno, uint32_t magic,
+		 uint32_t magic_guess),
+	TP_ARGS(dp, dabno, magic, magic_guess),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(xfs_dablk_t, dabno)
+		__field(uint32_t, magic)
+		__field(uint32_t, magic_guess)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->dabno = dabno;
+		__entry->magic = magic;
+		__entry->magic_guess = magic_guess;
+	),
+	TP_printk("dev %d:%d dir 0x%llx dablk 0x%x magic 0x%x magic_guess 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __entry->dabno,
+		  __entry->magic,
+		  __entry->magic_guess)
+);
+
+DECLARE_EVENT_CLASS(xrep_dir_class,
+	TP_PROTO(struct xfs_inode *dp, xfs_ino_t parent_ino),
+	TP_ARGS(dp, parent_ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(xfs_ino_t, parent_ino)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->parent_ino = parent_ino;
+	),
+	TP_printk("dev %d:%d dir 0x%llx parent 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __entry->parent_ino)
+)
+#define DEFINE_XREP_DIR_EVENT(name) \
+DEFINE_EVENT(xrep_dir_class, name, \
+	TP_PROTO(struct xfs_inode *dp, xfs_ino_t parent_ino), \
+	TP_ARGS(dp, parent_ino))
+DEFINE_XREP_DIR_EVENT(xrep_dir_rebuild_tree);
+DEFINE_XREP_DIR_EVENT(xrep_dir_reset_fork);
+DEFINE_XREP_DIR_EVENT(xrep_parent_reset_dotdot);
+
+DECLARE_EVENT_CLASS(xrep_dirent_class,
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name,
+		 xfs_ino_t ino),
+	TP_ARGS(dp, name, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+		__field(xfs_ino_t, ino)
+		__field(uint8_t, ftype)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+		__entry->ino = ino;
+		__entry->ftype = name->type;
+	),
+	TP_printk("dev %d:%d dir 0x%llx ftype %s name '%.*s' ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR),
+		  __entry->namelen,
+		  __get_str(name),
+		  __entry->ino)
+)
+#define DEFINE_XREP_DIRENT_EVENT(name) \
+DEFINE_EVENT(xrep_dirent_class, name, \
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name, \
+		 xfs_ino_t ino), \
+	TP_ARGS(dp, name, ino))
+DEFINE_XREP_DIRENT_EVENT(xrep_dir_salvage_entry);
+DEFINE_XREP_DIRENT_EVENT(xrep_dir_stash_createname);
+DEFINE_XREP_DIRENT_EVENT(xrep_dir_replay_createname);
+DEFINE_XREP_DIRENT_EVENT(xrep_adoption_reparent);
+DEFINE_XREP_DIRENT_EVENT(xrep_dir_stash_removename);
+DEFINE_XREP_DIRENT_EVENT(xrep_dir_replay_removename);
+
+DECLARE_EVENT_CLASS(xrep_adoption_class,
+	TP_PROTO(struct xfs_inode *dp, struct xfs_inode *ip, bool moved),
+	TP_ARGS(dp, ip, moved),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(xfs_ino_t, child_ino)
+		__field(bool, moved)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->child_ino = ip->i_ino;
+		__entry->moved = moved;
+	),
+	TP_printk("dev %d:%d dir 0x%llx child 0x%llx moved? %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __entry->child_ino,
+		  __entry->moved)
+);
+#define DEFINE_XREP_ADOPTION_EVENT(name) \
+DEFINE_EVENT(xrep_adoption_class, name, \
+	TP_PROTO(struct xfs_inode *dp, struct xfs_inode *ip, bool moved), \
+	TP_ARGS(dp, ip, moved))
+DEFINE_XREP_ADOPTION_EVENT(xrep_adoption_trans_roll);
+
+DECLARE_EVENT_CLASS(xrep_parent_salvage_class,
+	TP_PROTO(struct xfs_inode *dp, xfs_ino_t ino),
+	TP_ARGS(dp, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(xfs_ino_t, ino)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->ino = ino;
+	),
+	TP_printk("dev %d:%d dir 0x%llx parent 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __entry->ino)
+)
+#define DEFINE_XREP_PARENT_SALVAGE_EVENT(name) \
+DEFINE_EVENT(xrep_parent_salvage_class, name, \
+	TP_PROTO(struct xfs_inode *dp, xfs_ino_t ino), \
+	TP_ARGS(dp, ino))
+DEFINE_XREP_PARENT_SALVAGE_EVENT(xrep_dir_salvaged_parent);
+DEFINE_XREP_PARENT_SALVAGE_EVENT(xrep_findparent_dirent);
+DEFINE_XREP_PARENT_SALVAGE_EVENT(xrep_findparent_from_dcache);
+
+DECLARE_EVENT_CLASS(xrep_pptr_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(ip, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->parent_ino = be64_to_cpu(pptr->p_ino);
+		__entry->parent_gen = be32_to_cpu(pptr->p_gen);
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+)
+#define DEFINE_XREP_PPTR_EVENT(name) \
+DEFINE_EVENT(xrep_pptr_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_name *name, \
+		 const struct xfs_parent_rec *pptr), \
+	TP_ARGS(ip, name, pptr))
+DEFINE_XREP_PPTR_EVENT(xrep_xattr_replay_parentadd);
+DEFINE_XREP_PPTR_EVENT(xrep_xattr_replay_parentremove);
+DEFINE_XREP_PPTR_EVENT(xrep_parent_replay_parentadd);
+DEFINE_XREP_PPTR_EVENT(xrep_parent_replay_parentremove);
+
+DECLARE_EVENT_CLASS(xrep_pptr_scan_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_inode *dp,
+		 const struct xfs_name *name),
+	TP_ARGS(ip, dp, name),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->parent_gen = VFS_IC(dp)->i_generation;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+)
+#define DEFINE_XREP_PPTR_SCAN_EVENT(name) \
+DEFINE_EVENT(xrep_pptr_scan_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_inode *dp, \
+		 const struct xfs_name *name), \
+	TP_ARGS(ip, dp, name))
+DEFINE_XREP_PPTR_SCAN_EVENT(xrep_parent_stash_parentadd);
+DEFINE_XREP_PPTR_SCAN_EVENT(xrep_parent_stash_parentremove);
+
+TRACE_EVENT(xrep_nlinks_set_record,
+	TP_PROTO(struct xfs_mount *mp, xfs_ino_t ino,
+		 const struct xchk_nlink *obs),
+	TP_ARGS(mp, ino, obs),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_nlink_t, parents)
+		__field(xfs_nlink_t, backrefs)
+		__field(xfs_nlink_t, children)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->ino = ino;
+		__entry->parents = obs->parents;
+		__entry->backrefs = obs->backrefs;
+		__entry->children = obs->children;
+	),
+	TP_printk("dev %d:%d ino 0x%llx parents %u backrefs %u children %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parents,
+		  __entry->backrefs,
+		  __entry->children)
+);
+
+DECLARE_EVENT_CLASS(xrep_dentry_class,
+	TP_PROTO(struct xfs_mount *mp, const struct dentry *dentry),
+	TP_ARGS(mp, dentry),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, flags)
+		__field(unsigned long, ino)
+		__field(bool, positive)
+		__field(unsigned long, parent_ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, dentry->d_name.len)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->flags = dentry->d_flags;
+		__entry->positive = d_is_positive(dentry);
+		if (dentry->d_parent && d_inode(dentry->d_parent))
+			__entry->parent_ino = d_inode(dentry->d_parent)->i_ino;
+		else
+			__entry->parent_ino = -1UL;
+		__entry->ino = d_inode(dentry) ? d_inode(dentry)->i_ino : 0;
+		__entry->namelen = dentry->d_name.len;
+		memcpy(__get_str(name), dentry->d_name.name, dentry->d_name.len);
+	),
+	TP_printk("dev %d:%d flags 0x%x positive? %d parent_ino 0x%lx ino 0x%lx name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->flags,
+		  __entry->positive,
+		  __entry->parent_ino,
+		  __entry->ino,
+		  __entry->namelen,
+		  __get_str(name))
+);
+#define DEFINE_REPAIR_DENTRY_EVENT(name) \
+DEFINE_EVENT(xrep_dentry_class, name, \
+	TP_PROTO(struct xfs_mount *mp, const struct dentry *dentry), \
+	TP_ARGS(mp, dentry))
+DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_child);
+DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
+DEFINE_REPAIR_DENTRY_EVENT(xrep_dirtree_delete_child);
+
+TRACE_EVENT(xrep_symlink_salvage_target,
+	TP_PROTO(struct xfs_inode *ip, char *target, unsigned int targetlen),
+	TP_ARGS(ip, target, targetlen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, targetlen)
+		__dynamic_array(char, target, targetlen + 1)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->targetlen = targetlen;
+		memcpy(__get_str(target), target, targetlen);
+		__get_str(target)[targetlen] = 0;
+	),
+	TP_printk("dev %d:%d ip 0x%llx target '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->targetlen,
+		  __get_str(target))
+);
+
+DECLARE_EVENT_CLASS(xrep_symlink_class,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+	),
+	TP_printk("dev %d:%d ip 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino)
+);
+
+#define DEFINE_XREP_SYMLINK_EVENT(name) \
+DEFINE_EVENT(xrep_symlink_class, name, \
+	TP_PROTO(struct xfs_inode *ip), \
+	TP_ARGS(ip))
+DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_rebuild);
+DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_reset_fork);
+
+TRACE_EVENT(xrep_iunlink_visit,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t bucket_agino, struct xfs_inode *ip),
+	TP_ARGS(pag, bucket, bucket_agino, ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, bucket_agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->agino = XFS_INO_TO_AGINO(pag_mount(pag), ip->i_ino);
+		__entry->bucket = bucket;
+		__entry->bucket_agino = bucket_agino;
+		__entry->prev_agino = ip->i_prev_unlinked;
+		__entry->next_agino = ip->i_next_unlinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x bucket_agino 0x%x prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->agino,
+		  __entry->bucket_agino,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_reload_next,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t prev_agino),
+	TP_ARGS(ip, prev_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, old_prev_agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+		__field(unsigned int, nlink)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->old_prev_agino = ip->i_prev_unlinked;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = ip->i_next_unlinked;
+		__entry->nlink = VFS_I(ip)->i_nlink;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x nlink %u old_prev_agino %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->nlink,
+		  __entry->old_prev_agino,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_reload_ondisk,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(unsigned int, nlink)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->nlink = VFS_I(ip)->i_nlink;
+		__entry->next_agino = ip->i_next_unlinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x nlink %u next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->nlink,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_walk_ondisk_bucket,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino),
+	TP_ARGS(pag, bucket, prev_agino, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->bucket = bucket;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+DECLARE_EVENT_CLASS(xrep_iunlink_resolve_class,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino),
+	TP_ARGS(pag, bucket, prev_agino, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->bucket = bucket;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+#define DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(name) \
+DEFINE_EVENT(xrep_iunlink_resolve_class, name, \
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket, \
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino), \
+	TP_ARGS(pag, bucket, prev_agino, next_agino))
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_uncached);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_wronglist);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_nolist);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_ok);
+
+TRACE_EVENT(xrep_iunlink_relink_next,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t next_agino),
+	TP_ARGS(ip, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, next_agino)
+		__field(xfs_agino_t, new_next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->next_agino = ip->i_next_unlinked;
+		__entry->new_next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x next_agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->next_agino,
+		  __entry->new_next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_relink_prev,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t prev_agino),
+	TP_ARGS(ip, prev_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, new_prev_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->prev_agino = ip->i_prev_unlinked;
+		__entry->new_prev_agino = prev_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x prev_agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->prev_agino,
+		  __entry->new_prev_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_add_to_bucket,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t agino, xfs_agino_t curr_head),
+	TP_ARGS(pag, bucket, agino, curr_head),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->bucket = bucket;
+		__entry->agino = agino;
+		__entry->next_agino = curr_head;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_commit_bucket,
+	TP_PROTO(const struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t old_agino, xfs_agino_t agino),
+	TP_ARGS(pag, bucket, old_agino, agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, old_agino)
+		__field(xfs_agino_t, agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag_mount(pag)->m_super->s_dev;
+		__entry->agno = pag_agno(pag);
+		__entry->bucket = bucket;
+		__entry->old_agino = old_agino;
+		__entry->agino = agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->old_agino,
+		  __entry->agino)
+);
+
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xrep_dirpath_set_outcome);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_delete_path);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_create_adoption);
+DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(xrep_dirtree_decided_fate);
+
+DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_lookup);
+DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_try_unlink);
+DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_unlink);
+DEFINE_XCHK_METAPATH_EVENT(xrep_metapath_link);
+
+#ifdef CONFIG_XFS_RT
+DECLARE_EVENT_CLASS(xrep_rtbitmap_class,
+	TP_PROTO(struct xfs_mount *mp, xfs_rtxnum_t start, xfs_rtxnum_t end),
+	TP_ARGS(mp, start, end),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rtxnum_t, start)
+		__field(xfs_rtxnum_t, end)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->start = start;
+		__entry->end = end;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d startrtx 0x%llx endrtx 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->start,
+		  __entry->end)
+);
+#define DEFINE_REPAIR_RGBITMAP_EVENT(name) \
+DEFINE_EVENT(xrep_rtbitmap_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_rtxnum_t start, \
+		 xfs_rtxnum_t end), \
+	TP_ARGS(mp, start, end))
+DEFINE_REPAIR_RGBITMAP_EVENT(xrep_rtbitmap_record_free);
+DEFINE_REPAIR_RGBITMAP_EVENT(xrep_rtbitmap_record_free_bulk);
+
+TRACE_EVENT(xrep_rtbitmap_or,
+	TP_PROTO(struct xfs_mount *mp, unsigned long long wordoff,
+		 xfs_rtword_t mask, xfs_rtword_t word),
+	TP_ARGS(mp, wordoff, mask, word),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, mask)
+		__field(unsigned int, word)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->wordoff = wordoff;
+		__entry->mask = mask;
+		__entry->word = word;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d wordoff 0x%llx mask 0x%x word 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->wordoff,
+		  __entry->mask,
+		  __entry->word)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load,
+	TP_PROTO(struct xfs_rtgroup *rtg, xfs_fileoff_t rbmoff,
+		 xfs_rtxnum_t rtx, xfs_rtxnum_t len),
+	TP_ARGS(rtg, rbmoff, rtx, len),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_fileoff_t, rbmoff)
+		__field(xfs_rtxnum_t, rtx)
+		__field(xfs_rtxnum_t, len)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rtdev = rtg_mount(rtg)->m_rtdev_targp->bt_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->rbmoff = rbmoff;
+		__entry->rtx = rtx;
+		__entry->len = len;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rgno 0x%x rbmoff 0x%llx rtx 0x%llx rtxcount 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rgno,
+		  __entry->rbmoff,
+		  __entry->rtx,
+		  __entry->len)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load_words,
+	TP_PROTO(struct xfs_mount *mp, xfs_fileoff_t rbmoff,
+		 unsigned long long wordoff, unsigned int wordcnt),
+	TP_ARGS(mp, rbmoff, wordoff, wordcnt),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_fileoff_t, rbmoff)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, wordcnt)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->rbmoff = rbmoff;
+		__entry->wordoff = wordoff;
+		__entry->wordcnt = wordcnt;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rbmoff 0x%llx wordoff 0x%llx wordcnt 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rbmoff,
+		  __entry->wordoff,
+		  __entry->wordcnt)
+);
+
+TRACE_EVENT(xrep_rtbitmap_load_word,
+	TP_PROTO(struct xfs_mount *mp, unsigned long long wordoff,
+		 unsigned int bit, xfs_rtword_t ondisk_word,
+		 xfs_rtword_t xfile_word, xfs_rtword_t word_mask),
+	TP_ARGS(mp, wordoff, bit, ondisk_word, xfile_word, word_mask),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(unsigned long long, wordoff)
+		__field(unsigned int, bit)
+		__field(xfs_rtword_t, ondisk_word)
+		__field(xfs_rtword_t, xfile_word)
+		__field(xfs_rtword_t, word_mask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->wordoff = wordoff;
+		__entry->bit = bit;
+		__entry->ondisk_word = ondisk_word;
+		__entry->xfile_word = xfile_word;
+		__entry->word_mask = word_mask;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d wordoff 0x%llx bit %u ondisk 0x%x(0x%x) inmem 0x%x(0x%x) result 0x%x mask 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->wordoff,
+		  __entry->bit,
+		  __entry->ondisk_word,
+		  __entry->ondisk_word & __entry->word_mask,
+		  __entry->xfile_word,
+		  __entry->xfile_word & ~__entry->word_mask,
+		  (__entry->xfile_word & ~__entry->word_mask) |
+		  (__entry->ondisk_word & __entry->word_mask),
+		  __entry->word_mask)
+);
+
+TRACE_EVENT(xrep_rtrmap_found,
+	TP_PROTO(struct xfs_mount *mp, const struct xfs_rmap_irec *rec),
+	TP_ARGS(mp, rec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(dev_t, rtdev)
+		__field(xfs_rgblock_t, rgbno)
+		__field(xfs_extlen_t, len)
+		__field(uint64_t, owner)
+		__field(uint64_t, offset)
+		__field(unsigned int, flags)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rtdev = mp->m_rtdev_targp->bt_dev;
+		__entry->rgbno = rec->rm_startblock;
+		__entry->len = rec->rm_blockcount;
+		__entry->owner = rec->rm_owner;
+		__entry->offset = rec->rm_offset;
+		__entry->flags = rec->rm_flags;
+	),
+	TP_printk("dev %d:%d rtdev %d:%d rgbno 0x%x fsbcount 0x%x owner 0x%llx fileoff 0x%llx flags 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  MAJOR(__entry->rtdev), MINOR(__entry->rtdev),
+		  __entry->rgbno,
+		  __entry->len,
+		  __entry->owner,
+		  __entry->offset,
+		  __entry->flags)
+);
+#endif /* CONFIG_XFS_RT */
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 

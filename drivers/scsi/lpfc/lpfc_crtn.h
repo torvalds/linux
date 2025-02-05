@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -571,7 +571,7 @@ int lpfc_issue_reg_vfi(struct lpfc_vport *);
 int lpfc_issue_unreg_vfi(struct lpfc_vport *);
 int lpfc_selective_reset(struct lpfc_hba *);
 int lpfc_sli4_read_config(struct lpfc_hba *);
-void lpfc_sli4_node_prep(struct lpfc_hba *);
+void lpfc_sli4_node_rpi_restore(struct lpfc_hba *phba);
 int lpfc_sli4_els_sgl_update(struct lpfc_hba *phba);
 int lpfc_sli4_nvmet_sgl_update(struct lpfc_hba *phba);
 int lpfc_io_buf_flush(struct lpfc_hba *phba, struct list_head *sglist);
@@ -660,6 +660,7 @@ void lpfc_wqe_cmd_template(void);
 void lpfc_nvmet_cmd_template(void);
 void lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			   uint32_t stat, uint32_t param);
+void lpfc_nvmels_flush_cmd(struct lpfc_hba *phba);
 extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;

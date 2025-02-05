@@ -634,8 +634,8 @@ static int __maybe_unused pca9685_pwm_runtime_resume(struct device *dev)
 }
 
 static const struct i2c_device_id pca9685_id[] = {
-	{ "pca9685", 0 },
-	{ /* sentinel */ },
+	{ "pca9685" },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(i2c, pca9685_id);
 

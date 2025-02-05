@@ -304,4 +304,5 @@ static void __exit exit_nls_iso8859_15(void)
 module_init(init_nls_iso8859_15)
 module_exit(exit_nls_iso8859_15)
 
+MODULE_DESCRIPTION("NLS ISO 8859-15 (Latin 9; Western European Languages with Euro)");
 MODULE_LICENSE("Dual BSD/GPL");

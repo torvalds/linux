@@ -2811,13 +2811,6 @@ static struct aead_alg aead_algos[] = {
 
 #ifdef CONFIG_DEBUG_FS
 
-struct dbgfs_u32 {
-	char *name;
-	mode_t mode;
-	u32 *flag;
-	char *desc;
-};
-
 static struct dentry *dbgfs_root;
 
 static void artpec6_crypto_init_debugfs(void)
@@ -2982,7 +2975,7 @@ static void artpec6_crypto_remove(struct platform_device *pdev)
 
 static struct platform_driver artpec6_crypto_driver = {
 	.probe   = artpec6_crypto_probe,
-	.remove_new = artpec6_crypto_remove,
+	.remove = artpec6_crypto_remove,
 	.driver  = {
 		.name  = "artpec6-crypto",
 		.of_match_table = artpec6_crypto_of_match,

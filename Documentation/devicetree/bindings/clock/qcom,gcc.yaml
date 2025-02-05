@@ -35,7 +35,6 @@ required:
   - reg
   - '#clock-cells'
   - '#reset-cells'
-  - '#power-domain-cells'
 
 additionalProperties: true
 

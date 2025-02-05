@@ -8,6 +8,13 @@
 #define _ASM_S390X_DCSS_H
 #ifndef __ASSEMBLY__
 
+/*
+ * DCSS segment is defined as a contiguous range of pages using DEFSEG command.
+ * The range start and end is a page number with a value less than or equal to
+ * 0x7ffffff (see CP Commands and Utilities Reference).
+ */
+#define MAX_DCSS_ADDR	(512UL * SZ_1G)
+
 /* possible values for segment type as returned by segment_info */
 #define SEG_TYPE_SW 0
 #define SEG_TYPE_EW 1

@@ -35,7 +35,7 @@
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -827,7 +827,7 @@ static int smp_core99_kick_cpu(int nr)
 	mdelay(1);
 
 	/* Restore our exception vector */
-	patch_instruction(vector, ppc_inst(save_vector));
+	patch_uint(vector, save_vector);
 
 	local_irq_restore(flags);
 	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu done", 0x347);

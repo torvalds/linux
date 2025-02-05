@@ -74,6 +74,7 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.set_avmute = dcn30_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
 	.get_hw_state = dcn10_get_hw_state,
+	.log_color_state = dcn30_log_color_state,
 	.clear_status_bits = dcn10_clear_status_bits,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.edp_backlight_control = dce110_edp_backlight_control,
@@ -90,7 +91,6 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.enable_writeback = dcn30_enable_writeback,
 	.disable_writeback = dcn30_disable_writeback,
 	.update_writeback = dcn30_update_writeback,
-	.mmhubbub_warmup = dcn30_mmhubbub_warmup,
 	.dmdata_status_done = dcn20_dmdata_status_done,
 	.program_dmdata_engine = dcn30_program_dmdata_engine,
 	.set_dmdata_attributes = dcn20_set_dmdata_attributes,
@@ -99,7 +99,6 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.set_flip_control_gsl = dcn20_set_flip_control_gsl,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
 	.calc_vupdate_position = dcn10_calc_vupdate_position,
-	.power_down = dce110_power_down,
 	.set_backlight_level = dcn21_set_backlight_level,
 	.set_abm_immediate_disable = dcn21_set_abm_immediate_disable,
 	.set_pipe = dcn21_set_pipe,
@@ -113,11 +112,12 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.optimize_pwr_state = dcn21_optimize_pwr_state,
 	.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state,
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
+	.calculate_pix_rate_divider = dcn314_calculate_pix_rate_divider,
+	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
 };
 
 static const struct hwseq_private_funcs dcn314_private_funcs = {
 	.init_pipes = dcn10_init_pipes,
-	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,
 	.set_input_transfer_func = dcn30_set_input_transfer_func,
@@ -151,7 +151,6 @@ static const struct hwseq_private_funcs dcn314_private_funcs = {
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
 	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
 	.calculate_dccg_k1_k2_values = dcn314_calculate_dccg_k1_k2_values,
-	.set_pixels_per_cycle = dcn314_set_pixels_per_cycle,
 	.resync_fifo_dccg_dio = dcn314_resync_fifo_dccg_dio,
 };
 

@@ -395,4 +395,5 @@ static struct platform_driver pwm_mediatek_driver = {
 module_platform_driver(pwm_mediatek_driver);
 
 MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");
+MODULE_DESCRIPTION("MediaTek general purpose Pulse Width Modulator driver");
 MODULE_LICENSE("GPL v2");

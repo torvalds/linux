@@ -113,19 +113,24 @@ struct uncore_unit_discovery {
 	};
 };
 
+struct intel_uncore_discovery_unit {
+	struct rb_node	node;
+	unsigned int	pmu_idx;	/* The idx of the corresponding PMU */
+	unsigned int	id;		/* Unit ID */
+	unsigned int	die;		/* Die ID */
+	u64		addr;		/* Unit Control Address */
+};
+
 struct intel_uncore_discovery_type {
 	struct rb_node	node;
 	enum uncore_access_type	access_type;
-	u64		box_ctrl;	/* Unit ctrl addr of the first box */
-	u64		*box_ctrl_die;	/* Unit ctrl addr of the first box of each die */
+	struct rb_root	units;		/* Unit ctrl addr for all units */
 	u16		type;		/* Type ID of the uncore block */
 	u8		num_counters;
 	u8		counter_width;
 	u8		ctl_offset;	/* Counter Control 0 offset */
 	u8		ctr_offset;	/* Counter 0 offset */
-	u16		num_boxes;	/* number of boxes for the uncore block */
-	unsigned int	*ids;		/* Box IDs */
-	u64		*box_offset;	/* Box offset */
+	u16		num_units;	/* number of units */
 };
 
 bool intel_uncore_has_discovery_tables(int *ignore);
@@ -156,3 +161,10 @@ u64 intel_generic_uncore_pci_read_counter(struct intel_uncore_box *box,
 
 struct intel_uncore_type **
 intel_uncore_generic_init_uncores(enum uncore_access_type type_id, int num_extra);
+
+int intel_uncore_find_discovery_unit_id(struct rb_root *units, int die,
+					unsigned int pmu_idx);
+bool intel_generic_uncore_assign_hw_event(struct perf_event *event,
+					  struct intel_uncore_box *box);
+void uncore_find_add_unit(struct intel_uncore_discovery_unit *node,
+			  struct rb_root *root, u16 *num_units);

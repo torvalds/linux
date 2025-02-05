@@ -410,18 +410,15 @@ static int tmp421_probe_from_dt(struct i2c_client *client, struct tmp421_data *d
 {
 	struct device *dev = &client->dev;
 	const struct device_node *np = dev->of_node;
-	struct device_node *child;
 	int err;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		if (strcmp(child->name, "channel"))
 			continue;
 
 		err = tmp421_probe_child_from_dt(client, child, data);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			return err;
-		}
 	}
 
 	return 0;
@@ -446,11 +443,7 @@ static int tmp421_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&data->update_lock);
-	if (client->dev.of_node)
-		data->channels = (unsigned long)
-			of_device_get_match_data(&client->dev);
-	else
-		data->channels = i2c_match_id(tmp421_id, client)->driver_data;
+	data->channels = (unsigned long)i2c_get_match_data(client);
 	data->client = client;
 
 	for (i = 0; i < data->channels; i++) {

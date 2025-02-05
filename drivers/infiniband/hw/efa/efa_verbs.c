@@ -26,10 +26,6 @@ enum {
 	EFA_MMAP_IO_NC,
 };
 
-#define EFA_AENQ_ENABLED_GROUPS \
-	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
-	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
-
 struct efa_user_mmap_entry {
 	struct rdma_user_mmap_entry rdma_entry;
 	u64 address;
@@ -88,6 +84,8 @@ enum efa_hw_port_stats {
 static const struct rdma_stat_desc efa_port_stats_descs[] = {
 	EFA_DEFINE_PORT_STATS(EFA_STATS_STR)
 };
+
+#define EFA_DEFAULT_LINK_SPEED_GBPS   100
 
 #define EFA_CHUNK_PAYLOAD_SHIFT       12
 #define EFA_CHUNK_PAYLOAD_SIZE        BIT(EFA_CHUNK_PAYLOAD_SHIFT)
@@ -263,6 +261,9 @@ int efa_query_device(struct ib_device *ibdev,
 		if (EFA_DEV_CAP(dev, RDMA_WRITE))
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_RDMA_WRITE;
 
+		if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
+			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_UNSOLICITED_WRITE_RECV;
+
 		if (dev->neqs)
 			resp.device_caps |= EFA_QUERY_DEVICE_CAPS_CQ_NOTIFICATIONS;
 
@@ -278,10 +279,47 @@ int efa_query_device(struct ib_device *ibdev,
 	return 0;
 }
 
+static void efa_link_gbps_to_speed_and_width(u16 gbps,
+					     enum ib_port_speed *speed,
+					     enum ib_port_width *width)
+{
+	if (gbps >= 400) {
+		*width = IB_WIDTH_8X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 200) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 120) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_FDR10;
+	} else if (gbps >= 100) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_EDR;
+	} else if (gbps >= 60) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_DDR;
+	} else if (gbps >= 50) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_HDR;
+	} else if (gbps >= 40) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_FDR10;
+	} else if (gbps >= 30) {
+		*width = IB_WIDTH_12X;
+		*speed = IB_SPEED_SDR;
+	} else {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_EDR;
+	}
+}
+
 int efa_query_port(struct ib_device *ibdev, u32 port,
 		   struct ib_port_attr *props)
 {
 	struct efa_dev *dev = to_edev(ibdev);
+	enum ib_port_speed link_speed;
+	enum ib_port_width link_width;
+	u16 link_gbps;
 
 	props->lmc = 1;
 
@@ -289,8 +327,10 @@ int efa_query_port(struct ib_device *ibdev, u32 port,
 	props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
 	props->gid_tbl_len = 1;
 	props->pkey_tbl_len = 1;
-	props->active_speed = IB_SPEED_EDR;
-	props->active_width = IB_WIDTH_4X;
+	link_gbps = dev->dev_attr.max_link_speed_gbps ?: EFA_DEFAULT_LINK_SPEED_GBPS;
+	efa_link_gbps_to_speed_and_width(link_gbps, &link_speed, &link_width);
+	props->active_speed = link_speed;
+	props->active_width = link_width;
 	props->max_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 	props->active_mtu = ib_mtu_int_to_enum(dev->dev_attr.mtu);
 	props->max_msg_sz = dev->dev_attr.mtu;
@@ -521,7 +561,7 @@ static int qp_mmap_entries_setup(struct efa_qp *qp,
 
 	address = dev->mem_bar_addr + resp->llq_desc_offset;
 	length = PAGE_ALIGN(params->sq_ring_size_in_bytes +
-			    (resp->llq_desc_offset & ~PAGE_MASK));
+			    offset_in_page(resp->llq_desc_offset));
 
 	qp->llq_desc_mmap_entry =
 		efa_user_mmap_entry_insert(&ucontext->ibucontext,
@@ -639,6 +679,7 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 	struct efa_ibv_create_qp cmd = {};
 	struct efa_qp *qp = to_eqp(ibqp);
 	struct efa_ucontext *ucontext;
+	u16 supported_efa_flags = 0;
 	int err;
 
 	ucontext = rdma_udata_to_drv_context(udata, struct efa_ucontext,
@@ -676,10 +717,20 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 		goto err_out;
 	}
 
-	if (cmd.comp_mask) {
+	if (cmd.comp_mask || !is_reserved_cleared(cmd.reserved_98)) {
 		ibdev_dbg(&dev->ibdev,
 			  "Incompatible ABI params, unknown fields in udata\n");
 		err = -EINVAL;
+		goto err_out;
+	}
+
+	if (EFA_DEV_CAP(dev, UNSOLICITED_WRITE_RECV))
+		supported_efa_flags |= EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV;
+
+	if (cmd.flags & ~supported_efa_flags) {
+		ibdev_dbg(&dev->ibdev, "Unsupported EFA QP create flags[%#x], supported[%#x]\n",
+			  cmd.flags, supported_efa_flags);
+		err = -EOPNOTSUPP;
 		goto err_out;
 	}
 
@@ -721,6 +772,11 @@ int efa_create_qp(struct ib_qp *ibqp, struct ib_qp_init_attr *init_attr,
 			  qp->rq_cpu_addr, qp->rq_size, &qp->rq_dma_addr);
 		create_qp_params.rq_base_addr = qp->rq_dma_addr;
 	}
+
+	create_qp_params.sl = cmd.sl;
+
+	if (cmd.flags & EFA_CREATE_QP_WITH_UNSOLICITED_WRITE_RECV)
+		create_qp_params.unsolicited_write_recv = true;
 
 	err = efa_com_create_qp(&dev->edev, &create_qp_params,
 				&create_qp_resp);
@@ -1067,8 +1123,9 @@ static int cq_mmap_entries_setup(struct efa_dev *dev, struct efa_cq *cq,
 }
 
 int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		  struct ib_udata *udata)
+		  struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct efa_ucontext *ucontext = rdma_udata_to_drv_context(
 		udata, struct efa_ucontext, ibucontext);
 	struct efa_com_create_cq_params params = {};
@@ -1153,7 +1210,7 @@ int efa_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	}
 
 	params.uarn = cq->ucontext->uarn;
-	params.cq_depth = entries;
+	params.sub_cq_depth = entries;
 	params.dma_addr = cq->dma_addr;
 	params.entry_size_in_bytes = cmd.cq_entry_size;
 	params.num_sub_cqs = cmd.num_sub_cqs;
@@ -1670,14 +1727,14 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 struct ib_mr *efa_reg_user_mr_dmabuf(struct ib_pd *ibpd, u64 start,
 				     u64 length, u64 virt_addr,
 				     int fd, int access_flags,
-				     struct ib_udata *udata)
+				     struct uverbs_attr_bundle *attrs)
 {
 	struct efa_dev *dev = to_edev(ibpd->device);
 	struct ib_umem_dmabuf *umem_dmabuf;
 	struct efa_mr *mr;
 	int err;
 
-	mr = efa_alloc_mr(ibpd, access_flags, udata);
+	mr = efa_alloc_mr(ibpd, access_flags, &attrs->driver_udata);
 	if (IS_ERR(mr)) {
 		err = PTR_ERR(mr);
 		goto err_out;

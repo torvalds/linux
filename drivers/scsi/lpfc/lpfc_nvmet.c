@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/crc-t10dif.h>
 #include <net/checksum.h>
 
@@ -1363,6 +1363,16 @@ lpfc_nvmet_ls_abort(struct nvmet_fc_target_port *targetport,
 		atomic_inc(&lpfc_nvmet->xmt_ls_abort);
 }
 
+static int
+lpfc_nvmet_host_traddr(void *hosthandle, u64 *wwnn, u64 *wwpn)
+{
+	struct lpfc_nodelist *ndlp = hosthandle;
+
+	*wwnn = wwn_to_u64(ndlp->nlp_nodename.u.wwn);
+	*wwpn = wwn_to_u64(ndlp->nlp_portname.u.wwn);
+	return 0;
+}
+
 static void
 lpfc_nvmet_host_release(void *hosthandle)
 {
@@ -1413,6 +1423,7 @@ static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.ls_req         = lpfc_nvmet_ls_req,
 	.ls_abort       = lpfc_nvmet_ls_abort,
 	.host_release   = lpfc_nvmet_host_release,
+	.host_traddr    = lpfc_nvmet_host_traddr,
 
 	.max_hw_queues  = 1,
 	.max_sgl_segments = LPFC_NVMET_DEFAULT_SEGS,
@@ -1811,7 +1822,9 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		ctxp->flag &= ~LPFC_NVME_XBUSY;
 		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 
+		spin_lock_irqsave(&phba->rrq_list_lock, iflag);
 		rrq_empty = list_empty(&phba->active_rrq_list);
+		spin_unlock_irqrestore(&phba->rrq_list_lock, iflag);
 		ndlp = lpfc_findnode_did(phba->pport, ctxp->sid);
 		if (ndlp &&
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE ||
@@ -2129,7 +2142,7 @@ lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
  * @phba: pointer to lpfc hba data structure.
  * @axchg: pointer to exchange context for the NVME LS request
  *
- * This routine is used for processing an asychronously received NVME LS
+ * This routine is used for processing an asynchronously received NVME LS
  * request. Any remaining validation is done and the LS is then forwarded
  * to the nvmet-fc transport via nvmet_fc_rcv_ls_req().
  *
@@ -2841,7 +2854,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			/* In template ar=1 wqes=0 sup=0 irsp=0 irsplen=0 */
 
 			if (rsp->rsplen == LPFC_NVMET_SUCCESS_LEN) {
-				if (ndlp->nlp_flag & NLP_SUPPRESS_RSP)
+				if (test_bit(NLP_SUPPRESS_RSP, &ndlp->nlp_flag))
 					bf_set(wqe_sup,
 					       &wqe->fcp_tsend.wqe_com, 1);
 			} else {
@@ -3393,14 +3406,12 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* If the hba is getting reset, this flag is set.  It is
 	 * cleared when the reset is complete and rings reestablished.
 	 */
-	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_IOQ_FLUSH) {
-		spin_unlock_irqrestore(&phba->hbalock, flags);
+	if (test_bit(HBA_IOQ_FLUSH, &phba->hba_flag)) {
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"6163 Driver in reset cleanup - flushing "
-				"NVME Req now. hba_flag x%x oxid x%x\n",
+				"NVME Req now. hba_flag x%lx oxid x%x\n",
 				phba->hba_flag, ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
 		spin_lock_irqsave(&ctxp->ctxlock, flags);
@@ -3409,6 +3420,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 		return 0;
 	}
 
+	spin_lock_irqsave(&phba->hbalock, flags);
 	/* Outstanding abort is in progress */
 	if (abts_wqeq->cmd_flag & LPFC_DRIVER_ABORTED) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);

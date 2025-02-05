@@ -107,7 +107,7 @@ static int rcar_pcie_parse_outbound_ranges(struct rcar_pcie_endpoint *ep,
 		}
 		if (!devm_request_mem_region(&pdev->dev, res->start,
 					     resource_size(res),
-					     outbound_name)) {
+					     res->name)) {
 			dev_err(pcie->dev, "Cannot request memory region %s.\n",
 				outbound_name);
 			return -EIO;
@@ -541,6 +541,8 @@ static int rcar_pcie_ep_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to initialize the epc memory space\n");
 		goto err_pm_put;
 	}
+
+	pci_epc_init_notify(epc);
 
 	return 0;
 

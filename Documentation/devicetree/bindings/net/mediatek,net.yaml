@@ -30,8 +30,13 @@ properties:
   reg:
     maxItems: 1
 
-  clocks: true
-  clock-names: true
+  clocks:
+    minItems: 2
+    maxItems: 24
+
+  clock-names:
+    minItems: 2
+    maxItems: 24
 
   interrupts:
     minItems: 1
@@ -67,6 +72,17 @@ properties:
     description:
       Phandle to the syscon node that handles the path from GMAC to
       PHY variants.
+
+  mediatek,pcie-mirror:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the mediatek pcie-mirror controller.
+
+  mediatek,pctl:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to the syscon node that handles the ports slew rate and
+      driver current.
 
   mediatek,sgmiisys:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -116,6 +132,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:
@@ -131,15 +148,12 @@ allOf:
 
         mediatek,infracfg: false
 
-        mediatek,pctl:
-          $ref: /schemas/types.yaml#/definitions/phandle
-          description:
-            Phandle to the syscon node that handles the ports slew rate and
-            driver current.
-
         mediatek,wed: false
 
         mediatek,wed-pcie: false
+    else:
+      properties:
+        mediatek,pctl: false
 
   - if:
       properties:
@@ -175,6 +189,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:
@@ -201,12 +216,10 @@ allOf:
           minItems: 1
           maxItems: 1
 
-        mediatek,pcie-mirror:
-          $ref: /schemas/types.yaml#/definitions/phandle
-          description:
-            Phandle to the mediatek pcie-mirror controller.
-
         mediatek,wed-pcie: false
+    else:
+      properties:
+        mediatek,pcie-mirror: false
 
   - if:
       properties:
@@ -216,6 +229,7 @@ allOf:
     then:
       properties:
         interrupts:
+          minItems: 3
           maxItems: 3
 
         clocks:
@@ -337,8 +351,8 @@ allOf:
           minItems: 4
 
         clocks:
-          minItems: 34
-          maxItems: 34
+          minItems: 24
+          maxItems: 24
 
         clock-names:
           items:
@@ -351,18 +365,6 @@ allOf:
             - const: ethwarp_wocpu1
             - const: ethwarp_wocpu0
             - const: esw
-            - const: netsys0
-            - const: netsys1
-            - const: sgmii_tx250m
-            - const: sgmii_rx250m
-            - const: sgmii2_tx250m
-            - const: sgmii2_rx250m
-            - const: top_usxgmii0_sel
-            - const: top_usxgmii1_sel
-            - const: top_sgm0_sel
-            - const: top_sgm1_sel
-            - const: top_xfi_phy0_xtal_sel
-            - const: top_xfi_phy1_xtal_sel
             - const: top_eth_gmii_sel
             - const: top_eth_refck_50m_sel
             - const: top_eth_sys_200m_sel
@@ -375,15 +377,9 @@ allOf:
             - const: top_netsys_sync_250m_sel
             - const: top_netsys_ppefb_250m_sel
             - const: top_netsys_warp_sel
-            - const: wocpu1
-            - const: wocpu0
             - const: xgp1
             - const: xgp2
             - const: xgp3
-
-        mediatek,sgmiisys:
-          minItems: 2
-          maxItems: 2
 
 patternProperties:
   "^mac@[0-1]$":

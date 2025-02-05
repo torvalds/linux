@@ -44,6 +44,7 @@
 struct task_struct;
 
 struct thread_struct {
+	long fpcsr;		/* Floating point control status register. */
 };
 
 /*

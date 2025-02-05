@@ -124,7 +124,7 @@ static int i2c_mux_probe(struct platform_device *pdev)
 			goto err_children;
 		}
 
-		ret = i2c_mux_add_adapter(muxc, 0, chan, 0);
+		ret = i2c_mux_add_adapter(muxc, 0, chan);
 		if (ret)
 			goto err_children;
 	}
@@ -152,7 +152,7 @@ static void i2c_mux_remove(struct platform_device *pdev)
 
 static struct platform_driver i2c_mux_driver = {
 	.probe	= i2c_mux_probe,
-	.remove_new = i2c_mux_remove,
+	.remove = i2c_mux_remove,
 	.driver	= {
 		.name	= "i2c-mux-gpmux",
 		.of_match_table = i2c_mux_of_match,

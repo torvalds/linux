@@ -66,6 +66,14 @@ config SND_SOC_TOPOLOGY_KUNIT_TEST
 	  userspace applications such as pulseaudio, to prevent unnecessary
 	  problems.
 
+config SND_SOC_CARD_KUNIT_TEST
+	tristate "KUnit tests for SoC card"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  If you want to perform tests on ALSA SoC card functions say Y here.
+	  If unsure, say N.
+
 config SND_SOC_UTILS_KUNIT_TEST
 	tristate "KUnit tests for SoC utils"
 	depends on KUNIT
@@ -98,9 +106,10 @@ source "sound/soc/meson/Kconfig"
 source "sound/soc/mxs/Kconfig"
 source "sound/soc/pxa/Kconfig"
 source "sound/soc/qcom/Kconfig"
+source "sound/soc/renesas/Kconfig"
 source "sound/soc/rockchip/Kconfig"
 source "sound/soc/samsung/Kconfig"
-source "sound/soc/sh/Kconfig"
+source "sound/soc/sdca/Kconfig"
 source "sound/soc/sof/Kconfig"
 source "sound/soc/spear/Kconfig"
 source "sound/soc/sprd/Kconfig"
@@ -117,6 +126,8 @@ source "sound/soc/xtensa/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
+
+source "sound/soc/sdw_utils/Kconfig"
 
 # generic frame-work
 source "sound/soc/generic/Kconfig"

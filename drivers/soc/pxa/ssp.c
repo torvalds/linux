@@ -25,7 +25,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
-#include <linux/spi/pxa2xx_spi.h>
+#include <linux/pxa2xx_ssp.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -197,7 +197,7 @@ static const struct platform_device_id ssp_id_table[] = {
 
 static struct platform_driver pxa_ssp_driver = {
 	.probe		= pxa_ssp_probe,
-	.remove_new	= pxa_ssp_remove,
+	.remove		= pxa_ssp_remove,
 	.driver		= {
 		.name		= "pxa2xx-ssp",
 		.of_match_table	= of_match_ptr(pxa_ssp_of_ids),

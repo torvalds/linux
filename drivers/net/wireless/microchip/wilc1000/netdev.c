@@ -23,6 +23,12 @@
 #define __WILC1000_FW(api)		WILC1000_FW_PREFIX #api ".bin"
 #define WILC1000_FW(api)		__WILC1000_FW(api)
 
+#define WILC3000_API_VER		1
+
+#define WILC3000_FW_PREFIX		"atmel/wilc3000_wifi_firmware-"
+#define __WILC3000_FW(api)		WILC3000_FW_PREFIX #api ".bin"
+#define WILC3000_FW(api)		__WILC3000_FW(api)
+
 static irqreturn_t isr_uh_routine(int irq, void *user_data)
 {
 	struct wilc *wilc = user_data;
@@ -195,20 +201,24 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
-	int chip_id;
 	const struct firmware *wilc_fw;
+	char *firmware;
 	int ret;
 
-	chip_id = wilc_get_chipid(wilc, false);
+	if (is_wilc1000(wilc->chipid))
+		firmware = WILC1000_FW(WILC1000_API_VER);
+	else if (is_wilc3000(wilc->chipid))
+		firmware = WILC3000_FW(WILC3000_API_VER);
+	else
+		return -EINVAL;
 
-	netdev_info(dev, "ChipID [%x] loading firmware [%s]\n", chip_id,
-		    WILC1000_FW(WILC1000_API_VER));
+	netdev_info(dev, "WILC%d loading firmware [%s]\n",
+		    is_wilc1000(wilc->chipid) ? 1000 : 3000,
+		    firmware);
 
-	ret = request_firmware(&wilc_fw, WILC1000_FW(WILC1000_API_VER),
-			       wilc->dev);
+	ret = request_firmware(&wilc_fw, firmware, wilc->dev);
 	if (ret != 0) {
-		netdev_err(dev, "%s - firmware not available\n",
-			   WILC1000_FW(WILC1000_API_VER));
+		netdev_err(dev, "%s - firmware not available\n", firmware);
 		return -EINVAL;
 	}
 	wilc->firmware = wilc_fw;
@@ -233,7 +243,7 @@ static int wilc_start_firmware(struct net_device *dev)
 	return 0;
 }
 
-static int wilc1000_firmware_download(struct net_device *dev)
+static int wilc_firmware_download(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
@@ -528,7 +538,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		if (ret)
 			goto fail_irq_enable;
 
-		ret = wilc1000_firmware_download(dev);
+		ret = wilc_firmware_download(dev);
 		if (ret)
 			goto fail_irq_enable;
 
@@ -590,7 +600,6 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc *wl = vif->wilc;
 	int ret = 0;
 	struct mgmt_frame_regs mgmt_regs = {};
-	u8 addr[ETH_ALEN] __aligned(2);
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -612,20 +621,14 @@ static int wilc_mac_open(struct net_device *ndev)
 	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
 				vif->idx);
 
-	if (is_valid_ether_addr(ndev->dev_addr)) {
-		ether_addr_copy(addr, ndev->dev_addr);
-		wilc_set_mac_address(vif, addr);
-	} else {
-		wilc_get_mac_address(vif, addr);
-		eth_hw_addr_set(ndev, addr);
-	}
 	netdev_dbg(ndev, "Mac address: %pM\n", ndev->dev_addr);
-
-	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		netdev_err(ndev, "Wrong MAC address\n");
+	ret = wilc_set_mac_address(vif, ndev->dev_addr);
+	if (ret) {
+		netdev_err(ndev, "Failed to enforce MAC address in chip");
 		wilc_deinit_host_int(ndev);
-		wilc_wlan_deinitialize(ndev);
-		return -EINVAL;
+		if (!wl->open_ifcs)
+			wilc_wlan_deinitialize(ndev);
+		return ret;
 	}
 
 	mgmt_regs.interface_stypes = vif->mgmt_reg_stypes;
@@ -681,7 +684,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	}
 	srcu_read_unlock(&wilc->srcu, srcu_idx);
 
-	result = wilc_set_mac_address(vif, (u8 *)addr->sa_data);
+	result = wilc_set_mac_address(vif, addr->sa_data);
 	if (result)
 		return result;
 
@@ -922,8 +925,6 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 
 	wilc_wlan_cfg_deinit(wilc);
 	wlan_deinit_locks(wilc);
-	wiphy_unregister(wilc->wiphy);
-	wiphy_free(wilc->wiphy);
 }
 EXPORT_SYMBOL_GPL(wilc_netdev_cleanup);
 
@@ -948,6 +949,7 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 				      int vif_type, enum nl80211_iftype type,
 				      bool rtnl_locked)
 {
+	u8 mac_address[ETH_ALEN];
 	struct net_device *ndev;
 	struct wilc_vif *vif;
 	int ret;
@@ -972,6 +974,28 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 	vif->priv.wdev.iftype = type;
 	vif->priv.dev = ndev;
 
+	ndev->needs_free_netdev = true;
+	vif->iftype = vif_type;
+	vif->idx = wilc_get_available_idx(wl);
+	vif->mac_opened = 0;
+
+	memcpy(mac_address, wl->nv_mac_address, ETH_ALEN);
+	/* WILC firmware uses locally administered MAC address for the
+	 * second virtual interface (bit 1 of first byte set), but
+	 * since it is possibly not loaded/running yet, reproduce this behavior
+	 * in the driver during interface creation.
+	 */
+	if (vif->idx)
+		mac_address[0] |= 0x2;
+
+	eth_hw_addr_set(vif->ndev, mac_address);
+
+	mutex_lock(&wl->vif_mutex);
+	list_add_tail_rcu(&vif->list, &wl->vif_list);
+	wl->vif_num += 1;
+	mutex_unlock(&wl->vif_mutex);
+	synchronize_srcu(&wl->srcu);
+
 	if (rtnl_locked)
 		ret = cfg80211_register_netdevice(ndev);
 	else
@@ -979,30 +1003,23 @@ struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,
 
 	if (ret) {
 		ret = -EFAULT;
-		goto error;
+		goto error_remove_vif;
 	}
-
-	ndev->needs_free_netdev = true;
-	vif->iftype = vif_type;
-	vif->idx = wilc_get_available_idx(wl);
-	vif->mac_opened = 0;
-	mutex_lock(&wl->vif_mutex);
-	list_add_tail_rcu(&vif->list, &wl->vif_list);
-	wl->vif_num += 1;
-	mutex_unlock(&wl->vif_mutex);
-	synchronize_srcu(&wl->srcu);
 
 	return vif;
 
-error:
-	if (rtnl_locked)
-		cfg80211_unregister_netdevice(ndev);
-	else
-		unregister_netdev(ndev);
+error_remove_vif:
+	mutex_lock(&wl->vif_mutex);
+	list_del_rcu(&vif->list);
+	wl->vif_num -= 1;
+	mutex_unlock(&wl->vif_mutex);
+	synchronize_srcu(&wl->srcu);
 	free_netdev(ndev);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_GPL(wilc_netdev_ifc_init);
 
 MODULE_DESCRIPTION("Atmel WILC1000 core wireless driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(WILC1000_FW(WILC1000_API_VER));
+MODULE_FIRMWARE(WILC3000_FW(WILC3000_API_VER));

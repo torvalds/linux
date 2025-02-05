@@ -4,7 +4,7 @@
 Printk Index
 ============
 
-There are many ways how to monitor the state of the system. One important
+There are many ways to monitor the state of the system. One important
 source of information is the system log. It provides a lot of information,
 including more or less important warnings and error messages.
 
@@ -101,7 +101,7 @@ their own wrappers adding __printk_index_emit().
 
 Only few subsystem specific wrappers have been updated so far,
 for example, dev_printk(). As a result, the printk formats from
-some subsystes can be missing in the printk index.
+some subsystems can be missing in the printk index.
 
 
 Subsystem specific prefix

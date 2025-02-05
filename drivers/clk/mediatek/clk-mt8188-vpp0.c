@@ -104,11 +104,13 @@ MODULE_DEVICE_TABLE(platform, clk_mt8188_vpp0_id_table);
 
 static struct platform_driver clk_mt8188_vpp0_drv = {
 	.probe = mtk_clk_pdev_probe,
-	.remove_new = mtk_clk_pdev_remove,
+	.remove = mtk_clk_pdev_remove,
 	.driver = {
 		.name = "clk-mt8188-vpp0",
 	},
 	.id_table = clk_mt8188_vpp0_id_table,
 };
 module_platform_driver(clk_mt8188_vpp0_drv);
+
+MODULE_DESCRIPTION("MediaTek MT8188 Video Processing Pipe 0 clocks driver");
 MODULE_LICENSE("GPL");

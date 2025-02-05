@@ -946,7 +946,7 @@ static int nixge_change_mtu(struct net_device *ndev, int new_mtu)
 	     NIXGE_MAX_JUMBO_FRAME_SIZE)
 		return -EINVAL;
 
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 	return 0;
 }
@@ -1415,7 +1415,7 @@ static void nixge_remove(struct platform_device *pdev)
 
 static struct platform_driver nixge_driver = {
 	.probe		= nixge_probe,
-	.remove_new	= nixge_remove,
+	.remove		= nixge_remove,
 	.driver		= {
 		.name		= "nixge",
 		.of_match_table	= nixge_dt_ids,

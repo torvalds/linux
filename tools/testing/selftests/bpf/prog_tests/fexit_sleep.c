@@ -21,13 +21,13 @@ static int do_sleep(void *skel)
 }
 
 #define STACK_SIZE (1024 * 1024)
-static char child_stack[STACK_SIZE];
 
 void test_fexit_sleep(void)
 {
 	struct fexit_sleep_lskel *fexit_skel = NULL;
 	int wstatus, duration = 0;
 	pid_t cpid;
+	char *child_stack = NULL;
 	int err, fexit_cnt;
 
 	fexit_skel = fexit_sleep_lskel__open_and_load();
@@ -36,6 +36,11 @@ void test_fexit_sleep(void)
 
 	err = fexit_sleep_lskel__attach(fexit_skel);
 	if (CHECK(err, "fexit_attach", "fexit attach failed: %d\n", err))
+		goto cleanup;
+
+	child_stack = mmap(NULL, STACK_SIZE, PROT_READ | PROT_WRITE, MAP_PRIVATE |
+			   MAP_ANONYMOUS | MAP_STACK, -1, 0);
+	if (!ASSERT_NEQ(child_stack, MAP_FAILED, "mmap"))
 		goto cleanup;
 
 	cpid = clone(do_sleep, child_stack + STACK_SIZE, CLONE_FILES | SIGCHLD, fexit_skel);
@@ -78,5 +83,6 @@ void test_fexit_sleep(void)
 		goto cleanup;
 
 cleanup:
+	munmap(child_stack, STACK_SIZE);
 	fexit_sleep_lskel__destroy(fexit_skel);
 }

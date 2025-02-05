@@ -1,18 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <stddef.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <linux/bpf.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/ip.h>
-#include <linux/ipv6.h>
-#include <linux/types.h>
-#include <linux/socket.h>
-#include <linux/tcp.h>
+#include "bpf_tracing_net.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
-#include "bpf_tcp_helpers.h"
 #include "test_tcpbpf.h"
 
 struct tcpbpf_globals global = {};

@@ -10,6 +10,8 @@
 
 #include <dt-bindings/pinctrl/pinctrl-zynqmp.h>
 
+#include <linux/bitfield.h>
+#include <linux/bitmap.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -43,12 +45,17 @@
 #define DRIVE_STRENGTH_8MA	8
 #define DRIVE_STRENGTH_12MA	12
 
+#define VERSAL_LPD_PIN_PREFIX		"LPD_MIO"
+#define VERSAL_PMC_PIN_PREFIX		"PMC_MIO"
+
+#define VERSAL_PINCTRL_ATTR_NODETYPE_MASK	GENMASK(19, 14)
+#define VERSAL_PINCTRL_NODETYPE_LPD_MIO		BIT(0)
+
 /**
  * struct zynqmp_pmux_function - a pinmux function
  * @name:	Name of the pin mux function
  * @groups:	List of pin groups for this function
  * @ngroups:	Number of entries in @groups
- * @node:	Firmware node matching with the function
  *
  * This structure holds information about pin control function
  * and function group names supporting that function.
@@ -92,12 +99,14 @@ struct zynqmp_pctrl_group {
 };
 
 static struct pinctrl_desc zynqmp_desc;
+static u32 family_code;
+static u32 sub_family_code;
 
 static int zynqmp_pctrl_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct zynqmp_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	return pctrl->ngroups;
+	return pctrl->ngroups + zynqmp_desc.npins;
 }
 
 static const char *zynqmp_pctrl_get_group_name(struct pinctrl_dev *pctldev,
@@ -105,7 +114,10 @@ static const char *zynqmp_pctrl_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct zynqmp_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	return pctrl->groups[selector].name;
+	if (selector < pctrl->ngroups)
+		return pctrl->groups[selector].name;
+
+	return zynqmp_desc.pins[selector - pctrl->ngroups].name;
 }
 
 static int zynqmp_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
@@ -115,8 +127,13 @@ static int zynqmp_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct zynqmp_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = pctrl->groups[selector].pins;
-	*npins = pctrl->groups[selector].npins;
+	if (selector < pctrl->ngroups) {
+		*pins = pctrl->groups[selector].pins;
+		*npins = pctrl->groups[selector].npins;
+	} else {
+		*pins = &zynqmp_desc.pins[selector - pctrl->ngroups].number;
+		*npins = 1;
+	}
 
 	return 0;
 }
@@ -197,17 +214,16 @@ static int zynqmp_pinmux_set_mux(struct pinctrl_dev *pctldev,
 				 unsigned int function,
 				 unsigned int group)
 {
-	struct zynqmp_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct zynqmp_pctrl_group *pgrp = &pctrl->groups[group];
+	const unsigned int *pins;
+	unsigned int npins;
 	int ret, i;
 
-	for (i = 0; i < pgrp->npins; i++) {
-		unsigned int pin = pgrp->pins[i];
-
-		ret = zynqmp_pm_pinctrl_set_function(pin, function);
+	zynqmp_pctrl_get_group_pins(pctldev, group, &pins, &npins);
+	for (i = 0; i < npins; i++) {
+		ret = zynqmp_pm_pinctrl_set_function(pins[i], function);
 		if (ret) {
 			dev_err(pctldev->dev, "set mux failed for pin %u\n",
-				pin);
+				pins[i]);
 			return ret;
 		}
 	}
@@ -467,12 +483,13 @@ static int zynqmp_pinconf_group_set(struct pinctrl_dev *pctldev,
 				    unsigned long *configs,
 				    unsigned int num_configs)
 {
+	const unsigned int *pins;
+	unsigned int npins;
 	int i, ret;
-	struct zynqmp_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	const struct zynqmp_pctrl_group *pgrp = &pctrl->groups[selector];
 
-	for (i = 0; i < pgrp->npins; i++) {
-		ret = zynqmp_pinconf_cfg_set(pctldev, pgrp->pins[i], configs,
+	zynqmp_pctrl_get_group_pins(pctldev, selector, &pins, &npins);
+	for (i = 0; i < npins; i++) {
+		ret = zynqmp_pinconf_cfg_set(pctldev, pins[i], configs,
 					     num_configs);
 		if (ret)
 			return ret;
@@ -560,10 +577,12 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 {
 	u16 resp[NUM_GROUPS_PER_RESP] = {0};
 	const char **fgroups;
-	int ret, index, i;
+	int ret, index, i, pin;
+	unsigned int npins;
+	unsigned long *used_pins __free(bitmap) =
+		bitmap_zalloc(zynqmp_desc.npins, GFP_KERNEL);
 
-	fgroups = devm_kcalloc(dev, func->ngroups, sizeof(*fgroups), GFP_KERNEL);
-	if (!fgroups)
+	if (!used_pins)
 		return -ENOMEM;
 
 	for (index = 0; index < func->ngroups; index += NUM_GROUPS_PER_RESP) {
@@ -578,23 +597,41 @@ static int zynqmp_pinctrl_prepare_func_groups(struct device *dev, u32 fid,
 			if (resp[i] == RESERVED_GROUP)
 				continue;
 
-			fgroups[index + i] = devm_kasprintf(dev, GFP_KERNEL,
-							    "%s_%d_grp",
-							    func->name,
-							    index + i);
-			if (!fgroups[index + i])
-				return -ENOMEM;
-
 			groups[resp[i]].name = devm_kasprintf(dev, GFP_KERNEL,
 							      "%s_%d_grp",
 							      func->name,
 							      index + i);
 			if (!groups[resp[i]].name)
 				return -ENOMEM;
+
+			for (pin = 0; pin < groups[resp[i]].npins; pin++) {
+				if (family_code == ZYNQMP_FAMILY_CODE)
+					__set_bit(groups[resp[i]].pins[pin], used_pins);
+				else
+					__set_bit((u8)groups[resp[i]].pins[pin] - 1, used_pins);
+			}
 		}
 	}
 done:
+	npins = bitmap_weight(used_pins, zynqmp_desc.npins);
+	fgroups = devm_kcalloc(dev, size_add(func->ngroups, npins),
+			       sizeof(*fgroups), GFP_KERNEL);
+	if (!fgroups)
+		return -ENOMEM;
+
+	for (i = 0; i < func->ngroups; i++) {
+		fgroups[i] = devm_kasprintf(dev, GFP_KERNEL, "%s_%d_grp",
+					    func->name, i);
+		if (!fgroups[i])
+			return -ENOMEM;
+	}
+
+	pin = 0;
+	for_each_set_bit(pin, used_pins, zynqmp_desc.npins)
+		fgroups[i++] = zynqmp_desc.pins[pin].name;
+
 	func->groups = fgroups;
+	func->ngroups += npins;
 
 	return 0;
 }
@@ -718,7 +755,7 @@ static int zynqmp_pinctrl_prepare_group_pins(struct device *dev,
 	int ret;
 
 	for (pin = 0; pin < zynqmp_desc.npins; pin++) {
-		ret = zynqmp_pinctrl_create_pin_groups(dev, groups, pin);
+		ret = zynqmp_pinctrl_create_pin_groups(dev, groups, zynqmp_desc.pins[pin].number);
 		if (ret)
 			return ret;
 	}
@@ -772,16 +809,16 @@ static int zynqmp_pinctrl_prepare_function_info(struct device *dev,
 	if (!groups)
 		return -ENOMEM;
 
+	ret = zynqmp_pinctrl_prepare_group_pins(dev, groups, pctrl->ngroups);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < pctrl->nfuncs; i++) {
 		ret = zynqmp_pinctrl_prepare_func_groups(dev, i, &funcs[i],
 							 groups);
 		if (ret)
 			return ret;
 	}
-
-	ret = zynqmp_pinctrl_prepare_group_pins(dev, groups, pctrl->ngroups);
-	if (ret)
-		return ret;
 
 	pctrl->funcs = funcs;
 	pctrl->groups = groups;
@@ -848,6 +885,70 @@ static int zynqmp_pinctrl_prepare_pin_desc(struct device *dev,
 	return 0;
 }
 
+static int versal_pinctrl_get_attributes(u32 pin_idx, u32 *response)
+{
+	struct zynqmp_pm_query_data qdata = {0};
+	u32 payload[PAYLOAD_ARG_CNT];
+	int ret;
+
+	qdata.qid = PM_QID_PINCTRL_GET_ATTRIBUTES;
+	qdata.arg1 = pin_idx;
+
+	ret = zynqmp_pm_query_data(qdata, payload);
+	if (ret)
+		return ret;
+
+	memcpy(response, &payload[1], sizeof(*response));
+
+	return 0;
+}
+
+static int versal_pinctrl_prepare_pin_desc(struct device *dev,
+					   const struct pinctrl_pin_desc **zynqmp_pins,
+					   unsigned int *npins)
+{
+	u32 lpd_mio_pins = 0, attr, nodetype;
+	struct pinctrl_pin_desc *pins, *pin;
+	int ret, i;
+
+	ret = zynqmp_pm_is_function_supported(PM_QUERY_DATA, PM_QID_PINCTRL_GET_ATTRIBUTES);
+	if (ret)
+		return ret;
+
+	ret = zynqmp_pinctrl_get_num_pins(npins);
+	if (ret)
+		return ret;
+
+	pins = devm_kzalloc(dev, sizeof(*pins) * *npins, GFP_KERNEL);
+	if (!pins)
+		return -ENOMEM;
+
+	for (i = 0; i < *npins; i++) {
+		ret = versal_pinctrl_get_attributes(i, &attr);
+		if (ret)
+			return ret;
+
+		pin = &pins[i];
+		pin->number = attr;
+		nodetype = FIELD_GET(VERSAL_PINCTRL_ATTR_NODETYPE_MASK, attr);
+		if (nodetype == VERSAL_PINCTRL_NODETYPE_LPD_MIO) {
+			pin->name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+						   VERSAL_LPD_PIN_PREFIX, i);
+			lpd_mio_pins++;
+		} else {
+			pin->name = devm_kasprintf(dev, GFP_KERNEL, "%s%d",
+						   VERSAL_PMC_PIN_PREFIX, i - lpd_mio_pins);
+		}
+
+		if (!pin->name)
+			return -ENOMEM;
+	}
+
+	*zynqmp_pins = pins;
+
+	return 0;
+}
+
 static int zynqmp_pinctrl_probe(struct platform_device *pdev)
 {
 	struct zynqmp_pinctrl *pctrl;
@@ -857,9 +958,18 @@ static int zynqmp_pinctrl_probe(struct platform_device *pdev)
 	if (!pctrl)
 		return -ENOMEM;
 
-	ret = zynqmp_pinctrl_prepare_pin_desc(&pdev->dev,
-					      &zynqmp_desc.pins,
-					      &zynqmp_desc.npins);
+	ret = zynqmp_pm_get_family_info(&family_code, &sub_family_code);
+	if (ret < 0)
+		return ret;
+
+	if (family_code == ZYNQMP_FAMILY_CODE) {
+		ret = zynqmp_pinctrl_prepare_pin_desc(&pdev->dev, &zynqmp_desc.pins,
+						      &zynqmp_desc.npins);
+	} else {
+		ret = versal_pinctrl_prepare_pin_desc(&pdev->dev, &zynqmp_desc.pins,
+						      &zynqmp_desc.npins);
+	}
+
 	if (ret) {
 		dev_err(&pdev->dev, "pin desc prepare fail with %d\n", ret);
 		return ret;
@@ -882,6 +992,7 @@ static int zynqmp_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id zynqmp_pinctrl_of_match[] = {
 	{ .compatible = "xlnx,zynqmp-pinctrl" },
+	{ .compatible = "xlnx,versal-pinctrl" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, zynqmp_pinctrl_of_match);

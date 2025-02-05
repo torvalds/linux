@@ -58,7 +58,7 @@ static inline int soc_component_field_shift(struct snd_soc_component *component,
  * In such case, we can update these macros.
  */
 #define soc_component_mark_push(component, substream, tgt)	((component)->mark_##tgt = substream)
-#define soc_component_mark_pop(component, substream, tgt)	((component)->mark_##tgt = NULL)
+#define soc_component_mark_pop(component, tgt)	((component)->mark_##tgt = NULL)
 #define soc_component_mark_match(component, substream, tgt)	((component)->mark_##tgt == substream)
 
 void snd_soc_component_set_aux(struct snd_soc_component *component,
@@ -236,19 +236,33 @@ int snd_soc_component_force_enable_pin_unlocked(
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
 
+static void soc_get_kcontrol_name(struct snd_soc_component *component,
+				  char *buf, int size, const char * const ctl)
+{
+	/* When updating, change also snd_soc_dapm_widget_name_cmp() */
+	if (component->name_prefix)
+		snprintf(buf, size, "%s %s", component->name_prefix, ctl);
+	else
+		snprintf(buf, size, "%s", ctl);
+}
+
+struct snd_kcontrol *snd_soc_component_get_kcontrol(struct snd_soc_component *component,
+						    const char * const ctl)
+{
+	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+	soc_get_kcontrol_name(component, name, ARRAY_SIZE(name), ctl);
+
+	return snd_soc_card_get_kcontrol(component->card, name);
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_get_kcontrol);
+
 int snd_soc_component_notify_control(struct snd_soc_component *component,
 				     const char * const ctl)
 {
-	char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
 	struct snd_kcontrol *kctl;
 
-	/* When updating, change also snd_soc_dapm_widget_name_cmp() */
-	if (component->name_prefix)
-		snprintf(name, ARRAY_SIZE(name), "%s %s", component->name_prefix, ctl);
-	else
-		snprintf(name, ARRAY_SIZE(name), "%s", ctl);
-
-	kctl = snd_soc_card_get_kcontrol(component->card, name);
+	kctl = snd_soc_component_get_kcontrol(component, ctl);
 	if (!kctl)
 		return soc_component_ret(component, -EINVAL);
 
@@ -325,7 +339,7 @@ void snd_soc_component_module_put(struct snd_soc_component *component,
 		module_put(component->dev->driver->owner);
 
 	/* remove the mark from module */
-	soc_component_mark_pop(component, mark, module);
+	soc_component_mark_pop(component, module);
 }
 
 int snd_soc_component_open(struct snd_soc_component *component,
@@ -356,7 +370,7 @@ int snd_soc_component_close(struct snd_soc_component *component,
 		ret = component->driver->close(component, substream);
 
 	/* remove marked substream */
-	soc_component_mark_pop(component, substream, open);
+	soc_component_mark_pop(component, open);
 
 	return soc_component_ret(component, ret);
 }
@@ -501,7 +515,7 @@ void snd_soc_component_compr_free(struct snd_soc_component *component,
 		component->driver->compress_ops->free(component, cstream);
 
 	/* remove marked substream */
-	soc_component_mark_pop(component, cstream, compr_open);
+	soc_component_mark_pop(component, compr_open);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_compr_free);
 
@@ -1196,7 +1210,7 @@ void snd_soc_pcm_component_hw_free(struct snd_pcm_substream *substream,
 		}
 
 		/* remove marked substream */
-		soc_component_mark_pop(component, substream, hw_params);
+		soc_component_mark_pop(component, hw_params);
 	}
 }
 
@@ -1240,7 +1254,7 @@ int snd_soc_pcm_component_trigger(struct snd_pcm_substream *substream,
 			r = soc_component_trigger(component, substream, cmd);
 			if (r < 0)
 				ret = r; /* use last ret */
-			soc_component_mark_pop(component, substream, trigger);
+			soc_component_mark_pop(component, trigger);
 		}
 	}
 
@@ -1280,7 +1294,7 @@ void snd_soc_pcm_component_pm_runtime_put(struct snd_soc_pcm_runtime *rtd,
 		pm_runtime_put_autosuspend(component->dev);
 
 		/* remove marked stream */
-		soc_component_mark_pop(component, stream, pm);
+		soc_component_mark_pop(component, pm);
 	}
 }
 

@@ -124,25 +124,24 @@ static bool __init slv_set_max_freq_ratio(u64 *base_freq, u64 *turbo_freq)
 	return true;
 }
 
-#define X86_MATCH(model)					\
-	X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6,		\
-		INTEL_FAM6_##model, X86_FEATURE_APERFMPERF, NULL)
+#define X86_MATCH(vfm)						\
+	X86_MATCH_VFM_FEATURE(vfm, X86_FEATURE_APERFMPERF, NULL)
 
 static const struct x86_cpu_id has_knl_turbo_ratio_limits[] __initconst = {
-	X86_MATCH(XEON_PHI_KNL),
-	X86_MATCH(XEON_PHI_KNM),
+	X86_MATCH(INTEL_XEON_PHI_KNL),
+	X86_MATCH(INTEL_XEON_PHI_KNM),
 	{}
 };
 
 static const struct x86_cpu_id has_skx_turbo_ratio_limits[] __initconst = {
-	X86_MATCH(SKYLAKE_X),
+	X86_MATCH(INTEL_SKYLAKE_X),
 	{}
 };
 
 static const struct x86_cpu_id has_glm_turbo_ratio_limits[] __initconst = {
-	X86_MATCH(ATOM_GOLDMONT),
-	X86_MATCH(ATOM_GOLDMONT_D),
-	X86_MATCH(ATOM_GOLDMONT_PLUS),
+	X86_MATCH(INTEL_ATOM_GOLDMONT),
+	X86_MATCH(INTEL_ATOM_GOLDMONT_D),
+	X86_MATCH(INTEL_ATOM_GOLDMONT_PLUS),
 	{}
 };
 
@@ -307,7 +306,7 @@ static void freq_invariance_enable(void)
 		WARN_ON_ONCE(1);
 		return;
 	}
-	static_branch_enable(&arch_scale_freq_key);
+	static_branch_enable_cpuslocked(&arch_scale_freq_key);
 	register_freq_invariance_syscore_ops();
 	pr_info("Estimated ratio of average max frequency by base frequency (times 1024): %llu\n", arch_max_freq_ratio);
 }
@@ -324,8 +323,10 @@ static void __init bp_init_freq_invariance(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return;
 
-	if (intel_set_max_freq_ratio())
+	if (intel_set_max_freq_ratio()) {
+		guard(cpus_read_lock)();
 		freq_invariance_enable();
+	}
 }
 
 static void disable_freq_invariance_workfn(struct work_struct *work)
@@ -346,10 +347,91 @@ static DECLARE_WORK(disable_freq_invariance_work,
 		    disable_freq_invariance_workfn);
 
 DEFINE_PER_CPU(unsigned long, arch_freq_scale) = SCHED_CAPACITY_SCALE;
+EXPORT_PER_CPU_SYMBOL_GPL(arch_freq_scale);
+
+static DEFINE_STATIC_KEY_FALSE(arch_hybrid_cap_scale_key);
+
+struct arch_hybrid_cpu_scale {
+	unsigned long capacity;
+	unsigned long freq_ratio;
+};
+
+static struct arch_hybrid_cpu_scale __percpu *arch_cpu_scale;
+
+/**
+ * arch_enable_hybrid_capacity_scale() - Enable hybrid CPU capacity scaling
+ *
+ * Allocate memory for per-CPU data used by hybrid CPU capacity scaling,
+ * initialize it and set the static key controlling its code paths.
+ *
+ * Must be called before arch_set_cpu_capacity().
+ */
+bool arch_enable_hybrid_capacity_scale(void)
+{
+	int cpu;
+
+	if (static_branch_unlikely(&arch_hybrid_cap_scale_key)) {
+		WARN_ONCE(1, "Hybrid CPU capacity scaling already enabled");
+		return true;
+	}
+
+	arch_cpu_scale = alloc_percpu(struct arch_hybrid_cpu_scale);
+	if (!arch_cpu_scale)
+		return false;
+
+	for_each_possible_cpu(cpu) {
+		per_cpu_ptr(arch_cpu_scale, cpu)->capacity = SCHED_CAPACITY_SCALE;
+		per_cpu_ptr(arch_cpu_scale, cpu)->freq_ratio = arch_max_freq_ratio;
+	}
+
+	static_branch_enable(&arch_hybrid_cap_scale_key);
+
+	pr_info("Hybrid CPU capacity scaling enabled\n");
+
+	return true;
+}
+
+/**
+ * arch_set_cpu_capacity() - Set scale-invariance parameters for a CPU
+ * @cpu: Target CPU.
+ * @cap: Capacity of @cpu at its maximum frequency, relative to @max_cap.
+ * @max_cap: System-wide maximum CPU capacity.
+ * @cap_freq: Frequency of @cpu corresponding to @cap.
+ * @base_freq: Frequency of @cpu at which MPERF counts.
+ *
+ * The units in which @cap and @max_cap are expressed do not matter, so long
+ * as they are consistent, because the former is effectively divided by the
+ * latter.  Analogously for @cap_freq and @base_freq.
+ *
+ * After calling this function for all CPUs, call arch_rebuild_sched_domains()
+ * to let the scheduler know that capacity-aware scheduling can be used going
+ * forward.
+ */
+void arch_set_cpu_capacity(int cpu, unsigned long cap, unsigned long max_cap,
+			   unsigned long cap_freq, unsigned long base_freq)
+{
+	if (static_branch_likely(&arch_hybrid_cap_scale_key)) {
+		WRITE_ONCE(per_cpu_ptr(arch_cpu_scale, cpu)->capacity,
+			   div_u64(cap << SCHED_CAPACITY_SHIFT, max_cap));
+		WRITE_ONCE(per_cpu_ptr(arch_cpu_scale, cpu)->freq_ratio,
+			   div_u64(cap_freq << SCHED_CAPACITY_SHIFT, base_freq));
+	} else {
+		WARN_ONCE(1, "Hybrid CPU capacity scaling not enabled");
+	}
+}
+
+unsigned long arch_scale_cpu_capacity(int cpu)
+{
+	if (static_branch_unlikely(&arch_hybrid_cap_scale_key))
+		return READ_ONCE(per_cpu_ptr(arch_cpu_scale, cpu)->capacity);
+
+	return SCHED_CAPACITY_SCALE;
+}
+EXPORT_SYMBOL_GPL(arch_scale_cpu_capacity);
 
 static void scale_freq_tick(u64 acnt, u64 mcnt)
 {
-	u64 freq_scale;
+	u64 freq_scale, freq_ratio;
 
 	if (!arch_scale_freq_invariant())
 		return;
@@ -357,7 +439,12 @@ static void scale_freq_tick(u64 acnt, u64 mcnt)
 	if (check_shl_overflow(acnt, 2*SCHED_CAPACITY_SHIFT, &acnt))
 		goto error;
 
-	if (check_mul_overflow(mcnt, arch_max_freq_ratio, &mcnt) || !mcnt)
+	if (static_branch_unlikely(&arch_hybrid_cap_scale_key))
+		freq_ratio = READ_ONCE(this_cpu_ptr(arch_cpu_scale)->freq_ratio);
+	else
+		freq_ratio = arch_max_freq_ratio;
+
+	if (check_mul_overflow(mcnt, freq_ratio, &mcnt) || !mcnt)
 		goto error;
 
 	freq_scale = div64_u64(acnt, mcnt);

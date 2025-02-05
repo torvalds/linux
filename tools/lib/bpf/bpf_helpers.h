@@ -137,7 +137,8 @@
 /*
  * Helper function to perform a tail call with a constant/immediate map slot.
  */
-#if __clang_major__ >= 8 && defined(__bpf__)
+#if (defined(__clang__) && __clang_major__ >= 8) || (!defined(__clang__) && __GNUC__ > 12)
+#if defined(__bpf__)
 static __always_inline void
 bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 {
@@ -165,6 +166,7 @@ bpf_tail_call_static(void *ctx, const void *map, const __u32 slot)
 		     : "r0", "r1", "r2", "r3", "r4", "r5");
 }
 #endif
+#endif
 
 enum libbpf_pin_type {
 	LIBBPF_PIN_NONE,
@@ -183,11 +185,23 @@ enum libbpf_tristate {
 #define __kptr_untrusted __attribute__((btf_type_tag("kptr_untrusted")))
 #define __kptr __attribute__((btf_type_tag("kptr")))
 #define __percpu_kptr __attribute__((btf_type_tag("percpu_kptr")))
+#define __uptr __attribute__((btf_type_tag("uptr")))
 
-#define bpf_ksym_exists(sym) ({									\
-	_Static_assert(!__builtin_constant_p(!!sym), #sym " should be marked as __weak");	\
-	!!sym;											\
+#if defined (__clang__)
+#define bpf_ksym_exists(sym) ({						\
+	_Static_assert(!__builtin_constant_p(!!sym),			\
+		       #sym " should be marked as __weak");		\
+	!!sym;								\
 })
+#elif __GNUC__ > 8
+#define bpf_ksym_exists(sym) ({						\
+	_Static_assert(__builtin_has_attribute (*sym, __weak__),	\
+		       #sym " should be marked as __weak");		\
+	!!sym;								\
+})
+#else
+#define bpf_ksym_exists(sym) !!sym
+#endif
 
 #define __arg_ctx __attribute__((btf_decl_tag("arg:ctx")))
 #define __arg_nonnull __attribute((btf_decl_tag("arg:nonnull")))
@@ -328,7 +342,7 @@ extern void bpf_iter_num_destroy(struct bpf_iter_num *it) __weak __ksym;
  * I.e., it looks almost like high-level for each loop in other languages,
  * supports continue/break, and is verifiable by BPF verifier.
  *
- * For iterating integers, the difference betwen bpf_for_each(num, i, N, M)
+ * For iterating integers, the difference between bpf_for_each(num, i, N, M)
  * and bpf_for(i, N, M) is in that bpf_for() provides additional proof to
  * verifier that i is in [N, M) range, and in bpf_for_each() case i is `int
  * *`, not just `int`. So for integers bpf_for() is more convenient.

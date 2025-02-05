@@ -3,6 +3,7 @@
 // Copyright (C) 2008 Juergen Beisert
 
 #include <linux/bits.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -13,7 +14,10 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
+#include <linux/math64.h>
 #include <linux/module.h>
+#include <linux/overflow.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -71,7 +75,8 @@ struct spi_imx_data;
 struct spi_imx_devtype_data {
 	void (*intctrl)(struct spi_imx_data *spi_imx, int enable);
 	int (*prepare_message)(struct spi_imx_data *spi_imx, struct spi_message *msg);
-	int (*prepare_transfer)(struct spi_imx_data *spi_imx, struct spi_device *spi);
+	int (*prepare_transfer)(struct spi_imx_data *spi_imx, struct spi_device *spi,
+				struct spi_transfer *t);
 	void (*trigger)(struct spi_imx_data *spi_imx);
 	int (*rx_available)(struct spi_imx_data *spi_imx);
 	void (*reset)(struct spi_imx_data *spi_imx);
@@ -301,6 +306,18 @@ static bool spi_imx_can_dma(struct spi_controller *controller, struct spi_device
 #define MX51_ECSPI_STAT		0x18
 #define MX51_ECSPI_STAT_RR		(1 <<  3)
 
+#define MX51_ECSPI_PERIOD	0x1c
+#define MX51_ECSPI_PERIOD_MASK		0x7fff
+/*
+ * As measured on the i.MX6, the SPI host controller inserts a 4 SPI-Clock
+ * (SCLK) delay after each burst if the PERIOD reg is 0x0. This value will be
+ * called MX51_ECSPI_PERIOD_MIN_DELAY_SCK.
+ *
+ * If the PERIOD register is != 0, the controller inserts a delay of
+ * MX51_ECSPI_PERIOD_MIN_DELAY_SCK + register value + 1 SCLK after each burst.
+ */
+#define MX51_ECSPI_PERIOD_MIN_DELAY_SCK 4
+
 #define MX51_ECSPI_TESTREG	0x20
 #define MX51_ECSPI_TESTREG_LBC	BIT(31)
 
@@ -407,7 +424,7 @@ static void spi_imx_buf_tx_swap(struct spi_imx_data *spi_imx)
 
 static void mx53_ecspi_rx_target(struct spi_imx_data *spi_imx)
 {
-	u32 val = be32_to_cpu(readl(spi_imx->base + MXC_CSPIRXDATA));
+	u32 val = ioread32be(spi_imx->base + MXC_CSPIRXDATA);
 
 	if (spi_imx->rx_buf) {
 		int n_bytes = spi_imx->target_burst % sizeof(val);
@@ -436,13 +453,12 @@ static void mx53_ecspi_tx_target(struct spi_imx_data *spi_imx)
 	if (spi_imx->tx_buf) {
 		memcpy(((u8 *)&val) + sizeof(val) - n_bytes,
 		       spi_imx->tx_buf, n_bytes);
-		val = cpu_to_be32(val);
 		spi_imx->tx_buf += n_bytes;
 	}
 
 	spi_imx->count -= n_bytes;
 
-	writel(val, spi_imx->base + MXC_CSPITXDATA);
+	iowrite32be(val, spi_imx->base + MXC_CSPITXDATA);
 }
 
 /* MX51 eCSPI */
@@ -649,9 +665,10 @@ static void mx51_configure_cpha(struct spi_imx_data *spi_imx,
 }
 
 static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
-				       struct spi_device *spi)
+				       struct spi_device *spi, struct spi_transfer *t)
 {
 	u32 ctrl = readl(spi_imx->base + MX51_ECSPI_CTRL);
+	u64 word_delay_sck;
 	u32 clk;
 
 	/* Clear BL field and set the right value */
@@ -660,18 +677,8 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 		ctrl |= (spi_imx->target_burst * 8 - 1)
 			<< MX51_ECSPI_CTRL_BL_OFFSET;
 	else {
-		if (spi_imx->usedma) {
-			ctrl |= (spi_imx->bits_per_word - 1)
-				<< MX51_ECSPI_CTRL_BL_OFFSET;
-		} else {
-			if (spi_imx->count >= MX51_ECSPI_CTRL_MAX_BURST)
-				ctrl |= (MX51_ECSPI_CTRL_MAX_BURST * BITS_PER_BYTE - 1)
-						<< MX51_ECSPI_CTRL_BL_OFFSET;
-			else
-				ctrl |= (spi_imx->count / DIV_ROUND_UP(spi_imx->bits_per_word,
-						BITS_PER_BYTE) * spi_imx->bits_per_word - 1)
-						<< MX51_ECSPI_CTRL_BL_OFFSET;
-		}
+		ctrl |= (spi_imx->bits_per_word - 1)
+			<< MX51_ECSPI_CTRL_BL_OFFSET;
 	}
 
 	/* set clock speed */
@@ -692,6 +699,49 @@ static int mx51_ecspi_prepare_transfer(struct spi_imx_data *spi_imx,
 		ctrl &= ~MX51_ECSPI_CTRL_SMC;
 
 	writel(ctrl, spi_imx->base + MX51_ECSPI_CTRL);
+
+	/* calculate word delay in SPI Clock (SCLK) cycles */
+	if (t->word_delay.value == 0) {
+		word_delay_sck = 0;
+	} else if (t->word_delay.unit == SPI_DELAY_UNIT_SCK) {
+		word_delay_sck = t->word_delay.value;
+
+		if (word_delay_sck <= MX51_ECSPI_PERIOD_MIN_DELAY_SCK)
+			word_delay_sck = 0;
+		else if (word_delay_sck <= MX51_ECSPI_PERIOD_MIN_DELAY_SCK + 1)
+			word_delay_sck = 1;
+		else
+			word_delay_sck -= MX51_ECSPI_PERIOD_MIN_DELAY_SCK + 1;
+	} else {
+		int word_delay_ns;
+
+		word_delay_ns = spi_delay_to_ns(&t->word_delay, t);
+		if (word_delay_ns < 0)
+			return word_delay_ns;
+
+		if (word_delay_ns <= mul_u64_u32_div(NSEC_PER_SEC,
+						     MX51_ECSPI_PERIOD_MIN_DELAY_SCK,
+						     spi_imx->spi_bus_clk)) {
+			word_delay_sck = 0;
+		} else if (word_delay_ns <= mul_u64_u32_div(NSEC_PER_SEC,
+							    MX51_ECSPI_PERIOD_MIN_DELAY_SCK + 1,
+							    spi_imx->spi_bus_clk)) {
+			word_delay_sck = 1;
+		} else {
+			word_delay_ns -= mul_u64_u32_div(NSEC_PER_SEC,
+							 MX51_ECSPI_PERIOD_MIN_DELAY_SCK + 1,
+							 spi_imx->spi_bus_clk);
+
+			word_delay_sck = DIV_U64_ROUND_UP((u64)word_delay_ns * spi_imx->spi_bus_clk,
+							  NSEC_PER_SEC);
+		}
+	}
+
+	if (!FIELD_FIT(MX51_ECSPI_PERIOD_MASK, word_delay_sck))
+		return -EINVAL;
+
+	writel(FIELD_PREP(MX51_ECSPI_PERIOD_MASK, word_delay_sck),
+	       spi_imx->base + MX51_ECSPI_PERIOD);
 
 	return 0;
 }
@@ -784,7 +834,7 @@ static int mx31_prepare_message(struct spi_imx_data *spi_imx,
 }
 
 static int mx31_prepare_transfer(struct spi_imx_data *spi_imx,
-				 struct spi_device *spi)
+				 struct spi_device *spi, struct spi_transfer *t)
 {
 	unsigned int reg = MX31_CSPICTRL_ENABLE | MX31_CSPICTRL_HOST;
 	unsigned int clk;
@@ -888,7 +938,7 @@ static int mx21_prepare_message(struct spi_imx_data *spi_imx,
 }
 
 static int mx21_prepare_transfer(struct spi_imx_data *spi_imx,
-				 struct spi_device *spi)
+				 struct spi_device *spi, struct spi_transfer *t)
 {
 	unsigned int reg = MX21_CSPICTRL_ENABLE | MX21_CSPICTRL_HOST;
 	unsigned int max = is_imx27_cspi(spi_imx) ? 16 : 18;
@@ -963,7 +1013,7 @@ static int mx1_prepare_message(struct spi_imx_data *spi_imx,
 }
 
 static int mx1_prepare_transfer(struct spi_imx_data *spi_imx,
-				struct spi_device *spi)
+				struct spi_device *spi, struct spi_transfer *t)
 {
 	unsigned int reg = MX1_CSPICTRL_ENABLE | MX1_CSPICTRL_HOST;
 	unsigned int clk;
@@ -1060,7 +1110,7 @@ static struct spi_imx_devtype_data imx35_cspi_devtype_data = {
 	.rx_available = mx31_rx_available,
 	.reset = mx31_reset,
 	.fifo_size = 8,
-	.has_dmamode = true,
+	.has_dmamode = false,
 	.dynamic_burst = false,
 	.has_targetmode = false,
 	.devtype = IMX35_CSPI,
@@ -1273,11 +1323,13 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 
 	/*
 	 * Initialize the functions for transfer. To transfer non byte-aligned
-	 * words, we have to use multiple word-size bursts, we can't use
-	 * dynamic_burst in that case.
+	 * words, we have to use multiple word-size bursts. To insert word
+	 * delay, the burst size has to equal the word size. We can't use
+	 * dynamic_burst in these cases.
 	 */
 	if (spi_imx->devtype_data->dynamic_burst && !spi_imx->target_mode &&
 	    !(spi->mode & SPI_CS_WORD) &&
+	    !(t->word_delay.value) &&
 	    (spi_imx->bits_per_word == 8 ||
 	    spi_imx->bits_per_word == 16 ||
 	    spi_imx->bits_per_word == 32)) {
@@ -1314,7 +1366,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		spi_imx->target_burst = t->len;
 	}
 
-	spi_imx->devtype_data->prepare_transfer(spi_imx, spi);
+	spi_imx->devtype_data->prepare_transfer(spi_imx, spi, t);
 
 	return 0;
 }
@@ -1405,7 +1457,7 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 {
 	struct dma_async_tx_descriptor *desc_tx, *desc_rx;
 	unsigned long transfer_timeout;
-	unsigned long timeout;
+	unsigned long time_left;
 	struct spi_controller *controller = spi_imx->controller;
 	struct sg_table *tx = &transfer->tx_sg, *rx = &transfer->rx_sg;
 	struct scatterlist *last_sg = sg_last(rx->sgl, rx->nents);
@@ -1471,18 +1523,18 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	transfer_timeout = spi_imx_calculate_timeout(spi_imx, transfer->len);
 
 	/* Wait SDMA to finish the data transfer.*/
-	timeout = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
+	time_left = wait_for_completion_timeout(&spi_imx->dma_tx_completion,
 						transfer_timeout);
-	if (!timeout) {
+	if (!time_left) {
 		dev_err(spi_imx->dev, "I/O Error in DMA TX\n");
 		dmaengine_terminate_all(controller->dma_tx);
 		dmaengine_terminate_all(controller->dma_rx);
 		return -ETIMEDOUT;
 	}
 
-	timeout = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
-					      transfer_timeout);
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&spi_imx->dma_rx_completion,
+						transfer_timeout);
+	if (!time_left) {
 		dev_err(&controller->dev, "I/O Error in DMA RX\n");
 		spi_imx->devtype_data->reset(spi_imx);
 		dmaengine_terminate_all(controller->dma_rx);
@@ -1501,7 +1553,7 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
 	unsigned long transfer_timeout;
-	unsigned long timeout;
+	unsigned long time_left;
 
 	spi_imx->tx_buf = transfer->tx_buf;
 	spi_imx->rx_buf = transfer->rx_buf;
@@ -1517,9 +1569,9 @@ static int spi_imx_pio_transfer(struct spi_device *spi,
 
 	transfer_timeout = spi_imx_calculate_timeout(spi_imx, transfer->len);
 
-	timeout = wait_for_completion_timeout(&spi_imx->xfer_done,
-					      transfer_timeout);
-	if (!timeout) {
+	time_left = wait_for_completion_timeout(&spi_imx->xfer_done,
+						transfer_timeout);
+	if (!time_left) {
 		dev_err(&spi->dev, "I/O Error in PIO\n");
 		spi_imx->devtype_data->reset(spi_imx);
 		return -ETIMEDOUT;
@@ -1620,12 +1672,30 @@ static int spi_imx_pio_transfer_target(struct spi_device *spi,
 	return ret;
 }
 
+static unsigned int spi_imx_transfer_estimate_time_us(struct spi_transfer *transfer)
+{
+	u64 result;
+
+	result = DIV_U64_ROUND_CLOSEST((u64)USEC_PER_SEC * transfer->len * BITS_PER_BYTE,
+				       transfer->effective_speed_hz);
+	if (transfer->word_delay.value) {
+		unsigned int word_delay_us;
+		unsigned int words;
+
+		words = DIV_ROUND_UP(transfer->len * BITS_PER_BYTE, transfer->bits_per_word);
+		word_delay_us = DIV_ROUND_CLOSEST(spi_delay_to_ns(&transfer->word_delay, transfer),
+						  NSEC_PER_USEC);
+		result += (u64)words * word_delay_us;
+	}
+
+	return min(result, U32_MAX);
+}
+
 static int spi_imx_transfer_one(struct spi_controller *controller,
 				struct spi_device *spi,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_controller_get_devdata(spi->controller);
-	unsigned long hz_per_byte, byte_limit;
 
 	spi_imx_setupxfer(spi, transfer);
 	transfer->effective_speed_hz = spi_imx->spi_bus_clk;
@@ -1644,15 +1714,10 @@ static int spi_imx_transfer_one(struct spi_controller *controller,
 	 */
 	if (spi_imx->usedma)
 		return spi_imx_dma_transfer(spi_imx, transfer);
-	/*
-	 * Calculate the estimated time in us the transfer runs. Find
-	 * the number of Hz per byte per polling limit.
-	 */
-	hz_per_byte = polling_limit_us ? ((8 + 4) * USEC_PER_SEC) / polling_limit_us : 0;
-	byte_limit = hz_per_byte ? transfer->effective_speed_hz / hz_per_byte : 1;
 
 	/* run in polling mode for short transfers */
-	if (transfer->len < byte_limit)
+	if (transfer->len == 1 || (polling_limit_us &&
+				   spi_imx_transfer_estimate_time_us(transfer) < polling_limit_us))
 		return spi_imx_poll_transfer(spi, transfer);
 
 	return spi_imx_pio_transfer(spi, transfer);
@@ -1664,10 +1729,6 @@ static int spi_imx_setup(struct spi_device *spi)
 		 spi->mode, spi->bits_per_word, spi->max_speed_hz);
 
 	return 0;
-}
-
-static void spi_imx_cleanup(struct spi_device *spi)
-{
 }
 
 static int
@@ -1766,7 +1827,6 @@ static int spi_imx_probe(struct platform_device *pdev)
 
 	controller->transfer_one = spi_imx_transfer_one;
 	controller->setup = spi_imx_setup;
-	controller->cleanup = spi_imx_cleanup;
 	controller->prepare_message = spi_imx_prepare_message;
 	controller->unprepare_message = spi_imx_unprepare_message;
 	controller->target_abort = spi_imx_target_abort;
@@ -1880,8 +1940,8 @@ out_register_controller:
 		spi_imx_sdma_exit(spi_imx);
 out_runtime_pm_put:
 	pm_runtime_dont_use_autosuspend(spi_imx->dev);
-	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_disable(spi_imx->dev);
+	pm_runtime_set_suspended(&pdev->dev);
 
 	clk_disable_unprepare(spi_imx->clk_ipg);
 out_put_per:
@@ -1913,7 +1973,7 @@ static void spi_imx_remove(struct platform_device *pdev)
 	spi_imx_sdma_exit(spi_imx);
 }
 
-static int __maybe_unused spi_imx_runtime_resume(struct device *dev)
+static int spi_imx_runtime_resume(struct device *dev)
 {
 	struct spi_controller *controller = dev_get_drvdata(dev);
 	struct spi_imx_data *spi_imx;
@@ -1934,7 +1994,7 @@ static int __maybe_unused spi_imx_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused spi_imx_runtime_suspend(struct device *dev)
+static int spi_imx_runtime_suspend(struct device *dev)
 {
 	struct spi_controller *controller = dev_get_drvdata(dev);
 	struct spi_imx_data *spi_imx;
@@ -1947,32 +2007,31 @@ static int __maybe_unused spi_imx_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused spi_imx_suspend(struct device *dev)
+static int spi_imx_suspend(struct device *dev)
 {
 	pinctrl_pm_select_sleep_state(dev);
 	return 0;
 }
 
-static int __maybe_unused spi_imx_resume(struct device *dev)
+static int spi_imx_resume(struct device *dev)
 {
 	pinctrl_pm_select_default_state(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops imx_spi_pm = {
-	SET_RUNTIME_PM_OPS(spi_imx_runtime_suspend,
-				spi_imx_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(spi_imx_suspend, spi_imx_resume)
+	RUNTIME_PM_OPS(spi_imx_runtime_suspend,	spi_imx_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(spi_imx_suspend, spi_imx_resume)
 };
 
 static struct platform_driver spi_imx_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .of_match_table = spi_imx_dt_ids,
-		   .pm = &imx_spi_pm,
+		   .pm = pm_ptr(&imx_spi_pm),
 	},
 	.probe = spi_imx_probe,
-	.remove_new = spi_imx_remove,
+	.remove = spi_imx_remove,
 };
 module_platform_driver(spi_imx_driver);
 

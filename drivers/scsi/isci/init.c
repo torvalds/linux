@@ -65,11 +65,7 @@
 #include "task.h"
 #include "probe_roms.h"
 
-#define MAJ 1
-#define MIN 2
-#define BUILD 0
-#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
-	__stringify(BUILD)
+#define DRV_VERSION "1.2.0"
 
 MODULE_VERSION(DRV_VERSION);
 
@@ -149,33 +145,20 @@ static struct attribute *isci_host_attrs[] = {
 
 ATTRIBUTE_GROUPS(isci_host);
 
-static const struct scsi_host_template isci_sht = {
+static const struct attribute_group *isci_sdev_groups[] = {
+	&sas_ata_sdev_attr_group,
+	NULL
+};
 
-	.module				= THIS_MODULE,
-	.name				= DRV_NAME,
-	.proc_name			= DRV_NAME,
-	.queuecommand			= sas_queuecommand,
-	.dma_need_drain			= ata_scsi_dma_need_drain,
-	.target_alloc			= sas_target_alloc,
-	.slave_configure		= sas_slave_configure,
+static const struct scsi_host_template isci_sht = {
+	LIBSAS_SHT_BASE
 	.scan_finished			= isci_host_scan_finished,
 	.scan_start			= isci_host_start,
-	.change_queue_depth		= sas_change_queue_depth,
-	.bios_param			= sas_bios_param,
 	.can_queue			= ISCI_CAN_QUEUE_VAL,
-	.this_id			= -1,
 	.sg_tablesize			= SG_ALL,
-	.max_sectors			= SCSI_DEFAULT_MAX_SECTORS,
-	.eh_abort_handler		= sas_eh_abort_handler,
-	.eh_device_reset_handler        = sas_eh_device_reset_handler,
-	.eh_target_reset_handler        = sas_eh_target_reset_handler,
-	.slave_alloc			= sas_slave_alloc,
-	.target_destroy			= sas_target_destroy,
-	.ioctl				= sas_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl			= sas_ioctl,
-#endif
+	.eh_abort_handler               = sas_eh_abort_handler,
 	.shost_groups			= isci_host_groups,
+	.sdev_groups			= isci_sdev_groups,
 	.track_queue_depth		= 1,
 };
 
@@ -771,6 +754,7 @@ static __exit void isci_exit(void)
 	sas_release_transport(isci_transport_template);
 }
 
+MODULE_DESCRIPTION("Intel(R) C600 Series Chipset SAS Controller driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_FIRMWARE(ISCI_FW_NAME);
 module_init(isci_init);

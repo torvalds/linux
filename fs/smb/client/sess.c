@@ -27,31 +27,6 @@ static int
 cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface);
 
-bool
-is_server_using_iface(struct TCP_Server_Info *server,
-		      struct cifs_server_iface *iface)
-{
-	struct sockaddr_in *i4 = (struct sockaddr_in *)&iface->sockaddr;
-	struct sockaddr_in6 *i6 = (struct sockaddr_in6 *)&iface->sockaddr;
-	struct sockaddr_in *s4 = (struct sockaddr_in *)&server->dstaddr;
-	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)&server->dstaddr;
-
-	if (server->dstaddr.ss_family != iface->sockaddr.ss_family)
-		return false;
-	if (server->dstaddr.ss_family == AF_INET) {
-		if (s4->sin_addr.s_addr != i4->sin_addr.s_addr)
-			return false;
-	} else if (server->dstaddr.ss_family == AF_INET6) {
-		if (memcmp(&s6->sin6_addr, &i6->sin6_addr,
-			   sizeof(i6->sin6_addr)) != 0)
-			return false;
-	} else {
-		/* unknown family.. */
-		return false;
-	}
-	return true;
-}
-
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
 	int i;
@@ -113,18 +88,6 @@ cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
 		return;
 
 	ses->chans[chan_index].in_reconnect = false;
-}
-
-bool
-cifs_chan_in_reconnect(struct cifs_ses *ses,
-			  struct TCP_Server_Info *server)
-{
-	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
-
-	if (chan_index == CIFS_INVAL_CHAN_INDEX)
-		return true;	/* err on the safer side */
-
-	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
 }
 
 void
@@ -359,10 +322,7 @@ done:
 	spin_unlock(&ses->chan_lock);
 }
 
-/*
- * update the iface for the channel if necessary.
- * Must be called with chan_lock held.
- */
+/* update the iface for the channel if necessary. */
 void
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {
@@ -487,26 +447,6 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	spin_unlock(&ses->chan_lock);
 }
 
-/*
- * If server is a channel of ses, return the corresponding enclosing
- * cifs_chan otherwise return NULL.
- */
-struct cifs_chan *
-cifs_ses_find_chan(struct cifs_ses *ses, struct TCP_Server_Info *server)
-{
-	int i;
-
-	spin_lock(&ses->chan_lock);
-	for (i = 0; i < ses->chan_count; i++) {
-		if (ses->chans[i].server == server) {
-			spin_unlock(&ses->chan_lock);
-			return &ses->chans[i];
-		}
-	}
-	spin_unlock(&ses->chan_lock);
-	return NULL;
-}
-
 static int
 cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface)
@@ -523,11 +463,11 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 
 	if (iface->sockaddr.ss_family == AF_INET)
 		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI4)\n",
-			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 ses, iface->speed, str_yes_no(iface->rdma_capable),
 			 &ipv4->sin_addr);
 	else
 		cifs_dbg(FYI, "adding channel to ses %p (speed:%zu bps rdma:%s ip:%pI6)\n",
-			 ses, iface->speed, iface->rdma_capable ? "yes" : "no",
+			 ses, iface->speed, str_yes_no(iface->rdma_capable),
 			 &ipv6->sin6_addr);
 
 	/*
@@ -1295,12 +1235,13 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		switch (requested) {
 		case Kerberos:
 		case RawNTLMSSP:
+		case IAKerb:
 			return requested;
 		case Unspecified:
 			if (server->sec_ntlmssp &&
 			    (global_secflags & CIFSSEC_MAY_NTLMSSP))
 				return RawNTLMSSP;
-			if ((server->sec_kerberos || server->sec_mskerberos) &&
+			if ((server->sec_kerberos || server->sec_mskerberos || server->sec_iakerb) &&
 			    (global_secflags & CIFSSEC_MAY_KRB5))
 				return Kerberos;
 			fallthrough;

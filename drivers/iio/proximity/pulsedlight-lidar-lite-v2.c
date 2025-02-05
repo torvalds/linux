@@ -47,7 +47,7 @@ struct lidar_data {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		u16 chan;
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 };
 
@@ -322,9 +322,9 @@ static void lidar_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lidar_id[] = {
-	{"lidar-lite-v2", 0},
-	{"lidar-lite-v3", 0},
-	{ },
+	{ "lidar-lite-v2" },
+	{ "lidar-lite-v3" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lidar_id);
 

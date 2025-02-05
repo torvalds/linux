@@ -109,7 +109,7 @@ int vcap_addr_keysets(struct vcap_control *vctrl, struct net_device *ndev,
 		      struct vcap_keyset_list *kslist);
 
 /* Verify that the typegroup information, subword count, keyset and type id
- * are in sync and correct, return the list of matchin keysets
+ * are in sync and correct, return the list of matching keysets
  */
 int vcap_find_keystream_keysets(struct vcap_control *vctrl, enum vcap_type vt,
 				u32 *keystream, u32 *mskstream, bool mask,

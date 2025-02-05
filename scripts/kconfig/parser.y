@@ -11,6 +11,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include <xalloc.h>
 #include "lkc.h"
 #include "internal.h"
 #include "preprocess.h"
@@ -23,12 +24,11 @@
 int cdebug = PRINTD;
 
 static void yyerror(const char *err);
-static void zconfprint(const char *err, ...);
 static void zconf_error(const char *err, ...);
 static bool zconf_endtoken(const char *tokenname,
 			   const char *expected_tokenname);
 
-struct menu *current_menu, *current_entry;
+struct menu *current_menu, *current_entry, *current_choice;
 
 %}
 
@@ -69,7 +69,6 @@ struct menu *current_menu, *current_entry;
 %token T_MODULES
 %token T_ON
 %token T_OPEN_PAREN
-%token T_OPTIONAL
 %token T_PLUS_EQUAL
 %token T_PROMPT
 %token T_RANGE
@@ -89,7 +88,7 @@ struct menu *current_menu, *current_entry;
 
 %type <symbol> nonconst_symbol
 %type <symbol> symbol
-%type <type> type logic_type default
+%type <type> type default
 %type <expr> expr
 %type <expr> if_expr
 %type <string> end
@@ -140,19 +139,40 @@ stmt_list_in_choice:
 
 config_entry_start: T_CONFIG nonconst_symbol T_EOL
 {
-	$2->flags |= SYMBOL_OPTIONAL;
 	menu_add_entry($2);
 	printd(DEBUG_PARSE, "%s:%d:config %s\n", cur_filename, cur_lineno, $2->name);
 };
 
 config_stmt: config_entry_start config_option_list
 {
+	if (current_choice) {
+		if (!current_entry->prompt) {
+			fprintf(stderr, "%s:%d: error: choice member must have a prompt\n",
+				current_entry->filename, current_entry->lineno);
+			yynerrs++;
+		}
+
+		if (current_entry->sym->type != S_BOOLEAN) {
+			fprintf(stderr, "%s:%d: error: choice member must be bool\n",
+				current_entry->filename, current_entry->lineno);
+			yynerrs++;
+		}
+
+		/*
+		 * If the same symbol appears twice in a choice block, the list
+		 * node would be added twice, leading to a broken linked list.
+		 * list_empty() ensures that this symbol has not yet added.
+		 */
+		if (list_empty(&current_entry->sym->choice_link))
+			list_add_tail(&current_entry->sym->choice_link,
+				      &current_choice->choice_members);
+	}
+
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
 menuconfig_entry_start: T_MENUCONFIG nonconst_symbol T_EOL
 {
-	$2->flags |= SYMBOL_OPTIONAL;
 	menu_add_entry($2);
 	printd(DEBUG_PARSE, "%s:%d:menuconfig %s\n", cur_filename, cur_lineno, $2->name);
 };
@@ -162,7 +182,7 @@ menuconfig_stmt: menuconfig_entry_start config_option_list
 	if (current_entry->prompt)
 		current_entry->prompt->type = P_MENU;
 	else
-		zconfprint("warning: menuconfig statement without prompt");
+		zconf_error("menuconfig statement without prompt");
 	printd(DEBUG_PARSE, "%s:%d:endconfig\n", cur_filename, cur_lineno);
 };
 
@@ -224,10 +244,12 @@ config_option: T_MODULES T_EOL
 
 choice: T_CHOICE T_EOL
 {
-	struct symbol *sym = sym_lookup(NULL, SYMBOL_CHOICE);
-	sym->flags |= SYMBOL_NO_WRITE;
+	struct symbol *sym = sym_lookup(NULL, 0);
+
 	menu_add_entry(sym);
-	menu_add_expr(P_CHOICE, NULL, NULL);
+	menu_set_type(S_BOOLEAN);
+	INIT_LIST_HEAD(&current_entry->choice_members);
+
 	printd(DEBUG_PARSE, "%s:%d:choice\n", cur_filename, cur_lineno);
 };
 
@@ -240,10 +262,14 @@ choice_entry: choice choice_option_list
 	}
 
 	$$ = menu_add_menu();
+
+	current_choice = current_entry;
 };
 
 choice_end: end
 {
+	current_choice = NULL;
+
 	if (zconf_endtoken($1, "choice")) {
 		menu_end_menu();
 		printd(DEBUG_PARSE, "%s:%d:endchoice\n", cur_filename, cur_lineno);
@@ -266,18 +292,6 @@ choice_option: T_PROMPT T_WORD_QUOTE if_expr T_EOL
 	printd(DEBUG_PARSE, "%s:%d:prompt\n", cur_filename, cur_lineno);
 };
 
-choice_option: logic_type prompt_stmt_opt T_EOL
-{
-	menu_set_type($1);
-	printd(DEBUG_PARSE, "%s:%d:type(%u)\n", cur_filename, cur_lineno, $1);
-};
-
-choice_option: T_OPTIONAL T_EOL
-{
-	current_entry->sym->flags |= SYMBOL_OPTIONAL;
-	printd(DEBUG_PARSE, "%s:%d:optional\n", cur_filename, cur_lineno);
-};
-
 choice_option: T_DEFAULT nonconst_symbol if_expr T_EOL
 {
 	menu_add_symbol(P_DEFAULT, $2, $3);
@@ -285,14 +299,11 @@ choice_option: T_DEFAULT nonconst_symbol if_expr T_EOL
 };
 
 type:
-	  logic_type
+	  T_BOOL		{ $$ = S_BOOLEAN; }
+	| T_TRISTATE		{ $$ = S_TRISTATE; }
 	| T_INT			{ $$ = S_INT; }
 	| T_HEX			{ $$ = S_HEX; }
 	| T_STRING		{ $$ = S_STRING; }
-
-logic_type:
-	  T_BOOL		{ $$ = S_BOOLEAN; }
-	| T_TRISTATE		{ $$ = S_TRISTATE; }
 
 default:
 	  T_DEFAULT		{ $$ = S_UNKNOWN; }
@@ -390,14 +401,14 @@ help: help_start T_HELPTEXT
 {
 	if (current_entry->help) {
 		free(current_entry->help);
-		zconfprint("warning: '%s' defined with more than one help text -- only the last one will be used",
-			   current_entry->sym->name ?: "<choice>");
+		zconf_error("'%s' defined with more than one help text",
+			    current_entry->sym->name ?: "<choice>");
 	}
 
 	/* Is the help text empty or all whitespace? */
 	if ($2[strspn($2, " \f\n\r\t\v")] == '\0')
-		zconfprint("warning: '%s' defined with blank help text",
-			   current_entry->sym->name ?: "<choice>");
+		zconf_error("'%s' defined with blank help text",
+			    current_entry->sym->name ?: "<choice>");
 
 	current_entry->help = $2;
 };
@@ -471,6 +482,38 @@ assign_val:
 
 %%
 
+/**
+ * choice_check_sanity - check sanity of a choice member
+ *
+ * @menu: menu of the choice member
+ *
+ * Return: -1 if an error is found, 0 otherwise.
+ */
+static int choice_check_sanity(const struct menu *menu)
+{
+	struct property *prop;
+	int ret = 0;
+
+	for (prop = menu->sym->prop; prop; prop = prop->next) {
+		if (prop->type == P_DEFAULT) {
+			fprintf(stderr, "%s:%d: error: %s",
+				prop->filename, prop->lineno,
+				"defaults for choice values not supported\n");
+			ret = -1;
+		}
+
+		if (prop->menu != menu && prop->type == P_PROMPT &&
+		    prop->menu->parent != menu->parent) {
+			fprintf(stderr, "%s:%d: error: %s",
+				prop->filename, prop->lineno,
+				"choice value has a prompt outside its choice group\n");
+			ret = -1;
+		}
+	}
+
+	return ret;
+}
+
 void conf_parse(const char *name)
 {
 	struct menu *menu;
@@ -486,14 +529,6 @@ void conf_parse(const char *name)
 	if (getenv("ZCONF_DEBUG"))
 		yydebug = 1;
 	yyparse();
-
-	/*
-	 * FIXME:
-	 * cur_filename and cur_lineno are used even after yyparse();
-	 * menu_finalize() calls menu_add_symbol(). This should be fixed.
-	 */
-	cur_filename = "<none>";
-	cur_lineno = 0;
 
 	str_printf(&autoconf_cmd,
 		   "\n"
@@ -517,20 +552,17 @@ void conf_parse(const char *name)
 
 	menu_finalize();
 
-	menu = &rootmenu;
-	while (menu) {
+	menu_for_each_entry(menu) {
+		struct menu *child;
+
 		if (menu->sym && sym_check_deps(menu->sym))
 			yynerrs++;
 
-		if (menu->list) {
-			menu = menu->list;
-			continue;
+		if (menu->sym && sym_is_choice(menu->sym)) {
+			menu_for_each_sub_entry(child, menu)
+				if (child->sym && choice_check_sanity(child))
+					yynerrs++;
 		}
-
-		while (!menu->next && menu->parent)
-			menu = menu->parent;
-
-		menu = menu->next;
 	}
 
 	if (yynerrs)
@@ -557,17 +589,6 @@ static bool zconf_endtoken(const char *tokenname,
 		return false;
 	}
 	return true;
-}
-
-static void zconfprint(const char *err, ...)
-{
-	va_list ap;
-
-	fprintf(stderr, "%s:%d: ", cur_filename, cur_lineno);
-	va_start(ap, err);
-	vfprintf(stderr, err, ap);
-	va_end(ap);
-	fprintf(stderr, "\n");
 }
 
 static void zconf_error(const char *err, ...)
@@ -604,7 +625,7 @@ static void print_quoted_string(FILE *out, const char *str)
 	putc('"', out);
 }
 
-static void print_symbol(FILE *out, struct menu *menu)
+static void print_symbol(FILE *out, const struct menu *menu)
 {
 	struct symbol *sym = menu->sym;
 	struct property *prop;
@@ -655,9 +676,6 @@ static void print_symbol(FILE *out, struct menu *menu)
 			}
 			fputc('\n', out);
 			break;
-		case P_CHOICE:
-			fputs("  #choice value\n", out);
-			break;
 		case P_SELECT:
 			fputs( "  select ", out);
 			expr_fprint(prop->expr, out);
@@ -677,10 +695,6 @@ static void print_symbol(FILE *out, struct menu *menu)
 			fputs( "  menu ", out);
 			print_quoted_string(out, prop->text);
 			fputc('\n', out);
-			break;
-		case P_SYMBOL:
-			fputs( "  symbol ", out);
-			fprintf(out, "%s\n", prop->menu->sym->name);
 			break;
 		default:
 			fprintf(out, "  unknown prop %d!\n", prop->type);

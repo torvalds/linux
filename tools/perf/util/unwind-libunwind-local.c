@@ -329,27 +329,27 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 	};
 	int ret, fd;
 
-	if (dso->data.eh_frame_hdr_offset == 0) {
+	if (dso__data(dso)->eh_frame_hdr_offset == 0) {
 		fd = dso__data_get_fd(dso, ui->machine);
 		if (fd < 0)
 			return -EINVAL;
 
 		/* Check the .eh_frame section for unwinding info */
 		ret = elf_section_address_and_offset(fd, ".eh_frame_hdr",
-						     &dso->data.eh_frame_hdr_addr,
-						     &dso->data.eh_frame_hdr_offset);
-		dso->data.elf_base_addr = elf_base_address(fd);
+						     &dso__data(dso)->eh_frame_hdr_addr,
+						     &dso__data(dso)->eh_frame_hdr_offset);
+		dso__data(dso)->elf_base_addr = elf_base_address(fd);
 		dso__data_put_fd(dso);
-		if (ret || dso->data.eh_frame_hdr_offset == 0)
+		if (ret || dso__data(dso)->eh_frame_hdr_offset == 0)
 			return -EINVAL;
 	}
 
 	maps__for_each_map(thread__maps(ui->thread), read_unwind_spec_eh_frame_maps_cb, &args);
 
-	args.base_addr -= dso->data.elf_base_addr;
+	args.base_addr -= dso__data(dso)->elf_base_addr;
 	/* Address of .eh_frame_hdr */
-	*segbase = args.base_addr + dso->data.eh_frame_hdr_addr;
-	ret = unwind_spec_ehframe(dso, ui->machine, dso->data.eh_frame_hdr_offset,
+	*segbase = args.base_addr + dso__data(dso)->eh_frame_hdr_addr;
+	ret = unwind_spec_ehframe(dso, ui->machine, dso__data(dso)->eh_frame_hdr_offset,
 				   table_data, fde_count);
 	if (ret)
 		return ret;
@@ -363,7 +363,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 					struct machine *machine, u64 *offset)
 {
 	int fd;
-	u64 ofs = dso->data.debug_frame_offset;
+	u64 ofs = dso__data(dso)->debug_frame_offset;
 
 	/* debug_frame can reside in:
 	 *  - dso
@@ -379,7 +379,7 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 		}
 
 		if (ofs <= 0) {
-			fd = open(dso->symsrc_filename, O_RDONLY);
+			fd = open(dso__symsrc_filename(dso), O_RDONLY);
 			if (fd >= 0) {
 				ofs = elf_section_offset(fd, ".debug_frame");
 				close(fd);
@@ -389,6 +389,11 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 		if (ofs <= 0) {
 			char *debuglink = malloc(PATH_MAX);
 			int ret = 0;
+
+			if (debuglink == NULL) {
+				pr_err("unwind: Can't read unwind spec debug frame.\n");
+				return -ENOMEM;
+			}
 
 			ret = dso__read_binary_type_filename(
 				dso, DSO_BINARY_TYPE__DEBUGLINK,
@@ -402,21 +407,21 @@ static int read_unwind_spec_debug_frame(struct dso *dso,
 				}
 			}
 			if (ofs > 0) {
-				if (dso->symsrc_filename != NULL) {
+				if (dso__symsrc_filename(dso) != NULL) {
 					pr_warning(
 						"%s: overwrite symsrc(%s,%s)\n",
 							__func__,
-							dso->symsrc_filename,
+							dso__symsrc_filename(dso),
 							debuglink);
-					zfree(&dso->symsrc_filename);
+					dso__free_symsrc_filename(dso);
 				}
-				dso->symsrc_filename = debuglink;
+				dso__set_symsrc_filename(dso, debuglink);
 			} else {
 				free(debuglink);
 			}
 		}
 
-		dso->data.debug_frame_offset = ofs;
+		dso__data(dso)->debug_frame_offset = ofs;
 	}
 
 	*offset = ofs;
@@ -460,7 +465,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		return -EINVAL;
 	}
 
-	pr_debug("unwind: find_proc_info dso %s\n", dso->name);
+	pr_debug("unwind: find_proc_info dso %s\n", dso__name(dso));
 
 	/* Check the .eh_frame section for unwinding info */
 	if (!read_unwind_spec_eh_frame(dso, ui, &table_data, &segbase, &fde_count)) {
@@ -481,7 +486,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 	if (ret < 0 &&
 	    !read_unwind_spec_debug_frame(dso, ui->machine, &segbase)) {
 		int fd = dso__data_get_fd(dso, ui->machine);
-		int is_exec = elf_is_exec(fd, dso->name);
+		int is_exec = elf_is_exec(fd, dso__name(dso));
 		u64 start = map__start(map);
 		unw_word_t base = is_exec ? 0 : start;
 		const char *symfile;
@@ -489,7 +494,7 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		if (fd >= 0)
 			dso__data_put_fd(dso);
 
-		symfile = dso->symsrc_filename ?: dso->name;
+		symfile = dso__symsrc_filename(dso) ?: dso__name(dso);
 
 		memset(&di, 0, sizeof(di));
 		if (dwarf_find_debug_frame(0, &di, ip, base, symfile, start, map__end(map)))

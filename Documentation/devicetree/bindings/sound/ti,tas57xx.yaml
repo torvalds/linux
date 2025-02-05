@@ -1,0 +1,135 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/ti,tas57xx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TAS5711/TAS5717/TAS5719/TAS5721 stereo power amplifiers
+
+maintainers:
+  - Neil Armstrong <neil.armstrong@linaro.org>
+
+properties:
+  compatible:
+    enum:
+      - ti,tas5707
+      - ti,tas5711
+      - ti,tas5717
+      - ti,tas5719
+      - ti,tas5721
+      - ti,tas5733
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    maxItems: 1
+    description: GPIO for the active low reset line
+
+  pdn-gpios:
+    maxItems: 1
+    description: GPIO for the active low powerdown line
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: mclk
+
+  AVDD-supply: true
+  DVDD-supply: true
+  HPVDD-supply: true
+  PVDD_AB-supply: true
+  PVDD_CD-supply: true
+  PVDD_A-supply: true
+  PVDD_B-supply: true
+  PVDD_C-supply: true
+  PVDD_D-supply: true
+  DRVDD-supply: true
+  PVDD-supply: true
+
+  '#sound-dai-cells':
+    const: 0
+
+  port:
+    $ref: audio-graph-port.yaml#
+    unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+  - '#sound-dai-cells'
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,tas5717
+              - ti,tas5719
+    then:
+      properties:
+        PVDD_A-supply: false
+        PVDD_B-supply: false
+        PVDD_C-supply: false
+        PVDD_D-supply: false
+        DRVDD-supply: false
+        PVDD-supply: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,tas5711
+    then:
+      properties:
+        HPVDD-supply: false
+        PVDD_AB-supply: false
+        PVDD_CD-supply: false
+        DRVDD-supply: false
+        PVDD-supply: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,tas5721
+    then:
+      properties:
+        HPVDD-supply: false
+        PVDD_AB-supply: false
+        PVDD_CD-supply: false
+        PVDD_A-supply: false
+        PVDD_B-supply: false
+        PVDD_C-supply: false
+        PVDD_D-supply: false
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        codec@2a {
+            compatible = "ti,tas5717";
+            reg = <0x2a>;
+            #sound-dai-cells = <0>;
+            reset-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            pdn-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+            AVDD-supply = <&avdd_supply>;
+            DVDD-supply = <&dvdd_supply>;
+            HPVDD-supply = <&hpvdd_supply>;
+            PVDD_AB-supply = <&pvdd_ab_supply>;
+            PVDD_CD-supply = <&pvdd_cd_supply>;
+        };
+    };
+
+...

@@ -116,8 +116,7 @@ static int gfs2_write_jdata_folio(struct folio *folio,
  * @folio: The folio to write
  * @wbc: The writeback control
  *
- * This is shared between writepage and writepages and implements the
- * core of the writepage operation. If a transaction is required then
+ * Implements the core of write back. If a transaction is required then
  * the checked flag will have been set and the transaction will have
  * already been started before this is called.
  */
@@ -137,35 +136,6 @@ static int __gfs2_jdata_write_folio(struct folio *folio,
 		gfs2_trans_add_databufs(ip, folio, 0, folio_size(folio));
 	}
 	return gfs2_write_jdata_folio(folio, wbc);
-}
-
-/**
- * gfs2_jdata_writepage - Write complete page
- * @page: Page to write
- * @wbc: The writeback control
- *
- * Returns: errno
- *
- */
-
-static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct folio *folio = page_folio(page);
-	struct inode *inode = page->mapping->host;
-	struct gfs2_inode *ip = GFS2_I(inode);
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
-
-	if (gfs2_assert_withdraw(sdp, ip->i_gl->gl_state == LM_ST_EXCLUSIVE))
-		goto out;
-	if (folio_test_checked(folio) || current->journal_info)
-		goto out_ignore;
-	return __gfs2_jdata_write_folio(folio, wbc);
-
-out_ignore:
-	folio_redirty_for_writepage(wbc, folio);
-out:
-	folio_unlock(folio);
-	return 0;
 }
 
 /**
@@ -749,12 +719,12 @@ static const struct address_space_operations gfs2_aops = {
 };
 
 static const struct address_space_operations gfs2_jdata_aops = {
-	.writepage = gfs2_jdata_writepage,
 	.writepages = gfs2_jdata_writepages,
 	.read_folio = gfs2_read_folio,
 	.readahead = gfs2_readahead,
 	.dirty_folio = jdata_dirty_folio,
 	.bmap = gfs2_bmap,
+	.migrate_folio = buffer_migrate_folio,
 	.invalidate_folio = gfs2_invalidate_folio,
 	.release_folio = gfs2_release_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,

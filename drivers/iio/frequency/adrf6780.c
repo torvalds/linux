@@ -9,7 +9,6 @@
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
-#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/iio/iio.h>
@@ -17,7 +16,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* ADRF6780 Register Map */
 #define ADRF6780_REG_CONTROL			0x00

@@ -50,14 +50,14 @@ static void uclogic_inrange_timeout(struct timer_list *t)
 	input_sync(input);
 }
 
-static __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *uclogic_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 					unsigned int *rsize)
 {
 	struct uclogic_drvdata *drvdata = hid_get_drvdata(hdev);
 
 	if (drvdata->desc_ptr != NULL) {
-		rdesc = drvdata->desc_ptr;
 		*rsize = drvdata->desc_size;
+		return drvdata->desc_ptr;
 	}
 	return rdesc;
 }
@@ -567,7 +567,9 @@ module_hid_driver(uclogic_driver);
 
 MODULE_AUTHOR("Martin Rusko");
 MODULE_AUTHOR("Nikolai Kondrashov");
+MODULE_DESCRIPTION("HID driver for UC-Logic devices not fully compliant with HID standard");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("HID driver for UC-Logic devices not fully compliant with HID standard");
 
 #ifdef CONFIG_HID_KUNIT_TEST
 #include "hid-uclogic-core-test.c"

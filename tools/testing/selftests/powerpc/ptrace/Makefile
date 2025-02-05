@@ -26,6 +26,7 @@ LOCAL_HDRS += $(patsubst %,$(selfdir)/powerpc/ptrace/%,$(wildcard *.h))
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 TM_TESTS := $(patsubst %,$(OUTPUT)/%,$(TM_TESTS))
 TESTS_64 := $(patsubst %,$(OUTPUT)/%,$(TESTS_64))

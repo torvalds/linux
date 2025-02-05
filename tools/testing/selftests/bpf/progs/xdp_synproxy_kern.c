@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1 OR BSD-2-Clause
 /* Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved. */
 
+#define BPF_NO_KFUNC_PROTOTYPES
 #include "vmlinux.h"
 
 #include <bpf/bpf_helpers.h>
@@ -20,7 +21,6 @@
 
 #define tcp_flag_word(tp) (((union tcp_word_hdr *)(tp))->words[3])
 
-#define IP_DF 0x4000
 #define IP_MF 0x2000
 #define IP_OFFSET 0x1fff
 
@@ -441,7 +441,7 @@ static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bo
 		/* TCP doesn't normally use fragments, and XDP can't reassemble
 		 * them.
 		 */
-		if ((hdr->ipv4->frag_off & bpf_htons(IP_DF | IP_MF | IP_OFFSET)) != bpf_htons(IP_DF))
+		if ((hdr->ipv4->frag_off & bpf_htons(IP_MF | IP_OFFSET)) != 0)
 			return XDP_DROP;
 
 		tup.ipv4.saddr = hdr->ipv4->saddr;

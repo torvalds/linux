@@ -423,7 +423,7 @@ static void esp32s3_acm_remove(struct platform_device *pdev)
 
 static struct platform_driver esp32s3_acm_driver = {
 	.probe		= esp32s3_acm_probe,
-	.remove_new	= esp32s3_acm_remove,
+	.remove		= esp32s3_acm_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32s3_acm_dt_ids,
@@ -455,4 +455,5 @@ module_init(esp32s3_acm_init);
 module_exit(esp32s3_acm_exit);
 
 MODULE_AUTHOR("Max Filippov <jcmvbkbc@gmail.com>");
+MODULE_DESCRIPTION("Espressif ESP32 USB ACM gadget support");
 MODULE_LICENSE("GPL");

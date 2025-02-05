@@ -59,7 +59,7 @@ struct qtnf_bus {
 	struct qtnf_qlink_transport trans;
 	struct qtnf_hw_info hw_info;
 	struct napi_struct mux_napi;
-	struct net_device mux_dev;
+	struct net_device *mux_dev;
 	struct workqueue_struct *workqueue;
 	struct workqueue_struct *hprio_workqueue;
 	struct work_struct fw_work;

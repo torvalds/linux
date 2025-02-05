@@ -3,6 +3,7 @@ config DRM_SUN4I
 	tristate "DRM Support for Allwinner A10 Display Engine"
 	depends on DRM && COMMON_CLK
 	depends on ARCH_SUNXI || COMPILE_TEST
+	select DRM_CLIENT_SELECTION
 	select DRM_GEM_DMA_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -18,6 +19,9 @@ if DRM_SUN4I
 config DRM_SUN4I_HDMI
 	tristate "Allwinner A10/A10s/A20/A31 HDMI Controller Support"
 	depends on ARM || COMPILE_TEST
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HDMI_STATE_HELPER
+	select DRM_DISPLAY_HELPER
 	default DRM_SUN4I
 	help
 	  Choose this option if you have an Allwinner A10/A10s/A20/A31

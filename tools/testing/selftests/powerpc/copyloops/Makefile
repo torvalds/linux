@@ -1,14 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-# The loops are all 64-bit code
-CFLAGS += -m64
-CFLAGS += -I$(CURDIR)
-CFLAGS += -D SELFTEST
-CFLAGS += -maltivec
-CFLAGS += -mcpu=power4
-
-# Use our CFLAGS for the implicit .S rule & set the asm machine type
-ASFLAGS = $(CFLAGS) -Wa,-mpower4
-
 TEST_GEN_PROGS := copyuser_64_t0 copyuser_64_t1 copyuser_64_t2 \
 		copyuser_p7_t0 copyuser_p7_t1 \
 		memcpy_64_t0 memcpy_64_t1 memcpy_64_t2 \
@@ -20,6 +10,17 @@ EXTRA_SOURCES := validate.c ../harness.c stubs.S
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
+
+# The loops are all 64-bit code
+CFLAGS += -m64
+CFLAGS += -I$(CURDIR)
+CFLAGS += -D SELFTEST
+CFLAGS += -maltivec
+CFLAGS += -mcpu=power4
+
+# Use our CFLAGS for the implicit .S rule & set the asm machine type
+ASFLAGS = $(CFLAGS) -Wa,-mpower4
 
 $(OUTPUT)/copyuser_64_t%:	copyuser_64.S $(EXTRA_SOURCES)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \

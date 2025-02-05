@@ -12,6 +12,7 @@
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/usb/pd.h>
 #include <linux/usb/tcpm.h>
 #include "qcom_pmic_typec.h"
@@ -227,6 +228,10 @@ qcom_pmic_typec_pdphy_pd_transmit_payload(struct pmic_typec_pdphy *pmic_typec_pd
 
 	spin_lock_irqsave(&pmic_typec_pdphy->lock, flags);
 
+	hdr_len = sizeof(msg->header);
+	txbuf_len = pd_header_cnt_le(msg->header) * 4;
+	txsize_len = hdr_len + txbuf_len - 1;
+
 	ret = regmap_read(pmic_typec_pdphy->regmap,
 			  pmic_typec_pdphy->base + USB_PDPHY_RX_ACKNOWLEDGE_REG,
 			  &val);
@@ -243,10 +248,6 @@ qcom_pmic_typec_pdphy_pd_transmit_payload(struct pmic_typec_pdphy *pmic_typec_pd
 	ret = qcom_pmic_typec_pdphy_clear_tx_control_reg(pmic_typec_pdphy);
 	if (ret)
 		goto done;
-
-	hdr_len = sizeof(msg->header);
-	txbuf_len = pd_header_cnt_le(msg->header) * 4;
-	txsize_len = hdr_len + txbuf_len - 1;
 
 	/* Write message header sizeof(u16) to USB_PDPHY_TX_BUFFER_HDR_REG */
 	ret = regmap_bulk_write(pmic_typec_pdphy->regmap,
@@ -418,7 +419,7 @@ static int qcom_pmic_typec_pdphy_set_pd_rx(struct tcpc_dev *tcpc, bool on)
 
 	spin_unlock_irqrestore(&pmic_typec_pdphy->lock, flags);
 
-	dev_dbg(pmic_typec_pdphy->dev, "set_pd_rx: %s\n", on ? "on" : "off");
+	dev_dbg(pmic_typec_pdphy->dev, "set_pd_rx: %s\n", str_on_off(on));
 
 	return ret;
 }
@@ -475,10 +476,8 @@ static int qcom_pmic_typec_pdphy_enable(struct pmic_typec_pdphy *pmic_typec_pdph
 
 	qcom_pmic_typec_pdphy_reset_off(pmic_typec_pdphy);
 done:
-	if (ret) {
-		regulator_disable(pmic_typec_pdphy->vdd_pdphy);
+	if (ret)
 		dev_err(dev, "pdphy_enable fail %d\n", ret);
-	}
 
 	return ret;
 }
@@ -524,12 +523,17 @@ static int qcom_pmic_typec_pdphy_start(struct pmic_typec *tcpm,
 
 	ret = pmic_typec_pdphy_reset(pmic_typec_pdphy);
 	if (ret)
-		return ret;
+		goto err_disable_vdd_pdhy;
 
 	for (i = 0; i < pmic_typec_pdphy->nr_irqs; i++)
 		enable_irq(pmic_typec_pdphy->irq_data[i].irq);
 
 	return 0;
+
+err_disable_vdd_pdhy:
+	regulator_disable(pmic_typec_pdphy->vdd_pdphy);
+
+	return ret;
 }
 
 static void qcom_pmic_typec_pdphy_stop(struct pmic_typec *tcpm)

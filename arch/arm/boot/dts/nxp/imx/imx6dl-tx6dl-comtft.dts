@@ -51,7 +51,6 @@
 
 &backlight {
 	pwms = <&pwm2 0 500000 0>;
-	/delete-property/ turn-on-delay-ms;
 };
 
 &can1 {

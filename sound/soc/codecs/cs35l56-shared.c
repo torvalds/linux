@@ -5,6 +5,7 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <linux/array_size.h>
 #include <linux/firmware/cirrus/wmfw.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
@@ -19,10 +20,23 @@ static const struct reg_sequence cs35l56_patch[] = {
 	 * Firmware can change these to non-defaults to satisfy SDCA.
 	 * Ensure that they are at known defaults.
 	 */
+	{ CS35L56_ASP1_ENABLES1,		0x00000000 },
+	{ CS35L56_ASP1_CONTROL1,		0x00000028 },
+	{ CS35L56_ASP1_CONTROL2,		0x18180200 },
+	{ CS35L56_ASP1_CONTROL3,		0x00000002 },
+	{ CS35L56_ASP1_FRAME_CONTROL1,		0x03020100 },
+	{ CS35L56_ASP1_FRAME_CONTROL5,		0x00020100 },
+	{ CS35L56_ASP1_DATA_CONTROL1,		0x00000018 },
+	{ CS35L56_ASP1_DATA_CONTROL5,		0x00000018 },
+	{ CS35L56_ASP1TX1_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX2_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX3_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX4_INPUT,		0x00000000 },
 	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
 	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
 	{ CS35L56_SWIRE_DP3_CH4_INPUT,		0x00000028 },
+	{ CS35L56_IRQ1_MASK_18,			0x1f7df0ff },
 
 	/* These are not reset by a soft-reset, so patch to defaults. */
 	{ CS35L56_MAIN_RENDER_USER_MUTE,	0x00000000 },
@@ -35,7 +49,7 @@ int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 	return regmap_register_patch(cs35l56_base->regmap, cs35l56_patch,
 				     ARRAY_SIZE(cs35l56_patch));
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_default cs35l56_reg_defaults[] = {
 	/* no defaults for OTP_MEM - first read populates cache */
@@ -48,9 +62,10 @@ static const struct reg_default cs35l56_reg_defaults[] = {
 	{ CS35L56_ASP1_FRAME_CONTROL5,		0x00020100 },
 	{ CS35L56_ASP1_DATA_CONTROL1,		0x00000018 },
 	{ CS35L56_ASP1_DATA_CONTROL5,		0x00000018 },
-
-	/* no defaults for ASP1TX mixer */
-
+	{ CS35L56_ASP1TX1_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX2_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX3_INPUT,		0x00000000 },
+	{ CS35L56_ASP1TX4_INPUT,		0x00000000 },
 	{ CS35L56_SWIRE_DP3_CH1_INPUT,		0x00000018 },
 	{ CS35L56_SWIRE_DP3_CH2_INPUT,		0x00000019 },
 	{ CS35L56_SWIRE_DP3_CH3_INPUT,		0x00000029 },
@@ -210,47 +225,6 @@ static bool cs35l56_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-/*
- * The firmware boot sequence can overwrite the ASP1 config registers so that
- * they don't match regmap's view of their values. Rewrite the values from the
- * regmap cache into the hardware registers.
- */
-int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base)
-{
-	struct reg_sequence asp1_regs[] = {
-		{ .reg = CS35L56_ASP1_ENABLES1 },
-		{ .reg = CS35L56_ASP1_CONTROL1 },
-		{ .reg = CS35L56_ASP1_CONTROL2 },
-		{ .reg = CS35L56_ASP1_CONTROL3 },
-		{ .reg = CS35L56_ASP1_FRAME_CONTROL1 },
-		{ .reg = CS35L56_ASP1_FRAME_CONTROL5 },
-		{ .reg = CS35L56_ASP1_DATA_CONTROL1 },
-		{ .reg = CS35L56_ASP1_DATA_CONTROL5 },
-	};
-	int i, ret;
-
-	/* Read values from regmap cache into a write sequence */
-	for (i = 0; i < ARRAY_SIZE(asp1_regs); ++i) {
-		ret = regmap_read(cs35l56_base->regmap, asp1_regs[i].reg, &asp1_regs[i].def);
-		if (ret)
-			goto err;
-	}
-
-	/* Write the values cache-bypassed so that they will be written to silicon */
-	ret = regmap_multi_reg_write_bypassed(cs35l56_base->regmap, asp1_regs,
-					      ARRAY_SIZE(asp1_regs));
-	if (ret)
-		goto err;
-
-	return 0;
-
-err:
-	dev_err(cs35l56_base->dev, "Failed to sync ASP1 registers: %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_force_sync_asp1_registers_from_cache, SND_SOC_CS35L56_SHARED);
-
 int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command)
 {
 	unsigned int val;
@@ -267,24 +241,18 @@ int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_mbox_send, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_mbox_send, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base)
 {
 	int ret;
-	unsigned int reg;
 	unsigned int val;
 
 	ret = cs35l56_mbox_send(cs35l56_base, CS35L56_MBOX_CMD_SHUTDOWN);
 	if (ret)
 		return ret;
 
-	if (cs35l56_base->rev < CS35L56_REVID_B0)
-		reg = CS35L56_DSP1_PM_CUR_STATE_A1;
-	else
-		reg = CS35L56_DSP1_PM_CUR_STATE;
-
-	ret = regmap_read_poll_timeout(cs35l56_base->regmap,  reg,
+	ret = regmap_read_poll_timeout(cs35l56_base->regmap,  CS35L56_DSP1_PM_CUR_STATE,
 				       val, (val == CS35L56_HALO_STATE_SHUTDOWN),
 				       CS35L56_HALO_STATE_POLL_US,
 				       CS35L56_HALO_STATE_TIMEOUT_US);
@@ -293,29 +261,23 @@ int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base)
 			val, ret);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_firmware_shutdown, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_firmware_shutdown, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 {
-	unsigned int reg;
 	unsigned int val = 0;
 	int read_ret, poll_ret;
 
-	if (cs35l56_base->rev < CS35L56_REVID_B0)
-		reg = CS35L56_DSP1_HALO_STATE_A1;
-	else
-		reg = CS35L56_DSP1_HALO_STATE;
-
 	/*
-	 * This can't be a regmap_read_poll_timeout() because cs35l56 will NAK
-	 * I2C until it has booted which would terminate the poll
+	 * The regmap must remain in cache-only until the chip has
+	 * booted, so use a bypassed read of the status register.
 	 */
-	poll_ret = read_poll_timeout(regmap_read, read_ret,
+	poll_ret = read_poll_timeout(regmap_read_bypassed, read_ret,
 				     (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
 				     CS35L56_HALO_STATE_POLL_US,
 				     CS35L56_HALO_STATE_TIMEOUT_US,
 				     false,
-				     cs35l56_base->regmap, reg, &val);
+				     cs35l56_base->regmap, CS35L56_DSP1_HALO_STATE, &val);
 
 	if (poll_ret) {
 		dev_err(cs35l56_base->dev, "Firmware boot timed out(%d): HALO_STATE=%#x\n",
@@ -325,21 +287,21 @@ int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_for_firmware_boot, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_for_firmware_boot, "SND_SOC_CS35L56_SHARED");
 
 void cs35l56_wait_control_port_ready(void)
 {
 	/* Wait for control port to be ready (datasheet tIRS). */
 	usleep_range(CS35L56_CONTROL_PORT_READY_US, 2 * CS35L56_CONTROL_PORT_READY_US);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_control_port_ready, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_control_port_ready, "SND_SOC_CS35L56_SHARED");
 
 void cs35l56_wait_min_reset_pulse(void)
 {
 	/* Satisfy minimum reset pulse width spec */
 	usleep_range(CS35L56_RESET_PULSE_MIN_US, 2 * CS35L56_RESET_PULSE_MIN_US);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_wait_min_reset_pulse, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_wait_min_reset_pulse, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_sequence cs35l56_system_reset_seq[] = {
 	REG_SEQ0(CS35L56_DSP1_HALO_STATE, 0),
@@ -362,15 +324,16 @@ void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 		return;
 
 	cs35l56_wait_control_port_ready();
-	regcache_cache_only(cs35l56_base->regmap, false);
+
+	/* Leave in cache-only. This will be revoked when the chip has rebooted. */
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_system_reset, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_system_reset, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
 {
 	int ret;
 
-	if (!irq)
+	if (irq < 1)
 		return 0;
 
 	ret = devm_request_threaded_irq(cs35l56_base->dev, irq, NULL, cs35l56_irq,
@@ -383,7 +346,7 @@ int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, "SND_SOC_CS35L56_SHARED");
 
 irqreturn_t cs35l56_irq(int irq, void *data)
 {
@@ -450,7 +413,7 @@ err_unlock:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_irq, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 {
@@ -481,39 +444,30 @@ int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_is_fw_reload_needed, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_is_fw_reload_needed, "SND_SOC_CS35L56_SHARED");
 
 static const struct reg_sequence cs35l56_hibernate_seq[] = {
 	/* This must be the last register access */
 	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE),
 };
 
-static const struct reg_sequence cs35l56_hibernate_wake_seq[] = {
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_WAKEUP),
-};
-
 static void cs35l56_issue_wake_event(struct cs35l56_base *cs35l56_base)
 {
+	unsigned int val;
+
 	/*
 	 * Dummy transactions to trigger I2C/SPI auto-wake. Issue two
 	 * transactions to meet the minimum required time from the rising edge
 	 * to the last falling edge of wake.
 	 *
-	 * It uses bypassed write because we must wake the chip before
+	 * It uses bypassed read because we must wake the chip before
 	 * disabling regmap cache-only.
-	 *
-	 * This can NAK on I2C which will terminate the write sequence so the
-	 * single-write sequence is issued twice.
 	 */
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_hibernate_wake_seq,
-					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+	regmap_read_bypassed(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
 
 	usleep_range(CS35L56_WAKE_HOLD_TIME_US, 2 * CS35L56_WAKE_HOLD_TIME_US);
 
-	regmap_multi_reg_write_bypassed(cs35l56_base->regmap,
-					cs35l56_hibernate_wake_seq,
-					ARRAY_SIZE(cs35l56_hibernate_wake_seq));
+	regmap_read_bypassed(cs35l56_base->regmap, CS35L56_IRQ1_STATUS, &val);
 
 	cs35l56_wait_control_port_ready();
 }
@@ -559,7 +513,7 @@ int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_suspend_common, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_suspend_common, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire)
 {
@@ -577,13 +531,13 @@ int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_sou
 		cs35l56_issue_wake_event(cs35l56_base);
 
 out_sync:
-	regcache_cache_only(cs35l56_base->regmap, false);
-
 	ret = cs35l56_wait_for_firmware_boot(cs35l56_base);
 	if (ret) {
 		dev_err(cs35l56_base->dev, "Hibernate wake failed: %d\n", ret);
 		goto err;
 	}
+
+	regcache_cache_only(cs35l56_base->regmap, false);
 
 	ret = cs35l56_mbox_send(cs35l56_base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
@@ -611,7 +565,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, "SND_SOC_CS35L56_SHARED");
 
 static const struct cs_dsp_region cs35l56_dsp1_regions[] = {
 	{ .type = WMFW_HALO_PM_PACKED,	.base = CS35L56_DSP1_PMEM_0 },
@@ -634,7 +588,7 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 	cs_dsp->num_mems = ARRAY_SIZE(cs35l56_dsp1_regions);
 	cs_dsp->no_core_startstop = true;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, "SND_SOC_CS35L56_SHARED");
 
 struct cs35l56_pte {
 	u8 x;
@@ -680,11 +634,11 @@ const struct cirrus_amp_cal_controls cs35l56_calibration_controls = {
 	.status =	"CAL_STATUS",
 	.checksum =	"CAL_CHECKSUM",
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
-	u64 silicon_uid;
+	u64 silicon_uid = 0;
 	int ret;
 
 	/* Driver can't apply calibration to a secured part, so skip */
@@ -710,7 +664,7 @@ int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version)
@@ -734,7 +688,7 @@ int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 {
@@ -752,12 +706,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	else
 		cs35l56_wait_control_port_ready();
 
-	/*
-	 * The HALO_STATE register is in different locations on Ax and B0
-	 * devices so the REVID needs to be determined before waiting for the
-	 * firmware to boot.
-	 */
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_REVID, &revid);
+	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_REVID, &revid);
 	if (ret < 0) {
 		dev_err(cs35l56_base->dev, "Get Revision ID failed\n");
 		return ret;
@@ -768,7 +717,7 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs35l56_base->regmap, CS35L56_DEVID, &devid);
+	ret = regmap_read_bypassed(cs35l56_base->regmap, CS35L56_DEVID, &devid);
 	if (ret < 0) {
 		dev_err(cs35l56_base->dev, "Get Device ID failed\n");
 		return ret;
@@ -786,6 +735,9 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	}
 
 	cs35l56_base->type = devid & 0xFF;
+
+	/* Silicon is now identified and booted so exit cache-only */
+	regcache_cache_only(cs35l56_base->regmap, false);
 
 	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP_RESTRICT_STS1, &secured);
 	if (ret) {
@@ -822,13 +774,20 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, "SND_SOC_CS35L56_SHARED");
 
 int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
 {
 	struct gpio_descs *descs;
-	int speaker_id;
+	u32 speaker_id;
 	int i, ret;
+
+	/* Attempt to read the speaker type from a device property first */
+	ret = device_property_read_u32(cs35l56_base->dev, "cirrus,speaker-id", &speaker_id);
+	if (!ret) {
+		dev_dbg(cs35l56_base->dev, "Speaker ID = %d\n", speaker_id);
+		return speaker_id;
+	}
 
 	/* Read the speaker type qualifier from the motherboard GPIOs */
 	descs = gpiod_get_array_optional(cs35l56_base->dev, "spk-id", GPIOD_IN);
@@ -857,7 +816,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, "SND_SOC_CS35L56_SHARED");
 
 static const u32 cs35l56_bclk_valid_for_pll_freq_table[] = {
 	[0x0C] = 128000,
@@ -906,7 +865,7 @@ int cs35l56_get_bclk_freq_id(unsigned int freq)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_get_bclk_freq_id, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_bclk_freq_id, "SND_SOC_CS35L56_SHARED");
 
 static const char * const cs35l56_supplies[/* auto-sized */] = {
 	"VDD_P",
@@ -922,7 +881,7 @@ void cs35l56_fill_supply_names(struct regulator_bulk_data *data)
 	for (i = 0; i < ARRAY_SIZE(cs35l56_supplies); i++)
 		data[i].supply = cs35l56_supplies[i];
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_fill_supply_names, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_fill_supply_names, "SND_SOC_CS35L56_SHARED");
 
 const char * const cs35l56_tx_input_texts[] = {
 	"None", "ASP1RX1", "ASP1RX2", "VMON", "IMON", "ERRVOL", "CLASSH",
@@ -930,7 +889,7 @@ const char * const cs35l56_tx_input_texts[] = {
 	"DSP1TX5", "DSP1TX6", "DSP1TX7", "DSP1TX8", "TEMPMON",
 	"INTERPOLATOR", "SDW1RX1", "SDW1RX2",
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_texts, "SND_SOC_CS35L56_SHARED");
 
 const unsigned int cs35l56_tx_input_values[] = {
 	CS35L56_INPUT_SRC_NONE,
@@ -955,9 +914,9 @@ const unsigned int cs35l56_tx_input_values[] = {
 	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL1,
 	CS35L56_INPUT_SRC_SWIRE_DP1_CHANNEL2,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_tx_input_values, "SND_SOC_CS35L56_SHARED");
 
-struct regmap_config cs35l56_regmap_i2c = {
+const struct regmap_config cs35l56_regmap_i2c = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -971,9 +930,9 @@ struct regmap_config cs35l56_regmap_i2c = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_i2c, "SND_SOC_CS35L56_SHARED");
 
-struct regmap_config cs35l56_regmap_spi = {
+const struct regmap_config cs35l56_regmap_spi = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.pad_bits = 16,
@@ -988,9 +947,9 @@ struct regmap_config cs35l56_regmap_spi = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_spi, "SND_SOC_CS35L56_SHARED");
 
-struct regmap_config cs35l56_regmap_sdw = {
+const struct regmap_config cs35l56_regmap_sdw = {
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,
@@ -1004,10 +963,10 @@ struct regmap_config cs35l56_regmap_sdw = {
 	.precious_reg = cs35l56_precious_reg,
 	.cache_type = REGCACHE_MAPLE,
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, SND_SOC_CS35L56_SHARED);
+EXPORT_SYMBOL_NS_GPL(cs35l56_regmap_sdw, "SND_SOC_CS35L56_SHARED");
 
 MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);
+MODULE_IMPORT_NS("SND_SOC_CS_AMP_LIB");

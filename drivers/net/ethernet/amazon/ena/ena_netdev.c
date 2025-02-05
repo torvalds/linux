@@ -42,7 +42,7 @@ MODULE_DEVICE_TABLE(pci, ena_pci_tbl);
 
 static int ena_rss_init_default(struct ena_adapter *adapter);
 static void check_for_admin_com_state(struct ena_adapter *adapter);
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful);
+static int ena_destroy_device(struct ena_adapter *adapter, bool graceful);
 static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
@@ -74,7 +74,7 @@ static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 	if (threshold < time_since_last_napi && napi_scheduled) {
 		netdev_err(dev,
 			   "napi handler hasn't been called for a long time but is scheduled\n");
-			   reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
+		reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 	}
 schedule_reset:
 	/* Change the state of the device to trigger reset
@@ -104,7 +104,7 @@ static int ena_change_mtu(struct net_device *dev, int new_mtu)
 	if (!ret) {
 		netif_dbg(adapter, drv, dev, "Set MTU to %d\n", new_mtu);
 		update_rx_ring_mtu(adapter, new_mtu);
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 	} else {
 		netif_err(adapter, drv, dev, "Failed to set MTU to %d\n",
 			  new_mtu);
@@ -1347,6 +1347,8 @@ error:
 	if (rc == -ENOSPC) {
 		ena_increase_stat(&rx_ring->rx_stats.bad_desc_num, 1, &rx_ring->syncp);
 		ena_reset_device(adapter, ENA_REGS_RESET_TOO_MANY_RX_DESCS);
+	} else if (rc == -EFAULT) {
+		ena_reset_device(adapter, ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED);
 	} else {
 		ena_increase_stat(&rx_ring->rx_stats.bad_req_id, 1,
 				  &rx_ring->syncp);
@@ -1381,7 +1383,7 @@ static void ena_adjust_adaptive_rx_intr_moderation(struct ena_napi *ena_napi)
 			  rx_ring->rx_stats.bytes,
 			  &dim_sample);
 
-	net_dim(&ena_napi->dim, dim_sample);
+	net_dim(&ena_napi->dim, &dim_sample);
 
 	rx_ring->per_napi_packets = 0;
 }
@@ -1675,9 +1677,9 @@ static int ena_request_mgmnt_irq(struct ena_adapter *adapter)
 static int ena_request_io_irq(struct ena_adapter *adapter)
 {
 	u32 io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
+	int rc = 0, i, k, irq_idx;
 	unsigned long flags = 0;
 	struct ena_irq *irq;
-	int rc = 0, i, k;
 
 	if (!test_bit(ENA_FLAG_MSIX_ENABLED, &adapter->flags)) {
 		netif_err(adapter, ifup, adapter->netdev,
@@ -1701,6 +1703,16 @@ static int ena_request_io_irq(struct ena_adapter *adapter)
 			  i, irq->affinity_hint_mask.bits[0], irq->vector);
 
 		irq_set_affinity_hint(irq->vector, &irq->affinity_hint_mask);
+	}
+
+	/* Now that IO IRQs have been successfully allocated map them to the
+	 * corresponding IO NAPI instance. Note that the mgmnt IRQ does not
+	 * have a NAPI, so care must be taken to correctly map IRQs to NAPIs.
+	 */
+	for (i = 0; i < io_queue_count; i++) {
+		irq_idx = ENA_IO_IRQ_IDX(i);
+		irq = &adapter->irq_tbl[irq_idx];
+		netif_napi_set_irq(&adapter->ena_napi[i].napi, irq->vector);
 	}
 
 	return rc;
@@ -1809,20 +1821,40 @@ static void ena_napi_disable_in_range(struct ena_adapter *adapter,
 				      int first_index,
 				      int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_disable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, NULL);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, NULL);
+		}
+		napi_disable(napi);
+	}
 }
 
 static void ena_napi_enable_in_range(struct ena_adapter *adapter,
 				     int first_index,
 				     int count)
 {
+	struct napi_struct *napi;
 	int i;
 
-	for (i = first_index; i < first_index + count; i++)
-		napi_enable(&adapter->ena_napi[i].napi);
+	for (i = first_index; i < first_index + count; i++) {
+		napi = &adapter->ena_napi[i].napi;
+		napi_enable(napi);
+		if (!ENA_IS_XDP_INDEX(adapter, i)) {
+			/* This API is supported for non-XDP queues only */
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_RX, napi);
+			netif_queue_set_napi(adapter->netdev, i,
+					     NETDEV_QUEUE_TYPE_TX, napi);
+		}
+	}
 }
 
 /* Configure the Rx forwarding */
@@ -2701,6 +2733,7 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 {
 	struct device *dev = &pdev->dev;
 	struct ena_admin_host_info *host_info;
+	ssize_t ret;
 	int rc;
 
 	/* Allocate only the host info */
@@ -2715,11 +2748,19 @@ static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pd
 	host_info->bdf = pci_dev_id(pdev);
 	host_info->os_type = ENA_ADMIN_OS_LINUX;
 	host_info->kernel_ver = LINUX_VERSION_CODE;
-	strscpy(host_info->kernel_ver_str, utsname()->version,
-		sizeof(host_info->kernel_ver_str) - 1);
+	ret = strscpy(host_info->kernel_ver_str, utsname()->version,
+		      sizeof(host_info->kernel_ver_str));
+	if (ret < 0)
+		dev_dbg(dev,
+			"kernel version string will be truncated, status = %zd\n", ret);
+
 	host_info->os_dist = 0;
-	strscpy(host_info->os_dist_str, utsname()->release,
-		sizeof(host_info->os_dist_str));
+	ret = strscpy(host_info->os_dist_str, utsname()->release,
+		      sizeof(host_info->os_dist_str));
+	if (ret < 0)
+		dev_dbg(dev,
+			"OS distribution string will be truncated, status = %zd\n", ret);
+
 	host_info->driver_version =
 		(DRV_MODULE_GEN_MAJOR) |
 		(DRV_MODULE_GEN_MINOR << ENA_ADMIN_HOST_INFO_MINOR_SHIFT) |
@@ -2785,19 +2826,6 @@ static void ena_config_debug_area(struct ena_adapter *adapter)
 	return;
 err:
 	ena_com_delete_debug_area(adapter->ena_dev);
-}
-
-int ena_update_hw_stats(struct ena_adapter *adapter)
-{
-	int rc;
-
-	rc = ena_com_get_eni_stats(adapter->ena_dev, &adapter->eni_stats);
-	if (rc) {
-		netdev_err(adapter->netdev, "Failed to get ENI stats\n");
-		return rc;
-	}
-
-	return 0;
 }
 
 static void ena_get_stats64(struct net_device *netdev,
@@ -3235,14 +3263,15 @@ err_disable_msix:
 	return rc;
 }
 
-static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
+static int ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	bool dev_up;
+	int rc = 0;
 
 	if (!test_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags))
-		return;
+		return 0;
 
 	netif_carrier_off(netdev);
 
@@ -3260,7 +3289,7 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 	 *  and device is up, ena_down() already reset the device.
 	 */
 	if (!(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags) && dev_up))
-		ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
+		rc = ena_com_dev_reset(adapter->ena_dev, adapter->reset_reason);
 
 	ena_free_mgmnt_irq(adapter);
 
@@ -3279,6 +3308,8 @@ static void ena_destroy_device(struct ena_adapter *adapter, bool graceful)
 
 	clear_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 	clear_bit(ENA_FLAG_DEVICE_RUNNING, &adapter->flags);
+
+	return rc;
 }
 
 static int ena_restore_device(struct ena_adapter *adapter)
@@ -3355,14 +3386,17 @@ err:
 
 static void ena_fw_reset_device(struct work_struct *work)
 {
+	int rc = 0;
+
 	struct ena_adapter *adapter =
 		container_of(work, struct ena_adapter, reset_task);
 
 	rtnl_lock();
 
 	if (likely(test_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))) {
-		ena_destroy_device(adapter, false);
-		ena_restore_device(adapter);
+		rc |= ena_destroy_device(adapter, false);
+		rc |= ena_restore_device(adapter);
+		adapter->dev_stats.reset_fail += !!rc;
 
 		dev_err(&adapter->pdev->dev, "Device reset completed successfully\n");
 	}
@@ -3927,10 +3961,16 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, adapter);
 
+	rc = ena_com_allocate_customer_metrics_buffer(ena_dev);
+	if (rc) {
+		netdev_err(netdev, "ena_com_allocate_customer_metrics_buffer failed\n");
+		goto err_netdev_destroy;
+	}
+
 	rc = ena_map_llq_mem_bar(pdev, ena_dev, bars);
 	if (rc) {
 		dev_err(&pdev->dev, "ENA LLQ bar mapping failed\n");
-		goto err_netdev_destroy;
+		goto err_metrics_destroy;
 	}
 
 	rc = ena_device_init(adapter, pdev, &get_feat_ctx, &wd_state);
@@ -3938,7 +3978,7 @@ static int ena_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "ENA device init failed\n");
 		if (rc == -ETIME)
 			rc = -EPROBE_DEFER;
-		goto err_netdev_destroy;
+		goto err_metrics_destroy;
 	}
 
 	/* Initial TX and RX interrupt delay. Assumes 1 usec granularity.
@@ -4059,6 +4099,8 @@ err_worker_destroy:
 err_device_destroy:
 	ena_com_delete_host_info(ena_dev);
 	ena_com_admin_destroy(ena_dev);
+err_metrics_destroy:
+	ena_com_delete_customer_metrics_buffer(ena_dev);
 err_netdev_destroy:
 	free_netdev(netdev);
 err_free_region:
@@ -4121,6 +4163,8 @@ static void __ena_shutoff(struct pci_dev *pdev, bool shutdown)
 	ena_com_delete_debug_area(ena_dev);
 
 	ena_com_delete_host_info(ena_dev);
+
+	ena_com_delete_customer_metrics_buffer(ena_dev);
 
 	ena_release_bars(ena_dev, pdev);
 

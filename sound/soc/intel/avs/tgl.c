@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2024 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2024 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -39,8 +39,7 @@ const struct avs_dsp_ops avs_tgl_dsp_ops = {
 	.power = avs_tgl_dsp_core_power,
 	.reset = avs_tgl_dsp_core_reset,
 	.stall = avs_tgl_dsp_core_stall,
-	.irq_handler = avs_irq_handler,
-	.irq_thread = avs_cnl_irq_thread,
+	.dsp_interrupt = avs_cnl_dsp_interrupt,
 	.int_control = avs_dsp_interrupt_control,
 	.load_basefw = avs_icl_load_basefw,
 	.load_lib = avs_hda_load_library,

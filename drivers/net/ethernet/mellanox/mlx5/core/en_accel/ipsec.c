@@ -67,7 +67,6 @@ static void mlx5e_ipsec_handle_sw_limits(struct work_struct *_work)
 		return;
 
 	spin_lock_bh(&x->lock);
-	xfrm_state_check_expire(x);
 	if (x->km.state == XFRM_STATE_EXPIRED) {
 		sa_entry->attrs.drop = true;
 		spin_unlock_bh(&x->lock);
@@ -75,6 +74,13 @@ static void mlx5e_ipsec_handle_sw_limits(struct work_struct *_work)
 		mlx5e_accel_ipsec_fs_modify(sa_entry);
 		return;
 	}
+
+	if (x->km.state != XFRM_STATE_VALID) {
+		spin_unlock_bh(&x->lock);
+		return;
+	}
+
+	xfrm_state_check_expire(x);
 	spin_unlock_bh(&x->lock);
 
 	queue_delayed_work(sa_entry->ipsec->wq, &dwork->dwork,
@@ -88,25 +94,14 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	u32 esn, esn_msb;
 	u8 overlap;
 
-	switch (x->xso.type) {
-	case XFRM_DEV_OFFLOAD_PACKET:
-		switch (x->xso.dir) {
-		case XFRM_DEV_OFFLOAD_IN:
-			esn = x->replay_esn->seq;
-			esn_msb = x->replay_esn->seq_hi;
-			break;
-		case XFRM_DEV_OFFLOAD_OUT:
-			esn = x->replay_esn->oseq;
-			esn_msb = x->replay_esn->oseq_hi;
-			break;
-		default:
-			WARN_ON(true);
-			return false;
-		}
-		break;
-	case XFRM_DEV_OFFLOAD_CRYPTO:
-		/* Already parsed by XFRM core */
+	switch (x->xso.dir) {
+	case XFRM_DEV_OFFLOAD_IN:
 		esn = x->replay_esn->seq;
+		esn_msb = x->replay_esn->seq_hi;
+		break;
+	case XFRM_DEV_OFFLOAD_OUT:
+		esn = x->replay_esn->oseq;
+		esn_msb = x->replay_esn->oseq_hi;
 		break;
 	default:
 		WARN_ON(true);
@@ -115,11 +110,15 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	overlap = sa_entry->esn_state.overlap;
 
-	if (esn >= x->replay_esn->replay_window)
-		seq_bottom = esn - x->replay_esn->replay_window + 1;
+	if (!x->replay_esn->replay_window) {
+		seq_bottom = esn;
+	} else {
+		if (esn >= x->replay_esn->replay_window)
+			seq_bottom = esn - x->replay_esn->replay_window + 1;
 
-	if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
-		esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
+		if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
+			esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
+	}
 
 	if (sa_entry->esn_state.esn_msb)
 		sa_entry->esn_state.esn = esn;
@@ -718,6 +717,12 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 	/* check esn */
 	if (x->props.flags & XFRM_STATE_ESN)
 		mlx5e_ipsec_update_esn_state(sa_entry);
+	else
+		/* According to RFC4303, section "3.3.3. Sequence Number Generation",
+		 * the first packet sent using a given SA will contain a sequence
+		 * number of 1.
+		 */
+		sa_entry->esn_state.esn = 1;
 
 	mlx5e_ipsec_build_accel_xfrm_attrs(sa_entry, &sa_entry->attrs);
 
@@ -762,9 +767,12 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x,
 				   MLX5_IPSEC_RESCHED);
 
 	if (x->xso.type == XFRM_DEV_OFFLOAD_PACKET &&
-	    x->props.mode == XFRM_MODE_TUNNEL)
-		xa_set_mark(&ipsec->sadb, sa_entry->ipsec_obj_id,
-			    MLX5E_IPSEC_TUNNEL_SA);
+	    x->props.mode == XFRM_MODE_TUNNEL) {
+		xa_lock_bh(&ipsec->sadb);
+		__xa_set_mark(&ipsec->sadb, sa_entry->ipsec_obj_id,
+			      MLX5E_IPSEC_TUNNEL_SA);
+		xa_unlock_bh(&ipsec->sadb);
+	}
 
 out:
 	x->xso.offload_handle = (unsigned long)sa_entry;
@@ -791,7 +799,6 @@ err_xfrm:
 static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 {
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
-	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
 	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
 	struct mlx5e_ipsec_sa_entry *old;
 
@@ -800,12 +807,6 @@ static void mlx5e_xfrm_del_state(struct xfrm_state *x)
 
 	old = xa_erase_bh(&ipsec->sadb, sa_entry->ipsec_obj_id);
 	WARN_ON(old != sa_entry);
-
-	if (attrs->mode == XFRM_MODE_TUNNEL &&
-	    attrs->type == XFRM_DEV_OFFLOAD_PACKET)
-		/* Make sure that no ARP requests are running in parallel */
-		flush_workqueue(ipsec->wq);
-
 }
 
 static void mlx5e_xfrm_free_state(struct xfrm_state *x)
@@ -989,7 +990,12 @@ static void mlx5e_xfrm_update_stats(struct xfrm_state *x)
 	struct mlx5e_ipsec_sa_entry *sa_entry = to_ipsec_sa_entry(x);
 	struct mlx5e_ipsec_rule *ipsec_rule = &sa_entry->ipsec_rule;
 	struct net *net = dev_net(x->xso.dev);
+	u64 trailer_packets = 0, trailer_bytes = 0;
+	u64 replay_packets = 0, replay_bytes = 0;
+	u64 auth_packets = 0, auth_bytes = 0;
+	u64 success_packets, success_bytes;
 	u64 packets, bytes, lastuse;
+	size_t headers;
 
 	lockdep_assert(lockdep_is_held(&x->lock) ||
 		       lockdep_is_held(&dev_net(x->xso.real_dev)->xfrm.xfrm_cfg_mutex) ||
@@ -999,26 +1005,43 @@ static void mlx5e_xfrm_update_stats(struct xfrm_state *x)
 		return;
 
 	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_IN) {
-		mlx5_fc_query_cached(ipsec_rule->auth.fc, &bytes, &packets, &lastuse);
-		x->stats.integrity_failed += packets;
-		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINSTATEPROTOERROR, packets);
+		mlx5_fc_query_cached(ipsec_rule->auth.fc, &auth_bytes,
+				     &auth_packets, &lastuse);
+		x->stats.integrity_failed += auth_packets;
+		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINSTATEPROTOERROR, auth_packets);
 
-		mlx5_fc_query_cached(ipsec_rule->trailer.fc, &bytes, &packets, &lastuse);
-		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINHDRERROR, packets);
+		mlx5_fc_query_cached(ipsec_rule->trailer.fc, &trailer_bytes,
+				     &trailer_packets, &lastuse);
+		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINHDRERROR, trailer_packets);
 	}
 
 	if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
 		return;
 
-	mlx5_fc_query_cached(ipsec_rule->fc, &bytes, &packets, &lastuse);
-	x->curlft.packets += packets;
-	x->curlft.bytes += bytes;
-
 	if (sa_entry->attrs.dir == XFRM_DEV_OFFLOAD_IN) {
-		mlx5_fc_query_cached(ipsec_rule->replay.fc, &bytes, &packets, &lastuse);
-		x->stats.replay += packets;
-		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINSTATESEQERROR, packets);
+		mlx5_fc_query_cached(ipsec_rule->replay.fc, &replay_bytes,
+				     &replay_packets, &lastuse);
+		x->stats.replay += replay_packets;
+		XFRM_ADD_STATS(net, LINUX_MIB_XFRMINSTATESEQERROR, replay_packets);
 	}
+
+	mlx5_fc_query_cached(ipsec_rule->fc, &bytes, &packets, &lastuse);
+	success_packets = packets - auth_packets - trailer_packets - replay_packets;
+	x->curlft.packets += success_packets;
+	/* NIC counts all bytes passed through flow steering and doesn't have
+	 * an ability to count payload data size which is needed for SA.
+	 *
+	 * To overcome HW limitestion, let's approximate the payload size
+	 * by removing always available headers.
+	 */
+	headers = sizeof(struct ethhdr);
+	if (sa_entry->attrs.family == AF_INET)
+		headers += sizeof(struct iphdr);
+	else
+		headers += sizeof(struct ipv6hdr);
+
+	success_bytes = bytes - auth_bytes - trailer_bytes - replay_bytes;
+	x->curlft.bytes += success_bytes - headers * success_packets;
 }
 
 static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,

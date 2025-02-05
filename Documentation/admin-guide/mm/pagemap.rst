@@ -118,7 +118,7 @@ Short descriptions to the page flags
 21 - KSM
     Identical memory pages dynamically shared between one or more processes.
 22 - THP
-    Contiguous pages which construct transparent hugepages.
+    Contiguous pages which construct THP of any size and mapped by any granularity.
 23 - OFFLINE
     The page is logically offline.
 24 - ZERO_PAGE
@@ -172,27 +172,6 @@ LRU related page flags
 
 The page-types tool in the tools/mm directory can be used to query the
 above flags.
-
-Using pagemap to do something useful
-====================================
-
-The general procedure for using pagemap to find out about a process' memory
-usage goes like this:
-
- 1. Read ``/proc/pid/maps`` to determine which parts of the memory space are
-    mapped to what.
- 2. Select the maps you are interested in -- all of them, or a particular
-    library, or the stack or the heap, etc.
- 3. Open ``/proc/pid/pagemap`` and seek to the pages you would like to examine.
- 4. Read a u64 for each page from pagemap.
- 5. Open ``/proc/kpagecount`` and/or ``/proc/kpageflags``.  For each PFN you
-    just read, seek to that entry in the file, and read the data you want.
-
-For example, to find the "unique set size" (USS), which is the amount of
-memory that a process is using that is not shared with any other process,
-you can go through every map in the process, find the PFNs, look those up
-in kpagecount, and tally up the number of pages that are only referenced
-once.
 
 Exceptions for Shared Memory
 ============================
@@ -252,7 +231,7 @@ Following flags about pages are currently supported:
 - ``PAGE_IS_PRESENT`` - Page is present in the memory
 - ``PAGE_IS_SWAPPED`` - Page is in swapped
 - ``PAGE_IS_PFNZERO`` - Page has zero PFN
-- ``PAGE_IS_HUGE`` - Page is THP or Hugetlb backed
+- ``PAGE_IS_HUGE`` - Page is PMD-mapped THP or Hugetlb backed
 - ``PAGE_IS_SOFT_DIRTY`` - Page is soft-dirty
 
 The ``struct pm_scan_arg`` is used as the argument of the IOCTL.

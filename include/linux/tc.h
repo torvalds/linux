@@ -108,7 +108,7 @@ struct tc_driver {
 	struct device_driver driver;
 };
 
-#define to_tc_driver(drv) container_of(drv, struct tc_driver, driver)
+#define to_tc_driver(drv) container_of_const(drv, struct tc_driver, driver)
 
 /*
  * Return TURBOchannel clock frequency in Hz.

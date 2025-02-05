@@ -558,10 +558,11 @@ static struct platform_driver omap_rng_driver = {
 		.of_match_table = of_match_ptr(omap_rng_of_match),
 	},
 	.probe		= omap_rng_probe,
-	.remove_new	= omap_rng_remove,
+	.remove		= omap_rng_remove,
 };
 
 module_platform_driver(omap_rng_driver);
 MODULE_ALIAS("platform:omap_rng");
 MODULE_AUTHOR("Deepak Saxena (and others)");
+MODULE_DESCRIPTION("RNG driver for TI OMAP CPU family");
 MODULE_LICENSE("GPL");

@@ -16,22 +16,32 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - fsl,imx35-spdif
-      - fsl,vf610-spdif
-      - fsl,imx6sx-spdif
-      - fsl,imx8qm-spdif
-      - fsl,imx8qxp-spdif
-      - fsl,imx8mq-spdif
-      - fsl,imx8mm-spdif
-      - fsl,imx8mn-spdif
-      - fsl,imx8ulp-spdif
+    oneOf:
+      - items:
+          - enum:
+              - fsl,imx35-spdif
+              - fsl,imx6sx-spdif
+              - fsl,imx8mm-spdif
+              - fsl,imx8mn-spdif
+              - fsl,imx8mq-spdif
+              - fsl,imx8qm-spdif
+              - fsl,imx8qxp-spdif
+              - fsl,imx8ulp-spdif
+              - fsl,vf610-spdif
+      - items:
+          - enum:
+              - fsl,imx6sl-spdif
+              - fsl,imx6sx-spdif
+          - const: fsl,imx35-spdif
 
   reg:
     maxItems: 1
 
   interrupts:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: Combined or receive interrupt
+      - description: Transmit interrupt
 
   dmas:
     items:
@@ -86,6 +96,9 @@ properties:
       registers. Set this flag for HCDs with big endian descriptors and big
       endian registers.
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -96,6 +109,33 @@ required:
   - clock-names
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          enum:
+            - fsl,imx8qm-spdif
+            - fsl,imx8qxp-spdif
+    then:
+      properties:
+        interrupts:
+          minItems: 2
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-spdif
+              - fsl,imx8qxp-spdif
+    then:
+      required:
+        - power-domains
 
 examples:
   - |

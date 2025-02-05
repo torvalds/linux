@@ -294,7 +294,7 @@ static int ts_nbus_probe(struct platform_device *pdev)
 	state.duty_cycle = state.period;
 	state.enabled = true;
 
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to configure PWM\n");
 
@@ -336,7 +336,7 @@ MODULE_DEVICE_TABLE(of, ts_nbus_of_match);
 
 static struct platform_driver ts_nbus_driver = {
 	.probe		= ts_nbus_probe,
-	.remove_new	= ts_nbus_remove,
+	.remove		= ts_nbus_remove,
 	.driver		= {
 		.name	= "ts_nbus",
 		.of_match_table = ts_nbus_of_match,

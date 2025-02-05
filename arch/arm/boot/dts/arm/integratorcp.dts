@@ -47,14 +47,14 @@
 	 */
 
 	/* The codec chrystal operates at 24.576 MHz */
-	xtal_codec: xtal24.576@24.576M {
+	xtal_codec: clock-24576000 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <24576000>;
 	};
 
 	/* The chrystal is divided by 2 by the codec for the AACI bit clock */
-	aaci_bitclk: aaci_bitclk@12.288M {
+	aaci_bitclk: clock-12288000 {
 		#clock-cells = <0>;
 		compatible = "fixed-factor-clock";
 		clock-div = <2>;
@@ -63,21 +63,21 @@
 	};
 
 	/* This is a 25MHz chrystal on the base board */
-	xtal25mhz: xtal25mhz@25M {
+	xtal25mhz: clock-25000000 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <25000000>;
 	};
 
 	/* The UART clock is 14.74 MHz divided from 25MHz by an ICS525 */
-	uartclk: uartclk@14.74M {
+	uartclk: clock-14745600 {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <14745600>;
 	};
 
 	/* Actually sysclk I think */
-	pclk: pclk@0 {
+	pclk: clock-pclk {
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <0>;
@@ -85,7 +85,7 @@
 
 	core-module@10000000 {
 		/* 24 MHz chrystal on the core module */
-		cm24mhz: cm24mhz@24M {
+		cm24mhz: clock-24000000 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <24000000>;
@@ -131,7 +131,7 @@
 		};
 
 		/* The timer clock is the 24 MHz oscillator divided to 1MHz */
-		timclk: timclk@1M {
+		timclk: clock-1000000 {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <24>;

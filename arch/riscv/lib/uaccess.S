@@ -14,7 +14,7 @@
 
 SYM_FUNC_START(__asm_copy_to_user)
 #ifdef CONFIG_RISCV_ISA_V
-	ALTERNATIVE("j fallback_scalar_usercopy", "nop", 0, RISCV_ISA_EXT_v, CONFIG_RISCV_ISA_V)
+	ALTERNATIVE("j fallback_scalar_usercopy", "nop", 0, RISCV_ISA_EXT_ZVE32X, CONFIG_RISCV_ISA_V)
 	REG_L	t0, riscv_v_usercopy_threshold
 	bltu	a2, t0, fallback_scalar_usercopy
 	tail enter_vector_usercopy
@@ -44,7 +44,7 @@ SYM_FUNC_START(fallback_scalar_usercopy)
 	 * Use byte copy only if too small.
 	 * SZREG holds 4 for RV32 and 8 for RV64
 	 */
-	li	a3, 9*SZREG /* size must be larger than size in word_copy */
+	li	a3, 9*SZREG-1 /* size must >= (word_copy stride + SZREG-1) */
 	bltu	a2, a3, .Lbyte_copy_tail
 
 	/*
@@ -103,7 +103,7 @@ SYM_FUNC_START(fallback_scalar_usercopy)
 	fixup REG_S   t4,  7*SZREG(a0), 10f
 	addi	a0, a0, 8*SZREG
 	addi	a1, a1, 8*SZREG
-	bltu	a0, t0, 2b
+	bleu	a0, t0, 2b
 
 	addi	t0, t0, 8*SZREG /* revert to original value */
 	j	.Lbyte_copy_tail

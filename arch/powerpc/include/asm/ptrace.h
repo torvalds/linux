@@ -310,7 +310,7 @@ static inline void regs_set_return_value(struct pt_regs *regs, unsigned long rc)
 
 static inline bool cpu_has_msr_ri(void)
 {
-	return !IS_ENABLED(CONFIG_BOOKE_OR_40x);
+	return !IS_ENABLED(CONFIG_BOOKE);
 }
 
 static inline bool regs_is_unrecoverable(struct pt_regs *regs)

@@ -31,6 +31,7 @@ extern void *of_fdt_unflatten_tree(const unsigned long *blob,
 extern int __initdata dt_root_addr_cells;
 extern int __initdata dt_root_size_cells;
 extern void *initial_boot_params;
+extern phys_addr_t initial_boot_params_pa;
 
 extern char __dtb_start[];
 extern char __dtb_end[];
@@ -70,8 +71,8 @@ extern u64 dt_mem_next_cell(int s, const __be32 **cellp);
 /* Early flat tree scan hooks */
 extern int early_init_dt_scan_root(void);
 
-extern bool early_init_dt_scan(void *params);
-extern bool early_init_dt_verify(void *params);
+extern bool early_init_dt_scan(void *dt_virt, phys_addr_t dt_phys);
+extern bool early_init_dt_verify(void *dt_virt, phys_addr_t dt_phys);
 extern void early_init_dt_scan_nodes(void);
 
 extern const char *of_flat_dt_get_machine_name(void);

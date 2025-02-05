@@ -30,7 +30,8 @@
 #include "sdhci-esdhc.h"
 #include "cqhci.h"
 
-#define ESDHC_SYS_CTRL_DTOCV_MASK	0x0f
+#define ESDHC_SYS_CTRL_DTOCV_MASK	GENMASK(19, 16)
+#define ESDHC_SYS_CTRL_IPP_RST_N	BIT(23)
 #define	ESDHC_CTRL_D3CD			0x08
 #define ESDHC_BURST_LEN_EN_INCR		(1 << 27)
 /* VENDOR SPEC register */
@@ -201,6 +202,9 @@
 /* ERR004536 is not applicable for the IP  */
 #define ESDHC_FLAG_SKIP_ERR004536	BIT(17)
 
+/* The IP does not have GPIO CD wake capabilities */
+#define ESDHC_FLAG_SKIP_CD_WAKE		BIT(18)
+
 enum wp_types {
 	ESDHC_WP_NONE,		/* no WP, neither controller nor gpio */
 	ESDHC_WP_CONTROLLER,	/* mmc controller internal WP */
@@ -235,6 +239,7 @@ struct esdhc_platform_data {
 
 struct esdhc_soc_data {
 	u32 flags;
+	u32 quirks;
 };
 
 static const struct esdhc_soc_data esdhc_imx25_data = {
@@ -298,7 +303,8 @@ static struct esdhc_soc_data usdhc_s32g2_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_MAN_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
 			| ESDHC_FLAG_HS400 | ESDHC_FLAG_HS400_ES
-			| ESDHC_FLAG_SKIP_ERR004536,
+			| ESDHC_FLAG_SKIP_ERR004536 | ESDHC_FLAG_SKIP_CD_WAKE,
+	.quirks = SDHCI_QUIRK_NO_LED,
 };
 
 static struct esdhc_soc_data usdhc_imx7ulp_data = {
@@ -306,10 +312,12 @@ static struct esdhc_soc_data usdhc_imx7ulp_data = {
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
 			| ESDHC_FLAG_PMQOS | ESDHC_FLAG_HS400
 			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
+	.quirks = SDHCI_QUIRK_NO_LED,
 };
 static struct esdhc_soc_data usdhc_imxrt1050_data = {
 	.flags = ESDHC_FLAG_USDHC | ESDHC_FLAG_STD_TUNING
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200,
+	.quirks = SDHCI_QUIRK_NO_LED,
 };
 
 static struct esdhc_soc_data usdhc_imx8qxp_data = {
@@ -318,6 +326,7 @@ static struct esdhc_soc_data usdhc_imx8qxp_data = {
 			| ESDHC_FLAG_HS400 | ESDHC_FLAG_HS400_ES
 			| ESDHC_FLAG_STATE_LOST_IN_LPMODE
 			| ESDHC_FLAG_CLK_RATE_LOST_IN_PM_RUNTIME,
+	.quirks = SDHCI_QUIRK_NO_LED,
 };
 
 static struct esdhc_soc_data usdhc_imx8mm_data = {
@@ -325,6 +334,7 @@ static struct esdhc_soc_data usdhc_imx8mm_data = {
 			| ESDHC_FLAG_HAVE_CAP1 | ESDHC_FLAG_HS200
 			| ESDHC_FLAG_HS400 | ESDHC_FLAG_HS400_ES
 			| ESDHC_FLAG_STATE_LOST_IN_LPMODE,
+	.quirks = SDHCI_QUIRK_NO_LED,
 };
 
 struct pltfm_imx_data {
@@ -1382,8 +1392,8 @@ static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 
 	/* use maximum timeout counter */
 	esdhc_clrset_le(host, ESDHC_SYS_CTRL_DTOCV_MASK,
-			esdhc_is_usdhc(imx_data) ? 0xF : 0xE,
-			SDHCI_TIMEOUT_CONTROL);
+			esdhc_is_usdhc(imx_data) ? 0xF0000 : 0xE0000,
+			ESDHC_SYSTEM_CONTROL);
 }
 
 static u32 esdhc_cqhci_irq(struct sdhci_host *host, u32 intmask)
@@ -1397,6 +1407,17 @@ static u32 esdhc_cqhci_irq(struct sdhci_host *host, u32 intmask)
 	cqhci_irq(host->mmc, intmask, cmd_error, data_error);
 
 	return 0;
+}
+
+static void esdhc_hw_reset(struct sdhci_host *host)
+{
+	esdhc_clrset_le(host, ESDHC_SYS_CTRL_IPP_RST_N, 0, ESDHC_SYSTEM_CONTROL);
+	/* eMMC spec requires minimum 1us, here delay between 1-10us */
+	usleep_range(1, 10);
+	esdhc_clrset_le(host, ESDHC_SYS_CTRL_IPP_RST_N,
+			ESDHC_SYS_CTRL_IPP_RST_N, ESDHC_SYSTEM_CONTROL);
+	/* eMMC spec requires minimum 200us, here delay between 200-300us */
+	usleep_range(200, 300);
 }
 
 static struct sdhci_ops sdhci_esdhc_ops = {
@@ -1417,6 +1438,7 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 	.reset = esdhc_reset,
 	.irq = esdhc_cqhci_irq,
 	.dump_vendor_regs = esdhc_dump_debug_regs,
+	.hw_reset = esdhc_hw_reset,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_imx_pdata = {
@@ -1521,7 +1543,7 @@ static void sdhci_esdhc_imx_hwinit(struct sdhci_host *host)
 			writel(tmp, host->ioaddr + ESDHC_TUNING_CTRL);
 		} else if (imx_data->socdata->flags & ESDHC_FLAG_MAN_TUNING) {
 			/*
-			 * ESDHC_STD_TUNING_EN may be configed in bootloader
+			 * ESDHC_STD_TUNING_EN may be configured in bootloader
 			 * or ROM code, so clear this bit here to make sure
 			 * the manual tuning can work.
 			 */
@@ -1623,10 +1645,10 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 
 	/*
 	 * If we have this property, then activate WP check.
-	 * Retrieveing and requesting the actual WP GPIO will happen
+	 * Retrieving and requesting the actual WP GPIO will happen
 	 * in the call to mmc_of_parse().
 	 */
-	if (of_property_read_bool(np, "wp-gpios"))
+	if (of_property_present(np, "wp-gpios"))
 		boarddata->wp_type = ESDHC_WP_GPIO;
 
 	of_property_read_u32(np, "fsl,tuning-step", &boarddata->tuning_step);
@@ -1684,6 +1706,7 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 
 	imx_data->socdata = device_get_match_data(&pdev->dev);
 
+	host->quirks |= imx_data->socdata->quirks;
 	if (imx_data->socdata->flags & ESDHC_FLAG_PMQOS)
 		cpu_latency_qos_add_request(&imx_data->pm_qos_req, 0);
 
@@ -1706,7 +1729,6 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	}
 
 	pltfm_host->clk = imx_data->clk_per;
-	pltfm_host->clock = clk_get_rate(pltfm_host->clk);
 	err = clk_prepare_enable(imx_data->clk_per);
 	if (err)
 		goto free_sdhci;
@@ -1717,6 +1739,13 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (err)
 		goto disable_ipg_clk;
 
+	pltfm_host->clock = clk_get_rate(pltfm_host->clk);
+	if (!pltfm_host->clock) {
+		dev_err(mmc_dev(host->mmc), "could not get clk rate\n");
+		err = -EINVAL;
+		goto disable_ahb_clk;
+	}
+
 	imx_data->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(imx_data->pinctrl))
 		dev_warn(mmc_dev(host->mmc), "could not get pinctrl\n");
@@ -1726,7 +1755,8 @@ static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 		host->mmc->caps |= MMC_CAP_1_8V_DDR | MMC_CAP_3_3V_DDR;
 
 		/* GPIO CD can be set as a wakeup source */
-		host->mmc->caps |= MMC_CAP_CD_WAKE;
+		if (!(imx_data->socdata->flags & ESDHC_FLAG_SKIP_CD_WAKE))
+			host->mmc->caps |= MMC_CAP_CD_WAKE;
 
 		if (!(imx_data->socdata->flags & ESDHC_FLAG_HS200))
 			host->quirks2 |= SDHCI_QUIRK2_BROKEN_HS200;
@@ -2005,7 +2035,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 		.pm	= &sdhci_esdhc_pmops,
 	},
 	.probe		= sdhci_esdhc_imx_probe,
-	.remove_new	= sdhci_esdhc_imx_remove,
+	.remove		= sdhci_esdhc_imx_remove,
 };
 
 module_platform_driver(sdhci_esdhc_imx_driver);

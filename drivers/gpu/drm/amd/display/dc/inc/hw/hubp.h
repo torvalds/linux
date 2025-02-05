@@ -41,6 +41,9 @@
 #include "mem_input.h"
 #include "cursor_reg_cache.h"
 
+#include "dml2/dml21/inc/dml_top_dchub_registers.h"
+#include "dml2/dml21/inc/dml_top_types.h"
+
 #define OPP_ID_INVALID 0xf
 #define MAX_TTU 0xffffff
 
@@ -63,6 +66,37 @@ enum hubp_ind_block_size {
 	hubp_ind_block_64b,
 	hubp_ind_block_128b,
 	hubp_ind_block_64b_no_128bcl,
+};
+
+enum hubp_3dlut_fl_mode {
+	hubp_3dlut_fl_mode_disable = 0,
+	hubp_3dlut_fl_mode_native_1 = 1,
+	hubp_3dlut_fl_mode_native_2 = 2,
+	hubp_3dlut_fl_mode_transform = 3
+};
+
+enum hubp_3dlut_fl_format {
+	hubp_3dlut_fl_format_unorm_12msb_bitslice = 0,
+	hubp_3dlut_fl_format_unorm_12lsb_bitslice = 1,
+	hubp_3dlut_fl_format_float_fp1_5_10 = 2
+};
+
+enum hubp_3dlut_fl_addressing_mode {
+	hubp_3dlut_fl_addressing_mode_sw_linear = 0,
+	hubp_3dlut_fl_addressing_mode_simple_linear = 1
+};
+
+enum hubp_3dlut_fl_width {
+	hubp_3dlut_fl_width_17 = 17,
+	hubp_3dlut_fl_width_33 = 33,
+	hubp_3dlut_fl_width_transformed = 4916
+};
+
+enum hubp_3dlut_fl_crossbar_bit_slice {
+	hubp_3dlut_fl_crossbar_bit_slice_0_15 = 0,
+	hubp_3dlut_fl_crossbar_bit_slice_16_31 = 1,
+	hubp_3dlut_fl_crossbar_bit_slice_32_47 = 2,
+	hubp_3dlut_fl_crossbar_bit_slice_48_63 = 3
 };
 
 struct hubp {
@@ -111,13 +145,25 @@ struct hubp_funcs {
 			struct _vcs_dpi_display_rq_regs_st *rq_regs,
 			struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
 
+	void (*hubp_setup2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs,
+		union dml2_global_sync_programming *pipe_global_sync,
+		struct dc_crtc_timing *timing);
+
 	void (*hubp_setup_interdependent)(
 			struct hubp *hubp,
 			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
 			struct _vcs_dpi_display_ttu_regs_st *ttu_regs);
 
+	void (*hubp_setup_interdependent2)(
+		struct hubp *hubp,
+		struct dml2_dchub_per_pipe_register_set *pipe_regs);
+
 	void (*dcc_control)(struct hubp *hubp, bool enable,
 			enum hubp_ind_block_size blk_size);
+
+	void (*hubp_reset)(struct hubp *hubp);
 
 	void (*mem_program_viewport)(
 			struct hubp *hubp,
@@ -132,7 +178,7 @@ struct hubp_funcs {
 	void (*hubp_program_pte_vm)(
 		struct hubp *hubp,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		enum dc_rotation_angle rotation);
 
 	void (*hubp_set_vm_system_aperture_settings)(
@@ -146,7 +192,7 @@ struct hubp_funcs {
 	void (*hubp_program_surface_config)(
 		struct hubp *hubp,
 		enum surface_pixel_format format,
-		union dc_tiling_info *tiling_info,
+		struct dc_tiling_info *tiling_info,
 		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
@@ -211,17 +257,38 @@ struct hubp_funcs {
 	bool (*hubp_in_blank)(struct hubp *hubp);
 	void (*hubp_soft_reset)(struct hubp *hubp, bool reset);
 
+	void (*hubp_set_flip_int)(struct hubp *hubp);
+
 	void (*hubp_update_force_pstate_disallow)(struct hubp *hubp, bool allow);
 	void (*hubp_update_force_cursor_pstate_disallow)(struct hubp *hubp, bool allow);
 	void (*hubp_update_mall_sel)(struct hubp *hubp, uint32_t mall_sel, bool c_cursor);
 	void (*hubp_prepare_subvp_buffering)(struct hubp *hubp, bool enable);
-
-	void (*hubp_set_flip_int)(struct hubp *hubp);
+	void (*hubp_surface_update_lock)(struct hubp *hubp,
+			bool lock);
 
 	void (*program_extended_blank)(struct hubp *hubp,
 			unsigned int min_dst_y_next_start_optimized);
 
 	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
+	void (*hubp_program_mcache_id_and_split_coordinate)(struct hubp *hubp, struct dml2_hubp_pipe_mcache_regs *mcache_regs);
+	void (*hubp_update_3dlut_fl_bias_scale)(struct hubp *hubp, uint16_t bias, uint16_t scale);
+	void (*hubp_program_3dlut_fl_mode)(struct hubp *hubp,
+			enum hubp_3dlut_fl_mode mode);
+	void (*hubp_program_3dlut_fl_format)(struct hubp *hubp,
+			enum hubp_3dlut_fl_format format);
+	void (*hubp_program_3dlut_fl_addr)(struct hubp *hubp,
+		const struct dc_plane_address address);
+	void (*hubp_program_3dlut_fl_dlg_param)(struct hubp *hubp, int refcyc_per_3dlut_group);
+	void (*hubp_enable_3dlut_fl)(struct hubp *hubp, bool enable);
+	void (*hubp_program_3dlut_fl_addressing_mode)(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode);
+	void (*hubp_program_3dlut_fl_width)(struct hubp *hubp, enum hubp_3dlut_fl_width width);
+	void (*hubp_program_3dlut_fl_tmz_protected)(struct hubp *hubp, bool protection_enabled);
+	void (*hubp_program_3dlut_fl_crossbar)(struct hubp *hubp,
+			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
+			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
+			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r);
+	int (*hubp_get_3dlut_fl_done)(struct hubp *hubp);
+	void (*hubp_clear_tiling)(struct hubp *hubp);
 };
 
 #endif

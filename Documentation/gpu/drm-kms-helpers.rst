@@ -116,9 +116,6 @@ fbdev Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
    :export:
 
-.. kernel-doc:: drivers/gpu/drm/drm_fbdev_generic.c
-   :export:
-
 format Helper Functions Reference
 =================================
 
@@ -175,7 +172,7 @@ Bridge Operations
 Bridge Connector Helper
 -----------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_bridge_connector.c
+.. kernel-doc:: drivers/gpu/drm/display/drm_bridge_connector.c
    :doc: overview
 
 
@@ -198,7 +195,7 @@ MIPI-DSI bridge operation
 Bridge Connector Helper Reference
 ---------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/drm_bridge_connector.c
+.. kernel-doc:: drivers/gpu/drm/display/drm_bridge_connector.c
    :export:
 
 Panel-Bridge Helper Reference
@@ -222,6 +219,9 @@ Panel Helper Reference
    :export:
 
 .. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panel_backlight_quirks.c
    :export:
 
 Panel Self Refresh Helper Reference

@@ -10,7 +10,6 @@
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/platform_data/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
@@ -132,4 +131,5 @@ static struct platform_driver vexpress_sysreg_driver = {
 };
 
 module_platform_driver(vexpress_sysreg_driver);
+MODULE_DESCRIPTION("Versatile Express system registers driver");
 MODULE_LICENSE("GPL v2");

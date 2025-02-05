@@ -70,8 +70,7 @@ config GPIO_SYSFS
 	  ioctl() operations instead.
 
 config GPIO_CDEV
-	bool
-	prompt "Character device (/dev/gpiochipN) support" if EXPERT
+	bool "Character device (/dev/gpiochipN) support" if EXPERT
 	default y
 	help
 	  Say Y here to add the character device /dev/gpiochipN interface
@@ -102,6 +101,15 @@ config GPIO_GENERIC
 config GPIO_REGMAP
 	select REGMAP
 	tristate
+
+config GPIO_SWNODE_UNDEFINED
+	bool
+	help
+	  This adds a special place holder for software nodes to contain an
+	  undefined GPIO reference, this is primarily used by SPI to allow a
+	  list of GPIO chip selects to mark a certain chip select as being
+	  controlled the SPI device's internal chip select mechanism and not
+	  a GPIO.
 
 # put drivers in the right section, in alphabetical order
 
@@ -140,9 +148,7 @@ config GPIO_74XX_MMIO
 
 config GPIO_ALTERA
 	tristate "Altera GPIO"
-	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
-	select OF_GPIO_MM_GPIOCHIP
 	help
 	  Say Y or M here to build support for the Altera PIO device.
 
@@ -210,7 +216,7 @@ config GPIO_BCM_XGS_IPROC
 config GPIO_BRCMSTB
 	tristate "BRCMSTB GPIO support"
 	default y if (ARCH_BRCMSTB || BMIPS_GENERIC)
-	depends on OF_GPIO && (ARCH_BRCMSTB || BMIPS_GENERIC || COMPILE_TEST)
+	depends on OF_GPIO && (ARCH_BRCMSTB || ARCH_BCM2835 || BMIPS_GENERIC || COMPILE_TEST)
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -234,7 +240,7 @@ config GPIO_CLPS711X
 config GPIO_DAVINCI
 	tristate "TI Davinci/Keystone GPIO support"
 	default y if ARCH_DAVINCI
-	depends on (ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)
+	depends on ((ARM || ARM64) && (ARCH_DAVINCI || ARCH_KEYSTONE || ARCH_K3)) || COMPILE_TEST
 	help
 	  Say yes here to enable GPIO support for TI Davinci/Keystone SoCs.
 
@@ -312,9 +318,26 @@ config GPIO_GENERIC_PLATFORM
 	help
 	  Say yes here to support basic platform_device memory-mapped GPIO controllers.
 
+config GPIO_GRANITERAPIDS
+	tristate "Intel Granite Rapids-D vGPIO support"
+	depends on X86 || COMPILE_TEST
+	select GPIOLIB_IRQCHIP
+	help
+	  Select this to enable virtual GPIO support on platforms with the
+	  following SoCs:
+
+	  - Intel Granite Rapids-D
+
+	  The driver enables basic GPIO functionality and implements interrupt
+	  support. The virtual GPIO driver controls GPIO lines via a firmware
+	  interface. The physical GPIO pins reside on device that is external
+	  from the main SoC package, such as a BMC or a CPLD.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called gpio-graniterapids.
+
 config GPIO_GRGPIO
 	tristate "Aeroflex Gaisler GRGPIO support"
-	depends on OF_GPIO
 	select GPIO_GENERIC
 	select IRQ_DOMAIN
 	help
@@ -459,9 +482,9 @@ config GPIO_MT7621
 	  Say yes here to support the Mediatek MT7621 SoC GPIO device.
 
 config GPIO_MVEBU
-	def_bool y
-	depends on PLAT_ORION || ARCH_MVEBU
-	depends on OF_GPIO
+	bool "Marvell Orion and EBU GPIO support" if COMPILE_TEST
+	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
+	default PLAT_ORION || ARCH_MVEBU
 	select GENERIC_IRQ_CHIP
 	select REGMAP_MMIO
 
@@ -506,9 +529,9 @@ config GPIO_OCTEON
 	  family of SOCs.
 
 config GPIO_OMAP
-	tristate "TI OMAP GPIO support" if ARCH_OMAP2PLUS || COMPILE_TEST
+	tristate "TI OMAP GPIO support"
+	depends on ARCH_OMAP || COMPILE_TEST
 	default y if ARCH_OMAP
-	depends on ARM
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB_IRQCHIP
 	help
@@ -521,6 +544,12 @@ config GPIO_PL061
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device.
+
+config GPIO_POLARFIRE_SOC
+	bool "Microchip FPGA GPIO support"
+	select REGMAP_MMIO
+	help
+	  Say yes here to support the GPIO controllers on Microchip FPGAs.
 
 config GPIO_PXA
 	bool "PXA GPIO support"
@@ -687,13 +716,13 @@ config GPIO_TEGRA
 
 config GPIO_TEGRA186
 	tristate "NVIDIA Tegra186 GPIO support"
-	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC
-	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || COMPILE_TEST
+	default ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC
+	depends on ARCH_TEGRA_186_SOC || ARCH_TEGRA_194_SOC || ARCH_TEGRA_234_SOC || COMPILE_TEST
 	depends on OF_GPIO
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Say yes here to support GPIO pins on NVIDIA Tegra186 SoCs.
+	  Say yes here to support GPIO pins on NVIDIA Tegra186, 194 and 234 SoCs.
 
 config GPIO_TS4800
 	tristate "TS-4800 DIO blocks and compatibles"
@@ -769,7 +798,6 @@ config GPIO_XGENE_SB
 config GPIO_XILINX
 	tristate "Xilinx GPIO support"
 	select GPIOLIB_IRQCHIP
-	depends on OF_GPIO
 	help
 	  Say yes here to support the Xilinx FPGA GPIO device.
 
@@ -1206,6 +1234,13 @@ config GPIO_ADP5520
 	  This option enables support for on-chip GPIO found
 	  on Analog Devices ADP5520 PMICs.
 
+config GPIO_ADP5585
+	tristate "GPIO Support for ADP5585"
+	depends on MFD_ADP5585
+	help
+	  This option enables support for the GPIO function found in the Analog
+	  Devices ADP5585.
+
 config GPIO_ALTERA_A10SR
 	tristate "Altera Arria10 System Resource GPIO"
 	depends on MFD_ALTERA_A10SR
@@ -1252,6 +1287,16 @@ config GPIO_BD9571MWV
 
 	  This driver can also be built as a module. If so, the module
 	  will be called gpio-bd9571mwv.
+
+config GPIO_CGBC
+	tristate "Congatec Board Controller GPIO support"
+	depends on MFD_CGBC
+	help
+	  Select this option to enable GPIO support for the Congatec Board
+	  Controller.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called gpio-cgbc.
 
 config GPIO_CROS_EC
 	tristate "ChromeOS EC GPIO support"
@@ -1549,7 +1594,7 @@ config GPIO_TPS68470
 	  are "output only" GPIOs.
 
 config GPIO_TQMX86
-	tristate "TQ-Systems QTMX86 GPIO"
+	tristate "TQ-Systems TQMx86 GPIO"
 	depends on MFD_TQMX86 || COMPILE_TEST
 	depends on HAS_IOPORT_MAP
 	select GPIOLIB_IRQCHIP
@@ -1810,6 +1855,13 @@ config GPIO_VIPERBOARD
 	  River Tech's viperboard.h for detailed meaning
 	  of the module parameters.
 
+config GPIO_MPSSE
+	tristate "FTDI MPSSE GPIO support"
+	select GPIOLIB_IRQCHIP
+	help
+	  GPIO driver for FTDI's MPSSE interface. These can do input and
+	  output. Each MPSSE provides 16 IO pins.
+
 endmenu
 
 menu "Virtual GPIO drivers"
@@ -1861,6 +1913,37 @@ config GPIO_SIM
 	help
 	  This enables the GPIO simulator - a configfs-based GPIO testing
 	  driver.
+
+endmenu
+
+menu "GPIO Debugging utilities"
+
+config GPIO_SLOPPY_LOGIC_ANALYZER
+	tristate "Sloppy GPIO logic analyzer"
+	depends on (GPIOLIB || COMPILE_TEST) && CPUSETS && DEBUG_FS && EXPERT
+	help
+	  This option enables support for a sloppy logic analyzer using polled
+	  GPIOs. Use the 'tools/gpio/gpio-sloppy-logic-analyzer' script with
+	  this driver. The script will make it easier to use and will also
+	  isolate a CPU for the polling task. Note that this is a last resort
+	  analyzer which can be affected by latencies, non-deterministic code
+	  paths, or NMIs. However, for e.g. remote development, it may be useful
+	  to get a first view and aid further debugging.
+
+	  If this driver is built as a module it will be called
+	  'gpio-sloppy-logic-analyzer'.
+
+config GPIO_VIRTUSER
+	tristate "GPIO Virtual User Testing Module"
+	select DEBUG_FS
+	select CONFIGFS_FS
+	select IRQ_WORK
+	help
+	  Say Y here to enable the configurable, configfs-based virtual GPIO
+	  consumer testing driver.
+
+	  This driver is aimed as a helper in spotting any regressions in
+	  hot-unplug handling in GPIOLIB.
 
 endmenu
 

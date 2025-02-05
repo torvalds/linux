@@ -206,6 +206,9 @@ static int ceva_ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 		goto disable_clks;
 
 	for (i = 0; i < hpriv->nports; i++) {
+		if (ahci_ignore_port(hpriv, i))
+			continue;
+
 		rc = phy_init(hpriv->phys[i]);
 		if (rc)
 			goto disable_rsts;
@@ -215,6 +218,9 @@ static int ceva_ahci_platform_enable_resources(struct ahci_host_priv *hpriv)
 	ahci_platform_deassert_rsts(hpriv);
 
 	for (i = 0; i < hpriv->nports; i++) {
+		if (ahci_ignore_port(hpriv, i))
+			continue;
+
 		rc = phy_power_on(hpriv->phys[i]);
 		if (rc) {
 			phy_exit(hpriv->phys[i]);
@@ -402,7 +408,7 @@ MODULE_DEVICE_TABLE(of, ceva_ahci_of_match);
 
 static struct platform_driver ceva_ahci_driver = {
 	.probe = ceva_ahci_probe,
-	.remove_new = ata_platform_remove_one,
+	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = ceva_ahci_of_match,

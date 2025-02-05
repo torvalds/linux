@@ -48,13 +48,14 @@
 #include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/prefetch.h>
+#include <linux/string_choices.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "sl811.h"
 
@@ -98,7 +99,7 @@ static void port_power(struct sl811 *sl811, int is_on)
 	if (sl811->board && sl811->board->port_power) {
 		/* switch VBUS, at 500mA unless hub power budget gets set */
 		dev_dbg(hcd->self.controller, "power %s\n",
-			is_on ? "on" : "off");
+			str_on_off(is_on));
 		sl811->board->port_power(hcd->self.controller, is_on);
 	}
 
@@ -1784,7 +1785,7 @@ sl811h_resume(struct platform_device *dev)
 /* this driver is exported so sl811_cs can depend on it */
 struct platform_driver sl811h_driver = {
 	.probe =	sl811h_probe,
-	.remove_new =	sl811h_remove,
+	.remove =	sl811h_remove,
 
 	.suspend =	sl811h_suspend,
 	.resume =	sl811h_resume,

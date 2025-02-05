@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -26,6 +26,11 @@
 #include "../sof-priv.h"
 #include "hda.h"
 
+static bool persistent_cl_buffer = true;
+module_param(persistent_cl_buffer, bool, 0444);
+MODULE_PARM_DESC(persistent_cl_buffer, "Persistent Code Loader DMA buffer "
+		 "(default = Y, use N to force buffer re-allocation)");
+
 static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
@@ -43,13 +48,14 @@ static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
 	}
 }
 
-struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
-					      unsigned int size, struct snd_dma_buffer *dmab,
-					      int direction)
+struct hdac_ext_stream*
+hda_cl_prepare(struct device *dev, unsigned int format, unsigned int size,
+	       struct snd_dma_buffer *dmab, bool persistent_buffer, int direction,
+	       bool is_iccmax)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
-	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	int ret;
 
 	hext_stream = hda_dsp_stream_get(sdev, direction, 0);
@@ -61,18 +67,26 @@ struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned
 	hstream = &hext_stream->hstream;
 	hstream->substream = NULL;
 
-	/* allocate DMA buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, &pci->dev, size, dmab);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: memory alloc failed: %d\n", ret);
-		goto out_put;
+	/*
+	 * Allocate DMA buffer if it is temporary or if the buffer is intended
+	 * to be persistent but not yet allocated.
+	 * We cannot rely solely on !dmab->area as caller might use a struct on
+	 * stack (when it is temporary) without clearing it to 0.
+	 */
+	if (!persistent_buffer || !dmab->area) {
+		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV_SG, dev, size, dmab);
+		if (ret < 0) {
+			dev_err(sdev->dev, "%s: memory alloc failed: %d\n",
+				__func__, ret);
+			goto out_put;
+		}
 	}
 
 	hstream->period_bytes = 0;/* initialize period_bytes */
 	hstream->format_val = format;
 	hstream->bufsize = size;
 
-	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+	if (is_iccmax) {
 		ret = hda_dsp_iccmax_stream_hw_params(sdev, hext_stream, dmab, NULL);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: iccmax stream prepare failed: %d\n", ret);
@@ -91,10 +105,15 @@ struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned
 
 out_free:
 	snd_dma_free_pages(dmab);
+	dmab->area = NULL;
+	dmab->bytes = 0;
+	hstream->bufsize = 0;
+	hstream->format_val = 0;
 out_put:
 	hda_dsp_stream_put(sdev, direction, hstream->stream_tag);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_NS(hda_cl_prepare, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /*
  * first boot sequence has some extra steps.
@@ -218,16 +237,22 @@ err:
 	kfree(dump_msg);
 	return ret;
 }
+EXPORT_SYMBOL_NS(cl_dsp_init, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
-static int cl_trigger(struct snd_sof_dev *sdev,
-		      struct hdac_ext_stream *hext_stream, int cmd)
+int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int cmd)
 {
+	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	struct sof_intel_hda_stream *hda_stream;
 
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		hda_stream = container_of(hext_stream, struct sof_intel_hda_stream,
+					  hext_stream);
+		reinit_completion(&hda_stream->ioc);
+
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -245,10 +270,12 @@ static int cl_trigger(struct snd_sof_dev *sdev,
 		return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 	}
 }
+EXPORT_SYMBOL_NS(hda_cl_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
-int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
-		   struct hdac_ext_stream *hext_stream)
+int hda_cl_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
+			  bool persistent_buffer, struct hdac_ext_stream *hext_stream)
 {
+	struct snd_sof_dev *sdev =  dev_get_drvdata(dev);
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
 	int ret = 0;
@@ -270,13 +297,20 @@ int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 			  sd_offset + SOF_HDA_ADSP_REG_SD_BDLPU, 0);
 
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, sd_offset, 0);
-	snd_dma_free_pages(dmab);
-	dmab->area = NULL;
-	hstream->bufsize = 0;
-	hstream->format_val = 0;
+
+	if (!persistent_buffer) {
+		snd_dma_free_pages(dmab);
+		dmab->area = NULL;
+		dmab->bytes = 0;
+		hstream->bufsize = 0;
+		hstream->format_val = 0;
+	}
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_cl_cleanup, "SND_SOC_SOF_INTEL_HDA_COMMON");
+
+#define HDA_CL_DMA_IOC_TIMEOUT_MS 500
 
 int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
 {
@@ -285,11 +319,15 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 	unsigned int reg;
 	int ret, status;
 
-	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_START);
+	dev_dbg(sdev->dev, "Code loader DMA starting\n");
+
+	ret = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger start failed\n");
 		return ret;
 	}
+
+	dev_dbg(sdev->dev, "waiting for FW_ENTERED status\n");
 
 	status = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 					chip->rom_status_reg, reg,
@@ -306,13 +344,17 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 		dev_err(sdev->dev,
 			"%s: timeout with rom_status_reg (%#x) read\n",
 			__func__, chip->rom_status_reg);
+	} else {
+		dev_dbg(sdev->dev, "Code loader FW_ENTERED status\n");
 	}
 
-	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
+	ret = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
 		if (!status)
 			status = ret;
+	} else {
+		dev_dbg(sdev->dev, "Code loader DMA stopped\n");
 	}
 
 	return status;
@@ -320,8 +362,8 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 
 int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	struct hdac_ext_stream *iccmax_stream;
-	struct snd_dma_buffer dmab_bdl;
 	int ret, ret1;
 	u8 original_gb;
 
@@ -333,8 +375,9 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	 * Prepare capture stream for ICCMAX. We do not need to store
 	 * the data, so use a buffer of PAGE_SIZE for receiving.
 	 */
-	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, PAGE_SIZE,
-					      &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+	iccmax_stream = hda_cl_prepare(sdev->dev, HDA_CL_STREAM_FORMAT, PAGE_SIZE,
+				       &hda->iccmax_dmab, persistent_cl_buffer,
+				       SNDRV_PCM_STREAM_CAPTURE, true);
 	if (IS_ERR(iccmax_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
 		return PTR_ERR(iccmax_stream);
@@ -346,7 +389,8 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	 * Perform iccmax stream cleanup. This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = hda_cl_cleanup(sdev, &dmab_bdl, iccmax_stream);
+	ret1 = hda_cl_cleanup(sdev->dev, &hda->iccmax_dmab,
+			      persistent_cl_buffer, iccmax_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: ICCMAX stream cleanup failed\n");
 
@@ -361,6 +405,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware_iccmax, "SND_SOC_SOF_INTEL_CNL");
 
 static int hda_dsp_boot_imr(struct snd_sof_dev *sdev)
 {
@@ -387,7 +432,6 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip_info;
 	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
-	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
 	if (hda->imrboot_supported && !sdev->first_boot && !hda->skip_imr_boot) {
@@ -411,23 +455,31 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	stripped_firmware.data = sdev->basefw.fw->data + sdev->basefw.payload_offset;
-	stripped_firmware.size = sdev->basefw.fw->size - sdev->basefw.payload_offset;
-
 	/* init for booting wait */
 	init_waitqueue_head(&sdev->boot_wait);
 
 	/* prepare DMA for code loader stream */
-	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
-					    stripped_firmware.size,
-					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	stripped_firmware.size = sdev->basefw.fw->size - sdev->basefw.payload_offset;
+	hext_stream = hda_cl_prepare(sdev->dev, HDA_CL_STREAM_FORMAT,
+				     stripped_firmware.size,
+				     &hda->cl_dmab, persistent_cl_buffer,
+				     SNDRV_PCM_STREAM_PLAYBACK, false);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
 		return PTR_ERR(hext_stream);
 	}
 
-	memcpy(dmab.area, stripped_firmware.data,
-	       stripped_firmware.size);
+	/*
+	 * Copy the payload to the DMA buffer if it is temporary or if the
+	 * buffer is  persistent but it does not have the basefw payload either
+	 * because this is the first boot and the buffer needs to be initialized,
+	 * or a library got loaded and it replaced the basefw.
+	 */
+	if (!persistent_cl_buffer || !hda->cl_dmab_contains_basefw) {
+		stripped_firmware.data = sdev->basefw.fw->data + sdev->basefw.payload_offset;
+		memcpy(hda->cl_dmab.area, stripped_firmware.data, stripped_firmware.size);
+		hda->cl_dmab_contains_basefw = true;
+	}
 
 	/* try ROM init a few times before giving up */
 	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
@@ -493,7 +545,8 @@ cleanup:
 	 * This should be done even if firmware loading fails.
 	 * If the cleanup also fails, we return the initial error
 	 */
-	ret1 = hda_cl_cleanup(sdev, &dmab, hext_stream);
+	ret1 = hda_cl_cleanup(sdev->dev, &hda->cl_dmab,
+			      persistent_cl_buffer, hext_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "error: Code loader DSP cleanup failed\n");
 
@@ -514,6 +567,7 @@ cleanup:
 
 	return ret;
 }
+EXPORT_SYMBOL_NS(hda_dsp_cl_boot_firmware, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 			      struct sof_ipc4_fw_library *fw_lib, bool reload)
@@ -523,7 +577,6 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	struct hdac_ext_stream *hext_stream;
 	struct firmware stripped_firmware;
 	struct sof_ipc4_msg msg = {};
-	struct snd_dma_buffer dmab;
 	int ret, ret1;
 
 	/* if IMR booting is enabled and fw context is saved for D3 state, skip the loading */
@@ -534,16 +587,28 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	stripped_firmware.data = fw_lib->sof_fw.fw->data + fw_lib->sof_fw.payload_offset;
 	stripped_firmware.size = fw_lib->sof_fw.fw->size - fw_lib->sof_fw.payload_offset;
 
+	/*
+	 * force re-allocation of the cl_dmab if the preserved DMA buffer is
+	 * smaller than what is needed for the library
+	 */
+	if (persistent_cl_buffer && stripped_firmware.size > hda->cl_dmab.bytes) {
+		snd_dma_free_pages(&hda->cl_dmab);
+		hda->cl_dmab.area = NULL;
+		hda->cl_dmab.bytes = 0;
+	}
+
 	/* prepare DMA for code loader stream */
-	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
-					    stripped_firmware.size,
-					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
+	hext_stream = hda_cl_prepare(sdev->dev, HDA_CL_STREAM_FORMAT,
+				     stripped_firmware.size,
+				     &hda->cl_dmab, persistent_cl_buffer,
+				     SNDRV_PCM_STREAM_PLAYBACK, false);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "%s: DMA prepare failed\n", __func__);
 		return PTR_ERR(hext_stream);
 	}
 
-	memcpy(dmab.area, stripped_firmware.data, stripped_firmware.size);
+	memcpy(hda->cl_dmab.area, stripped_firmware.data, stripped_firmware.size);
+	hda->cl_dmab_contains_basefw = false;
 
 	/*
 	 * 1st stage: SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE
@@ -580,7 +645,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 		goto cleanup;
 	}
 
-	ret = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_START);
+	ret = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "%s: DMA trigger start failed\n", __func__);
 		goto cleanup;
@@ -597,7 +662,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
 
 	/* Stop the DMA channel */
-	ret1 = cl_trigger(sdev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
+	ret1 = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "%s: DMA trigger stop failed\n", __func__);
 		if (!ret)
@@ -606,7 +671,8 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 
 cleanup:
 	/* clean up even in case of error and return the first error */
-	ret1 = hda_cl_cleanup(sdev, &dmab, hext_stream);
+	ret1 = hda_cl_cleanup(sdev->dev, &hda->cl_dmab, persistent_cl_buffer,
+			      hext_stream);
 	if (ret1 < 0) {
 		dev_err(sdev->dev, "%s: Code loader DSP cleanup failed\n", __func__);
 
@@ -617,41 +683,7 @@ cleanup:
 
 	return ret;
 }
-
-/* pre fw run operations */
-int hda_dsp_pre_fw_run(struct snd_sof_dev *sdev)
-{
-	/* disable clock gating and power gating */
-	return hda_dsp_ctrl_clock_power_gating(sdev, false);
-}
-
-/* post fw run operations */
-int hda_dsp_post_fw_run(struct snd_sof_dev *sdev)
-{
-	int ret;
-
-	if (sdev->first_boot) {
-		struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
-
-		ret = hda_sdw_startup(sdev);
-		if (ret < 0) {
-			dev_err(sdev->dev,
-				"error: could not startup SoundWire links\n");
-			return ret;
-		}
-
-		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT) &&
-		    (sdev->fw_ready.flags & SOF_IPC_INFO_D3_PERSISTENT ||
-		     sdev->pdata->ipc_type == SOF_IPC_TYPE_4))
-			hdev->imrboot_supported = true;
-	}
-
-	hda_sdw_int_enable(sdev, true);
-
-	/* re-enable clock gating and power gating */
-	return hda_dsp_ctrl_clock_power_gating(sdev, true);
-}
+EXPORT_SYMBOL_NS(hda_dsp_ipc4_load_library, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 					 const struct sof_ext_man_elem_header *hdr)
@@ -690,3 +722,4 @@ int hda_dsp_ext_man_get_cavs_config_data(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_ext_man_get_cavs_config_data, "SND_SOC_SOF_INTEL_HDA_COMMON");

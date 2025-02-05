@@ -37,6 +37,19 @@ EXPORT_SYMBOL(__pmd_frag_nr);
 unsigned long __pmd_frag_size_shift;
 EXPORT_SYMBOL(__pmd_frag_size_shift);
 
+#ifdef CONFIG_KFENCE
+extern bool kfence_early_init;
+static int __init parse_kfence_early_init(char *arg)
+{
+	int val;
+
+	if (get_option(&arg, &val))
+		kfence_early_init = !!val;
+	return 0;
+}
+early_param("kfence.sample_interval", parse_kfence_early_init);
+#endif
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 /*
  * This is called when relaxing access to a hugepage. It's also called in the page
@@ -170,9 +183,21 @@ pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 {
 	unsigned long old_pmd;
 
+	VM_WARN_ON_ONCE(!pmd_present(*pmdp));
 	old_pmd = pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, _PAGE_INVALID);
 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	return __pmd(old_pmd);
+}
+
+pud_t pudp_invalidate(struct vm_area_struct *vma, unsigned long address,
+		      pud_t *pudp)
+{
+	unsigned long old_pud;
+
+	VM_WARN_ON_ONCE(!pud_present(*pudp));
+	old_pud = pud_hugepage_update(vma->vm_mm, address, pudp, _PAGE_PRESENT, _PAGE_INVALID);
+	flush_pud_tlb_range(vma, address, address + HPAGE_PUD_SIZE);
+	return __pud(old_pud);
 }
 
 pmd_t pmdp_huge_get_and_clear_full(struct vm_area_struct *vma,
@@ -258,6 +283,15 @@ pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	pmdv &= _HPAGE_CHG_MASK;
 	return pmd_set_protbits(__pmd(pmdv), newprot);
 }
+
+pud_t pud_modify(pud_t pud, pgprot_t newprot)
+{
+	unsigned long pudv;
+
+	pudv = pud_val(pud);
+	pudv &= _HPAGE_CHG_MASK;
+	return pud_set_protbits(__pud(pudv), newprot);
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
 /* For use by kexec, called with MMU off */
@@ -296,11 +330,7 @@ void __init mmu_partition_table_init(void)
 	unsigned long ptcr;
 
 	/* Initialize the Partition Table with no entries */
-	partition_tb = memblock_alloc(patb_size, patb_size);
-	if (!partition_tb)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, patb_size, patb_size);
-
+	partition_tb = memblock_alloc_or_panic(patb_size, patb_size);
 	ptcr = __pa(partition_tb) | (PATB_SIZE_SHIFT - 12);
 	set_ptcr_when_no_uv(ptcr);
 	powernv_set_nmmu_ptcr(ptcr);
@@ -443,7 +473,7 @@ void pmd_fragment_free(unsigned long *pmd)
 
 	BUG_ON(atomic_read(&ptdesc->pt_frag_refcount) <= 0);
 	if (atomic_dec_and_test(&ptdesc->pt_frag_refcount)) {
-		pagetable_pmd_dtor(ptdesc);
+		pagetable_dtor(ptdesc);
 		pagetable_free(ptdesc);
 	}
 }
@@ -460,18 +490,6 @@ static inline void pgtable_free(void *table, int index)
 	case PUD_INDEX:
 		__pud_free(table);
 		break;
-#if defined(CONFIG_PPC_4K_PAGES) && defined(CONFIG_HUGETLB_PAGE)
-		/* 16M hugepd directory at pud level */
-	case HTLB_16M_INDEX:
-		BUILD_BUG_ON(H_16M_CACHE_INDEX <= 0);
-		kmem_cache_free(PGT_CACHE(H_16M_CACHE_INDEX), table);
-		break;
-		/* 16G hugepd directory at the pgd level */
-	case HTLB_16G_INDEX:
-		BUILD_BUG_ON(H_16G_CACHE_INDEX <= 0);
-		kmem_cache_free(PGT_CACHE(H_16G_CACHE_INDEX), table);
-		break;
-#endif
 		/* We don't free pgd table via RCU callback */
 	default:
 		BUG();

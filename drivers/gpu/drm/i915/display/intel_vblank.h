@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 struct drm_crtc;
+struct drm_display_mode;
 struct intel_crtc;
 struct intel_crtc_state;
 
@@ -18,6 +19,11 @@ struct intel_vblank_evade_ctx {
 	int min, max, vblank_start;
 	bool need_vlv_dsi_wa;
 };
+
+int intel_mode_vdisplay(const struct drm_display_mode *mode);
+int intel_mode_vblank_start(const struct drm_display_mode *mode);
+int intel_mode_vblank_end(const struct drm_display_mode *mode);
+int intel_mode_vtotal(const struct drm_display_mode *mode);
 
 void intel_vblank_evade_init(const struct intel_crtc_state *old_crtc_state,
 			     const struct intel_crtc_state *new_crtc_state,
@@ -34,6 +40,6 @@ void intel_wait_for_pipe_scanline_stopped(struct intel_crtc *crtc);
 void intel_wait_for_pipe_scanline_moving(struct intel_crtc *crtc);
 void intel_crtc_update_active_timings(const struct intel_crtc_state *crtc_state,
 				      bool vrr_enable);
-int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline);
+int intel_crtc_scanline_offset(const struct intel_crtc_state *crtc_state);
 
 #endif /* __INTEL_VBLANK_H__ */

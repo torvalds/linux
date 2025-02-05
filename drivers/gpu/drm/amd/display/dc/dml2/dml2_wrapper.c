@@ -31,6 +31,7 @@
 #include "dml2_translation_helper.h"
 #include "dml2_mall_phantom.h"
 #include "dml2_dc_resource_mgmt.h"
+#include "dml21_wrapper.h"
 
 
 static void initialize_dml2_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
@@ -208,8 +209,6 @@ static bool optimize_configuration(struct dml2_context *dml2, struct dml2_wrappe
 				p->cur_display_config->output.OutputEncoder[0], p->cur_mode_support_info->DSCEnabled[0]) - 1;
 
 			if (odms_needed <= unused_dpps) {
-				unused_dpps -= odms_needed;
-
 				if (odms_needed == 1) {
 					p->new_policy->ODMUse[0] = dml_odm_use_policy_combine_2to1;
 					optimization_done = true;
@@ -441,7 +440,6 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 	bool result = false;
 	int drr_display_index = 0, non_svp_streams = 0;
 	bool force_svp = dml2->config.svp_pstate.force_enable_subvp;
-	bool advanced_pstate_switching = false;
 
 	display_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
 	display_state->bw_ctx.bw.dcn.legacy_svp_drr_stream_index_valid = false;
@@ -450,8 +448,7 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 
 	if (!result) {
 		pstate_optimization_done = true;
-	} else if (!advanced_pstate_switching ||
-		(s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported && !force_svp)) {
+	} else if (s->mode_support_info.DRAMClockChangeSupport[0] != dml_dram_clock_change_unsupported && !force_svp) {
 		pstate_optimization_success = true;
 		pstate_optimization_done = true;
 	}
@@ -534,14 +531,21 @@ static bool optimize_pstate_with_svp_and_drr(struct dml2_context *dml2, struct d
 static bool call_dml_mode_support_and_programming(struct dc_state *context)
 {
 	unsigned int result = 0;
-	unsigned int min_state;
+	unsigned int min_state = 0;
 	int min_state_for_g6_temp_read = 0;
+
+
+	if (!context)
+		return false;
+
 	struct dml2_context *dml2 = context->bw_ctx.dml2;
 	struct dml2_wrapper_scratch *s = &dml2->v20.scratch;
 
-	min_state_for_g6_temp_read = calculate_lowest_supported_state_for_temp_read(dml2, context);
+	if (!context->streams[0]->sink->link->dc->caps.is_apu) {
+		min_state_for_g6_temp_read = calculate_lowest_supported_state_for_temp_read(dml2, context);
 
-	ASSERT(min_state_for_g6_temp_read >= 0);
+		ASSERT(min_state_for_g6_temp_read >= 0);
+	}
 
 	if (!dml2->config.use_native_pstate_optimization) {
 		result = optimize_pstate_with_svp_and_drr(dml2, context);
@@ -552,14 +556,20 @@ static bool call_dml_mode_support_and_programming(struct dc_state *context)
 	/* Upon trying to sett certain frequencies in FRL, min_state_for_g6_temp_read is reported as -1. This leads to an invalid value of min_state causing crashes later on.
 	 * Use the default logic for min_state only when min_state_for_g6_temp_read is a valid value. In other cases, use the value calculated by the DML directly.
 	 */
-	if (min_state_for_g6_temp_read >= 0)
-		min_state = min_state_for_g6_temp_read > s->mode_support_params.out_lowest_state_idx ? min_state_for_g6_temp_read : s->mode_support_params.out_lowest_state_idx;
-	else
-		min_state = s->mode_support_params.out_lowest_state_idx;
+	if (!context->streams[0]->sink->link->dc->caps.is_apu) {
+		if (min_state_for_g6_temp_read >= 0)
+			min_state = min_state_for_g6_temp_read > s->mode_support_params.out_lowest_state_idx ? min_state_for_g6_temp_read : s->mode_support_params.out_lowest_state_idx;
+		else
+			min_state = s->mode_support_params.out_lowest_state_idx;
+	}
 
-	if (result)
-		result = dml_mode_programming(&dml2->v20.dml_core_ctx, min_state, &s->cur_display_config, true);
-
+	if (result) {
+		if (!context->streams[0]->sink->link->dc->caps.is_apu) {
+			result = dml_mode_programming(&dml2->v20.dml_core_ctx, min_state, &s->cur_display_config, true);
+		} else {
+			result = dml_mode_programming(&dml2->v20.dml_core_ctx, s->mode_support_params.out_lowest_state_idx, &s->cur_display_config, true);
+		}
+	}
 	return result;
 }
 
@@ -572,8 +582,21 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	bool need_recalculation = false;
 	uint32_t cstate_enter_plus_exit_z8_ns;
 
-	if (!context || context->stream_count == 0)
+	if (context->stream_count == 0) {
+		unsigned int lowest_state_idx = 0;
+
+		out_clks.p_state_supported = true;
+		out_clks.dispclk_khz = 0; /* No requirement, and lowest index will generally be maximum dispclk. */
+		out_clks.dcfclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dcfclk_mhz * 1000;
+		out_clks.fclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].fabricclk_mhz * 1000;
+		out_clks.uclk_mts = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dram_speed_mts;
+		out_clks.phyclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].phyclk_mhz * 1000;
+		out_clks.socclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].socclk_mhz * 1000;
+		out_clks.ref_dtbclk_khz = (unsigned int)dml2->v20.dml_core_ctx.states.state_array[lowest_state_idx].dtbclk_mhz * 1000;
+		context->bw_ctx.bw.dcn.clk.dtbclk_en = false;
+		dml2_copy_clocks_to_dc_state(&out_clks, context);
 		return true;
+	}
 
 	/* Zero out before each call before proceeding */
 	memset(&dml2->v20.scratch, 0, sizeof(struct dml2_wrapper_scratch));
@@ -658,11 +681,13 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 
 static bool dml2_validate_only(struct dc_state *context)
 {
-	struct dml2_context *dml2 = context->bw_ctx.dml2;
+	struct dml2_context *dml2;
 	unsigned int result = 0;
 
 	if (!context || context->stream_count == 0)
 		return true;
+
+	dml2 = context->bw_ctx.dml2;
 
 	/* Zero out before each call before proceeding */
 	memset(&dml2->v20.scratch, 0, sizeof(struct dml2_wrapper_scratch));
@@ -673,6 +698,8 @@ static bool dml2_validate_only(struct dc_state *context)
 	build_unoptimized_policy_settings(dml2->v20.dml_core_ctx.project, &dml2->v20.dml_core_ctx.policy);
 
 	map_dc_state_into_dml_display_cfg(dml2, context, &dml2->v20.scratch.cur_display_config);
+	 if (!dml2->config.skip_hw_state_mapping)
+		 dml2_apply_det_buffer_allocation_policy(dml2, &dml2->v20.scratch.cur_display_config);
 
 	result = pack_and_call_dml_mode_support_ex(dml2,
 		&dml2->v20.scratch.cur_display_config,
@@ -699,6 +726,11 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2
 		return false;
 	dml2_apply_debug_options(in_dc, dml2);
 
+	/* DML2.1 validation path */
+	if (dml2->architecture == dml2_architecture_21) {
+		out = dml21_validate(in_dc, context, dml2, fast_validate);
+		return out;
+	}
 
 	/* Use dml_validate_only for fast_validate path */
 	if (fast_validate)
@@ -715,6 +747,10 @@ static inline struct dml2_context *dml2_allocate_memory(void)
 
 static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01)) {
+		dml21_reinit(in_dc, dml2, config);
+		return;
+	}
 
 	// Store config options
 	(*dml2)->config = *config;
@@ -732,6 +768,9 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 	case DCN_VERSION_3_21:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn321;
 		break;
+	case DCN_VERSION_4_01:
+		(*dml2)->v20.dml_core_ctx.project = dml_project_dcn401;
+		break;
 	default:
 		(*dml2)->v20.dml_core_ctx.project = dml_project_default;
 		break;
@@ -746,6 +785,9 @@ static void dml2_init(const struct dc *in_dc, const struct dml2_configuration_op
 
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01))
+		return dml21_create(in_dc, dml2, config);
+
 	// Allocate Mode Lib Ctx
 	*dml2 = dml2_allocate_memory();
 
@@ -762,6 +804,8 @@ void dml2_destroy(struct dml2_context *dml2)
 	if (!dml2)
 		return;
 
+	if (dml2->architecture == dml2_architecture_21)
+		dml21_destroy(dml2);
 	kfree(dml2);
 }
 
@@ -772,9 +816,19 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 	*dram_clk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.DRAMClockChangeSupport[0];
 }
 
+void dml2_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2)
+{
+	if (dml2->architecture == dml2_architecture_21)
+		dml21_prepare_mcache_programming(in_dc, context, dml2);
+}
+
 void dml2_copy(struct dml2_context *dst_dml2,
 	struct dml2_context *src_dml2)
 {
+	if (src_dml2->architecture == dml2_architecture_21) {
+		dml21_copy(dst_dml2, src_dml2);
+		return;
+	}
 	/* copy Mode Lib Ctx */
 	memcpy(dst_dml2, src_dml2, sizeof(struct dml2_context));
 }
@@ -782,6 +836,8 @@ void dml2_copy(struct dml2_context *dst_dml2,
 bool dml2_create_copy(struct dml2_context **dst_dml2,
 	struct dml2_context *src_dml2)
 {
+	if (src_dml2->architecture == dml2_architecture_21)
+		return dml21_create_copy(dst_dml2, src_dml2);
 	/* Allocate Mode Lib Ctx */
 	*dst_dml2 = dml2_allocate_memory();
 
@@ -798,6 +854,10 @@ void dml2_reinit(const struct dc *in_dc,
 				 const struct dml2_configuration_options *config,
 				 struct dml2_context **dml2)
 {
+	if ((in_dc->debug.using_dml21) && (in_dc->ctx->dce_version == DCN_VERSION_4_01)) {
+		dml21_reinit(in_dc, dml2, config);
+		return;
+	}
 
 	dml2_init(in_dc, config, dml2);
 }

@@ -75,7 +75,7 @@ TRACE_EVENT(802154_rdev_add_virtual_intf,
 	),
 	TP_fast_assign(
 		WPAN_PHY_ASSIGN;
-		__assign_str(vir_intf_name, name ? name : "<noname>");
+		__assign_str(vir_intf_name);
 		__entry->type = type;
 		__entry->extended_addr = extended_addr;
 	),

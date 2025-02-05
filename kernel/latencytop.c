@@ -65,7 +65,7 @@ static struct latency_record latency_record[MAXLR];
 int latencytop_enabled;
 
 #ifdef CONFIG_SYSCTL
-static int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
+static int sysctl_latencytop(const struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos)
 {
 	int err;
@@ -77,7 +77,7 @@ static int sysctl_latencytop(struct ctl_table *table, int write, void *buffer,
 	return err;
 }
 
-static struct ctl_table latencytop_sysctl[] = {
+static const struct ctl_table latencytop_sysctl[] = {
 	{
 		.procname   = "latencytop",
 		.data       = &latencytop_enabled,
@@ -85,7 +85,6 @@ static struct ctl_table latencytop_sysctl[] = {
 		.mode       = 0644,
 		.proc_handler   = sysctl_latencytop,
 	},
-	{}
 };
 #endif
 
@@ -159,9 +158,9 @@ account_global_scheduler_latency(struct task_struct *tsk,
 
 /**
  * __account_scheduler_latency - record an occurred latency
- * @tsk - the task struct of the task hitting the latency
- * @usecs - the duration of the latency in microseconds
- * @inter - 1 if the sleep was interruptible, 0 if uninterruptible
+ * @tsk: the task struct of the task hitting the latency
+ * @usecs: the duration of the latency in microseconds
+ * @inter: 1 if the sleep was interruptible, 0 if uninterruptible
  *
  * This function is the main entry point for recording latency entries
  * as called by the scheduler.

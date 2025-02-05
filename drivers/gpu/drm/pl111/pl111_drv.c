@@ -45,6 +45,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_drv.h>
@@ -219,12 +220,12 @@ static const struct drm_driver pl111_drm_driver = {
 	.fops = &drm_fops,
 	.name = "pl111",
 	.desc = DRIVER_DESC,
-	.date = "20170317",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
 	.dumb_create = drm_gem_dma_dumb_create,
 	.gem_prime_import_sg_table = pl111_gem_import_sg_table,
+	DRM_FBDEV_DMA_DRIVER_OPS,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = pl111_debugfs_init,
@@ -305,7 +306,7 @@ static int pl111_amba_probe(struct amba_device *amba_dev,
 	if (ret < 0)
 		goto dev_put;
 
-	drm_fbdev_dma_setup(drm, priv->variant->fb_depth);
+	drm_client_setup_with_color_mode(drm, priv->variant->fb_depth);
 
 	return 0;
 

@@ -245,7 +245,6 @@ static void sclp_request_timeout(bool force_restart);
 static void sclp_process_queue(void);
 static void __sclp_make_read_req(void);
 static int sclp_init_mask(int calculate);
-static int sclp_init(void);
 
 static void
 __sclp_queue_read_req(void)
@@ -736,7 +735,7 @@ sclp_sync_wait(void)
 	cr0_sync.val = cr0.val & ~CR0_IRQ_SUBCLASS_MASK;
 	cr0_sync.val |= 1UL << (63 - 54);
 	local_ctl_load(0, &cr0_sync);
-	__arch_local_irq_stosm(0x01);
+	arch_local_irq_enable_external();
 	/* Loop until driver state indicates finished request */
 	while (sclp_running_state != sclp_running_state_idle) {
 		/* Check for expired request timer */
@@ -1195,7 +1194,8 @@ sclp_reboot_event(struct notifier_block *this, unsigned long event, void *ptr)
 }
 
 static struct notifier_block sclp_reboot_notifier = {
-	.notifier_call = sclp_reboot_event
+	.notifier_call = sclp_reboot_event,
+	.priority      = INT_MIN,
 };
 
 static ssize_t con_pages_show(struct device_driver *dev, char *buf)
@@ -1250,8 +1250,7 @@ static struct platform_driver sclp_pdrv = {
 
 /* Initialize SCLP driver. Return zero if driver is operational, non-zero
  * otherwise. */
-static int
-sclp_init(void)
+int sclp_init(void)
 {
 	unsigned long flags;
 	int rc = 0;
@@ -1293,6 +1292,7 @@ sclp_init(void)
 fail_unregister_reboot_notifier:
 	unregister_reboot_notifier(&sclp_reboot_notifier);
 fail_init_state_uninitialized:
+	list_del(&sclp_state_change_event.list);
 	sclp_init_state = sclp_init_state_uninitialized;
 	free_page((unsigned long) sclp_read_sccb);
 	free_page((unsigned long) sclp_init_sccb);
@@ -1303,13 +1303,7 @@ fail_unlock:
 
 static __init int sclp_initcall(void)
 {
-	int rc;
-
-	rc = platform_driver_register(&sclp_pdrv);
-	if (rc)
-		return rc;
-
-	return sclp_init();
+	return platform_driver_register(&sclp_pdrv);
 }
 
 arch_initcall(sclp_initcall);

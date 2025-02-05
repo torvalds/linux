@@ -356,4 +356,5 @@ module_spi_driver(nt39016_driver);
 
 MODULE_AUTHOR("Maarten ter Huurne <maarten@treewalker.org>");
 MODULE_AUTHOR("Paul Cercueil <paul@crapouillou.net>");
+MODULE_DESCRIPTION("Novatek NT39016 TFT LCD panel driver");
 MODULE_LICENSE("GPL v2");

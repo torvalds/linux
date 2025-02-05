@@ -1,23 +1,29 @@
 # SPDX-License-Identifier: GPL-2.0
-ccflags-y := -I $(srctree)/$(src)
+ccflags-y := -I $(src)
 ccflags-y += -I $(obj)/generated
-ccflags-y += -I $(srctree)/$(src)/disp/dpu1
-ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
-ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
+ccflags-y += -I $(src)/disp/dpu1
+ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(src)/dsi
+ccflags-$(CONFIG_DRM_MSM_DP) += -I $(src)/dp
 
 adreno-y := \
 	adreno/adreno_device.o \
 	adreno/adreno_gpu.o \
+	adreno/a2xx_catalog.o \
 	adreno/a2xx_gpu.o \
 	adreno/a2xx_gpummu.o \
+	adreno/a3xx_catalog.o \
 	adreno/a3xx_gpu.o \
+	adreno/a4xx_catalog.o \
 	adreno/a4xx_gpu.o \
+	adreno/a5xx_catalog.o \
 	adreno/a5xx_gpu.o \
 	adreno/a5xx_power.o \
 	adreno/a5xx_preempt.o \
+	adreno/a6xx_catalog.o \
 	adreno/a6xx_gpu.o \
 	adreno/a6xx_gmu.o \
 	adreno/a6xx_hfi.o \
+	adreno/a6xx_preempt.o \
 
 adreno-$(CONFIG_DEBUG_FS) += adreno/a5xx_debugfs.o \
 
@@ -32,6 +38,7 @@ msm-display-$(CONFIG_DRM_MSM_HDMI) += \
 	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
 	hdmi/hdmi_phy_8996.o \
+	hdmi/hdmi_phy_8998.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
 	hdmi/hdmi_pll_8960.o \
@@ -71,6 +78,7 @@ msm-display-$(CONFIG_DRM_MSM_DPU) += \
 	disp/dpu1/dpu_hw_catalog.o \
 	disp/dpu1/dpu_hw_cdm.o \
 	disp/dpu1/dpu_hw_ctl.o \
+	disp/dpu1/dpu_hw_cwb.o \
 	disp/dpu1/dpu_hw_dsc.o \
 	disp/dpu1/dpu_hw_dsc_1_2.o \
 	disp/dpu1/dpu_hw_interrupts.o \
@@ -163,8 +171,8 @@ else
 endif
 
 quiet_cmd_headergen = GENHDR  $@
-      cmd_headergen = mkdir -p $(obj)/generated && $(PYTHON3) $(srctree)/$(src)/registers/gen_header.py \
-		      $(headergen-opts) --rnn $(srctree)/$(src)/registers --xml $< c-defines > $@
+      cmd_headergen = mkdir -p $(obj)/generated && $(PYTHON3) $(src)/registers/gen_header.py \
+		      $(headergen-opts) --rnn $(src)/registers --xml $< c-defines > $@
 
 $(obj)/generated/%.xml.h: $(src)/registers/adreno/%.xml \
 		$(src)/registers/adreno/adreno_common.xml \
@@ -204,6 +212,7 @@ DISPLAY_HEADERS = \
 	generated/mdp4.xml.h \
 	generated/mdp5.xml.h \
 	generated/mdp_common.xml.h \
+	generated/mdss.xml.h \
 	generated/sfpb.xml.h
 
 $(addprefix $(obj)/,$(adreno-y)): $(addprefix $(obj)/,$(ADRENO_HEADERS))

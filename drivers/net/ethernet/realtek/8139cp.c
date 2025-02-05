@@ -1277,14 +1277,14 @@ static int cp_change_mtu(struct net_device *dev, int new_mtu)
 
 	/* if network interface not up, no need for complexity */
 	if (!netif_running(dev)) {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		cp_set_rxbufsize(cp);	/* set new rx buf size */
 		return 0;
 	}
 
 	/* network IS up, close it, reset MTU, and come up again. */
 	cp_close(dev);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	cp_set_rxbufsize(cp);
 	return cp_open(dev);
 }

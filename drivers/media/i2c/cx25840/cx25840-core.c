@@ -3964,7 +3964,7 @@ static void cx25840_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cx25840_id[] = {
-	{ "cx25840", 0 },
+	{ "cx25840" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, cx25840_id);

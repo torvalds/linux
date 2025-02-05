@@ -28,11 +28,11 @@
 #define IONIC_DEV_INFO_REG_COUNT	32
 #define IONIC_DEV_CMD_REG_COUNT		32
 
-#define IONIC_NAPI_DEADLINE		(HZ / 200)	/* 5ms */
+#define IONIC_NAPI_DEADLINE		(HZ)		/* 1 sec */
 #define IONIC_ADMIN_DOORBELL_DEADLINE	(HZ / 2)	/* 500ms */
 #define IONIC_TX_DOORBELL_DEADLINE	(HZ / 100)	/* 10ms */
 #define IONIC_RX_MIN_DOORBELL_DEADLINE	(HZ / 100)	/* 10ms */
-#define IONIC_RX_MAX_DOORBELL_DEADLINE	(HZ * 5)	/* 5s */
+#define IONIC_RX_MAX_DOORBELL_DEADLINE	(HZ * 4)	/* 4s */
 
 struct ionic_dev_bar {
 	void __iomem *vaddr;
@@ -181,10 +181,7 @@ struct ionic_queue;
 struct ionic_qcq;
 
 #define IONIC_MAX_BUF_LEN			((u16)-1)
-#define IONIC_PAGE_SIZE				PAGE_SIZE
-#define IONIC_PAGE_SPLIT_SZ			(PAGE_SIZE / 2)
-#define IONIC_PAGE_GFP_MASK			(GFP_ATOMIC | __GFP_NOWARN |\
-						 __GFP_COMP | __GFP_MEMALLOC)
+#define IONIC_PAGE_SIZE				MIN(PAGE_SIZE, IONIC_MAX_BUF_LEN)
 
 #define IONIC_XDP_MAX_LINEAR_MTU	(IONIC_PAGE_SIZE -	\
 					 (VLAN_ETH_HLEN +	\
@@ -238,9 +235,8 @@ struct ionic_queue {
 	unsigned int index;
 	unsigned int num_descs;
 	unsigned int max_sg_elems;
+
 	u64 features;
-	unsigned int type;
-	unsigned int hw_index;
 	unsigned int hw_type;
 	bool xdp_flush;
 	union {
@@ -250,18 +246,23 @@ struct ionic_queue {
 		struct ionic_admin_cmd *adminq;
 	};
 	union {
-		void __iomem *cmb_base;
-		struct ionic_txq_desc __iomem *cmb_txq;
-		struct ionic_rxq_desc __iomem *cmb_rxq;
-	};
-	union {
 		void *sg_base;
 		struct ionic_txq_sg_desc *txq_sgl;
 		struct ionic_txq_sg_desc_v1 *txq_sgl_v1;
 		struct ionic_rxq_sg_desc *rxq_sgl;
 	};
 	struct xdp_rxq_info *xdp_rxq_info;
+	struct bpf_prog *xdp_prog;
+	struct page_pool *page_pool;
 	struct ionic_queue *partner;
+
+	union {
+		void __iomem *cmb_base;
+		struct ionic_txq_desc __iomem *cmb_txq;
+		struct ionic_rxq_desc __iomem *cmb_rxq;
+	};
+	unsigned int type;
+	unsigned int hw_index;
 	dma_addr_t base_pa;
 	dma_addr_t cmb_base_pa;
 	dma_addr_t sg_base_pa;
@@ -280,9 +281,9 @@ struct ionic_intr_info {
 	u64 rearm_count;
 	unsigned int index;
 	unsigned int vector;
-	unsigned int cpu;
 	u32 dim_coal_hw;
-	cpumask_t affinity_mask;
+	cpumask_var_t *affinity_mask;
+	struct irq_affinity_notify aff_notify;
 };
 
 struct ionic_cq {
@@ -375,7 +376,9 @@ typedef void (*ionic_cq_done_cb)(void *done_arg);
 unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			      ionic_cq_cb cb, ionic_cq_done_cb done_cb,
 			      void *done_arg);
-unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do);
+unsigned int ionic_tx_cq_service(struct ionic_cq *cq,
+				 unsigned int work_to_do,
+				 bool in_napi);
 
 int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,
@@ -386,6 +389,8 @@ bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos);
 
 int ionic_heartbeat_check(struct ionic *ionic);
 bool ionic_is_fw_running(struct ionic_dev *idev);
+void ionic_doorbell_napi_work(struct work_struct *work);
+void ionic_queue_doorbell_check(struct ionic *ionic, int delay);
 
 bool ionic_adminq_poke_doorbell(struct ionic_queue *q);
 bool ionic_txq_poke_doorbell(struct ionic_queue *q);

@@ -25,10 +25,16 @@ extern void __init early_iounmap(void __iomem *addr, unsigned long size);
 static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 					 unsigned long prot_val)
 {
-	if (prot_val & _CACHE_CC)
+	switch (prot_val & _CACHE_MASK) {
+	case _CACHE_CC:
 		return (void __iomem *)(unsigned long)(CACHE_BASE + offset);
-	else
+	case _CACHE_SUC:
 		return (void __iomem *)(unsigned long)(UNCACHE_BASE + offset);
+	case _CACHE_WUC:
+		return (void __iomem *)(unsigned long)(WRITECOMBINE_BASE + offset);
+	default:
+		return NULL;
+	}
 }
 
 #define ioremap(offset, size)		\
@@ -55,16 +61,6 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
 	ioremap_prot((offset), (size), pgprot_val(PAGE_KERNEL))
 
 #define mmiowb() wmb()
-
-/*
- * String version of I/O memory access operations.
- */
-extern void __memset_io(volatile void __iomem *dst, int c, size_t count);
-extern void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count);
-extern void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count);
-#define memset_io(c, v, l)     __memset_io((c), (v), (l))
-#define memcpy_fromio(a, c, l) __memcpy_fromio((a), (c), (l))
-#define memcpy_toio(c, a, l)   __memcpy_toio((c), (a), (l))
 
 #define __io_aw() mmiowb()
 

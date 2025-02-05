@@ -2,6 +2,9 @@
 #ifndef __BPF_TRACING_NET_H__
 #define __BPF_TRACING_NET_H__
 
+#include <vmlinux.h>
+#include <bpf/bpf_core_read.h>
+
 #define AF_INET			2
 #define AF_INET6		10
 
@@ -22,6 +25,7 @@
 
 #define IP_TOS			1
 
+#define SOL_IPV6		41
 #define IPV6_TCLASS		67
 #define IPV6_AUTOFLOWLABEL	70
 
@@ -45,6 +49,13 @@
 #define TCP_SAVED_SYN		28
 #define TCP_CA_NAME_MAX		16
 #define TCP_NAGLE_OFF		1
+
+#define TCP_ECN_OK              1
+#define TCP_ECN_QUEUE_CWR       2
+#define TCP_ECN_DEMAND_CWR      4
+#define TCP_ECN_SEEN            8
+
+#define TCP_CONG_NEEDS_ECN     0x2
 
 #define ICSK_TIME_RETRANS	1
 #define ICSK_TIME_PROBE0	3
@@ -79,6 +90,14 @@
 
 #define TCP_INFINITE_SSTHRESH	0x7fffffff
 #define TCP_PINGPONG_THRESH	3
+
+#define FLAG_DATA_ACKED 0x04 /* This ACK acknowledged new data.		*/
+#define FLAG_SYN_ACKED 0x10 /* This ACK acknowledged SYN.		*/
+#define FLAG_DATA_SACKED 0x20 /* New SACK.				*/
+#define FLAG_SND_UNA_ADVANCED \
+	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
+#define FLAG_ACKED (FLAG_DATA_ACKED | FLAG_SYN_ACKED)
+#define FLAG_FORWARD_PROGRESS (FLAG_ACKED | FLAG_DATA_SACKED)
 
 #define fib_nh_dev		nh_common.nhc_dev
 #define fib_nh_gw_family	nh_common.nhc_gw_family
@@ -118,5 +137,38 @@
 #define tw_refcnt		__tw_common.skc_refcnt
 #define tw_v6_daddr		__tw_common.skc_v6_daddr
 #define tw_v6_rcv_saddr		__tw_common.skc_v6_rcv_saddr
+
+#define tcp_jiffies32 ((__u32)bpf_jiffies64())
+
+static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
+{
+	return (struct inet_connection_sock *)sk;
+}
+
+static inline void *inet_csk_ca(const struct sock *sk)
+{
+	return (void *)inet_csk(sk)->icsk_ca_priv;
+}
+
+static inline struct tcp_sock *tcp_sk(const struct sock *sk)
+{
+	return (struct tcp_sock *)sk;
+}
+
+static inline bool tcp_in_slow_start(const struct tcp_sock *tp)
+{
+	return tp->snd_cwnd < tp->snd_ssthresh;
+}
+
+static inline bool tcp_is_cwnd_limited(const struct sock *sk)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+
+	/* If in slow start, ensure cwnd grows to twice what was ACKed. */
+	if (tcp_in_slow_start(tp))
+		return tp->snd_cwnd < 2 * tp->max_packets_out;
+
+	return !!BPF_CORE_READ_BITFIELD(tp, is_cwnd_limited);
+}
 
 #endif

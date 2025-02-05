@@ -42,12 +42,14 @@ enum loongson_cpu_type {
 	Legacy_1B = 0x5,
 	Legacy_2G = 0x6,
 	Legacy_2H = 0x7,
+	Legacy_2K = 0x8,
 	Loongson_1A = 0x100,
 	Loongson_1B = 0x101,
 	Loongson_2E = 0x200,
 	Loongson_2F = 0x201,
 	Loongson_2G = 0x202,
 	Loongson_2H = 0x203,
+	Loongson_2K = 0x204,
 	Loongson_3A = 0x300,
 	Loongson_3B = 0x301
 };
@@ -126,10 +128,10 @@ struct irq_source_routing_table {
 } __packed;
 
 struct interface_info {
-	u16 vers; /* version of the specificition */
-	u16 size;
-	u8  flag;
-	char description[64];
+	u16 vers; /* version of the specification */
+	u16 size; /* size of this interface */
+	u8  flag; /* used or unused */
+	char description[64]; /* description for each change */
 } __packed;
 
 #define MAX_RESOURCE_NUMBER 128

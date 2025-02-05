@@ -240,7 +240,7 @@ static int max8649_regulator_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max8649_id[] = {
-	{ "max8649", 0 },
+	{ "max8649" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max8649_id);

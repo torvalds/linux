@@ -158,7 +158,7 @@ static const struct of_device_id mp5990_of_match[] = {
 };
 
 static const struct i2c_device_id mp5990_id[] = {
-	{"mp5990", 0},
+	{"mp5990"},
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp5990_id);
@@ -176,4 +176,4 @@ module_i2c_driver(mp5990_driver);
 MODULE_AUTHOR("Peter Yin <peter.yin@quantatw.com>");
 MODULE_DESCRIPTION("PMBus driver for MP5990 HSC");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

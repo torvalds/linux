@@ -38,12 +38,6 @@
 #define FN(reg_name, field_name) \
 	optc1->tg_shift->field_name, optc1->tg_mask->field_name
 
-/*TEMP: Need to figure out inheritance model here.*/
-bool optc201_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
-{
-	return optc1_is_two_pixels_per_containter(timing);
-}
-
 static void optc201_triplebuffer_lock(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -185,6 +179,7 @@ static struct timing_generator_funcs dcn201_tg_funcs = {
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn201_timing_generator_init(struct optc *optc1)

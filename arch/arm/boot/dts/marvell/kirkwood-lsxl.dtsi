@@ -107,24 +107,22 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		pinctrl-0 = <&pmx_button_function &pmx_power_switch
 			     &pmx_power_auto_switch>;
 		pinctrl-names = "default";
 
-		option {
+		button-option {
 			label = "Function Button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio1 9 GPIO_ACTIVE_LOW>;
 		};
-		reserved {
+		button-reserved {
 			label = "Power-on Switch";
 			linux,code = <KEY_RESERVED>;
 			linux,input-type = <5>;
 			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
 		};
-		power {
+		button-power {
 			label = "Power-auto Switch";
 			linux,code = <KEY_ESC>;
 			linux,input-type = <5>;
@@ -139,28 +137,28 @@
 			     &pmx_led_function_blue>;
 		pinctrl-names = "default";
 
-		func_blue {
+		led-func-blue {
 			label = "lsxl:blue:func";
 			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
 		};
 
-		alarm {
+		led-alarm {
 			label = "lsxl:red:alarm";
 			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 		};
 
-		info {
+		led-info {
 			label = "lsxl:amber:info";
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 		};
 
-		power {
+		led-power {
 			label = "lsxl:blue:power";
 			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
 
-		func_red {
+		led-func-red {
 			label = "lsxl:red:func";
 			gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
 		};

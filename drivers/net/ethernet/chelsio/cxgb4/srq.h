@@ -58,8 +58,6 @@ struct srq_data {
 };
 
 struct srq_data *t4_init_srq(int srq_size);
-int cxgb4_get_srq_entry(struct net_device *dev,
-			int srq_idx, struct srq_entry *entryp);
 void do_srq_table_rpl(struct adapter *adap,
 		      const struct cpl_srq_table_rpl *rpl);
 #endif  /* __CXGB4_SRQ_H */

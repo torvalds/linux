@@ -336,9 +336,9 @@ static u32 pasemi_smb_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm smbus_algorithm = {
-	.master_xfer	= pasemi_i2c_xfer,
-	.smbus_xfer	= pasemi_smb_xfer,
-	.functionality	= pasemi_smb_func,
+	.xfer = pasemi_i2c_xfer,
+	.smbus_xfer = pasemi_smb_xfer,
+	.functionality = pasemi_smb_func,
 };
 
 int pasemi_i2c_common_probe(struct pasemi_smbus *smbus)

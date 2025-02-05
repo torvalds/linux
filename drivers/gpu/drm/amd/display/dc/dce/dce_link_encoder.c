@@ -1361,7 +1361,10 @@ void dce110_link_encoder_dp_set_lane_settings(
 		cntl.lane_settings = training_lane_set.raw;
 
 		/* call VBIOS table to set voltage swing and pre-emphasis */
-		link_transmitter_control(enc110, &cntl);
+		if (link_transmitter_control(enc110, &cntl) != BP_RESULT_OK) {
+			DC_LOG_ERROR("%s: Failed to execute VBIOS command table!\n", __func__);
+			BREAK_TO_DEBUGGER();
+		}
 	}
 }
 

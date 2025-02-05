@@ -390,7 +390,7 @@ static SIMPLE_DEV_PM_OPS(usb3503_platform_pm_ops, usb3503_platform_suspend,
 		usb3503_platform_resume);
 
 static const struct i2c_device_id usb3503_id[] = {
-	{ USB3503_I2C_NAME, 0 },
+	{ USB3503_I2C_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, usb3503_id);
@@ -423,7 +423,7 @@ static struct platform_driver usb3503_platform_driver = {
 		.pm = pm_ptr(&usb3503_platform_pm_ops),
 	},
 	.probe		= usb3503_platform_probe,
-	.remove_new	= usb3503_platform_remove,
+	.remove		= usb3503_platform_remove,
 };
 
 static int __init usb3503_init(void)

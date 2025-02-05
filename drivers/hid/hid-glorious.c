@@ -26,7 +26,7 @@ MODULE_DESCRIPTION("HID driver for Glorious PC Gaming Race mice");
  * keyboard HID report, causing keycodes to be misinterpreted.
  * Fix this by setting Usage Minimum to 0 in that report.
  */
-static __u8 *glorious_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *glorious_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize == 213 &&

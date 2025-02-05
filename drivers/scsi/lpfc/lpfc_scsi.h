@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -24,6 +24,7 @@
 
 struct lpfc_hba;
 #define LPFC_FCP_CDB_LEN 16
+#define LPFC_FCP_CDB_LEN_32 32
 
 #define list_remove_head(list, entry, type, member)		\
 	do {							\
@@ -99,17 +100,11 @@ struct fcp_rsp {
 #define SNSCOD_BADCMD 0x20	/* sense code is byte 13 ([12]) */
 };
 
-struct fcp_cmnd {
-	struct scsi_lun  fcp_lun;
-
-	uint8_t fcpCntl0;	/* FCP_CNTL byte 0 (reserved) */
-	uint8_t fcpCntl1;	/* FCP_CNTL byte 1 task codes */
 #define  SIMPLE_Q        0x00
 #define  HEAD_OF_Q       0x01
 #define  ORDERED_Q       0x02
 #define  ACA_Q           0x04
 #define  UNTAGGED        0x05
-	uint8_t fcpCntl2;	/* FCP_CTL byte 2 task management codes */
 #define  FCP_ABORT_TASK_SET  0x02	/* Bit 1 */
 #define  FCP_CLEAR_TASK_SET  0x04	/* bit 2 */
 #define  FCP_BUS_RESET       0x08	/* bit 3 */
@@ -117,12 +112,31 @@ struct fcp_cmnd {
 #define  FCP_TARGET_RESET    0x20	/* bit 5 */
 #define  FCP_CLEAR_ACA       0x40	/* bit 6 */
 #define  FCP_TERMINATE_TASK  0x80	/* bit 7 */
-	uint8_t fcpCntl3;
 #define  WRITE_DATA      0x01	/* Bit 0 */
 #define  READ_DATA       0x02	/* Bit 1 */
 
+struct fcp_cmnd {
+	struct scsi_lun  fcp_lun;
+
+	uint8_t fcpCntl0;	/* FCP_CNTL byte 0 (reserved) */
+	uint8_t fcpCntl1;	/* FCP_CNTL byte 1 task codes */
+	uint8_t fcpCntl2;	/* FCP_CTL byte 2 task management codes */
+	uint8_t fcpCntl3;
+
 	uint8_t fcpCdb[LPFC_FCP_CDB_LEN]; /* SRB cdb field is copied here */
-	uint32_t fcpDl;		/* Total transfer length */
+	__be32 fcpDl;		/* Total transfer length */
+
+};
+struct fcp_cmnd32 {
+	struct scsi_lun  fcp_lun;
+
+	uint8_t fcpCntl0;	/* FCP_CNTL byte 0 (reserved) */
+	uint8_t fcpCntl1;	/* FCP_CNTL byte 1 task codes */
+	uint8_t fcpCntl2;	/* FCP_CTL byte 2 task management codes */
+	uint8_t fcpCntl3;
+
+	uint8_t fcpCdb[LPFC_FCP_CDB_LEN_32]; /* SRB cdb field is copied here */
+	__be32 fcpDl;		/* Total transfer length */
 
 };
 

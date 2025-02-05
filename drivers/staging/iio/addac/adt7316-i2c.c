@@ -109,12 +109,12 @@ static int adt7316_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7316_i2c_id[] = {
-	{ "adt7316", 0 },
-	{ "adt7317", 0 },
-	{ "adt7318", 0 },
-	{ "adt7516", 0 },
-	{ "adt7517", 0 },
-	{ "adt7519", 0 },
+	{ "adt7316" },
+	{ "adt7317" },
+	{ "adt7318" },
+	{ "adt7516" },
+	{ "adt7517" },
+	{ "adt7519" },
 	{ }
 };
 

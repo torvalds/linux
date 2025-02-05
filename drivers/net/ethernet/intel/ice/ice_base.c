@@ -121,7 +121,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->irq.index = -ENOENT;
 
 	if (vsi->type == ICE_VSI_VF) {
-		q_vector->reg_idx = ice_calc_vf_reg_idx(vsi->vf, q_vector);
+		ice_calc_vf_reg_idx(vsi->vf, q_vector);
 		goto out;
 	} else if (vsi->type == ICE_VSI_CTRL && vsi->vf) {
 		struct ice_vsi *ctrl_vsi = ice_get_vf_ctrl_vsi(pf, vsi);
@@ -145,6 +145,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 
 skip_alloc:
 	q_vector->reg_idx = q_vector->irq.index;
+	q_vector->vf_reg_idx = q_vector->irq.index;
 
 	/* only set affinity_mask if the CPU is online */
 	if (cpu_online(v_idx))
@@ -155,7 +156,8 @@ skip_alloc:
 	 * handler here (i.e. resume, reset/rebuild, etc.)
 	 */
 	if (vsi->netdev)
-		netif_napi_add(vsi->netdev, &q_vector->napi, ice_napi_poll);
+		netif_napi_add_config(vsi->netdev, &q_vector->napi,
+				      ice_napi_poll, v_idx);
 
 out:
 	/* tie q_vector and VSI together */
@@ -189,16 +191,11 @@ static void ice_free_q_vector(struct ice_vsi *vsi, int v_idx)
 	}
 	q_vector = vsi->q_vectors[v_idx];
 
-	ice_for_each_tx_ring(tx_ring, q_vector->tx) {
-		ice_queue_set_napi(vsi, tx_ring->q_index, NETDEV_QUEUE_TYPE_TX,
-				   NULL);
+	ice_for_each_tx_ring(tx_ring, vsi->q_vectors[v_idx]->tx)
 		tx_ring->q_vector = NULL;
-	}
-	ice_for_each_rx_ring(rx_ring, q_vector->rx) {
-		ice_queue_set_napi(vsi, rx_ring->q_index, NETDEV_QUEUE_TYPE_RX,
-				   NULL);
+
+	ice_for_each_rx_ring(rx_ring, vsi->q_vectors[v_idx]->rx)
 		rx_ring->q_vector = NULL;
-	}
 
 	/* only VSI with an associated netdev is set up with NAPI */
 	if (vsi->netdev)
@@ -261,30 +258,6 @@ static u16 ice_calc_txq_handle(struct ice_vsi *vsi, struct ice_tx_ring *ring, u8
 	 * and as a result we get the queue's index within TC.
 	 */
 	return ring->q_index - vsi->tc_cfg.tc_info[tc].qoffset;
-}
-
-/**
- * ice_eswitch_calc_txq_handle
- * @ring: pointer to ring which unique index is needed
- *
- * To correctly work with many netdevs ring->q_index of Tx rings on switchdev
- * VSI can repeat. Hardware ring setup requires unique q_index. Calculate it
- * here by finding index in vsi->tx_rings of this ring.
- *
- * Return ICE_INVAL_Q_INDEX when index wasn't found. Should never happen,
- * because VSI is get from ring->vsi, so it has to be present in this VSI.
- */
-static u16 ice_eswitch_calc_txq_handle(struct ice_tx_ring *ring)
-{
-	const struct ice_vsi *vsi = ring->vsi;
-	int i;
-
-	ice_for_each_txq(vsi, i) {
-		if (vsi->tx_rings[i] == ring)
-			return i;
-	}
-
-	return ICE_INVAL_Q_INDEX;
 }
 
 /**
@@ -353,7 +326,7 @@ ice_setup_tx_ctx(struct ice_tx_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf
 		tlan_ctx->vmvf_num = hw->func_caps.vf_base_id + vsi->vf->vf_id;
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VF;
 		break;
-	case ICE_VSI_SWITCHDEV_CTRL:
+	case ICE_VSI_SF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_VMQ;
 		break;
 	default:
@@ -374,6 +347,8 @@ ice_setup_tx_ctx(struct ice_tx_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf
 	default:
 		break;
 	}
+
+	tlan_ctx->quanta_prof_idx = ring->quanta_prof_id;
 
 	tlan_ctx->tso_ena = ICE_TX_LEGACY;
 	tlan_ctx->tso_qnum = pf_q;
@@ -473,11 +448,22 @@ static int ice_setup_rx_ctx(struct ice_rx_ring *ring)
 	/* Max packet size for this queue - must not be set to a larger value
 	 * than 5 x DBUF
 	 */
-	rlan_ctx.rxmax = min_t(u32, vsi->max_frame,
+	rlan_ctx.rxmax = min_t(u32, ring->max_frame,
 			       ICE_MAX_CHAINED_RX_BUFS * ring->rx_buf_len);
 
 	/* Rx queue threshold in units of 64 */
 	rlan_ctx.lrxqthresh = 1;
+
+	/* Enable descriptor prefetch */
+	rlan_ctx.prefena = 1;
+
+	/* PF acts as uplink for switchdev; set flex descriptor with src_vsi
+	 * metadata and flags to allow redirecting to PR netdev
+	 */
+	if (ice_is_eswitch_mode_switchdev(vsi->back)) {
+		ring->flags |= ICE_RX_FLAGS_MULTIDEV;
+		rxdid = ICE_RXDID_FLEX_NIC_2;
+	}
 
 	/* Enable Flexible Descriptors in the queue context which
 	 * allows this driver to select a specific receive descriptor format
@@ -531,6 +517,25 @@ static void ice_xsk_pool_fill_cb(struct ice_rx_ring *ring)
 }
 
 /**
+ * ice_get_frame_sz - calculate xdp_buff::frame_sz
+ * @rx_ring: the ring being configured
+ *
+ * Return frame size based on underlying PAGE_SIZE
+ */
+static unsigned int ice_get_frame_sz(struct ice_rx_ring *rx_ring)
+{
+	unsigned int frame_sz;
+
+#if (PAGE_SIZE >= 8192)
+	frame_sz = rx_ring->rx_buf_len;
+#else
+	frame_sz = ice_rx_pg_size(rx_ring) / 2;
+#endif
+
+	return frame_sz;
+}
+
+/**
  * ice_vsi_cfg_rxq - Configure an Rx queue
  * @ring: the ring being configured
  *
@@ -542,9 +547,7 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 	u32 num_bufs = ICE_RX_DESC_UNUSED(ring);
 	int err;
 
-	ring->rx_buf_len = ring->vsi->rx_buf_len;
-
-	if (ring->vsi->type == ICE_VSI_PF) {
+	if (ring->vsi->type == ICE_VSI_PF || ring->vsi->type == ICE_VSI_SF) {
 		if (!xdp_rxq_info_is_reg(&ring->xdp_rxq)) {
 			err = __xdp_rxq_info_reg(&ring->xdp_rxq, ring->netdev,
 						 ring->q_index,
@@ -554,7 +557,7 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 				return err;
 		}
 
-		ring->xsk_pool = ice_xsk_pool(ring);
+		ice_rx_xsk_pool(ring);
 		if (ring->xsk_pool) {
 			xdp_rxq_info_unreg(&ring->xdp_rxq);
 
@@ -594,7 +597,7 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 		}
 	}
 
-	xdp_init_buff(&ring->xdp, ice_rx_pg_size(ring) / 2, &ring->xdp_rxq);
+	xdp_init_buff(&ring->xdp, ice_get_frame_sz(ring), &ring->xdp_rxq);
 	ring->xdp.data = NULL;
 	ring->xdp_ext.pkt_ctx = &ring->pkt_ctx;
 	err = ice_setup_rx_ctx(ring);
@@ -615,7 +618,7 @@ static int ice_vsi_cfg_rxq(struct ice_rx_ring *ring)
 			return 0;
 		}
 
-		ok = ice_alloc_rx_bufs_zc(ring, num_bufs);
+		ok = ice_alloc_rx_bufs_zc(ring, ring->xsk_pool, num_bufs);
 		if (!ok) {
 			u16 pf_q = ring->vsi->rxq_map[ring->q_index];
 
@@ -642,21 +645,25 @@ int ice_vsi_cfg_single_rxq(struct ice_vsi *vsi, u16 q_idx)
 /**
  * ice_vsi_cfg_frame_size - setup max frame size and Rx buffer length
  * @vsi: VSI
+ * @ring: Rx ring to configure
+ *
+ * Determine the maximum frame size and Rx buffer length to use for a PF VSI.
+ * Set these in the associated Rx ring structure.
  */
-static void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
+static void ice_vsi_cfg_frame_size(struct ice_vsi *vsi, struct ice_rx_ring *ring)
 {
 	if (!vsi->netdev || test_bit(ICE_FLAG_LEGACY_RX, vsi->back->flags)) {
-		vsi->max_frame = ICE_MAX_FRAME_LEGACY_RX;
-		vsi->rx_buf_len = ICE_RXBUF_1664;
+		ring->max_frame = ICE_MAX_FRAME_LEGACY_RX;
+		ring->rx_buf_len = ICE_RXBUF_1664;
 #if (PAGE_SIZE < 8192)
 	} else if (!ICE_2K_TOO_SMALL_WITH_PADDING &&
 		   (vsi->netdev->mtu <= ETH_DATA_LEN)) {
-		vsi->max_frame = ICE_RXBUF_1536 - NET_IP_ALIGN;
-		vsi->rx_buf_len = ICE_RXBUF_1536 - NET_IP_ALIGN;
+		ring->max_frame = ICE_RXBUF_1536 - NET_IP_ALIGN;
+		ring->rx_buf_len = ICE_RXBUF_1536 - NET_IP_ALIGN;
 #endif
 	} else {
-		vsi->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
-		vsi->rx_buf_len = ICE_RXBUF_3072;
+		ring->max_frame = ICE_AQ_SET_MAC_FRAME_SIZE_MAX;
+		ring->rx_buf_len = ICE_RXBUF_3072;
 	}
 }
 
@@ -671,15 +678,15 @@ int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 {
 	u16 i;
 
-	if (vsi->type == ICE_VSI_VF)
-		goto setup_rings;
-
-	ice_vsi_cfg_frame_size(vsi);
-setup_rings:
 	/* set up individual rings */
 	ice_for_each_rxq(vsi, i) {
-		int err = ice_vsi_cfg_rxq(vsi->rx_rings[i]);
+		struct ice_rx_ring *ring = vsi->rx_rings[i];
+		int err;
 
+		if (vsi->type != ICE_VSI_VF)
+			ice_vsi_cfg_frame_size(vsi, ring);
+
+		err = ice_vsi_cfg_rxq(ring);
 		if (err)
 			return err;
 	}
@@ -860,6 +867,9 @@ void ice_vsi_map_rings_to_vectors(struct ice_vsi *vsi)
 		}
 		rx_rings_rem -= rx_rings_per_v;
 	}
+
+	if (ice_is_xdp_ena_vsi(vsi))
+		ice_map_xdp_rings(vsi);
 }
 
 /**
@@ -903,8 +913,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	ice_setup_tx_ctx(ring, &tlan_ctx, pf_q);
 	/* copy context contents into the qg_buf */
 	qg_buf->txqs[0].txq_id = cpu_to_le16(pf_q);
-	ice_set_ctx(hw, (u8 *)&tlan_ctx, qg_buf->txqs[0].txq_ctx,
-		    ice_tlan_ctx_info);
+	ice_pack_txq_ctx(&tlan_ctx, &qg_buf->txqs[0].txq_ctx);
 
 	/* init queue specific tail reg. It is referred as
 	 * transmit comm scheduler queue doorbell.
@@ -919,14 +928,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_tx_ring *ring,
 	/* Add unique software queue handle of the Tx queue per
 	 * TC into the VSI Tx ring
 	 */
-	if (vsi->type == ICE_VSI_SWITCHDEV_CTRL) {
-		ring->q_handle = ice_eswitch_calc_txq_handle(ring);
-
-		if (ring->q_handle == ICE_INVAL_Q_INDEX)
-			return -ENODEV;
-	} else {
-		ring->q_handle = ice_calc_txq_handle(vsi, ring, tc);
-	}
+	ring->q_handle = ice_calc_txq_handle(vsi, ring, tc);
 
 	if (ch)
 		status = ice_ena_vsi_txq(vsi->port_info, ch->ch_vsi->idx, 0,

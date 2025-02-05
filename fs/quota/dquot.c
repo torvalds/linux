@@ -80,7 +80,6 @@
 #include <linux/quotaops.h>
 #include <linux/blkdev.h>
 #include <linux/sched/mm.h>
-#include "../internal.h" /* ugh */
 
 #include <linux/uaccess.h>
 
@@ -163,13 +162,12 @@ static struct quota_module_name module_names[] = INIT_QUOTA_MODULE_NAMES;
 /* SLAB cache for dquot structures */
 static struct kmem_cache *dquot_cachep;
 
-int register_quota_format(struct quota_format_type *fmt)
+void register_quota_format(struct quota_format_type *fmt)
 {
 	spin_lock(&dq_list_lock);
 	fmt->qf_next = quota_formats;
 	quota_formats = fmt;
 	spin_unlock(&dq_list_lock);
-	return 0;
 }
 EXPORT_SYMBOL(register_quota_format);
 
@@ -410,7 +408,7 @@ static inline int mark_all_dquot_dirty(struct dquot __rcu * const *dquots)
 		if (dquot)
 			/* Even in case of error we have to continue */
 			ret = mark_dquot_dirty(dquot);
-		if (!err)
+		if (!err && ret < 0)
 			err = ret;
 	}
 	return err;
@@ -689,6 +687,8 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 	int err, ret = 0;
 
 	WARN_ON_ONCE(!rwsem_is_locked(&sb->s_umount));
+
+	flush_delayed_work(&quota_release_work);
 
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
@@ -1737,7 +1737,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 
 	if (reserve)
 		goto out_flush_warn;
-	mark_all_dquot_dirty(dquots);
+	ret = mark_all_dquot_dirty(dquots);
 out_flush_warn:
 	srcu_read_unlock(&dquot_srcu, index);
 	flush_warnings(warn);
@@ -1786,7 +1786,7 @@ int dquot_alloc_inode(struct inode *inode)
 warn_put_all:
 	spin_unlock(&inode->i_lock);
 	if (ret == 0)
-		mark_all_dquot_dirty(dquots);
+		ret = mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
 	flush_warnings(warn);
 	return ret;
@@ -1831,7 +1831,6 @@ void dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_unlock(&inode->i_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
-	return;
 }
 EXPORT_SYMBOL(dquot_claim_space_nodirty);
 
@@ -1873,7 +1872,6 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_unlock(&inode->i_lock);
 	mark_all_dquot_dirty(dquots);
 	srcu_read_unlock(&dquot_srcu, index);
-	return;
 }
 EXPORT_SYMBOL(dquot_reclaim_space_nodirty);
 
@@ -1990,7 +1988,7 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 	qsize_t inode_usage = 1;
 	struct dquot __rcu **dquots;
 	struct dquot *transfer_from[MAXQUOTAS] = {};
-	int cnt, index, ret = 0;
+	int cnt, index, ret = 0, err;
 	char is_valid[MAXQUOTAS] = {};
 	struct dquot_warn warn_to[MAXQUOTAS];
 	struct dquot_warn warn_from_inodes[MAXQUOTAS];
@@ -2087,8 +2085,12 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 	 * mark_all_dquot_dirty().
 	 */
 	index = srcu_read_lock(&dquot_srcu);
-	mark_all_dquot_dirty((struct dquot __rcu **)transfer_from);
-	mark_all_dquot_dirty((struct dquot __rcu **)transfer_to);
+	err = mark_all_dquot_dirty((struct dquot __rcu **)transfer_from);
+	if (err < 0)
+		ret = err;
+	err = mark_all_dquot_dirty((struct dquot __rcu **)transfer_to);
+	if (err < 0)
+		ret = err;
 	srcu_read_unlock(&dquot_srcu, index);
 
 	flush_warnings(warn_to);
@@ -2098,7 +2100,7 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		if (is_valid[cnt])
 			transfer_to[cnt] = transfer_from[cnt];
-	return 0;
+	return ret;
 over_quota:
 	/* Back out changes we already did */
 	for (cnt--; cnt >= 0; cnt--) {
@@ -2242,9 +2244,7 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 	int cnt;
 	struct quota_info *dqopt = sb_dqopt(sb);
 
-	/* s_umount should be held in exclusive mode */
-	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
-		up_read(&sb->s_umount);
+	rwsem_assert_held_write(&sb->s_umount);
 
 	/* Cannot turn off usage accounting without turning off limits, or
 	 * suspend quotas and simultaneously turn quotas off. */
@@ -2404,7 +2404,7 @@ static int vfs_setup_quota_inode(struct inode *inode, int type)
 int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	unsigned int flags)
 {
-	struct quota_format_type *fmt = find_quota_format(format_id);
+	struct quota_format_type *fmt;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	int error;
 
@@ -2414,6 +2414,7 @@ int dquot_load_quota_sb(struct super_block *sb, int type, int format_id,
 	if (WARN_ON_ONCE(flags & DQUOT_SUSPENDED))
 		return -EINVAL;
 
+	fmt = find_quota_format(format_id);
 	if (!fmt)
 		return -ESRCH;
 	if (!sb->dq_op || !sb->s_qcop ||
@@ -2506,9 +2507,7 @@ int dquot_resume(struct super_block *sb, int type)
 	int ret = 0, cnt;
 	unsigned int flags;
 
-	/* s_umount should be held in exclusive mode */
-	if (WARN_ON_ONCE(down_read_trylock(&sb->s_umount)))
-		up_read(&sb->s_umount);
+	rwsem_assert_held_write(&sb->s_umount);
 
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
@@ -2596,7 +2595,8 @@ static int dquot_quota_enable(struct super_block *sb, unsigned int flags)
 			goto out_err;
 		}
 		if (sb_has_quota_limits_enabled(sb, type)) {
-			ret = -EBUSY;
+			/* compatible with XFS */
+			ret = -EEXIST;
 			goto out_err;
 		}
 		spin_lock(&dq_state_lock);
@@ -2610,9 +2610,6 @@ out_err:
 		if (flags & qtype_enforce_flag(type))
 			dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 	}
-	/* Error code translation for better compatibility with XFS */
-	if (ret == -EBUSY)
-		ret = -EEXIST;
 	return ret;
 }
 
@@ -2726,6 +2723,7 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 	struct mem_dqblk *dm = &dquot->dq_dqb;
 	int check_blim = 0, check_ilim = 0;
 	struct mem_dqinfo *dqi = &sb_dqopt(dquot->dq_sb)->info[dquot->dq_id.type];
+	int ret;
 
 	if (di->d_fieldmask & ~VFS_QC_MASK)
 		return -EINVAL;
@@ -2807,8 +2805,9 @@ static int do_set_dqblk(struct dquot *dquot, struct qc_dqblk *di)
 	else
 		set_bit(DQ_FAKE_B, &dquot->dq_flags);
 	spin_unlock(&dquot->dq_dqb_lock);
-	mark_dquot_dirty(dquot);
-
+	ret = mark_dquot_dirty(dquot);
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 
@@ -2911,7 +2910,7 @@ const struct quotactl_ops dquot_quotactl_sysfile_ops = {
 };
 EXPORT_SYMBOL(dquot_quotactl_sysfile_ops);
 
-static int do_proc_dqstats(struct ctl_table *table, int write,
+static int do_proc_dqstats(const struct ctl_table *table, int write,
 		     void *buffer, size_t *lenp, loff_t *ppos)
 {
 	unsigned int type = (unsigned long *)table->data - dqstats.stat;
@@ -2927,7 +2926,7 @@ static int do_proc_dqstats(struct ctl_table *table, int write,
 	return proc_doulongvec_minmax(table, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table fs_dqstats_table[] = {
+static const struct ctl_table fs_dqstats_table[] = {
 	{
 		.procname	= "lookups",
 		.data		= &dqstats.stat[DQST_LOOKUPS],
@@ -3016,11 +3015,10 @@ static int __init dquot_init(void)
 	if (!dquot_hash)
 		panic("Cannot create dquot hash table");
 
-	for (i = 0; i < _DQST_DQSTAT_LAST; i++) {
-		ret = percpu_counter_init(&dqstats.counter[i], 0, GFP_KERNEL);
-		if (ret)
-			panic("Cannot create dquot stat counters");
-	}
+	ret = percpu_counter_init_many(dqstats.counter, 0, GFP_KERNEL,
+				       _DQST_DQSTAT_LAST);
+	if (ret)
+		panic("Cannot create dquot stat counters");
 
 	/* Find power-of-two hlist_heads which can fit into allocation */
 	nr_hash = (1UL << order) * PAGE_SIZE / sizeof(struct hlist_head);

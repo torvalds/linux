@@ -612,6 +612,8 @@ static void test_ipip_tunnel(enum ipip_encap encap)
 
 	/* ping from at_ns0 namespace test */
 	nstoken = open_netns("at_ns0");
+	if (!ASSERT_OK_PTR(nstoken, "setns"))
+		goto done;
 	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
 	if (!ASSERT_OK(err, "test_ping"))
 		goto done;
@@ -666,6 +668,8 @@ static void test_xfrm_tunnel(void)
 
 	/* ping from at_ns0 namespace test */
 	nstoken = open_netns("at_ns0");
+	if (!ASSERT_OK_PTR(nstoken, "setns"))
+		goto done;
 	err = test_ping(AF_INET, IP4_ADDR_TUNL_DEV1);
 	close_netns(nstoken);
 	if (!ASSERT_OK(err, "test_ping"))

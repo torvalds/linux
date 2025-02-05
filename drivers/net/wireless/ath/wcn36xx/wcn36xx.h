@@ -100,11 +100,14 @@ enum wcn36xx_ampdu_state {
 #define RF_IRIS_WCN3660	0x3660
 #define RF_IRIS_WCN3680	0x3680
 
-static inline void buff_to_be(u32 *buf, size_t len)
+static inline void buff_to_be(void *buf, size_t len)
 {
+	__be32 *to = buf;
+	u32 *from = buf;
 	int i;
+
 	for (i = 0; i < len; i++)
-		buf[i] = cpu_to_be32(buf[i]);
+		to[i] = cpu_to_be32(from[i]);
 }
 
 struct nv_data {
@@ -164,7 +167,7 @@ struct wcn36xx_vif {
  * @dpu_desc_index: DPU descriptor index is returned from HW after config_sta
  * call and is used in TX BD.
  * @bss_sta_index: STA index is returned from HW after config_bss call and is
- * used in both SMD channel and TX BD. See table bellow when it is used.
+ * used in both SMD channel and TX BD. See table below when it is used.
  * @bss_dpu_desc_index: DPU descriptor index is returned from HW after
  * config_bss call and is used in TX BD.
  * ______________________________________________

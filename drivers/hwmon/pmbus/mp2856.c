@@ -46,7 +46,7 @@
 
 #define MP2856_PAGE_NUM			2
 
-enum chips { mp2856 = 1, mp2857 };
+enum chips { mp2856, mp2857 };
 
 static const int mp2856_max_phases[][MP2856_PAGE_NUM] = {
 	[mp2856] = { MP2856_MAX_PHASE_RAIL1, MP2856_MAX_PHASE_RAIL2 },
@@ -66,7 +66,6 @@ struct mp2856_data {
 	int vout_format[MP2856_PAGE_NUM];
 	int curr_sense_gain[MP2856_PAGE_NUM];
 	int max_phases[MP2856_PAGE_NUM];
-	enum chips chip_id;
 };
 
 #define to_mp2856_data(x)	container_of(x, struct mp2856_data, info)
@@ -397,6 +396,7 @@ static int mp2856_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 	struct mp2856_data *data;
+	enum chips chip_id;
 	int ret;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2856_data),
@@ -404,9 +404,9 @@ static int mp2856_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	data->chip_id = (enum chips)(uintptr_t)i2c_get_match_data(client);
+	chip_id = (kernel_ulong_t)i2c_get_match_data(client);
 
-	memcpy(data->max_phases, mp2856_max_phases[data->chip_id],
+	memcpy(data->max_phases, mp2856_max_phases[chip_id],
 	       sizeof(data->max_phases));
 
 	memcpy(&data->info, &mp2856_info, sizeof(*info));
@@ -463,4 +463,4 @@ module_i2c_driver(mp2856_driver);
 MODULE_AUTHOR("Peter Yin <peter.yin@quantatw.com>");
 MODULE_DESCRIPTION("PMBus driver for MPS MP2856/MP2857 device");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

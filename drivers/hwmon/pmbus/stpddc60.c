@@ -18,8 +18,8 @@
 #define STPDDC60_MFR_UV_LIMIT_OFFSET	0xe6
 
 static const struct i2c_device_id stpddc60_id[] = {
-	{"stpddc60", 0},
-	{"bmr481", 0},
+	{"stpddc60"},
+	{"bmr481"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, stpddc60_id);
@@ -246,4 +246,4 @@ module_i2c_driver(stpddc60_driver);
 MODULE_AUTHOR("Erik Rosen <erik.rosen@metormote.com>");
 MODULE_DESCRIPTION("PMBus driver for ST STPDDC60");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

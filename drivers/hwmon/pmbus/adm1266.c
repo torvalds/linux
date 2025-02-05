@@ -490,7 +490,7 @@ static const struct of_device_id adm1266_of_match[] = {
 MODULE_DEVICE_TABLE(of, adm1266_of_match);
 
 static const struct i2c_device_id adm1266_id[] = {
-	{ "adm1266", 0 },
+	{ "adm1266" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1266_id);
@@ -509,4 +509,4 @@ module_i2c_driver(adm1266_driver);
 MODULE_AUTHOR("Alexandru Tachici <alexandru.tachici@analog.com>");
 MODULE_DESCRIPTION("PMBus driver for Analog Devices ADM1266");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

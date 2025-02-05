@@ -1,12 +1,33 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
+#include <linux/dmi.h>
 #include "iwl-trans.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-gen3.h"
 #include "internal.h"
 #include "iwl-prph.h"
+
+static const struct dmi_system_id dmi_force_scu_active_approved_list[] = {
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		},
+	},
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
+		},
+	},
+	/* keep last */
+	{}
+};
+
+static bool iwl_is_force_scu_active_approved(void)
+{
+	return !!dmi_check_system(dmi_force_scu_active_approved_list);
+}
 
 static void
 iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
@@ -68,7 +89,8 @@ iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
 		}
 		break;
 	default:
-		IWL_ERR(trans, "WRT: Invalid buffer destination\n");
+		IWL_DEBUG_FW(trans, "WRT: Invalid buffer destination (%d)\n",
+			     le32_to_cpu(fw_mon_cfg->buf_location));
 	}
 out:
 	if (dbg_flags)
@@ -84,6 +106,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	struct iwl_prph_scratch_ctrl_cfg *prph_sc_ctrl;
 	struct iwl_prph_info *prph_info;
 	u32 control_flags = 0;
+	u32 control_flags_ext = 0;
 	int ret;
 	int cmdq_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			      trans->cfg->min_txq_size);
@@ -108,6 +131,12 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		break;
 	}
 
+	if (trans->dsbr_urm_fw_dependent)
+		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_FW;
+
+	if (trans->dsbr_urm_permanent)
+		control_flags_ext |= IWL_PRPH_SCRATCH_EXT_URM_PERM;
+
 	/* Allocate prph scratch */
 	prph_scratch = dma_alloc_coherent(trans->dev, sizeof(*prph_scratch),
 					  &trans_pcie->prph_scratch_dma_addr,
@@ -128,6 +157,14 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	if (trans->trans_cfg->imr_enabled)
 		control_flags |= IWL_PRPH_SCRATCH_IMR_DEBUG_EN;
 
+	if (CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
+	    iwl_is_force_scu_active_approved()) {
+		control_flags |= IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE;
+		IWL_DEBUG_FW(trans,
+			     "Context Info: Set SCU_FORCE_ACTIVE (0x%x) in control_flags\n",
+			     IWL_PRPH_SCRATCH_SCU_FORCE_ACTIVE);
+	}
+
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
@@ -135,6 +172,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	iwl_pcie_ctxt_info_dbg_enable(trans, &prph_sc_ctrl->hwm_cfg,
 				      &control_flags);
 	prph_sc_ctrl->control.control_flags = cpu_to_le32(control_flags);
+	prph_sc_ctrl->control.control_flags_ext = cpu_to_le32(control_flags_ext);
 
 	/* initialize the Step equalizer data */
 	prph_sc_ctrl->step_cfg.mbx_addr_0 = cpu_to_le32(trans->mbx_addr_0_step);
@@ -187,7 +225,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->cr_tail_idx_arr_base_addr =
 		cpu_to_le64(trans_pcie->prph_info_dma_addr + 3 * PAGE_SIZE / 4);
 	ctxt_info_gen3->mtr_base_addr =
-		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
+		cpu_to_le64(trans_pcie->txqs.txq[trans_pcie->txqs.cmd.q_id]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
 	ctxt_info_gen3->mtr_size =

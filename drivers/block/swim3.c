@@ -840,6 +840,7 @@ static int grab_drive(struct floppy_state *fs, enum swim_state state,
 static void release_drive(struct floppy_state *fs)
 {
 	struct request_queue *q = disks[fs->index]->queue;
+	unsigned int memflags;
 	unsigned long flags;
 
 	swim3_dbg("%s", "-> release drive\n");
@@ -848,10 +849,10 @@ static void release_drive(struct floppy_state *fs)
 	fs->state = idle;
 	spin_unlock_irqrestore(&swim3_lock, flags);
 
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 	blk_mq_unquiesce_queue(q);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 }
 
 static int fd_eject(struct floppy_state *fs)
@@ -1189,6 +1190,9 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 static int swim3_attach(struct macio_dev *mdev,
 			const struct of_device_id *match)
 {
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	struct floppy_state *fs;
 	struct gendisk *disk;
 	int rc;
@@ -1205,12 +1209,11 @@ static int swim3_attach(struct macio_dev *mdev,
 	fs = &floppy_states[floppy_count];
 	memset(fs, 0, sizeof(*fs));
 
-	rc = blk_mq_alloc_sq_tag_set(&fs->tag_set, &swim3_mq_ops, 2,
-			BLK_MQ_F_SHOULD_MERGE);
+	rc = blk_mq_alloc_sq_tag_set(&fs->tag_set, &swim3_mq_ops, 2, 0);
 	if (rc)
 		goto out_unregister;
 
-	disk = blk_mq_alloc_disk(&fs->tag_set, NULL, fs);
+	disk = blk_mq_alloc_disk(&fs->tag_set, &lim, fs);
 	if (IS_ERR(disk)) {
 		rc = PTR_ERR(disk);
 		goto out_free_tag_set;

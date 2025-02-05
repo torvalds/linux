@@ -11,13 +11,6 @@
 
 #define OPLOCK_WAIT_TIME	(35 * HZ)
 
-/* SMB2 Oplock levels */
-#define SMB2_OPLOCK_LEVEL_NONE          0x00
-#define SMB2_OPLOCK_LEVEL_II            0x01
-#define SMB2_OPLOCK_LEVEL_EXCLUSIVE     0x08
-#define SMB2_OPLOCK_LEVEL_BATCH         0x09
-#define SMB2_OPLOCK_LEVEL_LEASE         0xFF
-
 /* Oplock states */
 #define OPLOCK_STATE_NONE	0x00
 #define OPLOCK_ACK_WAIT		0x01

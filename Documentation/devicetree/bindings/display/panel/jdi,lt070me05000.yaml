@@ -16,8 +16,10 @@ properties:
   compatible:
     const: jdi,lt070me05000
 
+  reg:
+    maxItems: 1
+
   enable-gpios: true
-  reg: true
   reset-gpios: true
 
   vddp-supply:

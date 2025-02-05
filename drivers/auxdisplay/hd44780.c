@@ -230,7 +230,7 @@ static int hd44780_probe(struct platform_device *pdev)
 	if (!lcd)
 		goto fail1;
 
-	hd = kzalloc(sizeof(struct hd44780), GFP_KERNEL);
+	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
 	if (!hd)
 		goto fail2;
 
@@ -339,7 +339,7 @@ MODULE_DEVICE_TABLE(of, hd44780_of_match);
 
 static struct platform_driver hd44780_driver = {
 	.probe = hd44780_probe,
-	.remove_new = hd44780_remove,
+	.remove = hd44780_remove,
 	.driver		= {
 		.name	= "hd44780",
 		.of_match_table = hd44780_of_match,

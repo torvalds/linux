@@ -108,8 +108,13 @@ static void fldz(int rc)
 
 typedef void (*FUNC_RC) (int);
 
+static void FPU_RC_illegal(int unused)
+{
+	FPU_illegal();
+}
+
 static FUNC_RC constants_table[] = {
-	fld1, fldl2t, fldl2e, fldpi, fldlg2, fldln2, fldz, (FUNC_RC) FPU_illegal
+	fld1, fldl2t, fldl2e, fldpi, fldlg2, fldln2, fldz, FPU_RC_illegal
 };
 
 void fconst(void)

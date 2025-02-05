@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
+/*
+ * Copyright (C) 2023 - 2024 PHYTEC America LLC
+ * Author: Garrett Giordano <ggiordano@phytec.com>
+ *
+ * Product homepage:
+ * https://www.phytec.com/product/phyboard-am62a
+ */
+
+#include "k3-am62a7.dtsi"
+#include "k3-am62a-phycore-som.dtsi"
+#include "k3-am62x-phyboard-lyra.dtsi"
+
+/ {
+	compatible = "phytec,am62a7-phyboard-lyra-rdk",
+		     "phytec,am62a-phycore-som", "ti,am62a7";
+	model = "PHYTEC phyBOARD-Lyra AM62A7";
+};
+
+&cpsw3g_phy3 {
+	ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_50_NS>;
+};

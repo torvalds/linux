@@ -39,20 +39,6 @@ int apparmor_display_secid_mode;
  * TODO: use secid_update in label replace
  */
 
-/**
- * aa_secid_update - update a secid mapping to a new label
- * @secid: secid to update
- * @label: label the secid will now map to
- */
-void aa_secid_update(u32 secid, struct aa_label *label)
-{
-	unsigned long flags;
-
-	xa_lock_irqsave(&aa_secids, flags);
-	__xa_store(&aa_secids, secid, label, 0);
-	xa_unlock_irqrestore(&aa_secids, flags);
-}
-
 /*
  * see label for inverse aa_label_to_secid
  */
@@ -61,14 +47,12 @@ struct aa_label *aa_secid_to_label(u32 secid)
 	return xa_load(&aa_secids, secid);
 }
 
-int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+static int apparmor_label_to_secctx(struct aa_label *label,
+				    struct lsm_context *cp)
 {
 	/* TODO: cache secctx and ref count so we don't have to recreate */
-	struct aa_label *label = aa_secid_to_label(secid);
 	int flags = FLAG_VIEW_SUBNS | FLAG_HIDDEN_UNCONFINED | FLAG_ABS_ROOT;
 	int len;
-
-	AA_BUG(!seclen);
 
 	if (!label)
 		return -EINVAL;
@@ -76,8 +60,8 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	if (apparmor_display_secid_mode)
 		flags |= FLAG_SHOW_MODE;
 
-	if (secdata)
-		len = aa_label_asxprint(secdata, root_ns, label,
+	if (cp)
+		len = aa_label_asxprint(&cp->context, root_ns, label,
 					flags, GFP_ATOMIC);
 	else
 		len = aa_label_snxprint(NULL, 0, root_ns, label, flags);
@@ -85,9 +69,28 @@ int apparmor_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
 	if (len < 0)
 		return -ENOMEM;
 
-	*seclen = len;
+	if (cp) {
+		cp->len = len;
+		cp->id = LSM_ID_APPARMOR;
+	}
 
-	return 0;
+	return len;
+}
+
+int apparmor_secid_to_secctx(u32 secid, struct lsm_context *cp)
+{
+	struct aa_label *label = aa_secid_to_label(secid);
+
+	return apparmor_label_to_secctx(label, cp);
+}
+
+int apparmor_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp)
+{
+	struct aa_label *label;
+
+	label = prop->apparmor.label;
+
+	return apparmor_label_to_secctx(label, cp);
 }
 
 int apparmor_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
@@ -103,9 +106,13 @@ int apparmor_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid)
 	return 0;
 }
 
-void apparmor_release_secctx(char *secdata, u32 seclen)
+void apparmor_release_secctx(struct lsm_context *cp)
 {
-	kfree(secdata);
+	if (cp->id == LSM_ID_APPARMOR) {
+		kfree(cp->context);
+		cp->context = NULL;
+		cp->id = LSM_ID_UNDEF;
+	}
 }
 
 /**

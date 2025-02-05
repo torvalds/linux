@@ -57,7 +57,7 @@ static int pm80x_onkey_probe(struct platform_device *pdev)
 	struct pm80x_onkey_info *info;
 	int err;
 
-	info = kzalloc(sizeof(struct pm80x_onkey_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -141,7 +141,7 @@ static struct platform_driver pm80x_onkey_driver = {
 		   .pm = &pm80x_onkey_pm_ops,
 		   },
 	.probe = pm80x_onkey_probe,
-	.remove_new = pm80x_onkey_remove,
+	.remove = pm80x_onkey_remove,
 };
 
 module_platform_driver(pm80x_onkey_driver);

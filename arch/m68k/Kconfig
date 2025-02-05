@@ -3,8 +3,8 @@ config M68K
 	bool
 	default y
 	select ARCH_32BIT_OFF_T
-	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
 	select ARCH_HAS_DMA_PREP_COHERENT if M68K_NONCOHERENT_DMA && !COLDFIRE
@@ -18,12 +18,14 @@ config M68K
 	select DMA_DIRECT_REMAP if M68K_NONCOHERENT_DMA && !COLDFIRE
 	select GENERIC_ATOMIC64
 	select GENERIC_CPU_DEVICES
-	select GENERIC_IOMAP
+	select GENERIC_IOMAP if HAS_IOPORT
 	select GENERIC_IRQ_SHOW
 	select GENERIC_LIB_ASHLDI3
 	select GENERIC_LIB_ASHRDI3
 	select GENERIC_LIB_LSHRDI3
+	select GENERIC_LIB_MULDI3
 	select HAS_IOPORT if PCI || ISA || ATARI_ROM_ISA
+	select HAVE_ARCH_LIBGCC_H
 	select HAVE_ARCH_SECCOMP
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ASM_MODVERSIONS
@@ -84,24 +86,23 @@ config MMU
 	  support by paged memory management. If unsure, say 'Y'.
 
 config MMU_MOTOROLA
-	bool
+	def_bool MMU && M68KCLASSIC
 	select HAVE_PAGE_SIZE_4KB
 
 config MMU_COLDFIRE
+	def_bool MMU && COLDFIRE
 	select HAVE_PAGE_SIZE_8KB
-	bool
 
 config MMU_SUN3
-	bool
+	def_bool MMU && SUN3
 	select HAVE_PAGE_SIZE_8KB
-	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 config ARCH_SUPPORTS_KEXEC
-	def_bool M68KCLASSIC && MMU
+	def_bool (M68KCLASSIC || SUN3) && MMU
 
 config BOOTINFO_PROC
 	bool "Export bootinfo in procfs"
-	depends on KEXEC && M68KCLASSIC
+	depends on KEXEC && (M68KCLASSIC || SUN3)
 	help
 	  Say Y to export the bootinfo used to boot the kernel in a
 	  "bootinfo" file in procfs.  This is useful with kexec.

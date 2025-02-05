@@ -27,9 +27,9 @@
 #include "vm_util.h"
 #include "../kselftest.h"
 
-#define MMAP_SIZE (1 << 21)
 #define INLOOP_ITER 100
 
+size_t mmap_size;
 char *huge_ptr;
 
 /* Touch the memory while it is being madvised() */
@@ -44,7 +44,7 @@ void *touch(void *unused)
 void *madv(void *unused)
 {
 	for (int i = 0; i < INLOOP_ITER; i++)
-		madvise(huge_ptr, MMAP_SIZE, MADV_DONTNEED);
+		madvise(huge_ptr, mmap_size, MADV_DONTNEED);
 
 	return NULL;
 }
@@ -59,7 +59,7 @@ void *map_extra(void *unused)
 	void *ptr;
 
 	for (int i = 0; i < INLOOP_ITER; i++) {
-		ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE,
+		ptr = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
 			   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
 			   -1, 0);
 
@@ -93,14 +93,16 @@ int main(void)
 			       free_hugepages);
 	}
 
+	mmap_size = default_huge_page_size();
+
 	while (max--) {
-		huge_ptr = mmap(NULL, MMAP_SIZE, PROT_READ | PROT_WRITE,
+		huge_ptr = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
 				MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
 				-1, 0);
 
 		if ((unsigned long)huge_ptr == -1) {
-			ksft_exit_skip("Failed to allocated huge page\n");
-			return KSFT_SKIP;
+			ksft_test_result_fail("Failed to allocate huge page\n");
+			return KSFT_FAIL;
 		}
 
 		pthread_create(&thread1, NULL, madv, NULL);
@@ -117,7 +119,7 @@ int main(void)
 		}
 
 		/* Unmap and restart */
-		munmap(huge_ptr, MMAP_SIZE);
+		munmap(huge_ptr, mmap_size);
 	}
 
 	return KSFT_PASS;

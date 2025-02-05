@@ -465,7 +465,7 @@ static struct platform_driver tegra_cec_driver = {
 		.of_match_table = tegra_cec_of_match,
 	},
 	.probe = tegra_cec_probe,
-	.remove_new = tegra_cec_remove,
+	.remove = tegra_cec_remove,
 
 #ifdef CONFIG_PM
 	.suspend = tegra_cec_suspend,

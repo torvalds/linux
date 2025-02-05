@@ -32,7 +32,7 @@ struct amdgpu_fru_info {
 	char				product_name[AMDGPU_PRODUCT_NAME_LEN];
 	char				serial[20];
 	char				manufacturer_name[32];
-	char				fru_id[32];
+	char				fru_id[50];
 };
 
 int amdgpu_fru_get_product_info(struct amdgpu_device *adev);

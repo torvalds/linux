@@ -281,21 +281,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 	return rv;
 }
 
-/*
- * This is the generic cache management routine for all
- * the authentication caches.
- * It checks the currency of a cache item and will (later)
- * initiate an upcall to fill it if needed.
- *
- *
- * Returns 0 if the cache_head can be used, or cache_puts it and returns
- * -EAGAIN if upcall is pending and request has been queued
- * -ETIMEDOUT if upcall failed or request could not be queue or
- *           upcall completed but item is still invalid (implying that
- *           the cache item has been replaced with a newer one).
- * -ENOENT if cache entry was negative
- */
-int cache_check(struct cache_detail *detail,
+int cache_check_rcu(struct cache_detail *detail,
 		    struct cache_head *h, struct cache_req *rqstp)
 {
 	int rv;
@@ -336,6 +322,31 @@ int cache_check(struct cache_detail *detail,
 				rv = -ETIMEDOUT;
 		}
 	}
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(cache_check_rcu);
+
+/*
+ * This is the generic cache management routine for all
+ * the authentication caches.
+ * It checks the currency of a cache item and will (later)
+ * initiate an upcall to fill it if needed.
+ *
+ *
+ * Returns 0 if the cache_head can be used, or cache_puts it and returns
+ * -EAGAIN if upcall is pending and request has been queued
+ * -ETIMEDOUT if upcall failed or request could not be queue or
+ *           upcall completed but item is still invalid (implying that
+ *           the cache item has been replaced with a newer one).
+ * -ENOENT if cache entry was negative
+ */
+int cache_check(struct cache_detail *detail,
+		struct cache_head *h, struct cache_req *rqstp)
+{
+	int rv;
+
+	rv = cache_check_rcu(detail, h, rqstp);
 	if (rv)
 		cache_put(h, detail);
 	return rv;
@@ -731,11 +742,10 @@ static bool cache_defer_req(struct cache_req *req, struct cache_head *item)
 static void cache_revisit_request(struct cache_head *item)
 {
 	struct cache_deferred_req *dreq;
-	struct list_head pending;
 	struct hlist_node *tmp;
 	int hash = DFR_HASH(item);
+	LIST_HEAD(pending);
 
-	INIT_LIST_HEAD(&pending);
 	spin_lock(&cache_defer_lock);
 
 	hlist_for_each_entry_safe(dreq, tmp, &cache_defer_hash[hash], hash)
@@ -756,10 +766,8 @@ static void cache_revisit_request(struct cache_head *item)
 void cache_clean_deferred(void *owner)
 {
 	struct cache_deferred_req *dreq, *tmp;
-	struct list_head pending;
+	LIST_HEAD(pending);
 
-
-	INIT_LIST_HEAD(&pending);
 	spin_lock(&cache_defer_lock);
 
 	list_for_each_entry_safe(dreq, tmp, &cache_defer_list, recent) {
@@ -1085,9 +1093,8 @@ static void cache_dequeue(struct cache_detail *detail, struct cache_head *ch)
 {
 	struct cache_queue *cq, *tmp;
 	struct cache_request *cr;
-	struct list_head dequeued;
+	LIST_HEAD(dequeued);
 
-	INIT_LIST_HEAD(&dequeued);
 	spin_lock(&queue_lock);
 	list_for_each_entry_safe(cq, tmp, &detail->queue, list)
 		if (!cq->reader) {
@@ -1431,15 +1438,11 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "# expiry=%lld refcnt=%d flags=%lx\n",
 			   convert_to_wallclock(cp->expiry_time),
 			   kref_read(&cp->ref), cp->flags);
-	cache_get(cp);
-	if (cache_check(cd, cp, NULL))
-		/* cache_check does a cache_put on failure */
+
+	if (cache_check_rcu(cd, cp, NULL))
 		seq_puts(m, "# ");
-	else {
-		if (cache_is_expired(cd, cp))
-			seq_puts(m, "# ");
-		cache_put(cp, cd);
-	}
+	else if (cache_is_expired(cd, cp))
+		seq_puts(m, "# ");
 
 	return cd->cache_show(m, cd, cp);
 }
@@ -1596,7 +1599,6 @@ static int cache_release_procfs(struct inode *inode, struct file *filp)
 }
 
 static const struct proc_ops cache_channel_proc_ops = {
-	.proc_lseek	= no_llseek,
 	.proc_read	= cache_read_procfs,
 	.proc_write	= cache_write_procfs,
 	.proc_poll	= cache_poll_procfs,
@@ -1662,7 +1664,6 @@ static const struct proc_ops cache_flush_proc_ops = {
 	.proc_read	= read_flush_procfs,
 	.proc_write	= write_flush_procfs,
 	.proc_release	= release_flush_procfs,
-	.proc_lseek	= no_llseek,
 };
 
 static void remove_cache_proc_entries(struct cache_detail *cd)
@@ -1815,7 +1816,6 @@ static int cache_release_pipefs(struct inode *inode, struct file *filp)
 
 const struct file_operations cache_file_operations_pipefs = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= cache_read_pipefs,
 	.write		= cache_write_pipefs,
 	.poll		= cache_poll_pipefs,
@@ -1881,7 +1881,6 @@ const struct file_operations cache_flush_operations_pipefs = {
 	.read		= read_flush_pipefs,
 	.write		= write_flush_pipefs,
 	.release	= release_flush_pipefs,
-	.llseek		= no_llseek,
 };
 
 int sunrpc_cache_register_pipefs(struct dentry *parent,

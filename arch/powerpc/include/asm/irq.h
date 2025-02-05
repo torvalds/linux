@@ -33,7 +33,7 @@ extern int distribute_irqs;
 
 struct pt_regs;
 
-#ifdef CONFIG_BOOKE_OR_40x
+#ifdef CONFIG_BOOKE
 /*
  * Per-cpu stacks for handling critical, debug and machine check
  * level interrupts.

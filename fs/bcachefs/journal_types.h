@@ -9,6 +9,9 @@
 #include "super_types.h"
 #include "fifo.h"
 
+/* btree write buffer steals 8 bits for its own purposes: */
+#define JOURNAL_SEQ_MAX		((1ULL << 56) - 1)
+
 #define JOURNAL_BUF_BITS	2
 #define JOURNAL_BUF_NR		(1U << JOURNAL_BUF_BITS)
 #define JOURNAL_BUF_MASK	(JOURNAL_BUF_NR - 1)
@@ -50,15 +53,15 @@ struct journal_buf {
  */
 
 enum journal_pin_type {
-	JOURNAL_PIN_btree,
-	JOURNAL_PIN_key_cache,
-	JOURNAL_PIN_other,
-	JOURNAL_PIN_NR,
+	JOURNAL_PIN_TYPE_btree,
+	JOURNAL_PIN_TYPE_key_cache,
+	JOURNAL_PIN_TYPE_other,
+	JOURNAL_PIN_TYPE_NR,
 };
 
 struct journal_entry_pin_list {
-	struct list_head		list[JOURNAL_PIN_NR];
-	struct list_head		flushed;
+	struct list_head		unflushed[JOURNAL_PIN_TYPE_NR];
+	struct list_head		flushed[JOURNAL_PIN_TYPE_NR];
 	atomic_t			count;
 	struct bch_devs_list		devs;
 };
@@ -112,6 +115,7 @@ union journal_res_state {
  */
 #define JOURNAL_ENTRY_OFFSET_MAX	((1U << 20) - 1)
 
+#define JOURNAL_ENTRY_BLOCKED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 2)
 #define JOURNAL_ENTRY_CLOSED_VAL	(JOURNAL_ENTRY_OFFSET_MAX - 1)
 #define JOURNAL_ENTRY_ERROR_VAL		(JOURNAL_ENTRY_OFFSET_MAX)
 
@@ -129,12 +133,17 @@ enum journal_space_from {
 	journal_space_nr,
 };
 
+#define JOURNAL_FLAGS()			\
+	x(replay_done)			\
+	x(running)			\
+	x(may_skip_flush)		\
+	x(need_flush_write)		\
+	x(space_low)
+
 enum journal_flags {
-	JOURNAL_REPLAY_DONE,
-	JOURNAL_STARTED,
-	JOURNAL_MAY_SKIP_FLUSH,
-	JOURNAL_NEED_FLUSH_WRITE,
-	JOURNAL_SPACE_LOW,
+#define x(n)	JOURNAL_##n,
+	JOURNAL_FLAGS()
+#undef x
 };
 
 /* Reasons we may fail to get a journal reservation: */
@@ -188,6 +197,7 @@ struct journal {
 	 * insufficient devices:
 	 */
 	enum journal_errors	cur_entry_error;
+	unsigned		cur_entry_offset_if_blocked;
 
 	unsigned		buf_size_want;
 	/*
@@ -216,6 +226,7 @@ struct journal {
 	/* Used when waiting because the journal was full */
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
+	struct closure_waitlist	reclaim_flush_wait;
 
 	struct delayed_work	write_work;
 	struct workqueue_struct *wq;
@@ -229,6 +240,7 @@ struct journal {
 	u64			last_seq_ondisk;
 	u64			err_seq;
 	u64			last_empty_seq;
+	u64			oldest_seq_found_ondisk;
 
 	/*
 	 * FIFO of journal entries whose btree updates have not yet been
@@ -326,6 +338,7 @@ struct journal_device {
 
 	/* for bch_journal_read_device */
 	struct closure		read;
+	u64			highest_seq_found;
 };
 
 /*

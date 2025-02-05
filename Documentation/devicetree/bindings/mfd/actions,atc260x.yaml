@@ -21,7 +21,7 @@ description: |
   regulators.
 
 allOf:
-  - $ref: ../input/input.yaml
+  - $ref: /schemas/input/input.yaml
 
 properties:
   compatible:
@@ -57,7 +57,7 @@ properties:
 
       switchldo1:
         type: object
-        $ref: ../regulator/regulator.yaml
+        $ref: /schemas/regulator/regulator.yaml
 
         properties:
           regulator-name: true
@@ -76,7 +76,7 @@ properties:
 
       "^(dcdc[0-4]|ldo[0-9]|ldo1[1-2])$":
         type: object
-        $ref: ../regulator/regulator.yaml
+        $ref: /schemas/regulator/regulator.yaml
 
         properties:
           regulator-name: true

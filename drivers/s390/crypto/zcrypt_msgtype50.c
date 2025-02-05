@@ -427,7 +427,7 @@ static void zcrypt_msgtype50_receive(struct ap_queue *aq,
 		len = t80h->len;
 		if (len > reply->bufsize || len > msg->bufsize ||
 		    len != reply->len) {
-			pr_debug("%s len mismatch => EMSGSIZE\n", __func__);
+			pr_debug("len mismatch => EMSGSIZE\n");
 			msg->rc = -EMSGSIZE;
 			goto out;
 		}
@@ -487,8 +487,8 @@ static long zcrypt_msgtype50_modexpo(struct zcrypt_queue *zq,
 out:
 	ap_msg->private = NULL;
 	if (rc)
-		pr_debug("%s send me cprb at dev=%02x.%04x rc=%d\n",
-			 __func__, AP_QID_CARD(zq->queue->qid),
+		pr_debug("send me cprb at dev=%02x.%04x rc=%d\n",
+			 AP_QID_CARD(zq->queue->qid),
 			 AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }
@@ -537,8 +537,8 @@ static long zcrypt_msgtype50_modexpo_crt(struct zcrypt_queue *zq,
 out:
 	ap_msg->private = NULL;
 	if (rc)
-		pr_debug("%s send crt cprb at dev=%02x.%04x rc=%d\n",
-			 __func__, AP_QID_CARD(zq->queue->qid),
+		pr_debug("send crt cprb at dev=%02x.%04x rc=%d\n",
+			 AP_QID_CARD(zq->queue->qid),
 			 AP_QID_QUEUE(zq->queue->qid), rc);
 	return rc;
 }

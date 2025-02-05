@@ -40,11 +40,13 @@ void panthor_group_pool_destroy(struct panthor_file *pfile);
 int panthor_sched_init(struct panthor_device *ptdev);
 void panthor_sched_unplug(struct panthor_device *ptdev);
 void panthor_sched_pre_reset(struct panthor_device *ptdev);
-void panthor_sched_post_reset(struct panthor_device *ptdev);
+void panthor_sched_post_reset(struct panthor_device *ptdev, bool reset_failed);
 void panthor_sched_suspend(struct panthor_device *ptdev);
 void panthor_sched_resume(struct panthor_device *ptdev);
 
 void panthor_sched_report_mmu_fault(struct panthor_device *ptdev);
 void panthor_sched_report_fw_events(struct panthor_device *ptdev, u32 events);
+
+void panthor_fdinfo_gather_group_samples(struct panthor_file *pfile);
 
 #endif

@@ -941,6 +941,7 @@
 
 &pcie {
 	status = "okay";
+	phys = <&psgtr 0 PHY_TYPE_PCIE 0 0>;
 };
 
 &psgtr {
@@ -1024,10 +1025,6 @@
 };
 
 &watchdog0 {
-	status = "okay";
-};
-
-&xilinx_ams {
 	status = "okay";
 };
 

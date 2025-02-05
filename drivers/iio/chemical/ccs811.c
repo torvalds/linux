@@ -81,7 +81,7 @@ struct ccs811_data {
 	/* Ensures correct alignment of timestamp if present */
 	struct {
 		s16 channels[2];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 
@@ -551,7 +551,7 @@ static void ccs811_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ccs811_id[] = {
-	{"ccs811", 0},
+	{ "ccs811" },
 	{	}
 };
 MODULE_DEVICE_TABLE(i2c, ccs811_id);

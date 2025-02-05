@@ -37,6 +37,7 @@ config PWRSEQ_SIMPLE
 config MMC_BLOCK
 	tristate "MMC block device driver"
 	depends on BLOCK
+	depends on RPMB || !RPMB
 	imply IOSCHED_BFQ
 	default y
 	help

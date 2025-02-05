@@ -42,8 +42,11 @@ properties:
       - const: otg
       - const: wakeup
 
-  dr_mode:
-    enum: [host, otg, peripheral]
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      This port is used with the 'usb-role-switch' property to connect the
+      cdns3 to type C connector.
 
   maximum-speed:
     enum: [super-speed, high-speed, full-speed]
@@ -70,6 +73,9 @@ properties:
     description: Enable resetting of PHY if Rx fail is detected
     type: boolean
 
+dependencies:
+  port: [ usb-role-switch ]
+
 required:
   - compatible
   - reg
@@ -77,7 +83,10 @@ required:
   - interrupts
   - interrupt-names
 
-additionalProperties: false
+allOf:
+  - $ref: usb-drd.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

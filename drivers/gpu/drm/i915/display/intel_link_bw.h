@@ -10,8 +10,6 @@
 
 #include "intel_display_limits.h"
 
-struct drm_i915_private;
-
 struct intel_atomic_state;
 struct intel_crtc_state;
 

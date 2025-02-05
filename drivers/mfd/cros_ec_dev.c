@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * cros_ec_dev - expose the Chrome OS Embedded Controller to user-space
+ * ChromeOS Embedded Controller
  *
  * Copyright (C) 2014 Google, Inc.
  */
@@ -87,6 +87,7 @@ static const struct mfd_cell cros_ec_sensorhub_cells[] = {
 };
 
 static const struct mfd_cell cros_usbpd_charger_cells[] = {
+	{ .name = "cros-charge-control", },
 	{ .name = "cros-usbpd-charger", },
 	{ .name = "cros-usbpd-logger", },
 };
@@ -97,6 +98,18 @@ static const struct mfd_cell cros_usbpd_notify_cells[] = {
 
 static const struct mfd_cell cros_ec_wdt_cells[] = {
 	{ .name = "cros-ec-wdt", }
+};
+
+static const struct mfd_cell cros_ec_led_cells[] = {
+	{ .name = "cros-ec-led", },
+};
+
+static const struct mfd_cell cros_ec_keyboard_leds_cells[] = {
+	{ .name = "cros-keyboard-leds", },
+};
+
+static const struct mfd_cell cros_ec_ucsi_cells[] = {
+	{ .name = "cros_ec_ucsi", },
 };
 
 static const struct cros_feature_to_cells cros_subdevices[] = {
@@ -116,20 +129,31 @@ static const struct cros_feature_to_cells cros_subdevices[] = {
 		.num_cells	= ARRAY_SIZE(cros_ec_rtc_cells),
 	},
 	{
-		.id		= EC_FEATURE_USB_PD,
-		.mfd_cells	= cros_usbpd_charger_cells,
-		.num_cells	= ARRAY_SIZE(cros_usbpd_charger_cells),
+		.id		= EC_FEATURE_UCSI_PPM,
+		.mfd_cells	= cros_ec_ucsi_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_ucsi_cells),
 	},
 	{
 		.id		= EC_FEATURE_HANG_DETECT,
 		.mfd_cells	= cros_ec_wdt_cells,
 		.num_cells	= ARRAY_SIZE(cros_ec_wdt_cells),
 	},
+	{
+		.id		= EC_FEATURE_LED,
+		.mfd_cells	= cros_ec_led_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_led_cells),
+	},
+	{
+		.id		= EC_FEATURE_PWM_KEYB,
+		.mfd_cells	= cros_ec_keyboard_leds_cells,
+		.num_cells	= ARRAY_SIZE(cros_ec_keyboard_leds_cells),
+	},
 };
 
 static const struct mfd_cell cros_ec_platform_cells[] = {
 	{ .name = "cros-ec-chardev", },
 	{ .name = "cros-ec-debugfs", },
+	{ .name = "cros-ec-hwmon", },
 	{ .name = "cros-ec-sysfs", },
 };
 
@@ -233,6 +257,21 @@ static int ec_device_probe(struct platform_device *pdev)
 	}
 
 	/*
+	 * UCSI provides power supply information so we don't need to separately
+	 * load the cros_usbpd_charger driver.
+	 */
+	if (cros_ec_check_features(ec, EC_FEATURE_USB_PD) &&
+	    !cros_ec_check_features(ec, EC_FEATURE_UCSI_PPM)) {
+		retval = mfd_add_hotplug_devices(ec->dev,
+						 cros_usbpd_charger_cells,
+						 ARRAY_SIZE(cros_usbpd_charger_cells));
+
+		if (retval)
+			dev_warn(ec->dev, "failed to add usbpd-charger: %d\n",
+				 retval);
+	}
+
+	/*
 	 * Lightbar is a special case. Newer devices support autodetection,
 	 * but older ones do not.
 	 */
@@ -326,29 +365,24 @@ static struct platform_driver cros_ec_dev_driver = {
 	},
 	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
-	.remove_new = ec_device_remove,
+	.remove = ec_device_remove,
 };
 
 static int __init cros_ec_dev_init(void)
 {
 	int ret;
 
-	ret  = class_register(&cros_class);
+	ret = class_register(&cros_class);
 	if (ret) {
 		pr_err(CROS_EC_DEV_NAME ": failed to register device class\n");
 		return ret;
 	}
 
-	/* Register the driver */
 	ret = platform_driver_register(&cros_ec_dev_driver);
-	if (ret < 0) {
+	if (ret) {
 		pr_warn(CROS_EC_DEV_NAME ": can't register driver: %d\n", ret);
-		goto failed_devreg;
+		class_unregister(&cros_class);
 	}
-	return 0;
-
-failed_devreg:
-	class_unregister(&cros_class);
 	return ret;
 }
 
@@ -362,6 +396,6 @@ module_init(cros_ec_dev_init);
 module_exit(cros_ec_dev_exit);
 
 MODULE_AUTHOR("Bill Richardson <wfrichar@chromium.org>");
-MODULE_DESCRIPTION("Userspace interface to the Chrome OS Embedded Controller");
+MODULE_DESCRIPTION("ChromeOS Embedded Controller");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

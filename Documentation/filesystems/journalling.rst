@@ -137,7 +137,7 @@ Fast commits
 
 JBD2 to also allows you to perform file-system specific delta commits known as
 fast commits. In order to use fast commits, you will need to set following
-callbacks that perform correspodning work:
+callbacks that perform corresponding work:
 
 `journal->j_fc_cleanup_cb`: Cleanup function called after every full commit and
 fast commit.
@@ -149,7 +149,7 @@ File system is free to perform fast commits as and when it wants as long as it
 gets permission from JBD2 to do so by calling the function
 :c:func:`jbd2_fc_begin_commit()`. Once a fast commit is done, the client
 file  system should tell JBD2 about it by calling
-:c:func:`jbd2_fc_end_commit()`. If file system wants JBD2 to perform a full
+:c:func:`jbd2_fc_end_commit()`. If the file system wants JBD2 to perform a full
 commit immediately after stopping the fast commit it can do so by calling
 :c:func:`jbd2_fc_end_commit_fallback()`. This is useful if fast commit operation
 fails for some reason and the only way to guarantee consistency is for JBD2 to
@@ -199,7 +199,7 @@ Journal Level
 .. kernel-doc:: fs/jbd2/recovery.c
    :internal:
 
-Transasction Level
+Transaction Level
 ~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: fs/jbd2/transaction.c

@@ -91,9 +91,7 @@ __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 	if (!refcount_dec_and_test(&cpumask->usage))
 		return;
 
-	migrate_disable();
 	bpf_mem_cache_free_rcu(&bpf_cpumask_ma, cpumask);
-	migrate_enable();
 }
 
 __bpf_kfunc void bpf_cpumask_release_dtor(void *cpumask)
@@ -474,6 +472,7 @@ static int __init cpumask_kfunc_init(void)
 	ret = bpf_mem_alloc_init(&bpf_cpumask_ma, sizeof(struct bpf_cpumask), false);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_TRACING, &cpumask_kfunc_set);
 	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_STRUCT_OPS, &cpumask_kfunc_set);
+	ret = ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SYSCALL, &cpumask_kfunc_set);
 	return  ret ?: register_btf_id_dtor_kfuncs(cpumask_dtors,
 						   ARRAY_SIZE(cpumask_dtors),
 						   THIS_MODULE);

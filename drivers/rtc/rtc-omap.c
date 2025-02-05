@@ -920,7 +920,7 @@ static void omap_rtc_remove(struct platform_device *pdev)
 		omap_rtc_power_off_rtc = NULL;
 	}
 
-	device_init_wakeup(&pdev->dev, 0);
+	device_init_wakeup(&pdev->dev, false);
 
 	if (!IS_ERR(rtc->clk))
 		clk_disable_unprepare(rtc->clk);
@@ -1014,7 +1014,7 @@ static void omap_rtc_shutdown(struct platform_device *pdev)
 
 static struct platform_driver omap_rtc_driver = {
 	.probe		= omap_rtc_probe,
-	.remove_new	= omap_rtc_remove,
+	.remove		= omap_rtc_remove,
 	.shutdown	= omap_rtc_shutdown,
 	.driver		= {
 		.name	= "omap_rtc",
@@ -1027,4 +1027,5 @@ static struct platform_driver omap_rtc_driver = {
 module_platform_driver(omap_rtc_driver);
 
 MODULE_AUTHOR("George G. Davis (and others)");
+MODULE_DESCRIPTION("TI OMAP1, AM33xx, DA8xx/OMAP-L13x, AM43xx and DRA7xx RTC driver");
 MODULE_LICENSE("GPL");

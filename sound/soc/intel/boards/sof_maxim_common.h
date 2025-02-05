@@ -11,7 +11,7 @@
 #define __SOF_MAXIM_COMMON_H
 
 #include <sound/soc.h>
-#include "sof_ssp_common.h"
+#include <sound/soc-acpi-intel-ssp-common.h>
 
 /*
  * Maxim MAX98373
@@ -20,13 +20,8 @@
 #define MAX_98373_DEV0_NAME	"i2c-" MAX_98373_ACPI_HID ":00"
 #define MAX_98373_DEV1_NAME	"i2c-" MAX_98373_ACPI_HID ":01"
 
-extern struct snd_soc_dai_link_component max_98373_components[2];
-extern struct snd_soc_ops max_98373_ops;
-extern const struct snd_soc_dapm_route max_98373_dapm_routes[];
-
-int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd);
+void max_98373_dai_link(struct device *dev, struct snd_soc_dai_link *link);
 void max_98373_set_codec_conf(struct snd_soc_card *card);
-int max_98373_trigger(struct snd_pcm_substream *substream, int cmd);
 
 /*
  * Maxim MAX98390

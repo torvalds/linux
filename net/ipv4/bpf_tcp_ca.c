@@ -14,10 +14,6 @@
 /* "extern" is to avoid sparse warning.  It is only used in bpf_struct_ops.c. */
 static struct bpf_struct_ops bpf_tcp_congestion_ops;
 
-static u32 unsupported_ops[] = {
-	offsetof(struct tcp_congestion_ops, get_info),
-};
-
 static const struct btf_type *tcp_sock_type;
 static u32 tcp_sock_id, sock_id;
 static const struct btf_type *tcp_congestion_ops_type;
@@ -43,18 +39,6 @@ static int bpf_tcp_ca_init(struct btf *btf)
 	tcp_congestion_ops_type = btf_type_by_id(btf, type_id);
 
 	return 0;
-}
-
-static bool is_unsupported(u32 member_offset)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(unsupported_ops); i++) {
-		if (member_offset == unsupported_ops[i])
-			return true;
-	}
-
-	return false;
 }
 
 static bool bpf_tcp_ca_is_valid_access(int off, int size,
@@ -106,6 +90,9 @@ static int bpf_tcp_ca_btf_struct_access(struct bpf_verifier_log *log,
 		break;
 	case offsetof(struct tcp_sock, snd_cwnd_cnt):
 		end = offsetofend(struct tcp_sock, snd_cwnd_cnt);
+		break;
+	case offsetof(struct tcp_sock, snd_cwnd_stamp):
+		end = offsetofend(struct tcp_sock, snd_cwnd_stamp);
 		break;
 	case offsetof(struct tcp_sock, snd_ssthresh):
 		end = offsetofend(struct tcp_sock, snd_ssthresh);
@@ -248,26 +235,17 @@ static int bpf_tcp_ca_init_member(const struct btf_type *t,
 	return 0;
 }
 
-static int bpf_tcp_ca_check_member(const struct btf_type *t,
-				   const struct btf_member *member,
-				   const struct bpf_prog *prog)
-{
-	if (is_unsupported(__btf_member_bit_offset(t, member) / 8))
-		return -ENOTSUPP;
-	return 0;
-}
-
-static int bpf_tcp_ca_reg(void *kdata)
+static int bpf_tcp_ca_reg(void *kdata, struct bpf_link *link)
 {
 	return tcp_register_congestion_control(kdata);
 }
 
-static void bpf_tcp_ca_unreg(void *kdata)
+static void bpf_tcp_ca_unreg(void *kdata, struct bpf_link *link)
 {
 	tcp_unregister_congestion_control(kdata);
 }
 
-static int bpf_tcp_ca_update(void *kdata, void *old_kdata)
+static int bpf_tcp_ca_update(void *kdata, void *old_kdata, struct bpf_link *link)
 {
 	return tcp_update_congestion_control(kdata, old_kdata);
 }
@@ -307,7 +285,8 @@ static u32 bpf_tcp_ca_min_tso_segs(struct sock *sk)
 	return 0;
 }
 
-static void bpf_tcp_ca_cong_control(struct sock *sk, const struct rate_sample *rs)
+static void bpf_tcp_ca_cong_control(struct sock *sk, u32 ack, int flag,
+				    const struct rate_sample *rs)
 {
 }
 
@@ -350,7 +329,6 @@ static struct bpf_struct_ops bpf_tcp_congestion_ops = {
 	.reg = bpf_tcp_ca_reg,
 	.unreg = bpf_tcp_ca_unreg,
 	.update = bpf_tcp_ca_update,
-	.check_member = bpf_tcp_ca_check_member,
 	.init_member = bpf_tcp_ca_init_member,
 	.init = bpf_tcp_ca_init,
 	.validate = bpf_tcp_ca_validate,

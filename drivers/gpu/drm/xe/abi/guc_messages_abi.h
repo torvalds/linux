@@ -92,6 +92,34 @@
 #define GUC_HXG_REQUEST_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
 
 /**
+ * DOC: HXG Fast Request
+ *
+ * The `HXG Request`_ message should be used to initiate asynchronous activity
+ * for which confirmation or return data is not expected.
+ *
+ * If confirmation is required then `HXG Request`_ shall be used instead.
+ *
+ * The recipient of this message may only use `HXG Failure`_ message if it was
+ * unable to accept this request (like invalid data).
+ *
+ * Format of `HXG Fast Request`_ message is same as `HXG Request`_ except @TYPE.
+ *
+ *  +---+-------+--------------------------------------------------------------+
+ *  |   | Bits  | Description                                                  |
+ *  +===+=======+==============================================================+
+ *  | 0 |    31 | ORIGIN - see `HXG Message`_                                  |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 30:28 | TYPE = `GUC_HXG_TYPE_FAST_REQUEST`_                          |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   | 27:16 | DATA0 - see `HXG Request`_                                   |
+ *  |   +-------+--------------------------------------------------------------+
+ *  |   |  15:0 | ACTION - see `HXG Request`_                                  |
+ *  +---+-------+--------------------------------------------------------------+
+ *  |...|       | DATAn - see `HXG Request`_                                   |
+ *  +---+-------+--------------------------------------------------------------+
+ */
+
+/**
  * DOC: HXG Event
  *
  * The `HXG Event`_ message should be used to initiate asynchronous activity
@@ -219,18 +247,5 @@
 #define GUC_HXG_RESPONSE_MSG_MIN_LEN		GUC_HXG_MSG_MIN_LEN
 #define GUC_HXG_RESPONSE_MSG_0_DATA0		GUC_HXG_MSG_0_AUX
 #define GUC_HXG_RESPONSE_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
-
-/* deprecated */
-#define INTEL_GUC_MSG_TYPE_SHIFT	28
-#define INTEL_GUC_MSG_TYPE_MASK		(0xF << INTEL_GUC_MSG_TYPE_SHIFT)
-#define INTEL_GUC_MSG_DATA_SHIFT	16
-#define INTEL_GUC_MSG_DATA_MASK		(0xFFF << INTEL_GUC_MSG_DATA_SHIFT)
-#define INTEL_GUC_MSG_CODE_SHIFT	0
-#define INTEL_GUC_MSG_CODE_MASK		(0xFFFF << INTEL_GUC_MSG_CODE_SHIFT)
-
-enum intel_guc_msg_type {
-	INTEL_GUC_MSG_TYPE_REQUEST = 0x0,
-	INTEL_GUC_MSG_TYPE_RESPONSE = 0xF,
-};
 
 #endif

@@ -24,6 +24,7 @@
 #include <linux/gfp.h>
 #include <linux/hugetlb.h>
 #include <linux/mmzone.h>
+#include <linux/execmem.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
@@ -140,7 +141,7 @@ void __meminit vmemmap_set_pmd(pmd_t *pmd, void *p, int node,
 int __meminit vmemmap_check_pmd(pmd_t *pmd, int node,
 				unsigned long addr, unsigned long next)
 {
-	int huge = pmd_val(*pmd) & _PAGE_HUGE;
+	int huge = pmd_val(pmdp_get(pmd)) & _PAGE_HUGE;
 
 	if (huge)
 		vmemmap_verify((pte_t *)pmd, node, addr, next);
@@ -172,10 +173,8 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
-	if (p4d_none(*p4d)) {
-		pud = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pud)
-			panic("%s: Failed to allocate memory\n", __func__);
+	if (p4d_none(p4dp_get(p4d))) {
+		pud = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		p4d_populate(&init_mm, p4d, pud);
 #ifndef __PAGETABLE_PUD_FOLDED
 		pud_init(pud);
@@ -183,10 +182,8 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	}
 
 	pud = pud_offset(p4d, addr);
-	if (pud_none(*pud)) {
-		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pmd)
-			panic("%s: Failed to allocate memory\n", __func__);
+	if (pud_none(pudp_get(pud))) {
+		pmd = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pud_populate(&init_mm, pud, pmd);
 #ifndef __PAGETABLE_PMD_FOLDED
 		pmd_init(pmd);
@@ -194,13 +191,12 @@ pte_t * __init populate_kernel_pte(unsigned long addr)
 	}
 
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd)) {
+	if (!pmd_present(pmdp_get(pmd))) {
 		pte_t *pte;
 
-		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
-		if (!pte)
-			panic("%s: Failed to allocate memory\n", __func__);
+		pte = memblock_alloc_or_panic(PAGE_SIZE, PAGE_SIZE);
 		pmd_populate_kernel(&init_mm, pmd, pte);
+		kernel_pte_init(pte);
 	}
 
 	return pte_offset_kernel(pmd, addr);
@@ -215,7 +211,7 @@ void __init __set_fixmap(enum fixed_addresses idx,
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
 	ptep = populate_kernel_pte(addr);
-	if (!pte_none(*ptep)) {
+	if (!pte_none(ptep_get(ptep))) {
 		pte_ERROR(*ptep);
 		return;
 	}
@@ -248,3 +244,23 @@ EXPORT_SYMBOL(invalid_pmd_table);
 #endif
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
 EXPORT_SYMBOL(invalid_pte_table);
+
+#ifdef CONFIG_EXECMEM
+static struct execmem_info execmem_info __ro_after_init;
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= MODULES_VADDR,
+				.end	= MODULES_END,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = 1,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

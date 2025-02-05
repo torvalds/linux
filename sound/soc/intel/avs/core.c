@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -14,19 +14,21 @@
 // foundation of this driver
 //
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <acpi/nhlt.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 #include <sound/hdaudio.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/intel-dsp-config.h>
-#include <sound/intel-nhlt.h>
 #include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
 #include "messages.h"
+#include "pcm.h"
 
 static u32 pgctl_mask = AZX_PGCTL_LSRMD_MASK;
 module_param(pgctl_mask, uint, 0444);
@@ -209,15 +211,13 @@ static void avs_hda_probe_work(struct work_struct *work)
 
 	snd_hdac_ext_bus_ppcap_enable(bus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
+	avs_debugfs_init(adev);
 
 	ret = avs_dsp_first_boot_firmware(adev);
 	if (ret < 0)
 		return;
 
-	adev->nhlt = intel_nhlt_init(adev->dev);
-	if (!adev->nhlt)
-		dev_info(bus->dev, "platform has no NHLT\n");
-	avs_debugfs_init(adev);
+	acpi_nhlt_get_gbl_table();
 
 	avs_register_all_boards(adev);
 
@@ -248,7 +248,7 @@ static void hdac_stream_update_pos(struct hdac_stream *stream, u64 buffer_size)
 static void hdac_update_stream(struct hdac_bus *bus, struct hdac_stream *stream)
 {
 	if (stream->substream) {
-		snd_pcm_period_elapsed(stream->substream);
+		avs_period_elapsed(stream->substream);
 	} else if (stream->cstream) {
 		u64 buffer_size = stream->cstream->runtime->buffer_size;
 
@@ -257,67 +257,55 @@ static void hdac_update_stream(struct hdac_bus *bus, struct hdac_stream *stream)
 	}
 }
 
-static irqreturn_t hdac_bus_irq_handler(int irq, void *context)
+static irqreturn_t avs_hda_interrupt(struct hdac_bus *bus)
 {
-	struct hdac_bus *bus = context;
-	u32 mask, int_enable;
+	irqreturn_t ret = IRQ_NONE;
 	u32 status;
-	int ret = IRQ_NONE;
-
-	if (!pm_runtime_active(bus->dev))
-		return ret;
-
-	spin_lock(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
-	if (status == 0 || status == UINT_MAX) {
-		spin_unlock(&bus->reg_lock);
-		return ret;
-	}
+	if (snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream))
+		ret = IRQ_HANDLED;
 
-	/* clear rirb int */
+	spin_lock_irq(&bus->reg_lock);
+	/* Clear RIRB interrupt. */
 	status = snd_hdac_chip_readb(bus, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
 		if (status & RIRB_INT_RESPONSE)
 			snd_hdac_bus_update_rirb(bus);
 		snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
-	}
-
-	mask = (0x1 << bus->num_streams) - 1;
-
-	status = snd_hdac_chip_readl(bus, INTSTS);
-	status &= mask;
-	if (status) {
-		/* Disable stream interrupts; Re-enable in bottom half */
-		int_enable = snd_hdac_chip_readl(bus, INTCTL);
-		snd_hdac_chip_writel(bus, INTCTL, (int_enable & (~mask)));
-		ret = IRQ_WAKE_THREAD;
-	} else {
 		ret = IRQ_HANDLED;
 	}
 
-	spin_unlock(&bus->reg_lock);
+	spin_unlock_irq(&bus->reg_lock);
 	return ret;
 }
 
-static irqreturn_t hdac_bus_irq_thread(int irq, void *context)
+static irqreturn_t avs_hda_irq_handler(int irq, void *dev_id)
 {
-	struct hdac_bus *bus = context;
+	struct hdac_bus *bus = dev_id;
+	u32 intsts;
+
+	intsts = snd_hdac_chip_readl(bus, INTSTS);
+	if (intsts == UINT_MAX || !(intsts & AZX_INT_GLOBAL_EN))
+		return IRQ_NONE;
+
+	/* Mask GIE, unmasked in irq_thread(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, 0);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t avs_hda_irq_thread(int irq, void *dev_id)
+{
+	struct hdac_bus *bus = dev_id;
 	u32 status;
-	u32 int_enable;
-	u32 mask;
-	unsigned long flags;
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
+	if (status & ~AZX_INT_GLOBAL_EN)
+		avs_hda_interrupt(bus);
 
-	snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream);
-
-	/* Re-enable stream interrupts */
-	mask = (0x1 << bus->num_streams) - 1;
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	int_enable = snd_hdac_chip_readl(bus, INTCTL);
-	snd_hdac_chip_writel(bus, INTCTL, (int_enable | mask));
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
 
 	return IRQ_HANDLED;
 }
@@ -326,14 +314,23 @@ static irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
 {
 	struct avs_dev *adev = dev_id;
 
-	return avs_dsp_op(adev, irq_handler);
+	return avs_hda_irq_handler(irq, &adev->base.core);
 }
 
 static irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
 {
 	struct avs_dev *adev = dev_id;
+	struct hdac_bus *bus = &adev->base.core;
+	u32 status;
 
-	return avs_dsp_op(adev, irq_thread);
+	status = readl(bus->ppcap + AZX_REG_PP_PPSTS);
+	if (status & AZX_PPCTL_PIE)
+		avs_dsp_op(adev, dsp_interrupt);
+
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
+
+	return IRQ_HANDLED;
 }
 
 static int avs_hdac_acquire_irq(struct avs_dev *adev)
@@ -343,13 +340,13 @@ static int avs_hdac_acquire_irq(struct avs_dev *adev)
 	int ret;
 
 	/* request one and check that we only got one interrupt */
-	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (ret != 1) {
 		dev_err(adev->dev, "Failed to allocate IRQ vector: %d\n", ret);
 		return ret;
 	}
 
-	ret = pci_request_irq(pci, 0, hdac_bus_irq_handler, hdac_bus_irq_thread, bus,
+	ret = pci_request_irq(pci, 0, avs_hda_irq_handler, avs_hda_irq_thread, bus,
 			      KBUILD_MODNAME);
 	if (ret < 0) {
 		dev_err(adev->dev, "Failed to request stream IRQ handler: %d\n", ret);
@@ -426,8 +423,14 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	int ret;
 
 	ret = snd_intel_dsp_driver_probe(pci);
-	if (ret != SND_INTEL_DSP_DRIVER_ANY && ret != SND_INTEL_DSP_DRIVER_AVS)
+	switch (ret) {
+	case SND_INTEL_DSP_DRIVER_ANY:
+	case SND_INTEL_DSP_DRIVER_SST:
+	case SND_INTEL_DSP_DRIVER_AVS:
+		break;
+	default:
 		return -ENODEV;
+	}
 
 	ret = pcim_enable_device(pci);
 	if (ret < 0)
@@ -530,8 +533,6 @@ static void avs_pci_shutdown(struct pci_dev *pci)
 	snd_hdac_bus_stop_chip(bus);
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 
-	if (avs_platattr_test(adev, CLDMA))
-		pci_free_irq(pci, 0, &code_loader);
 	pci_free_irq(pci, 0, adev);
 	pci_free_irq(pci, 0, bus);
 	pci_free_irq_vectors(pci);
@@ -548,9 +549,8 @@ static void avs_pci_remove(struct pci_dev *pci)
 
 	avs_unregister_all_boards(adev);
 
+	acpi_nhlt_put_gbl_table();
 	avs_debugfs_exit(adev);
-	if (adev->nhlt)
-		intel_nhlt_free(adev->nhlt);
 
 	if (avs_platattr_test(adev, CLDMA))
 		hda_cldma_free(&code_loader);
@@ -829,10 +829,10 @@ static const struct avs_spec jsl_desc = {
 	.hipc = &cnl_hipc_spec,
 };
 
-#define AVS_TGL_BASED_SPEC(sname)		\
+#define AVS_TGL_BASED_SPEC(sname, min)		\
 static const struct avs_spec sname##_desc = {	\
 	.name = #sname,				\
-	.min_fw_version = { 10,	29, 0, 5646 },	\
+	.min_fw_version = { 10,	min, 0, 5646 },	\
 	.dsp_ops = &avs_tgl_dsp_ops,		\
 	.core_init_mask = 1,			\
 	.attributes = AVS_PLATATTR_IMR,		\
@@ -840,11 +840,11 @@ static const struct avs_spec sname##_desc = {	\
 	.hipc = &cnl_hipc_spec,			\
 }
 
-AVS_TGL_BASED_SPEC(lkf);
-AVS_TGL_BASED_SPEC(tgl);
-AVS_TGL_BASED_SPEC(ehl);
-AVS_TGL_BASED_SPEC(adl);
-AVS_TGL_BASED_SPEC(adl_n);
+AVS_TGL_BASED_SPEC(lkf, 28);
+AVS_TGL_BASED_SPEC(tgl, 29);
+AVS_TGL_BASED_SPEC(ehl, 30);
+AVS_TGL_BASED_SPEC(adl, 35);
+AVS_TGL_BASED_SPEC(adl_n, 35);
 
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
@@ -902,3 +902,13 @@ MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_AUTHOR("Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>");
 MODULE_DESCRIPTION("Intel cAVS sound driver");
 MODULE_LICENSE("GPL");
+MODULE_FIRMWARE("intel/skl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/apl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/cnl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/icl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/jsl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/lkf/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/tgl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/ehl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl/dsp_basefw.bin");
+MODULE_FIRMWARE("intel/adl_n/dsp_basefw.bin");

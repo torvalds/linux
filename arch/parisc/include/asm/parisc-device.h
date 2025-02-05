@@ -41,7 +41,7 @@ struct parisc_driver {
 
 
 #define to_parisc_device(d)	container_of(d, struct parisc_device, dev)
-#define to_parisc_driver(d)	container_of(d, struct parisc_driver, drv)
+#define to_parisc_driver(d)	container_of_const(d, struct parisc_driver, drv)
 #define parisc_parent(d)	to_parisc_device(d->dev.parent)
 
 static inline const char *parisc_pathname(struct parisc_device *d)

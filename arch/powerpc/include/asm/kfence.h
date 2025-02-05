@@ -15,9 +15,22 @@
 #define ARCH_FUNC_PREFIX "."
 #endif
 
+extern bool kfence_early_init;
+extern bool kfence_disabled;
+
+static inline void disable_kfence(void)
+{
+	kfence_disabled = true;
+}
+
 static inline bool arch_kfence_init_pool(void)
 {
-	return true;
+	return !kfence_disabled;
+}
+
+static inline bool kfence_early_init_enabled(void)
+{
+	return IS_ENABLED(CONFIG_KFENCE) && kfence_early_init;
 }
 
 #ifdef CONFIG_PPC64

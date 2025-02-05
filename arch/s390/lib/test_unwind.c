@@ -270,9 +270,9 @@ static void notrace __used test_unwind_ftrace_handler(unsigned long ip,
 						      struct ftrace_ops *fops,
 						      struct ftrace_regs *fregs)
 {
-	struct unwindme *u = (struct unwindme *)fregs->regs.gprs[2];
+	struct unwindme *u = (struct unwindme *)arch_ftrace_regs(fregs)->regs.gprs[2];
 
-	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? &fregs->regs : NULL,
+	u->ret = test_unwind(NULL, (u->flags & UWM_REGS) ? &arch_ftrace_regs(fregs)->regs : NULL,
 			     (u->flags & UWM_SP) ? u->sp : 0);
 }
 
@@ -356,7 +356,7 @@ static noinline int unwindme_func2(struct unwindme *u)
 	if (u->flags & UWM_SWITCH_STACK) {
 		local_irq_save(flags);
 		local_mcck_save(mflags);
-		rc = call_on_stack(1, S390_lowcore.nodat_stack,
+		rc = call_on_stack(1, get_lowcore()->nodat_stack,
 				   int, unwindme_func3, struct unwindme *, u);
 		local_mcck_restore(mflags);
 		local_irq_restore(flags);
@@ -519,4 +519,5 @@ static struct kunit_suite test_unwind_suite = {
 
 kunit_test_suites(&test_unwind_suite);
 
+MODULE_DESCRIPTION("KUnit test for unwind_for_each_frame");
 MODULE_LICENSE("GPL");

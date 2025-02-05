@@ -97,6 +97,9 @@ struct mptcp_out_options {
 };
 
 #define MPTCP_SCHED_NAME_MAX	16
+#define MPTCP_SCHED_MAX		128
+#define MPTCP_SCHED_BUF_MAX	(MPTCP_SCHED_NAME_MAX * MPTCP_SCHED_MAX)
+
 #define MPTCP_SUBFLOWS_MAX	8
 
 struct mptcp_sched_data {
@@ -220,6 +223,8 @@ static inline __be32 mptcp_reset_option(const struct sk_buff *skb)
 
 	return htonl(0u);
 }
+
+void mptcp_active_detect_blackhole(struct sock *sk, bool expired);
 #else
 
 static inline void mptcp_init(void)
@@ -304,6 +309,8 @@ static inline struct request_sock *mptcp_subflow_reqsk_alloc(const struct reques
 }
 
 static inline __be32 mptcp_reset_option(const struct sk_buff *skb)  { return htonl(0u); }
+
+static inline void mptcp_active_detect_blackhole(struct sock *sk, bool expired) { }
 #endif /* CONFIG_MPTCP */
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)

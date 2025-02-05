@@ -81,8 +81,7 @@ int hts221_allocate_trigger(struct iio_dev *iio_dev)
 	unsigned long irq_type;
 	int err;
 
-	irq_type = irqd_get_trigger_type(irq_get_irq_data(hw->irq));
-
+	irq_type = irq_get_trigger_type(hw->irq);
 	switch (irq_type) {
 	case IRQF_TRIGGER_HIGH:
 	case IRQF_TRIGGER_RISING:

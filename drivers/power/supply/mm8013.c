@@ -90,7 +90,7 @@ static int mm8013_get_property(struct power_supply *psy,
 			       enum power_supply_property psp,
 			       union power_supply_propval *val)
 {
-	struct mm8013_chip *chip = psy->drv_data;
+	struct mm8013_chip *chip = power_supply_get_drvdata(psy);
 	int ret = 0;
 	u32 regval;
 
@@ -284,7 +284,7 @@ static int mm8013_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mm8013_id_table[] = {
-	{ "mm8013", 0 },
+	{ "mm8013" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, mm8013_id_table);

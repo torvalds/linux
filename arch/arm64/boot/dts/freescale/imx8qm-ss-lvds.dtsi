@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+/*
+ * Copyright 2024 NXP
+ */
+
+&qm_lvds0_lis_lpcg {
+	clocks = <&lvds_ipg_clk>;
+	clock-indices = <IMX_LPCG_CLK_4>;
+};
+
+&qm_lvds0_pwm_lpcg {
+	clocks = <&clk IMX_SC_R_LVDS_0_PWM_0 IMX_SC_PM_CLK_PER>,
+		 <&lvds_ipg_clk>;
+	clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+};
+
+&qm_lvds0_i2c0_lpcg {
+	clocks = <&clk IMX_SC_R_LVDS_0_I2C_0 IMX_SC_PM_CLK_PER>,
+		 <&lvds_ipg_clk>;
+	clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+};
+
+&qm_pwm_lvds0 {
+	clocks = <&qm_lvds0_pwm_lpcg IMX_LPCG_CLK_4>,
+		 <&qm_lvds0_pwm_lpcg IMX_LPCG_CLK_0>;
+};
+
+&qm_i2c0_lvds0 {
+	clocks = <&qm_lvds0_i2c0_lpcg IMX_LPCG_CLK_0>,
+		 <&qm_lvds0_i2c0_lpcg IMX_LPCG_CLK_4>;
+};
+
+&lvds0_subsys {
+	interrupt-parent = <&irqsteer_lvds0>;
+
+	irqsteer_lvds0: interrupt-controller@56240000 {
+		compatible = "fsl,imx8qm-irqsteer", "fsl,imx-irqsteer";
+		reg = <0x56240000 0x1000>;
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-controller;
+		interrupt-parent = <&gic>;
+		#interrupt-cells = <1>;
+		clocks = <&qm_lvds0_lis_lpcg IMX_LPCG_CLK_4>;
+		clock-names = "ipg";
+		power-domains = <&pd IMX_SC_R_LVDS_0>;
+
+		fsl,channel = <0>;
+		fsl,num-irqs = <32>;
+	};
+
+	lvds0_i2c1_lpcg: clock-controller@56243014 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x56243014 0x4>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_LVDS_0_I2C_0 IMX_SC_PM_CLK_PER>,
+			 <&lvds_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "lvds0_i2c1_lpcg_clk",
+				     "lvds0_i2c1_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_LVDS_0_I2C_0>;
+	};
+
+	i2c1_lvds0: i2c@56247000 {
+		compatible = "fsl,imx8qm-lpi2c", "fsl,imx7ulp-lpi2c";
+		reg = <0x56247000 0x1000>;
+		interrupts = <9>;
+		clocks = <&lvds0_i2c1_lpcg IMX_LPCG_CLK_0>,
+			 <&lvds0_i2c1_lpcg IMX_LPCG_CLK_4>;
+		clock-names = "per", "ipg";
+		assigned-clocks = <&clk IMX_SC_R_LVDS_0_I2C_0 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		power-domains = <&pd IMX_SC_R_LVDS_0_I2C_0>;
+		status = "disabled";
+	};
+};

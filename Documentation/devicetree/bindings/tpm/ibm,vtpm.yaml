@@ -33,13 +33,13 @@ properties:
   reg:
     maxItems: 1
 
-  'ibm,#dma-address-cells':
+  ibm,#dma-address-cells:
     description:
       number of cells that are used to encode the physical address field of
       dma-window properties
     $ref: /schemas/types.yaml#/definitions/uint32-array
 
-  'ibm,#dma-size-cells':
+  ibm,#dma-size-cells:
     description:
       number of cells that are used to encode the size field of
       dma-window properties

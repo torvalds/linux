@@ -294,7 +294,7 @@ static void stm32_rproc_mb_vq_work(struct work_struct *work)
 
 	mutex_lock(&rproc->lock);
 
-	if (rproc->state != RPROC_RUNNING)
+	if (rproc->state != RPROC_RUNNING && rproc->state != RPROC_ATTACHED)
 		goto unlock_mutex;
 
 	if (rproc_vq_interrupt(rproc, mb->vq_id) == IRQ_NONE)
@@ -946,7 +946,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(stm32_rproc_pm_ops,
 
 static struct platform_driver stm32_rproc_driver = {
 	.probe = stm32_rproc_probe,
-	.remove_new = stm32_rproc_remove,
+	.remove = stm32_rproc_remove,
 	.driver = {
 		.name = "stm32-rproc",
 		.pm = pm_ptr(&stm32_rproc_pm_ops),

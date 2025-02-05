@@ -49,6 +49,7 @@
 #include <xen/hvc-console.h>
 #include <xen/acpi.h>
 
+#include <asm/cpuid.h>
 #include <asm/paravirt.h>
 #include <asm/apic.h>
 #include <asm/page.h>
@@ -85,10 +86,6 @@
 #endif
 
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
-#include "multicalls.h"
-#include "pmu.h"
 
 #include "../kernel/cpu/cpu.h" /* get_cpu_cap() */
 
@@ -175,7 +172,7 @@ static void __init xen_set_mtrr_data(void)
 
 	/* Only overwrite MTRR state if any MTRR could be got from Xen. */
 	if (reg)
-		mtrr_overwrite_state(var, reg, MTRR_TYPE_UNCACHABLE);
+		guest_force_mtrr_state(var, reg, MTRR_TYPE_UNCACHABLE);
 #endif
 }
 
@@ -199,7 +196,7 @@ static void __init xen_pv_init_platform(void)
 	if (xen_initial_domain())
 		xen_set_mtrr_data();
 	else
-		mtrr_overwrite_state(NULL, 0, MTRR_TYPE_WRBACK);
+		guest_force_mtrr_state(NULL, 0, MTRR_TYPE_WRBACK);
 
 	/* Adjust nr_cpu_ids before "enumeration" happens */
 	xen_smp_count_cpus();
@@ -219,14 +216,22 @@ static __read_mostly unsigned int cpuid_leaf5_edx_val;
 static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		      unsigned int *cx, unsigned int *dx)
 {
-	unsigned maskebx = ~0;
+	unsigned int maskebx = ~0;
+	unsigned int or_ebx = 0;
 
 	/*
 	 * Mask out inconvenient features, to try and disable as many
 	 * unsupported kernel subsystems as possible.
 	 */
 	switch (*ax) {
-	case CPUID_MWAIT_LEAF:
+	case 0x1:
+		/* Replace initial APIC ID in bits 24-31 of EBX. */
+		/* See xen_pv_smp_config() for related topology preparations. */
+		maskebx = 0x00ffffff;
+		or_ebx = smp_processor_id() << 24;
+		break;
+
+	case CPUID_LEAF_MWAIT:
 		/* Synthesize the values.. */
 		*ax = 0;
 		*bx = 0;
@@ -248,6 +253,7 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 		: "0" (*ax), "2" (*cx));
 
 	*bx &= maskebx;
+	*bx |= or_ebx;
 }
 
 static bool __init xen_check_mwait(void)
@@ -295,7 +301,7 @@ static bool __init xen_check_mwait(void)
 	 * ecx and edx. The hypercall provides only partial information.
 	 */
 
-	ax = CPUID_MWAIT_LEAF;
+	ax = CPUID_LEAF_MWAIT;
 	bx = 0;
 	cx = 0;
 	dx = 0;
@@ -1027,6 +1033,10 @@ static u64 xen_do_read_msr(unsigned int msr, int *err)
 	switch (msr) {
 	case MSR_IA32_APICBASE:
 		val &= ~X2APIC_ENABLE;
+		if (smp_processor_id() == 0)
+			val |= MSR_IA32_APICBASE_BSP;
+		else
+			val &= ~MSR_IA32_APICBASE_BSP;
 		break;
 	}
 	return val;
@@ -1151,8 +1161,6 @@ static const typeof(pv_ops) xen_cpu_ops __initconst = {
 		.write_cr0 = xen_write_cr0,
 
 		.write_cr4 = xen_write_cr4,
-
-		.wbinvd = pv_native_wbinvd,
 
 		.read_msr = xen_read_msr,
 		.write_msr = xen_write_msr,
@@ -1332,6 +1340,9 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 
 	xen_domain_type = XEN_PV_DOMAIN;
 	xen_start_flags = xen_start_info->flags;
+	/* Interrupts are guaranteed to be off initially. */
+	early_boot_irqs_disabled = true;
+	static_call_update_early(xen_hypercall, xen_hypercall_pv);
 
 	xen_setup_features();
 
@@ -1422,7 +1433,6 @@ asmlinkage __visible void __init xen_start_kernel(struct start_info *si)
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_pv, xen_cpu_dead_pv));
 
 	local_irq_disable();
-	early_boot_irqs_disabled = true;
 
 	xen_raw_console_write("mapping kernel into physical memory\n");
 	xen_setup_kernel_pagetable((pgd_t *)xen_start_info->pt_base,

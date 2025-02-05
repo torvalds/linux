@@ -78,7 +78,7 @@ struct pca9541 {
 };
 
 static const struct i2c_device_id pca9541_id[] = {
-	{"pca9541", 0},
+	{ "pca9541" },
 	{}
 };
 
@@ -314,7 +314,7 @@ static int pca9541_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, muxc);
 
-	ret = i2c_mux_add_adapter(muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(muxc, 0, 0);
 	if (ret)
 		return ret;
 

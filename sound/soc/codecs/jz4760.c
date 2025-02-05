@@ -821,7 +821,7 @@ static const u8 jz4760_codec_reg_defaults[] = {
 	0x1F, 0x00, 0x00, 0x00
 };
 
-static struct regmap_config jz4760_codec_regmap_config = {
+static const struct regmap_config jz4760_codec_regmap_config = {
 	.reg_bits = 7,
 	.val_bits = 8,
 

@@ -5,16 +5,17 @@
  * Peter Korsgaard <peter.korsgaard@barco.com>
  */
 
+#include <linux/bits.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/platform_data/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/bits.h>
-#include <linux/gpio/consumer.h>
-#include <linux/gpio/driver.h>
 
 struct gpiomux {
 	struct i2c_mux_gpio_platform_data data;
@@ -36,6 +37,9 @@ static int i2c_mux_gpio_select(struct i2c_mux_core *muxc, u32 chan)
 	struct gpiomux *mux = i2c_mux_priv(muxc);
 
 	i2c_mux_gpio_set(mux, chan);
+
+	if (mux->data.settle_time)
+		fsleep(mux->data.settle_time);
 
 	return 0;
 }
@@ -115,6 +119,8 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 
 	if (device_property_read_u32(dev, "idle-state", &mux->data.idle))
 		mux->data.idle = I2C_MUX_GPIO_NO_IDLE;
+
+	device_property_read_u32(dev, "settle-time-us", &mux->data.settle_time);
 
 	return 0;
 }
@@ -206,9 +212,8 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 
 	for (i = 0; i < mux->data.n_values; i++) {
 		u32 nr = mux->data.base_nr ? (mux->data.base_nr + i) : 0;
-		unsigned int class = mux->data.classes ? mux->data.classes[i] : 0;
 
-		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i], class);
+		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i]);
 		if (ret)
 			goto add_adapter_failed;
 	}
@@ -242,7 +247,7 @@ MODULE_DEVICE_TABLE(of, i2c_mux_gpio_of_match);
 
 static struct platform_driver i2c_mux_gpio_driver = {
 	.probe	= i2c_mux_gpio_probe,
-	.remove_new = i2c_mux_gpio_remove,
+	.remove = i2c_mux_gpio_remove,
 	.driver	= {
 		.name	= "i2c-mux-gpio",
 		.of_match_table = i2c_mux_gpio_of_match,

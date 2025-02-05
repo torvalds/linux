@@ -493,7 +493,7 @@ static void vfb_remove(struct platform_device *dev)
 
 static struct platform_driver vfb_driver = {
 	.probe	= vfb_probe,
-	.remove_new = vfb_remove,
+	.remove = vfb_remove,
 	.driver = {
 		.name	= "vfb",
 	},
@@ -546,5 +546,6 @@ static void __exit vfb_exit(void)
 
 module_exit(vfb_exit);
 
+MODULE_DESCRIPTION("Virtual Frame Buffer driver");
 MODULE_LICENSE("GPL");
 #endif				/* MODULE */

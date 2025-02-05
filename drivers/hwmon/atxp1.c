@@ -278,7 +278,7 @@ static int atxp1_probe(struct i2c_client *client)
 };
 
 static const struct i2c_device_id atxp1_id[] = {
-	{ "atxp1", 0 },
+	{ "atxp1" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, atxp1_id);

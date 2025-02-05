@@ -28,7 +28,7 @@
 		sleep_clk: sleep-clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
-			clock-frequency = <32768>;
+			clock-frequency = <32764>;
 		};
 	};
 
@@ -36,13 +36,13 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		CPU0: cpu@100 {
+		cpu0: cpu@100 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x100>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0>;
-			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_sleep_0>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			clocks = <&apcs_glb>;
 			operating-points-v2 = <&cpu_opp_table>;
@@ -50,13 +50,13 @@
 			power-domain-names = "cpr";
 		};
 
-		CPU1: cpu@101 {
+		cpu1: cpu@101 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x101>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0>;
-			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_sleep_0>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			clocks = <&apcs_glb>;
 			operating-points-v2 = <&cpu_opp_table>;
@@ -64,13 +64,13 @@
 			power-domain-names = "cpr";
 		};
 
-		CPU2: cpu@102 {
+		cpu2: cpu@102 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x102>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0>;
-			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_sleep_0>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			clocks = <&apcs_glb>;
 			operating-points-v2 = <&cpu_opp_table>;
@@ -78,13 +78,13 @@
 			power-domain-names = "cpr";
 		};
 
-		CPU3: cpu@103 {
+		cpu3: cpu@103 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x103>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SLEEP_0>;
-			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_sleep_0>;
+			next-level-cache = <&l2_0>;
 			#cooling-cells = <2>;
 			clocks = <&apcs_glb>;
 			operating-points-v2 = <&cpu_opp_table>;
@@ -92,7 +92,7 @@
 			power-domain-names = "cpr";
 		};
 
-		L2_0: l2-cache {
+		l2_0: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -101,7 +101,7 @@
 		idle-states {
 			entry-method = "psci";
 
-			CPU_SLEEP_0: cpu-sleep-0 {
+			cpu_sleep_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
 				idle-state-name = "standalone-power-collapse";
 				arm,psci-suspend-param = <0x40000003>;
@@ -177,7 +177,7 @@
 			mboxes = <&apcs_glb 0>;
 
 			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-qcs404";
+				compatible = "qcom,rpm-qcs404", "qcom,glink-smd-rpm";
 				qcom,glink-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
@@ -694,6 +694,8 @@
 				snps,has-lpm-erratum;
 				snps,hird-threshold = /bits/ 8 <0x10>;
 				snps,usb3_lpm_capable;
+				snps,dis-u1-entry-quirk;
+				snps,dis-u2-entry-quirk;
 				dr_mode = "otg";
 			};
 		};
@@ -731,6 +733,8 @@
 				snps,has-lpm-erratum;
 				snps,hird-threshold = /bits/ 8 <0x10>;
 				snps,usb3_lpm_capable;
+				snps,dis-u1-entry-quirk;
+				snps,dis-u2-entry-quirk;
 				dr_mode = "peripheral";
 			};
 		};
@@ -1324,7 +1328,7 @@
 		};
 
 		apcs_hfpll: clock-controller@b016000 {
-			compatible = "qcom,hfpll";
+			compatible = "qcom,qcs404-hfpll";
 			reg = <0x0b016000 0x30>;
 			#clock-cells = <0>;
 			clock-output-names = "apcs_hfpll";
@@ -1516,15 +1520,25 @@
 			phy-names = "pciephy";
 
 			status = "disabled";
+
+			pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 	};
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <GIC_PPI 2 0xff08>,
-			     <GIC_PPI 3 0xff08>,
-			     <GIC_PPI 4 0xff08>,
-			     <GIC_PPI 1 0xff08>;
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
 	smp2p-adsp {
@@ -1590,7 +1604,6 @@
 	thermal-zones {
 		aoss-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 0>;
 
@@ -1605,7 +1618,6 @@
 
 		q6-hvx-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 1>;
 
@@ -1620,7 +1632,6 @@
 
 		lpass-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 2>;
 
@@ -1635,7 +1646,6 @@
 
 		wlan-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 3>;
 
@@ -1650,7 +1660,6 @@
 
 		cluster-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 4>;
 
@@ -1674,17 +1683,16 @@
 			cooling-maps {
 				map0 {
 					trip = <&cluster_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
 
 		cpu0-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 5>;
 
@@ -1708,17 +1716,16 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu0_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
 
 		cpu1-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 6>;
 
@@ -1742,17 +1749,16 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu1_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
 
 		cpu2-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 7>;
 
@@ -1776,17 +1782,16 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu2_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
 
 		cpu3-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 8>;
 
@@ -1810,17 +1815,16 @@
 			cooling-maps {
 				map0 {
 					trip = <&cpu3_alert1>;
-					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
-						       <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+						       <&cpu3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 				};
 			};
 		};
 
 		gpu-thermal {
 			polling-delay-passive = <250>;
-			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 9>;
 

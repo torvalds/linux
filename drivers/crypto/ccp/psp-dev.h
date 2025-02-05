@@ -26,6 +26,29 @@ extern struct psp_device *psp_master;
 
 typedef void (*psp_irq_handler_t)(int, void *, unsigned int);
 
+union psp_cap_register {
+	unsigned int raw;
+	struct {
+		unsigned int sev			:1,
+			     tee			:1,
+			     dbc_thru_ext		:1,
+			     rsvd1			:4,
+			     security_reporting		:1,
+			     fused_part			:1,
+			     rsvd2			:1,
+			     debug_lock_on		:1,
+			     rsvd3			:2,
+			     tsme_status		:1,
+			     rsvd4			:1,
+			     anti_rollback_status	:1,
+			     rpmc_production_enabled	:1,
+			     rpmc_spirom_available	:1,
+			     hsp_tpm_available		:1,
+			     rom_armor_enforced		:1,
+			     rsvd5			:12;
+	};
+};
+
 struct psp_device {
 	struct list_head entry;
 
@@ -46,7 +69,7 @@ struct psp_device {
 	void *platform_access_data;
 	void *dbc_data;
 
-	unsigned int capability;
+	union psp_cap_register capability;
 };
 
 void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
@@ -54,27 +77,6 @@ void psp_set_sev_irq_handler(struct psp_device *psp, psp_irq_handler_t handler,
 void psp_clear_sev_irq_handler(struct psp_device *psp);
 
 struct psp_device *psp_get_master_device(void);
-
-#define PSP_CAPABILITY_SEV			BIT(0)
-#define PSP_CAPABILITY_TEE			BIT(1)
-#define PSP_CAPABILITY_DBC_THRU_EXT		BIT(2)
-#define PSP_CAPABILITY_PSP_SECURITY_REPORTING	BIT(7)
-
-#define PSP_CAPABILITY_PSP_SECURITY_OFFSET	8
-/*
- * The PSP doesn't directly store these bits in the capability register
- * but instead copies them from the results of query command.
- *
- * The offsets from the query command are below, and shifted when used.
- */
-#define PSP_SECURITY_FUSED_PART			BIT(0)
-#define PSP_SECURITY_DEBUG_LOCK_ON		BIT(2)
-#define PSP_SECURITY_TSME_STATUS		BIT(5)
-#define PSP_SECURITY_ANTI_ROLLBACK_STATUS	BIT(7)
-#define PSP_SECURITY_RPMC_PRODUCTION_ENABLED	BIT(8)
-#define PSP_SECURITY_RPMC_SPIROM_AVAILABLE	BIT(9)
-#define PSP_SECURITY_HSP_TPM_AVAILABLE		BIT(10)
-#define PSP_SECURITY_ROM_ARMOR_ENFORCED		BIT(11)
 
 /**
  * enum psp_cmd - PSP mailbox commands

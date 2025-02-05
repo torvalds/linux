@@ -470,7 +470,7 @@ out:
 	return rc;
 }
 
-static struct pci_device_id efct_pci_table[] = {
+static const struct pci_device_id efct_pci_table[] = {
 	{PCI_DEVICE(EFCT_VENDOR_ID, EFCT_DEVICE_LANCER_G6), 0},
 	{PCI_DEVICE(EFCT_VENDOR_ID, EFCT_DEVICE_LANCER_G7), 0},
 	{}	/* terminate list */
@@ -778,5 +778,6 @@ static void __exit efct_exit(void)
 module_init(efct_init);
 module_exit(efct_exit);
 MODULE_VERSION(EFCT_DRIVER_VERSION);
+MODULE_DESCRIPTION("Emulex Fibre Channel Target driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Broadcom");

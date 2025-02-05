@@ -104,6 +104,7 @@ enum HNAE3_DEV_CAP_BITS {
 	HNAE3_DEV_SUPPORT_WOL_B,
 	HNAE3_DEV_SUPPORT_TM_FLUSH_B,
 	HNAE3_DEV_SUPPORT_VF_FAULT_B,
+	HNAE3_DEV_SUPPORT_ERR_MOD_GEN_REG_B,
 };
 
 #define hnae3_ae_dev_fd_supported(ae_dev) \
@@ -180,6 +181,9 @@ enum HNAE3_DEV_CAP_BITS {
 
 #define hnae3_ae_dev_vf_fault_supported(ae_dev) \
 	test_bit(HNAE3_DEV_SUPPORT_VF_FAULT_B, (ae_dev)->caps)
+
+#define hnae3_ae_dev_gen_reg_dfx_supported(hdev) \
+	test_bit(HNAE3_DEV_SUPPORT_ERR_MOD_GEN_REG_B, (hdev)->ae_dev->caps)
 
 enum HNAE3_PF_CAP_BITS {
 	HNAE3_PF_SUPPORT_VLAN_FLTR_MDF_B = 0,
@@ -361,6 +365,15 @@ struct hnae3_vector_info {
 #define HNAE3_FW_VERSION_BYTE1_MASK	GENMASK(15, 8)
 #define HNAE3_FW_VERSION_BYTE0_SHIFT	0
 #define HNAE3_FW_VERSION_BYTE0_MASK	GENMASK(7, 0)
+
+#define HNAE3_SCC_VERSION_BYTE3_SHIFT	24
+#define HNAE3_SCC_VERSION_BYTE3_MASK	GENMASK(31, 24)
+#define HNAE3_SCC_VERSION_BYTE2_SHIFT	16
+#define HNAE3_SCC_VERSION_BYTE2_MASK	GENMASK(23, 16)
+#define HNAE3_SCC_VERSION_BYTE1_SHIFT	8
+#define HNAE3_SCC_VERSION_BYTE1_MASK	GENMASK(15, 8)
+#define HNAE3_SCC_VERSION_BYTE0_SHIFT	0
+#define HNAE3_SCC_VERSION_BYTE0_MASK	GENMASK(7, 0)
 
 struct hnae3_ring_chain_node {
 	struct hnae3_ring_chain_node *next;
@@ -664,7 +677,7 @@ struct hnae3_ae_ops {
 	void (*get_mac_stats)(struct hnae3_handle *handle,
 			      struct hns3_mac_stats *mac_stats);
 	void (*get_strings)(struct hnae3_handle *handle,
-			    u32 stringset, u8 *data);
+			    u32 stringset, u8 **data);
 	int (*get_sset_count)(struct hnae3_handle *handle, int stringset);
 
 	void (*get_regs)(struct hnae3_handle *handle, u32 *version,
@@ -773,7 +786,7 @@ struct hnae3_ae_ops {
 	void (*get_rx_hwts)(struct hnae3_handle *handle, struct sk_buff *skb,
 			    u32 nsec, u32 sec);
 	int (*get_ts_info)(struct hnae3_handle *handle,
-			   struct ethtool_ts_info *info);
+			   struct kernel_ethtool_ts_info *info);
 	int (*get_link_diagnosis_info)(struct hnae3_handle *handle,
 				       u32 *status_code);
 	void (*clean_vf_config)(struct hnae3_ae_dev *ae_dev, int num_vfs);
@@ -897,15 +910,12 @@ struct hnae3_handle {
 		struct hnae3_roce_private_info rinfo;
 	};
 
-	u32 numa_node_mask;	/* for multi-chip support */
+	nodemask_t numa_node_mask; /* for multi-chip support */
 
 	enum hnae3_port_base_vlan_state port_base_vlan_state;
 
 	u8 netdev_flags;
 	struct dentry *hnae3_dbgfs;
-	/* protects concurrent contention between debugfs commands */
-	struct mutex dbgfs_lock;
-	char **dbgfs_buf;
 
 	/* Network interface message level enabled bits */
 	u32 msg_enable;
@@ -953,4 +963,6 @@ int hnae3_register_client(struct hnae3_client *client);
 void hnae3_set_client_init_flag(struct hnae3_client *client,
 				struct hnae3_ae_dev *ae_dev,
 				unsigned int inited);
+void hnae3_acquire_unload_lock(void);
+void hnae3_release_unload_lock(void);
 #endif

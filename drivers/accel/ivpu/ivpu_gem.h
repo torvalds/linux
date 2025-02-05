@@ -60,14 +60,17 @@ static inline u32 ivpu_bo_cache_mode(struct ivpu_bo *bo)
 	return bo->flags & DRM_IVPU_BO_CACHE_MASK;
 }
 
-static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
-{
-	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
-}
-
 static inline struct ivpu_device *ivpu_bo_to_vdev(struct ivpu_bo *bo)
 {
 	return to_ivpu_device(bo->base.base.dev);
+}
+
+static inline bool ivpu_bo_is_snooped(struct ivpu_bo *bo)
+{
+	if (ivpu_is_force_snoop_enabled(ivpu_bo_to_vdev(bo)))
+		return true;
+
+	return ivpu_bo_cache_mode(bo) == DRM_IVPU_BO_CACHED;
 }
 
 static inline void *ivpu_to_cpu_addr(struct ivpu_bo *bo, u32 vpu_addr)

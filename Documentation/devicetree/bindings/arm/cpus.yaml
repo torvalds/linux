@@ -87,8 +87,14 @@ properties:
     enum:
       - apple,avalanche
       - apple,blizzard
-      - apple,icestorm
+      - apple,cyclone
       - apple,firestorm
+      - apple,hurricane-zephyr
+      - apple,icestorm
+      - apple,mistral
+      - apple,monsoon
+      - apple,twister
+      - apple,typhoon
       - arm,arm710t
       - arm,arm720t
       - arm,arm740t
@@ -147,6 +153,7 @@ properties:
       - arm,cortex-a710
       - arm,cortex-a715
       - arm,cortex-a720
+      - arm,cortex-a725
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1
@@ -161,10 +168,15 @@ properties:
       - arm,cortex-x2
       - arm,cortex-x3
       - arm,cortex-x4
+      - arm,cortex-x925
       - arm,neoverse-e1
       - arm,neoverse-n1
       - arm,neoverse-n2
+      - arm,neoverse-n3
       - arm,neoverse-v1
+      - arm,neoverse-v2
+      - arm,neoverse-v3
+      - arm,neoverse-v3ae
       - brcm,brahma-b15
       - brcm,brahma-b53
       - brcm,vulcan
@@ -196,10 +208,14 @@ properties:
       - qcom,kryo560
       - qcom,kryo570
       - qcom,kryo660
+      - qcom,kryo670
       - qcom,kryo685
       - qcom,kryo780
       - qcom,oryon
       - qcom,scorpion
+      - samsung,mongoose-m2
+      - samsung,mongoose-m3
+      - samsung,mongoose-m5
 
   enable-method:
     $ref: /schemas/types.yaml#/definitions/string

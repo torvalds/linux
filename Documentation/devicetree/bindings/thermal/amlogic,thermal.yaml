@@ -11,13 +11,17 @@ maintainers:
 
 description: Binding for Amlogic Thermal
 
+$ref: thermal-sensor.yaml#
+
 properties:
   compatible:
-    items:
-      - enum:
-          - amlogic,g12a-cpu-thermal
-          - amlogic,g12a-ddr-thermal
-      - const: amlogic,g12a-thermal
+    oneOf:
+      - items:
+          - enum:
+              - amlogic,g12a-cpu-thermal
+              - amlogic,g12a-ddr-thermal
+          - const: amlogic,g12a-thermal
+      - const: amlogic,a1-cpu-thermal
 
   reg:
     maxItems: 1
@@ -26,6 +30,9 @@ properties:
     maxItems: 1
 
   clocks:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
   amlogic,ao-secure:
@@ -42,17 +49,17 @@ required:
   - clocks
   - amlogic,ao-secure
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
-        cpu_temp: temperature-sensor@ff634800 {
-                compatible = "amlogic,g12a-cpu-thermal",
-                             "amlogic,g12a-thermal";
-                reg = <0xff634800 0x50>;
-                interrupts = <0x0 0x24 0x0>;
-                clocks = <&clk 164>;
-                #thermal-sensor-cells = <0>;
-                amlogic,ao-secure = <&sec_AO>;
-        };
+    temperature-sensor@ff634800 {
+        compatible = "amlogic,g12a-cpu-thermal",
+                     "amlogic,g12a-thermal";
+        reg = <0xff634800 0x50>;
+        interrupts = <0x0 0x24 0x0>;
+        clocks = <&clk 164>;
+        #thermal-sensor-cells = <0>;
+        amlogic,ao-secure = <&sec_AO>;
+    };
 ...

@@ -1034,7 +1034,7 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 
 	if (GEM_SHOW_DEBUG()) {
 		struct drm_printer p = drm_dbg_printer(&gt->i915->drm,
-						       DRM_UT_DRIVER, __func__);
+						       DRM_UT_DRIVER, NULL);
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
@@ -1198,6 +1198,7 @@ void intel_gt_reset(struct intel_gt *gt,
 		    intel_engine_mask_t stalled_mask,
 		    const char *reason)
 {
+	struct intel_display *display = &gt->i915->display;
 	intel_engine_mask_t awake;
 	int ret;
 
@@ -1233,7 +1234,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	}
 
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		intel_runtime_pm_disable_interrupts(gt->i915);
+		intel_irq_suspend(gt->i915);
 
 	if (do_reset(gt, stalled_mask)) {
 		gt_err(gt, "Failed to reset chip\n");
@@ -1241,9 +1242,9 @@ void intel_gt_reset(struct intel_gt *gt,
 	}
 
 	if (INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		intel_runtime_pm_enable_interrupts(gt->i915);
+		intel_irq_resume(gt->i915);
 
-	intel_overlay_reset(gt->i915);
+	intel_overlay_reset(display);
 
 	/* sanitize uC after engine reset */
 	if (!intel_uc_uses_guc_submission(&gt->uc))

@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Authors: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //	    Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
@@ -36,6 +36,11 @@ MODULE_PARM_DESC(always_enable_dmi_l1, "SOF HDA always enable DMI l1");
 static bool hda_disable_rewinds;
 module_param_named(disable_rewinds, hda_disable_rewinds, bool, 0444);
 MODULE_PARM_DESC(disable_rewinds, "SOF HDA disable rewinds");
+
+static int hda_force_pause_support = -1;
+module_param_named(force_pause_support, hda_force_pause_support, int, 0444);
+MODULE_PARM_DESC(force_pause_support,
+		 "Pause support: -1: Use default, 0: Disable, 1: Enable (default -1)");
 
 u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 {
@@ -142,6 +147,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_hw_params, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 /* update SPIB register with appl position */
 int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substream)
@@ -164,6 +170,7 @@ int hda_dsp_pcm_ack(struct snd_sof_dev *sdev, struct snd_pcm_substream *substrea
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_ack, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream, int cmd)
@@ -173,6 +180,7 @@ int hda_dsp_pcm_trigger(struct snd_sof_dev *sdev,
 
 	return hda_dsp_stream_trigger(sdev, hext_stream, cmd);
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_trigger, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 				      struct snd_pcm_substream *substream)
@@ -204,6 +212,7 @@ found:
 	trace_sof_intel_hda_dsp_pcm(sdev, hstream, substream, pos);
 	return pos;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_pointer, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 		     struct snd_pcm_substream *substream)
@@ -236,6 +245,16 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	if (hda_always_enable_dmi_l1 && direction == SNDRV_PCM_STREAM_CAPTURE)
 		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
 
+	/*
+	 * Do not advertise the PAUSE support if it is forced to be disabled via
+	 * module parameter or if the pause_supported is false for the PCM
+	 * device
+	 */
+	if (hda_force_pause_support == 0 ||
+	    (hda_force_pause_support == -1 &&
+	     !spcm->stream[substream->stream].pause_supported))
+		runtime->hw.info &= ~SNDRV_PCM_INFO_PAUSE;
+
 	if (hda_always_enable_dmi_l1 ||
 	    direction == SNDRV_PCM_STREAM_PLAYBACK ||
 	    spcm->stream[substream->stream].d0i3_compatible)
@@ -253,6 +272,12 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 	/* avoid circular buffer wrap in middle of period */
 	snd_pcm_hw_constraint_integer(substream->runtime,
 				      SNDRV_PCM_HW_PARAM_PERIODS);
+
+	/* Limit the maximum number of periods to not exceed the BDL entries count */
+	if (runtime->hw.periods_max > HDA_DSP_MAX_BDL_ENTRIES)
+		snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIODS,
+					     runtime->hw.periods_min,
+					     HDA_DSP_MAX_BDL_ENTRIES);
 
 	/* Only S16 and S32 supported by HDA hardware when used without DSP */
 	if (sdev->dspless_mode_selected)
@@ -292,6 +317,7 @@ int hda_dsp_pcm_open(struct snd_sof_dev *sdev,
 
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_open, "SND_SOC_SOF_INTEL_HDA_COMMON");
 
 int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 		      struct snd_pcm_substream *substream)
@@ -311,3 +337,4 @@ int hda_dsp_pcm_close(struct snd_sof_dev *sdev,
 	substream->runtime->private_data = NULL;
 	return 0;
 }
+EXPORT_SYMBOL_NS(hda_dsp_pcm_close, "SND_SOC_SOF_INTEL_HDA_COMMON");

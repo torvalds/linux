@@ -26,8 +26,8 @@ static int ath12k_hal_reo_cmd_queue_stats(struct hal_tlv_64_hdr *tlv,
 {
 	struct hal_reo_get_queue_stats *desc;
 
-	tlv->tl = u32_encode_bits(HAL_REO_GET_QUEUE_STATS, HAL_TLV_HDR_TAG) |
-		  u32_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
+	tlv->tl = le64_encode_bits(HAL_REO_GET_QUEUE_STATS, HAL_TLV_HDR_TAG) |
+		  le64_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
 
 	desc = (struct hal_reo_get_queue_stats *)tlv->value;
 	memset_startat(desc, 0, queue_addr_lo);
@@ -59,8 +59,8 @@ static int ath12k_hal_reo_cmd_flush_cache(struct ath12k_hal *hal,
 		hal->current_blk_index = avail_slot;
 	}
 
-	tlv->tl = u32_encode_bits(HAL_REO_FLUSH_CACHE, HAL_TLV_HDR_TAG) |
-		  u32_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
+	tlv->tl = le64_encode_bits(HAL_REO_FLUSH_CACHE, HAL_TLV_HDR_TAG) |
+		  le64_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
 
 	desc = (struct hal_reo_flush_cache *)tlv->value;
 	memset_startat(desc, 0, cache_addr_lo);
@@ -97,8 +97,8 @@ static int ath12k_hal_reo_cmd_update_rx_queue(struct hal_tlv_64_hdr *tlv,
 {
 	struct hal_reo_update_rx_queue *desc;
 
-	tlv->tl = u32_encode_bits(HAL_REO_UPDATE_RX_REO_QUEUE, HAL_TLV_HDR_TAG) |
-		  u32_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
+	tlv->tl = le64_encode_bits(HAL_REO_UPDATE_RX_REO_QUEUE, HAL_TLV_HDR_TAG) |
+		  le64_encode_bits(sizeof(*desc), HAL_TLV_HDR_LEN);
 
 	desc = (struct hal_reo_update_rx_queue *)tlv->value;
 	memset_startat(desc, 0, queue_addr_lo);

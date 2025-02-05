@@ -54,7 +54,7 @@
 };
 
 &iomuxc {
-	pinctrl_uart3_bt: uart3grp-bt {
+	pinctrl_uart3_bt: uart3-btgrp {
 		fsl,pins = <
 			MX6QDL_PAD_EIM_D25__UART3_RX_DATA	0x1b0b1
 			MX6QDL_PAD_EIM_D24__UART3_TX_DATA	0x1b0b1
@@ -66,7 +66,7 @@
 		>;
 	};
 
-	pinctrl_usdhc3_wl: usdhc3grp-wl {
+	pinctrl_usdhc3_wl: usdhc3-wlgrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD3_CMD__SD3_CMD		0x17059
 			MX6QDL_PAD_SD3_CLK__SD3_CLK		0x10059

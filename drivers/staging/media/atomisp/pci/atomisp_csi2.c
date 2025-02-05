@@ -3,17 +3,6 @@
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
  * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #include <media/v4l2-event.h>
@@ -107,9 +96,12 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 		actual_ffmt->height = clamp_t(u32, ffmt->height,
 					      ATOM_ISP_MIN_HEIGHT,
 					      ATOM_ISP_MAX_HEIGHT);
+		actual_ffmt->field = ffmt->field;
 
 		tmp_ffmt = *ffmt = *actual_ffmt;
 
+		/* Always use V4L2_FIELD_ANY to match the ISP sink pad */
+		tmp_ffmt.field = V4L2_FIELD_ANY;
 		return atomisp_csi2_set_ffmt(sd, sd_state, which,
 					     CSI2_PAD_SOURCE,
 					     &tmp_ffmt);
@@ -138,27 +130,6 @@ static int csi2_set_format(struct v4l2_subdev *sd,
 				     &fmt->format);
 }
 
-/*
- * csi2_set_stream - Enable/Disable streaming on the CSI2 module
- * @sd: ISP CSI2 V4L2 subdevice
- * @enable: Enable/disable stream (1/0)
- *
- * Return 0 on success or a negative error code otherwise.
- */
-static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
-{
-	return 0;
-}
-
-/* subdev core operations */
-static const struct v4l2_subdev_core_ops csi2_core_ops = {
-};
-
-/* subdev video operations */
-static const struct v4l2_subdev_video_ops csi2_video_ops = {
-	.s_stream = csi2_set_stream,
-};
-
 /* subdev pad operations */
 static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 	.enum_mbus_code = csi2_enum_mbus_code,
@@ -169,8 +140,6 @@ static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
 
 /* subdev operations */
 static const struct v4l2_subdev_ops csi2_ops = {
-	.core = &csi2_core_ops,
-	.video = &csi2_video_ops,
 	.pad = &csi2_pad_ops,
 };
 

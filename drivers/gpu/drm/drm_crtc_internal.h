@@ -272,8 +272,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 /* drm_plane.c */
 int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
-int drm_plane_check_pixel_format(struct drm_plane *plane,
-				 u32 format, u64 modifier);
 struct drm_mode_rect *
 __drm_plane_get_damage_clips(const struct drm_plane_state *state);
 
@@ -303,6 +301,8 @@ const u8 *drm_edid_find_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index);
 void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
 void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);
+ssize_t drm_edid_connector_property_show(struct drm_connector *connector,
+					 char *buf, loff_t off, size_t count);
 
 /* drm_edid_load.c */
 #ifdef CONFIG_DRM_LOAD_EDID_FIRMWARE
@@ -313,6 +313,21 @@ drm_edid_load_firmware(struct drm_connector *connector)
 {
 	return ERR_PTR(-ENOENT);
 }
+#endif
+
+/* drm_panic.c */
+#ifdef CONFIG_DRM_PANIC
+bool drm_panic_is_enabled(struct drm_device *dev);
+void drm_panic_register(struct drm_device *dev);
+void drm_panic_unregister(struct drm_device *dev);
+void drm_panic_init(void);
+void drm_panic_exit(void);
+#else
+static inline bool drm_panic_is_enabled(struct drm_device *dev) { return false; }
+static inline void drm_panic_register(struct drm_device *dev) {}
+static inline void drm_panic_unregister(struct drm_device *dev) {}
+static inline void drm_panic_init(void) {}
+static inline void drm_panic_exit(void) {}
 #endif
 
 #endif /* __DRM_CRTC_INTERNAL_H__ */

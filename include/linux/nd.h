@@ -84,11 +84,7 @@ struct nd_device_driver {
 	void (*notify)(struct device *dev, enum nvdimm_event event);
 };
 
-static inline struct nd_device_driver *to_nd_device_driver(
-		struct device_driver *drv)
-{
-	return container_of(drv, struct nd_device_driver, drv);
-};
+#define to_nd_device_driver(__drv)	container_of_const(__drv, struct nd_device_driver, drv)
 
 /**
  * struct nd_namespace_common - core infrastructure of a namespace

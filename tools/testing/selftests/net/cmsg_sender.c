@@ -59,6 +59,7 @@ struct options {
 		unsigned int proto;
 	} sock;
 	struct option_cmsg_u32 mark;
+	struct option_cmsg_u32 priority;
 	struct {
 		bool ena;
 		unsigned int delay;
@@ -97,6 +98,8 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\n"
 	       "\t\t-m val  Set SO_MARK with given value\n"
 	       "\t\t-M val  Set SO_MARK via setsockopt\n"
+	       "\t\t-P val  Set SO_PRIORITY via setsockopt\n"
+	       "\t\t-Q val  Set SO_PRIORITY via cmsg\n"
 	       "\t\t-d val  Set SO_TXTIME with given delay (usec)\n"
 	       "\t\t-t      Enable time stamp reporting\n"
 	       "\t\t-f val  Set don't fragment via cmsg\n"
@@ -115,7 +118,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	int o;
 
-	while ((o = getopt(argc, argv, "46sS:p:P:m:M:n:d:tf:F:c:C:l:L:H:")) != -1) {
+	while ((o = getopt(argc, argv, "46sS:p:P:m:M:n:d:tf:F:c:C:l:L:H:Q:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -147,6 +150,10 @@ static void cs_parse_args(int argc, char *argv[])
 		case 'm':
 			opt.mark.ena = true;
 			opt.mark.val = atoi(optarg);
+			break;
+		case 'Q':
+			opt.priority.ena = true;
+			opt.priority.val = atoi(optarg);
 			break;
 		case 'M':
 			opt.sockopt.mark = atoi(optarg);
@@ -253,6 +260,8 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_SOCKET, SO_MARK, &opt.mark);
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+			  SOL_SOCKET, SO_PRIORITY, &opt.priority);
+	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_IPV6, IPV6_DONTFRAG, &opt.v6.dontfrag);
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_IPV6, IPV6_TCLASS, &opt.v6.tclass);
@@ -260,14 +269,7 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			  SOL_IPV6, IPV6_HOPLIMIT, &opt.v6.hlimit);
 
 	if (opt.txtime.ena) {
-		struct sock_txtime so_txtime = {
-			.clockid = CLOCK_MONOTONIC,
-		};
 		__u64 txtime;
-
-		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
-			       &so_txtime, sizeof(so_txtime)))
-			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
 
 		txtime = time_start_mono.tv_sec * (1000ULL * 1000 * 1000) +
 			 time_start_mono.tv_nsec +
@@ -284,13 +286,6 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		memcpy(CMSG_DATA(cmsg), &txtime, sizeof(txtime));
 	}
 	if (opt.ts.ena) {
-		__u32 val = SOF_TIMESTAMPING_SOFTWARE |
-			    SOF_TIMESTAMPING_OPT_TSONLY;
-
-		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
-			       &val, sizeof(val)))
-			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
-
 		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
 		cmsg_len += CMSG_SPACE(sizeof(__u32));
 		if (cbuf_sz < cmsg_len)
@@ -333,16 +328,17 @@ static const char *cs_ts_info2str(unsigned int info)
 	return "unknown";
 }
 
-static void
+static unsigned long
 cs_read_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 {
 	struct sock_extended_err *see;
 	struct scm_timestamping *ts;
+	unsigned long ts_seen = 0;
 	struct cmsghdr *cmsg;
 	int i, err;
 
 	if (!opt.ts.ena)
-		return;
+		return 0;
 	msg->msg_control = cbuf;
 	msg->msg_controllen = cbuf_sz;
 
@@ -396,8 +392,11 @@ cs_read_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			printf(" %5s ts%d %lluus\n",
 			       cs_ts_info2str(see->ee_info),
 			       i, rel_time);
+			ts_seen |= 1 << see->ee_info;
 		}
 	}
+
+	return ts_seen;
 }
 
 static void ca_set_sockopts(int fd)
@@ -422,6 +421,24 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_SOCKET, SO_PRIORITY,
 		       &opt.sockopt.priority, sizeof(opt.sockopt.priority)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_PRIORITY");
+
+	if (opt.txtime.ena) {
+		struct sock_txtime so_txtime = {
+			.clockid = CLOCK_MONOTONIC,
+		};
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TXTIME,
+			       &so_txtime, sizeof(so_txtime)))
+			error(ERN_SOCKOPT, errno, "setsockopt TXTIME");
+	}
+	if (opt.ts.ena) {
+		__u32 val = SOF_TIMESTAMPING_SOFTWARE |
+			SOF_TIMESTAMPING_OPT_TSONLY;
+
+		if (setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING,
+			       &val, sizeof(val)))
+			error(ERN_SOCKOPT, errno, "setsockopt TIMESTAMPING");
+	}
 }
 
 int main(int argc, char *argv[])
@@ -509,10 +526,16 @@ int main(int argc, char *argv[])
 	err = ERN_SUCCESS;
 
 	if (opt.ts.ena) {
-		/* Make sure all timestamps have time to loop back */
-		usleep(opt.txtime.delay);
+		unsigned long seen;
+		int i;
 
-		cs_read_cmsg(fd, &msg, cbuf, sizeof(cbuf));
+		/* Make sure all timestamps have time to loop back */
+		for (i = 0; i < 40; i++) {
+			seen = cs_read_cmsg(fd, &msg, cbuf, sizeof(cbuf));
+			if (seen & (1 << SCM_TSTAMP_SND))
+				break;
+			usleep(opt.txtime.delay / 20);
+		}
 	}
 
 err_out:

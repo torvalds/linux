@@ -188,7 +188,7 @@ static struct phy_driver rockchip_phy_driver[] = {
 
 module_phy_driver(rockchip_phy_driver);
 
-static struct mdio_device_id __maybe_unused rockchip_phy_tbl[] = {
+static const struct mdio_device_id __maybe_unused rockchip_phy_tbl[] = {
 	{ INTERNAL_EPHY_ID, 0xfffffff0 },
 	{ }
 };

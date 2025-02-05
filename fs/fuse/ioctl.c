@@ -8,6 +8,9 @@
 #include <linux/uio.h>
 #include <linux/compat.h>
 #include <linux/fileattr.h>
+#include <linux/fsverity.h>
+
+#define FUSE_VERITY_ENABLE_ARG_MAX_PAGES 256
 
 static ssize_t fuse_send_ioctl(struct fuse_mount *fm, struct fuse_args *args,
 			       struct fuse_ioctl_out *outarg)
@@ -117,6 +120,53 @@ static int fuse_copy_ioctl_iovec(struct fuse_conn *fc, struct iovec *dst,
 	return 0;
 }
 
+/* For fs-verity, determine iov lengths from input */
+static int fuse_setup_measure_verity(unsigned long arg, struct iovec *iov)
+{
+	__u16 digest_size;
+	struct fsverity_digest __user *uarg = (void __user *)arg;
+
+	if (copy_from_user(&digest_size, &uarg->digest_size, sizeof(digest_size)))
+		return -EFAULT;
+
+	if (digest_size > SIZE_MAX - sizeof(struct fsverity_digest))
+		return -EINVAL;
+
+	iov->iov_len = sizeof(struct fsverity_digest) + digest_size;
+
+	return 0;
+}
+
+static int fuse_setup_enable_verity(unsigned long arg, struct iovec *iov,
+				    unsigned int *in_iovs)
+{
+	struct fsverity_enable_arg enable;
+	struct fsverity_enable_arg __user *uarg = (void __user *)arg;
+	const __u32 max_buffer_len = FUSE_VERITY_ENABLE_ARG_MAX_PAGES * PAGE_SIZE;
+
+	if (copy_from_user(&enable, uarg, sizeof(enable)))
+		return -EFAULT;
+
+	if (enable.salt_size > max_buffer_len || enable.sig_size > max_buffer_len)
+		return -ENOMEM;
+
+	if (enable.salt_size > 0) {
+		iov++;
+		(*in_iovs)++;
+
+		iov->iov_base = u64_to_user_ptr(enable.salt_ptr);
+		iov->iov_len = enable.salt_size;
+	}
+
+	if (enable.sig_size > 0) {
+		iov++;
+		(*in_iovs)++;
+
+		iov->iov_base = u64_to_user_ptr(enable.sig_ptr);
+		iov->iov_len = enable.sig_size;
+	}
+	return 0;
+}
 
 /*
  * For ioctls, there is no generic way to determine how much memory
@@ -201,12 +251,12 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
-	ap.pages = fuse_pages_alloc(fm->fc->max_pages, GFP_KERNEL, &ap.descs);
+	ap.folios = fuse_folios_alloc(fm->fc->max_pages, GFP_KERNEL, &ap.descs);
 	iov_page = (struct iovec *) __get_free_page(GFP_KERNEL);
-	if (!ap.pages || !iov_page)
+	if (!ap.folios || !iov_page)
 		goto out;
 
-	fuse_page_descs_length_init(ap.descs, 0, fm->fc->max_pages);
+	fuse_folio_descs_length_init(ap.descs, 0, fm->fc->max_pages);
 
 	/*
 	 * If restricted, initialize IO parameters as encoded in @cmd.
@@ -227,6 +277,18 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 			out_iov = iov;
 			out_iovs = 1;
 		}
+
+		err = 0;
+		switch (cmd) {
+		case FS_IOC_MEASURE_VERITY:
+			err = fuse_setup_measure_verity(arg, iov);
+			break;
+		case FS_IOC_ENABLE_VERITY:
+			err = fuse_setup_enable_verity(arg, iov, &in_iovs);
+			break;
+		}
+		if (err)
+			goto out;
 	}
 
  retry:
@@ -244,13 +306,12 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	err = -ENOMEM;
 	if (max_pages > fm->fc->max_pages)
 		goto out;
-	while (ap.num_pages < max_pages) {
-		ap.pages[ap.num_pages] = alloc_page(GFP_KERNEL | __GFP_HIGHMEM);
-		if (!ap.pages[ap.num_pages])
+	while (ap.num_folios < max_pages) {
+		ap.folios[ap.num_folios] = folio_alloc(GFP_KERNEL | __GFP_HIGHMEM, 0);
+		if (!ap.folios[ap.num_folios])
 			goto out;
-		ap.num_pages++;
+		ap.num_folios++;
 	}
-
 
 	/* okay, let's send it to the client */
 	ap.args.opcode = FUSE_IOCTL;
@@ -265,8 +326,8 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 		err = -EFAULT;
 		iov_iter_init(&ii, ITER_SOURCE, in_iov, in_iovs, in_size);
-		for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= ap.num_pages); i++) {
-			c = copy_page_from_iter(ap.pages[i], 0, PAGE_SIZE, &ii);
+		for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= ap.num_folios); i++) {
+			c = copy_folio_from_iter(ap.folios[i], 0, PAGE_SIZE, &ii);
 			if (c != PAGE_SIZE && iov_iter_count(&ii))
 				goto out;
 		}
@@ -304,7 +365,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 		    in_iovs + out_iovs > FUSE_IOCTL_MAX_IOV)
 			goto out;
 
-		vaddr = kmap_local_page(ap.pages[0]);
+		vaddr = kmap_local_folio(ap.folios[0], 0);
 		err = fuse_copy_ioctl_iovec(fm->fc, iov_page, vaddr,
 					    transferred, in_iovs + out_iovs,
 					    (flags & FUSE_IOCTL_COMPAT) != 0);
@@ -332,17 +393,17 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 
 	err = -EFAULT;
 	iov_iter_init(&ii, ITER_DEST, out_iov, out_iovs, transferred);
-	for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= ap.num_pages); i++) {
-		c = copy_page_to_iter(ap.pages[i], 0, PAGE_SIZE, &ii);
+	for (i = 0; iov_iter_count(&ii) && !WARN_ON(i >= ap.num_folios); i++) {
+		c = copy_folio_to_iter(ap.folios[i], 0, PAGE_SIZE, &ii);
 		if (c != PAGE_SIZE && iov_iter_count(&ii))
 			goto out;
 	}
 	err = 0;
  out:
 	free_page((unsigned long) iov_page);
-	while (ap.num_pages)
-		__free_page(ap.pages[--ap.num_pages]);
-	kfree(ap.pages);
+	while (ap.num_folios)
+		folio_put(ap.folios[--ap.num_folios]);
+	kfree(ap.folios);
 
 	return err ? err : outarg.result;
 }

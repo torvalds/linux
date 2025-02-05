@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2006 ARM Ltd.
  * Copyright (c) 2010 ST-Ericsson SA
- * Copyirght (c) 2017 Linaro Ltd.
+ * Copyright (c) 2017 Linaro Ltd.
  *
  * Author: Peter Pearse <peter.pearse@arm.com>
  * Author: Linus Walleij <linus.walleij@linaro.org>
@@ -2855,8 +2855,8 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kzalloc((vd->channels * sizeof(*pl08x->phy_chans)),
-			GFP_KERNEL);
+	pl08x->phy_chans = kcalloc(vd->channels, sizeof(*pl08x->phy_chans),
+				   GFP_KERNEL);
 	if (!pl08x->phy_chans) {
 		ret = -ENOMEM;
 		goto out_no_phychans;

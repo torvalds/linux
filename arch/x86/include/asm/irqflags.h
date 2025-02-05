@@ -54,6 +54,26 @@ static __always_inline void native_halt(void)
 	asm volatile("hlt": : :"memory");
 }
 
+static __always_inline int native_irqs_disabled_flags(unsigned long flags)
+{
+	return !(flags & X86_EFLAGS_IF);
+}
+
+static __always_inline unsigned long native_local_irq_save(void)
+{
+	unsigned long flags = native_save_fl();
+
+	native_irq_disable();
+
+	return flags;
+}
+
+static __always_inline void native_local_irq_restore(unsigned long flags)
+{
+	if (!native_irqs_disabled_flags(flags))
+		native_irq_enable();
+}
+
 #endif
 
 #ifdef CONFIG_PARAVIRT_XXL

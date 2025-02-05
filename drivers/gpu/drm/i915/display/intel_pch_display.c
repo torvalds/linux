@@ -4,8 +4,10 @@
  */
 
 #include "g4x_dp.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_crt.h"
+#include "intel_crt_regs.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
@@ -39,58 +41,61 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 				   enum pipe pipe, enum port port,
 				   i915_reg_t dp_reg)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 	bool state;
 
 	state = g4x_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
 
-	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
-			"PCH DP %c enabled on transcoder %c, should be disabled\n",
-			port_name(port), pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
+				 "PCH DP %c enabled on transcoder %c, should be disabled\n",
+				 port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
-			"IBX PCH DP %c still using transcoder B\n",
-			port_name(port));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+				 "IBX PCH DP %c still using transcoder B\n",
+				 port_name(port));
 }
 
 static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 				     enum pipe pipe, enum port port,
 				     i915_reg_t hdmi_reg)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 	bool state;
 
 	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
 
-	I915_STATE_WARN(dev_priv, state && port_pipe == pipe,
-			"PCH HDMI %c enabled on transcoder %c, should be disabled\n",
-			port_name(port), pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
+				 "PCH HDMI %c enabled on transcoder %c, should be disabled\n",
+				 port_name(port), pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
-			"IBX PCH HDMI %c still using transcoder B\n",
-			port_name(port));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 HAS_PCH_IBX(dev_priv) && !state && port_pipe == PIPE_B,
+				 "IBX PCH HDMI %c still using transcoder B\n",
+				 port_name(port));
 }
 
 static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 				      enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	enum pipe port_pipe;
 
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_B, PCH_DP_B);
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_C, PCH_DP_C);
 	assert_pch_dp_disabled(dev_priv, pipe, PORT_D, PCH_DP_D);
 
-	I915_STATE_WARN(dev_priv,
-			intel_crt_port_enabled(dev_priv, PCH_ADPA, &port_pipe) && port_pipe == pipe,
-			"PCH VGA enabled on transcoder %c, should be disabled\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 intel_crt_port_enabled(display, PCH_ADPA, &port_pipe) && port_pipe == pipe,
+				 "PCH VGA enabled on transcoder %c, should be disabled\n",
+				 pipe_name(pipe));
 
-	I915_STATE_WARN(dev_priv,
-			intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
-			"PCH LVDS enabled on transcoder %c, should be disabled\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display,
+				 intel_lvds_port_enabled(dev_priv, PCH_LVDS, &port_pipe) && port_pipe == pipe,
+				 "PCH LVDS enabled on transcoder %c, should be disabled\n",
+				 pipe_name(pipe));
 
 	/* PCH SDVOB multiplex with HDMIB */
 	assert_pch_hdmi_disabled(dev_priv, pipe, PORT_B, PCH_HDMIB);
@@ -101,14 +106,15 @@ static void assert_pch_ports_disabled(struct drm_i915_private *dev_priv,
 static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	u32 val;
 	bool enabled;
 
-	val = intel_de_read(dev_priv, PCH_TRANSCONF(pipe));
+	val = intel_de_read(display, PCH_TRANSCONF(pipe));
 	enabled = !!(val & TRANS_ENABLE);
-	I915_STATE_WARN(dev_priv, enabled,
-			"transcoder assertion failed, should be off on pipe %c but is still active\n",
-			pipe_name(pipe));
+	INTEL_DISPLAY_STATE_WARN(display, enabled,
+				 "transcoder assertion failed, should be off on pipe %c but is still active\n",
+				 pipe_name(pipe));
 }
 
 static void ibx_sanitize_pch_hdmi_port(struct drm_i915_private *dev_priv,
@@ -224,20 +230,20 @@ static void ilk_pch_transcoder_set_timings(const struct intel_crtc_state *crtc_s
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	intel_de_write(dev_priv, PCH_TRANS_HTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HTOTAL(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HBLANK(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_HSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_HSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_HSYNC(dev_priv, cpu_transcoder)));
 
 	intel_de_write(dev_priv, PCH_TRANS_VTOTAL(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VTOTAL(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VTOTAL(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VBLANK(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VBLANK(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VBLANK(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNC(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VSYNC(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNC(dev_priv, cpu_transcoder)));
 	intel_de_write(dev_priv, PCH_TRANS_VSYNCSHIFT(pch_transcoder),
-		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(cpu_transcoder)));
+		       intel_de_read(dev_priv, TRANS_VSYNCSHIFT(dev_priv, cpu_transcoder)));
 }
 
 static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
@@ -271,7 +277,7 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 	reg = PCH_TRANSCONF(pipe);
 	val = intel_de_read(dev_priv, reg);
-	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(pipe));
+	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe));
 
 	if (HAS_PCH_IBX(dev_priv)) {
 		/* Configure frame start delay to match the CPU */
@@ -358,6 +364,7 @@ void ilk_pch_pre_enable(struct intel_atomic_state *state,
 void ilk_pch_enable(struct intel_atomic_state *state,
 		    struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -399,7 +406,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	intel_enable_shared_dpll(crtc_state);
 
 	/* set transcoder timing, panel must allow it */
-	assert_pps_unlocked(dev_priv, pipe);
+	assert_pps_unlocked(display, pipe);
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
 		intel_pch_transcoder_set_m1_n1(crtc, &crtc_state->dp_m_n);
 		intel_pch_transcoder_set_m2_n2(crtc, &crtc_state->dp_m2_n2);
@@ -413,7 +420,7 @@ void ilk_pch_enable(struct intel_atomic_state *state,
 	    intel_crtc_has_dp_encoder(crtc_state)) {
 		const struct drm_display_mode *adjusted_mode =
 			&crtc_state->hw.adjusted_mode;
-		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(pipe)) & TRANSCONF_BPC_MASK) >> 5;
+		u32 bpc = (intel_de_read(dev_priv, TRANSCONF(dev_priv, pipe)) & TRANSCONF_BPC_MASK) >> 5;
 		i915_reg_t reg = TRANS_DP_CTL(pipe);
 		enum port port;
 
@@ -557,7 +564,8 @@ static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	intel_de_write(dev_priv, TRANS_CHICKEN2(PIPE_A), val);
 
 	val = TRANS_ENABLE;
-	pipeconf_val = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
+	pipeconf_val = intel_de_read(dev_priv,
+				     TRANSCONF(dev_priv, cpu_transcoder));
 
 	if ((pipeconf_val & TRANSCONF_INTERLACE_MASK_HSW) == TRANSCONF_INTERLACE_IF_ID_ILK)
 		val |= TRANS_INTERLACE_INTERLACED;

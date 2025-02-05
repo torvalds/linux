@@ -17,10 +17,12 @@ properties:
   compatible:
     const: kingdisplay,kd035g6-54nt
 
+  reg:
+    maxItems: 1
+
   backlight: true
   port: true
   power-supply: true
-  reg: true
   reset-gpios: true
 
   spi-3wire: true

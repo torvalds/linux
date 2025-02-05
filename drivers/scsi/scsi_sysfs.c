@@ -528,7 +528,7 @@ static struct class sdev_class = {
 };
 
 /* all probing is done in the individual ->probe routines */
-static int scsi_bus_match(struct device *dev, struct device_driver *gendrv)
+static int scsi_bus_match(struct device *dev, const struct device_driver *gendrv)
 {
 	struct scsi_device *sdp;
 
@@ -661,7 +661,7 @@ static int scsi_sdev_check_buf_bit(const char *buf)
 			return 1;
 		else if (buf[0] == '0')
 			return 0;
-		else 
+		else
 			return -EINVAL;
 	} else
 		return -EINVAL;
@@ -886,7 +886,7 @@ store_queue_type_field(struct device *dev, struct device_attribute *attr,
 
 	if (!sdev->tagged_supported)
 		return -EINVAL;
-		
+
 	sdev_printk(KERN_INFO, sdev,
 		    "ignoring write to deprecated queue_type attribute");
 	return count;
@@ -898,7 +898,7 @@ static DEVICE_ATTR(queue_type, S_IRUGO | S_IWUSR, show_queue_type_field,
 #define sdev_vpd_pg_attr(_page)						\
 static ssize_t							\
 show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
-		 struct bin_attribute *bin_attr,			\
+		 const struct bin_attribute *bin_attr,			\
 		 char *buf, loff_t off, size_t count)			\
 {									\
 	struct device *dev = kobj_to_dev(kobj);				\
@@ -914,10 +914,10 @@ show_vpd_##_page(struct file *filp, struct kobject *kobj,	\
 	rcu_read_unlock();						\
 	return ret;							\
 }									\
-static struct bin_attribute dev_attr_vpd_##_page = {		\
+static const struct bin_attribute dev_attr_vpd_##_page = {		\
 	.attr =	{.name = __stringify(vpd_##_page), .mode = S_IRUGO },	\
 	.size = 0,							\
-	.read = show_vpd_##_page,					\
+	.read_new = show_vpd_##_page,					\
 };
 
 sdev_vpd_pg_attr(pg83);
@@ -930,7 +930,7 @@ sdev_vpd_pg_attr(pgb7);
 sdev_vpd_pg_attr(pg0);
 
 static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
-			    struct bin_attribute *bin_attr,
+			    const struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
 	struct device *dev = kobj_to_dev(kobj);
@@ -943,13 +943,13 @@ static ssize_t show_inquiry(struct file *filep, struct kobject *kobj,
 				       sdev->inquiry_len);
 }
 
-static struct bin_attribute dev_attr_inquiry = {
+static const struct bin_attribute dev_attr_inquiry = {
 	.attr = {
 		.name = "inquiry",
 		.mode = S_IRUGO,
 	},
 	.size = 0,
-	.read = show_inquiry,
+	.read_new = show_inquiry,
 };
 
 static ssize_t
@@ -1274,7 +1274,7 @@ static umode_t scsi_sdev_attr_is_visible(struct kobject *kobj,
 }
 
 static umode_t scsi_sdev_bin_attr_is_visible(struct kobject *kobj,
-					     struct bin_attribute *attr, int i)
+					     const struct bin_attribute *attr, int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct scsi_device *sdev = to_scsi_device(dev);
@@ -1348,7 +1348,7 @@ static struct attribute *scsi_sdev_attrs[] = {
 	NULL
 };
 
-static struct bin_attribute *scsi_sdev_bin_attrs[] = {
+static const struct bin_attribute *const scsi_sdev_bin_attrs[] = {
 	&dev_attr_vpd_pg0,
 	&dev_attr_vpd_pg83,
 	&dev_attr_vpd_pg80,
@@ -1362,7 +1362,7 @@ static struct bin_attribute *scsi_sdev_bin_attrs[] = {
 };
 static struct attribute_group scsi_sdev_attr_group = {
 	.attrs =	scsi_sdev_attrs,
-	.bin_attrs =	scsi_sdev_bin_attrs,
+	.bin_attrs_new = scsi_sdev_bin_attrs,
 	.is_visible =	scsi_sdev_attr_is_visible,
 	.is_bin_visible = scsi_sdev_bin_attr_is_visible,
 };
@@ -1513,8 +1513,8 @@ void __scsi_remove_device(struct scsi_device *sdev)
 	kref_put(&sdev->host->tagset_refcnt, scsi_mq_free_tags);
 	cancel_work_sync(&sdev->requeue_work);
 
-	if (sdev->host->hostt->slave_destroy)
-		sdev->host->hostt->slave_destroy(sdev);
+	if (sdev->host->hostt->sdev_destroy)
+		sdev->host->hostt->sdev_destroy(sdev);
 	transport_destroy_device(dev);
 
 	/*
@@ -1609,13 +1609,14 @@ restart:
 }
 EXPORT_SYMBOL(scsi_remove_target);
 
-int scsi_register_driver(struct device_driver *drv)
+int __scsi_register_driver(struct device_driver *drv, struct module *owner)
 {
 	drv->bus = &scsi_bus_type;
+	drv->owner = owner;
 
 	return driver_register(drv);
 }
-EXPORT_SYMBOL(scsi_register_driver);
+EXPORT_SYMBOL(__scsi_register_driver);
 
 int scsi_register_interface(struct class_interface *intf)
 {

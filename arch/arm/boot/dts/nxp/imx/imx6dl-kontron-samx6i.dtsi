@@ -7,6 +7,6 @@
 #include "imx6qdl-kontron-samx6i.dtsi"
 
 / {
-	model = "Kontron SMARC sAMX6i Dual-Lite/Solo";
+	model = "Kontron SMARC-sAMX6i Dual-Lite/Solo";
 	compatible = "kontron,imx6dl-samx6i", "fsl,imx6dl";
 };

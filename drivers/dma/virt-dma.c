@@ -139,4 +139,5 @@ void vchan_init(struct virt_dma_chan *vc, struct dma_device *dmadev)
 EXPORT_SYMBOL_GPL(vchan_init);
 
 MODULE_AUTHOR("Russell King");
+MODULE_DESCRIPTION("Virtual DMA channel support for DMAengine");
 MODULE_LICENSE("GPL");

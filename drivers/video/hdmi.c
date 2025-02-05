@@ -895,34 +895,6 @@ hdmi_vendor_any_infoframe_pack(union hdmi_vendor_any_infoframe *frame,
 }
 
 /**
- * hdmi_infoframe_check() - check a HDMI infoframe
- * @frame: HDMI infoframe
- *
- * Validates that the infoframe is consistent and updates derived fields
- * (eg. length) based on other fields.
- *
- * Returns 0 on success or a negative error code on failure.
- */
-int
-hdmi_infoframe_check(union hdmi_infoframe *frame)
-{
-	switch (frame->any.type) {
-	case HDMI_INFOFRAME_TYPE_AVI:
-		return hdmi_avi_infoframe_check(&frame->avi);
-	case HDMI_INFOFRAME_TYPE_SPD:
-		return hdmi_spd_infoframe_check(&frame->spd);
-	case HDMI_INFOFRAME_TYPE_AUDIO:
-		return hdmi_audio_infoframe_check(&frame->audio);
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		return hdmi_vendor_any_infoframe_check(&frame->vendor);
-	default:
-		WARN(1, "Bad infoframe type %d\n", frame->any.type);
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL(hdmi_infoframe_check);
-
-/**
  * hdmi_infoframe_pack_only() - write a HDMI infoframe to binary buffer
  * @frame: HDMI infoframe
  * @buffer: destination buffer
@@ -1310,17 +1282,11 @@ static void hdmi_spd_infoframe_log(const char *level,
 				   struct device *dev,
 				   const struct hdmi_spd_infoframe *frame)
 {
-	u8 buf[17];
-
 	hdmi_infoframe_log_header(level, dev,
 				  (const struct hdmi_any_infoframe *)frame);
 
-	memset(buf, 0, sizeof(buf));
-
-	strncpy(buf, frame->vendor, 8);
-	hdmi_log("    vendor: %s\n", buf);
-	strncpy(buf, frame->product, 16);
-	hdmi_log("    product: %s\n", buf);
+	hdmi_log("    vendor: %.8s\n", frame->vendor);
+	hdmi_log("    product: %.16s\n", frame->product);
 	hdmi_log("    source device information: %s (0x%x)\n",
 		hdmi_spd_sdi_get_name(frame->sdi), frame->sdi);
 }

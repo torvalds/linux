@@ -6,6 +6,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/pci.h>
 
 #include "../habanalabs.h"
 
@@ -262,7 +263,7 @@ int hl_mmu_unmap_page(struct hl_ctx *ctx, u64 virt_addr, u32 page_size, bool flu
 		mmu_funcs->flush(ctx);
 
 	if (trace_habanalabs_mmu_unmap_enabled() && !rc)
-		trace_habanalabs_mmu_unmap(hdev->dev, virt_addr, 0, page_size, flush_pte);
+		trace_habanalabs_mmu_unmap(&hdev->pdev->dev, virt_addr, 0, page_size, flush_pte);
 
 	return rc;
 }
@@ -349,7 +350,7 @@ int hl_mmu_map_page(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_s
 	if (flush_pte)
 		mmu_funcs->flush(ctx);
 
-	trace_habanalabs_mmu_map(hdev->dev, virt_addr, phys_addr, page_size, flush_pte);
+	trace_habanalabs_mmu_map(&hdev->pdev->dev, virt_addr, phys_addr, page_size, flush_pte);
 
 	return 0;
 
@@ -599,6 +600,7 @@ int hl_mmu_if_set_funcs(struct hl_device *hdev)
 	case ASIC_GAUDI2:
 	case ASIC_GAUDI2B:
 	case ASIC_GAUDI2C:
+	case ASIC_GAUDI2D:
 		hl_mmu_v2_set_funcs(hdev, &hdev->mmu_func[MMU_DR_PGT]);
 		if (prop->pmmu.host_resident)
 			hl_mmu_v2_hr_set_funcs(hdev, &hdev->mmu_func[MMU_HR_PGT]);
@@ -644,7 +646,8 @@ int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
 	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 	if (rc)
 		dev_err_ratelimited(hdev->dev,
-				"%s cache invalidation failed, rc=%d\n",
+				"%s: %s cache invalidation failed, rc=%d\n",
+				dev_name(&hdev->pdev->dev),
 				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", rc);
 
 	return rc;
@@ -659,8 +662,9 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 								asid, va, size);
 	if (rc)
 		dev_err_ratelimited(hdev->dev,
-				"%s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
-				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", va, size, rc);
+			"%s: %s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
+			dev_name(&hdev->pdev->dev), flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU",
+			va, size, rc);
 
 	return rc;
 }

@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0
+// Fastopen server zerocopy test:
+//
+// send data with MSG_FASTOPEN | MSG_ZEROCOPY and verify that the
+// kernel returns the notification ID.
+
+`./defaults.sh
+ ./set_sysctls.py /proc/sys/net/ipv4/tcp_fastopen=0x207`
+
+// Set up a TFO server listening socket.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+  +.1 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+   +0 setsockopt(3, SOL_TCP, TCP_FASTOPEN, [2], 4) = 0
+   +0 setsockopt(3, SOL_SOCKET, SO_ZEROCOPY, [1], 4) = 0
+
+// Client sends a SYN with data.
+  +.1 < S 0:1000(1000) win 32792 <mss 1460,sackOK,nop,nop>
+   +0 > S. 0:0(0) ack 1001 <mss 1460,nop,nop,sackOK>
+
+// Server accepts and replies with data.
++.005 accept(3, ..., ...) = 4
+   +0 read(4, ..., 1024) = 1000
+   +0 sendto(4, ..., 1000, MSG_ZEROCOPY, ..., ...) = 1000
+   +0 > P. 1:1001(1000) ack 1001
+ +.05 < . 1001:1001(0) ack 1001 win 32792
+
+// Read from error queue: now has first zerocopy notification
+  +0.1 recvmsg(4, {msg_name(...)=...,
+                  msg_iov(1)=[{...,0}],
+                  msg_flags=MSG_ERRQUEUE,
+                  msg_control=[
+                      {cmsg_level=CMSG_LEVEL_IP,
+                       cmsg_type=CMSG_TYPE_RECVERR,
+                       cmsg_data={ee_errno=0,
+                                  ee_origin=SO_EE_ORIGIN_ZEROCOPY,
+                                  ee_type=0,
+                                  ee_code=SO_EE_CODE_ZEROCOPY_COPIED,
+                                  ee_info=0,
+                                  ee_data=0}}
+                  ]}, MSG_ERRQUEUE) = 0
+
+`/tmp/sysctl_restore_${PPID}.sh`

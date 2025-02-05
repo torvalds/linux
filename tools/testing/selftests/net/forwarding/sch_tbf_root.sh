@@ -14,13 +14,14 @@ tbf_test_one()
 
 	tc qdisc replace dev $swp2 root handle 108: tbf \
 	   rate 400Mbit burst $bs limit 1M
+	defer tc qdisc del dev $swp2 root
+
 	do_tbf_test 10 400 $bs
 }
 
 tbf_test()
 {
 	tbf_test_one 128K
-	tc qdisc del dev $swp2 root
 }
 
 if type -t sch_tbf_pre_hook >/dev/null; then

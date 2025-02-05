@@ -40,6 +40,7 @@
 #define STORE_LE32(addr, val)	(*(u32 *)addr = val)
 
 
+MODULE_DESCRIPTION("Mediated virtual PCI display host device driver");
 MODULE_LICENSE("GPL v2");
 
 #define MDPY_TYPE_1 "vga"

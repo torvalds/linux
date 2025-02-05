@@ -43,6 +43,9 @@ static int (*const check_part[])(struct parsed_partitions *) = {
 #ifdef CONFIG_CMDLINE_PARTITION
 	cmdline_partition,
 #endif
+#ifdef CONFIG_OF_PARTITION
+	of_partition,		/* cmdline have priority to OF */
+#endif
 #ifdef CONFIG_EFI_PARTITION
 	efi_partition,		/* this must come before msdos */
 #endif
@@ -173,7 +176,7 @@ static struct parsed_partitions *check_partition(struct gendisk *hd)
 static ssize_t part_partition_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_bdev(dev)->bd_partno);
+	return sprintf(buf, "%d\n", bdev_partno(dev_to_bdev(dev)));
 }
 
 static ssize_t part_start_show(struct device *dev,
@@ -243,16 +246,18 @@ static const struct attribute_group *part_attr_groups[] = {
 static void part_release(struct device *dev)
 {
 	put_disk(dev_to_bdev(dev)->bd_disk);
-	iput(dev_to_bdev(dev)->bd_inode);
+	bdev_drop(dev_to_bdev(dev));
 }
 
 static int part_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct block_device *part = dev_to_bdev(dev);
 
-	add_uevent_var(env, "PARTN=%u", part->bd_partno);
+	add_uevent_var(env, "PARTN=%u", bdev_partno(part));
 	if (part->bd_meta_info && part->bd_meta_info->volname[0])
 		add_uevent_var(env, "PARTNAME=%s", part->bd_meta_info->volname);
+	if (part->bd_meta_info && part->bd_meta_info->uuid[0])
+		add_uevent_var(env, "PARTUUID=%s", part->bd_meta_info->uuid);
 	return 0;
 }
 
@@ -267,7 +272,7 @@ void drop_partition(struct block_device *part)
 {
 	lockdep_assert_held(&part->bd_disk->open_mutex);
 
-	xa_erase(&part->bd_disk->part_tbl, part->bd_partno);
+	xa_erase(&part->bd_disk->part_tbl, bdev_partno(part));
 	kobject_put(part->bd_holder_dir);
 
 	device_del(&part->bd_device);
@@ -338,8 +343,8 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 	pdev->parent = ddev;
 
 	/* in consecutive minor range? */
-	if (bdev->bd_partno < disk->minors) {
-		devt = MKDEV(disk->major, disk->first_minor + bdev->bd_partno);
+	if (bdev_partno(bdev) < disk->minors) {
+		devt = MKDEV(disk->major, disk->first_minor + bdev_partno(bdev));
 	} else {
 		err = blk_alloc_ext_minor();
 		if (err < 0)
@@ -373,6 +378,9 @@ static struct block_device *add_partition(struct gendisk *disk, int partno,
 			goto out_del;
 	}
 
+	if (flags & ADDPART_FLAG_READONLY)
+		bdev_set_flag(bdev, BD_READ_ONLY);
+
 	/* everything is up and running, commence */
 	err = xa_insert(&disk->part_tbl, partno, bdev, GFP_KERNEL);
 	if (err)
@@ -404,7 +412,7 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 
 	rcu_read_lock();
 	xa_for_each_start(&disk->part_tbl, idx, part, 1) {
-		if (part->bd_partno != skip_partno &&
+		if (bdev_partno(part) != skip_partno &&
 		    start < part->bd_start_sect + bdev_nr_sectors(part) &&
 		    start + length > part->bd_start_sect) {
 			overlap = true;
@@ -469,7 +477,7 @@ int bdev_del_partition(struct gendisk *disk, int partno)
 	 * Just delete the partition and invalidate it.
 	 */
 
-	remove_inode_hash(part->bd_inode);
+	bdev_unhash(part);
 	invalidate_bdev(part);
 	drop_partition(part);
 	ret = 0;
@@ -555,9 +563,11 @@ static bool blk_add_partition(struct gendisk *disk,
 
 	part = add_partition(disk, p, from, size, state->parts[p].flags,
 			     &state->parts[p].info);
-	if (IS_ERR(part) && PTR_ERR(part) != -ENXIO) {
-		printk(KERN_ERR " %s: p%d could not be added: %pe\n",
-		       disk->disk_name, p, part);
+	if (IS_ERR(part)) {
+		if (PTR_ERR(part) != -ENXIO) {
+			printk(KERN_ERR " %s: p%d could not be added: %pe\n",
+			       disk->disk_name, p, part);
+		}
 		return true;
 	}
 
@@ -573,10 +583,7 @@ static int blk_add_partitions(struct gendisk *disk)
 	struct parsed_partitions *state;
 	int ret = -EAGAIN, p;
 
-	if (disk->flags & GENHD_FL_NO_PART)
-		return 0;
-
-	if (test_bit(GD_SUPPRESS_PART_SCAN, &disk->state))
+	if (!disk_has_partscan(disk))
 		return 0;
 
 	state = check_partition(disk);
@@ -655,7 +662,7 @@ rescan:
 		 * it cannot be looked up any more even when openers
 		 * still hold references.
 		 */
-		remove_inode_hash(part->bd_inode);
+		bdev_unhash(part);
 
 		/*
 		 * If @disk->open_partitions isn't elevated but there's
@@ -704,7 +711,7 @@ EXPORT_SYMBOL_GPL(bdev_disk_changed);
 
 void *read_part_sector(struct parsed_partitions *state, sector_t n, Sector *p)
 {
-	struct address_space *mapping = state->disk->part0->bd_inode->i_mapping;
+	struct address_space *mapping = state->disk->part0->bd_mapping;
 	struct folio *folio;
 
 	if (n >= get_capacity(state->disk)) {

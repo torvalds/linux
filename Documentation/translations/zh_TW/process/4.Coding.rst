@@ -57,7 +57,7 @@
 注意您還可以使用 ``clang-format`` 工具來幫助您處理這些規則，快速自動重新格式
 化部分代碼，和審閱完整的文件以發現代碼樣式錯誤、拼寫錯誤和可能的改進。它還
 可以方便地排序 ``#includes`` 、對齊變量/宏、重排文本和其他類似任務。有關詳細
-信息，請參閱文檔 :ref:`Documentation/process/clang-format.rst <clangformat>`
+信息，請參閱文檔 :ref:`Documentation/dev-tools/clang-format.rst <clangformat>`
 
 抽象層
 ******

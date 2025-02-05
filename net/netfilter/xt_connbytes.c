@@ -111,9 +111,11 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 
 	ret = nf_ct_netns_get(par->net, par->family);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
 				    par->family);
+		return ret;
+	}
 
 	/*
 	 * This filter cannot function correctly unless connection tracking

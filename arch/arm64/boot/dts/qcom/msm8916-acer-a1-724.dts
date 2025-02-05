@@ -3,6 +3,7 @@
 /dts-v1/;
 
 #include "msm8916-pm8916.dtsi"
+#include "msm8916-modem-qdsp6.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -135,6 +136,17 @@
 	status = "okay";
 };
 
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x4500000>;
+};
+
+&pm8916_codec {
+	qcom,micbias-lvl = <2800>;
+	qcom,mbhc-vthreshold-low = <150 237 450 500 590>;
+	qcom,mbhc-vthreshold-high = <150 237 450 500 590>;
+	qcom,hphl-jack-type-normally-open;
+};
+
 &pm8916_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
@@ -168,6 +180,20 @@
 	cd-gpios = <&tlmm 38 GPIO_ACTIVE_HIGH>;
 
 	status = "okay";
+};
+
+&sound {
+	model = "acer-a1-724";
+	audio-routing =
+		"DMIC1", "MIC BIAS External1",
+		"DMIC1", "Digital Mic1",
+		"AMIC2", "MIC BIAS Internal2",
+		"DMIC2", "MIC BIAS External1",
+		"DMIC2", "Digital Mic2";
+
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default &pri_mi2s_mclk_default &cdc_dmic_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep &pri_mi2s_mclk_sleep &cdc_dmic_sleep>;
+	pinctrl-names = "default", "sleep";
 };
 
 &usb {

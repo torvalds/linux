@@ -108,7 +108,7 @@ static int rpckbd_probe(struct platform_device *dev)
 	if (tx_irq < 0)
 		return tx_irq;
 
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	rpckbd = kzalloc(sizeof(*rpckbd), GFP_KERNEL);
 	if (!serio || !rpckbd) {
 		kfree(rpckbd);
@@ -144,7 +144,7 @@ static void rpckbd_remove(struct platform_device *dev)
 
 static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
-	.remove_new	= rpckbd_remove,
+	.remove		= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
 	},

@@ -238,6 +238,9 @@ static int usbdev_mmap(struct file *file, struct vm_area_struct *vma)
 	dma_addr_t dma_handle = DMA_MAPPING_ERROR;
 	int ret;
 
+	if (!(file->f_mode & FMODE_WRITE))
+		return -EPERM;
+
 	ret = usbfs_increase_memory_usage(size + sizeof(struct usb_memory));
 	if (ret)
 		goto error;
@@ -1295,7 +1298,7 @@ static int do_proc_bulk(struct usb_dev_state *ps,
 		return ret;
 
 	len1 = bulk->len;
-	if (len1 < 0 || len1 >= (INT_MAX - sizeof(struct urb)))
+	if (len1 >= (INT_MAX - sizeof(struct urb)))
 		return -EINVAL;
 
 	if (bulk->ep & USB_DIR_IN)

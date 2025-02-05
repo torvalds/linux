@@ -22,6 +22,9 @@ description: |
 
   [0] https://developer.arm.com/documentation/den0056/latest
 
+anyOf:
+  - $ref: /schemas/firmware/nxp,imx95-scmi.yaml
+
 properties:
   $nodename:
     const: scmi
@@ -72,14 +75,17 @@ properties:
           - const: tx
           - const: tx_reply
           - const: rx
+          - const: rx_reply
         minItems: 2
 
   mboxes:
     description:
       List of phandle and mailbox channel specifiers. It should contain
-      exactly one, two or three mailboxes; the first one or two for transmitting
-      messages ("tx") and another optional ("rx") for receiving notifications
-      and delayed responses, if supported by the platform.
+      exactly one, two, three or four mailboxes; the first one or two for
+      transmitting messages ("tx") and another optional ("rx") for receiving
+      notifications and delayed responses, if supported by the platform.
+      The optional ("rx_reply") is for notifications completion interrupt,
+      if supported by the platform.
       The number of mailboxes needed for transmitting messages depends on the
       type of channels exposed by the specific underlying mailbox controller;
       one single channel descriptor is enough if such channel is bidirectional,
@@ -92,9 +98,10 @@ properties:
        2 mbox / 2 shmem => SCMI TX and RX over 2 mailbox bidirectional channels
        2 mbox / 1 shmem => SCMI TX over 2 mailbox unidirectional channels
        3 mbox / 2 shmem => SCMI TX and RX over 3 mailbox unidirectional channels
+       4 mbox / 2 shmem => SCMI TX and RX over 4 mailbox unidirectional channels
       Any other combination of mboxes and shmem is invalid.
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   shmem:
     description:
@@ -116,6 +123,28 @@ properties:
       an higher-than-threshold execution latency, should not be considered for
       atomic mode of operation, even if requested.
     default: 0
+
+  arm,max-rx-timeout-ms:
+    description:
+      An optional time value, expressed in milliseconds, representing the
+      transport maximum timeout value for the receive channel. The value should
+      be a non-zero value if set.
+    minimum: 1
+
+  arm,max-msg-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value, expressed in bytes, representing the maximum size
+      allowed for the payload of messages transmitted on this transport.
+
+  arm,max-msg:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      An optional value representing the maximum number of concurrent in-flight
+      messages allowed by this transport; this number represents the maximum
+      number of concurrently outstanding messages that the server can handle on
+      this platform. If set, the value should be non-zero.
+    minimum: 1
 
   arm,smc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -140,6 +169,14 @@ properties:
 
     required:
       - '#power-domain-cells'
+
+  protocol@12:
+    $ref: '#/$defs/protocol-node'
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x12
 
   protocol@13:
     $ref: '#/$defs/protocol-node'
@@ -247,7 +284,40 @@ properties:
       reg:
         const: 0x18
 
-additionalProperties: false
+  protocol@19:
+    type: object
+    allOf:
+      - $ref: '#/$defs/protocol-node'
+      - anyOf:
+          - $ref: /schemas/pinctrl/pinctrl.yaml
+          - $ref: /schemas/firmware/nxp,imx95-scmi-pinctrl.yaml
+
+    unevaluatedProperties: false
+
+    properties:
+      reg:
+        const: 0x19
+
+    patternProperties:
+      '-pins$':
+        type: object
+        allOf:
+          - $ref: /schemas/pinctrl/pincfg-node.yaml#
+          - $ref: /schemas/pinctrl/pinmux-node.yaml#
+        unevaluatedProperties: false
+
+        description:
+          A pin multiplexing sub-node describes how to configure a
+          set of pins in some desired function.
+          A single sub-node may define several pin configurations.
+          This sub-node is using the default pinctrl bindings to configure
+          pin multiplexing and using SCMI protocol to apply a specified
+          configuration.
+
+    required:
+      - reg
+
+unevaluatedProperties: false
 
 $defs:
   protocol-node:
@@ -355,7 +425,7 @@ examples:
 
             scmi_dvfs: protocol@13 {
                 reg = <0x13>;
-                #clock-cells = <1>;
+                #power-domain-cells = <1>;
 
                 mboxes = <&mhuB 1 0>,
                          <&mhuB 1 1>;
@@ -400,6 +470,25 @@ examples:
 
             scmi_powercap: protocol@18 {
                 reg = <0x18>;
+            };
+
+            scmi_pinctrl: protocol@19 {
+                reg = <0x19>;
+
+                i2c2-pins {
+                    groups = "g_i2c2_a", "g_i2c2_b";
+                    function = "f_i2c2";
+                };
+
+                mdio-pins {
+                    groups = "g_avb_mdio";
+                    drive-strength = <24>;
+                };
+
+                keys_pins: keys-pins {
+                    pins = "gpio_5_17", "gpio_5_20", "gpio_5_22", "gpio_2_1";
+                    bias-pull-up;
+                };
             };
         };
     };
@@ -468,7 +557,7 @@ examples:
                 reg = <0x13>;
                 linaro,optee-channel-id = <1>;
                 shmem = <&cpu_optee_lpri0>;
-                #clock-cells = <1>;
+                #power-domain-cells = <1>;
             };
 
             scmi_clk0: protocol@14 {

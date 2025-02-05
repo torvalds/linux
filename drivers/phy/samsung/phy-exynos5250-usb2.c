@@ -121,7 +121,7 @@
 #define EXYNOS_5420_USB_ISOL_HOST_OFFSET	0x70C
 #define EXYNOS_5250_USB_ISOL_ENABLE		BIT(0)
 
-/* Mode swtich register */
+/* Mode switch register */
 #define EXYNOS_5250_MODE_SWITCH_OFFSET		0x230
 #define EXYNOS_5250_MODE_SWITCH_MASK		1
 #define EXYNOS_5250_MODE_SWITCH_DEVICE		0

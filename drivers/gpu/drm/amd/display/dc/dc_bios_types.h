@@ -183,6 +183,7 @@ struct dc_bios {
 	struct dc_firmware_info fw_info;
 	bool fw_info_valid;
 	struct dc_vram_info vram_info;
+	struct bp_soc_bb_info bb_info;
 	struct dc_golden_table golden_table;
 };
 

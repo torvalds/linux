@@ -36,33 +36,33 @@ EXPORT_SYMBOL_GPL(init_binfmt_misc);
  */
 struct user_namespace init_user_ns = {
 	.uid_map = {
-		.nr_extents = 1,
 		{
 			.extent[0] = {
 				.first = 0,
 				.lower_first = 0,
 				.count = 4294967295U,
 			},
+			.nr_extents = 1,
 		},
 	},
 	.gid_map = {
-		.nr_extents = 1,
 		{
 			.extent[0] = {
 				.first = 0,
 				.lower_first = 0,
 				.count = 4294967295U,
 			},
+			.nr_extents = 1,
 		},
 	},
 	.projid_map = {
-		.nr_extents = 1,
 		{
 			.extent[0] = {
 				.first = 0,
 				.lower_first = 0,
 				.count = 4294967295U,
 			},
+			.nr_extents = 1,
 		},
 	},
 	.ns.count = REFCOUNT_INIT(3),
@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(init_user_ns);
  * when changing user ID's (ie setuid() and friends).
  */
 
-#define UIDHASH_BITS	(CONFIG_BASE_SMALL ? 3 : 7)
+#define UIDHASH_BITS	(IS_ENABLED(CONFIG_BASE_SMALL) ? 3 : 7)
 #define UIDHASH_SZ	(1 << UIDHASH_BITS)
 #define UIDHASH_MASK		(UIDHASH_SZ - 1)
 #define __uidhashfn(uid)	(((uid >> UIDHASH_BITS) + uid) & UIDHASH_MASK)

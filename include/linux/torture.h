@@ -14,7 +14,7 @@
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/threads.h>
-#include <linux/cpumask.h>
+#include <linux/cpumask_types.h>
 #include <linux/seqlock.h>
 #include <linux/lockdep.h>
 #include <linux/completion.h>
@@ -130,7 +130,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 #endif
 
 #if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
-long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask);
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn);
 #endif
 
 #endif /* __LINUX_TORTURE_H */

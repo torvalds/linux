@@ -7,6 +7,23 @@
 
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(bpf_trigger_tp,
+
+	TP_PROTO(int nonce),
+
+	TP_ARGS(nonce),
+
+	TP_STRUCT__entry(
+		__field(int, nonce)
+	),
+
+	TP_fast_assign(
+		__entry->nonce = nonce;
+	),
+
+	TP_printk("nonce %d", __entry->nonce)
+);
+
 DECLARE_EVENT_CLASS(bpf_test_finish,
 
 	TP_PROTO(int *err),

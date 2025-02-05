@@ -64,25 +64,31 @@ xfs_filestream_pick_ag(
 	struct xfs_perag	*pag;
 	struct xfs_perag	*max_pag = NULL;
 	xfs_extlen_t		minlen = *longest;
-	xfs_extlen_t		free = 0, minfree, maxfree = 0;
+	xfs_extlen_t		minfree, maxfree = 0;
 	xfs_agnumber_t		agno;
 	bool			first_pass = true;
-	int			err;
 
 	/* 2% of an AG's blocks must be free for it to be chosen. */
 	minfree = mp->m_sb.sb_agblocks / 50;
 
 restart:
 	for_each_perag_wrap(mp, start_agno, agno, pag) {
+		int		err;
+
 		trace_xfs_filestream_scan(pag, pino);
+
 		*longest = 0;
 		err = xfs_bmap_longest_free_extent(pag, NULL, longest);
 		if (err) {
-			if (err != -EAGAIN)
-				break;
-			/* Couldn't lock the AGF, skip this AG. */
-			err = 0;
-			continue;
+			if (err == -EAGAIN) {
+				/* Couldn't lock the AGF, skip this AG. */
+				err = 0;
+				continue;
+			}
+			xfs_perag_rele(pag);
+			if (max_pag)
+				xfs_perag_rele(max_pag);
+			return err;
 		}
 
 		/* Keep track of the AG with the most free blocks. */
@@ -90,7 +96,7 @@ restart:
 			maxfree = pag->pagf_freeblks;
 			if (max_pag)
 				xfs_perag_rele(max_pag);
-			atomic_inc(&pag->pag_active_ref);
+			atomic_inc(&pag_group(pag)->xg_active_ref);
 			max_pag = pag;
 		}
 
@@ -107,8 +113,9 @@ restart:
 			     !(flags & XFS_PICK_USERDATA) ||
 			     (flags & XFS_PICK_LOWSPACE))) {
 				/* Break out, retaining the reference on the AG. */
-				free = pag->pagf_freeblks;
-				break;
+				if (max_pag)
+					xfs_perag_rele(max_pag);
+				goto done;
 			}
 		}
 
@@ -116,57 +123,47 @@ restart:
 		atomic_dec(&pag->pagf_fstrms);
 	}
 
-	if (err) {
-		xfs_perag_rele(pag);
-		if (max_pag)
-			xfs_perag_rele(max_pag);
-		return err;
+	/*
+	 * Allow a second pass to give xfs_bmap_longest_free_extent() another
+	 * attempt at locking AGFs that it might have skipped over before we
+	 * fail.
+	 */
+	if (first_pass) {
+		first_pass = false;
+		goto restart;
 	}
 
-	if (!pag) {
-		/*
-		 * Allow a second pass to give xfs_bmap_longest_free_extent()
-		 * another attempt at locking AGFs that it might have skipped
-		 * over before we fail.
-		 */
-		if (first_pass) {
-			first_pass = false;
-			goto restart;
-		}
-
-		/*
-		 * We must be low on data space, so run a final lowspace
-		 * optimised selection pass if we haven't already.
-		 */
-		if (!(flags & XFS_PICK_LOWSPACE)) {
-			flags |= XFS_PICK_LOWSPACE;
-			goto restart;
-		}
-
-		/*
-		 * No unassociated AGs are available, so select the AG with the
-		 * most free space, regardless of whether it's already in use by
-		 * another filestream. It none suit, just use whatever AG we can
-		 * grab.
-		 */
-		if (!max_pag) {
-			for_each_perag_wrap(args->mp, 0, start_agno, args->pag)
-				break;
-			atomic_inc(&args->pag->pagf_fstrms);
-			*longest = 0;
-		} else {
-			pag = max_pag;
-			free = maxfree;
-			atomic_inc(&pag->pagf_fstrms);
-		}
-	} else if (max_pag) {
-		xfs_perag_rele(max_pag);
+	/*
+	 * We must be low on data space, so run a final lowspace optimised
+	 * selection pass if we haven't already.
+	 */
+	if (!(flags & XFS_PICK_LOWSPACE)) {
+		flags |= XFS_PICK_LOWSPACE;
+		goto restart;
 	}
 
-	trace_xfs_filestream_pick(pag, pino, free);
+	/*
+	 * No unassociated AGs are available, so select the AG with the most
+	 * free space, regardless of whether it's already in use by another
+	 * filestream. It none suit, just use whatever AG we can grab.
+	 */
+	if (!max_pag) {
+		for_each_perag_wrap(args->mp, 0, start_agno, pag) {
+			max_pag = pag;
+			break;
+		}
+
+		/* Bail if there are no AGs at all to select from. */
+		if (!max_pag)
+			return -ENOSPC;
+	}
+
+	pag = max_pag;
+	atomic_inc(&pag->pagf_fstrms);
+done:
+	trace_xfs_filestream_pick(pag, pino);
 	args->pag = pag;
 	return 0;
-
 }
 
 static struct xfs_inode *
@@ -225,12 +222,12 @@ xfs_filestream_lookup_association(
 	 * down immediately after we mark the lookup as done.
 	 */
 	pag = container_of(mru, struct xfs_fstrm_item, mru)->pag;
-	atomic_inc(&pag->pag_active_ref);
+	atomic_inc(&pag_group(pag)->xg_active_ref);
 	xfs_mru_cache_done(mp->m_filestream);
 
 	trace_xfs_filestream_lookup(pag, ap->ip->i_ino);
 
-	ap->blkno = XFS_AGB_TO_FSB(args->mp, pag->pag_agno, 0);
+	ap->blkno = xfs_agbno_to_fsb(pag, 0);
 	xfs_bmap_adjacent(ap);
 
 	/*
@@ -278,7 +275,7 @@ xfs_filestream_create_association(
 		struct xfs_fstrm_item *item =
 			container_of(mru, struct xfs_fstrm_item, mru);
 
-		agno = (item->pag->pag_agno + 1) % mp->m_sb.sb_agcount;
+		agno = (pag_agno(item->pag) + 1) % mp->m_sb.sb_agcount;
 		xfs_fstrm_free_func(mp, mru);
 	} else if (xfs_is_inode32(mp)) {
 		xfs_agnumber_t	 rotorstep = xfs_rotorstep;
@@ -317,7 +314,7 @@ xfs_filestream_create_association(
 	if (!item)
 		goto out_put_fstrms;
 
-	atomic_inc(&args->pag->pag_active_ref);
+	atomic_inc(&pag_group(args->pag)->xg_active_ref);
 	item->pag = args->pag;
 	error = xfs_mru_cache_insert(mp->m_filestream, pino, &item->mru);
 	if (error)
@@ -347,7 +344,6 @@ xfs_filestream_select_ag(
 	struct xfs_alloc_arg	*args,
 	xfs_extlen_t		*longest)
 {
-	struct xfs_mount	*mp = args->mp;
 	struct xfs_inode	*pip;
 	xfs_ino_t		ino = 0;
 	int			error = 0;
@@ -373,7 +369,7 @@ xfs_filestream_select_ag(
 		return error;
 
 out_select:
-	ap->blkno = XFS_AGB_TO_FSB(mp, args->pag->pag_agno, 0);
+	ap->blkno = xfs_agbno_to_fsb(args->pag, 0);
 	return 0;
 }
 

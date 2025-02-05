@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _SH_CSS_SP_H_
@@ -163,13 +154,6 @@ sh_css_sp_configure_sync_gen(int width,
 			     int height,
 			     int hblank_cycles,
 			     int vblank_cycles);
-
-void
-sh_css_sp_configure_tpg(int x_mask,
-			int y_mask,
-			int x_delta,
-			int y_delta,
-			int xy_mask);
 
 void
 sh_css_sp_configure_prbs(int seed);

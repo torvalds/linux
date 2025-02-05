@@ -135,8 +135,7 @@ void ath9k_ps_wakeup(struct ath_softc *sc)
 	if (power_mode != ATH9K_PM_AWAKE) {
 		spin_lock(&common->cc_lock);
 		ath_hw_cycle_counters_update(common);
-		memset(&common->cc_survey, 0, sizeof(common->cc_survey));
-		memset(&common->cc_ani, 0, sizeof(common->cc_ani));
+		memset(&common->cc, 0, sizeof(common->cc));
 		spin_unlock(&common->cc_lock);
 	}
 
@@ -250,8 +249,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 		if (sc->cur_chan->tsf_val) {
 			u32 offset;
 
-			offset = ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts,
-							 NULL);
+			offset = ath9k_hw_get_tsf_offset(sc->cur_chan->tsf_ts, 0);
 			ath9k_hw_settsf64(ah, sc->cur_chan->tsf_val + offset);
 		}
 
@@ -454,6 +452,7 @@ void ath9k_tasklet(struct tasklet_struct *t)
 			ath_rx_tasklet(sc, 0, true);
 
 		ath_rx_tasklet(sc, 0, false);
+		sc->rx_active_count++;
 	}
 
 	if (status & ATH9K_INT_TX) {
@@ -896,7 +895,7 @@ static void ath9k_pending_key_del(struct ath_softc *sc, u8 keyix)
 	ath_key_delete(common, keyix);
 }
 
-static void ath9k_stop(struct ieee80211_hw *hw)
+static void ath9k_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_hw *ah = sc->sc_ah;
@@ -1002,7 +1001,7 @@ static bool ath9k_uses_beacons(int type)
 static void ath9k_vif_iter_set_beacon(struct ath9k_vif_iter_data *iter_data,
 				      struct ieee80211_vif *vif)
 {
-	/* Use the first (configured) interface, but prefering AP interfaces. */
+	/* Use the first (configured) interface, but preferring AP interfaces. */
 	if (!iter_data->primary_beacon_vif) {
 		iter_data->primary_beacon_vif = vif;
 	} else {
@@ -1956,7 +1955,7 @@ static u64 ath9k_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		tsf = ath9k_hw_gettsf64(sc->sc_ah);
 	} else {
 		tsf = sc->cur_chan->tsf_val +
-		      ath9k_hw_get_tsf_offset(&sc->cur_chan->tsf_ts, NULL);
+		      ath9k_hw_get_tsf_offset(sc->cur_chan->tsf_ts, 0);
 	}
 	tsf += le64_to_cpu(avp->tsf_adjust);
 	ath9k_ps_restore(sc);
@@ -1975,7 +1974,7 @@ static void ath9k_set_tsf(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 	ath9k_ps_wakeup(sc);
 	tsf -= le64_to_cpu(avp->tsf_adjust);
-	ktime_get_raw_ts64(&avp->chanctx->tsf_ts);
+	avp->chanctx->tsf_ts = ktime_get_raw();
 	if (sc->cur_chan == avp->chanctx)
 		ath9k_hw_settsf64(sc->sc_ah, tsf);
 	avp->chanctx->tsf_val = tsf;
@@ -1991,7 +1990,7 @@ static void ath9k_reset_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	mutex_lock(&sc->mutex);
 
 	ath9k_ps_wakeup(sc);
-	ktime_get_raw_ts64(&avp->chanctx->tsf_ts);
+	avp->chanctx->tsf_ts = ktime_get_raw();
 	if (sc->cur_chan == avp->chanctx)
 		ath9k_hw_reset_tsf(sc->sc_ah);
 	avp->chanctx->tsf_val = 0;
@@ -2768,7 +2767,7 @@ void ath9k_fill_chanctx_ops(void)
 #endif
 
 static int ath9k_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			     int *dbm)
+			     unsigned int link_id, int *dbm)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_vif *avp = (void *)vif->drv_priv;

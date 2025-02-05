@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 
 #ifndef __IVPU_IPC_H__
@@ -89,22 +89,25 @@ void ivpu_ipc_enable(struct ivpu_device *vdev);
 void ivpu_ipc_disable(struct ivpu_device *vdev);
 void ivpu_ipc_reset(struct ivpu_device *vdev);
 
-void ivpu_ipc_irq_handler(struct ivpu_device *vdev, bool *wake_thread);
-irqreturn_t ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev);
+void ivpu_ipc_irq_handler(struct ivpu_device *vdev);
+void ivpu_ipc_irq_thread_handler(struct ivpu_device *vdev);
 
 void ivpu_ipc_consumer_add(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 			   u32 channel, ivpu_ipc_rx_callback_t callback);
 void ivpu_ipc_consumer_del(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons);
 
+int ivpu_ipc_send(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
+		  struct vpu_jsm_msg *req);
 int ivpu_ipc_receive(struct ivpu_device *vdev, struct ivpu_ipc_consumer *cons,
 		     struct ivpu_ipc_hdr *ipc_buf, struct vpu_jsm_msg *jsm_msg,
 		     unsigned long timeout_ms);
-
-int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
-				 enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
-				 u32 channel, unsigned long timeout_ms);
+int ivpu_ipc_send_receive_internal(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
+				   enum vpu_ipc_msg_type expected_resp_type,
+				   struct vpu_jsm_msg *resp, u32 channel, unsigned long timeout_ms);
 int ivpu_ipc_send_receive(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
 			  enum vpu_ipc_msg_type expected_resp, struct vpu_jsm_msg *resp,
 			  u32 channel, unsigned long timeout_ms);
+int ivpu_ipc_send_and_wait(struct ivpu_device *vdev, struct vpu_jsm_msg *req,
+			   u32 channel, unsigned long timeout_ms);
 
 #endif /* __IVPU_IPC_H__ */

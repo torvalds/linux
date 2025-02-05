@@ -775,12 +775,8 @@ struct ufs_sb_private_info {
 
 	__u32	s_fpbmask;	/* fragments per block mask */
 	__u32	s_apb;		/* address per block */
-	__u32	s_2apb;		/* address per block^2 */
-	__u32	s_3apb;		/* address per block^3 */
 	__u32	s_apbmask;	/* address per block mask */
 	__u32	s_apbshift;	/* address per block shift */
-	__u32	s_2apbshift;	/* address per block shift * 2 */
-	__u32	s_3apbshift;	/* address per block shift * 3 */
 	__u32	s_nspfshift;	/* number of sector per fragment shift */
 	__u32	s_nspb;		/* number of sector per block */
 	__u32	s_inopf;	/* inodes per fragment */

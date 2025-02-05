@@ -730,7 +730,7 @@ static void owl_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver owl_uart_platform_driver = {
 	.probe = owl_uart_probe,
-	.remove_new = owl_uart_remove,
+	.remove = owl_uart_remove,
 	.driver = {
 		.name = "owl-uart",
 		.of_match_table = owl_uart_dt_matches,
@@ -761,4 +761,5 @@ static void __exit owl_uart_exit(void)
 module_init(owl_uart_init);
 module_exit(owl_uart_exit);
 
+MODULE_DESCRIPTION("Actions Semi Owl family serial console");
 MODULE_LICENSE("GPL");

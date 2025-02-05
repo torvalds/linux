@@ -916,11 +916,11 @@ static void ext2_readahead(struct readahead_control *rac)
 
 static int
 ext2_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct folio **foliop, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, pagep, ext2_get_block);
+	ret = block_write_begin(mapping, pos, len, foliop, ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
@@ -928,11 +928,11 @@ ext2_write_begin(struct file *file, struct address_space *mapping,
 
 static int ext2_write_end(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
+			struct folio *folio, void *fsdata)
 {
 	int ret;
 
-	ret = generic_write_end(file, mapping, pos, len, copied, page, fsdata);
+	ret = generic_write_end(file, mapping, pos, len, copied, folio, fsdata);
 	if (ret < len)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
@@ -965,7 +965,6 @@ const struct address_space_operations ext2_aops = {
 	.write_begin		= ext2_write_begin,
 	.write_end		= ext2_write_end,
 	.bmap			= ext2_bmap,
-	.direct_IO		= noop_direct_IO,
 	.writepages		= ext2_writepages,
 	.migrate_folio		= buffer_migrate_folio,
 	.is_partially_uptodate	= block_is_partially_uptodate,
@@ -974,7 +973,6 @@ const struct address_space_operations ext2_aops = {
 
 static const struct address_space_operations ext2_dax_aops = {
 	.writepages		= ext2_dax_writepages,
-	.direct_IO		= noop_direct_IO,
 	.dirty_folio		= noop_dirty_folio,
 };
 

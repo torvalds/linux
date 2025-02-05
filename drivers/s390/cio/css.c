@@ -309,7 +309,7 @@ static ssize_t type_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "%01x\n", sch->st);
+	return sysfs_emit(buf, "%01x\n", sch->st);
 }
 
 static DEVICE_ATTR_RO(type);
@@ -319,7 +319,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 {
 	struct subchannel *sch = to_subchannel(dev);
 
-	return sprintf(buf, "css:t%01X\n", sch->st);
+	return sysfs_emit(buf, "css:t%01X\n", sch->st);
 }
 
 static DEVICE_ATTR_RO(modalias);
@@ -345,7 +345,7 @@ static ssize_t driver_override_show(struct device *dev,
 	ssize_t len;
 
 	device_lock(dev);
-	len = snprintf(buf, PAGE_SIZE, "%s\n", sch->driver_override);
+	len = sysfs_emit(buf, "%s\n", sch->driver_override);
 	device_unlock(dev);
 	return len;
 }
@@ -380,11 +380,11 @@ static ssize_t chpids_show(struct device *dev,
 	for (chp = 0; chp < 8; chp++) {
 		mask = 0x80 >> chp;
 		if (ssd->path_mask & mask)
-			ret += sprintf(buf + ret, "%02x ", ssd->chpid[chp].id);
+			ret += sysfs_emit_at(buf, ret, "%02x ", ssd->chpid[chp].id);
 		else
-			ret += sprintf(buf + ret, "00 ");
+			ret += sysfs_emit_at(buf, ret, "00 ");
 	}
-	ret += sprintf(buf + ret, "\n");
+	ret += sysfs_emit_at(buf, ret, "\n");
 	return ret;
 }
 static DEVICE_ATTR_RO(chpids);
@@ -396,8 +396,8 @@ static ssize_t pimpampom_show(struct device *dev,
 	struct subchannel *sch = to_subchannel(dev);
 	struct pmcw *pmcw = &sch->schib.pmcw;
 
-	return sprintf(buf, "%02x %02x %02x\n",
-		       pmcw->pim, pmcw->pam, pmcw->pom);
+	return sysfs_emit(buf, "%02x %02x %02x\n",
+			  pmcw->pim, pmcw->pam, pmcw->pom);
 }
 static DEVICE_ATTR_RO(pimpampom);
 
@@ -881,7 +881,7 @@ static ssize_t real_cssid_show(struct device *dev, struct device_attribute *a,
 	if (!css->id_valid)
 		return -EINVAL;
 
-	return sprintf(buf, "%x\n", css->cssid);
+	return sysfs_emit(buf, "%x\n", css->cssid);
 }
 static DEVICE_ATTR_RO(real_cssid);
 
@@ -904,7 +904,7 @@ static ssize_t cm_enable_show(struct device *dev, struct device_attribute *a,
 	int ret;
 
 	mutex_lock(&css->mutex);
-	ret = sprintf(buf, "%x\n", css->cm_enabled);
+	ret = sysfs_emit(buf, "%x\n", css->cm_enabled);
 	mutex_unlock(&css->mutex);
 	return ret;
 }
@@ -1332,7 +1332,6 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 static const struct proc_ops cio_settle_proc_ops = {
 	.proc_open	= nonseekable_open,
 	.proc_write	= cio_settle_write,
-	.proc_lseek	= no_llseek,
 };
 
 static int __init cio_settle_init(void)
@@ -1354,10 +1353,10 @@ int sch_is_pseudo_sch(struct subchannel *sch)
 	return sch == to_css(sch->dev.parent)->pseudo_subchannel;
 }
 
-static int css_bus_match(struct device *dev, struct device_driver *drv)
+static int css_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct subchannel *sch = to_subchannel(dev);
-	struct css_driver *driver = to_cssdriver(drv);
+	const struct css_driver *driver = to_cssdriver(drv);
 	struct css_device_id *id;
 
 	/* When driver_override is set, only bind to the matching driver */

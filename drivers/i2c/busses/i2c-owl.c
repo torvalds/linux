@@ -172,7 +172,7 @@ static void owl_i2c_xfer_data(struct owl_i2c_dev *i2c_dev)
 
 	i2c_dev->err = 0;
 
-	/* Handle NACK from slave */
+	/* Handle NACK from target */
 	fifostat = readl(i2c_dev->base + OWL_I2C_REG_FIFOSTAT);
 	if (fifostat & OWL_I2C_FIFOSTAT_RNB) {
 		i2c_dev->err = -ENXIO;
@@ -302,7 +302,7 @@ static int owl_i2c_xfer_common(struct i2c_adapter *adap, struct i2c_msg *msgs,
 			   OWL_I2C_CTL_IRQE, !atomic);
 
 	/*
-	 * Select: FIFO enable, Master mode, Stop enable, Data count enable,
+	 * Select: FIFO enable, controller mode, Stop enable, Data count enable,
 	 * Send start bit
 	 */
 	i2c_cmd = OWL_I2C_CMD_SECL | OWL_I2C_CMD_MSS | OWL_I2C_CMD_SE |
@@ -314,7 +314,7 @@ static int owl_i2c_xfer_common(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		i2c_cmd |= OWL_I2C_CMD_AS(msgs[0].len + 1) |
 			   OWL_I2C_CMD_SAS(1) | OWL_I2C_CMD_RBE;
 
-		/* Write slave address */
+		/* Write target address */
 		addr = i2c_8bit_addr_from_msg(&msgs[0]);
 		writel(addr, i2c_dev->base + OWL_I2C_REG_TXDAT);
 
@@ -420,9 +420,9 @@ static int owl_i2c_xfer_atomic(struct i2c_adapter *adap,
 }
 
 static const struct i2c_algorithm owl_i2c_algorithm = {
-	.master_xfer	     = owl_i2c_xfer,
-	.master_xfer_atomic  = owl_i2c_xfer_atomic,
-	.functionality	     = owl_i2c_func,
+	.xfer = owl_i2c_xfer,
+	.xfer_atomic = owl_i2c_xfer_atomic,
+	.functionality = owl_i2c_func,
 };
 
 static const struct i2c_adapter_quirks owl_i2c_quirks = {

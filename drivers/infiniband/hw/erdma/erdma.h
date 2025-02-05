@@ -16,7 +16,7 @@
 #include "erdma_hw.h"
 
 #define DRV_MODULE_NAME "erdma"
-#define ERDMA_NODE_DESC "Elastic RDMA(iWARP) stack"
+#define ERDMA_NODE_DESC "Elastic RDMA Adapter stack"
 
 struct erdma_eq {
 	void *qbuf;
@@ -33,7 +33,8 @@ struct erdma_eq {
 	atomic64_t notify_num;
 
 	void __iomem *db;
-	u64 *db_record;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_cmdq_sq {
@@ -48,7 +49,8 @@ struct erdma_cmdq_sq {
 
 	u16 wqebb_cnt;
 
-	u64 *db_record;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 };
 
 struct erdma_cmdq_cq {
@@ -61,7 +63,8 @@ struct erdma_cmdq_cq {
 	u32 ci;
 	u32 cmdsn;
 
-	u64 *db_record;
+	u64 *dbrec;
+	dma_addr_t dbrec_dma;
 
 	atomic64_t armed_num;
 };
@@ -97,8 +100,6 @@ struct erdma_cmdq {
 	unsigned long *comp_wait_bitmap;
 	struct erdma_comp_wait *wait_pool;
 	spinlock_t lock;
-
-	bool use_event;
 
 	struct erdma_cmdq_sq sq;
 	struct erdma_cmdq_cq cq;
@@ -145,6 +146,8 @@ struct erdma_devattr {
 	u32 max_mr;
 	u32 max_pd;
 	u32 max_mw;
+	u32 max_gid;
+	u32 max_ah;
 	u32 local_dma_key;
 };
 
@@ -174,11 +177,9 @@ struct erdma_resource_cb {
 enum {
 	ERDMA_RES_TYPE_PD = 0,
 	ERDMA_RES_TYPE_STAG_IDX = 1,
-	ERDMA_RES_CNT = 2,
+	ERDMA_RES_TYPE_AH = 2,
+	ERDMA_RES_CNT = 3,
 };
-
-#define ERDMA_EXTRA_BUFFER_SIZE ERDMA_DB_SIZE
-#define WARPPED_BUFSIZE(size) ((size) + ERDMA_EXTRA_BUFFER_SIZE)
 
 struct erdma_dev {
 	struct ib_device ibdev;
@@ -192,8 +193,6 @@ struct erdma_dev {
 	u8 __iomem *func_bar;
 
 	struct erdma_devattr attrs;
-	/* physical port state (only one port per device) */
-	enum ib_port_state state;
 	u32 mtu;
 
 	/* cmdq and aeq use the same msix vector */
@@ -213,7 +212,9 @@ struct erdma_dev {
 	atomic_t num_ctx;
 	struct list_head cep_list;
 
+	struct dma_pool *db_pool;
 	struct dma_pool *resp_pool;
+	enum erdma_proto_type proto;
 };
 
 static inline void *get_queue_entry(void *qbuf, u32 idx, u32 depth, u32 shift)
@@ -264,7 +265,7 @@ void erdma_cmdq_destroy(struct erdma_dev *dev);
 
 void erdma_cmdq_build_reqhdr(u64 *hdr, u32 mod, u32 op);
 int erdma_post_cmd_wait(struct erdma_cmdq *cmdq, void *req, u32 req_size,
-			u64 *resp0, u64 *resp1);
+			u64 *resp0, u64 *resp1, bool sleepable);
 void erdma_cmdq_completion_handler(struct erdma_cmdq *cmdq);
 
 int erdma_ceqs_init(struct erdma_dev *dev);
@@ -273,7 +274,8 @@ void notify_eq(struct erdma_eq *eq);
 void *get_next_valid_eqe(struct erdma_eq *eq);
 
 int erdma_aeq_init(struct erdma_dev *dev);
-void erdma_aeq_destroy(struct erdma_dev *dev);
+int erdma_eq_common_init(struct erdma_dev *dev, struct erdma_eq *eq, u32 depth);
+void erdma_eq_destroy(struct erdma_dev *dev, struct erdma_eq *eq);
 
 void erdma_aeq_event_handler(struct erdma_dev *dev);
 void erdma_ceq_completion_handler(struct erdma_eq_cb *ceq_cb);

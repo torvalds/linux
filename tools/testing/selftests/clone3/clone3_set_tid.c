@@ -114,7 +114,8 @@ static int call_clone3_set_tid(pid_t *set_tid,
 	return WEXITSTATUS(status);
 }
 
-static void test_clone3_set_tid(pid_t *set_tid,
+static void test_clone3_set_tid(const char *desc,
+				pid_t *set_tid,
 				size_t set_tid_size,
 				int flags,
 				int expected,
@@ -129,17 +130,13 @@ static void test_clone3_set_tid(pid_t *set_tid,
 	ret = call_clone3_set_tid(set_tid, set_tid_size, flags, expected_pid,
 				  wait_for_it);
 	ksft_print_msg(
-		"[%d] clone3() with CLONE_SET_TID %d says :%d - expected %d\n",
+		"[%d] clone3() with CLONE_SET_TID %d says: %d - expected %d\n",
 		getpid(), set_tid[0], ret, expected);
-	if (ret != expected)
-		ksft_test_result_fail(
-			"[%d] Result (%d) is different than expected (%d)\n",
-			getpid(), ret, expected);
-	else
-		ksft_test_result_pass(
-			"[%d] Result (%d) matches expectation (%d)\n",
-			getpid(), ret, expected);
+
+	ksft_test_result(ret == expected, "%s with %zu TIDs and flags 0x%x\n",
+			 desc, set_tid_size, flags);
 }
+
 int main(int argc, char *argv[])
 {
 	FILE *f;
@@ -172,73 +169,91 @@ int main(int argc, char *argv[])
 
 	/* Try invalid settings */
 	memset(&set_tid, 0, sizeof(set_tid));
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL + 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, 0 TID",
+			    set_tid, MAX_PID_NS_LEVEL + 1, 0, -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 2, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, 0 TID",
+			    set_tid, MAX_PID_NS_LEVEL * 2, 0, -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 2 + 1, 0,
-			-EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, 0 TID",
+			    set_tid, MAX_PID_NS_LEVEL * 2 + 1, 0,
+			    -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 42, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, 0 TID",
+			    set_tid, MAX_PID_NS_LEVEL * 42, 0, -EINVAL, 0, 0);
 
 	/*
 	 * This can actually work if this test running in a MAX_PID_NS_LEVEL - 1
 	 * nested PID namespace.
 	 */
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL - 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, 0 TID",
+			    set_tid, MAX_PID_NS_LEVEL - 1, 0, -EINVAL, 0, 0);
 
 	memset(&set_tid, 0xff, sizeof(set_tid));
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL + 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, TID all 1s",
+			    set_tid, MAX_PID_NS_LEVEL + 1, 0, -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 2, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, TID all 1s",
+			    set_tid, MAX_PID_NS_LEVEL * 2, 0, -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 2 + 1, 0,
-			-EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, TID all 1s",
+			    set_tid, MAX_PID_NS_LEVEL * 2 + 1, 0,
+			    -EINVAL, 0, 0);
 
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL * 42, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, TID all 1s",
+			    set_tid, MAX_PID_NS_LEVEL * 42, 0, -EINVAL, 0, 0);
 
 	/*
 	 * This can actually work if this test running in a MAX_PID_NS_LEVEL - 1
 	 * nested PID namespace.
 	 */
-	test_clone3_set_tid(set_tid, MAX_PID_NS_LEVEL - 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("invalid size, TID all 1s",
+			    set_tid, MAX_PID_NS_LEVEL - 1, 0, -EINVAL, 0, 0);
 
 	memset(&set_tid, 0, sizeof(set_tid));
 	/* Try with an invalid PID */
 	set_tid[0] = 0;
-	test_clone3_set_tid(set_tid, 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("valid size, 0 TID",
+			    set_tid, 1, 0, -EINVAL, 0, 0);
 
 	set_tid[0] = -1;
-	test_clone3_set_tid(set_tid, 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("valid size, -1 TID",
+			    set_tid, 1, 0, -EINVAL, 0, 0);
 
 	/* Claim that the set_tid array actually contains 2 elements. */
-	test_clone3_set_tid(set_tid, 2, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("2 TIDs, -1 and 0",
+			    set_tid, 2, 0, -EINVAL, 0, 0);
 
 	/* Try it in a new PID namespace */
 	if (uid == 0)
-		test_clone3_set_tid(set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
+		test_clone3_set_tid("valid size, -1 TID",
+				    set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
 	else
 		ksft_test_result_skip("Clone3() with set_tid requires root\n");
 
 	/* Try with a valid PID (1) this should return -EEXIST. */
 	set_tid[0] = 1;
 	if (uid == 0)
-		test_clone3_set_tid(set_tid, 1, 0, -EEXIST, 0, 0);
+		test_clone3_set_tid("duplicate PID 1",
+				    set_tid, 1, 0, -EEXIST, 0, 0);
 	else
 		ksft_test_result_skip("Clone3() with set_tid requires root\n");
 
 	/* Try it in a new PID namespace */
 	if (uid == 0)
-		test_clone3_set_tid(set_tid, 1, CLONE_NEWPID, 0, 0, 0);
+		test_clone3_set_tid("duplicate PID 1",
+				    set_tid, 1, CLONE_NEWPID, 0, 0, 0);
 	else
 		ksft_test_result_skip("Clone3() with set_tid requires root\n");
 
 	/* pid_max should fail everywhere */
 	set_tid[0] = pid_max;
-	test_clone3_set_tid(set_tid, 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("set TID to maximum",
+			    set_tid, 1, 0, -EINVAL, 0, 0);
 
 	if (uid == 0)
-		test_clone3_set_tid(set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
+		test_clone3_set_tid("set TID to maximum",
+				    set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
 	else
 		ksft_test_result_skip("Clone3() with set_tid requires root\n");
 
@@ -262,10 +277,12 @@ int main(int argc, char *argv[])
 
 	/* After the child has finished, its PID should be free. */
 	set_tid[0] = pid;
-	test_clone3_set_tid(set_tid, 1, 0, 0, 0, 0);
+	test_clone3_set_tid("reallocate child TID",
+			    set_tid, 1, 0, 0, 0, 0);
 
 	/* This should fail as there is no PID 1 in that namespace */
-	test_clone3_set_tid(set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
+	test_clone3_set_tid("duplicate child TID",
+			    set_tid, 1, CLONE_NEWPID, -EINVAL, 0, 0);
 
 	/*
 	 * Creating a process with PID 1 in the newly created most nested
@@ -274,7 +291,8 @@ int main(int argc, char *argv[])
 	 */
 	set_tid[0] = 1;
 	set_tid[1] = pid;
-	test_clone3_set_tid(set_tid, 2, CLONE_NEWPID, 0, pid, 0);
+	test_clone3_set_tid("create PID 1 in new NS",
+			    set_tid, 2, CLONE_NEWPID, 0, pid, 0);
 
 	ksft_print_msg("unshare PID namespace\n");
 	if (unshare(CLONE_NEWPID) == -1)
@@ -284,7 +302,8 @@ int main(int argc, char *argv[])
 	set_tid[0] = pid;
 
 	/* This should fail as there is no PID 1 in that namespace */
-	test_clone3_set_tid(set_tid, 1, 0, -EINVAL, 0, 0);
+	test_clone3_set_tid("duplicate PID 1",
+			    set_tid, 1, 0, -EINVAL, 0, 0);
 
 	/* Let's create a PID 1 */
 	ns_pid = fork();
@@ -295,21 +314,25 @@ int main(int argc, char *argv[])
 		 */
 		set_tid[0] = 43;
 		set_tid[1] = -1;
-		test_clone3_set_tid(set_tid, 2, 0, -EINVAL, 0, 0);
+		test_clone3_set_tid("check leak on invalid TID -1",
+				    set_tid, 2, 0, -EINVAL, 0, 0);
 
 		set_tid[0] = 43;
 		set_tid[1] = pid;
-		test_clone3_set_tid(set_tid, 2, 0, 0, 43, 0);
+		test_clone3_set_tid("check leak on invalid specific TID",
+				    set_tid, 2, 0, 0, 43, 0);
 
 		ksft_print_msg("Child in PID namespace has PID %d\n", getpid());
 		set_tid[0] = 2;
-		test_clone3_set_tid(set_tid, 1, 0, 0, 2, 0);
+		test_clone3_set_tid("create PID 2 in child NS",
+				    set_tid, 1, 0, 0, 2, 0);
 
 		set_tid[0] = 1;
 		set_tid[1] = -1;
 		set_tid[2] = pid;
 		/* This should fail as there is invalid PID at level '1'. */
-		test_clone3_set_tid(set_tid, 3, CLONE_NEWPID, -EINVAL, 0, 0);
+		test_clone3_set_tid("fail due to invalid TID at level 1",
+				    set_tid, 3, CLONE_NEWPID, -EINVAL, 0, 0);
 
 		set_tid[0] = 1;
 		set_tid[1] = 42;
@@ -319,13 +342,15 @@ int main(int argc, char *argv[])
 		 * namespaces. Again assuming this is running in the host's
 		 * PID namespace. Not yet nested.
 		 */
-		test_clone3_set_tid(set_tid, 4, CLONE_NEWPID, -EINVAL, 0, 0);
+		test_clone3_set_tid("fail due to too few active PID NSs",
+				    set_tid, 4, CLONE_NEWPID, -EINVAL, 0, 0);
 
 		/*
 		 * This should work and from the parent we should see
 		 * something like 'NSpid:	pid	42	1'.
 		 */
-		test_clone3_set_tid(set_tid, 3, CLONE_NEWPID, 0, 42, true);
+		test_clone3_set_tid("verify that we have 3 PID NSs",
+				    set_tid, 3, CLONE_NEWPID, 0, 42, true);
 
 		child_exit(ksft_cnt.ksft_fail);
 	}
@@ -380,16 +405,14 @@ int main(int argc, char *argv[])
 	ksft_cnt.ksft_pass += 6 - (ksft_cnt.ksft_fail - WEXITSTATUS(status));
 	ksft_cnt.ksft_fail = WEXITSTATUS(status);
 
-	if (ns3 == pid && ns2 == 42 && ns1 == 1)
-		ksft_test_result_pass(
-			"PIDs in all namespaces as expected (%d,%d,%d)\n",
-			ns3, ns2, ns1);
-	else
-		ksft_test_result_fail(
-			"PIDs in all namespaces not as expected (%d,%d,%d)\n",
-			ns3, ns2, ns1);
+	ksft_print_msg("Expecting PIDs %d, 42, 1\n", pid);
+	ksft_print_msg("Have PIDs in namespaces: %d, %d, %d\n", ns3, ns2, ns1);
+	ksft_test_result(ns3 == pid && ns2 == 42 && ns1 == 1,
+			 "PIDs in all namespaces as expected\n");
 out:
 	ret = 0;
 
-	return !ret ? ksft_exit_pass() : ksft_exit_fail();
+	if (ret)
+		ksft_exit_fail();
+	ksft_exit_pass();
 }

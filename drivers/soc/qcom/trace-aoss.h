@@ -18,7 +18,7 @@ TRACE_EVENT(aoss_send,
 		__string(msg, msg)
 	),
 	TP_fast_assign(
-		__assign_str(msg, msg);
+		__assign_str(msg);
 	),
 	TP_printk("%s", __get_str(msg))
 );
@@ -31,7 +31,7 @@ TRACE_EVENT(aoss_send_done,
 		__field(int, ret)
 	),
 	TP_fast_assign(
-		__assign_str(msg, msg);
+		__assign_str(msg);
 		__entry->ret = ret;
 	),
 	TP_printk("%s: %d", __get_str(msg), __entry->ret)

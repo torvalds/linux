@@ -71,14 +71,8 @@ iommu_arena_new_node(int nid, struct pci_controller *hose, dma_addr_t base,
 	if (align < mem_size)
 		align = mem_size;
 
-	arena = memblock_alloc(sizeof(*arena), SMP_CACHE_BYTES);
-	if (!arena)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*arena));
-	arena->ptes = memblock_alloc(mem_size, align);
-	if (!arena->ptes)
-		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
-		      __func__, mem_size, align);
+	arena = memblock_alloc_or_panic(sizeof(*arena), SMP_CACHE_BYTES);
+	arena->ptes = memblock_alloc_or_panic(mem_size, align);
 
 	spin_lock_init(&arena->lock);
 	arena->hose = hose;
@@ -929,7 +923,7 @@ const struct dma_map_ops alpha_pci_ops = {
 	.dma_supported		= alpha_pci_supported,
 	.mmap			= dma_common_mmap,
 	.get_sgtable		= dma_common_get_sgtable,
-	.alloc_pages		= dma_common_alloc_pages,
+	.alloc_pages_op		= dma_common_alloc_pages,
 	.free_pages		= dma_common_free_pages,
 };
 EXPORT_SYMBOL(alpha_pci_ops);

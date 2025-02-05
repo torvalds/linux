@@ -761,8 +761,6 @@ static const struct vb2_ops ceu_vb2_ops = {
 	.queue_setup		= ceu_vb2_setup,
 	.buf_queue		= ceu_vb2_queue,
 	.buf_prepare		= ceu_vb2_prepare,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.start_streaming	= ceu_start_streaming,
 	.stop_streaming		= ceu_stop_streaming,
 };
@@ -1723,7 +1721,7 @@ static struct platform_driver ceu_driver = {
 		.of_match_table = of_match_ptr(ceu_of_match),
 	},
 	.probe		= ceu_probe,
-	.remove_new	= ceu_remove,
+	.remove		= ceu_remove,
 };
 
 module_platform_driver(ceu_driver);

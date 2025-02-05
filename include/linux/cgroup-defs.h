@@ -119,7 +119,12 @@ enum {
 	/*
 	 * Enable hugetlb accounting for the memory controller.
 	 */
-	 CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING = (1 << 19),
+	CGRP_ROOT_MEMORY_HUGETLB_ACCOUNTING = (1 << 19),
+
+	/*
+	 * Enable legacy local pids.events.
+	 */
+	CGRP_ROOT_PIDS_LOCAL_EVENTS = (1 << 20),
 };
 
 /* cftype->flags */
@@ -167,7 +172,11 @@ struct cgroup_subsys_state {
 	/* reference count - access via css_[try]get() and css_put() */
 	struct percpu_ref refcnt;
 
-	/* siblings list anchored at the parent's ->children */
+	/*
+	 * siblings list anchored at the parent's ->children
+	 *
+	 * linkage is protected by cgroup_mutex or RCU
+	 */
 	struct list_head sibling;
 	struct list_head children;
 
@@ -205,6 +214,14 @@ struct cgroup_subsys_state {
 	 * fields of the containing structure.
 	 */
 	struct cgroup_subsys_state *parent;
+
+	/*
+	 * Keep track of total numbers of visible descendant CSSes.
+	 * The total number of dying CSSes is tracked in
+	 * css->cgroup->nr_dying_subsys[ssid].
+	 * Protected by cgroup_mutex.
+	 */
+	int nr_descendants;
 };
 
 /*
@@ -310,6 +327,7 @@ struct cgroup_base_stat {
 #ifdef CONFIG_SCHED_CORE
 	u64 forceidle_sum;
 #endif
+	u64 ntime;
 };
 
 /*
@@ -380,7 +398,7 @@ struct cgroup_freezer_state {
 	bool freeze;
 
 	/* Should the cgroup actually be frozen? */
-	int e_freeze;
+	bool e_freeze;
 
 	/* Fields below are protected by css_set_lock */
 
@@ -465,6 +483,12 @@ struct cgroup {
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state __rcu *subsys[CGROUP_SUBSYS_COUNT];
 
+	/*
+	 * Keep track of total number of dying CSSes at and below this cgroup.
+	 * Protected by cgroup_mutex.
+	 */
+	int nr_dying_subsys[CGROUP_SUBSYS_COUNT];
+
 	struct cgroup_root *root;
 
 	/*
@@ -533,9 +557,6 @@ struct cgroup {
 
 	/* used to store eBPF programs */
 	struct cgroup_bpf bpf;
-
-	/* If there is block congestion on this cgroup. */
-	atomic_t congestion_count;
 
 	/* Used to store internal freezer state */
 	struct cgroup_freezer_state freezer;
@@ -676,9 +697,7 @@ struct cftype {
 	__poll_t (*poll)(struct kernfs_open_file *of,
 			 struct poll_table_struct *pt);
 
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	lockdep_key;
-#endif
 };
 
 /*
@@ -774,6 +793,11 @@ struct cgroup_subsys {
 };
 
 extern struct percpu_rw_semaphore cgroup_threadgroup_rwsem;
+
+struct cgroup_of_peak {
+	unsigned long		value;
+	struct list_head	list;
+};
 
 /**
  * cgroup_threadgroup_change_begin - threadgroup exclusion for cgroups

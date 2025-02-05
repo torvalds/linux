@@ -104,30 +104,11 @@ test_ip6gretap()
 	full_test_span_gre_dir gt6 egress 0 8 "mirror to ip6gretap"
 }
 
-tests()
-{
-	slow_path_trap_install $swp1 ingress
-	slow_path_trap_install $swp1 egress
-
-	tests_run
-
-	slow_path_trap_uninstall $swp1 egress
-	slow_path_trap_uninstall $swp1 ingress
-}
-
 trap cleanup EXIT
 
 setup_prepare
 setup_wait
 
-tcflags="skip_hw"
-tests
-
-if ! tc_offload_check; then
-	echo "WARN: Could not test offloaded functionality"
-else
-	tcflags="skip_sw"
-	tests
-fi
+tests_run
 
 exit $EXIT_STATUS

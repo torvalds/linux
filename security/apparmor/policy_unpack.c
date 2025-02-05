@@ -13,7 +13,7 @@
  * All policy is validated before it is used.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <kunit/visibility.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
@@ -645,10 +645,13 @@ fail:
 
 static bool unpack_perm(struct aa_ext *e, u32 version, struct aa_perms *perm)
 {
+	u32 reserved;
+
 	if (version != 1)
 		return false;
 
-	return	aa_unpack_u32(e, &perm->allow, NULL) &&
+	/* reserved entry is for later expansion, discard for now */
+	return	aa_unpack_u32(e, &reserved, NULL) &&
 		aa_unpack_u32(e, &perm->allow, NULL) &&
 		aa_unpack_u32(e, &perm->deny, NULL) &&
 		aa_unpack_u32(e, &perm->subtree, NULL) &&
@@ -747,34 +750,42 @@ static int unpack_pdb(struct aa_ext *e, struct aa_policydb **policy,
 			*info = "missing required dfa";
 			goto fail;
 		}
-		goto out;
+	} else {
+		/*
+		 * only unpack the following if a dfa is present
+		 *
+		 * sadly start was given different names for file and policydb
+		 * but since it is optional we can try both
+		 */
+		if (!aa_unpack_u32(e, &pdb->start[0], "start"))
+			/* default start state */
+			pdb->start[0] = DFA_START;
+		if (!aa_unpack_u32(e, &pdb->start[AA_CLASS_FILE], "dfa_start")) {
+			/* default start state for xmatch and file dfa */
+			pdb->start[AA_CLASS_FILE] = DFA_START;
+		}	/* setup class index */
+		for (i = AA_CLASS_FILE + 1; i <= AA_CLASS_LAST; i++) {
+			pdb->start[i] = aa_dfa_next(pdb->dfa, pdb->start[0],
+						    i);
+		}
 	}
 
 	/*
-	 * only unpack the following if a dfa is present
-	 *
-	 * sadly start was given different names for file and policydb
-	 * but since it is optional we can try both
+	 * Unfortunately due to a bug in earlier userspaces, a
+	 * transition table may be present even when the dfa is
+	 * not. For compatibility reasons unpack and discard.
 	 */
-	if (!aa_unpack_u32(e, &pdb->start[0], "start"))
-		/* default start state */
-		pdb->start[0] = DFA_START;
-	if (!aa_unpack_u32(e, &pdb->start[AA_CLASS_FILE], "dfa_start")) {
-		/* default start state for xmatch and file dfa */
-		pdb->start[AA_CLASS_FILE] = DFA_START;
-	}	/* setup class index */
-	for (i = AA_CLASS_FILE + 1; i <= AA_CLASS_LAST; i++) {
-		pdb->start[i] = aa_dfa_next(pdb->dfa, pdb->start[0],
-					       i);
-	}
 	if (!unpack_trans_table(e, &pdb->trans) && required_trans) {
 		*info = "failed to unpack profile transition table";
 		goto fail;
 	}
 
+	if (!pdb->dfa && pdb->trans.table)
+		aa_free_str_table(&pdb->trans);
+
 	/* TODO: move compat mapping here, requires dfa merging first */
 	/* TODO: move verify here, it has to be done after compat mappings */
-out:
+
 	*policy = pdb;
 	return 0;
 
@@ -1071,6 +1082,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 			if (rhashtable_insert_fast(profile->data, &data->head,
 						   profile->data->p)) {
+				kvfree_sensitive(data->data, data->size);
 				kfree_sensitive(data->key);
 				kfree_sensitive(data);
 				info = "failed to insert data to table";

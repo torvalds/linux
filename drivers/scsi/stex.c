@@ -334,7 +334,6 @@ struct st_hba {
 	struct st_ccb *wait_ccb;
 	__le32 *scratch;
 
-	char work_q_name[20];
 	struct workqueue_struct *work_q;
 	struct work_struct reset_work;
 	wait_queue_head_t reset_waitq;
@@ -585,7 +584,7 @@ static void return_abnormal_state(struct st_hba *hba, int status)
 	spin_unlock_irqrestore(hba->host->host_lock, flags);
 }
 static int
-stex_slave_config(struct scsi_device *sdev)
+stex_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	sdev->use_10_for_rw = 1;
 	sdev->use_10_for_ms = 1;
@@ -1482,14 +1481,14 @@ static const struct scsi_host_template driver_template = {
 	.proc_name			= DRV_NAME,
 	.bios_param			= stex_biosparam,
 	.queuecommand			= stex_queuecommand,
-	.slave_configure		= stex_slave_config,
+	.sdev_configure			= stex_sdev_configure,
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,
 	.dma_boundary			= PAGE_SIZE - 1,
 };
 
-static struct pci_device_id stex_pci_tbl[] = {
+static const struct pci_device_id stex_pci_tbl[] = {
 	/* st_shasta */
 	{ 0x105a, 0x8350, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		st_shasta }, /* SuperTrak EX8350/8300/16350/16300 */
@@ -1795,9 +1794,8 @@ static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	hba->pdev = pdev;
 	init_waitqueue_head(&hba->reset_waitq);
 
-	snprintf(hba->work_q_name, sizeof(hba->work_q_name),
-		 "stex_wq_%d", host->host_no);
-	hba->work_q = create_singlethread_workqueue(hba->work_q_name);
+	hba->work_q = alloc_ordered_workqueue("stex_wq_%d", WQ_MEM_RECLAIM,
+					      host->host_no);
 	if (!hba->work_q) {
 		printk(KERN_ERR DRV_NAME "(%s): create workqueue failed\n",
 			pci_name(pdev));

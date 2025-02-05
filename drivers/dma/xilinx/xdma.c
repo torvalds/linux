@@ -390,15 +390,11 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
  */
 static int xdma_xfer_stop(struct xdma_chan *xchan)
 {
-	int ret;
 	struct xdma_device *xdev = xchan->xdev_hdl;
 
 	/* clear run stop bit to prevent any further auto-triggering */
-	ret = regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_CONTROL_W1C,
-			   CHAN_CTRL_RUN_STOP);
-	if (ret)
-		return ret;
-	return ret;
+	return regmap_write(xdev->rmap, xchan->base + XDMA_CHAN_CONTROL_W1C,
+			    CHAN_CTRL_RUN_STOP);
 }
 
 /**
@@ -885,10 +881,10 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	u32 st;
 	bool repeat_tx;
 
+	spin_lock(&xchan->vchan.lock);
+
 	if (xchan->stop_requested)
 		complete(&xchan->last_interrupt);
-
-	spin_lock(&xchan->vchan.lock);
 
 	/* get submitted request */
 	vd = vchan_next_desc(&xchan->vchan);
@@ -1307,6 +1303,7 @@ static const struct platform_device_id xdma_id_table[] = {
 	{ "xdma", 0},
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, xdma_id_table);
 
 static struct platform_driver xdma_driver = {
 	.driver		= {
@@ -1314,7 +1311,7 @@ static struct platform_driver xdma_driver = {
 	},
 	.id_table	= xdma_id_table,
 	.probe		= xdma_probe,
-	.remove_new	= xdma_remove,
+	.remove		= xdma_remove,
 };
 
 module_platform_driver(xdma_driver);

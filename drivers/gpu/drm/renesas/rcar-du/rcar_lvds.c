@@ -1018,7 +1018,7 @@ static const struct dev_pm_ops rcar_lvds_pm_ops = {
 
 static struct platform_driver rcar_lvds_platform_driver = {
 	.probe		= rcar_lvds_probe,
-	.remove_new	= rcar_lvds_remove,
+	.remove		= rcar_lvds_remove,
 	.driver		= {
 		.name	= "rcar-lvds",
 		.pm	= &rcar_lvds_pm_ops,

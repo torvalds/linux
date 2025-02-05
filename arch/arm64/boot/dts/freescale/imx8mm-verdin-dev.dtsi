@@ -10,7 +10,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&dailink_master>;
 		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "imx8mm-nau8822";
+		simple-audio-card,name = "verdin-nau8822";
 		simple-audio-card,routing =
 			"Headphones", "LHP",
 			"Headphones", "RHP",
@@ -76,6 +76,11 @@
 
 &i2c3 {
 	status = "okay";
+};
+
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
 };
 
 &gpio_expander_21 {

@@ -82,3 +82,4 @@ void mtk_adsp_dump(struct snd_sof_dev *sdev, u32 flags)
 EXPORT_SYMBOL(mtk_adsp_dump);
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF helpers for MTK ADSP platforms");

@@ -58,6 +58,8 @@ struct virtio_ccw_device {
 	struct virtio_device vdev;
 	__u8 config[VIRTIO_CCW_CONFIG_SIZE];
 	struct ccw_device *cdev;
+	/* we make cdev->dev.dma_parms point to this */
+	struct device_dma_parameters dma_parms;
 	__u32 curr_io;
 	int err;
 	unsigned int revision; /* Transport revision */
@@ -689,29 +691,29 @@ out:
 
 static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			       struct virtqueue *vqs[],
-			       vq_callback_t *callbacks[],
-			       const char * const names[],
-			       const bool *ctx,
+			       struct virtqueue_info vqs_info[],
 			       struct irq_affinity *desc)
 {
 	struct virtio_ccw_device *vcdev = to_vc_device(vdev);
 	dma64_t *indicatorp = NULL;
 	int ret, i, queue_idx = 0;
 	struct ccw1 *ccw;
+	dma32_t indicatorp_dma = 0;
 
 	ccw = ccw_device_dma_zalloc(vcdev->cdev, sizeof(*ccw), NULL);
 	if (!ccw)
 		return -ENOMEM;
 
 	for (i = 0; i < nvqs; ++i) {
-		if (!names[i]) {
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		if (!vqi->name) {
 			vqs[i] = NULL;
 			continue;
 		}
 
-		vqs[i] = virtio_ccw_setup_vq(vdev, queue_idx++, callbacks[i],
-					     names[i], ctx ? ctx[i] : false,
-					     ccw);
+		vqs[i] = virtio_ccw_setup_vq(vdev, queue_idx++, vqi->callback,
+					     vqi->name, vqi->ctx, ccw);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			vqs[i] = NULL;
@@ -725,7 +727,7 @@ static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 	*/
 	indicatorp = ccw_device_dma_zalloc(vcdev->cdev,
 					   sizeof(*indicatorp),
-					   &ccw->cda);
+					   &indicatorp_dma);
 	if (!indicatorp)
 		goto out;
 	*indicatorp = indicators_dma(vcdev);
@@ -735,6 +737,7 @@ static int virtio_ccw_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 			/* no error, just fall back to legacy interrupts */
 			vcdev->is_thinint = false;
 	}
+	ccw->cda = indicatorp_dma;
 	if (!vcdev->is_thinint) {
 		/* Register queue indicators with host. */
 		*indicators(vcdev) = 0;
@@ -1302,6 +1305,7 @@ static int virtio_ccw_offline(struct ccw_device *cdev)
 	unregister_virtio_device(&vcdev->vdev);
 	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	dev_set_drvdata(&cdev->dev, NULL);
+	cdev->dev.dma_parms = NULL;
 	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	return 0;
 }
@@ -1365,6 +1369,7 @@ static int virtio_ccw_online(struct ccw_device *cdev)
 	}
 	vcdev->vdev.dev.parent = &cdev->dev;
 	vcdev->cdev = cdev;
+	cdev->dev.dma_parms = &vcdev->dma_parms;
 	vcdev->dma_area = ccw_device_dma_zalloc(vcdev->cdev,
 						sizeof(*vcdev->dma_area),
 						&vcdev->dma_area_addr);

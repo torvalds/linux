@@ -24,7 +24,7 @@ then we will show how a device driver makes use of an IIO device.
 
 There are two ways for a user space application to interact with an IIO driver.
 
-1. :file:`/sys/bus/iio/iio:device{X}/`, this represents a hardware sensor
+1. :file:`/sys/bus/iio/devices/iio:device{X}/`, this represents a hardware sensor
    and groups together the data channels of the same chip.
 2. :file:`/dev/iio:device{X}`, character device node interface used for
    buffered data transfer and for events information retrieval.
@@ -51,8 +51,8 @@ IIO device sysfs interface
 
 Attributes are sysfs files used to expose chip info and also allowing
 applications to set various configuration parameters. For device with
-index X, attributes can be found under /sys/bus/iio/iio:deviceX/ directory.
-Common attributes are:
+index X, attributes can be found under /sys/bus/iio/devices/iio:deviceX/
+directory.  Common attributes are:
 
 * :file:`name`, description of the physical chip.
 * :file:`dev`, shows the major:minor pair associated with
@@ -140,16 +140,16 @@ Here is how we can make use of the channel's modifiers::
 This channel's definition will generate two separate sysfs files for raw data
 retrieval:
 
-* :file:`/sys/bus/iio/iio:device{X}/in_intensity_ir_raw`
-* :file:`/sys/bus/iio/iio:device{X}/in_intensity_both_raw`
+* :file:`/sys/bus/iio/devices/iio:device{X}/in_intensity_ir_raw`
+* :file:`/sys/bus/iio/devices/iio:device{X}/in_intensity_both_raw`
 
 one file for processed data:
 
-* :file:`/sys/bus/iio/iio:device{X}/in_illuminance_input`
+* :file:`/sys/bus/iio/devices/iio:device{X}/in_illuminance_input`
 
 and one shared sysfs file for sampling frequency:
 
-* :file:`/sys/bus/iio/iio:device{X}/sampling_frequency`.
+* :file:`/sys/bus/iio/devices/iio:device{X}/sampling_frequency`.
 
 Here is how we can make use of the channel's indexing::
 

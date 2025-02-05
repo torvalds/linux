@@ -164,4 +164,7 @@
 							 _VLV_AUD_PORT_EN_D_DBG)
 #define VLV_AMP_MUTE		        (1 << 1)
 
+#define AUD_CHICKENBIT_REG3		_MMIO(0x65F1C)
+#define  DACBE_DISABLE_MIN_HBLANK_FIX	REG_BIT(18)
+
 #endif /* __INTEL_AUDIO_REGS_H__ */

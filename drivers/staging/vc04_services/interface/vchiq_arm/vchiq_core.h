@@ -6,11 +6,13 @@
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
-#include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/dev_printk.h>
 #include <linux/kthread.h>
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
+#include <linux/seq_file.h>
+#include <linux/spinlock_types.h>
 #include <linux/wait.h>
 
 #include "../../include/linux/raspberrypi/vchiq.h"
@@ -112,12 +114,16 @@ enum vchiq_bulk_dir {
 struct vchiq_bulk {
 	short mode;
 	short dir;
-	void *userdata;
-	dma_addr_t data;
+	void *cb_data;
+	void __user *cb_userdata;
+	struct bulk_waiter *waiter;
+	dma_addr_t dma_addr;
 	int size;
 	void *remote_data;
 	int remote_size;
 	int actual;
+	void *offset;
+	void __user *uoffset;
 };
 
 struct vchiq_bulk_queue {
@@ -346,7 +352,11 @@ struct vchiq_state {
 
 	struct mutex sync_mutex;
 
-	struct mutex bulk_transfer_mutex;
+	spinlock_t msg_queue_spinlock;
+
+	spinlock_t bulk_waiter_spinlock;
+
+	spinlock_t quota_spinlock;
 
 	/*
 	 * Indicates the byte position within the stream from where the next
@@ -386,8 +396,6 @@ struct vchiq_state {
 	/* Signalled when a free slot becomes available. */
 	struct completion slot_available_event;
 
-	struct completion slot_remove_event;
-
 	/* Signalled when a free data slot becomes available. */
 	struct completion data_quota_event;
 
@@ -405,6 +413,33 @@ struct vchiq_state {
 
 	struct opaque_platform_state *platform_state;
 };
+
+struct pagelist {
+	u32 length;
+	u16 type;
+	u16 offset;
+	u32 addrs[1];	/* N.B. 12 LSBs hold the number
+			 * of following pages at consecutive
+			 * addresses.
+			 */
+};
+
+struct vchiq_pagelist_info {
+	struct pagelist *pagelist;
+	size_t pagelist_buffer_size;
+	dma_addr_t dma_addr;
+	enum dma_data_direction dma_dir;
+	unsigned int num_pages;
+	unsigned int pages_need_release;
+	struct page **pages;
+	struct scatterlist *scatterlist;
+	unsigned int scatterlist_mapped;
+};
+
+static inline bool vchiq_remote_initialised(const struct vchiq_state *state)
+{
+	return state->remote && state->remote->initialised;
+}
 
 struct bulk_waiter {
 	struct vchiq_bulk *bulk;
@@ -463,18 +498,19 @@ extern void
 remote_event_pollall(struct vchiq_state *state);
 
 extern int
-vchiq_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *offset,
-		    void __user *uoffset, int size, void *userdata, enum vchiq_bulk_mode mode,
-		    enum vchiq_bulk_dir dir);
+vchiq_bulk_xfer_waiting(struct vchiq_instance *instance, unsigned int handle,
+			struct bulk_waiter *userdata);
+
+extern int
+vchiq_bulk_xfer_blocking(struct vchiq_instance *instance, unsigned int handle,
+			 struct vchiq_bulk *bulk);
+
+extern int
+vchiq_bulk_xfer_callback(struct vchiq_instance *instance, unsigned int handle,
+			 struct vchiq_bulk *bulk);
 
 extern void
 vchiq_dump_state(struct seq_file *f, struct vchiq_state *state);
-
-extern void
-vchiq_loud_error_header(void);
-
-extern void
-vchiq_loud_error_footer(void);
 
 extern void
 request_poll(struct vchiq_state *state, struct vchiq_service *service,
@@ -517,16 +553,9 @@ vchiq_queue_message(struct vchiq_instance *instance, unsigned int handle,
 		    void *context,
 		    size_t size);
 
-int vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *bulk, void *offset,
-			    void __user *uoffset, int size, int dir);
-
-void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk);
-
-void remote_event_signal(struct remote_event *event);
-
 void vchiq_dump_platform_state(struct seq_file *f);
 
-void vchiq_dump_platform_instances(struct seq_file *f);
+void vchiq_dump_platform_instances(struct vchiq_state *state, struct seq_file *f);
 
 void vchiq_dump_platform_service_state(struct seq_file *f, struct vchiq_service *service);
 
@@ -541,8 +570,6 @@ void vchiq_on_remote_release(struct vchiq_state *state);
 int vchiq_platform_init_state(struct vchiq_state *state);
 
 int vchiq_check_service(struct vchiq_service *service);
-
-void vchiq_on_remote_use_active(struct vchiq_state *state);
 
 int vchiq_send_remote_use(struct vchiq_state *state);
 

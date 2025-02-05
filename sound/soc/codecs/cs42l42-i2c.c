@@ -78,7 +78,7 @@ static const struct acpi_device_id __maybe_unused cs42l42_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, cs42l42_acpi_match);
 
 static const struct i2c_device_id cs42l42_id[] = {
-	{"cs42l42", 0},
+	{"cs42l42"},
 	{}
 };
 
@@ -101,4 +101,4 @@ module_i2c_driver(cs42l42_i2c_driver);
 MODULE_DESCRIPTION("ASoC CS42L42 I2C driver");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_CS42L42_CORE);
+MODULE_IMPORT_NS("SND_SOC_CS42L42_CORE");

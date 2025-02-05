@@ -14,11 +14,8 @@
 
 #include "utf8n.h"
 
-unsigned int failed_tests;
-unsigned int total_tests;
-
-/* Tests will be based on this version. */
-#define UTF8_LATEST	UNICODE_AGE(12, 1, 0)
+static unsigned int failed_tests;
+static unsigned int total_tests;
 
 #define _test(cond, func, line, fmt, ...) do {				\
 		total_tests++;						\
@@ -307,4 +304,5 @@ module_init(init_test_ucd);
 module_exit(exit_test_ucd);
 
 MODULE_AUTHOR("Gabriel Krisman Bertazi <krisman@collabora.co.uk>");
+MODULE_DESCRIPTION("Kernel module for testing utf-8 support");
 MODULE_LICENSE("GPL");

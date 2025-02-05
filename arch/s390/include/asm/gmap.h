@@ -17,8 +17,8 @@
 #define GMAP_NOTIFY_MPROT	0x1
 
 /* Status bits only for huge segment entries */
-#define _SEGMENT_ENTRY_GMAP_IN		0x8000	/* invalidation notify bit */
-#define _SEGMENT_ENTRY_GMAP_UC		0x4000	/* dirty (migration) */
+#define _SEGMENT_ENTRY_GMAP_IN		0x0800	/* invalidation notify bit */
+#define _SEGMENT_ENTRY_GMAP_UC		0x0002	/* dirty (migration) */
 
 /**
  * struct gmap_struct - guest address space
@@ -107,9 +107,6 @@ void gmap_remove(struct gmap *gmap);
 struct gmap *gmap_get(struct gmap *gmap);
 void gmap_put(struct gmap *gmap);
 
-void gmap_enable(struct gmap *gmap);
-void gmap_disable(struct gmap *gmap);
-struct gmap *gmap_get_enabled(void);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long len);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
@@ -146,7 +143,7 @@ int gmap_mprotect_notify(struct gmap *, unsigned long start,
 
 void gmap_sync_dirty_log_pmd(struct gmap *gmap, unsigned long dirty_bitmap[4],
 			     unsigned long gaddr, unsigned long vmaddr);
-int gmap_mark_unmergeable(void);
+int s390_disable_cow_sharing(void);
 void s390_unlist_old_asce(struct gmap *gmap);
 int s390_replace_asce(struct gmap *gmap);
 void s390_uv_destroy_pfns(unsigned long count, unsigned long *pfns);

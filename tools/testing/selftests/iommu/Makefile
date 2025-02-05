@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 CFLAGS += -Wall -O2 -Wno-unused-function
 CFLAGS += $(KHDR_INCLUDES)
-
-CFLAGS += -D_GNU_SOURCE
+LDLIBS += -lcap
 
 TEST_GEN_PROGS :=
 TEST_GEN_PROGS += iommufd

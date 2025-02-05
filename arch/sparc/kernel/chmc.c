@@ -788,7 +788,7 @@ static void jbusmc_destroy(struct platform_device *op, struct jbusmc *p)
 	kfree(p);
 }
 
-static int us3mc_remove(struct platform_device *op)
+static void us3mc_remove(struct platform_device *op)
 {
 	void *p = dev_get_drvdata(&op->dev);
 
@@ -798,7 +798,6 @@ static int us3mc_remove(struct platform_device *op)
 		else if (mc_type == MC_TYPE_JBUS)
 			jbusmc_destroy(op, p);
 	}
-	return 0;
 }
 
 static const struct of_device_id us3mc_match[] = {

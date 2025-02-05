@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "msm8916-wingtech-wt865x8.dtsi"
+
+/ {
+	model = "Lenovo A6000 (Wingtech WT86518)";
+	compatible = "wingtech,wt86518", "qcom,msm8916";
+	chassis-type = "handset";
+
+	speaker_amp: audio-amplifier {
+		compatible = "awinic,aw8738";
+
+		pinctrl-0 = <&spk_ext_pa_default>;
+		pinctrl-names = "default";
+
+		mode-gpios = <&tlmm 119 GPIO_ACTIVE_HIGH>;
+		sound-name-prefix = "Speaker Amp";
+		awinic,mode = <1>;
+	};
+};
+
+&blsp_i2c2 {
+	accelerometer@e {
+		compatible = "kionix,kxcj91008";
+		reg = <0xe>;
+
+		vdd-supply = <&pm8916_l6>;
+		vddio-supply = <&pm8916_l6>;
+
+		mount-matrix = "0", "-1", "0",
+			       "-1", "0", "0",
+			       "0",  "0", "1";
+	};
+};
+
+&headphones_switch {
+	VCC-supply = <&pm8916_l17>;
+};
+
+&pm8916_bms {
+	power-supplies = <&pm8916_charger>;
+};
+
+&pm8916_charger {
+	qcom,fast-charge-safe-current = <900000>;
+	qcom,fast-charge-safe-voltage = <4300000>;
+
+	monitored-battery = <&battery>;
+
+	status = "okay";
+};
+
+&sound {
+	model = "wt88047";
+	widgets = "Speaker", "Speaker",
+		  "Headphone", "Headphones";
+	pin-switches = "Speaker", "Headphones";
+	audio-routing = "Speaker", "Speaker Amp OUT",
+			"Speaker Amp IN", "HPH_R",
+			"Headphones", "Headphones Switch OUTL",
+			"Headphones", "Headphones Switch OUTR",
+			"Headphones Switch INL", "HPH_L",
+			"Headphones Switch INR", "HPH_R",
+			"AMIC1", "MIC BIAS Internal1",
+			"AMIC2", "MIC BIAS Internal2";
+	aux-devs = <&speaker_amp>, <&headphones_switch>;
+};
+
+&usb {
+	dr_mode = "peripheral";
+	extcon = <&pm8916_charger>;
+};
+
+&usb_hs_phy {
+	extcon = <&pm8916_charger>;
+};
+
+&tlmm {
+	spk_ext_pa_default: spk-ext-pa-default-state {
+		pins = "gpio119";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+};

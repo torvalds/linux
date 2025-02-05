@@ -139,6 +139,28 @@ static const char *delim_end[] = {
 	[TYPE_STRING] = "",
 };
 
+static void add_string_markers(struct property *prop)
+{
+	int l, len = prop->val.len;
+	const char *p = prop->val.val;
+
+	for (l = strlen(p) + 1; l < len; l += strlen(p + l) + 1) {
+		struct marker *m, **nextp;
+
+		m = xmalloc(sizeof(*m));
+		m->offset = l;
+		m->type = TYPE_STRING;
+		m->ref = NULL;
+		m->next = NULL;
+
+		/* Find the end of the markerlist */
+		nextp = &prop->val.markers;
+		while (*nextp)
+			nextp = &((*nextp)->next);
+		*nextp = m;
+	}
+}
+
 static enum markertype guess_value_type(struct property *prop)
 {
 	int len = prop->val.len;
@@ -164,6 +186,8 @@ static enum markertype guess_value_type(struct property *prop)
 
 	if ((p[len-1] == '\0') && (nnotstring == 0) && (nnul <= (len-nnul))
 	    && (nnotstringlbl == 0)) {
+		if (nnul > 1)
+			add_string_markers(prop);
 		return TYPE_STRING;
 	} else if (((len % sizeof(cell_t)) == 0) && (nnotcelllbl == 0)) {
 		return TYPE_UINT32;
@@ -241,6 +265,8 @@ static void write_propval(FILE *f, struct property *prop)
 			} else {
 				write_propval_int(f, p, chunk_len, 4);
 			}
+			if (data_len > chunk_len)
+				fputc(' ', f);
 			break;
 		case TYPE_UINT64:
 			write_propval_int(f, p, chunk_len, 8);

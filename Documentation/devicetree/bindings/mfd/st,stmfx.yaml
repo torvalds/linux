@@ -60,7 +60,7 @@ properties:
         additionalProperties: false
 
         allOf:
-          - $ref: ../pinctrl/pinmux-node.yaml
+          - $ref: /schemas/pinctrl/pinmux-node.yaml
 
         properties:
           pins: true

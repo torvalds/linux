@@ -280,6 +280,7 @@ int smk_access(struct smack_known *, struct smack_known *,
 int smk_tskacc(struct task_smack *, struct smack_known *,
 	       u32, struct smk_audit_info *);
 int smk_curacc(struct smack_known *, u32, struct smk_audit_info *);
+int smack_str_from_perm(char *string, int access);
 struct smack_known *smack_from_secid(const u32);
 char *smk_parse_smack(const char *string, int len);
 int smk_netlbl_mls(int, char *, struct netlbl_lsm_secattr *, int);
@@ -354,6 +355,18 @@ static inline struct superblock_smack *smack_superblock(
 {
 	return superblock->s_security + smack_blob_sizes.lbs_superblock;
 }
+
+static inline struct socket_smack *smack_sock(const struct sock *sock)
+{
+	return sock->sk_security + smack_blob_sizes.lbs_sock;
+}
+
+#ifdef CONFIG_KEYS
+static inline struct smack_known **smack_key(const struct key *key)
+{
+	return key->security + smack_blob_sizes.lbs_key;
+}
+#endif /* CONFIG_KEYS */
 
 /*
  * Is the directory transmuting?

@@ -40,6 +40,20 @@
 		};
 	};
 
+	reg_1v5: regulator-1v5 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+	};
+
+	reg_1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	reg_audio: regulator-audio {
 		compatible = "regulator-fixed";
 		regulator-name = "3v3_aud";
@@ -158,6 +172,8 @@
 		assigned-clock-parents = <&clk IMX8MN_CLK_24M>;
 		assigned-clock-rates = <24000000>;
 		AVDD-supply = <&reg_camera>;  /* 2.8v */
+		DVDD-supply = <&reg_1v5>;
+		DOVDD-supply = <&reg_1v8>;
 		powerdown-gpios = <&gpio1 7 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 

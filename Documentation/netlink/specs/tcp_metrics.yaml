@@ -1,0 +1,169 @@
+# SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
+
+name: tcp_metrics
+
+protocol: genetlink-legacy
+
+doc: |
+  Management interface for TCP metrics.
+
+c-family-name: tcp-metrics-genl-name
+c-version-name: tcp-metrics-genl-version
+max-by-define: true
+kernel-policy: global
+
+definitions:
+  -
+    name: tcp-fastopen-cookie-max
+    type: const
+    value: 16
+
+attribute-sets:
+  -
+    name: tcp-metrics
+    name-prefix: tcp-metrics-attr-
+    attributes:
+      -
+        name: addr-ipv4
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: addr-ipv6
+        type: binary
+        checks:
+          min-len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+      -
+        name: age
+        type: u64
+      -
+        name: tw-tsval
+        type: u32
+        doc: unused
+      -
+        name: tw-ts-stamp
+        type: s32
+        doc: unused
+      -
+        name: vals
+        type: nest
+        nested-attributes: metrics
+      -
+        name: fopen-mss
+        type: u16
+      -
+        name: fopen-syn-drops
+        type: u16
+      -
+        name: fopen-syn-drop-ts
+        type: u64
+      -
+        name: fopen-cookie
+        type: binary
+        checks:
+          min-len: tcp-fastopen-cookie-max
+      -
+        name: saddr-ipv4
+        type: u32
+        byte-order: big-endian
+        display-hint: ipv4
+      -
+        name: saddr-ipv6
+        type: binary
+        checks:
+          min-len: 16
+        byte-order: big-endian
+        display-hint: ipv6
+      -
+        name: pad
+        type: pad
+
+  -
+    name: metrics
+    # Intentionally don't define the name-prefix, see below.
+    doc: |
+      Attributes with metrics. Note that the values here do not match
+      the TCP_METRIC_* defines in the kernel, because kernel defines
+      are off-by one (e.g. rtt is defined as enum 0, while netlink carries
+      attribute type 1).
+    attributes:
+      -
+        name: rtt
+        type: u32
+        doc: |
+          Round Trip Time (RTT), in msecs with 3 bits fractional
+          (left-shift by 3 to get the msec value).
+      -
+        name: rttvar
+        type: u32
+        doc: |
+          Round Trip Time VARiance (RTT), in msecs with 2 bits fractional
+          (left-shift by 2 to get the msec value).
+      -
+        name: ssthresh
+        type: u32
+        doc: Slow Start THRESHold.
+      -
+        name: cwnd
+        type: u32
+        doc: Congestion Window.
+      -
+        name: reodering
+        type: u32
+        doc: Reodering metric.
+      -
+        name: rtt-us
+        type: u32
+        doc: |
+          Round Trip Time (RTT), in usecs, with 3 bits fractional
+          (left-shift by 3 to get the msec value).
+      -
+        name: rttvar-us
+        type: u32
+        doc: |
+          Round Trip Time (RTT), in usecs, with 2 bits fractional
+          (left-shift by 3 to get the msec value).
+
+operations:
+  list:
+    -
+      name: get
+      doc: Retrieve metrics.
+      attribute-set: tcp-metrics
+
+      dont-validate: [ strict, dump ]
+
+      do:
+        request: &sel_attrs
+          attributes:
+            - addr-ipv4
+            - addr-ipv6
+            - saddr-ipv4
+            - saddr-ipv6
+        reply: &all_attrs
+          attributes:
+            - addr-ipv4
+            - addr-ipv6
+            - saddr-ipv4
+            - saddr-ipv6
+            - age
+            - vals
+            - fopen-mss
+            - fopen-syn-drops
+            - fopen-syn-drop-ts
+            - fopen-cookie
+      dump:
+        reply: *all_attrs
+
+    -
+      name: del
+      doc: Delete metrics.
+      attribute-set: tcp-metrics
+
+      dont-validate: [ strict, dump ]
+      flags: [ admin-perm ]
+
+      do:
+        request: *sel_attrs

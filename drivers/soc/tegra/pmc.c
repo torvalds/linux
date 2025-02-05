@@ -1438,7 +1438,7 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 				struct device_node *parent)
 {
 	struct of_phandle_args child_args, parent_args;
-	struct device_node *np, *child;
+	struct device_node *np;
 	int err = 0;
 
 	/*
@@ -1457,12 +1457,10 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 	if (!np)
 		return 0;
 
-	for_each_child_of_node(np, child) {
+	for_each_child_of_node_scoped(np, child) {
 		err = tegra_powergate_add(pmc, child);
-		if (err < 0) {
-			of_node_put(child);
+		if (err < 0)
 			break;
-		}
 
 		if (of_parse_phandle_with_args(child, "power-domains",
 					       "#power-domain-cells",
@@ -1474,10 +1472,8 @@ static int tegra_powergate_init(struct tegra_pmc *pmc,
 
 		err = of_genpd_add_subdomain(&parent_args, &child_args);
 		of_node_put(parent_args.np);
-		if (err) {
-			of_node_put(child);
+		if (err)
 			break;
-		}
 	}
 
 	of_node_put(np);
@@ -2891,15 +2887,11 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		pmc->aotag = base;
 		pmc->scratch = base;
 	} else {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"wake");
-		pmc->wake = devm_ioremap_resource(&pdev->dev, res);
+		pmc->wake = devm_platform_ioremap_resource_byname(pdev, "wake");
 		if (IS_ERR(pmc->wake))
 			return PTR_ERR(pmc->wake);
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"aotag");
-		pmc->aotag = devm_ioremap_resource(&pdev->dev, res);
+		pmc->aotag = devm_platform_ioremap_resource_byname(pdev, "aotag");
 		if (IS_ERR(pmc->aotag))
 			return PTR_ERR(pmc->aotag);
 
@@ -4074,6 +4066,7 @@ static const char * const tegra194_reset_sources[] = {
 };
 
 static const struct tegra_wake_event tegra194_wake_events[] = {
+	TEGRA_WAKE_GPIO("eqos", 20, 0, TEGRA194_MAIN_GPIO(G, 4)),
 	TEGRA_WAKE_IRQ("pmu", 24, 209),
 	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA194_AON_GPIO(EE, 4)),
 	TEGRA_WAKE_IRQ("rtc", 73, 10),
@@ -4210,6 +4203,7 @@ static const char * const tegra234_reset_sources[] = {
 
 static const struct tegra_wake_event tegra234_wake_events[] = {
 	TEGRA_WAKE_GPIO("sd-wake", 8, 0, TEGRA234_MAIN_GPIO(G, 7)),
+	TEGRA_WAKE_GPIO("eqos", 20, 0, TEGRA234_MAIN_GPIO(G, 4)),
 	TEGRA_WAKE_IRQ("pmu", 24, 209),
 	TEGRA_WAKE_GPIO("power", 29, 1, TEGRA234_AON_GPIO(EE, 4)),
 	TEGRA_WAKE_GPIO("mgbe", 56, 0, TEGRA234_MAIN_GPIO(Y, 3)),

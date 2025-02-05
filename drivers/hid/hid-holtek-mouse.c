@@ -29,8 +29,8 @@
  * - USB ID 04d9:a0c2, sold as ETEKCITY Scroll T-140 Gaming Mouse
  */
 
-static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
-		unsigned int *rsize)
+static const __u8 *holtek_mouse_report_fixup(struct hid_device *hdev,
+		__u8 *rdesc, unsigned int *rsize)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
 
@@ -110,4 +110,5 @@ static struct hid_driver holtek_mouse_driver = {
 };
 
 module_hid_driver(holtek_mouse_driver);
+MODULE_DESCRIPTION("HID driver for Holtek gaming mice");
 MODULE_LICENSE("GPL");

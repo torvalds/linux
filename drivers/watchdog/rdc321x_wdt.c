@@ -197,7 +197,6 @@ static ssize_t rdc321x_wdt_write(struct file *file, const char __user *buf,
 
 static const struct file_operations rdc321x_wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.unlocked_ioctl	= rdc321x_wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
 	.open		= rdc321x_wdt_open,
@@ -269,7 +268,7 @@ static void rdc321x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver rdc321x_wdt_driver = {
 	.probe = rdc321x_wdt_probe,
-	.remove_new = rdc321x_wdt_remove,
+	.remove = rdc321x_wdt_remove,
 	.driver = {
 		.name = "rdc321x-wdt",
 	},

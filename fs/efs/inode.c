@@ -311,4 +311,5 @@ efs_block_t efs_map_block(struct inode *inode, efs_block_t block) {
 	return 0;
 }  
 
+MODULE_DESCRIPTION("Extent File System (efs)");
 MODULE_LICENSE("GPL");

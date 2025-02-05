@@ -24,12 +24,13 @@ static bool rcu_rdp_is_offloaded(struct rcu_data *rdp)
 	 * timers have their own means of synchronization against the
 	 * offloaded state updaters.
 	 */
-	RCU_LOCKDEP_WARN(
+	RCU_NOCB_LOCKDEP_WARN(
 		!(lockdep_is_held(&rcu_state.barrier_mutex) ||
 		  (IS_ENABLED(CONFIG_HOTPLUG_CPU) && lockdep_is_cpus_held()) ||
-		  rcu_lockdep_is_held_nocb(rdp) ||
-		  (rdp == this_cpu_ptr(&rcu_data) &&
-		   !(IS_ENABLED(CONFIG_PREEMPT_COUNT) && preemptible())) ||
+		  lockdep_is_held(&rdp->nocb_lock) ||
+		  lockdep_is_held(&rcu_state.nocb_mutex) ||
+		  (!(IS_ENABLED(CONFIG_PREEMPT_COUNT) && preemptible()) &&
+		   rdp == this_cpu_ptr(&rcu_data)) ||
 		  rcu_current_is_nocb_kthread(rdp)),
 		"Unsafe read of RCU_NOCB offloaded state"
 	);
@@ -93,6 +94,16 @@ static void __init rcu_bootup_announce_oddness(void)
 		pr_info("\tRCU debug GP init slowdown %d jiffies.\n", gp_init_delay);
 	if (gp_cleanup_delay)
 		pr_info("\tRCU debug GP cleanup slowdown %d jiffies.\n", gp_cleanup_delay);
+	if (nohz_full_patience_delay < 0) {
+		pr_info("\tRCU NOCB CPU patience negative (%d), resetting to zero.\n", nohz_full_patience_delay);
+		nohz_full_patience_delay = 0;
+	} else if (nohz_full_patience_delay > 5 * MSEC_PER_SEC) {
+		pr_info("\tRCU NOCB CPU patience too large (%d), resetting to %ld.\n", nohz_full_patience_delay, 5 * MSEC_PER_SEC);
+		nohz_full_patience_delay = 5 * MSEC_PER_SEC;
+	} else if (nohz_full_patience_delay) {
+		pr_info("\tRCU NOCB CPU patience set to %d milliseconds.\n", nohz_full_patience_delay);
+	}
+	nohz_full_patience_delay_jiffies = msecs_to_jiffies(nohz_full_patience_delay);
 	if (!use_softirq)
 		pr_info("\tRCU_SOFTIRQ processing moved to rcuc kthreads.\n");
 	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG))
@@ -172,9 +183,9 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 	switch (blkd_state) {
 	case 0:
 	case                RCU_EXP_TASKS:
-	case                RCU_EXP_TASKS + RCU_GP_BLKD:
+	case                RCU_EXP_TASKS | RCU_GP_BLKD:
 	case RCU_GP_TASKS:
-	case RCU_GP_TASKS + RCU_EXP_TASKS:
+	case RCU_GP_TASKS | RCU_EXP_TASKS:
 
 		/*
 		 * Blocking neither GP, or first task blocking the normal
@@ -187,10 +198,10 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 
 	case                                              RCU_EXP_BLKD:
 	case                                RCU_GP_BLKD:
-	case                                RCU_GP_BLKD + RCU_EXP_BLKD:
-	case RCU_GP_TASKS +                               RCU_EXP_BLKD:
-	case RCU_GP_TASKS +                 RCU_GP_BLKD + RCU_EXP_BLKD:
-	case RCU_GP_TASKS + RCU_EXP_TASKS + RCU_GP_BLKD + RCU_EXP_BLKD:
+	case                                RCU_GP_BLKD | RCU_EXP_BLKD:
+	case RCU_GP_TASKS |                               RCU_EXP_BLKD:
+	case RCU_GP_TASKS |                 RCU_GP_BLKD | RCU_EXP_BLKD:
+	case RCU_GP_TASKS | RCU_EXP_TASKS | RCU_GP_BLKD | RCU_EXP_BLKD:
 
 		/*
 		 * First task arriving that blocks either GP, or first task
@@ -203,9 +214,9 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 		list_add_tail(&t->rcu_node_entry, &rnp->blkd_tasks);
 		break;
 
-	case                RCU_EXP_TASKS +               RCU_EXP_BLKD:
-	case                RCU_EXP_TASKS + RCU_GP_BLKD + RCU_EXP_BLKD:
-	case RCU_GP_TASKS + RCU_EXP_TASKS +               RCU_EXP_BLKD:
+	case                RCU_EXP_TASKS |               RCU_EXP_BLKD:
+	case                RCU_EXP_TASKS | RCU_GP_BLKD | RCU_EXP_BLKD:
+	case RCU_GP_TASKS | RCU_EXP_TASKS |               RCU_EXP_BLKD:
 
 		/*
 		 * Second or subsequent task blocking the expedited GP.
@@ -216,8 +227,8 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 		list_add(&t->rcu_node_entry, rnp->exp_tasks);
 		break;
 
-	case RCU_GP_TASKS +                 RCU_GP_BLKD:
-	case RCU_GP_TASKS + RCU_EXP_TASKS + RCU_GP_BLKD:
+	case RCU_GP_TASKS |                 RCU_GP_BLKD:
+	case RCU_GP_TASKS | RCU_EXP_TASKS | RCU_GP_BLKD:
 
 		/*
 		 * Second or subsequent task blocking the normal GP.
@@ -264,6 +275,7 @@ static void rcu_preempt_ctxt_queue(struct rcu_node *rnp, struct rcu_data *rdp)
 		rcu_report_exp_rdp(rdp);
 	else
 		WARN_ON_ONCE(rdp->cpu_no_qs.b.exp);
+	ASSERT_EXCLUSIVE_WRITER_SCOPED(rdp->cpu_no_qs.b.exp);
 }
 
 /*
@@ -805,8 +817,8 @@ dump_blkd_tasks(struct rcu_node *rnp, int ncheck)
 		rdp = per_cpu_ptr(&rcu_data, cpu);
 		pr_info("\t%d: %c online: %ld(%d) offline: %ld(%d)\n",
 			cpu, ".o"[rcu_rdp_cpu_online(rdp)],
-			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_flags,
-			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_flags);
+			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_state,
+			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_state);
 	}
 }
 
@@ -859,7 +871,7 @@ static void rcu_qs(void)
 
 /*
  * Register an urgently needed quiescent state.  If there is an
- * emergency, invoke rcu_momentary_dyntick_idle() to do a heavy-weight
+ * emergency, invoke rcu_momentary_eqs() to do a heavy-weight
  * dyntick-idle quiescent state visible to other CPUs, which will in
  * some cases serve for expedited as well as normal grace periods.
  * Either way, register a lightweight quiescent state.
@@ -879,7 +891,7 @@ void rcu_all_qs(void)
 	this_cpu_write(rcu_data.rcu_urgent_qs, false);
 	if (unlikely(raw_cpu_read(rcu_data.rcu_need_heavy_qs))) {
 		local_irq_save(flags);
-		rcu_momentary_dyntick_idle();
+		rcu_momentary_eqs();
 		local_irq_restore(flags);
 	}
 	rcu_qs();
@@ -899,7 +911,7 @@ void rcu_note_context_switch(bool preempt)
 		goto out;
 	this_cpu_write(rcu_data.rcu_urgent_qs, false);
 	if (unlikely(raw_cpu_read(rcu_data.rcu_need_heavy_qs)))
-		rcu_momentary_dyntick_idle();
+		rcu_momentary_eqs();
 out:
 	rcu_tasks_qs(current, preempt);
 	trace_rcu_utilization(TPS("End context switch"));
@@ -1206,14 +1218,11 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rnp->boost_kthread_task = t;
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+
 	sp.sched_priority = kthread_prio;
 	sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
+	rcu_thread_affine_rnp(t, rnp);
 	wake_up_process(t); /* get to TASK_INTERRUPTIBLE quickly. */
-}
-
-static struct task_struct *rcu_boost_task(struct rcu_node *rnp)
-{
-	return READ_ONCE(rnp->boost_kthread_task);
 }
 
 #else /* #ifdef CONFIG_RCU_BOOST */
@@ -1232,10 +1241,6 @@ static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 {
 }
 
-static struct task_struct *rcu_boost_task(struct rcu_node *rnp)
-{
-	return NULL;
-}
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 /*

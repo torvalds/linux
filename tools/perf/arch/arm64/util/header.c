@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <perf/cpumap.h>
-#include <util/cpumap.h>
-#include <internal/cpumap.h>
 #include <api/fs/fs.h>
 #include <errno.h>
 #include "debug.h"
@@ -16,76 +14,66 @@
 #define MIDR_REVISION_MASK      GENMASK(3, 0)
 #define MIDR_VARIANT_MASK	GENMASK(23, 20)
 
-static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
+static int _get_cpuid(char *buf, size_t sz, struct perf_cpu cpu)
 {
+	char path[PATH_MAX];
+	FILE *file;
 	const char *sysfs = sysfs__mountpoint();
-	int cpu;
-	int ret = EINVAL;
 
+	assert(cpu.cpu != -1);
 	if (!sysfs || sz < MIDR_SIZE)
 		return EINVAL;
 
-	cpus = perf_cpu_map__get(cpus);
+	scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d" MIDR, sysfs, cpu.cpu);
 
-	for (cpu = 0; cpu < perf_cpu_map__nr(cpus); cpu++) {
-		char path[PATH_MAX];
-		FILE *file;
-
-		scnprintf(path, PATH_MAX, "%s/devices/system/cpu/cpu%d" MIDR,
-			  sysfs, RC_CHK_ACCESS(cpus)->map[cpu].cpu);
-
-		file = fopen(path, "r");
-		if (!file) {
-			pr_debug("fopen failed for file %s\n", path);
-			continue;
-		}
-
-		if (!fgets(buf, MIDR_SIZE, file)) {
-			fclose(file);
-			continue;
-		}
-		fclose(file);
-
-		/* got midr break loop */
-		ret = 0;
-		break;
+	file = fopen(path, "r");
+	if (!file) {
+		pr_debug("fopen failed for file %s\n", path);
+		return EINVAL;
 	}
 
-	perf_cpu_map__put(cpus);
-	return ret;
+	if (!fgets(buf, MIDR_SIZE, file)) {
+		pr_debug("Failed to read file %s\n", path);
+		fclose(file);
+		return EINVAL;
+	}
+	fclose(file);
+	return 0;
 }
 
-int get_cpuid(char *buf, size_t sz)
+int get_cpuid(char *buf, size_t sz, struct perf_cpu cpu)
 {
-	struct perf_cpu_map *cpus = perf_cpu_map__new_online_cpus();
-	int ret;
+	struct perf_cpu_map *cpus;
+	int idx;
 
+	if (cpu.cpu != -1)
+		return _get_cpuid(buf, sz, cpu);
+
+	cpus = perf_cpu_map__new_online_cpus();
 	if (!cpus)
 		return EINVAL;
 
-	ret = _get_cpuid(buf, sz, cpus);
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
+		int ret = _get_cpuid(buf, sz, cpu);
 
-	perf_cpu_map__put(cpus);
-
-	return ret;
+		if (ret == 0)
+			return 0;
+	}
+	return EINVAL;
 }
 
-char *get_cpuid_str(struct perf_pmu *pmu)
+char *get_cpuid_str(struct perf_cpu cpu)
 {
-	char *buf = NULL;
+	char *buf = malloc(MIDR_SIZE);
 	int res;
 
-	if (!pmu || !pmu->cpus)
-		return NULL;
-
-	buf = malloc(MIDR_SIZE);
 	if (!buf)
 		return NULL;
 
 	/* read midr from list of cpus mapped to this pmu */
-	res = _get_cpuid(buf, MIDR_SIZE, pmu->cpus);
+	res = get_cpuid(buf, MIDR_SIZE, cpu);
 	if (res) {
-		pr_err("failed to get cpuid string for PMU %s\n", pmu->name);
+		pr_err("failed to get cpuid string for CPU %d\n", cpu.cpu);
 		free(buf);
 		buf = NULL;
 	}

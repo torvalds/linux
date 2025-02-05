@@ -1084,7 +1084,7 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 		struct dc_stream_status *stream_status = &context->stream_status[0];
 		int minmum_z8_residency = dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
 		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
-		bool is_pwrseq0 = link->link_index == 0;
+		bool is_pwrseq0 = (link && link->link_index == 0);
 		bool is_psr = (link && (link->psr_settings.psr_version == DC_PSR_VERSION_1 ||
 						link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) && !link->panel_config.psr.disable_psr);
 		bool is_replay = link && link->replay_settings.replay_feature_enabled;
@@ -1132,7 +1132,8 @@ static void dcn20_adjust_freesync_v_startup(
 					patched_crtc_timing.v_addressable -
 					patched_crtc_timing.v_border_top;
 
-	newVstartup = asic_blank_end + (patched_crtc_timing.v_total - asic_blank_start);
+	/* The newVStartUp is 1 line before vsync point */
+	newVstartup = asic_blank_end + 1;
 
 	*vstartup_start = ((newVstartup > *vstartup_start) ? newVstartup : *vstartup_start);
 }
@@ -1562,6 +1563,8 @@ int dcn20_populate_dml_pipes_from_context(struct dc *dc,
 			pipes[pipe_cnt].pipe.src.surface_width_c = pipes[pipe_cnt].pipe.src.viewport_width;
 			pipes[pipe_cnt].pipe.src.data_pitch = ((pipes[pipe_cnt].pipe.src.viewport_width + 255) / 256) * 256;
 			pipes[pipe_cnt].pipe.src.source_format = dm_444_32;
+			pipes[pipe_cnt].pipe.src.cur0_src_width = 0;
+			pipes[pipe_cnt].pipe.src.cur1_src_width = 0;
 			pipes[pipe_cnt].pipe.dest.recout_width = pipes[pipe_cnt].pipe.src.viewport_width; /*vp_width/hratio*/
 			pipes[pipe_cnt].pipe.dest.recout_height = pipes[pipe_cnt].pipe.src.viewport_height; /*vp_height/vratio*/
 			pipes[pipe_cnt].pipe.dest.full_recout_width = pipes[pipe_cnt].pipe.dest.recout_width;  /*when is_hsplit != 1*/
@@ -1882,10 +1885,10 @@ void dcn20_update_bounding_box(struct dc *dc,
 		bb->clock_limits[i].fabricclk_mhz = (min_fclk_required_by_uclk < min_dcfclk) ?
 				min_dcfclk : min_fclk_required_by_uclk;
 
-		bb->clock_limits[i].socclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000) ?
+		bb->clock_limits[i].socclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->socClockInKhz / 1000.0) ?
 				max_clocks->socClockInKhz / 1000 : bb->clock_limits[i].fabricclk_mhz;
 
-		bb->clock_limits[i].dcfclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000) ?
+		bb->clock_limits[i].dcfclk_mhz = (bb->clock_limits[i].fabricclk_mhz > max_clocks->dcfClockInKhz / 1000.0) ?
 				max_clocks->dcfClockInKhz / 1000 : bb->clock_limits[i].fabricclk_mhz;
 
 		bb->clock_limits[i].dispclk_mhz = max_clocks->displayClockInKhz / 1000;
@@ -1917,35 +1920,35 @@ void dcn20_cap_soc_clocks(struct _vcs_dpi_soc_bounding_box_st *bb,
 
 	// First pass - cap all clocks higher than the reported max
 	for (i = 0; i < bb->num_states; i++) {
-		if ((bb->clock_limits[i].dcfclk_mhz > (max_clocks.dcfClockInKhz / 1000))
+		if ((bb->clock_limits[i].dcfclk_mhz > (max_clocks.dcfClockInKhz / 1000.0))
 				&& max_clocks.dcfClockInKhz != 0)
 			bb->clock_limits[i].dcfclk_mhz = (max_clocks.dcfClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000) * 16)
+		if ((bb->clock_limits[i].dram_speed_mts > (max_clocks.uClockInKhz / 1000.0) * 16)
 						&& max_clocks.uClockInKhz != 0)
 			bb->clock_limits[i].dram_speed_mts = (max_clocks.uClockInKhz / 1000) * 16;
 
-		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000))
+		if ((bb->clock_limits[i].fabricclk_mhz > (max_clocks.fabricClockInKhz / 1000.0))
 						&& max_clocks.fabricClockInKhz != 0)
 			bb->clock_limits[i].fabricclk_mhz = (max_clocks.fabricClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dispclk_mhz > (max_clocks.displayClockInKhz / 1000))
+		if ((bb->clock_limits[i].dispclk_mhz > (max_clocks.displayClockInKhz / 1000.0))
 						&& max_clocks.displayClockInKhz != 0)
 			bb->clock_limits[i].dispclk_mhz = (max_clocks.displayClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dppclk_mhz > (max_clocks.dppClockInKhz / 1000))
+		if ((bb->clock_limits[i].dppclk_mhz > (max_clocks.dppClockInKhz / 1000.0))
 						&& max_clocks.dppClockInKhz != 0)
 			bb->clock_limits[i].dppclk_mhz = (max_clocks.dppClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].phyclk_mhz > (max_clocks.phyClockInKhz / 1000))
+		if ((bb->clock_limits[i].phyclk_mhz > (max_clocks.phyClockInKhz / 1000.0))
 						&& max_clocks.phyClockInKhz != 0)
 			bb->clock_limits[i].phyclk_mhz = (max_clocks.phyClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].socclk_mhz > (max_clocks.socClockInKhz / 1000))
+		if ((bb->clock_limits[i].socclk_mhz > (max_clocks.socClockInKhz / 1000.0))
 						&& max_clocks.socClockInKhz != 0)
 			bb->clock_limits[i].socclk_mhz = (max_clocks.socClockInKhz / 1000);
 
-		if ((bb->clock_limits[i].dscclk_mhz > (max_clocks.dscClockInKhz / 1000))
+		if ((bb->clock_limits[i].dscclk_mhz > (max_clocks.dscClockInKhz / 1000.0))
 						&& max_clocks.dscClockInKhz != 0)
 			bb->clock_limits[i].dscclk_mhz = (max_clocks.dscClockInKhz / 1000);
 	}

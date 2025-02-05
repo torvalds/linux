@@ -21,6 +21,7 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 #include "bpf.h"
+#include "str_error.h"
 
 struct ring {
 	ring_buffer_sample_fn sample_cb;
@@ -88,8 +89,8 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
-		pr_warn("ringbuf: failed to get map info for fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("ringbuf: failed to get map info for fd=%d: %s\n",
+			map_fd, errstr(err));
 		return libbpf_err(err);
 	}
 
@@ -123,8 +124,8 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	tmp = mmap(NULL, rb->page_size, PROT_READ | PROT_WRITE, MAP_SHARED, map_fd, 0);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
-		pr_warn("ringbuf: failed to mmap consumer page for map fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("ringbuf: failed to mmap consumer page for map fd=%d: %s\n",
+			map_fd, errstr(err));
 		goto err_out;
 	}
 	r->consumer_pos = tmp;
@@ -142,8 +143,8 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	tmp = mmap(NULL, (size_t)mmap_sz, PROT_READ, MAP_SHARED, map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
-		pr_warn("ringbuf: failed to mmap data pages for map fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("ringbuf: failed to mmap data pages for map fd=%d: %s\n",
+			map_fd, errstr(err));
 		goto err_out;
 	}
 	r->producer_pos = tmp;
@@ -156,8 +157,8 @@ int ring_buffer__add(struct ring_buffer *rb, int map_fd,
 	e->data.fd = rb->ring_cnt;
 	if (epoll_ctl(rb->epoll_fd, EPOLL_CTL_ADD, map_fd, e) < 0) {
 		err = -errno;
-		pr_warn("ringbuf: failed to epoll add map fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("ringbuf: failed to epoll add map fd=%d: %s\n",
+			map_fd, errstr(err));
 		goto err_out;
 	}
 
@@ -205,7 +206,7 @@ ring_buffer__new(int map_fd, ring_buffer_sample_fn sample_cb, void *ctx,
 	rb->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (rb->epoll_fd < 0) {
 		err = -errno;
-		pr_warn("ringbuf: failed to create epoll instance: %d\n", err);
+		pr_warn("ringbuf: failed to create epoll instance: %s\n", errstr(err));
 		goto err_out;
 	}
 
@@ -231,7 +232,7 @@ static inline int roundup_len(__u32 len)
 	return (len + 7) / 8 * 8;
 }
 
-static int64_t ringbuf_process_ring(struct ring *r)
+static int64_t ringbuf_process_ring(struct ring *r, size_t n)
 {
 	int *len_ptr, len, err;
 	/* 64-bit to avoid overflow in case of extreme application behavior */
@@ -268,10 +269,40 @@ static int64_t ringbuf_process_ring(struct ring *r)
 			}
 
 			smp_store_release(r->consumer_pos, cons_pos);
+
+			if (cnt >= n)
+				goto done;
 		}
 	} while (got_new_data);
 done:
 	return cnt;
+}
+
+/* Consume available ring buffer(s) data without event polling, up to n
+ * records.
+ *
+ * Returns number of records consumed across all registered ring buffers (or
+ * n, whichever is less), or negative number if any of the callbacks return
+ * error.
+ */
+int ring_buffer__consume_n(struct ring_buffer *rb, size_t n)
+{
+	int64_t err, res = 0;
+	int i;
+
+	for (i = 0; i < rb->ring_cnt; i++) {
+		struct ring *ring = rb->rings[i];
+
+		err = ringbuf_process_ring(ring, n);
+		if (err < 0)
+			return libbpf_err(err);
+		res += err;
+		n -= err;
+
+		if (n == 0)
+			break;
+	}
+	return res > INT_MAX ? INT_MAX : res;
 }
 
 /* Consume available ring buffer(s) data without event polling.
@@ -287,13 +318,15 @@ int ring_buffer__consume(struct ring_buffer *rb)
 	for (i = 0; i < rb->ring_cnt; i++) {
 		struct ring *ring = rb->rings[i];
 
-		err = ringbuf_process_ring(ring);
+		err = ringbuf_process_ring(ring, INT_MAX);
 		if (err < 0)
 			return libbpf_err(err);
 		res += err;
+		if (res > INT_MAX) {
+			res = INT_MAX;
+			break;
+		}
 	}
-	if (res > INT_MAX)
-		return INT_MAX;
 	return res;
 }
 
@@ -314,13 +347,13 @@ int ring_buffer__poll(struct ring_buffer *rb, int timeout_ms)
 		__u32 ring_id = rb->events[i].data.fd;
 		struct ring *ring = rb->rings[ring_id];
 
-		err = ringbuf_process_ring(ring);
+		err = ringbuf_process_ring(ring, INT_MAX);
 		if (err < 0)
 			return libbpf_err(err);
 		res += err;
 	}
 	if (res > INT_MAX)
-		return INT_MAX;
+		res = INT_MAX;
 	return res;
 }
 
@@ -371,15 +404,20 @@ int ring__map_fd(const struct ring *r)
 	return r->map_fd;
 }
 
-int ring__consume(struct ring *r)
+int ring__consume_n(struct ring *r, size_t n)
 {
 	int64_t res;
 
-	res = ringbuf_process_ring(r);
+	res = ringbuf_process_ring(r, n);
 	if (res < 0)
 		return libbpf_err(res);
 
 	return res > INT_MAX ? INT_MAX : res;
+}
+
+int ring__consume(struct ring *r)
+{
+	return ring__consume_n(r, INT_MAX);
 }
 
 static void user_ringbuf_unmap_ring(struct user_ring_buffer *rb)
@@ -421,7 +459,8 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	err = bpf_map_get_info_by_fd(map_fd, &info, &len);
 	if (err) {
 		err = -errno;
-		pr_warn("user ringbuf: failed to get map info for fd=%d: %d\n", map_fd, err);
+		pr_warn("user ringbuf: failed to get map info for fd=%d: %s\n",
+			map_fd, errstr(err));
 		return err;
 	}
 
@@ -437,8 +476,8 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	tmp = mmap(NULL, rb->page_size, PROT_READ, MAP_SHARED, map_fd, 0);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
-		pr_warn("user ringbuf: failed to mmap consumer page for map fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("user ringbuf: failed to mmap consumer page for map fd=%d: %s\n",
+			map_fd, errstr(err));
 		return err;
 	}
 	rb->consumer_pos = tmp;
@@ -457,8 +496,8 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 		   map_fd, rb->page_size);
 	if (tmp == MAP_FAILED) {
 		err = -errno;
-		pr_warn("user ringbuf: failed to mmap data pages for map fd=%d: %d\n",
-			map_fd, err);
+		pr_warn("user ringbuf: failed to mmap data pages for map fd=%d: %s\n",
+			map_fd, errstr(err));
 		return err;
 	}
 
@@ -469,7 +508,7 @@ static int user_ringbuf_map(struct user_ring_buffer *rb, int map_fd)
 	rb_epoll->events = EPOLLOUT;
 	if (epoll_ctl(rb->epoll_fd, EPOLL_CTL_ADD, map_fd, rb_epoll) < 0) {
 		err = -errno;
-		pr_warn("user ringbuf: failed to epoll add map fd=%d: %d\n", map_fd, err);
+		pr_warn("user ringbuf: failed to epoll add map fd=%d: %s\n", map_fd, errstr(err));
 		return err;
 	}
 
@@ -494,7 +533,7 @@ user_ring_buffer__new(int map_fd, const struct user_ring_buffer_opts *opts)
 	rb->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
 	if (rb->epoll_fd < 0) {
 		err = -errno;
-		pr_warn("user ringbuf: failed to create epoll instance: %d\n", err);
+		pr_warn("user ringbuf: failed to create epoll instance: %s\n", errstr(err));
 		goto err_out;
 	}
 

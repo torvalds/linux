@@ -22,10 +22,16 @@ static inline void update_vdso_data(struct vdso_data *vdata,
 	u64 nsec, sec;
 
 	vdata[CS_HRES_COARSE].cycle_last	= tk->tkr_mono.cycle_last;
+#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
+	vdata[CS_HRES_COARSE].max_cycles	= tk->tkr_mono.clock->max_cycles;
+#endif
 	vdata[CS_HRES_COARSE].mask		= tk->tkr_mono.mask;
 	vdata[CS_HRES_COARSE].mult		= tk->tkr_mono.mult;
 	vdata[CS_HRES_COARSE].shift		= tk->tkr_mono.shift;
 	vdata[CS_RAW].cycle_last		= tk->tkr_raw.cycle_last;
+#ifdef CONFIG_GENERIC_VDSO_OVERFLOW_PROTECT
+	vdata[CS_RAW].max_cycles		= tk->tkr_raw.clock->max_cycles;
+#endif
 	vdata[CS_RAW].mask			= tk->tkr_raw.mask;
 	vdata[CS_RAW].mult			= tk->tkr_raw.mult;
 	vdata[CS_RAW].shift			= tk->tkr_raw.shift;
@@ -113,7 +119,7 @@ void update_vsyscall(struct timekeeper *tk)
 	if (clock_mode != VDSO_CLOCKMODE_NONE)
 		update_vdso_data(vdata, tk);
 
-	__arch_update_vsyscall(vdata, tk);
+	__arch_update_vsyscall(vdata);
 
 	vdso_write_end(vdata);
 
@@ -145,9 +151,8 @@ void update_vsyscall_tz(void)
 unsigned long vdso_update_begin(void)
 {
 	struct vdso_data *vdata = __arch_get_k_vdso_data();
-	unsigned long flags;
+	unsigned long flags = timekeeper_lock_irqsave();
 
-	raw_spin_lock_irqsave(&timekeeper_lock, flags);
 	vdso_write_begin(vdata);
 	return flags;
 }
@@ -166,5 +171,5 @@ void vdso_update_end(unsigned long flags)
 
 	vdso_write_end(vdata);
 	__arch_sync_vdso_data(vdata);
-	raw_spin_unlock_irqrestore(&timekeeper_lock, flags);
+	timekeeper_unlock_irqrestore(flags);
 }

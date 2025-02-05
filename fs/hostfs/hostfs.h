@@ -63,9 +63,10 @@ struct hostfs_stat {
 	struct hostfs_timespec atime, mtime, ctime;
 	unsigned int blksize;
 	unsigned long long blocks;
-	unsigned int maj;
-	unsigned int min;
-	dev_t dev;
+	struct {
+		unsigned int maj;
+		unsigned int min;
+	} rdev, dev;
 };
 
 extern int stat_file(const char *path, struct hostfs_stat *p, int fd);

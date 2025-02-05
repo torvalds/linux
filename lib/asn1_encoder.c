@@ -449,4 +449,5 @@ asn1_encode_boolean(unsigned char *data, const unsigned char *end_data,
 }
 EXPORT_SYMBOL_GPL(asn1_encode_boolean);
 
+MODULE_DESCRIPTION("Simple encoder primitives for ASN.1 BER/DER/CER");
 MODULE_LICENSE("GPL");

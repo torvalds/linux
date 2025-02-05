@@ -814,11 +814,11 @@ static int compute_bitstructs(struct gfs2_rgrpd *rgd)
 	bi = rgd->rd_bits + (length - 1);
 	if ((bi->bi_start + bi->bi_bytes) * GFS2_NBBY != rgd->rd_data) {
 		gfs2_lm(sdp,
-			"ri_addr = %llu\n"
-			"ri_length = %u\n"
-			"ri_data0 = %llu\n"
-			"ri_data = %u\n"
-			"ri_bitbytes = %u\n"
+			"ri_addr=%llu "
+			"ri_length=%u "
+			"ri_data0=%llu "
+			"ri_data=%u "
+			"ri_bitbytes=%u "
 			"start=%u len=%u offset=%u\n",
 			(unsigned long long)rgd->rd_addr,
 			rgd->rd_length,
@@ -1879,7 +1879,7 @@ static void try_rgrp_unlink(struct gfs2_rgrpd *rgd, u64 *last_unlinked, u64 skip
 		 */
 		ip = gl->gl_object;
 
-		if (ip || !gfs2_queue_try_to_evict(gl))
+		if (ip || !gfs2_queue_verify_delete(gl, false))
 			gfs2_glock_put(gl);
 		else
 			found++;
@@ -1987,10 +1987,8 @@ static bool gfs2_rgrp_used_recently(const struct gfs2_blkreserv *rs,
 static u32 gfs2_orlov_skip(const struct gfs2_inode *ip)
 {
 	const struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	u32 skip;
 
-	get_random_bytes(&skip, sizeof(skip));
-	return skip % sdp->sd_rgrps;
+	return get_random_u32() % sdp->sd_rgrps;
 }
 
 static bool gfs2_select_rgrp(struct gfs2_rgrpd **pos, const struct gfs2_rgrpd *begin)

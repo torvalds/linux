@@ -128,7 +128,6 @@ required:
   - cell-index
   - reg
   - fsl,fman-ports
-  - ptp-timer
 
 dependencies:
   pcs-handle-names:

@@ -82,11 +82,6 @@
   just a wiring limit.
 */
 
-/* The maximum address for ISA DMA transfer on Alpha XL, due to an
-   hardware SIO limitation, is 64MB.
-*/
-#define ALPHA_XL_MAX_ISA_DMA_ADDRESS		0x04000000UL
-
 /* The maximum address for ISA DMA transfer on RUFFIAN,
    due to an hardware SIO limitation, is 16MB.
 */
@@ -107,9 +102,7 @@
 #ifdef CONFIG_ALPHA_GENERIC
 # define MAX_ISA_DMA_ADDRESS		(alpha_mv.max_isa_dma_address)
 #else
-# if defined(CONFIG_ALPHA_XL)
-#  define MAX_ISA_DMA_ADDRESS		ALPHA_XL_MAX_ISA_DMA_ADDRESS
-# elif defined(CONFIG_ALPHA_RUFFIAN)
+# if defined(CONFIG_ALPHA_RUFFIAN)
 #  define MAX_ISA_DMA_ADDRESS		ALPHA_RUFFIAN_MAX_ISA_DMA_ADDRESS
 # elif defined(CONFIG_ALPHA_SABLE)
 #  define MAX_ISA_DMA_ADDRESS		ALPHA_SABLE_MAX_ISA_DMA_ADDRESS

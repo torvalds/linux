@@ -138,7 +138,7 @@ static inline uint64_t value64(struct btree_node *n, uint32_t index)
  */
 int lower_bound(struct btree_node *n, uint64_t key);
 
-extern struct dm_block_validator btree_node_validator;
+extern const struct dm_block_validator btree_node_validator;
 
 /*
  * Value type for upper levels of multi-level btrees.

@@ -35,6 +35,8 @@
  */
 #define LLIST_NODE_SZ sizeof(struct llist_node)
 
+#define BPF_MEM_ALLOC_SIZE_MAX 4096
+
 /* similar to kmalloc, but sizeof == 8 bucket is gone */
 static u8 size_index[24] __ro_after_init = {
 	3,	/* 8 */
@@ -65,7 +67,7 @@ static u8 size_index[24] __ro_after_init = {
 
 static int bpf_mem_cache_idx(size_t size)
 {
-	if (!size || size > 4096)
+	if (!size || size > BPF_MEM_ALLOC_SIZE_MAX)
 		return -1;
 
 	if (size <= 192)
@@ -138,8 +140,8 @@ static struct llist_node notrace *__llist_del_first(struct llist_head *head)
 static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
 {
 	if (c->percpu_size) {
-		void **obj = kmalloc_node(c->percpu_size, flags, node);
-		void *pptr = __alloc_percpu_gfp(c->unit_size, 8, flags);
+		void __percpu **obj = kmalloc_node(c->percpu_size, flags, node);
+		void __percpu *pptr = __alloc_percpu_gfp(c->unit_size, 8, flags);
 
 		if (!obj || !pptr) {
 			free_percpu(pptr);
@@ -155,12 +157,9 @@ static void *__alloc(struct bpf_mem_cache *c, int node, gfp_t flags)
 
 static struct mem_cgroup *get_memcg(const struct bpf_mem_cache *c)
 {
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	if (c->objcg)
 		return get_mem_cgroup_from_objcg(c->objcg);
-#endif
-
-#ifdef CONFIG_MEMCG
 	return root_mem_cgroup;
 #else
 	return NULL;
@@ -255,11 +254,8 @@ static void alloc_bulk(struct bpf_mem_cache *c, int cnt, int node, bool atomic)
 
 static void free_one(void *obj, bool percpu)
 {
-	if (percpu) {
-		free_percpu(((void **)obj)[1]);
-		kfree(obj);
-		return;
-	}
+	if (percpu)
+		free_percpu(((void __percpu **)obj)[1]);
 
 	kfree(obj);
 }
@@ -512,8 +508,8 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
  */
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 {
-	struct bpf_mem_caches *cc, __percpu *pcc;
-	struct bpf_mem_cache *c, __percpu *pc;
+	struct bpf_mem_caches *cc; struct bpf_mem_caches __percpu *pcc;
+	struct bpf_mem_cache *c; struct bpf_mem_cache __percpu *pc;
 	struct obj_cgroup *objcg = NULL;
 	int cpu, i, unit_size, percpu_size = 0;
 
@@ -534,7 +530,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			size += LLIST_NODE_SZ; /* room for llist_node */
 		unit_size = size;
 
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 		if (memcg_bpf_enabled())
 			objcg = get_obj_cgroup_from_current();
 #endif
@@ -556,7 +552,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	pcc = __alloc_percpu_gfp(sizeof(*cc), 8, GFP_KERNEL);
 	if (!pcc)
 		return -ENOMEM;
-#ifdef CONFIG_MEMCG_KMEM
+#ifdef CONFIG_MEMCG
 	objcg = get_obj_cgroup_from_current();
 #endif
 	ma->objcg = objcg;
@@ -594,7 +590,7 @@ int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma, struct obj_cgroup *objcg
 
 int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size)
 {
-	struct bpf_mem_caches *cc, __percpu *pcc;
+	struct bpf_mem_caches *cc; struct bpf_mem_caches __percpu *pcc;
 	int cpu, i, unit_size, percpu_size;
 	struct obj_cgroup *objcg;
 	struct bpf_mem_cache *c;
@@ -759,8 +755,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 			rcu_in_progress += atomic_read(&c->call_rcu_ttrace_in_progress);
 			rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 		}
-		if (ma->objcg)
-			obj_cgroup_put(ma->objcg);
+		obj_cgroup_put(ma->objcg);
 		destroy_mem_alloc(ma, rcu_in_progress);
 	}
 	if (ma->caches) {
@@ -776,8 +771,7 @@ void bpf_mem_alloc_destroy(struct bpf_mem_alloc *ma)
 				rcu_in_progress += atomic_read(&c->call_rcu_in_progress);
 			}
 		}
-		if (ma->objcg)
-			obj_cgroup_put(ma->objcg);
+		obj_cgroup_put(ma->objcg);
 		destroy_mem_alloc(ma, rcu_in_progress);
 	}
 }
@@ -1009,4 +1003,14 @@ void notrace *bpf_mem_cache_alloc_flags(struct bpf_mem_alloc *ma, gfp_t flags)
 	}
 
 	return !ret ? NULL : ret + LLIST_NODE_SZ;
+}
+
+int bpf_mem_alloc_check_size(bool percpu, size_t size)
+{
+	/* The size of percpu allocation doesn't have LLIST_NODE_SZ overhead */
+	if ((percpu && size > BPF_MEM_ALLOC_SIZE_MAX) ||
+	    (!percpu && size > BPF_MEM_ALLOC_SIZE_MAX - LLIST_NODE_SZ))
+		return -E2BIG;
+
+	return 0;
 }

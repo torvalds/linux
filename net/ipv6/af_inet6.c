@@ -252,30 +252,28 @@ lookup_protocol:
 		 */
 		inet->inet_sport = htons(inet->inet_num);
 		err = sk->sk_prot->hash(sk);
-		if (err) {
-			sk_common_release(sk);
-			goto out;
-		}
+		if (err)
+			goto out_sk_release;
 	}
 	if (sk->sk_prot->init) {
 		err = sk->sk_prot->init(sk);
-		if (err) {
-			sk_common_release(sk);
-			goto out;
-		}
+		if (err)
+			goto out_sk_release;
 	}
 
 	if (!kern) {
 		err = BPF_CGROUP_RUN_PROG_INET_SOCK(sk);
-		if (err) {
-			sk_common_release(sk);
-			goto out;
-		}
+		if (err)
+			goto out_sk_release;
 	}
 out:
 	return err;
 out_rcu_unlock:
 	rcu_read_unlock();
+	goto out;
+out_sk_release:
+	sk_common_release(sk);
+	sock->sk = NULL;
 	goto out;
 }
 
@@ -509,7 +507,7 @@ void inet6_cleanup_sock(struct sock *sk)
 
 	/* Free tx options */
 
-	opt = xchg((__force struct ipv6_txoptions **)&np->opt, NULL);
+	opt = unrcu_pointer(xchg(&np->opt, NULL));
 	if (opt) {
 		atomic_sub(opt->tot_len, &sk->sk_omem_alloc);
 		txopt_put(opt);
@@ -708,6 +706,7 @@ const struct proto_ops inet6_stream_ops = {
 	.splice_eof	   = inet_splice_eof,
 	.sendmsg_locked    = tcp_sendmsg_locked,
 	.splice_read	   = tcp_splice_read,
+	.set_peek_off      = sk_set_peek_off,
 	.read_sock	   = tcp_read_sock,
 	.read_skb	   = tcp_read_skb,
 	.peek_len	   = tcp_peek_len,
@@ -1060,6 +1059,7 @@ static const struct ipv6_stub ipv6_stub_impl = {
 	.nd_tbl	= &nd_tbl,
 	.ipv6_fragment = ip6_fragment,
 	.ipv6_dev_find = ipv6_dev_find,
+	.ip6_xmit = ip6_xmit,
 };
 
 static const struct ipv6_bpf_stub ipv6_bpf_stub_impl = {

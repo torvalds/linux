@@ -90,6 +90,7 @@ __ets_dwrr_test()
 
 	for stream in ${streams[@]}; do
 		ets_start_traffic $stream
+		defer stop_traffic $!
 	done
 
 	sleep 10
@@ -120,25 +121,24 @@ __ets_dwrr_test()
 				       ${d[0]} ${d[$i]}
 		fi
 	done
-
-	for stream in ${streams[@]}; do
-		stop_traffic
-	done
 }
 
 ets_dwrr_test_012()
 {
-	__ets_dwrr_test 0 1 2
+	in_defer_scope \
+		__ets_dwrr_test 0 1 2
 }
 
 ets_dwrr_test_01()
 {
-	__ets_dwrr_test 0 1
+	in_defer_scope \
+		__ets_dwrr_test 0 1
 }
 
 ets_dwrr_test_12()
 {
-	__ets_dwrr_test 1 2
+	in_defer_scope \
+		__ets_dwrr_test 1 2
 }
 
 ets_qdisc_setup()
@@ -199,25 +199,28 @@ ets_set_dwrr_two_bands()
 ets_test_strict()
 {
 	ets_set_strict
-	ets_dwrr_test_01
-	ets_dwrr_test_12
+	xfail_on_slow ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_12
 }
 
 ets_test_mixed()
 {
 	ets_set_mixed
-	ets_dwrr_test_01
-	ets_dwrr_test_12
+	xfail_on_slow ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_12
 }
 
 ets_test_dwrr()
 {
 	ets_set_dwrr_uniform
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_set_dwrr_varying
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_change_quantum
-	ets_dwrr_test_012
+	xfail_on_slow ets_dwrr_test_012
+
 	ets_set_dwrr_two_bands
-	ets_dwrr_test_01
+	xfail_on_slow ets_dwrr_test_01
 }

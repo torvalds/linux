@@ -104,8 +104,8 @@ TC_INDIRECT_SCOPE int cls_bpf_classify(struct sk_buff *skb,
 			bpf_compute_data_pointers(skb);
 			filter_res = bpf_prog_run(prog->filter, skb);
 		}
-		if (unlikely(!skb->tstamp && skb->mono_delivery_time))
-			skb->mono_delivery_time = 0;
+		if (unlikely(!skb->tstamp && skb->tstamp_type))
+			skb->tstamp_type = SKB_CLOCK_REALTIME;
 
 		if (prog->exts_integrated) {
 			res->class   = 0;
@@ -508,6 +508,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 
 	if (!tc_in_hw(prog->gen_flags))
 		prog->gen_flags |= TCA_CLS_FLAGS_NOT_IN_HW;
+
+	tcf_proto_update_usesw(tp, prog->gen_flags);
 
 	if (oldprog) {
 		idr_replace(&head->handle_idr, prog, handle);

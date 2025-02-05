@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # platform driver
-snd-soc-mt8192-afe-objs := \
+snd-soc-mt8192-afe-y := \
 	mt8192-afe-pcm.o \
 	mt8192-afe-clk.o \
 	mt8192-afe-gpio.o \

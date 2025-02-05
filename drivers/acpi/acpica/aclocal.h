@@ -547,7 +547,7 @@ struct acpi_field_info {
 
 struct acpi_ged_handler_info {
 	struct acpi_ged_handler_info *next;
-	u32 int_id;		/* The interrupt ID that triggers the execution ofthe evt_method. */
+	u32 int_id;		/* The interrupt ID that triggers the execution of the evt_method. */
 	struct acpi_namespace_node *evt_method;	/* The _EVT method to be executed when an interrupt with ID = int_ID is received */
 };
 
@@ -1089,6 +1089,8 @@ struct acpi_port_info {
 #define ACPI_ADDRESS_TYPE_MEMORY_RANGE          0
 #define ACPI_ADDRESS_TYPE_IO_RANGE              1
 #define ACPI_ADDRESS_TYPE_BUS_NUMBER_RANGE      2
+
+#define ACPI_ADDRESS_TYPE_PCC_NUMBER            0xA
 
 /* Resource descriptor types and masks */
 

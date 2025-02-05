@@ -1710,7 +1710,7 @@ mptsas_firmware_event_work(struct work_struct *work)
 
 
 static int
-mptsas_slave_configure(struct scsi_device *sdev)
+mptsas_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct Scsi_Host	*host = sdev->host;
 	MPT_SCSI_HOST	*hd = shost_priv(host);
@@ -1736,7 +1736,7 @@ mptsas_slave_configure(struct scsi_device *sdev)
 	mptsas_add_device_component_starget(ioc, scsi_target(sdev));
 
  out:
-	return mptscsih_slave_configure(sdev);
+	return mptscsih_sdev_configure(sdev, lim);
 }
 
 static int
@@ -1867,7 +1867,7 @@ mptsas_target_destroy(struct scsi_target *starget)
 
 
 static int
-mptsas_slave_alloc(struct scsi_device *sdev)
+mptsas_sdev_init(struct scsi_device *sdev)
 {
 	struct Scsi_Host	*host = sdev->host;
 	MPT_SCSI_HOST		*hd = shost_priv(host);
@@ -1880,7 +1880,7 @@ mptsas_slave_alloc(struct scsi_device *sdev)
 
 	vdevice = kzalloc(sizeof(VirtDevice), GFP_KERNEL);
 	if (!vdevice) {
-		printk(MYIOC_s_ERR_FMT "slave_alloc kzalloc(%zd) FAILED!\n",
+		printk(MYIOC_s_ERR_FMT "sdev_init kzalloc(%zd) FAILED!\n",
 				ioc->name, sizeof(VirtDevice));
 		return -ENOMEM;
 	}
@@ -2005,10 +2005,10 @@ static const struct scsi_host_template mptsas_driver_template = {
 	.info				= mptscsih_info,
 	.queuecommand			= mptsas_qcmd,
 	.target_alloc			= mptsas_target_alloc,
-	.slave_alloc			= mptsas_slave_alloc,
-	.slave_configure		= mptsas_slave_configure,
+	.sdev_init			= mptsas_sdev_init,
+	.sdev_configure			= mptsas_sdev_configure,
 	.target_destroy			= mptsas_target_destroy,
-	.slave_destroy			= mptscsih_slave_destroy,
+	.sdev_destroy			= mptscsih_sdev_destroy,
 	.change_queue_depth 		= mptscsih_change_queue_depth,
 	.eh_timed_out			= mptsas_eh_timed_out,
 	.eh_abort_handler		= mptscsih_abort,
@@ -2020,6 +2020,7 @@ static const struct scsi_host_template mptsas_driver_template = {
 	.sg_tablesize			= MPT_SCSI_SG_DEPTH,
 	.max_sectors			= 8192,
 	.cmd_per_lun			= 7,
+	.dma_alignment			= 511,
 	.shost_groups			= mptscsih_host_attr_groups,
 	.no_write_same			= 1,
 };
@@ -2964,17 +2965,13 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 			goto out_free;
 
 		manufacture_reply = data_out + sizeof(struct rep_manu_request);
-		strscpy(edev->vendor_id, manufacture_reply->vendor_id,
-			sizeof(edev->vendor_id));
-		strscpy(edev->product_id, manufacture_reply->product_id,
-			sizeof(edev->product_id));
-		strscpy(edev->product_rev, manufacture_reply->product_rev,
-			sizeof(edev->product_rev));
+		memtostr(edev->vendor_id, manufacture_reply->vendor_id);
+		memtostr(edev->product_id, manufacture_reply->product_id);
+		memtostr(edev->product_rev, manufacture_reply->product_rev);
 		edev->level = manufacture_reply->sas_format;
 		if (manufacture_reply->sas_format) {
-			strscpy(edev->component_vendor_id,
-				manufacture_reply->component_vendor_id,
-				sizeof(edev->component_vendor_id));
+			memtostr(edev->component_vendor_id,
+				 manufacture_reply->component_vendor_id);
 			tmp = (u8 *)&manufacture_reply->component_id;
 			edev->component_id = tmp[0] << 8 | tmp[1];
 			edev->component_revision_id =
@@ -4234,10 +4231,8 @@ mptsas_find_phyinfo_by_phys_disk_num(MPT_ADAPTER *ioc, u8 phys_disk_num,
 static void
 mptsas_reprobe_lun(struct scsi_device *sdev, void *data)
 {
-	int rc;
-
 	sdev->no_uld_attach = data ? 1 : 0;
-	rc = scsi_device_reprobe(sdev);
+	WARN_ON(scsi_device_reprobe(sdev));
 }
 
 static void
@@ -5382,7 +5377,7 @@ static void mptsas_remove(struct pci_dev *pdev)
 	mptscsih_remove(pdev);
 }
 
-static struct pci_device_id mptsas_pci_table[] = {
+static const struct pci_device_id mptsas_pci_table[] = {
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVID_SAS1064,
 		PCI_ANY_ID, PCI_ANY_ID },
 	{ PCI_VENDOR_ID_LSI_LOGIC, MPI_MANUFACTPAGE_DEVID_SAS1068,

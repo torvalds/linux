@@ -24,6 +24,7 @@
 #define JFS_ERR_REMOUNT_RO 0x00000002	/* remount read-only */
 #define JFS_ERR_CONTINUE   0x00000004	/* continue */
 #define JFS_ERR_PANIC      0x00000008	/* panic */
+#define JFS_ERR_MASK	   (JFS_ERR_REMOUNT_RO|JFS_ERR_CONTINUE|JFS_ERR_PANIC)
 
 /* Quota support */
 #define	JFS_USRQUOTA	0x00000010

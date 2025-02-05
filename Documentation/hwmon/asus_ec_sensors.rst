@@ -8,6 +8,7 @@ Supported boards:
  * PRIME X570-PRO
  * Pro WS X570-ACE
  * ProArt X570-CREATOR WIFI
+ * ProArt X670E-CREATOR WIFI
  * ProArt B550-CREATOR
  * ROG CROSSHAIR VIII DARK HERO
  * ROG CROSSHAIR VIII HERO (WI-FI)
@@ -28,6 +29,7 @@ Supported boards:
  * ROG STRIX Z690-A GAMING WIFI D4
  * ROG ZENITH II EXTREME
  * ROG ZENITH II EXTREME ALPHA
+ * TUF GAMING X670E PLUS
 
 Authors:
     - Eugene Shalygin <eugene.shalygin@gmail.com>

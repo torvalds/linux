@@ -467,8 +467,8 @@ struct list_buffer {
  *
  * If the port is idle on entry as much of the incoming data is written to
  * the port as the port will accept.  Otherwise a list buffer is created
- * and any remaning incoming data is copied to that buffer.  The buffer is
- * then enqueued for transmision via the transmit interrupt.
+ * and any remaining incoming data is copied to that buffer.  The buffer is
+ * then enqueued for transmission via the transmit interrupt.
  */
 
 int ps3_vuart_write(struct ps3_system_bus_device *dev, const void *buf,

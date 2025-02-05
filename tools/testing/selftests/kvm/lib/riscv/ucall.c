@@ -9,6 +9,7 @@
 
 #include "kvm_util.h"
 #include "processor.h"
+#include "sbi.h"
 
 void *ucall_arch_get_ucall(struct kvm_vcpu *vcpu)
 {

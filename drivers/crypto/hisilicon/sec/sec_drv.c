@@ -458,7 +458,7 @@ static void sec_ipv6_hashmask(struct sec_dev_info *info, u32 hash_mask[])
 static int sec_ipv4_hashmask(struct sec_dev_info *info, u32 hash_mask)
 {
 	if (hash_mask & SEC_HASH_IPV4_MASK) {
-		dev_err(info->dev, "Sec Ipv4 Hash Mask Input Error!\n ");
+		dev_err(info->dev, "Sec Ipv4 Hash Mask Input Error!\n");
 		return -EINVAL;
 	}
 
@@ -1304,7 +1304,7 @@ MODULE_DEVICE_TABLE(acpi, sec_acpi_match);
 
 static struct platform_driver sec_driver = {
 	.probe = sec_probe,
-	.remove_new = sec_remove,
+	.remove = sec_remove,
 	.driver = {
 		.name = "hisi_sec_platform_driver",
 		.of_match_table = sec_match,

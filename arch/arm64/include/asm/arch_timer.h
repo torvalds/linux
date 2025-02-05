@@ -15,7 +15,7 @@
 #include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
-#include <linux/smp.h>
+#include <linux/percpu.h>
 #include <linux/types.h>
 
 #include <clocksource/arm_arch_timer.h>

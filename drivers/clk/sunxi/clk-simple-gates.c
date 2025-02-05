@@ -21,11 +21,9 @@ static void __init sunxi_simple_gates_setup(struct device_node *node,
 {
 	struct clk_onecell_data *clk_data;
 	const char *clk_parent, *clk_name;
-	struct property *prop;
 	struct resource res;
 	void __iomem *clk_reg;
 	void __iomem *reg;
-	const __be32 *p;
 	int number, i = 0, j;
 	u8 clk_bit;
 	u32 index;
@@ -47,7 +45,7 @@ static void __init sunxi_simple_gates_setup(struct device_node *node,
 	if (!clk_data->clks)
 		goto err_free_data;
 
-	of_property_for_each_u32(node, "clock-indices", prop, p, index) {
+	of_property_for_each_u32(node, "clock-indices", index) {
 		of_property_read_string_index(node, "clock-output-names",
 					      i, &clk_name);
 

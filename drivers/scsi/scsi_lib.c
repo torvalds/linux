@@ -23,7 +23,7 @@
 #include <linux/blk-mq.h>
 #include <linux/blk-integrity.h>
 #include <linux/ratelimit.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -32,7 +32,7 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
-#include <scsi/scsi_transport.h> /* __scsi_init_queue() */
+#include <scsi/scsi_transport.h> /* scsi_init_limits() */
 #include <scsi/scsi_dh.h>
 
 #include <trace/events/scsi.h>
@@ -184,6 +184,10 @@ void scsi_queue_insert(struct scsi_cmnd *cmd, int reason)
 	__scsi_queue_insert(cmd, reason, true);
 }
 
+/**
+ * scsi_failures_reset_retries - reset all failures to zero
+ * @failures: &struct scsi_failures with specific failure modes set
+ */
 void scsi_failures_reset_retries(struct scsi_failures *failures)
 {
 	struct scsi_failure *failure;
@@ -209,6 +213,9 @@ static int scsi_check_passthrough(struct scsi_cmnd *scmd,
 	struct scsi_failure *failure;
 	struct scsi_sense_hdr sshdr;
 	enum sam_status status;
+
+	if (!scmd->result)
+		return 0;
 
 	if (!failures)
 		return 0;
@@ -631,8 +638,7 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 	if (blk_update_request(req, error, bytes))
 		return true;
 
-	// XXX:
-	if (blk_queue_add_random(q))
+	if (q->limits.features & BLK_FEAT_ADD_RANDOM)
 		add_disk_randomness(req->q->disk);
 
 	WARN_ON_ONCE(!blk_rq_is_passthrough(req) &&
@@ -1140,9 +1146,9 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 	 */
 	count = __blk_rq_map_sg(rq->q, rq, cmd->sdb.table.sgl, &last_sg);
 
-	if (blk_rq_bytes(rq) & rq->q->dma_pad_mask) {
+	if (blk_rq_bytes(rq) & rq->q->limits.dma_pad_mask) {
 		unsigned int pad_len =
-			(rq->q->dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
+			(rq->q->limits.dma_pad_mask & ~blk_rq_bytes(rq)) + 1;
 
 		last_sg->length += pad_len;
 		cmd->extra_len += pad_len;
@@ -1164,7 +1170,6 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 
 	if (blk_integrity_rq(rq)) {
 		struct scsi_data_buffer *prot_sdb = cmd->prot_sdb;
-		int ivecs;
 
 		if (WARN_ON_ONCE(!prot_sdb)) {
 			/*
@@ -1176,20 +1181,15 @@ blk_status_t scsi_alloc_sgtables(struct scsi_cmnd *cmd)
 			goto out_free_sgtables;
 		}
 
-		ivecs = blk_rq_count_integrity_sg(rq->q, rq->bio);
-
-		if (sg_alloc_table_chained(&prot_sdb->table, ivecs,
+		if (sg_alloc_table_chained(&prot_sdb->table,
+				rq->nr_integrity_segments,
 				prot_sdb->table.sgl,
 				SCSI_INLINE_PROT_SG_CNT)) {
 			ret = BLK_STS_RESOURCE;
 			goto out_free_sgtables;
 		}
 
-		count = blk_rq_map_integrity_sg(rq->q, rq->bio,
-						prot_sdb->table.sgl);
-		BUG_ON(count > ivecs);
-		BUG_ON(count > queue_max_integrity_segments(rq->q));
-
+		count = blk_rq_map_integrity_sg(rq, prot_sdb->table.sgl);
 		cmd->prot_sdb = prot_sdb;
 		cmd->prot_sdb->table.nents = count;
 	}
@@ -1221,6 +1221,15 @@ static void scsi_initialize_rq(struct request *rq)
 	cmd->retries = 0;
 }
 
+/**
+ * scsi_alloc_request - allocate a block request and partially
+ *                      initialize its &scsi_cmnd
+ * @q: the device's request queue
+ * @opf: the request operation code
+ * @flags: block layer allocation flags
+ *
+ * Return: &struct request pointer on success or %NULL on failure
+ */
 struct request *scsi_alloc_request(struct request_queue *q, blk_opf_t opf,
 				   blk_mq_req_flags_t flags)
 {
@@ -1869,7 +1878,6 @@ out_put_budget:
 	case BLK_STS_OK:
 		break;
 	case BLK_STS_RESOURCE:
-	case BLK_STS_ZONE_RESOURCE:
 		if (scsi_device_blocked(sdev))
 			ret = BLK_STS_DEV_RESOURCE;
 		break;
@@ -1964,42 +1972,43 @@ static void scsi_map_queues(struct blk_mq_tag_set *set)
 	blk_mq_map_queues(&set->map[HCTX_TYPE_DEFAULT]);
 }
 
-void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
+void scsi_init_limits(struct Scsi_Host *shost, struct queue_limits *lim)
 {
 	struct device *dev = shost->dma_dev;
 
-	/*
-	 * this limit is imposed by hardware restrictions
-	 */
-	blk_queue_max_segments(q, min_t(unsigned short, shost->sg_tablesize,
-					SG_MAX_SEGMENTS));
+	memset(lim, 0, sizeof(*lim));
+	lim->max_segments =
+		min_t(unsigned short, shost->sg_tablesize, SG_MAX_SEGMENTS);
 
 	if (scsi_host_prot_dma(shost)) {
 		shost->sg_prot_tablesize =
 			min_not_zero(shost->sg_prot_tablesize,
 				     (unsigned short)SCSI_MAX_PROT_SG_SEGMENTS);
 		BUG_ON(shost->sg_prot_tablesize < shost->sg_tablesize);
-		blk_queue_max_integrity_segments(q, shost->sg_prot_tablesize);
+		lim->max_integrity_segments = shost->sg_prot_tablesize;
 	}
 
-	blk_queue_max_hw_sectors(q, shost->max_sectors);
-	blk_queue_segment_boundary(q, shost->dma_boundary);
-	dma_set_seg_boundary(dev, shost->dma_boundary);
+	lim->max_hw_sectors = shost->max_sectors;
+	lim->seg_boundary_mask = shost->dma_boundary;
+	lim->max_segment_size = shost->max_segment_size;
+	lim->virt_boundary_mask = shost->virt_boundary_mask;
+	lim->dma_alignment = max_t(unsigned int,
+		shost->dma_alignment, dma_get_cache_alignment() - 1);
 
-	blk_queue_max_segment_size(q, shost->max_segment_size);
-	blk_queue_virt_boundary(q, shost->virt_boundary_mask);
-	dma_set_max_seg_size(dev, queue_max_segment_size(q));
+	if (shost->no_highmem)
+		lim->features |= BLK_FEAT_BOUNCE_HIGH;
 
 	/*
-	 * Set a reasonable default alignment:  The larger of 32-byte (dword),
-	 * which is a common minimum for HBAs, and the minimum DMA alignment,
-	 * which is set by the platform.
-	 *
-	 * Devices that require a bigger alignment can increase it later.
+	 * Propagate the DMA formation properties to the dma-mapping layer as
+	 * a courtesy service to the LLDDs.  This needs to check that the buses
+	 * actually support the DMA API first, though.
 	 */
-	blk_queue_dma_alignment(q, max(4, dma_get_cache_alignment()) - 1);
+	if (dev->dma_parms) {
+		dma_set_seg_boundary(dev, shost->dma_boundary);
+		dma_set_max_seg_size(dev, shost->max_segment_size);
+	}
 }
-EXPORT_SYMBOL_GPL(__scsi_init_queue);
+EXPORT_SYMBOL_GPL(scsi_init_limits);
 
 static const struct blk_mq_ops scsi_mq_ops_no_commit = {
 	.get_budget	= scsi_mq_get_budget,
@@ -2072,9 +2081,8 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 	tag_set->queue_depth = shost->can_queue;
 	tag_set->cmd_size = cmd_size;
 	tag_set->numa_node = dev_to_node(shost->dma_dev);
-	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
-	tag_set->flags |=
-		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
+	if (shost->hostt->tag_alloc_policy_rr)
+		tag_set->flags |= BLK_MQ_F_TAG_RR;
 	if (shost->queuecommand_may_block)
 		tag_set->flags |= BLK_MQ_F_BLOCKING;
 	tag_set->driver_data = shost;
@@ -2728,6 +2736,7 @@ int
 scsi_device_quiesce(struct scsi_device *sdev)
 {
 	struct request_queue *q = sdev->request_queue;
+	unsigned int memflags;
 	int err;
 
 	/*
@@ -2742,7 +2751,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 
 	blk_set_pm_only(q);
 
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	/*
 	 * Ensure that the effect of blk_set_pm_only() will be visible
 	 * for percpu_ref_tryget() callers that occur after the queue
@@ -2750,7 +2759,7 @@ scsi_device_quiesce(struct scsi_device *sdev)
 	 * was called. See also https://lwn.net/Articles/573497/.
 	 */
 	synchronize_rcu();
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 
 	mutex_lock(&sdev->state_mutex);
 	err = scsi_device_set_state(sdev, SDEV_QUIESCE);
@@ -3372,14 +3381,16 @@ int scsi_vpd_lun_id(struct scsi_device *sdev, char *id, size_t id_len)
 }
 EXPORT_SYMBOL(scsi_vpd_lun_id);
 
-/*
+/**
  * scsi_vpd_tpg_id - return a target port group identifier
  * @sdev: SCSI device
+ * @rel_id: pointer to return relative target port in if not %NULL
  *
  * Returns the Target Port Group identifier from the information
- * froom VPD page 0x83 of the device.
+ * from VPD page 0x83 of the device.
+ * Optionally sets @rel_id to the relative target port on success.
  *
- * Returns the identifier or error on failure.
+ * Return: the identifier or error on failure.
  */
 int scsi_vpd_tpg_id(struct scsi_device *sdev, int *rel_id)
 {

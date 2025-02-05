@@ -36,6 +36,7 @@
 #include "en.h"
 #include "en/port.h"
 #include "eswitch.h"
+#include "lib/mlx5.h"
 
 static int mlx5e_test_health_info(struct mlx5e_priv *priv)
 {
@@ -247,6 +248,9 @@ static int mlx5e_cond_loopback(struct mlx5e_priv *priv)
 	if (is_mdev_switchdev_mode(priv->mdev))
 		return -EOPNOTSUPP;
 
+	if (mlx5_get_sd(priv->mdev))
+		return -EOPNOTSUPP;
+
 	return 0;
 }
 
@@ -359,7 +363,7 @@ int mlx5e_self_test_fill_strings(struct mlx5e_priv *priv, u8 *data)
 		if (st.cond_func && st.cond_func(priv))
 			continue;
 		if (data)
-			strcpy(data + count * ETH_GSTRING_LEN, st.name);
+			ethtool_puts(&data, st.name);
 		count++;
 	}
 	return count;

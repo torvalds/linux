@@ -200,7 +200,6 @@ struct tcp_sock {
 
 	/* TX read-mostly hotpath cache lines */
 	__cacheline_group_begin(tcp_sock_read_tx);
-	/* timestamp of last sent data packet (for restart window) */
 	u32	max_window;	/* Maximal window ever seen from peer	*/
 	u32	rcv_ssthresh;	/* Current window clamp			*/
 	u32	reordering;	/* Packet reordering metric.		*/
@@ -244,6 +243,7 @@ struct tcp_sock {
 	/* OOO segments go in this rbtree. Socket lock must be held. */
 	struct rb_root	out_of_order_queue;
 	u32	snd_ssthresh;	/* Slow start size threshold		*/
+	u8	recvmsg_inq : 1;/* Indicate # of bytes in queue upon recvmsg */
 	__cacheline_group_end(tcp_sock_read_rx);
 
 	/* TX read-write hotpath cache lines */
@@ -262,12 +262,10 @@ struct tcp_sock {
 	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
 	u32	write_seq;	/* Tail(+1) of data held in tcp send buffer */
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
-	u32	lsndtime;
+	u32	lsndtime;	/* timestamp of last sent data packet (for restart window) */
 	u32	mdev_us;	/* medium deviation			*/
 	u32	rtt_seq;	/* sequence number to update rttvar	*/
 	u64	tcp_wstamp_ns;	/* departure time for next sent data packet */
-	u64	tcp_clock_cache; /* cache last tcp_clock_ns() (see tcp_mstamp_refresh()) */
-	u64	tcp_mstamp;	/* most recent packet received/sent */
 	struct list_head tsorted_sent_queue; /* time-sorted sent but un-SACKed skbs */
 	struct sk_buff *highest_sack;   /* skb just after the highest
 					 * skb with SACKed bit set
@@ -284,6 +282,8 @@ struct tcp_sock {
  *	0x5?10 << 16 + snd_wnd in net byte order
  */
 	__be32	pred_flags;
+	u64	tcp_clock_cache; /* cache last tcp_clock_ns() (see tcp_mstamp_refresh()) */
+	u64	tcp_mstamp;	/* most recent packet received/sent */
 	u32	rcv_nxt;	/* What we want to receive next		*/
 	u32	snd_nxt;	/* Next sequence we send		*/
 	u32	snd_una;	/* First byte we want an ack for	*/
@@ -370,7 +370,6 @@ struct tcp_sock {
 		tlp_retrans:1,	/* TLP is a retransmission */
 		unused:5;
 	u8	thin_lto    : 1,/* Use linear timeouts for thin streams */
-		recvmsg_inq : 1,/* Indicate # of bytes in queue upon recvmsg */
 		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
 		fastopen_no_cookie:1, /* Allow send/recv SYN+data without a cookie */
 		fastopen_client_fail:2, /* reason why fastopen failed */

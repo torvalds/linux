@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/etherdevice.h>
+#include <linux/string_choices.h>
 
 #include "u_ether.h"
 #include "u_ether_configfs.h"
@@ -387,8 +388,7 @@ static void ecm_do_notify(struct f_ecm *ecm)
 		event->wLength = 0;
 		req->length = sizeof *event;
 
-		DBG(cdev, "notify connect %s\n",
-				ecm->is_open ? "true" : "false");
+		DBG(cdev, "notify connect %s\n", str_true_false(ecm->is_open));
 		ecm->notify_state = ECM_NOTIFY_SPEED;
 		break;
 
@@ -966,5 +966,6 @@ static struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(ecm, ecm_alloc_inst, ecm_alloc);
+MODULE_DESCRIPTION("USB CDC Ethernet (ECM) link function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Brownell");

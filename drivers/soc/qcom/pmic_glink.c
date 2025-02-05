@@ -4,6 +4,8 @@
  * Copyright (c) 2022, Linaro Ltd
  */
 #include <linux/auxiliary_bus.h>
+#include <linux/cleanup.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -11,6 +13,9 @@
 #include <linux/slab.h>
 #include <linux/soc/qcom/pdr.h>
 #include <linux/soc/qcom/pmic_glink.h>
+#include <linux/spinlock.h>
+
+#define PMIC_GLINK_SEND_TIMEOUT (5 * HZ)
 
 enum {
 	PMIC_GLINK_CLIENT_BATT = 0,
@@ -36,7 +41,7 @@ struct pmic_glink {
 	unsigned int pdr_state;
 
 	/* serializing clients list updates */
-	struct mutex client_lock;
+	spinlock_t client_lock;
 	struct list_head clients;
 };
 
@@ -58,17 +63,18 @@ static void _devm_pmic_glink_release_client(struct device *dev, void *res)
 {
 	struct pmic_glink_client *client = (struct pmic_glink_client *)res;
 	struct pmic_glink *pg = client->pg;
+	unsigned long flags;
 
-	mutex_lock(&pg->client_lock);
+	spin_lock_irqsave(&pg->client_lock, flags);
 	list_del(&client->node);
-	mutex_unlock(&pg->client_lock);
+	spin_unlock_irqrestore(&pg->client_lock, flags);
 }
 
-struct pmic_glink_client *devm_pmic_glink_register_client(struct device *dev,
-							  unsigned int id,
-							  void (*cb)(const void *, size_t, void *),
-							  void (*pdr)(void *, int),
-							  void *priv)
+struct pmic_glink_client *devm_pmic_glink_client_alloc(struct device *dev,
+						       unsigned int id,
+						       void (*cb)(const void *, size_t, void *),
+						       void (*pdr)(void *, int),
+						       void *priv)
 {
 	struct pmic_glink_client *client;
 	struct pmic_glink *pg = dev_get_drvdata(dev->parent);
@@ -82,22 +88,57 @@ struct pmic_glink_client *devm_pmic_glink_register_client(struct device *dev,
 	client->cb = cb;
 	client->pdr_notify = pdr;
 	client->priv = priv;
-
-	mutex_lock(&pg->client_lock);
-	list_add(&client->node, &pg->clients);
-	mutex_unlock(&pg->client_lock);
+	INIT_LIST_HEAD(&client->node);
 
 	devres_add(dev, client);
 
 	return client;
 }
-EXPORT_SYMBOL_GPL(devm_pmic_glink_register_client);
+EXPORT_SYMBOL_GPL(devm_pmic_glink_client_alloc);
+
+void pmic_glink_client_register(struct pmic_glink_client *client)
+{
+	struct pmic_glink *pg = client->pg;
+	unsigned long flags;
+
+	guard(mutex)(&pg->state_lock);
+	spin_lock_irqsave(&pg->client_lock, flags);
+
+	list_add(&client->node, &pg->clients);
+	client->pdr_notify(client->priv, pg->client_state);
+
+	spin_unlock_irqrestore(&pg->client_lock, flags);
+}
+EXPORT_SYMBOL_GPL(pmic_glink_client_register);
 
 int pmic_glink_send(struct pmic_glink_client *client, void *data, size_t len)
 {
 	struct pmic_glink *pg = client->pg;
+	bool timeout_reached = false;
+	unsigned long start;
+	int ret;
 
-	return rpmsg_send(pg->ept, data, len);
+	guard(mutex)(&pg->state_lock);
+	if (!pg->ept) {
+		return -ECONNRESET;
+	}
+
+	start = jiffies;
+	for (;;) {
+		ret = rpmsg_send(pg->ept, data, len);
+		if (ret != -EAGAIN)
+			break;
+
+		if (timeout_reached) {
+			ret = -ETIMEDOUT;
+			break;
+		}
+
+		usleep_range(1000, 5000);
+		timeout_reached = time_after(jiffies, start + PMIC_GLINK_SEND_TIMEOUT);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(pmic_glink_send);
 
@@ -107,6 +148,7 @@ static int pmic_glink_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 	struct pmic_glink_client *client;
 	struct pmic_glink_hdr *hdr;
 	struct pmic_glink *pg = dev_get_drvdata(&rpdev->dev);
+	unsigned long flags;
 
 	if (len < sizeof(*hdr)) {
 		dev_warn(pg->dev, "ignoring truncated message\n");
@@ -115,10 +157,12 @@ static int pmic_glink_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
 
 	hdr = data;
 
+	spin_lock_irqsave(&pg->client_lock, flags);
 	list_for_each_entry(client, &pg->clients, node) {
 		if (client->id == le32_to_cpu(hdr->owner))
 			client->cb(data, len, client->priv);
 	}
+	spin_unlock_irqrestore(&pg->client_lock, flags);
 
 	return 0;
 }
@@ -158,18 +202,21 @@ static void pmic_glink_state_notify_clients(struct pmic_glink *pg)
 {
 	struct pmic_glink_client *client;
 	unsigned int new_state = pg->client_state;
+	unsigned long flags;
 
 	if (pg->client_state != SERVREG_SERVICE_STATE_UP) {
 		if (pg->pdr_state == SERVREG_SERVICE_STATE_UP && pg->ept)
 			new_state = SERVREG_SERVICE_STATE_UP;
 	} else {
-		if (pg->pdr_state == SERVREG_SERVICE_STATE_UP && pg->ept)
+		if (pg->pdr_state == SERVREG_SERVICE_STATE_DOWN || !pg->ept)
 			new_state = SERVREG_SERVICE_STATE_DOWN;
 	}
 
 	if (new_state != pg->client_state) {
+		spin_lock_irqsave(&pg->client_lock, flags);
 		list_for_each_entry(client, &pg->clients, node)
 			client->pdr_notify(client->priv, new_state);
+		spin_unlock_irqrestore(&pg->client_lock, flags);
 		pg->client_state = new_state;
 	}
 }
@@ -178,51 +225,42 @@ static void pmic_glink_pdr_callback(int state, char *svc_path, void *priv)
 {
 	struct pmic_glink *pg = priv;
 
-	mutex_lock(&pg->state_lock);
+	guard(mutex)(&pg->state_lock);
 	pg->pdr_state = state;
 
 	pmic_glink_state_notify_clients(pg);
-	mutex_unlock(&pg->state_lock);
 }
 
 static int pmic_glink_rpmsg_probe(struct rpmsg_device *rpdev)
 {
 	struct pmic_glink *pg = __pmic_glink;
-	int ret = 0;
 
-	mutex_lock(&__pmic_glink_lock);
-	if (!pg) {
-		ret = dev_err_probe(&rpdev->dev, -ENODEV, "no pmic_glink device to attach to\n");
-		goto out_unlock;
-	}
+	guard(mutex)(&__pmic_glink_lock);
+	pg = __pmic_glink;
+	if (!pg)
+		return dev_err_probe(&rpdev->dev, -ENODEV, "no pmic_glink device to attach to\n");
 
 	dev_set_drvdata(&rpdev->dev, pg);
 
-	mutex_lock(&pg->state_lock);
+	guard(mutex)(&pg->state_lock);
 	pg->ept = rpdev->ept;
 	pmic_glink_state_notify_clients(pg);
-	mutex_unlock(&pg->state_lock);
 
-out_unlock:
-	mutex_unlock(&__pmic_glink_lock);
-	return ret;
+	return 0;
 }
 
 static void pmic_glink_rpmsg_remove(struct rpmsg_device *rpdev)
 {
 	struct pmic_glink *pg;
 
-	mutex_lock(&__pmic_glink_lock);
+	guard(mutex)(&__pmic_glink_lock);
 	pg = __pmic_glink;
 	if (!pg)
-		goto out_unlock;
+		return;
 
-	mutex_lock(&pg->state_lock);
+	guard(mutex)(&pg->state_lock);
 	pg->ept = NULL;
 	pmic_glink_state_notify_clients(pg);
-	mutex_unlock(&pg->state_lock);
-out_unlock:
-	mutex_unlock(&__pmic_glink_lock);
 }
 
 static const struct rpmsg_device_id pmic_glink_rpmsg_id_match[] = {
@@ -256,7 +294,7 @@ static int pmic_glink_probe(struct platform_device *pdev)
 	pg->dev = &pdev->dev;
 
 	INIT_LIST_HEAD(&pg->clients);
-	mutex_init(&pg->client_lock);
+	spin_lock_init(&pg->client_lock);
 	mutex_init(&pg->state_lock);
 
 	match_data = (unsigned long *)of_device_get_match_data(&pdev->dev);
@@ -329,21 +367,19 @@ static void pmic_glink_remove(struct platform_device *pdev)
 	if (pg->client_mask & BIT(PMIC_GLINK_CLIENT_UCSI))
 		pmic_glink_del_aux_device(pg, &pg->ucsi_aux);
 
-	mutex_lock(&__pmic_glink_lock);
+	guard(mutex)(&__pmic_glink_lock);
 	__pmic_glink = NULL;
-	mutex_unlock(&__pmic_glink_lock);
 }
 
-static const unsigned long pmic_glink_sc8180x_client_mask = BIT(PMIC_GLINK_CLIENT_BATT) |
-							    BIT(PMIC_GLINK_CLIENT_ALTMODE);
+static const unsigned long pmic_glink_sc8280xp_client_mask = BIT(PMIC_GLINK_CLIENT_BATT) |
+							     BIT(PMIC_GLINK_CLIENT_ALTMODE);
 
 static const unsigned long pmic_glink_sm8450_client_mask = BIT(PMIC_GLINK_CLIENT_BATT) |
 							   BIT(PMIC_GLINK_CLIENT_ALTMODE) |
 							   BIT(PMIC_GLINK_CLIENT_UCSI);
 
 static const struct of_device_id pmic_glink_of_match[] = {
-	{ .compatible = "qcom,sc8180x-pmic-glink", .data = &pmic_glink_sc8180x_client_mask },
-	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = &pmic_glink_sc8180x_client_mask },
+	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = &pmic_glink_sc8280xp_client_mask },
 	{ .compatible = "qcom,pmic-glink", .data = &pmic_glink_sm8450_client_mask },
 	{}
 };
@@ -351,7 +387,7 @@ MODULE_DEVICE_TABLE(of, pmic_glink_of_match);
 
 static struct platform_driver pmic_glink_driver = {
 	.probe = pmic_glink_probe,
-	.remove_new = pmic_glink_remove,
+	.remove = pmic_glink_remove,
 	.driver = {
 		.name = "qcom_pmic_glink",
 		.of_match_table = pmic_glink_of_match,
@@ -360,8 +396,17 @@ static struct platform_driver pmic_glink_driver = {
 
 static int pmic_glink_init(void)
 {
-	platform_driver_register(&pmic_glink_driver);
-	register_rpmsg_driver(&pmic_glink_rpmsg_driver);
+	int ret;
+
+	ret = platform_driver_register(&pmic_glink_driver);
+	if (ret < 0)
+		return ret;
+
+	ret = register_rpmsg_driver(&pmic_glink_rpmsg_driver);
+	if (ret < 0) {
+		platform_driver_unregister(&pmic_glink_driver);
+		return ret;
+	}
 
 	return 0;
 }

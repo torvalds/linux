@@ -391,8 +391,6 @@ static const struct vb2_ops ge2d_qops = {
 	.buf_queue = ge2d_buf_queue,
 	.start_streaming = ge2d_start_streaming,
 	.stop_streaming = ge2d_stop_streaming,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 };
 
 static int
@@ -1045,7 +1043,7 @@ MODULE_DEVICE_TABLE(of, meson_ge2d_match);
 
 static struct platform_driver ge2d_drv = {
 	.probe = ge2d_probe,
-	.remove_new = ge2d_remove,
+	.remove = ge2d_remove,
 	.driver = {
 		.name = "meson-ge2d",
 		.of_match_table = meson_ge2d_match,

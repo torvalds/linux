@@ -109,7 +109,6 @@ static int cxl_mem_probe(struct device *dev)
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct device *endpoint_parent;
-	struct cxl_port *parent_port;
 	struct cxl_dport *dport;
 	struct dentry *dentry;
 	int rc;
@@ -146,10 +145,20 @@ static int cxl_mem_probe(struct device *dev)
 	if (rc)
 		return rc;
 
-	parent_port = cxl_mem_find_port(cxlmd, &dport);
+	struct cxl_port *parent_port __free(put_cxl_port) =
+		cxl_mem_find_port(cxlmd, &dport);
 	if (!parent_port) {
 		dev_err(dev, "CXL port topology not found\n");
 		return -ENXIO;
+	}
+
+	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM)) {
+		rc = devm_cxl_add_nvdimm(parent_port, cxlmd);
+		if (rc) {
+			if (rc == -ENODEV)
+				dev_info(dev, "PMEM disabled by platform\n");
+			return rc;
+		}
 	}
 
 	if (dport->rch)
@@ -157,28 +166,17 @@ static int cxl_mem_probe(struct device *dev)
 	else
 		endpoint_parent = &parent_port->dev;
 
-	cxl_setup_parent_dport(dev, dport);
+	cxl_dport_init_ras_reporting(dport, dev);
 
-	device_lock(endpoint_parent);
-	if (!endpoint_parent->driver) {
-		dev_err(dev, "CXL port topology %s not enabled\n",
-			dev_name(endpoint_parent));
-		rc = -ENXIO;
-		goto unlock;
-	}
+	scoped_guard(device, endpoint_parent) {
+		if (!endpoint_parent->driver) {
+			dev_err(dev, "CXL port topology %s not enabled\n",
+				dev_name(endpoint_parent));
+			return -ENXIO;
+		}
 
-	rc = devm_cxl_add_endpoint(endpoint_parent, cxlmd, dport);
-unlock:
-	device_unlock(endpoint_parent);
-	put_device(&parent_port->dev);
-	if (rc)
-		return rc;
-
-	if (resource_size(&cxlds->pmem_res) && IS_ENABLED(CONFIG_CXL_PMEM)) {
-		rc = devm_cxl_add_nvdimm(cxlmd);
-		if (rc == -ENODEV)
-			dev_info(dev, "PMEM disabled by platform\n");
-		else
+		rc = devm_cxl_add_endpoint(endpoint_parent, cxlmd, dport);
+		if (rc)
 			return rc;
 	}
 
@@ -252,8 +250,9 @@ static struct cxl_driver cxl_mem_driver = {
 
 module_cxl_driver(cxl_mem_driver);
 
+MODULE_DESCRIPTION("CXL: Memory Expansion");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");
 MODULE_ALIAS_CXL(CXL_DEVICE_MEMORY_EXPANDER);
 /*
  * create_endpoint() wants to validate port driver attach immediately after

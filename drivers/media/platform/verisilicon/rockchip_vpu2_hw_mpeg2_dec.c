@@ -5,7 +5,7 @@
  * Copyright (C) 2018 Rockchip Electronics Co., Ltd.
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/bitfield.h>
 #include <media/v4l2-mem2mem.h>
 #include "hantro.h"

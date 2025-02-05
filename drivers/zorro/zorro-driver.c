@@ -118,10 +118,10 @@ EXPORT_SYMBOL(zorro_unregister_driver);
      *  supported, and 0 if there is no match.
      */
 
-static int zorro_bus_match(struct device *dev, struct device_driver *drv)
+static int zorro_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	struct zorro_dev *z = to_zorro_dev(dev);
-	struct zorro_driver *zorro_drv = to_zorro_driver(drv);
+	const struct zorro_driver *zorro_drv = to_zorro_driver(drv);
 	const struct zorro_device_id *ids = zorro_drv->id_table;
 
 	if (!ids)

@@ -85,7 +85,7 @@ static const struct device_type serdev_ctrl_type = {
 	.release	= serdev_ctrl_release,
 };
 
-static int serdev_device_match(struct device *dev, struct device_driver *drv)
+static int serdev_device_match(struct device *dev, const struct device_driver *drv)
 {
 	if (!is_serdev_device(dev))
 		return 0;
@@ -529,7 +529,7 @@ static int of_serdev_register_devices(struct serdev_controller *ctrl)
 	bool found = false;
 
 	for_each_available_child_of_node(ctrl->dev.of_node, node) {
-		if (!of_get_property(node, "compatible", NULL))
+		if (!of_property_present(node, "compatible"))
 			continue;
 
 		dev_dbg(&ctrl->dev, "adding child %pOF\n", node);

@@ -689,7 +689,7 @@ fib6_notify_test()
 
 	log_test $ret 0 "ipv6 route add notify"
 
-	{ kill %% && wait %%; } 2>/dev/null
+	kill_process %%
 
 	#rm errors.txt
 
@@ -736,7 +736,7 @@ fib_notify_test()
 
 	log_test $ret 0 "ipv4 route add notify"
 
-	{ kill %% && wait %%; } 2>/dev/null
+	kill_process %%
 
 	rm  errors.txt
 
@@ -1737,53 +1737,53 @@ ipv4_rt_dsfield()
 
 	# DSCP 0x10 should match the specific route, no matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x10 | \
-		grep -q "via 172.16.103.2"
+		grep -q "172.16.102.0/24 tos 0x10 via 172.16.103.2"
 	log_test $? 0 "IPv4 route with DSCP and ECN:Not-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x11 | \
-		grep -q "via 172.16.103.2"
+		grep -q "172.16.102.0/24 tos 0x10 via 172.16.103.2"
 	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(1)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x12 | \
-		grep -q "via 172.16.103.2"
+		grep -q "172.16.102.0/24 tos 0x10 via 172.16.103.2"
 	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(0)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x13 | \
-		grep -q "via 172.16.103.2"
+		grep -q "172.16.102.0/24 tos 0x10 via 172.16.103.2"
 	log_test $? 0 "IPv4 route with DSCP and ECN:CE"
 
 	# Unknown DSCP should match the generic route, no matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x14 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with unknown DSCP and ECN:Not-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x15 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(1)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x16 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(0)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x17 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with unknown DSCP and ECN:CE"
 
 	# Null DSCP should match the generic route, no matter the ECN bits
 	$IP route get fibmatch 172.16.102.1 dsfield 0x00 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with no DSCP and ECN:Not-ECT"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x01 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(1)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x02 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(0)"
 
 	$IP route get fibmatch 172.16.102.1 dsfield 0x03 | \
-		grep -q "via 172.16.101.2"
+		grep -q "172.16.102.0/24 via 172.16.101.2"
 	log_test $? 0 "IPv4 route with no DSCP and ECN:CE"
 }
 
@@ -2328,7 +2328,7 @@ ipv4_mangle_test()
 	$IP route del table 123 172.16.101.0/24 dev veth1
 	$IP rule del pref 100
 
-	{ kill %% && wait %%; } 2>/dev/null
+	kill_process %%
 	rm $tmp_file
 
 	route_cleanup
@@ -2386,7 +2386,7 @@ ipv6_mangle_test()
 	$IP -6 route del table 123 2001:db8:101::/64 dev veth1
 	$IP -6 rule del pref 100
 
-	{ kill %% && wait %%; } 2>/dev/null
+	kill_process %%
 	rm $tmp_file
 
 	route_cleanup

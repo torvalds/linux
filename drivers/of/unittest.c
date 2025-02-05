@@ -161,6 +161,15 @@ static void __init of_unittest_find_node_by_name(void)
 		 "option alias path test, subcase #1 failed\n");
 	of_node_put(np);
 
+	np = of_find_node_opts_by_path("testcase-alias/phandle-tests/consumer-a:testaliasoption",
+				       &options);
+	name = kasprintf(GFP_KERNEL, "%pOF", np);
+	unittest(np && name && !strcmp("/testcase-data/phandle-tests/consumer-a", name) &&
+		 !strcmp("testaliasoption", options),
+		 "option alias path test, subcase #2 failed\n");
+	of_node_put(np);
+	kfree(name);
+
 	np = of_find_node_opts_by_path("testcase-alias:testaliasoption", NULL);
 	unittest(np, "NULL option alias path test failed\n");
 	of_node_put(np);
@@ -795,15 +804,11 @@ static void __init of_unittest_property_copy(void)
 
 	new = __of_prop_dup(&p1, GFP_KERNEL);
 	unittest(new && propcmp(&p1, new), "empty property didn't copy correctly\n");
-	kfree(new->value);
-	kfree(new->name);
-	kfree(new);
+	__of_prop_free(new);
 
 	new = __of_prop_dup(&p2, GFP_KERNEL);
 	unittest(new && propcmp(&p2, new), "non-empty property didn't copy correctly\n");
-	kfree(new->value);
-	kfree(new->name);
-	kfree(new);
+	__of_prop_free(new);
 #endif
 }
 
@@ -904,8 +909,8 @@ static void __init of_unittest_changeset(void)
 	unittest(!of_find_node_by_path("/testcase-data/changeset/n2/n21"),
 		 "'%pOF' still present after revert\n", n21);
 
-	ppremove = of_find_property(parent, "prop-remove", NULL);
-	unittest(ppremove, "failed to find removed prop after revert\n");
+	unittest(of_property_present(parent, "prop-remove"),
+		 "failed to find removed prop after revert\n");
 
 	ret = of_property_read_string(parent, "prop-update", &propstr);
 	unittest(!ret, "failed to find updated prop after revert\n");
@@ -918,6 +923,171 @@ static void __init of_unittest_changeset(void)
 	of_node_put(n2);
 	of_node_put(n21);
 	of_node_put(n22);
+#endif
+}
+
+static void __init __maybe_unused changeset_check_string(struct device_node *np,
+							 const char *prop_name,
+							 const char *expected_str)
+{
+	const char *str;
+	int ret;
+
+	ret = of_property_read_string(np, prop_name, &str);
+	if (unittest(ret == 0, "failed to read %s\n", prop_name))
+		return;
+
+	unittest(strcmp(str, expected_str) == 0,
+		 "%s value mismatch (read '%s', exp '%s')\n",
+		 prop_name, str, expected_str);
+}
+
+static void __init __maybe_unused changeset_check_string_array(struct device_node *np,
+							       const char *prop_name,
+							       const char * const *expected_array,
+							       unsigned int count)
+{
+	const char *str;
+	unsigned int i;
+	int ret;
+	int cnt;
+
+	cnt = of_property_count_strings(np, prop_name);
+	if (unittest(cnt >= 0, "failed to get %s count\n", prop_name))
+		return;
+
+	if (unittest(cnt == count,
+		     "%s count mismatch (read %d, exp %u)\n",
+		     prop_name, cnt, count))
+		return;
+
+	for (i = 0; i < count; i++) {
+		ret = of_property_read_string_index(np, prop_name, i, &str);
+		if (unittest(ret == 0, "failed to read %s[%d]\n", prop_name, i))
+			continue;
+
+		unittest(strcmp(str, expected_array[i]) == 0,
+			 "%s[%d] value mismatch (read '%s', exp '%s')\n",
+			 prop_name, i, str, expected_array[i]);
+	}
+}
+
+static void __init __maybe_unused changeset_check_u32(struct device_node *np,
+						      const char *prop_name,
+						      u32 expected_u32)
+{
+	u32 val32;
+	int ret;
+
+	ret = of_property_read_u32(np, prop_name, &val32);
+	if (unittest(ret == 0, "failed to read %s\n", prop_name))
+		return;
+
+	unittest(val32 == expected_u32,
+		 "%s value mismatch (read '%u', exp '%u')\n",
+		 prop_name, val32, expected_u32);
+}
+
+static void __init __maybe_unused changeset_check_u32_array(struct device_node *np,
+							    const char *prop_name,
+							    const u32 *expected_array,
+							    unsigned int count)
+{
+	unsigned int i;
+	u32 val32;
+	int ret;
+	int cnt;
+
+	cnt = of_property_count_u32_elems(np, prop_name);
+	if (unittest(cnt >= 0, "failed to get %s count\n", prop_name))
+		return;
+
+	if (unittest(cnt == count,
+		     "%s count mismatch (read %d, exp %u)\n",
+		     prop_name, cnt, count))
+		return;
+
+	for (i = 0; i < count; i++) {
+		ret = of_property_read_u32_index(np, prop_name, i, &val32);
+		if (unittest(ret == 0, "failed to read %s[%d]\n", prop_name, i))
+			continue;
+
+		unittest(val32 == expected_array[i],
+			 "%s[%d] value mismatch (read '%u', exp '%u')\n",
+			 prop_name, i, val32, expected_array[i]);
+	}
+}
+
+static void __init __maybe_unused changeset_check_bool(struct device_node *np,
+						       const char *prop_name)
+{
+	unittest(of_property_read_bool(np, prop_name),
+		 "%s value mismatch (read 'false', exp 'true')\n", prop_name);
+}
+
+static void __init of_unittest_changeset_prop(void)
+{
+#ifdef CONFIG_OF_DYNAMIC
+	static const char * const str_array[] = { "abc", "defg", "hij" };
+	static const u32 u32_array[] = { 123, 4567, 89, 10, 11 };
+	struct device_node *nchangeset, *np;
+	struct of_changeset chgset;
+	int ret;
+
+	nchangeset = of_find_node_by_path("/testcase-data/changeset");
+	if (!nchangeset) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	of_changeset_init(&chgset);
+
+	np = of_changeset_create_node(&chgset, nchangeset, "test-prop");
+	if (unittest(np, "failed to create test-prop node\n"))
+		goto end_changeset_destroy;
+
+	ret = of_changeset_add_prop_string(&chgset, np, "prop-string", "abcde");
+	unittest(ret == 0, "failed to add prop-string\n");
+
+	ret = of_changeset_add_prop_string_array(&chgset, np, "prop-string-array",
+						 str_array, ARRAY_SIZE(str_array));
+	unittest(ret == 0, "failed to add prop-string-array\n");
+
+	ret = of_changeset_add_prop_u32(&chgset, np, "prop-u32", 1234);
+	unittest(ret == 0, "failed to add prop-u32\n");
+
+	ret = of_changeset_add_prop_u32_array(&chgset, np, "prop-u32-array",
+					      u32_array, ARRAY_SIZE(u32_array));
+	unittest(ret == 0, "failed to add prop-u32-array\n");
+
+	ret = of_changeset_add_prop_bool(&chgset, np, "prop-bool");
+	unittest(ret == 0, "failed to add prop-bool\n");
+
+	of_node_put(np);
+
+	ret = of_changeset_apply(&chgset);
+	if (unittest(ret == 0, "failed to apply changeset\n"))
+		goto end_changeset_destroy;
+
+	np = of_find_node_by_path("/testcase-data/changeset/test-prop");
+	if (unittest(np, "failed to find test-prop node\n"))
+		goto end_revert_changeset;
+
+	changeset_check_string(np, "prop-string", "abcde");
+	changeset_check_string_array(np, "prop-string-array", str_array, ARRAY_SIZE(str_array));
+	changeset_check_u32(np, "prop-u32", 1234);
+	changeset_check_u32_array(np, "prop-u32-array", u32_array, ARRAY_SIZE(u32_array));
+	changeset_check_bool(np, "prop-bool");
+
+	of_node_put(np);
+
+end_revert_changeset:
+	ret = of_changeset_revert(&chgset);
+	unittest(ret == 0, "failed to revert changeset\n");
+
+end_changeset_destroy:
+	of_changeset_destroy(&chgset);
+	of_node_put(nchangeset);
 #endif
 }
 
@@ -1052,6 +1222,44 @@ static void __init of_unittest_pci_dma_ranges(void)
 	of_node_put(np);
 }
 
+static void __init of_unittest_pci_empty_dma_ranges(void)
+{
+	struct device_node *np;
+	struct of_pci_range range;
+	struct of_pci_range_parser parser;
+
+	if (!IS_ENABLED(CONFIG_PCI))
+		return;
+
+	np = of_find_node_by_path("/testcase-data/address-tests2/pcie@d1070000/pci@0,0/dev@0,0/local-bus@0");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	if (of_pci_dma_range_parser_init(&parser, np)) {
+		pr_err("missing dma-ranges property\n");
+		return;
+	}
+
+	/*
+	 * Get the dma-ranges from the device tree
+	 */
+	for_each_of_pci_range(&parser, &range) {
+		unittest(range.size == 0x10000000,
+			 "for_each_of_pci_range wrong size on node %pOF size=%llx\n",
+			 np, range.size);
+		unittest(range.cpu_addr == 0x00000000,
+			 "for_each_of_pci_range wrong CPU addr (%llx) on node %pOF",
+			 range.cpu_addr, np);
+		unittest(range.pci_addr == 0xc0000000,
+			 "for_each_of_pci_range wrong DMA addr (%llx) on node %pOF",
+			 range.pci_addr, np);
+	}
+
+	of_node_put(np);
+}
+
 static void __init of_unittest_bus_ranges(void)
 {
 	struct device_node *np;
@@ -1181,6 +1389,7 @@ static void __init of_unittest_bus_3cell_ranges(void)
 static void __init of_unittest_reg(void)
 {
 	struct device_node *np;
+	struct resource res;
 	int ret;
 	u64 addr, size;
 
@@ -1197,6 +1406,19 @@ static void __init of_unittest_reg(void)
 		np, addr);
 
 	of_node_put(np);
+
+	np = of_find_node_by_path("/testcase-data/platform-tests-2/node/test-device@100");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	ret = of_address_to_resource(np, 0, &res);
+	unittest(ret == -EINVAL, "of_address_to_resource(%pOF) expected error on untranslatable address\n",
+		 np);
+
+	of_node_put(np);
+
 }
 
 struct of_unittest_expected_res {
@@ -1700,7 +1922,7 @@ static int __init unittest_data_add(void)
 	struct device_node *unittest_data_node = NULL, *np;
 	/*
 	 * __dtbo_testcases_begin[] and __dtbo_testcases_end[] are magically
-	 * created by cmd_dt_S_dtbo in scripts/Makefile.lib
+	 * created by cmd_wrap_S_dtbo in scripts/Makefile.dtbs
 	 */
 	extern uint8_t __dtbo_testcases_begin[];
 	extern uint8_t __dtbo_testcases_end[];
@@ -1809,7 +2031,7 @@ static const struct of_device_id unittest_match[] = {
 
 static struct platform_driver unittest_driver = {
 	.probe			= unittest_probe,
-	.remove_new		= unittest_remove,
+	.remove			= unittest_remove,
 	.driver = {
 		.name		= "unittest",
 		.of_match_table	= unittest_match,
@@ -1910,7 +2132,7 @@ static const struct of_device_id unittest_gpio_id[] = {
 
 static struct platform_driver unittest_gpio_driver = {
 	.probe	= unittest_gpio_probe,
-	.remove_new = unittest_gpio_remove,
+	.remove = unittest_gpio_remove,
 	.driver	= {
 		.name		= "unittest-gpio",
 		.of_match_table	= unittest_gpio_id,
@@ -2730,7 +2952,7 @@ static const struct of_device_id unittest_i2c_bus_match[] = {
 
 static struct platform_driver unittest_i2c_bus_driver = {
 	.probe			= unittest_i2c_bus_probe,
-	.remove_new		= unittest_i2c_bus_remove,
+	.remove			= unittest_i2c_bus_remove,
 	.driver = {
 		.name		= "unittest-i2c-bus",
 		.of_match_table	= unittest_i2c_bus_match,
@@ -2815,7 +3037,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client)
 	if (!muxc)
 		return -ENOMEM;
 	for (i = 0; i < nchans; i++) {
-		if (i2c_mux_add_adapter(muxc, 0, i, 0)) {
+		if (i2c_mux_add_adapter(muxc, 0, i)) {
 			dev_err(dev, "Failed to register mux #%d\n", i);
 			i2c_mux_del_adapters(muxc);
 			return -ENODEV;
@@ -3364,7 +3586,7 @@ out_skip_tests:
 
 /*
  * __dtbo_##overlay_name##_begin[] and __dtbo_##overlay_name##_end[] are
- * created by cmd_dt_S_dtbo in scripts/Makefile.lib
+ * created by cmd_wrap_S_dtbo in scripts/Makefile.dtbs
  */
 
 #define OVERLAY_INFO_EXTERN(overlay_name) \
@@ -3467,13 +3689,7 @@ static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	void *ptr = memblock_alloc(size, align);
-
-	if (!ptr)
-		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
-		      __func__, size, align);
-
-	return ptr;
+	return memblock_alloc_or_panic(size, align);
 }
 
 /*
@@ -3718,9 +3934,7 @@ static __init void of_unittest_overlay_high_level(void)
 				goto err_unlock;
 			}
 			if (__of_add_property(of_symbols, new_prop)) {
-				kfree(new_prop->name);
-				kfree(new_prop->value);
-				kfree(new_prop);
+				__of_prop_free(new_prop);
 				/* "name" auto-generated by unflatten */
 				if (!strcmp(prop->name, "name"))
 					continue;
@@ -4107,11 +4321,13 @@ static int __init of_unittest(void)
 	of_unittest_property_string();
 	of_unittest_property_copy();
 	of_unittest_changeset();
+	of_unittest_changeset_prop();
 	of_unittest_parse_interrupts();
 	of_unittest_parse_interrupts_extended();
 	of_unittest_dma_get_max_cpu_address();
 	of_unittest_parse_dma_ranges();
 	of_unittest_pci_dma_ranges();
+	of_unittest_pci_empty_dma_ranges();
 	of_unittest_bus_ranges();
 	of_unittest_bus_3cell_ranges();
 	of_unittest_reg();

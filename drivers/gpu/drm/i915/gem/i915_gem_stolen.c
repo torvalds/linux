@@ -8,7 +8,7 @@
 #include <linux/mutex.h>
 
 #include <drm/drm_mm.h>
-#include <drm/i915_drm.h>
+#include <drm/intel/i915_drm.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
@@ -457,7 +457,7 @@ static int init_reserved_stolen(struct drm_i915_private *i915)
 		icl_get_stolen_reserved(i915, uncore,
 					&reserved_base, &reserved_size);
 	} else if (GRAPHICS_VER(i915) >= 8) {
-		if (IS_LP(i915))
+		if (IS_CHERRYVIEW(i915) || IS_BROXTON(i915) || IS_GEMINILAKE(i915))
 			chv_get_stolen_reserved(i915, uncore,
 						&reserved_base, &reserved_size);
 		else

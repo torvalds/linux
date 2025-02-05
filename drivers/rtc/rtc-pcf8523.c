@@ -495,7 +495,7 @@ static int pcf8523_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pcf8523_id[] = {
-	{ "pcf8523", 0 },
+	{ "pcf8523" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf8523_id);

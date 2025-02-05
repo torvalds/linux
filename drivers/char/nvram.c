@@ -540,6 +540,7 @@ static void __exit nvram_module_exit(void)
 module_init(nvram_module_init);
 module_exit(nvram_module_exit);
 
+MODULE_DESCRIPTION("CMOS/NV-RAM driver for Linux");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_MISCDEV(NVRAM_MINOR);
 MODULE_ALIAS("devname:nvram");

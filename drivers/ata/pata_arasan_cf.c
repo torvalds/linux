@@ -964,7 +964,7 @@ MODULE_DEVICE_TABLE(of, arasan_cf_id_table);
 
 static struct platform_driver arasan_cf_driver = {
 	.probe		= arasan_cf_probe,
-	.remove_new	= arasan_cf_remove,
+	.remove		= arasan_cf_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &arasan_cf_pm_ops,

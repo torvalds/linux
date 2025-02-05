@@ -329,13 +329,15 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		goto out_list_del;
 
 	ret = blk_mq_alloc_sq_tag_set(new->tag_set, &mtd_mq_ops, 2,
-			BLK_MQ_F_SHOULD_MERGE | BLK_MQ_F_BLOCKING);
+			BLK_MQ_F_BLOCKING);
 	if (ret)
 		goto out_kfree_tag_set;
 	
 	lim.logical_block_size = tr->blksize;
 	if (tr->discard)
 		lim.max_hw_discard_sectors = UINT_MAX;
+	if (tr->flush)
+		lim.features |= BLK_FEAT_WRITE_CACHE;
 
 	/* Create gendisk */
 	gd = blk_mq_alloc_disk(new->tag_set, &lim, new);
@@ -372,13 +374,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	/* Create the request queue */
 	spin_lock_init(&new->queue_lock);
 	INIT_LIST_HEAD(&new->rq_list);
-
-	if (tr->flush)
-		blk_queue_write_cache(new->rq, true, false);
-
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, new->rq);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, new->rq);
-
 	gd->queue = new->rq;
 
 	if (new->readonly)
@@ -409,6 +404,7 @@ out_list_del:
 int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 {
 	unsigned long flags;
+	unsigned int memflags;
 
 	lockdep_assert_held(&mtd_table_mutex);
 
@@ -425,10 +421,10 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	spin_unlock_irqrestore(&old->queue_lock, flags);
 
 	/* freeze+quiesce queue to ensure all requests are flushed */
-	blk_mq_freeze_queue(old->rq);
+	memflags = blk_mq_freeze_queue(old->rq);
 	blk_mq_quiesce_queue(old->rq);
 	blk_mq_unquiesce_queue(old->rq);
-	blk_mq_unfreeze_queue(old->rq);
+	blk_mq_unfreeze_queue(old->rq, memflags);
 
 	/* If the device is currently open, tell trans driver to close it,
 		then put mtd device, and don't touch it again */

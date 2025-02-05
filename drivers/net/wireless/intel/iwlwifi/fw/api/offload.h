@@ -3,7 +3,7 @@
  * Copyright (C) 2012-2014 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2021-2023 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  */
 #ifndef __iwl_fw_api_offload_h__
 #define __iwl_fw_api_offload_h__
@@ -20,7 +20,7 @@ enum iwl_prot_offload_subcmd_ids {
 	/**
 	 * @WOWLAN_INFO_NOTIFICATION: Notification in
 	 * &struct iwl_wowlan_info_notif_v1, &struct iwl_wowlan_info_notif_v2,
-	 * or iwl_wowlan_info_notif
+	 * or &struct iwl_wowlan_info_notif
 	 */
 	WOWLAN_INFO_NOTIFICATION = 0xFD,
 
@@ -31,7 +31,7 @@ enum iwl_prot_offload_subcmd_ids {
 
 	/**
 	 * @STORED_BEACON_NTF: &struct iwl_stored_beacon_notif_v2 or
-	 *	&struct iwl_stored_beacon_notif_v3
+	 *	&struct iwl_stored_beacon_notif
 	 */
 	STORED_BEACON_NTF = 0xFF,
 };
@@ -60,7 +60,7 @@ struct iwl_stored_beacon_notif_common {
 } __packed;
 
 /**
- * struct iwl_stored_beacon_notif - Stored beacon notification
+ * struct iwl_stored_beacon_notif_v2 - Stored beacon notification
  *
  * @common: fields common for all versions
  * @data: beacon data, length in @byte_count
@@ -71,18 +71,18 @@ struct iwl_stored_beacon_notif_v2 {
 } __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_2 */
 
 /**
- * struct iwl_stored_beacon_notif_v3 - Stored beacon notification
+ * struct iwl_stored_beacon_notif - Stored beacon notification
  *
  * @common: fields common for all versions
  * @sta_id: station for which the beacon was received
  * @reserved: reserved for alignment
  * @data: beacon data, length in @byte_count
  */
-struct iwl_stored_beacon_notif_v3 {
+struct iwl_stored_beacon_notif {
 	struct iwl_stored_beacon_notif_common common;
 	u8 sta_id;
 	u8 reserved[3];
 	u8 data[MAX_STORED_BEACON_SIZE];
-} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_3 */
+} __packed; /* WOWLAN_STROED_BEACON_INFO_S_VER_3, _VER_4 */
 
 #endif /* __iwl_fw_api_offload_h__ */

@@ -711,7 +711,6 @@ static const struct dc_plane_cap plane_cap = {
 static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dmcu = true, //No DMCU on DCN30
 	.force_abm_enable = false,
-	.timing_trace = false,
 	.clock_trace = true,
 	.disable_pplib_clock_request = true,
 	.pipe_split_policy = MPC_SPLIT_DYNAMIC,
@@ -927,7 +926,7 @@ static struct link_encoder *dcn30_link_encoder_create(
 	struct dcn20_link_encoder *enc20 =
 		kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	dcn30_link_encoder_construct(enc20,
@@ -1419,10 +1418,7 @@ void dcn30_set_mcif_arb_params(
 			if (dwb_pipe >= MAX_DWB_PIPES)
 				return;
 		}
-		if (dwb_pipe >= MAX_DWB_PIPES)
-			return;
 	}
-
 }
 
 static struct dc_cap_funcs cap_funcs = {
@@ -1966,6 +1962,7 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 {
 	int refresh_rate = 0;
 	const int minimum_refreshrate_supported = 120;
+	struct dc_stream_status *stream_status = NULL;
 
 	if (context == NULL || context->streams[0] == NULL)
 		return false;
@@ -1996,10 +1993,15 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (!context->streams[0]->allow_freesync)
 		return false;
 
-	if (context->streams[0]->vrr_active_variable && dc->debug.disable_fams_gaming)
+	if (context->streams[0]->vrr_active_variable && (dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE))
 		return false;
 
-	context->streams[0]->fpo_in_use = true;
+	stream_status = dc_state_get_stream_status(context, context->streams[0]);
+
+	if (!stream_status)
+		return false;
+
+	stream_status->fpo_in_use = true;
 
 	return true;
 }
@@ -2248,6 +2250,7 @@ static const struct resource_funcs dcn30_res_pool_funcs = {
 	.update_bw_bounding_box = dcn30_update_bw_bounding_box,
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn30_get_panel_config_defaults,
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 #define CTX ctx
@@ -2351,6 +2354,7 @@ static bool dcn30_resource_construct(
 
 	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
+	dc->caps.vtotal_limited_by_fp2 = true;
 
 	/* read VBIOS LTTPR caps */
 	{
@@ -2570,7 +2574,7 @@ static bool dcn30_resource_construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
-	/* Audio, Stream Encoders including DIG and virtual, MPC 3D LUTs */
+	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))
 		goto create_fail;

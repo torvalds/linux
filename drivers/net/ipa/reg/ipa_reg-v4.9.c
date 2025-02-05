@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 
-/* Copyright (C) 2022 Linaro Ltd. */
+/* Copyright (C) 2022-2024 Linaro Ltd. */
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/types.h>
 
-#include "../ipa.h"
 #include "../ipa_reg.h"
+#include "../ipa_version.h"
 
 static const u32 reg_comp_cfg_fmask[] = {
 	[RAM_ARB_PRI_CLIENT_SAMP_FIX_DIS]		= BIT(0),
@@ -111,19 +113,6 @@ static const u32 reg_qsb_max_reads_fmask[] = {
 };
 
 REG_FIELDS(QSB_MAX_READS, qsb_max_reads, 0x00000078);
-
-static const u32 reg_filt_rout_hash_en_fmask[] = {
-	[IPV6_ROUTER_HASH]				= BIT(0),
-						/* Bits 1-3 reserved */
-	[IPV6_FILTER_HASH]				= BIT(4),
-						/* Bits 5-7 reserved */
-	[IPV4_ROUTER_HASH]				= BIT(8),
-						/* Bits 9-11 reserved */
-	[IPV4_FILTER_HASH]				= BIT(12),
-						/* Bits 13-31 reserved */
-};
-
-REG_FIELDS(FILT_ROUT_HASH_EN, filt_rout_hash_en, 0x0000148);
 
 static const u32 reg_filt_rout_hash_flush_fmask[] = {
 	[IPV6_ROUTER_HASH]				= BIT(0),
@@ -467,7 +456,6 @@ static const struct reg *reg_array[] = {
 	[SHARED_MEM_SIZE]		= &reg_shared_mem_size,
 	[QSB_MAX_WRITES]		= &reg_qsb_max_writes,
 	[QSB_MAX_READS]			= &reg_qsb_max_reads,
-	[FILT_ROUT_HASH_EN]		= &reg_filt_rout_hash_en,
 	[FILT_ROUT_HASH_FLUSH]		= &reg_filt_rout_hash_flush,
 	[STATE_AGGR_ACTIVE]		= &reg_state_aggr_active,
 	[LOCAL_PKT_PROC_CNTXT]		= &reg_local_pkt_proc_cntxt,

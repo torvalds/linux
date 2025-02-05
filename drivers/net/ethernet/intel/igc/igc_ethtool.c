@@ -1540,6 +1540,10 @@ static int igc_ethtool_set_channels(struct net_device *netdev,
 	if (ch->other_count != NON_Q_VECTORS)
 		return -EINVAL;
 
+	/* Do not allow channel reconfiguration when mqprio is enabled */
+	if (adapter->strict_priority_enable)
+		return -EINVAL;
+
 	/* Verify the number of channels doesn't exceed hw limits */
 	max_combined = igc_get_max_rss_queues(adapter);
 	if (count > max_combined)
@@ -1559,21 +1563,17 @@ static int igc_ethtool_set_channels(struct net_device *netdev,
 }
 
 static int igc_ethtool_get_ts_info(struct net_device *dev,
-				   struct ethtool_ts_info *info)
+				   struct kernel_ethtool_ts_info *info)
 {
 	struct igc_adapter *adapter = netdev_priv(dev);
 
 	if (adapter->ptp_clock)
 		info->phc_index = ptp_clock_index(adapter->ptp_clock);
-	else
-		info->phc_index = -1;
 
 	switch (adapter->hw.mac.type) {
 	case igc_i225:
 		info->so_timestamping =
 			SOF_TIMESTAMPING_TX_SOFTWARE |
-			SOF_TIMESTAMPING_RX_SOFTWARE |
-			SOF_TIMESTAMPING_SOFTWARE |
 			SOF_TIMESTAMPING_TX_HARDWARE |
 			SOF_TIMESTAMPING_RX_HARDWARE |
 			SOF_TIMESTAMPING_RAW_HARDWARE;
@@ -1627,13 +1627,85 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 	struct igc_hw *hw = &adapter->hw;
-	u32 eeer;
+	struct igc_phy_info *phy = &hw->phy;
+	u16 eee_advert, eee_lp_advert;
+	u32 eeer, ret_val;
 
-	if (hw->dev_spec._base.eee_enable)
-		mii_eee_cap1_mod_linkmode_t(edata->advertised,
-					    adapter->eee_advert);
+	/* EEE supported */
+	linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 edata->supported);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 edata->supported);
 
-	*edata = adapter->eee;
+	/* EEE Advertisement 1 - reg 7.60 */
+	ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
+				    MMD_DEVADDR_SHIFT) |
+				    IGC_ANEG_EEE_AB1,
+				    &eee_advert);
+	if (ret_val) {
+		netdev_err(adapter->netdev,
+			   "Failed to read IEEE 7.60 register\n");
+		return -EINVAL;
+	}
+
+	if (eee_advert & IGC_EEE_1000BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 edata->advertised);
+
+	if (eee_advert & IGC_EEE_100BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 edata->advertised);
+
+	/* EEE Advertisement 2 - reg 7.62 */
+	ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
+				    MMD_DEVADDR_SHIFT) |
+				    IGC_ANEG_EEE_AB2,
+				    &eee_advert);
+	if (ret_val) {
+		netdev_err(adapter->netdev,
+			   "Failed to read IEEE 7.62 register\n");
+		return -EINVAL;
+	}
+
+	if (eee_advert & IGC_EEE_2500BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 edata->advertised);
+
+	/* EEE Link-Partner Ability 1 - reg 7.61 */
+	ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
+				    MMD_DEVADDR_SHIFT) |
+				    IGC_ANEG_EEE_LP_AB1,
+				    &eee_lp_advert);
+	if (ret_val) {
+		netdev_err(adapter->netdev,
+			   "Failed to read IEEE 7.61 register\n");
+		return -EINVAL;
+	}
+
+	if (eee_lp_advert & IGC_LP_EEE_1000BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 edata->lp_advertised);
+
+	if (eee_lp_advert & IGC_LP_EEE_100BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+				 edata->lp_advertised);
+
+	/* EEE Link-Partner Ability 2 - reg 7.63 */
+	ret_val = phy->ops.read_reg(hw, (STANDARD_AN_REG_MASK <<
+				    MMD_DEVADDR_SHIFT) |
+				    IGC_ANEG_EEE_LP_AB2,
+				    &eee_lp_advert);
+	if (ret_val) {
+		netdev_err(adapter->netdev,
+			   "Failed to read IEEE 7.63 register\n");
+		return -EINVAL;
+	}
+
+	if (eee_lp_advert & IGC_LP_EEE_2500BT_MASK)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 edata->lp_advertised);
 
 	eeer = rd32(IGC_EEER);
 
@@ -1695,8 +1767,6 @@ static int igc_ethtool_set_eee(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	adapter->eee_advert = linkmode_to_mii_eee_cap1_t(edata->advertised);
-
 	if (hw->dev_spec._base.eee_enable != edata->eee_enabled) {
 		hw->dev_spec._base.eee_enable = edata->eee_enabled;
 		adapter->flags |= IGC_FLAG_EEE;
@@ -1709,21 +1779,6 @@ static int igc_ethtool_set_eee(struct net_device *netdev,
 	}
 
 	return 0;
-}
-
-static int igc_ethtool_begin(struct net_device *netdev)
-{
-	struct igc_adapter *adapter = netdev_priv(netdev);
-
-	pm_runtime_get_sync(&adapter->pdev->dev);
-	return 0;
-}
-
-static void igc_ethtool_complete(struct net_device *netdev)
-{
-	struct igc_adapter *adapter = netdev_priv(netdev);
-
-	pm_runtime_put(&adapter->pdev->dev);
 }
 
 static int igc_ethtool_get_link_ksettings(struct net_device *netdev,
@@ -1766,11 +1821,8 @@ static int igc_ethtool_get_link_ksettings(struct net_device *netdev,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, 2500baseT_Full);
 
 	/* set autoneg settings */
-	if (hw->mac.autoneg == 1) {
-		ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Autoneg);
-	}
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, Autoneg);
 
 	/* Set pause flow control settings */
 	ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
@@ -1823,10 +1875,7 @@ static int igc_ethtool_get_link_ksettings(struct net_device *netdev,
 		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 	cmd->base.speed = speed;
-	if (hw->mac.autoneg)
-		cmd->base.autoneg = AUTONEG_ENABLE;
-	else
-		cmd->base.autoneg = AUTONEG_DISABLE;
+	cmd->base.autoneg = AUTONEG_ENABLE;
 
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if (hw->phy.media_type == igc_media_type_copper)
@@ -1900,7 +1949,6 @@ igc_ethtool_set_link_ksettings(struct net_device *netdev,
 		advertised |= ADVERTISE_10_HALF;
 
 	if (cmd->base.autoneg == AUTONEG_ENABLE) {
-		hw->mac.autoneg = 1;
 		hw->phy.autoneg_advertised = advertised;
 		if (adapter->fc_autoneg)
 			hw->fc.requested_mode = igc_fc_default;
@@ -2025,8 +2073,6 @@ static const struct ethtool_ops igc_ethtool_ops = {
 	.set_priv_flags		= igc_ethtool_set_priv_flags,
 	.get_eee		= igc_ethtool_get_eee,
 	.set_eee		= igc_ethtool_set_eee,
-	.begin			= igc_ethtool_begin,
-	.complete		= igc_ethtool_complete,
 	.get_link_ksettings	= igc_ethtool_get_link_ksettings,
 	.set_link_ksettings	= igc_ethtool_set_link_ksettings,
 	.self_test		= igc_ethtool_diag_test,

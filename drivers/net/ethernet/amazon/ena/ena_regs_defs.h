@@ -22,6 +22,7 @@ enum ena_regs_reset_reason_types {
 	ENA_REGS_RESET_GENERIC                      = 13,
 	ENA_REGS_RESET_MISS_INTERRUPT               = 14,
 	ENA_REGS_RESET_SUSPECTED_POLL_STARVATION    = 15,
+	ENA_REGS_RESET_RX_DESCRIPTOR_MALFORMED	    = 16,
 };
 
 /* ena_registers offsets */

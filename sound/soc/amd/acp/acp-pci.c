@@ -77,30 +77,29 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	res_acp = acp_res;
 	num_res = ARRAY_SIZE(acp_res);
-
+	chip->acp_rev = pci->revision;
 	switch (pci->revision) {
 	case 0x01:
 		chip->name = "acp_asoc_renoir";
-		chip->acp_rev = ACP3X_DEV;
 		break;
 	case 0x6f:
 		chip->name = "acp_asoc_rembrandt";
-		chip->acp_rev = ACP6X_DEV;
 		break;
 	case 0x63:
 		chip->name = "acp_asoc_acp63";
-		chip->acp_rev = ACP63_DEV;
 		break;
 	case 0x70:
 		chip->name = "acp_asoc_acp70";
-		chip->acp_rev = ACP70_DEV;
+		break;
+	case 0x71:
+		chip->name = "acp_asoc_acp70";
 		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
 		ret = -EINVAL;
 		goto release_regions;
 	}
-
+	chip->flag = flag;
 	dmic_dev = platform_device_register_data(dev, "dmic-codec", PLATFORM_DEVID_NONE, NULL, 0);
 	if (IS_ERR(dmic_dev)) {
 		dev_err(dev, "failed to create DMIC device\n");
@@ -119,6 +118,10 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 	if (ret)
 		goto unregister_dmic_dev;
 
+	check_acp_config(pci, chip);
+	if (!chip->is_pdm_dev && !chip->is_i2s_config)
+		goto skip_pdev_creation;
+
 	res = devm_kcalloc(&pci->dev, num_res, sizeof(struct resource), GFP_KERNEL);
 	if (!res) {
 		ret = -ENOMEM;
@@ -136,11 +139,6 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		}
 	}
 
-	ret = check_acp_pdm(pci, chip);
-	if (ret < 0)
-		goto skip_pdev_creation;
-
-	chip->flag = flag;
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 
 	pdevinfo.name = chip->name;
@@ -200,10 +198,12 @@ static int __maybe_unused snd_acp_resume(struct device *dev)
 	ret = acp_init(chip);
 	if (ret)
 		dev_err(dev, "ACP init failed\n");
-	child = chip->chip_pdev->dev;
-	adata = dev_get_drvdata(&child);
-	if (adata)
-		acp_enable_interrupts(adata);
+	if (chip->chip_pdev) {
+		child = chip->chip_pdev->dev;
+		adata = dev_get_drvdata(&child);
+		if (adata)
+			acp_enable_interrupts(adata);
+	}
 	return ret;
 }
 
@@ -248,6 +248,7 @@ static struct pci_driver snd_amd_acp_pci_driver = {
 };
 module_pci_driver(snd_amd_acp_pci_driver);
 
+MODULE_DESCRIPTION("AMD ACP common PCI support");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_ALIAS(DRV_NAME);

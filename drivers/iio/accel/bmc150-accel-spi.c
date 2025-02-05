@@ -81,4 +81,4 @@ module_spi_driver(bmc150_accel_driver);
 MODULE_AUTHOR("Markus Pargmann <mpa@pengutronix.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("BMC150 SPI accelerometer driver");
-MODULE_IMPORT_NS(IIO_BMC150);
+MODULE_IMPORT_NS("IIO_BMC150");

@@ -179,8 +179,9 @@ static void digicolor_uart_rx(struct uart_port *port)
 
 static void digicolor_uart_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned long flags;
+	unsigned char c;
 
 	if (digicolor_uart_tx_full(port))
 		return;
@@ -194,20 +195,19 @@ static void digicolor_uart_tx(struct uart_port *port)
 		goto out;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		digicolor_uart_stop_tx(port);
 		goto out;
 	}
 
-	while (!uart_circ_empty(xmit)) {
-		writeb(xmit->buf[xmit->tail], port->membase + UA_EMI_REC);
-		uart_xmit_advance(port, 1);
+	while (uart_fifo_get(port, &c)) {
+		writeb(c, port->membase + UA_EMI_REC);
 
 		if (digicolor_uart_tx_full(port))
 			break;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 out:
@@ -522,7 +522,7 @@ static struct platform_driver digicolor_uart_platform = {
 		.of_match_table	= of_match_ptr(digicolor_uart_dt_ids),
 	},
 	.probe	= digicolor_uart_probe,
-	.remove_new = digicolor_uart_remove,
+	.remove = digicolor_uart_remove,
 };
 
 static int __init digicolor_uart_init(void)

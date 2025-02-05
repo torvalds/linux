@@ -844,10 +844,9 @@ static void handle_maxim_chg_curr(struct ab8500_chargalg *di)
 	}
 }
 
-static int ab8500_chargalg_get_ext_psy_data(struct device *dev, void *data)
+static int ab8500_chargalg_get_ext_psy_data(struct power_supply *ext, void *data)
 {
 	struct power_supply *psy;
-	struct power_supply *ext = dev_get_drvdata(dev);
 	const char **supplicants = (const char **)ext->supplied_to;
 	struct ab8500_chargalg *di;
 	union power_supply_propval ret;
@@ -1225,13 +1224,13 @@ static bool ab8500_chargalg_time_to_restart(struct ab8500_chargalg *di)
  */
 static void ab8500_chargalg_algorithm(struct ab8500_chargalg *di)
 {
+	const struct power_supply_maintenance_charge_table *mt;
 	struct power_supply_battery_info *bi = di->bm->bi;
-	struct power_supply_maintenance_charge_table *mt;
 	int charger_status;
 	int ret;
 
 	/* Collect data from all power_supply class devices */
-	power_supply_for_each_device(di->chargalg_psy, ab8500_chargalg_get_ext_psy_data);
+	power_supply_for_each_psy(di->chargalg_psy, ab8500_chargalg_get_ext_psy_data);
 
 	ab8500_chargalg_end_of_charge(di);
 	ab8500_chargalg_check_temp(di);
@@ -1837,7 +1836,7 @@ static const struct of_device_id ab8500_chargalg_match[] = {
 
 struct platform_driver ab8500_chargalg_driver = {
 	.probe = ab8500_chargalg_probe,
-	.remove_new = ab8500_chargalg_remove,
+	.remove = ab8500_chargalg_remove,
 	.driver = {
 		.name = "ab8500_chargalg",
 		.of_match_table = ab8500_chargalg_match,

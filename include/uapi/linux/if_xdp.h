@@ -41,6 +41,10 @@
  */
 #define XDP_UMEM_TX_SW_CSUM		(1 << 1)
 
+/* Request to reserve tx_metadata_len bytes of per-chunk metadata.
+ */
+#define XDP_UMEM_TX_METADATA_LEN	(1 << 2)
+
 struct sockaddr_xdp {
 	__u16 sxdp_family;
 	__u16 sxdp_flags;

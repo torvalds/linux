@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/fsl/fsl,qman.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QorIQ DPAA Queue Manager
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  The Queue Manager is part of the Data-Path Acceleration Architecture (DPAA). QMan
+  supports queuing and QoS scheduling of frames to CPUs, network interfaces and
+  DPAA logic modules, maintains packet ordering within flows. Besides providing
+  flow-level queuing, is also responsible for congestion management functions such
+  as RED/WRED, congestion notifications and tail discards. This binding covers the
+  CCSR space programming model
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,qman
+      - items:
+          - enum:
+              - fsl,ls1043a-qman
+              - fsl,ls1046a-qman
+          - const: fsl,qman
+  reg:
+    items:
+      - description: |
+          Registers region within the CCSR address space
+
+          The QMan revision information is located in the QMAN_IP_REV_1/2
+          registers which are located at offsets 0xbf8 and 0xbfc
+
+  interrupts:
+    items:
+      - description: The error interrupt
+
+  fsl,qman-portals:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: ref fsl,qman-port.yaml
+
+  fsl,liodn:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      See pamu.txt, PAMU property used for static LIODN assignment
+
+  fsl,iommu-parent:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      See pamu.txt, PAMU property used for dynamic LIODN assignment
+
+  clocks:
+    maxItems: 1
+    description:
+      Reference input clock. Its frequency is half of the platform clock
+
+  memory-region:
+    maxItems: 2
+    description:
+      List of phandles referencing the QMan private memory nodes (described
+      below). The qman-fqd node must be first followed by qman-pfdr node.
+      Only used on ARM Devices connected to a QMan instance via Direct Connect
+      Portals (DCP) must link to the respective QMan instance.
+
+  fsl,qman:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description:
+      List of phandle and DCP index pairs, to the QMan instance
+      to which this device is connected via the DCP
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    qman: qman@318000 {
+        compatible = "fsl,qman";
+        reg = <0x318000 0x1000>;
+        interrupts = <16 IRQ_TYPE_EDGE_FALLING 1 3>;
+        fsl,liodn = <0x16>;
+        fsl,qman-portals = <&qportals>;
+        memory-region = <&qman_fqd &qman_pfdr>;
+        clocks = <&platform_pll 1>;
+    };

@@ -97,7 +97,7 @@
 		interrupts = <1 14 0xf04>;
 	};
 
-	pmu: pmu@0 {
+	pmu: pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupt-parent = <&intc>;
 		interrupts = <0 44 IRQ_TYPE_LEVEL_HIGH>,

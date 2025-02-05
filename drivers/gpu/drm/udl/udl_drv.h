@@ -26,7 +26,6 @@ struct drm_mode_create_dumb;
 
 #define DRIVER_NAME		"udl"
 #define DRIVER_DESC		"DisplayLink"
-#define DRIVER_DATE		"20120220"
 
 #define DRIVER_MAJOR		0
 #define DRIVER_MINOR		0
@@ -49,17 +48,6 @@ struct urb_list {
 	size_t size;
 };
 
-struct udl_connector {
-	struct drm_connector connector;
-	/* last udl_detect edid */
-	struct edid *edid;
-};
-
-static inline struct udl_connector *to_udl_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct udl_connector, connector);
-}
-
 struct udl_device {
 	struct drm_device drm;
 	struct device *dev;
@@ -68,6 +56,7 @@ struct udl_device {
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
+	struct drm_connector connector;
 
 	struct mutex gem_lock;
 

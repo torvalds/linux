@@ -21,6 +21,7 @@
 #include "hashmap.h"
 #include "libbpf.h"
 #include "libbpf_internal.h"
+#include "str_error.h"
 
 static const char PREFIXES[] = "\t\t\t\t\t\t\t\t\t\t\t\t\t";
 static const size_t PREFIX_CNT = sizeof(PREFIXES) - 1;
@@ -304,7 +305,7 @@ int btf_dump__dump_type(struct btf_dump *d, __u32 id)
  * definition, in which case they have to be declared inline as part of field
  * type declaration; or as a top-level anonymous enum, typically used for
  * declaring global constants. It's impossible to distinguish between two
- * without knowning whether given enum type was referenced from other type:
+ * without knowing whether given enum type was referenced from other type:
  * top-level anonymous enum won't be referenced by anything, while embedded
  * one will.
  */
@@ -867,8 +868,8 @@ static void btf_dump_emit_bit_padding(const struct btf_dump *d,
 	} pads[] = {
 		{"long", d->ptr_sz * 8}, {"int", 32}, {"short", 16}, {"char", 8}
 	};
-	int new_off, pad_bits, bits, i;
-	const char *pad_type;
+	int new_off = 0, pad_bits = 0, bits, i;
+	const char *pad_type = NULL;
 
 	if (cur_off >= next_off)
 		return; /* no gap */
@@ -1304,7 +1305,7 @@ static void btf_dump_emit_type_decl(struct btf_dump *d, __u32 id,
 			 * chain, restore stack, emit warning, and try to
 			 * proceed nevertheless
 			 */
-			pr_warn("not enough memory for decl stack:%d", err);
+			pr_warn("not enough memory for decl stack: %s\n", errstr(err));
 			d->decl_stack_cnt = stack_start;
 			return;
 		}
@@ -1559,10 +1560,12 @@ static void btf_dump_emit_type_chain(struct btf_dump *d,
 			 * Clang for BPF target generates func_proto with no
 			 * args as a func_proto with a single void arg (e.g.,
 			 * `int (*f)(void)` vs just `int (*f)()`). We are
-			 * going to pretend there are no args for such case.
+			 * going to emit valid empty args (void) syntax for
+			 * such case. Similarly and conveniently, valid
+			 * no args case can be special-cased here as well.
 			 */
-			if (vlen == 1 && p->type == 0) {
-				btf_dump_printf(d, ")");
+			if (vlen == 0 || (vlen == 1 && p->type == 0)) {
+				btf_dump_printf(d, "void)");
 				return;
 			}
 
@@ -1929,6 +1932,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 			if (d->typed_dump->is_array_terminated)
 				break;
 			if (*(char *)data == '\0') {
+				btf_dump_type_values(d, "'\\0'");
 				d->typed_dump->is_array_terminated = true;
 				break;
 			}
@@ -2031,6 +2035,7 @@ static int btf_dump_array_data(struct btf_dump *d,
 	__u32 i, elem_type_id;
 	__s64 elem_size;
 	bool is_array_member;
+	bool is_array_terminated;
 
 	elem_type_id = array->type;
 	elem_type = skip_mods_and_typedefs(d->btf, elem_type_id, NULL);
@@ -2066,12 +2071,15 @@ static int btf_dump_array_data(struct btf_dump *d,
 	 */
 	is_array_member = d->typed_dump->is_array_member;
 	d->typed_dump->is_array_member = true;
+	is_array_terminated = d->typed_dump->is_array_terminated;
+	d->typed_dump->is_array_terminated = false;
 	for (i = 0; i < array->nelems; i++, data += elem_size) {
 		if (d->typed_dump->is_array_terminated)
 			break;
 		btf_dump_dump_type_data(d, NULL, elem_type, elem_type_id, data, 0, 0);
 	}
 	d->typed_dump->is_array_member = is_array_member;
+	d->typed_dump->is_array_terminated = is_array_terminated;
 	d->typed_dump->depth--;
 	btf_dump_data_pfx(d);
 	btf_dump_type_values(d, "]");

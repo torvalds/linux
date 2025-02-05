@@ -98,6 +98,8 @@ extern void mask_irq(struct irq_desc *desc);
 extern void unmask_irq(struct irq_desc *desc);
 extern void unmask_threaded_irq(struct irq_desc *desc);
 
+extern unsigned int kstat_irqs_desc(struct irq_desc *desc, const struct cpumask *cpumask);
+
 #ifdef CONFIG_SPARSE_IRQ
 static inline void irq_mark_irq(unsigned int irq) { }
 #else
@@ -258,7 +260,7 @@ static inline void irq_state_set_masked(struct irq_desc *desc)
 
 static inline void __kstat_incr_irqs_this_cpu(struct irq_desc *desc)
 {
-	__this_cpu_inc(*desc->kstat_irqs);
+	__this_cpu_inc(desc->kstat_irqs->cnt);
 	__this_cpu_inc(kstat.irqs_sum);
 }
 
@@ -276,6 +278,11 @@ static inline int irq_desc_get_node(struct irq_desc *desc)
 static inline int irq_desc_is_chained(struct irq_desc *desc)
 {
 	return (desc->action && desc->action == &chained_action);
+}
+
+static inline bool irq_is_nmi(struct irq_desc *desc)
+{
+	return desc->istate & IRQS_NMI;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -414,7 +421,7 @@ irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 static inline bool irq_can_move_pcntxt(struct irq_data *data)
 {
-	return irqd_can_move_in_process_context(data);
+	return !(data->chip->flags & IRQCHIP_MOVE_DEFERRED);
 }
 static inline bool irq_move_pending(struct irq_data *data)
 {
@@ -433,10 +440,6 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 {
 	return desc->pending_mask;
-}
-static inline bool handle_enforce_irqctx(struct irq_data *data)
-{
-	return irqd_is_handle_enforce_irqctx(data);
 }
 bool irq_fixup_move_pending(struct irq_desc *desc, bool force_clear);
 #else /* CONFIG_GENERIC_PENDING_IRQ */
@@ -461,10 +464,6 @@ static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 	return NULL;
 }
 static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
-{
-	return false;
-}
-static inline bool handle_enforce_irqctx(struct irq_data *data)
 {
 	return false;
 }
@@ -493,6 +492,16 @@ static inline struct irq_data *irqd_get_parent_data(struct irq_data *irqd)
 
 #ifdef CONFIG_GENERIC_IRQ_DEBUGFS
 #include <linux/debugfs.h>
+
+struct irq_bit_descr {
+	unsigned int	mask;
+	char		*name;
+};
+
+#define BIT_MASK_DESCR(m)	{ .mask = m, .name = #m }
+
+void irq_debug_show_bits(struct seq_file *m, int ind, unsigned int state,
+			 const struct irq_bit_descr *sd, int size);
 
 void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *desc);
 static inline void irq_remove_debugfs_entry(struct irq_desc *desc)

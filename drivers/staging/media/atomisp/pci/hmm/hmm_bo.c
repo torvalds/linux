@@ -5,17 +5,6 @@
  * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
  *
  * Copyright (c) 2010 Silicon Hive www.siliconhive.com.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 /*
  * This file contains functions for buffer object structure management
@@ -288,7 +277,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 		/* 3. when bo->prev != NULL && bo->next == NULL, bo is not a rbtree
 		 *	node, bo is the last element of the linked list after rbtree
 		 *	node, to take off this bo, we just need set the "prev/next"
-		 *	pointers to NULL, the free rbtree stays unchaged
+		 *	pointers to NULL, the free rbtree stays unchanged
 		 */
 	} else if (bo->prev && !bo->next) {
 		bo->prev->next = NULL;
@@ -296,7 +285,7 @@ static void __bo_take_off_handling(struct hmm_buffer_object *bo)
 		/* 4. when bo->prev != NULL && bo->next != NULL ,bo is not a rbtree
 		 *	node, bo is in the middle of the linked list after rbtree node,
 		 *	to take off this bo, we just set take the "prev/next" pointers
-		 *	to NULL, the free rbtree stays unchaged
+		 *	to NULL, the free rbtree stays unchanged
 		 */
 	} else if (bo->prev && bo->next) {
 		bo->next->prev = bo->prev;
@@ -635,10 +624,10 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 	const gfp_t gfp = __GFP_NOWARN | __GFP_RECLAIM | __GFP_FS;
 	int ret;
 
-	ret = alloc_pages_bulk_array(gfp, bo->pgnr, bo->pages);
+	ret = alloc_pages_bulk(gfp, bo->pgnr, bo->pages);
 	if (ret != bo->pgnr) {
 		free_pages_bulk_array(ret, bo->pages);
-		dev_err(atomisp_dev, "alloc_pages_bulk_array() failed\n");
+		dev_err(atomisp_dev, "alloc_pages_bulk() failed\n");
 		return -ENOMEM;
 	}
 

@@ -1587,7 +1587,7 @@ static int tsnep_rx_poll_zc(struct tsnep_rx *rx, struct napi_struct *napi,
 		length = __le32_to_cpu(entry->desc_wb->properties) &
 			 TSNEP_DESC_LENGTH_MASK;
 		xsk_buff_set_size(entry->xdp, length - ETH_FCS_LEN);
-		xsk_buff_dma_sync_for_cpu(entry->xdp, rx->xsk_pool);
+		xsk_buff_dma_sync_for_cpu(entry->xdp);
 
 		/* RX metadata with timestamps is in front of actual data,
 		 * subtract metadata size to get length of actual data and
@@ -1966,23 +1966,41 @@ failed:
 
 static void tsnep_queue_enable(struct tsnep_queue *queue)
 {
+	struct tsnep_adapter *adapter = queue->adapter;
+
+	netif_napi_set_irq(&queue->napi, queue->irq);
 	napi_enable(&queue->napi);
-	tsnep_enable_irq(queue->adapter, queue->irq_mask);
+	tsnep_enable_irq(adapter, queue->irq_mask);
 
-	if (queue->tx)
+	if (queue->tx) {
+		netif_queue_set_napi(adapter->netdev, queue->tx->queue_index,
+				     NETDEV_QUEUE_TYPE_TX, &queue->napi);
 		tsnep_tx_enable(queue->tx);
+	}
 
-	if (queue->rx)
+	if (queue->rx) {
+		netif_queue_set_napi(adapter->netdev, queue->rx->queue_index,
+				     NETDEV_QUEUE_TYPE_RX, &queue->napi);
 		tsnep_rx_enable(queue->rx);
+	}
 }
 
 static void tsnep_queue_disable(struct tsnep_queue *queue)
 {
-	if (queue->tx)
+	struct tsnep_adapter *adapter = queue->adapter;
+
+	if (queue->rx)
+		netif_queue_set_napi(adapter->netdev, queue->rx->queue_index,
+				     NETDEV_QUEUE_TYPE_RX, NULL);
+
+	if (queue->tx) {
 		tsnep_tx_disable(queue->tx, &queue->napi);
+		netif_queue_set_napi(adapter->netdev, queue->tx->queue_index,
+				     NETDEV_QUEUE_TYPE_TX, NULL);
+	}
 
 	napi_disable(&queue->napi);
-	tsnep_disable_irq(queue->adapter, queue->irq_mask);
+	tsnep_disable_irq(adapter, queue->irq_mask);
 
 	/* disable RX after NAPI polling has been disabled, because RX can be
 	 * enabled during NAPI polling
@@ -2689,7 +2707,7 @@ static struct platform_driver tsnep_driver = {
 		.of_match_table = tsnep_of_match,
 	},
 	.probe = tsnep_probe,
-	.remove_new = tsnep_remove,
+	.remove = tsnep_remove,
 };
 module_platform_driver(tsnep_driver);
 

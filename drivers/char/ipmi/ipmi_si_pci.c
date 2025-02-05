@@ -97,6 +97,9 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	}
 
 	if (pci_resource_flags(pdev, 0) & IORESOURCE_IO) {
+		if (!IS_ENABLED(CONFIG_HAS_IOPORT))
+			return -ENXIO;
+
 		io.addr_space = IPMI_IO_ADDR_SPACE;
 		io.io_setup = ipmi_si_port_setup;
 	} else {
@@ -115,7 +118,7 @@ static int ipmi_pci_probe(struct pci_dev *pdev,
 	if (io.irq)
 		io.irq_setup = ipmi_std_irq_setup;
 
-	dev_info(&pdev->dev, "%pR regsize %d spacing %d irq %d\n",
+	dev_info(&pdev->dev, "%pR regsize %u spacing %u irq %d\n",
 		 &pdev->resource[0], io.regsize, io.regspacing, io.irq);
 
 	return ipmi_si_add_smi(&io);

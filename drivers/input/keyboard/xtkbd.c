@@ -70,7 +70,7 @@ static int xtkbd_connect(struct serio *serio, struct serio_driver *drv)
 	int err = -ENOMEM;
 	int i;
 
-	xtkbd = kmalloc(sizeof(struct xtkbd), GFP_KERNEL);
+	xtkbd = kmalloc(sizeof(*xtkbd), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!xtkbd || !input_dev)
 		goto fail1;

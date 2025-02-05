@@ -3,17 +3,6 @@
  * Support for OmniVision OV2722 1080p HD camera sensor.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #ifndef __OV2722_H__
@@ -198,7 +187,6 @@ struct ov2722_device {
 	struct ov2722_resolution *res;
 
 	struct camera_sensor_platform_data *platform_data;
-	int power_on;
 	u16 pixels_per_line;
 	u16 lines_per_frame;
 	u8 type;

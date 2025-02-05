@@ -162,14 +162,17 @@ Example::
 		status = "okay";
 	}
 
-Indentation
------------
+Indentation and wrapping
+------------------------
 
-1. Use indentation according to Documentation/process/coding-style.rst.
+1. Use indentation and wrap lines according to
+   Documentation/process/coding-style.rst.
 2. Each entry in arrays with multiple cells, e.g. "reg" with two IO addresses,
    shall be enclosed in <>.
-3. For arrays spanning across lines, it is preferred to align the continued
-   entries with opening < from the first line.
+3. For arrays spanning across lines, it is preferred to split on item boundary
+   and align the continued entries with opening < from the first line.
+   Usually avoid splitting individual items unless they significantly exceed
+   line wrap limit.
 
 Example::
 
@@ -177,6 +180,9 @@ Example::
 		compatible = "qcom,sm8550-tsens", "qcom,tsens-v2";
 		reg = <0x0 0x0c271000 0x0 0x1000>,
 		      <0x0 0x0c222000 0x0 0x1000>;
+		/* Lines exceeding coding style line wrap limit: */
+		interconnects = <&aggre1_noc MASTER_USB3_0 0 &mc_virt SLAVE_EBI1 0>,
+				<&gem_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_USB3_0 0>;
 	};
 
 Organizing DTSI and DTS

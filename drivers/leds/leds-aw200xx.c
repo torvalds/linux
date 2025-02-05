@@ -409,7 +409,6 @@ static int aw200xx_probe_get_display_rows(struct device *dev,
 
 static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 {
-	struct fwnode_handle *child;
 	u32 current_min, current_max, min_uA;
 	int ret;
 	int i;
@@ -424,7 +423,7 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 	min_uA = UINT_MAX;
 	i = 0;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		struct led_init_data init_data = {};
 		struct aw200xx_led *led;
 		u32 source, imax;
@@ -468,10 +467,8 @@ static int aw200xx_probe_fw(struct device *dev, struct aw200xx *chip)
 
 		ret = devm_led_classdev_register_ext(dev, &led->cdev,
 						     &init_data);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			break;
-		}
 
 		i++;
 	}
@@ -530,6 +527,16 @@ static const struct regmap_config aw200xx_regmap_config = {
 	.disable_locking = true,
 };
 
+static void aw200xx_chip_reset_action(void *data)
+{
+	aw200xx_chip_reset(data);
+}
+
+static void aw200xx_disable_action(void *data)
+{
+	aw200xx_disable(data);
+}
+
 static int aw200xx_probe(struct i2c_client *client)
 {
 	const struct aw200xx_chipdef *cdef;
@@ -568,16 +575,26 @@ static int aw200xx_probe(struct i2c_client *client)
 
 	aw200xx_enable(chip);
 
+	ret = devm_add_action(&client->dev, aw200xx_disable_action, chip);
+	if (ret)
+		return ret;
+
 	ret = aw200xx_chip_check(chip);
 	if (ret)
 		return ret;
 
-	mutex_init(&chip->mutex);
+	ret = devm_mutex_init(&client->dev, &chip->mutex);
+	if (ret)
+		return ret;
 
 	/* Need a lock now since after call aw200xx_probe_fw, sysfs nodes created */
 	mutex_lock(&chip->mutex);
 
 	ret = aw200xx_chip_reset(chip);
+	if (ret)
+		goto out_unlock;
+
+	ret = devm_add_action(&client->dev, aw200xx_chip_reset_action, chip);
 	if (ret)
 		goto out_unlock;
 
@@ -593,15 +610,6 @@ out_unlock:
 
 	mutex_unlock(&chip->mutex);
 	return ret;
-}
-
-static void aw200xx_remove(struct i2c_client *client)
-{
-	struct aw200xx *chip = i2c_get_clientdata(client);
-
-	aw200xx_chip_reset(chip);
-	aw200xx_disable(chip);
-	mutex_destroy(&chip->mutex);
 }
 
 static const struct aw200xx_chipdef aw20036_cdef = {
@@ -652,7 +660,6 @@ static struct i2c_driver aw200xx_driver = {
 		.of_match_table = aw200xx_match_table,
 	},
 	.probe = aw200xx_probe,
-	.remove = aw200xx_remove,
 	.id_table = aw200xx_id,
 };
 module_i2c_driver(aw200xx_driver);

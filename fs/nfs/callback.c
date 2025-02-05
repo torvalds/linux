@@ -76,6 +76,8 @@ nfs4_callback_svc(void *vrqstp)
 {
 	struct svc_rqst *rqstp = vrqstp;
 
+	svc_thread_init_status(rqstp, 0);
+
 	set_freezable();
 
 	while (!svc_thread_should_stop(rqstp))
@@ -209,10 +211,6 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 		return ERR_PTR(-ENOMEM);
 	}
 	cb_info->serv = serv;
-	/* As there is only one thread we need to over-ride the
-	 * default maximum of 80 connections
-	 */
-	serv->sv_maxconn = 1024;
 	dprintk("nfs_callback_create_svc: service created\n");
 	return serv;
 }

@@ -220,6 +220,12 @@ static const struct amlogic_thermal_data amlogic_thermal_g12a_ddr_param = {
 	.regmap_config = &amlogic_thermal_regmap_config_g12a,
 };
 
+static const struct amlogic_thermal_data amlogic_thermal_a1_cpu_param = {
+	.u_efuse_off = 0x114,
+	.calibration_parameters = &amlogic_thermal_g12a,
+	.regmap_config = &amlogic_thermal_regmap_config_g12a,
+};
+
 static const struct of_device_id of_amlogic_thermal_match[] = {
 	{
 		.compatible = "amlogic,g12a-ddr-thermal",
@@ -228,6 +234,10 @@ static const struct of_device_id of_amlogic_thermal_match[] = {
 	{
 		.compatible = "amlogic,g12a-cpu-thermal",
 		.data = &amlogic_thermal_g12a_cpu_param,
+	},
+	{
+		.compatible = "amlogic,a1-cpu-thermal",
+		.data = &amlogic_thermal_a1_cpu_param,
 	},
 	{ /* sentinel */ }
 };
@@ -323,7 +333,7 @@ static struct platform_driver amlogic_thermal_driver = {
 		.of_match_table = of_amlogic_thermal_match,
 	},
 	.probe = amlogic_thermal_probe,
-	.remove_new = amlogic_thermal_remove,
+	.remove = amlogic_thermal_remove,
 };
 
 module_platform_driver(amlogic_thermal_driver);

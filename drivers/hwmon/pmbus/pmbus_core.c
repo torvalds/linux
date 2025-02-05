@@ -7,6 +7,7 @@
  */
 
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/module.h>
@@ -29,6 +30,9 @@
  */
 #define PMBUS_ATTR_ALLOC_SIZE	32
 #define PMBUS_NAME_SIZE		24
+
+static int wp = -1;
+module_param(wp, int, 0444);
 
 struct pmbus_sensor {
 	struct pmbus_sensor *next;
@@ -85,6 +89,8 @@ struct pmbus_data {
 
 	u32 flags;		/* from platform data */
 
+	u8 revision;	/* The PMBus revision the device is compliant with */
+
 	int exponent[PMBUS_PAGES];
 				/* linear mode: exponent for output voltages */
 
@@ -108,6 +114,8 @@ struct pmbus_data {
 
 	int vout_low[PMBUS_PAGES];	/* voltage low margin */
 	int vout_high[PMBUS_PAGES];	/* voltage high margin */
+	ktime_t write_time;		/* Last SMBUS write timestamp */
+	ktime_t access_time;		/* Last SMBUS access timestamp */
 };
 
 struct pmbus_debugfs_entry {
@@ -145,7 +153,7 @@ void pmbus_clear_cache(struct i2c_client *client)
 	for (sensor = data->sensors; sensor; sensor = sensor->next)
 		sensor->data = -ENODATA;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_clear_cache, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_clear_cache, "PMBUS");
 
 void pmbus_set_update(struct i2c_client *client, u8 reg, bool update)
 {
@@ -156,7 +164,40 @@ void pmbus_set_update(struct i2c_client *client, u8 reg, bool update)
 		if (sensor->reg == reg)
 			sensor->update = update;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_set_update, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_set_update, "PMBUS");
+
+/* Some chips need a delay between accesses. */
+static void pmbus_wait(struct i2c_client *client)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	s64 delta;
+
+	if (info->access_delay) {
+		delta = ktime_us_delta(ktime_get(), data->access_time);
+
+		if (delta < info->access_delay)
+			fsleep(info->access_delay - delta);
+	} else if (info->write_delay) {
+		delta = ktime_us_delta(ktime_get(), data->write_time);
+
+		if (delta < info->write_delay)
+			fsleep(info->write_delay - delta);
+	}
+}
+
+/* Sets the last accessed timestamp for pmbus_wait */
+static void pmbus_update_ts(struct i2c_client *client, bool write_op)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+
+	if (info->access_delay) {
+		data->access_time = ktime_get();
+	} else if (info->write_delay && write_op) {
+		data->write_time = ktime_get();
+	}
+}
 
 int pmbus_set_page(struct i2c_client *client, int page, int phase)
 {
@@ -168,11 +209,15 @@ int pmbus_set_page(struct i2c_client *client, int page, int phase)
 
 	if (!(data->info->func[page] & PMBUS_PAGE_VIRTUAL) &&
 	    data->info->pages > 1 && page != data->currpage) {
+		pmbus_wait(client);
 		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
+		pmbus_update_ts(client, true);
 		if (rv < 0)
 			return rv;
 
+		pmbus_wait(client);
 		rv = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
+		pmbus_update_ts(client, false);
 		if (rv < 0)
 			return rv;
 
@@ -183,8 +228,10 @@ int pmbus_set_page(struct i2c_client *client, int page, int phase)
 
 	if (data->info->phases[page] && data->currphase != phase &&
 	    !(data->info->func[page] & PMBUS_PHASE_VIRTUAL)) {
+		pmbus_wait(client);
 		rv = i2c_smbus_write_byte_data(client, PMBUS_PHASE,
 					       phase);
+		pmbus_update_ts(client, true);
 		if (rv)
 			return rv;
 	}
@@ -192,7 +239,7 @@ int pmbus_set_page(struct i2c_client *client, int page, int phase)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_set_page, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_set_page, "PMBUS");
 
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 {
@@ -202,9 +249,13 @@ int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_write_byte(client, value);
+	pmbus_wait(client);
+	rv = i2c_smbus_write_byte(client, value);
+	pmbus_update_ts(client, true);
+
+	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_write_byte, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_write_byte, "PMBUS");
 
 /*
  * _pmbus_write_byte() is similar to pmbus_write_byte(), but checks if
@@ -233,9 +284,13 @@ int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg,
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_write_word_data(client, reg, word);
+	pmbus_wait(client);
+	rv = i2c_smbus_write_word_data(client, reg, word);
+	pmbus_update_ts(client, true);
+
+	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_write_word_data, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_write_word_data, "PMBUS");
 
 
 static int pmbus_write_virt_reg(struct i2c_client *client, int page, int reg,
@@ -341,7 +396,7 @@ int pmbus_update_fan(struct i2c_client *client, int page, int id,
 	return _pmbus_write_word_data(client, page,
 				      pmbus_fan_command_registers[id], command);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_update_fan, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_update_fan, "PMBUS");
 
 int pmbus_read_word_data(struct i2c_client *client, int page, int phase, u8 reg)
 {
@@ -351,9 +406,13 @@ int pmbus_read_word_data(struct i2c_client *client, int page, int phase, u8 reg)
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_read_word_data(client, reg);
+	pmbus_wait(client);
+	rv = i2c_smbus_read_word_data(client, reg);
+	pmbus_update_ts(client, false);
+
+	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_read_word_data, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_read_word_data, "PMBUS");
 
 static int pmbus_read_virt_reg(struct i2c_client *client, int page, int reg)
 {
@@ -410,9 +469,13 @@ int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg)
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_read_byte_data(client, reg);
+	pmbus_wait(client);
+	rv = i2c_smbus_read_byte_data(client, reg);
+	pmbus_update_ts(client, false);
+
+	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_read_byte_data, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_read_byte_data, "PMBUS");
 
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg, u8 value)
 {
@@ -422,9 +485,13 @@ int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg, u8 value)
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_write_byte_data(client, reg, value);
+	pmbus_wait(client);
+	rv = i2c_smbus_write_byte_data(client, reg, value);
+	pmbus_update_ts(client, true);
+
+	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_write_byte_data, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_write_byte_data, "PMBUS");
 
 int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 			   u8 mask, u8 value)
@@ -443,7 +510,7 @@ int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 
 	return rv;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_update_byte_data, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_update_byte_data, "PMBUS");
 
 static int pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
 				 char *data_buf)
@@ -454,7 +521,11 @@ static int pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
 	if (rv < 0)
 		return rv;
 
-	return i2c_smbus_read_block_data(client, reg, data_buf);
+	pmbus_wait(client);
+	rv = i2c_smbus_read_block_data(client, reg, data_buf);
+	pmbus_update_ts(client, false);
+
+	return rv;
 }
 
 static struct pmbus_sensor *pmbus_find_sensor(struct pmbus_data *data, int page,
@@ -510,14 +581,14 @@ int pmbus_get_fan_rate_device(struct i2c_client *client, int page, int id,
 {
 	return pmbus_get_fan_rate(client, page, id, mode, false);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_get_fan_rate_device, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_get_fan_rate_device, "PMBUS");
 
 int pmbus_get_fan_rate_cached(struct i2c_client *client, int page, int id,
 			      enum pmbus_fan_mode mode)
 {
 	return pmbus_get_fan_rate(client, page, id, mode, true);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_get_fan_rate_cached, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_get_fan_rate_cached, "PMBUS");
 
 static void pmbus_clear_fault_page(struct i2c_client *client, int page)
 {
@@ -532,7 +603,7 @@ void pmbus_clear_faults(struct i2c_client *client)
 	for (i = 0; i < data->info->pages; i++)
 		pmbus_clear_fault_page(client, i);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_clear_faults, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_clear_faults, "PMBUS");
 
 static int pmbus_check_status_cml(struct i2c_client *client)
 {
@@ -587,13 +658,13 @@ bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg)
 {
 	return pmbus_check_register(client, _pmbus_read_byte_data, page, reg);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_check_byte_register, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_check_byte_register, "PMBUS");
 
 bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 {
 	return pmbus_check_register(client, __pmbus_read_word_data, page, reg);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_check_word_register, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_check_word_register, "PMBUS");
 
 static bool __maybe_unused pmbus_check_block_register(struct i2c_client *client,
 						      int page, int reg)
@@ -617,7 +688,7 @@ const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client *client)
 
 	return data->info;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_get_driver_info, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_get_driver_info, "PMBUS");
 
 static int pmbus_get_status(struct i2c_client *client, int page, int reg)
 {
@@ -1095,9 +1166,14 @@ static int pmbus_get_boolean(struct i2c_client *client, struct pmbus_boolean *b,
 
 	regval = status & mask;
 	if (regval) {
-		ret = _pmbus_write_byte_data(client, page, reg, regval);
-		if (ret)
-			goto unlock;
+		if (data->revision >= PMBUS_REV_12) {
+			ret = _pmbus_write_byte_data(client, page, reg, regval);
+			if (ret)
+				goto unlock;
+		} else {
+			pmbus_clear_fault_page(client, page);
+		}
+
 	}
 	if (s1 && s2) {
 		s64 v1, v2;
@@ -2450,9 +2526,11 @@ static int pmbus_read_coefficients(struct i2c_client *client,
 	data.block[1] = attr->reg;
 	data.block[2] = 0x01;
 
+	pmbus_wait(client);
 	rv = i2c_smbus_xfer(client->adapter, client->addr, client->flags,
 			    I2C_SMBUS_WRITE, PMBUS_COEFFICIENTS,
 			    I2C_SMBUS_BLOCK_PROC_CALL, &data);
+	pmbus_update_ts(client, true);
 
 	if (rv < 0)
 		return rv;
@@ -2590,6 +2668,56 @@ static void pmbus_remove_pec(void *dev)
 	device_remove_file(dev, &dev_attr_pec);
 }
 
+static void pmbus_init_wp(struct i2c_client *client, struct pmbus_data *data)
+{
+	int ret;
+
+	switch (wp) {
+	case 0:
+		_pmbus_write_byte_data(client, -1,
+				       PMBUS_WRITE_PROTECT, 0);
+		break;
+
+	case 1:
+		_pmbus_write_byte_data(client, -1,
+				       PMBUS_WRITE_PROTECT, PB_WP_VOUT);
+		break;
+
+	case 2:
+		_pmbus_write_byte_data(client, -1,
+				       PMBUS_WRITE_PROTECT, PB_WP_OP);
+		break;
+
+	case 3:
+		_pmbus_write_byte_data(client, -1,
+				       PMBUS_WRITE_PROTECT, PB_WP_ALL);
+		break;
+
+	default:
+		/* Ignore the other values */
+		break;
+	}
+
+	ret = _pmbus_read_byte_data(client, -1, PMBUS_WRITE_PROTECT);
+	if (ret < 0)
+		return;
+
+	switch (ret & PB_WP_ANY) {
+	case PB_WP_ALL:
+		data->flags |= PMBUS_OP_PROTECTED;
+		fallthrough;
+	case PB_WP_OP:
+		data->flags |= PMBUS_VOUT_PROTECTED;
+		fallthrough;
+	case PB_WP_VOUT:
+		data->flags |= PMBUS_WRITE_PROTECTED | PMBUS_SKIP_STATUS_CHECK;
+		break;
+
+	default:
+		break;
+	}
+}
+
 static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			     struct pmbus_driver_info *info)
 {
@@ -2604,7 +2732,10 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 
 	/* Enable PEC if the controller and bus supports it */
 	if (!(data->flags & PMBUS_NO_CAPABILITY)) {
+		pmbus_wait(client);
 		ret = i2c_smbus_read_byte_data(client, PMBUS_CAPABILITY);
+		pmbus_update_ts(client, false);
+
 		if (ret >= 0 && (ret & PB_CAPABILITY_ERROR_CHECK)) {
 			if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_PEC))
 				client->flags |= I2C_CLIENT_PEC;
@@ -2617,10 +2748,16 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	 * Bail out if both registers are not supported.
 	 */
 	data->read_status = pmbus_read_status_word;
+	pmbus_wait(client);
 	ret = i2c_smbus_read_word_data(client, PMBUS_STATUS_WORD);
+	pmbus_update_ts(client, false);
+
 	if (ret < 0 || ret == 0xffff) {
 		data->read_status = pmbus_read_status_byte;
+		pmbus_wait(client);
 		ret = i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE);
+		pmbus_update_ts(client, false);
+
 		if (ret < 0 || ret == 0xff) {
 			dev_err(dev, "PMBus status register not found\n");
 			return -ENODEV;
@@ -2634,11 +2771,12 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 	 * faults, and we should not try it. Also, in that case, writes into
 	 * limit registers need to be disabled.
 	 */
-	if (!(data->flags & PMBUS_NO_WRITE_PROTECT)) {
-		ret = i2c_smbus_read_byte_data(client, PMBUS_WRITE_PROTECT);
-		if (ret > 0 && (ret & PB_WP_ANY))
-			data->flags |= PMBUS_WRITE_PROTECTED | PMBUS_SKIP_STATUS_CHECK;
-	}
+	if (!(data->flags & PMBUS_NO_WRITE_PROTECT))
+		pmbus_init_wp(client, data);
+
+	ret = i2c_smbus_read_byte_data(client, PMBUS_REVISION);
+	if (ret >= 0)
+		data->revision = ret;
 
 	if (data->info->pages)
 		pmbus_clear_faults(client);
@@ -3094,7 +3232,11 @@ static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
 {
 	struct device *dev = rdev_get_dev(rdev);
 	struct i2c_client *client = to_i2c_client(dev->parent);
+	struct pmbus_data *data = i2c_get_clientdata(client);
 	int val, low, high;
+
+	if (data->flags & PMBUS_VOUT_PROTECTED)
+		return 0;
 
 	if (selector >= rdev->desc->n_voltages ||
 	    selector < rdev->desc->linear_min_sel)
@@ -3128,7 +3270,23 @@ const struct regulator_ops pmbus_regulator_ops = {
 	.set_voltage = pmbus_regulator_set_voltage,
 	.list_voltage = pmbus_regulator_list_voltage,
 };
-EXPORT_SYMBOL_NS_GPL(pmbus_regulator_ops, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_regulator_ops, "PMBUS");
+
+int pmbus_regulator_init_cb(struct regulator_dev *rdev,
+			    struct regulator_config *config)
+{
+	struct pmbus_data *data = config->driver_data;
+	struct regulation_constraints *constraints = rdev->constraints;
+
+	if (data->flags & PMBUS_OP_PROTECTED)
+		constraints->valid_ops_mask &= ~REGULATOR_CHANGE_STATUS;
+
+	if (data->flags & PMBUS_VOUT_PROTECTED)
+		constraints->valid_ops_mask &= ~REGULATOR_CHANGE_VOLTAGE;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(pmbus_regulator_init_cb, "PMBUS");
 
 static int pmbus_regulator_register(struct pmbus_data *data)
 {
@@ -3188,7 +3346,17 @@ static int pmbus_regulator_notify(struct pmbus_data *data, int page, int event)
 
 static int pmbus_write_smbalert_mask(struct i2c_client *client, u8 page, u8 reg, u8 val)
 {
-	return _pmbus_write_word_data(client, page, PMBUS_SMBALERT_MASK, reg | (val << 8));
+	int ret;
+
+	ret = _pmbus_write_word_data(client, page, PMBUS_SMBALERT_MASK, reg | (val << 8));
+
+	/*
+	 * Clear fault systematically in case writing PMBUS_SMBALERT_MASK
+	 * is not supported by the chip.
+	 */
+	pmbus_clear_fault_page(client, page);
+
+	return ret;
 }
 
 static irqreturn_t pmbus_fault_handler(int irq, void *pdata)
@@ -3366,11 +3534,11 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 
 	/*
 	 * Allocate the max possible entries we need.
-	 * 6 entries device-specific
+	 * 7 entries device-specific
 	 * 10 entries page-specific
 	 */
 	entries = devm_kcalloc(data->dev,
-			       6 + data->info->pages * 10, sizeof(*entries),
+			       7 + data->info->pages * 10, sizeof(*entries),
 			       GFP_KERNEL);
 	if (!entries)
 		return -ENOMEM;
@@ -3383,6 +3551,15 @@ static int pmbus_init_debugfs(struct i2c_client *client,
 	 * assume that values of the following registers are the same for all
 	 * pages and report values only for page 0.
 	 */
+	if (pmbus_check_byte_register(client, 0, PMBUS_REVISION)) {
+		entries[idx].client = client;
+		entries[idx].page = 0;
+		entries[idx].reg = PMBUS_REVISION;
+		debugfs_create_file("revision", 0444, data->debugfs,
+				    &entries[idx++],
+				    &pmbus_debugfs_ops);
+	}
+
 	if (pmbus_check_block_register(client, 0, PMBUS_MFR_ID)) {
 		entries[idx].client = client;
 		entries[idx].page = 0;
@@ -3644,7 +3821,7 @@ int pmbus_do_probe(struct i2c_client *client, struct pmbus_driver_info *info)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_do_probe, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_do_probe, "PMBUS");
 
 struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client)
 {
@@ -3652,7 +3829,7 @@ struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client)
 
 	return data->debugfs;
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_get_debugfs_dir, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_get_debugfs_dir, "PMBUS");
 
 int pmbus_lock_interruptible(struct i2c_client *client)
 {
@@ -3660,7 +3837,7 @@ int pmbus_lock_interruptible(struct i2c_client *client)
 
 	return mutex_lock_interruptible(&data->update_lock);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_lock_interruptible, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_lock_interruptible, "PMBUS");
 
 void pmbus_unlock(struct i2c_client *client)
 {
@@ -3668,7 +3845,7 @@ void pmbus_unlock(struct i2c_client *client)
 
 	mutex_unlock(&data->update_lock);
 }
-EXPORT_SYMBOL_NS_GPL(pmbus_unlock, PMBUS);
+EXPORT_SYMBOL_NS_GPL(pmbus_unlock, "PMBUS");
 
 static int __init pmbus_core_init(void)
 {

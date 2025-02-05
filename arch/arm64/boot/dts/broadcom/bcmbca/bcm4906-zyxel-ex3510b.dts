@@ -1,0 +1,196 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+#include "bcm4906.dtsi"
+
+/ {
+	compatible = "zyxel,ex3510b", "brcm,bcm4906", "brcm,bcm4908", "brcm,bcmbca";
+	model = "Zyxel EX3510-B";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x20000000>;
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		poll-interval = <100>;
+
+		key-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		};
+
+		key-reset {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 23 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&leds {
+	pinctrl-0 = <&pins_led_0_a>, <&pins_led_2_a>, <&pins_led_3_a>,
+		    <&pins_led_4_a>, <&pins_led_10_a>, <&pins_led_12_a>,
+		    <&pins_led_14_a>, <&pins_led_15_a>, <&pins_led_21_a>;
+	pinctrl-names = "default";
+
+	led@0 {
+		reg = <0x0>;
+		function = LED_FUNCTION_POWER;
+		color = <LED_COLOR_ID_RED>;
+	};
+
+	led@2 {
+		reg = <0x2>;
+		function = LED_FUNCTION_WAN_ONLINE;
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@3 {
+		reg = <0x3>;
+		function = LED_FUNCTION_WAN_ONLINE;
+		color = <LED_COLOR_ID_RED>;
+	};
+
+	led@4 {
+		reg = <0x4>;
+		function = LED_FUNCTION_USB;
+		color = <LED_COLOR_ID_GREEN>;
+		trigger-sources = <&ohci_port1>, <&ohci_port2>,
+				  <&ehci_port1>, <&ehci_port2>,
+				  <&xhci_port1>, <&xhci_port2>;
+		linux,default-trigger = "usbport";
+	};
+
+	led@a {
+		reg = <0xa>;
+		function = LED_FUNCTION_POWER;
+		color = <LED_COLOR_ID_GREEN>;
+		linux,default-trigger = "default-on";
+	};
+
+	led@c {
+		reg = <0xc>;
+		function = LED_FUNCTION_LAN;
+		color = <LED_COLOR_ID_GREEN>;
+		active-low;
+	};
+
+	led@e {
+		reg = <0xe>;
+		function = LED_FUNCTION_WPS;
+		color = <LED_COLOR_ID_GREEN>;
+		active-low;
+	};
+
+	led@f {
+		reg = <0xf>;
+		function = LED_FUNCTION_WPS;
+		color = <LED_COLOR_ID_RED>;
+		active-low;
+	};
+
+	led@15 {
+		reg = <0x15>;
+		function = LED_FUNCTION_WAN;
+		color = <LED_COLOR_ID_GREEN>;
+		active-low;
+	};
+};
+
+&enet {
+	nvmem-cells = <&base_mac_addr>;
+	nvmem-cell-names = "mac-address";
+};
+
+&usb_phy {
+	brcm,ioc = <1>;
+	brcm,ipp = <1>;
+	status = "okay";
+};
+
+&ehci {
+	status = "okay";
+};
+
+&ohci {
+	status = "okay";
+};
+
+&xhci {
+	status = "okay";
+};
+
+&ports {
+	port@0 {
+		label = "lan1";
+	};
+
+	port@1 {
+		label = "lan2";
+	};
+
+	port@2 {
+		label = "lan3";
+	};
+
+	port@3 {
+		label = "lan4";
+	};
+
+	port@7 {
+		reg = <7>;
+		phy-mode = "internal";
+		phy-handle = <&phy12>;
+		label = "wan";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+};
+
+&nandcs {
+	brcm,nand-oob-sector-size = <27>;
+	nand-ecc-strength = <8>;
+	nand-ecc-step-size = <512>;
+	nand-on-flash-bbt;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	partitions {
+		compatible = "brcm,bcm4908-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			compatible = "nvmem-cells";
+			label = "cferom";
+			reg = <0x0 0x100000>;
+			read-only;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			base_mac_addr: mac@106a0 {
+				reg = <0x106a0 0x6>;
+			};
+		};
+
+		partition@100000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x100000 0x5f80000>;
+		};
+
+		partition@6080000 {
+			compatible = "brcm,bcm4908-firmware";
+			reg = <0x6080000 0x5f80000>;
+		};
+	};
+};

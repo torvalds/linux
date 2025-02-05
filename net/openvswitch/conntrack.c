@@ -168,8 +168,13 @@ static u32 ovs_ct_get_mark(const struct nf_conn *ct)
 static void ovs_ct_get_labels(const struct nf_conn *ct,
 			      struct ovs_key_ct_labels *labels)
 {
-	struct nf_conn_labels *cl = ct ? nf_ct_labels_find(ct) : NULL;
+	struct nf_conn_labels *cl = NULL;
 
+	if (ct) {
+		if (ct->master && !nf_ct_is_confirmed(ct))
+			ct = ct->master;
+		cl = nf_ct_labels_find(ct);
+	}
 	if (cl)
 		memcpy(labels, cl->bits, OVS_CT_LABELS_LEN);
 	else
@@ -674,6 +679,8 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 		action |= BIT(NF_NAT_MANIP_DST);
 
 	err = nf_ct_nat(skb, ct, ctinfo, &action, &info->range, info->commit);
+	if (err != NF_ACCEPT)
+		return err;
 
 	if (action & BIT(NF_NAT_MANIP_SRC))
 		ovs_nat_update_key(key, skb, NF_NAT_MANIP_SRC);
@@ -691,6 +698,22 @@ static int ovs_ct_nat(struct net *net, struct sw_flow_key *key,
 	return NF_ACCEPT;
 }
 #endif
+
+static int verdict_to_errno(unsigned int verdict)
+{
+	switch (verdict & NF_VERDICT_MASK) {
+	case NF_ACCEPT:
+		return 0;
+	case NF_DROP:
+		return -EINVAL;
+	case NF_STOLEN:
+		return -EINPROGRESS;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
 
 /* Pass 'skb' through conntrack in 'net', using zone configured in 'info', if
  * not done already.  Update key with new CT state after passing the packet
@@ -730,7 +753,7 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 
 		err = nf_conntrack_in(skb, &state);
 		if (err != NF_ACCEPT)
-			return -ENOENT;
+			return verdict_to_errno(err);
 
 		/* Clear CT state NAT flags to mark that we have not yet done
 		 * NAT after the nf_conntrack_in() call.  We can actually clear
@@ -757,9 +780,12 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 * the key->ct_state.
 		 */
 		if (info->nat && !(key->ct_state & OVS_CS_F_NAT_MASK) &&
-		    (nf_ct_is_confirmed(ct) || info->commit) &&
-		    ovs_ct_nat(net, key, info, skb, ct, ctinfo) != NF_ACCEPT) {
-			return -EINVAL;
+		    (nf_ct_is_confirmed(ct) || info->commit)) {
+			int err = ovs_ct_nat(net, key, info, skb, ct, ctinfo);
+
+			err = verdict_to_errno(err);
+			if (err)
+				return err;
 		}
 
 		/* Userspace may decide to perform a ct lookup without a helper
@@ -790,9 +816,12 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 		 * - When committing an unconfirmed connection.
 		 */
 		if ((nf_ct_is_confirmed(ct) ? !cached || add_helper :
-					      info->commit) &&
-		    nf_ct_helper(skb, ct, ctinfo, info->family) != NF_ACCEPT) {
-			return -EINVAL;
+					      info->commit)) {
+			int err = nf_ct_helper(skb, ct, ctinfo, info->family);
+
+			err = verdict_to_errno(err);
+			if (err)
+				return err;
 		}
 
 		if (nf_ct_protonum(ct) == IPPROTO_TCP &&
@@ -996,10 +1025,9 @@ static int ovs_ct_commit(struct net *net, struct sw_flow_key *key,
 	/* This will take care of sending queued events even if the connection
 	 * is already confirmed.
 	 */
-	if (nf_conntrack_confirm(skb) != NF_ACCEPT)
-		return -EINVAL;
+	err = nf_conntrack_confirm(skb);
 
-	return 0;
+	return verdict_to_errno(err);
 }
 
 /* Returns 0 on success, -EINPROGRESS if 'skb' is stolen, or other nonzero
@@ -1033,6 +1061,10 @@ int ovs_ct_execute(struct net *net, struct sk_buff *skb,
 		err = ovs_ct_commit(net, key, info, skb);
 	else
 		err = ovs_ct_lookup(net, key, info, skb);
+
+	/* conntrack core returned NF_STOLEN */
+	if (err == -EINPROGRESS)
+		return err;
 
 	skb_push_rcsum(skb, nh_ofs);
 	if (err)
@@ -1336,11 +1368,8 @@ bool ovs_ct_verify(struct net *net, enum ovs_key_attr attr)
 	    attr == OVS_KEY_ATTR_CT_MARK)
 		return true;
 	if (IS_ENABLED(CONFIG_NF_CONNTRACK_LABELS) &&
-	    attr == OVS_KEY_ATTR_CT_LABELS) {
-		struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
-
-		return ovs_net->xt_label;
-	}
+	    attr == OVS_KEY_ATTR_CT_LABELS)
+		return true;
 
 	return false;
 }
@@ -1349,6 +1378,7 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 		       const struct sw_flow_key *key,
 		       struct sw_flow_actions **sfa,  bool log)
 {
+	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
 	struct ovs_conntrack_info ct_info;
 	const char *helper = NULL;
 	u16 family;
@@ -1375,6 +1405,12 @@ int ovs_ct_copy_action(struct net *net, const struct nlattr *attr,
 	if (!ct_info.ct) {
 		OVS_NLERR(log, "Failed to allocate conntrack template");
 		return -ENOMEM;
+	}
+
+	if (nf_connlabels_get(net, n_bits - 1)) {
+		nf_ct_tmpl_free(ct_info.ct);
+		OVS_NLERR(log, "Failed to set connlabel length");
+		return -EOPNOTSUPP;
 	}
 
 	if (ct_info.timeout[0]) {
@@ -1545,6 +1581,7 @@ static void __ovs_ct_free_action(struct ovs_conntrack_info *ct_info)
 	if (ct_info->ct) {
 		if (ct_info->timeout[0])
 			nf_ct_destroy_timeout(ct_info->ct);
+		nf_connlabels_put(nf_ct_net(ct_info->ct));
 		nf_ct_tmpl_free(ct_info->ct);
 	}
 }
@@ -1571,8 +1608,7 @@ static int ovs_ct_limit_init(struct net *net, struct ovs_net *ovs_net)
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&ovs_net->ct_limit_info->limits[i]);
 
-	ovs_net->ct_limit_info->data =
-		nf_conncount_init(net, NFPROTO_INET, sizeof(u32));
+	ovs_net->ct_limit_info->data = nf_conncount_init(net, sizeof(u32));
 
 	if (IS_ERR(ovs_net->ct_limit_info->data)) {
 		err = PTR_ERR(ovs_net->ct_limit_info->data);
@@ -1589,7 +1625,7 @@ static void ovs_ct_limit_exit(struct net *net, struct ovs_net *ovs_net)
 	const struct ovs_ct_limit_info *info = ovs_net->ct_limit_info;
 	int i;
 
-	nf_conncount_destroy(net, NFPROTO_INET, info->data);
+	nf_conncount_destroy(net, info->data);
 	for (i = 0; i < CT_LIMIT_HASH_BUCKETS; ++i) {
 		struct hlist_head *head = &info->limits[i];
 		struct ovs_ct_limit *ct_limit;
@@ -1970,17 +2006,9 @@ struct genl_family dp_ct_limit_genl_family __ro_after_init = {
 
 int ovs_ct_init(struct net *net)
 {
-	unsigned int n_bits = sizeof(struct ovs_key_ct_labels) * BITS_PER_BYTE;
+#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-	if (nf_connlabels_get(net, n_bits - 1)) {
-		ovs_net->xt_label = false;
-		OVS_NLERR(true, "Failed to set connlabel length");
-	} else {
-		ovs_net->xt_label = true;
-	}
-
-#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	return ovs_ct_limit_init(net, ovs_net);
 #else
 	return 0;
@@ -1989,12 +2017,9 @@ int ovs_ct_init(struct net *net)
 
 void ovs_ct_exit(struct net *net)
 {
+#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	struct ovs_net *ovs_net = net_generic(net, ovs_net_id);
 
-#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
 	ovs_ct_limit_exit(net, ovs_net);
 #endif
-
-	if (ovs_net->xt_label)
-		nf_connlabels_put(net);
 }

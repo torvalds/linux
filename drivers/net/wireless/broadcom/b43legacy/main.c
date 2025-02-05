@@ -27,7 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <net/dst.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "b43legacy.h"
 #include "main.h"
@@ -3485,7 +3485,7 @@ out_mutex_unlock:
 	return err;
 }
 
-static void b43legacy_op_stop(struct ieee80211_hw *hw)
+static void b43legacy_op_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;

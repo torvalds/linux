@@ -204,10 +204,6 @@ static const struct of_device_id ohci_hcd_ppc_of_match[] = {
 #ifdef CONFIG_USB_OHCI_HCD_PPC_OF_LE
 	{
 		.name = "usb",
-		.compatible = "ohci-littledian",
-	},
-	{
-		.name = "usb",
 		.compatible = "ohci-le",
 	},
 #endif
@@ -223,7 +219,7 @@ MODULE_DEVICE_TABLE(of, ohci_hcd_ppc_of_match);
 
 static struct platform_driver ohci_hcd_ppc_of_driver = {
 	.probe		= ohci_hcd_ppc_of_probe,
-	.remove_new	= ohci_hcd_ppc_of_remove,
+	.remove		= ohci_hcd_ppc_of_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "ppc-of-ohci",

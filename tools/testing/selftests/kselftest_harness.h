@@ -281,6 +281,32 @@
  * A bare "return;" statement may be used to return early.
  */
 #define FIXTURE_TEARDOWN(fixture_name) \
+	static const bool fixture_name##_teardown_parent; \
+	__FIXTURE_TEARDOWN(fixture_name)
+
+/**
+ * FIXTURE_TEARDOWN_PARENT()
+ * *_metadata* is included so that EXPECT_*, ASSERT_* etc. work correctly.
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_TEARDOWN_PARENT(fixture_name) { implementation }
+ *
+ * Same as FIXTURE_TEARDOWN() but run this code in a parent process.  This
+ * enables the test process to drop its privileges without impacting the
+ * related FIXTURE_TEARDOWN_PARENT() (e.g. to remove files from a directory
+ * where write access was dropped).
+ *
+ * To make it possible for the parent process to use *self*, share (MAP_SHARED)
+ * the fixture data between all forked processes.
+ */
+#define FIXTURE_TEARDOWN_PARENT(fixture_name) \
+	static const bool fixture_name##_teardown_parent = true; \
+	__FIXTURE_TEARDOWN(fixture_name)
+
+#define __FIXTURE_TEARDOWN(fixture_name) \
 	void fixture_name##_teardown( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
@@ -325,7 +351,7 @@
  * variant.
  */
 #define FIXTURE_VARIANT_ADD(fixture_name, variant_name) \
-	extern FIXTURE_VARIANT(fixture_name) \
+	extern const FIXTURE_VARIANT(fixture_name) \
 		_##fixture_name##_##variant_name##_variant; \
 	static struct __fixture_variant_metadata \
 		_##fixture_name##_##variant_name##_object = \
@@ -337,7 +363,7 @@
 		__register_fixture_variant(&_##fixture_name##_fixture_object, \
 			&_##fixture_name##_##variant_name##_object);	\
 	} \
-	FIXTURE_VARIANT(fixture_name) \
+	const FIXTURE_VARIANT(fixture_name) \
 		_##fixture_name##_##variant_name##_variant =
 
 /**
@@ -355,10 +381,11 @@
  * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
  *
- * The @test_name code is run in a separate process sharing the same memory
- * (i.e. vfork), which means that the test process can update its privileges
- * without impacting the related FIXTURE_TEARDOWN() (e.g. to remove files from
- * a directory where write access was dropped).
+ * The _metadata object is shared (MAP_SHARED) with all the potential forked
+ * processes, which enables them to use EXCEPT_*() and ASSERT_*().
+ *
+ * The *self* object is only shared with the potential forked processes if
+ * FIXTURE_TEARDOWN_PARENT() is used instead of FIXTURE_TEARDOWN().
  */
 #define TEST_F(fixture_name, test_name) \
 	__TEST_F_IMPL(fixture_name, test_name, -1, TEST_TIMEOUT_DEFAULT)
@@ -379,53 +406,71 @@
 		struct __fixture_variant_metadata *variant) \
 	{ \
 		/* fixture data is alloced, setup, and torn down per call. */ \
-		FIXTURE_DATA(fixture_name) self; \
+		FIXTURE_DATA(fixture_name) self_private, *self = NULL; \
 		pid_t child = 1; \
 		int status = 0; \
-		bool jmp = false; \
-		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
+		/* Makes sure there is only one teardown, even when child forks again. */ \
+		bool *teardown = mmap(NULL, sizeof(*teardown), \
+			PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+		*teardown = false; \
+		if (sizeof(*self) > 0) { \
+			if (fixture_name##_teardown_parent) { \
+				self = mmap(NULL, sizeof(*self), PROT_READ | PROT_WRITE, \
+					MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+			} else { \
+				memset(&self_private, 0, sizeof(self_private)); \
+				self = &self_private; \
+			} \
+		} \
 		if (setjmp(_metadata->env) == 0) { \
-			/* Use the same _metadata. */ \
-			child = vfork(); \
+			/* _metadata and potentially self are shared with all forks. */ \
+			child = fork(); \
 			if (child == 0) { \
-				fixture_name##_setup(_metadata, &self, variant->data); \
+				fixture_name##_setup(_metadata, self, variant->data); \
 				/* Let setup failure terminate early. */ \
 				if (_metadata->exit_code) \
 					_exit(0); \
 				_metadata->setup_completed = true; \
-				fixture_name##_##test_name(_metadata, &self, variant->data); \
+				fixture_name##_##test_name(_metadata, self, variant->data); \
 			} else if (child < 0 || child != waitpid(child, &status, 0)) { \
 				ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
 				_metadata->exit_code = KSFT_FAIL; \
 			} \
 		} \
-		else \
-			jmp = true; \
 		if (child == 0) { \
-			if (_metadata->setup_completed && !_metadata->teardown_parent && !jmp) \
-				fixture_name##_teardown(_metadata, &self, variant->data); \
+			if (_metadata->setup_completed && !fixture_name##_teardown_parent && \
+					__sync_bool_compare_and_swap(teardown, false, true)) \
+				fixture_name##_teardown(_metadata, self, variant->data); \
 			_exit(0); \
 		} \
-		if (_metadata->setup_completed && _metadata->teardown_parent) \
-			fixture_name##_teardown(_metadata, &self, variant->data); \
-		if (!WIFEXITED(status) && WIFSIGNALED(status)) \
+		if (_metadata->setup_completed && fixture_name##_teardown_parent && \
+				__sync_bool_compare_and_swap(teardown, false, true)) \
+			fixture_name##_teardown(_metadata, self, variant->data); \
+		munmap(teardown, sizeof(*teardown)); \
+		if (self && fixture_name##_teardown_parent) \
+			munmap(self, sizeof(*self)); \
+		if (WIFEXITED(status)) { \
+			if (WEXITSTATUS(status)) \
+				_metadata->exit_code = WEXITSTATUS(status); \
+		} else if (WIFSIGNALED(status)) { \
 			/* Forward signal to __wait_for_test(). */ \
 			kill(getpid(), WTERMSIG(status)); \
+		} \
 		__test_check_assert(_metadata); \
 	} \
-	static struct __test_metadata \
-		      _##fixture_name##_##test_name##_object = { \
-		.name = #test_name, \
-		.fn = &wrapper_##fixture_name##_##test_name, \
-		.fixture = &_##fixture_name##_fixture_object, \
-		.termsig = signal, \
-		.timeout = tmout, \
-		.teardown_parent = false, \
-	 }; \
+	static struct __test_metadata *_##fixture_name##_##test_name##_object; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
 	{ \
-		__register_test(&_##fixture_name##_##test_name##_object); \
+		struct __test_metadata *object = mmap(NULL, sizeof(*object), \
+			PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0); \
+		object->name = #test_name; \
+		object->fn = &wrapper_##fixture_name##_##test_name; \
+		object->fixture = &_##fixture_name##_fixture_object; \
+		object->termsig = signal; \
+		object->timeout = tmout; \
+		_##fixture_name##_##test_name##_object = object; \
+		__register_test(object); \
 	} \
 	static void fixture_name##_##test_name( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
@@ -443,12 +488,6 @@
  * Use once to append a main() to the test file.
  */
 #define TEST_HARNESS_MAIN \
-	static void __attribute__((constructor)) \
-	__constructor_order_last(void) \
-	{ \
-		if (!__constructor_order) \
-			__constructor_order = _CONSTRUCTOR_ORDER_BACKWARD; \
-	} \
 	int main(int argc, char **argv) { \
 		return test_harness_run(argc, argv); \
 	}
@@ -721,33 +760,33 @@
 		/* Report with actual signedness to avoid weird output. */ \
 		switch (is_signed_type(__exp) * 2 + is_signed_type(__seen)) { \
 		case 0: { \
-			unsigned long long __exp_print = (uintptr_t)__exp; \
-			unsigned long long __seen_print = (uintptr_t)__seen; \
-			__TH_LOG("Expected %s (%llu) %s %s (%llu)", \
+			uintmax_t __exp_print = (uintmax_t)__exp; \
+			uintmax_t __seen_print = (uintmax_t)__seen; \
+			__TH_LOG("Expected %s (%ju) %s %s (%ju)", \
 				 _expected_str, __exp_print, #_t, \
 				 _seen_str, __seen_print); \
 			break; \
 			} \
 		case 1: { \
-			unsigned long long __exp_print = (uintptr_t)__exp; \
-			long long __seen_print = (intptr_t)__seen; \
-			__TH_LOG("Expected %s (%llu) %s %s (%lld)", \
+			uintmax_t __exp_print = (uintmax_t)__exp; \
+			intmax_t  __seen_print = (intmax_t)__seen; \
+			__TH_LOG("Expected %s (%ju) %s %s (%jd)", \
 				 _expected_str, __exp_print, #_t, \
 				 _seen_str, __seen_print); \
 			break; \
 			} \
 		case 2: { \
-			long long __exp_print = (intptr_t)__exp; \
-			unsigned long long __seen_print = (uintptr_t)__seen; \
-			__TH_LOG("Expected %s (%lld) %s %s (%llu)", \
+			intmax_t  __exp_print = (intmax_t)__exp; \
+			uintmax_t __seen_print = (uintmax_t)__seen; \
+			__TH_LOG("Expected %s (%jd) %s %s (%ju)", \
 				 _expected_str, __exp_print, #_t, \
 				 _seen_str, __seen_print); \
 			break; \
 			} \
 		case 3: { \
-			long long __exp_print = (intptr_t)__exp; \
-			long long __seen_print = (intptr_t)__seen; \
-			__TH_LOG("Expected %s (%lld) %s %s (%lld)", \
+			intmax_t  __exp_print = (intmax_t)__exp; \
+			intmax_t  __seen_print = (intmax_t)__seen; \
+			__TH_LOG("Expected %s (%jd) %s %s (%jd)", \
 				 _expected_str, __exp_print, #_t, \
 				 _seen_str, __seen_print); \
 			break; \
@@ -779,7 +818,7 @@
 		item->prev = item; \
 		return;	\
 	} \
-	if (__constructor_order == _CONSTRUCTOR_ORDER_FORWARD) { \
+	if (__constructor_order_forward) { \
 		item->next = NULL; \
 		item->prev = head->prev; \
 		item->prev->next = item; \
@@ -833,19 +872,17 @@ struct __test_xfail {
 	{ \
 		.fixture = &_##fixture_name##_fixture_object, \
 		.variant = &_##fixture_name##_##variant_name##_object, \
-		.test = &_##fixture_name##_##test_name##_object, \
 	}; \
 	static void __attribute__((constructor)) \
 		_register_##fixture_name##_##variant_name##_##test_name##_xfail(void) \
 	{ \
+		_##fixture_name##_##variant_name##_##test_name##_xfail.test = \
+			_##fixture_name##_##test_name##_object; \
 		__register_xfail(&_##fixture_name##_##variant_name##_##test_name##_xfail); \
 	}
 
 static struct __fixture_metadata *__fixture_list = &_fixture_global;
-static int __constructor_order;
-
-#define _CONSTRUCTOR_ORDER_FORWARD   1
-#define _CONSTRUCTOR_ORDER_BACKWARD -1
+static bool __constructor_order_forward;
 
 static inline void __register_fixture(struct __fixture_metadata *f)
 {
@@ -880,7 +917,6 @@ struct __test_metadata {
 	bool timed_out;	/* did this test timeout instead of exiting? */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
-	bool teardown_parent; /* run teardown in a parent process */
 	jmp_buf env;	/* for exiting out of test early */
 	struct __test_results *results;
 	struct __test_metadata *prev, *next;
@@ -897,7 +933,7 @@ static inline bool __test_passed(struct __test_metadata *metadata)
  * list so tests are run in source declaration order.
  * https://gcc.gnu.org/onlinedocs/gccint/Initialization.html
  * However, it seems not all toolchains do this correctly, so use
- * __constructor_order to detect which direction is called first
+ * __constructor_order_foward to detect which direction is called first
  * and adjust list building logic to get things running in the right
  * direction.
  */
@@ -958,7 +994,14 @@ void __wait_for_test(struct __test_metadata *t)
 		.sa_flags = SA_SIGINFO,
 	};
 	struct sigaction saved_action;
-	int status;
+	/*
+	 * Sets status so that WIFEXITED(status) returns true and
+	 * WEXITSTATUS(status) returns KSFT_FAIL.  This safe default value
+	 * should never be evaluated because of the waitpid(2) check and
+	 * SIGALRM handling.
+	 */
+	int status = KSFT_FAIL << 8;
+	int child;
 
 	if (sigaction(SIGALRM, &action, &saved_action)) {
 		t->exit_code = KSFT_FAIL;
@@ -970,7 +1013,15 @@ void __wait_for_test(struct __test_metadata *t)
 	__active_test = t;
 	t->timed_out = false;
 	alarm(t->timeout);
-	waitpid(t->pid, &status, 0);
+	child = waitpid(t->pid, &status, 0);
+	if (child == -1 && errno != EINTR) {
+		t->exit_code = KSFT_FAIL;
+		fprintf(TH_LOG_STREAM,
+			"# %s: Failed to wait for PID %d (errno: %d)\n",
+			t->name, t->pid, errno);
+		return;
+	}
+
 	alarm(0);
 	if (sigaction(SIGALRM, &saved_action, NULL)) {
 		t->exit_code = KSFT_FAIL;
@@ -1025,6 +1076,7 @@ void __wait_for_test(struct __test_metadata *t)
 				WTERMSIG(status));
 		}
 	} else {
+		t->exit_code = KSFT_FAIL;
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test ended in some other way [%u]\n",
 			t->name,
@@ -1158,20 +1210,20 @@ void __run_test(struct __fixture_metadata *f,
 		struct __test_metadata *t)
 {
 	struct __test_xfail *xfail;
-	char *test_name;
+	char test_name[1024];
 	const char *diagnostic;
+	int child;
 
 	/* reset test struct */
 	t->exit_code = KSFT_PASS;
 	t->trigger = 0;
+	t->aborted = false;
+	t->setup_completed = false;
+	memset(t->env, 0, sizeof(t->env));
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
-	if (asprintf(&test_name, "%s%s%s.%s", f->name,
-		variant->name[0] ? "." : "", variant->name, t->name) == -1) {
-		ksft_print_msg("ERROR ALLOCATING MEMORY\n");
-		t->exit_code = KSFT_FAIL;
-		_exit(t->exit_code);
-	}
+	snprintf(test_name, sizeof(test_name), "%s%s%s.%s",
+		 f->name, variant->name[0] ? "." : "", variant->name, t->name);
 
 	ksft_print_msg(" RUN           %s ...\n", test_name);
 
@@ -1179,15 +1231,16 @@ void __run_test(struct __fixture_metadata *f,
 	fflush(stdout);
 	fflush(stderr);
 
-	t->pid = fork();
-	if (t->pid < 0) {
+	child = fork();
+	if (child < 0) {
 		ksft_print_msg("ERROR SPAWNING TEST CHILD\n");
 		t->exit_code = KSFT_FAIL;
-	} else if (t->pid == 0) {
+	} else if (child == 0) {
 		setpgrp();
 		t->fn(t, variant);
 		_exit(t->exit_code);
 	} else {
+		t->pid = child;
 		__wait_for_test(t);
 	}
 	ksft_print_msg("         %4s  %s\n",
@@ -1209,7 +1262,6 @@ void __run_test(struct __fixture_metadata *f,
 
 	ksft_test_result_code(t->exit_code, test_name,
 			      diagnostic ? "%s" : NULL, diagnostic);
-	free(test_name);
 }
 
 static int test_harness_run(int argc, char **argv)
@@ -1276,8 +1328,7 @@ static int test_harness_run(int argc, char **argv)
 
 static void __attribute__((constructor)) __constructor_order_first(void)
 {
-	if (!__constructor_order)
-		__constructor_order = _CONSTRUCTOR_ORDER_FORWARD;
+	__constructor_order_forward = true;
 }
 
 #endif  /* __KSELFTEST_HARNESS_H */

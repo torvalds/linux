@@ -163,8 +163,8 @@ static int shstk_setup(void)
 	if (features_enabled(ARCH_SHSTK_SHSTK))
 		return 0;
 
-	/* Also not supported for 32 bit and x32 */
-	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK) || in_32bit_syscall())
+	/* Also not supported for 32 bit */
+	if (!cpu_feature_enabled(X86_FEATURE_USER_SHSTK) || in_ia32_syscall())
 		return -EOPNOTSUPP;
 
 	size = adjust_shstk_size(0);
@@ -576,4 +576,20 @@ long shstk_prctl(struct task_struct *task, int option, unsigned long arg2)
 	if (features & ARCH_SHSTK_WRSS)
 		return wrss_control(true);
 	return -EINVAL;
+}
+
+int shstk_update_last_frame(unsigned long val)
+{
+	unsigned long ssp;
+
+	if (!features_enabled(ARCH_SHSTK_SHSTK))
+		return 0;
+
+	ssp = get_user_shstk_addr();
+	return write_user_shstk_64((u64 __user *)ssp, (u64)val);
+}
+
+bool shstk_is_enabled(void)
+{
+	return features_enabled(ARCH_SHSTK_SHSTK);
 }

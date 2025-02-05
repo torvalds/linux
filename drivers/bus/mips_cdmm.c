@@ -37,7 +37,7 @@
 /* Each block of device registers is 64 bytes */
 #define CDMM_DRB_SIZE		64
 
-#define to_mips_cdmm_driver(d)	container_of(d, struct mips_cdmm_driver, drv)
+#define to_mips_cdmm_driver(d)	container_of_const(d, struct mips_cdmm_driver, drv)
 
 /* Default physical base address */
 static phys_addr_t mips_cdmm_default_base;
@@ -59,10 +59,10 @@ mips_cdmm_lookup(const struct mips_cdmm_device_id *table,
 	return ret ? table : NULL;
 }
 
-static int mips_cdmm_match(struct device *dev, struct device_driver *drv)
+static int mips_cdmm_match(struct device *dev, const struct device_driver *drv)
 {
 	struct mips_cdmm_device *cdev = to_mips_cdmm_device(dev);
-	struct mips_cdmm_driver *cdrv = to_mips_cdmm_driver(drv);
+	const struct mips_cdmm_driver *cdrv = to_mips_cdmm_driver(drv);
 
 	return mips_cdmm_lookup(cdrv->id_table, cdev) != NULL;
 }

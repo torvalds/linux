@@ -728,7 +728,7 @@ static int pcmidi_snd_terminate(struct pcmidi_snd *pm)
 /*
  * PC-MIDI report descriptor for report id is wrong.
  */
-static __u8 *pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *pk_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize == 178 &&
@@ -862,4 +862,5 @@ static struct hid_driver pk_driver = {
 };
 module_hid_driver(pk_driver);
 
+MODULE_DESCRIPTION("HID driver for the Prodikeys PC-MIDI Keyboard");
 MODULE_LICENSE("GPL");

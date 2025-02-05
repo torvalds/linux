@@ -16,6 +16,7 @@ properties:
   compatible:
     enum:
       - imagis,ist3032c
+      - imagis,ist3038
       - imagis,ist3038b
       - imagis,ist3038c
 

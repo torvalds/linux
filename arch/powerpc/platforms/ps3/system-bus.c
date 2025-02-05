@@ -333,10 +333,10 @@ int ps3_mmio_region_init(struct ps3_system_bus_device *dev,
 EXPORT_SYMBOL_GPL(ps3_mmio_region_init);
 
 static int ps3_system_bus_match(struct device *_dev,
-	struct device_driver *_drv)
+	const struct device_driver *_drv)
 {
 	int result;
-	struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
+	const struct ps3_system_bus_driver *drv = ps3_drv_to_system_bus_drv(_drv);
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
 	if (!dev->match_sub_id)
@@ -453,10 +453,9 @@ static ssize_t modalias_show(struct device *_dev, struct device_attribute *a,
 	char *buf)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
-	int len = snprintf(buf, PAGE_SIZE, "ps3:%d:%d\n", dev->match_id,
-			   dev->match_sub_id);
 
-	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
+	return sysfs_emit(buf, "ps3:%d:%d\n", dev->match_id,
+			  dev->match_sub_id);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -695,7 +694,7 @@ static const struct dma_map_ops ps3_sb_dma_ops = {
 	.unmap_page = ps3_unmap_page,
 	.mmap = dma_common_mmap,
 	.get_sgtable = dma_common_get_sgtable,
-	.alloc_pages = dma_common_alloc_pages,
+	.alloc_pages_op = dma_common_alloc_pages,
 	.free_pages = dma_common_free_pages,
 };
 
@@ -709,7 +708,7 @@ static const struct dma_map_ops ps3_ioc0_dma_ops = {
 	.unmap_page = ps3_unmap_page,
 	.mmap = dma_common_mmap,
 	.get_sgtable = dma_common_get_sgtable,
-	.alloc_pages = dma_common_alloc_pages,
+	.alloc_pages_op = dma_common_alloc_pages,
 	.free_pages = dma_common_free_pages,
 };
 

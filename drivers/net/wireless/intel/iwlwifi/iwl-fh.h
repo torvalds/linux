@@ -15,7 +15,7 @@
 /* Flow Handler Definitions */
 /****************************/
 
-/**
+/*
  * This I/O area is directly read/writable by driver (e.g. Linux uses writel())
  * Addresses are offsets from device's PCI hardware base address.
  */
@@ -24,7 +24,7 @@
 #define FH_MEM_LOWER_BOUND_GEN2              (0xa06000)
 #define FH_MEM_UPPER_BOUND_GEN2              (0xa08000)
 
-/**
+/*
  * Keep-Warm (KW) buffer base address.
  *
  * Driver must allocate a 4KByte buffer that is for keeping the
@@ -44,7 +44,7 @@
 #define FH_KW_MEM_ADDR_REG		     (FH_MEM_LOWER_BOUND + 0x97C)
 
 
-/**
+/*
  * TFD Circular Buffers Base (CBBC) addresses
  *
  * Device has 16 base pointer registers, one for each of 16 host-DRAM-resident
@@ -143,7 +143,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  */
 #define TFH_SRV_DMA_CHNL0_BC	(0x1F70)
 
-/**
+/*
  * Rx SRAM Control and Status Registers (RSCSR)
  *
  * These registers provide handshake between driver and device for the Rx queue
@@ -216,21 +216,21 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_MEM_RSCSR_UPPER_BOUND	(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_RSCSR_CHNL0		(FH_MEM_RSCSR_LOWER_BOUND)
 
-/**
+/*
  * Physical base address of 8-byte Rx Status buffer.
  * Bit fields:
  *  31-0: Rx status buffer physical base address [35:4], must 16-byte aligned.
  */
 #define FH_RSCSR_CHNL0_STTS_WPTR_REG	(FH_MEM_RSCSR_CHNL0)
 
-/**
+/*
  * Physical base address of Rx Buffer Descriptor Circular Buffer.
  * Bit fields:
  *  27-0:  RBD CD physical base address [35:8], must be 256-byte aligned.
  */
 #define FH_RSCSR_CHNL0_RBDCB_BASE_REG	(FH_MEM_RSCSR_CHNL0 + 0x004)
 
-/**
+/*
  * Rx write pointer (index, really!).
  * Bit fields:
  *  11-0:  Index of driver's most recent prepared-to-be-filled RBD, + 1.
@@ -242,7 +242,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FW_RSCSR_CHNL0_RXDCB_RDPTR_REG	(FH_MEM_RSCSR_CHNL0 + 0x00c)
 #define FH_RSCSR_CHNL0_RDPTR		FW_RSCSR_CHNL0_RXDCB_RDPTR_REG
 
-/**
+/*
  * Rx Config/Status Registers (RCSR)
  * Rx Config Reg for channel 0 (only channel used)
  *
@@ -300,7 +300,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_NO_INT_VAL    (0x00000000)
 #define FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL  (0x00001000)
 
-/**
+/*
  * Rx Shared Status Registers (RSSR)
  *
  * After stopping Rx DMA channel (writing 0 to
@@ -356,7 +356,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RFH_RBDBUF_RBD0_LSB 0xA08300
 #define RFH_RBDBUF_RBD_LSB(q) (RFH_RBDBUF_RBD0_LSB + (q) * 8)
 
-/**
+/*
  * RFH Status Register
  *
  * Bit fields:
@@ -440,7 +440,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_TFDIB_CTRL0_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl))
 #define FH_TFDIB_CTRL1_REG(_chnl)  (FH_TFDIB_LOWER_BOUND + 0x8 * (_chnl) + 0x4)
 
-/**
+/*
  * Transmit DMA Channel Control/Status Registers (TCSR)
  *
  * Device has one configuration register for each of 8 Tx DMA/FIFO channels
@@ -501,7 +501,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM		(20)
 #define FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX		(12)
 
-/**
+/*
  * Tx Shared Status Registers (TSSR)
  *
  * After stopping Tx DMA channel (writing 0 to
@@ -518,7 +518,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 
 #define FH_TSSR_TX_STATUS_REG		(FH_TSSR_LOWER_BOUND + 0x010)
 
-/**
+/*
  * Bit fields for TSSR(Tx Shared Status & Control) error status register:
  * 31:  Indicates an address error when accessed to internal memory
  *	uCode/driver must write "1" in order to clear this flag
@@ -634,7 +634,7 @@ enum iwl_tfd_tb_hi_n_len {
 };
 
 /**
- * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
+ * struct iwl_tfd_tb - transmit buffer descriptor within transmit frame descriptor
  *
  * This structure contains dma address and length of transmission address
  *
@@ -648,7 +648,7 @@ struct iwl_tfd_tb {
 } __packed;
 
 /**
- * struct iwl_tfh_tb transmit buffer descriptor within transmit frame descriptor
+ * struct iwl_tfh_tb - transmit buffer descriptor within transmit frame descriptor
  *
  * This structure contains dma address and length of transmission address
  *
@@ -717,7 +717,7 @@ struct iwl_tfh_tfd {
 /* Fixed (non-configurable) rx data from phy */
 
 /**
- * struct iwlagn_schedq_bc_tbl scheduler byte count table
+ * struct iwlagn_scd_bc_tbl - scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
  * For devices up to 22000:
  * @tfd_offset:
@@ -734,7 +734,7 @@ struct iwlagn_scd_bc_tbl {
 } __packed;
 
 /**
- * struct iwl_gen3_bc_tbl_entry scheduler byte count table entry gen3
+ * struct iwl_gen3_bc_tbl_entry - scheduler byte count table entry gen3
  * For AX210 and on:
  * @tfd_offset: 0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks

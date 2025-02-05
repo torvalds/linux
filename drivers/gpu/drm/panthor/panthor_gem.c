@@ -26,26 +26,25 @@ static void panthor_gem_free_object(struct drm_gem_object *obj)
 
 /**
  * panthor_kernel_bo_destroy() - Destroy a kernel buffer object
- * @vm: The VM this BO was mapped to.
  * @bo: Kernel buffer object to destroy. If NULL or an ERR_PTR(), the destruction
  * is skipped.
  */
-void panthor_kernel_bo_destroy(struct panthor_vm *vm,
-			       struct panthor_kernel_bo *bo)
+void panthor_kernel_bo_destroy(struct panthor_kernel_bo *bo)
 {
+	struct panthor_vm *vm;
 	int ret;
 
 	if (IS_ERR_OR_NULL(bo))
 		return;
 
+	vm = bo->vm;
 	panthor_kernel_bo_vunmap(bo);
 
 	if (drm_WARN_ON(bo->obj->dev,
 			to_panthor_bo(bo->obj)->exclusive_vm_root_gem != panthor_vm_root_gem(vm)))
 		goto out_free_bo;
 
-	ret = panthor_vm_unmap_range(vm, bo->va_node.start,
-				     panthor_kernel_bo_size(bo));
+	ret = panthor_vm_unmap_range(vm, bo->va_node.start, bo->va_node.size);
 	if (ret)
 		goto out_free_bo;
 
@@ -53,6 +52,7 @@ void panthor_kernel_bo_destroy(struct panthor_vm *vm,
 	drm_gem_object_put(bo->obj);
 
 out_free_bo:
+	panthor_vm_put(vm);
 	kfree(bo);
 }
 
@@ -94,10 +94,16 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	}
 
 	bo = to_panthor_bo(&obj->base);
-	size = obj->base.size;
 	kbo->obj = &obj->base;
 	bo->flags = bo_flags;
 
+	/* The system and GPU MMU page size might differ, which becomes a
+	 * problem for FW sections that need to be mapped at explicit address
+	 * since our PAGE_SIZE alignment might cover a VA range that's
+	 * expected to be used for another section.
+	 * Make sure we never map more than we need.
+	 */
+	size = ALIGN(size, panthor_vm_page_size(vm));
 	ret = panthor_vm_alloc_va(vm, gpu_va, size, &kbo->va_node);
 	if (ret)
 		goto err_put_obj;
@@ -106,6 +112,7 @@ panthor_kernel_bo_create(struct panthor_device *ptdev, struct panthor_vm *vm,
 	if (ret)
 		goto err_free_va;
 
+	kbo->vm = panthor_vm_get(vm);
 	bo->exclusive_vm_root_gem = panthor_vm_root_gem(vm);
 	drm_gem_object_get(bo->exclusive_vm_root_gem);
 	bo->base.base.resv = bo->exclusive_vm_root_gem->resv;
@@ -143,6 +150,17 @@ panthor_gem_prime_export(struct drm_gem_object *obj, int flags)
 	return drm_gem_prime_export(obj, flags);
 }
 
+static enum drm_gem_object_status panthor_gem_status(struct drm_gem_object *obj)
+{
+	struct panthor_gem_object *bo = to_panthor_bo(obj);
+	enum drm_gem_object_status res = 0;
+
+	if (bo->base.base.import_attach || bo->base.pages)
+		res |= DRM_GEM_OBJECT_RESIDENT;
+
+	return res;
+}
+
 static const struct drm_gem_object_funcs panthor_gem_funcs = {
 	.free = panthor_gem_free_object,
 	.print_info = drm_gem_shmem_object_print_info,
@@ -152,6 +170,7 @@ static const struct drm_gem_object_funcs panthor_gem_funcs = {
 	.vmap = drm_gem_shmem_object_vmap,
 	.vunmap = drm_gem_shmem_object_vunmap,
 	.mmap = panthor_gem_mmap,
+	.status = panthor_gem_status,
 	.export = panthor_gem_prime_export,
 	.vm_ops = &drm_gem_shmem_vm_ops,
 };

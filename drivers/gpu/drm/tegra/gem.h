@@ -32,6 +32,26 @@ struct tegra_bo_tiling {
 	enum tegra_bo_sector_layout sector_layout;
 };
 
+/*
+ * How memory is referenced within a tegra_bo:
+ *
+ * Buffer source  | Mapping API(*)  | Fields
+ * ---------------+-----------------+---------------
+ * Allocated here | DMA API         | iova (IOVA mapped to drm->dev), vaddr (CPU VA)
+ *
+ * Allocated here | IOMMU API       | pages/num_pages (Phys. memory), sgt (Mapped to drm->dev),
+ *                                  | iova/size (Mapped to domain)
+ *
+ * Imported       | DMA API         | dma_buf (Imported dma_buf)
+ *
+ * Imported       | IOMMU API       | dma_buf (Imported dma_buf),
+ *                                  | gem->import_attach (Attachment on drm->dev),
+ *                                  | sgt (Mapped to drm->dev)
+ *                                  | iova/size (Mapped to domain)
+ *
+ * (*) If tegra->domain is set, i.e. TegraDRM IOMMU domain is directly managed through IOMMU API,
+ *     this is IOMMU API. Otherwise DMA API.
+ */
 struct tegra_bo {
 	struct drm_gem_object gem;
 	struct host1x_bo base;
@@ -39,6 +59,7 @@ struct tegra_bo {
 	struct sg_table *sgt;
 	dma_addr_t iova;
 	void *vaddr;
+	struct dma_buf *dma_buf;
 
 	struct drm_mm_node *mm;
 	unsigned long num_pages;

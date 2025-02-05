@@ -471,20 +471,6 @@ void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait)
 		wait_for_completion(&thi->stop);
 }
 
-int conn_lowest_minor(struct drbd_connection *connection)
-{
-	struct drbd_peer_device *peer_device;
-	int vnr = 0, minor = -1;
-
-	rcu_read_lock();
-	peer_device = idr_get_next(&connection->peer_devices, &vnr);
-	if (peer_device)
-		minor = device_to_minor(peer_device->device);
-	rcu_read_unlock();
-
-	return minor;
-}
-
 #ifdef CONFIG_SMP
 /*
  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
@@ -1550,7 +1536,7 @@ static int _drbd_send_page(struct drbd_peer_device *peer_device, struct page *pa
 	 * put_page(); and would cause either a VM_BUG directly, or
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
-	if (!drbd_disable_sendpage && sendpage_ok(page))
+	if (!drbd_disable_sendpage && sendpages_ok(page, len, offset))
 		msg.msg_flags |= MSG_NOSIGNAL | MSG_SPLICE_PAGES;
 
 	drbd_update_congested(peer_device->connection);
@@ -2697,6 +2683,9 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 		 * connect.
 		 */
 		.max_hw_sectors		= DRBD_MAX_BIO_SIZE_SAFE >> 8,
+		.features		= BLK_FEAT_WRITE_CACHE | BLK_FEAT_FUA |
+					  BLK_FEAT_ROTATIONAL |
+					  BLK_FEAT_STABLE_WRITES,
 	};
 
 	device = minor_to_device(minor);
@@ -2734,9 +2723,6 @@ enum drbd_ret_code drbd_create_device(struct drbd_config_context *adm_ctx, unsig
 	disk->flags |= GENHD_FL_NO_PART;
 	sprintf(disk->disk_name, "drbd%d", minor);
 	disk->private_data = device;
-
-	blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, disk->queue);
-	blk_queue_write_cache(disk->queue, true, true);
 
 	device->md_io.page = alloc_page(GFP_KERNEL);
 	if (!device->md_io.page)
@@ -3399,10 +3385,12 @@ void drbd_uuid_new_current(struct drbd_device *device) __must_hold(local)
 void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
 {
 	unsigned long flags;
-	if (device->ldev->md.uuid[UI_BITMAP] == 0 && val == 0)
-		return;
-
 	spin_lock_irqsave(&device->ldev->md.uuid_lock, flags);
+	if (device->ldev->md.uuid[UI_BITMAP] == 0 && val == 0) {
+		spin_unlock_irqrestore(&device->ldev->md.uuid_lock, flags);
+		return;
+	}
+
 	if (val == 0) {
 		drbd_uuid_move_history(device);
 		device->ldev->md.uuid[UI_HISTORY_START] = device->ldev->md.uuid[UI_BITMAP];
@@ -3422,6 +3410,7 @@ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
 /**
  * drbd_bmio_set_n_write() - io_fn for drbd_queue_bitmap_io() or drbd_bitmap_io()
  * @device:	DRBD device.
+ * @peer_device: Peer DRBD device.
  *
  * Sets all bits in the bitmap and writes the whole bitmap to stable storage.
  */
@@ -3448,6 +3437,7 @@ int drbd_bmio_set_n_write(struct drbd_device *device,
 /**
  * drbd_bmio_clear_n_write() - io_fn for drbd_queue_bitmap_io() or drbd_bitmap_io()
  * @device:	DRBD device.
+ * @peer_device: Peer DRBD device.
  *
  * Clears all bits in the bitmap and writes the whole bitmap to stable storage.
  */
@@ -3501,6 +3491,7 @@ static int w_bitmap_io(struct drbd_work *w, int unused)
  * @done:	callback to be called after the bitmap IO was performed
  * @why:	Descriptive text of the reason for doing the IO
  * @flags:	Bitmap flags
+ * @peer_device: Peer DRBD device.
  *
  * While IO on the bitmap happens we freeze application IO thus we ensure
  * that drbd_set_out_of_sync() can not be called. This function MAY ONLY be
@@ -3549,6 +3540,7 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
  * @io_fn:	IO callback to be called when bitmap IO is possible
  * @why:	Descriptive text of the reason for doing the IO
  * @flags:	Bitmap flags
+ * @peer_device: Peer DRBD device.
  *
  * freezes application IO while that the actual IO operations runs. This
  * functions MAY NOT be called from worker context.

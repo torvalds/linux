@@ -47,7 +47,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 			reg = <0x0>;
@@ -61,7 +61,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 			reg = <0x1>;
@@ -75,7 +75,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
 			reg = <0x2>;
@@ -89,7 +89,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			enable-method = "qcom,kpss-acc-v2";
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
 			reg = <0x3>;
@@ -99,7 +99,7 @@
 			operating-points-v2 = <&cpu0_opp_table>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -187,7 +187,6 @@
 		gcc: clock-controller@1800000 {
 			compatible = "qcom,gcc-ipq4019";
 			#clock-cells = <1>;
-			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x1800000 0x60000>;
 			clocks = <&xo>, <&sleep_clk>;
@@ -470,6 +469,16 @@
 				      "phy_ahb";
 
 			status = "disabled";
+
+			pcie@0 {
+				device_type = "pci";
+				reg = <0x0 0x0 0x0 0x0 0x0>;
+				bus-range = <0x01 0xff>;
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+				ranges;
+			};
 		};
 
 		qpic_bam: dma-controller@7984000 {
@@ -598,24 +607,33 @@
 			reg = <0x90000 0x64>;
 			status = "disabled";
 
-			ethphy0: ethernet-phy@0 {
+			ethernet-phy-package@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "qcom,qca8075-package";
 				reg = <0>;
-			};
 
-			ethphy1: ethernet-phy@1 {
-				reg = <1>;
-			};
+				qcom,tx-drive-strength-milliwatt = <300>;
 
-			ethphy2: ethernet-phy@2 {
-				reg = <2>;
-			};
+				ethphy0: ethernet-phy@0 {
+					reg = <0>;
+				};
 
-			ethphy3: ethernet-phy@3 {
-				reg = <3>;
-			};
+				ethphy1: ethernet-phy@1 {
+					reg = <1>;
+				};
 
-			ethphy4: ethernet-phy@4 {
-				reg = <4>;
+				ethphy2: ethernet-phy@2 {
+					reg = <2>;
+				};
+
+				ethphy3: ethernet-phy@3 {
+					reg = <3>;
+				};
+
+				ethphy4: ethernet-phy@4 {
+					reg = <4>;
+				};
 			};
 		};
 

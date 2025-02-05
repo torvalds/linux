@@ -381,7 +381,7 @@ static int edac_probe(struct platform_device *pdev)
 	}
 
 	dci = edac_device_alloc_ctl_info(sizeof(*priv), ZYNQMP_OCM_EDAC_STRING,
-					 1, ZYNQMP_OCM_EDAC_STRING, 1, 0, NULL, 0,
+					 1, ZYNQMP_OCM_EDAC_STRING, 1, 0,
 					 edac_device_alloc_index());
 	if (!dci)
 		return -ENOMEM;
@@ -455,7 +455,7 @@ static struct platform_driver zynqmp_ocm_edac_driver = {
 		   .of_match_table = zynqmp_ocm_edac_match,
 		   },
 	.probe = edac_probe,
-	.remove_new = edac_remove,
+	.remove = edac_remove,
 };
 
 module_platform_driver(zynqmp_ocm_edac_driver);

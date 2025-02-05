@@ -205,7 +205,7 @@ int mlx5_cmd_enable(struct mlx5_core_dev *dev);
 void mlx5_cmd_disable(struct mlx5_core_dev *dev);
 void mlx5_cmd_set_state(struct mlx5_core_dev *dev,
 			enum mlx5_cmdif_state cmdif_state);
-int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
+int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, u32 *sw_owner_id);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev);
@@ -224,6 +224,8 @@ void mlx5_sriov_disable(struct pci_dev *pdev, bool num_vf_change);
 int mlx5_core_sriov_set_msix_vec_count(struct pci_dev *vf, int msix_vec_count);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
+bool mlx5_qos_element_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy);
+bool mlx5_qos_tsar_type_supported(struct mlx5_core_dev *dev, int type, u8 hierarchy);
 int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 				       void *context, u32 *element_id);
 int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
@@ -320,6 +322,12 @@ static inline bool mlx5_core_is_sf(const struct mlx5_core_dev *dev)
 	return dev->coredev_type == MLX5_COREDEV_SF;
 }
 
+static inline struct auxiliary_device *
+mlx5_sf_coredev_to_adev(struct mlx5_core_dev *mdev)
+{
+	return container_of(mdev->device, struct auxiliary_device, dev);
+}
+
 int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx);
 void mlx5_mdev_uninit(struct mlx5_core_dev *dev);
 int mlx5_init_one(struct mlx5_core_dev *dev);
@@ -383,4 +391,14 @@ static inline int mlx5_vport_to_func_id(const struct mlx5_core_dev *dev, u16 vpo
 			  : vport;
 }
 
+static inline int mlx5_max_eq_cap_get(const struct mlx5_core_dev *dev)
+{
+	if (MLX5_CAP_GEN_2(dev, max_num_eqs_24b))
+		return MLX5_CAP_GEN_2(dev, max_num_eqs_24b);
+
+	if (MLX5_CAP_GEN(dev, max_num_eqs))
+		return MLX5_CAP_GEN(dev, max_num_eqs);
+
+	return 1 << MLX5_CAP_GEN(dev, log_max_eq);
+}
 #endif /* __MLX5_CORE_H__ */

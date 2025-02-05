@@ -23,7 +23,7 @@ mistakes occasionally made even by experienced developers.
    up in the reference section, then jump back to where you left off.
 ..
    Find the latest rendered version of this text here:
-   https://docs.kernel.org/admin-guide/verify-bugs-and-bisect-regressions.rst.html
+   https://docs.kernel.org/admin-guide/verify-bugs-and-bisect-regressions.html
 
 The essence of the process (aka 'TL;DR')
 ========================================
@@ -1431,7 +1431,7 @@ can easily happen that your self-built kernels will lack modules for tasks you
 did not perform at least once before utilizing this make target. That happens
 when a task requires kernel modules which are only autoloaded when you execute
 it for the first time. So when you never performed that task since starting your
-kernel the modules will not have been loaded -- and from localmodonfig's point
+kernel the modules will not have been loaded -- and from localmodconfig's point
 of view look superfluous, which thus disables them to reduce the amount of code
 to be compiled.
 

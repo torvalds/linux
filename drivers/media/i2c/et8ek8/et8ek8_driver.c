@@ -1475,7 +1475,7 @@ err_mutex:
 	return ret;
 }
 
-static void __exit et8ek8_remove(struct i2c_client *client)
+static void et8ek8_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
 	struct et8ek8_sensor *sensor = to_et8ek8_sensor(subdev);
@@ -1501,7 +1501,7 @@ static const struct of_device_id et8ek8_of_table[] = {
 MODULE_DEVICE_TABLE(of, et8ek8_of_table);
 
 static const struct i2c_device_id et8ek8_id_table[] = {
-	{ ET8EK8_NAME, 0 },
+	{ ET8EK8_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, et8ek8_id_table);
@@ -1517,7 +1517,7 @@ static struct i2c_driver et8ek8_i2c_driver = {
 		.of_match_table	= et8ek8_of_table,
 	},
 	.probe		= et8ek8_probe,
-	.remove		= __exit_p(et8ek8_remove),
+	.remove		= et8ek8_remove,
 	.id_table	= et8ek8_id_table,
 };
 

@@ -5,6 +5,7 @@
 #include <net/nexthop.h>
 #include <net/ip_tunnels.h>
 #include "tc_tun_encap.h"
+#include "fs_core.h"
 #include "en_tc.h"
 #include "tc_tun.h"
 #include "rep/tc.h"
@@ -24,9 +25,17 @@ static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
 
 	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
 
-	if (!route_dev || !netif_is_ovs_master(route_dev) ||
-	    attr->parse_attr->filter_dev == e->out_dev)
+	if (!route_dev || !netif_is_ovs_master(route_dev))
 		goto out;
+
+	if (priv->mdev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_DMFS &&
+	    mlx5e_eswitch_uplink_rep(attr->parse_attr->filter_dev) &&
+	    (attr->esw_attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP)) {
+		mlx5_core_warn(priv->mdev,
+			       "Matching on external port with encap + fwd to table actions is not allowed for firmware steering\n");
+		err = -EINVAL;
+		goto out;
+	}
 
 	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
 						MLX5E_TC_INT_PORT_EGRESS,
@@ -587,7 +596,7 @@ bool mlx5e_tc_tun_encap_info_equal_generic(struct mlx5e_encap_key *a,
 
 bool mlx5e_tc_tun_encap_info_equal_options(struct mlx5e_encap_key *a,
 					   struct mlx5e_encap_key *b,
-					   __be16 tun_flags)
+					   u32 tun_type)
 {
 	struct ip_tunnel_info *a_info;
 	struct ip_tunnel_info *b_info;
@@ -596,8 +605,8 @@ bool mlx5e_tc_tun_encap_info_equal_options(struct mlx5e_encap_key *a,
 	if (!mlx5e_tc_tun_encap_info_equal_generic(a, b))
 		return false;
 
-	a_has_opts = !!(a->ip_tun_key->tun_flags & tun_flags);
-	b_has_opts = !!(b->ip_tun_key->tun_flags & tun_flags);
+	a_has_opts = test_bit(tun_type, a->ip_tun_key->tun_flags);
+	b_has_opts = test_bit(tun_type, b->ip_tun_key->tun_flags);
 
 	/* keys are equal when both don't have any options attached */
 	if (!a_has_opts && !b_has_opts)

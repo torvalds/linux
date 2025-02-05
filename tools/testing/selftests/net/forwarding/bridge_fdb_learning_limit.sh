@@ -178,6 +178,22 @@ fdb_del()
 	check_err $? "Failed to remove a FDB entry of type ${type}"
 }
 
+check_fdb_n_learned_support()
+{
+	if ! ip link help bridge 2>&1 | grep -q "fdb_max_learned"; then
+		echo "SKIP: iproute2 too old, missing bridge max learned support"
+		exit $ksft_skip
+	fi
+
+	ip link add dev br0 type bridge
+	local learned=$(fdb_get_n_learned)
+	ip link del dev br0
+	if [ "$learned" == "null" ]; then
+		echo "SKIP: kernel too old; bridge fdb_n_learned feature not supported."
+		exit $ksft_skip
+	fi
+}
+
 check_accounting_one_type()
 {
 	local type=$1 is_counted=$2 overrides_learned=$3
@@ -273,6 +289,8 @@ check_limit()
 		check_limit_one_type $type_args
 	done
 }
+
+check_fdb_n_learned_support
 
 trap cleanup EXIT
 

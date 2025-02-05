@@ -29,8 +29,6 @@ static enum diag204_format diag204_info_type;	/* used diag 204 data format */
 static void *diag204_buf;		/* 4K aligned buffer for diag204 data */
 static int diag204_buf_pages;		/* number of pages for diag204 data */
 
-static struct dentry *dbfs_d204_file;
-
 enum diag204_format diag204_get_info_type(void)
 {
 	return diag204_info_type;
@@ -140,11 +138,22 @@ fail_alloc:
 
 int diag204_store(void *buf, int pages)
 {
+	unsigned long subcode;
 	int rc;
 
-	rc = diag204((unsigned long)diag204_store_sc |
-		     (unsigned long)diag204_get_info_type(), pages, buf);
-	return rc < 0 ? -EOPNOTSUPP : 0;
+	subcode = diag204_get_info_type();
+	subcode |= diag204_store_sc;
+	if (diag204_has_bif())
+		subcode |= DIAG204_BIF_BIT;
+	while (1) {
+		rc = diag204(subcode, pages, buf);
+		if (rc != -EBUSY)
+			break;
+		if (signal_pending(current))
+			return -ERESTARTSYS;
+		schedule_timeout_interruptible(DIAG204_BUSY_WAIT);
+	}
+	return rc < 0 ? rc : 0;
 }
 
 struct dbfs_d204_hdr {
@@ -203,16 +212,13 @@ __init int hypfs_diag_init(void)
 		hypfs_dbfs_create_file(&dbfs_file_d204);
 
 	rc = hypfs_diag_fs_init();
-	if (rc) {
+	if (rc)
 		pr_err("The hardware system does not provide all functions required by hypfs\n");
-		debugfs_remove(dbfs_d204_file);
-	}
 	return rc;
 }
 
 void hypfs_diag_exit(void)
 {
-	debugfs_remove(dbfs_d204_file);
 	hypfs_diag_fs_exit();
 	diag204_free_buffer();
 	hypfs_dbfs_remove_file(&dbfs_file_d204);

@@ -449,7 +449,7 @@ static SIMPLE_DEV_PM_OPS(isl29003_pm_ops, isl29003_suspend, isl29003_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id isl29003_id[] = {
-	{ "isl29003", 0 },
+	{ "isl29003" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, isl29003_id);

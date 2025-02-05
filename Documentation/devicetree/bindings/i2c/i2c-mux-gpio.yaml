@@ -57,6 +57,9 @@ properties:
       last value used.
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  settle-time-us:
+    description: Delay to wait before doing any transfer when a new bus gets selected.
+
 allOf:
   - $ref: i2c-mux.yaml
 

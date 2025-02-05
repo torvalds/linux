@@ -34,6 +34,8 @@ properties:
       - const: xo
       - const: sleep_clk
 
+  '#power-domain-cells': false
+
 required:
   - compatible
 
@@ -45,7 +47,6 @@ examples:
       compatible = "qcom,gcc-ipq4019";
       reg = <0x1800000 0x60000>;
       #clock-cells = <1>;
-      #power-domain-cells = <1>;
       #reset-cells = <1>;
       clocks = <&xo>, <&sleep_clk>;
       clock-names = "xo", "sleep_clk";

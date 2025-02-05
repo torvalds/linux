@@ -30,7 +30,7 @@ struct calipso_doi;
 
 /*
  * NetLabel - A management interface for maintaining network packet label
- *            mapping tables for explicit packet labling protocols.
+ *            mapping tables for explicit packet labeling protocols.
  *
  * Network protocols such as CIPSO and RIPSO require a label translation layer
  * to convert the label on the packet into something meaningful on the host
@@ -97,7 +97,7 @@ struct calipso_doi;
 
 /* NetLabel audit information */
 struct netlbl_audit {
-	u32 secid;
+	struct lsm_prop prop;
 	kuid_t loginuid;
 	unsigned int sessionid;
 };
@@ -208,6 +208,7 @@ struct netlbl_lsm_secattr {
  * struct netlbl_calipso_ops - NetLabel CALIPSO operations
  * @doi_add: add a CALIPSO DOI
  * @doi_free: free a CALIPSO DOI
+ * @doi_remove: remove a CALIPSO DOI
  * @doi_getdef: returns a reference to a DOI
  * @doi_putdef: releases a reference of a DOI
  * @doi_walk: enumerate the DOI list
@@ -274,15 +275,17 @@ struct netlbl_calipso_ops {
  * on success, NULL on failure.
  *
  */
-static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc(gfp_t flags)
+static inline struct netlbl_lsm_cache *netlbl_secattr_cache_alloc_noprof(gfp_t flags)
 {
 	struct netlbl_lsm_cache *cache;
 
-	cache = kzalloc(sizeof(*cache), flags);
+	cache = kzalloc_noprof(sizeof(*cache), flags);
 	if (cache)
 		refcount_set(&cache->refcount, 1);
 	return cache;
 }
+#define netlbl_secattr_cache_alloc(...)	\
+		alloc_hooks(netlbl_secattr_cache_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_secattr_cache_free - Frees a netlbl_lsm_cache struct
@@ -311,10 +314,11 @@ static inline void netlbl_secattr_cache_free(struct netlbl_lsm_cache *cache)
  * on failure.
  *
  */
-static inline struct netlbl_lsm_catmap *netlbl_catmap_alloc(gfp_t flags)
+static inline struct netlbl_lsm_catmap *netlbl_catmap_alloc_noprof(gfp_t flags)
 {
-	return kzalloc(sizeof(struct netlbl_lsm_catmap), flags);
+	return kzalloc_noprof(sizeof(struct netlbl_lsm_catmap), flags);
 }
+#define netlbl_catmap_alloc(...)	alloc_hooks(netlbl_catmap_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_catmap_free - Free a LSM secattr catmap
@@ -376,10 +380,11 @@ static inline void netlbl_secattr_destroy(struct netlbl_lsm_secattr *secattr)
  * pointer on success, or NULL on failure.
  *
  */
-static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc(gfp_t flags)
+static inline struct netlbl_lsm_secattr *netlbl_secattr_alloc_noprof(gfp_t flags)
 {
-	return kzalloc(sizeof(struct netlbl_lsm_secattr), flags);
+	return kzalloc_noprof(sizeof(struct netlbl_lsm_secattr), flags);
 }
+#define netlbl_secattr_alloc(...)	alloc_hooks(netlbl_secattr_alloc_noprof(__VA_ARGS__))
 
 /**
  * netlbl_secattr_free - Frees a netlbl_lsm_secattr struct
@@ -470,7 +475,8 @@ void netlbl_bitmap_setbit(unsigned char *bitmap, u32 bit, u8 state);
 int netlbl_enabled(void);
 int netlbl_sock_setattr(struct sock *sk,
 			u16 family,
-			const struct netlbl_lsm_secattr *secattr);
+			const struct netlbl_lsm_secattr *secattr,
+			bool sk_locked);
 void netlbl_sock_delattr(struct sock *sk);
 int netlbl_sock_getattr(struct sock *sk,
 			struct netlbl_lsm_secattr *secattr);
@@ -487,6 +493,7 @@ int netlbl_skbuff_getattr(const struct sk_buff *skb,
 			  u16 family,
 			  struct netlbl_lsm_secattr *secattr);
 void netlbl_skbuff_err(struct sk_buff *skb, u16 family, int error, int gateway);
+bool netlbl_sk_lock_check(struct sock *sk);
 
 /*
  * LSM label mapping cache operations
@@ -614,7 +621,8 @@ static inline int netlbl_enabled(void)
 }
 static inline int netlbl_sock_setattr(struct sock *sk,
 				      u16 family,
-				      const struct netlbl_lsm_secattr *secattr)
+				      const struct netlbl_lsm_secattr *secattr,
+				      bool sk_locked)
 {
 	return -ENOSYS;
 }
@@ -672,6 +680,11 @@ static inline struct audit_buffer *netlbl_audit_start(int type,
 						struct netlbl_audit *audit_info)
 {
 	return NULL;
+}
+
+static inline bool netlbl_sk_lock_check(struct sock *sk)
+{
+	return true;
 }
 #endif /* CONFIG_NETLABEL */
 

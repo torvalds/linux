@@ -30,7 +30,7 @@
 #include "xen-ops.h"
 
 /* Minimum amount of time until next clock event fires */
-#define TIMER_SLOP	100000
+#define TIMER_SLOP	1
 
 static u64 xen_sched_clock_offset __read_mostly;
 

@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -407,7 +408,7 @@ static struct platform_driver st_rc_driver = {
 		.pm     = &st_rc_pm_ops,
 	},
 	.probe = st_rc_probe,
-	.remove_new = st_rc_remove,
+	.remove = st_rc_remove,
 };
 
 module_platform_driver(st_rc_driver);

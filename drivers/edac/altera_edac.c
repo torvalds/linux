@@ -482,7 +482,7 @@ static const struct dev_pm_ops altr_sdram_pm_ops = {
 
 static struct platform_driver altr_sdram_edac_driver = {
 	.probe = altr_sdram_probe,
-	.remove_new = altr_sdram_remove,
+	.remove = altr_sdram_remove,
 	.driver = {
 		.name = "altr_sdram_edac",
 #ifdef CONFIG_PM
@@ -737,8 +737,7 @@ static int altr_edac_device_probe(struct platform_device *pdev)
 	}
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), ecc_name,
-					 1, ecc_name, 1, 0, NULL, 0,
-					 dev_instance++);
+					 1, ecc_name, 1, 0, dev_instance++);
 
 	if (!dci) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
@@ -817,7 +816,7 @@ static void altr_edac_device_remove(struct platform_device *pdev)
 
 static struct platform_driver altr_edac_device_driver = {
 	.probe =  altr_edac_device_probe,
-	.remove_new = altr_edac_device_remove,
+	.remove = altr_edac_device_remove,
 	.driver = {
 		.name = "altr_edac_device",
 		.of_match_table = altr_edac_device_of_match,
@@ -1514,7 +1513,7 @@ static int altr_portb_setup(struct altr_edac_device_dev *device)
 	/* Create the PortB EDAC device */
 	edac_idx = edac_device_alloc_index();
 	dci = edac_device_alloc_ctl_info(sizeof(*altdev), ecc_name, 1,
-					 ecc_name, 1, 0, NULL, 0, edac_idx);
+					 ecc_name, 1, 0, edac_idx);
 	if (!dci) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,
 			    "%s: Unable to allocate PortB EDAC device\n",
@@ -1921,8 +1920,7 @@ static int altr_edac_a10_device_add(struct altr_arria10_edac *edac,
 
 	edac_idx = edac_device_alloc_index();
 	dci = edac_device_alloc_ctl_info(sizeof(*altdev), ecc_name,
-					 1, ecc_name, 1, 0, NULL, 0,
-					 edac_idx);
+					 1, ecc_name, 1, 0, edac_idx);
 
 	if (!dci) {
 		edac_printk(KERN_ERR, EDAC_DEVICE,

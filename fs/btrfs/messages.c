@@ -20,7 +20,8 @@ static const char fs_state_chars[] = {
 	[BTRFS_FS_STATE_TRANS_ABORTED]		= 'A',
 	[BTRFS_FS_STATE_DEV_REPLACING]		= 'R',
 	[BTRFS_FS_STATE_DUMMY_FS_INFO]		= 0,
-	[BTRFS_FS_STATE_NO_CSUMS]		= 'C',
+	[BTRFS_FS_STATE_NO_DATA_CSUMS]		= 'C',
+	[BTRFS_FS_STATE_SKIP_META_CSUMS]	= 'S',
 	[BTRFS_FS_STATE_LOG_CLEANUP_ERROR]	= 'L',
 };
 
@@ -238,7 +239,8 @@ void __cold _btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (__ratelimit(ratelimit)) {
+	/* Do not ratelimit if CONFIG_BTRFS_DEBUG is enabled. */
+	if (IS_ENABLED(CONFIG_BTRFS_DEBUG) || __ratelimit(ratelimit)) {
 		if (fs_info) {
 			char statestr[STATE_STRING_BUF_LEN];
 

@@ -69,6 +69,8 @@ struct dpu_encoder_phys;
  * @is_master:			Whether this phys_enc is the current master
  *				encoder. Can be switched at enable time. Based
  *				on split_role and current mode (CMD/VID).
+ * @atomic_mode_set:		DRM Call. Set a DRM mode.
+ *				This likely caches the mode, for use at enable.
  * @enable:			DRM Call. Enable a DRM mode.
  * @disable:			DRM Call. Disable mode.
  * @control_vblank_irq		Register/Deregister for VBLANK IRQ
@@ -93,6 +95,9 @@ struct dpu_encoder_phys;
 struct dpu_encoder_phys_ops {
 	void (*prepare_commit)(struct dpu_encoder_phys *encoder);
 	bool (*is_master)(struct dpu_encoder_phys *encoder);
+	void (*atomic_mode_set)(struct dpu_encoder_phys *encoder,
+			struct drm_crtc_state *crtc_state,
+			struct drm_connector_state *conn_state);
 	void (*enable)(struct dpu_encoder_phys *encoder);
 	void (*disable)(struct dpu_encoder_phys *encoder);
 	int (*control_vblank_irq)(struct dpu_encoder_phys *enc, bool enable);
@@ -274,37 +279,15 @@ struct dpu_encoder_wait_info {
 	s64 timeout_ms;
 };
 
-/**
- * dpu_encoder_phys_vid_init - Construct a new video mode physical encoder
- * @p:	Pointer to init params structure
- * Return: Error code or newly allocated encoder
- */
 struct dpu_encoder_phys *dpu_encoder_phys_vid_init(struct drm_device *dev,
 		struct dpu_enc_phys_init_params *p);
 
-/**
- * dpu_encoder_phys_cmd_init - Construct a new command mode physical encoder
- * @dev:  Corresponding device for devres management
- * @p:	Pointer to init params structure
- * Return: Error code or newly allocated encoder
- */
 struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(struct drm_device *dev,
 		struct dpu_enc_phys_init_params *p);
 
-/**
- * dpu_encoder_phys_wb_init - initialize writeback encoder
- * @dev:  Corresponding device for devres management
- * @init:	Pointer to init info structure with initialization params
- */
 struct dpu_encoder_phys *dpu_encoder_phys_wb_init(struct drm_device *dev,
 		struct dpu_enc_phys_init_params *p);
 
-/**
- * dpu_encoder_helper_trigger_start - control start helper function
- *	This helper function may be optionally specified by physical
- *	encoders if they require ctl_start triggering.
- * @phys_enc: Pointer to physical encoder structure
- */
 void dpu_encoder_helper_trigger_start(struct dpu_encoder_phys *phys_enc);
 
 static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
@@ -326,98 +309,38 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	return BLEND_3D_NONE;
 }
 
-/**
- * dpu_encoder_helper_get_dsc - get DSC blocks mask for the DPU encoder
- *   This helper function is used by physical encoder to get DSC blocks mask
- *   used for this encoder.
- * @phys_enc: Pointer to physical encoder structure
- */
 unsigned int dpu_encoder_helper_get_dsc(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_get_drm_fmt - return DRM fourcc format
- * @phys_enc: Pointer to physical encoder structure
- */
+struct drm_dsc_config *dpu_encoder_get_dsc_config(struct drm_encoder *drm_enc);
+
 u32 dpu_encoder_get_drm_fmt(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_needs_periph_flush - return true if physical encoder requires
- *	peripheral flush
- * @phys_enc: Pointer to physical encoder structure
- */
 bool dpu_encoder_needs_periph_flush(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_helper_split_config - split display configuration helper function
- *	This helper function may be used by physical encoders to configure
- *	the split display related registers.
- * @phys_enc: Pointer to physical encoder structure
- * @interface: enum dpu_intf setting
- */
 void dpu_encoder_helper_split_config(
 		struct dpu_encoder_phys *phys_enc,
 		enum dpu_intf interface);
 
-/**
- * dpu_encoder_helper_report_irq_timeout - utility to report error that irq has
- *	timed out, including reporting frame error event to crtc and debug dump
- * @phys_enc: Pointer to physical encoder structure
- * @intr_idx: Failing interrupt index
- */
 void dpu_encoder_helper_report_irq_timeout(struct dpu_encoder_phys *phys_enc,
 		enum dpu_intr_idx intr_idx);
 
-/**
- * dpu_encoder_helper_wait_for_irq - utility to wait on an irq.
- *	note: will call dpu_encoder_helper_wait_for_irq on timeout
- * @phys_enc: Pointer to physical encoder structure
- * @irq: IRQ index
- * @func: IRQ callback to be called in case of timeout
- * @wait_info: wait info struct
- * @Return: 0 or -ERROR
- */
 int dpu_encoder_helper_wait_for_irq(struct dpu_encoder_phys *phys_enc,
 		unsigned int irq,
 		void (*func)(void *arg),
 		struct dpu_encoder_wait_info *wait_info);
 
-/**
- * dpu_encoder_helper_phys_cleanup - helper to cleanup dpu pipeline
- * @phys_enc: Pointer to physical encoder structure
- */
 void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
 
-/**
- * dpu_encoder_helper_phys_setup_cdm - setup chroma down sampling block
- * @phys_enc: Pointer to physical encoder
- * @output_type: HDMI/WB
- */
 void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 				       const struct msm_format *dpu_fmt,
 				       u32 output_type);
 
-/**
- * dpu_encoder_vblank_callback - Notify virtual encoder of vblank IRQ reception
- * @drm_enc:    Pointer to drm encoder structure
- * @phys_enc:	Pointer to physical encoder
- * Note: This is called from IRQ handler context.
- */
 void dpu_encoder_vblank_callback(struct drm_encoder *drm_enc,
 				 struct dpu_encoder_phys *phy_enc);
 
-/** dpu_encoder_underrun_callback - Notify virtual encoder of underrun IRQ reception
- * @drm_enc:    Pointer to drm encoder structure
- * @phys_enc:	Pointer to physical encoder
- * Note: This is called from IRQ handler context.
- */
 void dpu_encoder_underrun_callback(struct drm_encoder *drm_enc,
 				   struct dpu_encoder_phys *phy_enc);
 
-/** dpu_encoder_frame_done_callback -- Notify virtual encoder that this phys encoder completes last request frame
- * @drm_enc:    Pointer to drm encoder structure
- * @phys_enc:	Pointer to physical encoder
- * @event:	Event to process
- */
 void dpu_encoder_frame_done_callback(
 		struct drm_encoder *drm_enc,
 		struct dpu_encoder_phys *ready_phys, u32 event);

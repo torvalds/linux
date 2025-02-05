@@ -144,7 +144,7 @@ static int xo1_pm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xo1_pm_remove(struct platform_device *pdev)
+static void xo1_pm_remove(struct platform_device *pdev)
 {
 	if (strcmp(pdev->name, "cs5535-pms") == 0)
 		pms_base = 0;
@@ -152,7 +152,6 @@ static int xo1_pm_remove(struct platform_device *pdev)
 		acpi_base = 0;
 
 	pm_power_off = NULL;
-	return 0;
 }
 
 static struct platform_driver cs5535_pms_driver = {

@@ -48,15 +48,20 @@ static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 static void v9fs_dentry_release(struct dentry *dentry)
 {
 	struct hlist_node *p, *n;
+	struct hlist_head head;
 
 	p9_debug(P9_DEBUG_VFS, " dentry: %pd (%p)\n",
 		 dentry, dentry);
-	hlist_for_each_safe(p, n, (struct hlist_head *)&dentry->d_fsdata)
+
+	spin_lock(&dentry->d_lock);
+	hlist_move_list((struct hlist_head *)&dentry->d_fsdata, &head);
+	spin_unlock(&dentry->d_lock);
+
+	hlist_for_each_safe(p, n, &head)
 		p9_fid_put(hlist_entry(p, struct p9_fid, dlist));
-	dentry->d_fsdata = NULL;
 }
 
-static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
+static int __v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	struct p9_fid *fid;
 	struct inode *inode;
@@ -94,14 +99,36 @@ out_valid:
 	return 1;
 }
 
+static int v9fs_lookup_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *dentry, unsigned int flags)
+{
+	return __v9fs_lookup_revalidate(dentry, flags);
+}
+
+static bool v9fs_dentry_unalias_trylock(const struct dentry *dentry)
+{
+	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
+	return down_write_trylock(&v9ses->rename_sem);
+}
+
+static void v9fs_dentry_unalias_unlock(const struct dentry *dentry)
+{
+	struct v9fs_session_info *v9ses = v9fs_dentry2v9ses(dentry);
+	up_write(&v9ses->rename_sem);
+}
+
 const struct dentry_operations v9fs_cached_dentry_operations = {
 	.d_revalidate = v9fs_lookup_revalidate,
-	.d_weak_revalidate = v9fs_lookup_revalidate,
+	.d_weak_revalidate = __v9fs_lookup_revalidate,
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
+	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
+	.d_unalias_unlock = v9fs_dentry_unalias_unlock,
 };
 
 const struct dentry_operations v9fs_dentry_operations = {
 	.d_delete = always_delete_dentry,
 	.d_release = v9fs_dentry_release,
+	.d_unalias_trylock = v9fs_dentry_unalias_trylock,
+	.d_unalias_unlock = v9fs_dentry_unalias_unlock,
 };

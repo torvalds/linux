@@ -14,8 +14,11 @@ Performance monitor support
    qcom_l2_pmu
    qcom_l3_pmu
    starfive_starlink_pmu
+   mrvl-odyssey-ddr-pmu
+   mrvl-odyssey-tad-pmu
    arm-ccn
    arm-cmn
+   arm-ni
    xgene-pmu
    arm_dsu_pmu
    thunderx2-pmu
@@ -25,3 +28,4 @@ Performance monitor support
    meson-ddr-pmu
    cxl
    ampere_cspmu
+   mrvl-pem-pmu

@@ -393,7 +393,7 @@ static int qt2160_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id qt2160_idtable[] = {
-	{ "qt2160", 0, },
+	{ "qt2160" },
 	{ }
 };
 

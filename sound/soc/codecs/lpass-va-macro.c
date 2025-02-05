@@ -228,11 +228,13 @@ struct va_macro {
 struct va_macro_data {
 	bool has_swr_master;
 	bool has_npl_clk;
+	int version;
 };
 
 static const struct va_macro_data sm8250_va_data = {
 	.has_swr_master = false,
 	.has_npl_clk = false,
+	.version = LPASS_CODEC_VERSION_1_0,
 };
 
 static const struct va_macro_data sm8450_va_data = {
@@ -892,7 +894,7 @@ static int va_macro_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int va_macro_get_channel_map(struct snd_soc_dai *dai,
+static int va_macro_get_channel_map(const struct snd_soc_dai *dai,
 				    unsigned int *tx_num, unsigned int *tx_slot,
 				    unsigned int *rx_num, unsigned int *rx_slot)
 {
@@ -1461,6 +1463,39 @@ undefined_rate:
 	return dmic_sample_rate;
 }
 
+static void va_macro_set_lpass_codec_version(struct va_macro *va)
+{
+	int core_id_0 = 0, core_id_1 = 0, core_id_2 = 0;
+	int version = LPASS_CODEC_VERSION_UNKNOWN;
+
+	regmap_read(va->regmap, CDC_VA_TOP_CSR_CORE_ID_0, &core_id_0);
+	regmap_read(va->regmap, CDC_VA_TOP_CSR_CORE_ID_1, &core_id_1);
+	regmap_read(va->regmap, CDC_VA_TOP_CSR_CORE_ID_2, &core_id_2);
+
+	if ((core_id_0 == 0x01) && (core_id_1 == 0x0F))
+		version = LPASS_CODEC_VERSION_2_0;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && core_id_2 == 0x01)
+		version = LPASS_CODEC_VERSION_2_0;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0E))
+		version = LPASS_CODEC_VERSION_2_1;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x50 || core_id_2 == 0x51))
+		version = LPASS_CODEC_VERSION_2_5;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x60 || core_id_2 == 0x61))
+		version = LPASS_CODEC_VERSION_2_6;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x70 || core_id_2 == 0x71))
+		version = LPASS_CODEC_VERSION_2_7;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x80 || core_id_2 == 0x81))
+		version = LPASS_CODEC_VERSION_2_8;
+
+	if (version == LPASS_CODEC_VERSION_UNKNOWN)
+		dev_warn(va->dev, "Unknown Codec version, ID: %02x / %02x / %02x\n",
+			 core_id_0, core_id_1, core_id_2);
+
+	lpass_macro_set_codec_version(version);
+
+	dev_dbg(va->dev, "LPASS Codec Version %s\n", lpass_macro_get_codec_version_string(version));
+}
+
 static int va_macro_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1553,6 +1588,15 @@ static int va_macro_probe(struct platform_device *pdev)
 		if (ret)
 			goto err_npl;
 	}
+
+	/**
+	 * old version of codecs do not have a reliable way to determine the
+	 * version from registers, get them from soc specific data
+	 */
+	if (data->version)
+		lpass_macro_set_codec_version(data->version);
+	else /* read version from register */
+		va_macro_set_lpass_codec_version(va);
 
 	if (va->has_swr_master) {
 		/* Set default CLK div to 1 */
@@ -1694,7 +1738,7 @@ static struct platform_driver va_macro_driver = {
 		.pm = &va_macro_pm_ops,
 	},
 	.probe = va_macro_probe,
-	.remove_new = va_macro_remove,
+	.remove = va_macro_remove,
 };
 
 module_platform_driver(va_macro_driver);

@@ -20,6 +20,7 @@
 #include <limits.h>
 
 #include "vdso_config.h"
+#include "vdso_call.h"
 #include "../kselftest.h"
 
 static const char **name;
@@ -114,6 +115,12 @@ static void fill_function_pointers()
 	if (!vdso)
 		vdso = dlopen("linux-gate.so.1",
 			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso)
+		vdso = dlopen("linux-vdso32.so.1",
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+	if (!vdso)
+		vdso = dlopen("linux-vdso64.so.1",
+			      RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
 	if (!vdso) {
 		printf("[WARN]\tfailed to find vDSO\n");
 		return;
@@ -180,7 +187,7 @@ static void test_getcpu(void)
 
 		ret_sys = sys_getcpu(&cpu_sys, &node_sys, 0);
 		if (vdso_getcpu)
-			ret_vdso = vdso_getcpu(&cpu_vdso, &node_vdso, 0);
+			ret_vdso = VDSO_CALL(vdso_getcpu, 3, &cpu_vdso, &node_vdso, 0);
 		if (vgetcpu)
 			ret_vsys = vgetcpu(&cpu_vsys, &node_vsys, 0);
 
@@ -263,7 +270,7 @@ static void test_one_clock_gettime(int clock, const char *name)
 
 	if (sys_clock_gettime(clock, &start) < 0) {
 		if (errno == EINVAL) {
-			vdso_ret = vdso_clock_gettime(clock, &vdso);
+			vdso_ret = VDSO_CALL(vdso_clock_gettime, 2, clock, &vdso);
 			if (vdso_ret == -EINVAL) {
 				printf("[OK]\tNo such clock.\n");
 			} else {
@@ -276,7 +283,7 @@ static void test_one_clock_gettime(int clock, const char *name)
 		return;
 	}
 
-	vdso_ret = vdso_clock_gettime(clock, &vdso);
+	vdso_ret = VDSO_CALL(vdso_clock_gettime, 2, clock, &vdso);
 	end_ret = sys_clock_gettime(clock, &end);
 
 	if (vdso_ret != 0 || end_ret != 0) {
@@ -325,7 +332,7 @@ static void test_one_clock_gettime64(int clock, const char *name)
 
 	if (sys_clock_gettime64(clock, &start) < 0) {
 		if (errno == EINVAL) {
-			vdso_ret = vdso_clock_gettime64(clock, &vdso);
+			vdso_ret = VDSO_CALL(vdso_clock_gettime64, 2, clock, &vdso);
 			if (vdso_ret == -EINVAL) {
 				printf("[OK]\tNo such clock.\n");
 			} else {
@@ -338,7 +345,7 @@ static void test_one_clock_gettime64(int clock, const char *name)
 		return;
 	}
 
-	vdso_ret = vdso_clock_gettime64(clock, &vdso);
+	vdso_ret = VDSO_CALL(vdso_clock_gettime64, 2, clock, &vdso);
 	end_ret = sys_clock_gettime64(clock, &end);
 
 	if (vdso_ret != 0 || end_ret != 0) {
@@ -395,7 +402,7 @@ static void test_gettimeofday(void)
 		return;
 	}
 
-	vdso_ret = vdso_gettimeofday(&vdso, &vdso_tz);
+	vdso_ret = VDSO_CALL(vdso_gettimeofday, 2, &vdso, &vdso_tz);
 	end_ret = sys_gettimeofday(&end, NULL);
 
 	if (vdso_ret != 0 || end_ret != 0) {
@@ -425,7 +432,7 @@ static void test_gettimeofday(void)
 	}
 
 	/* And make sure that passing NULL for tz doesn't crash. */
-	vdso_gettimeofday(&vdso, NULL);
+	VDSO_CALL(vdso_gettimeofday, 2, &vdso, NULL);
 }
 
 int main(int argc, char **argv)

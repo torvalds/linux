@@ -54,7 +54,7 @@
 	};
 
 	/* Also used for the Smart Card Interface SCI */
-	impd1_uartclk: clock@1_4 {
+	impd1_uartclk: clock-uart {
 		compatible = "fixed-factor-clock";
 		#clock-cells = <0>;
 		clock-div = <4>;
@@ -64,7 +64,7 @@
 	};
 
 	/* For the SSP the clock is divided by 64 */
-	impd1_sspclk: clock@1_64 {
+	impd1_sspclk: clock-ssp {
 		compatible = "fixed-factor-clock";
 		#clock-cells = <0>;
 		clock-div = <64>;

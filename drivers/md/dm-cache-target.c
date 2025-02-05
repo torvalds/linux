@@ -10,6 +10,7 @@
 #include "dm-bio-record.h"
 #include "dm-cache-metadata.h"
 #include "dm-io-tracker.h"
+#include "dm-cache-background-tracker.h"
 
 #include <linux/dm-io.h>
 #include <linux/dm-kcopyd.h>
@@ -115,8 +116,7 @@ static void __commit(struct work_struct *_ws)
 	 */
 	spin_lock_irq(&b->lock);
 	list_splice_init(&b->work_items, &work_items);
-	bio_list_merge(&bios, &b->bios);
-	bio_list_init(&b->bios);
+	bio_list_merge_init(&bios, &b->bios);
 	b->commit_scheduled = false;
 	spin_unlock_irq(&b->lock);
 
@@ -565,8 +565,7 @@ static void defer_bio(struct cache *cache, struct bio *bio)
 static void defer_bios(struct cache *cache, struct bio_list *bios)
 {
 	spin_lock_irq(&cache->lock);
-	bio_list_merge(&cache->deferred_bios, bios);
-	bio_list_init(bios);
+	bio_list_merge_init(&cache->deferred_bios, bios);
 	spin_unlock_irq(&cache->lock);
 
 	wake_deferred_bio_worker(cache);
@@ -1370,7 +1369,7 @@ static void mg_copy(struct work_struct *ws)
 			 */
 			bool rb = bio_detain_shared(mg->cache, mg->op->oblock, mg->overwrite_bio);
 
-			BUG_ON(rb); /* An exclussive lock must _not_ be held for this block */
+			BUG_ON(rb); /* An exclusive lock must _not_ be held for this block */
 			mg->overwrite_bio = NULL;
 			inc_io_migrations(mg->cache);
 			mg_full_copy(ws);
@@ -1816,8 +1815,7 @@ static void process_deferred_bios(struct work_struct *ws)
 	bio_list_init(&bios);
 
 	spin_lock_irq(&cache->lock);
-	bio_list_merge(&bios, &cache->deferred_bios);
-	bio_list_init(&cache->deferred_bios);
+	bio_list_merge_init(&bios, &cache->deferred_bios);
 	spin_unlock_irq(&cache->lock);
 
 	while ((bio = bio_list_pop(&bios))) {
@@ -1847,8 +1845,7 @@ static void requeue_deferred_bios(struct cache *cache)
 	struct bio_list bios;
 
 	bio_list_init(&bios);
-	bio_list_merge(&bios, &cache->deferred_bios);
-	bio_list_init(&cache->deferred_bios);
+	bio_list_merge_init(&bios, &cache->deferred_bios);
 
 	while ((bio = bio_list_pop(&bios))) {
 		bio->bi_status = BLK_STS_DM_REQUEUE;
@@ -1909,16 +1906,13 @@ static void check_migrations(struct work_struct *ws)
  * This function gets called on the error paths of the constructor, so we
  * have to cope with a partially initialised struct.
  */
-static void destroy(struct cache *cache)
+static void __destroy(struct cache *cache)
 {
-	unsigned int i;
-
 	mempool_exit(&cache->migration_pool);
 
 	if (cache->prison)
 		dm_bio_prison_destroy_v2(cache->prison);
 
-	cancel_delayed_work_sync(&cache->waker);
 	if (cache->wq)
 		destroy_workqueue(cache->wq);
 
@@ -1946,13 +1940,22 @@ static void destroy(struct cache *cache)
 	if (cache->policy)
 		dm_cache_policy_destroy(cache->policy);
 
+	bioset_exit(&cache->bs);
+
+	kfree(cache);
+}
+
+static void destroy(struct cache *cache)
+{
+	unsigned int i;
+
+	cancel_delayed_work_sync(&cache->waker);
+
 	for (i = 0; i < cache->nr_ctr_args ; i++)
 		kfree(cache->ctr_args[i]);
 	kfree(cache->ctr_args);
 
-	bioset_exit(&cache->bs);
-
-	kfree(cache);
+	__destroy(cache);
 }
 
 static void cache_dtr(struct dm_target *ti)
@@ -2007,7 +2010,6 @@ struct cache_args {
 	sector_t cache_sectors;
 
 	struct dm_dev *origin_dev;
-	sector_t origin_sectors;
 
 	uint32_t block_size;
 
@@ -2088,6 +2090,7 @@ static int parse_cache_dev(struct cache_args *ca, struct dm_arg_set *as,
 static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 			    char **error)
 {
+	sector_t origin_sectors;
 	int r;
 
 	if (!at_least_one_arg(as, error))
@@ -2100,8 +2103,8 @@ static int parse_origin_dev(struct cache_args *ca, struct dm_arg_set *as,
 		return r;
 	}
 
-	ca->origin_sectors = get_dev_size(ca->origin_dev);
-	if (ca->ti->len > ca->origin_sectors) {
+	origin_sectors = get_dev_size(ca->origin_dev);
+	if (ca->ti->len > origin_sectors) {
 		*error = "Device size larger than cached device";
 		return -EINVAL;
 	}
@@ -2261,7 +2264,7 @@ static int parse_cache_args(struct cache_args *ca, int argc, char **argv,
 
 /*----------------------------------------------------------------*/
 
-static struct kmem_cache *migration_cache;
+static struct kmem_cache *migration_cache = NULL;
 
 #define NOT_CORE_OPTION 1
 
@@ -2411,7 +2414,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 
 	ca->metadata_dev = ca->origin_dev = ca->cache_dev = NULL;
 
-	origin_blocks = cache->origin_sectors = ca->origin_sectors;
+	origin_blocks = cache->origin_sectors = ti->len;
 	origin_blocks = block_div(origin_blocks, ca->block_size);
 	cache->origin_blocks = to_oblock(origin_blocks);
 
@@ -2565,7 +2568,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	*result = cache;
 	return 0;
 bad:
-	destroy(cache);
+	__destroy(cache);
 	return r;
 }
 
@@ -2616,7 +2619,7 @@ static int cache_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	r = copy_ctr_args(cache, argc - 3, (const char **)argv + 3);
 	if (r) {
-		destroy(cache);
+		__destroy(cache);
 		goto out;
 	}
 
@@ -2899,19 +2902,19 @@ static dm_cblock_t get_cache_dev_size(struct cache *cache)
 static bool can_resize(struct cache *cache, dm_cblock_t new_size)
 {
 	if (from_cblock(new_size) > from_cblock(cache->cache_size)) {
-		if (cache->sized) {
-			DMERR("%s: unable to extend cache due to missing cache table reload",
-			      cache_device_name(cache));
-			return false;
-		}
+		DMERR("%s: unable to extend cache due to missing cache table reload",
+		      cache_device_name(cache));
+		return false;
 	}
 
 	/*
 	 * We can't drop a dirty block when shrinking the cache.
 	 */
-	while (from_cblock(new_size) < from_cblock(cache->cache_size)) {
-		new_size = to_cblock(from_cblock(new_size) + 1);
-		if (is_dirty(cache, new_size)) {
+	if (cache->loaded_mappings) {
+		new_size = to_cblock(find_next_bit(cache->dirty_bitset,
+						   from_cblock(cache->cache_size),
+						   from_cblock(new_size)));
+		if (new_size != cache->cache_size) {
 			DMERR("%s: unable to shrink cache; cache block %llu is dirty",
 			      cache_device_name(cache),
 			      (unsigned long long) from_cblock(new_size));
@@ -2947,20 +2950,15 @@ static int cache_preresume(struct dm_target *ti)
 	/*
 	 * Check to see if the cache has resized.
 	 */
-	if (!cache->sized) {
-		r = resize_cache_dev(cache, csize);
-		if (r)
-			return r;
-
-		cache->sized = true;
-
-	} else if (csize != cache->cache_size) {
+	if (!cache->sized || csize != cache->cache_size) {
 		if (!can_resize(cache, csize))
 			return -EINVAL;
 
 		r = resize_cache_dev(cache, csize);
 		if (r)
 			return r;
+
+		cache->sized = true;
 	}
 
 	if (!cache->loaded_mappings) {
@@ -3204,8 +3202,6 @@ static int parse_cblock_range(struct cache *cache, const char *str,
 	 * Try and parse form (ii) first.
 	 */
 	r = sscanf(str, "%llu-%llu%c", &b, &e, &dummy);
-	if (r < 0)
-		return r;
 
 	if (r == 2) {
 		result->begin = to_cblock(b);
@@ -3217,8 +3213,6 @@ static int parse_cblock_range(struct cache *cache, const char *str,
 	 * That didn't work, try form (i).
 	 */
 	r = sscanf(str, "%llu%c", &b, &dummy);
-	if (r < 0)
-		return r;
 
 	if (r == 1) {
 		result->begin = to_cblock(b);
@@ -3368,7 +3362,7 @@ static int cache_iterate_devices(struct dm_target *ti,
 static void disable_passdown_if_not_supported(struct cache *cache)
 {
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
-	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+	struct queue_limits *origin_limits = bdev_limits(origin_bdev);
 	const char *reason = NULL;
 
 	if (!cache->features.discard_passdown)
@@ -3390,12 +3384,12 @@ static void disable_passdown_if_not_supported(struct cache *cache)
 static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 {
 	struct block_device *origin_bdev = cache->origin_dev->bdev;
-	struct queue_limits *origin_limits = &bdev_get_queue(origin_bdev)->limits;
+	struct queue_limits *origin_limits = bdev_limits(origin_bdev);
 
 	if (!cache->features.discard_passdown) {
 		/* No passdown is done so setting own virtual limits */
-		limits->max_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
-						    cache->origin_sectors);
+		limits->max_hw_discard_sectors = min_t(sector_t, cache->discard_block_size * 1024,
+						       cache->origin_sectors);
 		limits->discard_granularity = cache->discard_block_size << SECTOR_SHIFT;
 		return;
 	}
@@ -3404,11 +3398,9 @@ static void set_discard_limits(struct cache *cache, struct queue_limits *limits)
 	 * cache_iterate_devices() is stacking both origin and fast device limits
 	 * but discards aren't passed to fast device, so inherit origin's limits.
 	 */
-	limits->max_discard_sectors = origin_limits->max_discard_sectors;
 	limits->max_hw_discard_sectors = origin_limits->max_hw_discard_sectors;
 	limits->discard_granularity = origin_limits->discard_granularity;
 	limits->discard_alignment = origin_limits->discard_alignment;
-	limits->discard_misaligned = origin_limits->discard_misaligned;
 }
 
 static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
@@ -3422,8 +3414,8 @@ static void cache_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 */
 	if (io_opt_sectors < cache->sectors_per_block ||
 	    do_div(io_opt_sectors, cache->sectors_per_block)) {
-		blk_limits_io_min(limits, cache->sectors_per_block << SECTOR_SHIFT);
-		blk_limits_io_opt(limits, cache->sectors_per_block << SECTOR_SHIFT);
+		limits->io_min = cache->sectors_per_block << SECTOR_SHIFT;
+		limits->io_opt = cache->sectors_per_block << SECTOR_SHIFT;
 	}
 
 	disable_passdown_if_not_supported(cache);
@@ -3454,22 +3446,36 @@ static int __init dm_cache_init(void)
 	int r;
 
 	migration_cache = KMEM_CACHE(dm_cache_migration, 0);
-	if (!migration_cache)
-		return -ENOMEM;
+	if (!migration_cache) {
+		r = -ENOMEM;
+		goto err;
+	}
+
+	btracker_work_cache = kmem_cache_create("dm_cache_bt_work",
+		sizeof(struct bt_work), __alignof__(struct bt_work), 0, NULL);
+	if (!btracker_work_cache) {
+		r = -ENOMEM;
+		goto err;
+	}
 
 	r = dm_register_target(&cache_target);
 	if (r) {
-		kmem_cache_destroy(migration_cache);
-		return r;
+		goto err;
 	}
 
 	return 0;
+
+err:
+	kmem_cache_destroy(migration_cache);
+	kmem_cache_destroy(btracker_work_cache);
+	return r;
 }
 
 static void __exit dm_cache_exit(void)
 {
 	dm_unregister_target(&cache_target);
 	kmem_cache_destroy(migration_cache);
+	kmem_cache_destroy(btracker_work_cache);
 }
 
 module_init(dm_cache_init);

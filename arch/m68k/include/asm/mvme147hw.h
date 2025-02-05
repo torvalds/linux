@@ -4,24 +4,7 @@
 
 #include <asm/irq.h>
 
-typedef struct {
-	unsigned char
-		ctrl,
-		bcd_sec,
-		bcd_min,
-		bcd_hr,
-		bcd_dow,
-		bcd_dom,
-		bcd_mth,
-		bcd_year;
-} MK48T02;
-
-#define RTC_WRITE	0x80
-#define RTC_READ	0x40
-#define RTC_STOP	0x20
-
-#define m147_rtc ((MK48T02 * volatile)0xfffe07f8)
-
+#define MVME147_RTC_BASE	0xfffe0000
 
 struct pcc_regs {
    volatile u_long	dma_tadr;
@@ -93,8 +76,8 @@ struct pcc_regs {
 #define M147_SCC_B_ADDR		0xfffe3000
 #define M147_SCC_PCLK		5000000
 
-#define MVME147_IRQ_SCSI_PORT	(IRQ_USER+0x45)
-#define MVME147_IRQ_SCSI_DMA	(IRQ_USER+0x46)
+#define MVME147_IRQ_SCSI_PORT	(IRQ_USER + 5)
+#define MVME147_IRQ_SCSI_DMA	(IRQ_USER + 6)
 
 /* SCC interrupts, for MVME147 */
 

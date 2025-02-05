@@ -105,7 +105,7 @@ static inline bool rcu_reclaim_tiny(struct rcu_head *head)
 }
 
 /* Invoke the RCU callbacks whose grace period has elapsed.  */
-static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
+static __latent_entropy void rcu_process_callbacks(void)
 {
 	struct rcu_head *next, *list;
 	unsigned long flags;
@@ -130,9 +130,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 		next = list->next;
 		prefetch(next);
 		debug_rcu_head_unqueue(list);
-		local_bh_disable();
 		rcu_reclaim_tiny(list);
-		local_bh_enable();
 		list = next;
 	}
 }
@@ -155,7 +153,9 @@ void synchronize_rcu(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu() in RCU read-side critical section");
+	preempt_disable();
 	WRITE_ONCE(rcu_ctrlblk.gp_seq, rcu_ctrlblk.gp_seq + 2);
+	preempt_enable();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
@@ -250,7 +250,7 @@ EXPORT_SYMBOL_GPL(poll_state_synchronize_rcu);
 void kvfree_call_rcu(struct rcu_head *head, void *ptr)
 {
 	if (head)
-		kasan_record_aux_stack_noalloc(ptr);
+		kasan_record_aux_stack(ptr);
 
 	__kvfree_call_rcu(head, ptr);
 }

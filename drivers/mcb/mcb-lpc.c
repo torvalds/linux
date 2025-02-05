@@ -97,13 +97,11 @@ out_mcb_bus:
 	return ret;
 }
 
-static int mcb_lpc_remove(struct platform_device *pdev)
+static void mcb_lpc_remove(struct platform_device *pdev)
 {
 	struct priv *priv = platform_get_drvdata(pdev);
 
 	mcb_release_bus(priv->bus);
-
-	return 0;
 }
 
 static struct platform_device *mcb_lpc_pdev;
@@ -186,4 +184,4 @@ module_exit(mcb_lpc_exit);
 MODULE_AUTHOR("Andreas Werner <andreas.werner@men.de>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MCB over LPC support");
-MODULE_IMPORT_NS(MCB);
+MODULE_IMPORT_NS("MCB");

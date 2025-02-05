@@ -167,6 +167,10 @@ attribute-sets:
           "re-attached", they are just waiting to disappear.
           Attribute is absent if Page Pool has not been detached, and
           can still be used to allocate new memory.
+      -
+        name: dmabuf
+        doc: ID of the dmabuf this page-pool is attached to.
+        type: u32
   -
     name: page-pool-info
     subset-of: page-pool
@@ -244,6 +248,26 @@ attribute-sets:
              threaded mode. If NAPI is not in threaded mode (i.e. uses normal
              softirq context), the attribute will be absent.
         type: u32
+      -
+        name: defer-hard-irqs
+        doc: The number of consecutive empty polls before IRQ deferral ends
+             and hardware IRQs are re-enabled.
+        type: u32
+        checks:
+          max: s32-max
+      -
+        name: gro-flush-timeout
+        doc: The timeout, in nanoseconds, of when to trigger the NAPI watchdog
+             timer which schedules NAPI processing. Additionally, a non-zero
+             value will also prevent GRO from flushing recent super-frames at
+             the end of a NAPI cycle. This may add receive latency in exchange
+             for reducing the number of frames processed by the network stack.
+        type: uint
+      -
+        name: irq-suspend-timeout
+        doc: The timeout, in nanoseconds, of how long to suspend irq
+             processing, if event polling finds events
+        type: uint
   -
     name: queue
     attributes:
@@ -267,6 +291,10 @@ attribute-sets:
       -
         name: napi-id
         doc: ID of the NAPI instance which services this queue.
+        type: u32
+      -
+        name: dmabuf
+        doc: ID of the dmabuf attached to this queue, if any.
         type: u32
 
   -
@@ -335,6 +363,161 @@ attribute-sets:
           Allocation failure may, or may not result in a packet drop, depending
           on driver implementation and whether system recovers quickly.
         type: uint
+      -
+        name: rx-hw-drops
+        doc: |
+          Number of all packets which entered the device, but never left it,
+          including but not limited to: packets dropped due to lack of buffer
+          space, processing errors, explicit or implicit policies and packet
+          filters.
+        type: uint
+      -
+        name: rx-hw-drop-overruns
+        doc: |
+          Number of packets dropped due to transient lack of resources, such as
+          buffer space, host descriptors etc.
+        type: uint
+      -
+        name: rx-csum-complete
+        doc: Number of packets that were marked as CHECKSUM_COMPLETE.
+        type: uint
+      -
+        name: rx-csum-unnecessary
+        doc: Number of packets that were marked as CHECKSUM_UNNECESSARY.
+        type: uint
+      -
+        name: rx-csum-none
+        doc: Number of packets that were not checksummed by device.
+        type: uint
+      -
+        name: rx-csum-bad
+        doc: |
+          Number of packets with bad checksum. The packets are not discarded,
+          but still delivered to the stack.
+        type: uint
+      -
+        name: rx-hw-gro-packets
+        doc: |
+          Number of packets that were coalesced from smaller packets by the device.
+          Counts only packets coalesced with the HW-GRO netdevice feature,
+          LRO-coalesced packets are not counted.
+        type: uint
+      -
+        name: rx-hw-gro-bytes
+        doc: See `rx-hw-gro-packets`.
+        type: uint
+      -
+        name: rx-hw-gro-wire-packets
+        doc: |
+          Number of packets that were coalesced to bigger packetss with the HW-GRO
+          netdevice feature. LRO-coalesced packets are not counted.
+        type: uint
+      -
+        name: rx-hw-gro-wire-bytes
+        doc: See `rx-hw-gro-wire-packets`.
+        type: uint
+      -
+        name: rx-hw-drop-ratelimits
+        doc: |
+          Number of the packets dropped by the device due to the received
+          packets bitrate exceeding the device rate limit.
+        type: uint
+      -
+        name: tx-hw-drops
+        doc: |
+          Number of packets that arrived at the device but never left it,
+          encompassing packets dropped for reasons such as processing errors, as
+          well as those affected by explicitly defined policies and packet
+          filtering criteria.
+        type: uint
+      -
+        name: tx-hw-drop-errors
+        doc: Number of packets dropped because they were invalid or malformed.
+        type: uint
+      -
+        name: tx-csum-none
+        doc: |
+          Number of packets that did not require the device to calculate the
+          checksum.
+        type: uint
+      -
+        name: tx-needs-csum
+        doc: |
+          Number of packets that required the device to calculate the checksum.
+        type: uint
+      -
+        name: tx-hw-gso-packets
+        doc: |
+          Number of packets that necessitated segmentation into smaller packets
+          by the device.
+        type: uint
+      -
+        name: tx-hw-gso-bytes
+        doc: See `tx-hw-gso-packets`.
+        type: uint
+      -
+        name: tx-hw-gso-wire-packets
+        doc: |
+          Number of wire-sized packets generated by processing
+          `tx-hw-gso-packets`
+        type: uint
+      -
+        name: tx-hw-gso-wire-bytes
+        doc: See `tx-hw-gso-wire-packets`.
+        type: uint
+      -
+        name: tx-hw-drop-ratelimits
+        doc: |
+          Number of the packets dropped by the device due to the transmit
+          packets bitrate exceeding the device rate limit.
+        type: uint
+      -
+        name: tx-stop
+        doc: |
+          Number of times driver paused accepting new tx packets
+          from the stack to this queue, because the queue was full.
+          Note that if BQL is supported and enabled on the device
+          the networking stack will avoid queuing a lot of data at once.
+        type: uint
+      -
+        name: tx-wake
+        doc: |
+          Number of times driver re-started accepting send
+          requests to this queue from the stack.
+        type: uint
+  -
+    name: queue-id
+    subset-of: queue
+    attributes:
+      -
+        name: id
+      -
+        name: type
+  -
+    name: dmabuf
+    attributes:
+      -
+        name: ifindex
+        doc: netdev ifindex to bind the dmabuf to.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: queues
+        doc: receive queues to bind the dmabuf to.
+        type: nest
+        nested-attributes: queue-id
+        multi-attr: true
+      -
+        name: fd
+        doc: dmabuf file descriptor to bind.
+        type: u32
+      -
+        name: id
+        doc: id of the dmabuf binding
+        type: u32
+        checks:
+          min: 1
 
 operations:
   list:
@@ -388,6 +571,7 @@ operations:
             - inflight
             - inflight-mem
             - detach-time
+            - dmabuf
       dump:
         reply: *pp-reply
       config-cond: page-pool
@@ -452,6 +636,7 @@ operations:
             - type
             - napi-id
             - ifindex
+            - dmabuf
       dump:
         request:
           attributes:
@@ -471,6 +656,9 @@ operations:
             - ifindex
             - irq
             - pid
+            - defer-hard-irqs
+            - gro-flush-timeout
+            - irq-suspend-timeout
       dump:
         request:
           attributes:
@@ -486,6 +674,7 @@ operations:
       dump:
         request:
           attributes:
+            - ifindex
             - scope
         reply:
           attributes:
@@ -496,6 +685,36 @@ operations:
             - rx-bytes
             - tx-packets
             - tx-bytes
+    -
+      name: bind-rx
+      doc: Bind dmabuf to netdev
+      attribute-set: dmabuf
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - ifindex
+            - fd
+            - queues
+        reply:
+          attributes:
+            - id
+    -
+      name: napi-set
+      doc: Set configurable NAPI instance settings.
+      attribute-set: napi
+      flags: [ admin-perm ]
+      do:
+        request:
+          attributes:
+            - id
+            - defer-hard-irqs
+            - gro-flush-timeout
+            - irq-suspend-timeout
+
+kernel-family:
+  headers: [ "linux/list.h"]
+  sock-priv: struct list_head
 
 mcast-groups:
   list:

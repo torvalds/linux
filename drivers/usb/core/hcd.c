@@ -24,7 +24,7 @@
 #include <linux/mutex.h>
 #include <asm/irq.h>
 #include <asm/byteorder.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/pm_runtime.h>
@@ -415,7 +415,7 @@ ascii2desc(char const *s, u8 *buf, unsigned len)
 static unsigned
 rh_string(int id, struct usb_hcd const *hcd, u8 *data, unsigned len)
 {
-	char buf[100];
+	char buf[160];
 	char const *s;
 	static char const langids[4] = {4, USB_DT_STRING, 0x09, 0x04};
 
@@ -866,7 +866,7 @@ static int usb_rh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
  */
 static void usb_bus_init (struct usb_bus *bus)
 {
-	memset (&bus->devmap, 0, sizeof(struct usb_devmap));
+	memset(&bus->devmap, 0, sizeof(bus->devmap));
 
 	bus->devnum_next = 1;
 
@@ -962,7 +962,7 @@ static int register_root_hub(struct usb_hcd *hcd)
 
 	usb_dev->devnum = devnum;
 	usb_dev->bus->devnum_next = devnum + 1;
-	set_bit (devnum, usb_dev->bus->devmap.devicemap);
+	set_bit(devnum, usb_dev->bus->devmap);
 	usb_set_device_state(usb_dev, USB_STATE_ADDRESS);
 
 	mutex_lock(&usb_bus_idr_lock);
@@ -1623,6 +1623,7 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	struct usb_hcd *hcd = bus_to_hcd(urb->dev->bus);
 	struct usb_anchor *anchor = urb->anchor;
 	int status = urb->unlinked;
+	unsigned long flags;
 
 	urb->hcpriv = NULL;
 	if (unlikely((urb->transfer_flags & URB_SHORT_NOT_OK) &&
@@ -1640,13 +1641,14 @@ static void __usb_hcd_giveback_urb(struct urb *urb)
 	/* pass ownership to the completion handler */
 	urb->status = status;
 	/*
-	 * This function can be called in task context inside another remote
-	 * coverage collection section, but kcov doesn't support that kind of
-	 * recursion yet. Only collect coverage in softirq context for now.
+	 * Only collect coverage in the softirq context and disable interrupts
+	 * to avoid scenarios with nested remote coverage collection sections
+	 * that KCOV does not support.
+	 * See the comment next to kcov_remote_start_usb_softirq() for details.
 	 */
-	kcov_remote_start_usb_softirq((u64)urb->dev->bus->busnum);
+	flags = kcov_remote_start_usb_softirq((u64)urb->dev->bus->busnum);
 	urb->complete(urb);
-	kcov_remote_stop_softirq();
+	kcov_remote_stop_softirq(flags);
 
 	usb_anchor_resume_wakeups(anchor);
 	atomic_dec(&urb->use_count);
@@ -2792,8 +2794,14 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	int retval;
 	struct usb_device *rhdev;
 	struct usb_hcd *shared_hcd;
+	int skip_phy_initialization;
 
-	if (!hcd->skip_phy_initialization) {
+	if (usb_hcd_is_primary_hcd(hcd))
+		skip_phy_initialization = hcd->skip_phy_initialization;
+	else
+		skip_phy_initialization = hcd->primary_hcd->skip_phy_initialization;
+
+	if (!skip_phy_initialization) {
 		if (usb_hcd_is_primary_hcd(hcd)) {
 			hcd->phy_roothub = usb_phy_roothub_alloc(hcd->self.sysdev);
 			if (IS_ERR(hcd->phy_roothub))

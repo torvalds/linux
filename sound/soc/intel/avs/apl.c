@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -8,10 +8,28 @@
 
 #include <linux/devcoredump.h>
 #include <linux/slab.h>
+#include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "messages.h"
 #include "path.h"
+#include "registers.h"
 #include "topology.h"
+
+static irqreturn_t avs_apl_dsp_interrupt(struct avs_dev *adev)
+{
+	u32 adspis = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPIS);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (adspis == UINT_MAX)
+		return ret;
+
+	if (adspis & AVS_ADSP_ADSPIS_IPC) {
+		avs_skl_ipc_interrupt(adev);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
 
 #ifdef CONFIG_DEBUG_FS
 int avs_apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
@@ -108,7 +126,7 @@ int avs_apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	struct avs_apl_log_buffer_layout layout;
 	void __iomem *addr, *buf;
 	size_t dump_size;
-	u16 offset = 0;
+	u32 offset = 0;
 	u8 *dump, *pos;
 
 	dump_size = AVS_FW_REGS_SIZE + msg->ext.coredump.stack_dump_size;
@@ -237,8 +255,7 @@ const struct avs_dsp_ops avs_apl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
-	.irq_handler = avs_irq_handler,
-	.irq_thread = avs_skl_irq_thread,
+	.dsp_interrupt = avs_apl_dsp_interrupt,
 	.int_control = avs_dsp_interrupt_control,
 	.load_basefw = avs_hda_load_basefw,
 	.load_lib = avs_hda_load_library,

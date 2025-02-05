@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -185,23 +186,20 @@ static void update_range(struct ocmem *ocmem, struct ocmem_buf *buf,
 struct ocmem *of_get_ocmem(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *devnode;
 	struct ocmem *ocmem;
 
-	devnode = of_parse_phandle(dev->of_node, "sram", 0);
+	struct device_node *devnode __free(device_node) = of_parse_phandle(dev->of_node,
+									   "sram", 0);
 	if (!devnode || !devnode->parent) {
 		dev_err(dev, "Cannot look up sram phandle\n");
-		of_node_put(devnode);
 		return ERR_PTR(-ENODEV);
 	}
 
 	pdev = of_find_device_by_node(devnode->parent);
 	if (!pdev) {
 		dev_err(dev, "Cannot find device node %s\n", devnode->name);
-		of_node_put(devnode);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
-	of_node_put(devnode);
 
 	ocmem = platform_get_drvdata(pdev);
 	if (!ocmem) {
@@ -216,7 +214,6 @@ EXPORT_SYMBOL_GPL(of_get_ocmem);
 struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 				 unsigned long size)
 {
-	struct ocmem_buf *buf;
 	int ret;
 
 	/* TODO: add support for other clients... */
@@ -229,7 +226,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 	if (test_and_set_bit_lock(BIT(client), &ocmem->active_allocations))
 		return ERR_PTR(-EBUSY);
 
-	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
+	struct ocmem_buf *buf __free(kfree) = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto err_unlock;
@@ -247,7 +244,7 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 		if (ret) {
 			dev_err(ocmem->dev, "could not lock: %d\n", ret);
 			ret = -EINVAL;
-			goto err_kfree;
+			goto err_unlock;
 		}
 	} else {
 		ocmem_write(ocmem, OCMEM_REG_GFX_MPU_START, buf->offset);
@@ -258,10 +255,8 @@ struct ocmem_buf *ocmem_allocate(struct ocmem *ocmem, enum ocmem_client client,
 	dev_dbg(ocmem->dev, "using %ldK of OCMEM at 0x%08lx for client %d\n",
 		size / 1024, buf->addr, client);
 
-	return buf;
+	return_ptr(buf);
 
-err_kfree:
-	kfree(buf);
 err_unlock:
 	clear_bit_unlock(BIT(client), &ocmem->active_allocations);
 
@@ -444,7 +439,7 @@ MODULE_DEVICE_TABLE(of, ocmem_of_match);
 
 static struct platform_driver ocmem_driver = {
 	.probe = ocmem_dev_probe,
-	.remove_new = ocmem_dev_remove,
+	.remove = ocmem_dev_remove,
 	.driver = {
 		.name = "ocmem",
 		.of_match_table = ocmem_of_match,

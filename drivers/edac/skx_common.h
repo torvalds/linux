@@ -45,7 +45,6 @@
 #define I10NM_NUM_CHANNELS	MAX(I10NM_NUM_DDR_CHANNELS, I10NM_NUM_HBM_CHANNELS)
 #define I10NM_NUM_DIMMS		MAX(I10NM_NUM_DDR_DIMMS, I10NM_NUM_HBM_DIMMS)
 
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
 #define NUM_IMC		MAX(SKX_NUM_IMC, I10NM_NUM_IMC)
 #define NUM_CHANNELS	MAX(SKX_NUM_CHANNELS, I10NM_NUM_CHANNELS)
 #define NUM_DIMMS	MAX(SKX_NUM_DIMMS, I10NM_NUM_DIMMS)
@@ -104,7 +103,7 @@ struct skx_dev {
 		bool hbm_mc;
 		u8 mc;	/* system wide mc# */
 		u8 lmc;	/* socket relative mc# */
-		u8 src_id, node_id;
+		u8 src_id;
 		struct skx_channel {
 			struct pci_dev	*cdev;
 			struct pci_dev	*edev;
@@ -145,6 +144,13 @@ enum {
 	INDEX_NM_DIMM,
 	INDEX_NM_CS,
 	INDEX_MAX
+};
+
+enum error_source {
+	ERR_SRC_1LM,
+	ERR_SRC_2LM_NM,
+	ERR_SRC_2LM_FM,
+	ERR_SRC_NOT_MEMORY,
 };
 
 #define BIT_NM_MEMCTRL	BIT_ULL(INDEX_NM_MEMCTRL)
@@ -231,13 +237,13 @@ typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,
 typedef bool (*skx_decode_f)(struct decoded_addr *res);
 typedef void (*skx_show_retry_log_f)(struct decoded_addr *res, char *msg, int len, bool scrub_err);
 
-int __init skx_adxl_get(void);
-void __exit skx_adxl_put(void);
+int skx_adxl_get(void);
+void skx_adxl_put(void);
 void skx_set_decode(skx_decode_f decode, skx_show_retry_log_f show_retry_log);
 void skx_set_mem_cfg(bool mem_cfg_2lm);
+void skx_set_res_cfg(struct res_config *cfg);
 
 int skx_get_src_id(struct skx_dev *d, int off, u8 *id);
-int skx_get_node_id(struct skx_dev *d, u8 *id);
 
 int skx_get_all_bus_mappings(struct res_config *cfg, struct list_head **list);
 
@@ -259,5 +265,13 @@ int skx_mce_check_error(struct notifier_block *nb, unsigned long val,
 			void *data);
 
 void skx_remove(void);
+
+#ifdef CONFIG_EDAC_DEBUG
+void skx_setup_debug(const char *name);
+void skx_teardown_debug(void);
+#else
+static inline void skx_setup_debug(const char *name) {}
+static inline void skx_teardown_debug(void) {}
+#endif
 
 #endif /* _SKX_COMM_EDAC_H */

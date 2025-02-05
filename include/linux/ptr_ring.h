@@ -464,11 +464,11 @@ static inline int ptr_ring_consume_batched_bh(struct ptr_ring *r,
 /* Not all gfp_t flags (besides GFP_KERNEL) are allowed. See
  * documentation for vmalloc for which of them are legal.
  */
-static inline void **__ptr_ring_init_queue_alloc(unsigned int size, gfp_t gfp)
+static inline void **__ptr_ring_init_queue_alloc_noprof(unsigned int size, gfp_t gfp)
 {
 	if (size > KMALLOC_MAX_SIZE / sizeof(void *))
 		return NULL;
-	return kvmalloc_array(size, sizeof(void *), gfp | __GFP_ZERO);
+	return kvmalloc_array_noprof(size, sizeof(void *), gfp | __GFP_ZERO);
 }
 
 static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
@@ -484,9 +484,9 @@ static inline void __ptr_ring_set_size(struct ptr_ring *r, int size)
 		r->batch = 1;
 }
 
-static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
+static inline int ptr_ring_init_noprof(struct ptr_ring *r, int size, gfp_t gfp)
 {
-	r->queue = __ptr_ring_init_queue_alloc(size, gfp);
+	r->queue = __ptr_ring_init_queue_alloc_noprof(size, gfp);
 	if (!r->queue)
 		return -ENOMEM;
 
@@ -497,6 +497,7 @@ static inline int ptr_ring_init(struct ptr_ring *r, int size, gfp_t gfp)
 
 	return 0;
 }
+#define ptr_ring_init(...)	alloc_hooks(ptr_ring_init_noprof(__VA_ARGS__))
 
 /*
  * Return entries into ring. Destroy entries that don't fit.
@@ -587,11 +588,11 @@ static inline void **__ptr_ring_swap_queue(struct ptr_ring *r, void **queue,
  * In particular if you consume ring in interrupt or BH context, you must
  * disable interrupts/BH when doing so.
  */
-static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
+static inline int ptr_ring_resize_noprof(struct ptr_ring *r, int size, gfp_t gfp,
 				  void (*destroy)(void *))
 {
 	unsigned long flags;
-	void **queue = __ptr_ring_init_queue_alloc(size, gfp);
+	void **queue = __ptr_ring_init_queue_alloc_noprof(size, gfp);
 	void **old;
 
 	if (!queue)
@@ -609,39 +610,39 @@ static inline int ptr_ring_resize(struct ptr_ring *r, int size, gfp_t gfp,
 
 	return 0;
 }
+#define ptr_ring_resize(...)	alloc_hooks(ptr_ring_resize_noprof(__VA_ARGS__))
 
 /*
  * Note: producer lock is nested within consumer lock, so if you
  * resize you must make sure all uses nest correctly.
- * In particular if you consume ring in interrupt or BH context, you must
- * disable interrupts/BH when doing so.
+ * In particular if you consume ring in BH context, you must
+ * disable BH when doing so.
  */
-static inline int ptr_ring_resize_multiple(struct ptr_ring **rings,
-					   unsigned int nrings,
-					   int size,
-					   gfp_t gfp, void (*destroy)(void *))
+static inline int ptr_ring_resize_multiple_bh_noprof(struct ptr_ring **rings,
+						     unsigned int nrings,
+						     int size, gfp_t gfp,
+						     void (*destroy)(void *))
 {
-	unsigned long flags;
 	void ***queues;
 	int i;
 
-	queues = kmalloc_array(nrings, sizeof(*queues), gfp);
+	queues = kmalloc_array_noprof(nrings, sizeof(*queues), gfp);
 	if (!queues)
 		goto noqueues;
 
 	for (i = 0; i < nrings; ++i) {
-		queues[i] = __ptr_ring_init_queue_alloc(size, gfp);
+		queues[i] = __ptr_ring_init_queue_alloc_noprof(size, gfp);
 		if (!queues[i])
 			goto nomem;
 	}
 
 	for (i = 0; i < nrings; ++i) {
-		spin_lock_irqsave(&(rings[i])->consumer_lock, flags);
+		spin_lock_bh(&(rings[i])->consumer_lock);
 		spin_lock(&(rings[i])->producer_lock);
 		queues[i] = __ptr_ring_swap_queue(rings[i], queues[i],
 						  size, gfp, destroy);
 		spin_unlock(&(rings[i])->producer_lock);
-		spin_unlock_irqrestore(&(rings[i])->consumer_lock, flags);
+		spin_unlock_bh(&(rings[i])->consumer_lock);
 	}
 
 	for (i = 0; i < nrings; ++i)
@@ -660,6 +661,8 @@ nomem:
 noqueues:
 	return -ENOMEM;
 }
+#define ptr_ring_resize_multiple_bh(...) \
+		alloc_hooks(ptr_ring_resize_multiple_bh_noprof(__VA_ARGS__))
 
 static inline void ptr_ring_cleanup(struct ptr_ring *r, void (*destroy)(void *))
 {

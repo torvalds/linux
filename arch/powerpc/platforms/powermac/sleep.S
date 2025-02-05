@@ -176,7 +176,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	 *    memory location containing the PC to resume from
 	 *    at address 0.
 	 *  - On Core99, we must store the wakeup vector at
-	 *    address 0x80 and eventually it's parameters
+	 *    address 0x80 and eventually its parameters
 	 *    at address 0x84. I've have some trouble with those
 	 *    parameters however and I no longer use them.
 	 */

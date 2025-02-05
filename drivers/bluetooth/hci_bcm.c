@@ -1068,17 +1068,17 @@ static struct clk *bcm_get_txco(struct device *dev)
 	struct clk *clk;
 
 	/* New explicit name */
-	clk = devm_clk_get(dev, "txco");
-	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+	clk = devm_clk_get_optional(dev, "txco");
+	if (clk)
 		return clk;
 
 	/* Deprecated name */
-	clk = devm_clk_get(dev, "extclk");
-	if (!IS_ERR(clk) || PTR_ERR(clk) == -EPROBE_DEFER)
+	clk = devm_clk_get_optional(dev, "extclk");
+	if (clk)
 		return clk;
 
 	/* Original code used no name at all */
-	return devm_clk_get(dev, NULL);
+	return devm_clk_get_optional(dev, NULL);
 }
 
 static int bcm_get_resources(struct bcm_device *dev)
@@ -1093,21 +1093,12 @@ static int bcm_get_resources(struct bcm_device *dev)
 		return 0;
 
 	dev->txco_clk = bcm_get_txco(dev->dev);
-
-	/* Handle deferred probing */
-	if (dev->txco_clk == ERR_PTR(-EPROBE_DEFER))
+	if (IS_ERR(dev->txco_clk))
 		return PTR_ERR(dev->txco_clk);
 
-	/* Ignore all other errors as before */
-	if (IS_ERR(dev->txco_clk))
-		dev->txco_clk = NULL;
-
-	dev->lpo_clk = devm_clk_get(dev->dev, "lpo");
-	if (dev->lpo_clk == ERR_PTR(-EPROBE_DEFER))
-		return PTR_ERR(dev->lpo_clk);
-
+	dev->lpo_clk = devm_clk_get_optional(dev->dev, "lpo");
 	if (IS_ERR(dev->lpo_clk))
-		dev->lpo_clk = NULL;
+		return PTR_ERR(dev->lpo_clk);
 
 	/* Check if we accidentally fetched the lpo clock twice */
 	if (dev->lpo_clk && clk_is_match(dev->lpo_clk, dev->txco_clk)) {
@@ -1293,7 +1284,7 @@ static int bcm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm_remove(struct platform_device *pdev)
+static void bcm_remove(struct platform_device *pdev)
 {
 	struct bcm_device *dev = platform_get_drvdata(pdev);
 
@@ -1302,8 +1293,6 @@ static int bcm_remove(struct platform_device *pdev)
 	mutex_unlock(&bcm_device_lock);
 
 	dev_info(&pdev->dev, "%s device unregistered.\n", dev->name);
-
-	return 0;
 }
 
 static const struct hci_uart_proto bcm_proto = {
@@ -1487,7 +1476,7 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2EA1" },
 	{ "BCM2EA2", (long)&bcm43430_device_data },
 	{ "BCM2EA3", (long)&bcm43430_device_data },
-	{ "BCM2EA4" },
+	{ "BCM2EA4", (long)&bcm43430_device_data }, /* bcm43455 */
 	{ "BCM2EA5" },
 	{ "BCM2EA6" },
 	{ "BCM2EA7" },

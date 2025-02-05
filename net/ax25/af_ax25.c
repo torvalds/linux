@@ -467,7 +467,7 @@ einval_put:
 	goto out_put;
 }
 
-static void ax25_fillin_cb_from_dev(ax25_cb *ax25, ax25_dev *ax25_dev)
+static void ax25_fillin_cb_from_dev(ax25_cb *ax25, const ax25_dev *ax25_dev)
 {
 	ax25->rtt     = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]) / 2;
 	ax25->t1      = msecs_to_jiffies(ax25_dev->values[AX25_VALUES_T1]);
@@ -677,22 +677,22 @@ static int ax25_setsockopt(struct socket *sock, int level, int optname,
 			break;
 		}
 
-		rtnl_lock();
-		dev = __dev_get_by_name(&init_net, devname);
+		rcu_read_lock();
+		dev = dev_get_by_name_rcu(&init_net, devname);
 		if (!dev) {
-			rtnl_unlock();
+			rcu_read_unlock();
 			res = -ENODEV;
 			break;
 		}
 
 		ax25->ax25_dev = ax25_dev_ax25dev(dev);
 		if (!ax25->ax25_dev) {
-			rtnl_unlock();
+			rcu_read_unlock();
 			res = -ENODEV;
 			break;
 		}
 		ax25_fillin_cb(ax25, ax25->ax25_dev);
-		rtnl_unlock();
+		rcu_read_unlock();
 		break;
 
 	default:
@@ -1373,13 +1373,15 @@ out_release:
 	return err;
 }
 
-static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
-		       bool kern)
+static int ax25_accept(struct socket *sock, struct socket *newsock,
+		       struct proto_accept_arg *arg)
 {
 	struct sk_buff *skb;
 	struct sock *newsk;
+	ax25_dev *ax25_dev;
 	DEFINE_WAIT(wait);
 	struct sock *sk;
+	ax25_cb *ax25;
 	int err = 0;
 
 	if (sock->state != SS_UNCONNECTED)
@@ -1409,7 +1411,7 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
 		if (skb)
 			break;
 
-		if (flags & O_NONBLOCK) {
+		if (arg->flags & O_NONBLOCK) {
 			err = -EWOULDBLOCK;
 			break;
 		}
@@ -1434,6 +1436,10 @@ static int ax25_accept(struct socket *sock, struct socket *newsock, int flags,
 	kfree_skb(skb);
 	sk_acceptq_removed(sk);
 	newsock->state = SS_CONNECTED;
+	ax25 = sk_to_ax25(newsk);
+	ax25_dev = ax25->ax25_dev;
+	netdev_hold(ax25_dev->dev, &ax25->dev_tracker, GFP_ATOMIC);
+	ax25_dev_hold(ax25_dev);
 
 out:
 	release_sock(sk);

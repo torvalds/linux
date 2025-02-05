@@ -41,7 +41,7 @@ bool kvm_page_track_write_tracking_enabled(struct kvm *kvm)
 
 void kvm_page_track_free_memslot(struct kvm_memory_slot *slot)
 {
-	kvfree(slot->arch.gfn_write_track);
+	vfree(slot->arch.gfn_write_track);
 	slot->arch.gfn_write_track = NULL;
 }
 

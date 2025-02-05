@@ -120,6 +120,7 @@ config PMAC_MEDIABAY
 config PMAC_BACKLIGHT
 	bool "Backlight control for LCD screens"
 	depends on PPC_PMAC && ADB_PMU && FB = y && (BROKEN || !PPC64)
+	depends on BACKLIGHT_CLASS_DEVICE=y
 	select FB_BACKLIGHT
 	help
 	  Say Y here to enable Macintosh specific extensions of the generic
@@ -262,7 +263,7 @@ config SENSORS_AMS
 	  will be called ams.
 
 config SENSORS_AMS_PMU
-	bool "PMU variant"
+	bool "PMU variant" if SENSORS_AMS_I2C
 	depends on SENSORS_AMS && ADB_PMU
 	default y
 	help

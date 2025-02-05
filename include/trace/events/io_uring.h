@@ -164,7 +164,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 		__entry->work		= &req->work;
 		__entry->rw		= rw;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, flags 0x%llx, %s queue, work %p",
@@ -202,7 +202,7 @@ TRACE_EVENT(io_uring_defer,
 		__entry->data	= req->cqe.user_data;
 		__entry->opcode	= req->opcode;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s",
@@ -303,7 +303,7 @@ TRACE_EVENT(io_uring_fail_link,
 		__entry->opcode		= req->opcode;
 		__entry->link		= link;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %s, link %p",
@@ -315,20 +315,14 @@ TRACE_EVENT(io_uring_fail_link,
  * io_uring_complete - called when completing an SQE
  *
  * @ctx:		pointer to a ring context structure
- * @req:		pointer to a submitted request
- * @user_data:		user data associated with the request
- * @res:		result of the request
- * @cflags:		completion flags
- * @extra1:		extra 64-bit data for CQE32
- * @extra2:		extra 64-bit data for CQE32
- *
+ * @req:		(optional) pointer to a submitted request
+ * @cqe:		pointer to the filled in CQE being posted
  */
 TRACE_EVENT(io_uring_complete,
 
-	TP_PROTO(void *ctx, void *req, u64 user_data, int res, unsigned cflags,
-		 u64 extra1, u64 extra2),
+TP_PROTO(struct io_ring_ctx *ctx, void *req, struct io_uring_cqe *cqe),
 
-	TP_ARGS(ctx, req, user_data, res, cflags, extra1, extra2),
+	TP_ARGS(ctx, req, cqe),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
@@ -343,11 +337,11 @@ TRACE_EVENT(io_uring_complete,
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->req		= req;
-		__entry->user_data	= user_data;
-		__entry->res		= res;
-		__entry->cflags		= cflags;
-		__entry->extra1		= extra1;
-		__entry->extra2		= extra2;
+		__entry->user_data	= cqe->user_data;
+		__entry->res		= cqe->res;
+		__entry->cflags		= cqe->flags;
+		__entry->extra1		= io_ctx_cqe32(ctx) ? cqe->big_cqe[0] : 0;
+		__entry->extra2		= io_ctx_cqe32(ctx) ? cqe->big_cqe[1] : 0;
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags 0x%x "
@@ -392,7 +386,7 @@ TRACE_EVENT(io_uring_submit_req,
 		__entry->flags		= (__force unsigned long long) req->flags;
 		__entry->sq_thread	= req->ctx->flags & IORING_SETUP_SQPOLL;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, flags 0x%llx, "
@@ -436,7 +430,7 @@ TRACE_EVENT(io_uring_poll_arm,
 		__entry->mask		= mask;
 		__entry->events		= events;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask 0x%x, events 0x%x",
@@ -475,7 +469,7 @@ TRACE_EVENT(io_uring_task_add,
 		__entry->opcode		= req->opcode;
 		__entry->mask		= mask;
 
-		__assign_str(op_str, io_uring_get_opcode(req->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %s, mask %x",
@@ -538,7 +532,7 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->addr3		= sqe->addr3;
 		__entry->error		= error;
 
-		__assign_str(op_str, io_uring_get_opcode(sqe->opcode));
+		__assign_str(op_str);
 	),
 
 	TP_printk("ring %p, req %p, user_data 0x%llx, "

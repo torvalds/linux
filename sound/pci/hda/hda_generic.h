@@ -232,7 +232,6 @@ struct hda_gen_spec {
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
 	unsigned int suppress_vmaster:1; /* don't create vmaster kctls */
-	unsigned int obey_preferred_dacs:1; /* obey preferred_dacs assignment */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
@@ -340,9 +339,7 @@ void snd_hda_gen_mic_autoswitch(struct hda_codec *codec,
 				struct hda_jack_callback *jack);
 void snd_hda_gen_update_outputs(struct hda_codec *codec);
 
-#ifdef CONFIG_PM
 int snd_hda_gen_check_power_status(struct hda_codec *codec, hda_nid_t nid);
-#endif
 unsigned int snd_hda_gen_path_power_filter(struct hda_codec *codec,
 					   hda_nid_t nid,
 					   unsigned int power_state);
@@ -355,5 +352,6 @@ int snd_hda_gen_add_mute_led_cdev(struct hda_codec *codec,
 int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
 				     int (*callback)(struct led_classdev *,
 						     enum led_brightness));
+bool snd_hda_gen_shutup_speakers(struct hda_codec *codec);
 
 #endif /* __SOUND_HDA_GENERIC_H */

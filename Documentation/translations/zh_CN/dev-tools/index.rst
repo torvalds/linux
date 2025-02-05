@@ -20,18 +20,22 @@ Documentation/translations/zh_CN/dev-tools/testing-overview.rst
 
    testing-overview
    sparse
+   kcov
+   kcsan
+   kmsan
    gcov
    kasan
+   ubsan
+   kmemleak
    gdb-kernel-debugging
 
 Todolist:
 
+ - checkpatch
  - coccinelle
- - kcov
- - ubsan
- - kmemleak
- - kcsan
  - kfence
  - kgdb
  - kselftest
  - kunit/index
+ - ktap
+ - checkuapi

@@ -2,23 +2,14 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _HRT_BITS_H
 #define _HRT_BITS_H
 
-#include "defs.h"
+#include <linux/args.h>
 
-#define _hrt_ones(n) HRTCAT(_hrt_ones_, n)
+#define _hrt_ones(n)	CONCATENATE(_hrt_ones_, n)
 #define _hrt_ones_0x0  0x00000000U
 #define _hrt_ones_0x1  0x00000001U
 #define _hrt_ones_0x2  0x00000003U

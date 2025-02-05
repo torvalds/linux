@@ -54,7 +54,7 @@ struct hisi_zip_req {
 struct hisi_zip_req_q {
 	struct hisi_zip_req *q;
 	unsigned long *req_bitmap;
-	rwlock_t req_lock;
+	spinlock_t req_lock;
 	u16 size;
 };
 
@@ -116,17 +116,17 @@ static struct hisi_zip_req *hisi_zip_create_req(struct hisi_zip_qp_ctx *qp_ctx,
 	struct hisi_zip_req *req_cache;
 	int req_id;
 
-	write_lock(&req_q->req_lock);
+	spin_lock(&req_q->req_lock);
 
 	req_id = find_first_zero_bit(req_q->req_bitmap, req_q->size);
 	if (req_id >= req_q->size) {
-		write_unlock(&req_q->req_lock);
+		spin_unlock(&req_q->req_lock);
 		dev_dbg(&qp_ctx->qp->qm->pdev->dev, "req cache is full!\n");
 		return ERR_PTR(-EAGAIN);
 	}
 	set_bit(req_id, req_q->req_bitmap);
 
-	write_unlock(&req_q->req_lock);
+	spin_unlock(&req_q->req_lock);
 
 	req_cache = q + req_id;
 	req_cache->req_id = req_id;
@@ -140,9 +140,9 @@ static void hisi_zip_remove_req(struct hisi_zip_qp_ctx *qp_ctx,
 {
 	struct hisi_zip_req_q *req_q = &qp_ctx->req_q;
 
-	write_lock(&req_q->req_lock);
+	spin_lock(&req_q->req_lock);
 	clear_bit(req->req_id, req_q->req_bitmap);
-	write_unlock(&req_q->req_lock);
+	spin_unlock(&req_q->req_lock);
 }
 
 static void hisi_zip_fill_addr(struct hisi_zip_sqe *sqe, struct hisi_zip_req *req)
@@ -213,6 +213,7 @@ static int hisi_zip_do_work(struct hisi_zip_qp_ctx *qp_ctx,
 {
 	struct hisi_acc_sgl_pool *pool = qp_ctx->sgl_pool;
 	struct hisi_zip_dfx *dfx = &qp_ctx->zip_dev->dfx;
+	struct hisi_zip_req_q *req_q = &qp_ctx->req_q;
 	struct acomp_req *a_req = req->req;
 	struct hisi_qp *qp = qp_ctx->qp;
 	struct device *dev = &qp->qm->pdev->dev;
@@ -244,7 +245,9 @@ static int hisi_zip_do_work(struct hisi_zip_qp_ctx *qp_ctx,
 
 	/* send command to start a task */
 	atomic64_inc(&dfx->send_cnt);
+	spin_lock_bh(&req_q->req_lock);
 	ret = hisi_qp_send(qp, &zip_sqe);
+	spin_unlock_bh(&req_q->req_lock);
 	if (unlikely(ret < 0)) {
 		atomic64_inc(&dfx->send_busy_cnt);
 		ret = -EAGAIN;
@@ -456,7 +459,7 @@ static int hisi_zip_create_req_q(struct hisi_zip_ctx *ctx)
 
 			goto err_free_comp_q;
 		}
-		rwlock_init(&req_q->req_lock);
+		spin_lock_init(&req_q->req_lock);
 
 		req_q->q = kcalloc(req_q->size, sizeof(struct hisi_zip_req),
 				   GFP_KERNEL);

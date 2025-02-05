@@ -232,7 +232,7 @@ static int da9052_ts_probe(struct platform_device *pdev)
 	if (!da9052)
 		return -EINVAL;
 
-	tsi = kzalloc(sizeof(struct da9052_tsi), GFP_KERNEL);
+	tsi = kzalloc(sizeof(*tsi), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!tsi || !input_dev) {
 		error = -ENOMEM;
@@ -326,7 +326,7 @@ static void da9052_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_tsi_driver = {
 	.probe	= da9052_ts_probe,
-	.remove_new = da9052_ts_remove,
+	.remove	= da9052_ts_remove,
 	.driver	= {
 		.name	= "da9052-tsi",
 	},

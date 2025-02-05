@@ -163,7 +163,7 @@ static int ltc4260_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ltc4260_id[] = {
-	{"ltc4260", 0},
+	{"ltc4260"},
 	{ }
 };
 

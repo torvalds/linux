@@ -1,3 +1,0 @@
-* Fix FIFO/buffer overflows and underflows
-* Replace dummy resizer code with a real implementation
-* Fix checkpatch errors and warnings

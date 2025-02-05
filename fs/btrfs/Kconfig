@@ -78,6 +78,32 @@ config BTRFS_ASSERT
 
 	  If unsure, say N.
 
+config BTRFS_EXPERIMENTAL
+	bool "Btrfs experimental features"
+	depends on BTRFS_FS
+	default n
+	help
+	  Enable experimental features.  These features may not be stable enough
+	  for end users.  This is meant for btrfs developers or users who wish
+	  to test the functionality and report problems.
+
+	  Current list:
+
+	  - extent map shrinker - performance problems with too frequent shrinks
+
+	  - send stream protocol v3 - fs-verity support
+
+	  - checksum offload mode - sysfs knob to affect when checksums are
+	                            calculated (at IO time, or in a thread)
+
+	  - raid-stripe-tree - additional mapping of extents to devices to
+			       support RAID1* profiles on zoned devices,
+			       RAID56 not yet supported
+
+	  - extent tree v2 - complex rework of extent tracking
+
+	  If unsure, say N.
+
 config BTRFS_FS_REF_VERIFY
 	bool "Btrfs with the ref verify tool compiled in"
 	depends on BTRFS_FS

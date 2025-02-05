@@ -75,9 +75,6 @@ static void __init init_pvh_bootparams(bool xen_guest)
 	} else
 		xen_raw_printk("Warning: Can fit ISA range into e820\n");
 
-	if (xen_guest)
-		xen_reserve_extra_memory(&pvh_bootparams);
-
 	pvh_bootparams.hdr.cmd_line_ptr =
 		pvh_start_info.cmdline_paddr;
 
@@ -133,7 +130,11 @@ void __init xen_prepare_pvh(void)
 		BUG();
 	}
 
-	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
+	/*
+	 * This must not compile to "call memset" because memset() may be
+	 * instrumented.
+	 */
+	__builtin_memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
 
 	hypervisor_specific_init(xen_guest);
 

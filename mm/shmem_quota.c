@@ -34,8 +34,6 @@
 #include <linux/quotaops.h>
 #include <linux/quota.h>
 
-#ifdef CONFIG_TMPFS_QUOTA
-
 /*
  * The following constants define the amount of time given a user
  * before the soft limits are treated as hard limits (usually resulting
@@ -351,4 +349,3 @@ const struct dquot_operations shmem_quota_operations = {
 	.mark_dirty		= shmem_mark_dquot_dirty,
 	.get_next_id		= shmem_get_next_id,
 };
-#endif /* CONFIG_TMPFS_QUOTA */

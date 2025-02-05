@@ -36,7 +36,6 @@
 #define DRIVER_AUTHOR	"Stephen Hemminger <sthemmin at microsoft.com>"
 #define DRIVER_DESC	"Generic UIO driver for VMBus devices"
 
-#define HV_RING_SIZE	 512	/* pages */
 #define SEND_BUFFER_SIZE (16 * 1024 * 1024)
 #define RECV_BUFFER_SIZE (31 * 1024 * 1024)
 
@@ -84,6 +83,9 @@ hv_uio_irqcontrol(struct uio_info *info, s32 irq_state)
 	dev->channel->inbound.ring_buffer->interrupt_mask = !irq_state;
 	virt_mb();
 
+	if (!dev->channel->offermsg.monitor_allocated && irq_state)
+		vmbus_setevent(dev->channel);
+
 	return 0;
 }
 
@@ -104,10 +106,11 @@ static void hv_uio_channel_cb(void *context)
 
 /*
  * Callback from vmbus_event when channel is rescinded.
+ * It is meant for rescind of primary channels only.
  */
 static void hv_uio_rescind(struct vmbus_channel *channel)
 {
-	struct hv_device *hv_dev = channel->primary_channel->device_obj;
+	struct hv_device *hv_dev = channel->device_obj;
 	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
 
 	/*
@@ -118,13 +121,21 @@ static void hv_uio_rescind(struct vmbus_channel *channel)
 
 	/* Wake up reader */
 	uio_event_notify(&pdata->info);
+
+	/*
+	 * With rescind callback registered, rescind path will not unregister the device
+	 * from vmbus when the primary channel is rescinded.
+	 * Without it, rescind handling is incomplete and next onoffer msg does not come.
+	 * Unregister the device from vmbus here.
+	 */
+	vmbus_device_unregister(channel->device_obj);
 }
 
 /* Sysfs API to allow mmap of the ring buffers
  * The ring buffer is allocated as contiguous memory by vmbus_open
  */
 static int hv_uio_ring_mmap(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *attr,
+			    const struct bin_attribute *attr,
 			    struct vm_area_struct *vma)
 {
 	struct vmbus_channel *channel
@@ -143,7 +154,7 @@ static const struct bin_attribute ring_buffer_bin_attr = {
 		.name = "ring",
 		.mode = 0600,
 	},
-	.size = 2 * HV_RING_SIZE * PAGE_SIZE,
+	.size = 2 * SZ_2M,
 	.mmap = hv_uio_ring_mmap,
 };
 
@@ -153,7 +164,7 @@ hv_uio_new_channel(struct vmbus_channel *new_sc)
 {
 	struct hv_device *hv_dev = new_sc->primary_channel->device_obj;
 	struct device *device = &hv_dev->device;
-	const size_t ring_bytes = HV_RING_SIZE * PAGE_SIZE;
+	const size_t ring_bytes = SZ_2M;
 	int ret;
 
 	/* Create host communication ring */
@@ -240,19 +251,16 @@ hv_uio_probe(struct hv_device *dev,
 	struct hv_uio_private_data *pdata;
 	void *ring_buffer;
 	int ret;
+	size_t ring_size = hv_dev_ring_size(channel);
 
-	/* Communicating with host has to be via shared memory not hypercall */
-	if (!channel->offermsg.monitor_allocated) {
-		dev_err(&dev->device, "vmbus channel requires hypercall\n");
-		return -ENOTSUPP;
-	}
+	if (!ring_size)
+		ring_size = SZ_2M;
 
 	pdata = devm_kzalloc(&dev->device, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = vmbus_alloc_ring(channel, HV_RING_SIZE * PAGE_SIZE,
-			       HV_RING_SIZE * PAGE_SIZE);
+	ret = vmbus_alloc_ring(channel, ring_size, ring_size);
 	if (ret)
 		return ret;
 
@@ -288,50 +296,50 @@ hv_uio_probe(struct hv_device *dev,
 	pdata->info.mem[MON_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[MON_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
-	pdata->recv_buf = vzalloc(RECV_BUFFER_SIZE);
-	if (pdata->recv_buf == NULL) {
-		ret = -ENOMEM;
-		goto fail_free_ring;
+	if (channel->device_id == HV_NIC) {
+		pdata->recv_buf = vzalloc(RECV_BUFFER_SIZE);
+		if (!pdata->recv_buf) {
+			ret = -ENOMEM;
+			goto fail_free_ring;
+		}
+
+		ret = vmbus_establish_gpadl(channel, pdata->recv_buf,
+					    RECV_BUFFER_SIZE, &pdata->recv_gpadl);
+		if (ret) {
+			if (!pdata->recv_gpadl.decrypted)
+				vfree(pdata->recv_buf);
+			goto fail_close;
+		}
+
+		/* put Global Physical Address Label in name */
+		snprintf(pdata->recv_name, sizeof(pdata->recv_name),
+			 "recv:%u", pdata->recv_gpadl.gpadl_handle);
+		pdata->info.mem[RECV_BUF_MAP].name = pdata->recv_name;
+		pdata->info.mem[RECV_BUF_MAP].addr = (uintptr_t)pdata->recv_buf;
+		pdata->info.mem[RECV_BUF_MAP].size = RECV_BUFFER_SIZE;
+		pdata->info.mem[RECV_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
+
+		pdata->send_buf = vzalloc(SEND_BUFFER_SIZE);
+		if (!pdata->send_buf) {
+			ret = -ENOMEM;
+			goto fail_close;
+		}
+
+		ret = vmbus_establish_gpadl(channel, pdata->send_buf,
+					    SEND_BUFFER_SIZE, &pdata->send_gpadl);
+		if (ret) {
+			if (!pdata->send_gpadl.decrypted)
+				vfree(pdata->send_buf);
+			goto fail_close;
+		}
+
+		snprintf(pdata->send_name, sizeof(pdata->send_name),
+			 "send:%u", pdata->send_gpadl.gpadl_handle);
+		pdata->info.mem[SEND_BUF_MAP].name = pdata->send_name;
+		pdata->info.mem[SEND_BUF_MAP].addr = (uintptr_t)pdata->send_buf;
+		pdata->info.mem[SEND_BUF_MAP].size = SEND_BUFFER_SIZE;
+		pdata->info.mem[SEND_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 	}
-
-	ret = vmbus_establish_gpadl(channel, pdata->recv_buf,
-				    RECV_BUFFER_SIZE, &pdata->recv_gpadl);
-	if (ret) {
-		if (!pdata->recv_gpadl.decrypted)
-			vfree(pdata->recv_buf);
-		goto fail_close;
-	}
-
-	/* put Global Physical Address Label in name */
-	snprintf(pdata->recv_name, sizeof(pdata->recv_name),
-		 "recv:%u", pdata->recv_gpadl.gpadl_handle);
-	pdata->info.mem[RECV_BUF_MAP].name = pdata->recv_name;
-	pdata->info.mem[RECV_BUF_MAP].addr
-		= (uintptr_t)pdata->recv_buf;
-	pdata->info.mem[RECV_BUF_MAP].size = RECV_BUFFER_SIZE;
-	pdata->info.mem[RECV_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
-
-	pdata->send_buf = vzalloc(SEND_BUFFER_SIZE);
-	if (pdata->send_buf == NULL) {
-		ret = -ENOMEM;
-		goto fail_close;
-	}
-
-	ret = vmbus_establish_gpadl(channel, pdata->send_buf,
-				    SEND_BUFFER_SIZE, &pdata->send_gpadl);
-	if (ret) {
-		if (!pdata->send_gpadl.decrypted)
-			vfree(pdata->send_buf);
-		goto fail_close;
-	}
-
-	snprintf(pdata->send_name, sizeof(pdata->send_name),
-		 "send:%u", pdata->send_gpadl.gpadl_handle);
-	pdata->info.mem[SEND_BUF_MAP].name = pdata->send_name;
-	pdata->info.mem[SEND_BUF_MAP].addr
-		= (uintptr_t)pdata->send_buf;
-	pdata->info.mem[SEND_BUF_MAP].size = SEND_BUFFER_SIZE;
-	pdata->info.mem[SEND_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 
 	pdata->info.priv = pdata;
 	pdata->device = dev;

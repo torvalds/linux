@@ -206,7 +206,10 @@ static inline size_t btree_aux_data_u64s(const struct btree *b)
 }
 
 #define for_each_bset(_b, _t)						\
-	for (_t = (_b)->set; _t < (_b)->set + (_b)->nsets; _t++)
+	for (struct bset_tree *_t = (_b)->set; _t < (_b)->set + (_b)->nsets; _t++)
+
+#define for_each_bset_c(_b, _t)						\
+	for (const struct bset_tree *_t = (_b)->set; _t < (_b)->set + (_b)->nsets; _t++)
 
 #define bset_tree_for_each_key(_b, _t, _k)				\
 	for (_k = btree_bkey_first(_b, _t);				\
@@ -267,8 +270,8 @@ void bch2_bset_init_first(struct btree *, struct bset *);
 void bch2_bset_init_next(struct btree *, struct btree_node_entry *);
 void bch2_bset_build_aux_tree(struct btree *, struct bset_tree *, bool);
 
-void bch2_bset_insert(struct btree *, struct btree_node_iter *,
-		     struct bkey_packed *, struct bkey_i *, unsigned);
+void bch2_bset_insert(struct btree *, struct bkey_packed *, struct bkey_i *,
+		      unsigned);
 void bch2_bset_delete(struct btree *, struct bkey_packed *, unsigned);
 
 /* Bkey utility code */
@@ -294,7 +297,6 @@ static inline struct bset_tree *
 bch2_bkey_to_bset_inlined(struct btree *b, struct bkey_packed *k)
 {
 	unsigned offset = __btree_node_key_to_offset(b, k);
-	struct bset_tree *t;
 
 	for_each_bset(b, t)
 		if (offset <= t->end_offset) {

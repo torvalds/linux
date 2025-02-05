@@ -299,7 +299,7 @@ int vsc_tp_xfer(struct vsc_tp *tp, u8 cmd, const void *obuf, size_t olen,
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_xfer, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_xfer, "VSC_TP");
 
 /**
  * vsc_tp_rom_xfer - transfer data to rom code
@@ -331,12 +331,12 @@ int vsc_tp_rom_xfer(struct vsc_tp *tp, const void *obuf, void *ibuf, size_t len)
 		return ret;
 	}
 
-	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, tp->rx_buf, len);
+	ret = vsc_tp_dev_xfer(tp, tp->tx_buf, ibuf ? tp->rx_buf : NULL, len);
 	if (ret)
 		return ret;
 
 	if (ibuf)
-		cpu_to_be32_array(ibuf, tp->rx_buf, words);
+		be32_to_cpu_array(ibuf, tp->rx_buf, words);
 
 	return ret;
 }
@@ -364,10 +364,8 @@ void vsc_tp_reset(struct vsc_tp *tp)
 	gpiod_set_value_cansleep(tp->wakeupfw, 1);
 
 	atomic_set(&tp->assert_cnt, 0);
-
-	enable_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_reset, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_reset, "VSC_TP");
 
 /**
  * vsc_tp_need_read - check if device has data to sent
@@ -385,7 +383,7 @@ bool vsc_tp_need_read(struct vsc_tp *tp)
 
 	return true;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_need_read, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_need_read, "VSC_TP");
 
 /**
  * vsc_tp_register_event_cb - register a callback function to receive event
@@ -402,7 +400,7 @@ int vsc_tp_register_event_cb(struct vsc_tp *tp, vsc_tp_event_cb_t event_cb,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_register_event_cb, "VSC_TP");
 
 /**
  * vsc_tp_request_irq - request irq for vsc_tp device
@@ -423,7 +421,7 @@ int vsc_tp_request_irq(struct vsc_tp *tp)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_request_irq, "VSC_TP");
 
 /**
  * vsc_tp_free_irq - free irq for vsc_tp device
@@ -433,7 +431,7 @@ void vsc_tp_free_irq(struct vsc_tp *tp)
 {
 	free_irq(tp->spi->irq, tp);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_free_irq, "VSC_TP");
 
 /**
  * vsc_tp_intr_synchronize - synchronize vsc_tp interrupt
@@ -443,7 +441,7 @@ void vsc_tp_intr_synchronize(struct vsc_tp *tp)
 {
 	synchronize_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_synchronize, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_synchronize, "VSC_TP");
 
 /**
  * vsc_tp_intr_enable - enable vsc_tp interrupt
@@ -453,7 +451,7 @@ void vsc_tp_intr_enable(struct vsc_tp *tp)
 {
 	enable_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_enable, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_enable, "VSC_TP");
 
 /**
  * vsc_tp_intr_disable - disable vsc_tp interrupt
@@ -463,7 +461,7 @@ void vsc_tp_intr_disable(struct vsc_tp *tp)
 {
 	disable_irq(tp->spi->irq);
 }
-EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_disable, VSC_TP);
+EXPORT_SYMBOL_NS_GPL(vsc_tp_intr_disable, "VSC_TP");
 
 static int vsc_tp_match_any(struct acpi_device *adev, void *data)
 {
@@ -568,6 +566,19 @@ static void vsc_tp_remove(struct spi_device *spi)
 	free_irq(spi->irq, tp);
 }
 
+static void vsc_tp_shutdown(struct spi_device *spi)
+{
+	struct vsc_tp *tp = spi_get_drvdata(spi);
+
+	platform_device_unregister(tp->pdev);
+
+	mutex_destroy(&tp->mutex);
+
+	vsc_tp_reset(tp);
+
+	free_irq(spi->irq, tp);
+}
+
 static const struct acpi_device_id vsc_tp_acpi_ids[] = {
 	{ "INTC1009" }, /* Raptor Lake */
 	{ "INTC1058" }, /* Tiger Lake */
@@ -580,6 +591,7 @@ MODULE_DEVICE_TABLE(acpi, vsc_tp_acpi_ids);
 static struct spi_driver vsc_tp_driver = {
 	.probe = vsc_tp_probe,
 	.remove = vsc_tp_remove,
+	.shutdown = vsc_tp_shutdown,
 	.driver = {
 		.name = "vsc-tp",
 		.acpi_match_table = vsc_tp_acpi_ids,

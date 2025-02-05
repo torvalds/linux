@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0
+config KEBA_CP500
+	tristate "KEBA CP500 system FPGA support"
+	depends on X86_64 || ARM64 || COMPILE_TEST
+	depends on PCI
+	depends on I2C
+	select AUXILIARY_BUS
+	help
+	  This driver supports the KEBA CP500 system FPGA, which is used in
+	  KEBA CP500 devices. It registers all sub devices present on the CP500
+	  system FPGA as separate devices. A driver is needed for each sub
+	  device.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called cp500.
+
+config KEBA_LAN9252
+	tristate "KEBA CP500 LAN9252 configuration"
+	depends on SPI
+	depends on KEBA_CP500 || COMPILE_TEST
+	help
+	  This driver is used for updating the configuration of the LAN9252
+	  controller on KEBA CP500 devices.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called lan9252.

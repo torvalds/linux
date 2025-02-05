@@ -197,7 +197,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	}
 
 	if (rphy) {
-		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev),
+		q = bsg_setup_queue(&rphy->dev, dev_name(&rphy->dev), NULL,
 				sas_smp_dispatch, NULL, 0);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
@@ -206,7 +206,7 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		char name[20];
 
 		snprintf(name, sizeof(name), "sas_host%d", shost->host_no);
-		q = bsg_setup_queue(&shost->shost_gendev, name,
+		q = bsg_setup_queue(&shost->shost_gendev, name, NULL,
 				sas_smp_dispatch, NULL, 0);
 		if (IS_ERR(q))
 			return PTR_ERR(q);
@@ -415,6 +415,29 @@ unsigned int sas_is_tlr_enabled(struct scsi_device *sdev)
 	return rdev->tlr_enabled;
 }
 EXPORT_SYMBOL_GPL(sas_is_tlr_enabled);
+
+/**
+ * sas_ata_ncq_prio_supported - Check for ATA NCQ command priority support
+ * @sdev: SCSI device
+ *
+ * Check if an ATA device supports NCQ priority using VPD page 89h (ATA
+ * Information). Since this VPD page is implemented only for ATA devices,
+ * this function always returns false for SCSI devices.
+ */
+bool sas_ata_ncq_prio_supported(struct scsi_device *sdev)
+{
+	struct scsi_vpd *vpd;
+	bool ncq_prio_supported = false;
+
+	rcu_read_lock();
+	vpd = rcu_dereference(sdev->vpd_pg89);
+	if (vpd && vpd->len >= 214)
+		ncq_prio_supported = (vpd->data[213] >> 4) & 1;
+	rcu_read_unlock();
+
+	return ncq_prio_supported;
+}
+EXPORT_SYMBOL_GPL(sas_ata_ncq_prio_supported);
 
 /*
  * SAS Phy attributes
@@ -865,7 +888,8 @@ static void sas_port_delete_link(struct sas_port *port,
 	sysfs_remove_link(&phy->dev.kobj, "port");
 }
 
-/** sas_port_alloc - allocate and initialize a SAS port structure
+/**
+ * sas_port_alloc - allocate and initialize a SAS port structure
  *
  * @parent:	parent device
  * @port_id:	port number
@@ -874,7 +898,7 @@ static void sas_port_delete_link(struct sas_port *port,
  * below the device specified by @parent which must be either a Scsi_Host
  * or a sas_expander_device.
  *
- * Returns %NULL on error
+ * Returns: %NULL on error
  */
 struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 {
@@ -909,7 +933,8 @@ struct sas_port *sas_port_alloc(struct device *parent, int port_id)
 }
 EXPORT_SYMBOL(sas_port_alloc);
 
-/** sas_port_alloc_num - allocate and initialize a SAS port structure
+/**
+ * sas_port_alloc_num - allocate and initialize a SAS port structure
  *
  * @parent:	parent device
  *
@@ -919,7 +944,7 @@ EXPORT_SYMBOL(sas_port_alloc);
  * the device tree below the device specified by @parent which must be
  * either a Scsi_Host or a sas_expander_device.
  *
- * Returns %NULL on error
+ * Returns: %NULL on error
  */
 struct sas_port *sas_port_alloc_num(struct device *parent)
 {

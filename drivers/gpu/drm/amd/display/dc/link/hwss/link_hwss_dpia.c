@@ -50,23 +50,103 @@ static void update_dpia_stream_allocation_table(struct dc_link *link,
 	DC_LOG_MST("dpia : status[%d]: alloc_slots[%d]: used_slots[%d]\n",
 			status, mst_alloc_slots, prev_mst_slots_in_use);
 
-	ASSERT(link_enc);
-	link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
+	if (link_enc)
+		link_enc->funcs->update_mst_stream_allocation_table(link_enc, table);
+}
+
+static void set_dio_dpia_link_test_pattern(struct dc_link *link,
+		const struct link_resource *link_res,
+		struct encoder_set_dp_phy_pattern_param *tp_params)
+{
+	if (tp_params->dp_phy_pattern != DP_TEST_PATTERN_VIDEO_MODE)
+		return;
+
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (!link_enc)
+		return;
+
+	link_enc->funcs->dp_set_phy_pattern(link_enc, tp_params);
+	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_SET_SOURCE_PATTERN);
+}
+
+static void set_dio_dpia_lane_settings(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX])
+{
+}
+
+static void enable_dpia_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (link_enc != NULL) {
+		if (link->dc->config.enable_dpia_pre_training && link_enc->funcs->enable_dpia_output) {
+			uint8_t fec_rdy = link->dc->link_srv->dp_should_enable_fec(link);
+			uint8_t digmode = dc_is_dp_sst_signal(signal) ? DIG_SST_MODE : DIG_MST_MODE;
+
+			link_enc->funcs->enable_dpia_output(
+					link_enc,
+					link_settings,
+					link->ddc_hw_inst,
+					digmode,
+					fec_rdy);
+		} else {
+			if (dc_is_dp_sst_signal(signal))
+				link_enc->funcs->enable_dp_output(
+						link_enc,
+						link_settings,
+						clock_source);
+			else
+				link_enc->funcs->enable_dp_mst_output(
+						link_enc,
+						link_settings,
+						clock_source);
+		}
+
+	}
+
+	link->dc->link_srv->dp_trace_source_sequence(link,
+			DPCD_SOURCE_SEQ_AFTER_ENABLE_LINK_PHY);
+}
+
+static void disable_dpia_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal)
+{
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
+
+	if (link_enc != NULL) {
+		if (link->dc->config.enable_dpia_pre_training && link_enc->funcs->disable_dpia_output) {
+			uint8_t digmode = dc_is_dp_sst_signal(signal) ? DIG_SST_MODE : DIG_MST_MODE;
+
+			link_enc->funcs->disable_dpia_output(link_enc, link->ddc_hw_inst, digmode);
+		} else
+			link_enc->funcs->disable_output(link_enc, signal);
+	}
+
+	link->dc->link_srv->dp_trace_source_sequence(link,
+			DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }
 
 static const struct link_hwss dpia_link_hwss = {
 	.setup_stream_encoder = setup_dio_stream_encoder,
 	.reset_stream_encoder = reset_dio_stream_encoder,
 	.setup_stream_attribute = setup_dio_stream_attribute,
-	.disable_link_output = disable_dio_link_output,
+	.disable_link_output = disable_dpia_link_output,
 	.setup_audio_output = setup_dio_audio_output,
 	.enable_audio_packet = enable_dio_audio_packet,
 	.disable_audio_packet = disable_dio_audio_packet,
 	.ext = {
 		.set_throttled_vcp_size = set_dio_throttled_vcp_size,
-		.enable_dp_link_output = enable_dio_dp_link_output,
-		.set_dp_link_test_pattern = set_dio_dp_link_test_pattern,
-		.set_dp_lane_settings = set_dio_dp_lane_settings,
+		.enable_dp_link_output = enable_dpia_link_output,
+		.set_dp_link_test_pattern = set_dio_dpia_link_test_pattern,
+		.set_dp_lane_settings = set_dio_dpia_lane_settings,
 		.update_stream_allocation_table = update_dpia_stream_allocation_table,
 	},
 };

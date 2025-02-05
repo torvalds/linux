@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/quotaops.h>
 #include <linux/sched/signal.h>
+#include <linux/string_choices.h>
 
 #define MLOG_MASK_PREFIX ML_DLM_GLUE
 #include <cluster/masklog.h>
@@ -221,12 +222,12 @@ struct ocfs2_lock_res_ops {
  */
 #define LOCK_TYPE_USES_LVB		0x2
 
-static struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_inode_rw_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_inode_inode_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_inode_inode_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.check_downconvert = ocfs2_check_meta_downconvert,
 	.set_lvb	= ocfs2_set_meta_lvb,
@@ -234,50 +235,50 @@ static struct ocfs2_lock_res_ops ocfs2_inode_inode_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_super_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_super_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_rename_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_rename_lops = {
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_nfs_sync_lops = {
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_trim_fs_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_trim_fs_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_orphan_scan_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_orphan_scan_lops = {
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH|LOCK_TYPE_USES_LVB,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_dentry_lops = {
 	.get_osb	= ocfs2_get_dentry_osb,
 	.post_unlock	= ocfs2_dentry_post_unlock,
 	.downconvert_worker = ocfs2_dentry_convert_worker,
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_inode_open_lops = {
 	.get_osb	= ocfs2_get_inode_osb,
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_flock_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_flock_lops = {
 	.get_osb	= ocfs2_get_file_osb,
 	.flags		= 0,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_qinfo_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_qinfo_lops = {
 	.set_lvb	= ocfs2_set_qinfo_lvb,
 	.get_osb	= ocfs2_get_qinfo_osb,
 	.flags		= LOCK_TYPE_REQUIRES_REFRESH | LOCK_TYPE_USES_LVB,
 };
 
-static struct ocfs2_lock_res_ops ocfs2_refcount_block_lops = {
+static const struct ocfs2_lock_res_ops ocfs2_refcount_block_lops = {
 	.check_downconvert = ocfs2_check_refcount_downconvert,
 	.downconvert_worker = ocfs2_refcount_convert_worker,
 	.flags		= 0,
@@ -510,7 +511,7 @@ static inline void ocfs2_init_start_time(struct ocfs2_mask_waiter *mw)
 static void ocfs2_lock_res_init_common(struct ocfs2_super *osb,
 				       struct ocfs2_lock_res *res,
 				       enum ocfs2_lock_type type,
-				       struct ocfs2_lock_res_ops *ops,
+				       const struct ocfs2_lock_res_ops *ops,
 				       void *priv)
 {
 	res->l_type          = type;
@@ -553,7 +554,7 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       unsigned int generation,
 			       struct inode *inode)
 {
-	struct ocfs2_lock_res_ops *ops;
+	const struct ocfs2_lock_res_ops *ops;
 
 	switch(type) {
 		case OCFS2_LOCK_TYPE_RW:
@@ -794,7 +795,7 @@ void ocfs2_lock_res_free(struct ocfs2_lock_res *res)
 
 /*
  * Keep a list of processes who have interest in a lockres.
- * Note: this is now only uesed for check recursive cluster locking.
+ * Note: this is now only used for check recursive cluster locking.
  */
 static inline void ocfs2_add_holder(struct ocfs2_lock_res *lockres,
 				   struct ocfs2_lock_holder *oh)
@@ -2529,30 +2530,28 @@ bail:
 
 /*
  * This is working around a lock inversion between tasks acquiring DLM
- * locks while holding a page lock and the downconvert thread which
- * blocks dlm lock acquiry while acquiring page locks.
+ * locks while holding a folio lock and the downconvert thread which
+ * blocks dlm lock acquiry while acquiring folio locks.
  *
- * ** These _with_page variantes are only intended to be called from aop
- * methods that hold page locks and return a very specific *positive* error
+ * ** These _with_folio variants are only intended to be called from aop
+ * methods that hold folio locks and return a very specific *positive* error
  * code that aop methods pass up to the VFS -- test for errors with != 0. **
  *
  * The DLM is called such that it returns -EAGAIN if it would have
  * blocked waiting for the downconvert thread.  In that case we unlock
- * our page so the downconvert thread can make progress.  Once we've
+ * our folio so the downconvert thread can make progress.  Once we've
  * done this we have to return AOP_TRUNCATED_PAGE so the aop method
  * that called us can bubble that back up into the VFS who will then
  * immediately retry the aop call.
  */
-int ocfs2_inode_lock_with_page(struct inode *inode,
-			      struct buffer_head **ret_bh,
-			      int ex,
-			      struct page *page)
+int ocfs2_inode_lock_with_folio(struct inode *inode,
+		struct buffer_head **ret_bh, int ex, struct folio *folio)
 {
 	int ret;
 
 	ret = ocfs2_inode_lock_full(inode, ret_bh, ex, OCFS2_LOCK_NONBLOCK);
 	if (ret == -EAGAIN) {
-		unlock_page(page);
+		folio_unlock(folio);
 		/*
 		 * If we can't get inode lock immediately, we should not return
 		 * directly here, since this will lead to a softlockup problem.
@@ -2630,7 +2629,7 @@ void ocfs2_inode_unlock(struct inode *inode,
 }
 
 /*
- * This _tracker variantes are introduced to deal with the recursive cluster
+ * This _tracker variants are introduced to deal with the recursive cluster
  * locking issue. The idea is to keep track of a lock holder on the stack of
  * the current process. If there's a lock holder on the stack, we know the
  * task context is already protected by cluster locking. Currently, they're
@@ -2735,7 +2734,7 @@ void ocfs2_inode_unlock_tracker(struct inode *inode,
 	struct ocfs2_lock_res *lockres;
 
 	lockres = &OCFS2_I(inode)->ip_inode_lockres;
-	/* had_lock means that the currect process already takes the cluster
+	/* had_lock means that the current process already takes the cluster
 	 * lock previously.
 	 * If had_lock is 1, we have nothing to do here.
 	 * If had_lock is 0, we will release the lock.
@@ -3110,6 +3109,7 @@ static void *ocfs2_dlm_seq_next(struct seq_file *m, void *v, loff_t *pos)
 	struct ocfs2_lock_res *iter = v;
 	struct ocfs2_lock_res *dummy = &priv->p_iter_res;
 
+	(*pos)++;
 	spin_lock(&ocfs2_dlm_tracking_lock);
 	iter = ocfs2_dlm_next_res(iter, priv);
 	list_del_init(&dummy->l_debug_list);
@@ -3151,11 +3151,8 @@ static int ocfs2_dlm_seq_show(struct seq_file *m, void *v)
 #ifdef CONFIG_OCFS2_FS_STATS
 	if (!lockres->l_lock_wait && dlm_debug->d_filter_secs) {
 		now = ktime_to_us(ktime_get_real());
-		if (lockres->l_lock_prmode.ls_last >
-		    lockres->l_lock_exmode.ls_last)
-			last = lockres->l_lock_prmode.ls_last;
-		else
-			last = lockres->l_lock_exmode.ls_last;
+		last = max(lockres->l_lock_prmode.ls_last,
+			   lockres->l_lock_exmode.ls_last);
 		/*
 		 * Use d_filter_secs field to filter lock resources dump,
 		 * the default d_filter_secs(0) value filters nothing,
@@ -3804,9 +3801,9 @@ recheck:
 	 * set when the ast is received for an upconvert just before the
 	 * OCFS2_LOCK_BUSY flag is cleared. Now if the fs received a bast
 	 * on the heels of the ast, we want to delay the downconvert just
-	 * enough to allow the up requestor to do its task. Because this
+	 * enough to allow the up requester to do its task. Because this
 	 * lock is in the blocked queue, the lock will be downconverted
-	 * as soon as the requestor is done with the lock.
+	 * as soon as the requester is done with the lock.
 	 */
 	if (lockres->l_flags & OCFS2_LOCK_UPCONVERT_FINISHING)
 		goto leave_requeue;
@@ -4341,7 +4338,7 @@ unqueue:
 		ocfs2_schedule_blocked_lock(osb, lockres);
 
 	mlog(ML_BASTS, "lockres %s, requeue = %s.\n", lockres->l_name,
-	     ctl.requeue ? "yes" : "no");
+	     str_yes_no(ctl.requeue));
 	spin_unlock_irqrestore(&lockres->l_lock, flags);
 
 	if (ctl.unblock_action != UNBLOCK_CONTINUE

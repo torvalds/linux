@@ -48,6 +48,7 @@ fixes/update part 1.1  Stefani Seibold <stefani@seibold.net>    June 9 2009
   3.11	/proc/<pid>/patch_state - Livepatch patch operation state
   3.12	/proc/<pid>/arch_status - Task architecture specific information
   3.13  /proc/<pid>/fd - List of symlinks to open files
+  3.14  /proc/<pid/ksm_stat - Information about the process's ksm status.
 
   4	Configuring procfs
   4.1	Mount options
@@ -443,6 +444,15 @@ is not associated with a file:
 
  or if empty, the mapping is anonymous.
 
+Starting with 6.11 kernel, /proc/PID/maps provides an alternative
+ioctl()-based API that gives ability to flexibly and efficiently query and
+filter individual VMAs. This interface is binary and is meant for more
+efficient and easy programmatic use. `struct procmap_query`, defined in
+linux/fs.h UAPI header, serves as an input/output argument to the
+`PROCMAP_QUERY` ioctl() command. See comments in linus/fs.h UAPI header for
+details on query semantics, supported flags, data returned, and general API
+usage information.
+
 The /proc/PID/smaps is an extension based on maps, showing the memory
 consumption for each of the process's mappings. For each mapping (aka Virtual
 Memory Area, or VMA) there is a series of lines such as the following::
@@ -475,14 +485,15 @@ Memory Area, or VMA) there is a series of lines such as the following::
     THPeligible:           0
     VmFlags: rd ex mr mw me dw
 
-The first of these lines shows the same information as is displayed for the
-mapping in /proc/PID/maps.  Following lines show the size of the mapping
-(size); the size of each page allocated when backing a VMA (KernelPageSize),
-which is usually the same as the size in the page table entries; the page size
-used by the MMU when backing a VMA (in most cases, the same as KernelPageSize);
-the amount of the mapping that is currently resident in RAM (RSS); the
-process' proportional share of this mapping (PSS); and the number of clean and
-dirty shared and private pages in the mapping.
+The first of these lines shows the same information as is displayed for
+the mapping in /proc/PID/maps.  Following lines show the size of the
+mapping (size); the size of each page allocated when backing a VMA
+(KernelPageSize), which is usually the same as the size in the page table
+entries; the page size used by the MMU when backing a VMA (in most cases,
+the same as KernelPageSize); the amount of the mapping that is currently
+resident in RAM (RSS); the process's proportional share of this mapping
+(PSS); and the number of clean and dirty shared and private pages in the
+mapping.
 
 The "proportional set size" (PSS) of a process is the count of pages it has
 in memory, where each page is divided by the number of processes sharing it.
@@ -570,7 +581,8 @@ encoded manner. The codes are the following:
     mt    arm64 MTE allocation tags are enabled
     um    userfaultfd missing tracking
     uw    userfaultfd wr-protect tracking
-    ss    shadow stack page
+    ss    shadow/guarded control stack page
+    sl    sealed
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will
@@ -688,6 +700,7 @@ files are there, and which are missing.
  ============ ===============================================================
  File         Content
  ============ ===============================================================
+ allocinfo    Memory allocations profiling information
  apm          Advanced power management info
  bootconfig   Kernel command line obtained from boot config,
  	      and, if there were kernel parameters from the
@@ -953,6 +966,35 @@ also be allocatable although a lot of filesystem metadata may have to be
 reclaimed to achieve this.
 
 
+allocinfo
+~~~~~~~~~
+
+Provides information about memory allocations at all locations in the code
+base. Each allocation in the code is identified by its source file, line
+number, module (if originates from a loadable module) and the function calling
+the allocation. The number of bytes allocated and number of calls at each
+location are reported. The first line indicates the version of the file, the
+second line is the header listing fields in the file.
+
+Example output.
+
+::
+
+    > tail -n +3 /proc/allocinfo | sort -rn
+   127664128    31168 mm/page_ext.c:270 func:alloc_page_ext
+    56373248     4737 mm/slub.c:2259 func:alloc_slab_page
+    14880768     3633 mm/readahead.c:247 func:page_cache_ra_unbounded
+    14417920     3520 mm/mm_init.c:2530 func:alloc_large_system_hash
+    13377536      234 block/blk-mq.c:3421 func:blk_mq_alloc_rqs
+    11718656     2861 mm/filemap.c:1919 func:__filemap_get_folio
+     9192960     2800 kernel/fork.c:307 func:alloc_thread_stack_node
+     4206592        4 net/netfilter/nf_conntrack_core.c:2567 func:nf_ct_alloc_hashtable
+     4136960     1010 drivers/staging/ctagmod/ctagmod.c:20 [ctagmod] func:ctagmod_start
+     3940352      962 mm/memory.c:4214 func:alloc_anon_folio
+     2894464    22613 fs/kernfs/dir.c:615 func:__kernfs_new_node
+     ...
+
+
 meminfo
 ~~~~~~~
 
@@ -1110,8 +1152,8 @@ KernelStack
 PageTables
               Memory consumed by userspace page tables
 SecPageTables
-              Memory consumed by secondary page tables, this currently
-              currently includes KVM mmu allocations on x86 and arm64.
+              Memory consumed by secondary page tables, this currently includes
+              KVM mmu and IOMMU allocations on x86 and arm64.
 NFS_Unstable
               Always zero. Previous counted pages which had been written to
               the server, but has not been committed to stable storage.
@@ -2192,6 +2234,74 @@ The number of open files for the process is stored in 'size' member
 of stat() output for /proc/<pid>/fd for fast access.
 -------------------------------------------------------
 
+3.14 /proc/<pid/ksm_stat - Information about the process's ksm status
+---------------------------------------------------------------------
+When CONFIG_KSM is enabled, each process has this file which displays
+the information of ksm merging status.
+
+Example
+~~~~~~~
+
+::
+
+    / # cat /proc/self/ksm_stat
+    ksm_rmap_items 0
+    ksm_zero_pages 0
+    ksm_merging_pages 0
+    ksm_process_profit 0
+    ksm_merge_any: no
+    ksm_mergeable: no
+
+Description
+~~~~~~~~~~~
+
+ksm_rmap_items
+^^^^^^^^^^^^^^
+
+The number of ksm_rmap_item structures in use.  The structure
+ksm_rmap_item stores the reverse mapping information for virtual
+addresses.  KSM will generate a ksm_rmap_item for each ksm-scanned page of
+the process.
+
+ksm_zero_pages
+^^^^^^^^^^^^^^
+
+When /sys/kernel/mm/ksm/use_zero_pages is enabled, it represent how many
+empty pages are merged with kernel zero pages by KSM.
+
+ksm_merging_pages
+^^^^^^^^^^^^^^^^^
+
+It represents how many pages of this process are involved in KSM merging
+(not including ksm_zero_pages). It is the same with what
+/proc/<pid>/ksm_merging_pages shows.
+
+ksm_process_profit
+^^^^^^^^^^^^^^^^^^
+
+The profit that KSM brings (Saved bytes). KSM can save memory by merging
+identical pages, but also can consume additional memory, because it needs
+to generate a number of rmap_items to save each scanned page's brief rmap
+information. Some of these pages may be merged, but some may not be abled
+to be merged after being checked several times, which are unprofitable
+memory consumed.
+
+ksm_merge_any
+^^^^^^^^^^^^^
+
+It specifies whether the process's 'mm is added by prctl() into the
+candidate list of KSM or not, and if KSM scanning is fully enabled at
+process level.
+
+ksm_mergeable
+^^^^^^^^^^^^^
+
+It specifies whether any VMAs of the process''s mms are currently
+applicable to KSM.
+
+More information about KSM can be found in
+Documentation/admin-guide/mm/ksm.rst.
+
 
 Chapter 4: Configuring procfs
 =============================
@@ -2221,7 +2331,7 @@ arguments are now protected against local eavesdroppers.
 hidepid=invisible or hidepid=2 means hidepid=1 plus all /proc/<pid>/ will be
 fully invisible to other users.  It doesn't mean that it hides a fact whether a
 process with a specific pid value exists (it can be learned by other means, e.g.
-by "kill -0 $PID"), but it hides process' uid and gid, which may be learned by
+by "kill -0 $PID"), but it hides process's uid and gid, which may be learned by
 stat()'ing /proc/<pid>/ otherwise.  It greatly complicates an intruder's task of
 gathering information about running processes, whether some daemon runs with
 elevated privileges, whether other user runs some sensitive program, whether

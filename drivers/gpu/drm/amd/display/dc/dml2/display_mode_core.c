@@ -115,6 +115,7 @@ static void CalculateODMMode(
 	dml_float_t DISPCLKDPPCLKDSCCLKDownSpreading,
 	dml_float_t DISPCLKRampingMargin,
 	dml_float_t DISPCLKDPPCLKVCOSpeed,
+	dml_uint_t NumberOfDSCSlices,
 
 	// Output
 	dml_bool_t *TotalAvailablePipesSupport,
@@ -1221,6 +1222,7 @@ static dml_bool_t CalculatePrefetchSchedule(struct display_mode_lib_scratch_st *
 	s->dst_y_prefetch_oto = s->Tvm_oto_lines + 2 * s->Tr0_oto_lines + s->Lsw_oto;
 
 	s->dst_y_prefetch_equ = p->VStartup - (*p->TSetup + dml_max(p->TWait + p->TCalc, *p->Tdmdl)) / s->LineTime - (*p->DSTYAfterScaler + (dml_float_t) *p->DSTXAfterScaler / (dml_float_t)p->myPipe->HTotal);
+	s->dst_y_prefetch_equ = dml_min(s->dst_y_prefetch_equ, 63.75); // limit to the reg limit of U6.2 for DST_Y_PREFETCH
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: HTotal = %u\n", __func__, p->myPipe->HTotal);
@@ -1734,7 +1736,7 @@ static void CalculateBytePerPixelAndBlockSizes(
 #endif
 } // CalculateBytePerPixelAndBlockSizes
 
-static dml_float_t CalculateTWait(
+static noinline_for_stack dml_float_t CalculateTWait(
 		dml_uint_t PrefetchMode,
 		enum dml_use_mall_for_pstate_change_mode UseMALLForPStateChange,
 		dml_bool_t SynchronizeDRRDisplaysForUCLKPStateChangeFinal,
@@ -2732,7 +2734,7 @@ static dml_float_t TruncToValidBPP(
 		NonDSCBPP1 = 15;
 		NonDSCBPP2 = 18;
 		MinDSCBPP = 6;
-		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1 / 16;
+		MaxDSCBPP = 1.5 * DSCInputBitPerComponent - 1.0 / 16;
 	} else if (Format == dml_444) {
 		NonDSCBPP0 = 24;
 		NonDSCBPP1 = 30;
@@ -4282,7 +4284,7 @@ static void CalculateSwathAndDETConfiguration(struct display_mode_lib_scratch_st
 	}
 
 	*p->compbuf_reserved_space_64b = 2 * p->PixelChunkSizeInKByte * 1024 / 64;
-	if (p->UnboundedRequestEnabled) {
+	if (*p->UnboundedRequestEnabled) {
 		*p->compbuf_reserved_space_64b = dml_max(*p->compbuf_reserved_space_64b,
 				(dml_float_t)(p->ROBBufferSizeInKByte * 1024/64)
 				- (dml_float_t)(RoundedUpSwathSizeBytesY[SurfaceDoingUnboundedRequest] * TTUFIFODEPTH / MAXIMUMCOMPRESSION/64));
@@ -4456,7 +4458,7 @@ static void CalculateSwathWidth(
 	}
 } // CalculateSwathWidth
 
-static  dml_float_t CalculateExtraLatency(
+static noinline_for_stack dml_float_t CalculateExtraLatency(
 		dml_uint_t RoundTripPingLatencyCycles,
 		dml_uint_t ReorderingBytes,
 		dml_float_t DCFCLK,
@@ -5403,10 +5405,10 @@ static void CalculateOutputLink(
 			}
 			if (Output == dml_dp2p0) {
 				*OutBpp = 0;
-				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr10) && PHYCLKD32PerState >= 10000 / 32) {
+				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr10) && PHYCLKD32PerState >= 10000 / 32.0) {
 					*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 												OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
-					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
+					if (*OutBpp == 0 && PHYCLKD32PerState < 13500 / 32.0 && DSCEnable == dml_dsc_enable_if_necessary && ForcedOutputLinkBPP == 0) {
 						*RequiresDSC = true;
 						LinkDSCEnable = true;
 						*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 10000, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
@@ -5416,7 +5418,7 @@ static void CalculateOutputLink(
 					*OutputType = dml_output_type_dp2p0;
 					*OutputRate = dml_output_rate_dp_rate_uhbr10;
 				}
-				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32) {
+				if ((OutputLinkDPRate == dml_dp_rate_na || OutputLinkDPRate == dml_dp_rate_uhbr13p5) && *OutBpp == 0 && PHYCLKD32PerState >= 13500 / 32.0) {
 					*OutBpp = TruncToValidBPP((1 - Downspreading / 100) * 13500, OutputLinkDPLanes, HTotal, HActive, PixelClockBackEnd, ForcedOutputLinkBPP, LinkDSCEnable, Output,
 												OutputFormat, DSCInputBitPerComponent, NumberOfDSCSlices, (dml_uint_t)AudioSampleRate, AudioSampleLayout, ODMModeNoDSC, ODMModeDSC, RequiredSlots);
 
@@ -5516,6 +5518,7 @@ static void CalculateODMMode(
 		dml_float_t DISPCLKDPPCLKDSCCLKDownSpreading,
 		dml_float_t DISPCLKRampingMargin,
 		dml_float_t DISPCLKDPPCLKVCOSpeed,
+		dml_uint_t NumberOfDSCSlices,
 
 		// Output
 		dml_bool_t *TotalAvailablePipesSupport,
@@ -5538,7 +5541,7 @@ static void CalculateODMMode(
 			*TotalAvailablePipesSupport = false;
 		else if (HActive > 2 * DML2_MAX_FMT_420_BUFFER_WIDTH)
 			ODMUse = dml_odm_use_policy_combine_4to1;
-		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH)
+		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH && ODMUse != dml_odm_use_policy_combine_4to1)
 			ODMUse = dml_odm_use_policy_combine_2to1;
 		if (Output == dml_hdmi && ODMUse == dml_odm_use_policy_combine_2to1)
 			*TotalAvailablePipesSupport = false;
@@ -5563,7 +5566,7 @@ static void CalculateODMMode(
 	*NumberOfDPP = 0;
 
 	if (!(Output == dml_hdmi || Output == dml_dp || Output == dml_edp) && (ODMUse == dml_odm_use_policy_combine_4to1 || (ODMUse == dml_odm_use_policy_combine_as_needed &&
-		(SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk || (DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)))))) {
+		(SurfaceRequiredDISPCLKWithODMCombineTwoToOne > StateDispclk || (DSCEnable && (HActive > 2 * MaximumPixelsPerLinePerDSCUnit)) || NumberOfDSCSlices > 8)))) {
 		if (TotalNumberOfActiveDPP + 4 <= MaxNumDPP) {
 			*ODMMode = dml_odm_mode_combine_4to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineFourToOne;
@@ -5573,7 +5576,7 @@ static void CalculateODMMode(
 		}
 	} else if (Output != dml_hdmi && (ODMUse == dml_odm_use_policy_combine_2to1 || (ODMUse == dml_odm_use_policy_combine_as_needed &&
 				((SurfaceRequiredDISPCLKWithoutODMCombine > StateDispclk && SurfaceRequiredDISPCLKWithODMCombineTwoToOne <= StateDispclk) ||
-				(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)))))) {
+				(DSCEnable && (HActive > MaximumPixelsPerLinePerDSCUnit)) || (NumberOfDSCSlices <= 8 && NumberOfDSCSlices > 4))))) {
 		if (TotalNumberOfActiveDPP + 2 <= MaxNumDPP) {
 			*ODMMode = dml_odm_mode_combine_2to1;
 			*RequiredDISPCLKPerSurface = SurfaceRequiredDISPCLKWithODMCombineTwoToOne;
@@ -5880,11 +5883,11 @@ static dml_uint_t DSCDelayRequirement(
 
 	if (DSCEnabled == true && OutputBpp != 0) {
 		if (ODMMode == dml_odm_mode_combine_4to1) {
-			DSCDelayRequirement_val = 4 * (dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
-												(dml_uint_t) (NumberOfDSCSlices / 4.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output));
+			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
+												(dml_uint_t) (NumberOfDSCSlices / 4.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
 		} else if (ODMMode == dml_odm_mode_combine_2to1) {
-			DSCDelayRequirement_val = 2 * (dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
-												(dml_uint_t) (NumberOfDSCSlices / 2.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output));
+			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)(dml_ceil((dml_float_t) HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
+												(dml_uint_t) (NumberOfDSCSlices / 2.0), OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
 		} else {
 			DSCDelayRequirement_val = dscceComputeDelay(DSCInputBitPerComponent, OutputBpp, (dml_uint_t)((dml_float_t) dml_ceil(HActive / (dml_float_t) NumberOfDSCSlices, 1.0)),
 										NumberOfDSCSlices, OutputFormat, Output) + dscComputeDelay(OutputFormat, Output);
@@ -5912,7 +5915,7 @@ static dml_uint_t DSCDelayRequirement(
 	return DSCDelayRequirement_val;
 }
 
-static dml_bool_t CalculateVActiveBandwithSupport(dml_uint_t NumberOfActiveSurfaces,
+static noinline_for_stack dml_bool_t CalculateVActiveBandwithSupport(dml_uint_t NumberOfActiveSurfaces,
 										dml_float_t ReturnBW,
 										dml_bool_t NotUrgentLatencyHiding[],
 										dml_float_t ReadBandwidthLuma[],
@@ -6016,7 +6019,7 @@ static void CalculatePrefetchBandwithSupport(
 #endif
 }
 
-static dml_float_t CalculateBandwidthAvailableForImmediateFlip(
+static noinline_for_stack dml_float_t CalculateBandwidthAvailableForImmediateFlip(
 													dml_uint_t NumberOfActiveSurfaces,
 													dml_float_t ReturnBW,
 													dml_float_t ReadBandwidthLuma[],
@@ -6210,7 +6213,7 @@ static dml_uint_t CalculateMaxVStartup(
 	return max_vstartup_lines;
 }
 
-static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
+static noinline_for_stack void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
 						   struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params,
 						   dml_uint_t j,
 						   dml_uint_t k)
@@ -6262,7 +6265,7 @@ static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *m
 				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
 }
 
-static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
+static noinline_for_stack void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 {
 	struct dml_core_mode_support_locals_st *s = &mode_lib->scratch.dml_core_mode_support_locals;
 	struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params = &mode_lib->scratch.CalculatePrefetchSchedule_params;
@@ -6298,9 +6301,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 			mode_lib->ms.meta_row_bandwidth_this_state,
 			mode_lib->ms.dpte_row_bandwidth_this_state,
 			mode_lib->ms.NoOfDPPThisState,
-			mode_lib->ms.UrgentBurstFactorLuma,
-			mode_lib->ms.UrgentBurstFactorChroma,
-			mode_lib->ms.UrgentBurstFactorCursor);
+			mode_lib->ms.UrgentBurstFactorLuma[j],
+			mode_lib->ms.UrgentBurstFactorChroma[j],
+			mode_lib->ms.UrgentBurstFactorCursor[j]);
 
 		s->VMDataOnlyReturnBWPerState = dml_get_return_bw_mbps_vm_only(
 																	&mode_lib->ms.soc,
@@ -6431,7 +6434,7 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 							/* Output */
 							&mode_lib->ms.UrgentBurstFactorCursorPre[k],
 							&mode_lib->ms.UrgentBurstFactorLumaPre[k],
-							&mode_lib->ms.UrgentBurstFactorChroma[k],
+							&mode_lib->ms.UrgentBurstFactorChromaPre[k],
 							&mode_lib->ms.NotUrgentLatencyHidingPre[k]);
 
 					mode_lib->ms.cursor_bw_pre[k] = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k] * mode_lib->ms.cache_display_cfg.plane.CursorWidth[k] *
@@ -6455,9 +6458,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 				mode_lib->ms.cursor_bw_pre,
 				mode_lib->ms.prefetch_vmrow_bw,
 				mode_lib->ms.NoOfDPPThisState,
-				mode_lib->ms.UrgentBurstFactorLuma,
-				mode_lib->ms.UrgentBurstFactorChroma,
-				mode_lib->ms.UrgentBurstFactorCursor,
+				mode_lib->ms.UrgentBurstFactorLuma[j],
+				mode_lib->ms.UrgentBurstFactorChroma[j],
+				mode_lib->ms.UrgentBurstFactorCursor[j],
 				mode_lib->ms.UrgentBurstFactorLumaPre,
 				mode_lib->ms.UrgentBurstFactorChromaPre,
 				mode_lib->ms.UrgentBurstFactorCursorPre,
@@ -6514,9 +6517,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 						mode_lib->ms.cursor_bw,
 						mode_lib->ms.cursor_bw_pre,
 						mode_lib->ms.NoOfDPPThisState,
-						mode_lib->ms.UrgentBurstFactorLuma,
-						mode_lib->ms.UrgentBurstFactorChroma,
-						mode_lib->ms.UrgentBurstFactorCursor,
+						mode_lib->ms.UrgentBurstFactorLuma[j],
+						mode_lib->ms.UrgentBurstFactorChroma[j],
+						mode_lib->ms.UrgentBurstFactorCursor[j],
 						mode_lib->ms.UrgentBurstFactorLumaPre,
 						mode_lib->ms.UrgentBurstFactorChromaPre,
 						mode_lib->ms.UrgentBurstFactorCursorPre);
@@ -6583,9 +6586,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 													mode_lib->ms.cursor_bw_pre,
 													mode_lib->ms.prefetch_vmrow_bw,
 													mode_lib->ms.NoOfDPP[j], // VBA_ERROR DPPPerSurface is not assigned at this point, should use NoOfDpp here
-													mode_lib->ms.UrgentBurstFactorLuma,
-													mode_lib->ms.UrgentBurstFactorChroma,
-													mode_lib->ms.UrgentBurstFactorCursor,
+													mode_lib->ms.UrgentBurstFactorLuma[j],
+													mode_lib->ms.UrgentBurstFactorChroma[j],
+													mode_lib->ms.UrgentBurstFactorCursor[j],
 													mode_lib->ms.UrgentBurstFactorLumaPre,
 													mode_lib->ms.UrgentBurstFactorChromaPre,
 													mode_lib->ms.UrgentBurstFactorCursorPre,
@@ -6938,20 +6941,25 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 
 	/*Number Of DSC Slices*/
 	for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
-		if (mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming[k] == k) {
-			if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 4800) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = (dml_uint_t)(dml_ceil(mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] / 600, 4));
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 2400) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 8;
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 1200) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 4;
-			} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 340) {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 2;
-			} else {
-				mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
+		if (mode_lib->ms.cache_display_cfg.plane.BlendingAndTiming[k] == k &&
+			mode_lib->ms.cache_display_cfg.output.DSCEnable[k] != dml_dsc_disable) {
+			mode_lib->ms.support.NumberOfDSCSlices[k] = mode_lib->ms.cache_display_cfg.output.DSCSlices[k];
+
+			if (mode_lib->ms.support.NumberOfDSCSlices[k] == 0) {
+				if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 4800) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = (dml_uint_t)(dml_ceil(mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] / 600, 4));
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 2400) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 8;
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 1200) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 4;
+				} else if (mode_lib->ms.cache_display_cfg.output.PixelClockBackEnd[k] > 340) {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 2;
+				} else {
+					mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
+				}
 			}
 		} else {
-			mode_lib->ms.support.NumberOfDSCSlices[k] = 0;
+			mode_lib->ms.support.NumberOfDSCSlices[k] = 1;
 		}
 	}
 
@@ -7050,6 +7058,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 					mode_lib->ms.soc.dcn_downspread_percent,
 					mode_lib->ms.ip.dispclk_ramp_margin_percent,
 					mode_lib->ms.soc.dispclk_dppclk_vco_speed_mhz,
+					mode_lib->ms.support.NumberOfDSCSlices[k],
 
 					/* Output */
 					&s->TotalAvailablePipesSupportNoDSC,
@@ -7072,6 +7081,7 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 					mode_lib->ms.soc.dcn_downspread_percent,
 					mode_lib->ms.ip.dispclk_ramp_margin_percent,
 					mode_lib->ms.soc.dispclk_dppclk_vco_speed_mhz,
+					mode_lib->ms.support.NumberOfDSCSlices[k],
 
 					/* Output */
 					&s->TotalAvailablePipesSupportDSC,
@@ -7799,9 +7809,9 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 				mode_lib->ms.DETBufferSizeYThisState[k],
 				mode_lib->ms.DETBufferSizeCThisState[k],
 				/* Output */
-				&mode_lib->ms.UrgentBurstFactorCursor[k],
-				&mode_lib->ms.UrgentBurstFactorLuma[k],
-				&mode_lib->ms.UrgentBurstFactorChroma[k],
+				&mode_lib->ms.UrgentBurstFactorCursor[j][k],
+				&mode_lib->ms.UrgentBurstFactorLuma[j][k],
+				&mode_lib->ms.UrgentBurstFactorChroma[j][k],
 				&mode_lib->ms.NotUrgentLatencyHiding[k]);
 		}
 
@@ -8308,7 +8318,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dcfclk_option != dml_use_override_freq)
 		locals->Dcfclk = mode_lib->ms.DCFCLK;
 	else
-		locals->Dcfclk = clk_cfg->dcfclk_freq_mhz;
+		locals->Dcfclk = clk_cfg->dcfclk_mhz;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print_dml_policy(&mode_lib->ms.policy);
@@ -8361,7 +8371,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dispclk_option == dml_use_required_freq)
 		locals->Dispclk = locals->Dispclk_calculated;
 	else if (clk_cfg->dispclk_option == dml_use_override_freq)
-		locals->Dispclk = clk_cfg->dispclk_freq_mhz;
+		locals->Dispclk = clk_cfg->dispclk_mhz;
 	else
 		locals->Dispclk = mode_lib->ms.state.dispclk_mhz;
 #ifdef __DML_VBA_DEBUG__
@@ -8402,7 +8412,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 		if (clk_cfg->dppclk_option[k] == dml_use_required_freq)
 			locals->Dppclk[k] = locals->Dppclk_calculated[k];
 		else if (clk_cfg->dppclk_option[k] == dml_use_override_freq)
-			locals->Dppclk[k] = clk_cfg->dppclk_freq_mhz[k];
+			locals->Dppclk[k] = clk_cfg->dppclk_mhz[k];
 		else
 			locals->Dppclk[k] = mode_lib->ms.state.dppclk_mhz;
 #ifdef __DML_VBA_DEBUG__
@@ -8917,7 +8927,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 
 	// The prefetch scheduling should only be calculated once as per AllowForPStateChangeOrStutterInVBlank requirement
 	// If the AllowForPStateChangeOrStutterInVBlank requirement is not strict (i.e. only try those power saving feature
-	// if possible, then will try to program for the best power saving features in order of diffculty (dram, fclk, stutter)
+	// if possible, then will try to program for the best power saving features in order of difficulty (dram, fclk, stutter)
 	s->iteration = 0;
 	s->MaxTotalRDBandwidth = 0;
 	s->AllPrefetchModeTested = false;
@@ -9180,6 +9190,8 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 			&locals->FractionOfUrgentBandwidth,
 			&s->dummy_boolean[0]); // dml_bool_t *PrefetchBandwidthSupport
 
+
+
 		if (s->VRatioPrefetchMoreThanMax != false || s->DestinationLineTimesForPrefetchLessThan2 != false) {
 			dml_print("DML::%s: VRatioPrefetchMoreThanMax                   = %u\n", __func__, s->VRatioPrefetchMoreThanMax);
 			dml_print("DML::%s: DestinationLineTimesForPrefetchLessThan2    = %u\n", __func__, s->DestinationLineTimesForPrefetchLessThan2);
@@ -9193,6 +9205,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 				locals->PrefetchModeSupported = false;
 			}
 		}
+
 
 		if (locals->PrefetchModeSupported == true && mode_lib->ms.support.ImmediateFlipSupport == true) {
 			locals->BandwidthAvailableForImmediateFlip = CalculateBandwidthAvailableForImmediateFlip(
@@ -9692,7 +9705,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 											+ dml_max(1.0, dml_ceil((dml_float_t) locals->WritebackDelay[k] / ((dml_float_t) mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]), 1.0))
 											+ dml_floor(4.0 * locals->TSetup[k] / ((dml_float_t) mode_lib->ms.cache_display_cfg.timing.HTotal[k] / mode_lib->ms.cache_display_cfg.timing.PixelClock[k]), 1.0) / 4.0;
 
-		if (((locals->VUpdateOffsetPix[k] + locals->VUpdateWidthPix[k] + locals->VReadyOffsetPix[k]) / mode_lib->ms.cache_display_cfg.timing.HTotal[k]) <=
+		if (((locals->VUpdateOffsetPix[k] + locals->VUpdateWidthPix[k] + locals->VReadyOffsetPix[k]) / (double) mode_lib->ms.cache_display_cfg.timing.HTotal[k]) <=
 			(isInterlaceTiming ?
 				dml_floor((mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k] - mode_lib->ms.cache_display_cfg.timing.VFrontPorch[k] - locals->VStartup[k]) / 2.0, 1.0) :
 				(int) (mode_lib->ms.cache_display_cfg.timing.VTotal[k] - mode_lib->ms.cache_display_cfg.timing.VActive[k] - mode_lib->ms.cache_display_cfg.timing.VFrontPorch[k] - locals->VStartup[k]))) {
@@ -9968,7 +9981,7 @@ void dml_core_get_row_heights(
 	dml_print("DML_DLG: %s: GPUVMMinPageSizeKBytes = %u\n", __func__, GPUVMMinPageSizeKBytes);
 #endif
 
-	// just suppluy with enough parameters to calculate meta and dte
+	// just supply with enough parameters to calculate meta and dte
 	CalculateVMAndRowBytes(
 			0, // dml_bool_t ViewportStationary,
 			1, // dml_bool_t DCCEnable,
@@ -10101,7 +10114,7 @@ dml_bool_t dml_mode_support(
 /// Note: In this function, it is assumed that DCFCLK, SOCCLK freq are the state values, and mode_program will just use the DML calculated DPPCLK and DISPCLK
 /// @param mode_lib mode_lib data struct that house all the input/output/bbox and calculation values.
 /// @param state_idx Power state idx chosen
-/// @param display_cfg Display Congiuration
+/// @param display_cfg Display Configuration
 /// @param call_standalone Calling mode_programming without calling mode support.  Some of the "support" struct member will be pre-calculated before doing mode programming
 /// TODO: Add clk_cfg input, could be useful for standalone mode
 dml_bool_t dml_mode_programming(
@@ -10226,9 +10239,11 @@ dml_get_var_func(stutter_efficiency_z8_bestcase, dml_float_t, mode_lib->mp.Z8Stu
 dml_get_var_func(stutter_num_bursts_z8_bestcase, dml_float_t, mode_lib->mp.Z8NumberOfStutterBurstsPerFrameBestCase);
 dml_get_var_func(stutter_period_bestcase, dml_float_t, mode_lib->mp.StutterPeriodBestCase);
 dml_get_var_func(urgent_extra_latency, dml_float_t, mode_lib->mp.UrgentExtraLatency);
+dml_get_var_func(fclk_change_latency, dml_float_t, mode_lib->mp.MaxActiveFCLKChangeLatencySupported);
 dml_get_var_func(dispclk_calculated, dml_float_t, mode_lib->mp.Dispclk_calculated);
 dml_get_var_func(total_data_read_bw, dml_float_t, mode_lib->mp.TotalDataReadBandwidth);
 dml_get_var_func(return_bw, dml_float_t, mode_lib->ms.ReturnBW);
+dml_get_var_func(return_dram_bw, dml_float_t, mode_lib->ms.ReturnDRAMBW);
 dml_get_var_func(tcalc, dml_float_t, mode_lib->mp.TCalc);
 dml_get_var_func(comp_buffer_size_kbytes, dml_uint_t, mode_lib->mp.CompressedBufferSizeInkByte);
 dml_get_var_func(pixel_chunk_size_in_kbyte, dml_uint_t, mode_lib->ms.ip.pixel_chunk_size_kbytes);

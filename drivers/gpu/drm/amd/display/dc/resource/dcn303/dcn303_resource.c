@@ -82,7 +82,6 @@
 static const struct dc_debug_options debug_defaults_drv = {
 		.disable_dmcu = true,
 		.force_abm_enable = false,
-		.timing_trace = false,
 		.clock_trace = true,
 		.disable_pplib_clock_request = true,
 		.pipe_split_policy = MPC_SPLIT_AVOID,
@@ -97,8 +96,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.dwb_fi_phase = -1, // -1 = disable,
 		.dmub_command_table = true,
+		.use_max_lb = true,
 		.exit_idle_opt_for_cursor_updates = true,
-		.disable_idle_power_optimizations = false,
+		.enable_legacy_fast_update = false,
 		.using_dml2 = false,
 };
 
@@ -145,9 +145,9 @@ static const struct dc_plane_cap plane_cap = {
 				.fp16 = 16000
 		},
 		.max_downscale_factor = {
-				.argb8888 = 600,
-				.nv12 = 600,
-				.fp16 = 600
+				.argb8888 = 167,
+				.nv12 = 167,
+				.fp16 = 167
 		},
 		16,
 		16
@@ -838,7 +838,7 @@ static struct link_encoder *dcn303_link_encoder_create(
 {
 	struct dcn20_link_encoder *enc20 = kzalloc(sizeof(struct dcn20_link_encoder), GFP_KERNEL);
 
-	if (!enc20)
+	if (!enc20 || enc_init_data->hpd_source >= ARRAY_SIZE(link_enc_hpd_regs))
 		return NULL;
 
 	dcn30_link_encoder_construct(enc20, enc_init_data, &link_enc_feature,
@@ -1096,6 +1096,7 @@ static struct resource_funcs dcn303_res_pool_funcs = {
 		.update_bw_bounding_box = dcn303_update_bw_bounding_box,
 		.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 		.get_panel_config_defaults = dcn303_get_panel_config_defaults,
+		.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
 };
 
 static struct dc_cap_funcs cap_funcs = {
@@ -1171,11 +1172,14 @@ static bool dcn303_resource_construct(
 	dc->caps.cursor_cache_size =
 		dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
 	dc->caps.max_v_total = (1 << 15) - 1;
+	dc->caps.vtotal_limited_by_fp2 = true;
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;

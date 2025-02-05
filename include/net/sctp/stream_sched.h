@@ -35,10 +35,10 @@ struct sctp_sched_ops {
 	struct sctp_chunk *(*dequeue)(struct sctp_outq *q);
 	/* Called only if the chunk fit the packet */
 	void (*dequeue_done)(struct sctp_outq *q, struct sctp_chunk *chunk);
-	/* Sched all chunks already enqueued */
-	void (*sched_all)(struct sctp_stream *steam);
-	/* Unched all chunks already enqueued */
-	void (*unsched_all)(struct sctp_stream *steam);
+	/* Schedule all chunks already enqueued */
+	void (*sched_all)(struct sctp_stream *stream);
+	/* Unschedule all chunks already enqueued */
+	void (*unsched_all)(struct sctp_stream *stream);
 };
 
 int sctp_sched_set_sched(struct sctp_association *asoc,

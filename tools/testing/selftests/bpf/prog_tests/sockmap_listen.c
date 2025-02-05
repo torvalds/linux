@@ -29,6 +29,8 @@
 
 #include "sockmap_helpers.h"
 
+#define NO_FLAGS 0
+
 static void test_insert_invalid(struct test_sockmap_listen *skel __always_unused,
 				int family, int sotype, int mapfd)
 {
@@ -675,7 +677,7 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 			       int verd_mapfd, enum redir_mode mode)
 {
 	const char *log_prefix = redir_mode_str(mode);
-	int s, c0, c1, p0, p1;
+	int c0, c1, p0, p1;
 	unsigned int pass;
 	int err, n;
 	u32 key;
@@ -683,13 +685,10 @@ static void redir_to_connected(int family, int sotype, int sock_mapfd,
 
 	zero_verdict_count(verd_mapfd);
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
-	if (s < 0)
-		return;
-
-	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	err = create_socket_pairs(family, sotype | SOCK_NONBLOCK, &c0, &c1,
+				  &p0, &p1);
 	if (err)
-		goto close_srv;
+		return;
 
 	err = add_to_sockmap(sock_mapfd, p0, p1);
 	if (err)
@@ -720,8 +719,6 @@ close:
 	xclose(c1);
 	xclose(p0);
 	xclose(c0);
-close_srv:
-	xclose(s);
 }
 
 static void test_skb_redir_to_connected(struct test_sockmap_listen *skel,
@@ -765,6 +762,24 @@ static void test_msg_redir_to_connected(struct test_sockmap_listen *skel,
 	redir_to_connected(family, sotype, sock_map, verdict_map, REDIR_EGRESS);
 
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_MSG_VERDICT);
+}
+
+static void test_msg_redir_to_connected_with_link(struct test_sockmap_listen *skel,
+						  struct bpf_map *inner_map, int family,
+						  int sotype)
+{
+	int prog_msg_verdict = bpf_program__fd(skel->progs.prog_msg_verdict);
+	int verdict_map = bpf_map__fd(skel->maps.verdict_map);
+	int sock_map = bpf_map__fd(inner_map);
+	int link_fd;
+
+	link_fd = bpf_link_create(prog_msg_verdict, sock_map, BPF_SK_MSG_VERDICT, NULL);
+	if (!ASSERT_GE(link_fd, 0, "bpf_link_create"))
+		return;
+
+	redir_to_connected(family, sotype, sock_map, verdict_map, REDIR_EGRESS);
+
+	close(link_fd);
 }
 
 static void redir_to_listening(int family, int sotype, int sock_mapfd,
@@ -869,9 +884,27 @@ static void test_msg_redir_to_listening(struct test_sockmap_listen *skel,
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_MSG_VERDICT);
 }
 
+static void test_msg_redir_to_listening_with_link(struct test_sockmap_listen *skel,
+						  struct bpf_map *inner_map, int family,
+						  int sotype)
+{
+	struct bpf_program *verdict = skel->progs.prog_msg_verdict;
+	int verdict_map = bpf_map__fd(skel->maps.verdict_map);
+	int sock_map = bpf_map__fd(inner_map);
+	struct bpf_link *link;
+
+	link = bpf_program__attach_sockmap(verdict, sock_map);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_sockmap"))
+		return;
+
+	redir_to_listening(family, sotype, sock_map, verdict_map, REDIR_EGRESS);
+
+	bpf_link__detach(link);
+}
+
 static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 {
-	int s, c0 = -1, c1 = -1, p0 = -1, p1 = -1;
+	int c0 = -1, c1 = -1, p0 = -1, p1 = -1;
 	int err, n, key, value;
 	char buf[] = "abc";
 
@@ -881,13 +914,10 @@ static void redir_partial(int family, int sotype, int sock_map, int parser_map)
 	if (err)
 		return;
 
-	s = socket_loopback(family, sotype | SOCK_NONBLOCK);
-	if (s < 0)
-		goto clean_parser_map;
-
-	err = create_socket_pairs(s, family, sotype, &c0, &c1, &p0, &p1);
+	err = create_socket_pairs(family, sotype | SOCK_NONBLOCK, &c0, &c1,
+				  &p0, &p1);
 	if (err)
-		goto close_srv;
+		goto clean_parser_map;
 
 	err = add_to_sockmap(sock_map, p0, p1);
 	if (err)
@@ -906,8 +936,6 @@ close:
 	xclose(p0);
 	xclose(c1);
 	xclose(p1);
-close_srv:
-	xclose(s);
 
 clean_parser_map:
 	key = 0;
@@ -1316,7 +1344,9 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 		TEST(test_skb_redir_to_listening),
 		TEST(test_skb_redir_partial),
 		TEST(test_msg_redir_to_connected),
+		TEST(test_msg_redir_to_connected_with_link),
 		TEST(test_msg_redir_to_listening),
+		TEST(test_msg_redir_to_listening_with_link),
 	};
 	const char *family_name, *map_name;
 	const struct redir_test *t;
@@ -1338,7 +1368,8 @@ static void test_redir(struct test_sockmap_listen *skel, struct bpf_map *map,
 
 static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 				     int sock_mapfd, int nop_mapfd,
-				     int verd_mapfd, enum redir_mode mode)
+				     int verd_mapfd, enum redir_mode mode,
+				     int send_flags)
 {
 	const char *log_prefix = redir_mode_str(mode);
 	unsigned int pass;
@@ -1358,12 +1389,11 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 			return;
 	}
 
-	n = write(cli1, "a", 1);
-	if (n < 0)
-		FAIL_ERRNO("%s: write", log_prefix);
-	if (n == 0)
-		FAIL("%s: incomplete write", log_prefix);
-	if (n < 1)
+	/* Last byte is OOB data when send_flags has MSG_OOB bit set */
+	n = xsend(cli1, "ab", 2, send_flags);
+	if (n >= 0 && n < 2)
+		FAIL("%s: incomplete send", log_prefix);
+	if (n < 2)
 		return;
 
 	key = SK_PASS;
@@ -1378,6 +1408,25 @@ static void pairs_redir_to_connected(int cli0, int peer0, int cli1, int peer1,
 		FAIL_ERRNO("%s: recv_timeout", log_prefix);
 	if (n == 0)
 		FAIL("%s: incomplete recv", log_prefix);
+
+	if (send_flags & MSG_OOB) {
+		/* Check that we can't read OOB while in sockmap */
+		errno = 0;
+		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
+		if (n != -1 || errno != EOPNOTSUPP)
+			FAIL("%s: recv(MSG_OOB): expected EOPNOTSUPP: retval=%d errno=%d",
+			     log_prefix, n, errno);
+
+		/* Remove peer1 from sockmap */
+		xbpf_map_delete_elem(sock_mapfd, &(int){ 1 });
+
+		/* Check that OOB was dropped on redirect */
+		errno = 0;
+		n = recv(peer1, &b, 1, MSG_OOB | MSG_DONTWAIT);
+		if (n != -1 || errno != EINVAL)
+			FAIL("%s: recv(MSG_OOB): expected EINVAL: retval=%d errno=%d",
+			     log_prefix, n, errno);
+	}
 }
 
 static void unix_redir_to_connected(int sotype, int sock_mapfd,
@@ -1394,7 +1443,8 @@ static void unix_redir_to_connected(int sotype, int sock_mapfd,
 		goto close0;
 	c1 = sfd[0], p1 = sfd[1];
 
-	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd, mode);
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd,
+				 mode, NO_FLAGS);
 
 	xclose(c1);
 	xclose(p1);
@@ -1440,49 +1490,7 @@ static void test_unix_redir(struct test_sockmap_listen *skel, struct bpf_map *ma
 /* Returns two connected loopback vsock sockets */
 static int vsock_socketpair_connectible(int sotype, int *v0, int *v1)
 {
-	struct sockaddr_storage addr;
-	socklen_t len = sizeof(addr);
-	int s, p, c;
-
-	s = socket_loopback(AF_VSOCK, sotype);
-	if (s < 0)
-		return -1;
-
-	c = xsocket(AF_VSOCK, sotype | SOCK_NONBLOCK, 0);
-	if (c == -1)
-		goto close_srv;
-
-	if (getsockname(s, sockaddr(&addr), &len) < 0)
-		goto close_cli;
-
-	if (connect(c, sockaddr(&addr), len) < 0 && errno != EINPROGRESS) {
-		FAIL_ERRNO("connect");
-		goto close_cli;
-	}
-
-	len = sizeof(addr);
-	p = accept_timeout(s, sockaddr(&addr), &len, IO_TIMEOUT_SEC);
-	if (p < 0)
-		goto close_cli;
-
-	if (poll_connect(c, IO_TIMEOUT_SEC) < 0) {
-		FAIL_ERRNO("poll_connect");
-		goto close_acc;
-	}
-
-	*v0 = p;
-	*v1 = c;
-
-	return 0;
-
-close_acc:
-	close(p);
-close_cli:
-	close(c);
-close_srv:
-	close(s);
-
-	return -1;
+	return create_pair(AF_VSOCK, sotype | SOCK_NONBLOCK, v0, v1);
 }
 
 static void vsock_unix_redir_connectible(int sock_mapfd, int verd_mapfd,
@@ -1631,44 +1639,7 @@ static void test_reuseport(struct test_sockmap_listen *skel,
 
 static int inet_socketpair(int family, int type, int *s, int *c)
 {
-	struct sockaddr_storage addr;
-	socklen_t len;
-	int p0, c0;
-	int err;
-
-	p0 = socket_loopback(family, type | SOCK_NONBLOCK);
-	if (p0 < 0)
-		return p0;
-
-	len = sizeof(addr);
-	err = xgetsockname(p0, sockaddr(&addr), &len);
-	if (err)
-		goto close_peer0;
-
-	c0 = xsocket(family, type | SOCK_NONBLOCK, 0);
-	if (c0 < 0) {
-		err = c0;
-		goto close_peer0;
-	}
-	err = xconnect(c0, sockaddr(&addr), len);
-	if (err)
-		goto close_cli0;
-	err = xgetsockname(c0, sockaddr(&addr), &len);
-	if (err)
-		goto close_cli0;
-	err = xconnect(p0, sockaddr(&addr), len);
-	if (err)
-		goto close_cli0;
-
-	*s = p0;
-	*c = c0;
-	return 0;
-
-close_cli0:
-	xclose(c0);
-close_peer0:
-	xclose(p0);
-	return err;
+	return create_pair(family, type | SOCK_NONBLOCK, s, c);
 }
 
 static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
@@ -1684,7 +1655,8 @@ static void udp_redir_to_connected(int family, int sock_mapfd, int verd_mapfd,
 	if (err)
 		goto close_cli0;
 
-	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd, mode);
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd,
+				 mode, NO_FLAGS);
 
 	xclose(c1);
 	xclose(p1);
@@ -1734,15 +1706,16 @@ static void inet_unix_redir_to_connected(int family, int type, int sock_mapfd,
 	int sfd[2];
 	int err;
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, type | SOCK_NONBLOCK, 0, sfd))
 		return;
 	c0 = sfd[0], p0 = sfd[1];
 
-	err = inet_socketpair(family, SOCK_DGRAM, &p1, &c1);
+	err = inet_socketpair(family, type, &p1, &c1);
 	if (err)
 		goto close;
 
-	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd, mode);
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, -1, verd_mapfd,
+				 mode, NO_FLAGS);
 
 	xclose(c1);
 	xclose(p1);
@@ -1777,32 +1750,30 @@ static void inet_unix_skb_redir_to_connected(struct test_sockmap_listen *skel,
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);
 }
 
-static void unix_inet_redir_to_connected(int family, int type,
-					int sock_mapfd, int nop_mapfd,
-					int verd_mapfd,
-					enum redir_mode mode)
+static void unix_inet_redir_to_connected(int family, int type, int sock_mapfd,
+					 int nop_mapfd, int verd_mapfd,
+					 enum redir_mode mode, int send_flags)
 {
 	int c0, c1, p0, p1;
 	int sfd[2];
 	int err;
 
-	err = inet_socketpair(family, SOCK_DGRAM, &p0, &c0);
+	err = inet_socketpair(family, type, &p0, &c0);
 	if (err)
 		return;
 
-	if (socketpair(AF_UNIX, SOCK_DGRAM | SOCK_NONBLOCK, 0, sfd))
+	if (socketpair(AF_UNIX, type | SOCK_NONBLOCK, 0, sfd))
 		goto close_cli0;
 	c1 = sfd[0], p1 = sfd[1];
 
-	pairs_redir_to_connected(c0, p0, c1, p1,
-				 sock_mapfd, nop_mapfd, verd_mapfd, mode);
+	pairs_redir_to_connected(c0, p0, c1, p1, sock_mapfd, nop_mapfd,
+				 verd_mapfd, mode, send_flags);
 
 	xclose(c1);
 	xclose(p1);
 close_cli0:
 	xclose(c0);
 	xclose(p0);
-
 }
 
 static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
@@ -1821,31 +1792,42 @@ static void unix_inet_skb_redir_to_connected(struct test_sockmap_listen *skel,
 	skel->bss->test_ingress = false;
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
 				     sock_map, -1, verdict_map,
-				     REDIR_EGRESS);
-	unix_inet_redir_to_connected(family, SOCK_DGRAM,
+				     REDIR_EGRESS, NO_FLAGS);
+	unix_inet_redir_to_connected(family, SOCK_STREAM,
 				     sock_map, -1, verdict_map,
-				     REDIR_EGRESS);
+				     REDIR_EGRESS, NO_FLAGS);
 
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
 				     sock_map, nop_map, verdict_map,
-				     REDIR_EGRESS);
+				     REDIR_EGRESS, NO_FLAGS);
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
 				     sock_map, nop_map, verdict_map,
-				     REDIR_EGRESS);
+				     REDIR_EGRESS, NO_FLAGS);
+
+	/* MSG_OOB not supported by AF_UNIX SOCK_DGRAM */
+	unix_inet_redir_to_connected(family, SOCK_STREAM,
+				     sock_map, nop_map, verdict_map,
+				     REDIR_EGRESS, MSG_OOB);
+
 	skel->bss->test_ingress = true;
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
 				     sock_map, -1, verdict_map,
-				     REDIR_INGRESS);
+				     REDIR_INGRESS, NO_FLAGS);
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
 				     sock_map, -1, verdict_map,
-				     REDIR_INGRESS);
+				     REDIR_INGRESS, NO_FLAGS);
 
 	unix_inet_redir_to_connected(family, SOCK_DGRAM,
 				     sock_map, nop_map, verdict_map,
-				     REDIR_INGRESS);
+				     REDIR_INGRESS, NO_FLAGS);
 	unix_inet_redir_to_connected(family, SOCK_STREAM,
 				     sock_map, nop_map, verdict_map,
-				     REDIR_INGRESS);
+				     REDIR_INGRESS, NO_FLAGS);
+
+	/* MSG_OOB not supported by AF_UNIX SOCK_DGRAM */
+	unix_inet_redir_to_connected(family, SOCK_STREAM,
+				     sock_map, nop_map, verdict_map,
+				     REDIR_INGRESS, MSG_OOB);
 
 	xbpf_prog_detach2(verdict, sock_map, BPF_SK_SKB_VERDICT);
 }
@@ -1854,6 +1836,7 @@ static void test_udp_unix_redir(struct test_sockmap_listen *skel, struct bpf_map
 				int family)
 {
 	const char *family_name, *map_name;
+	struct netns_obj *netns;
 	char s[MAX_TEST_NAME];
 
 	family_name = family_str(family);
@@ -1861,8 +1844,15 @@ static void test_udp_unix_redir(struct test_sockmap_listen *skel, struct bpf_map
 	snprintf(s, sizeof(s), "%s %s %s", map_name, family_name, __func__);
 	if (!test__start_subtest(s))
 		return;
+
+	netns = netns_new("sockmap_listen", true);
+	if (!ASSERT_OK_PTR(netns, "netns_new"))
+		return;
+
 	inet_unix_skb_redir_to_connected(skel, map, family);
 	unix_inet_skb_redir_to_connected(skel, map, family);
+
+	netns_free(netns);
 }
 
 static void run_tests(struct test_sockmap_listen *skel, struct bpf_map *map,

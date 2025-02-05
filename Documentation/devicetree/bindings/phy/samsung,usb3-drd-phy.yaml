@@ -25,6 +25,7 @@ description: |
 properties:
   compatible:
     enum:
+      - google,gs101-usb31drd-phy
       - samsung,exynos5250-usbdrd-phy
       - samsung,exynos5420-usbdrd-phy
       - samsung,exynos5433-usbdrd-phy
@@ -57,7 +58,15 @@ properties:
       the OF graph bindings specified.
 
   reg:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
+
+  reg-names:
+    minItems: 1
+    items:
+      - const: phy
+      - const: pcs
+      - const: pma
 
   samsung,pmu-syscon:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -72,6 +81,19 @@ properties:
     description:
       VBUS Boost 5V power source.
 
+  pll-supply:
+    description: Power supply for the USB PLL.
+  dvdd-usb20-supply:
+    description: DVDD power supply for the USB 2.0 phy.
+  vddh-usb20-supply:
+    description: VDDh power supply for the USB 2.0 phy.
+  vdd33-usb20-supply:
+    description: 3.3V power supply for the USB 2.0 phy.
+  vdda-usbdp-supply:
+    description: VDDa power supply for the USB DP phy.
+  vddh-usbdp-supply:
+    description: VDDh power supply for the USB DP phy.
+
 required:
   - compatible
   - clocks
@@ -81,6 +103,40 @@ required:
   - samsung,pmu-syscon
 
 allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: google,gs101-usb31drd-phy
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Gate of main PHY clock
+            - description: Gate of PHY reference clock
+            - description: Gate of control interface AXI clock
+            - description: Gate of control interface APB clock
+            - description: Gate of SCL APB clock
+        clock-names:
+          items:
+            - const: phy
+            - const: ref
+            - const: ctrl_aclk
+            - const: ctrl_pclk
+            - const: scl_pclk
+        reg:
+          minItems: 3
+        reg-names:
+          minItems: 3
+      required:
+        - reg-names
+        - pll-supply
+        - dvdd-usb20-supply
+        - vddh-usb20-supply
+        - vdd33-usb20-supply
+        - vdda-usbdp-supply
+        - vddh-usbdp-supply
+
   - if:
       properties:
         compatible:
@@ -100,7 +156,20 @@ allOf:
             - const: phy_utmi
             - const: phy_pipe
             - const: itp
-    else:
+        reg:
+          maxItems: 1
+        reg-names:
+          maxItems: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - samsung,exynos5250-usbdrd-phy
+              - samsung,exynos5420-usbdrd-phy
+              - samsung,exynos850-usbdrd-phy
+    then:
       properties:
         clocks:
           minItems: 2
@@ -109,6 +178,10 @@ allOf:
           items:
             - const: phy
             - const: ref
+        reg:
+          maxItems: 1
+        reg-names:
+          maxItems: 1
 
 additionalProperties: false
 

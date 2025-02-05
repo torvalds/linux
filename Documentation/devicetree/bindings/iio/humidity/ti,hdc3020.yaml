@@ -34,6 +34,9 @@ properties:
   reg:
     maxItems: 1
 
+  reset-gpios:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -43,6 +46,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
         #address-cells = <1>;
@@ -54,5 +58,6 @@ examples:
             vdd-supply = <&vcc_3v3>;
             interrupt-parent = <&gpio3>;
             interrupts = <23 IRQ_TYPE_EDGE_RISING>;
+            reset-gpios = <&gpio3 27 GPIO_ACTIVE_LOW>;
         };
     };

@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include "system_global.h"
@@ -406,7 +397,7 @@ input_system_err_t input_system_configuration_reset(void)
 	config.unallocated_ib_mem_words			 = IB_CAPACITY_IN_WORDS;
 	//config.acq_allocated_ib_mem_words		 = 0;
 
-	// Set the start of the session cofiguration.
+	/* Set the start of the session configuration. */
 	config.session_flags = INPUT_SYSTEM_CFG_FLAG_REQUIRED;
 
 	return INPUT_SYSTEM_ERR_NO_ERROR;
@@ -426,7 +417,6 @@ static input_system_err_t input_system_configure_channel(
 		case INPUT_SYSTEM_SOURCE_SENSOR:
 			error = input_system_configure_channel_sensor(channel);
 			break;
-		case INPUT_SYSTEM_SOURCE_TPG:
 		case INPUT_SYSTEM_SOURCE_PRBS:
 		case INPUT_SYSTEM_SOURCE_FIFO:
 		default:
@@ -814,7 +804,6 @@ static input_system_err_t configuration_to_registers(void)
 		//...
 		break;
 
-	case INPUT_SYSTEM_SOURCE_TPG:
 	case INPUT_SYSTEM_SOURCE_PRBS:
 	case INPUT_SYSTEM_SOURCE_FIFO:
 		break;
@@ -1062,42 +1051,6 @@ input_system_err_t	input_system_prbs_channel_cfg(
 
 	channel.target_cfg	= target;
 
-	return input_system_configure_channel(channel);
-}
-
-input_system_err_t	input_system_tpg_channel_cfg(
-    u32		ch_id,
-    u32		nof_frames,//not used yet
-    u32		x_mask,
-    u32		y_mask,
-    u32		x_delta,
-    u32		y_delta,
-    u32		xy_mask,
-    u32		sync_gen_width,
-    u32		sync_gen_height,
-    u32		sync_gen_hblank_cycles,
-    u32		sync_gen_vblank_cycles,
-    target_cfg2400_t	target
-)
-{
-	channel_cfg_t channel;
-
-	(void)nof_frames;
-
-	channel.ch_id	= ch_id;
-	channel.source_type		= INPUT_SYSTEM_SOURCE_TPG;
-
-	channel.source_cfg.tpg_cfg.x_mask	= x_mask;
-	channel.source_cfg.tpg_cfg.y_mask	= y_mask;
-	channel.source_cfg.tpg_cfg.x_delta	= x_delta;
-	channel.source_cfg.tpg_cfg.y_delta	= y_delta;
-	channel.source_cfg.tpg_cfg.xy_mask	= xy_mask;
-	channel.source_cfg.tpg_cfg.sync_gen_cfg.width		= sync_gen_width;
-	channel.source_cfg.tpg_cfg.sync_gen_cfg.height		= sync_gen_height;
-	channel.source_cfg.tpg_cfg.sync_gen_cfg.hblank_cycles	= sync_gen_hblank_cycles;
-	channel.source_cfg.tpg_cfg.sync_gen_cfg.vblank_cycles	= sync_gen_vblank_cycles;
-
-	channel.target_cfg	= target;
 	return input_system_configure_channel(channel);
 }
 

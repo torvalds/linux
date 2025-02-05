@@ -7,18 +7,24 @@
 
 /* Each recipe can match up to 5 different fields. Fields to match can be meta-
  * data, values extracted from packet headers, or results from other recipes.
- * One of the 5 fields is reserved for matching the switch ID. So, up to 4
- * recipes can provide intermediate results to another one through chaining,
- * e.g. recipes 0, 1, 2, and 3 can provide intermediate results to recipe 4.
+ * Therefore, up to 5 recipes can provide intermediate results to another one
+ * through chaining, e.g. recipes 0, 1, 2, 3 and 4 can provide intermediate
+ * results to recipe 5. Note that one of the fields in one of the recipes must
+ * always be reserved for matching the switch ID.
  */
-#define ICE_NUM_WORDS_RECIPE 4
+#define ICE_NUM_WORDS_RECIPE 5
 
-/* Max recipes that can be chained */
+/* Max recipes that can be chained, not including the last one, which combines
+ * intermediate results.
+ */
 #define ICE_MAX_CHAIN_RECIPE 5
 
-/* 1 word reserved for switch ID from allowed 5 words.
- * So a recipe can have max 4 words. And you can chain 5 such recipes
- * together. So maximum words that can be programmed for look up is 5 * 4.
+/* Total max recipes in chain recipe (including intermediate results) */
+#define ICE_MAX_CHAIN_RECIPE_RES (ICE_MAX_CHAIN_RECIPE + 1)
+
+/* A recipe can have max 5 words, and 5 recipes can be chained together (using
+ * the 6th one, which would contain only result indexes). So maximum words that
+ * can be programmed for lookup is 5 * 5 (not including intermediate results).
  */
 #define ICE_MAX_CHAIN_WORDS (ICE_NUM_WORDS_RECIPE * ICE_MAX_CHAIN_RECIPE)
 
@@ -43,6 +49,7 @@ enum ice_protocol_type {
 	ICE_NVGRE,
 	ICE_GTP,
 	ICE_GTP_NO_PAY,
+	ICE_PFCP,
 	ICE_PPPOE,
 	ICE_L2TPV3,
 	ICE_VLAN_EX,
@@ -61,6 +68,7 @@ enum ice_sw_tunnel_type {
 	ICE_SW_TUN_NVGRE,
 	ICE_SW_TUN_GTPU,
 	ICE_SW_TUN_GTPC,
+	ICE_SW_TUN_PFCP,
 	ICE_ALL_TUNNELS /* All tunnel types including NVGRE */
 };
 
@@ -201,6 +209,15 @@ struct ice_udp_gtp_hdr {
 	u8 qfi;
 	u8 rsvrd;
 };
+
+struct ice_pfcp_hdr {
+	u8 flags;
+	u8 msg_type;
+	__be16 length;
+	__be64 seid;
+	__be32 seq;
+	u8 spare;
+} __packed __aligned(__alignof__(u16));
 
 struct ice_pppoe_hdr {
 	u8 rsrvd_ver_type;
@@ -418,6 +435,7 @@ union ice_prot_hdr {
 	struct ice_udp_tnl_hdr tnl_hdr;
 	struct ice_nvgre_hdr nvgre_hdr;
 	struct ice_udp_gtp_hdr gtp_hdr;
+	struct ice_pfcp_hdr pfcp_hdr;
 	struct ice_pppoe_hdr pppoe_hdr;
 	struct ice_l2tpv3_sess_hdr l2tpv3_sess_hdr;
 	struct ice_hw_metadata metadata;
@@ -437,32 +455,11 @@ struct ice_prot_ext_tbl_entry {
 
 /* Extractions to be looked up for a given recipe */
 struct ice_prot_lkup_ext {
-	u16 prot_type;
 	u8 n_val_words;
 	/* create a buffer to hold max words per recipe */
-	u16 field_off[ICE_MAX_CHAIN_WORDS];
 	u16 field_mask[ICE_MAX_CHAIN_WORDS];
 
 	struct ice_fv_word fv_words[ICE_MAX_CHAIN_WORDS];
-
-	/* Indicate field offsets that have field vector indices assigned */
-	DECLARE_BITMAP(done, ICE_MAX_CHAIN_WORDS);
 };
 
-struct ice_pref_recipe_group {
-	u8 n_val_pairs;		/* Number of valid pairs */
-	struct ice_fv_word pairs[ICE_NUM_WORDS_RECIPE];
-	u16 mask[ICE_NUM_WORDS_RECIPE];
-};
-
-struct ice_recp_grp_entry {
-	struct list_head l_entry;
-
-#define ICE_INVAL_CHAIN_IND 0xFF
-	u16 rid;
-	u8 chain_idx;
-	u16 fv_idx[ICE_NUM_WORDS_RECIPE];
-	u16 fv_mask[ICE_NUM_WORDS_RECIPE];
-	struct ice_pref_recipe_group r_group;
-};
 #endif /* _ICE_PROTOCOL_TYPE_H_ */

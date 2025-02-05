@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
@@ -515,7 +516,7 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 out_err:
 	cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 	dev_err(ddata->dev, "%s could not %s vbus: %i\n", __func__,
-		ddata->vbus_enabled ? "enable" : "disable", error);
+		str_enable_disable(ddata->vbus_enabled), error);
 }
 
 static int cpcap_charger_set_vbus(struct phy_companion *comparator,
@@ -904,7 +905,7 @@ static int cpcap_charger_probe(struct platform_device *pdev)
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = ddata;
 	psy_cfg.supplied_to = cpcap_charger_supplied_to;
-	psy_cfg.num_supplicants = ARRAY_SIZE(cpcap_charger_supplied_to),
+	psy_cfg.num_supplicants = ARRAY_SIZE(cpcap_charger_supplied_to);
 
 	ddata->usb = devm_power_supply_register(ddata->dev,
 						&cpcap_charger_usb_desc,
@@ -969,7 +970,7 @@ static struct platform_driver cpcap_charger_driver = {
 		.of_match_table = cpcap_charger_id_table,
 	},
 	.shutdown = cpcap_charger_shutdown,
-	.remove_new = cpcap_charger_remove,
+	.remove = cpcap_charger_remove,
 };
 module_platform_driver(cpcap_charger_driver);
 

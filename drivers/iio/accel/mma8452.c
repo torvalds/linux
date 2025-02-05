@@ -19,6 +19,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -28,10 +30,9 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/events.h>
 #include <linux/delay.h>
-#include <linux/of.h>
-#include <linux/of_irq.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
 #define MMA8452_STATUS				0x00
 #define  MMA8452_STATUS_DRDY			(BIT(2) | BIT(1) | BIT(0))
@@ -115,7 +116,7 @@ struct mma8452_data {
 	/* Ensure correct alignment of time stamp when present */
 	struct {
 		__be16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 };
 
@@ -973,7 +974,7 @@ static int mma8452_write_event_config(struct iio_dev *indio_dev,
 				      const struct iio_chan_spec *chan,
 				      enum iio_event_type type,
 				      enum iio_event_direction dir,
-				      int state)
+				      bool state)
 {
 	struct mma8452_data *data = iio_priv(indio_dev);
 	int val, ret;
@@ -1642,7 +1643,7 @@ static int mma8452_probe(struct i2c_client *client)
 	if (client->irq) {
 		int irq2;
 
-		irq2 = of_irq_get_byname(client->dev.of_node, "INT2");
+		irq2 = fwnode_irq_get_byname(dev_fwnode(&client->dev), "INT2");
 
 		if (irq2 == client->irq) {
 			dev_dbg(&client->dev, "using interrupt line INT2\n");

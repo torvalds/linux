@@ -603,7 +603,7 @@ MODULE_DEVICE_TABLE(of, uniphier_xdmac_match);
 
 static struct platform_driver uniphier_xdmac_driver = {
 	.probe = uniphier_xdmac_probe,
-	.remove_new = uniphier_xdmac_remove,
+	.remove = uniphier_xdmac_remove,
 	.driver = {
 		.name = "uniphier-xdmac",
 		.of_match_table = uniphier_xdmac_match,

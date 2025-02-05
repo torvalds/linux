@@ -10,7 +10,7 @@
  * Tomasz Figa <t.figa@samsung.com>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -574,8 +574,8 @@ static unsigned long samsung_dsim_pll_find_pms(struct samsung_dsim *dsi,
 	u16 _m, best_m;
 	u8 _s, best_s;
 
-	p_min = DIV_ROUND_UP(fin, (12 * MHZ));
-	p_max = fin / (6 * MHZ);
+	p_min = DIV_ROUND_UP(fin, (driver_data->pll_fin_max * MHZ));
+	p_max = fin / (driver_data->pll_fin_min * MHZ);
 
 	for (_p = p_min; _p <= p_max; ++_p) {
 		for (_s = 0; _s <= 5; ++_s) {
@@ -1606,6 +1606,27 @@ static int samsung_dsim_atomic_check(struct drm_bridge *bridge,
 		adjusted_mode->flags |= (DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
 	}
 
+	/*
+	 * When using video sync pulses, the HFP, HBP, and HSA are divided between
+	 * the available lanes if there is more than one lane.  For certain
+	 * timings and lane configurations, the HFP may not be evenly divisible.
+	 * If the HFP is rounded down, it ends up being too small which can cause
+	 * some monitors to not sync properly. In these instances, adjust htotal
+	 * and hsync to round the HFP up, and recalculate the htotal. Through trial
+	 * and error, it appears that the HBP and HSA do not appearto need the same
+	 * correction that HFP does.
+	 */
+	if (dsi->lanes > 1) {
+		int hfp = adjusted_mode->hsync_start - adjusted_mode->hdisplay;
+		int remainder = hfp % dsi->lanes;
+
+		if (remainder) {
+			adjusted_mode->hsync_start += remainder;
+			adjusted_mode->hsync_end   += remainder;
+			adjusted_mode->htotal      += remainder;
+		}
+	}
+
 	return 0;
 }
 
@@ -2022,7 +2043,7 @@ void samsung_dsim_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(samsung_dsim_remove);
 
-static int __maybe_unused samsung_dsim_suspend(struct device *dev)
+static int samsung_dsim_suspend(struct device *dev)
 {
 	struct samsung_dsim *dsi = dev_get_drvdata(dev);
 	const struct samsung_dsim_driver_data *driver_data = dsi->driver_data;
@@ -2052,7 +2073,7 @@ static int __maybe_unused samsung_dsim_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused samsung_dsim_resume(struct device *dev)
+static int samsung_dsim_resume(struct device *dev)
 {
 	struct samsung_dsim *dsi = dev_get_drvdata(dev);
 	const struct samsung_dsim_driver_data *driver_data = dsi->driver_data;
@@ -2087,7 +2108,7 @@ err_clk:
 }
 
 const struct dev_pm_ops samsung_dsim_pm_ops = {
-	SET_RUNTIME_PM_OPS(samsung_dsim_suspend, samsung_dsim_resume, NULL)
+	RUNTIME_PM_OPS(samsung_dsim_suspend, samsung_dsim_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
 				pm_runtime_force_resume)
 };
@@ -2118,10 +2139,10 @@ MODULE_DEVICE_TABLE(of, samsung_dsim_of_match);
 
 static struct platform_driver samsung_dsim_driver = {
 	.probe = samsung_dsim_probe,
-	.remove_new = samsung_dsim_remove,
+	.remove = samsung_dsim_remove,
 	.driver = {
 		   .name = "samsung-dsim",
-		   .pm = &samsung_dsim_pm_ops,
+		   .pm = pm_ptr(&samsung_dsim_pm_ops),
 		   .of_match_table = samsung_dsim_of_match,
 	},
 };

@@ -15,6 +15,7 @@
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/list.h>
@@ -27,7 +28,7 @@
 #include <linux/iopoll.h>
 
 #include <asm/irq.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
@@ -194,31 +195,6 @@ struct ehci_regs {
 #define PORT_CSC	(1<<1)		/* connect status change */
 #define PORT_CONNECT	(1<<0)		/* device connected */
 #define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
-} __packed;
-
-/* Appendix C, Debug port ... intended for use with special "debug devices"
- * that can help if there's no serial console.  (nonstandard enumeration.)
- */
-struct ehci_dbg_port {
-	u32	control;
-#define DBGP_OWNER	(1<<30)
-#define DBGP_ENABLED	(1<<28)
-#define DBGP_DONE	(1<<16)
-#define DBGP_INUSE	(1<<10)
-#define DBGP_ERRCODE(x)	(((x)>>7)&0x07)
-#	define DBGP_ERR_BAD	1
-#	define DBGP_ERR_SIGNAL	2
-#define DBGP_ERROR	(1<<6)
-#define DBGP_GO		(1<<5)
-#define DBGP_OUT	(1<<4)
-#define DBGP_LEN(x)	(((x)>>0)&0x0f)
-	u32	pids;
-#define DBGP_PID_GET(x)		(((x)>>16)&0xff)
-#define DBGP_PID_SET(data, tok)	(((data)<<8)|(tok))
-	u32	data03;
-	u32	data47;
-	u32	address;
-#define DBGP_EPADDR(dev, ep)	(((dev)<<8)|(ep))
 } __packed;
 
 #define	QTD_NEXT(dma)	cpu_to_le32((u32)dma)
@@ -910,7 +886,7 @@ static int oxu_buf_alloc(struct oxu_hcd *oxu, struct ehci_qtd *qtd, int len)
 	int a_blocks;	/* blocks allocated */
 	int i, j;
 
-	/* Don't allocte bigger than supported */
+	/* Don't allocate bigger than supported */
 	if (len > BUFFER_SIZE * BUFFER_NUM) {
 		oxu_err(oxu, "buffer too big (%d)\n", len);
 		return -ENOMEM;
@@ -927,7 +903,7 @@ static int oxu_buf_alloc(struct oxu_hcd *oxu, struct ehci_qtd *qtd, int len)
 
 	/* Find a suitable available data buffer */
 	for (i = 0; i < BUFFER_NUM;
-			i += max(a_blocks, (int)oxu->db_used[i])) {
+			i += max_t(int, a_blocks, oxu->db_used[i])) {
 
 		/* Check all the required blocks are available */
 		for (j = 0; j < a_blocks; j++)
@@ -2781,7 +2757,7 @@ static void ehci_port_power(struct oxu_hcd *oxu, int is_on)
 	if (!HCS_PPC(oxu->hcs_params))
 		return;
 
-	oxu_dbg(oxu, "...power%s ports...\n", is_on ? "up" : "down");
+	oxu_dbg(oxu, "...power%s ports...\n", str_up_down(is_on));
 	for (port = HCS_N_PORTS(oxu->hcs_params); port > 0; ) {
 		if (is_on)
 			oxu_hub_control(oxu_to_hcd(oxu), SetPortFeature,
@@ -3065,7 +3041,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 		 * make problems:  throughput reduction (!), data errors...
 		 */
 		if (park) {
-			park = min(park, (unsigned) 3);
+			park = min_t(unsigned int, park, 3);
 			temp |= CMD_PARK;
 			temp |= park << 8;
 		}
@@ -4314,7 +4290,7 @@ static int oxu_drv_resume(struct device *dev)
 
 static struct platform_driver oxu_driver = {
 	.probe		= oxu_drv_probe,
-	.remove_new	= oxu_drv_remove,
+	.remove		= oxu_drv_remove,
 	.shutdown	= oxu_drv_shutdown,
 	.suspend	= oxu_drv_suspend,
 	.resume		= oxu_drv_resume,

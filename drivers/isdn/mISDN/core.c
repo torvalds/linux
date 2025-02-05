@@ -14,6 +14,7 @@
 static u_int debug;
 
 MODULE_AUTHOR("Karsten Keil");
+MODULE_DESCRIPTION("Modular ISDN core driver");
 MODULE_LICENSE("GPL");
 module_param(debug, uint, S_IRUGO | S_IWUSR);
 
@@ -291,20 +292,6 @@ get_Bprotocol4mask(u_int m)
 		}
 	read_unlock(&bp_lock);
 	return NULL;
-}
-
-struct Bprotocol *
-get_Bprotocol4id(u_int id)
-{
-	u_int	m;
-
-	if (id < ISDN_P_B_START || id > 63) {
-		printk(KERN_WARNING "%s id not in range  %d\n",
-		       __func__, id);
-		return NULL;
-	}
-	m = 1 << (id & ISDN_P_B_MASK);
-	return get_Bprotocol4mask(m);
 }
 
 int

@@ -1049,7 +1049,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		sh_mobile_lcdc_display_on(ch);
 
 		if (ch->bl) {
-			ch->bl->props.power = FB_BLANK_UNBLANK;
+			ch->bl->props.power = BACKLIGHT_POWER_ON;
 			backlight_update_status(ch->bl);
 		}
 	}
@@ -1082,7 +1082,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 		}
 
 		if (ch->bl) {
-			ch->bl->props.power = FB_BLANK_POWERDOWN;
+			ch->bl->props.power = BACKLIGHT_POWER_OFF;
 			backlight_update_status(ch->bl);
 		}
 
@@ -1575,7 +1575,7 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 	 */
 	info->fix = sh_mobile_lcdc_overlay_fix;
 	snprintf(info->fix.id, sizeof(info->fix.id),
-		 "SH Mobile LCDC Overlay %u", ovl->index);
+		 "SHMobile ovl %u", ovl->index);
 	info->fix.smem_start = ovl->dma_handle;
 	info->fix.smem_len = ovl->fb_size;
 	info->fix.line_length = ovl->pitch;
@@ -2123,11 +2123,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 static int sh_mobile_lcdc_update_bl(struct backlight_device *bdev)
 {
 	struct sh_mobile_lcdc_chan *ch = bl_get_data(bdev);
-	int brightness = bdev->props.brightness;
-
-	if (bdev->props.power != FB_BLANK_UNBLANK ||
-	    bdev->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK))
-		brightness = 0;
+	int brightness = backlight_get_brightness(bdev);
 
 	ch->bl_brightness = brightness;
 	return ch->cfg->bl_info.set_brightness(brightness);
@@ -2140,17 +2136,10 @@ static int sh_mobile_lcdc_get_brightness(struct backlight_device *bdev)
 	return ch->bl_brightness;
 }
 
-static int sh_mobile_lcdc_check_fb(struct backlight_device *bdev,
-				   struct fb_info *info)
-{
-	return (info->bl_dev == bdev);
-}
-
 static const struct backlight_ops sh_mobile_lcdc_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 	.update_status	= sh_mobile_lcdc_update_bl,
 	.get_brightness	= sh_mobile_lcdc_get_brightness,
-	.check_fb	= sh_mobile_lcdc_check_fb,
 };
 
 static struct backlight_device *sh_mobile_lcdc_bl_probe(struct device *parent,
@@ -2655,7 +2644,7 @@ static struct platform_driver sh_mobile_lcdc_driver = {
 		.pm		= &sh_mobile_lcdc_dev_pm_ops,
 	},
 	.probe		= sh_mobile_lcdc_probe,
-	.remove_new	= sh_mobile_lcdc_remove,
+	.remove		= sh_mobile_lcdc_remove,
 };
 
 module_platform_driver(sh_mobile_lcdc_driver);

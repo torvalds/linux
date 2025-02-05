@@ -25,7 +25,7 @@ struct samsung_sdi_battery {
  * tables apply depending on whether we are charging or not.
  */
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb_l1m7flu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb_l1m7flu[] = {
 	{ .vbat_uv = 4240000, .ri_uohm = 160000 },
 	{ .vbat_uv = 4210000, .ri_uohm = 179000 },
 	{ .vbat_uv = 4180000, .ri_uohm = 183000 },
@@ -53,7 +53,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb_l1m7flu
 	{ .vbat_uv = 3300000, .ri_uohm = 339000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb_l1m7flu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb_l1m7flu[] = {
 	{ .vbat_uv = 4302000, .ri_uohm = 230000 },
 	{ .vbat_uv = 4276000, .ri_uohm = 345000 },
 	{ .vbat_uv = 4227000, .ri_uohm = 345000 },
@@ -73,7 +73,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb_l1m7flu[] 
 	{ .vbat_uv = 3590000, .ri_uohm = 164000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161la[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161la[] = {
 	{ .vbat_uv = 4240000, .ri_uohm = 160000 },
 	{ .vbat_uv = 4210000, .ri_uohm = 179000 },
 	{ .vbat_uv = 4180000, .ri_uohm = 183000 },
@@ -105,7 +105,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161la
 	{ .vbat_uv = 3300000, .ri_uohm = 339000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161la[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161la[] = {
 	{ .vbat_uv = 4345000, .ri_uohm = 230000 },
 	{ .vbat_uv = 4329000, .ri_uohm = 238000 },
 	{ .vbat_uv = 4314000, .ri_uohm = 225000 },
@@ -182,7 +182,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161la[] 
 	{ .vbat_uv = 3590000, .ri_uohm = 164000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161lu[] = {
 	{ .vbat_uv = 4240000, .ri_uohm = 160000 },
 	{ .vbat_uv = 4210000, .ri_uohm = 179000 },
 	{ .vbat_uv = 4180000, .ri_uohm = 183000 },
@@ -214,7 +214,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb425161lu
 	{ .vbat_uv = 3300000, .ri_uohm = 339000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161lu[] = {
 	{ .vbat_uv = 4346000, .ri_uohm = 293000 },
 	{ .vbat_uv = 4336000, .ri_uohm = 290000 },
 	{ .vbat_uv = 4315000, .ri_uohm = 274000 },
@@ -244,7 +244,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb425161lu[] 
 	{ .vbat_uv = 3590000, .ri_uohm = 164000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb485159lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb485159lu[] = {
 	{ .vbat_uv = 4240000, .ri_uohm = 160000 },
 	{ .vbat_uv = 4210000, .ri_uohm = 179000 },
 	{ .vbat_uv = 4180000, .ri_uohm = 183000 },
@@ -271,7 +271,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb485159lu
 	{ .vbat_uv = 3300000, .ri_uohm = 339000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb485159lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb485159lu[] = {
 	{ .vbat_uv = 4302000, .ri_uohm = 200000 },
 	{ .vbat_uv = 4258000, .ri_uohm = 206000 },
 	{ .vbat_uv = 4200000, .ri_uohm = 231000 },
@@ -291,7 +291,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb485159lu[] 
 	{ .vbat_uv = 3590000, .ri_uohm = 164000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb535151vu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb535151vu[] = {
 	{ .vbat_uv = 4071000, .ri_uohm = 158000 },
 	{ .vbat_uv = 4019000, .ri_uohm = 187000 },
 	{ .vbat_uv = 3951000, .ri_uohm = 191000 },
@@ -311,7 +311,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb535151vu
 	{ .vbat_uv = 3280000, .ri_uohm = 250000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb535151vu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb535151vu[] = {
 	{ .vbat_uv = 4190000, .ri_uohm = 214000 },
 	{ .vbat_uv = 4159000, .ri_uohm = 252000 },
 	{ .vbat_uv = 4121000, .ri_uohm = 245000 },
@@ -331,7 +331,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb535151vu[] 
 	{ .vbat_uv = 3510000, .ri_uohm = 228000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb585157lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb585157lu[] = {
 	{ .vbat_uv = 4194000, .ri_uohm = 121000 },
 	{ .vbat_uv = 4169000, .ri_uohm = 188000 },
 	{ .vbat_uv = 4136000, .ri_uohm = 173000 },
@@ -401,7 +401,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_discharging_eb585157lu
 	{ .vbat_uv = 3161000, .ri_uohm = 452000 },
 };
 
-static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb585157lu[] = {
+static const struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb585157lu[] = {
 	{ .vbat_uv = 4360000, .ri_uohm = 128000 },
 	{ .vbat_uv = 4325000, .ri_uohm = 130000 },
 	{ .vbat_uv = 4316000, .ri_uohm = 148000 },
@@ -431,7 +431,7 @@ static struct power_supply_vbat_ri_table samsung_vbat2res_charging_eb585157lu[] 
  * temperature compensation tables so we just state 100% for every temperature.
  * If you have the datasheets, please provide these tables.
  */
-static struct power_supply_resistance_temp_table samsung_temp2res[] = {
+static const struct power_supply_resistance_temp_table samsung_temp2res[] = {
 	{ .temp = 50, .resistance = 100 },
 	{ .temp = 40, .resistance = 100 },
 	{ .temp = 30, .resistance = 100 },
@@ -447,7 +447,7 @@ static struct power_supply_resistance_temp_table samsung_temp2res[] = {
  * These must be sorted by falling OCV value.
  */
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
 	{ .ocv = 4330000, .capacity = 100},
 	{ .ocv = 4320000, .capacity = 99},
 	{ .ocv = 4283000, .capacity = 95},
@@ -499,7 +499,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb485159lu[] = {
 };
 
 /* Same capacity table is used by eb-l1m7flu, eb425161la, eb425161lu */
-static struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
 	{ .ocv = 4328000, .capacity = 100},
 	{ .ocv = 4299000, .capacity = 99},
 	{ .ocv = 4281000, .capacity = 98},
@@ -540,7 +540,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_1500mah[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
 	{ .ocv = 4178000, .capacity = 100},
 	{ .ocv = 4148000, .capacity = 99},
 	{ .ocv = 4105000, .capacity = 95},
@@ -572,7 +572,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb535151vu[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
+static const struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
 	{ .ocv = 4320000, .capacity = 100},
 	{ .ocv = 4296000, .capacity = 99},
 	{ .ocv = 4283000, .capacity = 98},
@@ -613,7 +613,7 @@ static struct power_supply_battery_ocv_table samsung_ocv_cap_eb585157lu[] = {
 	{ .ocv = 3300000, .capacity = 0},
 };
 
-static struct power_supply_maintenance_charge_table samsung_maint_charge_table[] = {
+static const struct power_supply_maintenance_charge_table samsung_maint_charge_table[] = {
 	{
 		/* Maintenance charging phase A, 60 hours */
 		.charge_current_max_ua = 600000,

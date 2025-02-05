@@ -15,6 +15,7 @@
 
 #include <asm/cpu-features.h>
 #include <asm/loongarch.h>
+#include <asm/paravirt.h>
 #include <asm/time.h>
 
 u64 cpu_clock_freq;
@@ -123,26 +124,20 @@ void sync_counter(void)
 	csr_write64(init_offset, LOONGARCH_CSR_CNTC);
 }
 
-static int get_timer_irq(void)
-{
-	struct irq_domain *d = irq_find_matching_fwnode(cpuintc_handle, DOMAIN_BUS_ANY);
-
-	if (d)
-		return irq_create_mapping(d, INT_TI);
-
-	return -EINVAL;
-}
-
 int constant_clockevent_init(void)
 {
 	unsigned int cpu = smp_processor_id();
-	unsigned long min_delta = 0x600;
-	unsigned long max_delta = (1UL << 48) - 1;
+#ifdef CONFIG_PREEMPT_RT
+	unsigned long min_delta = 100;
+#else
+	unsigned long min_delta = 1000;
+#endif
+	unsigned long max_delta = GENMASK_ULL(boot_cpu_data.timerbits, 0);
 	struct clock_event_device *cd;
 	static int irq = 0, timer_irq_installed = 0;
 
 	if (!timer_irq_installed) {
-		irq = get_timer_irq();
+		irq = get_percpu_irq(INT_TI);
 		if (irq < 0)
 			pr_err("Failed to map irq %d (timer)\n", irq);
 	}
@@ -224,4 +219,5 @@ void __init time_init(void)
 
 	constant_clockevent_init();
 	constant_clocksource_init();
+	pv_time_init();
 }

@@ -15,6 +15,9 @@
 
 static unsigned bch2_dirent_name_bytes(struct bkey_s_c_dirent d)
 {
+	if (bkey_val_bytes(d.k) < offsetof(struct bch_dirent, d_name))
+		return 0;
+
 	unsigned bkey_u64s = bkey_val_u64s(d.k);
 	unsigned bkey_bytes = bkey_u64s * sizeof(u64);
 	u64 last_u64 = ((u64*)d.v)[bkey_u64s - 1];
@@ -97,20 +100,19 @@ const struct bch_hash_desc bch2_dirent_hash_desc = {
 	.is_visible	= dirent_is_visible,
 };
 
-int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
-			enum bkey_invalid_flags flags,
-			struct printbuf *err)
+int bch2_dirent_validate(struct bch_fs *c, struct bkey_s_c k,
+			 struct bkey_validate_context from)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
 	int ret = 0;
 
-	bkey_fsck_err_on(!d_name.len, c, err,
-			 dirent_empty_name,
+	bkey_fsck_err_on(!d_name.len,
+			 c, dirent_empty_name,
 			 "empty name");
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len), c, err,
-			 dirent_val_too_big,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > dirent_val_u64s(d_name.len),
+			 c, dirent_val_too_big,
 			 "value too big (%zu > %u)",
 			 bkey_val_u64s(k.k), dirent_val_u64s(d_name.len));
 
@@ -118,27 +120,27 @@ int bch2_dirent_invalid(struct bch_fs *c, struct bkey_s_c k,
 	 * Check new keys don't exceed the max length
 	 * (older keys may be larger.)
 	 */
-	bkey_fsck_err_on((flags & BKEY_INVALID_COMMIT) && d_name.len > BCH_NAME_MAX, c, err,
-			 dirent_name_too_long,
+	bkey_fsck_err_on((from.flags & BCH_VALIDATE_commit) && d_name.len > BCH_NAME_MAX,
+			 c, dirent_name_too_long,
 			 "dirent name too big (%u > %u)",
 			 d_name.len, BCH_NAME_MAX);
 
-	bkey_fsck_err_on(d_name.len != strnlen(d_name.name, d_name.len), c, err,
-			 dirent_name_embedded_nul,
+	bkey_fsck_err_on(d_name.len != strnlen(d_name.name, d_name.len),
+			 c, dirent_name_embedded_nul,
 			 "dirent has stray data after name's NUL");
 
 	bkey_fsck_err_on((d_name.len == 1 && !memcmp(d_name.name, ".", 1)) ||
-			 (d_name.len == 2 && !memcmp(d_name.name, "..", 2)), c, err,
-			 dirent_name_dot_or_dotdot,
+			 (d_name.len == 2 && !memcmp(d_name.name, "..", 2)),
+			 c, dirent_name_dot_or_dotdot,
 			 "invalid name");
 
-	bkey_fsck_err_on(memchr(d_name.name, '/', d_name.len), c, err,
-			 dirent_name_has_slash,
+	bkey_fsck_err_on(memchr(d_name.name, '/', d_name.len),
+			 c, dirent_name_has_slash,
 			 "name with /");
 
 	bkey_fsck_err_on(d.v->d_type != DT_SUBVOL &&
-			 le64_to_cpu(d.v->d_inum) == d.k->p.inode, c, err,
-			 dirent_to_itself,
+			 le64_to_cpu(d.v->d_inum) == d.k->p.inode,
+			 c, dirent_to_itself,
 			 "dirent points to own directory");
 fsck_err:
 	return ret;
@@ -205,7 +207,7 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 			const struct bch_hash_info *hash_info,
 			u8 type, const struct qstr *name, u64 dst_inum,
 			u64 *dir_offset,
-			bch_str_hash_flags_t str_hash_flags)
+			enum btree_iter_update_trigger_flags flags)
 {
 	subvol_inum dir_inum = { .subvol = dir_subvol, .inum = dir };
 	struct bkey_i_dirent *dirent;
@@ -220,9 +222,8 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 	dirent->k.p.snapshot	= snapshot;
 
 	ret = bch2_hash_set_in_snapshot(trans, bch2_dirent_hash_desc, hash_info,
-					dir_inum, snapshot,
-					&dirent->k_i, str_hash_flags,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					dir_inum, snapshot, &dirent->k_i,
+					flags|BTREE_UPDATE_internal_snapshot_node);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
@@ -232,7 +233,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		       const struct bch_hash_info *hash_info,
 		       u8 type, const struct qstr *name, u64 dst_inum,
 		       u64 *dir_offset,
-		       bch_str_hash_flags_t str_hash_flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	struct bkey_i_dirent *dirent;
 	int ret;
@@ -243,17 +244,10 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		return ret;
 
 	ret = bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
-			    dir, &dirent->k_i, str_hash_flags);
+			    dir, &dirent->k_i, flags);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
-}
-
-static void dirent_copy_target(struct bkey_i_dirent *dst,
-			       struct bkey_s_c_dirent src)
-{
-	dst->v.d_inum = src.v->d_inum;
-	dst->v.d_type = src.v->d_type;
 }
 
 int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
@@ -272,7 +266,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 	} else {
 		target->subvol	= le32_to_cpu(d.v->d_child_subvol);
 
-		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_CACHED, &s);
+		ret = bch2_subvolume_get(trans, target->subvol, true, &s);
 
 		target->inum	= le64_to_cpu(s.inode);
 	}
@@ -301,13 +295,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	memset(dst_inum, 0, sizeof(*dst_inum));
 
 	/* Lookup src: */
-	ret = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
-			       src_hash, src_dir, src_name,
-			       BTREE_ITER_INTENT);
-	if (ret)
-		goto out;
-
-	old_src = bch2_btree_iter_peek_slot(&src_iter);
+	old_src = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
+				   src_hash, src_dir, src_name,
+				   BTREE_ITER_intent);
 	ret = bkey_err(old_src);
 	if (ret)
 		goto out;
@@ -329,13 +319,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		if (ret)
 			goto out;
 	} else {
-		ret = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
-				       dst_hash, dst_dir, dst_name,
-				       BTREE_ITER_INTENT);
-		if (ret)
-			goto out;
-
-		old_dst = bch2_btree_iter_peek_slot(&dst_iter);
+		old_dst = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
+					    dst_hash, dst_dir, dst_name,
+					    BTREE_ITER_intent);
 		ret = bkey_err(old_dst);
 		if (ret)
 			goto out;
@@ -450,7 +436,7 @@ out_set_src:
 	if (delete_src) {
 		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
 		ret =   bch2_btree_iter_traverse(&src_iter) ?:
-			bch2_btree_delete_at(trans, &src_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_btree_delete_at(trans, &src_iter, BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto out;
 	}
@@ -458,7 +444,7 @@ out_set_src:
 	if (delete_dst) {
 		bch2_btree_iter_set_snapshot(&dst_iter, old_dst.k->p.snapshot);
 		ret =   bch2_btree_iter_traverse(&dst_iter) ?:
-			bch2_btree_delete_at(trans, &dst_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_btree_delete_at(trans, &dst_iter, BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto out;
 	}
@@ -479,13 +465,9 @@ int bch2_dirent_lookup_trans(struct btree_trans *trans,
 			     const struct qstr *name, subvol_inum *inum,
 			     unsigned flags)
 {
-	int ret = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
-				   hash_info, dir, name, flags);
-	if (ret)
-		return ret;
-
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
+					     hash_info, dir, name, flags);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 
@@ -518,7 +500,7 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 
 	struct bkey_s_c k;
 	int ret;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
+	for_each_btree_key_max_norestart(trans, iter, BTREE_ID_dirents,
 			   SPOS(dir, 0, snapshot),
 			   POS(dir, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
@@ -541,70 +523,52 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 		bch2_empty_dir_snapshot(trans, dir.inum, dir.subvol, snapshot);
 }
 
+static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subvol_inum target)
+{
+	struct qstr name = bch2_dirent_get_name(d);
+	/*
+	 * Although not required by the kernel code, updating ctx->pos is needed
+	 * for the bcachefs FUSE driver. Without this update, the FUSE
+	 * implementation will be stuck in an infinite loop when reading
+	 * directories (via the bcachefs_fuse_readdir callback).
+	 * In kernel space, ctx->pos is updated by the VFS code.
+	 */
+	ctx->pos = d.k->p.offset;
+	bool ret = dir_emit(ctx, name.name,
+		      name.len,
+		      target.inum,
+		      vfs_d_type(d.v->d_type));
+	if (ret)
+		ctx->pos = d.k->p.offset + 1;
+	return ret;
+}
+
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 {
-	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_s_c_dirent dirent;
-	subvol_inum target;
-	u32 snapshot;
 	struct bkey_buf sk;
-	struct qstr name;
-	int ret;
-
 	bch2_bkey_buf_init(&sk);
-retry:
-	bch2_trans_begin(trans);
 
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		goto err;
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_in_subvolume_max(trans, iter, BTREE_ID_dirents,
+				   POS(inum.inum, ctx->pos),
+				   POS(inum.inum, U64_MAX),
+				   inum.subvol, 0, k, ({
+			if (k.k->type != KEY_TYPE_dirent)
+				continue;
 
-	for_each_btree_key_upto_norestart(trans, iter, BTREE_ID_dirents,
-			   SPOS(inum.inum, ctx->pos, snapshot),
-			   POS(inum.inum, U64_MAX), 0, k, ret) {
-		if (k.k->type != KEY_TYPE_dirent)
-			continue;
+			/* dir_emit() can fault and block: */
+			bch2_bkey_buf_reassemble(&sk, c, k);
+			struct bkey_s_c_dirent dirent = bkey_i_to_s_c_dirent(sk.k);
 
-		dirent = bkey_s_c_to_dirent(k);
+			subvol_inum target;
+			int ret2 = bch2_dirent_read_target(trans, inum, dirent, &target);
+			if (ret2 > 0)
+				continue;
 
-		ret = bch2_dirent_read_target(trans, inum, dirent, &target);
-		if (ret < 0)
-			break;
-		if (ret)
-			continue;
+			ret2 ?: drop_locks_do(trans, bch2_dir_emit(ctx, dirent, target));
+		})));
 
-		/* dir_emit() can fault and block: */
-		bch2_bkey_buf_reassemble(&sk, c, k);
-		dirent = bkey_i_to_s_c_dirent(sk.k);
-		bch2_trans_unlock(trans);
-
-		name = bch2_dirent_get_name(dirent);
-
-		ctx->pos = dirent.k->p.offset;
-		if (!dir_emit(ctx, name.name,
-			      name.len,
-			      target.inum,
-			      vfs_d_type(dirent.v->d_type)))
-			break;
-		ctx->pos = dirent.k->p.offset + 1;
-
-		/*
-		 * read_target looks up subvolumes, we can overflow paths if the
-		 * directory has many subvolumes in it
-		 */
-		ret = btree_trans_too_many_iters(trans);
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(trans, &iter);
-err:
-	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
-		goto retry;
-
-	bch2_trans_put(trans);
 	bch2_bkey_buf_exit(&sk, c);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }

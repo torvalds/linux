@@ -52,9 +52,9 @@ struct module_kobject {
 
 struct module_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*show)(const struct module_attribute *, struct module_kobject *,
 			char *);
-	ssize_t (*store)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*store)(const struct module_attribute *, struct module_kobject *,
 			 const char *, size_t count);
 	void (*setup)(struct module *, const char *);
 	int (*test)(struct module *);
@@ -67,10 +67,10 @@ struct module_version_attribute {
 	const char *version;
 };
 
-extern ssize_t __modver_version_show(struct module_attribute *,
+extern ssize_t __modver_version_show(const struct module_attribute *,
 				     struct module_kobject *, char *);
 
-extern struct module_attribute module_uevent;
+extern const struct module_attribute module_uevent;
 
 /* These are either module local, or the kernel's dummy ones. */
 extern int init_module(void);
@@ -174,6 +174,12 @@ extern void cleanup_module(void);
 #define MODULE_SOFTDEP(_softdep) MODULE_INFO(softdep, _softdep)
 
 /*
+ * Weak module dependencies. See man modprobe.d for details.
+ * Example: MODULE_WEAKDEP("module-foo")
+ */
+#define MODULE_WEAKDEP(_weakdep) MODULE_INFO(weakdep, _weakdep)
+
+/*
  * MODULE_FILE is used for generating modules.builtin
  * So, make it no-op when this is being built as a module
  */
@@ -241,7 +247,7 @@ extern void cleanup_module(void);
 #ifdef MODULE
 /* Creates an alias so file2alias.c can find device table. */
 #define MODULE_DEVICE_TABLE(type, name)					\
-extern typeof(name) __mod_##type##__##name##_device_table		\
+extern typeof(name) __mod_device_table__##type##__##name		\
   __attribute__ ((unused, alias(__stringify(name))))
 #else  /* !MODULE */
 #define MODULE_DEVICE_TABLE(type, name)
@@ -269,7 +275,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
 #else
 #define MODULE_VERSION(_version)					\
 	MODULE_INFO(version, _version);					\
-	static struct module_version_attribute __modver_attr		\
+	static const struct module_version_attribute __modver_attr	\
 		__used __section("__modver")				\
 		__aligned(__alignof__(struct module_version_attribute)) \
 		= {							\
@@ -290,7 +296,7 @@ extern typeof(name) __mod_##type##__##name##_device_table		\
  * files require multiple MODULE_FIRMWARE() specifiers */
 #define MODULE_FIRMWARE(_firmware) MODULE_INFO(firmware, _firmware)
 
-#define MODULE_IMPORT_NS(ns)	MODULE_INFO(import_ns, __stringify(ns))
+#define MODULE_IMPORT_NS(ns)	MODULE_INFO(import_ns, ns)
 
 struct notifier_block;
 
@@ -361,6 +367,8 @@ enum mod_mem_type {
 
 struct module_memory {
 	void *base;
+	void *rw_copy;
+	bool is_rox;
 	unsigned int size;
 
 #ifdef CONFIG_MODULES_TREE_LOOKUP
@@ -422,7 +430,7 @@ struct module {
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
-	const s32 *crcs;
+	const u32 *crcs;
 	unsigned int num_syms;
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
@@ -440,7 +448,7 @@ struct module {
 	/* GPL-only exported symbols. */
 	unsigned int num_gpl_syms;
 	const struct kernel_symbol *gpl_syms;
-	const s32 *gpl_crcs;
+	const u32 *gpl_crcs;
 	bool using_gplonly_symbols;
 
 #ifdef CONFIG_MODULE_SIG
@@ -509,7 +517,9 @@ struct module {
 #endif
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 	unsigned int btf_data_size;
+	unsigned int btf_base_data_size;
 	void *btf_data;
+	void *btf_base_data;
 #endif
 #ifdef CONFIG_JUMP_LABEL
 	struct jump_entry *jump_entries;
@@ -603,6 +613,11 @@ static inline unsigned long kallsyms_symbol_value(const Elf_Sym *sym)
 static inline bool module_is_live(struct module *mod)
 {
 	return mod->state != MODULE_STATE_GOING;
+}
+
+static inline bool module_is_coming(struct module *mod)
+{
+        return mod->state == MODULE_STATE_COMING;
 }
 
 struct module *__module_text_address(unsigned long addr);
@@ -754,6 +769,16 @@ static inline bool is_livepatch_module(struct module *mod)
 
 void set_module_sig_enforced(void);
 
+void *__module_writable_address(struct module *mod, void *loc);
+
+static inline void *module_writable_address(struct module *mod, void *loc)
+{
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_EXECMEM_ROX) || !mod ||
+	    mod->state != MODULE_STATE_UNFORMED)
+		return loc;
+	return __module_writable_address(mod, loc);
+}
+
 #else /* !CONFIG_MODULES... */
 
 static inline struct module *__module_address(unsigned long addr)
@@ -857,6 +882,15 @@ void *dereference_module_function_descriptor(struct module *mod, void *ptr)
 	return ptr;
 }
 
+static inline bool module_is_coming(struct module *mod)
+{
+	return false;
+}
+
+static inline void *module_writable_address(struct module *mod, void *loc)
+{
+	return loc;
+}
 #endif /* CONFIG_MODULES */
 
 #ifdef CONFIG_SYSFS
@@ -922,11 +956,11 @@ int module_kallsyms_on_each_symbol(const char *modname,
  * least KSYM_NAME_LEN long: a pointer to namebuf is returned if
  * found, otherwise NULL.
  */
-const char *module_address_lookup(unsigned long addr,
-				  unsigned long *symbolsize,
-				  unsigned long *offset,
-				  char **modname, const unsigned char **modbuildid,
-				  char *namebuf);
+int module_address_lookup(unsigned long addr,
+			  unsigned long *symbolsize,
+			  unsigned long *offset,
+			  char **modname, const unsigned char **modbuildid,
+			  char *namebuf);
 int lookup_module_symbol_name(unsigned long addr, char *symname);
 int lookup_module_symbol_attrs(unsigned long addr,
 			       unsigned long *size,
@@ -955,14 +989,14 @@ static inline int module_kallsyms_on_each_symbol(const char *modname,
 }
 
 /* For kallsyms to ask for address resolution.  NULL means not found. */
-static inline const char *module_address_lookup(unsigned long addr,
+static inline int module_address_lookup(unsigned long addr,
 						unsigned long *symbolsize,
 						unsigned long *offset,
 						char **modname,
 						const unsigned char **modbuildid,
 						char *namebuf)
 {
-	return NULL;
+	return 0;
 }
 
 static inline int lookup_module_symbol_name(unsigned long addr, char *symname)

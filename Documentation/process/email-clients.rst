@@ -86,7 +86,7 @@ In the :menuselection:`Sending Preferences` section:
 - :menuselection:`Strip Whitespace Before Sending` must be ``disabled``
 
 When composing the message, the cursor should be placed where the patch
-should appear, and then pressing :kbd:`CTRL-R` let you specify the patch file
+should appear, and then pressing `CTRL-R` let you specify the patch file
 to insert into the message.
 
 Claws Mail (GUI)
@@ -94,7 +94,7 @@ Claws Mail (GUI)
 
 Works. Some people use this successfully for patches.
 
-To insert a patch use :menuselection:`Message-->Insert File` (:kbd:`CTRL-I`)
+To insert a patch use :menuselection:`Message-->Insert File` (`CTRL-I`)
 or an external editor.
 
 If the inserted patch has to be edited in the Claws composition window
@@ -108,11 +108,11 @@ Evolution (GUI)
 Some people use this successfully for patches.
 
 When composing mail select: Preformat
-  from :menuselection:`Format-->Paragraph Style-->Preformatted` (:kbd:`CTRL-7`)
+  from :menuselection:`Format-->Paragraph Style-->Preformatted` (`CTRL-7`)
   or the toolbar
 
 Then use:
-:menuselection:`Insert-->Text File...` (:kbd:`ALT-N x`)
+:menuselection:`Insert-->Text File...` (`ALT-N x`)
 to insert the patch.
 
 You can also ``diff -Nru old.c new.c | xclip``, select
@@ -216,7 +216,7 @@ Mutt is highly customizable. Here is a minimum configuration to start
 using Mutt to send patches through Gmail::
 
   # .muttrc
-  # ================  IMAP ====================
+  # ================  IMAP  ====================
   set imap_user = 'yourusername@gmail.com'
   set imap_pass = 'yourpassword'
   set spoolfile = imaps://imap.gmail.com/INBOX
@@ -351,22 +351,11 @@ although tab2space problem can be solved with external editor.
 Another problem is that Gmail will base64-encode any message that has a
 non-ASCII character. That includes things like European names.
 
-Proton Mail
-***********
+HacKerMaiL (TUI)
+****************
 
-Proton Mail has a "feature" where it looks up keys using Web Key Directory
-(WKD) and encrypts mail to any recipients for which it finds a key.
-Kernel.org publishes the WKD for all developers who have kernel.org accounts.
-As a result, emails sent using Proton Mail to kernel.org addresses will be
-encrypted.
-Unfortunately, Proton Mail does not provide a mechanism to disable the
-automatic encryption, viewing it as a privacy feature.
-The automatic encryption feature is also enabled for mail sent via the Proton
-Mail Bridge, so this affects all outgoing messages, including patches sent with
-``git send-email``.
-Encrypted mail adds unnecessary friction, as other developers may not have mail
-clients, or tooling, configured for use with encrypted mail and some mail
-clients may encrypt responses to encrypted mail for all recipients, including
-the mailing lists.
-Unless a way to disable this "feature" is introduced, Proton Mail is unsuited
-to kernel development.
+HacKerMaiL (hkml) is a public-inbox based simple mails management tool that
+doesn't require subscription of mailing lists.  It is developed and maintained
+by the DAMON maintainer and aims to support simple development workflows for
+DAMON and general kernel subsystems.  Refer to the README
+(https://github.com/sjp38/hackermail/blob/master/README.md) for details.

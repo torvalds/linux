@@ -42,7 +42,7 @@ struct nouveau_job_args {
 		u32 count;
 	} out_sync;
 
-	struct nouveau_job_ops *ops;
+	const struct nouveau_job_ops *ops;
 };
 
 struct nouveau_job {
@@ -73,7 +73,7 @@ struct nouveau_job {
 		u32 count;
 	} out_sync;
 
-	struct nouveau_job_ops {
+	const struct nouveau_job_ops {
 		/* If .submit() returns without any error, it is guaranteed that
 		 * armed_submit() is called.
 		 */

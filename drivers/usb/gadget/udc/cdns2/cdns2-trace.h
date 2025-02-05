@@ -64,7 +64,7 @@ DECLARE_EVENT_CLASS(cdns2_log_simple,
 		__string(text, msg)
 	),
 	TP_fast_assign(
-		__assign_str(text, msg);
+		__assign_str(text);
 	),
 	TP_printk("%s", __get_str(text))
 );
@@ -103,7 +103,7 @@ TRACE_EVENT(cdns2_ep_halt,
 		__field(u8, flush)
 	),
 	TP_fast_assign(
-		__assign_str(name, ep_priv->name);
+		__assign_str(name);
 		__entry->halt = halt;
 		__entry->flush = flush;
 	),
@@ -119,8 +119,8 @@ TRACE_EVENT(cdns2_wa1,
 		__string(msg, msg)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, ep_priv->name);
-		__assign_str(msg, msg);
+		__assign_str(ep_name);
+		__assign_str(msg);
 	),
 	TP_printk("WA1: %s %s", __get_str(ep_name), __get_str(msg))
 );
@@ -134,7 +134,7 @@ DECLARE_EVENT_CLASS(cdns2_log_doorbell,
 		__field(u32, ep_trbaddr)
 	),
 	TP_fast_assign(
-		__assign_str(name, pep->name);
+		__assign_str(name);
 		__entry->ep_trbaddr = ep_trbaddr;
 	),
 	TP_printk("%s, ep_trbaddr %08x", __get_str(name),
@@ -196,7 +196,7 @@ DECLARE_EVENT_CLASS(cdns2_log_epx_irq,
 		__field(u32, ep_traddr)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, pep->name);
+		__assign_str(ep_name);
 		__entry->ep_sts = readl(&pdev->adma_regs->ep_sts);
 		__entry->ep_ists = readl(&pdev->adma_regs->ep_ists);
 		__entry->ep_traddr = readl(&pdev->adma_regs->ep_traddr);
@@ -288,7 +288,7 @@ DECLARE_EVENT_CLASS(cdns2_log_request,
 		__field(int, end_trb)
 	),
 	TP_fast_assign(
-		__assign_str(name, preq->pep->name);
+		__assign_str(name);
 		__entry->request = &preq->request;
 		__entry->preq = preq;
 		__entry->buf = preq->request.buf;
@@ -380,7 +380,7 @@ DECLARE_EVENT_CLASS(cdns2_log_map_request,
 		__field(dma_addr_t, dma)
 	),
 	TP_fast_assign(
-		__assign_str(name, priv_req->pep->name);
+		__assign_str(name);
 		__entry->req = &priv_req->request;
 		__entry->buf = priv_req->request.buf;
 		__entry->dma = priv_req->request.dma;
@@ -411,7 +411,7 @@ DECLARE_EVENT_CLASS(cdns2_log_trb,
 		__field(u32, type)
 	),
 	TP_fast_assign(
-		__assign_str(name, pep->name);
+		__assign_str(name);
 		__entry->trb = trb;
 		__entry->buffer = le32_to_cpu(trb->buffer);
 		__entry->length = le32_to_cpu(trb->length);
@@ -476,7 +476,7 @@ DECLARE_EVENT_CLASS(cdns2_log_ep,
 		__field(u8, dequeue)
 	),
 	TP_fast_assign(
-		__assign_str(name, pep->name);
+		__assign_str(name);
 		__entry->maxpacket = pep->endpoint.maxpacket;
 		__entry->maxpacket_limit = pep->endpoint.maxpacket_limit;
 		__entry->flags = pep->ep_state;
@@ -568,7 +568,7 @@ DECLARE_EVENT_CLASS(cdns2_log_epx_reg_config,
 		__field(u32, ep_cfg_reg)
 	),
 	TP_fast_assign(
-		__assign_str(ep_name, pep->name);
+		__assign_str(ep_name);
 		__entry->burst_size = pep->trb_burst_size;
 		__entry->maxpack_reg = pep->dir ? readw(&pdev->epx_regs->txmaxpack[pep->num - 1]) :
 						  readw(&pdev->epx_regs->rxmaxpack[pep->num - 1]);

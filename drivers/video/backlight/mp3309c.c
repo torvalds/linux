@@ -97,15 +97,10 @@ static int mp3309c_enable_device(struct mp3309c_chip *chip)
 
 	/*
 	 * I2C register #1 - Set working mode:
-	 *  - set one of the two dimming mode:
-	 *    - PWM dimming using an external PWM dimming signal
-	 *    - analog dimming using I2C commands
 	 *  - enable/disable synchronous mode
 	 *  - set overvoltage protection (OVP)
 	 */
 	reg_val = 0x00;
-	if (chip->pdata->dimming_mode == DIMMING_PWM)
-		reg_val |= REG_I2C_1_DIMS;
 	if (chip->pdata->sync_mode)
 		reg_val |= REG_I2C_1_SYNC;
 	reg_val |= chip->pdata->over_voltage_protection;
@@ -205,8 +200,9 @@ static int mp3309c_parse_fwnode(struct mp3309c_chip *chip,
 				struct mp3309c_platform_data *pdata)
 {
 	int ret, i;
-	unsigned int num_levels, tmp_value;
+	unsigned int tmp_value;
 	struct device *dev = chip->dev;
+	int num_levels;
 
 	if (!dev_fwnode(dev))
 		return dev_err_probe(dev, -ENODEV, "failed to get firmware node\n");
@@ -362,8 +358,7 @@ static int mp3309c_probe(struct i2c_client *client)
 	props.max_brightness = pdata->max_brightness;
 	props.scale = BACKLIGHT_SCALE_LINEAR;
 	props.type = BACKLIGHT_RAW;
-	props.power = FB_BLANK_UNBLANK;
-	props.fb_blank = FB_BLANK_UNBLANK;
+	props.power = BACKLIGHT_POWER_ON;
 	chip->bl = devm_backlight_device_register(dev, "mp3309c", dev, chip,
 						  &mp3309c_bl_ops, &props);
 	if (IS_ERR(chip->bl))
@@ -393,7 +388,7 @@ static void mp3309c_remove(struct i2c_client *client)
 	struct mp3309c_chip *chip = i2c_get_clientdata(client);
 	struct backlight_device *bl = chip->bl;
 
-	bl->props.power = FB_BLANK_POWERDOWN;
+	bl->props.power = BACKLIGHT_POWER_OFF;
 	bl->props.brightness = 0;
 	backlight_update_status(chip->bl);
 }
@@ -405,7 +400,7 @@ static const struct of_device_id mp3309c_match_table[] = {
 MODULE_DEVICE_TABLE(of, mp3309c_match_table);
 
 static const struct i2c_device_id mp3309c_id[] = {
-	{ "mp3309c", 0 },
+	{ "mp3309c" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mp3309c_id);

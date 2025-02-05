@@ -18,7 +18,7 @@
 #include <linux/blkdev.h>
 #include <linux/pagemap.h>
 #include <linux/msdos_partition.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsicam.h>
 
@@ -32,7 +32,7 @@
  */
 unsigned char *scsi_bios_ptable(struct block_device *dev)
 {
-	struct address_space *mapping = bdev_whole(dev)->bd_inode->i_mapping;
+	struct address_space *mapping = bdev_whole(dev)->bd_mapping;
 	unsigned char *res = NULL;
 	struct folio *folio;
 

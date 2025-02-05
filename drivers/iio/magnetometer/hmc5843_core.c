@@ -669,7 +669,7 @@ buffer_setup_err:
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
 	return ret;
 }
-EXPORT_SYMBOL_NS(hmc5843_common_probe, IIO_HMC5843);
+EXPORT_SYMBOL_NS(hmc5843_common_probe, "IIO_HMC5843");
 
 void hmc5843_common_remove(struct device *dev)
 {
@@ -681,7 +681,7 @@ void hmc5843_common_remove(struct device *dev)
 	/*  sleep mode to save power */
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
 }
-EXPORT_SYMBOL_NS(hmc5843_common_remove, IIO_HMC5843);
+EXPORT_SYMBOL_NS(hmc5843_common_remove, "IIO_HMC5843");
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com>");
 MODULE_DESCRIPTION("HMC5843/5883/5883L/5983 core driver");

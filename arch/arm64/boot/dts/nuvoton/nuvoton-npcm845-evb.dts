@@ -16,7 +16,7 @@
 		stdout-path = &serial0;
 	};
 
-	memory {
+	memory@0 {
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 };

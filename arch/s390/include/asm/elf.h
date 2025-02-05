@@ -91,6 +91,14 @@
 /* Keep this the last entry.  */
 #define R_390_NUM	61
 
+/*
+ * HWCAP flags - for AT_HWCAP
+ *
+ * Bits 32-63 are reserved for use by libc.
+ * Bit 31 is reserved and will be used by libc to determine if a second
+ * argument is passed to IFUNC resolvers. This will be implemented when
+ * there is a need for AT_HWCAP2.
+ */
 enum {
 	HWCAP_NR_ESAN3		= 0,
 	HWCAP_NR_ZARCH		= 1,

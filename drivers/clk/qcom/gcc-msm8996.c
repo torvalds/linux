@@ -359,7 +359,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 	},
 };
 
-static struct freq_tbl ftbl_sdcc1_ice_core_clk_src[] = {
+static const struct freq_tbl ftbl_sdcc1_ice_core_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(150000000, P_GPLL0, 4, 0, 0),
 	F(300000000, P_GPLL0, 2, 0, 0),
@@ -3620,7 +3620,7 @@ static int gcc_msm8996_probe(struct platform_device *pdev)
 	 */
 	regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
 
-	return qcom_cc_really_probe(pdev, &gcc_msm8996_desc, regmap);
+	return qcom_cc_really_probe(&pdev->dev, &gcc_msm8996_desc, regmap);
 }
 
 static struct platform_driver gcc_msm8996_driver = {

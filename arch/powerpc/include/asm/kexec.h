@@ -61,7 +61,6 @@ struct pt_regs;
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern void default_machine_kexec(struct kimage *image);
-extern void machine_kexec_mask_interrupts(void);
 
 void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_code_buffer,
 			 unsigned long start_address) __noreturn;
@@ -103,10 +102,8 @@ int load_crashdump_segments_ppc64(struct kimage *image,
 int setup_purgatory_ppc64(struct kimage *image, const void *slave_code,
 			  const void *fdt, unsigned long kernel_load_addr,
 			  unsigned long fdt_load_addr);
-unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image);
-int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
-			unsigned long initrd_load_addr,
-			unsigned long initrd_len, const char *cmdline);
+unsigned int kexec_extra_fdt_size_ppc64(struct kimage *image, struct crash_mem *rmem);
+int setup_new_fdt_ppc64(const struct kimage *image, void *fdt, struct crash_mem *rmem);
 #endif /* CONFIG_PPC64 */
 
 #endif /* CONFIG_KEXEC_FILE */
@@ -134,6 +131,17 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 	else
 		ppc_save_regs(newregs);
 }
+
+#ifdef CONFIG_CRASH_HOTPLUG
+void arch_crash_handle_hotplug_event(struct kimage *image, void *arg);
+#define arch_crash_handle_hotplug_event arch_crash_handle_hotplug_event
+
+int arch_crash_hotplug_support(struct kimage *image, unsigned long kexec_flags);
+#define arch_crash_hotplug_support arch_crash_hotplug_support
+
+unsigned int arch_crash_get_elfcorehdr_size(void);
+#define crash_get_elfcorehdr_size arch_crash_get_elfcorehdr_size
+#endif /* CONFIG_CRASH_HOTPLUG */
 
 extern int crashing_cpu;
 extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
@@ -184,6 +192,10 @@ static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 }
 
 #endif /* CONFIG_CRASH_DUMP */
+
+#if defined(CONFIG_KEXEC_FILE) || defined(CONFIG_CRASH_DUMP)
+int update_cpus_node(void *fdt);
+#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/kexec.h>

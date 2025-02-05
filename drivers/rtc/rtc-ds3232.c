@@ -508,7 +508,7 @@ static int ds3232_probe(struct device *dev, struct regmap *regmap, int irq,
 		return ret;
 
 	if (ds3232->irq > 0)
-		device_init_wakeup(dev, 1);
+		device_init_wakeup(dev, true);
 
 	ds3232_hwmon_register(dev, name);
 
@@ -586,7 +586,7 @@ static int ds3232_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ds3232_id[] = {
-	{ "ds3232", 0 },
+	{ "ds3232" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ds3232_id);

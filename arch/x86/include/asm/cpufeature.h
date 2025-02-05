@@ -129,15 +129,15 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 
 #define this_cpu_has(bit)						\
 	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
-	 x86_this_cpu_test_bit(bit,					\
-		(unsigned long __percpu *)&cpu_info.x86_capability))
+	 x86_this_cpu_test_bit(bit, cpu_info.x86_capability))
 
 /*
- * This macro is for detection of features which need kernel
- * infrastructure to be used.  It may *not* directly test the CPU
- * itself.  Use the cpu_has() family if you want true runtime
- * testing of CPU features, like in hypervisor code where you are
- * supporting a possible guest feature where host support for it
+ * This is the default CPU features testing macro to use in code.
+ *
+ * It is for detection of features which need kernel infrastructure to be
+ * used.  It may *not* directly test the CPU itself.  Use the cpu_has() family
+ * if you want true runtime testing of CPU features, like in hypervisor code
+ * where you are supporting a possible guest feature where host support for it
  * is not relevant.
  */
 #define cpu_feature_enabled(bit)	\
@@ -150,21 +150,18 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 extern void setup_clear_cpu_cap(unsigned int bit);
 extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 
-#define setup_force_cpu_cap(bit) do { \
-	set_cpu_cap(&boot_cpu_data, bit);	\
+#define setup_force_cpu_cap(bit) do {			\
+							\
+	if (!boot_cpu_has(bit))				\
+		WARN_ON(alternatives_patched);		\
+							\
+	set_cpu_cap(&boot_cpu_data, bit);		\
 	set_bit(bit, (unsigned long *)cpu_caps_set);	\
 } while (0)
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
 /*
- * Static testing of CPU features. Used the same as boot_cpu_has(). It
- * statically patches the target code for additional performance. Use
- * static_cpu_has() only in fast paths, where every cycle counts. Which
- * means that the boot_cpu_has() variant is already fast enough for the
- * majority of cases and you should stick to using it as it is generally
- * only two instructions: a RIP-relative MOV and a TEST.
- *
  * Do not use an "m" constraint for [cap_byte] here: gcc doesn't know
  * that this is only used on a fallback path and will sometimes cause
  * it to manifest the address of boot_cpu_data in a register, fouling
@@ -172,11 +169,10 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
  */
 static __always_inline bool _static_cpu_has(u16 bit)
 {
-	asm goto(
-		ALTERNATIVE_TERNARY("jmp 6f", %P[feature], "", "jmp %l[t_no]")
+	asm goto(ALTERNATIVE_TERNARY("jmp 6f", %c[feature], "", "jmp %l[t_no]")
 		".pushsection .altinstr_aux,\"ax\"\n"
 		"6:\n"
-		" testb %[bitnum]," _ASM_RIP(%P[cap_byte]) "\n"
+		" testb %[bitnum], %a[cap_byte]\n"
 		" jnz %l[t_yes]\n"
 		" jmp %l[t_no]\n"
 		".popsection\n"

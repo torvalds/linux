@@ -34,14 +34,73 @@ static const struct regmap_range_cfg inv_icm42600_regmap_ranges[] = {
 	},
 };
 
+static const struct regmap_range inv_icm42600_regmap_volatile_yes_ranges[] = {
+	/* Sensor data registers */
+	regmap_reg_range(0x001D, 0x002A),
+	/* INT status, FIFO, APEX data */
+	regmap_reg_range(0x002D, 0x0038),
+	/* Signal path reset */
+	regmap_reg_range(0x004B, 0x004B),
+	/* FIFO lost packets */
+	regmap_reg_range(0x006C, 0x006D),
+	/* Timestamp value */
+	regmap_reg_range(0x1062, 0x1064),
+};
+
+static const struct regmap_range inv_icm42600_regmap_volatile_no_ranges[] = {
+	regmap_reg_range(0x0000, 0x001C),
+	regmap_reg_range(0x006E, 0x1061),
+	regmap_reg_range(0x1065, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_volatile_accesses[] = {
+	{
+		.yes_ranges = inv_icm42600_regmap_volatile_yes_ranges,
+		.n_yes_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_yes_ranges),
+		.no_ranges = inv_icm42600_regmap_volatile_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_volatile_no_ranges),
+	},
+};
+
+static const struct regmap_range inv_icm42600_regmap_rd_noinc_no_ranges[] = {
+	regmap_reg_range(0x0000, INV_ICM42600_REG_FIFO_DATA - 1),
+	regmap_reg_range(INV_ICM42600_REG_FIFO_DATA + 1, 0x4FFF),
+};
+
+static const struct regmap_access_table inv_icm42600_regmap_rd_noinc_accesses[] = {
+	{
+		.no_ranges = inv_icm42600_regmap_rd_noinc_no_ranges,
+		.n_no_ranges = ARRAY_SIZE(inv_icm42600_regmap_rd_noinc_no_ranges),
+	},
+};
+
 const struct regmap_config inv_icm42600_regmap_config = {
+	.name = "inv_icm42600",
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x4FFF,
 	.ranges = inv_icm42600_regmap_ranges,
 	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
+	.volatile_table = inv_icm42600_regmap_volatile_accesses,
+	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
+	.cache_type = REGCACHE_RBTREE,
 };
-EXPORT_SYMBOL_NS_GPL(inv_icm42600_regmap_config, IIO_ICM42600);
+EXPORT_SYMBOL_NS_GPL(inv_icm42600_regmap_config, "IIO_ICM42600");
+
+/* define specific regmap for SPI not supporting burst write */
+const struct regmap_config inv_icm42600_spi_regmap_config = {
+	.name = "inv_icm42600",
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x4FFF,
+	.ranges = inv_icm42600_regmap_ranges,
+	.num_ranges = ARRAY_SIZE(inv_icm42600_regmap_ranges),
+	.volatile_table = inv_icm42600_regmap_volatile_accesses,
+	.rd_noinc_table = inv_icm42600_regmap_rd_noinc_accesses,
+	.cache_type = REGCACHE_RBTREE,
+	.use_single_write = true,
+};
+EXPORT_SYMBOL_NS_GPL(inv_icm42600_spi_regmap_config, "IIO_ICM42600");
 
 struct inv_icm42600_hw {
 	uint8_t whoami;
@@ -66,6 +125,22 @@ static const struct inv_icm42600_conf inv_icm42600_default_conf = {
 	.temp_en = false,
 };
 
+static const struct inv_icm42600_conf inv_icm42686_default_conf = {
+	.gyro = {
+		.mode = INV_ICM42600_SENSOR_MODE_OFF,
+		.fs = INV_ICM42686_GYRO_FS_4000DPS,
+		.odr = INV_ICM42600_ODR_50HZ,
+		.filter = INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	},
+	.accel = {
+		.mode = INV_ICM42600_SENSOR_MODE_OFF,
+		.fs = INV_ICM42686_ACCEL_FS_32G,
+		.odr = INV_ICM42600_ODR_50HZ,
+		.filter = INV_ICM42600_FILTER_BW_ODR_DIV_2,
+	},
+	.temp_en = false,
+};
+
 static const struct inv_icm42600_hw inv_icm42600_hw[INV_CHIP_NB] = {
 	[INV_CHIP_ICM42600] = {
 		.whoami = INV_ICM42600_WHOAMI_ICM42600,
@@ -82,9 +157,19 @@ static const struct inv_icm42600_hw inv_icm42600_hw[INV_CHIP_NB] = {
 		.name = "icm42605",
 		.conf = &inv_icm42600_default_conf,
 	},
+	[INV_CHIP_ICM42686] = {
+		.whoami = INV_ICM42600_WHOAMI_ICM42686,
+		.name = "icm42686",
+		.conf = &inv_icm42686_default_conf,
+	},
 	[INV_CHIP_ICM42622] = {
 		.whoami = INV_ICM42600_WHOAMI_ICM42622,
 		.name = "icm42622",
+		.conf = &inv_icm42600_default_conf,
+	},
+	[INV_CHIP_ICM42688] = {
+		.whoami = INV_ICM42600_WHOAMI_ICM42688,
+		.name = "icm42688",
 		.conf = &inv_icm42600_default_conf,
 	},
 	[INV_CHIP_ICM42631] = {
@@ -221,6 +306,23 @@ int inv_icm42600_set_accel_conf(struct inv_icm42600_state *st,
 		conf->odr = oldconf->odr;
 	if (conf->filter < 0)
 		conf->filter = oldconf->filter;
+
+	/* force power mode against ODR when sensor is on */
+	switch (conf->mode) {
+	case INV_ICM42600_SENSOR_MODE_LOW_POWER:
+	case INV_ICM42600_SENSOR_MODE_LOW_NOISE:
+		if (conf->odr <= INV_ICM42600_ODR_1KHZ_LN) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_NOISE;
+			conf->filter = INV_ICM42600_FILTER_BW_ODR_DIV_2;
+		} else if (conf->odr >= INV_ICM42600_ODR_6_25HZ_LP &&
+			   conf->odr <= INV_ICM42600_ODR_1_5625HZ_LP) {
+			conf->mode = INV_ICM42600_SENSOR_MODE_LOW_POWER;
+			conf->filter = INV_ICM42600_FILTER_AVG_16X;
+		}
+		break;
+	default:
+		break;
+	}
 
 	/* set ACCEL_CONFIG0 register (accel fullscale & odr) */
 	if (conf->fs != oldconf->fs || conf->odr != oldconf->odr) {
@@ -409,9 +511,18 @@ static int inv_icm42600_setup(struct inv_icm42600_state *st,
 		return ret;
 
 	/* sensor data in big-endian (default) */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG0,
-				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN,
-				 INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN);
+	ret = regmap_set_bits(st->map, INV_ICM42600_REG_INTF_CONFIG0,
+			      INV_ICM42600_INTF_CONFIG0_SENSOR_DATA_ENDIAN);
+	if (ret)
+		return ret;
+
+	/*
+	 * Use RC clock for accel low-power to fix glitches when switching
+	 * gyro on/off while accel low-power is on.
+	 */
+	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INTF_CONFIG1,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC,
+				 INV_ICM42600_INTF_CONFIG1_ACCEL_LP_CLK_RC);
 	if (ret)
 		return ret;
 
@@ -506,11 +617,12 @@ static int inv_icm42600_irq_init(struct inv_icm42600_state *st, int irq,
 		return ret;
 
 	/* Deassert async reset for proper INT pin operation (cf datasheet) */
-	ret = regmap_update_bits(st->map, INV_ICM42600_REG_INT_CONFIG1,
-				 INV_ICM42600_INT_CONFIG1_ASYNC_RESET, 0);
+	ret = regmap_clear_bits(st->map, INV_ICM42600_REG_INT_CONFIG1,
+				INV_ICM42600_INT_CONFIG1_ASYNC_RESET);
 	if (ret)
 		return ret;
 
+	irq_type |= IRQF_ONESHOT;
 	return devm_request_threaded_irq(dev, irq, inv_icm42600_irq_timestamp,
 					 inv_icm42600_irq_handler, irq_type,
 					 "inv_icm42600", st);
@@ -576,7 +688,6 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 {
 	struct device *dev = regmap_get_device(regmap);
 	struct inv_icm42600_state *st;
-	struct irq_data *irq_desc;
 	int irq_type;
 	bool open_drain;
 	int ret;
@@ -586,14 +697,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 		return -ENODEV;
 	}
 
-	/* get irq properties, set trigger falling by default */
-	irq_desc = irq_get_irq_data(irq);
-	if (!irq_desc) {
-		dev_err(dev, "could not find IRQ %d\n", irq);
-		return -EINVAL;
-	}
-
-	irq_type = irqd_get_trigger_type(irq_desc);
+	irq_type = irq_get_trigger_type(irq);
 	if (!irq_type)
 		irq_type = IRQF_TRIGGER_FALLING;
 
@@ -676,7 +780,7 @@ int inv_icm42600_core_probe(struct regmap *regmap, int chip, int irq,
 
 	return devm_add_action_or_reset(dev, inv_icm42600_disable_pm, dev);
 }
-EXPORT_SYMBOL_NS_GPL(inv_icm42600_core_probe, IIO_ICM42600);
+EXPORT_SYMBOL_NS_GPL(inv_icm42600_core_probe, "IIO_ICM42600");
 
 /*
  * Suspend saves sensors state and turns everything off.
@@ -725,6 +829,8 @@ out_unlock:
 static int inv_icm42600_resume(struct device *dev)
 {
 	struct inv_icm42600_state *st = dev_get_drvdata(dev);
+	struct inv_icm42600_sensor_state *gyro_st = iio_priv(st->indio_gyro);
+	struct inv_icm42600_sensor_state *accel_st = iio_priv(st->indio_accel);
 	int ret;
 
 	mutex_lock(&st->lock);
@@ -745,9 +851,12 @@ static int inv_icm42600_resume(struct device *dev)
 		goto out_unlock;
 
 	/* restore FIFO data streaming */
-	if (st->fifo.on)
+	if (st->fifo.on) {
+		inv_sensors_timestamp_reset(&gyro_st->ts);
+		inv_sensors_timestamp_reset(&accel_st->ts);
 		ret = regmap_write(st->map, INV_ICM42600_REG_FIFO_CONFIG,
 				   INV_ICM42600_FIFO_CONFIG_STREAM);
+	}
 
 out_unlock:
 	mutex_unlock(&st->lock);
@@ -799,4 +908,4 @@ EXPORT_NS_GPL_DEV_PM_OPS(inv_icm42600_pm_ops, IIO_ICM42600) = {
 MODULE_AUTHOR("InvenSense, Inc.");
 MODULE_DESCRIPTION("InvenSense ICM-426xx device driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_INV_SENSORS_TIMESTAMP);
+MODULE_IMPORT_NS("IIO_INV_SENSORS_TIMESTAMP");

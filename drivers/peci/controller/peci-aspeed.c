@@ -2,7 +2,7 @@
 // Copyright (c) 2012-2017 ASPEED Technology Inc.
 // Copyright (c) 2018-2021 Intel Corporation
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <linux/bitfield.h>
 #include <linux/clk.h>
@@ -351,6 +351,7 @@ static int clk_aspeed_peci_set_rate(struct clk_hw *hw, unsigned long rate,
 	clk_aspeed_peci_find_div_values(this_rate, &msg_timing, &clk_div_exp);
 
 	val = readl(aspeed_peci->base + ASPEED_PECI_CTRL);
+	val &= ~ASPEED_PECI_CTRL_CLK_DIV_MASK;
 	val |= FIELD_PREP(ASPEED_PECI_CTRL_CLK_DIV_MASK, clk_div_exp);
 	writel(val, aspeed_peci->base + ASPEED_PECI_CTRL);
 
@@ -596,4 +597,4 @@ MODULE_AUTHOR("Ryan Chen <ryan_chen@aspeedtech.com>");
 MODULE_AUTHOR("Jae Hyun Yoo <jae.hyun.yoo@linux.intel.com>");
 MODULE_DESCRIPTION("ASPEED PECI driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PECI);
+MODULE_IMPORT_NS("PECI");

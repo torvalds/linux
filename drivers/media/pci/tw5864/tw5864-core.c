@@ -144,7 +144,7 @@ static void tw5864_h264_isr(struct tw5864_dev *dev)
 		cur_frame->gop_seqno = input->frame_gop_seqno;
 
 		dev->h264_buf_w_index = next_frame_index;
-		tasklet_schedule(&dev->tasklet);
+		queue_work(system_bh_wq, &dev->bh_work);
 
 		cur_frame = next_frame;
 

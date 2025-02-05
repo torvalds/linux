@@ -32,6 +32,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/cdrom.h>
 
 #include <scsi/scsi.h>
@@ -48,7 +49,7 @@
 MODULE_DESCRIPTION("Driver for SCM Microsystems (a.k.a. Shuttle) USB-ATAPI cable");
 MODULE_AUTHOR("Daniel Drake <dsd@gentoo.org>, Robert Baruch <autophile@starband.net>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(USB_STORAGE);
+MODULE_IMPORT_NS("USB_STORAGE");
 
 /* Supported device types */
 #define USBAT_DEV_HP8200	0x01
@@ -162,7 +163,7 @@ static int init_usbat_flash(struct us_data *us);
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
   .driver_info = (flags) }
 
-static struct usb_device_id usbat_usb_ids[] = {
+static const struct usb_device_id usbat_usb_ids[] = {
 #	include "unusual_usbat.h"
 	{ }		/* Terminating entry */
 };
@@ -184,7 +185,7 @@ MODULE_DEVICE_TABLE(usb, usbat_usb_ids);
 	.initFunction = init_function,	\
 }
 
-static struct us_unusual_dev usbat_unusual_dev_list[] = {
+static const struct us_unusual_dev usbat_unusual_dev_list[] = {
 #	include "unusual_usbat.h"
 	{ }		/* Terminating entry */
 };
@@ -651,8 +652,7 @@ static int usbat_hp8200e_rw_block_test(struct us_data *us,
 				return USB_STOR_TRANSPORT_FAILED;
 
 			usb_stor_dbg(us, "Redoing %s\n",
-				     direction == DMA_TO_DEVICE
-				     ? "write" : "read");
+				     str_write_read(direction == DMA_TO_DEVICE));
 
 		} else if (result != USB_STOR_XFER_GOOD)
 			return USB_STOR_TRANSPORT_ERROR;

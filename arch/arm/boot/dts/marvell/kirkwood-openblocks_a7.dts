@@ -44,7 +44,7 @@
 		i2c@11100 {
 			status = "okay";
 
-			s24c02: s24c02@50 {
+			s24c02: eeprom@50 {
 				compatible = "atmel,24c02";
 				reg = <0x50>;
 			};
@@ -136,8 +136,6 @@
 		compatible = "gpio-keys";
 		pinctrl-0 = <&pmx_gpio_init>;
 		pinctrl-names = "default";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		button {
 			label = "Init Button";

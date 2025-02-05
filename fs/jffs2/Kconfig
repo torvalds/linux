@@ -151,8 +151,9 @@ config JFFS2_RUBIN
 	  RUBINMIPS and DYNRUBIN compressors. Say 'N' if unsure.
 
 choice
-	prompt "JFFS2 default compression mode" if JFFS2_COMPRESSION_OPTIONS
+	prompt "JFFS2 default compression mode"
 	default JFFS2_CMODE_PRIORITY
+	depends on JFFS2_COMPRESSION_OPTIONS
 	depends on JFFS2_FS
 	help
 	  You can set here the default compression mode of JFFS2 from

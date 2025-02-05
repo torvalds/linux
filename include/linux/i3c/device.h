@@ -183,10 +183,7 @@ struct i3c_driver {
 	const struct i3c_device_id *id_table;
 };
 
-static inline struct i3c_driver *drv_to_i3cdrv(struct device_driver *drv)
-{
-	return container_of(drv, struct i3c_driver, driver);
-}
+#define drv_to_i3cdrv(__drv)	container_of_const(__drv, struct i3c_driver, driver)
 
 struct device *i3cdev_to_dev(struct i3c_device *i3cdev);
 
@@ -286,7 +283,7 @@ static inline void i3c_i2c_driver_unregister(struct i3c_driver *i3cdrv,
  * module_i3c_i2c_driver() - Register a module providing an I3C and an I2C
  *			     driver
  * @__i3cdrv: the I3C driver to register
- * @__i2cdrv: the I3C driver to register
+ * @__i2cdrv: the I2C driver to register
  *
  * Provide generic init/exit functions that simply register/unregister an I3C
  * and an I2C driver.

@@ -1024,7 +1024,6 @@ static int capi_release(struct inode *inode, struct file *file)
 static const struct file_operations capi_fops =
 {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= capi_read,
 	.write		= capi_write,
 	.poll		= capi_poll,

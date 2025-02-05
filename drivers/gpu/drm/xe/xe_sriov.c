@@ -3,15 +3,18 @@
  * Copyright © 2023 Intel Corporation
  */
 
+#include <linux/fault-inject.h>
+
 #include <drm/drm_managed.h>
 
-#include "regs/xe_sriov_regs.h"
+#include "regs/xe_regs.h"
 
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_sriov_pf.h"
+#include "xe_sriov_vf.h"
 
 /**
  * xe_sriov_mode_to_string - Convert enum value to string.
@@ -35,7 +38,7 @@ const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode)
 
 static bool test_is_vf(struct xe_device *xe)
 {
-	u32 value = xe_mmio_read32(xe_root_mmio_gt(xe), VF_CAP_REG);
+	u32 value = xe_mmio_read32(xe_root_tile_mmio(xe), VF_CAP_REG);
 
 	return value & VF_CAP;
 }
@@ -53,6 +56,7 @@ static bool test_is_vf(struct xe_device *xe)
  */
 void xe_sriov_probe_early(struct xe_device *xe)
 {
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	enum xe_sriov_mode mode = XE_SRIOV_MODE_NONE;
 	bool has_sriov = xe->info.has_sriov;
 
@@ -61,6 +65,16 @@ void xe_sriov_probe_early(struct xe_device *xe)
 			mode = XE_SRIOV_MODE_VF;
 		else if (xe_sriov_pf_readiness(xe))
 			mode = XE_SRIOV_MODE_PF;
+	} else if (pci_sriov_get_totalvfs(pdev)) {
+		/*
+		 * Even if we have not enabled SR-IOV support using the
+		 * platform specific has_sriov flag, the hardware may still
+		 * report SR-IOV capability and the PCI layer may wrongly
+		 * advertise driver support to enable VFs. Explicitly reset
+		 * the number of supported VFs to zero to avoid confusion.
+		 */
+		drm_info(&xe->drm, "Support for SR-IOV is not available\n");
+		pci_sriov_set_totalvfs(pdev, 0);
 	}
 
 	xe_assert(xe, !xe->sriov.__mode);
@@ -101,6 +115,9 @@ int xe_sriov_init(struct xe_device *xe)
 			return err;
 	}
 
+	if (IS_SRIOV_VF(xe))
+		xe_sriov_vf_init_early(xe);
+
 	xe_assert(xe, !xe->sriov.wq);
 	xe->sriov.wq = alloc_workqueue("xe-sriov-wq", 0, 0);
 	if (!xe->sriov.wq)
@@ -108,6 +125,7 @@ int xe_sriov_init(struct xe_device *xe)
 
 	return drmm_add_action_or_reset(&xe->drm, fini_sriov, xe);
 }
+ALLOW_ERROR_INJECTION(xe_sriov_init, ERRNO); /* See xe_pci_probe() */
 
 /**
  * xe_sriov_print_info - Print basic SR-IOV information.

@@ -254,6 +254,7 @@ static const struct ad_sigma_delta_info ad7791_sigma_delta_info = {
 	.addr_shift = 4,
 	.read_mask = BIT(3),
 	.irq_flags = IRQF_TRIGGER_FALLING,
+	.num_resetclks = 32,
 };
 
 static int ad7791_read_raw(struct iio_dev *indio_dev,
@@ -371,7 +372,7 @@ static const struct iio_info ad7791_no_filter_info = {
 };
 
 static int ad7791_setup(struct ad7791_state *st,
-			struct ad7791_platform_data *pdata)
+			const struct ad7791_platform_data *pdata)
 {
 	/* Set to poweron-reset default values */
 	st->mode = AD7791_MODE_BUFFER;
@@ -401,7 +402,7 @@ static void ad7791_reg_disable(void *reg)
 
 static int ad7791_probe(struct spi_device *spi)
 {
-	struct ad7791_platform_data *pdata = spi->dev.platform_data;
+	const struct ad7791_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct iio_dev *indio_dev;
 	struct ad7791_state *st;
 	int ret;
@@ -474,4 +475,4 @@ module_spi_driver(ad7791_driver);
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD7787/AD7788/AD7789/AD7790/AD7791 ADC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_AD_SIGMA_DELTA);
+MODULE_IMPORT_NS("IIO_AD_SIGMA_DELTA");

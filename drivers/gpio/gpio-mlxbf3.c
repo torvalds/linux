@@ -39,6 +39,8 @@
 #define MLXBF_GPIO_CAUSE_OR_EVTEN0        0x14
 #define MLXBF_GPIO_CAUSE_OR_CLRCAUSE      0x18
 
+#define MLXBF_GPIO_CLR_ALL_INTS           GENMASK(31, 0)
+
 struct mlxbf3_gpio_context {
 	struct gpio_chip gc;
 
@@ -82,6 +84,8 @@ static void mlxbf3_gpio_irq_disable(struct irq_data *irqd)
 	val = readl(gs->gpio_cause_io + MLXBF_GPIO_CAUSE_OR_EVTEN0);
 	val &= ~BIT(offset);
 	writel(val, gs->gpio_cause_io + MLXBF_GPIO_CAUSE_OR_EVTEN0);
+
+	writel(BIT(offset), gs->gpio_cause_io + MLXBF_GPIO_CAUSE_OR_CLRCAUSE);
 	raw_spin_unlock_irqrestore(&gs->gc.bgpio_lock, flags);
 
 	gpiochip_disable_irq(gc, offset);
@@ -253,6 +257,15 @@ static int mlxbf3_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void mlxbf3_gpio_shutdown(struct platform_device *pdev)
+{
+	struct mlxbf3_gpio_context *gs = platform_get_drvdata(pdev);
+
+	/* Disable and clear all interrupts */
+	writel(0, gs->gpio_cause_io + MLXBF_GPIO_CAUSE_OR_EVTEN0);
+	writel(MLXBF_GPIO_CLR_ALL_INTS, gs->gpio_cause_io + MLXBF_GPIO_CAUSE_OR_CLRCAUSE);
+}
+
 static const struct acpi_device_id mlxbf3_gpio_acpi_match[] = {
 	{ "MLNXBF33", 0 },
 	{}
@@ -265,6 +278,7 @@ static struct platform_driver mlxbf3_gpio_driver = {
 		.acpi_match_table = mlxbf3_gpio_acpi_match,
 	},
 	.probe    = mlxbf3_gpio_probe,
+	.shutdown = mlxbf3_gpio_shutdown,
 };
 module_platform_driver(mlxbf3_gpio_driver);
 

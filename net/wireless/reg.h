@@ -42,7 +42,7 @@ int regulatory_hint_user(const char *alpha2,
  * device is operating in an indoor environment.
  * @portid: the netlink port ID on which the hint was given.
  */
-int regulatory_hint_indoor(bool is_indoor, u32 portid);
+void regulatory_hint_indoor(bool is_indoor, u32 portid);
 
 /**
  * regulatory_netlink_notify - notify on released netlink socket
@@ -82,9 +82,9 @@ bool reg_last_request_cell_base(void);
  * on a newly found BSS. If you cannot make use of this feature you can
  * set the wiphy->disable_beacon_hints to true.
  */
-int regulatory_hint_found_beacon(struct wiphy *wiphy,
-				 struct ieee80211_channel *beacon_chan,
-				 gfp_t gfp);
+void regulatory_hint_found_beacon(struct wiphy *wiphy,
+				  struct ieee80211_channel *beacon_chan,
+				  gfp_t gfp);
 
 /**
  * regulatory_hint_country_ie - hints a country IE as a regulatory domain
@@ -137,13 +137,14 @@ void regulatory_hint_disconnect(void);
  * Get a value specifying the U-NII band frequency belongs to.
  * U-NII bands are defined by the FCC in C.F.R 47 part 15.
  *
- * Returns -EINVAL if freq is invalid, 0 for UNII-1, 1 for UNII-2A,
+ * Return: -EINVAL if freq is invalid, 0 for UNII-1, 1 for UNII-2A,
  * 2 for UNII-2B, 3 for UNII-2C and 4 for UNII-3.
  */
 int cfg80211_get_unii(int freq);
 
 /**
  * regulatory_indoor_allowed - is indoor operation allowed
+ * Return: %true if indoor operation is allowed, %false otherwise
  */
 bool regulatory_indoor_allowed(void);
 
@@ -173,11 +174,13 @@ void regulatory_propagate_dfs_state(struct wiphy *wiphy,
  * reg_dfs_domain_same - Checks if both wiphy have same DFS domain configured
  * @wiphy1: wiphy it's dfs_region to be checked against that of wiphy2
  * @wiphy2: wiphy it's dfs_region to be checked against that of wiphy1
+ * Return: %true if both wiphys have the same DFS domain, %false otherwise
  */
 bool reg_dfs_domain_same(struct wiphy *wiphy1, struct wiphy *wiphy2);
 
 /**
  * reg_reload_regdb - reload the regulatory.db firmware file
+ * Return: 0 for success, an error code otherwise
  */
 int reg_reload_regdb(void);
 

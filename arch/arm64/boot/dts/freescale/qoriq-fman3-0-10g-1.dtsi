@@ -27,12 +27,13 @@ fman@1a00000 {
 		reg = <0xf2000 0x1000>;
 		fsl,fman-ports = <&fman0_rx_0x11 &fman0_tx_0x31>;
 		pcsphy-handle = <&pcsphy7>;
+		pcs-handle = <&pcsphy7>;
 	};
 
 	mdio@f3000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
+		compatible = "fsl,fman-memac-mdio";
 		reg = <0xf3000 0x1000>;
 
 		pcsphy7: ethernet-phy@0 {

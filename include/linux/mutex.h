@@ -22,6 +22,8 @@
 #include <linux/cleanup.h>
 #include <linux/mutex_types.h>
 
+struct device;
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define __DEP_MAP_MUTEX_INITIALIZER(lockname)			\
 		, .dep_map = {					\
@@ -47,7 +49,6 @@ static inline void mutex_destroy(struct mutex *lock) {}
 
 #endif
 
-#ifndef CONFIG_PREEMPT_RT
 /**
  * mutex_init - initialize the mutex
  * @mutex: the mutex to be initialized
@@ -63,6 +64,18 @@ do {									\
 	__mutex_init((mutex), #mutex, &__key);				\
 } while (0)
 
+/**
+ * mutex_init_with_key - initialize a mutex with a given lockdep key
+ * @mutex: the mutex to be initialized
+ * @key: the lockdep key to be associated with the mutex
+ *
+ * Initialize the mutex to the unlocked state.
+ *
+ * It is not allowed to initialize an already locked mutex.
+ */
+#define mutex_init_with_key(mutex, key) __mutex_init((mutex), #mutex, (key))
+
+#ifndef CONFIG_PREEMPT_RT
 #define __MUTEX_INITIALIZER(lockname) \
 		{ .owner = ATOMIC_LONG_INIT(0) \
 		, .wait_lock = __RAW_SPIN_LOCK_UNLOCKED(lockname.wait_lock) \
@@ -109,13 +122,32 @@ do {							\
 	__mutex_rt_init((mutex), name, key);		\
 } while (0)
 
-#define mutex_init(mutex)				\
-do {							\
-	static struct lock_class_key __key;		\
-							\
-	__mutex_init((mutex), #mutex, &__key);		\
-} while (0)
 #endif /* CONFIG_PREEMPT_RT */
+
+#ifdef CONFIG_DEBUG_MUTEXES
+
+int __devm_mutex_init(struct device *dev, struct mutex *lock);
+
+#else
+
+static inline int __devm_mutex_init(struct device *dev, struct mutex *lock)
+{
+	/*
+	 * When CONFIG_DEBUG_MUTEXES is off mutex_destroy() is just a nop so
+	 * no really need to register it in the devm subsystem.
+	 */
+	return 0;
+}
+
+#endif
+
+#define devm_mutex_init(dev, mutex)			\
+({							\
+	typeof(mutex) mutex_ = (mutex);			\
+							\
+	mutex_init(mutex_);				\
+	__devm_mutex_init(dev, mutex_);			\
+})
 
 /*
  * See kernel/locking/mutex.c for detailed documentation of these APIs.

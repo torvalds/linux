@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (c) 2021 SUSE LLC
- * Copyright (c) 2019-2021 NXP
+ * Copyright 2019-2021, 2024 NXP
  */
 
 /dts-v1/;
@@ -30,5 +30,15 @@
 
 /* UART (J58) to Micro USB port */
 &uart0 {
+	status = "okay";
+};
+
+&usdhc0 {
+	pinctrl-names = "default", "state_100mhz", "state_200mhz";
+	pinctrl-0 = <&pinctrl_usdhc0>;
+	pinctrl-1 = <&pinctrl_usdhc0_100mhz>;
+	pinctrl-2 = <&pinctrl_usdhc0_200mhz>;
+	disable-wp;
+	no-1-8-v;
 	status = "okay";
 };

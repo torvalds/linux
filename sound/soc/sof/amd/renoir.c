@@ -103,7 +103,7 @@ static struct snd_soc_dai_driver renoir_sof_dai[] = {
 
 /* Renoir ops */
 struct snd_sof_dsp_ops sof_renoir_ops;
-EXPORT_SYMBOL_NS(sof_renoir_ops, SND_SOC_SOF_AMD_COMMON);
+EXPORT_SYMBOL_NS(sof_renoir_ops, "SND_SOC_SOF_AMD_COMMON");
 
 int sof_renoir_ops_init(struct snd_sof_dev *sdev)
 {
@@ -115,7 +115,3 @@ int sof_renoir_ops_init(struct snd_sof_dev *sdev)
 
 	return 0;
 }
-
-MODULE_IMPORT_NS(SND_SOC_SOF_AMD_COMMON);
-MODULE_DESCRIPTION("RENOIR SOF Driver");
-MODULE_LICENSE("Dual BSD/GPL");

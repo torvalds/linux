@@ -339,7 +339,7 @@ static struct attribute *ibmbus_bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ibmbus_bus);
 
-static int ibmebus_bus_bus_match(struct device *dev, struct device_driver *drv)
+static int ibmebus_bus_bus_match(struct device *dev, const struct device_driver *drv)
 {
 	const struct of_device_id *matches = drv->of_match_table;
 

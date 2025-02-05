@@ -19,6 +19,7 @@
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
+static unsigned int gic_count_width;
 static bool __read_mostly gic_clock_unstable;
 
 static void gic_clocksource_unstable(char *reason);
@@ -165,6 +166,37 @@ static u64 gic_hpt_read(struct clocksource *cs)
 	return gic_read_count();
 }
 
+static u64 gic_hpt_read_multicluster(struct clocksource *cs)
+{
+	unsigned int hi, hi2, lo;
+	u64 count;
+
+	mips_cm_lock_other(0, 0, 0, CM_GCR_Cx_OTHER_BLOCK_GLOBAL);
+
+	if (mips_cm_is64) {
+		count = read_gic_redir_counter();
+		goto out;
+	}
+
+	hi = read_gic_redir_counter_32h();
+	while (true) {
+		lo = read_gic_redir_counter_32l();
+
+		/* If hi didn't change then lo didn't wrap & we're done */
+		hi2 = read_gic_redir_counter_32h();
+		if (hi2 == hi)
+			break;
+
+		/* Otherwise, repeat with the latest hi value */
+		hi = hi2;
+	}
+
+	count = (((u64)hi) << 32) + lo;
+out:
+	mips_cm_unlock_other();
+	return count;
+}
+
 static struct clocksource gic_clocksource = {
 	.name			= "GIC",
 	.read			= gic_hpt_read,
@@ -186,18 +218,26 @@ static void gic_clocksource_unstable(char *reason)
 
 static int __init __gic_clocksource_init(void)
 {
-	unsigned int count_width;
 	int ret;
 
 	/* Set clocksource mask. */
-	count_width = read_gic_config() & GIC_CONFIG_COUNTBITS;
-	count_width >>= __ffs(GIC_CONFIG_COUNTBITS);
-	count_width *= 4;
-	count_width += 32;
-	gic_clocksource.mask = CLOCKSOURCE_MASK(count_width);
+	gic_count_width = read_gic_config() & GIC_CONFIG_COUNTBITS;
+	gic_count_width >>= __ffs(GIC_CONFIG_COUNTBITS);
+	gic_count_width *= 4;
+	gic_count_width += 32;
+	gic_clocksource.mask = CLOCKSOURCE_MASK(gic_count_width);
 
 	/* Calculate a somewhat reasonable rating value. */
-	gic_clocksource.rating = 200 + gic_frequency / 10000000;
+	if (mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ))
+		gic_clocksource.rating = 300; /* Good when frequecy is stable */
+	else
+		gic_clocksource.rating = 200;
+	gic_clocksource.rating += clamp(gic_frequency / 10000000, 0, 99);
+
+	if (mips_cps_multicluster_cpus()) {
+		gic_clocksource.read = &gic_hpt_read_multicluster;
+		gic_clocksource.vdso_clock_mode = VDSO_CLOCKMODE_NONE;
+	}
 
 	ret = clocksource_register_hz(&gic_clocksource, gic_frequency);
 	if (ret < 0)
@@ -257,10 +297,11 @@ static int __init gic_clocksource_of_init(struct device_node *node)
 	 * stable CPU frequency or on the platforms with CM3 and CPU frequency
 	 * change performed by the CPC core clocks divider.
 	 */
-	if (mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ)) {
+	if ((mips_cm_revision() >= CM_REV_CM3 || !IS_ENABLED(CONFIG_CPU_FREQ)) &&
+	     !mips_cps_multicluster_cpus()) {
 		sched_clock_register(mips_cm_is64 ?
 				     gic_read_count_64 : gic_read_count_2x32,
-				     64, gic_frequency);
+				     gic_count_width, gic_frequency);
 	}
 
 	return 0;

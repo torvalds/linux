@@ -316,4 +316,5 @@ static void __exit exit_nls_cp775(void)
 module_init(init_nls_cp775)
 module_exit(exit_nls_cp775)
 
+MODULE_DESCRIPTION("NLS Codepage 775 (Baltic Rim)");
 MODULE_LICENSE("Dual BSD/GPL");

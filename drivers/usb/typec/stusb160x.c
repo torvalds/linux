@@ -234,7 +234,7 @@ static const struct regmap_config stusb1600_regmap_config = {
 	.readable_reg	= stusb160x_reg_readable,
 	.volatile_reg	= stusb160x_reg_volatile,
 	.precious_reg	= stusb160x_reg_precious,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static bool stusb160x_get_vconn(struct stusb160x *chip)
@@ -633,9 +633,8 @@ MODULE_DEVICE_TABLE(of, stusb160x_of_match);
 
 static int stusb160x_probe(struct i2c_client *client)
 {
+	const struct regmap_config *regmap_config;
 	struct stusb160x *chip;
-	const struct of_device_id *match;
-	struct regmap_config *regmap_config;
 	struct fwnode_handle *fwnode;
 	int ret;
 
@@ -645,8 +644,8 @@ static int stusb160x_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, chip);
 
-	match = i2c_of_match_device(stusb160x_of_match, client);
-	regmap_config = (struct regmap_config *)match->data;
+	regmap_config = i2c_get_match_data(client);
+
 	chip->regmap = devm_regmap_init_i2c(client, regmap_config);
 	if (IS_ERR(chip->regmap)) {
 		ret = PTR_ERR(chip->regmap);

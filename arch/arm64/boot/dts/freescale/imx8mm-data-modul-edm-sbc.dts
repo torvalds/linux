@@ -168,7 +168,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec1>;
 	phy-mode = "rgmii-id";
-	phy-handle = <&fec1_phy>;
+	phy-handle = <&fec1_phy_bcm>;
 	phy-supply = <&buck4_reg>;
 	fsl,magic-packet;
 	status = "okay";
@@ -178,7 +178,7 @@
 		#size-cells = <0>;
 
 		/* Atheros AR8031 PHY */
-		fec1_phy: ethernet-phy@0 {
+		fec1_phy_ath: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
 			/*
@@ -191,6 +191,7 @@
 			reset-deassert-us = <10000>;
 			qca,keep-pll-enabled;
 			vddio-supply = <&vddio>;
+			status = "disabled";
 
 			vddio: vddio-regulator {
 				regulator-name = "VDDIO";
@@ -201,6 +202,20 @@
 			vddh: vddh-regulator {
 				regulator-name = "VDDH";
 			};
+		};
+
+		/* Broadcom BCM54213PE PHY */
+		fec1_phy_bcm: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+			/*
+			 * Dedicated ENET_INT# and ENET_WOL# signals are
+			 * unused, the PHY does not provide cable detect
+			 * interrupt.
+			 */
+			reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <10000>;
 		};
 	};
 };

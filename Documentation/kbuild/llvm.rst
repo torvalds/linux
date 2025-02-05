@@ -126,7 +126,7 @@ Ccache
 
 ``ccache`` can be used with ``clang`` to improve subsequent builds, (though
 KBUILD_BUILD_TIMESTAMP_ should be set to a deterministic value between builds
-in order to avoid 100% cache misses, see Reproducible_builds_ for more info):
+in order to avoid 100% cache misses, see Reproducible_builds_ for more info)::
 
 	KBUILD_BUILD_TIMESTAMP='' make LLVM=1 CC="ccache clang"
 
@@ -179,6 +179,9 @@ yet. Bug reports are always welcome at the issue tracker below!
    * - s390
      - Maintained
      - ``LLVM=1`` (LLVM >= 18.1.0), ``CC=clang`` (LLVM < 18.1.0)
+   * - sparc (sparc64 only)
+     - Maintained
+     - ``CC=clang LLVM_IAS=0`` (LLVM >= 20)
    * - um (User Mode)
      - Maintained
      - ``LLVM=1``

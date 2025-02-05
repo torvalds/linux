@@ -159,7 +159,7 @@ struct thread_struct {
 	unsigned long	sr0;
 #endif
 #endif /* CONFIG_PPC32 */
-#if defined(CONFIG_BOOKE_OR_40x) && defined(CONFIG_PPC_KUAP)
+#if defined(CONFIG_BOOKE) && defined(CONFIG_PPC_KUAP)
 	unsigned long	pid;	/* value written in PID reg. at interrupt exit */
 #endif
 	/* Debug Registers */
@@ -260,7 +260,8 @@ struct thread_struct {
 	unsigned long   sier2;
 	unsigned long   sier3;
 	unsigned long	hashkeyr;
-
+	unsigned long	dexcr;
+	unsigned long	dexcr_onexec;	/* Reset value to load on exec */
 #endif
 };
 
@@ -332,6 +333,16 @@ extern int set_endian(struct task_struct *tsk, unsigned int val);
 
 extern int get_unalign_ctl(struct task_struct *tsk, unsigned long adr);
 extern int set_unalign_ctl(struct task_struct *tsk, unsigned int val);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+
+#define PPC_GET_DEXCR_ASPECT(tsk, asp) get_dexcr_prctl((tsk), (asp))
+#define PPC_SET_DEXCR_ASPECT(tsk, asp, val) set_dexcr_prctl((tsk), (asp), (val))
+
+int get_dexcr_prctl(struct task_struct *tsk, unsigned long asp);
+int set_dexcr_prctl(struct task_struct *tsk, unsigned long asp, unsigned long val);
+
+#endif
 
 extern void load_fp_state(struct thread_fp_state *fp);
 extern void store_fp_state(struct thread_fp_state *fp);

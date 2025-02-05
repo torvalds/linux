@@ -63,6 +63,13 @@ unsigned int vpu_get_buffer_state(struct vb2_v4l2_buffer *vbuf)
 	return vpu_buf->state;
 }
 
+void vpu_set_buffer_average_qp(struct vb2_v4l2_buffer *vbuf, u32 qp)
+{
+	struct vpu_vb2_buffer *vpu_buf = to_vpu_vb2_buffer(vbuf);
+
+	vpu_buf->average_qp = qp;
+}
+
 void vpu_v4l2_set_error(struct vpu_inst *inst)
 {
 	vpu_inst_lock(inst);
@@ -539,6 +546,15 @@ static void vpu_vb2_buf_finish(struct vb2_buffer *vb)
 	struct vpu_inst *inst = vb2_get_drv_priv(vb->vb2_queue);
 	struct vb2_queue *q = vb->vb2_queue;
 
+	if (V4L2_TYPE_IS_CAPTURE(vb->type)) {
+		struct vpu_vb2_buffer *vpu_buf = to_vpu_vb2_buffer(vbuf);
+		struct v4l2_ctrl *ctrl = v4l2_ctrl_find(&inst->ctrl_handler,
+							V4L2_CID_MPEG_VIDEO_AVERAGE_QP);
+
+		if (ctrl)
+			v4l2_ctrl_s_ctrl(ctrl, vpu_buf->average_qp);
+	}
+
 	if (vbuf->flags & V4L2_BUF_FLAG_LAST)
 		vpu_notify_eos(inst);
 
@@ -630,8 +646,6 @@ static const struct vb2_ops vpu_vb2_ops = {
 	.start_streaming    = vpu_vb2_start_streaming,
 	.stop_streaming     = vpu_vb2_stop_streaming,
 	.buf_queue          = vpu_vb2_buf_queue,
-	.wait_prepare       = vb2_ops_wait_prepare,
-	.wait_finish        = vb2_ops_wait_finish,
 };
 
 static int vpu_m2m_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
@@ -825,6 +839,7 @@ int vpu_add_func(struct vpu_dev *vpu, struct vpu_func *func)
 		vfd->fops = vdec_get_fops();
 		vfd->ioctl_ops = vdec_get_ioctl_ops();
 	}
+	video_set_drvdata(vfd, vpu);
 
 	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
@@ -832,7 +847,6 @@ int vpu_add_func(struct vpu_dev *vpu, struct vpu_func *func)
 		v4l2_m2m_release(func->m2m_dev);
 		return ret;
 	}
-	video_set_drvdata(vfd, vpu);
 	func->vfd = vfd;
 
 	ret = v4l2_m2m_register_media_controller(func->m2m_dev, func->vfd, func->function);

@@ -32,15 +32,15 @@ static struct gpio_keys_platform_data bd71828_powerkey_data = {
 };
 
 static const struct resource bd71815_rtc_irqs[] = {
-	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC0, "bd71815-rtc-alm-0"),
-	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC1, "bd71815-rtc-alm-1"),
-	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC2, "bd71815-rtc-alm-2"),
+	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC0, "bd70528-rtc-alm-0"),
+	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC1, "bd70528-rtc-alm-1"),
+	DEFINE_RES_IRQ_NAMED(BD71815_INT_RTC2, "bd70528-rtc-alm-2"),
 };
 
 static const struct resource bd71828_rtc_irqs[] = {
-	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC0, "bd71828-rtc-alm-0"),
-	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC1, "bd71828-rtc-alm-1"),
-	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC2, "bd71828-rtc-alm-2"),
+	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC0, "bd70528-rtc-alm-0"),
+	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC1, "bd70528-rtc-alm-1"),
+	DEFINE_RES_IRQ_NAMED(BD71828_INT_RTC2, "bd70528-rtc-alm-2"),
 };
 
 static struct resource bd71815_power_irqs[] = {
@@ -316,7 +316,7 @@ static const struct regmap_irq bd71815_irqs[] = {
 	REGMAP_IRQ_REG(BD71815_INT_RTC2, 11, BD71815_INT_RTC2_MASK),
 };
 
-static struct regmap_irq bd71828_irqs[] = {
+static const struct regmap_irq bd71828_irqs[] = {
 	REGMAP_IRQ_REG(BD71828_INT_BUCK1_OCP, 0, BD71828_INT_BUCK1_OCP_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BUCK2_OCP, 0, BD71828_INT_BUCK2_OCP_MASK),
 	REGMAP_IRQ_REG(BD71828_INT_BUCK3_OCP, 0, BD71828_INT_BUCK3_OCP_MASK),
@@ -407,7 +407,7 @@ static struct regmap_irq bd71828_irqs[] = {
 	REGMAP_IRQ_REG(BD71828_INT_RTC2, 11, BD71828_INT_RTC2_MASK),
 };
 
-static struct regmap_irq_chip bd71828_irq_chip = {
+static const struct regmap_irq_chip bd71828_irq_chip = {
 	.name = "bd71828_irq",
 	.main_status = BD71828_REG_INT_MAIN,
 	.irqs = &bd71828_irqs[0],
@@ -423,7 +423,7 @@ static struct regmap_irq_chip bd71828_irq_chip = {
 	.irq_reg_stride = 1,
 };
 
-static struct regmap_irq_chip bd71815_irq_chip = {
+static const struct regmap_irq_chip bd71815_irq_chip = {
 	.name = "bd71815_irq",
 	.main_status = BD71815_REG_INT_STAT,
 	.irqs = &bd71815_irqs[0],
@@ -464,13 +464,34 @@ static int set_clk_mode(struct device *dev, struct regmap *regmap,
 				  OUT32K_MODE_CMOS);
 }
 
+static struct i2c_client *bd71828_dev;
+static void bd71828_power_off(void)
+{
+	while (true) {
+		s32 val;
+
+		/* We are not allowed to sleep, so do not use regmap involving mutexes here. */
+		val = i2c_smbus_read_byte_data(bd71828_dev, BD71828_REG_PS_CTRL_1);
+		if (val >= 0)
+			i2c_smbus_write_byte_data(bd71828_dev,
+						  BD71828_REG_PS_CTRL_1,
+						  BD71828_MASK_STATE_HBNT | (u8)val);
+		mdelay(500);
+	}
+}
+
+static void bd71828_remove_poweroff(void *data)
+{
+	pm_power_off = NULL;
+}
+
 static int bd71828_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap_irq_chip_data *irq_data;
 	int ret;
 	struct regmap *regmap;
 	const struct regmap_config *regmap_config;
-	struct regmap_irq_chip *irqchip;
+	const struct regmap_irq_chip *irqchip;
 	unsigned int chip_type;
 	struct mfd_cell *mfd;
 	int cells;
@@ -542,7 +563,20 @@ static int bd71828_i2c_probe(struct i2c_client *i2c)
 	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_AUTO, mfd, cells,
 				   NULL, 0, regmap_irq_get_domain(irq_data));
 	if (ret)
-		dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+		return	dev_err_probe(&i2c->dev, ret, "Failed to create subdevices\n");
+
+	if (of_device_is_system_power_controller(i2c->dev.of_node) &&
+	    chip_type == ROHM_CHIP_TYPE_BD71828) {
+		if (!pm_power_off) {
+			bd71828_dev = i2c;
+			pm_power_off = bd71828_power_off;
+			ret = devm_add_action_or_reset(&i2c->dev,
+						       bd71828_remove_poweroff,
+						       NULL);
+		} else {
+			dev_warn(&i2c->dev, "Poweroff callback already assigned\n");
+		}
+	}
 
 	return ret;
 }

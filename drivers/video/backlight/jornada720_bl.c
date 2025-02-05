@@ -7,7 +7,6 @@
 
 #include <linux/backlight.h>
 #include <linux/device.h>
-#include <linux/fb.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -121,7 +120,7 @@ static int jornada_bl_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	bd->props.power = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	bd->props.brightness = BL_DEF_BRIGHT;
 	/*
 	 * note. make sure max brightness is set otherwise

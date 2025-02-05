@@ -520,7 +520,6 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 
 static const struct file_operations wdt_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.write		= wdt_write,
 	.unlocked_ioctl	= wdt_ioctl,
 	.compat_ioctl	= compat_ptr_ioctl,
@@ -536,7 +535,6 @@ static struct miscdevice wdt_miscdev = {
 
 static const struct file_operations wdt_temp_fops = {
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 	.read		= wdt_temp_read,
 	.open		= wdt_temp_open,
 	.release	= wdt_temp_release,

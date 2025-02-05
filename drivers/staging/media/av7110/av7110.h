@@ -35,16 +35,19 @@
 
 #include <media/drv-intf/saa7146_vv.h>
 
-
 #define ANALOG_TUNER_VES1820 1
 #define ANALOG_TUNER_STV0297 2
 
 extern int av7110_debug;
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define dprintk(level, fmt, arg...) do {				\
-	if (level & av7110_debug)					\
-		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
-		       __func__, ##arg);				\
+	if ((level) & av7110_debug)					\
+		pr_info("%s(): " fmt, __func__, ##arg);			\
 } while (0)
 
 #define MAXFILT 32
@@ -59,7 +62,7 @@ enum av7110_video_mode {
 struct av7110_p2t {
 	u8		  pes[TS_SIZE];
 	u8		  counter;
-	long int	  pos;
+	long		  pos;
 	int		  frags;
 	struct dvb_demux_feed *feed;
 };
@@ -76,7 +79,6 @@ struct dvb_video_events {
 	spinlock_t		  lock;
 };
 
-
 struct av7110;
 
 /* infrared remote control */
@@ -86,9 +88,10 @@ struct infrared {
 	u32			ir_config;
 };
 
+#define MAX_CI_SLOTS	2
+
 /* place to store all the necessary device information */
 struct av7110 {
-
 	/* devices */
 
 	struct dvb_device	dvb_dev;
@@ -118,16 +121,15 @@ struct av7110 {
 #define DVB_ADAC_MSP34x5  3
 #define DVB_ADAC_NONE	 -1
 
-
 	/* buffers */
 
 	void		       *iobuf;	 /* memory for all buffers */
 	struct dvb_ringbuffer	avout;   /* buffer for video or A/V mux */
-#define AVOUTLEN (128*1024)
+#define AVOUTLEN (128 * 1024)
 	struct dvb_ringbuffer	aout;    /* buffer for audio */
-#define AOUTLEN (64*1024)
+#define AOUTLEN (64 * 1024)
 	void		       *bmpbuf;
-#define BMPLEN (8*32768+1024)
+#define BMPLEN (8 * 32768 + 1024)
 
 	/* bitmap buffers and states */
 
@@ -139,14 +141,12 @@ struct av7110 {
 #define BMP_LOADED   2
 	wait_queue_head_t	bmpq;
 
-
 	/* DEBI and polled command interface */
 
 	spinlock_t		debilock;
 	struct mutex		dcomlock;
 	volatile int		debitype;
 	volatile int		debilen;
-
 
 	/* Recording and playback flags */
 
@@ -157,7 +157,6 @@ struct av7110 {
 #define RP_AUDIO 2
 #define RP_AV	 3
 
-
 	/* OSD */
 
 	int			osdwin;      /* currently active window */
@@ -166,7 +165,7 @@ struct av7110 {
 
 	/* CA */
 
-	struct ca_slot_info	ci_slot[2];
+	struct ca_slot_info	ci_slot[MAX_CI_SLOTS];
 
 	enum av7110_video_mode	vidmode;
 	struct dmxdev		dmxdev;
@@ -212,7 +211,6 @@ struct av7110 {
 
 	int arm_errors;
 	int registered;
-
 
 	/* AV711X */
 
@@ -260,19 +258,19 @@ struct av7110 {
 	unsigned char *bin_root;
 	unsigned long size_root;
 
-	struct dvb_frontend* fe;
+	struct dvb_frontend *fe;
 	enum fe_status fe_status;
 
 	struct mutex ioctl_mutex;
 
 	/* crash recovery */
-	void				(*recover)(struct av7110* av7110);
+	void				(*recover)(struct av7110 *av7110);
 	enum fe_sec_voltage		saved_voltage;
 	enum fe_sec_tone_mode		saved_tone;
 	struct dvb_diseqc_master_cmd	saved_master_cmd;
 	enum fe_sec_mini_cmd		saved_minicmd;
 
-	int (*fe_init)(struct dvb_frontend* fe);
+	int (*fe_init)(struct dvb_frontend *fe);
 	int (*fe_read_status)(struct dvb_frontend *fe, enum fe_status *status);
 	int (*fe_diseqc_reset_overload)(struct dvb_frontend *fe);
 	int (*fe_diseqc_send_master_cmd)(struct dvb_frontend *fe,
@@ -288,9 +286,8 @@ struct av7110 {
 	int (*fe_set_frontend)(struct dvb_frontend *fe);
 };
 
-
-extern int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
-		       u16 subpid, u16 pcrpid);
+int ChangePIDs(struct av7110 *av7110, u16 vpid, u16 apid, u16 ttpid,
+	       u16 subpid, u16 pcrpid);
 
 void av7110_ir_handler(struct av7110 *av7110, u32 ircom);
 int av7110_set_ir_config(struct av7110 *av7110);
@@ -303,13 +300,12 @@ void av7110_ir_exit(struct av7110 *av7110);
 #define MSP_WR_DSP 0x12
 #define MSP_RD_DSP 0x13
 
-extern int i2c_writereg(struct av7110 *av7110, u8 id, u8 reg, u8 val);
-extern u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg);
-extern int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val);
+int i2c_writereg(struct av7110 *av7110, u8 id, u8 reg, u8 val);
+u8 i2c_readreg(struct av7110 *av7110, u8 id, u8 reg);
+int msp_writereg(struct av7110 *av7110, u8 dev, u16 reg, u16 val);
 
-
-extern int av7110_init_analog_module(struct av7110 *av7110);
-extern int av7110_init_v4l(struct av7110 *av7110);
-extern int av7110_exit_v4l(struct av7110 *av7110);
+int av7110_init_analog_module(struct av7110 *av7110);
+int av7110_init_v4l(struct av7110 *av7110);
+int av7110_exit_v4l(struct av7110 *av7110);
 
 #endif /* _AV7110_H_ */

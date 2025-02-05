@@ -301,6 +301,28 @@ void vsp1_pipeline_init(struct vsp1_pipeline *pipe)
 	pipe->state = VSP1_PIPELINE_STOPPED;
 }
 
+void __vsp1_pipeline_dump(struct _ddebug *dbg, struct vsp1_pipeline *pipe,
+			  const char *msg)
+{
+	struct vsp1_device *vsp1 = pipe->output->entity.vsp1;
+	struct vsp1_entity *entity;
+	bool first = true;
+
+	printk(KERN_DEBUG "%s: %s: pipe: ", dev_name(vsp1->dev), msg);
+
+	list_for_each_entry(entity, &pipe->entities, list_pipe) {
+		const char *name;
+
+		name = strchrnul(entity->subdev.name, ' ');
+		name = name ? name + 1 : entity->subdev.name;
+
+		pr_cont("%s%s", first ? "" : ", ", name);
+		first = false;
+	}
+
+	pr_cont("\n");
+}
+
 /* Must be called with the pipe irqlock held. */
 void vsp1_pipeline_run(struct vsp1_pipeline *pipe)
 {
@@ -444,6 +466,10 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
 	vsp1_uds_set_alpha(pipe->uds, dlb, alpha);
 }
 
+/* -----------------------------------------------------------------------------
+ * VSP1 Partition Algorithm support
+ */
+
 /*
  * Propagate the partition calculations through the pipeline
  *
@@ -452,17 +478,82 @@ void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
  * source. Each entity must produce the partition required for the previous
  * entity in the pipeline.
  */
-void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
-				       struct vsp1_partition *partition,
-				       unsigned int index,
-				       struct vsp1_partition_window *window)
+static void vsp1_pipeline_propagate_partition(struct vsp1_pipeline *pipe,
+					      struct vsp1_partition *partition,
+					      unsigned int index,
+					      struct v4l2_rect *window)
 {
 	struct vsp1_entity *entity;
 
 	list_for_each_entry_reverse(entity, &pipe->entities, list_pipe) {
 		if (entity->ops->partition)
-			entity->ops->partition(entity, pipe, partition, index,
-					       window);
+			entity->ops->partition(entity, entity->state, pipe,
+					       partition, index, window);
 	}
 }
 
+/*
+ * vsp1_pipeline_calculate_partition - Calculate pipeline configuration for a
+ * partition
+ *
+ * @pipe: the pipeline
+ * @partition: partition that will hold the calculated values
+ * @div_size: pre-determined maximum partition division size
+ * @index: partition index
+ */
+void vsp1_pipeline_calculate_partition(struct vsp1_pipeline *pipe,
+				       struct vsp1_partition *partition,
+				       unsigned int div_size,
+				       unsigned int index)
+{
+	const struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect window;
+	unsigned int modulus;
+
+	/*
+	 * Partitions are computed on the size before rotation, use the format
+	 * at the WPF sink.
+	 */
+	format = v4l2_subdev_state_get_format(pipe->output->entity.state,
+					      RWPF_PAD_SINK);
+
+	/* Initialise the partition with sane starting conditions. */
+	window.left = index * div_size;
+	window.width = div_size;
+	window.top = 0;
+	window.height = format->height;
+
+	modulus = format->width % div_size;
+
+	/*
+	 * We need to prevent the last partition from being smaller than the
+	 * *minimum* width of the hardware capabilities.
+	 *
+	 * If the modulus is less than half of the partition size,
+	 * the penultimate partition is reduced to half, which is added
+	 * to the final partition: |1234|1234|1234|12|341|
+	 * to prevent this:        |1234|1234|1234|1234|1|.
+	 */
+	if (modulus) {
+		/*
+		 * pipe->partitions is 1 based, whilst index is a 0 based index.
+		 * Normalise this locally.
+		 */
+		unsigned int partitions = pipe->partitions - 1;
+
+		if (modulus < div_size / 2) {
+			if (index == partitions - 1) {
+				/* Halve the penultimate partition. */
+				window.width = div_size / 2;
+			} else if (index == partitions) {
+				/* Increase the final partition. */
+				window.width = (div_size / 2) + modulus;
+				window.left -= div_size / 2;
+			}
+		} else if (index == partitions) {
+			window.width = modulus;
+		}
+	}
+
+	vsp1_pipeline_propagate_partition(pipe, partition, index, &window);
+}

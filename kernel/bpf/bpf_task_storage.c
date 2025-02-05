@@ -16,7 +16,6 @@
 #include <linux/filter.h>
 #include <uapi/linux/btf.h>
 #include <linux/btf_ids.h>
-#include <linux/fdtable.h>
 #include <linux/rcupdate_trace.h>
 
 DEFINE_BPF_STORAGE_CACHE(task_cache);
@@ -25,22 +24,20 @@ static DEFINE_PER_CPU(int, bpf_task_storage_busy);
 
 static void bpf_task_storage_lock(void)
 {
-	migrate_disable();
+	cant_migrate();
 	this_cpu_inc(bpf_task_storage_busy);
 }
 
 static void bpf_task_storage_unlock(void)
 {
 	this_cpu_dec(bpf_task_storage_busy);
-	migrate_enable();
 }
 
 static bool bpf_task_storage_trylock(void)
 {
-	migrate_disable();
+	cant_migrate();
 	if (unlikely(this_cpu_inc_return(bpf_task_storage_busy) != 1)) {
 		this_cpu_dec(bpf_task_storage_busy);
-		migrate_enable();
 		return false;
 	}
 	return true;
@@ -73,18 +70,19 @@ void bpf_task_storage_free(struct task_struct *task)
 {
 	struct bpf_local_storage *local_storage;
 
+	migrate_disable();
 	rcu_read_lock();
 
 	local_storage = rcu_dereference(task->bpf_storage);
-	if (!local_storage) {
-		rcu_read_unlock();
-		return;
-	}
+	if (!local_storage)
+		goto out;
 
 	bpf_task_storage_lock();
 	bpf_local_storage_destroy(local_storage);
 	bpf_task_storage_unlock();
+out:
 	rcu_read_unlock();
+	migrate_enable();
 }
 
 static void *bpf_pid_task_storage_lookup_elem(struct bpf_map *map, void *key)
@@ -129,6 +127,9 @@ static long bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 	struct pid *pid;
 	int fd, err;
 
+	if ((map_flags & BPF_F_LOCK) && btf_record_has_field(map->record, BPF_UPTR))
+		return -EOPNOTSUPP;
+
 	fd = *(int *)key;
 	pid = pidfd_get_pid(fd, &f_flags);
 	if (IS_ERR(pid))
@@ -147,7 +148,7 @@ static long bpf_pid_task_storage_update_elem(struct bpf_map *map, void *key,
 	bpf_task_storage_lock();
 	sdata = bpf_local_storage_update(
 		task, (struct bpf_local_storage_map *)map, value, map_flags,
-		GFP_ATOMIC);
+		true, GFP_ATOMIC);
 	bpf_task_storage_unlock();
 
 	err = PTR_ERR_OR_ZERO(sdata);
@@ -219,7 +220,7 @@ static void *__bpf_task_storage_get(struct bpf_map *map,
 	    (flags & BPF_LOCAL_STORAGE_GET_F_CREATE) && nobusy) {
 		sdata = bpf_local_storage_update(
 			task, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST, gfp_flags);
+			BPF_NOEXIST, false, gfp_flags);
 		return IS_ERR(sdata) ? NULL : sdata->data;
 	}
 

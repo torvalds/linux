@@ -221,6 +221,7 @@ static const struct v4l2_ioctl_ops vimc_capture_ioctl_ops = {
 	.vidioc_expbuf = vb2_ioctl_expbuf,
 	.vidioc_streamon = vb2_ioctl_streamon,
 	.vidioc_streamoff = vb2_ioctl_streamoff,
+	.vidioc_remove_bufs = vb2_ioctl_remove_bufs,
 };
 
 static void vimc_capture_return_all_buffers(struct vimc_capture_device *vcapture,
@@ -325,12 +326,6 @@ static const struct vb2_ops vimc_capture_qops = {
 	.buf_queue		= vimc_capture_buf_queue,
 	.queue_setup		= vimc_capture_queue_setup,
 	.buf_prepare		= vimc_capture_buffer_prepare,
-	/*
-	 * Since q->lock is set we can use the standard
-	 * vb2_ops_wait_prepare/finish helper functions.
-	 */
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 };
 
 static const struct media_entity_operations vimc_capture_mops = {
@@ -432,7 +427,7 @@ static struct vimc_ent_device *vimc_capture_add(struct vimc_device *vimc,
 	q->mem_ops = vimc_allocator == VIMC_ALLOCATOR_DMA_CONTIG
 		   ? &vb2_dma_contig_memops : &vb2_vmalloc_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_queued_buffers = 2;
+	q->min_reqbufs_allocation = 2;
 	q->lock = &vcapture->lock;
 	q->dev = v4l2_dev->dev;
 
@@ -493,7 +488,7 @@ err_free_vcapture:
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_capture_type = {
+const struct vimc_ent_type vimc_capture_type = {
 	.add = vimc_capture_add,
 	.unregister = vimc_capture_unregister,
 	.release = vimc_capture_release

@@ -33,6 +33,7 @@ static inline int handle_misaligned_load(struct pt_regs *regs)
 {
 	return -1;
 }
+
 static inline int handle_misaligned_store(struct pt_regs *regs)
 {
 	return -1;

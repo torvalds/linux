@@ -1,33 +1,8 @@
 [
   {
-    "EventCode": "0x1002C",
-    "EventName": "PM_LD_PREFETCH_CACHE_LINE_MISS",
-    "BriefDescription": "The L1 cache was reloaded with a line that fulfills a prefetch request."
-  },
-  {
-    "EventCode": "0x1505E",
-    "EventName": "PM_LD_HIT_L1",
-    "BriefDescription": "Load finished without experiencing an L1 miss."
-  },
-  {
-    "EventCode": "0x1F056",
-    "EventName": "PM_DISP_SS0_2_INSTR_CYC",
-    "BriefDescription": "Cycles in which Superslice 0 dispatches either 1 or 2 instructions."
-  },
-  {
-    "EventCode": "0x1F05A",
-    "EventName": "PM_DISP_HELD_SYNC_CYC",
-    "BriefDescription": "Cycles dispatch is held because of a synchronizing instruction that requires the ICT to be empty before dispatch."
-  },
-  {
     "EventCode": "0x10066",
     "EventName": "PM_ADJUNCT_CYC",
     "BriefDescription": "Cycles in which the thread is in Adjunct state. MSR[S HV PR] bits = 011."
-  },
-  {
-    "EventCode": "0x100FC",
-    "EventName": "PM_LD_REF_L1",
-    "BriefDescription": "All L1 D cache load references counted at finish, gated by reject. In P9 and earlier this event counted only cacheable loads but in P10 both cacheable and non-cacheable loads are included."
   },
   {
     "EventCode": "0x2E010",
@@ -35,54 +10,9 @@
     "BriefDescription": "PowerPC instruction completed while the thread was in Adjunct state."
   },
   {
-    "EventCode": "0x2E014",
-    "EventName": "PM_STCX_FIN",
-    "BriefDescription": "Conditional store instruction (STCX) finished. LARX and STCX are instructions used to acquire a lock."
-  },
-  {
-    "EventCode": "0x2F054",
-    "EventName": "PM_DISP_SS1_2_INSTR_CYC",
-    "BriefDescription": "Cycles in which Superslice 1 dispatches either 1 or 2 instructions."
-  },
-  {
-    "EventCode": "0x2F056",
-    "EventName": "PM_DISP_SS1_4_INSTR_CYC",
-    "BriefDescription": "Cycles in which Superslice 1 dispatches either 3 or 4 instructions."
-  },
-  {
     "EventCode": "0x200F2",
     "EventName": "PM_INST_DISP",
     "BriefDescription": "PowerPC instruction dispatched."
-  },
-  {
-    "EventCode": "0x200FD",
-    "EventName": "PM_L1_ICACHE_MISS",
-    "BriefDescription": "Demand instruction cache miss."
-  },
-  {
-    "EventCode": "0x3F04A",
-    "EventName": "PM_LSU_ST5_FIN",
-    "BriefDescription": "LSU Finished an internal operation in ST2 port."
-  },
-  {
-    "EventCode": "0x3405A",
-    "EventName": "PM_PRIVILEGED_INST_CMPL",
-    "BriefDescription": "PowerPC instruction completed while the thread was in Privileged state."
-  },
-  {
-    "EventCode": "0x3F054",
-    "EventName": "PM_DISP_SS0_4_INSTR_CYC",
-    "BriefDescription": "Cycles in which Superslice 0 dispatches either 3 or 4 instructions."
-  },
-  {
-    "EventCode": "0x3F056",
-    "EventName": "PM_DISP_SS0_8_INSTR_CYC",
-    "BriefDescription": "Cycles in which Superslice 0 dispatches either 5, 6, 7 or 8 instructions."
-  },
-  {
-    "EventCode": "0x30068",
-    "EventName": "PM_L1_ICACHE_RELOADED_PREF",
-    "BriefDescription": "Counts all instruction cache prefetch reloads (includes demand turned into prefetch)."
   },
   {
     "EventCode": "0x300F6",
@@ -95,18 +25,48 @@
     "BriefDescription": "Counts all instruction cache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
   },
   {
-    "EventCode": "0x44054",
-    "EventName": "PM_VECTOR_LD_CMPL",
-    "BriefDescription": "Vector load instruction completed."
+    "EventCode": "0x00000038BC",
+    "EventName": "PM_ISYNC_CMPL",
+    "BriefDescription": "Isync completion count per thread."
   },
   {
-    "EventCode": "0x4D05E",
-    "EventName": "PM_BR_CMPL",
-    "BriefDescription": "A branch completed. All branches are included."
+    "EventCode": "0x000000C088",
+    "EventName": "PM_LD0_32B_FIN",
+    "BriefDescription": "256-bit load finished in the LD0 load execution unit."
   },
   {
-    "EventCode": "0x400F0",
-    "EventName": "PM_LD_DEMAND_MISS_L1_FIN",
-    "BriefDescription": "Load missed L1, counted at finish time."
+    "EventCode": "0x000000C888",
+    "EventName": "PM_LD1_32B_FIN",
+    "BriefDescription": "256-bit load finished in the LD1 load execution unit."
+  },
+  {
+    "EventCode": "0x000000C090",
+    "EventName": "PM_LD0_UNALIGNED_FIN",
+    "BriefDescription": "Load instructions in LD0 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline using the load gather buffer. This typically adds about 10 cycles to the latency of the instruction. This includes loads that cross the 128 byte boundary, octword loads that are not aligned, and a special forward progress case of a load that does not hit in the L1 and crosses the 32 byte boundary and is launched NTC. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C890",
+    "EventName": "PM_LD1_UNALIGNED_FIN",
+    "BriefDescription": "Load instructions in LD1 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline using the load gather buffer. This typically adds about 10 cycles to the latency of the instruction. This includes loads that cross the 128 byte boundary, octword loads that are not aligned, and a special forward progress case of a load that does not hit in the L1 and crosses the 32 byte boundary and is launched NTC. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C0A4",
+    "EventName": "PM_ST0_UNALIGNED_FIN",
+    "BriefDescription": "Store instructions in ST0 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline. This typically adds about 10 cycles to the latency of the instruction. This only includes stores that cross the 128 byte boundary. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000C8A4",
+    "EventName": "PM_ST1_UNALIGNED_FIN",
+    "BriefDescription": "Store instructions in ST1 port that are either unaligned, or treated as unaligned and require an additional recycle through the pipeline. This typically adds about 10 cycles to the latency of the instruction. This only includes stores that cross the 128 byte boundary. Counted at finish time."
+  },
+  {
+    "EventCode": "0x000000D0B4",
+    "EventName": "PM_DC_PREF_STRIDED_CONF",
+    "BriefDescription": "A demand load referenced a line in an active strided prefetch stream. The stream could have been allocated through the hardware prefetch mechanism or through software."
+  },
+  {
+    "EventCode": "0x0000004884",
+    "EventName": "PM_NO_FETCH_IBUF_FULL_CYC",
+    "BriefDescription": "Cycles in which no instructions are fetched because there is no room in the instruction buffers."
   }
 ]

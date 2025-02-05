@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2021-2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2021-2022 Intel Corporation
 //
 // Authors: Cezary Rojewski <cezary.rojewski@intel.com>
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
@@ -56,6 +56,7 @@ struct avs_fw_manifest {
 	u32 feature_mask;
 	struct avs_fw_version version;
 } __packed;
+static_assert(sizeof(struct avs_fw_manifest) == 36);
 
 struct avs_fw_ext_manifest {
 	u32 id;
@@ -64,6 +65,7 @@ struct avs_fw_ext_manifest {
 	u16 version_minor;
 	u32 entries;
 } __packed;
+static_assert(sizeof(struct avs_fw_ext_manifest) == 16);
 
 static int avs_fw_ext_manifest_strip(struct firmware *fw)
 {
@@ -165,7 +167,8 @@ int avs_cldma_load_basefw(struct avs_dev *adev, struct firmware *fw)
 				       (reg & AVS_ROM_INIT_DONE) == AVS_ROM_INIT_DONE,
 				       AVS_ROM_INIT_POLLING_US, SKL_ROM_INIT_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(adev->dev, "rom init timeout: %d\n", ret);
+		dev_err(adev->dev, "rom init failed: %d, status: 0x%08x, lec: 0x%08x\n",
+			ret, reg, snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
 		return ret;
 	}
@@ -178,7 +181,8 @@ int avs_cldma_load_basefw(struct avs_dev *adev, struct firmware *fw)
 				       AVS_FW_INIT_POLLING_US, AVS_FW_INIT_TIMEOUT_US);
 	hda_cldma_stop(cl);
 	if (ret < 0) {
-		dev_err(adev->dev, "transfer fw failed: %d\n", ret);
+		dev_err(adev->dev, "transfer fw failed: %d, status: 0x%08x, lec: 0x%08x\n",
+			ret, reg, snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
 		return ret;
 	}
@@ -306,12 +310,13 @@ avs_hda_init_rom(struct avs_dev *adev, unsigned int dma_id, bool purge)
 	}
 
 	/* await ROM init */
-	ret = snd_hdac_adsp_readq_poll(adev, spec->sram->rom_status_offset, reg,
+	ret = snd_hdac_adsp_readl_poll(adev, spec->sram->rom_status_offset, reg,
 				       (reg & 0xF) == AVS_ROM_INIT_DONE ||
 				       (reg & 0xF) == APL_ROM_FW_ENTERED,
 				       AVS_ROM_INIT_POLLING_US, APL_ROM_INIT_TIMEOUT_US);
 	if (ret < 0) {
-		dev_err(adev->dev, "rom init timeout: %d\n", ret);
+		dev_err(adev->dev, "rom init failed: %d, status: 0x%08x, lec: 0x%08x\n",
+			ret, reg, snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		goto err;
 	}
 
@@ -335,15 +340,15 @@ static int avs_imr_load_basefw(struct avs_dev *adev)
 
 	/* DMA id ignored when flashing from IMR as no transfer occurs. */
 	ret = avs_hda_init_rom(adev, 0, false);
-	if (ret < 0) {
-		dev_err(adev->dev, "rom init failed: %d\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = wait_for_completion_timeout(&adev->fw_ready,
 					  msecs_to_jiffies(AVS_FW_INIT_TIMEOUT_MS));
 	if (!ret) {
-		dev_err(adev->dev, "firmware ready timeout\n");
+		dev_err(adev->dev, "firmware ready timeout, status: 0x%08x, lec: 0x%08x\n",
+			snd_hdac_adsp_readl(adev, AVS_FW_REG_STATUS(adev)),
+			snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
 		return -ETIMEDOUT;
 	}
@@ -390,7 +395,7 @@ int avs_hda_load_basefw(struct avs_dev *adev, struct firmware *fw)
 		ret = avs_hda_init_rom(adev, dma_id, true);
 		if (!ret)
 			break;
-		dev_info(adev->dev, "#%d rom init fail: %d\n", i + 1, ret);
+		dev_info(adev->dev, "#%d rom init failed: %d\n", i + 1, ret);
 	}
 	if (ret < 0)
 		goto cleanup_resources;
@@ -402,7 +407,8 @@ int avs_hda_load_basefw(struct avs_dev *adev, struct firmware *fw)
 				       AVS_FW_INIT_POLLING_US, AVS_FW_INIT_TIMEOUT_US);
 	snd_hdac_dsp_trigger(hstream, false);
 	if (ret < 0) {
-		dev_err(adev->dev, "transfer fw failed: %d\n", ret);
+		dev_err(adev->dev, "transfer fw failed: %d, status: 0x%08x, lec: 0x%08x\n",
+			ret, reg, snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
 	}
 
@@ -535,7 +541,7 @@ int avs_dsp_load_libraries(struct avs_dev *adev, struct avs_tplg_library *libs, 
 		if (ret)
 			return ret;
 
-		strncpy(adev->lib_names[id], man->name, AVS_LIB_NAME_SIZE);
+		strscpy(adev->lib_names[id], man->name, AVS_LIB_NAME_SIZE);
 		id++;
 next_lib:
 		i++;
@@ -582,7 +588,9 @@ static int avs_dsp_load_basefw(struct avs_dev *adev)
 	ret = wait_for_completion_timeout(&adev->fw_ready,
 					  msecs_to_jiffies(AVS_FW_INIT_TIMEOUT_MS));
 	if (!ret) {
-		dev_err(adev->dev, "firmware ready timeout\n");
+		dev_err(adev->dev, "firmware ready timeout, status: 0x%08x, lec: 0x%08x\n",
+			snd_hdac_adsp_readl(adev, AVS_FW_REG_STATUS(adev)),
+			snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev)));
 		avs_dsp_core_disable(adev, AVS_MAIN_CORE_MASK);
 		ret = -ETIMEDOUT;
 		goto release_fw;
@@ -673,16 +681,12 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	}
 
 	ret = avs_ipc_get_hw_config(adev, &adev->hw_cfg);
-	if (ret) {
-		dev_err(adev->dev, "get hw cfg failed: %d\n", ret);
+	if (ret)
 		return AVS_IPC_RET(ret);
-	}
 
 	ret = avs_ipc_get_fw_config(adev, &adev->fw_cfg);
-	if (ret) {
-		dev_err(adev->dev, "get fw cfg failed: %d\n", ret);
+	if (ret)
 		return AVS_IPC_RET(ret);
-	}
 
 	adev->core_refs = devm_kcalloc(adev->dev, adev->hw_cfg.dsp_cores,
 				       sizeof(*adev->core_refs), GFP_KERNEL);
@@ -698,7 +702,7 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	}
 
 	/* basefw always occupies slot 0 */
-	strcpy(&adev->lib_names[0][0], "BASEFW");
+	strscpy(adev->lib_names[0], "BASEFW", AVS_LIB_NAME_SIZE);
 
 	ida_init(&adev->ppl_ida);
 

@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/enclosure.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -908,7 +908,6 @@ static struct class_interface ses_interface = {
 static struct scsi_driver ses_template = {
 	.gendrv = {
 		.name		= "ses",
-		.owner		= THIS_MODULE,
 		.probe		= ses_probe,
 		.remove		= ses_remove,
 	},

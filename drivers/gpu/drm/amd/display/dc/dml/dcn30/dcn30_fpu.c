@@ -387,13 +387,17 @@ void dcn30_fpu_calculate_wm_and_dlg(
 	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][maxMpcComb];
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] != dm_dram_clock_change_unsupported;
 	unsigned int dummy_latency_index = 0;
+	struct dc_stream_status *stream_status = NULL;
 
 	dc_assert_fp_enabled();
 
 	context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching = false;
-    for (i = 0; i < context->stream_count; i++) {
+	for (i = 0; i < context->stream_count; i++) {
+		stream_status = NULL;
 		if (context->streams[i])
-			context->streams[i]->fpo_in_use = false;
+			stream_status = dc_state_get_stream_status(context, context->streams[i]);
+		if (stream_status)
+			stream_status->fpo_in_use = false;
 	}
 
 	if (!pstate_en) {

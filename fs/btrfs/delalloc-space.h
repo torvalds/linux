@@ -9,7 +9,7 @@ struct extent_changeset;
 struct btrfs_inode;
 struct btrfs_fs_info;
 
-int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes);
+int btrfs_alloc_data_chunk_ondemand(const struct btrfs_inode *inode, u64 bytes);
 int btrfs_check_data_free_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len,
 			bool noflush);

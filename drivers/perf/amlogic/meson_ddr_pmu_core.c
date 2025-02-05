@@ -492,6 +492,7 @@ int meson_ddr_pmu_create(struct platform_device *pdev)
 	*pmu = (struct ddr_pmu) {
 		.pmu = {
 			.module		= THIS_MODULE,
+			.parent		= &pdev->dev,
 			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 			.task_ctx_nr	= perf_invalid_context,
 			.attr_groups	= attr_groups,

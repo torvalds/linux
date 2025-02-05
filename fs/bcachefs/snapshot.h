@@ -2,14 +2,12 @@
 #ifndef _BCACHEFS_SNAPSHOT_H
 #define _BCACHEFS_SNAPSHOT_H
 
-enum bkey_invalid_flags;
-
 void bch2_snapshot_tree_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-int bch2_snapshot_tree_invalid(struct bch_fs *, struct bkey_s_c,
-			       enum bkey_invalid_flags, struct printbuf *);
+int bch2_snapshot_tree_validate(struct bch_fs *, struct bkey_s_c,
+				struct bkey_validate_context);
 
 #define bch2_bkey_ops_snapshot_tree ((struct bkey_ops) {	\
-	.key_invalid	= bch2_snapshot_tree_invalid,		\
+	.key_validate	= bch2_snapshot_tree_validate,		\
 	.val_to_text	= bch2_snapshot_tree_to_text,		\
 	.min_val_size	= 8,					\
 })
@@ -19,13 +17,14 @@ struct bkey_i_snapshot_tree *__bch2_snapshot_tree_create(struct btree_trans *);
 int bch2_snapshot_tree_lookup(struct btree_trans *, u32, struct bch_snapshot_tree *);
 
 void bch2_snapshot_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
-int bch2_snapshot_invalid(struct bch_fs *, struct bkey_s_c,
-			  enum bkey_invalid_flags, struct printbuf *);
+int bch2_snapshot_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
 int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
-		       struct bkey_s_c, struct bkey_s, unsigned);
+		       struct bkey_s_c, struct bkey_s,
+		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
-	.key_invalid	= bch2_snapshot_invalid,		\
+	.key_validate	= bch2_snapshot_validate,		\
 	.val_to_text	= bch2_snapshot_to_text,		\
 	.trigger	= bch2_mark_snapshot,			\
 	.min_val_size	= 24,					\
@@ -77,7 +76,7 @@ static inline u32 __bch2_snapshot_parent(struct bch_fs *c, u32 id)
 		return 0;
 
 	u32 parent = s->parent;
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBU) &&
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    parent &&
 	    s->depth != snapshot_t(c, parent)->depth + 1)
 		panic("id %u depth=%u parent %u depth=%u\n",
@@ -120,24 +119,19 @@ static inline u32 bch2_snapshot_root(struct bch_fs *c, u32 id)
 	return id;
 }
 
-static inline u32 __bch2_snapshot_equiv(struct bch_fs *c, u32 id)
+static inline bool __bch2_snapshot_exists(struct bch_fs *c, u32 id)
 {
 	const struct snapshot_t *s = snapshot_t(c, id);
-	return s ? s->equiv : 0;
+	return s ? s->live : 0;
 }
 
-static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
+static inline bool bch2_snapshot_exists(struct bch_fs *c, u32 id)
 {
 	rcu_read_lock();
-	id = __bch2_snapshot_equiv(c, id);
+	bool ret = __bch2_snapshot_exists(c, id);
 	rcu_read_unlock();
 
-	return id;
-}
-
-static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
-{
-	return id == bch2_snapshot_equiv(c, id);
+	return ret;
 }
 
 static inline int bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
@@ -180,12 +174,9 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 
 static inline bool bch2_snapshot_has_children(struct bch_fs *c, u32 id)
 {
-	const struct snapshot_t *t;
-	bool ret;
-
 	rcu_read_lock();
-	t = snapshot_t(c, id);
-	ret = (t->children[0]|t->children[1]) != 0;
+	const struct snapshot_t *t = snapshot_t(c, id);
+	bool ret = t && (t->children[0]|t->children[1]) != 0;
 	rcu_read_unlock();
 
 	return ret;
@@ -249,6 +240,7 @@ int bch2_snapshot_node_create(struct btree_trans *, u32,
 int bch2_check_snapshot_trees(struct bch_fs *);
 int bch2_check_snapshots(struct bch_fs *);
 int bch2_reconstruct_snapshots(struct bch_fs *);
+int bch2_check_key_has_snapshot(struct btree_trans *, struct btree_iter *, struct bkey_s_c);
 
 int bch2_snapshot_node_set_deleted(struct btree_trans *, u32);
 void bch2_delete_dead_snapshots_work(struct work_struct *);
@@ -265,9 +257,6 @@ static inline int bch2_key_has_snapshot_overwrites(struct btree_trans *trans,
 
 	return __bch2_key_has_snapshot_overwrites(trans, id, pos);
 }
-
-int bch2_propagate_key_to_snapshot_leaves(struct btree_trans *, enum btree_id,
-					  struct bkey_s_c, struct bpos *);
 
 int bch2_snapshots_read(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);

@@ -6,14 +6,15 @@
 #ifndef _COUNTER_H_
 #define _COUNTER_H_
 
+#include <linux/array_size.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
 #include <linux/kfifo.h>
 #include <linux/mutex.h>
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 #include <linux/wait.h>
+
 #include <uapi/linux/counter.h>
 
 struct counter_device;
@@ -359,7 +360,6 @@ struct counter_ops {
  * @num_counts:		number of Counts specified in @counts
  * @ext:		optional array of Counter device extensions
  * @num_ext:		number of Counter device extensions specified in @ext
- * @priv:		optional private data supplied by driver
  * @dev:		internal device structure
  * @chrdev:		internal character device structure
  * @events_list:	list of current watching Counter events
@@ -601,6 +601,9 @@ struct counter_array {
 
 #define COUNTER_COMP_FLOOR(_read, _write) \
 	COUNTER_COMP_COUNT_U64("floor", _read, _write)
+
+#define COUNTER_COMP_FREQUENCY(_read) \
+	COUNTER_COMP_SIGNAL_U64("frequency", _read, NULL)
 
 #define COUNTER_COMP_POLARITY(_read, _write, _available) \
 { \

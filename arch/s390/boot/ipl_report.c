@@ -30,7 +30,6 @@ static unsigned long get_cert_comp_list_size(void)
 {
 	struct ipl_rb_certificate_entry *cert;
 	struct ipl_rb_component_entry *comp;
-	size_t size;
 
 	/*
 	 * Find the length for the IPL report boot data
@@ -106,7 +105,7 @@ int read_ipl_report(void)
 	 * the IPL parameter list, then align the address to a double
 	 * word boundary.
 	 */
-	tmp = (unsigned long) S390_lowcore.ipl_parmblock_ptr;
+	tmp = (unsigned long)get_lowcore()->ipl_parmblock_ptr;
 	pl_hdr = (struct ipl_pl_hdr *) tmp;
 	tmp = (tmp + pl_hdr->len + 7) & -8UL;
 	rl_hdr = (struct ipl_rl_hdr *) tmp;
@@ -155,7 +154,7 @@ void save_ipl_cert_comp_list(void)
 		return;
 
 	size = get_cert_comp_list_size();
-	early_ipl_comp_list_addr = physmem_alloc_top_down(RR_CERT_COMP_LIST, size, sizeof(int));
+	early_ipl_comp_list_addr = physmem_alloc_or_die(RR_CERT_COMP_LIST, size, sizeof(int));
 	ipl_cert_list_addr = early_ipl_comp_list_addr + early_ipl_comp_list_size;
 
 	copy_components_bootdata();

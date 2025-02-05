@@ -10,7 +10,7 @@
 #include <linux/errqueue.h>
 #include <linux/if_link.h>
 #include <linux/net_tstamp.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <sys/mman.h>
 #include <net/if.h>
 #include <poll.h>
@@ -68,7 +68,8 @@ static int open_xsk(int ifindex, struct xsk *xsk)
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
-		.flags = XDP_UMEM_UNALIGNED_CHUNK_FLAG | XDP_UMEM_TX_SW_CSUM,
+		.flags = XDP_UMEM_UNALIGNED_CHUNK_FLAG | XDP_UMEM_TX_SW_CSUM |
+			 XDP_UMEM_TX_METADATA_LEN,
 		.tx_metadata_len = sizeof(struct xsk_tx_metadata),
 	};
 	__u32 idx;
@@ -132,23 +133,6 @@ static void close_xsk(struct xsk *xsk)
 	munmap(xsk->umem_area, UMEM_SIZE);
 }
 
-static void ip_csum(struct iphdr *iph)
-{
-	__u32 sum = 0;
-	__u16 *p;
-	int i;
-
-	iph->check = 0;
-	p = (void *)iph;
-	for (i = 0; i < sizeof(*iph) / sizeof(*p); i++)
-		sum += p[i];
-
-	while (sum >> 16)
-		sum = (sum & 0xffff) + (sum >> 16);
-
-	iph->check = ~sum;
-}
-
 static int generate_packet(struct xsk *xsk, __u16 dst_port)
 {
 	struct xsk_tx_metadata *meta;
@@ -191,7 +175,7 @@ static int generate_packet(struct xsk *xsk, __u16 dst_port)
 	iph->protocol = IPPROTO_UDP;
 	ASSERT_EQ(inet_pton(FAMILY, TX_ADDR, &iph->saddr), 1, "inet_pton(TX_ADDR)");
 	ASSERT_EQ(inet_pton(FAMILY, RX_ADDR, &iph->daddr), 1, "inet_pton(RX_ADDR)");
-	ip_csum(iph);
+	iph->check = build_ip_csum(iph);
 
 	udph->source = htons(UDP_SOURCE_PORT);
 	udph->dest = htons(dst_port);
@@ -384,6 +368,8 @@ void test_xdp_metadata(void)
 	SYS(out, "ip netns add " RX_NETNS_NAME);
 
 	tok = open_netns(TX_NETNS_NAME);
+	if (!ASSERT_OK_PTR(tok, "setns"))
+		goto out;
 	SYS(out, "ip link add numtxqueues 1 numrxqueues 1 " TX_NAME
 	    " type veth peer " RX_NAME " numtxqueues 1 numrxqueues 1");
 	SYS(out, "ip link set " RX_NAME " netns " RX_NETNS_NAME);
@@ -400,6 +386,8 @@ void test_xdp_metadata(void)
 	SYS(out, "ip -4 neigh add " RX_ADDR " lladdr " RX_MAC " dev " TX_NAME_VLAN);
 
 	switch_ns_to_rx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns rx"))
+		goto out;
 
 	SYS(out, "ip link set dev " RX_NAME " address " RX_MAC);
 	SYS(out, "ip link set dev " RX_NAME " up");
@@ -449,6 +437,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_tx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns tx"))
+		goto out;
 
 	/* Setup separate AF_XDP for TX interface nad send packet to the RX socket. */
 	tx_ifindex = if_nametoindex(TX_NAME);
@@ -461,6 +451,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_rx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns rx"))
+		goto out;
 
 	/* Verify packet sent from AF_XDP has proper metadata. */
 	if (!ASSERT_GE(verify_xsk_metadata(&rx_xsk, true), 0,
@@ -468,6 +460,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_tx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns tx"))
+		goto out;
 	complete_tx(&tx_xsk);
 
 	/* Now check metadata of packet, generated with network stack */
@@ -475,6 +469,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_rx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns rx"))
+		goto out;
 
 	if (!ASSERT_GE(verify_xsk_metadata(&rx_xsk, false), 0,
 		       "verify_xsk_metadata"))
@@ -498,6 +494,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_tx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns tx"))
+		goto out;
 
 	/* Send packet to trigger . */
 	if (!ASSERT_GE(generate_packet(&tx_xsk, AF_XDP_CONSUMER_PORT), 0,
@@ -505,6 +503,8 @@ void test_xdp_metadata(void)
 		goto out;
 
 	switch_ns_to_rx(&tok);
+	if (!ASSERT_OK_PTR(tok, "setns rx"))
+		goto out;
 
 	while (!retries--) {
 		if (bpf_obj2->bss->called)

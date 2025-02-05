@@ -1058,9 +1058,7 @@ static void mlxbf_tmfifo_virtio_del_vqs(struct virtio_device *vdev)
 static int mlxbf_tmfifo_virtio_find_vqs(struct virtio_device *vdev,
 					unsigned int nvqs,
 					struct virtqueue *vqs[],
-					vq_callback_t *callbacks[],
-					const char * const names[],
-					const bool *ctx,
+					struct virtqueue_info vqs_info[],
 					struct irq_affinity *desc)
 {
 	struct mlxbf_tmfifo_vdev *tm_vdev = mlxbf_vdev_to_tmfifo(vdev);
@@ -1072,7 +1070,9 @@ static int mlxbf_tmfifo_virtio_find_vqs(struct virtio_device *vdev,
 		return -EINVAL;
 
 	for (i = 0; i < nvqs; ++i) {
-		if (!names[i]) {
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		if (!vqi->name) {
 			ret = -EINVAL;
 			goto error;
 		}
@@ -1084,7 +1084,7 @@ static int mlxbf_tmfifo_virtio_find_vqs(struct virtio_device *vdev,
 		vq = vring_new_virtqueue(i, vring->num, vring->align, vdev,
 					 false, false, vring->va,
 					 mlxbf_tmfifo_virtio_notify,
-					 callbacks[i], names[i]);
+					 vqi->callback, vqi->name);
 		if (!vq) {
 			dev_err(&vdev->dev, "vring_new_virtqueue failed\n");
 			ret = -ENOMEM;
@@ -1446,7 +1446,7 @@ MODULE_DEVICE_TABLE(acpi, mlxbf_tmfifo_acpi_match);
 
 static struct platform_driver mlxbf_tmfifo_driver = {
 	.probe = mlxbf_tmfifo_probe,
-	.remove_new = mlxbf_tmfifo_remove,
+	.remove = mlxbf_tmfifo_remove,
 	.driver = {
 		.name = "bf-tmfifo",
 		.acpi_match_table = mlxbf_tmfifo_acpi_match,

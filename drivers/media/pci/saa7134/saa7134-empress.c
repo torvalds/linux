@@ -19,6 +19,7 @@
 /* ------------------------------------------------------------------ */
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
+MODULE_DESCRIPTION("Philips SAA7134 empress support");
 MODULE_LICENSE("GPL");
 
 static unsigned int empress_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
@@ -77,8 +78,6 @@ static const struct vb2_ops saa7134_empress_qops = {
 	.buf_init	= saa7134_ts_buffer_init,
 	.buf_prepare	= saa7134_ts_buffer_prepare,
 	.buf_queue	= saa7134_vb2_buffer_queue,
-	.wait_prepare	= vb2_ops_wait_prepare,
-	.wait_finish	= vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming = stop_streaming,
 };

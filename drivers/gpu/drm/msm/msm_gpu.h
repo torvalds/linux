@@ -194,17 +194,6 @@ struct msm_gpu {
 	refcount_t sysprof_active;
 
 	/**
-	 * cur_ctx_seqno:
-	 *
-	 * The ctx->seqno value of the last context to submit rendering,
-	 * and the one with current pgtables installed (for generations
-	 * that support per-context pgtables).  Tracked by seqno rather
-	 * than pointer value to avoid dangling pointers, and cases where
-	 * a ctx can be freed and a new one created with the same address.
-	 */
-	int cur_ctx_seqno;
-
-	/**
 	 * lock:
 	 *
 	 * General lock for serializing all the gpu things.
@@ -428,6 +417,14 @@ struct msm_file_private {
 	 * level.
 	 */
 	struct drm_sched_entity *entities[NR_SCHED_PRIORITIES * MSM_GPU_MAX_RINGS];
+
+	/**
+	 * ctx_mem:
+	 *
+	 * Total amount of memory of GEM buffers with handles attached for
+	 * this context.
+	 */
+	atomic64_t ctx_mem;
 };
 
 /**
@@ -519,6 +516,7 @@ struct msm_gpu_submitqueue {
 struct msm_gpu_state_bo {
 	u64 iova;
 	size_t size;
+	u32 flags;
 	void *data;
 	bool encoded;
 	char name[32];

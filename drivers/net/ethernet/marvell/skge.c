@@ -484,8 +484,7 @@ static void skge_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < ARRAY_SIZE(skge_stats); i++)
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       skge_stats[i].name, ETH_GSTRING_LEN);
+			ethtool_puts(&data, skge_stats[i].name);
 		break;
 	}
 }
@@ -2905,13 +2904,13 @@ static int skge_change_mtu(struct net_device *dev, int new_mtu)
 	int err;
 
 	if (!netif_running(dev)) {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		return 0;
 	}
 
 	skge_down(dev);
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	err = skge_up(dev);
 	if (err)
@@ -3743,10 +3742,7 @@ static int skge_device_event(struct notifier_block *unused,
 	skge = netdev_priv(dev);
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (skge->debugfs)
-			skge->debugfs = debugfs_rename(skge_debug,
-						       skge->debugfs,
-						       skge_debug, dev->name);
+		debugfs_change_name(skge->debugfs, "%s", dev->name);
 		break;
 
 	case NETDEV_GOING_DOWN:

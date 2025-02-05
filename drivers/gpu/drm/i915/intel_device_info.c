@@ -25,7 +25,7 @@
 #include <linux/string_helpers.h>
 
 #include <drm/drm_print.h>
-#include <drm/i915_pciids.h>
+#include <drm/intel/pciids.h>
 
 #include "gt/intel_gt_regs.h"
 #include "i915_drv.h"
@@ -108,8 +108,6 @@ void intel_device_info_print(const struct intel_device_info *info,
 
 	drm_printf(p, "graphics stepping: %s\n", intel_step_name(runtime->step.graphics_step));
 	drm_printf(p, "media stepping: %s\n", intel_step_name(runtime->step.media_step));
-	drm_printf(p, "display stepping: %s\n", intel_step_name(runtime->step.display_step));
-	drm_printf(p, "base die stepping: %s\n", intel_step_name(runtime->step.basedie_step));
 
 	drm_printf(p, "gt: %d\n", info->gt);
 	drm_printf(p, "memory-regions: 0x%x\n", info->memory_regions);
@@ -124,83 +122,98 @@ void intel_device_info_print(const struct intel_device_info *info,
 #undef PRINT_FLAG
 
 	drm_printf(p, "has_pooled_eu: %s\n", str_yes_no(runtime->has_pooled_eu));
-	drm_printf(p, "rawclk rate: %u kHz\n", runtime->rawclk_freq);
 }
 
-#undef INTEL_VGA_DEVICE
-#define INTEL_VGA_DEVICE(id, info) (id)
+#define ID(id) (id)
 
 static const u16 subplatform_ult_ids[] = {
-	INTEL_HSW_ULT_GT1_IDS(0),
-	INTEL_HSW_ULT_GT2_IDS(0),
-	INTEL_HSW_ULT_GT3_IDS(0),
-	INTEL_BDW_ULT_GT1_IDS(0),
-	INTEL_BDW_ULT_GT2_IDS(0),
-	INTEL_BDW_ULT_GT3_IDS(0),
-	INTEL_BDW_ULT_RSVD_IDS(0),
-	INTEL_SKL_ULT_GT1_IDS(0),
-	INTEL_SKL_ULT_GT2_IDS(0),
-	INTEL_SKL_ULT_GT3_IDS(0),
-	INTEL_KBL_ULT_GT1_IDS(0),
-	INTEL_KBL_ULT_GT2_IDS(0),
-	INTEL_KBL_ULT_GT3_IDS(0),
-	INTEL_CFL_U_GT2_IDS(0),
-	INTEL_CFL_U_GT3_IDS(0),
-	INTEL_WHL_U_GT1_IDS(0),
-	INTEL_WHL_U_GT2_IDS(0),
-	INTEL_WHL_U_GT3_IDS(0),
-	INTEL_CML_U_GT1_IDS(0),
-	INTEL_CML_U_GT2_IDS(0),
+	INTEL_HSW_ULT_GT1_IDS(ID),
+	INTEL_HSW_ULT_GT2_IDS(ID),
+	INTEL_HSW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_GT1_IDS(ID),
+	INTEL_BDW_ULT_GT2_IDS(ID),
+	INTEL_BDW_ULT_GT3_IDS(ID),
+	INTEL_BDW_ULT_RSVD_IDS(ID),
+	INTEL_SKL_ULT_GT1_IDS(ID),
+	INTEL_SKL_ULT_GT2_IDS(ID),
+	INTEL_SKL_ULT_GT3_IDS(ID),
+	INTEL_KBL_ULT_GT1_IDS(ID),
+	INTEL_KBL_ULT_GT2_IDS(ID),
+	INTEL_KBL_ULT_GT3_IDS(ID),
+	INTEL_CFL_U_GT2_IDS(ID),
+	INTEL_CFL_U_GT3_IDS(ID),
+	INTEL_WHL_U_GT1_IDS(ID),
+	INTEL_WHL_U_GT2_IDS(ID),
+	INTEL_WHL_U_GT3_IDS(ID),
+	INTEL_CML_U_GT1_IDS(ID),
+	INTEL_CML_U_GT2_IDS(ID),
 };
 
 static const u16 subplatform_ulx_ids[] = {
-	INTEL_HSW_ULX_GT1_IDS(0),
-	INTEL_HSW_ULX_GT2_IDS(0),
-	INTEL_BDW_ULX_GT1_IDS(0),
-	INTEL_BDW_ULX_GT2_IDS(0),
-	INTEL_BDW_ULX_GT3_IDS(0),
-	INTEL_BDW_ULX_RSVD_IDS(0),
-	INTEL_SKL_ULX_GT1_IDS(0),
-	INTEL_SKL_ULX_GT2_IDS(0),
-	INTEL_KBL_ULX_GT1_IDS(0),
-	INTEL_KBL_ULX_GT2_IDS(0),
-	INTEL_AML_KBL_GT2_IDS(0),
-	INTEL_AML_CFL_GT2_IDS(0),
+	INTEL_HSW_ULX_GT1_IDS(ID),
+	INTEL_HSW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT1_IDS(ID),
+	INTEL_BDW_ULX_GT2_IDS(ID),
+	INTEL_BDW_ULX_GT3_IDS(ID),
+	INTEL_BDW_ULX_RSVD_IDS(ID),
+	INTEL_SKL_ULX_GT1_IDS(ID),
+	INTEL_SKL_ULX_GT2_IDS(ID),
+	INTEL_KBL_ULX_GT1_IDS(ID),
+	INTEL_KBL_ULX_GT2_IDS(ID),
+	INTEL_AML_KBL_GT2_IDS(ID),
+	INTEL_AML_CFL_GT2_IDS(ID),
 };
 
 static const u16 subplatform_portf_ids[] = {
-	INTEL_ICL_PORT_F_IDS(0),
+	INTEL_ICL_PORT_F_IDS(ID),
 };
 
 static const u16 subplatform_uy_ids[] = {
-	INTEL_TGL_12_GT2_IDS(0),
+	INTEL_TGL_GT2_IDS(ID),
 };
 
 static const u16 subplatform_n_ids[] = {
-	INTEL_ADLN_IDS(0),
+	INTEL_ADLN_IDS(ID),
 };
 
 static const u16 subplatform_rpl_ids[] = {
-	INTEL_RPLS_IDS(0),
-	INTEL_RPLP_IDS(0),
+	INTEL_RPLS_IDS(ID),
+	INTEL_RPLU_IDS(ID),
+	INTEL_RPLP_IDS(ID),
 };
 
 static const u16 subplatform_rplu_ids[] = {
-	INTEL_RPLU_IDS(0),
+	INTEL_RPLU_IDS(ID),
 };
 
 static const u16 subplatform_g10_ids[] = {
-	INTEL_DG2_G10_IDS(0),
-	INTEL_ATS_M150_IDS(0),
+	INTEL_DG2_G10_IDS(ID),
+	INTEL_ATS_M150_IDS(ID),
 };
 
 static const u16 subplatform_g11_ids[] = {
-	INTEL_DG2_G11_IDS(0),
-	INTEL_ATS_M75_IDS(0),
+	INTEL_DG2_G11_IDS(ID),
+	INTEL_ATS_M75_IDS(ID),
 };
 
 static const u16 subplatform_g12_ids[] = {
-	INTEL_DG2_G12_IDS(0),
+	INTEL_DG2_G12_IDS(ID),
+};
+
+static const u16 subplatform_dg2_d_ids[] = {
+	INTEL_DG2_D_IDS(ID),
+};
+
+static const u16 subplatform_arl_h_ids[] = {
+	INTEL_ARL_H_IDS(ID),
+};
+
+static const u16 subplatform_arl_u_ids[] = {
+	INTEL_ARL_U_IDS(ID),
+};
+
+static const u16 subplatform_arl_s_ids[] = {
+	INTEL_ARL_S_IDS(ID),
 };
 
 static bool find_devid(u16 id, const u16 *p, unsigned int num)
@@ -260,7 +273,21 @@ static void intel_device_info_subplatform_init(struct drm_i915_private *i915)
 	} else if (find_devid(devid, subplatform_g12_ids,
 			      ARRAY_SIZE(subplatform_g12_ids))) {
 		mask = BIT(INTEL_SUBPLATFORM_G12);
+	} else if (find_devid(devid, subplatform_arl_h_ids,
+			      ARRAY_SIZE(subplatform_arl_h_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ARL_H);
+	} else if (find_devid(devid, subplatform_arl_u_ids,
+			      ARRAY_SIZE(subplatform_arl_u_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ARL_U);
+	} else if (find_devid(devid, subplatform_arl_s_ids,
+			      ARRAY_SIZE(subplatform_arl_s_ids))) {
+		mask = BIT(INTEL_SUBPLATFORM_ARL_S);
 	}
+
+	/* DG2_D ids span across multiple DG2 subplatforms */
+	if (find_devid(devid, subplatform_dg2_d_ids,
+		       ARRAY_SIZE(subplatform_dg2_d_ids)))
+		mask |= BIT(INTEL_SUBPLATFORM_D);
 
 	GEM_BUG_ON(mask & ~INTEL_SUBPLATFORM_MASK);
 
@@ -370,10 +397,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			 "Disabling ppGTT for VT-d support\n");
 		runtime->ppgtt_type = INTEL_PPGTT_NONE;
 	}
-
-	runtime->rawclk_freq = intel_read_rawclk(dev_priv);
-	drm_dbg(&dev_priv->drm, "rawclk rate: %d kHz\n", runtime->rawclk_freq);
-
 }
 
 /*

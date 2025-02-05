@@ -59,7 +59,6 @@ static int tpm_release(struct inode *inode, struct file *file)
 
 const struct file_operations tpm_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.open = tpm_open,
 	.read = tpm_common_read,
 	.write = tpm_common_write,

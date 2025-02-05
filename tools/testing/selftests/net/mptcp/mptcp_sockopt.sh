@@ -22,6 +22,28 @@ ns1=""
 ns2=""
 ns_sbox=""
 
+usage() {
+	echo "Usage: $0 [ -i ] [ -h ]"
+	echo -e "\t-i: use 'ip mptcp' instead of 'pm_nl_ctl'"
+	echo -e "\t-h: help"
+}
+
+while getopts "hi" option;do
+	case "$option" in
+	"h")
+		usage "$0"
+		exit ${KSFT_PASS}
+		;;
+	"i")
+		mptcp_lib_set_ip_mptcp
+		;;
+	"?")
+		usage "$0"
+		exit ${KSFT_FAIL}
+		;;
+	esac
+done
+
 add_mark_rules()
 {
 	local ns=$1
@@ -58,15 +80,15 @@ init()
 		# let $ns2 reach any $ns1 address from any interface
 		ip -net "$ns2" route add default via 10.0.$i.1 dev ns2eth$i metric 10$i
 
-		ip netns exec $ns1 ./pm_nl_ctl add 10.0.$i.1 flags signal
-		ip netns exec $ns1 ./pm_nl_ctl add dead:beef:$i::1 flags signal
+		mptcp_lib_pm_nl_add_endpoint "${ns1}" "10.0.${i}.1" flags signal
+		mptcp_lib_pm_nl_add_endpoint "${ns1}" "dead:beef:${i}::1" flags signal
 
-		ip netns exec $ns2 ./pm_nl_ctl add 10.0.$i.2 flags signal
-		ip netns exec $ns2 ./pm_nl_ctl add dead:beef:$i::2 flags signal
+		mptcp_lib_pm_nl_add_endpoint "${ns2}" "10.0.${i}.2" flags signal
+		mptcp_lib_pm_nl_add_endpoint "${ns2}" "dead:beef:${i}::2" flags signal
 	done
 
-	ip netns exec $ns1 ./pm_nl_ctl limits 8 8
-	ip netns exec $ns2 ./pm_nl_ctl limits 8 8
+	mptcp_lib_pm_nl_set_limits "${ns1}" 8 8
+	mptcp_lib_pm_nl_set_limits "${ns2}" 8 8
 
 	add_mark_rules $ns1 1
 	add_mark_rules $ns2 2
@@ -147,6 +169,11 @@ do_transfer()
 		cmsg+=",TCPINQ"
 	fi
 
+	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
+		nstat -n
+	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
+		nstat -n
+
 	timeout ${timeout_test} \
 		ip netns exec ${listener_ns} \
 			$mptcp_connect -t ${timeout_poll} -l -M 1 -p $port -s ${srv_proto} -c "${cmsg}" \
@@ -167,14 +194,16 @@ do_transfer()
 	wait $spid
 	local rets=$?
 
+	NSTAT_HISTORY=/tmp/${listener_ns}.nstat ip netns exec ${listener_ns} \
+		nstat | grep Tcp > /tmp/${listener_ns}.out
+	NSTAT_HISTORY=/tmp/${connector_ns}.nstat ip netns exec ${connector_ns} \
+		nstat | grep Tcp > /tmp/${connector_ns}.out
+
 	print_title "Transfer ${ip:2}"
 	if [ ${rets} -ne 0 ] || [ ${retc} -ne 0 ]; then
 		mptcp_lib_pr_fail "client exit code $retc, server $rets"
-		echo -e "\nnetns ${listener_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${listener_ns} ss -Menita 1>&2 -o "sport = :$port"
-
-		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
-		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
+		mptcp_lib_pr_err_stats "${listener_ns}" "${connector_ns}" "${port}" \
+			"/tmp/${listener_ns}.out" "/tmp/${connector_ns}.out"
 
 		mptcp_lib_result_fail "transfer ${ip}"
 
@@ -327,6 +356,7 @@ init
 make_file "$cin" "client" 1
 make_file "$sin" "server" 1
 trap cleanup EXIT
+mptcp_lib_subtests_last_ts_reset
 
 run_tests $ns1 $ns2 10.0.1.1
 run_tests $ns1 $ns2 dead:beef:1::1

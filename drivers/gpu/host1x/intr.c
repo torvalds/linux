@@ -6,7 +6,7 @@
  */
 
 #include <linux/clk.h>
-
+#include <linux/interrupt.h>
 #include "dev.h"
 #include "fence.h"
 #include "intr.h"
@@ -100,7 +100,9 @@ void host1x_intr_handle_interrupt(struct host1x *host, unsigned int id)
 
 int host1x_intr_init(struct host1x *host)
 {
+	struct host1x_intr_irq_data *irq_data;
 	unsigned int id;
+	int i, err;
 
 	mutex_init(&host->intr_mutex);
 
@@ -109,6 +111,23 @@ int host1x_intr_init(struct host1x *host)
 
 		spin_lock_init(&syncpt->fences.lock);
 		INIT_LIST_HEAD(&syncpt->fences.list);
+	}
+
+	irq_data = devm_kcalloc(host->dev, host->num_syncpt_irqs, sizeof(irq_data[0]), GFP_KERNEL);
+	if (!irq_data)
+		return -ENOMEM;
+
+	host1x_hw_intr_disable_all_syncpt_intrs(host);
+
+	for (i = 0; i < host->num_syncpt_irqs; i++) {
+		irq_data[i].host = host;
+		irq_data[i].offset = i;
+
+		err = devm_request_irq(host->dev, host->syncpt_irqs[i],
+				       host->intr_op->isr, IRQF_SHARED,
+				       "host1x_syncpt", &irq_data[i]);
+		if (err < 0)
+			return err;
 	}
 
 	return 0;

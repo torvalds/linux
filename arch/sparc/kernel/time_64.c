@@ -33,6 +33,7 @@
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 #include <linux/platform_device.h>
+#include <linux/sched/clock.h>
 #include <linux/ftrace.h>
 
 #include <asm/oplib.h>
@@ -543,6 +544,7 @@ static void mostek_write_byte(struct device *dev, u32 ofs, u8 val)
 static struct m48t59_plat_data m48t59_data = {
 	.read_byte	= mostek_read_byte,
 	.write_byte	= mostek_write_byte,
+	.yy_offset	= 68,
 };
 
 static struct platform_device m48t59_rtc = {

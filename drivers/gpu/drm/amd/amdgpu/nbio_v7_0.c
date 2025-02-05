@@ -271,11 +271,33 @@ const struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg = {
 	.ref_and_mask_sdma1 = GPU_HDP_FLUSH_DONE__SDMA1_MASK,
 };
 
+#define regRCC_DEV0_EPF6_STRAP4                                                                         0xd304
+#define regRCC_DEV0_EPF6_STRAP4_BASE_IDX                                                                5
+
 static void nbio_v7_0_init_registers(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev))
+	uint32_t data;
+
+	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
+	case IP_VERSION(2, 5, 0):
+		data = RREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF6_STRAP4) & ~BIT(23);
+		WREG32_SOC15(NBIO, 0, regRCC_DEV0_EPF6_STRAP4, data);
+		break;
+	}
+}
+
+#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
+
+static void nbio_v7_0_set_reg_remap(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) && (PAGE_SIZE <= 4096)) {
+		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
+		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
+	} else {
 		adev->rmmio_remap.reg_offset =
 			SOC15_REG_OFFSET(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+		adev->rmmio_remap.bus_addr = 0;
+	}
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
@@ -297,4 +319,5 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.ih_control = nbio_v7_0_ih_control,
 	.init_registers = nbio_v7_0_init_registers,
 	.remap_hdp_registers = nbio_v7_0_remap_hdp_registers,
+	.set_reg_remap = nbio_v7_0_set_reg_remap,
 };

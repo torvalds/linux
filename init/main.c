@@ -327,7 +327,7 @@ static int __init xbc_snprint_cmdline(char *buf, size_t size,
 {
 	struct xbc_node *knode, *vnode;
 	char *end = buf + size;
-	const char *val;
+	const char *val, *q;
 	int ret;
 
 	xbc_node_for_each_key_value(root, knode, val) {
@@ -345,8 +345,14 @@ static int __init xbc_snprint_cmdline(char *buf, size_t size,
 			continue;
 		}
 		xbc_array_for_each_value(vnode, val) {
-			ret = snprintf(buf, rest(buf, end), "%s=\"%s\" ",
-				       xbc_namebuf, val);
+			/*
+			 * For prettier and more readable /proc/cmdline, only
+			 * quote the value when necessary, i.e. when it contains
+			 * whitespace.
+			 */
+			q = strpbrk(val, " \t\r\n") ? "\"" : "";
+			ret = snprintf(buf, rest(buf, end), "%s=%s%s%s ",
+				       xbc_namebuf, q, val, q);
 			if (ret < 0)
 				return ret;
 			buf += ret;
@@ -627,20 +633,18 @@ static void __init setup_command_line(char *command_line)
 
 	if (extra_command_line)
 		xlen = strlen(extra_command_line);
-	if (extra_init_args)
+	if (extra_init_args) {
+		extra_init_args = strim(extra_init_args); /* remove trailing space */
 		ilen = strlen(extra_init_args) + 4; /* for " -- " */
+	}
 
-	len = xlen + strlen(boot_command_line) + 1;
+	len = xlen + strlen(boot_command_line) + ilen + 1;
 
-	saved_command_line = memblock_alloc(len + ilen, SMP_CACHE_BYTES);
-	if (!saved_command_line)
-		panic("%s: Failed to allocate %zu bytes\n", __func__, len + ilen);
+	saved_command_line = memblock_alloc_or_panic(len, SMP_CACHE_BYTES);
 
 	len = xlen + strlen(command_line) + 1;
 
-	static_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
-	if (!static_command_line)
-		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
+	static_command_line = memblock_alloc_or_panic(len, SMP_CACHE_BYTES);
 
 	if (xlen) {
 		/*
@@ -746,10 +750,7 @@ static int __init do_early_param(char *param, char *val,
 	const struct obs_kernel_param *p;
 
 	for (p = __setup_start; p < __setup_end; p++) {
-		if ((p->early && parameq(param, p->str)) ||
-		    (strcmp(param, "console") == 0 &&
-		     strcmp(p->str, "earlycon") == 0)
-		) {
+		if (p->early && parameq(param, p->str)) {
 			if (p->setup_func(val) != 0)
 				pr_warn("Malformed early option '%s'\n", param);
 		}
@@ -878,6 +879,19 @@ static void __init print_unknown_bootoptions(void)
 	memblock_free(unknown_options, len);
 }
 
+static void __init early_numa_node_init(void)
+{
+#ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
+#ifndef cpu_to_node
+	int cpu;
+
+	/* The early_cpu_to_node() should be ready here. */
+	for_each_possible_cpu(cpu)
+		set_cpu_numa_node(cpu, early_cpu_to_node(cpu));
+#endif
+#endif
+}
+
 asmlinkage __visible __init __no_sanitize_address __noreturn __no_stack_protector
 void start_kernel(void)
 {
@@ -901,18 +915,21 @@ void start_kernel(void)
 	boot_cpu_init();
 	page_address_init();
 	pr_notice("%s", linux_banner);
-	early_security_init();
 	setup_arch(&command_line);
+	/* Static keys and static calls are needed by LSMs */
+	jump_label_init();
+	static_call_init();
+	early_security_init();
 	setup_boot_config();
 	setup_command_line(command_line);
 	setup_nr_cpu_ids();
 	setup_per_cpu_areas();
 	smp_prepare_boot_cpu();	/* arch-specific boot-cpu hooks */
+	early_numa_node_init();
 	boot_cpu_hotplug_init();
 
 	pr_notice("Kernel command line: %s\n", saved_command_line);
 	/* parameters may set static keys */
-	jump_label_init();
 	parse_early_param();
 	after_dashes = parse_args("Booting kernel",
 				  static_command_line, __start___param,
@@ -971,6 +988,7 @@ void start_kernel(void)
 	workqueue_init_early();
 
 	rcu_init();
+	kvfree_rcu_init();
 
 	/* Trace events are available after this */
 	trace_init();
@@ -1124,16 +1142,10 @@ static int __init initcall_blacklist(char *str)
 		str_entry = strsep(&str, ",");
 		if (str_entry) {
 			pr_debug("blacklisting initcall %s\n", str_entry);
-			entry = memblock_alloc(sizeof(*entry),
+			entry = memblock_alloc_or_panic(sizeof(*entry),
 					       SMP_CACHE_BYTES);
-			if (!entry)
-				panic("%s: Failed to allocate %zu bytes\n",
-				      __func__, sizeof(*entry));
-			entry->buf = memblock_alloc(strlen(str_entry) + 1,
+			entry->buf = memblock_alloc_or_panic(strlen(str_entry) + 1,
 						    SMP_CACHE_BYTES);
-			if (!entry->buf)
-				panic("%s: Failed to allocate %zu bytes\n",
-				      __func__, strlen(str_entry) + 1);
 			strcpy(entry->buf, str_entry);
 			list_add(&entry->next, &blacklisted_initcalls);
 		}
@@ -1415,6 +1427,7 @@ static void mark_readonly(void)
 		 * insecure pages which are W+X.
 		 */
 		flush_module_init_free_work();
+		jump_label_init_ro();
 		mark_rodata_ro();
 		debug_checkwx();
 		rodata_test();

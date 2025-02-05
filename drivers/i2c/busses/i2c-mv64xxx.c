@@ -89,8 +89,8 @@ enum {
 	MV64XXX_I2C_STATE_WAITING_FOR_RESTART,
 	MV64XXX_I2C_STATE_WAITING_FOR_ADDR_1_ACK,
 	MV64XXX_I2C_STATE_WAITING_FOR_ADDR_2_ACK,
-	MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_ACK,
-	MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_DATA,
+	MV64XXX_I2C_STATE_WAITING_FOR_TARGET_ACK,
+	MV64XXX_I2C_STATE_WAITING_FOR_TARGET_DATA,
 };
 
 /* Driver actions */
@@ -279,7 +279,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		} else {
 			drv_data->action = MV64XXX_I2C_ACTION_SEND_DATA;
 			drv_data->state =
-				MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_ACK;
+				MV64XXX_I2C_STATE_WAITING_FOR_TARGET_ACK;
 			drv_data->bytes_left--;
 		}
 		break;
@@ -307,7 +307,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 			drv_data->action = MV64XXX_I2C_ACTION_RCV_DATA;
 			drv_data->bytes_left--;
 		}
-		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_DATA;
+		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_TARGET_DATA;
 
 		if ((drv_data->bytes_left == 1) || drv_data->aborting)
 			drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_ACK;
@@ -797,8 +797,8 @@ static int mv64xxx_i2c_xfer_atomic(struct i2c_adapter *adap,
 }
 
 static const struct i2c_algorithm mv64xxx_i2c_algo = {
-	.master_xfer = mv64xxx_i2c_xfer,
-	.master_xfer_atomic = mv64xxx_i2c_xfer_atomic,
+	.xfer = mv64xxx_i2c_xfer,
+	.xfer_atomic = mv64xxx_i2c_xfer_atomic,
 	.functionality = mv64xxx_i2c_functionality,
 };
 
@@ -1104,7 +1104,7 @@ static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove_new = mv64xxx_i2c_remove,
+	.remove = mv64xxx_i2c_remove,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
 		.pm     = &mv64xxx_i2c_pm_ops,

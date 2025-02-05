@@ -68,6 +68,7 @@ enum ath12k_qmi_event_type {
 	ATH12K_QMI_EVENT_FORCE_FW_ASSERT,
 	ATH12K_QMI_EVENT_POWER_UP,
 	ATH12K_QMI_EVENT_POWER_DOWN,
+	ATH12K_QMI_EVENT_HOST_CAP,
 	ATH12K_QMI_EVENT_MAX,
 };
 
@@ -96,6 +97,8 @@ struct ath12k_qmi_event_msg {
 struct target_mem_chunk {
 	u32 size;
 	u32 type;
+	u32 prev_size;
+	u32 prev_type;
 	dma_addr_t paddr;
 	union {
 		void __iomem *ioaddr;
@@ -140,6 +143,10 @@ struct ath12k_qmi {
 	u32 target_mem_mode;
 	bool target_mem_delayed;
 	u8 cal_done;
+
+	/* protected with struct ath12k_qmi::event_lock */
+	bool block_event;
+
 	u8 num_radios;
 	struct target_info target;
 	struct m3_mem_region m3_mem;
@@ -165,6 +172,7 @@ enum ath12k_qmi_target_mem {
 	BDF_MEM_REGION_TYPE = 0x2,
 	M3_DUMP_REGION_TYPE = 0x3,
 	CALDB_MEM_REGION_TYPE = 0x4,
+	MLO_GLOBAL_MEM_REGION_TYPE = 0x8,
 	PAGEABLE_MEM_REGION_TYPE = 0x9,
 };
 
@@ -265,6 +273,8 @@ struct qmi_wlanfw_phy_cap_resp_msg_v01 {
 	u8 num_phy;
 	u8 board_id_valid;
 	u32 board_id;
+	u8 single_chip_mlo_support_valid;
+	u8 single_chip_mlo_support;
 };
 
 #define QMI_WLANFW_IND_REGISTER_REQ_MSG_V01_MAX_LEN		54
@@ -590,11 +600,26 @@ struct qmi_wlanfw_wlan_ini_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
 };
 
+static inline void ath12k_qmi_set_event_block(struct ath12k_qmi *qmi, bool block)
+{
+	lockdep_assert_held(&qmi->event_lock);
+
+	qmi->block_event = block;
+}
+
+static inline bool ath12k_qmi_get_event_block(struct ath12k_qmi *qmi)
+{
+	lockdep_assert_held(&qmi->event_lock);
+
+	return qmi->block_event;
+}
+
 int ath12k_qmi_firmware_start(struct ath12k_base *ab,
 			      u32 mode);
 void ath12k_qmi_firmware_stop(struct ath12k_base *ab);
 void ath12k_qmi_deinit_service(struct ath12k_base *ab);
 int ath12k_qmi_init_service(struct ath12k_base *ab);
 void ath12k_qmi_free_resource(struct ath12k_base *ab);
+void ath12k_qmi_trigger_host_cap(struct ath12k_base *ab);
 
 #endif

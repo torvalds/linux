@@ -16,24 +16,19 @@ struct bucket {
 	u32			stripe;
 	u32			dirty_sectors;
 	u32			cached_sectors;
-};
-
-struct bucket_array {
-	struct rcu_head		rcu;
-	u16			first_bucket;
-	size_t			nbuckets;
-	struct bucket		b[];
-};
+	u32			stripe_sectors;
+} __aligned(sizeof(long));
 
 struct bucket_gens {
 	struct rcu_head		rcu;
 	u16			first_bucket;
 	size_t			nbuckets;
-	u8			b[];
+	size_t			nbuckets_minus_first;
+	u8			b[] __counted_by(nbuckets);
 };
 
 struct bch_dev_usage {
-	struct {
+	struct bch_dev_usage_type {
 		u64		buckets;
 		u64		sectors; /* _compressed_ sectors: */
 		/*
@@ -52,18 +47,6 @@ struct bch_fs_usage_base {
 	u64			cached;
 	u64			reserved;
 	u64			nr_inodes;
-};
-
-struct bch_fs_usage {
-	/* all fields are in units of 512 byte sectors: */
-	struct bch_fs_usage_base b;
-	u64			persistent_reserved[BCH_REPLICAS_MAX];
-	u64			replicas[];
-};
-
-struct bch_fs_usage_online {
-	u64			online_reserved;
-	struct bch_fs_usage	u;
 };
 
 struct bch_fs_usage_short {

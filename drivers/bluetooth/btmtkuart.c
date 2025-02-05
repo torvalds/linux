@@ -8,7 +8,7 @@
  *
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/atomic.h>
 #include <linux/clk.h>
 #include <linux/firmware.h>
@@ -22,6 +22,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/serdev.h>
 #include <linux/skbuff.h>
+#include <linux/usb.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -326,7 +327,7 @@ mtk_stp_split(struct btmtkuart_dev *bdev, const unsigned char *data, int count,
 	if (count <= 0)
 		return NULL;
 
-	/* Tranlate to how much the size of data H4 can handle so far */
+	/* Translate to how much the size of data H4 can handle so far */
 	*sz_h4 = min_t(int, count, bdev->stp_dlen);
 
 	/* Update the remaining size of STP packet */

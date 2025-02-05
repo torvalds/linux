@@ -274,6 +274,7 @@ static void destroy_super_work(struct work_struct *work)
 {
 	struct super_block *s = container_of(work, struct super_block,
 							destroy_work);
+	fsnotify_sb_free(s);
 	security_sb_free(s);
 	put_user_ns(s->s_user_ns);
 	kfree(s->s_subtype);
@@ -620,7 +621,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		cgroup_writeback_umount();
+		cgroup_writeback_umount(sb);
 
 		/* Evict all inodes with zero refcount. */
 		evict_inodes(sb);
@@ -646,7 +647,7 @@ void generic_shutdown_super(struct super_block *sb)
 		 */
 		fscrypt_destroy_keyring(sb);
 
-		if (CHECK_DATA_CORRUPTION(!list_empty(&sb->s_inodes),
+		if (CHECK_DATA_CORRUPTION(!list_empty(&sb->s_inodes), NULL,
 				"VFS: Busy inodes after unmount of %s (%s)",
 				sb->s_id, sb->s_type->name)) {
 			/*
@@ -734,6 +735,17 @@ struct super_block *sget_fc(struct fs_context *fc,
 	struct super_block *old;
 	struct user_namespace *user_ns = fc->global ? &init_user_ns : fc->user_ns;
 	int err;
+
+	/*
+	 * Never allow s_user_ns != &init_user_ns when FS_USERNS_MOUNT is
+	 * not set, as the filesystem is likely unprepared to handle it.
+	 * This can happen when fsconfig() is called from init_user_ns with
+	 * an fs_fd opened in another user namespace.
+	 */
+	if (user_ns != &init_user_ns && !(fc->fs_type->fs_flags & FS_USERNS_MOUNT)) {
+		errorfc(fc, "VFS: Mounting from non-initial user namespace is not allowed");
+		return ERR_PTR(-EPERM);
+	}
 
 retry:
 	spin_lock(&sb_lock);
@@ -1501,8 +1513,17 @@ static int fs_bdev_thaw(struct block_device *bdev)
 
 	lockdep_assert_held(&bdev->bd_fsfreeze_mutex);
 
+	/*
+	 * The block device may have been frozen before it was claimed by a
+	 * filesystem. Concurrently another process might try to mount that
+	 * frozen block device and has temporarily claimed the block device for
+	 * that purpose causing a concurrent fs_bdev_thaw() to end up here. The
+	 * mounter is already about to abort mounting because they still saw an
+	 * elevanted bdev->bd_fsfreeze_count so get_bdev_super() will return
+	 * NULL in that case.
+	 */
 	sb = get_bdev_super(bdev);
-	if (WARN_ON_ONCE(!sb))
+	if (!sb)
 		return -EINVAL;
 
 	if (sb->s_op->thaw_super)
@@ -1575,13 +1596,14 @@ int setup_bdev_super(struct super_block *sb, int sb_flags,
 EXPORT_SYMBOL_GPL(setup_bdev_super);
 
 /**
- * get_tree_bdev - Get a superblock based on a single block device
+ * get_tree_bdev_flags - Get a superblock based on a single block device
  * @fc: The filesystem context holding the parameters
  * @fill_super: Helper to initialise a new superblock
+ * @flags: GET_TREE_BDEV_* flags
  */
-int get_tree_bdev(struct fs_context *fc,
-		int (*fill_super)(struct super_block *,
-				  struct fs_context *))
+int get_tree_bdev_flags(struct fs_context *fc,
+		int (*fill_super)(struct super_block *sb,
+				  struct fs_context *fc), unsigned int flags)
 {
 	struct super_block *s;
 	int error = 0;
@@ -1592,10 +1614,10 @@ int get_tree_bdev(struct fs_context *fc,
 
 	error = lookup_bdev(fc->source, &dev);
 	if (error) {
-		errorf(fc, "%s: Can't lookup blockdev", fc->source);
+		if (!(flags & GET_TREE_BDEV_QUIET_LOOKUP))
+			errorf(fc, "%s: Can't lookup blockdev", fc->source);
 		return error;
 	}
-
 	fc->sb_flags |= SB_NOSEC;
 	s = sget_dev(fc, dev);
 	if (IS_ERR(s))
@@ -1622,6 +1644,19 @@ int get_tree_bdev(struct fs_context *fc,
 	BUG_ON(fc->root);
 	fc->root = dget(s->s_root);
 	return 0;
+}
+EXPORT_SYMBOL_GPL(get_tree_bdev_flags);
+
+/**
+ * get_tree_bdev - Get a superblock based on a single block device
+ * @fc: The filesystem context holding the parameters
+ * @fill_super: Helper to initialise a new superblock
+ */
+int get_tree_bdev(struct fs_context *fc,
+		int (*fill_super)(struct super_block *,
+				  struct fs_context *))
+{
+	return get_tree_bdev_flags(fc, fill_super, 0);
 }
 EXPORT_SYMBOL(get_tree_bdev);
 
@@ -1781,8 +1816,8 @@ int vfs_get_tree(struct fs_context *fc)
 		return error;
 
 	if (!fc->root) {
-		pr_err("Filesystem %s get_tree() didn't set fc->root\n",
-		       fc->fs_type->name);
+		pr_err("Filesystem %s get_tree() didn't set fc->root, returned %i\n",
+		       fc->fs_type->name, error);
 		/* We don't know what the locking state of the superblock is -
 		 * if there is a superblock.
 		 */
@@ -1884,7 +1919,7 @@ static void lockdep_sb_freeze_release(struct super_block *sb)
 	int level;
 
 	for (level = SB_FREEZE_LEVELS - 1; level >= 0; level--)
-		percpu_rwsem_release(sb->s_writers.rw_sem + level, 0, _THIS_IP_);
+		percpu_rwsem_release(sb->s_writers.rw_sem + level, _THIS_IP_);
 }
 
 /*

@@ -92,7 +92,14 @@ static ssize_t profiling_store(struct kobject *kobj,
 				   const char *buf, size_t count)
 {
 	int ret;
+	static DEFINE_MUTEX(lock);
 
+	/*
+	 * We need serialization, for profile_setup() initializes prof_on
+	 * value and profile_init() must not reallocate prof_buffer after
+	 * once allocated.
+	 */
+	guard(mutex)(&lock);
 	if (prof_on)
 		return -EEXIST;
 	/*
@@ -228,25 +235,11 @@ KERNEL_ATTR_RW(rcu_normal);
 /*
  * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
  */
-extern const void __start_notes __weak;
-extern const void __stop_notes __weak;
+extern const void __start_notes;
+extern const void __stop_notes;
 #define	notes_size (&__stop_notes - &__start_notes)
 
-static ssize_t notes_read(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr,
-			  char *buf, loff_t off, size_t count)
-{
-	memcpy(buf, &__start_notes + off, count);
-	return count;
-}
-
-static struct bin_attribute notes_attr __ro_after_init  = {
-	.attr = {
-		.name = "notes",
-		.mode = S_IRUGO,
-	},
-	.read = &notes_read,
-};
+static __ro_after_init BIN_ATTR_SIMPLE_RO(notes);
 
 struct kobject *kernel_kobj;
 EXPORT_SYMBOL_GPL(kernel_kobj);
@@ -300,8 +293,9 @@ static int __init ksysfs_init(void)
 		goto kset_exit;
 
 	if (notes_size > 0) {
-		notes_attr.size = notes_size;
-		error = sysfs_create_bin_file(kernel_kobj, &notes_attr);
+		bin_attr_notes.private = (void *)&__start_notes;
+		bin_attr_notes.size = notes_size;
+		error = sysfs_create_bin_file(kernel_kobj, &bin_attr_notes);
 		if (error)
 			goto group_exit;
 	}

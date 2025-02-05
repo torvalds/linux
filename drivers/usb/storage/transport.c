@@ -1087,13 +1087,9 @@ int usb_stor_Bulk_max_lun(struct us_data *us)
 	usb_stor_dbg(us, "GetMaxLUN command result is %d, data is %d\n",
 		     result, us->iobuf[0]);
 
-	/*
-	 * If we have a successful request, return the result if valid. The
-	 * CBW LUN field is 4 bits wide, so the value reported by the device
-	 * should fit into that.
-	 */
+	/* If we have a successful request, return the result if valid. */
 	if (result > 0) {
-		if (us->iobuf[0] < 16) {
+		if (us->iobuf[0] <= US_BULK_MAX_LUN_LIMIT) {
 			return us->iobuf[0];
 		} else {
 			dev_info(&us->pusb_intf->dev,
@@ -1133,7 +1129,7 @@ int usb_stor_Bulk_transport(struct scsi_cmnd *srb, struct us_data *us)
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = cpu_to_le32(transfer_length);
 	bcb->Flags = srb->sc_data_direction == DMA_FROM_DEVICE ?
-		US_BULK_FLAG_IN : 0;
+		US_BULK_FLAG_IN : US_BULK_FLAG_OUT;
 	bcb->Tag = ++us->tag;
 	bcb->Lun = srb->device->lun;
 	if (us->fflags & US_FL_SCM_MULT_TARG)

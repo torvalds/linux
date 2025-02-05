@@ -219,4 +219,5 @@ void altera_spi_init_host(struct spi_controller *host)
 }
 EXPORT_SYMBOL_GPL(altera_spi_init_host);
 
+MODULE_DESCRIPTION("Altera SPI Controller driver core");
 MODULE_LICENSE("GPL");

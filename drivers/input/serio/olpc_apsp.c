@@ -188,7 +188,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 		return priv->irq;
 
 	/* KEYBOARD */
-	kb_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	kb_serio = kzalloc(sizeof(*kb_serio), GFP_KERNEL);
 	if (!kb_serio)
 		return -ENOMEM;
 	kb_serio->id.type	= SERIO_8042_XL;
@@ -203,7 +203,7 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	serio_register_port(kb_serio);
 
 	/* TOUCHPAD */
-	pad_serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	pad_serio = kzalloc(sizeof(*pad_serio), GFP_KERNEL);
 	if (!pad_serio) {
 		error = -ENOMEM;
 		goto err_pad;
@@ -256,7 +256,7 @@ MODULE_DEVICE_TABLE(of, olpc_apsp_dt_ids);
 
 static struct platform_driver olpc_apsp_driver = {
 	.probe		= olpc_apsp_probe,
-	.remove_new	= olpc_apsp_remove,
+	.remove		= olpc_apsp_remove,
 	.driver		= {
 		.name	= "olpc-apsp",
 		.of_match_table = olpc_apsp_dt_ids,

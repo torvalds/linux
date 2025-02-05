@@ -1366,10 +1366,10 @@ do_config(struct net_device *dev, struct ifmap *map)
 	    return -EINVAL;
 	if (!map->port) {
 	    local->probe_port = 1;
-	    dev->if_port = 1;
+	    WRITE_ONCE(dev->if_port, 1);
 	} else {
 	    local->probe_port = 0;
-	    dev->if_port = map->port;
+	    WRITE_ONCE(dev->if_port, map->port);
 	}
 	netdev_info(dev, "switching to %s port\n", if_names[dev->if_port]);
 	do_reset(dev,1);  /* not the fine way :-) */

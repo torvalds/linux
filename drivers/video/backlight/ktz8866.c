@@ -179,8 +179,8 @@ static void ktz8866_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ktz8866_ids[] = {
-	{ "ktz8866", 0 },
-	{},
+	{ "ktz8866" },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, ktz8866_ids);
 
@@ -190,6 +190,7 @@ static const struct of_device_id ktz8866_match_table[] = {
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, ktz8866_match_table);
 
 static struct i2c_driver ktz8866_driver = {
 	.driver = {

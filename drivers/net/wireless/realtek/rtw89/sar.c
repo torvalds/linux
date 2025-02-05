@@ -27,8 +27,8 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 		return RTW89_SAR_5GHZ_SUBBAND_1_2;
 	case 5500 ... 5720:
 		return RTW89_SAR_5GHZ_SUBBAND_2_E;
-	case 5745 ... 5825:
-		return RTW89_SAR_5GHZ_SUBBAND_3;
+	case 5745 ... 5885:
+		return RTW89_SAR_5GHZ_SUBBAND_3_4;
 	case 5955 ... 6155:
 		return RTW89_SAR_6GHZ_SUBBAND_5_L;
 	case 6175 ... 6415:
@@ -42,7 +42,7 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 
 	/* freq 6875 (ch 185, 20MHz) spans RTW89_SAR_6GHZ_SUBBAND_7_H
 	 * and RTW89_SAR_6GHZ_SUBBAND_8, so directly describe it with
-	 * struct rtw89_sar_span in the following.
+	 * struct rtw89_6ghz_span.
 	 */
 
 	case 6895 ... 7115:
@@ -50,63 +50,18 @@ static enum rtw89_sar_subband rtw89_sar_get_subband(struct rtw89_dev *rtwdev,
 	}
 }
 
-struct rtw89_sar_span {
-	enum rtw89_sar_subband subband_low;
-	enum rtw89_sar_subband subband_high;
-};
-
-#define RTW89_SAR_SPAN_VALID(span) ((span)->subband_high)
-
-#define RTW89_SAR_6GHZ_SPAN_HEAD 6145
-#define RTW89_SAR_6GHZ_SPAN_IDX(center_freq) \
-	((((int)(center_freq) - RTW89_SAR_6GHZ_SPAN_HEAD) / 5) / 2)
-
-#define RTW89_DECL_SAR_6GHZ_SPAN(center_freq, subband_l, subband_h) \
-	[RTW89_SAR_6GHZ_SPAN_IDX(center_freq)] = { \
-		.subband_low = RTW89_SAR_6GHZ_ ## subband_l, \
-		.subband_high = RTW89_SAR_6GHZ_ ## subband_h, \
-	}
-
-/* Since 6GHz SAR subbands are not edge aligned, some cases span two SAR
- * subbands. In the following, we describe each of them with rtw89_sar_span.
- */
-static const struct rtw89_sar_span rtw89_sar_overlapping_6ghz[] = {
-	RTW89_DECL_SAR_6GHZ_SPAN(6145, SUBBAND_5_L, SUBBAND_5_H),
-	RTW89_DECL_SAR_6GHZ_SPAN(6165, SUBBAND_5_L, SUBBAND_5_H),
-	RTW89_DECL_SAR_6GHZ_SPAN(6185, SUBBAND_5_L, SUBBAND_5_H),
-	RTW89_DECL_SAR_6GHZ_SPAN(6505, SUBBAND_6, SUBBAND_7_L),
-	RTW89_DECL_SAR_6GHZ_SPAN(6525, SUBBAND_6, SUBBAND_7_L),
-	RTW89_DECL_SAR_6GHZ_SPAN(6545, SUBBAND_6, SUBBAND_7_L),
-	RTW89_DECL_SAR_6GHZ_SPAN(6665, SUBBAND_7_L, SUBBAND_7_H),
-	RTW89_DECL_SAR_6GHZ_SPAN(6705, SUBBAND_7_L, SUBBAND_7_H),
-	RTW89_DECL_SAR_6GHZ_SPAN(6825, SUBBAND_7_H, SUBBAND_8),
-	RTW89_DECL_SAR_6GHZ_SPAN(6865, SUBBAND_7_H, SUBBAND_8),
-	RTW89_DECL_SAR_6GHZ_SPAN(6875, SUBBAND_7_H, SUBBAND_8),
-	RTW89_DECL_SAR_6GHZ_SPAN(6885, SUBBAND_7_H, SUBBAND_8),
-};
-
 static int rtw89_query_sar_config_common(struct rtw89_dev *rtwdev,
 					 u32 center_freq, s32 *cfg)
 {
 	struct rtw89_sar_cfg_common *rtwsar = &rtwdev->sar.cfg_common;
-	const struct rtw89_sar_span *span = NULL;
 	enum rtw89_sar_subband subband_l, subband_h;
-	int idx;
+	const struct rtw89_6ghz_span *span;
 
-	if (center_freq >= RTW89_SAR_6GHZ_SPAN_HEAD) {
-		idx = RTW89_SAR_6GHZ_SPAN_IDX(center_freq);
-		/* To decrease size of rtw89_sar_overlapping_6ghz[],
-		 * RTW89_SAR_6GHZ_SPAN_IDX() truncates the leading NULLs
-		 * to make first span as index 0 of the table. So, if center
-		 * frequency is less than the first one, it will get netative.
-		 */
-		if (idx >= 0 && idx < ARRAY_SIZE(rtw89_sar_overlapping_6ghz))
-			span = &rtw89_sar_overlapping_6ghz[idx];
-	}
+	span = rtw89_get_6ghz_span(rtwdev, center_freq);
 
 	if (span && RTW89_SAR_SPAN_VALID(span)) {
-		subband_l = span->subband_low;
-		subband_h = span->subband_high;
+		subband_l = span->sar_subband_low;
+		subband_h = span->sar_subband_high;
 	} else {
 		subband_l = rtw89_sar_get_subband(rtwdev, center_freq);
 		subband_h = subband_l;
@@ -295,7 +250,7 @@ static const struct cfg80211_sar_freq_ranges rtw89_common_sar_freq_ranges[] = {
 	{ .start_freq = 2412, .end_freq = 2484, },
 	{ .start_freq = 5180, .end_freq = 5320, },
 	{ .start_freq = 5500, .end_freq = 5720, },
-	{ .start_freq = 5745, .end_freq = 5825, },
+	{ .start_freq = 5745, .end_freq = 5885, },
 	{ .start_freq = 5955, .end_freq = 6155, },
 	{ .start_freq = 6175, .end_freq = 6415, },
 	{ .start_freq = 6435, .end_freq = 6515, },
@@ -366,7 +321,7 @@ static void rtw89_tas_state_update(struct rtw89_dev *rtwdev)
 	if (src == RTW89_SAR_SOURCE_NONE)
 		return;
 
-	chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	chan = rtw89_chan_get(rtwdev, RTW89_CHANCTX_0);
 	ret = sar_hdl->query_sar_config(rtwdev, chan->freq, &cfg);
 	if (ret)
 		return;

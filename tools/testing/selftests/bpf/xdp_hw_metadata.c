@@ -27,7 +27,7 @@
 #include <linux/errqueue.h>
 #include <linux/if_link.h>
 #include <linux/net_tstamp.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <linux/sockios.h>
 #include <linux/if_xdp.h>
 #include <sys/mman.h>
@@ -79,7 +79,7 @@ static int open_xsk(int ifindex, struct xsk *xsk, __u32 queue_id)
 		.fill_size = XSK_RING_PROD__DEFAULT_NUM_DESCS,
 		.comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS,
 		.frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE,
-		.flags = XSK_UMEM__DEFAULT_FLAGS,
+		.flags = XDP_UMEM_TX_METADATA_LEN,
 		.tx_metadata_len = sizeof(struct xsk_tx_metadata),
 	};
 	__u32 idx = 0;
@@ -495,20 +495,6 @@ peek:
 	return 0;
 }
 
-struct ethtool_channels {
-	__u32	cmd;
-	__u32	max_rx;
-	__u32	max_tx;
-	__u32	max_other;
-	__u32	max_combined;
-	__u32	rx_count;
-	__u32	tx_count;
-	__u32	other_count;
-	__u32	combined_count;
-};
-
-#define ETHTOOL_GCHANNELS	0x0000003c /* Get no of channels */
-
 static int rxq_num(const char *ifname)
 {
 	struct ethtool_channels ch = {
@@ -565,6 +551,7 @@ static void hwtstamp_enable(const char *ifname)
 {
 	struct hwtstamp_config cfg = {
 		.rx_filter = HWTSTAMP_FILTER_ALL,
+		.tx_type = HWTSTAMP_TX_ON,
 	};
 
 	hwtstamp_ioctl(SIOCGHWTSTAMP, ifname, &saved_hwtstamp_cfg);
@@ -595,6 +582,8 @@ static void cleanup(void)
 
 	if (bpf_obj)
 		xdp_hw_metadata__destroy(bpf_obj);
+
+	free((void *)saved_hwtstamp_ifname);
 }
 
 static void handle_signal(int sig)

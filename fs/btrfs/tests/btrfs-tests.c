@@ -29,6 +29,8 @@ const char *test_error[] = {
 	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
 	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
 	[TEST_ALLOC_CHUNK_MAP]       = "cannot allocate chunk map",
+	[TEST_ALLOC_IO_CONTEXT]	     = "cannot allocate io context",
+	[TEST_ALLOC_TRANSACTION]     = "cannot allocate transaction",
 };
 
 static const struct super_operations btrfs_test_super_ops = {
@@ -61,10 +63,7 @@ struct inode *btrfs_new_test_inode(void)
 		return NULL;
 
 	inode->i_mode = S_IFREG;
-	inode->i_ino = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.type = BTRFS_INODE_ITEM_KEY;
-	BTRFS_I(inode)->location.objectid = BTRFS_FIRST_FREE_OBJECTID;
-	BTRFS_I(inode)->location.offset = 0;
+	btrfs_set_inode_number(BTRFS_I(inode), BTRFS_FIRST_FREE_OBJECTID);
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, S_IFREG);
 
 	return inode;
@@ -144,6 +143,11 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
 	fs_info->sectorsize_bits = ilog2(sectorsize);
+
+	/* CRC32C csum size. */
+	fs_info->csum_size = 4;
+	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) /
+		fs_info->csum_size;
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
 	test_mnt->mnt_sb->s_fs_info = fs_info;
@@ -160,8 +164,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	if (!fs_info)
 		return;
 
-	if (WARN_ON(!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO,
-			      &fs_info->fs_state)))
+	if (WARN_ON(!btrfs_is_testing(fs_info)))
 		return;
 
 	test_mnt->mnt_sb->s_fs_info = NULL;
@@ -250,6 +253,15 @@ void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 	kfree(cache);
 }
 
+void btrfs_init_dummy_transaction(struct btrfs_transaction *trans, struct btrfs_fs_info *fs_info)
+{
+	memset(trans, 0, sizeof(*trans));
+	trans->fs_info = fs_info;
+	xa_init(&trans->delayed_refs.head_refs);
+	xa_init(&trans->delayed_refs.dirty_extents);
+	spin_lock_init(&trans->delayed_refs.lock);
+}
+
 void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info)
 {
@@ -293,6 +305,12 @@ int btrfs_run_sanity_tests(void)
 			if (ret)
 				goto out;
 			ret = btrfs_test_free_space_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_raid_stripe_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_delayed_refs(sectorsize, nodesize);
 			if (ret)
 				goto out;
 		}

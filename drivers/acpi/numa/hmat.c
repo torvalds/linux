@@ -151,7 +151,7 @@ int acpi_get_genport_coordinates(u32 uid,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(acpi_get_genport_coordinates, CXL);
+EXPORT_SYMBOL_NS_GPL(acpi_get_genport_coordinates, "CXL");
 
 static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 {
@@ -408,7 +408,7 @@ static __init void hmat_update_target(unsigned int tgt_pxm, unsigned int init_px
 	if (target && target->processor_pxm == init_pxm) {
 		hmat_update_target_access(target, type, value,
 					  ACCESS_COORDINATE_LOCAL);
-		/* If the node has a CPU, update access 1 */
+		/* If the node has a CPU, update access ACCESS_COORDINATE_CPU */
 		if (node_state(pxm_to_node(init_pxm), N_CPU))
 			hmat_update_target_access(target, type, value,
 						  ACCESS_COORDINATE_CPU);
@@ -442,9 +442,9 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 		return -EINVAL;
 	}
 
-	pr_info("Locality: Flags:%02x Type:%s Initiator Domains:%u Target Domains:%u Base:%lld\n",
-		hmat_loc->flags, hmat_data_type(type), ipds, tpds,
-		hmat_loc->entry_base_unit);
+	pr_debug("Locality: Flags:%02x Type:%s Initiator Domains:%u Target Domains:%u Base:%lld\n",
+		 hmat_loc->flags, hmat_data_type(type), ipds, tpds,
+		 hmat_loc->entry_base_unit);
 
 	inits = (u32 *)(hmat_loc + 1);
 	targs = inits + ipds;
@@ -455,9 +455,9 @@ static __init int hmat_parse_locality(union acpi_subtable_headers *header,
 			value = hmat_normalize(entries[init * tpds + targ],
 					       hmat_loc->entry_base_unit,
 					       type);
-			pr_info("  Initiator-Target[%u-%u]:%u%s\n",
-				inits[init], targs[targ], value,
-				hmat_data_type_suffix(type));
+			pr_debug("  Initiator-Target[%u-%u]:%u%s\n",
+				 inits[init], targs[targ], value,
+				 hmat_data_type_suffix(type));
 
 			hmat_update_target(targs[targ], inits[init],
 					   mem_hier, type, value);
@@ -485,9 +485,9 @@ static __init int hmat_parse_cache(union acpi_subtable_headers *header,
 	}
 
 	attrs = cache->cache_attributes;
-	pr_info("Cache: Domain:%u Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
-		cache->memory_PD, cache->cache_size, attrs,
-		cache->number_of_SMBIOShandles);
+	pr_debug("Cache: Domain:%u Size:%llu Attrs:%08x SMBIOS Handles:%d\n",
+		 cache->memory_PD, cache->cache_size, attrs,
+		 cache->number_of_SMBIOShandles);
 
 	target = find_mem_target(cache->memory_PD);
 	if (!target)
@@ -546,9 +546,9 @@ static int __init hmat_parse_proximity_domain(union acpi_subtable_headers *heade
 	}
 
 	if (hmat_revision == 1)
-		pr_info("Memory (%#llx length %#llx) Flags:%04x Processor Domain:%u Memory Domain:%u\n",
-			p->reserved3, p->reserved4, p->flags, p->processor_PD,
-			p->memory_PD);
+		pr_debug("Memory (%#llx length %#llx) Flags:%04x Processor Domain:%u Memory Domain:%u\n",
+			 p->reserved3, p->reserved4, p->flags, p->processor_PD,
+			 p->memory_PD);
 	else
 		pr_info("Memory Flags:%04x Processor Domain:%u Memory Domain:%u\n",
 			p->flags, p->processor_PD, p->memory_PD);
@@ -933,22 +933,19 @@ static int hmat_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-static int hmat_set_default_dram_perf(void)
+static int __init hmat_set_default_dram_perf(void)
 {
 	int rc;
 	int nid, pxm;
 	struct memory_target *target;
 	struct access_coordinate *attrs;
 
-	if (!default_dram_type)
-		return -EIO;
-
-	for_each_node_mask(nid, default_dram_type->nodes) {
+	for_each_node_mask(nid, default_dram_nodes) {
 		pxm = node_to_pxm(nid);
 		target = find_mem_target(pxm);
 		if (!target)
 			continue;
-		attrs = &target->coord[1];
+		attrs = &target->coord[ACCESS_COORDINATE_CPU];
 		rc = mt_set_default_dram_perf(nid, attrs, "ACPI HMAT");
 		if (rc)
 			return rc;
@@ -975,7 +972,7 @@ static int hmat_calculate_adistance(struct notifier_block *self,
 	hmat_update_target_attrs(target, p_nodes, ACCESS_COORDINATE_CPU);
 	mutex_unlock(&target_lock);
 
-	perf = &target->coord[1];
+	perf = &target->coord[ACCESS_COORDINATE_CPU];
 
 	if (mt_perf_to_adistance(perf, adist))
 		return NOTIFY_OK;

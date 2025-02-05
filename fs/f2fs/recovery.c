@@ -5,7 +5,7 @@
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *             http://www.samsung.com/
  */
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/fs.h>
 #include <linux/f2fs_fs.h>
 #include <linux/sched/mm.h>
@@ -45,10 +45,6 @@
  */
 
 static struct kmem_cache *fsync_entry_slab;
-
-#if IS_ENABLED(CONFIG_UNICODE)
-extern struct kmem_cache *f2fs_cf_name_slab;
-#endif
 
 bool f2fs_space_for_roll_forward(struct f2fs_sb_info *sbi)
 {
@@ -153,11 +149,8 @@ static int init_recovered_filename(const struct inode *dir,
 		if (err)
 			return err;
 		f2fs_hash_filename(dir, fname);
-#if IS_ENABLED(CONFIG_UNICODE)
 		/* Case-sensitive match is fine for recovery */
-		kmem_cache_free(f2fs_cf_name_slab, fname->cf_name.name);
-		fname->cf_name.name = NULL;
-#endif
+		f2fs_free_casefolded_name(fname);
 	} else {
 		f2fs_hash_filename(dir, fname);
 	}
@@ -287,6 +280,7 @@ static void recover_inline_flags(struct inode *inode, struct f2fs_inode *ri)
 static int recover_inode(struct inode *inode, struct page *page)
 {
 	struct f2fs_inode *raw = F2FS_INODE(page);
+	struct f2fs_inode_info *fi = F2FS_I(inode);
 	char *name;
 	int err;
 
@@ -309,12 +303,12 @@ static int recover_inode(struct inode *inode, struct page *page)
 			i_projid = (projid_t)le32_to_cpu(raw->i_projid);
 			kprojid = make_kprojid(&init_user_ns, i_projid);
 
-			if (!projid_eq(kprojid, F2FS_I(inode)->i_projid)) {
+			if (!projid_eq(kprojid, fi->i_projid)) {
 				err = f2fs_transfer_project_quota(inode,
 								kprojid);
 				if (err)
 					return err;
-				F2FS_I(inode)->i_projid = kprojid;
+				fi->i_projid = kprojid;
 			}
 		}
 	}
@@ -327,11 +321,10 @@ static int recover_inode(struct inode *inode, struct page *page)
 	inode_set_mtime(inode, le64_to_cpu(raw->i_mtime),
 			le32_to_cpu(raw->i_mtime_nsec));
 
-	F2FS_I(inode)->i_advise = raw->i_advise;
-	F2FS_I(inode)->i_flags = le32_to_cpu(raw->i_flags);
+	fi->i_advise = raw->i_advise;
+	fi->i_flags = le32_to_cpu(raw->i_flags);
 	f2fs_set_inode_flags(inode);
-	F2FS_I(inode)->i_gc_failures[GC_FAILURE_PIN] =
-				le16_to_cpu(raw->i_gc_failures);
+	fi->i_gc_failures = le16_to_cpu(raw->i_gc_failures);
 
 	recover_inline_flags(inode, raw);
 
@@ -906,15 +899,8 @@ skip:
 	 * and the f2fs is not read only, check and fix zoned block devices'
 	 * write pointer consistency.
 	 */
-	if (f2fs_sb_has_blkzoned(sbi) && !f2fs_readonly(sbi->sb)) {
-		int err2 = f2fs_fix_curseg_write_pointer(sbi);
-
-		if (!err2)
-			err2 = f2fs_check_write_pointer(sbi);
-		if (err2)
-			err = err2;
-		ret = err;
-	}
+	if (!err)
+		err = f2fs_check_and_fix_write_pointer(sbi);
 
 	if (!err)
 		clear_sbi_flag(sbi, SBI_POR_DOING);

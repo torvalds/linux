@@ -35,10 +35,6 @@ void exynos4_jpeg_select_dec_h_tbl(void __iomem *base, char c, char x);
 void exynos4_jpeg_set_encode_hoff_cnt(void __iomem *base, unsigned int fmt);
 void exynos4_jpeg_set_dec_bitstream_size(void __iomem *base, unsigned int size);
 unsigned int exynos4_jpeg_get_stream_size(void __iomem *base);
-void exynos4_jpeg_get_frame_size(void __iomem *base,
-			unsigned int *width, unsigned int *height);
 unsigned int exynos4_jpeg_get_frame_fmt(void __iomem *base);
-unsigned int exynos4_jpeg_get_fifo_status(void __iomem *base);
-void exynos4_jpeg_set_timer_count(void __iomem *base, unsigned int size);
 
 #endif /* JPEG_HW_EXYNOS4_H_ */

@@ -232,15 +232,19 @@ static const struct acpi_device_id int3407_device_ids[] = {
 	{"INTC1061", 0},
 	{"INTC1065", 0},
 	{"INTC1066", 0},
+	{"INTC106C", 0},
+	{"INTC106D", 0},
 	{"INTC10A4", 0},
 	{"INTC10A5", 0},
+	{"INTC10D8", 0},
+	{"INTC10D9", 0},
 	{"", 0},
 };
 MODULE_DEVICE_TABLE(acpi, int3407_device_ids);
 
 static struct platform_driver dptf_power_driver = {
 	.probe = dptf_power_add,
-	.remove_new = dptf_power_remove,
+	.remove = dptf_power_remove,
 	.driver = {
 		.name = "dptf_power",
 		.acpi_match_table = int3407_device_ids,

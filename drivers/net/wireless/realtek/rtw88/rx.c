@@ -146,11 +146,51 @@ static void rtw_set_rx_freq_by_pktstat(struct rtw_rx_pkt_stat *pkt_stat,
 	rx_status->band = pkt_stat->band;
 }
 
-void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
-			   struct rtw_rx_pkt_stat *pkt_stat,
-			   struct ieee80211_hdr *hdr,
-			   struct ieee80211_rx_status *rx_status,
-			   u8 *phy_status)
+void rtw_update_rx_freq_from_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
+				struct ieee80211_rx_status *rx_status,
+				struct rtw_rx_pkt_stat *pkt_stat)
+{
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
+	int channel = rtwdev->hal.current_channel;
+	size_t hdr_len, ielen;
+	int channel_number;
+	u8 *variable;
+
+	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		goto fill_rx_status;
+
+	if (ieee80211_is_beacon(mgmt->frame_control)) {
+		variable = mgmt->u.beacon.variable;
+		hdr_len = offsetof(struct ieee80211_mgmt,
+				   u.beacon.variable);
+	} else if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		variable = mgmt->u.probe_resp.variable;
+		hdr_len = offsetof(struct ieee80211_mgmt,
+				   u.probe_resp.variable);
+	} else {
+		goto fill_rx_status;
+	}
+
+	if (skb->len > hdr_len)
+		ielen = skb->len - hdr_len;
+	else
+		goto fill_rx_status;
+
+	channel_number = cfg80211_get_ies_channel_number(variable, ielen,
+							 NL80211_BAND_2GHZ);
+	if (channel_number != -1)
+		channel = channel_number;
+
+fill_rx_status:
+	rtw_set_rx_freq_band(pkt_stat, channel);
+	rtw_set_rx_freq_by_pktstat(pkt_stat, rx_status);
+}
+EXPORT_SYMBOL(rtw_update_rx_freq_from_ie);
+
+static void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
+				  struct rtw_rx_pkt_stat *pkt_stat,
+				  struct ieee80211_hdr *hdr,
+				  struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
 	u8 path;
@@ -194,12 +234,75 @@ void rtw_rx_fill_rx_status(struct rtw_dev *rtwdev,
 	else
 		rx_status->bw = RATE_INFO_BW_20;
 
-	rx_status->signal = pkt_stat->signal_power;
-	for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
-		rx_status->chains |= BIT(path);
-		rx_status->chain_signal[path] = pkt_stat->rx_power[path];
+	if (pkt_stat->phy_status) {
+		rx_status->signal = pkt_stat->signal_power;
+		for (path = 0; path < rtwdev->hal.rf_path_num; path++) {
+			rx_status->chains |= BIT(path);
+			rx_status->chain_signal[path] = pkt_stat->rx_power[path];
+		}
+	} else {
+		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
 	}
 
 	rtw_rx_addr_match(rtwdev, pkt_stat, hdr);
+
+	/* Rtl8723cs driver checks for size < 14 or size > 8192 and
+	 * simply drops the packet.
+	 */
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8703B && pkt_stat->pkt_len == 0) {
+		rx_status->flag |= RX_FLAG_NO_PSDU;
+		rtw_dbg(rtwdev, RTW_DBG_RX, "zero length packet");
+	}
 }
-EXPORT_SYMBOL(rtw_rx_fill_rx_status);
+
+void rtw_rx_query_rx_desc(struct rtw_dev *rtwdev, void *rx_desc8,
+			  struct rtw_rx_pkt_stat *pkt_stat,
+			  struct ieee80211_rx_status *rx_status)
+{
+	u32 desc_sz = rtwdev->chip->rx_pkt_desc_sz;
+	struct rtw_rx_desc *rx_desc = rx_desc8;
+	struct ieee80211_hdr *hdr;
+	u32 enc_type, swdec;
+	void *phy_status;
+
+	memset(pkt_stat, 0, sizeof(*pkt_stat));
+
+	pkt_stat->pkt_len = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_PKT_LEN);
+	pkt_stat->crc_err = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_CRC32);
+	pkt_stat->icv_err = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_ICV_ERR);
+	pkt_stat->drv_info_sz = le32_get_bits(rx_desc->w0,
+					      RTW_RX_DESC_W0_DRV_INFO_SIZE);
+	enc_type = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_ENC_TYPE);
+	pkt_stat->shift = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_SHIFT);
+	pkt_stat->phy_status = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_PHYST);
+	swdec = le32_get_bits(rx_desc->w0, RTW_RX_DESC_W0_SWDEC);
+	pkt_stat->decrypted = !swdec && enc_type != RX_DESC_ENC_NONE;
+
+	pkt_stat->cam_id = le32_get_bits(rx_desc->w1, RTW_RX_DESC_W1_MACID);
+
+	pkt_stat->is_c2h = le32_get_bits(rx_desc->w2, RTW_RX_DESC_W2_C2H);
+	pkt_stat->ppdu_cnt = le32_get_bits(rx_desc->w2, RTW_RX_DESC_W2_PPDU_CNT);
+
+	pkt_stat->rate = le32_get_bits(rx_desc->w3, RTW_RX_DESC_W3_RX_RATE);
+
+	pkt_stat->bw = le32_get_bits(rx_desc->w4, RTW_RX_DESC_W4_BW);
+
+	pkt_stat->tsf_low = le32_get_bits(rx_desc->w5, RTW_RX_DESC_W5_TSFL);
+
+	/* drv_info_sz is in unit of 8-bytes */
+	pkt_stat->drv_info_sz *= 8;
+
+	/* c2h cmd pkt's rx/phy status is not interested */
+	if (pkt_stat->is_c2h)
+		return;
+
+	phy_status = rx_desc8 + desc_sz + pkt_stat->shift;
+	hdr = phy_status + pkt_stat->drv_info_sz;
+	pkt_stat->hdr = hdr;
+
+	if (pkt_stat->phy_status)
+		rtwdev->chip->ops->query_phy_status(rtwdev, phy_status, pkt_stat);
+
+	rtw_rx_fill_rx_status(rtwdev, pkt_stat, hdr, rx_status);
+}
+EXPORT_SYMBOL(rtw_rx_query_rx_desc);

@@ -515,7 +515,6 @@ static const struct file_operations fs3270_fops = {
 	.compat_ioctl	 = fs3270_ioctl,	/* ioctl */
 	.open		 = fs3270_open,		/* open */
 	.release	 = fs3270_close,	/* release */
-	.llseek		= no_llseek,
 };
 
 static void fs3270_create_cb(int minor)
@@ -559,6 +558,7 @@ static void __exit fs3270_exit(void)
 	__unregister_chrdev(IBM_FS3270_MAJOR, 0, 1, "fs3270");
 }
 
+MODULE_DESCRIPTION("IBM/3270 Driver - fullscreen driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(IBM_FS3270_MAJOR);
 

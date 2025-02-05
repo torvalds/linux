@@ -279,7 +279,7 @@ static int ltc4306_probe(struct i2c_client *client)
 
 	/* Now create an adapter for each channel */
 	for (num = 0; num < chip->nchans; num++) {
-		ret = i2c_mux_add_adapter(muxc, 0, num, 0);
+		ret = i2c_mux_add_adapter(muxc, 0, num);
 		if (ret) {
 			i2c_mux_del_adapters(muxc);
 			return ret;

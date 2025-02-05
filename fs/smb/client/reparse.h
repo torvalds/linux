@@ -12,14 +12,15 @@
 #include "fs_context.h"
 #include "cifsglob.h"
 
-static inline dev_t reparse_nfs_mkdev(struct reparse_posix_data *buf)
-{
-	u64 v = le64_to_cpu(*(__le64 *)buf->DataBuffer);
+#define REPARSE_SYM_PATH_MAX 4060
 
-	return MKDEV(v >> 32, v & 0xffffffff);
-}
+/*
+ * Used only by cifs.ko to ignore reparse points from files when client or
+ * server doesn't support FSCTL_GET_REPARSE_POINT.
+ */
+#define IO_REPARSE_TAG_INTERNAL ((__u32)~0U)
 
-static inline dev_t wsl_mkdev(void *ptr)
+static inline dev_t reparse_mkdev(void *ptr)
 {
 	u64 v = le64_to_cpu(*(__le64 *)ptr);
 
@@ -49,6 +50,7 @@ static inline kgid_t wsl_make_kgid(struct cifs_sb_info *cifs_sb,
 static inline u64 reparse_mode_nfs_type(mode_t mode)
 {
 	switch (mode & S_IFMT) {
+	case S_IFLNK: return NFS_SPECFILE_LNK;
 	case S_IFBLK: return NFS_SPECFILE_BLK;
 	case S_IFCHR: return NFS_SPECFILE_CHR;
 	case S_IFIFO: return NFS_SPECFILE_FIFO;
@@ -60,6 +62,7 @@ static inline u64 reparse_mode_nfs_type(mode_t mode)
 static inline u32 reparse_mode_wsl_tag(mode_t mode)
 {
 	switch (mode & S_IFMT) {
+	case S_IFLNK: return IO_REPARSE_TAG_LX_SYMLINK;
 	case S_IFBLK: return IO_REPARSE_TAG_LX_BLK;
 	case S_IFCHR: return IO_REPARSE_TAG_LX_CHR;
 	case S_IFIFO: return IO_REPARSE_TAG_LX_FIFO;
@@ -78,10 +81,19 @@ static inline u32 reparse_mode_wsl_tag(mode_t mode)
 static inline bool reparse_inode_match(struct inode *inode,
 				       struct cifs_fattr *fattr)
 {
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
 	struct timespec64 ctime = inode_get_ctime(inode);
 
-	return (CIFS_I(inode)->cifsAttrs & ATTR_REPARSE) &&
-		CIFS_I(inode)->reparse_tag == fattr->cf_cifstag &&
+	/*
+	 * Do not match reparse tags when client or server doesn't support
+	 * FSCTL_GET_REPARSE_POINT.  @fattr->cf_cifstag should contain correct
+	 * reparse tag from query dir response but the client won't be able to
+	 * read the reparse point data anyway.  This spares us a revalidation.
+	 */
+	if (cinode->reparse_tag != IO_REPARSE_TAG_INTERNAL &&
+	    cinode->reparse_tag != fattr->cf_cifstag)
+		return false;
+	return (cinode->cifsAttrs & ATTR_REPARSE) &&
 		timespec64_equal(&ctime, &fattr->cf_ctime);
 }
 
@@ -107,7 +119,9 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
-int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb, struct kvec *rsp_iov,
+int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     struct kvec *rsp_iov,
 			     struct cifs_open_info_data *data);
 
 #endif /* _CIFS_REPARSE_H */

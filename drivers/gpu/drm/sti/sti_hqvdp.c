@@ -1037,6 +1037,9 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 		return 0;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
 	mode = &crtc_state->mode;
 	dst_x = new_plane_state->crtc_x;
 	dst_y = new_plane_state->crtc_y;
@@ -1414,11 +1417,10 @@ MODULE_DEVICE_TABLE(of, hqvdp_of_match);
 struct platform_driver sti_hqvdp_driver = {
 	.driver = {
 		.name = "sti-hqvdp",
-		.owner = THIS_MODULE,
 		.of_match_table = hqvdp_of_match,
 	},
 	.probe = sti_hqvdp_probe,
-	.remove_new = sti_hqvdp_remove,
+	.remove = sti_hqvdp_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

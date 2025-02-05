@@ -35,8 +35,9 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,
 	CEPHFS_FEATURE_NEW_SNAPREALM_INFO,
 	CEPHFS_FEATURE_HAS_OWNER_UIDGID,
+	CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,
 
-	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_HAS_OWNER_UIDGID,
+	CEPHFS_FEATURE_MAX = CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,
 };
 
 #define CEPHFS_FEATURES_CLIENT_SUPPORTED {	\
@@ -52,6 +53,7 @@ enum ceph_feature_type {
 	CEPHFS_FEATURE_OP_GETVXATTR,		\
 	CEPHFS_FEATURE_32BITS_RETRY_FWD,	\
 	CEPHFS_FEATURE_HAS_OWNER_UIDGID,	\
+	CEPHFS_FEATURE_MDS_AUTH_CAPS_CHECK,	\
 }
 
 /*
@@ -70,6 +72,24 @@ enum ceph_feature_type {
 
 struct ceph_fs_client;
 struct ceph_cap;
+
+#define MDS_AUTH_UID_ANY -1
+
+struct ceph_mds_cap_match {
+	s64 uid;  /* default to MDS_AUTH_UID_ANY */
+	u32 num_gids;
+	u32 *gids;  /* use these GIDs */
+	char *path;  /* require path to be child of this
+			(may be "" or "/" for any) */
+	char *fs_name;
+	bool root_squash;  /* default to false */
+};
+
+struct ceph_mds_cap_auth {
+	struct ceph_mds_cap_match match;
+	bool readable;
+	bool writeable;
+};
 
 /*
  * parsed info about a single inode.  pointers are into the encoded
@@ -279,6 +299,8 @@ struct ceph_mds_request {
 	struct inode *r_target_inode;       /* resulting inode */
 	struct inode *r_new_inode;	    /* new inode (for creates) */
 
+	const struct qstr *r_dname;	    /* stable name (for ->d_revalidate) */
+
 #define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
 #define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
 #define CEPH_MDS_R_GOT_UNSAFE		(3) /* got an unsafe reply */
@@ -396,6 +418,8 @@ struct ceph_quotarealm_inode {
 	struct inode *inode;
 };
 
+#ifdef CONFIG_DEBUG_FS
+
 struct cap_wait {
 	struct list_head	list;
 	u64			ino;
@@ -403,6 +427,8 @@ struct cap_wait {
 	int			need;
 	int			want;
 };
+
+#endif
 
 enum {
 	CEPH_MDSC_STOPPING_BEGIN = 1,
@@ -492,7 +518,9 @@ struct ceph_mds_client {
 	spinlock_t	caps_list_lock;
 	struct		list_head caps_list; /* unused (reserved or
 						unreserved) */
+#ifdef CONFIG_DEBUG_FS
 	struct		list_head cap_wait_list;
+#endif
 	int		caps_total_count;    /* total caps allocated */
 	int		caps_use_count;      /* in use */
 	int		caps_use_max;	     /* max used caps */
@@ -513,6 +541,9 @@ struct ceph_mds_client {
 	struct rw_semaphore     pool_perm_rwsem;
 	struct rb_root		pool_perm_tree;
 
+	u32			 s_cap_auths_num;
+	struct ceph_mds_cap_auth *s_cap_auths;
+
 	char nodename[__NEW_UTS_LEN + 1];
 };
 
@@ -529,9 +560,6 @@ extern const char *ceph_session_state_name(int s);
 extern struct ceph_mds_session *
 ceph_get_mds_session(struct ceph_mds_session *s);
 extern void ceph_put_mds_session(struct ceph_mds_session *s);
-
-extern int ceph_send_msg_mds(struct ceph_mds_client *mdsc,
-			     struct ceph_msg *msg, int mds);
 
 extern int ceph_mdsc_init(struct ceph_fs_client *fsc);
 extern void ceph_mdsc_close_sessions(struct ceph_mds_client *mdsc);
@@ -573,14 +601,17 @@ extern void ceph_mdsc_iterate_sessions(struct ceph_mds_client *mdsc,
 extern struct ceph_msg *ceph_create_session_msg(u32 op, u64 seq);
 extern void __ceph_queue_cap_release(struct ceph_mds_session *session,
 				    struct ceph_cap *cap);
-extern void ceph_flush_cap_releases(struct ceph_mds_client *mdsc,
-				    struct ceph_mds_session *session);
+extern void ceph_flush_session_cap_releases(struct ceph_mds_client *mdsc,
+					    struct ceph_mds_session *session);
 extern void ceph_queue_cap_reclaim_work(struct ceph_mds_client *mdsc);
 extern void ceph_reclaim_caps_nr(struct ceph_mds_client *mdsc, int nr);
 extern void ceph_queue_cap_unlink_work(struct ceph_mds_client *mdsc);
 extern int ceph_iterate_session_caps(struct ceph_mds_session *session,
 				     int (*cb)(struct inode *, int mds, void *),
 				     void *arg);
+extern int ceph_mds_check_access(struct ceph_mds_client *mdsc, char *tpath,
+				 int mask);
+
 extern void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc);
 
 static inline void ceph_mdsc_free_path(char *path, int len)
@@ -605,8 +636,6 @@ extern void ceph_mdsc_handle_fsmap(struct ceph_mds_client *mdsc,
 
 extern struct ceph_mds_session *
 ceph_mdsc_open_export_target_session(struct ceph_mds_client *mdsc, int target);
-extern void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
-					  struct ceph_mds_session *session);
 
 extern int ceph_trim_caps(struct ceph_mds_client *mdsc,
 			  struct ceph_mds_session *session,

@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
@@ -798,10 +799,9 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 		}
 
 		if (can_bulk_split(musb, qh->type))
-			load_count = min((u32) hw_ep->max_packet_sz_tx,
-						len);
+			load_count = min_t(u32, hw_ep->max_packet_sz_tx, len);
 		else
-			load_count = min((u32) packet_sz, len);
+			load_count = min_t(u32, packet_sz, len);
 
 		if (dma_channel && musb_tx_dma_program(dma_controller,
 					hw_ep, qh, urb, offset, len))
@@ -1029,7 +1029,7 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 					+ urb->actual_length);
 			musb_dbg(musb, "Sending %d byte%s to ep0 fifo %p",
 					fifo_count,
-					(fifo_count == 1) ? "" : "s",
+					str_plural(fifo_count),
 					fifo_dest);
 			musb_write_fifo(hw_ep, fifo_count, fifo_dest);
 

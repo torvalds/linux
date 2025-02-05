@@ -43,7 +43,8 @@
 	SRI(OPTC_MEMORY_CONFIG, ODM, inst),\
 	SR(DWB_SOURCE_SELECT),\
 	SRI(OTG_MANUAL_FLOW_CONTROL, OTG, inst), \
-	SRI(OTG_DRR_CONTROL, OTG, inst)
+	SRI(OTG_DRR_CONTROL, OTG, inst),\
+	SRI(OTG_PIPE_UPDATE_STATUS, OTG, inst)
 
 #define TG_COMMON_MASK_SH_LIST_DCN2_0(mask_sh)\
 	TG_COMMON_MASK_SH_LIST_DCN(mask_sh),\
@@ -53,6 +54,10 @@
 	SF(OTG0_OTG_GLOBAL_CONTROL2, GLOBAL_UPDATE_LOCK_EN, mask_sh),\
 	SF(OTG0_OTG_GLOBAL_CONTROL2, DIG_UPDATE_LOCATION, mask_sh),\
 	SF(OTG0_OTG_DOUBLE_BUFFER_CONTROL, OTG_RANGE_TIMING_DBUF_UPDATE_MODE, mask_sh),\
+	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_FLIP_PENDING, mask_sh),\
+	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_DC_REG_UPDATE_PENDING, mask_sh),\
+	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_CURSOR_UPDATE_PENDING, mask_sh),\
+	SF(OTG0_OTG_PIPE_UPDATE_STATUS, OTG_VUPDATE_KEEPOUT_STATUS, mask_sh),\
 	SF(OTG0_OTG_GSL_WINDOW_X, OTG_GSL_WINDOW_START_X, mask_sh),\
 	SF(OTG0_OTG_GSL_WINDOW_X, OTG_GSL_WINDOW_END_X, mask_sh), \
 	SF(OTG0_OTG_GSL_WINDOW_Y, OTG_GSL_WINDOW_START_Y, mask_sh),\
@@ -105,7 +110,7 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
 
 void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing);
+		int segment_width, int last_segment_width);
 
 void optc2_get_optc_source(struct timing_generator *optc,
 		uint32_t *num_of_src_opp,
@@ -118,7 +123,6 @@ void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_setup_manual_trigger(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);
-bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 bool optc2_configure_crc(struct timing_generator *optc,
 			  const struct crc_params *params);
 #endif /* __DC_OPTC_DCN20_H__ */

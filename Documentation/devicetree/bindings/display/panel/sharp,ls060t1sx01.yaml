@@ -16,7 +16,9 @@ properties:
   compatible:
     const: sharp,ls060t1sx01
 
-  reg: true
+  reg:
+    maxItems: 1
+
   backlight: true
   reset-gpios: true
   port: true

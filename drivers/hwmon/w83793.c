@@ -291,7 +291,7 @@ static void w83793_update_nonvolatile(struct device *dev);
 static struct w83793_data *w83793_update_device(struct device *dev);
 
 static const struct i2c_device_id w83793_id[] = {
-	{ "w83793", 0 },
+	{ "w83793" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83793_id);
@@ -1451,7 +1451,6 @@ static long watchdog_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations watchdog_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
 	.open = watchdog_open,
 	.release = watchdog_close,
 	.write = watchdog_write,

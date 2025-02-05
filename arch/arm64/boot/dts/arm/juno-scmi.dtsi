@@ -84,11 +84,11 @@
 			thermal-sensors = <&scmi_sensors0 3>;
 		};
 
-		big-cluster-thermal {
+		big-cl-thermal {
 			thermal-sensors = <&scmi_sensors0 21>;
 		};
 
-		little-cluster-thermal {
+		little-cl-thermal {
 			thermal-sensors = <&scmi_sensors0 22>;
 		};
 

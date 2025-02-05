@@ -44,7 +44,7 @@ struct fsi_driver {
 };
 
 #define to_fsi_dev(devp) container_of(devp, struct fsi_device, dev)
-#define to_fsi_drv(drvp) container_of(drvp, struct fsi_driver, drv)
+#define to_fsi_drv(drvp) container_of_const(drvp, struct fsi_driver, drv)
 
 extern int fsi_driver_register(struct fsi_driver *fsi_drv);
 extern void fsi_driver_unregister(struct fsi_driver *fsi_drv);

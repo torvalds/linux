@@ -47,16 +47,8 @@ struct bq27xxx_access_methods {
 };
 
 struct bq27xxx_reg_cache {
-	int temperature;
-	int time_to_empty;
-	int time_to_empty_avg;
-	int time_to_full;
-	int charge_full;
-	int cycle_count;
 	int capacity;
-	int energy;
 	int flags;
-	int health;
 };
 
 struct bq27xxx_device_info {
@@ -69,6 +61,7 @@ struct bq27xxx_device_info {
 	struct bq27xxx_access_methods bus;
 	struct bq27xxx_reg_cache cache;
 	int charge_design_full;
+	int voltage_min_design;
 	bool removed;
 	unsigned long last_update;
 	union power_supply_propval last_status;

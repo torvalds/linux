@@ -2,15 +2,6 @@
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010-2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __DMA_LOCAL_H_INCLUDED__
@@ -19,7 +10,6 @@
 #include <type_support.h>
 #include "dma_global.h"
 
-#include <defs.h>				/* HRTCAT() */
 #include <bits.h>				/* _hrt_get_bits() */
 #include <hive_isp_css_defs.h>		/* HIVE_DMA_NUM_CHANNELS */
 #include <dma_v2_defs.h>

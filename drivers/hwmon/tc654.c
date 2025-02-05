@@ -550,8 +550,8 @@ static int tc654_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc654_id[] = {
-	{"tc654", 0},
-	{"tc655", 0},
+	{"tc654"},
+	{"tc655"},
 	{}
 };
 

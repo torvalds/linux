@@ -492,6 +492,16 @@ fcloop_t2h_host_release(void *hosthandle)
 	/* host handle ignored for now */
 }
 
+static int
+fcloop_t2h_host_traddr(void *hosthandle, u64 *wwnn, u64 *wwpn)
+{
+	struct fcloop_rport *rport = hosthandle;
+
+	*wwnn = rport->lport->localport->node_name;
+	*wwpn = rport->lport->localport->port_name;
+	return 0;
+}
+
 /*
  * Simulate reception of RSCN and converting it to a initiator transport
  * call to rescan a remote port.
@@ -1074,6 +1084,7 @@ static struct nvmet_fc_target_template tgttemplate = {
 	.ls_req			= fcloop_t2h_ls_req,
 	.ls_abort		= fcloop_t2h_ls_abort,
 	.host_release		= fcloop_t2h_host_release,
+	.host_traddr		= fcloop_t2h_host_traddr,
 	.max_hw_queues		= FCLOOP_HW_QUEUES,
 	.max_sgl_segments	= FCLOOP_SGL_SEGS,
 	.max_dif_sgl_segments	= FCLOOP_SGL_SEGS,

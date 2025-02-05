@@ -7,7 +7,6 @@ config NET_VENDOR_HISILICON
 	bool "Hisilicon devices"
 	default y
 	depends on OF || ACPI
-	depends on ARM || ARM64 || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -17,6 +16,8 @@ config NET_VENDOR_HISILICON
 	  for your specific card in the following questions.
 
 if NET_VENDOR_HISILICON
+
+if ARM || ARM64 || COMPILE_TEST
 
 config HIX5HD2_GMAC
 	tristate "Hisilicon HIX5HD2 Family Network Device Support"
@@ -140,5 +141,20 @@ config HNS3_ENET
 	  devices and their associated operations.
 
 endif #HNS3
+
+endif # ARM || ARM64 || COMPILE_TEST
+
+config HIBMCGE
+	tristate "Hisilicon BMC Gigabit Ethernet Device Support"
+	depends on PCI && PCI_MSI
+	select PHYLIB
+	select MOTORCOMM_PHY
+	select REALTEK_PHY
+	help
+	  If you wish to compile a kernel for a BMC with HIBMC-xx_gmac
+	  then you should answer Y to this. This makes this driver suitable for use
+	  on certain boards such as the HIBMC-210.
+
+	  If you are unsure, say N.
 
 endif # NET_VENDOR_HISILICON

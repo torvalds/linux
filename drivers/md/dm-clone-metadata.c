@@ -163,7 +163,7 @@ struct dm_clone_metadata {
 /*
  * Superblock validation.
  */
-static void sb_prepare_for_write(struct dm_block_validator *v,
+static void sb_prepare_for_write(const struct dm_block_validator *v,
 				 struct dm_block *b, size_t sb_block_size)
 {
 	struct superblock_disk *sb;
@@ -177,7 +177,7 @@ static void sb_prepare_for_write(struct dm_block_validator *v,
 	sb->csum = cpu_to_le32(csum);
 }
 
-static int sb_check(struct dm_block_validator *v, struct dm_block *b,
+static int sb_check(const struct dm_block_validator *v, struct dm_block *b,
 		    size_t sb_block_size)
 {
 	struct superblock_disk *sb;
@@ -220,7 +220,7 @@ static int sb_check(struct dm_block_validator *v, struct dm_block *b,
 	return 0;
 }
 
-static struct dm_block_validator sb_validator = {
+static const struct dm_block_validator sb_validator = {
 	.name = "superblock",
 	.prepare_for_write = sb_prepare_for_write,
 	.check = sb_check
@@ -465,11 +465,6 @@ static void __destroy_persistent_data_structures(struct dm_clone_metadata *cmd)
 
 /*---------------------------------------------------------------------------*/
 
-static size_t bitmap_size(unsigned long nr_bits)
-{
-	return BITS_TO_LONGS(nr_bits) * sizeof(long);
-}
-
 static int __dirty_map_init(struct dirty_map *dmap, unsigned long nr_words,
 			    unsigned long nr_regions)
 {
@@ -535,10 +530,7 @@ static int __load_bitset_in_core(struct dm_clone_metadata *cmd)
 		return r;
 
 	for (i = 0; ; i++) {
-		if (dm_bitset_cursor_get_value(&c))
-			__set_bit(i, cmd->region_map);
-		else
-			__clear_bit(i, cmd->region_map);
+		__assign_bit(i, cmd->region_map, dm_bitset_cursor_get_value(&c));
 
 		if (i >= (cmd->nr_regions - 1))
 			break;

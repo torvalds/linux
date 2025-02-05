@@ -41,11 +41,9 @@ struct ad5624r_chip_info {
 };
 
 /**
- * struct ad5446_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
+ * struct ad5624r_state - driver instance specific data
  * @us:			spi_device
  * @chip_info:		chip model specific constants, available modes etc
- * @reg:		supply regulator
  * @vref_mv:		actual reference voltage used
  * @pwr_down_mask	power down mask
  * @pwr_down_mode	current power down mode
@@ -54,7 +52,6 @@ struct ad5624r_chip_info {
 struct ad5624r_state {
 	struct spi_device		*us;
 	const struct ad5624r_chip_info	*chip_info;
-	struct regulator		*reg;
 	unsigned short			vref_mv;
 	unsigned			pwr_down_mask;
 	unsigned			pwr_down_mode;

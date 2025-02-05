@@ -21,6 +21,7 @@ config ALIENWARE_WMI
 	depends on LEDS_CLASS
 	depends on NEW_LEDS
 	depends on ACPI_WMI
+	select ACPI_PLATFORM_PROFILE
 	help
 	 This is a driver for controlling Alienware BIOS driven
 	 features.  It exposes an interface for controlling the AlienFX
@@ -49,6 +50,7 @@ config DELL_LAPTOP
 	default m
 	depends on DMI
 	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_BATTERY
 	depends on ACPI_VIDEO || ACPI_VIDEO = n
 	depends on RFKILL || RFKILL = n
 	depends on DELL_WMI || DELL_WMI = n
@@ -90,6 +92,19 @@ config DELL_RBTN
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-rbtn.
+
+config DELL_PC
+	tristate "Dell PC Extras"
+	default m
+	depends on ACPI
+	depends on DMI
+	depends on DELL_SMBIOS
+	select ACPI_PLATFORM_PROFILE
+	help
+	This driver adds support for controlling the fan modes via platform_profile
+	on supported Dell systems regardless of formfactor.
+	Module will simply do nothing if thermal management commands are not
+	supported.
 
 #
 # The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
@@ -137,6 +152,7 @@ config DELL_SMBIOS_SMM
 config DELL_SMO8800
 	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
 	default m
+	depends on I2C
 	depends on ACPI || COMPILE_TEST
 	help
 	  Say Y here if you want to support SMO88XX freefall devices
@@ -144,6 +160,22 @@ config DELL_SMO8800
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called dell-smo8800.
+
+config DELL_UART_BACKLIGHT
+	tristate "Dell AIO UART Backlight driver"
+	depends on ACPI
+	depends on ACPI_VIDEO
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on SERIAL_DEV_BUS
+	help
+	  Say Y here if you want to support Dell AIO UART backlight interface.
+	  The Dell AIO machines released after 2017 come with a UART interface
+	  to communicate with the backlight scalar board. This driver creates
+	  a standard backlight interface and talks to the scalar board through
+	  UART to adjust the AIO screen brightness.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell_uart_backlight.
 
 config DELL_WMI
 	tristate "Dell WMI notifications"
@@ -164,6 +196,7 @@ config DELL_WMI
 config DELL_WMI_PRIVACY
 	bool "Dell WMI Hardware Privacy Support"
 	depends on DELL_WMI
+	depends on ACPI_EC
 	help
 	  This option adds integration with the "Dell Hardware Privacy"
 	  feature of Dell laptops to the dell-wmi driver.

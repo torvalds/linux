@@ -111,7 +111,7 @@
  *  making error handling and cleanup easier.
  */
 
-int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes)
+int btrfs_alloc_data_chunk_ondemand(const struct btrfs_inode *inode, u64 bytes)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -176,7 +176,7 @@ void btrfs_free_reserved_data_space_noquota(struct btrfs_fs_info *fs_info,
 	ASSERT(IS_ALIGNED(len, fs_info->sectorsize));
 
 	data_sinfo = fs_info->data_sinfo;
-	btrfs_space_info_free_bytes_may_use(fs_info, data_sinfo, len);
+	btrfs_space_info_free_bytes_may_use(data_sinfo, len);
 }
 
 /*

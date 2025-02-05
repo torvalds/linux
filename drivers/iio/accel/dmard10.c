@@ -231,7 +231,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(dmard10_pm_ops, dmard10_suspend,
 				dmard10_resume);
 
 static const struct i2c_device_id dmard10_i2c_id[] = {
-	{"dmard10", 0},
+	{ "dmard10" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, dmard10_i2c_id);

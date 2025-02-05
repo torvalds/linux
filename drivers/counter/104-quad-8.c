@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/types.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define QUAD8_EXTENT 32
 
@@ -1360,4 +1360,4 @@ module_isa_driver_with_irq(quad8_driver, num_quad8, num_irq);
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("ACCES 104-QUAD-8 driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(COUNTER);
+MODULE_IMPORT_NS("COUNTER");

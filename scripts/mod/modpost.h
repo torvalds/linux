@@ -13,7 +13,7 @@
 #include <elf.h>
 #include "../../include/linux/module_symbol.h"
 
-#include "list.h"
+#include <list_types.h>
 #include "elfconfig.h"
 
 /* On BSD-alike OSes elf.h defines these according to host's word size */
@@ -62,21 +62,26 @@
 		    x); \
 })
 
-#if KERNEL_ELFDATA != HOST_ELFDATA
+#define TO_NATIVE(x)	\
+	(target_is_big_endian == host_is_big_endian ? x : bswap(x))
 
-#define TO_NATIVE(x) (bswap(x))
+#define __get_unaligned_t(type, ptr) ({					\
+	const struct { type x; } __attribute__((__packed__)) *__pptr =	\
+						(typeof(__pptr))(ptr);	\
+	__pptr->x;							\
+})
 
-#else /* endianness matches */
+#define get_unaligned(ptr)	__get_unaligned_t(typeof(*(ptr)), (ptr))
 
-#define TO_NATIVE(x) (x)
-
-#endif
-
-#define NOFAIL(ptr)   do_nofail((ptr), #ptr)
+#define get_unaligned_native(ptr) \
+({ \
+	typeof(*(ptr)) _val = get_unaligned(ptr); \
+	TO_NATIVE(_val); \
+})
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-void *do_nofail(void *ptr, const char *expr);
+#define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
 
 struct buffer {
 	char *p;
@@ -90,22 +95,39 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
+/**
+ * struct module_alias - auto-generated MODULE_ALIAS()
+ *
+ * @node: linked to module::aliases
+ * @str: a string for MODULE_ALIAS()
+ */
+struct module_alias {
+	struct list_head node;
+	char str[];
+};
+
+/**
+ * struct module - represent a module (vmlinux or *.ko)
+ *
+ * @dump_file: path to the .symvers file if loaded from a file
+ * @aliases: list head for module_aliases
+ */
 struct module {
 	struct list_head list;
 	struct list_head exported_symbols;
 	struct list_head unresolved_symbols;
+	const char *dump_file;
 	bool is_gpl_compatible;
-	bool from_dump;		/* true if module was loaded from *.symvers */
 	bool is_vmlinux;
 	bool seen;
 	bool has_init;
 	bool has_cleanup;
-	struct buffer dev_table_buf;
 	char	     srcversion[25];
 	// Missing namespace dependencies
 	struct list_head missing_namespaces;
 	// Actual imported namespaces
 	struct list_head imported_namespaces;
+	struct list_head aliases;
 	char name[];
 };
 
@@ -181,23 +203,19 @@ Elf_Sym *symsearch_find_nearest(struct elf_info *elf, Elf_Addr addr,
 /* file2alias.c */
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
-void add_moddevtable(struct buffer *buf, struct module *mod);
 
 /* sumversion.c */
 void get_src_version(const char *modname, char sum[], unsigned sumlen);
 
 /* from modpost.c */
+extern bool target_is_big_endian;
+extern bool host_is_big_endian;
 char *read_text_file(const char *filename);
 char *get_line(char **stringp);
 void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
 
-enum loglevel {
-	LOG_WARN,
-	LOG_ERROR,
-};
-
 void __attribute__((format(printf, 2, 3)))
-modpost_log(enum loglevel loglevel, const char *fmt, ...);
+modpost_log(bool is_error, const char *fmt, ...);
 
 /*
  * warn - show the given message, then let modpost continue running, still
@@ -212,6 +230,6 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...);
  * fatal - show the given message, and bail out immediately. This should be
  *         used when there is no point to continue running modpost.
  */
-#define warn(fmt, args...)	modpost_log(LOG_WARN, fmt, ##args)
-#define error(fmt, args...)	modpost_log(LOG_ERROR, fmt, ##args)
+#define warn(fmt, args...)	modpost_log(false, fmt, ##args)
+#define error(fmt, args...)	modpost_log(true, fmt, ##args)
 #define fatal(fmt, args...)	do { error(fmt, ##args); exit(1); } while (1)

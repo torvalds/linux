@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(C) 2018 - 2019, 2022 - 2023 Intel Corporation
+ * Copyright(C) 2018 - 2019, 2022 - 2024 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -145,8 +145,6 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 
 #ifdef CONFIG_PM_SLEEP
 	if (priv->fw->img[IWL_UCODE_WOWLAN].num_sec &&
-	    priv->trans->ops->d3_suspend &&
-	    priv->trans->ops->d3_resume &&
 	    device_can_wakeup(priv->trans->dev)) {
 		priv->wowlan_support.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					     WIPHY_WOWLAN_DISCONNECT |
@@ -302,7 +300,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	return ret;
 }
 
-static void iwlagn_mac_stop(struct ieee80211_hw *hw)
+static void iwlagn_mac_stop(struct ieee80211_hw *hw, bool suspend)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -730,8 +728,6 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!priv->trans->ops->txq_enable)
-			break;
 		if (!iwl_enable_tx_ampdu())
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
@@ -1569,6 +1565,16 @@ static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void
+iwlagn_mac_reconfig_complete(struct ieee80211_hw *hw,
+			     enum ieee80211_reconfig_type reconfig_type)
+{
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
+
+	if (reconfig_type == IEEE80211_RECONFIG_TYPE_RESTART)
+		iwl_trans_finish_sw_reset(priv->trans);
+}
+
 const struct ieee80211_ops iwlagn_hw_ops = {
 	.add_chanctx = ieee80211_emulate_add_chanctx,
 	.remove_chanctx = ieee80211_emulate_remove_chanctx,
@@ -1602,6 +1608,7 @@ const struct ieee80211_ops iwlagn_hw_ops = {
 	.tx_last_beacon = iwlagn_mac_tx_last_beacon,
 	.event_callback = iwlagn_mac_event_callback,
 	.set_tim = iwlagn_mac_set_tim,
+	.reconfig_complete = iwlagn_mac_reconfig_complete,
 };
 
 /* This function both allocates and initializes hw and priv. */

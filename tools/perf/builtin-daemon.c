@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <internal/lib.h>
+#include <inttypes.h>
 #include <subcmd/parse-options.h>
 #include <api/fd/array.h>
 #include <api/fs/fs.h>
@@ -523,7 +524,7 @@ static int daemon_session__control(struct daemon_session *session,
 		  session->base, SESSION_CONTROL);
 
 	control = open(control_path, O_WRONLY|O_NONBLOCK);
-	if (!control)
+	if (control < 0)
 		return -1;
 
 	if (do_ack) {
@@ -532,7 +533,7 @@ static int daemon_session__control(struct daemon_session *session,
 			  session->base, SESSION_ACK);
 
 		ack = open(ack_path, O_RDONLY, O_NONBLOCK);
-		if (!ack) {
+		if (ack < 0) {
 			close(control);
 			return -1;
 		}
@@ -688,9 +689,9 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 			/* lock */
 			csv_sep, daemon->base, "lock");
 
-		fprintf(out, "%c%lu",
+		fprintf(out, "%c%" PRIu64,
 			/* session up time */
-			csv_sep, (curr - daemon->start) / 60);
+			csv_sep, (uint64_t)((curr - daemon->start) / 60));
 
 		fprintf(out, "\n");
 	} else {
@@ -700,8 +701,8 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				daemon->base, SESSION_OUTPUT);
 			fprintf(out, "  lock:    %s/lock\n",
 				daemon->base);
-			fprintf(out, "  up:      %lu minutes\n",
-				(curr - daemon->start) / 60);
+			fprintf(out, "  up:      %" PRIu64 " minutes\n",
+				(uint64_t)((curr - daemon->start) / 60));
 		}
 	}
 
@@ -727,9 +728,9 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				/* session ack */
 				csv_sep, session->base, SESSION_ACK);
 
-			fprintf(out, "%c%lu",
+			fprintf(out, "%c%" PRIu64,
 				/* session up time */
-				csv_sep, (curr - session->start) / 60);
+				csv_sep, (uint64_t)((curr - session->start) / 60));
 
 			fprintf(out, "\n");
 		} else {
@@ -745,8 +746,8 @@ static int cmd_session_list(struct daemon *daemon, union cmd *cmd, FILE *out)
 				session->base, SESSION_CONTROL);
 			fprintf(out, "  ack:     %s/%s\n",
 				session->base, SESSION_ACK);
-			fprintf(out, "  up:      %lu minutes\n",
-				(curr - session->start) / 60);
+			fprintf(out, "  up:      %" PRIu64 " minutes\n",
+				(uint64_t)((curr - session->start) / 60));
 		}
 	}
 
@@ -1433,7 +1434,7 @@ static int __cmd_signal(struct daemon *daemon, struct option parent_options[],
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
-	cmd.signal.cmd = CMD_SIGNAL,
+	cmd.signal.cmd = CMD_SIGNAL;
 	cmd.signal.sig = SIGUSR2;
 	strncpy(cmd.signal.name, name, sizeof(cmd.signal.name) - 1);
 

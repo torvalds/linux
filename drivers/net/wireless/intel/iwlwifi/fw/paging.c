@@ -249,7 +249,7 @@ static int iwl_send_paging_cmd(struct iwl_fw_runtime *fwrt,
 	};
 	int blk_idx;
 
-	/* loop for for all paging blocks + CSS block */
+	/* loop for all paging blocks + CSS block */
 	for (blk_idx = 0; blk_idx < fwrt->num_of_paging_blk + 1; blk_idx++) {
 		dma_addr_t addr = fwrt->fw_paging_db[blk_idx].fw_paging_phys;
 		__le32 phy_addr;

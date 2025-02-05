@@ -24,13 +24,14 @@ DEFINE_DROP_REASON(FN, FN)
 TRACE_EVENT(kfree_skb,
 
 	TP_PROTO(struct sk_buff *skb, void *location,
-		 enum skb_drop_reason reason),
+		 enum skb_drop_reason reason, struct sock *rx_sk),
 
-	TP_ARGS(skb, location, reason),
+	TP_ARGS(skb, location, reason, rx_sk),
 
 	TP_STRUCT__entry(
 		__field(void *,		skbaddr)
 		__field(void *,		location)
+		__field(void *,		rx_sk)
 		__field(unsigned short,	protocol)
 		__field(enum skb_drop_reason,	reason)
 	),
@@ -38,12 +39,14 @@ TRACE_EVENT(kfree_skb,
 	TP_fast_assign(
 		__entry->skbaddr = skb;
 		__entry->location = location;
+		__entry->rx_sk = rx_sk;
 		__entry->protocol = ntohs(skb->protocol);
 		__entry->reason = reason;
 	),
 
-	TP_printk("skbaddr=%p protocol=%u location=%pS reason: %s",
-		  __entry->skbaddr, __entry->protocol, __entry->location,
+	TP_printk("skbaddr=%p rx_sk=%p protocol=%u location=%pS reason: %s",
+		  __entry->skbaddr, __entry->rx_sk, __entry->protocol,
+		  __entry->location,
 		  __print_symbolic(__entry->reason,
 				   DEFINE_DROP_REASON(FN, FNe)))
 );

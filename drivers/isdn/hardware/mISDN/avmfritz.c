@@ -13,7 +13,7 @@
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ipac.h"
 
 
@@ -159,6 +159,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 }
 
 MODULE_AUTHOR("Karsten Keil");
+MODULE_DESCRIPTION("mISDN driver for AVM FRITZ!CARD PCI ISDN cards");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(AVMFRITZ_REV);
 module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);

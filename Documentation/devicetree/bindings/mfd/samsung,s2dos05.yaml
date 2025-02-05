@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/samsung,s2dos05.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S2DOS05 Power Management IC
+
+maintainers:
+  - Dzmitry Sankouski <dsankouski@gmail.com>
+
+description:
+  This is a device tree bindings for S2DOS family of Power Management IC (PMIC).
+
+  The S2DOS05 is a companion power management IC for the panel and touchscreen
+  in smart phones. Provides voltage regulators and
+  ADC for power/current measurements.
+
+  Regulator section has 4 LDO and 1 BUCK regulators and also
+  provides ELVDD, ELVSS, AVDD lines.
+
+properties:
+  compatible:
+    const: samsung,s2dos05
+
+  reg:
+    maxItems: 1
+
+  regulators:
+    patternProperties:
+      "^buck|ldo[1-4]$":
+        type: object
+        $ref: /schemas/regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+        required:
+          - regulator-name
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@60 {
+            compatible = "samsung,s2dos05";
+            reg = <0x60>;
+
+            regulators {
+                ldo1 {
+                    regulator-active-discharge = <1>;
+                    regulator-min-microvolt = <1500000>;
+                    regulator-max-microvolt = <2000000>;
+                    regulator-name = "ldo1";
+                };
+
+                ldo2 {
+                    regulator-active-discharge = <1>;
+                    regulator-boot-on;
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-name = "ldo2";
+                };
+
+                ldo3 {
+                    regulator-active-discharge = <1>;
+                    regulator-boot-on;
+                    regulator-min-microvolt = <3000000>;
+                    regulator-max-microvolt = <3000000>;
+                    regulator-name = "ldo3";
+                };
+
+                ldo4 {
+                    regulator-active-discharge = <1>;
+                    regulator-min-microvolt = <2700000>;
+                    regulator-max-microvolt = <3775000>;
+                    regulator-name = "ldo4";
+                };
+
+                buck {
+                    regulator-active-discharge = <1>;
+                    regulator-min-microvolt = <850000>;
+                    regulator-max-microvolt = <2100000>;
+                    regulator-name = "buck";
+                };
+            };
+        };
+    };
+
+...

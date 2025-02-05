@@ -381,16 +381,40 @@ static void rtw89_phy_bb_wrap_ftm_init(struct rtw89_dev *rtwdev,
 	rtw89_write32_mask(rtwdev, addr, 0x7, 0);
 }
 
-static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+static void rtw89_phy_bb_wrap_ul_pwr(struct rtw89_dev *rtwdev)
 {
-	enum rtw89_mac_idx mac_idx = RTW89_MAC_0;
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u8 mac_idx;
+	u32 addr;
 
+	if (chip_id != RTL8922A)
+		return;
+
+	for (mac_idx = 0; mac_idx < RTW89_MAC_NUM; mac_idx++) {
+		addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_RSSI_TARGET_LMT, mac_idx);
+		rtw89_write32(rtwdev, addr, 0x0201FE00);
+		addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_TH, mac_idx);
+		rtw89_write32(rtwdev, addr, 0x00FFEC7E);
+	}
+}
+
+static void __rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev,
+					enum rtw89_mac_idx mac_idx)
+{
 	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_tx_path_by_macid_init(rtwdev);
 	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
 	rtw89_phy_bb_wrap_force_cr_init(rtwdev, mac_idx);
 	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
 	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_ul_pwr(rtwdev);
+}
+
+static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+{
+	__rtw89_phy_bb_wrap_init_be(rtwdev, RTW89_MAC_0);
+	if (rtwdev->dbcc_en)
+		__rtw89_phy_bb_wrap_init_be(rtwdev, RTW89_MAC_1);
 }
 
 static void rtw89_phy_ch_info_init_be(struct rtw89_dev *rtwdev)

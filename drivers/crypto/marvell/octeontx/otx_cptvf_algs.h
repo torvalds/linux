@@ -185,6 +185,5 @@ int otx_cpt_crypto_init(struct pci_dev *pdev, struct module *mod,
 			int num_queues, int num_devices);
 void otx_cpt_crypto_exit(struct pci_dev *pdev, struct module *mod,
 			 enum otx_cptvf_type engine_type);
-void otx_cpt_callback(int status, void *arg, void *req);
 
 #endif /* __OTX_CPT_ALGS_H */

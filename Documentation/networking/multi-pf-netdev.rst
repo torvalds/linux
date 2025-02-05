@@ -89,7 +89,7 @@ Observability
 =============
 The relation between PF, irq, napi, and queue can be observed via netlink spec::
 
-  $ ./tools/net/ynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump queue-get --json='{"ifindex": 13}'
+  $ ./tools/net/ynl/pyynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump queue-get --json='{"ifindex": 13}'
   [{'id': 0, 'ifindex': 13, 'napi-id': 539, 'type': 'rx'},
    {'id': 1, 'ifindex': 13, 'napi-id': 540, 'type': 'rx'},
    {'id': 2, 'ifindex': 13, 'napi-id': 541, 'type': 'rx'},
@@ -101,7 +101,7 @@ The relation between PF, irq, napi, and queue can be observed via netlink spec::
    {'id': 3, 'ifindex': 13, 'napi-id': 542, 'type': 'tx'},
    {'id': 4, 'ifindex': 13, 'napi-id': 543, 'type': 'tx'}]
 
-  $ ./tools/net/ynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump napi-get --json='{"ifindex": 13}'
+  $ ./tools/net/ynl/pyynl/cli.py --spec Documentation/netlink/specs/netdev.yaml --dump napi-get --json='{"ifindex": 13}'
   [{'id': 543, 'ifindex': 13, 'irq': 42},
    {'id': 542, 'ifindex': 13, 'irq': 41},
    {'id': 541, 'ifindex': 13, 'irq': 40},
@@ -111,11 +111,11 @@ The relation between PF, irq, napi, and queue can be observed via netlink spec::
 Here you can clearly observe our channels distribution policy::
 
   $ ls /proc/irq/{36,39,40,41,42}/mlx5* -d -1
-  /proc/irq/36/mlx5_comp1@pci:0000:08:00.0
-  /proc/irq/39/mlx5_comp1@pci:0000:09:00.0
-  /proc/irq/40/mlx5_comp2@pci:0000:08:00.0
-  /proc/irq/41/mlx5_comp2@pci:0000:09:00.0
-  /proc/irq/42/mlx5_comp3@pci:0000:08:00.0
+  /proc/irq/36/mlx5_comp0@pci:0000:08:00.0
+  /proc/irq/39/mlx5_comp0@pci:0000:09:00.0
+  /proc/irq/40/mlx5_comp1@pci:0000:08:00.0
+  /proc/irq/41/mlx5_comp1@pci:0000:09:00.0
+  /proc/irq/42/mlx5_comp2@pci:0000:08:00.0
 
 Steering
 ========

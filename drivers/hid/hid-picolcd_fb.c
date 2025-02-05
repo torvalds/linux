@@ -296,7 +296,7 @@ static void picolcd_fb_destroy(struct fb_info *info)
 	/* make sure no work is deferred */
 	fb_deferred_io_cleanup(info);
 
-	/* No thridparty should ever unregister our framebuffer! */
+	/* No thirdparty should ever unregister our framebuffer! */
 	WARN_ON(fbdata->picolcd != NULL);
 
 	vfree((u8 *)info->fix.smem_start);
@@ -421,12 +421,10 @@ static ssize_t picolcd_fb_update_rate_show(struct device *dev,
 	size_t ret = 0;
 
 	for (i = 1; i <= PICOLCDFB_UPDATE_RATE_LIMIT; i++)
-		if (ret >= PAGE_SIZE)
-			break;
-		else if (i == fb_update_rate)
-			ret += scnprintf(buf+ret, PAGE_SIZE-ret, "[%u] ", i);
+		if (i == fb_update_rate)
+			ret += sysfs_emit_at(buf, ret, "[%u] ", i);
 		else
-			ret += scnprintf(buf+ret, PAGE_SIZE-ret, "%u ", i);
+			ret += sysfs_emit_at(buf, ret, "%u ", i);
 	if (ret > 0)
 		buf[min(ret, (size_t)PAGE_SIZE)-1] = '\n';
 	return ret;
@@ -492,6 +490,16 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	info->var = picolcdfb_var;
 	info->fix = picolcdfb_fix;
 	info->fix.smem_len   = PICOLCDFB_SIZE*8;
+
+#ifdef CONFIG_FB_BACKLIGHT
+#ifdef CONFIG_HID_PICOLCD_BACKLIGHT
+	info->bl_dev = data->backlight;
+#endif
+#endif
+
+#ifdef CONFIG_HID_PICOLCD_LCD
+	info->lcd_dev = data->lcd;
+#endif
 
 	fbdata = info->par;
 	spin_lock_init(&fbdata->lock);

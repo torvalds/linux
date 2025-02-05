@@ -206,9 +206,10 @@ static struct platform_driver flash_driver = {
 		.of_match_table = flash_match,
 	},
 	.probe		= flash_probe,
-	.remove_new	= flash_remove,
+	.remove		= flash_remove,
 };
 
 module_platform_driver(flash_driver);
 
+MODULE_DESCRIPTION("OBP Flash Device driver");
 MODULE_LICENSE("GPL");

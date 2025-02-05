@@ -782,7 +782,7 @@ static int raw_ioctl_ep0_read(struct raw_dev *dev, unsigned long value)
 	if (ret < 0)
 		goto free;
 
-	length = min(io.length, (unsigned int)ret);
+	length = min_t(unsigned int, io.length, ret);
 	if (copy_to_user((void __user *)(value + sizeof(io)), data, length))
 		ret = -EFAULT;
 	else
@@ -1168,7 +1168,7 @@ static int raw_ioctl_ep_read(struct raw_dev *dev, unsigned long value)
 	if (ret < 0)
 		goto free;
 
-	length = min(io.length, (unsigned int)ret);
+	length = min_t(unsigned int, io.length, ret);
 	if (copy_to_user((void __user *)(value + sizeof(io)), data, length))
 		ret = -EFAULT;
 	else
@@ -1364,7 +1364,6 @@ static const struct file_operations raw_fops = {
 	.unlocked_ioctl =	raw_ioctl,
 	.compat_ioctl =		raw_ioctl,
 	.release =		raw_release,
-	.llseek =		no_llseek,
 };
 
 static struct miscdevice raw_misc_device = {

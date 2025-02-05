@@ -292,11 +292,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 	}
 
 	if (shost->transportt->create_work_queue) {
-		snprintf(shost->work_q_name, sizeof(shost->work_q_name),
-			 "scsi_wq_%d", shost->host_no);
-		shost->work_q = alloc_workqueue("%s",
-			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND,
-			1, shost->work_q_name);
+		shost->work_q = alloc_workqueue(
+			"scsi_wq_%d",
+			WQ_SYSFS | __WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
+			shost->host_no);
 
 		if (!shost->work_q) {
 			error = -EINVAL;
@@ -478,6 +477,12 @@ struct Scsi_Host *scsi_host_alloc(const struct scsi_host_template *sht, int priv
 		shost->max_segment_size = sht->max_segment_size;
 	else
 		shost->max_segment_size = BLK_MAX_SEGMENT_SIZE;
+
+	/* 32-byte (dword) is a common minimum for HBAs. */
+	if (sht->dma_alignment)
+		shost->dma_alignment = sht->dma_alignment;
+	else
+		shost->dma_alignment = 3;
 
 	/*
 	 * assume a 4GB boundary, if not set

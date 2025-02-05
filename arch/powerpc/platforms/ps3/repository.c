@@ -940,7 +940,7 @@ int __init ps3_repository_read_vuart_sysmgr_port(unsigned int *port)
 
 /**
   * ps3_repository_read_boot_dat_info - Get address and size of cell_ext_os_area.
-  * address: lpar address of cell_ext_os_area
+  * @lpar_addr: lpar address of cell_ext_os_area
   * @size: size of cell_ext_os_area
   */
 

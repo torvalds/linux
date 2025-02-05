@@ -6,7 +6,7 @@
 #include <linux/crc32.h>
 #include <linux/base64.h>
 #include <linux/prandom.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/hash.h>
 #include <crypto/dh.h>
 #include "nvme.h"
@@ -730,7 +730,7 @@ static void nvme_queue_auth_work(struct work_struct *work)
 					 NVME_AUTH_DHCHAP_MESSAGE_CHALLENGE);
 	if (ret) {
 		chap->status = ret;
-		chap->error = -ECONNREFUSED;
+		chap->error = -EKEYREJECTED;
 		return;
 	}
 
@@ -797,7 +797,7 @@ static void nvme_queue_auth_work(struct work_struct *work)
 					 NVME_AUTH_DHCHAP_MESSAGE_SUCCESS1);
 	if (ret) {
 		chap->status = ret;
-		chap->error = -ECONNREFUSED;
+		chap->error = -EKEYREJECTED;
 		return;
 	}
 
@@ -818,7 +818,7 @@ static void nvme_queue_auth_work(struct work_struct *work)
 	ret = nvme_auth_process_dhchap_success1(ctrl, chap);
 	if (ret) {
 		/* Controller authentication failed */
-		chap->error = -ECONNREFUSED;
+		chap->error = -EKEYREJECTED;
 		goto fail2;
 	}
 

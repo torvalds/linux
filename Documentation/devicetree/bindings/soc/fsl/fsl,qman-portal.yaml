@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/fsl/fsl,qman-portal.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: QorIQ DPAA Queue Manager Portals
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+description:
+  Portals are memory mapped interfaces to QMan that allow low-latency, lock-less
+  interaction by software running on processor cores, accelerators and network
+  interfaces with the QMan
+
+properties:
+  compatible:
+    oneOf:
+      - const: fsl,qman-portal
+      - items:
+          - enum:
+              - fsl,ls1043-qman-portal
+              - fsl,ls1046-qman-portal
+              - fsl,qman-portal-1.2.0
+          - const: fsl,qman-portal
+
+  reg:
+    items:
+      - description: the cache-enabled region of the portal
+      - description: the cache-inhibited region of the portal
+
+  interrupts:
+    maxItems: 1
+
+  fsl,liodn:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 2
+    description: See pamu.txt. Two LIODN(s). DQRR LIODN (DLIODN) and Frame LIODN
+      (FLIODN)
+
+  fsl,iommu-parent:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: See pamu.txt.
+
+  fsl,qman-channel-id:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: qman channel id.
+
+  cell-index:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The hardware index of the channel. This can also be
+      determined by dividing any of the channel's 8 work queue
+      IDs by 8
+
+      In addition to these properties the qman-portals should have sub-nodes to
+      represent the HW devices/portals that are connected to the software portal
+      described here
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties: false
+
+patternProperties:
+  '^(fman0|fman1|pme|crypto)+$':
+    type: object
+    properties:
+      fsl,liodn:
+        $ref: /schemas/types.yaml#/definitions/uint32-array
+        description: See pamu.txt, PAMU property used for static LIODN assignment
+
+      fsl,iommu-parent:
+        description: See pamu.txt, PAMU property used for dynamic LIODN assignment
+
+      dev-handle:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description:
+          The phandle to the particular hardware device that this
+          portal is connected to.
+
+    additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    qman-portal@0 {
+        compatible = "fsl,qman-portal-1.2.0", "fsl,qman-portal";
+        reg = <0 0x4000>, <0x100000 0x1000>;
+        interrupts = <104 IRQ_TYPE_EDGE_FALLING 0 0>;
+        fsl,liodn = <1 2>;
+        fsl,qman-channel-id = <0>;
+
+        fman0 {
+            fsl,liodn = <0x21>;
+            dev-handle = <&fman0>;
+        };
+
+        fman1 {
+            fsl,liodn = <0xa1>;
+            dev-handle = <&fman1>;
+        };
+
+        crypto {
+            fsl,liodn = <0x41 0x66>;
+            dev-handle = <&crypto>;
+        };
+    };

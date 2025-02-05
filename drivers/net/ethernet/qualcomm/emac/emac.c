@@ -216,7 +216,7 @@ static int emac_change_mtu(struct net_device *netdev, int new_mtu)
 	netif_dbg(adpt, hw, adpt->netdev,
 		  "changing MTU from %d to %d\n", netdev->mtu,
 		  new_mtu);
-	netdev->mtu = new_mtu;
+	WRITE_ONCE(netdev->mtu, new_mtu);
 
 	if (netif_running(netdev))
 		return emac_reinit_locked(adpt);
@@ -760,7 +760,7 @@ static void emac_shutdown(struct platform_device *pdev)
 
 static struct platform_driver emac_platform_driver = {
 	.probe	= emac_probe,
-	.remove_new = emac_remove,
+	.remove = emac_remove,
 	.driver = {
 		.name		= "qcom-emac",
 		.of_match_table = emac_dt_match,

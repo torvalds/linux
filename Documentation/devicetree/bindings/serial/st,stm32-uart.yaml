@@ -73,6 +73,10 @@ properties:
     enum: [1, 2, 4, 8, 12, 14, 16]
     default: 8
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 allOf:
   - $ref: rs485.yaml#
   - $ref: serial.yaml#

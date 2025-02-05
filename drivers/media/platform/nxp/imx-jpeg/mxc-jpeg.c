@@ -1634,6 +1634,9 @@ static int mxc_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 	dev_dbg(ctx->mxc_jpeg->dev, "Start streaming ctx=%p", ctx);
 	q_data->sequence = 0;
 
+	if (V4L2_TYPE_IS_CAPTURE(q->type))
+		ctx->need_initial_source_change_evt = false;
+
 	ret = pm_runtime_resume_and_get(ctx->mxc_jpeg->dev);
 	if (ret < 0) {
 		dev_err(ctx->mxc_jpeg->dev, "Failed to power up jpeg\n");
@@ -1840,17 +1843,6 @@ static int mxc_jpeg_parse(struct mxc_jpeg_ctx *ctx, struct vb2_buffer *vb)
 
 	q_data_out = mxc_jpeg_get_q_data(ctx,
 					 V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
-	if (q_data_out->w == 0 && q_data_out->h == 0) {
-		dev_warn(dev, "Invalid user resolution 0x0");
-		dev_warn(dev, "Keeping resolution from JPEG: %dx%d",
-			 header.frame.width, header.frame.height);
-	} else if (header.frame.width != q_data_out->w ||
-		   header.frame.height != q_data_out->h) {
-		dev_err(dev,
-			"Resolution mismatch: %dx%d (JPEG) versus %dx%d(user)",
-			header.frame.width, header.frame.height,
-			q_data_out->w, q_data_out->h);
-	}
 	q_data_out->w = header.frame.width;
 	q_data_out->h = header.frame.height;
 	if (header.frame.width > MXC_JPEG_MAX_WIDTH ||
@@ -1973,8 +1965,6 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 
 static const struct vb2_ops mxc_jpeg_qops = {
 	.queue_setup		= mxc_jpeg_queue_setup,
-	.wait_prepare		= vb2_ops_wait_prepare,
-	.wait_finish		= vb2_ops_wait_finish,
 	.buf_out_validate	= mxc_jpeg_buf_out_validate,
 	.buf_prepare		= mxc_jpeg_buf_prepare,
 	.start_streaming	= mxc_jpeg_start_streaming,
@@ -2687,9 +2677,12 @@ static void mxc_jpeg_detach_pm_domains(struct mxc_jpeg_dev *jpeg)
 	int i;
 
 	for (i = 0; i < jpeg->num_domains; i++) {
-		if (jpeg->pd_link[i] && !IS_ERR(jpeg->pd_link[i]))
+		if (!IS_ERR_OR_NULL(jpeg->pd_dev[i]) &&
+		    !pm_runtime_suspended(jpeg->pd_dev[i]))
+			pm_runtime_force_suspend(jpeg->pd_dev[i]);
+		if (!IS_ERR_OR_NULL(jpeg->pd_link[i]))
 			device_link_del(jpeg->pd_link[i]);
-		if (jpeg->pd_dev[i] && !IS_ERR(jpeg->pd_dev[i]))
+		if (!IS_ERR_OR_NULL(jpeg->pd_dev[i]))
 			dev_pm_domain_detach(jpeg->pd_dev[i], true);
 		jpeg->pd_dev[i] = NULL;
 		jpeg->pd_link[i] = NULL;
@@ -2850,6 +2843,7 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 	jpeg->dec_vdev->vfl_dir = VFL_DIR_M2M;
 	jpeg->dec_vdev->device_caps = V4L2_CAP_STREAMING |
 					V4L2_CAP_VIDEO_M2M_MPLANE;
+	video_set_drvdata(jpeg->dec_vdev, jpeg);
 	if (mode == MXC_JPEG_ENCODE) {
 		v4l2_disable_ioctl(jpeg->dec_vdev, VIDIOC_DECODER_CMD);
 		v4l2_disable_ioctl(jpeg->dec_vdev, VIDIOC_TRY_DECODER_CMD);
@@ -2862,7 +2856,6 @@ static int mxc_jpeg_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register video device\n");
 		goto err_vdev_register;
 	}
-	video_set_drvdata(jpeg->dec_vdev, jpeg);
 	if (mode == MXC_JPEG_ENCODE)
 		v4l2_info(&jpeg->v4l2_dev,
 			  "encoder device registered as /dev/video%d (%d,%d)\n",
@@ -2896,7 +2889,6 @@ err_clk:
 	return ret;
 }
 
-#ifdef CONFIG_PM
 static int mxc_jpeg_runtime_resume(struct device *dev)
 {
 	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
@@ -2919,9 +2911,7 @@ static int mxc_jpeg_runtime_suspend(struct device *dev)
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_PM_SLEEP
 static int mxc_jpeg_suspend(struct device *dev)
 {
 	struct mxc_jpeg_dev *jpeg = dev_get_drvdata(dev);
@@ -2942,12 +2932,10 @@ static int mxc_jpeg_resume(struct device *dev)
 	v4l2_m2m_resume(jpeg->m2m_dev);
 	return ret;
 }
-#endif
 
 static const struct dev_pm_ops	mxc_jpeg_pm_ops = {
-	SET_RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend,
-			   mxc_jpeg_runtime_resume, NULL)
-	SET_SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
+	RUNTIME_PM_OPS(mxc_jpeg_runtime_suspend, mxc_jpeg_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(mxc_jpeg_suspend, mxc_jpeg_resume)
 };
 
 static void mxc_jpeg_remove(struct platform_device *pdev)
@@ -2967,11 +2955,11 @@ MODULE_DEVICE_TABLE(of, mxc_jpeg_match);
 
 static struct platform_driver mxc_jpeg_driver = {
 	.probe = mxc_jpeg_probe,
-	.remove_new = mxc_jpeg_remove,
+	.remove = mxc_jpeg_remove,
 	.driver = {
 		.name = "mxc-jpeg",
 		.of_match_table = mxc_jpeg_match,
-		.pm = &mxc_jpeg_pm_ops,
+		.pm = pm_ptr(&mxc_jpeg_pm_ops),
 	},
 };
 module_platform_driver(mxc_jpeg_driver);

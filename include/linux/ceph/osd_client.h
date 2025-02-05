@@ -449,8 +449,6 @@ extern int ceph_osdc_init(struct ceph_osd_client *osdc,
 extern void ceph_osdc_stop(struct ceph_osd_client *osdc);
 extern void ceph_osdc_reopen_osds(struct ceph_osd_client *osdc);
 
-extern void ceph_osdc_handle_reply(struct ceph_osd_client *osdc,
-				   struct ceph_msg *msg);
 extern void ceph_osdc_handle_map(struct ceph_osd_client *osdc,
 				 struct ceph_msg *msg);
 void ceph_osdc_update_epoch_barrier(struct ceph_osd_client *osdc, u32 eb);
@@ -628,8 +626,6 @@ int ceph_osdc_notify(struct ceph_osd_client *osdc,
 		     u32 timeout,
 		     struct page ***preply_pages,
 		     size_t *preply_len);
-int ceph_osdc_watch_check(struct ceph_osd_client *osdc,
-			  struct ceph_osd_linger_request *lreq);
 int ceph_osdc_list_watchers(struct ceph_osd_client *osdc,
 			    struct ceph_object_id *oid,
 			    struct ceph_object_locator *oloc,

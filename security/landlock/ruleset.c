@@ -8,11 +8,13 @@
 
 #include <linux/bits.h>
 #include <linux/bug.h>
+#include <linux/cleanup.h>
 #include <linux/compiler_types.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
+#include <linux/mutex.h>
 #include <linux/overflow.h>
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
@@ -20,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "access.h"
 #include "limits.h"
 #include "object.h"
 #include "ruleset.h"
@@ -52,12 +55,13 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 
 struct landlock_ruleset *
 landlock_create_ruleset(const access_mask_t fs_access_mask,
-			const access_mask_t net_access_mask)
+			const access_mask_t net_access_mask,
+			const access_mask_t scope_mask)
 {
 	struct landlock_ruleset *new_ruleset;
 
 	/* Informs about useless ruleset. */
-	if (!fs_access_mask && !net_access_mask)
+	if (!fs_access_mask && !net_access_mask && !scope_mask)
 		return ERR_PTR(-ENOMSG);
 	new_ruleset = create_ruleset(1);
 	if (IS_ERR(new_ruleset))
@@ -66,6 +70,8 @@ landlock_create_ruleset(const access_mask_t fs_access_mask,
 		landlock_add_fs_access_mask(new_ruleset, fs_access_mask, 0);
 	if (net_access_mask)
 		landlock_add_net_access_mask(new_ruleset, net_access_mask, 0);
+	if (scope_mask)
+		landlock_add_scope_mask(new_ruleset, scope_mask, 0);
 	return new_ruleset;
 }
 
@@ -169,13 +175,9 @@ static void build_check_ruleset(void)
 		.num_rules = ~0,
 		.num_layers = ~0,
 	};
-	typeof(ruleset.access_masks[0]) access_masks = ~0;
 
 	BUILD_BUG_ON(ruleset.num_rules < LANDLOCK_MAX_NUM_RULES);
 	BUILD_BUG_ON(ruleset.num_layers < LANDLOCK_MAX_NUM_LAYERS);
-	BUILD_BUG_ON(access_masks <
-		     ((LANDLOCK_MASK_ACCESS_FS << LANDLOCK_SHIFT_ACCESS_FS) |
-		      (LANDLOCK_MASK_ACCESS_NET << LANDLOCK_SHIFT_ACCESS_NET)));
 }
 
 /**
@@ -385,7 +387,8 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 		err = -EINVAL;
 		goto out_unlock;
 	}
-	dst->access_masks[dst->num_layers - 1] = src->access_masks[0];
+	dst->access_masks[dst->num_layers - 1] =
+		landlock_upgrade_handled_access_masks(src->access_masks[0]);
 
 	/* Merges the @src inode tree. */
 	err = merge_tree(dst, src, LANDLOCK_KEY_INODE);
@@ -538,7 +541,7 @@ struct landlock_ruleset *
 landlock_merge_ruleset(struct landlock_ruleset *const parent,
 		       struct landlock_ruleset *const ruleset)
 {
-	struct landlock_ruleset *new_dom;
+	struct landlock_ruleset *new_dom __free(landlock_put_ruleset) = NULL;
 	u32 num_layers;
 	int err;
 
@@ -558,29 +561,25 @@ landlock_merge_ruleset(struct landlock_ruleset *const parent,
 	new_dom = create_ruleset(num_layers);
 	if (IS_ERR(new_dom))
 		return new_dom;
+
 	new_dom->hierarchy =
 		kzalloc(sizeof(*new_dom->hierarchy), GFP_KERNEL_ACCOUNT);
-	if (!new_dom->hierarchy) {
-		err = -ENOMEM;
-		goto out_put_dom;
-	}
+	if (!new_dom->hierarchy)
+		return ERR_PTR(-ENOMEM);
+
 	refcount_set(&new_dom->hierarchy->usage, 1);
 
 	/* ...as a child of @parent... */
 	err = inherit_ruleset(parent, new_dom);
 	if (err)
-		goto out_put_dom;
+		return ERR_PTR(err);
 
 	/* ...and including @ruleset. */
 	err = merge_ruleset(new_dom, ruleset);
 	if (err)
-		goto out_put_dom;
+		return ERR_PTR(err);
 
-	return new_dom;
-
-out_put_dom:
-	landlock_put_ruleset(new_dom);
-	return ERR_PTR(err);
+	return no_free_ptr(new_dom);
 }
 
 /*

@@ -559,5 +559,6 @@ static struct platform_driver bcm4908_pinctrl_driver = {
 module_platform_driver(bcm4908_pinctrl_driver);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom BCM4908 pinmux driver");
 MODULE_LICENSE("GPL v2");
 MODULE_DEVICE_TABLE(of, bcm4908_pinctrl_of_match_table);

@@ -49,6 +49,7 @@
 #include <linux/jhash.h>
 #include <net/arp.h>
 #include <net/addrconf.h>
+#include <net/pkt_sched.h>
 #include <linux/inetdevice.h>
 #include <rdma/ib_cache.h>
 
@@ -238,7 +239,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
 				   priv->mcast_mtu);
 
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 		return 0;
 	}
 
@@ -265,7 +266,7 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 		if (carrier_status)
 			netif_carrier_on(dev);
 	} else {
-		dev->mtu = new_mtu;
+		WRITE_ONCE(dev->mtu, new_mtu);
 	}
 
 	return ret;
@@ -329,8 +330,7 @@ static struct net_device *ipoib_get_master_net_dev(struct net_device *dev)
 
 	rcu_read_lock();
 	master = netdev_master_upper_dev_get_rcu(dev);
-	if (master)
-		dev_hold(master);
+	dev_hold(master);
 	rcu_read_unlock();
 
 	if (master)
@@ -2146,7 +2146,7 @@ void ipoib_setup_common(struct net_device *dev)
 	dev->hard_header_len	 = IPOIB_HARD_LEN;
 	dev->addr_len		 = INFINIBAND_ALEN;
 	dev->type		 = ARPHRD_INFINIBAND;
-	dev->tx_queue_len	 = ipoib_sendq_size * 2;
+	dev->tx_queue_len	 = DEFAULT_TX_QUEUE_LEN;
 	dev->features		 = (NETIF_F_VLAN_CHALLENGED	|
 				    NETIF_F_HIGHDMA);
 	netif_keep_dst(dev);

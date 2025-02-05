@@ -21,6 +21,7 @@ enum {
 	 */
 	EFX_REV_HUNT_A0 = 4,
 	EFX_REV_EF100 = 5,
+	EFX_REV_X4 = 6,
 };
 
 static inline int efx_nic_rev(struct efx_nic *efx)
@@ -240,7 +241,7 @@ void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 #define EFX_MC_STATS_GENERATION_INVALID ((__force __le64)(-1))
 
 size_t efx_nic_describe_stats(const struct efx_hw_stat_desc *desc, size_t count,
-			      const unsigned long *mask, u8 *names);
+			      const unsigned long *mask, u8 **names);
 int efx_nic_copy_stats(struct efx_nic *efx, __le64 *dest);
 void efx_nic_update_stats(const struct efx_hw_stat_desc *desc, size_t count,
 			  const unsigned long *mask, u64 *stats,

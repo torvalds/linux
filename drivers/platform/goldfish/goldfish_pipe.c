@@ -61,7 +61,6 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
-#include <linux/acpi.h>
 #include <linux/bug.h>
 #include "goldfish_pipe_qemu.h"
 
@@ -936,14 +935,15 @@ MODULE_DEVICE_TABLE(of, goldfish_pipe_of_match);
 
 static struct platform_driver goldfish_pipe_driver = {
 	.probe = goldfish_pipe_probe,
-	.remove_new = goldfish_pipe_remove,
+	.remove = goldfish_pipe_remove,
 	.driver = {
 		.name = "goldfish_pipe",
 		.of_match_table = goldfish_pipe_of_match,
-		.acpi_match_table = ACPI_PTR(goldfish_pipe_acpi_match),
+		.acpi_match_table = goldfish_pipe_acpi_match,
 	}
 };
 
 module_platform_driver(goldfish_pipe_driver);
 MODULE_AUTHOR("David Turner <digit@google.com>");
+MODULE_DESCRIPTION("Goldfish virtual device for QEMU pipes");
 MODULE_LICENSE("GPL v2");

@@ -195,12 +195,11 @@ free_oppanel_data:
 	return rc;
 }
 
-static int oppanel_remove(struct platform_device *pdev)
+static void oppanel_remove(struct platform_device *pdev)
 {
 	misc_deregister(&oppanel_dev);
 	kfree(oppanel_lines);
 	kfree(oppanel_data);
-	return 0;
 }
 
 static const struct of_device_id oppanel_match[] = {

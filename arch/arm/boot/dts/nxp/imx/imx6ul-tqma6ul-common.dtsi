@@ -202,7 +202,7 @@
 		>;
 	};
 
-	pinctrl_pmic: pmic {
+	pinctrl_pmic: pmicgrp {
 		fsl,pins = <
 			/* PMIC irq */
 			MX6UL_PAD_CSI_DATA03__GPIO4_IO24	0x1b099

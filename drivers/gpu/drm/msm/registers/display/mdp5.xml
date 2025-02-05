@@ -9,22 +9,6 @@ xsi:schemaLocation="https://gitlab.freedesktop.org/freedreno/ rules-fd.xsd">
 <domain name="VBIF" width="32">
 </domain>
 
-<domain name="MDSS" width="32">
-	<reg32 offset="0x00000" name="HW_VERSION">
-		<bitfield name="STEP" low="0" high="15" type="uint"/>
-		<bitfield name="MINOR" low="16" high="27" type="uint"/>
-		<bitfield name="MAJOR" low="28" high="31" type="uint"/>
-	</reg32>
-
-	<reg32 offset="0x00010" name="HW_INTR_STATUS">
-		<bitfield name="INTR_MDP"  pos="0"  type="boolean"/>
-		<bitfield name="INTR_DSI0" pos="4"  type="boolean"/>
-		<bitfield name="INTR_DSI1" pos="5"  type="boolean"/>
-		<bitfield name="INTR_HDMI" pos="8"  type="boolean"/>
-		<bitfield name="INTR_EDP"  pos="12" type="boolean"/>
-	</reg32>
-</domain>
-
 <domain name="MDP5" width="32">
 
 	<enum name="mdp5_intf_type">

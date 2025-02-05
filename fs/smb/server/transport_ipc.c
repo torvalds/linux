@@ -120,6 +120,12 @@ static const struct nla_policy ksmbd_nl_policy[KSMBD_EVENT_MAX + 1] = {
 	},
 	[KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE] = {
 	},
+	[KSMBD_EVENT_LOGIN_REQUEST_EXT] = {
+		.len = sizeof(struct ksmbd_login_request),
+	},
+	[KSMBD_EVENT_LOGIN_RESPONSE_EXT] = {
+		.len = sizeof(struct ksmbd_login_response_ext),
+	},
 };
 
 static struct genl_ops ksmbd_genl_ops[] = {
@@ -187,6 +193,14 @@ static struct genl_ops ksmbd_genl_ops[] = {
 		.cmd	= KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE,
 		.doit	= handle_generic_event,
 	},
+	{
+		.cmd	= KSMBD_EVENT_LOGIN_REQUEST_EXT,
+		.doit	= handle_unsupported_event,
+	},
+	{
+		.cmd	= KSMBD_EVENT_LOGIN_RESPONSE_EXT,
+		.doit	= handle_generic_event,
+	},
 };
 
 static struct genl_family ksmbd_genl_family = {
@@ -198,7 +212,7 @@ static struct genl_family ksmbd_genl_family = {
 	.module		= THIS_MODULE,
 	.ops		= ksmbd_genl_ops,
 	.n_ops		= ARRAY_SIZE(ksmbd_genl_ops),
-	.resv_start_op	= KSMBD_EVENT_SPNEGO_AUTHEN_RESPONSE + 1,
+	.resv_start_op	= KSMBD_EVENT_LOGIN_RESPONSE_EXT + 1,
 };
 
 static void ksmbd_nl_init_fixup(void)
@@ -230,7 +244,7 @@ static struct ksmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 	struct ksmbd_ipc_msg *msg;
 	size_t msg_sz = sz + sizeof(struct ksmbd_ipc_msg);
 
-	msg = kvzalloc(msg_sz, GFP_KERNEL);
+	msg = kvzalloc(msg_sz, KSMBD_DEFAULT_GFP);
 	if (msg)
 		msg->sz = sz;
 	return msg;
@@ -269,7 +283,7 @@ static int handle_response(int type, void *payload, size_t sz)
 			       entry->type + 1, type);
 		}
 
-		entry->response = kvzalloc(sz, GFP_KERNEL);
+		entry->response = kvzalloc(sz, KSMBD_DEFAULT_GFP);
 		if (!entry->response) {
 			ret = -ENOMEM;
 			break;
@@ -305,8 +319,11 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 		init_smb2_max_write_size(req->smb2_max_write);
 	if (req->smb2_max_trans)
 		init_smb2_max_trans_size(req->smb2_max_trans);
-	if (req->smb2_max_credits)
+	if (req->smb2_max_credits) {
 		init_smb2_max_credits(req->smb2_max_credits);
+		server_conf.max_inflight_req =
+			req->smb2_max_credits;
+	}
 	if (req->smbd_max_io_size)
 		init_smbd_max_io_size(req->smbd_max_io_size);
 
@@ -316,6 +333,7 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 	ret = ksmbd_set_netbios_name(req->netbios_name);
 	ret |= ksmbd_set_server_string(req->server_string);
 	ret |= ksmbd_set_work_group(req->work_group);
+	server_conf.bind_interfaces_only = req->bind_interfaces_only;
 	ret |= ksmbd_tcp_set_interfaces(KSMBD_STARTUP_CONFIG_INTERFACES(req),
 					req->ifc_list_sz);
 	if (ret) {
@@ -430,7 +448,7 @@ static int ipc_msg_send(struct ksmbd_ipc_msg *msg)
 	if (!ksmbd_tools_pid)
 		return ret;
 
-	skb = genlmsg_new(msg->sz, GFP_KERNEL);
+	skb = genlmsg_new(msg->sz, KSMBD_DEFAULT_GFP);
 	if (!skb)
 		return -ENOMEM;
 
@@ -459,16 +477,24 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 {
 	unsigned int msg_sz = entry->msg_sz;
 
-	if (entry->type == KSMBD_EVENT_RPC_REQUEST) {
+	switch (entry->type) {
+	case KSMBD_EVENT_RPC_REQUEST:
+	{
 		struct ksmbd_rpc_command *resp = entry->response;
 
 		msg_sz = sizeof(struct ksmbd_rpc_command) + resp->payload_sz;
-	} else if (entry->type == KSMBD_EVENT_SPNEGO_AUTHEN_REQUEST) {
+		break;
+	}
+	case KSMBD_EVENT_SPNEGO_AUTHEN_REQUEST:
+	{
 		struct ksmbd_spnego_authen_response *resp = entry->response;
 
 		msg_sz = sizeof(struct ksmbd_spnego_authen_response) +
 				resp->session_key_len + resp->spnego_blob_len;
-	} else if (entry->type == KSMBD_EVENT_SHARE_CONFIG_REQUEST) {
+		break;
+	}
+	case KSMBD_EVENT_SHARE_CONFIG_REQUEST:
+	{
 		struct ksmbd_share_config_response *resp = entry->response;
 
 		if (resp->payload_sz) {
@@ -478,6 +504,17 @@ static int ipc_validate_msg(struct ipc_msg_table_entry *entry)
 			msg_sz = sizeof(struct ksmbd_share_config_response) +
 					resp->payload_sz;
 		}
+		break;
+	}
+	case KSMBD_EVENT_LOGIN_REQUEST_EXT:
+	{
+		struct ksmbd_login_response_ext *resp = entry->response;
+
+		if (resp->ngroups) {
+			msg_sz = sizeof(struct ksmbd_login_response_ext) +
+					resp->ngroups * sizeof(gid_t);
+		}
+	}
 	}
 
 	return entry->msg_sz != msg_sz ? -EINVAL : 0;
@@ -560,12 +597,38 @@ struct ksmbd_login_response *ksmbd_ipc_login_request(const char *account)
 	return resp;
 }
 
+struct ksmbd_login_response_ext *ksmbd_ipc_login_request_ext(const char *account)
+{
+	struct ksmbd_ipc_msg *msg;
+	struct ksmbd_login_request *req;
+	struct ksmbd_login_response_ext *resp;
+
+	if (strlen(account) >= KSMBD_REQ_MAX_ACCOUNT_NAME_SZ)
+		return NULL;
+
+	msg = ipc_msg_alloc(sizeof(struct ksmbd_login_request));
+	if (!msg)
+		return NULL;
+
+	msg->type = KSMBD_EVENT_LOGIN_REQUEST_EXT;
+	req = (struct ksmbd_login_request *)msg->payload;
+	req->handle = ksmbd_acquire_id(&ipc_ida);
+	strscpy(req->account, account, KSMBD_REQ_MAX_ACCOUNT_NAME_SZ);
+	resp = ipc_msg_send_request(msg, req->handle);
+	ipc_msg_handle_free(req->handle);
+	ipc_msg_free(msg);
+	return resp;
+}
+
 struct ksmbd_spnego_authen_response *
 ksmbd_ipc_spnego_authen_request(const char *spnego_blob, int blob_len)
 {
 	struct ksmbd_ipc_msg *msg;
 	struct ksmbd_spnego_authen_request *req;
 	struct ksmbd_spnego_authen_response *resp;
+
+	if (blob_len > KSMBD_IPC_MAX_PAYLOAD)
+		return NULL;
 
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_spnego_authen_request) +
 			blob_len + 1);
@@ -746,6 +809,9 @@ struct ksmbd_rpc_command *ksmbd_rpc_write(struct ksmbd_session *sess, int handle
 	struct ksmbd_rpc_command *req;
 	struct ksmbd_rpc_command *resp;
 
+	if (payload_sz > KSMBD_IPC_MAX_PAYLOAD)
+		return NULL;
+
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
 	if (!msg)
 		return NULL;
@@ -794,6 +860,9 @@ struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle
 	struct ksmbd_rpc_command *req;
 	struct ksmbd_rpc_command *resp;
 
+	if (payload_sz > KSMBD_IPC_MAX_PAYLOAD)
+		return NULL;
+
 	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
 	if (!msg)
 		return NULL;
@@ -808,31 +877,6 @@ struct ksmbd_rpc_command *ksmbd_rpc_ioctl(struct ksmbd_session *sess, int handle
 	memcpy(req->payload, payload, payload_sz);
 
 	resp = ipc_msg_send_request(msg, req->handle);
-	ipc_msg_free(msg);
-	return resp;
-}
-
-struct ksmbd_rpc_command *ksmbd_rpc_rap(struct ksmbd_session *sess, void *payload,
-					size_t payload_sz)
-{
-	struct ksmbd_ipc_msg *msg;
-	struct ksmbd_rpc_command *req;
-	struct ksmbd_rpc_command *resp;
-
-	msg = ipc_msg_alloc(sizeof(struct ksmbd_rpc_command) + payload_sz + 1);
-	if (!msg)
-		return NULL;
-
-	msg->type = KSMBD_EVENT_RPC_REQUEST;
-	req = (struct ksmbd_rpc_command *)msg->payload;
-	req->handle = ksmbd_acquire_id(&ipc_ida);
-	req->flags = rpc_context_flags(sess);
-	req->flags |= KSMBD_RPC_RAP_METHOD;
-	req->payload_sz = payload_sz;
-	memcpy(req->payload, payload, payload_sz);
-
-	resp = ipc_msg_send_request(msg, req->handle);
-	ipc_msg_handle_free(req->handle);
 	ipc_msg_free(msg);
 	return resp;
 }

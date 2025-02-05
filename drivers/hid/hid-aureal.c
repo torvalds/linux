@@ -18,7 +18,7 @@
 
 #include "hid-ids.h"
 
-static __u8 *aureal_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+static const __u8 *aureal_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
 {
 	if (*rsize >= 54 && rdesc[52] == 0x25 && rdesc[53] == 0x01) {
@@ -41,4 +41,5 @@ static struct hid_driver aureal_driver = {
 };
 module_hid_driver(aureal_driver);
 
+MODULE_DESCRIPTION("HID driver for Aureal Cy se W-01RN USB_V3.1 devices");
 MODULE_LICENSE("GPL");

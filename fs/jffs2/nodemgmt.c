@@ -15,6 +15,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
 #include <linux/sched/signal.h>
+#include <linux/string_choices.h>
 #include "nodelist.h"
 #include "debug.h"
 
@@ -49,27 +50,30 @@ static int jffs2_rp_can_write(struct jffs2_sb_info *c)
 	return 0;
 }
 
+static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
+				  uint32_t *len, uint32_t sumsize);
+
 /**
  *	jffs2_reserve_space - request physical space to write nodes to flash
  *	@c: superblock info
  *	@minsize: Minimum acceptable size of allocation
  *	@len: Returned value of allocation length
  *	@prio: Allocation type - ALLOC_{NORMAL,DELETION}
+ *	@sumsize: summary size requested or JFFS2_SUMMARY_NOSUM_SIZE for no summary
  *
- *	Requests a block of physical space on the flash. Returns zero for success
- *	and puts 'len' into the appropriate place, or returns -ENOSPC or other 
- *	error if appropriate. Doesn't return len since that's 
+ *	Requests a block of physical space on the flash.
  *
- *	If it returns zero, jffs2_reserve_space() also downs the per-filesystem
+ *	Returns: %0 for success	and puts 'len' into the appropriate place,
+ *	or returns -ENOSPC or other error if appropriate.
+ *	Doesn't return len since that's already returned in @len.
+ *
+ *	If it returns %0, jffs2_reserve_space() also downs the per-filesystem
  *	allocation semaphore, to prevent more than one allocation from being
- *	active at any time. The semaphore is later released by jffs2_commit_allocation()
+ *	active at any time. The semaphore is later released by jffs2_commit_allocation().
  *
  *	jffs2_reserve_space() may trigger garbage collection in order to make room
  *	for the requested allocation.
  */
-
-static int jffs2_do_reserve_space(struct jffs2_sb_info *c,  uint32_t minsize,
-				  uint32_t *len, uint32_t sumsize);
 
 int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			uint32_t *len, int prio, uint32_t sumsize)
@@ -314,9 +318,9 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			   And there's no space left. At all. */
 			pr_crit("Argh. No free space left for GC. nr_erasing_blocks is %d. nr_free_blocks is %d. (erasableempty: %s, erasingempty: %s, erasependingempty: %s)\n",
 				c->nr_erasing_blocks, c->nr_free_blocks,
-				list_empty(&c->erasable_list) ? "yes" : "no",
-				list_empty(&c->erasing_list) ? "yes" : "no",
-				list_empty(&c->erase_pending_list) ? "yes" : "no");
+				str_yes_no(list_empty(&c->erasable_list)),
+				str_yes_no(list_empty(&c->erasing_list)),
+				str_yes_no(list_empty(&c->erase_pending_list)));
 			return -ENOSPC;
 		}
 
@@ -488,13 +492,16 @@ static int jffs2_do_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 /**
  *	jffs2_add_physical_node_ref - add a physical node reference to the list
  *	@c: superblock info
- *	@new: new node reference to add
+ *	@ofs: offset in the block
  *	@len: length of this physical node
+ *	@ic: inode cache pointer
  *
  *	Should only be used to report nodes for which space has been allocated
  *	by jffs2_reserve_space.
  *
  *	Must be called with the alloc_sem held.
+ *
+ *	Returns: pointer to new node on success or -errno code on error
  */
 
 struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
@@ -624,8 +631,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 					  ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-			jffs2_dbg(1, "Obsoleting previously unchecked node at 0x%08x of len %x\n",
-				  ref_offset(ref), freed_len);
+		jffs2_dbg(1, "Obsoleting previously unchecked node at 0x%08x of len %x\n",
+				ref_offset(ref), freed_len);
 		jeb->unchecked_size -= freed_len;
 		c->unchecked_size -= freed_len;
 	} else {
@@ -635,8 +642,8 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 					  ref->flash_offset, jeb->used_size);
 			BUG();
 		})
-			jffs2_dbg(1, "Obsoleting node at 0x%08x of len %#x: ",
-				  ref_offset(ref), freed_len);
+		jffs2_dbg(1, "Obsoleting node at 0x%08x of len %#x: ",
+				ref_offset(ref), freed_len);
 		jeb->used_size -= freed_len;
 		c->used_size -= freed_len;
 	}
@@ -877,7 +884,7 @@ int jffs2_thread_should_wake(struct jffs2_sb_info *c)
 
 	jffs2_dbg(1, "%s(): nr_free_blocks %d, nr_erasing_blocks %d, dirty_size 0x%x, vdirty_blocks %d: %s\n",
 		  __func__, c->nr_free_blocks, c->nr_erasing_blocks,
-		  c->dirty_size, nr_very_dirty, ret ? "yes" : "no");
+		  c->dirty_size, nr_very_dirty, str_yes_no(ret));
 
 	return ret;
 }

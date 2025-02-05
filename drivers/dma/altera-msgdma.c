@@ -153,7 +153,7 @@ struct msgdma_extended_desc {
 /**
  * struct msgdma_sw_desc - implements a sw descriptor
  * @async_tx: support for the async_tx api
- * @hw_desc: assosiated HW descriptor
+ * @hw_desc: associated HW descriptor
  * @node: node to move from the free list to the tx list
  * @tx_list: transmit list node
  */
@@ -233,7 +233,7 @@ static void msgdma_free_descriptor(struct msgdma_device *mdev,
 	struct msgdma_sw_desc *child, *next;
 
 	mdev->desc_free_cnt++;
-	list_add_tail(&desc->node, &mdev->free_list);
+	list_move_tail(&desc->node, &mdev->free_list);
 	list_for_each_entry_safe(child, next, &desc->tx_list, node) {
 		mdev->desc_free_cnt++;
 		list_move_tail(&child->node, &mdev->free_list);
@@ -511,7 +511,7 @@ static void msgdma_copy_one(struct msgdma_device *mdev,
 	 * of the DMA controller. The descriptor will get flushed to the
 	 * FIFO, once the last word (control word) is written. Since we
 	 * are not 100% sure that memcpy() writes all word in the "correct"
-	 * oder (address from low to high) on all architectures, we make
+	 * order (address from low to high) on all architectures, we make
 	 * sure this control word is written last by single coding it and
 	 * adding some write-barriers here.
 	 */
@@ -583,22 +583,25 @@ static void msgdma_issue_pending(struct dma_chan *chan)
 static void msgdma_chan_desc_cleanup(struct msgdma_device *mdev)
 {
 	struct msgdma_sw_desc *desc, *next;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&mdev->lock, irqflags);
 
 	list_for_each_entry_safe(desc, next, &mdev->done_list, node) {
 		struct dmaengine_desc_callback cb;
 
-		list_del(&desc->node);
-
 		dmaengine_desc_get_callback(&desc->async_tx, &cb);
 		if (dmaengine_desc_callback_valid(&cb)) {
-			spin_unlock(&mdev->lock);
+			spin_unlock_irqrestore(&mdev->lock, irqflags);
 			dmaengine_desc_callback_invoke(&cb, NULL);
-			spin_lock(&mdev->lock);
+			spin_lock_irqsave(&mdev->lock, irqflags);
 		}
 
 		/* Run any dependencies, then free the descriptor */
 		msgdma_free_descriptor(mdev, desc);
 	}
+
+	spin_unlock_irqrestore(&mdev->lock, irqflags);
 }
 
 /**
@@ -713,10 +716,11 @@ static void msgdma_tasklet(struct tasklet_struct *t)
 		}
 
 		msgdma_complete_descriptor(mdev);
-		msgdma_chan_desc_cleanup(mdev);
 	}
 
 	spin_unlock_irqrestore(&mdev->lock, flags);
+
+	msgdma_chan_desc_cleanup(mdev);
 }
 
 /**
@@ -950,7 +954,7 @@ static struct platform_driver msgdma_driver = {
 		.of_match_table = of_match_ptr(msgdma_match),
 	},
 	.probe = msgdma_probe,
-	.remove_new = msgdma_remove,
+	.remove = msgdma_remove,
 };
 
 module_platform_driver(msgdma_driver);

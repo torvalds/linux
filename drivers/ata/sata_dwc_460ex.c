@@ -1240,7 +1240,7 @@ static struct platform_driver sata_dwc_driver = {
 		.of_match_table = sata_dwc_match,
 	},
 	.probe = sata_dwc_probe,
-	.remove_new = sata_dwc_remove,
+	.remove = sata_dwc_remove,
 };
 
 module_platform_driver(sata_dwc_driver);

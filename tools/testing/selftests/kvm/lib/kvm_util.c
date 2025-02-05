@@ -4,11 +4,10 @@
  *
  * Copyright (C) 2018, Google LLC.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "ucall_common.h"
 
 #include <assert.h>
 #include <sched.h>
@@ -19,6 +18,10 @@
 #include <linux/kernel.h>
 
 #define KVM_UTIL_MIN_PFN	2
+
+uint32_t guest_random_seed;
+struct guest_random_state guest_rng;
+static uint32_t last_guest_seed;
 
 static int vcpu_mmap_sz(void);
 
@@ -276,7 +279,6 @@ struct kvm_vm *____vm_create(struct vm_shape shape)
 
 	vm->mode = shape.mode;
 	vm->type = shape.type;
-	vm->subtype = shape.subtype;
 
 	vm->pa_bits = vm_guest_mode_params[vm->mode].pa_bits;
 	vm->va_bits = vm_guest_mode_params[vm->mode].va_bits;
@@ -432,6 +434,13 @@ struct kvm_vm *__vm_create(struct vm_shape shape, uint32_t nr_runnable_vcpus,
 	 */
 	slot0 = memslot2region(vm, 0);
 	ucall_init(vm, slot0->region.guest_phys_addr + slot0->region.memory_size);
+
+	if (guest_random_seed != last_guest_seed) {
+		pr_info("Random seed: 0x%x\n", guest_random_seed);
+		last_guest_seed = guest_random_seed;
+	}
+	guest_rng = new_guest_random_state(guest_random_seed);
+	sync_global_to_guest(vm, guest_rng);
 
 	kvm_arch_vm_post_create(vm);
 
@@ -703,19 +712,13 @@ void kvm_vm_release(struct kvm_vm *vmp)
 }
 
 static void __vm_mem_region_delete(struct kvm_vm *vm,
-				   struct userspace_mem_region *region,
-				   bool unlink)
+				   struct userspace_mem_region *region)
 {
 	int ret;
 
-	if (unlink) {
-		rb_erase(&region->gpa_node, &vm->regions.gpa_tree);
-		rb_erase(&region->hva_node, &vm->regions.hva_tree);
-		hash_del(&region->slot_node);
-	}
-
-	region->region.memory_size = 0;
-	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
+	rb_erase(&region->gpa_node, &vm->regions.gpa_tree);
+	rb_erase(&region->hva_node, &vm->regions.hva_tree);
+	hash_del(&region->slot_node);
 
 	sparsebit_free(&region->unused_phy_pages);
 	sparsebit_free(&region->protected_phy_pages);
@@ -753,7 +756,7 @@ void kvm_vm_free(struct kvm_vm *vmp)
 
 	/* Free userspace_mem_regions. */
 	hash_for_each_safe(vmp->regions.slot_hash, ctr, node, region, slot_node)
-		__vm_mem_region_delete(vmp, region, false);
+		__vm_mem_region_delete(vmp, region);
 
 	/* Free sparsebit arrays. */
 	sparsebit_free(&vmp->vpages_valid);
@@ -783,76 +786,6 @@ int kvm_memfd_alloc(size_t size, bool hugepages)
 	TEST_ASSERT(!r, __KVM_SYSCALL_ERROR("fallocate()", r));
 
 	return fd;
-}
-
-/*
- * Memory Compare, host virtual to guest virtual
- *
- * Input Args:
- *   hva - Starting host virtual address
- *   vm - Virtual Machine
- *   gva - Starting guest virtual address
- *   len - number of bytes to compare
- *
- * Output Args: None
- *
- * Input/Output Args: None
- *
- * Return:
- *   Returns 0 if the bytes starting at hva for a length of len
- *   are equal the guest virtual bytes starting at gva.  Returns
- *   a value < 0, if bytes at hva are less than those at gva.
- *   Otherwise a value > 0 is returned.
- *
- * Compares the bytes starting at the host virtual address hva, for
- * a length of len, to the guest bytes starting at the guest virtual
- * address given by gva.
- */
-int kvm_memcmp_hva_gva(void *hva, struct kvm_vm *vm, vm_vaddr_t gva, size_t len)
-{
-	size_t amt;
-
-	/*
-	 * Compare a batch of bytes until either a match is found
-	 * or all the bytes have been compared.
-	 */
-	for (uintptr_t offset = 0; offset < len; offset += amt) {
-		uintptr_t ptr1 = (uintptr_t)hva + offset;
-
-		/*
-		 * Determine host address for guest virtual address
-		 * at offset.
-		 */
-		uintptr_t ptr2 = (uintptr_t)addr_gva2hva(vm, gva + offset);
-
-		/*
-		 * Determine amount to compare on this pass.
-		 * Don't allow the comparsion to cross a page boundary.
-		 */
-		amt = len - offset;
-		if ((ptr1 >> vm->page_shift) != ((ptr1 + amt) >> vm->page_shift))
-			amt = vm->page_size - (ptr1 % vm->page_size);
-		if ((ptr2 >> vm->page_shift) != ((ptr2 + amt) >> vm->page_shift))
-			amt = vm->page_size - (ptr2 % vm->page_size);
-
-		assert((ptr1 >> vm->page_shift) == ((ptr1 + amt - 1) >> vm->page_shift));
-		assert((ptr2 >> vm->page_shift) == ((ptr2 + amt - 1) >> vm->page_shift));
-
-		/*
-		 * Perform the comparison.  If there is a difference
-		 * return that result to the caller, otherwise need
-		 * to continue on looking for a mismatch.
-		 */
-		int ret = memcmp((void *)ptr1, (void *)ptr2, amt);
-		if (ret != 0)
-			return ret;
-	}
-
-	/*
-	 * No mismatch found.  Let the caller know the two memory
-	 * areas are equal.
-	 */
-	return 0;
 }
 
 static void vm_userspace_mem_region_gpa_insert(struct rb_root *gpa_tree,
@@ -930,6 +863,10 @@ void vm_set_user_memory_region(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
 		    errno, strerror(errno));
 }
 
+#define TEST_REQUIRE_SET_USER_MEMORY_REGION2()			\
+	__TEST_REQUIRE(kvm_has_cap(KVM_CAP_USER_MEMORY2),	\
+		       "KVM selftests now require KVM_SET_USER_MEMORY_REGION2 (introduced in v6.8)")
+
 int __vm_set_user_memory_region2(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
 				 uint64_t gpa, uint64_t size, void *hva,
 				 uint32_t guest_memfd, uint64_t guest_memfd_offset)
@@ -943,6 +880,8 @@ int __vm_set_user_memory_region2(struct kvm_vm *vm, uint32_t slot, uint32_t flag
 		.guest_memfd = guest_memfd,
 		.guest_memfd_offset = guest_memfd_offset,
 	};
+
+	TEST_REQUIRE_SET_USER_MEMORY_REGION2();
 
 	return ioctl(vm->fd, KVM_SET_USER_MEMORY_REGION2, &region);
 }
@@ -969,6 +908,8 @@ void vm_mem_add(struct kvm_vm *vm, enum vm_mem_backing_src_type src_type,
 	size_t backing_src_pagesz = get_backing_src_pagesz(src_type);
 	size_t mem_size = npages * vm->page_size;
 	size_t alignment;
+
+	TEST_REQUIRE_SET_USER_MEMORY_REGION2();
 
 	TEST_ASSERT(vm_adjust_num_guest_pages(vm->mode, npages) == npages,
 		"Number of guest pages is not compatible with the host. "
@@ -1253,7 +1194,12 @@ void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa)
  */
 void vm_mem_region_delete(struct kvm_vm *vm, uint32_t slot)
 {
-	__vm_mem_region_delete(vm, memslot2region(vm, slot), true);
+	struct userspace_mem_region *region = memslot2region(vm, slot);
+
+	region->region.memory_size = 0;
+	vm_ioctl(vm, KVM_SET_USER_MEMORY_REGION2, &region->region);
+
+	__vm_mem_region_delete(vm, region);
 }
 
 void vm_guest_mem_fallocate(struct kvm_vm *vm, uint64_t base, uint64_t size,
@@ -1702,7 +1648,8 @@ int _vcpu_run(struct kvm_vcpu *vcpu)
 		rc = __vcpu_run(vcpu);
 	} while (rc == -1 && errno == EINTR);
 
-	assert_on_unhandled_exception(vcpu);
+	if (!rc)
+		assert_on_unhandled_exception(vcpu);
 
 	return rc;
 }
@@ -2305,6 +2252,9 @@ void __attribute((constructor)) kvm_selftest_init(void)
 {
 	/* Tell stdout not to buffer its content. */
 	setbuf(stdout, NULL);
+
+	guest_random_seed = last_guest_seed = random();
+	pr_info("Random seed: 0x%x\n", guest_random_seed);
 
 	kvm_selftest_arch_init();
 }

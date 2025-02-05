@@ -37,6 +37,29 @@ properties:
       to both the positive and negative inputs of a differential ADC.
       The first value specifies the positive input pin, the second
       specifies the negative input pin.
+      There are also some ADCs, where the differential channel has dedicated
+      positive and negative inputs which can be used to measure differential
+      voltage levels. For those setups, this property can be configured with
+      the 'reg' property for both inputs (i.e. diff-channels = <reg reg>).
+
+  single-channel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      When devices combine single-ended and differential channels, allow the
+      channel for a single element to be specified, independent of reg (as for
+      differential channels). If this and diff-channels are not present reg
+      shall be used instead.
+
+  common-mode-channel:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Some ADCs have differential input pins that can be used to measure
+      single-ended or pseudo-differential inputs. This property can be used
+      in addition to single-channel to signal software that this channel is
+      not differential but still specify two inputs.
+
+      The input pair is specified by setting single-channel to the positive
+      input pin and common-mode-channel to the negative pin.
 
   settling-time-us:
     description:
@@ -49,5 +72,16 @@ properties:
       In some cases, the desired filtering characteristics are a function the
       device design and can interact with other characteristics such as
       settling time.
+
+anyOf:
+  - oneOf:
+      - required:
+          - reg
+          - diff-channels
+      - required:
+          - reg
+          - single-channel
+  - required:
+      - reg
 
 additionalProperties: true

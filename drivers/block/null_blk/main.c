@@ -77,7 +77,7 @@ enum {
 	NULL_IRQ_TIMER		= 2,
 };
 
-static bool g_virt_boundary = false;
+static bool g_virt_boundary;
 module_param_named(virt_boundary, g_virt_boundary, bool, 0444);
 MODULE_PARM_DESC(virt_boundary, "Require a virtual boundary for the device. Default: False");
 
@@ -225,6 +225,10 @@ static unsigned long g_cache_size;
 module_param_named(cache_size, g_cache_size, ulong, 0444);
 MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (none)");
 
+static bool g_fua = true;
+module_param_named(fua, g_fua, bool, 0444);
+MODULE_PARM_DESC(fua, "Enable/disable FUA support when cache_size is used. Default: true");
+
 static unsigned int g_mbps;
 module_param_named(mbps, g_mbps, uint, 0444);
 MODULE_PARM_DESC(mbps, "Limit maximum bandwidth (in MiB/s). Default: 0 (no limit)");
@@ -252,6 +256,19 @@ MODULE_PARM_DESC(zone_max_open, "Maximum number of open zones when block device 
 static unsigned int g_zone_max_active;
 module_param_named(zone_max_active, g_zone_max_active, uint, 0444);
 MODULE_PARM_DESC(zone_max_active, "Maximum number of active zones when block device is zoned. Default: 0 (no limit)");
+
+static int g_zone_append_max_sectors = INT_MAX;
+module_param_named(zone_append_max_sectors, g_zone_append_max_sectors, int, 0444);
+MODULE_PARM_DESC(zone_append_max_sectors,
+		 "Maximum size of a zone append command (in 512B sectors). Specify 0 for zone append emulation");
+
+static bool g_zone_full;
+module_param_named(zone_full, g_zone_full, bool, S_IRUGO);
+MODULE_PARM_DESC(zone_full, "Initialize the sequential write required zones of a zoned device to be full. Default: false");
+
+static bool g_rotational;
+module_param_named(rotational, g_rotational, bool, S_IRUGO);
+MODULE_PARM_DESC(rotational, "Set the rotational feature for the device. Default: false");
 
 static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
@@ -404,13 +421,25 @@ static int nullb_update_nr_hw_queues(struct nullb_device *dev,
 static int nullb_apply_submit_queues(struct nullb_device *dev,
 				     unsigned int submit_queues)
 {
-	return nullb_update_nr_hw_queues(dev, submit_queues, dev->poll_queues);
+	int ret;
+
+	mutex_lock(&lock);
+	ret = nullb_update_nr_hw_queues(dev, submit_queues, dev->poll_queues);
+	mutex_unlock(&lock);
+
+	return ret;
 }
 
 static int nullb_apply_poll_queues(struct nullb_device *dev,
 				   unsigned int poll_queues)
 {
-	return nullb_update_nr_hw_queues(dev, dev->submit_queues, poll_queues);
+	int ret;
+
+	mutex_lock(&lock);
+	ret = nullb_update_nr_hw_queues(dev, dev->submit_queues, poll_queues);
+	mutex_unlock(&lock);
+
+	return ret;
 }
 
 NULLB_DEVICE_ATTR(size, ulong, NULL);
@@ -436,10 +465,14 @@ NULLB_DEVICE_ATTR(zone_capacity, ulong, NULL);
 NULLB_DEVICE_ATTR(zone_nr_conv, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_open, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_active, uint, NULL);
+NULLB_DEVICE_ATTR(zone_append_max_sectors, uint, NULL);
+NULLB_DEVICE_ATTR(zone_full, bool, NULL);
 NULLB_DEVICE_ATTR(virt_boundary, bool, NULL);
 NULLB_DEVICE_ATTR(no_sched, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tags, bool, NULL);
 NULLB_DEVICE_ATTR(shared_tag_bitmap, bool, NULL);
+NULLB_DEVICE_ATTR(fua, bool, NULL);
+NULLB_DEVICE_ATTR(rotational, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -457,28 +490,32 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 	if (ret < 0)
 		return ret;
 
+	ret = count;
+	mutex_lock(&lock);
 	if (!dev->power && newp) {
 		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
-			return count;
+			goto out;
+
 		ret = null_add_dev(dev);
 		if (ret) {
 			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
-			return ret;
+			goto out;
 		}
 
 		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
 		dev->power = newp;
+		ret = count;
 	} else if (dev->power && !newp) {
 		if (test_and_clear_bit(NULLB_DEV_FL_UP, &dev->flags)) {
-			mutex_lock(&lock);
 			dev->power = newp;
 			null_del_dev(dev->nullb);
-			mutex_unlock(&lock);
 		}
 		clear_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
 	}
 
-	return count;
+out:
+	mutex_unlock(&lock);
+	return ret;
 }
 
 CONFIGFS_ATTR(nullb_device_, power);
@@ -580,12 +617,16 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_zone_nr_conv,
 	&nullb_device_attr_zone_max_open,
 	&nullb_device_attr_zone_max_active,
+	&nullb_device_attr_zone_append_max_sectors,
 	&nullb_device_attr_zone_readonly,
 	&nullb_device_attr_zone_offline,
+	&nullb_device_attr_zone_full,
 	&nullb_device_attr_virt_boundary,
 	&nullb_device_attr_no_sched,
 	&nullb_device_attr_shared_tags,
 	&nullb_device_attr_shared_tag_bitmap,
+	&nullb_device_attr_fua,
+	&nullb_device_attr_rotational,
 	NULL,
 };
 
@@ -664,14 +705,15 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
-			"badblocks,blocking,blocksize,cache_size,"
+			"badblocks,blocking,blocksize,cache_size,fua,"
 			"completion_nsec,discard,home_node,hw_queue_depth,"
 			"irqmode,max_sectors,mbps,memory_backed,no_sched,"
 			"poll_queues,power,queue_mode,shared_tag_bitmap,"
 			"shared_tags,size,submit_queues,use_per_node_hctx,"
 			"virt_boundary,zoned,zone_capacity,zone_max_active,"
 			"zone_max_open,zone_nr_conv,zone_offline,zone_readonly,"
-			"zone_size\n");
+			"zone_size,zone_append_max_sectors,zone_full,"
+			"rotational\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -751,10 +793,15 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->zone_nr_conv = g_zone_nr_conv;
 	dev->zone_max_open = g_zone_max_open;
 	dev->zone_max_active = g_zone_max_active;
+	dev->zone_append_max_sectors = g_zone_append_max_sectors;
+	dev->zone_full = g_zone_full;
 	dev->virt_boundary = g_virt_boundary;
 	dev->no_sched = g_no_sched;
 	dev->shared_tags = g_shared_tags;
 	dev->shared_tag_bitmap = g_shared_tag_bitmap;
+	dev->fua = g_fua;
+	dev->rotational = g_rotational;
+
 	return dev;
 }
 
@@ -860,7 +907,7 @@ static struct nullb_page *null_radix_tree_insert(struct nullb *nullb, u64 idx,
 	if (radix_tree_insert(root, idx, t_page)) {
 		null_free_page(t_page);
 		t_page = radix_tree_lookup(root, idx);
-		WARN_ON(!t_page || t_page->page->index != idx);
+		WARN_ON(!t_page || t_page->page->private != idx);
 	} else if (is_cache)
 		nullb->dev->curr_cache += PAGE_SIZE;
 
@@ -883,7 +930,7 @@ static void null_free_device_storage(struct nullb_device *dev, bool is_cache)
 				(void **)t_pages, pos, FREE_BATCH);
 
 		for (i = 0; i < nr_pages; i++) {
-			pos = t_pages[i]->page->index;
+			pos = t_pages[i]->page->private;
 			ret = radix_tree_delete_item(root, pos, t_pages[i]);
 			WARN_ON(ret != t_pages[i]);
 			null_free_page(ret);
@@ -909,7 +956,7 @@ static struct nullb_page *__null_lookup_page(struct nullb *nullb,
 
 	root = is_cache ? &nullb->dev->cache : &nullb->dev->data;
 	t_page = radix_tree_lookup(root, idx);
-	WARN_ON(t_page && t_page->page->index != idx);
+	WARN_ON(t_page && t_page->page->private != idx);
 
 	if (t_page && (for_write || test_bit(sector_bit, t_page->bitmap)))
 		return t_page;
@@ -952,7 +999,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_lock_irq(&nullb->lock);
 	idx = sector >> PAGE_SECTORS_SHIFT;
-	t_page->page->index = idx;
+	t_page->page->private = idx;
 	t_page = null_radix_tree_insert(nullb, idx, t_page, !ignore_cache);
 	radix_tree_preload_end();
 
@@ -972,7 +1019,7 @@ static int null_flush_cache_page(struct nullb *nullb, struct nullb_page *c_page)
 	struct nullb_page *t_page, *ret;
 	void *dst, *src;
 
-	idx = c_page->page->index;
+	idx = c_page->page->private;
 
 	t_page = null_insert_page(nullb, idx << PAGE_SECTORS_SHIFT, true);
 
@@ -1031,7 +1078,7 @@ again:
 	 * avoid race, we don't allow page free
 	 */
 	for (i = 0; i < nr_pages; i++) {
-		nullb->cache_flush_pos = c_pages[i]->page->index;
+		nullb->cache_flush_pos = c_pages[i]->page->private;
 		/*
 		 * We found the page which is being flushed to disk by other
 		 * threads
@@ -1151,7 +1198,7 @@ blk_status_t null_handle_discard(struct nullb_device *dev,
 	return BLK_STS_OK;
 }
 
-static int null_handle_flush(struct nullb *nullb)
+static blk_status_t null_handle_flush(struct nullb *nullb)
 {
 	int err;
 
@@ -1168,7 +1215,7 @@ static int null_handle_flush(struct nullb *nullb)
 
 	WARN_ON(!radix_tree_empty(&nullb->dev->cache));
 	spin_unlock_irq(&nullb->lock);
-	return err;
+	return errno_to_blk_status(err);
 }
 
 static int null_transfer(struct nullb *nullb, struct page *page,
@@ -1202,11 +1249,11 @@ static int null_transfer(struct nullb *nullb, struct page *page,
 	return err;
 }
 
-static int null_handle_rq(struct nullb_cmd *cmd)
+static blk_status_t null_handle_rq(struct nullb_cmd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct nullb *nullb = cmd->nq->dev->nullb;
-	int err;
+	int err = 0;
 	unsigned int len;
 	sector_t sector = blk_rq_pos(rq);
 	struct req_iterator iter;
@@ -1218,15 +1265,13 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
 				     op_is_write(req_op(rq)), sector,
 				     rq->cmd_flags & REQ_FUA);
-		if (err) {
-			spin_unlock_irq(&nullb->lock);
-			return err;
-		}
+		if (err)
+			break;
 		sector += len >> SECTOR_SHIFT;
 	}
 	spin_unlock_irq(&nullb->lock);
 
-	return 0;
+	return errno_to_blk_status(err);
 }
 
 static inline blk_status_t null_handle_throttled(struct nullb_cmd *cmd)
@@ -1273,8 +1318,8 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 
 	if (op == REQ_OP_DISCARD)
 		return null_handle_discard(dev, sector, nr_sectors);
-	return errno_to_blk_status(null_handle_rq(cmd));
 
+	return null_handle_rq(cmd);
 }
 
 static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
@@ -1343,7 +1388,7 @@ static void null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 	blk_status_t sts;
 
 	if (op == REQ_OP_FLUSH) {
-		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
+		cmd->error = null_handle_flush(nullb);
 		goto out;
 	}
 
@@ -1601,10 +1646,9 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	return BLK_STS_OK;
 }
 
-static void null_queue_rqs(struct request **rqlist)
+static void null_queue_rqs(struct rq_list *rqlist)
 {
-	struct request *requeue_list = NULL;
-	struct request **requeue_lastp = &requeue_list;
+	struct rq_list requeue_list = {};
 	struct blk_mq_queue_data bd = { };
 	blk_status_t ret;
 
@@ -1614,8 +1658,8 @@ static void null_queue_rqs(struct request **rqlist)
 		bd.rq = rq;
 		ret = null_queue_rq(rq->mq_hctx, &bd);
 		if (ret != BLK_STS_OK)
-			rq_list_add_tail(&requeue_lastp, rq);
-	} while (!rq_list_empty(*rqlist));
+			rq_list_add_tail(&requeue_list, rq);
+	} while (!rq_list_empty(rqlist));
 
 	*rqlist = requeue_list;
 }
@@ -1747,9 +1791,8 @@ static int null_init_global_tag_set(void)
 	tag_set.nr_hw_queues = g_submit_queues;
 	tag_set.queue_depth = g_hw_queue_depth;
 	tag_set.numa_node = g_home_node;
-	tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	if (g_no_sched)
-		tag_set.flags |= BLK_MQ_F_NO_SCHED;
+		tag_set.flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (g_shared_tag_bitmap)
 		tag_set.flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (g_blocking)
@@ -1773,9 +1816,8 @@ static int null_setup_tagset(struct nullb *nullb)
 	nullb->tag_set->nr_hw_queues = nullb->dev->submit_queues;
 	nullb->tag_set->queue_depth = nullb->dev->hw_queue_depth;
 	nullb->tag_set->numa_node = nullb->dev->home_node;
-	nullb->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
 	if (nullb->dev->no_sched)
-		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED;
+		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED_BY_DEFAULT;
 	if (nullb->dev->shared_tag_bitmap)
 		nullb->tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
 	if (nullb->dev->blocking)
@@ -1793,9 +1835,6 @@ static int null_validate_conf(struct nullb_device *dev)
 		pr_err("BIO-based IO path is no longer available, using blk-mq instead.\n");
 		dev->queue_mode = NULL_Q_MQ;
 	}
-
-	dev->blocksize = round_down(dev->blocksize, 512);
-	dev->blocksize = clamp_t(unsigned int, dev->blocksize, 512, 4096);
 
 	if (dev->use_per_node_hctx) {
 		if (dev->submit_queues != nr_online_nodes)
@@ -1898,6 +1937,16 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_tags;
 	}
 
+	if (dev->cache_size > 0) {
+		set_bit(NULLB_DEV_FL_CACHE, &nullb->dev->flags);
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+		if (dev->fua)
+			lim.features |= BLK_FEAT_FUA;
+	}
+
+	if (dev->rotational)
+		lim.features |= BLK_FEAT_ROTATIONAL;
+
 	nullb->disk = blk_mq_alloc_disk(nullb->tag_set, &lim, nullb);
 	if (IS_ERR(nullb->disk)) {
 		rv = PTR_ERR(nullb->disk);
@@ -1910,23 +1959,14 @@ static int null_add_dev(struct nullb_device *dev)
 		nullb_setup_bwtimer(nullb);
 	}
 
-	if (dev->cache_size > 0) {
-		set_bit(NULLB_DEV_FL_CACHE, &nullb->dev->flags);
-		blk_queue_write_cache(nullb->q, true, true);
-	}
-
 	nullb->q->queuedata = nullb;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, nullb->q);
 
-	mutex_lock(&lock);
 	rv = ida_alloc(&nullb_indexes, GFP_KERNEL);
-	if (rv < 0) {
-		mutex_unlock(&lock);
+	if (rv < 0)
 		goto out_cleanup_disk;
-	}
+
 	nullb->index = rv;
 	dev->index = rv;
-	mutex_unlock(&lock);
 
 	if (config_item_name(&dev->group.cg_item)) {
 		/* Use configfs dir name as the device name */
@@ -1955,9 +1995,7 @@ static int null_add_dev(struct nullb_device *dev)
 	if (rv)
 		goto out_ida_free;
 
-	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
-	mutex_unlock(&lock);
 
 	pr_info("disk %s created\n", nullb->disk_name);
 
@@ -2006,7 +2044,9 @@ static int null_create_dev(void)
 	if (!dev)
 		return -ENOMEM;
 
+	mutex_lock(&lock);
 	ret = null_add_dev(dev);
+	mutex_unlock(&lock);
 	if (ret) {
 		null_free_dev(dev);
 		return ret;
@@ -2113,10 +2153,13 @@ static void __exit null_exit(void)
 
 	if (tag_set.ops)
 		blk_mq_free_tag_set(&tag_set);
+
+	mutex_destroy(&lock);
 }
 
 module_init(null_init);
 module_exit(null_exit);
 
 MODULE_AUTHOR("Jens Axboe <axboe@kernel.dk>");
+MODULE_DESCRIPTION("multi queue aware block test driver");
 MODULE_LICENSE("GPL");

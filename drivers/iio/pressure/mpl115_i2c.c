@@ -45,7 +45,7 @@ static int mpl115_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mpl115_i2c_id[] = {
-	{ "mpl115", 0 },
+	{ "mpl115" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mpl115_i2c_id);
@@ -63,4 +63,4 @@ module_i2c_driver(mpl115_i2c_driver);
 MODULE_AUTHOR("Peter Meerwald <pmeerw@pmeerw.net>");
 MODULE_DESCRIPTION("Freescale MPL115A2 pressure/temperature driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_MPL115);
+MODULE_IMPORT_NS("IIO_MPL115");

@@ -14,10 +14,14 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - eeti,exc3000
-      - eeti,exc80h60
-      - eeti,exc80h84
+    oneOf:
+      - const: eeti,exc3000
+      - const: eeti,exc80h60
+      - const: eeti,exc80h84
+      - items:
+          - enum:
+              - eeti,exc81w32
+          - const: eeti,exc80h84
   reg:
     const: 0x2a
   interrupts:

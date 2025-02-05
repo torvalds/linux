@@ -92,7 +92,7 @@
  * Auxiliary devices are created and registered by a subsystem-level core
  * device that needs to break up its functionality into smaller fragments. One
  * way to extend the scope of an auxiliary_device is to encapsulate it within a
- * domain- pecific structure defined by the parent device. This structure
+ * domain-specific structure defined by the parent device. This structure
  * contains the auxiliary_device and any associated shared data/callbacks
  * needed to establish the connection with the parent.
  *
@@ -177,10 +177,10 @@ static const struct auxiliary_device_id *auxiliary_match_id(const struct auxilia
 	return NULL;
 }
 
-static int auxiliary_match(struct device *dev, struct device_driver *drv)
+static int auxiliary_match(struct device *dev, const struct device_driver *drv)
 {
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(drv);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(drv);
 
 	return !!auxiliary_match_id(auxdrv->id_table, auxdev);
 }
@@ -203,7 +203,7 @@ static const struct dev_pm_ops auxiliary_dev_pm_ops = {
 
 static int auxiliary_bus_probe(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 	int ret;
 
@@ -222,7 +222,7 @@ static int auxiliary_bus_probe(struct device *dev)
 
 static void auxiliary_bus_remove(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
+	const struct auxiliary_driver *auxdrv = to_auxiliary_drv(dev->driver);
 	struct auxiliary_device *auxdev = to_auxiliary_dev(dev);
 
 	if (auxdrv->remove)
@@ -232,7 +232,7 @@ static void auxiliary_bus_remove(struct device *dev)
 
 static void auxiliary_bus_shutdown(struct device *dev)
 {
-	struct auxiliary_driver *auxdrv = NULL;
+	const struct auxiliary_driver *auxdrv = NULL;
 	struct auxiliary_device *auxdev;
 
 	if (dev->driver) {
@@ -287,6 +287,7 @@ int auxiliary_device_init(struct auxiliary_device *auxdev)
 
 	dev->bus = &auxiliary_bus_type;
 	device_initialize(&auxdev->dev);
+	mutex_init(&auxdev->sysfs.lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(auxiliary_device_init);
@@ -333,35 +334,6 @@ int __auxiliary_device_add(struct auxiliary_device *auxdev, const char *modname)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__auxiliary_device_add);
-
-/**
- * auxiliary_find_device - auxiliary device iterator for locating a particular device.
- * @start: Device to begin with
- * @data: Data to pass to match function
- * @match: Callback function to check device
- *
- * This function returns a reference to a device that is 'found'
- * for later use, as determined by the @match callback.
- *
- * The reference returned should be released with put_device().
- *
- * The callback should return 0 if the device doesn't match and non-zero
- * if it does.  If the callback returns non-zero, this function will
- * return to the caller and not iterate over any more devices.
- */
-struct auxiliary_device *auxiliary_find_device(struct device *start,
-					       const void *data,
-					       int (*match)(struct device *dev, const void *data))
-{
-	struct device *dev;
-
-	dev = bus_find_device(&auxiliary_bus_type, start, data, match);
-	if (!dev)
-		return NULL;
-
-	return to_auxiliary_dev(dev);
-}
-EXPORT_SYMBOL_GPL(auxiliary_find_device);
 
 /**
  * __auxiliary_driver_register - register a driver for auxiliary bus devices

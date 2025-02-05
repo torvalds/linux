@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2023 Intel Corporation. All rights reserved.
+// Copyright(c) 2023 Intel Corporation
 
 #include <sound/soc.h>
 #include "../common/soc-intel-quirks.h"
@@ -35,7 +35,7 @@ int sof_intel_board_card_late_probe(struct snd_soc_card *card)
 
 	return hda_dsp_hdmi_build_controls(card, ctx->hdmi.hdmi_comp);
 }
-EXPORT_SYMBOL_NS(sof_intel_board_card_late_probe, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+EXPORT_SYMBOL_NS(sof_intel_board_card_late_probe, "SND_SOC_INTEL_SOF_BOARD_HELPERS");
 
 /*
  * DMIC DAI Link
@@ -71,8 +71,76 @@ static int dmic_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /*
+ * HDA External Codec DAI Link
+ */
+static const struct snd_soc_dapm_widget hda_widgets[] = {
+	SND_SOC_DAPM_MIC("Analog In", NULL),
+	SND_SOC_DAPM_MIC("Digital In", NULL),
+	SND_SOC_DAPM_MIC("Alt Analog In", NULL),
+
+	SND_SOC_DAPM_HP("Analog Out", NULL),
+	SND_SOC_DAPM_SPK("Digital Out", NULL),
+	SND_SOC_DAPM_HP("Alt Analog Out", NULL),
+};
+
+static const struct snd_soc_dapm_route hda_routes[] = {
+	{ "Codec Input Pin1", NULL, "Analog In" },
+	{ "Codec Input Pin2", NULL, "Digital In" },
+	{ "Codec Input Pin3", NULL, "Alt Analog In" },
+
+	{ "Analog Out", NULL, "Codec Output Pin1" },
+	{ "Digital Out", NULL, "Codec Output Pin2" },
+	{ "Alt Analog Out", NULL, "Codec Output Pin3" },
+
+	/* CODEC BE connections */
+	{ "codec0_in", NULL, "Analog CPU Capture" },
+	{ "Analog CPU Capture", NULL, "Analog Codec Capture" },
+	{ "codec1_in", NULL, "Digital CPU Capture" },
+	{ "Digital CPU Capture", NULL, "Digital Codec Capture" },
+	{ "codec2_in", NULL, "Alt Analog CPU Capture" },
+	{ "Alt Analog CPU Capture", NULL, "Alt Analog Codec Capture" },
+
+	{ "Analog Codec Playback", NULL, "Analog CPU Playback" },
+	{ "Analog CPU Playback", NULL, "codec0_out" },
+	{ "Digital Codec Playback", NULL, "Digital CPU Playback" },
+	{ "Digital CPU Playback", NULL, "codec1_out" },
+	{ "Alt Analog Codec Playback", NULL, "Alt Analog CPU Playback" },
+	{ "Alt Analog CPU Playback", NULL, "codec2_out" },
+};
+
+static int hda_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, hda_widgets,
+					ARRAY_SIZE(hda_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add hda widgets, ret %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, hda_routes,
+				      ARRAY_SIZE(hda_routes));
+	if (ret)
+		dev_err(rtd->dev, "fail to add hda routes, ret %d\n", ret);
+
+	return ret;
+}
+
+/*
  * DAI Link Helpers
  */
+
+enum sof_dmic_be_type {
+	SOF_DMIC_01,
+	SOF_DMIC_16K,
+};
+
+enum sof_hda_be_type {
+	SOF_HDA_ANALOG,
+	SOF_HDA_DIGITAL,
+};
 
 /* DEFAULT_LINK_ORDER: the order used in sof_rt5682 */
 #define DEFAULT_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_CODEC, \
@@ -90,6 +158,16 @@ static struct snd_soc_dai_link_component dmic_component[] = {
 	}
 };
 
+SND_SOC_DAILINK_DEF(hda_analog_cpus,
+		    DAILINK_COMP_ARRAY(COMP_CPU("Analog CPU DAI")));
+SND_SOC_DAILINK_DEF(hda_analog_codecs,
+		    DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D0", "Analog Codec DAI")));
+
+SND_SOC_DAILINK_DEF(hda_digital_cpus,
+		    DAILINK_COMP_ARRAY(COMP_CPU("Digital CPU DAI")));
+SND_SOC_DAILINK_DEF(hda_digital_codecs,
+		    DAILINK_COMP_ARRAY(COMP_CODEC("ehdaudio0D0", "Digital Codec DAI")));
+
 static struct snd_soc_dai_link_component platform_component[] = {
 	{
 		/* name might be overridden during probe */
@@ -97,14 +175,14 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
-int sof_intel_board_set_codec_link(struct device *dev,
-				   struct snd_soc_dai_link *link, int be_id,
-				   enum sof_ssp_codec codec_type, int ssp_codec)
+static int set_ssp_codec_link(struct device *dev, struct snd_soc_dai_link *link,
+			      int be_id, enum snd_soc_acpi_intel_codec codec_type,
+			      int ssp_codec)
 {
 	struct snd_soc_dai_link_component *cpus;
 
-	dev_dbg(dev, "link %d: codec %s, ssp %d\n", be_id,
-		sof_ssp_get_codec_name(codec_type), ssp_codec);
+	dev_dbg(dev, "link %d: ssp codec %s, ssp %d\n", be_id,
+		snd_soc_acpi_intel_get_codec_name(codec_type), ssp_codec);
 
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_codec);
@@ -139,16 +217,12 @@ int sof_intel_board_set_codec_link(struct device *dev,
 
 	link->id = be_id;
 	link->no_pcm = 1;
-	link->dpcm_capture = 1;
-	link->dpcm_playback = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_codec_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
-int sof_intel_board_set_dmic_link(struct device *dev,
-				  struct snd_soc_dai_link *link, int be_id,
-				  enum sof_dmic_be_type be_type)
+static int set_dmic_link(struct device *dev, struct snd_soc_dai_link *link,
+			 int be_id, enum sof_dmic_be_type be_type)
 {
 	struct snd_soc_dai_link_component *cpus;
 
@@ -192,20 +266,18 @@ int sof_intel_board_set_dmic_link(struct device *dev,
 		link->init = dmic_init;
 	link->ignore_suspend = 1;
 	link->no_pcm = 1;
-	link->dpcm_capture = 1;
+	link->capture_only = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_dmic_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
-int sof_intel_board_set_intel_hdmi_link(struct device *dev,
-					struct snd_soc_dai_link *link, int be_id,
-					int hdmi_id, bool idisp_codec)
+static int set_idisp_hdmi_link(struct device *dev, struct snd_soc_dai_link *link,
+			       int be_id, int hdmi_id, bool idisp_codec)
 {
 	struct snd_soc_dai_link_component *cpus, *codecs;
 
-	dev_dbg(dev, "link %d: intel hdmi, hdmi id %d, idisp codec %d\n",
-		be_id, hdmi_id, idisp_codec);
+	dev_dbg(dev, "link %d: idisp hdmi %d, idisp codec %d\n", be_id, hdmi_id,
+		idisp_codec);
 
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", hdmi_id);
@@ -252,20 +324,19 @@ int sof_intel_board_set_intel_hdmi_link(struct device *dev,
 	link->id = be_id;
 	link->init = (hdmi_id == 1) ? hdmi_init : NULL;
 	link->no_pcm = 1;
-	link->dpcm_playback = 1;
+	link->playback_only = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_intel_hdmi_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
-int sof_intel_board_set_ssp_amp_link(struct device *dev,
-				     struct snd_soc_dai_link *link, int be_id,
-				     enum sof_ssp_codec amp_type, int ssp_amp)
+static int set_ssp_amp_link(struct device *dev, struct snd_soc_dai_link *link,
+			    int be_id, enum snd_soc_acpi_intel_codec amp_type,
+			    int ssp_amp)
 {
 	struct snd_soc_dai_link_component *cpus;
 
 	dev_dbg(dev, "link %d: ssp amp %s, ssp %d\n", be_id,
-		sof_ssp_get_codec_name(amp_type), ssp_amp);
+		snd_soc_acpi_intel_get_codec_name(amp_type), ssp_amp);
 
 	/* link name */
 	link->name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", ssp_amp);
@@ -288,21 +359,18 @@ int sof_intel_board_set_ssp_amp_link(struct device *dev,
 	/* codecs - caller to handle */
 
 	/* platforms */
+	/* feedback stream or firmware-generated echo reference */
 	link->platforms = platform_component;
 	link->num_platforms = ARRAY_SIZE(platform_component);
 
 	link->id = be_id;
 	link->no_pcm = 1;
-	link->dpcm_capture = 1; /* feedback stream or firmware-generated echo reference */
-	link->dpcm_playback = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_ssp_amp_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
-int sof_intel_board_set_bt_link(struct device *dev,
-				struct snd_soc_dai_link *link, int be_id,
-				int ssp_bt)
+static int set_bt_offload_link(struct device *dev, struct snd_soc_dai_link *link,
+			       int be_id, int ssp_bt)
 {
 	struct snd_soc_dai_link_component *cpus;
 
@@ -336,16 +404,12 @@ int sof_intel_board_set_bt_link(struct device *dev,
 
 	link->id = be_id;
 	link->no_pcm = 1;
-	link->dpcm_capture = 1;
-	link->dpcm_playback = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_bt_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
-int sof_intel_board_set_hdmi_in_link(struct device *dev,
-				     struct snd_soc_dai_link *link, int be_id,
-				     int ssp_hdmi)
+static int set_hdmi_in_link(struct device *dev, struct snd_soc_dai_link *link,
+			    int be_id, int ssp_hdmi)
 {
 	struct snd_soc_dai_link_component *cpus;
 
@@ -379,11 +443,57 @@ int sof_intel_board_set_hdmi_in_link(struct device *dev,
 
 	link->id = be_id;
 	link->no_pcm = 1;
-	link->dpcm_capture = 1;
+	link->capture_only = 1;
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_hdmi_in_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+
+static int set_hda_codec_link(struct device *dev, struct snd_soc_dai_link *link,
+			      int be_id, enum sof_hda_be_type be_type)
+{
+	switch (be_type) {
+	case SOF_HDA_ANALOG:
+		dev_dbg(dev, "link %d: hda analog\n", be_id);
+
+		link->name = "Analog Playback and Capture";
+
+		/* cpus */
+		link->cpus = hda_analog_cpus;
+		link->num_cpus = ARRAY_SIZE(hda_analog_cpus);
+
+		/* codecs */
+		link->codecs = hda_analog_codecs;
+		link->num_codecs = ARRAY_SIZE(hda_analog_codecs);
+		break;
+	case SOF_HDA_DIGITAL:
+		dev_dbg(dev, "link %d: hda digital\n", be_id);
+
+		link->name = "Digital Playback and Capture";
+
+		/* cpus */
+		link->cpus = hda_digital_cpus;
+		link->num_cpus = ARRAY_SIZE(hda_digital_cpus);
+
+		/* codecs */
+		link->codecs = hda_digital_codecs;
+		link->num_codecs = ARRAY_SIZE(hda_digital_codecs);
+		break;
+	default:
+		dev_err(dev, "invalid be type %d\n", be_type);
+		return -EINVAL;
+	}
+
+	/* platforms */
+	link->platforms = platform_component;
+	link->num_platforms = ARRAY_SIZE(platform_component);
+
+	link->id = be_id;
+	if (be_type == SOF_HDA_ANALOG)
+		link->init = hda_init;
+	link->no_pcm = 1;
+
+	return 0;
+}
 
 static int calculate_num_links(struct sof_card_private *ctx)
 {
@@ -414,6 +524,10 @@ static int calculate_num_links(struct sof_card_private *ctx)
 	/* HDMI-In */
 	num_links += hweight32(ctx->ssp_mask_hdmi_in);
 
+	/* HDA external codec */
+	if (ctx->hda_codec_present)
+		num_links += 2;
+
 	return num_links;
 }
 
@@ -427,6 +541,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	int ret;
 	int ssp_hdmi_in = 0;
 	unsigned long link_order, link;
+	unsigned long link_ids, be_id;
 
 	num_links = calculate_num_links(ctx);
 
@@ -440,11 +555,25 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	else
 		link_order = DEFAULT_LINK_ORDER;
 
-	dev_dbg(dev, "create dai links, link_order 0x%lx\n", link_order);
+	if (ctx->link_id_overwrite)
+		link_ids = ctx->link_id_overwrite;
+	else
+		link_ids = 0;
+
+	dev_dbg(dev, "create dai links, link_order 0x%lx, id_overwrite 0x%lx\n",
+		link_order, link_ids);
 
 	while (link_order) {
 		link = link_order & SOF_LINK_ORDER_MASK;
 		link_order >>= SOF_LINK_ORDER_SHIFT;
+
+		if (ctx->link_id_overwrite) {
+			be_id = link_ids & SOF_LINK_IDS_MASK;
+			link_ids >>= SOF_LINK_IDS_SHIFT;
+		} else {
+			/* use array index as link id */
+			be_id = idx;
+		}
 
 		switch (link) {
 		case SOF_LINK_CODEC:
@@ -452,10 +581,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			if (ctx->codec_type == CODEC_NONE)
 				continue;
 
-			ret = sof_intel_board_set_codec_link(dev, &links[idx],
-							     idx,
-							     ctx->codec_type,
-							     ctx->ssp_codec);
+			ret = set_ssp_codec_link(dev, &links[idx], be_id,
+						 ctx->codec_type, ctx->ssp_codec);
 			if (ret) {
 				dev_err(dev, "fail to set codec link, ret %d\n",
 					ret);
@@ -471,8 +598,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				continue;
 
 			/* at least we have dmic01 */
-			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
-							    idx, SOF_DMIC_01);
+			ret = set_dmic_link(dev, &links[idx], be_id, SOF_DMIC_01);
 			if (ret) {
 				dev_err(dev, "fail to set dmic01 link, ret %d\n",
 					ret);
@@ -487,8 +613,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				continue;
 
 			/* set up 2 BE links at most */
-			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
-							    idx, SOF_DMIC_16K);
+			ret = set_dmic_link(dev, &links[idx], be_id,
+					    SOF_DMIC_16K);
 			if (ret) {
 				dev_err(dev, "fail to set dmic16k link, ret %d\n",
 					ret);
@@ -500,10 +626,9 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 		case SOF_LINK_IDISP_HDMI:
 			/* idisp HDMI */
 			for (i = 1; i <= ctx->hdmi_num; i++) {
-				ret = sof_intel_board_set_intel_hdmi_link(dev,
-									  &links[idx],
-									  idx, i,
-									  ctx->hdmi.idisp_codec);
+				ret = set_idisp_hdmi_link(dev, &links[idx],
+							  be_id, i,
+							  ctx->hdmi.idisp_codec);
 				if (ret) {
 					dev_err(dev, "fail to set hdmi link, ret %d\n",
 						ret);
@@ -511,6 +636,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				}
 
 				idx++;
+				be_id++;
 			}
 			break;
 		case SOF_LINK_AMP:
@@ -518,10 +644,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			if (ctx->amp_type == CODEC_NONE)
 				continue;
 
-			ret = sof_intel_board_set_ssp_amp_link(dev, &links[idx],
-							       idx,
-							       ctx->amp_type,
-							       ctx->ssp_amp);
+			ret = set_ssp_amp_link(dev, &links[idx], be_id,
+					       ctx->amp_type, ctx->ssp_amp);
 			if (ret) {
 				dev_err(dev, "fail to set amp link, ret %d\n",
 					ret);
@@ -536,8 +660,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			if (!ctx->bt_offload_present)
 				continue;
 
-			ret = sof_intel_board_set_bt_link(dev, &links[idx], idx,
-							  ctx->ssp_bt);
+			ret = set_bt_offload_link(dev, &links[idx], be_id,
+						  ctx->ssp_bt);
 			if (ret) {
 				dev_err(dev, "fail to set bt link, ret %d\n",
 					ret);
@@ -549,10 +673,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 		case SOF_LINK_HDMI_IN:
 			/* HDMI-In */
 			for_each_set_bit(ssp_hdmi_in, &ctx->ssp_mask_hdmi_in, 32) {
-				ret = sof_intel_board_set_hdmi_in_link(dev,
-								       &links[idx],
-								       idx,
-								       ssp_hdmi_in);
+				ret = set_hdmi_in_link(dev, &links[idx], be_id,
+						       ssp_hdmi_in);
 				if (ret) {
 					dev_err(dev, "fail to set hdmi-in link, ret %d\n",
 						ret);
@@ -560,7 +682,34 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				}
 
 				idx++;
+				be_id++;
 			}
+			break;
+		case SOF_LINK_HDA:
+			/* HDA external codec */
+			if (!ctx->hda_codec_present)
+				continue;
+
+			ret = set_hda_codec_link(dev, &links[idx], be_id,
+						 SOF_HDA_ANALOG);
+			if (ret) {
+				dev_err(dev, "fail to set hda analog link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
+			be_id++;
+
+			ret = set_hda_codec_link(dev, &links[idx], be_id,
+						 SOF_HDA_DIGITAL);
+			if (ret) {
+				dev_err(dev, "fail to set hda digital link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
 			break;
 		case SOF_LINK_NONE:
 			/* caught here if it's not used as terminator in macro */
@@ -582,28 +731,53 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS(sof_intel_board_set_dai_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+EXPORT_SYMBOL_NS(sof_intel_board_set_dai_link, "SND_SOC_INTEL_SOF_BOARD_HELPERS");
 
-struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
-					  const char * const dai_name[], int num_dais)
+struct sof_card_private *
+sof_intel_board_get_ctx(struct device *dev, unsigned long board_quirk)
 {
-	struct snd_soc_dai *dai;
-	int index;
-	int i;
+	struct sof_card_private *ctx;
 
-	for (index = 0; index < num_dais; index++)
-		for_each_rtd_codec_dais(rtd, i, dai)
-			if (strstr(dai->name, dai_name[index])) {
-				dev_dbg(rtd->card->dev, "get dai %s\n", dai->name);
-				return dai;
-			}
+	dev_dbg(dev, "create ctx, board_quirk 0x%lx\n", board_quirk);
 
-	return NULL;
+	ctx = devm_kzalloc(dev, sizeof(struct sof_card_private), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	ctx->codec_type = snd_soc_acpi_intel_detect_codec_type(dev);
+	ctx->amp_type = snd_soc_acpi_intel_detect_amp_type(dev);
+
+	ctx->dmic_be_num = 2;
+	ctx->hdmi_num = (board_quirk & SOF_NUM_IDISP_HDMI_MASK) >>
+			SOF_NUM_IDISP_HDMI_SHIFT;
+	/* default number of HDMI DAI's */
+	if (!ctx->hdmi_num)
+		ctx->hdmi_num = 3;
+
+	/* port number/mask of peripherals attached to ssp interface */
+	if (ctx->codec_type != CODEC_NONE)
+		ctx->ssp_codec = (board_quirk & SOF_SSP_PORT_CODEC_MASK) >>
+				SOF_SSP_PORT_CODEC_SHIFT;
+
+	if (ctx->amp_type != CODEC_NONE)
+		ctx->ssp_amp = (board_quirk & SOF_SSP_PORT_AMP_MASK) >>
+				SOF_SSP_PORT_AMP_SHIFT;
+
+	if (board_quirk & SOF_BT_OFFLOAD_PRESENT) {
+		ctx->bt_offload_present = true;
+		ctx->ssp_bt = (board_quirk & SOF_SSP_PORT_BT_OFFLOAD_MASK) >>
+				SOF_SSP_PORT_BT_OFFLOAD_SHIFT;
+	}
+
+	ctx->ssp_mask_hdmi_in = (board_quirk & SOF_SSP_MASK_HDMI_CAPTURE_MASK) >>
+				SOF_SSP_MASK_HDMI_CAPTURE_SHIFT;
+
+	return ctx;
 }
-EXPORT_SYMBOL_NS(get_codec_dai_by_name, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+EXPORT_SYMBOL_NS(sof_intel_board_get_ctx, "SND_SOC_INTEL_SOF_BOARD_HELPERS");
 
 MODULE_DESCRIPTION("ASoC Intel SOF Machine Driver Board Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SND_SOC_INTEL_HDA_DSP_COMMON);
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_INTEL_HDA_DSP_COMMON");
+MODULE_IMPORT_NS("SND_SOC_ACPI_INTEL_MATCH");

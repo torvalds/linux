@@ -447,7 +447,6 @@ static const struct file_operations snapshot_fops = {
 	.release = snapshot_release,
 	.read = snapshot_read,
 	.write = snapshot_write,
-	.llseek = no_llseek,
 	.unlocked_ioctl = snapshot_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = snapshot_compat_ioctl,

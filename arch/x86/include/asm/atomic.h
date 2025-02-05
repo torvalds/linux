@@ -86,11 +86,7 @@ static __always_inline int arch_atomic_add_return(int i, atomic_t *v)
 }
 #define arch_atomic_add_return arch_atomic_add_return
 
-static __always_inline int arch_atomic_sub_return(int i, atomic_t *v)
-{
-	return arch_atomic_add_return(-i, v);
-}
-#define arch_atomic_sub_return arch_atomic_sub_return
+#define arch_atomic_sub_return(i, v) arch_atomic_add_return(-(i), v)
 
 static __always_inline int arch_atomic_fetch_add(int i, atomic_t *v)
 {
@@ -98,11 +94,7 @@ static __always_inline int arch_atomic_fetch_add(int i, atomic_t *v)
 }
 #define arch_atomic_fetch_add arch_atomic_fetch_add
 
-static __always_inline int arch_atomic_fetch_sub(int i, atomic_t *v)
-{
-	return xadd(&v->counter, -i);
-}
-#define arch_atomic_fetch_sub arch_atomic_fetch_sub
+#define arch_atomic_fetch_sub(i, v) arch_atomic_fetch_add(-(i), v)
 
 static __always_inline int arch_atomic_cmpxchg(atomic_t *v, int old, int new)
 {

@@ -423,10 +423,6 @@ static inline void drm_edid_decode_panel_id(u32 panel_id, char vend[4], u16 *pro
 }
 
 bool drm_probe_ddc(struct i2c_adapter *adapter);
-struct edid *drm_do_get_edid(struct drm_connector *connector,
-	int (*get_edid_block)(void *data, u8 *buf, unsigned int block,
-			      size_t len),
-	void *data);
 struct edid *drm_get_edid(struct drm_connector *connector,
 			  struct i2c_adapter *adapter);
 struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
@@ -444,8 +440,6 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
 
 int drm_edid_header_is_valid(const void *edid);
-bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
-			  bool *edid_corrupt);
 bool drm_edid_is_valid(struct edid *edid);
 void drm_edid_get_monitor_name(const struct edid *edid, char *name,
 			       int buflen);

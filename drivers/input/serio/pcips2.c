@@ -137,8 +137,8 @@ static int pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (ret)
 		goto disable;
 
-	ps2if = kzalloc(sizeof(struct pcips2_data), GFP_KERNEL);
-	serio = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	ps2if = kzalloc(sizeof(*ps2if), GFP_KERNEL);
+	serio = kzalloc(sizeof(*serio), GFP_KERNEL);
 	if (!ps2if || !serio) {
 		ret = -ENOMEM;
 		goto release;

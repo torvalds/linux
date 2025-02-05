@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2019 Intel Corporation. All rights reserved.
+// Copyright(c) 2019 Intel Corporation
 
 #include <linux/module.h>
 #include <sound/pcm.h>
@@ -83,7 +83,7 @@ int hda_dsp_hdmi_build_controls(struct snd_soc_card *card,
 
 	return err;
 }
-EXPORT_SYMBOL_NS(hda_dsp_hdmi_build_controls, SND_SOC_INTEL_HDA_DSP_COMMON);
+EXPORT_SYMBOL_NS(hda_dsp_hdmi_build_controls, "SND_SOC_INTEL_HDA_DSP_COMMON");
 
 #endif
 

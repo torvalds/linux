@@ -183,16 +183,12 @@ static int ncp5623_probe(struct i2c_client *client)
 
 	fwnode_for_each_available_child_node(mc_node, led_node) {
 		ret = fwnode_property_read_u32(led_node, "color", &color_index);
-		if (ret) {
-			fwnode_handle_put(led_node);
-			goto release_mc_node;
-		}
+		if (ret)
+			goto release_led_node;
 
 		ret = fwnode_property_read_u32(led_node, "reg", &reg);
-		if (ret) {
-			fwnode_handle_put(led_node);
-			goto release_mc_node;
-		}
+		if (ret)
+			goto release_led_node;
 
 		subled_info[ncp->mc_dev.num_colors].channel = reg;
 		subled_info[ncp->mc_dev.num_colors++].color_index = color_index;
@@ -223,6 +219,10 @@ release_mc_node:
 	fwnode_handle_put(mc_node);
 
 	return ret;
+
+release_led_node:
+	fwnode_handle_put(led_node);
+	goto release_mc_node;
 }
 
 static void ncp5623_remove(struct i2c_client *client)

@@ -46,7 +46,6 @@ static LIST_HEAD(svc_xprt_class_list);
 
 /* SMP locking strategy:
  *
- *	svc_pool->sp_lock protects most of the fields of that pool.
  *	svc_serv->sv_lock protects sv_tempsocks, sv_permsocks, sv_tmpcnt.
  *	when both need to be taken (rare), svc_serv->sv_lock is first.
  *	The "service mutex" protects svc_serv->sv_nrthread.
@@ -158,6 +157,7 @@ int svc_print_xprts(char *buf, int maxlen)
  */
 void svc_xprt_deferred_close(struct svc_xprt *xprt)
 {
+	trace_svc_xprt_close(xprt);
 	if (!test_and_set_bit(XPT_CLOSE, &xprt->xpt_flags))
 		svc_xprt_enqueue(xprt);
 }
@@ -211,51 +211,6 @@ void svc_xprt_init(struct net *net, struct svc_xprt_class *xcl,
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 
-static struct svc_xprt *__svc_xpo_create(struct svc_xprt_class *xcl,
-					 struct svc_serv *serv,
-					 struct net *net,
-					 const int family,
-					 const unsigned short port,
-					 int flags)
-{
-	struct sockaddr_in sin = {
-		.sin_family		= AF_INET,
-		.sin_addr.s_addr	= htonl(INADDR_ANY),
-		.sin_port		= htons(port),
-	};
-#if IS_ENABLED(CONFIG_IPV6)
-	struct sockaddr_in6 sin6 = {
-		.sin6_family		= AF_INET6,
-		.sin6_addr		= IN6ADDR_ANY_INIT,
-		.sin6_port		= htons(port),
-	};
-#endif
-	struct svc_xprt *xprt;
-	struct sockaddr *sap;
-	size_t len;
-
-	switch (family) {
-	case PF_INET:
-		sap = (struct sockaddr *)&sin;
-		len = sizeof(sin);
-		break;
-#if IS_ENABLED(CONFIG_IPV6)
-	case PF_INET6:
-		sap = (struct sockaddr *)&sin6;
-		len = sizeof(sin6);
-		break;
-#endif
-	default:
-		return ERR_PTR(-EAFNOSUPPORT);
-	}
-
-	xprt = xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
-	if (IS_ERR(xprt))
-		trace_svc_xprt_create_err(serv->sv_program->pg_name,
-					  xcl->xcl_name, sap, len, xprt);
-	return xprt;
-}
-
 /**
  * svc_xprt_received - start next receiver thread
  * @xprt: controlling transport
@@ -294,9 +249,8 @@ void svc_add_new_perm_xprt(struct svc_serv *serv, struct svc_xprt *new)
 }
 
 static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
-			    struct net *net, const int family,
-			    const unsigned short port, int flags,
-			    const struct cred *cred)
+			    struct net *net, struct sockaddr *sap,
+			    size_t len, int flags, const struct cred *cred)
 {
 	struct svc_xprt_class *xcl;
 
@@ -312,8 +266,11 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 			goto err;
 
 		spin_unlock(&svc_xprt_class_lock);
-		newxprt = __svc_xpo_create(xcl, serv, net, family, port, flags);
+		newxprt = xcl->xcl_ops->xpo_create(serv, net, sap, len, flags);
 		if (IS_ERR(newxprt)) {
+			trace_svc_xprt_create_err(serv->sv_programs->pg_name,
+						  xcl->xcl_name, sap, len,
+						  newxprt);
 			module_put(xcl->xcl_owner);
 			return PTR_ERR(newxprt);
 		}
@@ -330,6 +287,48 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 }
 
 /**
+ * svc_xprt_create_from_sa - Add a new listener to @serv from socket address
+ * @serv: target RPC service
+ * @xprt_name: transport class name
+ * @net: network namespace
+ * @sap: socket address pointer
+ * @flags: SVC_SOCK flags
+ * @cred: credential to bind to this transport
+ *
+ * Return local xprt port on success or %-EPROTONOSUPPORT on failure
+ */
+int svc_xprt_create_from_sa(struct svc_serv *serv, const char *xprt_name,
+			    struct net *net, struct sockaddr *sap,
+			    int flags, const struct cred *cred)
+{
+	size_t len;
+	int err;
+
+	switch (sap->sa_family) {
+	case AF_INET:
+		len = sizeof(struct sockaddr_in);
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case AF_INET6:
+		len = sizeof(struct sockaddr_in6);
+		break;
+#endif
+	default:
+		return -EAFNOSUPPORT;
+	}
+
+	err = _svc_xprt_create(serv, xprt_name, net, sap, len, flags, cred);
+	if (err == -EPROTONOSUPPORT) {
+		request_module("svc%s", xprt_name);
+		err = _svc_xprt_create(serv, xprt_name, net, sap, len, flags,
+				       cred);
+	}
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(svc_xprt_create_from_sa);
+
+/**
  * svc_xprt_create - Add a new listener to @serv
  * @serv: target RPC service
  * @xprt_name: transport class name
@@ -339,23 +338,41 @@ static int _svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
  * @flags: SVC_SOCK flags
  * @cred: credential to bind to this transport
  *
- * Return values:
- *   %0: New listener added successfully
- *   %-EPROTONOSUPPORT: Requested transport type not supported
+ * Return local xprt port on success or %-EPROTONOSUPPORT on failure
  */
 int svc_xprt_create(struct svc_serv *serv, const char *xprt_name,
 		    struct net *net, const int family,
 		    const unsigned short port, int flags,
 		    const struct cred *cred)
 {
-	int err;
+	struct sockaddr_in sin = {
+		.sin_family		= AF_INET,
+		.sin_addr.s_addr	= htonl(INADDR_ANY),
+		.sin_port		= htons(port),
+	};
+#if IS_ENABLED(CONFIG_IPV6)
+	struct sockaddr_in6 sin6 = {
+		.sin6_family		= AF_INET6,
+		.sin6_addr		= IN6ADDR_ANY_INIT,
+		.sin6_port		= htons(port),
+	};
+#endif
+	struct sockaddr *sap;
 
-	err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
-	if (err == -EPROTONOSUPPORT) {
-		request_module("svc%s", xprt_name);
-		err = _svc_xprt_create(serv, xprt_name, net, family, port, flags, cred);
+	switch (family) {
+	case PF_INET:
+		sap = (struct sockaddr *)&sin;
+		break;
+#if IS_ENABLED(CONFIG_IPV6)
+	case PF_INET6:
+		sap = (struct sockaddr *)&sin6;
+		break;
+#endif
+	default:
+		return -EAFNOSUPPORT;
 	}
-	return err;
+
+	return svc_xprt_create_from_sa(serv, xprt_name, net, sap, flags, cred);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_create);
 
@@ -589,7 +606,8 @@ int svc_port_is_privileged(struct sockaddr *sin)
 }
 
 /*
- * Make sure that we don't have too many active connections. If we have,
+ * Make sure that we don't have too many connections that have not yet
+ * demonstrated that they have access to the NFS server. If we have,
  * something must be dropped. It's not clear what will happen if we allow
  * "too many" connections, but when dealing with network-facing software,
  * we have to code defensively. Here we do that by imposing hard limits.
@@ -601,34 +619,26 @@ int svc_port_is_privileged(struct sockaddr *sin)
  * The only somewhat efficient mechanism would be if drop old
  * connections from the same IP first. But right now we don't even
  * record the client IP in svc_sock.
- *
- * single-threaded services that expect a lot of clients will probably
- * need to set sv_maxconn to override the default value which is based
- * on the number of threads
  */
 static void svc_check_conn_limits(struct svc_serv *serv)
 {
-	unsigned int limit = serv->sv_maxconn ? serv->sv_maxconn :
-				(serv->sv_nrthreads+3) * 20;
-
-	if (serv->sv_tmpcnt > limit) {
-		struct svc_xprt *xprt = NULL;
+	if (serv->sv_tmpcnt > XPT_MAX_TMP_CONN) {
+		struct svc_xprt *xprt = NULL, *xprti;
 		spin_lock_bh(&serv->sv_lock);
 		if (!list_empty(&serv->sv_tempsocks)) {
-			/* Try to help the admin */
-			net_notice_ratelimited("%s: too many open connections, consider increasing the %s\n",
-					       serv->sv_name, serv->sv_maxconn ?
-					       "max number of connections" :
-					       "number of threads");
 			/*
 			 * Always select the oldest connection. It's not fair,
-			 * but so is life
+			 * but nor is life.
 			 */
-			xprt = list_entry(serv->sv_tempsocks.prev,
-					  struct svc_xprt,
-					  xpt_list);
-			set_bit(XPT_CLOSE, &xprt->xpt_flags);
-			svc_xprt_get(xprt);
+			list_for_each_entry_reverse(xprti, &serv->sv_tempsocks,
+						    xpt_list) {
+				if (!test_bit(XPT_PEER_VALID, &xprti->xpt_flags)) {
+					xprt = xprti;
+					set_bit(XPT_CLOSE, &xprt->xpt_flags);
+					svc_xprt_get(xprt);
+					break;
+				}
+			}
 		}
 		spin_unlock_bh(&serv->sv_lock);
 
@@ -654,8 +664,7 @@ static bool svc_alloc_arg(struct svc_rqst *rqstp)
 	}
 
 	for (filled = 0; filled < pages; filled = ret) {
-		ret = alloc_pages_bulk_array(GFP_KERNEL, pages,
-					     rqstp->rq_pages);
+		ret = alloc_pages_bulk(GFP_KERNEL, pages, rqstp->rq_pages);
 		if (ret > filled)
 			/* Made progress, don't sleep yet */
 			continue;
@@ -888,15 +897,6 @@ void svc_recv(struct svc_rqst *rqstp)
 }
 EXPORT_SYMBOL_GPL(svc_recv);
 
-/*
- * Drop request
- */
-void svc_drop(struct svc_rqst *rqstp)
-{
-	trace_svc_drop(rqstp);
-}
-EXPORT_SYMBOL_GPL(svc_drop);
-
 /**
  * svc_send - Return reply to client
  * @rqstp: RPC transaction context
@@ -1031,7 +1031,8 @@ static void svc_delete_xprt(struct svc_xprt *xprt)
 
 	spin_lock_bh(&serv->sv_lock);
 	list_del_init(&xprt->xpt_list);
-	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
+	if (test_bit(XPT_TEMP, &xprt->xpt_flags) &&
+	    !test_bit(XPT_PEER_VALID, &xprt->xpt_flags))
 		serv->sv_tmpcnt--;
 	spin_unlock_bh(&serv->sv_lock);
 
@@ -1258,6 +1259,40 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
 	spin_unlock(&xprt->xpt_lock);
 	return dr;
 }
+
+/**
+ * svc_find_listener - find an RPC transport instance
+ * @serv: pointer to svc_serv to search
+ * @xcl_name: C string containing transport's class name
+ * @net: owner net pointer
+ * @sa: sockaddr containing address
+ *
+ * Return the transport instance pointer for the endpoint accepting
+ * connections/peer traffic from the specified transport class,
+ * and matching sockaddr.
+ */
+struct svc_xprt *svc_find_listener(struct svc_serv *serv, const char *xcl_name,
+				   struct net *net, const struct sockaddr *sa)
+{
+	struct svc_xprt *xprt;
+	struct svc_xprt *found = NULL;
+
+	spin_lock_bh(&serv->sv_lock);
+	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list) {
+		if (xprt->xpt_net != net)
+			continue;
+		if (strcmp(xprt->xpt_class->xcl_name, xcl_name))
+			continue;
+		if (!rpc_cmp_addr_port(sa, (struct sockaddr *)&xprt->xpt_local))
+			continue;
+		found = xprt;
+		svc_xprt_get(xprt);
+		break;
+	}
+	spin_unlock_bh(&serv->sv_lock);
+	return found;
+}
+EXPORT_SYMBOL_GPL(svc_find_listener);
 
 /**
  * svc_find_xprt - find an RPC transport instance

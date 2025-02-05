@@ -261,6 +261,7 @@ void dce110_tg_program_timing(struct timing_generator *tg,
 	int vstartup_start,
 	int vupdate_offset,
 	int vupdate_width,
+	int pstate_keepout,
 	const enum signal_type signal,
 	bool use_vbios);
 
@@ -285,7 +286,9 @@ bool dce110_arm_vert_intr(
 bool dce110_configure_crc(struct timing_generator *tg,
 			  const struct crc_params *params);
 
-bool dce110_get_crc(struct timing_generator *tg,
+bool dce110_get_crc(struct timing_generator *tg, uint8_t idx,
 		    uint32_t *r_cr, uint32_t *g_y, uint32_t *b_cb);
+
+bool dce110_is_two_pixels_per_container(const struct dc_crtc_timing *timing);
 
 #endif /* __DC_TIMING_GENERATOR_DCE110_H__ */

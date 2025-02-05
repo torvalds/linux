@@ -68,11 +68,12 @@ static struct platform_driver xo1_rfkill_driver = {
 		.name = "xo1-rfkill",
 	},
 	.probe		= xo1_rfkill_probe,
-	.remove_new	= xo1_rfkill_remove,
+	.remove		= xo1_rfkill_remove,
 };
 
 module_platform_driver(xo1_rfkill_driver);
 
 MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
+MODULE_DESCRIPTION("OLPC XO-1 software RF kill switch");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:xo1-rfkill");

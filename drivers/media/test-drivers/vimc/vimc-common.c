@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 
+#include <media/v4l2-ctrls.h>
+
 #include "vimc-common.h"
 
 /*
@@ -358,6 +360,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 struct media_pad *pads,
+			 const struct v4l2_subdev_internal_ops *int_ops,
 			 const struct v4l2_subdev_ops *sd_ops)
 {
 	int ret;
@@ -367,6 +370,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 
 	/* Initialize the subdev */
 	v4l2_subdev_init(sd, sd_ops);
+	sd->internal_ops = int_ops;
 	sd->entity.function = function;
 	sd->entity.ops = &vimc_ent_sd_mops;
 	sd->owner = THIS_MODULE;
@@ -383,17 +387,36 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 	if (ret)
 		return ret;
 
+	/*
+	 * Finalize the subdev initialization if it supports active states. Use
+	 * the control handler lock as the state lock if available.
+	 */
+	if (int_ops && int_ops->init_state) {
+		if (sd->ctrl_handler)
+			sd->state_lock = sd->ctrl_handler->lock;
+
+		ret = v4l2_subdev_init_finalize(sd);
+		if (ret) {
+			dev_err(v4l2_dev->dev,
+				"%s: subdev initialization failed (err=%d)\n",
+				name, ret);
+			goto err_clean_m_ent;
+		}
+	}
+
 	/* Register the subdev with the v4l2 and the media framework */
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
 	if (ret) {
 		dev_err(v4l2_dev->dev,
 			"%s: subdev register failed (err=%d)\n",
 			name, ret);
-		goto err_clean_m_ent;
+		goto err_clean_sd;
 	}
 
 	return 0;
 
+err_clean_sd:
+	v4l2_subdev_cleanup(sd);
 err_clean_m_ent:
 	media_entity_cleanup(&sd->entity);
 	return ret;

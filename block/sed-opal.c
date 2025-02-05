@@ -314,7 +314,7 @@ static int read_sed_opal_key(const char *key_name, u_char *buffer, int buflen)
 			      &key_type_user, key_name, true);
 
 	if (IS_ERR(kref))
-		ret = PTR_ERR(kref);
+		return PTR_ERR(kref);
 
 	key = key_ref_to_ptr(kref);
 	down_read(&key->sem);
@@ -3037,6 +3037,29 @@ static int opal_set_new_pw(struct opal_dev *dev, struct opal_new_pw *opal_pw)
 	return ret;
 }
 
+static int opal_set_new_sid_pw(struct opal_dev *dev, struct opal_new_pw *opal_pw)
+{
+	int ret;
+	struct opal_key *newkey = &opal_pw->new_user_pw.opal_key;
+	struct opal_key *oldkey = &opal_pw->session.opal_key;
+
+	const struct opal_step pw_steps[] = {
+		{ start_SIDASP_opal_session, oldkey },
+		{ set_sid_cpin_pin, newkey },
+		{ end_opal_session, }
+	};
+
+	if (!dev)
+		return -ENODEV;
+
+	mutex_lock(&dev->dev_lock);
+	setup_opal_dev(dev);
+	ret = execute_steps(dev, pw_steps, ARRAY_SIZE(pw_steps));
+	mutex_unlock(&dev->dev_lock);
+
+	return ret;
+}
+
 static int opal_activate_user(struct opal_dev *dev,
 			      struct opal_session_info *opal_session)
 {
@@ -3285,6 +3308,9 @@ int sed_ioctl(struct opal_dev *dev, unsigned int cmd, void __user *arg)
 		break;
 	case IOC_OPAL_DISCOVERY:
 		ret = opal_get_discv(dev, p);
+		break;
+	case IOC_OPAL_SET_SID_PW:
+		ret = opal_set_new_sid_pw(dev, p);
 		break;
 
 	default:

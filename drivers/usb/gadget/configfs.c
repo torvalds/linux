@@ -6,13 +6,13 @@
 #include <linux/kstrtox.h>
 #include <linux/nls.h>
 #include <linux/usb/composite.h>
+#include <linux/usb/func_utils.h>
 #include <linux/usb/gadget_configfs.h>
 #include <linux/usb/webusb.h>
 #include "configfs.h"
-#include "u_f.h"
 #include "u_os_desc.h"
 
-int check_user_usb_string(const char *name,
+static int check_user_usb_string(const char *name,
 		struct usb_gadget_strings *stringtab_dev)
 {
 	u16 num;
@@ -115,9 +115,12 @@ static int usb_string_copy(const char *s, char **s_copy)
 	int ret;
 	char *str;
 	char *copy = *s_copy;
+
 	ret = strlen(s);
 	if (ret > USB_MAX_STRING_LEN)
 		return -EOVERFLOW;
+	if (ret < 1)
+		return -EINVAL;
 
 	if (copy) {
 		str = copy;
@@ -824,11 +827,15 @@ static ssize_t gadget_string_s_store(struct config_item *item, const char *page,
 {
 	struct gadget_string *string = to_gadget_string(item);
 	int size = min(sizeof(string->string), len + 1);
+	ssize_t cpy_len;
 
 	if (len > USB_MAX_STRING_LEN)
 		return -EINVAL;
 
-	return strscpy(string->string, page, size);
+	cpy_len = strscpy(string->string, page, size);
+	if (cpy_len > 0 && string->string[cpy_len - 1] == '\n')
+		string->string[cpy_len - 1] = 0;
+	return len;
 }
 CONFIGFS_ATTR(gadget_string_, s);
 
@@ -899,7 +906,7 @@ static struct configfs_group_operations gadget_language_langid_group_ops = {
 	.drop_item		= gadget_language_string_drop,
 };
 
-static struct config_item_type gadget_language_type = {
+static const struct config_item_type gadget_language_type = {
 	.ct_item_ops	= &gadget_language_langid_item_ops,
 	.ct_group_ops	= &gadget_language_langid_group_ops,
 	.ct_attrs	= gadget_language_langid_attrs,
@@ -958,7 +965,7 @@ static struct configfs_group_operations gadget_language_group_ops = {
 	.drop_item      = &gadget_language_drop,
 };
 
-static struct config_item_type gadget_language_strings_type = {
+static const struct config_item_type gadget_language_strings_type = {
 	.ct_group_ops   = &gadget_language_group_ops,
 	.ct_owner       = THIS_MODULE,
 };
@@ -1103,7 +1110,7 @@ static struct configfs_attribute *webusb_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type webusb_type = {
+static const struct config_item_type webusb_type = {
 	.ct_attrs	= webusb_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -1181,7 +1188,7 @@ static ssize_t os_desc_qw_sign_store(struct config_item *item, const char *page,
 	struct gadget_info *gi = os_desc_item_to_gadget_info(item);
 	int res, l;
 
-	l = min((int)len, OS_STRING_QW_SIGN_LEN >> 1);
+	l = min_t(int, len, OS_STRING_QW_SIGN_LEN >> 1);
 	if (page[l - 1] == '\n')
 		--l;
 
@@ -1260,7 +1267,7 @@ static struct configfs_item_operations os_desc_ops = {
 	.drop_link		= os_desc_unlink,
 };
 
-static struct config_item_type os_desc_type = {
+static const struct config_item_type os_desc_type = {
 	.ct_item_ops	= &os_desc_ops,
 	.ct_attrs	= os_desc_attrs,
 	.ct_owner	= THIS_MODULE,

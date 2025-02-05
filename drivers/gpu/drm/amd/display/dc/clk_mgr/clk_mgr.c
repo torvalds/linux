@@ -48,6 +48,7 @@
 #include "dcn316/dcn316_clk_mgr.h"
 #include "dcn32/dcn32_clk_mgr.h"
 #include "dcn35/dcn35_clk_mgr.h"
+#include "dcn401/dcn401_clk_mgr.h"
 
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
@@ -58,6 +59,7 @@ int clk_mgr_helper_get_active_display_cnt(
 	display_count = 0;
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_stream_state *stream = context->streams[i];
+		const struct dc_stream_status *stream_status = &context->stream_status[i];
 
 		/* Don't count SubVP phantom pipes as part of active
 		 * display count
@@ -65,13 +67,7 @@ int clk_mgr_helper_get_active_display_cnt(
 		if (dc_state_get_stream_subvp_type(context, stream) == SUBVP_PHANTOM)
 			continue;
 
-		/*
-		 * Only notify active stream or virtual stream.
-		 * Need to notify virtual stream to work around
-		 * headless case. HPD does not fire when system is in
-		 * S0i2.
-		 */
-		if (!stream->dpms_off || stream->signal == SIGNAL_TYPE_VIRTUAL)
+		if (!stream->dpms_off || (stream_status && stream_status->plane_count))
 			display_count++;
 	}
 
@@ -359,12 +355,26 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			BREAK_TO_DEBUGGER();
 			return NULL;
 		}
+		if (ctx->dce_version == DCN_VERSION_3_51)
+			dcn351_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+		else
+			dcn35_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 
-		dcn35_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		return &clk_mgr->base.base;
 	}
 	break;
 
+	case AMDGPU_FAMILY_GC_12_0_0: {
+		struct clk_mgr_internal *clk_mgr = dcn401_clk_mgr_construct(ctx, dccg);
+
+		if (clk_mgr == NULL) {
+			BREAK_TO_DEBUGGER();
+			return NULL;
+		}
+
+		return &clk_mgr->base;
+	}
+	break;
 #endif	/* CONFIG_DRM_AMD_DC_FP */
 	default:
 		ASSERT(0); /* Unknown Asic */
@@ -418,6 +428,9 @@ void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 
 	case AMDGPU_FAMILY_GC_11_5_0:
 		dcn35_clk_mgr_destroy(clk_mgr);
+		break;
+	case AMDGPU_FAMILY_GC_12_0_0:
+		dcn401_clk_mgr_destroy(clk_mgr);
 		break;
 
 	default:

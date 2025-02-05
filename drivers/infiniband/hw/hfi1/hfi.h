@@ -2339,20 +2339,6 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 	dev_err(&(dd)->pcidev->dev, "%s: port %u: " fmt, \
 		rvt_get_ibdev_name(&(dd)->verbs_dev.rdi), (port), ##__VA_ARGS__)
 
-/*
- * this is used for formatting hw error messages...
- */
-struct hfi1_hwerror_msgs {
-	u64 mask;
-	const char *msg;
-	size_t sz;
-};
-
-/* in intr.c... */
-void hfi1_format_hwerrors(u64 hwerrs,
-			  const struct hfi1_hwerror_msgs *hwerrmsgs,
-			  size_t nhwerrmsgs, char *msg, size_t lmsg);
-
 #define USER_OPCODE_CHECK_VAL 0xC0
 #define USER_OPCODE_CHECK_MASK 0xC0
 #define OPCODE_CHECK_VAL_DISABLED 0x0
@@ -2425,7 +2411,7 @@ static inline bool hfi1_need_drop(struct hfi1_devdata *dd)
 int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
-#define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
+#define DD_DEV_ASSIGN(dd)      __assign_str(dev)
 
 static inline void hfi1_update_ah_attr(struct ib_device *ibdev,
 				       struct rdma_ah_attr *attr)

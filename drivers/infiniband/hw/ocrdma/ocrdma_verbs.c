@@ -963,8 +963,9 @@ err:
 }
 
 int ocrdma_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		     struct ib_udata *udata)
+		     struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	struct ocrdma_cq *cq = get_ocrdma_cq(ibcq);

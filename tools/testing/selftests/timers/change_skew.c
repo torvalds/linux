@@ -30,9 +30,6 @@
 #include <time.h>
 #include "../kselftest.h"
 
-#define NSEC_PER_SEC 1000000000LL
-
-
 int change_skew_test(int ppm)
 {
 	struct timex tx;
@@ -89,8 +86,8 @@ int main(int argc, char **argv)
 
 	if (ret) {
 		printf("[FAIL]");
-		return ksft_exit_fail();
+		ksft_exit_fail();
 	}
 	printf("[OK]");
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

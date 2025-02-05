@@ -61,9 +61,6 @@ struct crypto_type {
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
 	void (*free)(struct crypto_instance *inst);
-#ifdef CONFIG_CRYPTO_STATS
-	int (*report_stat)(struct sk_buff *skb, struct crypto_alg *alg);
-#endif
 
 	unsigned int type;
 	unsigned int maskclear;

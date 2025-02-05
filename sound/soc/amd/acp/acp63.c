@@ -55,8 +55,6 @@ static struct acp_resource rsrc = {
 	.irqp_used = 1,
 	.soc_mclk = true,
 	.irq_reg_offset = 0x1a00,
-	.i2s_pin_cfg_offset = 0x1440,
-	.i2s_mode = 0x0a,
 	.scratch_reg_offset = 0x12800,
 	.sram_pte_offset = 0x03802800,
 };
@@ -209,7 +207,7 @@ static int acp63_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (chip->acp_rev != ACP63_DEV) {
+	if (chip->acp_rev != ACP63_PCI_ID) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
@@ -239,13 +237,14 @@ static int acp63_audio_probe(struct platform_device *pdev)
 	adata->dai_driver = acp63_dai;
 	adata->num_dai = ARRAY_SIZE(acp63_dai);
 	adata->rsrc = &rsrc;
-	adata->platform = ACP63;
+	adata->acp_rev = chip->acp_rev;
 	adata->flag = chip->flag;
+	adata->is_i2s_config = chip->is_i2s_config;
 	adata->machines = snd_soc_acpi_amd_acp63_acp_machines;
 	acp_machine_select(adata);
 	dev_set_drvdata(dev, adata);
 
-	if (chip->flag != FLAG_AMD_LEGACY_ONLY_DMIC) {
+	if (chip->is_i2s_config && rsrc.soc_mclk) {
 		ret = acp63_i2s_master_clock_generate(adata);
 		if (ret)
 			return ret;
@@ -278,7 +277,7 @@ static int __maybe_unused acp63_pcm_resume(struct device *dev)
 	snd_pcm_uframes_t buf_in_frames;
 	u64 buf_size;
 
-	if (adata->flag != FLAG_AMD_LEGACY_ONLY_DMIC)
+	if (adata->is_i2s_config && adata->rsrc->soc_mclk)
 		acp63_i2s_master_clock_generate(adata);
 
 	spin_lock(&adata->acp_lock);
@@ -305,7 +304,7 @@ static const struct dev_pm_ops acp63_dma_pm_ops = {
 
 static struct platform_driver acp63_driver = {
 	.probe = acp63_audio_probe,
-	.remove_new = acp63_audio_remove,
+	.remove = acp63_audio_remove,
 	.driver = {
 		.name = "acp_asoc_acp63",
 		.pm = &acp63_dma_pm_ops,
@@ -315,6 +314,6 @@ static struct platform_driver acp63_driver = {
 module_platform_driver(acp63_driver);
 
 MODULE_DESCRIPTION("AMD ACP acp63 Driver");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

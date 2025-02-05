@@ -104,6 +104,18 @@ void kunmap_coherent(void *kvaddr);
 
 void cpu_cache_init(void);
 
+void __weak l2_cache_init(void);
+
+void __weak j2_cache_init(void);
+void __weak sh2_cache_init(void);
+void __weak sh2a_cache_init(void);
+void __weak sh3_cache_init(void);
+void __weak shx3_cache_init(void);
+void __weak sh4_cache_init(void);
+void __weak sh7705_cache_init(void);
+
+void __weak sh4__flush_region_init(void);
+
 static inline void *sh_cacheop_vaddr(void *vaddr)
 {
 	if (__in_29bit_mode())

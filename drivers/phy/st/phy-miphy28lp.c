@@ -228,11 +228,6 @@ struct miphy28lp_dev {
 	int nphys;
 };
 
-struct miphy_initval {
-	u16 reg;
-	u16 val;
-};
-
 enum miphy_sata_gen { SATA_GEN1, SATA_GEN2, SATA_GEN3 };
 
 static char *PHY_TYPE_name[] = { "sata-up", "pcie-up", "", "usb3-up" };

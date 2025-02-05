@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2018 Intel Corporation. All rights reserved.
+// Copyright(c) 2018 Intel Corporation
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
@@ -109,8 +109,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct sof_dev_desc *desc = pdata->desc;
-	struct platform_device *pdev =
-		container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	const struct sof_intel_dsp_desc *chip;
 	struct resource *mmio;
 	u32 base, size;
@@ -214,7 +213,7 @@ irq:
 }
 
 /* baytrail ops */
-static struct snd_sof_dsp_ops sof_byt_ops = {
+static const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
 	.remove		= byt_remove,
@@ -289,7 +288,7 @@ static const struct sof_intel_dsp_desc byt_chip_info = {
 };
 
 /* cherrytrail and braswell ops */
-static struct snd_sof_dsp_ops sof_cht_ops = {
+static const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
 	.remove		= byt_remove,
@@ -465,7 +464,7 @@ static int sof_baytrail_probe(struct platform_device *pdev)
 /* acpi_driver definition */
 static struct platform_driver snd_sof_acpi_intel_byt_driver = {
 	.probe = sof_baytrail_probe,
-	.remove_new = sof_acpi_remove,
+	.remove = sof_acpi_remove,
 	.driver = {
 		.name = "sof-audio-acpi-intel-byt",
 		.pm = &sof_acpi_pm,
@@ -475,7 +474,8 @@ static struct platform_driver snd_sof_acpi_intel_byt_driver = {
 module_platform_driver(snd_sof_acpi_intel_byt_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_HIFI_EP_IPC);
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
-MODULE_IMPORT_NS(SND_SOC_SOF_ACPI_DEV);
-MODULE_IMPORT_NS(SND_SOC_SOF_INTEL_ATOM_HIFI_EP);
+MODULE_DESCRIPTION("SOF support for Baytrail/Cherrytrail");
+MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_HIFI_EP_IPC");
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");
+MODULE_IMPORT_NS("SND_SOC_SOF_ACPI_DEV");
+MODULE_IMPORT_NS("SND_SOC_SOF_INTEL_ATOM_HIFI_EP");

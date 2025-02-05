@@ -493,7 +493,7 @@ static struct platform_driver sun4i_pwm_driver = {
 		.of_match_table = sun4i_pwm_dt_ids,
 	},
 	.probe = sun4i_pwm_probe,
-	.remove_new = sun4i_pwm_remove,
+	.remove = sun4i_pwm_remove,
 };
 module_platform_driver(sun4i_pwm_driver);
 

@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/maxim,max98088.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MAX98088 audio CODEC
+
+maintainers:
+  - Abdulrasaq Lawani <abdulrasaqolawani@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - maxim,max98088
+      - maxim,max98089
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: master clock
+
+  clock-names:
+    items:
+      - const: mclk
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        audio-codec@10 {
+            compatible = "maxim,max98089";
+            reg = <0x10>;
+            clocks = <&clks 0>;
+            clock-names = "mclk";
+        };
+    };

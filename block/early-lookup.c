@@ -78,7 +78,7 @@ static int __init devt_from_partuuid(const char *uuid_str, dev_t *devt)
 		 * to the partition number found by UUID.
 		 */
 		*devt = part_devt(dev_to_disk(dev),
-				  dev_to_bdev(dev)->bd_partno + offset);
+				  bdev_partno(dev_to_bdev(dev)) + offset);
 	} else {
 		*devt = dev->devt;
 	}

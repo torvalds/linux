@@ -34,8 +34,7 @@ struct qce_dma_data {
 	void *ignore_buf;
 };
 
-int qce_dma_request(struct device *dev, struct qce_dma_data *dma);
-void qce_dma_release(struct qce_dma_data *dma);
+int devm_qce_dma_request(struct device *dev, struct qce_dma_data *dma);
 int qce_dma_prep_sgs(struct qce_dma_data *dma, struct scatterlist *sg_in,
 		     int in_ents, struct scatterlist *sg_out, int out_ents,
 		     dma_async_tx_callback cb, void *cb_param);

@@ -135,7 +135,7 @@ static SIMPLE_DEV_PM_OPS(usb4604_i2c_pm_ops, usb4604_i2c_suspend,
 		usb4604_i2c_resume);
 
 static const struct i2c_device_id usb4604_id[] = {
-	{ "usb4604", 0 },
+	{ "usb4604" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, usb4604_id);

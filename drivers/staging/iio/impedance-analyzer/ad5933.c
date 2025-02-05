@@ -84,7 +84,6 @@
 
 struct ad5933_state {
 	struct i2c_client		*client;
-	struct regulator		*reg;
 	struct clk			*mclk;
 	struct delayed_work		work;
 	struct mutex			lock; /* Protect sensor state */
@@ -548,7 +547,8 @@ static int ad5933_ring_preenable(struct iio_dev *indio_dev)
 	struct ad5933_state *st = iio_priv(indio_dev);
 	int ret;
 
-	if (bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
+	if (bitmap_empty(indio_dev->active_scan_mask,
+			 iio_get_masklength(indio_dev)))
 		return -EINVAL;
 
 	ret = ad5933_reset(st);
@@ -626,11 +626,11 @@ static void ad5933_work(struct work_struct *work)
 
 	if (status & AD5933_STAT_DATA_VALID) {
 		int scan_count = bitmap_weight(indio_dev->active_scan_mask,
-					       indio_dev->masklength);
+					       iio_get_masklength(indio_dev));
 		ret = ad5933_i2c_read(st->client,
-				test_bit(1, indio_dev->active_scan_mask) ?
-				AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
-				scan_count * 2, (u8 *)buf);
+				      test_bit(1, indio_dev->active_scan_mask) ?
+				      AD5933_REG_REAL_DATA : AD5933_REG_IMAG_DATA,
+				      scan_count * 2, (u8 *)buf);
 		if (ret)
 			return;
 
@@ -660,13 +660,6 @@ static void ad5933_work(struct work_struct *work)
 	}
 }
 
-static void ad5933_reg_disable(void *data)
-{
-	struct ad5933_state *st = data;
-
-	regulator_disable(st->reg);
-}
-
 static int ad5933_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
@@ -685,23 +678,9 @@ static int ad5933_probe(struct i2c_client *client)
 
 	mutex_init(&st->lock);
 
-	st->reg = devm_regulator_get(&client->dev, "vdd");
-	if (IS_ERR(st->reg))
-		return PTR_ERR(st->reg);
-
-	ret = regulator_enable(st->reg);
-	if (ret) {
-		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
-		return ret;
-	}
-
-	ret = devm_add_action_or_reset(&client->dev, ad5933_reg_disable, st);
-	if (ret)
-		return ret;
-
-	ret = regulator_get_voltage(st->reg);
+	ret = devm_regulator_get_enable_read_voltage(&client->dev, "vdd");
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(&client->dev, ret, "failed to get vdd voltage\n");
 
 	st->vref_mv = ret / 1000;
 
@@ -743,8 +722,8 @@ static int ad5933_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ad5933_id[] = {
-	{ "ad5933", 0 },
-	{ "ad5934", 0 },
+	{ "ad5933" },
+	{ "ad5934" },
 	{}
 };
 

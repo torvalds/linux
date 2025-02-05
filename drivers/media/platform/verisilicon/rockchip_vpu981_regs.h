@@ -327,7 +327,7 @@
 
 #define av1_apf_threshold		AV1_DEC_REG(55, 0, 0xffff)
 #define av1_apf_single_pu_mode		AV1_DEC_REG(55, 30, 0x1)
-#define av1_apf_disable			AV1_DEC_REG(55, 30, 0x1)
+#define av1_apf_disable			AV1_DEC_REG(55, 31, 0x1)
 
 #define av1_dec_max_burst		AV1_DEC_REG(58, 0, 0xff)
 #define av1_dec_buswidth		AV1_DEC_REG(58, 8, 0x7)
@@ -337,10 +337,10 @@
 #define av1_dec_mc_polltime		AV1_DEC_REG(58, 17, 0x3ff)
 #define av1_dec_mc_pollmode		AV1_DEC_REG(58,	27, 0x3)
 
-#define av1_filt_ref_adj_3		AV1_DEC_REG(59, 0, 0x3f)
-#define av1_filt_ref_adj_2		AV1_DEC_REG(59, 7, 0x3f)
-#define av1_filt_ref_adj_1		AV1_DEC_REG(59, 14, 0x3f)
-#define av1_filt_ref_adj_0		AV1_DEC_REG(59, 21, 0x3f)
+#define av1_filt_ref_adj_3		AV1_DEC_REG(59, 0, 0x7f)
+#define av1_filt_ref_adj_2		AV1_DEC_REG(59, 7, 0x7f)
+#define av1_filt_ref_adj_1		AV1_DEC_REG(59, 14, 0x7f)
+#define av1_filt_ref_adj_0		AV1_DEC_REG(59, 21, 0x7f)
 #define av1_ref0_sign_bias		AV1_DEC_REG(59, 28, 0x1)
 #define av1_ref1_sign_bias		AV1_DEC_REG(59, 29, 0x1)
 #define av1_ref2_sign_bias		AV1_DEC_REG(59, 30, 0x1)

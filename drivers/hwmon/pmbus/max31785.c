@@ -518,9 +518,9 @@ static int max31785_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max31785_id[] = {
-	{ "max31785", 0 },
-	{ "max31785a", 0 },
-	{ "max31785b", 0 },
+	{ "max31785" },
+	{ "max31785a" },
+	{ "max31785b" },
 	{ },
 };
 
@@ -549,4 +549,4 @@ module_i2c_driver(max31785_driver);
 MODULE_AUTHOR("Andrew Jeffery <andrew@aj.id.au>");
 MODULE_DESCRIPTION("PMBus driver for the Maxim MAX31785");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

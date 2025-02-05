@@ -21,6 +21,8 @@
 #include <asm/console.h>
 #include <linux/uaccess.h>
 
+#include "proto.h"
+
 
 static DEFINE_SPINLOCK(srmcons_callback_lock);
 static int srm_is_registered_console = 0;

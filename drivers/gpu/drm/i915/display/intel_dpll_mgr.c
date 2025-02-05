@@ -25,6 +25,7 @@
 #include <linux/string_helpers.h>
 
 #include "bxt_dpio_phy_regs.h"
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -173,18 +174,19 @@ void assert_shared_dpll(struct drm_i915_private *i915,
 			struct intel_shared_dpll *pll,
 			bool state)
 {
+	struct intel_display *display = &i915->display;
 	bool cur_state;
 	struct intel_dpll_hw_state hw_state;
 
-	if (drm_WARN(&i915->drm, !pll,
+	if (drm_WARN(display->drm, !pll,
 		     "asserting DPLL %s with no DPLL\n", str_on_off(state)))
 		return;
 
 	cur_state = intel_dpll_get_hw_state(i915, pll, &hw_state);
-	I915_STATE_WARN(i915, cur_state != state,
-			"%s assertion failure (expected %s, current %s)\n",
-			pll->info->name, str_on_off(state),
-			str_on_off(cur_state));
+	INTEL_DISPLAY_STATE_WARN(display, cur_state != state,
+				 "%s assertion failure (expected %s, current %s)\n",
+				 pll->info->name, str_on_off(state),
+				 str_on_off(cur_state));
 }
 
 static enum tc_port icl_pll_id_to_tc_port(enum intel_dpll_id id)
@@ -545,14 +547,15 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *i915,
 
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	u32 val;
 	bool enabled;
 
-	val = intel_de_read(i915, PCH_DREF_CONTROL);
+	val = intel_de_read(display, PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
 			    DREF_SUPERSPREAD_SOURCE_MASK));
-	I915_STATE_WARN(i915, !enabled,
-			"PCH refclk assertion failure, should be active but is disabled\n");
+	INTEL_DISPLAY_STATE_WARN(display, !enabled,
+				 "PCH refclk assertion failure, should be active but is disabled\n");
 }
 
 static void ibx_pch_dpll_enable(struct drm_i915_private *i915,
@@ -1658,7 +1661,7 @@ static void skl_wrpll_params_populate(struct skl_wrpll_params *params,
 }
 
 static int
-skl_ddi_calculate_wrpll(int clock /* in Hz */,
+skl_ddi_calculate_wrpll(int clock,
 			int ref_clock,
 			struct skl_wrpll_params *wrpll_params)
 {
@@ -1683,7 +1686,7 @@ skl_ddi_calculate_wrpll(int clock /* in Hz */,
 	};
 	unsigned int dco, d, i;
 	unsigned int p0, p1, p2;
-	u64 afe_clock = clock * 5; /* AFE Clock is 5x Pixel clock */
+	u64 afe_clock = (u64)clock * 1000 * 5; /* AFE Clock is 5x Pixel clock, in Hz */
 
 	for (d = 0; d < ARRAY_SIZE(dividers); d++) {
 		for (dco = 0; dco < ARRAY_SIZE(dco_central_freq); dco++) {
@@ -1808,7 +1811,7 @@ static int skl_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state)
 	struct skl_wrpll_params wrpll_params = {};
 	int ret;
 
-	ret = skl_ddi_calculate_wrpll(crtc_state->port_clock * 1000,
+	ret = skl_ddi_calculate_wrpll(crtc_state->port_clock,
 				      i915->display.dpll.ref_clks.nssc, &wrpll_params);
 	if (ret)
 		return ret;
@@ -2035,13 +2038,14 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
 			       struct intel_shared_dpll *pll,
 			       const struct intel_dpll_hw_state *dpll_hw_state)
 {
+	struct intel_display *display = &i915->display;
 	const struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 	u32 temp;
 
-	bxt_port_to_phy_channel(i915, port, &phy, &ch);
+	bxt_port_to_phy_channel(display, port, &phy, &ch);
 
 	/* Non-SSC reference */
 	intel_de_rmw(i915, BXT_PORT_PLL_ENABLE(port), 0, PORT_PLL_REF_SEL);
@@ -2157,6 +2161,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 				     struct intel_shared_dpll *pll,
 				     struct intel_dpll_hw_state *dpll_hw_state)
 {
+	struct intel_display *display = &i915->display;
 	struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	intel_wakeref_t wakeref;
@@ -2165,7 +2170,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *i915,
 	u32 val;
 	bool ret;
 
-	bxt_port_to_phy_channel(i915, port, &phy, &ch);
+	bxt_port_to_phy_channel(display, port, &phy, &ch);
 
 	wakeref = intel_display_power_get_if_enabled(i915,
 						     POWER_DOMAIN_DISPLAY_CORE);
@@ -3339,6 +3344,7 @@ static int icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc,
 				  struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -3379,7 +3385,7 @@ static int icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	}
 
 	/* Eliminate DPLLs from consideration if reserved by HTI */
-	dpll_mask &= ~intel_hti_dpll_mask(i915);
+	dpll_mask &= ~intel_hti_dpll_mask(display);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
@@ -4618,6 +4624,7 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 			 struct intel_crtc *crtc,
 			 const struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_dpll_hw_state dpll_hw_state = {};
 	u8 pipe_mask;
 	bool active;
@@ -4625,22 +4632,22 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 	active = intel_dpll_get_hw_state(i915, pll, &dpll_hw_state);
 
 	if (!pll->info->always_on) {
-		I915_STATE_WARN(i915, !pll->on && pll->active_mask,
-				"%s: pll in active use but not on in sw tracking\n",
-				pll->info->name);
-		I915_STATE_WARN(i915, pll->on && !pll->active_mask,
-				"%s: pll is on but not used by any active pipe\n",
-				pll->info->name);
-		I915_STATE_WARN(i915, pll->on != active,
-				"%s: pll on state mismatch (expected %i, found %i)\n",
-				pll->info->name, pll->on, active);
+		INTEL_DISPLAY_STATE_WARN(display, !pll->on && pll->active_mask,
+					 "%s: pll in active use but not on in sw tracking\n",
+					 pll->info->name);
+		INTEL_DISPLAY_STATE_WARN(display, pll->on && !pll->active_mask,
+					 "%s: pll is on but not used by any active pipe\n",
+					 pll->info->name);
+		INTEL_DISPLAY_STATE_WARN(display, pll->on != active,
+					 "%s: pll on state mismatch (expected %i, found %i)\n",
+					 pll->info->name, pll->on, active);
 	}
 
 	if (!crtc) {
-		I915_STATE_WARN(i915,
-				pll->active_mask & ~pll->state.pipe_mask,
-				"%s: more active pll users than references: 0x%x vs 0x%x\n",
-				pll->info->name, pll->active_mask, pll->state.pipe_mask);
+		INTEL_DISPLAY_STATE_WARN(display,
+					 pll->active_mask & ~pll->state.pipe_mask,
+					 "%s: more active pll users than references: 0x%x vs 0x%x\n",
+					 pll->info->name, pll->active_mask, pll->state.pipe_mask);
 
 		return;
 	}
@@ -4648,23 +4655,23 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 	pipe_mask = BIT(crtc->pipe);
 
 	if (new_crtc_state->hw.active)
-		I915_STATE_WARN(i915, !(pll->active_mask & pipe_mask),
-				"%s: pll active mismatch (expected pipe %c in active mask 0x%x)\n",
-				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
+		INTEL_DISPLAY_STATE_WARN(display, !(pll->active_mask & pipe_mask),
+					 "%s: pll active mismatch (expected pipe %c in active mask 0x%x)\n",
+					 pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
 	else
-		I915_STATE_WARN(i915, pll->active_mask & pipe_mask,
-				"%s: pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
-				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
+		INTEL_DISPLAY_STATE_WARN(display, pll->active_mask & pipe_mask,
+					 "%s: pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
+					 pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
 
-	I915_STATE_WARN(i915, !(pll->state.pipe_mask & pipe_mask),
-			"%s: pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
-			pll->info->name, pipe_mask, pll->state.pipe_mask);
+	INTEL_DISPLAY_STATE_WARN(display, !(pll->state.pipe_mask & pipe_mask),
+				 "%s: pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
+				 pll->info->name, pipe_mask, pll->state.pipe_mask);
 
-	I915_STATE_WARN(i915,
-			pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
-					  sizeof(dpll_hw_state)),
-			"%s: pll hw state mismatch\n",
-			pll->info->name);
+	INTEL_DISPLAY_STATE_WARN(display,
+				 pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
+						   sizeof(dpll_hw_state)),
+				 "%s: pll hw state mismatch\n",
+				 pll->info->name);
 }
 
 static bool has_alt_port_dpll(const struct intel_shared_dpll *old_pll,
@@ -4677,6 +4684,7 @@ static bool has_alt_port_dpll(const struct intel_shared_dpll *old_pll,
 void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -4692,16 +4700,16 @@ void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
 		u8 pipe_mask = BIT(crtc->pipe);
 		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
 
-		I915_STATE_WARN(i915, pll->active_mask & pipe_mask,
-				"%s: pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
-				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
+		INTEL_DISPLAY_STATE_WARN(display, pll->active_mask & pipe_mask,
+					 "%s: pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
+					 pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
 
 		/* TC ports have both MG/TC and TBT PLL referenced simultaneously */
-		I915_STATE_WARN(i915, !has_alt_port_dpll(old_crtc_state->shared_dpll,
-							 new_crtc_state->shared_dpll) &&
-				pll->state.pipe_mask & pipe_mask,
-				"%s: pll enabled crtcs mismatch (found pipe %c in enabled mask (0x%x))\n",
-				pll->info->name, pipe_name(crtc->pipe), pll->state.pipe_mask);
+		INTEL_DISPLAY_STATE_WARN(display, !has_alt_port_dpll(old_crtc_state->shared_dpll,
+								     new_crtc_state->shared_dpll) &&
+					 pll->state.pipe_mask & pipe_mask,
+					 "%s: pll enabled crtcs mismatch (found pipe %c in enabled mask (0x%x))\n",
+					 pll->info->name, pipe_name(crtc->pipe), pll->state.pipe_mask);
 	}
 }
 

@@ -24,7 +24,7 @@
 #include <net/mac80211.h>
 #include <net/codel.h>
 #include <net/codel_impl.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <net/fq_impl.h>
 #include <net/gso.h>
 
@@ -699,7 +699,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	txrc.skb = tx->skb;
 	txrc.reported_rate.idx = -1;
 
-	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_SCAN_TX)) {
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_DONT_USE_RATE_MASK)) {
 		txrc.rate_idx_mask = ~0;
 	} else {
 		txrc.rate_idx_mask = tx->sdata->rc_rateidx_mask[info->band];
@@ -1609,8 +1609,8 @@ int ieee80211_txq_setup_flows(struct ieee80211_local *local)
 	local->cparams.target = MS2TIME(20);
 	local->cparams.ecn = true;
 
-	local->cvars = kcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
-			       GFP_KERNEL);
+	local->cvars = kvcalloc(fq->flows_cnt, sizeof(local->cvars[0]),
+				GFP_KERNEL);
 	if (!local->cvars) {
 		spin_lock_bh(&fq->lock);
 		fq_reset(fq, fq_skb_free_func);
@@ -1630,7 +1630,7 @@ void ieee80211_txq_teardown_flows(struct ieee80211_local *local)
 {
 	struct fq *fq = &local->fq;
 
-	kfree(local->cvars);
+	kvfree(local->cvars);
 	local->cvars = NULL;
 
 	spin_lock_bh(&fq->lock);
@@ -1763,12 +1763,13 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
-		if (sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
+		if ((sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) ||
+		    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			vif = &sdata->vif;
 			break;
 		}
 		sdata = rcu_dereference(local->monitor_sdata);
-		if (sdata) {
+		if (sdata && ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 			vif = &sdata->vif;
 			info->hw_queue =
 				vif->hw_queue[skb_get_queue_mapping(skb)];
@@ -2774,8 +2775,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 
 		if (tdls_peer) {
 			/* For TDLS only one link can be valid with peer STA */
-			int tdls_link_id = sta->sta.valid_links ?
-					   __ffs(sta->sta.valid_links) : 0;
+			int tdls_link_id = ieee80211_tdls_sta_link_id(sta);
 			struct ieee80211_link_data *link;
 
 			/* DA SA BSSID */
@@ -3101,8 +3101,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	case NL80211_IFTYPE_STATION:
 		if (test_sta_flag(sta, WLAN_STA_TDLS_PEER)) {
 			/* For TDLS only one link can be valid with peer STA */
-			int tdls_link_id = sta->sta.valid_links ?
-					   __ffs(sta->sta.valid_links) : 0;
+			int tdls_link_id = ieee80211_tdls_sta_link_id(sta);
 			struct ieee80211_link_data *link;
 
 			/* DA SA BSSID */
@@ -3954,12 +3953,14 @@ begin:
 
 	switch (tx.sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
-		if (tx.sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) {
+		if ((tx.sdata->u.mntr.flags & MONITOR_FLAG_ACTIVE) ||
+		    ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR)) {
 			vif = &tx.sdata->vif;
 			break;
 		}
 		tx.sdata = rcu_dereference(local->monitor_sdata);
-		if (tx.sdata) {
+		if (tx.sdata &&
+		    ieee80211_hw_check(&local->hw, WANT_MONITOR_VIF)) {
 			vif = &tx.sdata->vif;
 			info->hw_queue =
 				vif->hw_queue[skb_get_queue_mapping(skb)];
@@ -5349,8 +5350,10 @@ ieee80211_beacon_get_ap(struct ieee80211_hw *hw,
 	if (beacon->tail)
 		skb_put_data(skb, beacon->tail, beacon->tail_len);
 
-	if (ieee80211_beacon_protect(skb, local, sdata, link) < 0)
+	if (ieee80211_beacon_protect(skb, local, sdata, link) < 0) {
+		dev_kfree_skb(skb);
 		return NULL;
+	}
 
 	ieee80211_beacon_get_finish(hw, vif, link, offs, beacon, skb,
 				    chanctx_conf, csa_off_base);
@@ -6213,7 +6216,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 		goto start_xmit;
 
 	/* update QoS header to prioritize control port frames if possible,
-	 * priorization also happens for control port frames send over
+	 * prioritization also happens for control port frames send over
 	 * AF_PACKET
 	 */
 	rcu_read_lock();

@@ -77,6 +77,50 @@ int rtw89_acpi_dsm_get_policy_6ghz(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static bool chk_acpi_policy_6ghz_sp_sig(const struct rtw89_acpi_policy_6ghz_sp *p)
+{
+	return p->signature[0] == 0x52 &&
+	       p->signature[1] == 0x54 &&
+	       p->signature[2] == 0x4B &&
+	       p->signature[3] == 0x07;
+}
+
+static
+int rtw89_acpi_dsm_get_policy_6ghz_sp(struct rtw89_dev *rtwdev,
+				      union acpi_object *obj,
+				      struct rtw89_acpi_policy_6ghz_sp **policy)
+{
+	const struct rtw89_acpi_policy_6ghz_sp *ptr;
+	u32 buf_len;
+
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi: expect buffer but type: %d\n", obj->type);
+		return -EINVAL;
+	}
+
+	buf_len = obj->buffer.length;
+	if (buf_len < sizeof(*ptr)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: invalid buffer length: %u\n",
+			    __func__, buf_len);
+		return -EINVAL;
+	}
+
+	ptr = (typeof(ptr))obj->buffer.pointer;
+	if (!chk_acpi_policy_6ghz_sp_sig(ptr)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: bad signature\n", __func__);
+		return -EINVAL;
+	}
+
+	*policy = kmemdup(ptr, sizeof(*ptr), GFP_KERNEL);
+	if (!*policy)
+		return -ENOMEM;
+
+	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "policy_6ghz_sp: ", *policy,
+		       sizeof(*ptr));
+	return 0;
+}
+
 int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 			    enum rtw89_acpi_dsm_func func,
 			    struct rtw89_acpi_dsm_result *res)
@@ -95,9 +139,59 @@ int rtw89_acpi_evaluate_dsm(struct rtw89_dev *rtwdev,
 	if (func == RTW89_ACPI_DSM_FUNC_6G_BP)
 		ret = rtw89_acpi_dsm_get_policy_6ghz(rtwdev, obj,
 						     &res->u.policy_6ghz);
+	else if (func == RTW89_ACPI_DSM_FUNC_6GHZ_SP_SUP)
+		ret = rtw89_acpi_dsm_get_policy_6ghz_sp(rtwdev, obj,
+							&res->u.policy_6ghz_sp);
 	else
 		ret = rtw89_acpi_dsm_get_value(rtwdev, obj, &res->u.value);
 
+	ACPI_FREE(obj);
+	return ret;
+}
+
+int rtw89_acpi_evaluate_rtag(struct rtw89_dev *rtwdev,
+			     struct rtw89_acpi_rtag_result *res)
+{
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_handle root, handle;
+	union acpi_object *obj;
+	acpi_status status;
+	u32 buf_len;
+	int ret = 0;
+
+	root = ACPI_HANDLE(rtwdev->dev);
+	if (!root)
+		return -EOPNOTSUPP;
+
+	status = acpi_get_handle(root, (acpi_string)"RTAG", &handle);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	obj = buf.pointer;
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI,
+			    "acpi: expect buffer but type: %d\n", obj->type);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	buf_len = obj->buffer.length;
+	if (buf_len != sizeof(*res)) {
+		rtw89_debug(rtwdev, RTW89_DBG_ACPI, "%s: invalid buffer length: %u\n",
+			    __func__, buf_len);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	*res = *(struct rtw89_acpi_rtag_result *)obj->buffer.pointer;
+
+	rtw89_hex_dump(rtwdev, RTW89_DBG_ACPI, "antenna_gain: ", res, sizeof(*res));
+
+out:
 	ACPI_FREE(obj);
 	return ret;
 }

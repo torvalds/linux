@@ -199,7 +199,7 @@ static int mtk8250_startup(struct uart_port *port)
 
 	if (up->dma) {
 		data->rx_status = DMA_RX_START;
-		uart_circ_clear(&port->state->xmit);
+		kfifo_reset(&port->state->port.xmit_fifo);
 	}
 #endif
 	memset(&port->icount, 0, sizeof(port->icount));
@@ -209,15 +209,19 @@ static int mtk8250_startup(struct uart_port *port)
 
 static void mtk8250_shutdown(struct uart_port *port)
 {
-#ifdef CONFIG_SERIAL_8250_DMA
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct mtk8250_data *data = port->private_data;
+	int irq = data->rx_wakeup_irq;
 
+#ifdef CONFIG_SERIAL_8250_DMA
 	if (up->dma)
 		data->rx_status = DMA_RX_SHUTDOWN;
 #endif
 
-	return serial8250_do_shutdown(port);
+	serial8250_do_shutdown(port);
+
+	if (irq >= 0)
+		serial8250_do_set_mctrl(&up->port, TIOCM_RTS);
 }
 
 static void mtk8250_disable_intrs(struct uart_8250_port *up, int mask)
@@ -342,8 +346,8 @@ mtk8250_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Mediatek UARTs use an extra highspeed register (MTK_UART_HIGHS)
 	 *
-	 * We need to recalcualte the quot register, as the claculation depends
-	 * on the vaule in the highspeed register.
+	 * We need to recalculate the quot register, as the calculation depends
+	 * on the value in the highspeed register.
 	 *
 	 * Some baudrates are not supported by the chip, so we use the next
 	 * lower rate supported and update termios c_flag.
@@ -650,7 +654,7 @@ static struct platform_driver mtk8250_platform_driver = {
 		.of_match_table	= mtk8250_of_match,
 	},
 	.probe			= mtk8250_probe,
-	.remove_new		= mtk8250_remove,
+	.remove			= mtk8250_remove,
 };
 module_platform_driver(mtk8250_platform_driver);
 

@@ -411,13 +411,6 @@ static enum power_supply_property smb2_properties[] = {
 	POWER_SUPPLY_PROP_USB_TYPE,
 };
 
-static enum power_supply_usb_type smb2_usb_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-};
-
 static int smb2_get_prop_usb_online(struct smb2_chip *chip, int *val)
 {
 	unsigned int stat;
@@ -775,8 +768,10 @@ static irqreturn_t smb2_handle_wdog_bark(int irq, void *data)
 static const struct power_supply_desc smb2_psy_desc = {
 	.name = "pmi8998_charger",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = smb2_usb_types,
-	.num_usb_types = ARRAY_SIZE(smb2_usb_types),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_DCP) |
+		     BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN),
 	.properties = smb2_properties,
 	.num_properties = ARRAY_SIZE(smb2_properties),
 	.get_property = smb2_get_property,
@@ -837,7 +832,7 @@ static const struct smb2_register smb2_init_seq[] = {
 		  AUTO_RECHG_BIT | EN_ANALOG_DROP_IN_VBATT_BIT |
 		  CHARGER_INHIBIT_BIT,
 	  .val = CHARGER_INHIBIT_BIT },
-	/* STAT pin software override, match downstream. Parallell charging? */
+	/* STAT pin software override, match downstream. Parallel charging? */
 	{ .addr = STAT_CFG,
 	  .mask = STAT_SW_OVERRIDE_CFG_BIT,
 	  .val = STAT_SW_OVERRIDE_CFG_BIT },

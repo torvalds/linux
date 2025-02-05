@@ -31,6 +31,9 @@ struct ccu_common {
 	u16		lock_reg;
 	u32		prediv;
 
+	unsigned long	min_rate;
+	unsigned long	max_rate;
+
 	unsigned long	features;
 	spinlock_t	*lock;
 	struct clk_hw	hw;
@@ -47,7 +50,7 @@ struct sunxi_ccu_desc {
 
 	struct clk_hw_onecell_data	*hw_clks;
 
-	struct ccu_reset_map		*resets;
+	const struct ccu_reset_map	*resets;
 	unsigned long			num_resets;
 };
 

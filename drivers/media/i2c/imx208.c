@@ -8,7 +8,7 @@
 #include <linux/pm_runtime.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define IMX208_REG_MODE_SELECT		0x0100
 #define IMX208_MODE_STANDBY		0x00
@@ -814,7 +814,7 @@ out_unlock:
 }
 
 static ssize_t otp_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(kobj_to_dev(kobj));

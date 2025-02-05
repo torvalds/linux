@@ -3,7 +3,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * Pressure-threshold modules param code from Alex Perry <alex.perry@ieee.org>
@@ -121,7 +121,7 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
-	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
+	kbtab = kzalloc(sizeof(*kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!kbtab || !input_dev)
 		goto fail1;

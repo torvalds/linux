@@ -29,6 +29,9 @@
 
 #include "dc.h"
 
+int amdgpu_dm_plane_get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+					struct dc_cursor_position *position);
+
 void amdgpu_dm_plane_handle_cursor_update(struct drm_plane *plane,
 			  struct drm_plane_state *old_plane_state);
 
@@ -44,12 +47,11 @@ int amdgpu_dm_plane_fill_plane_buffer_attributes(struct amdgpu_device *adev,
 				 const enum surface_pixel_format format,
 				 const enum dc_rotation_angle rotation,
 				 const uint64_t tiling_flags,
-				 union dc_tiling_info *tiling_info,
+				 struct dc_tiling_info *tiling_info,
 				 struct plane_size *plane_size,
 				 struct dc_plane_dcc_param *dcc,
 				 struct dc_plane_address *address,
-				 bool tmz_surface,
-				 bool force_disable_dcc);
+				 bool tmz_surface);
 
 int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 			 struct drm_plane *plane,

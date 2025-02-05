@@ -24,7 +24,7 @@
 #define VSC9959_NUM_PORTS		6
 
 #define VSC9959_TAS_GCL_ENTRY_MAX	63
-#define VSC9959_TAS_MIN_GATE_LEN_NS	33
+#define VSC9959_TAS_MIN_GATE_LEN_NS	35
 #define VSC9959_VCAP_POLICER_BASE	63
 #define VSC9959_VCAP_POLICER_MAX	383
 #define VSC9959_SWITCH_PCI_BAR		4
@@ -1056,11 +1056,15 @@ static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 	mdiobus_free(felix->imdio);
 }
 
-/* The switch considers any frame (regardless of size) as eligible for
- * transmission if the traffic class gate is open for at least 33 ns.
+/* The switch considers any frame (regardless of size) as eligible
+ * for transmission if the traffic class gate is open for at least
+ * VSC9959_TAS_MIN_GATE_LEN_NS.
+ *
  * Overruns are prevented by cropping an interval at the end of the gate time
- * slot for which egress scheduling is blocked, but we need to still keep 33 ns
- * available for one packet to be transmitted, otherwise the port tc will hang.
+ * slot for which egress scheduling is blocked, but we need to still keep
+ * VSC9959_TAS_MIN_GATE_LEN_NS available for one packet to be transmitted,
+ * otherwise the port tc will hang.
+ *
  * This function returns the size of a gate interval that remains available for
  * setting the guard band, after reserving the space for one egress frame.
  */
@@ -1303,7 +1307,8 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 			 * per-tc static guard band lengths, so it reduces the
 			 * useful gate interval length. Therefore, be careful
 			 * to calculate a guard band (and therefore max_sdu)
-			 * that still leaves 33 ns available in the time slot.
+			 * that still leaves VSC9959_TAS_MIN_GATE_LEN_NS
+			 * available in the time slot.
 			 */
 			max_sdu = div_u64(remaining_gate_len_ps, picos_per_byte);
 			/* A TC gate may be completely closed, which is a
@@ -1474,10 +1479,13 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	/* Hardware errata -  Admin config could not be overwritten if
 	 * config is pending, need reset the TAS module
 	 */
-	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
-	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING) {
-		ret = -EBUSY;
-		goto err_reset_tc;
+	val = ocelot_read_rix(ocelot, QSYS_TAG_CONFIG, port);
+	if (val & QSYS_TAG_CONFIG_ENABLE) {
+		val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
+		if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING) {
+			ret = -EBUSY;
+			goto err_reset_tc;
+		}
 	}
 
 	ocelot_rmw_rix(ocelot,
@@ -1733,7 +1741,7 @@ struct felix_stream_gate {
 	u64 cycletime;
 	u64 cycletime_ext;
 	u32 num_entries;
-	struct action_gate_entry entries[];
+	struct action_gate_entry entries[] __counted_by(num_entries);
 };
 
 struct felix_stream_gate_entry {
@@ -1753,6 +1761,9 @@ static int vsc9959_stream_identify(struct flow_cls_offload *f,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS)))
+		return -EOPNOTSUPP;
+
+	if (flow_rule_match_has_control_flags(rule, f->common.extack))
 		return -EOPNOTSUPP;
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
@@ -2602,6 +2613,28 @@ set:
 	}
 }
 
+/* The INTB interrupt is shared between for PTP TX timestamp availability
+ * notification and MAC Merge status change on each port.
+ */
+static irqreturn_t vsc9959_irq_handler(int irq, void *data)
+{
+	struct ocelot *ocelot = data;
+
+	ocelot_get_txtstamp(ocelot);
+	ocelot_mm_irq(ocelot);
+
+	return IRQ_HANDLED;
+}
+
+static int vsc9959_request_irq(struct ocelot *ocelot)
+{
+	struct pci_dev *pdev = to_pci_dev(ocelot->dev);
+
+	return devm_request_threaded_irq(ocelot->dev, pdev->irq, NULL,
+					 &vsc9959_irq_handler, IRQF_ONESHOT,
+					 "felix-intb", ocelot);
+}
+
 static const struct ocelot_ops vsc9959_ops = {
 	.reset			= vsc9959_reset,
 	.wm_enc			= vsc9959_wm_enc,
@@ -2633,7 +2666,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.vcap_pol_max2		= 0,
 	.num_mact_rows		= 2048,
 	.num_ports		= VSC9959_NUM_PORTS,
-	.num_tx_queues		= OCELOT_NUM_TC,
 	.quirks			= FELIX_MAC_QUIRKS,
 	.quirk_no_xtr_irq	= true,
 	.ptp_caps		= &vsc9959_ptp_caps,
@@ -2642,98 +2674,36 @@ static const struct felix_info felix_info_vsc9959 = {
 	.port_modes		= vsc9959_port_modes,
 	.port_setup_tc		= vsc9959_port_setup_tc,
 	.port_sched_speed_set	= vsc9959_sched_speed_set,
+	.request_irq		= vsc9959_request_irq,
 };
-
-/* The INTB interrupt is shared between for PTP TX timestamp availability
- * notification and MAC Merge status change on each port.
- */
-static irqreturn_t felix_irq_handler(int irq, void *data)
-{
-	struct ocelot *ocelot = (struct ocelot *)data;
-
-	ocelot_get_txtstamp(ocelot);
-	ocelot_mm_irq(ocelot);
-
-	return IRQ_HANDLED;
-}
 
 static int felix_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
-	struct dsa_switch *ds;
-	struct ocelot *ocelot;
-	struct felix *felix;
+	struct device *dev = &pdev->dev;
+	resource_size_t switch_base;
 	int err;
-
-	if (pdev->dev.of_node && !of_device_is_available(pdev->dev.of_node)) {
-		dev_info(&pdev->dev, "device is disabled, skipping\n");
-		return -ENODEV;
-	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		dev_err(&pdev->dev, "device enable failed\n");
-		goto err_pci_enable;
+		dev_err(dev, "device enable failed: %pe\n", ERR_PTR(err));
+		return err;
 	}
-
-	felix = kzalloc(sizeof(struct felix), GFP_KERNEL);
-	if (!felix) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate driver memory\n");
-		goto err_alloc_felix;
-	}
-
-	pci_set_drvdata(pdev, felix);
-	ocelot = &felix->ocelot;
-	ocelot->dev = &pdev->dev;
-	ocelot->num_flooding_pgids = OCELOT_NUM_TC;
-	felix->info = &felix_info_vsc9959;
-	felix->switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
 
 	pci_set_master(pdev);
 
-	err = devm_request_threaded_irq(&pdev->dev, pdev->irq, NULL,
-					&felix_irq_handler, IRQF_ONESHOT,
-					"felix-intb", ocelot);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to request irq\n");
-		goto err_alloc_irq;
-	}
+	switch_base = pci_resource_start(pdev, VSC9959_SWITCH_PCI_BAR);
 
-	ocelot->ptp = 1;
-	ocelot->mm_supported = true;
-
-	ds = kzalloc(sizeof(struct dsa_switch), GFP_KERNEL);
-	if (!ds) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Failed to allocate DSA switch\n");
-		goto err_alloc_ds;
-	}
-
-	ds->dev = &pdev->dev;
-	ds->num_ports = felix->info->num_ports;
-	ds->num_tx_queues = felix->info->num_tx_queues;
-	ds->ops = &felix_switch_ops;
-	ds->priv = ocelot;
-	felix->ds = ds;
-	felix->tag_proto = DSA_TAG_PROTO_OCELOT;
-
-	err = dsa_register_switch(ds);
-	if (err) {
-		dev_err_probe(&pdev->dev, err, "Failed to register DSA switch\n");
-		goto err_register_ds;
-	}
+	err = felix_register_switch(dev, switch_base, OCELOT_NUM_TC,
+				    true, true, DSA_TAG_PROTO_OCELOT,
+				    &felix_info_vsc9959);
+	if (err)
+		goto out_disable;
 
 	return 0;
 
-err_register_ds:
-	kfree(ds);
-err_alloc_ds:
-err_alloc_irq:
-	kfree(felix);
-err_alloc_felix:
+out_disable:
 	pci_disable_device(pdev);
-err_pci_enable:
 	return err;
 }
 
@@ -2745,9 +2715,6 @@ static void felix_pci_remove(struct pci_dev *pdev)
 		return;
 
 	dsa_unregister_switch(felix->ds);
-
-	kfree(felix->ds);
-	kfree(felix);
 
 	pci_disable_device(pdev);
 }

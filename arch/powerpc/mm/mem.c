@@ -16,6 +16,8 @@
 #include <linux/highmem.h>
 #include <linux/suspend.h>
 #include <linux/dma-direct.h>
+#include <linux/execmem.h>
+#include <linux/vmalloc.h>
 
 #include <asm/swiotlb.h>
 #include <asm/machdep.h>
@@ -24,13 +26,13 @@
 #include <asm/svm.h>
 #include <asm/mmzone.h>
 #include <asm/ftrace.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/setup.h>
 #include <asm/fixmap.h>
 
 #include <mm/mmu_decl.h>
 
-unsigned long long memory_limit;
+unsigned long long memory_limit __initdata;
 
 unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
@@ -214,7 +216,7 @@ static int __init mark_nonram_nosave(void)
  * everything else. GFP_DMA32 page allocations automatically fall back to
  * ZONE_DMA.
  *
- * By using 31-bit unconditionally, we can exploit zone_dma_bits to inform the
+ * By using 31-bit unconditionally, we can exploit zone_dma_limit to inform the
  * generic DMA mapping code.  32-bit only devices (if not handled by an IOMMU
  * anyway) will take a first dip into ZONE_NORMAL and get otherwise served by
  * ZONE_DMA.
@@ -228,6 +230,7 @@ void __init paging_init(void)
 {
 	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
+	int zone_dma_bits;
 
 #ifdef CONFIG_HIGHMEM
 	unsigned long v = __fix_to_virt(FIX_KMAP_END);
@@ -253,6 +256,8 @@ void __init paging_init(void)
 		zone_dma_bits = 30;
 	else
 		zone_dma_bits = 31;
+
+	zone_dma_limit = DMA_BIT_MASK(zone_dma_bits);
 
 #ifdef CONFIG_ZONE_DMA
 	max_zone_pfns[ZONE_DMA]	= min(max_low_pfn,
@@ -287,8 +292,6 @@ void __init mem_init(void)
 	memblock_set_bottom_up(true);
 	swiotlb_init(ppc_swiotlb_enable, ppc_swiotlb_flags);
 #endif
-
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 	kasan_late_init();
 
@@ -406,3 +409,80 @@ int devmem_is_allowed(unsigned long pfn)
  * the EHEA driver. Drop this when drivers/net/ethernet/ibm/ehea is removed.
  */
 EXPORT_SYMBOL_GPL(walk_system_ram_range);
+
+#ifdef CONFIG_EXECMEM
+static struct execmem_info execmem_info __ro_after_init;
+
+#if defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC_BOOK3S_603)
+static void prealloc_execmem_pgtable(void)
+{
+	unsigned long va;
+
+	for (va = ALIGN_DOWN(MODULES_VADDR, PGDIR_SIZE); va < MODULES_END; va += PGDIR_SIZE)
+		pte_alloc_kernel(pmd_off_k(va), va);
+}
+#else
+static void prealloc_execmem_pgtable(void) { }
+#endif
+
+struct execmem_info __init *execmem_arch_setup(void)
+{
+	pgprot_t kprobes_prot = strict_module_rwx_enabled() ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
+	pgprot_t prot = strict_module_rwx_enabled() ? PAGE_KERNEL : PAGE_KERNEL_EXEC;
+	unsigned long fallback_start = 0, fallback_end = 0;
+	unsigned long start, end;
+
+	/*
+	 * BOOK3S_32 and 8xx define MODULES_VADDR for text allocations and
+	 * allow allocating data in the entire vmalloc space
+	 */
+#ifdef MODULES_VADDR
+	unsigned long limit = (unsigned long)_etext - SZ_32M;
+
+	BUILD_BUG_ON(TASK_SIZE > MODULES_VADDR);
+
+	/* First try within 32M limit from _etext to avoid branch trampolines */
+	if (MODULES_VADDR < PAGE_OFFSET && MODULES_END > limit) {
+		start = limit;
+		fallback_start = MODULES_VADDR;
+		fallback_end = MODULES_END;
+	} else {
+		start = MODULES_VADDR;
+	}
+
+	end = MODULES_END;
+#else
+	start = VMALLOC_START;
+	end = VMALLOC_END;
+#endif
+
+	prealloc_execmem_pgtable();
+
+	execmem_info = (struct execmem_info){
+		.ranges = {
+			[EXECMEM_DEFAULT] = {
+				.start	= start,
+				.end	= end,
+				.pgprot	= prot,
+				.alignment = 1,
+				.fallback_start	= fallback_start,
+				.fallback_end	= fallback_end,
+			},
+			[EXECMEM_KPROBES] = {
+				.start	= VMALLOC_START,
+				.end	= VMALLOC_END,
+				.pgprot	= kprobes_prot,
+				.alignment = 1,
+			},
+			[EXECMEM_MODULE_DATA] = {
+				.start	= VMALLOC_START,
+				.end	= VMALLOC_END,
+				.pgprot	= PAGE_KERNEL,
+				.alignment = 1,
+			},
+		},
+	};
+
+	return &execmem_info;
+}
+#endif /* CONFIG_EXECMEM */

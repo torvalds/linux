@@ -20,6 +20,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/component.h>
 #include <video/omapfb_dss.h>
@@ -529,7 +530,7 @@ static int hdmi_probe_of(struct platform_device *pdev)
 	struct device_node *ep;
 	int r;
 
-	ep = omapdss_of_get_first_endpoint(node);
+	ep = of_graph_get_endpoint_by_regs(node, 0, -1);
 	if (!ep)
 		return 0;
 
@@ -791,9 +792,9 @@ static const struct of_device_id hdmi_of_match[] = {
 
 static struct platform_driver omapdss_hdmihw_driver = {
 	.probe		= hdmi4_probe,
-	.remove_new	= hdmi4_remove,
-	.driver         = {
-		.name   = "omapdss_hdmi",
+	.remove		= hdmi4_remove,
+	.driver		= {
+		.name	= "omapdss_hdmi",
 		.pm	= &hdmi_pm_ops,
 		.of_match_table = hdmi_of_match,
 		.suppress_bind_attrs = true,

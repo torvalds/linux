@@ -68,14 +68,13 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 			     struct list_head *list, int search_commit,
 			     bool nowait);
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
-			    struct list_head *list, int search_commit,
-			    bool nowait);
+			    struct list_head *list, bool nowait);
 int btrfs_lookup_csums_bitmap(struct btrfs_root *root, struct btrfs_path *path,
 			      u64 start, u64 end, u8 *csum_buf,
 			      unsigned long *csum_bitmap);
 void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const struct btrfs_path *path,
-				     struct btrfs_file_extent_item *fi,
+				     const struct btrfs_file_extent_item *fi,
 				     struct extent_map *em);
 int btrfs_inode_clear_file_extent_range(struct btrfs_inode *inode, u64 start,
 					u64 len);

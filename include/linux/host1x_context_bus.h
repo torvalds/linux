@@ -9,7 +9,7 @@
 #include <linux/device.h>
 
 #ifdef CONFIG_TEGRA_HOST1X_CONTEXT_BUS
-extern struct bus_type host1x_context_device_bus_type;
+extern const struct bus_type host1x_context_device_bus_type;
 #endif
 
 #endif

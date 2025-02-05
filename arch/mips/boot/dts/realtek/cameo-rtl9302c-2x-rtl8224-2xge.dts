@@ -1,0 +1,73 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/dts-v1/;
+
+#include "rtl9302c.dtsi"
+
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	compatible = "cameo,rtl9302c-2x-rtl8224-2xge", "realtek,rtl9302-soc";
+	model = "RTL9302C Development Board";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "LOADER";
+				reg = <0x0 0xe0000>;
+				read-only;
+			};
+			partition@e0000 {
+				label = "BDINFO";
+				reg = <0xe0000 0x10000>;
+			};
+			partition@f0000 {
+				label = "SYSINFO";
+				reg = <0xf0000 0x10000>;
+				read-only;
+			};
+			partition@100000 {
+				label = "JFFS2 CFG";
+				reg = <0x100000 0x100000>;
+			};
+			partition@200000 {
+				label = "JFFS2 LOG";
+				reg = <0x200000 0x100000>;
+			};
+			partition@300000 {
+				label = "RUNTIME";
+				reg = <0x300000 0xe80000>;
+			};
+			partition@1180000 {
+				label = "RUNTIME2";
+				reg = <0x1180000 0xe80000>;
+			};
+		};
+	};
+};

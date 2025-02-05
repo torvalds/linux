@@ -439,7 +439,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 		.logical_block_size	= 1 << 12,
 	};
 	unsigned int devindex;
-	struct request_queue *rq;
 	int len, ret;
 
 	lim.max_segments = min(scmdev->nr_max_block,
@@ -462,7 +461,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 	bdev->tag_set.cmd_size = sizeof(blk_status_t);
 	bdev->tag_set.nr_hw_queues = nr_requests;
 	bdev->tag_set.queue_depth = nr_requests_per_io * nr_requests;
-	bdev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	bdev->tag_set.numa_node = NUMA_NO_NODE;
 
 	ret = blk_mq_alloc_tag_set(&bdev->tag_set);
@@ -474,10 +472,6 @@ int scm_blk_dev_setup(struct scm_blk_dev *bdev, struct scm_device *scmdev)
 		ret = PTR_ERR(bdev->gendisk);
 		goto out_tag;
 	}
-	rq = bdev->rq = bdev->gendisk->queue;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, rq);
-	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, rq);
-
 	bdev->gendisk->private_data = scmdev;
 	bdev->gendisk->fops = &scm_blk_devops;
 	bdev->gendisk->major = scm_major;

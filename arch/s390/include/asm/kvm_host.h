@@ -15,7 +15,6 @@
 #include <linux/hrtimer.h>
 #include <linux/interrupt.h>
 #include <linux/kvm_types.h>
-#include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/seqlock.h>
 #include <linux/module.h>
@@ -95,11 +94,16 @@ union ipte_control {
 	};
 };
 
+/*
+ * Utility is defined as two bytes but having it four bytes wide
+ * generates more efficient code. Since the following bytes are
+ * reserved this makes no functional difference.
+ */
 union sca_utility {
-	__u16 val;
+	__u32 val;
 	struct {
-		__u16 mtcr : 1;
-		__u16 reserved : 15;
+		__u32 mtcr : 1;
+		__u32	   : 31;
 	};
 };
 
@@ -108,7 +112,7 @@ struct bsca_block {
 	__u64	reserved[5];
 	__u64	mcn;
 	union sca_utility utility;
-	__u8	reserved2[6];
+	__u8	reserved2[4];
 	struct bsca_entry cpu[KVM_S390_BSCA_CPU_SLOTS];
 };
 
@@ -116,7 +120,7 @@ struct esca_block {
 	union ipte_control ipte_control;
 	__u64   reserved1[6];
 	union sca_utility utility;
-	__u8	reserved2[6];
+	__u8	reserved2[4];
 	__u64   mcn[4];
 	__u64   reserved3[20];
 	struct esca_entry cpu[KVM_S390_ESCA_CPU_SLOTS];
@@ -357,6 +361,7 @@ struct kvm_s390_sie_block {
 #define ECD_MEF		0x08000000
 #define ECD_ETOKENF	0x02000000
 #define ECD_ECC		0x00200000
+#define ECD_HMAC	0x00004000
 	__u32	ecd;			/* 0x01c8 */
 	__u8	reserved1cc[18];	/* 0x01cc */
 	__u64	pp;			/* 0x01de */
@@ -427,6 +432,7 @@ struct kvm_vcpu_stat {
 	u64 instruction_io_other;
 	u64 instruction_lpsw;
 	u64 instruction_lpswe;
+	u64 instruction_lpswey;
 	u64 instruction_pfmf;
 	u64 instruction_ptff;
 	u64 instruction_sck;
@@ -527,6 +533,9 @@ struct kvm_vcpu_stat {
 #define PGM_REGION_FIRST_TRANS		0x39
 #define PGM_REGION_SECOND_TRANS		0x3a
 #define PGM_REGION_THIRD_TRANS		0x3b
+#define PGM_SECURE_STORAGE_ACCESS	0x3d
+#define PGM_NON_SECURE_STORAGE_ACCESS	0x3e
+#define PGM_SECURE_STORAGE_VIOLATION	0x3f
 #define PGM_MONITOR			0x40
 #define PGM_PER				0x80
 #define PGM_CRYPTO_OPERATION		0x119
@@ -747,8 +756,6 @@ struct kvm_vcpu_arch {
 	struct hrtimer    ckc_timer;
 	struct kvm_s390_pgm_info pgm;
 	struct gmap *gmap;
-	/* backup location for the currently enabled gmap when scheduled out */
-	struct gmap *enabled_gmap;
 	struct kvm_guestdbg_info_arch guestdbg;
 	unsigned long pfault_token;
 	unsigned long pfault_select;
@@ -1029,11 +1036,12 @@ void kvm_arch_crypto_clear_masks(struct kvm *kvm);
 void kvm_arch_crypto_set_masks(struct kvm *kvm, unsigned long *apm,
 			       unsigned long *aqm, unsigned long *adm);
 
-int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa);
+int __sie64a(phys_addr_t sie_block_phys, struct kvm_s390_sie_block *sie_block, u64 *rsa,
+	     unsigned long gasce);
 
-static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa)
+static inline int sie64a(struct kvm_s390_sie_block *sie_block, u64 *rsa, unsigned long gasce)
 {
-	return __sie64a(virt_to_phys(sie_block), sie_block, rsa);
+	return __sie64a(virt_to_phys(sie_block), sie_block, rsa, gasce);
 }
 
 extern char sie_exit;
@@ -1045,7 +1053,6 @@ extern int kvm_s390_gisc_register(struct kvm *kvm, u32 gisc);
 extern int kvm_s390_gisc_unregister(struct kvm *kvm, u32 gisc);
 
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
-static inline void kvm_arch_sched_in(struct kvm_vcpu *vcpu, int cpu) {}
 static inline void kvm_arch_free_memslot(struct kvm *kvm,
 					 struct kvm_memory_slot *slot) {}
 static inline void kvm_arch_memslots_updated(struct kvm *kvm, u64 gen) {}

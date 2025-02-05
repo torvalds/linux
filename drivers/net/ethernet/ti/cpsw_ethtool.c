@@ -434,18 +434,6 @@ int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 		return -EOPNOTSUPP;
 }
 
-int cpsw_set_eee(struct net_device *ndev, struct ethtool_keee *edata)
-{
-	struct cpsw_priv *priv = netdev_priv(ndev);
-	struct cpsw_common *cpsw = priv->cpsw;
-	int slave_no = cpsw_slave_index(cpsw, priv);
-
-	if (cpsw->slaves[slave_no].phy)
-		return phy_ethtool_set_eee(cpsw->slaves[slave_no].phy, edata);
-	else
-		return -EOPNOTSUPP;
-}
-
 int cpsw_nway_reset(struct net_device *ndev)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
@@ -717,7 +705,7 @@ err:
 }
 
 #if IS_ENABLED(CONFIG_TI_CPTS)
-int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
 	struct cpsw_common *cpsw = ndev_to_cpsw(ndev);
 
@@ -725,8 +713,6 @@ int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_TX_SOFTWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE |
 		SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->phc_index = cpsw->cpts->phc_index;
 	info->tx_types =
@@ -738,13 +724,10 @@ int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
 	return 0;
 }
 #else
-int cpsw_get_ts_info(struct net_device *ndev, struct ethtool_ts_info *info)
+int cpsw_get_ts_info(struct net_device *ndev, struct kernel_ethtool_ts_info *info)
 {
 	info->so_timestamping =
-		SOF_TIMESTAMPING_TX_SOFTWARE |
-		SOF_TIMESTAMPING_RX_SOFTWARE |
-		SOF_TIMESTAMPING_SOFTWARE;
-	info->phc_index = -1;
+		SOF_TIMESTAMPING_TX_SOFTWARE;
 	info->tx_types = 0;
 	info->rx_filters = 0;
 	return 0;

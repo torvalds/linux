@@ -10,6 +10,19 @@ struct thermal_genl_cpu_caps {
 	int efficiency;
 };
 
+enum thermal_genl_multicast_groups {
+	THERMAL_GENL_SAMPLING_GROUP = 0,
+	THERMAL_GENL_EVENT_GROUP = 1,
+	THERMAL_GENL_MAX_GROUP = THERMAL_GENL_EVENT_GROUP,
+};
+
+#define THERMAL_NOTIFY_BIND	0
+#define THERMAL_NOTIFY_UNBIND	1
+
+struct thermal_genl_notify {
+	int mcgrp;
+};
+
 struct thermal_zone_device;
 struct thermal_trip;
 struct thermal_cooling_device;
@@ -18,6 +31,9 @@ struct thermal_cooling_device;
 #ifdef CONFIG_THERMAL_NETLINK
 int __init thermal_netlink_init(void);
 void __init thermal_netlink_exit(void);
+int thermal_genl_register_notifier(struct notifier_block *nb);
+int thermal_genl_unregister_notifier(struct notifier_block *nb);
+
 int thermal_notify_tz_create(const struct thermal_zone_device *tz);
 int thermal_notify_tz_delete(const struct thermal_zone_device *tz);
 int thermal_notify_tz_enable(const struct thermal_zone_device *tz);
@@ -37,6 +53,13 @@ int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
 int thermal_genl_sampling_temp(int id, int temp);
 int thermal_genl_cpu_capability_event(int count,
 				      struct thermal_genl_cpu_caps *caps);
+int thermal_notify_threshold_add(const struct thermal_zone_device *tz,
+				 int temperature, int direction);
+int thermal_notify_threshold_delete(const struct thermal_zone_device *tz,
+				    int temperature, int direction);
+int thermal_notify_threshold_flush(const struct thermal_zone_device *tz);
+int thermal_notify_threshold_down(const struct thermal_zone_device *tz);
+int thermal_notify_threshold_up(const struct thermal_zone_device *tz);
 #else
 static inline int thermal_netlink_init(void)
 {
@@ -44,6 +67,16 @@ static inline int thermal_netlink_init(void)
 }
 
 static inline int thermal_notify_tz_create(const struct thermal_zone_device *tz)
+{
+	return 0;
+}
+
+static inline int thermal_genl_register_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int thermal_genl_unregister_notifier(struct notifier_block *nb)
 {
 	return 0;
 }
@@ -109,6 +142,33 @@ static inline int thermal_genl_sampling_temp(int id, int temp)
 }
 
 static inline int thermal_genl_cpu_capability_event(int count, struct thermal_genl_cpu_caps *caps)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_add(const struct thermal_zone_device *tz,
+					       int temperature, int direction)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_delete(const struct thermal_zone_device *tz,
+						  int temperature, int direction)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_flush(const struct thermal_zone_device *tz)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_down(const struct thermal_zone_device *tz)
+{
+	return 0;
+}
+
+static inline int thermal_notify_threshold_up(const struct thermal_zone_device *tz)
 {
 	return 0;
 }

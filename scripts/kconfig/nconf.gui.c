@@ -4,6 +4,7 @@
  *
  * Derived from menuconfig.
  */
+#include <xalloc.h>
 #include "nconf.h"
 #include "lkc.h"
 
@@ -275,6 +276,15 @@ int btn_dialog(WINDOW *main_window, const char *msg, int btn_num, ...)
 			break;
 		case KEY_RIGHT:
 			menu_driver(menu, REQ_RIGHT_ITEM);
+			break;
+		case 9: /* TAB */
+			if (btn_num > 1) {
+				/* cycle through buttons */
+				if (item_index(current_item(menu)) == btn_num - 1)
+					menu_driver(menu, REQ_FIRST_ITEM);
+				else
+					menu_driver(menu, REQ_NEXT_ITEM);
+			}
 			break;
 		case 10: /* ENTER */
 		case 27: /* ESCAPE */

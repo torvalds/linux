@@ -1,0 +1,457 @@
+[
+  {
+    "MetricName": "branch_misprediction_rate",
+    "BriefDescription": "Execution-time branch misprediction rate (non-speculative).",
+    "MetricExpr": "d_ratio(ex_ret_brn_misp, ex_ret_brn)",
+    "MetricGroup": "branch_prediction",
+    "ScaleUnit": "1per_branch"
+  },
+  {
+    "MetricName": "all_data_cache_accesses_pti",
+    "BriefDescription": "All data cache accesses per thousand instructions.",
+    "MetricExpr": "ls_dispatch.all / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "all_l2_cache_accesses_pti",
+    "BriefDescription": "All L2 cache accesses per thousand instructions.",
+    "MetricExpr": "(l2_request_g1.all_no_prefetch + l2_pf_hit_l2.l2_hwpf + l2_pf_miss_l2_hit_l3.l2_hwpf + l2_pf_miss_l2_l3.l2_hwpf) / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l1_ic_misses_pti",
+    "BriefDescription": "L2 cache accesses from L1 instruction cache misses (including prefetch) per thousand instructions.",
+    "MetricExpr": "l2_request_g1.cacheable_ic_read / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l1_dc_misses_pti",
+    "BriefDescription": "L2 cache accesses from L1 data cache misses (including prefetch) per thousand instructions.",
+    "MetricExpr": "l2_request_g1.all_dc / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_accesses_from_l2_hwpf_pti",
+    "BriefDescription": "L2 cache accesses from L2 cache hardware prefetcher per thousand instructions.",
+    "MetricExpr": "(l2_pf_hit_l2.l1_dc_l2_hwpf + l2_pf_miss_l2_hit_l3.l1_dc_l2_hwpf + l2_pf_miss_l2_l3.l1_dc_l2_hwpf) / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "all_l2_cache_misses_pti",
+    "BriefDescription": "All L2 cache misses per thousand instructions.",
+    "MetricExpr": "(l2_cache_req_stat.ic_dc_miss_in_l2 + l2_pf_miss_l2_hit_l3.l2_hwpf + l2_pf_miss_l2_l3.l2_hwpf) / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l1_ic_miss_pti",
+    "BriefDescription": "L2 cache misses from L1 instruction cache misses per thousand instructions.",
+    "MetricExpr": "l2_cache_req_stat.ic_fill_miss / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l1_dc_miss_pti",
+    "BriefDescription": "L2 cache misses from L1 data cache misses per thousand instructions.",
+    "MetricExpr": "l2_cache_req_stat.ls_rd_blk_c / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_misses_from_l2_hwpf_pti",
+    "BriefDescription": "L2 cache misses from L2 cache hardware prefetcher per thousand instructions.",
+    "MetricExpr": "(l2_pf_miss_l2_hit_l3.l1_dc_l2_hwpf + l2_pf_miss_l2_l3.l1_dc_l2_hwpf) / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "all_l2_cache_hits_pti",
+    "BriefDescription": "All L2 cache hits per thousand instructions.",
+    "MetricExpr": "(l2_cache_req_stat.ic_dc_hit_in_l2 + l2_pf_hit_l2.l2_hwpf) / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l1_ic_miss_pti",
+    "BriefDescription": "L2 cache hits from L1 instruction cache misses per thousand instructions.",
+    "MetricExpr": "l2_cache_req_stat.ic_hit_in_l2 / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l1_dc_miss_pti",
+    "BriefDescription": "L2 cache hits from L1 data cache misses per thousand instructions.",
+    "MetricExpr": "l2_cache_req_stat.dc_hit_in_l2 / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_cache_hits_from_l2_hwpf_pti",
+    "BriefDescription": "L2 cache hits from L2 cache hardware prefetcher per thousand instructions.",
+    "MetricExpr": "l2_pf_hit_l2.l1_dc_l2_hwpf / instructions",
+    "MetricGroup": "l2_cache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l3_cache_accesses",
+    "BriefDescription": "L3 cache accesses.",
+    "MetricExpr": "l3_lookup_state.all_coherent_accesses_to_l3",
+    "MetricGroup": "l3_cache"
+  },
+  {
+    "MetricName": "l3_misses",
+    "BriefDescription": "L3 misses (including cacheline state change requests).",
+    "MetricExpr": "l3_lookup_state.l3_miss",
+    "MetricGroup": "l3_cache"
+  },
+  {
+    "MetricName": "l3_read_miss_latency",
+    "BriefDescription": "Average L3 read miss latency (in core clocks).",
+    "MetricExpr": "(l3_xi_sampled_latency.all * 10) / l3_xi_sampled_latency_requests.all",
+    "MetricGroup": "l3_cache",
+    "ScaleUnit": "1ns"
+  },
+  {
+    "MetricName": "l3_read_miss_latency_for_local_dram",
+    "BriefDescription": "Average L3 read miss latency (in core clocks) for local DRAM.",
+    "MetricExpr": "(l3_xi_sampled_latency.dram_near * 10) / l3_xi_sampled_latency_requests.dram_near",
+    "MetricGroup": "l3_cache",
+    "ScaleUnit": "1ns"
+  },
+  {
+    "MetricName": "l3_read_miss_latency_for_remote_dram",
+    "BriefDescription": "Average L3 read miss latency (in core clocks) for remote DRAM.",
+    "MetricExpr": "(l3_xi_sampled_latency.dram_far * 10) / l3_xi_sampled_latency_requests.dram_far",
+    "MetricGroup": "l3_cache",
+    "ScaleUnit": "1ns"
+  },
+  {
+    "MetricName": "op_cache_fetch_miss_ratio",
+    "BriefDescription": "Op cache miss ratio for all fetches.",
+    "MetricExpr": "d_ratio(op_cache_hit_miss.op_cache_miss, op_cache_hit_miss.all_op_cache_accesses)",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "ic_fetch_miss_ratio",
+    "BriefDescription": "Instruction cache miss ratio for all fetches. An instruction cache miss will not be counted by this metric if it is an OC hit.",
+    "MetricExpr": "d_ratio(ic_tag_hit_miss.instruction_cache_miss, ic_tag_hit_miss.all_instruction_cache_accesses)",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_memory_pti",
+    "BriefDescription": "L1 data cache fills from DRAM or MMIO in any NUMA node per thousand instructions.",
+    "MetricExpr": "ls_any_fills_from_sys.dram_io_all / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_remote_node_pti",
+    "BriefDescription": "L1 data cache fills from a different NUMA node per thousand instructions.",
+    "MetricExpr": "ls_any_fills_from_sys.far_all / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_same_ccx_pti",
+    "BriefDescription": "L1 data cache fills from within the same CCX per thousand instructions.",
+    "MetricExpr": "ls_any_fills_from_sys.local_all / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_data_cache_fills_from_different_ccx_pti",
+    "BriefDescription": "L1 data cache fills from another CCX cache in any NUMA node per thousand instructions.",
+    "MetricExpr": "ls_any_fills_from_sys.remote_cache / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "all_l1_data_cache_fills_pti",
+    "BriefDescription": "All L1 data cache fills per thousand instructions.",
+    "MetricExpr": "ls_any_fills_from_sys.all / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_local_l2_pti",
+    "BriefDescription": "L1 demand data cache fills from local L2 cache per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.local_l2 / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_same_ccx_pti",
+    "BriefDescription": "L1 demand data cache fills from within the same CCX per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.local_ccx / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_near_cache_pti",
+    "BriefDescription": "L1 demand data cache fills from another CCX cache in the same NUMA node per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.near_cache / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_near_memory_pti",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in the same NUMA node per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_near / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_far_cache_pti",
+    "BriefDescription": "L1 demand data cache fills from another CCX cache in a different NUMA node per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.far_cache / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_demand_data_cache_fills_from_far_memory_pti",
+    "BriefDescription": "L1 demand data cache fills from DRAM or MMIO in a different NUMA node per thousand instructions.",
+    "MetricExpr": "ls_dmnd_fills_from_sys.dram_io_far / instructions",
+    "MetricGroup": "l1_dcache",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_itlb_misses_pti",
+    "BriefDescription": "L1 instruction TLB misses per thousand instructions.",
+    "MetricExpr": "(bp_l1_tlb_miss_l2_tlb_hit + bp_l1_tlb_miss_l2_tlb_miss.all) / instructions",
+    "MetricGroup": "tlb",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_itlb_misses_pti",
+    "BriefDescription": "L2 instruction TLB misses and instruction page walks per thousand instructions.",
+    "MetricExpr": "bp_l1_tlb_miss_l2_tlb_miss.all / instructions",
+    "MetricGroup": "tlb",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l1_dtlb_misses_pti",
+    "BriefDescription": "L1 data TLB misses per thousand instructions.",
+    "MetricExpr": "ls_l1_d_tlb_miss.all / instructions",
+    "MetricGroup": "tlb",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "l2_dtlb_misses_pti",
+    "BriefDescription": "L2 data TLB misses and data page walks per thousand instructions.",
+    "MetricExpr": "ls_l1_d_tlb_miss.all_l2_miss / instructions",
+    "MetricGroup": "tlb",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "all_tlbs_flushed_pti",
+    "BriefDescription": "All TLBs flushed per thousand instructions.",
+    "MetricExpr": "ls_tlb_flush.all / instructions",
+    "MetricGroup": "tlb",
+    "ScaleUnit": "1e3per_1k_instr"
+  },
+  {
+    "MetricName": "macro_ops_dispatched",
+    "BriefDescription": "Macro-ops dispatched.",
+    "MetricExpr": "de_src_op_disp.all",
+    "MetricGroup": "decoder"
+  },
+  {
+    "MetricName": "sse_avx_stalls",
+    "BriefDescription": "Mixed SSE/AVX stalls.",
+    "MetricExpr": "fp_disp_faults.sse_avx_all"
+  },
+  {
+    "MetricName": "macro_ops_retired",
+    "BriefDescription": "Macro-ops retired.",
+    "MetricExpr": "ex_ret_ops"
+  },
+  {
+    "MetricName": "umc_data_bus_utilization",
+    "BriefDescription": "Memory controller data bus utilization.",
+    "MetricExpr": "d_ratio(umc_data_slot_clks.all / 2, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_cas_cmd_rate",
+    "BriefDescription": "Memory controller CAS command rate.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1per_memclk"
+  },
+  {
+    "MetricName": "umc_cas_cmd_read_ratio",
+    "BriefDescription": "Ratio of memory controller CAS commands for reads.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.rd, umc_cas_cmd.all)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_cas_cmd_write_ratio",
+    "BriefDescription": "Ratio of memory controller CAS commands for writes.",
+    "MetricExpr": "d_ratio(umc_cas_cmd.wr, umc_cas_cmd.all)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "100%"
+  },
+  {
+    "MetricName": "umc_mem_read_bandwidth",
+    "BriefDescription": "Estimated memory read bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.rd * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_mem_write_bandwidth",
+    "BriefDescription": "Estimated memory write bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.wr * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_mem_bandwidth",
+    "BriefDescription": "Estimated combined memory bandwidth.",
+    "MetricExpr": "(umc_cas_cmd.all * 64) / 1e6 / duration_time",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1MB/s"
+  },
+  {
+    "MetricName": "umc_activate_cmd_rate",
+    "BriefDescription": "Memory controller ACTIVATE command rate.",
+    "MetricExpr": "d_ratio(umc_act_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1per_memclk"
+  },
+  {
+    "MetricName": "umc_precharge_cmd_rate",
+    "BriefDescription": "Memory controller PRECHARGE command rate.",
+    "MetricExpr": "d_ratio(umc_pchg_cmd.all * 1000, umc_mem_clk)",
+    "MetricGroup": "memory_controller",
+    "PerPkg": "1",
+    "ScaleUnit": "1per_memclk"
+  },
+  {
+    "MetricName": "dram_read_bandwidth_for_local_or_remote_socket",
+    "BriefDescription": "DRAM read data bandwidth for accesses in local or remote socket.",
+    "MetricExpr": "(local_or_remote_socket_read_data_beats_dram_0 + local_or_remote_socket_read_data_beats_dram_1 + local_or_remote_socket_read_data_beats_dram_2 + local_or_remote_socket_read_data_beats_dram_3 + local_or_remote_socket_read_data_beats_dram_4 + local_or_remote_socket_read_data_beats_dram_5 + local_or_remote_socket_read_data_beats_dram_6 + local_or_remote_socket_read_data_beats_dram_7 + local_or_remote_socket_read_data_beats_dram_8 + local_or_remote_socket_read_data_beats_dram_9 + local_or_remote_socket_read_data_beats_dram_10 + local_or_remote_socket_read_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_local_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_write_data_beats_dram_0 + local_socket_write_data_beats_dram_1 + local_socket_write_data_beats_dram_2 + local_socket_write_data_beats_dram_3 + local_socket_write_data_beats_dram_4 + local_socket_write_data_beats_dram_5 + local_socket_write_data_beats_dram_6 + local_socket_write_data_beats_dram_7 + local_socket_write_data_beats_dram_8 + local_socket_write_data_beats_dram_9 + local_socket_write_data_beats_dram_10 + local_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_remote_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_write_data_beats_dram_0 + remote_socket_write_data_beats_dram_1 + remote_socket_write_data_beats_dram_2 + remote_socket_write_data_beats_dram_3 + remote_socket_write_data_beats_dram_4 + remote_socket_write_data_beats_dram_5 + remote_socket_write_data_beats_dram_6 + remote_socket_write_data_beats_dram_7 + remote_socket_write_data_beats_dram_8 + remote_socket_write_data_beats_dram_9 + remote_socket_write_data_beats_dram_10 + remote_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "dram_write_bandwidth_for_local_or_remote_socket",
+    "BriefDescription": "DRAM write data bandwidth for accesses in local or remote socket.",
+    "MetricExpr": "(local_or_remote_socket_write_data_beats_dram_0 + local_or_remote_socket_write_data_beats_dram_1 + local_or_remote_socket_write_data_beats_dram_2 + local_or_remote_socket_write_data_beats_dram_3 + local_or_remote_socket_write_data_beats_dram_4 + local_or_remote_socket_write_data_beats_dram_5 + local_or_remote_socket_write_data_beats_dram_6 + local_or_remote_socket_write_data_beats_dram_7 + local_or_remote_socket_write_data_beats_dram_8 + local_or_remote_socket_write_data_beats_dram_9 + local_or_remote_socket_write_data_beats_dram_10 + local_or_remote_socket_write_data_beats_dram_11) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_read_bandwidth_for_local_socket",
+    "BriefDescription": "Upstream DMA read data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_upstream_read_data_beats_io_0 + local_socket_upstream_read_data_beats_io_1 + local_socket_upstream_read_data_beats_io_2 + local_socket_upstream_read_data_beats_io_3 + local_socket_upstream_read_data_beats_io_4 + local_socket_upstream_read_data_beats_io_5 + local_socket_upstream_read_data_beats_io_6 + local_socket_upstream_read_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_write_bandwidth_for_local_socket",
+    "BriefDescription": "Upstream DMA write data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_upstream_write_data_beats_io_0 + local_socket_upstream_write_data_beats_io_1 + local_socket_upstream_write_data_beats_io_2 + local_socket_upstream_write_data_beats_io_3 + local_socket_upstream_write_data_beats_io_4 + local_socket_upstream_write_data_beats_io_5 + local_socket_upstream_write_data_beats_io_6 + local_socket_upstream_write_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_read_bandwidth_for_remote_socket",
+    "BriefDescription": "Upstream DMA read data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_upstream_read_data_beats_io_0 + remote_socket_upstream_read_data_beats_io_1 + remote_socket_upstream_read_data_beats_io_2 + remote_socket_upstream_read_data_beats_io_3 + remote_socket_upstream_read_data_beats_io_4 + remote_socket_upstream_read_data_beats_io_5 + remote_socket_upstream_read_data_beats_io_6 + remote_socket_upstream_read_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "upstream_dma_write_bandwidth_for_remote_socket",
+    "BriefDescription": "Upstream DMA write data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_upstream_write_data_beats_io_0 + remote_socket_upstream_write_data_beats_io_1 + remote_socket_upstream_write_data_beats_io_2 + remote_socket_upstream_write_data_beats_io_3 + remote_socket_upstream_write_data_beats_io_4 + remote_socket_upstream_write_data_beats_io_5 + remote_socket_upstream_write_data_beats_io_6 + remote_socket_upstream_write_data_beats_io_7) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "core_inbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Core inbound data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_inbound_data_beats_cfi_0 + local_socket_inbound_data_beats_cfi_1 + local_socket_inbound_data_beats_cfi_2 + local_socket_inbound_data_beats_cfi_3 + local_socket_inbound_data_beats_cfi_4 + local_socket_inbound_data_beats_cfi_5 + local_socket_inbound_data_beats_cfi_6 + local_socket_inbound_data_beats_cfi_7 + local_socket_inbound_data_beats_cfi_8 + local_socket_inbound_data_beats_cfi_9 + local_socket_inbound_data_beats_cfi_10 + local_socket_inbound_data_beats_cfi_11 + local_socket_inbound_data_beats_cfi_12 + local_socket_inbound_data_beats_cfi_13 + local_socket_inbound_data_beats_cfi_14 + local_socket_inbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.2e-5MB/s"
+  },
+  {
+    "MetricName": "core_outbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Core outbound data bandwidth for accesses in local socket.",
+    "MetricExpr": "(local_socket_outbound_data_beats_cfi_0 + local_socket_outbound_data_beats_cfi_1 + local_socket_outbound_data_beats_cfi_2 + local_socket_outbound_data_beats_cfi_3 + local_socket_outbound_data_beats_cfi_4 + local_socket_outbound_data_beats_cfi_5 + local_socket_outbound_data_beats_cfi_6 + local_socket_outbound_data_beats_cfi_7 + local_socket_outbound_data_beats_cfi_8 + local_socket_outbound_data_beats_cfi_9 + local_socket_outbound_data_beats_cfi_10 + local_socket_outbound_data_beats_cfi_11 + local_socket_outbound_data_beats_cfi_12 + local_socket_outbound_data_beats_cfi_13 + local_socket_outbound_data_beats_cfi_14 + local_socket_outbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "core_inbound_data_bandwidth_for_remote_socket",
+    "BriefDescription": "Core inbound data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_inbound_data_beats_cfi_0 + remote_socket_inbound_data_beats_cfi_1 + remote_socket_inbound_data_beats_cfi_2 + remote_socket_inbound_data_beats_cfi_3 + remote_socket_inbound_data_beats_cfi_4 + remote_socket_inbound_data_beats_cfi_5 + remote_socket_inbound_data_beats_cfi_6 + remote_socket_inbound_data_beats_cfi_7 + remote_socket_inbound_data_beats_cfi_8 + remote_socket_inbound_data_beats_cfi_9 + remote_socket_inbound_data_beats_cfi_10 + remote_socket_inbound_data_beats_cfi_11 + remote_socket_inbound_data_beats_cfi_12 + remote_socket_inbound_data_beats_cfi_13 + remote_socket_inbound_data_beats_cfi_14 + remote_socket_inbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "3.2e-5MB/s"
+  },
+  {
+    "MetricName": "core_outbound_data_bandwidth_for_remote_socket",
+    "BriefDescription": "Core outbound data bandwidth for accesses in remote socket.",
+    "MetricExpr": "(remote_socket_outbound_data_beats_cfi_0 + remote_socket_outbound_data_beats_cfi_1 + remote_socket_outbound_data_beats_cfi_2 + remote_socket_outbound_data_beats_cfi_3 + remote_socket_outbound_data_beats_cfi_4 + remote_socket_outbound_data_beats_cfi_5 + remote_socket_outbound_data_beats_cfi_6 + remote_socket_outbound_data_beats_cfi_7 + remote_socket_outbound_data_beats_cfi_8 + remote_socket_outbound_data_beats_cfi_9 + remote_socket_outbound_data_beats_cfi_10 + remote_socket_outbound_data_beats_cfi_11 + remote_socket_outbound_data_beats_cfi_12 + remote_socket_outbound_data_beats_cfi_13 + remote_socket_outbound_data_beats_cfi_14 + remote_socket_outbound_data_beats_cfi_15) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "cross_socket_inbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Inbound data bandwidth for accesses between local socket and remote socket.",
+    "MetricExpr": "(local_socket_inbound_data_beats_link_0 + local_socket_inbound_data_beats_link_1 + local_socket_inbound_data_beats_link_2 + local_socket_inbound_data_beats_link_3 + local_socket_inbound_data_beats_link_4 + local_socket_inbound_data_beats_link_5) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  },
+  {
+    "MetricName": "cross_socket_outbound_data_bandwidth_for_local_socket",
+    "BriefDescription": "Outbound data bandwidth for accesses between local socket and remote socket.",
+    "MetricExpr": "(local_socket_outbound_data_beats_link_0 + local_socket_outbound_data_beats_link_1 + local_socket_outbound_data_beats_link_2 + local_socket_outbound_data_beats_link_3 + local_socket_outbound_data_beats_link_4 + local_socket_outbound_data_beats_link_5) / duration_time",
+    "MetricGroup": "data_fabric",
+    "PerPkg": "1",
+    "ScaleUnit": "6.4e-5MB/s"
+  }
+]

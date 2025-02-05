@@ -19,12 +19,17 @@
 #include <linux/acpi.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <asm/cpuid.h>
 #include <asm/mwait.h>
 #include <xen/xen.h>
 
 #define ACPI_PROCESSOR_AGGREGATOR_CLASS	"acpi_pad"
 #define ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME "Processor Aggregator"
 #define ACPI_PROCESSOR_AGGREGATOR_NOTIFY 0x80
+
+#define ACPI_PROCESSOR_AGGREGATOR_STATUS_SUCCESS	0
+#define ACPI_PROCESSOR_AGGREGATOR_STATUS_NO_ACTION	1
+
 static DEFINE_MUTEX(isolated_cpus_lock);
 static DEFINE_MUTEX(round_robin_lock);
 
@@ -42,10 +47,8 @@ static void power_saving_mwait_init(void)
 
 	if (!boot_cpu_has(X86_FEATURE_MWAIT))
 		return;
-	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
-		return;
 
-	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &edx);
+	cpuid(CPUID_LEAF_MWAIT, &eax, &ebx, &ecx, &edx);
 
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) ||
 	    !(ecx & CPUID5_ECX_INTERRUPT_BREAK))
@@ -132,8 +135,10 @@ static void exit_round_robin(unsigned int tsk_index)
 {
 	struct cpumask *pad_busy_cpus = to_cpumask(pad_busy_cpus_bits);
 
-	cpumask_clear_cpu(tsk_in_cpu[tsk_index], pad_busy_cpus);
-	tsk_in_cpu[tsk_index] = -1;
+	if (tsk_in_cpu[tsk_index] != -1) {
+		cpumask_clear_cpu(tsk_in_cpu[tsk_index], pad_busy_cpus);
+		tsk_in_cpu[tsk_index] = -1;
+	}
 }
 
 static unsigned int idle_pct = 5; /* percentage */
@@ -382,16 +387,23 @@ static void acpi_pad_handle_notify(acpi_handle handle)
 		.length = 4,
 		.pointer = (void *)&idle_cpus,
 	};
+	u32 status;
 
 	mutex_lock(&isolated_cpus_lock);
 	num_cpus = acpi_pad_pur(handle);
 	if (num_cpus < 0) {
-		mutex_unlock(&isolated_cpus_lock);
-		return;
+		/* The ACPI specification says that if no action was performed when
+		 * processing the _PUR object, _OST should still be evaluated, albeit
+		 * with a different status code.
+		 */
+		status = ACPI_PROCESSOR_AGGREGATOR_STATUS_NO_ACTION;
+	} else {
+		status = ACPI_PROCESSOR_AGGREGATOR_STATUS_SUCCESS;
+		acpi_pad_idle_cpus(num_cpus);
 	}
-	acpi_pad_idle_cpus(num_cpus);
+
 	idle_cpus = acpi_pad_idle_cpus_num();
-	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY, 0, &param);
+	acpi_evaluate_ost(handle, ACPI_PROCESSOR_AGGREGATOR_NOTIFY, status, &param);
 	mutex_unlock(&isolated_cpus_lock);
 }
 
@@ -417,8 +429,8 @@ static int acpi_pad_probe(struct platform_device *pdev)
 	struct acpi_device *adev = ACPI_COMPANION(&pdev->dev);
 	acpi_status status;
 
-	strcpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
-	strcpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
+	strscpy(acpi_device_name(adev), ACPI_PROCESSOR_AGGREGATOR_DEVICE_NAME);
+	strscpy(acpi_device_class(adev), ACPI_PROCESSOR_AGGREGATOR_CLASS);
 
 	status = acpi_install_notify_handler(adev->handle,
 		ACPI_DEVICE_NOTIFY, acpi_pad_notify, adev);
@@ -449,7 +461,7 @@ MODULE_DEVICE_TABLE(acpi, pad_device_ids);
 
 static struct platform_driver acpi_pad_driver = {
 	.probe = acpi_pad_probe,
-	.remove_new = acpi_pad_remove,
+	.remove = acpi_pad_remove,
 	.driver = {
 		.dev_groups = acpi_pad_groups,
 		.name = "processor_aggregator",

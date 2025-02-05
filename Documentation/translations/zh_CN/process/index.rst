@@ -48,10 +48,12 @@ TODOLIST:
    :maxdepth: 1
 
    embargoed-hardware-issues
+   cve
+   security-bugs
 
 TODOLIST:
 
-* security-bugs
+* handling-regressions
 
 其它大多数开发人员感兴趣的社区指南：
 
@@ -63,6 +65,7 @@ TODOLIST:
    management-style
    stable-kernel-rules
    submit-checklist
+   researcher-guidelines
 
 TODOLIST:
 
@@ -70,7 +73,6 @@ TODOLIST:
 * kernel-docs
 * deprecated
 * maintainers
-* researcher-guidelines
 * contribution-maturity-model
 
 

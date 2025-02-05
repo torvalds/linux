@@ -193,14 +193,12 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int usb_extcon_remove(struct platform_device *pdev)
+static void usb_extcon_remove(struct platform_device *pdev)
 {
 	struct usb_extcon_info *info = platform_get_drvdata(pdev);
 
 	cancel_delayed_work_sync(&info->wq_detcable);
 	device_init_wakeup(&pdev->dev, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

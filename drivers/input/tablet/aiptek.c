@@ -63,7 +63,7 @@
 #include <linux/module.h>
 #include <linux/usb/input.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*
  * Aiptek status packet:
@@ -1673,7 +1673,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 */
 	speeds[0] = programmableDelay;
 
-	aiptek = kzalloc(sizeof(struct aiptek), GFP_KERNEL);
+	aiptek = kzalloc(sizeof(*aiptek), GFP_KERNEL);
 	inputdev = input_allocate_device();
 	if (!aiptek || !inputdev) {
 		dev_warn(&intf->dev,

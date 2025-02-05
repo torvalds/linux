@@ -90,7 +90,7 @@ out:
 	return ret;
 }
 
-void cw1200_stop(struct ieee80211_hw *dev)
+void cw1200_stop(struct ieee80211_hw *dev, bool suspend)
 {
 	struct cw1200_common *priv = dev->priv;
 	LIST_HEAD(list);

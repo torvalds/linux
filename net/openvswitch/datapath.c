@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/time.h>
 #include <linux/etherdevice.h>
-#include <linux/genetlink.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
@@ -1829,8 +1828,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	parms.dp = dp;
 	parms.port_no = OVSP_LOCAL;
 	parms.upcall_portids = a[OVS_DP_ATTR_UPCALL_PID];
-	parms.desired_ifindex = a[OVS_DP_ATTR_IFINDEX]
-		? nla_get_s32(a[OVS_DP_ATTR_IFINDEX]) : 0;
+	parms.desired_ifindex = nla_get_s32_default(a[OVS_DP_ATTR_IFINDEX], 0);
 
 	/* So far only local changes have been made, now need the lock. */
 	ovs_lock();
@@ -2267,8 +2265,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (a[OVS_VPORT_ATTR_IFINDEX] && parms.type != OVS_VPORT_TYPE_INTERNAL)
 		return -EOPNOTSUPP;
 
-	port_no = a[OVS_VPORT_ATTR_PORT_NO]
-		? nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]) : 0;
+	port_no = nla_get_u32_default(a[OVS_VPORT_ATTR_PORT_NO], 0);
 	if (port_no >= DP_MAX_PORTS)
 		return -EFBIG;
 
@@ -2305,8 +2302,8 @@ restart:
 	parms.dp = dp;
 	parms.port_no = port_no;
 	parms.upcall_portids = a[OVS_VPORT_ATTR_UPCALL_PID];
-	parms.desired_ifindex = a[OVS_VPORT_ATTR_IFINDEX]
-		? nla_get_s32(a[OVS_VPORT_ATTR_IFINDEX]) : 0;
+	parms.desired_ifindex = nla_get_s32_default(a[OVS_VPORT_ATTR_IFINDEX],
+						    0);
 
 	vport = new_vport(&parms);
 	err = PTR_ERR(vport);
@@ -2707,7 +2704,7 @@ static struct pernet_operations ovs_net_ops = {
 };
 
 static const char * const ovs_drop_reasons[] = {
-#define S(x)	(#x),
+#define S(x) [(x) & ~SKB_DROP_REASON_SUBSYS_MASK] = (#x),
 	OVS_DROP_REASONS(S)
 #undef S
 };

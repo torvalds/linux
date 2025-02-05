@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "goodix.h"
 
 #define GOODIX_GPIO_INT_NAME		"irq"
@@ -1510,7 +1510,7 @@ static int goodix_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(goodix_pm_ops, goodix_suspend, goodix_resume);
 
 static const struct i2c_device_id goodix_ts_id[] = {
-	{ "GDIX1001:00", 0 },
+	{ "GDIX1001:00" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, goodix_ts_id);

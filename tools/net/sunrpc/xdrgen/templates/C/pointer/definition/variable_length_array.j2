@@ -1,0 +1,8 @@
+{# SPDX-License-Identifier: GPL-2.0 #}
+{% if annotate %}
+	/* (variable-length array) */
+{% endif %}
+	struct {
+		u32 count;
+		{{ classifier }}{{ type }} *element;
+	} {{ name }};

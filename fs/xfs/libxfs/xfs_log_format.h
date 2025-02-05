@@ -115,10 +115,13 @@ struct xfs_unmount_log_format {
 #define XLOG_REG_TYPE_BUD_FORMAT	26
 #define XLOG_REG_TYPE_ATTRI_FORMAT	27
 #define XLOG_REG_TYPE_ATTRD_FORMAT	28
-#define XLOG_REG_TYPE_ATTR_NAME	29
+#define XLOG_REG_TYPE_ATTR_NAME		29
 #define XLOG_REG_TYPE_ATTR_VALUE	30
-#define XLOG_REG_TYPE_MAX		30
-
+#define XLOG_REG_TYPE_XMI_FORMAT	31
+#define XLOG_REG_TYPE_XMD_FORMAT	32
+#define XLOG_REG_TYPE_ATTR_NEWNAME	33
+#define XLOG_REG_TYPE_ATTR_NEWVALUE	34
+#define XLOG_REG_TYPE_MAX		34
 
 /*
  * Flags to log operation header
@@ -243,6 +246,14 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_BUD		0x1245
 #define	XFS_LI_ATTRI		0x1246  /* attr set/remove intent*/
 #define	XFS_LI_ATTRD		0x1247  /* attr set/remove done */
+#define	XFS_LI_XMI		0x1248  /* mapping exchange intent */
+#define	XFS_LI_XMD		0x1249  /* mapping exchange done */
+#define	XFS_LI_EFI_RT		0x124a	/* realtime extent free intent */
+#define	XFS_LI_EFD_RT		0x124b	/* realtime extent free done */
+#define	XFS_LI_RUI_RT		0x124c	/* realtime rmap update intent */
+#define	XFS_LI_RUD_RT		0x124d	/* realtime rmap update done */
+#define	XFS_LI_CUI_RT		0x124e	/* realtime refcount update intent */
+#define	XFS_LI_CUD_RT		0x124f	/* realtime refcount update done */
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -260,7 +271,15 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_BUI,		"XFS_LI_BUI" }, \
 	{ XFS_LI_BUD,		"XFS_LI_BUD" }, \
 	{ XFS_LI_ATTRI,		"XFS_LI_ATTRI" }, \
-	{ XFS_LI_ATTRD,		"XFS_LI_ATTRD" }
+	{ XFS_LI_ATTRD,		"XFS_LI_ATTRD" }, \
+	{ XFS_LI_XMI,		"XFS_LI_XMI" }, \
+	{ XFS_LI_XMD,		"XFS_LI_XMD" }, \
+	{ XFS_LI_EFI_RT,	"XFS_LI_EFI_RT" }, \
+	{ XFS_LI_EFD_RT,	"XFS_LI_EFD_RT" }, \
+	{ XFS_LI_RUI_RT,	"XFS_LI_RUI_RT" }, \
+	{ XFS_LI_RUD_RT,	"XFS_LI_RUD_RT" }, \
+	{ XFS_LI_CUI_RT,	"XFS_LI_CUI_RT" }, \
+	{ XFS_LI_CUD_RT,	"XFS_LI_CUD_RT" }
 
 /*
  * Inode Log Item Format definitions.
@@ -340,12 +359,6 @@ struct xfs_inode_log_format_32 {
  */
 #define XFS_ILOG_IVERSION	0x8000
 
-#define	XFS_ILOG_NONCORE	(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
-				 XFS_ILOG_DBROOT | XFS_ILOG_DEV | \
-				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
-				 XFS_ILOG_ABROOT | XFS_ILOG_DOWNER | \
-				 XFS_ILOG_AOWNER)
-
 #define	XFS_ILOG_DFORK		(XFS_ILOG_DDATA | XFS_ILOG_DEXT | \
 				 XFS_ILOG_DBROOT)
 
@@ -397,7 +410,7 @@ struct xfs_log_dinode {
 	uint16_t	di_mode;	/* mode and type of file */
 	int8_t		di_version;	/* inode version */
 	int8_t		di_format;	/* format of di_c data */
-	uint8_t		di_pad3[2];	/* unused in v2/3 inodes */
+	uint16_t	di_metatype;	/* metadata type, if DIFLAG2_METADATA */
 	uint32_t	di_uid;		/* owner's user id */
 	uint32_t	di_gid;		/* owner's group id */
 	uint32_t	di_nlink;	/* number of links to file */
@@ -879,6 +892,61 @@ struct xfs_bud_log_format {
 };
 
 /*
+ * XMI/XMD (file mapping exchange) log format definitions
+ */
+
+/* This is the structure used to lay out an mapping exchange log item. */
+struct xfs_xmi_log_format {
+	uint16_t		xmi_type;	/* xmi log item type */
+	uint16_t		xmi_size;	/* size of this item */
+	uint32_t		__pad;		/* must be zero */
+	uint64_t		xmi_id;		/* xmi identifier */
+
+	uint64_t		xmi_inode1;	/* inumber of first file */
+	uint64_t		xmi_inode2;	/* inumber of second file */
+	uint32_t		xmi_igen1;	/* generation of first file */
+	uint32_t		xmi_igen2;	/* generation of second file */
+	uint64_t		xmi_startoff1;	/* block offset into file1 */
+	uint64_t		xmi_startoff2;	/* block offset into file2 */
+	uint64_t		xmi_blockcount;	/* number of blocks */
+	uint64_t		xmi_flags;	/* XFS_EXCHMAPS_* */
+	uint64_t		xmi_isize1;	/* intended file1 size */
+	uint64_t		xmi_isize2;	/* intended file2 size */
+};
+
+/* Exchange mappings between extended attribute forks instead of data forks. */
+#define XFS_EXCHMAPS_ATTR_FORK		(1ULL << 0)
+
+/* Set the file sizes when finished. */
+#define XFS_EXCHMAPS_SET_SIZES		(1ULL << 1)
+
+/*
+ * Exchange the mappings of the two files only if the file allocation units
+ * mapped to file1's range have been written.
+ */
+#define XFS_EXCHMAPS_INO1_WRITTEN	(1ULL << 2)
+
+/* Clear the reflink flag from inode1 after the operation. */
+#define XFS_EXCHMAPS_CLEAR_INO1_REFLINK	(1ULL << 3)
+
+/* Clear the reflink flag from inode2 after the operation. */
+#define XFS_EXCHMAPS_CLEAR_INO2_REFLINK	(1ULL << 4)
+
+#define XFS_EXCHMAPS_LOGGED_FLAGS	(XFS_EXCHMAPS_ATTR_FORK | \
+					 XFS_EXCHMAPS_SET_SIZES | \
+					 XFS_EXCHMAPS_INO1_WRITTEN | \
+					 XFS_EXCHMAPS_CLEAR_INO1_REFLINK | \
+					 XFS_EXCHMAPS_CLEAR_INO2_REFLINK)
+
+/* This is the structure used to lay out an mapping exchange done log item. */
+struct xfs_xmd_log_format {
+	uint16_t		xmd_type;	/* xmd log item type */
+	uint16_t		xmd_size;	/* size of this item */
+	uint32_t		__pad;
+	uint64_t		xmd_xmi_id;	/* id of corresponding xmi */
+};
+
+/*
  * Dquot Log format definitions.
  *
  * The first two fields must be the type and size fitting into
@@ -966,6 +1034,9 @@ struct xfs_icreate_log {
 #define XFS_ATTRI_OP_FLAGS_SET		1	/* Set the attribute */
 #define XFS_ATTRI_OP_FLAGS_REMOVE	2	/* Remove the attribute */
 #define XFS_ATTRI_OP_FLAGS_REPLACE	3	/* Replace the attribute */
+#define XFS_ATTRI_OP_FLAGS_PPTR_SET	4	/* Set parent pointer */
+#define XFS_ATTRI_OP_FLAGS_PPTR_REMOVE	5	/* Remove parent pointer */
+#define XFS_ATTRI_OP_FLAGS_PPTR_REPLACE	6	/* Replace parent pointer */
 #define XFS_ATTRI_OP_FLAGS_TYPE_MASK	0xFF	/* Flags type mask */
 
 /*
@@ -974,6 +1045,7 @@ struct xfs_icreate_log {
  */
 #define XFS_ATTRI_FILTER_MASK		(XFS_ATTR_ROOT | \
 					 XFS_ATTR_SECURE | \
+					 XFS_ATTR_PARENT | \
 					 XFS_ATTR_INCOMPLETE)
 
 /*
@@ -983,11 +1055,22 @@ struct xfs_icreate_log {
 struct xfs_attri_log_format {
 	uint16_t	alfi_type;	/* attri log item type */
 	uint16_t	alfi_size;	/* size of this item */
-	uint32_t	__pad;		/* pad to 64 bit aligned */
+	uint32_t	alfi_igen;	/* generation of alfi_ino for pptr ops */
 	uint64_t	alfi_id;	/* attri identifier */
 	uint64_t	alfi_ino;	/* the inode for this attr operation */
 	uint32_t	alfi_op_flags;	/* marks the op as a set or remove */
-	uint32_t	alfi_name_len;	/* attr name length */
+	union {
+		uint32_t	alfi_name_len;	/* attr name length */
+		struct {
+			/*
+			 * For PPTR_REPLACE, these are the lengths of the old
+			 * and new attr names.  The new and old values must
+			 * have the same length.
+			 */
+			uint16_t	alfi_old_name_len;
+			uint16_t	alfi_new_name_len;
+		};
+	};
 	uint32_t	alfi_value_len;	/* attr value length */
 	uint32_t	alfi_attr_filter;/* attr filter flags */
 };

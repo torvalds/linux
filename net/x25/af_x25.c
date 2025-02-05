@@ -871,8 +871,8 @@ static int x25_wait_for_data(struct sock *sk, long timeout)
 	return rc;
 }
 
-static int x25_accept(struct socket *sock, struct socket *newsock, int flags,
-		      bool kern)
+static int x25_accept(struct socket *sock, struct socket *newsock,
+		      struct proto_accept_arg *arg)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;

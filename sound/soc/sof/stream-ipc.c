@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2019 Intel Corporation. All rights reserved.
+// Copyright(c) 2019 Intel Corporation
 //
 // Authors: Guennadi Liakhovetski <guennadi.liakhovetski@linux.intel.com>
 
@@ -125,5 +125,3 @@ int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 	return 0;
 }
 EXPORT_SYMBOL(sof_stream_pcm_close);
-
-MODULE_LICENSE("Dual BSD/GPL");

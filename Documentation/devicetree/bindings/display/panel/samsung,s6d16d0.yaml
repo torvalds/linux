@@ -16,8 +16,10 @@ properties:
   compatible:
     const: samsung,s6d16d0
 
+  reg:
+    maxItems: 1
+
   port: true
-  reg: true
   reset-gpios: true
 
   vdd1-supply:

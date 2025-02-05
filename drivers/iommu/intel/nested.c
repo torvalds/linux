@@ -40,7 +40,7 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	 * The s2_domain will be used in nested translation, hence needs
 	 * to ensure the s2_domain is compatible with this IOMMU.
 	 */
-	ret = prepare_domain_attach_device(&dmar_domain->s2_domain->domain, dev);
+	ret = paging_domain_compatible(&dmar_domain->s2_domain->domain, dev);
 	if (ret) {
 		dev_err_ratelimited(dev, "s2 domain is not compatible\n");
 		return ret;
@@ -52,22 +52,27 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 		return ret;
 	}
 
+	ret = cache_tag_assign_domain(dmar_domain, dev, IOMMU_NO_PASID);
+	if (ret)
+		goto detach_iommu;
+
 	ret = intel_pasid_setup_nested(iommu, dev,
 				       IOMMU_NO_PASID, dmar_domain);
-	if (ret) {
-		domain_detach_iommu(dmar_domain, iommu);
-		dev_err_ratelimited(dev, "Failed to setup pasid entry\n");
-		return ret;
-	}
+	if (ret)
+		goto unassign_tag;
 
 	info->domain = dmar_domain;
 	spin_lock_irqsave(&dmar_domain->lock, flags);
 	list_add(&info->link, &dmar_domain->devices);
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
-	domain_update_iotlb(dmar_domain);
-
 	return 0;
+unassign_tag:
+	cache_tag_unassign_domain(dmar_domain, dev, IOMMU_NO_PASID);
+detach_iommu:
+	domain_detach_iommu(dmar_domain, iommu);
+
+	return ret;
 }
 
 static void intel_nested_domain_free(struct iommu_domain *domain)
@@ -78,51 +83,8 @@ static void intel_nested_domain_free(struct iommu_domain *domain)
 	spin_lock(&s2_domain->s1_lock);
 	list_del(&dmar_domain->s2_link);
 	spin_unlock(&s2_domain->s1_lock);
+	kfree(dmar_domain->qi_batch);
 	kfree(dmar_domain);
-}
-
-static void nested_flush_dev_iotlb(struct dmar_domain *domain, u64 addr,
-				   unsigned int mask)
-{
-	struct device_domain_info *info;
-	unsigned long flags;
-	u16 sid, qdep;
-
-	spin_lock_irqsave(&domain->lock, flags);
-	list_for_each_entry(info, &domain->devices, link) {
-		if (!info->ats_enabled)
-			continue;
-		sid = info->bus << 8 | info->devfn;
-		qdep = info->ats_qdep;
-		qi_flush_dev_iotlb(info->iommu, sid, info->pfsid,
-				   qdep, addr, mask);
-		quirk_extra_dev_tlb_flush(info, addr, mask,
-					  IOMMU_NO_PASID, qdep);
-	}
-	spin_unlock_irqrestore(&domain->lock, flags);
-}
-
-static void intel_nested_flush_cache(struct dmar_domain *domain, u64 addr,
-				     u64 npages, bool ih)
-{
-	struct iommu_domain_info *info;
-	unsigned int mask;
-	unsigned long i;
-
-	xa_for_each(&domain->iommu_array, i, info)
-		qi_flush_piotlb(info->iommu,
-				domain_id_iommu(domain, info->iommu),
-				IOMMU_NO_PASID, addr, npages, ih);
-
-	if (!domain->has_iotlb_device)
-		return;
-
-	if (npages == U64_MAX)
-		mask = 64 - VTD_PAGE_SHIFT;
-	else
-		mask = ilog2(__roundup_pow_of_two(npages));
-
-	nested_flush_dev_iotlb(domain, addr, mask);
 }
 
 static int intel_nested_cache_invalidate_user(struct iommu_domain *domain,
@@ -157,9 +119,9 @@ static int intel_nested_cache_invalidate_user(struct iommu_domain *domain,
 			break;
 		}
 
-		intel_nested_flush_cache(dmar_domain, inv_entry.addr,
-					 inv_entry.npages,
-					 inv_entry.flags & IOMMU_VTD_INV_FLAGS_LEAF);
+		cache_tag_flush_range(dmar_domain, inv_entry.addr,
+				      inv_entry.addr + nrpages_to_size(inv_entry.npages) - 1,
+				      inv_entry.flags & IOMMU_VTD_INV_FLAGS_LEAF);
 		processed++;
 	}
 
@@ -168,19 +130,76 @@ out:
 	return ret;
 }
 
+static int domain_setup_nested(struct intel_iommu *iommu,
+			       struct dmar_domain *domain,
+			       struct device *dev, ioasid_t pasid,
+			       struct iommu_domain *old)
+{
+	if (!old)
+		return intel_pasid_setup_nested(iommu, dev, pasid, domain);
+	return intel_pasid_replace_nested(iommu, dev, pasid,
+					  iommu_domain_did(old, iommu),
+					  domain);
+}
+
+static int intel_nested_set_dev_pasid(struct iommu_domain *domain,
+				      struct device *dev, ioasid_t pasid,
+				      struct iommu_domain *old)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	struct intel_iommu *iommu = info->iommu;
+	struct dev_pasid_info *dev_pasid;
+	int ret;
+
+	if (!pasid_supported(iommu) || dev_is_real_dma_subdevice(dev))
+		return -EOPNOTSUPP;
+
+	if (context_copied(iommu, info->bus, info->devfn))
+		return -EBUSY;
+
+	ret = paging_domain_compatible(&dmar_domain->s2_domain->domain, dev);
+	if (ret)
+		return ret;
+
+	dev_pasid = domain_add_dev_pasid(domain, dev, pasid);
+	if (IS_ERR(dev_pasid))
+		return PTR_ERR(dev_pasid);
+
+	ret = domain_setup_nested(iommu, dmar_domain, dev, pasid, old);
+	if (ret)
+		goto out_remove_dev_pasid;
+
+	domain_remove_dev_pasid(old, dev, pasid);
+
+	return 0;
+
+out_remove_dev_pasid:
+	domain_remove_dev_pasid(domain, dev, pasid);
+	return ret;
+}
+
 static const struct iommu_domain_ops intel_nested_domain_ops = {
 	.attach_dev		= intel_nested_attach_dev,
+	.set_dev_pasid		= intel_nested_set_dev_pasid,
 	.free			= intel_nested_domain_free,
 	.cache_invalidate_user	= intel_nested_cache_invalidate_user,
 };
 
-struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
-					       const struct iommu_user_data *user_data)
+struct iommu_domain *
+intel_iommu_domain_alloc_nested(struct device *dev, struct iommu_domain *parent,
+				u32 flags,
+				const struct iommu_user_data *user_data)
 {
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct dmar_domain *s2_domain = to_dmar_domain(parent);
+	struct intel_iommu *iommu = info->iommu;
 	struct iommu_hwpt_vtd_s1 vtd;
 	struct dmar_domain *domain;
 	int ret;
+
+	if (!nested_supported(iommu) || flags)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	/* Must be nested domain */
 	if (user_data->type != IOMMU_HWPT_DATA_VTD_S1)
@@ -200,13 +219,14 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 
 	domain->use_first_level = true;
 	domain->s2_domain = s2_domain;
-	domain->s1_pgtbl = vtd.pgtbl_addr;
 	domain->s1_cfg = vtd;
 	domain->domain.ops = &intel_nested_domain_ops;
 	domain->domain.type = IOMMU_DOMAIN_NESTED;
 	INIT_LIST_HEAD(&domain->devices);
 	INIT_LIST_HEAD(&domain->dev_pasids);
+	INIT_LIST_HEAD(&domain->cache_tags);
 	spin_lock_init(&domain->lock);
+	spin_lock_init(&domain->cache_lock);
 	xa_init(&domain->iommu_array);
 
 	spin_lock(&s2_domain->s1_lock);

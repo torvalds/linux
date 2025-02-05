@@ -157,7 +157,7 @@ DECLARE_EVENT_CLASS(udc_log_ep,
 		__field(int, ret)
 	),
 	TP_fast_assign(
-		__assign_str(name, ep->name);
+		__assign_str(name);
 		__entry->maxpacket = ep->maxpacket;
 		__entry->maxpacket_limit = ep->maxpacket_limit;
 		__entry->max_streams = ep->max_streams;
@@ -233,7 +233,7 @@ DECLARE_EVENT_CLASS(udc_log_req,
 		__field(struct usb_request *, req)
 	),
 	TP_fast_assign(
-		__assign_str(name, ep->name);
+		__assign_str(name);
 		__entry->length = req->length;
 		__entry->actual = req->actual;
 		__entry->num_sgs = req->num_sgs;

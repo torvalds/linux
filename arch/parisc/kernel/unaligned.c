@@ -12,9 +12,10 @@
 #include <linux/ratelimit.h>
 #include <linux/uaccess.h>
 #include <linux/sysctl.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
+#include "unaligned.h"
 
 /* #define DEBUG_UNALIGNED 1 */
 
@@ -104,6 +105,7 @@
 #define ERR_NOTHANDLED	-1
 
 int unaligned_enabled __read_mostly = 1;
+int no_unaligned_warning __read_mostly;
 
 static int emulate_ldh(struct pt_regs *regs, int toreg)
 {
@@ -399,6 +401,7 @@ void handle_unaligned(struct pt_regs *regs)
 	} else {
 		static DEFINE_RATELIMIT_STATE(kernel_ratelimit, 5 * HZ, 5);
 		if (!(current->thread.flags & PARISC_UAC_NOPRINT) &&
+			!no_unaligned_warning &&
 			__ratelimit(&kernel_ratelimit))
 			pr_warn("Kernel: unaligned access to " RFMT " in %pS "
 					"(iir " RFMT ")\n",

@@ -450,6 +450,7 @@ static bool tpm_ibmvtpm_req_canceled(struct tpm_chip *chip, u8 status)
 }
 
 static const struct tpm_class_ops tpm_ibmvtpm = {
+	.flags = TPM_OPS_AUTO_STARTUP,
 	.recv = tpm_ibmvtpm_recv,
 	.send = tpm_ibmvtpm_send,
 	.cancel = tpm_ibmvtpm_cancel,
@@ -689,16 +690,6 @@ static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 
 	if (!strcmp(id->compat, "IBM,vtpm20"))
 		chip->flags |= TPM_CHIP_FLAG_TPM2;
-
-	rc = tpm_get_timeouts(chip);
-	if (rc)
-		goto init_irq_cleanup;
-
-	if (chip->flags & TPM_CHIP_FLAG_TPM2) {
-		rc = tpm2_get_cc_attrs_tbl(chip);
-		if (rc)
-			goto init_irq_cleanup;
-	}
 
 	return tpm_chip_register(chip);
 init_irq_cleanup:

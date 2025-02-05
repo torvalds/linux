@@ -287,7 +287,7 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 	chan = &prg->chan[prg_chan];
 
 	if (chan->enabled) {
-		ipu_pre_update(prg->pres[chan->used_pre], *eba);
+		ipu_pre_update(prg->pres[chan->used_pre], modifier, *eba);
 		return 0;
 	}
 
@@ -419,15 +419,13 @@ static int ipu_prg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipu_prg_remove(struct platform_device *pdev)
+static void ipu_prg_remove(struct platform_device *pdev)
 {
 	struct ipu_prg *prg = platform_get_drvdata(pdev);
 
 	mutex_lock(&ipu_prg_list_mutex);
 	list_del(&prg->list);
 	mutex_unlock(&ipu_prg_list_mutex);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

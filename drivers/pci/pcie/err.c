@@ -116,9 +116,7 @@ static int report_mmio_enabled(struct pci_dev *dev, void *data)
 
 	device_lock(&dev->dev);
 	pdrv = dev->driver;
-	if (!pdrv ||
-		!pdrv->err_handler ||
-		!pdrv->err_handler->mmio_enabled)
+	if (!pdrv || !pdrv->err_handler || !pdrv->err_handler->mmio_enabled)
 		goto out;
 
 	err_handler = pdrv->err_handler;
@@ -137,9 +135,7 @@ static int report_slot_reset(struct pci_dev *dev, void *data)
 
 	device_lock(&dev->dev);
 	pdrv = dev->driver;
-	if (!pdrv ||
-		!pdrv->err_handler ||
-		!pdrv->err_handler->slot_reset)
+	if (!pdrv || !pdrv->err_handler || !pdrv->err_handler->slot_reset)
 		goto out;
 
 	err_handler = pdrv->err_handler;
@@ -158,9 +154,7 @@ static int report_resume(struct pci_dev *dev, void *data)
 	device_lock(&dev->dev);
 	pdrv = dev->driver;
 	if (!pci_dev_set_io_state(dev, pci_channel_io_normal) ||
-		!pdrv ||
-		!pdrv->err_handler ||
-		!pdrv->err_handler->resume)
+	    !pdrv || !pdrv->err_handler || !pdrv->err_handler->resume)
 		goto out;
 
 	err_handler = pdrv->err_handler;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author: Jacob Chen <jacob-chen@iotwrt.com>
  */
 #ifndef __RGA_H__
@@ -56,6 +56,9 @@ struct rga_ctx {
 	struct rga_frame in;
 	struct rga_frame out;
 	struct v4l2_ctrl_handler ctrl_handler;
+
+	int osequence;
+	int csequence;
 
 	/* Control values */
 	u32 op;

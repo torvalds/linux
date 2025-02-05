@@ -1086,6 +1086,7 @@ static const struct of_device_id mt6765_pinctrl_of_match[] = {
 	{ .compatible = "mediatek,mt6765-pinctrl", .data = &mt6765_data },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, mt6765_pinctrl_of_match);
 
 static struct platform_driver mt6765_pinctrl_driver = {
 	.driver = {

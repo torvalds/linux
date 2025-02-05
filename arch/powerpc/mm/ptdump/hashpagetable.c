@@ -491,7 +491,7 @@ static void walk_vmemmap(struct pg_state *st)
 	 * Traverse the vmemmaped memory and dump pages that are in the hash
 	 * pagetable.
 	 */
-	while (ptr->list) {
+	while (ptr) {
 		hpte_find(st, ptr->virt_addr, mmu_vmemmap_psize);
 		ptr = ptr->list;
 	}

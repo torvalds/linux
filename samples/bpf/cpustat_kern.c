@@ -211,7 +211,7 @@ int bpf_prog1(struct cpu_args *ctx)
 SEC("tracepoint/power/cpu_frequency")
 int bpf_prog2(struct cpu_args *ctx)
 {
-	u64 *pts, *cstate, *pstate, prev_state, cur_ts, delta;
+	u64 *pts, *cstate, *pstate, cur_ts, delta;
 	u32 key, cpu, pstate_idx;
 	u64 *val;
 
@@ -232,7 +232,6 @@ int bpf_prog2(struct cpu_args *ctx)
 	if (!cstate)
 		return 0;
 
-	prev_state = *pstate;
 	*pstate = ctx->state;
 
 	if (!*pts) {

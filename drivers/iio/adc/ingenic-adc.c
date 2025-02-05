@@ -908,7 +908,7 @@ static const struct of_device_id ingenic_adc_of_match[] = {
 	{ .compatible = "ingenic,jz4760-adc", .data = &jz4760_adc_soc_data, },
 	{ .compatible = "ingenic,jz4760b-adc", .data = &jz4760_adc_soc_data, },
 	{ .compatible = "ingenic,jz4770-adc", .data = &jz4770_adc_soc_data, },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, ingenic_adc_of_match);
 
@@ -920,4 +920,5 @@ static struct platform_driver ingenic_adc_driver = {
 	.probe = ingenic_adc_probe,
 };
 module_platform_driver(ingenic_adc_driver);
+MODULE_DESCRIPTION("ADC driver for the Ingenic JZ47xx SoCs");
 MODULE_LICENSE("GPL v2");

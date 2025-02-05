@@ -20,7 +20,13 @@ description: |
 properties:
   compatible:
     enum:
+      - qcom,ipq5424-llcc
+      - qcom,qcs615-llcc
+      - qcom,qcs8300-llcc
       - qcom,qdu1000-llcc
+      - qcom,sa8775p-llcc
+      - qcom,sar1130p-llcc
+      - qcom,sar2130p-llcc
       - qcom,sc7180-llcc
       - qcom,sc7280-llcc
       - qcom,sc8180x-llcc
@@ -37,12 +43,12 @@ properties:
       - qcom,x1e80100-llcc
 
   reg:
-    minItems: 2
-    maxItems: 9
+    minItems: 1
+    maxItems: 10
 
   reg-names:
-    minItems: 2
-    maxItems: 9
+    minItems: 1
+    maxItems: 10
 
   interrupts:
     maxItems: 1
@@ -66,7 +72,48 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,qdu1000-llcc
+              - qcom,ipq5424-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+        reg-names:
+          items:
+            - const: llcc0_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sar1130p-llcc
+              - qcom,sar2130p-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC broadcast OR register region
+            - description: LLCC broadcast AND register region
+            - description: LLCC scratchpad broadcast OR register region
+            - description: LLCC scratchpad broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
+            - const: llcc_scratchpad_broadcast_base
+            - const: llcc_scratchpad_broadcast_and_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs615-llcc
               - qcom,sc7180-llcc
               - qcom,sm6350-llcc
     then:
@@ -78,6 +125,33 @@ allOf:
         reg-names:
           items:
             - const: llcc0_base
+            - const: llcc_broadcast_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sa8775p-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC2 base register region
+            - description: LLCC3 base register region
+            - description: LLCC4 base register region
+            - description: LLCC5 base register region
+            - description: LLCC broadcast base register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc2_base
+            - const: llcc3_base
+            - const: llcc4_base
+            - const: llcc5_base
             - const: llcc_broadcast_base
 
   - if:
@@ -104,9 +178,9 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qdu1000-llcc
               - qcom,sc8180x-llcc
               - qcom,sc8280xp-llcc
-              - qcom,x1e80100-llcc
     then:
       properties:
         reg:
@@ -137,12 +211,44 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,x1e80100-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC2 base register region
+            - description: LLCC3 base register region
+            - description: LLCC4 base register region
+            - description: LLCC5 base register region
+            - description: LLCC6 base register region
+            - description: LLCC7 base register region
+            - description: LLCC broadcast base register region
+            - description: LLCC broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc2_base
+            - const: llcc3_base
+            - const: llcc4_base
+            - const: llcc5_base
+            - const: llcc6_base
+            - const: llcc7_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,qcs8300-llcc
               - qcom,sdm845-llcc
               - qcom,sm8150-llcc
               - qcom,sm8250-llcc
               - qcom,sm8350-llcc
-              - qcom,sm8450-llcc
-              - qcom,sm8550-llcc
     then:
       properties:
         reg:
@@ -159,6 +265,33 @@ allOf:
             - const: llcc2_base
             - const: llcc3_base
             - const: llcc_broadcast_base
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sm8450-llcc
+              - qcom,sm8550-llcc
+              - qcom,sm8650-llcc
+    then:
+      properties:
+        reg:
+          items:
+            - description: LLCC0 base register region
+            - description: LLCC1 base register region
+            - description: LLCC2 base register region
+            - description: LLCC3 base register region
+            - description: LLCC broadcast OR register region
+            - description: LLCC broadcast AND register region
+        reg-names:
+          items:
+            - const: llcc0_base
+            - const: llcc1_base
+            - const: llcc2_base
+            - const: llcc3_base
+            - const: llcc_broadcast_base
+            - const: llcc_broadcast_and_base
 
 additionalProperties: false
 

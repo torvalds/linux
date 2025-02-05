@@ -7,12 +7,11 @@
 
 	soc {
 		pinmux@800000 {
-			buttons_pins: buttons_pins {
-				mux {
-					pins = "gpio54", "gpio65";
-					drive-strength = <2>;
-					bias-pull-up;
-				};
+			buttons_pins: buttons-state {
+				pins = "gpio54", "gpio65";
+				function = "gpio";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 		};
 

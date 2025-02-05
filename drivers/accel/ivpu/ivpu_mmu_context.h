@@ -23,19 +23,20 @@ struct ivpu_mmu_pgtable {
 };
 
 struct ivpu_mmu_context {
-	struct mutex lock; /* Protects: mm, pgtable */
+	struct mutex lock; /* Protects: mm, pgtable, is_cd_valid */
 	struct drm_mm mm;
 	struct ivpu_mmu_pgtable pgtable;
+	bool is_cd_valid;
 	u32 id;
 };
 
-int ivpu_mmu_global_context_init(struct ivpu_device *vdev);
+void ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 context_id);
+void ivpu_mmu_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
+void ivpu_mmu_global_context_init(struct ivpu_device *vdev);
 void ivpu_mmu_global_context_fini(struct ivpu_device *vdev);
 int ivpu_mmu_reserved_context_init(struct ivpu_device *vdev);
 void ivpu_mmu_reserved_context_fini(struct ivpu_device *vdev);
 
-int ivpu_mmu_user_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u32 ctx_id);
-void ivpu_mmu_user_context_fini(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
 void ivpu_mmu_user_context_mark_invalid(struct ivpu_device *vdev, u32 ssid);
 
 int ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
@@ -46,5 +47,7 @@ int ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *
 			     u64 vpu_addr, struct sg_table *sgt, bool llc_coherent);
 void ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 				u64 vpu_addr, struct sg_table *sgt);
+int ivpu_mmu_context_set_pages_ro(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
+				  u64 vpu_addr, size_t size);
 
 #endif /* __IVPU_MMU_CONTEXT_H__ */

@@ -22,6 +22,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&codec_dai>;
 		simple-audio-card,name = "verdin-wm8904";
+		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,routing =
 			"Headphone Jack", "HPOUTL",
 			"Headphone Jack", "HPOUTR",
@@ -35,7 +36,6 @@
 			"Line", "Line In Jack";
 
 		codec_dai: simple-audio-card,codec {
-			clocks = <&audio_refclk1>;
 			sound-dai = <&wm8904_1a>;
 		};
 
@@ -160,7 +160,8 @@
 	pinctrl-0 = <&pinctrl_gpio_1>,
 		    <&pinctrl_gpio_2>,
 		    <&pinctrl_gpio_3>,
-		    <&pinctrl_gpio_4>;
+		    <&pinctrl_gpio_4>,
+		    <&pinctrl_pcie_1_reset>;
 };
 
 /* Verdin I2C_3_HDMI */
@@ -208,6 +209,11 @@
 
 /* Verdin CTRL_WAKE1_MICO# */
 &verdin_gpio_keys {
+	status = "okay";
+};
+
+/* Verdin PCIE_1_RESET# */
+&verdin_pcie_1_reset_hog {
 	status = "okay";
 };
 

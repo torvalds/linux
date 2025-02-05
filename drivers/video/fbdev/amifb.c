@@ -3774,13 +3774,14 @@ static void __exit amifb_remove(struct platform_device *pdev)
  * triggers a section mismatch warning.
  */
 static struct platform_driver amifb_driver __refdata = {
-	.remove_new = __exit_p(amifb_remove),
-	.driver   = {
+	.remove = __exit_p(amifb_remove),
+	.driver = {
 		.name	= "amiga-video",
 	},
 };
 
 module_platform_driver_probe(amifb_driver, amifb_probe);
 
+MODULE_DESCRIPTION("Amiga builtin chipset frame buffer driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:amiga-video");

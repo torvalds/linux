@@ -41,7 +41,7 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "hid-ids.h"
 
@@ -319,4 +319,5 @@ static struct hid_driver letsketch_driver = {
 module_hid_driver(letsketch_driver);
 
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
+MODULE_DESCRIPTION("Driver for the LetSketch / VSON WP9620N drawing tablet");
 MODULE_LICENSE("GPL");

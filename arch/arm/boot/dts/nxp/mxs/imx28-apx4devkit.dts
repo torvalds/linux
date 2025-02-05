@@ -11,19 +11,13 @@
 		reg = <0x40000000 0x04000000>;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		reg_3p3v: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
 	};
 
 	sound {
@@ -122,7 +116,7 @@
 	};
 
 	pcf8563: rtc@51 {
-		compatible = "phg,pcf8563";
+		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 	};
 };

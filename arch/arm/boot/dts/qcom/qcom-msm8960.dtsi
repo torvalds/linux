@@ -25,7 +25,7 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
 		};
@@ -35,21 +35,21 @@
 			enable-method = "qcom,kpss-acc-v1";
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
-		reg = <0x0 0x0>;
+		reg = <0x80000000 0>;
 	};
 
 	cpu-pmu {
@@ -129,7 +129,6 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-msm8960";
 			#clock-cells = <1>;
-			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 			clocks = <&cxo_board>,

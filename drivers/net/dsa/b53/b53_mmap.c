@@ -370,7 +370,7 @@ MODULE_DEVICE_TABLE(of, b53_mmap_of_table);
 
 static struct platform_driver b53_mmap_driver = {
 	.probe = b53_mmap_probe,
-	.remove_new = b53_mmap_remove,
+	.remove = b53_mmap_remove,
 	.shutdown = b53_mmap_shutdown,
 	.driver = {
 		.name = "b53-switch",

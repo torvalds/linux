@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 //
-// Copyright(c) 2020 Intel Corporation. All rights reserved.
+// Copyright(c) 2020 Intel Corporation
 //
 // Author: Cezary Rojewski <cezary.rojewski@intel.com>
 //
@@ -374,7 +374,7 @@ MODULE_DEVICE_TABLE(acpi, catpt_ids);
 
 static struct platform_driver catpt_acpi_driver = {
 	.probe = catpt_acpi_probe,
-	.remove_new = catpt_acpi_remove,
+	.remove = catpt_acpi_remove,
 	.driver = {
 		.name = "intel_catpt",
 		.acpi_match_table = catpt_ids,

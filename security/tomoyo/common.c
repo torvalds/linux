@@ -2024,6 +2024,36 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 	if (!buffer)
 		return;
 	snprintf(buffer, len - 1, "%s", cp);
+	if (*cp == 'f' && strchr(buffer, ':')) {
+		/* Automatically replace 2 or more digits with \$ pattern. */
+		char *cp2;
+
+		/* e.g. file read proc:/$PID/stat */
+		cp = strstr(buffer, " proc:/");
+		if (cp && simple_strtoul(cp + 7, &cp2, 10) >= 10 && *cp2 == '/') {
+			*(cp + 7) = '\\';
+			*(cp + 8) = '$';
+			memmove(cp + 9, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+		/* e.g. file ioctl pipe:[$INO] $CMD */
+		cp = strstr(buffer, " pipe:[");
+		if (cp && simple_strtoul(cp + 7, &cp2, 10) >= 10 && *cp2 == ']') {
+			*(cp + 7) = '\\';
+			*(cp + 8) = '$';
+			memmove(cp + 9, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+		/* e.g. file ioctl socket:[$INO] $CMD */
+		cp = strstr(buffer, " socket:[");
+		if (cp && simple_strtoul(cp + 9, &cp2, 10) >= 10 && *cp2 == ']') {
+			*(cp + 9) = '\\';
+			*(cp + 10) = '$';
+			memmove(cp + 11, cp2, strlen(cp2) + 1);
+			goto ok;
+		}
+	}
+ok:
 	if (realpath)
 		tomoyo_addprintf(buffer, len, " exec.%s", realpath);
 	if (argv0)
@@ -2665,7 +2695,7 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 
 		if (head->w.avail >= head->writebuf_size - 1) {
 			const int len = head->writebuf_size * 2;
-			char *cp = kzalloc(len, GFP_NOFS);
+			char *cp = kzalloc(len, GFP_NOFS | __GFP_NOWARN);
 
 			if (!cp) {
 				error = -ENOMEM;
@@ -2787,7 +2817,7 @@ void tomoyo_check_profile(void)
 		else
 			continue;
 		pr_err("Userland tools for TOMOYO 2.6 must be installed and policy must be initialized.\n");
-		pr_err("Please see https://tomoyo.osdn.jp/2.6/ for more information.\n");
+		pr_err("Please see https://tomoyo.sourceforge.net/2.6/ for more information.\n");
 		panic("STOP!");
 	}
 	tomoyo_read_unlock(idx);

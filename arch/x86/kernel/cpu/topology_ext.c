@@ -13,7 +13,10 @@ enum topo_types {
 	CORE_TYPE		= 2,
 	MAX_TYPE_0B		= 3,
 	MODULE_TYPE		= 3,
+	AMD_CCD_TYPE		= 3,
 	TILE_TYPE		= 4,
+	AMD_SOCKET_TYPE		= 4,
+	MAX_TYPE_80000026	= 5,
 	DIE_TYPE		= 5,
 	DIEGRP_TYPE		= 6,
 	MAX_TYPE_1F		= 7,
@@ -30,6 +33,13 @@ static const unsigned int topo_domain_map_0b_1f[MAX_TYPE_1F] = {
 	[TILE_TYPE]	= TOPO_TILE_DOMAIN,
 	[DIE_TYPE]	= TOPO_DIE_DOMAIN,
 	[DIEGRP_TYPE]	= TOPO_DIEGRP_DOMAIN,
+};
+
+static const unsigned int topo_domain_map_80000026[MAX_TYPE_80000026] = {
+	[SMT_TYPE]		= TOPO_SMT_DOMAIN,
+	[CORE_TYPE]		= TOPO_CORE_DOMAIN,
+	[AMD_CCD_TYPE]		= TOPO_TILE_DOMAIN,
+	[AMD_SOCKET_TYPE]	= TOPO_DIE_DOMAIN,
 };
 
 static inline bool topo_subleaf(struct topo_scan *tscan, u32 leaf, u32 subleaf,
@@ -56,6 +66,7 @@ static inline bool topo_subleaf(struct topo_scan *tscan, u32 leaf, u32 subleaf,
 	switch (leaf) {
 	case 0x0b: maxtype = MAX_TYPE_0B; map = topo_domain_map_0b_1f; break;
 	case 0x1f: maxtype = MAX_TYPE_1F; map = topo_domain_map_0b_1f; break;
+	case 0x80000026: maxtype = MAX_TYPE_80000026; map = topo_domain_map_80000026; break;
 	default: return false;
 	}
 
@@ -123,6 +134,10 @@ bool cpu_parse_topology_ext(struct topo_scan *tscan)
 {
 	/* Intel: Try leaf 0x1F first. */
 	if (tscan->c->cpuid_level >= 0x1f && parse_topology_leaf(tscan, 0x1f))
+		return true;
+
+	/* AMD: Try leaf 0x80000026 first. */
+	if (tscan->c->extended_cpuid_level >= 0x80000026 && parse_topology_leaf(tscan, 0x80000026))
 		return true;
 
 	/* Intel/AMD: Fall back to leaf 0xB if available */

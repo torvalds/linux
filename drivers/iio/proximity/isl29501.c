@@ -989,7 +989,7 @@ static int isl29501_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isl29501_id[] = {
-	{"isl29501", 0},
+	{ "isl29501" },
 	{}
 };
 

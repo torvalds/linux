@@ -25,7 +25,7 @@
 #include <linux/map_to_7segment.h>
 #include <linux/map_to_14segment.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "line-display.h"
 
@@ -284,27 +284,14 @@ static int ht16k33_initialize(struct ht16k33_priv *priv)
 
 static int ht16k33_bl_update_status(struct backlight_device *bl)
 {
-	int brightness = bl->props.brightness;
+	const int brightness = backlight_get_brightness(bl);
 	struct ht16k33_priv *priv = bl_get_data(bl);
-
-	if (bl->props.power != FB_BLANK_UNBLANK ||
-	    bl->props.fb_blank != FB_BLANK_UNBLANK ||
-	    bl->props.state & BL_CORE_FBBLANK)
-		brightness = 0;
 
 	return ht16k33_brightness_set(priv, brightness);
 }
 
-static int ht16k33_bl_check_fb(struct backlight_device *bl, struct fb_info *fi)
-{
-	struct ht16k33_priv *priv = bl_get_data(bl);
-
-	return (fi == NULL) || (fi->par == priv);
-}
-
 static const struct backlight_ops ht16k33_bl_ops = {
 	.update_status	= ht16k33_bl_update_status,
-	.check_fb	= ht16k33_bl_check_fb,
 };
 
 /*
@@ -496,6 +483,7 @@ static int ht16k33_led_probe(struct device *dev, struct led_classdev *led,
 	led->max_brightness = MAX_BRIGHTNESS;
 
 	err = devm_led_classdev_register_ext(dev, led, &init_data);
+	fwnode_handle_put(init_data.fwnode);
 	if (err)
 		dev_err(dev, "Failed to register LED\n");
 
@@ -669,7 +657,6 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 static int ht16k33_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	const struct of_device_id *id;
 	struct ht16k33_priv *priv;
 	uint32_t dft_brightness;
 	int err;
@@ -684,9 +671,8 @@ static int ht16k33_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	priv->client = client;
-	id = i2c_of_match_device(dev->driver->of_match_table, client);
-	if (id)
-		priv->type = (uintptr_t)id->data;
+	priv->type = (uintptr_t)i2c_get_match_data(client);
+
 	i2c_set_clientdata(client, priv);
 
 	err = ht16k33_initialize(priv);
@@ -759,7 +745,9 @@ static void ht16k33_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id ht16k33_i2c_match[] = {
-	{ "ht16k33", 0 },
+	{ "3108", DISP_QUAD_7SEG },
+	{ "3130", DISP_QUAD_14SEG },
+	{ "ht16k33", DISP_MATRIX },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ht16k33_i2c_match);
@@ -792,5 +780,5 @@ module_i2c_driver(ht16k33_driver);
 
 MODULE_DESCRIPTION("Holtek HT16K33 driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(LINEDISP);
+MODULE_IMPORT_NS("LINEDISP");
 MODULE_AUTHOR("Robin van der Gracht <robin@protonic.nl>");

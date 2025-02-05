@@ -61,12 +61,14 @@ struct bareudp_dev {
 static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct metadata_dst *tun_dst = NULL;
+	IP_TUNNEL_DECLARE_FLAGS(key) = { };
 	struct bareudp_dev *bareudp;
 	unsigned short family;
 	unsigned int len;
 	__be16 proto;
 	void *oiph;
 	int err;
+	int nh;
 
 	bareudp = rcu_dereference_sk_user_data(sk);
 	if (!bareudp)
@@ -82,7 +84,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 
 		if (skb_copy_bits(skb, BAREUDP_BASE_HLEN, &ipversion,
 				  sizeof(ipversion))) {
-			bareudp->dev->stats.rx_dropped++;
+			dev_dstats_rx_dropped(bareudp->dev);
 			goto drop;
 		}
 		ipversion >>= 4;
@@ -92,7 +94,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		} else if (ipversion == 6 && bareudp->multi_proto_mode) {
 			proto = htons(ETH_P_IPV6);
 		} else {
-			bareudp->dev->stats.rx_dropped++;
+			dev_dstats_rx_dropped(bareudp->dev);
 			goto drop;
 		}
 	} else if (bareudp->ethertype == htons(ETH_P_MPLS_UC)) {
@@ -106,7 +108,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   ipv4_is_multicast(tunnel_hdr->daddr)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				bareudp->dev->stats.rx_dropped++;
+				dev_dstats_rx_dropped(bareudp->dev);
 				goto drop;
 			}
 		} else {
@@ -122,7 +124,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				   (addr_type & IPV6_ADDR_MULTICAST)) {
 				proto = htons(ETH_P_MPLS_MC);
 			} else {
-				bareudp->dev->stats.rx_dropped++;
+				dev_dstats_rx_dropped(bareudp->dev);
 				goto drop;
 			}
 		}
@@ -134,19 +136,37 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 				 proto,
 				 !net_eq(bareudp->net,
 				 dev_net(bareudp->dev)))) {
-		bareudp->dev->stats.rx_dropped++;
+		dev_dstats_rx_dropped(bareudp->dev);
 		goto drop;
 	}
-	tun_dst = udp_tun_rx_dst(skb, family, TUNNEL_KEY, 0, 0);
+
+	__set_bit(IP_TUNNEL_KEY_BIT, key);
+
+	tun_dst = udp_tun_rx_dst(skb, family, key, 0, 0);
 	if (!tun_dst) {
-		bareudp->dev->stats.rx_dropped++;
+		dev_dstats_rx_dropped(bareudp->dev);
 		goto drop;
 	}
 	skb_dst_set(skb, &tun_dst->dst);
 	skb->dev = bareudp->dev;
-	oiph = skb_network_header(skb);
-	skb_reset_network_header(skb);
 	skb_reset_mac_header(skb);
+
+	/* Save offset of outer header relative to skb->head,
+	 * because we are going to reset the network header to the inner header
+	 * and might change skb->head.
+	 */
+	nh = skb_network_header(skb) - skb->head;
+
+	skb_reset_network_header(skb);
+
+	if (!pskb_inet_may_pull(skb)) {
+		DEV_STATS_INC(bareudp->dev, rx_length_errors);
+		DEV_STATS_INC(bareudp->dev, rx_errors);
+		goto drop;
+	}
+
+	/* Get the outer header. */
+	oiph = skb->head + nh;
 
 	if (!ipv6_mod_enabled() || family == AF_INET)
 		err = IP_ECN_decapsulate(oiph, skb);
@@ -165,8 +185,8 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 						     &((struct ipv6hdr *)oiph)->saddr);
 		}
 		if (err > 1) {
-			++bareudp->dev->stats.rx_frame_errors;
-			++bareudp->dev->stats.rx_errors;
+			DEV_STATS_INC(bareudp->dev, rx_frame_errors);
+			DEV_STATS_INC(bareudp->dev, rx_errors);
 			goto drop;
 		}
 	}
@@ -174,7 +194,7 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	len = skb->len;
 	err = gro_cells_receive(&bareudp->gro_cells, skb);
 	if (likely(err == NET_RX_SUCCESS))
-		dev_sw_netstats_rx_add(bareudp->dev, len);
+		dev_dstats_rx_add(bareudp->dev, len);
 
 	return 0;
 drop:
@@ -285,10 +305,10 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			    struct bareudp_dev *bareudp,
 			    const struct ip_tunnel_info *info)
 {
+	bool udp_sum = test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	bool xnet = !net_eq(bareudp->net, dev_net(bareudp->dev));
 	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct socket *sock = rcu_dereference(bareudp->sock);
-	bool udp_sum = !!(info->key.tun_flags & TUNNEL_CSUM);
 	const struct ip_tunnel_key *key = &info->key;
 	struct rtable *rt;
 	__be16 sport, df;
@@ -296,6 +316,9 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__u8 tos, ttl;
 	__be32 saddr;
 	int err;
+
+	if (skb_vlan_inet_prepare(skb, skb->protocol != htons(ETH_P_TEB)))
+		return -EINVAL;
 
 	if (!sock)
 		return -ESHUTDOWN;
@@ -316,7 +339,8 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 
 	tos = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
 	ttl = key->ttl;
-	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
+	df = test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, key->tun_flags) ?
+	     htons(IP_DF) : 0;
 	skb_scrub_packet(skb, xnet);
 
 	err = -ENOSPC;
@@ -338,7 +362,8 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	udp_tunnel_xmit_skb(rt, sock->sk, skb, saddr, info->key.u.ipv4.dst,
 			    tos, ttl, df, sport, bareudp->port,
 			    !net_eq(bareudp->net, dev_net(bareudp->dev)),
-			    !(info->key.tun_flags & TUNNEL_CSUM));
+			    !test_bit(IP_TUNNEL_CSUM_BIT,
+				      info->key.tun_flags));
 	return 0;
 
 free_dst:
@@ -350,10 +375,10 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			     struct bareudp_dev *bareudp,
 			     const struct ip_tunnel_info *info)
 {
+	bool udp_sum = test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	bool xnet = !net_eq(bareudp->net, dev_net(bareudp->dev));
 	bool use_cache = ip_tunnel_dst_cache_usable(skb, info);
 	struct socket *sock  = rcu_dereference(bareudp->sock);
-	bool udp_sum = !!(info->key.tun_flags & TUNNEL_CSUM);
 	const struct ip_tunnel_key *key = &info->key;
 	struct dst_entry *dst = NULL;
 	struct in6_addr saddr, daddr;
@@ -361,6 +386,9 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	__u8 prio, ttl;
 	__be16 sport;
 	int err;
+
+	if (skb_vlan_inet_prepare(skb, skb->protocol != htons(ETH_P_TEB)))
+		return -EINVAL;
 
 	if (!sock)
 		return -ESHUTDOWN;
@@ -402,7 +430,8 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	udp_tunnel6_xmit_skb(dst, sock->sk, skb, dev,
 			     &saddr, &daddr, prio, ttl,
 			     info->key.label, sport, bareudp->port,
-			     !(info->key.tun_flags & TUNNEL_CSUM));
+			     !test_bit(IP_TUNNEL_CSUM_BIT,
+				       info->key.tun_flags));
 	return 0;
 
 free_dst:
@@ -460,11 +489,11 @@ tx_error:
 	dev_kfree_skb(skb);
 
 	if (err == -ELOOP)
-		dev->stats.collisions++;
+		DEV_STATS_INC(dev, collisions);
 	else if (err == -ENETUNREACH)
-		dev->stats.tx_carrier_errors++;
+		DEV_STATS_INC(dev, tx_carrier_errors);
 
-	dev->stats.tx_errors++;
+	DEV_STATS_INC(dev, tx_errors);
 	return NETDEV_TX_OK;
 }
 
@@ -546,7 +575,6 @@ static void bareudp_setup(struct net_device *dev)
 	SET_NETDEV_DEVTYPE(dev, &bareudp_type);
 	dev->features    |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->features    |= NETIF_F_RXCSUM;
-	dev->features    |= NETIF_F_LLTX;
 	dev->features    |= NETIF_F_GSO_SOFTWARE;
 	dev->hw_features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_FRAGLIST;
 	dev->hw_features |= NETIF_F_RXCSUM;
@@ -559,8 +587,9 @@ static void bareudp_setup(struct net_device *dev)
 	dev->type = ARPHRD_NONE;
 	netif_keep_dst(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->lltx = true;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
-	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 }
 
 static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],

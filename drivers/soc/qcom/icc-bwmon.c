@@ -17,6 +17,8 @@
 #include <linux/pm_opp.h>
 #include <linux/regmap.h>
 #include <linux/sizes.h>
+#define CREATE_TRACE_POINTS
+#include "trace_icc-bwmon.h"
 
 /*
  * The BWMON samples data throughput within 'sample_ms' time. With three
@@ -282,7 +284,7 @@ static const struct regmap_config msm8998_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
@@ -301,7 +303,7 @@ static const struct regmap_config msm8998_bwmon_global_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static const struct reg_field sdm845_cpu_bwmon_reg_fields[] = {
@@ -369,7 +371,7 @@ static const struct regmap_config sdm845_cpu_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 /* BWMON v5 */
@@ -446,7 +448,7 @@ static const struct regmap_config sdm845_llcc_bwmon_regmap_cfg = {
 	 * Cache is necessary for using regmap fields with non-readable
 	 * registers.
 	 */
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 };
 
 static void bwmon_clear_counters(struct icc_bwmon *bwmon, bool clear_all)
@@ -565,7 +567,7 @@ static void bwmon_start(struct icc_bwmon *bwmon)
 	int window;
 
 	/* No need to check for errors, as this must have succeeded before. */
-	dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_low, 0);
+	dev_pm_opp_put(dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_low, 0));
 
 	bwmon_clear_counters(bwmon, true);
 
@@ -645,9 +647,10 @@ static irqreturn_t bwmon_intr_thread(int irq, void *dev_id)
 	struct icc_bwmon *bwmon = dev_id;
 	unsigned int irq_enable = 0;
 	struct dev_pm_opp *opp, *target_opp;
-	unsigned int bw_kbps, up_kbps, down_kbps;
+	unsigned int bw_kbps, up_kbps, down_kbps, meas_kbps;
 
 	bw_kbps = bwmon->target_kbps;
+	meas_kbps = bwmon->target_kbps;
 
 	target_opp = dev_pm_opp_find_bw_ceil(bwmon->dev, &bw_kbps, 0);
 	if (IS_ERR(target_opp) && PTR_ERR(target_opp) == -ERANGE)
@@ -679,6 +682,7 @@ static irqreturn_t bwmon_intr_thread(int irq, void *dev_id)
 	bwmon_clear_irq(bwmon);
 	bwmon_enable(bwmon, irq_enable);
 
+	trace_qcom_bwmon_update(dev_name(bwmon->dev), meas_kbps, up_kbps, down_kbps);
 	if (bwmon->target_kbps == bwmon->current_kbps)
 		goto out;
 
@@ -772,18 +776,25 @@ static int bwmon_probe(struct platform_device *pdev)
 	opp = dev_pm_opp_find_bw_floor(dev, &bwmon->max_bw_kbps, 0);
 	if (IS_ERR(opp))
 		return dev_err_probe(dev, PTR_ERR(opp), "failed to find max peak bandwidth\n");
+	dev_pm_opp_put(opp);
 
 	bwmon->min_bw_kbps = 0;
 	opp = dev_pm_opp_find_bw_ceil(dev, &bwmon->min_bw_kbps, 0);
 	if (IS_ERR(opp))
 		return dev_err_probe(dev, PTR_ERR(opp), "failed to find min peak bandwidth\n");
+	dev_pm_opp_put(opp);
 
 	bwmon->dev = dev;
 
 	bwmon_disable(bwmon);
-	ret = devm_request_threaded_irq(dev, bwmon->irq, bwmon_intr,
-					bwmon_intr_thread,
-					IRQF_ONESHOT, dev_name(dev), bwmon);
+
+	/*
+	 * SoCs with multiple cpu-bwmon instances can end up using a shared interrupt
+	 * line. Using the devm_ variant might result in the IRQ handler being executed
+	 * after bwmon_disable in bwmon_remove()
+	 */
+	ret = request_threaded_irq(bwmon->irq, bwmon_intr, bwmon_intr_thread,
+				   IRQF_ONESHOT | IRQF_SHARED, dev_name(dev), bwmon);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to request IRQ\n");
 
@@ -798,6 +809,7 @@ static void bwmon_remove(struct platform_device *pdev)
 	struct icc_bwmon *bwmon = platform_get_drvdata(pdev);
 
 	bwmon_disable(bwmon);
+	free_irq(bwmon->irq, bwmon);
 }
 
 static const struct icc_bwmon_data msm8998_bwmon_data = {
@@ -860,7 +872,7 @@ MODULE_DEVICE_TABLE(of, bwmon_of_match);
 
 static struct platform_driver bwmon_driver = {
 	.probe = bwmon_probe,
-	.remove_new = bwmon_remove,
+	.remove = bwmon_remove,
 	.driver = {
 		.name = "qcom-bwmon",
 		.of_match_table = bwmon_of_match,

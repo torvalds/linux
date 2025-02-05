@@ -23,6 +23,8 @@ MODULE_DESCRIPTION("USB basic driver for rtlwifi");
 
 #define MAX_USBCTRL_VENDORREQ_TIMES		10
 
+static void _rtl_usb_cleanup_tx(struct ieee80211_hw *hw);
+
 static void _usbctrl_vendorreq_sync(struct usb_device *udev, u8 reqtype,
 				   u16 value, void *pdata, u16 len)
 {
@@ -285,9 +287,23 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 	}
 	/* usb endpoint mapping */
 	err = rtlpriv->cfg->usb_interface_cfg->usb_endpoint_mapping(hw);
-	rtlusb->usb_mq_to_hwq =  rtlpriv->cfg->usb_interface_cfg->usb_mq_to_hwq;
-	_rtl_usb_init_tx(hw);
-	_rtl_usb_init_rx(hw);
+	if (err)
+		return err;
+
+	rtlusb->usb_mq_to_hwq = rtlpriv->cfg->usb_interface_cfg->usb_mq_to_hwq;
+
+	err = _rtl_usb_init_tx(hw);
+	if (err)
+		return err;
+
+	err = _rtl_usb_init_rx(hw);
+	if (err)
+		goto err_out;
+
+	return 0;
+
+err_out:
+	_rtl_usb_cleanup_tx(hw);
 	return err;
 }
 
@@ -613,11 +629,6 @@ static void _rtl_usb_cleanup_rx(struct ieee80211_hw *hw)
 	tasklet_kill(&rtlusb->rx_work_tasklet);
 	cancel_work_sync(&rtlpriv->works.lps_change_work);
 
-	if (rtlpriv->works.rtl_wq) {
-		destroy_workqueue(rtlpriv->works.rtl_wq);
-		rtlpriv->works.rtl_wq = NULL;
-	}
-
 	skb_queue_purge(&rtlusb->rx_queue);
 
 	while ((urb = usb_get_from_anchor(&rtlusb->rx_cleanup_urbs))) {
@@ -691,17 +702,13 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 }
 
 /*=======================  tx =========================================*/
-static void rtl_usb_cleanup(struct ieee80211_hw *hw)
+static void _rtl_usb_cleanup_tx(struct ieee80211_hw *hw)
 {
 	u32 i;
 	struct sk_buff *_skb;
 	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
 	struct ieee80211_tx_info *txinfo;
 
-	/* clean up rx stuff. */
-	_rtl_usb_cleanup_rx(hw);
-
-	/* clean up tx stuff */
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {
 		while ((_skb = skb_dequeue(&rtlusb->tx_skb_queue[i]))) {
 			rtlusb->usb_tx_cleanup(hw, _skb);
@@ -713,6 +720,12 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 		usb_kill_anchored_urbs(&rtlusb->tx_pending[i]);
 	}
 	usb_kill_anchored_urbs(&rtlusb->tx_submitted);
+}
+
+static void rtl_usb_cleanup(struct ieee80211_hw *hw)
+{
+	_rtl_usb_cleanup_rx(hw);
+	_rtl_usb_cleanup_tx(hw);
 }
 
 /* We may add some struct into struct rtl_usb later. Do deinit here.  */
@@ -937,7 +950,7 @@ static const struct rtl_intf_ops rtl_usb_ops = {
 
 int rtl_usb_probe(struct usb_interface *intf,
 		  const struct usb_device_id *id,
-		  struct rtl_hal_cfg *rtl_hal_cfg)
+		  const struct rtl_hal_cfg *rtl_hal_cfg)
 {
 	int err;
 	struct ieee80211_hw *hw = NULL;
@@ -979,6 +992,9 @@ int rtl_usb_probe(struct usb_interface *intf,
 	usb_priv->dev.intf = intf;
 	usb_priv->dev.udev = udev;
 	usb_set_intfdata(intf, hw);
+	/* For dual MAC RTL8192DU, which has two interfaces. */
+	rtlpriv->rtlhal.interfaceindex =
+		intf->altsetting[0].desc.bInterfaceNumber;
 	/* init cfg & intf_ops */
 	rtlpriv->rtlhal.interface = INTF_USB;
 	rtlpriv->cfg = rtl_hal_cfg;
@@ -1007,19 +1023,22 @@ int rtl_usb_probe(struct usb_interface *intf,
 	err = ieee80211_register_hw(hw);
 	if (err) {
 		pr_err("Can't register mac80211 hw.\n");
-		goto error_out;
+		goto error_init_vars;
 	}
 	rtlpriv->mac80211.mac80211_registered = 1;
 
 	set_bit(RTL_STATUS_INTERFACE_START, &rtlpriv->status);
 	return 0;
 
+error_init_vars:
+	wait_for_completion(&rtlpriv->firmware_loading_complete);
+	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 error_out:
+	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
 error_out2:
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
-	complete(&rtlpriv->firmware_loading_complete);
 	kfree(rtlpriv->usb_data);
 	ieee80211_free_hw(hw);
 	return -ENODEV;

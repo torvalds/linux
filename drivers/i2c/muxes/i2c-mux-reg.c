@@ -213,7 +213,7 @@ static int i2c_mux_reg_probe(struct platform_device *pdev)
 	for (i = 0; i < mux->data.n_values; i++) {
 		nr = mux->data.base_nr ? (mux->data.base_nr + i) : 0;
 
-		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i], 0);
+		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i]);
 		if (ret)
 			goto err_del_mux_adapters;
 	}
@@ -247,7 +247,7 @@ MODULE_DEVICE_TABLE(of, i2c_mux_reg_of_match);
 
 static struct platform_driver i2c_mux_reg_driver = {
 	.probe	= i2c_mux_reg_probe,
-	.remove_new = i2c_mux_reg_remove,
+	.remove = i2c_mux_reg_remove,
 	.driver	= {
 		.name	= "i2c-mux-reg",
 		.of_match_table = of_match_ptr(i2c_mux_reg_of_match),

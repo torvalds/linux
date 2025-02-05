@@ -1689,7 +1689,7 @@ static struct platform_driver rockchip_thermal_driver = {
 		.of_match_table = of_rockchip_thermal_match,
 	},
 	.probe = rockchip_thermal_probe,
-	.remove_new = rockchip_thermal_remove,
+	.remove = rockchip_thermal_remove,
 };
 
 module_platform_driver(rockchip_thermal_driver);

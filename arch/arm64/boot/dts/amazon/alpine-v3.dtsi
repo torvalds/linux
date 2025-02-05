@@ -244,7 +244,7 @@
 			next-level-cache = <&cluster3_l2>;
 		};
 
-		cluster0_l2: cache@0 {
+		cluster0_l2: cache-0 {
 			compatible = "cache";
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
@@ -253,7 +253,7 @@
 			cache-unified;
 		};
 
-		cluster1_l2: cache@100 {
+		cluster1_l2: cache-100 {
 			compatible = "cache";
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
@@ -262,7 +262,7 @@
 			cache-unified;
 		};
 
-		cluster2_l2: cache@200 {
+		cluster2_l2: cache-200 {
 			compatible = "cache";
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
@@ -271,7 +271,7 @@
 			cache-unified;
 		};
 
-		cluster3_l2: cache@300 {
+		cluster3_l2: cache-300 {
 			compatible = "cache";
 			cache-size = <0x200000>;
 			cache-line-size = <64>;
@@ -318,7 +318,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		gic: interrupt-controller@f0000000 {
+		gic: interrupt-controller@f0800000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
 			interrupt-controller;
@@ -361,7 +361,7 @@
 			interrupt-parent = <&gic>;
 		};
 
-		io-fabric {
+		io-fabric@fc000000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

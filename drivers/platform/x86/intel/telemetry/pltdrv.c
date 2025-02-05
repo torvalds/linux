@@ -177,8 +177,8 @@ static struct telemetry_plt_config telem_glk_config = {
 };
 
 static const struct x86_cpu_id telemetry_cpu_ids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&telem_apl_config),
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT_PLUS,	&telem_glk_config),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT,	&telem_apl_config),
+	X86_MATCH_VFM(INTEL_ATOM_GOLDMONT_PLUS,	&telem_glk_config),
 	{}
 };
 
@@ -1163,7 +1163,7 @@ static void telemetry_pltdrv_remove(struct platform_device *pdev)
 
 static struct platform_driver telemetry_soc_driver = {
 	.probe		= telemetry_pltdrv_probe,
-	.remove_new	= telemetry_pltdrv_remove,
+	.remove		= telemetry_pltdrv_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

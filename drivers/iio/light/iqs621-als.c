@@ -86,8 +86,8 @@ static int iqs621_als_init(struct iqs621_als_private *iqs621_als)
 	if (iqs621_als->prox_en)
 		event_mask |= iqs62x->dev_desc->ir_mask;
 
-	return regmap_update_bits(iqs62x->regmap, IQS620_GLBL_EVENT_MASK,
-				  event_mask, 0);
+	return regmap_clear_bits(iqs62x->regmap, IQS620_GLBL_EVENT_MASK,
+				 event_mask);
 }
 
 static int iqs621_als_notifier(struct notifier_block *notifier,
@@ -271,7 +271,7 @@ static int iqs621_als_write_event_config(struct iio_dev *indio_dev,
 					 const struct iio_chan_spec *chan,
 					 enum iio_event_type type,
 					 enum iio_event_direction dir,
-					 int state)
+					 bool state)
 {
 	struct iqs621_als_private *iqs621_als = iio_priv(indio_dev);
 	struct iqs62x_core *iqs62x = iqs621_als->iqs62x;

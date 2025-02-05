@@ -35,9 +35,6 @@ void ptrace_disable(struct task_struct *child)
 	user_disable_single_step(child);
 }
 
-extern int peek_user(struct task_struct * child, long addr, long data);
-extern int poke_user(struct task_struct * child, long addr, long data);
-
 long arch_ptrace(struct task_struct *child, long request,
 		 unsigned long addr, unsigned long data)
 {

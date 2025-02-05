@@ -93,32 +93,6 @@ static unsigned int crypto_acomp_extsize(struct crypto_alg *alg)
 	return extsize;
 }
 
-static inline int __crypto_acomp_report_stat(struct sk_buff *skb,
-					     struct crypto_alg *alg)
-{
-	struct comp_alg_common *calg = __crypto_comp_alg_common(alg);
-	struct crypto_istat_compress *istat = comp_get_stat(calg);
-	struct crypto_stat_compress racomp;
-
-	memset(&racomp, 0, sizeof(racomp));
-
-	strscpy(racomp.type, "acomp", sizeof(racomp.type));
-	racomp.stat_compress_cnt = atomic64_read(&istat->compress_cnt);
-	racomp.stat_compress_tlen = atomic64_read(&istat->compress_tlen);
-	racomp.stat_decompress_cnt =  atomic64_read(&istat->decompress_cnt);
-	racomp.stat_decompress_tlen = atomic64_read(&istat->decompress_tlen);
-	racomp.stat_err_cnt = atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_ACOMP, sizeof(racomp), &racomp);
-}
-
-#ifdef CONFIG_CRYPTO_STATS
-int crypto_acomp_report_stat(struct sk_buff *skb, struct crypto_alg *alg)
-{
-	return __crypto_acomp_report_stat(skb, alg);
-}
-#endif
-
 static const struct crypto_type crypto_acomp_type = {
 	.extsize = crypto_acomp_extsize,
 	.init_tfm = crypto_acomp_init_tfm,
@@ -127,9 +101,6 @@ static const struct crypto_type crypto_acomp_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_acomp_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_acomp_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_ACOMPRESS_MASK,
@@ -184,13 +155,9 @@ EXPORT_SYMBOL_GPL(acomp_request_free);
 
 void comp_prepare_alg(struct comp_alg_common *alg)
 {
-	struct crypto_istat_compress *istat = comp_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		memset(istat, 0, sizeof(*istat));
 }
 
 int crypto_register_acomp(struct acomp_alg *alg)

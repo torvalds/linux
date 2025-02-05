@@ -7,8 +7,6 @@
 TEST(infinite_rlimit)
 {
 	EXPECT_EQ(BOTTOM_UP, memory_layout());
-
-	TEST_MMAPS;
 }
 
 TEST_HARNESS_MAIN

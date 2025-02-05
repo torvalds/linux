@@ -83,7 +83,6 @@ static const struct cpuid_dep cpuid_deps[] = {
 	{ X86_FEATURE_AMX_TILE,			X86_FEATURE_XFD       },
 	{ X86_FEATURE_SHSTK,			X86_FEATURE_XSAVES    },
 	{ X86_FEATURE_FRED,			X86_FEATURE_LKGS      },
-	{ X86_FEATURE_FRED,			X86_FEATURE_WRMSRNS   },
 	{}
 };
 
@@ -113,6 +112,9 @@ static void do_clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int feature)
 
 	if (WARN_ON(feature >= MAX_FEATURE_BITS))
 		return;
+
+	if (boot_cpu_has(feature))
+		WARN_ON(alternatives_patched);
 
 	clear_feature(c, feature);
 

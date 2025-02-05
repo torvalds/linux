@@ -980,7 +980,7 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 			start_get(ssif_info);
 		} else {
-			/* Wait a jiffie then request the next message */
+			/* Wait a jiffy then request the next message */
 			ssif_info->waiting_alert = true;
 			ssif_info->retries_left = SSIF_RECV_RETRIES;
 			if (!ssif_info->stopping)
@@ -1368,8 +1368,20 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 	rv = do_cmd(client, 2, msg, &len, resp);
 	if (rv)
 		rv = -ENODEV;
-	else
+	else {
+	    if (len < 3) {
+		rv = -ENODEV;
+	    } else {
+		struct ipmi_device_id id;
+
+		rv = ipmi_demangle_device_id(resp[0] >> 2, resp[1],
+					     resp + 2, len - 2, &id);
+		if (rv)
+		    rv = -ENODEV; /* Error means a BMC probably isn't there. */
+	    }
+	    if (!rv && info)
 		strscpy(info->type, DEVICE_NAME, I2C_NAME_SIZE);
+	}
 	kfree(resp);
 	return rv;
 }
@@ -1703,6 +1715,16 @@ static int ssif_probe(struct i2c_client *client)
 		 "Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
 		ipmi_addr_src_to_str(ssif_info->addr_source),
 		client->addr, client->adapter->name, slave_addr);
+
+	/*
+	 * Send a get device id command and validate its response to
+	 * make sure a valid BMC is there.
+	 */
+	rv = ssif_detect(client, NULL);
+	if (rv) {
+		dev_err(&client->dev, "Not present\n");
+		goto out;
+	}
 
 	/* Now check for system interface capabilities */
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
@@ -2049,7 +2071,7 @@ static int dmi_ipmi_probe(struct platform_device *pdev)
 #endif
 
 static const struct i2c_device_id ssif_id[] = {
-	{ DEVICE_NAME, 0 },
+	{ DEVICE_NAME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ssif_id);
@@ -2071,7 +2093,7 @@ static int ssif_platform_probe(struct platform_device *dev)
 	return dmi_ipmi_probe(dev);
 }
 
-static int ssif_platform_remove(struct platform_device *dev)
+static void ssif_platform_remove(struct platform_device *dev)
 {
 	struct ssif_addr_info *addr_info = dev_get_drvdata(&dev->dev);
 
@@ -2079,13 +2101,13 @@ static int ssif_platform_remove(struct platform_device *dev)
 	list_del(&addr_info->link);
 	kfree(addr_info);
 	mutex_unlock(&ssif_infos_mutex);
-	return 0;
 }
 
 static const struct platform_device_id ssif_plat_ids[] = {
     { "dmi-ipmi-ssif", 0 },
     { }
 };
+MODULE_DEVICE_TABLE(platform, ssif_plat_ids);
 
 static struct platform_driver ipmi_driver = {
 	.driver = {

@@ -43,6 +43,7 @@ int  kvm_emu_mmio_read(struct kvm_vcpu *vcpu, larch_inst inst);
 int  kvm_emu_mmio_write(struct kvm_vcpu *vcpu, larch_inst inst);
 int  kvm_complete_mmio_read(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int  kvm_complete_iocsr_read(struct kvm_vcpu *vcpu, struct kvm_run *run);
+int  kvm_complete_user_service(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int  kvm_emu_idle(struct kvm_vcpu *vcpu);
 int  kvm_pending_timer(struct kvm_vcpu *vcpu);
 int  kvm_handle_fault(struct kvm_vcpu *vcpu, int fault);
@@ -75,12 +76,18 @@ static inline void kvm_save_lasx(struct loongarch_fpu *fpu) { }
 static inline void kvm_restore_lasx(struct loongarch_fpu *fpu) { }
 #endif
 
+#ifdef CONFIG_CPU_HAS_LBT
+int kvm_own_lbt(struct kvm_vcpu *vcpu);
+#else
+static inline int kvm_own_lbt(struct kvm_vcpu *vcpu) { return -EINVAL; }
+#endif
+
 void kvm_init_timer(struct kvm_vcpu *vcpu, unsigned long hz);
-void kvm_reset_timer(struct kvm_vcpu *vcpu);
 void kvm_save_timer(struct kvm_vcpu *vcpu);
 void kvm_restore_timer(struct kvm_vcpu *vcpu);
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
+struct kvm_vcpu *kvm_get_vcpu_by_cpuid(struct kvm *kvm, int cpuid);
 
 /*
  * Loongarch KVM guest interrupt handling
@@ -107,6 +114,26 @@ static inline int kvm_queue_exception(struct kvm_vcpu *vcpu,
 		return 0;
 	} else
 		return -1;
+}
+
+static inline unsigned long kvm_read_reg(struct kvm_vcpu *vcpu, int num)
+{
+	return vcpu->arch.gprs[num];
+}
+
+static inline void kvm_write_reg(struct kvm_vcpu *vcpu, int num, unsigned long val)
+{
+	vcpu->arch.gprs[num] = val;
+}
+
+static inline bool kvm_pvtime_supported(void)
+{
+	return !!sched_info_on();
+}
+
+static inline bool kvm_guest_has_pv_feature(struct kvm_vcpu *vcpu, unsigned int feature)
+{
+	return vcpu->kvm->arch.pv_features & BIT(feature);
 }
 
 #endif /* __ASM_LOONGARCH_KVM_VCPU_H__ */

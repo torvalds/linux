@@ -13,7 +13,7 @@
 #include <linux/pm_runtime.h>
 
 extern struct mutex coresight_mutex;
-extern struct device_type coresight_dev_type[];
+extern const struct device_type coresight_dev_type[];
 
 /*
  * Coresight management registers (0xf00-0xfcc)
@@ -42,6 +42,9 @@ extern struct device_type coresight_dev_type[];
 
 #define ETM_MODE_EXCL_KERN	BIT(30)
 #define ETM_MODE_EXCL_USER	BIT(31)
+#define ETM_MODE_EXCL_HOST	BIT(32)
+#define ETM_MODE_EXCL_GUEST	BIT(33)
+
 struct cs_pair_attribute {
 	struct device_attribute attr;
 	u32 lo_off;
@@ -148,6 +151,7 @@ int coresight_make_links(struct coresight_device *orig,
 			 struct coresight_device *target);
 void coresight_remove_links(struct coresight_device *orig,
 			    struct coresight_connection *conn);
+u32 coresight_get_sink_id(struct coresight_device *csdev);
 
 #if IS_ENABLED(CONFIG_CORESIGHT_SOURCE_ETM3X)
 extern int etm_readl_cp14(u32 off, unsigned int *val);
@@ -220,6 +224,16 @@ static inline void *coresight_get_uci_data(const struct amba_id *id)
 		return NULL;
 
 	return uci_id->data;
+}
+
+static inline void *coresight_get_uci_data_from_amba(const struct amba_id *table, u32 pid)
+{
+	while (table->mask) {
+		if ((pid & table->mask) == table->id)
+			return coresight_get_uci_data(table);
+		table++;
+	};
+	return NULL;
 }
 
 void coresight_release_platform_data(struct coresight_device *csdev,

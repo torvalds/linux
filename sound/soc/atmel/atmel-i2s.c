@@ -733,7 +733,7 @@ static struct platform_driver atmel_i2s_driver = {
 		.of_match_table	= atmel_i2s_dt_ids,
 	},
 	.probe		= atmel_i2s_probe,
-	.remove_new	= atmel_i2s_remove,
+	.remove		= atmel_i2s_remove,
 };
 module_platform_driver(atmel_i2s_driver);
 

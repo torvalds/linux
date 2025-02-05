@@ -83,6 +83,7 @@
 #define MR_TYPE_DMA				0x03
 
 #define HNS_ROCE_FRMR_MAX_PA			512
+#define HNS_ROCE_FRMR_ALIGN_SIZE		128
 
 #define PKEY_ID					0xffff
 #define NODE_DESC_SIZE				64
@@ -90,6 +91,8 @@
 
 /* Configure to HW for PAGE_SIZE larger than 4KB */
 #define PG_SHIFT_OFFSET				(PAGE_SHIFT - 12)
+
+#define ATOMIC_WR_LEN				8
 
 #define HNS_ROCE_IDX_QUE_ENTRY_SZ		4
 #define SRQ_DB_REG				0x230
@@ -99,6 +102,9 @@
 
 #define CQ_BANKID_SHIFT 2
 #define CQ_BANKID_MASK GENMASK(1, 0)
+
+#define HNS_ROCE_MAX_CQ_COUNT 0xFFFF
+#define HNS_ROCE_MAX_CQ_PERIOD 0xFFFF
 
 enum {
 	SERV_TYPE_RC,
@@ -183,6 +189,9 @@ enum {
 /* The minimum page size is 4K for hardware */
 #define HNS_HW_PAGE_SHIFT			12
 #define HNS_HW_PAGE_SIZE			(1 << HNS_HW_PAGE_SHIFT)
+
+#define HNS_HW_MAX_PAGE_SHIFT			27
+#define HNS_HW_MAX_PAGE_SIZE			(1 << HNS_HW_MAX_PAGE_SHIFT)
 
 struct hns_roce_uar {
 	u64		pfn;
@@ -480,12 +489,6 @@ struct hns_roce_bank {
 	u32 next; /* Next ID to allocate. */
 };
 
-struct hns_roce_idx_table {
-	u32 *spare_idx;
-	u32 head;
-	u32 tail;
-};
-
 struct hns_roce_qp_table {
 	struct hns_roce_hem_table	qp_table;
 	struct hns_roce_hem_table	irrl_table;
@@ -494,7 +497,7 @@ struct hns_roce_qp_table {
 	struct mutex			scc_mutex;
 	struct hns_roce_bank bank[HNS_ROCE_QP_BANK_NUM];
 	struct mutex bank_mutex;
-	struct hns_roce_idx_table	idx_table;
+	struct xarray			dip_xa;
 };
 
 struct hns_roce_cq_table {
@@ -584,6 +587,7 @@ struct hns_roce_dev;
 
 enum {
 	HNS_ROCE_FLUSH_FLAG = 0,
+	HNS_ROCE_STOP_FLUSH_FLAG = 1,
 };
 
 struct hns_roce_work {
@@ -645,6 +649,10 @@ struct hns_roce_qp {
 	struct hns_user_mmap_entry *dwqe_mmap_entry;
 	u32			config;
 	enum hns_roce_cong_type	cong_type;
+	u8			tc_mode;
+	u8			priority;
+	spinlock_t flush_lock;
+	struct hns_roce_dip *dip;
 };
 
 struct hns_roce_ib_iboe {
@@ -710,6 +718,7 @@ struct hns_roce_eq {
 	int				shift;
 	int				event_type;
 	int				sub_type;
+	struct work_struct		work;
 };
 
 struct hns_roce_eq_table {
@@ -923,8 +932,7 @@ struct hns_roce_hw {
 	int (*rereg_write_mtpt)(struct hns_roce_dev *hr_dev,
 				struct hns_roce_mr *mr, int flags,
 				void *mb_buf);
-	int (*frmr_write_mtpt)(struct hns_roce_dev *hr_dev, void *mb_buf,
-			       struct hns_roce_mr *mr);
+	int (*frmr_write_mtpt)(void *mb_buf, struct hns_roce_mr *mr);
 	int (*mw_write_mtpt)(void *mb_buf, struct hns_roce_mw *mw);
 	void (*write_cqc)(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_cq *hr_cq, void *mb_buf, u64 *mtts,
@@ -950,6 +958,8 @@ struct hns_roce_hw {
 	int (*query_sccc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_hw_counter)(struct hns_roce_dev *hr_dev,
 				u64 *stats, u32 port, int *hw_counters);
+	int (*get_dscp)(struct hns_roce_dev *hr_dev, u8 dscp,
+			u8 *tc_mode, u8 *priority);
 	const struct ib_device_ops *hns_roce_dev_ops;
 	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
@@ -969,8 +979,6 @@ struct hns_roce_dev {
 	enum hns_roce_device_state state;
 	struct list_head	qp_list; /* list of all qps on this dev */
 	spinlock_t		qp_list_lock; /* protect qp_list */
-	struct list_head	dip_list; /* list of all dest ips on this dev */
-	spinlock_t		dip_list_lock; /* protect dip_list */
 
 	struct list_head        pgdir_list;
 	struct mutex            pgdir_mutex;
@@ -1228,7 +1236,7 @@ struct hns_roce_buf *hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size,
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, struct hns_roce_buf *buf,
 			   unsigned int page_shift);
-int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
+int hns_roce_get_umem_bufs(dma_addr_t *bufs,
 			   int buf_cnt, struct ib_umem *umem,
 			   unsigned int page_shift);
 
@@ -1261,7 +1269,7 @@ __be32 send_ieth(const struct ib_send_wr *wr);
 int to_hr_qp_type(int qp_type);
 
 int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
-		       struct ib_udata *udata);
+		       struct uverbs_attr_bundle *attrs);
 
 int hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
 int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
@@ -1276,6 +1284,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void flush_cqe(struct hns_roce_dev *dev, struct hns_roce_qp *qp);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
+void hns_roce_flush_cqe(struct hns_roce_dev *hr_dev, u32 qpn);
 void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
 void hns_roce_handle_device_err(struct hns_roce_dev *hr_dev);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
@@ -1292,4 +1301,6 @@ struct hns_user_mmap_entry *
 hns_roce_user_mmap_entry_insert(struct ib_ucontext *ucontext, u64 address,
 				size_t length,
 				enum hns_roce_mmap_type mmap_type);
+bool check_sl_valid(struct hns_roce_dev *hr_dev, u8 sl);
+
 #endif /* _HNS_ROCE_DEVICE_H */

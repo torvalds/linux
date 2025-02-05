@@ -172,7 +172,7 @@ static void vp27smpx_remove(struct i2c_client *client)
 /* ----------------------------------------------------------------------- */
 
 static const struct i2c_device_id vp27smpx_id[] = {
-	{ "vp27smpx", 0 },
+	{ "vp27smpx" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vp27smpx_id);

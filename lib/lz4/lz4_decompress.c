@@ -33,12 +33,11 @@
 /*-************************************
  *	Dependencies
  **************************************/
-#include <linux/lz4.h>
 #include "lz4defs.h"
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /*-*****************************
  *	Decompression functions

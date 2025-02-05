@@ -38,6 +38,7 @@
 #define PHY_MIISTAT		0x18	/* MII state */
 #define PHY_IMASK		0x19	/* interrupt mask */
 #define PHY_ISTAT		0x1A	/* interrupt status */
+#define PHY_LED			0x1B	/* LEDs */
 #define PHY_FWV			0x1E	/* firmware version */
 
 #define PHY_MIISTAT_SPD_MASK	GENMASK(2, 0)
@@ -61,6 +62,11 @@
 				 PHY_IMASK_ADSC | \
 				 PHY_IMASK_ANC)
 
+#define GPY_MAX_LEDS		4
+#define PHY_LED_POLARITY(idx)	BIT(12 + (idx))
+#define PHY_LED_HWCONTROL(idx)	BIT(8 + (idx))
+#define PHY_LED_ON(idx)		BIT(idx)
+
 #define PHY_FWV_REL_MASK	BIT(15)
 #define PHY_FWV_MAJOR_MASK	GENMASK(11, 8)
 #define PHY_FWV_MINOR_MASK	GENMASK(7, 0)
@@ -71,6 +77,23 @@
 #define PHY_MDI_MDI_X_AB	0x2
 #define PHY_MDI_MDI_X_CD	0x1
 #define PHY_MDI_MDI_X_CROSS	0x0
+
+/* LED */
+#define VSPEC1_LED(idx)		(1 + (idx))
+#define VSPEC1_LED_BLINKS	GENMASK(15, 12)
+#define VSPEC1_LED_PULSE	GENMASK(11, 8)
+#define VSPEC1_LED_CON		GENMASK(7, 4)
+#define VSPEC1_LED_BLINKF	GENMASK(3, 0)
+
+#define VSPEC1_LED_LINK10	BIT(0)
+#define VSPEC1_LED_LINK100	BIT(1)
+#define VSPEC1_LED_LINK1000	BIT(2)
+#define VSPEC1_LED_LINK2500	BIT(3)
+
+#define VSPEC1_LED_TXACT	BIT(0)
+#define VSPEC1_LED_RXACT	BIT(1)
+#define VSPEC1_LED_COL		BIT(2)
+#define VSPEC1_LED_NO_CON	BIT(3)
 
 /* SGMII */
 #define VSPEC1_SGMII_CTRL	0x08
@@ -107,6 +130,7 @@ struct gpy_priv {
 
 	u8 fw_major;
 	u8 fw_minor;
+	u32 wolopts;
 
 	/* It takes 3 seconds to fully switch out of loopback mode before
 	 * it can safely re-enter loopback mode. Record the time when
@@ -221,6 +245,15 @@ static int gpy_hwmon_register(struct phy_device *phydev)
 }
 #endif
 
+static int gpy_ack_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Clear all pending interrupts */
+	ret = phy_read(phydev, PHY_ISTAT);
+	return ret < 0 ? ret : 0;
+}
+
 static int gpy_mbox_read(struct phy_device *phydev, u32 addr)
 {
 	struct gpy_priv *priv = phydev->priv;
@@ -262,16 +295,8 @@ out:
 
 static int gpy_config_init(struct phy_device *phydev)
 {
-	int ret;
-
-	/* Mask all interrupts */
-	ret = phy_write(phydev, PHY_IMASK, 0);
-	if (ret)
-		return ret;
-
-	/* Clear all pending interrupts */
-	ret = phy_read(phydev, PHY_ISTAT);
-	return ret < 0 ? ret : 0;
+	/* Nothing to configure. Configuration Requirement Placeholder */
+	return 0;
 }
 
 static int gpy21x_config_init(struct phy_device *phydev)
@@ -627,10 +652,22 @@ static int gpy_read_status(struct phy_device *phydev)
 
 static int gpy_config_intr(struct phy_device *phydev)
 {
+	struct gpy_priv *priv = phydev->priv;
 	u16 mask = 0;
+	int ret;
+
+	ret = gpy_ack_interrupt(phydev);
+	if (ret)
+		return ret;
 
 	if (phydev->interrupts == PHY_INTERRUPT_ENABLED)
 		mask = PHY_IMASK_MASK;
+
+	if (priv->wolopts & WAKE_MAGIC)
+		mask |= PHY_IMASK_WOL;
+
+	if (priv->wolopts & WAKE_PHY)
+		mask |= PHY_IMASK_LSTC;
 
 	return phy_write(phydev, PHY_IMASK, mask);
 }
@@ -678,6 +715,7 @@ static int gpy_set_wol(struct phy_device *phydev,
 		       struct ethtool_wolinfo *wol)
 {
 	struct net_device *attach_dev = phydev->attached_dev;
+	struct gpy_priv *priv = phydev->priv;
 	int ret;
 
 	if (wol->wolopts & WAKE_MAGIC) {
@@ -725,6 +763,8 @@ static int gpy_set_wol(struct phy_device *phydev,
 		ret = phy_read(phydev, PHY_ISTAT);
 		if (ret < 0)
 			return ret;
+
+		priv->wolopts |= WAKE_MAGIC;
 	} else {
 		/* Disable magic packet matching */
 		ret = phy_clear_bits_mmd(phydev, MDIO_MMD_VEND2,
@@ -732,6 +772,13 @@ static int gpy_set_wol(struct phy_device *phydev,
 					 WOL_EN);
 		if (ret < 0)
 			return ret;
+
+		/* Disable the WOL interrupt */
+		ret = phy_clear_bits(phydev, PHY_IMASK, PHY_IMASK_WOL);
+		if (ret < 0)
+			return ret;
+
+		priv->wolopts &= ~WAKE_MAGIC;
 	}
 
 	if (wol->wolopts & WAKE_PHY) {
@@ -748,9 +795,11 @@ static int gpy_set_wol(struct phy_device *phydev,
 		if (ret & (PHY_IMASK_MASK & ~PHY_IMASK_LSTC))
 			phy_trigger_machine(phydev);
 
+		priv->wolopts |= WAKE_PHY;
 		return 0;
 	}
 
+	priv->wolopts &= ~WAKE_PHY;
 	/* Disable the link state change interrupt */
 	return phy_clear_bits(phydev, PHY_IMASK, PHY_IMASK_LSTC);
 }
@@ -758,18 +807,10 @@ static int gpy_set_wol(struct phy_device *phydev,
 static void gpy_get_wol(struct phy_device *phydev,
 			struct ethtool_wolinfo *wol)
 {
-	int ret;
+	struct gpy_priv *priv = phydev->priv;
 
 	wol->supported = WAKE_MAGIC | WAKE_PHY;
-	wol->wolopts = 0;
-
-	ret = phy_read_mmd(phydev, MDIO_MMD_VEND2, VPSPEC2_WOL_CTL);
-	if (ret & WOL_EN)
-		wol->wolopts |= WAKE_MAGIC;
-
-	ret = phy_read(phydev, PHY_IMASK);
-	if (ret & PHY_IMASK_LSTC)
-		wol->wolopts |= WAKE_PHY;
+	wol->wolopts = priv->wolopts;
 }
 
 static int gpy_loopback(struct phy_device *phydev, bool enable)
@@ -817,6 +858,165 @@ static int gpy115_loopback(struct phy_device *phydev, bool enable)
 	return genphy_soft_reset(phydev);
 }
 
+static int gpy_led_brightness_set(struct phy_device *phydev,
+				  u8 index, enum led_brightness value)
+{
+	int ret;
+
+	if (index >= GPY_MAX_LEDS)
+		return -EINVAL;
+
+	/* clear HWCONTROL and set manual LED state */
+	ret = phy_modify(phydev, PHY_LED,
+			 ((value == LED_OFF) ? PHY_LED_HWCONTROL(index) : 0) |
+			 PHY_LED_ON(index),
+			 (value == LED_OFF) ? 0 : PHY_LED_ON(index));
+	if (ret)
+		return ret;
+
+	/* ToDo: set PWM brightness */
+
+	/* clear HW LED setup */
+	if (value == LED_OFF)
+		return phy_write_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_LED(index), 0);
+	else
+		return 0;
+}
+
+static const unsigned long supported_triggers = (BIT(TRIGGER_NETDEV_LINK) |
+						 BIT(TRIGGER_NETDEV_LINK_10) |
+						 BIT(TRIGGER_NETDEV_LINK_100) |
+						 BIT(TRIGGER_NETDEV_LINK_1000) |
+						 BIT(TRIGGER_NETDEV_LINK_2500) |
+						 BIT(TRIGGER_NETDEV_RX) |
+						 BIT(TRIGGER_NETDEV_TX));
+
+static int gpy_led_hw_is_supported(struct phy_device *phydev, u8 index,
+				   unsigned long rules)
+{
+	if (index >= GPY_MAX_LEDS)
+		return -EINVAL;
+
+	/* All combinations of the supported triggers are allowed */
+	if (rules & ~supported_triggers)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int gpy_led_hw_control_get(struct phy_device *phydev, u8 index,
+				  unsigned long *rules)
+{
+	int val;
+
+	if (index >= GPY_MAX_LEDS)
+		return -EINVAL;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_LED(index));
+	if (val < 0)
+		return val;
+
+	if (FIELD_GET(VSPEC1_LED_CON, val) & VSPEC1_LED_LINK10)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_10);
+
+	if (FIELD_GET(VSPEC1_LED_CON, val) & VSPEC1_LED_LINK100)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_100);
+
+	if (FIELD_GET(VSPEC1_LED_CON, val) & VSPEC1_LED_LINK1000)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_1000);
+
+	if (FIELD_GET(VSPEC1_LED_CON, val) & VSPEC1_LED_LINK2500)
+		*rules |= BIT(TRIGGER_NETDEV_LINK_2500);
+
+	if (FIELD_GET(VSPEC1_LED_CON, val) == (VSPEC1_LED_LINK10 |
+					       VSPEC1_LED_LINK100 |
+					       VSPEC1_LED_LINK1000 |
+					       VSPEC1_LED_LINK2500))
+		*rules |= BIT(TRIGGER_NETDEV_LINK);
+
+	if (FIELD_GET(VSPEC1_LED_PULSE, val) & VSPEC1_LED_TXACT)
+		*rules |= BIT(TRIGGER_NETDEV_TX);
+
+	if (FIELD_GET(VSPEC1_LED_PULSE, val) & VSPEC1_LED_RXACT)
+		*rules |= BIT(TRIGGER_NETDEV_RX);
+
+	return 0;
+}
+
+static int gpy_led_hw_control_set(struct phy_device *phydev, u8 index,
+				  unsigned long rules)
+{
+	u16 val = 0;
+	int ret;
+
+	if (index >= GPY_MAX_LEDS)
+		return -EINVAL;
+
+	if (rules & BIT(TRIGGER_NETDEV_LINK) ||
+	    rules & BIT(TRIGGER_NETDEV_LINK_10))
+		val |= FIELD_PREP(VSPEC1_LED_CON, VSPEC1_LED_LINK10);
+
+	if (rules & BIT(TRIGGER_NETDEV_LINK) ||
+	    rules & BIT(TRIGGER_NETDEV_LINK_100))
+		val |= FIELD_PREP(VSPEC1_LED_CON, VSPEC1_LED_LINK100);
+
+	if (rules & BIT(TRIGGER_NETDEV_LINK) ||
+	    rules & BIT(TRIGGER_NETDEV_LINK_1000))
+		val |= FIELD_PREP(VSPEC1_LED_CON, VSPEC1_LED_LINK1000);
+
+	if (rules & BIT(TRIGGER_NETDEV_LINK) ||
+	    rules & BIT(TRIGGER_NETDEV_LINK_2500))
+		val |= FIELD_PREP(VSPEC1_LED_CON, VSPEC1_LED_LINK2500);
+
+	if (rules & BIT(TRIGGER_NETDEV_TX))
+		val |= FIELD_PREP(VSPEC1_LED_PULSE, VSPEC1_LED_TXACT);
+
+	if (rules & BIT(TRIGGER_NETDEV_RX))
+		val |= FIELD_PREP(VSPEC1_LED_PULSE, VSPEC1_LED_RXACT);
+
+	/* allow RX/TX pulse without link indication */
+	if ((rules & BIT(TRIGGER_NETDEV_TX) || rules & BIT(TRIGGER_NETDEV_RX)) &&
+	    !(val & VSPEC1_LED_CON))
+		val |= FIELD_PREP(VSPEC1_LED_PULSE, VSPEC1_LED_NO_CON) | VSPEC1_LED_CON;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_VEND1, VSPEC1_LED(index), val);
+	if (ret)
+		return ret;
+
+	return phy_set_bits(phydev, PHY_LED, PHY_LED_HWCONTROL(index));
+}
+
+static int gpy_led_polarity_set(struct phy_device *phydev, int index,
+				unsigned long modes)
+{
+	bool force_active_low = false, force_active_high = false;
+	u32 mode;
+
+	if (index >= GPY_MAX_LEDS)
+		return -EINVAL;
+
+	for_each_set_bit(mode, &modes, __PHY_LED_MODES_NUM) {
+		switch (mode) {
+		case PHY_LED_ACTIVE_LOW:
+			force_active_low = true;
+			break;
+		case PHY_LED_ACTIVE_HIGH:
+			force_active_high = true;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (force_active_low)
+		return phy_set_bits(phydev, PHY_LED, PHY_LED_POLARITY(index));
+
+	if (force_active_high)
+		return phy_clear_bits(phydev, PHY_LED, PHY_LED_POLARITY(index));
+
+	return -EINVAL;
+}
+
 static struct phy_driver gpy_drivers[] = {
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY2xx),
@@ -834,6 +1034,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		.phy_id		= PHY_ID_GPY115B,
@@ -852,6 +1057,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy115_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY115C),
@@ -869,6 +1079,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy115_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		.phy_id		= PHY_ID_GPY211B,
@@ -887,6 +1102,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY211C),
@@ -904,6 +1124,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		.phy_id		= PHY_ID_GPY212B,
@@ -922,6 +1147,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY212C),
@@ -939,6 +1169,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		.phy_id		= PHY_ID_GPY215B,
@@ -957,6 +1192,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY215C),
@@ -974,6 +1214,11 @@ static struct phy_driver gpy_drivers[] = {
 		.set_wol	= gpy_set_wol,
 		.get_wol	= gpy_get_wol,
 		.set_loopback	= gpy_loopback,
+		.led_brightness_set = gpy_led_brightness_set,
+		.led_hw_is_supported = gpy_led_hw_is_supported,
+		.led_hw_control_get = gpy_led_hw_control_get,
+		.led_hw_control_set = gpy_led_hw_control_set,
+		.led_polarity_set = gpy_led_polarity_set,
 	},
 	{
 		PHY_ID_MATCH_MODEL(PHY_ID_GPY241B),
@@ -1029,7 +1274,7 @@ static struct phy_driver gpy_drivers[] = {
 };
 module_phy_driver(gpy_drivers);
 
-static struct mdio_device_id __maybe_unused gpy_tbl[] = {
+static const struct mdio_device_id __maybe_unused gpy_tbl[] = {
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY2xx)},
 	{PHY_ID_GPY115B, PHY_ID_GPYx15B_MASK},
 	{PHY_ID_MATCH_MODEL(PHY_ID_GPY115C)},

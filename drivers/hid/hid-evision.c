@@ -50,4 +50,5 @@ static struct hid_driver evision_driver = {
 };
 module_hid_driver(evision_driver);
 
+MODULE_DESCRIPTION("HID driver for EVision devices");
 MODULE_LICENSE("GPL");

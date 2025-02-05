@@ -30,6 +30,12 @@ struct btrfs_zoned_device_info;
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
+/*
+ * Arbitratry maximum size of one discard request to limit potentially long time
+ * spent in blkdev_issue_discard().
+ */
+#define BTRFS_MAX_DISCARD_CHUNK_SIZE	(SZ_1G)
+
 extern struct mutex uuid_mutex;
 
 #define BTRFS_STRIPE_LEN		SZ_64K
@@ -92,6 +98,9 @@ enum btrfs_raid_types {
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 #define BTRFS_DEV_STATE_NO_READA	(5)
 
+/* Special value encoding failure to write primary super block. */
+#define BTRFS_SUPER_PRIMARY_WRITE_ERROR		(INT_MAX / 2)
+
 struct btrfs_fs_devices;
 
 struct btrfs_device {
@@ -141,6 +150,12 @@ struct btrfs_device {
 	u32 io_width;
 	/* type and info about this device */
 	u64 type;
+
+	/*
+	 * Counter of super block write errors, values larger than
+	 * BTRFS_SUPER_PRIMARY_WRITE_ERROR encode primary super block write failure.
+	 */
+	atomic_t sb_write_errors;
 
 	/* minimal io size for this device */
 	u32 sector_size;
@@ -281,6 +296,9 @@ enum btrfs_chunk_allocation_policy {
 	BTRFS_CHUNK_ALLOC_ZONED,
 };
 
+#define BTRFS_DEFAULT_RR_MIN_CONTIG_READ	(SZ_256K)
+/* Keep in sync with raid_attr table, current maximum is RAID1C4. */
+#define BTRFS_RAID1_MAX_MIRRORS			(4)
 /*
  * Read policies for mirrored block group profiles, read picks the stripe based
  * on these policies.
@@ -288,10 +306,16 @@ enum btrfs_chunk_allocation_policy {
 enum btrfs_read_policy {
 	/* Use process PID to choose the stripe */
 	BTRFS_READ_POLICY_PID,
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	/* Balancing RAID1 reads across all striped devices (round-robin). */
+	BTRFS_READ_POLICY_RR,
+	/* Read from a specific device. */
+	BTRFS_READ_POLICY_DEVID,
+#endif
 	BTRFS_NR_READ_POLICY,
 };
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 /*
  * Checksum mode - offload it to workqueues or do it synchronously in
  * btrfs_submit_chunk().
@@ -402,6 +426,8 @@ struct btrfs_fs_devices {
 	bool seeding;
 	/* The mount needs to use a randomly generated fsid. */
 	bool temp_fsid;
+	/* Enable/disable the filesystem stats tracking. */
+	bool collect_fs_stats;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */
@@ -415,7 +441,16 @@ struct btrfs_fs_devices {
 	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
 
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
+	/*
+	 * Minimum contiguous reads before switching to next device, the unit
+	 * is one block/sectorsize.
+	 */
+	u32 rr_min_contig_read;
+
+	/* Device to be used for reading in case of RAID1. */
+	u64 read_devid;
+
 	/* Checksum mode - offload it or do it synchronously. */
 	enum btrfs_offload_csum_mode offload_csum_mode;
 #endif
@@ -435,7 +470,7 @@ struct btrfs_io_stripe {
 	/* Block mapping. */
 	u64 physical;
 	u64 length;
-	bool is_scrub;
+	bool rst_search_commit_root;
 	/* For the endio handler. */
 	struct btrfs_io_context *bioc;
 };
@@ -470,6 +505,7 @@ struct btrfs_io_context {
 	struct bio *orig_bio;
 	atomic_t error;
 	u16 max_errors;
+	bool use_rst;
 
 	u64 logical;
 	u64 size;
@@ -716,8 +752,6 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info);
 int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
-int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
-int btrfs_uuid_scan_kthread(void *data);
 bool btrfs_chunk_writeable(struct btrfs_fs_info *fs_info, u64 chunk_offset);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
 int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
@@ -728,8 +762,6 @@ int btrfs_run_dev_stats(struct btrfs_trans_handle *trans);
 void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_device *srcdev);
 void btrfs_rm_dev_replace_free_srcdev(struct btrfs_device *srcdev);
 void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev);
-int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info,
-			   u64 logical, u64 len);
 unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    u64 logical);
 u64 btrfs_calc_stripe_length(const struct btrfs_chunk_map *map);
@@ -743,7 +775,6 @@ struct btrfs_chunk_map *btrfs_alloc_chunk_map(int num_stripes, gfp_t gfp);
 int btrfs_add_chunk_map(struct btrfs_fs_info *fs_info, struct btrfs_chunk_map *map);
 #endif
 
-struct btrfs_chunk_map *btrfs_clone_chunk_map(struct btrfs_chunk_map *map, gfp_t gfp);
 struct btrfs_chunk_map *btrfs_find_chunk_map(struct btrfs_fs_info *fs_info,
 					     u64 logical, u64 length);
 struct btrfs_chunk_map *btrfs_find_chunk_map_nolock(struct btrfs_fs_info *fs_info,
@@ -826,6 +857,11 @@ int btrfs_verify_dev_extents(struct btrfs_fs_info *fs_info);
 bool btrfs_repair_one_zone(struct btrfs_fs_info *fs_info, u64 logical);
 
 bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
-u8 *btrfs_sb_fsid_ptr(struct btrfs_super_block *sb);
+const u8 *btrfs_sb_fsid_ptr(const struct btrfs_super_block *sb);
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+struct btrfs_io_context *alloc_btrfs_io_context(struct btrfs_fs_info *fs_info,
+						u64 logical, u16 total_stripes);
+#endif
 
 #endif

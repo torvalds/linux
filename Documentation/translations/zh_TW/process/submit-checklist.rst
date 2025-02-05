@@ -31,7 +31,7 @@ Linux內核補丁提交檢查單
 
    c) 使用 ``O=builddir`` 時可以成功編譯
 
-   d) 任何 Doucmentation/ 下的變更都能成功構建且不引入新警告/錯誤。
+   d) 任何 Documentation/ 下的變更都能成功構建且不引入新警告/錯誤。
       用 ``make htmldocs`` 或 ``make pdfdocs`` 檢驗構建情況並修復問題。
 
 3) 通過使用本地交叉編譯工具或其他一些構建設施在多個CPU體系結構上構建。

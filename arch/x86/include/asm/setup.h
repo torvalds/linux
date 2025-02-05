@@ -28,6 +28,8 @@
 #define NEW_CL_POINTER		0x228	/* Relative to real mode data */
 
 #ifndef __ASSEMBLY__
+#include <linux/cache.h>
+
 #include <asm/bootparam.h>
 #include <asm/x86_init.h>
 
@@ -47,7 +49,7 @@ extern unsigned long saved_video_mode;
 
 extern void reserve_standard_io_resources(void);
 extern void i386_reserve_resources(void);
-extern unsigned long __startup_64(unsigned long physaddr, struct boot_params *bp);
+extern unsigned long __startup_64(unsigned long p2v_offset, struct boot_params *bp);
 extern void startup_64_setup_gdt_idt(void);
 extern void early_setup_idt(void);
 extern void __init do_early_exception(struct pt_regs *regs, int trapnr);
@@ -132,6 +134,12 @@ asmlinkage void __init __noreturn x86_64_start_reservations(char *real_mode_data
 
 #endif /* __i386__ */
 #endif /* _SETUP */
+
+#ifdef CONFIG_CMDLINE_BOOL
+extern bool builtin_cmdline_added __ro_after_init;
+#else
+#define builtin_cmdline_added 0
+#endif
 
 #else  /* __ASSEMBLY */
 

@@ -438,6 +438,7 @@ static void dce110_timing_generator_v_program_timing(struct timing_generator *tg
 	int vstartup_start,
 	int vupdate_offset,
 	int vupdate_width,
+	int pstate_keepout,
 	const enum signal_type signal,
 	bool use_vbios)
 {
@@ -682,7 +683,8 @@ static const struct timing_generator_funcs dce110_tg_v_funcs = {
 		.tear_down_global_swap_lock =
 				dce110_timing_generator_v_tear_down_global_swap_lock,
 		.enable_advanced_request =
-				dce110_timing_generator_v_enable_advanced_request
+				dce110_timing_generator_v_enable_advanced_request,
+		.is_two_pixels_per_container = dce110_is_two_pixels_per_container,
 };
 
 void dce110_timing_generator_v_construct(

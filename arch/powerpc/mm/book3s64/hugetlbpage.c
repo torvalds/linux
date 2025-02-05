@@ -53,6 +53,16 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		/* If PTE permissions don't match, take page fault */
 		if (unlikely(!check_pte_access(access, old_pte)))
 			return 1;
+		/*
+		 * If hash-4k, hugepages use seeral contiguous PxD entries
+		 * so bail out and let mm make the page young or dirty
+		 */
+		if (IS_ENABLED(CONFIG_PPC_4K_PAGES)) {
+			if (!(old_pte & _PAGE_ACCESSED))
+				return 1;
+			if ((access & _PAGE_WRITE) && !(old_pte & _PAGE_DIRTY))
+				return 1;
+		}
 
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was

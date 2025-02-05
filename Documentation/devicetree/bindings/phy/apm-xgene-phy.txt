@@ -36,7 +36,7 @@ Optional properties:
 			  3-tuple setting for each (up to 3) supported link
 			  speed on the host. Range is 0 to 273000 in unit of
 			  uV. Default is 0.
-- apm,tx-pre-cursor2	: 2st pre-cursor emphasis taps control. Two set of
+- apm,tx-pre-cursor2	: 2nd pre-cursor emphasis taps control. Two set of
 			  3-tuple setting for each (up to 3) supported link
 			  speed on the host. Range is 0 to 127400 in unit uV.
 			  Default is 0x0.

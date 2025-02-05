@@ -408,7 +408,7 @@ void wakeme_after_rcu(struct rcu_head *head)
 }
 EXPORT_SYMBOL_GPL(wakeme_after_rcu);
 
-void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
+void __wait_rcu_gp(bool checktiny, unsigned int state, int n, call_rcu_func_t *crcu_array,
 		   struct rcu_synchronize *rs_array)
 {
 	int i;
@@ -440,7 +440,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 			if (crcu_array[j] == crcu_array[i])
 				break;
 		if (j == i) {
-			wait_for_completion(&rs_array[i].completion);
+			wait_for_completion_state(&rs_array[i].completion, state);
 			destroy_rcu_head_on_stack(&rs_array[i].head);
 		}
 	}
@@ -527,12 +527,12 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 
 #if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST) || IS_ENABLED(CONFIG_LOCK_TORTURE_TEST) || IS_MODULE(CONFIG_LOCK_TORTURE_TEST)
 /* Get rcutorture access to sched_setaffinity(). */
-long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
+long torture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask, bool dowarn)
 {
 	int ret;
 
 	ret = sched_setaffinity(pid, in_mask);
-	WARN_ONCE(ret, "%s: sched_setaffinity(%d) returned %d\n", __func__, pid, ret);
+	WARN_ONCE(dowarn && ret, "%s: sched_setaffinity(%d) returned %d\n", __func__, pid, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(torture_sched_setaffinity);

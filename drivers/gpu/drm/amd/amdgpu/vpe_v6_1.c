@@ -34,6 +34,7 @@
 
 MODULE_FIRMWARE("amdgpu/vpe_6_1_0.bin");
 MODULE_FIRMWARE("amdgpu/vpe_6_1_1.bin");
+MODULE_FIRMWARE("amdgpu/vpe_6_1_3.bin");
 
 #define VPE_THREAD1_UCODE_OFFSET	0x8000
 

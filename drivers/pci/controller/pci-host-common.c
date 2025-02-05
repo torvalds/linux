@@ -73,12 +73,10 @@ int pci_host_common_probe(struct platform_device *pdev)
 	if (IS_ERR(cfg))
 		return PTR_ERR(cfg);
 
-	/* Do not reassign resources if probe only */
-	if (!pci_has_flag(PCI_PROBE_ONLY))
-		pci_add_flags(PCI_REASSIGN_ALL_BUS);
-
 	bridge->sysdata = cfg;
 	bridge->ops = (struct pci_ops *)&ops->pci_ops;
+	bridge->enable_device = ops->enable_device;
+	bridge->disable_device = ops->disable_device;
 	bridge->msi_domain = true;
 
 	return pci_host_probe(bridge);
@@ -96,4 +94,5 @@ void pci_host_common_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_host_common_remove);
 
+MODULE_DESCRIPTION("Generic PCI host common driver");
 MODULE_LICENSE("GPL v2");

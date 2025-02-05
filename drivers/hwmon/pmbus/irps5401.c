@@ -44,7 +44,7 @@ static int irps5401_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id irps5401_id[] = {
-	{"irps5401", 0},
+	{"irps5401"},
 	{}
 };
 
@@ -63,4 +63,4 @@ module_i2c_driver(irps5401_driver);
 MODULE_AUTHOR("Robert Hancock");
 MODULE_DESCRIPTION("PMBus driver for Infineon IRPS5401");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

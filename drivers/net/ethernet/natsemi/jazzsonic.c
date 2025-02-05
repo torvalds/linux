@@ -241,7 +241,7 @@ static void jazz_sonic_device_remove(struct platform_device *pdev)
 
 static struct platform_driver jazz_sonic_driver = {
 	.probe	= jazz_sonic_probe,
-	.remove_new = jazz_sonic_device_remove,
+	.remove = jazz_sonic_device_remove,
 	.driver	= {
 		.name	= jazz_sonic_string,
 	},

@@ -336,7 +336,7 @@ static struct platform_driver uml_net_driver = {
 
 static void net_device_release(struct device *dev)
 {
-	struct uml_net *device = dev_get_drvdata(dev);
+	struct uml_net *device = container_of(dev, struct uml_net, pdev.dev);
 	struct net_device *netdev = device->dev;
 	struct uml_net_private *lp = netdev_priv(netdev);
 
@@ -636,10 +636,7 @@ static int __init eth_setup(char *str)
 		return 1;
 	}
 
-	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
-	if (!new)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*new));
+	new = memblock_alloc_or_panic(sizeof(*new), SMP_CACHE_BYTES);
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

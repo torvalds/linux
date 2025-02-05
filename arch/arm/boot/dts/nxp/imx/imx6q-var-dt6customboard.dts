@@ -18,7 +18,7 @@
 
 	backlight_lvds: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm2 0 50000>;
+		pwms = <&pwm2 0 50000 0>;
 		brightness-levels = <0 4 8 16 32 64 128 248>;
 		default-brightness-level = <7>;
 		status = "okay";
@@ -203,7 +203,6 @@
 };
 
 &pwm2 {
-	#pwm-cells = <2>;
 	status = "okay";
 };
 

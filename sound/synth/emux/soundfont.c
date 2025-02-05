@@ -38,7 +38,8 @@ static struct snd_sf_sample *sf_sample_new(struct snd_sf_list *sflist,
 static void sf_sample_delete(struct snd_sf_list *sflist,
 			     struct snd_soundfont *sf, struct snd_sf_sample *sp);
 static int load_map(struct snd_sf_list *sflist, const void __user *data, int count);
-static int load_info(struct snd_sf_list *sflist, const void __user *data, long count);
+static int load_info(struct snd_card *card, struct snd_sf_list *sflist,
+		     const void __user *data, long count);
 static int remove_info(struct snd_sf_list *sflist, struct snd_soundfont *sf,
 		       int bank, int instr);
 static void init_voice_info(struct soundfont_voice_info *avp);
@@ -113,7 +114,8 @@ snd_soundfont_close_check(struct snd_sf_list *sflist, int client)
  * it wants to do with it.
  */
 int
-snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
+snd_soundfont_load(struct snd_card *card,
+		   struct snd_sf_list *sflist, const void __user *data,
 		   long count, int client)
 {
 	struct soundfont_patch_info patch;
@@ -121,7 +123,7 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 	int  rc;
 
 	if (count < (long)sizeof(patch)) {
-		snd_printk(KERN_ERR "patch record too small %ld\n", count);
+		dev_err(card->dev, "patch record too small %ld\n", count);
 		return -EINVAL;
 	}
 	if (copy_from_user(&patch, data, sizeof(patch)))
@@ -131,16 +133,16 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 	data += sizeof(patch);
 
 	if (patch.key != SNDRV_OSS_SOUNDFONT_PATCH) {
-		snd_printk(KERN_ERR "The wrong kind of patch %x\n", patch.key);
+		dev_err(card->dev, "The wrong kind of patch %x\n", patch.key);
 		return -EINVAL;
 	}
 	if (count < patch.len) {
-		snd_printk(KERN_ERR "Patch too short %ld, need %d\n",
-			   count, patch.len);
+		dev_err(card->dev, "Patch too short %ld, need %d\n",
+			count, patch.len);
 		return -EINVAL;
 	}
 	if (patch.len < 0) {
-		snd_printk(KERN_ERR "poor length %d\n", patch.len);
+		dev_err(card->dev, "poor length %d\n", patch.len);
 		return -EINVAL;
 	}
 
@@ -164,7 +166,7 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 	rc = -EINVAL;
 	switch (patch.type) {
 	case SNDRV_SFNT_LOAD_INFO:
-		rc = load_info(sflist, data, count);
+		rc = load_info(card, sflist, data, count);
 		break;
 	case SNDRV_SFNT_LOAD_DATA:
 		rc = load_data(sflist, data, count);
@@ -184,8 +186,8 @@ snd_soundfont_load(struct snd_sf_list *sflist, const void __user *data,
 	case SNDRV_SFNT_REMOVE_INFO:
 		/* patch must be opened */
 		if (!sflist->currsf) {
-			snd_printk(KERN_ERR "soundfont: remove_info: "
-				   "patch not opened\n");
+			dev_err(card->dev,
+				"soundfont: remove_info: patch not opened\n");
 			rc = -EINVAL;
 		} else {
 			int bank, instr;
@@ -509,7 +511,8 @@ remove_info(struct snd_sf_list *sflist, struct snd_soundfont *sf,
  * open soundfont.
  */
 static int
-load_info(struct snd_sf_list *sflist, const void __user *data, long count)
+load_info(struct snd_card *card,
+	  struct snd_sf_list *sflist, const void __user *data, long count)
 {
 	struct snd_soundfont *sf;
 	struct snd_sf_zone *zone;
@@ -525,7 +528,7 @@ load_info(struct snd_sf_list *sflist, const void __user *data, long count)
 		return -EINVAL;
 
 	if (count < (long)sizeof(hdr)) {
-		printk(KERN_ERR "Soundfont error: invalid patch zone length\n");
+		dev_err(card->dev, "Soundfont error: invalid patch zone length\n");
 		return -EINVAL;
 	}
 	if (copy_from_user((char*)&hdr, data, sizeof(hdr)))
@@ -535,15 +538,15 @@ load_info(struct snd_sf_list *sflist, const void __user *data, long count)
 	count -= sizeof(hdr);
 
 	if (hdr.nvoices <= 0 || hdr.nvoices >= 100) {
-		printk(KERN_ERR "Soundfont error: Illegal voice number %d\n",
-		       hdr.nvoices);
+		dev_err(card->dev, "Soundfont error: Illegal voice number %d\n",
+			hdr.nvoices);
 		return -EINVAL;
 	}
 
 	if (count < (long)sizeof(struct soundfont_voice_info) * hdr.nvoices) {
-		printk(KERN_ERR "Soundfont Error: "
-		       "patch length(%ld) is smaller than nvoices(%d)\n",
-		       count, hdr.nvoices);
+		dev_err(card->dev,
+			"Soundfont Error: patch length(%ld) is smaller than nvoices(%d)\n",
+			count, hdr.nvoices);
 		return -EINVAL;
 	}
 
@@ -689,6 +692,21 @@ find_sample(struct snd_soundfont *sf, int sample_id)
 }
 
 
+static int
+validate_sample_info(struct soundfont_sample_info *si)
+{
+	if (si->end < 0 || si->end > si->size)
+		return -EINVAL;
+	if (si->loopstart < 0 || si->loopstart > si->end)
+		return -EINVAL;
+	if (si->loopend < 0 || si->loopend > si->end)
+		return -EINVAL;
+	/* be sure loop points start < end */
+	if (si->loopstart > si->loopend)
+		swap(si->loopstart, si->loopend);
+	return 0;
+}
+
 /*
  * Load sample information, this can include data to be loaded onto
  * the soundcard.  It can also just be a pointer into soundcard ROM.
@@ -701,7 +719,6 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	struct snd_soundfont *sf;
 	struct soundfont_sample_info sample_info;
 	struct snd_sf_sample *sp;
-	long off;
 
 	/* patch must be opened */
 	sf = sflist->currsf;
@@ -711,12 +728,16 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	if (is_special_type(sf->type))
 		return -EINVAL;
 
+	if (count < (long)sizeof(sample_info)) {
+		return -EINVAL;
+	}
 	if (copy_from_user(&sample_info, data, sizeof(sample_info)))
 		return -EFAULT;
+	data += sizeof(sample_info);
+	count -= sizeof(sample_info);
 
-	off = sizeof(sample_info);
-
-	if (sample_info.size != (count-off)/2)
+	// SoundFont uses S16LE samples.
+	if (sample_info.size * 2 != count)
 		return -EINVAL;
 
 	/* Check for dup */
@@ -727,6 +748,21 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 		return -EINVAL;
 	}
 
+	if (sample_info.size > 0) {
+		if (sample_info.start < 0)
+			return -EINVAL;
+
+		// Here we "rebase out" the start address, because the
+		// real start is the start of the provided sample data.
+		sample_info.end -= sample_info.start;
+		sample_info.loopstart -= sample_info.start;
+		sample_info.loopend -= sample_info.start;
+		sample_info.start = 0;
+
+		if (validate_sample_info(&sample_info) < 0)
+			return -EINVAL;
+	}
+
 	/* Allocate a new sample structure */
 	sp = sf_sample_new(sflist, sf);
 	if (!sp)
@@ -735,7 +771,7 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	sp->v = sample_info;
 	sp->v.sf_id = sf->id;
 	sp->v.dummy = 0;
-	sp->v.truesize = sp->v.size;
+	sp->v.truesize = 0;
 
 	/*
 	 * If there is wave data then load it.
@@ -744,7 +780,7 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 		int  rc;
 		rc = sflist->callback.sample_new
 			(sflist->callback.private_data, sp, sflist->memhdr,
-			 data + off, count - off);
+			 data, count);
 		if (rc < 0) {
 			sf_sample_delete(sflist, sf, sp);
 			return rc;
@@ -941,8 +977,8 @@ int snd_sf_vol_table[128] = {
 
 /* load GUS patch */
 static int
-load_guspatch(struct snd_sf_list *sflist, const char __user *data,
-	      long count, int client)
+load_guspatch(struct snd_card *card,
+	      struct snd_sf_list *sflist, const char __user *data, long count)
 {
 	struct patch_info patch;
 	struct snd_soundfont *sf;
@@ -952,14 +988,16 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	int rc;
 
 	if (count < (long)sizeof(patch)) {
-		snd_printk(KERN_ERR "patch record too small %ld\n", count);
+		dev_err(card->dev, "patch record too small %ld\n", count);
 		return -EINVAL;
 	}
 	if (copy_from_user(&patch, data, sizeof(patch)))
 		return -EFAULT;
-	
 	count -= sizeof(patch);
 	data += sizeof(patch);
+
+	if ((patch.len << (patch.mode & WAVE_16_BITS ? 1 : 0)) != count)
+		return -EINVAL;
 
 	sf = newsf(sflist, SNDRV_SFNT_PAT_TYPE_GUS|SNDRV_SFNT_PAT_SHARED, NULL);
 	if (sf == NULL)
@@ -974,6 +1012,11 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	smp->v.loopstart = patch.loop_start;
 	smp->v.loopend = patch.loop_end;
 	smp->v.size = patch.len;
+
+	if (validate_sample_info(&smp->v) < 0) {
+		sf_sample_delete(sflist, sf, smp);
+		return -EINVAL;
+	}
 
 	/* set up mode flags */
 	smp->v.mode_flags = 0;
@@ -1012,7 +1055,7 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	/*
 	 * load wave data
 	 */
-	if (sflist->callback.sample_new) {
+	if (smp->v.size > 0) {
 		rc = sflist->callback.sample_new
 			(sflist->callback.private_data, smp, sflist->memhdr,
 			 data, count);
@@ -1037,10 +1080,10 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 	/* panning position; -128 - 127 => 0-127 */
 	zone->v.pan = (patch.panning + 128) / 2;
 #if 0
-	snd_printk(KERN_DEBUG
-		   "gus: basefrq=%d (ofs=%d) root=%d,tune=%d, range:%d-%d\n",
-		   (int)patch.base_freq, zone->v.rate_offset,
-		   zone->v.root, zone->v.tune, zone->v.low, zone->v.high);
+	pr_debug(
+		 "gus: basefrq=%d (ofs=%d) root=%d,tune=%d, range:%d-%d\n",
+		 (int)patch.base_freq, zone->v.rate_offset,
+		 zone->v.root, zone->v.tune, zone->v.low, zone->v.high);
 #endif
 
 	/* detuning is ignored */
@@ -1072,12 +1115,12 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 		zone->v.parm.volrelease = 0x8000 | snd_sf_calc_parm_decay(release);
 		zone->v.attenuation = calc_gus_attenuation(patch.env_offset[0]);
 #if 0
-		snd_printk(KERN_DEBUG
-			   "gus: atkhld=%x, dcysus=%x, volrel=%x, att=%d\n",
-			   zone->v.parm.volatkhld,
-			   zone->v.parm.voldcysus,
-			   zone->v.parm.volrelease,
-			   zone->v.attenuation);
+		dev_dbg(card->dev,
+			"gus: atkhld=%x, dcysus=%x, volrel=%x, att=%d\n",
+			zone->v.parm.volatkhld,
+			zone->v.parm.voldcysus,
+			zone->v.parm.volrelease,
+			zone->v.attenuation);
 #endif
 	}
 
@@ -1121,12 +1164,13 @@ load_guspatch(struct snd_sf_list *sflist, const char __user *data,
 
 /* load GUS patch */
 int
-snd_soundfont_load_guspatch(struct snd_sf_list *sflist, const char __user *data,
-			    long count, int client)
+snd_soundfont_load_guspatch(struct snd_card *card,
+			    struct snd_sf_list *sflist, const char __user *data,
+			    long count)
 {
 	int rc;
 	lock_preset(sflist);
-	rc = load_guspatch(sflist, data, count, client);
+	rc = load_guspatch(card, sflist, data, count);
 	unlock_preset(sflist);
 	return rc;
 }
@@ -1377,9 +1421,8 @@ snd_sf_clear(struct snd_sf_list *sflist)
 		}
 		for (sp = sf->samples; sp; sp = nextsp) {
 			nextsp = sp->next;
-			if (sflist->callback.sample_free)
-				sflist->callback.sample_free(sflist->callback.private_data,
-							     sp, sflist->memhdr);
+			sflist->callback.sample_free(sflist->callback.private_data,
+						     sp, sflist->memhdr);
 			kfree(sp);
 		}
 		kfree(sf);
@@ -1481,9 +1524,8 @@ snd_soundfont_remove_unlocked(struct snd_sf_list *sflist)
 			nextsp = sp->next;
 			sf->samples = nextsp;
 			sflist->mem_used -= sp->v.truesize;
-			if (sflist->callback.sample_free)
-				sflist->callback.sample_free(sflist->callback.private_data,
-							     sp, sflist->memhdr);
+			sflist->callback.sample_free(sflist->callback.private_data,
+						     sp, sflist->memhdr);
 			kfree(sp);
 		}
 	}

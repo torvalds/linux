@@ -1777,7 +1777,7 @@ static int hns_nic_change_mtu(struct net_device *ndev, int new_mtu)
 	}
 
 	/* finally, set new mtu to netdevice */
-	ndev->mtu = new_mtu;
+	WRITE_ONCE(ndev->mtu, new_mtu);
 
 out:
 	if (if_running) {
@@ -2439,7 +2439,7 @@ static struct platform_driver hns_nic_dev_driver = {
 		.acpi_match_table = ACPI_PTR(hns_enet_acpi_match),
 	},
 	.probe = hns_nic_dev_probe,
-	.remove_new = hns_nic_dev_remove,
+	.remove = hns_nic_dev_remove,
 };
 
 module_platform_driver(hns_nic_dev_driver);

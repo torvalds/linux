@@ -13,14 +13,15 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
-#include <linux/fb.h>
 #include <linux/i8042.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/leds.h>
 #include <linux/module.h>
@@ -86,6 +87,34 @@ enum {
 	SALS_FNLOCK_OFF       = 0xf,
 };
 
+enum {
+	VPCCMD_R_VPC1 = 0x10,
+	VPCCMD_R_BL_MAX,
+	VPCCMD_R_BL,
+	VPCCMD_W_BL,
+	VPCCMD_R_WIFI,
+	VPCCMD_W_WIFI,
+	VPCCMD_R_BT,
+	VPCCMD_W_BT,
+	VPCCMD_R_BL_POWER,
+	VPCCMD_R_NOVO,
+	VPCCMD_R_VPC2,
+	VPCCMD_R_TOUCHPAD,
+	VPCCMD_W_TOUCHPAD,
+	VPCCMD_R_CAMERA,
+	VPCCMD_W_CAMERA,
+	VPCCMD_R_3G,
+	VPCCMD_W_3G,
+	VPCCMD_R_ODD, /* 0x21 */
+	VPCCMD_W_FAN,
+	VPCCMD_R_RF,
+	VPCCMD_W_RF,
+	VPCCMD_W_YMC = 0x2A,
+	VPCCMD_R_FAN = 0x2B,
+	VPCCMD_R_SPECIAL_BUTTONS = 0x31,
+	VPCCMD_W_BL_POWER = 0x33,
+};
+
 /*
  * These correspond to the number of supported states - 1
  * Future keyboard types may need a new system, if there's a collision
@@ -113,7 +142,7 @@ enum {
 
 struct ideapad_dytc_priv {
 	enum platform_profile_option current_profile;
-	struct platform_profile_handler pprof;
+	struct device *ppdev; /* platform profile device */
 	struct mutex mutex; /* protects the DYTC interface */
 	struct ideapad_private *priv;
 };
@@ -125,6 +154,7 @@ struct ideapad_rfk_priv {
 
 struct ideapad_private {
 	struct acpi_device *adev;
+	struct mutex vpc_mutex; /* protects the VPC calls */
 	struct rfkill *rfk[IDEAPAD_RFKILL_DEV_NUM];
 	struct ideapad_rfk_priv rfk_priv[IDEAPAD_RFKILL_DEV_NUM];
 	struct platform_device *platform_device;
@@ -145,6 +175,7 @@ struct ideapad_private {
 		bool touchpad_ctrl_via_ec : 1;
 		bool ctrl_ps2_aux_port    : 1;
 		bool usb_charging         : 1;
+		bool ymc_ec_trigger       : 1;
 	} features;
 	struct {
 		bool initialized;
@@ -152,6 +183,11 @@ struct ideapad_private {
 		struct led_classdev led;
 		unsigned int last_brightness;
 	} kbd_bl;
+	struct {
+		bool initialized;
+		struct led_classdev led;
+		unsigned int last_brightness;
+	} fn_lock;
 };
 
 static bool no_bt_rfkill;
@@ -188,6 +224,12 @@ MODULE_PARM_DESC(touchpad_ctrl_via_ec,
 	"Enable registering a 'touchpad' sysfs-attribute which can be used to manually "
 	"tell the EC to enable/disable the touchpad. This may not work on all models.");
 
+static bool ymc_ec_trigger __read_mostly;
+module_param(ymc_ec_trigger, bool, 0444);
+MODULE_PARM_DESC(ymc_ec_trigger,
+	"Enable EC triggering work-around to force emitting tablet mode events. "
+	"If you need this please report this to: platform-driver-x86@vger.kernel.org");
+
 /*
  * shared data
  */
@@ -199,7 +241,7 @@ static int ideapad_shared_init(struct ideapad_private *priv)
 {
 	int ret;
 
-	mutex_lock(&ideapad_shared_mutex);
+	guard(mutex)(&ideapad_shared_mutex);
 
 	if (!ideapad_shared) {
 		ideapad_shared = priv;
@@ -209,24 +251,21 @@ static int ideapad_shared_init(struct ideapad_private *priv)
 		ret = -EINVAL;
 	}
 
-	mutex_unlock(&ideapad_shared_mutex);
-
 	return ret;
 }
 
 static void ideapad_shared_exit(struct ideapad_private *priv)
 {
-	mutex_lock(&ideapad_shared_mutex);
+	guard(mutex)(&ideapad_shared_mutex);
 
 	if (ideapad_shared == priv)
 		ideapad_shared = NULL;
-
-	mutex_unlock(&ideapad_shared_mutex);
 }
 
 /*
  * ACPI Helpers
  */
+#define IDEAPAD_EC_TIMEOUT 200 /* in ms */
 
 static int eval_int(acpi_handle handle, const char *name, unsigned long *res)
 {
@@ -238,6 +277,29 @@ static int eval_int(acpi_handle handle, const char *name, unsigned long *res)
 		return -EIO;
 
 	*res = result;
+
+	return 0;
+}
+
+static int eval_int_with_arg(acpi_handle handle, const char *name, unsigned long arg,
+			     unsigned long *res)
+{
+	struct acpi_object_list params;
+	unsigned long long result;
+	union acpi_object in_obj;
+	acpi_status status;
+
+	params.count = 1;
+	params.pointer = &in_obj;
+	in_obj.type = ACPI_TYPE_INTEGER;
+	in_obj.integer.value = arg;
+
+	status = acpi_evaluate_integer(handle, (char *)name, &params, &result);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	if (res)
+		*res = result;
 
 	return 0;
 }
@@ -284,6 +346,89 @@ static int eval_dytc(acpi_handle handle, unsigned long cmd, unsigned long *res)
 	return eval_int_with_arg(handle, "DYTC", cmd, res);
 }
 
+static int eval_vpcr(acpi_handle handle, unsigned long cmd, unsigned long *res)
+{
+	return eval_int_with_arg(handle, "VPCR", cmd, res);
+}
+
+static int eval_vpcw(acpi_handle handle, unsigned long cmd, unsigned long data)
+{
+	struct acpi_object_list params;
+	union acpi_object in_obj[2];
+	acpi_status status;
+
+	params.count = 2;
+	params.pointer = in_obj;
+	in_obj[0].type = ACPI_TYPE_INTEGER;
+	in_obj[0].integer.value = cmd;
+	in_obj[1].type = ACPI_TYPE_INTEGER;
+	in_obj[1].integer.value = data;
+
+	status = acpi_evaluate_object(handle, "VPCW", &params, NULL);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return 0;
+}
+
+static int read_ec_data(acpi_handle handle, unsigned long cmd, unsigned long *data)
+{
+	unsigned long end_jiffies, val;
+	int err;
+
+	err = eval_vpcw(handle, 1, cmd);
+	if (err)
+		return err;
+
+	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
+
+	while (time_before(jiffies, end_jiffies)) {
+		schedule();
+
+		err = eval_vpcr(handle, 1, &val);
+		if (err)
+			return err;
+
+		if (val == 0)
+			return eval_vpcr(handle, 0, data);
+	}
+
+	acpi_handle_err(handle, "timeout in %s\n", __func__);
+
+	return -ETIMEDOUT;
+}
+
+static int write_ec_cmd(acpi_handle handle, unsigned long cmd, unsigned long data)
+{
+	unsigned long end_jiffies, val;
+	int err;
+
+	err = eval_vpcw(handle, 0, data);
+	if (err)
+		return err;
+
+	err = eval_vpcw(handle, 1, cmd);
+	if (err)
+		return err;
+
+	end_jiffies = jiffies + msecs_to_jiffies(IDEAPAD_EC_TIMEOUT) + 1;
+
+	while (time_before(jiffies, end_jiffies)) {
+		schedule();
+
+		err = eval_vpcr(handle, 1, &val);
+		if (err)
+			return err;
+
+		if (val == 0)
+			return 0;
+	}
+
+	acpi_handle_err(handle, "timeout in %s\n", __func__);
+
+	return -ETIMEDOUT;
+}
+
 /*
  * debugfs
  */
@@ -291,6 +436,8 @@ static int debugfs_status_show(struct seq_file *s, void *data)
 {
 	struct ideapad_private *priv = s->private;
 	unsigned long value;
+
+	guard(mutex)(&priv->vpc_mutex);
 
 	if (!read_ec_data(priv->adev->handle, VPCCMD_R_BL_MAX, &value))
 		seq_printf(s, "Backlight max:  %lu\n", value);
@@ -407,12 +554,14 @@ static ssize_t camera_power_show(struct device *dev,
 				 char *buf)
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
-	unsigned long result;
+	unsigned long result = 0;
 	int err;
 
-	err = read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = read_ec_data(priv->adev->handle, VPCCMD_R_CAMERA, &result);
+		if (err)
+			return err;
+	}
 
 	return sysfs_emit(buf, "%d\n", !!result);
 }
@@ -429,9 +578,11 @@ static ssize_t camera_power_store(struct device *dev,
 	if (err)
 		return err;
 
-	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_CAMERA, state);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = write_ec_cmd(priv->adev->handle, VPCCMD_W_CAMERA, state);
+		if (err)
+			return err;
+	}
 
 	return count;
 }
@@ -479,12 +630,14 @@ static ssize_t fan_mode_show(struct device *dev,
 			     char *buf)
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
-	unsigned long result;
+	unsigned long result = 0;
 	int err;
 
-	err = read_ec_data(priv->adev->handle, VPCCMD_R_FAN, &result);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = read_ec_data(priv->adev->handle, VPCCMD_R_FAN, &result);
+		if (err)
+			return err;
+	}
 
 	return sysfs_emit(buf, "%lu\n", result);
 }
@@ -504,20 +657,19 @@ static ssize_t fan_mode_store(struct device *dev,
 	if (state > 4 || state == 3)
 		return -EINVAL;
 
-	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_FAN, state);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = write_ec_cmd(priv->adev->handle, VPCCMD_W_FAN, state);
+		if (err)
+			return err;
+	}
 
 	return count;
 }
 
 static DEVICE_ATTR_RW(fan_mode);
 
-static ssize_t fn_lock_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ideapad_fn_lock_get(struct ideapad_private *priv)
 {
-	struct ideapad_private *priv = dev_get_drvdata(dev);
 	unsigned long hals;
 	int err;
 
@@ -525,7 +677,40 @@ static ssize_t fn_lock_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_FNLOCK_STATE_BIT, &hals));
+	return !!test_bit(HALS_FNLOCK_STATE_BIT, &hals);
+}
+
+static int ideapad_fn_lock_set(struct ideapad_private *priv, bool state)
+{
+	return exec_sals(priv->adev->handle,
+		state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+}
+
+static void ideapad_fn_lock_led_notify(struct ideapad_private *priv, int brightness)
+{
+	if (!priv->fn_lock.initialized)
+		return;
+
+	if (brightness == priv->fn_lock.last_brightness)
+		return;
+
+	priv->fn_lock.last_brightness = brightness;
+
+	led_classdev_notify_brightness_hw_changed(&priv->fn_lock.led, brightness);
+}
+
+static ssize_t fn_lock_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	int brightness;
+
+	brightness = ideapad_fn_lock_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	return sysfs_emit(buf, "%d\n", brightness);
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -540,9 +725,11 @@ static ssize_t fn_lock_store(struct device *dev,
 	if (err)
 		return err;
 
-	err = exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+	err = ideapad_fn_lock_set(priv, state);
 	if (err)
 		return err;
+
+	ideapad_fn_lock_led_notify(priv, state);
 
 	return count;
 }
@@ -554,12 +741,14 @@ static ssize_t touchpad_show(struct device *dev,
 			     char *buf)
 {
 	struct ideapad_private *priv = dev_get_drvdata(dev);
-	unsigned long result;
+	unsigned long result = 0;
 	int err;
 
-	err = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &result);
+		if (err)
+			return err;
+	}
 
 	priv->r_touchpad_val = result;
 
@@ -578,9 +767,11 @@ static ssize_t touchpad_store(struct device *dev,
 	if (err)
 		return err;
 
-	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, state);
-	if (err)
-		return err;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		err = write_ec_cmd(priv->adev->handle, VPCCMD_W_TOUCHPAD, state);
+		if (err)
+			return err;
+	}
 
 	priv->r_touchpad_val = state;
 
@@ -742,10 +933,10 @@ static int convert_profile_to_dytc(enum platform_profile_option profile, int *pe
  * dytc_profile_get: Function to register with platform_profile
  * handler. Returns current platform profile.
  */
-static int dytc_profile_get(struct platform_profile_handler *pprof,
+static int dytc_profile_get(struct device *dev,
 			    enum platform_profile_option *profile)
 {
-	struct ideapad_dytc_priv *dytc = container_of(pprof, struct ideapad_dytc_priv, pprof);
+	struct ideapad_dytc_priv *dytc = dev_get_drvdata(dev);
 
 	*profile = dytc->current_profile;
 	return 0;
@@ -795,44 +986,50 @@ static int dytc_cql_command(struct ideapad_private *priv, unsigned long cmd,
  * dytc_profile_set: Function to register with platform_profile
  * handler. Sets current platform profile.
  */
-static int dytc_profile_set(struct platform_profile_handler *pprof,
+static int dytc_profile_set(struct device *dev,
 			    enum platform_profile_option profile)
 {
-	struct ideapad_dytc_priv *dytc = container_of(pprof, struct ideapad_dytc_priv, pprof);
+	struct ideapad_dytc_priv *dytc = dev_get_drvdata(dev);
 	struct ideapad_private *priv = dytc->priv;
 	unsigned long output;
 	int err;
 
-	err = mutex_lock_interruptible(&dytc->mutex);
-	if (err)
-		return err;
+	scoped_guard(mutex_intr, &dytc->mutex) {
+		if (profile == PLATFORM_PROFILE_BALANCED) {
+			/* To get back to balanced mode we just issue a reset command */
+			err = eval_dytc(priv->adev->handle, DYTC_CMD_RESET, NULL);
+			if (err)
+				return err;
+		} else {
+			int perfmode;
 
-	if (profile == PLATFORM_PROFILE_BALANCED) {
-		/* To get back to balanced mode we just issue a reset command */
-		err = eval_dytc(priv->adev->handle, DYTC_CMD_RESET, NULL);
-		if (err)
-			goto unlock;
-	} else {
-		int perfmode;
+			err = convert_profile_to_dytc(profile, &perfmode);
+			if (err)
+				return err;
 
-		err = convert_profile_to_dytc(profile, &perfmode);
-		if (err)
-			goto unlock;
+			/* Determine if we are in CQL mode. This alters the commands we do */
+			err = dytc_cql_command(priv,
+					       DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
+					       &output);
+			if (err)
+				return err;
+		}
 
-		/* Determine if we are in CQL mode. This alters the commands we do */
-		err = dytc_cql_command(priv, DYTC_SET_COMMAND(DYTC_FUNCTION_MMC, perfmode, 1),
-				       &output);
-		if (err)
-			goto unlock;
+		/* Success - update current profile */
+		dytc->current_profile = profile;
+		return 0;
 	}
 
-	/* Success - update current profile */
-	dytc->current_profile = profile;
+	return -EINTR;
+}
 
-unlock:
-	mutex_unlock(&dytc->mutex);
+static int dytc_profile_probe(void *drvdata, unsigned long *choices)
+{
+	set_bit(PLATFORM_PROFILE_LOW_POWER, choices);
+	set_bit(PLATFORM_PROFILE_BALANCED, choices);
+	set_bit(PLATFORM_PROFILE_PERFORMANCE, choices);
 
-	return err;
+	return 0;
 }
 
 static void dytc_profile_refresh(struct ideapad_private *priv)
@@ -841,9 +1038,8 @@ static void dytc_profile_refresh(struct ideapad_private *priv)
 	unsigned long output;
 	int err, perfmode;
 
-	mutex_lock(&priv->dytc->mutex);
-	err = dytc_cql_command(priv, DYTC_CMD_GET, &output);
-	mutex_unlock(&priv->dytc->mutex);
+	scoped_guard(mutex, &priv->dytc->mutex)
+		err = dytc_cql_command(priv, DYTC_CMD_GET, &output);
 	if (err)
 		return;
 
@@ -854,7 +1050,7 @@ static void dytc_profile_refresh(struct ideapad_private *priv)
 
 	if (profile != priv->dytc->current_profile) {
 		priv->dytc->current_profile = profile;
-		platform_profile_notify();
+		platform_profile_notify(priv->dytc->ppdev);
 	}
 }
 
@@ -874,6 +1070,12 @@ static const struct dmi_system_id ideapad_dytc_v4_allow_table[] = {
 		}
 	},
 	{}
+};
+
+static const struct platform_profile_ops dytc_profile_ops = {
+	.probe = dytc_profile_probe,
+	.profile_get = dytc_profile_get,
+	.profile_set = dytc_profile_set,
 };
 
 static int ideapad_dytc_profile_init(struct ideapad_private *priv)
@@ -916,18 +1118,15 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 	mutex_init(&priv->dytc->mutex);
 
 	priv->dytc->priv = priv;
-	priv->dytc->pprof.profile_get = dytc_profile_get;
-	priv->dytc->pprof.profile_set = dytc_profile_set;
-
-	/* Setup supported modes */
-	set_bit(PLATFORM_PROFILE_LOW_POWER, priv->dytc->pprof.choices);
-	set_bit(PLATFORM_PROFILE_BALANCED, priv->dytc->pprof.choices);
-	set_bit(PLATFORM_PROFILE_PERFORMANCE, priv->dytc->pprof.choices);
 
 	/* Create platform_profile structure and register */
-	err = platform_profile_register(&priv->dytc->pprof);
-	if (err)
+	priv->dytc->ppdev = devm_platform_profile_register(&priv->platform_device->dev,
+							   "ideapad-laptop", &priv->dytc,
+							   &dytc_profile_ops);
+	if (IS_ERR(priv->dytc->ppdev)) {
+		err = PTR_ERR(priv->dytc->ppdev);
 		goto pp_reg_failed;
+	}
 
 	/* Ensure initial values are correct */
 	dytc_profile_refresh(priv);
@@ -947,7 +1146,6 @@ static void ideapad_dytc_profile_exit(struct ideapad_private *priv)
 	if (!priv->dytc)
 		return;
 
-	platform_profile_remove();
 	mutex_destroy(&priv->dytc->mutex);
 	kfree(priv->dytc);
 
@@ -975,6 +1173,8 @@ static int ideapad_rfk_set(void *data, bool blocked)
 	struct ideapad_rfk_priv *priv = data;
 	int opcode = ideapad_rfk_data[priv->dev].opcode;
 
+	guard(mutex)(&priv->priv->vpc_mutex);
+
 	return write_ec_cmd(priv->priv->adev->handle, opcode, !blocked);
 }
 
@@ -988,6 +1188,8 @@ static void ideapad_sync_rfk_state(struct ideapad_private *priv)
 	int i;
 
 	if (priv->features.hw_rfkill_switch) {
+		guard(mutex)(&priv->vpc_mutex);
+
 		if (read_ec_data(priv->adev->handle, VPCCMD_R_RF, &hw_blocked))
 			return;
 		hw_blocked = !hw_blocked;
@@ -1103,6 +1305,9 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,	0x27 | IDEAPAD_WMI_KEY, { KEY_HELP } },
 	/* Refresh Rate Toggle */
 	{ KE_KEY,	0x0a | IDEAPAD_WMI_KEY, { KEY_REFRESH_RATE_TOGGLE } },
+	/* Specific to some newer models */
+	{ KE_KEY,	0x3e | IDEAPAD_WMI_KEY, { KEY_MICMUTE } },
+	{ KE_KEY,	0x3f | IDEAPAD_WMI_KEY, { KEY_RFKILL } },
 
 	{ KE_END },
 };
@@ -1161,8 +1366,9 @@ static void ideapad_input_novokey(struct ideapad_private *priv)
 {
 	unsigned long long_pressed;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_NOVO, &long_pressed))
-		return;
+	scoped_guard(mutex, &priv->vpc_mutex)
+		if (read_ec_data(priv->adev->handle, VPCCMD_R_NOVO, &long_pressed))
+			return;
 
 	if (long_pressed)
 		ideapad_input_report(priv, 17);
@@ -1174,15 +1380,19 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 {
 	unsigned long bit, value;
 
-	if (read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value))
-		return;
+	scoped_guard(mutex, &priv->vpc_mutex)
+		if (read_ec_data(priv->adev->handle, VPCCMD_R_SPECIAL_BUTTONS, &value))
+			return;
 
 	for_each_set_bit (bit, &value, 16) {
 		switch (bit) {
 		case 6:	/* Z570 */
 		case 0:	/* Z580 */
-			/* Thermal Management button */
-			ideapad_input_report(priv, 65);
+			/* Thermal Management / Performance Mode button */
+			if (priv->dytc)
+				platform_profile_cycle();
+			else
+				ideapad_input_report(priv, 65);
 			break;
 		case 1:
 			/* OneKey Theater button */
@@ -1205,6 +1415,8 @@ static int ideapad_backlight_get_brightness(struct backlight_device *blightdev)
 	unsigned long now;
 	int err;
 
+	guard(mutex)(&priv->vpc_mutex);
+
 	err = read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
 	if (err)
 		return err;
@@ -1217,13 +1429,15 @@ static int ideapad_backlight_update_status(struct backlight_device *blightdev)
 	struct ideapad_private *priv = bl_get_data(blightdev);
 	int err;
 
+	guard(mutex)(&priv->vpc_mutex);
+
 	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_BL,
 			   blightdev->props.brightness);
 	if (err)
 		return err;
 
 	err = write_ec_cmd(priv->adev->handle, VPCCMD_W_BL_POWER,
-			   blightdev->props.power != FB_BLANK_POWERDOWN);
+			   blightdev->props.power != BACKLIGHT_POWER_OFF);
 	if (err)
 		return err;
 
@@ -1273,7 +1487,7 @@ static int ideapad_backlight_init(struct ideapad_private *priv)
 
 	priv->blightdev = blightdev;
 	blightdev->props.brightness = now;
-	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	blightdev->props.power = power ? BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 
 	backlight_update_status(blightdev);
 
@@ -1294,10 +1508,12 @@ static void ideapad_backlight_notify_power(struct ideapad_private *priv)
 	if (!blightdev)
 		return;
 
+	guard(mutex)(&priv->vpc_mutex);
+
 	if (read_ec_data(priv->adev->handle, VPCCMD_R_BL_POWER, &power))
 		return;
 
-	blightdev->props.power = power ? FB_BLANK_UNBLANK : FB_BLANK_POWERDOWN;
+	blightdev->props.power = power ? BACKLIGHT_POWER_ON : BACKLIGHT_POWER_OFF;
 }
 
 static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
@@ -1306,7 +1522,8 @@ static void ideapad_backlight_notify_brightness(struct ideapad_private *priv)
 
 	/* if we control brightness via acpi video driver */
 	if (!priv->blightdev)
-		read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
+		scoped_guard(mutex, &priv->vpc_mutex)
+			read_ec_data(priv->adev->handle, VPCCMD_R_BL, &now);
 	else
 		backlight_force_update(priv->blightdev, BACKLIGHT_UPDATE_HOTKEY);
 }
@@ -1463,6 +1680,65 @@ static void ideapad_kbd_bl_exit(struct ideapad_private *priv)
 }
 
 /*
+ * FnLock LED
+ */
+static enum led_brightness ideapad_fn_lock_led_cdev_get(struct led_classdev *led_cdev)
+{
+	struct ideapad_private *priv = container_of(led_cdev, struct ideapad_private, fn_lock.led);
+
+	return ideapad_fn_lock_get(priv);
+}
+
+static int ideapad_fn_lock_led_cdev_set(struct led_classdev *led_cdev,
+	enum led_brightness brightness)
+{
+	struct ideapad_private *priv = container_of(led_cdev, struct ideapad_private, fn_lock.led);
+
+	return ideapad_fn_lock_set(priv, brightness);
+}
+
+static int ideapad_fn_lock_led_init(struct ideapad_private *priv)
+{
+	int brightness, err;
+
+	if (!priv->features.fn_lock)
+		return -ENODEV;
+
+	if (WARN_ON(priv->fn_lock.initialized))
+		return -EEXIST;
+
+	priv->fn_lock.led.max_brightness = 1;
+
+	brightness = ideapad_fn_lock_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	priv->fn_lock.last_brightness = brightness;
+	priv->fn_lock.led.name                    = "platform::" LED_FUNCTION_FNLOCK;
+	priv->fn_lock.led.brightness_get          = ideapad_fn_lock_led_cdev_get;
+	priv->fn_lock.led.brightness_set_blocking = ideapad_fn_lock_led_cdev_set;
+	priv->fn_lock.led.flags                   = LED_BRIGHT_HW_CHANGED;
+
+	err = led_classdev_register(&priv->platform_device->dev, &priv->fn_lock.led);
+	if (err)
+		return err;
+
+	priv->fn_lock.initialized = true;
+
+	return 0;
+}
+
+static void ideapad_fn_lock_led_exit(struct ideapad_private *priv)
+{
+	if (!priv->fn_lock.initialized)
+		return;
+
+	priv->fn_lock.initialized = false;
+
+	led_classdev_unregister(&priv->fn_lock.led);
+}
+
+/*
  * module init/exit
  */
 static void ideapad_sync_touchpad_state(struct ideapad_private *priv, bool send_events)
@@ -1472,7 +1748,8 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv, bool send_
 	int ret;
 
 	/* Without reading from EC touchpad LED doesn't switch state */
-	ret = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value);
+	scoped_guard(mutex, &priv->vpc_mutex)
+		ret = read_ec_data(priv->adev->handle, VPCCMD_R_TOUCHPAD, &value);
 	if (ret)
 		return;
 
@@ -1500,16 +1777,92 @@ static void ideapad_sync_touchpad_state(struct ideapad_private *priv, bool send_
 	priv->r_touchpad_val = value;
 }
 
+static const struct dmi_system_id ymc_ec_trigger_quirk_dmi_table[] = {
+	{
+		/* Lenovo Yoga 7 14ARB7 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82QF"),
+		},
+	},
+	{
+		/* Lenovo Yoga 7 14ACN6 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "82N7"),
+		},
+	},
+	{ }
+};
+
+static void ideapad_laptop_trigger_ec(void)
+{
+	struct ideapad_private *priv;
+	int ret;
+
+	guard(mutex)(&ideapad_shared_mutex);
+
+	priv = ideapad_shared;
+	if (!priv)
+		return;
+
+	if (!priv->features.ymc_ec_trigger)
+		return;
+
+	scoped_guard(mutex, &priv->vpc_mutex)
+		ret = write_ec_cmd(priv->adev->handle, VPCCMD_W_YMC, 1);
+	if (ret)
+		dev_warn(&priv->platform_device->dev, "Could not write YMC: %d\n", ret);
+}
+
+static int ideapad_laptop_nb_notify(struct notifier_block *nb,
+				    unsigned long action, void *data)
+{
+	switch (action) {
+	case IDEAPAD_LAPTOP_YMC_EVENT:
+		ideapad_laptop_trigger_ec();
+		break;
+	}
+
+	return 0;
+}
+
+static struct notifier_block ideapad_laptop_notifier = {
+	.notifier_call = ideapad_laptop_nb_notify,
+};
+
+static BLOCKING_NOTIFIER_HEAD(ideapad_laptop_chain_head);
+
+int ideapad_laptop_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&ideapad_laptop_chain_head, nb);
+}
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_register_notifier, "IDEAPAD_LAPTOP");
+
+int ideapad_laptop_unregister_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&ideapad_laptop_chain_head, nb);
+}
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_unregister_notifier, "IDEAPAD_LAPTOP");
+
+void ideapad_laptop_call_notifier(unsigned long action, void *data)
+{
+	blocking_notifier_call_chain(&ideapad_laptop_chain_head, action, data);
+}
+EXPORT_SYMBOL_NS_GPL(ideapad_laptop_call_notifier, "IDEAPAD_LAPTOP");
+
 static void ideapad_acpi_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct ideapad_private *priv = data;
 	unsigned long vpc1, vpc2, bit;
 
-	if (read_ec_data(handle, VPCCMD_R_VPC1, &vpc1))
-		return;
+	scoped_guard(mutex, &priv->vpc_mutex) {
+		if (read_ec_data(handle, VPCCMD_R_VPC1, &vpc1))
+			return;
 
-	if (read_ec_data(handle, VPCCMD_R_VPC2, &vpc2))
-		return;
+		if (read_ec_data(handle, VPCCMD_R_VPC2, &vpc2))
+			return;
+	}
 
 	vpc1 = (vpc2 << 8) | vpc1;
 
@@ -1636,6 +1989,8 @@ static void ideapad_check_features(struct ideapad_private *priv)
 	priv->features.ctrl_ps2_aux_port =
 		ctrl_ps2_aux_port || dmi_check_system(ctrl_ps2_aux_port_list);
 	priv->features.touchpad_ctrl_via_ec = touchpad_ctrl_via_ec;
+	priv->features.ymc_ec_trigger =
+		ymc_ec_trigger || dmi_check_system(ymc_ec_trigger_quirk_dmi_table);
 
 	if (!read_ec_data(handle, VPCCMD_R_FAN, &val))
 		priv->features.fan_mode = true;
@@ -1709,24 +2064,25 @@ static void ideapad_wmi_notify(struct wmi_device *wdev, union acpi_object *data)
 {
 	struct ideapad_wmi_private *wpriv = dev_get_drvdata(&wdev->dev);
 	struct ideapad_private *priv;
-	unsigned long result;
 
-	mutex_lock(&ideapad_shared_mutex);
+	guard(mutex)(&ideapad_shared_mutex);
 
 	priv = ideapad_shared;
 	if (!priv)
-		goto unlock;
+		return;
 
 	switch (wpriv->event) {
 	case IDEAPAD_WMI_EVENT_ESC:
 		ideapad_input_report(priv, 128);
 		break;
 	case IDEAPAD_WMI_EVENT_FN_KEYS:
-		if (priv->features.set_fn_lock_led &&
-		    !eval_hals(priv->adev->handle, &result)) {
-			bool state = test_bit(HALS_FNLOCK_STATE_BIT, &result);
+		if (priv->features.set_fn_lock_led) {
+			int brightness = ideapad_fn_lock_get(priv);
 
-			exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+			if (brightness >= 0) {
+				ideapad_fn_lock_set(priv, brightness);
+				ideapad_fn_lock_led_notify(priv, brightness);
+			}
 		}
 
 		if (data->type != ACPI_TYPE_INTEGER) {
@@ -1738,13 +2094,15 @@ static void ideapad_wmi_notify(struct wmi_device *wdev, union acpi_object *data)
 		dev_dbg(&wdev->dev, "WMI fn-key event: 0x%llx\n",
 			data->integer.value);
 
+		/* 0x02 FnLock, 0x03 Esc */
+		if (data->integer.value == 0x02 || data->integer.value == 0x03)
+			ideapad_fn_lock_led_notify(priv, data->integer.value == 0x02);
+
 		ideapad_input_report(priv,
 				     data->integer.value | IDEAPAD_WMI_KEY);
 
 		break;
 	}
-unlock:
-	mutex_unlock(&ideapad_shared_mutex);
 }
 
 static const struct ideapad_wmi_private ideapad_wmi_context_esc = {
@@ -1811,6 +2169,10 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	priv->adev = adev;
 	priv->platform_device = pdev;
 
+	err = devm_mutex_init(&pdev->dev, &priv->vpc_mutex);
+	if (err)
+		return err;
+
 	ideapad_check_features(priv);
 
 	err = ideapad_sysfs_init(priv);
@@ -1829,6 +2191,14 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "Could not set up keyboard backlight LED: %d\n", err);
 		else
 			dev_info(&pdev->dev, "Keyboard backlight control not available\n");
+	}
+
+	err = ideapad_fn_lock_led_init(priv);
+	if (err) {
+		if (err != -ENODEV)
+			dev_warn(&pdev->dev, "Could not set up FnLock LED: %d\n", err);
+		else
+			dev_info(&pdev->dev, "FnLock control not available\n");
 	}
 
 	/*
@@ -1871,6 +2241,8 @@ static int ideapad_acpi_add(struct platform_device *pdev)
 	if (err)
 		goto shared_init_failed;
 
+	ideapad_laptop_register_notifier(&ideapad_laptop_notifier);
+
 	return 0;
 
 shared_init_failed:
@@ -1887,6 +2259,7 @@ backlight_failed:
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 
+	ideapad_fn_lock_led_exit(priv);
 	ideapad_kbd_bl_exit(priv);
 	ideapad_input_exit(priv);
 
@@ -1902,6 +2275,8 @@ static void ideapad_acpi_remove(struct platform_device *pdev)
 	struct ideapad_private *priv = dev_get_drvdata(&pdev->dev);
 	int i;
 
+	ideapad_laptop_unregister_notifier(&ideapad_laptop_notifier);
+
 	ideapad_shared_exit(priv);
 
 	acpi_remove_notify_handler(priv->adev->handle,
@@ -1914,6 +2289,7 @@ static void ideapad_acpi_remove(struct platform_device *pdev)
 	for (i = 0; i < IDEAPAD_RFKILL_DEV_NUM; i++)
 		ideapad_unregister_rfkill(priv, i);
 
+	ideapad_fn_lock_led_exit(priv);
 	ideapad_kbd_bl_exit(priv);
 	ideapad_input_exit(priv);
 	ideapad_debugfs_exit(priv);
@@ -1944,7 +2320,7 @@ MODULE_DEVICE_TABLE(acpi, ideapad_device_ids);
 
 static struct platform_driver ideapad_acpi_driver = {
 	.probe = ideapad_acpi_add,
-	.remove_new = ideapad_acpi_remove,
+	.remove = ideapad_acpi_remove,
 	.driver = {
 		.name   = "ideapad_acpi",
 		.pm     = &ideapad_pm,

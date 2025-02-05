@@ -141,17 +141,10 @@ static int keystone_irq_probe(struct platform_device *pdev)
 	if (!kirq)
 		return -ENOMEM;
 
-	kirq->devctrl_regs =
-		syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
+	kirq->devctrl_regs = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-dev",
+								  1, &kirq->devctrl_offset);
 	if (IS_ERR(kirq->devctrl_regs))
 		return PTR_ERR(kirq->devctrl_regs);
-
-	ret = of_property_read_u32_index(np, "ti,syscon-dev", 1,
-					 &kirq->devctrl_offset);
-	if (ret) {
-		dev_err(dev, "couldn't read the devctrl_offset offset!\n");
-		return ret;
-	}
 
 	kirq->irq = platform_get_irq(pdev, 0);
 	if (kirq->irq < 0)
@@ -211,7 +204,7 @@ MODULE_DEVICE_TABLE(of, keystone_irq_dt_ids);
 
 static struct platform_driver keystone_irq_device_driver = {
 	.probe		= keystone_irq_probe,
-	.remove_new	= keystone_irq_remove,
+	.remove		= keystone_irq_remove,
 	.driver		= {
 		.name	= "keystone_irq",
 		.of_match_table	= of_match_ptr(keystone_irq_dt_ids),

@@ -101,6 +101,7 @@ set_debug(const char *val, const struct kernel_param *kp)
 }
 
 MODULE_AUTHOR("Karsten Keil");
+MODULE_DESCRIPTION("mISDN driver for Winbond w6692 based cards");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(W6692_REV);
 module_param_call(debug, set_debug, param_get_uint, &debug, S_IRUGO | S_IWUSR);

@@ -63,7 +63,6 @@ static struct ctl_table loadpin_sysctl_table[] = {
 		.extra1         = SYSCTL_ONE,
 		.extra2         = SYSCTL_ONE,
 	},
-	{ }
 };
 
 static void set_sysctl(bool is_writable)
@@ -284,7 +283,6 @@ enum loadpin_securityfs_interface_index {
 
 static int read_trusted_verity_root_digests(unsigned int fd)
 {
-	struct fd f;
 	void *data;
 	int rc;
 	char *p, *d;
@@ -296,8 +294,8 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 	if (!list_empty(&dm_verity_loadpin_trusted_root_digests))
 		return -EPERM;
 
-	f = fdget(fd);
-	if (!f.file)
+	CLASS(fd, f)(fd);
+	if (fd_empty(f))
 		return -EINVAL;
 
 	data = kzalloc(SZ_4K, GFP_KERNEL);
@@ -306,7 +304,7 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 		goto err;
 	}
 
-	rc = kernel_read_file(f.file, 0, (void **)&data, SZ_4K - 1, NULL, READING_POLICY);
+	rc = kernel_read_file(fd_file(f), 0, (void **)&data, SZ_4K - 1, NULL, READING_POLICY);
 	if (rc < 0)
 		goto err;
 
@@ -360,7 +358,6 @@ static int read_trusted_verity_root_digests(unsigned int fd)
 	}
 
 	kfree(data);
-	fdput(f);
 
 	return 0;
 
@@ -379,8 +376,6 @@ err:
 
 	/* disallow further attempts after reading a corrupt/invalid file */
 	deny_reading_verity_digests = true;
-
-	fdput(f);
 
 	return rc;
 }

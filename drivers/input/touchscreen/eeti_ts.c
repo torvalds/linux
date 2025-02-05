@@ -21,7 +21,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 struct eeti_ts {
 	struct i2c_client *client;
@@ -273,7 +273,7 @@ static int eeti_ts_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(eeti_ts_pm, eeti_ts_suspend, eeti_ts_resume);
 
 static const struct i2c_device_id eeti_ts_id[] = {
-	{ "eeti_ts", 0 },
+	{ "eeti_ts" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, eeti_ts_id);

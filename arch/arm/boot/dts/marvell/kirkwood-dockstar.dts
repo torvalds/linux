@@ -42,12 +42,12 @@
 		pinctrl-0 = <&pmx_led_green &pmx_led_orange>;
 		pinctrl-names = "default";
 
-		health {
+		led-health {
 			label = "status:green:health";
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 			default-state = "keep";
 		};
-		fault {
+		led-fault {
 			label = "status:orange:fault";
 			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
 		};

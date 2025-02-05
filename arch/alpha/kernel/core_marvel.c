@@ -81,10 +81,7 @@ mk_resource_name(int pe, int port, char *str)
 	char *name;
 	
 	sprintf(tmp, "PCI %s PE %d PORT %d", str, pe, port);
-	name = memblock_alloc(strlen(tmp) + 1, SMP_CACHE_BYTES);
-	if (!name)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      strlen(tmp) + 1);
+	name = memblock_alloc_or_panic(strlen(tmp) + 1, SMP_CACHE_BYTES);
 	strcpy(name, tmp);
 
 	return name;
@@ -119,10 +116,7 @@ alloc_io7(unsigned int pe)
 		return NULL;
 	}
 
-	io7 = memblock_alloc(sizeof(*io7), SMP_CACHE_BYTES);
-	if (!io7)
-		panic("%s: Failed to allocate %zu bytes\n", __func__,
-		      sizeof(*io7));
+	io7 = memblock_alloc_or_panic(sizeof(*io7), SMP_CACHE_BYTES);
 	io7->pe = pe;
 	raw_spin_lock_init(&io7->irq_lock);
 
@@ -355,7 +349,7 @@ marvel_init_io7(struct io7 *io7)
 	}
 }
 
-void __init
+static void __init
 marvel_io7_present(gct6_node *node)
 {
 	int pe;

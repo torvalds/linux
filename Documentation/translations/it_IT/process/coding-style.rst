@@ -214,7 +214,7 @@ Non usate inutilmente le graffe dove una singola espressione è sufficiente.
 
 e
 
-.. code-block:: none
+.. code-block:: c
 
 	if (condition)
 		do_this();
@@ -620,18 +620,6 @@ Lo stile preferito per i commenti più lunghi (multi-riga) è:
 	 * with beginning and ending almost-blank lines.
 	 */
 
-Per i file in net/ e in drivers/net/ lo stile preferito per i commenti
-più lunghi (multi-riga) è leggermente diverso.
-
-.. code-block:: c
-
-	/* The preferred comment style for files in net/ and drivers/net
-	 * looks like this.
-	 *
-	 * It is nearly the same as the generally preferred comment style,
-	 * but there is no initial almost-blank line.
-	 */
-
 È anche importante commentare i dati, sia per i tipi base che per tipi
 derivati.  A questo scopo, dichiarate un dato per riga (niente virgole
 per una dichiarazione multipla).  Questo vi lascerà spazio per un piccolo
@@ -652,7 +640,7 @@ Quindi, potete sbarazzarvi di GNU emacs, o riconfigurarlo con valori più
 sensati.  Per fare quest'ultima cosa, potete appiccicare il codice che
 segue nel vostro file .emacs:
 
-.. code-block:: none
+.. code-block:: elisp
 
   (defun c-lineup-arglist-tabs-only (ignored)
     "Line up argument lists by tabs, not spaces"
@@ -726,8 +714,12 @@ di stile, refusi e possibilmente anche delle migliorie. È anche utile per
 ordinare gli ``#include``, per allineare variabili/macro, per ridistribuire
 il testo e altre cose simili.
 Per maggiori dettagli, consultate il file
-:ref:`Documentation/translations/it_IT/process/clang-format.rst <it_clangformat>`.
+:ref:`Documentation/translations/it_IT/dev-tools/clang-format.rst <it_clangformat>`.
 
+Se utilizzate un programma compatibile con EditorConfig, allora alcune
+configurazioni basilari come l'indentazione e la fine delle righe verranno
+applicate automaticamente. Per maggiori informazioni consultate la pagina:
+https://editorconfig.org/
 
 10) File di configurazione Kconfig
 ----------------------------------
@@ -823,6 +815,29 @@ blocco do - while:
 				do_this(b, c);		\
 		} while (0)
 
+Le macro che sembrano funzioni con parametri non usati dovrebbero essere
+sostituite da funzioni inline per evitare il problema.
+
+.. code-block:: c
+
+       static inline void fun(struct foo *foo)
+       {
+       }
+
+Per motivi storici, molti file usano ancora l'approccio "cast a (void)" per
+valutare i parametri. Tuttavia, non è raccomandato. Le funzioni inline risolvono
+i problemi di "espressioni con effetti avversi valutate più di una volta",
+variabili non utilizzate, e in genere per qualche motivo sono documentate
+meglio.
+
+.. code-block:: c
+
+       /*
+        * Avoid doing this whenever possible and instead opt for static
+        * inline functions
+        */
+       #define macrofun(foo) do { (void) (foo); } while (0)
+
 Cose da evitare quando si usano le macro:
 
 1) le macro che hanno effetti sul flusso del codice:
@@ -898,7 +913,9 @@ usare per assicurarvi che i messaggi vengano associati correttamente ai
 dispositivi e ai driver, e che siano etichettati correttamente:  dev_err(),
 dev_warn(), dev_info(), e così via.  Per messaggi che non sono associati ad
 alcun dispositivo, <linux/printk.h> definisce pr_info(), pr_warn(), pr_err(),
-eccetera.
+eccetera. Quando tutto funziona correttamente, non dovrebbero esserci stampe,
+per cui preferite dev_dbg/pr_debug a meno che non sia qualcosa di sbagliato
+da segnalare.
 
 Tirar fuori un buon messaggio di debug può essere una vera sfida; e quando
 l'avete può essere d'enorme aiuto per risolvere problemi da remoto.

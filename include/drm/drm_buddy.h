@@ -27,6 +27,7 @@
 #define DRM_BUDDY_CONTIGUOUS_ALLOCATION		BIT(2)
 #define DRM_BUDDY_CLEAR_ALLOCATION		BIT(3)
 #define DRM_BUDDY_CLEARED			BIT(4)
+#define DRM_BUDDY_TRIM_DISABLE			BIT(5)
 
 struct drm_buddy_block {
 #define DRM_BUDDY_HEADER_OFFSET GENMASK_ULL(63, 12)
@@ -56,8 +57,8 @@ struct drm_buddy_block {
 	struct list_head tmp_link;
 };
 
-/* Order-zero must be at least PAGE_SIZE */
-#define DRM_BUDDY_MAX_ORDER (63 - PAGE_SHIFT)
+/* Order-zero must be at least SZ_4K */
+#define DRM_BUDDY_MAX_ORDER (63 - 12)
 
 /*
  * Binary Buddy System.
@@ -85,7 +86,7 @@ struct drm_buddy {
 	unsigned int n_roots;
 	unsigned int max_order;
 
-	/* Must be at least PAGE_SIZE */
+	/* Must be at least SZ_4K */
 	u64 chunk_size;
 	u64 size;
 	u64 avail;
@@ -155,6 +156,7 @@ int drm_buddy_alloc_blocks(struct drm_buddy *mm,
 			   unsigned long flags);
 
 int drm_buddy_block_trim(struct drm_buddy *mm,
+			 u64 *start,
 			 u64 new_size,
 			 struct list_head *blocks);
 

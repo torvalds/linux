@@ -46,9 +46,6 @@
 
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
-#include "mmu.h"
-#include "smp.h"
-#include "pmu.h"
 
 cpumask_var_t xen_cpu_initialized_map;
 
@@ -154,9 +151,9 @@ static void __init xen_pv_smp_config(void)
 	u32 apicid = 0;
 	int i;
 
-	topology_register_boot_apic(apicid++);
+	topology_register_boot_apic(apicid);
 
-	for (i = 1; i < nr_cpu_ids; i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		topology_register_apic(apicid++, CPU_ACPIID_INVALID, true);
 
 	/* Pretend to be a proper enumerated system */
@@ -308,6 +305,7 @@ static int xen_pv_kick_ap(unsigned int cpu, struct task_struct *idle)
 		return rc;
 
 	xen_pmu_init(cpu);
+	mc_percpu_init(cpu);
 
 	/*
 	 * Why is this a BUG? If the hypercall fails then everything can be

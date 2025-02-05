@@ -4,7 +4,6 @@ config VIDEO_IMX_MEDIA
 	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_DMA
 	depends on VIDEO_DEV
-	depends on VIDEO_DEV
 	depends on IMX_IPUV3_CORE
 	select MEDIA_CONTROLLER
 	select V4L2_FWNODE

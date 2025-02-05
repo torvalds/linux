@@ -54,7 +54,7 @@ static int act8945a_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id act8945a_i2c_id[] = {
-	{ "act8945a", 0 },
+	{ "act8945a" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, act8945a_i2c_id);

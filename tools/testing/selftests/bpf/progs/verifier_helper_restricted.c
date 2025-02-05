@@ -30,7 +30,7 @@ struct {
 
 SEC("kprobe")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_KPROBE")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("program of this type cannot use helper bpf_ktime_get_coarse_ns")
 __naked void in_bpf_prog_type_kprobe_1(void)
 {
 	asm volatile ("					\
@@ -44,7 +44,7 @@ __naked void in_bpf_prog_type_kprobe_1(void)
 
 SEC("tracepoint")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_TRACEPOINT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("program of this type cannot use helper bpf_ktime_get_coarse_ns")
 __naked void in_bpf_prog_type_tracepoint_1(void)
 {
 	asm volatile ("					\
@@ -58,7 +58,7 @@ __naked void in_bpf_prog_type_tracepoint_1(void)
 
 SEC("perf_event")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_PERF_EVENT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("program of this type cannot use helper bpf_ktime_get_coarse_ns")
 __naked void bpf_prog_type_perf_event_1(void)
 {
 	asm volatile ("					\
@@ -72,7 +72,7 @@ __naked void bpf_prog_type_perf_event_1(void)
 
 SEC("raw_tracepoint")
 __description("bpf_ktime_get_coarse_ns is forbidden in BPF_PROG_TYPE_RAW_TRACEPOINT")
-__failure __msg("unknown func bpf_ktime_get_coarse_ns")
+__failure __msg("program of this type cannot use helper bpf_ktime_get_coarse_ns")
 __naked void bpf_prog_type_raw_tracepoint_1(void)
 {
 	asm volatile ("					\

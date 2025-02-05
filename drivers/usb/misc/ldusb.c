@@ -627,7 +627,6 @@ static const struct file_operations ld_usb_fops = {
 	.open =		ld_usb_open,
 	.release =	ld_usb_release,
 	.poll =		ld_usb_poll,
-	.llseek =	no_llseek,
 };
 
 /*

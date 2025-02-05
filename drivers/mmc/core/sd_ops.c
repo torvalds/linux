@@ -16,8 +16,23 @@
 #include <linux/mmc/sd.h>
 
 #include "core.h"
+#include "card.h"
 #include "sd_ops.h"
 #include "mmc_ops.h"
+
+/*
+ * Extensive testing has shown that some specific SD cards
+ * require an increased command timeout to be successfully
+ * initialized.
+ */
+#define SD_APP_OP_COND_PERIOD_US	(10 * 1000) /* 10ms */
+#define SD_APP_OP_COND_TIMEOUT_MS	2000 /* 2s */
+
+struct sd_app_op_cond_busy_data {
+	struct mmc_host *host;
+	u32 ocr;
+	struct mmc_command *cmd;
+};
 
 int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 {
@@ -26,6 +41,15 @@ int mmc_app_cmd(struct mmc_host *host, struct mmc_card *card)
 
 	if (WARN_ON(card && card->host != host))
 		return -EINVAL;
+
+	/*
+	 * UHS2 packet has APP bit so only set APP_CMD flag here.
+	 * Will set the APP bit when assembling UHS2 packet.
+	 */
+	if (host->uhs2_sd_tran) {
+		host->uhs2_app_cmd = true;
+		return 0;
+	}
 
 	cmd.opcode = MMC_APP_CMD;
 
@@ -115,10 +139,45 @@ int mmc_app_set_bus_width(struct mmc_card *card, int width)
 	return mmc_wait_for_app_cmd(card->host, card, &cmd);
 }
 
+static int sd_app_op_cond_cb(void *cb_data, bool *busy)
+{
+	struct sd_app_op_cond_busy_data *data = cb_data;
+	struct mmc_host *host = data->host;
+	struct mmc_command *cmd = data->cmd;
+	u32 ocr = data->ocr;
+	int err;
+
+	*busy = false;
+
+	err = mmc_wait_for_app_cmd(host, NULL, cmd);
+	if (err)
+		return err;
+
+	/* If we're just probing, do a single pass. */
+	if (ocr == 0)
+		return 0;
+
+	/* Wait until reset completes. */
+	if (mmc_host_is_spi(host)) {
+		if (!(cmd->resp[0] & R1_SPI_IDLE))
+			return 0;
+	} else if (cmd->resp[0] & MMC_CARD_BUSY) {
+		return 0;
+	}
+
+	*busy = true;
+	return 0;
+}
+
 int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 {
 	struct mmc_command cmd = {};
-	int i, err = 0;
+	struct sd_app_op_cond_busy_data cb_data = {
+		.host = host,
+		.ocr = ocr,
+		.cmd = &cmd
+	};
+	int err;
 
 	cmd.opcode = SD_APP_OP_COND;
 	if (mmc_host_is_spi(host))
@@ -127,36 +186,30 @@ int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 		cmd.arg = ocr;
 	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R3 | MMC_CMD_BCR;
 
-	for (i = 100; i; i--) {
-		err = mmc_wait_for_app_cmd(host, NULL, &cmd);
-		if (err)
-			break;
-
-		/* if we're just probing, do a single pass */
-		if (ocr == 0)
-			break;
-
-		/* otherwise wait until reset completes */
-		if (mmc_host_is_spi(host)) {
-			if (!(cmd.resp[0] & R1_SPI_IDLE))
-				break;
-		} else {
-			if (cmd.resp[0] & MMC_CARD_BUSY)
-				break;
-		}
-
-		err = -ETIMEDOUT;
-
-		mmc_delay(10);
-	}
-
-	if (!i)
-		pr_err("%s: card never left busy state\n", mmc_hostname(host));
+	err = __mmc_poll_for_busy(host, SD_APP_OP_COND_PERIOD_US,
+				  SD_APP_OP_COND_TIMEOUT_MS, &sd_app_op_cond_cb,
+				  &cb_data);
+	if (err)
+		return err;
 
 	if (rocr && !mmc_host_is_spi(host))
 		*rocr = cmd.resp[0];
 
-	return err;
+	return 0;
+}
+
+int mmc_send_ext_addr(struct mmc_host *host, u32 addr)
+{
+	struct mmc_command cmd = {
+		.opcode = SD_ADDR_EXT,
+		.arg = addr,
+		.flags = MMC_RSP_R1 | MMC_CMD_AC,
+	};
+
+	if (!mmc_card_ult_capacity(host->card))
+		return 0;
+
+	return mmc_wait_for_cmd(host, &cmd, 0);
 }
 
 static int __mmc_send_if_cond(struct mmc_host *host, u32 ocr, u8 pcie_bits,
@@ -307,14 +360,13 @@ int mmc_app_send_scr(struct mmc_card *card)
 	return 0;
 }
 
-int mmc_sd_switch(struct mmc_card *card, int mode, int group,
+int mmc_sd_switch(struct mmc_card *card, bool mode, int group,
 	u8 value, u8 *resp)
 {
 	u32 cmd_args;
 
 	/* NOTE: caller guarantees resp is heap-allocated */
 
-	mode = !!mode;
 	value &= 0xF;
 	cmd_args = mode << 31 | 0x00FFFFFF;
 	cmd_args &= ~(0xF << (group * 4));

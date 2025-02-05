@@ -33,7 +33,7 @@ Media Bus Formats
     * - __u32
       - ``field``
       - Field order, from enum :c:type:`v4l2_field`. See
-	:ref:`field-order` for details.
+	:ref:`field-order` for details. Zero for metadata mbus codes.
     * - __u32
       - ``colorspace``
       - Image colorspace, from enum :c:type:`v4l2_colorspace`.
@@ -45,7 +45,7 @@ Media Bus Formats
 	conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_COLORSPACE in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`.
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - union {
       - (anonymous)
     * - __u16
@@ -61,7 +61,7 @@ Media Bus Formats
 	that ycbcr_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_YCBCR_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`.
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - __u16
       - ``hsv_enc``
       - HSV encoding, from enum :c:type:`v4l2_hsv_encoding`.
@@ -75,7 +75,7 @@ Media Bus Formats
 	that hsv_enc conversion is supported by setting the flag
 	V4L2_SUBDEV_MBUS_CODE_CSC_HSV_ENC in the corresponding struct
 	:c:type:`v4l2_subdev_mbus_code_enum` during enumeration.
-	See :ref:`v4l2-subdev-mbus-code-flags`
+	See :ref:`v4l2-subdev-mbus-code-flags`. Zero for metadata mbus codes.
     * - }
       -
     * - __u16
@@ -90,8 +90,8 @@ Media Bus Formats
 	The driver indicates that quantization conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_QUANTIZATION in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
-	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
-
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`. Zero for
+	metadata mbus codes.
     * - __u16
       - ``xfer_func``
       - Transfer function, from enum :c:type:`v4l2_xfer_func`.
@@ -104,7 +104,8 @@ Media Bus Formats
 	The driver indicates that the transfer function conversion is supported by
 	setting the flag V4L2_SUBDEV_MBUS_CODE_CSC_XFER_FUNC in the
 	corresponding struct :c:type:`v4l2_subdev_mbus_code_enum`
-	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`.
+	during enumeration. See :ref:`v4l2-subdev-mbus-code-flags`. Zero for
+	metadata mbus codes.
     * - __u16
       - ``flags``
       - flags See:  :ref:v4l2-mbus-framefmt-flags
@@ -2224,7 +2225,7 @@ The following table list existing packed 48bit wide RGB formats.
     \endgroup
 
 On LVDS buses, usually each sample is transferred serialized in seven
-time slots per pixel clock, on three (18-bit) or four (24-bit)
+time slots per pixel clock, on three (18-bit) or four (24-bit) or five (30-bit)
 differential data pairs at the same time. The remaining bits are used
 for control signals as defined by SPWG/PSWG/VESA or JEIDA standards. The
 24-bit RGB format serialized in seven time slots on four lanes using
@@ -2245,11 +2246,12 @@ JEIDA defined bit mapping will be named
       - Code
       -
       -
-      - :cspan:`3` Data organization
+      - :cspan:`4` Data organization
     * -
       -
       - Timeslot
       - Lane
+      - 4
       - 3
       - 2
       - 1
@@ -2261,12 +2263,14 @@ JEIDA defined bit mapping will be named
       - 0
       -
       -
+      -
       - d
       - b\ :sub:`1`
       - g\ :sub:`0`
     * -
       -
       - 1
+      -
       -
       -
       - d
@@ -2277,12 +2281,14 @@ JEIDA defined bit mapping will be named
       - 2
       -
       -
+      -
       - d
       - g\ :sub:`5`
       - r\ :sub:`4`
     * -
       -
       - 3
+      -
       -
       -
       - b\ :sub:`5`
@@ -2293,6 +2299,7 @@ JEIDA defined bit mapping will be named
       - 4
       -
       -
+      -
       - b\ :sub:`4`
       - g\ :sub:`3`
       - r\ :sub:`2`
@@ -2301,12 +2308,14 @@ JEIDA defined bit mapping will be named
       - 5
       -
       -
+      -
       - b\ :sub:`3`
       - g\ :sub:`2`
       - r\ :sub:`1`
     * -
       -
       - 6
+      -
       -
       -
       - b\ :sub:`2`
@@ -2318,6 +2327,7 @@ JEIDA defined bit mapping will be named
       - 0x1011
       - 0
       -
+      -
       - d
       - d
       - b\ :sub:`1`
@@ -2325,6 +2335,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 1
+      -
       -
       - b\ :sub:`7`
       - d
@@ -2334,6 +2345,7 @@ JEIDA defined bit mapping will be named
       -
       - 2
       -
+      -
       - b\ :sub:`6`
       - d
       - g\ :sub:`5`
@@ -2341,6 +2353,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 3
+      -
       -
       - g\ :sub:`7`
       - b\ :sub:`5`
@@ -2350,6 +2363,7 @@ JEIDA defined bit mapping will be named
       -
       - 4
       -
+      -
       - g\ :sub:`6`
       - b\ :sub:`4`
       - g\ :sub:`3`
@@ -2358,6 +2372,7 @@ JEIDA defined bit mapping will be named
       -
       - 5
       -
+      -
       - r\ :sub:`7`
       - b\ :sub:`3`
       - g\ :sub:`2`
@@ -2365,6 +2380,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 6
+      -
       -
       - r\ :sub:`6`
       - b\ :sub:`2`
@@ -2376,6 +2392,7 @@ JEIDA defined bit mapping will be named
       - 0x1012
       - 0
       -
+      -
       - d
       - d
       - b\ :sub:`3`
@@ -2383,6 +2400,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 1
+      -
       -
       - b\ :sub:`1`
       - d
@@ -2392,6 +2410,7 @@ JEIDA defined bit mapping will be named
       -
       - 2
       -
+      -
       - b\ :sub:`0`
       - d
       - g\ :sub:`7`
@@ -2399,6 +2418,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 3
+      -
       -
       - g\ :sub:`1`
       - b\ :sub:`7`
@@ -2408,6 +2428,7 @@ JEIDA defined bit mapping will be named
       -
       - 4
       -
+      -
       - g\ :sub:`0`
       - b\ :sub:`6`
       - g\ :sub:`5`
@@ -2415,6 +2436,7 @@ JEIDA defined bit mapping will be named
     * -
       -
       - 5
+      -
       -
       - r\ :sub:`1`
       - b\ :sub:`5`
@@ -2424,10 +2446,141 @@ JEIDA defined bit mapping will be named
       -
       - 6
       -
+      -
       - r\ :sub:`0`
       - b\ :sub:`4`
       - g\ :sub:`3`
       - r\ :sub:`2`
+    * .. _MEDIA-BUS-FMT-RGB101010-1X7X5-SPWG:
+
+      - MEDIA_BUS_FMT_RGB101010_1X7X5_SPWG
+      - 0x1026
+      - 0
+      -
+      - d
+      - d
+      - d
+      - b\ :sub:`1`
+      - g\ :sub:`0`
+    * -
+      -
+      - 1
+      -
+      - b\ :sub:`9`
+      - b\ :sub:`7`
+      - d
+      - b\ :sub:`0`
+      - r\ :sub:`5`
+    * -
+      -
+      - 2
+      -
+      - b\ :sub:`8`
+      - b\ :sub:`6`
+      - d
+      - g\ :sub:`5`
+      - r\ :sub:`4`
+    * -
+      -
+      - 3
+      -
+      - g\ :sub:`9`
+      - g\ :sub:`7`
+      - b\ :sub:`5`
+      - g\ :sub:`4`
+      - r\ :sub:`3`
+    * -
+      -
+      - 4
+      -
+      - g\ :sub:`8`
+      - g\ :sub:`6`
+      - b\ :sub:`4`
+      - g\ :sub:`3`
+      - r\ :sub:`2`
+    * -
+      -
+      - 5
+      -
+      - r\ :sub:`9`
+      - r\ :sub:`7`
+      - b\ :sub:`3`
+      - g\ :sub:`2`
+      - r\ :sub:`1`
+    * -
+      -
+      - 6
+      -
+      - r\ :sub:`8`
+      - r\ :sub:`6`
+      - b\ :sub:`2`
+      - g\ :sub:`1`
+      - r\ :sub:`0`
+    * .. _MEDIA-BUS-FMT-RGB101010-1X7X5-JEIDA:
+
+      - MEDIA_BUS_FMT_RGB101010_1X7X5_JEIDA
+      - 0x1027
+      - 0
+      -
+      - d
+      - d
+      - d
+      - b\ :sub:`5`
+      - g\ :sub:`4`
+    * -
+      -
+      - 1
+      -
+      - b\ :sub:`1`
+      - b\ :sub:`3`
+      - d
+      - b\ :sub:`4`
+      - r\ :sub:`9`
+    * -
+      -
+      - 2
+      -
+      - b\ :sub:`0`
+      - b\ :sub:`2`
+      - d
+      - g\ :sub:`9`
+      - r\ :sub:`8`
+    * -
+      -
+      - 3
+      -
+      - g\ :sub:`1`
+      - g\ :sub:`3`
+      - b\ :sub:`9`
+      - g\ :sub:`8`
+      - r\ :sub:`7`
+    * -
+      -
+      - 4
+      -
+      - g\ :sub:`0`
+      - g\ :sub:`2`
+      - b\ :sub:`8`
+      - g\ :sub:`7`
+      - r\ :sub:`6`
+    * -
+      -
+      - 5
+      -
+      - r\ :sub:`1`
+      - r\ :sub:`3`
+      - b\ :sub:`7`
+      - g\ :sub:`6`
+      - r\ :sub:`5`
+    * -
+      -
+      - 6
+      -
+      - r\ :sub:`0`
+      - r\ :sub:`2`
+      - b\ :sub:`6`
+      - g\ :sub:`5`
+      - r\ :sub:`4`
 
 .. raw:: latex
 
@@ -8306,3 +8459,257 @@ The following table lists the existing metadata formats.
 	both sides of the link and the bus format is a fixed
 	metadata format that is not configurable from userspace.
 	Width and height will be set to 0 for this format.
+
+Generic Serial Metadata Formats
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Generic serial metadata formats are used on serial buses where the actual data
+content is more or less device specific but the data is transmitted and received
+by multiple devices that do not process the data in any way, simply writing
+it to system memory for processing in software at the end of the pipeline.
+
+"b" in an array cell signifies a byte of data, followed by the number of the bit
+and finally the bit number in subscript. "x" indicates a padding bit.
+
+.. _media-bus-format-generic-meta:
+
+.. cssclass: longtable
+
+.. flat-table:: Generic Serial Metadata Formats
+    :header-rows:  2
+    :stub-columns: 0
+
+    * - Identifier
+      - Code
+      -
+      - :cspan:`23` Data organization within bus :term:`Data Unit`
+    * -
+      -
+      - Bit
+      - 23
+      - 22
+      - 21
+      - 20
+      - 19
+      - 18
+      - 17
+      - 16
+      - 15
+      - 14
+      - 13
+      - 12
+      - 11
+      - 10
+      - 9
+      - 8
+      - 7
+      - 6
+      - 5
+      - 4
+      - 3
+      - 2
+      - 1
+      - 0
+    * .. _MEDIA-BUS-FMT-META-8:
+
+      - MEDIA_BUS_FMT_META_8
+      - 0x8001
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+    * .. _MEDIA-BUS-FMT-META-10:
+
+      - MEDIA_BUS_FMT_META_10
+      - 0x8002
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+    * .. _MEDIA-BUS-FMT-META-12:
+
+      - MEDIA_BUS_FMT_META_12
+      - 0x8003
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+    * .. _MEDIA-BUS-FMT-META-14:
+
+      - MEDIA_BUS_FMT_META_14
+      - 0x8004
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+    * .. _MEDIA-BUS-FMT-META-16:
+
+      - MEDIA_BUS_FMT_META_16
+      - 0x8005
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+    * .. _MEDIA-BUS-FMT-META-20:
+
+      - MEDIA_BUS_FMT_META_20
+      - 0x8006
+      -
+      -
+      -
+      -
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+    * .. _MEDIA-BUS-FMT-META-24:
+
+      - MEDIA_BUS_FMT_META_24
+      - 0x8007
+      -
+      - b0\ :sub:`7`
+      - b0\ :sub:`6`
+      - b0\ :sub:`5`
+      - b0\ :sub:`4`
+      - b0\ :sub:`3`
+      - b0\ :sub:`2`
+      - b0\ :sub:`1`
+      - b0\ :sub:`0`
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x
+      - x

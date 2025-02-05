@@ -1209,8 +1209,7 @@ static int setup_mq_tags(struct rnbd_clt_session *sess)
 	tag_set->ops		= &rnbd_mq_ops;
 	tag_set->queue_depth	= sess->queue_depth;
 	tag_set->numa_node		= NUMA_NO_NODE;
-	tag_set->flags		= BLK_MQ_F_SHOULD_MERGE |
-				  BLK_MQ_F_TAG_QUEUE_SHARED;
+	tag_set->flags		= BLK_MQ_F_TAG_QUEUE_SHARED;
 	tag_set->cmd_size	= sizeof(struct rnbd_iu) + RNBD_RDMA_SGL_SIZE;
 
 	/* for HCTX_TYPE_DEFAULT, HCTX_TYPE_READ, HCTX_TYPE_POLL */
@@ -1352,10 +1351,6 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
 	if (dev->access_mode == RNBD_ACCESS_RO)
 		set_disk_ro(dev->gd, true);
 
-	/*
-	 * Network device does not need rotational
-	 */
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, dev->queue);
 	err = add_disk(dev->gd);
 	if (err)
 		put_disk(dev->gd);
@@ -1389,17 +1384,17 @@ static int rnbd_client_setup_device(struct rnbd_clt_dev *dev,
 			le32_to_cpu(rsp->max_discard_sectors);
 	}
 
+	if (rsp->cache_policy & RNBD_WRITEBACK) {
+		lim.features |= BLK_FEAT_WRITE_CACHE;
+		if (rsp->cache_policy & RNBD_FUA)
+			lim.features |= BLK_FEAT_FUA;
+	}
+
 	dev->gd = blk_mq_alloc_disk(&dev->sess->tag_set, &lim, dev);
 	if (IS_ERR(dev->gd))
 		return PTR_ERR(dev->gd);
 	dev->queue = dev->gd->queue;
 	rnbd_init_mq_hw_queues(dev);
-
-	blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, dev->queue);
-	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
-	blk_queue_write_cache(dev->queue,
-			      !!(rsp->cache_policy & RNBD_WRITEBACK),
-			      !!(rsp->cache_policy & RNBD_FUA));
 
 	return rnbd_clt_setup_gen_disk(dev, rsp, idx);
 }

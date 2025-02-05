@@ -13,5 +13,8 @@ int qcom_smem_get_free_space(unsigned host);
 phys_addr_t qcom_smem_virt_to_phys(void *p);
 
 int qcom_smem_get_soc_id(u32 *id);
+int qcom_smem_get_feature_code(u32 *code);
+
+int qcom_smem_bust_hwspin_lock_by_host(unsigned int host);
 
 #endif

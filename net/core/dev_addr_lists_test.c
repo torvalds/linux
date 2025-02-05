@@ -49,7 +49,6 @@ static int dev_addr_test_init(struct kunit *test)
 		KUNIT_FAIL(test, "Can't register netdev %d", err);
 	}
 
-	rtnl_lock();
 	return 0;
 }
 
@@ -57,7 +56,6 @@ static void dev_addr_test_exit(struct kunit *test)
 {
 	struct net_device *netdev = test->priv;
 
-	rtnl_unlock();
 	unregister_netdev(netdev);
 	free_netdev(netdev);
 }
@@ -67,6 +65,7 @@ static void dev_addr_test_basic(struct kunit *test)
 	struct net_device *netdev = test->priv;
 	u8 addr[ETH_ALEN];
 
+	rtnl_lock();
 	KUNIT_EXPECT_TRUE(test, !!netdev->dev_addr);
 
 	memset(addr, 2, sizeof(addr));
@@ -76,6 +75,7 @@ static void dev_addr_test_basic(struct kunit *test)
 	memset(addr, 3, sizeof(addr));
 	dev_addr_set(netdev, addr);
 	KUNIT_EXPECT_MEMEQ(test, netdev->dev_addr, addr, sizeof(addr));
+	rtnl_unlock();
 }
 
 static void dev_addr_test_sync_one(struct kunit *test)
@@ -86,6 +86,7 @@ static void dev_addr_test_sync_one(struct kunit *test)
 
 	datp = netdev_priv(netdev);
 
+	rtnl_lock();
 	memset(addr, 1, sizeof(addr));
 	eth_hw_addr_set(netdev, addr);
 
@@ -103,6 +104,7 @@ static void dev_addr_test_sync_one(struct kunit *test)
 	 * considered synced and we overwrite in place.
 	 */
 	KUNIT_EXPECT_EQ(test, 0, datp->addr_seen);
+	rtnl_unlock();
 }
 
 static void dev_addr_test_add_del(struct kunit *test)
@@ -114,6 +116,7 @@ static void dev_addr_test_add_del(struct kunit *test)
 
 	datp = netdev_priv(netdev);
 
+	rtnl_lock();
 	for (i = 1; i < 4; i++) {
 		memset(addr, i, sizeof(addr));
 		KUNIT_EXPECT_EQ(test, 0, dev_addr_add(netdev, addr,
@@ -143,6 +146,7 @@ static void dev_addr_test_add_del(struct kunit *test)
 	__hw_addr_sync_dev(&netdev->dev_addrs, netdev, dev_addr_test_sync,
 			   dev_addr_test_unsync);
 	KUNIT_EXPECT_EQ(test, 1, datp->addr_seen);
+	rtnl_unlock();
 }
 
 static void dev_addr_test_del_main(struct kunit *test)
@@ -150,6 +154,7 @@ static void dev_addr_test_del_main(struct kunit *test)
 	struct net_device *netdev = test->priv;
 	u8 addr[ETH_ALEN];
 
+	rtnl_lock();
 	memset(addr, 1, sizeof(addr));
 	eth_hw_addr_set(netdev, addr);
 
@@ -161,6 +166,7 @@ static void dev_addr_test_del_main(struct kunit *test)
 					      NETDEV_HW_ADDR_T_LAN));
 	KUNIT_EXPECT_EQ(test, -ENOENT, dev_addr_del(netdev, addr,
 						    NETDEV_HW_ADDR_T_LAN));
+	rtnl_unlock();
 }
 
 static void dev_addr_test_add_set(struct kunit *test)
@@ -172,6 +178,7 @@ static void dev_addr_test_add_set(struct kunit *test)
 
 	datp = netdev_priv(netdev);
 
+	rtnl_lock();
 	/* There is no external API like dev_addr_add_excl(),
 	 * so shuffle the tree a little bit and exploit aliasing.
 	 */
@@ -191,6 +198,7 @@ static void dev_addr_test_add_set(struct kunit *test)
 	__hw_addr_sync_dev(&netdev->dev_addrs, netdev, dev_addr_test_sync,
 			   dev_addr_test_unsync);
 	KUNIT_EXPECT_EQ(test, 0xffff, datp->addr_seen);
+	rtnl_unlock();
 }
 
 static void dev_addr_test_add_excl(struct kunit *test)
@@ -199,6 +207,7 @@ static void dev_addr_test_add_excl(struct kunit *test)
 	u8 addr[ETH_ALEN];
 	int i;
 
+	rtnl_lock();
 	for (i = 0; i < 10; i++) {
 		memset(addr, i, sizeof(addr));
 		KUNIT_EXPECT_EQ(test, 0, dev_uc_add_excl(netdev, addr));
@@ -213,6 +222,7 @@ static void dev_addr_test_add_excl(struct kunit *test)
 		memset(addr, i, sizeof(addr));
 		KUNIT_EXPECT_EQ(test, -EEXIST, dev_uc_add_excl(netdev, addr));
 	}
+	rtnl_unlock();
 }
 
 static struct kunit_case dev_addr_test_cases[] = {

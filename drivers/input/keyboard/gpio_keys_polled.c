@@ -144,7 +144,6 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 {
 	struct gpio_keys_platform_data *pdata;
 	struct gpio_keys_button *button;
-	struct fwnode_handle *child;
 	int nbuttons;
 
 	nbuttons = device_get_child_node_count(dev);
@@ -166,11 +165,10 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 
 	device_property_read_string(dev, "label", &pdata->name);
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		if (fwnode_property_read_u32(child, "linux,code",
 					     &button->code)) {
 			dev_err(dev, "button without keycode\n");
-			fwnode_handle_put(child);
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -308,13 +306,8 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 			 * Legacy GPIO number so request the GPIO here and
 			 * convert it to descriptor.
 			 */
-			unsigned flags = GPIOF_IN;
-
-			if (button->active_low)
-				flags |= GPIOF_ACTIVE_LOW;
-
-			error = devm_gpio_request_one(dev, button->gpio,
-					flags, button->desc ? : DRV_NAME);
+			error = devm_gpio_request_one(dev, button->gpio, GPIOF_IN,
+						      button->desc ? : DRV_NAME);
 			if (error)
 				return dev_err_probe(dev, error,
 						     "unable to claim gpio %u\n",
@@ -327,6 +320,9 @@ static int gpio_keys_polled_probe(struct platform_device *pdev)
 					button->gpio);
 				return -EINVAL;
 			}
+
+			if (button->active_low ^ gpiod_is_active_low(bdata->gpiod))
+				gpiod_toggle_active_low(bdata->gpiod);
 		}
 
 		bdata->last_state = -1;

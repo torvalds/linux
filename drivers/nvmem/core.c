@@ -179,18 +179,41 @@ static ssize_t type_show(struct device *dev,
 {
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
 
-	return sprintf(buf, "%s\n", nvmem_type_str[nvmem->type]);
+	return sysfs_emit(buf, "%s\n", nvmem_type_str[nvmem->type]);
 }
 
 static DEVICE_ATTR_RO(type);
 
+static ssize_t force_ro_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return sysfs_emit(buf, "%d\n", nvmem->read_only);
+}
+
+static ssize_t force_ro_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+	int ret = kstrtobool(buf, &nvmem->read_only);
+
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(force_ro);
+
 static struct attribute *nvmem_attrs[] = {
+	&dev_attr_force_ro.attr,
 	&dev_attr_type.attr,
 	NULL,
 };
 
 static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *attr, char *buf,
+				   const struct bin_attribute *attr, char *buf,
 				   loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -203,18 +226,11 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 		dev = kobj_to_dev(kobj);
 	nvmem = to_nvmem_device(dev);
 
-	/* Stop the user from reading */
-	if (pos >= nvmem->size)
-		return 0;
-
 	if (!IS_ALIGNED(pos, nvmem->stride))
 		return -EINVAL;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
-
-	if (pos + count > nvmem->size)
-		count = nvmem->size - pos;
 
 	count = round_down(count, nvmem->word_size);
 
@@ -230,7 +246,7 @@ static ssize_t bin_attr_nvmem_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *attr, char *buf,
+				    const struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct device *dev;
@@ -243,22 +259,15 @@ static ssize_t bin_attr_nvmem_write(struct file *filp, struct kobject *kobj,
 		dev = kobj_to_dev(kobj);
 	nvmem = to_nvmem_device(dev);
 
-	/* Stop the user from writing */
-	if (pos >= nvmem->size)
-		return -EFBIG;
-
 	if (!IS_ALIGNED(pos, nvmem->stride))
 		return -EINVAL;
 
 	if (count < nvmem->word_size)
 		return -EINVAL;
 
-	if (pos + count > nvmem->size)
-		count = nvmem->size - pos;
-
 	count = round_down(count, nvmem->word_size);
 
-	if (!nvmem->reg_write)
+	if (!nvmem->reg_write || nvmem->read_only)
 		return -EPERM;
 
 	rc = nvmem_reg_write(nvmem, pos, buf, count);
@@ -289,21 +298,49 @@ static umode_t nvmem_bin_attr_get_umode(struct nvmem_device *nvmem)
 }
 
 static umode_t nvmem_bin_attr_is_visible(struct kobject *kobj,
-					 struct bin_attribute *attr, int i)
+					 const struct bin_attribute *attr,
+					 int i)
 {
 	struct device *dev = kobj_to_dev(kobj);
 	struct nvmem_device *nvmem = to_nvmem_device(dev);
 
-	attr->size = nvmem->size;
-
 	return nvmem_bin_attr_get_umode(nvmem);
+}
+
+static size_t nvmem_bin_attr_size(struct kobject *kobj,
+				  const struct bin_attribute *attr,
+				  int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	return nvmem->size;
+}
+
+static umode_t nvmem_attr_is_visible(struct kobject *kobj,
+				     struct attribute *attr, int i)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct nvmem_device *nvmem = to_nvmem_device(dev);
+
+	/*
+	 * If the device has no .reg_write operation, do not allow
+	 * configuration as read-write.
+	 * If the device is set as read-only by configuration, it
+	 * can be forced into read-write mode using the 'force_ro'
+	 * attribute.
+	 */
+	if (attr == &dev_attr_force_ro.attr && !nvmem->reg_write)
+		return 0;	/* Attribute not visible */
+
+	return attr->mode;
 }
 
 static struct nvmem_cell *nvmem_create_cell(struct nvmem_cell_entry *entry,
 					    const char *id, int index);
 
 static ssize_t nvmem_cell_attr_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *attr, char *buf,
+				    const struct bin_attribute *attr, char *buf,
 				    loff_t pos, size_t count)
 {
 	struct nvmem_cell_entry *entry;
@@ -337,29 +374,26 @@ destroy_cell:
 }
 
 /* default read/write permissions */
-static struct bin_attribute bin_attr_rw_nvmem = {
+static const struct bin_attribute bin_attr_rw_nvmem = {
 	.attr	= {
 		.name	= "nvmem",
 		.mode	= 0644,
 	},
-	.read	= bin_attr_nvmem_read,
-	.write	= bin_attr_nvmem_write,
+	.read_new	= bin_attr_nvmem_read,
+	.write_new	= bin_attr_nvmem_write,
 };
 
-static struct bin_attribute *nvmem_bin_attributes[] = {
+static const struct bin_attribute *const nvmem_bin_attributes[] = {
 	&bin_attr_rw_nvmem,
 	NULL,
 };
 
 static const struct attribute_group nvmem_bin_group = {
-	.bin_attrs	= nvmem_bin_attributes,
+	.bin_attrs_new	= nvmem_bin_attributes,
 	.attrs		= nvmem_attrs,
 	.is_bin_visible = nvmem_bin_attr_is_visible,
-};
-
-/* Cell attributes will be dynamically allocated */
-static struct attribute_group nvmem_cells_group = {
-	.name		= "cells",
+	.bin_size	= nvmem_bin_attr_size,
+	.is_visible	= nvmem_attr_is_visible,
 };
 
 static const struct attribute_group *nvmem_dev_groups[] = {
@@ -367,17 +401,12 @@ static const struct attribute_group *nvmem_dev_groups[] = {
 	NULL,
 };
 
-static const struct attribute_group *nvmem_cells_groups[] = {
-	&nvmem_cells_group,
-	NULL,
-};
-
-static struct bin_attribute bin_attr_nvmem_eeprom_compat = {
+static const struct bin_attribute bin_attr_nvmem_eeprom_compat = {
 	.attr	= {
 		.name	= "eeprom",
 	},
-	.read	= bin_attr_nvmem_read,
-	.write	= bin_attr_nvmem_write,
+	.read_new	= bin_attr_nvmem_read,
+	.write_new	= bin_attr_nvmem_write,
 };
 
 /*
@@ -396,10 +425,9 @@ static int nvmem_sysfs_setup_compat(struct nvmem_device *nvmem,
 	if (!config->base_dev)
 		return -EINVAL;
 
-	if (config->type == NVMEM_TYPE_FRAM)
-		bin_attr_nvmem_eeprom_compat.attr.name = "fram";
-
 	nvmem->eeprom = bin_attr_nvmem_eeprom_compat;
+	if (config->type == NVMEM_TYPE_FRAM)
+		nvmem->eeprom.attr.name = "fram";
 	nvmem->eeprom.attr.mode = nvmem_bin_attr_get_umode(nvmem);
 	nvmem->eeprom.size = nvmem->size;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -429,23 +457,25 @@ static void nvmem_sysfs_remove_compat(struct nvmem_device *nvmem,
 
 static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 {
-	struct bin_attribute **cells_attrs, *attrs;
+	struct attribute_group group = {
+		.name	= "cells",
+	};
 	struct nvmem_cell_entry *entry;
+	const struct bin_attribute **pattrs;
+	struct bin_attribute *attrs;
 	unsigned int ncells = 0, i = 0;
 	int ret = 0;
 
 	mutex_lock(&nvmem_mutex);
 
-	if (list_empty(&nvmem->cells) || nvmem->sysfs_cells_populated) {
-		nvmem_cells_group.bin_attrs = NULL;
+	if (list_empty(&nvmem->cells) || nvmem->sysfs_cells_populated)
 		goto unlock_mutex;
-	}
 
 	/* Allocate an array of attributes with a sentinel */
 	ncells = list_count_nodes(&nvmem->cells);
-	cells_attrs = devm_kcalloc(&nvmem->dev, ncells + 1,
-				   sizeof(struct bin_attribute *), GFP_KERNEL);
-	if (!cells_attrs) {
+	pattrs = devm_kcalloc(&nvmem->dev, ncells + 1,
+			      sizeof(struct bin_attribute *), GFP_KERNEL);
+	if (!pattrs) {
 		ret = -ENOMEM;
 		goto unlock_mutex;
 	}
@@ -463,22 +493,22 @@ static int nvmem_populate_sysfs_cells(struct nvmem_device *nvmem)
 						    "%s@%x,%x", entry->name,
 						    entry->offset,
 						    entry->bit_offset);
-		attrs[i].attr.mode = 0444;
+		attrs[i].attr.mode = 0444 & nvmem_bin_attr_get_umode(nvmem);
 		attrs[i].size = entry->bytes;
-		attrs[i].read = &nvmem_cell_attr_read;
+		attrs[i].read_new = &nvmem_cell_attr_read;
 		attrs[i].private = entry;
 		if (!attrs[i].attr.name) {
 			ret = -ENOMEM;
 			goto unlock_mutex;
 		}
 
-		cells_attrs[i] = &attrs[i];
+		pattrs[i] = &attrs[i];
 		i++;
 	}
 
-	nvmem_cells_group.bin_attrs = cells_attrs;
+	group.bin_attrs_new = pattrs;
 
-	ret = devm_device_add_groups(&nvmem->dev, nvmem_cells_groups);
+	ret = device_add_group(&nvmem->dev, &group);
 	if (ret)
 		goto unlock_mutex;
 
@@ -1230,7 +1260,7 @@ static void devm_nvmem_device_release(struct device *dev, void *res)
 }
 
 /**
- * devm_nvmem_device_put() - put alredy got nvmem device
+ * devm_nvmem_device_put() - put already got nvmem device
  *
  * @dev: Device that uses the nvmem device.
  * @nvmem: pointer to nvmem device allocated by devm_nvmem_cell_get(),
@@ -1248,7 +1278,7 @@ void devm_nvmem_device_put(struct device *dev, struct nvmem_device *nvmem)
 EXPORT_SYMBOL_GPL(devm_nvmem_device_put);
 
 /**
- * nvmem_device_put() - put alredy got nvmem device
+ * nvmem_device_put() - put already got nvmem device
  *
  * @nvmem: pointer to nvmem device that needs to be released.
  */
@@ -1259,13 +1289,13 @@ void nvmem_device_put(struct nvmem_device *nvmem)
 EXPORT_SYMBOL_GPL(nvmem_device_put);
 
 /**
- * devm_nvmem_device_get() - Get nvmem cell of device form a given id
+ * devm_nvmem_device_get() - Get nvmem device of device form a given id
  *
  * @dev: Device that requests the nvmem device.
  * @id: name id for the requested nvmem device.
  *
- * Return: ERR_PTR() on error or a valid pointer to a struct nvmem_cell
- * on success.  The nvmem_cell will be freed by the automatically once the
+ * Return: ERR_PTR() on error or a valid pointer to a struct nvmem_device
+ * on success.  The nvmem_device will be freed by the automatically once the
  * device is freed.
  */
 struct nvmem_device *devm_nvmem_device_get(struct device *dev, const char *id)
@@ -1763,6 +1793,8 @@ static int __nvmem_cell_entry_write(struct nvmem_cell_entry *cell, void *buf, si
 		return -EINVAL;
 
 	if (cell->bit_offset || cell->nbits) {
+		if (len != BITS_TO_BYTES(cell->nbits) && len != cell->bytes)
+			return -EINVAL;
 		buf = nvmem_cell_prepare_write_buffer(cell, buf, len);
 		if (IS_ERR(buf))
 			return PTR_ERR(buf);

@@ -134,7 +134,7 @@
 				clock-names = "ipg", "per";
 			};
 
-			dma: dma@209000 {
+			dma: dma-controller@209000 {
 				compatible = "fsl,imx1-dma";
 				reg = <0x00209000 0x1000>;
 				interrupts = <61 60>;

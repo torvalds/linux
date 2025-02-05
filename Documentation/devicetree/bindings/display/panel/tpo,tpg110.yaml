@@ -52,7 +52,8 @@ properties:
           - const: tpo,tpg110
       - const: tpo,tpg110
 
-  reg: true
+  reg:
+    maxItems: 1
 
   grestb-gpios:
     maxItems: 1

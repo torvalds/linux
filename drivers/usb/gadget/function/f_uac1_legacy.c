@@ -1014,5 +1014,6 @@ static struct usb_function *f_audio_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(uac1_legacy, f_audio_alloc_inst, f_audio_alloc);
+MODULE_DESCRIPTION("USB Audio class function driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bryan Wu");

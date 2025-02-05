@@ -413,8 +413,6 @@ static void get_meta_and_pte_attr(
 	log2_blk256_height = dml_log2((double) blk256_height);
 	blk_bytes = surf_linear ? 256 : get_blk_size_bytes((enum source_macro_tile_size) macro_tile_size);
 	log2_blk_bytes = dml_log2((double) blk_bytes);
-	log2_blk_height = 0;
-	log2_blk_width = 0;
 
 	// remember log rule
 	// "+" in log is multiply
@@ -481,8 +479,6 @@ static void get_meta_and_pte_attr(
 	log2_meta_req_width = log2_meta_req_bytes + 8 - log2_bytes_per_element - log2_meta_req_height;
 	meta_req_width = 1 << log2_meta_req_width;
 	meta_req_height = 1 << log2_meta_req_height;
-	log2_meta_row_height = 0;
-	meta_row_width_ub = 0;
 
 	// the dimensions of a meta row are meta_row_width x meta_row_height in elements.
 	// calculate upper bound of the meta_row_width
@@ -655,13 +651,12 @@ static void get_surf_rq_param(
 		bool is_chroma,
 		bool is_alpha)
 {
-	bool mode_422 = 0;
 	unsigned int vp_width = 0;
 	unsigned int vp_height = 0;
 	unsigned int data_pitch = 0;
 	unsigned int meta_pitch = 0;
 	unsigned int surface_height = 0;
-	unsigned int ppe = mode_422 ? 2 : 1;
+	unsigned int ppe = 1;
 
 	// FIXME check if ppe apply for both luma and chroma in 422 case
 	if (is_chroma | is_alpha) {
@@ -888,7 +883,6 @@ static void dml_rq_dlg_get_dlg_params(
 	double min_ttu_vblank;
 	unsigned int dlg_vblank_start;
 	bool dual_plane;
-	bool mode_422;
 	unsigned int access_dir;
 	unsigned int vp_height_l;
 	unsigned int vp_width_l;
@@ -1004,7 +998,6 @@ static void dml_rq_dlg_get_dlg_params(
 	// Prefetch Calc
 	// Source
 	dual_plane = is_dual_plane((enum source_format_class) (src->source_format));
-	mode_422 = 0;
 	access_dir = (src->source_scan == dm_vert);	// vp access direction: horizontal or vertical accessed
 	vp_height_l = src->viewport_height;
 	vp_width_l = src->viewport_width;
@@ -1142,18 +1135,8 @@ static void dml_rq_dlg_get_dlg_params(
 	dpte_row_height_l = rq_dlg_param->rq_l.dpte_row_height;
 	dpte_row_height_c = rq_dlg_param->rq_c.dpte_row_height;
 
-	if (mode_422) {
-		swath_width_pixels_ub_l = swath_width_ub_l * 2;  // *2 for 2 pixel per element
-		swath_width_pixels_ub_c = swath_width_ub_c * 2;
-	} else {
-		swath_width_pixels_ub_l = swath_width_ub_l * 1;
-		swath_width_pixels_ub_c = swath_width_ub_c * 1;
-	}
-
-	hscale_pixel_rate_l = 0.;
-	hscale_pixel_rate_c = 0.;
-	min_hratio_fact_l = 1.0;
-	min_hratio_fact_c = 1.0;
+	swath_width_pixels_ub_l = swath_width_ub_l;
+	swath_width_pixels_ub_c = swath_width_ub_c;
 
 	if (hratio_l <= 1)
 		min_hratio_fact_l = 2.0;

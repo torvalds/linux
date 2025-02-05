@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-OBJECT_FILES_NON_STANDARD := y
-
 purgatory-y := head.o purgatory.o string.o sha256.o mem.o
 
 targets += $(purgatory-y) purgatory.lds purgatory purgatory.chk purgatory.ro
@@ -15,13 +13,7 @@ CFLAGS_sha256.o := -D__DISABLE_EXPORTS -D__NO_FORTIFY
 $(obj)/mem.o: $(srctree)/arch/s390/lib/mem.S FORCE
 	$(call if_changed_rule,as_o_S)
 
-KCOV_INSTRUMENT := n
-GCOV_PROFILE := n
-UBSAN_SANITIZE := n
-KASAN_SANITIZE := n
-KCSAN_SANITIZE := n
-
-KBUILD_CFLAGS := -fno-strict-aliasing -Wall -Wstrict-prototypes
+KBUILD_CFLAGS := -std=gnu11 -fno-strict-aliasing -Wall -Wstrict-prototypes
 KBUILD_CFLAGS += -Wno-pointer-sign -Wno-sign-compare
 KBUILD_CFLAGS += -fno-zero-initialized-in-bss -fno-builtin -ffreestanding
 KBUILD_CFLAGS += -Os -m64 -msoft-float -fno-common

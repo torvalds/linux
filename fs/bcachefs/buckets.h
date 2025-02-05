@@ -12,7 +12,7 @@
 #include "extents.h"
 #include "sb-members.h"
 
-static inline size_t sector_to_bucket(const struct bch_dev *ca, sector_t s)
+static inline u64 sector_to_bucket(const struct bch_dev *ca, sector_t s)
 {
 	return div_u64(s, ca->mi.bucket_size);
 }
@@ -30,8 +30,7 @@ static inline sector_t bucket_remainder(const struct bch_dev *ca, sector_t s)
 	return remainder;
 }
 
-static inline size_t sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s,
-						 u32 *offset)
+static inline u64 sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s, u32 *offset)
 {
 	return div_u64_rem(s, ca->mi.bucket_size, offset);
 }
@@ -81,38 +80,40 @@ static inline void bucket_lock(struct bucket *b)
 			 TASK_UNINTERRUPTIBLE);
 }
 
-static inline struct bucket_array *gc_bucket_array(struct bch_dev *ca)
-{
-	return rcu_dereference_check(ca->buckets_gc,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->gc_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
-}
-
 static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
-	struct bucket_array *buckets = gc_bucket_array(ca);
-
-	BUG_ON(b < buckets->first_bucket || b >= buckets->nbuckets);
-	return buckets->b + b;
+	return bucket_valid(ca, b)
+		? genradix_ptr(&ca->buckets_gc, b)
+		: NULL;
 }
 
 static inline struct bucket_gens *bucket_gens(struct bch_dev *ca)
 {
 	return rcu_dereference_check(ca->bucket_gens,
-				     !ca->fs ||
-				     percpu_rwsem_is_held(&ca->fs->mark_lock) ||
-				     lockdep_is_held(&ca->fs->gc_lock) ||
-				     lockdep_is_held(&ca->bucket_lock));
+				     lockdep_is_held(&ca->fs->state_lock));
 }
 
 static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 {
 	struct bucket_gens *gens = bucket_gens(ca);
 
-	BUG_ON(b < gens->first_bucket || b >= gens->nbuckets);
+	if (b - gens->first_bucket >= gens->nbuckets_minus_first)
+		return NULL;
 	return gens->b + b;
+}
+
+static inline int bucket_gen_get_rcu(struct bch_dev *ca, size_t b)
+{
+	u8 *gen = bucket_gen(ca, b);
+	return gen ? *gen : -1;
+}
+
+static inline int bucket_gen_get(struct bch_dev *ca, size_t b)
+{
+	rcu_read_lock();
+	int ret = bucket_gen_get_rcu(ca, b);
+	rcu_read_unlock();
+	return ret;
 }
 
 static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
@@ -121,20 +122,16 @@ static inline size_t PTR_BUCKET_NR(const struct bch_dev *ca,
 	return sector_to_bucket(ca, ptr->offset);
 }
 
-static inline struct bpos PTR_BUCKET_POS(const struct bch_fs *c,
-				   const struct bch_extent_ptr *ptr)
+static inline struct bpos PTR_BUCKET_POS(const struct bch_dev *ca,
+					 const struct bch_extent_ptr *ptr)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-
 	return POS(ptr->dev, PTR_BUCKET_NR(ca, ptr));
 }
 
-static inline struct bpos PTR_BUCKET_POS_OFFSET(const struct bch_fs *c,
+static inline struct bpos PTR_BUCKET_POS_OFFSET(const struct bch_dev *ca,
 						const struct bch_extent_ptr *ptr,
 						u32 *bucket_offset)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-
 	return POS(ptr->dev, sector_to_bucket_and_offset(ca, ptr->offset, bucket_offset));
 }
 
@@ -175,19 +172,21 @@ static inline int gen_after(u8 a, u8 b)
 	return r > 0 ? r : 0;
 }
 
+static inline int dev_ptr_stale_rcu(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
+{
+	int gen = bucket_gen_get_rcu(ca, PTR_BUCKET_NR(ca, ptr));
+	return gen < 0 ? gen : gen_after(gen, ptr->gen);
+}
+
 /**
- * ptr_stale() - check if a pointer points into a bucket that has been
+ * dev_ptr_stale() - check if a pointer points into a bucket that has been
  * invalidated.
  */
-static inline u8 ptr_stale(struct bch_dev *ca,
-			   const struct bch_extent_ptr *ptr)
+static inline int dev_ptr_stale(struct bch_dev *ca, const struct bch_extent_ptr *ptr)
 {
-	u8 ret;
-
 	rcu_read_lock();
-	ret = gen_after(*bucket_gen(ca, PTR_BUCKET_NR(ca, ptr)), ptr->gen);
+	int ret = dev_ptr_stale_rcu(ca, ptr);
 	rcu_read_unlock();
-
 	return ret;
 }
 
@@ -202,8 +201,7 @@ static inline struct bch_dev_usage bch2_dev_usage_read(struct bch_dev *ca)
 	return ret;
 }
 
-void bch2_dev_usage_init(struct bch_dev *);
-void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev_usage *);
+void bch2_dev_usage_to_text(struct printbuf *, struct bch_dev *, struct bch_dev_usage *);
 
 static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_watermark watermark)
 {
@@ -264,129 +262,52 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 
 /* Filesystem usage: */
 
-static inline unsigned __fs_usage_u64s(unsigned nr_replicas)
-{
-	return sizeof(struct bch_fs_usage) / sizeof(u64) + nr_replicas;
-}
-
-static inline unsigned fs_usage_u64s(struct bch_fs *c)
-{
-	return __fs_usage_u64s(READ_ONCE(c->replicas.nr));
-}
-
-static inline unsigned __fs_usage_online_u64s(unsigned nr_replicas)
-{
-	return sizeof(struct bch_fs_usage_online) / sizeof(u64) + nr_replicas;
-}
-
-static inline unsigned fs_usage_online_u64s(struct bch_fs *c)
-{
-	return __fs_usage_online_u64s(READ_ONCE(c->replicas.nr));
-}
-
 static inline unsigned dev_usage_u64s(void)
 {
 	return sizeof(struct bch_dev_usage) / sizeof(u64);
 }
 
-u64 bch2_fs_usage_read_one(struct bch_fs *, u64 *);
-
-struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *);
-
-void bch2_fs_usage_acc_to_base(struct bch_fs *, unsigned);
-
-void bch2_fs_usage_to_text(struct printbuf *,
-			   struct bch_fs *, struct bch_fs_usage_online *);
-
-u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage_online *);
-
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
 
-void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
-			   const struct bch_alloc_v4 *,
-			   const struct bch_alloc_v4 *, u64, bool);
-void bch2_dev_usage_update_m(struct bch_fs *, struct bch_dev *,
-			     struct bucket *, struct bucket *);
+int bch2_bucket_ref_update(struct btree_trans *, struct bch_dev *,
+			   struct bkey_s_c, const struct bch_extent_ptr *,
+			   s64, enum bch_data_type, u8, u8, u32 *);
 
-/* key/bucket marking: */
-
-static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
-						unsigned journal_seq,
-						bool gc)
-{
-	percpu_rwsem_assert_held(&c->mark_lock);
-	BUG_ON(!gc && !journal_seq);
-
-	return this_cpu_ptr(gc
-			    ? c->usage_gc
-			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
-}
-
-int bch2_update_replicas(struct bch_fs *, struct bkey_s_c,
-			 struct bch_replicas_entry_v1 *, s64,
-			 unsigned, bool);
-int bch2_update_replicas_list(struct btree_trans *,
-			 struct bch_replicas_entry_v1 *, s64);
-int bch2_update_cached_sectors_list(struct btree_trans *, unsigned, s64);
-int bch2_replicas_deltas_realloc(struct btree_trans *, unsigned);
-
-void bch2_fs_usage_initialize(struct bch_fs *);
-
-int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
-			  const struct bch_extent_ptr *,
-			  s64, enum bch_data_type, u8, u8, u32);
-
-int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
-			      size_t, enum bch_data_type, unsigned,
-			      struct gc_pos, unsigned);
+int bch2_check_fix_ptrs(struct btree_trans *,
+			enum btree_id, unsigned, struct bkey_s_c,
+			enum btree_iter_update_trigger_flags);
 
 int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s, unsigned);
+			struct bkey_s_c, struct bkey_s,
+			enum btree_iter_update_trigger_flags);
 int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s, unsigned);
+			  struct bkey_s_c, struct bkey_s,
+			  enum btree_iter_update_trigger_flags);
 
 #define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
 ({												\
 	int ret = 0;										\
 												\
 	if (_old.k->type)									\
-		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_INSERT);	\
+		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_insert);	\
 	if (!ret && _new.k->type)								\
-		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_OVERWRITE);\
+		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_overwrite);\
 	ret;											\
 })
 
 void bch2_trans_account_disk_usage_change(struct btree_trans *);
 
-void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
-int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
-
-int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
-				    size_t, enum bch_data_type, unsigned);
-int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
+int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *, u64,
+				    enum bch_data_type, unsigned,
+				    enum btree_iter_update_trigger_flags);
+int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *,
+				    enum btree_iter_update_trigger_flags);
+int bch2_trans_mark_dev_sbs_flags(struct bch_fs *,
+				    enum btree_iter_update_trigger_flags);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
-static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
-{
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
-	u64 b_offset	= bucket_to_sector(ca, b);
-	u64 b_end	= bucket_to_sector(ca, b + 1);
-	unsigned i;
-
-	if (!b)
-		return true;
-
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
-		u64 end = offset + (1 << layout->sb_max_size_bits);
-
-		if (!(offset >= b_end || end <= b_offset))
-			return true;
-	}
-
-	return false;
-}
+bool bch2_is_superblock_bucket(struct bch_dev *, u64);
 
 static inline const char *bch2_data_type_str(enum bch_data_type type)
 {
@@ -406,25 +327,27 @@ static inline void bch2_disk_reservation_put(struct bch_fs *c,
 	}
 }
 
-#define BCH_DISK_RESERVATION_NOFAIL		(1 << 0)
+enum bch_reservation_flags {
+	BCH_DISK_RESERVATION_NOFAIL	= 1 << 0,
+	BCH_DISK_RESERVATION_PARTIAL	= 1 << 1,
+};
 
-int __bch2_disk_reservation_add(struct bch_fs *,
-				struct disk_reservation *,
-				u64, int);
+int __bch2_disk_reservation_add(struct bch_fs *, struct disk_reservation *,
+				u64, enum bch_reservation_flags);
 
 static inline int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
-					    u64 sectors, int flags)
+					    u64 sectors, enum bch_reservation_flags flags)
 {
 #ifdef __KERNEL__
 	u64 old, new;
 
+	old = this_cpu_read(c->pcpu->sectors_available);
 	do {
-		old = this_cpu_read(c->pcpu->sectors_available);
 		if (sectors > old)
 			return __bch2_disk_reservation_add(c, res, sectors, flags);
 
 		new = old - sectors;
-	} while (this_cpu_cmpxchg(c->pcpu->sectors_available, old, new) != old);
+	} while (!this_cpu_try_cmpxchg(c->pcpu->sectors_available, &old, new));
 
 	this_cpu_add(*c->online_reserved, sectors);
 	res->sectors			+= sectors;
@@ -463,6 +386,9 @@ static inline u64 avail_factor(u64 r)
 {
 	return div_u64(r << RESERVE_FACTOR, (1 << RESERVE_FACTOR) + 1);
 }
+
+void bch2_buckets_nouse_free(struct bch_fs *);
+int bch2_buckets_nouse_alloc(struct bch_fs *);
 
 int bch2_dev_buckets_resize(struct bch_fs *, struct bch_dev *, u64);
 void bch2_dev_buckets_free(struct bch_dev *);

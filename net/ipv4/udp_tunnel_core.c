@@ -6,6 +6,7 @@
 #include <net/dst_metadata.h>
 #include <net/udp.h>
 #include <net/udp_tunnel.h>
+#include <net/inet_dscp.h>
 
 int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 		     struct socket **sockp)
@@ -183,7 +184,8 @@ void udp_tunnel_sock_release(struct socket *sock)
 EXPORT_SYMBOL_GPL(udp_tunnel_sock_release);
 
 struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb,  unsigned short family,
-				    __be16 flags, __be64 tunnel_id, int md_size)
+				    const unsigned long *flags,
+				    __be64 tunnel_id, int md_size)
 {
 	struct metadata_dst *tun_dst;
 	struct ip_tunnel_info *info;
@@ -199,7 +201,7 @@ struct metadata_dst *udp_tun_rx_dst(struct sk_buff *skb,  unsigned short family,
 	info->key.tp_src = udp_hdr(skb)->source;
 	info->key.tp_dst = udp_hdr(skb)->dest;
 	if (udp_hdr(skb)->check)
-		info->key.tun_flags |= TUNNEL_CSUM;
+		__set_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags);
 	return tun_dst;
 }
 EXPORT_SYMBOL_GPL(udp_tun_rx_dst);
@@ -231,7 +233,7 @@ struct rtable *udp_tunnel_dst_lookup(struct sk_buff *skb,
 	fl4.saddr = key->u.ipv4.src;
 	fl4.fl4_dport = dport;
 	fl4.fl4_sport = sport;
-	fl4.flowi4_tos = RT_TOS(tos);
+	fl4.flowi4_tos = tos & INET_DSCP_MASK;
 	fl4.flowi4_flags = key->flow_flags;
 
 	rt = ip_route_output_key(net, &fl4);

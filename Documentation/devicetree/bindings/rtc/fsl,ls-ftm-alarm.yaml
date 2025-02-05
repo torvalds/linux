@@ -1,0 +1,73 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/fsl,ls-ftm-alarm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale FlexTimer Module (FTM) Alarm
+
+maintainers:
+  - Frank Li <Frank.Li@nxp.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,ls1012a-ftm-alarm
+      - fsl,ls1021a-ftm-alarm
+      - fsl,ls1028a-ftm-alarm
+      - fsl,ls1043a-ftm-alarm
+      - fsl,ls1046a-ftm-alarm
+      - fsl,ls1088a-ftm-alarm
+      - fsl,ls208xa-ftm-alarm
+      - fsl,lx2160a-ftm-alarm
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  fsl,rcpm-wakeup:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to rcpm node
+          - description: bit mask of IPPDEXPCR0
+          - description: bit mask of IPPDEXPCR1
+          - description: bit mask of IPPDEXPCR2
+          - description: bit mask of IPPDEXPCR3
+          - description: bit mask of IPPDEXPCR4
+          - description: bit mask of IPPDEXPCR5
+          - description: bit mask of IPPDEXPCR6
+        minItems: 1
+    description:
+      phandle to rcpm node, Please refer
+      Documentation/devicetree/bindings/soc/fsl/fsl,rcpm.yaml
+
+  big-endian:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If the host controller is big-endian mode, specify this property.
+      The default endian mode is little-endian.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - fsl,rcpm-wakeup
+
+allOf:
+  - $ref: rtc.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+
+    rtc@2800000 {
+        compatible = "fsl,ls1088a-ftm-alarm";
+        reg = <0x2800000 0x10000>;
+        fsl,rcpm-wakeup = <&rcpm 0x0 0x0 0x0 0x0 0x4000 0x0>;
+        interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+    };

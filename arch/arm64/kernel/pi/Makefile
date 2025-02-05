@@ -19,12 +19,6 @@ KBUILD_CFLAGS	:= $(filter-out $(CC_FLAGS_SCS), $(KBUILD_CFLAGS))
 # disable LTO
 KBUILD_CFLAGS	:= $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
 
-GCOV_PROFILE	:= n
-KASAN_SANITIZE	:= n
-KCSAN_SANITIZE	:= n
-UBSAN_SANITIZE	:= n
-KCOV_INSTRUMENT	:= n
-
 hostprogs	:= relacheck
 
 quiet_cmd_piobjcopy = $(quiet_cmd_objcopy)

@@ -1132,7 +1132,7 @@ static struct platform_driver pru_rproc_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe  = pru_rproc_probe,
-	.remove_new = pru_rproc_remove,
+	.remove = pru_rproc_remove,
 };
 module_platform_driver(pru_rproc_driver);
 

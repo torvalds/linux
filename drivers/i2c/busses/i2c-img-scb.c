@@ -1124,11 +1124,8 @@ static int img_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 						      IMG_I2C_TIMEOUT);
 		del_timer_sync(&i2c->check_timer);
 
-		if (time_left == 0) {
-			dev_err(adap->dev.parent, "i2c transfer timed out\n");
+		if (time_left == 0)
 			i2c->msg_status = -ETIMEDOUT;
-			break;
-		}
 
 		if (i2c->msg_status)
 			break;
@@ -1500,7 +1497,7 @@ static struct platform_driver img_scb_i2c_driver = {
 		.pm		= pm_ptr(&img_i2c_pm),
 	},
 	.probe = img_i2c_probe,
-	.remove_new = img_i2c_remove,
+	.remove = img_i2c_remove,
 };
 module_platform_driver(img_scb_i2c_driver);
 

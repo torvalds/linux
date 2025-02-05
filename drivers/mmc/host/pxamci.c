@@ -810,7 +810,7 @@ static void pxamci_remove(struct platform_device *pdev)
 
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
-	.remove_new	= pxamci_remove,
+	.remove		= pxamci_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

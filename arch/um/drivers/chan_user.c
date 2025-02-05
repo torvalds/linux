@@ -23,7 +23,7 @@ int generic_read(int fd, __u8 *c_out, void *unused)
 {
 	int n;
 
-	n = read(fd, c_out, sizeof(*c_out));
+	CATCH_EINTR(n = read(fd, c_out, sizeof(*c_out)));
 	if (n > 0)
 		return n;
 	else if (n == 0)
@@ -37,11 +37,23 @@ int generic_read(int fd, __u8 *c_out, void *unused)
 
 int generic_write(int fd, const __u8 *buf, size_t n, void *unused)
 {
+	int written = 0;
 	int err;
 
-	err = write(fd, buf, n);
-	if (err > 0)
-		return err;
+	/* The FD may be in blocking mode, as such, need to retry short writes,
+	 * they may have been interrupted by a signal.
+	 */
+	do {
+		errno = 0;
+		err = write(fd, buf + written, n - written);
+		if (err > 0) {
+			written += err;
+			continue;
+		}
+	} while (err < 0 && errno == EINTR);
+
+	if (written > 0)
+		return written;
 	else if (errno == EAGAIN)
 		return 0;
 	else if (err == 0)
@@ -148,6 +160,8 @@ static __noreturn int winch_thread(void *arg)
 	int pty_fd, pipe_fd;
 	int count;
 	char c = 1;
+
+	os_set_pdeathsig();
 
 	pty_fd = data->pty_fd;
 	pipe_fd = data->pipe_fd;

@@ -19,7 +19,7 @@
 #include <linux/module.h>
 #include <linux/nfc.h>
 #include <linux/gpio/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/nfc/nfc.h>
 
@@ -322,7 +322,7 @@ static void nxp_nci_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id nxp_nci_i2c_id_table[] = {
-	{"nxp-nci_i2c", 0},
+	{ "nxp-nci_i2c" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, nxp_nci_i2c_id_table);

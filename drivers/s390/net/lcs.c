@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- *  Linux for S/390 Lan Channel Station Network Driver
+ *  Linux for S/390 LAN channel station device driver
  *
  *  Copyright IBM Corp. 1999, 2009
  *  Author(s): Original Code written by
@@ -2380,5 +2380,6 @@ module_init(lcs_init_module);
 module_exit(lcs_cleanup_module);
 
 MODULE_AUTHOR("Frank Pavlic <fpavlic@de.ibm.com>");
+MODULE_DESCRIPTION("S/390 LAN channel station device driver");
 MODULE_LICENSE("GPL");
 

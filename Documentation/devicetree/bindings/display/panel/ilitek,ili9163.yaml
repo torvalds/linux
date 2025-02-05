@@ -24,6 +24,9 @@ properties:
           - newhaven,1.8-128160EF
       - const: ilitek,ili9163
 
+  reg:
+    maxItems: 1
+
   spi-max-frequency:
     maximum: 32000000
 
@@ -32,7 +35,6 @@ properties:
     description: Display data/command selection (D/CX)
 
   backlight: true
-  reg: true
   reset-gpios: true
   rotation: true
 

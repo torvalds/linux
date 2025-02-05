@@ -858,7 +858,7 @@ static struct platform_driver hisi_nfc_driver = {
 		.pm = &hisi_nfc_pm_ops,
 	},
 	.probe		= hisi_nfc_probe,
-	.remove_new	= hisi_nfc_remove,
+	.remove		= hisi_nfc_remove,
 };
 
 module_platform_driver(hisi_nfc_driver);

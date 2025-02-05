@@ -13,16 +13,19 @@
 
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_drv.h>
-#include <drm/xe_pciids.h>
+#include <drm/intel/pciids.h>
 
 #include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_device.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
+#include "xe_gt_sriov_vf.h"
+#include "xe_guc.h"
 #include "xe_macros.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_pci_sriov.h"
 #include "xe_pci_types.h"
 #include "xe_pm.h"
 #include "xe_sriov.h"
@@ -38,12 +41,6 @@ struct xe_subplatform_desc {
 	enum xe_subplatform subplatform;
 	const char *name;
 	const u16 *pciidlist;
-};
-
-struct xe_gt_desc {
-	enum xe_gt_type type;
-	u32 mmio_adj_limit;
-	u32 mmio_adj_offset;
 };
 
 struct xe_device_desc {
@@ -62,6 +59,7 @@ struct xe_device_desc {
 
 	u8 has_display:1;
 	u8 has_heci_gscfi:1;
+	u8 has_heci_cscfi:1;
 	u8 has_llc:1;
 	u8 has_mmio_ext:1;
 	u8 has_sriov:1;
@@ -74,7 +72,7 @@ __diag_push();
 __diag_ignore_all("-Woverride-init", "Allow field overrides in table");
 
 #define PLATFORM(x)		\
-	.platform = (x),	\
+	.platform = XE_##x,	\
 	.platform_name = #x
 
 #define NOP(x)	x
@@ -105,7 +103,6 @@ static const struct xe_graphics_desc graphics_xelpp = {
 
 #define XE_HP_FEATURES \
 	.has_range_tlb_invalidation = true, \
-	.has_flat_ccs = true, \
 	.dma_mask_size = 46, \
 	.va_bits = 48, \
 	.vm_max_level = 3
@@ -122,6 +119,8 @@ static const struct xe_graphics_desc graphics_xehpg = {
 
 	XE_HP_FEATURES,
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
+
+	.has_flat_ccs = 1,
 };
 
 static const struct xe_graphics_desc graphics_xehpc = {
@@ -146,7 +145,7 @@ static const struct xe_graphics_desc graphics_xehpc = {
 	.vram_flags = XE_VRAM_FLAGS_NEED64K,
 
 	.has_asid = 1,
-	.has_flat_ccs = 0,
+	.has_atomic_enable_pte_bit = 1,
 	.has_usm = 1,
 };
 
@@ -157,13 +156,14 @@ static const struct xe_graphics_desc graphics_xelpg = {
 		BIT(XE_HW_ENGINE_CCS0),
 
 	XE_HP_FEATURES,
-	.has_flat_ccs = 0,
 };
 
 #define XE2_GFX_FEATURES \
 	.dma_mask_size = 46, \
 	.has_asid = 1, \
+	.has_atomic_enable_pte_bit = 1, \
 	.has_flat_ccs = 1, \
+	.has_indirect_ring_state = 1, \
 	.has_range_tlb_invalidation = 1, \
 	.has_usm = 1, \
 	.va_bits = 48, \
@@ -174,7 +174,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 		GENMASK(XE_HW_ENGINE_CCS3, XE_HW_ENGINE_CCS0)
 
 static const struct xe_graphics_desc graphics_xe2 = {
-	.name = "Xe2_LPG / Xe2_HPG",
+	.name = "Xe2_LPG / Xe2_HPG / Xe3_LPG",
 
 	XE2_GFX_FEATURES,
 };
@@ -208,16 +208,17 @@ static const struct xe_media_desc media_xelpmp = {
 };
 
 static const struct xe_media_desc media_xe2 = {
-	.name = "Xe2_LPM / Xe2_HPM",
+	.name = "Xe2_LPM / Xe2_HPM / Xe3_LPM",
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
-		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0), /* TODO: GSC0 */
+		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0) |
+		BIT(XE_HW_ENGINE_GSCCS0)
 };
 
 static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_TIGERLAKE),
+	PLATFORM(TIGERLAKE),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -226,18 +227,18 @@ static const struct xe_device_desc tgl_desc = {
 static const struct xe_device_desc rkl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ROCKETLAKE),
+	PLATFORM(ROCKETLAKE),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
 };
 
-static const u16 adls_rpls_ids[] = { XE_RPLS_IDS(NOP), 0 };
+static const u16 adls_rpls_ids[] = { INTEL_RPLS_IDS(NOP), 0 };
 
 static const struct xe_device_desc adl_s_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_S),
+	PLATFORM(ALDERLAKE_S),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -247,12 +248,12 @@ static const struct xe_device_desc adl_s_desc = {
 	},
 };
 
-static const u16 adlp_rplu_ids[] = { XE_RPLU_IDS(NOP), 0 };
+static const u16 adlp_rplu_ids[] = { INTEL_RPLU_IDS(NOP), 0 };
 
 static const struct xe_device_desc adl_p_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_P),
+	PLATFORM(ALDERLAKE_P),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -265,7 +266,7 @@ static const struct xe_device_desc adl_p_desc = {
 static const struct xe_device_desc adl_n_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
-	PLATFORM(XE_ALDERLAKE_N),
+	PLATFORM(ALDERLAKE_N),
 	.has_display = true,
 	.has_llc = true,
 	.require_force_probe = true,
@@ -278,19 +279,19 @@ static const struct xe_device_desc dg1_desc = {
 	.graphics = &graphics_xelpp,
 	.media = &media_xem,
 	DGFX_FEATURES,
-	PLATFORM(XE_DG1),
+	PLATFORM(DG1),
 	.has_display = true,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
 };
 
-static const u16 dg2_g10_ids[] = { XE_DG2_G10_IDS(NOP), XE_ATS_M150_IDS(NOP), 0 };
-static const u16 dg2_g11_ids[] = { XE_DG2_G11_IDS(NOP), XE_ATS_M75_IDS(NOP), 0 };
-static const u16 dg2_g12_ids[] = { XE_DG2_G12_IDS(NOP), 0 };
+static const u16 dg2_g10_ids[] = { INTEL_DG2_G10_IDS(NOP), INTEL_ATS_M150_IDS(NOP), 0 };
+static const u16 dg2_g11_ids[] = { INTEL_DG2_G11_IDS(NOP), INTEL_ATS_M75_IDS(NOP), 0 };
+static const u16 dg2_g12_ids[] = { INTEL_DG2_G12_IDS(NOP), 0 };
 
 #define DG2_FEATURES \
 	DGFX_FEATURES, \
-	PLATFORM(XE_DG2), \
+	PLATFORM(DG2), \
 	.has_heci_gscfi = 1, \
 	.subplatforms = (const struct xe_subplatform_desc[]) { \
 		{ XE_SUBPLATFORM_DG2_G10, "G10", dg2_g10_ids }, \
@@ -320,7 +321,7 @@ static const struct xe_device_desc dg2_desc = {
 static const __maybe_unused struct xe_device_desc pvc_desc = {
 	.graphics = &graphics_xehpc,
 	DGFX_FEATURES,
-	PLATFORM(XE_PVC),
+	PLATFORM(PVC),
 	.has_display = false,
 	.has_heci_gscfi = 1,
 	.require_force_probe = true,
@@ -329,19 +330,25 @@ static const __maybe_unused struct xe_device_desc pvc_desc = {
 static const struct xe_device_desc mtl_desc = {
 	/* .graphics and .media determined via GMD_ID */
 	.require_force_probe = true,
-	PLATFORM(XE_METEORLAKE),
+	PLATFORM(METEORLAKE),
 	.has_display = true,
 };
 
 static const struct xe_device_desc lnl_desc = {
-	PLATFORM(XE_LUNARLAKE),
+	PLATFORM(LUNARLAKE),
 	.has_display = true,
-	.require_force_probe = true,
 };
 
-static const struct xe_device_desc bmg_desc __maybe_unused = {
+static const struct xe_device_desc bmg_desc = {
 	DGFX_FEATURES,
-	PLATFORM(XE_BATTLEMAGE),
+	PLATFORM(BATTLEMAGE),
+	.has_display = true,
+	.has_heci_cscfi = 1,
+};
+
+static const struct xe_device_desc ptl_desc = {
+	PLATFORM(PANTHERLAKE),
+	.has_display = true,
 	.require_force_probe = true,
 };
 
@@ -355,6 +362,8 @@ static const struct gmdid_map graphics_ip_map[] = {
 	{ 1274, &graphics_xelpg },	/* Xe_LPG+ */
 	{ 2001, &graphics_xe2 },
 	{ 2004, &graphics_xe2 },
+	{ 3000, &graphics_xe2 },
+	{ 3001, &graphics_xe2 },
 };
 
 /* Map of GMD_ID values to media IP */
@@ -362,12 +371,8 @@ static const struct gmdid_map media_ip_map[] = {
 	{ 1300, &media_xelpmp },
 	{ 1301, &media_xe2 },
 	{ 2000, &media_xe2 },
+	{ 3000, &media_xe2 },
 };
-
-#define INTEL_VGA_DEVICE(id, info) {			\
-	PCI_DEVICE(PCI_VENDOR_ID_INTEL, id),		\
-	PCI_BASE_CLASS_DISPLAY << 16, 0xff << 16,	\
-	(unsigned long) info }
 
 /*
  * Make sure any device matches here are from most specific to most
@@ -376,23 +381,25 @@ static const struct gmdid_map media_ip_map[] = {
  * PCI ID matches, otherwise we'll use the wrong info struct above.
  */
 static const struct pci_device_id pciidlist[] = {
-	XE_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
-	XE_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
-	XE_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
-	XE_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
-	XE_ADLN_IDS(INTEL_VGA_DEVICE, &adl_n_desc),
-	XE_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
-	XE_RPLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
-	XE_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
-	XE_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
-	XE_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
-	XE_MTL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
-	XE_LNL_IDS(INTEL_VGA_DEVICE, &lnl_desc),
+	INTEL_TGL_IDS(INTEL_VGA_DEVICE, &tgl_desc),
+	INTEL_RKL_IDS(INTEL_VGA_DEVICE, &rkl_desc),
+	INTEL_ADLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
+	INTEL_ADLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_ADLN_IDS(INTEL_VGA_DEVICE, &adl_n_desc),
+	INTEL_RPLU_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_RPLP_IDS(INTEL_VGA_DEVICE, &adl_p_desc),
+	INTEL_RPLS_IDS(INTEL_VGA_DEVICE, &adl_s_desc),
+	INTEL_DG1_IDS(INTEL_VGA_DEVICE, &dg1_desc),
+	INTEL_ATS_M_IDS(INTEL_VGA_DEVICE, &ats_m_desc),
+	INTEL_ARL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
+	INTEL_DG2_IDS(INTEL_VGA_DEVICE, &dg2_desc),
+	INTEL_MTL_IDS(INTEL_VGA_DEVICE, &mtl_desc),
+	INTEL_LNL_IDS(INTEL_VGA_DEVICE, &lnl_desc),
+	INTEL_BMG_IDS(INTEL_VGA_DEVICE, &bmg_desc),
+	INTEL_PTL_IDS(INTEL_VGA_DEVICE, &ptl_desc),
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
-
-#undef INTEL_VGA_DEVICE
 
 /* is device_id present in comma separated list of ids */
 static bool device_id_in_list(u16 device_id, const char *devices, bool negative)
@@ -464,16 +471,63 @@ enum xe_gmdid_type {
 
 static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, u32 *revid)
 {
-	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
 	struct xe_reg gmdid_reg = GMD_ID;
 	u32 val;
 
 	KUNIT_STATIC_STUB_REDIRECT(read_gmdid, xe, type, ver, revid);
 
-	if (type == GMDID_MEDIA)
-		gmdid_reg.addr += MEDIA_GT_GSI_OFFSET;
+	if (IS_SRIOV_VF(xe)) {
+		struct xe_gt *gt = xe_root_mmio_gt(xe);
 
-	val = xe_mmio_read32(gt, gmdid_reg);
+		/*
+		 * To get the value of the GMDID register, VFs must obtain it
+		 * from the GuC using MMIO communication.
+		 *
+		 * Note that at this point the xe_gt is not fully uninitialized
+		 * and only basic access to MMIO registers is possible. To use
+		 * our existing GuC communication functions we must perform at
+		 * least basic xe_gt and xe_guc initialization.
+		 *
+		 * Since to obtain the value of GMDID_MEDIA we need to use the
+		 * media GuC, temporarily tweak the gt type.
+		 */
+		xe_gt_assert(gt, gt->info.type == XE_GT_TYPE_UNINITIALIZED);
+
+		if (type == GMDID_MEDIA) {
+			gt->info.id = 1;
+			gt->info.type = XE_GT_TYPE_MEDIA;
+		} else {
+			gt->info.id = 0;
+			gt->info.type = XE_GT_TYPE_MAIN;
+		}
+
+		xe_guc_comm_init_early(&gt->uc.guc);
+
+		/* Don't bother with GMDID if failed to negotiate the GuC ABI */
+		val = xe_gt_sriov_vf_bootstrap(gt) ? 0 : xe_gt_sriov_vf_gmdid(gt);
+
+		/*
+		 * Only undo xe_gt.info here, the remaining changes made above
+		 * will be overwritten as part of the regular initialization.
+		 */
+		gt->info.id = 0;
+		gt->info.type = XE_GT_TYPE_UNINITIALIZED;
+	} else {
+		/*
+		 * GMD_ID is a GT register, but at this point in the driver
+		 * init we haven't fully initialized the GT yet so we need to
+		 * read the register with the tile's MMIO accessor.  That means
+		 * we need to apply the GSI offset manually since it won't get
+		 * automatically added as it would if we were using a GT mmio
+		 * accessor.
+		 */
+		if (type == GMDID_MEDIA)
+			gmdid_reg.addr += MEDIA_GT_GSI_OFFSET;
+
+		val = xe_mmio_read32(mmio, gmdid_reg);
+	}
+
 	*ver = REG_FIELD_GET(GMD_ID_ARCH_MASK, val) * 100 + REG_FIELD_GET(GMD_ID_RELEASE_MASK, val);
 	*revid = REG_FIELD_GET(GMD_ID_REVID, val);
 }
@@ -554,12 +608,14 @@ static int xe_info_init_early(struct xe_device *xe,
 {
 	int err;
 
+	xe->info.platform_name = desc->platform_name;
 	xe->info.platform = desc->platform;
 	xe->info.subplatform = subplatform_desc ?
 		subplatform_desc->subplatform : XE_SUBPLATFORM_NONE;
 
 	xe->info.is_dgfx = desc->is_dgfx;
 	xe->info.has_heci_gscfi = desc->has_heci_gscfi;
+	xe->info.has_heci_cscfi = desc->has_heci_cscfi;
 	xe->info.has_llc = desc->has_llc;
 	xe->info.has_mmio_ext = desc->has_mmio_ext;
 	xe->info.has_sriov = desc->has_sriov;
@@ -567,9 +623,9 @@ static int xe_info_init_early(struct xe_device *xe,
 	xe->info.skip_mtcfg = desc->skip_mtcfg;
 	xe->info.skip_pcode = desc->skip_pcode;
 
-	xe->info.enable_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
-				  xe_modparam.enable_display &&
-				  desc->has_display;
+	xe->info.probe_display = IS_ENABLED(CONFIG_DRM_XE_DISPLAY) &&
+				 xe_modparam.probe_display &&
+				 desc->has_display;
 
 	err = xe_tile_init_early(xe_device_get_root_tile(xe), xe, 0);
 	if (err)
@@ -628,7 +684,13 @@ static int xe_info_init(struct xe_device *xe,
 	xe->info.va_bits = graphics_desc->va_bits;
 	xe->info.vm_max_level = graphics_desc->vm_max_level;
 	xe->info.has_asid = graphics_desc->has_asid;
+	xe->info.has_atomic_enable_pte_bit = graphics_desc->has_atomic_enable_pte_bit;
+	if (xe->info.platform != XE_PVC)
+		xe->info.has_device_atomics_on_smem = 1;
+
+	/* Runtime detection may change this later */
 	xe->info.has_flat_ccs = graphics_desc->has_flat_ccs;
+
 	xe->info.has_range_tlb_invalidation = graphics_desc->has_range_tlb_invalidation;
 	xe->info.has_usm = graphics_desc->has_usm;
 
@@ -655,9 +717,11 @@ static int xe_info_init(struct xe_device *xe,
 		gt = tile->primary_gt;
 		gt->info.id = xe->info.gt_count++;
 		gt->info.type = XE_GT_TYPE_MAIN;
-		gt->info.__engine_mask = graphics_desc->hw_engine_mask;
+		gt->info.has_indirect_ring_state = graphics_desc->has_indirect_ring_state;
+		gt->info.engine_mask = graphics_desc->hw_engine_mask;
+
 		if (MEDIA_VER(xe) < 13 && media_desc)
-			gt->info.__engine_mask |= media_desc->hw_engine_mask;
+			gt->info.engine_mask |= media_desc->hw_engine_mask;
 
 		if (MEDIA_VER(xe) < 13 || !media_desc)
 			continue;
@@ -672,9 +736,8 @@ static int xe_info_init(struct xe_device *xe,
 
 		gt = tile->media_gt;
 		gt->info.type = XE_GT_TYPE_MEDIA;
-		gt->info.__engine_mask = media_desc->hw_engine_mask;
-		gt->mmio.adj_offset = MEDIA_GT_GSI_OFFSET;
-		gt->mmio.adj_limit = MEDIA_GT_GSI_LENGTH;
+		gt->info.has_indirect_ring_state = media_desc->has_indirect_ring_state;
+		gt->info.engine_mask = media_desc->hw_engine_mask;
 
 		/*
 		 * FIXME: At the moment multi-tile and standalone media are
@@ -693,15 +756,37 @@ static void xe_pci_remove(struct pci_dev *pdev)
 {
 	struct xe_device *xe;
 
-	xe = pci_get_drvdata(pdev);
+	xe = pdev_to_xe_device(pdev);
 	if (!xe) /* driver load aborted, nothing to cleanup */
 		return;
+
+	if (IS_SRIOV_PF(xe))
+		xe_pci_sriov_configure(pdev, 0);
 
 	xe_device_remove(xe);
 	xe_pm_runtime_fini(xe);
 	pci_set_drvdata(pdev, NULL);
 }
 
+/*
+ * Probe the PCI device, initialize various parts of the driver.
+ *
+ * Fault injection is used to test the error paths of some initialization
+ * functions called either directly from xe_pci_probe() or indirectly for
+ * example through xe_device_probe(). Those functions use the kernel fault
+ * injection capabilities infrastructure, see
+ * Documentation/fault-injection/fault-injection.rst for details. The macro
+ * ALLOW_ERROR_INJECTION() is used to conditionally skip function execution
+ * at runtime and use a provided return value. The first requirement for
+ * error injectable functions is proper handling of the error code by the
+ * caller for recovery, which is always the case here. The second
+ * requirement is that no state is changed before the first error return.
+ * It is not strictly fulfilled for all initialization functions using the
+ * ALLOW_ERROR_INJECTION() macro but this is acceptable because for those
+ * error cases at probe time, the error code is simply propagated up by the
+ * caller. Therefore there is no consequence on those specific callers when
+ * function error injection skips the whole function.
+ */
 static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct xe_device_desc *desc = (const void *)ent->driver_data;
@@ -738,7 +823,7 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (IS_ERR(xe))
 		return PTR_ERR(xe);
 
-	pci_set_drvdata(pdev, xe);
+	pci_set_drvdata(pdev, &xe->drm);
 
 	xe_pm_assert_unbounded_bridge(xe);
 	subplatform_desc = find_subplatform(xe, desc);
@@ -757,9 +842,11 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	xe_display_probe(xe);
+	err = xe_display_probe(xe);
+	if (err)
+		return err;
 
-	drm_dbg(&xe->drm, "%s %s %04x:%04x dgfx:%d gfx:%s (%d.%02d) media:%s (%d.%02d) display:%s dma_m_s:%d tc:%d gscfi:%d",
+	drm_dbg(&xe->drm, "%s %s %04x:%04x dgfx:%d gfx:%s (%d.%02d) media:%s (%d.%02d) display:%s dma_m_s:%d tc:%d gscfi:%d cscfi:%d",
 		desc->platform_name,
 		subplatform_desc ? subplatform_desc->name : "",
 		xe->info.devid, xe->info.revid,
@@ -770,14 +857,13 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		xe->info.media_name,
 		xe->info.media_verx100 / 100,
 		xe->info.media_verx100 % 100,
-		str_yes_no(xe->info.enable_display),
+		str_yes_no(xe->info.probe_display),
 		xe->info.dma_mask_size, xe->info.tile_count,
-		xe->info.has_heci_gscfi);
+		xe->info.has_heci_gscfi, xe->info.has_heci_cscfi);
 
-	drm_dbg(&xe->drm, "Stepping = (G:%s, M:%s, D:%s, B:%s)\n",
+	drm_dbg(&xe->drm, "Stepping = (G:%s, M:%s, B:%s)\n",
 		xe_step_name(xe->info.step.graphics),
 		xe_step_name(xe->info.step.media),
-		xe_step_name(xe->info.step.display),
 		xe_step_name(xe->info.step.basedie));
 
 	drm_dbg(&xe->drm, "SR-IOV support: %s (mode: %s)\n",
@@ -868,6 +954,8 @@ static int xe_pci_resume(struct device *dev)
 	if (err)
 		return err;
 
+	pci_restore_state(pdev);
+
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
@@ -951,6 +1039,7 @@ static struct pci_driver xe_pci_driver = {
 	.probe = xe_pci_probe,
 	.remove = xe_pci_remove,
 	.shutdown = xe_pci_shutdown,
+	.sriov_configure = xe_pci_sriov_configure,
 #ifdef CONFIG_PM_SLEEP
 	.driver.pm = &xe_pm_ops,
 #endif

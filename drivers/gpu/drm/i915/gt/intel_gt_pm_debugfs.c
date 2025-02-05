@@ -371,7 +371,6 @@ void intel_gt_pm_frequency_dump(struct intel_gt *gt, struct drm_printer *p)
 		vlv_punit_put(i915);
 
 		drm_printf(p, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
-		drm_printf(p, "DDR freq: %d MHz\n", i915->mem_freq);
 
 		drm_printf(p, "actual GPU freq: %d MHz\n",
 			   intel_gpu_freq(rps, (freq_sts >> 8) & 0xff));

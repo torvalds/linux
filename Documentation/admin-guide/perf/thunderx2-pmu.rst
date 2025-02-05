@@ -22,7 +22,7 @@ The thunderx2_pmu driver registers per-socket perf PMUs for the DMC and
 L3C devices.  Each PMU can be used to count up to 4 (DMC/L3C) or up to 8
 (CCPI2) events simultaneously. The PMUs provide a description of their
 available events and configuration options under sysfs, see
-/sys/devices/uncore_<l3c_S/dmc_S/ccpi2_S/>; S is the socket id.
+/sys/bus/event_source/devices/uncore_<l3c_S/dmc_S/ccpi2_S/>; S is the socket id.
 
 The driver does not support sampling, therefore "perf record" will not
 work. Per-task perf sessions are also not supported.

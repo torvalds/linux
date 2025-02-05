@@ -150,7 +150,8 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 		if (ppb > ops->max_adj || ppb < -ops->max_adj)
 			return -ERANGE;
 		err = ops->adjfine(ops, tx->freq);
-		ptp->dialed_frequency = tx->freq;
+		if (!err)
+			ptp->dialed_frequency = tx->freq;
 	} else if (tx->modes & ADJ_OFFSET) {
 		if (ops->adjphase) {
 			s32 max_phase_adj = ops->getmaxphase(ops);
@@ -214,6 +215,11 @@ static int ptp_getcycles64(struct ptp_clock_info *info, struct timespec64 *ts)
 		return info->getcyclesx64(info, ts, NULL);
 	else
 		return info->gettime64(info, ts);
+}
+
+static int ptp_enable(struct ptp_clock_info *ptp, struct ptp_clock_request *request, int on)
+{
+	return -EOPNOTSUPP;
 }
 
 static void ptp_aux_kworker(struct kthread_work *work)
@@ -293,9 +299,12 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 			ptp->info->getcrosscycles = ptp->info->getcrosststamp;
 	}
 
+	if (!ptp->info->enable)
+		ptp->info->enable = ptp_enable;
+
 	if (ptp->info->do_aux_work) {
 		kthread_init_delayed_work(&ptp->aux_work, ptp_aux_kworker);
-		ptp->kworker = kthread_create_worker(0, "ptp%d", ptp->index);
+		ptp->kworker = kthread_run_worker(0, "ptp%d", ptp->index);
 		if (IS_ERR(ptp->kworker)) {
 			err = PTR_ERR(ptp->kworker);
 			pr_err("failed to create ptp aux_worker %d\n", err);

@@ -1054,7 +1054,6 @@ static const struct file_operations sonypi_misc_fops = {
 	.release	= sonypi_misc_release,
 	.fasync		= sonypi_misc_fasync,
 	.unlocked_ioctl	= sonypi_misc_ioctl,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice sonypi_misc_device = {
@@ -1408,7 +1407,7 @@ static int sonypi_probe(struct platform_device *dev)
 	return error;
 }
 
-static int sonypi_remove(struct platform_device *dev)
+static void sonypi_remove(struct platform_device *dev)
 {
 	sonypi_disable();
 
@@ -1432,8 +1431,6 @@ static int sonypi_remove(struct platform_device *dev)
 	}
 
 	kfifo_free(&sonypi_device.fifo);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

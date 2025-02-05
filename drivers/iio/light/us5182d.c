@@ -627,7 +627,7 @@ static int us5182d_read_event_config(struct iio_dev *indio_dev,
 
 static int us5182d_write_event_config(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, enum iio_event_type type,
-	enum iio_event_direction dir, int state)
+	enum iio_event_direction dir, bool state)
 {
 	struct us5182d_data *data = iio_priv(indio_dev);
 	int ret;
@@ -955,7 +955,7 @@ static const struct acpi_device_id us5182d_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, us5182d_acpi_match);
 
 static const struct i2c_device_id us5182d_id[] = {
-	{ "usd5182", 0 },
+	{ "usd5182" },
 	{}
 };
 

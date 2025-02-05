@@ -7,19 +7,6 @@
 #ifndef __RTW_EFUSE_H__
 #define __RTW_EFUSE_H__
 
-
-#define	EFUSE_ERROE_HANDLE		1
-
-#define	PG_STATE_HEADER			0x01
-#define	PG_STATE_WORD_0		0x02
-#define	PG_STATE_WORD_1		0x04
-#define	PG_STATE_WORD_2		0x08
-#define	PG_STATE_WORD_3		0x10
-#define	PG_STATE_DATA			0x20
-
-#define	PG_SWBYTE_H			0x01
-#define	PG_SWBYTE_L			0x02
-
 #define	PGPKT_DATA_SIZE		8
 
 #define	EFUSE_WIFI				0
@@ -103,16 +90,12 @@ extern u8 fakeBTEfuseInitMap[];
 extern u8 fakeBTEfuseModifiedMap[];
 /*------------------------Export global variable----------------------------*/
 
-u16 Efuse_GetCurrentSize(struct adapter *padapter, u8 efuseType, bool bPseudoTest);
 u8 Efuse_CalculateWordCnts(u8 word_en);
 void EFUSE_GetEfuseDefinition(struct adapter *padapter, u8 efuseType, u8 type, void *pOut, bool bPseudoTest);
 u8 efuse_OneByteRead(struct adapter *padapter, u16 addr, u8 *data, bool	 bPseudoTest);
 u8 efuse_OneByteWrite(struct adapter *padapter, u16 addr, u8 data, bool	 bPseudoTest);
 
 void Efuse_PowerSwitch(struct adapter *padapter, u8 bWrite, u8  PwrState);
-int	Efuse_PgPacketRead(struct adapter *padapter, u8 offset, u8 *data, bool bPseudoTest);
-int	Efuse_PgPacketWrite(struct adapter *padapter, u8 offset, u8 word_en, u8 *data, bool bPseudoTest);
-void efuse_WordEnableDataRead(u8 word_en, u8 *sourdata, u8 *targetdata);
 u8 Efuse_WordEnableDataWrite(struct adapter *padapter, u16 efuse_addr, u8 word_en, u8 *data, bool bPseudoTest);
 
 u8 EFUSE_Read1Byte(struct adapter *padapter, u16 Address);

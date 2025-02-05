@@ -520,32 +520,20 @@ static int rtq6056_adc_write_raw(struct iio_dev *indio_dev,
 {
 	struct rtq6056_priv *priv = iio_priv(indio_dev);
 	const struct richtek_dev_data *devdata = priv->devdata;
-	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
-	switch (mask) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (devdata->fixed_samp_freq) {
-			ret = -EINVAL;
-			break;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		switch (mask) {
+		case IIO_CHAN_INFO_SAMP_FREQ:
+			if (devdata->fixed_samp_freq)
+				return -EINVAL;
+			return rtq6056_adc_set_samp_freq(priv, chan, val);
+		case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+			return devdata->set_average(priv, val);
+		default:
+			return -EINVAL;
 		}
-
-		ret = rtq6056_adc_set_samp_freq(priv, chan, val);
-		break;
-	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		ret = devdata->set_average(priv, val);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
 	}
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+	unreachable();
 }
 
 static const char *rtq6056_channel_labels[RTQ6056_MAX_CHANNEL] = {
@@ -646,7 +634,7 @@ static irqreturn_t rtq6056_buffer_trigger_handler(int irq, void *p)
 	struct device *dev = priv->dev;
 	struct {
 		u16 vals[RTQ6056_MAX_CHANNEL];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} data;
 	unsigned int raw;
 	int i = 0, bit, ret;
@@ -655,7 +643,7 @@ static irqreturn_t rtq6056_buffer_trigger_handler(int irq, void *p)
 
 	pm_runtime_get_sync(dev);
 
-	for_each_set_bit(bit, indio_dev->active_scan_mask, indio_dev->masklength) {
+	iio_for_each_active_channel(indio_dev, bit) {
 		unsigned int addr = rtq6056_channels[bit].address;
 
 		ret = regmap_read(priv->regmap, addr, &raw);
@@ -877,7 +865,7 @@ static const struct richtek_dev_data rtq6059_devdata = {
 static const struct of_device_id rtq6056_device_match[] = {
 	{ .compatible = "richtek,rtq6056", .data = &rtq6056_devdata },
 	{ .compatible = "richtek,rtq6059", .data = &rtq6059_devdata },
-	{}
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rtq6056_device_match);
 

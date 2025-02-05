@@ -349,6 +349,7 @@ static void rvu_cgx_wq_destroy(struct rvu *rvu)
 
 int rvu_cgx_init(struct rvu *rvu)
 {
+	struct mac_ops *mac_ops;
 	int cgx, err;
 	void *cgxd;
 
@@ -375,6 +376,15 @@ int rvu_cgx_init(struct rvu *rvu)
 	if (err)
 		return err;
 
+	/* Clear X2P reset on all MAC blocks */
+	for (cgx = 0; cgx < rvu->cgx_cnt_max; cgx++) {
+		cgxd = rvu_cgx_pdata(cgx, rvu);
+		if (!cgxd)
+			continue;
+		mac_ops = get_mac_ops(cgxd);
+		mac_ops->mac_x2p_reset(cgxd, false);
+	}
+
 	/* Register for CGX events */
 	err = cgx_lmac_event_handler_init(rvu);
 	if (err)
@@ -382,10 +392,26 @@ int rvu_cgx_init(struct rvu *rvu)
 
 	mutex_init(&rvu->cgx_cfg_lock);
 
-	/* Ensure event handler registration is completed, before
-	 * we turn on the links
-	 */
-	mb();
+	return 0;
+}
+
+void cgx_start_linkup(struct rvu *rvu)
+{
+	unsigned long lmac_bmap;
+	struct mac_ops *mac_ops;
+	int cgx, lmac, err;
+	void *cgxd;
+
+	/* Enable receive on all LMACS */
+	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
+		cgxd = rvu_cgx_pdata(cgx, rvu);
+		if (!cgxd)
+			continue;
+		mac_ops = get_mac_ops(cgxd);
+		lmac_bmap = cgx_get_lmac_bmap(cgxd);
+		for_each_set_bit(lmac, &lmac_bmap, rvu->hw->lmac_per_cgx)
+			mac_ops->mac_enadis_rx(cgxd, lmac, true);
+	}
 
 	/* Do link up for all CGX ports */
 	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
@@ -398,8 +424,6 @@ int rvu_cgx_init(struct rvu *rvu)
 				"Link up process failed to start on cgx %d\n",
 				cgx);
 	}
-
-	return 0;
 }
 
 int rvu_cgx_exit(struct rvu *rvu)
@@ -602,6 +626,35 @@ int rvu_mbox_handler_rpm_stats(struct rvu *rvu, struct msg_req *req,
 			       struct rpm_stats_rsp *rsp)
 {
 	return rvu_lmac_get_stats(rvu, req, (void *)rsp);
+}
+
+int rvu_mbox_handler_cgx_stats_rst(struct rvu *rvu, struct msg_req *req,
+				   struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct rvu_pfvf	*parent_pf;
+	struct mac_ops *mac_ops;
+	u8 cgx_idx, lmac;
+	void *cgxd;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return LMAC_AF_ERR_PERM_DENIED;
+
+	parent_pf = &rvu->pf[pf];
+	/* To ensure reset cgx stats won't affect VF stats,
+	 *  check if it used by only PF interface.
+	 *  If not, return
+	 */
+	if (parent_pf->cgx_users > 1) {
+		dev_info(rvu->dev, "CGX busy, could not reset statistics\n");
+		return 0;
+	}
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_idx, &lmac);
+	cgxd = rvu_cgx_pdata(cgx_idx, rvu);
+	mac_ops = get_mac_ops(cgxd);
+
+	return mac_ops->mac_stats_reset(cgxd, lmac);
 }
 
 int rvu_mbox_handler_cgx_fec_stats(struct rvu *rvu,
@@ -894,13 +947,12 @@ int rvu_mbox_handler_cgx_features_get(struct rvu *rvu,
 
 u32 rvu_cgx_get_fifolen(struct rvu *rvu)
 {
-	struct mac_ops *mac_ops;
-	u32 fifo_len;
+	void *cgxd = rvu_first_cgx_pdata(rvu);
 
-	mac_ops = get_mac_ops(rvu_first_cgx_pdata(rvu));
-	fifo_len = mac_ops ? mac_ops->fifo_len : 0;
+	if (!cgxd)
+		return 0;
 
-	return fifo_len;
+	return cgx_get_fifo_len(cgxd);
 }
 
 u32 rvu_cgx_get_lmac_fifolen(struct rvu *rvu, int cgx, int lmac)

@@ -23,8 +23,8 @@
 #include <linux/irq.h>
 
 #include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_address.h>
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
 
 #define DRIVER_NAME "uio_pdrv_genirq"
 
@@ -110,7 +110,7 @@ static void uio_pdrv_genirq_cleanup(void *data)
 static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 {
 	struct uio_info *uioinfo = dev_get_platdata(&pdev->dev);
-	struct device_node *node = pdev->dev.of_node;
+	struct fwnode_handle *node = dev_fwnode(&pdev->dev);
 	struct uio_pdrv_genirq_platdata *priv;
 	struct uio_mem *uiomem;
 	int ret = -EINVAL;
@@ -127,11 +127,11 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		if (!of_property_read_string(node, "linux,uio-name", &name))
+		if (!device_property_read_string(&pdev->dev, "linux,uio-name", &name))
 			uioinfo->name = devm_kstrdup(&pdev->dev, name, GFP_KERNEL);
 		else
 			uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL,
-						       "%pOFn", node);
+						       "%pfwP", node);
 
 		uioinfo->version = "devicetree";
 		/* Multiple IRQs are not supported */
@@ -173,8 +173,6 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	}
 
 	if (uioinfo->irq) {
-		struct irq_data *irq_data = irq_get_irq_data(uioinfo->irq);
-
 		/*
 		 * If a level interrupt, dont do lazy disable. Otherwise the
 		 * irq will fire again since clearing of the actual cause, on
@@ -182,8 +180,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		 * irqd_is_level_type() isn't used since isn't valid until
 		 * irq is configured.
 		 */
-		if (irq_data &&
-		    irqd_get_trigger_type(irq_data) & IRQ_TYPE_LEVEL_MASK) {
+		if (irq_get_trigger_type(uioinfo->irq) & IRQ_TYPE_LEVEL_MASK) {
 			dev_dbg(&pdev->dev, "disable lazy unmask\n");
 			irq_set_status_flags(uioinfo->irq, IRQ_DISABLE_UNLAZY);
 		}

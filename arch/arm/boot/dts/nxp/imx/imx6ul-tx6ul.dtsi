@@ -405,7 +405,7 @@
 		status = "okay";
 
 		display-timings {
-			VGA {
+			timing-vga {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -421,7 +421,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ETV570 {
+			timing-etv570 {
 				clock-frequency = <25200000>;
 				hactive = <640>;
 				vactive = <480>;
@@ -437,7 +437,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0350 {
+			timing-et0350 {
 				clock-frequency = <6413760>;
 				hactive = <320>;
 				vactive = <240>;
@@ -453,7 +453,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0430 {
+			timing-et0430 {
 				clock-frequency = <9009000>;
 				hactive = <480>;
 				vactive = <272>;
@@ -469,7 +469,7 @@
 				pixelclk-active = <0>;
 			};
 
-			ET0500 {
+			timing-et0500 {
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -485,7 +485,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ET0700 { /* same as ET0500 */
+			timing-et0700 { /* same as ET0500 */
 				clock-frequency = <33264000>;
 				hactive = <800>;
 				vactive = <480>;
@@ -501,7 +501,7 @@
 				pixelclk-active = <1>;
 			};
 
-			ETQ570 {
+			timing-etq570 {
 				clock-frequency = <6596040>;
 				hactive = <320>;
 				vactive = <240>;
@@ -578,19 +578,13 @@
 };
 
 &iomuxc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_hog>;
-
-	pinctrl_hog: hoggrp {
-	};
-
 	pinctrl_led: ledgrp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER9__GPIO5_IO09	0x0b0b0 /* LED */
 		>;
 	};
 
-	pinctrl_disp0_1: disp0grp-1 {
+	pinctrl_disp0_1: disp0-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_CLK__LCDIF_CLK		0x10 /* LSCLK */
 			MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE	0x10 /* OE_ACD */
@@ -623,7 +617,7 @@
 		>;
 	};
 
-	pinctrl_disp0_2: disp0grp-2 {
+	pinctrl_disp0_2: disp0-2-grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_CLK__LCDIF_CLK		0x10 /* LSCLK */
 			MX6UL_PAD_LCD_ENABLE__LCDIF_ENABLE	0x10 /* OE_ACD */
@@ -713,25 +707,25 @@
 		>;
 	};
 
-	pinctrl_etnphy0_int: etnphy-intgrp-0 {
+	pinctrl_etnphy0_int: etnphy-int-0-grp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER5__GPIO5_IO05	0x0b0b0 /* ETN PHY INT */
 		>;
 	};
 
-	pinctrl_etnphy0_rst: etnphy-rstgrp-0 {
+	pinctrl_etnphy0_rst: etnphy-rst-0-grp {
 		fsl,pins = <
 			MX6UL_PAD_SNVS_TAMPER6__GPIO5_IO06	0x0b0b0 /* ETN PHY RESET */
 		>;
 	};
 
-	pinctrl_etnphy1_int: etnphy-intgrp-1 {
+	pinctrl_etnphy1_int: etnphy-int-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_DATA06__GPIO4_IO27	0x0b0b0 /* ETN PHY INT */
 		>;
 	};
 
-	pinctrl_etnphy1_rst: etnphy-rstgrp-1 {
+	pinctrl_etnphy1_rst: etnphy-rst-1-grp {
 		fsl,pins = <
 			MX6UL_PAD_CSI_DATA07__GPIO4_IO28	0x0b0b0 /* ETN PHY RESET */
 		>;

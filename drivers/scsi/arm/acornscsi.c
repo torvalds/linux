@@ -2450,7 +2450,7 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt)
     return 0;
 }
 
-DEF_SCSI_QCMD(acornscsi_queuecmd)
+static DEF_SCSI_QCMD(acornscsi_queuecmd)
 
 enum res_abort { res_not_running, res_success, res_success_clear, res_snooze };
 
@@ -2552,7 +2552,7 @@ static enum res_abort acornscsi_do_abort(AS_Host *host, struct scsi_cmnd *SCpnt)
  * Params   : SCpnt - command to abort
  * Returns  : one of SCSI_ABORT_ macros
  */
-int acornscsi_abort(struct scsi_cmnd *SCpnt)
+static int acornscsi_abort(struct scsi_cmnd *SCpnt)
 {
 	AS_Host *host = (AS_Host *) SCpnt->device->host->hostdata;
 	int result;
@@ -2634,7 +2634,7 @@ int acornscsi_abort(struct scsi_cmnd *SCpnt)
  * Params   : SCpnt  - command causing reset
  * Returns  : one of SCSI_RESET_ macros
  */
-int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
+static int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
 {
 	AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
 	struct scsi_cmnd *SCptr;
@@ -2679,8 +2679,7 @@ int acornscsi_host_reset(struct scsi_cmnd *SCpnt)
  * Params  : host - host to give information on
  * Returns : a constant string
  */
-const
-char *acornscsi_info(struct Scsi_Host *host)
+static const char *acornscsi_info(struct Scsi_Host *host)
 {
     static char string[100], *p;
 

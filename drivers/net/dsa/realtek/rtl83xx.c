@@ -25,7 +25,7 @@ void rtl83xx_lock(void *ctx)
 
 	mutex_lock(&priv->map_lock);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_lock, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_lock, "REALTEK_DSA");
 
 /**
  * rtl83xx_unlock() - Unlocks the mutex used by regmaps
@@ -42,7 +42,7 @@ void rtl83xx_unlock(void *ctx)
 
 	mutex_unlock(&priv->map_lock);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_unlock, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_unlock, "REALTEK_DSA");
 
 static int rtl83xx_user_mdio_read(struct mii_bus *bus, int addr, int regnum)
 {
@@ -109,7 +109,7 @@ err_put_node:
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_setup_user_mdio, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_setup_user_mdio, "REALTEK_DSA");
 
 /**
  * rtl83xx_probe() - probe a Realtek switch
@@ -185,11 +185,9 @@ rtl83xx_probe(struct device *dev,
 
 	/* TODO: if power is software controlled, set up any regulators here */
 	priv->reset_ctl = devm_reset_control_get_optional(dev, NULL);
-	if (IS_ERR(priv->reset_ctl)) {
-		ret = PTR_ERR(priv->reset_ctl);
-		dev_err_probe(dev, ret, "failed to get reset control\n");
-		return ERR_CAST(priv->reset_ctl);
-	}
+	if (IS_ERR(priv->reset_ctl))
+		return dev_err_cast_probe(dev, priv->reset_ctl,
+					  "failed to get reset control\n");
 
 	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->reset)) {
@@ -210,7 +208,7 @@ rtl83xx_probe(struct device *dev,
 
 	return priv;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_probe, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_probe, "REALTEK_DSA");
 
 /**
  * rtl83xx_register_switch() - detects and register a switch
@@ -236,6 +234,7 @@ int rtl83xx_register_switch(struct realtek_priv *priv)
 	ds->priv = priv;
 	ds->dev = priv->dev;
 	ds->ops = priv->variant->ds_ops;
+	ds->phylink_mac_ops = priv->variant->phylink_mac_ops;
 	ds->num_ports = priv->num_ports;
 
 	ret = dsa_register_switch(ds);
@@ -246,7 +245,7 @@ int rtl83xx_register_switch(struct realtek_priv *priv)
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_register_switch, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_register_switch, "REALTEK_DSA");
 
 /**
  * rtl83xx_unregister_switch() - unregister a switch
@@ -263,7 +262,7 @@ void rtl83xx_unregister_switch(struct realtek_priv *priv)
 
 	dsa_unregister_switch(ds);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_unregister_switch, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_unregister_switch, "REALTEK_DSA");
 
 /**
  * rtl83xx_shutdown() - shutdown a switch
@@ -284,24 +283,21 @@ void rtl83xx_shutdown(struct realtek_priv *priv)
 
 	dev_set_drvdata(priv->dev, NULL);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, "REALTEK_DSA");
 
 /**
  * rtl83xx_remove() - Cleanup a realtek switch driver
  * @priv: realtek_priv pointer
  *
- * If a method is provided, this function asserts the hard reset of the switch
- * in order to avoid leaking traffic when the driver is gone.
+ * Placehold for common cleanup procedures.
  *
- * Context: Might sleep if priv->gdev->chip->can_sleep.
+ * Context: Any
  * Return: nothing
  */
 void rtl83xx_remove(struct realtek_priv *priv)
 {
-	/* leave the device reset asserted */
-	rtl83xx_reset_assert(priv);
 }
-EXPORT_SYMBOL_NS_GPL(rtl83xx_remove, REALTEK_DSA);
+EXPORT_SYMBOL_NS_GPL(rtl83xx_remove, "REALTEK_DSA");
 
 void rtl83xx_reset_assert(struct realtek_priv *priv)
 {

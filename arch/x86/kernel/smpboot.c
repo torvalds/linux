@@ -60,9 +60,11 @@
 #include <linux/stackprotector.h>
 #include <linux/cpuhotplug.h>
 #include <linux/mc146818rtc.h>
+#include <linux/acpi.h>
 
 #include <asm/acpi.h>
 #include <asm/cacheinfo.h>
+#include <asm/cpuid.h>
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
@@ -246,7 +248,7 @@ static void notrace start_secondary(void *unused)
 		__flush_tlb_all();
 	}
 
-	cpu_init_exception_handling();
+	cpu_init_exception_handling(false);
 
 	/*
 	 * Load the microcode before reaching the AP alive synchronization
@@ -438,9 +440,9 @@ static bool match_pkg(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
  */
 
 static const struct x86_cpu_id intel_cod_cpu[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(HASWELL_X, 0),	/* COD */
-	X86_MATCH_INTEL_FAM6_MODEL(BROADWELL_X, 0),	/* COD */
-	X86_MATCH_INTEL_FAM6_MODEL(ANY, 1),		/* SNC */
+	X86_MATCH_VFM(INTEL_HASWELL_X,	 0),	/* COD */
+	X86_MATCH_VFM(INTEL_BROADWELL_X, 0),	/* COD */
+	X86_MATCH_VFM(INTEL_ANY,	 1),	/* SNC */
 	{}
 };
 
@@ -481,26 +483,12 @@ static int x86_core_flags(void)
 	return cpu_core_flags() | x86_sched_itmt_flags();
 }
 #endif
-#ifdef CONFIG_SCHED_SMT
-static int x86_smt_flags(void)
-{
-	return cpu_smt_flags();
-}
-#endif
 #ifdef CONFIG_SCHED_CLUSTER
 static int x86_cluster_flags(void)
 {
 	return cpu_cluster_flags() | x86_sched_itmt_flags();
 }
 #endif
-
-static int x86_die_flags(void)
-{
-	if (cpu_feature_enabled(X86_FEATURE_HYBRID_CPU))
-	       return x86_sched_itmt_flags();
-
-	return 0;
-}
 
 /*
  * Set if a package/die has multiple NUMA nodes inside.
@@ -517,7 +505,7 @@ static void __init build_sched_topology(void)
 
 #ifdef CONFIG_SCHED_SMT
 	x86_topology[i++] = (struct sched_domain_topology_level){
-		cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT)
+		cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT)
 	};
 #endif
 #ifdef CONFIG_SCHED_CLUSTER
@@ -537,7 +525,7 @@ static void __init build_sched_topology(void)
 	 */
 	if (!x86_has_numa_in_package) {
 		x86_topology[i++] = (struct sched_domain_topology_level){
-			cpu_cpu_mask, x86_die_flags, SD_INIT_NAME(PKG)
+			cpu_cpu_mask, x86_sched_itmt_flags, SD_INIT_NAME(PKG)
 		};
 	}
 
@@ -1033,20 +1021,22 @@ static __init void disable_smp(void)
 
 void __init smp_prepare_cpus_common(void)
 {
-	unsigned int i;
+	unsigned int cpu, node;
 
 	/* Mark all except the boot CPU as hotpluggable */
-	for_each_possible_cpu(i) {
-		if (i)
-			per_cpu(cpu_info.cpu_index, i) = nr_cpu_ids;
+	for_each_possible_cpu(cpu) {
+		if (cpu)
+			per_cpu(cpu_info.cpu_index, cpu) = nr_cpu_ids;
 	}
 
-	for_each_possible_cpu(i) {
-		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_die_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_l2c_shared_map, i), GFP_KERNEL);
+	for_each_possible_cpu(cpu) {
+		node = cpu_to_node(cpu);
+
+		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map,    cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_core_map,       cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_die_map,        cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_llc_shared_map, cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_l2c_shared_map, cpu), GFP_KERNEL, node);
 	}
 
 	set_cpu_sibling_map(0);
@@ -1287,10 +1277,8 @@ static inline void mwait_play_dead(void)
 		return;
 	if (!this_cpu_has(X86_FEATURE_CLFLUSH))
 		return;
-	if (__this_cpu_read(cpu_info.cpuid_level) < CPUID_MWAIT_LEAF)
-		return;
 
-	eax = CPUID_MWAIT_LEAF;
+	eax = CPUID_LEAF_MWAIT;
 	ecx = 0;
 	native_cpuid(&eax, &ebx, &ecx, &edx);
 

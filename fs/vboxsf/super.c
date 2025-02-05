@@ -41,8 +41,8 @@ enum  { opt_nls, opt_uid, opt_gid, opt_ttl, opt_dmode, opt_fmode,
 
 static const struct fs_parameter_spec vboxsf_fs_parameters[] = {
 	fsparam_string	("nls",		opt_nls),
-	fsparam_u32	("uid",		opt_uid),
-	fsparam_u32	("gid",		opt_gid),
+	fsparam_uid	("uid",		opt_uid),
+	fsparam_gid	("gid",		opt_gid),
 	fsparam_u32	("ttl",		opt_ttl),
 	fsparam_u32oct	("dmode",	opt_dmode),
 	fsparam_u32oct	("fmode",	opt_fmode),
@@ -55,8 +55,6 @@ static int vboxsf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 {
 	struct vboxsf_fs_context *ctx = fc->fs_private;
 	struct fs_parse_result result;
-	kuid_t uid;
-	kgid_t gid;
 	int opt;
 
 	opt = fs_parse(fc, vboxsf_fs_parameters, param, &result);
@@ -73,16 +71,10 @@ static int vboxsf_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		param->string = NULL;
 		break;
 	case opt_uid:
-		uid = make_kuid(current_user_ns(), result.uint_32);
-		if (!uid_valid(uid))
-			return -EINVAL;
-		ctx->o.uid = uid;
+		ctx->o.uid = result.uid;
 		break;
 	case opt_gid:
-		gid = make_kgid(current_user_ns(), result.uint_32);
-		if (!gid_valid(gid))
-			return -EINVAL;
-		ctx->o.gid = gid;
+		ctx->o.gid = result.gid;
 		break;
 	case opt_ttl:
 		ctx->o.ttl = msecs_to_jiffies(result.uint_32);

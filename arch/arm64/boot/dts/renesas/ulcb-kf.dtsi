@@ -4,8 +4,24 @@
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
  * Copyright (C) 2017 Cogent Embedded, Inc.
+ *
+ * Sample Audio settings:
+ *
+ *	> amixer set "DVC Out" 1%
+ *	> amixer set "DVC In"  20%
+ *
+ *	// if you use xxxx-mix+split.dtsi
+ *	> amixer -D hw:1 set "pcm3168a DAC1" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC2" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC3" 50%
+ *	> amixer -D hw:1 set "pcm3168a DAC4" 50%
+ *
+ *	// else
+ *	> amixer -D hw:1 set "DAC1" 50%
+ *	> amixer -D hw:1 set "DAC2" 50%
+ *	> amixer -D hw:1 set "DAC3" 50%
+ *	> amixer -D hw:1 set "DAC4" 50%
  */
-
 / {
 	aliases {
 		serial1 = &hscif0;
@@ -150,8 +166,7 @@
 				pinctrl-0 = <&hdmi1_pins>;
 				pinctrl-names = "default";
 
-				interrupt-parent = <&gpio2>;
-				interrupts = <14 IRQ_TYPE_LEVEL_LOW>;
+				interrupts-extended = <&gpio2 14 IRQ_TYPE_LEVEL_LOW>;
 
 				clocks = <&cs2000>;
 				clock-names = "cec";
@@ -236,8 +251,7 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio6 8 IRQ_TYPE_EDGE_FALLING>;
 
 		audio-out-off-hog {
 			gpio-hog;
@@ -297,8 +311,7 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-parent = <&gpio6>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio6 4 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -318,8 +331,7 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-parent = <&gpio7>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio7 3 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	gpio_exp_77: gpio@77 {
@@ -329,8 +341,7 @@
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio5 9 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 
@@ -449,8 +460,7 @@
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1837";
 		reg = <2>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <25 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio1 25 IRQ_TYPE_EDGE_FALLING>;
 	};
 };
 

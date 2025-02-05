@@ -146,6 +146,7 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 {
 	struct pci_dev *pdev = doe_mb->pdev;
 	int offset = doe_mb->cap_offset;
+	unsigned long timeout_jiffies;
 	size_t length, remainder;
 	u32 val;
 	int i;
@@ -155,8 +156,19 @@ static int pci_doe_send_req(struct pci_doe_mb *doe_mb,
 	 * someone other than Linux (e.g. firmware) is using the mailbox. Note
 	 * it is expected that firmware and OS will negotiate access rights via
 	 * an, as yet to be defined, method.
+	 *
+	 * Wait up to one PCI_DOE_TIMEOUT period to allow the prior command to
+	 * finish. Otherwise, simply error out as unable to field the request.
+	 *
+	 * PCIe r6.2 sec 6.30.3 states no interrupt is raised when the DOE Busy
+	 * bit is cleared, so polling here is our best option for the moment.
 	 */
-	pci_read_config_dword(pdev, offset + PCI_DOE_STATUS, &val);
+	timeout_jiffies = jiffies + PCI_DOE_TIMEOUT;
+	do {
+		pci_read_config_dword(pdev, offset + PCI_DOE_STATUS, &val);
+	} while (FIELD_GET(PCI_DOE_STATUS_BUSY, val) &&
+		 !time_after(jiffies, timeout_jiffies));
+
 	if (FIELD_GET(PCI_DOE_STATUS_BUSY, val))
 		return -EBUSY;
 
@@ -383,11 +395,13 @@ static void pci_doe_task_complete(struct pci_doe_task *task)
 	complete(task->private);
 }
 
-static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 *index, u16 *vid,
+static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 capver, u8 *index, u16 *vid,
 			     u8 *protocol)
 {
 	u32 request_pl = FIELD_PREP(PCI_DOE_DATA_OBJECT_DISC_REQ_3_INDEX,
-				    *index);
+				    *index) |
+			 FIELD_PREP(PCI_DOE_DATA_OBJECT_DISC_REQ_3_VER,
+				    (capver >= 2) ? 2 : 0);
 	__le32 request_pl_le = cpu_to_le32(request_pl);
 	__le32 response_pl_le;
 	u32 response_pl;
@@ -421,13 +435,17 @@ static int pci_doe_cache_protocols(struct pci_doe_mb *doe_mb)
 {
 	u8 index = 0;
 	u8 xa_idx = 0;
+	u32 hdr = 0;
+
+	pci_read_config_dword(doe_mb->pdev, doe_mb->cap_offset, &hdr);
 
 	do {
 		int rc;
 		u16 vid;
 		u8 prot;
 
-		rc = pci_doe_discovery(doe_mb, &index, &vid, &prot);
+		rc = pci_doe_discovery(doe_mb, PCI_EXT_CAP_VER(hdr), &index,
+				       &vid, &prot);
 		if (rc)
 			return rc;
 

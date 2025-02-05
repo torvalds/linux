@@ -54,7 +54,7 @@ static int highbank_l2_err_probe(struct platform_device *pdev)
 	int res = 0;
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata), "cpu",
-		1, "L", 1, 2, NULL, 0, 0);
+					 1, "L", 1, 2, 0);
 	if (!dci)
 		return -ENOMEM;
 
@@ -128,7 +128,7 @@ static void highbank_l2_err_remove(struct platform_device *pdev)
 
 static struct platform_driver highbank_l2_edac_driver = {
 	.probe = highbank_l2_err_probe,
-	.remove_new = highbank_l2_err_remove,
+	.remove = highbank_l2_err_remove,
 	.driver = {
 		.name = "hb_l2_edac",
 		.of_match_table = hb_l2_err_of_match,

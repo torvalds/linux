@@ -52,7 +52,7 @@ static int rzn1_wdt_ping(struct watchdog_device *w)
 {
 	struct rzn1_watchdog *wdt = watchdog_get_drvdata(w);
 
-	/* Any value retrigggers the watchdog */
+	/* Any value retriggers the watchdog */
 	writel(0, wdt->base + RZN1_WDT_RETRIGGER);
 
 	return 0;
@@ -140,9 +140,9 @@ static int rzn1_wdt_probe(struct platform_device *pdev)
 	}
 
 	wdt->clk_rate_khz = clk_rate / 1000;
-	wdt->wdtdev.info = &rzn1_wdt_info,
-	wdt->wdtdev.ops = &rzn1_wdt_ops,
-	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS,
+	wdt->wdtdev.info = &rzn1_wdt_info;
+	wdt->wdtdev.ops = &rzn1_wdt_ops;
+	wdt->wdtdev.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 	wdt->wdtdev.parent = dev;
 	/*
 	 * The period of the watchdog cannot be changed once set

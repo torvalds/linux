@@ -1137,7 +1137,7 @@ static struct platform_driver mmp_pdma_driver = {
 	},
 	.id_table	= mmp_pdma_id_table,
 	.probe		= mmp_pdma_probe,
-	.remove_new	= mmp_pdma_remove,
+	.remove		= mmp_pdma_remove,
 };
 
 module_platform_driver(mmp_pdma_driver);

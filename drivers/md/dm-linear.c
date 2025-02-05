@@ -62,6 +62,7 @@ static int linear_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_discard_bios = 1;
 	ti->num_secure_erase_bios = 1;
 	ti->num_write_zeroes_bios = 1;
+	ti->flush_bypasses_map = true;
 	ti->private = lc;
 	return 0;
 
@@ -198,9 +199,10 @@ static size_t linear_dax_recovery_write(struct dm_target *ti, pgoff_t pgoff,
 
 static struct target_type linear_target = {
 	.name   = "linear",
-	.version = {1, 4, 0},
+	.version = {1, 5, 0},
 	.features = DM_TARGET_PASSES_INTEGRITY | DM_TARGET_NOWAIT |
-		    DM_TARGET_ZONED_HM | DM_TARGET_PASSES_CRYPTO,
+		    DM_TARGET_ZONED_HM | DM_TARGET_PASSES_CRYPTO |
+		    DM_TARGET_ATOMIC_WRITES,
 	.report_zones = linear_report_zones,
 	.module = THIS_MODULE,
 	.ctr    = linear_ctr,

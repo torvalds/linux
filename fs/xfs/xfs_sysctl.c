@@ -11,7 +11,7 @@ static struct ctl_table_header *xfs_table_header;
 #ifdef CONFIG_PROC_FS
 STATIC int
 xfs_stats_clear_proc_handler(
-	struct ctl_table	*ctl,
+	const struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
 	size_t			*lenp,
@@ -31,7 +31,7 @@ xfs_stats_clear_proc_handler(
 
 STATIC int
 xfs_panic_mask_proc_handler(
-	struct ctl_table	*ctl,
+	const struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
 	size_t			*lenp,
@@ -52,7 +52,7 @@ xfs_panic_mask_proc_handler(
 
 STATIC int
 xfs_deprecated_dointvec_minmax(
-	struct ctl_table	*ctl,
+	const struct ctl_table	*ctl,
 	int			write,
 	void			*buffer,
 	size_t			*lenp,
@@ -66,7 +66,7 @@ xfs_deprecated_dointvec_minmax(
 	return proc_dointvec_minmax(ctl, write, buffer, lenp, ppos);
 }
 
-static struct ctl_table xfs_table[] = {
+static const struct ctl_table xfs_table[] = {
 	{
 		.procname	= "irix_sgid_inherit",
 		.data		= &xfs_params.sgid_inherit.val,

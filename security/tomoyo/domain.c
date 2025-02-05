@@ -722,11 +722,21 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	ee->bprm = bprm;
 	ee->r.obj = &ee->obj;
 	ee->obj.path1 = bprm->file->f_path;
-	/* Get symlink's pathname of program. */
-	retval = -ENOENT;
+	/*
+	 * Get symlink's pathname of program, but fallback to realpath if
+	 * symlink's pathname does not exist or symlink's pathname refers
+	 * to proc filesystem (e.g. /dev/fd/<num> or /proc/self/fd/<num> ).
+	 */
 	exename.name = tomoyo_realpath_nofollow(original_name);
-	if (!exename.name)
-		goto out;
+	if (exename.name && !strncmp(exename.name, "proc:/", 6)) {
+		kfree(exename.name);
+		exename.name = NULL;
+	}
+	if (!exename.name) {
+		exename.name = tomoyo_realpath_from_path(&bprm->file->f_path);
+		if (!exename.name)
+			goto out;
+	}
 	tomoyo_fill_path_info(&exename);
 retry:
 	/* Check 'aggregator' directive. */

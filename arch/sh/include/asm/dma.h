@@ -56,7 +56,6 @@ struct dma_ops {
 	int (*get_residue)(struct dma_channel *chan);
 	int (*xfer)(struct dma_channel *chan);
 	int (*configure)(struct dma_channel *chan, unsigned long flags);
-	int (*extend)(struct dma_channel *chan, unsigned long op, void *param);
 };
 
 struct dma_channel {
@@ -118,8 +117,6 @@ extern int dma_xfer(unsigned int chan, unsigned long from,
 #define dma_read_page(chan, from, to)	\
 	dma_read(chan, from, to, PAGE_SIZE)
 
-extern int request_dma_bycap(const char **dmac, const char **caps,
-			     const char *dev_id);
 extern int get_dma_residue(unsigned int chan);
 extern struct dma_info *get_dma_info(unsigned int chan);
 extern struct dma_channel *get_dma_channel(unsigned int chan);
@@ -128,10 +125,6 @@ extern void dma_configure_channel(unsigned int chan, unsigned long flags);
 
 extern int register_dmac(struct dma_info *info);
 extern void unregister_dmac(struct dma_info *info);
-extern struct dma_info *get_dma_info_by_name(const char *dmac_name);
-
-extern int dma_extend(unsigned int chan, unsigned long op, void *param);
-extern int register_chan_caps(const char *dmac, struct dma_chan_caps *capslist);
 
 /* arch/sh/drivers/dma/dma-sysfs.c */
 extern int dma_create_sysfs_files(struct dma_channel *, struct dma_info *);

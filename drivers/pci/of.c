@@ -6,6 +6,7 @@
  */
 #define pr_fmt(fmt)	"PCI: OF: " fmt
 
+#include <linux/cleanup.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -13,6 +14,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/platform_device.h>
 #include "pci.h"
 
 #ifdef CONFIG_PCI
@@ -25,16 +27,20 @@
  */
 int pci_set_of_node(struct pci_dev *dev)
 {
-	struct device_node *node;
-
 	if (!dev->bus->dev.of_node)
 		return 0;
 
-	node = of_pci_find_child_device(dev->bus->dev.of_node, dev->devfn);
+	struct device_node *node __free(device_node) =
+		of_pci_find_child_device(dev->bus->dev.of_node, dev->devfn);
 	if (!node)
 		return 0;
 
-	device_set_node(&dev->dev, of_fwnode_handle(node));
+	struct device *pdev __free(put_device) =
+		bus_find_device_by_of_node(&platform_bus_type, node);
+	if (pdev)
+		dev->bus->dev.of_node_reused = true;
+
+	device_set_node(&dev->dev, of_fwnode_handle(no_free_ptr(node)));
 	return 0;
 }
 
@@ -184,7 +190,8 @@ EXPORT_SYMBOL_GPL(of_pci_get_devfn);
  *
  * Returns 0 on success or a negative error-code on failure.
  */
-int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+static int of_pci_parse_bus_range(struct device_node *node,
+				  struct resource *res)
 {
 	u32 bus_range[2];
 	int error;
@@ -201,7 +208,6 @@ int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
 
 /**
  * of_get_pci_domain_nr - Find the host bridge domain number
@@ -234,27 +240,61 @@ int of_get_pci_domain_nr(struct device_node *node)
 EXPORT_SYMBOL_GPL(of_get_pci_domain_nr);
 
 /**
+ * of_pci_preserve_config - Return true if the boot configuration needs to
+ *                          be preserved
+ * @node: Device tree node.
+ *
+ * Look for "linux,pci-probe-only" property for a given PCI controller's
+ * node and return true if found. Also look in the chosen node if the
+ * property is not found in the given controller's node.  Having this
+ * property ensures that the kernel doesn't reconfigure the BARs and bridge
+ * windows that are already done by the platform firmware.
+ *
+ * Return: true if the property exists; false otherwise.
+ */
+bool of_pci_preserve_config(struct device_node *node)
+{
+	u32 val = 0;
+	int ret;
+
+	if (!node) {
+		pr_warn("device node is NULL, trying with of_chosen\n");
+		node = of_chosen;
+	}
+
+retry:
+	ret = of_property_read_u32(node, "linux,pci-probe-only", &val);
+	if (ret) {
+		if (ret == -ENODATA || ret == -EOVERFLOW) {
+			pr_warn("Incorrect value for linux,pci-probe-only in %pOF, ignoring\n",
+				node);
+			return false;
+		}
+		if (ret == -EINVAL) {
+			if (node == of_chosen)
+				return false;
+
+			node = of_chosen;
+			goto retry;
+		}
+	}
+
+	if (val)
+		return true;
+	else
+		return false;
+}
+
+/**
  * of_pci_check_probe_only - Setup probe only mode if linux,pci-probe-only
  *                           is present and valid
  */
 void of_pci_check_probe_only(void)
 {
-	u32 val;
-	int ret;
-
-	ret = of_property_read_u32(of_chosen, "linux,pci-probe-only", &val);
-	if (ret) {
-		if (ret == -ENODATA || ret == -EOVERFLOW)
-			pr_warn("linux,pci-probe-only without valid value, ignoring\n");
-		return;
-	}
-
-	if (val)
+	if (of_pci_preserve_config(of_chosen))
 		pci_add_flags(PCI_PROBE_ONLY);
 	else
 		pci_clear_flags(PCI_PROBE_ONLY);
-
-	pr_info("PROBE_ONLY %s\n", val ? "enabled" : "disabled");
 }
 EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
 
@@ -262,8 +302,6 @@ EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
  * devm_of_pci_get_host_bridge_resources() - Resource-managed parsing of PCI
  *                                           host bridge resources from DT
  * @dev: host bridge device
- * @busno: bus number associated with the bridge root bus
- * @bus_max: maximum number of buses for this bridge
  * @resources: list where the range of resources will be added after DT parsing
  * @ib_resources: list where the range of inbound resources (with addresses
  *                from 'dma-ranges') will be added after DT parsing
@@ -279,7 +317,6 @@ EXPORT_SYMBOL_GPL(of_pci_check_probe_only);
  * value if it failed.
  */
 static int devm_of_pci_get_host_bridge_resources(struct device *dev,
-			unsigned char busno, unsigned char bus_max,
 			struct list_head *resources,
 			struct list_head *ib_resources,
 			resource_size_t *io_base)
@@ -303,14 +340,15 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 
 	err = of_pci_parse_bus_range(dev_node, bus_range);
 	if (err) {
-		bus_range->start = busno;
-		bus_range->end = bus_max;
+		bus_range->start = 0;
+		bus_range->end = 0xff;
 		bus_range->flags = IORESOURCE_BUS;
-		dev_info(dev, "  No bus range found for %pOF, using %pR\n",
-			 dev_node, bus_range);
 	} else {
-		if (bus_range->end > bus_range->start + bus_max)
-			bus_range->end = bus_range->start + bus_max;
+		if (bus_range->end > 0xff) {
+			dev_warn(dev, "  Invalid end bus number in %pR, defaulting to 0xff\n",
+				 bus_range);
+			bus_range->end = 0xff;
+		}
 	}
 	pci_add_resource(resources, bus_range);
 
@@ -557,7 +595,7 @@ static int pci_parse_request_of_pci_ranges(struct device *dev,
 	INIT_LIST_HEAD(&bridge->windows);
 	INIT_LIST_HEAD(&bridge->dma_ranges);
 
-	err = devm_of_pci_get_host_bridge_resources(dev, 0, 0xff, &bridge->windows,
+	err = devm_of_pci_get_host_bridge_resources(dev, &bridge->windows,
 						    &bridge->dma_ranges, &iobase);
 	if (err)
 		return err;
@@ -687,6 +725,33 @@ out_free_name:
 	kfree(name);
 }
 #endif
+
+/**
+ * of_pci_supply_present() - Check if the power supply is present for the PCI
+ *				device
+ * @np: Device tree node
+ *
+ * Check if the power supply for the PCI device is present in the device tree
+ * node or not.
+ *
+ * Return: true if at least one power supply exists; false otherwise.
+ */
+bool of_pci_supply_present(struct device_node *np)
+{
+	struct property *prop;
+	char *supply;
+
+	if (!np)
+		return false;
+
+	for_each_property_of_node(np, prop) {
+		supply = strrchr(prop->name, '-');
+		if (supply && !strcmp(supply, "-supply"))
+			return true;
+	}
+
+	return false;
+}
 
 #endif /* CONFIG_PCI */
 

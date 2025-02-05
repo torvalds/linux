@@ -27,7 +27,7 @@ The Linux Kernel, the operating system core itself
 %package headers
 Summary: Header files for the Linux kernel for use by glibc
 Group: Development/System
-Obsoletes: kernel-headers
+Obsoletes: kernel-headers < %{version}
 Provides: kernel-headers = %{version}
 %description headers
 Kernel-headers includes the C header files that specify the interface
@@ -57,7 +57,8 @@ patch -p1 < %{SOURCE2}
 %install
 mkdir -p %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp $(%{make} %{makeflags} -s image_name) %{buildroot}/lib/modules/%{KERNELRELEASE}/vmlinuz
-%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} modules_install
+# DEPMOD=true makes depmod no-op. We do not package depmod-generated files.
+%{make} %{makeflags} INSTALL_MOD_PATH=%{buildroot} DEPMOD=true modules_install
 %{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 cp System.map %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp .config %{buildroot}/lib/modules/%{KERNELRELEASE}/config
@@ -70,13 +71,10 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 %endif
 
 {
-	for x in System.map config kernel modules.builtin \
-			modules.builtin.modinfo modules.order vmlinuz; do
-		echo "/lib/modules/%{KERNELRELEASE}/${x}"
-	done
+	echo "/lib/modules/%{KERNELRELEASE}"
 
 	for x in alias alias.bin builtin.alias.bin builtin.bin dep dep.bin \
-					devname softdep symbols symbols.bin; do
+				devname softdep symbols symbols.bin weakdep; do
 		echo "%ghost /lib/modules/%{KERNELRELEASE}/modules.${x}"
 	done
 
@@ -85,7 +83,6 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 	done
 
 	if [ -d "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" ];then
-		echo "/lib/modules/%{KERNELRELEASE}/dtb"
 		find "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" -printf "%%%ghost /boot/dtb-%{KERNELRELEASE}/%%P\n"
 	fi
 

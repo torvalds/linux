@@ -168,6 +168,10 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.setup_manual_trigger = optc301_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.wait_drr_doublebuffer_pending_clear = optc3_wait_drr_doublebuffer_pending_clear,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
+		.get_optc_double_buffer_pending = optc3_get_optc_double_buffer_pending,
+		.get_otg_double_buffer_pending = optc3_get_otg_update_pending,
+		.get_pipe_update_pending = optc3_get_pipe_update_pending,
 };
 
 void dcn301_timing_generator_init(struct optc *optc1)

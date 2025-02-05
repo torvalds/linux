@@ -109,7 +109,7 @@ static const struct regmap_range_cfg wcd934x_ranges[] = {
 	},
 };
 
-static struct regmap_config wcd934x_regmap_config = {
+static const struct regmap_config wcd934x_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.cache_type = REGCACHE_MAPLE,
@@ -284,6 +284,7 @@ static const struct slim_device_id wcd934x_slim_id[] = {
 	  SLIM_DEV_IDX_WCD9340, SLIM_DEV_INSTANCE_ID_WCD9340 },
 	{}
 };
+MODULE_DEVICE_TABLE(slim, wcd934x_slim_id);
 
 static struct slim_driver wcd934x_slim_driver = {
 	.driver = {
@@ -298,5 +299,4 @@ static struct slim_driver wcd934x_slim_driver = {
 module_slim_driver(wcd934x_slim_driver);
 MODULE_DESCRIPTION("WCD934X slim driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("slim:217:250:*");
 MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org>");

@@ -28,6 +28,8 @@ void wx_mac_set_default_filter(struct wx *wx, u8 *addr);
 void wx_flush_sw_mac_table(struct wx *wx);
 int wx_set_mac(struct net_device *netdev, void *p);
 void wx_disable_rx(struct wx *wx);
+int wx_disable_sec_rx_path(struct wx *wx);
+void wx_enable_sec_rx_path(struct wx *wx);
 void wx_set_rx_mode(struct net_device *netdev);
 int wx_change_mtu(struct net_device *netdev, int new_mtu);
 void wx_disable_rx_queue(struct wx *wx, struct wx_ring *ring);

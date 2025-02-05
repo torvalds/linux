@@ -18,6 +18,7 @@
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include <linux/spi/spi.h>
 
 /* Name of this driver */
@@ -111,6 +112,7 @@
  * @dev_busy:		Device busy flag
  * @is_decoded_cs:	Flag for decoder property set or not
  * @tx_fifo_depth:	Depth of the TX FIFO
+ * @rstc:		Optional reset control for SPI controller
  */
 struct cdns_spi {
 	void __iomem *regs;
@@ -125,6 +127,7 @@ struct cdns_spi {
 	u8 dev_busy;
 	u32 is_decoded_cs;
 	unsigned int tx_fifo_depth;
+	struct reset_control *rstc;
 };
 
 /* Macros for the SPI controller read/write */
@@ -588,14 +591,24 @@ static int cdns_spi_probe(struct platform_device *pdev)
 		goto remove_ctlr;
 	}
 
-	if (!spi_controller_is_target(ctlr)) {
-		xspi->ref_clk = devm_clk_get_enabled(&pdev->dev, "ref_clk");
-		if (IS_ERR(xspi->ref_clk)) {
-			dev_err(&pdev->dev, "ref_clk clock not found.\n");
-			ret = PTR_ERR(xspi->ref_clk);
-			goto remove_ctlr;
-		}
+	xspi->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, "spi");
+	if (IS_ERR(xspi->rstc)) {
+		ret = dev_err_probe(&pdev->dev, PTR_ERR(xspi->rstc),
+				    "Cannot get SPI reset.\n");
+		goto remove_ctlr;
+	}
 
+	reset_control_assert(xspi->rstc);
+	reset_control_deassert(xspi->rstc);
+
+	xspi->ref_clk = devm_clk_get_enabled(&pdev->dev, "ref_clk");
+	if (IS_ERR(xspi->ref_clk)) {
+		dev_err(&pdev->dev, "ref_clk clock not found.\n");
+		ret = PTR_ERR(xspi->ref_clk);
+		goto remove_ctlr;
+	}
+
+	if (!spi_controller_is_target(ctlr)) {
 		pm_runtime_use_autosuspend(&pdev->dev);
 		pm_runtime_set_autosuspend_delay(&pdev->dev, SPI_AUTOSUSPEND_TIMEOUT);
 		pm_runtime_get_noresume(&pdev->dev);
@@ -665,8 +678,8 @@ static int cdns_spi_probe(struct platform_device *pdev)
 
 clk_dis_all:
 	if (!spi_controller_is_target(ctlr)) {
-		pm_runtime_set_suspended(&pdev->dev);
 		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
 	}
 remove_ctlr:
 	spi_controller_put(ctlr);
@@ -688,8 +701,10 @@ static void cdns_spi_remove(struct platform_device *pdev)
 
 	cdns_spi_write(xspi, CDNS_SPI_ER, CDNS_SPI_ER_DISABLE);
 
-	pm_runtime_set_suspended(&pdev->dev);
-	pm_runtime_disable(&pdev->dev);
+	if (!spi_controller_is_target(ctlr)) {
+		pm_runtime_disable(&pdev->dev);
+		pm_runtime_set_suspended(&pdev->dev);
+	}
 
 	spi_unregister_controller(ctlr);
 }
@@ -791,7 +806,7 @@ MODULE_DEVICE_TABLE(of, cdns_spi_of_match);
 /* cdns_spi_driver - This structure defines the SPI subsystem platform driver */
 static struct platform_driver cdns_spi_driver = {
 	.probe	= cdns_spi_probe,
-	.remove_new = cdns_spi_remove,
+	.remove = cdns_spi_remove,
 	.driver = {
 		.name = CDNS_SPI_NAME,
 		.of_match_table = cdns_spi_of_match,

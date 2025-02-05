@@ -7,9 +7,14 @@
 #include "errno.h"
 #include <stdbool.h>
 
+/* Should use BTF_FIELDS_MAX, but it is not always available in vmlinux.h,
+ * so use the hard-coded number as a workaround.
+ */
+#define CPUMASK_KPTR_FIELDS_MAX 11
+
 int err;
 
-#define private(name) SEC(".bss." #name) __hidden __attribute__((aligned(8)))
+#define private(name) SEC(".bss." #name) __attribute__((aligned(8)))
 private(MASK) static struct bpf_cpumask __kptr * global_mask;
 
 struct __cpumask_map_value {

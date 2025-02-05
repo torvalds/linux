@@ -983,7 +983,7 @@ struct wil6210_priv {
 	spinlock_t eap_lock; /* guarding access to eap rekey fields */
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
-	struct net_device napi_ndev; /* dummy net_device serving all VIFs */
+	struct net_device *napi_ndev; /* dummy net_device serving all VIFs */
 
 	/* DMA related */
 	struct wil_ring ring_rx;

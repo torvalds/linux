@@ -40,6 +40,13 @@ struct inet_timewait_death_row {
 
 struct tcp_fastopen_context;
 
+#ifdef CONFIG_IP_ROUTE_MULTIPATH
+struct sysctl_fib_multipath_hash_seed {
+	u32 user_seed;
+	u32 mp_seed;
+};
+#endif
+
 struct netns_ipv4 {
 	/* Cacheline organization can be found documented in
 	 * Documentation/networking/net_cachelines/netns_ipv4_sysctl.rst.
@@ -69,6 +76,8 @@ struct netns_ipv4 {
 	__cacheline_group_begin(netns_ipv4_read_rx);
 	u8 sysctl_ip_early_demux;
 	u8 sysctl_tcp_early_demux;
+	u8 sysctl_tcp_l3mdev_accept;
+	/* 3 bytes hole, try to pack */
 	int sysctl_tcp_reordering;
 	int sysctl_tcp_rmem[3];
 	__cacheline_group_end(netns_ipv4_read_rx);
@@ -115,7 +124,10 @@ struct netns_ipv4 {
 	u8 sysctl_icmp_errors_use_inbound_ifaddr;
 	int sysctl_icmp_ratelimit;
 	int sysctl_icmp_ratemask;
-
+	int sysctl_icmp_msgs_per_sec;
+	int sysctl_icmp_msgs_burst;
+	atomic_t icmp_global_credit;
+	u32 icmp_global_stamp;
 	u32 ip_rt_min_pmtu;
 	int ip_rt_mtu_expires;
 	int ip_rt_min_advmss;
@@ -141,9 +153,6 @@ struct netns_ipv4 {
 
 	u8 sysctl_fwmark_reflect;
 	u8 sysctl_tcp_fwmark_accept;
-#ifdef CONFIG_NET_L3_MASTER_DEV
-	u8 sysctl_tcp_l3mdev_accept;
-#endif
 	u8 sysctl_tcp_mtu_probing;
 	int sysctl_tcp_mtu_probe_floor;
 	int sysctl_tcp_base_mss;
@@ -166,10 +175,12 @@ struct netns_ipv4 {
 	u8 sysctl_tcp_retries2;
 	u8 sysctl_tcp_orphan_retries;
 	u8 sysctl_tcp_tw_reuse;
+	unsigned int sysctl_tcp_tw_reuse_delay;
 	int sysctl_tcp_fin_timeout;
 	u8 sysctl_tcp_sack;
 	u8 sysctl_tcp_window_scaling;
 	u8 sysctl_tcp_timestamps;
+	int sysctl_tcp_rto_min_us;
 	u8 sysctl_tcp_recovery;
 	u8 sysctl_tcp_thin_linear_timeouts;
 	u8 sysctl_tcp_slow_start_after_idle;
@@ -245,18 +256,21 @@ struct netns_ipv4 {
 #endif
 #endif
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
+	struct sysctl_fib_multipath_hash_seed sysctl_fib_multipath_hash_seed;
 	u32 sysctl_fib_multipath_hash_fields;
 	u8 sysctl_fib_multipath_use_neigh;
 	u8 sysctl_fib_multipath_hash_policy;
 #endif
 
 	struct fib_notifier_ops	*notifier_ops;
-	unsigned int	fib_seq;	/* protected by rtnl_mutex */
+	unsigned int	fib_seq;	/* writes protected by rtnl_mutex */
 
 	struct fib_notifier_ops	*ipmr_notifier_ops;
 	unsigned int	ipmr_seq;	/* protected by rtnl_mutex */
 
 	atomic_t	rt_genid;
 	siphash_key_t	ip_id_key;
+	struct hlist_head	*inet_addr_lst;
+	struct delayed_work	addr_chk_work;
 };
 #endif

@@ -85,6 +85,7 @@ EXPORT_SYMBOL_GPL(pie_drop_early);
 static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 			     struct sk_buff **to_free)
 {
+	enum skb_drop_reason reason = SKB_DROP_REASON_QDISC_OVERLIMIT;
 	struct pie_sched_data *q = qdisc_priv(sch);
 	bool enqueue = false;
 
@@ -92,6 +93,8 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 		q->stats.overlimit++;
 		goto out;
 	}
+
+	reason = SKB_DROP_REASON_QDISC_CONGESTED;
 
 	if (!pie_drop_early(sch, &q->params, &q->vars, sch->qstats.backlog,
 			    skb->len)) {
@@ -121,7 +124,7 @@ static int pie_qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 out:
 	q->stats.dropped++;
 	q->vars.accu_prob = 0;
-	return qdisc_drop(skb, sch, to_free);
+	return qdisc_drop_reason(skb, sch, to_free, reason);
 }
 
 static const struct nla_policy pie_policy[TCA_PIE_MAX + 1] = {
@@ -156,36 +159,38 @@ static int pie_change(struct Qdisc *sch, struct nlattr *opt,
 		u32 target = nla_get_u32(tb[TCA_PIE_TARGET]);
 
 		/* convert to pschedtime */
-		q->params.target = PSCHED_NS2TICKS((u64)target * NSEC_PER_USEC);
+		WRITE_ONCE(q->params.target,
+			   PSCHED_NS2TICKS((u64)target * NSEC_PER_USEC));
 	}
 
 	/* tupdate is in jiffies */
 	if (tb[TCA_PIE_TUPDATE])
-		q->params.tupdate =
-			usecs_to_jiffies(nla_get_u32(tb[TCA_PIE_TUPDATE]));
+		WRITE_ONCE(q->params.tupdate,
+			   usecs_to_jiffies(nla_get_u32(tb[TCA_PIE_TUPDATE])));
 
 	if (tb[TCA_PIE_LIMIT]) {
 		u32 limit = nla_get_u32(tb[TCA_PIE_LIMIT]);
 
-		q->params.limit = limit;
-		sch->limit = limit;
+		WRITE_ONCE(q->params.limit, limit);
+		WRITE_ONCE(sch->limit, limit);
 	}
 
 	if (tb[TCA_PIE_ALPHA])
-		q->params.alpha = nla_get_u32(tb[TCA_PIE_ALPHA]);
+		WRITE_ONCE(q->params.alpha, nla_get_u32(tb[TCA_PIE_ALPHA]));
 
 	if (tb[TCA_PIE_BETA])
-		q->params.beta = nla_get_u32(tb[TCA_PIE_BETA]);
+		WRITE_ONCE(q->params.beta, nla_get_u32(tb[TCA_PIE_BETA]));
 
 	if (tb[TCA_PIE_ECN])
-		q->params.ecn = nla_get_u32(tb[TCA_PIE_ECN]);
+		WRITE_ONCE(q->params.ecn, nla_get_u32(tb[TCA_PIE_ECN]));
 
 	if (tb[TCA_PIE_BYTEMODE])
-		q->params.bytemode = nla_get_u32(tb[TCA_PIE_BYTEMODE]);
+		WRITE_ONCE(q->params.bytemode,
+			   nla_get_u32(tb[TCA_PIE_BYTEMODE]));
 
 	if (tb[TCA_PIE_DQ_RATE_ESTIMATOR])
-		q->params.dq_rate_estimator =
-				nla_get_u32(tb[TCA_PIE_DQ_RATE_ESTIMATOR]);
+		WRITE_ONCE(q->params.dq_rate_estimator,
+			   nla_get_u32(tb[TCA_PIE_DQ_RATE_ESTIMATOR]));
 
 	/* Drop excess packets if new limit is lower */
 	qlen = sch->q.qlen;
@@ -469,17 +474,18 @@ static int pie_dump(struct Qdisc *sch, struct sk_buff *skb)
 
 	/* convert target from pschedtime to us */
 	if (nla_put_u32(skb, TCA_PIE_TARGET,
-			((u32)PSCHED_TICKS2NS(q->params.target)) /
+			((u32)PSCHED_TICKS2NS(READ_ONCE(q->params.target))) /
 			NSEC_PER_USEC) ||
-	    nla_put_u32(skb, TCA_PIE_LIMIT, sch->limit) ||
+	    nla_put_u32(skb, TCA_PIE_LIMIT, READ_ONCE(sch->limit)) ||
 	    nla_put_u32(skb, TCA_PIE_TUPDATE,
-			jiffies_to_usecs(q->params.tupdate)) ||
-	    nla_put_u32(skb, TCA_PIE_ALPHA, q->params.alpha) ||
-	    nla_put_u32(skb, TCA_PIE_BETA, q->params.beta) ||
+			jiffies_to_usecs(READ_ONCE(q->params.tupdate))) ||
+	    nla_put_u32(skb, TCA_PIE_ALPHA, READ_ONCE(q->params.alpha)) ||
+	    nla_put_u32(skb, TCA_PIE_BETA, READ_ONCE(q->params.beta)) ||
 	    nla_put_u32(skb, TCA_PIE_ECN, q->params.ecn) ||
-	    nla_put_u32(skb, TCA_PIE_BYTEMODE, q->params.bytemode) ||
+	    nla_put_u32(skb, TCA_PIE_BYTEMODE,
+			READ_ONCE(q->params.bytemode)) ||
 	    nla_put_u32(skb, TCA_PIE_DQ_RATE_ESTIMATOR,
-			q->params.dq_rate_estimator))
+			READ_ONCE(q->params.dq_rate_estimator)))
 		goto nla_put_failure;
 
 	return nla_nest_end(skb, opts);

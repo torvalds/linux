@@ -147,6 +147,7 @@ static void __exit exit_kmp(void)
 	textsearch_unregister(&kmp_ops);
 }
 
+MODULE_DESCRIPTION("Knuth-Morris-Pratt text search implementation");
 MODULE_LICENSE("GPL");
 
 module_init(init_kmp);

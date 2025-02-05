@@ -12,7 +12,7 @@
  */
 #include "iwl-io.h"
 #include "iwl-prph.h"
-#include "iwl-eeprom-parse.h"
+#include "iwl-nvm-utils.h"
 
 #include "agn.h"
 #include "dev.h"

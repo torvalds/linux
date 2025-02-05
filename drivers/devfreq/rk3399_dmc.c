@@ -459,13 +459,11 @@ err_edev:
 	return ret;
 }
 
-static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+static void rk3399_dmcfreq_remove(struct platform_device *pdev)
 {
 	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
 
 	devfreq_event_disable_edev(dmcfreq->edev);
-
-	return 0;
 }
 
 static const struct of_device_id rk3399dmc_devfreq_of_match[] = {

@@ -184,8 +184,6 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 }
 
 #ifdef CONFIG_OF
-#include <linux/of_gpio.h>
-
 static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
@@ -290,7 +288,7 @@ MODULE_DEVICE_TABLE(of, tiny_spi_match);
 
 static struct platform_driver tiny_spi_driver = {
 	.probe = tiny_spi_probe,
-	.remove_new = tiny_spi_remove,
+	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.pm = NULL,

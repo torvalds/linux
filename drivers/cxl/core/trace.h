@@ -8,7 +8,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/pci.h>
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <cxl.h>
 #include <cxlmem.h>
@@ -60,8 +60,8 @@ TRACE_EVENT(cxl_aer_uncorrectable_error,
 		__array(u32, header_log, CXL_HEADERLOG_SIZE_U32)
 	),
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 		__entry->first_error = fe;
@@ -106,8 +106,8 @@ TRACE_EVENT(cxl_aer_correctable_error,
 		__field(u32, status)
 	),
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->status = status;
 	),
@@ -142,8 +142,8 @@ TRACE_EVENT(cxl_overflow,
 	),
 
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->log = log;
 		__entry->count = le16_to_cpu(payload->overflow_err_count);
@@ -166,11 +166,13 @@ TRACE_EVENT(cxl_overflow,
 #define CXL_EVENT_RECORD_FLAG_MAINT_NEEDED	BIT(3)
 #define CXL_EVENT_RECORD_FLAG_PERF_DEGRADED	BIT(4)
 #define CXL_EVENT_RECORD_FLAG_HW_REPLACE	BIT(5)
+#define CXL_EVENT_RECORD_FLAG_MAINT_OP_SUB_CLASS_VALID	BIT(6)
 #define show_hdr_flags(flags)	__print_flags(flags, " | ",			   \
 	{ CXL_EVENT_RECORD_FLAG_PERMANENT,	"PERMANENT_CONDITION"		}, \
 	{ CXL_EVENT_RECORD_FLAG_MAINT_NEEDED,	"MAINTENANCE_NEEDED"		}, \
 	{ CXL_EVENT_RECORD_FLAG_PERF_DEGRADED,	"PERFORMANCE_DEGRADED"		}, \
-	{ CXL_EVENT_RECORD_FLAG_HW_REPLACE,	"HARDWARE_REPLACEMENT_NEEDED"	}  \
+	{ CXL_EVENT_RECORD_FLAG_HW_REPLACE,	"HARDWARE_REPLACEMENT_NEEDED"	},  \
+	{ CXL_EVENT_RECORD_FLAG_MAINT_OP_SUB_CLASS_VALID,	"MAINT_OP_SUB_CLASS_VALID" }	\
 )
 
 /*
@@ -197,11 +199,12 @@ TRACE_EVENT(cxl_overflow,
 	__field(u16, hdr_related_handle)			\
 	__field(u64, hdr_timestamp)				\
 	__field(u8, hdr_length)					\
-	__field(u8, hdr_maint_op_class)
+	__field(u8, hdr_maint_op_class)				\
+	__field(u8, hdr_maint_op_sub_class)
 
 #define CXL_EVT_TP_fast_assign(cxlmd, l, hdr)					\
-	__assign_str(memdev, dev_name(&(cxlmd)->dev));				\
-	__assign_str(host, dev_name((cxlmd)->dev.parent));			\
+	__assign_str(memdev);				\
+	__assign_str(host);			\
 	__entry->log = (l);							\
 	__entry->serial = (cxlmd)->cxlds->serial;				\
 	__entry->hdr_length = (hdr).length;					\
@@ -209,17 +212,19 @@ TRACE_EVENT(cxl_overflow,
 	__entry->hdr_handle = le16_to_cpu((hdr).handle);			\
 	__entry->hdr_related_handle = le16_to_cpu((hdr).related_handle);	\
 	__entry->hdr_timestamp = le64_to_cpu((hdr).timestamp);			\
-	__entry->hdr_maint_op_class = (hdr).maint_op_class
+	__entry->hdr_maint_op_class = (hdr).maint_op_class;			\
+	__entry->hdr_maint_op_sub_class = (hdr).maint_op_sub_class
 
 #define CXL_EVT_TP_printk(fmt, ...) \
 	TP_printk("memdev=%s host=%s serial=%lld log=%s : time=%llu uuid=%pUb "	\
 		"len=%d flags='%s' handle=%x related_handle=%x "		\
-		"maint_op_class=%u : " fmt,					\
+		"maint_op_class=%u maint_op_sub_class=%u : " fmt,		\
 		__get_str(memdev), __get_str(host), __entry->serial,		\
 		cxl_event_log_type_str(__entry->log),				\
 		__entry->hdr_timestamp, &__entry->hdr_uuid, __entry->hdr_length,\
 		show_hdr_flags(__entry->hdr_flags), __entry->hdr_handle,	\
 		__entry->hdr_related_handle, __entry->hdr_maint_op_class,	\
+		__entry->hdr_maint_op_sub_class,	\
 		##__VA_ARGS__)
 
 TRACE_EVENT(cxl_generic_event,
@@ -253,8 +258,8 @@ TRACE_EVENT(cxl_generic_event,
  * DRAM Event Record
  * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
  */
-#define CXL_DPA_FLAGS_MASK			0x3F
-#define CXL_DPA_MASK				(~CXL_DPA_FLAGS_MASK)
+#define CXL_DPA_FLAGS_MASK			GENMASK(1, 0)
+#define CXL_DPA_MASK				GENMASK_ULL(63, 6)
 
 #define CXL_DPA_VOLATILE			BIT(0)
 #define CXL_DPA_NOT_REPAIRABLE			BIT(1)
@@ -264,8 +269,30 @@ TRACE_EVENT(cxl_generic_event,
 )
 
 /*
+ * Component ID Format
+ * CXL 3.1 section 8.2.9.2.1; Table 8-44
+ */
+#define CXL_PLDM_COMPONENT_ID_ENTITY_VALID	BIT(0)
+#define CXL_PLDM_COMPONENT_ID_RES_VALID		BIT(1)
+
+#define show_comp_id_pldm_flags(flags)  __print_flags(flags, " | ",	\
+	{ CXL_PLDM_COMPONENT_ID_ENTITY_VALID,   "PLDM Entity ID" },	\
+	{ CXL_PLDM_COMPONENT_ID_RES_VALID,      "Resource ID" }		\
+)
+
+#define show_pldm_entity_id(flags, valid_comp_id, valid_id_format, comp_id)	\
+	(flags & valid_comp_id && flags & valid_id_format) ?			\
+	(comp_id[0] & CXL_PLDM_COMPONENT_ID_ENTITY_VALID) ?			\
+	__print_hex(&comp_id[1], 6) : "0x00" : "0x00"
+
+#define show_pldm_resource_id(flags, valid_comp_id, valid_id_format, comp_id)	\
+	(flags & valid_comp_id && flags & valid_id_format) ?			\
+	(comp_id[0] & CXL_PLDM_COMPONENT_ID_RES_VALID) ?			\
+	__print_hex(&comp_id[7], 4) : "0x00" : "0x00"
+
+/*
  * General Media Event Record - GMER
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ * CXL rev 3.1 Section 8.2.9.2.1.1; Table 8-45
  */
 #define CXL_GMER_EVT_DESC_UNCORECTABLE_EVENT		BIT(0)
 #define CXL_GMER_EVT_DESC_THRESHOLD_EVENT		BIT(1)
@@ -279,10 +306,18 @@ TRACE_EVENT(cxl_generic_event,
 #define CXL_GMER_MEM_EVT_TYPE_ECC_ERROR			0x00
 #define CXL_GMER_MEM_EVT_TYPE_INV_ADDR			0x01
 #define CXL_GMER_MEM_EVT_TYPE_DATA_PATH_ERROR		0x02
-#define show_mem_event_type(type)	__print_symbolic(type,			\
-	{ CXL_GMER_MEM_EVT_TYPE_ECC_ERROR,		"ECC Error" },		\
-	{ CXL_GMER_MEM_EVT_TYPE_INV_ADDR,		"Invalid Address" },	\
-	{ CXL_GMER_MEM_EVT_TYPE_DATA_PATH_ERROR,	"Data Path Error" }	\
+#define CXL_GMER_MEM_EVT_TYPE_TE_STATE_VIOLATION	0x03
+#define CXL_GMER_MEM_EVT_TYPE_SCRUB_MEDIA_ECC_ERROR	0x04
+#define CXL_GMER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE	0x05
+#define CXL_GMER_MEM_EVT_TYPE_CKID_VIOLATION		0x06
+#define show_gmer_mem_event_type(type)	__print_symbolic(type,				\
+	{ CXL_GMER_MEM_EVT_TYPE_ECC_ERROR,		"ECC Error" },			\
+	{ CXL_GMER_MEM_EVT_TYPE_INV_ADDR,		"Invalid Address" },		\
+	{ CXL_GMER_MEM_EVT_TYPE_DATA_PATH_ERROR,	"Data Path Error" },		\
+	{ CXL_GMER_MEM_EVT_TYPE_TE_STATE_VIOLATION,	"TE State Violation" },		\
+	{ CXL_GMER_MEM_EVT_TYPE_SCRUB_MEDIA_ECC_ERROR,	"Scrub Media ECC Error" },	\
+	{ CXL_GMER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE,	"Adv Prog CME Counter Expiration" },	\
+	{ CXL_GMER_MEM_EVT_TYPE_CKID_VIOLATION,		"CKID Violation" }		\
 )
 
 #define CXL_GMER_TRANS_UNKNOWN				0x00
@@ -292,6 +327,8 @@ TRACE_EVENT(cxl_generic_event,
 #define CXL_GMER_TRANS_HOST_INJECT_POISON		0x04
 #define CXL_GMER_TRANS_INTERNAL_MEDIA_SCRUB		0x05
 #define CXL_GMER_TRANS_INTERNAL_MEDIA_MANAGEMENT	0x06
+#define CXL_GMER_TRANS_INTERNAL_MEDIA_ECS		0x07
+#define CXL_GMER_TRANS_MEDIA_INITIALIZATION		0x08
 #define show_trans_type(type)	__print_symbolic(type,					\
 	{ CXL_GMER_TRANS_UNKNOWN,			"Unknown" },			\
 	{ CXL_GMER_TRANS_HOST_READ,			"Host Read" },			\
@@ -299,26 +336,65 @@ TRACE_EVENT(cxl_generic_event,
 	{ CXL_GMER_TRANS_HOST_SCAN_MEDIA,		"Host Scan Media" },		\
 	{ CXL_GMER_TRANS_HOST_INJECT_POISON,		"Host Inject Poison" },		\
 	{ CXL_GMER_TRANS_INTERNAL_MEDIA_SCRUB,		"Internal Media Scrub" },	\
-	{ CXL_GMER_TRANS_INTERNAL_MEDIA_MANAGEMENT,	"Internal Media Management" }	\
+	{ CXL_GMER_TRANS_INTERNAL_MEDIA_MANAGEMENT,	"Internal Media Management" },	\
+	{ CXL_GMER_TRANS_INTERNAL_MEDIA_ECS,		"Internal Media Error Check Scrub" },	\
+	{ CXL_GMER_TRANS_MEDIA_INITIALIZATION,		"Media Initialization" }	\
 )
 
 #define CXL_GMER_VALID_CHANNEL				BIT(0)
 #define CXL_GMER_VALID_RANK				BIT(1)
 #define CXL_GMER_VALID_DEVICE				BIT(2)
 #define CXL_GMER_VALID_COMPONENT			BIT(3)
+#define CXL_GMER_VALID_COMPONENT_ID_FORMAT		BIT(4)
 #define show_valid_flags(flags)	__print_flags(flags, "|",		   \
 	{ CXL_GMER_VALID_CHANNEL,			"CHANNEL"	}, \
 	{ CXL_GMER_VALID_RANK,				"RANK"		}, \
 	{ CXL_GMER_VALID_DEVICE,			"DEVICE"	}, \
-	{ CXL_GMER_VALID_COMPONENT,			"COMPONENT"	}  \
+	{ CXL_GMER_VALID_COMPONENT,			"COMPONENT"	}, \
+	{ CXL_GMER_VALID_COMPONENT_ID_FORMAT,		"COMPONENT PLDM FORMAT"	} \
+)
+
+#define CXL_GMER_CME_EV_FLAG_CME_MULTIPLE_MEDIA		BIT(0)
+#define CXL_GMER_CME_EV_FLAG_THRESHOLD_EXCEEDED		BIT(1)
+#define show_cme_threshold_ev_flags(flags)	__print_flags(flags, "|",	\
+	{									\
+		CXL_GMER_CME_EV_FLAG_CME_MULTIPLE_MEDIA,			\
+		"Corrected Memory Errors in Multiple Media Components"		\
+	}, {									\
+		CXL_GMER_CME_EV_FLAG_THRESHOLD_EXCEEDED,			\
+		"Exceeded Programmable Threshold"				\
+	}									\
+)
+
+#define CXL_GMER_MEM_EVT_SUB_TYPE_NOT_REPORTED				0x00
+#define CXL_GMER_MEM_EVT_SUB_TYPE_INTERNAL_DATAPATH_ERROR		0x01
+#define CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_COMMAND_TRAINING_ERROR	0x02
+#define CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_CONTROL_TRAINING_ERROR	0x03
+#define CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_DATA_TRAINING_ERROR	0x04
+#define CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_CRC_ERROR			0x05
+#define show_mem_event_sub_type(sub_type)	__print_symbolic(sub_type,			\
+	{ CXL_GMER_MEM_EVT_SUB_TYPE_NOT_REPORTED, "Not Reported" },				\
+	{ CXL_GMER_MEM_EVT_SUB_TYPE_INTERNAL_DATAPATH_ERROR, "Internal Datapath Error" },	\
+	{											\
+		CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_COMMAND_TRAINING_ERROR,			\
+		"Media Link Command Training Error"						\
+	}, {											\
+		CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_CONTROL_TRAINING_ERROR,			\
+		"Media Link Control Training Error"						\
+	}, {											\
+		CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_DATA_TRAINING_ERROR,			\
+		"Media Link Data Training Error"						\
+	}, {											\
+		CXL_GMER_MEM_EVT_SUB_TYPE_MEDIA_LINK_CRC_ERROR, "Media Link CRC Error"		\
+	}											\
 )
 
 TRACE_EVENT(cxl_general_media,
 
 	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
-		 struct cxl_event_gen_media *rec),
+		 struct cxl_region *cxlr, u64 hpa, struct cxl_event_gen_media *rec),
 
-	TP_ARGS(cxlmd, log, rec),
+	TP_ARGS(cxlmd, log, cxlr, hpa, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -330,54 +406,101 @@ TRACE_EVENT(cxl_general_media,
 		__field(u8, channel)
 		__field(u32, device)
 		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
-		__field(u16, validity_flags)
 		/* Following are out of order to pack trace record */
+		__field(u64, hpa)
+		__field_struct(uuid_t, region_uuid)
+		__field(u16, validity_flags)
 		__field(u8, rank)
 		__field(u8, dpa_flags)
+		__field(u32, cme_count)
+		__field(u8, sub_type)
+		__field(u8, cme_threshold_ev_flags)
+		__string(region_name, cxlr ? dev_name(&cxlr->dev) : "")
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->media_hdr.hdr);
 		__entry->hdr_uuid = CXL_EVENT_GEN_MEDIA_UUID;
 
 		/* General Media */
-		__entry->dpa = le64_to_cpu(rec->phys_addr);
+		__entry->dpa = le64_to_cpu(rec->media_hdr.phys_addr);
 		__entry->dpa_flags = __entry->dpa & CXL_DPA_FLAGS_MASK;
 		/* Mask after flags have been parsed */
 		__entry->dpa &= CXL_DPA_MASK;
-		__entry->descriptor = rec->descriptor;
-		__entry->type = rec->type;
-		__entry->transaction_type = rec->transaction_type;
-		__entry->channel = rec->channel;
-		__entry->rank = rec->rank;
+		__entry->descriptor = rec->media_hdr.descriptor;
+		__entry->type = rec->media_hdr.type;
+		__entry->sub_type = rec->sub_type;
+		__entry->transaction_type = rec->media_hdr.transaction_type;
+		__entry->channel = rec->media_hdr.channel;
+		__entry->rank = rec->media_hdr.rank;
 		__entry->device = get_unaligned_le24(rec->device);
 		memcpy(__entry->comp_id, &rec->component_id,
 			CXL_EVENT_GEN_MED_COMP_ID_SIZE);
-		__entry->validity_flags = get_unaligned_le16(&rec->validity_flags);
+		__entry->validity_flags = get_unaligned_le16(&rec->media_hdr.validity_flags);
+		__entry->hpa = hpa;
+		if (cxlr) {
+			__assign_str(region_name);
+			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
+		} else {
+			__assign_str(region_name);
+			uuid_copy(&__entry->region_uuid, &uuid_null);
+		}
+		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
+		__entry->cme_count = get_unaligned_le24(rec->cme_count);
 	),
 
 	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' " \
-		"descriptor='%s' type='%s' transaction_type='%s' channel=%u rank=%u " \
-		"device=%x comp_id=%s validity_flags='%s'",
+		"descriptor='%s' type='%s' sub_type='%s' " \
+		"transaction_type='%s' channel=%u rank=%u " \
+		"device=%x validity_flags='%s' " \
+		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
+		"pldm_entity_id=%s pldm_resource_id=%s " \
+		"hpa=%llx region=%s region_uuid=%pUb " \
+		"cme_threshold_ev_flags='%s' cme_count=%u",
 		__entry->dpa, show_dpa_flags(__entry->dpa_flags),
 		show_event_desc_flags(__entry->descriptor),
-		show_mem_event_type(__entry->type),
+		show_gmer_mem_event_type(__entry->type),
+		show_mem_event_sub_type(__entry->sub_type),
 		show_trans_type(__entry->transaction_type),
 		__entry->channel, __entry->rank, __entry->device,
+		show_valid_flags(__entry->validity_flags),
 		__print_hex(__entry->comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE),
-		show_valid_flags(__entry->validity_flags)
+		show_comp_id_pldm_flags(__entry->comp_id[0]),
+		show_pldm_entity_id(__entry->validity_flags, CXL_GMER_VALID_COMPONENT,
+				    CXL_GMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		show_pldm_resource_id(__entry->validity_flags, CXL_GMER_VALID_COMPONENT,
+				      CXL_GMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		__entry->hpa, __get_str(region_name), &__entry->region_uuid,
+		show_cme_threshold_ev_flags(__entry->cme_threshold_ev_flags), __entry->cme_count
 	)
 );
 
 /*
  * DRAM Event Record - DER
  *
- * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
+ * CXL rev 3.1 section 8.2.9.2.1.2; Table 8-46
  */
 /*
  * DRAM Event Record defines many fields the same as the General Media Event
  * Record.  Reuse those definitions as appropriate.
  */
+#define CXL_DER_MEM_EVT_TYPE_ECC_ERROR			0x00
+#define CXL_DER_MEM_EVT_TYPE_SCRUB_MEDIA_ECC_ERROR	0x01
+#define CXL_DER_MEM_EVT_TYPE_INV_ADDR			0x02
+#define CXL_DER_MEM_EVT_TYPE_DATA_PATH_ERROR		0x03
+#define CXL_DER_MEM_EVT_TYPE_TE_STATE_VIOLATION	0x04
+#define CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE	0x05
+#define CXL_DER_MEM_EVT_TYPE_CKID_VIOLATION		0x06
+#define show_dram_mem_event_type(type)	__print_symbolic(type,					\
+	{ CXL_DER_MEM_EVT_TYPE_ECC_ERROR,		"ECC Error" },				\
+	{ CXL_DER_MEM_EVT_TYPE_SCRUB_MEDIA_ECC_ERROR,	"Scrub Media ECC Error" },		\
+	{ CXL_DER_MEM_EVT_TYPE_INV_ADDR,		"Invalid Address" },			\
+	{ CXL_DER_MEM_EVT_TYPE_DATA_PATH_ERROR,		"Data Path Error" },			\
+	{ CXL_DER_MEM_EVT_TYPE_TE_STATE_VIOLATION,	"TE State Violation" },			\
+	{ CXL_DER_MEM_EVT_TYPE_AP_CME_COUNTER_EXPIRE,	"Adv Prog CME Counter Expiration" },	\
+	{ CXL_DER_MEM_EVT_TYPE_CKID_VIOLATION,		"CKID Violation" }			\
+)
+
 #define CXL_DER_VALID_CHANNEL				BIT(0)
 #define CXL_DER_VALID_RANK				BIT(1)
 #define CXL_DER_VALID_NIBBLE				BIT(2)
@@ -386,23 +509,29 @@ TRACE_EVENT(cxl_general_media,
 #define CXL_DER_VALID_ROW				BIT(5)
 #define CXL_DER_VALID_COLUMN				BIT(6)
 #define CXL_DER_VALID_CORRECTION_MASK			BIT(7)
-#define show_dram_valid_flags(flags)	__print_flags(flags, "|",			   \
-	{ CXL_DER_VALID_CHANNEL,			"CHANNEL"		}, \
-	{ CXL_DER_VALID_RANK,				"RANK"			}, \
-	{ CXL_DER_VALID_NIBBLE,				"NIBBLE"		}, \
-	{ CXL_DER_VALID_BANK_GROUP,			"BANK GROUP"		}, \
-	{ CXL_DER_VALID_BANK,				"BANK"			}, \
-	{ CXL_DER_VALID_ROW,				"ROW"			}, \
-	{ CXL_DER_VALID_COLUMN,				"COLUMN"		}, \
-	{ CXL_DER_VALID_CORRECTION_MASK,		"CORRECTION MASK"	}  \
+#define CXL_DER_VALID_COMPONENT				BIT(8)
+#define CXL_DER_VALID_COMPONENT_ID_FORMAT		BIT(9)
+#define CXL_DER_VALID_SUB_CHANNEL			BIT(10)
+#define show_dram_valid_flags(flags)	__print_flags(flags, "|",			\
+	{ CXL_DER_VALID_CHANNEL,			"CHANNEL"		},	\
+	{ CXL_DER_VALID_RANK,				"RANK"			},	\
+	{ CXL_DER_VALID_NIBBLE,				"NIBBLE"		},	\
+	{ CXL_DER_VALID_BANK_GROUP,			"BANK GROUP"		},	\
+	{ CXL_DER_VALID_BANK,				"BANK"			},	\
+	{ CXL_DER_VALID_ROW,				"ROW"			},	\
+	{ CXL_DER_VALID_COLUMN,				"COLUMN"		},	\
+	{ CXL_DER_VALID_CORRECTION_MASK,		"CORRECTION MASK"	},	\
+	{ CXL_DER_VALID_COMPONENT,			"COMPONENT"		},	\
+	{ CXL_DER_VALID_COMPONENT_ID_FORMAT,		"COMPONENT PLDM FORMAT"	},	\
+	{ CXL_DER_VALID_SUB_CHANNEL,			"SUB CHANNEL"		}	\
 )
 
 TRACE_EVENT(cxl_dram,
 
 	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
-		 struct cxl_event_dram *rec),
+		 struct cxl_region *cxlr, u64 hpa, struct cxl_event_dram *rec),
 
-	TP_ARGS(cxlmd, log, rec),
+	TP_ARGS(cxlmd, log, cxlr, hpa, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -417,26 +546,36 @@ TRACE_EVENT(cxl_dram,
 		__field(u32, nibble_mask)
 		__field(u32, row)
 		__array(u8, cor_mask, CXL_EVENT_DER_CORRECTION_MASK_SIZE)
+		__field(u64, hpa)
+		__field_struct(uuid_t, region_uuid)
 		__field(u8, rank)	/* Out of order to pack trace record */
 		__field(u8, bank_group)	/* Out of order to pack trace record */
 		__field(u8, bank)	/* Out of order to pack trace record */
 		__field(u8, dpa_flags)	/* Out of order to pack trace record */
+		/* Following are out of order to pack trace record */
+		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
+		__field(u32, cvme_count)
+		__field(u8, sub_type)
+		__field(u8, sub_channel)
+		__field(u8, cme_threshold_ev_flags)
+		__string(region_name, cxlr ? dev_name(&cxlr->dev) : "")
 	),
 
 	TP_fast_assign(
-		CXL_EVT_TP_fast_assign(cxlmd, log, rec->hdr);
+		CXL_EVT_TP_fast_assign(cxlmd, log, rec->media_hdr.hdr);
 		__entry->hdr_uuid = CXL_EVENT_DRAM_UUID;
 
 		/* DRAM */
-		__entry->dpa = le64_to_cpu(rec->phys_addr);
+		__entry->dpa = le64_to_cpu(rec->media_hdr.phys_addr);
 		__entry->dpa_flags = __entry->dpa & CXL_DPA_FLAGS_MASK;
 		__entry->dpa &= CXL_DPA_MASK;
-		__entry->descriptor = rec->descriptor;
-		__entry->type = rec->type;
-		__entry->transaction_type = rec->transaction_type;
-		__entry->validity_flags = get_unaligned_le16(rec->validity_flags);
-		__entry->channel = rec->channel;
-		__entry->rank = rec->rank;
+		__entry->descriptor = rec->media_hdr.descriptor;
+		__entry->type = rec->media_hdr.type;
+		__entry->sub_type = rec->sub_type;
+		__entry->transaction_type = rec->media_hdr.transaction_type;
+		__entry->validity_flags = get_unaligned_le16(rec->media_hdr.validity_flags);
+		__entry->channel = rec->media_hdr.channel;
+		__entry->rank = rec->media_hdr.rank;
 		__entry->nibble_mask = get_unaligned_le24(rec->nibble_mask);
 		__entry->bank_group = rec->bank_group;
 		__entry->bank = rec->bank;
@@ -444,28 +583,55 @@ TRACE_EVENT(cxl_dram,
 		__entry->column = get_unaligned_le16(rec->column);
 		memcpy(__entry->cor_mask, &rec->correction_mask,
 			CXL_EVENT_DER_CORRECTION_MASK_SIZE);
+		__entry->hpa = hpa;
+		if (cxlr) {
+			__assign_str(region_name);
+			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
+		} else {
+			__assign_str(region_name);
+			uuid_copy(&__entry->region_uuid, &uuid_null);
+		}
+		memcpy(__entry->comp_id, &rec->component_id,
+		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
+		__entry->sub_channel = rec->sub_channel;
+		__entry->cme_threshold_ev_flags = rec->cme_threshold_ev_flags;
+		__entry->cvme_count = get_unaligned_le24(rec->cvme_count);
 	),
 
-	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' descriptor='%s' type='%s' " \
+	CXL_EVT_TP_printk("dpa=%llx dpa_flags='%s' descriptor='%s' type='%s' sub_type='%s' " \
 		"transaction_type='%s' channel=%u rank=%u nibble_mask=%x " \
 		"bank_group=%u bank=%u row=%u column=%u cor_mask=%s " \
-		"validity_flags='%s'",
+		"validity_flags='%s' " \
+		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
+		"pldm_entity_id=%s pldm_resource_id=%s " \
+		"hpa=%llx region=%s region_uuid=%pUb " \
+		"sub_channel=%u cme_threshold_ev_flags='%s' cvme_count=%u",
 		__entry->dpa, show_dpa_flags(__entry->dpa_flags),
 		show_event_desc_flags(__entry->descriptor),
-		show_mem_event_type(__entry->type),
+		show_dram_mem_event_type(__entry->type),
+		show_mem_event_sub_type(__entry->sub_type),
 		show_trans_type(__entry->transaction_type),
 		__entry->channel, __entry->rank, __entry->nibble_mask,
 		__entry->bank_group, __entry->bank,
 		__entry->row, __entry->column,
 		__print_hex(__entry->cor_mask, CXL_EVENT_DER_CORRECTION_MASK_SIZE),
-		show_dram_valid_flags(__entry->validity_flags)
+		show_dram_valid_flags(__entry->validity_flags),
+		__print_hex(__entry->comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE),
+		show_comp_id_pldm_flags(__entry->comp_id[0]),
+		show_pldm_entity_id(__entry->validity_flags, CXL_DER_VALID_COMPONENT,
+				    CXL_DER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		show_pldm_resource_id(__entry->validity_flags, CXL_DER_VALID_COMPONENT,
+				      CXL_DER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		__entry->hpa, __get_str(region_name), &__entry->region_uuid,
+		__entry->sub_channel, show_cme_threshold_ev_flags(__entry->cme_threshold_ev_flags),
+		__entry->cvme_count
 	)
 );
 
 /*
  * Memory Module Event Record - MMER
  *
- * CXL res 3.0 section 8.2.9.2.1.3; Table 8-45
+ * CXL res 3.1 section 8.2.9.2.1.3; Table 8-47
  */
 #define CXL_MMER_HEALTH_STATUS_CHANGE		0x00
 #define CXL_MMER_MEDIA_STATUS_CHANGE		0x01
@@ -473,27 +639,35 @@ TRACE_EVENT(cxl_dram,
 #define CXL_MMER_TEMP_CHANGE			0x03
 #define CXL_MMER_DATA_PATH_ERROR		0x04
 #define CXL_MMER_LSA_ERROR			0x05
+#define CXL_MMER_UNRECOV_SIDEBAND_BUS_ERROR	0x06
+#define CXL_MMER_MEMORY_MEDIA_FRU_ERROR		0x07
+#define CXL_MMER_POWER_MANAGEMENT_FAULT		0x08
 #define show_dev_evt_type(type)	__print_symbolic(type,			   \
 	{ CXL_MMER_HEALTH_STATUS_CHANGE,	"Health Status Change"	}, \
 	{ CXL_MMER_MEDIA_STATUS_CHANGE,		"Media Status Change"	}, \
 	{ CXL_MMER_LIFE_USED_CHANGE,		"Life Used Change"	}, \
 	{ CXL_MMER_TEMP_CHANGE,			"Temperature Change"	}, \
 	{ CXL_MMER_DATA_PATH_ERROR,		"Data Path Error"	}, \
-	{ CXL_MMER_LSA_ERROR,			"LSA Error"		}  \
+	{ CXL_MMER_LSA_ERROR,			"LSA Error"		}, \
+	{ CXL_MMER_UNRECOV_SIDEBAND_BUS_ERROR,	"Unrecoverable Internal Sideband Bus Error"	}, \
+	{ CXL_MMER_MEMORY_MEDIA_FRU_ERROR,	"Memory Media FRU Error"	}, \
+	{ CXL_MMER_POWER_MANAGEMENT_FAULT,	"Power Management Fault"	}  \
 )
 
 /*
  * Device Health Information - DHI
  *
- * CXL res 3.0 section 8.2.9.8.3.1; Table 8-100
+ * CXL res 3.1 section 8.2.9.9.3.1; Table 8-133
  */
 #define CXL_DHI_HS_MAINTENANCE_NEEDED				BIT(0)
 #define CXL_DHI_HS_PERFORMANCE_DEGRADED				BIT(1)
 #define CXL_DHI_HS_HW_REPLACEMENT_NEEDED			BIT(2)
+#define CXL_DHI_HS_MEM_CAPACITY_DEGRADED			BIT(3)
 #define show_health_status_flags(flags)	__print_flags(flags, "|",	   \
 	{ CXL_DHI_HS_MAINTENANCE_NEEDED,	"MAINTENANCE_NEEDED"	}, \
 	{ CXL_DHI_HS_PERFORMANCE_DEGRADED,	"PERFORMANCE_DEGRADED"	}, \
-	{ CXL_DHI_HS_HW_REPLACEMENT_NEEDED,	"REPLACEMENT_NEEDED"	}  \
+	{ CXL_DHI_HS_HW_REPLACEMENT_NEEDED,	"REPLACEMENT_NEEDED"	}, \
+	{ CXL_DHI_HS_MEM_CAPACITY_DEGRADED,	"MEM_CAPACITY_DEGRADED"	}  \
 )
 
 #define CXL_DHI_MS_NORMAL							0x00
@@ -547,6 +721,26 @@ TRACE_EVENT(cxl_dram,
 #define CXL_DHI_AS_COR_VOL_ERR_CNT(as)			((as & 0x10) >> 4)
 #define CXL_DHI_AS_COR_PER_ERR_CNT(as)			((as & 0x20) >> 5)
 
+#define CXL_MMER_VALID_COMPONENT			BIT(0)
+#define CXL_MMER_VALID_COMPONENT_ID_FORMAT		BIT(1)
+#define show_mem_module_valid_flags(flags)	__print_flags(flags, "|",	\
+	{ CXL_MMER_VALID_COMPONENT,		"COMPONENT" },			\
+	{ CXL_MMER_VALID_COMPONENT_ID_FORMAT,	"COMPONENT PLDM FORMAT"	}	\
+)
+#define CXL_MMER_DEV_EVT_SUB_TYPE_NOT_REPORTED			0x00
+#define CXL_MMER_DEV_EVT_SUB_TYPE_INVALID_CONFIG_DATA		0x01
+#define CXL_MMER_DEV_EVT_SUB_TYPE_UNSUPP_CONFIG_DATA		0x02
+#define CXL_MMER_DEV_EVT_SUB_TYPE_UNSUPP_MEM_MEDIA_FRU		0x03
+#define show_dev_event_sub_type(sub_type)	__print_symbolic(sub_type,			\
+	{ CXL_MMER_DEV_EVT_SUB_TYPE_NOT_REPORTED,		"Not Reported" },		\
+	{ CXL_MMER_DEV_EVT_SUB_TYPE_INVALID_CONFIG_DATA,	"Invalid Config Data" },	\
+	{ CXL_MMER_DEV_EVT_SUB_TYPE_UNSUPP_CONFIG_DATA,		"Unsupported Config Data" },	\
+	{											\
+		CXL_MMER_DEV_EVT_SUB_TYPE_UNSUPP_MEM_MEDIA_FRU,					\
+		"Unsupported Memory Media FRU"							\
+	}											\
+)
+
 TRACE_EVENT(cxl_memory_module,
 
 	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
@@ -569,6 +763,9 @@ TRACE_EVENT(cxl_memory_module,
 		__field(u32, cor_per_err_cnt)
 		__field(s16, device_temp)
 		__field(u8, add_status)
+		__field(u8, event_sub_type)
+		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
+		__field(u16, validity_flags)
 	),
 
 	TP_fast_assign(
@@ -577,6 +774,7 @@ TRACE_EVENT(cxl_memory_module,
 
 		/* Memory Module Event */
 		__entry->event_type = rec->event_type;
+		__entry->event_sub_type = rec->event_sub_type;
 
 		/* Device Health Info */
 		__entry->health_status = rec->info.health_status;
@@ -587,13 +785,20 @@ TRACE_EVENT(cxl_memory_module,
 		__entry->cor_per_err_cnt = get_unaligned_le32(rec->info.cor_per_err_cnt);
 		__entry->device_temp = get_unaligned_le16(rec->info.device_temp);
 		__entry->add_status = rec->info.add_status;
+		__entry->validity_flags = get_unaligned_le16(rec->validity_flags);
+		memcpy(__entry->comp_id, &rec->component_id,
+		       CXL_EVENT_GEN_MED_COMP_ID_SIZE);
 	),
 
-	CXL_EVT_TP_printk("event_type='%s' health_status='%s' media_status='%s' " \
-		"as_life_used=%s as_dev_temp=%s as_cor_vol_err_cnt=%s " \
+	CXL_EVT_TP_printk("event_type='%s' event_sub_type='%s' health_status='%s' " \
+		"media_status='%s' as_life_used=%s as_dev_temp=%s as_cor_vol_err_cnt=%s " \
 		"as_cor_per_err_cnt=%s life_used=%u device_temp=%d " \
-		"dirty_shutdown_cnt=%u cor_vol_err_cnt=%u cor_per_err_cnt=%u",
+		"dirty_shutdown_cnt=%u cor_vol_err_cnt=%u cor_per_err_cnt=%u " \
+		"validity_flags='%s' " \
+		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
+		"pldm_entity_id=%s pldm_resource_id=%s",
 		show_dev_evt_type(__entry->event_type),
+		show_dev_event_sub_type(__entry->event_sub_type),
 		show_health_status_flags(__entry->health_status),
 		show_media_status(__entry->media_status),
 		show_two_bit_status(CXL_DHI_AS_LIFE_USED(__entry->add_status)),
@@ -602,7 +807,14 @@ TRACE_EVENT(cxl_memory_module,
 		show_one_bit_status(CXL_DHI_AS_COR_PER_ERR_CNT(__entry->add_status)),
 		__entry->life_used, __entry->device_temp,
 		__entry->dirty_shutdown_cnt, __entry->cor_vol_err_cnt,
-		__entry->cor_per_err_cnt
+		__entry->cor_per_err_cnt,
+		show_mem_module_valid_flags(__entry->validity_flags),
+		__print_hex(__entry->comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE),
+		show_comp_id_pldm_flags(__entry->comp_id[0]),
+		show_pldm_entity_id(__entry->validity_flags, CXL_MMER_VALID_COMPONENT,
+				    CXL_MMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
+		show_pldm_resource_id(__entry->validity_flags, CXL_MMER_VALID_COMPONENT,
+				      CXL_MMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id)
 	)
 );
 
@@ -642,8 +854,6 @@ TRACE_EVENT(cxl_memory_module,
 #define cxl_poison_overflow(flags, time)				\
 	(flags & CXL_POISON_FLAG_OVERFLOW ? le64_to_cpu(time) : 0)
 
-u64 cxl_trace_hpa(struct cxl_region *cxlr, struct cxl_memdev *memdev, u64 dpa);
-
 TRACE_EVENT(cxl_poison,
 
 	TP_PROTO(struct cxl_memdev *cxlmd, struct cxl_region *cxlr,
@@ -668,8 +878,8 @@ TRACE_EVENT(cxl_poison,
 	    ),
 
 	TP_fast_assign(
-		__assign_str(memdev, dev_name(&cxlmd->dev));
-		__assign_str(host, dev_name(cxlmd->dev.parent));
+		__assign_str(memdev);
+		__assign_str(host);
 		__entry->serial = cxlmd->cxlds->serial;
 		__entry->overflow_ts = cxl_poison_overflow(flags, overflow_ts);
 		__entry->dpa = cxl_poison_record_dpa(record);
@@ -678,12 +888,12 @@ TRACE_EVENT(cxl_poison,
 		__entry->trace_type = trace_type;
 		__entry->flags = flags;
 		if (cxlr) {
-			__assign_str(region, dev_name(&cxlr->dev));
+			__assign_str(region);
 			memcpy(__entry->uuid, &cxlr->params.uuid, 16);
-			__entry->hpa = cxl_trace_hpa(cxlr, cxlmd,
-						     __entry->dpa);
+			__entry->hpa = cxl_dpa_to_hpa(cxlr, cxlmd,
+						      __entry->dpa);
 		} else {
-			__assign_str(region, "");
+			__assign_str(region);
 			memset(__entry->uuid, 0, 16);
 			__entry->hpa = ULLONG_MAX;
 		}

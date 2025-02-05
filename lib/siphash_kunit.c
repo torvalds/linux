@@ -194,4 +194,5 @@ static struct kunit_suite siphash_test_suite = {
 kunit_test_suite(siphash_test_suite);
 
 MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
+MODULE_DESCRIPTION("Test cases for siphash.c");
 MODULE_LICENSE("Dual BSD/GPL");

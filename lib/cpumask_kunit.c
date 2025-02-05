@@ -152,4 +152,5 @@ static struct kunit_suite test_cpumask_suite = {
 };
 kunit_test_suite(test_cpumask_suite);
 
+MODULE_DESCRIPTION("KUnit tests for cpumask");
 MODULE_LICENSE("GPL");

@@ -57,6 +57,16 @@ config SPI_MEM
 
 comment "SPI Master Controller Drivers"
 
+config SPI_AIROHA_SNFI
+	tristate "Airoha SPI NAND Flash Interface"
+	depends on ARCH_AIROHA || COMPILE_TEST
+	depends on SPI_MASTER
+	select REGMAP_MMIO
+	help
+	  This enables support for SPI-NAND mode on the Airoha NAND
+	  Flash Interface found on Airoha ARM SoCs. This controller
+	  is implemented as a SPI-MEM controller.
+
 config SPI_ALTERA
 	tristate "Altera SPI Controller platform driver"
 	select SPI_ALTERA_CORE
@@ -85,6 +95,17 @@ config SPI_AMLOGIC_SPIFC_A1
 	help
 	  This enables master mode support for the SPIFC (SPI flash
 	  controller) available in Amlogic A1 (A113L SoC).
+
+config SPI_APPLE
+	tristate "Apple SoC SPI Controller platform driver"
+	depends on ARCH_APPLE || COMPILE_TEST
+	help
+	  This enables support for the SPI controller present on
+	  many Apple SoCs, including the t8103 (M1), t8112 (M2)
+	  and t600x (M1 Pro/Max/Ultra). Multiple SPI controller
+	  instances are present on the SoC and each connects usually
+	  to a single device like spi-nor (nvram), input device controller
+	  or fingerprint sensor.
 
 config SPI_AR934X
 	tristate "Qualcomm Atheros AR934X/QCA95XX SPI controller driver"
@@ -216,11 +237,11 @@ config SPI_BCMBCA_HSSPI
 	  explicitly.
 
 config SPI_BITBANG
-	tristate "Utilities for Bitbanging SPI masters"
+	tristate "Utilities for Bitbanging SPI host controllers"
 	help
 	  With a few GPIO pins, your system can bitbang the SPI protocol.
 	  Select this to get SPI support through I/O pins (GPIO, parallel
-	  port, etc).  Or, some systems' SPI master controller drivers use
+	  port, etc).  Or, some systems' SPI host controller drivers use
 	  this code to manage the per-word or per-transfer accesses to the
 	  hardware shift registers.
 
@@ -246,7 +267,7 @@ config SPI_CADENCE
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || ARM64 || X86 || RISCV || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || X86 || RISCV || MIPS || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
@@ -257,7 +278,7 @@ config SPI_CADENCE_QUADSPI
 
 config SPI_CADENCE_XSPI
 	tristate "Cadence XSPI controller"
-	depends on OF && HAS_IOMEM
+	depends on OF && HAS_IOMEM && 64BIT
 	depends on SPI_MEM
 	help
 	  Enable support for the Cadence XSPI Flash controller.
@@ -266,6 +287,12 @@ config SPI_CADENCE_XSPI
 	  Flash over up to 8-bit wide bus. Enable this option if you have a
 	  device with a Cadence XSPI controller and want to access the
 	  Flash as an MTD device.
+
+config SPI_CH341
+	tristate "CH341 USB2SPI adapter"
+	depends on SPI_MASTER && USB
+	help
+	  Enables the SPI controller on the CH341a USB to serial chip
 
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
@@ -284,6 +311,7 @@ config SPI_COLDFIRE_QSPI
 config SPI_CS42L43
 	tristate "Cirrus Logic CS42L43 SPI controller"
 	depends on MFD_CS42L43 && PINCTRL_CS42L43
+	select GPIO_SWNODE_UNDEFINED
 	help
 	  This enables support for the SPI controller inside the Cirrus Logic
 	  CS42L43 audio codec.
@@ -513,6 +541,18 @@ config SPI_JCORE
 	help
 	  This enables support for the SPI master controller in the J-Core
 	  synthesizable, open source SoC.
+
+config SPI_KSPI2
+	tristate "Support for KEBA SPI master type 2 hardware"
+	depends on HAS_IOMEM
+	depends on KEBA_CP500 || COMPILE_TEST
+	select AUXILIARY_BUS
+	help
+	  This driver supports KEBA SPI master type 2 FPGA implementation,
+	  as found on CP500 devices for example.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called spi-kspi2.
 
 config SPI_LM70_LLP
 	tristate "Parallel port adapter for LM70 eval board (DEVELOPMENT)"
@@ -817,15 +857,25 @@ config SPI_PPC4xx
 
 config SPI_PXA2XX
 	tristate "PXA2xx SSP SPI master"
-	depends on ARCH_PXA || ARCH_MMP || PCI || ACPI || COMPILE_TEST
+	depends on ARCH_PXA || ARCH_MMP || (X86 && (PCI || ACPI)) || COMPILE_TEST
 	select PXA_SSP if ARCH_PXA || ARCH_MMP
 	help
 	  This enables using a PXA2xx or Sodaville SSP port as a SPI master
-	  controller. The driver can be configured to use any SSP port and
-	  additional documentation can be found a Documentation/spi/pxa2xx.rst.
+	  controller. The driver can be configured to use any SSP port.
 
 config SPI_PXA2XX_PCI
 	def_tristate SPI_PXA2XX && PCI && COMMON_CLK
+
+config SPI_REALTEK_SNAND
+	tristate "Realtek SPI-NAND Flash Controller"
+	depends on MACH_REALTEK_RTL || COMPILE_TEST
+	select REGMAP
+	help
+	  This enables support for the SPI-NAND Flash controller on
+	  Realtek SoCs.
+
+	  This driver does not support generic SPI. The implementation
+	  only supports the spi-mem interface.
 
 config SPI_ROCKCHIP
 	tristate "Rockchip SPI controller driver"

@@ -182,21 +182,21 @@ static void rproc_virtio_del_vqs(struct virtio_device *vdev)
 
 static int rproc_virtio_find_vqs(struct virtio_device *vdev, unsigned int nvqs,
 				 struct virtqueue *vqs[],
-				 vq_callback_t *callbacks[],
-				 const char * const names[],
-				 const bool * ctx,
+				 struct virtqueue_info vqs_info[],
 				 struct irq_affinity *desc)
 {
 	int i, ret, queue_idx = 0;
 
 	for (i = 0; i < nvqs; ++i) {
-		if (!names[i]) {
+		struct virtqueue_info *vqi = &vqs_info[i];
+
+		if (!vqi->name) {
 			vqs[i] = NULL;
 			continue;
 		}
 
-		vqs[i] = rp_find_vq(vdev, queue_idx++, callbacks[i], names[i],
-				    ctx ? ctx[i] : false);
+		vqs[i] = rp_find_vq(vdev, queue_idx++, vqi->callback,
+				    vqi->name, vqi->ctx);
 		if (IS_ERR(vqs[i])) {
 			ret = PTR_ERR(vqs[i]);
 			goto error;
@@ -593,7 +593,7 @@ static void rproc_virtio_remove(struct platform_device *pdev)
 /* Platform driver */
 static struct platform_driver rproc_virtio_driver = {
 	.probe		= rproc_virtio_probe,
-	.remove_new	= rproc_virtio_remove,
+	.remove		= rproc_virtio_remove,
 	.driver		= {
 		.name	= "rproc-virtio",
 	},

@@ -437,6 +437,7 @@ static int mmdc_pmu_init(struct mmdc_pmu *pmu_mmdc,
 {
 	*pmu_mmdc = (struct mmdc_pmu) {
 		.pmu = (struct pmu) {
+			.parent		= dev,
 			.task_ctx_nr    = perf_invalid_context,
 			.attr_groups    = attr_groups,
 			.event_init     = mmdc_pmu_event_init,
@@ -595,7 +596,7 @@ static struct platform_driver imx_mmdc_driver = {
 		.of_match_table = imx_mmdc_dt_ids,
 	},
 	.probe		= imx_mmdc_probe,
-	.remove_new	= imx_mmdc_remove,
+	.remove		= imx_mmdc_remove,
 };
 
 static int __init imx_mmdc_init(void)

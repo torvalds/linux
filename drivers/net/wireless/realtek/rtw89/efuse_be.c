@@ -8,25 +8,13 @@
 #include "reg.h"
 
 #define EFUSE_EXTERNALPN_ADDR_BE 0x1580
-#define EFUSE_B1_MSSDEVTYPE_MASK GENMASK(3, 0)
-#define EFUSE_B1_MSSCUSTIDX0_MASK GENMASK(7, 4)
 #define EFUSE_SERIALNUM_ADDR_BE 0x1581
-#define EFUSE_B2_MSSKEYNUM_MASK GENMASK(3, 0)
-#define EFUSE_B2_MSSCUSTIDX1_MASK BIT(6)
 #define EFUSE_SB_CRYP_SEL_ADDR 0x1582
 #define EFUSE_SB_CRYP_SEL_SIZE 2
 #define EFUSE_SB_CRYP_SEL_DEFAULT 0xFFFF
 #define SB_SEL_MGN_MAX_SIZE 2
 #define EFUSE_SEC_BE_START 0x1580
 #define EFUSE_SEC_BE_SIZE 4
-
-enum rtw89_efuse_mss_dev_type {
-	MSS_DEV_TYPE_FWSEC_DEF = 0xF,
-	MSS_DEV_TYPE_FWSEC_WINLIN_INBOX = 0xC,
-	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB = 0xA,
-	MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB = 0x9,
-	MSS_DEV_TYPE_FWSEC_NONWIN_INBOX = 0x6,
-};
 
 static const u32 sb_sel_mgn[SB_SEL_MGN_MAX_SIZE] = {
 	0x8000100, 0xC000180
@@ -477,33 +465,6 @@ static u16 get_sb_cryp_sel_idx(u16 sb_cryp_sel)
 	return sb_cryp_sel_v + low_bit;
 }
 
-static u8 get_mss_dev_type_idx(struct rtw89_dev *rtwdev, u8 mss_dev_type)
-{
-	switch (mss_dev_type) {
-	case MSS_DEV_TYPE_FWSEC_WINLIN_INBOX:
-		mss_dev_type = 0x0;
-		break;
-	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_NON_COB:
-		mss_dev_type = 0x1;
-		break;
-	case MSS_DEV_TYPE_FWSEC_NONLIN_INBOX_COB:
-		mss_dev_type = 0x2;
-		break;
-	case MSS_DEV_TYPE_FWSEC_NONWIN_INBOX:
-		mss_dev_type = 0x3;
-		break;
-	case MSS_DEV_TYPE_FWSEC_DEF:
-		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_DEF;
-		break;
-	default:
-		rtw89_warn(rtwdev, "unknown mss_dev_type %d", mss_dev_type);
-		mss_dev_type = RTW89_FW_MSS_DEV_TYPE_FWSEC_INV;
-		break;
-	}
-
-	return mss_dev_type;
-}
-
 int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_secure *sec = &rtwdev->fw.sec;
@@ -511,7 +472,6 @@ int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev)
 	u32 sec_size = EFUSE_SEC_BE_SIZE;
 	u16 sb_cryp_sel, sb_cryp_sel_idx;
 	u8 sec_map[EFUSE_SEC_BE_SIZE];
-	u8 mss_dev_type;
 	u8 b1, b2;
 	int ret;
 
@@ -538,16 +498,9 @@ int rtw89_efuse_read_fw_secure_be(struct rtw89_dev *rtwdev)
 	b1 = sec_map[EFUSE_EXTERNALPN_ADDR_BE - sec_addr];
 	b2 = sec_map[EFUSE_SERIALNUM_ADDR_BE - sec_addr];
 
-	mss_dev_type = u8_get_bits(b1, EFUSE_B1_MSSDEVTYPE_MASK);
-	sec->mss_cust_idx = 0x1F - (u8_get_bits(b1, EFUSE_B1_MSSCUSTIDX0_MASK) |
-				    u8_get_bits(b2, EFUSE_B2_MSSCUSTIDX1_MASK) << 4);
-	sec->mss_key_num = 0xF - u8_get_bits(b2, EFUSE_B2_MSSKEYNUM_MASK);
-
-	sec->mss_dev_type = get_mss_dev_type_idx(rtwdev, mss_dev_type);
-	if (sec->mss_dev_type == RTW89_FW_MSS_DEV_TYPE_FWSEC_INV) {
-		rtw89_warn(rtwdev, "invalid mss_dev_type %d\n", mss_dev_type);
+	ret = rtw89_efuse_recognize_mss_info_v1(rtwdev, b1, b2);
+	if (ret)
 		goto out;
-	}
 
 	sec->secure_boot = true;
 
@@ -559,4 +512,3 @@ out:
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_efuse_read_fw_secure_be);

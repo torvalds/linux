@@ -30,8 +30,6 @@ static void setup_lo_intf(const char *lo_intf)
 static void tcp_self_connect(const char *tst, unsigned int port,
 			     bool different_keyids, bool check_restore)
 {
-	uint64_t before_challenge_ack, after_challenge_ack;
-	uint64_t before_syn_challenge, after_syn_challenge;
 	struct tcp_ao_counters before_ao, after_ao;
 	uint64_t before_aogood, after_aogood;
 	struct netstat *ns_before, *ns_after;
@@ -62,8 +60,6 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_before = netstat_read();
 	before_aogood = netstat_get(ns_before, "TCPAOGood", NULL);
-	before_challenge_ack = netstat_get(ns_before, "TCPChallengeACK", NULL);
-	before_syn_challenge = netstat_get(ns_before, "TCPSYNChallenge", NULL);
 	if (test_get_tcp_ao_counters(sk, &before_ao))
 		test_error("test_get_tcp_ao_counters()");
 
@@ -82,8 +78,6 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 
 	ns_after = netstat_read();
 	after_aogood = netstat_get(ns_after, "TCPAOGood", NULL);
-	after_challenge_ack = netstat_get(ns_after, "TCPChallengeACK", NULL);
-	after_syn_challenge = netstat_get(ns_after, "TCPSYNChallenge", NULL);
 	if (test_get_tcp_ao_counters(sk, &after_ao))
 		test_error("test_get_tcp_ao_counters()");
 	if (!check_restore) {
@@ -93,20 +87,8 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 	netstat_free(ns_after);
 
 	if (after_aogood <= before_aogood) {
-		test_fail("%s: TCPAOGood counter mismatch: %zu <= %zu",
+		test_fail("%s: TCPAOGood counter mismatch: %" PRIu64 " <= %" PRIu64,
 			  tst, after_aogood, before_aogood);
-		close(sk);
-		return;
-	}
-	if (after_challenge_ack <= before_challenge_ack ||
-	    after_syn_challenge <= before_syn_challenge) {
-		/*
-		 * It's also meant to test simultaneous open, so check
-		 * these counters as well.
-		 */
-		test_fail("%s: Didn't challenge SYN or ACK: %zu <= %zu OR %zu <= %zu",
-			  tst, after_challenge_ack, before_challenge_ack,
-			  after_syn_challenge, before_syn_challenge);
 		close(sk);
 		return;
 	}
@@ -166,7 +148,7 @@ static void tcp_self_connect(const char *tst, unsigned int port,
 	netstat_free(ns_after);
 	close(sk);
 	if (after_aogood <= before_aogood) {
-		test_fail("%s: TCPAOGood counter mismatch: %zu <= %zu",
+		test_fail("%s: TCPAOGood counter mismatch: %" PRIu64 " <= %" PRIu64,
 			  tst, after_aogood, before_aogood);
 		return;
 	}
@@ -181,17 +163,26 @@ static void *client_fn(void *arg)
 	setup_lo_intf("lo");
 
 	tcp_self_connect("self-connect(same keyids)", port++, false, false);
+
+	/* expecting rnext to change based on the first segment RNext != Current */
+	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, local_addr, local_addr,
+			      port, port, 0, -1, -1, -1, -1, -1, 7, 5, -1);
 	tcp_self_connect("self-connect(different keyids)", port++, true, false);
 	tcp_self_connect("self-connect(restore)", port, false, true);
-	port += 2;
+	port += 2; /* restore test restores over different port */
+	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, local_addr, local_addr,
+			      port, port, 0, -1, -1, -1, -1, -1, 7, 5, -1);
+	/* intentionally on restore they are added to the socket in different order */
+	trace_ao_event_expect(TCP_AO_RNEXT_REQUEST, local_addr, local_addr,
+			      port + 1, port + 1, 0, -1, -1, -1, -1, -1, 5, 7, -1);
 	tcp_self_connect("self-connect(restore, different keyids)", port, true, true);
-	port += 2;
+	port += 2; /* restore test restores over different port */
 
 	return NULL;
 }
 
 int main(int argc, char *argv[])
 {
-	test_init(4, client_fn, NULL);
+	test_init(5, client_fn, NULL);
 	return 0;
 }

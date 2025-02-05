@@ -113,7 +113,7 @@ struct rxe_req_info {
 	int			need_retry;
 	int			wait_for_rnr_timer;
 	int			noack_pkts;
-	struct rxe_task		task;
+	int			again;
 };
 
 struct rxe_comp_info {
@@ -124,7 +124,6 @@ struct rxe_comp_info {
 	int			started_retry;
 	u32			retry_cnt;
 	u32			rnr_retry;
-	struct rxe_task		task;
 };
 
 enum rdatm_res_state {
@@ -196,7 +195,6 @@ struct rxe_resp_info {
 	unsigned int		res_head;
 	unsigned int		res_tail;
 	struct resp_res		*res;
-	struct rxe_task		task;
 };
 
 struct rxe_qp {
@@ -228,6 +226,9 @@ struct rxe_qp {
 
 	struct sk_buff_head	req_pkts;
 	struct sk_buff_head	resp_pkts;
+
+	struct rxe_task		send_task;
+	struct rxe_task		recv_task;
 
 	struct rxe_req_info	req;
 	struct rxe_comp_info	comp;
@@ -369,14 +370,13 @@ struct rxe_port {
 	u32			qp_gsi_index;
 };
 
+#define	RXE_PORT	1
 struct rxe_dev {
 	struct ib_device	ib_dev;
 	struct ib_device_attr	attr;
 	int			max_ucontext;
 	int			max_inline_data;
 	struct mutex	usdev_lock;
-
-	struct net_device	*ndev;
 
 	struct rxe_pool		uc_pool;
 	struct rxe_pool		pd_pool;
@@ -404,6 +404,11 @@ struct rxe_dev {
 	struct rxe_port		port;
 	struct crypto_shash	*tfm;
 };
+
+static inline struct net_device *rxe_ib_device_get_netdev(struct ib_device *dev)
+{
+	return ib_device_get_netdev(dev, RXE_PORT);
+}
 
 static inline void rxe_counter_inc(struct rxe_dev *rxe, enum rxe_counters index)
 {
@@ -470,6 +475,7 @@ static inline struct rxe_pd *rxe_mw_pd(struct rxe_mw *mw)
 	return to_rpd(mw->ibmw.pd);
 }
 
-int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name);
+int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name,
+						struct net_device *ndev);
 
 #endif /* RXE_VERBS_H */

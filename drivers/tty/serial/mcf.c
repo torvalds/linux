@@ -462,7 +462,7 @@ static const struct uart_ops mcf_uart_ops = {
 	.verify_port	= mcf_verify_port,
 };
 
-static struct mcf_uart mcf_ports[4];
+static struct mcf_uart mcf_ports[10];
 
 #define	MCF_MAXPORTS	ARRAY_SIZE(mcf_ports)
 
@@ -616,7 +616,7 @@ static void mcf_remove(struct platform_device *pdev)
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove_new	= mcf_remove,
+	.remove		= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 	},

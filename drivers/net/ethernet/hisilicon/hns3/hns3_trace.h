@@ -84,7 +84,7 @@ TRACE_EVENT(hns3_tx_desc,
 		__entry->desc_dma = ring->desc_dma_addr,
 		memcpy(__entry->desc, &ring->desc[cur_ntu],
 		       sizeof(struct hns3_desc));
-		__assign_str(devname, ring->tqp->handle->kinfo.netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk(
@@ -117,7 +117,7 @@ TRACE_EVENT(hns3_rx_desc,
 		__entry->buf_dma = ring->desc_cb[ring->next_to_clean].dma;
 		memcpy(__entry->desc, &ring->desc[ring->next_to_clean],
 		       sizeof(struct hns3_desc));
-		__assign_str(devname, ring->tqp->handle->kinfo.netdev->name);
+		__assign_str(devname);
 	),
 
 	TP_printk(

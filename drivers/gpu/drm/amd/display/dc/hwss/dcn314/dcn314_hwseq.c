@@ -160,6 +160,10 @@ void dcn314_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx 
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 0;
 	int opp_inst[MAX_PIPES] = {0};
+	int odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
+	int last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
+	struct mpc *mpc = dc->res_pool->mpc;
+	int i;
 
 	opp_cnt = get_odm_config(pipe_ctx, opp_inst);
 
@@ -167,10 +171,20 @@ void dcn314_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx 
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
 				opp_inst, opp_cnt,
-				&pipe_ctx->stream->timing);
+				odm_slice_width, last_odm_slice_width);
 	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
+	if (mpc->funcs->set_out_rate_control) {
+		for (i = 0; i < opp_cnt; ++i) {
+			mpc->funcs->set_out_rate_control(
+					mpc, opp_inst[i],
+					false,
+					0,
+					NULL);
+		}
+	}
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
@@ -302,7 +316,7 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	unsigned int odm_combine_factor = 0;
 	bool two_pix_per_container = false;
 
-	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
+	two_pix_per_container = pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
 	if (stream->ctx->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
@@ -332,36 +346,62 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	return odm_combine_factor;
 }
 
-void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
+void dcn314_calculate_pix_rate_divider(
+		struct dc *dc,
+		struct dc_state *context,
+		const struct dc_stream_state *stream)
 {
-	uint32_t pix_per_cycle = 1;
-	uint32_t odm_combine_factor = 1;
+	struct dce_hwseq *hws = dc->hwseq;
+	struct pipe_ctx *pipe_ctx = NULL;
+	unsigned int k1_div = PIXEL_RATE_DIV_NA;
+	unsigned int k2_div = PIXEL_RATE_DIV_NA;
 
-	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
-		return;
+	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
 
-	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
-	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1)
-		pix_per_cycle = 2;
+	if (pipe_ctx) {
+		if (hws->funcs.calculate_dccg_k1_k2_values)
+			hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
 
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
-		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
-				pix_per_cycle);
+		pipe_ctx->pixel_rate_divider.div_factor1 = k1_div;
+		pipe_ctx->pixel_rate_divider.div_factor2 = k2_div;
+	}
 }
 
-void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
+static bool dcn314_is_pipe_dig_fifo_on(struct pipe_ctx *pipe)
+{
+	return pipe && pipe->stream
+		// Check dig's otg instance.
+		&& pipe->stream_res.stream_enc
+		&& pipe->stream_res.stream_enc->funcs->dig_source_otg
+		&& pipe->stream_res.tg->inst == pipe->stream_res.stream_enc->funcs->dig_source_otg(pipe->stream_res.stream_enc)
+		&& pipe->stream->link && pipe->stream->link->link_enc
+		&& pipe->stream->link->link_enc->funcs->is_dig_enabled
+		&& pipe->stream->link->link_enc->funcs->is_dig_enabled(pipe->stream->link->link_enc)
+		&& pipe->stream_res.stream_enc->funcs->is_fifo_enabled
+		&& pipe->stream_res.stream_enc->funcs->is_fifo_enabled(pipe->stream_res.stream_enc);
+}
+
+void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context, unsigned int current_pipe_idx)
 {
 	unsigned int i;
 	struct pipe_ctx *pipe = NULL;
 	bool otg_disabled[MAX_PIPES] = {false};
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (i <= current_pipe_idx) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+		} else {
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		}
 
 		if (pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
 
-		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal))) {
+		if (pipe->stream && (pipe->stream->dpms_off || dc_is_virtual_signal(pipe->stream->signal)) &&
+			!pipe->stream->apply_seamless_boot_optimization &&
+			!pipe->stream->apply_edp_fast_boot_optimization) {
+			if (dcn314_is_pipe_dig_fifo_on(pipe))
+				continue;
 			pipe->stream_res.tg->funcs->disable_crtc(pipe->stream_res.tg);
 			reset_sync_context_for_pipe(dc, context, i);
 			otg_disabled[i] = true;
@@ -371,10 +411,30 @@ void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc
 	hws->ctx->dc->res_pool->dccg->funcs->trigger_dio_fifo_resync(hws->ctx->dc->res_pool->dccg);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+		if (i <= current_pipe_idx)
+			pipe = &context->res_ctx.pipe_ctx[i];
+		else
+			pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
-		if (otg_disabled[i])
+		if (otg_disabled[i]) {
+			int opp_inst[MAX_PIPES] = { pipe->stream_res.opp->inst };
+			int opp_cnt = 1;
+			int last_odm_slice_width = resource_get_odm_slice_dst_width(pipe, true);
+			int odm_slice_width = resource_get_odm_slice_dst_width(pipe, false);
+			struct pipe_ctx *odm_pipe;
+
+			for (odm_pipe = pipe->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
+				opp_cnt++;
+			}
+			if (opp_cnt > 1)
+				pipe->stream_res.tg->funcs->set_odm_combine(
+						pipe->stream_res.tg,
+						opp_inst, opp_cnt,
+						odm_slice_width,
+						last_odm_slice_width);
 			pipe->stream_res.tg->funcs->enable_crtc(pipe->stream_res.tg);
+		}
 	}
 }
 
@@ -448,7 +508,7 @@ void dcn314_disable_link_output(struct dc_link *link,
 	 * from enable/disable link output and only call edp panel control
 	 * in enable_link_dp and disable_link_dp once.
 	 */
-	if (dmcu != NULL && dmcu->funcs->lock_phy)
+	if (dmcu != NULL && dmcu->funcs->unlock_phy)
 		dmcu->funcs->unlock_phy(dmcu);
 	dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 

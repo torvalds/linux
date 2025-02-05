@@ -188,6 +188,42 @@ enum {
 #define DEFINE_RES_DMA(_dma)						\
 	DEFINE_RES_DMA_NAMED((_dma), NULL)
 
+/**
+ * typedef resource_alignf - Resource alignment callback
+ * @data:	Private data used by the callback
+ * @res:	Resource candidate range (an empty resource space)
+ * @size:	The minimum size of the empty space
+ * @align:	Alignment from the constraints
+ *
+ * Callback allows calculating resource placement and alignment beyond min,
+ * max, and align fields in the struct resource_constraint.
+ *
+ * Return: Start address for the resource.
+ */
+typedef resource_size_t (*resource_alignf)(void *data,
+					   const struct resource *res,
+					   resource_size_t size,
+					   resource_size_t align);
+
+/**
+ * struct resource_constraint - constraints to be met while searching empty
+ *				resource space
+ * @min:		The minimum address for the memory range
+ * @max:		The maximum address for the memory range
+ * @align:		Alignment for the start address of the empty space
+ * @alignf:		Additional alignment constraints callback
+ * @alignf_data:	Data provided for @alignf callback
+ *
+ * Contains the range and alignment constraints that have to be met during
+ * find_resource_space(). @alignf can be NULL indicating no alignment beyond
+ * @align is necessary.
+ */
+struct resource_constraint {
+	resource_size_t min, max, align;
+	resource_alignf alignf;
+	void *alignf_data;
+};
+
 /* PC/ISA/whatever - the normal PC address spaces: IO and memory */
 extern struct resource ioport_resource;
 extern struct resource iomem_resource;
@@ -207,15 +243,44 @@ extern void arch_remove_reservations(struct resource *avail);
 extern int allocate_resource(struct resource *root, struct resource *new,
 			     resource_size_t size, resource_size_t min,
 			     resource_size_t max, resource_size_t align,
-			     resource_size_t (*alignf)(void *,
-						       const struct resource *,
-						       resource_size_t,
-						       resource_size_t),
+			     resource_alignf alignf,
 			     void *alignf_data);
 struct resource *lookup_resource(struct resource *root, resource_size_t start);
 int adjust_resource(struct resource *res, resource_size_t start,
 		    resource_size_t size);
 resource_size_t resource_alignment(struct resource *res);
+
+/**
+ * resource_set_size - Calculate resource end address from size and start
+ * @res: Resource descriptor
+ * @size: Size of the resource
+ *
+ * Calculate the end address for @res based on @size.
+ *
+ * Note: The start address of @res must be set when calling this function.
+ * Prefer resource_set_range() if setting both the start address and @size.
+ */
+static inline void resource_set_size(struct resource *res, resource_size_t size)
+{
+	res->end = res->start + size - 1;
+}
+
+/**
+ * resource_set_range - Set resource start and end addresses
+ * @res: Resource descriptor
+ * @start: Start address for the resource
+ * @size: Size of the resource
+ *
+ * Set @res start address and calculate the end address based on @size.
+ */
+static inline void resource_set_range(struct resource *res,
+				      resource_size_t start,
+				      resource_size_t size)
+{
+	res->start = start;
+	resource_set_size(res, size);
+}
+
 static inline resource_size_t resource_size(const struct resource *res)
 {
 	return res->end - res->start + 1;
@@ -263,6 +328,9 @@ static inline bool resource_union(const struct resource *r1, const struct resour
 	r->end = max(r1->end, r2->end);
 	return true;
 }
+
+int find_resource_space(struct resource *root, struct resource *new,
+			resource_size_t size, struct resource_constraint *constraint);
 
 /* Convenience shorthand with allocation */
 #define request_region(start,n,name)		__request_region(&ioport_resource, (start), (n), (name), 0)

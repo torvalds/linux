@@ -440,7 +440,8 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 		proc_thermal_rapl_remove();
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_FIVR ||
-	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS)
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DVFS ||
+	    proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_DLVR)
 		proc_thermal_rfim_remove(pdev);
 
 	if (proc_priv->mmio_feature_mask & PROC_THERMAL_FEATURE_POWER_FLOOR)
@@ -453,8 +454,8 @@ void proc_thermal_mmio_remove(struct pci_dev *pdev, struct proc_thermal_device *
 }
 EXPORT_SYMBOL_GPL(proc_thermal_mmio_remove);
 
-MODULE_IMPORT_NS(INTEL_TCC);
-MODULE_IMPORT_NS(INT340X_THERMAL);
+MODULE_IMPORT_NS("INTEL_TCC");
+MODULE_IMPORT_NS("INT340X_THERMAL");
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_DESCRIPTION("Processor Thermal Reporting Device Driver");
 MODULE_LICENSE("GPL v2");

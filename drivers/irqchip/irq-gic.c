@@ -64,7 +64,7 @@ static void gic_check_cpu_features(void)
 
 union gic_base {
 	void __iomem *common_base;
-	void __percpu * __iomem *percpu_base;
+	void __iomem * __percpu *percpu_base;
 };
 
 struct gic_chip_data {
@@ -303,7 +303,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 			    type != IRQ_TYPE_EDGE_RISING)
 		return -EINVAL;
 
-	ret = gic_configure_irq(gicirq, type, base + GIC_DIST_CONFIG, NULL);
+	ret = gic_configure_irq(gicirq, type, base + GIC_DIST_CONFIG);
 	if (ret && gicirq < 32) {
 		/* Misconfigured PPIs are usually not fatal */
 		pr_warn("GIC: PPI%ld is secure or misconfigured\n", gicirq - 16);
@@ -400,7 +400,7 @@ static void gic_irq_print_chip(struct irq_data *d, struct seq_file *p)
 	struct gic_chip_data *gic = irq_data_get_irq_chip_data(d);
 
 	if (gic->domain->pm_dev)
-		seq_printf(p, gic->domain->pm_dev->of_node->name);
+		seq_puts(p, gic->domain->pm_dev->of_node->name);
 	else
 		seq_printf(p, "GIC-%d", (int)(gic - &gic_data[0]));
 }
@@ -479,7 +479,7 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
 
-	gic_dist_config(base, gic_irqs, NULL);
+	gic_dist_config(base, gic_irqs, GICD_INT_DEF_PRI);
 
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
 }
@@ -516,7 +516,7 @@ static int gic_cpu_init(struct gic_chip_data *gic)
 				gic_cpu_map[i] &= ~cpu_mask;
 	}
 
-	gic_cpu_config(dist_base, 32, NULL);
+	gic_cpu_config(dist_base, 32, GICD_INT_DEF_PRI);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, base + GIC_CPU_PRIMASK);
 	gic_cpu_if_up(gic);
@@ -608,7 +608,7 @@ void gic_dist_restore(struct gic_chip_data *gic)
 			dist_base + GIC_DIST_CONFIG + i * 4);
 
 	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 4); i++)
-		writel_relaxed(GICD_INT_DEF_PRI_X4,
+		writel_relaxed(REPEAT_BYTE_U32(GICD_INT_DEF_PRI),
 			dist_base + GIC_DIST_PRI + i * 4);
 
 	for (i = 0; i < DIV_ROUND_UP(gic_irqs, 4); i++)
@@ -697,7 +697,7 @@ void gic_cpu_restore(struct gic_chip_data *gic)
 		writel_relaxed(ptr[i], dist_base + GIC_DIST_CONFIG + i * 4);
 
 	for (i = 0; i < DIV_ROUND_UP(32, 4); i++)
-		writel_relaxed(GICD_INT_DEF_PRI_X4,
+		writel_relaxed(REPEAT_BYTE_U32(GICD_INT_DEF_PRI),
 					dist_base + GIC_DIST_PRI + i * 4);
 
 	writel_relaxed(GICC_INT_PRI_THRESHOLD, cpu_base + GIC_CPU_PRIMASK);

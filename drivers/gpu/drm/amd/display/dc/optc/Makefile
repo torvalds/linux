@@ -105,4 +105,10 @@ AMD_DISPLAY_FILES += $(AMD_DAL_OPTC_DCN35)
 ###############################################################################
 
 ###############################################################################
+OPTC_DCN401 = dcn401_optc.o
+
+AMD_DAL_OPTC_DCN401 = $(addprefix $(AMDDALPATH)/dc/optc/dcn401/,$(OPTC_DCN401))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_OPTC_DCN401)
 endif
+

@@ -104,6 +104,7 @@ struct ath12k_pci {
 	struct mhi_controller *mhi_ctrl;
 	const struct ath12k_msi_config *msi_config;
 	unsigned long mhi_state;
+	enum mhi_callback mhi_pre_cb;
 	u32 register_window;
 
 	/* protects register_window above */
@@ -143,5 +144,5 @@ int ath12k_pci_hif_resume(struct ath12k_base *ab);
 void ath12k_pci_stop(struct ath12k_base *ab);
 int ath12k_pci_start(struct ath12k_base *ab);
 int ath12k_pci_power_up(struct ath12k_base *ab);
-void ath12k_pci_power_down(struct ath12k_base *ab);
+void ath12k_pci_power_down(struct ath12k_base *ab, bool is_suspend);
 #endif /* ATH12K_PCI_H */

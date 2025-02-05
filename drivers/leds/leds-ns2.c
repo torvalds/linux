@@ -238,7 +238,6 @@ static int ns2_led_register(struct device *dev, struct fwnode_handle *node,
 static int ns2_led_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *child;
 	struct ns2_led *leds;
 	int count;
 	int ret;
@@ -251,12 +250,10 @@ static int ns2_led_probe(struct platform_device *pdev)
 	if (!leds)
 		return -ENOMEM;
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		ret = ns2_led_register(dev, child, leds++);
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return ret;
-		}
 	}
 
 	return 0;

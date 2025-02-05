@@ -13,7 +13,7 @@
 /* mac80211 API								*/
 
 int cw1200_start(struct ieee80211_hw *dev);
-void cw1200_stop(struct ieee80211_hw *dev);
+void cw1200_stop(struct ieee80211_hw *dev, bool suspend);
 int cw1200_add_interface(struct ieee80211_hw *dev,
 			 struct ieee80211_vif *vif);
 void cw1200_remove_interface(struct ieee80211_hw *dev,

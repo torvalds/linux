@@ -145,15 +145,12 @@ static ssize_t amdgpu_get_power_dpm_state(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	amdgpu_dpm_get_current_power_state(adev, &pm);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return sysfs_emit(buf, "%s\n",
@@ -185,11 +182,9 @@ static ssize_t amdgpu_set_power_dpm_state(struct device *dev,
 	else
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	amdgpu_dpm_set_power_state(adev, state);
 
@@ -273,15 +268,12 @@ static ssize_t amdgpu_get_power_dpm_force_performance_level(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	level = amdgpu_dpm_get_performance_level(adev);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return sysfs_emit(buf, "%s\n",
@@ -336,11 +328,9 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	mutex_lock(&adev->pm.stable_pstate_ctx_lock);
 	if (amdgpu_dpm_force_performance_level(adev, level)) {
@@ -374,16 +364,13 @@ static ssize_t amdgpu_get_pp_num_states(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	if (amdgpu_dpm_get_pp_num_states(adev, &data))
 		memset(&data, 0, sizeof(data));
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	buf_len = sysfs_emit(buf, "states: %d\n", data.nums);
@@ -412,17 +399,14 @@ static ssize_t amdgpu_get_pp_cur_state(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	amdgpu_dpm_get_current_power_state(adev, &pm);
 
 	ret = amdgpu_dpm_get_pp_num_states(adev, &data);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	if (ret)
@@ -485,11 +469,9 @@ static ssize_t amdgpu_set_pp_force_state(struct device *dev,
 
 	idx = array_index_nospec(idx, ARRAY_SIZE(data.states));
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_get_pp_num_states(adev, &data);
 	if (ret)
@@ -544,15 +526,12 @@ static ssize_t amdgpu_get_pp_table(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_get_pp_table(adev, &table);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	if (size <= 0)
@@ -580,11 +559,9 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_set_pp_table(adev, buf, count);
 
@@ -808,11 +785,9 @@ static ssize_t amdgpu_set_pp_od_clk_voltage(struct device *dev,
 			tmp_str++;
 	}
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	if (amdgpu_dpm_set_fine_grain_clk_vol(adev,
 					      type,
@@ -865,11 +840,9 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	for (clk_index = 0 ; clk_index < 6 ; clk_index++) {
 		ret = amdgpu_dpm_emit_clock_levels(adev, od_clocks[clk_index], buf, &size);
@@ -888,7 +861,6 @@ static ssize_t amdgpu_get_pp_od_clk_voltage(struct device *dev,
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -929,11 +901,9 @@ static ssize_t amdgpu_set_pp_features(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_set_ppfeature_status(adev, featuremask);
 
@@ -960,17 +930,14 @@ static ssize_t amdgpu_get_pp_features(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_get_ppfeature_status(adev, buf);
 	if (size <= 0)
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -1029,11 +996,9 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	ret = amdgpu_dpm_emit_clock_levels(adev, type, buf, &size);
 	if (ret == -ENOENT)
@@ -1042,7 +1007,6 @@ static ssize_t amdgpu_get_pp_dpm_clock(struct device *dev,
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -1102,11 +1066,9 @@ static ssize_t amdgpu_set_pp_dpm_clock(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_force_clock_level(adev, type, mask);
 
@@ -1283,15 +1245,12 @@ static ssize_t amdgpu_get_pp_sclk_od(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	value = amdgpu_dpm_get_sclk_od(adev);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return sysfs_emit(buf, "%d\n", value);
@@ -1317,11 +1276,9 @@ static ssize_t amdgpu_set_pp_sclk_od(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	amdgpu_dpm_set_sclk_od(adev, (uint32_t)value);
 
@@ -1345,15 +1302,12 @@ static ssize_t amdgpu_get_pp_mclk_od(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	value = amdgpu_dpm_get_mclk_od(adev);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return sysfs_emit(buf, "%d\n", value);
@@ -1379,11 +1333,9 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
 	if (ret)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	amdgpu_dpm_set_mclk_od(adev, (uint32_t)value);
 
@@ -1409,7 +1361,11 @@ static ssize_t amdgpu_set_pp_mclk_od(struct device *dev,
  * create a custom set of heuristics, write a string of numbers to the file
  * starting with the number of the custom profile along with a setting
  * for each heuristic parameter.  Due to differences across asic families
- * the heuristic parameters vary from family to family.
+ * the heuristic parameters vary from family to family. Additionally,
+ * you can apply the custom heuristics to different clock domains.  Each
+ * clock domain is considered a distinct operation so if you modify the
+ * gfxclk heuristics and then the memclk heuristics, the all of the
+ * custom heuristics will be retained until you switch to another profile.
  *
  */
 
@@ -1427,17 +1383,14 @@ static ssize_t amdgpu_get_pp_power_profile_mode(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_get_power_profile_mode(adev, buf);
 	if (size <= 0)
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -1492,11 +1445,9 @@ static ssize_t amdgpu_set_pp_power_profile_mode(struct device *dev,
 	}
 	parameter[parameter_size] = profile_mode;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_set_power_profile_mode(adev, parameter, parameter_size);
 
@@ -1520,16 +1471,13 @@ static int amdgpu_hwmon_get_sensor_generic(struct amdgpu_device *adev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
+	r = pm_runtime_get_if_active(adev->dev);
+	if (r <= 0)
+		return r ?: -EPERM;
 
 	/* get the sensor value */
 	r = amdgpu_dpm_read_sensor(adev, sensor, query, &size);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	return r;
@@ -1639,15 +1587,12 @@ static ssize_t amdgpu_get_pcie_bw(struct device *dev,
 	if (!adev->asic_funcs->get_pcie_usage)
 		return -ENODATA;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	amdgpu_asic_get_pcie_usage(adev, &count0, &count1);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return sysfs_emit(buf, "%llu %llu %i\n",
@@ -1770,11 +1715,9 @@ static ssize_t amdgpu_get_apu_thermal_cap(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	ret = amdgpu_dpm_get_apu_thermal_limit(adev, &limit);
 	if (!ret)
@@ -1782,7 +1725,6 @@ static ssize_t amdgpu_get_apu_thermal_cap(struct device *dev,
 	else
 		size = sysfs_emit(buf, "failed to get thermal limit\n");
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -1807,14 +1749,14 @@ static ssize_t amdgpu_set_apu_thermal_cap(struct device *dev,
 		return -EINVAL;
 	}
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_set_apu_thermal_limit(adev, value);
 	if (ret) {
+		pm_runtime_mark_last_busy(ddev->dev);
+		pm_runtime_put_autosuspend(ddev->dev);
 		dev_err(dev, "failed to update thermal limit\n");
 		return ret;
 	}
@@ -1849,15 +1791,12 @@ static ssize_t amdgpu_get_pm_metrics(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_get_pm_metrics(adev, buf, PAGE_SIZE);
 
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -1890,11 +1829,9 @@ static ssize_t amdgpu_get_gpu_metrics(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(ddev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_get_gpu_metrics(adev, &gpu_metrics);
 	if (size <= 0)
@@ -1906,7 +1843,6 @@ static ssize_t amdgpu_get_gpu_metrics(struct device *dev,
 	memcpy(buf, gpu_metrics, size);
 
 out:
-	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 
 	return size;
@@ -2008,11 +1944,9 @@ static ssize_t amdgpu_set_smartshift_bias(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	r = pm_runtime_get_sync(ddev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
+	r = pm_runtime_resume_and_get(ddev->dev);
+	if (r < 0)
 		return r;
-	}
 
 	r = kstrtoint(buf, 10, &bias);
 	if (r)
@@ -2073,7 +2007,8 @@ static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdg
 	}
 
 	/* Enable pp_od_clk_voltage node for gc 9.4.3 SRIOV/BM support */
-	if (gc_ver == IP_VERSION(9, 4, 3)) {
+	if (gc_ver == IP_VERSION(9, 4, 3) ||
+	    gc_ver == IP_VERSION(9, 4, 4)) {
 		if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
@@ -2151,7 +2086,8 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 		      gc_ver == IP_VERSION(11, 5, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3)))
+		      gc_ver == IP_VERSION(9, 4, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 4)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_vclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2172,7 +2108,8 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 		      gc_ver == IP_VERSION(11, 5, 0) ||
 		      gc_ver == IP_VERSION(11, 0, 2) ||
 		      gc_ver == IP_VERSION(11, 0, 3) ||
-		      gc_ver == IP_VERSION(9, 4, 3)))
+		      gc_ver == IP_VERSION(9, 4, 3) ||
+		      gc_ver == IP_VERSION(9, 4, 4)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk1)) {
 		if (!((gc_ver == IP_VERSION(10, 3, 1) ||
@@ -2182,7 +2119,8 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
 		if (gc_ver == IP_VERSION(9, 4, 2) ||
-		    gc_ver == IP_VERSION(9, 4, 3))
+		    gc_ver == IP_VERSION(9, 4, 3) ||
+		    gc_ver == IP_VERSION(9, 4, 4))
 			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
@@ -2210,60 +2148,132 @@ static int pp_dpm_clk_default_attr_update(struct amdgpu_device *adev, struct amd
 	return 0;
 }
 
-/* Following items will be read out to indicate current plpd policy:
- *  - -1: none
- *  - 0: disallow
- *  - 1: default
- *  - 2: optimized
+/* pm policy attributes */
+struct amdgpu_pm_policy_attr {
+	struct device_attribute dev_attr;
+	enum pp_pm_policy id;
+};
+
+/**
+ * DOC: pm_policy
+ *
+ * Certain SOCs can support different power policies to optimize application
+ * performance. However, this policy is provided only at SOC level and not at a
+ * per-process level. This is useful especially when entire SOC is utilized for
+ * dedicated workload.
+ *
+ * The amdgpu driver provides a sysfs API for selecting the policy. Presently,
+ * only two types of policies are supported through this interface.
+ *
+ *  Pstate Policy Selection - This is to select different Pstate profiles which
+ *  decides clock/throttling preferences.
+ *
+ *  XGMI PLPD Policy Selection - When multiple devices are connected over XGMI,
+ *  this helps to select policy to be applied for per link power down.
+ *
+ * The list of available policies and policy levels vary between SOCs. They can
+ * be viewed under pm_policy node directory. If SOC doesn't support any policy,
+ * this node won't be available. The different policies supported will be
+ * available as separate nodes under pm_policy.
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/<policy_type>
+ *
+ * Reading the policy file shows the different levels supported. The level which
+ * is applied presently is denoted by * (asterisk). E.g.,
+ *
+ * .. code-block:: console
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/soc_pstate
+ *	0 : soc_pstate_default
+ *	1 : soc_pstate_0
+ *	2 : soc_pstate_1*
+ *	3 : soc_pstate_2
+ *
+ *	cat /sys/bus/pci/devices/.../pm_policy/xgmi_plpd
+ *	0 : plpd_disallow
+ *	1 : plpd_default
+ *	2 : plpd_optimized*
+ *
+ * To apply a specific policy
+ *
+ * "echo  <level> > /sys/bus/pci/devices/.../pm_policy/<policy_type>"
+ *
+ * For the levels listed in the example above, to select "plpd_optimized" for
+ * XGMI and "soc_pstate_2" for soc pstate policy -
+ *
+ * .. code-block:: console
+ *
+ *	echo "2" > /sys/bus/pci/devices/.../pm_policy/xgmi_plpd
+ *	echo "3" > /sys/bus/pci/devices/.../pm_policy/soc_pstate
+ *
  */
-static ssize_t amdgpu_get_xgmi_plpd_policy(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
+static ssize_t amdgpu_get_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	char *mode_desc = "none";
-	int mode;
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	mode = amdgpu_dpm_get_xgmi_plpd_mode(adev, &mode_desc);
-
-	return sysfs_emit(buf, "%d: %s\n", mode, mode_desc);
+	return amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, buf);
 }
 
-/* Following argument value is expected from user to change plpd policy
- *  - arg 0: disallow plpd
- *  - arg 1: default policy
- *  - arg 2: optimized policy
- */
-static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
+static ssize_t amdgpu_set_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	int mode, ret;
+	struct amdgpu_pm_policy_attr *policy_attr;
+	int ret, num_params = 0;
+	char delimiter[] = " \n\t";
+	char tmp_buf[128];
+	char *tmp, *param;
+	long val;
 
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = kstrtos32(buf, 0, &mode);
-	if (ret)
-		return -EINVAL;
+	count = min(count, sizeof(tmp_buf));
+	memcpy(tmp_buf, buf, count);
+	tmp_buf[count - 1] = '\0';
+	tmp = tmp_buf;
 
-	ret = pm_runtime_get_sync(ddev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return ret;
+	tmp = skip_spaces(tmp);
+	while ((param = strsep(&tmp, delimiter))) {
+		if (!strlen(param)) {
+			tmp = skip_spaces(tmp);
+			continue;
+		}
+		ret = kstrtol(param, 0, &val);
+		if (ret)
+			return -EINVAL;
+		num_params++;
+		if (num_params > 1)
+			return -EINVAL;
 	}
 
-	ret = amdgpu_dpm_set_xgmi_plpd_mode(adev, mode);
+	if (num_params != 1)
+		return -EINVAL;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
+
+	ret = pm_runtime_resume_and_get(ddev->dev);
+	if (ret < 0)
+		return ret;
+
+	ret = amdgpu_dpm_set_pm_policy(adev, policy_attr->id, val);
 
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
@@ -2273,6 +2283,48 @@ static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
 
 	return count;
 }
+
+#define AMDGPU_PM_POLICY_ATTR(_name, _id)                                  \
+	static struct amdgpu_pm_policy_attr pm_policy_attr_##_name = {     \
+		.dev_attr = __ATTR(_name, 0644, amdgpu_get_pm_policy_attr, \
+				   amdgpu_set_pm_policy_attr),             \
+		.id = PP_PM_POLICY_##_id,                                  \
+	};
+
+#define AMDGPU_PM_POLICY_ATTR_VAR(_name) pm_policy_attr_##_name.dev_attr.attr
+
+AMDGPU_PM_POLICY_ATTR(soc_pstate, SOC_PSTATE)
+AMDGPU_PM_POLICY_ATTR(xgmi_plpd, XGMI_PLPD)
+
+static struct attribute *pm_policy_attrs[] = {
+	&AMDGPU_PM_POLICY_ATTR_VAR(soc_pstate),
+	&AMDGPU_PM_POLICY_ATTR_VAR(xgmi_plpd),
+	NULL
+};
+
+static umode_t amdgpu_pm_policy_attr_visible(struct kobject *kobj,
+					     struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr.attr);
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, NULL) ==
+	    -ENOENT)
+		return 0;
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_pm_policy_attr_group = {
+	.name = "pm_policy",
+	.attrs = pm_policy_attrs,
+	.is_visible = amdgpu_pm_policy_attr_visible,
+};
 
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -2321,7 +2373,6 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 			      .attr_update = ss_power_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(smartshift_bias,				ATTR_FLAG_BASIC,
 			      .attr_update = ss_bias_attr_update),
-	AMDGPU_DEVICE_ATTR_RW(xgmi_plpd_policy,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RO(pm_metrics,				ATTR_FLAG_BASIC,
 			      .attr_update = amdgpu_pm_metrics_attr_update),
 };
@@ -2364,6 +2415,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		case IP_VERSION(9, 4, 1):
 		case IP_VERSION(9, 4, 2):
 		case IP_VERSION(9, 4, 3):
+		case IP_VERSION(9, 4, 4):
 		case IP_VERSION(10, 3, 0):
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 1):
@@ -2387,9 +2439,6 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 		else if ((gc_ver == IP_VERSION(10, 3, 0) ||
 			  gc_ver == IP_VERSION(11, 0, 3)) && amdgpu_sriov_vf(adev))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(xgmi_plpd_policy)) {
-		if (amdgpu_dpm_get_xgmi_plpd_mode(adev, NULL) == XGMI_PLPD_NONE)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_mclk_od)) {
 		if (amdgpu_dpm_get_mclk_od(adev) == -EOPNOTSUPP)
@@ -2655,15 +2704,12 @@ static ssize_t amdgpu_hwmon_get_pwm1_enable(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(adev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	ret = amdgpu_dpm_get_fan_control_mode(adev, &pwm_mode);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (ret)
@@ -2700,11 +2746,9 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	else
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	ret = pm_runtime_resume_and_get(adev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
 
@@ -2749,11 +2793,9 @@ static ssize_t amdgpu_hwmon_set_pwm1(struct device *dev,
 	if (err)
 		return err;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	err = pm_runtime_resume_and_get(adev->dev);
+	if (err < 0)
 		return err;
-	}
 
 	err = amdgpu_dpm_get_fan_control_mode(adev, &pwm_mode);
 	if (err)
@@ -2790,15 +2832,12 @@ static ssize_t amdgpu_hwmon_get_pwm1(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return err;
-	}
+	err = pm_runtime_get_if_active(adev->dev);
+	if (err <= 0)
+		return err ?: -EPERM;
 
 	err = amdgpu_dpm_get_fan_speed_pwm(adev, &speed);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (err)
@@ -2820,15 +2859,12 @@ static ssize_t amdgpu_hwmon_get_fan1_input(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return err;
-	}
+	err = pm_runtime_get_if_active(adev->dev);
+	if (err <= 0)
+		return err ?: -EPERM;
 
 	err = amdgpu_dpm_get_fan_speed_rpm(adev, &speed);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (err)
@@ -2884,15 +2920,12 @@ static ssize_t amdgpu_hwmon_get_fan1_target(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return err;
-	}
+	err = pm_runtime_get_if_active(adev->dev);
+	if (err <= 0)
+		return err ?: -EPERM;
 
 	err = amdgpu_dpm_get_fan_speed_rpm(adev, &rpm);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (err)
@@ -2919,11 +2952,9 @@ static ssize_t amdgpu_hwmon_set_fan1_target(struct device *dev,
 	if (err)
 		return err;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	err = pm_runtime_resume_and_get(adev->dev);
+	if (err < 0)
 		return err;
-	}
 
 	err = amdgpu_dpm_get_fan_control_mode(adev, &pwm_mode);
 	if (err)
@@ -2959,15 +2990,12 @@ static ssize_t amdgpu_hwmon_get_fan1_enable(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(adev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	ret = amdgpu_dpm_get_fan_control_mode(adev, &pwm_mode);
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	if (ret)
@@ -3002,11 +3030,9 @@ static ssize_t amdgpu_hwmon_set_fan1_enable(struct device *dev,
 	else
 		return -EINVAL;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	err = pm_runtime_resume_and_get(adev->dev);
+	if (err < 0)
 		return err;
-	}
 
 	err = amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
 
@@ -3131,11 +3157,9 @@ static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-		return r;
-	}
+	r = pm_runtime_get_if_active(adev->dev);
+	if (r <= 0)
+		return r ?: -EPERM;
 
 	r = amdgpu_dpm_get_power_limit(adev, &limit,
 				      pp_limit_level, power_type);
@@ -3145,7 +3169,6 @@ static ssize_t amdgpu_hwmon_show_power_cap_generic(struct device *dev,
 	else
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 	return size;
@@ -3222,11 +3245,9 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	value = value / 1000000; /* convert to Watt */
 	value |= limit_type << 24;
 
-	err = pm_runtime_get_sync(adev_to_drm(adev)->dev);
-	if (err < 0) {
-		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+	err = pm_runtime_resume_and_get(adev->dev);
+	if (err < 0)
 		return err;
-	}
 
 	err = amdgpu_dpm_set_power_limit(adev, value);
 
@@ -3509,7 +3530,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	/* Skip crit temp on APU */
 	if ((((adev->flags & AMD_IS_APU) && (adev->family >= AMDGPU_FAMILY_CZ)) ||
-	    (gc_ver == IP_VERSION(9, 4, 3))) &&
+	    (gc_ver == IP_VERSION(9, 4, 3) || gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_temp1_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp1_crit_hyst.dev_attr.attr))
 		return 0;
@@ -3545,7 +3566,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	/* not implemented yet for APUs other than GC 10.3.1 (vangogh) and 9.4.3 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
 	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)) &&
-	      (gc_ver != IP_VERSION(9, 4, 3)))) &&
+	      (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
@@ -3583,13 +3604,16 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 
 	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
 	     adev->family == AMDGPU_FAMILY_KV ||	/* not implemented yet */
-	     (gc_ver == IP_VERSION(9, 4, 3))) &&
+	     (gc_ver == IP_VERSION(9, 4, 3) ||
+	      gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
 		return 0;
 
 	/* only APUs other than gc 9,4,3 have vddnb */
-	if ((!(adev->flags & AMD_IS_APU) || (gc_ver == IP_VERSION(9, 4, 3))) &&
+	if ((!(adev->flags & AMD_IS_APU) ||
+	     (gc_ver == IP_VERSION(9, 4, 3) ||
+	      gc_ver == IP_VERSION(9, 4, 4))) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
 		return 0;
@@ -3601,7 +3625,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
-	    (gc_ver != IP_VERSION(9, 4, 3)) &&
+	    (gc_ver != IP_VERSION(9, 4, 3) && gc_ver != IP_VERSION(9, 4, 4)) &&
 	    (attr == &sensor_dev_attr_temp2_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_label.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
@@ -3611,7 +3635,8 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* hotspot temperature for gc 9,4,3*/
-	if (gc_ver == IP_VERSION(9, 4, 3)) {
+	if (gc_ver == IP_VERSION(9, 4, 3) ||
+	    gc_ver == IP_VERSION(9, 4, 4)) {
 		if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_emergency.dev_attr.attr ||
 		    attr == &sensor_dev_attr_temp1_label.dev_attr.attr)
@@ -3666,17 +3691,14 @@ static int amdgpu_retrieve_od_settings(struct amdgpu_device *adev,
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	ret = pm_runtime_get_sync(adev->dev);
-	if (ret < 0) {
-		pm_runtime_put_autosuspend(adev->dev);
-		return ret;
-	}
+	ret = pm_runtime_get_if_active(adev->dev);
+	if (ret <= 0)
+		return ret ?: -EPERM;
 
 	size = amdgpu_dpm_print_clock_levels(adev, od_type, buf);
 	if (size == 0)
 		size = sysfs_emit(buf, "\n");
 
-	pm_runtime_mark_last_busy(adev->dev);
 	pm_runtime_put_autosuspend(adev->dev);
 
 	return size;
@@ -3758,23 +3780,23 @@ amdgpu_distribute_custom_od_settings(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	ret = pm_runtime_get_sync(adev->dev);
+	ret = pm_runtime_resume_and_get(adev->dev);
 	if (ret < 0)
-		goto err_out0;
+		return ret;
 
 	ret = amdgpu_dpm_odn_edit_dpm_table(adev,
 					    cmd_type,
 					    parameter,
 					    parameter_size);
 	if (ret)
-		goto err_out1;
+		goto err_out;
 
 	if (cmd_type == PP_OD_COMMIT_DPM_TABLE) {
 		ret = amdgpu_dpm_dispatch_task(adev,
 					       AMD_PP_TASK_READJUST_POWER_STATE,
 					       NULL);
 		if (ret)
-			goto err_out1;
+			goto err_out;
 	}
 
 	pm_runtime_mark_last_busy(adev->dev);
@@ -3782,9 +3804,8 @@ amdgpu_distribute_custom_od_settings(struct amdgpu_device *adev,
 
 	return count;
 
-err_out1:
+err_out:
 	pm_runtime_mark_last_busy(adev->dev);
-err_out0:
 	pm_runtime_put_autosuspend(adev->dev);
 
 	return ret;
@@ -4092,6 +4113,117 @@ static umode_t fan_minimum_pwm_visible(struct amdgpu_device *adev)
 	return umode;
 }
 
+/**
+ * DOC: fan_zero_rpm_enable
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * zero RPM feature.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them.
+ */
+static ssize_t fan_zero_rpm_enable_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_ZERO_RPM_ENABLE, buf);
+}
+
+static ssize_t fan_zero_rpm_enable_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_ZERO_RPM_ENABLE,
+							     buf,
+							     count);
+}
+
+static umode_t fan_zero_rpm_enable_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_ENABLE_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_ENABLE_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
+/**
+ * DOC: fan_zero_rpm_stop_temperature
+ *
+ * The amdgpu driver provides a sysfs API for checking and adjusting the
+ * zero RPM stop temperature feature.
+ *
+ * Reading back the file shows you the current setting and the permitted
+ * ranges if changable.
+ *
+ * Writing an integer to the file, change the setting accordingly.
+ *
+ * When you have finished the editing, write "c" (commit) to the file to commit
+ * your changes.
+ *
+ * If you want to reset to the default value, write "r" (reset) to the file to
+ * reset them.
+ *
+ * This setting works only if the Zero RPM setting is enabled. It adjusts the
+ * temperature below which the fan can stop.
+ */
+static ssize_t fan_zero_rpm_stop_temp_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_retrieve_od_settings(adev, OD_FAN_ZERO_RPM_STOP_TEMP, buf);
+}
+
+static ssize_t fan_zero_rpm_stop_temp_store(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    const char *buf,
+					    size_t count)
+{
+	struct od_kobj *container = container_of(kobj, struct od_kobj, kobj);
+	struct amdgpu_device *adev = (struct amdgpu_device *)container->priv;
+
+	return (ssize_t)amdgpu_distribute_custom_od_settings(adev,
+							     PP_OD_EDIT_FAN_ZERO_RPM_STOP_TEMP,
+							     buf,
+							     count);
+}
+
+static umode_t fan_zero_rpm_stop_temp_visible(struct amdgpu_device *adev)
+{
+	umode_t umode = 0000;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_STOP_TEMP_RETRIEVE)
+		umode |= S_IRUSR | S_IRGRP | S_IROTH;
+
+	if (adev->pm.od_feature_mask & OD_OPS_SUPPORT_FAN_ZERO_RPM_STOP_TEMP_SET)
+		umode |= S_IWUSR;
+
+	return umode;
+}
+
 static struct od_feature_set amdgpu_od_set = {
 	.containers = {
 		[0] = {
@@ -4135,6 +4267,22 @@ static struct od_feature_set amdgpu_od_set = {
 						.is_visible = fan_minimum_pwm_visible,
 						.show = fan_minimum_pwm_show,
 						.store = fan_minimum_pwm_store,
+					},
+				},
+				[5] = {
+					.name = "fan_zero_rpm_enable",
+					.ops = {
+						.is_visible = fan_zero_rpm_enable_visible,
+						.show = fan_zero_rpm_enable_show,
+						.store = fan_zero_rpm_enable_store,
+					},
+				},
+				[6] = {
+					.name = "fan_zero_rpm_stop_temperature",
+					.ops = {
+						.is_visible = fan_zero_rpm_stop_temp_visible,
+						.show = fan_zero_rpm_stop_temp_show,
+						.store = fan_zero_rpm_stop_temp_store,
 					},
 				},
 			},
@@ -4372,8 +4520,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (mode != SRIOV_VF_MODE_MULTI_VF) {
 		adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
-														DRIVER_NAME, adev,
-														hwmon_groups);
+									DRIVER_NAME, adev,
+									hwmon_groups);
 		if (IS_ERR(adev->pm.int_hwmon_dev)) {
 			ret = PTR_ERR(adev->pm.int_hwmon_dev);
 			dev_err(adev->dev, "Unable to register hwmon device: %d\n", ret);
@@ -4408,6 +4556,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			goto err_out1;
 	} else if (adev->pm.pp_feature & PP_OVERDRIVE_MASK) {
 		dev_info(adev->dev, "overdrive feature is not supported\n");
+	}
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, PP_PM_POLICY_NONE, NULL) !=
+	    -EOPNOTSUPP) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_pm_policy_attr_group);
+		if (ret)
+			goto err_out0;
 	}
 
 	adev->pm.sysfs_initialized = true;
@@ -4629,11 +4785,9 @@ static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 	if (adev->in_suspend && !adev->in_runpm)
 		return -EPERM;
 
-	r = pm_runtime_get_sync(dev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(dev->dev);
+	r = pm_runtime_resume_and_get(dev->dev);
+	if (r < 0)
 		return r;
-	}
 
 	if (amdgpu_dpm_debugfs_print_current_performance_level(adev, m)) {
 		r = amdgpu_debugfs_pm_info_pp(m, adev);
@@ -4648,7 +4802,6 @@ static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 	seq_printf(m, "\n");
 
 out:
-	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
 
 	return r;

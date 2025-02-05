@@ -400,7 +400,7 @@ static int tsc2007_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tsc2007_idtable[] = {
-	{ "tsc2007", 0 },
+	{ "tsc2007" },
 	{ }
 };
 

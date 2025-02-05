@@ -80,6 +80,9 @@
  * Meteor Lake SoC-S (SOC)	0xae22	32	hard	yes	yes	yes
  * Meteor Lake PCH-S (PCH)	0x7f23	32	hard	yes	yes	yes
  * Birch Stream (SOC)		0x5796	32	hard	yes	yes	yes
+ * Arrow Lake-H (SOC)		0x7722	32	hard	yes	yes	yes
+ * Panther Lake-H (SOC)		0xe322	32	hard	yes	yes	yes
+ * Panther Lake-P (SOC)		0xe422	32	hard	yes	yes	yes
  *
  * Features supported by this driver:
  * Software PEC				no
@@ -87,7 +90,7 @@
  * Block buffer				yes
  * Block process call transaction	yes
  * I2C block read transaction		yes (doesn't use the block buffer)
- * Slave mode				no
+ * Target mode				no
  * SMBus Host Notify			yes
  * Interrupt processing			yes
  *
@@ -105,6 +108,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <linux/i2c-smbus.h>
 #include <linux/acpi.h>
 #include <linux/io.h>
@@ -119,7 +123,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 #include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-mux-gpio.h>
 #endif
@@ -236,6 +240,7 @@
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_M_SMBUS		0x54a3
 #define PCI_DEVICE_ID_INTEL_BIRCH_STREAM_SMBUS		0x5796
 #define PCI_DEVICE_ID_INTEL_BROXTON_SMBUS		0x5ad4
+#define PCI_DEVICE_ID_INTEL_ARROW_LAKE_H_SMBUS		0x7722
 #define PCI_DEVICE_ID_INTEL_RAPTOR_LAKE_S_SMBUS		0x7a23
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_S_SMBUS		0x7aa3
 #define PCI_DEVICE_ID_INTEL_METEOR_LAKE_P_SMBUS		0x7e22
@@ -258,12 +263,13 @@
 #define PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS		0xa323
 #define PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS		0xa3a3
 #define PCI_DEVICE_ID_INTEL_METEOR_LAKE_SOC_S_SMBUS	0xae22
+#define PCI_DEVICE_ID_INTEL_PANTHER_LAKE_H_SMBUS	0xe322
+#define PCI_DEVICE_ID_INTEL_PANTHER_LAKE_P_SMBUS	0xe422
 
 struct i801_mux_config {
 	char *gpio_chip;
 	unsigned values[3];
 	int n_values;
-	unsigned classes[3];
 	unsigned gpios[2];		/* Relative to gpio_chip->base */
 	int n_gpios;
 };
@@ -288,9 +294,10 @@ struct i801_priv {
 	int len;
 	u8 *data;
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 	struct platform_device *mux_pdev;
 	struct gpiod_lookup_table *lookup;
+	struct notifier_block mux_notifier_block;
 #endif
 	struct platform_device *tco_pdev;
 
@@ -398,9 +405,7 @@ static int i801_check_post(struct i801_priv *priv, int status)
 	 * If the SMBus is still busy, we give up
 	 */
 	if (unlikely(status < 0)) {
-		dev_err(&priv->pci_dev->dev, "Transaction timeout\n");
 		/* try to stop the current command */
-		dev_dbg(&priv->pci_dev->dev, "Terminating the current operation\n");
 		outb_p(SMBHSTCNT_KILL, SMBHSTCNT(priv));
 		usleep_range(1000, 2000);
 		outb_p(0, SMBHSTCNT(priv));
@@ -409,7 +414,7 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		status = inb_p(SMBHSTSTS(priv));
 		if ((status & SMBHSTSTS_HOST_BUSY) ||
 		    !(status & SMBHSTSTS_FAILED))
-			dev_err(&priv->pci_dev->dev,
+			dev_dbg(&priv->pci_dev->dev,
 				"Failed terminating the transaction\n");
 		return -ETIMEDOUT;
 	}
@@ -1053,13 +1058,16 @@ static const struct pci_device_id i801_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_SOC_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_PCH_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ PCI_DEVICE_DATA(INTEL, BIRCH_STREAM_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ARROW_LAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, PANTHER_LAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, PANTHER_LAKE_P_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(pci, i801_ids);
 
 #if defined CONFIG_X86 && defined CONFIG_DMI
-static unsigned char apanel_addr;
+static unsigned char apanel_addr __ro_after_init;
 
 /* Scan the system ROM for the signature "FJKEYINF" */
 static __init const void __iomem *bios_signature(const void __iomem *bios)
@@ -1154,131 +1162,10 @@ static void dmi_check_onboard_devices(const struct dmi_header *dm, void *adap)
 	}
 }
 
-/* NOTE: Keep this list in sync with drivers/platform/x86/dell-smo8800.c */
-static const char *const acpi_smo8800_ids[] = {
-	"SMO8800",
-	"SMO8801",
-	"SMO8810",
-	"SMO8811",
-	"SMO8820",
-	"SMO8821",
-	"SMO8830",
-	"SMO8831",
-};
-
-static acpi_status check_acpi_smo88xx_device(acpi_handle obj_handle,
-					     u32 nesting_level,
-					     void *context,
-					     void **return_value)
+/* Register optional targets */
+static void i801_probe_optional_targets(struct i801_priv *priv)
 {
-	struct acpi_device_info *info;
-	acpi_status status;
-	char *hid;
-	int i;
-
-	status = acpi_get_object_info(obj_handle, &info);
-	if (ACPI_FAILURE(status))
-		return AE_OK;
-
-	if (!(info->valid & ACPI_VALID_HID))
-		goto smo88xx_not_found;
-
-	hid = info->hardware_id.string;
-	if (!hid)
-		goto smo88xx_not_found;
-
-	i = match_string(acpi_smo8800_ids, ARRAY_SIZE(acpi_smo8800_ids), hid);
-	if (i < 0)
-		goto smo88xx_not_found;
-
-	kfree(info);
-
-	*return_value = NULL;
-	return AE_CTRL_TERMINATE;
-
-smo88xx_not_found:
-	kfree(info);
-	return AE_OK;
-}
-
-static bool is_dell_system_with_lis3lv02d(void)
-{
-	void *err = ERR_PTR(-ENOENT);
-
-	if (!dmi_match(DMI_SYS_VENDOR, "Dell Inc."))
-		return false;
-
-	/*
-	 * Check that ACPI device SMO88xx is present and is functioning.
-	 * Function acpi_get_devices() already filters all ACPI devices
-	 * which are not present or are not functioning.
-	 * ACPI device SMO88xx represents our ST microelectronics lis3lv02d
-	 * accelerometer but unfortunately ACPI does not provide any other
-	 * information (like I2C address).
-	 */
-	acpi_get_devices(NULL, check_acpi_smo88xx_device, NULL, &err);
-
-	return !IS_ERR(err);
-}
-
-/*
- * Accelerometer's I2C address is not specified in DMI nor ACPI,
- * so it is needed to define mapping table based on DMI product names.
- */
-static const struct {
-	const char *dmi_product_name;
-	unsigned short i2c_addr;
-} dell_lis3lv02d_devices[] = {
-	/*
-	 * Dell platform team told us that these Latitude devices have
-	 * ST microelectronics accelerometer at I2C address 0x29.
-	 */
-	{ "Latitude E5250",     0x29 },
-	{ "Latitude E5450",     0x29 },
-	{ "Latitude E5550",     0x29 },
-	{ "Latitude E6440",     0x29 },
-	{ "Latitude E6440 ATG", 0x29 },
-	{ "Latitude E6540",     0x29 },
-	/*
-	 * Additional individual entries were added after verification.
-	 */
-	{ "Latitude 5480",      0x29 },
-	{ "Precision 3540",     0x29 },
-	{ "Vostro V131",        0x1d },
-	{ "Vostro 5568",        0x29 },
-	{ "XPS 15 7590",        0x29 },
-};
-
-static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
-{
-	struct i2c_board_info info;
-	const char *dmi_product_name;
-	int i;
-
-	dmi_product_name = dmi_get_system_info(DMI_PRODUCT_NAME);
-	for (i = 0; i < ARRAY_SIZE(dell_lis3lv02d_devices); ++i) {
-		if (strcmp(dmi_product_name,
-			   dell_lis3lv02d_devices[i].dmi_product_name) == 0)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(dell_lis3lv02d_devices)) {
-		dev_warn(&priv->pci_dev->dev,
-			 "Accelerometer lis3lv02d is present on SMBus but its"
-			 " address is unknown, skipping registration\n");
-		return;
-	}
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	info.addr = dell_lis3lv02d_devices[i].i2c_addr;
-	strscpy(info.type, "lis3lv02d", I2C_NAME_SIZE);
-	i2c_new_client_device(&priv->adapter, &info);
-}
-
-/* Register optional slaves */
-static void i801_probe_optional_slaves(struct i801_priv *priv)
-{
-	/* Only register slaves on main SMBus channel */
+	/* Only register targets on main SMBus channel */
 	if (priv->features & FEATURE_IDF)
 		return;
 
@@ -1294,26 +1181,22 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 	if (dmi_name_in_vendors("FUJITSU"))
 		dmi_walk(dmi_check_onboard_devices, &priv->adapter);
 
-	if (is_dell_system_with_lis3lv02d())
-		register_dell_lis3lv02d_i2c_device(priv);
-
 	/* Instantiate SPD EEPROMs unless the SMBus is multiplexed */
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO)
+#ifdef CONFIG_I2C_I801_MUX
 	if (!priv->mux_pdev)
 #endif
 		i2c_register_spd(&priv->adapter);
 }
 #else
 static void __init input_apanel_init(void) {}
-static void i801_probe_optional_slaves(struct i801_priv *priv) {}
+static void i801_probe_optional_targets(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 static struct i801_mux_config i801_mux_config_asus_z8_d12 = {
 	.gpio_chip = "gpio_ich",
 	.values = { 0x02, 0x03 },
 	.n_values = 2,
-	.classes = { I2C_CLASS_SPD, I2C_CLASS_SPD },
 	.gpios = { 52, 53 },
 	.n_gpios = 2,
 };
@@ -1322,7 +1205,6 @@ static struct i801_mux_config i801_mux_config_asus_z8_d18 = {
 	.gpio_chip = "gpio_ich",
 	.values = { 0x02, 0x03, 0x01 },
 	.n_values = 3,
-	.classes = { I2C_CLASS_SPD, I2C_CLASS_SPD, I2C_CLASS_SPD },
 	.gpios = { 52, 53 },
 	.n_gpios = 2,
 };
@@ -1394,6 +1276,23 @@ static const struct dmi_system_id mux_dmi_table[] = {
 	{ }
 };
 
+static int i801_notifier_call(struct notifier_block *nb, unsigned long action,
+			      void *data)
+{
+	struct i801_priv *priv = container_of(nb, struct i801_priv, mux_notifier_block);
+	struct device *dev = data;
+
+	if (action != BUS_NOTIFY_ADD_DEVICE ||
+	    dev->type != &i2c_adapter_type ||
+	    i2c_root_adapter(dev) != &priv->adapter)
+		return NOTIFY_DONE;
+
+	/* Call i2c_register_spd for muxed child segments */
+	i2c_register_spd(to_i2c_adapter(dev));
+
+	return NOTIFY_OK;
+}
+
 /* Setup multiplexing if needed */
 static void i801_add_mux(struct i801_priv *priv)
 {
@@ -1415,7 +1314,6 @@ static void i801_add_mux(struct i801_priv *priv)
 	gpio_data.parent = priv->adapter.nr;
 	gpio_data.values = mux_config->values;
 	gpio_data.n_values = mux_config->n_values;
-	gpio_data.classes = mux_config->classes;
 	gpio_data.idle = I2C_MUX_GPIO_NO_IDLE;
 
 	/* Register GPIO descriptor lookup table */
@@ -1430,6 +1328,9 @@ static void i801_add_mux(struct i801_priv *priv)
 					       mux_config->gpios[i], "mux", 0);
 	gpiod_add_lookup_table(lookup);
 
+	priv->mux_notifier_block.notifier_call = i801_notifier_call;
+	if (bus_register_notifier(&i2c_bus_type, &priv->mux_notifier_block))
+		return;
 	/*
 	 * Register the mux device, we use PLATFORM_DEVID_NONE here
 	 * because since we are referring to the GPIO chip by name we are
@@ -1451,6 +1352,7 @@ static void i801_add_mux(struct i801_priv *priv)
 
 static void i801_del_mux(struct i801_priv *priv)
 {
+	bus_unregister_notifier(&i2c_bus_type, &priv->mux_notifier_block);
 	platform_device_unregister(priv->mux_pdev);
 	gpiod_remove_lookup_table(priv->lookup);
 }
@@ -1656,13 +1558,16 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (!(priv->features & FEATURE_BLOCK_BUFFER))
 		priv->features &= ~FEATURE_BLOCK_PROC;
 
-	err = pcim_enable_device(dev);
+	/*
+	 * Do not call pcim_enable_device(), because the device has to remain
+	 * enabled on driver detach. See i801_remove() for the reasoning.
+	 */
+	err = pci_enable_device(dev);
 	if (err) {
 		dev_err(&dev->dev, "Failed to enable SMBus PCI device (%d)\n",
 			err);
 		return err;
 	}
-	pcim_pin_device(dev);
 
 	/* Determine the address of the SMBus area */
 	priv->smba = pci_resource_start(dev, SMBBAR);
@@ -1743,8 +1648,15 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	i801_add_tco(priv);
 
+	/*
+	 * adapter.name is used by platform code to find the main I801 adapter
+	 * to instantiante i2c_clients, do not change.
+	 */
 	snprintf(priv->adapter.name, sizeof(priv->adapter.name),
-		"SMBus I801 adapter at %04lx", priv->smba);
+		 "SMBus %s adapter at %04lx",
+		 (priv->features & FEATURE_IDF) ? "I801 IDF" : "I801",
+		 priv->smba);
+
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
 		platform_device_unregister(priv->tco_pdev);
@@ -1757,7 +1669,7 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	/* We ignore errors - multiplexing is optional */
 	i801_add_mux(priv);
-	i801_probe_optional_slaves(priv);
+	i801_probe_optional_targets(priv);
 
 	pci_set_drvdata(dev, priv);
 

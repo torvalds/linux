@@ -23,6 +23,7 @@ properties:
           - enum:
               - qcom,qcm2290-cpufreq-hw
               - qcom,sc7180-cpufreq-hw
+              - qcom,sc8180x-cpufreq-hw
               - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
               - qcom,sm6115-cpufreq-hw
@@ -34,10 +35,13 @@ properties:
         items:
           - enum:
               - qcom,qdu1000-cpufreq-epss
+              - qcom,sa8255p-cpufreq-epss
               - qcom,sa8775p-cpufreq-epss
+              - qcom,sar2130p-cpufreq-epss
               - qcom,sc7280-cpufreq-epss
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sdx75-cpufreq-epss
+              - qcom,sm4450-cpufreq-epss
               - qcom,sm6375-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
               - qcom,sm8350-cpufreq-epss
@@ -106,6 +110,7 @@ allOf:
           contains:
             enum:
               - qcom,qcm2290-cpufreq-hw
+              - qcom,sar2130p-cpufreq-epss
     then:
       properties:
         reg:
@@ -129,10 +134,13 @@ allOf:
           contains:
             enum:
               - qcom,qdu1000-cpufreq-epss
+              - qcom,sa8255p-cpufreq-epss
               - qcom,sc7180-cpufreq-hw
+              - qcom,sc8180x-cpufreq-hw
               - qcom,sc8280xp-cpufreq-epss
               - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
+              - qcom,sm4450-cpufreq-epss
               - qcom,sm6115-cpufreq-hw
               - qcom,sm6350-cpufreq-hw
               - qcom,sm6375-cpufreq-epss

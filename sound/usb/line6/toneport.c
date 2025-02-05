@@ -2,7 +2,7 @@
 /*
  * Line 6 Linux USB driver
  *
- * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
+ * Copyright (C) 2004-2010 Markus Grabner (line6@grabner-graz.at)
  *                         Emil Myhrman (emil.myhrman@gmail.com)
  */
 
@@ -386,7 +386,7 @@ static int toneport_setup(struct usb_line6_toneport *toneport)
 		toneport_update_led(toneport);
 
 	schedule_delayed_work(&toneport->line6.startup_work,
-			      msecs_to_jiffies(TONEPORT_PCM_DELAY * 1000));
+			      secs_to_jiffies(TONEPORT_PCM_DELAY));
 	return 0;
 }
 

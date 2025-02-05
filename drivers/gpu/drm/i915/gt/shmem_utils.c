@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
 
 #include "i915_drv.h"
 #include "gem/i915_gem_object.h"
@@ -39,7 +40,7 @@ struct file *shmem_create_from_object(struct drm_i915_gem_object *obj)
 
 	if (i915_gem_object_is_shmem(obj)) {
 		file = obj->base.filp;
-		atomic_long_inc(&file->f_count);
+		get_file(file);
 		return file;
 	}
 

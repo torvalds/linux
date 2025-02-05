@@ -79,14 +79,15 @@ DEFINE_NFSD_XDR_ERR_EVENT(cant_encode);
 		{ NFSD_MAY_READ,		"READ" },		\
 		{ NFSD_MAY_SATTR,		"SATTR" },		\
 		{ NFSD_MAY_TRUNC,		"TRUNC" },		\
-		{ NFSD_MAY_LOCK,		"LOCK" },		\
+		{ NFSD_MAY_NLM,			"NLM" },		\
 		{ NFSD_MAY_OWNER_OVERRIDE,	"OWNER_OVERRIDE" },	\
 		{ NFSD_MAY_LOCAL_ACCESS,	"LOCAL_ACCESS" },	\
 		{ NFSD_MAY_BYPASS_GSS_ON_ROOT,	"BYPASS_GSS_ON_ROOT" },	\
 		{ NFSD_MAY_NOT_BREAK_LEASE,	"NOT_BREAK_LEASE" },	\
 		{ NFSD_MAY_BYPASS_GSS,		"BYPASS_GSS" },		\
 		{ NFSD_MAY_READ_IF_EXEC,	"READ_IF_EXEC" },	\
-		{ NFSD_MAY_64BIT_COOKIE,	"64BIT_COOKIE" })
+		{ NFSD_MAY_64BIT_COOKIE,	"64BIT_COOKIE" },	\
+		{ NFSD_MAY_LOCALIO,		"LOCALIO" })
 
 TRACE_EVENT(nfsd_compound,
 	TP_PROTO(
@@ -104,7 +105,7 @@ TRACE_EVENT(nfsd_compound,
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->opcnt = opcnt;
-		__assign_str(tag, tag);
+		__assign_str(tag);
 	),
 	TP_printk("xid=0x%08x opcnt=%u tag=%s",
 		__entry->xid, __entry->opcnt, __get_str(tag)
@@ -127,7 +128,7 @@ TRACE_EVENT(nfsd_compound_status,
 		__entry->args_opcnt = args_opcnt;
 		__entry->resp_opcnt = resp_opcnt;
 		__entry->status = be32_to_cpu(status);
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("op=%u/%u %s status=%d",
 		__entry->resp_opcnt, __entry->args_opcnt,
@@ -162,7 +163,7 @@ TRACE_EVENT(nfsd_compound_decode_err,
 		__entry->opnum, __entry->status)
 );
 
-TRACE_EVENT(nfsd_compound_encode_err,
+DECLARE_EVENT_CLASS(nfsd_compound_err_class,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
 		u32 opnum,
@@ -183,6 +184,18 @@ TRACE_EVENT(nfsd_compound_encode_err,
 		__entry->opnum, __entry->status)
 );
 
+#define DEFINE_NFSD_COMPOUND_ERR_EVENT(name)				\
+DEFINE_EVENT(nfsd_compound_err_class, nfsd_compound_##name##_err,	\
+	TP_PROTO(							\
+		const struct svc_rqst *rqstp,				\
+		u32 opnum,						\
+		__be32 status						\
+	),								\
+	TP_ARGS(rqstp, opnum, status))
+
+DEFINE_NFSD_COMPOUND_ERR_EVENT(op);
+DEFINE_NFSD_COMPOUND_ERR_EVENT(encode);
+
 #define show_fs_file_type(x) \
 	__print_symbolic(x, \
 		{ S_IFLNK,		"LNK" }, \
@@ -193,7 +206,7 @@ TRACE_EVENT(nfsd_compound_encode_err,
 		{ S_IFIFO,		"FIFO" }, \
 		{ S_IFSOCK,		"SOCK" })
 
-TRACE_EVENT(nfsd_fh_verify,
+TRACE_EVENT_CONDITION(nfsd_fh_verify,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,
 		const struct svc_fh *fhp,
@@ -201,6 +214,7 @@ TRACE_EVENT(nfsd_fh_verify,
 		int access
 	),
 	TP_ARGS(rqstp, fhp, type, access),
+	TP_CONDITION(rqstp != NULL),
 	TP_STRUCT__entry(
 		__field(unsigned int, netns_ino)
 		__sockaddr(server, rqstp->rq_xprt->xpt_remotelen)
@@ -239,7 +253,7 @@ TRACE_EVENT_CONDITION(nfsd_fh_verify_err,
 		__be32 error
 	),
 	TP_ARGS(rqstp, fhp, type, access, error),
-	TP_CONDITION(error),
+	TP_CONDITION(rqstp != NULL && error),
 	TP_STRUCT__entry(
 		__field(unsigned int, netns_ino)
 		__sockaddr(server, rqstp->rq_xprt->xpt_remotelen)
@@ -295,12 +309,13 @@ DECLARE_EVENT_CLASS(nfsd_fh_err_class,
 		  __entry->status)
 )
 
-#define DEFINE_NFSD_FH_ERR_EVENT(name)		\
-DEFINE_EVENT(nfsd_fh_err_class, nfsd_##name,	\
-	TP_PROTO(struct svc_rqst *rqstp,	\
-		 struct svc_fh	*fhp,		\
-		 int		status),	\
-	TP_ARGS(rqstp, fhp, status))
+#define DEFINE_NFSD_FH_ERR_EVENT(name)			\
+DEFINE_EVENT_CONDITION(nfsd_fh_err_class, nfsd_##name,	\
+	TP_PROTO(struct svc_rqst *rqstp,		\
+		 struct svc_fh	*fhp,			\
+		 int		status),		\
+	TP_ARGS(rqstp, fhp, status),			\
+	TP_CONDITION(rqstp != NULL))
 
 DEFINE_NFSD_FH_ERR_EVENT(set_fh_dentry_badexport);
 DEFINE_NFSD_FH_ERR_EVENT(set_fh_dentry_badhandle);
@@ -318,7 +333,7 @@ TRACE_EVENT(nfsd_exp_find_key,
 	TP_fast_assign(
 		__entry->fsidtype = key->ek_fsidtype;
 		memcpy(__entry->fsid, key->ek_fsid, 4*6);
-		__assign_str(auth_domain, key->ek_client->name);
+		__assign_str(auth_domain);
 		__entry->status = status;
 	),
 	TP_printk("fsid=%x::%s domain=%s status=%d",
@@ -342,8 +357,8 @@ TRACE_EVENT(nfsd_expkey_update,
 	TP_fast_assign(
 		__entry->fsidtype = key->ek_fsidtype;
 		memcpy(__entry->fsid, key->ek_fsid, 4*6);
-		__assign_str(auth_domain, key->ek_client->name);
-		__assign_str(path, exp_path);
+		__assign_str(auth_domain);
+		__assign_str(path);
 		__entry->cache = !test_bit(CACHE_NEGATIVE, &key->h.flags);
 	),
 	TP_printk("fsid=%x::%s domain=%s path=%s cache=%s",
@@ -365,8 +380,8 @@ TRACE_EVENT(nfsd_exp_get_by_name,
 		__field(int, status)
 	),
 	TP_fast_assign(
-		__assign_str(path, key->ex_path.dentry->d_name.name);
-		__assign_str(auth_domain, key->ex_client->name);
+		__assign_str(path);
+		__assign_str(auth_domain);
 		__entry->status = status;
 	),
 	TP_printk("path=%s domain=%s status=%d",
@@ -385,8 +400,8 @@ TRACE_EVENT(nfsd_export_update,
 		__field(bool, cache)
 	),
 	TP_fast_assign(
-		__assign_str(path, key->ex_path.dentry->d_name.name);
-		__assign_str(auth_domain, key->ex_client->name);
+		__assign_str(path);
+		__assign_str(auth_domain);
 		__entry->cache = !test_bit(CACHE_NEGATIVE, &key->h.flags);
 	),
 	TP_printk("path=%s domain=%s cache=%s",
@@ -485,7 +500,7 @@ TRACE_EVENT(nfsd_dirent,
 	TP_fast_assign(
 		__entry->fh_hash = fhp ? knfsd_fh_hash(&fhp->fh_handle) : 0;
 		__entry->ino = ino;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
 	TP_printk("fh_hash=0x%08x ino=%llu name=%s",
 		__entry->fh_hash, __entry->ino, __get_str(name)
@@ -611,7 +626,6 @@ DEFINE_STATEID_EVENT(open);
 DEFINE_STATEID_EVENT(deleg_read);
 DEFINE_STATEID_EVENT(deleg_write);
 DEFINE_STATEID_EVENT(deleg_return);
-DEFINE_STATEID_EVENT(deleg_recall);
 
 DECLARE_EVENT_CLASS(nfsd_stateseqid_class,
 	TP_PROTO(u32 seqid, const stateid_t *stp),
@@ -749,6 +763,76 @@ TRACE_EVENT_CONDITION(nfsd_seq4_status,
 	)
 );
 
+DECLARE_EVENT_CLASS(nfsd_cs_slot_class,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_create_session *cs
+	),
+	TP_ARGS(clp, cs),
+	TP_STRUCT__entry(
+		__field(u32, seqid)
+		__field(u32, slot_seqid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		const struct nfsd4_clid_slot *slot = &clp->cl_cs_slot;
+
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen);
+		__entry->seqid = cs->seqid;
+		__entry->slot_seqid = slot->sl_seqid;
+	),
+	TP_printk("addr=%pISpc client %08x:%08x seqid=%u slot_seqid=%u",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->seqid, __entry->slot_seqid
+	)
+);
+
+#define DEFINE_CS_SLOT_EVENT(name) \
+DEFINE_EVENT(nfsd_cs_slot_class, nfsd_##name, \
+	TP_PROTO( \
+		const struct nfs4_client *clp, \
+		const struct nfsd4_create_session *cs \
+	), \
+	TP_ARGS(clp, cs))
+
+DEFINE_CS_SLOT_EVENT(slot_seqid_conf);
+DEFINE_CS_SLOT_EVENT(slot_seqid_unconf);
+
+TRACE_EVENT(nfsd_slot_seqid_sequence,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_sequence *seq,
+		const struct nfsd4_slot *slot
+	),
+	TP_ARGS(clp, seq, slot),
+	TP_STRUCT__entry(
+		__field(u32, seqid)
+		__field(u32, slot_seqid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+		__field(bool, in_use)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen);
+		__entry->seqid = seq->seqid;
+		__entry->slot_seqid = slot->sl_seqid;
+	),
+	TP_printk("addr=%pISpc client %08x:%08x seqid=%u slot_seqid=%u (%sin use)",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->seqid, __entry->slot_seqid,
+		__entry->in_use ? "" : "not "
+	)
+);
+
 DECLARE_EVENT_CLASS(nfsd_clientid_class,
 	TP_PROTO(const clientid_t *clid),
 	TP_ARGS(clid),
@@ -777,6 +861,30 @@ DEFINE_CLIENTID_EVENT(replaced);
 DEFINE_CLIENTID_EVENT(purged);
 DEFINE_CLIENTID_EVENT(renew);
 DEFINE_CLIENTID_EVENT(stale);
+
+TRACE_EVENT(nfsd_mark_client_expired,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		int cl_rpc_users
+	),
+	TP_ARGS(clp, cl_rpc_users),
+	TP_STRUCT__entry(
+		__field(int, cl_rpc_users)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		__entry->cl_rpc_users = cl_rpc_users;
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_printk("addr=%pISpc client %08x:%08x cl_rpc_users=%d",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->cl_rpc_users)
+);
 
 DECLARE_EVENT_CLASS(nfsd_net_class,
 	TP_PROTO(const struct nfsd_net *nn),
@@ -906,7 +1014,7 @@ DECLARE_EVENT_CLASS(nfsd_clid_class,
 		__entry->flavor = clp->cl_cred.cr_flavor;
 		memcpy(__entry->verifier, (void *)&clp->cl_verifier,
 		       NFS4_VERIFIER_SIZE);
-		__assign_str(name, clp->cl_name.data);
+		__assign_str(name);
 	),
 	TP_printk("addr=%pISpc name='%s' verifier=0x%s flavor=%s client=%08x:%08x",
 		__entry->addr, __get_str(name),
@@ -1016,7 +1124,7 @@ TRACE_EVENT(nfsd_file_acquire,
 	),
 
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = nf ? refcount_read(&nf->nf_ref) : 0;
@@ -1050,7 +1158,7 @@ TRACE_EVENT(nfsd_file_insert_err,
 		__field(long, error)
 	),
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->error = error;
@@ -1080,7 +1188,7 @@ TRACE_EVENT(nfsd_file_cons_err,
 		__field(const void *, nf_file)
 	),
 	TP_fast_assign(
-		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->xid = rqstp ? be32_to_cpu(rqstp->rq_xid) : 0;
 		__entry->inode = inode;
 		__entry->may_flags = may_flags;
 		__entry->nf_ref = refcount_read(&nf->nf_ref);
@@ -1392,6 +1500,9 @@ DEFINE_NFSD_CB_EVENT(new_state);
 DEFINE_NFSD_CB_EVENT(probe);
 DEFINE_NFSD_CB_EVENT(lost);
 DEFINE_NFSD_CB_EVENT(shutdown);
+DEFINE_NFSD_CB_EVENT(rpc_prepare);
+DEFINE_NFSD_CB_EVENT(rpc_done);
+DEFINE_NFSD_CB_EVENT(rpc_release);
 
 TRACE_DEFINE_ENUM(RPC_AUTH_NULL);
 TRACE_DEFINE_ENUM(RPC_AUTH_UNIX);
@@ -1425,7 +1536,7 @@ TRACE_EVENT(nfsd_cb_setup,
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
-		__assign_str(netid, netid);
+		__assign_str(netid);
 		__entry->authflavor = authflavor;
 		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
 				  clp->cl_cb_conn.cb_addrlen)
@@ -1459,6 +1570,19 @@ TRACE_EVENT(nfsd_cb_setup_err,
 		__entry->error)
 );
 
+/* Not a real opcode, but there is no 0 operation. */
+#define _CB_NULL	0
+
+#define show_nfsd_cb_opcode(val)					\
+	__print_symbolic(val,						\
+		{ _CB_NULL,			"CB_NULL" },		\
+		{ OP_CB_GETATTR,		"CB_GETATTR" },		\
+		{ OP_CB_RECALL,			"CB_RECALL" },		\
+		{ OP_CB_LAYOUTRECALL,		"CB_LAYOUTRECALL" },	\
+		{ OP_CB_RECALL_ANY,		"CB_RECALL_ANY" },	\
+		{ OP_CB_NOTIFY_LOCK,		"CB_NOTIFY_LOCK" },	\
+		{ OP_CB_OFFLOAD,		"CB_OFFLOAD" })
+
 DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 	TP_PROTO(
 		const struct nfs4_client *clp,
@@ -1469,6 +1593,7 @@ DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
 		__field(const void *, cb)
+		__field(unsigned long, opcode)
 		__field(bool, need_restart)
 		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
 	),
@@ -1476,14 +1601,15 @@ DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->cb = cb;
+		__entry->opcode = cb->cb_ops ? cb->cb_ops->opcode : _CB_NULL;
 		__entry->need_restart = cb->cb_need_restart;
 		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
 				  clp->cl_cb_conn.cb_addrlen)
 	),
-	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s",
-		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
-		__entry->cb, __entry->need_restart ?
-			" (need restart)" : " (first try)"
+	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s opcode=%s",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id, __entry->cb,
+		__entry->need_restart ?  " (need restart)" : " (first try)",
+		show_nfsd_cb_opcode(__entry->opcode)
 	)
 );
 
@@ -1534,7 +1660,7 @@ TRACE_EVENT(nfsd_cb_seq_status,
 		__entry->seq_status = cb->cb_seq_status;
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d\n",
+		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1570,10 +1696,10 @@ TRACE_EVENT(nfsd_cb_free_slot,
 		__entry->cl_id = sid->clientid.cl_id;
 		__entry->seqno = sid->sequence;
 		__entry->reserved = sid->reserved;
-		__entry->slot_seqno = session->se_cb_seq_nr;
+		__entry->slot_seqno = session->se_cb_seq_nr[cb->cb_held_slot];
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u\n",
+		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1736,6 +1862,7 @@ DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_recall_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_notify_lock_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_layout_done);
 DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_offload_done);
+DEFINE_NFSD_CB_DONE_EVENT(nfsd_cb_getattr_done);
 
 TRACE_EVENT(nfsd_cb_recall_any_done,
 	TP_PROTO(
@@ -1770,7 +1897,7 @@ TRACE_EVENT(nfsd_ctl_unlock_ip,
 	),
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
-		__assign_str(address, address);
+		__assign_str(address);
 	),
 	TP_printk("address=%s",
 		__get_str(address)
@@ -1789,7 +1916,7 @@ TRACE_EVENT(nfsd_ctl_unlock_fs,
 	),
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
-		__assign_str(path, path);
+		__assign_str(path);
 	),
 	TP_printk("path=%s",
 		__get_str(path)
@@ -1813,8 +1940,8 @@ TRACE_EVENT(nfsd_ctl_filehandle,
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
 		__entry->maxsize = maxsize;
-		__assign_str(domain, domain);
-		__assign_str(path, path);
+		__assign_str(domain);
+		__assign_str(path);
 	),
 	TP_printk("domain=%s path=%s maxsize=%d",
 		__get_str(domain), __get_str(path), __entry->maxsize
@@ -1874,7 +2001,7 @@ TRACE_EVENT(nfsd_ctl_version,
 	),
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
-		__assign_str(mesg, mesg);
+		__assign_str(mesg);
 	),
 	TP_printk("%s",
 		__get_str(mesg)
@@ -1915,7 +2042,7 @@ TRACE_EVENT(nfsd_ctl_ports_addxprt,
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
 		__entry->port = port;
-		__assign_str(transport, transport);
+		__assign_str(transport);
 	),
 	TP_printk("transport=%s port=%d",
 		__get_str(transport), __entry->port
@@ -1976,9 +2103,9 @@ TRACE_EVENT(nfsd_ctl_time,
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
 		__entry->time = time;
-		__assign_str(name, name);
+		__assign_str(name);
 	),
-	TP_printk("file=%s time=%d\n",
+	TP_printk("file=%s time=%d",
 		__get_str(name), __entry->time
 	)
 );
@@ -1995,7 +2122,7 @@ TRACE_EVENT(nfsd_ctl_recoverydir,
 	),
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
-		__assign_str(recdir, recdir);
+		__assign_str(recdir);
 	),
 	TP_printk("recdir=%s",
 		__get_str(recdir)
@@ -2033,6 +2160,10 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 		__field(u32, dst_cl_id)
 		__field(u32, dst_so_id)
 		__field(u32, dst_si_generation)
+		__field(u32, cb_cl_boot)
+		__field(u32, cb_cl_id)
+		__field(u32, cb_so_id)
+		__field(u32, cb_si_generation)
 		__field(u64, src_cp_pos)
 		__field(u64, dst_cp_pos)
 		__field(u64, cp_count)
@@ -2041,6 +2172,7 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 	TP_fast_assign(
 		const stateid_t *src_stp = &copy->cp_src_stateid;
 		const stateid_t *dst_stp = &copy->cp_dst_stateid;
+		const stateid_t *cb_stp = &copy->cp_res.cb_stateid;
 
 		__entry->intra = test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
 		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
@@ -2052,6 +2184,10 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 		__entry->dst_cl_id = dst_stp->si_opaque.so_clid.cl_id;
 		__entry->dst_so_id = dst_stp->si_opaque.so_id;
 		__entry->dst_si_generation = dst_stp->si_generation;
+		__entry->cb_cl_boot = cb_stp->si_opaque.so_clid.cl_boot;
+		__entry->cb_cl_id = cb_stp->si_opaque.so_clid.cl_id;
+		__entry->cb_so_id = cb_stp->si_opaque.so_id;
+		__entry->cb_si_generation = cb_stp->si_generation;
 		__entry->src_cp_pos = copy->cp_src_pos;
 		__entry->dst_cp_pos = copy->cp_dst_pos;
 		__entry->cp_count = copy->cp_count;
@@ -2059,14 +2195,17 @@ DECLARE_EVENT_CLASS(nfsd_copy_class,
 				sizeof(struct sockaddr_in6));
 	),
 	TP_printk("client=%pISpc intra=%d async=%d "
-		"src_stateid[si_generation:0x%x cl_boot:0x%x cl_id:0x%x so_id:0x%x] "
-		"dst_stateid[si_generation:0x%x cl_boot:0x%x cl_id:0x%x so_id:0x%x] "
+		"src_client %08x:%08x src_stateid %08x:%08x "
+		"dst_client %08x:%08x dst_stateid %08x:%08x "
+		"cb_client %08x:%08x cb_stateid %08x:%08x "
 		"cp_src_pos=%llu cp_dst_pos=%llu cp_count=%llu",
 		__get_sockaddr(addr), __entry->intra, __entry->async,
-		__entry->src_si_generation, __entry->src_cl_boot,
-		__entry->src_cl_id, __entry->src_so_id,
-		__entry->dst_si_generation, __entry->dst_cl_boot,
-		__entry->dst_cl_id, __entry->dst_so_id,
+		__entry->src_cl_boot, __entry->src_cl_id,
+		__entry->src_so_id, __entry->src_si_generation,
+		__entry->dst_cl_boot, __entry->dst_cl_id,
+		__entry->dst_so_id, __entry->dst_si_generation,
+		__entry->cb_cl_boot, __entry->cb_cl_id,
+		__entry->cb_so_id, __entry->cb_si_generation,
 		__entry->src_cp_pos, __entry->dst_cp_pos, __entry->cp_count
 	)
 );
@@ -2078,7 +2217,7 @@ DEFINE_EVENT(nfsd_copy_class, nfsd_copy_##name,	\
 
 DEFINE_COPY_EVENT(inter);
 DEFINE_COPY_EVENT(intra);
-DEFINE_COPY_EVENT(do_async);
+DEFINE_COPY_EVENT(async);
 
 TRACE_EVENT(nfsd_copy_done,
 	TP_PROTO(
@@ -2099,10 +2238,88 @@ TRACE_EVENT(nfsd_copy_done,
 		__assign_sockaddr(addr, &copy->cp_clp->cl_addr,
 				sizeof(struct sockaddr_in6));
 	),
-	TP_printk("addr=%pISpc status=%d intra=%d async=%d ",
+	TP_printk("addr=%pISpc status=%d intra=%d async=%d",
 		__get_sockaddr(addr), __entry->status, __entry->intra, __entry->async
 	)
 );
+
+DECLARE_EVENT_CLASS(nfsd_copy_async_done_class,
+	TP_PROTO(
+		const struct nfsd4_copy *copy
+	),
+	TP_ARGS(copy),
+	TP_STRUCT__entry(
+		__field(int, status)
+		__field(bool, intra)
+		__field(bool, async)
+		__field(u32, src_cl_boot)
+		__field(u32, src_cl_id)
+		__field(u32, src_so_id)
+		__field(u32, src_si_generation)
+		__field(u32, dst_cl_boot)
+		__field(u32, dst_cl_id)
+		__field(u32, dst_so_id)
+		__field(u32, dst_si_generation)
+		__field(u32, cb_cl_boot)
+		__field(u32, cb_cl_id)
+		__field(u32, cb_so_id)
+		__field(u32, cb_si_generation)
+		__field(u64, src_cp_pos)
+		__field(u64, dst_cp_pos)
+		__field(u64, cp_count)
+		__sockaddr(addr, sizeof(struct sockaddr_in6))
+	),
+	TP_fast_assign(
+		const stateid_t *src_stp = &copy->cp_src_stateid;
+		const stateid_t *dst_stp = &copy->cp_dst_stateid;
+		const stateid_t *cb_stp = &copy->cp_res.cb_stateid;
+
+		__entry->status = be32_to_cpu(copy->nfserr);
+		__entry->intra = test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
+		__entry->async = !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+		__entry->src_cl_boot = src_stp->si_opaque.so_clid.cl_boot;
+		__entry->src_cl_id = src_stp->si_opaque.so_clid.cl_id;
+		__entry->src_so_id = src_stp->si_opaque.so_id;
+		__entry->src_si_generation = src_stp->si_generation;
+		__entry->dst_cl_boot = dst_stp->si_opaque.so_clid.cl_boot;
+		__entry->dst_cl_id = dst_stp->si_opaque.so_clid.cl_id;
+		__entry->dst_so_id = dst_stp->si_opaque.so_id;
+		__entry->dst_si_generation = dst_stp->si_generation;
+		__entry->cb_cl_boot = cb_stp->si_opaque.so_clid.cl_boot;
+		__entry->cb_cl_id = cb_stp->si_opaque.so_clid.cl_id;
+		__entry->cb_so_id = cb_stp->si_opaque.so_id;
+		__entry->cb_si_generation = cb_stp->si_generation;
+		__entry->src_cp_pos = copy->cp_src_pos;
+		__entry->dst_cp_pos = copy->cp_dst_pos;
+		__entry->cp_count = copy->cp_count;
+		__assign_sockaddr(addr, &copy->cp_clp->cl_addr,
+				sizeof(struct sockaddr_in6));
+	),
+	TP_printk("client=%pISpc status=%d intra=%d async=%d "
+		"src_client %08x:%08x src_stateid %08x:%08x "
+		"dst_client %08x:%08x dst_stateid %08x:%08x "
+		"cb_client %08x:%08x cb_stateid %08x:%08x "
+		"cp_src_pos=%llu cp_dst_pos=%llu cp_count=%llu",
+		__get_sockaddr(addr),
+		__entry->status, __entry->intra, __entry->async,
+		__entry->src_cl_boot, __entry->src_cl_id,
+		__entry->src_so_id, __entry->src_si_generation,
+		__entry->dst_cl_boot, __entry->dst_cl_id,
+		__entry->dst_so_id, __entry->dst_si_generation,
+		__entry->cb_cl_boot, __entry->cb_cl_id,
+		__entry->cb_so_id, __entry->cb_si_generation,
+		__entry->src_cp_pos, __entry->dst_cp_pos, __entry->cp_count
+	)
+);
+
+#define DEFINE_COPY_ASYNC_DONE_EVENT(name)		\
+DEFINE_EVENT(nfsd_copy_async_done_class,		\
+	nfsd_copy_async_##name,				\
+	TP_PROTO(const struct nfsd4_copy *copy),	\
+	TP_ARGS(copy))
+
+DEFINE_COPY_ASYNC_DONE_EVENT(done);
+DEFINE_COPY_ASYNC_DONE_EVENT(cancel);
 
 #endif /* _NFSD_TRACE_H */
 

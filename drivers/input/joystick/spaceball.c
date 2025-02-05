@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/serio.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_DESC	"SpaceTec SpaceBall 2003/3003/4000 FLX driver"
 
@@ -199,7 +199,7 @@ static int spaceball_connect(struct serio *serio, struct serio_driver *drv)
 	if ((id = serio->id.id) > SPACEBALL_MAX_ID)
 		return -ENODEV;
 
-	spaceball = kmalloc(sizeof(struct spaceball), GFP_KERNEL);
+	spaceball = kmalloc(sizeof(*spaceball), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!spaceball || !input_dev)
 		goto fail1;

@@ -43,7 +43,10 @@ The configuration applies to all requested lines.
 
 The same :ref:`gpio-get-linehandle-config-rules` and
 :ref:`gpio-get-linehandle-config-support` that apply when requesting the
-lines also apply when updating the line configuration.
+lines also apply when updating the line configuration, with the additional
+restriction that a direction flag must be set. Requesting an invalid
+configuration, including without a direction flag set, is an error
+(**EINVAL**).
 
 The motivating use case for this command is changing direction of
 bi-directional lines between input and output, but it may be used more

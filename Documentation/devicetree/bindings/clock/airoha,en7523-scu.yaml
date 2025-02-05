@@ -29,10 +29,15 @@ description: |
 properties:
   compatible:
     items:
-      - const: airoha,en7523-scu
+      - enum:
+          - airoha,en7523-scu
+          - airoha,en7581-scu
 
   reg:
-    maxItems: 2
+    items:
+      - description: scu base address
+      - description: misc scu base address
+    minItems: 1
 
   "#clock-cells":
     description:
@@ -40,10 +45,35 @@ properties:
       clocks.
     const: 1
 
+  '#reset-cells':
+    description: ID of the controller reset line
+    const: 1
+
 required:
   - compatible
   - reg
   - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          const: airoha,en7523-scu
+    then:
+      properties:
+        reg:
+          minItems: 2
+
+        '#reset-cells': false
+
+  - if:
+      properties:
+        compatible:
+          const: airoha,en7581-scu
+    then:
+      properties:
+        reg:
+          maxItems: 1
 
 additionalProperties: false
 
@@ -55,4 +85,17 @@ examples:
       reg = <0x1fa20000 0x400>,
             <0x1fb00000 0x1000>;
       #clock-cells = <1>;
+    };
+
+  - |
+    soc {
+      #address-cells = <2>;
+      #size-cells = <2>;
+
+      scuclk: clock-controller@1fb00000 {
+        compatible = "airoha,en7581-scu";
+        reg = <0x0 0x1fb00000 0x0 0x970>;
+              #clock-cells = <1>;
+              #reset-cells = <1>;
+      };
     };

@@ -7,7 +7,6 @@
  * https://edit.wpgdadawant.com/uploads/news_file/program/2019/30184/tech_files/program_30184_suggest_other_file.pdf
  */
 
-#include <linux/acpi.h>
 #include <linux/bits.h>
 #include <linux/bitfield.h>
 #include <linux/delay.h>
@@ -672,9 +671,8 @@ static int sx9360_init_compensation(struct iio_dev *indio_dev)
 	int ret;
 
 	/* run the compensation phase on all channels */
-	ret = regmap_update_bits(data->regmap, SX9360_REG_STAT,
-				 SX9360_REG_STAT_COMPSTAT_MASK,
-				 SX9360_REG_STAT_COMPSTAT_MASK);
+	ret = regmap_set_bits(data->regmap, SX9360_REG_STAT,
+			      SX9360_REG_STAT_COMPSTAT_MASK);
 	if (ret)
 		return ret;
 
@@ -867,4 +865,4 @@ module_i2c_driver(sx9360_driver);
 MODULE_AUTHOR("Gwendal Grignou <gwendal@chromium.org>");
 MODULE_DESCRIPTION("Driver for Semtech SX9360 proximity sensor");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(SEMTECH_PROX);
+MODULE_IMPORT_NS("SEMTECH_PROX");

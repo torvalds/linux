@@ -8,12 +8,8 @@
 #include "uv.h"
 
 /* will be used in arch/s390/kernel/uv.c */
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
-#endif
-#if IS_ENABLED(CONFIG_KVM)
 int __bootdata_preserved(prot_virt_host);
-#endif
 struct uv_info __bootdata_preserved(uv_info);
 
 void uv_query_info(void)
@@ -26,8 +22,8 @@ void uv_query_info(void)
 	if (!test_facility(158))
 		return;
 
-	/* rc==0x100 means that there is additional data we do not process */
-	if (uv_call(0, (uint64_t)&uvcb) && uvcb.header.rc != 0x100)
+	/* Ignore that there might be more data we do not process */
+	if (uv_call(0, (uint64_t)&uvcb) && uvcb.header.rc != UVC_RC_MORE_DATA)
 		return;
 
 	if (IS_ENABLED(CONFIG_KVM)) {
@@ -50,17 +46,15 @@ void uv_query_info(void)
 		uv_info.supp_add_secret_req_ver = uvcb.supp_add_secret_req_ver;
 		uv_info.supp_add_secret_pcf = uvcb.supp_add_secret_pcf;
 		uv_info.supp_secret_types = uvcb.supp_secret_types;
-		uv_info.max_secrets = uvcb.max_secrets;
+		uv_info.max_assoc_secrets = uvcb.max_assoc_secrets;
+		uv_info.max_retr_secrets = uvcb.max_retr_secrets;
 	}
 
-#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 	if (test_bit_inv(BIT_UVC_CMD_SET_SHARED_ACCESS, (unsigned long *)uvcb.inst_calls_list) &&
 	    test_bit_inv(BIT_UVC_CMD_REMOVE_SHARED_ACCESS, (unsigned long *)uvcb.inst_calls_list))
 		prot_virt_guest = 1;
-#endif
 }
 
-#if IS_ENABLED(CONFIG_KVM)
 unsigned long adjust_to_uv_max(unsigned long limit)
 {
 	if (is_prot_virt_host() && uv_info.max_sec_stor_addr)
@@ -92,4 +86,3 @@ void sanitize_prot_virt_host(void)
 {
 	prot_virt_host = is_prot_virt_host_capable();
 }
-#endif

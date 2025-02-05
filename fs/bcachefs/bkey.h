@@ -9,12 +9,6 @@
 #include "util.h"
 #include "vstructs.h"
 
-enum bkey_invalid_flags {
-	BKEY_INVALID_WRITE		= (1U << 0),
-	BKEY_INVALID_COMMIT		= (1U << 1),
-	BKEY_INVALID_JOURNAL		= (1U << 2),
-};
-
 #if 0
 
 /*
@@ -194,6 +188,13 @@ static inline struct bpos bkey_max(struct bpos l, struct bpos r)
 	return bkey_gt(l, r) ? l : r;
 }
 
+static inline bool bkey_and_val_eq(struct bkey_s_c l, struct bkey_s_c r)
+{
+	return bpos_eq(l.k->p, r.k->p) &&
+		bkey_bytes(l.k) == bkey_bytes(r.k) &&
+		!memcmp(l.v, r.v, bkey_val_bytes(l.k));
+}
+
 void bch2_bpos_swab(struct bpos *);
 void bch2_bkey_swab_key(const struct bkey_format *, struct bkey_packed *);
 
@@ -206,9 +207,9 @@ static __always_inline int bversion_cmp(struct bversion l, struct bversion r)
 #define ZERO_VERSION	((struct bversion) { .hi = 0, .lo = 0 })
 #define MAX_VERSION	((struct bversion) { .hi = ~0, .lo = ~0ULL })
 
-static __always_inline int bversion_zero(struct bversion v)
+static __always_inline bool bversion_zero(struct bversion v)
 {
-	return !bversion_cmp(v, ZERO_VERSION);
+	return bversion_cmp(v, ZERO_VERSION) == 0;
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG
@@ -546,8 +547,8 @@ static inline void bch2_bkey_pack_test(void) {}
 	x(BKEY_FIELD_OFFSET,		p.offset)			\
 	x(BKEY_FIELD_SNAPSHOT,		p.snapshot)			\
 	x(BKEY_FIELD_SIZE,		size)				\
-	x(BKEY_FIELD_VERSION_HI,	version.hi)			\
-	x(BKEY_FIELD_VERSION_LO,	version.lo)
+	x(BKEY_FIELD_VERSION_HI,	bversion.hi)			\
+	x(BKEY_FIELD_VERSION_LO,	bversion.lo)
 
 struct bkey_format_state {
 	u64 field_min[BKEY_NR_FIELDS];
@@ -574,8 +575,31 @@ static inline void bch2_bkey_format_add_key(struct bkey_format_state *s, const s
 
 void bch2_bkey_format_add_pos(struct bkey_format_state *, struct bpos);
 struct bkey_format bch2_bkey_format_done(struct bkey_format_state *);
+
+static inline bool bch2_bkey_format_field_overflows(struct bkey_format *f, unsigned i)
+{
+	unsigned f_bits = f->bits_per_field[i];
+	unsigned unpacked_bits = bch2_bkey_format_current.bits_per_field[i];
+	u64 unpacked_mask = ~((~0ULL << 1) << (unpacked_bits - 1));
+	u64 field_offset = le64_to_cpu(f->field_offset[i]);
+
+	if (f_bits > unpacked_bits)
+		return true;
+
+	if ((f_bits == unpacked_bits) && field_offset)
+		return true;
+
+	u64 f_mask = f_bits
+		? ~((~0ULL << (f_bits - 1)) << 1)
+		: 0;
+
+	if (((field_offset + f_mask) & unpacked_mask) < field_offset)
+		return true;
+	return false;
+}
+
 int bch2_bkey_format_invalid(struct bch_fs *, struct bkey_format *,
-			     enum bkey_invalid_flags, struct printbuf *);
+			     enum bch_validate_flags, struct printbuf *);
 void bch2_bkey_format_to_text(struct printbuf *, const struct bkey_format *);
 
 #endif /* _BCACHEFS_BKEY_H */

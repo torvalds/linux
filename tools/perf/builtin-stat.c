@@ -46,6 +46,7 @@
 #include "util/parse-events.h"
 #include "util/pmus.h"
 #include "util/pmu.h"
+#include "util/tool_pmu.h"
 #include "util/event.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
@@ -70,6 +71,7 @@
 #include "util/bpf_counter.h"
 #include "util/iostat.h"
 #include "util/util.h"
+#include "util/intel-tpebs.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -110,8 +112,6 @@ static struct target target = {
 	.uid	= UINT_MAX,
 };
 
-#define METRIC_ONLY_LEN 20
-
 static volatile sig_atomic_t	child_pid			= -1;
 static int			detailed_run			=  0;
 static bool			transaction_run;
@@ -149,39 +149,33 @@ static struct perf_stat		perf_stat;
 
 static volatile sig_atomic_t done = 0;
 
-static struct perf_stat_config stat_config = {
-	.aggr_mode		= AGGR_GLOBAL,
-	.aggr_level		= MAX_CACHE_LVL + 1,
-	.scale			= true,
-	.unit_width		= 4, /* strlen("unit") */
-	.run_count		= 1,
-	.metric_only_len	= METRIC_ONLY_LEN,
-	.walltime_nsecs_stats	= &walltime_nsecs_stats,
-	.ru_stats		= &ru_stats,
-	.big_num		= true,
-	.ctl_fd			= -1,
-	.ctl_fd_ack		= -1,
-	.iostat_run		= false,
+/* Options set from the command line. */
+struct opt_aggr_mode {
+	bool node, socket, die, cluster, cache, core, thread, no_aggr;
 };
 
-static bool cpus_map_matched(struct evsel *a, struct evsel *b)
+/* Turn command line option into most generic aggregation mode setting. */
+static enum aggr_mode opt_aggr_mode_to_aggr_mode(struct opt_aggr_mode *opt_mode)
 {
-	if (!a->core.cpus && !b->core.cpus)
-		return true;
+	enum aggr_mode mode = AGGR_GLOBAL;
 
-	if (!a->core.cpus || !b->core.cpus)
-		return false;
-
-	if (perf_cpu_map__nr(a->core.cpus) != perf_cpu_map__nr(b->core.cpus))
-		return false;
-
-	for (int i = 0; i < perf_cpu_map__nr(a->core.cpus); i++) {
-		if (perf_cpu_map__cpu(a->core.cpus, i).cpu !=
-		    perf_cpu_map__cpu(b->core.cpus, i).cpu)
-			return false;
-	}
-
-	return true;
+	if (opt_mode->node)
+		mode = AGGR_NODE;
+	if (opt_mode->socket)
+		mode = AGGR_SOCKET;
+	if (opt_mode->die)
+		mode = AGGR_DIE;
+	if (opt_mode->cluster)
+		mode = AGGR_CLUSTER;
+	if (opt_mode->cache)
+		mode = AGGR_CACHE;
+	if (opt_mode->core)
+		mode = AGGR_CORE;
+	if (opt_mode->thread)
+		mode = AGGR_THREAD;
+	if (opt_mode->no_aggr)
+		mode = AGGR_NONE;
+	return mode;
 }
 
 static void evlist__check_cpu_maps(struct evlist *evlist)
@@ -194,7 +188,7 @@ static void evlist__check_cpu_maps(struct evlist *evlist)
 		/* Check that leader matches cpus with each member. */
 		if (leader == evsel)
 			continue;
-		if (cpus_map_matched(leader, evsel))
+		if (perf_cpu_map__equal(leader->core.cpus, evsel->core.cpus))
 			continue;
 
 		/* If there's mismatch disable the group and warn user. */
@@ -239,7 +233,7 @@ static void perf_stat__reset_stats(void)
 	perf_stat__reset_shadow_stats();
 }
 
-static int process_synthesized_event(struct perf_tool *tool __maybe_unused,
+static int process_synthesized_event(const struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample __maybe_unused,
 				     struct machine *machine __maybe_unused)
@@ -275,45 +269,38 @@ static int evsel__write_stat_event(struct evsel *counter, int cpu_map_idx, u32 t
 					   process_synthesized_event, NULL);
 }
 
-static int read_single_counter(struct evsel *counter, int cpu_map_idx,
-			       int thread, struct timespec *rs)
+static int read_single_counter(struct evsel *counter, int cpu_map_idx, int thread)
 {
-	switch(counter->tool_event) {
-		case PERF_TOOL_DURATION_TIME: {
-			u64 val = rs->tv_nsec + rs->tv_sec*1000000000ULL;
-			struct perf_counts_values *count =
-				perf_counts(counter->counts, cpu_map_idx, thread);
-			count->ena = count->run = val;
-			count->val = val;
-			return 0;
-		}
-		case PERF_TOOL_USER_TIME:
-		case PERF_TOOL_SYSTEM_TIME: {
-			u64 val;
-			struct perf_counts_values *count =
-				perf_counts(counter->counts, cpu_map_idx, thread);
-			if (counter->tool_event == PERF_TOOL_USER_TIME)
-				val = ru_stats.ru_utime_usec_stat.mean;
-			else
-				val = ru_stats.ru_stime_usec_stat.mean;
-			count->ena = count->run = val;
-			count->val = val;
-			return 0;
-		}
-		default:
-		case PERF_TOOL_NONE:
-			return evsel__read_counter(counter, cpu_map_idx, thread);
-		case PERF_TOOL_MAX:
-			/* This should never be reached */
-			return 0;
+	int err = evsel__read_counter(counter, cpu_map_idx, thread);
+
+	/*
+	 * Reading user and system time will fail when the process
+	 * terminates. Use the wait4 values in that case.
+	 */
+	if (err && cpu_map_idx == 0 &&
+	    (evsel__tool_event(counter) == TOOL_PMU__EVENT_USER_TIME ||
+	     evsel__tool_event(counter) == TOOL_PMU__EVENT_SYSTEM_TIME)) {
+		u64 val, *start_time;
+		struct perf_counts_values *count =
+			perf_counts(counter->counts, cpu_map_idx, thread);
+
+		start_time = xyarray__entry(counter->start_times, cpu_map_idx, thread);
+		if (evsel__tool_event(counter) == TOOL_PMU__EVENT_USER_TIME)
+			val = ru_stats.ru_utime_usec_stat.mean;
+		else
+			val = ru_stats.ru_stime_usec_stat.mean;
+		count->ena = count->run = *start_time + val;
+		count->val = val;
+		return 0;
 	}
+	return err;
 }
 
 /*
  * Read out the results of a single counter:
  * do not aggregate counts across CPUs in system-wide mode
  */
-static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_map_idx)
+static int read_counter_cpu(struct evsel *counter, int cpu_map_idx)
 {
 	int nthreads = perf_thread_map__nr(evsel_list->core.threads);
 	int thread;
@@ -331,7 +318,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_
 		 * (via evsel__read_counter()) and sets their count->loaded.
 		 */
 		if (!perf_counts__is_loaded(counter->counts, cpu_map_idx, thread) &&
-		    read_single_counter(counter, cpu_map_idx, thread, rs)) {
+		    read_single_counter(counter, cpu_map_idx, thread)) {
 			counter->counts->scaled = -1;
 			perf_counts(counter->counts, cpu_map_idx, thread)->ena = 0;
 			perf_counts(counter->counts, cpu_map_idx, thread)->run = 0;
@@ -360,7 +347,7 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_
 	return 0;
 }
 
-static int read_affinity_counters(struct timespec *rs)
+static int read_affinity_counters(void)
 {
 	struct evlist_cpu_iterator evlist_cpu_itr;
 	struct affinity saved_affinity, *affinity;
@@ -381,10 +368,8 @@ static int read_affinity_counters(struct timespec *rs)
 		if (evsel__is_bpf(counter))
 			continue;
 
-		if (!counter->err) {
-			counter->err = read_counter_cpu(counter, rs,
-							evlist_cpu_itr.cpu_map_idx);
-		}
+		if (!counter->err)
+			counter->err = read_counter_cpu(counter, evlist_cpu_itr.cpu_map_idx);
 	}
 	if (affinity)
 		affinity__cleanup(&saved_affinity);
@@ -408,11 +393,11 @@ static int read_bpf_map_counters(void)
 	return 0;
 }
 
-static int read_counters(struct timespec *rs)
+static int read_counters(void)
 {
 	if (!stat_config.stop_read_counter) {
 		if (read_bpf_map_counters() ||
-		    read_affinity_counters(rs))
+		    read_affinity_counters())
 			return -1;
 	}
 	return 0;
@@ -443,7 +428,7 @@ static void process_interval(void)
 
 	evlist__reset_aggr_stats(evsel_list);
 
-	if (read_counters(&rs) == 0)
+	if (read_counters() == 0)
 		process_counters();
 
 	if (STAT_RECORD) {
@@ -638,8 +623,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 	 * (behavior changed with commit b0a873e).
 	 */
 	if (errno == EINVAL || errno == ENOSYS ||
-	    errno == ENOENT || errno == EOPNOTSUPP ||
-	    errno == ENXIO) {
+	    errno == ENOENT || errno == ENXIO) {
 		if (verbose > 0)
 			ui__warning("%s event is not supported by the kernel.\n",
 				    evsel__name(counter));
@@ -657,7 +641,7 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		if (verbose > 0)
 			ui__warning("%s\n", msg);
 		return COUNTER_RETRY;
-	} else if (target__has_per_thread(&target) &&
+	} else if (target__has_per_thread(&target) && errno != EOPNOTSUPP &&
 		   evsel_list->core.threads &&
 		   evsel_list->core.threads->err_thread != -1) {
 		/*
@@ -678,11 +662,27 @@ static enum counter_recovery stat_handle_error(struct evsel *counter)
 		return COUNTER_SKIP;
 	}
 
+	if (errno == EOPNOTSUPP) {
+		if (verbose > 0) {
+			ui__warning("%s event is not supported by the kernel.\n",
+				    evsel__name(counter));
+		}
+		counter->supported = false;
+		counter->errored = true;
+
+		if ((evsel__leader(counter) != counter) ||
+		    !(counter->core.leader->nr_members > 1))
+			return COUNTER_SKIP;
+	}
+
 	evsel__open_strerror(counter, &target, errno, msg, sizeof(msg));
 	ui__error("%s\n", msg);
 
 	if (child_pid != -1)
 		kill(child_pid, SIGTERM);
+
+	tpebs_delete();
+
 	return COUNTER_FATAL;
 }
 
@@ -712,15 +712,19 @@ static int __run_perf_stat(int argc, const char **argv, int run_idx)
 	}
 
 	if (!cpu_map__is_dummy(evsel_list->core.user_requested_cpus)) {
-		if (affinity__setup(&saved_affinity) < 0)
-			return -1;
+		if (affinity__setup(&saved_affinity) < 0) {
+			err = -1;
+			goto err_out;
+		}
 		affinity = &saved_affinity;
 	}
 
 	evlist__for_each_entry(evsel_list, counter) {
 		counter->reset_group = false;
-		if (bpf_counter__load(counter, &target))
-			return -1;
+		if (bpf_counter__load(counter, &target)) {
+			err = -1;
+			goto err_out;
+		}
 		if (!(evsel__is_bperf(counter)))
 			all_counters_use_bpf = false;
 	}
@@ -763,7 +767,8 @@ try_again:
 
 			switch (stat_handle_error(counter)) {
 			case COUNTER_FATAL:
-				return -1;
+				err = -1;
+				goto err_out;
 			case COUNTER_RETRY:
 				goto try_again;
 			case COUNTER_SKIP:
@@ -804,7 +809,8 @@ try_again_reset:
 
 				switch (stat_handle_error(counter)) {
 				case COUNTER_FATAL:
-					return -1;
+					err = -1;
+					goto err_out;
 				case COUNTER_RETRY:
 					goto try_again_reset;
 				case COUNTER_SKIP:
@@ -817,6 +823,7 @@ try_again_reset:
 		}
 	}
 	affinity__cleanup(affinity);
+	affinity = NULL;
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (!counter->supported) {
@@ -829,11 +836,13 @@ try_again_reset:
 			stat_config.unit_width = l;
 
 		if (evsel__should_store_id(counter) &&
-		    evsel__store_ids(counter, evsel_list))
-			return -1;
+		    evsel__store_ids(counter, evsel_list)) {
+			err = -1;
+			goto err_out;
+		}
 	}
 
-	if (evlist__apply_filters(evsel_list, &counter)) {
+	if (evlist__apply_filters(evsel_list, &counter, &target)) {
 		pr_err("failed to set filter \"%s\" on event %s with %d (%s)\n",
 			counter->filter, evsel__name(counter), errno,
 			str_error_r(errno, msg, sizeof(msg)));
@@ -851,20 +860,23 @@ try_again_reset:
 		}
 
 		if (err < 0)
-			return err;
+			goto err_out;
 
 		err = perf_event__synthesize_stat_events(&stat_config, NULL, evsel_list,
 							 process_synthesized_event, is_pipe);
 		if (err < 0)
-			return err;
+			goto err_out;
+
 	}
 
 	if (target.initial_delay) {
 		pr_info(EVLIST_DISABLED_MSG);
 	} else {
 		err = enable_counters();
-		if (err)
-			return -1;
+		if (err) {
+			err = -1;
+			goto err_out;
+		}
 	}
 
 	/* Exec the command, if any */
@@ -874,8 +886,10 @@ try_again_reset:
 	if (target.initial_delay > 0) {
 		usleep(target.initial_delay * USEC_PER_MSEC);
 		err = enable_counters();
-		if (err)
-			return -1;
+		if (err) {
+			err = -1;
+			goto err_out;
+		}
 
 		pr_info(EVLIST_ENABLED_MSG);
 	}
@@ -895,7 +909,8 @@ try_again_reset:
 		if (workload_exec_errno) {
 			const char *emsg = str_error_r(workload_exec_errno, msg, sizeof(msg));
 			pr_err("Workload failed: %s\n", emsg);
-			return -1;
+			err = -1;
+			goto err_out;
 		}
 
 		if (WIFSIGNALED(status))
@@ -931,7 +946,7 @@ try_again_reset:
 	 * avoid arbitrary skew, we must read all counters before closing any
 	 * group leaders.
 	 */
-	if (read_counters(&(struct timespec) { .tv_nsec = t1-t0 }) == 0)
+	if (read_counters() == 0)
 		process_counters();
 
 	/*
@@ -942,8 +957,23 @@ try_again_reset:
 		evlist__close(evsel_list);
 
 	return WEXITSTATUS(status);
+
+err_out:
+	if (forks)
+		evlist__cancel_workload(evsel_list);
+
+	affinity__cleanup(affinity);
+	return err;
 }
 
+/*
+ * Returns -1 for fatal errors which signifies to not continue
+ * when in repeat mode.
+ *
+ * Returns < -1 error codes when stat record is used. These
+ * result in the stat information being displayed, but writing
+ * to the file fails and is non fatal.
+ */
 static int run_perf_stat(int argc, const char **argv, int run_idx)
 {
 	int ret;
@@ -1022,16 +1052,6 @@ static void sig_atexit(void)
 
 	signal(signr, SIG_DFL);
 	kill(getpid(), signr);
-}
-
-void perf_stat__set_big_num(int set)
-{
-	stat_config.big_num = (set != 0);
-}
-
-void perf_stat__set_no_csv_summary(int set)
-{
-	stat_config.no_csv_summary = (set != 0);
 }
 
 static int stat__set_big_num(const struct option *opt __maybe_unused,
@@ -1116,7 +1136,7 @@ static int parse_cache_level(const struct option *opt,
 			     int unset __maybe_unused)
 {
 	int level;
-	u32 *aggr_mode = (u32 *)opt->value;
+	struct opt_aggr_mode *opt_aggr_mode = (struct opt_aggr_mode *)opt->value;
 	u32 *aggr_level = (u32 *)opt->data;
 
 	/*
@@ -1155,154 +1175,10 @@ static int parse_cache_level(const struct option *opt,
 		return -EINVAL;
 	}
 out:
-	*aggr_mode = AGGR_CACHE;
+	opt_aggr_mode->cache = true;
 	*aggr_level = level;
 	return 0;
 }
-
-static struct option stat_options[] = {
-	OPT_BOOLEAN('T', "transaction", &transaction_run,
-		    "hardware transaction statistics"),
-	OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
-		     "event selector. use 'perf list' to list available events",
-		     parse_events_option),
-	OPT_CALLBACK(0, "filter", &evsel_list, "filter",
-		     "event filter", parse_filter),
-	OPT_BOOLEAN('i', "no-inherit", &stat_config.no_inherit,
-		    "child tasks do not inherit counters"),
-	OPT_STRING('p', "pid", &target.pid, "pid",
-		   "stat events on existing process id"),
-	OPT_STRING('t', "tid", &target.tid, "tid",
-		   "stat events on existing thread id"),
-#ifdef HAVE_BPF_SKEL
-	OPT_STRING('b', "bpf-prog", &target.bpf_str, "bpf-prog-id",
-		   "stat events on existing bpf program id"),
-	OPT_BOOLEAN(0, "bpf-counters", &target.use_bpf,
-		    "use bpf program to count events"),
-	OPT_STRING(0, "bpf-attr-map", &target.attr_map, "attr-map-path",
-		   "path to perf_event_attr map"),
-#endif
-	OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
-		    "system-wide collection from all CPUs"),
-	OPT_BOOLEAN(0, "scale", &stat_config.scale,
-		    "Use --no-scale to disable counter scaling for multiplexing"),
-	OPT_INCR('v', "verbose", &verbose,
-		    "be more verbose (show counter open errors, etc)"),
-	OPT_INTEGER('r', "repeat", &stat_config.run_count,
-		    "repeat command and print average + stddev (max: 100, forever: 0)"),
-	OPT_BOOLEAN(0, "table", &stat_config.walltime_run_table,
-		    "display details about each run (only with -r option)"),
-	OPT_BOOLEAN('n', "null", &stat_config.null_run,
-		    "null run - dont start any counters"),
-	OPT_INCR('d', "detailed", &detailed_run,
-		    "detailed run - start a lot of events"),
-	OPT_BOOLEAN('S', "sync", &sync_run,
-		    "call sync() before starting a run"),
-	OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL,
-			   "print large numbers with thousands\' separators",
-			   stat__set_big_num),
-	OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
-		    "list of cpus to monitor in system-wide"),
-	OPT_SET_UINT('A', "no-aggr", &stat_config.aggr_mode,
-		    "disable aggregation across CPUs or PMUs", AGGR_NONE),
-	OPT_SET_UINT(0, "no-merge", &stat_config.aggr_mode,
-		    "disable aggregation the same as -A or -no-aggr", AGGR_NONE),
-	OPT_BOOLEAN(0, "hybrid-merge", &stat_config.hybrid_merge,
-		    "Merge identical named hybrid events"),
-	OPT_STRING('x', "field-separator", &stat_config.csv_sep, "separator",
-		   "print counts with custom separator"),
-	OPT_BOOLEAN('j', "json-output", &stat_config.json_output,
-		   "print counts in JSON format"),
-	OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
-		     "monitor event in cgroup name only", parse_stat_cgroups),
-	OPT_STRING(0, "for-each-cgroup", &stat_config.cgroup_list, "name",
-		    "expand events for each cgroup"),
-	OPT_STRING('o', "output", &output_name, "file", "output file name"),
-	OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
-	OPT_INTEGER(0, "log-fd", &output_fd,
-		    "log output to fd, instead of stderr"),
-	OPT_STRING(0, "pre", &pre_cmd, "command",
-			"command to run prior to the measured command"),
-	OPT_STRING(0, "post", &post_cmd, "command",
-			"command to run after to the measured command"),
-	OPT_UINTEGER('I', "interval-print", &stat_config.interval,
-		    "print counts at regular interval in ms "
-		    "(overhead is possible for values <= 100ms)"),
-	OPT_INTEGER(0, "interval-count", &stat_config.times,
-		    "print counts for fixed number of times"),
-	OPT_BOOLEAN(0, "interval-clear", &stat_config.interval_clear,
-		    "clear screen in between new interval"),
-	OPT_UINTEGER(0, "timeout", &stat_config.timeout,
-		    "stop workload and print counts after a timeout period in ms (>= 10ms)"),
-	OPT_SET_UINT(0, "per-socket", &stat_config.aggr_mode,
-		     "aggregate counts per processor socket", AGGR_SOCKET),
-	OPT_SET_UINT(0, "per-die", &stat_config.aggr_mode,
-		     "aggregate counts per processor die", AGGR_DIE),
-	OPT_SET_UINT(0, "per-cluster", &stat_config.aggr_mode,
-		     "aggregate counts per processor cluster", AGGR_CLUSTER),
-	OPT_CALLBACK_OPTARG(0, "per-cache", &stat_config.aggr_mode, &stat_config.aggr_level,
-			    "cache level", "aggregate count at this cache level (Default: LLC)",
-			    parse_cache_level),
-	OPT_SET_UINT(0, "per-core", &stat_config.aggr_mode,
-		     "aggregate counts per physical processor core", AGGR_CORE),
-	OPT_SET_UINT(0, "per-thread", &stat_config.aggr_mode,
-		     "aggregate counts per thread", AGGR_THREAD),
-	OPT_SET_UINT(0, "per-node", &stat_config.aggr_mode,
-		     "aggregate counts per numa node", AGGR_NODE),
-	OPT_INTEGER('D', "delay", &target.initial_delay,
-		    "ms to wait before starting measurement after program start (-1: start with events disabled)"),
-	OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
-			"Only print computed metrics. No raw values", enable_metric_only),
-	OPT_BOOLEAN(0, "metric-no-group", &stat_config.metric_no_group,
-		       "don't group metric events, impacts multiplexing"),
-	OPT_BOOLEAN(0, "metric-no-merge", &stat_config.metric_no_merge,
-		       "don't try to share events between metrics in a group"),
-	OPT_BOOLEAN(0, "metric-no-threshold", &stat_config.metric_no_threshold,
-		       "disable adding events for the metric threshold calculation"),
-	OPT_BOOLEAN(0, "topdown", &topdown_run,
-			"measure top-down statistics"),
-	OPT_UINTEGER(0, "td-level", &stat_config.topdown_level,
-			"Set the metrics level for the top-down statistics (0: max level)"),
-	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
-			"measure SMI cost"),
-	OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
-		     "monitor specified metrics or metric groups (separated by ,)",
-		     append_metric_groups),
-	OPT_BOOLEAN_FLAG(0, "all-kernel", &stat_config.all_kernel,
-			 "Configure all used events to run in kernel space.",
-			 PARSE_OPT_EXCLUSIVE),
-	OPT_BOOLEAN_FLAG(0, "all-user", &stat_config.all_user,
-			 "Configure all used events to run in user space.",
-			 PARSE_OPT_EXCLUSIVE),
-	OPT_BOOLEAN(0, "percore-show-thread", &stat_config.percore_show_thread,
-		    "Use with 'percore' event qualifier to show the event "
-		    "counts of one hardware thread by sum up total hardware "
-		    "threads of same physical core"),
-	OPT_BOOLEAN(0, "summary", &stat_config.summary,
-		       "print summary for interval mode"),
-	OPT_BOOLEAN(0, "no-csv-summary", &stat_config.no_csv_summary,
-		       "don't print 'summary' for CSV summary output"),
-	OPT_BOOLEAN(0, "quiet", &quiet,
-			"don't print any output, messages or warnings (useful with record)"),
-	OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
-		     "Only enable events on applying cpu with this type "
-		     "for hybrid platform (e.g. core or atom)",
-		     parse_cputype),
-#ifdef HAVE_LIBPFM
-	OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
-		"libpfm4 event selector. use 'perf list' to list available events",
-		parse_libpfm_events_option),
-#endif
-	OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
-		     "Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
-		     "\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
-		     "\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
-		      parse_control_option),
-	OPT_CALLBACK_OPTARG(0, "iostat", &evsel_list, &stat_config, "default",
-			    "measure I/O performance metrics provided by arch/platform",
-			    iostat_parse),
-	OPT_END()
-};
 
 /**
  * Calculate the cache instance ID from the map in
@@ -1319,10 +1195,9 @@ static int cpu__get_cache_id_from_map(struct perf_cpu cpu, char *map)
 	 * be the first online CPU in the cache domain else use the
 	 * first online CPU of the cache domain as the ID.
 	 */
-	if (perf_cpu_map__has_any_cpu_or_is_empty(cpu_map))
+	id = perf_cpu_map__min(cpu_map).cpu;
+	if (id == -1)
 		id = cpu.cpu;
-	else
-		id = perf_cpu_map__cpu(cpu_map, 0).cpu;
 
 	/* Free the perf_cpu_map used to find the cache ID */
 	perf_cpu_map__put(cpu_map);
@@ -1642,7 +1517,7 @@ static int perf_stat_init_aggr_mode(void)
 	 * taking the highest cpu number to be the size of
 	 * the aggregation translate cpumap.
 	 */
-	if (!perf_cpu_map__has_any_cpu_or_is_empty(evsel_list->core.user_requested_cpus))
+	if (!perf_cpu_map__is_any_cpu_or_is_empty(evsel_list->core.user_requested_cpus))
 		nr = perf_cpu_map__max(evsel_list->core.user_requested_cpus).cpu;
 	else
 		nr = 0;
@@ -1652,23 +1527,13 @@ static int perf_stat_init_aggr_mode(void)
 
 static void cpu_aggr_map__delete(struct cpu_aggr_map *map)
 {
-	if (map) {
-		WARN_ONCE(refcount_read(&map->refcnt) != 0,
-			  "cpu_aggr_map refcnt unbalanced\n");
-		free(map);
-	}
-}
-
-static void cpu_aggr_map__put(struct cpu_aggr_map *map)
-{
-	if (map && refcount_dec_and_test(&map->refcnt))
-		cpu_aggr_map__delete(map);
+	free(map);
 }
 
 static void perf_stat__exit_aggr_mode(void)
 {
-	cpu_aggr_map__put(stat_config.aggr_map);
-	cpu_aggr_map__put(stat_config.cpus_aggr_map);
+	cpu_aggr_map__delete(stat_config.aggr_map);
+	cpu_aggr_map__delete(stat_config.cpus_aggr_map);
 	stat_config.aggr_map = NULL;
 	stat_config.cpus_aggr_map = NULL;
 }
@@ -1965,130 +1830,25 @@ static int perf_stat_init_aggr_mode_file(struct perf_stat *st)
 }
 
 /*
- * Add default attributes, if there were no attributes specified or
+ * Add default events, if there were no attributes specified or
  * if -d/--detailed, -d -d or -d -d -d is used:
  */
-static int add_default_attributes(void)
+static int add_default_events(void)
 {
-	struct perf_event_attr default_attrs0[] = {
-
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_TASK_CLOCK		},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CONTEXT_SWITCHES	},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_CPU_MIGRATIONS		},
-  { .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_PAGE_FAULTS		},
-
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_CPU_CYCLES		},
-};
-	struct perf_event_attr frontend_attrs[] = {
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_FRONTEND	},
-};
-	struct perf_event_attr backend_attrs[] = {
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_STALLED_CYCLES_BACKEND	},
-};
-	struct perf_event_attr default_attrs1[] = {
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_INSTRUCTIONS		},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_INSTRUCTIONS	},
-  { .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_BRANCH_MISSES		},
-
-};
-
-/*
- * Detailed stats (-d), covering the L1 and last level data caches:
- */
-	struct perf_event_attr detailed_attrs[] = {
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_LL			<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_LL			<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-};
-
-/*
- * Very detailed stats (-d -d), covering the instruction cache and the TLB caches:
- */
-	struct perf_event_attr very_detailed_attrs[] = {
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1I		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_DTLB		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_ITLB		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_READ		<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-
-};
-
-/*
- * Very, very detailed stats (-d -d -d), adding prefetch events:
- */
-	struct perf_event_attr very_very_detailed_attrs[] = {
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_ACCESS	<< 16)				},
-
-  { .type = PERF_TYPE_HW_CACHE,
-    .config =
-	 PERF_COUNT_HW_CACHE_L1D		<<  0  |
-	(PERF_COUNT_HW_CACHE_OP_PREFETCH	<<  8) |
-	(PERF_COUNT_HW_CACHE_RESULT_MISS	<< 16)				},
-};
-
-	struct perf_event_attr default_null_attrs[] = {};
 	const char *pmu = parse_events_option_args.pmu_filter ?: "all";
+	struct parse_events_error err;
+	struct evlist *evlist = evlist__new();
+	struct evsel *evsel;
+	int ret = 0;
+
+	if (!evlist)
+		return -ENOMEM;
+
+	parse_events_error__init(&err);
 
 	/* Set attrs if no event is selected and !null_run: */
 	if (stat_config.null_run)
-		return 0;
+		goto out;
 
 	if (transaction_run) {
 		/* Handle -T as -M transaction. Once platform specific metrics
@@ -2098,15 +1858,18 @@ static int add_default_attributes(void)
 		 */
 		if (!metricgroup__has_metric(pmu, "transaction")) {
 			pr_err("Missing transaction metrics\n");
-			return -1;
+			ret = -1;
+			goto out;
 		}
-		return metricgroup__parse_groups(evsel_list, pmu, "transaction",
+		ret = metricgroup__parse_groups(evlist, pmu, "transaction",
 						stat_config.metric_no_group,
 						stat_config.metric_no_merge,
 						stat_config.metric_no_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
+						stat_config.hardware_aware_grouping,
 						&stat_config.metric_events);
+		goto out;
 	}
 
 	if (smi_cost) {
@@ -2114,32 +1877,37 @@ static int add_default_attributes(void)
 
 		if (sysfs__read_int(FREEZE_ON_SMI_PATH, &smi) < 0) {
 			pr_err("freeze_on_smi is not supported.\n");
-			return -1;
+			ret = -1;
+			goto out;
 		}
 
 		if (!smi) {
 			if (sysfs__write_int(FREEZE_ON_SMI_PATH, 1) < 0) {
-				fprintf(stderr, "Failed to set freeze_on_smi.\n");
-				return -1;
+				pr_err("Failed to set freeze_on_smi.\n");
+				ret = -1;
+				goto out;
 			}
 			smi_reset = true;
 		}
 
 		if (!metricgroup__has_metric(pmu, "smi")) {
 			pr_err("Missing smi metrics\n");
-			return -1;
+			ret = -1;
+			goto out;
 		}
 
 		if (!force_metric_only)
 			stat_config.metric_only = true;
 
-		return metricgroup__parse_groups(evsel_list, pmu, "smi",
+		ret = metricgroup__parse_groups(evlist, pmu, "smi",
 						stat_config.metric_no_group,
 						stat_config.metric_no_merge,
 						stat_config.metric_no_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
+						stat_config.hardware_aware_grouping,
 						&stat_config.metric_events);
+		goto out;
 	}
 
 	if (topdown_run) {
@@ -2152,105 +1920,145 @@ static int add_default_attributes(void)
 		if (!max_level) {
 			pr_err("Topdown requested but the topdown metric groups aren't present.\n"
 				"(See perf list the metric groups have names like TopdownL1)\n");
-			return -1;
+			ret = -1;
+			goto out;
 		}
 		if (stat_config.topdown_level > max_level) {
 			pr_err("Invalid top-down metrics level. The max level is %u.\n", max_level);
-			return -1;
-		} else if (!stat_config.topdown_level)
+			ret = -1;
+			goto out;
+		} else if (!stat_config.topdown_level) {
 			stat_config.topdown_level = 1;
-
+		}
 		if (!stat_config.interval && !stat_config.metric_only) {
 			fprintf(stat_config.output,
 				"Topdown accuracy may decrease when measuring long periods.\n"
 				"Please print the result regularly, e.g. -I1000\n");
 		}
 		str[8] = stat_config.topdown_level + '0';
-		if (metricgroup__parse_groups(evsel_list,
+		if (metricgroup__parse_groups(evlist,
 						pmu, str,
 						/*metric_no_group=*/false,
 						/*metric_no_merge=*/false,
 						/*metric_no_threshold=*/true,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
-						&stat_config.metric_events) < 0)
-			return -1;
+						stat_config.hardware_aware_grouping,
+						&stat_config.metric_events) < 0) {
+			ret = -1;
+			goto out;
+		}
 	}
 
 	if (!stat_config.topdown_level)
 		stat_config.topdown_level = 1;
 
-	if (!evsel_list->core.nr_entries) {
+	if (!evlist->core.nr_entries && !evsel_list->core.nr_entries) {
 		/* No events so add defaults. */
 		if (target__has_cpu(&target))
-			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
+			ret = parse_events(evlist, "cpu-clock", &err);
+		else
+			ret = parse_events(evlist, "task-clock", &err);
+		if (ret)
+			goto out;
 
-		if (evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
-			return -1;
-		if (perf_pmus__have_event("cpu", "stalled-cycles-frontend")) {
-			if (evlist__add_default_attrs(evsel_list, frontend_attrs) < 0)
-				return -1;
-		}
-		if (perf_pmus__have_event("cpu", "stalled-cycles-backend")) {
-			if (evlist__add_default_attrs(evsel_list, backend_attrs) < 0)
-				return -1;
-		}
-		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
-			return -1;
+		ret = parse_events(evlist,
+				"context-switches,"
+				"cpu-migrations,"
+				"page-faults,"
+				"instructions,"
+				"cycles,"
+				"stalled-cycles-frontend,"
+				"stalled-cycles-backend,"
+				"branches,"
+				"branch-misses",
+				&err);
+		if (ret)
+			goto out;
+
 		/*
 		 * Add TopdownL1 metrics if they exist. To minimize
 		 * multiplexing, don't request threshold computation.
 		 */
 		if (metricgroup__has_metric(pmu, "Default")) {
 			struct evlist *metric_evlist = evlist__new();
-			struct evsel *metric_evsel;
 
-			if (!metric_evlist)
-				return -1;
-
+			if (!metric_evlist) {
+				ret = -ENOMEM;
+				goto out;
+			}
 			if (metricgroup__parse_groups(metric_evlist, pmu, "Default",
 							/*metric_no_group=*/false,
 							/*metric_no_merge=*/false,
 							/*metric_no_threshold=*/true,
 							stat_config.user_requested_cpu_list,
 							stat_config.system_wide,
-							&stat_config.metric_events) < 0)
-				return -1;
-
-			evlist__for_each_entry(metric_evlist, metric_evsel) {
-				metric_evsel->skippable = true;
-				metric_evsel->default_metricgroup = true;
+							stat_config.hardware_aware_grouping,
+							&stat_config.metric_events) < 0) {
+				ret = -1;
+				goto out;
 			}
-			evlist__splice_list_tail(evsel_list, &metric_evlist->core.entries);
+
+			evlist__for_each_entry(metric_evlist, evsel)
+				evsel->default_metricgroup = true;
+
+			evlist__splice_list_tail(evlist, &metric_evlist->core.entries);
 			evlist__delete(metric_evlist);
 		}
-
-		/* Platform specific attrs */
-		if (evlist__add_default_attrs(evsel_list, default_null_attrs) < 0)
-			return -1;
 	}
 
 	/* Detailed events get appended to the event list: */
 
-	if (detailed_run <  1)
-		return 0;
-
-	/* Append detailed run extra attributes: */
-	if (evlist__add_default_attrs(evsel_list, detailed_attrs) < 0)
-		return -1;
-
-	if (detailed_run < 2)
-		return 0;
-
-	/* Append very detailed run extra attributes: */
-	if (evlist__add_default_attrs(evsel_list, very_detailed_attrs) < 0)
-		return -1;
-
-	if (detailed_run < 3)
-		return 0;
-
-	/* Append very, very detailed run extra attributes: */
-	return evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
+	if (!ret && detailed_run >=  1) {
+		/*
+		 * Detailed stats (-d), covering the L1 and last level data
+		 * caches:
+		 */
+		ret = parse_events(evlist,
+				"L1-dcache-loads,"
+				"L1-dcache-load-misses,"
+				"LLC-loads,"
+				"LLC-load-misses",
+				&err);
+	}
+	if (!ret && detailed_run >=  2) {
+		/*
+		 * Very detailed stats (-d -d), covering the instruction cache
+		 * and the TLB caches:
+		 */
+		ret = parse_events(evlist,
+				"L1-icache-loads,"
+				"L1-icache-load-misses,"
+				"dTLB-loads,"
+				"dTLB-load-misses,"
+				"iTLB-loads,"
+				"iTLB-load-misses",
+				&err);
+	}
+	if (!ret && detailed_run >=  3) {
+		/*
+		 * Very, very detailed stats (-d -d -d), adding prefetch events:
+		 */
+		ret = parse_events(evlist,
+				"L1-dcache-prefetches,"
+				"L1-dcache-prefetch-misses",
+				&err);
+	}
+out:
+	if (!ret) {
+		evlist__for_each_entry(evlist, evsel) {
+			/*
+			 * Make at least one event non-skippable so fatal errors are visible.
+			 * 'cycles' always used to be default and non-skippable, so use that.
+			 */
+			if (strcmp("cycles", evsel__name(evsel)))
+				evsel->skippable = true;
+		}
+	}
+	parse_events_error__exit(&err);
+	evlist__splice_list_tail(evsel_list, &evlist->core.entries);
+	evlist__delete(evlist);
+	return ret;
 }
 
 static const char * const stat_record_usage[] = {
@@ -2272,13 +2080,15 @@ static void init_features(struct perf_session *session)
 	perf_header__clear_feat(&session->header, HEADER_AUXTRACE);
 }
 
-static int __cmd_record(int argc, const char **argv)
+static int __cmd_record(const struct option stat_options[], struct opt_aggr_mode *opt_mode,
+			int argc, const char **argv)
 {
 	struct perf_session *session;
 	struct perf_data *data = &perf_stat.data;
 
 	argc = parse_options(argc, argv, stat_options, stat_record_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
+	stat_config.aggr_mode = opt_aggr_mode_to_aggr_mode(opt_mode);
 
 	if (output_name)
 		data->path = output_name;
@@ -2329,12 +2139,12 @@ static
 int process_stat_config_event(struct perf_session *session,
 			      union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	perf_event__read_stat_config(&stat_config, &event->stat_config);
 
-	if (perf_cpu_map__has_any_cpu_or_is_empty(st->cpus)) {
+	if (perf_cpu_map__is_empty(st->cpus)) {
 		if (st->aggr_mode != AGGR_UNSET)
 			pr_warning("warning: processing task data, aggregation mode not set\n");
 	} else if (st->aggr_mode != AGGR_UNSET) {
@@ -2378,7 +2188,7 @@ static
 int process_thread_map_event(struct perf_session *session,
 			     union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 
 	if (st->threads) {
@@ -2397,7 +2207,7 @@ static
 int process_cpu_map_event(struct perf_session *session,
 			  union perf_event *event)
 {
-	struct perf_tool *tool = session->tool;
+	const struct perf_tool *tool = session->tool;
 	struct perf_stat *st = container_of(tool, struct perf_stat, tool);
 	struct perf_cpu_map *cpus;
 
@@ -2420,15 +2230,6 @@ static const char * const stat_report_usage[] = {
 };
 
 static struct perf_stat perf_stat = {
-	.tool = {
-		.attr		= perf_event__process_attr,
-		.event_update	= perf_event__process_event_update,
-		.thread_map	= process_thread_map_event,
-		.cpu_map	= process_cpu_map_event,
-		.stat_config	= process_stat_config_event,
-		.stat		= perf_event__process_stat_event,
-		.stat_round	= process_stat_round_event,
-	},
 	.aggr_mode	= AGGR_UNSET,
 	.aggr_level	= 0,
 };
@@ -2470,6 +2271,15 @@ static int __cmd_report(int argc, const char **argv)
 
 	perf_stat.data.path = input_name;
 	perf_stat.data.mode = PERF_DATA_MODE_READ;
+
+	perf_tool__init(&perf_stat.tool, /*ordered_events=*/false);
+	perf_stat.tool.attr		= perf_event__process_attr;
+	perf_stat.tool.event_update	= perf_event__process_event_update;
+	perf_stat.tool.thread_map	= process_thread_map_event;
+	perf_stat.tool.cpu_map		= process_cpu_map_event;
+	perf_stat.tool.stat_config	= process_stat_config_event;
+	perf_stat.tool.stat		= perf_event__process_stat_event;
+	perf_stat.tool.stat_round	= process_stat_round_event;
 
 	session = perf_session__new(&perf_stat.data, &perf_stat.tool);
 	if (IS_ERR(session))
@@ -2521,6 +2331,151 @@ static void setup_system_wide(int forks)
 
 int cmd_stat(int argc, const char **argv)
 {
+	struct opt_aggr_mode opt_mode = {};
+	struct option stat_options[] = {
+		OPT_BOOLEAN('T', "transaction", &transaction_run,
+			"hardware transaction statistics"),
+		OPT_CALLBACK('e', "event", &parse_events_option_args, "event",
+			"event selector. use 'perf list' to list available events",
+			parse_events_option),
+		OPT_CALLBACK(0, "filter", &evsel_list, "filter",
+			"event filter", parse_filter),
+		OPT_BOOLEAN('i', "no-inherit", &stat_config.no_inherit,
+			"child tasks do not inherit counters"),
+		OPT_STRING('p', "pid", &target.pid, "pid",
+			"stat events on existing process id"),
+		OPT_STRING('t', "tid", &target.tid, "tid",
+			"stat events on existing thread id"),
+#ifdef HAVE_BPF_SKEL
+		OPT_STRING('b', "bpf-prog", &target.bpf_str, "bpf-prog-id",
+			"stat events on existing bpf program id"),
+		OPT_BOOLEAN(0, "bpf-counters", &target.use_bpf,
+			"use bpf program to count events"),
+		OPT_STRING(0, "bpf-attr-map", &target.attr_map, "attr-map-path",
+			"path to perf_event_attr map"),
+#endif
+		OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
+			"system-wide collection from all CPUs"),
+		OPT_BOOLEAN(0, "scale", &stat_config.scale,
+			"Use --no-scale to disable counter scaling for multiplexing"),
+		OPT_INCR('v', "verbose", &verbose,
+			"be more verbose (show counter open errors, etc)"),
+		OPT_INTEGER('r', "repeat", &stat_config.run_count,
+			"repeat command and print average + stddev (max: 100, forever: 0)"),
+		OPT_BOOLEAN(0, "table", &stat_config.walltime_run_table,
+			"display details about each run (only with -r option)"),
+		OPT_BOOLEAN('n', "null", &stat_config.null_run,
+			"null run - dont start any counters"),
+		OPT_INCR('d', "detailed", &detailed_run,
+			"detailed run - start a lot of events"),
+		OPT_BOOLEAN('S', "sync", &sync_run,
+			"call sync() before starting a run"),
+		OPT_CALLBACK_NOOPT('B', "big-num", NULL, NULL,
+				"print large numbers with thousands\' separators",
+				stat__set_big_num),
+		OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
+			"list of cpus to monitor in system-wide"),
+		OPT_BOOLEAN('A', "no-aggr", &opt_mode.no_aggr,
+			"disable aggregation across CPUs or PMUs"),
+		OPT_BOOLEAN(0, "no-merge", &opt_mode.no_aggr,
+			"disable aggregation the same as -A or -no-aggr"),
+		OPT_BOOLEAN(0, "hybrid-merge", &stat_config.hybrid_merge,
+			"Merge identical named hybrid events"),
+		OPT_STRING('x', "field-separator", &stat_config.csv_sep, "separator",
+			"print counts with custom separator"),
+		OPT_BOOLEAN('j', "json-output", &stat_config.json_output,
+			"print counts in JSON format"),
+		OPT_CALLBACK('G', "cgroup", &evsel_list, "name",
+			"monitor event in cgroup name only", parse_stat_cgroups),
+		OPT_STRING(0, "for-each-cgroup", &stat_config.cgroup_list, "name",
+			"expand events for each cgroup"),
+		OPT_STRING('o', "output", &output_name, "file", "output file name"),
+		OPT_BOOLEAN(0, "append", &append_file, "append to the output file"),
+		OPT_INTEGER(0, "log-fd", &output_fd,
+			"log output to fd, instead of stderr"),
+		OPT_STRING(0, "pre", &pre_cmd, "command",
+			"command to run prior to the measured command"),
+		OPT_STRING(0, "post", &post_cmd, "command",
+			"command to run after to the measured command"),
+		OPT_UINTEGER('I', "interval-print", &stat_config.interval,
+			"print counts at regular interval in ms "
+			"(overhead is possible for values <= 100ms)"),
+		OPT_INTEGER(0, "interval-count", &stat_config.times,
+			"print counts for fixed number of times"),
+		OPT_BOOLEAN(0, "interval-clear", &stat_config.interval_clear,
+			"clear screen in between new interval"),
+		OPT_UINTEGER(0, "timeout", &stat_config.timeout,
+			"stop workload and print counts after a timeout period in ms (>= 10ms)"),
+		OPT_BOOLEAN(0, "per-socket", &opt_mode.socket,
+			"aggregate counts per processor socket"),
+		OPT_BOOLEAN(0, "per-die", &opt_mode.die, "aggregate counts per processor die"),
+		OPT_BOOLEAN(0, "per-cluster", &opt_mode.cluster,
+			"aggregate counts per processor cluster"),
+		OPT_CALLBACK_OPTARG(0, "per-cache", &opt_mode, &stat_config.aggr_level,
+				"cache level", "aggregate count at this cache level (Default: LLC)",
+				parse_cache_level),
+		OPT_BOOLEAN(0, "per-core", &opt_mode.core,
+			"aggregate counts per physical processor core"),
+		OPT_BOOLEAN(0, "per-thread", &opt_mode.thread, "aggregate counts per thread"),
+		OPT_BOOLEAN(0, "per-node", &opt_mode.node, "aggregate counts per numa node"),
+		OPT_INTEGER('D', "delay", &target.initial_delay,
+			"ms to wait before starting measurement after program start (-1: start with events disabled)"),
+		OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
+				"Only print computed metrics. No raw values", enable_metric_only),
+		OPT_BOOLEAN(0, "metric-no-group", &stat_config.metric_no_group,
+			"don't group metric events, impacts multiplexing"),
+		OPT_BOOLEAN(0, "metric-no-merge", &stat_config.metric_no_merge,
+			"don't try to share events between metrics in a group"),
+		OPT_BOOLEAN(0, "metric-no-threshold", &stat_config.metric_no_threshold,
+			"disable adding events for the metric threshold calculation"),
+		OPT_BOOLEAN(0, "topdown", &topdown_run,
+			"measure top-down statistics"),
+#ifdef HAVE_ARCH_X86_64_SUPPORT
+		OPT_BOOLEAN(0, "record-tpebs", &tpebs_recording,
+			"enable recording for tpebs when retire_latency required"),
+#endif
+		OPT_UINTEGER(0, "td-level", &stat_config.topdown_level,
+			"Set the metrics level for the top-down statistics (0: max level)"),
+		OPT_BOOLEAN(0, "smi-cost", &smi_cost,
+			"measure SMI cost"),
+		OPT_CALLBACK('M', "metrics", &evsel_list, "metric/metric group list",
+			"monitor specified metrics or metric groups (separated by ,)",
+			append_metric_groups),
+		OPT_BOOLEAN_FLAG(0, "all-kernel", &stat_config.all_kernel,
+				"Configure all used events to run in kernel space.",
+				PARSE_OPT_EXCLUSIVE),
+		OPT_BOOLEAN_FLAG(0, "all-user", &stat_config.all_user,
+				"Configure all used events to run in user space.",
+				PARSE_OPT_EXCLUSIVE),
+		OPT_BOOLEAN(0, "percore-show-thread", &stat_config.percore_show_thread,
+			"Use with 'percore' event qualifier to show the event "
+			"counts of one hardware thread by sum up total hardware "
+			"threads of same physical core"),
+		OPT_BOOLEAN(0, "summary", &stat_config.summary,
+			"print summary for interval mode"),
+		OPT_BOOLEAN(0, "no-csv-summary", &stat_config.no_csv_summary,
+			"don't print 'summary' for CSV summary output"),
+		OPT_BOOLEAN(0, "quiet", &quiet,
+			"don't print any output, messages or warnings (useful with record)"),
+		OPT_CALLBACK(0, "cputype", &evsel_list, "hybrid cpu type",
+			"Only enable events on applying cpu with this type "
+			"for hybrid platform (e.g. core or atom)",
+			parse_cputype),
+#ifdef HAVE_LIBPFM
+		OPT_CALLBACK(0, "pfm-events", &evsel_list, "event",
+			"libpfm4 event selector. use 'perf list' to list available events",
+			parse_libpfm_events_option),
+#endif
+		OPT_CALLBACK(0, "control", &stat_config, "fd:ctl-fd[,ack-fd] or fifo:ctl-fifo[,ack-fifo]",
+			"Listen on ctl-fd descriptor for command to control measurement ('enable': enable events, 'disable': disable events).\n"
+			"\t\t\t  Optionally send control command completion ('ack\\n') to ack-fd descriptor.\n"
+			"\t\t\t  Alternatively, ctl-fifo / ack-fifo will be opened and used as ctl-fd / ack-fd.",
+			parse_control_option),
+		OPT_CALLBACK_OPTARG(0, "iostat", &evsel_list, &stat_config, "default",
+				"measure I/O performance metrics provided by arch/platform",
+				iostat_parse),
+		OPT_END()
+	};
 	const char * const stat_usage[] = {
 		"perf stat [<options>] [<command>]",
 		NULL
@@ -2549,6 +2504,8 @@ int cmd_stat(int argc, const char **argv)
 					(const char **) stat_usage,
 					PARSE_OPT_STOP_AT_NON_OPTION);
 
+	stat_config.aggr_mode = opt_aggr_mode_to_aggr_mode(&opt_mode);
+
 	if (stat_config.csv_sep) {
 		stat_config.csv_output = true;
 		if (!strcmp(stat_config.csv_sep, "\\t"))
@@ -2557,7 +2514,7 @@ int cmd_stat(int argc, const char **argv)
 		stat_config.csv_sep = DEFAULT_SEPARATOR;
 
 	if (argc && strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
-		argc = __cmd_record(argc, argv);
+		argc = __cmd_record(stat_options, &opt_mode, argc, argv);
 		if (argc < 0)
 			return -1;
 	} else if (argc && strlen(argv[0]) > 2 && strstarts("report", argv[0]))
@@ -2587,6 +2544,14 @@ int cmd_stat(int argc, const char **argv)
 	if (stat_config.metric_only && stat_config.run_count > 1) {
 		fprintf(stderr, "--metric-only is not supported with -r\n");
 		goto out;
+	}
+
+	if (stat_config.csv_output || (stat_config.metric_only && stat_config.json_output)) {
+		/*
+		 * Current CSV and metric-only JSON output doesn't display the
+		 * metric threshold so don't compute it.
+		 */
+		stat_config.metric_no_threshold = true;
 	}
 
 	if (stat_config.walltime_run_table && stat_config.run_count <= 1) {
@@ -2649,6 +2614,7 @@ int cmd_stat(int argc, const char **argv)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		stat_config.big_num = false;
 
+	target.inherit = !stat_config.no_inherit;
 	err = target__validate(&target);
 	if (err) {
 		target__strerror(&target, err, errbuf, BUFSIZ);
@@ -2748,6 +2714,7 @@ int cmd_stat(int argc, const char **argv)
 						stat_config.metric_no_threshold,
 						stat_config.user_requested_cpu_list,
 						stat_config.system_wide,
+						stat_config.hardware_aware_grouping,
 						&stat_config.metric_events);
 
 		zfree(&metrics);
@@ -2757,7 +2724,7 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (add_default_attributes())
+	if (add_default_events())
 		goto out;
 
 	if (stat_config.cgroup_list) {
@@ -2876,7 +2843,10 @@ int cmd_stat(int argc, const char **argv)
 			evlist__reset_prev_raw_counts(evsel_list);
 
 		status = run_perf_stat(argc, argv, run_idx);
-		if (forever && status != -1 && !interval) {
+		if (status == -1)
+			break;
+
+		if (forever && !interval) {
 			print_counters(NULL, argc, argv);
 			perf_stat__reset_stats();
 		}

@@ -23,19 +23,14 @@ extern int of_ioapic;
 extern u64 initial_dtb;
 extern void add_dtb(u64 data);
 void x86_of_pci_init(void);
-void x86_dtb_parse_smp_config(void);
+void x86_flattree_get_config(void);
 #else
 static inline void add_dtb(u64 data) { }
 static inline void x86_of_pci_init(void) { }
-static inline void x86_dtb_parse_smp_config(void) { }
+static inline void x86_flattree_get_config(void) { }
 #define of_ioapic 0
 #endif
 
-#ifdef CONFIG_OF_EARLY_FLATTREE
-void x86_flattree_get_config(void);
-#else
-static inline void x86_flattree_get_config(void) { }
-#endif
 extern char cmd_line[COMMAND_LINE_SIZE];
 
 #endif /* __ASSEMBLY__ */

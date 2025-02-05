@@ -23,7 +23,6 @@ int efx_mae_free_mport(struct efx_nic *efx, u32 id);
 
 void efx_mae_mport_wire(struct efx_nic *efx, u32 *out);
 void efx_mae_mport_uplink(struct efx_nic *efx, u32 *out);
-void efx_mae_mport_vf(struct efx_nic *efx, u32 vf_id, u32 *out);
 void efx_mae_mport_mport(struct efx_nic *efx, u32 mport_id, u32 *out);
 
 int efx_mae_lookup_mport(struct efx_nic *efx, u32 selector, u32 *id);

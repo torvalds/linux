@@ -14,6 +14,8 @@
 
 #include <linux/led-class-multicolor.h>
 
+#define LP55xx_BYTES_PER_PAGE		32      /* bytes */
+
 enum lp55xx_engine_index {
 	LP55XX_ENGINE_INVALID,
 	LP55XX_ENGINE_1,
@@ -35,45 +37,62 @@ enum lp55xx_engine_mode {
 #define LP55XX_DEV_ATTR_WO(name, store)		\
 	DEVICE_ATTR(name, S_IWUSR, NULL, store)
 
-#define show_mode(nr)							\
+#define LP55XX_DEV_ATTR_ENGINE_MODE(nr)					\
 static ssize_t show_engine##nr##_mode(struct device *dev,		\
-				    struct device_attribute *attr,	\
-				    char *buf)				\
+				      struct device_attribute *attr,	\
+				      char *buf)				\
 {									\
-	return show_engine_mode(dev, attr, buf, nr);			\
-}
-
-#define store_mode(nr)							\
+	return lp55xx_show_engine_mode(dev, attr, buf, nr);		\
+}									\
 static ssize_t store_engine##nr##_mode(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     const char *buf, size_t len)	\
+				       struct device_attribute *attr,	\
+				       const char *buf, size_t len)	\
 {									\
-	return store_engine_mode(dev, attr, buf, len, nr);		\
-}
+	return lp55xx_store_engine_mode(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_RW(engine##nr##_mode, show_engine##nr##_mode,	\
+			  store_engine##nr##_mode)
 
-#define show_leds(nr)							\
+#define LP55XX_DEV_ATTR_ENGINE_LEDS(nr)					\
 static ssize_t show_engine##nr##_leds(struct device *dev,		\
-			    struct device_attribute *attr,		\
-			    char *buf)					\
+				      struct device_attribute *attr,	\
+				      char *buf)			\
 {									\
-	return show_engine_leds(dev, attr, buf, nr);			\
-}
+	return lp55xx_show_engine_leds(dev, attr, buf, nr);		\
+}									\
+static ssize_t store_engine##nr##_leds(struct device *dev,		\
+				       struct device_attribute *attr,	\
+				       const char *buf, size_t len)	\
+{									\
+	return lp55xx_store_engine_leds(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_RW(engine##nr##_leds, show_engine##nr##_leds,	\
+			  store_engine##nr##_leds)
 
-#define store_leds(nr)						\
-static ssize_t store_engine##nr##_leds(struct device *dev,	\
-			     struct device_attribute *attr,	\
-			     const char *buf, size_t len)	\
-{								\
-	return store_engine_leds(dev, attr, buf, len, nr);	\
-}
-
-#define store_load(nr)							\
+#define LP55XX_DEV_ATTR_ENGINE_LOAD(nr)					\
 static ssize_t store_engine##nr##_load(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     const char *buf, size_t len)	\
+				       struct device_attribute *attr,	\
+				       const char *buf, size_t len)	\
 {									\
-	return store_engine_load(dev, attr, buf, len, nr);		\
-}
+	return lp55xx_store_engine_load(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_WO(engine##nr##_load, store_engine##nr##_load)
+
+#define LP55XX_DEV_ATTR_MASTER_FADER(nr)				\
+static ssize_t show_master_fader##nr(struct device *dev,		\
+				     struct device_attribute *attr,	\
+				     char *buf)				\
+{									\
+	return lp55xx_show_master_fader(dev, attr, buf, nr);		\
+}									\
+static ssize_t store_master_fader##nr(struct device *dev,		\
+				      struct device_attribute *attr,	\
+				      const char *buf, size_t len)	\
+{									\
+	return lp55xx_store_master_fader(dev, attr, buf, len, nr);	\
+}									\
+static LP55XX_DEV_ATTR_RW(master_fader##nr, show_master_fader##nr,	\
+			  store_master_fader##nr)
 
 struct lp55xx_led;
 struct lp55xx_chip;
@@ -81,17 +100,31 @@ struct lp55xx_chip;
 /*
  * struct lp55xx_reg
  * @addr : Register address
- * @val  : Register value
+ * @val  : Register value (can also used as mask or shift)
  */
 struct lp55xx_reg {
 	u8 addr;
-	u8 val;
+	union {
+		u8 val;
+		u8 mask;
+		u8 shift;
+	};
 };
 
 /*
  * struct lp55xx_device_config
+ * @reg_op_mode        : Chip specific OP MODE reg addr
+ * @engine_busy        : Chip specific engine busy
+ *			 (if not supported 153 us sleep)
  * @reset              : Chip specific reset command
  * @enable             : Chip specific enable command
+ * @prog_mem_base      : Chip specific base reg address for chip SMEM programming
+ * @reg_led_pwm_base   : Chip specific base reg address for LED PWM conf
+ * @reg_led_current_base : Chip specific base reg address for LED current conf
+ * @reg_master_fader_base : Chip specific base reg address for master fader base
+ * @reg_led_ctrl_base  : Chip specific base reg address for LED ctrl base
+ * @pages_per_engine   : Assigned pages for each engine
+ *                       (if not set chip doesn't support pages)
  * @max_channel        : Maximum number of channels
  * @post_init_device   : Chip specific initialization code
  * @brightness_fn      : Brightness function
@@ -102,8 +135,17 @@ struct lp55xx_reg {
  * @dev_attr_group     : Device specific attributes
  */
 struct lp55xx_device_config {
+	const struct lp55xx_reg reg_op_mode; /* addr, shift */
+	const struct lp55xx_reg reg_exec; /* addr, shift */
+	const struct lp55xx_reg engine_busy; /* addr, mask */
 	const struct lp55xx_reg reset;
 	const struct lp55xx_reg enable;
+	const struct lp55xx_reg prog_mem_base;
+	const struct lp55xx_reg reg_led_pwm_base;
+	const struct lp55xx_reg reg_led_current_base;
+	const struct lp55xx_reg reg_master_fader_base;
+	const struct lp55xx_reg reg_led_ctrl_base;
+	const int pages_per_engine;
 	const int max_channel;
 
 	/* define if the device has specific initialization process */
@@ -151,11 +193,10 @@ struct lp55xx_engine {
  */
 struct lp55xx_chip {
 	struct i2c_client *cl;
-	struct clk *clk;
 	struct lp55xx_platform_data *pdata;
 	struct mutex lock;	/* lock for user-space interface */
 	int num_leds;
-	struct lp55xx_device_config *cfg;
+	const struct lp55xx_device_config *cfg;
 	enum lp55xx_engine_index engine_idx;
 	struct lp55xx_engine engines[LP55XX_ENGINE_MAX];
 	const struct firmware *fw;
@@ -191,21 +232,50 @@ extern int lp55xx_update_bits(struct lp55xx_chip *chip, u8 reg,
 /* external clock detection */
 extern bool lp55xx_is_extclk_used(struct lp55xx_chip *chip);
 
-/* common device init/deinit functions */
-extern int lp55xx_init_device(struct lp55xx_chip *chip);
-extern void lp55xx_deinit_device(struct lp55xx_chip *chip);
+/* common chip functions */
+extern void lp55xx_stop_all_engine(struct lp55xx_chip *chip);
+extern void lp55xx_load_engine(struct lp55xx_chip *chip);
+extern int lp55xx_run_engine_common(struct lp55xx_chip *chip);
+extern int lp55xx_update_program_memory(struct lp55xx_chip *chip,
+					const u8 *data, size_t size);
+extern void lp55xx_firmware_loaded_cb(struct lp55xx_chip *chip);
+extern int lp55xx_led_brightness(struct lp55xx_led *led);
+extern int lp55xx_multicolor_brightness(struct lp55xx_led *led);
+extern void lp55xx_set_led_current(struct lp55xx_led *led, u8 led_current);
+extern void lp55xx_turn_off_channels(struct lp55xx_chip *chip);
+extern void lp55xx_stop_engine(struct lp55xx_chip *chip);
 
-/* common LED class device functions */
-extern int lp55xx_register_leds(struct lp55xx_led *led,
-				struct lp55xx_chip *chip);
+/* common probe/remove function */
+extern int lp55xx_probe(struct i2c_client *client);
+extern void lp55xx_remove(struct i2c_client *client);
 
-/* common device attributes functions */
-extern int lp55xx_register_sysfs(struct lp55xx_chip *chip);
-extern void lp55xx_unregister_sysfs(struct lp55xx_chip *chip);
-
-/* common device tree population function */
-extern struct lp55xx_platform_data
-*lp55xx_of_populate_pdata(struct device *dev, struct device_node *np,
-			  struct lp55xx_chip *chip);
+/* common sysfs function */
+extern ssize_t lp55xx_show_engine_mode(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf, int nr);
+extern ssize_t lp55xx_store_engine_mode(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_store_engine_load(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_engine_leds(struct device *dev,
+				       struct device_attribute *attr,
+				       char *buf, int nr);
+extern ssize_t lp55xx_store_engine_leds(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_master_fader(struct device *dev,
+					struct device_attribute *attr,
+					char *buf, int nr);
+extern ssize_t lp55xx_store_master_fader(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len, int nr);
+extern ssize_t lp55xx_show_master_fader_leds(struct device *dev,
+					     struct device_attribute *attr,
+					     char *buf);
+extern ssize_t lp55xx_store_master_fader_leds(struct device *dev,
+					      struct device_attribute *attr,
+					      const char *buf, size_t len);
 
 #endif /* _LEDS_LP55XX_COMMON_H */

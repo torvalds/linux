@@ -3,11 +3,12 @@
  * Copyright 2017 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <media/cec-notifier.h>
 #include <media/cec-pin.h>
 
@@ -279,7 +280,7 @@ MODULE_DEVICE_TABLE(of, cec_gpio_match);
 
 static struct platform_driver cec_gpio_pdrv = {
 	.probe	= cec_gpio_probe,
-	.remove_new = cec_gpio_remove,
+	.remove = cec_gpio_remove,
 	.driver = {
 		.name		= "cec-gpio",
 		.of_match_table	= cec_gpio_match,
@@ -288,6 +289,6 @@ static struct platform_driver cec_gpio_pdrv = {
 
 module_platform_driver(cec_gpio_pdrv);
 
-MODULE_AUTHOR("Hans Verkuil <hans.verkuil@cisco.com>");
+MODULE_AUTHOR("Hans Verkuil <hansverk@cisco.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("CEC GPIO driver");

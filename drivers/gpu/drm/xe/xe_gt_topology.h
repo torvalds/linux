@@ -33,4 +33,7 @@ bool xe_dss_mask_empty(const xe_dss_mask_t mask);
 bool
 xe_gt_topology_has_dss_in_quadrant(struct xe_gt *gt, int quad);
 
+bool xe_gt_has_geometry_dss(struct xe_gt *gt, unsigned int dss);
+bool xe_gt_has_compute_dss(struct xe_gt *gt, unsigned int dss);
+
 #endif /* _XE_GT_TOPOLOGY_H_ */

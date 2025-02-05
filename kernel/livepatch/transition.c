@@ -23,7 +23,7 @@ static DEFINE_PER_CPU(unsigned long[MAX_STACK_ENTRIES], klp_stack_entries);
 
 struct klp_patch *klp_transition_patch;
 
-static int klp_target_state = KLP_UNDEFINED;
+static int klp_target_state = KLP_TRANSITION_IDLE;
 
 static unsigned int klp_signals_cnt;
 
@@ -96,16 +96,16 @@ static void klp_complete_transition(void)
 
 	pr_debug("'%s': completing %s transition\n",
 		 klp_transition_patch->mod->name,
-		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+		 klp_target_state == KLP_TRANSITION_PATCHED ? "patching" : "unpatching");
 
-	if (klp_transition_patch->replace && klp_target_state == KLP_PATCHED) {
+	if (klp_transition_patch->replace && klp_target_state == KLP_TRANSITION_PATCHED) {
 		klp_unpatch_replaced_patches(klp_transition_patch);
 		klp_discard_nops(klp_transition_patch);
 	}
 
-	if (klp_target_state == KLP_UNPATCHED) {
+	if (klp_target_state == KLP_TRANSITION_UNPATCHED) {
 		/*
-		 * All tasks have transitioned to KLP_UNPATCHED so we can now
+		 * All tasks have transitioned to KLP_TRANSITION_UNPATCHED so we can now
 		 * remove the new functions from the func_stack.
 		 */
 		klp_unpatch_objects(klp_transition_patch);
@@ -123,36 +123,36 @@ static void klp_complete_transition(void)
 		klp_for_each_func(obj, func)
 			func->transition = false;
 
-	/* Prevent klp_ftrace_handler() from seeing KLP_UNDEFINED state */
-	if (klp_target_state == KLP_PATCHED)
+	/* Prevent klp_ftrace_handler() from seeing KLP_TRANSITION_IDLE state */
+	if (klp_target_state == KLP_TRANSITION_PATCHED)
 		klp_synchronize_transition();
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, task) {
 		WARN_ON_ONCE(test_tsk_thread_flag(task, TIF_PATCH_PENDING));
-		task->patch_state = KLP_UNDEFINED;
+		task->patch_state = KLP_TRANSITION_IDLE;
 	}
 	read_unlock(&tasklist_lock);
 
 	for_each_possible_cpu(cpu) {
 		task = idle_task(cpu);
 		WARN_ON_ONCE(test_tsk_thread_flag(task, TIF_PATCH_PENDING));
-		task->patch_state = KLP_UNDEFINED;
+		task->patch_state = KLP_TRANSITION_IDLE;
 	}
 
 	klp_for_each_object(klp_transition_patch, obj) {
 		if (!klp_is_object_loaded(obj))
 			continue;
-		if (klp_target_state == KLP_PATCHED)
+		if (klp_target_state == KLP_TRANSITION_PATCHED)
 			klp_post_patch_callback(obj);
-		else if (klp_target_state == KLP_UNPATCHED)
+		else if (klp_target_state == KLP_TRANSITION_UNPATCHED)
 			klp_post_unpatch_callback(obj);
 	}
 
 	pr_notice("'%s': %s complete\n", klp_transition_patch->mod->name,
-		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+		  klp_target_state == KLP_TRANSITION_PATCHED ? "patching" : "unpatching");
 
-	klp_target_state = KLP_UNDEFINED;
+	klp_target_state = KLP_TRANSITION_IDLE;
 	klp_transition_patch = NULL;
 }
 
@@ -164,13 +164,13 @@ static void klp_complete_transition(void)
  */
 void klp_cancel_transition(void)
 {
-	if (WARN_ON_ONCE(klp_target_state != KLP_PATCHED))
+	if (WARN_ON_ONCE(klp_target_state != KLP_TRANSITION_PATCHED))
 		return;
 
 	pr_debug("'%s': canceling patching transition, going to unpatch\n",
 		 klp_transition_patch->mod->name);
 
-	klp_target_state = KLP_UNPATCHED;
+	klp_target_state = KLP_TRANSITION_UNPATCHED;
 	klp_complete_transition();
 }
 
@@ -218,7 +218,7 @@ static int klp_check_stack_func(struct klp_func *func, unsigned long *entries,
 	struct klp_ops *ops;
 	int i;
 
-	if (klp_target_state == KLP_UNPATCHED) {
+	if (klp_target_state == KLP_TRANSITION_UNPATCHED) {
 		 /*
 		  * Check for the to-be-unpatched function
 		  * (the func itself).
@@ -455,7 +455,7 @@ void klp_try_complete_transition(void)
 	struct klp_patch *patch;
 	bool complete = true;
 
-	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
+	WARN_ON_ONCE(klp_target_state == KLP_TRANSITION_IDLE);
 
 	/*
 	 * Try to switch the tasks to the target patch state by walking their
@@ -532,11 +532,11 @@ void klp_start_transition(void)
 	struct task_struct *g, *task;
 	unsigned int cpu;
 
-	WARN_ON_ONCE(klp_target_state == KLP_UNDEFINED);
+	WARN_ON_ONCE(klp_target_state == KLP_TRANSITION_IDLE);
 
 	pr_notice("'%s': starting %s transition\n",
 		  klp_transition_patch->mod->name,
-		  klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+		  klp_target_state == KLP_TRANSITION_PATCHED ? "patching" : "unpatching");
 
 	/*
 	 * Mark all normal tasks as needing a patch state update.  They'll
@@ -578,7 +578,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	struct klp_func *func;
 	int initial_state = !state;
 
-	WARN_ON_ONCE(klp_target_state != KLP_UNDEFINED);
+	WARN_ON_ONCE(klp_target_state != KLP_TRANSITION_IDLE);
 
 	klp_transition_patch = patch;
 
@@ -589,7 +589,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	klp_target_state = state;
 
 	pr_debug("'%s': initializing %s transition\n", patch->mod->name,
-		 klp_target_state == KLP_PATCHED ? "patching" : "unpatching");
+		 klp_target_state == KLP_TRANSITION_PATCHED ? "patching" : "unpatching");
 
 	/*
 	 * Initialize all tasks to the initial patch state to prepare them for
@@ -597,7 +597,7 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	 */
 	read_lock(&tasklist_lock);
 	for_each_process_thread(g, task) {
-		WARN_ON_ONCE(task->patch_state != KLP_UNDEFINED);
+		WARN_ON_ONCE(task->patch_state != KLP_TRANSITION_IDLE);
 		task->patch_state = initial_state;
 	}
 	read_unlock(&tasklist_lock);
@@ -607,19 +607,19 @@ void klp_init_transition(struct klp_patch *patch, int state)
 	 */
 	for_each_possible_cpu(cpu) {
 		task = idle_task(cpu);
-		WARN_ON_ONCE(task->patch_state != KLP_UNDEFINED);
+		WARN_ON_ONCE(task->patch_state != KLP_TRANSITION_IDLE);
 		task->patch_state = initial_state;
 	}
 
 	/*
 	 * Enforce the order of the task->patch_state initializations and the
 	 * func->transition updates to ensure that klp_ftrace_handler() doesn't
-	 * see a func in transition with a task->patch_state of KLP_UNDEFINED.
+	 * see a func in transition with a task->patch_state of KLP_TRANSITION_IDLE.
 	 *
 	 * Also enforce the order of the klp_target_state write and future
 	 * TIF_PATCH_PENDING writes to ensure klp_update_patch_state() and
 	 * __klp_sched_try_switch() don't set a task->patch_state to
-	 * KLP_UNDEFINED.
+	 * KLP_TRANSITION_IDLE.
 	 */
 	smp_wmb();
 
@@ -652,7 +652,7 @@ void klp_reverse_transition(void)
 
 	pr_debug("'%s': reversing transition from %s\n",
 		 klp_transition_patch->mod->name,
-		 klp_target_state == KLP_PATCHED ? "patching to unpatching" :
+		 klp_target_state == KLP_TRANSITION_PATCHED ? "patching to unpatching" :
 						   "unpatching to patching");
 
 	/*
@@ -741,7 +741,7 @@ void klp_force_transition(void)
 		klp_update_patch_state(idle_task(cpu));
 
 	/* Set forced flag for patches being removed. */
-	if (klp_target_state == KLP_UNPATCHED)
+	if (klp_target_state == KLP_TRANSITION_UNPATCHED)
 		klp_transition_patch->forced = true;
 	else if (klp_transition_patch->replace) {
 		klp_for_each_patch(patch) {

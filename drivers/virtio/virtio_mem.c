@@ -21,6 +21,8 @@
 #include <linux/bitmap.h>
 #include <linux/lockdep.h>
 #include <linux/log2.h>
+#include <linux/vmalloc.h>
+#include <linux/suspend.h>
 
 #include <acpi/acpi_numa.h>
 
@@ -131,6 +133,8 @@ struct virtio_mem {
 	uint64_t addr;
 	/* Maximum region size in bytes. */
 	uint64_t region_size;
+	/* Usable region size in bytes. */
+	uint64_t usable_region_size;
 
 	/* The parent resource for all memory added via this device. */
 	struct resource *parent_resource;
@@ -251,6 +255,9 @@ struct virtio_mem {
 
 	/* Memory notifier (online/offline events). */
 	struct notifier_block memory_notifier;
+
+	/* Notifier to block hibernation image storing/reloading. */
+	struct notifier_block pm_notifier;
 
 #ifdef CONFIG_PROC_VMCORE
 	/* vmcore callback for /proc/vmcore handling in kdump mode */
@@ -1111,6 +1118,25 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 	return rc;
 }
 
+static int virtio_mem_pm_notifier_cb(struct notifier_block *nb,
+				     unsigned long action, void *arg)
+{
+	struct virtio_mem *vm = container_of(nb, struct virtio_mem,
+					     pm_notifier);
+	switch (action) {
+	case PM_HIBERNATION_PREPARE:
+	case PM_RESTORE_PREPARE:
+		/*
+		 * When restarting the VM, all memory is unplugged. Don't
+		 * allow to hibernate and restore from an image.
+		 */
+		dev_err(&vm->vdev->dev, "hibernation is not supported.\n");
+		return NOTIFY_BAD;
+	default:
+		return NOTIFY_OK;
+	}
+}
+
 /*
  * Set a range of pages PG_offline. Remember pages that were never onlined
  * (via generic_online_page()) using PageDirty().
@@ -1122,12 +1148,16 @@ static void virtio_mem_set_fake_offline(unsigned long pfn,
 	for (; nr_pages--; pfn++) {
 		struct page *page = pfn_to_page(pfn);
 
-		__SetPageOffline(page);
-		if (!onlined) {
+		if (!onlined)
+			/*
+			 * Pages that have not been onlined yet were initialized
+			 * to PageOffline(). Remember that we have to route them
+			 * through generic_online_page().
+			 */
 			SetPageDirty(page);
-			/* FIXME: remove after cleanups */
-			ClearPageReserved(page);
-		}
+		else
+			__SetPageOffline(page);
+		VM_WARN_ON_ONCE(!PageOffline(page));
 	}
 	page_offline_end();
 }
@@ -1142,9 +1172,11 @@ static void virtio_mem_clear_fake_offline(unsigned long pfn,
 	for (; nr_pages--; pfn++) {
 		struct page *page = pfn_to_page(pfn);
 
-		__ClearPageOffline(page);
 		if (!onlined)
+			/* generic_online_page() will clear PageOffline(). */
 			ClearPageDirty(page);
+		else
+			__ClearPageOffline(page);
 	}
 }
 
@@ -1239,12 +1271,6 @@ static void virtio_mem_fake_offline_going_offline(unsigned long pfn,
 	struct page *page;
 	unsigned long i;
 
-	/*
-	 * Drop our reference to the pages so the memory can get offlined
-	 * and add the unplugged pages to the managed page counters (so
-	 * offlining code can correctly subtract them again).
-	 */
-	adjust_managed_page_count(pfn_to_page(pfn), nr_pages);
 	/* Drop our reference to the pages so the memory can get offlined. */
 	for (i = 0; i < nr_pages; i++) {
 		page = pfn_to_page(pfn + i);
@@ -1263,10 +1289,9 @@ static void virtio_mem_fake_offline_cancel_offline(unsigned long pfn,
 	unsigned long i;
 
 	/*
-	 * Get the reference we dropped when going offline and subtract the
-	 * unplugged pages from the managed page counters.
+	 * Get the reference again that we dropped via page_ref_dec_and_test()
+	 * when going offline.
 	 */
-	adjust_managed_page_count(pfn_to_page(pfn), -nr_pages);
 	for (i = 0; i < nr_pages; i++)
 		page_ref_inc(pfn_to_page(pfn + i));
 }
@@ -2345,7 +2370,7 @@ static int virtio_mem_cleanup_pending_mb(struct virtio_mem *vm)
 static void virtio_mem_refresh_config(struct virtio_mem *vm)
 {
 	const struct range pluggable_range = mhp_get_pluggable_range(true);
-	uint64_t new_plugged_size, usable_region_size, end_addr;
+	uint64_t new_plugged_size, end_addr;
 
 	/* the plugged_size is just a reflection of what _we_ did previously */
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, plugged_size,
@@ -2355,8 +2380,8 @@ static void virtio_mem_refresh_config(struct virtio_mem *vm)
 
 	/* calculate the last usable memory block id */
 	virtio_cread_le(vm->vdev, struct virtio_mem_config,
-			usable_region_size, &usable_region_size);
-	end_addr = min(vm->addr + usable_region_size - 1,
+			usable_region_size, &vm->usable_region_size);
+	end_addr = min(vm->addr + vm->usable_region_size - 1,
 		       pluggable_range.end);
 
 	if (vm->in_sbm) {
@@ -2615,11 +2640,20 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	rc = register_memory_notifier(&vm->memory_notifier);
 	if (rc)
 		goto out_unreg_group;
-	rc = register_virtio_mem_device(vm);
+	/* Block hibernation as early as possible. */
+	vm->pm_notifier.priority = INT_MAX;
+	vm->pm_notifier.notifier_call = virtio_mem_pm_notifier_cb;
+	rc = register_pm_notifier(&vm->pm_notifier);
 	if (rc)
 		goto out_unreg_mem;
+	rc = register_virtio_mem_device(vm);
+	if (rc)
+		goto out_unreg_pm;
 
+	virtio_device_ready(vm->vdev);
 	return 0;
+out_unreg_pm:
+	unregister_pm_notifier(&vm->pm_notifier);
 out_unreg_mem:
 	unregister_memory_notifier(&vm->memory_notifier);
 out_unreg_group:
@@ -2694,13 +2728,103 @@ static bool virtio_mem_vmcore_pfn_is_ram(struct vmcore_cb *cb,
 	mutex_unlock(&vm->hotplug_mutex);
 	return is_ram;
 }
+
+#ifdef CONFIG_PROC_VMCORE_DEVICE_RAM
+static int virtio_mem_vmcore_add_device_ram(struct virtio_mem *vm,
+		struct list_head *list, uint64_t start, uint64_t end)
+{
+	int rc;
+
+	rc = vmcore_alloc_add_range(list, start, end - start);
+	if (rc)
+		dev_err(&vm->vdev->dev,
+			 "Error adding device RAM range: %d\n", rc);
+	return rc;
+}
+
+static int virtio_mem_vmcore_get_device_ram(struct vmcore_cb *cb,
+		struct list_head *list)
+{
+	struct virtio_mem *vm = container_of(cb, struct virtio_mem,
+					     vmcore_cb);
+	const uint64_t device_start = vm->addr;
+	const uint64_t device_end = vm->addr + vm->usable_region_size;
+	uint64_t chunk_size, cur_start, cur_end, plugged_range_start = 0;
+	LIST_HEAD(tmp_list);
+	int rc;
+
+	if (!vm->plugged_size)
+		return 0;
+
+	/* Process memory sections, unless the device block size is bigger. */
+	chunk_size = max_t(uint64_t, PFN_PHYS(PAGES_PER_SECTION),
+			   vm->device_block_size);
+
+	mutex_lock(&vm->hotplug_mutex);
+
+	/*
+	 * We process larger chunks and indicate the complete chunk if any
+	 * block in there is plugged. This reduces the number of pfn_is_ram()
+	 * callbacks and mimic what is effectively being done when the old
+	 * kernel would add complete memory sections/blocks to the elfcore hdr.
+	 */
+	cur_start = device_start;
+	for (cur_start = device_start; cur_start < device_end; cur_start = cur_end) {
+		cur_end = ALIGN_DOWN(cur_start + chunk_size, chunk_size);
+		cur_end = min_t(uint64_t, cur_end, device_end);
+
+		rc = virtio_mem_send_state_request(vm, cur_start,
+						   cur_end - cur_start);
+
+		if (rc < 0) {
+			dev_err(&vm->vdev->dev,
+				"Error querying block states: %d\n", rc);
+			goto out;
+		} else if (rc != VIRTIO_MEM_STATE_UNPLUGGED) {
+			/* Merge ranges with plugged memory. */
+			if (!plugged_range_start)
+				plugged_range_start = cur_start;
+			continue;
+		}
+
+		/* Flush any plugged range. */
+		if (plugged_range_start) {
+			rc = virtio_mem_vmcore_add_device_ram(vm, &tmp_list,
+							      plugged_range_start,
+							      cur_start);
+			if (rc)
+				goto out;
+			plugged_range_start = 0;
+		}
+	}
+
+	/* Flush any plugged range. */
+	if (plugged_range_start)
+		rc = virtio_mem_vmcore_add_device_ram(vm, &tmp_list,
+						      plugged_range_start,
+						      cur_start);
+out:
+	mutex_unlock(&vm->hotplug_mutex);
+	if (rc < 0) {
+		vmcore_free_ranges(&tmp_list);
+		return rc;
+	}
+	list_splice_tail(&tmp_list, list);
+	return 0;
+}
+#endif /* CONFIG_PROC_VMCORE_DEVICE_RAM */
 #endif /* CONFIG_PROC_VMCORE */
 
 static int virtio_mem_init_kdump(struct virtio_mem *vm)
 {
+	/* We must be prepared to receive a callback immediately. */
+	virtio_device_ready(vm->vdev);
 #ifdef CONFIG_PROC_VMCORE
 	dev_info(&vm->vdev->dev, "memory hot(un)plug disabled in kdump kernel\n");
 	vm->vmcore_cb.pfn_is_ram = virtio_mem_vmcore_pfn_is_ram;
+#ifdef CONFIG_PROC_VMCORE_DEVICE_RAM
+	vm->vmcore_cb.get_device_ram = virtio_mem_vmcore_get_device_ram;
+#endif /* CONFIG_PROC_VMCORE_DEVICE_RAM */
 	register_vmcore_cb(&vm->vmcore_cb);
 	return 0;
 #else /* CONFIG_PROC_VMCORE */
@@ -2729,6 +2853,8 @@ static int virtio_mem_init(struct virtio_mem *vm)
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, addr, &vm->addr);
 	virtio_cread_le(vm->vdev, struct virtio_mem_config, region_size,
 			&vm->region_size);
+	virtio_cread_le(vm->vdev, struct virtio_mem_config, usable_region_size,
+			&vm->usable_region_size);
 
 	/* Determine the nid for the device based on the lowest address. */
 	if (vm->nid == NUMA_NO_NODE)
@@ -2839,8 +2965,6 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	if (rc)
 		goto out_del_vq;
 
-	virtio_device_ready(vdev);
-
 	/* trigger a config update to start processing the requested_size */
 	if (!vm->in_kdump) {
 		atomic_set(&vm->config_changed, 1);
@@ -2897,6 +3021,7 @@ static void virtio_mem_deinit_hotplug(struct virtio_mem *vm)
 
 	/* unregister callbacks */
 	unregister_virtio_mem_device(vm);
+	unregister_pm_notifier(&vm->pm_notifier);
 	unregister_memory_notifier(&vm->memory_notifier);
 
 	/*
@@ -2960,17 +3085,40 @@ static void virtio_mem_config_changed(struct virtio_device *vdev)
 #ifdef CONFIG_PM_SLEEP
 static int virtio_mem_freeze(struct virtio_device *vdev)
 {
+	struct virtio_mem *vm = vdev->priv;
+
 	/*
-	 * When restarting the VM, all memory is usually unplugged. Don't
-	 * allow to suspend/hibernate.
+	 * We block hibernation using the PM notifier completely. The workqueue
+	 * is already frozen by the PM core at this point, so we simply
+	 * reset the device and cleanup the queues.
 	 */
-	dev_err(&vdev->dev, "save/restore not supported.\n");
-	return -EPERM;
+	if (pm_suspend_target_state != PM_SUSPEND_TO_IDLE &&
+	    vm->plugged_size &&
+	    !virtio_has_feature(vm->vdev, VIRTIO_MEM_F_PERSISTENT_SUSPEND)) {
+		dev_err(&vm->vdev->dev,
+			"suspending with plugged memory is not supported\n");
+		return -EPERM;
+	}
+
+	virtio_reset_device(vdev);
+	vdev->config->del_vqs(vdev);
+	vm->vq = NULL;
+	return 0;
 }
 
 static int virtio_mem_restore(struct virtio_device *vdev)
 {
-	return -EPERM;
+	struct virtio_mem *vm = vdev->priv;
+	int ret;
+
+	ret = virtio_mem_init_vq(vm);
+	if (ret)
+		return ret;
+	virtio_device_ready(vdev);
+
+	/* Let's check if anything changed. */
+	virtio_mem_config_changed(vdev);
+	return 0;
 }
 #endif
 
@@ -2979,6 +3127,7 @@ static unsigned int virtio_mem_features[] = {
 	VIRTIO_MEM_F_ACPI_PXM,
 #endif
 	VIRTIO_MEM_F_UNPLUGGED_INACCESSIBLE,
+	VIRTIO_MEM_F_PERSISTENT_SUSPEND,
 };
 
 static const struct virtio_device_id virtio_mem_id_table[] = {
@@ -2990,7 +3139,6 @@ static struct virtio_driver virtio_mem_driver = {
 	.feature_table = virtio_mem_features,
 	.feature_table_size = ARRAY_SIZE(virtio_mem_features),
 	.driver.name = KBUILD_MODNAME,
-	.driver.owner = THIS_MODULE,
 	.id_table = virtio_mem_id_table,
 	.probe = virtio_mem_probe,
 	.remove = virtio_mem_remove,

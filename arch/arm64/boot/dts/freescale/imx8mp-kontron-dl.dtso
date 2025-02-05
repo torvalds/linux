@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+/*
+ * Copyright (C) 2023 Kontron Electronics GmbH
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include "imx8mp-pinfunc.h"
+
+&{/} {
+	model = "Kontron DL i.MX8MP OSM-S";
+	compatible = "kontron,imx8mp-bl-osm-s", "kontron,imx8mp-osm-s", "fsl,imx8mp";
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm1 0 50000 0>;
+		brightness-levels = <0 100>;
+		num-interpolated-steps = <100>;
+		default-brightness-level = <100>;
+	};
+
+	panel {
+		compatible = "jenson,bl-jt60050-01a", "panel-lvds";
+		backlight = <&backlight>;
+		data-mapping = "vesa-24";
+		enable-gpios = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_vcc_panel>;
+		height-mm = <86>;
+		width-mm = <154>;
+
+		panel-timing {
+			clock-frequency = <50000000>;
+			hactive = <1024>;
+			hback-porch = <160>;
+			hfront-porch = <160>;
+			hsync-len = <1>;
+			vactive = <600>;
+			vback-porch = <23>;
+			vfront-porch = <12>;
+			vsync-len = <1>;
+		};
+
+		port {
+			panel_in_lvds0: endpoint {
+				remote-endpoint = <&ldb_lvds_ch0>;
+			};
+		};
+	};
+};
+
+&gpio4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio4>, <&pinctrl_panel_stby>;
+
+	panel-rst-hog {
+		gpio-hog;
+		gpios = <21 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "panel-reset";
+	};
+
+	panel-stby-hog {
+		gpio-hog;
+		gpios = <28 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "panel-standby";
+	};
+};
+
+&i2c1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	touchscreen@5d {
+		compatible = "goodix,gt928";
+		reg = <0x5d>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <6 8>;
+		irq-gpios = <&gpio1 6 0>;
+		AVDD28-supply = <&reg_vcc_panel>;
+		VDDIO-supply = <&reg_vcc_panel>;
+		reset-gpios = <&gpio1 7 0>;
+	};
+};
+
+&lcdif2 {
+	status = "okay";
+};
+
+&ldb_lvds_ch0 {
+	remote-endpoint = <&panel_in_lvds0>;
+};
+
+&lvds_bridge {
+	status = "okay";
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_panel_stby: panelstbygrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI3_RXFS__GPIO4_IO28		0x19
+		>;
+	};
+};

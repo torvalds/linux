@@ -58,7 +58,7 @@ int lan743x_gpio_init(struct lan743x_adapter *adapter)
 static void lan743x_ptp_wait_till_cmd_done(struct lan743x_adapter *adapter,
 					   u32 bit_mask)
 {
-	int timeout = 1000;
+	int timeout = PTP_CMD_CTL_TIMEOUT_CNT;
 	u32 data = 0;
 
 	while (timeout &&
@@ -401,28 +401,21 @@ static int lan743x_ptpci_settime64(struct ptp_clock_info *ptpci,
 	u32 nano_seconds = 0;
 	u32 seconds = 0;
 
-	if (ts) {
-		if (ts->tv_sec > 0xFFFFFFFFLL ||
-		    ts->tv_sec < 0) {
-			netif_warn(adapter, drv, adapter->netdev,
-				   "ts->tv_sec out of range, %lld\n",
-				   ts->tv_sec);
-			return -ERANGE;
-		}
-		if (ts->tv_nsec >= 1000000000L ||
-		    ts->tv_nsec < 0) {
-			netif_warn(adapter, drv, adapter->netdev,
-				   "ts->tv_nsec out of range, %ld\n",
-				   ts->tv_nsec);
-			return -ERANGE;
-		}
-		seconds = ts->tv_sec;
-		nano_seconds = ts->tv_nsec;
-		lan743x_ptp_clock_set(adapter, seconds, nano_seconds, 0);
-	} else {
-		netif_warn(adapter, drv, adapter->netdev, "ts == NULL\n");
-		return -EINVAL;
+	if (ts->tv_sec > 0xFFFFFFFFLL) {
+		netif_warn(adapter, drv, adapter->netdev,
+			   "ts->tv_sec out of range, %lld\n",
+			   ts->tv_sec);
+		return -ERANGE;
 	}
+	if (ts->tv_nsec < 0) {
+		netif_warn(adapter, drv, adapter->netdev,
+			   "ts->tv_nsec out of range, %ld\n",
+			   ts->tv_nsec);
+		return -ERANGE;
+	}
+	seconds = ts->tv_sec;
+	nano_seconds = ts->tv_nsec;
+	lan743x_ptp_clock_set(adapter, seconds, nano_seconds, 0);
 
 	return 0;
 }
@@ -555,7 +548,7 @@ static int lan743x_ptp_perout(struct lan743x_adapter *adapter, int on,
 			if (half == wf_high) {
 				/* It's 50% match. Use the toggle option */
 				pulse_width = PTP_GENERAL_CONFIG_CLOCK_EVENT_TOGGLE_;
-				/* In this case, devide period value by 2 */
+				/* In this case, divide period value by 2 */
 				ts_period = ns_to_timespec64(div_s64(period64, 2));
 				period_sec = ts_period.tv_sec;
 				period_nsec = ts_period.tv_nsec;

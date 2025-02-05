@@ -5,7 +5,7 @@
 #include <xen/interface/xen.h>
 #include <xen/hvm.h>
 
-#include "mmu.h"
+#include "xen-ops.h"
 
 #ifdef CONFIG_PROC_VMCORE
 /*

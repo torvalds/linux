@@ -128,6 +128,7 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 		struct dpm_clock *VPEClks;
 		struct dpm_clock *SOCClks;
 		uint32_t idx;
+		uint32_t vpeclk_enalbled_num = 0;
 		uint32_t pratio_vmax_vnorm = 0, pratio_vnorm_vmid = 0, pratio_vmid_vmin = 0;
 		uint16_t pratio_vmin_freq = 0, pratio_vmid_freq = 0, pratio_vnorm_freq = 0, pratio_vmax_freq = 0;
 
@@ -144,6 +145,14 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 		SOCClks = clock_table.SocClocks;
 		VPEClks = clock_table.VPEClocks;
 
+		/* Comfirm enabled vpe clk num
+		 * Enabled VPE clocks are ordered from low to high in VPEClks
+		 * The highest valid clock index+1 is the number of VPEClks
+		 */
+		for (idx = PP_SMU_NUM_VPECLK_DPM_LEVELS; idx && !vpeclk_enalbled_num; idx--)
+			if (VPEClks[idx-1].Freq)
+				vpeclk_enalbled_num = idx;
+
 		/* vpe dpm only cares 4 levels. */
 		for (idx = 0; idx < VPE_MAX_DPM_LEVEL; idx++) {
 			uint32_t soc_dpm_level;
@@ -155,8 +164,8 @@ int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
 				soc_dpm_level = (idx * 2) + 1;
 
 			/* clamp the max level */
-			if (soc_dpm_level > PP_SMU_NUM_VPECLK_DPM_LEVELS - 1)
-				soc_dpm_level = PP_SMU_NUM_VPECLK_DPM_LEVELS - 1;
+			if (soc_dpm_level > vpeclk_enalbled_num - 1)
+				soc_dpm_level = vpeclk_enalbled_num - 1;
 
 			min_freq = (SOCClks[soc_dpm_level].Freq < VPEClks[soc_dpm_level].Freq) ?
 				   SOCClks[soc_dpm_level].Freq : VPEClks[soc_dpm_level].Freq;
@@ -223,13 +232,12 @@ int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe)
 {
 	struct amdgpu_device *adev = vpe->ring.adev;
 	const struct vpe_firmware_header_v1_0 *vpe_hdr;
-	char fw_prefix[32], fw_name[64];
+	char fw_prefix[32];
 	int ret;
 
 	amdgpu_ucode_ip_version_decode(adev, VPE_HWIP, fw_prefix, sizeof(fw_prefix));
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", fw_prefix);
-
-	ret = amdgpu_ucode_request(adev, &adev->vpe.fw, fw_name);
+	ret = amdgpu_ucode_request(adev, &adev->vpe.fw, AMDGPU_UCODE_REQUIRED,
+				   "amdgpu/%s.bin", fw_prefix);
 	if (ret)
 		goto out;
 
@@ -288,13 +296,14 @@ int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_early_init(void *handle)
+static int vpe_early_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	switch (amdgpu_ip_version(adev, VPE_HWIP, 0)) {
 	case IP_VERSION(6, 1, 0):
+	case IP_VERSION(6, 1, 3):
 		vpe_v6_1_set_funcs(vpe);
 		break;
 	case IP_VERSION(6, 1, 1):
@@ -348,9 +357,9 @@ static int vpe_common_init(struct amdgpu_vpe *vpe)
 	return 0;
 }
 
-static int vpe_sw_init(void *handle)
+static int vpe_sw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -369,18 +378,26 @@ static int vpe_sw_init(void *handle)
 	ret = vpe_init_microcode(vpe);
 	if (ret)
 		goto out;
+
+	/* TODO: Add queue reset mask when FW fully supports it */
+	adev->vpe.supported_reset =
+		 amdgpu_get_soft_full_reset_mask(&adev->vpe.ring);
+	ret = amdgpu_vpe_sysfs_reset_mask_init(adev);
+	if (ret)
+		goto out;
 out:
 	return ret;
 }
 
-static int vpe_sw_fini(void *handle)
+static int vpe_sw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	release_firmware(vpe->fw);
 	vpe->fw = NULL;
 
+	amdgpu_vpe_sysfs_reset_mask_fini(adev);
 	vpe_ring_fini(vpe);
 
 	amdgpu_bo_free_kernel(&adev->vpe.cmdbuf_obj,
@@ -390,9 +407,9 @@ static int vpe_sw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_hw_init(void *handle)
+static int vpe_hw_init(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
@@ -413,9 +430,9 @@ static int vpe_hw_init(void *handle)
 	return 0;
 }
 
-static int vpe_hw_fini(void *handle)
+static int vpe_hw_fini(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	vpe_ring_stop(vpe);
@@ -426,20 +443,18 @@ static int vpe_hw_fini(void *handle)
 	return 0;
 }
 
-static int vpe_suspend(void *handle)
+static int vpe_suspend(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
-	return vpe_hw_fini(adev);
+	return vpe_hw_fini(ip_block);
 }
 
-static int vpe_resume(void *handle)
+static int vpe_resume(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	return vpe_hw_init(adev);
+	return vpe_hw_init(ip_block);
 }
 
 static void vpe_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
@@ -632,16 +647,16 @@ static int vpe_ring_preempt_ib(struct amdgpu_ring *ring)
 	return r;
 }
 
-static int vpe_set_clockgating_state(void *handle,
+static int vpe_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 				     enum amd_clockgating_state state)
 {
 	return 0;
 }
 
-static int vpe_set_powergating_state(void *handle,
+static int vpe_set_powergating_state(struct amdgpu_ip_block *ip_block,
 				     enum amd_powergating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_vpe *vpe = &adev->vpe;
 
 	if (!adev->pm.dpm_enabled)
@@ -819,7 +834,7 @@ static int vpe_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	ret = (le32_to_cpu(adev->wb.wb[index]) == test_pattern) ? 0 : -EINVAL;
 
 err1:
-	amdgpu_ib_free(adev, &ib, NULL);
+	amdgpu_ib_free(&ib, NULL);
 	dma_fence_put(f);
 err0:
 	amdgpu_device_wb_free(adev, index);
@@ -857,6 +872,43 @@ static void vpe_ring_end_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
+}
+
+static ssize_t amdgpu_get_vpe_reset_mask(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+
+	if (!adev)
+		return -ENODEV;
+
+	return amdgpu_show_reset_mask(buf, adev->vpe.supported_reset);
+}
+
+static DEVICE_ATTR(vpe_reset_mask, 0444,
+		   amdgpu_get_vpe_reset_mask, NULL);
+
+int amdgpu_vpe_sysfs_reset_mask_init(struct amdgpu_device *adev)
+{
+	int r = 0;
+
+	if (adev->vpe.num_instances) {
+		r = device_create_file(adev->dev, &dev_attr_vpe_reset_mask);
+		if (r)
+			return r;
+	}
+
+	return r;
+}
+
+void amdgpu_vpe_sysfs_reset_mask_fini(struct amdgpu_device *adev)
+{
+	if (adev->dev->kobj.sd) {
+		if (adev->vpe.num_instances)
+			device_remove_file(adev->dev, &dev_attr_vpe_reset_mask);
+	}
 }
 
 static const struct amdgpu_ring_funcs vpe_ring_funcs = {
@@ -900,14 +952,12 @@ static void vpe_set_ring_funcs(struct amdgpu_device *adev)
 const struct amd_ip_funcs vpe_ip_funcs = {
 	.name = "vpe_v6_1",
 	.early_init = vpe_early_init,
-	.late_init = NULL,
 	.sw_init = vpe_sw_init,
 	.sw_fini = vpe_sw_fini,
 	.hw_init = vpe_hw_init,
 	.hw_fini = vpe_hw_fini,
 	.suspend = vpe_suspend,
 	.resume = vpe_resume,
-	.soft_reset = NULL,
 	.set_clockgating_state = vpe_set_clockgating_state,
 	.set_powergating_state = vpe_set_powergating_state,
 };

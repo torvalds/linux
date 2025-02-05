@@ -13,7 +13,6 @@
 #include <linux/if_arp.h>
 #include <linux/etherdevice.h>
 #include <net/sock.h>
-#include <net/lib80211.h>
 #include <net/cfg80211.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
@@ -103,7 +102,7 @@ struct qtnf_wmac {
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
-	struct mutex mac_lock;	/* lock during wmac speicific ops */
+	struct mutex mac_lock;	/* lock during wmac specific ops */
 	struct delayed_work scan_timeout;
 	struct ieee80211_regdomain *rd;
 	struct platform_device *pdev;

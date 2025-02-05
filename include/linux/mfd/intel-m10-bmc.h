@@ -205,6 +205,7 @@ struct m10bmc_csr_map {
 	unsigned int pr_reh_addr;
 	unsigned int pr_magic;
 	unsigned int rsu_update_counter;
+	unsigned int staging_size;
 };
 
 /**

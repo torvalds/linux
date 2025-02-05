@@ -67,11 +67,11 @@ enum mtk_vdec_hw_arch {
  * @pic_w: picture width
  * @pic_h: picture height
  * @buf_w: picture buffer width (64 aligned up from pic_w)
- * @buf_h: picture buffer heiht (64 aligned up from pic_h)
+ * @buf_h: picture buffer height (64 aligned up from pic_h)
  * @fb_sz: bitstream size of each plane
  * E.g. suppose picture size is 176x144,
  *      buffer size will be aligned to 176x160.
- * @cap_fourcc: fourcc number(may changed when resolution change)
+ * @cap_fourcc: fourcc number(may change on a resolution change)
  * @reserved: align struct to 64-bit in order to adjust 32-bit and 64-bit os.
  */
 struct vdec_pic_info {

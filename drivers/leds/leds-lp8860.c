@@ -265,7 +265,7 @@ static int lp8860_init(struct lp8860_led *led)
 		goto out;
 	}
 
-	reg_count = ARRAY_SIZE(lp8860_eeprom_disp_regs) / sizeof(lp8860_eeprom_disp_regs[0]);
+	reg_count = ARRAY_SIZE(lp8860_eeprom_disp_regs);
 	for (i = 0; i < reg_count; i++) {
 		ret = regmap_write(led->eeprom_regmap,
 				lp8860_eeprom_disp_regs[i].reg,
@@ -459,7 +459,7 @@ static void lp8860_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lp8860_id[] = {
-	{ "lp8860", 0 },
+	{ "lp8860" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lp8860_id);

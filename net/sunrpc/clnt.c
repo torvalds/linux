@@ -48,12 +48,7 @@
 # define RPCDBG_FACILITY	RPCDBG_CALL
 #endif
 
-/*
- * All RPC clients are linked into this list
- */
-
 static DECLARE_WAIT_QUEUE_HEAD(destroy_wait);
-
 
 static void	call_start(struct rpc_task *task);
 static void	call_reserve(struct rpc_task *task);
@@ -546,7 +541,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.connect_timeout = args->connect_timeout,
 		.reconnect_timeout = args->reconnect_timeout,
 	};
-	char servername[48];
+	char servername[RPC_MAXNETNAMELEN];
 	struct rpc_clnt *clnt;
 	int i;
 
@@ -963,11 +958,16 @@ void rpc_shutdown_client(struct rpc_clnt *clnt)
 
 	trace_rpc_clnt_shutdown(clnt);
 
+	clnt->cl_shutdown = 1;
 	while (!list_empty(&clnt->cl_tasks)) {
 		rpc_killall_tasks(clnt);
 		wait_event_timeout(destroy_wait,
 			list_empty(&clnt->cl_tasks), 1*HZ);
 	}
+
+	/* wait for tasks still in workqueue or waitqueue */
+	wait_event_timeout(destroy_wait,
+			   atomic_read(&clnt->cl_task_count) == 0, 1 * HZ);
 
 	rpc_release_client(clnt);
 }
@@ -1071,6 +1071,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 		.authflavor	= old->cl_auth->au_flavor,
 		.cred		= old->cl_cred,
 		.stats		= old->cl_stats,
+		.timeout	= old->cl_timeout,
 	};
 	struct rpc_clnt *clnt;
 	int err;
@@ -1143,6 +1144,7 @@ void rpc_task_release_client(struct rpc_task *task)
 		list_del(&task->tk_task);
 		spin_unlock(&clnt->cl_lock);
 		task->tk_client = NULL;
+		atomic_dec(&clnt->cl_task_count);
 
 		rpc_release_client(clnt);
 	}
@@ -1193,10 +1195,7 @@ void rpc_task_set_client(struct rpc_task *task, struct rpc_clnt *clnt)
 		task->tk_flags |= RPC_TASK_TIMEOUT;
 	if (clnt->cl_noretranstimeo)
 		task->tk_flags |= RPC_TASK_NO_RETRANS_TIMEOUT;
-	/* Add to the client's list of all tasks */
-	spin_lock(&clnt->cl_lock);
-	list_add_tail(&task->tk_task, &clnt->cl_tasks);
-	spin_unlock(&clnt->cl_lock);
+	atomic_inc(&clnt->cl_task_count);
 }
 
 static void
@@ -1791,9 +1790,14 @@ call_reserveresult(struct rpc_task *task)
 	if (status >= 0) {
 		if (task->tk_rqstp) {
 			task->tk_action = call_refresh;
+
+			/* Add to the client's list of all tasks */
+			spin_lock(&task->tk_client->cl_lock);
+			if (list_empty(&task->tk_task))
+				list_add_tail(&task->tk_task, &task->tk_client->cl_tasks);
+			spin_unlock(&task->tk_client->cl_lock);
 			return;
 		}
-
 		rpc_call_rpcerror(task, -EIO);
 		return;
 	}
@@ -1858,13 +1862,13 @@ call_refreshresult(struct rpc_task *task)
 		fallthrough;
 	case -EAGAIN:
 		status = -EACCES;
-		fallthrough;
-	case -EKEYEXPIRED:
 		if (!task->tk_cred_retry)
 			break;
 		task->tk_cred_retry--;
 		trace_rpc_retry_refresh_status(task);
 		return;
+	case -EKEYEXPIRED:
+		break;
 	case -ENOMEM:
 		rpc_delay(task, HZ >> 4);
 		return;
@@ -1891,12 +1895,6 @@ call_allocate(struct rpc_task *task)
 
 	if (req->rq_buffer)
 		return;
-
-	if (proc->p_proc != 0) {
-		BUG_ON(proc->p_arglen == 0);
-		if (proc->p_decode != NULL)
-			BUG_ON(proc->p_replen == 0);
-	}
 
 	/*
 	 * Calculate the size (in quads) of the RPC call
@@ -2325,12 +2323,13 @@ call_transmit_status(struct rpc_task *task)
 		task->tk_action = call_transmit;
 		task->tk_status = 0;
 		break;
-	case -ECONNREFUSED:
 	case -EHOSTDOWN:
 	case -ENETDOWN:
 	case -EHOSTUNREACH:
 	case -ENETUNREACH:
 	case -EPERM:
+		break;
+	case -ECONNREFUSED:
 		if (RPC_IS_SOFTCONN(task)) {
 			if (!task->tk_msg.rpc_proc->p_proc)
 				trace_xprt_ping(task->tk_xprt,
@@ -2698,8 +2697,19 @@ rpc_decode_header(struct rpc_task *task, struct xdr_stream *xdr)
 		goto out_msg_denied;
 
 	error = rpcauth_checkverf(task, xdr);
-	if (error)
+	if (error) {
+		struct rpc_cred *cred = task->tk_rqstp->rq_cred;
+
+		if (!test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags)) {
+			rpcauth_invalcred(task);
+			if (!task->tk_cred_retry)
+				goto out_err;
+			task->tk_cred_retry--;
+			trace_rpc__stale_creds(task);
+			return -EKEYREJECTED;
+		}
 		goto out_verifier;
+	}
 
 	p = xdr_inline_decode(xdr, sizeof(*p));
 	if (!p)
@@ -3317,8 +3327,11 @@ bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_has_addr);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
-static void rpc_show_header(void)
+static void rpc_show_header(struct rpc_clnt *clnt)
 {
+	printk(KERN_INFO "clnt[%pISpc] RPC tasks[%d]\n",
+	       (struct sockaddr *)&clnt->cl_xprt->addr,
+	       atomic_read(&clnt->cl_task_count));
 	printk(KERN_INFO "-pid- flgs status -client- --rqstp- "
 		"-timeout ---ops--\n");
 }
@@ -3350,7 +3363,7 @@ void rpc_show_tasks(struct net *net)
 		spin_lock(&clnt->cl_lock);
 		list_for_each_entry(task, &clnt->cl_tasks, tk_task) {
 			if (!header) {
-				rpc_show_header();
+				rpc_show_header(clnt);
 				header++;
 			}
 			rpc_show_task(clnt, task);

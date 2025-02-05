@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -18,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/of.h>
 
+#include "internals.h"
 #include "spi-dw.h"
 
 #ifdef CONFIG_DEBUG_FS
@@ -102,7 +104,7 @@ void dw_spi_set_cs(struct spi_device *spi, bool enable)
 	else
 		dw_writel(dws, DW_SPI_SER, 0);
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_set_cs, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_set_cs, "SPI_DW_CORE");
 
 /* Return the max entries we can fill into tx fifo */
 static inline u32 dw_spi_tx_max(struct dw_spi *dws)
@@ -206,7 +208,7 @@ int dw_spi_check_status(struct dw_spi *dws, bool raw)
 
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_check_status, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_check_status, "SPI_DW_CORE");
 
 static irqreturn_t dw_spi_transfer_handler(struct dw_spi *dws)
 {
@@ -349,7 +351,7 @@ void dw_spi_update_config(struct dw_spi *dws, struct spi_device *spi,
 		dws->cur_rx_sample_dly = chip->rx_sample_dly;
 	}
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_update_config, "SPI_DW_CORE");
 
 static void dw_spi_irq_setup(struct dw_spi *dws)
 {
@@ -421,10 +423,7 @@ static int dw_spi_transfer_one(struct spi_controller *host,
 	int ret;
 
 	dws->dma_mapped = 0;
-	dws->n_bytes =
-		roundup_pow_of_two(DIV_ROUND_UP(transfer->bits_per_word,
-						BITS_PER_BYTE));
-
+	dws->n_bytes = roundup_pow_of_two(BITS_TO_BYTES(transfer->bits_per_word));
 	dws->tx = (void *)transfer->tx_buf;
 	dws->tx_len = transfer->len / dws->n_bytes;
 	dws->rx = transfer->rx_buf;
@@ -440,8 +439,7 @@ static int dw_spi_transfer_one(struct spi_controller *host,
 	transfer->effective_speed_hz = dws->current_freq;
 
 	/* Check if current transfer is a DMA transaction */
-	if (host->can_dma && host->can_dma(host, spi, transfer))
-		dws->dma_mapped = host->cur_msg_mapped;
+	dws->dma_mapped = spi_xfer_is_dma_mapped(host, spi, transfer);
 
 	/* For poll mode just disable all interrupts */
 	dw_spi_mask_intr(dws, 0xff);
@@ -679,7 +677,7 @@ static int dw_spi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 	 * operation. Transmit-only mode is suitable for the rest of them.
 	 */
 	cfg.dfs = 8;
-	cfg.freq = clamp(mem->spi->max_speed_hz, 0U, dws->max_mem_freq);
+	cfg.freq = clamp(op->max_freq, 0U, dws->max_mem_freq);
 	if (op->data.dir == SPI_MEM_DATA_IN) {
 		cfg.tmode = DW_SPI_CTRLR0_TMOD_EPROMREAD;
 		cfg.ndf = op->data.nbytes;
@@ -837,6 +835,20 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 	}
 
 	/*
+	 * Try to detect the number of native chip-selects if the platform
+	 * driver didn't set it up. There can be up to 16 lines configured.
+	 */
+	if (!dws->num_cs) {
+		u32 ser;
+
+		dw_writel(dws, DW_SPI_SER, 0xffff);
+		ser = dw_readl(dws, DW_SPI_SER);
+		dw_writel(dws, DW_SPI_SER, 0);
+
+		dws->num_cs = hweight16(ser);
+	}
+
+	/*
 	 * Try to detect the FIFO depth if not set by interface driver,
 	 * the depth could be from 2 to 256 from HW spec
 	 */
@@ -881,6 +893,10 @@ static void dw_spi_hw_init(struct device *dev, struct dw_spi *dws)
 	if (dws->caps & DW_SPI_CAP_CS_OVERRIDE)
 		dw_writel(dws, DW_SPI_CS_OVERRIDE, 0xF);
 }
+
+static const struct spi_controller_mem_caps dw_spi_mem_caps = {
+	.per_op_freq = true,
+};
 
 int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 {
@@ -929,8 +945,10 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 		host->set_cs = dw_spi_set_cs;
 	host->transfer_one = dw_spi_transfer_one;
 	host->handle_err = dw_spi_handle_err;
-	if (dws->mem_ops.exec_op)
+	if (dws->mem_ops.exec_op) {
 		host->mem_ops = &dws->mem_ops;
+		host->mem_caps = &dw_spi_mem_caps;
+	}
 	host->max_speed_hz = dws->max_freq;
 	host->flags = SPI_CONTROLLER_GPIO_SS;
 	host->auto_runtime_pm = true;
@@ -970,7 +988,7 @@ err_free_host:
 	spi_controller_put(host);
 	return ret;
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_add_host, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_add_host, "SPI_DW_CORE");
 
 void dw_spi_remove_host(struct dw_spi *dws)
 {
@@ -985,7 +1003,7 @@ void dw_spi_remove_host(struct dw_spi *dws)
 
 	free_irq(dws->irq, dws->host);
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_remove_host, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_remove_host, "SPI_DW_CORE");
 
 int dw_spi_suspend_host(struct dw_spi *dws)
 {
@@ -998,14 +1016,14 @@ int dw_spi_suspend_host(struct dw_spi *dws)
 	dw_spi_shutdown_chip(dws);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_suspend_host, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_suspend_host, "SPI_DW_CORE");
 
 int dw_spi_resume_host(struct dw_spi *dws)
 {
 	dw_spi_hw_init(&dws->host->dev, dws);
 	return spi_controller_resume(dws->host);
 }
-EXPORT_SYMBOL_NS_GPL(dw_spi_resume_host, SPI_DW_CORE);
+EXPORT_SYMBOL_NS_GPL(dw_spi_resume_host, "SPI_DW_CORE");
 
 MODULE_AUTHOR("Feng Tang <feng.tang@intel.com>");
 MODULE_DESCRIPTION("Driver for DesignWare SPI controller core");

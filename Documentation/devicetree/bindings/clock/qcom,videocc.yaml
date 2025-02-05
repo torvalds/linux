@@ -37,18 +37,6 @@ properties:
     minItems: 1
     maxItems: 3
 
-  '#clock-cells':
-    const: 1
-
-  '#reset-cells':
-    const: 1
-
-  '#power-domain-cells':
-    const: 1
-
-  reg:
-    maxItems: 1
-
   power-domains:
     description:
       A phandle and PM domain specifier for the MMCX power domain.
@@ -61,21 +49,19 @@ properties:
 
 required:
   - compatible
-  - reg
   - clocks
   - clock-names
-  - '#clock-cells'
-  - '#reset-cells'
   - '#power-domain-cells'
 
 allOf:
+  - $ref: qcom,gcc.yaml#
+
   - if:
       properties:
         compatible:
           enum:
             - qcom,sc7180-videocc
             - qcom,sdm845-videocc
-            - qcom,sm8150-videocc
     then:
       properties:
         clocks:
@@ -105,6 +91,22 @@ allOf:
       properties:
         compatible:
           enum:
+            - qcom,sm8150-videocc
+    then:
+      properties:
+        clocks:
+          items:
+            - description: AHB
+            - description: Board XO source
+        clock-names:
+          items:
+            - const: iface
+            - const: bi_tcxo
+
+  - if:
+      properties:
+        compatible:
+          enum:
             - qcom,sm8250-videocc
     then:
       properties:
@@ -119,7 +121,7 @@ allOf:
             - const: bi_tcxo
             - const: bi_tcxo_ao
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -71,7 +71,7 @@ static void mvebu_pic_print_chip(struct irq_data *d, struct seq_file *p)
 {
 	struct mvebu_pic *pic = irq_data_get_irq_chip_data(d);
 
-	seq_printf(p, dev_name(&pic->pdev->dev));
+	seq_puts(p, dev_name(&pic->pdev->dev));
 }
 
 static const struct irq_chip mvebu_pic_chip = {
@@ -183,7 +183,7 @@ MODULE_DEVICE_TABLE(of, mvebu_pic_of_match);
 
 static struct platform_driver mvebu_pic_driver = {
 	.probe		= mvebu_pic_probe,
-	.remove_new	= mvebu_pic_remove,
+	.remove		= mvebu_pic_remove,
 	.driver = {
 		.name		= "mvebu-pic",
 		.of_match_table	= mvebu_pic_of_match,
@@ -193,6 +193,7 @@ module_platform_driver(mvebu_pic_driver);
 
 MODULE_AUTHOR("Yehuda Yitschak <yehuday@marvell.com>");
 MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
+MODULE_DESCRIPTION("Marvell Armada 7K/8K PIC driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:mvebu_pic");
 

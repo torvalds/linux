@@ -101,7 +101,6 @@ static const struct drm_driver hl_driver = {
 	.major = LINUX_VERSION_MAJOR,
 	.minor = LINUX_VERSION_PATCHLEVEL,
 	.patchlevel = LINUX_VERSION_SUBLEVEL,
-	.date = "20190505",
 
 	.fops = &hl_fops,
 	.open = hl_device_open,
@@ -143,6 +142,9 @@ static enum hl_asic_type get_asic_type(struct hl_device *hdev)
 			break;
 		case REV_ID_C:
 			asic_type = ASIC_GAUDI2C;
+			break;
+		case REV_ID_D:
+			asic_type = ASIC_GAUDI2D;
 			break;
 		default:
 			break;
@@ -260,7 +262,7 @@ int hl_device_open(struct drm_device *ddev, struct drm_file *file_priv)
 
 out_err:
 	mutex_unlock(&hdev->fpriv_list_lock);
-	hl_mem_mgr_fini(&hpriv->mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hpriv->hdev, &hpriv->ctx_mgr);
 	mutex_destroy(&hpriv->ctx_lock);
@@ -359,8 +361,7 @@ static void fixup_device_params_per_asic(struct hl_device *hdev, int timeout)
 		 * a different default timeout for Gaudi
 		 */
 		if (timeout == HL_DEFAULT_TIMEOUT_LOCKED)
-			hdev->timeout_jiffies = msecs_to_jiffies(GAUDI_DEFAULT_TIMEOUT_LOCKED *
-										MSEC_PER_SEC);
+			hdev->timeout_jiffies = secs_to_jiffies(GAUDI_DEFAULT_TIMEOUT_LOCKED);
 
 		hdev->reset_upon_device_release = 0;
 		break;

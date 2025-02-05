@@ -168,7 +168,7 @@ static int lt7182s_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lt7182s_id[] = {
-	{ "lt7182s", 0 },
+	{ "lt7182s" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lt7182s_id);
@@ -192,4 +192,4 @@ module_i2c_driver(lt7182s_driver);
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("PMBus driver for Analog Devices LT7182S");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

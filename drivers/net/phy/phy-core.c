@@ -13,7 +13,7 @@
  */
 const char *phy_speed_to_str(int speed)
 {
-	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 102,
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 103,
 		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
 		"If a speed or mode has been added please update phy_speed_to_str "
 		"and the PHY settings array.\n");
@@ -141,6 +141,7 @@ int phy_interface_num_ports(phy_interface_t interface)
 		return 1;
 	case PHY_INTERFACE_MODE_QSGMII:
 	case PHY_INTERFACE_MODE_QUSGMII:
+	case PHY_INTERFACE_MODE_10G_QXGMII:
 		return 4;
 	case PHY_INTERFACE_MODE_PSGMII:
 		return 5;
@@ -265,6 +266,7 @@ static const struct phy_setting settings[] = {
 	PHY_SETTING(     10, FULL,     10baseT1S_Full		),
 	PHY_SETTING(     10, HALF,     10baseT1S_Half		),
 	PHY_SETTING(     10, HALF,     10baseT1S_P2MP_Half	),
+	PHY_SETTING(     10, FULL,     10baseT1BRR_Full		),
 };
 #undef PHY_SETTING
 
@@ -386,7 +388,38 @@ void of_set_phy_supported(struct phy_device *phydev)
 void of_set_phy_eee_broken(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
-	u32 broken = 0;
+	unsigned long *modes = phydev->eee_broken_modes;
+
+	if (!IS_ENABLED(CONFIG_OF_MDIO) || !node)
+		return;
+
+	linkmode_zero(modes);
+
+	if (of_property_read_bool(node, "eee-broken-100tx"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, modes);
+	if (of_property_read_bool(node, "eee-broken-1000t"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, modes);
+	if (of_property_read_bool(node, "eee-broken-10gt"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, modes);
+	if (of_property_read_bool(node, "eee-broken-1000kx"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT, modes);
+	if (of_property_read_bool(node, "eee-broken-10gkx4"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT, modes);
+	if (of_property_read_bool(node, "eee-broken-10gkr"))
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT, modes);
+}
+
+/**
+ * of_set_phy_timing_role - Set the master/slave mode of the PHY
+ *
+ * @phydev: The phy_device struct
+ *
+ * Set master/slave configuration of the PHY based on the device tree.
+ */
+void of_set_phy_timing_role(struct phy_device *phydev)
+{
+	struct device_node *node = phydev->mdio.dev.of_node;
+	const char *master;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO))
 		return;
@@ -394,20 +427,19 @@ void of_set_phy_eee_broken(struct phy_device *phydev)
 	if (!node)
 		return;
 
-	if (of_property_read_bool(node, "eee-broken-100tx"))
-		broken |= MDIO_EEE_100TX;
-	if (of_property_read_bool(node, "eee-broken-1000t"))
-		broken |= MDIO_EEE_1000T;
-	if (of_property_read_bool(node, "eee-broken-10gt"))
-		broken |= MDIO_EEE_10GT;
-	if (of_property_read_bool(node, "eee-broken-1000kx"))
-		broken |= MDIO_EEE_1000KX;
-	if (of_property_read_bool(node, "eee-broken-10gkx4"))
-		broken |= MDIO_EEE_10GKX4;
-	if (of_property_read_bool(node, "eee-broken-10gkr"))
-		broken |= MDIO_EEE_10GKR;
+	if (of_property_read_string(node, "timing-role", &master))
+		return;
 
-	phydev->eee_broken_modes = broken;
+	if (strcmp(master, "forced-master") == 0)
+		phydev->master_slave_set = MASTER_SLAVE_CFG_MASTER_FORCE;
+	else if (strcmp(master, "forced-slave") == 0)
+		phydev->master_slave_set = MASTER_SLAVE_CFG_SLAVE_FORCE;
+	else if (strcmp(master, "preferred-master") == 0)
+		phydev->master_slave_set = MASTER_SLAVE_CFG_MASTER_PREFERRED;
+	else if (strcmp(master, "preferred-slave") == 0)
+		phydev->master_slave_set = MASTER_SLAVE_CFG_SLAVE_PREFERRED;
+	else
+		phydev_warn(phydev, "Unknown master-slave mode %s\n", master);
 }
 
 /**

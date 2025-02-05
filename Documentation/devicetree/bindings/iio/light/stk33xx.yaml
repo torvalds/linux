@@ -18,10 +18,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - sensortek,stk3310
-      - sensortek,stk3311
-      - sensortek,stk3335
+    oneOf:
+      - enum:
+          - sensortek,stk3310
+          - sensortek,stk3311
+          - sensortek,stk3335
+      - items:
+          - enum:
+              - sensortek,stk3013
+          - const: sensortek,stk3310
 
   reg:
     maxItems: 1

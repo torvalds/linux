@@ -296,10 +296,9 @@ static int us2e_freq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int us2e_freq_cpu_exit(struct cpufreq_policy *policy)
+static void us2e_freq_cpu_exit(struct cpufreq_policy *policy)
 {
 	us2e_freq_target(policy, 0);
-	return 0;
 }
 
 static struct cpufreq_driver cpufreq_us2e_driver = {
@@ -324,7 +323,7 @@ static int __init us2e_freq_init(void)
 	impl  = ((ver >> 32) & 0xffff);
 
 	if (manuf == 0x17 && impl == 0x13) {
-		us2e_freq_table = kzalloc(NR_CPUS * sizeof(*us2e_freq_table),
+		us2e_freq_table = kcalloc(NR_CPUS, sizeof(*us2e_freq_table),
 					  GFP_KERNEL);
 		if (!us2e_freq_table)
 			return -ENOMEM;

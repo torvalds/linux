@@ -105,7 +105,7 @@ struct nh_grp_entry_stats {
 struct nh_grp_entry {
 	struct nexthop	*nh;
 	struct nh_grp_entry_stats __percpu	*stats;
-	u8		weight;
+	u16		weight;
 
 	union {
 		struct {
@@ -192,7 +192,7 @@ struct nh_notifier_single_info {
 };
 
 struct nh_notifier_grp_entry_info {
-	u8 weight;
+	u16 weight;
 	struct nh_notifier_single_info nh;
 };
 
@@ -267,7 +267,7 @@ static inline bool nexthop_get(struct nexthop *nh)
 static inline void nexthop_put(struct nexthop *nh)
 {
 	if (refcount_dec_and_test(&nh->refcnt))
-		call_rcu(&nh->rcu, nexthop_free_rcu);
+		call_rcu_hurry(&nh->rcu, nexthop_free_rcu);
 }
 
 static inline bool nexthop_cmp(const struct nexthop *nh1,

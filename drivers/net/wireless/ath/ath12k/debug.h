@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _ATH12K_DEBUG_H_
@@ -25,12 +25,16 @@ enum ath12k_debug_mask {
 	ATH12K_DBG_PCI		= 0x00001000,
 	ATH12K_DBG_DP_TX	= 0x00002000,
 	ATH12K_DBG_DP_RX	= 0x00004000,
+	ATH12K_DBG_WOW		= 0x00008000,
 	ATH12K_DBG_ANY		= 0xffffffff,
 };
 
 __printf(2, 3) void ath12k_info(struct ath12k_base *ab, const char *fmt, ...);
 __printf(2, 3) void ath12k_err(struct ath12k_base *ab, const char *fmt, ...);
-__printf(2, 3) void ath12k_warn(struct ath12k_base *ab, const char *fmt, ...);
+__printf(2, 3) void __ath12k_warn(struct device *dev, const char *fmt, ...);
+
+#define ath12k_warn(ab, fmt, ...) __ath12k_warn((ab)->dev, fmt, ##__VA_ARGS__)
+#define ath12k_hw_warn(ah, fmt, ...) __ath12k_warn((ah)->dev, fmt, ##__VA_ARGS__)
 
 extern unsigned int ath12k_debug_mask;
 

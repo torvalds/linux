@@ -34,52 +34,6 @@ struct matrix_keymap_data {
 	unsigned int	keymap_size;
 };
 
-/**
- * struct matrix_keypad_platform_data - platform-dependent keypad data
- * @keymap_data: pointer to &matrix_keymap_data
- * @row_gpios: pointer to array of gpio numbers representing rows
- * @col_gpios: pointer to array of gpio numbers reporesenting colums
- * @num_row_gpios: actual number of row gpios used by device
- * @num_col_gpios: actual number of col gpios used by device
- * @col_scan_delay_us: delay, measured in microseconds, that is
- *	needed before we can keypad after activating column gpio
- * @debounce_ms: debounce interval in milliseconds
- * @clustered_irq: may be specified if interrupts of all row/column GPIOs
- *	are bundled to one single irq
- * @clustered_irq_flags: flags that are needed for the clustered irq
- * @active_low: gpio polarity
- * @wakeup: controls whether the device should be set up as wakeup
- *	source
- * @no_autorepeat: disable key autorepeat
- * @drive_inactive_cols: drive inactive columns during scan, rather than
- *	making them inputs.
- *
- * This structure represents platform-specific data that use used by
- * matrix_keypad driver to perform proper initialization.
- */
-struct matrix_keypad_platform_data {
-	const struct matrix_keymap_data *keymap_data;
-
-	const unsigned int *row_gpios;
-	const unsigned int *col_gpios;
-
-	unsigned int	num_row_gpios;
-	unsigned int	num_col_gpios;
-
-	unsigned int	col_scan_delay_us;
-
-	/* key debounce interval in milli-second */
-	unsigned int	debounce_ms;
-
-	unsigned int	clustered_irq;
-	unsigned int	clustered_irq_flags;
-
-	bool		active_low;
-	bool		wakeup;
-	bool		no_autorepeat;
-	bool		drive_inactive_cols;
-};
-
 int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 			       const char *keymap_name,
 			       unsigned int rows, unsigned int cols,
@@ -87,7 +41,5 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 			       struct input_dev *input_dev);
 int matrix_keypad_parse_properties(struct device *dev,
 				   unsigned int *rows, unsigned int *cols);
-
-#define matrix_keypad_parse_of_params matrix_keypad_parse_properties
 
 #endif /* _MATRIX_KEYPAD_H */

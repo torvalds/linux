@@ -151,7 +151,7 @@ static void test_gs_bitmap(struct kunit *test)
 		i++;
 	}
 
-	for (u16 iden = KVMPPC_GSID_GPR(0); iden <= KVMPPC_GSID_CTRL; iden++) {
+	for (u16 iden = KVMPPC_GSID_GPR(0); iden <= KVMPPC_GSE_DW_REGS_END; iden++) {
 		kvmppc_gsbm_set(&gsbm, iden);
 		kvmppc_gsbm_set(&gsbm1, iden);
 		KUNIT_EXPECT_TRUE(test, kvmppc_gsbm_test(&gsbm, iden));
@@ -325,4 +325,5 @@ static struct kunit_suite guest_state_buffer_test_suite = {
 
 kunit_test_suites(&guest_state_buffer_test_suite);
 
+MODULE_DESCRIPTION("KUnit tests for Guest State Buffer APIs");
 MODULE_LICENSE("GPL");

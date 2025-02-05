@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 # platform driver
-snd-soc-mt8188-afe-objs := \
+snd-soc-mt8188-afe-y := \
 	mt8188-afe-clk.o \
 	mt8188-afe-pcm.o \
 	mt8188-audsys-clk.o \

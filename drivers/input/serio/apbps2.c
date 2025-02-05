@@ -165,7 +165,7 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	/* Set reload register to core freq in kHz/10 */
 	iowrite32be(freq_hz / 10000, &priv->regs->reload);
 
-	priv->io = kzalloc(sizeof(struct serio), GFP_KERNEL);
+	priv->io = kzalloc(sizeof(*priv->io), GFP_KERNEL);
 	if (!priv->io)
 		return -ENOMEM;
 
@@ -208,7 +208,7 @@ static struct platform_driver apbps2_of_driver = {
 		.of_match_table = apbps2_of_match,
 	},
 	.probe = apbps2_of_probe,
-	.remove_new = apbps2_of_remove,
+	.remove = apbps2_of_remove,
 };
 
 module_platform_driver(apbps2_of_driver);

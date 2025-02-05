@@ -205,7 +205,7 @@ static struct platform_driver radio_si4713_pdriver = {
 		.name	= "radio-si4713",
 	},
 	.probe		= radio_si4713_pdriver_probe,
-	.remove_new     = radio_si4713_pdriver_remove,
+	.remove         = radio_si4713_pdriver_remove,
 };
 
 module_platform_driver(radio_si4713_pdriver);

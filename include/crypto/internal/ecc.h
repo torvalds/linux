@@ -27,19 +27,32 @@
 #define _CRYPTO_ECC_H
 
 #include <crypto/ecc_curve.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 /* One digit is u64 qword. */
 #define ECC_CURVE_NIST_P192_DIGITS  3
 #define ECC_CURVE_NIST_P256_DIGITS  4
 #define ECC_CURVE_NIST_P384_DIGITS  6
-#define ECC_MAX_DIGITS              (512 / 64) /* due to ecrdsa */
+#define ECC_CURVE_NIST_P521_DIGITS  9
+#define ECC_MAX_DIGITS              DIV_ROUND_UP(521, 64) /* NIST P521 */
 
 #define ECC_DIGITS_TO_BYTES_SHIFT 3
 
 #define ECC_MAX_BYTES (ECC_MAX_DIGITS << ECC_DIGITS_TO_BYTES_SHIFT)
 
 #define ECC_POINT_INIT(x, y, ndigits)	(struct ecc_point) { x, y, ndigits }
+
+/*
+ * The integers r and s making up the signature are expected to be
+ * formatted as two consecutive u64 arrays of size ECC_MAX_BYTES.
+ * The bytes within each u64 digit are in native endianness,
+ * but the order of the u64 digits themselves is little endian.
+ * This format allows direct use by internal vli_*() functions.
+ */
+struct ecdsa_raw_sig {
+	u64 r[ECC_MAX_DIGITS];
+	u64 s[ECC_MAX_DIGITS];
+};
 
 /**
  * ecc_swap_digits() - Copy ndigits from big endian array to native array
@@ -55,6 +68,19 @@ static inline void ecc_swap_digits(const void *in, u64 *out, unsigned int ndigit
 	for (i = 0; i < ndigits; i++)
 		out[i] = get_unaligned_be64(&src[ndigits - 1 - i]);
 }
+
+/**
+ * ecc_digits_from_bytes() - Create ndigits-sized digits array from byte array
+ * @in:       Input byte array
+ * @nbytes    Size of input byte array
+ * @out       Output digits array
+ * @ndigits:  Number of digits to create from byte array
+ *
+ * The first byte in the input byte array is expected to hold the most
+ * significant bits of the large integer.
+ */
+void ecc_digits_from_bytes(const u8 *in, unsigned int nbytes,
+			   u64 *out, unsigned int ndigits);
 
 /**
  * ecc_is_key_valid() - Validate a given ECDH private key
@@ -81,7 +107,8 @@ int ecc_is_key_valid(unsigned int curve_id, unsigned int ndigits,
  * Returns 0 if the private key was generated successfully, a negative value
  * if an error occurred.
  */
-int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey);
+int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits,
+		    u64 *private_key);
 
 /**
  * ecc_make_pub_key() - Compute an ECC public key
@@ -278,4 +305,6 @@ void ecc_point_mult_shamir(const struct ecc_point *result,
 			   const u64 *y, const struct ecc_point *q,
 			   const struct ecc_curve *curve);
 
+extern struct crypto_template ecdsa_x962_tmpl;
+extern struct crypto_template ecdsa_p1363_tmpl;
 #endif

@@ -125,28 +125,6 @@ enum bfa_lport_offline_reason {
 };
 
 /*
- * FCS lport info.
- */
-struct bfa_lport_info_s {
-	u8	 port_type;	/* bfa_lport_type_t : physical or
-	 * virtual */
-	u8	 port_state;	/* one of bfa_lport_state values */
-	u8	 offline_reason;	/* one of bfa_lport_offline_reason_t
-	 * values */
-	wwn_t	   port_wwn;
-	wwn_t	   node_wwn;
-
-	/*
-	 * following 4 feilds are valid for Physical Ports only
-	 */
-	u32	max_vports_supp;	/* Max supported vports */
-	u32	num_vports_inuse;	/* Num of in use vports */
-	u32	max_rports_supp;	/* Max supported rports */
-	u32	num_rports_inuse;	/* Num of doscovered rports */
-
-};
-
-/*
  * FCS port statistics
  */
 struct bfa_lport_stats_s {

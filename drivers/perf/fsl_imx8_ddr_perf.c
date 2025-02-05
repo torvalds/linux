@@ -651,6 +651,7 @@ static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
 	*pmu = (struct ddr_pmu) {
 		.pmu = (struct pmu) {
 			.module	      = THIS_MODULE,
+			.parent      = dev,
 			.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 			.task_ctx_nr = perf_invalid_context,
 			.attr_groups = attr_groups,
@@ -845,8 +846,9 @@ static struct platform_driver imx_ddr_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe          = ddr_perf_probe,
-	.remove_new     = ddr_perf_remove,
+	.remove         = ddr_perf_remove,
 };
 
 module_platform_driver(imx_ddr_pmu_driver);
+MODULE_DESCRIPTION("Freescale i.MX8 DDR Performance Monitor Driver");
 MODULE_LICENSE("GPL v2");

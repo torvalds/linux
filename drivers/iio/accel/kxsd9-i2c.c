@@ -43,8 +43,8 @@ static const struct of_device_id kxsd9_of_match[] = {
 MODULE_DEVICE_TABLE(of, kxsd9_of_match);
 
 static const struct i2c_device_id kxsd9_i2c_id[] = {
-	{"kxsd9", 0},
-	{ },
+	{ "kxsd9" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, kxsd9_i2c_id);
 
@@ -62,4 +62,4 @@ module_i2c_driver(kxsd9_i2c_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("KXSD9 accelerometer I2C interface");
-MODULE_IMPORT_NS(IIO_KXSD9);
+MODULE_IMPORT_NS("IIO_KXSD9");

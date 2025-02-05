@@ -28,6 +28,7 @@
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -220,7 +221,7 @@ err_drm_dev_exit:
 	return ret;
 }
 
-static __always_inline u64
+static __always_inline __maybe_unused u64
 pvr_fw_version_packed(u32 major, u32 minor)
 {
 	return ((u64)major << 32) | minor;
@@ -1326,6 +1327,8 @@ pvr_drm_driver_open(struct drm_device *drm_dev, struct drm_file *file)
 	 */
 	pvr_file->pvr_dev = pvr_dev;
 
+	INIT_LIST_HEAD(&pvr_file->contexts);
+
 	xa_init_flags(&pvr_file->ctx_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->free_list_handles, XA_FLAGS_ALLOC1);
 	xa_init_flags(&pvr_file->hwrt_handles, XA_FLAGS_ALLOC1);
@@ -1384,7 +1387,6 @@ static struct drm_driver pvr_drm_driver = {
 
 	.name = PVR_DRIVER_NAME,
 	.desc = PVR_DRIVER_DESC,
-	.date = PVR_DRIVER_DATE,
 	.major = PVR_DRIVER_MAJOR,
 	.minor = PVR_DRIVER_MINOR,
 	.patchlevel = PVR_DRIVER_PATCHLEVEL,
@@ -1451,8 +1453,7 @@ err_context_fini:
 	return err;
 }
 
-static int
-pvr_remove(struct platform_device *plat_dev)
+static void pvr_remove(struct platform_device *plat_dev)
 {
 	struct drm_device *drm_dev = platform_get_drvdata(plat_dev);
 	struct pvr_device *pvr_dev = to_pvr_device(drm_dev);
@@ -1469,8 +1470,6 @@ pvr_remove(struct platform_device *plat_dev)
 	pvr_watchdog_fini(pvr_dev);
 	pvr_queue_device_fini(pvr_dev);
 	pvr_context_device_fini(pvr_dev);
-
-	return 0;
 }
 
 static const struct of_device_id dt_match[] = {
@@ -1497,5 +1496,5 @@ module_platform_driver(pvr_driver);
 MODULE_AUTHOR("Imagination Technologies Ltd.");
 MODULE_DESCRIPTION(PVR_DRIVER_DESC);
 MODULE_LICENSE("Dual MIT/GPL");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_FIRMWARE("powervr/rogue_33.15.11.3_v1.fw");

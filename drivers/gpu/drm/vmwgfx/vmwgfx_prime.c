@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2013 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2013-2024 Broadcom. All Rights Reserved. The term
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -31,6 +32,7 @@
  */
 
 #include "vmwgfx_drv.h"
+#include "vmwgfx_bo.h"
 #include "ttm_object.h"
 #include <linux/dma-buf.h>
 
@@ -88,13 +90,35 @@ int vmw_prime_handle_to_fd(struct drm_device *dev,
 			   uint32_t handle, uint32_t flags,
 			   int *prime_fd)
 {
+	struct vmw_private *vmw = vmw_priv(dev);
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_bo *vbo;
 	int ret;
+	int surf_handle;
 
-	if (handle > VMWGFX_NUM_MOB)
+	if (handle > VMWGFX_NUM_MOB) {
 		ret = ttm_prime_handle_to_fd(tfile, handle, flags, prime_fd);
-	else
-		ret = drm_gem_prime_handle_to_fd(dev, file_priv, handle, flags, prime_fd);
+	} else {
+		ret = vmw_user_bo_lookup(file_priv, handle, &vbo);
+		if (ret)
+			return ret;
+		if (vbo && vbo->is_dumb) {
+			ret = drm_gem_prime_handle_to_fd(dev, file_priv, handle,
+							 flags, prime_fd);
+		} else {
+			surf_handle = vmw_lookup_surface_handle_for_buffer(vmw,
+									   vbo,
+									   handle);
+			if (surf_handle > 0)
+				ret = ttm_prime_handle_to_fd(tfile, surf_handle,
+							     flags, prime_fd);
+			else
+				ret = drm_gem_prime_handle_to_fd(dev, file_priv,
+								 handle, flags,
+								 prime_fd);
+		}
+		vmw_user_bo_unref(&vbo);
+	}
 
 	return ret;
 }

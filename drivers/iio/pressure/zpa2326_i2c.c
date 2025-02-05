@@ -59,8 +59,8 @@ static void zpa2326_remove_i2c(struct i2c_client *client)
 }
 
 static const struct i2c_device_id zpa2326_i2c_ids[] = {
-	{ "zpa2326", 0 },
-	{ },
+	{ "zpa2326" },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, zpa2326_i2c_ids);
 
@@ -85,4 +85,4 @@ module_i2c_driver(zpa2326_i2c_driver);
 MODULE_AUTHOR("Gregor Boirie <gregor.boirie@parrot.com>");
 MODULE_DESCRIPTION("I2C driver for Murata ZPA2326 pressure sensor");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_ZPA2326);
+MODULE_IMPORT_NS("IIO_ZPA2326");

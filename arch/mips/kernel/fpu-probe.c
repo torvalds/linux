@@ -144,7 +144,7 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
  * IEEE 754 conformance mode to use.  Affects the NaN encoding and the
  * ABS.fmt/NEG.fmt execution mode.
  */
-static enum { STRICT, LEGACY, STD2008, RELAXED } ieee754 = STRICT;
+static enum { STRICT, EMULATED, LEGACY, STD2008, RELAXED } ieee754 = STRICT;
 
 /*
  * Set the IEEE 754 NaN encodings and the ABS.fmt/NEG.fmt execution modes
@@ -160,6 +160,7 @@ static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 
 	switch (ieee754) {
 	case STRICT:
+	case EMULATED:
 		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 				    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
 				    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
@@ -204,6 +205,10 @@ static void cpu_set_nan_2008(struct cpuinfo_mips *c)
 		mips_use_nan_legacy = !cpu_has_nan_2008;
 		mips_use_nan_2008 = !!cpu_has_nan_2008;
 		break;
+	case EMULATED:
+		/* Pretend ABS2008/NAN2008 options are dynamic */
+		c->fpu_msk31 &= ~(FPU_CSR_NAN2008 | FPU_CSR_ABS2008);
+		fallthrough;
 	case RELAXED:
 		mips_use_nan_legacy = true;
 		mips_use_nan_2008 = true;
@@ -226,6 +231,8 @@ static int __init ieee754_setup(char *s)
 		return -1;
 	else if (!strcmp(s, "strict"))
 		ieee754 = STRICT;
+	else if (!strcmp(s, "emulated"))
+		ieee754 = EMULATED;
 	else if (!strcmp(s, "legacy"))
 		ieee754 = LEGACY;
 	else if (!strcmp(s, "2008"))

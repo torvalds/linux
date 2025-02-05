@@ -17,7 +17,7 @@ config QUICC_ENGINE
 
 config UCC_SLOW
 	bool
-	default y if SERIAL_QE
+	default y if SERIAL_QE || (CPM_QMC && QUICC_ENGINE)
 	help
 	  This option provides qe_lib support to UCC slow
 	  protocols: UART, BISYNC, QMC
@@ -31,26 +31,27 @@ config UCC_FAST
 
 config UCC
 	bool
-	default y if UCC_FAST || UCC_SLOW
+	default y if UCC_FAST || UCC_SLOW || (CPM_TSA && QUICC_ENGINE)
 
 config CPM_TSA
-	tristate "CPM TSA support"
+	tristate "CPM/QE TSA support"
 	depends on OF && HAS_IOMEM
-	depends on CPM1 || (CPM && COMPILE_TEST)
+	depends on CPM1 || QUICC_ENGINE || \
+		   ((CPM || QUICC_ENGINE) && COMPILE_TEST)
 	help
-	  Freescale CPM Time Slot Assigner (TSA)
+	  Freescale CPM/QE Time Slot Assigner (TSA)
 	  controller.
 
 	  This option enables support for this
 	  controller
 
 config CPM_QMC
-	tristate "CPM QMC support"
+	tristate "CPM/QE QMC support"
 	depends on OF && HAS_IOMEM
-	depends on CPM1 || (FSL_SOC && CPM && COMPILE_TEST)
+	depends on FSL_SOC
 	depends on CPM_TSA
 	help
-	  Freescale CPM QUICC Multichannel Controller
+	  Freescale CPM/QE QUICC Multichannel Controller
 	  (QMC)
 
 	  This option enables support for this

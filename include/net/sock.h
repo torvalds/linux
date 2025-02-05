@@ -337,6 +337,7 @@ struct sk_filter;
   *	@sk_txtime_report_errors: set report errors mode for SO_TXTIME
   *	@sk_txtime_unused: unused txtime flags
   *	@ns_tracker: tracker for netns reference
+  *	@sk_user_frags: xarray of pages the user is holding a reference on.
   */
 struct sock {
 	/*
@@ -542,6 +543,12 @@ struct sock {
 #endif
 	struct rcu_head		sk_rcu;
 	netns_tracker		ns_tracker;
+	struct xarray		sk_user_frags;
+};
+
+struct sock_bh_locked {
+	struct sock *sock;
+	local_lock_t bh_lock;
 };
 
 enum sk_pacing {
@@ -887,6 +894,8 @@ static inline void sk_add_bind_node(struct sock *sk,
 	hlist_for_each_entry_safe(__sk, tmp, list, sk_node)
 #define sk_for_each_bound(__sk, list) \
 	hlist_for_each_entry(__sk, list, sk_bind_node)
+#define sk_for_each_bound_safe(__sk, tmp, list) \
+	hlist_for_each_entry_safe(__sk, tmp, list, sk_bind_node)
 
 /**
  * sk_for_each_entry_offset_rcu - iterate over a list at a given struct offset
@@ -944,9 +953,16 @@ enum sock_flags {
 	SOCK_XDP, /* XDP is attached */
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
 	SOCK_RCVMARK, /* Receive SO_MARK  ancillary data with packet */
+	SOCK_RCVPRIORITY, /* Receive SO_PRIORITY ancillary data with packet */
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
+/*
+ * The highest bit of sk_tsflags is reserved for kernel-internal
+ * SOCKCM_FLAG_TS_OPT_ID. There is a check in core/sock.c to control that
+ * SOF_TIMESTAMPING* values do not reach this reserved area
+ */
+#define SOCKCM_FLAG_TS_OPT_ID	BIT(31)
 
 static inline void sock_copy_flags(struct sock *nsk, const struct sock *osk)
 {
@@ -1194,6 +1210,13 @@ static inline void sk_prot_clear_nulls(struct sock *sk, int size)
 	       size - offsetof(struct sock, sk_node.pprev));
 }
 
+struct proto_accept_arg {
+	int flags;
+	int err;
+	int is_empty;
+	bool kern;
+};
+
 /* Networking protocol blocks we attach to sockets.
  * socket layer -> transport layer interface
  */
@@ -1208,8 +1231,8 @@ struct proto {
 					int addr_len);
 	int			(*disconnect)(struct sock *sk, int flags);
 
-	struct sock *		(*accept)(struct sock *sk, int flags, int *err,
-					  bool kern);
+	struct sock *		(*accept)(struct sock *sk,
+					  struct proto_accept_arg *arg);
 
 	int			(*ioctl)(struct sock *sk, int cmd,
 					 int *karg);
@@ -1371,75 +1394,6 @@ static inline int sk_under_cgroup_hierarchy(struct sock *sk,
 #endif
 }
 
-static inline bool sk_has_memory_pressure(const struct sock *sk)
-{
-	return sk->sk_prot->memory_pressure != NULL;
-}
-
-static inline bool sk_under_global_memory_pressure(const struct sock *sk)
-{
-	return sk->sk_prot->memory_pressure &&
-		!!READ_ONCE(*sk->sk_prot->memory_pressure);
-}
-
-static inline bool sk_under_memory_pressure(const struct sock *sk)
-{
-	if (!sk->sk_prot->memory_pressure)
-		return false;
-
-	if (mem_cgroup_sockets_enabled && sk->sk_memcg &&
-	    mem_cgroup_under_socket_pressure(sk->sk_memcg))
-		return true;
-
-	return !!READ_ONCE(*sk->sk_prot->memory_pressure);
-}
-
-static inline long
-proto_memory_allocated(const struct proto *prot)
-{
-	return max(0L, atomic_long_read(prot->memory_allocated));
-}
-
-static inline long
-sk_memory_allocated(const struct sock *sk)
-{
-	return proto_memory_allocated(sk->sk_prot);
-}
-
-/* 1 MB per cpu, in page units */
-#define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
-extern int sysctl_mem_pcpu_rsv;
-
-static inline void proto_memory_pcpu_drain(struct proto *proto)
-{
-	int val = this_cpu_xchg(*proto->per_cpu_fw_alloc, 0);
-
-	if (val)
-		atomic_long_add(val, proto->memory_allocated);
-}
-
-static inline void
-sk_memory_allocated_add(const struct sock *sk, int val)
-{
-	struct proto *proto = sk->sk_prot;
-
-	val = this_cpu_add_return(*proto->per_cpu_fw_alloc, val);
-
-	if (unlikely(val >= READ_ONCE(sysctl_mem_pcpu_rsv)))
-		proto_memory_pcpu_drain(proto);
-}
-
-static inline void
-sk_memory_allocated_sub(const struct sock *sk, int val)
-{
-	struct proto *proto = sk->sk_prot;
-
-	val = this_cpu_sub_return(*proto->per_cpu_fw_alloc, val);
-
-	if (unlikely(val <= -READ_ONCE(sysctl_mem_pcpu_rsv)))
-		proto_memory_pcpu_drain(proto);
-}
-
 #define SK_ALLOC_PERCPU_COUNTER_BATCH 16
 
 static inline void sk_sockets_allocated_dec(struct sock *sk)
@@ -1465,15 +1419,6 @@ proto_sockets_allocated_sum_positive(struct proto *prot)
 {
 	return percpu_counter_sum_positive(prot->sockets_allocated);
 }
-
-static inline bool
-proto_memory_pressure(struct proto *prot)
-{
-	if (!prot->memory_pressure)
-		return false;
-	return !!READ_ONCE(*prot->memory_pressure);
-}
-
 
 #ifdef CONFIG_PROC_FS
 #define PROTO_INUSE_NR	64	/* should be enough for the first time */
@@ -1583,7 +1528,7 @@ static inline bool sk_wmem_schedule(struct sock *sk, int size)
 }
 
 static inline bool
-sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
+__sk_rmem_schedule(struct sock *sk, int size, bool pfmemalloc)
 {
 	int delta;
 
@@ -1591,7 +1536,13 @@ sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
 		return true;
 	delta = size - sk->sk_forward_alloc;
 	return delta <= 0 || __sk_mem_schedule(sk, delta, SK_MEM_RECV) ||
-		skb_pfmemalloc(skb);
+	       pfmemalloc;
+}
+
+static inline bool
+sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
+{
+	return __sk_rmem_schedule(sk, size, skb_pfmemalloc(skb));
 }
 
 static inline int sk_unused_reserved_mem(const struct sock *sk)
@@ -1690,7 +1641,7 @@ bool __lock_sock_fast(struct sock *sk) __acquires(&sk->sk_lock.slock);
  * lock_sock_fast - fast version of lock_sock
  * @sk: socket
  *
- * This version should be used for very small section, where process wont block
+ * This version should be used for very small section, where process won't block
  * return false if fast path is taken:
  *
  *   sk_lock.slock locked, owned = 0, BH disabled
@@ -1816,6 +1767,15 @@ void sock_efree(struct sk_buff *skb);
 #ifdef CONFIG_INET
 void sock_edemux(struct sk_buff *skb);
 void sock_pfree(struct sk_buff *skb);
+
+static inline void skb_set_owner_edemux(struct sk_buff *skb, struct sock *sk)
+{
+	skb_orphan(skb);
+	if (refcount_inc_not_zero(&sk->sk_refcnt)) {
+		skb->sk = sk;
+		skb->destructor = sock_edemux;
+	}
+}
 #else
 #define sock_edemux sock_efree
 #endif
@@ -1860,13 +1820,16 @@ struct sockcm_cookie {
 	u64 transmit_time;
 	u32 mark;
 	u32 tsflags;
+	u32 ts_opt_id;
+	u32 priority;
 };
 
 static inline void sockcm_init(struct sockcm_cookie *sockc,
 			       const struct sock *sk)
 {
 	*sockc = (struct sockcm_cookie) {
-		.tsflags = READ_ONCE(sk->sk_tsflags)
+		.tsflags = READ_ONCE(sk->sk_tsflags),
+		.priority = READ_ONCE(sk->sk_priority),
 	};
 }
 
@@ -1882,7 +1845,7 @@ int sock_cmsg_send(struct sock *sk, struct msghdr *msg,
 int sock_no_bind(struct socket *, struct sockaddr *, int);
 int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
-int sock_no_accept(struct socket *, struct socket *, int, bool);
+int sock_no_accept(struct socket *, struct socket *, struct proto_accept_arg *);
 int sock_no_getname(struct socket *, struct sockaddr *, int);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
 int sock_no_listen(struct socket *, int);
@@ -2134,17 +2097,10 @@ sk_dst_get(const struct sock *sk)
 
 static inline void __dst_negative_advice(struct sock *sk)
 {
-	struct dst_entry *ndst, *dst = __sk_dst_get(sk);
+	struct dst_entry *dst = __sk_dst_get(sk);
 
-	if (dst && dst->ops->negative_advice) {
-		ndst = dst->ops->negative_advice(dst);
-
-		if (ndst != dst) {
-			rcu_assign_pointer(sk->sk_dst_cache, ndst);
-			sk_tx_queue_clear(sk);
-			WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
-		}
-	}
+	if (dst && dst->ops->negative_advice)
+		dst->ops->negative_advice(sk, dst);
 }
 
 static inline void dst_negative_advice(struct sock *sk)
@@ -2173,7 +2129,7 @@ sk_dst_set(struct sock *sk, struct dst_entry *dst)
 
 	sk_tx_queue_clear(sk);
 	WRITE_ONCE(sk->sk_dst_pending_confirm, 0);
-	old_dst = xchg((__force struct dst_entry **)&sk->sk_dst_cache, dst);
+	old_dst = unrcu_pointer(xchg(&sk->sk_dst_cache, RCU_INITIALIZER(dst)));
 	dst_release(old_dst);
 }
 
@@ -2344,7 +2300,7 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 }
 
 /**
- * sock_poll_wait - place memory barrier behind the poll_wait call.
+ * sock_poll_wait - wrapper for the poll_wait call.
  * @filp:           file
  * @sock:           socket to wait on
  * @p:              poll_table
@@ -2354,15 +2310,12 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 static inline void sock_poll_wait(struct file *filp, struct socket *sock,
 				  poll_table *p)
 {
-	if (!poll_does_not_wait(p)) {
-		poll_wait(filp, &sock->wq.wait, p);
-		/* We need to be sure we are in sync with the
-		 * socket flags modification.
-		 *
-		 * This memory barrier is paired in the wq_has_sleeper.
-		 */
-		smp_mb();
-	}
+	/* Provides a barrier we need to be sure we are in sync
+	 * with the socket flags modification.
+	 *
+	 * This memory barrier is paired in the wq_has_sleeper.
+	 */
+	poll_wait(filp, &sock->wq.wait, p);
 }
 
 static inline void skb_set_hash_from_sk(struct sk_buff *skb, struct sock *sk)
@@ -2515,6 +2468,12 @@ static inline void sk_wake_async(const struct sock *sk, int how, int band)
 	}
 }
 
+static inline void sk_wake_async_rcu(const struct sock *sk, int how, int band)
+{
+	if (unlikely(sock_flag(sk, SOCK_FASYNC)))
+		sock_wake_async(rcu_dereference(sk->sk_wq), how, band);
+}
+
 /* Since sk_{r,w}mem_alloc sums skb->truesize, even a small frame might
  * need sizeof(sk_buff) + MTU + padding, unless net driver perform copybreak.
  * Note: for send buffers, TCP works better if we can build two skbs at
@@ -2613,7 +2572,7 @@ struct sock_skb_cb {
 
 /* Store sock_skb_cb at the end of skb->cb[] so protocol families
  * using skb->cb[] would keep using it directly and utilize its
- * alignement guarantee.
+ * alignment guarantee.
  */
 #define SOCK_SKB_CB_OFFSET ((sizeof_field(struct sk_buff, cb) - \
 			    sizeof(struct sock_skb_cb)))
@@ -2705,7 +2664,8 @@ static inline void sock_recv_cmsgs(struct msghdr *msg, struct sock *sk,
 {
 #define FLAGS_RECV_CMSGS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
-			   (1UL << SOCK_RCVMARK))
+			   (1UL << SOCK_RCVMARK)			|\
+			   (1UL << SOCK_RCVPRIORITY))
 #define TSFLAGS_ANY	  (SOF_TIMESTAMPING_SOFTWARE			| \
 			   SOF_TIMESTAMPING_RAW_HARDWARE)
 
@@ -2718,39 +2678,48 @@ static inline void sock_recv_cmsgs(struct msghdr *msg, struct sock *sk,
 		sock_write_timestamp(sk, 0);
 }
 
-void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags);
+void __sock_tx_timestamp(__u32 tsflags, __u8 *tx_flags);
 
 /**
  * _sock_tx_timestamp - checks whether the outgoing packet is to be time stamped
  * @sk:		socket sending this packet
- * @tsflags:	timestamping flags to use
+ * @sockc:	pointer to socket cmsg cookie to get timestamping info
  * @tx_flags:	completed with instructions for time stamping
  * @tskey:      filled in with next sk_tskey (not for TCP, which uses seqno)
  *
  * Note: callers should take care of initial ``*tx_flags`` value (usually 0)
  */
-static inline void _sock_tx_timestamp(struct sock *sk, __u16 tsflags,
+static inline void _sock_tx_timestamp(struct sock *sk,
+				      const struct sockcm_cookie *sockc,
 				      __u8 *tx_flags, __u32 *tskey)
 {
+	__u32 tsflags = sockc->tsflags;
+
 	if (unlikely(tsflags)) {
 		__sock_tx_timestamp(tsflags, tx_flags);
 		if (tsflags & SOF_TIMESTAMPING_OPT_ID && tskey &&
-		    tsflags & SOF_TIMESTAMPING_TX_RECORD_MASK)
-			*tskey = atomic_inc_return(&sk->sk_tskey) - 1;
+		    tsflags & SOF_TIMESTAMPING_TX_RECORD_MASK) {
+			if (tsflags & SOCKCM_FLAG_TS_OPT_ID)
+				*tskey = sockc->ts_opt_id;
+			else
+				*tskey = atomic_inc_return(&sk->sk_tskey) - 1;
+		}
 	}
 	if (unlikely(sock_flag(sk, SOCK_WIFI_STATUS)))
 		*tx_flags |= SKBTX_WIFI_STATUS;
 }
 
-static inline void sock_tx_timestamp(struct sock *sk, __u16 tsflags,
+static inline void sock_tx_timestamp(struct sock *sk,
+				     const struct sockcm_cookie *sockc,
 				     __u8 *tx_flags)
 {
-	_sock_tx_timestamp(sk, tsflags, tx_flags, NULL);
+	_sock_tx_timestamp(sk, sockc, tx_flags, NULL);
 }
 
-static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
+static inline void skb_setup_tx_timestamp(struct sk_buff *skb,
+					  const struct sockcm_cookie *sockc)
 {
-	_sock_tx_timestamp(skb->sk, tsflags, &skb_shinfo(skb)->tx_flags,
+	_sock_tx_timestamp(skb->sk, sockc, &skb_shinfo(skb)->tx_flags,
 			   &skb_shinfo(skb)->tskey);
 }
 
@@ -2778,6 +2747,11 @@ static inline bool sk_is_udp(const struct sock *sk)
 static inline bool sk_is_stream_unix(const struct sock *sk)
 {
 	return sk->sk_family == AF_UNIX && sk->sk_type == SOCK_STREAM;
+}
+
+static inline bool sk_is_vsock(const struct sock *sk)
+{
+	return sk->sk_family == AF_VSOCK;
 }
 
 /**
@@ -2831,12 +2805,10 @@ static inline struct sk_buff *sk_validate_xmit_skb(struct sk_buff *skb,
 
 	if (sk && sk_fullsock(sk) && sk->sk_validate_xmit_skb) {
 		skb = sk->sk_validate_xmit_skb(sk, dev, skb);
-#ifdef CONFIG_TLS_DEVICE
-	} else if (unlikely(skb->decrypted)) {
+	} else if (unlikely(skb_is_decrypted(skb))) {
 		pr_warn_ratelimited("unencrypted skb with no associated socket - dropping\n");
 		kfree_skb(skb);
 		skb = NULL;
-#endif
 	}
 #endif
 
@@ -2849,6 +2821,16 @@ static inline struct sk_buff *sk_validate_xmit_skb(struct sk_buff *skb,
 static inline bool sk_listener(const struct sock *sk)
 {
 	return (1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV);
+}
+
+/* This helper checks if a socket is a LISTEN or NEW_SYN_RECV or TIME_WAIT
+ * TCP SYNACK messages can be attached to LISTEN or NEW_SYN_RECV (depending on SYNCOOKIE)
+ * TCP RST and ACK can be attached to TIME_WAIT.
+ */
+static inline bool sk_listener_or_tw(const struct sock *sk)
+{
+	return (1 << READ_ONCE(sk->sk_state)) &
+	       (TCPF_LISTEN | TCPF_NEW_SYN_RECV | TCPF_TIME_WAIT);
 }
 
 void sock_enable_timestamp(struct sock *sk, enum sock_flags flag);
@@ -2874,8 +2856,6 @@ void sk_get_meminfo(const struct sock *sk, u32 *meminfo);
 
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;
-
-extern int sysctl_tstamp_allow_data;
 
 extern __u32 sysctl_wmem_default;
 extern __u32 sysctl_rmem_default;

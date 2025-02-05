@@ -10,7 +10,6 @@
 
 #include <linux/poll.h>
 #include <linux/fs.h>
-#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/kthread.h>
@@ -66,6 +65,8 @@ struct cec_data {
 	struct list_head xfer_list;
 	struct cec_adapter *adap;
 	struct cec_msg msg;
+	u8 match_len;
+	u8 match_reply[5];
 	struct cec_fh *fh;
 	struct delayed_work work;
 	struct completion c;
@@ -173,7 +174,7 @@ struct cec_adap_ops {
  *			case the transmit will finish, but will not retransmit
  *			and be marked as ABORTED.
  * @xfer_timeout_ms:	the transfer timeout in ms.
- *			If 0, then timeout after 2.1 ms.
+ *			If 0, then timeout after 2100 ms.
  * @kthread_config:	kthread used to configure a CEC adapter
  * @config_completion:	used to signal completion of the config kthread
  * @kthread:		main CEC processing thread
@@ -187,6 +188,7 @@ struct cec_adap_ops {
  *	in order to transmit or receive CEC messages. This is usually a HW
  *	limitation.
  * @is_enabled:		the CEC adapter is enabled
+ * @is_claiming_log_addrs:  true if cec_claim_log_addrs() is running
  * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
  * @must_reconfigure:	while configuring, the PA changed, so reclaim LAs
  * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
@@ -258,6 +260,7 @@ struct cec_adapter {
 	u16 phys_addr;
 	bool needs_hpd;
 	bool is_enabled;
+	bool is_claiming_log_addrs;
 	bool is_configuring;
 	bool must_reconfigure;
 	bool is_configured;
@@ -293,6 +296,37 @@ struct cec_adapter {
 
 	char input_phys[40];
 };
+
+static inline int cec_get_device(struct cec_adapter *adap)
+{
+	struct cec_devnode *devnode = &adap->devnode;
+
+	/*
+	 * Check if the cec device is available. This needs to be done with
+	 * the devnode->lock held to prevent an open/unregister race:
+	 * without the lock, the device could be unregistered and freed between
+	 * the devnode->registered check and get_device() calls, leading to
+	 * a crash.
+	 */
+	mutex_lock(&devnode->lock);
+	/*
+	 * return ENODEV if the cec device has been removed
+	 * already or if it is not registered anymore.
+	 */
+	if (!devnode->registered) {
+		mutex_unlock(&devnode->lock);
+		return -ENODEV;
+	}
+	/* and increase the device refcount */
+	get_device(&devnode->dev);
+	mutex_unlock(&devnode->lock);
+	return 0;
+}
+
+static inline void cec_put_device(struct cec_adapter *adap)
+{
+	put_device(&adap->devnode.dev);
+}
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)
 {

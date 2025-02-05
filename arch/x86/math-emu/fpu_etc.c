@@ -120,9 +120,14 @@ static void fxam(FPU_REG *st0_ptr, u_char st0tag)
 	setcc(c);
 }
 
+static void FPU_ST0_illegal(FPU_REG *st0_ptr, u_char st0_tag)
+{
+	FPU_illegal();
+}
+
 static FUNC_ST0 const fp_etc_table[] = {
-	fchs, fabs, (FUNC_ST0) FPU_illegal, (FUNC_ST0) FPU_illegal,
-	ftst_, fxam, (FUNC_ST0) FPU_illegal, (FUNC_ST0) FPU_illegal
+	fchs, fabs, FPU_ST0_illegal, FPU_ST0_illegal,
+	ftst_, fxam, FPU_ST0_illegal, FPU_ST0_illegal,
 };
 
 void FPU_etc(void)

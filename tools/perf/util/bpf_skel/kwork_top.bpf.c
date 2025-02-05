@@ -18,7 +18,9 @@ enum kwork_class_type {
 };
 
 #define MAX_ENTRIES     102400
-#define MAX_NR_CPUS     2048
+#ifndef MAX_NR_CPUS
+#define MAX_NR_CPUS     4096
+#endif
 #define PF_KTHREAD      0x00200000
 #define MAX_COMMAND_LEN 16
 
@@ -84,7 +86,7 @@ struct {
 
 int enabled = 0;
 
-int has_cpu_filter = 0;
+const volatile int has_cpu_filter = 0;
 
 __u64 from_timestamp = 0;
 __u64 to_timestamp = 0;

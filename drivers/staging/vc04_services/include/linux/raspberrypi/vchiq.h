@@ -48,6 +48,7 @@ struct vchiq_element {
 };
 
 struct vchiq_instance;
+struct vchiq_state;
 
 struct vchiq_service_base {
 	int fourcc;
@@ -55,7 +56,7 @@ struct vchiq_service_base {
 			enum vchiq_reason reason,
 			struct vchiq_header *header,
 			unsigned int handle,
-			void *bulk_userdata);
+			void *cb_data, void __user *cb_userdata);
 	void *userdata;
 };
 
@@ -63,7 +64,8 @@ struct vchiq_completion_data_kernel {
 	enum vchiq_reason reason;
 	struct vchiq_header *header;
 	void *service_userdata;
-	void *bulk_userdata;
+	void *cb_data;
+	void  __user *cb_userdata;
 };
 
 struct vchiq_service_params_kernel {
@@ -72,13 +74,14 @@ struct vchiq_service_params_kernel {
 			enum vchiq_reason reason,
 			struct vchiq_header *header,
 			unsigned int handle,
-			void *bulk_userdata);
+			void *cb_data, void __user *cb_userdata);
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
 };
 
-extern int vchiq_initialise(struct vchiq_instance **pinstance);
+extern int vchiq_initialise(struct vchiq_state *state,
+			    struct vchiq_instance **pinstance);
 extern int vchiq_shutdown(struct vchiq_instance *instance);
 extern int vchiq_connect(struct vchiq_instance *instance);
 extern int vchiq_open_service(struct vchiq_instance *instance,

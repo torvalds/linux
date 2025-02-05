@@ -7,11 +7,13 @@
 
 #include <linux/ktime.h>
 #include <linux/math64.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
+#include <linux/string_choices.h>
 
 #define DRV_NAME "cros-usbpd-logger"
 
@@ -134,8 +136,8 @@ static void cros_usbpd_print_log_entry(struct ec_response_pd_log *r,
 		len += append_str(buf, len, "Power supply fault: %s", fault);
 		break;
 	case PD_EVENT_VIDEO_DP_MODE:
-		len += append_str(buf, len, "DP mode %sabled", r->data == 1 ?
-				  "en" : "dis");
+		len += append_str(buf, len, "DP mode %s",
+				  str_enabled_disabled(r->data == 1));
 		break;
 	case PD_EVENT_VIDEO_CODEC:
 		minfo = (struct mcdp_info *)r->payload;
@@ -249,17 +251,23 @@ static int __maybe_unused cros_usbpd_logger_suspend(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cros_usbpd_logger_pm_ops, cros_usbpd_logger_suspend,
 			 cros_usbpd_logger_resume);
 
+static const struct platform_device_id cros_usbpd_logger_id[] = {
+	{ DRV_NAME, 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(platform, cros_usbpd_logger_id);
+
 static struct platform_driver cros_usbpd_logger_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.pm = &cros_usbpd_logger_pm_ops,
 	},
 	.probe = cros_usbpd_logger_probe,
-	.remove_new = cros_usbpd_logger_remove,
+	.remove = cros_usbpd_logger_remove,
+	.id_table = cros_usbpd_logger_id,
 };
 
 module_platform_driver(cros_usbpd_logger_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Logging driver for ChromeOS EC USBPD Charger.");
-MODULE_ALIAS("platform:" DRV_NAME);

@@ -86,6 +86,22 @@ static const struct rvin_video_format rvin_formats[] = {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.bpp			= 1,
 	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SBGGR10,
+		.bpp			= 4,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SGBRG10,
+		.bpp			= 4,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SGRBG10,
+		.bpp			= 4,
+	},
+	{
+		.fourcc			= V4L2_PIX_FMT_SRGGB10,
+		.bpp			= 4,
+	},
 };
 
 const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
@@ -104,6 +120,13 @@ const struct rvin_video_format *rvin_format_from_pixel(struct rvin_dev *vin,
 		 * 5, 8, 9, 12 and 13.
 		 */
 		if (!vin->info->nv12 || !(BIT(vin->id) & 0x3333))
+			return NULL;
+		break;
+	case V4L2_PIX_FMT_SBGGR10:
+	case V4L2_PIX_FMT_SGBRG10:
+	case V4L2_PIX_FMT_SGRBG10:
+	case V4L2_PIX_FMT_SRGGB10:
+		if (!vin->info->raw10)
 			return NULL;
 		break;
 	default:
@@ -406,6 +429,26 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 		if (f->index)
 			return -EINVAL;
 		f->pixelformat = V4L2_PIX_FMT_SRGGB8;
+		return 0;
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SBGGR10;
+		return 0;
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SGBRG10;
+		return 0;
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SGRBG10;
+		return 0;
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SRGGB10;
 		return 0;
 	default:
 		return -EINVAL;
@@ -730,7 +773,8 @@ static int rvin_s_dv_timings(struct file *file, void *priv_fh,
 	struct v4l2_subdev *sd = vin_to_source(vin);
 	int ret;
 
-	ret = v4l2_subdev_call(sd, video, s_dv_timings, timings);
+	ret = v4l2_subdev_call(sd, pad, s_dv_timings,
+			       vin->parallel.sink_pad, timings);
 	if (ret)
 		return ret;
 
@@ -744,7 +788,8 @@ static int rvin_g_dv_timings(struct file *file, void *priv_fh,
 	struct rvin_dev *vin = video_drvdata(file);
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	return v4l2_subdev_call(sd, video, g_dv_timings, timings);
+	return v4l2_subdev_call(sd, pad, g_dv_timings,
+				vin->parallel.sink_pad, timings);
 }
 
 static int rvin_query_dv_timings(struct file *file, void *priv_fh,
@@ -753,7 +798,8 @@ static int rvin_query_dv_timings(struct file *file, void *priv_fh,
 	struct rvin_dev *vin = video_drvdata(file);
 	struct v4l2_subdev *sd = vin_to_source(vin);
 
-	return v4l2_subdev_call(sd, video, query_dv_timings, timings);
+	return v4l2_subdev_call(sd, pad, query_dv_timings,
+				vin->parallel.sink_pad, timings);
 }
 
 static int rvin_dv_timings_cap(struct file *file, void *priv_fh,

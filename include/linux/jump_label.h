@@ -75,6 +75,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <linux/cleanup.h>
 
 extern bool static_key_initialized;
 
@@ -216,6 +217,7 @@ extern struct jump_entry __start___jump_table[];
 extern struct jump_entry __stop___jump_table[];
 
 extern void jump_label_init(void);
+extern void jump_label_init_ro(void);
 extern void jump_label_lock(void);
 extern void jump_label_unlock(void);
 extern void arch_jump_label_transform(struct jump_entry *entry,
@@ -264,6 +266,8 @@ static __always_inline void jump_label_init(void)
 {
 	static_key_initialized = true;
 }
+
+static __always_inline void jump_label_init_ro(void) { }
 
 static __always_inline bool static_key_false(struct static_key *key)
 {
@@ -343,6 +347,8 @@ static inline void static_key_disable(struct static_key *key)
 #define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
 
 #endif	/* CONFIG_JUMP_LABEL */
+
+DEFINE_LOCK_GUARD_0(jump_label_lock, jump_label_lock(), jump_label_unlock())
 
 #define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
 #define jump_label_enabled static_key_enabled

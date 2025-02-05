@@ -13,7 +13,7 @@
 	/* Power tree */
 
 	/* ppvar_sys children, sorted by name */
-	pp1250_s3: pp1250-s3 {
+	pp1250_s3: regulator-pp1250-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1250_s3";
 
@@ -26,7 +26,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	pp1250_cam: pp1250-dvdd {
+	pp1250_cam: regulator-pp1250-dvdd {
 		compatible = "regulator-fixed";
 		regulator-name = "pp1250_dvdd";
 		pinctrl-names = "default";
@@ -42,7 +42,7 @@
 		vin-supply = <&pp1250_s3>;
 	};
 
-	pp900_s0: pp900-s0 {
+	pp900_s0: regulator-pp900-s0 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp900_s0";
 
@@ -55,7 +55,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	ppvarn_lcd: ppvarn-lcd {
+	ppvarn_lcd: regulator-ppvarn-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "ppvarn_lcd";
 		pinctrl-names = "default";
@@ -66,7 +66,7 @@
 		vin-supply = <&ppvar_sys>;
 	};
 
-	ppvarp_lcd: ppvarp-lcd {
+	ppvarp_lcd: regulator-ppvarp-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "ppvarp_lcd";
 		pinctrl-names = "default";
@@ -78,7 +78,7 @@
 	};
 
 	/* pp1800 children, sorted by name */
-	pp900_s3: pp900-s3 {
+	pp900_s3: regulator-pp900-s3 {
 		compatible = "regulator-fixed";
 		regulator-name = "pp900_s3";
 
@@ -96,7 +96,7 @@
 	};
 
 	/* pp3300 children, sorted by name */
-	pp2800_cam: pp2800-avdd {
+	pp2800_cam: regulator-pp2800-avdd {
 		compatible = "regulator-fixed";
 		regulator-name = "pp2800_avdd";
 		pinctrl-names = "default";
@@ -127,7 +127,7 @@
 	 * the boot process it also enables its supply regulator bt_3v3,
 	 * which changes BT_EN to high.
 	 */
-	bt_3v3: bt-3v3 {
+	bt_3v3: regulator-bt-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "bt_3v3";
 		pinctrl-names = "default";
@@ -138,7 +138,7 @@
 		vin-supply = <&pp3300_s3>;
 	};
 
-	wlan_3v3: wlan-3v3 {
+	wlan_3v3: regulator-wlan-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "wlan_3v3";
 		pinctrl-names = "default";
@@ -833,7 +833,7 @@ camera: &i2c7 {
 		};
 	};
 
-	discrete-regulators {
+	discretes {
 		display_rst_l: display-rst-l {
 			rockchip,pins = <4 RK_PD1 RK_FUNC_GPIO &pcfg_pull_down>;
 		};

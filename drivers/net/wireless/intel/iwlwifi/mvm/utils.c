@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -261,7 +261,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA ||
+	if (WARN_ON(lq->sta_id == IWL_INVALID_STA ||
 		    iwl_mvm_has_tlc_offload(mvm)))
 		return -EINVAL;
 
@@ -295,6 +295,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return;
 
 	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	/* SMPS is handled by firmware */
+	if (iwl_mvm_has_rlc_offload(mvm))
 		return;
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
@@ -342,6 +346,26 @@ static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
 	WARN_ON(pkt->hdr.cmd != STATISTICS_NOTIFICATION);
 
 	return true;
+}
+
+#define PERIODIC_STAT_RATE 5
+
+int iwl_mvm_request_periodic_system_statistics(struct iwl_mvm *mvm, bool enable)
+{
+	u32 flags = enable ? 0 : IWL_STATS_CFG_FLG_DISABLE_NTFY_MSK;
+	u32 type = enable ? (IWL_STATS_NTFY_TYPE_ID_OPER |
+			     IWL_STATS_NTFY_TYPE_ID_OPER_PART1) : 0;
+	struct iwl_system_statistics_cmd system_cmd = {
+		.cfg_mask = cpu_to_le32(flags),
+		.config_time_sec = cpu_to_le32(enable ?
+					       PERIODIC_STAT_RATE : 0),
+		.type_id_mask = cpu_to_le32(type),
+	};
+
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(SYSTEM_GROUP,
+					    SYSTEM_STATISTICS_CMD),
+				    0, sizeof(system_cmd), &system_cmd);
 }
 
 static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
@@ -414,6 +438,13 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 						   SYSTEM_STATISTICS_CMD),
 					   IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
+
+	/*
+	 * Don't request statistics during restart, they'll not have any useful
+	 * information right after restart, nor is clearing needed
+	 */
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return 0;
 
 	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
 		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);
@@ -648,10 +679,8 @@ struct ieee80211_vif *iwl_mvm_get_bss_vif(struct iwl_mvm *mvm)
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
 		iwl_mvm_bss_iface_iterator, &bss_iter_data);
 
-	if (bss_iter_data.error) {
-		IWL_ERR(mvm, "More than one managed interface active!\n");
+	if (bss_iter_data.error)
 		return ERR_PTR(-EINVAL);
-	}
 
 	return bss_iter_data.vif;
 }
@@ -716,58 +745,20 @@ bool iwl_mvm_is_vif_assoc(struct iwl_mvm *mvm)
 }
 
 unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    bool tdls, bool cmd_q)
+				    struct ieee80211_vif *vif)
 {
-	struct iwl_fw_dbg_trigger_tlv *trigger;
-	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
-	unsigned int default_timeout = cmd_q ?
-		IWL_DEF_WD_TIMEOUT :
+	unsigned int default_timeout =
 		mvm->trans->trans_cfg->base_params->wd_timeout;
 
-	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
-		/*
-		 * We can't know when the station is asleep or awake, so we
-		 * must disable the queue hang detection.
-		 */
-		if (fw_has_capa(&mvm->fw->ucode_capa,
-				IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
-		    vif && vif->type == NL80211_IFTYPE_AP)
-			return IWL_WATCHDOG_DISABLED;
-		return default_timeout;
-	}
-
-	trigger = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS);
-	txq_timer = (void *)trigger->data;
-
-	if (tdls)
-		return le32_to_cpu(txq_timer->tdls);
-
-	if (cmd_q)
-		return le32_to_cpu(txq_timer->command_queue);
-
-	if (WARN_ON(!vif))
-		return default_timeout;
-
-	switch (ieee80211_vif_type_p2p(vif)) {
-	case NL80211_IFTYPE_ADHOC:
-		return le32_to_cpu(txq_timer->ibss);
-	case NL80211_IFTYPE_STATION:
-		return le32_to_cpu(txq_timer->bss);
-	case NL80211_IFTYPE_AP:
-		return le32_to_cpu(txq_timer->softap);
-	case NL80211_IFTYPE_P2P_CLIENT:
-		return le32_to_cpu(txq_timer->p2p_client);
-	case NL80211_IFTYPE_P2P_GO:
-		return le32_to_cpu(txq_timer->p2p_go);
-	case NL80211_IFTYPE_P2P_DEVICE:
-		return le32_to_cpu(txq_timer->p2p_device);
-	case NL80211_IFTYPE_MONITOR:
-		return default_timeout;
-	default:
-		WARN_ON(1);
-		return mvm->trans->trans_cfg->base_params->wd_timeout;
-	}
+	/*
+	 * We can't know when the station is asleep or awake, so we
+	 * must disable the queue hang detection.
+	 */
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_STA_PM_NOTIF) &&
+	    vif->type == NL80211_IFTYPE_AP)
+		return IWL_WATCHDOG_DISABLED;
+	return default_timeout;
 }
 
 void iwl_mvm_connection_loss(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -865,7 +856,7 @@ static void iwl_mvm_tcm_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 
 static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 {
-	mutex_lock(&mvm->mutex);
+	guard(mvm)(mvm);
 
 	ieee80211_iterate_active_interfaces(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
@@ -873,8 +864,6 @@ static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
 		iwl_mvm_config_scan(mvm);
-
-	mutex_unlock(&mvm->mutex);
 }
 
 static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
@@ -1103,10 +1092,9 @@ void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
 	spin_unlock(&mvm->tcm.lock);
 
 	if (handle_uapsd && iwl_mvm_has_new_rx_api(mvm)) {
-		mutex_lock(&mvm->mutex);
+		guard(mvm)(mvm);
 		if (iwl_mvm_request_statistics(mvm, true))
 			handle_uapsd = false;
-		mutex_unlock(&mvm->mutex);
 	}
 
 	spin_lock(&mvm->tcm.lock);

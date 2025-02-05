@@ -318,4 +318,5 @@ static struct gbphy_driver i2c_driver = {
 };
 
 module_gbphy_driver(i2c_driver);
+MODULE_DESCRIPTION("I2C bridge driver for the Greybus 'generic' I2C module");
 MODULE_LICENSE("GPL v2");

@@ -333,53 +333,6 @@ retry_after_bus_reset:
 }
 EXPORT_SYMBOL(cmp_connection_establish);
 
-/**
- * cmp_connection_update - update the connection after a bus reset
- * @c: the connection manager
- *
- * This function must be called from the driver's .update handler to
- * reestablish any connection that might have been active.
- *
- * Returns zero on success, or a negative error code.  On an error, the
- * connection is broken and the caller must stop transmitting iso packets.
- */
-int cmp_connection_update(struct cmp_connection *c)
-{
-	int err;
-
-	mutex_lock(&c->mutex);
-
-	if (!c->connected) {
-		mutex_unlock(&c->mutex);
-		return 0;
-	}
-
-	err = fw_iso_resources_update(&c->resources);
-	if (err < 0)
-		goto err_unconnect;
-
-	if (c->direction == CMP_OUTPUT)
-		err = pcr_modify(c, opcr_set_modify, pcr_set_check,
-				 SUCCEED_ON_BUS_RESET);
-	else
-		err = pcr_modify(c, ipcr_set_modify, pcr_set_check,
-				 SUCCEED_ON_BUS_RESET);
-
-	if (err < 0)
-		goto err_unconnect;
-
-	mutex_unlock(&c->mutex);
-
-	return 0;
-
-err_unconnect:
-	c->connected = false;
-	mutex_unlock(&c->mutex);
-
-	return err;
-}
-EXPORT_SYMBOL(cmp_connection_update);
-
 static __be32 pcr_break_modify(struct cmp_connection *c, __be32 pcr)
 {
 	return pcr & ~cpu_to_be32(PCR_BCAST_CONN | PCR_P2P_CONN_MASK);

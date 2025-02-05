@@ -16,6 +16,7 @@ struct ath12k_base;
 struct ath12k_peer;
 struct ath12k_dp;
 struct ath12k_vif;
+struct ath12k_link_vif;
 struct hal_tcl_status_ring;
 struct ath12k_ext_irq_grp;
 
@@ -223,6 +224,9 @@ struct ath12k_pdev_dp {
 #define ATH12K_NUM_TX_SPT_PAGES	(ATH12K_TX_SPT_PAGES_PER_POOL * ATH12K_HW_MAX_QUEUES)
 #define ATH12K_NUM_SPT_PAGES	(ATH12K_NUM_RX_SPT_PAGES + ATH12K_NUM_TX_SPT_PAGES)
 
+#define ATH12K_TX_SPT_PAGE_OFFSET 0
+#define ATH12K_RX_SPT_PAGE_OFFSET ATH12K_NUM_TX_SPT_PAGES
+
 /* The SPT pages are divided for RX and TX, first block for RX
  * and remaining for TX
  */
@@ -245,7 +249,7 @@ struct ath12k_pdev_dp {
 #define ATH12K_CC_SPT_MSB 8
 #define ATH12K_CC_PPT_MSB 19
 #define ATH12K_CC_PPT_SHIFT 9
-#define ATH12k_DP_CC_COOKIE_SPT	GENMASK(8, 0)
+#define ATH12K_DP_CC_COOKIE_SPT	GENMASK(8, 0)
 #define ATH12K_DP_CC_COOKIE_PPT	GENMASK(19, 9)
 
 #define DP_REO_QREF_NUM		GENMASK(31, 16)
@@ -282,6 +286,9 @@ struct ath12k_rx_desc_info {
 	struct sk_buff *skb;
 	u32 cookie;
 	u32 magic;
+	u8 in_use	: 1,
+	   device_id	: 3,
+	   reserved	: 4;
 };
 
 struct ath12k_tx_desc_info {
@@ -295,8 +302,6 @@ struct ath12k_tx_desc_info {
 struct ath12k_spt_info {
 	dma_addr_t paddr;
 	u64 *vaddr;
-	struct ath12k_rx_desc_info *rxbaddr[ATH12K_NUM_RX_SPT_PAGES];
-	struct ath12k_tx_desc_info *txbaddr[ATH12K_NUM_TX_SPT_PAGES];
 };
 
 struct ath12k_reo_queue_ref {
@@ -320,15 +325,15 @@ struct ath12k_dp {
 	u8 htt_tgt_ver_major;
 	u8 htt_tgt_ver_minor;
 	struct dp_link_desc_bank link_desc_banks[DP_LINK_DESC_BANKS_MAX];
+	enum hal_rx_buf_return_buf_manager idle_link_rbm;
 	struct dp_srng wbm_idle_ring;
 	struct dp_srng wbm_desc_rel_ring;
-	struct dp_srng tcl_cmd_ring;
-	struct dp_srng tcl_status_ring;
 	struct dp_srng reo_reinject_ring;
 	struct dp_srng rx_rel_ring;
 	struct dp_srng reo_except_ring;
 	struct dp_srng reo_cmd_ring;
 	struct dp_srng reo_status_ring;
+	enum ath12k_peer_metadata_version peer_metadata_ver;
 	struct dp_srng reo_dst_ring[DP_REO_DST_RING_MAX];
 	struct dp_tx_ring tx_ring[DP_TCL_NUM_RING_MAX];
 	struct hal_wbm_idle_scatter_list scatter_list[DP_IDLE_SCATTER_BUFS_MAX];
@@ -346,9 +351,11 @@ struct ath12k_dp {
 	struct ath12k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
 	struct ath12k_spt_info *spt_info;
 	u32 num_spt_pages;
+	u32 rx_ppt_base;
+	struct ath12k_rx_desc_info *rxbaddr[ATH12K_NUM_RX_SPT_PAGES];
+	struct ath12k_tx_desc_info *txbaddr[ATH12K_NUM_TX_SPT_PAGES];
 	struct list_head rx_desc_free_list;
-	struct list_head rx_desc_used_list;
-	/* protects the free and used desc list */
+	/* protects the free desc list */
 	spinlock_t rx_desc_lock;
 
 	struct list_head tx_desc_free_list[ATH12K_HW_MAX_QUEUES];
@@ -362,6 +369,7 @@ struct ath12k_dp {
 	struct dp_rxdma_mon_ring rxdma_mon_buf_ring;
 	struct dp_rxdma_mon_ring tx_mon_buf_ring;
 	struct ath12k_reo_q_addr_lut reoq_lut;
+	struct ath12k_reo_q_addr_lut ml_reoq_lut;
 };
 
 /* HTT definitions */
@@ -376,8 +384,6 @@ struct ath12k_dp {
 
 /* peer meta data */
 #define HTT_TCL_META_DATA_PEER_ID		GENMASK(15, 2)
-
-#define HTT_TX_WBM_COMP_STATUS_OFFSET 8
 
 /* HTT tx completion is overlaid in wbm_release_ring */
 #define HTT_TX_WBM_COMP_INFO0_STATUS		GENMASK(16, 13)
@@ -690,9 +696,9 @@ enum htt_stats_internal_ppdu_frametype {
  *
  *    The message would appear as follows:
  *
- *    |31       26|25|24|23            16|15             8|7             0|
- *    |-----------------+----------------+----------------+---------------|
- *    |   rsvd1   |PS|SS|     ring_id    |     pdev_id    |    msg_type   |
+ *    |31   29|28|27|26|25|24|23       16|15             8|7             0|
+ *    |-------+--+--+--+--+--+-----------+----------------+---------------|
+ *    | rsvd1 |ED|DT|OV|PS|SS|  ring_id  |     pdev_id    |    msg_type   |
  *    |-------------------------------------------------------------------|
  *    |              rsvd2               |           ring_buffer_size     |
  *    |-------------------------------------------------------------------|
@@ -719,7 +725,13 @@ enum htt_stats_internal_ppdu_frametype {
  *                    More details can be got from enum htt_srng_ring_id
  *          b'24    - status_swap: 1 is to swap status TLV
  *          b'25    - pkt_swap:  1 is to swap packet TLV
- *          b'26:31 - rsvd1:  reserved for future use
+ *          b'26    - rx_offset_valid (OV): flag to indicate rx offsets
+ *		      configuration fields are valid
+ *          b'27    - drop_thresh_valid (DT): flag to indicate if the
+ *		      rx_drop_threshold field is valid
+ *          b'28    - rx_mon_global_en: Enable/Disable global register
+ *		      configuration in Rx monitor module.
+ *          b'29:31 - rsvd1:  reserved for future use
  * dword1 - b'0:16  - ring_buffer_size: size of buffers referenced by rx ring,
  *                    in byte units.
  *                    Valid only for HW_TO_SW_RING and SW_TO_HW_RING
@@ -1492,18 +1504,6 @@ struct htt_ppdu_stats_user_rate {
 #define HTT_TX_INFO_PEERID(_flags) \
 			u32_get_bits(_flags, HTT_PPDU_STATS_TX_INFO_FLAGS_PEERID_M)
 
-struct htt_tx_ppdu_stats_info {
-	struct htt_tlv tlv_hdr;
-	__le32 tx_success_bytes;
-	__le32 tx_retry_bytes;
-	__le32 tx_failed_bytes;
-	__le32 flags; /* %HTT_PPDU_STATS_TX_INFO_FLAGS_ */
-	__le16 tx_success_msdus;
-	__le16 tx_retry_msdus;
-	__le16 tx_failed_msdus;
-	__le16 tx_duration; /* united in us */
-} __packed;
-
 enum  htt_ppdu_stats_usr_compln_status {
 	HTT_PPDU_STATS_USER_STATUS_OK,
 	HTT_PPDU_STATS_USER_STATUS_FILTERED,
@@ -1798,6 +1798,18 @@ enum vdev_stats_offload_timer_duration {
 	ATH12K_STATS_TIMER_DUR_2SEC = 3,
 };
 
+#define ATH12K_HTT_MAC_ADDR_L32_0	GENMASK(7, 0)
+#define ATH12K_HTT_MAC_ADDR_L32_1	GENMASK(15, 8)
+#define ATH12K_HTT_MAC_ADDR_L32_2	GENMASK(23, 16)
+#define ATH12K_HTT_MAC_ADDR_L32_3	GENMASK(31, 24)
+#define ATH12K_HTT_MAC_ADDR_H16_0	GENMASK(7, 0)
+#define ATH12K_HTT_MAC_ADDR_H16_1	GENMASK(15, 8)
+
+struct htt_mac_addr {
+	__le32 mac_addr_l32;
+	__le32 mac_addr_h16;
+} __packed;
+
 static inline void ath12k_dp_get_mac_addr(u32 addr_l32, u16 addr_h16, u8 *addr)
 {
 	memcpy(addr, &addr_l32, 4);
@@ -1808,12 +1820,13 @@ int ath12k_dp_service_srng(struct ath12k_base *ab,
 			   struct ath12k_ext_irq_grp *irq_grp,
 			   int budget);
 int ath12k_dp_htt_connect(struct ath12k_dp *dp);
-void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_vif *arvif);
+void ath12k_dp_vdev_tx_attach(struct ath12k *ar, struct ath12k_link_vif *arvif);
 void ath12k_dp_free(struct ath12k_base *ab);
 int ath12k_dp_alloc(struct ath12k_base *ab);
 void ath12k_dp_cc_config(struct ath12k_base *ab);
+void ath12k_dp_partner_cc_init(struct ath12k_base *ab);
 int ath12k_dp_pdev_alloc(struct ath12k_base *ab);
-void ath12k_dp_pdev_pre_alloc(struct ath12k_base *ab);
+void ath12k_dp_pdev_pre_alloc(struct ath12k *ar);
 void ath12k_dp_pdev_free(struct ath12k_base *ab);
 int ath12k_dp_tx_htt_srng_setup(struct ath12k_base *ab, u32 ring_id,
 				int mac_id, enum hal_ring_type ring_type);

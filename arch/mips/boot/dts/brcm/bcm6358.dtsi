@@ -13,6 +13,7 @@
 		#size-cells = <0>;
 
 		mips-hpt-frequency = <150000000>;
+		brcm,bmips-cbr-reg = <0xff400000>;
 
 		cpu@0 {
 			compatible = "brcm,bmips4350";

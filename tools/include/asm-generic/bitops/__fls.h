@@ -10,9 +10,9 @@
  *
  * Undefined if no set bit exists, so code should check against 0 first.
  */
-static __always_inline unsigned long generic___fls(unsigned long word)
+static __always_inline unsigned int generic___fls(unsigned long word)
 {
-	int num = BITS_PER_LONG - 1;
+	unsigned int num = BITS_PER_LONG - 1;
 
 #if BITS_PER_LONG == 64
 	if (!(word & (~0ul << 32))) {

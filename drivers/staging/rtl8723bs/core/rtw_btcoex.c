@@ -5,7 +5,6 @@
  *
  ******************************************************************************/
 #include <drv_types.h>
-#include <rtw_debug.h>
 #include <rtw_btcoex.h>
 #include <hal_btcoex.h>
 

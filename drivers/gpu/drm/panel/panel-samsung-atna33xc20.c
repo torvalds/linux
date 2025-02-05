@@ -25,8 +25,6 @@
 
 struct atana33xc20_panel {
 	struct drm_panel base;
-	bool prepared;
-	bool enabled;
 	bool el3_was_on;
 
 	bool no_hpd;
@@ -143,13 +141,8 @@ static int atana33xc20_disable(struct drm_panel *panel)
 {
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 
-	/* Disabling when already disabled is a no-op */
-	if (!p->enabled)
-		return 0;
-
 	gpiod_set_value_cansleep(p->el_on3_gpio, 0);
 	p->el_on3_off_time = ktime_get_boottime();
-	p->enabled = false;
 
 	/*
 	 * Keep track of the fact that EL_ON3 was on but we haven't power
@@ -173,10 +166,6 @@ static int atana33xc20_enable(struct drm_panel *panel)
 {
 	struct atana33xc20_panel *p = to_atana33xc20(panel);
 
-	/* Enabling when already enabled is a no-op */
-	if (p->enabled)
-		return 0;
-
 	/*
 	 * Once EL_ON3 drops we absolutely need a power cycle before the next
 	 * enable or the backlight will never come on again. The code ensures
@@ -195,19 +184,13 @@ static int atana33xc20_enable(struct drm_panel *panel)
 	atana33xc20_wait(p->powered_on_time, 400);
 
 	gpiod_set_value_cansleep(p->el_on3_gpio, 1);
-	p->enabled = true;
 
 	return 0;
 }
 
 static int atana33xc20_unprepare(struct drm_panel *panel)
 {
-	struct atana33xc20_panel *p = to_atana33xc20(panel);
 	int ret;
-
-	/* Unpreparing when already unprepared is a no-op */
-	if (!p->prepared)
-		return 0;
 
 	/*
 	 * Purposely do a put_sync, don't use autosuspend. The panel's tcon
@@ -220,26 +203,19 @@ static int atana33xc20_unprepare(struct drm_panel *panel)
 	ret = pm_runtime_put_sync_suspend(panel->dev);
 	if (ret < 0)
 		return ret;
-	p->prepared = false;
 
 	return 0;
 }
 
 static int atana33xc20_prepare(struct drm_panel *panel)
 {
-	struct atana33xc20_panel *p = to_atana33xc20(panel);
 	int ret;
-
-	/* Preparing when already prepared is a no-op */
-	if (p->prepared)
-		return 0;
 
 	ret = pm_runtime_get_sync(panel->dev);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(panel->dev);
 		return ret;
 	}
-	p->prepared = true;
 
 	return 0;
 }
@@ -351,19 +327,8 @@ static void atana33xc20_remove(struct dp_aux_ep_device *aux_ep)
 	struct atana33xc20_panel *panel = dev_get_drvdata(dev);
 
 	drm_panel_remove(&panel->base);
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
 
 	drm_edid_free(panel->drm_edid);
-}
-
-static void atana33xc20_shutdown(struct dp_aux_ep_device *aux_ep)
-{
-	struct device *dev = &aux_ep->dev;
-	struct atana33xc20_panel *panel = dev_get_drvdata(dev);
-
-	drm_panel_disable(&panel->base);
-	drm_panel_unprepare(&panel->base);
 }
 
 static const struct of_device_id atana33xc20_dt_match[] = {
@@ -386,7 +351,6 @@ static struct dp_aux_ep_driver atana33xc20_driver = {
 	},
 	.probe = atana33xc20_probe,
 	.remove = atana33xc20_remove,
-	.shutdown = atana33xc20_shutdown,
 };
 
 static int __init atana33xc20_init(void)

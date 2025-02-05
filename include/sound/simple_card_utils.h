@@ -89,6 +89,13 @@ struct simple_util_priv {
 #define simple_props_to_dai_codec(props, i)	((props)->codec_dai + i)
 #define simple_props_to_codec_conf(props, i)	((props)->codec_conf + i)
 
+/* has the same effect as simple_priv_to_props(). Preferred over
+ * simple_priv_to_props() when dealing with PCM runtime data as
+ * the ID stored in rtd->id may not be a valid array index.
+ */
+#define runtime_simple_priv_to_props(priv, rtd)				\
+	((priv)->dai_props + ((rtd)->dai_link - (priv)->dai_link))
+
 #define for_each_prop_dlc_cpus(props, i, cpu)				\
 	for ((i) = 0;							\
 	     ((i) < (props)->num.cpus) &&				\
@@ -174,6 +181,8 @@ void simple_util_parse_convert(struct device_node *np, char *prefix,
 			       struct simple_util_data *data);
 bool simple_util_is_convert_required(const struct simple_util_data *data);
 
+int simple_util_get_sample_fmt(struct simple_util_data *data);
+
 int simple_util_parse_routing(struct snd_soc_card *card,
 				      char *prefix);
 int simple_util_parse_widgets(struct snd_soc_card *card,
@@ -195,8 +204,12 @@ int graph_util_is_ports0(struct device_node *port);
 int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
-int graph_util_parse_link_direction(struct device_node *np,
+void graph_util_parse_link_direction(struct device_node *np,
 				    bool *is_playback_only, bool *is_capture_only);
+void graph_util_parse_trigger_order(struct simple_util_priv *priv,
+				    struct device_node *np,
+				    enum snd_soc_trigger_order *trigger_start,
+				    enum snd_soc_trigger_order *trigger_stop);
 
 #ifdef DEBUG
 static inline void simple_util_debug_dai(struct simple_util_priv *priv,
@@ -258,9 +271,13 @@ static inline void simple_util_debug_info(struct simple_util_priv *priv)
 			simple_util_debug_dai(priv, "codec", dai);
 
 		if (link->name)
-			dev_dbg(dev, "dai name = %s\n", link->name);
+			dev_dbg(dev, "link name = %s\n", link->name);
 		if (link->dai_fmt)
-			dev_dbg(dev, "dai format = %04x\n", link->dai_fmt);
+			dev_dbg(dev, "link format = %04x\n", link->dai_fmt);
+		if (link->playback_only)
+			dev_dbg(dev, "link has playback_only");
+		if (link->capture_only)
+			dev_dbg(dev, "link has capture_only");
 		if (props->adata.convert_rate)
 			dev_dbg(dev, "convert_rate = %d\n", props->adata.convert_rate);
 		if (props->adata.convert_channels)

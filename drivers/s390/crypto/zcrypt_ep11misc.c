@@ -203,7 +203,7 @@ out:
  * For valid ep11 keyblobs, returns a reference to the wrappingkey verification
  * pattern. Otherwise NULL.
  */
-const u8 *ep11_kb_wkvp(const u8 *keyblob, size_t keybloblen)
+const u8 *ep11_kb_wkvp(const u8 *keyblob, u32 keybloblen)
 {
 	struct ep11keyblob *kb;
 
@@ -217,7 +217,7 @@ EXPORT_SYMBOL(ep11_kb_wkvp);
  * Simple check if the key blob is a valid EP11 AES key blob with header.
  */
 int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
-				const u8 *key, size_t keylen, int checkcpacfexp)
+				const u8 *key, u32 keylen, int checkcpacfexp)
 {
 	struct ep11kblob_header *hdr = (struct ep11kblob_header *)key;
 	struct ep11keyblob *kb = (struct ep11keyblob *)(key + sizeof(*hdr));
@@ -225,7 +225,7 @@ int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
 #define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
 
 	if (keylen < sizeof(*hdr) + sizeof(*kb)) {
-		DBF("%s key check failed, keylen %zu < %zu\n",
+		DBF("%s key check failed, keylen %u < %zu\n",
 		    __func__, keylen, sizeof(*hdr) + sizeof(*kb));
 		return -EINVAL;
 	}
@@ -250,7 +250,7 @@ int ep11_check_aes_key_with_hdr(debug_info_t *dbg, int dbflvl,
 	}
 	if (hdr->len > keylen) {
 		if (dbg)
-			DBF("%s key check failed, header len %d keylen %zu mismatch\n",
+			DBF("%s key check failed, header len %d keylen %u mismatch\n",
 			    __func__, (int)hdr->len, keylen);
 		return -EINVAL;
 	}
@@ -284,7 +284,7 @@ EXPORT_SYMBOL(ep11_check_aes_key_with_hdr);
  * Simple check if the key blob is a valid EP11 ECC key blob with header.
  */
 int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
-				const u8 *key, size_t keylen, int checkcpacfexp)
+				const u8 *key, u32 keylen, int checkcpacfexp)
 {
 	struct ep11kblob_header *hdr = (struct ep11kblob_header *)key;
 	struct ep11keyblob *kb = (struct ep11keyblob *)(key + sizeof(*hdr));
@@ -292,7 +292,7 @@ int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
 #define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
 
 	if (keylen < sizeof(*hdr) + sizeof(*kb)) {
-		DBF("%s key check failed, keylen %zu < %zu\n",
+		DBF("%s key check failed, keylen %u < %zu\n",
 		    __func__, keylen, sizeof(*hdr) + sizeof(*kb));
 		return -EINVAL;
 	}
@@ -317,7 +317,7 @@ int ep11_check_ecc_key_with_hdr(debug_info_t *dbg, int dbflvl,
 	}
 	if (hdr->len > keylen) {
 		if (dbg)
-			DBF("%s key check failed, header len %d keylen %zu mismatch\n",
+			DBF("%s key check failed, header len %d keylen %u mismatch\n",
 			    __func__, (int)hdr->len, keylen);
 		return -EINVAL;
 	}
@@ -352,14 +352,14 @@ EXPORT_SYMBOL(ep11_check_ecc_key_with_hdr);
  * the header in the session field (old style EP11 AES key).
  */
 int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
-		       const u8 *key, size_t keylen, int checkcpacfexp)
+		       const u8 *key, u32 keylen, int checkcpacfexp)
 {
 	struct ep11keyblob *kb = (struct ep11keyblob *)key;
 
 #define DBF(...) debug_sprintf_event(dbg, dbflvl, ##__VA_ARGS__)
 
 	if (keylen < sizeof(*kb)) {
-		DBF("%s key check failed, keylen %zu < %zu\n",
+		DBF("%s key check failed, keylen %u < %zu\n",
 		    __func__, keylen, sizeof(*kb));
 		return -EINVAL;
 	}
@@ -378,7 +378,7 @@ int ep11_check_aes_key(debug_info_t *dbg, int dbflvl,
 	}
 	if (kb->head.len > keylen) {
 		if (dbg)
-			DBF("%s key check failed, header len %d keylen %zu mismatch\n",
+			DBF("%s key check failed, header len %d keylen %u mismatch\n",
 			    __func__, (int)kb->head.len, keylen);
 		return -EINVAL;
 	}
@@ -556,8 +556,24 @@ static int check_reply_pl(const u8 *pl, const char *func)
 	pl += 2;
 	ret = *((u32 *)pl);
 	if (ret != 0) {
-		ZCRYPT_DBF_ERR("%s return value 0x%04x != 0\n", func, ret);
+		ZCRYPT_DBF_ERR("%s return value 0x%08x != 0\n", func, ret);
 		return -EIO;
+	}
+
+	return 0;
+}
+
+/* Check ep11 reply cprb, return 0 or suggested errno value. */
+static int check_reply_cprb(const struct ep11_cprb *rep, const char *func)
+{
+	/* check ep11 reply return code field */
+	if (rep->ret_code) {
+		ZCRYPT_DBF_ERR("%s ep11 reply ret_code=0x%08x\n", __func__,
+			       rep->ret_code);
+		if (rep->ret_code == 0x000c0003)
+			return -EBUSY;
+		else
+			return -EIO;
 	}
 
 	return 0;
@@ -627,6 +643,12 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -877,6 +899,12 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -904,7 +932,7 @@ out:
 }
 
 int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		   u8 *keybuf, size_t *keybufsize, u32 keybufver)
+		   u8 *keybuf, u32 *keybufsize, u32 keybufver)
 {
 	struct ep11kblob_header *hdr;
 	size_t hdr_size, pl_size;
@@ -1028,6 +1056,12 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1185,6 +1219,12 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1216,7 +1256,7 @@ static int ep11_unwrapkey(u16 card, u16 domain,
 			  const u8 *enckey, size_t enckeysize,
 			  u32 mech, const u8 *iv,
 			  u32 keybitsize, u32 keygenflags,
-			  u8 *keybuf, size_t *keybufsize,
+			  u8 *keybuf, u32 *keybufsize,
 			  u8 keybufver)
 {
 	struct ep11kblob_header *hdr;
@@ -1339,6 +1379,12 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1366,7 +1412,7 @@ out:
 }
 
 int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize,
+		     const u8 *clrkey, u8 *keybuf, u32 *keybufsize,
 		     u32 keytype)
 {
 	int rc;
@@ -1425,7 +1471,7 @@ out:
 EXPORT_SYMBOL(ep11_clr2keyblob);
 
 int ep11_kblob2protkey(u16 card, u16 dom,
-		       const u8 *keyblob, size_t keybloblen,
+		       const u8 *keyblob, u32 keybloblen,
 		       u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	struct ep11kblob_header *hdr;
@@ -1542,9 +1588,9 @@ int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 	struct ep11_card_info eci;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);

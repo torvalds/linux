@@ -175,8 +175,6 @@
 #define PCLK_CIF		352
 #define PCLK_OTP_PHY		353
 
-#define CLK_NR_CLKS		(PCLK_OTP_PHY + 1)
-
 /* pmu-clocks indices */
 
 #define PLL_GPLL		1
@@ -194,8 +192,6 @@
 
 #define PCLK_GPIO0_PMU		20
 #define PCLK_UART0_PMU		21
-
-#define CLKPMU_NR_CLKS		(PCLK_UART0_PMU + 1)
 
 /* soft-reset indices */
 #define SRST_CORE0_PO		0

@@ -9,6 +9,7 @@
 #define _LINUX_ASN1_DECODER_H
 
 #include <linux/asn1.h>
+#include <linux/types.h>
 
 struct asn1_decoder;
 

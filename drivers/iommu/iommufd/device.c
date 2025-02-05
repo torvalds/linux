@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES
  */
+#include <linux/iommu.h>
 #include <linux/iommufd.h>
 #include <linux/slab.h>
-#include <linux/iommu.h>
 #include <uapi/linux/iommufd.h>
-#include "../iommu-priv.h"
 
+#include "../iommu-priv.h"
 #include "io_pagetable.h"
 #include "iommufd_private.h"
 
@@ -215,6 +215,7 @@ struct iommufd_device *iommufd_device_bind(struct iommufd_ctx *ictx,
 	refcount_inc(&idev->obj.users);
 	/* igroup refcount moves into iommufd_device */
 	idev->igroup = igroup;
+	mutex_init(&idev->iopf_lock);
 
 	/*
 	 * If the caller fails after this success it must call
@@ -232,7 +233,7 @@ out_group_put:
 	iommufd_put_group(igroup);
 	return ERR_PTR(rc);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_bind, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_bind, "IOMMUFD");
 
 /**
  * iommufd_ctx_has_group - True if any device within the group is bound
@@ -263,7 +264,7 @@ bool iommufd_ctx_has_group(struct iommufd_ctx *ictx, struct iommu_group *group)
 	xa_unlock(&ictx->objects);
 	return false;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_ctx_has_group, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_ctx_has_group, "IOMMUFD");
 
 /**
  * iommufd_device_unbind - Undo iommufd_device_bind()
@@ -278,19 +279,19 @@ void iommufd_device_unbind(struct iommufd_device *idev)
 {
 	iommufd_object_destroy_user(idev->ictx, &idev->obj);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_unbind, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_unbind, "IOMMUFD");
 
 struct iommufd_ctx *iommufd_device_to_ictx(struct iommufd_device *idev)
 {
 	return idev->ictx;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_to_ictx, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_to_ictx, "IOMMUFD");
 
 u32 iommufd_device_to_id(struct iommufd_device *idev)
 {
 	return idev->obj.id;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_to_id, "IOMMUFD");
 
 static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 				   struct iommufd_hwpt_paging *hwpt_paging)
@@ -326,8 +327,9 @@ static int iommufd_group_setup_msi(struct iommufd_group *igroup,
 	return 0;
 }
 
-static int iommufd_hwpt_paging_attach(struct iommufd_hwpt_paging *hwpt_paging,
-				      struct iommufd_device *idev)
+static int
+iommufd_device_attach_reserved_iova(struct iommufd_device *idev,
+				    struct iommufd_hwpt_paging *hwpt_paging)
 {
 	int rc;
 
@@ -353,6 +355,7 @@ static int iommufd_hwpt_paging_attach(struct iommufd_hwpt_paging *hwpt_paging,
 int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 				struct iommufd_device *idev)
 {
+	struct iommufd_hwpt_paging *hwpt_paging = find_hwpt_paging(hwpt);
 	int rc;
 
 	mutex_lock(&idev->igroup->lock);
@@ -362,8 +365,8 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 		goto err_unlock;
 	}
 
-	if (hwpt_is_paging(hwpt)) {
-		rc = iommufd_hwpt_paging_attach(to_hwpt_paging(hwpt), idev);
+	if (hwpt_paging) {
+		rc = iommufd_device_attach_reserved_iova(idev, hwpt_paging);
 		if (rc)
 			goto err_unlock;
 	}
@@ -376,7 +379,7 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	 * attachment.
 	 */
 	if (list_empty(&idev->igroup->device_list)) {
-		rc = iommu_attach_group(hwpt->domain, idev->igroup->group);
+		rc = iommufd_hwpt_attach_device(hwpt, idev);
 		if (rc)
 			goto err_unresv;
 		idev->igroup->hwpt = hwpt;
@@ -386,9 +389,8 @@ int iommufd_hw_pagetable_attach(struct iommufd_hw_pagetable *hwpt,
 	mutex_unlock(&idev->igroup->lock);
 	return 0;
 err_unresv:
-	if (hwpt_is_paging(hwpt))
-		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
-					  idev->dev);
+	if (hwpt_paging)
+		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, idev->dev);
 err_unlock:
 	mutex_unlock(&idev->igroup->lock);
 	return rc;
@@ -398,16 +400,16 @@ struct iommufd_hw_pagetable *
 iommufd_hw_pagetable_detach(struct iommufd_device *idev)
 {
 	struct iommufd_hw_pagetable *hwpt = idev->igroup->hwpt;
+	struct iommufd_hwpt_paging *hwpt_paging = find_hwpt_paging(hwpt);
 
 	mutex_lock(&idev->igroup->lock);
 	list_del(&idev->group_item);
 	if (list_empty(&idev->igroup->device_list)) {
-		iommu_detach_group(hwpt->domain, idev->igroup->group);
+		iommufd_hwpt_detach_device(hwpt, idev);
 		idev->igroup->hwpt = NULL;
 	}
-	if (hwpt_is_paging(hwpt))
-		iopt_remove_reserved_iova(&to_hwpt_paging(hwpt)->ioas->iopt,
-					  idev->dev);
+	if (hwpt_paging)
+		iopt_remove_reserved_iova(&hwpt_paging->ioas->iopt, idev->dev);
 	mutex_unlock(&idev->igroup->lock);
 
 	/* Caller must destroy hwpt */
@@ -439,17 +441,17 @@ iommufd_group_remove_reserved_iova(struct iommufd_group *igroup,
 }
 
 static int
-iommufd_group_do_replace_paging(struct iommufd_group *igroup,
-				struct iommufd_hwpt_paging *hwpt_paging)
+iommufd_group_do_replace_reserved_iova(struct iommufd_group *igroup,
+				       struct iommufd_hwpt_paging *hwpt_paging)
 {
-	struct iommufd_hw_pagetable *old_hwpt = igroup->hwpt;
+	struct iommufd_hwpt_paging *old_hwpt_paging;
 	struct iommufd_device *cur;
 	int rc;
 
 	lockdep_assert_held(&igroup->lock);
 
-	if (!hwpt_is_paging(old_hwpt) ||
-	    hwpt_paging->ioas != to_hwpt_paging(old_hwpt)->ioas) {
+	old_hwpt_paging = find_hwpt_paging(igroup->hwpt);
+	if (!old_hwpt_paging || hwpt_paging->ioas != old_hwpt_paging->ioas) {
 		list_for_each_entry(cur, &igroup->device_list, group_item) {
 			rc = iopt_table_enforce_dev_resv_regions(
 				&hwpt_paging->ioas->iopt, cur->dev, NULL);
@@ -472,6 +474,8 @@ static struct iommufd_hw_pagetable *
 iommufd_device_do_replace(struct iommufd_device *idev,
 			  struct iommufd_hw_pagetable *hwpt)
 {
+	struct iommufd_hwpt_paging *hwpt_paging = find_hwpt_paging(hwpt);
+	struct iommufd_hwpt_paging *old_hwpt_paging;
 	struct iommufd_group *igroup = idev->igroup;
 	struct iommufd_hw_pagetable *old_hwpt;
 	unsigned int num_devices;
@@ -490,22 +494,20 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 	}
 
 	old_hwpt = igroup->hwpt;
-	if (hwpt_is_paging(hwpt)) {
-		rc = iommufd_group_do_replace_paging(igroup,
-						     to_hwpt_paging(hwpt));
+	if (hwpt_paging) {
+		rc = iommufd_group_do_replace_reserved_iova(igroup, hwpt_paging);
 		if (rc)
 			goto err_unlock;
 	}
 
-	rc = iommu_group_replace_domain(igroup->group, hwpt->domain);
+	rc = iommufd_hwpt_replace_device(idev, hwpt, old_hwpt);
 	if (rc)
 		goto err_unresv;
 
-	if (hwpt_is_paging(old_hwpt) &&
-	    (!hwpt_is_paging(hwpt) ||
-	     to_hwpt_paging(hwpt)->ioas != to_hwpt_paging(old_hwpt)->ioas))
-		iommufd_group_remove_reserved_iova(igroup,
-						   to_hwpt_paging(old_hwpt));
+	old_hwpt_paging = find_hwpt_paging(old_hwpt);
+	if (old_hwpt_paging &&
+	    (!hwpt_paging || hwpt_paging->ioas != old_hwpt_paging->ioas))
+		iommufd_group_remove_reserved_iova(igroup, old_hwpt_paging);
 
 	igroup->hwpt = hwpt;
 
@@ -523,9 +525,8 @@ iommufd_device_do_replace(struct iommufd_device *idev,
 	/* Caller must destroy old_hwpt */
 	return old_hwpt;
 err_unresv:
-	if (hwpt_is_paging(hwpt))
-		iommufd_group_remove_reserved_iova(igroup,
-						   to_hwpt_paging(old_hwpt));
+	if (hwpt_paging)
+		iommufd_group_remove_reserved_iova(igroup, hwpt_paging);
 err_unlock:
 	mutex_unlock(&idev->igroup->lock);
 	return ERR_PTR(rc);
@@ -691,7 +692,7 @@ int iommufd_device_attach(struct iommufd_device *idev, u32 *pt_id)
 	refcount_inc(&idev->obj.users);
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_attach, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_attach, "IOMMUFD");
 
 /**
  * iommufd_device_replace - Change the device's iommu_domain
@@ -713,7 +714,7 @@ int iommufd_device_replace(struct iommufd_device *idev, u32 *pt_id)
 	return iommufd_device_change_pt(idev, pt_id,
 					&iommufd_device_do_replace);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_replace, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_replace, "IOMMUFD");
 
 /**
  * iommufd_device_detach - Disconnect a device to an iommu_domain
@@ -730,7 +731,7 @@ void iommufd_device_detach(struct iommufd_device *idev)
 	iommufd_hw_pagetable_put(idev->ictx, hwpt);
 	refcount_dec(&idev->obj.users);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_device_detach, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_device_detach, "IOMMUFD");
 
 /*
  * On success, it will refcount_inc() at a valid new_ioas and refcount_dec() at
@@ -852,7 +853,7 @@ iommufd_access_create(struct iommufd_ctx *ictx,
 	mutex_init(&access->ioas_lock);
 	return access;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_create, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_create, "IOMMUFD");
 
 /**
  * iommufd_access_destroy - Destroy an iommufd_access
@@ -864,7 +865,7 @@ void iommufd_access_destroy(struct iommufd_access *access)
 {
 	iommufd_object_destroy_user(access->ictx, &access->obj);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_destroy, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_destroy, "IOMMUFD");
 
 void iommufd_access_detach(struct iommufd_access *access)
 {
@@ -876,7 +877,7 @@ void iommufd_access_detach(struct iommufd_access *access)
 	WARN_ON(iommufd_access_change_ioas(access, NULL));
 	mutex_unlock(&access->ioas_lock);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_detach, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_detach, "IOMMUFD");
 
 int iommufd_access_attach(struct iommufd_access *access, u32 ioas_id)
 {
@@ -892,7 +893,7 @@ int iommufd_access_attach(struct iommufd_access *access, u32 ioas_id)
 	mutex_unlock(&access->ioas_lock);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_attach, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_attach, "IOMMUFD");
 
 int iommufd_access_replace(struct iommufd_access *access, u32 ioas_id)
 {
@@ -907,7 +908,7 @@ int iommufd_access_replace(struct iommufd_access *access, u32 ioas_id)
 	mutex_unlock(&access->ioas_lock);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_replace, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_replace, "IOMMUFD");
 
 /**
  * iommufd_access_notify_unmap - Notify users of an iopt to stop using it
@@ -990,7 +991,7 @@ void iommufd_access_unpin_pages(struct iommufd_access *access,
 	up_read(&iopt->iova_rwsem);
 	mutex_unlock(&access->ioas_lock);
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_unpin_pages, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_unpin_pages, "IOMMUFD");
 
 static bool iopt_area_contig_is_aligned(struct iopt_area_contig_iter *iter)
 {
@@ -1105,7 +1106,7 @@ err_remove:
 	mutex_unlock(&access->ioas_lock);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_pin_pages, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_pin_pages, "IOMMUFD");
 
 /**
  * iommufd_access_rw - Read or write data under the iova
@@ -1169,7 +1170,7 @@ err_out:
 	mutex_unlock(&access->ioas_lock);
 	return rc;
 }
-EXPORT_SYMBOL_NS_GPL(iommufd_access_rw, IOMMUFD);
+EXPORT_SYMBOL_NS_GPL(iommufd_access_rw, "IOMMUFD");
 
 int iommufd_get_hw_info(struct iommufd_ucmd *ucmd)
 {

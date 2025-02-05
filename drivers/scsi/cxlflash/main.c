@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -3177,7 +3177,7 @@ static struct dev_dependent_vals dev_briard_vals = { CXLFLASH_MAX_SECTORS,
 /*
  * PCI device binding table
  */
-static struct pci_device_id cxlflash_pci_table[] = {
+static const struct pci_device_id cxlflash_pci_table[] = {
 	{PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CORSA,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, (kernel_ulong_t)&dev_corsa_vals},
 	{PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_FLASH_GT,
@@ -3280,13 +3280,13 @@ static char *decode_hioctl(unsigned int cmd)
 /**
  * cxlflash_lun_provision() - host LUN provisioning handler
  * @cfg:	Internal structure associated with the host.
- * @lunprov:	Kernel copy of userspace ioctl data structure.
+ * @arg:	Kernel copy of userspace ioctl data structure.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_lun_provision(struct cxlflash_cfg *cfg,
-				  struct ht_cxlflash_lun_provision *lunprov)
+static int cxlflash_lun_provision(struct cxlflash_cfg *cfg, void *arg)
 {
+	struct ht_cxlflash_lun_provision *lunprov = arg;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_ioarcb rcb;
@@ -3371,16 +3371,16 @@ out:
 /**
  * cxlflash_afu_debug() - host AFU debug handler
  * @cfg:	Internal structure associated with the host.
- * @afu_dbg:	Kernel copy of userspace ioctl data structure.
+ * @arg:	Kernel copy of userspace ioctl data structure.
  *
  * For debug requests requiring a data buffer, always provide an aligned
  * (cache line) buffer to the AFU to appease any alignment requirements.
  *
  * Return: 0 on success, -errno on failure
  */
-static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
-			      struct ht_cxlflash_afu_debug *afu_dbg)
+static int cxlflash_afu_debug(struct cxlflash_cfg *cfg, void *arg)
 {
+	struct ht_cxlflash_afu_debug *afu_dbg = arg;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
 	struct sisl_ioarcb rcb;
@@ -3494,10 +3494,8 @@ static long cxlflash_chr_ioctl(struct file *file, unsigned int cmd,
 		size_t size;
 		hioctl ioctl;
 	} ioctl_tbl[] = {	/* NOTE: order matters here */
-	{ sizeof(struct ht_cxlflash_lun_provision),
-		(hioctl)cxlflash_lun_provision },
-	{ sizeof(struct ht_cxlflash_afu_debug),
-		(hioctl)cxlflash_afu_debug },
+	{ sizeof(struct ht_cxlflash_lun_provision), cxlflash_lun_provision },
+	{ sizeof(struct ht_cxlflash_afu_debug), cxlflash_afu_debug },
 	};
 
 	/* Hold read semaphore so we can drain if needed */
@@ -3652,6 +3650,8 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	struct dev_dependent_vals *ddv;
 	int rc = 0;
 	int k;
+
+	dev_err_once(&pdev->dev, "DEPRECATION: cxlflash is deprecated and will be removed in a future kernel release\n");
 
 	dev_dbg(&pdev->dev, "%s: Found CXLFLASH with IRQ: %d\n",
 		__func__, pdev->irq);

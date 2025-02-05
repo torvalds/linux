@@ -16,12 +16,16 @@
  * struct wmi_device - WMI device structure
  * @dev: Device associated with this WMI device
  * @setable: True for devices implementing the Set Control Method
+ * @driver_override: Driver name to force a match; do not set directly,
+ *		     because core frees it; use driver_set_override() to
+ *		     set or clear it.
  *
  * This represents WMI devices discovered by the WMI driver core.
  */
 struct wmi_device {
 	struct device dev;
 	bool setable;
+	const char *driver_override;
 };
 
 /**
@@ -30,7 +34,7 @@ struct wmi_device {
  *
  * Cast a struct device to a struct wmi_device.
  */
-#define to_wmi_device(device)	container_of(device, struct wmi_device, dev)
+#define to_wmi_device(device)	container_of_const(device, struct wmi_device, dev)
 
 extern acpi_status wmidev_evaluate_method(struct wmi_device *wdev,
 					  u8 instance, u32 method_id,
@@ -52,6 +56,7 @@ u8 wmidev_instance_count(struct wmi_device *wdev);
  * @no_singleton: Driver can be instantiated multiple times
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
+ * @shutdown: Callback for device shutdown
  * @notify: Callback for receiving WMI events
  *
  * This represents WMI drivers which handle WMI devices.
@@ -64,8 +69,17 @@ struct wmi_driver {
 
 	int (*probe)(struct wmi_device *wdev, const void *context);
 	void (*remove)(struct wmi_device *wdev);
+	void (*shutdown)(struct wmi_device *wdev);
 	void (*notify)(struct wmi_device *device, union acpi_object *data);
 };
+
+/**
+ * to_wmi_driver() - Helper macro to cast a driver to a wmi_driver
+ * @drv: driver struct
+ *
+ * Cast a struct device_driver to a struct wmi_driver.
+ */
+#define to_wmi_driver(drv)	container_of_const(drv, struct wmi_driver, driver)
 
 extern int __must_check __wmi_driver_register(struct wmi_driver *driver,
 					      struct module *owner);

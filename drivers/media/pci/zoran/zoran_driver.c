@@ -950,8 +950,6 @@ static const struct vb2_ops zr_video_qops = {
 	.buf_prepare            = zr_vb2_prepare,
 	.start_streaming        = zr_vb2_start_streaming,
 	.stop_streaming         = zr_vb2_stop_streaming,
-	.wait_prepare           = vb2_ops_wait_prepare,
-	.wait_finish            = vb2_ops_wait_finish,
 };
 
 int zoran_queue_init(struct zoran *zr, struct vb2_queue *vq, int dir)

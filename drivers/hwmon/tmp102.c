@@ -286,7 +286,7 @@ static int tmp102_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(tmp102_dev_pm_ops, tmp102_suspend, tmp102_resume);
 
 static const struct i2c_device_id tmp102_id[] = {
-	{ "tmp102", 0 },
+	{ "tmp102" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp102_id);

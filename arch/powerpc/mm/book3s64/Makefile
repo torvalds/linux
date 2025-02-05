@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-y	:= $(NO_MINIMAL_TOC)
-
 obj-y				+= mmu_context.o pgtable.o trace.o
 ifdef CONFIG_PPC_64S_HASH_MMU
 CFLAGS_REMOVE_slb.o = $(CC_FLAGS_FTRACE)

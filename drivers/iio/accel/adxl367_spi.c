@@ -72,7 +72,7 @@ static int adxl367_write(void *context, const void *val_buf, size_t val_size)
 	return spi_sync(st->spi, &st->reg_write_msg);
 }
 
-static struct regmap_bus adxl367_spi_regmap_bus = {
+static const struct regmap_bus adxl367_spi_regmap_bus = {
 	.read = adxl367_read,
 	.write = adxl367_write,
 };
@@ -160,7 +160,7 @@ static struct spi_driver adxl367_spi_driver = {
 
 module_spi_driver(adxl367_spi_driver);
 
-MODULE_IMPORT_NS(IIO_ADXL367);
+MODULE_IMPORT_NS("IIO_ADXL367");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL367 3-axis accelerometer SPI driver");
 MODULE_LICENSE("GPL");

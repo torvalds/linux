@@ -3,17 +3,6 @@
  * Support for Clovertrail PNW Camera Imaging ISP subsystem.
  *
  * Copyright (c) 2013 Intel Corporation. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #include <media/v4l2-dev.h>
@@ -302,21 +291,6 @@ static void __dump_stream_config(struct atomisp_sub_device *asd,
 			"stream_config.source.port.compression.uncompressed_bits_per_pixel=%d.\n",
 			s_config->source.port.compression.
 			uncompressed_bits_per_pixel);
-	} else if (s_config->mode == IA_CSS_INPUT_MODE_TPG) {
-		dev_dbg(isp->dev, "stream_config.source.tpg.id=%d.\n",
-			s_config->source.tpg.id);
-		dev_dbg(isp->dev, "stream_config.source.tpg.mode=%d.\n",
-			s_config->source.tpg.mode);
-		dev_dbg(isp->dev, "stream_config.source.tpg.x_mask=%d.\n",
-			s_config->source.tpg.x_mask);
-		dev_dbg(isp->dev, "stream_config.source.tpg.x_delta=%d.\n",
-			s_config->source.tpg.x_delta);
-		dev_dbg(isp->dev, "stream_config.source.tpg.y_mask=%d.\n",
-			s_config->source.tpg.y_mask);
-		dev_dbg(isp->dev, "stream_config.source.tpg.y_delta=%d.\n",
-			s_config->source.tpg.y_delta);
-		dev_dbg(isp->dev, "stream_config.source.tpg.xy_mask=%d.\n",
-			s_config->source.tpg.xy_mask);
 	} else if (s_config->mode == IA_CSS_INPUT_MODE_PRBS) {
 		dev_dbg(isp->dev, "stream_config.source.prbs.id=%d.\n",
 			s_config->source.prbs.id);
@@ -1672,25 +1646,11 @@ void atomisp_css_capture_set_mode(struct atomisp_sub_device *asd,
 void atomisp_css_input_set_mode(struct atomisp_sub_device *asd,
 				enum ia_css_input_mode mode)
 {
-	int i;
-	struct atomisp_device *isp = asd->isp;
 	unsigned int size_mem_words;
+	int i;
 
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++)
 		asd->stream_env[i].stream_config.mode = mode;
-
-	if (isp->inputs[asd->input_curr].type == TEST_PATTERN) {
-		struct ia_css_stream_config *s_config =
-			    &asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream_config;
-		s_config->mode = IA_CSS_INPUT_MODE_TPG;
-		s_config->source.tpg.mode = IA_CSS_TPG_MODE_CHECKERBOARD;
-		s_config->source.tpg.x_mask = (1 << 4) - 1;
-		s_config->source.tpg.x_delta = -2;
-		s_config->source.tpg.y_mask = (1 << 4) - 1;
-		s_config->source.tpg.y_delta = 3;
-		s_config->source.tpg.xy_mask = (1 << 8) - 1;
-		return;
-	}
 
 	if (mode != IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 		return;

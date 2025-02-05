@@ -17,17 +17,31 @@ static void preempt_fence_work_func(struct work_struct *w)
 		container_of(w, typeof(*pfence), preempt_work);
 	struct xe_exec_queue *q = pfence->q;
 
-	if (pfence->error)
+	if (pfence->error) {
 		dma_fence_set_error(&pfence->base, pfence->error);
-	else
-		q->ops->suspend_wait(q);
+	} else if (!q->ops->reset_status(q)) {
+		int err = q->ops->suspend_wait(q);
+
+		if (err)
+			dma_fence_set_error(&pfence->base, err);
+	} else {
+		dma_fence_set_error(&pfence->base, -ENOENT);
+	}
 
 	dma_fence_signal(&pfence->base);
-	dma_fence_end_signalling(cookie);
-
+	/*
+	 * Opt for keep everything in the fence critical section. This looks really strange since we
+	 * have just signalled the fence, however the preempt fences are all signalled via single
+	 * global ordered-wq, therefore anything that happens in this callback can easily block
+	 * progress on the entire wq, which itself may prevent other published preempt fences from
+	 * ever signalling.  Therefore try to keep everything here in the callback in the fence
+	 * critical section. For example if something below grabs a scary lock like vm->lock,
+	 * lockdep should complain since we also hold that lock whilst waiting on preempt fences to
+	 * complete.
+	 */
 	xe_vm_queue_rebind_worker(q->vm);
-
 	xe_exec_queue_put(q);
+	dma_fence_end_signalling(cookie);
 }
 
 static const char *
@@ -120,8 +134,9 @@ xe_preempt_fence_arm(struct xe_preempt_fence *pfence, struct xe_exec_queue *q,
 {
 	list_del_init(&pfence->link);
 	pfence->q = xe_exec_queue_get(q);
+	spin_lock_init(&pfence->lock);
 	dma_fence_init(&pfence->base, &preempt_fence_ops,
-		      &q->compute.lock, context, seqno);
+		      &pfence->lock, context, seqno);
 
 	return &pfence->base;
 }

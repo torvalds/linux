@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include "pmbus.h"
 
-enum chips { lm25056 = 1, lm25066, lm5064, lm5066, lm5066i };
+enum chips { lm25056, lm25066, lm5064, lm5066, lm5066i };
 
 #define LM25066_READ_VAUX		0xd0
 #define LM25066_MFR_READ_IIN		0xd1
@@ -569,4 +569,4 @@ module_i2c_driver(lm25066_driver);
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LM25066 and compatible chips");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(PMBUS);
+MODULE_IMPORT_NS("PMBUS");

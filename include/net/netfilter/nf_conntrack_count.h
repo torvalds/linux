@@ -15,10 +15,8 @@ struct nf_conncount_list {
 	unsigned int count;	/* length of list */
 };
 
-struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int family,
-					    unsigned int keylen);
-void nf_conncount_destroy(struct net *net, unsigned int family,
-			  struct nf_conncount_data *data);
+struct nf_conncount_data *nf_conncount_init(struct net *net, unsigned int keylen);
+void nf_conncount_destroy(struct net *net, struct nf_conncount_data *data);
 
 unsigned int nf_conncount_count(struct net *net,
 				struct nf_conncount_data *data,

@@ -62,12 +62,21 @@ shared page with scale and offset values into user space.  User
 space code performs the same algorithm of reading the TSC and
 applying the scale and offset to get the constant 10 MHz clock.
 
-Linux clockevents are based on Hyper-V synthetic timer 0. While
-Hyper-V offers 4 synthetic timers for each CPU, Linux only uses
-timer 0. Interrupts from stimer0 are recorded on the "HVS" line in
-/proc/interrupts.  Clockevents based on the virtualized PIT and
-local APIC timer also work, but the Hyper-V synthetic timer is
-preferred.
+Linux clockevents are based on Hyper-V synthetic timer 0 (stimer0).
+While Hyper-V offers 4 synthetic timers for each CPU, Linux only uses
+timer 0. In older versions of Hyper-V, an interrupt from stimer0
+results in a VMBus control message that is demultiplexed by
+vmbus_isr() as described in the Documentation/virt/hyperv/vmbus.rst
+documentation. In newer versions of Hyper-V, stimer0 interrupts can
+be mapped to an architectural interrupt, which is referred to as
+"Direct Mode". Linux prefers to use Direct Mode when available. Since
+x86/x64 doesn't support per-CPU interrupts, Direct Mode statically
+allocates an x86 interrupt vector (HYPERV_STIMER0_VECTOR) across all CPUs
+and explicitly codes it to call the stimer0 interrupt handler. Hence
+interrupts from stimer0 are recorded on the "HVS" line in /proc/interrupts
+rather than being associated with a Linux IRQ. Clockevents based on the
+virtualized PIT and local APIC timer also work, but Hyper-V stimer0
+is preferred.
 
 The driver for the Hyper-V synthetic system clock and timers is
 drivers/clocksource/hyperv_timer.c.

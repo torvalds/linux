@@ -85,7 +85,7 @@
 		status = "okay";
 	};
 
-	wifi_pwrseq: wifi_pwrseq {
+	wifi_pwrseq: pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&pio 2 14 GPIO_ACTIVE_LOW>; /* PC14 */
 	};
@@ -153,6 +153,7 @@
 
 &mmc0 {
 	vmmc-supply = <&reg_vcc3v3>;
+	disable-wp;
 	bus-width = <4>;
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>; /* PF6 */
 	status = "okay";

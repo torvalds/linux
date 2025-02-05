@@ -528,7 +528,7 @@ MODULE_DEVICE_TABLE(of, sl3516_ce_crypto_of_match_table);
 
 static struct platform_driver sl3516_ce_driver = {
 	.probe		 = sl3516_ce_probe,
-	.remove_new	 = sl3516_ce_remove,
+	.remove		 = sl3516_ce_remove,
 	.driver		 = {
 		.name		= "sl3516-crypto",
 		.pm		= &sl3516_ce_pm_ops,

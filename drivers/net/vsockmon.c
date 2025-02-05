@@ -58,7 +58,7 @@ static int vsockmon_change_mtu(struct net_device *dev, int new_mtu)
 	if (!vsockmon_is_valid_mtu(new_mtu))
 		return -EINVAL;
 
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 	return 0;
 }
 
@@ -83,13 +83,13 @@ static void vsockmon_setup(struct net_device *dev)
 {
 	dev->type = ARPHRD_VSOCKMON;
 	dev->priv_flags |= IFF_NO_QUEUE;
+	dev->lltx = true;
 
 	dev->netdev_ops	= &vsockmon_ops;
 	dev->ethtool_ops = &vsockmon_ethtool_ops;
 	dev->needs_free_netdev = true;
 
-	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
-			NETIF_F_HIGHDMA | NETIF_F_LLTX;
+	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA;
 
 	dev->flags = IFF_NOARP;
 

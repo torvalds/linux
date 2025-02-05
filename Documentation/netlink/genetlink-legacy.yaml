@@ -117,6 +117,9 @@ properties:
         name-prefix:
           description: For enum the prefix of the values, optional.
           type: string
+        enum-cnt-name:
+          description: Name of the render-max counter enum entry.
+          type: string
         # End genetlink-c
         # Start genetlink-legacy
         members:
@@ -201,7 +204,7 @@ properties:
                 description: The netlink attribute type
                 enum: [ unused, pad, flag, binary, bitfield32,
                         uint, sint, u8, u16, u32, u64, s32, s64,
-                        string, nest, array-nest, nest-type-value ]
+                        string, nest, indexed-array, nest-type-value ]
               doc:
                 description: Documentation of the attribute.
                 type: string

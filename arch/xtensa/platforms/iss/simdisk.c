@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/proc_fs.h>
@@ -75,7 +76,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 
 	if (offset > dev->size || dev->size - offset < nbytes) {
 		pr_notice("Beyond-end %s (%ld %ld)\n",
-				write ? "write" : "read", offset, nbytes);
+				str_write_read(write), offset, nbytes);
 		return;
 	}
 
@@ -263,6 +264,9 @@ static const struct proc_ops simdisk_proc_ops = {
 static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
 {
+	struct queue_limits lim = {
+		.features		= BLK_FEAT_ROTATIONAL,
+	};
 	char tmp[2] = { '0' + which, 0 };
 	int err;
 
@@ -271,7 +275,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	spin_lock_init(&dev->lock);
 	dev->users = 0;
 
-	dev->gd = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	dev->gd = blk_alloc_disk(&lim, NUMA_NO_NODE);
 	if (IS_ERR(dev->gd)) {
 		err = PTR_ERR(dev->gd);
 		goto out;

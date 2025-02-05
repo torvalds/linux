@@ -384,4 +384,5 @@ static void __exit exit_nls_cp861(void)
 module_init(init_nls_cp861)
 module_exit(exit_nls_cp861)
 
+MODULE_DESCRIPTION("NLS Codepage 861 (Icelandic)");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/iio/consumer.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/iosf_mbi.h>
 
 #define PS_STAT_VBUS_TRIGGER			(1 << 0)

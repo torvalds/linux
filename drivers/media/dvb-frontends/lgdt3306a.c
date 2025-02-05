@@ -2176,6 +2176,11 @@ static int lgdt3306a_probe(struct i2c_client *client)
 	struct dvb_frontend *fe;
 	int ret;
 
+	if (!client->dev.platform_data) {
+		dev_err(&client->dev, "platform data is mandatory\n");
+		return -EINVAL;
+	}
+
 	config = kmemdup(client->dev.platform_data,
 			 sizeof(struct lgdt3306a_config), GFP_KERNEL);
 	if (config == NULL) {
@@ -2203,7 +2208,7 @@ static int lgdt3306a_probe(struct i2c_client *client)
 		goto err_kfree;
 	}
 	state->muxc->priv = client;
-	ret = i2c_mux_add_adapter(state->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(state->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 
@@ -2239,7 +2244,7 @@ static void lgdt3306a_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lgdt3306a_id_table[] = {
-	{"lgdt3306a", 0},
+	{ "lgdt3306a" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lgdt3306a_id_table);

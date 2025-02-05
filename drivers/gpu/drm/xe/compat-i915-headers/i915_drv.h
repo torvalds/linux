@@ -12,31 +12,14 @@
 
 #include <drm/drm_drv.h>
 
-#include "gem/i915_gem_object.h"
-
-#include "soc/intel_pch.h"
-#include "xe_device.h"
-#include "xe_bo.h"
-#include "xe_pm.h"
-#include "xe_step.h"
-#include "i915_gem_stolen.h"
-#include "i915_gpu_error.h"
-#include "i915_reg_defs.h"
 #include "i915_utils.h"
-#include "intel_gt_types.h"
-#include "intel_step.h"
-#include "intel_uncore.h"
 #include "intel_runtime_pm.h"
-#include <linux/pm_runtime.h>
+#include "xe_device.h" /* for xe_device_has_flat_ccs() */
+#include "xe_device_types.h"
 
 static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 {
 	return container_of(dev, struct drm_i915_private, drm);
-}
-
-static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
-{
-	return dev_get_drvdata(kdev);
 }
 
 #define IS_PLATFORM(xe, x) ((xe)->info.platform == x)
@@ -78,28 +61,19 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_ROCKETLAKE(dev_priv)	IS_PLATFORM(dev_priv, XE_ROCKETLAKE)
 #define IS_DG1(dev_priv)        IS_PLATFORM(dev_priv, XE_DG1)
 #define IS_ALDERLAKE_S(dev_priv) IS_PLATFORM(dev_priv, XE_ALDERLAKE_S)
-#define IS_ALDERLAKE_P(dev_priv) IS_PLATFORM(dev_priv, XE_ALDERLAKE_P)
+#define IS_ALDERLAKE_P(dev_priv) (IS_PLATFORM(dev_priv, XE_ALDERLAKE_P) || \
+				  IS_PLATFORM(dev_priv, XE_ALDERLAKE_N))
 #define IS_DG2(dev_priv)	IS_PLATFORM(dev_priv, XE_DG2)
 #define IS_METEORLAKE(dev_priv) IS_PLATFORM(dev_priv, XE_METEORLAKE)
 #define IS_LUNARLAKE(dev_priv) IS_PLATFORM(dev_priv, XE_LUNARLAKE)
 #define IS_BATTLEMAGE(dev_priv)  IS_PLATFORM(dev_priv, XE_BATTLEMAGE)
+#define IS_PANTHERLAKE(dev_priv) IS_PLATFORM(dev_priv, XE_PANTHERLAKE)
 
 #define IS_HASWELL_ULT(dev_priv) (dev_priv && 0)
 #define IS_BROADWELL_ULT(dev_priv) (dev_priv && 0)
 #define IS_BROADWELL_ULX(dev_priv) (dev_priv && 0)
 
-#define IP_VER(ver, rel)                ((ver) << 8 | (rel))
-
 #define IS_MOBILE(xe) (xe && 0)
-
-#define HAS_GMD_ID(xe) GRAPHICS_VERx100(xe) >= 1270
-
-/* Workarounds not handled yet */
-#define IS_DISPLAY_STEP(xe, first, last) ({u8 __step = (xe)->info.step.display; first <= __step && __step <= last; })
-
-#define IS_LP(xe) (0)
-#define IS_GEN9_LP(xe) (0)
-#define IS_GEN9_BC(xe) (0)
 
 #define IS_TIGERLAKE_UY(xe) (xe && 0)
 #define IS_COMETLAKE_ULX(xe) (xe && 0)
@@ -118,69 +92,14 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_RAPTORLAKE_U(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_ALDERLAKE_P_RPLU)
 #define IS_ICL_WITH_PORT_F(xe) (xe && 0)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
-#define to_intel_bo(x) gem_to_xe_bo((x))
 
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
-
-#include "intel_wakeref.h"
-
-static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	return xe_pm_runtime_resume_and_get(xe);
-}
-
-static inline intel_wakeref_t intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	return xe_pm_runtime_get_if_in_use(xe);
-}
-
-static inline intel_wakeref_t intel_runtime_pm_get_noresume(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	xe_pm_runtime_get_noresume(xe);
-	return true;
-}
-
-static inline void intel_runtime_pm_put_unchecked(struct xe_runtime_pm *pm)
-{
-	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
-
-	xe_pm_runtime_put(xe);
-}
-
-static inline void intel_runtime_pm_put(struct xe_runtime_pm *pm, intel_wakeref_t wakeref)
-{
-	if (wakeref)
-		intel_runtime_pm_put_unchecked(pm);
-}
-
-#define intel_runtime_pm_get_raw intel_runtime_pm_get
-#define intel_runtime_pm_put_raw intel_runtime_pm_put
-#define assert_rpm_wakelock_held(x) do { } while (0)
-#define assert_rpm_raw_wakeref_held(x) do { } while (0)
-
-#define intel_uncore_forcewake_get(x, y) do { } while (0)
-#define intel_uncore_forcewake_put(x, y) do { } while (0)
-
-#define intel_uncore_arm_unclaimed_mmio_detection(x) do { } while (0)
 
 #define I915_PRIORITY_DISPLAY 0
 struct i915_sched_attr {
 	int priority;
 };
 #define i915_gem_fence_wait_priority(fence, attr) do { (void) attr; } while (0)
-
-#define with_intel_runtime_pm(rpm, wf) \
-	for ((wf) = intel_runtime_pm_get(rpm); (wf); \
-	     intel_runtime_pm_put((rpm), (wf)), (wf) = 0)
-
-#define pdev_to_i915 pdev_to_xe_device
-#define RUNTIME_INFO(xe)		(&(xe)->info.i915_runtime)
 
 #define FORCEWAKE_ALL XE_FORCEWAKE_ALL
 

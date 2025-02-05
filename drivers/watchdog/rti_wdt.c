@@ -59,7 +59,9 @@
 #define PON_REASON_EOF_NUM	0xCCCCBBBB
 #define RESERVED_MEM_MIN_SIZE	12
 
-static int heartbeat = DEFAULT_HEARTBEAT;
+#define MAX_HW_ERROR		250
+
+static int heartbeat;
 
 /*
  * struct to hold data for each WDT device
@@ -97,7 +99,7 @@ static int rti_wdt_start(struct watchdog_device *wdd)
 	 * to be 50% or less than that; we obviouly want to configure the open
 	 * window as large as possible so we select the 50% option.
 	 */
-	wdd->min_hw_heartbeat_ms = 500 * wdd->timeout;
+	wdd->min_hw_heartbeat_ms = 520 * wdd->timeout + MAX_HW_ERROR;
 
 	/* Generate NMI when wdt expires */
 	writel_relaxed(RTIWWDRX_NMI, wdt->base + RTIWWDRXCTRL);
@@ -131,31 +133,33 @@ static int rti_wdt_setup_hw_hb(struct watchdog_device *wdd, u32 wsize)
 	 * be petted during the open window; not too early or not too late.
 	 * The HW configuration options only allow for the open window size
 	 * to be 50% or less than that.
+	 * To avoid any glitches, we accommodate 2% + max hardware error
+	 * safety margin.
 	 */
 	switch (wsize) {
 	case RTIWWDSIZE_50P:
-		/* 50% open window => 50% min heartbeat */
-		wdd->min_hw_heartbeat_ms = 500 * heartbeat;
+		/* 50% open window => 52% min heartbeat */
+		wdd->min_hw_heartbeat_ms = 520 * heartbeat + MAX_HW_ERROR;
 		break;
 
 	case RTIWWDSIZE_25P:
-		/* 25% open window => 75% min heartbeat */
-		wdd->min_hw_heartbeat_ms = 750 * heartbeat;
+		/* 25% open window => 77% min heartbeat */
+		wdd->min_hw_heartbeat_ms = 770 * heartbeat + MAX_HW_ERROR;
 		break;
 
 	case RTIWWDSIZE_12P5:
-		/* 12.5% open window => 87.5% min heartbeat */
-		wdd->min_hw_heartbeat_ms = 875 * heartbeat;
+		/* 12.5% open window => 89.5% min heartbeat */
+		wdd->min_hw_heartbeat_ms = 895 * heartbeat + MAX_HW_ERROR;
 		break;
 
 	case RTIWWDSIZE_6P25:
-		/* 6.5% open window => 93.5% min heartbeat */
-		wdd->min_hw_heartbeat_ms = 935 * heartbeat;
+		/* 6.5% open window => 95.5% min heartbeat */
+		wdd->min_hw_heartbeat_ms = 955 * heartbeat + MAX_HW_ERROR;
 		break;
 
 	case RTIWWDSIZE_3P125:
-		/* 3.125% open window => 96.9% min heartbeat */
-		wdd->min_hw_heartbeat_ms = 969 * heartbeat;
+		/* 3.125% open window => 98.9% min heartbeat */
+		wdd->min_hw_heartbeat_ms = 989 * heartbeat + MAX_HW_ERROR;
 		break;
 
 	default:
@@ -233,14 +237,6 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	/*
-	 * If watchdog is running at 32k clock, it is not accurate.
-	 * Adjust frequency down in this case so that we don't pet
-	 * the watchdog too often.
-	 */
-	if (wdt->freq < 32768)
-		wdt->freq = wdt->freq * 9 / 10;
-
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
@@ -256,6 +252,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout = 1;
 	wdd->max_hw_heartbeat_ms = (WDT_PRELOAD_MAX << WDT_PRELOAD_SHIFT) /
 		wdt->freq * 1000;
+	wdd->timeout = DEFAULT_HEARTBEAT;
 	wdd->parent = dev;
 
 	watchdog_set_drvdata(wdd, wdt);
@@ -276,7 +273,8 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 		time_left_ms = rti_wdt_get_timeleft_ms(wdd);
-		heartbeat_ms = readl(wdt->base + RTIDWDPRLD);
+		/* AM62x TRM: texp = (RTIDWDPRLD + 1) * (2^13) / RTICLK1 */
+		heartbeat_ms = readl(wdt->base + RTIDWDPRLD) + 1;
 		heartbeat_ms <<= WDT_PRELOAD_SHIFT;
 		heartbeat_ms *= 1000;
 		do_div(heartbeat_ms, wdt->freq);
@@ -304,6 +302,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
 	if (node) {
 		ret = of_address_to_resource(node, 0, &res);
+		of_node_put(node);
 		if (ret) {
 			dev_err(dev, "No memory address assigned to the region.\n");
 			goto err_iomap;
@@ -340,10 +339,8 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	watchdog_init_timeout(wdd, heartbeat, dev);
 
 	ret = watchdog_register_device(wdd);
-	if (ret) {
-		dev_err(dev, "cannot register watchdog device\n");
+	if (ret)
 		goto err_iomap;
-	}
 
 	if (last_ping)
 		watchdog_set_last_hw_keepalive(wdd, last_ping);
@@ -384,7 +381,7 @@ static struct platform_driver rti_wdt_driver = {
 		.of_match_table = rti_wdt_of_match,
 	},
 	.probe = rti_wdt_probe,
-	.remove_new = rti_wdt_remove,
+	.remove = rti_wdt_remove,
 };
 
 module_platform_driver(rti_wdt_driver);

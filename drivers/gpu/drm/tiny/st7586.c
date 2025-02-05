@@ -12,11 +12,12 @@
 #include <linux/spi/spi.h>
 #include <video/mipi_display.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fb_dma_helper.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/drm_fbdev_dma.h>
 #include <drm/drm_format_helper.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
@@ -290,10 +291,10 @@ static const struct drm_driver st7586_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &st7586_fops,
 	DRM_GEM_DMA_DRIVER_OPS_VMAP,
+	DRM_FBDEV_DMA_DRIVER_OPS,
 	.debugfs_init		= mipi_dbi_debugfs_init,
 	.name			= "st7586",
 	.desc			= "Sitronix ST7586",
-	.date			= "20170801",
 	.major			= 1,
 	.minor			= 0,
 };
@@ -371,7 +372,7 @@ static int st7586_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, drm);
 
-	drm_fbdev_generic_setup(drm, 0);
+	drm_client_setup(drm, NULL);
 
 	return 0;
 }
@@ -392,7 +393,6 @@ static void st7586_shutdown(struct spi_device *spi)
 static struct spi_driver st7586_spi_driver = {
 	.driver = {
 		.name = "st7586",
-		.owner = THIS_MODULE,
 		.of_match_table = st7586_of_match,
 	},
 	.id_table = st7586_id,

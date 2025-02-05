@@ -26,9 +26,6 @@ struct smc_hashinfo {
 	struct hlist_head ht;
 };
 
-int smc_hash_sk(struct sock *sk);
-void smc_unhash_sk(struct sock *sk);
-
 /* SMCD/ISM device driver interface */
 struct smcd_dmb {
 	u64 dmb_tok;
@@ -50,7 +47,6 @@ struct smcd_dmb {
 #define ISM_ERROR	0xFFFF
 
 struct smcd_dev;
-struct ism_client;
 
 struct smcd_gid {
 	u64	gid;
@@ -61,14 +57,8 @@ struct smcd_ops {
 	int (*query_remote_gid)(struct smcd_dev *dev, struct smcd_gid *rgid,
 				u32 vid_valid, u32 vid);
 	int (*register_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb,
-			    struct ism_client *client);
+			    void *client);
 	int (*unregister_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
-	int (*add_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
-	int (*del_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
-	int (*set_vlan_required)(struct smcd_dev *dev);
-	int (*reset_vlan_required)(struct smcd_dev *dev);
-	int (*signal_event)(struct smcd_dev *dev, struct smcd_gid *rgid,
-			    u32 trigger_irq, u32 event_code, u64 info);
 	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
@@ -76,11 +66,23 @@ struct smcd_ops {
 	void (*get_local_gid)(struct smcd_dev *dev, struct smcd_gid *gid);
 	u16 (*get_chid)(struct smcd_dev *dev);
 	struct device* (*get_dev)(struct smcd_dev *dev);
+
+	/* optional operations */
+	int (*add_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
+	int (*del_vlan_id)(struct smcd_dev *dev, u64 vlan_id);
+	int (*set_vlan_required)(struct smcd_dev *dev);
+	int (*reset_vlan_required)(struct smcd_dev *dev);
+	int (*signal_event)(struct smcd_dev *dev, struct smcd_gid *rgid,
+			    u32 trigger_irq, u32 event_code, u64 info);
+	int (*support_dmb_nocopy)(struct smcd_dev *dev);
+	int (*attach_dmb)(struct smcd_dev *dev, struct smcd_dmb *dmb);
+	int (*detach_dmb)(struct smcd_dev *dev, u64 token);
 };
 
 struct smcd_dev {
 	const struct smcd_ops *ops;
 	void *priv;
+	void *client;
 	struct list_head list;
 	spinlock_t lock;
 	struct smc_connection **conn;

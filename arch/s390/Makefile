@@ -14,20 +14,15 @@ KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
 KBUILD_AFLAGS	+= -m64
 KBUILD_CFLAGS	+= -m64
-ifdef CONFIG_PIE_BUILD
-KBUILD_CFLAGS	+= -fPIE
-LDFLAGS_vmlinux	:= -pie -z notext
-else
-KBUILD_CFLAGS	+= $(call cc-option,-munaligned-symbols,)
-LDFLAGS_vmlinux	:= --emit-relocs --discard-none
+KBUILD_CFLAGS	+= -fPIC
+LDFLAGS_vmlinux	:= -no-pie --emit-relocs --discard-none
 extra_tools	:= relocs
-endif
 aflags_dwarf	:= -Wa,-gdwarf-2
 KBUILD_AFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -D__ASSEMBLY__
 ifndef CONFIG_AS_IS_LLVM
 KBUILD_AFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO),$(aflags_dwarf))
 endif
-KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack
+KBUILD_CFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -O2 -mpacked-stack -std=gnu11
 KBUILD_CFLAGS_DECOMPRESSOR += -DDISABLE_BRANCH_PROFILING -D__NO_FORTIFY
 KBUILD_CFLAGS_DECOMPRESSOR += -D__DECOMPRESSOR
 KBUILD_CFLAGS_DECOMPRESSOR += -fno-delete-null-pointer-checks -msoft-float -mbackchain
@@ -41,7 +36,7 @@ KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_DEBUG_INFO_DWARF4), $(call cc-option
 KBUILD_CFLAGS_DECOMPRESSOR += $(if $(CONFIG_CC_NO_ARRAY_BOUNDS),-Wno-array-bounds)
 
 UTS_MACHINE	:= s390x
-STACK_SIZE	:= $(if $(CONFIG_KASAN),65536,16384)
+STACK_SIZE	:= $(if $(CONFIG_KASAN),65536,$(if $(CONFIG_KMSAN),65536,16384))
 CHECKFLAGS	+= -D__s390__ -D__s390x__
 
 export LD_BFD
@@ -77,18 +72,8 @@ cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 KBUILD_AFLAGS_DECOMPRESSOR += $(aflags-y)
 KBUILD_CFLAGS_DECOMPRESSOR += $(cflags-y)
 
-ifneq ($(call cc-option,-mstack-size=8192 -mstack-guard=128),)
-  CC_FLAGS_CHECK_STACK := -mstack-size=$(STACK_SIZE)
-  ifeq ($(call cc-option,-mstack-size=8192),)
-    CC_FLAGS_CHECK_STACK += -mstack-guard=$(CONFIG_STACK_GUARD)
-  endif
-  export CC_FLAGS_CHECK_STACK
-  cflags-$(CONFIG_CHECK_STACK) += $(CC_FLAGS_CHECK_STACK)
-endif
-
 ifdef CONFIG_EXPOLINE
   ifdef CONFIG_EXPOLINE_EXTERN
-    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline/expoline.o
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk-extern
   else
@@ -167,11 +152,6 @@ vdso_prepare: prepare0
 vdso-install-y			+= arch/s390/kernel/vdso64/vdso64.so.dbg
 vdso-install-$(CONFIG_COMPAT)	+= arch/s390/kernel/vdso32/vdso32.so.dbg
 
-ifdef CONFIG_EXPOLINE_EXTERN
-modules_prepare: expoline_prepare
-expoline_prepare: scripts
-	$(Q)$(MAKE) $(build)=arch/s390/lib/expoline arch/s390/lib/expoline/expoline.o
-endif
 endif
 
 # Don't use tabs in echo arguments

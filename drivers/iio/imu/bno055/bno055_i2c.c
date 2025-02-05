@@ -30,7 +30,7 @@ static int bno055_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bno055_i2c_id[] = {
-	{"bno055", 0},
+	{ "bno055" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, bno055_i2c_id);
@@ -53,5 +53,5 @@ module_i2c_driver(bno055_driver);
 
 MODULE_AUTHOR("Andrea Merello");
 MODULE_DESCRIPTION("Bosch BNO055 I2C interface");
-MODULE_IMPORT_NS(IIO_BNO055);
+MODULE_IMPORT_NS("IIO_BNO055");
 MODULE_LICENSE("GPL");

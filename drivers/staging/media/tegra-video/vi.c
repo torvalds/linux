@@ -287,8 +287,6 @@ static const struct vb2_ops tegra_channel_queue_qops = {
 	.queue_setup = tegra_channel_queue_setup,
 	.buf_prepare = tegra_channel_buffer_prepare,
 	.buf_queue = tegra_channel_buffer_queue,
-	.wait_prepare = vb2_ops_wait_prepare,
-	.wait_finish = vb2_ops_wait_finish,
 	.start_streaming = tegra_channel_start_streaming,
 	.stop_streaming = tegra_channel_stop_streaming,
 };
@@ -719,11 +717,11 @@ static int tegra_channel_g_dv_timings(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
-	if (!v4l2_subdev_has_op(subdev, video, g_dv_timings))
+	if (!v4l2_subdev_has_op(subdev, pad, g_dv_timings))
 		return -ENOTTY;
 
 	return v4l2_device_call_until_err(chan->video.v4l2_dev, 0,
-					  video, g_dv_timings, timings);
+					  pad, g_dv_timings, 0, timings);
 }
 
 static int tegra_channel_s_dv_timings(struct file *file, void *fh,
@@ -736,7 +734,7 @@ static int tegra_channel_s_dv_timings(struct file *file, void *fh,
 	int ret;
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
-	if (!v4l2_subdev_has_op(subdev, video, s_dv_timings))
+	if (!v4l2_subdev_has_op(subdev, pad, s_dv_timings))
 		return -ENOTTY;
 
 	ret = tegra_channel_g_dv_timings(file, fh, &curr_timings);
@@ -750,7 +748,7 @@ static int tegra_channel_s_dv_timings(struct file *file, void *fh,
 		return -EBUSY;
 
 	ret = v4l2_device_call_until_err(chan->video.v4l2_dev, 0,
-					 video, s_dv_timings, timings);
+					 pad, s_dv_timings, 0, timings);
 	if (ret)
 		return ret;
 
@@ -771,11 +769,11 @@ static int tegra_channel_query_dv_timings(struct file *file, void *fh,
 	struct v4l2_subdev *subdev;
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
-	if (!v4l2_subdev_has_op(subdev, video, query_dv_timings))
+	if (!v4l2_subdev_has_op(subdev, pad, query_dv_timings))
 		return -ENOTTY;
 
 	return v4l2_device_call_until_err(chan->video.v4l2_dev, 0,
-					  video, query_dv_timings, timings);
+					  pad, query_dv_timings, 0, timings);
 }
 
 static int tegra_channel_enum_dv_timings(struct file *file, void *fh,
@@ -1979,5 +1977,5 @@ struct platform_driver tegra_vi_driver = {
 		.pm = &tegra_vi_pm_ops,
 	},
 	.probe = tegra_vi_probe,
-	.remove_new = tegra_vi_remove,
+	.remove = tegra_vi_remove,
 };

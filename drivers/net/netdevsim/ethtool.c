@@ -2,8 +2,8 @@
 // Copyright (c) 2020 Facebook
 
 #include <linux/debugfs.h>
-#include <linux/ethtool.h>
 #include <linux/random.h>
+#include <net/netdev_queues.h>
 
 #include "netdevsim.h"
 
@@ -72,6 +72,10 @@ static void nsim_get_ringparam(struct net_device *dev,
 	struct netdevsim *ns = netdev_priv(dev);
 
 	memcpy(ring, &ns->ethtool.ring, sizeof(ns->ethtool.ring));
+	kernel_ring->hds_thresh_max = NSIM_HDS_THRESHOLD_MAX;
+
+	if (dev->cfg->hds_config == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
+		kernel_ring->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_ENABLED;
 }
 
 static int nsim_set_ringparam(struct net_device *dev,
@@ -103,8 +107,10 @@ nsim_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 	struct netdevsim *ns = netdev_priv(dev);
 	int err;
 
+	netdev_lock(dev);
 	err = netif_set_real_num_queues(dev, ch->combined_count,
 					ch->combined_count);
+	netdev_unlock(dev);
 	if (err)
 		return err;
 
@@ -140,8 +146,15 @@ nsim_set_fecparam(struct net_device *dev, struct ethtool_fecparam *fecparam)
 	return 0;
 }
 
+static void
+nsim_get_fec_stats(struct net_device *dev, struct ethtool_fec_stats *fec_stats)
+{
+	fec_stats->corrected_blocks.total = 123;
+	fec_stats->uncorrectable_blocks.total = 4;
+}
+
 static int nsim_get_ts_info(struct net_device *dev,
-			    struct ethtool_ts_info *info)
+			    struct kernel_ethtool_ts_info *info)
 {
 	struct netdevsim *ns = netdev_priv(dev);
 
@@ -152,6 +165,8 @@ static int nsim_get_ts_info(struct net_device *dev,
 
 static const struct ethtool_ops nsim_ethtool_ops = {
 	.supported_coalesce_params	= ETHTOOL_COALESCE_ALL_PARAMS,
+	.supported_ring_params		= ETHTOOL_RING_USE_TCP_DATA_SPLIT |
+					  ETHTOOL_RING_USE_HDS_THRS,
 	.get_pause_stats	        = nsim_get_pause_stats,
 	.get_pauseparam		        = nsim_get_pauseparam,
 	.set_pauseparam		        = nsim_set_pauseparam,
@@ -163,6 +178,7 @@ static const struct ethtool_ops nsim_ethtool_ops = {
 	.set_channels			= nsim_set_channels,
 	.get_fecparam			= nsim_get_fecparam,
 	.set_fecparam			= nsim_set_fecparam,
+	.get_fec_stats			= nsim_get_fec_stats,
 	.get_ts_info			= nsim_get_ts_info,
 };
 
@@ -181,6 +197,9 @@ void nsim_ethtool_init(struct netdevsim *ns)
 	ns->netdev->ethtool_ops = &nsim_ethtool_ops;
 
 	nsim_ethtool_ring_init(ns);
+
+	ns->ethtool.pauseparam.report_stats_rx = true;
+	ns->ethtool.pauseparam.report_stats_tx = true;
 
 	ns->ethtool.fec.fec = ETHTOOL_FEC_NONE;
 	ns->ethtool.fec.active_fec = ETHTOOL_FEC_NONE;

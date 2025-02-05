@@ -68,6 +68,7 @@ struct m_can_ops {
 	int (*write_fifo)(struct m_can_classdev *cdev, int addr_offset,
 			  const void *val, size_t val_count);
 	int (*init)(struct m_can_classdev *cdev);
+	int (*deinit)(struct m_can_classdev *cdev);
 };
 
 struct m_can_tx_op {
@@ -91,7 +92,7 @@ struct m_can_classdev {
 
 	ktime_t irq_timer_wait;
 
-	struct m_can_ops *ops;
+	const struct m_can_ops *ops;
 
 	int version;
 	u32 irqstatus;
@@ -99,6 +100,7 @@ struct m_can_classdev {
 	int pm_clock_support;
 	int pm_wake_source;
 	int is_peripheral;
+	bool irq_edge_triggered;
 
 	// Cached M_CAN_IE register content
 	u32 active_interrupts;

@@ -263,7 +263,7 @@ out:
 
 static int aw2013_probe_dt(struct aw2013 *chip)
 {
-	struct device_node *np = dev_of_node(&chip->client->dev), *child;
+	struct device_node *np = dev_of_node(&chip->client->dev);
 	int count, ret = 0, i = 0;
 	struct aw2013_led *led;
 
@@ -273,7 +273,7 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 
 	regmap_write(chip->regmap, AW2013_RSTR, AW2013_RSTR_RESET);
 
-	for_each_available_child_of_node(np, child) {
+	for_each_available_child_of_node_scoped(np, child) {
 		struct led_init_data init_data = {};
 		u32 source;
 		u32 imax;
@@ -304,10 +304,8 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 
 		ret = devm_led_classdev_register_ext(&chip->client->dev,
 						     &led->cdev, &init_data);
-		if (ret < 0) {
-			of_node_put(child);
+		if (ret < 0)
 			return ret;
-		}
 
 		i++;
 	}
@@ -318,6 +316,11 @@ static int aw2013_probe_dt(struct aw2013 *chip)
 	chip->num_leds = i;
 
 	return 0;
+}
+
+static void aw2013_chip_disable_action(void *data)
+{
+	aw2013_chip_disable(data);
 }
 
 static const struct regmap_config aw2013_regmap_config = {
@@ -336,7 +339,10 @@ static int aw2013_probe(struct i2c_client *client)
 	if (!chip)
 		return -ENOMEM;
 
-	mutex_init(&chip->mutex);
+	ret = devm_mutex_init(&client->dev, &chip->mutex);
+	if (ret)
+		return ret;
+
 	mutex_lock(&chip->mutex);
 
 	chip->client = client;
@@ -384,6 +390,10 @@ static int aw2013_probe(struct i2c_client *client)
 		goto error_reg;
 	}
 
+	ret = devm_add_action(&client->dev, aw2013_chip_disable_action, chip);
+	if (ret)
+		goto error_reg;
+
 	ret = aw2013_probe_dt(chip);
 	if (ret < 0)
 		goto error_reg;
@@ -406,17 +416,7 @@ error_reg:
 
 error:
 	mutex_unlock(&chip->mutex);
-	mutex_destroy(&chip->mutex);
 	return ret;
-}
-
-static void aw2013_remove(struct i2c_client *client)
-{
-	struct aw2013 *chip = i2c_get_clientdata(client);
-
-	aw2013_chip_disable(chip);
-
-	mutex_destroy(&chip->mutex);
 }
 
 static const struct of_device_id aw2013_match_table[] = {
@@ -432,7 +432,6 @@ static struct i2c_driver aw2013_driver = {
 		.of_match_table = aw2013_match_table,
 	},
 	.probe = aw2013_probe,
-	.remove = aw2013_remove,
 };
 
 module_i2c_driver(aw2013_driver);

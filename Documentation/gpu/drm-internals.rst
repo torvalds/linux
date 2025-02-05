@@ -57,8 +57,8 @@ is larger than the driver minor, the DRM_IOCTL_SET_VERSION call will
 return an error. Otherwise the driver's set_version() method will be
 called with the requested version.
 
-Name, Description and Date
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Name and Description
+~~~~~~~~~~~~~~~~~~~~
 
 char \*name; char \*desc; char \*date;
 The driver name is printed to the kernel log at initialization time,
@@ -69,29 +69,11 @@ The driver description is a purely informative string passed to
 userspace through the DRM_IOCTL_VERSION ioctl and otherwise unused by
 the kernel.
 
-The driver date, formatted as YYYYMMDD, is meant to identify the date of
-the latest modification to the driver. However, as most drivers fail to
-update it, its value is mostly useless. The DRM core prints it to the
-kernel log at initialization time and passes it to userspace through the
-DRM_IOCTL_VERSION ioctl.
-
 Module Initialization
 ---------------------
 
 .. kernel-doc:: include/drm/drm_module.h
    :doc: overview
-
-Managing Ownership of the Framebuffer Aperture
-----------------------------------------------
-
-.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
-   :doc: overview
-
-.. kernel-doc:: include/drm/drm_aperture.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_aperture.c
-   :export:
 
 Device Instance and Driver Handling
 -----------------------------------

@@ -37,9 +37,11 @@
 #include <rdma/ib_smi.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_cache.h>
+#include "hnae3.h"
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_hem.h"
+#include "hns_roce_hw_v2.h"
 
 static int hns_roce_set_mac(struct hns_roce_dev *hr_dev, u32 port,
 			    const u8 *addr)
@@ -192,6 +194,12 @@ static int hns_roce_query_device(struct ib_device *ib_dev,
 			    IB_ATOMIC_HCA : IB_ATOMIC_NONE;
 	props->max_pkeys = 1;
 	props->local_ca_ack_delay = hr_dev->caps.local_ca_ack_delay;
+	props->max_ah = INT_MAX;
+	props->cq_caps.max_cq_moderation_period = HNS_ROCE_MAX_CQ_PERIOD;
+	props->cq_caps.max_cq_moderation_count = HNS_ROCE_MAX_CQ_COUNT;
+	if (hr_dev->pci_dev->revision == PCI_REVISION_ID_HIP08)
+		props->cq_caps.max_cq_moderation_period = HNS_ROCE_MAX_CQ_PERIOD_HIP08;
+
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
 		props->max_srq = hr_dev->caps.num_srqs;
 		props->max_srq_wr = hr_dev->caps.max_srq_wrs;
@@ -421,6 +429,9 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	return 0;
 
 error_fail_copy_to_udata:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&context->page_mutex);
 	hns_roce_dealloc_uar_entry(context);
 
 error_fail_uar_entry:
@@ -437,6 +448,10 @@ static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcontext->device);
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&context->page_mutex);
+
 	hns_roce_dealloc_uar_entry(context);
 
 	ida_free(&hr_dev->uar_ida.ida, (int)context->uar.logic_idx);
@@ -450,6 +465,11 @@ static int hns_roce_mmap(struct ib_ucontext *uctx, struct vm_area_struct *vma)
 	phys_addr_t pfn;
 	pgprot_t prot;
 	int ret;
+
+	if (hr_dev->dis_db) {
+		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_MMAP_ERR_CNT]);
+		return -EPERM;
+	}
 
 	rdma_entry = rdma_user_mmap_entry_get_pgoff(uctx, vma->vm_pgoff);
 	if (!rdma_entry) {
@@ -925,6 +945,15 @@ err_unmap_dmpt:
 	return ret;
 }
 
+static void hns_roce_teardown_hca(struct hns_roce_dev *hr_dev)
+{
+	hns_roce_cleanup_bitmap(hr_dev);
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&hr_dev->pgdir_mutex);
+}
+
 /**
  * hns_roce_setup_hca - setup host channel adapter
  * @hr_dev: pointer to hns roce device
@@ -973,6 +1002,10 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 err_uar_table_free:
 	ida_destroy(&hr_dev->uar_ida.ida);
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&hr_dev->pgdir_mutex);
+
 	return ret;
 }
 
@@ -1102,8 +1135,6 @@ int hns_roce_init(struct hns_roce_dev *hr_dev)
 
 	INIT_LIST_HEAD(&hr_dev->qp_list);
 	spin_lock_init(&hr_dev->qp_list_lock);
-	INIT_LIST_HEAD(&hr_dev->dip_list);
-	spin_lock_init(&hr_dev->dip_list_lock);
 
 	ret = hns_roce_register_device(hr_dev);
 	if (ret)
@@ -1118,7 +1149,7 @@ error_failed_register_device:
 		hr_dev->hw->hw_exit(hr_dev);
 
 error_failed_engine_init:
-	hns_roce_cleanup_bitmap(hr_dev);
+	hns_roce_teardown_hca(hr_dev);
 
 error_failed_setup_hca:
 	hns_roce_cleanup_hem(hr_dev);
@@ -1148,7 +1179,7 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->hw->hw_exit)
 		hr_dev->hw->hw_exit(hr_dev);
-	hns_roce_cleanup_bitmap(hr_dev);
+	hns_roce_teardown_hca(hr_dev);
 	hns_roce_cleanup_hem(hr_dev);
 
 	if (hr_dev->cmd_mod)

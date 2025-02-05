@@ -103,9 +103,11 @@ sviluppatori del kernel.
 .. toctree::
    :maxdepth: 1
 
-   process/license-rules
-   doc-guide/index
-   kernel-hacking/index
+   Regole sulle licenze <process/license-rules>
+   Scrivere la documentazione <doc-guide/index>
+   Strumenti di sviluppo <dev-tools/index>
+   La guida all'*hacking*<kernel-hacking/index>
+
 
 Documentazione per gli utenti
 =============================
@@ -132,4 +134,4 @@ Documentazione varia
 
 Ci sono documenti che sono difficili da inserire nell'attuale organizzazione
 della documentazione; altri hanno bisogno di essere migliorati e/o convertiti
-nel formato *ReStructured Text*; altri sono semplicamente troppo vecchi.
+nel formato *reStructuredText*; altri sono semplicamente troppo vecchi.

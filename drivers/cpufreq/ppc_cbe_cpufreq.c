@@ -113,10 +113,9 @@ static int cbe_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static void cbe_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	cbe_cpufreq_pmi_policy_exit(policy);
-	return 0;
 }
 
 static int cbe_cpufreq_target(struct cpufreq_policy *policy,
@@ -169,5 +168,6 @@ static void __exit cbe_cpufreq_exit(void)
 module_init(cbe_cpufreq_init);
 module_exit(cbe_cpufreq_exit);
 
+MODULE_DESCRIPTION("cpufreq driver for Cell BE processors");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Krafft <krafft@de.ibm.com>");

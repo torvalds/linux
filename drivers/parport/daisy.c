@@ -97,7 +97,6 @@ static int daisy_drv_probe(struct pardevice *par_dev)
 static struct parport_driver daisy_driver = {
 	.name = "daisy_drv",
 	.probe = daisy_drv_probe,
-	.devmodel = true,
 };
 
 /* Discover the IEEE1284.3 topology on a port -- muxes and daisy chains.

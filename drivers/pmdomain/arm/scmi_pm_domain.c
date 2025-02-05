@@ -96,12 +96,21 @@ static int scmi_pm_domain_probe(struct scmi_device *sdev)
 			continue;
 		}
 
+		/*
+		 * Register the explicit power on request to the firmware so
+		 * that it is tracked as used by OSPM agent and not
+		 * accidentally turned off with OSPM's knowledge
+		 */
+		if (state == SCMI_POWER_STATE_GENERIC_ON)
+			power_ops->state_set(ph, i, state);
+
 		scmi_pd->domain = i;
 		scmi_pd->ph = ph;
 		scmi_pd->name = power_ops->name_get(ph, i);
 		scmi_pd->genpd.name = scmi_pd->name;
 		scmi_pd->genpd.power_off = scmi_pd_power_off;
 		scmi_pd->genpd.power_on = scmi_pd_power_on;
+		scmi_pd->genpd.flags = GENPD_FLAG_ACTIVE_WAKEUP;
 
 		pm_genpd_init(&scmi_pd->genpd, NULL,
 			      state == SCMI_POWER_STATE_GENERIC_OFF);

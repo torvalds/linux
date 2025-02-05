@@ -102,7 +102,7 @@ TRACE_EVENT(qrtr_ns_message,
 	),
 
 	TP_fast_assign(
-		__assign_str(ctrl_pkt_str, ctrl_pkt_str);
+		__assign_str(ctrl_pkt_str);
 		__entry->sq_node = sq_node;
 		__entry->sq_port = sq_port;
 	),

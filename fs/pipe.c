@@ -253,7 +253,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	size_t total_len = iov_iter_count(to);
 	struct file *filp = iocb->ki_filp;
 	struct pipe_inode_info *pipe = filp->private_data;
-	bool was_full, wake_next_reader = false;
+	bool wake_writer = false, wake_next_reader = false;
 	ssize_t ret;
 
 	/* Null read succeeds. */
@@ -264,14 +264,13 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 	mutex_lock(&pipe->mutex);
 
 	/*
-	 * We only wake up writers if the pipe was full when we started
-	 * reading in order to avoid unnecessary wakeups.
+	 * We only wake up writers if the pipe was full when we started reading
+	 * and it is no longer full after reading to avoid unnecessary wakeups.
 	 *
 	 * But when we do wake up writers, we do so using a sync wakeup
 	 * (WF_SYNC), because we want them to get going and generate more
 	 * data for us.
 	 */
-	was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
 	for (;;) {
 		/* Read ->head with a barrier vs post_one_notification() */
 		unsigned int head = smp_load_acquire(&pipe->head);
@@ -340,8 +339,10 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 				buf->len = 0;
 			}
 
-			if (!buf->len)
+			if (!buf->len) {
+				wake_writer |= pipe_full(head, tail, pipe->max_usage);
 				tail = pipe_update_tail(pipe, buf, tail);
+			}
 			total_len -= chars;
 			if (!total_len)
 				break;	/* common path: read succeeded */
@@ -377,7 +378,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		 * _very_ unlikely case that the pipe was full, but we got
 		 * no data.
 		 */
-		if (unlikely(was_full))
+		if (unlikely(wake_writer))
 			wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 
@@ -390,15 +391,15 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		if (wait_event_interruptible_exclusive(pipe->rd_wait, pipe_readable(pipe)) < 0)
 			return -ERESTARTSYS;
 
-		mutex_lock(&pipe->mutex);
-		was_full = pipe_full(pipe->head, pipe->tail, pipe->max_usage);
+		wake_writer = false;
 		wake_next_reader = true;
+		mutex_lock(&pipe->mutex);
 	}
 	if (pipe_empty(pipe->head, pipe->tail))
 		wake_next_reader = false;
 	mutex_unlock(&pipe->mutex);
 
-	if (was_full)
+	if (wake_writer)
 		wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
 	if (wake_next_reader)
 		wake_up_interruptible_sync_poll(&pipe->rd_wait, EPOLLIN | EPOLLRDNORM);
@@ -686,7 +687,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 	if (filp->f_mode & FMODE_READ) {
 		if (!pipe_empty(head, tail))
 			mask |= EPOLLIN | EPOLLRDNORM;
-		if (!pipe->writers && filp->f_version != pipe->w_counter)
+		if (!pipe->writers && filp->f_pipe != pipe->w_counter)
 			mask |= EPOLLHUP;
 	}
 
@@ -945,6 +946,7 @@ int create_pipe_files(struct file **res, int flags)
 	}
 
 	f->private_data = inode->i_pipe;
+	f->f_pipe = 0;
 
 	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
 				  &pipefifo_fops);
@@ -954,6 +956,7 @@ int create_pipe_files(struct file **res, int flags)
 		return PTR_ERR(res[0]);
 	}
 	res[0]->private_data = inode->i_pipe;
+	res[0]->f_pipe = 0;
 	res[1] = f;
 	stream_open(inode, res[0]);
 	stream_open(inode, res[1]);
@@ -1108,7 +1111,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
 	int ret;
 
-	filp->f_version = 0;
+	filp->f_pipe = 0;
 
 	spin_lock(&inode->i_lock);
 	if (inode->i_pipe) {
@@ -1155,7 +1158,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 			if ((filp->f_flags & O_NONBLOCK)) {
 				/* suppress EPOLLHUP until we have
 				 * seen a writer */
-				filp->f_version = pipe->w_counter;
+				filp->f_pipe = pipe->w_counter;
 			} else {
 				if (wait_for_partner(pipe, &pipe->w_counter))
 					goto err_rd;
@@ -1229,7 +1232,6 @@ err:
 
 const struct file_operations pipefifo_fops = {
 	.open		= fifo_open,
-	.llseek		= no_llseek,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
 	.poll		= pipe_poll,
@@ -1427,7 +1429,7 @@ static const struct super_operations pipefs_ops = {
 
 /*
  * pipefs should _never_ be mounted by userland - too much of security hassle,
- * no real gain from having the whole whorehouse mounted. So we don't need
+ * no real gain from having the whole file system mounted. So we don't need
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */
@@ -1469,14 +1471,14 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 	return 0;
 }
 
-static int proc_dopipe_max_size(struct ctl_table *table, int write,
+static int proc_dopipe_max_size(const struct ctl_table *table, int write,
 				void *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table, write, buffer, lenp, ppos,
 				 do_proc_dopipe_max_size_conv, NULL);
 }
 
-static struct ctl_table fs_pipe_sysctls[] = {
+static const struct ctl_table fs_pipe_sysctls[] = {
 	{
 		.procname	= "pipe-max-size",
 		.data		= &pipe_max_size,

@@ -12,7 +12,7 @@
 
 #define __ONCE_LITE_IF(condition)					\
 	({								\
-		static bool __section(".data.once") __already_done;	\
+		static bool __section(".data..once") __already_done;	\
 		bool __ret_cond = !!(condition);			\
 		bool __ret_once = false;				\
 									\

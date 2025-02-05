@@ -20,11 +20,11 @@ MODULE_PARM_DESC(polling_pipe, "polling pipe (0: ctl, 1: bulk)");
 
 static const struct mfd_cell rtsx_usb_cells[] = {
 	[RTSX_USB_SD_CARD] = {
-		.name = "rtsx_usb_sdmmc",
+		.name = DRV_NAME_RTSX_USB_SDMMC,
 		.pdata_size = 0,
 	},
 	[RTSX_USB_MS_CARD] = {
-		.name = "rtsx_usb_ms",
+		.name = DRV_NAME_RTSX_USB_MS,
 		.pdata_size = 0,
 	},
 };
@@ -286,6 +286,7 @@ static int rtsx_usb_get_status_with_bulk(struct rtsx_ucr *ucr, u16 *status)
 int rtsx_usb_get_card_status(struct rtsx_ucr *ucr, u16 *status)
 {
 	int ret;
+	u8 interrupt_val = 0;
 	u16 *buf;
 
 	if (!status)
@@ -307,6 +308,20 @@ int rtsx_usb_get_card_status(struct rtsx_ucr *ucr, u16 *status)
 	} else {
 		ret = rtsx_usb_get_status_with_bulk(ucr, status);
 	}
+
+	rtsx_usb_read_register(ucr, CARD_INT_PEND, &interrupt_val);
+	/* Cross check presence with interrupts */
+	if (*status & XD_CD)
+		if (!(interrupt_val & XD_INT))
+			*status &= ~XD_CD;
+
+	if (*status & SD_CD)
+		if (!(interrupt_val & SD_INT))
+			*status &= ~SD_CD;
+
+	if (*status & MS_CD)
+		if (!(interrupt_val & MS_INT))
+			*status &= ~MS_CD;
 
 	/* usb_control_msg may return positive when success */
 	if (ret < 0)
@@ -780,7 +795,7 @@ static const struct usb_device_id rtsx_usb_usb_ids[] = {
 MODULE_DEVICE_TABLE(usb, rtsx_usb_usb_ids);
 
 static struct usb_driver rtsx_usb_driver = {
-	.name			= "rtsx_usb",
+	.name			= DRV_NAME_RTSX_USB,
 	.probe			= rtsx_usb_probe,
 	.disconnect		= rtsx_usb_disconnect,
 	.suspend		= rtsx_usb_suspend,

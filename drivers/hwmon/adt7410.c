@@ -88,8 +88,8 @@ static int adt7410_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adt7410_ids[] = {
-	{ "adt7410", 0 },
-	{ "adt7420", 0 },
+	{ "adt7410" },
+	{ "adt7420" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);

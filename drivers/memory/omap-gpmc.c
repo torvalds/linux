@@ -9,6 +9,7 @@
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  */
+#include <linux/cleanup.h>
 #include <linux/cpu_pm.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -357,17 +358,6 @@ static unsigned int gpmc_ps_to_ticks(unsigned int time_ps)
 	return (time_ps + tick_ps - 1) / tick_ps;
 }
 
-static unsigned int gpmc_clk_ticks_to_ns(unsigned int ticks, int cs,
-					 enum gpmc_clk_domain cd)
-{
-	return ticks * gpmc_get_clk_period(cs, cd) / 1000;
-}
-
-unsigned int gpmc_ticks_to_ns(unsigned int ticks)
-{
-	return gpmc_clk_ticks_to_ns(ticks, /* any CS */ 0, GPMC_CD_FCLK);
-}
-
 static unsigned int gpmc_ticks_to_ps(unsigned int ticks)
 {
 	return ticks * gpmc_get_fclk_period();
@@ -414,6 +404,13 @@ static void gpmc_cs_bool_timings(int cs, const struct gpmc_bool_timings *p)
 }
 
 #ifdef CONFIG_OMAP_GPMC_DEBUG
+
+static unsigned int gpmc_clk_ticks_to_ns(unsigned int ticks, int cs,
+					 enum gpmc_clk_domain cd)
+{
+	return ticks * gpmc_get_clk_period(cs, cd) / 1000;
+}
+
 /**
  * get_gpmc_timing_reg - read a timing parameter and print DTS settings for it.
  * @cs:      Chip Select Region
@@ -989,18 +986,18 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	if (size > (1 << GPMC_SECTION_SHIFT))
 		return -ENOMEM;
 
-	spin_lock(&gpmc_mem_lock);
-	if (gpmc_cs_reserved(cs)) {
-		r = -EBUSY;
-		goto out;
-	}
+	guard(spinlock)(&gpmc_mem_lock);
+
+	if (gpmc_cs_reserved(cs))
+		return -EBUSY;
+
 	if (gpmc_cs_mem_enabled(cs))
 		r = adjust_resource(res, res->start & ~(size - 1), size);
 	if (r < 0)
 		r = allocate_resource(&gpmc_mem_root, res, size, 0, ~0,
 				      size, NULL, NULL);
 	if (r < 0)
-		goto out;
+		return r;
 
 	/* Disable CS while changing base address and size mask */
 	gpmc_cs_disable_mem(cs);
@@ -1008,16 +1005,15 @@ int gpmc_cs_request(int cs, unsigned long size, unsigned long *base)
 	r = gpmc_cs_set_memconf(cs, res->start, resource_size(res));
 	if (r < 0) {
 		release_resource(res);
-		goto out;
+		return r;
 	}
 
 	/* Enable CS */
 	gpmc_cs_enable_mem(cs);
 	*base = res->start;
 	gpmc_cs_set_reserved(cs, 1);
-out:
-	spin_unlock(&gpmc_mem_lock);
-	return r;
+
+	return 0;
 }
 EXPORT_SYMBOL(gpmc_cs_request);
 
@@ -1026,10 +1022,9 @@ void gpmc_cs_free(int cs)
 	struct gpmc_cs_data *gpmc;
 	struct resource *res;
 
-	spin_lock(&gpmc_mem_lock);
+	guard(spinlock)(&gpmc_mem_lock);
 	if (cs >= gpmc_cs_num || cs < 0 || !gpmc_cs_reserved(cs)) {
 		WARN(1, "Trying to free non-reserved GPMC CS%d\n", cs);
-		spin_unlock(&gpmc_mem_lock);
 		return;
 	}
 	gpmc = &gpmc_cs[cs];
@@ -1039,7 +1034,6 @@ void gpmc_cs_free(int cs)
 	if (res->flags)
 		release_resource(res);
 	gpmc_cs_set_reserved(cs, 0);
-	spin_unlock(&gpmc_mem_lock);
 }
 EXPORT_SYMBOL(gpmc_cs_free);
 
@@ -1296,21 +1290,6 @@ int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
 	return gpmc_cs_set_timings(cs, &gpmc_t, &gpmc_s);
 }
 EXPORT_SYMBOL_GPL(gpmc_omap_onenand_set_timings);
-
-int gpmc_get_client_irq(unsigned int irq_config)
-{
-	if (!gpmc_irq_domain) {
-		pr_warn("%s called before GPMC IRQ domain available\n",
-			__func__);
-		return 0;
-	}
-
-	/* we restrict this to NAND IRQs only */
-	if (irq_config >= GPMC_NR_NAND_IRQS)
-		return 0;
-
-	return irq_create_mapping(gpmc_irq_domain, irq_config);
-}
 
 static int gpmc_irq_endis(unsigned long hwirq, bool endis)
 {
@@ -2745,7 +2724,7 @@ MODULE_DEVICE_TABLE(of, gpmc_dt_ids);
 
 static struct platform_driver gpmc_driver = {
 	.probe		= gpmc_probe,
-	.remove_new	= gpmc_remove,
+	.remove		= gpmc_remove,
 	.driver		= {
 		.name	= DEVICE_NAME,
 		.of_match_table = of_match_ptr(gpmc_dt_ids),

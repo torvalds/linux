@@ -640,7 +640,7 @@ static struct platform_device pcmtst_pdev = {
 
 static struct platform_driver pcmtst_pdrv = {
 	.probe =	pcmtst_probe,
-	.remove_new =	pdev_remove,
+	.remove =	pdev_remove,
 	.driver =	{
 		.name = "pcmtest",
 	},
@@ -772,6 +772,7 @@ static void __exit mod_exit(void)
 	platform_device_unregister(&pcmtst_pdev);
 }
 
+MODULE_DESCRIPTION("Virtual ALSA driver for PCM testing/fuzzing");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ivan Orlov");
 module_init(mod_init);

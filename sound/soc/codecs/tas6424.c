@@ -364,7 +364,7 @@ static int tas6424_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
-static struct snd_soc_component_driver soc_codec_dev_tas6424 = {
+static const struct snd_soc_component_driver soc_codec_dev_tas6424 = {
 	.set_bias_level		= tas6424_set_bias_level,
 	.controls		= tas6424_snd_controls,
 	.num_controls		= ARRAY_SIZE(tas6424_snd_controls),
@@ -792,7 +792,7 @@ static void tas6424_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tas6424_i2c_ids[] = {
-	{ "tas6424", 0 },
+	{ "tas6424" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tas6424_i2c_ids);

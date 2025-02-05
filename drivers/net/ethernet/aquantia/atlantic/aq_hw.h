@@ -104,7 +104,7 @@ struct aq_stats_s {
 };
 
 #define AQ_HW_IRQ_INVALID 0U
-#define AQ_HW_IRQ_LEGACY  1U
+#define AQ_HW_IRQ_INTX	  1U
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
 
@@ -340,6 +340,9 @@ struct aq_hw_ops {
 	int (*hw_set_loopback)(struct aq_hw_s *self, u32 mode, bool enable);
 
 	int (*hw_get_mac_temp)(struct aq_hw_s *self, u32 *temp);
+
+	int (*hw_read_module_eeprom)(struct aq_hw_s *self, u8 dev_addr,
+				     u8 reg_start_addr, int len, u8 *data);
 };
 
 struct aq_fw_ops {

@@ -9,7 +9,7 @@
 #include <linux/sysctl.h>
 #include "internal.h"
 
-static struct ctl_table key_sysctls[] = {
+static const struct ctl_table key_sysctls[] = {
 	{
 		.procname = "maxkeys",
 		.data = &key_quota_maxkeys,
@@ -66,7 +66,6 @@ static struct ctl_table key_sysctls[] = {
 		.extra2 = (void *) SYSCTL_INT_MAX,
 	},
 #endif
-	{ }
 };
 
 static int __init init_security_keys_sysctls(void)

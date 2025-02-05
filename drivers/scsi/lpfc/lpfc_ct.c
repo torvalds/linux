@@ -291,9 +291,9 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	did = bf_get(els_rsp64_sid, &ctiocbq->wqe.xmit_els_rsp);
 	if (ulp_status) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6438 Unsol CT: status:x%x/x%x did : x%x\n",
-				 ulp_status, ulp_word4, did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6438 Unsol CT: status:x%x/x%x did : x%x\n",
+			      ulp_status, ulp_word4, did);
 		return;
 	}
 
@@ -303,17 +303,17 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 
 	ndlp = lpfc_findnode_did(vport, did);
 	if (!ndlp) {
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-				 "6439 Unsol CT: NDLP Not Found for DID : x%x",
-				 did);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+			      "6439 Unsol CT: NDLP Not Found for DID : x%x",
+			      did);
 		return;
 	}
 
 	ct_req = (struct lpfc_sli_ct_request *)ctiocbq->cmd_dmabuf->virt;
 
 	mi_cmd = be16_to_cpu(ct_req->CommandResponse.bits.CmdRsp);
-	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
-			 "6442 : MI Cmd : x%x Not Supported\n", mi_cmd);
+	lpfc_vlog_msg(vport, KERN_WARNING, LOG_ELS,
+		      "6442 MI Cmd : x%x Not Supported\n", mi_cmd);
 	lpfc_ct_reject_event(ndlp, ct_req,
 			     bf_get(wqe_ctxt_tag,
 				    &ctiocbq->wqe.xmit_els_rsp.wqe_com),
@@ -735,7 +735,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "0238 Process x%06x NameServer Rsp "
-					 "Data: x%x x%x x%x x%lx x%x\n", Did,
+					 "Data: x%lx x%x x%x x%lx x%x\n", Did,
 					 ndlp->nlp_flag, ndlp->nlp_fc4_type,
 					 ndlp->nlp_state, vport->fc_flag,
 					 vport->fc_rscn_id_cnt);
@@ -744,7 +744,7 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			 * state of ndlp hit devloss, change state to
 			 * allow rediscovery.
 			 */
-			if (ndlp->nlp_flag & NLP_NPR_2B_DISC &&
+			if (test_bit(NLP_NPR_2B_DISC, &ndlp->nlp_flag) &&
 			    ndlp->nlp_state == NLP_STE_UNUSED_NODE) {
 				lpfc_nlp_set_state(vport, ndlp,
 						   NLP_STE_NPR_NODE);
@@ -832,12 +832,10 @@ lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 			if (ndlp->nlp_type != NLP_NVME_INITIATOR ||
 			    ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)
 				continue;
-			spin_lock_irq(&ndlp->lock);
 			if (ndlp->nlp_DID == Did)
-				ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
+				clear_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 			else
-				ndlp->nlp_flag |= NLP_NVMET_RECOV;
-			spin_unlock_irq(&ndlp->lock);
+				set_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 		}
 	}
 }
@@ -894,13 +892,11 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 	 */
 	if (vport->phba->nvmet_support) {
 		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-			if (!(ndlp->nlp_flag & NLP_NVMET_RECOV))
+			if (!test_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag))
 				continue;
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 						NLP_EVT_DEVICE_RECOVERY);
-			spin_lock_irq(&ndlp->lock);
-			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_unlock_irq(&ndlp->lock);
+			clear_bit(NLP_NVMET_RECOV, &ndlp->nlp_flag);
 		}
 	}
 
@@ -1440,7 +1436,7 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 				 "0242 Process x%x GFF "
-				 "NameServer Rsp Data: x%x x%lx x%x\n",
+				 "NameServer Rsp Data: x%lx x%lx x%x\n",
 				 did, ndlp->nlp_flag, vport->fc_flag,
 				 vport->fc_rscn_id_cnt);
 	} else {
@@ -1553,22 +1549,14 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			if (ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE &&
 			    ndlp->nlp_fc4_type) {
 				ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
-				/* This is a fabric topology so if discovery
-				 * started with an unsolicited PLOGI, don't
-				 * send a PRLI.  Targets don't issue PLOGI or
-				 * PRLI when acting as a target. Likely this is
-				 * an initiator function.
-				 */
-				if (!(ndlp->nlp_flag & NLP_RCV_PLOGI)) {
-					lpfc_nlp_set_state(vport, ndlp,
-							   NLP_STE_PRLI_ISSUE);
-					lpfc_issue_els_prli(vport, ndlp, 0);
-				}
+				lpfc_nlp_set_state(vport, ndlp,
+						   NLP_STE_PRLI_ISSUE);
+				lpfc_issue_els_prli(vport, ndlp, 0);
 			} else if (!ndlp->nlp_fc4_type) {
 				/* If fc4 type is still unknown, then LOGO */
 				lpfc_printf_vlog(vport, KERN_INFO,
 						 LOG_DISCOVERY | LOG_NODE,
-						 "6443 Sending LOGO ndlp x%px,"
+						 "6443 Sending LOGO ndlp x%px, "
 						 "DID x%06x with fc4_type: "
 						 "x%08x, state: %d\n",
 						 ndlp, did, ndlp->nlp_fc4_type,
@@ -1580,8 +1568,8 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			}
 		}
 	} else
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
-				 "3065 GFT_ID failed x%08x\n", ulp_status);
+		lpfc_vlog_msg(vport, KERN_WARNING, LOG_DISCOVERY,
+			      "3065 GFT_ID status x%08x\n", ulp_status);
 
 out:
 	lpfc_ct_free_iocb(phba, cmdiocb);
@@ -1655,6 +1643,16 @@ lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 out:
+	/* If the caller wanted a synchronous DA_ID completion, signal the
+	 * wait obj and clear flag to reset the vport.
+	 */
+	if (test_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags)) {
+		if (ndlp->da_id_waitq)
+			wake_up(ndlp->da_id_waitq);
+	}
+
+	clear_bit(NLP_WAIT_FOR_DA_ID, &ndlp->save_flags);
+
 	lpfc_ct_free_iocb(phba, cmdiocb);
 	lpfc_nlp_put(ndlp);
 	return;
@@ -2173,7 +2171,7 @@ lpfc_fdmi_rprt_defer(struct lpfc_hba *phba, uint32_t mask)
 	struct lpfc_nodelist *ndlp;
 	int i;
 
-	phba->hba_flag |= HBA_RHBA_CMPL;
+	set_bit(HBA_RHBA_CMPL, &phba->hba_flag);
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
@@ -2222,6 +2220,11 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		ulp_status, ulp_word4, latt);
 
 	if (latt || ulp_status) {
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_DISCOVERY,
+				 "0229 FDMI cmd %04x failed, latt = %d "
+				 "ulp_status: (x%x/x%x), sli_flag x%x\n",
+				 be16_to_cpu(fdmi_cmd), latt, ulp_status,
+				 ulp_word4, phba->sli.sli_flag);
 
 		/* Look for a retryable error */
 		if (ulp_status == IOSTAT_LOCAL_REJECT) {
@@ -2230,8 +2233,16 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			case IOERR_SLI_DOWN:
 				/* Driver aborted this IO.  No retry as error
 				 * is likely Offline->Online or some adapter
-				 * error.  Recovery will try again.
+				 * error.  Recovery will try again, but if port
+				 * is not active there's no point to continue
+				 * issuing follow up FDMI commands.
 				 */
+				if (!(phba->sli.sli_flag & LPFC_SLI_ACTIVE)) {
+					free_ndlp = cmdiocb->ndlp;
+					lpfc_ct_free_iocb(phba, cmdiocb);
+					lpfc_nlp_put(free_ndlp);
+					return;
+				}
 				break;
 			case IOERR_ABORT_IN_PROGRESS:
 			case IOERR_SEQUENCE_TIMEOUT:
@@ -2252,12 +2263,6 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				break;
 			}
 		}
-
-		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "0229 FDMI cmd %04x failed, latt = %d "
-				 "ulp_status: x%x, rid x%x\n",
-				 be16_to_cpu(fdmi_cmd), latt, ulp_status,
-				 ulp_word4);
 	}
 
 	free_ndlp = cmdiocb->ndlp;
@@ -2271,9 +2276,9 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* Check for a CT LS_RJT response */
 	cmd =  be16_to_cpu(fdmi_cmd);
 	if (be16_to_cpu(fdmi_rsp) == SLI_CT_RESPONSE_FS_RJT) {
-		/* FDMI rsp failed */
+		/* Log FDMI reject */
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY | LOG_ELS,
-				 "0220 FDMI cmd failed FS_RJT Data: x%x", cmd);
+				 "0220 FDMI cmd FS_RJT Data: x%x", cmd);
 
 		/* Should we fallback to FDMI-2 / FDMI-1 ? */
 		switch (cmd) {
@@ -2368,7 +2373,7 @@ lpfc_cmpl_ct_disc_fdmi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * for the physical port completes successfully.
 			 * We may have to defer the RPRT accordingly.
 			 */
-			if (phba->hba_flag & HBA_RHBA_CMPL) {
+			if (test_bit(HBA_RHBA_CMPL, &phba->hba_flag)) {
 				lpfc_fdmi_cmd(vport, ndlp, SLI_MGMT_RPRT, 0);
 			} else {
 				lpfc_printf_vlog(vport, KERN_INFO,
@@ -2785,7 +2790,7 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport, void *attr)
 	u32 tcfg;
 	u8 i, cnt;
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		cnt = 0;
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			tcfg = phba->sli4_hba.conf_trunk;
@@ -2859,7 +2864,7 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport, void *attr)
 	struct lpfc_hba   *phba = vport->phba;
 	u32 speeds = 0;
 
-	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+	if (!test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
 		switch (phba->fc_linkspeed) {
 		case LPFC_LINK_SPEED_1GHZ:
 			speeds = HBA_PORTSPEED_1GFC;

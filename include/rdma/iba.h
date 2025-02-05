@@ -7,7 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/bitfield.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 static inline u32 _iba_get8(const u8 *ptr)
 {

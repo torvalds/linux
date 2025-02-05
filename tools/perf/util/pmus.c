@@ -15,7 +15,10 @@
 #include "evsel.h"
 #include "pmus.h"
 #include "pmu.h"
+#include "hwmon_pmu.h"
+#include "tool_pmu.h"
 #include "print-events.h"
+#include "strbuf.h"
 
 /*
  * core_pmus:  A PMU belongs to core_pmus if it's name is "cpu" or it's sysfs
@@ -39,29 +42,50 @@ static bool read_sysfs_all_pmus;
 
 static void pmu_read_sysfs(bool core_only);
 
-int pmu_name_len_no_suffix(const char *str, unsigned long *num)
+size_t pmu_name_len_no_suffix(const char *str)
 {
 	int orig_len, len;
+	bool has_hex_digits = false;
 
 	orig_len = len = strlen(str);
 
-	/* Non-uncore PMUs have their full length, for example, i915. */
-	if (!strstarts(str, "uncore_"))
-		return len;
-
-	/*
-	 * Count trailing digits and '_', if '_{num}' suffix isn't present use
-	 * the full length.
-	 */
-	while (len > 0 && isdigit(str[len - 1]))
+	/* Count trailing digits. */
+	while (len > 0 && isxdigit(str[len - 1])) {
+		if (!isdigit(str[len - 1]))
+			has_hex_digits = true;
 		len--;
+	}
 
 	if (len > 0 && len != orig_len && str[len - 1] == '_') {
-		if (num)
-			*num = strtoul(&str[len], NULL, 10);
-		return len - 1;
+		/*
+		 * There is a '_{num}' suffix. For decimal suffixes any length
+		 * will do, for hexadecimal ensure more than 2 hex digits so
+		 * that S390's cpum_cf PMU doesn't match.
+		 */
+		if (!has_hex_digits || (orig_len - len) > 2)
+			return len - 1;
 	}
+	/* Use the full length. */
 	return orig_len;
+}
+
+int pmu_name_cmp(const char *lhs_pmu_name, const char *rhs_pmu_name)
+{
+	unsigned long long lhs_num = 0, rhs_num = 0;
+	size_t lhs_pmu_name_len = pmu_name_len_no_suffix(lhs_pmu_name);
+	size_t rhs_pmu_name_len = pmu_name_len_no_suffix(rhs_pmu_name);
+	int ret = strncmp(lhs_pmu_name, rhs_pmu_name,
+			lhs_pmu_name_len < rhs_pmu_name_len ? lhs_pmu_name_len : rhs_pmu_name_len);
+
+	if (lhs_pmu_name_len != rhs_pmu_name_len || ret != 0 || lhs_pmu_name_len == 0)
+		return ret;
+
+	if (lhs_pmu_name_len + 1 < strlen(lhs_pmu_name))
+		lhs_num = strtoull(&lhs_pmu_name[lhs_pmu_name_len + 1], NULL, 16);
+	if (rhs_pmu_name_len + 1 < strlen(rhs_pmu_name))
+		rhs_num = strtoull(&rhs_pmu_name[rhs_pmu_name_len + 1], NULL, 16);
+
+	return lhs_num < rhs_num ? -1 : (lhs_num > rhs_num ? 1 : 0);
 }
 
 void perf_pmus__destroy(void)
@@ -123,7 +147,8 @@ struct perf_pmu *perf_pmus__find(const char *name)
 		return NULL;
 
 	dirfd = perf_pmu__event_source_devices_fd();
-	pmu = perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
+	pmu = perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name,
+			       /*eager_load=*/false);
 	close(dirfd);
 
 	if (!pmu) {
@@ -158,26 +183,17 @@ static struct perf_pmu *perf_pmu__find2(int dirfd, const char *name)
 	if (core_pmu && read_sysfs_core_pmus)
 		return NULL;
 
-	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name);
+	return perf_pmu__lookup(core_pmu ? &core_pmus : &other_pmus, dirfd, name,
+				/*eager_load=*/false);
 }
 
 static int pmus_cmp(void *priv __maybe_unused,
 		    const struct list_head *lhs, const struct list_head *rhs)
 {
-	unsigned long lhs_num = 0, rhs_num = 0;
 	struct perf_pmu *lhs_pmu = container_of(lhs, struct perf_pmu, list);
 	struct perf_pmu *rhs_pmu = container_of(rhs, struct perf_pmu, list);
-	const char *lhs_pmu_name = lhs_pmu->name ?: "";
-	const char *rhs_pmu_name = rhs_pmu->name ?: "";
-	int lhs_pmu_name_len = pmu_name_len_no_suffix(lhs_pmu_name, &lhs_num);
-	int rhs_pmu_name_len = pmu_name_len_no_suffix(rhs_pmu_name, &rhs_num);
-	int ret = strncmp(lhs_pmu_name, rhs_pmu_name,
-			lhs_pmu_name_len < rhs_pmu_name_len ? lhs_pmu_name_len : rhs_pmu_name_len);
 
-	if (lhs_pmu_name_len != rhs_pmu_name_len || ret != 0 || lhs_pmu_name_len == 0)
-		return ret;
-
-	return lhs_num < rhs_num ? -1 : (lhs_num > rhs_num ? 1 : 0);
+	return pmu_name_cmp(lhs_pmu->name ?: "", rhs_pmu->name ?: "");
 }
 
 /* Add all pmus in sysfs to pmu list: */
@@ -186,6 +202,7 @@ static void pmu_read_sysfs(bool core_only)
 	int fd;
 	DIR *dir;
 	struct dirent *dent;
+	struct perf_pmu *tool_pmu;
 
 	if (read_sysfs_all_pmus || (core_only && read_sysfs_core_pmus))
 		return;
@@ -215,6 +232,11 @@ static void pmu_read_sysfs(bool core_only)
 			pr_err("Failure to set up any core PMUs\n");
 	}
 	list_sort(NULL, &core_pmus, pmus_cmp);
+	if (!core_only) {
+		tool_pmu = perf_pmus__tool_pmu();
+		list_add_tail(&tool_pmu->list, &other_pmus);
+		perf_pmus__read_hwmon_pmus(&other_pmus);
+	}
 	list_sort(NULL, &other_pmus, pmus_cmp);
 	if (!list_empty(&core_pmus)) {
 		read_sysfs_core_pmus = true;
@@ -297,11 +319,11 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 		pmu_read_sysfs(/*core_only=*/false);
 		pmu = list_prepare_entry(pmu, &core_pmus, list);
 	} else
-		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", NULL);
+		last_pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "");
 
 	if (use_core_pmus) {
 		list_for_each_entry_continue(pmu, &core_pmus, list) {
-			int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+			int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "");
 
 			if (last_pmu_name_len == pmu_name_len &&
 			    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
@@ -313,7 +335,7 @@ static struct perf_pmu *perf_pmus__scan_skip_duplicates(struct perf_pmu *pmu)
 		pmu = list_prepare_entry(pmu, &other_pmus, list);
 	}
 	list_for_each_entry_continue(pmu, &other_pmus, list) {
-		int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "", /*num=*/NULL);
+		int pmu_name_len = pmu_name_len_no_suffix(pmu->name ?: "");
 
 		if (last_pmu_name_len == pmu_name_len &&
 		    !strncmp(last_pmu_name, pmu->name ?: "", pmu_name_len))
@@ -357,6 +379,7 @@ struct sevent {
 	const char *encoding_desc;
 	const char *topic;
 	const char *pmu_name;
+	const char *event_type_desc;
 	bool deprecated;
 };
 
@@ -419,6 +442,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 		pr_err("Unexpected event %s/%s/\n", info->pmu->name, info->name);
 		return 1;
 	}
+	assert(info->pmu != NULL || info->name != NULL);
 	s = &state->aliases[state->index];
 	s->pmu = info->pmu;
 #define COPY_STR(str) s->str = info->str ? strdup(info->str) : NULL
@@ -430,6 +454,7 @@ static int perf_pmus__print_pmu_events__callback(void *vstate,
 	COPY_STR(encoding_desc);
 	COPY_STR(topic);
 	COPY_STR(pmu_name);
+	COPY_STR(event_type_desc);
 #undef COPY_STR
 	s->deprecated = info->deprecated;
 	state->index++;
@@ -474,20 +499,21 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 	qsort(aliases, len, sizeof(struct sevent), cmp_sevent);
 	for (int j = 0; j < len; j++) {
 		/* Skip duplicates */
-		if (j > 0 && pmu_alias_is_duplicate(&aliases[j], &aliases[j - 1]))
-			continue;
+		if (j < len - 1 && pmu_alias_is_duplicate(&aliases[j], &aliases[j + 1]))
+			goto free;
 
 		print_cb->print_event(print_state,
-				aliases[j].pmu_name,
 				aliases[j].topic,
+				aliases[j].pmu_name,
 				aliases[j].name,
 				aliases[j].alias,
 				aliases[j].scale_unit,
 				aliases[j].deprecated,
-				"Kernel PMU event",
+				aliases[j].event_type_desc,
 				aliases[j].desc,
 				aliases[j].long_desc,
 				aliases[j].encoding_desc);
+free:
 		zfree(&aliases[j].name);
 		zfree(&aliases[j].alias);
 		zfree(&aliases[j].scale_unit);
@@ -496,11 +522,105 @@ void perf_pmus__print_pmu_events(const struct print_callbacks *print_cb, void *p
 		zfree(&aliases[j].encoding_desc);
 		zfree(&aliases[j].topic);
 		zfree(&aliases[j].pmu_name);
+		zfree(&aliases[j].event_type_desc);
 	}
 	if (printed && pager_in_use())
 		printf("\n");
 
 	zfree(&aliases);
+}
+
+struct build_format_string_args {
+	struct strbuf short_string;
+	struct strbuf long_string;
+	int num_formats;
+};
+
+static int build_format_string(void *state, const char *name, int config,
+			       const unsigned long *bits)
+{
+	struct build_format_string_args *args = state;
+	unsigned int num_bits;
+	int ret1, ret2 = 0;
+
+	(void)config;
+	args->num_formats++;
+	if (args->num_formats > 1) {
+		strbuf_addch(&args->long_string, ',');
+		if (args->num_formats < 4)
+			strbuf_addch(&args->short_string, ',');
+	}
+	num_bits = bits ? bitmap_weight(bits, PERF_PMU_FORMAT_BITS) : 0;
+	if (num_bits <= 1) {
+		ret1 = strbuf_addf(&args->long_string, "%s", name);
+		if (args->num_formats < 4)
+			ret2 = strbuf_addf(&args->short_string, "%s", name);
+	} else if (num_bits > 8) {
+		ret1 = strbuf_addf(&args->long_string, "%s=0..0x%llx", name,
+				   ULLONG_MAX >> (64 - num_bits));
+		if (args->num_formats < 4) {
+			ret2 = strbuf_addf(&args->short_string, "%s=0..0x%llx", name,
+					   ULLONG_MAX >> (64 - num_bits));
+		}
+	} else {
+		ret1 = strbuf_addf(&args->long_string, "%s=0..%llu", name,
+				  ULLONG_MAX >> (64 - num_bits));
+		if (args->num_formats < 4) {
+			ret2 = strbuf_addf(&args->short_string, "%s=0..%llu", name,
+					   ULLONG_MAX >> (64 - num_bits));
+		}
+	}
+	return ret1 < 0 ? ret1 : (ret2 < 0 ? ret2 : 0);
+}
+
+void perf_pmus__print_raw_pmu_events(const struct print_callbacks *print_cb, void *print_state)
+{
+	bool skip_duplicate_pmus = print_cb->skip_duplicate_pmus(print_state);
+	struct perf_pmu *(*scan_fn)(struct perf_pmu *);
+	struct perf_pmu *pmu = NULL;
+
+	if (skip_duplicate_pmus)
+		scan_fn = perf_pmus__scan_skip_duplicates;
+	else
+		scan_fn = perf_pmus__scan;
+
+	while ((pmu = scan_fn(pmu)) != NULL) {
+		struct build_format_string_args format_args = {
+			.short_string = STRBUF_INIT,
+			.long_string = STRBUF_INIT,
+			.num_formats = 0,
+		};
+		int len = pmu_name_len_no_suffix(pmu->name);
+		const char *desc = "(see 'man perf-list' or 'man perf-record' on how to encode it)";
+
+		if (!pmu->is_core)
+			desc = NULL;
+
+		strbuf_addf(&format_args.short_string, "%.*s/", len, pmu->name);
+		strbuf_addf(&format_args.long_string, "%.*s/", len, pmu->name);
+		perf_pmu__for_each_format(pmu, &format_args, build_format_string);
+
+		if (format_args.num_formats > 3)
+			strbuf_addf(&format_args.short_string, ",.../modifier");
+		else
+			strbuf_addf(&format_args.short_string, "/modifier");
+
+		strbuf_addf(&format_args.long_string, "/modifier");
+		print_cb->print_event(print_state,
+				/*topic=*/NULL,
+				/*pmu_name=*/NULL,
+				format_args.short_string.buf,
+				/*event_alias=*/NULL,
+				/*scale_unit=*/NULL,
+				/*deprecated=*/false,
+				"Raw event descriptor",
+				desc,
+				/*long_desc=*/NULL,
+				format_args.long_string.buf);
+
+		strbuf_release(&format_args.short_string);
+		strbuf_release(&format_args.long_string);
+	}
 }
 
 bool perf_pmus__have_event(const char *pname, const char *name)
@@ -601,4 +721,32 @@ struct perf_pmu *evsel__find_pmu(const struct evsel *evsel)
 struct perf_pmu *perf_pmus__find_core_pmu(void)
 {
 	return perf_pmus__scan_core(NULL);
+}
+
+struct perf_pmu *perf_pmus__add_test_pmu(int test_sysfs_dirfd, const char *name)
+{
+	/*
+	 * Some PMU functions read from the sysfs mount point, so care is
+	 * needed, hence passing the eager_load flag to load things like the
+	 * format files.
+	 */
+	return perf_pmu__lookup(&other_pmus, test_sysfs_dirfd, name, /*eager_load=*/true);
+}
+
+struct perf_pmu *perf_pmus__add_test_hwmon_pmu(int hwmon_dir,
+					       const char *sysfs_name,
+					       const char *name)
+{
+	return hwmon_pmu__new(&other_pmus, hwmon_dir, sysfs_name, name);
+}
+
+struct perf_pmu *perf_pmus__fake_pmu(void)
+{
+	static struct perf_pmu fake = {
+		.name = "fake",
+		.type = PERF_PMU_TYPE_FAKE,
+		.format = LIST_HEAD_INIT(fake.format),
+	};
+
+	return &fake;
 }

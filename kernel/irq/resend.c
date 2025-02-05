@@ -53,7 +53,7 @@ static int irq_sw_resend(struct irq_desc *desc)
 	 * Validate whether this interrupt can be safely injected from
 	 * non interrupt context
 	 */
-	if (handle_enforce_irqctx(&desc->irq_data))
+	if (irqd_is_handle_enforce_irqctx(&desc->irq_data))
 		return -EINVAL;
 
 	/*
@@ -190,7 +190,7 @@ int irq_inject_interrupt(unsigned int irq)
 	 *  - not NMI type
 	 *  - activated
 	 */
-	if ((desc->istate & IRQS_NMI) || !irqd_is_activated(&desc->irq_data))
+	if (irq_is_nmi(desc) || !irqd_is_activated(&desc->irq_data))
 		err = -EINVAL;
 	else
 		err = check_irq_resend(desc, true);

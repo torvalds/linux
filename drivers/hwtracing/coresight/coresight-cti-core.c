@@ -982,7 +982,6 @@ MODULE_DEVICE_TABLE(amba, cti_ids);
 static struct amba_driver cti_driver = {
 	.drv = {
 		.name	= "coresight-cti",
-		.owner = THIS_MODULE,
 		.suppress_bind_attrs = true,
 	},
 	.probe		= cti_probe,

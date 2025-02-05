@@ -44,13 +44,6 @@
 		reset-gpios = <&gpio BOOT_12 GPIO_ACTIVE_LOW>;
 	};
 
-	fan0: pwm-fan {
-		compatible = "pwm-fan";
-		#cooling-cells = <2>;
-		cooling-levels = <0 120 170 220>;
-		pwms = <&pwm_cd 1 40000 0>;
-	};
-
 	hdmi-connector {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -200,6 +193,10 @@
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
 				"TDMOUT_B IN 2", "FRDDR_C OUT 1",
 				"TDM_B Playback", "TDMOUT_B OUT";
+
+		clocks = <&clkc CLKID_MPLL2>,
+			 <&clkc CLKID_MPLL0>,
+			 <&clkc CLKID_MPLL1>;
 
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
@@ -372,13 +369,6 @@
 	pinctrl-names = "default";
 	clocks = <&xtal>;
 	clock-names = "clkin0";
-};
-
-&pwm_cd {
-	status = "okay";
-	pinctrl-0 = <&pwm_d_x6_pins>;
-	pinctrl-names = "default";
-	pwm-gpios = <&gpio GPIOAO_10 GPIO_ACTIVE_HIGH>;
 };
 
 &pwm_ef {

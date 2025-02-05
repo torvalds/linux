@@ -172,7 +172,7 @@ EXPORT_SYMBOL(cca_check_secaescipherkey);
  * key token. Returns 0 on success or errno value on failure.
  */
 int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
-			     const u8 *token, size_t keysize,
+			     const u8 *token, u32 keysize,
 			     int checkcpacfexport)
 {
 	struct eccprivkeytoken *t = (struct eccprivkeytoken *)token;
@@ -187,7 +187,7 @@ int cca_check_sececckeytoken(debug_info_t *dbg, int dbflvl,
 	}
 	if (t->len > keysize) {
 		if (dbg)
-			DBF("%s token check failed, len %d > keysize %zu\n",
+			DBF("%s token check failed, len %d > keysize %u\n",
 			    __func__, (int)t->len, keysize);
 		return -EINVAL;
 	}
@@ -658,7 +658,7 @@ int cca_sec2protkey(u16 cardnr, u16 domain,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -737,7 +737,7 @@ static const u8 aes_cipher_key_skeleton[] = {
  * Generate (random) CCA AES CIPHER secure key.
  */
 int cca_gencipherkey(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     u8 *keybuf, size_t *keybufsize)
+		     u8 *keybuf, u32 *keybufsize)
 {
 	int rc;
 	u8 *mem, *ptr;
@@ -1085,7 +1085,7 @@ out:
  * Build CCA AES CIPHER secure key with a given clear key value.
  */
 int cca_clr2cipherkey(u16 card, u16 dom, u32 keybitsize, u32 keygenflags,
-		      const u8 *clrkey, u8 *keybuf, size_t *keybufsize)
+		      const u8 *clrkey, u8 *keybuf, u32 *keybufsize)
 {
 	int rc;
 	u8 *token;
@@ -1263,7 +1263,7 @@ int cca_cipher2protkey(u16 cardnr, u16 domain, const u8 *ckey,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1426,7 +1426,7 @@ int cca_ecc2protkey(u16 cardnr, u16 domain, const u8 *key,
 			       (int)prepcblk->ccp_rtcode,
 			       (int)prepcblk->ccp_rscode);
 		if (prepcblk->ccp_rtcode == 8 && prepcblk->ccp_rscode == 2290)
-			rc = -EAGAIN;
+			rc = -EBUSY;
 		else
 			rc = -EIO;
 		goto out;
@@ -1762,9 +1762,9 @@ static int findcard(u64 mkvp, u16 *pcardnr, u16 *pdomain,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);
@@ -1878,9 +1878,9 @@ int cca_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,
 	struct cca_info ci;
 
 	/* fetch status of all crypto cards */
-	device_status = kvmalloc_array(MAX_ZDEV_ENTRIES_EXT,
-				       sizeof(struct zcrypt_device_status_ext),
-				       GFP_KERNEL);
+	device_status = kvcalloc(MAX_ZDEV_ENTRIES_EXT,
+				 sizeof(struct zcrypt_device_status_ext),
+				 GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);

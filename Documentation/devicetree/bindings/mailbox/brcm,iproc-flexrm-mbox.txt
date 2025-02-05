@@ -24,7 +24,7 @@ Required properties:
 		number of completion messages for which FlexRM will inject
 		one MSI interrupt to CPU.
 
-		The 3nd cell contains MSI timer value representing time for
+		The 3rd cell contains MSI timer value representing time for
 		which FlexRM will wait to accumulate N completion messages
 		where N is the value specified by 2nd cell above. If FlexRM
 		does not get required number of completion messages in time

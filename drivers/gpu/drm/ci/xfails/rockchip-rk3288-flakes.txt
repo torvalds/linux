@@ -1,0 +1,34 @@
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/linux-rockchip/3e267d0c-fde4-4533-b001-6ab7d7c03546@collabora.com/T/#u
+# Failure Rate: 100
+# IGT Version: 1.28-gf13702b8e
+# Linux Version: 6.10.0-rc5
+kms_cursor_legacy@flip-vs-cursor-atomic
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_cursor_crc@cursor-offscreen-32x10
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_cursor_edge_walk@64x64-left-edge
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_flip@plain-flip-ts-check
+
+# Board Name: rk3288-veyron-jaq
+# Bug Report: https://lore.kernel.org/linux-rockchip/7505ac00-29ef-4ad9-8904-94b4c024c02b@collabora.com/T/#t
+# Failure Rate: 100
+# IGT Version: 1.28-ga73311079
+# Linux Version: 6.11.0-rc2
+kms_cursor_crc@cursor-alpha-opaque

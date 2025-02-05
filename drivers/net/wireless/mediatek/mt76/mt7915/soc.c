@@ -7,7 +7,6 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
-#include <linux/of_gpio.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 #include <linux/of_net.h>
@@ -1304,7 +1303,7 @@ struct platform_driver mt798x_wmac_driver = {
 		.of_match_table = mt798x_wmac_of_match,
 	},
 	.probe = mt798x_wmac_probe,
-	.remove_new = mt798x_wmac_remove,
+	.remove = mt798x_wmac_remove,
 };
 
 MODULE_FIRMWARE(MT7986_FIRMWARE_WA);

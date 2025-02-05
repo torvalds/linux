@@ -154,7 +154,7 @@ static int mlxcpld_mux_probe(struct platform_device *pdev)
 
 	/* Create an adapter for each channel. */
 	for (num = 0; num < pdata->num_adaps; num++) {
-		err = i2c_mux_add_adapter(muxc, 0, pdata->chan_ids[num], 0);
+		err = i2c_mux_add_adapter(muxc, 0, pdata->chan_ids[num]);
 		if (err)
 			goto virt_reg_failed;
 	}
@@ -182,7 +182,7 @@ static struct platform_driver mlxcpld_mux_driver = {
 		.name = "i2c-mux-mlxcpld",
 	},
 	.probe = mlxcpld_mux_probe,
-	.remove_new = mlxcpld_mux_remove,
+	.remove = mlxcpld_mux_remove,
 };
 
 module_platform_driver(mlxcpld_mux_driver);

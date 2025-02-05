@@ -136,10 +136,6 @@ System kernel config options
 
 	CONFIG_KEXEC_CORE=y
 
-   Subsequently, CRASH_CORE is selected by KEXEC_CORE::
-
-	CONFIG_CRASH_CORE=y
-
 2) Enable "sysfs file system support" in "Filesystem" -> "Pseudo
    filesystems." This is usually enabled by default::
 
@@ -167,6 +163,10 @@ Dump-capture kernel config options (Arch Independent)
    features"::
 
 	CONFIG_CRASH_DUMP=y
+
+   And this will select VMCORE_INFO and CRASH_RESERVE::
+	CONFIG_VMCORE_INFO=y
+	CONFIG_CRASH_RESERVE=y
 
 2) Enable "/proc/vmcore support" under "Filesystems" -> "Pseudo filesystems"::
 

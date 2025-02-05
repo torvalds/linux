@@ -9,6 +9,7 @@
 #ifndef TB_H_
 #define TB_H_
 
+#include <linux/debugfs.h>
 #include <linux/nvmem-provider.h>
 #include <linux/pci.h>
 #include <linux/thunderbolt.h>
@@ -160,6 +161,7 @@ struct tb_switch_tmu {
  * @max_pcie_credits: Router preferred number of buffers for PCIe
  * @max_dma_credits: Router preferred number of buffers for DMA/P2P
  * @clx: CLx states on the upstream link of the router
+ * @drom_blob: DROM debugfs blob wrapper
  *
  * When the switch is being added or removed to the domain (other
  * switches) you need to have domain lock held.
@@ -212,6 +214,9 @@ struct tb_switch {
 	unsigned int max_pcie_credits;
 	unsigned int max_dma_credits;
 	unsigned int clx;
+#ifdef CONFIG_DEBUG_FS
+	struct debugfs_blob_wrapper drom_blob;
+#endif
 };
 
 /**
@@ -329,6 +334,7 @@ struct usb4_port {
  * @nvm: Pointer to the NVM if the retimer has one (%NULL otherwise)
  * @no_nvm_upgrade: Prevent NVM upgrade of this retimer
  * @auth_status: Status of last NVM authentication
+ * @margining: Pointer to margining structure if enabled
  */
 struct tb_retimer {
 	struct device dev;
@@ -340,6 +346,9 @@ struct tb_retimer {
 	struct tb_nvm *nvm;
 	bool no_nvm_upgrade;
 	u32 auth_status;
+#ifdef CONFIG_USB4_DEBUGFS_MARGINING
+	struct tb_margining *margining;
+#endif
 };
 
 /**
@@ -1327,26 +1336,85 @@ int usb4_port_router_offline(struct tb_port *port);
 int usb4_port_router_online(struct tb_port *port);
 int usb4_port_enumerate_retimers(struct tb_port *port);
 bool usb4_port_clx_supported(struct tb_port *port);
-int usb4_port_margining_caps(struct tb_port *port, u32 *caps);
 
 bool usb4_port_asym_supported(struct tb_port *port);
 int usb4_port_asym_set_link_width(struct tb_port *port, enum tb_link_width width);
 int usb4_port_asym_start(struct tb_port *port);
 
-int usb4_port_hw_margin(struct tb_port *port, unsigned int lanes,
-			unsigned int ber_level, bool timing, bool right_high,
+/**
+ * enum tb_sb_target - Sideband transaction target
+ * @USB4_SB_TARGET_ROUTER: Target is the router itself
+ * @USB4_SB_TARGET_PARTNER: Target is partner
+ * @USB4_SB_TARGET_RETIMER: Target is retimer
+ */
+enum usb4_sb_target {
+	USB4_SB_TARGET_ROUTER,
+	USB4_SB_TARGET_PARTNER,
+	USB4_SB_TARGET_RETIMER,
+};
+
+int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target, u8 index,
+		      u8 reg, void *buf, u8 size);
+int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
+		       u8 index, u8 reg, const void *buf, u8 size);
+
+/**
+ * enum usb4_margin_sw_error_counter - Software margining error counter operation
+ * @USB4_MARGIN_SW_ERROR_COUNTER_NOP: No change in counter setup
+ * @USB4_MARGIN_SW_ERROR_COUNTER_CLEAR: Set the error counter to 0, enable counter
+ * @USB4_MARGIN_SW_ERROR_COUNTER_START: Start counter, count from last value
+ * @USB4_MARGIN_SW_ERROR_COUNTER_STOP: Stop counter, do not clear value
+ */
+enum usb4_margin_sw_error_counter {
+	USB4_MARGIN_SW_ERROR_COUNTER_NOP,
+	USB4_MARGIN_SW_ERROR_COUNTER_CLEAR,
+	USB4_MARGIN_SW_ERROR_COUNTER_START,
+	USB4_MARGIN_SW_ERROR_COUNTER_STOP,
+};
+
+enum usb4_margining_lane {
+	USB4_MARGINING_LANE_RX0 = 0,
+	USB4_MARGINING_LANE_RX1 = 1,
+	USB4_MARGINING_LANE_RX2 = 2,
+	USB4_MARGINING_LANE_ALL = 7,
+};
+
+/**
+ * struct usb4_port_margining_params - USB4 margining parameters
+ * @error_counter: Error counter operation for software margining
+ * @ber_level: Current BER level contour value
+ * @lanes: Lanes to enable for the margining operation
+ * @voltage_time_offset: Offset for voltage / time for software margining
+ * @optional_voltage_offset_range: Enable optional extended voltage range
+ * @right_high: %false if left/low margin test is performed, %true if right/high
+ * @time: %true if time margining is used instead of voltage
+ */
+struct usb4_port_margining_params {
+	enum usb4_margin_sw_error_counter error_counter;
+	u32 ber_level;
+	enum usb4_margining_lane lanes;
+	u32 voltage_time_offset;
+	bool optional_voltage_offset_range;
+	bool right_high;
+	bool upper_eye;
+	bool time;
+};
+
+int usb4_port_margining_caps(struct tb_port *port, enum usb4_sb_target target,
+			     u8 index, u32 *caps, size_t ncaps);
+int usb4_port_hw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, const struct usb4_port_margining_params *params,
+			u32 *results, size_t nresults);
+int usb4_port_sw_margin(struct tb_port *port, enum usb4_sb_target target,
+			u8 index, const struct usb4_port_margining_params *params,
 			u32 *results);
-int usb4_port_sw_margin(struct tb_port *port, unsigned int lanes, bool timing,
-			bool right_high, u32 counter);
-int usb4_port_sw_margin_errors(struct tb_port *port, u32 *errors);
+int usb4_port_sw_margin_errors(struct tb_port *port, enum usb4_sb_target target,
+			       u8 index, u32 *errors);
 
 int usb4_port_retimer_set_inbound_sbtx(struct tb_port *port, u8 index);
 int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index);
-int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
-			   u8 size);
-int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
-			    const void *buf, u8 size);
 int usb4_port_retimer_is_last(struct tb_port *port, u8 index);
+int usb4_port_retimer_is_cable(struct tb_port *port, u8 index);
 int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index);
 int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
 				     unsigned int address);
@@ -1445,6 +1513,8 @@ void tb_xdomain_debugfs_init(struct tb_xdomain *xd);
 void tb_xdomain_debugfs_remove(struct tb_xdomain *xd);
 void tb_service_debugfs_init(struct tb_service *svc);
 void tb_service_debugfs_remove(struct tb_service *svc);
+void tb_retimer_debugfs_init(struct tb_retimer *rt);
+void tb_retimer_debugfs_remove(struct tb_retimer *rt);
 #else
 static inline void tb_debugfs_init(void) { }
 static inline void tb_debugfs_exit(void) { }
@@ -1454,6 +1524,8 @@ static inline void tb_xdomain_debugfs_init(struct tb_xdomain *xd) { }
 static inline void tb_xdomain_debugfs_remove(struct tb_xdomain *xd) { }
 static inline void tb_service_debugfs_init(struct tb_service *svc) { }
 static inline void tb_service_debugfs_remove(struct tb_service *svc) { }
+static inline void tb_retimer_debugfs_init(struct tb_retimer *rt) { }
+static inline void tb_retimer_debugfs_remove(struct tb_retimer *rt) { }
 #endif
 
 #endif

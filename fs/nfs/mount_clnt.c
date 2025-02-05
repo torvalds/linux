@@ -128,11 +128,6 @@ struct mountres {
 	rpc_authflavor_t *auth_flavors;
 };
 
-struct mnt_fhstatus {
-	u32 status;
-	struct nfs_fh *fh;
-};
-
 /**
  * nfs_mount - Obtain an NFS file handle for the given host and path
  * @info: pointer to mount request arguments

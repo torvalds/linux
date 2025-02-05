@@ -11,6 +11,15 @@ maintainers:
   - Stephen Boyd <sboyd@kernel.org>
 
 properties:
+  $nodename:
+    anyOf:
+      - description:
+          If the frequency is fixed, the preferred name is 'clock-<freq>' with
+          <freq> being the output frequency.
+        pattern: "^clock-([0-9]+|[0-9a-z-]+)$"
+      - description: Any name allowed
+        deprecated: true
+
   compatible:
     enum:
       - fixed-factor-clock

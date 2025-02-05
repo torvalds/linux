@@ -750,6 +750,8 @@ static void enable_phantom_plane(struct dml2_context *ctx,
 					ctx->config.svp_pstate.callbacks.dc,
 					state,
 					curr_pipe->plane_state);
+			if (!phantom_plane)
+				return;
 		}
 
 		memcpy(&phantom_plane->address, &curr_pipe->plane_state->address, sizeof(phantom_plane->address));
@@ -811,7 +813,7 @@ static bool remove_all_phantom_planes_for_stream(struct dml2_context *ctx, struc
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
-	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
+	struct dc_plane_state *del_planes[MAX_SURFACES] = { 0 };
 
 	for (i = 0; i < context->stream_count; i++)
 			if (context->streams[i] == stream) {

@@ -162,13 +162,13 @@ static const struct sysfs_ops vas_sysfs_ops = {
 	.store	=	vas_type_store,
 };
 
-static struct kobj_type vas_def_attr_type = {
+static const struct kobj_type vas_def_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops      =       &vas_sysfs_ops,
 		.default_groups	=	vas_def_capab_groups,
 };
 
-static struct kobj_type vas_qos_attr_type = {
+static const struct kobj_type vas_qos_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops	=	&vas_sysfs_ops,
 		.default_groups	=	vas_qos_capab_groups,

@@ -11,12 +11,12 @@
 #include <linux/sizes.h>
 #include <linux/align.h>
 
-struct inode;
+struct btrfs_inode;
 struct btrfs_ioctl_send_args;
 
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
 /* Conditional support for the upcoming protocol version. */
-#ifdef CONFIG_BTRFS_DEBUG
+#ifdef CONFIG_BTRFS_EXPERIMENTAL
 #define BTRFS_SEND_STREAM_VERSION 3
 #else
 #define BTRFS_SEND_STREAM_VERSION 2
@@ -182,6 +182,6 @@ enum {
 	__BTRFS_SEND_A_MAX		= 35,
 };
 
-long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg);
+long btrfs_ioctl_send(struct btrfs_inode *inode, const struct btrfs_ioctl_send_args *arg);
 
 #endif

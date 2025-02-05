@@ -187,11 +187,16 @@
 		compatible = "snps,dwmac-mdio";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		eth_phy0: eth-phy0@1 {
+		eth_phy0: ethernet-phy@1 {
 			compatible = "ethernet-phy-id001c.c916";
 			reg = <0x1>;
 		};
 	};
+};
+
+&gpu {
+	mali-supply = <&mt6315_7_vbuck1>;
+	status = "okay";
 };
 
 &i2c0 {
@@ -337,6 +342,10 @@
 	domain-supply = <&mt6315_7_vbuck1>;
 };
 
+&mfg1 {
+	domain-supply = <&mt6359_vsram_others_ldo_reg>;
+};
+
 &mmc0 {
 	status = "okay";
 	pinctrl-names = "default", "state_uhs";
@@ -407,6 +416,12 @@
 	regulator-always-on;
 };
 
+/* for GPU SRAM */
+&mt6359_vsram_others_ldo_reg {
+	regulator-min-microvolt = <750000>;
+	regulator-max-microvolt = <750000>;
+};
+
 &mt6359codec {
 	mediatek,mic-type-0 = <1>; /* ACC */
 	mediatek,mic-type-1 = <3>; /* DCC */
@@ -475,7 +490,7 @@
 				 <PINMUX_GPIO86__FUNC_GBE_RXC>,
 				 <PINMUX_GPIO87__FUNC_GBE_RXDV>,
 				 <PINMUX_GPIO88__FUNC_GBE_TXEN>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 
 		pins-mdio {
@@ -502,7 +517,7 @@
 				 <PINMUX_GPIO78__FUNC_GBE_TXD2>,
 				 <PINMUX_GPIO79__FUNC_GBE_TXD1>,
 				 <PINMUX_GPIO80__FUNC_GBE_TXD0>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 		};
 	};
 
@@ -567,7 +582,7 @@
 			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
 				 <PINMUX_GPIO13__FUNC_SCL2>;
 			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 		};
 	};
 
@@ -582,7 +597,7 @@
 	mmc0_default_pins: mmc0-default-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -597,13 +612,13 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins-rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -611,7 +626,7 @@
 	mmc0_uhs_pins: mmc0-uhs-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO122__FUNC_MSDC0_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -626,19 +641,19 @@
 				 <PINMUX_GPIO116__FUNC_MSDC0_DAT7>,
 				 <PINMUX_GPIO121__FUNC_MSDC0_CMD>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 
 		pins-ds {
 			pinmux = <PINMUX_GPIO127__FUNC_MSDC0_DSL>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
 		pins-rst {
 			pinmux = <PINMUX_GPIO120__FUNC_MSDC0_RSTB>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -646,7 +661,7 @@
 	mmc1_default_pins: mmc1-default-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO111__FUNC_MSDC1_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -657,7 +672,7 @@
 				 <PINMUX_GPIO114__FUNC_MSDC1_DAT2>,
 				 <PINMUX_GPIO115__FUNC_MSDC1_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -665,7 +680,7 @@
 	mmc1_uhs_pins: mmc1-uhs-pins {
 		pins-clk {
 			pinmux = <PINMUX_GPIO111__FUNC_MSDC1_CLK>;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
 		};
 
@@ -676,7 +691,7 @@
 				 <PINMUX_GPIO114__FUNC_MSDC1_DAT2>,
 				 <PINMUX_GPIO115__FUNC_MSDC1_DAT3>;
 			input-enable;
-			drive-strength = <MTK_DRIVE_8mA>;
+			drive-strength = <8>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
 		};
 	};
@@ -820,7 +835,6 @@
 
 		regulators {
 			mt6315_6_vbuck1: vbuck1 {
-				regulator-compatible = "vbuck1";
 				regulator-name = "Vbcpu";
 				regulator-min-microvolt = <300000>;
 				regulator-max-microvolt = <1193750>;
@@ -837,10 +851,9 @@
 
 		regulators {
 			mt6315_7_vbuck1: vbuck1 {
-				regulator-compatible = "vbuck1";
 				regulator-name = "Vgpu";
-				regulator-min-microvolt = <300000>;
-				regulator-max-microvolt = <1193750>;
+				regulator-min-microvolt = <546000>;
+				regulator-max-microvolt = <787000>;
 				regulator-enable-ramp-delay = <256>;
 				regulator-allowed-modes = <0 1 2>;
 			};
@@ -854,6 +867,10 @@
 
 &u3phy1 {
 	status = "okay";
+
+	u3port1: usb-phy@700 {
+		mediatek,force-mode;
+	};
 };
 
 &u3phy2 {

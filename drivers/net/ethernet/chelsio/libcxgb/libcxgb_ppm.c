@@ -342,10 +342,10 @@ int cxgbi_ppm_release(struct cxgbi_ppm *ppm)
 }
 EXPORT_SYMBOL(cxgbi_ppm_release);
 
-static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
-						 unsigned int *pcpu_ppmax)
+static struct cxgbi_ppm_pool __percpu *
+ppm_alloc_cpu_pool(unsigned int *total, unsigned int *pcpu_ppmax)
 {
-	struct cxgbi_ppm_pool *pools;
+	struct cxgbi_ppm_pool __percpu *pools;
 	unsigned int ppmax = (*total) / num_possible_cpus();
 	unsigned int max = (PCPU_MIN_UNIT_SIZE - sizeof(*pools)) << 3;
 	unsigned int bmap;
@@ -392,7 +392,7 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 		   unsigned int iscsi_edram_size)
 {
 	struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*ppm_pp);
-	struct cxgbi_ppm_pool *pool = NULL;
+	struct cxgbi_ppm_pool __percpu *pool = NULL;
 	unsigned int pool_index_max = 0;
 	unsigned int ppmax_pool = 0;
 	unsigned int ppod_bmap_size;

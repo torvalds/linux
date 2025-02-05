@@ -410,10 +410,13 @@ union dmub_fw_boot_options dmub_dcn35_get_fw_boot_option(struct dmub_srv *dmub)
 void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)
 {
 	union dmub_fw_boot_options boot_options = {0};
+	union dmub_fw_boot_options cur_boot_options = {0};
+
+	cur_boot_options = dmub_dcn35_get_fw_boot_option(dmub);
 
 	boot_options.bits.z10_disable = params->disable_z10;
 	boot_options.bits.dpia_supported = params->dpia_supported;
-	boot_options.bits.enable_dpia = params->disable_dpia == true ? 0:1;
+	boot_options.bits.enable_dpia = cur_boot_options.bits.enable_dpia && !params->disable_dpia;
 	boot_options.bits.usb4_cm_version = params->usb4_cm_version;
 	boot_options.bits.dpia_hpd_int_enable_supported = params->dpia_hpd_int_enable_supported;
 	boot_options.bits.power_optimization = params->power_optimization;
@@ -421,6 +424,9 @@ void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.disable_clk_gate = params->disable_clock_gate;
 	boot_options.bits.ips_disable = params->disable_ips;
 	boot_options.bits.ips_sequential_ono = params->ips_sequential_ono;
+	boot_options.bits.disable_sldo_opt = params->disable_sldo_opt;
+	boot_options.bits.enable_non_transparent_setconfig = params->enable_non_transparent_setconfig;
+	boot_options.bits.lower_hbr3_phy_ssc = params->lower_hbr3_phy_ssc;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
@@ -458,8 +464,8 @@ uint32_t dmub_dcn35_get_current_time(struct dmub_srv *dmub)
 
 void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
 {
-	uint32_t is_dmub_enabled, is_soft_reset, is_sec_reset;
-	uint32_t is_traceport_enabled, is_cw0_enabled, is_cw6_enabled;
+	uint32_t is_dmub_enabled, is_soft_reset;
+	uint32_t is_traceport_enabled, is_cw6_enabled;
 
 	if (!dmub || !diag_data)
 		return;
@@ -498,20 +504,18 @@ void dmub_dcn35_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnosti
 	diag_data->inbox0_wptr = REG_READ(DMCUB_INBOX0_WPTR);
 	diag_data->inbox0_size = REG_READ(DMCUB_INBOX0_SIZE);
 
+	diag_data->outbox1_rptr = REG_READ(DMCUB_OUTBOX1_RPTR);
+	diag_data->outbox1_wptr = REG_READ(DMCUB_OUTBOX1_WPTR);
+	diag_data->outbox1_size = REG_READ(DMCUB_OUTBOX1_SIZE);
+
 	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_dmub_enabled);
 	diag_data->is_dmcub_enabled = is_dmub_enabled;
 
 	REG_GET(DMCUB_CNTL2, DMCUB_SOFT_RESET, &is_soft_reset);
 	diag_data->is_dmcub_soft_reset = is_soft_reset;
 
-	REG_GET(DMCUB_SEC_CNTL, DMCUB_SEC_RESET_STATUS, &is_sec_reset);
-	diag_data->is_dmcub_secure_reset = is_sec_reset;
-
 	REG_GET(DMCUB_CNTL, DMCUB_TRACEPORT_EN, &is_traceport_enabled);
 	diag_data->is_traceport_en  = is_traceport_enabled;
-
-	REG_GET(DMCUB_REGION3_CW0_TOP_ADDRESS, DMCUB_REGION3_CW0_ENABLE, &is_cw0_enabled);
-	diag_data->is_cw0_enabled = is_cw0_enabled;
 
 	REG_GET(DMCUB_REGION3_CW6_TOP_ADDRESS, DMCUB_REGION3_CW6_ENABLE, &is_cw6_enabled);
 	diag_data->is_cw6_enabled = is_cw6_enabled;

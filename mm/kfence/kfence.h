@@ -38,6 +38,7 @@
 enum kfence_object_state {
 	KFENCE_OBJECT_UNUSED,		/* Object is unused. */
 	KFENCE_OBJECT_ALLOCATED,	/* Object is currently allocated. */
+	KFENCE_OBJECT_RCU_FREEING,	/* Object was allocated, and then being freed by rcu. */
 	KFENCE_OBJECT_FREED,		/* Object was allocated, and then freed. */
 };
 
@@ -98,7 +99,7 @@ struct kfence_metadata {
 	/* For updating alloc_covered on frees. */
 	u32 alloc_stack_hash;
 #ifdef CONFIG_MEMCG
-	struct obj_cgroup *objcg;
+	struct slabobj_ext obj_exts;
 #endif
 };
 

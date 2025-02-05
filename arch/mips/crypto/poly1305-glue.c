@@ -5,7 +5,7 @@
  * Copyright (C) 2019 Linaro Ltd. <ard.biesheuvel@linaro.org>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/poly1305.h>
@@ -186,6 +186,7 @@ static void __exit mips_poly1305_mod_exit(void)
 module_init(mips_poly1305_mod_init);
 module_exit(mips_poly1305_mod_exit);
 
+MODULE_DESCRIPTION("Poly1305 transform (MIPS accelerated");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("poly1305");
 MODULE_ALIAS_CRYPTO("poly1305-mips");

@@ -28,32 +28,6 @@
 	.text
 
 /*
- * This returns the high 64 bits of the product of two 64-bit numbers.
- */
-_GLOBAL(mulhdu)
-	cmpwi	r6,0
-	cmpwi	cr1,r3,0
-	mr	r10,r4
-	mulhwu	r4,r4,r5
-	beq	1f
-	mulhwu	r0,r10,r6
-	mullw	r7,r10,r5
-	addc	r7,r0,r7
-	addze	r4,r4
-1:	beqlr	cr1		/* all done if high part of A is 0 */
-	mullw	r9,r3,r5
-	mulhwu	r10,r3,r5
-	beq	2f
-	mullw	r0,r3,r6
-	mulhwu	r8,r3,r6
-	addc	r7,r0,r7
-	adde	r4,r4,r8
-	addze	r10,r10
-2:	addc	r4,r4,r9
-	addze	r3,r10
-	blr
-
-/*
  * reloc_got2 runs through the .got2 section adding an offset
  * to each entry.
  */
@@ -175,46 +149,6 @@ _GLOBAL(low_choose_7447a_dfs)
 	blr
 
 #endif /* CONFIG_CPU_FREQ_PMAC && CONFIG_PPC_BOOK3S_32 */
-
-#ifdef CONFIG_40x
-
-/*
- * Do an IO access in real mode
- */
-_GLOBAL(real_readb)
-	mfmsr	r7
-	rlwinm	r0,r7,0,~MSR_DR
-	sync
-	mtmsr	r0
-	sync
-	isync
-	lbz	r3,0(r3)
-	sync
-	mtmsr	r7
-	sync
-	isync
-	blr
-_ASM_NOKPROBE_SYMBOL(real_readb)
-
-	/*
- * Do an IO access in real mode
- */
-_GLOBAL(real_writeb)
-	mfmsr	r7
-	rlwinm	r0,r7,0,~MSR_DR
-	sync
-	mtmsr	r0
-	sync
-	isync
-	stb	r3,0(r4)
-	sync
-	mtmsr	r7
-	sync
-	isync
-	blr
-_ASM_NOKPROBE_SYMBOL(real_writeb)
-
-#endif /* CONFIG_40x */
 
 /*
  * Copy a whole page.  We use the dcbz instruction on the destination

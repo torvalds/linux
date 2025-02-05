@@ -694,7 +694,6 @@ static const struct file_operations evtchn_fops = {
 	.fasync  = evtchn_fasync,
 	.open    = evtchn_open,
 	.release = evtchn_release,
-	.llseek	 = no_llseek,
 };
 
 static struct miscdevice evtchn_miscdev = {
@@ -729,4 +728,5 @@ static void __exit evtchn_cleanup(void)
 module_init(evtchn_init);
 module_exit(evtchn_cleanup);
 
+MODULE_DESCRIPTION("Xen /dev/xen/evtchn device driver");
 MODULE_LICENSE("GPL");

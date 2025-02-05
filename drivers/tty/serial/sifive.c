@@ -761,7 +761,7 @@ static int __init early_sifive_serial_setup(struct earlycon_device *dev,
 }
 
 OF_EARLYCON_DECLARE(sifive, "sifive,uart0", early_sifive_serial_setup);
-OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart0",
+OF_EARLYCON_DECLARE(sifive, "sifive,fu540-c000-uart",
 		    early_sifive_serial_setup);
 #endif /* CONFIG_SERIAL_EARLYCON */
 
@@ -1032,7 +1032,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(sifive_uart_pm_ops, sifive_serial_suspend,
 				sifive_serial_resume);
 
 static const struct of_device_id sifive_serial_of_match[] = {
-	{ .compatible = "sifive,fu540-c000-uart0" },
+	{ .compatible = "sifive,fu540-c000-uart" },
 	{ .compatible = "sifive,uart0" },
 	{},
 };
@@ -1040,7 +1040,7 @@ MODULE_DEVICE_TABLE(of, sifive_serial_of_match);
 
 static struct platform_driver sifive_serial_platform_driver = {
 	.probe		= sifive_serial_probe,
-	.remove_new	= sifive_serial_remove,
+	.remove		= sifive_serial_remove,
 	.driver		= {
 		.name	= SIFIVE_SERIAL_NAME,
 		.pm = pm_sleep_ptr(&sifive_uart_pm_ops),

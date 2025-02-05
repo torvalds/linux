@@ -158,7 +158,7 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 }
 
 /* RSS contexts */
-static inline bool efx_rss_active(struct efx_rss_context *ctx)
+static inline bool efx_rss_active(struct efx_rss_context_priv *ctx)
 {
 	return ctx->context_id != EFX_MCDI_RSS_CONTEXT_INVALID;
 }
@@ -168,7 +168,6 @@ extern const struct ethtool_ops efx_ethtool_ops;
 
 /* Global */
 unsigned int efx_usecs_to_ticks(struct efx_nic *efx, unsigned int usecs);
-unsigned int efx_ticks_to_usecs(struct efx_nic *efx, unsigned int ticks);
 int efx_init_irq_moderation(struct efx_nic *efx, unsigned int tx_usecs,
 			    unsigned int rx_usecs, bool rx_adaptive,
 			    bool rx_may_override_tx);

@@ -26,12 +26,13 @@ fman@1a00000 {
 		fsl,fman-ports = <&fman0_rx_0x0a &fman0_tx_0x2a>;
 		ptp-timer = <&ptp_timer0>;
 		pcsphy-handle = <&pcsphy2>;
+		pcs-handle = <&pcsphy2>;
 	};
 
 	mdio@e5000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
+		compatible = "fsl,fman-memac-mdio";
 		reg = <0xe5000 0x1000>;
 
 		pcsphy2: ethernet-phy@0 {

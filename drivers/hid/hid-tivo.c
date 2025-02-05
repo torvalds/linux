@@ -73,5 +73,6 @@ static struct hid_driver tivo_driver = {
 };
 module_hid_driver(tivo_driver);
 
+MODULE_DESCRIPTION("HID driver for TiVo Slide Bluetooth remote");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");

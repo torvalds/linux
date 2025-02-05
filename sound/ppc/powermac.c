@@ -104,7 +104,7 @@ static int snd_pmac_probe(struct platform_device *devptr)
 			goto __error;
 		break;
 	default:
-		snd_printk(KERN_ERR "unsupported hardware %d\n", chip->model);
+		dev_err(&devptr->dev, "unsupported hardware %d\n", chip->model);
 		err = -EINVAL;
 		goto __error;
 	}
@@ -160,7 +160,7 @@ static SIMPLE_DEV_PM_OPS(snd_pmac_pm, snd_pmac_driver_suspend, snd_pmac_driver_r
 
 static struct platform_driver snd_pmac_driver = {
 	.probe		= snd_pmac_probe,
-	.remove_new	= snd_pmac_remove,
+	.remove		= snd_pmac_remove,
 	.driver		= {
 		.name	= SND_PMAC_DRIVER,
 		.pm	= SND_PMAC_PM_OPS,

@@ -38,7 +38,7 @@ MODULE_DEVICE_TABLE(of, pcm179x_of_match);
 #endif
 
 static const struct i2c_device_id pcm179x_i2c_ids[] = {
-	{ "pcm179x", 0 },
+	{ "pcm179x" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcm179x_i2c_ids);

@@ -2,7 +2,7 @@
 /*
  * Microchip KSZ9477 register definitions
  *
- * Copyright (C) 2017-2018 Microchip Technology Inc.
+ * Copyright (C) 2017-2024 Microchip Technology Inc.
  */
 
 #ifndef __KSZ9477_REGS_H
@@ -37,11 +37,6 @@
 #define SWITCH_REVISION_M		0x0F
 #define SWITCH_REVISION_S		4
 #define SWITCH_RESET			0x01
-
-#define REG_SW_PME_CTRL			0x0006
-
-#define PME_ENABLE			BIT(1)
-#define PME_POLARITY			BIT(0)
 
 #define REG_GLOBAL_OPTIONS		0x000F
 
@@ -170,8 +165,6 @@
 #define SW_VLAN_ENABLE			BIT(7)
 #define SW_DROP_INVALID_VID		BIT(6)
 #define SW_AGE_CNT_M			GENMASK(5, 3)
-#define SW_AGE_CNT_S			3
-#define SW_AGE_PERIOD_10_8_M		GENMASK(10, 8)
 #define SW_RESV_MCAST_ENABLE		BIT(2)
 #define SW_HASH_OPTION_M		0x03
 #define SW_HASH_OPTION_CRC		1
@@ -247,6 +240,7 @@
 #define REG_SW_MAC_CTRL_1		0x0331
 
 #define SW_BACK_PRESSURE		BIT(5)
+#define SW_BACK_PRESSURE_COLLISION	0
 #define FAIR_FLOW_CTRL			BIT(4)
 #define NO_EXC_COLLISION_DROP		BIT(3)
 #define SW_JUMBO_PACKET			BIT(2)
@@ -806,13 +800,6 @@
 #define REG_PORT_AVB_SR_1_TYPE		0x0008
 #define REG_PORT_AVB_SR_2_TYPE		0x000A
 
-#define REG_PORT_PME_STATUS		0x0013
-#define REG_PORT_PME_CTRL		0x0017
-
-#define PME_WOL_MAGICPKT		BIT(2)
-#define PME_WOL_LINKUP			BIT(1)
-#define PME_WOL_ENERGY			BIT(0)
-
 #define REG_PORT_INT_STATUS		0x001B
 #define REG_PORT_INT_MASK		0x001F
 
@@ -842,8 +829,8 @@
 
 #define REG_PORT_STATUS_0		0x0030
 
-#define PORT_INTF_SPEED_M		0x3
-#define PORT_INTF_SPEED_S		3
+#define PORT_INTF_SPEED_MASK		GENMASK(4, 3)
+#define PORT_INTF_SPEED_NONE		GENMASK(1, 0)
 #define PORT_INTF_FULL_DUPLEX		BIT(2)
 #define PORT_TX_FLOW_CTRL		BIT(1)
 #define PORT_RX_FLOW_CTRL		BIT(0)
@@ -1166,6 +1153,11 @@
 
 #define PORT_RMII_CLK_SEL		BIT(7)
 #define PORT_MII_SEL_EDGE		BIT(5)
+
+#define REG_PMAVBC			0x03AC
+
+#define PMAVBC_MASK			GENMASK(26, 16)
+#define PMAVBC_MIN			0x580
 
 /* 4 - MAC */
 #define REG_PORT_MAC_CTRL_0		0x0400
@@ -1494,6 +1486,7 @@
 
 #define PORT_QM_TX_CNT_USED_S		0
 #define PORT_QM_TX_CNT_M		(BIT(11) - 1)
+#define PORT_QM_TX_CNT_MAX		0x200
 
 #define REG_PORT_QM_TX_CNT_1__4		0x0A14
 

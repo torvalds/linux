@@ -26,19 +26,4 @@ struct bch_devs_list {
 	u8			data[BCH_BKEY_PTRS_MAX];
 };
 
-struct bch_member_cpu {
-	u64			nbuckets;	/* device size */
-	u16			first_bucket;   /* index of first bucket used */
-	u16			bucket_size;	/* sectors */
-	u16			group;
-	u8			state;
-	u8			discard;
-	u8			data_allowed;
-	u8			durability;
-	u8			freespace_initialized;
-	u8			valid;
-	u8			btree_bitmap_shift;
-	u64			btree_allocated_bitmap;
-};
-
 #endif /* _BCACHEFS_SUPER_TYPES_H */

@@ -497,7 +497,7 @@ static int child_poll_leader_exit_test(void *args)
 	pthread_create(&t2, NULL, test_pidfd_poll_leader_exit_thread, NULL);
 
 	/*
-	 * glibc exit calls exit_group syscall, so explicity call exit only
+	 * glibc exit calls exit_group syscall, so explicitly call exit only
 	 * so that only the group leader exits, leaving the threads alone.
 	 */
 	*child_exit_secs = time(NULL);
@@ -572,5 +572,5 @@ int main(int argc, char **argv)
 	test_pidfd_send_signal_exited_fail();
 	test_pidfd_send_signal_recycled_pid_fail();
 
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }

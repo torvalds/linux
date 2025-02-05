@@ -221,7 +221,6 @@ static irqreturn_t uctrl_interrupt(int irq, void *dev_id)
 
 static const struct file_operations uctrl_fops = {
 	.owner =	THIS_MODULE,
-	.llseek =	no_llseek,
 	.unlocked_ioctl =	uctrl_ioctl,
 	.open =		uctrl_open,
 };
@@ -425,10 +424,11 @@ static struct platform_driver uctrl_driver = {
 		.of_match_table = uctrl_match,
 	},
 	.probe		= uctrl_probe,
-	.remove_new	= uctrl_remove,
+	.remove		= uctrl_remove,
 };
 
 
 module_platform_driver(uctrl_driver);
 
+MODULE_DESCRIPTION("Tadpole TS102 Microcontroller driver");
 MODULE_LICENSE("GPL");

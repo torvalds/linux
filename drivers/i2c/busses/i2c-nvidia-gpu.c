@@ -16,7 +16,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/power_supply.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "i2c-ccgx-ucsi.h"
 
@@ -163,8 +163,7 @@ static int gpu_i2c_write(struct gpu_i2c_dev *i2cd, u8 data)
 	return gpu_i2c_check_status(i2cd);
 }
 
-static int gpu_i2c_master_xfer(struct i2c_adapter *adap,
-			       struct i2c_msg *msgs, int num)
+static int gpu_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct gpu_i2c_dev *i2cd = i2c_get_adapdata(adap);
 	int status, status2;
@@ -234,8 +233,8 @@ static u32 gpu_i2c_functionality(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm gpu_i2c_algorithm = {
-	.master_xfer	= gpu_i2c_master_xfer,
-	.functionality	= gpu_i2c_functionality,
+	.xfer = gpu_i2c_xfer,
+	.functionality = gpu_i2c_functionality,
 };
 
 /*

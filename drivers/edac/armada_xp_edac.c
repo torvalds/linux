@@ -364,7 +364,7 @@ static void axp_mc_remove(struct platform_device *pdev)
 
 static struct platform_driver axp_mc_driver = {
 	.probe = axp_mc_probe,
-	.remove_new = axp_mc_remove,
+	.remove = axp_mc_remove,
 	.driver = {
 		.name = "armada_xp_mc_edac",
 		.of_match_table = of_match_ptr(axp_mc_of_match),
@@ -523,7 +523,7 @@ static int aurora_l2_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "data ECC is not enabled\n");
 
 	dci = edac_device_alloc_ctl_info(sizeof(*drvdata),
-					 "cpu", 1, "L", 1, 2, NULL, 0, 0);
+					 "cpu", 1, "L", 1, 2, 0);
 	if (!dci)
 		return -ENOMEM;
 
@@ -579,7 +579,7 @@ static void aurora_l2_remove(struct platform_device *pdev)
 
 static struct platform_driver aurora_l2_driver = {
 	.probe = aurora_l2_probe,
-	.remove_new = aurora_l2_remove,
+	.remove = aurora_l2_remove,
 	.driver = {
 		.name = "aurora_l2_edac",
 		.of_match_table = of_match_ptr(aurora_l2_of_match),

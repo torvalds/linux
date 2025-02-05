@@ -53,8 +53,8 @@ static inline void __lockevent_add(enum lock_events event, int inc)
 #else  /* CONFIG_LOCK_EVENT_COUNTS */
 
 #define lockevent_inc(ev)
-#define lockevent_add(ev, c)
-#define lockevent_cond_inc(ev, c)
+#define lockevent_add(ev, c)		do { (void)(c); } while (0)
+#define lockevent_cond_inc(ev, c)	do { (void)(c); } while (0)
 
 #endif /* CONFIG_LOCK_EVENT_COUNTS */
 

@@ -814,12 +814,12 @@ struct MR_HOST_DEVICE_LIST {
 	__le32			size;
 	__le32			count;
 	__le32			reserved[2];
-	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[1];
+	struct MR_HOST_DEVICE_LIST_ENTRY	host_device_list[] __counted_by_le(count);
 } __packed;
 
 #define HOST_DEVICE_LIST_SZ (sizeof(struct MR_HOST_DEVICE_LIST) +	       \
 			      (sizeof(struct MR_HOST_DEVICE_LIST_ENTRY) *      \
-			      (MEGASAS_MAX_PD + MAX_LOGICAL_DRIVES_EXT - 1)))
+			      (MEGASAS_MAX_PD + MAX_LOGICAL_DRIVES_EXT)))
 
 
 /*
@@ -2473,7 +2473,7 @@ struct MR_LD_VF_MAP {
 	union MR_LD_REF ref;
 	u8 ldVfCount;
 	u8 reserved[6];
-	u8 policy[1];
+	u8 policy[];
 };
 
 struct MR_LD_VF_AFFILIATION {
@@ -2701,7 +2701,7 @@ int megasas_get_ctrl_info(struct megasas_instance *instance);
 int
 megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
 void megasas_set_dynamic_target_properties(struct scsi_device *sdev,
-					   bool is_target_prop);
+		struct queue_limits *lim, bool is_target_prop);
 int megasas_get_target_prop(struct megasas_instance *instance,
 			    struct scsi_device *sdev);
 void megasas_get_snapdump_properties(struct megasas_instance *instance);

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2020, 2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2020, 2022, 2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -56,8 +56,6 @@ struct iwl_binding_cmd {
 } __packed; /* BINDING_CMD_API_S_VER_2 */
 
 #define IWL_BINDING_CMD_SIZE_V1	sizeof(struct iwl_binding_cmd_v1)
-#define IWL_LMAC_24G_INDEX		0
-#define IWL_LMAC_5G_INDEX		1
 
 /* The maximal number of fragments in the FW's schedule session */
 #define IWL_MVM_MAX_QUOTA 128
@@ -77,7 +75,7 @@ struct iwl_time_quota_data_v1 {
 } __packed; /* TIME_QUOTA_DATA_API_S_VER_1 */
 
 /**
- * struct iwl_time_quota_cmd - configuration of time quota between bindings
+ * struct iwl_time_quota_cmd_v1 - configuration of time quota between bindings
  * ( TIME_QUOTA_CMD = 0x2c )
  * @quotas: allocations per binding
  * Note: on non-CDB the fourth one is the auxilary mac and is

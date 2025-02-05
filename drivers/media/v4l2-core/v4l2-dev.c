@@ -93,6 +93,8 @@ static struct attribute *video_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(video_device);
 
+static struct dentry *v4l2_debugfs_root_dir;
+
 /*
  *	Active devices
  */
@@ -227,7 +229,7 @@ static void v4l2_device_release(struct device *cd)
 		v4l2_device_put(v4l2_dev);
 }
 
-static struct class video_class = {
+static const struct class video_class = {
 	.name = VIDEO_NAME,
 	.dev_groups = video_device_groups,
 };
@@ -483,7 +485,6 @@ static const struct file_operations v4l2_fops = {
 #endif
 	.release = v4l2_release,
 	.poll = v4l2_poll,
-	.llseek = no_llseek,
 };
 
 /**
@@ -557,6 +558,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	bool is_tx = vdev->vfl_dir != VFL_DIR_RX;
 	bool is_io_mc = vdev->device_caps & V4L2_CAP_IO_MC;
 	bool has_streaming = vdev->device_caps & V4L2_CAP_STREAMING;
+	bool is_edid =  vdev->device_caps & V4L2_CAP_EDID;
 
 	bitmap_zero(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
@@ -722,6 +724,9 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_PREPARE_BUF, vidioc_prepare_buf);
 		SET_VALID_IOCTL(ops, VIDIOC_STREAMON, vidioc_streamon);
 		SET_VALID_IOCTL(ops, VIDIOC_STREAMOFF, vidioc_streamoff);
+		/* VIDIOC_CREATE_BUFS support is mandatory to enable VIDIOC_REMOVE_BUFS */
+		if (ops->vidioc_create_bufs)
+			SET_VALID_IOCTL(ops, VIDIOC_REMOVE_BUFS, vidioc_remove_bufs);
 	}
 
 	if (is_vid || is_vbi || is_meta) {
@@ -780,6 +785,20 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_G_TUNER, vidioc_g_tuner);
 		SET_VALID_IOCTL(ops, VIDIOC_S_TUNER, vidioc_s_tuner);
 		SET_VALID_IOCTL(ops, VIDIOC_S_HW_FREQ_SEEK, vidioc_s_hw_freq_seek);
+	}
+	if (is_edid) {
+		SET_VALID_IOCTL(ops, VIDIOC_G_EDID, vidioc_g_edid);
+		if (is_tx) {
+			SET_VALID_IOCTL(ops, VIDIOC_G_OUTPUT, vidioc_g_output);
+			SET_VALID_IOCTL(ops, VIDIOC_S_OUTPUT, vidioc_s_output);
+			SET_VALID_IOCTL(ops, VIDIOC_ENUMOUTPUT, vidioc_enum_output);
+		}
+		if (is_rx) {
+			SET_VALID_IOCTL(ops, VIDIOC_ENUMINPUT, vidioc_enum_input);
+			SET_VALID_IOCTL(ops, VIDIOC_G_INPUT, vidioc_g_input);
+			SET_VALID_IOCTL(ops, VIDIOC_S_INPUT, vidioc_s_input);
+			SET_VALID_IOCTL(ops, VIDIOC_S_EDID, vidioc_s_edid);
+		}
 	}
 
 	bitmap_andnot(vdev->valid_ioctls, valid_ioctls, vdev->valid_ioctls,
@@ -1036,8 +1055,10 @@ int __video_register_device(struct video_device *vdev,
 	vdev->dev.devt = MKDEV(VIDEO_MAJOR, vdev->minor);
 	vdev->dev.parent = vdev->dev_parent;
 	dev_set_name(&vdev->dev, "%s%d", name_base, vdev->num);
+	mutex_lock(&videodev_lock);
 	ret = device_register(&vdev->dev);
 	if (ret < 0) {
+		mutex_unlock(&videodev_lock);
 		pr_err("%s: device_register failed\n", __func__);
 		goto cleanup;
 	}
@@ -1057,6 +1078,7 @@ int __video_register_device(struct video_device *vdev,
 
 	/* Part 6: Activate this minor. The char device can now be used. */
 	set_bit(V4L2_FL_REGISTERED, &vdev->flags);
+	mutex_unlock(&videodev_lock);
 
 	return 0;
 
@@ -1097,6 +1119,16 @@ void video_unregister_device(struct video_device *vdev)
 	device_unregister(&vdev->dev);
 }
 EXPORT_SYMBOL(video_unregister_device);
+
+#ifdef CONFIG_DEBUG_FS
+struct dentry *v4l2_debugfs_root(void)
+{
+	if (!v4l2_debugfs_root_dir)
+		v4l2_debugfs_root_dir = debugfs_create_dir("v4l2", NULL);
+	return v4l2_debugfs_root_dir;
+}
+EXPORT_SYMBOL_GPL(v4l2_debugfs_root);
+#endif
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 
@@ -1202,6 +1234,8 @@ static void __exit videodev_exit(void)
 
 	class_unregister(&video_class);
 	unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
+	debugfs_remove_recursive(v4l2_debugfs_root_dir);
+	v4l2_debugfs_root_dir = NULL;
 }
 
 subsys_initcall(videodev_init);

@@ -220,6 +220,9 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 
 	/* Set owner */
 	pindesc->pctldev = pctldev;
+#ifdef CONFIG_PINMUX
+	mutex_init(&pindesc->mux_lock);
+#endif
 
 	/* Copy basic pin info */
 	if (pin->name) {
@@ -1106,8 +1109,8 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 		 * an -EPROBE_DEFER later, as that is the worst case.
 		 */
 		if (ret == -EPROBE_DEFER) {
-			pinctrl_free(p, false);
 			mutex_unlock(&pinctrl_maps_mutex);
+			pinctrl_free(p, false);
 			return ERR_PTR(ret);
 		}
 	}
@@ -1253,6 +1256,20 @@ static void pinctrl_link_add(struct pinctrl_dev *pctldev,
 				DL_FLAG_AUTOREMOVE_CONSUMER);
 }
 
+static void pinctrl_cond_disable_mux_setting(struct pinctrl_state *state,
+					     struct pinctrl_setting *target_setting)
+{
+	struct pinctrl_setting *setting;
+
+	list_for_each_entry(setting, &state->settings, node) {
+		if (target_setting && (&setting->node == &target_setting->node))
+			break;
+
+		if (setting->type == PIN_MAP_TYPE_MUX_GROUP)
+			pinmux_disable_setting(setting);
+	}
+}
+
 /**
  * pinctrl_commit_state() - select/activate/program a pinctrl state to HW
  * @p: the pinctrl handle for the device that requests configuration
@@ -1260,7 +1277,7 @@ static void pinctrl_link_add(struct pinctrl_dev *pctldev,
  */
 static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 {
-	struct pinctrl_setting *setting, *setting2;
+	struct pinctrl_setting *setting;
 	struct pinctrl_state *old_state = READ_ONCE(p->state);
 	int ret;
 
@@ -1271,11 +1288,7 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 		 * still owned by the new state will be re-acquired by the call
 		 * to pinmux_enable_setting() in the loop below.
 		 */
-		list_for_each_entry(setting, &old_state->settings, node) {
-			if (setting->type != PIN_MAP_TYPE_MUX_GROUP)
-				continue;
-			pinmux_disable_setting(setting);
-		}
+		pinctrl_cond_disable_mux_setting(old_state, NULL);
 	}
 
 	p->state = NULL;
@@ -1319,7 +1332,7 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 		}
 
 		if (ret < 0) {
-			goto unapply_new_state;
+			goto unapply_mux_setting;
 		}
 
 		/* Do not link hogs (circular dependency) */
@@ -1331,23 +1344,23 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 
 	return 0;
 
+unapply_mux_setting:
+	pinctrl_cond_disable_mux_setting(state, NULL);
+	goto restore_old_state;
+
 unapply_new_state:
 	dev_err(p->dev, "Error applying setting, reverse things back\n");
 
-	list_for_each_entry(setting2, &state->settings, node) {
-		if (&setting2->node == &setting->node)
-			break;
-		/*
-		 * All we can do here is pinmux_disable_setting.
-		 * That means that some pins are muxed differently now
-		 * than they were before applying the setting (We can't
-		 * "unmux a pin"!), but it's not a big deal since the pins
-		 * are free to be muxed by another apply_setting.
-		 */
-		if (setting2->type == PIN_MAP_TYPE_MUX_GROUP)
-			pinmux_disable_setting(setting2);
-	}
+	/*
+	 * All we can do here is pinmux_disable_setting.
+	 * That means that some pins are muxed differently now
+	 * than they were before applying the setting (We can't
+	 * "unmux a pin"!), but it's not a big deal since the pins
+	 * are free to be muxed by another apply_setting.
+	 */
+	pinctrl_cond_disable_mux_setting(state, setting);
 
+restore_old_state:
 	/* There's no infinite recursive loop here because p->state is NULL */
 	if (old_state)
 		pinctrl_select_state(p, old_state);
@@ -1670,13 +1683,23 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 		seq_printf(s, "pin %d (%s) ", pin, desc->name);
 
 #ifdef CONFIG_GPIOLIB
+		gdev = NULL;
 		gpio_num = -1;
 		list_for_each_entry(range, &pctldev->gpio_ranges, node) {
-			if ((pin >= range->pin_base) &&
-			    (pin < (range->pin_base + range->npins))) {
-				gpio_num = range->base + (pin - range->pin_base);
-				break;
+			if (range->pins != NULL) {
+				for (int i = 0; i < range->npins; ++i) {
+					if (range->pins[i] == pin) {
+						gpio_num = range->base + i;
+						break;
+					}
+				}
+			} else if ((pin >= range->pin_base) &&
+				   (pin < (range->pin_base + range->npins))) {
+				gpio_num =
+					range->base + (pin - range->pin_base);
 			}
+			if (gpio_num != -1)
+				break;
 		}
 		if (gpio_num >= 0)
 			/*
@@ -1961,7 +1984,7 @@ static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
 static void pinctrl_init_debugfs(void)
 {
 	debugfs_root = debugfs_create_dir("pinctrl", NULL);
-	if (IS_ERR(debugfs_root) || !debugfs_root) {
+	if (IS_ERR(debugfs_root)) {
 		pr_warn("failed to create debugfs directory\n");
 		debugfs_root = NULL;
 		return;
@@ -2080,6 +2103,14 @@ out_err:
 	return ERR_PTR(ret);
 }
 
+static void pinctrl_uninit_controller(struct pinctrl_dev *pctldev, struct pinctrl_desc *pctldesc)
+{
+	pinctrl_free_pindescs(pctldev, pctldesc->pins,
+			      pctldesc->npins);
+	mutex_destroy(&pctldev->mutex);
+	kfree(pctldev);
+}
+
 static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
 {
 	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
@@ -2124,13 +2155,7 @@ int pinctrl_enable(struct pinctrl_dev *pctldev)
 
 	error = pinctrl_claim_hogs(pctldev);
 	if (error) {
-		dev_err(pctldev->dev, "could not claim hogs: %i\n",
-			error);
-		pinctrl_free_pindescs(pctldev, pctldev->desc->pins,
-				      pctldev->desc->npins);
-		mutex_destroy(&pctldev->mutex);
-		kfree(pctldev);
-
+		dev_err(pctldev->dev, "could not claim hogs: %i\n", error);
 		return error;
 	}
 
@@ -2166,8 +2191,10 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		return pctldev;
 
 	error = pinctrl_enable(pctldev);
-	if (error)
+	if (error) {
+		pinctrl_uninit_controller(pctldev, pctldesc);
 		return ERR_PTR(error);
+	}
 
 	return pctldev;
 }

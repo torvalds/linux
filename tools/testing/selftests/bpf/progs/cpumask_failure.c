@@ -10,6 +10,21 @@
 
 char _license[] SEC("license") = "GPL";
 
+struct kptr_nested_array_2 {
+	struct bpf_cpumask __kptr * mask;
+};
+
+struct kptr_nested_array_1 {
+	/* Make btf_parse_fields() in map_create() return -E2BIG */
+	struct kptr_nested_array_2 d_2[CPUMASK_KPTR_FIELDS_MAX + 1];
+};
+
+struct kptr_nested_array {
+	struct kptr_nested_array_1 d_1;
+};
+
+private(MASK_NESTED) static struct kptr_nested_array global_mask_nested_arr;
+
 /* Prototype for all of the program trace events below:
  *
  * TRACE_EVENT(task_newtask,
@@ -61,11 +76,8 @@ SEC("tp_btf/task_newtask")
 __failure __msg("bpf_cpumask_set_cpu args#1 expected pointer to STRUCT bpf_cpumask")
 int BPF_PROG(test_mutate_cpumask, struct task_struct *task, u64 clone_flags)
 {
-	struct bpf_cpumask *cpumask;
-
 	/* Can't set the CPU of a non-struct bpf_cpumask. */
 	bpf_cpumask_set_cpu(0, (struct bpf_cpumask *)task->cpus_ptr);
-	__sink(cpumask);
 
 	return 0;
 }
@@ -187,6 +199,26 @@ int BPF_PROG(test_global_mask_rcu_no_null_check, struct task_struct *task, u64 c
 	bpf_rcu_read_unlock();
 	if (prev)
 		bpf_cpumask_release(prev);
+
+	return 0;
+}
+
+SEC("tp_btf/task_newtask")
+__failure __msg("has no valid kptr")
+int BPF_PROG(test_invalid_nested_array, struct task_struct *task, u64 clone_flags)
+{
+	struct bpf_cpumask *local, *prev;
+
+	local = create_cpumask();
+	if (!local)
+		return 0;
+
+	prev = bpf_kptr_xchg(&global_mask_nested_arr.d_1.d_2[CPUMASK_KPTR_FIELDS_MAX].mask, local);
+	if (prev) {
+		bpf_cpumask_release(prev);
+		err = 3;
+		return 0;
+	}
 
 	return 0;
 }

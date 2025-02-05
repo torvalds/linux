@@ -22,7 +22,7 @@
 #include <kunit/visibility.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "ieee80211_i.h"
 #include "driver-ops.h"
@@ -508,18 +508,13 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			flags |= IEEE80211_RADIOTAP_AMPDU_IS_LAST;
 		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_ERROR)
 			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_ERR;
-		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
-			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_KNOWN;
 		if (status->flag & RX_FLAG_AMPDU_EOF_BIT_KNOWN)
 			flags |= IEEE80211_RADIOTAP_AMPDU_EOF_KNOWN;
 		if (status->flag & RX_FLAG_AMPDU_EOF_BIT)
 			flags |= IEEE80211_RADIOTAP_AMPDU_EOF;
 		put_unaligned_le16(flags, pos);
 		pos += 2;
-		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
-			*pos++ = status->ampdu_delimiter_crc;
-		else
-			*pos++ = 0;
+		*pos++ = 0;
 		*pos++ = 0;
 	}
 
@@ -767,8 +762,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		     struct ieee80211_rate *rate)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(origskb);
-	struct ieee80211_sub_if_data *sdata;
-	struct sk_buff *monskb = NULL;
+	struct ieee80211_sub_if_data *sdata, *prev_sdata = NULL;
+	struct sk_buff *skb, *monskb = NULL;
 	int present_fcs_len = 0;
 	unsigned int rtap_space = 0;
 	struct ieee80211_sub_if_data *monitor_sdata =
@@ -842,40 +837,52 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	ieee80211_handle_mu_mimo_mon(monitor_sdata, origskb, rtap_space);
 
 	list_for_each_entry_rcu(sdata, &local->mon_list, u.mntr.list) {
-		bool last_monitor = list_is_last(&sdata->u.mntr.list,
-						 &local->mon_list);
+		struct cfg80211_chan_def *chandef;
+
+		chandef = &sdata->vif.bss_conf.chanreq.oper;
+		if (chandef->chan &&
+		    chandef->chan->center_freq != status->freq)
+			continue;
+
+		if (!prev_sdata) {
+			prev_sdata = sdata;
+			continue;
+		}
+
+		if (ieee80211_hw_check(&local->hw, NO_VIRTUAL_MONITOR))
+			ieee80211_handle_mu_mimo_mon(sdata, origskb, rtap_space);
 
 		if (!monskb)
 			monskb = ieee80211_make_monitor_skb(local, &origskb,
 							    rate, rtap_space,
-							    only_monitor &&
-							    last_monitor);
+							    false);
+		if (!monskb)
+			continue;
 
-		if (monskb) {
-			struct sk_buff *skb;
+		skb = skb_clone(monskb, GFP_ATOMIC);
+		if (!skb)
+			continue;
 
-			if (last_monitor) {
-				skb = monskb;
-				monskb = NULL;
-			} else {
-				skb = skb_clone(monskb, GFP_ATOMIC);
-			}
-
-			if (skb) {
-				skb->dev = sdata->dev;
-				dev_sw_netstats_rx_add(skb->dev, skb->len);
-				netif_receive_skb(skb);
-			}
-		}
-
-		if (last_monitor)
-			break;
+		skb->dev = prev_sdata->dev;
+		dev_sw_netstats_rx_add(skb->dev, skb->len);
+		netif_receive_skb(skb);
+		prev_sdata = sdata;
 	}
 
-	/* this happens if last_monitor was erroneously false */
-	dev_kfree_skb(monskb);
+	if (prev_sdata) {
+		if (monskb)
+			skb = monskb;
+		else
+			skb = ieee80211_make_monitor_skb(local, &origskb,
+							 rate, rtap_space,
+							 only_monitor);
+		if (skb) {
+			skb->dev = prev_sdata->dev;
+			dev_sw_netstats_rx_add(skb->dev, skb->len);
+			netif_receive_skb(skb);
+		}
+	}
 
-	/* ditto */
 	if (!origskb)
 		return NULL;
 
@@ -2994,6 +3001,7 @@ ieee80211_rx_mesh_data(struct ieee80211_sub_if_data *sdata, struct sta_info *sta
 	}
 
 	IEEE80211_IFSTA_MESH_CTR_INC(ifmsh, fwded_frames);
+	ieee80211_set_qos_hdr(sdata, fwd_skb);
 	ieee80211_add_pending_skb(local, fwd_skb);
 
 rx_accept:
@@ -3027,8 +3035,7 @@ __ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 			check_da = NULL;
 			break;
 		case NL80211_IFTYPE_STATION:
-			if (!rx->sta ||
-			    !test_sta_flag(rx->sta, WLAN_STA_TDLS_PEER))
+			if (!test_sta_flag(rx->sta, WLAN_STA_TDLS_PEER))
 				check_sa = NULL;
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
@@ -3358,6 +3365,7 @@ static void
 ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_mgmt *mgmt = (void *)rx->skb->data;
+	struct ieee80211_bss_conf *bss_conf;
 	const struct element *ie;
 	size_t baselen;
 
@@ -3368,7 +3376,9 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 	if (ieee80211_hw_check(&rx->local->hw, DETECTS_COLOR_COLLISION))
 		return;
 
-	if (rx->sdata->vif.bss_conf.csa_active)
+	bss_conf = rx->link->conf;
+	if (bss_conf->csa_active || bss_conf->color_change_active ||
+	    !bss_conf->he_bss_color.enabled)
 		return;
 
 	baselen = mgmt->u.beacon.variable - rx->skb->data;
@@ -3380,7 +3390,6 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 				    rx->skb->len - baselen);
 	if (ie && ie->datalen >= sizeof(struct ieee80211_he_operation) &&
 	    ie->datalen >= ieee80211_he_oper_size(ie->data + 1)) {
-		struct ieee80211_bss_conf *bss_conf = &rx->sdata->vif.bss_conf;
 		const struct ieee80211_he_operation *he_oper;
 		u8 color;
 
@@ -3393,7 +3402,8 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
 		if (color == bss_conf->he_bss_color.color)
 			ieee80211_obss_color_collision_notify(&rx->sdata->vif,
-							      BIT_ULL(color));
+							      BIT_ULL(color),
+							      bss_conf->link_id);
 	}
 }
 
@@ -3565,7 +3575,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 
-			rate_control_rate_update(local, sband, rx->sta, 0,
+			rate_control_rate_update(local, sband, rx->link_sta,
 						 IEEE80211_RC_SMPS_CHANGED);
 			cfg80211_sta_opmode_change_notify(sdata->dev,
 							  rx->sta->addr,
@@ -3602,7 +3612,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				ieee80211_sta_rx_bw_to_chan_width(rx->link_sta);
 			sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
 
-			rate_control_rate_update(local, sband, rx->sta, 0,
+			rate_control_rate_update(local, sband, rx->link_sta,
 						 IEEE80211_RC_BW_CHANGED);
 			cfg80211_sta_opmode_change_notify(sdata->dev,
 							  rx->sta->addr,
@@ -3616,6 +3626,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		break;
 	case WLAN_CATEGORY_PUBLIC:
+	case WLAN_CATEGORY_PROTECTED_DUAL_OF_ACTION:
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			goto invalid;
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)
@@ -3808,6 +3819,18 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 					      u.action.u.ttlm_res))
 				goto invalid;
 			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_LINK_RECONFIG_RESP:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			/* The reconfiguration response action frame must
+			 * least one 'Status Duple' entry (3 octets)
+			 */
+			if (len <
+			    offsetofend(typeof(*mgmt),
+					u.action.u.ml_reconf_resp) + 3)
+				goto invalid;
+			goto queue;
 		default:
 			break;
 		}
@@ -3969,8 +3992,8 @@ ieee80211_rx_h_action_return(struct ieee80211_rx_data *rx)
 		__ieee80211_tx_skb_tid_band(rx->sdata, nskb, 7, -1,
 					    status->band);
 	}
-	dev_kfree_skb(rx->skb);
-	return RX_QUEUED;
+
+	return RX_DROP_U_UNKNOWN_ACTION_REJECTED;
 }
 
 static ieee80211_rx_result debug_noinline
@@ -4551,7 +4574,9 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		return ieee80211_is_public_action(hdr, skb->len) ||
 		       ieee80211_is_probe_req(hdr->frame_control) ||
 		       ieee80211_is_probe_resp(hdr->frame_control) ||
-		       ieee80211_is_beacon(hdr->frame_control);
+		       ieee80211_is_beacon(hdr->frame_control) ||
+		       (ieee80211_is_auth(hdr->frame_control) &&
+			ether_addr_equal(sdata->vif.addr, hdr->addr1));
 	case NL80211_IFTYPE_NAN:
 		/* Currently no frames on NAN interface are allowed */
 		return false;

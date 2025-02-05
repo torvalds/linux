@@ -117,7 +117,7 @@ extern int dmar_remove_dev_scope(struct dmar_pci_notify_info *info,
 				 int count);
 /* Intel IOMMU detection */
 void detect_intel_iommu(void);
-extern int enable_drhd_fault_handling(void);
+extern int enable_drhd_fault_handling(unsigned int cpu);
 extern int dmar_device_add(acpi_handle handle);
 extern int dmar_device_remove(acpi_handle handle);
 
@@ -292,7 +292,6 @@ static inline void dmar_copy_shared_irte(struct irte *dst, struct irte *src)
 struct irq_data;
 extern void dmar_msi_unmask(struct irq_data *data);
 extern void dmar_msi_mask(struct irq_data *data);
-extern void dmar_msi_read(int irq, struct msi_msg *msg);
 extern void dmar_msi_write(int irq, struct msi_msg *msg);
 extern int dmar_set_interrupt(struct intel_iommu *iommu);
 extern irqreturn_t dmar_fault(int irq, void *dev_id);

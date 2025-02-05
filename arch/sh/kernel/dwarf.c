@@ -24,7 +24,7 @@
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
 #include <asm/sections.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <asm/stacktrace.h>
 
 /* Reserve enough memory for two stack frames */
@@ -344,7 +344,7 @@ out:
  *	dwarf_lookup_fde - locate the FDE that covers pc
  *	@pc: the program counter
  */
-struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
+static struct dwarf_fde *dwarf_lookup_fde(unsigned long pc)
 {
 	struct rb_node **rb_node = &fde_root.rb_node;
 	struct dwarf_fde *fde = NULL;

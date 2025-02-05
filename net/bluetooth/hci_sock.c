@@ -27,7 +27,7 @@
 #include <linux/export.h>
 #include <linux/utsname.h>
 #include <linux/sched.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -485,7 +485,7 @@ static struct sk_buff *create_monitor_event(struct hci_dev *hdev, int event)
 			return NULL;
 
 		ni = skb_put(skb, HCI_MON_NEW_INDEX_SIZE);
-		ni->type = hdev->dev_type;
+		ni->type = 0x00; /* Old hdev->dev_type */
 		ni->bus = hdev->bus;
 		bacpy(&ni->bdaddr, &hdev->bdaddr);
 		memcpy_and_pad(ni->name, sizeof(ni->name), hdev->name,
@@ -1005,9 +1005,6 @@ static int hci_sock_bound_ioctl(struct sock *sk, unsigned int cmd,
 		return -EBUSY;
 
 	if (hci_dev_test_flag(hdev, HCI_UNCONFIGURED))
-		return -EOPNOTSUPP;
-
-	if (hdev->dev_type != HCI_PRIMARY)
 		return -EOPNOTSUPP;
 
 	switch (cmd) {
@@ -1929,7 +1926,7 @@ drop:
 }
 
 static int hci_sock_setsockopt_old(struct socket *sock, int level, int optname,
-				   sockptr_t optval, unsigned int len)
+				   sockptr_t optval, unsigned int optlen)
 {
 	struct hci_ufilter uf = { .opcode = 0 };
 	struct sock *sk = sock->sk;
@@ -1946,7 +1943,7 @@ static int hci_sock_setsockopt_old(struct socket *sock, int level, int optname,
 
 	switch (optname) {
 	case HCI_DATA_DIR:
-		err = bt_copy_from_sockptr(&opt, sizeof(opt), optval, len);
+		err = copy_safe_from_sockptr(&opt, sizeof(opt), optval, optlen);
 		if (err)
 			break;
 
@@ -1957,7 +1954,7 @@ static int hci_sock_setsockopt_old(struct socket *sock, int level, int optname,
 		break;
 
 	case HCI_TIME_STAMP:
-		err = bt_copy_from_sockptr(&opt, sizeof(opt), optval, len);
+		err = copy_safe_from_sockptr(&opt, sizeof(opt), optval, optlen);
 		if (err)
 			break;
 
@@ -1977,7 +1974,7 @@ static int hci_sock_setsockopt_old(struct socket *sock, int level, int optname,
 			uf.event_mask[1] = *((u32 *) f->event_mask + 1);
 		}
 
-		err = bt_copy_from_sockptr(&uf, sizeof(uf), optval, len);
+		err = copy_safe_from_sockptr(&uf, sizeof(uf), optval, optlen);
 		if (err)
 			break;
 
@@ -2008,7 +2005,7 @@ done:
 }
 
 static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
-			       sockptr_t optval, unsigned int len)
+			       sockptr_t optval, unsigned int optlen)
 {
 	struct sock *sk = sock->sk;
 	int err = 0;
@@ -2018,7 +2015,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 
 	if (level == SOL_HCI)
 		return hci_sock_setsockopt_old(sock, level, optname, optval,
-					       len);
+					       optlen);
 
 	if (level != SOL_BLUETOOTH)
 		return -ENOPROTOOPT;
@@ -2038,7 +2035,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 			goto done;
 		}
 
-		err = bt_copy_from_sockptr(&opt, sizeof(opt), optval, len);
+		err = copy_safe_from_sockptr(&opt, sizeof(opt), optval, optlen);
 		if (err)
 			break;
 

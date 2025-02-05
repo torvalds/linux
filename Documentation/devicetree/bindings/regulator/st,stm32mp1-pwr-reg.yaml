@@ -11,7 +11,12 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stm32mp1,pwr-reg
+    oneOf:
+      - items:
+          - const: st,stm32mp1,pwr-reg
+      - items:
+          - const: st,stm32mp13-pwr-reg
+          - const: st,stm32mp1,pwr-reg
 
   reg:
     maxItems: 1

@@ -12,7 +12,6 @@
 	thermal-zones {
 		pm8150b-thermal {
 			polling-delay-passive = <100>;
-			polling-delay = <0>;
 
 			thermal-sensors = <&pm8150b_temp>;
 

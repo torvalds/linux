@@ -54,10 +54,17 @@ static int max9768_set_gpio(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
 	struct max9768 *max9768 = snd_soc_component_get_drvdata(c);
+	bool val = !ucontrol->value.integer.value[0];
+	int ret;
 
-	gpiod_set_value_cansleep(max9768->mute, !ucontrol->value.integer.value[0]);
+	if (val != gpiod_get_value_cansleep(max9768->mute))
+		ret = 1;
+	else
+		ret = 0;
 
-	return 0;
+	gpiod_set_value_cansleep(max9768->mute, val);
+
+	return ret;
 }
 
 static const DECLARE_TLV_DB_RANGE(volume_tlv,
@@ -206,7 +213,7 @@ static int max9768_i2c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id max9768_i2c_id[] = {
-	{ "max9768", 0 },
+	{ "max9768" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max9768_i2c_id);

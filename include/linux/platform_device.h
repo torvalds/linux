@@ -52,7 +52,7 @@ struct platform_device {
 extern int platform_device_register(struct platform_device *);
 extern void platform_device_unregister(struct platform_device *);
 
-extern struct bus_type platform_bus_type;
+extern const struct bus_type platform_bus_type;
 extern struct device platform_bus;
 
 extern struct resource *platform_get_resource(struct platform_device *,
@@ -235,18 +235,7 @@ extern void platform_device_put(struct platform_device *pdev);
 
 struct platform_driver {
 	int (*probe)(struct platform_device *);
-
-	/*
-	 * Traditionally the remove callback returned an int which however is
-	 * ignored by the driver core. This led to wrong expectations by driver
-	 * authors who thought returning an error code was a valid error
-	 * handling strategy. To convert to a callback returning void, new
-	 * drivers should implement .remove_new() until the conversion it done
-	 * that eventually makes .remove() return void.
-	 */
-	int (*remove)(struct platform_device *);
-	void (*remove_new)(struct platform_device *);
-
+	void (*remove)(struct platform_device *);
 	void (*shutdown)(struct platform_device *);
 	int (*suspend)(struct platform_device *, pm_message_t state);
 	int (*resume)(struct platform_device *);

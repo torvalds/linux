@@ -228,4 +228,5 @@ static void __exit ttyprintk_exit(void)
 device_initcall(ttyprintk_init);
 module_exit(ttyprintk_exit);
 
+MODULE_DESCRIPTION("TTY driver to output user messages via printk");
 MODULE_LICENSE("GPL");

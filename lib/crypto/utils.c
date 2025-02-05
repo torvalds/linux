@@ -5,7 +5,7 @@
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/utils.h>
 #include <linux/module.h>
 
@@ -85,4 +85,5 @@ void __crypto_xor(u8 *dst, const u8 *src1, const u8 *src2, unsigned int len)
 }
 EXPORT_SYMBOL_GPL(__crypto_xor);
 
+MODULE_DESCRIPTION("Crypto library utility functions");
 MODULE_LICENSE("GPL");

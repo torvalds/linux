@@ -99,16 +99,6 @@ HISI_PCIE_PMU_FILTER_ATTR(len_mode, config1, 11, 10);
 HISI_PCIE_PMU_FILTER_ATTR(port, config2, 15, 0);
 HISI_PCIE_PMU_FILTER_ATTR(bdf, config2, 31, 16);
 
-static ssize_t hisi_pcie_format_sysfs_show(struct device *dev, struct device_attribute *attr,
-					   char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-
 static ssize_t hisi_pcie_event_sysfs_show(struct device *dev, struct device_attribute *attr,
 					  char *buf)
 {
@@ -120,8 +110,7 @@ static ssize_t hisi_pcie_event_sysfs_show(struct device *dev, struct device_attr
 
 #define HISI_PCIE_PMU_FORMAT_ATTR(_name, _format)                              \
 	(&((struct dev_ext_attribute[]){                                       \
-		{ .attr = __ATTR(_name, 0444, hisi_pcie_format_sysfs_show,     \
-				 NULL),                                        \
+		{ .attr = __ATTR(_name, 0444, device_show_string, NULL),       \
 		  .var = (void *)_format }                                     \
 	})[0].attr.attr)
 
@@ -151,6 +140,22 @@ static ssize_t bus_show(struct device *dev, struct device_attribute *attr, char 
 	return sysfs_emit(buf, "%#04x\n", PCI_BUS_NUM(pcie_pmu->bdf_min));
 }
 static DEVICE_ATTR_RO(bus);
+
+static ssize_t bdf_min_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%#04x\n", pcie_pmu->bdf_min);
+}
+static DEVICE_ATTR_RO(bdf_min);
+
+static ssize_t bdf_max_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(dev_get_drvdata(dev));
+
+	return sysfs_emit(buf, "%#04x\n", pcie_pmu->bdf_max);
+}
+static DEVICE_ATTR_RO(bdf_max);
 
 static struct hisi_pcie_reg_pair
 hisi_pcie_parse_reg_value(struct hisi_pcie_pmu *pcie_pmu, u32 reg_off)
@@ -219,7 +224,7 @@ static void hisi_pcie_pmu_writeq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 static u64 hisi_pcie_pmu_get_event_ctrl_val(struct perf_event *event)
 {
 	u64 port, trig_len, thr_len, len_mode;
-	u64 reg = HISI_PCIE_INIT_SET;
+	u64 reg = 0;
 
 	/* Config HISI_PCIE_EVENT_CTRL according to event. */
 	reg |= FIELD_PREP(HISI_PCIE_EVENT_M, hisi_pcie_get_real_event(event));
@@ -350,15 +355,27 @@ static bool hisi_pcie_pmu_validate_event_group(struct perf_event *event)
 			return false;
 
 		for (num = 0; num < counters; num++) {
+			/*
+			 * If we find a related event, then it's a valid group
+			 * since we don't need to allocate a new counter for it.
+			 */
 			if (hisi_pcie_pmu_cmp_event(event_group[num], sibling))
 				break;
 		}
+
+		/*
+		 * Otherwise it's a new event but if there's no available counter,
+		 * fail the check since we cannot schedule all the events in
+		 * the group simultaneously.
+		 */
+		if (num == HISI_PCIE_MAX_COUNTERS)
+			return false;
 
 		if (num == counters)
 			event_group[counters++] = sibling;
 	}
 
-	return counters <= HISI_PCIE_MAX_COUNTERS;
+	return true;
 }
 
 static int hisi_pcie_pmu_event_init(struct perf_event *event)
@@ -451,10 +468,24 @@ static void hisi_pcie_pmu_set_period(struct perf_event *event)
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+	u64 orig_cnt, cnt;
+
+	orig_cnt = hisi_pcie_pmu_read_counter(event);
 
 	local64_set(&hwc->prev_count, HISI_PCIE_INIT_VAL);
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_CNT, idx, HISI_PCIE_INIT_VAL);
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_EXT_CNT, idx, HISI_PCIE_INIT_VAL);
+
+	/*
+	 * The counter maybe unwritable if the target event is unsupported.
+	 * Check this by comparing the counts after setting the period. If
+	 * the counts stay unchanged after setting the period then update
+	 * the hwc->prev_count correctly. Otherwise the final counts user
+	 * get maybe totally wrong.
+	 */
+	cnt = hisi_pcie_pmu_read_counter(event);
+	if (orig_cnt == cnt)
+		local64_set(&hwc->prev_count, cnt);
 }
 
 static void hisi_pcie_pmu_enable_counter(struct hisi_pcie_pmu *pcie_pmu, struct hw_perf_event *hwc)
@@ -673,7 +704,6 @@ static int hisi_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 {
 	struct hisi_pcie_pmu *pcie_pmu = hlist_entry_safe(node, struct hisi_pcie_pmu, node);
 	unsigned int target;
-	cpumask_t mask;
 	int numa_node;
 
 	/* Nothing to do if this CPU doesn't own the PMU */
@@ -684,10 +714,10 @@ static int hisi_pcie_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 
 	/* Choose a local CPU from all online cpus. */
 	numa_node = dev_to_node(&pcie_pmu->pdev->dev);
-	if (cpumask_and(&mask, cpumask_of_node(numa_node), cpu_online_mask) &&
-	    cpumask_andnot(&mask, &mask, cpumask_of(cpu)))
-		target = cpumask_any(&mask);
-	else
+
+	target = cpumask_any_and_but(cpumask_of_node(numa_node),
+				     cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
 		target = cpumask_any_but(cpu_online_mask, cpu);
 
 	if (target >= nr_cpu_ids) {
@@ -749,6 +779,8 @@ static const struct attribute_group hisi_pcie_pmu_format_group = {
 
 static struct attribute *hisi_pcie_pmu_bus_attrs[] = {
 	&dev_attr_bus.attr,
+	&dev_attr_bdf_max.attr,
+	&dev_attr_bdf_min.attr,
 	NULL
 };
 
@@ -807,6 +839,7 @@ static int hisi_pcie_alloc_pmu(struct pci_dev *pdev, struct hisi_pcie_pmu *pcie_
 	pcie_pmu->pmu = (struct pmu) {
 		.name		= name,
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.event_init	= hisi_pcie_pmu_event_init,
 		.pmu_enable	= hisi_pcie_pmu_enable,
 		.pmu_disable	= hisi_pcie_pmu_disable,

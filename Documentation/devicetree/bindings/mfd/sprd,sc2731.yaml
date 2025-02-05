@@ -1,0 +1,244 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/sprd,sc2731.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum SC27xx PMIC
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang7@gmail.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+description: |
+  Spreadtrum PMICs belonging to the SC27xx series integrate all mobile handset
+  power management, audio codec, battery management and user interface support
+  functions in a single chip. They have 6 major functional blocks:
+    - DCDCs to support CPU, memory
+    - LDOs to support both internal and external requirements
+    - Battery management system, such as charger, fuel gauge
+    - Audio codec
+    - User interface functions, such as indicator, flash LED and so on
+    - IC level interface, such as power on/off control, RTC, typec and so on
+
+properties:
+  $nodename:
+    pattern: '^pmic@[0-9a-f]+$'
+
+  compatible:
+    enum:
+      - sprd,sc2720
+      - sprd,sc2721
+      - sprd,sc2723
+      - sprd,sc2730
+      - sprd,sc2731
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+  spi-max-frequency: true
+
+  '#address-cells':
+    const: 1
+
+  '#interrupt-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  regulators:
+    type: object
+    $ref: /schemas/regulator/sprd,sc2731-regulator.yaml#
+
+patternProperties:
+  "^adc@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/iio/adc/sprd,sc2720-adc.yaml#
+
+  "^charger@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/power/supply/sc2731-charger.yaml#
+
+  "^efuse@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/nvmem/sprd,sc2731-efuse.yaml#
+
+  "^fuel-gauge@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/power/supply/sc27xx-fg.yaml#
+
+  "^gpio@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/gpio/sprd,gpio-eic.yaml#
+
+  "^led-controller@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/leds/sprd,sc2731-bltc.yaml#
+
+  "^rtc@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/rtc/sprd,sc2731-rtc.yaml#
+
+  "^vibrator@[0-9a-f]+$":
+    type: object
+    $ref: /schemas/input/sprd,sc27xx-vibrator.yaml#
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - spi-max-frequency
+  - '#address-cells'
+  - '#interrupt-cells'
+  - '#size-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/leds/common.h>
+
+    spi {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      sc2731_pmic: pmic@0 {
+        compatible = "sprd,sc2731";
+        reg = <0>;
+        interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-controller;
+        spi-max-frequency = <26000000>;
+        #address-cells = <1>;
+        #interrupt-cells = <1>;
+        #size-cells = <0>;
+
+        charger@0 {
+          compatible = "sprd,sc2731-charger";
+          reg = <0x0>;
+          phys = <&ssphy>;
+          monitored-battery = <&bat>;
+        };
+
+        led-controller@200 {
+          compatible = "sprd,sc2731-bltc";
+          reg = <0x200>;
+          #address-cells = <1>;
+          #size-cells = <0>;
+
+          led@0 {
+            reg = <0x0>;
+            color = <LED_COLOR_ID_RED>;
+          };
+
+          led@1 {
+            reg = <0x1>;
+            color = <LED_COLOR_ID_GREEN>;
+          };
+
+          led@2 {
+            reg = <0x2>;
+            color = <LED_COLOR_ID_BLUE>;
+          };
+        };
+
+        rtc@280 {
+          compatible = "sprd,sc2731-rtc";
+          reg = <0x280>;
+          interrupt-parent = <&sc2731_pmic>;
+          interrupts = <2>;
+        };
+
+        pmic_eic: gpio@300 {
+          compatible = "sprd,sc2731-eic";
+          reg = <0x300>;
+          interrupt-parent = <&sc2731_pmic>;
+          interrupts = <5>;
+          gpio-controller;
+          #gpio-cells = <2>;
+          interrupt-controller;
+          #interrupt-cells = <2>;
+        };
+
+        efuse@380 {
+          compatible = "sprd,sc2731-efuse";
+          reg = <0x380>;
+          hwlocks = <&hwlock 12>;
+          #address-cells = <1>;
+          #size-cells = <1>;
+
+          /* Data cells */
+          fgu_calib: calib@6 {
+            reg = <0x6 0x2>;
+            bits = <0 9>;
+          };
+
+          adc_big_scale: calib@24 {
+            reg = <0x24 0x2>;
+          };
+
+          adc_small_scale: calib@26 {
+            reg = <0x26 0x2>;
+          };
+        };
+
+        pmic_adc: adc@480 {
+          compatible = "sprd,sc2731-adc";
+          reg = <0x480>;
+          interrupt-parent = <&sc2731_pmic>;
+          interrupts = <0>;
+          #io-channel-cells = <1>;
+          hwlocks = <&hwlock 4>;
+          nvmem-cells = <&adc_big_scale>, <&adc_small_scale>;
+          nvmem-cell-names = "big_scale_calib", "small_scale_calib";
+        };
+
+        fuel-gauge@a00 {
+          compatible = "sprd,sc2731-fgu";
+          reg = <0xa00>;
+          battery-detect-gpios = <&pmic_eic 9 GPIO_ACTIVE_HIGH>;
+          interrupt-parent = <&sc2731_pmic>;
+          interrupts = <4>;
+          io-channels = <&pmic_adc 5>, <&pmic_adc 14>;
+          io-channel-names = "bat-temp", "charge-vol";
+          nvmem-cells = <&fgu_calib>;
+          nvmem-cell-names = "fgu_calib";
+          monitored-battery = <&bat>;
+          sprd,calib-resistance-micro-ohms = <21500>;
+        };
+
+        vibrator@ec8 {
+          compatible = "sprd,sc2731-vibrator";
+          reg = <0xec8>;
+        };
+
+        regulators {
+          compatible = "sprd,sc2731-regulator";
+
+          BUCK_CPU0 {
+            regulator-name = "vddarm0";
+            regulator-min-microvolt = <400000>;
+            regulator-max-microvolt = <1996875>;
+            regulator-ramp-delay = <25000>;
+            regulator-always-on;
+          };
+
+          LDO_CAMA0 {
+            regulator-name = "vddcama0";
+            regulator-min-microvolt = <1200000>;
+            regulator-max-microvolt = <3750000>;
+            regulator-enable-ramp-delay = <100>;
+          };
+        };
+      };
+    };
+...

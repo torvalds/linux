@@ -241,6 +241,10 @@
 
 /* Link Training */
 #define DP0_SRCCTRL		0x06a0
+#define DP0_SRCCTRL_PRE1		GENMASK(29, 28)
+#define DP0_SRCCTRL_SWG1		GENMASK(25, 24)
+#define DP0_SRCCTRL_PRE0		GENMASK(21, 20)
+#define DP0_SRCCTRL_SWG0		GENMASK(17, 16)
 #define DP0_SRCCTRL_SCRMBLDIS		BIT(13)
 #define DP0_SRCCTRL_EN810B		BIT(12)
 #define DP0_SRCCTRL_NOTP		(0 << 8)
@@ -278,6 +282,8 @@
 #define AUDIFDATA6		0x0720	/* DP0 Audio Info Frame Bytes 27 to 24 */
 
 #define DP1_SRCCTRL		0x07a0	/* DP1 Control Register */
+#define DP1_SRCCTRL_PRE			GENMASK(21, 20)
+#define DP1_SRCCTRL_SWG			GENMASK(17, 16)
 
 /* PHY */
 #define DP_PHY_CTRL		0x0800
@@ -369,6 +375,7 @@ struct tc_data {
 
 	u32			rev;
 	u8			assr;
+	u8			pre_emphasis[2];
 
 	struct gpio_desc	*sd_gpio;
 	struct gpio_desc	*reset_gpio;
@@ -577,9 +584,9 @@ static int tc_pllupdate(struct tc_data *tc, unsigned int pllctrl)
 	return 0;
 }
 
-static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
+static int tc_pxl_pll_calc(struct tc_data *tc, u32 refclk, u32 pixelclock,
+			   int *out_best_pixelclock, u32 *out_pxl_pllparam)
 {
-	int ret;
 	int i_pre, best_pre = 1;
 	int i_post, best_post = 1;
 	int div, best_div = 1;
@@ -658,8 +665,7 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 		return -EINVAL;
 	}
 
-	dev_dbg(tc->dev, "PLL: got %d, delta %d\n", best_pixelclock,
-		best_delta);
+	dev_dbg(tc->dev, "PLL: got %d, delta %d\n", best_pixelclock, best_delta);
 	dev_dbg(tc->dev, "PLL: %d / %d / %d * %d / %d\n", refclk,
 		ext_div[best_pre], best_div, best_mul, ext_div[best_post]);
 
@@ -672,17 +678,35 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 	if (best_mul == 128)
 		best_mul = 0;
 
-	/* Power up PLL and switch to bypass */
-	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
-	if (ret)
-		return ret;
-
 	pxl_pllparam  = vco_hi << 24; /* For PLL VCO >= 300 MHz = 1 */
 	pxl_pllparam |= ext_div[best_pre] << 20; /* External Pre-divider */
 	pxl_pllparam |= ext_div[best_post] << 16; /* External Post-divider */
 	pxl_pllparam |= IN_SEL_REFCLK; /* Use RefClk as PLL input */
 	pxl_pllparam |= best_div << 8; /* Divider for PLL RefClk */
 	pxl_pllparam |= best_mul; /* Multiplier for PLL */
+
+	if (out_best_pixelclock)
+		*out_best_pixelclock = best_pixelclock;
+
+	if (out_pxl_pllparam)
+		*out_pxl_pllparam = pxl_pllparam;
+
+	return 0;
+}
+
+static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
+{
+	u32 pxl_pllparam = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, refclk, pixelclock, NULL, &pxl_pllparam);
+	if (ret)
+		return ret;
+
+	/* Power up PLL and switch to bypass */
+	ret = regmap_write(tc->regmap, PXL_PLLCTRL, PLLBYP | PLLEN);
+	if (ret)
+		return ret;
 
 	ret = regmap_write(tc->regmap, PXL_PLLPARAM, pxl_pllparam);
 	if (ret)
@@ -721,7 +745,7 @@ static int tc_stream_clock_calc(struct tc_data *tc)
 static int tc_set_syspllparam(struct tc_data *tc)
 {
 	unsigned long rate;
-	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_2;
+	u32 pllparam = SYSCLK_SEL_LSCLK | LSCLK_DIV_1;
 
 	rate = clk_get_rate(tc->refclk);
 	switch (rate) {
@@ -885,7 +909,6 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 		upper_margin, lower_margin, vsync_len);
 	dev_dbg(tc->dev, "total: %dx%d\n", mode->htotal, mode->vtotal);
 
-
 	/*
 	 * LCD Ctl Frame Size
 	 * datasheet is not clear of vsdelay in case of DPI
@@ -894,7 +917,7 @@ static int tc_set_common_video_mode(struct tc_data *tc,
 	 */
 	ret = regmap_write(tc->regmap, VPCTRL0,
 			   FIELD_PREP(VSDELAY, right_margin + 10) |
-			   OPXLFMT_RGB888 | FRMSYNC_DISABLED | MSF_DISABLED);
+			   OPXLFMT_RGB888 | FRMSYNC_ENABLED | MSF_DISABLED);
 	if (ret)
 		return ret;
 
@@ -1074,13 +1097,17 @@ static int tc_main_link_enable(struct tc_data *tc)
 			return ret;
 	}
 
-	ret = regmap_write(tc->regmap, DP0_SRCCTRL, tc_srcctrl(tc));
+	ret = regmap_write(tc->regmap, DP0_SRCCTRL,
+			   tc_srcctrl(tc) |
+			   FIELD_PREP(DP0_SRCCTRL_PRE0, tc->pre_emphasis[0]) |
+			   FIELD_PREP(DP0_SRCCTRL_PRE1, tc->pre_emphasis[1]));
 	if (ret)
 		return ret;
 	/* SSCG and BW27 on DP1 must be set to the same as on DP0 */
 	ret = regmap_write(tc->regmap, DP1_SRCCTRL,
 		 (tc->link.spread ? DP0_SRCCTRL_SSCG : 0) |
-		 ((tc->link.rate != 162000) ? DP0_SRCCTRL_BW27 : 0));
+		 ((tc->link.rate != 162000) ? DP0_SRCCTRL_BW27 : 0) |
+		 FIELD_PREP(DP1_SRCCTRL_PRE, tc->pre_emphasis[1]));
 	if (ret)
 		return ret;
 
@@ -1172,8 +1199,10 @@ static int tc_main_link_enable(struct tc_data *tc)
 		goto err_dpcd_write;
 
 	/* Reset voltage-swing & pre-emphasis */
-	tmp[0] = tmp[1] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
-			  DP_TRAIN_PRE_EMPH_LEVEL_0;
+	tmp[0] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
+		 FIELD_PREP(DP_TRAIN_PRE_EMPHASIS_MASK, tc->pre_emphasis[0]);
+	tmp[1] = DP_TRAIN_VOLTAGE_SWING_LEVEL_0 |
+		 FIELD_PREP(DP_TRAIN_PRE_EMPHASIS_MASK, tc->pre_emphasis[1]);
 	ret = drm_dp_dpcd_write(aux, DP_TRAINING_LANE0_SET, tmp, 2);
 	if (ret < 0)
 		goto err_dpcd_write;
@@ -1197,7 +1226,9 @@ static int tc_main_link_enable(struct tc_data *tc)
 	ret = regmap_write(tc->regmap, DP0_SRCCTRL,
 			   tc_srcctrl(tc) | DP0_SRCCTRL_SCRMBLDIS |
 			   DP0_SRCCTRL_AUTOCORRECT |
-			   DP0_SRCCTRL_TP1);
+			   DP0_SRCCTRL_TP1 |
+			   FIELD_PREP(DP0_SRCCTRL_PRE0, tc->pre_emphasis[0]) |
+			   FIELD_PREP(DP0_SRCCTRL_PRE1, tc->pre_emphasis[1]));
 	if (ret)
 		return ret;
 
@@ -1232,7 +1263,9 @@ static int tc_main_link_enable(struct tc_data *tc)
 	ret = regmap_write(tc->regmap, DP0_SRCCTRL,
 			   tc_srcctrl(tc) | DP0_SRCCTRL_SCRMBLDIS |
 			   DP0_SRCCTRL_AUTOCORRECT |
-			   DP0_SRCCTRL_TP2);
+			   DP0_SRCCTRL_TP2 |
+			   FIELD_PREP(DP0_SRCCTRL_PRE0, tc->pre_emphasis[0]) |
+			   FIELD_PREP(DP0_SRCCTRL_PRE1, tc->pre_emphasis[1]));
 	if (ret)
 		return ret;
 
@@ -1258,7 +1291,9 @@ static int tc_main_link_enable(struct tc_data *tc)
 
 	/* Clear Training Pattern, set AutoCorrect Mode = 1 */
 	ret = regmap_write(tc->regmap, DP0_SRCCTRL, tc_srcctrl(tc) |
-			   DP0_SRCCTRL_AUTOCORRECT);
+			   DP0_SRCCTRL_AUTOCORRECT |
+			   FIELD_PREP(DP0_SRCCTRL_PRE0, tc->pre_emphasis[0]) |
+			   FIELD_PREP(DP0_SRCCTRL_PRE1, tc->pre_emphasis[1]));
 	if (ret)
 		return ret;
 
@@ -1340,10 +1375,10 @@ static int tc_dsi_rx_enable(struct tc_data *tc)
 	u32 value;
 	int ret;
 
-	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 25);
-	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 25);
+	regmap_write(tc->regmap, PPI_D0S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D1S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D2S_CLRSIPOCOUNT, 5);
+	regmap_write(tc->regmap, PPI_D3S_CLRSIPOCOUNT, 5);
 	regmap_write(tc->regmap, PPI_D0S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_D1S_ATMR, 0);
 	regmap_write(tc->regmap, PPI_TX_RX_TA, TTA_GET | TTA_SURE);
@@ -1589,6 +1624,18 @@ static int tc_dpi_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DSI->DPI interface clock limitation: upto 100 MHz */
 	if (crtc_state->adjusted_mode.clock > 100000)
 		return -EINVAL;
@@ -1601,6 +1648,18 @@ static int tc_edp_atomic_check(struct drm_bridge *bridge,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
+	struct tc_data *tc = bridge_to_tc(bridge);
+	int adjusted_clock = 0;
+	int ret;
+
+	ret = tc_pxl_pll_calc(tc, clk_get_rate(tc->refclk),
+			      crtc_state->mode.clock * 1000,
+			      &adjusted_clock, NULL);
+	if (ret)
+		return ret;
+
+	crtc_state->adjusted_mode.clock = adjusted_clock / 1000;
+
 	/* DPI->(e)DP interface clock limitation: upto 154 MHz */
 	if (crtc_state->adjusted_mode.clock > 154000)
 		return -EINVAL;
@@ -1629,7 +1688,7 @@ tc_edp_mode_valid(struct drm_bridge *bridge,
 	u32 req, avail;
 	u32 bits_per_pixel = 24;
 
-	/* DPI interface clock limitation: upto 154 MHz */
+	/* DPI->(e)DP interface clock limitation: up to 154 MHz */
 	if (mode->clock > 154000)
 		return MODE_CLOCK_HIGH;
 
@@ -1648,13 +1707,20 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	drm_mode_copy(&tc->mode, mode);
+	drm_mode_copy(&tc->mode, adj);
 }
 
 static const struct drm_edid *tc_edid_read(struct drm_bridge *bridge,
 					   struct drm_connector *connector)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
+	int ret;
+
+	ret = tc_get_display_props(tc);
+	if (ret < 0) {
+		dev_err(tc->dev, "failed to read display props: %d\n", ret);
+		return 0;
+	}
 
 	return drm_edid_read_ddc(connector, &tc->aux.ddc);
 }
@@ -1803,6 +1869,7 @@ static void tc_edp_bridge_detach(struct drm_bridge *bridge)
 }
 
 #define MAX_INPUT_SEL_FORMATS	1
+#define MAX_OUTPUT_SEL_FORMATS	1
 
 static u32 *
 tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -1826,6 +1893,28 @@ tc_dpi_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
 	*num_input_fmts = 1;
 
 	return input_fmts;
+}
+
+static u32 *
+tc_edp_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
+				  struct drm_bridge_state *bridge_state,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state,
+				  unsigned int *num_output_fmts)
+{
+	u32 *output_fmts;
+
+	*num_output_fmts = 0;
+
+	output_fmts = kcalloc(MAX_OUTPUT_SEL_FORMATS, sizeof(*output_fmts),
+			      GFP_KERNEL);
+	if (!output_fmts)
+		return NULL;
+
+	output_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_output_fmts = 1;
+
+	return output_fmts;
 }
 
 static const struct drm_bridge_funcs tc_dpi_bridge_funcs = {
@@ -1854,6 +1943,8 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
+	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
+	.atomic_get_output_bus_fmts = tc_edp_atomic_get_output_bus_fmts,
 };
 
 static bool tc_readable_reg(struct device *dev, unsigned int reg)
@@ -2085,19 +2176,31 @@ static const struct regmap_access_table tc_precious_table = {
 	.n_yes_ranges = ARRAY_SIZE(tc_precious_ranges),
 };
 
-static const struct regmap_range tc_non_writeable_ranges[] = {
-	regmap_reg_range(PPI_BUSYPPI, PPI_BUSYPPI),
-	regmap_reg_range(DSI_BUSYDSI, DSI_BUSYDSI),
-	regmap_reg_range(DSI_LANESTATUS0, DSI_INTSTATUS),
-	regmap_reg_range(TC_IDREG, SYSSTAT),
-	regmap_reg_range(GPIOI, GPIOI),
-	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
-};
-
-static const struct regmap_access_table tc_writeable_table = {
-	.no_ranges = tc_non_writeable_ranges,
-	.n_no_ranges = ARRAY_SIZE(tc_non_writeable_ranges),
-};
+static bool tc_writeable_reg(struct device *dev, unsigned int reg)
+{
+	/* RO reg */
+	switch (reg) {
+	case PPI_BUSYPPI:
+	case DSI_BUSYDSI:
+	case DSI_LANESTATUS0:
+	case DSI_LANESTATUS1:
+	case DSI_INTSTATUS:
+	case TC_IDREG:
+	case SYSBOOT:
+	case SYSSTAT:
+	case GPIOI:
+	case DP0_LTSTAT:
+	case DP0_SNKLTCHGREQ:
+		return false;
+	}
+	/* WO reg */
+	switch (reg) {
+	case DSI_STARTDSI:
+	case DSI_INTCLR:
+		return true;
+	}
+	return tc_readable_reg(dev, reg);
+}
 
 static const struct regmap_config tc_regmap_config = {
 	.name = "tc358767",
@@ -2107,9 +2210,9 @@ static const struct regmap_config tc_regmap_config = {
 	.max_register = PLL_DBG,
 	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
+	.writeable_reg = tc_writeable_reg,
 	.volatile_table = &tc_volatile_table,
 	.precious_table = &tc_precious_table,
-	.wr_table = &tc_writeable_table,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
@@ -2135,7 +2238,7 @@ static irqreturn_t tc_irq_handler(int irq, void *arg)
 		dev_err(tc->dev, "syserr %x\n", stat);
 	}
 
-	if (tc->hpd_pin >= 0 && tc->bridge.dev) {
+	if (tc->hpd_pin >= 0 && tc->bridge.dev && tc->aux.drm_dev) {
 		/*
 		 * H is triggered when the GPIO goes high.
 		 *
@@ -2145,11 +2248,11 @@ static irqreturn_t tc_irq_handler(int irq, void *arg)
 		bool h = val & INT_GPIO_H(tc->hpd_pin);
 		bool lc = val & INT_GPIO_LC(tc->hpd_pin);
 
-		dev_dbg(tc->dev, "GPIO%d: %s %s\n", tc->hpd_pin,
-			h ? "H" : "", lc ? "LC" : "");
-
-		if (h || lc)
+		if (h || lc) {
+			dev_dbg(tc->dev, "GPIO%d: %s %s\n", tc->hpd_pin,
+				h ? "H" : "", lc ? "LC" : "");
 			drm_kms_helper_hotplug_event(tc->bridge.dev);
+		}
 	}
 
 	regmap_write(tc->regmap, INTSTS_G, val);
@@ -2214,7 +2317,8 @@ static int tc_probe_dpi_bridge_endpoint(struct tc_data *tc)
 	/* port@1 is the DPI input/output port */
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &bridge);
 	if (ret && ret != -ENODEV)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Could not find DPI panel or bridge\n");
 
 	if (panel) {
 		bridge = devm_drm_panel_bridge_add(dev, panel);
@@ -2242,7 +2346,8 @@ static int tc_probe_edp_bridge_endpoint(struct tc_data *tc)
 	/* port@2 is the output port */
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0, &panel, NULL);
 	if (ret && ret != -ENODEV)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "Could not find DSI panel or bridge\n");
 
 	if (panel) {
 		struct drm_bridge *panel_bridge;
@@ -2298,6 +2403,19 @@ static int tc_probe_bridge_endpoint(struct tc_data *tc)
 			return -EINVAL;
 		}
 		mode |= BIT(endpoint.port);
+
+		if (endpoint.port == 2) {
+			of_property_read_u8_array(node, "toshiba,pre-emphasis",
+						  tc->pre_emphasis,
+						  ARRAY_SIZE(tc->pre_emphasis));
+
+			if (tc->pre_emphasis[0] < 0 || tc->pre_emphasis[0] > 2 ||
+			    tc->pre_emphasis[1] < 0 || tc->pre_emphasis[1] > 2) {
+				dev_err(dev, "Incorrect Pre-Emphasis setting, use either 0=0dB 1=3.5dB 2=6dB\n");
+				of_node_put(node);
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (mode == mode_dpi_to_edp || mode == mode_dpi_to_dp) {
@@ -2454,7 +2572,7 @@ static int tc_probe(struct i2c_client *client)
 		ret = tc_mipi_dsi_host_attach(tc);
 		if (ret) {
 			drm_bridge_remove(&tc->bridge);
-			return ret;
+			return dev_err_probe(dev, ret, "Failed to attach DSI host\n");
 		}
 	}
 
@@ -2469,7 +2587,7 @@ static void tc_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tc358767_i2c_ids[] = {
-	{ "tc358767", 0 },
+	{ "tc358767" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tc358767_i2c_ids);

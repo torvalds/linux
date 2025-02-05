@@ -235,15 +235,13 @@ static int ti_sci_reset_probe(struct platform_device *pdev)
 	return reset_controller_register(&data->rcdev);
 }
 
-static int ti_sci_reset_remove(struct platform_device *pdev)
+static void ti_sci_reset_remove(struct platform_device *pdev)
 {
 	struct ti_sci_reset_data *data = platform_get_drvdata(pdev);
 
 	reset_controller_unregister(&data->rcdev);
 
 	idr_destroy(&data->idr);
-
-	return 0;
 }
 
 static struct platform_driver ti_sci_reset_driver = {

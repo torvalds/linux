@@ -45,6 +45,7 @@ enum hwmon_chip_attributes {
 	hwmon_chip_power_samples,
 	hwmon_chip_temp_samples,
 	hwmon_chip_beep_enable,
+	hwmon_chip_pec,
 };
 
 #define HWMON_C_TEMP_RESET_HISTORY	BIT(hwmon_chip_temp_reset_history)
@@ -60,6 +61,7 @@ enum hwmon_chip_attributes {
 #define HWMON_C_POWER_SAMPLES		BIT(hwmon_chip_power_samples)
 #define HWMON_C_TEMP_SAMPLES		BIT(hwmon_chip_temp_samples)
 #define HWMON_C_BEEP_ENABLE		BIT(hwmon_chip_beep_enable)
+#define HWMON_C_PEC			BIT(hwmon_chip_pec)
 
 enum hwmon_temp_attributes {
 	hwmon_temp_enable,
@@ -366,7 +368,9 @@ enum hwmon_intrusion_attributes {
 
 /**
  * struct hwmon_ops - hwmon device operations
- * @is_visible: Callback to return attribute visibility. Mandatory.
+ * @visible:	Static visibility. If non-zero, 'is_visible' is ignored.
+ * @is_visible: Callback to return attribute visibility. Mandatory unless
+ *		'visible' is non-zero.
  *		Parameters are:
  *		@const void *drvdata:
  *			Pointer to driver-private data structure passed
@@ -410,6 +414,7 @@ enum hwmon_intrusion_attributes {
  *		The function returns 0 on success or a negative error number.
  */
 struct hwmon_ops {
+	umode_t visible;
 	umode_t (*is_visible)(const void *drvdata, enum hwmon_sensor_types type,
 			      u32 attr, int channel);
 	int (*read)(struct device *dev, enum hwmon_sensor_types type,
@@ -479,7 +484,6 @@ devm_hwmon_device_register_with_info(struct device *dev,
 				const struct attribute_group **extra_groups);
 
 void hwmon_device_unregister(struct device *dev);
-void devm_hwmon_device_unregister(struct device *dev);
 
 int hwmon_notify_event(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel);

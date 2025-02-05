@@ -212,11 +212,6 @@
  * structure
  */
 
-struct regval_list {
-	unsigned char reg_num;
-	unsigned char value;
-};
-
 struct tw9910_scale_ctrl {
 	char           *name;
 	unsigned short  width;
@@ -1001,7 +996,7 @@ static void tw9910_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id tw9910_id[] = {
-	{ "tw9910", 0 },
+	{ "tw9910" },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tw9910_id);

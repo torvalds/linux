@@ -58,6 +58,14 @@ struct umsch_mm_set_resource_input {
 	};
 };
 
+struct amdgpu_umsch_fwlog {
+	uint32_t rptr;
+	uint32_t wptr;
+	uint32_t buffer_size;
+	uint32_t header_size;
+	uint32_t wrapped;
+};
+
 struct umsch_mm_add_queue_input {
 	uint32_t process_id;
 	uint64_t page_table_base_addr;
@@ -166,6 +174,11 @@ struct amdgpu_umsch_mm {
 	uint32_t			agdb_index[CONTEXT_PRIORITY_NUM_LEVELS];
 
 	struct mutex			mutex_hidden;
+	struct amdgpu_bo		*dbglog_bo;
+	void				*log_cpu_addr;
+	uint64_t			log_gpu_addr;
+	uint32_t			mem_size;
+	uint32_t			log_offset;
 };
 
 int amdgpu_umsch_mm_submit_pkt(struct amdgpu_umsch_mm *umsch, void *pkt, int ndws);
@@ -178,6 +191,11 @@ int amdgpu_umsch_mm_allocate_ucode_data_buffer(struct amdgpu_umsch_mm *umsch);
 int amdgpu_umsch_mm_psp_execute_cmd_buf(struct amdgpu_umsch_mm *umsch);
 
 int amdgpu_umsch_mm_ring_init(struct amdgpu_umsch_mm *umsch);
+
+void amdgpu_debugfs_umsch_fwlog_init(struct amdgpu_device *adev,
+			struct amdgpu_umsch_mm *umsch);
+
+void amdgpu_umsch_fwlog_init(struct amdgpu_umsch_mm *umsch_mm);
 
 #define WREG32_SOC15_UMSCH(reg, value)								\
 	do {											\

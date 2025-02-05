@@ -11,6 +11,18 @@
 #include <dt-bindings/leds/common.h>
 
 / {
+	native-hdmi-connector {
+		compatible = "hdmi-connector";
+		label = "X14";
+		type = "a";
+
+		port {
+			native_hdmi_connector_in: endpoint {
+				remote-endpoint = <&hdmi_tx_out>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -48,6 +60,11 @@
 			gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
 		};
 	};
+};
+
+/* Verdin HDMI_1 Audio */
+&aud2htx {
+	status = "okay";
 };
 
 &backlight {
@@ -91,6 +108,27 @@
 	status = "okay";
 };
 
+/* Verdin HDMI_1 */
+&hdmi_pvi {
+	status = "okay";
+};
+
+&hdmi_tx {
+	status = "okay";
+
+	ports {
+		port@1 {
+			hdmi_tx_out: endpoint {
+				remote-endpoint = <&native_hdmi_connector_in>;
+			};
+		};
+	};
+};
+
+&hdmi_tx_phy {
+	status = "okay";
+};
+
 /* Temperature sensor on Mallow */
 &hwmon_temp {
 	compatible = "ti,tmp1075";
@@ -109,6 +147,15 @@
 
 /* Verdin I2C_1 */
 &i2c4 {
+	status = "okay";
+};
+
+/* Verdin I2C_3_HDMI */
+&i2c5 {
+	status = "okay";
+};
+
+&lcdif3 {
 	status = "okay";
 };
 
@@ -138,6 +185,11 @@
 
 &reg_usdhc2_vmmc {
 	vin-supply = <&reg_3p3v>;
+};
+
+/* Verdin HDMI_1 Audio */
+&sound_hdmi {
+	status = "okay";
 };
 
 /* Verdin UART_1 */

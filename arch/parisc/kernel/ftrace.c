@@ -20,7 +20,7 @@
 #include <asm/assembly.h>
 #include <asm/sections.h>
 #include <asm/ftrace.h>
-#include <asm/patch.h>
+#include <asm/text-patching.h>
 
 #define __hot __section(".text.hot")
 
@@ -87,7 +87,7 @@ int ftrace_enable_ftrace_graph_caller(void)
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	static_key_enable(&ftrace_graph_enable.key);
+	static_key_disable(&ftrace_graph_enable.key);
 	return 0;
 }
 #endif
@@ -205,6 +205,9 @@ void kprobe_ftrace_handler(unsigned long ip, unsigned long parent_ip,
 	struct pt_regs *regs;
 	struct kprobe *p;
 	int bit;
+
+	if (unlikely(kprobe_ftrace_disabled))
+		return;
 
 	bit = ftrace_test_recursion_trylock(ip, parent_ip);
 	if (bit < 0)

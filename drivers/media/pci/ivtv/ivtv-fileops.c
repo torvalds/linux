@@ -21,6 +21,7 @@
 #include "ivtv-ioctl.h"
 #include "ivtv-cards.h"
 #include "ivtv-firmware.h"
+#include <linux/lockdep.h>
 #include <media/v4l2-event.h>
 #include <media/i2c/saa7115.h>
 
@@ -190,12 +191,27 @@ static void ivtv_update_pgm_info(struct ivtv *itv)
 	itv->pgm_info_write_idx = (itv->pgm_info_write_idx + i) % itv->pgm_info_num;
 }
 
+static void ivtv_schedule(struct ivtv_stream *s)
+{
+	struct ivtv *itv = s->itv;
+	DEFINE_WAIT(wait);
+
+	lockdep_assert_held(&itv->serialize_lock);
+
+	mutex_unlock(&itv->serialize_lock);
+	prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
+	/* New buffers might have become free before we were added to the waitqueue */
+	if (!s->q_free.buffers)
+		schedule();
+	finish_wait(&s->waitq, &wait);
+	mutex_lock(&itv->serialize_lock);
+}
+
 static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block, int *err)
 {
 	struct ivtv *itv = s->itv;
 	struct ivtv_stream *s_vbi = &itv->streams[IVTV_ENC_STREAM_TYPE_VBI];
 	struct ivtv_buffer *buf;
-	DEFINE_WAIT(wait);
 
 	*err = 0;
 	while (1) {
@@ -258,13 +274,7 @@ static struct ivtv_buffer *ivtv_get_buffer(struct ivtv_stream *s, int non_block,
 		}
 
 		/* wait for more data to arrive */
-		mutex_unlock(&itv->serialize_lock);
-		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
-		/* New buffers might have become available before we were added to the waitqueue */
-		if (!s->q_full.buffers)
-			schedule();
-		finish_wait(&s->waitq, &wait);
-		mutex_lock(&itv->serialize_lock);
+		ivtv_schedule(s);
 		if (signal_pending(current)) {
 			/* return if a signal was received */
 			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
@@ -533,6 +543,25 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 	return 0;
 }
 
+static int ivtv_schedule_dma(struct ivtv_stream *s)
+{
+	struct ivtv *itv = s->itv;
+	int got_sig;
+	DEFINE_WAIT(wait);
+
+	lockdep_assert_held(&itv->serialize_lock);
+
+	mutex_unlock(&itv->serialize_lock);
+	prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
+	while (!(got_sig = signal_pending(current)) &&
+	       test_bit(IVTV_F_S_DMA_PENDING, &s->s_flags))
+		schedule();
+	finish_wait(&itv->dma_waitq, &wait);
+	mutex_lock(&itv->serialize_lock);
+
+	return got_sig;
+}
+
 static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t count, loff_t *pos)
 {
 	struct ivtv_open_id *id = fh2id(filp->private_data);
@@ -544,7 +573,6 @@ static ssize_t ivtv_write(struct file *filp, const char __user *user_buf, size_t
 	int bytes_written = 0;
 	int mode;
 	int rc;
-	DEFINE_WAIT(wait);
 
 	IVTV_DEBUG_HI_FILE("write %zd bytes to %s\n", count, s->name);
 
@@ -618,13 +646,7 @@ retry:
 			break;
 		if (filp->f_flags & O_NONBLOCK)
 			return -EAGAIN;
-		mutex_unlock(&itv->serialize_lock);
-		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
-		/* New buffers might have become free before we were added to the waitqueue */
-		if (!s->q_free.buffers)
-			schedule();
-		finish_wait(&s->waitq, &wait);
-		mutex_lock(&itv->serialize_lock);
+		ivtv_schedule(s);
 		if (signal_pending(current)) {
 			IVTV_DEBUG_INFO("User stopped %s\n", s->name);
 			return -EINTR;
@@ -674,20 +696,10 @@ retry:
 
 	if (test_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags)) {
 		if (s->q_full.length >= itv->dma_data_req_size) {
-			int got_sig;
-
 			if (mode == OUT_YUV)
 				ivtv_yuv_setup_stream_frame(itv);
 
-			mutex_unlock(&itv->serialize_lock);
-			prepare_to_wait(&itv->dma_waitq, &wait, TASK_INTERRUPTIBLE);
-			while (!(got_sig = signal_pending(current)) &&
-					test_bit(IVTV_F_S_DMA_PENDING, &s->s_flags)) {
-				schedule();
-			}
-			finish_wait(&itv->dma_waitq, &wait);
-			mutex_lock(&itv->serialize_lock);
-			if (got_sig) {
+			if (ivtv_schedule_dma(s)) {
 				IVTV_DEBUG_INFO("User interrupted %s\n", s->name);
 				return -EINTR;
 			}

@@ -408,7 +408,7 @@ static void p1022_ds_remove(struct platform_device *pdev)
 
 static struct platform_driver p1022_ds_driver = {
 	.probe = p1022_ds_probe,
-	.remove_new = p1022_ds_remove,
+	.remove = p1022_ds_remove,
 	.driver = {
 		/*
 		 * The name must match 'compatible' property in the device tree,

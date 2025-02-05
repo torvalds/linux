@@ -67,7 +67,6 @@ struct dfl_afu_dma_region {
  * @regions: the mmio region linked list of this afu feature device.
  * @dma_regions: root of dma regions rb tree.
  * @num_umsgs: num of umsgs.
- * @pdata: afu platform device's pdata.
  */
 struct dfl_afu {
 	u64 region_cur_offset;
@@ -75,31 +74,29 @@ struct dfl_afu {
 	u8 num_umsgs;
 	struct list_head regions;
 	struct rb_root dma_regions;
-
-	struct dfl_feature_platform_data *pdata;
 };
 
-/* hold pdata->lock when call __afu_port_enable/disable */
-int __afu_port_enable(struct platform_device *pdev);
-int __afu_port_disable(struct platform_device *pdev);
+/* hold fdata->lock when call __afu_port_enable/disable */
+int __afu_port_enable(struct dfl_feature_dev_data *fdata);
+int __afu_port_disable(struct dfl_feature_dev_data *fdata);
 
-void afu_mmio_region_init(struct dfl_feature_platform_data *pdata);
-int afu_mmio_region_add(struct dfl_feature_platform_data *pdata,
+void afu_mmio_region_init(struct dfl_feature_dev_data *fdata);
+int afu_mmio_region_add(struct dfl_feature_dev_data *fdata,
 			u32 region_index, u64 region_size, u64 phys, u32 flags);
-void afu_mmio_region_destroy(struct dfl_feature_platform_data *pdata);
-int afu_mmio_region_get_by_index(struct dfl_feature_platform_data *pdata,
+void afu_mmio_region_destroy(struct dfl_feature_dev_data *fdata);
+int afu_mmio_region_get_by_index(struct dfl_feature_dev_data *fdata,
 				 u32 region_index,
 				 struct dfl_afu_mmio_region *pregion);
-int afu_mmio_region_get_by_offset(struct dfl_feature_platform_data *pdata,
+int afu_mmio_region_get_by_offset(struct dfl_feature_dev_data *fdata,
 				  u64 offset, u64 size,
 				  struct dfl_afu_mmio_region *pregion);
-void afu_dma_region_init(struct dfl_feature_platform_data *pdata);
-void afu_dma_region_destroy(struct dfl_feature_platform_data *pdata);
-int afu_dma_map_region(struct dfl_feature_platform_data *pdata,
+void afu_dma_region_init(struct dfl_feature_dev_data *fdata);
+void afu_dma_region_destroy(struct dfl_feature_dev_data *fdata);
+int afu_dma_map_region(struct dfl_feature_dev_data *fdata,
 		       u64 user_addr, u64 length, u64 *iova);
-int afu_dma_unmap_region(struct dfl_feature_platform_data *pdata, u64 iova);
+int afu_dma_unmap_region(struct dfl_feature_dev_data *fdata, u64 iova);
 struct dfl_afu_dma_region *
-afu_dma_region_find(struct dfl_feature_platform_data *pdata,
+afu_dma_region_find(struct dfl_feature_dev_data *fdata,
 		    u64 iova, u64 size);
 
 extern const struct dfl_feature_ops port_err_ops;

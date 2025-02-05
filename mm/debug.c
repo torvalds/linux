@@ -36,11 +36,6 @@ const struct trace_print_flags pageflag_names[] = {
 	{0, NULL}
 };
 
-const struct trace_print_flags pagetype_names[] = {
-	__def_pagetype_names,
-	{0, NULL}
-};
-
 const struct trace_print_flags gfpflag_names[] = {
 	__def_gfpflag_names,
 	{0, NULL}
@@ -51,29 +46,42 @@ const struct trace_print_flags vmaflag_names[] = {
 	{0, NULL}
 };
 
+#define DEF_PAGETYPE_NAME(_name) [PGTY_##_name - 0xf0] =  __stringify(_name)
+
+static const char *page_type_names[] = {
+	DEF_PAGETYPE_NAME(slab),
+	DEF_PAGETYPE_NAME(hugetlb),
+	DEF_PAGETYPE_NAME(offline),
+	DEF_PAGETYPE_NAME(guard),
+	DEF_PAGETYPE_NAME(table),
+	DEF_PAGETYPE_NAME(buddy),
+	DEF_PAGETYPE_NAME(unaccepted),
+};
+
+static const char *page_type_name(unsigned int page_type)
+{
+	unsigned i = (page_type >> 24) - 0xf0;
+
+	if (i >= ARRAY_SIZE(page_type_names))
+		return "unknown";
+	return page_type_names[i];
+}
+
 static void __dump_folio(struct folio *folio, struct page *page,
 		unsigned long pfn, unsigned long idx)
 {
 	struct address_space *mapping = folio_mapping(folio);
-	int mapcount = 0;
+	int mapcount = atomic_read(&page->_mapcount);
 	char *type = "";
 
-	/*
-	 * page->_mapcount space in struct page is used by slab pages to
-	 * encode own info, and we must avoid calling page_folio() again.
-	 */
-	if (!folio_test_slab(folio)) {
-		mapcount = atomic_read(&page->_mapcount) + 1;
-		if (folio_test_large(folio))
-			mapcount += folio_entire_mapcount(folio);
-	}
-
+	mapcount = page_mapcount_is_type(mapcount) ? 0 : mapcount + 1;
 	pr_warn("page: refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
 			folio_ref_count(folio), mapcount, mapping,
 			folio->index + idx, pfn);
 	if (folio_test_large(folio)) {
-		pr_warn("head: order:%u entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
+		pr_warn("head: order:%u mapcount:%d entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
 				folio_order(folio),
+				folio_mapcount(folio),
 				folio_entire_mapcount(folio),
 				folio_nr_pages_mapped(folio),
 				atomic_read(&folio->_pincount));
@@ -99,7 +107,9 @@ static void __dump_folio(struct folio *folio, struct page *page,
 	 */
 	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
 		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
-	pr_warn("page_type: %pGt\n", &folio->page.page_type);
+	if (page_has_type(&folio->page))
+		pr_warn("page_type: %x(%s)\n", folio->page.page_type >> 24,
+				page_type_name(folio->page.page_type));
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
@@ -114,19 +124,22 @@ static void __dump_page(const struct page *page)
 {
 	struct folio *foliop, folio;
 	struct page precise;
+	unsigned long head;
 	unsigned long pfn = page_to_pfn(page);
 	unsigned long idx, nr_pages = 1;
 	int loops = 5;
 
 again:
 	memcpy(&precise, page, sizeof(*page));
-	foliop = page_folio(&precise);
-	if (foliop == (struct folio *)&precise) {
+	head = precise.compound_head;
+	if ((head & 1) == 0) {
+		foliop = (struct folio *)&precise;
 		idx = 0;
 		if (!folio_test_large(foliop))
 			goto dump;
 		foliop = (struct folio *)page;
 	} else {
+		foliop = (struct folio *)(head - 1);
 		idx = folio_page_idx(foliop, page);
 	}
 
@@ -180,9 +193,6 @@ EXPORT_SYMBOL(dump_vma);
 void dump_mm(const struct mm_struct *mm)
 {
 	pr_emerg("mm %px task_size %lu\n"
-#ifdef CONFIG_MMU
-		"get_unmapped_area %px\n"
-#endif
 		"mmap_base %lu mmap_legacy_base %lu\n"
 		"pgd %px mm_users %d mm_count %d pgtables_bytes %lu map_count %d\n"
 		"hiwater_rss %lx hiwater_vm %lx total_vm %lx locked_vm %lx\n"
@@ -208,9 +218,6 @@ void dump_mm(const struct mm_struct *mm)
 		"def_flags: %#lx(%pGv)\n",
 
 		mm, mm->task_size,
-#ifdef CONFIG_MMU
-		mm->get_unmapped_area,
-#endif
 		mm->mmap_base, mm->mmap_legacy_base,
 		mm->pgd, atomic_read(&mm->mm_users),
 		atomic_read(&mm->mm_count),
@@ -241,6 +248,77 @@ void dump_mm(const struct mm_struct *mm)
 	);
 }
 EXPORT_SYMBOL(dump_mm);
+
+void dump_vmg(const struct vma_merge_struct *vmg, const char *reason)
+{
+	if (reason)
+		pr_warn("vmg %px dumped because: %s\n", vmg, reason);
+
+	if (!vmg) {
+		pr_warn("vmg %px state: (NULL)\n", vmg);
+		return;
+	}
+
+	pr_warn("vmg %px state: mm %px pgoff %lx\n"
+		"vmi %px [%lx,%lx)\n"
+		"prev %px next %px vma %px\n"
+		"start %lx end %lx flags %lx\n"
+		"file %px anon_vma %px policy %px\n"
+		"uffd_ctx %px\n"
+		"anon_name %px\n"
+		"merge_flags %x state %x\n",
+		vmg, vmg->mm, vmg->pgoff,
+		vmg->vmi, vmg->vmi ? vma_iter_addr(vmg->vmi) : 0,
+		vmg->vmi ? vma_iter_end(vmg->vmi) : 0,
+		vmg->prev, vmg->next, vmg->vma,
+		vmg->start, vmg->end, vmg->flags,
+		vmg->file, vmg->anon_vma, vmg->policy,
+#ifdef CONFIG_USERFAULTFD
+		vmg->uffd_ctx.ctx,
+#else
+		(void *)0,
+#endif
+		vmg->anon_name,
+		(int)vmg->merge_flags, (int)vmg->state);
+
+	if (vmg->mm) {
+		pr_warn("vmg %px mm:\n", vmg);
+		dump_mm(vmg->mm);
+	} else {
+		pr_warn("vmg %px mm: (NULL)\n", vmg);
+	}
+
+	if (vmg->vma) {
+		pr_warn("vmg %px vma:\n", vmg);
+		dump_vma(vmg->vma);
+	} else {
+		pr_warn("vmg %px vma: (NULL)\n", vmg);
+	}
+
+	if (vmg->prev) {
+		pr_warn("vmg %px prev:\n", vmg);
+		dump_vma(vmg->prev);
+	} else {
+		pr_warn("vmg %px prev: (NULL)\n", vmg);
+	}
+
+	if (vmg->next) {
+		pr_warn("vmg %px next:\n", vmg);
+		dump_vma(vmg->next);
+	} else {
+		pr_warn("vmg %px next: (NULL)\n", vmg);
+	}
+
+#ifdef CONFIG_DEBUG_VM_MAPLE_TREE
+	if (vmg->vmi) {
+		pr_warn("vmg %px vmi:\n", vmg);
+		vma_iter_dump_tree(vmg->vmi);
+	} else {
+		pr_warn("vmg %px vmi: (NULL)\n", vmg);
+	}
+#endif
+}
+EXPORT_SYMBOL(dump_vmg);
 
 static bool page_init_poisoning __read_mostly = true;
 

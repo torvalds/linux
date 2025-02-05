@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2020 Intel Corporation. All rights reserved.
+ * Copyright(c) 2020 Intel Corporation
  */
 
 /*
@@ -60,6 +60,7 @@ enum sof_ext_man_elem_type {
 	SOF_EXT_MAN_ELEM_FW_VERSION		= 0,
 	SOF_EXT_MAN_ELEM_WINDOW			= 1,
 	SOF_EXT_MAN_ELEM_CC_VERSION		= 2,
+	SOF_EXT_MAN_ELEM_PROBE_INFO		= 3,
 	SOF_EXT_MAN_ELEM_DBG_ABI		= 4,
 	SOF_EXT_MAN_ELEM_CONFIG_DATA		= 5, /**< ABI3.17 */
 	SOF_EXT_MAN_ELEM_PLATFORM_CONFIG_DATA   = 6,

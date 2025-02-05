@@ -62,19 +62,40 @@
 
 #define SHA256CONSTANTS	%rax
 
-#define MSG		%xmm0
+#define MSG		%xmm0  /* sha256rnds2 implicit operand */
 #define STATE0		%xmm1
 #define STATE1		%xmm2
-#define MSGTMP0		%xmm3
-#define MSGTMP1		%xmm4
-#define MSGTMP2		%xmm5
-#define MSGTMP3		%xmm6
-#define MSGTMP4		%xmm7
+#define MSG0		%xmm3
+#define MSG1		%xmm4
+#define MSG2		%xmm5
+#define MSG3		%xmm6
+#define TMP		%xmm7
 
 #define SHUF_MASK	%xmm8
 
 #define ABEF_SAVE	%xmm9
 #define CDGH_SAVE	%xmm10
+
+.macro do_4rounds	i, m0, m1, m2, m3
+.if \i < 16
+	movdqu		\i*4(DATA_PTR), \m0
+	pshufb		SHUF_MASK, \m0
+.endif
+	movdqa		(\i-32)*4(SHA256CONSTANTS), MSG
+	paddd		\m0, MSG
+	sha256rnds2	STATE0, STATE1
+.if \i >= 12 && \i < 60
+	movdqa		\m0, TMP
+	palignr		$4, \m3, TMP
+	paddd		TMP, \m1
+	sha256msg2	\m0, \m1
+.endif
+	punpckhqdq	MSG, MSG
+	sha256rnds2	STATE1, STATE0
+.if \i >= 4 && \i < 52
+	sha256msg1	\m0, \m3
+.endif
+.endm
 
 /*
  * Intel SHA Extensions optimized implementation of a SHA-256 update function
@@ -85,9 +106,6 @@
  * The function only processes complete blocks, there is no functionality to
  * store partial blocks.  All message padding and hash value initialization must
  * be done outside the update function.
- *
- * The indented lines in the loop are instructions related to rounds processing.
- * The non-indented lines are instructions related to the message schedule.
  *
  * void sha256_ni_transform(uint32_t *digest, const void *data,
 		uint32_t numBlocks);
@@ -108,202 +126,29 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	 * Need to reorder these appropriately
 	 * DCBA, HGFE -> ABEF, CDGH
 	 */
-	movdqu		0*16(DIGEST_PTR), STATE0
-	movdqu		1*16(DIGEST_PTR), STATE1
+	movdqu		0*16(DIGEST_PTR), STATE0	/* DCBA */
+	movdqu		1*16(DIGEST_PTR), STATE1	/* HGFE */
 
-	pshufd		$0xB1, STATE0,  STATE0		/* CDAB */
-	pshufd		$0x1B, STATE1,  STATE1		/* EFGH */
-	movdqa		STATE0, MSGTMP4
-	palignr		$8, STATE1,  STATE0		/* ABEF */
-	pblendw		$0xF0, MSGTMP4, STATE1		/* CDGH */
+	movdqa		STATE0, TMP
+	punpcklqdq	STATE1, STATE0			/* FEBA */
+	punpckhqdq	TMP, STATE1			/* DCHG */
+	pshufd		$0x1B, STATE0, STATE0		/* ABEF */
+	pshufd		$0xB1, STATE1, STATE1		/* CDGH */
 
 	movdqa		PSHUFFLE_BYTE_FLIP_MASK(%rip), SHUF_MASK
-	lea		K256(%rip), SHA256CONSTANTS
+	lea		K256+32*4(%rip), SHA256CONSTANTS
 
 .Lloop0:
 	/* Save hash values for addition after rounds */
 	movdqa		STATE0, ABEF_SAVE
 	movdqa		STATE1, CDGH_SAVE
 
-	/* Rounds 0-3 */
-	movdqu		0*16(DATA_PTR), MSG
-	pshufb		SHUF_MASK, MSG
-	movdqa		MSG, MSGTMP0
-		paddd		0*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-
-	/* Rounds 4-7 */
-	movdqu		1*16(DATA_PTR), MSG
-	pshufb		SHUF_MASK, MSG
-	movdqa		MSG, MSGTMP1
-		paddd		1*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP1, MSGTMP0
-
-	/* Rounds 8-11 */
-	movdqu		2*16(DATA_PTR), MSG
-	pshufb		SHUF_MASK, MSG
-	movdqa		MSG, MSGTMP2
-		paddd		2*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP2, MSGTMP1
-
-	/* Rounds 12-15 */
-	movdqu		3*16(DATA_PTR), MSG
-	pshufb		SHUF_MASK, MSG
-	movdqa		MSG, MSGTMP3
-		paddd		3*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP3, MSGTMP4
-	palignr		$4, MSGTMP2, MSGTMP4
-	paddd		MSGTMP4, MSGTMP0
-	sha256msg2	MSGTMP3, MSGTMP0
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP3, MSGTMP2
-
-	/* Rounds 16-19 */
-	movdqa		MSGTMP0, MSG
-		paddd		4*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP0, MSGTMP4
-	palignr		$4, MSGTMP3, MSGTMP4
-	paddd		MSGTMP4, MSGTMP1
-	sha256msg2	MSGTMP0, MSGTMP1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP0, MSGTMP3
-
-	/* Rounds 20-23 */
-	movdqa		MSGTMP1, MSG
-		paddd		5*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP1, MSGTMP4
-	palignr		$4, MSGTMP0, MSGTMP4
-	paddd		MSGTMP4, MSGTMP2
-	sha256msg2	MSGTMP1, MSGTMP2
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP1, MSGTMP0
-
-	/* Rounds 24-27 */
-	movdqa		MSGTMP2, MSG
-		paddd		6*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP2, MSGTMP4
-	palignr		$4, MSGTMP1, MSGTMP4
-	paddd		MSGTMP4, MSGTMP3
-	sha256msg2	MSGTMP2, MSGTMP3
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP2, MSGTMP1
-
-	/* Rounds 28-31 */
-	movdqa		MSGTMP3, MSG
-		paddd		7*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP3, MSGTMP4
-	palignr		$4, MSGTMP2, MSGTMP4
-	paddd		MSGTMP4, MSGTMP0
-	sha256msg2	MSGTMP3, MSGTMP0
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP3, MSGTMP2
-
-	/* Rounds 32-35 */
-	movdqa		MSGTMP0, MSG
-		paddd		8*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP0, MSGTMP4
-	palignr		$4, MSGTMP3, MSGTMP4
-	paddd		MSGTMP4, MSGTMP1
-	sha256msg2	MSGTMP0, MSGTMP1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP0, MSGTMP3
-
-	/* Rounds 36-39 */
-	movdqa		MSGTMP1, MSG
-		paddd		9*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP1, MSGTMP4
-	palignr		$4, MSGTMP0, MSGTMP4
-	paddd		MSGTMP4, MSGTMP2
-	sha256msg2	MSGTMP1, MSGTMP2
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP1, MSGTMP0
-
-	/* Rounds 40-43 */
-	movdqa		MSGTMP2, MSG
-		paddd		10*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP2, MSGTMP4
-	palignr		$4, MSGTMP1, MSGTMP4
-	paddd		MSGTMP4, MSGTMP3
-	sha256msg2	MSGTMP2, MSGTMP3
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP2, MSGTMP1
-
-	/* Rounds 44-47 */
-	movdqa		MSGTMP3, MSG
-		paddd		11*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP3, MSGTMP4
-	palignr		$4, MSGTMP2, MSGTMP4
-	paddd		MSGTMP4, MSGTMP0
-	sha256msg2	MSGTMP3, MSGTMP0
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP3, MSGTMP2
-
-	/* Rounds 48-51 */
-	movdqa		MSGTMP0, MSG
-		paddd		12*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP0, MSGTMP4
-	palignr		$4, MSGTMP3, MSGTMP4
-	paddd		MSGTMP4, MSGTMP1
-	sha256msg2	MSGTMP0, MSGTMP1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-	sha256msg1	MSGTMP0, MSGTMP3
-
-	/* Rounds 52-55 */
-	movdqa		MSGTMP1, MSG
-		paddd		13*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP1, MSGTMP4
-	palignr		$4, MSGTMP0, MSGTMP4
-	paddd		MSGTMP4, MSGTMP2
-	sha256msg2	MSGTMP1, MSGTMP2
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-
-	/* Rounds 56-59 */
-	movdqa		MSGTMP2, MSG
-		paddd		14*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-	movdqa		MSGTMP2, MSGTMP4
-	palignr		$4, MSGTMP1, MSGTMP4
-	paddd		MSGTMP4, MSGTMP3
-	sha256msg2	MSGTMP2, MSGTMP3
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
-
-	/* Rounds 60-63 */
-	movdqa		MSGTMP3, MSG
-		paddd		15*16(SHA256CONSTANTS), MSG
-		sha256rnds2	STATE0, STATE1
-		pshufd 		$0x0E, MSG, MSG
-		sha256rnds2	STATE1, STATE0
+.irp i, 0, 16, 32, 48
+	do_4rounds	(\i + 0),  MSG0, MSG1, MSG2, MSG3
+	do_4rounds	(\i + 4),  MSG1, MSG2, MSG3, MSG0
+	do_4rounds	(\i + 8),  MSG2, MSG3, MSG0, MSG1
+	do_4rounds	(\i + 12), MSG3, MSG0, MSG1, MSG2
+.endr
 
 	/* Add current hash values with previously saved */
 	paddd		ABEF_SAVE, STATE0
@@ -315,14 +160,14 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	jne		.Lloop0
 
 	/* Write hash values back in the correct order */
-	pshufd		$0x1B, STATE0,  STATE0		/* FEBA */
-	pshufd		$0xB1, STATE1,  STATE1		/* DCHG */
-	movdqa		STATE0, MSGTMP4
-	pblendw		$0xF0, STATE1,  STATE0		/* DCBA */
-	palignr		$8, MSGTMP4, STATE1		/* HGFE */
+	movdqa		STATE0, TMP
+	punpcklqdq	STATE1, STATE0			/* GHEF */
+	punpckhqdq	TMP, STATE1			/* ABCD */
+	pshufd		$0xB1, STATE0, STATE0		/* HGFE */
+	pshufd		$0x1B, STATE1, STATE1		/* DCBA */
 
-	movdqu		STATE0, 0*16(DIGEST_PTR)
-	movdqu		STATE1, 1*16(DIGEST_PTR)
+	movdqu		STATE1, 0*16(DIGEST_PTR)
+	movdqu		STATE0, 1*16(DIGEST_PTR)
 
 .Ldone_hash:
 

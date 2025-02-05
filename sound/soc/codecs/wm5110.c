@@ -2534,7 +2534,7 @@ static struct platform_driver wm5110_codec_driver = {
 		.name = "wm5110-codec",
 	},
 	.probe = wm5110_probe,
-	.remove_new = wm5110_remove,
+	.remove = wm5110_remove,
 };
 
 module_platform_driver(wm5110_codec_driver);

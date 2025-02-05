@@ -127,10 +127,9 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
 /*
  * Channel measurement related functions
  */
-static ssize_t chp_measurement_chars_read(struct file *filp,
-					  struct kobject *kobj,
-					  struct bin_attribute *bin_attr,
-					  char *buf, loff_t off, size_t count)
+static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
+				      const struct bin_attribute *bin_attr,
+				      char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
 	struct device *device;
@@ -143,87 +142,92 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 	return memory_read_from_buffer(buf, count, &off, &chp->cmg_chars,
 				       sizeof(chp->cmg_chars));
 }
+static const BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
 
-static const struct bin_attribute chp_measurement_chars_attr = {
-	.attr = {
-		.name = "measurement_chars",
-		.mode = S_IRUSR,
-	},
-	.size = sizeof(struct cmg_chars),
-	.read = chp_measurement_chars_read,
-};
-
-static void chp_measurement_copy_block(struct cmg_entry *buf,
-				       struct channel_subsystem *css,
-				       struct chp_id chpid)
+static ssize_t measurement_chars_full_read(struct file *filp,
+					   struct kobject *kobj,
+					   const struct bin_attribute *bin_attr,
+					   char *buf, loff_t off, size_t count)
 {
-	void *area;
-	struct cmg_entry *entry, reference_buf;
-	int idx;
+	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
 
-	if (chpid.id < 128) {
-		area = css->cub_addr1;
-		idx = chpid.id;
-	} else {
-		area = css->cub_addr2;
-		idx = chpid.id - 128;
-	}
-	entry = area + (idx * sizeof(struct cmg_entry));
-	do {
-		memcpy(buf, entry, sizeof(*entry));
-		memcpy(&reference_buf, entry, sizeof(*entry));
-	} while (reference_buf.values[0] != buf->values[0]);
+	return memory_read_from_buffer(buf, count, &off, &chp->cmcb,
+				       sizeof(chp->cmcb));
 }
+static BIN_ATTR_ADMIN_RO(measurement_chars_full, sizeof(struct cmg_cmcb));
 
-static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
-				    char *buf, loff_t off, size_t count)
+static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
+					  struct kobject *kobj, bool extended)
 {
 	struct channel_path *chp;
 	struct channel_subsystem *css;
 	struct device *device;
 	unsigned int size;
+	void *area, *entry;
+	int id, idx;
 
 	device = kobj_to_dev(kobj);
 	chp = to_channelpath(device);
 	css = to_css(chp->dev.parent);
+	id = chp->chpid.id;
 
-	size = sizeof(struct cmg_entry);
+	if (extended) {
+		/* Check if extended measurement data is available. */
+		if (!chp->extended)
+			return 0;
+
+		size = sizeof(struct cmg_ext_entry);
+		area = css->ecub[id / CSS_ECUES_PER_PAGE];
+		idx = id % CSS_ECUES_PER_PAGE;
+	} else {
+		size = sizeof(struct cmg_entry);
+		area = css->cub[id / CSS_CUES_PER_PAGE];
+		idx = id % CSS_CUES_PER_PAGE;
+	}
+	entry = area + (idx * size);
 
 	/* Only allow single reads. */
 	if (off || count < size)
 		return 0;
-	chp_measurement_copy_block((struct cmg_entry *)buf, css, chp->chpid);
-	count = size;
-	return count;
+
+	memcpy(buf, entry, size);
+
+	return size;
 }
 
-static const struct bin_attribute chp_measurement_attr = {
-	.attr = {
-		.name = "measurement",
-		.mode = S_IRUSR,
-	},
-	.size = sizeof(struct cmg_entry),
-	.read = chp_measurement_read,
+static ssize_t measurement_read(struct file *filp, struct kobject *kobj,
+				const struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
+{
+	return chp_measurement_copy_block(buf, off, count, kobj, false);
+}
+static const BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
+
+static ssize_t ext_measurement_read(struct file *filp, struct kobject *kobj,
+				    const struct bin_attribute *bin_attr,
+				    char *buf, loff_t off, size_t count)
+{
+	return chp_measurement_copy_block(buf, off, count, kobj, true);
+}
+static const BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
+
+static const struct bin_attribute *measurement_attrs[] = {
+	&bin_attr_measurement_chars,
+	&bin_attr_measurement_chars_full,
+	&bin_attr_measurement,
+	&bin_attr_ext_measurement,
+	NULL,
 };
+BIN_ATTRIBUTE_GROUPS(measurement);
 
 void chp_remove_cmg_attr(struct channel_path *chp)
 {
-	device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	device_remove_bin_file(&chp->dev, &chp_measurement_attr);
+	device_remove_groups(&chp->dev, measurement_groups);
 }
 
 int chp_add_cmg_attr(struct channel_path *chp)
 {
-	int ret;
-
-	ret = device_create_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	if (ret)
-		return ret;
-	ret = device_create_bin_file(&chp->dev, &chp_measurement_attr);
-	if (ret)
-		device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	return ret;
+	return device_add_groups(&chp->dev, measurement_groups);
 }
 
 /*
@@ -239,7 +243,7 @@ static ssize_t chp_status_show(struct device *dev,
 	status = chp->state;
 	mutex_unlock(&chp->lock);
 
-	return status ? sprintf(buf, "online\n") : sprintf(buf, "offline\n");
+	return status ? sysfs_emit(buf, "online\n") : sysfs_emit(buf, "offline\n");
 }
 
 static ssize_t chp_status_write(struct device *dev,
@@ -320,7 +324,7 @@ static ssize_t chp_type_show(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&chp->lock);
 	type = chp->desc.desc;
 	mutex_unlock(&chp->lock);
-	return sprintf(buf, "%x\n", type);
+	return sysfs_emit(buf, "%x\n", type);
 }
 
 static DEVICE_ATTR(type, 0444, chp_type_show, NULL);
@@ -333,8 +337,8 @@ static ssize_t chp_cmg_show(struct device *dev, struct device_attribute *attr,
 	if (!chp)
 		return 0;
 	if (chp->cmg == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%d\n", chp->cmg);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%d\n", chp->cmg);
 }
 
 static DEVICE_ATTR(cmg, 0444, chp_cmg_show, NULL);
@@ -347,8 +351,8 @@ static ssize_t chp_shared_show(struct device *dev,
 	if (!chp)
 		return 0;
 	if (chp->shared == -1) /* channel measurements not available */
-		return sprintf(buf, "unknown\n");
-	return sprintf(buf, "%x\n", chp->shared);
+		return sysfs_emit(buf, "unknown\n");
+	return sysfs_emit(buf, "%x\n", chp->shared);
 }
 
 static DEVICE_ATTR(shared, 0444, chp_shared_show, NULL);
@@ -361,7 +365,7 @@ static ssize_t chp_chid_show(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%04x\n", chp->desc_fmt1.chid);
+		rc = sysfs_emit(buf, "%04x\n", chp->desc_fmt1.chid);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -378,7 +382,7 @@ static ssize_t chp_chid_external_show(struct device *dev,
 
 	mutex_lock(&chp->lock);
 	if (chp->desc_fmt1.flags & 0x10)
-		rc = sprintf(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
+		rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.flags & 0x8 ? 1 : 0);
 	else
 		rc = 0;
 	mutex_unlock(&chp->lock);
@@ -394,15 +398,44 @@ static ssize_t chp_esc_show(struct device *dev,
 	ssize_t rc;
 
 	mutex_lock(&chp->lock);
-	rc = sprintf(buf, "%x\n", chp->desc_fmt1.esc);
+	rc = sysfs_emit(buf, "%x\n", chp->desc_fmt1.esc);
 	mutex_unlock(&chp->lock);
 
 	return rc;
 }
 static DEVICE_ATTR(esc, 0444, chp_esc_show, NULL);
 
+static char apply_max_suffix(unsigned long *value, unsigned long base)
+{
+	static char suffixes[] = { 0, 'K', 'M', 'G', 'T' };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(suffixes) - 1; i++) {
+		if (*value < base || *value % base != 0)
+			break;
+		*value /= base;
+	}
+
+	return suffixes[i];
+}
+
+static ssize_t speed_bps_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	unsigned long speed = chp->speed;
+	char suffix;
+
+	suffix = apply_max_suffix(&speed, 1000);
+
+	return suffix ? sysfs_emit(buf, "%lu%c\n", speed, suffix) :
+			sysfs_emit(buf, "%lu\n", speed);
+}
+
+static DEVICE_ATTR_RO(speed_bps);
+
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr, char *buf,
+				const struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
@@ -415,10 +448,10 @@ static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
-static BIN_ATTR_RO(util_string,
-		   sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
+static const BIN_ATTR_RO(util_string,
+			 sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
 
-static struct bin_attribute *chp_bin_attrs[] = {
+static const struct bin_attribute *const chp_bin_attrs[] = {
 	&bin_attr_util_string,
 	NULL,
 };
@@ -432,11 +465,12 @@ static struct attribute *chp_attrs[] = {
 	&dev_attr_chid.attr,
 	&dev_attr_chid_external.attr,
 	&dev_attr_esc.attr,
+	&dev_attr_speed_bps.attr,
 	NULL,
 };
-static struct attribute_group chp_attr_group = {
+static const struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
-	.bin_attrs = chp_bin_attrs,
+	.bin_attrs_new = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,

@@ -1600,7 +1600,7 @@ void jfs_flush_journal(struct jfs_log *log, int wait)
 					       mp, sizeof(struct metapage), 0);
 				print_hex_dump(KERN_ERR, "page: ",
 					       DUMP_PREFIX_ADDRESS, 16,
-					       sizeof(long), mp->page,
+					       sizeof(long), mp->folio,
 					       sizeof(struct page), 0);
 			} else
 				print_hex_dump(KERN_ERR, "tblock:",

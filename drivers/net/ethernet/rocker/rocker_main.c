@@ -1967,7 +1967,7 @@ static int rocker_port_change_mtu(struct net_device *dev, int new_mtu)
 		rocker_port_stop(dev);
 
 	netdev_info(dev, "MTU change from %d to %d\n", dev->mtu, new_mtu);
-	dev->mtu = new_mtu;
+	WRITE_ONCE(dev->mtu, new_mtu);
 
 	err = rocker_cmd_set_port_settings_mtu(rocker_port, new_mtu);
 	if (err)
@@ -2502,7 +2502,7 @@ static void rocker_carrier_init(const struct rocker_port *rocker_port)
 	u64 link_status = rocker_read64(rocker, PORT_PHYS_LINK_STATUS);
 	bool link_up;
 
-	link_up = link_status & (1 << rocker_port->pport);
+	link_up = link_status & (1ULL << rocker_port->pport);
 	if (link_up)
 		netif_carrier_on(rocker_port->dev);
 	else
@@ -2575,7 +2575,8 @@ static int rocker_probe_port(struct rocker *rocker, unsigned int port_number)
 	netif_napi_add(dev, &rocker_port->napi_rx, rocker_port_poll_rx);
 	rocker_carrier_init(rocker_port);
 
-	dev->features |= NETIF_F_NETNS_LOCAL | NETIF_F_SG;
+	dev->features |= NETIF_F_SG;
+	dev->netns_local = true;
 
 	/* MTU range: 68 - 9000 */
 	dev->min_mtu = ROCKER_PORT_MIN_MTU;

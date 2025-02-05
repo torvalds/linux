@@ -28,7 +28,6 @@ struct idxd_cdev_context {
  * global to avoid conflict file names.
  */
 static DEFINE_IDA(file_ida);
-static DEFINE_MUTEX(ida_lock);
 
 /*
  * ictx is an array based off of accelerator types. enum idxd_type
@@ -123,9 +122,7 @@ static void idxd_file_dev_release(struct device *dev)
 	struct idxd_device *idxd = wq->idxd;
 	int rc;
 
-	mutex_lock(&ida_lock);
 	ida_free(&file_ida, ctx->id);
-	mutex_unlock(&ida_lock);
 
 	/* Wait for in-flight operations to complete. */
 	if (wq_shared(wq)) {
@@ -284,9 +281,7 @@ static int idxd_cdev_open(struct inode *inode, struct file *filp)
 	}
 
 	idxd_cdev = wq->idxd_cdev;
-	mutex_lock(&ida_lock);
 	ctx->id = ida_alloc(&file_ida, GFP_KERNEL);
-	mutex_unlock(&ida_lock);
 	if (ctx->id < 0) {
 		dev_warn(dev, "ida alloc failure\n");
 		goto failed_ida;
@@ -400,6 +395,18 @@ static int idxd_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 	int rc;
 
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
+
+	/*
+	 * Due to an erratum in some of the devices supported by the driver,
+	 * direct user submission to the device can be unsafe.
+	 * (See the INTEL-SA-01084 security advisory)
+	 *
+	 * For the devices that exhibit this behavior, require that the user
+	 * has CAP_SYS_RAWIO capabilities.
+	 */
+	if (!idxd->user_submission_safe && !capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
 	rc = check_vma(wq, vma, __func__);
 	if (rc < 0)
 		return rc;
@@ -412,6 +419,70 @@ static int idxd_cdev_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return io_remap_pfn_range(vma, vma->vm_start, pfn, PAGE_SIZE,
 			vma->vm_page_prot);
+}
+
+static int idxd_submit_user_descriptor(struct idxd_user_context *ctx,
+				       struct dsa_hw_desc __user *udesc)
+{
+	struct idxd_wq *wq = ctx->wq;
+	struct idxd_dev *idxd_dev = &wq->idxd->idxd_dev;
+	const uint64_t comp_addr_align = is_dsa_dev(idxd_dev) ? 0x20 : 0x40;
+	void __iomem *portal = idxd_wq_portal_addr(wq);
+	struct dsa_hw_desc descriptor __aligned(64);
+	int rc;
+
+	rc = copy_from_user(&descriptor, udesc, sizeof(descriptor));
+	if (rc)
+		return -EFAULT;
+
+	/*
+	 * DSA devices are capable of indirect ("batch") command submission.
+	 * On devices where direct user submissions are not safe, we cannot
+	 * allow this since there is no good way for us to verify these
+	 * indirect commands.
+	 */
+	if (is_dsa_dev(idxd_dev) && descriptor.opcode == DSA_OPCODE_BATCH &&
+		!wq->idxd->user_submission_safe)
+		return -EINVAL;
+	/*
+	 * As per the programming specification, the completion address must be
+	 * aligned to 32 or 64 bytes. If this is violated the hardware
+	 * engine can get very confused (security issue).
+	 */
+	if (!IS_ALIGNED(descriptor.completion_addr, comp_addr_align))
+		return -EINVAL;
+
+	if (wq_dedicated(wq))
+		iosubmit_cmds512(portal, &descriptor, 1);
+	else {
+		descriptor.priv = 0;
+		descriptor.pasid = ctx->pasid;
+		rc = idxd_enqcmds(wq, portal, &descriptor);
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static ssize_t idxd_cdev_write(struct file *filp, const char __user *buf, size_t len,
+			       loff_t *unused)
+{
+	struct dsa_hw_desc __user *udesc = (struct dsa_hw_desc __user *)buf;
+	struct idxd_user_context *ctx = filp->private_data;
+	ssize_t written = 0;
+	int i;
+
+	for (i = 0; i < len/sizeof(struct dsa_hw_desc); i++) {
+		int rc = idxd_submit_user_descriptor(ctx, udesc + i);
+
+		if (rc)
+			return written ? written : rc;
+
+		written += sizeof(struct dsa_hw_desc);
+	}
+
+	return written;
 }
 
 static __poll_t idxd_cdev_poll(struct file *filp,
@@ -436,6 +507,7 @@ static const struct file_operations idxd_cdev_fops = {
 	.open = idxd_cdev_open,
 	.release = idxd_cdev_release,
 	.mmap = idxd_cdev_mmap,
+	.write = idxd_cdev_write,
 	.poll = idxd_cdev_poll,
 };
 
@@ -500,7 +572,6 @@ void idxd_wq_del_cdev(struct idxd_wq *wq)
 	struct idxd_cdev *idxd_cdev;
 
 	idxd_cdev = wq->idxd_cdev;
-	ida_destroy(&file_ida);
 	wq->idxd_cdev = NULL;
 	cdev_device_del(&idxd_cdev->cdev, cdev_dev(idxd_cdev));
 	put_device(cdev_dev(idxd_cdev));
@@ -515,6 +586,14 @@ static int idxd_user_drv_probe(struct idxd_dev *idxd_dev)
 
 	if (idxd->state != IDXD_DEV_ENABLED)
 		return -ENXIO;
+
+	mutex_lock(&wq->wq_lock);
+
+	if (!idxd_wq_driver_name_match(wq, dev)) {
+		idxd->cmd_status = IDXD_SCMD_WQ_NO_DRV_NAME;
+		rc = -ENODEV;
+		goto wq_err;
+	}
 
 	/*
 	 * User type WQ is enabled only when SVA is enabled for two reasons:
@@ -531,14 +610,7 @@ static int idxd_user_drv_probe(struct idxd_dev *idxd_dev)
 		dev_dbg(&idxd->pdev->dev,
 			"User type WQ cannot be enabled without SVA.\n");
 
-		return -EOPNOTSUPP;
-	}
-
-	mutex_lock(&wq->wq_lock);
-
-	if (!idxd_wq_driver_name_match(wq, dev)) {
-		idxd->cmd_status = IDXD_SCMD_WQ_NO_DRV_NAME;
-		rc = -ENODEV;
+		rc = -EOPNOTSUPP;
 		goto wq_err;
 	}
 

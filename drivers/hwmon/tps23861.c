@@ -117,7 +117,7 @@ struct tps23861_data {
 	struct dentry *debugfs_dir;
 };
 
-static struct regmap_config tps23861_regmap_config = {
+static const struct regmap_config tps23861_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x6f,
@@ -132,7 +132,7 @@ static int tps23861_read_temp(struct tps23861_data *data, long *val)
 	if (err < 0)
 		return err;
 
-	*val = (regval * TEMPERATURE_LSB) - 20000;
+	*val = ((long)regval * TEMPERATURE_LSB) - 20000;
 
 	return 0;
 }

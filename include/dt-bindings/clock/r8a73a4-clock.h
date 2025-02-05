@@ -24,6 +24,10 @@
 #define R8A73A4_CLK_ZS		14
 #define R8A73A4_CLK_HP		15
 
+/* MSTP1 */
+#define R8A73A4_CLK_TMU0	25
+#define R8A73A4_CLK_TMU3	21
+
 /* MSTP2 */
 #define R8A73A4_CLK_DMAC	18
 #define R8A73A4_CLK_SCIFB3	17

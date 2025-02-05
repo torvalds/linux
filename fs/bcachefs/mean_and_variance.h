@@ -111,11 +111,11 @@ static inline u128_u u128_shl(u128_u i, s8 shift)
 {
 	u128_u r;
 
-	r.lo = i.lo << shift;
+	r.lo = i.lo << (shift & 63);
 	if (shift < 64)
-		r.hi = (i.hi << shift) | (i.lo >> (64 - shift));
+		r.hi = (i.hi << (shift & 63)) | (i.lo >> (-shift & 63));
 	else {
-		r.hi = i.lo << (shift - 64);
+		r.hi = i.lo << (-shift & 63);
 		r.lo = 0;
 	}
 	return r;

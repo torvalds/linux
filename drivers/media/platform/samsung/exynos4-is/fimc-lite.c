@@ -441,8 +441,6 @@ static const struct vb2_ops fimc_lite_qops = {
 	.queue_setup	 = queue_setup,
 	.buf_prepare	 = buffer_prepare,
 	.buf_queue	 = buffer_queue,
-	.wait_prepare	 = vb2_ops_wait_prepare,
-	.wait_finish	 = vb2_ops_wait_finish,
 	.start_streaming = start_streaming,
 	.stop_streaming	 = stop_streaming,
 };
@@ -1654,7 +1652,7 @@ MODULE_DEVICE_TABLE(of, flite_of_match);
 
 static struct platform_driver fimc_lite_driver = {
 	.probe		= fimc_lite_probe,
-	.remove_new	= fimc_lite_remove,
+	.remove		= fimc_lite_remove,
 	.driver = {
 		.of_match_table = flite_of_match,
 		.name		= FIMC_LITE_DRV_NAME,
@@ -1662,5 +1660,6 @@ static struct platform_driver fimc_lite_driver = {
 	}
 };
 module_platform_driver(fimc_lite_driver);
+MODULE_DESCRIPTION("Samsung EXYNOS FIMC-LITE (camera host interface) driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" FIMC_LITE_DRV_NAME);

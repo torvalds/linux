@@ -462,6 +462,7 @@ static void __exit agp_nvidia_cleanup(void)
 module_init(agp_nvidia_init);
 module_exit(agp_nvidia_cleanup);
 
+MODULE_DESCRIPTION("Nvidia AGPGART routines");
 MODULE_LICENSE("GPL and additional rights");
 MODULE_AUTHOR("NVIDIA Corporation");
 

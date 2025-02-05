@@ -126,7 +126,6 @@
 		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ptn5150>;
-		status = "okay";
 
 		port {
 			typec1_dr_sw: endpoint {

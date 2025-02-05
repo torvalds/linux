@@ -511,7 +511,7 @@
 	clock-frequency = <400000>;
 
 	sensor@49 {
-		compatible = "lm75";
+		compatible = "national,lm75";
 		reg = <0x49>;
 	};
 

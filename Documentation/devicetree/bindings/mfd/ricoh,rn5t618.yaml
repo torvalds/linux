@@ -28,7 +28,7 @@ allOf:
         regulators:
           patternProperties:
             "^(DCDC[1-4]|LDO[1-5]|LDORTC[12])$":
-              $ref: ../regulator/regulator.yaml
+              $ref: /schemas/regulator/regulator.yaml
           additionalProperties: false
   - if:
       properties:
@@ -40,7 +40,7 @@ allOf:
         regulators:
           patternProperties:
             "^(DCDC[1-3]|LDO[1-5]|LDORTC[12])$":
-              $ref: ../regulator/regulator.yaml
+              $ref: /schemas/regulator/regulator.yaml
           additionalProperties: false
   - if:
       properties:
@@ -52,7 +52,7 @@ allOf:
         regulators:
           patternProperties:
             "^(DCDC[1-5]|LDO[1-9]|LDO10|LDORTC[12])$":
-              $ref: ../regulator/regulator.yaml
+              $ref: /schemas/regulator/regulator.yaml
           additionalProperties: false
 
 properties:

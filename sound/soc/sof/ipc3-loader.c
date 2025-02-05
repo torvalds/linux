@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2022 Intel Corporation. All rights reserved.
+// Copyright(c) 2022 Intel Corporation
 
 #include <linux/firmware.h>
 #include "sof-priv.h"
@@ -192,6 +192,9 @@ static size_t sof_ipc3_fw_parse_ext_man(struct snd_sof_dev *sdev)
 			break;
 		case SOF_EXT_MAN_ELEM_CC_VERSION:
 			ret = ipc3_fw_ext_man_get_cc_info(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_PROBE_INFO:
+			dev_dbg(sdev->dev, "Probe info (not parsed)\n");
 			break;
 		case SOF_EXT_MAN_ELEM_DBG_ABI:
 			ret = ipc3_fw_ext_man_get_dbg_abi_info(sdev, elem_hdr);

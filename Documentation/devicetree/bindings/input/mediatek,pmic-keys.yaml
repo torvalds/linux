@@ -19,15 +19,17 @@ description: |
   by the PMIC that is defined as a Multi-Function Device (MFD).
 
   For MediaTek MT6323/MT6397 PMIC bindings see
-  Documentation/devicetree/bindings/mfd/mt6397.txt
+  Documentation/devicetree/bindings/mfd/mediatek,mt6397.yaml
 
 properties:
   compatible:
     enum:
       - mediatek,mt6323-keys
+      - mediatek,mt6328-keys
       - mediatek,mt6331-keys
       - mediatek,mt6357-keys
       - mediatek,mt6358-keys
+      - mediatek,mt6359-keys
       - mediatek,mt6397-keys
 
   power-off-time-sec: true

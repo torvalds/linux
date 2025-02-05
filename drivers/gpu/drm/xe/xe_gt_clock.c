@@ -3,10 +3,13 @@
  * Copyright © 2022 Intel Corporation
  */
 
+#include <linux/math64.h>
+
 #include "xe_gt_clock.h"
 
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
+#include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_macros.h"
@@ -14,7 +17,7 @@
 
 static u32 read_reference_ts_freq(struct xe_gt *gt)
 {
-	u32 ts_override = xe_mmio_read32(gt, TIMESTAMP_OVERRIDE);
+	u32 ts_override = xe_mmio_read32(&gt->mmio, TIMESTAMP_OVERRIDE);
 	u32 base_freq, frac_freq;
 
 	base_freq = REG_FIELD_GET(TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK,
@@ -54,7 +57,7 @@ static u32 get_crystal_clock_freq(u32 rpm_config_reg)
 
 int xe_gt_clock_init(struct xe_gt *gt)
 {
-	u32 ctc_reg = xe_mmio_read32(gt, CTC_MODE);
+	u32 ctc_reg = xe_mmio_read32(&gt->mmio, CTC_MODE);
 	u32 freq = 0;
 
 	/* Assuming gen11+ so assert this assumption is correct */
@@ -63,7 +66,7 @@ int xe_gt_clock_init(struct xe_gt *gt)
 	if (ctc_reg & CTC_SOURCE_DIVIDE_LOGIC) {
 		freq = read_reference_ts_freq(gt);
 	} else {
-		u32 c0 = xe_mmio_read32(gt, RPM_CONFIG0);
+		u32 c0 = xe_mmio_read32(&gt->mmio, RPM_CONFIG0);
 
 		freq = get_crystal_clock_freq(c0);
 
@@ -77,4 +80,22 @@ int xe_gt_clock_init(struct xe_gt *gt)
 
 	gt->info.reference_clock = freq;
 	return 0;
+}
+
+static u64 div_u64_roundup(u64 n, u32 d)
+{
+	return div_u64(n + d - 1, d);
+}
+
+/**
+ * xe_gt_clock_interval_to_ms - Convert sampled GT clock ticks to msec
+ *
+ * @gt: the &xe_gt
+ * @count: count of GT clock ticks
+ *
+ * Returns: time in msec
+ */
+u64 xe_gt_clock_interval_to_ms(struct xe_gt *gt, u64 count)
+{
+	return div_u64_roundup(count * MSEC_PER_SEC, gt->info.reference_clock);
 }

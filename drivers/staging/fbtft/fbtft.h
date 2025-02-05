@@ -202,6 +202,7 @@ struct fbtft_par {
 	u8 *buf;
 	u8 startbyte;
 	struct fbtft_ops fbtftops;
+	/* Spinlock to ensure thread-safe access to dirty_lines_start and dirty_lines_end */
 	spinlock_t dirty_lock;
 	unsigned int dirty_lines_start;
 	unsigned int dirty_lines_end;
@@ -218,6 +219,7 @@ struct fbtft_par {
 	} gpio;
 	const s16 *init_sequence;
 	struct {
+		/* Mutex to synchronize access to gamma curve locking */
 		struct mutex lock;
 		u32 *curves;
 		int num_values;
@@ -328,7 +330,7 @@ static struct platform_driver fbtft_driver_platform_driver = {             \
 		.of_match_table = dt_ids,                                  \
 	},                                                                 \
 	.probe  = fbtft_driver_probe_pdev,                                 \
-	.remove_new = fbtft_driver_remove_pdev,				   \
+	.remove = fbtft_driver_remove_pdev,				   \
 };                                                                         \
 									   \
 static int __init fbtft_driver_module_init(void)                           \

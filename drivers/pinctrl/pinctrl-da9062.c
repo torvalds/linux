@@ -139,7 +139,7 @@ static int da9062_gpio_direction_input(struct gpio_chip *gc,
 {
 	struct da9062_pctl *pctl = gpiochip_get_data(gc);
 	struct regmap *regmap = pctl->da9062->regmap;
-	struct gpio_desc *desc = gpiochip_get_desc(gc, offset);
+	struct gpio_desc *desc = gpio_device_get_desc(gc->gpiodev, offset);
 	unsigned int gpi_type;
 	int ret;
 

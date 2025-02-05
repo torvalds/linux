@@ -70,7 +70,7 @@
  * "regulator: whiskey_cove: implements Whiskey Cove pmic VRF support"
  * https://github.com/intel-aero/meta-intel-aero/blob/master/recipes-kernel/linux/linux-yocto/0019-regulator-whiskey_cove-implements-WhiskeyCove-pmic-V.patch
  */
-static struct pmic_table power_table[] = {
+static const struct pmic_table power_table[] = {
 	{
 		.address = 0x0,
 		.reg = CHT_WC_V1P8A_CTRL,
@@ -236,11 +236,12 @@ static int intel_cht_wc_exec_mipi_pmic_seq_element(struct regmap *regmap,
 						   u32 reg_address,
 						   u32 value, u32 mask)
 {
+	struct device *dev = regmap_get_device(regmap);
 	u32 address;
 
 	if (i2c_client_address > 0xff || reg_address > 0xff) {
-		pr_warn("%s warning addresses too big client 0x%x reg 0x%x\n",
-			__func__, i2c_client_address, reg_address);
+		dev_warn(dev, "warning addresses too big client 0x%x reg 0x%x\n",
+			 i2c_client_address, reg_address);
 		return -ERANGE;
 	}
 

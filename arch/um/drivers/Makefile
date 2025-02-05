@@ -20,14 +20,9 @@ harddog-objs := harddog_kern.o
 harddog-builtin-$(CONFIG_UML_WATCHDOG) := harddog_user.o harddog_user_exp.o
 rtc-objs := rtc_kern.o rtc_user.o
 
-LDFLAGS_pcap.o = $(shell $(CC) $(KBUILD_CFLAGS) -print-file-name=libpcap.a)
-
 LDFLAGS_vde.o = $(shell $(CC) $(CFLAGS) -print-file-name=libvdeplug.a)
 
-targets := pcap_kern.o pcap_user.o vde_kern.o vde_user.o
-
-$(obj)/pcap.o: $(obj)/pcap_kern.o $(obj)/pcap_user.o
-	$(LD) -r -dp -o $@ $^ $(ld_flags)
+targets := vde_kern.o vde_user.o
 
 $(obj)/vde.o: $(obj)/vde_kern.o $(obj)/vde_user.o
 	$(LD) -r -dp -o $@ $^ $(ld_flags)
@@ -49,7 +44,6 @@ obj-$(CONFIG_UML_NET_DAEMON) += daemon.o
 obj-$(CONFIG_UML_NET_VECTOR) += vector.o
 obj-$(CONFIG_UML_NET_VDE) += vde.o
 obj-$(CONFIG_UML_NET_MCAST) += umcast.o
-obj-$(CONFIG_UML_NET_PCAP) += pcap.o
 obj-$(CONFIG_UML_NET) += net.o 
 obj-$(CONFIG_MCONSOLE) += mconsole.o
 obj-$(CONFIG_MMAPPER) += mmapper_kern.o 
@@ -69,7 +63,7 @@ obj-$(CONFIG_UML_RTC) += rtc.o
 obj-$(CONFIG_UML_PCI_OVER_VIRTIO) += virt-pci.o
 
 # pcap_user.o must be added explicitly.
-USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o pcap_user.o vde_user.o vector_user.o
+USER_OBJS := fd.o null.o pty.o tty.o xterm.o slip_common.o vde_user.o vector_user.o
 CFLAGS_null.o = -DDEV_NULL=$(DEV_NULL_PATH)
 
 CFLAGS_xterm.o += '-DCONFIG_XTERM_CHAN_DEFAULT_EMULATOR="$(CONFIG_XTERM_CHAN_DEFAULT_EMULATOR)"'

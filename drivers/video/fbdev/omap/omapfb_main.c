@@ -1241,14 +1241,13 @@ static ssize_t omapfb_show_caps_num(struct device *dev,
 {
 	struct omapfb_device *fbdev = dev_get_drvdata(dev);
 	int plane;
-	size_t size;
+	size_t size = 0;
 	struct omapfb_caps caps;
 
 	plane = 0;
-	size = 0;
-	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
+	while (plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += scnprintf(&buf[size], PAGE_SIZE - size,
+		size += sysfs_emit_at(buf, size,
 			"plane#%d %#010x %#010x %#010x\n",
 			plane, caps.ctrl, caps.plane_color, caps.wnd_color);
 		plane++;
@@ -1263,34 +1262,27 @@ static ssize_t omapfb_show_caps_text(struct device *dev,
 	int i;
 	struct omapfb_caps caps;
 	int plane;
-	size_t size;
+	size_t size = 0;
 
 	plane = 0;
-	size = 0;
-	while (size < PAGE_SIZE && plane < OMAPFB_PLANE_NUM) {
+	while (plane < OMAPFB_PLANE_NUM) {
 		omapfb_get_caps(fbdev, plane, &caps);
-		size += scnprintf(&buf[size], PAGE_SIZE - size,
-				 "plane#%d:\n", plane);
-		for (i = 0; i < ARRAY_SIZE(ctrl_caps) &&
-		     size < PAGE_SIZE; i++) {
+		size += sysfs_emit_at(buf, size, "plane#%d:\n", plane);
+		for (i = 0; i < ARRAY_SIZE(ctrl_caps); i++) {
 			if (ctrl_caps[i].flag & caps.ctrl)
-				size += scnprintf(&buf[size], PAGE_SIZE - size,
+				size += sysfs_emit_at(buf, size,
 					" %s\n", ctrl_caps[i].name);
 		}
-		size += scnprintf(&buf[size], PAGE_SIZE - size,
-				 " plane colors:\n");
-		for (i = 0; i < ARRAY_SIZE(color_caps) &&
-		     size < PAGE_SIZE; i++) {
+		size += sysfs_emit_at(buf, size, " plane colors:\n");
+		for (i = 0; i < ARRAY_SIZE(color_caps); i++) {
 			if (color_caps[i].flag & caps.plane_color)
-				size += scnprintf(&buf[size], PAGE_SIZE - size,
+				size += sysfs_emit_at(buf, size,
 					"  %s\n", color_caps[i].name);
 		}
-		size += scnprintf(&buf[size], PAGE_SIZE - size,
-				 " window colors:\n");
-		for (i = 0; i < ARRAY_SIZE(color_caps) &&
-		     size < PAGE_SIZE; i++) {
+		size += sysfs_emit_at(buf, size, " window colors:\n");
+		for (i = 0; i < ARRAY_SIZE(color_caps); i++) {
 			if (color_caps[i].flag & caps.wnd_color)
-				size += scnprintf(&buf[size], PAGE_SIZE - size,
+				size += sysfs_emit_at(buf, size,
 					"  %s\n", color_caps[i].name);
 		}
 
@@ -1833,7 +1825,7 @@ static int omapfb_resume(struct platform_device *pdev)
 
 static struct platform_driver omapfb_driver = {
 	.probe		= omapfb_probe,
-	.remove_new	= omapfb_remove,
+	.remove		= omapfb_remove,
 	.suspend	= omapfb_suspend,
 	.resume		= omapfb_resume,
 	.driver		= {

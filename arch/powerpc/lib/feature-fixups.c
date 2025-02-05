@@ -16,7 +16,7 @@
 #include <linux/sched/mm.h>
 #include <linux/stop_machine.h>
 #include <asm/cputable.h>
-#include <asm/code-patching.h>
+#include <asm/text-patching.h>
 #include <asm/interrupt.h>
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -24,6 +24,13 @@
 #include <asm/security_features.h>
 #include <asm/firmware.h>
 #include <asm/inst.h>
+
+/*
+ * Used to generate warnings if mmu or cpu feature check functions that
+ * use static keys before they are initialized.
+ */
+bool static_key_feature_checks_initialized __read_mostly;
+EXPORT_SYMBOL_GPL(static_key_feature_checks_initialized);
 
 struct fixup_entry {
 	unsigned long	mask;
@@ -679,6 +686,7 @@ void __init setup_feature_keys(void)
 	jump_label_init();
 	cpu_feature_keys_init();
 	mmu_feature_keys_init();
+	static_key_feature_checks_initialized = true;
 }
 
 static int __init check_features(void)

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2020, 2022-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -340,11 +340,13 @@ struct iwl_hs20_roc_res {
  * @ROC_ACTIVITY_HOTSPOT: ROC for hs20 activity
  * @ROC_ACTIVITY_P2P_DISC: ROC for p2p discoverability activity
  * @ROC_ACTIVITY_P2P_TXRX: ROC for p2p action frames activity
+ * @ROC_ACTIVITY_P2P_NEG: ROC for p2p negotiation (used also for TX)
  */
 enum iwl_roc_activity {
 	ROC_ACTIVITY_HOTSPOT,
 	ROC_ACTIVITY_P2P_DISC,
 	ROC_ACTIVITY_P2P_TXRX,
+	ROC_ACTIVITY_P2P_NEG,
 	ROC_NUM_ACTIVITIES
 }; /* ROC_ACTIVITY_API_E_VER_1 */
 
@@ -393,7 +395,7 @@ struct iwl_roc_notif {
 } __packed; /* ROC_NOTIF_API_S_VER_1 */
 
 /**
- * enum iwl_mvm_session_prot_conf_id - session protection's configurations
+ * enum iwl_session_prot_conf_id - session protection's configurations
  * @SESSION_PROTECT_CONF_ASSOC: Start a session protection for association.
  *	The firmware will allocate two events.
  *	Valid for BSS_STA and P2P_STA.
@@ -422,7 +424,7 @@ struct iwl_roc_notif {
  *	be taken into account.
  * @SESSION_PROTECT_CONF_MAX_ID: not used
  */
-enum iwl_mvm_session_prot_conf_id {
+enum iwl_session_prot_conf_id {
 	SESSION_PROTECT_CONF_ASSOC,
 	SESSION_PROTECT_CONF_GO_CLIENT_ASSOC,
 	SESSION_PROTECT_CONF_P2P_DEVICE_DISCOV,
@@ -431,12 +433,12 @@ enum iwl_mvm_session_prot_conf_id {
 }; /* SESSION_PROTECTION_CONF_ID_E_VER_1 */
 
 /**
- * struct iwl_mvm_session_prot_cmd - configure a session protection
+ * struct iwl_session_prot_cmd - configure a session protection
  * @id_and_color: the id and color of the link (or mac, for command version 1)
  *	for which this session protection is sent
  * @action: can be either FW_CTXT_ACTION_ADD or FW_CTXT_ACTION_REMOVE,
  *	see &enum iwl_ctxt_action
- * @conf_id: see &enum iwl_mvm_session_prot_conf_id
+ * @conf_id: see &enum iwl_session_prot_conf_id
  * @duration_tu: the duration of the whole protection in TUs.
  * @repetition_count: not used
  * @interval: not used
@@ -446,7 +448,7 @@ enum iwl_mvm_session_prot_conf_id {
  * The firmware supports only one concurrent session protection per vif.
  * Adding a new session protection will remove any currently running session.
  */
-struct iwl_mvm_session_prot_cmd {
+struct iwl_session_prot_cmd {
 	/* COMMON_INDEX_HDR_API_S_VER_1 hdr */
 	__le32 id_and_color;
 	__le32 action;
@@ -460,17 +462,17 @@ struct iwl_mvm_session_prot_cmd {
  */
 
 /**
- * struct iwl_mvm_session_prot_notif - session protection started / ended
+ * struct iwl_session_prot_notif - session protection started / ended
  * @mac_link_id: the mac id (or link id, for notif ver > 2) for which the
  *	session protection started / ended
  * @status: 1 means success, 0 means failure
  * @start: 1 means the session protection started, 0 means it ended
- * @conf_id: see &enum iwl_mvm_session_prot_conf_id
+ * @conf_id: see &enum iwl_session_prot_conf_id
  *
  * Note that any session protection will always get two notifications: start
  * and end even the firmware could not schedule it.
  */
-struct iwl_mvm_session_prot_notif {
+struct iwl_session_prot_notif {
 	__le32 mac_link_id;
 	__le32 status;
 	__le32 start;

@@ -16,8 +16,10 @@
 #include <asm/pci_io.h>
 
 #define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#define kc_xlate_dev_mem_ptr xlate_dev_mem_ptr
 void *xlate_dev_mem_ptr(phys_addr_t phys);
 #define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
+#define kc_unxlate_dev_mem_ptr unxlate_dev_mem_ptr
 void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 #define IO_SPACE_LIMIT 0
@@ -72,6 +74,21 @@ static inline void ioport_unmap(void __iomem *p)
 #define __raw_writew	zpci_write_u16
 #define __raw_writel	zpci_write_u32
 #define __raw_writeq	zpci_write_u64
+
+/* combine single writes by using store-block insn */
+static inline void __iowrite32_copy(void __iomem *to, const void *from,
+				    size_t count)
+{
+	zpci_memcpy_toio(to, from, count * 4);
+}
+#define __iowrite32_copy __iowrite32_copy
+
+static inline void __iowrite64_copy(void __iomem *to, const void *from,
+				    size_t count)
+{
+	zpci_memcpy_toio(to, from, count * 8);
+}
+#define __iowrite64_copy __iowrite64_copy
 
 #endif /* CONFIG_PCI */
 

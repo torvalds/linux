@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
@@ -569,7 +570,7 @@ static void pm8xxx_gpio_dbg_show_one(struct seq_file *s,
 		seq_printf(s, " VIN%d", pin->power_source);
 		seq_printf(s, " %-27s", biases[pin->bias]);
 		seq_printf(s, " %-10s", buffer_types[pin->open_drain]);
-		seq_printf(s, " %-4s", pin->output_value ? "high" : "low");
+		seq_printf(s, " %-4s", str_high_low(pin->output_value));
 		seq_printf(s, " %-7s", strengths[pin->output_strength]);
 		if (pin->inverted)
 			seq_puts(s, " inverted");
@@ -832,7 +833,7 @@ static int pm8xxx_gpio_probe(struct platform_device *pdev)
 	 * files which don't set the "gpio-ranges" property or systems that
 	 * utilize ACPI the driver has to call gpiochip_add_pin_range().
 	 */
-	if (!of_property_read_bool(pctrl->dev->of_node, "gpio-ranges")) {
+	if (!of_property_present(pctrl->dev->of_node, "gpio-ranges")) {
 		ret = gpiochip_add_pin_range(&pctrl->chip, dev_name(pctrl->dev),
 					     0, 0, pctrl->chip.ngpio);
 		if (ret) {
@@ -866,7 +867,7 @@ static struct platform_driver pm8xxx_gpio_driver = {
 		.of_match_table = pm8xxx_gpio_of_match,
 	},
 	.probe = pm8xxx_gpio_probe,
-	.remove_new = pm8xxx_gpio_remove,
+	.remove = pm8xxx_gpio_remove,
 };
 
 module_platform_driver(pm8xxx_gpio_driver);

@@ -23,6 +23,10 @@ properties:
         items:
           - const: ti,j7200-pcie-host
           - const: ti,j721e-pcie-host
+      - description: PCIe controller in J722S
+        items:
+          - const: ti,j722s-pcie-host
+          - const: ti,j721e-pcie-host
 
   reg:
     maxItems: 4
@@ -33,6 +37,16 @@ properties:
       - const: user_cfg
       - const: reg
       - const: cfg
+
+  ti,syscon-acspcie-proxy-ctrl:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: Phandle to the ACSPCIE Proxy Control Register
+          - description: Bitmask corresponding to the PAD IO Buffer
+                         output enable fields (Active Low).
+    description: Specifier for enabling the ACSPCIE PAD outputs to drive
+                 the reference clock to the Endpoint device.
 
   ti,syscon-pcie-ctrl:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -68,6 +82,7 @@ properties:
       - 0xb00d
       - 0xb00f
       - 0xb010
+      - 0xb012
       - 0xb013
 
   msi-map: true

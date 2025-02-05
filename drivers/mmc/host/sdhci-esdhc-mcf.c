@@ -335,7 +335,7 @@ static void esdhc_mcf_copy_to_bounce_buffer(struct sdhci_host *host,
 				data->blksz * data->blocks);
 }
 
-static struct sdhci_ops sdhci_esdhc_ops = {
+static const struct sdhci_ops sdhci_esdhc_ops = {
 	.reset = esdhc_mcf_reset,
 	.set_clock = esdhc_mcf_pltfm_set_clock,
 	.get_max_clock = esdhc_mcf_pltfm_get_max_clock,
@@ -512,7 +512,7 @@ static struct platform_driver sdhci_esdhc_mcf_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = sdhci_esdhc_mcf_probe,
-	.remove_new = sdhci_esdhc_mcf_remove,
+	.remove = sdhci_esdhc_mcf_remove,
 };
 
 module_platform_driver(sdhci_esdhc_mcf_driver);

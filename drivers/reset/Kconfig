@@ -66,8 +66,22 @@ config RESET_BRCMSTB_RESCAL
 	  This enables the RESCAL reset controller for SATA, PCIe0, or PCIe1 on
 	  BCM7216.
 
+config RESET_EYEQ
+	bool "Mobileye EyeQ reset controller"
+	depends on MACH_EYEQ5 || MACH_EYEQ6H || COMPILE_TEST
+	select AUXILIARY_BUS
+	default MACH_EYEQ5 || MACH_EYEQ6H
+	help
+	  This enables the Mobileye EyeQ reset controller, used in EyeQ5, EyeQ6L
+	  and EyeQ6H SoCs.
+
+	  It has one or more domains, with a varying number of resets in each.
+	  Registers are located in a shared register region called OLB. EyeQ6H
+	  has multiple reset instances.
+
 config RESET_GPIO
 	tristate "GPIO reset controller"
+	depends on GPIOLIB
 	help
 	  This enables a generic reset controller for resets attached via
 	  GPIOs.  Typically for OF platforms this driver expects "reset-gpios"
@@ -91,6 +105,14 @@ config RESET_IMX7
 	help
 	  This enables the reset controller driver for i.MX7 SoCs.
 
+config RESET_IMX8MP_AUDIOMIX
+	tristate "i.MX8MP AudioMix Reset Driver"
+	depends on ARCH_MXC || COMPILE_TEST
+	select AUXILIARY_BUS
+	default CLK_IMX8MP
+	help
+	  This enables the reset controller driver for i.MX8MP AudioMix
+
 config RESET_INTEL_GW
 	bool "Intel Reset Controller Driver"
 	depends on X86 || COMPILE_TEST
@@ -103,9 +125,9 @@ config RESET_INTEL_GW
 
 config RESET_K210
 	bool "Reset controller driver for Canaan Kendryte K210 SoC"
-	depends on (SOC_CANAAN || COMPILE_TEST) && OF
+	depends on (SOC_CANAAN_K210 || COMPILE_TEST) && OF
 	select MFD_SYSCON
-	default SOC_CANAAN
+	default SOC_CANAAN_K210
 	help
 	  Support for the Canaan Kendryte K210 RISC-V SoC reset controller.
 	  Say Y if you want to control reset signals provided by this
@@ -124,30 +146,17 @@ config RESET_LPC18XX
 	  This enables the reset controller driver for NXP LPC18xx/43xx SoCs.
 
 config RESET_MCHP_SPARX5
-	bool "Microchip Sparx5 reset driver"
-	depends on ARCH_SPARX5 || SOC_LAN966 || COMPILE_TEST
+	tristate "Microchip Sparx5 reset driver"
+	depends on ARCH_SPARX5 || SOC_LAN966 || MCHP_LAN966X_PCI || COMPILE_TEST
 	default y if SPARX5_SWITCH
 	select MFD_SYSCON
 	help
 	  This driver supports switch core reset for the Microchip Sparx5 SoC.
 
-config RESET_MESON
-	tristate "Meson Reset Driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	default ARCH_MESON
-	help
-	  This enables the reset driver for Amlogic Meson SoCs.
-
-config RESET_MESON_AUDIO_ARB
-	tristate "Meson Audio Memory Arbiter Reset Driver"
-	depends on ARCH_MESON || COMPILE_TEST
-	help
-	  This enables the reset driver for Audio Memory Arbiter of
-	  Amlogic's A113 based SoCs
-
 config RESET_NPCM
 	bool "NPCM BMC Reset Driver" if COMPILE_TEST
 	default ARCH_NPCM
+	select AUXILIARY_BUS
 	help
 	  This enables the reset controller driver for Nuvoton NPCM
 	  BMC SoCs.
@@ -328,6 +337,13 @@ config RESET_ZYNQ
 	help
 	  This enables the reset controller driver for Xilinx Zynq SoCs.
 
+config RESET_ZYNQMP
+	bool "ZYNQMP Reset Driver" if COMPILE_TEST
+	default ARCH_ZYNQMP
+	help
+	  This enables the reset controller driver for Xilinx ZynqMP SoCs.
+
+source "drivers/reset/amlogic/Kconfig"
 source "drivers/reset/starfive/Kconfig"
 source "drivers/reset/sti/Kconfig"
 source "drivers/reset/hisilicon/Kconfig"

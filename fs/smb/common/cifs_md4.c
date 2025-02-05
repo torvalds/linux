@@ -24,6 +24,7 @@
 #include <asm/byteorder.h>
 #include "md4.h"
 
+MODULE_DESCRIPTION("MD4 Message Digest Algorithm (RFC1320)");
 MODULE_LICENSE("GPL");
 
 static inline u32 lshift(u32 x, unsigned int s)

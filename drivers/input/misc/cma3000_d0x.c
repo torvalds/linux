@@ -217,14 +217,12 @@ static int cma3000_open(struct input_dev *input_dev)
 {
 	struct cma3000_accl_data *data = input_get_drvdata(input_dev);
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (!data->suspended)
 		cma3000_poweron(data);
 
 	data->opened = true;
-
-	mutex_unlock(&data->mutex);
 
 	return 0;
 }
@@ -233,40 +231,34 @@ static void cma3000_close(struct input_dev *input_dev)
 {
 	struct cma3000_accl_data *data = input_get_drvdata(input_dev);
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (!data->suspended)
 		cma3000_poweroff(data);
 
 	data->opened = false;
-
-	mutex_unlock(&data->mutex);
 }
 
 void cma3000_suspend(struct cma3000_accl_data *data)
 {
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (!data->suspended && data->opened)
 		cma3000_poweroff(data);
 
 	data->suspended = true;
-
-	mutex_unlock(&data->mutex);
 }
 EXPORT_SYMBOL(cma3000_suspend);
 
 
 void cma3000_resume(struct cma3000_accl_data *data)
 {
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
 	if (data->suspended && data->opened)
 		cma3000_poweron(data);
 
 	data->suspended = false;
-
-	mutex_unlock(&data->mutex);
 }
 EXPORT_SYMBOL(cma3000_resume);
 
@@ -292,7 +284,7 @@ struct cma3000_accl_data *cma3000_init(struct device *dev, int irq,
 		goto err_out;
 	}
 
-	data = kzalloc(sizeof(struct cma3000_accl_data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!data || !input_dev) {
 		error = -ENOMEM;

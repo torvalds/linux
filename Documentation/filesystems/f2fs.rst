@@ -774,6 +774,35 @@ In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
 
+Write-hint Policy
+-----------------
+
+F2FS sets the whint all the time with the below policy.
+
+===================== ======================== ===================
+User                  F2FS                     Block
+===================== ======================== ===================
+N/A                   META                     WRITE_LIFE_NONE|REQ_META
+N/A                   HOT_NODE                 WRITE_LIFE_NONE
+N/A                   WARM_NODE                WRITE_LIFE_MEDIUM
+N/A                   COLD_NODE                WRITE_LIFE_LONG
+ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
+extension list        "                        "
+
+-- buffered io
+N/A                   COLD_DATA                WRITE_LIFE_EXTREME
+N/A                   HOT_DATA                 WRITE_LIFE_SHORT
+N/A                   WARM_DATA                WRITE_LIFE_NOT_SET
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+===================== ======================== ===================
+
 Fallocate(2) Policy
 -------------------
 
@@ -914,3 +943,47 @@ NVMe Zoned Namespace devices
   can start before the zone-capacity and span across zone-capacity boundary.
   Such spanning segments are also considered as usable segments. All blocks
   past the zone-capacity are considered unusable in these segments.
+
+Device aliasing feature
+-----------------------
+
+f2fs can utilize a special file called a "device aliasing file." This file allows
+the entire storage device to be mapped with a single, large extent, not using
+the usual f2fs node structures. This mapped area is pinned and primarily intended
+for holding the space.
+
+Essentially, this mechanism allows a portion of the f2fs area to be temporarily
+reserved and used by another filesystem or for different purposes. Once that
+external usage is complete, the device aliasing file can be deleted, releasing
+the reserved space back to F2FS for its own use.
+
+<use-case>
+
+# ls /dev/vd*
+/dev/vdb (32GB) /dev/vdc (32GB)
+# mkfs.ext4 /dev/vdc
+# mkfs.f2fs -c /dev/vdc@vdc.file /dev/vdb
+# mount /dev/vdb /mnt/f2fs
+# ls -l /mnt/f2fs
+vdc.file
+# df -h
+/dev/vdb                            64G   33G   32G  52% /mnt/f2fs
+
+# mount -o loop /dev/vdc /mnt/ext4
+# df -h
+/dev/vdb                            64G   33G   32G  52% /mnt/f2fs
+/dev/loop7                          32G   24K   30G   1% /mnt/ext4
+# umount /mnt/ext4
+
+# f2fs_io getflags /mnt/f2fs/vdc.file
+get a flag on /mnt/f2fs/vdc.file ret=0, flags=nocow(pinned),immutable
+# f2fs_io setflags noimmutable /mnt/f2fs/vdc.file
+get a flag on noimmutable ret=0, flags=800010
+set a flag on /mnt/f2fs/vdc.file ret=0, flags=noimmutable
+# rm /mnt/f2fs/vdc.file
+# df -h
+/dev/vdb                            64G  753M   64G   2% /mnt/f2fs
+
+So, the key idea is, user can do any file operations on /dev/vdc, and
+reclaim the space after the use, while the space is counted as /data.
+That doesn't require modifying partition size and filesystem format.

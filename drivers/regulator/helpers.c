@@ -125,7 +125,7 @@ static int regulator_range_selector_to_index(struct regulator_dev *rdev,
  *
  * Regulators that use regmap for their register I/O and use pickable
  * ranges can set the vsel_reg, vsel_mask, vsel_range_reg and vsel_range_mask
- * fields in their descriptor and then use this as their get_voltage_vsel
+ * fields in their descriptor and then use this as their get_voltage_sel
  * operation, saving some code.
  */
 int regulator_get_voltage_sel_pickable_regmap(struct regulator_dev *rdev)
@@ -161,6 +161,32 @@ int regulator_get_voltage_sel_pickable_regmap(struct regulator_dev *rdev)
 }
 EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_pickable_regmap);
 
+static int write_separate_vsel_and_range(struct regulator_dev *rdev,
+					 unsigned int sel, unsigned int range)
+{
+	bool range_updated;
+	int ret;
+
+	ret = regmap_update_bits_base(rdev->regmap, rdev->desc->vsel_range_reg,
+				      rdev->desc->vsel_range_mask,
+				      range, &range_updated, false, false);
+	if (ret)
+		return ret;
+
+	/*
+	 * Some PMICs treat the vsel_reg same as apply-bit. Force it to be
+	 * written if the range changed, even if the old selector was same as
+	 * the new one
+	 */
+	if (rdev->desc->range_applied_by_vsel && range_updated)
+		return regmap_write_bits(rdev->regmap,
+					rdev->desc->vsel_reg,
+					rdev->desc->vsel_mask, sel);
+
+	return regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
+				  rdev->desc->vsel_mask, sel);
+}
+
 /**
  * regulator_set_voltage_sel_pickable_regmap - pickable range set_voltage_sel
  *
@@ -169,7 +195,7 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_pickable_regmap);
  *
  * Regulators that use regmap for their register I/O and use pickable
  * ranges can set the vsel_reg, vsel_mask, vsel_range_reg and vsel_range_mask
- * fields in their descriptor and then use this as their set_voltage_vsel
+ * fields in their descriptor and then use this as their set_voltage_sel
  * operation, saving some code.
  */
 int regulator_set_voltage_sel_pickable_regmap(struct regulator_dev *rdev,
@@ -199,21 +225,12 @@ int regulator_set_voltage_sel_pickable_regmap(struct regulator_dev *rdev,
 	range = rdev->desc->linear_range_selectors_bitfield[i];
 	range <<= ffs(rdev->desc->vsel_range_mask) - 1;
 
-	if (rdev->desc->vsel_reg == rdev->desc->vsel_range_reg) {
-		ret = regmap_update_bits(rdev->regmap,
-					 rdev->desc->vsel_reg,
+	if (rdev->desc->vsel_reg == rdev->desc->vsel_range_reg)
+		ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
 					 rdev->desc->vsel_range_mask |
 					 rdev->desc->vsel_mask, sel | range);
-	} else {
-		ret = regmap_update_bits(rdev->regmap,
-					 rdev->desc->vsel_range_reg,
-					 rdev->desc->vsel_range_mask, range);
-		if (ret)
-			return ret;
-
-		ret = regmap_update_bits(rdev->regmap, rdev->desc->vsel_reg,
-				  rdev->desc->vsel_mask, sel);
-	}
+	else
+		ret = write_separate_vsel_and_range(rdev, sel, range);
 
 	if (ret)
 		return ret;
@@ -233,7 +250,7 @@ EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_pickable_regmap);
  *
  * Regulators that use regmap for their register I/O can set the
  * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their get_voltage_vsel operation, saving some code.
+ * as their get_voltage_sel operation, saving some code.
  */
 int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev)
 {
@@ -259,7 +276,7 @@ EXPORT_SYMBOL_GPL(regulator_get_voltage_sel_regmap);
  *
  * Regulators that use regmap for their register I/O can set the
  * vsel_reg and vsel_mask fields in their descriptor and then use this
- * as their set_voltage_vsel operation, saving some code.
+ * as their set_voltage_sel operation, saving some code.
  */
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 {

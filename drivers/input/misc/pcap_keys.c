@@ -49,7 +49,7 @@ static int pcap_keys_probe(struct platform_device *pdev)
 	struct pcap_keys *pcap_keys;
 	struct input_dev *input_dev;
 
-	pcap_keys = kmalloc(sizeof(struct pcap_keys), GFP_KERNEL);
+	pcap_keys = kmalloc(sizeof(*pcap_keys), GFP_KERNEL);
 	if (!pcap_keys)
 		return err;
 
@@ -112,7 +112,7 @@ static void pcap_keys_remove(struct platform_device *pdev)
 
 static struct platform_driver pcap_keys_device_driver = {
 	.probe		= pcap_keys_probe,
-	.remove_new	= pcap_keys_remove,
+	.remove		= pcap_keys_remove,
 	.driver		= {
 		.name	= "pcap-keys",
 	}

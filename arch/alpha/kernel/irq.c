@@ -28,6 +28,7 @@
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
+#include "irq_impl.h"
 
 volatile unsigned long irq_err_count;
 DEFINE_PER_CPU(unsigned long, irq_pmi_count);

@@ -14,11 +14,11 @@
 
 #define EFUSE(hexaddr, num)							\
 	efuse@##hexaddr {							\
-		compatible = "lm25066";						\
+		compatible = "ti,lm25066";					\
 		reg = <0x##hexaddr>;						\
 		shunt-resistor-micro-ohms = <675>;				\
 		regulators {							\
-			efuse##num: vout0 {					\
+			efuse##num: vout {					\
 				regulator-name = __stringify(efuse##num##-reg);	\
 			};							\
 		};								\

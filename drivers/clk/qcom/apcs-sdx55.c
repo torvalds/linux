@@ -131,7 +131,7 @@ static void qcom_apcs_sdx55_clk_remove(struct platform_device *pdev)
 
 static struct platform_driver qcom_apcs_sdx55_clk_driver = {
 	.probe = qcom_apcs_sdx55_clk_probe,
-	.remove_new = qcom_apcs_sdx55_clk_remove,
+	.remove = qcom_apcs_sdx55_clk_remove,
 	.driver = {
 		.name = "qcom-sdx55-acps-clk",
 	},

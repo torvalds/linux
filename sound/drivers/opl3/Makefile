@@ -4,7 +4,7 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-opl3-lib-objs := opl3_lib.o opl3_synth.o
+snd-opl3-lib-y := opl3_lib.o opl3_synth.o
 snd-opl3-synth-y := opl3_seq.o opl3_midi.o opl3_drums.o
 ifneq ($(CONFIG_SND_SEQUENCER_OSS),)
 snd-opl3-synth-y += opl3_oss.o

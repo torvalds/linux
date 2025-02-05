@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/mutex.h>
 #include <linux/hash.h>
+#include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/device-mapper.h>
 
@@ -77,7 +78,7 @@ static void prefetch_issue(struct prefetch_set *p, struct dm_block_manager *bm)
 /*----------------------------------------------------------------*/
 
 struct shadow_info {
-	struct hlist_node hlist;
+	struct rb_node node;
 	dm_block_t where;
 };
 
@@ -95,7 +96,7 @@ struct dm_transaction_manager {
 	struct dm_space_map *sm;
 
 	spinlock_t lock;
-	struct hlist_head buckets[DM_HASH_SIZE];
+	struct rb_root buckets[DM_HASH_SIZE];
 
 	struct prefetch_set prefetches;
 };
@@ -106,14 +107,22 @@ static int is_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 {
 	int r = 0;
 	unsigned int bucket = dm_hash_block(b, DM_HASH_MASK);
-	struct shadow_info *si;
+	struct rb_node **node;
 
 	spin_lock(&tm->lock);
-	hlist_for_each_entry(si, tm->buckets + bucket, hlist)
-		if (si->where == b) {
+	node = &tm->buckets[bucket].rb_node;
+	while (*node) {
+		struct shadow_info *si =
+			rb_entry(*node, struct shadow_info, node);
+		if (b == si->where) {
 			r = 1;
 			break;
 		}
+		if (b < si->where)
+			node = &si->node.rb_left;
+		else
+			node = &si->node.rb_right;
+	}
 	spin_unlock(&tm->lock);
 
 	return r;
@@ -130,30 +139,41 @@ static void insert_shadow(struct dm_transaction_manager *tm, dm_block_t b)
 
 	si = kmalloc(sizeof(*si), GFP_NOIO);
 	if (si) {
+		struct rb_node **node, *parent;
 		si->where = b;
 		bucket = dm_hash_block(b, DM_HASH_MASK);
+
 		spin_lock(&tm->lock);
-		hlist_add_head(&si->hlist, tm->buckets + bucket);
+		node = &tm->buckets[bucket].rb_node;
+		parent = NULL;
+		while (*node) {
+			struct shadow_info *si =
+				rb_entry(*node, struct shadow_info, node);
+			parent = *node;
+			if (b < si->where)
+				node = &si->node.rb_left;
+			else
+				node = &si->node.rb_right;
+		}
+		rb_link_node(&si->node, parent, node);
+		rb_insert_color(&si->node, &tm->buckets[bucket]);
 		spin_unlock(&tm->lock);
 	}
 }
 
 static void wipe_shadow_table(struct dm_transaction_manager *tm)
 {
-	struct shadow_info *si;
-	struct hlist_node *tmp;
-	struct hlist_head *bucket;
-	int i;
+	unsigned int i;
 
 	spin_lock(&tm->lock);
 	for (i = 0; i < DM_HASH_SIZE; i++) {
-		bucket = tm->buckets + i;
-		hlist_for_each_entry_safe(si, tmp, bucket, hlist)
+		while (!RB_EMPTY_ROOT(&tm->buckets[i])) {
+			struct shadow_info *si =
+				rb_entry(tm->buckets[i].rb_node, struct shadow_info, node);
+			rb_erase(&si->node, &tm->buckets[i]);
 			kfree(si);
-
-		INIT_HLIST_HEAD(bucket);
+		}
 	}
-
 	spin_unlock(&tm->lock);
 }
 
@@ -162,7 +182,7 @@ static void wipe_shadow_table(struct dm_transaction_manager *tm)
 static struct dm_transaction_manager *dm_tm_create(struct dm_block_manager *bm,
 						   struct dm_space_map *sm)
 {
-	int i;
+	unsigned int i;
 	struct dm_transaction_manager *tm;
 
 	tm = kmalloc(sizeof(*tm), GFP_KERNEL);
@@ -176,7 +196,7 @@ static struct dm_transaction_manager *dm_tm_create(struct dm_block_manager *bm,
 
 	spin_lock_init(&tm->lock);
 	for (i = 0; i < DM_HASH_SIZE; i++)
-		INIT_HLIST_HEAD(tm->buckets + i);
+		tm->buckets[i] = RB_ROOT;
 
 	prefetch_init(&tm->prefetches);
 
@@ -237,7 +257,7 @@ int dm_tm_commit(struct dm_transaction_manager *tm, struct dm_block *root)
 EXPORT_SYMBOL_GPL(dm_tm_commit);
 
 int dm_tm_new_block(struct dm_transaction_manager *tm,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **result)
 {
 	int r;
@@ -266,7 +286,7 @@ int dm_tm_new_block(struct dm_transaction_manager *tm,
 }
 
 static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
-			  struct dm_block_validator *v,
+			  const struct dm_block_validator *v,
 			  struct dm_block **result)
 {
 	int r;
@@ -306,7 +326,7 @@ static int __shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 }
 
 int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
-		       struct dm_block_validator *v, struct dm_block **result,
+		       const struct dm_block_validator *v, struct dm_block **result,
 		       int *inc_children)
 {
 	int r;
@@ -331,7 +351,7 @@ int dm_tm_shadow_block(struct dm_transaction_manager *tm, dm_block_t orig,
 EXPORT_SYMBOL_GPL(dm_tm_shadow_block);
 
 int dm_tm_read_lock(struct dm_transaction_manager *tm, dm_block_t b,
-		    struct dm_block_validator *v,
+		    const struct dm_block_validator *v,
 		    struct dm_block **blk)
 {
 	if (tm->is_clone) {

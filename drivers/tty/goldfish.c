@@ -461,7 +461,7 @@ MODULE_DEVICE_TABLE(of, goldfish_tty_of_match);
 
 static struct platform_driver goldfish_tty_platform_driver = {
 	.probe = goldfish_tty_probe,
-	.remove_new = goldfish_tty_remove,
+	.remove = goldfish_tty_remove,
 	.driver = {
 		.name = "goldfish_tty",
 		.of_match_table = goldfish_tty_of_match,
@@ -470,4 +470,5 @@ static struct platform_driver goldfish_tty_platform_driver = {
 
 module_platform_driver(goldfish_tty_platform_driver);
 
+MODULE_DESCRIPTION("Goldfish TTY Driver");
 MODULE_LICENSE("GPL v2");

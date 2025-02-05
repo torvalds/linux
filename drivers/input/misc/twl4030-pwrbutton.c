@@ -1,5 +1,5 @@
-/**
- * twl4030-pwrbutton.c - TWL4030 Power Button Input Driver
+/*
+ * TWL4030 Power Button Input Driver
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *

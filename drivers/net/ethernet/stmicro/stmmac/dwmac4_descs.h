@@ -95,7 +95,7 @@
 #define RDES1_IPV4_HEADER		BIT(4)
 #define RDES1_IPV6_HEADER		BIT(5)
 #define RDES1_IP_CSUM_BYPASSED		BIT(6)
-#define RDES1_IP_CSUM_ERROR		BIT(7)
+#define RDES1_IP_PAYLOAD_ERROR		BIT(7)
 #define RDES1_PTP_MSG_TYPE_MASK		GENMASK(11, 8)
 #define RDES1_PTP_PACKET_TYPE		BIT(12)
 #define RDES1_PTP_VER			BIT(13)
@@ -143,5 +143,8 @@
 
 /* TDS3 use for both format (read and write back) */
 #define RDES3_OWN			BIT(31)
+
+extern const struct stmmac_mode_ops dwmac4_ring_mode_ops;
+extern const struct stmmac_desc_ops dwmac4_desc_ops;
 
 #endif /* __DWMAC4_DESCS_H__ */

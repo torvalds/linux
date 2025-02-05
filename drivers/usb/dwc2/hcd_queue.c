@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/seq_buf.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
 
@@ -360,41 +361,6 @@ static unsigned long *dwc2_get_ls_map(struct dwc2_hsotg *hsotg,
 
 #ifdef DWC2_PRINT_SCHEDULE
 /*
- * cat_printf() - A printf() + strcat() helper
- *
- * This is useful for concatenating a bunch of strings where each string is
- * constructed using printf.
- *
- * @buf:   The destination buffer; will be updated to point after the printed
- *         data.
- * @size:  The number of bytes in the buffer (includes space for '\0').
- * @fmt:   The format for printf.
- * @...:   The args for printf.
- */
-static __printf(3, 4)
-void cat_printf(char **buf, size_t *size, const char *fmt, ...)
-{
-	va_list args;
-	int i;
-
-	if (*size == 0)
-		return;
-
-	va_start(args, fmt);
-	i = vsnprintf(*buf, *size, fmt, args);
-	va_end(args);
-
-	if (i >= *size) {
-		(*buf)[*size - 1] = '\0';
-		*buf += *size;
-		*size = 0;
-	} else {
-		*buf += i;
-		*size -= i;
-	}
-}
-
-/*
  * pmap_print() - Print the given periodic map
  *
  * Will attempt to print out the periodic schedule.
@@ -416,9 +382,7 @@ static void pmap_print(unsigned long *map, int bits_per_period,
 	int period;
 
 	for (period = 0; period < periods_in_map; period++) {
-		char tmp[64];
-		char *buf = tmp;
-		size_t buf_size = sizeof(tmp);
+		DECLARE_SEQ_BUF(buf, 64);
 		int period_start = period * bits_per_period;
 		int period_end = period_start + bits_per_period;
 		int start = 0;
@@ -442,19 +406,19 @@ static void pmap_print(unsigned long *map, int bits_per_period,
 				continue;
 
 			if (!printed)
-				cat_printf(&buf, &buf_size, "%s %d: ",
-					   period_name, period);
+				seq_buf_printf(&buf, "%s %d: ",
+					       period_name, period);
 			else
-				cat_printf(&buf, &buf_size, ", ");
+				seq_buf_puts(&buf, ", ");
 			printed = true;
 
-			cat_printf(&buf, &buf_size, "%d %s -%3d %s", start,
-				   units, start + count - 1, units);
+			seq_buf_printf(&buf, "%d %s -%3d %s", start,
+				       units, start + count - 1, units);
 			count = 0;
 		}
 
 		if (printed)
-			print_fn(tmp, print_data);
+			print_fn(seq_buf_str(&buf), print_data);
 	}
 }
 

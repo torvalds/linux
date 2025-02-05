@@ -57,7 +57,7 @@ static unsigned long instruction_pointer_guest(struct pt_regs *regs)
 	return sie_block(regs)->gpsw.addr;
 }
 
-unsigned long perf_instruction_pointer(struct pt_regs *regs)
+unsigned long perf_arch_instruction_pointer(struct pt_regs *regs)
 {
 	return is_in_guest(regs) ? instruction_pointer_guest(regs)
 				 : instruction_pointer(regs);
@@ -84,7 +84,7 @@ static unsigned long perf_misc_flags_sf(struct pt_regs *regs)
 	return flags;
 }
 
-unsigned long perf_misc_flags(struct pt_regs *regs)
+unsigned long perf_arch_misc_flags(struct pt_regs *regs)
 {
 	/* Check if the cpum_sf PMU has created the pt_regs structure.
 	 * In this case, perf misc flags can be easily extracted.  Otherwise,
@@ -218,39 +218,7 @@ void perf_callchain_kernel(struct perf_callchain_entry_ctx *entry,
 void perf_callchain_user(struct perf_callchain_entry_ctx *entry,
 			 struct pt_regs *regs)
 {
-	struct stack_frame_user __user *sf;
-	unsigned long ip, sp;
-	bool first = true;
-
-	if (is_compat_task())
-		return;
-	perf_callchain_store(entry, instruction_pointer(regs));
-	sf = (void __user *)user_stack_pointer(regs);
-	pagefault_disable();
-	while (entry->nr < entry->max_stack) {
-		if (__get_user(sp, &sf->back_chain))
-			break;
-		if (__get_user(ip, &sf->gprs[8]))
-			break;
-		if (ip & 0x1) {
-			/*
-			 * If the instruction address is invalid, and this
-			 * is the first stack frame, assume r14 has not
-			 * been written to the stack yet. Otherwise exit.
-			 */
-			if (first && !(regs->gprs[14] & 0x1))
-				ip = regs->gprs[14];
-			else
-				break;
-		}
-		perf_callchain_store(entry, ip);
-		/* Sanity check: ABI requires SP to be aligned 8 bytes. */
-		if (!sp || sp & 0x7)
-			break;
-		sf = (void __user *)sp;
-		first = false;
-	}
-	pagefault_enable();
+	arch_stack_walk_user_common(NULL, NULL, entry, regs, true);
 }
 
 /* Perf definitions for PMU event attributes in sysfs */
@@ -260,5 +228,5 @@ ssize_t cpumf_events_sysfs_show(struct device *dev,
 	struct perf_pmu_events_attr *pmu_attr;
 
 	pmu_attr = container_of(attr, struct perf_pmu_events_attr, attr);
-	return sprintf(page, "event=0x%04llx\n", pmu_attr->id);
+	return sysfs_emit(page, "event=0x%04llx\n", pmu_attr->id);
 }

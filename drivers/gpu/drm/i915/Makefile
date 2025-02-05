@@ -3,31 +3,8 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-# Unconditionally enable W=1 warnings locally
-# --- begin copy-paste W=1 warnings from scripts/Makefile.extrawarn
-subdir-ccflags-y += -Wextra -Wunused -Wno-unused-parameter
-subdir-ccflags-y += -Wmissing-declarations
-subdir-ccflags-y += $(call cc-option, -Wrestrict)
-subdir-ccflags-y += -Wmissing-format-attribute
-subdir-ccflags-y += -Wmissing-prototypes
-subdir-ccflags-y += -Wold-style-definition
-subdir-ccflags-y += -Wmissing-include-dirs
-subdir-ccflags-y += $(call cc-option, -Wunused-but-set-variable)
-subdir-ccflags-y += $(call cc-option, -Wunused-const-variable)
-subdir-ccflags-y += $(call cc-option, -Wpacked-not-aligned)
-subdir-ccflags-y += $(call cc-option, -Wformat-overflow)
+# Enable W=1 warnings not enabled in drm subsystem Makefile
 subdir-ccflags-y += $(call cc-option, -Wformat-truncation)
-subdir-ccflags-y += $(call cc-option, -Wstringop-truncation)
-# The following turn off the warnings enabled by -Wextra
-ifeq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-missing-field-initializers
-subdir-ccflags-y += -Wno-type-limits
-subdir-ccflags-y += -Wno-shift-negative-value
-endif
-ifeq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
-subdir-ccflags-y += -Wno-sign-compare
-endif
-# --- end copy-paste
 
 # Enable -Werror in CI and development
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
@@ -36,7 +13,7 @@ subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 # drivers. Define I915 when building i915.
 subdir-ccflags-y += -DI915
 
-subdir-ccflags-y += -I$(srctree)/$(src)
+subdir-ccflags-y += -I$(src)
 
 # Please keep these build lists sorted!
 
@@ -53,11 +30,11 @@ i915-y += \
 	i915_params.o \
 	i915_pci.o \
 	i915_scatterlist.o \
-	i915_suspend.o \
 	i915_switcheroo.o \
 	i915_sysfs.o \
 	i915_utils.o \
 	intel_clock_gating.o \
+	intel_cpu_info.o \
 	intel_device_info.o \
 	intel_memory_region.o \
 	intel_pcode.o \
@@ -66,6 +43,7 @@ i915-y += \
 	intel_sbi.o \
 	intel_step.o \
 	intel_uncore.o \
+	intel_uncore_trace.o \
 	intel_wakeref.o \
 	vlv_sideband.o \
 	vlv_suspend.o
@@ -74,7 +52,8 @@ i915-y += \
 i915-y += \
 	soc/intel_dram.o \
 	soc/intel_gmch.o \
-	soc/intel_pch.o
+	soc/intel_pch.o \
+	soc/intel_rom.o
 
 # core library code
 i915-y += \
@@ -242,11 +221,14 @@ i915-$(CONFIG_HWMON) += \
 i915-y += \
 	display/hsw_ips.o \
 	display/i9xx_plane.o \
+	display/i9xx_display_sr.o \
 	display/i9xx_wm.o \
+	display/intel_alpm.o \
 	display/intel_atomic.o \
 	display/intel_atomic_plane.o \
 	display/intel_audio.o \
 	display/intel_bios.o \
+	display/intel_bo.o \
 	display/intel_bw.o \
 	display/intel_cdclk.o \
 	display/intel_color.o \
@@ -256,6 +238,7 @@ i915-y += \
 	display/intel_crtc_state_dump.o \
 	display/intel_cursor.o \
 	display/intel_display.o \
+	display/intel_display_conversion.o \
 	display/intel_display_driver.o \
 	display/intel_display_irq.o \
 	display/intel_display_params.o \
@@ -264,6 +247,7 @@ i915-y += \
 	display/intel_display_power_well.o \
 	display/intel_display_reset.o \
 	display/intel_display_rps.o \
+	display/intel_display_snapshot.o \
 	display/intel_display_wa.o \
 	display/intel_dmc.o \
 	display/intel_dmc_wl.o \
@@ -347,15 +331,18 @@ i915-y += \
 	display/intel_dp_hdcp.o \
 	display/intel_dp_link_training.o \
 	display/intel_dp_mst.o \
+	display/intel_dp_test.o \
 	display/intel_dsi.o \
 	display/intel_dsi_dcs_backlight.o \
 	display/intel_dsi_vbt.o \
 	display/intel_dvo.o \
+	display/intel_encoder.o \
 	display/intel_gmbus.o \
 	display/intel_hdmi.o \
 	display/intel_lspcon.o \
 	display/intel_lvds.o \
 	display/intel_panel.o \
+	display/intel_pfit.o \
 	display/intel_pps.o \
 	display/intel_qp_tables.o \
 	display/intel_sdvo.o \
@@ -430,7 +417,7 @@ no-header-test := \
 
 always-$(CONFIG_DRM_I915_WERROR) += \
 	$(patsubst %.h,%.hdrtest, $(filter-out $(no-header-test), \
-		$(shell cd $(srctree)/$(src) && find * -name '*.h')))
+		$(shell cd $(src) && find * -name '*.h')))
 
 quiet_cmd_hdrtest = HDRTEST $(patsubst %.hdrtest,%.h,$@)
       cmd_hdrtest = $(CC) $(filter-out $(CFLAGS_GCOV), $(c_flags)) -S -o /dev/null -x c /dev/null -include $<; \

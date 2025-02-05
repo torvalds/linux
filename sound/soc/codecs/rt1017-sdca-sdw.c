@@ -809,7 +809,6 @@ static const struct dev_pm_ops rt1017_sdca_pm = {
 static struct sdw_driver rt1017_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt1017-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt1017_sdca_pm,
 	},
 	.probe = rt1017_sdca_sdw_probe,

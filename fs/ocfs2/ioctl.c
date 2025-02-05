@@ -125,6 +125,7 @@ int ocfs2_fileattr_set(struct mnt_idmap *idmap,
 
 	ocfs2_inode->ip_attr = flags;
 	ocfs2_set_inode_flags(inode);
+	inode_set_ctime_current(inode);
 
 	status = ocfs2_mark_inode_dirty(handle, inode, bh);
 	if (status < 0)
@@ -795,7 +796,7 @@ bail:
 /*
  * OCFS2_IOC_INFO handles an array of requests passed from userspace.
  *
- * ocfs2_info_handle() recevies a large info aggregation, grab and
+ * ocfs2_info_handle() receives a large info aggregation, grab and
  * validate the request count from header, then break it into small
  * pieces, later specific handlers can handle them one by one.
  *

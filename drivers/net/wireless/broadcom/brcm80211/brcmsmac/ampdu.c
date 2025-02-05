@@ -143,12 +143,6 @@ struct ampdu_info {
 	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
 };
 
-/* used for flushing ampdu packets */
-struct cb_del_ampdu_pars {
-	struct ieee80211_sta *sta;
-	u16 tid;
-};
-
 static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu, u8 dur)
 {
 	u32 rate, mcs;
@@ -225,7 +219,7 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	struct ampdu_info *ampdu;
 	int i;
 
-	ampdu = kzalloc(sizeof(struct ampdu_info), GFP_ATOMIC);
+	ampdu = kzalloc(sizeof(*ampdu), GFP_ATOMIC);
 	if (!ampdu)
 		return NULL;
 
@@ -357,9 +351,7 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 {
 	struct ampdu_info *ampdu = wlc->ampdu;
 	u32 phy_rate = mcs_2_rate(FFPLD_MAX_MCS, true, false);
-	u32 txunfl_ratio;
 	u8 max_mpdu;
-	u32 current_ampdu_cnt = 0;
 	u16 max_pld_size;
 	u32 new_txunfl;
 	struct brcms_fifo_info *fifo = (ampdu->fifo_tb + fid);
@@ -395,26 +387,8 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	if (fifo->accum_txfunfl < 10)
 		return 0;
 
-	brcms_dbg_ht(wlc->hw->d11core, "ampdu_count %d  tx_underflows %d\n",
-		     current_ampdu_cnt, fifo->accum_txfunfl);
+	brcms_dbg_ht(wlc->hw->d11core, "tx_underflows %d\n", fifo->accum_txfunfl);
 
-	/*
-	   compute the current ratio of tx unfl per ampdu.
-	   When the current ampdu count becomes too
-	   big while the ratio remains small, we reset
-	   the current count in order to not
-	   introduce too big of a latency in detecting a
-	   large amount of tx underflows later.
-	 */
-
-	txunfl_ratio = current_ampdu_cnt / fifo->accum_txfunfl;
-
-	if (txunfl_ratio > ampdu->tx_max_funl) {
-		if (current_ampdu_cnt >= FFPLD_MAX_AMPDU_CNT)
-			fifo->accum_txfunfl = 0;
-
-		return 0;
-	}
 	max_mpdu = min_t(u8, fifo->mcs2ampdu_table[FFPLD_MAX_MCS],
 			 AMPDU_NUM_MPDU_LEGACY);
 

@@ -30,7 +30,7 @@ static void rtl8821ae_init_aspm_vars(struct ieee80211_hw *hw)
 	 * 2 - Enable ASPM with Clock Req,
 	 * 3 - Alwyas Enable ASPM with Clock Req,
 	 * 4 - Always Enable ASPM without Clock Req.
-	 * set defult to RTL8192CE:3 RTL8192E:2
+	 * set default to RTL8192CE:3 RTL8192E:2
 	 */
 	rtlpci->const_pci_aspm = 3;
 
@@ -407,6 +407,9 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek 8821ae 802.11ac PCI wireless");
 MODULE_FIRMWARE("rtlwifi/rtl8821aefw.bin");
 MODULE_FIRMWARE("rtlwifi/rtl8821aefw_29.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8821aefw_wowlan.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8812aefw.bin");
+MODULE_FIRMWARE("rtlwifi/rtl8812aefw_wowlan.bin");
 
 module_param_named(swenc, rtl8821ae_mod_params.sw_crypto, bool, 0444);
 module_param_named(debug_level, rtl8821ae_mod_params.debug_level, int, 0644);

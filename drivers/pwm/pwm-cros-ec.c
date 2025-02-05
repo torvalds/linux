@@ -20,20 +20,10 @@
  *
  * @ec: Pointer to EC device
  * @use_pwm_type: Use PWM types instead of generic channels
- * @channel: array with per-channel data
  */
 struct cros_ec_pwm_device {
 	struct cros_ec_device *ec;
 	bool use_pwm_type;
-	struct cros_ec_pwm *channel;
-};
-
-/**
- * struct cros_ec_pwm - per-PWM driver data
- * @duty_cycle: cached duty cycle
- */
-struct cros_ec_pwm {
-	u16 duty_cycle;
 };
 
 static inline struct cros_ec_pwm_device *pwm_to_cros_ec_pwm(struct pwm_chip *chip)
@@ -135,7 +125,6 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			     const struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
-	struct cros_ec_pwm *channel = &ec_pwm->channel[pwm->hwpwm];
 	u16 duty_cycle;
 	int ret;
 
@@ -156,8 +145,6 @@ static int cros_ec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret < 0)
 		return ret;
 
-	channel->duty_cycle = state->duty_cycle;
-
 	return 0;
 }
 
@@ -165,7 +152,6 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				 struct pwm_state *state)
 {
 	struct cros_ec_pwm_device *ec_pwm = pwm_to_cros_ec_pwm(chip);
-	struct cros_ec_pwm *channel = &ec_pwm->channel[pwm->hwpwm];
 	int ret;
 
 	ret = cros_ec_pwm_get_duty(ec_pwm->ec, ec_pwm->use_pwm_type, pwm->hwpwm);
@@ -175,42 +161,11 @@ static int cros_ec_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	state->enabled = (ret > 0);
+	state->duty_cycle = ret;
 	state->period = EC_PWM_MAX_DUTY;
 	state->polarity = PWM_POLARITY_NORMAL;
 
-	/*
-	 * Note that "disabled" and "duty cycle == 0" are treated the same. If
-	 * the cached duty cycle is not zero, used the cached duty cycle. This
-	 * ensures that the configured duty cycle is kept across a disable and
-	 * enable operation and avoids potentially confusing consumers.
-	 *
-	 * For the case of the initial hardware readout, channel->duty_cycle
-	 * will be 0 and the actual duty cycle read from the EC is used.
-	 */
-	if (ret == 0 && channel->duty_cycle > 0)
-		state->duty_cycle = channel->duty_cycle;
-	else
-		state->duty_cycle = ret;
-
 	return 0;
-}
-
-static struct pwm_device *
-cros_ec_pwm_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
-{
-	struct pwm_device *pwm;
-
-	if (args->args[0] >= chip->npwm)
-		return ERR_PTR(-EINVAL);
-
-	pwm = pwm_request_from_chip(chip, args->args[0], NULL);
-	if (IS_ERR(pwm))
-		return pwm;
-
-	/* The EC won't let us change the period */
-	pwm->args.period = EC_PWM_MAX_DUTY;
-
-	return pwm;
 }
 
 static const struct pwm_ops cros_ec_pwm_ops = {
@@ -263,7 +218,7 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 	struct cros_ec_pwm_device *ec_pwm;
 	struct pwm_chip *chip;
 	bool use_pwm_type = false;
-	unsigned int npwm;
+	unsigned int i, npwm;
 	int ret;
 
 	if (!ec)
@@ -289,12 +244,17 @@ static int cros_ec_pwm_probe(struct platform_device *pdev)
 
 	/* PWM chip */
 	chip->ops = &cros_ec_pwm_ops;
-	chip->of_xlate = cros_ec_pwm_xlate;
 
-	ec_pwm->channel = devm_kcalloc(dev, chip->npwm, sizeof(*ec_pwm->channel),
-					GFP_KERNEL);
-	if (!ec_pwm->channel)
-		return -ENOMEM;
+	/*
+	 * The device tree binding for this device is special as it only uses a
+	 * single cell (for the hwid) and so doesn't provide a default period.
+	 * This isn't a big problem though as the hardware only supports a
+	 * single period length, it's just a bit ugly to make this fit into the
+	 * pwm core abstractions. So initialize the period here, as
+	 * of_pwm_xlate_with_flags() won't do that for us.
+	 */
+	for (i = 0; i < npwm; ++i)
+		chip->pwms[i].args.period = EC_PWM_MAX_DUTY;
 
 	dev_dbg(dev, "Probed %u PWMs\n", chip->npwm);
 

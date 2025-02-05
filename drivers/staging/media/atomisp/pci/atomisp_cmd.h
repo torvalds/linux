@@ -5,17 +5,6 @@
  * Copyright (c) 2010 Intel Corporation. All Rights Reserved.
  *
  * Copyright (c) 2010 Silicon Hive www.siliconhive.com.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
  */
 
 #ifndef	__ATOMISP_CMD_H__
@@ -58,7 +47,6 @@ void atomisp_clear_css_buffer_counters(struct atomisp_sub_device *asd);
 void atomisp_msi_irq_init(struct atomisp_device *isp);
 void atomisp_msi_irq_uninit(struct atomisp_device *isp);
 void atomisp_assert_recovery_work(struct work_struct *work);
-void atomisp_setup_flash(struct atomisp_sub_device *asd);
 irqreturn_t atomisp_isr(int irq, void *dev);
 irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr);
 const struct atomisp_format_bridge *get_atomisp_format_bridge_from_mbus(
@@ -241,6 +229,15 @@ int atomisp_compare_grid(struct atomisp_sub_device *asd,
 void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 			 u32 *padding_w, u32 *padding_h);
 
+/* Set sensor power (no-op if already on/off) */
+int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool on);
+
+/* Select which sensor to use, must be called with a valid input */
+int atomisp_select_input(struct atomisp_device *isp, unsigned int input);
+
+/* Setup media-controller links to reflect input_curr setting */
+void atomisp_setup_input_links(struct atomisp_device *isp);
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,
@@ -252,9 +249,6 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 			      struct atomisp_shading_table *shading_table);
 
 void atomisp_free_internal_buffers(struct atomisp_sub_device *asd);
-
-int  atomisp_flash_enable(struct atomisp_sub_device *asd,
-			  int num_frames);
 
 int atomisp_freq_scaling(struct atomisp_device *vdev,
 			 enum atomisp_dfs_mode mode,

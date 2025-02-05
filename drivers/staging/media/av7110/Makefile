@@ -10,8 +10,6 @@ ifdef CONFIG_DVB_AV7110_IR
 dvb-ttpci-objs += av7110_ir.o
 endif
 
-obj-$(CONFIG_DVB_BUDGET_PATCH) += budget-patch.o
-
 obj-$(CONFIG_DVB_AV7110) += dvb-ttpci.o
 
 obj-$(CONFIG_DVB_SP8870) += sp8870.o

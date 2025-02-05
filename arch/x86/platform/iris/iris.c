@@ -62,11 +62,10 @@ static int iris_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int iris_remove(struct platform_device *pdev)
+static void iris_remove(struct platform_device *pdev)
 {
 	pm_power_off = old_pm_power_off;
 	printk(KERN_INFO "Iris power_off handler uninstalled.\n");
-	return 0;
 }
 
 static struct platform_driver iris_driver = {

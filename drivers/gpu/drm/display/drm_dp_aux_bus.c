@@ -36,7 +36,7 @@ struct dp_aux_ep_device_with_data {
  *
  * Return: True if this driver matches this device; false otherwise.
  */
-static int dp_aux_ep_match(struct device *dev, struct device_driver *drv)
+static int dp_aux_ep_match(struct device *dev, const struct device_driver *drv)
 {
 	return !!of_match_device(drv->of_match_table, dev);
 }
@@ -292,7 +292,7 @@ int of_dp_aux_populate_bus(struct drm_dp_aux *aux,
 	aux_ep->dev.parent = aux->dev;
 	aux_ep->dev.bus = &dp_aux_bus_type;
 	aux_ep->dev.type = &dp_aux_device_type_type;
-	aux_ep->dev.of_node = of_node_get(np);
+	device_set_node(&aux_ep->dev, of_fwnode_handle(of_node_get(np)));
 	dev_set_name(&aux_ep->dev, "aux-%s", dev_name(aux->dev));
 
 	ret = device_register(&aux_ep->dev);

@@ -36,6 +36,20 @@
 #define GUC_KLV_n_VALUE				(0xffffffffu << 0)
 
 /**
+ * DOC: GuC Global Config KLVs
+ *
+ * `GuC KLV`_ keys available for use with HOST2GUC_SELF_CFG_.
+ *
+ * _`GUC_KLV_GLOBAL_CFG_GMD_ID` : 0x3000
+ *      Refers to 32 bit architecture version as reported by the HW IP.
+ *      This key is supported on MTL+ platforms only.
+ *      Requires GuC ABI 1.2+.
+ */
+
+#define GUC_KLV_GLOBAL_CFG_GMD_ID_KEY			0x3000u
+#define GUC_KLV_GLOBAL_CFG_GMD_ID_LEN			1u
+
+/**
  * DOC: GuC Self Config KLVs
  *
  * `GuC KLV`_ keys available for use with HOST2GUC_SELF_CFG_.
@@ -118,7 +132,7 @@ enum  {
  * _`GUC_KLV_VGT_POLICY_SCHED_IF_IDLE` : 0x8001
  *      This config sets whether strict scheduling is enabled whereby any VF
  *      that doesn’t have work to submit is still allocated a fixed execution
- *      time-slice to ensure active VFs execution is always consitent even
+ *      time-slice to ensure active VFs execution is always consistent even
  *      during other VF reprovisiong / rebooting events. Changing this KLV
  *      impacts all VFs and takes effect on the next VF-Switch event.
  *
@@ -193,15 +207,19 @@ enum  {
  *      of and this will never be perfectly-exact (accumulated nano-second
  *      granularity) since the GPUs clock time runs off a different crystal
  *      from the CPUs clock. Changing this KLV on a VF that is currently
- *      running a context wont take effect until a new context is scheduled in.
- *      That said, when the PF is changing this value from 0xFFFFFFFF to
- *      something else, it might never take effect if the VF is running an
- *      inifinitely long compute or shader kernel. In such a scenario, the
+ *      running a context won't take effect until a new context is scheduled in.
+ *      That said, when the PF is changing this value from 0x0 to
+ *      a non-zero value, it might never take effect if the VF is running an
+ *      infinitely long compute or shader kernel. In such a scenario, the
  *      PF would need to trigger a VM PAUSE and then change the KLV to force
  *      it to take effect. Such cases might typically happen on a 1PF+1VF
  *      Virtualization config enabled for heavier workloads like AI/ML.
  *
+ *      The max value for this KLV is 100 seconds, anything exceeding that
+ *      will be clamped to the max.
+ *
  *      :0: infinite exec quantum (default)
+ *      :100000: maximum exec quantum (100000ms == 100s)
  *
  * _`GUC_KLV_VF_CFG_PREEMPT_TIMEOUT` : 0x8A02
  *      This config sets the VF-preemption-timeout in microseconds.
@@ -209,17 +227,21 @@ enum  {
  *      HW is capable and this will never be perfectly-exact (accumulated
  *      nano-second granularity) since the GPUs clock time runs off a
  *      different crystal from the CPUs clock. Changing this KLV on a VF
- *      that is currently running a context wont take effect until a new
+ *      that is currently running a context won't take effect until a new
  *      context is scheduled in.
- *      That said, when the PF is changing this value from 0xFFFFFFFF to
- *      something else, it might never take effect if the VF is running an
- *      inifinitely long compute or shader kernel.
+ *      That said, when the PF is changing this value from 0x0 to
+ *      a non-zero value, it might never take effect if the VF is running an
+ *      infinitely long compute or shader kernel.
  *      In this case, the PF would need to trigger a VM PAUSE and then change
  *      the KLV to force it to take effect. Such cases might typically happen
  *      on a 1PF+1VF Virtualization config enabled for heavier workloads like
  *      AI/ML.
  *
+ *      The max value for this KLV is 100 seconds, anything exceeding that
+ *      will be clamped to the max.
+ *
  *      :0: no preemption timeout (default)
+ *      :100000000: maximum preemption timeout (100000000us == 100s)
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR` : 0x8A03
  *      This config sets threshold for CAT errors caused by the VF.
@@ -269,6 +291,14 @@ enum  {
  *
  *      :0: (default)
  *      :1-65535: number of contexts (Gen12)
+ *
+ * _`GUC_KLV_VF_CFG_SCHED_PRIORITY` : 0x8A0C
+ *      This config controls VF’s scheduling priority.
+ *
+ *      :0: LOW = schedule VF only if it has active work (default)
+ *      :1: NORMAL = schedule VF always, irrespective of whether it has work or not
+ *      :2: HIGH = schedule VF in the next time-slice after current active
+ *          time-slice completes if it has active work
  */
 
 #define GUC_KLV_VF_CFG_GGTT_START_KEY		0x0001
@@ -291,9 +321,11 @@ enum  {
 
 #define GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY		0x8a01
 #define GUC_KLV_VF_CFG_EXEC_QUANTUM_LEN		1u
+#define GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE	100000u
 
-#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY	0x8a02
-#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN	1u
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY		0x8a02
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN		1u
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE	100000000u
 
 #define GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR_KEY		0x8a03
 #define GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR_LEN		1u
@@ -319,6 +351,12 @@ enum  {
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_KEY	0x8a0b
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_LEN	1u
 
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_KEY	0x8a0c
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_LEN	1u
+#define   GUC_SCHED_PRIORITY_LOW		0u
+#define   GUC_SCHED_PRIORITY_NORMAL		1u
+#define   GUC_SCHED_PRIORITY_HIGH		2u
+
 /*
  * Workaround keys:
  */
@@ -327,6 +365,8 @@ enum xe_guc_klv_ids {
 	GUC_WORKAROUND_KLV_ID_GAM_PFQ_SHADOW_TAIL_POLLING				= 0x9005,
 	GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE				= 0x9007,
 	GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE			= 0x9008,
+	GUC_WORKAROUND_KLV_ID_BACK_TO_BACK_RCS_ENGINE_RESET				= 0x9009,
+	GUC_WA_KLV_WAKE_POWER_DOMAINS_FOR_OUTBOUND_MMIO					= 0x900a,
 };
 
 #endif

@@ -38,7 +38,9 @@ static bool rt711_readable_register(struct device *dev, unsigned int reg)
 	case 0x8300 ... 0x83ff:
 	case 0x9c00 ... 0x9cff:
 	case 0xb900 ... 0xb9ff:
+	case 0x752008:
 	case 0x752009:
+	case 0x75200b:
 	case 0x752011:
 	case 0x75201a:
 	case 0x752045:
@@ -569,7 +571,6 @@ static const struct dev_pm_ops rt711_pm = {
 static struct sdw_driver rt711_sdw_driver = {
 	.driver = {
 		.name = "rt711",
-		.owner = THIS_MODULE,
 		.pm = &rt711_pm,
 	},
 	.probe = rt711_sdw_probe,

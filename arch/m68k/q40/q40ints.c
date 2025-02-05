@@ -106,7 +106,7 @@ void __init q40_init_IRQ(void)
  * this stuff doesn't really belong here..
  */
 
-int ql_ticks;              /* 200Hz ticks since last jiffie */
+int ql_ticks;              /* 200Hz ticks since last jiffy */
 static int sound_ticks;
 
 #define SVOL 45

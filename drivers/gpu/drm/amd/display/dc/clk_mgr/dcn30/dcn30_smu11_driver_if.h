@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// This is a stripped-down version of the smu11_driver_if.h file for the relevant DAL interfaces.
+/* Copyright © 2022-2024 Advanced Micro Devices, Inc. All rights reserved. */
 
 #define SMU11_DRIVER_IF_VERSION 0x40
 

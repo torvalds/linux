@@ -834,7 +834,7 @@ static struct platform_driver of_platform_mb862xxfb_driver = {
 		.of_match_table = of_platform_mb862xx_tbl,
 	},
 	.probe		= of_platform_mb862xx_probe,
-	.remove_new	= of_platform_mb862xx_remove,
+	.remove		= of_platform_mb862xx_remove,
 };
 #endif
 

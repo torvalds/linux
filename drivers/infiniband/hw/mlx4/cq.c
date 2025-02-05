@@ -150,8 +150,12 @@ static int mlx4_ib_get_cq_umem(struct mlx4_ib_dev *dev,
 		return PTR_ERR(*umem);
 
 	shift = mlx4_ib_umem_calc_optimal_mtt_size(*umem, 0, &n);
-	err = mlx4_mtt_init(dev->dev, n, shift, &buf->mtt);
+	if (shift < 0) {
+		err = shift;
+		goto err_buf;
+	}
 
+	err = mlx4_mtt_init(dev->dev, n, shift, &buf->mtt);
 	if (err)
 		goto err_buf;
 
@@ -172,8 +176,9 @@ err_buf:
 
 #define CQ_CREATE_FLAGS_SUPPORTED IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION
 int mlx4_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
-		      struct ib_udata *udata)
+		      struct uverbs_attr_bundle *attrs)
 {
+	struct ib_udata *udata = &attrs->driver_udata;
 	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;

@@ -753,9 +753,10 @@ static int get_ctrl(struct v4l2_ctrl *ctrl, struct v4l2_ext_control *c)
 		for (i = 0; i < master->ncontrols; i++)
 			cur_to_new(master->cluster[i]);
 		ret = call_op(master, g_volatile_ctrl);
-		new_to_user(c, ctrl);
+		if (!ret)
+			ret = new_to_user(c, ctrl);
 	} else {
-		cur_to_user(c, ctrl);
+		ret = cur_to_user(c, ctrl);
 	}
 	v4l2_ctrl_unlock(master);
 	return ret;
@@ -770,7 +771,10 @@ int v4l2_g_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_control *control)
 	if (!ctrl || !ctrl->is_int)
 		return -EINVAL;
 	ret = get_ctrl(ctrl, &c);
-	control->value = c.value;
+
+	if (!ret)
+		control->value = c.value;
+
 	return ret;
 }
 EXPORT_SYMBOL(v4l2_g_ctrl);
@@ -811,10 +815,11 @@ static int set_ctrl_lock(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 	int ret;
 
 	v4l2_ctrl_lock(ctrl);
-	user_to_new(c, ctrl);
-	ret = set_ctrl(fh, ctrl, 0);
+	ret = user_to_new(c, ctrl);
 	if (!ret)
-		cur_to_user(c, ctrl);
+		ret = set_ctrl(fh, ctrl, 0);
+	if (!ret)
+		ret = cur_to_user(c, ctrl);
 	v4l2_ctrl_unlock(ctrl);
 	return ret;
 }
@@ -1052,35 +1057,40 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 		if (id >= node2id(hdl->ctrl_refs.prev)) {
 			ref = NULL; /* Yes, so there is no next control */
 		} else if (ref) {
+			struct v4l2_ctrl_ref *pos = ref;
+
 			/*
 			 * We found a control with the given ID, so just get
 			 * the next valid one in the list.
 			 */
-			list_for_each_entry_continue(ref, &hdl->ctrl_refs, node) {
-				is_compound = ref->ctrl->is_array ||
-					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
-				if (id < ref->ctrl->id &&
-				    (is_compound & mask) == match)
+			ref = NULL;
+			list_for_each_entry_continue(pos, &hdl->ctrl_refs, node) {
+				is_compound = pos->ctrl->is_array ||
+					pos->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
+				if (id < pos->ctrl->id &&
+				    (is_compound & mask) == match) {
+					ref = pos;
 					break;
+				}
 			}
-			if (&ref->node == &hdl->ctrl_refs)
-				ref = NULL;
 		} else {
+			struct v4l2_ctrl_ref *pos;
+
 			/*
 			 * No control with the given ID exists, so start
 			 * searching for the next largest ID. We know there
 			 * is one, otherwise the first 'if' above would have
 			 * been true.
 			 */
-			list_for_each_entry(ref, &hdl->ctrl_refs, node) {
-				is_compound = ref->ctrl->is_array ||
-					ref->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
-				if (id < ref->ctrl->id &&
-				    (is_compound & mask) == match)
+			list_for_each_entry(pos, &hdl->ctrl_refs, node) {
+				is_compound = pos->ctrl->is_array ||
+					pos->ctrl->type >= V4L2_CTRL_COMPOUND_TYPES;
+				if (id < pos->ctrl->id &&
+				    (is_compound & mask) == match) {
+					ref = pos;
 					break;
+				}
 			}
-			if (&ref->node == &hdl->ctrl_refs)
-				ref = NULL;
 		}
 	}
 	mutex_unlock(hdl->lock);

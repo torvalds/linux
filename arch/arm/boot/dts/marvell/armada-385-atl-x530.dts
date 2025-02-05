@@ -43,6 +43,17 @@
 			};
 		};
 	};
+
+	led-7seg {
+		compatible = "gpio-7-segment";
+		segment-gpios = <&led_7seg_gpio 0 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 1 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 2 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 3 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 4 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 5 GPIO_ACTIVE_LOW>,
+				<&led_7seg_gpio 6 GPIO_ACTIVE_LOW>;
+	};
 };
 
 &pciec {
@@ -149,7 +160,7 @@
 			#size-cells = <0>;
 			reg = <3>;
 
-			gpio@20 {
+			led_7seg_gpio: gpio@20 {
 				compatible = "nxp,pca9554";
 				gpio-controller;
 				#gpio-cells = <2>;

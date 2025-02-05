@@ -249,7 +249,7 @@ static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
 		else
 			pkt_len = 1;
 		printf(".");
-		color_fprintf(stdout, color, "  %08x: ", pos);
+		color_fprintf(stdout, color, "  %08zx: ", pos);
 		for (i = 0; i < pkt_len; i++)
 			color_fprintf(stdout, color, " %02x", buf[i]);
 		for (; i < 16; i++)
@@ -598,15 +598,15 @@ static struct auxtrace_cache *intel_pt_cache(struct dso *dso,
 	struct auxtrace_cache *c;
 	unsigned int bits;
 
-	if (dso->auxtrace_cache)
-		return dso->auxtrace_cache;
+	if (dso__auxtrace_cache(dso))
+		return dso__auxtrace_cache(dso);
 
 	bits = intel_pt_cache_size(dso, machine);
 
 	/* Ignoring cache creation failure */
 	c = auxtrace_cache__new(bits, sizeof(struct intel_pt_cache_entry), 200);
 
-	dso->auxtrace_cache = c;
+	dso__set_auxtrace_cache(dso, c);
 
 	return c;
 }
@@ -650,7 +650,7 @@ intel_pt_cache_lookup(struct dso *dso, struct machine *machine, u64 offset)
 	if (!c)
 		return NULL;
 
-	return auxtrace_cache__lookup(dso->auxtrace_cache, offset);
+	return auxtrace_cache__lookup(dso__auxtrace_cache(dso), offset);
 }
 
 static void intel_pt_cache_invalidate(struct dso *dso, struct machine *machine,
@@ -661,7 +661,7 @@ static void intel_pt_cache_invalidate(struct dso *dso, struct machine *machine,
 	if (!c)
 		return;
 
-	auxtrace_cache__remove(dso->auxtrace_cache, offset);
+	auxtrace_cache__remove(dso__auxtrace_cache(dso), offset);
 }
 
 static inline bool intel_pt_guest_kernel_ip(uint64_t ip)
@@ -764,6 +764,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 	addr_location__init(&al);
 	intel_pt_insn->length = 0;
+	intel_pt_insn->op = INTEL_PT_OP_OTHER;
 
 	if (to_ip && *ip == to_ip)
 		goto out_no_cache;
@@ -820,8 +821,8 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		}
 		dso = map__dso(al.map);
 
-		if (dso->data.status == DSO_DATA_STATUS_ERROR &&
-			dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE)) {
+		if (dso__data(dso)->status == DSO_DATA_STATUS_ERROR &&
+		    dso__data_status_seen(dso, DSO_DATA_STATUS_SEEN_ITRACE)) {
 			ret = -ENOENT;
 			goto out_ret;
 		}
@@ -854,7 +855,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 		/* Load maps to ensure dso->is_64_bit has been updated */
 		map__load(al.map);
 
-		x86_64 = dso->is_64_bit;
+		x86_64 = dso__is_64_bit(dso);
 
 		while (1) {
 			len = dso__data_read_offset(dso, machine,
@@ -898,6 +899,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 			if (to_ip && *ip == to_ip) {
 				intel_pt_insn->length = 0;
+				intel_pt_insn->op = INTEL_PT_OP_OTHER;
 				goto out_no_cache;
 			}
 
@@ -1008,7 +1010,7 @@ static int __intel_pt_pgd_ip(uint64_t ip, void *data)
 
 	offset = map__map_ip(al.map, ip);
 
-	res = intel_pt_match_pgd_ip(ptq->pt, ip, offset, map__dso(al.map)->long_name);
+	res = intel_pt_match_pgd_ip(ptq->pt, ip, offset, dso__long_name(map__dso(al.map)));
 	addr_location__exit(&al);
 	return res;
 }
@@ -3416,7 +3418,7 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 		}
 
 		dso = map__dso(al.map);
-		if (!dso || !dso->auxtrace_cache)
+		if (!dso || !dso__auxtrace_cache(dso))
 			continue;
 
 		offset = map__map_ip(al.map, addr);
@@ -3436,7 +3438,7 @@ static int intel_pt_text_poke(struct intel_pt *pt, union perf_event *event)
 		} else {
 			intel_pt_cache_invalidate(dso, machine, offset);
 			intel_pt_log("Invalidated instruction cache for %s at %#"PRIx64"\n",
-				     dso->long_name, addr);
+				     dso__long_name(dso), addr);
 		}
 	}
 out:
@@ -3447,7 +3449,7 @@ out:
 static int intel_pt_process_event(struct perf_session *session,
 				  union perf_event *event,
 				  struct perf_sample *sample,
-				  struct perf_tool *tool)
+				  const struct perf_tool *tool)
 {
 	struct intel_pt *pt = container_of(session->auxtrace, struct intel_pt,
 					   auxtrace);
@@ -3531,7 +3533,7 @@ static int intel_pt_process_event(struct perf_session *session,
 	return err;
 }
 
-static int intel_pt_flush(struct perf_session *session, struct perf_tool *tool)
+static int intel_pt_flush(struct perf_session *session, const struct perf_tool *tool)
 {
 	struct intel_pt *pt = container_of(session->auxtrace, struct intel_pt,
 					   auxtrace);
@@ -3598,7 +3600,7 @@ static bool intel_pt_evsel_is_auxtrace(struct perf_session *session,
 
 static int intel_pt_process_auxtrace_event(struct perf_session *session,
 					   union perf_event *event,
-					   struct perf_tool *tool __maybe_unused)
+					   const struct perf_tool *tool __maybe_unused)
 {
 	struct intel_pt *pt = container_of(session->auxtrace, struct intel_pt,
 					   auxtrace);
@@ -3657,37 +3659,15 @@ static int intel_pt_queue_data(struct perf_session *session,
 					   data_offset, timestamp);
 }
 
-struct intel_pt_synth {
-	struct perf_tool dummy_tool;
-	struct perf_session *session;
-};
-
-static int intel_pt_event_synth(struct perf_tool *tool,
-				union perf_event *event,
-				struct perf_sample *sample __maybe_unused,
-				struct machine *machine __maybe_unused)
-{
-	struct intel_pt_synth *intel_pt_synth =
-			container_of(tool, struct intel_pt_synth, dummy_tool);
-
-	return perf_session__deliver_synth_event(intel_pt_synth->session, event,
-						 NULL);
-}
-
 static int intel_pt_synth_event(struct perf_session *session, const char *name,
 				struct perf_event_attr *attr, u64 id)
 {
-	struct intel_pt_synth intel_pt_synth;
 	int err;
 
 	pr_debug("Synthesizing '%s' event with id %" PRIu64 " sample type %#" PRIx64 "\n",
 		 name, id, (u64)attr->sample_type);
 
-	memset(&intel_pt_synth, 0, sizeof(struct intel_pt_synth));
-	intel_pt_synth.session = session;
-
-	err = perf_event__synthesize_attr(&intel_pt_synth.dummy_tool, attr, 1,
-					  &id, intel_pt_event_synth);
+	err = perf_session__deliver_synth_attr_event(session, attr, id);
 	if (err)
 		pr_err("%s: failed to synthesize '%s' event type\n",
 		       __func__, name);
@@ -4130,7 +4110,7 @@ static int intel_pt_parse_vm_tm_corr_args(struct intel_pt *pt)
 static const char * const intel_pt_info_fmts[] = {
 	[INTEL_PT_PMU_TYPE]		= "  PMU Type            %"PRId64"\n",
 	[INTEL_PT_TIME_SHIFT]		= "  Time Shift          %"PRIu64"\n",
-	[INTEL_PT_TIME_MULT]		= "  Time Muliplier      %"PRIu64"\n",
+	[INTEL_PT_TIME_MULT]		= "  Time Multiplier     %"PRIu64"\n",
 	[INTEL_PT_TIME_ZERO]		= "  Time Zero           %"PRIu64"\n",
 	[INTEL_PT_CAP_USER_TIME_ZERO]	= "  Cap Time Zero       %"PRId64"\n",
 	[INTEL_PT_TSC_BIT]		= "  TSC bit             %#"PRIx64"\n",

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * UIO driver fo Humusoft MF624 DAQ card.
+ * UIO driver for Humusoft MF624 DAQ card.
  * Copyright (C) 2011 Rostislav Lisovy <lisovy@gmail.com>,
  *                    Czech Technical University in Prague
  */
@@ -221,5 +221,6 @@ static struct pci_driver mf624_pci_driver = {
 MODULE_DEVICE_TABLE(pci, mf624_pci_id);
 
 module_pci_driver(mf624_pci_driver);
+MODULE_DESCRIPTION("UIO driver for Humusoft MF624 DAQ card");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rostislav Lisovy <lisovy@gmail.com>");

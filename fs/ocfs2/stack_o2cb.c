@@ -227,7 +227,7 @@ static int o2cb_dlm_lock_status(struct ocfs2_dlm_lksb *lksb)
 }
 
 /*
- * o2dlm aways has a "valid" LVB. If the dlm loses track of the LVB
+ * o2dlm always has a "valid" LVB. If the dlm loses track of the LVB
  * contents, it will zero out the LVB.  Thus the caller can always trust
  * the contents.
  */
@@ -404,7 +404,7 @@ static int o2cb_cluster_this_node(struct ocfs2_cluster_connection *conn,
 	return 0;
 }
 
-static struct ocfs2_stack_operations o2cb_stack_ops = {
+static const struct ocfs2_stack_operations o2cb_stack_ops = {
 	.connect	= o2cb_cluster_connect,
 	.disconnect	= o2cb_cluster_disconnect,
 	.this_node	= o2cb_cluster_this_node,

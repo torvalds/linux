@@ -1738,10 +1738,6 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("hmac(rmd160)"));
 		break;
 
-	case 109:
-		ret = min(ret, tcrypt_test("vmac64(aes)"));
-		break;
-
 	case 111:
 		ret = min(ret, tcrypt_test("hmac(sha3-224)"));
 		break;
@@ -2613,6 +2609,15 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		break;
 
 	case 600:
+		if (alg) {
+			u8 speed_template[2] = {klen, 0};
+			test_mb_skcipher_speed(alg, ENCRYPT, sec, NULL, 0,
+					       speed_template, num_mb);
+			test_mb_skcipher_speed(alg, DECRYPT, sec, NULL, 0,
+					       speed_template, num_mb);
+			break;
+		}
+
 		test_mb_skcipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				       speed_template_16_24_32, num_mb);
 		test_mb_skcipher_speed("ecb(aes)", DECRYPT, sec, NULL, 0,

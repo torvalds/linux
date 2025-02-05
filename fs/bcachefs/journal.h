@@ -285,7 +285,8 @@ static inline void bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq
 		spin_lock(&j->lock);
 		bch2_journal_buf_put_final(j, seq);
 		spin_unlock(&j->lock);
-	}
+	} else if (unlikely(s.cur_entry_offset == JOURNAL_ENTRY_BLOCKED_VAL))
+		wake_up(&j->wait);
 }
 
 /*
@@ -311,7 +312,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 }
 
 int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
-				  unsigned);
+				  unsigned, struct btree_trans *);
 
 /* First bits for BCH_WATERMARK: */
 enum journal_res_flags {
@@ -327,10 +328,10 @@ static inline int journal_res_get_fast(struct journal *j,
 				       unsigned flags)
 {
 	union journal_res_state old, new;
-	u64 v = atomic64_read(&j->reservations.counter);
 
+	old.v = atomic64_read(&j->reservations.counter);
 	do {
-		old.v = new.v = v;
+		new.v = old.v;
 
 		/*
 		 * Check if there is still room in the current journal
@@ -356,8 +357,8 @@ static inline int journal_res_get_fast(struct journal *j,
 
 		if (flags & JOURNAL_RES_GET_CHECK)
 			return 1;
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
+	} while (!atomic64_try_cmpxchg(&j->reservations.counter,
+				       &old.v, new.v));
 
 	res->ref	= true;
 	res->idx	= old.idx;
@@ -367,19 +368,20 @@ static inline int journal_res_get_fast(struct journal *j,
 }
 
 static inline int bch2_journal_res_get(struct journal *j, struct journal_res *res,
-				       unsigned u64s, unsigned flags)
+				       unsigned u64s, unsigned flags,
+				       struct btree_trans *trans)
 {
 	int ret;
 
 	EBUG_ON(res->ref);
-	EBUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
+	EBUG_ON(!test_bit(JOURNAL_running, &j->flags));
 
 	res->u64s = u64s;
 
 	if (journal_res_get_fast(j, res, flags))
 		goto out;
 
-	ret = bch2_journal_res_get_slowpath(j, res, flags);
+	ret = bch2_journal_res_get_slowpath(j, res, flags, trans);
 	if (ret)
 		return ret;
 out:
@@ -401,9 +403,9 @@ void bch2_journal_entry_res_resize(struct journal *,
 int bch2_journal_flush_seq_async(struct journal *, u64, struct closure *);
 void bch2_journal_flush_async(struct journal *, struct closure *);
 
-int bch2_journal_flush_seq(struct journal *, u64);
+int bch2_journal_flush_seq(struct journal *, u64, unsigned);
 int bch2_journal_flush(struct journal *);
-bool bch2_journal_noflush_seq(struct journal *, u64);
+bool bch2_journal_noflush_seq(struct journal *, u64, u64);
 int bch2_journal_meta(struct journal *);
 
 void bch2_journal_halt(struct journal *);
@@ -411,29 +413,27 @@ void bch2_journal_halt(struct journal *);
 static inline int bch2_journal_error(struct journal *j)
 {
 	return j->reservations.cur_entry_offset == JOURNAL_ENTRY_ERROR_VAL
-		? -EIO : 0;
+		? -BCH_ERR_journal_shutdown : 0;
 }
 
 struct bch_dev;
 
 static inline void bch2_journal_set_replay_done(struct journal *j)
 {
-	BUG_ON(!test_bit(JOURNAL_STARTED, &j->flags));
-	set_bit(JOURNAL_REPLAY_DONE, &j->flags);
+	BUG_ON(!test_bit(JOURNAL_running, &j->flags));
+	set_bit(JOURNAL_replay_done, &j->flags);
 }
 
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
-struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq);
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *, u64, bool *);
 
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);
-void bch2_journal_pins_to_text(struct printbuf *, struct journal *);
-bool bch2_journal_seq_pins_to_text(struct printbuf *, struct journal *, u64 *);
 
 int bch2_set_nr_journal_buckets(struct bch_fs *, struct bch_dev *,
 				unsigned nr);
-int bch2_dev_journal_alloc(struct bch_dev *);
+int bch2_dev_journal_alloc(struct bch_dev *, bool);
 int bch2_fs_journal_alloc(struct bch_fs *);
 
 void bch2_dev_journal_stop(struct journal *, struct bch_dev *);

@@ -26,7 +26,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
@@ -69,7 +69,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver mct_u232_device = {
 	.driver = {
-		.owner =	THIS_MODULE,
 		.name =		"mct_u232",
 	},
 	.description =	     "MCT U232",

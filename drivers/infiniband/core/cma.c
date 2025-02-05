@@ -690,6 +690,7 @@ cma_validate_port(struct ib_device *device, u32 port,
 	int bound_if_index = dev_addr->bound_dev_if;
 	int dev_type = dev_addr->dev_type;
 	struct net_device *ndev = NULL;
+	struct net_device *pdev = NULL;
 
 	if (!rdma_dev_access_netns(device, id_priv->id.route.addr.dev_addr.net))
 		goto out;
@@ -714,9 +715,26 @@ cma_validate_port(struct ib_device *device, u32 port,
 
 		rcu_read_lock();
 		ndev = rcu_dereference(sgid_attr->ndev);
+		if (ndev->ifindex != bound_if_index) {
+			pdev = dev_get_by_index_rcu(dev_addr->net, bound_if_index);
+			if (pdev) {
+				if (is_vlan_dev(pdev)) {
+					pdev = vlan_dev_real_dev(pdev);
+					if (ndev->ifindex == pdev->ifindex)
+						bound_if_index = pdev->ifindex;
+				}
+				if (is_vlan_dev(ndev)) {
+					pdev = vlan_dev_real_dev(ndev);
+					if (bound_if_index == pdev->ifindex)
+						bound_if_index = ndev->ifindex;
+				}
+			}
+		}
 		if (!net_eq(dev_net(ndev), dev_addr->net) ||
-		    ndev->ifindex != bound_if_index)
+		    ndev->ifindex != bound_if_index) {
+			rdma_put_gid_attr(sgid_attr);
 			sgid_attr = ERR_PTR(-ENODEV);
+		}
 		rcu_read_unlock();
 		goto out;
 	}

@@ -47,6 +47,7 @@ int dc_setup_system_context(struct dc *dc, struct dc_phy_addr_space_config *pa_c
 		 */
 		memcpy(&dc->vm_pa_config, pa_config, sizeof(struct dc_phy_addr_space_config));
 		dc->vm_pa_config.valid = true;
+		dc->dml2_options.gpuvm_enable = true;
 		dc_z10_save_init(dc);
 	}
 

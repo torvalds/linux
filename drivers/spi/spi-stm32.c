@@ -1057,7 +1057,7 @@ static irqreturn_t stm32h7_spi_irq_thread(int irq, void *dev_id)
 		mask |= STM32H7_SPI_SR_TXP | STM32H7_SPI_SR_RXP;
 
 	if (!(sr & mask)) {
-		dev_warn(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
+		dev_vdbg(spi->dev, "spurious IT (sr=0x%08x, ier=0x%08x)\n",
 			 sr, ier);
 		spin_unlock_irqrestore(&spi->lock, flags);
 		return IRQ_NONE;
@@ -2044,6 +2044,7 @@ static const struct stm32_spi_cfg stm32mp25_spi_cfg = {
 	.baud_rate_div_max = STM32H7_SPI_MBR_DIV_MAX,
 	.has_fifo = true,
 	.prevent_dma_burst = true,
+	.has_device_mode = true,
 };
 
 static const struct of_device_id stm32_spi_of_match[] = {
@@ -2355,7 +2356,7 @@ static const struct dev_pm_ops stm32_spi_pm_ops = {
 
 static struct platform_driver stm32_spi_driver = {
 	.probe = stm32_spi_probe,
-	.remove_new = stm32_spi_remove,
+	.remove = stm32_spi_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.pm = &stm32_spi_pm_ops,

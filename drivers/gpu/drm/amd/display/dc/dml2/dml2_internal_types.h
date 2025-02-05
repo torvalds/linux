@@ -32,6 +32,8 @@
 #include "dml2_wrapper.h"
 #include "dml2_policy.h"
 
+#include "dml_top.h"
+#include "dml21_wrapper.h"
 
 struct dml2_wrapper_optimize_configuration_params {
 	struct display_mode_lib_st *dml_core_ctx;
@@ -99,6 +101,7 @@ struct dml2_wrapper_scratch {
 	struct dml2_dml_to_dc_pipe_mapping dml_to_dc_pipe_mapping;
 	bool enable_flexible_pipe_mapping;
 	bool plane_duplicate_exists;
+	int hpo_stream_to_link_encoder_mapping[MAX_HPO_DP2_ENCODERS];
 };
 
 struct dml2_helper_det_policy_scratch {
@@ -107,6 +110,16 @@ struct dml2_helper_det_policy_scratch {
 
 enum dml2_architecture {
 	dml2_architecture_20,
+	dml2_architecture_21
+};
+
+struct prepare_mcache_programming_locals {
+	struct dml2_build_mcache_programming_in_out build_mcache_programming_params;
+};
+
+struct dml21_wrapper_scratch {
+	struct prepare_mcache_programming_locals prepare_mcache_locals;
+	struct pipe_ctx temp_pipe;
 };
 
 struct dml2_pipe_combine_factor {
@@ -130,6 +143,14 @@ struct dml2_context {
 			struct dml2_wrapper_scratch scratch;
 			struct dcn_watermarks g6_temp_read_watermark_set;
 		} v20;
+		struct {
+			struct dml21_wrapper_scratch scratch;
+			struct dml2_initialize_instance_in_out dml_init;
+			struct dml2_display_cfg display_config;
+			struct dml2_check_mode_supported_in_out mode_support;
+			struct dml2_build_mode_programming_in_out mode_programming;
+			struct dml2_dml_to_dc_pipe_mapping dml_to_dc_pipe_mapping;
+		} v21;
 	};
 };
 

@@ -26,28 +26,25 @@ struct r8a7740_cpg {
 #define CPG_USBCKCR	0x8c
 #define CPG_FRQCRC	0xe0
 
-#define CLK_ENABLE_ON_INIT BIT(0)
-
 struct div4_clk {
 	const char *name;
 	unsigned int reg;
 	unsigned int shift;
-	int flags;
 };
 
 static struct div4_clk div4_clks[] = {
-	{ "i", CPG_FRQCRA, 20, CLK_ENABLE_ON_INIT },
-	{ "zg", CPG_FRQCRA, 16, CLK_ENABLE_ON_INIT },
-	{ "b", CPG_FRQCRA,  8, CLK_ENABLE_ON_INIT },
-	{ "m1", CPG_FRQCRA,  4, CLK_ENABLE_ON_INIT },
-	{ "hp", CPG_FRQCRB,  4, 0 },
-	{ "hpp", CPG_FRQCRC, 20, 0 },
-	{ "usbp", CPG_FRQCRC, 16, 0 },
-	{ "s", CPG_FRQCRC, 12, 0 },
-	{ "zb", CPG_FRQCRC,  8, 0 },
-	{ "m3", CPG_FRQCRC,  4, 0 },
-	{ "cp", CPG_FRQCRC,  0, 0 },
-	{ NULL, 0, 0, 0 },
+	{ "i", CPG_FRQCRA, 20 },
+	{ "zg", CPG_FRQCRA, 16 },
+	{ "b", CPG_FRQCRA,  8 },
+	{ "m1", CPG_FRQCRA,  4 },
+	{ "hp", CPG_FRQCRB,  4 },
+	{ "hpp", CPG_FRQCRC, 20 },
+	{ "usbp", CPG_FRQCRC, 16 },
+	{ "s", CPG_FRQCRC, 12 },
+	{ "zb", CPG_FRQCRC,  8 },
+	{ "m3", CPG_FRQCRC,  4 },
+	{ "cp", CPG_FRQCRC,  0 },
+	{ NULL, 0, 0 },
 };
 
 static const struct clk_div_table div4_div_table[] = {

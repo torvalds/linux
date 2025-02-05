@@ -275,7 +275,8 @@ struct input_handle;
  *	it may not sleep
  * @events: event sequence handler. This method is being called by
  *	input core with interrupts disabled and dev->event_lock
- *	spinlock held and so it may not sleep
+ *	spinlock held and so it may not sleep. The method must return
+ *	number of events passed to it.
  * @filter: similar to @event; separates normal event handlers from
  *	"filters".
  * @match: called after comparing device's id with handler's id_table
@@ -285,6 +286,10 @@ struct input_handle;
  * @start: starts handler for given handle. This function is called by
  *	input core right after connect() method and also when a process
  *	that "grabbed" a device releases it
+ * @passive_observer: set to %true by drivers only interested in observing
+ *	data stream from devices if there are other users present. Such
+ *	drivers will not result in starting underlying hardware device
+ *	when input_open_device() is called for their handles
  * @legacy_minors: set to %true by drivers using legacy minor ranges
  * @minor: beginning of range of 32 legacy minors for devices this driver
  *	can provide
@@ -312,14 +317,15 @@ struct input_handler {
 	void *private;
 
 	void (*event)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
-	void (*events)(struct input_handle *handle,
-		       const struct input_value *vals, unsigned int count);
+	unsigned int (*events)(struct input_handle *handle,
+			       struct input_value *vals, unsigned int count);
 	bool (*filter)(struct input_handle *handle, unsigned int type, unsigned int code, int value);
 	bool (*match)(struct input_handler *handler, struct input_dev *dev);
 	int (*connect)(struct input_handler *handler, struct input_dev *dev, const struct input_device_id *id);
 	void (*disconnect)(struct input_handle *handle);
 	void (*start)(struct input_handle *handle);
 
+	bool passive_observer;
 	bool legacy_minors;
 	int minor;
 	const char *name;
@@ -338,12 +344,16 @@ struct input_handler {
  * @name: name given to the handle by handler that created it
  * @dev: input device the handle is attached to
  * @handler: handler that works with the device through this handle
+ * @handle_events: event sequence handler. It is set up by the input core
+ *	according to event handling method specified in the @handler. See
+ *	input_handle_setup_event_handler().
+ *	This method is being called by the input core with interrupts disabled
+ *	and dev->event_lock spinlock held and so it may not sleep.
  * @d_node: used to put the handle on device's list of attached handles
  * @h_node: used to put the handle on handler's list of handles from which
  *	it gets events
  */
 struct input_handle {
-
 	void *private;
 
 	int open;
@@ -351,6 +361,10 @@ struct input_handle {
 
 	struct input_dev *dev;
 	struct input_handler *handler;
+
+	unsigned int (*handle_events)(struct input_handle *handle,
+				      struct input_value *vals,
+				      unsigned int count);
 
 	struct list_head	d_node;
 	struct list_head	h_node;

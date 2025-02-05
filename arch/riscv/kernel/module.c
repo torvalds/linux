@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/log2.h>
 #include <linux/moduleloader.h>
-#include <linux/vmalloc.h>
 #include <linux/sizes.h>
 #include <linux/pgtable.h>
 #include <asm/alternative.h>
@@ -24,7 +23,7 @@ struct used_bucket {
 
 struct relocation_head {
 	struct hlist_node node;
-	struct list_head *rel_entry;
+	struct list_head rel_entry;
 	void *location;
 };
 
@@ -635,7 +634,7 @@ process_accumulated_relocations(struct module *me,
 			location = rel_head_iter->location;
 			list_for_each_entry_safe(rel_entry_iter,
 						 rel_entry_iter_tmp,
-						 rel_head_iter->rel_entry,
+						 &rel_head_iter->rel_entry,
 						 head) {
 				curr_type = rel_entry_iter->type;
 				reloc_handlers[curr_type].reloc_handler(
@@ -705,16 +704,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 			return -ENOMEM;
 		}
 
-		rel_head->rel_entry =
-			kmalloc(sizeof(struct list_head), GFP_KERNEL);
-
-		if (!rel_head->rel_entry) {
-			kfree(entry);
-			kfree(rel_head);
-			return -ENOMEM;
-		}
-
-		INIT_LIST_HEAD(rel_head->rel_entry);
+		INIT_LIST_HEAD(&rel_head->rel_entry);
 		rel_head->location = location;
 		INIT_HLIST_NODE(&rel_head->node);
 		if (!current_head->first) {
@@ -723,7 +713,6 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 
 			if (!bucket) {
 				kfree(entry);
-				kfree(rel_head->rel_entry);
 				kfree(rel_head);
 				return -ENOMEM;
 			}
@@ -736,7 +725,7 @@ static int add_relocation_to_accumulate(struct module *me, int type,
 	}
 
 	/* Add relocation to head of discovered rel_head */
-	list_add_tail(&entry->head, rel_head->rel_entry);
+	list_add_tail(&entry->head, &rel_head->rel_entry);
 
 	return 0;
 }
@@ -788,16 +777,14 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 	int res;
 	unsigned int num_relocations = sechdrs[relsec].sh_size / sizeof(*rel);
 	struct hlist_head *relocation_hashtable;
-	struct list_head used_buckets_list;
 	unsigned int hashtable_bits;
+	LIST_HEAD(used_buckets_list);
 
 	hashtable_bits = initialize_relocation_hashtable(num_relocations,
 							 &relocation_hashtable);
 
 	if (!relocation_hashtable)
 		return -ENOMEM;
-
-	INIT_LIST_HEAD(&used_buckets_list);
 
 	pr_debug("Applying relocate section %u to %u\n", relsec,
 	       sechdrs[relsec].sh_info);
@@ -904,17 +891,6 @@ int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
 
 	return 0;
 }
-
-#if defined(CONFIG_MMU) && defined(CONFIG_64BIT)
-void *module_alloc(unsigned long size)
-{
-	return __vmalloc_node_range(size, 1, MODULES_VADDR,
-				    MODULES_END, GFP_KERNEL,
-				    PAGE_KERNEL, VM_FLUSH_RESET_PERMS,
-				    NUMA_NO_NODE,
-				    __builtin_return_address(0));
-}
-#endif
 
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,

@@ -75,6 +75,12 @@ properties:
         description:
           regulator description for ldo[1-2].
 
+        properties:
+          richtek,fixed-microvolt:
+            description: |
+              This property can be used to set a fixed operating voltage that lies outside
+              the range of the regulator's adjustable mode.
+
 required:
   - compatible
   - reg
@@ -177,6 +183,8 @@ examples:
             };
           };
           ldo1 {
+            /* Fixed LDO VOUT */
+            richtek,fixed-microvolt = <1200000>;
             regulator-min-microvolt = <1200000>;
             regulator-max-microvolt = <1200000>;
             regulator-always-on;
@@ -185,7 +193,8 @@ examples:
             };
           };
           ldo2 {
-            regulator-min-microvolt = <3300000>;
+            /* Adjustable LDO VOUT */
+            regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <3300000>;
             regulator-always-on;
             regulator-state-mem {

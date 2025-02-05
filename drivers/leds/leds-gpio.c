@@ -21,8 +21,6 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include "leds.h"
-
 struct gpio_led_data {
 	struct led_classdev cdev;
 	struct gpio_desc *gpiod;
@@ -148,9 +146,8 @@ struct gpio_leds_priv {
 
 static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 {
-	struct fwnode_handle *child;
 	struct gpio_leds_priv *priv;
-	int count, ret;
+	int count, used, ret;
 
 	count = device_get_child_node_count(dev);
 	if (!count)
@@ -159,9 +156,11 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 	priv = devm_kzalloc(dev, struct_size(priv, leds, count), GFP_KERNEL);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
+	priv->num_leds = count;
+	used = 0;
 
-	device_for_each_child_node(dev, child) {
-		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
+	device_for_each_child_node_scoped(dev, child) {
+		struct gpio_led_data *led_dat = &priv->leds[used];
 		struct gpio_led led = {};
 
 		/*
@@ -174,7 +173,6 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 		if (IS_ERR(led.gpiod)) {
 			dev_err_probe(dev, PTR_ERR(led.gpiod), "Failed to get GPIO '%pfw'\n",
 				      child);
-			fwnode_handle_put(child);
 			return ERR_CAST(led.gpiod);
 		}
 
@@ -190,15 +188,15 @@ static struct gpio_leds_priv *gpio_leds_create(struct device *dev)
 			led.panic_indicator = 1;
 
 		ret = create_gpio_led(&led, led_dat, dev, child, NULL);
-		if (ret < 0) {
-			fwnode_handle_put(child);
+		if (ret < 0)
 			return ERR_PTR(ret);
-		}
+
 		/* Set gpiod label to match the corresponding LED name. */
 		gpiod_set_consumer_name(led_dat->gpiod,
 					led_dat->cdev.dev->kobj.name);
-		priv->num_leds++;
+		used++;
 	}
+	priv->num_leds = used;
 
 	return priv;
 }
@@ -214,7 +212,6 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 					    const struct gpio_led *template)
 {
 	struct gpio_desc *gpiod;
-	unsigned long flags = GPIOF_OUT_INIT_LOW;
 	int ret;
 
 	/*
@@ -241,10 +238,7 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	if (!gpio_is_valid(template->gpio))
 		return ERR_PTR(-ENOENT);
 
-	if (template->active_low)
-		flags |= GPIOF_ACTIVE_LOW;
-
-	ret = devm_gpio_request_one(dev, template->gpio, flags,
+	ret = devm_gpio_request_one(dev, template->gpio, GPIOF_OUT_INIT_LOW,
 				    template->name);
 	if (ret < 0)
 		return ERR_PTR(ret);
@@ -252,6 +246,9 @@ static struct gpio_desc *gpio_led_get_gpiod(struct device *dev, int idx,
 	gpiod = gpio_to_desc(template->gpio);
 	if (!gpiod)
 		return ERR_PTR(-EINVAL);
+
+	if (template->active_low ^ gpiod_is_active_low(gpiod))
+		gpiod_toggle_active_low(gpiod);
 
 	return gpiod;
 }

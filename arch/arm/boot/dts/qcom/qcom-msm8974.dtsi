@@ -14,6 +14,8 @@
 	#size-cells = <1>;
 	interrupt-parent = <&intc>;
 
+	chosen { };
+
 	clocks {
 		xo_board: xo_board {
 			compatible = "fixed-clock";
@@ -33,51 +35,51 @@
 		#size-cells = <0>;
 		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 
-		CPU0: cpu@0 {
+		cpu0: cpu@0 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <0>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc0>;
 			qcom,saw = <&saw0>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
-		CPU1: cpu@1 {
+		cpu1: cpu@1 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <1>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc1>;
 			qcom,saw = <&saw1>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
-		CPU2: cpu@2 {
+		cpu2: cpu@2 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <2>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc2>;
 			qcom,saw = <&saw2>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
-		CPU3: cpu@3 {
+		cpu3: cpu@3 {
 			compatible = "qcom,krait";
 			enable-method = "qcom,kpss-acc-v2";
 			device_type = "cpu";
 			reg = <3>;
-			next-level-cache = <&L2>;
+			next-level-cache = <&l2>;
 			qcom,acc = <&acc3>;
 			qcom,saw = <&saw3>;
-			cpu-idle-states = <&CPU_SPC>;
+			cpu-idle-states = <&cpu_spc>;
 		};
 
-		L2: l2-cache {
+		l2: l2-cache {
 			compatible = "cache";
 			cache-level = <2>;
 			cache-unified;
@@ -85,7 +87,7 @@
 		};
 
 		idle-states {
-			CPU_SPC: spc {
+			cpu_spc: cpu-spc {
 				compatible = "qcom,idle-state-spc",
 						"arm,idle-state";
 				entry-latency-us = <150>;
@@ -103,7 +105,7 @@
 		};
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0>;
 	};
@@ -130,11 +132,11 @@
 
 		smd-edge {
 			interrupts = <GIC_SPI 168 IRQ_TYPE_EDGE_RISING>;
-			qcom,ipc = <&apcs 8 0>;
+			mboxes = <&apcs 0>;
 			qcom,smd-edge = <15>;
 
 			rpm_requests: rpm-requests {
-				compatible = "qcom,rpm-msm8974";
+				compatible = "qcom,rpm-msm8974", "qcom,smd-rpm";
 				qcom,smd-channels = "rpm_requests";
 
 				rpmcc: clock-controller {
@@ -147,7 +149,7 @@
 		};
 	};
 
-	reserved-memory {
+	reserved_memory: reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -217,7 +219,7 @@
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_SPI 158 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 10>;
+		mboxes = <&apcs 10>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <2>;
@@ -242,7 +244,7 @@
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_SPI 27 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 14>;
+		mboxes = <&apcs 14>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <1>;
@@ -267,7 +269,7 @@
 		interrupt-parent = <&intc>;
 		interrupts = <GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
 
-		qcom,ipc = <&apcs 8 18>;
+		mboxes = <&apcs 18>;
 
 		qcom,local-pid = <0>;
 		qcom,remote-pid = <4>;
@@ -292,9 +294,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		qcom,ipc-1 = <&apcs 8 13>;
-		qcom,ipc-2 = <&apcs 8 9>;
-		qcom,ipc-3 = <&apcs 8 19>;
+		mboxes = <0>, <&apcs 13>, <&apcs 9>, <&apcs 19>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;
@@ -341,9 +341,11 @@
 			      <0xf9002000 0x1000>;
 		};
 
-		apcs: syscon@f9011000 {
-			compatible = "syscon";
+		apcs: mailbox@f9011000 {
+			compatible = "qcom,msm8974-apcs-kpss-global",
+				     "qcom,msm8994-apcs-kpss-global", "syscon";
 			reg = <0xf9011000 0x1000>;
+			#mbox-cells = <1>;
 		};
 
 		saw_l2: power-manager@f9012000 {
@@ -755,7 +757,7 @@
 			smd-edge {
 				interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
 
-				qcom,ipc = <&apcs 8 17>;
+				mboxes = <&apcs 17>;
 				qcom,smd-edge = <6>;
 
 				wcnss {
@@ -958,7 +960,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			cpu = <&CPU0>;
+			cpu = <&cpu0>;
 
 			out-ports {
 				port {
@@ -976,7 +978,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			cpu = <&CPU1>;
+			cpu = <&cpu1>;
 
 			out-ports {
 				port {
@@ -994,7 +996,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			cpu = <&CPU2>;
+			cpu = <&cpu2>;
 
 			out-ports {
 				port {
@@ -1012,7 +1014,7 @@
 			clocks = <&rpmcc RPM_SMD_QDSS_CLK>, <&rpmcc RPM_SMD_QDSS_A_CLK>;
 			clock-names = "apb_pclk", "atclk";
 
-			cpu = <&CPU3>;
+			cpu = <&cpu3>;
 
 			out-ports {
 				port {
@@ -1231,7 +1233,7 @@
 			reg = <0xfc4ab000 0x4>;
 		};
 
-		qfprom: qfprom@fc4bc000 {
+		qfprom: efuse@fc4bc000 {
 			compatible = "qcom,msm8974-qfprom", "qcom,qfprom";
 			reg = <0xfc4bc000 0x2100>;
 			#address-cells = <1>;
@@ -1297,7 +1299,7 @@
 				bits = <0 6>;
 			};
 
-			tsens_s10_p1: s10_p1@d8 {
+			tsens_s10_p1: s10-p1@d8 {
 				reg = <0xd8 0x2>;
 				bits = <6 6>;
 			};
@@ -1357,137 +1359,137 @@
 				bits = <4 6>;
 			};
 
-			tsens_s10_p2: s10_p2@e2 {
+			tsens_s10_p2: s10-p2@e2 {
 				reg = <0xe2 0x2>;
 				bits = <2 6>;
 			};
 
-			tsens_s5_p2_backup: s5-p2_backup@e3 {
+			tsens_s5_p2_backup: s5-p2-backup@e3 {
 				reg = <0xe3 0x2>;
 				bits = <0 6>;
 			};
 
-			tsens_mode_backup: mode_backup@e3 {
+			tsens_mode_backup: mode-backup@e3 {
 				reg = <0xe3 0x1>;
 				bits = <6 2>;
 			};
 
-			tsens_s6_p2_backup: s6-p2_backup@e4 {
+			tsens_s6_p2_backup: s6-p2-backup@e4 {
 				reg = <0xe4 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_s7_p2_backup: s7-p2_backup@e4 {
+			tsens_s7_p2_backup: s7-p2-backup@e4 {
 				reg = <0xe4 0x2>;
 				bits = <6 6>;
 			};
 
-			tsens_s8_p2_backup: s8-p2_backup@e5 {
+			tsens_s8_p2_backup: s8-p2-backup@e5 {
 				reg = <0xe5 0x2>;
 				bits = <4 6>;
 			};
 
-			tsens_s9_p2_backup: s9-p2_backup@e6 {
+			tsens_s9_p2_backup: s9-p2-backup@e6 {
 				reg = <0xe6 0x2>;
 				bits = <2 6>;
 			};
 
-			tsens_s10_p2_backup: s10_p2_backup@e7 {
+			tsens_s10_p2_backup: s10-p2-backup@e7 {
 				reg = <0xe7 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_base1_backup: base1_backup@440 {
+			tsens_base1_backup: base1-backup@440 {
 				reg = <0x440 0x1>;
 				bits = <0 8>;
 			};
 
-			tsens_s0_p1_backup: s0-p1_backup@441 {
+			tsens_s0_p1_backup: s0-p1-backup@441 {
 				reg = <0x441 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_s1_p1_backup: s1-p1_backup@442 {
+			tsens_s1_p1_backup: s1-p1-backup@442 {
 				reg = <0x441 0x2>;
 				bits = <6 6>;
 			};
 
-			tsens_s2_p1_backup: s2-p1_backup@442 {
+			tsens_s2_p1_backup: s2-p1-backup@442 {
 				reg = <0x442 0x2>;
 				bits = <4 6>;
 			};
 
-			tsens_s3_p1_backup: s3-p1_backup@443 {
+			tsens_s3_p1_backup: s3-p1-backup@443 {
 				reg = <0x443 0x1>;
 				bits = <2 6>;
 			};
 
-			tsens_s4_p1_backup: s4-p1_backup@444 {
+			tsens_s4_p1_backup: s4-p1-backup@444 {
 				reg = <0x444 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_s5_p1_backup: s5-p1_backup@444 {
+			tsens_s5_p1_backup: s5-p1-backup@444 {
 				reg = <0x444 0x2>;
 				bits = <6 6>;
 			};
 
-			tsens_s6_p1_backup: s6-p1_backup@445 {
+			tsens_s6_p1_backup: s6-p1-backup@445 {
 				reg = <0x445 0x2>;
 				bits = <4 6>;
 			};
 
-			tsens_s7_p1_backup: s7-p1_backup@446 {
+			tsens_s7_p1_backup: s7-p1-backup@446 {
 				reg = <0x446 0x1>;
 				bits = <2 6>;
 			};
 
-			tsens_use_backup: use_backup@447 {
+			tsens_use_backup: use-backup@447 {
 				reg = <0x447 0x1>;
 				bits = <5 3>;
 			};
 
-			tsens_s8_p1_backup: s8-p1_backup@448 {
+			tsens_s8_p1_backup: s8-p1-backup@448 {
 				reg = <0x448 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_s9_p1_backup: s9-p1_backup@448 {
+			tsens_s9_p1_backup: s9-p1-backup@448 {
 				reg = <0x448 0x2>;
 				bits = <6 6>;
 			};
 
-			tsens_s10_p1_backup: s10_p1_backup@449 {
+			tsens_s10_p1_backup: s10-p1-backup@449 {
 				reg = <0x449 0x2>;
 				bits = <4 6>;
 			};
 
-			tsens_base2_backup: base2_backup@44a {
+			tsens_base2_backup: base2-backup@44a {
 				reg = <0x44a 0x2>;
 				bits = <2 8>;
 			};
 
-			tsens_s0_p2_backup: s0-p2_backup@44b {
+			tsens_s0_p2_backup: s0-p2-backup@44b {
 				reg = <0x44b 0x3>;
 				bits = <2 6>;
 			};
 
-			tsens_s1_p2_backup: s1-p2_backup@44c {
+			tsens_s1_p2_backup: s1-p2-backup@44c {
 				reg = <0x44c 0x1>;
 				bits = <0 6>;
 			};
 
-			tsens_s2_p2_backup: s2-p2_backup@44c {
+			tsens_s2_p2_backup: s2-p2-backup@44c {
 				reg = <0x44c 0x2>;
 				bits = <6 6>;
 			};
 
-			tsens_s3_p2_backup: s3-p2_backup@44d {
+			tsens_s3_p2_backup: s3-p2-backup@44d {
 				reg = <0x44d 0x2>;
 				bits = <4 6>;
 			};
 
-			tsens_s4_p2_backup: s4-p2_backup@44e {
+			tsens_s4_p2_backup: s4-p2-backup@44e {
 				reg = <0x44e 0x1>;
 				bits = <2 6>;
 			};
@@ -1574,7 +1576,7 @@
 			smd-edge {
 				interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
 
-				qcom,ipc = <&apcs 8 12>;
+				mboxes = <&apcs 12>;
 				qcom,smd-edge = <0>;
 
 				label = "modem";
@@ -2127,7 +2129,7 @@
 			};
 		};
 
-		gpu: adreno@fdb00000 {
+		gpu: gpu@fdb00000 {
 			compatible = "qcom,adreno-330.1", "qcom,adreno";
 			reg = <0xfdb00000 0x10000>;
 			reg-names = "kgsl_3d0_reg_memory";
@@ -2211,7 +2213,7 @@
 			smd-edge {
 				interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
 
-				qcom,ipc = <&apcs 8 8>;
+				mboxes = <&apcs 8>;
 				qcom,smd-edge = <1>;
 				label = "lpass";
 			};

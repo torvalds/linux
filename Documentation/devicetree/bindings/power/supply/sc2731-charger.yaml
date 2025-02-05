@@ -30,23 +30,4 @@ properties:
       - constant-charge-voltage-max-microvolt: maximum constant input voltage.
 
 additionalProperties: false
-
-examples:
-  - |
-    bat: battery {
-      compatible = "simple-battery";
-      charge-term-current-microamp = <120000>;
-      constant-charge-voltage-max-microvolt = <4350000>;
-    };
-
-    pmic {
-      #address-cells = <1>;
-      #size-cells = <0>;
-
-      battery@a00 {
-        compatible = "sprd,sc2731-charger";
-        reg = <0x0>;
-        phys = <&ssphy>;
-        monitored-battery = <&bat>;
-      };
-    };
+...

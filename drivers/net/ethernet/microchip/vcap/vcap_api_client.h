@@ -200,6 +200,8 @@ int vcap_rule_add_action_bit(struct vcap_rule *rule,
 			     enum vcap_action_field action, enum vcap_bit val);
 int vcap_rule_add_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action, u32 value);
+int vcap_rule_add_action_u72(struct vcap_rule *rule, enum vcap_action_field action,
+			     struct vcap_u72_action *fieldval);
 
 /* Get number of rules in a vcap instance lookup chain id range */
 int vcap_admin_rule_count(struct vcap_admin *admin, int cid);
@@ -236,7 +238,7 @@ const struct vcap_set *vcap_keyfieldset(struct vcap_control *vctrl,
 /* Copy to host byte order */
 void vcap_netbytes_copy(u8 *dst, u8 *src, int count);
 
-/* Convert validation error code into tc extact error message */
+/* Convert validation error code into tc extack error message */
 void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule);
 
 /* Cleanup a VCAP instance */

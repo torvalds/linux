@@ -100,6 +100,7 @@ static bool is_fru_eeprom_supported(struct amdgpu_device *adev, u32 *fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_6;
 		return true;
 	case IP_VERSION(13, 0, 6):
+	case IP_VERSION(13, 0, 14):
 			if (fru_addr)
 				*fru_addr = FRU_EEPROM_MADDR_8;
 			return true;
@@ -383,7 +384,7 @@ int amdgpu_fru_sysfs_init(struct amdgpu_device *adev)
 
 void amdgpu_fru_sysfs_fini(struct amdgpu_device *adev)
 {
-	if (!is_fru_eeprom_supported(adev, NULL) || !adev->fru_info)
+	if (!adev->fru_info)
 		return;
 
 	sysfs_remove_files(&adev->dev->kobj, amdgpu_fru_attributes);

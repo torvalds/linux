@@ -53,6 +53,7 @@ static bool		cfg_do_ipv6;
 static bool		cfg_do_connected;
 static bool		cfg_do_connectionless;
 static bool		cfg_do_msgmore;
+static bool		cfg_do_recv = true;
 static bool		cfg_do_setsockopt;
 static int		cfg_specific_test_id = -1;
 
@@ -66,6 +67,7 @@ struct testcase {
 	int gso_len;		/* mss after applying gso */
 	int r_num_mss;		/* recv(): number of calls of full mss */
 	int r_len_last;		/* recv(): size of last non-mss dgram, if any */
+	bool v6_ext_hdr;	/* send() dgrams with IPv6 extension headers */
 };
 
 const struct in6_addr addr6 = {
@@ -75,6 +77,8 @@ const struct in6_addr addr6 = {
 const struct in_addr addr4 = {
 	__constant_htonl(0x0a000001), /* 10.0.0.1 */
 };
+
+static const char ipv6_hopopts_pad1[8] = { 0 };
 
 struct testcase testcases_v4[] = {
 	{
@@ -255,6 +259,13 @@ struct testcase testcases_v6[] = {
 		.r_num_mss = 2,
 	},
 	{
+		/* send 2 1B segments with extension headers */
+		.tlen = 2,
+		.gso_len = 1,
+		.r_num_mss = 2,
+		.v6_ext_hdr = true,
+	},
+	{
 		/* send 2B + 2B + 1B segments */
 		.tlen = 5,
 		.gso_len = 2,
@@ -395,10 +406,17 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 	int i, ret, val, mss;
 	bool sent;
 
-	fprintf(stderr, "ipv%d tx:%d gso:%d %s\n",
+	fprintf(stderr, "ipv%d tx:%d gso:%d %s%s\n",
 			addr->sa_family == AF_INET ? 4 : 6,
 			test->tlen, test->gso_len,
+			test->v6_ext_hdr ? "ext-hdr " : "",
 			test->tfail ? "(fail)" : "");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS,
+			       ipv6_hopopts_pad1, sizeof(ipv6_hopopts_pad1)))
+			error(1, errno, "setsockopt ipv6 hopopts");
+	}
 
 	val = test->gso_len;
 	if (cfg_do_setsockopt) {
@@ -411,7 +429,16 @@ static void run_one(struct testcase *test, int fdt, int fdr,
 		error(1, 0, "send succeeded while expecting failure");
 	if (!sent && !test->tfail)
 		error(1, 0, "send failed while expecting success");
+
+	if (test->v6_ext_hdr) {
+		if (setsockopt(fdt, IPPROTO_IPV6, IPV6_HOPOPTS, NULL, 0))
+			error(1, errno, "setsockopt ipv6 hopopts clear");
+	}
+
 	if (!sent)
+		return;
+
+	if (!cfg_do_recv)
 		return;
 
 	if (test->gso_len)
@@ -464,8 +491,10 @@ static void run_test(struct sockaddr *addr, socklen_t alen)
 	if (fdr == -1)
 		error(1, errno, "socket r");
 
-	if (bind(fdr, addr, alen))
-		error(1, errno, "bind");
+	if (cfg_do_recv) {
+		if (bind(fdr, addr, alen))
+			error(1, errno, "bind");
+	}
 
 	/* Have tests fail quickly instead of hang */
 	if (setsockopt(fdr, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)))
@@ -524,7 +553,7 @@ static void parse_opts(int argc, char **argv)
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "46cCmst:")) != -1) {
+	while ((c = getopt(argc, argv, "46cCmRst:")) != -1) {
 		switch (c) {
 		case '4':
 			cfg_do_ipv4 = true;
@@ -540,6 +569,9 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'm':
 			cfg_do_msgmore = true;
+			break;
+		case 'R':
+			cfg_do_recv = false;
 			break;
 		case 's':
 			cfg_do_setsockopt = true;

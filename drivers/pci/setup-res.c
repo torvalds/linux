@@ -211,8 +211,7 @@ static int pci_revert_fw_address(struct resource *res, struct pci_dev *dev,
 
 	start = res->start;
 	end = res->end;
-	res->start = fw_addr;
-	res->end = res->start + size - 1;
+	resource_set_range(res, fw_addr, size);
 	res->flags &= ~IORESOURCE_UNSET;
 
 	root = pci_find_parent_resource(dev, res);
@@ -463,7 +462,7 @@ int pci_resize_resource(struct pci_dev *dev, int resno, int size)
 	if (ret)
 		return ret;
 
-	res->end = res->start + pci_rebar_size_to_bytes(size) - 1;
+	resource_set_size(res, pci_rebar_size_to_bytes(size));
 
 	/* Check if the new config works by trying to assign everything. */
 	if (dev->bus->self) {
@@ -475,7 +474,7 @@ int pci_resize_resource(struct pci_dev *dev, int resno, int size)
 
 error_resize:
 	pci_rebar_set_size(dev, resno, old);
-	res->end = res->start + pci_rebar_size_to_bytes(old) - 1;
+	resource_set_size(res, pci_rebar_size_to_bytes(old));
 	return ret;
 }
 EXPORT_SYMBOL(pci_resize_resource);

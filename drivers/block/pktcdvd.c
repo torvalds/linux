@@ -71,7 +71,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_ioctl.h>
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #define DRIVER_NAME	"pktcdvd"
 
@@ -498,8 +498,6 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 	if (!pkt_debugfs_root)
 		return;
 	pd->dfs_d_root = debugfs_create_dir(pd->disk->disk_name, pkt_debugfs_root);
-	if (!pd->dfs_d_root)
-		return;
 
 	pd->dfs_f_info = debugfs_create_file("info", 0444, pd->dfs_d_root,
 					     pd, &pkt_seq_fops);
@@ -2215,6 +2213,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, bool write)
 		}
 		dev_info(ddev, "%lukB available on disc\n", lba << 1);
 	}
+	set_blocksize(bdev_file, CD_FRAMESIZE);
 
 	return 0;
 
@@ -2278,11 +2277,6 @@ static int pkt_open(struct gendisk *disk, blk_mode_t mode)
 		ret = pkt_open_dev(pd, mode & BLK_OPEN_WRITE);
 		if (ret)
 			goto out_dec;
-		/*
-		 * needed here as well, since ext2 (among others) may change
-		 * the blocksize at mount time
-		 */
-		set_blocksize(disk->part0, CD_FRAMESIZE);
 	}
 	mutex_unlock(&ctl_mutex);
 	mutex_unlock(&pktcdvd_mutex);
@@ -2526,7 +2520,6 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 	__module_get(THIS_MODULE);
 
 	pd->bdev_file = bdev_file;
-	set_blocksize(file_bdev(bdev_file), CD_FRAMESIZE);
 
 	atomic_set(&pd->cdrw.pending_bios, 0);
 	pd->cdrw.thread = kthread_run(kcdrwd, pd, "%s", pd->disk->disk_name);
@@ -2627,6 +2620,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	struct queue_limits lim = {
 		.max_hw_sectors		= PACKET_MAX_SECTORS,
 		.logical_block_size	= CD_FRAMESIZE,
+		.features		= BLK_FEAT_ROTATIONAL,
 	};
 	int idx;
 	int ret = -ENOMEM;
@@ -2841,7 +2835,6 @@ static const struct file_operations pkt_ctl_fops = {
 	.compat_ioctl	= pkt_ctl_compat_ioctl,
 #endif
 	.owner		= THIS_MODULE,
-	.llseek		= no_llseek,
 };
 
 static struct miscdevice pkt_misc = {

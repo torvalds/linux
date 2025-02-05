@@ -442,15 +442,15 @@ static void cw1200_spi_disconnect(struct spi_device *func)
 			cw1200_core_release(self->core);
 			self->core = NULL;
 		}
+		cw1200_spi_off(self, dev_get_platdata(&func->dev));
 	}
-	cw1200_spi_off(self, dev_get_platdata(&func->dev));
 }
 
 static int __maybe_unused cw1200_spi_suspend(struct device *dev)
 {
 	struct hwbus_priv *self = spi_get_drvdata(to_spi_device(dev));
 
-	if (!cw1200_can_suspend(self->core))
+	if (self && !cw1200_can_suspend(self->core))
 		return -EAGAIN;
 
 	/* XXX notify host that we have to keep CW1200 powered on? */

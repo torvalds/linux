@@ -26,12 +26,6 @@
 #define MBOX_OFFSET	0x800000
 #define MBOX_SIZE	0x1000
 
-static struct clk_bulk_data imx8m_dsp_clks[] = {
-	{ .id = "ipg" },
-	{ .id = "ocram" },
-	{ .id = "core" },
-};
-
 /* DAP registers */
 #define IMX8M_DAP_DEBUG                0x28800000
 #define IMX8M_DAP_DEBUG_SIZE   (64 * 1024)
@@ -54,7 +48,8 @@ struct imx8m_priv {
 	struct imx_dsp_ipc *dsp_ipc;
 	struct platform_device *ipc_dev;
 
-	struct imx_clocks *clks;
+	struct clk_bulk_data *clks;
+	int clk_num;
 
 	void __iomem *dap;
 	struct regmap *regmap;
@@ -149,8 +144,7 @@ static int imx8m_reset(struct snd_sof_dev *sdev)
 
 static int imx8m_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev =
-		container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *res_node;
 	struct resource *mmio;
@@ -161,10 +155,6 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
-
-	priv->clks = devm_kzalloc(&pdev->dev, sizeof(*priv->clks), GFP_KERNEL);
-	if (!priv->clks)
 		return -ENOMEM;
 
 	sdev->num_cores = 1;
@@ -243,24 +233,25 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
-	priv->regmap = syscon_regmap_lookup_by_compatible("fsl,dsp-ctrl");
+	priv->regmap = syscon_regmap_lookup_by_phandle(np, "fsl,dsp-ctrl");
 	if (IS_ERR(priv->regmap)) {
 		dev_err(sdev->dev, "cannot find dsp-ctrl registers");
 		ret = PTR_ERR(priv->regmap);
 		goto exit_pdev_unregister;
 	}
 
-	/* init clocks info */
-	priv->clks->dsp_clks = imx8m_dsp_clks;
-	priv->clks->num_dsp_clks = ARRAY_SIZE(imx8m_dsp_clks);
-
-	ret = imx8_parse_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = devm_clk_bulk_get_all(sdev->dev, &priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to fetch clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
+	priv->clk_num = ret;
 
-	ret = imx8_enable_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
 		goto exit_pdev_unregister;
+	}
 
 	return 0;
 
@@ -273,7 +264,7 @@ static void imx8m_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8m_priv *priv = sdev->pdata->hw_pdata;
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 	platform_device_unregister(priv->ipc_dev);
 }
 
@@ -303,7 +294,51 @@ static struct snd_soc_dai_driver imx8m_dai[] = {
 	},
 },
 {
+	.name = "sai2",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
 	.name = "sai3",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai5",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai6",
+	.playback = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+	.capture = {
+		.channels_min = 1,
+		.channels_max = 32,
+	},
+},
+{
+	.name = "sai7",
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 32,
@@ -336,9 +371,11 @@ static int imx8m_resume(struct snd_sof_dev *sdev)
 	int ret;
 	int i;
 
-	ret = imx8_enable_clocks(sdev, priv->clks);
-	if (ret < 0)
+	ret = clk_bulk_prepare_enable(priv->clk_num, priv->clks);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to enable clocks: %d\n", ret);
 		return ret;
+	}
 
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_request_channel(priv->dsp_ipc, i);
@@ -354,7 +391,7 @@ static void imx8m_suspend(struct snd_sof_dev *sdev)
 	for (i = 0; i < DSP_MU_CHAN_NUM; i++)
 		imx_dsp_free_channel(priv->dsp_ipc, i);
 
-	imx8_disable_clocks(sdev, priv->clks);
+	clk_bulk_disable_unprepare(priv->clk_num, priv->clks);
 }
 
 static int imx8m_dsp_runtime_resume(struct snd_sof_dev *sdev)
@@ -417,7 +454,7 @@ static int imx8m_dsp_suspend(struct snd_sof_dev *sdev, unsigned int target_state
 }
 
 /* i.MX8 ops */
-static struct snd_sof_dsp_ops sof_imx8m_ops = {
+static const struct snd_sof_dsp_ops sof_imx8m_ops = {
 	/* probe and remove */
 	.probe		= imx8m_probe,
 	.remove		= imx8m_remove,
@@ -478,6 +515,11 @@ static struct snd_sof_dsp_ops sof_imx8m_ops = {
 
 static struct snd_sof_of_mach sof_imx8mp_machs[] = {
 	{
+		.compatible = "fsl,imx8mp-evk-revb4",
+		.sof_tplg_filename = "sof-imx8mp-wm8962.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
+	{
 		.compatible = "fsl,imx8mp-evk",
 		.sof_tplg_filename = "sof-imx8mp-wm8960.tplg",
 		.drv_name = "asoc-audio-graph-card2",
@@ -511,7 +553,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8m_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8m_driver = {
 	.probe = sof_of_probe,
-	.remove_new = sof_of_remove,
+	.remove = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8m",
 		.pm = &sof_of_pm,
@@ -520,5 +562,6 @@ static struct platform_driver snd_sof_of_imx8m_driver = {
 };
 module_platform_driver(snd_sof_of_imx8m_driver);
 
-MODULE_IMPORT_NS(SND_SOC_SOF_XTENSA);
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_DESCRIPTION("SOF support for IMX8M platforms");
+MODULE_IMPORT_NS("SND_SOC_SOF_XTENSA");

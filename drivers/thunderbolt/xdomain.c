@@ -250,7 +250,7 @@ static int tb_xdp_handle_error(const struct tb_xdp_error_response *res)
 	case ERROR_UNKNOWN_DOMAIN:
 		return -EIO;
 	case ERROR_NOT_SUPPORTED:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	case ERROR_NOT_READY:
 		return -EAGAIN;
 	default:
@@ -1026,7 +1026,7 @@ static int remove_missing_service(struct device *dev, void *data)
 	return 0;
 }
 
-static int find_service(struct device *dev, void *data)
+static int find_service(struct device *dev, const void *data)
 {
 	const struct tb_property *p = data;
 	struct tb_service *svc;

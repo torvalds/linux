@@ -20,6 +20,7 @@ System calls
    futex2
    ebpf/index
    ioctl/index
+   mseal
 
 Security-related interfaces
 ===========================
@@ -31,8 +32,10 @@ Security-related interfaces
    seccomp_filter
    landlock
    lsm
+   mfd_noexec
    spec_ctrl
    tee
+   check_exec
 
 Devices and I/O
 ===============
@@ -43,7 +46,6 @@ Devices and I/O
    accelerators/ocxl
    dma-buf-alloc-exchange
    gpio/index
-   iommu
    iommufd
    media/index
    dcdbas
@@ -62,6 +64,7 @@ Everything else
    vduse
    futex2
    perf_ring_buffer
+   ntsync
 
 .. only::  subproject and html
 

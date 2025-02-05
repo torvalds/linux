@@ -3,7 +3,7 @@
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  * Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
  *         Keyon Jie <yang.jie@linux.intel.com>
  */
@@ -153,6 +153,8 @@
 /* Stream */
 #define SOF_TKN_STREAM_PLAYBACK_COMPATIBLE_D0I3	1200
 #define SOF_TKN_STREAM_CAPTURE_COMPATIBLE_D0I3	1201
+#define SOF_TKN_STREAM_PLAYBACK_PAUSE_SUPPORTED	1202
+#define SOF_TKN_STREAM_CAPTURE_PAUSE_SUPPORTED	1203
 
 /* Led control for mute switches */
 #define SOF_TKN_MUTE_LED_USE			1300

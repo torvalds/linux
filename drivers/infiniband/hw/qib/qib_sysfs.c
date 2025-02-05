@@ -214,8 +214,8 @@ static const struct attribute_group port_linkcontrol_group = {
  * Congestion control table size followed by table entries
  */
 static ssize_t cc_table_bin_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr, char *buf,
-				 loff_t pos, size_t count)
+				 const struct bin_attribute *bin_attr,
+				 char *buf, loff_t pos, size_t count)
 {
 	struct qib_pportdata *ppd = qib_get_pportdata_kobj(kobj);
 	int ret;
@@ -241,7 +241,7 @@ static ssize_t cc_table_bin_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
+static const BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
 
 /*
  * Congestion settings: port control, control map and an array of 16
@@ -249,8 +249,8 @@ static BIN_ATTR_RO(cc_table_bin, PAGE_SIZE);
  * trigger threshold and the minimum injection rate delay.
  */
 static ssize_t cc_setting_bin_read(struct file *filp, struct kobject *kobj,
-				   struct bin_attribute *bin_attr, char *buf,
-				   loff_t pos, size_t count)
+				   const struct bin_attribute *bin_attr,
+				   char *buf, loff_t pos, size_t count)
 {
 	struct qib_pportdata *ppd = qib_get_pportdata_kobj(kobj);
 	int ret;
@@ -274,16 +274,16 @@ static ssize_t cc_setting_bin_read(struct file *filp, struct kobject *kobj,
 
 	return count;
 }
-static BIN_ATTR_RO(cc_setting_bin, PAGE_SIZE);
+static const BIN_ATTR_RO(cc_setting_bin, PAGE_SIZE);
 
-static struct bin_attribute *port_ccmgta_attributes[] = {
+static const struct bin_attribute *const port_ccmgta_attributes[] = {
 	&bin_attr_cc_setting_bin,
 	&bin_attr_cc_table_bin,
 	NULL,
 };
 
 static umode_t qib_ccmgta_is_bin_visible(struct kobject *kobj,
-				 struct bin_attribute *attr, int n)
+				 const struct bin_attribute *attr, int n)
 {
 	struct qib_pportdata *ppd = qib_get_pportdata_kobj(kobj);
 
@@ -295,7 +295,7 @@ static umode_t qib_ccmgta_is_bin_visible(struct kobject *kobj,
 static const struct attribute_group port_ccmgta_attribute_group = {
 	.name = "CCMgtA",
 	.is_bin_visible = qib_ccmgta_is_bin_visible,
-	.bin_attrs = port_ccmgta_attributes,
+	.bin_attrs_new = port_ccmgta_attributes,
 };
 
 /* Start sl2vl */
@@ -585,13 +585,7 @@ static ssize_t hca_type_show(struct device *device,
 static DEVICE_ATTR_RO(hca_type);
 static DEVICE_ATTR(board_id, 0444, hca_type_show, NULL);
 
-static ssize_t version_show(struct device *device,
-			    struct device_attribute *attr, char *buf)
-{
-	/* The string printed here is already newline-terminated. */
-	return sysfs_emit(buf, "%s", (char *)ib_qib_version);
-}
-static DEVICE_ATTR_RO(version);
+static DEVICE_STRING_ATTR_RO(version, 0444, QIB_DRIVER_VERSION);
 
 static ssize_t boardversion_show(struct device *device,
 				 struct device_attribute *attr, char *buf)
@@ -721,7 +715,7 @@ static struct attribute *qib_attributes[] = {
 	&dev_attr_hw_rev.attr,
 	&dev_attr_hca_type.attr,
 	&dev_attr_board_id.attr,
-	&dev_attr_version.attr,
+	&dev_attr_version.attr.attr,
 	&dev_attr_nctxts.attr,
 	&dev_attr_nfreectxts.attr,
 	&dev_attr_serial.attr,

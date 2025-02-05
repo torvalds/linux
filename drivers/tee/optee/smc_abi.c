@@ -20,10 +20,11 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/rpmb.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 #include "optee_private.h"
@@ -592,19 +593,18 @@ static int pool_op_alloc(struct tee_shm_pool *pool,
 	 * to be registered with OP-TEE.
 	 */
 	if (shm->flags & TEE_SHM_PRIV)
-		return optee_pool_op_alloc_helper(pool, shm, size, align, NULL);
+		return tee_dyn_shm_alloc_helper(shm, size, align, NULL);
 
-	return optee_pool_op_alloc_helper(pool, shm, size, align,
-					  optee_shm_register);
+	return tee_dyn_shm_alloc_helper(shm, size, align, optee_shm_register);
 }
 
 static void pool_op_free(struct tee_shm_pool *pool,
 			 struct tee_shm *shm)
 {
 	if (!(shm->flags & TEE_SHM_PRIV))
-		optee_pool_op_free_helper(pool, shm, optee_shm_unregister);
+		tee_dyn_shm_free_helper(shm, optee_shm_unregister);
 	else
-		optee_pool_op_free_helper(pool, shm, NULL);
+		tee_dyn_shm_free_helper(shm, NULL);
 }
 
 static void pool_op_destroy_pool(struct tee_shm_pool *pool)
@@ -1272,8 +1272,9 @@ static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
 		  &res.smccc);
 
 	if (res.result.build_id)
-		pr_info("revision %lu.%lu (%08lx)", res.result.major,
-			res.result.minor, res.result.build_id);
+		pr_info("revision %lu.%lu (%0*lx)", res.result.major,
+			res.result.minor, (int)sizeof(res.result.build_id) * 2,
+			res.result.build_id);
 	else
 		pr_info("revision %lu.%lu", res.result.major, res.result.minor);
 }
@@ -1433,7 +1434,7 @@ static optee_invoke_fn *get_invoke_func(struct device *dev)
  * optee_remove is called by platform subsystem to alert the driver
  * that it should release the device
  */
-static int optee_smc_remove(struct platform_device *pdev)
+static void optee_smc_remove(struct platform_device *pdev)
 {
 	struct optee *optee = platform_get_drvdata(pdev);
 
@@ -1453,8 +1454,6 @@ static int optee_smc_remove(struct platform_device *pdev)
 		memunmap(optee->smc.memremaped_shm);
 
 	kfree(optee);
-
-	return 0;
 }
 
 /* optee_shutdown - Device Removal Routine
@@ -1688,6 +1687,10 @@ static int optee_probe(struct platform_device *pdev)
 	optee->smc.sec_caps = sec_caps;
 	optee->rpc_param_count = rpc_param_count;
 
+	if (IS_REACHABLE(CONFIG_RPMB) &&
+	    (sec_caps & OPTEE_SMC_SEC_CAP_RPMB_PROBE))
+		optee->in_kernel_rpmb_routing = true;
+
 	teedev = tee_device_alloc(&optee_clnt_desc, NULL, pool, optee);
 	if (IS_ERR(teedev)) {
 		rc = PTR_ERR(teedev);
@@ -1702,6 +1705,8 @@ static int optee_probe(struct platform_device *pdev)
 	}
 	optee->supp_teedev = teedev;
 
+	optee_set_dev_group(optee);
+
 	rc = tee_device_register(optee->teedev);
 	if (rc)
 		goto err_unreg_supp_teedev;
@@ -1715,6 +1720,7 @@ static int optee_probe(struct platform_device *pdev)
 	optee->smc.memremaped_shm = memremaped_shm;
 	optee->pool = pool;
 	optee_shm_arg_cache_init(optee, arg_cache_flags);
+	mutex_init(&optee->rpmb_dev_mutex);
 
 	platform_set_drvdata(pdev, optee);
 	ctx = teedev_open(optee->teedev);
@@ -1769,6 +1775,10 @@ static int optee_probe(struct platform_device *pdev)
 	if (rc)
 		goto err_disable_shm_cache;
 
+	INIT_WORK(&optee->rpmb_scan_bus_work, optee_bus_scan_rpmb);
+	optee->rpmb_intf.notifier_call = optee_rpmb_intf_rdev;
+	blocking_notifier_chain_register(&optee_rpmb_intf_added,
+					 &optee->rpmb_intf);
 	pr_info("initialized driver\n");
 	return 0;
 
@@ -1782,6 +1792,8 @@ err_notif_uninit:
 err_close_ctx:
 	teedev_close_context(ctx);
 err_supp_uninit:
+	rpmb_dev_put(optee->rpmb_dev);
+	mutex_destroy(&optee->rpmb_dev_mutex);
 	optee_shm_arg_cache_uninit(optee);
 	optee_supp_uninit(&optee->supp);
 	mutex_destroy(&optee->call_queue.mutex);

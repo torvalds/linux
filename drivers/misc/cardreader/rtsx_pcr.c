@@ -19,7 +19,7 @@
 #include <linux/mfd/core.h>
 #include <linux/rtsx_pci.h>
 #include <linux/mmc/card.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
@@ -1002,12 +1002,14 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 		} else {
 			pcr->card_removed |= SD_EXIST;
 			pcr->card_inserted &= ~SD_EXIST;
-			if ((PCI_PID(pcr) == PID_5261) || (PCI_PID(pcr) == PID_5264)) {
-				rtsx_pci_write_register(pcr, RTS5261_FW_STATUS,
-					RTS5261_EXPRESS_LINK_FAIL_MASK, 0);
-				pcr->extra_caps |= EXTRA_CAPS_SD_EXPRESS;
-			}
 		}
+
+		if ((PCI_PID(pcr) == PID_5261) || (PCI_PID(pcr) == PID_5264)) {
+			rtsx_pci_write_register(pcr, RTS5261_FW_STATUS,
+				RTS5261_EXPRESS_LINK_FAIL_MASK, 0);
+			pcr->extra_caps |= EXTRA_CAPS_SD_EXPRESS;
+		}
+
 		pcr->dma_error_count = 0;
 	}
 

@@ -376,9 +376,7 @@ struct gpio_irq_chip {
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
- *      array must be @ngpio entries long.  A name can include a single printk
- *      format specifier for an unsigned int.  It is substituted by the actual
- *      number of the gpio.
+ *      array must be @ngpio entries long.
  * @can_sleep: flag must be set iff get()/set() methods sleep, as they
  *	must while accessing GPIO expander chips over I2C or SPI. This
  *	implies that if the chip supports IRQs, these IRQs need to be threaded
@@ -634,10 +632,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	devm_gpiochip_add_data_with_key(dev, gc, data, NULL, NULL)
 #endif /* CONFIG_LOCKDEP */
 
-static inline int gpiochip_add(struct gpio_chip *gc)
-{
-	return gpiochip_add_data(gc, NULL);
-}
 void gpiochip_remove(struct gpio_chip *gc);
 int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc,
 				    void *data, struct lock_class_key *lock_key,
@@ -793,7 +787,6 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *gc,
 					    enum gpiod_flags dflags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
-struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
 struct gpio_desc *
 gpio_device_get_desc(struct gpio_device *gdev, unsigned int hwnum);
 

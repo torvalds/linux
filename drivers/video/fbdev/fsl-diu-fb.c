@@ -787,7 +787,7 @@ static void set_fix(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 	struct mfb_info *mfbi = info->par;
 
-	strncpy(fix->id, mfbi->id, sizeof(fix->id));
+	strscpy_pad(fix->id, mfbi->id);
 	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->accel = FB_ACCEL_NONE;
@@ -1876,12 +1876,12 @@ static const struct of_device_id fsl_diu_match[] = {
 MODULE_DEVICE_TABLE(of, fsl_diu_match);
 
 static struct platform_driver fsl_diu_driver = {
-	.driver = {
+	.driver		= {
 		.name = "fsl-diu-fb",
 		.of_match_table = fsl_diu_match,
 	},
-	.probe  	= fsl_diu_probe,
-	.remove_new 	= fsl_diu_remove,
+	.probe		= fsl_diu_probe,
+	.remove		= fsl_diu_remove,
 	.suspend	= fsl_diu_suspend,
 	.resume		= fsl_diu_resume,
 };

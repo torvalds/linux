@@ -91,8 +91,27 @@ struct guest_random_state {
 	uint32_t seed;
 };
 
+extern uint32_t guest_random_seed;
+extern struct guest_random_state guest_rng;
+
 struct guest_random_state new_guest_random_state(uint32_t seed);
 uint32_t guest_random_u32(struct guest_random_state *state);
+
+static inline bool __guest_random_bool(struct guest_random_state *state,
+				       uint8_t percent)
+{
+	return (guest_random_u32(state) % 100) < percent;
+}
+
+static inline bool guest_random_bool(struct guest_random_state *state)
+{
+	return __guest_random_bool(state, 50);
+}
+
+static inline uint64_t guest_random_u64(struct guest_random_state *state)
+{
+	return ((uint64_t)guest_random_u32(state) << 32) | guest_random_u32(state);
+}
 
 enum vm_mem_backing_src_type {
 	VM_MEM_SRC_ANONYMOUS,

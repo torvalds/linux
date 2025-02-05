@@ -139,7 +139,6 @@ struct rzg2l_pll5_mux_dsi_div_param {
  * @num_resets: Number of Module Resets in info->resets[]
  * @last_dt_core_clk: ID of the last Core Clock exported to DT
  * @info: Pointer to platform data
- * @genpd: PM domain
  * @mux_dsi_div_params: pll5 mux and dsi div parameters
  */
 struct rzg2l_cpg_priv {
@@ -155,8 +154,6 @@ struct rzg2l_cpg_priv {
 	unsigned int last_dt_core_clk;
 
 	const struct rzg2l_cpg_info *info;
-
-	struct generic_pm_domain genpd;
 
 	struct rzg2l_pll5_mux_dsi_div_param mux_dsi_div_params;
 };
@@ -342,8 +339,7 @@ static const struct clk_ops rzg3s_div_clk_ops = {
 };
 
 static struct clk * __init
-rzg3s_cpg_div_clk_register(const struct cpg_core_clk *core, struct clk **clks,
-			   void __iomem *base, struct rzg2l_cpg_priv *priv)
+rzg3s_cpg_div_clk_register(const struct cpg_core_clk *core, struct rzg2l_cpg_priv *priv)
 {
 	struct div_hw_data *div_hw_data;
 	struct clk_init_data init = {};
@@ -354,7 +350,7 @@ rzg3s_cpg_div_clk_register(const struct cpg_core_clk *core, struct clk **clks,
 	u32 max = 0;
 	int ret;
 
-	parent = clks[core->parent & 0xffff];
+	parent = priv->clks[core->parent];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -403,16 +399,15 @@ rzg3s_cpg_div_clk_register(const struct cpg_core_clk *core, struct clk **clks,
 
 static struct clk * __init
 rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
-			   struct clk **clks,
-			   void __iomem *base,
 			   struct rzg2l_cpg_priv *priv)
 {
+	void __iomem *base = priv->base;
 	struct device *dev = priv->dev;
 	const struct clk *parent;
 	const char *parent_name;
 	struct clk_hw *clk_hw;
 
-	parent = clks[core->parent & 0xffff];
+	parent = priv->clks[core->parent];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -443,7 +438,6 @@ rzg2l_cpg_div_clk_register(const struct cpg_core_clk *core,
 
 static struct clk * __init
 rzg2l_cpg_mux_clk_register(const struct cpg_core_clk *core,
-			   void __iomem *base,
 			   struct rzg2l_cpg_priv *priv)
 {
 	const struct clk_hw *clk_hw;
@@ -451,7 +445,7 @@ rzg2l_cpg_mux_clk_register(const struct cpg_core_clk *core,
 	clk_hw = devm_clk_hw_register_mux(priv->dev, core->name,
 					  core->parent_names, core->num_parents,
 					  core->flag,
-					  base + GET_REG_OFFSET(core->conf),
+					  priv->base + GET_REG_OFFSET(core->conf),
 					  GET_SHIFT(core->conf),
 					  GET_WIDTH(core->conf),
 					  core->mux_flags, &priv->rmw_lock);
@@ -511,7 +505,6 @@ static const struct clk_ops rzg2l_cpg_sd_clk_mux_ops = {
 
 static struct clk * __init
 rzg2l_cpg_sd_mux_clk_register(const struct cpg_core_clk *core,
-			      void __iomem *base,
 			      struct rzg2l_cpg_priv *priv)
 {
 	struct sd_mux_hw_data *sd_mux_hw_data;
@@ -555,7 +548,7 @@ static unsigned long
 rzg2l_cpg_get_foutpostdiv_rate(struct rzg2l_pll5_param *params,
 			       unsigned long rate)
 {
-	unsigned long foutpostdiv_rate;
+	unsigned long foutpostdiv_rate, foutvco_rate;
 
 	params->pl5_intin = rate / MEGA;
 	params->pl5_fracin = div_u64(((u64)rate % MEGA) << 24, MEGA);
@@ -564,10 +557,11 @@ rzg2l_cpg_get_foutpostdiv_rate(struct rzg2l_pll5_param *params,
 	params->pl5_postdiv2 = 1;
 	params->pl5_spread = 0x16;
 
-	foutpostdiv_rate =
-		EXTAL_FREQ_IN_MEGA_HZ * MEGA / params->pl5_refdiv *
-		((((params->pl5_intin << 24) + params->pl5_fracin)) >> 24) /
-		(params->pl5_postdiv1 * params->pl5_postdiv2);
+	foutvco_rate = div_u64(mul_u32_u32(EXTAL_FREQ_IN_MEGA_HZ * MEGA,
+					   (params->pl5_intin << 24) + params->pl5_fracin),
+			       params->pl5_refdiv) >> 24;
+	foutpostdiv_rate = DIV_ROUND_CLOSEST_ULL(foutvco_rate,
+						 params->pl5_postdiv1 * params->pl5_postdiv2);
 
 	return foutpostdiv_rate;
 }
@@ -655,7 +649,6 @@ static const struct clk_ops rzg2l_cpg_dsi_div_ops = {
 
 static struct clk * __init
 rzg2l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
-			       struct clk **clks,
 			       struct rzg2l_cpg_priv *priv)
 {
 	struct dsi_div_hw_data *clk_hw_data;
@@ -665,7 +658,7 @@ rzg2l_cpg_dsi_div_clk_register(const struct cpg_core_clk *core,
 	struct clk_hw *clk_hw;
 	int ret;
 
-	parent = clks[core->parent & 0xffff];
+	parent = priv->clks[core->parent];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -903,7 +896,6 @@ static const struct clk_ops rzg2l_cpg_sipll5_ops = {
 
 static struct clk * __init
 rzg2l_cpg_sipll5_register(const struct cpg_core_clk *core,
-			  struct clk **clks,
 			  struct rzg2l_cpg_priv *priv)
 {
 	const struct clk *parent;
@@ -913,7 +905,7 @@ rzg2l_cpg_sipll5_register(const struct cpg_core_clk *core,
 	struct clk_hw *clk_hw;
 	int ret;
 
-	parent = clks[core->parent & 0xffff];
+	parent = priv->clks[core->parent];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -1016,8 +1008,6 @@ static const struct clk_ops rzg3s_cpg_pll_ops = {
 
 static struct clk * __init
 rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
-			   struct clk **clks,
-			   void __iomem *base,
 			   struct rzg2l_cpg_priv *priv,
 			   const struct clk_ops *ops)
 {
@@ -1026,8 +1016,9 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 	struct clk_init_data init;
 	const char *parent_name;
 	struct pll_clk *pll_clk;
+	int ret;
 
-	parent = clks[core->parent & 0xffff];
+	parent = priv->clks[core->parent];
 	if (IS_ERR(parent))
 		return ERR_CAST(parent);
 
@@ -1044,11 +1035,15 @@ rzg2l_cpg_pll_clk_register(const struct cpg_core_clk *core,
 
 	pll_clk->hw.init = &init;
 	pll_clk->conf = core->conf;
-	pll_clk->base = base;
+	pll_clk->base = priv->base;
 	pll_clk->priv = priv;
 	pll_clk->type = core->type;
 
-	return clk_register(NULL, &pll_clk->hw);
+	ret = devm_clk_hw_register(dev, &pll_clk->hw);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return pll_clk->hw.clk;
 }
 
 static struct clk
@@ -1105,6 +1100,7 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 	struct device *dev = priv->dev;
 	unsigned int id = core->id, div = core->div;
 	const char *parent_name;
+	struct clk_hw *clk_hw;
 
 	WARN_DEBUG(id >= priv->num_core_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
@@ -1127,39 +1123,40 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 		}
 
 		parent_name = __clk_get_name(parent);
-		clk = clk_register_fixed_factor(NULL, core->name,
-						parent_name, CLK_SET_RATE_PARENT,
-						core->mult, div);
+		clk_hw = devm_clk_hw_register_fixed_factor(dev, core->name, parent_name,
+							   CLK_SET_RATE_PARENT,
+							   core->mult, div);
+		if (IS_ERR(clk_hw))
+			clk = ERR_CAST(clk_hw);
+		else
+			clk = clk_hw->clk;
 		break;
 	case CLK_TYPE_SAM_PLL:
-		clk = rzg2l_cpg_pll_clk_register(core, priv->clks, priv->base, priv,
-						 &rzg2l_cpg_pll_ops);
+		clk = rzg2l_cpg_pll_clk_register(core, priv, &rzg2l_cpg_pll_ops);
 		break;
 	case CLK_TYPE_G3S_PLL:
-		clk = rzg2l_cpg_pll_clk_register(core, priv->clks, priv->base, priv,
-						 &rzg3s_cpg_pll_ops);
+		clk = rzg2l_cpg_pll_clk_register(core, priv, &rzg3s_cpg_pll_ops);
 		break;
 	case CLK_TYPE_SIPLL5:
-		clk = rzg2l_cpg_sipll5_register(core, priv->clks, priv);
+		clk = rzg2l_cpg_sipll5_register(core, priv);
 		break;
 	case CLK_TYPE_DIV:
-		clk = rzg2l_cpg_div_clk_register(core, priv->clks,
-						 priv->base, priv);
+		clk = rzg2l_cpg_div_clk_register(core, priv);
 		break;
 	case CLK_TYPE_G3S_DIV:
-		clk = rzg3s_cpg_div_clk_register(core, priv->clks, priv->base, priv);
+		clk = rzg3s_cpg_div_clk_register(core, priv);
 		break;
 	case CLK_TYPE_MUX:
-		clk = rzg2l_cpg_mux_clk_register(core, priv->base, priv);
+		clk = rzg2l_cpg_mux_clk_register(core, priv);
 		break;
 	case CLK_TYPE_SD_MUX:
-		clk = rzg2l_cpg_sd_mux_clk_register(core, priv->base, priv);
+		clk = rzg2l_cpg_sd_mux_clk_register(core, priv);
 		break;
 	case CLK_TYPE_PLL5_4_MUX:
 		clk = rzg2l_cpg_pll5_4_mux_clk_register(core, priv);
 		break;
 	case CLK_TYPE_DSI_DIV:
-		clk = rzg2l_cpg_dsi_div_clk_register(core, priv->clks, priv);
+		clk = rzg2l_cpg_dsi_div_clk_register(core, priv);
 		break;
 	default:
 		goto fail;
@@ -1340,6 +1337,7 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	struct clk *parent, *clk;
 	const char *parent_name;
 	unsigned int i;
+	int ret;
 
 	WARN_DEBUG(id < priv->num_core_clks);
 	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
@@ -1383,10 +1381,13 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	clock->priv = priv;
 	clock->hw.init = &init;
 
-	clk = clk_register(NULL, &clock->hw);
-	if (IS_ERR(clk))
+	ret = devm_clk_hw_register(dev, &clock->hw);
+	if (ret) {
+		clk = ERR_PTR(ret);
 		goto fail;
+	}
 
+	clk = clock->hw.clk;
 	dev_dbg(dev, "Module clock %pC at %lu Hz\n", clk, clk_get_rate(clk));
 	priv->clks[id] = clk;
 
@@ -1559,9 +1560,34 @@ static bool rzg2l_cpg_is_pm_clk(struct rzg2l_cpg_priv *priv,
 	return true;
 }
 
+/**
+ * struct rzg2l_cpg_pm_domains - RZ/G2L PM domains data structure
+ * @onecell_data: cell data
+ * @domains: generic PM domains
+ */
+struct rzg2l_cpg_pm_domains {
+	struct genpd_onecell_data onecell_data;
+	struct generic_pm_domain *domains[];
+};
+
+/**
+ * struct rzg2l_cpg_pd - RZ/G2L power domain data structure
+ * @genpd: generic PM domain
+ * @priv: pointer to CPG private data structure
+ * @conf: CPG PM domain configuration info
+ * @id: RZ/G2L power domain ID
+ */
+struct rzg2l_cpg_pd {
+	struct generic_pm_domain genpd;
+	struct rzg2l_cpg_priv *priv;
+	struct rzg2l_cpg_pm_domain_conf conf;
+	u16 id;
+};
+
 static int rzg2l_cpg_attach_dev(struct generic_pm_domain *domain, struct device *dev)
 {
-	struct rzg2l_cpg_priv *priv = container_of(domain, struct rzg2l_cpg_priv, genpd);
+	struct rzg2l_cpg_pd *pd = container_of(domain, struct rzg2l_cpg_pd, genpd);
+	struct rzg2l_cpg_priv *priv = pd->priv;
 	struct device_node *np = dev->of_node;
 	struct of_phandle_args clkspec;
 	bool once = true;
@@ -1618,30 +1644,182 @@ static void rzg2l_cpg_detach_dev(struct generic_pm_domain *unused, struct device
 
 static void rzg2l_cpg_genpd_remove(void *data)
 {
+	struct genpd_onecell_data *celldata = data;
+
+	for (unsigned int i = 0; i < celldata->num_domains; i++)
+		pm_genpd_remove(celldata->domains[i]);
+}
+
+static void rzg2l_cpg_genpd_remove_simple(void *data)
+{
 	pm_genpd_remove(data);
+}
+
+static int rzg2l_cpg_power_on(struct generic_pm_domain *domain)
+{
+	struct rzg2l_cpg_pd *pd = container_of(domain, struct rzg2l_cpg_pd, genpd);
+	struct rzg2l_cpg_reg_conf mstop = pd->conf.mstop;
+	struct rzg2l_cpg_priv *priv = pd->priv;
+
+	/* Set MSTOP. */
+	if (mstop.mask)
+		writel(mstop.mask << 16, priv->base + mstop.off);
+
+	return 0;
+}
+
+static int rzg2l_cpg_power_off(struct generic_pm_domain *domain)
+{
+	struct rzg2l_cpg_pd *pd = container_of(domain, struct rzg2l_cpg_pd, genpd);
+	struct rzg2l_cpg_reg_conf mstop = pd->conf.mstop;
+	struct rzg2l_cpg_priv *priv = pd->priv;
+
+	/* Set MSTOP. */
+	if (mstop.mask)
+		writel(mstop.mask | (mstop.mask << 16), priv->base + mstop.off);
+
+	return 0;
+}
+
+static int __init rzg2l_cpg_pd_setup(struct rzg2l_cpg_pd *pd)
+{
+	bool always_on = !!(pd->genpd.flags & GENPD_FLAG_ALWAYS_ON);
+	struct dev_power_governor *governor;
+	int ret;
+
+	if (always_on)
+		governor = &pm_domain_always_on_gov;
+	else
+		governor = &simple_qos_governor;
+
+	pd->genpd.flags |= GENPD_FLAG_PM_CLK | GENPD_FLAG_ACTIVE_WAKEUP;
+	pd->genpd.attach_dev = rzg2l_cpg_attach_dev;
+	pd->genpd.detach_dev = rzg2l_cpg_detach_dev;
+	pd->genpd.power_on = rzg2l_cpg_power_on;
+	pd->genpd.power_off = rzg2l_cpg_power_off;
+
+	ret = pm_genpd_init(&pd->genpd, governor, !always_on);
+	if (ret)
+		return ret;
+
+	if (always_on)
+		ret = rzg2l_cpg_power_on(&pd->genpd);
+
+	return ret;
 }
 
 static int __init rzg2l_cpg_add_clk_domain(struct rzg2l_cpg_priv *priv)
 {
 	struct device *dev = priv->dev;
 	struct device_node *np = dev->of_node;
-	struct generic_pm_domain *genpd = &priv->genpd;
+	struct rzg2l_cpg_pd *pd;
 	int ret;
 
-	genpd->name = np->name;
-	genpd->flags = GENPD_FLAG_PM_CLK | GENPD_FLAG_ALWAYS_ON |
-		       GENPD_FLAG_ACTIVE_WAKEUP;
-	genpd->attach_dev = rzg2l_cpg_attach_dev;
-	genpd->detach_dev = rzg2l_cpg_detach_dev;
-	ret = pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd)
+		return -ENOMEM;
+
+	pd->genpd.name = np->name;
+	pd->genpd.flags = GENPD_FLAG_ALWAYS_ON;
+	pd->priv = priv;
+	ret = rzg2l_cpg_pd_setup(pd);
 	if (ret)
 		return ret;
 
-	ret = devm_add_action_or_reset(dev, rzg2l_cpg_genpd_remove, genpd);
+	ret = devm_add_action_or_reset(dev, rzg2l_cpg_genpd_remove_simple, &pd->genpd);
 	if (ret)
 		return ret;
 
-	return of_genpd_add_provider_simple(np, genpd);
+	return of_genpd_add_provider_simple(np, &pd->genpd);
+}
+
+static struct generic_pm_domain *
+rzg2l_cpg_pm_domain_xlate(const struct of_phandle_args *spec, void *data)
+{
+	struct generic_pm_domain *domain = ERR_PTR(-ENOENT);
+	struct genpd_onecell_data *genpd = data;
+
+	if (spec->args_count != 1)
+		return ERR_PTR(-EINVAL);
+
+	for (unsigned int i = 0; i < genpd->num_domains; i++) {
+		struct rzg2l_cpg_pd *pd = container_of(genpd->domains[i], struct rzg2l_cpg_pd,
+						       genpd);
+
+		if (pd->id == spec->args[0]) {
+			domain = &pd->genpd;
+			break;
+		}
+	}
+
+	return domain;
+}
+
+static int __init rzg2l_cpg_add_pm_domains(struct rzg2l_cpg_priv *priv)
+{
+	const struct rzg2l_cpg_info *info = priv->info;
+	struct device *dev = priv->dev;
+	struct device_node *np = dev->of_node;
+	struct rzg2l_cpg_pm_domains *domains;
+	struct generic_pm_domain *parent;
+	u32 ncells;
+	int ret;
+
+	ret = of_property_read_u32(np, "#power-domain-cells", &ncells);
+	if (ret)
+		return ret;
+
+	/* For backward compatibility. */
+	if (!ncells)
+		return rzg2l_cpg_add_clk_domain(priv);
+
+	domains = devm_kzalloc(dev, struct_size(domains, domains, info->num_pm_domains),
+			       GFP_KERNEL);
+	if (!domains)
+		return -ENOMEM;
+
+	domains->onecell_data.domains = domains->domains;
+	domains->onecell_data.num_domains = info->num_pm_domains;
+	domains->onecell_data.xlate = rzg2l_cpg_pm_domain_xlate;
+
+	ret = devm_add_action_or_reset(dev, rzg2l_cpg_genpd_remove, &domains->onecell_data);
+	if (ret)
+		return ret;
+
+	for (unsigned int i = 0; i < info->num_pm_domains; i++) {
+		struct rzg2l_cpg_pd *pd;
+
+		pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+		if (!pd)
+			return -ENOMEM;
+
+		pd->genpd.name = info->pm_domains[i].name;
+		pd->genpd.flags = info->pm_domains[i].genpd_flags;
+		pd->conf = info->pm_domains[i].conf;
+		pd->id = info->pm_domains[i].id;
+		pd->priv = priv;
+
+		ret = rzg2l_cpg_pd_setup(pd);
+		if (ret)
+			return ret;
+
+		domains->domains[i] = &pd->genpd;
+		/* Parent should be on the very first entry of info->pm_domains[]. */
+		if (!i) {
+			parent = &pd->genpd;
+			continue;
+		}
+
+		ret = pm_genpd_add_subdomain(parent, &pd->genpd);
+		if (ret)
+			return ret;
+	}
+
+	ret = of_genpd_add_provider_onecell(np, &domains->onecell_data);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int __init rzg2l_cpg_probe(struct platform_device *pdev)
@@ -1697,7 +1875,7 @@ static int __init rzg2l_cpg_probe(struct platform_device *pdev)
 	if (error)
 		return error;
 
-	error = rzg2l_cpg_add_clk_domain(priv);
+	error = rzg2l_cpg_add_pm_domains(priv);
 	if (error)
 		return error;
 

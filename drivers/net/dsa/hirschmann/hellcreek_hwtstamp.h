@@ -48,7 +48,7 @@ void hellcreek_port_txtstamp(struct dsa_switch *ds, int port,
 			     struct sk_buff *skb);
 
 int hellcreek_get_ts_info(struct dsa_switch *ds, int port,
-			  struct ethtool_ts_info *info);
+			  struct kernel_ethtool_ts_info *info);
 
 long hellcreek_hwtstamp_work(struct ptp_clock_info *ptp);
 

@@ -99,13 +99,10 @@ static int cdns_pcie_ep_set_bar(struct pci_epc *epc, u8 fn, u8 vfn,
 		ctrl = CDNS_PCIE_LM_BAR_CFG_CTRL_IO_32BITS;
 	} else {
 		bool is_prefetch = !!(flags & PCI_BASE_ADDRESS_MEM_PREFETCH);
-		bool is_64bits = sz > SZ_2G;
+		bool is_64bits = !!(flags & PCI_BASE_ADDRESS_MEM_TYPE_64);
 
 		if (is_64bits && (bar & 1))
 			return -EINVAL;
-
-		if (is_64bits && !(flags & PCI_BASE_ADDRESS_MEM_TYPE_64))
-			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 
 		if (is_64bits && is_prefetch)
 			ctrl = CDNS_PCIE_LM_BAR_CFG_CTRL_PREFETCH_MEM_64BITS;
@@ -745,6 +742,8 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 		cdns_pcie_detect_quiet_min_delay_set(&ep->pcie);
 
 	spin_lock_init(&ep->lock);
+
+	pci_epc_init_notify(epc);
 
 	return 0;
 

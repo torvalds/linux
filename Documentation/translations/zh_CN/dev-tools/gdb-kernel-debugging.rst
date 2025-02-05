@@ -34,6 +34,10 @@ Kgdb内核调试器、QEMU等虚拟机管理程序或基于JTAG的硬件接口�
   但这通常仅在不依赖内核模块时才有效。有关此模式的更多详细信息，请参阅QEMU文档。
   在这种情况下，如果架构支持KASLR，应该在禁用CONFIG_RANDOMIZE_BASE的情况下构建内核。
 
+- 构建gdb脚本（适用于内核v5.1版本及以上）
+
+    make scripts_gdb
+
 - 启用QEMU/KVM的gdb stub，可以通过如下方式实现
 
     - 在VM启动时，通过在QEMU命令行中添加“-s”参数

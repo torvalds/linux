@@ -353,7 +353,7 @@ static uint32_t calculate_required_audio_bw_in_symbols(
 	/* DP spec recommends between 1.05 to 1.1 safety margin to prevent sample under-run */
 	struct fixed31_32 audio_sdp_margin = dc_fixpt_from_fraction(110, 100);
 	struct fixed31_32 horizontal_line_freq_khz = dc_fixpt_from_fraction(
-			crtc_info->requested_pixel_clock_100Hz, crtc_info->h_total * 10);
+			crtc_info->requested_pixel_clock_100Hz, (long long)crtc_info->h_total * 10);
 	struct fixed31_32 samples_per_line;
 	struct fixed31_32 layouts_per_line;
 	struct fixed31_32 symbols_per_sdp_max_layout;
@@ -455,7 +455,8 @@ static uint32_t calculate_available_hblank_bw_in_symbols(
 	available_hblank_bw -= crtc_info->dsc_num_slices * 4; /* EOC overhead */
 
 	if (available_hblank_bw < dp_link_info->hblank_min_symbol_width)
-		available_hblank_bw = dp_link_info->hblank_min_symbol_width;
+		/* Each symbol takes 4 frames */
+		available_hblank_bw = 4 * dp_link_info->hblank_min_symbol_width;
 
 	if (available_hblank_bw < 12)
 		available_hblank_bw = 0;
@@ -627,6 +628,11 @@ void dce_aud_az_enable(struct audio *audio)
 
 	DC_LOG_HW_AUDIO("\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
 			audio->inst, value);
+}
+
+void dce_aud_az_disable_hbr_audio(struct audio *audio)
+{
+	set_high_bit_rate_capable(audio, false);
 }
 
 void dce_aud_az_disable(struct audio *audio)
@@ -1292,6 +1298,7 @@ static const struct audio_funcs funcs = {
 	.az_enable = dce_aud_az_enable,
 	.az_disable = dce_aud_az_disable,
 	.az_configure = dce_aud_az_configure,
+	.az_disable_hbr_audio = dce_aud_az_disable_hbr_audio,
 	.destroy = dce_aud_destroy,
 };
 

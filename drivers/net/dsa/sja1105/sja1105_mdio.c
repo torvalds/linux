@@ -400,7 +400,7 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 	}
 
 	for (port = 0; port < ds->num_ports; port++) {
-		struct dw_xpcs *xpcs;
+		struct phylink_pcs *pcs;
 
 		if (dsa_is_unused_port(ds, port))
 			continue;
@@ -409,13 +409,13 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 		    priv->phy_mode[port] != PHY_INTERFACE_MODE_2500BASEX)
 			continue;
 
-		xpcs = xpcs_create_mdiodev(bus, port, priv->phy_mode[port]);
-		if (IS_ERR(xpcs)) {
-			rc = PTR_ERR(xpcs);
+		pcs = xpcs_create_pcs_mdiodev(bus, port);
+		if (IS_ERR(pcs)) {
+			rc = PTR_ERR(pcs);
 			goto out_pcs_free;
 		}
 
-		priv->xpcs[port] = xpcs;
+		priv->pcs[port] = pcs;
 	}
 
 	priv->mdio_pcs = bus;
@@ -424,11 +424,10 @@ static int sja1105_mdiobus_pcs_register(struct sja1105_private *priv)
 
 out_pcs_free:
 	for (port = 0; port < ds->num_ports; port++) {
-		if (!priv->xpcs[port])
-			continue;
-
-		xpcs_destroy(priv->xpcs[port]);
-		priv->xpcs[port] = NULL;
+		if (priv->pcs[port]) {
+			xpcs_destroy_pcs(priv->pcs[port]);
+			priv->pcs[port] = NULL;
+		}
 	}
 
 	mdiobus_unregister(bus);
@@ -446,11 +445,10 @@ static void sja1105_mdiobus_pcs_unregister(struct sja1105_private *priv)
 		return;
 
 	for (port = 0; port < ds->num_ports; port++) {
-		if (!priv->xpcs[port])
-			continue;
-
-		xpcs_destroy(priv->xpcs[port]);
-		priv->xpcs[port] = NULL;
+		if (priv->pcs[port]) {
+			xpcs_destroy_pcs(priv->pcs[port]);
+			priv->pcs[port] = NULL;
+		}
 	}
 
 	mdiobus_unregister(priv->mdio_pcs);

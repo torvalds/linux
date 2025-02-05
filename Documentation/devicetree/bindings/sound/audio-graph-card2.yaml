@@ -23,6 +23,11 @@ properties:
       Each entry is a pair of strings, the first being the
       connection's sink, the second being the connection's source.
     $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+  aux-devs:
+    description: |
+      List of phandles pointing to auxiliary devices, such
+      as amplifiers, to be added to the sound card.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
   multi:
     type: object
     description: Multi-CPU/Codec node

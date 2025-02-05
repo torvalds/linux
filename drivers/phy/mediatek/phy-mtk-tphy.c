@@ -381,17 +381,12 @@ static const char *const u3_phy_files[] = {
 static int u2_phy_params_show(struct seq_file *sf, void *unused)
 {
 	struct mtk_phy_instance *inst = sf->private;
-	const char *fname = file_dentry(sf->file)->d_iname;
 	struct u2phy_banks *u2_banks = &inst->u2_banks;
 	void __iomem *com = u2_banks->com;
 	u32 max = 0;
 	u32 tmp = 0;
 	u32 val = 0;
-	int ret;
-
-	ret = match_string(u2_phy_files, ARRAY_SIZE(u2_phy_files), fname);
-	if (ret < 0)
-		return ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	switch (ret) {
 	case U2P_EYE_VRT:
@@ -438,7 +433,7 @@ static int u2_phy_params_show(struct seq_file *sf, void *unused)
 		break;
 	}
 
-	seq_printf(sf, "%s : %d [0, %d]\n", fname, val, max);
+	seq_printf(sf, "%s : %d [0, %d]\n", u2_phy_files[ret], val, max);
 
 	return 0;
 }
@@ -451,22 +446,17 @@ static int u2_phy_params_open(struct inode *inode, struct file *file)
 static ssize_t u2_phy_params_write(struct file *file, const char __user *ubuf,
 				   size_t count, loff_t *ppos)
 {
-	const char *fname = file_dentry(file)->d_iname;
 	struct seq_file *sf = file->private_data;
 	struct mtk_phy_instance *inst = sf->private;
 	struct u2phy_banks *u2_banks = &inst->u2_banks;
 	void __iomem *com = u2_banks->com;
 	ssize_t rc;
 	u32 val;
-	int ret;
+	int ret = debugfs_get_aux_num(file);
 
 	rc = kstrtouint_from_user(ubuf, USER_BUF_LEN(count), 0, &val);
 	if (rc)
 		return rc;
-
-	ret = match_string(u2_phy_files, ARRAY_SIZE(u2_phy_files), fname);
-	if (ret < 0)
-		return (ssize_t)ret;
 
 	switch (ret) {
 	case U2P_EYE_VRT:
@@ -516,23 +506,18 @@ static void u2_phy_dbgfs_files_create(struct mtk_phy_instance *inst)
 	int i;
 
 	for (i = 0; i < count; i++)
-		debugfs_create_file(u2_phy_files[i], 0644, inst->phy->debugfs,
-				    inst, &u2_phy_fops);
+		debugfs_create_file_aux_num(u2_phy_files[i], 0644, inst->phy->debugfs,
+				    inst, i,  &u2_phy_fops);
 }
 
 static int u3_phy_params_show(struct seq_file *sf, void *unused)
 {
 	struct mtk_phy_instance *inst = sf->private;
-	const char *fname = file_dentry(sf->file)->d_iname;
 	struct u3phy_banks *u3_banks = &inst->u3_banks;
 	u32 val = 0;
 	u32 max = 0;
 	u32 tmp;
-	int ret;
-
-	ret = match_string(u3_phy_files, ARRAY_SIZE(u3_phy_files), fname);
-	if (ret < 0)
-		return ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	switch (ret) {
 	case U3P_EFUSE_EN:
@@ -564,7 +549,7 @@ static int u3_phy_params_show(struct seq_file *sf, void *unused)
 		break;
 	}
 
-	seq_printf(sf, "%s : %d [0, %d]\n", fname, val, max);
+	seq_printf(sf, "%s : %d [0, %d]\n", u3_phy_files[ret], val, max);
 
 	return 0;
 }
@@ -577,22 +562,17 @@ static int u3_phy_params_open(struct inode *inode, struct file *file)
 static ssize_t u3_phy_params_write(struct file *file, const char __user *ubuf,
 				   size_t count, loff_t *ppos)
 {
-	const char *fname = file_dentry(file)->d_iname;
 	struct seq_file *sf = file->private_data;
 	struct mtk_phy_instance *inst = sf->private;
 	struct u3phy_banks *u3_banks = &inst->u3_banks;
 	void __iomem *phyd = u3_banks->phyd;
 	ssize_t rc;
 	u32 val;
-	int ret;
+	int ret = debugfs_get_aux_num(sf->file);
 
 	rc = kstrtouint_from_user(ubuf, USER_BUF_LEN(count), 0, &val);
 	if (rc)
 		return rc;
-
-	ret = match_string(u3_phy_files, ARRAY_SIZE(u3_phy_files), fname);
-	if (ret < 0)
-		return (ssize_t)ret;
 
 	switch (ret) {
 	case U3P_EFUSE_EN:
@@ -636,8 +616,8 @@ static void u3_phy_dbgfs_files_create(struct mtk_phy_instance *inst)
 	int i;
 
 	for (i = 0; i < count; i++)
-		debugfs_create_file(u3_phy_files[i], 0644, inst->phy->debugfs,
-				    inst, &u3_phy_fops);
+		debugfs_create_file_aux_num(u3_phy_files[i], 0644, inst->phy->debugfs,
+				    inst, i, &u3_phy_fops);
 }
 
 static int phy_type_show(struct seq_file *sf, void *unused)
@@ -1577,12 +1557,11 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct device_node *child_np;
 	struct phy_provider *provider;
 	struct resource *sif_res;
 	struct mtk_tphy *tphy;
 	struct resource res;
-	int port, retval;
+	int port;
 
 	tphy = devm_kzalloc(dev, sizeof(*tphy), GFP_KERNEL);
 	if (!tphy)
@@ -1623,25 +1602,23 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	}
 
 	port = 0;
-	for_each_child_of_node(np, child_np) {
+	for_each_child_of_node_scoped(np, child_np) {
 		struct mtk_phy_instance *instance;
 		struct clk_bulk_data *clks;
 		struct device *subdev;
 		struct phy *phy;
+		int retval;
 
 		instance = devm_kzalloc(dev, sizeof(*instance), GFP_KERNEL);
-		if (!instance) {
-			retval = -ENOMEM;
-			goto put_child;
-		}
+		if (!instance)
+			return -ENOMEM;
 
 		tphy->phys[port] = instance;
 
 		phy = devm_phy_create(dev, child_np, &mtk_tphy_ops);
 		if (IS_ERR(phy)) {
 			dev_err(dev, "failed to create phy\n");
-			retval = PTR_ERR(phy);
-			goto put_child;
+			return PTR_ERR(phy);
 		}
 
 		subdev = &phy->dev;
@@ -1649,14 +1626,12 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		if (retval) {
 			dev_err(subdev, "failed to get address resource(id-%d)\n",
 				port);
-			goto put_child;
+			return retval;
 		}
 
 		instance->port_base = devm_ioremap_resource(subdev, &res);
-		if (IS_ERR(instance->port_base)) {
-			retval = PTR_ERR(instance->port_base);
-			goto put_child;
-		}
+		if (IS_ERR(instance->port_base))
+			return PTR_ERR(instance->port_base);
 
 		instance->phy = phy;
 		instance->index = port;
@@ -1668,19 +1643,16 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 		clks[1].id = "da_ref";  /* analog clock */
 		retval = devm_clk_bulk_get_optional(subdev, TPHY_CLKS_CNT, clks);
 		if (retval)
-			goto put_child;
+			return retval;
 
 		retval = phy_type_syscon_get(instance, child_np);
 		if (retval)
-			goto put_child;
+			return retval;
 	}
 
 	provider = devm_of_phy_provider_register(dev, mtk_phy_xlate);
 
 	return PTR_ERR_OR_ZERO(provider);
-put_child:
-	of_node_put(child_np);
-	return retval;
 }
 
 static struct platform_driver mtk_tphy_driver = {

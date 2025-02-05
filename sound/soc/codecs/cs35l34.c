@@ -562,26 +562,6 @@ static int cs35l34_pcm_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static const unsigned int cs35l34_src_rates[] = {
-	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
-};
-
-
-static const struct snd_pcm_hw_constraint_list cs35l34_constraints = {
-	.count  = ARRAY_SIZE(cs35l34_src_rates),
-	.list   = cs35l34_src_rates,
-};
-
-static int cs35l34_pcm_startup(struct snd_pcm_substream *substream,
-			       struct snd_soc_dai *dai)
-{
-
-	snd_pcm_hw_constraint_list(substream->runtime, 0,
-				SNDRV_PCM_HW_PARAM_RATE, &cs35l34_constraints);
-	return 0;
-}
-
-
 static int cs35l34_set_tristate(struct snd_soc_dai *dai, int tristate)
 {
 
@@ -639,7 +619,6 @@ static int cs35l34_dai_set_sysclk(struct snd_soc_dai *dai,
 }
 
 static const struct snd_soc_dai_ops cs35l34_ops = {
-	.startup = cs35l34_pcm_startup,
 	.set_tristate = cs35l34_set_tristate,
 	.set_fmt = cs35l34_set_dai_fmt,
 	.hw_params = cs35l34_pcm_hw_params,
@@ -787,7 +766,7 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l34 = {
 	.endianness		= 1,
 };
 
-static struct regmap_config cs35l34_regmap = {
+static const struct regmap_config cs35l34_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 
@@ -1198,7 +1177,7 @@ static const struct of_device_id cs35l34_of_match[] = {
 MODULE_DEVICE_TABLE(of, cs35l34_of_match);
 
 static const struct i2c_device_id cs35l34_id[] = {
-	{"cs35l34", 0},
+	{"cs35l34"},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, cs35l34_id);

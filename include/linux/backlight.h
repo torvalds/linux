@@ -13,6 +13,7 @@
 #include <linux/fb.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/types.h>
 
 /**
  * enum backlight_update_reason - what method was used to update backlight
@@ -65,24 +66,6 @@ enum backlight_type {
 	BACKLIGHT_TYPE_MAX,
 };
 
-/**
- * enum backlight_notification - the type of notification
- *
- * The notifications that is used for notification sent to the receiver
- * that registered notifications using backlight_register_notifier().
- */
-enum backlight_notification {
-	/**
-	 * @BACKLIGHT_REGISTERED: The backlight device is registered.
-	 */
-	BACKLIGHT_REGISTERED,
-
-	/**
-	 * @BACKLIGHT_UNREGISTERED: The backlight revice is unregistered.
-	 */
-	BACKLIGHT_UNREGISTERED,
-};
-
 /** enum backlight_scale - the type of scale used for brightness values
  *
  * The type of scale used for brightness values.
@@ -110,7 +93,6 @@ enum backlight_scale {
 };
 
 struct backlight_device;
-struct fb_info;
 
 /**
  * struct backlight_ops - backlight operations
@@ -160,18 +142,18 @@ struct backlight_ops {
 	int (*get_brightness)(struct backlight_device *);
 
 	/**
-	 * @check_fb: Check the framebuffer device.
+	 * @controls_device: Check against the display device
 	 *
-	 * Check if given framebuffer device is the one bound to this backlight.
-	 * This operation is optional and if not implemented it is assumed that the
-	 * fbdev is always the one bound to the backlight.
+	 * Check if the backlight controls the given display device. This
+	 * operation is optional and if not implemented it is assumed that
+	 * the display is always the one controlled by the backlight.
 	 *
 	 * RETURNS:
 	 *
-	 * If info is NULL or the info matches the fbdev bound to the backlight return true.
-	 * If info does not match the fbdev bound to the backlight return false.
+	 * If display_dev is NULL or display_dev matches the device controlled by
+	 * the backlight, return true. Otherwise return false.
 	 */
-	int (*check_fb)(struct backlight_device *bd, struct fb_info *info);
+	bool (*controls_device)(struct backlight_device *bd, struct device *display_dev);
 };
 
 /**
@@ -209,33 +191,18 @@ struct backlight_properties {
 	 * attribute: /sys/class/backlight/<backlight>/bl_power
 	 * When the power property is updated update_status() is called.
 	 *
-	 * The possible values are: (0: full on, 1 to 3: power saving
-	 * modes; 4: full off), see FB_BLANK_XXX.
+	 * The possible values are: (0: full on, 4: full off), see
+	 * BACKLIGHT_POWER constants.
 	 *
-	 * When the backlight device is enabled @power is set
-	 * to FB_BLANK_UNBLANK. When the backlight device is disabled
-	 * @power is set to FB_BLANK_POWERDOWN.
+	 * When the backlight device is enabled, @power is set to
+	 * BACKLIGHT_POWER_ON. When the backlight device is disabled,
+	 * @power is set to BACKLIGHT_POWER_OFF.
 	 */
 	int power;
 
-	/**
-	 * @fb_blank: The power state from the FBIOBLANK ioctl.
-	 *
-	 * When the FBIOBLANK ioctl is called @fb_blank is set to the
-	 * blank parameter and the update_status() operation is called.
-	 *
-	 * When the backlight device is enabled @fb_blank is set
-	 * to FB_BLANK_UNBLANK. When the backlight device is disabled
-	 * @fb_blank is set to FB_BLANK_POWERDOWN.
-	 *
-	 * Backlight drivers should avoid using this property. It has been
-	 * replaced by state & BL_CORE_FBLANK (although most drivers should
-	 * use backlight_is_blank() as the preferred means to get the blank
-	 * state).
-	 *
-	 * fb_blank is deprecated and will be removed.
-	 */
-	int fb_blank;
+#define BACKLIGHT_POWER_ON		(0)
+#define BACKLIGHT_POWER_OFF		(4)
+#define BACKLIGHT_POWER_REDUCED		(1) // deprecated; don't use in new code
 
 	/**
 	 * @type: The type of backlight supported.
@@ -365,8 +332,7 @@ static inline int backlight_enable(struct backlight_device *bd)
 	if (!bd)
 		return 0;
 
-	bd->props.power = FB_BLANK_UNBLANK;
-	bd->props.fb_blank = FB_BLANK_UNBLANK;
+	bd->props.power = BACKLIGHT_POWER_ON;
 	bd->props.state &= ~BL_CORE_FBBLANK;
 
 	return backlight_update_status(bd);
@@ -381,8 +347,7 @@ static inline int backlight_disable(struct backlight_device *bd)
 	if (!bd)
 		return 0;
 
-	bd->props.power = FB_BLANK_POWERDOWN;
-	bd->props.fb_blank = FB_BLANK_POWERDOWN;
+	bd->props.power = BACKLIGHT_POWER_OFF;
 	bd->props.state |= BL_CORE_FBBLANK;
 
 	return backlight_update_status(bd);
@@ -395,15 +360,13 @@ static inline int backlight_disable(struct backlight_device *bd)
  * Display is expected to be blank if any of these is true::
  *
  *   1) if power in not UNBLANK
- *   2) if fb_blank is not UNBLANK
- *   3) if state indicate BLANK or SUSPENDED
+ *   2) if state indicate BLANK or SUSPENDED
  *
  * Returns true if display is expected to be blank, false otherwise.
  */
 static inline bool backlight_is_blank(const struct backlight_device *bd)
 {
-	return bd->props.power != FB_BLANK_UNBLANK ||
-	       bd->props.fb_blank != FB_BLANK_UNBLANK ||
+	return bd->props.power != BACKLIGHT_POWER_ON ||
 	       bd->props.state & (BL_CORE_SUSPENDED | BL_CORE_FBBLANK);
 }
 
@@ -440,8 +403,6 @@ void devm_backlight_device_unregister(struct device *dev,
 				      struct backlight_device *bd);
 void backlight_force_update(struct backlight_device *bd,
 			    enum backlight_update_reason reason);
-int backlight_register_notifier(struct notifier_block *nb);
-int backlight_unregister_notifier(struct notifier_block *nb);
 struct backlight_device *backlight_device_get_by_name(const char *name);
 struct backlight_device *backlight_device_get_by_type(enum backlight_type type);
 int backlight_device_set_brightness(struct backlight_device *bd,

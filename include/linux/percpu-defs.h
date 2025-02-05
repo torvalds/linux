@@ -220,15 +220,17 @@ do {									\
 	(void)__vpp_verify;						\
 } while (0)
 
+#define PERCPU_PTR(__p)							\
+	(typeof(*(__p)) __force __kernel *)((__force unsigned long)(__p))
+
 #ifdef CONFIG_SMP
 
 /*
- * Add an offset to a pointer but keep the pointer as-is.  Use RELOC_HIDE()
- * to prevent the compiler from making incorrect assumptions about the
- * pointer value.  The weird cast keeps both GCC and sparse happy.
+ * Add an offset to a pointer.  Use RELOC_HIDE() to prevent the compiler
+ * from making incorrect assumptions about the pointer value.
  */
 #define SHIFT_PERCPU_PTR(__p, __offset)					\
-	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
+	RELOC_HIDE(PERCPU_PTR(__p), (__offset))
 
 #define per_cpu_ptr(ptr, cpu)						\
 ({									\
@@ -254,13 +256,13 @@ do {									\
 
 #else	/* CONFIG_SMP */
 
-#define VERIFY_PERCPU_PTR(__p)						\
+#define per_cpu_ptr(ptr, cpu)						\
 ({									\
-	__verify_pcpu_ptr(__p);						\
-	(typeof(*(__p)) __kernel __force *)(__p);			\
+	(void)(cpu);							\
+	__verify_pcpu_ptr(ptr);						\
+	PERCPU_PTR(ptr);						\
 })
 
-#define per_cpu_ptr(ptr, cpu)	({ (void)(cpu); VERIFY_PERCPU_PTR(ptr); })
 #define raw_cpu_ptr(ptr)	per_cpu_ptr(ptr, 0)
 #define this_cpu_ptr(ptr)	raw_cpu_ptr(ptr)
 
@@ -473,6 +475,12 @@ do {									\
 ({									\
 	__this_cpu_preempt_check("cmpxchg");				\
 	raw_cpu_cmpxchg(pcp, oval, nval);				\
+})
+
+#define __this_cpu_try_cmpxchg(pcp, ovalp, nval)			\
+({									\
+	__this_cpu_preempt_check("try_cmpxchg");			\
+	raw_cpu_try_cmpxchg(pcp, ovalp, nval);				\
 })
 
 #define __this_cpu_sub(pcp, val)	__this_cpu_add(pcp, -(typeof(pcp))(val))

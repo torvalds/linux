@@ -110,7 +110,7 @@ static struct platform_driver adv_swbutton_driver = {
 		.acpi_match_table = button_device_ids,
 	},
 	.probe = adv_swbutton_probe,
-	.remove_new = adv_swbutton_remove,
+	.remove = adv_swbutton_remove,
 };
 module_platform_driver(adv_swbutton_driver);
 

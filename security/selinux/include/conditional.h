@@ -16,7 +16,7 @@
 int security_get_bools(struct selinux_policy *policy, u32 *len, char ***names,
 		       int **values);
 
-int security_set_bools(u32 len, int *values);
+int security_set_bools(u32 len, const int *values);
 
 int security_get_bool_value(u32 index);
 

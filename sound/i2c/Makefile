@@ -4,9 +4,9 @@
 # Copyright (c) 2001 by Jaroslav Kysela <perex@perex.cz>
 #
 
-snd-i2c-objs := i2c.o
-snd-cs8427-objs := cs8427.o
-snd-tea6330t-objs := tea6330t.o
+snd-i2c-y := i2c.o
+snd-cs8427-y := cs8427.o
+snd-tea6330t-y := tea6330t.o
 
 obj-$(CONFIG_SND) += other/
 

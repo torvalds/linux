@@ -146,8 +146,6 @@ static void tipc_data_ready(struct sock *sk);
 static void tipc_write_space(struct sock *sk);
 static void tipc_sock_destruct(struct sock *sk);
 static int tipc_release(struct socket *sock);
-static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
-		       bool kern);
 static void tipc_sk_timeout(struct timer_list *t);
 static int tipc_sk_publish(struct tipc_sock *tsk, struct tipc_uaddr *ua);
 static int tipc_sk_withdraw(struct tipc_sock *tsk, struct tipc_uaddr *ua);
@@ -659,7 +657,7 @@ static int tipc_release(struct socket *sock)
 }
 
 /**
- * __tipc_bind - associate or disassocate TIPC name(s) with a socket
+ * __tipc_bind - associate or disassociate TIPC name(s) with a socket
  * @sock: socket structure
  * @skaddr: socket address describing name(s) and desired operation
  * @alen: size of socket address data structure
@@ -1011,12 +1009,11 @@ static int tipc_send_group_anycast(struct socket *sock, struct msghdr *m,
 	struct tipc_member *mbr = NULL;
 	struct net *net = sock_net(sk);
 	u32 node, port, exclude;
-	struct list_head dsts;
+	LIST_HEAD(dsts);
 	int lookups = 0;
 	int dstcnt, rc;
 	bool cong;
 
-	INIT_LIST_HEAD(&dsts);
 	ua->sa.type = msg_nametype(hdr);
 	ua->scope = msg_lookup_scope(hdr);
 
@@ -1163,10 +1160,9 @@ static int tipc_send_group_mcast(struct socket *sock, struct msghdr *m,
 	struct tipc_group *grp = tsk->group;
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct net *net = sock_net(sk);
-	struct list_head dsts;
 	u32 dstcnt, exclude;
+	LIST_HEAD(dsts);
 
-	INIT_LIST_HEAD(&dsts);
 	ua->sa.type = msg_nametype(hdr);
 	ua->scope = msg_lookup_scope(hdr);
 	exclude = tipc_group_exclude(grp);
@@ -2711,13 +2707,12 @@ static int tipc_wait_for_accept(struct socket *sock, long timeo)
  * tipc_accept - wait for connection request
  * @sock: listening socket
  * @new_sock: new socket that is to be connected
- * @flags: file-related flags associated with socket
- * @kern: caused by kernel or by userspace?
+ * @arg: arguments for accept
  *
  * Return: 0 on success, errno otherwise
  */
-static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
-		       bool kern)
+static int tipc_accept(struct socket *sock, struct socket *new_sock,
+		       struct proto_accept_arg *arg)
 {
 	struct sock *new_sk, *sk = sock->sk;
 	struct tipc_sock *new_tsock;
@@ -2733,14 +2728,14 @@ static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags,
 		res = -EINVAL;
 		goto exit;
 	}
-	timeo = sock_rcvtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_rcvtimeo(sk, arg->flags & O_NONBLOCK);
 	res = tipc_wait_for_accept(sock, timeo);
 	if (res)
 		goto exit;
 
 	buf = skb_peek(&sk->sk_receive_queue);
 
-	res = tipc_sk_create(sock_net(sock->sk), new_sock, 0, kern);
+	res = tipc_sk_create(sock_net(sock->sk), new_sock, 0, arg->kern);
 	if (res)
 		goto exit;
 	security_sk_clone(sock->sk, new_sock->sk);
@@ -3565,11 +3560,8 @@ int tipc_nl_sk_walk(struct sk_buff *skb, struct netlink_callback *cb,
 	rhashtable_walk_start(iter);
 	while ((tsk = rhashtable_walk_next(iter)) != NULL) {
 		if (IS_ERR(tsk)) {
-			err = PTR_ERR(tsk);
-			if (err == -EAGAIN) {
-				err = 0;
+			if (PTR_ERR(tsk) == -EAGAIN)
 				continue;
-			}
 			break;
 		}
 

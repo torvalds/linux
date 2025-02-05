@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt)				"bcmasp_ethtool: " fmt
 
-#include <asm-generic/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
@@ -101,14 +101,14 @@ static int bcmasp_get_sset_count(struct net_device *dev, int string_set)
 static void bcmasp_get_strings(struct net_device *dev, u32 stringset,
 			       u8 *data)
 {
+	const char *str;
 	unsigned int i;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		for (i = 0; i < BCMASP_STATS_LEN; i++) {
-			memcpy(data + i * ETH_GSTRING_LEN,
-			       bcmasp_gstrings_stats[i].stat_string,
-			       ETH_GSTRING_LEN);
+			str = bcmasp_gstrings_stats[i].stat_string;
+			ethtool_puts(&data, str);
 		}
 		break;
 	default:
@@ -348,57 +348,18 @@ static int bcmasp_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	return err;
 }
 
-void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable)
-{
-	u32 reg;
-
-	reg = umac_rl(intf, UMC_EEE_CTRL);
-	if (enable)
-		reg |= EEE_EN;
-	else
-		reg &= ~EEE_EN;
-	umac_wl(intf, reg, UMC_EEE_CTRL);
-
-	intf->eee.eee_enabled = enable;
-}
-
 static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
-	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_keee *p = &intf->eee;
-
 	if (!dev->phydev)
 		return -ENODEV;
-
-	e->tx_lpi_enabled = p->tx_lpi_enabled;
-	e->tx_lpi_timer = umac_rl(intf, UMC_EEE_LPI_TIMER);
 
 	return phy_ethtool_get_eee(dev->phydev, e);
 }
 
 static int bcmasp_set_eee(struct net_device *dev, struct ethtool_keee *e)
 {
-	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_keee *p = &intf->eee;
-	int ret;
-
 	if (!dev->phydev)
 		return -ENODEV;
-
-	if (!p->eee_enabled) {
-		bcmasp_eee_enable_set(intf, false);
-	} else {
-		ret = phy_init_eee(dev->phydev, 0);
-		if (ret) {
-			netif_err(intf, hw, dev,
-				  "EEE initialization failed: %d\n", ret);
-			return ret;
-		}
-
-		umac_wl(intf, e->tx_lpi_timer, UMC_EEE_LPI_TIMER);
-		intf->eee.tx_lpi_enabled = e->tx_lpi_enabled;
-		bcmasp_eee_enable_set(intf, true);
-	}
 
 	return phy_ethtool_set_eee(dev->phydev, e);
 }
@@ -496,4 +457,5 @@ const struct ethtool_ops bcmasp_ethtool_ops = {
 	.get_strings		= bcmasp_get_strings,
 	.get_ethtool_stats	= bcmasp_get_ethtool_stats,
 	.get_sset_count		= bcmasp_get_sset_count,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
