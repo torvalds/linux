@@ -603,6 +603,44 @@ static unsigned int find_sdca_control_bits(const struct sdca_entity *entity,
 	}
 }
 
+static int find_sdca_control_range(struct device *dev,
+				   struct fwnode_handle *control_node,
+				   struct sdca_control_range *range)
+{
+	u8 *range_list;
+	int num_range;
+	u16 *limits;
+	int i;
+
+	num_range = fwnode_property_count_u8(control_node, "mipi-sdca-control-range");
+	if (!num_range || num_range == -EINVAL)
+		return 0;
+	else if (num_range < 0)
+		return num_range;
+
+	range_list = devm_kcalloc(dev, num_range, sizeof(*range_list), GFP_KERNEL);
+	if (!range_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(control_node, "mipi-sdca-control-range",
+				      range_list, num_range);
+
+	limits = (u16 *)range_list;
+
+	range->cols = le16_to_cpu(limits[0]);
+	range->rows = le16_to_cpu(limits[1]);
+	range->data = (u32 *)&limits[2];
+
+	num_range = (num_range - (2 * sizeof(*limits))) / sizeof(*range->data);
+	if (num_range != range->cols * range->rows)
+		return -EINVAL;
+
+	for (i = 0; i < num_range; i++)
+		range->data[i] = le32_to_cpu(range->data[i]);
+
+	return 0;
+}
+
 /*
  * TODO: Add support for -cn- properties, allowing different channels to have
  * different defaults etc.
@@ -676,6 +714,13 @@ static int find_sdca_entity_control(struct device *dev, struct sdca_entity *enti
 		break;
 	default:
 		break;
+	}
+
+	ret = find_sdca_control_range(dev, control_node, &control->range);
+	if (ret) {
+		dev_err(dev, "%s: control %#x: range missing: %d\n",
+			entity->label, control->sel, ret);
+		return ret;
 	}
 
 	ret = fwnode_property_read_u64(control_node, "mipi-sdca-control-cn-list",

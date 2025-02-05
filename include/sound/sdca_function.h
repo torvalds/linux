@@ -613,6 +613,18 @@ enum sdca_access_layer {
 };
 
 /**
+ * struct sdca_control_range - SDCA Control range table
+ * @cols: Number of columns in the range table.
+ * @rows: Number of rows in the range table.
+ * @data: Array of values contained in the range table.
+ */
+struct sdca_control_range {
+	unsigned int cols;
+	unsigned int rows;
+	u32 *data;
+};
+
+/**
  * struct sdca_control - information for one SDCA Control
  * @label: Name for the Control, from SDCA Specification v1.0, section 7.1.7.
  * @sel: Identifier used for addressing.
@@ -622,6 +634,7 @@ enum sdca_access_layer {
  * Control.
  * @cn_list: A bitmask showing the valid Control Numbers within this Control,
  * Control Numbers typically represent channels.
+ * @range: Buffer describing valid range of values for the Control.
  * @mode: Access mode of the Control.
  * @layers: Bitmask of access layers of the Control.
  * @deferrable: Indicates if the access to the Control can be deferred.
@@ -637,6 +650,7 @@ struct sdca_control {
 	int interrupt_position;
 	u64 cn_list;
 
+	struct sdca_control_range range;
 	enum sdca_access_mode mode;
 	u8 layers;
 
