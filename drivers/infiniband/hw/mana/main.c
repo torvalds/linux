@@ -794,6 +794,9 @@ int mana_ib_gd_create_rnic_adapter(struct mana_ib_dev *mdev)
 	req.hdr.dev_id = gc->mana_ib.dev_id;
 	req.notify_eq_id = mdev->fatal_err_eq->id;
 
+	if (mdev->adapter_caps.feature_flags & MANA_IB_FEATURE_CLIENT_ERROR_CQE_SUPPORT)
+		req.feature_flags |= MANA_IB_FEATURE_CLIENT_ERROR_CQE_REQUEST;
+
 	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
 	if (err) {
 		ibdev_err(&mdev->ib_dev, "Failed to create RNIC adapter err %d", err);
