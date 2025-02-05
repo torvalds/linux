@@ -785,6 +785,29 @@ struct sdca_entity_iot {
 };
 
 /**
+ * enum sdca_clock_type - SDCA Clock Types
+ *
+ * Indicate the synchronicity of an Clock Entity, see section 6.4.1.3
+ * of the SDCA v1.0 specification.
+ */
+enum sdca_clock_type {
+	SDCA_CLOCK_TYPE_EXTERNAL			= 0x00,
+	SDCA_CLOCK_TYPE_INTERNAL_ASYNC			= 0x01,
+	SDCA_CLOCK_TYPE_INTERNAL_SYNC			= 0x02,
+	SDCA_CLOCK_TYPE_INTERNAL_SOURCE_SYNC		= 0x03,
+};
+
+/**
+ * struct sdca_entity_cs - information specific to Clock Source Entities
+ * @type: Synchronicity of the Clock Source.
+ * @max_delay: The maximum delay in microseconds before the clock is stable.
+ */
+struct sdca_entity_cs {
+	enum sdca_clock_type type;
+	unsigned int max_delay;
+};
+
+/**
  * enum sdca_entity_type - SDCA Entity Type codes
  * @SDCA_ENTITY_TYPE_ENTITY_0: Entity 0, not actually from the
  * specification but useful internally as an Entity structure
@@ -846,6 +869,7 @@ enum sdca_entity_type {
  * @num_sources: Number of sources for the Entity.
  * @num_controls: Number of Controls for the Entity.
  * @iot: Input/Output Terminal specific Entity properties.
+ * @cs: Clock Source specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -858,6 +882,7 @@ struct sdca_entity {
 	int num_controls;
 	union {
 		struct sdca_entity_iot iot;
+		struct sdca_entity_cs cs;
 	};
 };
 

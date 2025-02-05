@@ -881,6 +881,33 @@ static int find_sdca_entity_iot(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_entity_cs(struct device *dev,
+			       struct fwnode_handle *entity_node,
+			       struct sdca_entity *entity)
+{
+	struct sdca_entity_cs *clock = &entity->cs;
+	u32 tmp;
+	int ret;
+
+	ret = fwnode_property_read_u32(entity_node, "mipi-sdca-cs-type", &tmp);
+	if (ret) {
+		dev_err(dev, "%s: clock type missing: %d\n", entity->label, ret);
+		return ret;
+	}
+
+	clock->type = tmp;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-clock-valid-max-delay", &tmp);
+	if (!ret)
+		clock->max_delay = tmp;
+
+	dev_info(dev, "%s: clock type %#x delay %d\n", entity->label,
+		 clock->type, clock->max_delay);
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -912,6 +939,9 @@ static int find_sdca_entity(struct device *dev,
 	case SDCA_ENTITY_TYPE_IT:
 	case SDCA_ENTITY_TYPE_OT:
 		ret = find_sdca_entity_iot(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_CS:
+		ret = find_sdca_entity_cs(dev, entity_node, entity);
 		break;
 	default:
 		break;
