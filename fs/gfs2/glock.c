@@ -1483,7 +1483,6 @@ __acquires(&gl->gl_lockref.lock)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct list_head *insert_pt = NULL;
 	struct gfs2_holder *gh2;
 	int try_futile = 0;
 
@@ -1519,21 +1518,11 @@ fail:
 			gfs2_holder_wake(gh);
 			return;
 		}
-		if (test_bit(HIF_HOLDER, &gh2->gh_iflags))
-			continue;
 	}
 	trace_gfs2_glock_queue(gh, 1);
 	gfs2_glstats_inc(gl, GFS2_LKS_QCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_QCOUNT);
-	if (likely(insert_pt == NULL)) {
-		list_add_tail(&gh->gh_list, &gl->gl_holders);
-		return;
-	}
-	list_add_tail(&gh->gh_list, insert_pt);
-	spin_unlock(&gl->gl_lockref.lock);
-	if (sdp->sd_lockstruct.ls_ops->lm_cancel)
-		sdp->sd_lockstruct.ls_ops->lm_cancel(gl);
-	spin_lock(&gl->gl_lockref.lock);
+	list_add_tail(&gh->gh_list, &gl->gl_holders);
 	return;
 
 trap_recursive:
