@@ -192,6 +192,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
 bool iwl_is_tas_approved(void);
+bool iwl_add_mcc_to_tas_block_list(u16 *list, u8 *size, u16 mcc);
 
 struct iwl_tas_selection_data
 iwl_parse_tas_selection(const u32 tas_selection, const u8 tbl_rev);

@@ -456,6 +456,24 @@ iwl_parse_tas_selection(const u32 tas_selection_in, const u8 tbl_rev)
 }
 IWL_EXPORT_SYMBOL(iwl_parse_tas_selection);
 
+bool iwl_add_mcc_to_tas_block_list(u16 *list, u8 *size, u16 mcc)
+{
+	for (int i = 0; i < *size; i++) {
+		if (list[i] == mcc)
+			return true;
+	}
+
+	/* Verify that there is room for another country
+	 * If *size == IWL_WTAS_BLACK_LIST_MAX, then the table is full.
+	 */
+	if (*size >= IWL_WTAS_BLACK_LIST_MAX)
+		return false;
+
+	list[*size++] = mcc;
+	return true;
+}
+IWL_EXPORT_SYMBOL(iwl_add_mcc_to_tas_block_list);
+
 static __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;

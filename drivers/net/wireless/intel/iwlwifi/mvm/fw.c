@@ -1094,22 +1094,6 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
-static bool
-iwl_mvm_add_to_tas_block_list(u16 *list, u8 *size, u16 mcc)
-{
-	/* Verify that there is room for another country */
-	if (*size >= IWL_WTAS_BLACK_LIST_MAX)
-		return false;
-
-	for (u8 i = 0; i < *size; i++) {
-		if (list[i] == mcc)
-			return true;
-	}
-
-	list[*size++] = mcc;
-	return true;
-}
-
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	u32 cmd_id = WIDE_ID(REGULATORY_AND_NVM_GROUP, TAS_CONFIG);
@@ -1150,10 +1134,10 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
-		if ((!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+		if ((!iwl_add_mcc_to_tas_block_list(data.block_list_array,
 						    &data.block_list_size,
 						    IWL_MCC_US)) ||
-		    (!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+		    (!iwl_add_mcc_to_tas_block_list(data.block_list_array,
 						    &data.block_list_size,
 						    IWL_MCC_CANADA))) {
 			IWL_DEBUG_RADIO(mvm,
