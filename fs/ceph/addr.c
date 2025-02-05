@@ -82,6 +82,7 @@ static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
 	struct inode *inode = mapping->host;
 	struct ceph_client *cl = ceph_inode_to_client(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc;
 
@@ -91,6 +92,8 @@ static bool ceph_dirty_folio(struct address_space *mapping, struct folio *folio)
 		VM_BUG_ON_FOLIO(!folio_test_private(folio), folio);
 		return false;
 	}
+
+	atomic64_inc(&mdsc->dirty_folios);
 
 	ci = ceph_inode(inode);
 
@@ -894,6 +897,7 @@ static void writepages_finish(struct ceph_osd_request *req)
 	struct ceph_snap_context *snapc = req->r_snapc;
 	struct address_space *mapping = inode->i_mapping;
 	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
+	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(inode->i_sb);
 	unsigned int len = 0;
 	bool remove_page;
 
@@ -949,6 +953,12 @@ static void writepages_finish(struct ceph_osd_request *req)
 
 			ceph_put_snap_context(detach_page_private(page));
 			end_page_writeback(page);
+
+			if (atomic64_dec_return(&mdsc->dirty_folios) <= 0) {
+				wake_up_all(&mdsc->flush_end_wq);
+				WARN_ON(atomic64_read(&mdsc->dirty_folios) < 0);
+			}
+
 			doutc(cl, "unlocking %p\n", page);
 
 			if (remove_page)
@@ -1660,13 +1670,18 @@ static int ceph_writepages_start(struct address_space *mapping,
 
 	ceph_init_writeback_ctl(mapping, wbc, &ceph_wbc);
 
+	if (!ceph_inc_osd_stopping_blocker(fsc->mdsc)) {
+		rc = -EIO;
+		goto out;
+	}
+
 retry:
 	rc = ceph_define_writeback_range(mapping, wbc, &ceph_wbc);
 	if (rc == -ENODATA) {
 		/* hmm, why does writepages get called when there
 		   is no dirty data? */
 		rc = 0;
-		goto out;
+		goto dec_osd_stopping_blocker;
 	}
 
 	if (wbc->sync_mode == WB_SYNC_ALL || wbc->tagged_writepages)
@@ -1755,6 +1770,9 @@ release_folios:
 
 	if (wbc->range_cyclic || (ceph_wbc.range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = ceph_wbc.index;
+
+dec_osd_stopping_blocker:
+	ceph_dec_osd_stopping_blocker(fsc->mdsc);
 
 out:
 	ceph_put_snap_context(ceph_wbc.last_snapc);
