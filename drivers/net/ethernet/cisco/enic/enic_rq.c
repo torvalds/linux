@@ -21,25 +21,6 @@ static void enic_intr_update_pkt_size(struct vnic_rx_bytes_counter *pkt_size,
 		pkt_size->small_pkt_bytes_cnt += pkt_len;
 }
 
-static bool enic_rxcopybreak(struct net_device *netdev, struct sk_buff **skb,
-			     struct vnic_rq_buf *buf, u16 len)
-{
-	struct enic *enic = netdev_priv(netdev);
-	struct sk_buff *new_skb;
-
-	if (len > enic->rx_copybreak)
-		return false;
-	new_skb = netdev_alloc_skb_ip_align(netdev, len);
-	if (!new_skb)
-		return false;
-	dma_sync_single_for_cpu(&enic->pdev->dev, buf->dma_addr, len,
-				DMA_FROM_DEVICE);
-	memcpy(new_skb->data, (*skb)->data, len);
-	*skb = new_skb;
-
-	return true;
-}
-
 int enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc, u8 type,
 		    u16 q_number, u16 completed_index, void *opaque)
 {
@@ -142,11 +123,15 @@ int enic_rq_alloc_buf(struct vnic_rq *rq)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
 	struct net_device *netdev = enic->netdev;
-	struct sk_buff *skb;
+	struct enic_rq *erq = &enic->rq[rq->index];
+	struct enic_rq_stats *rqstats = &erq->stats;
+	unsigned int offset = 0;
 	unsigned int len = netdev->mtu + VLAN_ETH_HLEN;
 	unsigned int os_buf_index = 0;
 	dma_addr_t dma_addr;
 	struct vnic_rq_buf *buf = rq->to_use;
+	struct page *page;
+	unsigned int truesize = len;
 
 	if (buf->os_buf) {
 		enic_queue_rq_desc(rq, buf->os_buf, os_buf_index, buf->dma_addr,
@@ -154,20 +139,16 @@ int enic_rq_alloc_buf(struct vnic_rq *rq)
 
 		return 0;
 	}
-	skb = netdev_alloc_skb_ip_align(netdev, len);
-	if (!skb) {
-		enic->rq[rq->index].stats.no_skb++;
+
+	page = page_pool_dev_alloc(erq->pool, &offset, &truesize);
+	if (unlikely(!page)) {
+		rqstats->pp_alloc_fail++;
 		return -ENOMEM;
 	}
-
-	dma_addr = dma_map_single(&enic->pdev->dev, skb->data, len,
-				  DMA_FROM_DEVICE);
-	if (unlikely(enic_dma_map_check(enic, dma_addr))) {
-		dev_kfree_skb(skb);
-		return -ENOMEM;
-	}
-
-	enic_queue_rq_desc(rq, skb, os_buf_index, dma_addr, len);
+	buf->offset = offset;
+	buf->truesize = truesize;
+	dma_addr = page_pool_get_dma_addr(page) + offset;
+	enic_queue_rq_desc(rq, (void *)page, os_buf_index, dma_addr, len);
 
 	return 0;
 }
@@ -175,13 +156,12 @@ int enic_rq_alloc_buf(struct vnic_rq *rq)
 void enic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
+	struct enic_rq *erq = &enic->rq[rq->index];
 
 	if (!buf->os_buf)
 		return;
 
-	dma_unmap_single(&enic->pdev->dev, buf->dma_addr, buf->len,
-			 DMA_FROM_DEVICE);
-	dev_kfree_skb_any(buf->os_buf);
+	page_pool_put_full_page(erq->pool, (struct page *)buf->os_buf, true);
 	buf->os_buf = NULL;
 }
 
@@ -189,10 +169,10 @@ void enic_rq_indicate_buf(struct vnic_rq *rq, struct cq_desc *cq_desc,
 			  struct vnic_rq_buf *buf, int skipped, void *opaque)
 {
 	struct enic *enic = vnic_dev_priv(rq->vdev);
-	struct net_device *netdev = enic->netdev;
 	struct sk_buff *skb;
 	struct vnic_cq *cq = &enic->cq[enic_cq_rq(enic, rq->index)];
 	struct enic_rq_stats *rqstats = &enic->rq[rq->index].stats;
+	struct napi_struct *napi;
 
 	u8 type, color, eop, sop, ingress_port, vlan_stripped;
 	u8 fcoe, fcoe_sof, fcoe_fc_crc_ok, fcoe_enc_error, fcoe_eof;
@@ -208,8 +188,6 @@ void enic_rq_indicate_buf(struct vnic_rq *rq, struct cq_desc *cq_desc,
 		return;
 	}
 
-	skb = buf->os_buf;
-
 	cq_enet_rq_desc_dec((struct cq_enet_rq_desc *)cq_desc, &type, &color,
 			    &q_number, &completed_index, &ingress_port, &fcoe,
 			    &eop, &sop, &rss_type, &csum_not_calc, &rss_hash,
@@ -219,48 +197,46 @@ void enic_rq_indicate_buf(struct vnic_rq *rq, struct cq_desc *cq_desc,
 			    &tcp, &ipv4_csum_ok, &ipv6, &ipv4, &ipv4_fragment,
 			    &fcs_ok);
 
-	if (enic_rq_pkt_error(rq, packet_error, fcs_ok, bytes_written)) {
-		dma_unmap_single(&enic->pdev->dev, buf->dma_addr, buf->len,
-				 DMA_FROM_DEVICE);
-		dev_kfree_skb_any(skb);
-		buf->os_buf = NULL;
-
+	if (enic_rq_pkt_error(rq, packet_error, fcs_ok, bytes_written))
 		return;
-	}
 
 	if (eop && bytes_written > 0) {
 		/* Good receive
 		 */
 		rqstats->bytes += bytes_written;
-		if (!enic_rxcopybreak(netdev, &skb, buf, bytes_written)) {
-			buf->os_buf = NULL;
-			dma_unmap_single(&enic->pdev->dev, buf->dma_addr,
-					 buf->len, DMA_FROM_DEVICE);
+		napi = &enic->napi[rq->index];
+		skb = napi_get_frags(napi);
+		if (unlikely(!skb)) {
+			net_warn_ratelimited("%s: skb alloc error rq[%d], desc[%d]\n",
+					     enic->netdev->name, rq->index,
+					     completed_index);
+			rqstats->no_skb++;
+			return;
 		}
+
 		prefetch(skb->data - NET_IP_ALIGN);
 
-		skb_put(skb, bytes_written);
-		skb->protocol = eth_type_trans(skb, netdev);
+		dma_sync_single_for_cpu(&enic->pdev->dev, buf->dma_addr,
+					bytes_written, DMA_FROM_DEVICE);
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
+				(struct page *)buf->os_buf, buf->offset,
+				bytes_written, buf->truesize);
 		skb_record_rx_queue(skb, q_number);
 		enic_rq_set_skb_flags(rq, type, rss_hash, rss_type, fcoe,
 				      fcoe_fc_crc_ok, vlan_stripped,
 				      csum_not_calc, tcp_udp_csum_ok, ipv6,
 				      ipv4_csum_ok, vlan_tci, skb);
-		skb_mark_napi_id(skb, &enic->napi[rq->index]);
-		if (!(netdev->features & NETIF_F_GRO))
-			netif_receive_skb(skb);
-		else
-			napi_gro_receive(&enic->napi[q_number], skb);
+		skb_mark_for_recycle(skb);
+		napi_gro_frags(napi);
 		if (enic->rx_coalesce_setting.use_adaptive_rx_coalesce)
 			enic_intr_update_pkt_size(&cq->pkt_size_counter,
 						  bytes_written);
+		buf->os_buf = NULL;
+		buf->dma_addr = 0;
+		buf = buf->next;
 	} else {
 		/* Buffer overflow
 		 */
 		rqstats->pkt_truncated++;
-		dma_unmap_single(&enic->pdev->dev, buf->dma_addr, buf->len,
-				 DMA_FROM_DEVICE);
-		dev_kfree_skb_any(skb);
-		buf->os_buf = NULL;
 	}
 }

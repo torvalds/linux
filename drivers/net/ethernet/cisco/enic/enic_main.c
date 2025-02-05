@@ -1736,6 +1736,17 @@ static int enic_open(struct net_device *netdev)
 	struct enic *enic = netdev_priv(netdev);
 	unsigned int i;
 	int err, ret;
+	unsigned int max_pkt_len = netdev->mtu + VLAN_ETH_HLEN;
+	struct page_pool_params pp_params = {
+		.order = get_order(max_pkt_len),
+		.pool_size = enic->config.rq_desc_count,
+		.nid = dev_to_node(&enic->pdev->dev),
+		.dev = &enic->pdev->dev,
+		.dma_dir = DMA_FROM_DEVICE,
+		.max_len = (max_pkt_len > PAGE_SIZE) ? max_pkt_len : PAGE_SIZE,
+		.netdev = netdev,
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+	};
 
 	err = enic_request_intr(enic);
 	if (err) {
@@ -1753,6 +1764,16 @@ static int enic_open(struct net_device *netdev)
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
+		/* create a page pool for each RQ */
+		pp_params.napi = &enic->napi[i];
+		pp_params.queue_idx = i;
+		enic->rq[i].pool = page_pool_create(&pp_params);
+		if (IS_ERR(enic->rq[i].pool)) {
+			err = PTR_ERR(enic->rq[i].pool);
+			enic->rq[i].pool = NULL;
+			goto err_out_free_rq;
+		}
+
 		/* enable rq before updating rq desc */
 		vnic_rq_enable(&enic->rq[i].vrq);
 		vnic_rq_fill(&enic->rq[i].vrq, enic_rq_alloc_buf);
@@ -1793,8 +1814,11 @@ static int enic_open(struct net_device *netdev)
 err_out_free_rq:
 	for (i = 0; i < enic->rq_count; i++) {
 		ret = vnic_rq_disable(&enic->rq[i].vrq);
-		if (!ret)
+		if (!ret) {
 			vnic_rq_clean(&enic->rq[i].vrq, enic_free_rq_buf);
+			page_pool_destroy(enic->rq[i].pool);
+			enic->rq[i].pool = NULL;
+		}
 	}
 	enic_dev_notify_unset(enic);
 err_out_free_intr:
@@ -1852,8 +1876,11 @@ static int enic_stop(struct net_device *netdev)
 
 	for (i = 0; i < enic->wq_count; i++)
 		vnic_wq_clean(&enic->wq[i].vwq, enic_free_wq_buf);
-	for (i = 0; i < enic->rq_count; i++)
+	for (i = 0; i < enic->rq_count; i++) {
 		vnic_rq_clean(&enic->rq[i].vrq, enic_free_rq_buf);
+		page_pool_destroy(enic->rq[i].pool);
+		enic->rq[i].pool = NULL;
+	}
 	for (i = 0; i < enic->cq_count; i++)
 		vnic_cq_clean(&enic->cq[i]);
 	for (i = 0; i < enic->intr_count; i++)
@@ -2363,6 +2390,7 @@ static void enic_get_queue_stats_rx(struct net_device *dev, int idx,
 	rxs->hw_drop_overruns = rqstats->pkt_truncated;
 	rxs->csum_unnecessary = rqstats->csum_unnecessary +
 				rqstats->csum_unnecessary_encap;
+	rxs->alloc_fail = rqstats->pp_alloc_fail;
 }
 
 static void enic_get_queue_stats_tx(struct net_device *dev, int idx,
@@ -2390,6 +2418,7 @@ static void enic_get_base_stats(struct net_device *dev,
 	rxs->hw_drops = 0;
 	rxs->hw_drop_overruns = 0;
 	rxs->csum_unnecessary = 0;
+	rxs->alloc_fail = 0;
 	txs->bytes = 0;
 	txs->packets = 0;
 	txs->csum_none = 0;
