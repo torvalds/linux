@@ -7705,13 +7705,9 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 		__ieee80211_disconnect(sdata);
 }
 
-static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
-					 struct wiphy_work *work)
+void ieee80211_process_ttlm_teardown(struct ieee80211_sub_if_data *sdata)
 {
 	u16 new_dormant_links;
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data,
-			     u.mgd.teardown_ttlm_work);
 
 	if (!sdata->vif.neg_ttlm.valid)
 		return;
@@ -7724,6 +7720,16 @@ static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
 				new_dormant_links);
 	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_MLD_TTLM |
 					       BSS_CHANGED_MLD_VALID_LINKS);
+}
+
+static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
+					 struct wiphy_work *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.teardown_ttlm_work);
+
+	ieee80211_process_ttlm_teardown(sdata);
 }
 
 void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif)
