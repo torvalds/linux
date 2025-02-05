@@ -39,6 +39,7 @@
 #include "util/synthetic-events.h"
 #include "util/evlist.h"
 #include "util/evswitch.h"
+#include "util/hashmap.h"
 #include "util/mmap.h"
 #include <subcmd/pager.h>
 #include <subcmd/exec-cmd.h>
@@ -63,7 +64,6 @@
 #include "print_binary.h"
 #include "string2.h"
 #include "syscalltbl.h"
-#include "rb_resort.h"
 #include "../perf.h"
 #include "trace_augment.h"
 
@@ -1519,8 +1519,36 @@ struct thread_trace {
 		struct file   *table;
 	} files;
 
-	struct intlist *syscall_stats;
+	struct hashmap *syscall_stats;
 };
+
+static size_t syscall_id_hash(long key, void *ctx __maybe_unused)
+{
+	return key;
+}
+
+static bool syscall_id_equal(long key1, long key2, void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
+
+static struct hashmap *alloc_syscall_stats(void)
+{
+	return hashmap__new(syscall_id_hash, syscall_id_equal, NULL);
+}
+
+static void delete_syscall_stats(struct hashmap *syscall_stats)
+{
+	struct hashmap_entry *pos;
+	size_t bkt;
+
+	if (syscall_stats == NULL)
+		return;
+
+	hashmap__for_each_entry(syscall_stats, pos, bkt)
+		zfree(&pos->pvalue);
+	hashmap__free(syscall_stats);
+}
 
 static struct thread_trace *thread_trace__new(struct trace *trace)
 {
@@ -1528,8 +1556,11 @@ static struct thread_trace *thread_trace__new(struct trace *trace)
 
 	if (ttrace) {
 		ttrace->files.max = -1;
-		if (trace->summary)
-			ttrace->syscall_stats = intlist__new(NULL);
+		if (trace->summary) {
+			ttrace->syscall_stats = alloc_syscall_stats();
+			if (IS_ERR(ttrace->syscall_stats))
+				zfree(&ttrace);
+		}
 	}
 
 	return ttrace;
@@ -1544,7 +1575,7 @@ static void thread_trace__delete(void *pttrace)
 	if (!ttrace)
 		return;
 
-	intlist__delete(ttrace->syscall_stats);
+	delete_syscall_stats(ttrace->syscall_stats);
 	ttrace->syscall_stats = NULL;
 	thread_trace__free_files(ttrace);
 	zfree(&ttrace->entry_str);
@@ -2467,22 +2498,19 @@ struct syscall_stats {
 static void thread__update_stats(struct thread *thread, struct thread_trace *ttrace,
 				 int id, struct perf_sample *sample, long err, bool errno_summary)
 {
-	struct int_node *inode;
-	struct syscall_stats *stats;
+	struct syscall_stats *stats = NULL;
 	u64 duration = 0;
 
-	inode = intlist__findnew(ttrace->syscall_stats, id);
-	if (inode == NULL)
-		return;
-
-	stats = inode->priv;
-	if (stats == NULL) {
+	if (!hashmap__find(ttrace->syscall_stats, id, &stats)) {
 		stats = zalloc(sizeof(*stats));
 		if (stats == NULL)
 			return;
 
 		init_stats(&stats->stats);
-		inode->priv = stats;
+		if (hashmap__add(ttrace->syscall_stats, id, stats) < 0) {
+			free(stats);
+			return;
+		}
 	}
 
 	if (ttrace->entry_time && sample->time > ttrace->entry_time)
@@ -4621,18 +4649,45 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 	return printed;
 }
 
-DEFINE_RESORT_RB(syscall_stats, a->msecs > b->msecs,
+struct syscall_entry {
 	struct syscall_stats *stats;
 	double		     msecs;
 	int		     syscall;
-)
-{
-	struct int_node *source = rb_entry(nd, struct int_node, rb_node);
-	struct syscall_stats *stats = source->priv;
+};
 
-	entry->syscall = source->i;
-	entry->stats   = stats;
-	entry->msecs   = stats ? (u64)stats->stats.n * (avg_stats(&stats->stats) / NSEC_PER_MSEC) : 0;
+static int entry_cmp(const void *e1, const void *e2)
+{
+	const struct syscall_entry *entry1 = e1;
+	const struct syscall_entry *entry2 = e2;
+
+	return entry1->msecs > entry2->msecs ? -1 : 1;
+}
+
+static struct syscall_entry *thread__sort_stats(struct thread_trace *ttrace)
+{
+	struct syscall_entry *entry;
+	struct hashmap_entry *pos;
+	unsigned bkt, i, nr;
+
+	nr = ttrace->syscall_stats->sz;
+	entry = malloc(nr * sizeof(*entry));
+	if (entry == NULL)
+		return NULL;
+
+	i = 0;
+	hashmap__for_each_entry(ttrace->syscall_stats, pos, bkt) {
+		struct syscall_stats *ss = pos->pvalue;
+		struct stats *st = &ss->stats;
+
+		entry[i].stats = ss;
+		entry[i].msecs = (u64)st->n * (avg_stats(st) / NSEC_PER_MSEC);
+		entry[i].syscall = pos->key;
+		i++;
+	}
+	assert(i == nr);
+
+	qsort(entry, nr, sizeof(*entry), entry_cmp);
+	return entry;
 }
 
 static size_t thread__dump_stats(struct thread_trace *ttrace,
@@ -4640,10 +4695,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 {
 	size_t printed = 0;
 	struct syscall *sc;
-	struct rb_node *nd;
-	DECLARE_RESORT_RB_INTLIST(syscall_stats, ttrace->syscall_stats);
+	struct syscall_entry *entries;
 
-	if (syscall_stats == NULL)
+	entries = thread__sort_stats(ttrace);
+	if (entries == NULL)
 		return 0;
 
 	printed += fprintf(fp, "\n");
@@ -4652,8 +4707,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 	printed += fprintf(fp, "                                     (msec)    (msec)    (msec)    (msec)        (%%)\n");
 	printed += fprintf(fp, "   --------------- --------  ------ -------- --------- --------- ---------     ------\n");
 
-	resort_rb__for_each_entry(nd, syscall_stats) {
-		struct syscall_stats *stats = syscall_stats_entry->stats;
+	for (size_t i = 0; i < ttrace->syscall_stats->sz; i++) {
+		struct syscall_entry *entry = &entries[i];
+		struct syscall_stats *stats = entry->stats;
+
 		if (stats) {
 			double min = (double)(stats->stats.min) / NSEC_PER_MSEC;
 			double max = (double)(stats->stats.max) / NSEC_PER_MSEC;
@@ -4664,10 +4721,10 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			pct = avg ? 100.0 * stddev_stats(&stats->stats) / avg : 0.0;
 			avg /= NSEC_PER_MSEC;
 
-			sc = &trace->syscalls.table[syscall_stats_entry->syscall];
+			sc = &trace->syscalls.table[entry->syscall];
 			printed += fprintf(fp, "   %-15s", sc->name);
 			printed += fprintf(fp, " %8" PRIu64 " %6" PRIu64 " %9.3f %9.3f %9.3f",
-					   n, stats->nr_failures, syscall_stats_entry->msecs, min, avg);
+					   n, stats->nr_failures, entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 
 			if (trace->errno_summary && stats->nr_failures) {
@@ -4681,7 +4738,7 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 		}
 	}
 
-	resort_rb__delete(syscall_stats);
+	free(entries);
 	printed += fprintf(fp, "\n\n");
 
 	return printed;
