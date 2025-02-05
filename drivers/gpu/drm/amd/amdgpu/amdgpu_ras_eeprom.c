@@ -177,7 +177,7 @@ static bool __get_eeprom_i2c_addr(struct amdgpu_device *adev,
 	if (!control)
 		return false;
 
-	if (amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
+	if (adev->bios && amdgpu_atomfirmware_ras_rom_addr(adev, &i2c_addr)) {
 		/* The address given by VBIOS is an 8-bit, wire-format
 		 * address, i.e. the most significant byte.
 		 *
