@@ -832,8 +832,6 @@ static void amd_pstate_update_limits(unsigned int cpu)
 	if (!policy)
 		return;
 
-	guard(mutex)(&amd_pstate_driver_lock);
-
 	if (amd_get_highest_perf(cpu, &cur_high))
 		return;
 
