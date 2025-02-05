@@ -1,5 +1,5 @@
 variables:
-   CONTAINER_TAG: "2024-09-09-uprevs"
+   CONTAINER_TAG: "20250204-mesa-uprev"
    DEBIAN_X86_64_BUILD_BASE_IMAGE: "debian/x86_64_build-base"
    DEBIAN_BASE_TAG: "${CONTAINER_TAG}"
 
@@ -7,9 +7,16 @@ variables:
    DEBIAN_BUILD_TAG: "${CONTAINER_TAG}"
 
    KERNEL_ROOTFS_TAG: "${CONTAINER_TAG}"
+   # default kernel for rootfs before injecting the current kernel tree
+   KERNEL_TAG: "v6.13-rc4-mesa-5e77"
+   KERNEL_REPO: "gfx-ci/linux"
+   PKG_REPO_REV: "bca9635d"
 
    DEBIAN_X86_64_TEST_BASE_IMAGE: "debian/x86_64_test-base"
    DEBIAN_X86_64_TEST_IMAGE_GL_PATH: "debian/x86_64_test-gl"
    DEBIAN_TEST_GL_TAG: "${CONTAINER_TAG}"
+
+   DEBIAN_PYUTILS_IMAGE: "debian/x86_64_pyutils"
+   DEBIAN_PYUTILS_TAG: "${CONTAINER_TAG}"
 
    ALPINE_X86_64_LAVA_SSH_TAG: "${CONTAINER_TAG}"

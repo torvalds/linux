@@ -24,7 +24,7 @@ alpine/x86_64_build:
   rules:
     - when: never
 
-debian/x86_64_test-vk:
+debian/arm64_test-gl:
   rules:
     - when: never
 
@@ -32,7 +32,15 @@ debian/arm64_test-vk:
   rules:
     - when: never
 
-debian/arm64_test-gl:
+debian/ppc64el_build:
+  rules:
+    - when: never
+
+debian/s390x_build:
+  rules:
+    - when: never
+
+debian/x86_64_test-vk:
   rules:
     - when: never
 
@@ -54,14 +62,6 @@ windows_build_msvc:
 
 windows_test_msvc:
   rules:
-    - when: never
-
-.debian/x86_64_build-mingw:
-   rules:
-    - when: never
-
-rustfmt:
-   rules:
     - when: never
 
 windows_msvc:
