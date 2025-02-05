@@ -953,6 +953,7 @@ enum sock_flags {
 	SOCK_XDP, /* XDP is attached */
 	SOCK_TSTAMP_NEW, /* Indicates 64 bit timestamps always */
 	SOCK_RCVMARK, /* Receive SO_MARK  ancillary data with packet */
+	SOCK_RCVPRIORITY, /* Receive SO_PRIORITY ancillary data with packet */
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
@@ -1820,13 +1821,15 @@ struct sockcm_cookie {
 	u32 mark;
 	u32 tsflags;
 	u32 ts_opt_id;
+	u32 priority;
 };
 
 static inline void sockcm_init(struct sockcm_cookie *sockc,
 			       const struct sock *sk)
 {
 	*sockc = (struct sockcm_cookie) {
-		.tsflags = READ_ONCE(sk->sk_tsflags)
+		.tsflags = READ_ONCE(sk->sk_tsflags),
+		.priority = READ_ONCE(sk->sk_priority),
 	};
 }
 
@@ -2297,7 +2300,7 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 }
 
 /**
- * sock_poll_wait - place memory barrier behind the poll_wait call.
+ * sock_poll_wait - wrapper for the poll_wait call.
  * @filp:           file
  * @sock:           socket to wait on
  * @p:              poll_table
@@ -2307,15 +2310,12 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 static inline void sock_poll_wait(struct file *filp, struct socket *sock,
 				  poll_table *p)
 {
-	if (!poll_does_not_wait(p)) {
-		poll_wait(filp, &sock->wq.wait, p);
-		/* We need to be sure we are in sync with the
-		 * socket flags modification.
-		 *
-		 * This memory barrier is paired in the wq_has_sleeper.
-		 */
-		smp_mb();
-	}
+	/* Provides a barrier we need to be sure we are in sync
+	 * with the socket flags modification.
+	 *
+	 * This memory barrier is paired in the wq_has_sleeper.
+	 */
+	poll_wait(filp, &sock->wq.wait, p);
 }
 
 static inline void skb_set_hash_from_sk(struct sk_buff *skb, struct sock *sk)
@@ -2664,7 +2664,8 @@ static inline void sock_recv_cmsgs(struct msghdr *msg, struct sock *sk,
 {
 #define FLAGS_RECV_CMSGS ((1UL << SOCK_RXQ_OVFL)			| \
 			   (1UL << SOCK_RCVTSTAMP)			| \
-			   (1UL << SOCK_RCVMARK))
+			   (1UL << SOCK_RCVMARK)			|\
+			   (1UL << SOCK_RCVPRIORITY))
 #define TSFLAGS_ANY	  (SOF_TIMESTAMPING_SOFTWARE			| \
 			   SOF_TIMESTAMPING_RAW_HARDWARE)
 

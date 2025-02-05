@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#define boot_fmt(fmt) "startup: " fmt
 #include <linux/string.h>
 #include <linux/elf.h>
 #include <asm/page-states.h>
@@ -30,6 +31,9 @@ unsigned long __bootdata_preserved(vmemmap_size);
 unsigned long __bootdata_preserved(MODULES_VADDR);
 unsigned long __bootdata_preserved(MODULES_END);
 unsigned long __bootdata_preserved(max_mappable);
+unsigned long __bootdata_preserved(page_noexec_mask);
+unsigned long __bootdata_preserved(segment_noexec_mask);
+unsigned long __bootdata_preserved(region_noexec_mask);
 int __bootdata_preserved(relocate_lowcore);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
@@ -39,7 +43,8 @@ struct machine_info machine;
 
 void error(char *x)
 {
-	boot_printk("\n\n%s\n\n -- System halted", x);
+	boot_emerg("%s\n", x);
+	boot_emerg(" -- System halted\n");
 	disabled_wait();
 }
 
@@ -51,8 +56,14 @@ static void detect_facilities(void)
 	}
 	if (test_facility(78))
 		machine.has_edat2 = 1;
-	if (test_facility(130))
-		machine.has_nx = 1;
+	page_noexec_mask = -1UL;
+	segment_noexec_mask = -1UL;
+	region_noexec_mask = -1UL;
+	if (!test_facility(130)) {
+		page_noexec_mask &= ~_PAGE_NOEXEC;
+		segment_noexec_mask &= ~_SEGMENT_ENTRY_NOEXEC;
+		region_noexec_mask &= ~_REGION_ENTRY_NOEXEC;
+	}
 }
 
 static int cmma_test_essa(void)
@@ -134,7 +145,7 @@ static void rescue_initrd(unsigned long min, unsigned long max)
 		return;
 	old_addr = addr;
 	physmem_free(RR_INITRD);
-	addr = physmem_alloc_top_down(RR_INITRD, size, 0);
+	addr = physmem_alloc_or_die(RR_INITRD, size, 0);
 	memmove((void *)addr, (void *)old_addr, size);
 }
 
@@ -213,12 +224,16 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 	if (oldmem_data.start) {
 		__kaslr_enabled = 0;
 		ident_map_size = min(ident_map_size, oldmem_data.size);
+		boot_debug("kdump memory limit:  0x%016lx\n", oldmem_data.size);
 	} else if (ipl_block_valid && is_ipl_block_dump()) {
 		__kaslr_enabled = 0;
-		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size)
+		if (!sclp_early_get_hsa_size(&hsa_size) && hsa_size) {
 			ident_map_size = min(ident_map_size, hsa_size);
+			boot_debug("Stand-alone dump limit: 0x%016lx\n", hsa_size);
+		}
 	}
 #endif
+	boot_debug("Identity map size:   0x%016lx\n", ident_map_size);
 }
 
 #define FIXMAP_SIZE	round_up(MEMCPY_REAL_SIZE + ABS_LOWCORE_MAP_SIZE, sizeof(struct lowcore))
@@ -258,6 +273,7 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	BUILD_BUG_ON(!IS_ALIGNED(__NO_KASLR_START_KERNEL, THREAD_SIZE));
 	BUILD_BUG_ON(__NO_KASLR_END_KERNEL > _REGION1_SIZE);
 	vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION3_SIZE);
+	boot_debug("vmem size estimated: 0x%016lx\n", vsize);
 	if (IS_ENABLED(CONFIG_KASAN) || __NO_KASLR_END_KERNEL > _REGION2_SIZE ||
 	    (vsize > _REGION2_SIZE && kaslr_enabled())) {
 		asce_limit = _REGION1_SIZE;
@@ -281,8 +297,10 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	 * otherwise asce_limit and rte_size would have been adjusted.
 	 */
 	vmax = adjust_to_uv_max(asce_limit);
+	boot_debug("%d level paging       0x%016lx vmax\n", vmax == _REGION1_SIZE ? 4 : 3, vmax);
 #ifdef CONFIG_KASAN
 	BUILD_BUG_ON(__NO_KASLR_END_KERNEL > KASAN_SHADOW_START);
+	boot_debug("KASAN shadow area:   0x%016lx-0x%016lx\n", KASAN_SHADOW_START, KASAN_SHADOW_END);
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
@@ -296,19 +314,27 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 			pos = 0;
 		kernel_end = vmax - pos * THREAD_SIZE;
 		kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
+		boot_debug("Randomization range: 0x%016lx-0x%016lx\n", vmax - kaslr_len, vmax);
+		boot_debug("kernel image:        0x%016lx-0x%016lx (kaslr)\n", kernel_start,
+			   kernel_size + kernel_size);
 	} else if (vmax < __NO_KASLR_END_KERNEL || vsize > __NO_KASLR_END_KERNEL) {
 		kernel_start = round_down(vmax - kernel_size, THREAD_SIZE);
-		boot_printk("The kernel base address is forced to %lx\n", kernel_start);
+		boot_debug("kernel image:        0x%016lx-0x%016lx (constrained)\n", kernel_start,
+			   kernel_start + kernel_size);
 	} else {
 		kernel_start = __NO_KASLR_START_KERNEL;
+		boot_debug("kernel image:        0x%016lx-0x%016lx (nokaslr)\n", kernel_start,
+			   kernel_start + kernel_size);
 	}
 	__kaslr_offset = kernel_start;
+	boot_debug("__kaslr_offset:      0x%016lx\n", __kaslr_offset);
 
 	MODULES_END = round_down(kernel_start, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 	if (IS_ENABLED(CONFIG_KMSAN))
 		VMALLOC_END -= MODULES_LEN * 2;
+	boot_debug("modules area:        0x%016lx-0x%016lx\n", MODULES_VADDR, MODULES_END);
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
 	vsize = (VMALLOC_END - FIXMAP_SIZE) / 2;
@@ -320,10 +346,15 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 		VMALLOC_END -= vmalloc_size * 2;
 	}
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
+	boot_debug("vmalloc area:        0x%016lx-0x%016lx\n", VMALLOC_START, VMALLOC_END);
 
 	__memcpy_real_area = round_down(VMALLOC_START - MEMCPY_REAL_SIZE, PAGE_SIZE);
+	boot_debug("memcpy real area:    0x%016lx-0x%016lx\n", __memcpy_real_area,
+		   __memcpy_real_area + MEMCPY_REAL_SIZE);
 	__abs_lowcore = round_down(__memcpy_real_area - ABS_LOWCORE_MAP_SIZE,
 				   sizeof(struct lowcore));
+	boot_debug("abs lowcore:         0x%016lx-0x%016lx\n", __abs_lowcore,
+		   __abs_lowcore + ABS_LOWCORE_MAP_SIZE);
 
 	/* split remaining virtual space between 1:1 mapping & vmemmap array */
 	pages = __abs_lowcore / (PAGE_SIZE + sizeof(struct page));
@@ -343,8 +374,11 @@ static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
 	BUILD_BUG_ON(MAX_DCSS_ADDR > (1UL << MAX_PHYSMEM_BITS));
 	max_mappable = max(ident_map_size, MAX_DCSS_ADDR);
 	max_mappable = min(max_mappable, vmemmap_start);
-	if (IS_ENABLED(CONFIG_RANDOMIZE_IDENTITY_BASE))
-		__identity_base = round_down(vmemmap_start - max_mappable, rte_size);
+#ifdef CONFIG_RANDOMIZE_IDENTITY_BASE
+	__identity_base = round_down(vmemmap_start - max_mappable, rte_size);
+#endif
+	boot_debug("identity map:        0x%016lx-0x%016lx\n", __identity_base,
+		   __identity_base + ident_map_size);
 
 	return asce_limit;
 }
@@ -403,6 +437,10 @@ void startup_kernel(void)
 	psw_t psw;
 
 	setup_lpp();
+	store_ipl_parmblock();
+	uv_query_info();
+	setup_boot_command_line();
+	parse_boot_command_line();
 
 	/*
 	 * Non-randomized kernel physical start address must be _SEGMENT_SIZE
@@ -422,12 +460,8 @@ void startup_kernel(void)
 	oldmem_data.start = parmarea.oldmem_base;
 	oldmem_data.size = parmarea.oldmem_size;
 
-	store_ipl_parmblock();
 	read_ipl_report();
-	uv_query_info();
 	sclp_early_read_info();
-	setup_boot_command_line();
-	parse_boot_command_line();
 	detect_facilities();
 	cmma_init();
 	sanitize_prot_virt_host();
@@ -517,6 +551,7 @@ void startup_kernel(void)
 			    __kaslr_offset, __kaslr_offset_phys);
 	kaslr_adjust_got(__kaslr_offset);
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
+	dump_physmem_reserved();
 	copy_bootdata();
 	__apply_alternatives((struct alt_instr *)_vmlinux_info.alt_instructions,
 			     (struct alt_instr *)_vmlinux_info.alt_instructions_end,
@@ -533,5 +568,6 @@ void startup_kernel(void)
 	 */
 	psw.addr = __kaslr_offset + vmlinux.entry;
 	psw.mask = PSW_KERNEL_BITS;
+	boot_debug("Starting kernel at:  0x%016lx\n", psw.addr);
 	__load_psw(psw);
 }

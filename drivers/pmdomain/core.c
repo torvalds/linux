@@ -3180,6 +3180,8 @@ static int genpd_parse_state(struct genpd_power_state *genpd_state,
 	if (!err)
 		genpd_state->residency_ns = 1000LL * residency;
 
+	of_property_read_string(state_node, "idle-state-name", &genpd_state->name);
+
 	genpd_state->power_on_latency_ns = 1000LL * exit_latency;
 	genpd_state->power_off_latency_ns = 1000LL * entry_latency;
 	genpd_state->fwnode = &state_node->fwnode;
@@ -3458,7 +3460,10 @@ static int idle_states_show(struct seq_file *s, void *data)
 	seq_puts(s, "State          Time Spent(ms) Usage          Rejected\n");
 
 	for (i = 0; i < genpd->state_count; i++) {
-		idle_time += genpd->states[i].idle_time;
+		struct genpd_power_state *state = &genpd->states[i];
+		char state_name[15];
+
+		idle_time += state->idle_time;
 
 		if (genpd->status == GENPD_STATE_OFF && genpd->state_idx == i) {
 			now = ktime_get_mono_fast_ns();
@@ -3468,9 +3473,13 @@ static int idle_states_show(struct seq_file *s, void *data)
 			}
 		}
 
+		if (!state->name)
+			snprintf(state_name, ARRAY_SIZE(state_name), "S%-13d", i);
+
 		do_div(idle_time, NSEC_PER_MSEC);
-		seq_printf(s, "S%-13i %-14llu %-14llu %llu\n", i, idle_time,
-			   genpd->states[i].usage, genpd->states[i].rejected);
+		seq_printf(s, "%-14s %-14llu %-14llu %llu\n",
+			   state->name ?: state_name, idle_time,
+			   state->usage, state->rejected);
 	}
 
 	genpd_unlock(genpd);

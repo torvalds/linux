@@ -2180,7 +2180,7 @@ static void insert_work(struct pool_workqueue *pwq, struct work_struct *work,
 	debug_work_activate(work);
 
 	/* record the work call stack in order to print it in KASAN reports */
-	kasan_record_aux_stack_noalloc(work);
+	kasan_record_aux_stack(work);
 
 	/* we own @work, set data and link */
 	set_work_pwq(work, pwq, extra_flags);
@@ -2508,6 +2508,7 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 		return;
 	}
 
+	WARN_ON_ONCE(cpu != WORK_CPU_UNBOUND && !cpu_online(cpu));
 	dwork->wq = wq;
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
@@ -2532,6 +2533,12 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
  * @wq: workqueue to use
  * @dwork: work to queue
  * @delay: number of jiffies to wait before queueing
+ *
+ * We queue the delayed_work to a specific CPU, for non-zero delays the
+ * caller must ensure it is online and can't go away. Callers that fail
+ * to ensure this, may get @dwork->timer queued to an offlined CPU and
+ * this will prevent queueing of @dwork->work unless the offlined CPU
+ * becomes online again.
  *
  * Return: %false if @work was already on a queue, %true otherwise.  If
  * @delay is zero and @dwork is idle, it will be scheduled for immediate
@@ -7833,7 +7840,7 @@ static void __init wq_cpu_intensive_thresh_init(void)
 	unsigned long thresh;
 	unsigned long bogo;
 
-	pwq_release_worker = kthread_create_worker(0, "pool_workqueue_release");
+	pwq_release_worker = kthread_run_worker(0, "pool_workqueue_release");
 	BUG_ON(IS_ERR(pwq_release_worker));
 
 	/* if the user set it to a specific value, keep it */

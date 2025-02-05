@@ -86,7 +86,7 @@ struct mod_tree_root mod_tree __cacheline_aligned = {
 
 struct symsearch {
 	const struct kernel_symbol *start, *stop;
-	const s32 *crcs;
+	const u32 *crcs;
 	enum mod_license license;
 };
 
@@ -538,7 +538,7 @@ static void setup_modinfo_##field(struct module *mod, const char *s)  \
 {                                                                     \
 	mod->field = kstrdup(s, GFP_KERNEL);                          \
 }                                                                     \
-static ssize_t show_modinfo_##field(struct module_attribute *mattr,   \
+static ssize_t show_modinfo_##field(const struct module_attribute *mattr, \
 			struct module_kobject *mk, char *buffer)      \
 {                                                                     \
 	return scnprintf(buffer, PAGE_SIZE, "%s\n", mk->mod->field);  \
@@ -552,7 +552,7 @@ static void free_modinfo_##field(struct module *mod)                  \
 	kfree(mod->field);                                            \
 	mod->field = NULL;                                            \
 }                                                                     \
-static struct module_attribute modinfo_##field = {                    \
+static const struct module_attribute modinfo_##field = {              \
 	.attr = { .name = __stringify(field), .mode = 0444 },         \
 	.show = show_modinfo_##field,                                 \
 	.setup = setup_modinfo_##field,                               \
@@ -842,13 +842,13 @@ void symbol_put_addr(void *addr)
 }
 EXPORT_SYMBOL_GPL(symbol_put_addr);
 
-static ssize_t show_refcnt(struct module_attribute *mattr,
+static ssize_t show_refcnt(const struct module_attribute *mattr,
 			   struct module_kobject *mk, char *buffer)
 {
 	return sprintf(buffer, "%i\n", module_refcount(mk->mod));
 }
 
-static struct module_attribute modinfo_refcnt =
+static const struct module_attribute modinfo_refcnt =
 	__ATTR(refcnt, 0444, show_refcnt, NULL);
 
 void __module_get(struct module *module)
@@ -917,7 +917,7 @@ size_t module_flags_taint(unsigned long taints, char *buf)
 	return l;
 }
 
-static ssize_t show_initstate(struct module_attribute *mattr,
+static ssize_t show_initstate(const struct module_attribute *mattr,
 			      struct module_kobject *mk, char *buffer)
 {
 	const char *state = "unknown";
@@ -938,10 +938,10 @@ static ssize_t show_initstate(struct module_attribute *mattr,
 	return sprintf(buffer, "%s\n", state);
 }
 
-static struct module_attribute modinfo_initstate =
+static const struct module_attribute modinfo_initstate =
 	__ATTR(initstate, 0444, show_initstate, NULL);
 
-static ssize_t store_uevent(struct module_attribute *mattr,
+static ssize_t store_uevent(const struct module_attribute *mattr,
 			    struct module_kobject *mk,
 			    const char *buffer, size_t count)
 {
@@ -951,10 +951,10 @@ static ssize_t store_uevent(struct module_attribute *mattr,
 	return rc ? rc : count;
 }
 
-struct module_attribute module_uevent =
+const struct module_attribute module_uevent =
 	__ATTR(uevent, 0200, NULL, store_uevent);
 
-static ssize_t show_coresize(struct module_attribute *mattr,
+static ssize_t show_coresize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = mk->mod->mem[MOD_TEXT].size;
@@ -966,11 +966,11 @@ static ssize_t show_coresize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_coresize =
+static const struct module_attribute modinfo_coresize =
 	__ATTR(coresize, 0444, show_coresize, NULL);
 
 #ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
-static ssize_t show_datasize(struct module_attribute *mattr,
+static ssize_t show_datasize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = 0;
@@ -980,11 +980,11 @@ static ssize_t show_datasize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_datasize =
+static const struct module_attribute modinfo_datasize =
 	__ATTR(datasize, 0444, show_datasize, NULL);
 #endif
 
-static ssize_t show_initsize(struct module_attribute *mattr,
+static ssize_t show_initsize(const struct module_attribute *mattr,
 			     struct module_kobject *mk, char *buffer)
 {
 	unsigned int size = 0;
@@ -994,10 +994,10 @@ static ssize_t show_initsize(struct module_attribute *mattr,
 	return sprintf(buffer, "%u\n", size);
 }
 
-static struct module_attribute modinfo_initsize =
+static const struct module_attribute modinfo_initsize =
 	__ATTR(initsize, 0444, show_initsize, NULL);
 
-static ssize_t show_taint(struct module_attribute *mattr,
+static ssize_t show_taint(const struct module_attribute *mattr,
 			  struct module_kobject *mk, char *buffer)
 {
 	size_t l;
@@ -1007,10 +1007,10 @@ static ssize_t show_taint(struct module_attribute *mattr,
 	return l;
 }
 
-static struct module_attribute modinfo_taint =
+static const struct module_attribute modinfo_taint =
 	__ATTR(taint, 0444, show_taint, NULL);
 
-struct module_attribute *modinfo_attrs[] = {
+const struct module_attribute *const modinfo_attrs[] = {
 	&module_uevent,
 	&modinfo_version,
 	&modinfo_srcversion,
@@ -1027,7 +1027,7 @@ struct module_attribute *modinfo_attrs[] = {
 	NULL,
 };
 
-size_t modinfo_attrs_count = ARRAY_SIZE(modinfo_attrs);
+const size_t modinfo_attrs_count = ARRAY_SIZE(modinfo_attrs);
 
 static const char vermagic[] = VERMAGIC_STRING;
 
@@ -1681,7 +1681,7 @@ static void module_license_taint_check(struct module *mod, const char *license)
 
 static void setup_modinfo(struct module *mod, struct load_info *info)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	int i;
 
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
@@ -1692,7 +1692,7 @@ static void setup_modinfo(struct module *mod, struct load_info *info)
 
 static void free_modinfo(struct module *mod)
 {
-	struct module_attribute *attr;
+	const struct module_attribute *attr;
 	int i;
 
 	for (i = 0; (attr = modinfo_attrs[i]); i++) {
@@ -2074,6 +2074,82 @@ static int elf_validity_cache_index_str(struct load_info *info)
 }
 
 /**
+ * elf_validity_cache_index_versions() - Validate and cache version indices
+ * @info:  Load info to cache version indices in.
+ *         Must have &load_info->sechdrs and &load_info->secstrings populated.
+ * @flags: Load flags, relevant to suppress version loading, see
+ *         uapi/linux/module.h
+ *
+ * If we're ignoring modversions based on @flags, zero all version indices
+ * and return validity. Othewrise check:
+ *
+ * * If "__version_ext_crcs" is present, "__version_ext_names" is present
+ * * There is a name present for every crc
+ *
+ * Then populate:
+ *
+ * * &load_info->index.vers
+ * * &load_info->index.vers_ext_crc
+ * * &load_info->index.vers_ext_names
+ *
+ * if present.
+ *
+ * Return: %0 if valid, %-ENOEXEC on failure.
+ */
+static int elf_validity_cache_index_versions(struct load_info *info, int flags)
+{
+	unsigned int vers_ext_crc;
+	unsigned int vers_ext_name;
+	size_t crc_count;
+	size_t remaining_len;
+	size_t name_size;
+	char *name;
+
+	/* If modversions were suppressed, pretend we didn't find any */
+	if (flags & MODULE_INIT_IGNORE_MODVERSIONS) {
+		info->index.vers = 0;
+		info->index.vers_ext_crc = 0;
+		info->index.vers_ext_name = 0;
+		return 0;
+	}
+
+	vers_ext_crc = find_sec(info, "__version_ext_crcs");
+	vers_ext_name = find_sec(info, "__version_ext_names");
+
+	/* If we have one field, we must have the other */
+	if (!!vers_ext_crc != !!vers_ext_name) {
+		pr_err("extended version crc+name presence does not match");
+		return -ENOEXEC;
+	}
+
+	/*
+	 * If we have extended version information, we should have the same
+	 * number of entries in every section.
+	 */
+	if (vers_ext_crc) {
+		crc_count = info->sechdrs[vers_ext_crc].sh_size / sizeof(u32);
+		name = (void *)info->hdr +
+			info->sechdrs[vers_ext_name].sh_offset;
+		remaining_len = info->sechdrs[vers_ext_name].sh_size;
+
+		while (crc_count--) {
+			name_size = strnlen(name, remaining_len) + 1;
+			if (name_size > remaining_len) {
+				pr_err("more extended version crcs than names");
+				return -ENOEXEC;
+			}
+			remaining_len -= name_size;
+			name += name_size;
+		}
+	}
+
+	info->index.vers = find_sec(info, "__versions");
+	info->index.vers_ext_crc = vers_ext_crc;
+	info->index.vers_ext_name = vers_ext_name;
+	return 0;
+}
+
+/**
  * elf_validity_cache_index() - Resolve, validate, cache section indices
  * @info:  Load info to read from and update.
  *         &load_info->sechdrs and &load_info->secstrings must be populated.
@@ -2087,9 +2163,7 @@ static int elf_validity_cache_index_str(struct load_info *info)
  * * elf_validity_cache_index_mod()
  * * elf_validity_cache_index_sym()
  * * elf_validity_cache_index_str()
- *
- * If versioning is not suppressed via flags, load the version index from
- * a section called "__versions" with no validation.
+ * * elf_validity_cache_index_versions()
  *
  * If CONFIG_SMP is enabled, load the percpu section by name with no
  * validation.
@@ -2112,11 +2186,9 @@ static int elf_validity_cache_index(struct load_info *info, int flags)
 	err = elf_validity_cache_index_str(info);
 	if (err < 0)
 		return err;
-
-	if (flags & MODULE_INIT_IGNORE_MODVERSIONS)
-		info->index.vers = 0; /* Pretend no __versions section! */
-	else
-		info->index.vers = find_sec(info, "__versions");
+	err = elf_validity_cache_index_versions(info, flags);
+	if (err < 0)
+		return err;
 
 	info->index.pcpu = find_pcpusec(info);
 
@@ -2327,16 +2399,29 @@ static int rewrite_section_headers(struct load_info *info, int flags)
 
 	/* Track but don't keep modinfo and version sections. */
 	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
+	info->sechdrs[info->index.vers_ext_crc].sh_flags &=
+		~(unsigned long)SHF_ALLOC;
+	info->sechdrs[info->index.vers_ext_name].sh_flags &=
+		~(unsigned long)SHF_ALLOC;
 	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
 
 	return 0;
 }
+
+static const char *const module_license_offenders[] = {
+	/* driverloader was caught wrongly pretending to be under GPL */
+	"driverloader",
+
+	/* lve claims to be GPL but upstream won't provide source */
+	"lve",
+};
 
 /*
  * These calls taint the kernel depending certain module circumstances */
 static void module_augment_kernel_taints(struct module *mod, struct load_info *info)
 {
 	int prev_taint = test_taint(TAINT_PROPRIETARY_MODULE);
+	size_t i;
 
 	if (!get_modinfo(info, "intree")) {
 		if (!test_taint(TAINT_OOT_MODULE))
@@ -2385,15 +2470,11 @@ static void module_augment_kernel_taints(struct module *mod, struct load_info *i
 	if (strcmp(mod->name, "ndiswrapper") == 0)
 		add_taint(TAINT_PROPRIETARY_MODULE, LOCKDEP_NOW_UNRELIABLE);
 
-	/* driverloader was caught wrongly pretending to be under GPL */
-	if (strcmp(mod->name, "driverloader") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
-				 LOCKDEP_NOW_UNRELIABLE);
-
-	/* lve claims to be GPL but upstream won't provide source */
-	if (strcmp(mod->name, "lve") == 0)
-		add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
-				 LOCKDEP_NOW_UNRELIABLE);
+	for (i = 0; i < ARRAY_SIZE(module_license_offenders); ++i) {
+		if (strcmp(mod->name, module_license_offenders[i]) == 0)
+			add_taint_module(mod, TAINT_PROPRIETARY_MODULE,
+					 LOCKDEP_NOW_UNRELIABLE);
+	}
 
 	if (!prev_taint && test_taint(TAINT_PROPRIETARY_MODULE))
 		pr_warn("%s: module license taints kernel.\n", mod->name);
@@ -2948,9 +3029,12 @@ static noinline int do_init_module(struct module *mod)
 	/* Switch to core kallsyms now init is done: kallsyms may be walking! */
 	rcu_assign_pointer(mod->kallsyms, &mod->core_kallsyms);
 #endif
-	ret = module_enable_rodata_ro(mod, true);
+	ret = module_enable_rodata_ro_after_init(mod);
 	if (ret)
-		goto fail_mutex_unlock;
+		pr_warn("%s: module_enable_rodata_ro_after_init() returned %d, "
+			"ro_after_init data might still be writable\n",
+			mod->name, ret);
+
 	mod_tree_remove_init(mod);
 	module_arch_freeing_init(mod);
 	for_class_mod_mem_type(type, init) {
@@ -2989,8 +3073,6 @@ static noinline int do_init_module(struct module *mod)
 
 	return 0;
 
-fail_mutex_unlock:
-	mutex_unlock(&module_mutex);
 fail_free_freeinit:
 	kfree(freeinit);
 fail:
@@ -3118,7 +3200,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 	module_cfi_finalize(info->hdr, info->sechdrs, mod);
 
-	err = module_enable_rodata_ro(mod, false);
+	err = module_enable_rodata_ro(mod);
 	if (err)
 		goto out_strict_rwx;
 	err = module_enable_data_nx(mod);

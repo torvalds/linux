@@ -208,7 +208,6 @@ static const struct drm_driver qaic_accel_driver = {
 
 	.name			= QAIC_NAME,
 	.desc			= QAIC_DESC,
-	.date			= "20190618",
 
 	.fops			= &qaic_accel_fops,
 	.open			= qaic_open,

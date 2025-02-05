@@ -602,14 +602,14 @@ const struct x86_dev_info whitelabel_tm800a550l_info __initconst = {
  * Vexia EDU ATLA 10 tablet, Android 4.2 / 4.4 + Guadalinex Ubuntu tablet
  * distributed to schools in the Spanish Andalucía region.
  */
-const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
+static const char * const crystal_cove_pwrsrc_psy[] = { "crystal_cove_pwrsrc" };
 
 static const struct property_entry vexia_edu_atla10_ulpmc_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", crystal_cove_pwrsrc_psy),
 	{ }
 };
 
-const struct software_node vexia_edu_atla10_ulpmc_node = {
+static const struct software_node vexia_edu_atla10_ulpmc_node = {
 	.properties = vexia_edu_atla10_ulpmc_props,
 };
 
@@ -715,6 +715,14 @@ static const struct x86_i2c_client_info vexia_edu_atla10_i2c_clients[] __initcon
 	}
 };
 
+static const struct x86_serdev_info vexia_edu_atla10_serdevs[] __initconst = {
+	{
+		.ctrl.pci.devfn = PCI_DEVFN(0x1e, 3),
+		.ctrl_devname = "serial0",
+		.serdev_hid = "OBDA8723",
+	},
+};
+
 static struct gpiod_lookup_table vexia_edu_atla10_ft5416_gpios = {
 	.dev_id = "i2c-FTSC1000",
 	.table = {
@@ -755,9 +763,11 @@ static int __init vexia_edu_atla10_init(struct device *dev)
 const struct x86_dev_info vexia_edu_atla10_info __initconst = {
 	.i2c_client_info = vexia_edu_atla10_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(vexia_edu_atla10_i2c_clients),
+	.serdev_info = vexia_edu_atla10_serdevs,
+	.serdev_count = ARRAY_SIZE(vexia_edu_atla10_serdevs),
 	.gpiod_lookup_tables = vexia_edu_atla10_gpios,
 	.init = vexia_edu_atla10_init,
-	.use_pci_devname = true,
+	.use_pci = true,
 };
 
 /*

@@ -338,7 +338,7 @@ struct ath_chanctx {
 
 	struct ath_beacon_config beacon;
 	struct ath9k_hw_cal_data caldata;
-	struct timespec64 tsf_ts;
+	ktime_t tsf_ts;
 	u64 tsf_val;
 	u32 last_beacon;
 
@@ -592,8 +592,8 @@ void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
-u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
-		     int width, int half_gi, bool shortPreamble);
+u32 ath_pkt_duration(u8 rix, int pktlen, int width,
+		     int half_gi, bool shortPreamble);
 void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 void ath_assign_seq(struct ath_common *common, struct sk_buff *skb);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1011,13 +1011,15 @@ struct ath_softc {
 	struct ath_offchannel offchannel;
 	struct ath_chanctx *next_chan;
 	struct completion go_beacon;
-	struct timespec64 last_event_time;
+	ktime_t last_event_time;
 #endif
 
 	unsigned long driver_data;
 
 	u8 gtt_cnt;
 	u32 intrstatus;
+	u32 rx_active_check_time;
+	u32 rx_active_count;
 	u16 ps_flags; /* PS_* */
 	bool ps_enabled;
 	bool ps_idle;

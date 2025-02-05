@@ -101,7 +101,7 @@ The macro comes from:
 
 .. code-block::
 
-    #include <dt-bindings/iio/adi,ad4695.h>
+    #include <dt-bindings/iio/adc/adi,ad4695.h>
 
 Pairing two INx pins
 ^^^^^^^^^^^^^^^^^^^^

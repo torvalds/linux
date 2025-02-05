@@ -101,7 +101,7 @@ static inline void pcim_addr_devres_clear(struct pcim_addr_devres *res)
  * @bar: BAR the range is within
  * @offset: offset from the BAR's start address
  * @maxlen: length in bytes, beginning at @offset
- * @name: name associated with the request
+ * @name: name of the driver requesting the resource
  * @req_flags: flags for the request, e.g., for kernel-exclusive requests
  *
  * Returns: 0 on success, a negative error code on failure.
@@ -411,46 +411,20 @@ static inline bool mask_contains_bar(int mask, int bar)
 	return mask & BIT(bar);
 }
 
-/*
- * This is a copy of pci_intx() used to bypass the problem of recursive
- * function calls due to the hybrid nature of pci_intx().
- */
-static void __pcim_intx(struct pci_dev *pdev, int enable)
-{
-	u16 pci_command, new;
-
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
-
-	if (enable)
-		new = pci_command & ~PCI_COMMAND_INTX_DISABLE;
-	else
-		new = pci_command | PCI_COMMAND_INTX_DISABLE;
-
-	if (new != pci_command)
-		pci_write_config_word(pdev, PCI_COMMAND, new);
-}
-
 static void pcim_intx_restore(struct device *dev, void *data)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct pcim_intx_devres *res = data;
 
-	__pcim_intx(pdev, res->orig_intx);
+	pci_intx(pdev, res->orig_intx);
 }
 
-static struct pcim_intx_devres *get_or_create_intx_devres(struct device *dev)
+static void save_orig_intx(struct pci_dev *pdev, struct pcim_intx_devres *res)
 {
-	struct pcim_intx_devres *res;
+	u16 pci_command;
 
-	res = devres_find(dev, pcim_intx_restore, NULL, NULL);
-	if (res)
-		return res;
-
-	res = devres_alloc(pcim_intx_restore, sizeof(*res), GFP_KERNEL);
-	if (res)
-		devres_add(dev, res);
-
-	return res;
+	pci_read_config_word(pdev, PCI_COMMAND, &pci_command);
+	res->orig_intx = !(pci_command & PCI_COMMAND_INTX_DISABLE);
 }
 
 /**
@@ -466,16 +440,28 @@ static struct pcim_intx_devres *get_or_create_intx_devres(struct device *dev)
 int pcim_intx(struct pci_dev *pdev, int enable)
 {
 	struct pcim_intx_devres *res;
+	struct device *dev = &pdev->dev;
 
-	res = get_or_create_intx_devres(&pdev->dev);
-	if (!res)
-		return -ENOMEM;
+	/*
+	 * pcim_intx() must only restore the INTx value that existed before the
+	 * driver was loaded, i.e., before it called pcim_intx() for the
+	 * first time.
+	 */
+	res = devres_find(dev, pcim_intx_restore, NULL, NULL);
+	if (!res) {
+		res = devres_alloc(pcim_intx_restore, sizeof(*res), GFP_KERNEL);
+		if (!res)
+			return -ENOMEM;
 
-	res->orig_intx = !enable;
-	__pcim_intx(pdev, enable);
+		save_orig_intx(pdev, res);
+		devres_add(dev, res);
+	}
+
+	pci_intx(pdev, enable);
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(pcim_intx);
 
 static void pcim_disable_device(void *pdev_raw)
 {
@@ -723,7 +709,7 @@ EXPORT_SYMBOL(pcim_iounmap);
  * pcim_iomap_region - Request and iomap a PCI BAR
  * @pdev: PCI device to map IO resources for
  * @bar: Index of a BAR to map
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: __iomem pointer on success, an IOMEM_ERR_PTR on failure.
  *
@@ -790,7 +776,7 @@ EXPORT_SYMBOL(pcim_iounmap_region);
  * pcim_iomap_regions - Request and iomap PCI BARs (DEPRECATED)
  * @pdev: PCI device to map IO resources for
  * @mask: Mask of BARs to request and iomap
- * @name: Name associated with the requests
+ * @name: Name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *
@@ -855,9 +841,9 @@ static int _pcim_request_region(struct pci_dev *pdev, int bar, const char *name,
 
 /**
  * pcim_request_region - Request a PCI BAR
- * @pdev: PCI device to requestion region for
+ * @pdev: PCI device to request region for
  * @bar: Index of BAR to request
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: 0 on success, a negative error code on failure.
  *
@@ -874,9 +860,9 @@ EXPORT_SYMBOL(pcim_request_region);
 
 /**
  * pcim_request_region_exclusive - Request a PCI BAR exclusively
- * @pdev: PCI device to requestion region for
+ * @pdev: PCI device to request region for
  * @bar: Index of BAR to request
- * @name: Name associated with the request
+ * @name: Name of the driver requesting the resource
  *
  * Returns: 0 on success, a negative error code on failure.
  *
@@ -932,7 +918,7 @@ static void pcim_release_all_regions(struct pci_dev *pdev)
 /**
  * pcim_request_all_regions - Request all regions
  * @pdev: PCI device to map IO resources for
- * @name: name associated with the request
+ * @name: name of the driver requesting the resources
  *
  * Returns: 0 on success, negative error code on failure.
  *

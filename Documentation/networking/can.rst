@@ -699,10 +699,10 @@ RAW socket option CAN_RAW_JOIN_FILTERS
 
 The CAN_RAW socket can set multiple CAN identifier specific filters that
 lead to multiple filters in the af_can.c filter processing. These filters
-are indenpendent from each other which leads to logical OR'ed filters when
+are independent from each other which leads to logical OR'ed filters when
 applied (see :ref:`socketcan-rawfilter`).
 
-This socket option joines the given CAN filters in the way that only CAN
+This socket option joins the given CAN filters in the way that only CAN
 frames are passed to user space that matched *all* given CAN filters. The
 semantic for the applied filters is therefore changed to a logical AND.
 

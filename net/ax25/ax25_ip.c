@@ -122,6 +122,7 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 	if (dev == NULL)
 		dev = skb->dev;
 
+	rcu_read_lock();
 	if ((ax25_dev = ax25_dev_ax25dev(dev)) == NULL) {
 		kfree_skb(skb);
 		goto put;
@@ -202,7 +203,7 @@ netdev_tx_t ax25_ip_xmit(struct sk_buff *skb)
 	ax25_queue_xmit(skb, dev);
 
 put:
-
+	rcu_read_unlock();
 	ax25_route_lock_unuse();
 	return NETDEV_TX_OK;
 }

@@ -20,15 +20,13 @@ void bch2_reset_alloc_cursors(struct bch_fs *);
 
 struct dev_alloc_list {
 	unsigned	nr;
-	u8		devs[BCH_SB_MEMBERS_MAX];
+	u8		data[BCH_SB_MEMBERS_MAX];
 };
 
 struct dev_alloc_list bch2_dev_alloc_list(struct bch_fs *,
 					  struct dev_stripe_state *,
 					  struct bch_devs_mask *);
 void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
-
-long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
 static inline struct bch_dev *ob_dev(struct bch_fs *c, struct open_bucket *ob)
 {

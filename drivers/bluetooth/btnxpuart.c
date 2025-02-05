@@ -1386,7 +1386,7 @@ static void btnxpuart_tx_work(struct work_struct *work)
 		skb_pull(skb, len);
 		if (skb->len > 0) {
 			skb_queue_head(&nxpdev->txq, skb);
-			break;
+			continue;
 		}
 
 		switch (hci_skb_pkt_type(skb)) {

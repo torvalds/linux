@@ -379,6 +379,7 @@ static void do_region(const blk_opf_t opf, unsigned int region,
 
 		atomic_inc(&io->count);
 		submit_bio(bio);
+		WARN_ON_ONCE(opf & REQ_ATOMIC && remaining);
 	} while (remaining);
 }
 

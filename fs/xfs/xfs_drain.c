@@ -13,28 +13,28 @@
 #include "xfs_trace.h"
 
 /*
- * Use a static key here to reduce the overhead of xfs_drain_rele.  If the
- * compiler supports jump labels, the static branch will be replaced by a nop
- * sled when there are no xfs_drain_wait callers.  Online fsck is currently
- * the only caller, so this is a reasonable tradeoff.
+ * Use a static key here to reduce the overhead of xfs_defer_drain_rele.  If
+ * the compiler supports jump labels, the static branch will be replaced by a
+ * nop sled when there are no xfs_defer_drain_wait callers.  Online fsck is
+ * currently the only caller, so this is a reasonable tradeoff.
  *
  * Note: Patching the kernel code requires taking the cpu hotplug lock.  Other
  * parts of the kernel allocate memory with that lock held, which means that
  * XFS callers cannot hold any locks that might be used by memory reclaim or
  * writeback when calling the static_branch_{inc,dec} functions.
  */
-static DEFINE_STATIC_KEY_FALSE(xfs_drain_waiter_gate);
+static DEFINE_STATIC_KEY_FALSE(xfs_defer_drain_waiter_gate);
 
 void
-xfs_drain_wait_disable(void)
+xfs_defer_drain_wait_disable(void)
 {
-	static_branch_dec(&xfs_drain_waiter_gate);
+	static_branch_dec(&xfs_defer_drain_waiter_gate);
 }
 
 void
-xfs_drain_wait_enable(void)
+xfs_defer_drain_wait_enable(void)
 {
-	static_branch_inc(&xfs_drain_waiter_gate);
+	static_branch_inc(&xfs_defer_drain_waiter_gate);
 }
 
 void
@@ -71,7 +71,7 @@ static inline bool has_waiters(struct wait_queue_head *wq_head)
 static inline void xfs_defer_drain_rele(struct xfs_defer_drain *dr)
 {
 	if (atomic_dec_and_test(&dr->dr_count) &&
-	    static_branch_unlikely(&xfs_drain_waiter_gate) &&
+	    static_branch_unlikely(&xfs_defer_drain_waiter_gate) &&
 	    has_waiters(&dr->dr_waiters))
 		wake_up(&dr->dr_waiters);
 }

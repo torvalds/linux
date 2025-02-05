@@ -426,6 +426,8 @@ void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 	int opp_inst[MAX_PIPES] = {0};
 	int odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
 	int last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
+	struct mpc *mpc = dc->res_pool->mpc;
+	int i;
 
 	opp_cnt = get_odm_config(pipe_ctx, opp_inst);
 
@@ -437,6 +439,16 @@ void dcn35_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
+
+	if (mpc->funcs->set_out_rate_control) {
+		for (i = 0; i < opp_cnt; ++i) {
+			mpc->funcs->set_out_rate_control(
+					mpc, opp_inst[i],
+					false,
+					0,
+					NULL);
+		}
+	}
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
@@ -788,6 +800,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		/* Disable on the current state so the new one isn't cleared. */
 		pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
 
+		hubp->funcs->hubp_reset(hubp);
 		dpp->funcs->dpp_reset(dpp);
 
 		pipe_ctx->stream_res.tg = tg;
@@ -944,6 +957,7 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 /*to do, need to support both case*/
 	hubp->power_gated = true;
 
+	hubp->funcs->hubp_reset(hubp);
 	dpp->funcs->dpp_reset(dpp);
 
 	pipe_ctx->stream = NULL;
@@ -1020,8 +1034,13 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		if (pipe_ctx->plane_res.dpp || pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_MPCC][pipe_ctx->plane_res.mpcc_inst] = false;
 
-		if (pipe_ctx->stream_res.dsc)
+		if (pipe_ctx->stream_res.dsc) {
 			update_state->pg_pipe_res_update[PG_DSC][pipe_ctx->stream_res.dsc->inst] = false;
+			if (dc->caps.sequential_ono) {
+				update_state->pg_pipe_res_update[PG_HUBP][pipe_ctx->stream_res.dsc->inst] = false;
+				update_state->pg_pipe_res_update[PG_DPP][pipe_ctx->stream_res.dsc->inst] = false;
+			}
+		}
 
 		if (pipe_ctx->stream_res.opp)
 			update_state->pg_pipe_res_update[PG_OPP][pipe_ctx->stream_res.opp->inst] = false;
@@ -1578,4 +1597,38 @@ bool dcn35_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 		return true;
 
 	return false;
+}
+
+/*
+ * Set powerup to true for every pipe to match pre-OS configuration.
+ */
+static void dcn35_calc_blocks_to_ungate_for_hw_release(struct dc *dc, struct pg_block_update *update_state)
+{
+	int i = 0, j = 0;
+
+	memset(update_state, 0, sizeof(struct pg_block_update));
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		for (j = 0; j < PG_HW_PIPE_RESOURCES_NUM_ELEMENT; j++)
+			update_state->pg_pipe_res_update[j][i] = true;
+
+	update_state->pg_res_update[PG_HPO] = true;
+	update_state->pg_res_update[PG_DWB] = true;
+}
+
+/*
+ * The purpose is to power up all gatings to restore optimization to pre-OS env.
+ * Re-use hwss func and existing PG&RCG flags to decide powerup sequence.
+ */
+void dcn35_hardware_release(struct dc *dc)
+{
+	struct pg_block_update pg_update_state;
+
+	dcn35_calc_blocks_to_ungate_for_hw_release(dc, &pg_update_state);
+
+	if (dc->hwss.root_clock_control)
+		dc->hwss.root_clock_control(dc, &pg_update_state, true);
+	/*power up required HW block*/
+	if (dc->hwss.hw_block_power_up)
+		dc->hwss.hw_block_power_up(dc, &pg_update_state);
 }

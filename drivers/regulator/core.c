@@ -917,6 +917,26 @@ static ssize_t bypass_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(bypass);
 
+static ssize_t power_budget_milliwatt_show(struct device *dev,
+					   struct device_attribute *attr,
+					   char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", rdev->constraints->pw_budget_mW);
+}
+static DEVICE_ATTR_RO(power_budget_milliwatt);
+
+static ssize_t power_requested_milliwatt_show(struct device *dev,
+					      struct device_attribute *attr,
+					      char *buf)
+{
+	struct regulator_dev *rdev = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", rdev->pw_requested_mW);
+}
+static DEVICE_ATTR_RO(power_requested_milliwatt);
+
 #define REGULATOR_ERROR_ATTR(name, bit)							\
 	static ssize_t name##_show(struct device *dev, struct device_attribute *attr,	\
 				   char *buf)						\
@@ -1148,6 +1168,10 @@ static void print_constraints_debug(struct regulator_dev *rdev)
 		count += scnprintf(buf + count, len - count, "idle ");
 	if (constraints->valid_modes_mask & REGULATOR_MODE_STANDBY)
 		count += scnprintf(buf + count, len - count, "standby ");
+
+	if (constraints->pw_budget_mW)
+		count += scnprintf(buf + count, len - count, "%d mW budget",
+				   constraints->pw_budget_mW);
 
 	if (!count)
 		count = scnprintf(buf, len, "no parameters");
@@ -1627,6 +1651,9 @@ static int set_machine_constraints(struct regulator_dev *rdev)
 		rdev->last_off = ktime_get();
 	}
 
+	if (!rdev->constraints->pw_budget_mW)
+		rdev->constraints->pw_budget_mW = INT_MAX;
+
 	print_constraints(rdev);
 	return 0;
 }
@@ -1936,6 +1963,20 @@ static struct regulator_dev *regulator_lookup_by_name(const char *name)
 	return dev ? dev_to_rdev(dev) : NULL;
 }
 
+static struct regulator_dev *regulator_dt_lookup(struct device *dev,
+						 const char *supply)
+{
+	struct regulator_dev *r = NULL;
+
+	if (dev_of_node(dev)) {
+		r = of_regulator_dev_lookup(dev, dev_of_node(dev), supply);
+		if (PTR_ERR(r) == -ENODEV)
+			r = NULL;
+	}
+
+	return r;
+}
+
 /**
  * regulator_dev_lookup - lookup a regulator device.
  * @dev: device for regulator "consumer".
@@ -1960,16 +2001,9 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	regulator_supply_alias(&dev, &supply);
 
 	/* first do a dt based lookup */
-	if (dev_of_node(dev)) {
-		r = of_regulator_dev_lookup(dev, dev_of_node(dev), supply);
-		if (!IS_ERR(r))
-			return r;
-		if (PTR_ERR(r) == -EPROBE_DEFER)
-			return r;
-
-		if (PTR_ERR(r) == -ENODEV)
-			r = NULL;
-	}
+	r = regulator_dt_lookup(dev, supply);
+	if (r)
+		return r;
 
 	/* if not found, try doing it non-dt way */
 	if (dev)
@@ -2015,7 +2049,17 @@ static int regulator_resolve_supply(struct regulator_dev *rdev)
 	if (rdev->supply)
 		return 0;
 
-	r = regulator_dev_lookup(dev, rdev->supply_name);
+	/* first do a dt based lookup on the node described in the virtual
+	 * device.
+	 */
+	r = regulator_dt_lookup(&rdev->dev, rdev->supply_name);
+
+	/* If regulator not found use usual search path in the parent
+	 * device.
+	 */
+	if (!r)
+		r = regulator_dev_lookup(dev, rdev->supply_name);
+
 	if (IS_ERR(r)) {
 		ret = PTR_ERR(r);
 
@@ -4585,6 +4629,87 @@ int regulator_get_current_limit(struct regulator *regulator)
 EXPORT_SYMBOL_GPL(regulator_get_current_limit);
 
 /**
+ * regulator_get_unclaimed_power_budget - get regulator unclaimed power budget
+ * @regulator: regulator source
+ *
+ * Return: Unclaimed power budget of the regulator in mW.
+ */
+int regulator_get_unclaimed_power_budget(struct regulator *regulator)
+{
+	return regulator->rdev->constraints->pw_budget_mW -
+	       regulator->rdev->pw_requested_mW;
+}
+EXPORT_SYMBOL_GPL(regulator_get_unclaimed_power_budget);
+
+/**
+ * regulator_request_power_budget - request power budget on a regulator
+ * @regulator: regulator source
+ * @pw_req: Power requested
+ *
+ * Return: 0 on success or a negative error number on failure.
+ */
+int regulator_request_power_budget(struct regulator *regulator,
+				   unsigned int pw_req)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int ret = 0, pw_tot_req;
+
+	regulator_lock(rdev);
+	if (rdev->supply) {
+		ret = regulator_request_power_budget(rdev->supply, pw_req);
+		if (ret < 0)
+			goto out;
+	}
+
+	pw_tot_req = rdev->pw_requested_mW + pw_req;
+	if (pw_tot_req > rdev->constraints->pw_budget_mW) {
+		rdev_warn(rdev, "power requested %d mW out of budget %d mW",
+			  pw_req,
+			  rdev->constraints->pw_budget_mW - rdev->pw_requested_mW);
+		regulator_notifier_call_chain(rdev,
+					      REGULATOR_EVENT_OVER_CURRENT_WARN,
+					      NULL);
+		ret = -ERANGE;
+		goto out;
+	}
+
+	rdev->pw_requested_mW = pw_tot_req;
+out:
+	regulator_unlock(rdev);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regulator_request_power_budget);
+
+/**
+ * regulator_free_power_budget - free power budget on a regulator
+ * @regulator: regulator source
+ * @pw: Power to be released.
+ *
+ * Return: Power budget of the regulator in mW.
+ */
+void regulator_free_power_budget(struct regulator *regulator,
+				 unsigned int pw)
+{
+	struct regulator_dev *rdev = regulator->rdev;
+	int pw_tot_req;
+
+	regulator_lock(rdev);
+	if (rdev->supply)
+		regulator_free_power_budget(rdev->supply, pw);
+
+	pw_tot_req = rdev->pw_requested_mW - pw;
+	if (pw_tot_req >= 0)
+		rdev->pw_requested_mW = pw_tot_req;
+	else
+		rdev_warn(rdev,
+			  "too much power freed %d mW (already requested %d mW)",
+			  pw, rdev->pw_requested_mW);
+
+	regulator_unlock(rdev);
+}
+EXPORT_SYMBOL_GPL(regulator_free_power_budget);
+
+/**
  * regulator_set_mode - set regulator operating mode
  * @regulator: regulator source
  * @mode: operating mode - one of the REGULATOR_MODE constants
@@ -4908,7 +5033,7 @@ int _regulator_bulk_get(struct device *dev, int num_consumers,
 						       consumers[i].supply, get_type);
 		if (IS_ERR(consumers[i].consumer)) {
 			ret = dev_err_probe(dev, PTR_ERR(consumers[i].consumer),
-					    "Failed to get supply '%s'",
+					    "Failed to get supply '%s'\n",
 					    consumers[i].supply);
 			consumers[i].consumer = NULL;
 			goto err;
@@ -5222,6 +5347,8 @@ static struct attribute *regulator_dev_attrs[] = {
 	&dev_attr_suspend_standby_mode.attr,
 	&dev_attr_suspend_mem_mode.attr,
 	&dev_attr_suspend_disk_mode.attr,
+	&dev_attr_power_budget_milliwatt.attr,
+	&dev_attr_power_requested_milliwatt.attr,
 	NULL
 };
 
@@ -5302,6 +5429,10 @@ static umode_t regulator_attr_is_visible(struct kobject *kobj,
 	    attr == &dev_attr_suspend_mem_mode.attr ||
 	    attr == &dev_attr_suspend_disk_mode.attr)
 		return ops->set_suspend_mode ? mode : 0;
+
+	if (attr == &dev_attr_power_budget_milliwatt.attr ||
+	    attr == &dev_attr_power_requested_milliwatt.attr)
+		return rdev->constraints->pw_budget_mW != INT_MAX ? mode : 0;
 
 	return mode;
 }

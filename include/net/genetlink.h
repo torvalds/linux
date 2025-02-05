@@ -354,7 +354,7 @@ __genlmsg_iput(struct sk_buff *skb, const struct genl_info *info, int flags)
  * such requests) or a struct initialized by genl_info_init_ntf()
  * when constructing notifications.
  *
- * Returns pointer to new genetlink header.
+ * Returns: pointer to new genetlink header.
  */
 static inline void *
 genlmsg_iput(struct sk_buff *skb, const struct genl_info *info)
@@ -366,7 +366,7 @@ genlmsg_iput(struct sk_buff *skb, const struct genl_info *info)
  * genlmsg_nlhdr - Obtain netlink header from user specified header
  * @user_hdr: user header as returned from genlmsg_put()
  *
- * Returns pointer to netlink header.
+ * Returns: pointer to netlink header.
  */
 static inline struct nlmsghdr *genlmsg_nlhdr(void *user_hdr)
 {
@@ -435,7 +435,7 @@ static inline void genl_dump_check_consistent(struct netlink_callback *cb,
  * @flags: netlink message flags
  * @cmd: generic netlink command
  *
- * Returns pointer to user specific header
+ * Returns: pointer to user specific header
  */
 static inline void *genlmsg_put_reply(struct sk_buff *skb,
 				      struct genl_info *info,

@@ -86,9 +86,12 @@ void kfd_process_dequeue_from_device(struct kfd_process_device *pdd)
 
 	if (pdd->already_dequeued)
 		return;
-
+	/* The MES context flush needs to filter out the case which the
+	 * KFD process is created without setting up the MES context and
+	 * queue for creating a compute queue.
+	 */
 	dev->dqm->ops.process_termination(dev->dqm, &pdd->qpd);
-	if (dev->kfd->shared_resources.enable_mes &&
+	if (dev->kfd->shared_resources.enable_mes && !!pdd->proc_ctx_gpu_addr &&
 	    down_read_trylock(&dev->adev->reset_domain->sem)) {
 		amdgpu_mes_flush_shader_debugger(dev->adev,
 						 pdd->proc_ctx_gpu_addr);
@@ -131,8 +134,9 @@ int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 	if (!gws && pdd->qpd.num_gws == 0)
 		return -EINVAL;
 
-	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
+	if ((KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
+	     KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
+	     KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0)) &&
 	    !dev->kfd->shared_resources.enable_mes) {
 		if (gws)
 			ret = amdgpu_amdkfd_add_gws_to_process(pdd->process->kgd_process_info,
@@ -197,6 +201,7 @@ static void pqm_clean_queue_resource(struct process_queue_manager *pqm,
 	if (pqn->q->gws) {
 		if (KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 3) &&
 		    KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 4, 4) &&
+		    KFD_GC_VERSION(pqn->q->device) != IP_VERSION(9, 5, 0) &&
 		    !dev->kfd->shared_resources.enable_mes)
 			amdgpu_amdkfd_remove_gws_from_process(
 				pqm->process->kgd_process_info, pqn->q->gws);
@@ -320,11 +325,12 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 	unsigned int max_queues = 127; /* HWS limit */
 
 	/*
-	 * On GFX 9.4.3, increase the number of queues that
-	 * can be created to 255. No HWS limit on GFX 9.4.3.
+	 * On GFX 9.4.3/9.5.0, increase the number of queues that
+	 * can be created to 255. No HWS limit on GFX 9.4.3/9.5.0.
 	 */
 	if (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
-	    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4))
+	    KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
+	    KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0))
 		max_queues = 255;
 
 	q = NULL;

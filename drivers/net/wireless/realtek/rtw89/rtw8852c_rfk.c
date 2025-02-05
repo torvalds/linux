@@ -1769,10 +1769,10 @@ u8 _rx_dck_channel_calc(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan)
 			target_ch = chan->channel - 33;
 		}
 	} else if (chan->band_type == RTW89_BAND_6G) {
-		if (chan->channel >= 1 && chan->channel <= 125)
-			target_ch = chan->channel + 32;
-		else
+		if (chan->channel > 125)
 			target_ch = chan->channel - 32;
+		else
+			target_ch = chan->channel + 32;
 	} else {
 		target_ch = chan->channel;
 	}

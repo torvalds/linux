@@ -36,6 +36,7 @@ dtb-$(CONFIG_ARCH_BCM2835) += \
 	bcm2835-rpi-zero.dtb \
 	bcm2835-rpi-zero-w.dtb
 dtb-$(CONFIG_ARCH_BCMBCA) += \
+	bcm6846-genexis-xg6846b.dtb \
 	bcm947622.dtb \
 	bcm963138.dtb \
 	bcm963138dvt.dtb \

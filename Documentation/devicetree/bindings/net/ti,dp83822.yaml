@@ -96,6 +96,32 @@ properties:
       - master
       - slave
 
+  ti,gpio2-clk-out:
+    description: |
+       DP83822 PHY only.
+       The GPIO2 pin on the DP83822 can be configured as clock output. When
+       omitted, the PHY's default will be left as is.
+
+       - 'mac-if': In MII mode the clock frequency is 25-MHz, in RMII Mode the
+         clock frequency is 50-MHz and in RGMII Mode the clock frequency is
+         25-MHz.
+       - 'xi': XI clock(pass-through clock from XI pin).
+       - 'int-ref': Internal reference clock 25-MHz.
+       - 'rmii-master-mode-ref': RMII master mode reference clock 50-MHz. RMII
+         master mode reference clock is identical to MAC IF clock in RMII master
+         mode.
+       - 'free-running': Free running clock 125-MHz.
+       - 'recovered': Recovered clock is a 125-MHz recovered clock from a
+         connected link partner.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - mac-if
+      - xi
+      - int-ref
+      - rmii-master-mode-ref
+      - free-running
+      - recovered
+
 required:
   - reg
 
@@ -110,6 +136,7 @@ examples:
         reg = <0>;
         rx-internal-delay-ps = <1>;
         tx-internal-delay-ps = <1>;
+        ti,gpio2-clk-out = "xi";
       };
     };
 

@@ -7,6 +7,8 @@
 
 #include "netmem_priv.h"
 
+extern struct mutex page_pools_lock;
+
 s32 page_pool_inflight(const struct page_pool *pool, bool strict);
 
 int page_pool_list(struct page_pool *pool);

@@ -18,6 +18,7 @@
 #include <linux/extcon-provider.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string_choices.h>
 #include <linux/usb/otg.h>
 #include <linux/mfd/retu.h>
 #include <linux/usb/gadget.h>
@@ -63,7 +64,7 @@ static ssize_t vbus_show(struct device *device,
 			       struct device_attribute *attr, char *buf)
 {
 	struct tahvo_usb *tu = dev_get_drvdata(device);
-	return sprintf(buf, "%s\n", tu->vbus_state ? "on" : "off");
+	return sprintf(buf, "%s\n", str_on_off(tu->vbus_state));
 }
 static DEVICE_ATTR_RO(vbus);
 

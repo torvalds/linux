@@ -332,6 +332,12 @@ allocation policy for the internal shmem mount by using the kernel parameter
 seven valid policies for shmem (``always``, ``within_size``, ``advise``,
 ``never``, ``deny``, and ``force``).
 
+Similarly to ``transparent_hugepage_shmem``, you can control the default
+hugepage allocation policy for the tmpfs mount by using the kernel parameter
+``transparent_hugepage_tmpfs=<policy>``, where ``<policy>`` is one of the
+four valid policies for tmpfs (``always``, ``within_size``, ``advise``,
+``never``). The tmpfs mount default policy is ``never``.
+
 In the same manner as ``thp_anon`` controls each supported anonymous THP
 size, ``thp_shmem`` controls each supported shmem THP size. ``thp_shmem``
 has the same format as ``thp_anon``, but also supports the policy
@@ -352,8 +358,21 @@ default to ``never``.
 Hugepages in tmpfs/shmem
 ========================
 
-You can control hugepage allocation policy in tmpfs with mount option
-``huge=``. It can have following values:
+Traditionally, tmpfs only supported a single huge page size ("PMD"). Today,
+it also supports smaller sizes just like anonymous memory, often referred
+to as "multi-size THP" (mTHP). Huge pages of any size are commonly
+represented in the kernel as "large folios".
+
+While there is fine control over the huge page sizes to use for the internal
+shmem mount (see below), ordinary tmpfs mounts will make use of all available
+huge page sizes without any control over the exact sizes, behaving more like
+other file systems.
+
+tmpfs mounts
+------------
+
+The THP allocation policy for tmpfs mounts can be adjusted using the mount
+option: ``huge=``. It can have following values:
 
 always
     Attempt to allocate huge pages every time we need a new page;
@@ -363,24 +382,24 @@ never
 
 within_size
     Only allocate huge page if it will be fully within i_size.
-    Also respect fadvise()/madvise() hints;
+    Also respect madvise() hints;
 
 advise
-    Only allocate huge pages if requested with fadvise()/madvise();
+    Only allocate huge pages if requested with madvise();
 
-The default policy is ``never``.
+Remember, that the kernel may use huge pages of all available sizes, and
+that no fine control as for the internal tmpfs mount is available.
+
+The default policy in the past was ``never``, but it can now be adjusted
+using the kernel parameter ``transparent_hugepage_tmpfs=<policy>``.
 
 ``mount -o remount,huge= /mountpoint`` works fine after mount: remounting
 ``huge=never`` will not attempt to break up huge pages at all, just stop more
 from being allocated.
 
-There's also sysfs knob to control hugepage allocation policy for internal
-shmem mount: /sys/kernel/mm/transparent_hugepage/shmem_enabled. The mount
-is used for SysV SHM, memfds, shared anonymous mmaps (of /dev/zero or
-MAP_ANONYMOUS), GPU drivers' DRM objects, Ashmem.
-
-In addition to policies listed above, shmem_enabled allows two further
-values:
+In addition to policies listed above, the sysfs knob
+/sys/kernel/mm/transparent_hugepage/shmem_enabled will affect the
+allocation policy of tmpfs mounts, when set to the following values:
 
 deny
     For use in emergencies, to force the huge option off from
@@ -388,13 +407,24 @@ deny
 force
     Force the huge option on for all - very useful for testing;
 
-Shmem can also use "multi-size THP" (mTHP) by adding a new sysfs knob to
-control mTHP allocation:
-'/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/shmem_enabled',
-and its value for each mTHP is essentially consistent with the global
-setting.  An 'inherit' option is added to ensure compatibility with these
-global settings.  Conversely, the options 'force' and 'deny' are dropped,
-which are rather testing artifacts from the old ages.
+shmem / internal tmpfs
+----------------------
+The mount internal tmpfs mount is used for SysV SHM, memfds, shared anonymous
+mmaps (of /dev/zero or MAP_ANONYMOUS), GPU drivers' DRM  objects, Ashmem.
+
+To control the THP allocation policy for this internal tmpfs mount, the
+sysfs knob /sys/kernel/mm/transparent_hugepage/shmem_enabled and the knobs
+per THP size in
+'/sys/kernel/mm/transparent_hugepage/hugepages-<size>kB/shmem_enabled'
+can be used.
+
+The global knob has the same semantics as the ``huge=`` mount options
+for tmpfs mounts, except that the different huge page sizes can be controlled
+individually, and will only use the setting of the global knob when the
+per-size knob is set to 'inherit'.
+
+The options 'force' and 'deny' are dropped for the individual sizes, which
+are rather testing artifacts from the old ages.
 
 always
     Attempt to allocate <size> huge pages every time we need a new page;
@@ -408,10 +438,10 @@ never
 
 within_size
     Only allocate <size> huge page if it will be fully within i_size.
-    Also respect fadvise()/madvise() hints;
+    Also respect madvise() hints;
 
 advise
-    Only allocate <size> huge pages if requested with fadvise()/madvise();
+    Only allocate <size> huge pages if requested with madvise();
 
 Need of application restart
 ===========================
@@ -560,6 +590,16 @@ zswpout
 swpin
 	is incremented every time a huge page is swapped in from a non-zswap
 	swap device in one piece.
+
+swpin_fallback
+	is incremented if swapin fails to allocate or charge a huge page
+	and instead falls back to using huge pages with lower orders or
+	small pages.
+
+swpin_fallback_charge
+	is incremented if swapin fails to charge a huge page and instead
+	falls back to using  huge pages with lower orders or small pages
+	even though the allocation was successful.
 
 swpout
 	is incremented every time a huge page is swapped out to a non-zswap

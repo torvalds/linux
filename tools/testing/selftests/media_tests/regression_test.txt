@@ -1,5 +1,5 @@
 Testing for regressions in Media Controller API register, ioctl, syscall,
-and unregister paths. There have a few problems that result in user-after
+and unregister paths. There have a few problems that result in use-after
 free on media_device, media_devnode, and cdev pointers when the driver is
 unbound while ioctl is in progress.
 
@@ -15,11 +15,11 @@ Build media_device_test
 cd tools/testing/selftests/media_tests
 make
 
-Regressions test for cdev user-after free error on /dev/mediaX when driver
+Regressions test for cdev use-after-free error on /dev/mediaX when driver
 is unbound:
 
 Start media_device_test to regression test media devnode dynamic alloc
-and cdev user-after-free fixes. This opens media dev files and sits in
+and cdev use-after-free fixes. This opens media dev files and sits in
 a loop running media ioctl MEDIA_IOC_DEVICE_INFO command once every 10
 seconds. The idea is when device file goes away, media devnode and cdev
 should stick around until this test exits.
@@ -40,4 +40,4 @@ keep ioctls going while bind/unbind runs.
 Copy bind_unbind_sample.txt and make changes to specify the driver name
 and number to run bind and unbind. Start the bind_unbind.sh
 
-Run dmesg looking for any user-after free errors or mutex lock errors.
+Run dmesg looking for any use-after-free errors or mutex lock errors.

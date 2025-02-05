@@ -1639,7 +1639,7 @@ MODULE_PARM_DESC(allow_dio, "allow direct I/O (default: 0 (disallow))");
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 
-static struct ctl_table sg_sysctls[] = {
+static const struct ctl_table sg_sysctls[] = {
 	{
 		.procname	= "sg-big-buff",
 		.data		= &sg_big_buff,

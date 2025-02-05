@@ -49,7 +49,7 @@ test_dup_vxlan_self()
 {
 	ip_link_add br up type bridge vlan_filtering 1
 	ip_link_add vx up type vxlan id 2000 dstport 4789
-	ip_link_master vx br
+	ip_link_set_master vx br
 
 	do_test_dup add "vxlan" dev vx self dst 192.0.2.1
 	do_test_dup del "vxlan" dev vx self dst 192.0.2.1
@@ -59,7 +59,7 @@ test_dup_vxlan_master()
 {
 	ip_link_add br up type bridge vlan_filtering 1
 	ip_link_add vx up type vxlan id 2000 dstport 4789
-	ip_link_master vx br
+	ip_link_set_master vx br
 
 	do_test_dup add "vxlan master" dev vx master
 	do_test_dup del "vxlan master" dev vx master
@@ -79,7 +79,7 @@ test_dup_macvlan_master()
 	ip_link_add br up type bridge vlan_filtering 1
 	ip_link_add dd up type dummy
 	ip_link_add mv up link dd type macvlan mode passthru
-	ip_link_master mv br
+	ip_link_set_master mv br
 
 	do_test_dup add "macvlan master" dev mv self
 	do_test_dup del "macvlan master" dev mv self

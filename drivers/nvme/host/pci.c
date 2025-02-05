@@ -8,7 +8,6 @@
 #include <linux/async.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
-#include <linux/blk-mq-pci.h>
 #include <linux/blk-integrity.h>
 #include <linux/dmi.h>
 #include <linux/init.h>
@@ -373,7 +372,7 @@ static bool nvme_dbbuf_update_and_check_event(u16 value, __le32 *dbbuf_db,
 		/*
 		 * Ensure that the doorbell is updated before reading the event
 		 * index from memory.  The controller needs to provide similar
-		 * ordering to ensure the envent index is updated before reading
+		 * ordering to ensure the event index is updated before reading
 		 * the doorbell.
 		 */
 		mb();
@@ -463,7 +462,7 @@ static void nvme_pci_map_queues(struct blk_mq_tag_set *set)
 		 */
 		map->queue_offset = qoff;
 		if (i != HCTX_TYPE_POLL && offset)
-			blk_mq_pci_map_queues(map, to_pci_dev(dev->dev), offset);
+			blk_mq_map_hw_queues(map, dev->dev, offset);
 		else
 			blk_mq_map_queues(map);
 		qoff += map->nr_queues;
@@ -1148,13 +1147,13 @@ static inline void nvme_update_cq_head(struct nvme_queue *nvmeq)
 	}
 }
 
-static inline int nvme_poll_cq(struct nvme_queue *nvmeq,
-			       struct io_comp_batch *iob)
+static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+			        struct io_comp_batch *iob)
 {
-	int found = 0;
+	bool found = false;
 
 	while (nvme_cqe_pending(nvmeq)) {
-		found++;
+		found = true;
 		/*
 		 * load-load control dependency between phase and the rest of
 		 * the cqe requires a full read memory barrier
@@ -2086,8 +2085,8 @@ static int nvme_alloc_host_mem_single(struct nvme_dev *dev, u64 size)
 			sizeof(*dev->host_mem_descs), &dev->host_mem_descs_dma,
 			GFP_KERNEL);
 	if (!dev->host_mem_descs) {
-		dma_free_noncontiguous(dev->dev, dev->host_mem_size,
-				dev->hmb_sgt, DMA_BIDIRECTIONAL);
+		dma_free_noncontiguous(dev->dev, size, dev->hmb_sgt,
+				DMA_BIDIRECTIONAL);
 		dev->hmb_sgt = NULL;
 		return -ENOMEM;
 	}

@@ -398,6 +398,12 @@ struct sched_info {
 	/* Time spent waiting on a runqueue: */
 	unsigned long long		run_delay;
 
+	/* Max time spent waiting on a runqueue: */
+	unsigned long long		max_run_delay;
+
+	/* Min time spent waiting on a runqueue: */
+	unsigned long long		min_run_delay;
+
 	/* Timestamps: */
 
 	/* When did we last run on a CPU? */
@@ -944,6 +950,7 @@ struct task_struct {
 	unsigned			sched_reset_on_fork:1;
 	unsigned			sched_contributes_to_load:1;
 	unsigned			sched_migrated:1;
+	unsigned			sched_task_hot:1;
 
 	/* Force alignment to the next boundary: */
 	unsigned			:0;
@@ -1374,6 +1381,15 @@ struct task_struct {
 	 * with respect to preemption.
 	 */
 	unsigned long rseq_event_mask;
+# ifdef CONFIG_DEBUG_RSEQ
+	/*
+	 * This is a place holder to save a copy of the rseq fields for
+	 * validation of read-only fields. The struct rseq has a
+	 * variable-length array at the end, so it cannot be used
+	 * directly. Reserve a size large enough for the known fields.
+	 */
+	char				rseq_fields[sizeof(struct rseq)];
+# endif
 #endif
 
 #ifdef CONFIG_SCHED_MM_CID
@@ -1944,11 +1960,10 @@ static inline void kick_process(struct task_struct *tsk) { }
 #endif
 
 extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
-
-static inline void set_task_comm(struct task_struct *tsk, const char *from)
-{
-	__set_task_comm(tsk, from, false);
-}
+#define set_task_comm(tsk, from) ({			\
+	BUILD_BUG_ON(sizeof(from) != TASK_COMM_LEN);	\
+	__set_task_comm(tsk, from, false);		\
+})
 
 /*
  * - Why not use task_lock()?

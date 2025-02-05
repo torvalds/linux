@@ -217,7 +217,7 @@ out:
  *
  * It returns 0 on success, and -ERROR number on failure, -EINVAL if max
  * frequency is higher then the minimal, and other errors directly translated
- * from the PCODE Error returs:
+ * from the PCODE Error returns:
  * - -ENXIO: "Illegal Command"
  * - -ETIMEDOUT: "Timed out"
  * - -EINVAL: "Illegal Data"

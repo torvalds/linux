@@ -172,13 +172,6 @@ u32 krb5_decrypt(struct crypto_sync_skcipher *key, void *iv, void *in,
 int xdr_extend_head(struct xdr_buf *buf, unsigned int base,
 		    unsigned int shiftlen);
 
-int gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm,
-			struct xdr_buf *outbuf, int offset,
-			struct page **pages);
-
-int gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm,
-			struct xdr_buf *inbuf, int offset);
-
 u32 gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 			 struct xdr_buf *buf, struct page **pages);
 

@@ -67,15 +67,7 @@ patternProperties:
 
   "^efuse@[0-9a-f]+$":
     type: object
-    additionalProperties: true
-    properties:
-      compatible:
-        enum:
-          - sprd,sc2720-efuse
-          - sprd,sc2721-efuse
-          - sprd,sc2723-efuse
-          - sprd,sc2730-efuse
-          - sprd,sc2731-efuse
+    $ref: /schemas/nvmem/sprd,sc2731-efuse.yaml#
 
   "^fuel-gauge@[0-9a-f]+$":
     type: object
@@ -199,7 +191,7 @@ examples:
           };
         };
 
-        adc@480 {
+        pmic_adc: adc@480 {
           compatible = "sprd,sc2731-adc";
           reg = <0x480>;
           interrupt-parent = <&sc2731_pmic>;

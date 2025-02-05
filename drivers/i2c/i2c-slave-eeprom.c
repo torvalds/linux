@@ -91,7 +91,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 }
 
 static ssize_t i2c_slave_eeprom_bin_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+		const struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	struct eeprom_data *eeprom;
 	unsigned long flags;
@@ -106,7 +106,7 @@ static ssize_t i2c_slave_eeprom_bin_read(struct file *filp, struct kobject *kobj
 }
 
 static ssize_t i2c_slave_eeprom_bin_write(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+		const struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	struct eeprom_data *eeprom;
 	unsigned long flags;
@@ -165,8 +165,8 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client)
 	sysfs_bin_attr_init(&eeprom->bin);
 	eeprom->bin.attr.name = "slave-eeprom";
 	eeprom->bin.attr.mode = S_IRUSR | S_IWUSR;
-	eeprom->bin.read = i2c_slave_eeprom_bin_read;
-	eeprom->bin.write = i2c_slave_eeprom_bin_write;
+	eeprom->bin.read_new = i2c_slave_eeprom_bin_read;
+	eeprom->bin.write_new = i2c_slave_eeprom_bin_write;
 	eeprom->bin.size = size;
 
 	ret = sysfs_create_bin_file(&client->dev.kobj, &eeprom->bin);

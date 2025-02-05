@@ -147,6 +147,7 @@ struct genpd_governor_data {
 };
 
 struct genpd_power_state {
+	const char *name;
 	s64 power_off_latency_ns;
 	s64 power_on_latency_ns;
 	s64 residency_ns;

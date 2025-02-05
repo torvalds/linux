@@ -640,8 +640,7 @@ static ssize_t dsb_mode_store(struct device *dev,
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val;
 
-	if ((kstrtoul(buf, 0, &val)) || (val < 0) ||
-			(val & ~TPDM_DSB_MODE_MASK))
+	if ((kstrtoul(buf, 0, &val)) || (val & ~TPDM_DSB_MODE_MASK))
 		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
@@ -1308,8 +1307,8 @@ static void tpdm_remove(struct amba_device *adev)
  */
 static struct amba_id tpdm_ids[] = {
 	{
-		.id = 0x000f0e00,
-		.mask = 0x000fff00,
+		.id	= 0x001f0e00,
+		.mask	= 0x00ffff00,
 	},
 	{ 0, 0, NULL },
 };

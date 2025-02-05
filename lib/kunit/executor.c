@@ -29,6 +29,22 @@ const char *kunit_action(void)
 	return action_param;
 }
 
+/*
+ * Run KUnit tests after initialization
+ */
+#ifdef CONFIG_KUNIT_AUTORUN_ENABLED
+static bool autorun_param = true;
+#else
+static bool autorun_param;
+#endif
+module_param_named(autorun, autorun_param, bool, 0);
+MODULE_PARM_DESC(autorun, "Run KUnit tests after initialization");
+
+bool kunit_autorun(void)
+{
+	return autorun_param;
+}
+
 static char *filter_glob_param;
 static char *filter_param;
 static char *filter_action_param;
@@ -260,13 +276,14 @@ free_copy:
 void kunit_exec_run_tests(struct kunit_suite_set *suite_set, bool builtin)
 {
 	size_t num_suites = suite_set->end - suite_set->start;
+	bool autorun = kunit_autorun();
 
-	if (builtin || num_suites) {
+	if (autorun && (builtin || num_suites)) {
 		pr_info("KTAP version 1\n");
 		pr_info("1..%zu\n", num_suites);
 	}
 
-	__kunit_test_suites_init(suite_set->start, num_suites);
+	__kunit_test_suites_init(suite_set->start, num_suites, autorun);
 }
 
 void kunit_exec_list_tests(struct kunit_suite_set *suite_set, bool include_attr)

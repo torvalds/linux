@@ -600,11 +600,12 @@ static inline int rdev_set_tx_power(struct cfg80211_registered_device *rdev,
 }
 
 static inline int rdev_get_tx_power(struct cfg80211_registered_device *rdev,
-				    struct wireless_dev *wdev, int *dbm)
+				    struct wireless_dev *wdev, unsigned int link_id,
+				    int *dbm)
 {
 	int ret;
-	trace_rdev_get_tx_power(&rdev->wiphy, wdev);
-	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, dbm);
+	trace_rdev_get_tx_power(&rdev->wiphy, wdev, link_id);
+	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, link_id, dbm);
 	trace_rdev_return_int_int(&rdev->wiphy, ret, *dbm);
 	return ret;
 }
@@ -1546,4 +1547,38 @@ rdev_get_radio_mask(struct cfg80211_registered_device *rdev,
 
 	return rdev->ops->get_radio_mask(wiphy, dev);
 }
+
+static inline int
+rdev_assoc_ml_reconf(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev,
+		     struct cfg80211_assoc_link *add_links,
+		     u16 rem_links)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_assoc_ml_reconf(wiphy, dev, add_links, rem_links);
+	if (rdev->ops->assoc_ml_reconf)
+		ret = rdev->ops->assoc_ml_reconf(wiphy, dev, add_links,
+						 rem_links);
+	trace_rdev_return_int(wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_set_epcs(struct cfg80211_registered_device *rdev,
+	      struct net_device *dev, bool val)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret = -EOPNOTSUPP;
+
+	trace_rdev_set_epcs(wiphy, dev, val);
+	if (rdev->ops->set_epcs)
+		ret = rdev->ops->set_epcs(wiphy, dev, val);
+	trace_rdev_return_int(wiphy, ret);
+
+	return ret;
+}
+
 #endif /* __CFG80211_RDEV_OPS */

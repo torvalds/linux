@@ -7,7 +7,7 @@
 #include <linux/numa.h>
 #include <linux/numa_memblks.h>
 
-static int numa_distance_cnt;
+int numa_distance_cnt;
 static u8 *numa_distance;
 
 nodemask_t numa_nodes_parsed __initdata;

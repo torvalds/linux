@@ -21,7 +21,7 @@
 #include <linux/limits.h>
 
 #include <linux/ip.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
 

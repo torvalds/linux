@@ -7,6 +7,7 @@
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
  */
 
+#include <linux/string_choices.h>
 #include "mtu3.h"
 #include "mtu3_trace.h"
 
@@ -490,7 +491,7 @@ static int mtu3_gadget_pullup(struct usb_gadget *gadget, int is_on)
 	unsigned long flags;
 
 	dev_dbg(mtu->dev, "%s (%s) for %sactive device\n", __func__,
-		is_on ? "on" : "off", mtu->is_active ? "" : "in");
+		str_on_off(is_on), mtu->is_active ? "" : "in");
 
 	pm_runtime_get_sync(mtu->dev);
 

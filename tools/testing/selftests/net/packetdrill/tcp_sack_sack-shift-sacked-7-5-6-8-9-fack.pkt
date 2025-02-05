@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test shifting of newly-SACKed ranges onto the previous already-SACKed skb.
+// This variant tests the case where we mark packets 0-4 lost, then
+// get a SACK for 5, and then a SACK for 6.
+
+`./defaults.sh`
+
+// Establish a connection and send 10 MSS.
+    0 socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0 setsockopt(3, SOL_SOCKET, SO_REUSEADDR, [1], 4) = 0
+   +0 bind(3, ..., ...) = 0
+   +0 listen(3, 1) = 0
+
+   +0 < S 0:0(0) win 32792 <mss 1000,sackOK,nop,nop,nop,wscale 7>
+   +0 > S. 0:0(0) ack 1 <mss 1460,nop,nop,sackOK,nop,wscale 8>
+  +.1 < . 1:1(0) ack 1 win 1024
+   +0 accept(3, ..., ...) = 4
+
+   +0 write(4, ..., 10000) = 10000
+   +0 > P. 1:10001(10000) ack 1
+
+// SACK for 7001:8001. Using RACK we delay a fast retransmit.
+  +.1 < . 1:1(0) ack 1 win 257 <sack 7001:8001,nop,nop>
++.027 > . 1:1001(1000) ack 1
+   +0 %{
+assert tcpi_ca_state == TCP_CA_Recovery, tcpi_ca_state
+assert tcpi_lost == 7,tcpi_lost         # RACK thinks 1:7001 are lost
+assert tcpi_reordering == 3, tcpi_reordering
+}%
+
+// SACK for 5001:6001.
+   +0 < . 1:1(0) ack 1 win 257 <sack 5001:6001 7001:8001,nop,nop>
+   +0 > . 1001:2001(1000) ack 1
+   +0 %{
+assert tcpi_lost == 6, tcpi_lost
+assert tcpi_reordering == 3, tcpi_reordering  # 7001:8001 -> 5001:6001 is 3
+}%
+
+// SACK for 6001:7001.
+// This SACK for an adjacent range causes the sender to
+// shift the newly-SACKed range onto the previous skb.
+   +0 < . 1:1(0) ack 1 win 257 <sack 5001:8001,nop,nop>
+   +0 > . 2001:3001(1000) ack 1
+   +0 %{ assert tcpi_lost == 5, tcpi_lost }%
+
+// SACK for 8001:9001.
+   +0 < . 1:1(0) ack 1 win 257 <sack 5001:9001,nop,nop>
+   +0 > . 3001:4001(1000) ack 1
+
+// SACK for 9001:10001.
+   +0 < . 1:1(0) ack 1 win 257 <sack 5001:10001,nop,nop>
+   +0 > . 4001:5001(1000) ack 1
+
+// To simplify clean-up, say we get an ACK for all data.
+  +.1 < . 1:1(0) ack 10001 win 257
+   +0 %{
+assert tcpi_ca_state == TCP_CA_Open, tcpi_ca_state
+assert tcpi_unacked == 0, tcpi_unacked
+assert tcpi_sacked == 0, tcpi_sacked
+assert tcpi_lost == 0, tcpi_lost
+assert tcpi_retrans == 0, tcpi_retrans
+}%

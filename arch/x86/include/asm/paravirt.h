@@ -180,13 +180,6 @@ static inline void halt(void)
 	PVOP_VCALL0(irq.halt);
 }
 
-extern noinstr void pv_native_wbinvd(void);
-
-static __always_inline void wbinvd(void)
-{
-	PVOP_ALT_VCALL0(cpu.wbinvd, "wbinvd", ALT_NOT_XEN);
-}
-
 static inline u64 paravirt_read_msr(unsigned msr)
 {
 	return PVOP_CALL1(u64, cpu.read_msr, msr);

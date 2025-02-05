@@ -838,7 +838,7 @@ MODULE_DESCRIPTION("SMSC PHY driver");
 MODULE_AUTHOR("Herbert Valerio Riedel");
 MODULE_LICENSE("GPL");
 
-static struct mdio_device_id __maybe_unused smsc_tbl[] = {
+static const struct mdio_device_id __maybe_unused smsc_tbl[] = {
 	{ 0x0007c0a0, 0xfffffff0 },
 	{ 0x0007c0b0, 0xfffffff0 },
 	{ 0x0007c0c0, 0xfffffff0 },

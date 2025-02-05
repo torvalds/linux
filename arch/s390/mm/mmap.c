@@ -196,22 +196,28 @@ void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 	}
 }
 
-static const pgprot_t protection_map[16] = {
-	[VM_NONE]					= PAGE_NONE,
-	[VM_READ]					= PAGE_RO,
-	[VM_WRITE]					= PAGE_RO,
-	[VM_WRITE | VM_READ]				= PAGE_RO,
-	[VM_EXEC]					= PAGE_RX,
-	[VM_EXEC | VM_READ]				= PAGE_RX,
-	[VM_EXEC | VM_WRITE]				= PAGE_RX,
-	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_RX,
-	[VM_SHARED]					= PAGE_NONE,
-	[VM_SHARED | VM_READ]				= PAGE_RO,
-	[VM_SHARED | VM_WRITE]				= PAGE_RW,
-	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW,
-	[VM_SHARED | VM_EXEC]				= PAGE_RX,
-	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_RX,
-	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX,
-	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX
-};
+static pgprot_t protection_map[16] __ro_after_init;
+
+void __init setup_protection_map(void)
+{
+	pgprot_t *pm = protection_map;
+
+	pm[VM_NONE]					= PAGE_NONE;
+	pm[VM_READ]					= PAGE_RO;
+	pm[VM_WRITE]					= PAGE_RO;
+	pm[VM_WRITE | VM_READ]				= PAGE_RO;
+	pm[VM_EXEC]					= PAGE_RX;
+	pm[VM_EXEC | VM_READ]				= PAGE_RX;
+	pm[VM_EXEC | VM_WRITE]				= PAGE_RX;
+	pm[VM_EXEC | VM_WRITE | VM_READ]		= PAGE_RX;
+	pm[VM_SHARED]					= PAGE_NONE;
+	pm[VM_SHARED | VM_READ]				= PAGE_RO;
+	pm[VM_SHARED | VM_WRITE]			= PAGE_RW;
+	pm[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_RW;
+	pm[VM_SHARED | VM_EXEC]				= PAGE_RX;
+	pm[VM_SHARED | VM_EXEC | VM_READ]		= PAGE_RX;
+	pm[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_RWX;
+	pm[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_RWX;
+}
+
 DECLARE_VM_GET_PAGE_PROT

@@ -5,7 +5,7 @@
     },
     {
         "ArchStdEvent": "EXC_RETURN",
-        "PublicDescription": "Counts any architecturally executed exception return instructions. Eg: AArch64: ERET"
+        "PublicDescription": "Counts any architecturally executed exception return instructions. For example: AArch64: ERET"
     },
     {
         "ArchStdEvent": "EXC_UNDEF",

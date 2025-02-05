@@ -57,14 +57,11 @@ static void *__init iov_kunit_create_buffer(struct kunit *test,
         KUNIT_ASSERT_NOT_ERR_OR_NULL(test, pages);
 	*ppages = pages;
 
-	got = alloc_pages_bulk_array(GFP_KERNEL, npages, pages);
+	got = alloc_pages_bulk(GFP_KERNEL, npages, pages);
 	if (got != npages) {
 		release_pages(pages, got);
 		KUNIT_ASSERT_EQ(test, got, npages);
 	}
-
-	for (int i = 0; i < npages; i++)
-		pages[i]->index = i;
 
 	buffer = vmap(pages, npages, VM_MAP | VM_MAP_PUT_PAGES, PAGE_KERNEL);
         KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buffer);
@@ -392,7 +389,7 @@ static void __init iov_kunit_load_folioq(struct kunit *test,
 		if (folioq_full(p)) {
 			p->next = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
 			KUNIT_ASSERT_NOT_ERR_OR_NULL(test, p->next);
-			folioq_init(p->next);
+			folioq_init(p->next, 0);
 			p->next->prev = p;
 			p = p->next;
 		}
@@ -409,7 +406,7 @@ static struct folio_queue *iov_kunit_create_folioq(struct kunit *test)
 	folioq = kzalloc(sizeof(struct folio_queue), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, folioq);
 	kunit_add_action_or_reset(test, iov_kunit_destroy_folioq, folioq);
-	folioq_init(folioq);
+	folioq_init(folioq, 0);
 	return folioq;
 }
 

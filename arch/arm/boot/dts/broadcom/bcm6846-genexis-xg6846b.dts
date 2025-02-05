@@ -1,0 +1,244 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2024 Linus Walleij <linus.walleij@linaro.org>
+ */
+
+/dts-v1/;
+
+#include "bcm6846.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "Genexis XG6846B Ethernet layer 2/3 router";
+	compatible = "genexis,xg6846b", "brcm,bcm6846", "brcm,bcmbca";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	/* Micron D9PTK 256 MB RAM */
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x10000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		secondary-boot@0 {
+			no-map;
+			reg = <0x00000000 0x00008000>;
+		};
+		pmc3-firmware@8000 {
+			no-map;
+			reg = <0x00008000 0x00100000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys-polled";
+		poll-interval = <20000>;
+
+		/* Called "canyon rescue button" in the vendor DTB */
+		button-restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio0 41 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+	/* Totally 79 GPIOs are available */
+	ngpios = <15>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&leds {
+	status = "okay";
+	brcm,serial-shift-bits = <16>;
+
+	led@0 {
+		reg = <0>;
+		active-low;
+		function = "ext";
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@1 {
+		reg = <1>;
+		active-low;
+		function = "ext";
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@3 {
+		reg = <3>;
+		active-low;
+		function = LED_FUNCTION_WAN;
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@4 {
+		reg = <4>;
+		active-low;
+		function = LED_FUNCTION_WAN;
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@5 {
+		reg = <5>;
+		active-low;
+		function = LED_FUNCTION_POWER;
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@6 {
+		reg = <6>;
+		active-low;
+		function = LED_FUNCTION_POWER;
+		color = <LED_COLOR_ID_RED>;
+	};
+
+	led@15 {
+		reg = <15>;
+		active-low;
+		function = LED_FUNCTION_USB;
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@7 {
+		/* Activity 03 */
+		reg = <7>;
+		active-low;
+		function = "lan1";
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@8 {
+		/* Activity 04 */
+		reg = <8>;
+		active-low;
+		function = "lan1";
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@9 {
+		/* Activity 03 */
+		reg = <9>;
+		active-low;
+		function = "lan2";
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@10 {
+		/* Activity 04 */
+		reg = <10>;
+		active-low;
+		function = "lan2";
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@11 {
+		/* Activity 03 */
+		reg = <11>;
+		active-low;
+		function = "lan3";
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@12 {
+		/* Activity 04 */
+		reg = <12>;
+		active-low;
+		function = "lan3";
+		color = <LED_COLOR_ID_GREEN>;
+	};
+
+	led@13 {
+		/* Activity 03 */
+		reg = <13>;
+		active-low;
+		function = "lan4";
+		color = <LED_COLOR_ID_AMBER>;
+	};
+
+	led@14 {
+		/* Activity 04 */
+		reg = <14>;
+		active-low;
+		function = "lan4";
+		color = <LED_COLOR_ID_GREEN>;
+	};
+};
+
+&hsspi {
+	status = "okay";
+};
+
+&nand_controller {
+	brcm,wp-not-connected;
+	status = "okay";
+};
+
+&nandcs {
+	nand-on-flash-bbt;
+	brcm,nand-ecc-use-strap;
+
+	/* Winbond W29N02GV, 256MB with 128KB erase blocks */
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		loader@0 {
+			label = "loader";
+			reg = <0x00000000 0x00400000>;
+		};
+		image@400000 {
+			label = "image";
+			reg = <0x00400000 0x0fb00000>;
+		};
+		/* 0x00ff0000-0x00ffffff: bad block list */
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+	phy2: ethernet-phy@2 {
+		reg = <2>;
+	};
+	phy3: ethernet-phy@3 {
+		reg = <3>;
+	};
+	phy4: ethernet-phy@4 {
+		reg = <4>;
+	};
+	phy21: ethernet-phy@21 {
+		reg = <21>;
+	};
+};

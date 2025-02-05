@@ -103,10 +103,15 @@ config DRM_KMS_HELPER
 	help
 	  CRTC helpers for KMS drivers.
 
+config DRM_DRAW
+	bool
+	depends on DRM
+
 config DRM_PANIC
 	bool "Display a user-friendly message when a kernel panic occurs"
 	depends on DRM
 	select FONT_SUPPORT
+	select DRM_DRAW
 	help
 	  Enable a drm panic handler, which will display a user-friendly message
 	  when a kernel panic occurs. It's useful when using a user-space
@@ -218,77 +223,7 @@ config DRM_CLIENT
 	  option. Drivers that support the default clients should
 	  select DRM_CLIENT_SELECTION instead.
 
-config DRM_CLIENT_LIB
-	tristate
-	depends on DRM
-	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
-	select FB_CORE if DRM_FBDEV_EMULATION
-	help
-	  This option enables the DRM client library and selects all
-	  modules and components according to the enabled clients.
-
-config DRM_CLIENT_SELECTION
-	tristate
-	depends on DRM
-	select DRM_CLIENT_LIB if DRM_FBDEV_EMULATION
-	help
-	  Drivers that support in-kernel DRM clients have to select this
-	  option.
-
-config DRM_CLIENT_SETUP
-	bool
-	depends on DRM_CLIENT_SELECTION
-	help
-	  Enables the DRM client selection. DRM drivers that support the
-	  default clients should select DRM_CLIENT_SELECTION instead.
-
-menu "Supported DRM clients"
-	depends on DRM_CLIENT_SELECTION
-
-config DRM_FBDEV_EMULATION
-	bool "Enable legacy fbdev support for your modesetting driver"
-	depends on DRM_CLIENT_SELECTION
-	select DRM_CLIENT
-	select DRM_CLIENT_SETUP
-	select FRAMEBUFFER_CONSOLE_DETECT_PRIMARY if FRAMEBUFFER_CONSOLE
-	default FB
-	help
-	  Choose this option if you have a need for the legacy fbdev
-	  support. Note that this support also provides the linux console
-	  support on top of your modesetting driver.
-
-	  If in doubt, say "Y".
-
-config DRM_FBDEV_OVERALLOC
-	int "Overallocation of the fbdev buffer"
-	depends on DRM_FBDEV_EMULATION
-	default 100
-	help
-	  Defines the fbdev buffer overallocation in percent. Default
-	  is 100. Typical values for double buffering will be 200,
-	  triple buffering 300.
-
-config DRM_FBDEV_LEAK_PHYS_SMEM
-	bool "Shamelessly allow leaking of fbdev physical address (DANGEROUS)"
-	depends on DRM_FBDEV_EMULATION && EXPERT
-	default n
-	help
-	  In order to keep user-space compatibility, we want in certain
-	  use-cases to keep leaking the fbdev physical address to the
-	  user-space program handling the fbdev buffer.
-	  This affects, not only, Amlogic, Allwinner or Rockchip devices
-	  with ARM Mali GPUs using an userspace Blob.
-	  This option is not supported by upstream developers and should be
-	  removed as soon as possible and be considered as a broken and
-	  legacy behaviour from a modern fbdev device driver.
-
-	  Please send any bug reports when using this to your proprietary
-	  software vendor that requires this.
-
-	  If in doubt, say "N" or spread the word to your closed source
-	  library vendor.
-
-endmenu
+source "drivers/gpu/drm/clients/Kconfig"
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
@@ -359,6 +294,7 @@ config DRM_TTM_HELPER
 	tristate
 	depends on DRM
 	select DRM_TTM
+	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
 	select FB_CORE if DRM_FBDEV_EMULATION
 	select FB_SYSMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
@@ -367,6 +303,7 @@ config DRM_TTM_HELPER
 config DRM_GEM_DMA_HELPER
 	tristate
 	depends on DRM
+	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
 	select FB_CORE if DRM_FBDEV_EMULATION
 	select FB_DMAMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
@@ -375,6 +312,7 @@ config DRM_GEM_DMA_HELPER
 config DRM_GEM_SHMEM_HELPER
 	tristate
 	depends on DRM && MMU
+	select DRM_KMS_HELPER if DRM_FBDEV_EMULATION
 	select FB_CORE if DRM_FBDEV_EMULATION
 	select FB_SYSMEM_HELPERS_DEFERRED if DRM_FBDEV_EMULATION
 	help
@@ -529,6 +467,10 @@ config DRM_HYPERV
 
 config DRM_EXPORT_FOR_TESTS
 	bool
+
+# Separate option as not all DRM drivers use it
+config DRM_PANEL_BACKLIGHT_QUIRKS
+	tristate
 
 config DRM_LIB_RANDOM
 	bool

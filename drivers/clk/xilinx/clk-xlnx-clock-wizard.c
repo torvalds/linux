@@ -52,6 +52,8 @@
 
 #define WZRD_CLKFBOUT_MULT_SHIFT	8
 #define WZRD_CLKFBOUT_MULT_MASK		(0xff << WZRD_CLKFBOUT_MULT_SHIFT)
+#define WZRD_CLKFBOUT_MULT_FRAC_MASK	GENMASK(25, 16)
+#define WZRD_CLKFBOUT_O_MASK		GENMASK(7, 0)
 #define WZRD_CLKFBOUT_L_SHIFT	0
 #define WZRD_CLKFBOUT_H_SHIFT	8
 #define WZRD_CLKFBOUT_L_MASK	GENMASK(7, 0)
@@ -87,14 +89,14 @@
 #define DIV_O				0x01
 #define DIV_ALL				0x03
 
-#define WZRD_M_MIN			2
-#define WZRD_M_MAX			128
-#define WZRD_D_MIN			1
-#define WZRD_D_MAX			106
-#define WZRD_VCO_MIN			800000000
-#define WZRD_VCO_MAX			1600000000
-#define WZRD_O_MIN			1
-#define WZRD_O_MAX			128
+#define WZRD_M_MIN			2ULL
+#define WZRD_M_MAX			128ULL
+#define WZRD_D_MIN			1ULL
+#define WZRD_D_MAX			106ULL
+#define WZRD_VCO_MIN			800000000ULL
+#define WZRD_VCO_MAX			1600000000ULL
+#define WZRD_O_MIN			2ULL
+#define WZRD_O_MAX			128ULL
 #define VER_WZRD_M_MIN			4
 #define VER_WZRD_M_MAX			432
 #define VER_WZRD_D_MIN			1
@@ -153,8 +155,10 @@ struct clk_wzrd {
  * @flags:	clk_wzrd divider flags
  * @table:	array of value/divider pairs, last entry should have div = 0
  * @m:	value of the multiplier
+ * @m_frac:	fractional value of the multiplier
  * @d:	value of the common divider
  * @o:	value of the leaf divider
+ * @o_frac:	value of the fractional leaf divider
  * @lock:	register lock
  */
 struct clk_wzrd_divider {
@@ -166,8 +170,10 @@ struct clk_wzrd_divider {
 	u8 flags;
 	const struct clk_div_table *table;
 	u32 m;
+	u32 m_frac;
 	u32 d;
 	u32 o;
+	u32 o_frac;
 	spinlock_t *lock;  /* divider lock */
 };
 
@@ -372,38 +378,40 @@ static int clk_wzrd_get_divisors(struct clk_hw *hw, unsigned long rate,
 				 unsigned long parent_rate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
-	u64 vco_freq, freq, diff, vcomin, vcomax;
-	u32 m, d, o;
-	u32 mmin, mmax, dmin, dmax, omin, omax;
+	u64 vco_freq, freq, diff, vcomin, vcomax, best_diff = -1ULL;
+	u64 m, d, o;
+	u64 mmin, mmax, dmin, dmax, omin, omax, mdmin, mdmax;
 
-	mmin = WZRD_M_MIN;
-	mmax = WZRD_M_MAX;
+	mmin = WZRD_M_MIN << 3;
+	mmax = WZRD_M_MAX << 3;
 	dmin = WZRD_D_MIN;
 	dmax = WZRD_D_MAX;
-	omin = WZRD_O_MIN;
-	omax = WZRD_O_MAX;
-	vcomin = WZRD_VCO_MIN;
-	vcomax = WZRD_VCO_MAX;
+	omin = WZRD_O_MIN << 3;
+	omax = WZRD_O_MAX << 3;
+	vcomin = WZRD_VCO_MIN << 3;
+	vcomax = WZRD_VCO_MAX << 3;
 
 	for (m = mmin; m <= mmax; m++) {
-		for (d = dmin; d <= dmax; d++) {
-			vco_freq = DIV_ROUND_CLOSEST((parent_rate * m), d);
-			if (vco_freq >= vcomin && vco_freq <= vcomax) {
-				for (o = omin; o <= omax; o++) {
-					freq = DIV_ROUND_CLOSEST_ULL(vco_freq, o);
-					diff = abs(freq - rate);
-
-					if (diff < WZRD_MIN_ERR) {
-						divider->m = m;
-						divider->d = d;
-						divider->o = o;
-						return 0;
-					}
-				}
+		mdmin = max(dmin, div64_u64(parent_rate * m + vcomax / 2, vcomax));
+		mdmax = min(dmax, div64_u64(parent_rate * m + vcomin / 2, vcomin));
+		for (d = mdmin; d <= mdmax; d++) {
+			vco_freq = DIV_ROUND_CLOSEST_ULL((parent_rate * m), d);
+			o = DIV_ROUND_CLOSEST_ULL(vco_freq, rate);
+			if (o < omin || o > omax)
+				continue;
+			freq = DIV_ROUND_CLOSEST_ULL(vco_freq, o);
+			diff = freq - rate;
+			if (diff < best_diff) {
+				best_diff = diff;
+				divider->m = m >> 3;
+				divider->m_frac = (m - (divider->m << 3)) * 125;
+				divider->d = d;
+				divider->o = o >> 3;
+				divider->o_frac = (o - (divider->o << 3)) * 125;
 			}
 		}
 	}
-	return -EBUSY;
+	return best_diff < WZRD_MIN_ERR ? 0 : -EBUSY;
 }
 
 static int clk_wzrd_reconfig(struct clk_wzrd_divider *divider, void __iomem *div_addr)
@@ -496,33 +504,22 @@ static int clk_wzrd_dynamic_all_nolock(struct clk_hw *hw, unsigned long rate,
 				       unsigned long parent_rate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
-	unsigned long vco_freq, rate_div, clockout0_div;
 	void __iomem *div_addr;
-	u32 reg, pre, f;
+	u32 reg;
 	int err;
 
 	err = clk_wzrd_get_divisors(hw, rate, parent_rate);
 	if (err)
 		return err;
 
-	vco_freq = DIV_ROUND_CLOSEST(parent_rate * divider->m, divider->d);
-	rate_div = DIV_ROUND_CLOSEST_ULL((vco_freq * WZRD_FRAC_POINTS), rate);
-
-	clockout0_div = div_u64(rate_div,  WZRD_FRAC_POINTS);
-
-	pre = DIV_ROUND_CLOSEST_ULL(vco_freq * WZRD_FRAC_POINTS, rate);
-	f = (pre - (clockout0_div * WZRD_FRAC_POINTS));
-	f &= WZRD_CLKOUT_FRAC_MASK;
-
-	reg = FIELD_PREP(WZRD_CLKOUT_DIVIDE_MASK, clockout0_div) |
-	      FIELD_PREP(WZRD_CLKOUT0_FRAC_MASK, f);
+	reg = FIELD_PREP(WZRD_CLKOUT_DIVIDE_MASK, divider->o) |
+	      FIELD_PREP(WZRD_CLKOUT0_FRAC_MASK, divider->o_frac);
 
 	writel(reg, divider->base + WZRD_CLK_CFG_REG(0, 2));
-	/* Set divisor and clear phase offset */
 	reg = FIELD_PREP(WZRD_CLKFBOUT_MULT_MASK, divider->m) |
+	      FIELD_PREP(WZRD_CLKFBOUT_MULT_FRAC_MASK, divider->m_frac) |
 	      FIELD_PREP(WZRD_DIVCLK_DIVIDE_MASK, divider->d);
 	writel(reg, divider->base + WZRD_CLK_CFG_REG(0, 0));
-	writel(divider->o, divider->base + WZRD_CLK_CFG_REG(0, 2));
 	writel(0, divider->base + WZRD_CLK_CFG_REG(0, 3));
 	div_addr = divider->base + WZRD_DR_INIT_REG_OFFSET;
 	return clk_wzrd_reconfig(divider, div_addr);
@@ -564,18 +561,19 @@ static unsigned long clk_wzrd_recalc_rate_all(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
-	u32 m, d, o, div, reg, f;
+	u32 m, d, o, reg, f, mf;
+	u64 mul;
 
 	reg = readl(divider->base + WZRD_CLK_CFG_REG(0, 0));
 	d = FIELD_GET(WZRD_DIVCLK_DIVIDE_MASK, reg);
 	m = FIELD_GET(WZRD_CLKFBOUT_MULT_MASK, reg);
+	mf = FIELD_GET(WZRD_CLKFBOUT_MULT_FRAC_MASK, reg);
 	reg = readl(divider->base + WZRD_CLK_CFG_REG(0, 2));
 	o = FIELD_GET(WZRD_DIVCLK_DIVIDE_MASK, reg);
 	f = FIELD_GET(WZRD_CLKOUT0_FRAC_MASK, reg);
 
-	div = DIV_ROUND_CLOSEST(d * (WZRD_FRAC_POINTS * o + f), WZRD_FRAC_POINTS);
-	return divider_recalc_rate(hw, parent_rate * m, div, divider->table,
-		divider->flags, divider->width);
+	mul = m * 1000 + mf;
+	return DIV_ROUND_CLOSEST_ULL(parent_rate * mul, d * (o * 1000 + f));
 }
 
 static unsigned long clk_wzrd_recalc_rate_all_ver(struct clk_hw *hw,
@@ -648,6 +646,25 @@ static long clk_wzrd_round_rate_all(struct clk_hw *hw, unsigned long rate,
 				    unsigned long *prate)
 {
 	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
+	u32 m, d, o;
+	int err;
+
+	err = clk_wzrd_get_divisors(hw, rate, *prate);
+	if (err)
+		return err;
+
+	m = divider->m;
+	d = divider->d;
+	o = divider->o;
+
+	rate = div_u64(*prate * (m * 1000 + divider->m_frac), d * (o * 1000 + divider->o_frac));
+	return rate;
+}
+
+static long clk_wzrd_ver_round_rate_all(struct clk_hw *hw, unsigned long rate,
+					unsigned long *prate)
+{
+	struct clk_wzrd_divider *divider = to_clk_wzrd_divider(hw);
 	unsigned long int_freq;
 	u32 m, d, o, div, f;
 	int err;
@@ -678,7 +695,7 @@ static const struct clk_ops clk_wzrd_ver_divider_ops = {
 };
 
 static const struct clk_ops clk_wzrd_ver_div_all_ops = {
-	.round_rate = clk_wzrd_round_rate_all,
+	.round_rate = clk_wzrd_ver_round_rate_all,
 	.set_rate = clk_wzrd_dynamic_all_ver,
 	.recalc_rate = clk_wzrd_recalc_rate_all_ver,
 };

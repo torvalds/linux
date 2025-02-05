@@ -281,21 +281,7 @@ static int try_to_negate_entry(struct cache_detail *detail, struct cache_head *h
 	return rv;
 }
 
-/*
- * This is the generic cache management routine for all
- * the authentication caches.
- * It checks the currency of a cache item and will (later)
- * initiate an upcall to fill it if needed.
- *
- *
- * Returns 0 if the cache_head can be used, or cache_puts it and returns
- * -EAGAIN if upcall is pending and request has been queued
- * -ETIMEDOUT if upcall failed or request could not be queue or
- *           upcall completed but item is still invalid (implying that
- *           the cache item has been replaced with a newer one).
- * -ENOENT if cache entry was negative
- */
-int cache_check(struct cache_detail *detail,
+int cache_check_rcu(struct cache_detail *detail,
 		    struct cache_head *h, struct cache_req *rqstp)
 {
 	int rv;
@@ -336,6 +322,31 @@ int cache_check(struct cache_detail *detail,
 				rv = -ETIMEDOUT;
 		}
 	}
+
+	return rv;
+}
+EXPORT_SYMBOL_GPL(cache_check_rcu);
+
+/*
+ * This is the generic cache management routine for all
+ * the authentication caches.
+ * It checks the currency of a cache item and will (later)
+ * initiate an upcall to fill it if needed.
+ *
+ *
+ * Returns 0 if the cache_head can be used, or cache_puts it and returns
+ * -EAGAIN if upcall is pending and request has been queued
+ * -ETIMEDOUT if upcall failed or request could not be queue or
+ *           upcall completed but item is still invalid (implying that
+ *           the cache item has been replaced with a newer one).
+ * -ENOENT if cache entry was negative
+ */
+int cache_check(struct cache_detail *detail,
+		struct cache_head *h, struct cache_req *rqstp)
+{
+	int rv;
+
+	rv = cache_check_rcu(detail, h, rqstp);
 	if (rv)
 		cache_put(h, detail);
 	return rv;
@@ -1427,17 +1438,11 @@ static int c_show(struct seq_file *m, void *p)
 		seq_printf(m, "# expiry=%lld refcnt=%d flags=%lx\n",
 			   convert_to_wallclock(cp->expiry_time),
 			   kref_read(&cp->ref), cp->flags);
-	if (!cache_get_rcu(cp))
-		return 0;
 
-	if (cache_check(cd, cp, NULL))
-		/* cache_check does a cache_put on failure */
+	if (cache_check_rcu(cd, cp, NULL))
 		seq_puts(m, "# ");
-	else {
-		if (cache_is_expired(cd, cp))
-			seq_puts(m, "# ");
-		cache_put(cp, cd);
-	}
+	else if (cache_is_expired(cd, cp))
+		seq_puts(m, "# ");
 
 	return cd->cache_show(m, cd, cp);
 }

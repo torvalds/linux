@@ -107,7 +107,7 @@ pub unsafe fn call_printk(
     // SAFETY: TODO.
     unsafe {
         bindings::_printk(
-            format_string.as_ptr() as _,
+            format_string.as_ptr(),
             module_name.as_ptr(),
             &args as *const _ as *const c_void,
         );
@@ -128,7 +128,7 @@ pub fn call_printk_cont(args: fmt::Arguments<'_>) {
     #[cfg(CONFIG_PRINTK)]
     unsafe {
         bindings::_printk(
-            format_strings::CONT.as_ptr() as _,
+            format_strings::CONT.as_ptr(),
             &args as *const _ as *const c_void,
         );
     }

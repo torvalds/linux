@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
+#include <linux/string_choices.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
@@ -45,7 +46,7 @@ void __init kasan_init_sw_tags(void)
 	kasan_init_tags();
 
 	pr_info("KernelAddressSanitizer initialized (sw-tags, stacktrace=%s)\n",
-		kasan_stack_collection_enabled() ? "on" : "off");
+		str_on_off(kasan_stack_collection_enabled()));
 }
 
 /*

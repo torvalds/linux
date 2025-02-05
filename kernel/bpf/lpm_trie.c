@@ -289,16 +289,11 @@ static void *trie_lookup_elem(struct bpf_map *map, void *_key)
 }
 
 static struct lpm_trie_node *lpm_trie_node_alloc(struct lpm_trie *trie,
-						 const void *value,
-						 bool disable_migration)
+						 const void *value)
 {
 	struct lpm_trie_node *node;
 
-	if (disable_migration)
-		migrate_disable();
 	node = bpf_mem_cache_alloc(&trie->ma);
-	if (disable_migration)
-		migrate_enable();
 
 	if (!node)
 		return NULL;
@@ -342,10 +337,8 @@ static long trie_update_elem(struct bpf_map *map,
 	if (key->prefixlen > trie->max_prefixlen)
 		return -EINVAL;
 
-	/* Allocate and fill a new node. Need to disable migration before
-	 * invoking bpf_mem_cache_alloc().
-	 */
-	new_node = lpm_trie_node_alloc(trie, value, true);
+	/* Allocate and fill a new node */
+	new_node = lpm_trie_node_alloc(trie, value);
 	if (!new_node)
 		return -ENOMEM;
 
@@ -425,8 +418,7 @@ static long trie_update_elem(struct bpf_map *map,
 		goto out;
 	}
 
-	/* migration is disabled within the locked scope */
-	im_node = lpm_trie_node_alloc(trie, NULL, false);
+	im_node = lpm_trie_node_alloc(trie, NULL);
 	if (!im_node) {
 		trie->n_entries--;
 		ret = -ENOMEM;
@@ -452,11 +444,9 @@ static long trie_update_elem(struct bpf_map *map,
 out:
 	raw_spin_unlock_irqrestore(&trie->lock, irq_flags);
 
-	migrate_disable();
 	if (ret)
 		bpf_mem_cache_free(&trie->ma, new_node);
 	bpf_mem_cache_free_rcu(&trie->ma, free_node);
-	migrate_enable();
 
 	return ret;
 }
@@ -555,10 +545,8 @@ static long trie_delete_elem(struct bpf_map *map, void *_key)
 out:
 	raw_spin_unlock_irqrestore(&trie->lock, irq_flags);
 
-	migrate_disable();
 	bpf_mem_cache_free_rcu(&trie->ma, free_parent);
 	bpf_mem_cache_free_rcu(&trie->ma, free_node);
-	migrate_enable();
 
 	return ret;
 }

@@ -160,6 +160,9 @@ static inline struct xfs_dquot *xfs_inode_dquot(
 	struct xfs_inode	*ip,
 	xfs_dqtype_t		type)
 {
+	if (xfs_is_metadir_inode(ip))
+		return NULL;
+
 	switch (type) {
 	case XFS_DQTYPE_USER:
 		return ip->i_udquot;

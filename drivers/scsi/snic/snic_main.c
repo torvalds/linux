@@ -21,7 +21,7 @@
 #define PCI_DEVICE_ID_CISCO_SNIC	0x0046
 
 /* Supported devices by snic module */
-static struct pci_device_id snic_id_table[] = {
+static const struct pci_device_id snic_id_table[] = {
 	{PCI_DEVICE(0x1137, PCI_DEVICE_ID_CISCO_SNIC) },
 	{ 0, }	/* end of table */
 };
@@ -42,11 +42,11 @@ module_param(snic_max_qdepth, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(snic_max_qdepth, "Queue depth to report for each LUN");
 
 /*
- * snic_slave_alloc : callback function to SCSI Mid Layer, called on
+ * snic_sdev_init : callback function to SCSI Mid Layer, called on
  * scsi device initialization.
  */
 static int
-snic_slave_alloc(struct scsi_device *sdev)
+snic_sdev_init(struct scsi_device *sdev)
 {
 	struct snic_tgt *tgt = starget_to_tgt(scsi_target(sdev));
 
@@ -57,11 +57,11 @@ snic_slave_alloc(struct scsi_device *sdev)
 }
 
 /*
- * snic_slave_configure : callback function to SCSI Mid Layer, called on
+ * snic_sdev_configure : callback function to SCSI Mid Layer, called on
  * scsi device initialization.
  */
 static int
-snic_slave_configure(struct scsi_device *sdev)
+snic_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct snic *snic = shost_priv(sdev->host);
 	u32 qdepth = 0, max_ios = 0;
@@ -107,8 +107,8 @@ static const struct scsi_host_template snic_host_template = {
 	.eh_abort_handler = snic_abort_cmd,
 	.eh_device_reset_handler = snic_device_reset,
 	.eh_host_reset_handler = snic_host_reset,
-	.slave_alloc = snic_slave_alloc,
-	.slave_configure = snic_slave_configure,
+	.sdev_init = snic_sdev_init,
+	.sdev_configure = snic_sdev_configure,
 	.change_queue_depth = snic_change_queue_depth,
 	.this_id = -1,
 	.cmd_per_lun = SNIC_DFLT_QUEUE_DEPTH,

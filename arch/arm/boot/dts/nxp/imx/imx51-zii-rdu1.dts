@@ -160,7 +160,7 @@
 		};
 	};
 
-	mdio_gpio: mdio-gpio {
+	mdio_gpio: mdio {
 		compatible = "virtual,mdio-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_swmdio>;

@@ -275,7 +275,6 @@ int smk_curacc(struct smack_known *obj_known,
 	return smk_tskacc(tsp, obj_known, mode, a);
 }
 
-#ifdef CONFIG_AUDIT
 /**
  * smack_str_from_perm : helper to transalate an int to a
  * readable string
@@ -283,7 +282,7 @@ int smk_curacc(struct smack_known *obj_known,
  * @access : the int
  *
  */
-static inline void smack_str_from_perm(char *string, int access)
+int smack_str_from_perm(char *string, int access)
 {
 	int i = 0;
 
@@ -299,8 +298,15 @@ static inline void smack_str_from_perm(char *string, int access)
 		string[i++] = 't';
 	if (access & MAY_LOCK)
 		string[i++] = 'l';
+	if (access & MAY_BRINGUP)
+		string[i++] = 'b';
+	if (i == 0)
+		string[i++] = '-';
 	string[i] = '\0';
+	return i;
 }
+
+#ifdef CONFIG_AUDIT
 /**
  * smack_log_callback - SMACK specific information
  * will be called by generic audit code

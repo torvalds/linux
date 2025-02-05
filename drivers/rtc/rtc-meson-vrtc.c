@@ -74,7 +74,7 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 	if (IS_ERR(vrtc->io_alarm))
 		return PTR_ERR(vrtc->io_alarm);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	platform_set_drvdata(pdev, vrtc);
 

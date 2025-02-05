@@ -141,6 +141,8 @@
 
 #define SCM_TS_OPT_ID            0x005a
 
+#define SO_RCVPRIORITY           0x005b
+
 #if !defined(__KERNEL__)
 
 

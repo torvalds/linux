@@ -288,24 +288,21 @@ MODULE_DEVICE_TABLE(acpi, hisi_sllc_pmu_acpi_match);
 static int hisi_sllc_pmu_init_data(struct platform_device *pdev,
 				   struct hisi_pmu *sllc_pmu)
 {
+	hisi_uncore_pmu_init_topology(sllc_pmu, &pdev->dev);
+
 	/*
 	 * Use the SCCL_ID and the index ID to identify the SLLC PMU,
 	 * while SCCL_ID is from MPIDR_EL1 by CPU.
 	 */
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &sllc_pmu->sccl_id)) {
+	if (sllc_pmu->topo.sccl_id < 0) {
 		dev_err(&pdev->dev, "Cannot read sccl-id!\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &sllc_pmu->index_id)) {
+	if (sllc_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id!\n");
 		return -EINVAL;
 	}
-
-	/* SLLC PMUs only share the same SCCL */
-	sllc_pmu->ccl_id = -1;
 
 	sllc_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sllc_pmu->base)) {
@@ -347,34 +344,11 @@ static const struct attribute_group hisi_sllc_pmu_v2_events_group = {
 	.attrs = hisi_sllc_pmu_v2_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_sllc_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_sllc_pmu_cpumask_attr_group = {
-	.attrs = hisi_sllc_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_sllc_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_sllc_pmu_identifier_attrs[] = {
-	&hisi_sllc_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_sllc_pmu_identifier_group = {
-	.attrs = hisi_sllc_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_sllc_pmu_v2_attr_groups[] = {
 	&hisi_sllc_pmu_v2_format_group,
 	&hisi_sllc_pmu_v2_events_group,
-	&hisi_sllc_pmu_cpumask_attr_group,
-	&hisi_sllc_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -433,8 +407,8 @@ static int hisi_sllc_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%u_sllc%u",
-			      sllc_pmu->sccl_id, sllc_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sccl%d_sllc%d",
+			      sllc_pmu->topo.sccl_id, sllc_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -507,6 +481,7 @@ static void __exit hisi_sllc_pmu_module_exit(void)
 }
 module_exit(hisi_sllc_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SLLC uncore PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Shaokun Zhang <zhangshaokun@hisilicon.com>");

@@ -12,6 +12,6 @@ int path__join3(char *bf, size_t size, const char *path1, const char *path2, con
 
 bool is_regular_file(const char *file);
 bool is_directory(const char *base_path, const struct dirent *dent);
-bool is_executable_file(const char *base_path, const struct dirent *dent);
+bool is_directory_at(int dir_fd, const char *path);
 
 #endif /* _PERF_PATH_H */

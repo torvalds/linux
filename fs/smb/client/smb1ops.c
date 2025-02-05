@@ -551,7 +551,7 @@ static int cifs_query_path_info(const unsigned int xid,
 	int rc;
 	FILE_ALL_INFO fi = {};
 
-	data->symlink = false;
+	data->reparse_point = false;
 	data->adjust_tz = false;
 
 	/* could do find first instead but this returns more info */
@@ -569,32 +569,8 @@ static int cifs_query_path_info(const unsigned int xid,
 	}
 
 	if (!rc) {
-		int tmprc;
-		int oplock = 0;
-		struct cifs_fid fid;
-		struct cifs_open_parms oparms;
-
 		move_cifs_info_to_smb2(&data->fi, &fi);
-
-		if (!(le32_to_cpu(fi.Attributes) & ATTR_REPARSE))
-			return 0;
-
-		oparms = (struct cifs_open_parms) {
-			.tcon = tcon,
-			.cifs_sb = cifs_sb,
-			.desired_access = FILE_READ_ATTRIBUTES,
-			.create_options = cifs_create_options(cifs_sb, 0),
-			.disposition = FILE_OPEN,
-			.path = full_path,
-			.fid = &fid,
-		};
-
-		/* Need to check if this is a symbolic link or not */
-		tmprc = CIFS_open(xid, &oparms, &oplock, NULL);
-		if (tmprc == -EOPNOTSUPP)
-			data->symlink = true;
-		else if (tmprc == 0)
-			CIFSSMBClose(xid, tcon, fid.netfid);
+		data->reparse_point = le32_to_cpu(fi.Attributes) & ATTR_REPARSE;
 	}
 
 	return rc;
@@ -614,7 +590,13 @@ static int cifs_get_srv_inum(const unsigned int xid, struct cifs_tcon *tcon,
 	 * There may be higher info levels that work but are there Windows
 	 * server or network appliances for which IndexNumber field is not
 	 * guaranteed unique?
+	 *
+	 * CIFSGetSrvInodeNumber() uses SMB_QUERY_FILE_INTERNAL_INFO
+	 * which is SMB PASSTHROUGH level therefore check for capability.
+	 * Note that this function can be called with tcon == NULL.
 	 */
+	if (tcon && !(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU))
+		return -EOPNOTSUPP;
 	return CIFSGetSrvInodeNumber(xid, tcon, full_path, uniqueid,
 				     cifs_sb->local_nls,
 				     cifs_remap(cifs_sb));
@@ -1004,7 +986,7 @@ static int cifs_parse_reparse_point(struct cifs_sb_info *cifs_sb,
 
 	buf = (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
 					     le32_to_cpu(io->DataOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, true, data);
+	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
 }
 
 static bool

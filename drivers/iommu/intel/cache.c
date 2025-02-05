@@ -47,6 +47,7 @@ static int cache_tag_assign(struct dmar_domain *domain, u16 did,
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 	struct intel_iommu *iommu = info->iommu;
 	struct cache_tag *tag, *temp;
+	struct list_head *prev;
 	unsigned long flags;
 
 	tag = kzalloc(sizeof(*tag), GFP_KERNEL);
@@ -65,6 +66,7 @@ static int cache_tag_assign(struct dmar_domain *domain, u16 did,
 		tag->dev = iommu->iommu.dev;
 
 	spin_lock_irqsave(&domain->cache_lock, flags);
+	prev = &domain->cache_tags;
 	list_for_each_entry(temp, &domain->cache_tags, node) {
 		if (cache_tage_match(temp, did, iommu, dev, pasid, type)) {
 			temp->users++;
@@ -73,8 +75,15 @@ static int cache_tag_assign(struct dmar_domain *domain, u16 did,
 			trace_cache_tag_assign(temp);
 			return 0;
 		}
+		if (temp->iommu == iommu)
+			prev = &temp->node;
 	}
-	list_add_tail(&tag->node, &domain->cache_tags);
+	/*
+	 * Link cache tags of same iommu unit together, so corresponding
+	 * flush ops can be batched for iommu unit.
+	 */
+	list_add(&tag->node, prev);
+
 	spin_unlock_irqrestore(&domain->cache_lock, flags);
 	trace_cache_tag_assign(tag);
 

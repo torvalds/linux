@@ -8882,13 +8882,10 @@ static void rt2800_rxiq_calibration(struct rt2x00_dev *rt2x00dev)
 
 	for (ch_idx = 0; ch_idx < 2; ch_idx = ch_idx + 1) {
 		if (ch_idx == 0) {
-			rfval = rfb0r1 & (~0x3);
 			rfval = rfb0r1 | 0x1;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 1, rfval);
-			rfval = rfb0r2 & (~0x33);
 			rfval = rfb0r2 | 0x11;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfval);
-			rfval = rfb0r42 & (~0x50);
 			rfval = rfb0r42 | 0x10;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 42, rfval);
 
@@ -8901,13 +8898,10 @@ static void rt2800_rxiq_calibration(struct rt2x00_dev *rt2x00dev)
 
 			rt2800_bbp_dcoc_write(rt2x00dev, 1, 0x00);
 		} else {
-			rfval = rfb0r1 & (~0x3);
 			rfval = rfb0r1 | 0x2;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 1, rfval);
-			rfval = rfb0r2 & (~0x33);
 			rfval = rfb0r2 | 0x22;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 2, rfval);
-			rfval = rfb0r42 & (~0x50);
 			rfval = rfb0r42 | 0x40;
 			rt2800_rfcsr_write_bank(rt2x00dev, 0, 42, rfval);
 

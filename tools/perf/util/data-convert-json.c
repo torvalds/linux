@@ -230,12 +230,12 @@ static int process_sample_event(const struct perf_tool *tool,
 
 #ifdef HAVE_LIBTRACEEVENT
 	if (sample->raw_data) {
-		int i;
-		struct tep_format_field **fields;
+		struct tep_event *tp_format = evsel__tp_format(evsel);
+		struct tep_format_field **fields = tp_format ? tep_event_fields(tp_format) : NULL;
 
-		fields = tep_event_fields(evsel->tp_format);
 		if (fields) {
-			i = 0;
+			int i = 0;
+
 			while (fields[i]) {
 				struct trace_seq s;
 

@@ -802,7 +802,7 @@ static void test_seal_mprotect_partial_mprotect_tail(bool seal)
 }
 
 
-static void test_seal_mprotect_two_vma_with_gap(bool seal)
+static void test_seal_mprotect_two_vma_with_gap(void)
 {
 	void *ptr;
 	unsigned long page_size = getpagesize();
@@ -1864,7 +1864,7 @@ static void test_seal_madvise_nodiscard(bool seal)
 	REPORT_TEST_PASS();
 }
 
-int main(int argc, char **argv)
+int main(void)
 {
 	bool test_seal = seal_support();
 
@@ -1913,8 +1913,8 @@ int main(int argc, char **argv)
 	test_seal_mprotect_partial_mprotect(false);
 	test_seal_mprotect_partial_mprotect(true);
 
-	test_seal_mprotect_two_vma_with_gap(false);
-	test_seal_mprotect_two_vma_with_gap(true);
+	test_seal_mprotect_two_vma_with_gap();
+	test_seal_mprotect_two_vma_with_gap();
 
 	test_seal_mprotect_merge(false);
 	test_seal_mprotect_merge(true);

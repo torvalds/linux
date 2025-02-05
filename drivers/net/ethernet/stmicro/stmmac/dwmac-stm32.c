@@ -419,15 +419,10 @@ static int stm32_dwmac_parse_data(struct stm32_dwmac *dwmac,
 	}
 
 	/* Get mode register */
-	dwmac->regmap = syscon_regmap_lookup_by_phandle(np, "st,syscon");
+	dwmac->regmap = syscon_regmap_lookup_by_phandle_args(np, "st,syscon",
+							     1, &dwmac->mode_reg);
 	if (IS_ERR(dwmac->regmap))
 		return PTR_ERR(dwmac->regmap);
-
-	err = of_property_read_u32_index(np, "st,syscon", 1, &dwmac->mode_reg);
-	if (err) {
-		dev_err(dev, "Can't get sysconfig mode offset (%d)\n", err);
-		return err;
-	}
 
 	if (dwmac->ops->is_mp2)
 		return 0;

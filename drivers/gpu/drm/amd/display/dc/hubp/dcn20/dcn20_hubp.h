@@ -382,7 +382,7 @@ void hubp2_program_pixel_format(
 void hubp2_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -408,6 +408,8 @@ void hubp2_clear_underflow(struct hubp *hubp);
 void hubp2_read_state_common(struct hubp *hubp);
 
 void hubp2_read_state(struct hubp *hubp);
+
+void hubp2_clear_tiling(struct hubp *hubp);
 
 #endif /* __DC_MEM_INPUT_DCN20_H__ */
 

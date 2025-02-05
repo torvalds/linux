@@ -77,6 +77,7 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_LOCKDOWN 15
 #define LSM_AUDIT_DATA_NOTIFICATION 16
 #define LSM_AUDIT_DATA_ANONINODE	17
+#define LSM_AUDIT_DATA_NLMSGTYPE	18
 	union 	{
 		struct path path;
 		struct dentry *dentry;
@@ -98,6 +99,7 @@ struct common_audit_data {
 		struct lsm_ibendport_audit *ibendport;
 		int reason;
 		const char *anonclass;
+		u16 nlmsg_type;
 	} u;
 	/* this union contains LSM specific data */
 	union {
@@ -116,14 +118,28 @@ struct common_audit_data {
 #define v4info fam.v4
 #define v6info fam.v6
 
+#ifdef CONFIG_AUDIT
+
 int ipv4_skb_to_auditdata(struct sk_buff *skb,
 		struct common_audit_data *ad, u8 *proto);
 
+#if IS_ENABLED(CONFIG_IPV6)
 int ipv6_skb_to_auditdata(struct sk_buff *skb,
 		struct common_audit_data *ad, u8 *proto);
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 
 void common_lsm_audit(struct common_audit_data *a,
 	void (*pre_audit)(struct audit_buffer *, void *),
 	void (*post_audit)(struct audit_buffer *, void *));
+
+#else /* CONFIG_AUDIT */
+
+static inline void common_lsm_audit(struct common_audit_data *a,
+	void (*pre_audit)(struct audit_buffer *, void *),
+	void (*post_audit)(struct audit_buffer *, void *))
+{
+}
+
+#endif /* CONFIG_AUDIT */
 
 #endif

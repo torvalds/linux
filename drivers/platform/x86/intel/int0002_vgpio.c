@@ -83,7 +83,11 @@ static void int0002_irq_ack(struct irq_data *data)
 
 static void int0002_irq_unmask(struct irq_data *data)
 {
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 	u32 gpe_en_reg;
+
+	gpiochip_enable_irq(gc, hwirq);
 
 	gpe_en_reg = inl(GPE0A_EN_PORT);
 	gpe_en_reg |= GPE0A_PME_B0_EN_BIT;
@@ -92,11 +96,15 @@ static void int0002_irq_unmask(struct irq_data *data)
 
 static void int0002_irq_mask(struct irq_data *data)
 {
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 	u32 gpe_en_reg;
 
 	gpe_en_reg = inl(GPE0A_EN_PORT);
 	gpe_en_reg &= ~GPE0A_PME_B0_EN_BIT;
 	outl(gpe_en_reg, GPE0A_EN_PORT);
+
+	gpiochip_disable_irq(gc, hwirq);
 }
 
 static int int0002_irq_set_wake(struct irq_data *data, unsigned int on)
@@ -140,12 +148,14 @@ static bool int0002_check_wake(void *data)
 	return (gpe_sts_reg & GPE0A_PME_B0_STS_BIT);
 }
 
-static struct irq_chip int0002_irqchip = {
+static const struct irq_chip int0002_irqchip = {
 	.name			= DRV_NAME,
 	.irq_ack		= int0002_irq_ack,
 	.irq_mask		= int0002_irq_mask,
 	.irq_unmask		= int0002_irq_unmask,
 	.irq_set_wake		= int0002_irq_set_wake,
+	.flags			= IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static void int0002_init_irq_valid_mask(struct gpio_chip *chip,
@@ -203,7 +213,7 @@ static int int0002_probe(struct platform_device *pdev)
 	}
 
 	girq = &chip->irq;
-	girq->chip = &int0002_irqchip;
+	gpio_irq_chip_set_chip(girq, &int0002_irqchip);
 	/* This let us handle the parent IRQ in the driver */
 	girq->parent_handler = NULL;
 	girq->num_parents = 0;

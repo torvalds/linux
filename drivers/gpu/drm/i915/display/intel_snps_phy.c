@@ -5,6 +5,7 @@
 
 #include <linux/math.h>
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_ddi.h"
 #include "intel_ddi_buf_trans.h"

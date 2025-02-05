@@ -31,7 +31,8 @@ typedef struct {
 	void *init_data;
 	int init_data_length;
 	/* IO base address to use for non-pnp cards (set by core, driver should make local copy) */
-	void *ibbase;
+	u32 ibbase;
+	void __iomem *mmibbase;
 	/* IRQ to use for non-pnp cards (set by core, driver should make local copy) */
 	unsigned int ibirq;
 	/* dma channel to use for non-pnp cards (set by core, driver should make local copy) */

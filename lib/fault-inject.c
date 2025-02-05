@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/random.h>
+#include <linux/prandom.h>
 #include <linux/debugfs.h>
 #include <linux/sched.h>
 #include <linux/stat.h>
@@ -11,6 +11,24 @@
 #include <linux/interrupt.h>
 #include <linux/stacktrace.h>
 #include <linux/fault-inject.h>
+
+/*
+ * The should_fail() functions use prandom instead of the normal Linux RNG
+ * since they don't need cryptographically secure random numbers.
+ */
+static DEFINE_PER_CPU(struct rnd_state, fault_rnd_state);
+
+static u32 fault_prandom_u32_below_100(void)
+{
+	struct rnd_state *state;
+	u32 res;
+
+	state = &get_cpu_var(fault_rnd_state);
+	res = prandom_u32_state(state);
+	put_cpu_var(fault_rnd_state);
+
+	return res % 100;
+}
 
 /*
  * setup_fault_attr() is a helper function for various __setup handlers, so it
@@ -30,6 +48,8 @@ int setup_fault_attr(struct fault_attr *attr, char *str)
 			"FAULT_INJECTION: failed to parse arguments\n");
 		return 0;
 	}
+
+	prandom_init_once(&fault_rnd_state);
 
 	attr->probability = probability;
 	attr->interval = interval;
@@ -146,7 +166,7 @@ bool should_fail_ex(struct fault_attr *attr, ssize_t size, int flags)
 			return false;
 	}
 
-	if (attr->probability <= get_random_u32_below(100))
+	if (attr->probability <= fault_prandom_u32_below_100())
 		return false;
 
 fail:
@@ -218,6 +238,8 @@ struct dentry *fault_create_debugfs_attr(const char *name,
 	dir = debugfs_create_dir(name, parent);
 	if (IS_ERR(dir))
 		return dir;
+
+	prandom_init_once(&fault_rnd_state);
 
 	debugfs_create_ul("probability", mode, dir, &attr->probability);
 	debugfs_create_ul("interval", mode, dir, &attr->interval);
@@ -431,6 +453,8 @@ static const struct config_item_type fault_config_type = {
 
 void fault_config_init(struct fault_config *config, const char *name)
 {
+	prandom_init_once(&fault_rnd_state);
+
 	config_group_init_type_name(&config->group, name, &fault_config_type);
 }
 EXPORT_SYMBOL_GPL(fault_config_init);

@@ -192,7 +192,8 @@ const struct file_operations vboxsf_dir_fops = {
  * This is called during name resolution/lookup to check if the @dentry in
  * the cache is still valid. the job is handled by vboxsf_inode_revalidate.
  */
-static int vboxsf_dentry_revalidate(struct dentry *dentry, unsigned int flags)
+static int vboxsf_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				    struct dentry *dentry, unsigned int flags)
 {
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
