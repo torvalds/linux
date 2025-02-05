@@ -10,6 +10,7 @@
 #define __SDCA_FUNCTION_H__
 
 #include <linux/bits.h>
+#include <linux/types.h>
 
 struct device;
 struct sdca_function_desc;
@@ -19,6 +20,11 @@ struct sdca_function_desc;
  * maximum of 128 Entities per function can be represented.
  */
 #define SDCA_MAX_ENTITY_COUNT 128
+
+/*
+ * Sanity check on number of initialization writes, can be expanded if needed.
+ */
+#define SDCA_MAX_INIT_COUNT 2048
 
 /**
  * enum sdca_function_type - SDCA Function Type codes
@@ -64,6 +70,16 @@ enum sdca_function_type {
 #define	SDCA_FUNCTION_TYPE_SIMPLE_NAME			"SimpleJack"
 #define	SDCA_FUNCTION_TYPE_HID_NAME			"HID"
 #define	SDCA_FUNCTION_TYPE_IMP_DEF_NAME			"ImplementationDefined"
+
+/**
+ * struct sdca_init_write - a single initialization write
+ * @addr: Register address to be written
+ * @val: Single byte value to be written
+ */
+struct sdca_init_write {
+	u32 addr;
+	u8 val;
+};
 
 /**
  * enum sdca_entity0_controls - SDCA Controls for Entity 0
@@ -167,7 +183,9 @@ struct sdca_entity {
 /**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
+ * @init_table: Pointer to a table of initialization writes.
  * @entities: Dynamically allocated array of Entities.
+ * @num_init_table: Number of initialization writes.
  * @num_entities: Number of Entities reported in this Function.
  * @busy_max_delay: Maximum Function busy delay in microseconds, before an
  * error should be reported.
@@ -175,7 +193,9 @@ struct sdca_entity {
 struct sdca_function_data {
 	struct sdca_function_desc *desc;
 
+	struct sdca_init_write *init_table;
 	struct sdca_entity *entities;
+	int num_init_table;
 	int num_entities;
 
 	unsigned int busy_max_delay;

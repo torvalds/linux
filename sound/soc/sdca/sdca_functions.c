@@ -9,6 +9,7 @@
 #define dev_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/acpi.h>
+#include <linux/byteorder/generic.h>
 #include <linux/device.h>
 #include <linux/dev_printk.h>
 #include <linux/module.h>
@@ -184,6 +185,62 @@ void sdca_lookup_functions(struct sdw_slave *slave)
 	acpi_dev_for_each_child(adev, find_sdca_function, &slave->sdca_data);
 }
 EXPORT_SYMBOL_NS(sdca_lookup_functions, "SND_SOC_SDCA");
+
+static int find_sdca_init_table(struct device *dev,
+				struct fwnode_handle *function_node,
+				struct sdca_function_data *function)
+{
+	struct sdca_init_write *init_write;
+	int write_size = sizeof(init_write->addr) + sizeof(init_write->val);
+	u8 *init_list, *init_iter;
+	int num_init_writes;
+
+	num_init_writes = fwnode_property_count_u8(function_node,
+						   "mipi-sdca-function-initialization-table");
+	if (!num_init_writes || num_init_writes == -EINVAL) {
+		return 0;
+	} else if (num_init_writes < 0) {
+		dev_err(dev, "%pfwP: failed to read initialization table: %d\n",
+			function_node, num_init_writes);
+		return num_init_writes;
+	} else if (num_init_writes % write_size != 0) {
+		dev_err(dev, "%pfwP: init table size invalid\n", function_node);
+		return -EINVAL;
+	} else if (num_init_writes > SDCA_MAX_INIT_COUNT) {
+		dev_err(dev, "%pfwP: maximum init table size exceeded\n", function_node);
+		return -EINVAL;
+	}
+
+	init_write = devm_kcalloc(dev, num_init_writes / write_size,
+				  sizeof(*init_write), GFP_KERNEL);
+	if (!init_write)
+		return -ENOMEM;
+
+	init_list = kcalloc(num_init_writes, sizeof(*init_list), GFP_KERNEL);
+	if (!init_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u8_array(function_node,
+				      "mipi-sdca-function-initialization-table",
+				      init_list, num_init_writes);
+
+	function->num_init_table = num_init_writes;
+	function->init_table = init_write;
+
+	for (init_iter = init_list; init_iter < init_list + num_init_writes;) {
+		u32 *addr = (u32 *)init_iter;
+
+		init_write->addr = le32_to_cpu(*addr);
+		init_iter += sizeof(init_write->addr);
+
+		init_write->val = *init_iter;
+		init_iter += sizeof(init_write->val);
+	}
+
+	kfree(init_list);
+
+	return 0;
+}
 
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
@@ -434,6 +491,10 @@ int sdca_parse_function(struct device *dev,
 
 	dev_info(dev, "%pfwP: name %s delay %dus\n", function->desc->node,
 		 function->desc->name, function->busy_max_delay);
+
+	ret = find_sdca_init_table(dev, function_desc->node, function);
+	if (ret)
+		return ret;
 
 	ret = find_sdca_entities(dev, function_desc->node, function);
 	if (ret)
