@@ -142,6 +142,20 @@ static struct quirk_entry quirk_amd_7k62 = {
 	.lowest_freq = 550,
 };
 
+static inline u8 freq_to_perf(struct amd_cpudata *cpudata, unsigned int freq_val)
+{
+	u8 perf_val = DIV_ROUND_UP_ULL((u64)freq_val * cpudata->nominal_perf,
+					cpudata->nominal_freq);
+
+	return clamp_t(u8, perf_val, cpudata->lowest_perf, cpudata->highest_perf);
+}
+
+static inline u32 perf_to_freq(struct amd_cpudata *cpudata, u8 perf_val)
+{
+	return DIV_ROUND_UP_ULL((u64)cpudata->nominal_freq * perf_val,
+				cpudata->nominal_perf);
+}
+
 static int __init dmi_matched_7k62_bios_bug(const struct dmi_system_id *dmi)
 {
 	/**
@@ -534,14 +548,12 @@ static inline bool amd_pstate_sample(struct amd_cpudata *cpudata)
 static void amd_pstate_update(struct amd_cpudata *cpudata, u8 min_perf,
 			      u8 des_perf, u8 max_perf, bool fast_switch, int gov_flags)
 {
-	unsigned long max_freq;
 	struct cpufreq_policy *policy = cpufreq_cpu_get(cpudata->cpu);
 	u8 nominal_perf = READ_ONCE(cpudata->nominal_perf);
 
 	des_perf = clamp_t(u8, des_perf, min_perf, max_perf);
 
-	max_freq = READ_ONCE(cpudata->max_limit_freq);
-	policy->cur = div_u64(des_perf * max_freq, max_perf);
+	policy->cur = perf_to_freq(cpudata, des_perf);
 
 	if ((cppc_state == AMD_PSTATE_GUIDED) && (gov_flags & CPUFREQ_GOV_DYNAMIC_SWITCHING)) {
 		min_perf = des_perf;
@@ -591,14 +603,11 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 
 static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 {
-	u8 max_limit_perf, min_limit_perf, max_perf;
-	u32 max_freq;
+	u8 max_limit_perf, min_limit_perf;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
-	max_perf = READ_ONCE(cpudata->highest_perf);
-	max_freq = READ_ONCE(cpudata->max_freq);
-	max_limit_perf = div_u64(policy->max * max_perf, max_freq);
-	min_limit_perf = div_u64(policy->min * max_perf, max_freq);
+	max_limit_perf = freq_to_perf(cpudata, policy->max);
+	min_limit_perf = freq_to_perf(cpudata, policy->min);
 
 	if (cpudata->policy == CPUFREQ_POLICY_PERFORMANCE)
 		min_limit_perf = min(cpudata->nominal_perf, max_limit_perf);
@@ -616,21 +625,15 @@ static int amd_pstate_update_freq(struct cpufreq_policy *policy,
 {
 	struct cpufreq_freqs freqs;
 	struct amd_cpudata *cpudata = policy->driver_data;
-	u8 des_perf, cap_perf;
-
-	if (!cpudata->max_freq)
-		return -ENODEV;
+	u8 des_perf;
 
 	if (policy->min != cpudata->min_limit_freq || policy->max != cpudata->max_limit_freq)
 		amd_pstate_update_min_max_limit(policy);
 
-	cap_perf = READ_ONCE(cpudata->highest_perf);
-
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
 
-	des_perf = DIV_ROUND_CLOSEST(target_freq * cap_perf,
-				     cpudata->max_freq);
+	des_perf = freq_to_perf(cpudata, target_freq);
 
 	WARN_ON(fast_switch && !policy->fast_switch_enabled);
 	/*
@@ -905,7 +908,6 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
 {
 	int ret;
 	u32 min_freq, max_freq;
-	u8 highest_perf, nominal_perf, lowest_nonlinear_perf;
 	u32 nominal_freq, lowest_nonlinear_freq;
 	struct cppc_perf_caps cppc_perf;
 
@@ -923,16 +925,17 @@ static int amd_pstate_init_freq(struct amd_cpudata *cpudata)
 	else
 		nominal_freq = cppc_perf.nominal_freq;
 
-	highest_perf = READ_ONCE(cpudata->highest_perf);
-	nominal_perf = READ_ONCE(cpudata->nominal_perf);
-	max_freq = div_u64((u64)highest_perf * nominal_freq, nominal_perf);
+	min_freq *= 1000;
+	nominal_freq *= 1000;
 
-	lowest_nonlinear_perf = READ_ONCE(cpudata->lowest_nonlinear_perf);
-	lowest_nonlinear_freq = div_u64((u64)nominal_freq * lowest_nonlinear_perf, nominal_perf);
-	WRITE_ONCE(cpudata->min_freq, min_freq * 1000);
-	WRITE_ONCE(cpudata->lowest_nonlinear_freq, lowest_nonlinear_freq * 1000);
-	WRITE_ONCE(cpudata->nominal_freq, nominal_freq * 1000);
-	WRITE_ONCE(cpudata->max_freq, max_freq * 1000);
+	WRITE_ONCE(cpudata->nominal_freq, nominal_freq);
+	WRITE_ONCE(cpudata->min_freq, min_freq);
+
+	max_freq = perf_to_freq(cpudata, cpudata->highest_perf);
+	lowest_nonlinear_freq = perf_to_freq(cpudata, cpudata->lowest_nonlinear_perf);
+
+	WRITE_ONCE(cpudata->lowest_nonlinear_freq, lowest_nonlinear_freq);
+	WRITE_ONCE(cpudata->max_freq, max_freq);
 
 	/**
 	 * Below values need to be initialized correctly, otherwise driver will fail to load
