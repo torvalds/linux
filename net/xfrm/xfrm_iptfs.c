@@ -2625,12 +2625,10 @@ static void __iptfs_init_state(struct xfrm_state *x,
 			       struct xfrm_iptfs_data *xtfs)
 {
 	__skb_queue_head_init(&xtfs->queue);
-	hrtimer_init(&xtfs->iptfs_timer, CLOCK_MONOTONIC, IPTFS_HRTIMER_MODE);
-	xtfs->iptfs_timer.function = iptfs_delay_timer;
+	hrtimer_setup(&xtfs->iptfs_timer, iptfs_delay_timer, CLOCK_MONOTONIC, IPTFS_HRTIMER_MODE);
 
 	spin_lock_init(&xtfs->drop_lock);
-	hrtimer_init(&xtfs->drop_timer, CLOCK_MONOTONIC, IPTFS_HRTIMER_MODE);
-	xtfs->drop_timer.function = iptfs_drop_timer;
+	hrtimer_setup(&xtfs->drop_timer, iptfs_drop_timer, CLOCK_MONOTONIC, IPTFS_HRTIMER_MODE);
 
 	/* Modify type (esp) adjustment values */
 
