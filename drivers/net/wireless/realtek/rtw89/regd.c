@@ -16,8 +16,10 @@ void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request
 		.txpwr_regd[RTW89_BAND_2G] = _rule_2ghz,	\
 		.txpwr_regd[RTW89_BAND_5G] = _rule_5ghz,	\
 		.txpwr_regd[RTW89_BAND_6G] = _rule_6ghz,	\
-		.func_bitmap = { BITMAP_FROM_U64(_fmap), },	\
+		.func_bitmap = { _fmap, },	\
 	}
+
+static_assert(BITS_PER_TYPE(unsigned long) >= NUM_OF_RTW89_REGD_FUNC);
 
 static const struct rtw89_regd rtw89_ww_regd =
 	COUNTRY_REGD("00", RTW89_WW, RTW89_WW, RTW89_WW, 0x0);
