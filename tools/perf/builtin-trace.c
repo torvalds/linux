@@ -1522,13 +1522,14 @@ struct thread_trace {
 	struct intlist *syscall_stats;
 };
 
-static struct thread_trace *thread_trace__new(void)
+static struct thread_trace *thread_trace__new(struct trace *trace)
 {
 	struct thread_trace *ttrace =  zalloc(sizeof(struct thread_trace));
 
 	if (ttrace) {
 		ttrace->files.max = -1;
-		ttrace->syscall_stats = intlist__new(NULL);
+		if (trace->summary)
+			ttrace->syscall_stats = intlist__new(NULL);
 	}
 
 	return ttrace;
@@ -1550,7 +1551,7 @@ static void thread_trace__delete(void *pttrace)
 	free(ttrace);
 }
 
-static struct thread_trace *thread__trace(struct thread *thread, FILE *fp)
+static struct thread_trace *thread__trace(struct thread *thread, struct trace *trace)
 {
 	struct thread_trace *ttrace;
 
@@ -1558,7 +1559,7 @@ static struct thread_trace *thread__trace(struct thread *thread, FILE *fp)
 		goto fail;
 
 	if (thread__priv(thread) == NULL)
-		thread__set_priv(thread, thread_trace__new());
+		thread__set_priv(thread, thread_trace__new(trace));
 
 	if (thread__priv(thread) == NULL)
 		goto fail;
@@ -1568,7 +1569,7 @@ static struct thread_trace *thread__trace(struct thread *thread, FILE *fp)
 
 	return ttrace;
 fail:
-	color_fprintf(fp, PERF_COLOR_RED,
+	color_fprintf(trace->output, PERF_COLOR_RED,
 		      "WARNING: not enough memory, dropping samples!\n");
 	return NULL;
 }
@@ -2626,7 +2627,7 @@ static int trace__sys_enter(struct trace *trace, struct evsel *evsel,
 		return -1;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
-	ttrace = thread__trace(thread, trace->output);
+	ttrace = thread__trace(thread, trace);
 	if (ttrace == NULL)
 		goto out_put;
 
@@ -2703,7 +2704,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct evsel *evsel,
 		return -1;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
-	ttrace = thread__trace(thread, trace->output);
+	ttrace = thread__trace(thread, trace);
 	/*
 	 * We need to get ttrace just to make sure it is there when syscall__scnprintf_args()
 	 * and the rest of the beautifiers accessing it via struct syscall_arg touches it.
@@ -2775,7 +2776,7 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 		return -1;
 
 	thread = machine__findnew_thread(trace->host, sample->pid, sample->tid);
-	ttrace = thread__trace(thread, trace->output);
+	ttrace = thread__trace(thread, trace);
 	if (ttrace == NULL)
 		goto out_put;
 
@@ -2964,7 +2965,7 @@ static int trace__sched_stat_runtime(struct trace *trace, struct evsel *evsel,
 	struct thread *thread = machine__findnew_thread(trace->host,
 							sample->pid,
 							sample->tid);
-	struct thread_trace *ttrace = thread__trace(thread, trace->output);
+	struct thread_trace *ttrace = thread__trace(thread, trace);
 
 	if (ttrace == NULL)
 		goto out_dump;
@@ -3218,7 +3219,7 @@ static int trace__pgfault(struct trace *trace,
 		}
 	}
 
-	ttrace = thread__trace(thread, trace->output);
+	ttrace = thread__trace(thread, trace);
 	if (ttrace == NULL)
 		goto out_put;
 
