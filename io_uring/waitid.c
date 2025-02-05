@@ -132,7 +132,7 @@ static void io_waitid_complete(struct io_kiocb *req, int ret)
 	io_req_set_res(req, ret, 0);
 }
 
-static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
+static bool __io_waitid_cancel(struct io_kiocb *req)
 {
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
 	struct io_waitid_async *iwa = req->async_data;
@@ -170,7 +170,7 @@ int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		if (req->cqe.user_data != cd->data &&
 		    !(cd->flags & IORING_ASYNC_CANCEL_ANY))
 			continue;
-		if (__io_waitid_cancel(ctx, req))
+		if (__io_waitid_cancel(req))
 			nr++;
 		if (!(cd->flags & IORING_ASYNC_CANCEL_ALL))
 			break;
@@ -186,21 +186,7 @@ int io_waitid_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 bool io_waitid_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
 			  bool cancel_all)
 {
-	struct hlist_node *tmp;
-	struct io_kiocb *req;
-	bool found = false;
-
-	lockdep_assert_held(&ctx->uring_lock);
-
-	hlist_for_each_entry_safe(req, tmp, &ctx->waitid_list, hash_node) {
-		if (!io_match_task_safe(req, tctx, cancel_all))
-			continue;
-		hlist_del_init(&req->hash_node);
-		__io_waitid_cancel(ctx, req);
-		found = true;
-	}
-
-	return found;
+	return io_cancel_remove_all(ctx, tctx, &ctx->waitid_list, cancel_all, __io_waitid_cancel);
 }
 
 static inline bool io_waitid_drop_issue_ref(struct io_kiocb *req)
