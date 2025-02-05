@@ -3930,6 +3930,31 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->associated = false;
 
+	if (tx) {
+		bool tx_link_found = false;
+
+		for (link_id = 0;
+		     link_id < ARRAY_SIZE(sdata->link);
+		     link_id++) {
+			struct ieee80211_link_data *link;
+
+			if (!ieee80211_vif_link_active(&sdata->vif, link_id))
+				continue;
+
+			link = sdata_dereference(sdata->link[link_id], sdata);
+			if (WARN_ON_ONCE(!link))
+				continue;
+
+			if (link->u.mgd.csa.blocked_tx)
+				continue;
+
+			tx_link_found = true;
+			break;
+		}
+
+		tx = tx_link_found;
+	}
+
 	/* other links will be destroyed */
 	sdata->deflink.conf->bss = NULL;
 	sdata->deflink.conf->epcs_support = false;
@@ -3960,24 +3985,24 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * insist sending these frames which can take time and delay
 	 * the disconnection and possible the roaming.
 	 */
-	if (tx)
-		ieee80211_flush_queues(local, sdata, true);
+	ieee80211_flush_queues(local, sdata, true);
 
-	/* deauthenticate/disassociate now */
-	if (tx || frame_buf) {
+	if (tx) {
 		drv_mgd_prepare_tx(sdata->local, sdata, &info);
 
 		ieee80211_send_deauth_disassoc(sdata, sdata->vif.cfg.ap_addr,
 					       sdata->vif.cfg.ap_addr, stype,
-					       reason, tx, frame_buf);
-	}
+					       reason, true, frame_buf);
 
-	/* flush out frame - make sure the deauth was actually sent */
-	if (tx)
+		/* flush out frame - make sure the deauth was actually sent */
 		ieee80211_flush_queues(local, sdata, false);
 
-	if (tx || frame_buf)
 		drv_mgd_complete_tx(sdata->local, sdata, &info);
+	} else if (frame_buf) {
+		ieee80211_send_deauth_disassoc(sdata, sdata->vif.cfg.ap_addr,
+					       sdata->vif.cfg.ap_addr, stype,
+					       reason, false, frame_buf);
+	}
 
 	/* clear AP addr only after building the needed mgmt frames */
 	eth_zero_addr(sdata->deflink.u.mgd.bssid);
@@ -4403,32 +4428,11 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
-	bool tx = false;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!ifmgd->associated)
 		return;
-
-	/* only transmit if we have a link that makes that worthwhile */
-	for (unsigned int link_id = 0;
-	     link_id < ARRAY_SIZE(sdata->link);
-	     link_id++) {
-		struct ieee80211_link_data *link;
-
-		if (!ieee80211_vif_link_active(&sdata->vif, link_id))
-			continue;
-
-		link = sdata_dereference(sdata->link[link_id], sdata);
-		if (WARN_ON_ONCE(!link))
-			continue;
-
-		if (link->u.mgd.csa.blocked_tx)
-			continue;
-
-		tx = true;
-		break;
-	}
 
 	if (!ifmgd->driver_disconnect) {
 		unsigned int link_id;
@@ -4457,14 +4461,14 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			       ifmgd->driver_disconnect ?
 					WLAN_REASON_DEAUTH_LEAVING :
 					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-			       tx, frame_buf);
+			       true, frame_buf);
 	/* the other links will be destroyed */
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa.waiting_bcn = false;
 	sdata->deflink.u.mgd.csa.blocked_tx = false;
 	ieee80211_vif_unblock_queues_csa(sdata);
 
-	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,
+	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), true,
 				    WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
 				    ifmgd->reconnect);
 	ifmgd->reconnect = false;
