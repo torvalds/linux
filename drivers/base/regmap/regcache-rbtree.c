@@ -275,18 +275,16 @@ static int regcache_rbtree_insert_to_block(struct regmap *map,
 	pos = (reg - base_reg) / map->reg_stride;
 	offset = (rbnode->base_reg - base_reg) / map->reg_stride;
 
-	blk = krealloc(rbnode->block,
-		       blklen * map->cache_word_size,
-		       map->alloc_flags);
+	blk = krealloc_array(rbnode->block, blklen, map->cache_word_size, map->alloc_flags);
 	if (!blk)
 		return -ENOMEM;
 
 	rbnode->block = blk;
 
 	if (BITS_TO_LONGS(blklen) > BITS_TO_LONGS(rbnode->blklen)) {
-		present = krealloc(rbnode->cache_present,
-				   BITS_TO_LONGS(blklen) * sizeof(*present),
-				   map->alloc_flags);
+		present = krealloc_array(rbnode->cache_present,
+					 BITS_TO_LONGS(blklen), sizeof(*present),
+					 map->alloc_flags);
 		if (!present)
 			return -ENOMEM;
 

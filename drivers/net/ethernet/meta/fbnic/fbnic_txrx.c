@@ -1033,20 +1033,20 @@ static int fbnic_poll(struct napi_struct *napi, int budget)
 	if (likely(napi_complete_done(napi, work_done)))
 		fbnic_nv_irq_rearm(nv);
 
-	return 0;
+	return work_done;
 }
 
-static irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
+irqreturn_t fbnic_msix_clean_rings(int __always_unused irq, void *data)
 {
-	struct fbnic_napi_vector *nv = data;
+	struct fbnic_napi_vector *nv = *(void **)data;
 
 	napi_schedule_irqoff(&nv->napi);
 
 	return IRQ_HANDLED;
 }
 
-static void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
-					     struct fbnic_ring *rxr)
+void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *rxr)
 {
 	struct fbnic_queue_stats *stats = &rxr->stats;
 
@@ -1056,8 +1056,8 @@ static void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.dropped += stats->dropped;
 }
 
-static void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
-					     struct fbnic_ring *txr)
+void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
+				      struct fbnic_ring *txr)
 {
 	struct fbnic_queue_stats *stats = &txr->stats;
 
@@ -1099,7 +1099,6 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 				   struct fbnic_napi_vector *nv)
 {
 	struct fbnic_dev *fbd = nv->fbd;
-	u32 v_idx = nv->v_idx;
 	int i, j;
 
 	for (i = 0; i < nv->txt_count; i++) {
@@ -1113,31 +1112,20 @@ static void fbnic_free_napi_vector(struct fbnic_net *fbn,
 		fbnic_remove_rx_ring(fbn, &nv->qt[i].cmpl);
 	}
 
-	fbnic_free_irq(fbd, v_idx, nv);
+	fbnic_napi_free_irq(fbd, nv);
 	page_pool_destroy(nv->page_pool);
 	netif_napi_del(&nv->napi);
-	list_del(&nv->napis);
+	fbn->napi[fbnic_napi_idx(nv)] = NULL;
 	kfree(nv);
 }
 
 void fbnic_free_napi_vectors(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv, *temp;
+	int i;
 
-	list_for_each_entry_safe(nv, temp, &fbn->napis, napis)
-		fbnic_free_napi_vector(fbn, nv);
-}
-
-static void fbnic_name_napi_vector(struct fbnic_napi_vector *nv)
-{
-	unsigned char *dev_name = nv->napi.dev->name;
-
-	if (!nv->rxt_count)
-		snprintf(nv->name, sizeof(nv->name), "%s-Tx-%u", dev_name,
-			 nv->v_idx - FBNIC_NON_NAPI_VECTORS);
-	else
-		snprintf(nv->name, sizeof(nv->name), "%s-TxRx-%u", dev_name,
-			 nv->v_idx - FBNIC_NON_NAPI_VECTORS);
+	for (i = 0; i < fbn->num_napi; i++)
+		if (fbn->napi[i])
+			fbnic_free_napi_vector(fbn, fbn->napi[i]);
 }
 
 #define FBNIC_PAGE_POOL_FLAGS \
@@ -1222,7 +1210,7 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 	nv->v_idx = v_idx;
 
 	/* Tie napi to netdev */
-	list_add(&nv->napis, &fbn->napis);
+	fbn->napi[fbnic_napi_idx(nv)] = nv;
 	netif_napi_add(fbn->netdev, &nv->napi, fbnic_poll);
 
 	/* Record IRQ to NAPI struct */
@@ -1239,12 +1227,8 @@ static int fbnic_alloc_napi_vector(struct fbnic_dev *fbd, struct fbnic_net *fbn,
 			goto napi_del;
 	}
 
-	/* Initialize vector name */
-	fbnic_name_napi_vector(nv);
-
 	/* Request the IRQ for napi vector */
-	err = fbnic_request_irq(fbd, v_idx, &fbnic_msix_clean_rings,
-				IRQF_SHARED, nv->name, nv);
+	err = fbnic_napi_request_irq(fbd, nv);
 	if (err)
 		goto pp_destroy;
 
@@ -1307,7 +1291,7 @@ pp_destroy:
 	page_pool_destroy(nv->page_pool);
 napi_del:
 	netif_napi_del(&nv->napi);
-	list_del(&nv->napis);
+	fbn->napi[fbnic_napi_idx(nv)] = NULL;
 	kfree(nv);
 	return err;
 }
@@ -1612,19 +1596,18 @@ free_resources:
 
 void fbnic_free_resources(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv;
+	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis)
-		fbnic_free_nv_resources(fbn, nv);
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_free_nv_resources(fbn, fbn->napi[i]);
 }
 
 int fbnic_alloc_resources(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv;
-	int err = -ENODEV;
+	int i, err = -ENODEV;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
-		err = fbnic_alloc_nv_resources(fbn, nv);
+	for (i = 0; i < fbn->num_napi; i++) {
+		err = fbnic_alloc_nv_resources(fbn, fbn->napi[i]);
 		if (err)
 			goto free_resources;
 	}
@@ -1632,10 +1615,75 @@ int fbnic_alloc_resources(struct fbnic_net *fbn)
 	return 0;
 
 free_resources:
-	list_for_each_entry_continue_reverse(nv, &fbn->napis, napis)
-		fbnic_free_nv_resources(fbn, nv);
+	while (i--)
+		fbnic_free_nv_resources(fbn, fbn->napi[i]);
 
 	return err;
+}
+
+static void fbnic_set_netif_napi(struct fbnic_napi_vector *nv)
+{
+	int i, j;
+
+	/* Associate Tx queue with NAPI */
+	for (i = 0; i < nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
+				     NETDEV_QUEUE_TYPE_TX, &nv->napi);
+	}
+
+	/* Associate Rx queue with NAPI */
+	for (j = 0; j < nv->rxt_count; j++, i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
+				     NETDEV_QUEUE_TYPE_RX, &nv->napi);
+	}
+}
+
+static void fbnic_reset_netif_napi(struct fbnic_napi_vector *nv)
+{
+	int i, j;
+
+	/* Disassociate Tx queue from NAPI */
+	for (i = 0; i < nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
+				     NETDEV_QUEUE_TYPE_TX, NULL);
+	}
+
+	/* Disassociate Rx queue from NAPI */
+	for (j = 0; j < nv->rxt_count; j++, i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
+				     NETDEV_QUEUE_TYPE_RX, NULL);
+	}
+}
+
+int fbnic_set_netif_queues(struct fbnic_net *fbn)
+{
+	int i, err;
+
+	err = netif_set_real_num_queues(fbn->netdev, fbn->num_tx_queues,
+					fbn->num_rx_queues);
+	if (err)
+		return err;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_set_netif_napi(fbn->napi[i]);
+
+	return 0;
+}
+
+void fbnic_reset_netif_queues(struct fbnic_net *fbn)
+{
+	int i;
+
+	for (i = 0; i < fbn->num_napi; i++)
+		fbnic_reset_netif_napi(fbn->napi[i]);
 }
 
 static void fbnic_disable_twq0(struct fbnic_ring *txr)
@@ -1670,33 +1718,34 @@ static void fbnic_disable_rcq(struct fbnic_ring *rxr)
 
 void fbnic_napi_disable(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv;
+	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
-		napi_disable(&nv->napi);
+	for (i = 0; i < fbn->num_napi; i++) {
+		napi_disable(&fbn->napi[i]->napi);
 
-		fbnic_nv_irq_disable(nv);
+		fbnic_nv_irq_disable(fbn->napi[i]);
 	}
 }
 
 void fbnic_disable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
-	struct fbnic_napi_vector *nv;
-	int i, j;
+	int i, j, t;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+
 		/* Disable Tx queue triads */
-		for (i = 0; i < nv->txt_count; i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (t = 0; t < nv->txt_count; t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_disable_twq0(&qt->sub0);
 			fbnic_disable_tcq(&qt->cmpl);
 		}
 
 		/* Disable Rx queue triads */
-		for (j = 0; j < nv->rxt_count; j++, i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (j = 0; j < nv->rxt_count; j++, t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_disable_bdq(&qt->sub0, &qt->sub1);
 			fbnic_disable_rcq(&qt->cmpl);
@@ -1792,14 +1841,15 @@ int fbnic_wait_all_queues_idle(struct fbnic_dev *fbd, bool may_fail)
 
 void fbnic_flush(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv;
+	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
-		int i, j;
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+		int j, t;
 
 		/* Flush any processed Tx Queue Triads and drop the rest */
-		for (i = 0; i < nv->txt_count; i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (t = 0; t < nv->txt_count; t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 			struct netdev_queue *tx_queue;
 
 			/* Clean the work queues of unprocessed work */
@@ -1816,15 +1866,11 @@ void fbnic_flush(struct fbnic_net *fbn)
 			tx_queue = netdev_get_tx_queue(nv->napi.dev,
 						       qt->sub0.q_idx);
 			netdev_tx_reset_queue(tx_queue);
-
-			/* Disassociate Tx queue from NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
-					     NETDEV_QUEUE_TYPE_TX, NULL);
 		}
 
 		/* Flush any processed Rx Queue Triads and drop the rest */
-		for (j = 0; j < nv->rxt_count; j++, i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (j = 0; j < nv->rxt_count; j++, t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			/* Clean the work queues of unprocessed work */
 			fbnic_clean_bdq(nv, 0, &qt->sub0, qt->sub0.tail);
@@ -1835,43 +1881,23 @@ void fbnic_flush(struct fbnic_net *fbn)
 
 			fbnic_put_pkt_buff(nv, qt->cmpl.pkt, 0);
 			qt->cmpl.pkt->buff.data_hard_start = NULL;
-
-			/* Disassociate Rx queue from NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
-					     NETDEV_QUEUE_TYPE_RX, NULL);
 		}
 	}
 }
 
 void fbnic_fill(struct fbnic_net *fbn)
 {
-	struct fbnic_napi_vector *nv;
+	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
-		int i, j;
-
-		/* Configure NAPI mapping for Tx */
-		for (i = 0; i < nv->txt_count; i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
-
-			/* Nothing to do if Tx queue is disabled */
-			if (qt->sub0.flags & FBNIC_RING_F_DISABLED)
-				continue;
-
-			/* Associate Tx queue with NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->sub0.q_idx,
-					     NETDEV_QUEUE_TYPE_TX, &nv->napi);
-		}
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+		int j, t;
 
 		/* Configure NAPI mapping and populate pages
 		 * in the BDQ rings to use for Rx
 		 */
-		for (j = 0; j < nv->rxt_count; j++, i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
-
-			/* Associate Rx queue with NAPI */
-			netif_queue_set_napi(nv->napi.dev, qt->cmpl.q_idx,
-					     NETDEV_QUEUE_TYPE_RX, &nv->napi);
+		for (j = 0, t = nv->txt_count; j < nv->rxt_count; j++, t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			/* Populate the header and payload BDQs */
 			fbnic_fill_bdq(nv, &qt->sub0);
@@ -2025,21 +2051,23 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 void fbnic_enable(struct fbnic_net *fbn)
 {
 	struct fbnic_dev *fbd = fbn->fbd;
-	struct fbnic_napi_vector *nv;
-	int i, j;
+	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+		int j, t;
+
 		/* Setup Tx Queue Triads */
-		for (i = 0; i < nv->txt_count; i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (t = 0; t < nv->txt_count; t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_enable_twq0(&qt->sub0);
 			fbnic_enable_tcq(nv, &qt->cmpl);
 		}
 
 		/* Setup Rx Queue Triads */
-		for (j = 0; j < nv->rxt_count; j++, i++) {
-			struct fbnic_q_triad *qt = &nv->qt[i];
+		for (j = 0; j < nv->rxt_count; j++, t++) {
+			struct fbnic_q_triad *qt = &nv->qt[t];
 
 			fbnic_enable_bdq(&qt->sub0, &qt->sub1);
 			fbnic_config_drop_mode_rcq(nv, &qt->cmpl);
@@ -2064,10 +2092,11 @@ void fbnic_napi_enable(struct fbnic_net *fbn)
 {
 	u32 irqs[FBNIC_MAX_MSIX_VECS / 32] = {};
 	struct fbnic_dev *fbd = fbn->fbd;
-	struct fbnic_napi_vector *nv;
 	int i;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+
 		napi_enable(&nv->napi);
 
 		fbnic_nv_irq_enable(nv);
@@ -2096,17 +2125,18 @@ void fbnic_napi_depletion_check(struct net_device *netdev)
 	struct fbnic_net *fbn = netdev_priv(netdev);
 	u32 irqs[FBNIC_MAX_MSIX_VECS / 32] = {};
 	struct fbnic_dev *fbd = fbn->fbd;
-	struct fbnic_napi_vector *nv;
-	int i, j;
+	int i, j, t;
 
-	list_for_each_entry(nv, &fbn->napis, napis) {
+	for (i = 0; i < fbn->num_napi; i++) {
+		struct fbnic_napi_vector *nv = fbn->napi[i];
+
 		/* Find RQs which are completely out of pages */
-		for (i = nv->txt_count, j = 0; j < nv->rxt_count; j++, i++) {
+		for (t = nv->txt_count, j = 0; j < nv->rxt_count; j++, t++) {
 			/* Assume 4 pages is always enough to fit a packet
 			 * and therefore generate a completion and an IRQ.
 			 */
-			if (fbnic_desc_used(&nv->qt[i].sub0) < 4 ||
-			    fbnic_desc_used(&nv->qt[i].sub1) < 4)
+			if (fbnic_desc_used(&nv->qt[t].sub0) < 4 ||
+			    fbnic_desc_used(&nv->qt[t].sub1) < 4)
 				irqs[nv->v_idx / 32] |= BIT(nv->v_idx % 32);
 		}
 	}

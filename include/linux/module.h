@@ -52,9 +52,9 @@ struct module_kobject {
 
 struct module_attribute {
 	struct attribute attr;
-	ssize_t (*show)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*show)(const struct module_attribute *, struct module_kobject *,
 			char *);
-	ssize_t (*store)(struct module_attribute *, struct module_kobject *,
+	ssize_t (*store)(const struct module_attribute *, struct module_kobject *,
 			 const char *, size_t count);
 	void (*setup)(struct module *, const char *);
 	int (*test)(struct module *);
@@ -67,10 +67,10 @@ struct module_version_attribute {
 	const char *version;
 };
 
-extern ssize_t __modver_version_show(struct module_attribute *,
+extern ssize_t __modver_version_show(const struct module_attribute *,
 				     struct module_kobject *, char *);
 
-extern struct module_attribute module_uevent;
+extern const struct module_attribute module_uevent;
 
 /* These are either module local, or the kernel's dummy ones. */
 extern int init_module(void);
@@ -275,7 +275,7 @@ extern typeof(name) __mod_device_table__##type##__##name		\
 #else
 #define MODULE_VERSION(_version)					\
 	MODULE_INFO(version, _version);					\
-	static struct module_version_attribute __modver_attr		\
+	static const struct module_version_attribute __modver_attr	\
 		__used __section("__modver")				\
 		__aligned(__alignof__(struct module_version_attribute)) \
 		= {							\
@@ -430,7 +430,7 @@ struct module {
 
 	/* Exported symbols */
 	const struct kernel_symbol *syms;
-	const s32 *crcs;
+	const u32 *crcs;
 	unsigned int num_syms;
 
 #ifdef CONFIG_ARCH_USES_CFI_TRAPS
@@ -448,7 +448,7 @@ struct module {
 	/* GPL-only exported symbols. */
 	unsigned int num_gpl_syms;
 	const struct kernel_symbol *gpl_syms;
-	const s32 *gpl_crcs;
+	const u32 *gpl_crcs;
 	bool using_gplonly_symbols;
 
 #ifdef CONFIG_MODULE_SIG
@@ -773,7 +773,8 @@ void *__module_writable_address(struct module *mod, void *loc);
 
 static inline void *module_writable_address(struct module *mod, void *loc)
 {
-	if (!IS_ENABLED(CONFIG_ARCH_HAS_EXECMEM_ROX) || !mod)
+	if (!IS_ENABLED(CONFIG_ARCH_HAS_EXECMEM_ROX) || !mod ||
+	    mod->state != MODULE_STATE_UNFORMED)
 		return loc;
 	return __module_writable_address(mod, loc);
 }

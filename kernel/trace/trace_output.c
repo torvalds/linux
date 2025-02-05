@@ -317,10 +317,14 @@ EXPORT_SYMBOL(trace_raw_output_prep);
 
 void trace_event_printf(struct trace_iterator *iter, const char *fmt, ...)
 {
+	struct trace_seq *s = &iter->seq;
 	va_list ap;
 
+	if (ignore_event(iter))
+		return;
+
 	va_start(ap, fmt);
-	trace_check_vprintf(iter, trace_event_format(iter, fmt), ap);
+	trace_seq_vprintf(s, trace_event_format(iter, fmt), ap);
 	va_end(ap);
 }
 EXPORT_SYMBOL(trace_event_printf);

@@ -619,9 +619,6 @@ int do_server(struct memory_buffer *mem)
 	fprintf(stderr, "page_aligned_frags=%lu, non_page_aligned_frags=%lu\n",
 		page_aligned_frags, non_page_aligned_frags);
 
-	fprintf(stderr, "page_aligned_frags=%lu, non_page_aligned_frags=%lu\n",
-		page_aligned_frags, non_page_aligned_frags);
-
 cleanup:
 
 	free(tmp_mem);

@@ -40,19 +40,19 @@ static int __init kasan_map_kernel_page(unsigned long ea, unsigned long pa, pgpr
 	pgdp = pgd_offset_k(ea);
 	p4dp = p4d_offset(pgdp, ea);
 	if (kasan_pud_table(*p4dp)) {
-		pudp = memblock_alloc(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
+		pudp = memblock_alloc_or_panic(PUD_TABLE_SIZE, PUD_TABLE_SIZE);
 		memcpy(pudp, kasan_early_shadow_pud, PUD_TABLE_SIZE);
 		p4d_populate(&init_mm, p4dp, pudp);
 	}
 	pudp = pud_offset(p4dp, ea);
 	if (kasan_pmd_table(*pudp)) {
-		pmdp = memblock_alloc(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
+		pmdp = memblock_alloc_or_panic(PMD_TABLE_SIZE, PMD_TABLE_SIZE);
 		memcpy(pmdp, kasan_early_shadow_pmd, PMD_TABLE_SIZE);
 		pud_populate(&init_mm, pudp, pmdp);
 	}
 	pmdp = pmd_offset(pudp, ea);
 	if (kasan_pte_table(*pmdp)) {
-		ptep = memblock_alloc(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
+		ptep = memblock_alloc_or_panic(PTE_TABLE_SIZE, PTE_TABLE_SIZE);
 		memcpy(ptep, kasan_early_shadow_pte, PTE_TABLE_SIZE);
 		pmd_populate_kernel(&init_mm, pmdp, ptep);
 	}
@@ -74,7 +74,7 @@ static void __init kasan_init_phys_region(void *start, void *end)
 	k_start = ALIGN_DOWN((unsigned long)kasan_mem_to_shadow(start), PAGE_SIZE);
 	k_end = ALIGN((unsigned long)kasan_mem_to_shadow(end), PAGE_SIZE);
 
-	va = memblock_alloc(k_end - k_start, PAGE_SIZE);
+	va = memblock_alloc_or_panic(k_end - k_start, PAGE_SIZE);
 	for (k_cur = k_start; k_cur < k_end; k_cur += PAGE_SIZE, va += PAGE_SIZE)
 		kasan_map_kernel_page(k_cur, __pa(va), PAGE_KERNEL);
 }

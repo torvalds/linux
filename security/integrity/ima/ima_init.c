@@ -152,6 +152,8 @@ int __init ima_init(void)
 
 	ima_init_key_queue();
 
+	ima_init_reboot_notifier();
+
 	ima_measure_critical_data("kernel_info", "kernel_version",
 				  UTS_RELEASE, strlen(UTS_RELEASE), false,
 				  NULL, 0);

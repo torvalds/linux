@@ -147,9 +147,7 @@ static void __init init_resources(void)
 	res_idx = num_resources - 1;
 
 	mem_res_sz = num_resources * sizeof(*mem_res);
-	mem_res = memblock_alloc(mem_res_sz, SMP_CACHE_BYTES);
-	if (!mem_res)
-		panic("%s: Failed to allocate %zu bytes\n", __func__, mem_res_sz);
+	mem_res = memblock_alloc_or_panic(mem_res_sz, SMP_CACHE_BYTES);
 
 	/*
 	 * Start by adding the reserved regions, if they overlap
@@ -227,7 +225,7 @@ static void __init init_resources(void)
 static void __init parse_dtb(void)
 {
 	/* Early scan of device tree from init memory */
-	if (early_init_dt_scan(dtb_early_va, __pa(dtb_early_va))) {
+	if (early_init_dt_scan(dtb_early_va, dtb_early_pa)) {
 		const char *name = of_flat_dt_get_machine_name();
 
 		if (name) {

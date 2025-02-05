@@ -36,7 +36,7 @@ void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id)
 	 */
 	id->nsfeat |= 1 << 4;
 	/* NPWG = Namespace Preferred Write Granularity. 0's based */
-	id->npwg = lpp0b;
+	id->npwg = to0based(bdev_io_min(bdev) / bdev_logical_block_size(bdev));
 	/* NPWA = Namespace Preferred Write Alignment. 0's based */
 	id->npwa = id->npwg;
 	/* NPDG = Namespace Preferred Deallocate Granularity. 0's based */
@@ -271,6 +271,9 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 		opf = REQ_OP_READ;
 		iter_flags = SG_MITER_FROM_SG;
 	}
+
+	if (req->cmd->rw.control & NVME_RW_LR)
+		opf |= REQ_FAILFAST_DEV;
 
 	if (is_pci_p2pdma_page(sg_page(req->sg)))
 		opf |= REQ_NOMERGE;

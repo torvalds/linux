@@ -11,8 +11,10 @@
 #include <drm/drm_fourcc.h>
 
 #include "hsw_ips.h"
+#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
+#include "i9xx_wm_regs.h"
 #include "intel_alpm.h"
 #include "intel_bo.h"
 #include "intel_crtc.h"
@@ -730,11 +732,12 @@ static bool
 intel_lpsp_power_well_enabled(struct drm_i915_private *i915,
 			      enum i915_power_well_id power_well_id)
 {
+	struct intel_display *display = &i915->display;
 	intel_wakeref_t wakeref;
 	bool is_enabled;
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-	is_enabled = intel_display_power_well_is_enabled(i915,
+	is_enabled = intel_display_power_well_is_enabled(display,
 							 power_well_id);
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
@@ -1012,6 +1015,8 @@ static int i915_dsc_fec_support_show(struct seq_file *m, void *data)
 								      DP_DSC_YCbCr444)));
 		seq_printf(m, "DSC_Sink_BPP_Precision: %d\n",
 			   drm_dp_dsc_sink_bpp_incr(connector->dp.dsc_dpcd));
+		seq_printf(m, "DSC_Sink_Max_Slice_Count: %d\n",
+			   drm_dp_dsc_sink_max_slice_count((connector->dp.dsc_dpcd), intel_dp_is_edp(intel_dp)));
 		seq_printf(m, "Force_DSC_Enable: %s\n",
 			   str_yes_no(intel_dp->force_dsc_en));
 		if (!intel_dp_is_edp(intel_dp))
@@ -1331,7 +1336,7 @@ static ssize_t i915_joiner_write(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct intel_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	int force_joined_pipes = 0;
 	int ret;
 
@@ -1349,7 +1354,7 @@ static ssize_t i915_joiner_write(struct file *file,
 		connector->force_joined_pipes = force_joined_pipes;
 		break;
 	case 4:
-		if (HAS_ULTRAJOINER(i915)) {
+		if (HAS_ULTRAJOINER(display)) {
 			connector->force_joined_pipes = force_joined_pipes;
 			break;
 		}

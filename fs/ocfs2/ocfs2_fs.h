@@ -132,7 +132,7 @@
  * well as the name of the cluster being joined.
  * mount.ocfs2 must pass in a matching stack name.
  *
- * If not set, the classic stack will be used.  This is compatbile with
+ * If not set, the classic stack will be used.  This is compatible with
  * all older versions.
  */
 #define OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK	0x0080
@@ -143,7 +143,7 @@
 /* Support for extended attributes */
 #define OCFS2_FEATURE_INCOMPAT_XATTR		0x0200
 
-/* Support for indexed directores */
+/* Support for indexed directories */
 #define OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS	0x0400
 
 /* Metadata checksum and error correction */
@@ -156,7 +156,7 @@
 #define OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG	0x2000
 
 /*
- * Incompat bit to indicate useable clusterinfo with stackflags for all
+ * Incompat bit to indicate usable clusterinfo with stackflags for all
  * cluster stacks (userspace adnd o2cb). If this bit is set,
  * INCOMPAT_USERSPACE_STACK becomes superfluous and thus should not be set.
  */
@@ -1083,7 +1083,7 @@ struct ocfs2_xattr_block {
 		struct ocfs2_xattr_header xb_header; /* xattr header if this
 							block contains xattr */
 		struct ocfs2_xattr_tree_root xb_root;/* xattr tree root if this
-							block cotains xattr
+							block contains xattr
 							tree. */
 	} xb_attrs;
 };

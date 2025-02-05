@@ -173,7 +173,7 @@ MODULE_DESCRIPTION("NatSemi PHY driver");
 MODULE_AUTHOR("Stuart Menefy");
 MODULE_LICENSE("GPL");
 
-static struct mdio_device_id __maybe_unused ns_tbl[] = {
+static const struct mdio_device_id __maybe_unused ns_tbl[] = {
 	{ DP83865_PHY_ID, 0xfffffff0 },
 	{ }
 };

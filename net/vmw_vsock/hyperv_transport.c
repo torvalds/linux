@@ -13,12 +13,12 @@
 #include <linux/hyperv.h>
 #include <net/sock.h>
 #include <net/af_vsock.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 
 /* Older (VMBUS version 'VERSION_WIN10' or before) Windows hosts have some
  * stricter requirements on the hv_sock ring buffer size of six 4K pages.
- * hyperv-tlfs defines HV_HYP_PAGE_SIZE as 4K. Newer hosts don't have this
- * limitation; but, keep the defaults the same for compat.
+ * HV_HYP_PAGE_SIZE is defined as 4K. Newer hosts don't have this limitation;
+ * but, keep the defaults the same for compat.
  */
 #define RINGBUFFER_HVS_RCV_SIZE (HV_HYP_PAGE_SIZE * 6)
 #define RINGBUFFER_HVS_SND_SIZE (HV_HYP_PAGE_SIZE * 6)

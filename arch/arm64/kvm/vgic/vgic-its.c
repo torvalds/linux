@@ -608,12 +608,22 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	lockdep_assert_held(&its->its_lock);
 	vgic_get_irq_kref(irq);
 
+	old = xa_store(&its->translation_cache, cache_key, irq, GFP_KERNEL_ACCOUNT);
+
+	/*
+	 * Put the reference taken on @irq if the store fails. Intentionally do
+	 * not return the error as the translation cache is best effort.
+	 */
+	if (xa_is_err(old)) {
+		vgic_put_irq(kvm, irq);
+		return;
+	}
+
 	/*
 	 * We could have raced with another CPU caching the same
 	 * translation behind our back, ensure we don't leak a
 	 * reference if that is the case.
 	 */
-	old = xa_store(&its->translation_cache, cache_key, irq, GFP_KERNEL_ACCOUNT);
 	if (old)
 		vgic_put_irq(kvm, old);
 }

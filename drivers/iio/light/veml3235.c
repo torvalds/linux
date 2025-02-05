@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
+#include <linux/iio/iio-gts-helper.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -35,17 +36,33 @@ struct veml3235_data {
 	struct device *dev;
 	struct regmap *regmap;
 	struct veml3235_rf rf;
+	struct iio_gts gts;
 };
 
-static const int veml3235_it_times[][2] = {
-	{ 0, 50000 },
-	{ 0, 100000 },
-	{ 0, 200000 },
-	{ 0, 400000 },
-	{ 0, 800000 },
+static const struct iio_itime_sel_mul veml3235_it_sel[] = {
+	GAIN_SCALE_ITIME_US(50000, 0, 1),
+	GAIN_SCALE_ITIME_US(100000, 1, 2),
+	GAIN_SCALE_ITIME_US(200000, 2, 4),
+	GAIN_SCALE_ITIME_US(400000, 3, 8),
+	GAIN_SCALE_ITIME_US(800000, 4, 16),
 };
 
-static const int veml3235_scale_vals[] = { 1, 2, 4, 8 };
+/*
+ * The MSB (DG) doubles the value of the rest of the field, which leads to
+ * two possible combinations to obtain gain = 2 and gain = 4. The gain
+ * handling can be simplified by restricting DG = 1 to the only gain that
+ * really requires it, gain = 8. Note that "X10" is a reserved value.
+ */
+#define VEML3235_SEL_GAIN_X1 0
+#define VEML3235_SEL_GAIN_X2 1
+#define VEML3235_SEL_GAIN_X4 3
+#define VEML3235_SEL_GAIN_X8 7
+static const struct iio_gain_sel_pair veml3235_gain_sel[] = {
+	GAIN_SCALE_GAIN(1, VEML3235_SEL_GAIN_X1),
+	GAIN_SCALE_GAIN(2, VEML3235_SEL_GAIN_X2),
+	GAIN_SCALE_GAIN(4, VEML3235_SEL_GAIN_X4),
+	GAIN_SCALE_GAIN(8, VEML3235_SEL_GAIN_X8),
+};
 
 static int veml3235_power_on(struct veml3235_data *data)
 {
@@ -101,42 +118,58 @@ static const struct iio_chan_spec veml3235_channels[] = {
 	},
 };
 
+static const struct regmap_range veml3235_readable_ranges[] = {
+	regmap_reg_range(VEML3235_REG_CONF, VEML3235_REG_ID),
+};
+
+static const struct regmap_access_table veml3235_readable_table = {
+	.yes_ranges = veml3235_readable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml3235_readable_ranges),
+};
+
+static const struct regmap_range veml3235_writable_ranges[] = {
+	regmap_reg_range(VEML3235_REG_CONF, VEML3235_REG_CONF),
+};
+
+static const struct regmap_access_table veml3235_writable_table = {
+	.yes_ranges = veml3235_writable_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml3235_writable_ranges),
+};
+
+static const struct regmap_range veml3235_volatile_ranges[] = {
+	regmap_reg_range(VEML3235_REG_WH_DATA, VEML3235_REG_ALS_DATA),
+};
+
+static const struct regmap_access_table veml3235_volatile_table = {
+	.yes_ranges = veml3235_volatile_ranges,
+	.n_yes_ranges = ARRAY_SIZE(veml3235_volatile_ranges),
+};
+
 static const struct regmap_config veml3235_regmap_config = {
 	.name = "veml3235_regmap",
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = VEML3235_REG_ID,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
+	.rd_table = &veml3235_readable_table,
+	.wr_table = &veml3235_writable_table,
+	.volatile_table = &veml3235_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int veml3235_get_it(struct veml3235_data *data, int *val, int *val2)
 {
-	int ret, reg;
+	int ret, it_idx;
 
-	ret = regmap_field_read(data->rf.it, &reg);
+	ret = regmap_field_read(data->rf.it, &it_idx);
 	if (ret)
 		return ret;
 
-	switch (reg) {
-	case 0:
-		*val2 = 50000;
-		break;
-	case 1:
-		*val2 = 100000;
-		break;
-	case 2:
-		*val2 = 200000;
-		break;
-	case 3:
-		*val2 = 400000;
-		break;
-	case 4:
-		*val2 = 800000;
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret = iio_gts_find_int_time_by_sel(&data->gts, it_idx);
+	if (ret < 0)
+		return ret;
 
+	*val2 = ret;
 	*val = 0;
 
 	return IIO_VAL_INT_PLUS_MICRO;
@@ -145,78 +178,78 @@ static int veml3235_get_it(struct veml3235_data *data, int *val, int *val2)
 static int veml3235_set_it(struct iio_dev *indio_dev, int val, int val2)
 {
 	struct veml3235_data *data = iio_priv(indio_dev);
-	int ret, new_it;
+	int ret, gain_idx, it_idx, new_gain, prev_gain, prev_it;
+	bool in_range;
 
-	if (val)
+	if (val || !iio_gts_valid_time(&data->gts, val2))
 		return -EINVAL;
 
-	switch (val2) {
-	case 50000:
-		new_it = 0x00;
-		break;
-	case 100000:
-		new_it = 0x01;
-		break;
-	case 200000:
-		new_it = 0x02;
-		break;
-	case 400000:
-		new_it = 0x03;
-		break;
-	case 800000:
-		new_it = 0x04;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = regmap_field_write(data->rf.it, new_it);
-	if (ret) {
-		dev_err(data->dev,
-			"failed to update integration time: %d\n", ret);
+	ret = regmap_field_read(data->rf.it, &it_idx);
+	if (ret)
 		return ret;
-	}
 
-	return 0;
+	ret = regmap_field_read(data->rf.gain, &gain_idx);
+	if (ret)
+		return ret;
+
+	prev_it = iio_gts_find_int_time_by_sel(&data->gts, it_idx);
+	if (prev_it < 0)
+		return prev_it;
+
+	if (prev_it == val2)
+		return 0;
+
+	prev_gain = iio_gts_find_gain_by_sel(&data->gts, gain_idx);
+	if (prev_gain < 0)
+		return prev_gain;
+
+	ret = iio_gts_find_new_gain_by_gain_time_min(&data->gts, prev_gain, prev_it,
+						     val2, &new_gain, &in_range);
+	if (ret)
+		return ret;
+
+	if (!in_range)
+		dev_dbg(data->dev, "Optimal gain out of range\n");
+
+	ret = iio_gts_find_sel_by_int_time(&data->gts, val2);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_field_write(data->rf.it, ret);
+	if (ret)
+		return ret;
+
+	ret = iio_gts_find_sel_by_gain(&data->gts, new_gain);
+	if (ret < 0)
+		return ret;
+
+	return regmap_field_write(data->rf.gain, ret);
 }
 
-static int veml3235_set_gain(struct iio_dev *indio_dev, int val, int val2)
+static int veml3235_set_scale(struct iio_dev *indio_dev, int val, int val2)
 {
 	struct veml3235_data *data = iio_priv(indio_dev);
-	int ret, new_gain;
+	int ret, it_idx, gain_sel, time_sel;
 
-	if (val2 != 0)
-		return -EINVAL;
-
-	switch (val) {
-	case 1:
-		new_gain = 0x00;
-		break;
-	case 2:
-		new_gain = 0x01;
-		break;
-	case 4:
-		new_gain = 0x03;
-		break;
-	case 8:
-		new_gain = 0x07;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = regmap_field_write(data->rf.gain, new_gain);
-	if (ret) {
-		dev_err(data->dev, "failed to set gain: %d\n", ret);
+	ret = regmap_field_read(data->rf.it, &it_idx);
+	if (ret)
 		return ret;
-	}
 
-	return 0;
+	ret = iio_gts_find_gain_time_sel_for_scale(&data->gts, val, val2,
+						   &gain_sel, &time_sel);
+	if (ret)
+		return ret;
+
+	ret = regmap_field_write(data->rf.it, time_sel);
+	if (ret)
+		return ret;
+
+	return regmap_field_write(data->rf.gain, gain_sel);
 }
 
-static int veml3235_get_gain(struct veml3235_data *data, int *val)
+static int veml3235_get_scale(struct veml3235_data *data, int *val, int *val2)
 {
-	int ret, reg;
+	int gain, it, reg, ret;
 
 	ret = regmap_field_read(data->rf.gain, &reg);
 	if (ret) {
@@ -224,25 +257,25 @@ static int veml3235_get_gain(struct veml3235_data *data, int *val)
 		return ret;
 	}
 
-	switch (reg & 0x03) {
-	case 0:
-		*val = 1;
-		break;
-	case 1:
-		*val = 2;
-		break;
-	case 3:
-		*val = 4;
-		break;
-	default:
-		return -EINVAL;
+	gain = iio_gts_find_gain_by_sel(&data->gts, reg);
+	if (gain < 0)
+		return gain;
+
+	ret = regmap_field_read(data->rf.it, &reg);
+	if (ret) {
+		dev_err(data->dev, "failed to read integration time %d\n", ret);
+		return ret;
 	}
 
-	/* Double gain */
-	if (reg & 0x04)
-		*val *= 2;
+	it = iio_gts_find_int_time_by_sel(&data->gts, reg);
+	if (it < 0)
+		return it;
 
-	return IIO_VAL_INT;
+	ret = iio_gts_get_scale(&data->gts, gain, it, val, val2);
+	if (ret)
+		return ret;
+
+	return IIO_VAL_INT_PLUS_NANO;
 }
 
 static int veml3235_read_raw(struct iio_dev *indio_dev,
@@ -276,7 +309,7 @@ static int veml3235_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_INT_TIME:
 		return veml3235_get_it(data, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		return veml3235_get_gain(data, val);
+		return veml3235_get_scale(data, val, val2);
 	default:
 		return -EINVAL;
 	}
@@ -287,17 +320,27 @@ static int veml3235_read_avail(struct iio_dev *indio_dev,
 			       const int **vals, int *type, int *length,
 			       long mask)
 {
+	struct veml3235_data *data = iio_priv(indio_dev);
+
 	switch (mask) {
 	case IIO_CHAN_INFO_INT_TIME:
-		*vals = (int *)&veml3235_it_times;
-		*length = 2 * ARRAY_SIZE(veml3235_it_times);
-		*type = IIO_VAL_INT_PLUS_MICRO;
-		return IIO_AVAIL_LIST;
+		return iio_gts_avail_times(&data->gts, vals, type, length);
 	case IIO_CHAN_INFO_SCALE:
-		*vals = (int *)&veml3235_scale_vals;
-		*length = ARRAY_SIZE(veml3235_scale_vals);
-		*type = IIO_VAL_INT;
-		return IIO_AVAIL_LIST;
+		return iio_gts_all_avail_scales(&data->gts, vals, type, length);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int veml3235_write_raw_get_fmt(struct iio_dev *indio_dev,
+				      struct iio_chan_spec const *chan,
+				      long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_INT_TIME:
+		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		return -EINVAL;
 	}
@@ -311,7 +354,7 @@ static int veml3235_write_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_INT_TIME:
 		return veml3235_set_it(indio_dev, val, val2);
 	case IIO_CHAN_INFO_SCALE:
-		return veml3235_set_gain(indio_dev, val, val2);
+		return veml3235_set_scale(indio_dev, val, val2);
 	}
 
 	return -EINVAL;
@@ -321,7 +364,7 @@ static void veml3235_read_id(struct veml3235_data *data)
 {
 	int ret, reg;
 
-	ret = regmap_field_read(data->rf.id,  &reg);
+	ret = regmap_field_read(data->rf.id, &reg);
 	if (ret) {
 		dev_info(data->dev, "failed to read ID\n");
 		return;
@@ -371,6 +414,13 @@ static int veml3235_hw_init(struct iio_dev *indio_dev)
 	struct device *dev = data->dev;
 	int ret;
 
+	ret = devm_iio_init_iio_gts(data->dev, 0, 272640000,
+				    veml3235_gain_sel, ARRAY_SIZE(veml3235_gain_sel),
+				    veml3235_it_sel, ARRAY_SIZE(veml3235_it_sel),
+				    &data->gts);
+	if (ret)
+		return dev_err_probe(data->dev, ret, "failed to init iio gts\n");
+
 	/* Set gain to 1 and integration time to 100 ms */
 	ret = regmap_field_write(data->rf.gain, 0x00);
 	if (ret)
@@ -389,9 +439,10 @@ static int veml3235_hw_init(struct iio_dev *indio_dev)
 }
 
 static const struct iio_info veml3235_info = {
-	.read_raw  = veml3235_read_raw,
-	.read_avail  = veml3235_read_avail,
+	.read_raw = veml3235_read_raw,
+	.read_avail = veml3235_read_avail,
 	.write_raw = veml3235_write_raw,
+	.write_raw_get_fmt = veml3235_write_raw_get_fmt,
 };
 
 static int veml3235_probe(struct i2c_client *client)
@@ -493,3 +544,4 @@ module_i2c_driver(veml3235_driver);
 MODULE_AUTHOR("Javier Carrasco <javier.carrasco.cruz@gmail.com>");
 MODULE_DESCRIPTION("VEML3235 Ambient Light Sensor");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

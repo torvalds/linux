@@ -1356,7 +1356,7 @@ static struct phy_driver mtk_socphy_driver[] = {
 
 module_phy_driver(mtk_socphy_driver);
 
-static struct mdio_device_id __maybe_unused mtk_socphy_tbl[] = {
+static const struct mdio_device_id __maybe_unused mtk_socphy_tbl[] = {
 	{ PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7981) },
 	{ PHY_ID_MATCH_EXACT(MTK_GPHY_ID_MT7988) },
 	{ }

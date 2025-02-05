@@ -35,7 +35,10 @@ e.g. hisi_sccl1_hha0/rx_operations is RX_OPERATIONS event of HHA index #0 in
 SCCL ID #1.
 
 The driver also provides a "cpumask" sysfs attribute, which shows the CPU core
-ID used to count the uncore PMU event.
+ID used to count the uncore PMU event. An "associated_cpus" sysfs attribute is
+also provided to show the CPUs associated with this PMU. The "cpumask" indicates
+the CPUs to open the events, usually as a hint for userspaces tools like perf.
+It only contains one associated CPU from the "associated_cpus".
 
 Example usage of perf::
 

@@ -357,7 +357,7 @@ extern struct static_key xt_tee_enabled;
  * Begin packet processing : all readers must wait the end
  * 1) Must be called with preemption disabled
  * 2) softirqs must be disabled too (or we should use this_cpu_add())
- * Returns :
+ * Returns:
  *  1 if no recursion on this cpu
  *  0 if recursion detected
  */

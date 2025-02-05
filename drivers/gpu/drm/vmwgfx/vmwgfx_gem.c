@@ -206,6 +206,7 @@ struct drm_gem_object *vmw_prime_import_sg_table(struct drm_device *dev,
 		.bo_type = ttm_bo_type_sg,
 		.size = attach->dmabuf->size,
 		.pin = false,
+		.keep_resv = true,
 		.resv = attach->dmabuf->resv,
 		.sg = table,
 

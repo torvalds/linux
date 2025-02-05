@@ -87,25 +87,15 @@ static int rsctrl_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* get regmaps */
-	pllctrl_regs = syscon_regmap_lookup_by_phandle(np, "ti,syscon-pll");
+	pllctrl_regs = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-pll",
+							    1, &rspll_offset);
 	if (IS_ERR(pllctrl_regs))
 		return PTR_ERR(pllctrl_regs);
 
-	devctrl_regs = syscon_regmap_lookup_by_phandle(np, "ti,syscon-dev");
+	devctrl_regs = syscon_regmap_lookup_by_phandle_args(np, "ti,syscon-dev",
+							    1, &rsmux_offset);
 	if (IS_ERR(devctrl_regs))
 		return PTR_ERR(devctrl_regs);
-
-	ret = of_property_read_u32_index(np, "ti,syscon-pll", 1, &rspll_offset);
-	if (ret) {
-		dev_err(dev, "couldn't read the reset pll offset!\n");
-		return -EINVAL;
-	}
-
-	ret = of_property_read_u32_index(np, "ti,syscon-dev", 1, &rsmux_offset);
-	if (ret) {
-		dev_err(dev, "couldn't read the rsmux offset!\n");
-		return -EINVAL;
-	}
 
 	/* set soft/hard reset */
 	val = of_property_read_bool(np, "ti,soft-reset");

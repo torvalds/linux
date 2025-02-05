@@ -2524,8 +2524,10 @@ lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
 
 		/* addr mode is bit wise inverted value of fcf addr_mode */
-		bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
-		       (~phba->fcf.addr_mode) & 0x3);
+		if (test_bit(HBA_FCOE_MODE, &phba->hba_flag)) {
+			bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
+			       (~phba->fcf.addr_mode) & 0x3);
+		}
 	} else {
 		/* This is ONLY for NVMET MRQ == 1 */
 		if (phba->cfg_nvmet_mrq != 1)

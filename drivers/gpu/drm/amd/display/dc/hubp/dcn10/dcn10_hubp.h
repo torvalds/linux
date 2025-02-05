@@ -706,7 +706,7 @@ struct dcn10_hubp {
 void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -739,12 +739,14 @@ void hubp1_program_rotation(
 
 void hubp1_program_tiling(
 	struct hubp *hubp,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format);
 
 void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
 		enum hubp_ind_block_size independent_64b_blks);
+
+void hubp_reset(struct hubp *hubp);
 
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
@@ -793,5 +795,7 @@ bool hubp1_in_blank(struct hubp *hubp);
 void hubp1_soft_reset(struct hubp *hubp, bool reset);
 
 void hubp1_set_flip_int(struct hubp *hubp);
+
+void hubp1_clear_tiling(struct hubp *hubp);
 
 #endif

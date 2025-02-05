@@ -672,7 +672,7 @@ ahd_linux_target_destroy(struct scsi_target *starget)
 }
 
 static int
-ahd_linux_slave_alloc(struct scsi_device *sdev)
+ahd_linux_sdev_init(struct scsi_device *sdev)
 {
 	struct	ahd_softc *ahd =
 		*((struct ahd_softc **)sdev->host->hostdata);
@@ -701,7 +701,7 @@ ahd_linux_slave_alloc(struct scsi_device *sdev)
 }
 
 static int
-ahd_linux_slave_configure(struct scsi_device *sdev)
+ahd_linux_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	if (bootverbose)
 		sdev_printk(KERN_INFO, sdev, "Slave Configure\n");
@@ -906,8 +906,8 @@ struct scsi_host_template aic79xx_driver_template = {
 	.this_id		= -1,
 	.max_sectors		= 8192,
 	.cmd_per_lun		= 2,
-	.slave_alloc		= ahd_linux_slave_alloc,
-	.slave_configure	= ahd_linux_slave_configure,
+	.sdev_init		= ahd_linux_sdev_init,
+	.sdev_configure		= ahd_linux_sdev_configure,
 	.target_alloc		= ahd_linux_target_alloc,
 	.target_destroy		= ahd_linux_target_destroy,
 };

@@ -26,7 +26,7 @@ static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn, struct sk_buff
 	bool aborted = false;
 
 	if (conn->state != RXRPC_CONN_ABORTED) {
-		spin_lock(&conn->state_lock);
+		spin_lock_irq(&conn->state_lock);
 		if (conn->state != RXRPC_CONN_ABORTED) {
 			conn->abort_code = abort_code;
 			conn->error	 = err;
@@ -37,7 +37,7 @@ static bool rxrpc_set_conn_aborted(struct rxrpc_connection *conn, struct sk_buff
 			set_bit(RXRPC_CONN_EV_ABORT_CALLS, &conn->events);
 			aborted = true;
 		}
-		spin_unlock(&conn->state_lock);
+		spin_unlock_irq(&conn->state_lock);
 	}
 
 	return aborted;
@@ -63,11 +63,12 @@ int rxrpc_abort_conn(struct rxrpc_connection *conn, struct sk_buff *skb,
 /*
  * Mark a connection as being remotely aborted.
  */
-static bool rxrpc_input_conn_abort(struct rxrpc_connection *conn,
+static void rxrpc_input_conn_abort(struct rxrpc_connection *conn,
 				   struct sk_buff *skb)
 {
-	return rxrpc_set_conn_aborted(conn, skb, skb->priority, -ECONNABORTED,
-				      RXRPC_CALL_REMOTELY_ABORTED);
+	trace_rxrpc_rx_conn_abort(conn, skb);
+	rxrpc_set_conn_aborted(conn, skb, skb->priority, -ECONNABORTED,
+			       RXRPC_CALL_REMOTELY_ABORTED);
 }
 
 /*
@@ -91,7 +92,7 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 	struct rxrpc_acktrailer trailer;
 	size_t len;
 	int ret, ioc;
-	u32 serial, mtu, call_id, padding;
+	u32 serial, max_mtu, if_mtu, call_id, padding;
 
 	_enter("%d", conn->debug_id);
 
@@ -149,8 +150,13 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		break;
 
 	case RXRPC_PACKET_TYPE_ACK:
-		mtu = conn->peer->if_mtu;
-		mtu -= conn->peer->hdrsize;
+		if_mtu = conn->peer->if_mtu - conn->peer->hdrsize;
+		if (conn->peer->ackr_adv_pmtud) {
+			max_mtu = umax(conn->peer->max_data, rxrpc_rx_mtu);
+		} else {
+			if_mtu = umin(1444, if_mtu);
+			max_mtu = if_mtu;
+		}
 		pkt.ack.bufferSpace	= 0;
 		pkt.ack.maxSkew		= htons(skb ? skb->priority : 0);
 		pkt.ack.firstPacket	= htonl(chan->last_seq + 1);
@@ -158,10 +164,10 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		pkt.ack.serial		= htonl(skb ? sp->hdr.serial : 0);
 		pkt.ack.reason		= skb ? RXRPC_ACK_DUPLICATE : RXRPC_ACK_IDLE;
 		pkt.ack.nAcks		= 0;
-		trailer.maxMTU		= htonl(rxrpc_rx_mtu);
-		trailer.ifMTU		= htonl(mtu);
+		trailer.maxMTU		= htonl(max_mtu);
+		trailer.ifMTU		= htonl(if_mtu);
 		trailer.rwind		= htonl(rxrpc_rx_window_size);
-		trailer.jumbo_max	= htonl(rxrpc_rx_jumbo_max);
+		trailer.jumbo_max	= 0;
 		pkt.whdr.flags		|= RXRPC_SLOW_START_OK;
 		padding			= 0;
 		iov[0].iov_len += sizeof(pkt.ack);
@@ -171,7 +177,8 @@ void rxrpc_conn_retransmit_call(struct rxrpc_connection *conn,
 		trace_rxrpc_tx_ack(chan->call_debug_id, serial,
 				   ntohl(pkt.ack.firstPacket),
 				   ntohl(pkt.ack.serial),
-				   pkt.ack.reason, 0, rxrpc_rx_window_size);
+				   pkt.ack.reason, 0, rxrpc_rx_window_size,
+				   rxrpc_propose_ack_retransmit);
 		break;
 
 	default:
@@ -202,11 +209,14 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn)
 
 	for (i = 0; i < RXRPC_MAXCALLS; i++) {
 		call = conn->channels[i].call;
-		if (call)
+		if (call) {
+			rxrpc_see_call(call, rxrpc_call_see_conn_abort);
 			rxrpc_set_call_completion(call,
 						  conn->completion,
 						  conn->abort_code,
 						  conn->error);
+			rxrpc_poke_call(call, rxrpc_call_poke_conn_abort);
+		}
 	}
 
 	_leave("");
@@ -252,10 +262,10 @@ static int rxrpc_process_event(struct rxrpc_connection *conn,
 		if (ret < 0)
 			return ret;
 
-		spin_lock(&conn->state_lock);
+		spin_lock_irq(&conn->state_lock);
 		if (conn->state == RXRPC_CONN_SERVICE_CHALLENGING)
 			conn->state = RXRPC_CONN_SERVICE;
-		spin_unlock(&conn->state_lock);
+		spin_unlock_irq(&conn->state_lock);
 
 		if (conn->state == RXRPC_CONN_SERVICE) {
 			/* Offload call state flipping to the I/O thread.  As

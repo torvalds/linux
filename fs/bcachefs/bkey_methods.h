@@ -22,7 +22,7 @@ extern const struct bkey_ops bch2_bkey_null_ops;
  */
 struct bkey_ops {
 	int		(*key_validate)(struct bch_fs *c, struct bkey_s_c k,
-					enum bch_validate_flags flags);
+					struct bkey_validate_context from);
 	void		(*val_to_text)(struct printbuf *, struct bch_fs *,
 				       struct bkey_s_c);
 	void		(*swab)(struct bkey_s);
@@ -48,13 +48,14 @@ static inline const struct bkey_ops *bch2_bkey_type_ops(enum bch_bkey_type type)
 		: &bch2_bkey_null_ops;
 }
 
-int bch2_bkey_val_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
-int __bch2_bkey_validate(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-			 enum bch_validate_flags);
-int bch2_bkey_validate(struct bch_fs *, struct bkey_s_c, enum btree_node_type,
-		       enum bch_validate_flags);
+int bch2_bkey_val_validate(struct bch_fs *, struct bkey_s_c,
+			   struct bkey_validate_context);
+int __bch2_bkey_validate(struct bch_fs *, struct bkey_s_c,
+			 struct bkey_validate_context);
+int bch2_bkey_validate(struct bch_fs *, struct bkey_s_c,
+		       struct bkey_validate_context);
 int bch2_bkey_in_btree_node(struct bch_fs *, struct btree *, struct bkey_s_c,
-			    enum bch_validate_flags);
+			    struct bkey_validate_context from);
 
 void bch2_bpos_to_text(struct printbuf *, struct bpos);
 void bch2_bkey_to_text(struct printbuf *, const struct bkey *);

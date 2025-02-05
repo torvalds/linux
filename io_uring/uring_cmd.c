@@ -16,26 +16,15 @@
 #include "rsrc.h"
 #include "uring_cmd.h"
 
-static struct uring_cache *io_uring_async_get(struct io_kiocb *req)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	struct uring_cache *cache;
-
-	cache = io_alloc_cache_get(&ctx->uring_cache);
-	if (cache) {
-		req->flags |= REQ_F_ASYNC_DATA;
-		req->async_data = cache;
-		return cache;
-	}
-	if (!io_alloc_async_data(req))
-		return req->async_data;
-	return NULL;
-}
-
 static void io_req_uring_cleanup(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	struct uring_cache *cache = req->async_data;
+	struct io_uring_cmd_data *cache = req->async_data;
+
+	if (cache->op_data) {
+		kfree(cache->op_data);
+		cache->op_data = NULL;
+	}
 
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		return;
@@ -121,7 +110,7 @@ static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
 	unsigned int flags = IO_URING_F_COMPLETE_DEFER;
 
-	if (current->flags & (PF_EXITING | PF_KTHREAD))
+	if (io_should_terminate_tw())
 		flags |= IO_URING_F_TASK_DEAD;
 
 	/* task_work executor checks the deffered list completion */
@@ -183,11 +172,12 @@ static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 				   const struct io_uring_sqe *sqe)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
-	struct uring_cache *cache;
+	struct io_uring_cmd_data *cache;
 
-	cache = io_uring_async_get(req);
-	if (unlikely(!cache))
+	cache = io_uring_alloc_async_data(&req->ctx->uring_cache, req);
+	if (!cache)
 		return -ENOMEM;
+	cache->op_data = NULL;
 
 	if (!(req->flags & REQ_F_FORCE_ASYNC)) {
 		/* defer memcpy until we need it */
@@ -195,8 +185,8 @@ static int io_uring_cmd_prep_setup(struct io_kiocb *req,
 		return 0;
 	}
 
-	memcpy(req->async_data, sqe, uring_sqe_size(req->ctx));
-	ioucmd->sqe = req->async_data;
+	memcpy(cache->sqes, sqe, uring_sqe_size(req->ctx));
+	ioucmd->sqe = cache->sqes;
 	return 0;
 }
 
@@ -260,10 +250,10 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);
 	if (ret == -EAGAIN) {
-		struct uring_cache *cache = req->async_data;
+		struct io_uring_cmd_data *cache = req->async_data;
 
 		if (ioucmd->sqe != (void *) cache)
-			memcpy(cache, ioucmd->sqe, uring_sqe_size(req->ctx));
+			memcpy(cache->sqes, ioucmd->sqe, uring_sqe_size(req->ctx));
 		return -EAGAIN;
 	} else if (ret == -EIOCBQUEUED) {
 		return -EIOCBQUEUED;
@@ -353,7 +343,7 @@ int io_uring_cmd_sock(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	if (!prot || !prot->ioctl)
 		return -EOPNOTSUPP;
 
-	switch (cmd->sqe->cmd_op) {
+	switch (cmd->cmd_op) {
 	case SOCKET_URING_OP_SIOCINQ:
 		ret = prot->ioctl(sk, SIOCINQ, &arg);
 		if (ret)

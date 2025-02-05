@@ -47,9 +47,9 @@ static long __init parse_acpi_path(const struct efi_dev_path *node,
 	return 0;
 }
 
-static int __init match_pci_dev(struct device *dev, void *data)
+static int __init match_pci_dev(struct device *dev, const void *data)
 {
-	unsigned int devfn = *(unsigned int *)data;
+	unsigned int devfn = *(const unsigned int *)data;
 
 	return dev_is_pci(dev) && to_pci_dev(dev)->devfn == devfn;
 }

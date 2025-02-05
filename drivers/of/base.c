@@ -88,7 +88,8 @@ static bool __of_node_is_type(const struct device_node *np, const char *type)
 }
 
 #define EXCLUDED_DEFAULT_CELLS_PLATFORMS ( \
-	IS_ENABLED(CONFIG_SPARC) \
+	IS_ENABLED(CONFIG_SPARC) || \
+	of_find_compatible_node(NULL, NULL, "coreboot") \
 )
 
 int of_bus_n_addr_cells(struct device_node *np)
@@ -893,10 +894,10 @@ struct device_node *of_find_node_opts_by_path(const char *path, const char **opt
 	/* The path could begin with an alias */
 	if (*path != '/') {
 		int len;
-		const char *p = separator;
+		const char *p = strchrnul(path, '/');
 
-		if (!p)
-			p = strchrnul(path, '/');
+		if (separator && separator < p)
+			p = separator;
 		len = p - path;
 
 		/* of_aliases must not be NULL */
@@ -1026,19 +1027,15 @@ struct device_node *of_find_node_with_property(struct device_node *from,
 	const char *prop_name)
 {
 	struct device_node *np;
-	const struct property *pp;
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
 	for_each_of_allnodes_from(from, np) {
-		for (pp = np->properties; pp; pp = pp->next) {
-			if (of_prop_cmp(pp->name, prop_name) == 0) {
-				of_node_get(np);
-				goto out;
-			}
+		if (__of_find_property(np, prop_name, NULL)) {
+			of_node_get(np);
+			break;
 		}
 	}
-out:
 	of_node_put(from);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
@@ -1452,8 +1449,8 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 	char *pass_name __free(kfree) = kasprintf(GFP_KERNEL, "%s-map-pass-thru", stem_name);
 	struct device_node *cur, *new = NULL;
 	const __be32 *map, *mask, *pass;
-	static const __be32 dummy_mask[] = { [0 ... MAX_PHANDLE_ARGS] = cpu_to_be32(~0) };
-	static const __be32 dummy_pass[] = { [0 ... MAX_PHANDLE_ARGS] = cpu_to_be32(0) };
+	static const __be32 dummy_mask[] = { [0 ... (MAX_PHANDLE_ARGS - 1)] = cpu_to_be32(~0) };
+	static const __be32 dummy_pass[] = { [0 ... (MAX_PHANDLE_ARGS - 1)] = cpu_to_be32(0) };
 	__be32 initial_match_array[MAX_PHANDLE_ARGS];
 	const __be32 *match_array = initial_match_array;
 	int i, ret, map_len, match;
@@ -1507,8 +1504,10 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 			map_len--;
 
 			/* Check if not found */
-			if (!new)
+			if (!new) {
+				ret = -EINVAL;
 				goto put;
+			}
 
 			if (!of_device_is_available(new))
 				match = 0;
@@ -1518,17 +1517,20 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 				goto put;
 
 			/* Check for malformed properties */
-			if (WARN_ON(new_size > MAX_PHANDLE_ARGS))
+			if (WARN_ON(new_size > MAX_PHANDLE_ARGS) ||
+			    map_len < new_size) {
+				ret = -EINVAL;
 				goto put;
-			if (map_len < new_size)
-				goto put;
+			}
 
 			/* Move forward by new node's #<list>-cells amount */
 			map += new_size;
 			map_len -= new_size;
 		}
-		if (!match)
+		if (!match) {
+			ret = -ENOENT;
 			goto put;
+		}
 
 		/* Get the <list>-map-pass-thru property (optional) */
 		pass = of_get_property(cur, pass_name, NULL);
@@ -1540,7 +1542,6 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 		 * specifier into the out_args structure, keeping the
 		 * bits specified in <list>-map-pass-thru.
 		 */
-		match_array = map - new_size;
 		for (i = 0; i < new_size; i++) {
 			__be32 val = *(map - new_size + i);
 
@@ -1549,6 +1550,7 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 				val |= cpu_to_be32(out_args->args[i]) & pass[i];
 			}
 
+			initial_match_array[i] = val;
 			out_args->args[i] = be32_to_cpu(val);
 		}
 		out_args->args_count = list_size = new_size;
@@ -1816,8 +1818,7 @@ static void of_alias_add(struct alias_prop *ap, struct device_node *np,
  *		for storing the resulting tree
  *
  * The function scans all the properties of the 'aliases' node and populates
- * the global lookup table with the properties.  It returns the
- * number of alias properties found, or an error code in case of failure.
+ * the global lookup table with the properties.
  */
 void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 {

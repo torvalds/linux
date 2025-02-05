@@ -110,7 +110,7 @@ static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 
 static inline u64 vcpu_get_perf_capabilities(struct kvm_vcpu *vcpu)
 {
-	if (!guest_cpuid_has(vcpu, X86_FEATURE_PDCM))
+	if (!guest_cpu_cap_has(vcpu, X86_FEATURE_PDCM))
 		return 0;
 
 	return vcpu->arch.perf_capabilities;
@@ -160,7 +160,7 @@ static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 		ret = vcpu_get_perf_capabilities(vcpu) & PERF_CAP_PEBS_FORMAT;
 		break;
 	case MSR_IA32_DS_AREA:
-		ret = guest_cpuid_has(vcpu, X86_FEATURE_DS);
+		ret = guest_cpu_cap_has(vcpu, X86_FEATURE_DS);
 		break;
 	case MSR_PEBS_DATA_CFG:
 		perf_capabilities = vcpu_get_perf_capabilities(vcpu);

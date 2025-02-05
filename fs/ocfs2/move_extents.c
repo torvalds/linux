@@ -492,7 +492,7 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	bg = (struct ocfs2_group_desc *)gd_bh->b_data;
 
 	/*
-	 * moving goal is not allowd to start with a group desc blok(#0 blk)
+	 * moving goal is not allowed to start with a group desc blok(#0 blk)
 	 * let's compromise to the latter cluster.
 	 */
 	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
@@ -658,7 +658,7 @@ static int ocfs2_move_extent(struct ocfs2_move_extents_context *context,
 
 	/*
 	 * probe the victim cluster group to find a proper
-	 * region to fit wanted movement, it even will perfrom
+	 * region to fit wanted movement, it even will perform
 	 * a best-effort attempt by compromising to a threshold
 	 * around the goal.
 	 */
@@ -920,7 +920,7 @@ static int ocfs2_move_extents(struct ocfs2_move_extents_context *context)
 	}
 
 	/*
-	 * rememer ip_xattr_sem also needs to be held if necessary
+	 * remember ip_xattr_sem also needs to be held if necessary
 	 */
 	down_write(&OCFS2_I(inode)->ip_alloc_sem);
 
@@ -1022,7 +1022,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	context->range = &range;
 
 	/*
-	 * ok, the default theshold for the defragmentation
+	 * ok, the default threshold for the defragmentation
 	 * is 1M, since our maximum clustersize was 1M also.
 	 * any thought?
 	 */

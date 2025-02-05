@@ -17,10 +17,8 @@ static u32 rand1, entry_val, exit_val;
 /* Use indirect calls to avoid inlining the target functions */
 static u32 (*target)(u32 value);
 static u32 (*target2)(u32 value);
-static u32 (*target_nest)(u32 value, u32 (*nest)(u32));
 static unsigned long target_ip;
 static unsigned long target2_ip;
-static unsigned long target_nest_ip;
 static int entry_return_value;
 
 static noinline u32 fprobe_selftest_target(u32 value)
@@ -33,14 +31,9 @@ static noinline u32 fprobe_selftest_target2(u32 value)
 	return (value / div_factor) + 1;
 }
 
-static noinline u32 fprobe_selftest_nest_target(u32 value, u32 (*nest)(u32))
-{
-	return nest(value + 2);
-}
-
 static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 				    unsigned long ret_ip,
-				    struct pt_regs *regs, void *data)
+				    struct ftrace_regs *fregs, void *data)
 {
 	KUNIT_EXPECT_FALSE(current_test, preemptible());
 	/* This can be called on the fprobe_selftest_target and the fprobe_selftest_target2 */
@@ -59,9 +52,9 @@ static notrace int fp_entry_handler(struct fprobe *fp, unsigned long ip,
 
 static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
 				    unsigned long ret_ip,
-				    struct pt_regs *regs, void *data)
+				    struct ftrace_regs *fregs, void *data)
 {
-	unsigned long ret = regs_return_value(regs);
+	unsigned long ret = ftrace_regs_get_return_value(fregs);
 
 	KUNIT_EXPECT_FALSE(current_test, preemptible());
 	if (ip != target_ip) {
@@ -77,22 +70,6 @@ static notrace void fp_exit_handler(struct fprobe *fp, unsigned long ip,
 			KUNIT_EXPECT_EQ(current_test, *(u32 *)data, entry_val);
 	} else
 		KUNIT_EXPECT_NULL(current_test, data);
-}
-
-static notrace int nest_entry_handler(struct fprobe *fp, unsigned long ip,
-				      unsigned long ret_ip,
-				      struct pt_regs *regs, void *data)
-{
-	KUNIT_EXPECT_FALSE(current_test, preemptible());
-	return 0;
-}
-
-static notrace void nest_exit_handler(struct fprobe *fp, unsigned long ip,
-				      unsigned long ret_ip,
-				      struct pt_regs *regs, void *data)
-{
-	KUNIT_EXPECT_FALSE(current_test, preemptible());
-	KUNIT_EXPECT_EQ(current_test, ip, target_nest_ip);
 }
 
 /* Test entry only (no rethook) */
@@ -191,25 +168,6 @@ static void test_fprobe_data(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, unregister_fprobe(&fp));
 }
 
-/* Test nr_maxactive */
-static void test_fprobe_nest(struct kunit *test)
-{
-	static const char *syms[] = {"fprobe_selftest_target", "fprobe_selftest_nest_target"};
-	struct fprobe fp = {
-		.entry_handler = nest_entry_handler,
-		.exit_handler = nest_exit_handler,
-		.nr_maxactive = 1,
-	};
-
-	current_test = test;
-	KUNIT_EXPECT_EQ(test, 0, register_fprobe_syms(&fp, syms, 2));
-
-	target_nest(rand1, target);
-	KUNIT_EXPECT_EQ(test, 1, fp.nmissed);
-
-	KUNIT_EXPECT_EQ(test, 0, unregister_fprobe(&fp));
-}
-
 static void test_fprobe_skip(struct kunit *test)
 {
 	struct fprobe fp = {
@@ -247,10 +205,8 @@ static int fprobe_test_init(struct kunit *test)
 	rand1 = get_random_u32_above(div_factor);
 	target = fprobe_selftest_target;
 	target2 = fprobe_selftest_target2;
-	target_nest = fprobe_selftest_nest_target;
 	target_ip = get_ftrace_location(target);
 	target2_ip = get_ftrace_location(target2);
-	target_nest_ip = get_ftrace_location(target_nest);
 
 	return 0;
 }
@@ -260,7 +216,6 @@ static struct kunit_case fprobe_testcases[] = {
 	KUNIT_CASE(test_fprobe),
 	KUNIT_CASE(test_fprobe_syms),
 	KUNIT_CASE(test_fprobe_data),
-	KUNIT_CASE(test_fprobe_nest),
 	KUNIT_CASE(test_fprobe_skip),
 	{}
 };

@@ -105,7 +105,6 @@ static int int340x_thermal_read_trips(struct acpi_device *zone_adev,
 }
 
 static struct thermal_zone_params int340x_thermal_params = {
-	.governor_name = "user_space",
 	.no_hwmon = true,
 };
 

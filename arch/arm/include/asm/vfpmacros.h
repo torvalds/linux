@@ -8,7 +8,6 @@
 
 #include <asm/vfp.h>
 
-#ifdef CONFIG_AS_VFP_VMRS_FPINST
 	.macro	VFPFMRX, rd, sysreg, cond
 	vmrs\cond	\rd, \sysreg
 	.endm
@@ -16,16 +15,6 @@
 	.macro	VFPFMXR, sysreg, rd, cond
 	vmsr\cond	\sysreg, \rd
 	.endm
-#else
-	@ Macros to allow building with old toolkits (with no VFP support)
-	.macro	VFPFMRX, rd, sysreg, cond
-	MRC\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMRX	\rd, \sysreg
-	.endm
-
-	.macro	VFPFMXR, sysreg, rd, cond
-	MCR\cond	p10, 7, \rd, \sysreg, cr0, 0	@ FMXR	\sysreg, \rd
-	.endm
-#endif
 
 	@ read all the working registers back into the VFP
 	.macro	VFPFLDMIA, base, tmp

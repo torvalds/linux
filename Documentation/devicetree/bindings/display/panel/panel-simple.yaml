@@ -206,12 +206,16 @@ properties:
       - mitsubishi,aa070mc01-ca1
         # Mitsubishi AA084XE01 8.4" XGA TFT LCD panel
       - mitsubishi,aa084xe01
+        # Multi-Inno Technology Co.,Ltd MI0700A2T-30 7" 800x480 TFT Resistive Touch Module
+      - multi-inno,mi0700a2t-30
         # Multi-Inno Technology Co.,Ltd MI0700S4T-6 7" 800x480 TFT Resistive Touch Module
       - multi-inno,mi0700s4t-6
         # Multi-Inno Technology Co.,Ltd MI0800FT-9 8" 800x600 TFT Resistive Touch Module
       - multi-inno,mi0800ft-9
         # Multi-Inno Technology Co.,Ltd MI1010AIT-1CP 10.1" 1280x800 LVDS IPS Cap Touch Mod.
       - multi-inno,mi1010ait-1cp
+        # Multi-Inno Technology Co.,Ltd MI1010Z1T-1CP11 10.1" 1024x600 TFT Resistive Touch Module
+      - multi-inno,mi1010z1t-1cp11
         # NEC LCD Technologies, Ltd. 12.1" WXGA (1280x800) LVDS TFT LCD panel
       - nec,nl12880bc20-05
         # NEC LCD Technologies,Ltd. WQVGA TFT LCD panel
@@ -280,10 +284,14 @@ properties:
       - team-source-display,tst043015cmhx
         # Tianma Micro-electronics TM070JDHG30 7.0" WXGA TFT LCD panel
       - tianma,tm070jdhg30
+        # Tianma Micro-electronics TM070JDHG34-00 7.0" WXGA (1280x800) LVDS TFT LCD panel
+      - tianma,tm070jdhg34-00
         # Tianma Micro-electronics TM070JVHG33 7.0" WXGA TFT LCD panel
       - tianma,tm070jvhg33
         # Tianma Micro-electronics TM070RVHG71 7.0" WXGA TFT LCD panel
       - tianma,tm070rvhg71
+        # Topland TIAN-G07017-01 7.0" WSVGA TFT-LCD panel with capacitive touch
+      - topland,tian-g07017-01
         # Toshiba 8.9" WXGA (1280x768) TFT LCD panel
       - toshiba,lt089ac29000
         # TPK U.S.A. LLC Fusion 7" 800 x 480 (WVGA) LCD panel with capacitive touch

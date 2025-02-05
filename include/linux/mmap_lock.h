@@ -71,6 +71,91 @@ static inline void mmap_assert_write_locked(const struct mm_struct *mm)
 }
 
 #ifdef CONFIG_PER_VMA_LOCK
+
+static inline void mm_lock_seqcount_init(struct mm_struct *mm)
+{
+	seqcount_init(&mm->mm_lock_seq);
+}
+
+static inline void mm_lock_seqcount_begin(struct mm_struct *mm)
+{
+	do_raw_write_seqcount_begin(&mm->mm_lock_seq);
+}
+
+static inline void mm_lock_seqcount_end(struct mm_struct *mm)
+{
+	ASSERT_EXCLUSIVE_WRITER(mm->mm_lock_seq);
+	do_raw_write_seqcount_end(&mm->mm_lock_seq);
+}
+
+static inline bool mmap_lock_speculate_try_begin(struct mm_struct *mm, unsigned int *seq)
+{
+	/*
+	 * Since mmap_lock is a sleeping lock, and waiting for it to become
+	 * unlocked is more or less equivalent with taking it ourselves, don't
+	 * bother with the speculative path if mmap_lock is already write-locked
+	 * and take the slow path, which takes the lock.
+	 */
+	return raw_seqcount_try_begin(&mm->mm_lock_seq, *seq);
+}
+
+static inline bool mmap_lock_speculate_retry(struct mm_struct *mm, unsigned int seq)
+{
+	return read_seqcount_retry(&mm->mm_lock_seq, seq);
+}
+
+#else /* CONFIG_PER_VMA_LOCK */
+
+static inline void mm_lock_seqcount_init(struct mm_struct *mm) {}
+static inline void mm_lock_seqcount_begin(struct mm_struct *mm) {}
+static inline void mm_lock_seqcount_end(struct mm_struct *mm) {}
+
+static inline bool mmap_lock_speculate_try_begin(struct mm_struct *mm, unsigned int *seq)
+{
+	return false;
+}
+
+static inline bool mmap_lock_speculate_retry(struct mm_struct *mm, unsigned int seq)
+{
+	return true;
+}
+
+#endif /* CONFIG_PER_VMA_LOCK */
+
+static inline void mmap_init_lock(struct mm_struct *mm)
+{
+	init_rwsem(&mm->mmap_lock);
+	mm_lock_seqcount_init(mm);
+}
+
+static inline void mmap_write_lock(struct mm_struct *mm)
+{
+	__mmap_lock_trace_start_locking(mm, true);
+	down_write(&mm->mmap_lock);
+	mm_lock_seqcount_begin(mm);
+	__mmap_lock_trace_acquire_returned(mm, true, true);
+}
+
+static inline void mmap_write_lock_nested(struct mm_struct *mm, int subclass)
+{
+	__mmap_lock_trace_start_locking(mm, true);
+	down_write_nested(&mm->mmap_lock, subclass);
+	mm_lock_seqcount_begin(mm);
+	__mmap_lock_trace_acquire_returned(mm, true, true);
+}
+
+static inline int mmap_write_lock_killable(struct mm_struct *mm)
+{
+	int ret;
+
+	__mmap_lock_trace_start_locking(mm, true);
+	ret = down_write_killable(&mm->mmap_lock);
+	if (!ret)
+		mm_lock_seqcount_begin(mm);
+	__mmap_lock_trace_acquire_returned(mm, true, ret == 0);
+	return ret;
+}
+
 /*
  * Drop all currently-held per-VMA locks.
  * This is called from the mmap_lock implementation directly before releasing
@@ -82,46 +167,7 @@ static inline void mmap_assert_write_locked(const struct mm_struct *mm)
 static inline void vma_end_write_all(struct mm_struct *mm)
 {
 	mmap_assert_write_locked(mm);
-	/*
-	 * Nobody can concurrently modify mm->mm_lock_seq due to exclusive
-	 * mmap_lock being held.
-	 * We need RELEASE semantics here to ensure that preceding stores into
-	 * the VMA take effect before we unlock it with this store.
-	 * Pairs with ACQUIRE semantics in vma_start_read().
-	 */
-	smp_store_release(&mm->mm_lock_seq, mm->mm_lock_seq + 1);
-}
-#else
-static inline void vma_end_write_all(struct mm_struct *mm) {}
-#endif
-
-static inline void mmap_init_lock(struct mm_struct *mm)
-{
-	init_rwsem(&mm->mmap_lock);
-}
-
-static inline void mmap_write_lock(struct mm_struct *mm)
-{
-	__mmap_lock_trace_start_locking(mm, true);
-	down_write(&mm->mmap_lock);
-	__mmap_lock_trace_acquire_returned(mm, true, true);
-}
-
-static inline void mmap_write_lock_nested(struct mm_struct *mm, int subclass)
-{
-	__mmap_lock_trace_start_locking(mm, true);
-	down_write_nested(&mm->mmap_lock, subclass);
-	__mmap_lock_trace_acquire_returned(mm, true, true);
-}
-
-static inline int mmap_write_lock_killable(struct mm_struct *mm)
-{
-	int ret;
-
-	__mmap_lock_trace_start_locking(mm, true);
-	ret = down_write_killable(&mm->mmap_lock);
-	__mmap_lock_trace_acquire_returned(mm, true, ret == 0);
-	return ret;
+	mm_lock_seqcount_end(mm);
 }
 
 static inline void mmap_write_unlock(struct mm_struct *mm)

@@ -1817,7 +1817,7 @@ int tcp_sigpool_hash_skb_data(struct tcp_sigpool *hp,
  * @id: tcp_sigpool that was previously allocated by tcp_sigpool_alloc_ahash()
  * @c: returned tcp_sigpool for usage (uninitialized on failure)
  *
- * Returns 0 on success, error otherwise.
+ * Returns: 0 on success, error otherwise.
  */
 int tcp_sigpool_start(unsigned int id, struct tcp_sigpool *c);
 /**

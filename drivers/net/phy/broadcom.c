@@ -1717,7 +1717,7 @@ static struct phy_driver broadcom_drivers[] = {
 
 module_phy_driver(broadcom_drivers);
 
-static struct mdio_device_id __maybe_unused broadcom_tbl[] = {
+static const struct mdio_device_id __maybe_unused broadcom_tbl[] = {
 	{ PHY_ID_BCM5411, 0xfffffff0 },
 	{ PHY_ID_BCM5421, 0xfffffff0 },
 	{ PHY_ID_BCM54210E, 0xfffffff0 },

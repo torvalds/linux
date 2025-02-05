@@ -944,16 +944,6 @@ void vmbus_initiate_unload(bool crash)
 		vmbus_wait_for_unload();
 }
 
-static void check_ready_for_resume_event(void)
-{
-	/*
-	 * If all the old primary channels have been fixed up, then it's safe
-	 * to resume.
-	 */
-	if (atomic_dec_and_test(&vmbus_connection.nr_chan_fixup_on_resume))
-		complete(&vmbus_connection.ready_for_resume_event);
-}
-
 static void vmbus_setup_channel_state(struct vmbus_channel *channel,
 				      struct vmbus_channel_offer_channel *offer)
 {
@@ -1109,8 +1099,6 @@ static void vmbus_onoffer(struct vmbus_channel_message_header *hdr)
 
 		/* Add the channel back to the array of channels. */
 		vmbus_channel_map_relid(oldchannel);
-		check_ready_for_resume_event();
-
 		mutex_unlock(&vmbus_connection.channel_mutex);
 		return;
 	}
@@ -1296,13 +1284,28 @@ EXPORT_SYMBOL_GPL(vmbus_hvsock_device_unregister);
 
 /*
  * vmbus_onoffers_delivered -
- * This is invoked when all offers have been delivered.
+ * The CHANNELMSG_ALLOFFERS_DELIVERED message arrives after all
+ * boot-time offers are delivered. A boot-time offer is for the primary
+ * channel for any virtual hardware configured in the VM at the time it boots.
+ * Boot-time offers include offers for physical devices assigned to the VM
+ * via Hyper-V's Discrete Device Assignment (DDA) functionality that are
+ * handled as virtual PCI devices in Linux (e.g., NVMe devices and GPUs).
+ * Boot-time offers do not include offers for VMBus sub-channels. Because
+ * devices can be hot-added to the VM after it is booted, additional channel
+ * offers that aren't boot-time offers can be received at any time after the
+ * all-offers-delivered message.
  *
- * Nothing to do here.
+ * SR-IOV NIC Virtual Functions (VFs) assigned to a VM are not considered
+ * to be assigned to the VM at boot-time, and offers for VFs may occur after
+ * the all-offers-delivered message. VFs are optional accelerators to the
+ * synthetic VMBus NIC and are effectively hot-added only after the VMBus
+ * NIC channel is opened (once it knows the guest can support it, via the
+ * sriov bit in the netvsc protocol).
  */
 static void vmbus_onoffers_delivered(
 			struct vmbus_channel_message_header *hdr)
 {
+	complete(&vmbus_connection.all_offers_delivered_event);
 }
 
 /*
@@ -1578,7 +1581,8 @@ void vmbus_onmessage(struct vmbus_channel_message_header *hdr)
 }
 
 /*
- * vmbus_request_offers - Send a request to get all our pending offers.
+ * vmbus_request_offers - Send a request to get all our pending offers
+ * and wait for all boot-time offers to arrive.
  */
 int vmbus_request_offers(void)
 {
@@ -1596,6 +1600,10 @@ int vmbus_request_offers(void)
 
 	msg->msgtype = CHANNELMSG_REQUESTOFFERS;
 
+	/*
+	 * This REQUESTOFFERS message will result in the host sending an all
+	 * offers delivered message after all the boot-time offers are sent.
+	 */
 	ret = vmbus_post_msg(msg, sizeof(struct vmbus_channel_message_header),
 			     true);
 
@@ -1606,6 +1614,29 @@ int vmbus_request_offers(void)
 
 		goto cleanup;
 	}
+
+	/*
+	 * Wait for the host to send all boot-time offers.
+	 * Keeping it as a best-effort mechanism, where a warning is
+	 * printed if a timeout occurs, and execution is resumed.
+	 */
+	if (!wait_for_completion_timeout(&vmbus_connection.all_offers_delivered_event,
+					 secs_to_jiffies(60))) {
+		pr_warn("timed out waiting for all boot-time offers to be delivered.\n");
+	}
+
+	/*
+	 * Flush handling of offer messages (which may initiate work on
+	 * other work queues).
+	 */
+	flush_workqueue(vmbus_connection.work_queue);
+
+	/*
+	 * Flush workqueue for processing the incoming offers. Subchannel
+	 * offers and their processing can happen later, so there is no need to
+	 * flush that workqueue here.
+	 */
+	flush_workqueue(vmbus_connection.handle_primary_chan_wq);
 
 cleanup:
 	kfree(msginfo);

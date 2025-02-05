@@ -1194,14 +1194,7 @@ int iscsi_target_locate_portal(
 			goto get_target;
 
 		sess->sess_ops->SessionType = 1;
-		/*
-		 * Setup crc32c modules from libcrypto
-		 */
-		if (iscsi_login_setup_crypto(conn) < 0) {
-			pr_err("iscsi_login_setup_crypto() failed\n");
-			ret = -1;
-			goto out;
-		}
+
 		/*
 		 * Serialize access across the discovery struct iscsi_portal_group to
 		 * process login attempt.
@@ -1258,17 +1251,7 @@ get_target:
 	}
 	conn->tpg_np = tpg_np;
 	pr_debug("Located Portal Group Object: %hu\n", conn->tpg->tpgt);
-	/*
-	 * Setup crc32c modules from libcrypto
-	 */
-	if (iscsi_login_setup_crypto(conn) < 0) {
-		pr_err("iscsi_login_setup_crypto() failed\n");
-		kref_put(&tpg_np->tpg_np_kref, iscsit_login_kref_put);
-		iscsit_put_tiqn_for_login(tiqn);
-		conn->tpg = NULL;
-		ret = -1;
-		goto out;
-	}
+
 	/*
 	 * Serialize access across the struct iscsi_portal_group to
 	 * process login attempt.

@@ -739,7 +739,7 @@ void override_training_settings(
 	if (overrides->ffe_preset != NULL)
 		lt_settings->ffe_preset = overrides->ffe_preset;
 	/* Override HW lane settings with BIOS forced values if present */
-	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
+	if ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) &&
 			lt_settings->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
 		lt_settings->voltage_swing = &link->bios_forced_drive_settings.VOLTAGE_SWING;
 		lt_settings->pre_emphasis = &link->bios_forced_drive_settings.PRE_EMPHASIS;
@@ -1574,7 +1574,7 @@ enum link_training_result dp_perform_link_training(
 	 * Per DP specs starting from here, DPTX device shall not issue
 	 * Non-LT AUX transactions inside training mode.
 	 */
-	if ((link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) && encoding == DP_8b_10b_ENCODING)
+	if (((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN) && encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_fixed_vs_pe_training_sequence(link, link_res, &lt_settings);
 	else if (encoding == DP_8b_10b_ENCODING)
 		status = dp_perform_8b_10b_link_training(link, link_res, &lt_settings);

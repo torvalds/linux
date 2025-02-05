@@ -1329,6 +1329,13 @@
  *      %NL80211_ATTR_MLO_TTLM_ULINK attributes are used to specify the
  *      TID to Link mapping for downlink/uplink traffic.
  *
+ * @NL80211_CMD_ASSOC_MLO_RECONF: For a non-AP MLD station, request to
+ *      add/remove links to/from the association.
+ *
+ * @NL80211_CMD_EPCS_CFG: EPCS configuration for a station. Used by userland to
+ *	control EPCS configuration. Used to notify userland on the current state
+ *	of EPCS.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1585,6 +1592,9 @@ enum nl80211_commands {
 	NL80211_CMD_LINKS_REMOVED,
 
 	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
+
+	NL80211_CMD_ASSOC_MLO_RECONF,
+	NL80211_CMD_EPCS_CFG,
 
 	/* add new commands above here */
 
@@ -2871,6 +2881,18 @@ enum nl80211_commands {
  * @NL80211_ATTR_VIF_RADIO_MASK: Bitmask of allowed radios (u32).
  *	A value of 0 means all radios.
  *
+ * @NL80211_ATTR_SUPPORTED_SELECTORS: supported selectors, array of
+ *	supported selectors as defined by IEEE 802.11 7.3.2.2 but without the
+ *	length restriction (at most %NL80211_MAX_SUPP_SELECTORS).
+ *	This can be used to provide a list of selectors that are implemented
+ *	by the supplicant. If not given, support for SAE_H2E is assumed.
+ *
+ * @NL80211_ATTR_MLO_RECONF_REM_LINKS: (u16) A bitmask of the links requested
+ *      to be removed from the MLO association.
+ *
+ * @NL80211_ATTR_EPCS: Flag attribute indicating that EPCS is enabled for a
+ *	station interface.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3421,6 +3443,11 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_VIF_RADIO_MASK,
 
+	NL80211_ATTR_SUPPORTED_SELECTORS,
+
+	NL80211_ATTR_MLO_RECONF_REM_LINKS,
+	NL80211_ATTR_EPCS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -3465,6 +3492,7 @@ enum nl80211_attrs {
 #define NL80211_WIPHY_NAME_MAXLEN		64
 
 #define NL80211_MAX_SUPP_RATES			32
+#define NL80211_MAX_SUPP_SELECTORS		128
 #define NL80211_MAX_SUPP_HT_RATES		77
 #define NL80211_MAX_SUPP_REG_RULES		128
 #define NL80211_TKIP_DATA_OFFSET_ENCR_KEY	0

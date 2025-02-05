@@ -21,6 +21,14 @@
 
 #define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
 
+/* temporary define */
+#ifndef DALSMC_MSG_SubvpUclkFclk
+#define DALSMC_MSG_SubvpUclkFclk 0x1B
+#endif
+#ifndef DALSMC_MSG_GetNumUmcChannels
+#define DALSMC_MSG_GetNumUmcChannels 0x1C
+#endif
+
 /*
  * Function to be used instead of REG_WAIT macro because the wait ends when
  * the register is NOT EQUAL to zero, and because the translation in msg_if.h
@@ -296,6 +304,24 @@ bool dcn401_smu_set_active_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
 	return success;
 }
 
+bool dcn401_smu_set_subvp_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz)
+{
+	uint32_t response = 0;
+	bool success;
+
+	/* 15:0 for uclk, 32:16 for fclk */
+	uint32_t param = (fclk_freq_mhz << 16) | uclk_freq_mhz;
+
+	smu_print("SMU Set active hardmin by freq: uclk_freq_mhz = %d MHz, fclk_freq_mhz = %d MHz\n", uclk_freq_mhz, fclk_freq_mhz);
+
+	success = dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SubvpUclkFclk, param, &response);
+
+	return success;
+}
+
 void dcn401_smu_set_min_deep_sleep_dcef_clk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz)
 {
 	smu_print("SMU Set min deep sleep dcef clk: freq_mhz = %d MHz\n", freq_mhz);
@@ -310,4 +336,15 @@ void dcn401_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t n
 
 	dcn401_smu_send_msg_with_param(clk_mgr,
 			DALSMC_MSG_NumOfDisplays, num_displays, NULL);
+}
+
+unsigned int dcn401_smu_get_num_of_umc_channels(struct clk_mgr_internal *clk_mgr)
+{
+	unsigned int response = 0;
+
+	dcn401_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_GetNumUmcChannels, 0, &response);
+
+	smu_print("SMU Get Num UMC Channels: num_umc_channels = %d\n", response);
+
+	return response;
 }

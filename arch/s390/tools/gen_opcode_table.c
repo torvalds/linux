@@ -201,6 +201,17 @@ static int cmp_long_insn(const void *a, const void *b)
 	return strcmp(((struct insn *)a)->name, ((struct insn *)b)->name);
 }
 
+static void print_insn_name(const char *name)
+{
+	size_t i, len;
+
+	len = strlen(name);
+	printf("{");
+	for (i = 0; i < len; i++)
+		printf(" \'%c\',", name[i]);
+	printf(" }");
+}
+
 static void print_long_insn(struct gen_opcode *desc)
 {
 	struct insn *insn;
@@ -223,7 +234,9 @@ static void print_long_insn(struct gen_opcode *desc)
 		insn = &desc->insn[i];
 		if (insn->name_len < 6)
 			continue;
-		printf("\t[LONG_INSN_%s] = \"%s\", \\\n", insn->upper, insn->name);
+		printf("\t[LONG_INSN_%s] = ", insn->upper);
+		print_insn_name(insn->name);
+		printf(", \\\n");
 	}
 	printf("}\n\n");
 }
@@ -236,11 +249,13 @@ static void print_opcode(struct insn *insn, int nr)
 	if (insn->type->byte != 0)
 		opcode += 2;
 	printf("\t[%4d] = { .opfrag = 0x%s, .format = INSTR_%s, ", nr, opcode, insn->format);
-	if (insn->name_len < 6)
-		printf(".name = \"%s\" ", insn->name);
-	else
-		printf(".offset = LONG_INSN_%s ", insn->upper);
-	printf("}, \\\n");
+	if (insn->name_len < 6) {
+		printf(".name =  ");
+		print_insn_name(insn->name);
+	} else {
+		printf(".offset = LONG_INSN_%s", insn->upper);
+	}
+	printf(" }, \\\n");
 }
 
 static void add_to_group(struct gen_opcode *desc, struct insn *insn, int offset)

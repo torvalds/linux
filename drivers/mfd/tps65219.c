@@ -110,19 +110,12 @@ static const struct resource tps65219_regulator_resources[] = {
 };
 
 static const struct mfd_cell tps65219_cells[] = {
-	{
-		.name = "tps65219-regulator",
-		.resources = tps65219_regulator_resources,
-		.num_resources = ARRAY_SIZE(tps65219_regulator_resources),
-	},
-	{ .name = "tps65219-gpio", },
+	MFD_CELL_RES("tps65219-regulator", tps65219_regulator_resources),
+	MFD_CELL_NAME("tps65219-gpio"),
 };
 
-static const struct mfd_cell tps65219_pwrbutton_cell = {
-	.name = "tps65219-pwrbutton",
-	.resources = tps65219_pwrbutton_resources,
-	.num_resources = ARRAY_SIZE(tps65219_pwrbutton_resources),
-};
+static const struct mfd_cell tps65219_pwrbutton_cell =
+	MFD_CELL_RES("tps65219-pwrbutton", tps65219_pwrbutton_resources);
 
 static const struct regmap_config tps65219_regmap_config = {
 	.reg_bits = 8,

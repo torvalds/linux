@@ -79,3 +79,4 @@ err_free_new_mem:
 
 	return err;
 }
+EXPORT_SYMBOL_NS_GPL(netdev_rx_queue_restart, "NETDEV_INTERNAL");

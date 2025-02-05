@@ -25,9 +25,19 @@ struct xfs_dquot;
 typedef struct xfs_inode {
 	/* Inode linking and identification information. */
 	struct xfs_mount	*i_mount;	/* fs mount struct ptr */
-	struct xfs_dquot	*i_udquot;	/* user dquot */
-	struct xfs_dquot	*i_gdquot;	/* group dquot */
-	struct xfs_dquot	*i_pdquot;	/* project dquot */
+	union {
+		struct {
+			struct xfs_dquot *i_udquot;	/* user dquot */
+			struct xfs_dquot *i_gdquot;	/* group dquot */
+			struct xfs_dquot *i_pdquot;	/* project dquot */
+		};
+
+		/*
+		 * Space that has been set aside to accomodate expansions of a
+		 * metadata btree rooted in this file.
+		 */
+		uint64_t	i_meta_resv_asked;
+	};
 
 	/* Inode location stuff */
 	xfs_ino_t		i_ino;		/* inode number (agno/agino)*/
@@ -231,7 +241,7 @@ xfs_iflags_clear(xfs_inode_t *ip, unsigned long flags)
 }
 
 static inline int
-__xfs_iflags_test(xfs_inode_t *ip, unsigned long flags)
+__xfs_iflags_test(const struct xfs_inode *ip, unsigned long flags)
 {
 	return (ip->i_flags & flags);
 }

@@ -103,8 +103,10 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 	return sdai->platform_private;
 }
 
-int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_stream *hext_stream,
-			 struct snd_soc_dai *cpu_dai)
+static int
+hda_link_dma_cleanup(struct snd_pcm_substream *substream,
+		     struct hdac_ext_stream *hext_stream,
+		     struct snd_soc_dai *cpu_dai, bool release)
 {
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, cpu_dai);
 	struct sof_intel_hda_stream *hda_stream;
@@ -126,6 +128,17 @@ int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_st
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		stream_tag = hdac_stream(hext_stream)->stream_tag;
 		snd_hdac_ext_bus_link_clear_stream_id(hlink, stream_tag);
+	}
+
+	if (!release) {
+		/*
+		 * Force stream reconfiguration without releasing the channel on
+		 * subsequent stream restart (without free), including LinkDMA
+		 * reset.
+		 * The stream is released via hda_dai_hw_free()
+		 */
+		hext_stream->link_prepared = 0;
+		return 0;
 	}
 
 	if (ops->release_hext_stream)
@@ -211,7 +224,7 @@ static int __maybe_unused hda_dai_hw_free(struct snd_pcm_substream *substream,
 	if (!hext_stream)
 		return 0;
 
-	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai);
+	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai, true);
 }
 
 static int __maybe_unused hda_dai_hw_params_data(struct snd_pcm_substream *substream,
@@ -304,7 +317,8 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		ret = hda_link_dma_cleanup(substream, hext_stream, dai);
+		ret = hda_link_dma_cleanup(substream, hext_stream, dai,
+					   cmd == SNDRV_PCM_TRIGGER_STOP ? false : true);
 		if (ret < 0) {
 			dev_err(sdev->dev, "%s: failed to clean up link DMA\n", __func__);
 			return ret;
@@ -489,6 +503,12 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	int i;
 
+	if (!w) {
+		dev_err(cpu_dai->dev, "%s widget not found, check amp link num in the topology\n",
+			cpu_dai->name);
+		return -EINVAL;
+	}
+
 	ops = hda_dai_get_ops(substream, cpu_dai);
 	if (!ops) {
 		dev_err(cpu_dai->dev, "DAI widget ops not set\n");
@@ -568,6 +588,12 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	 */
 	for_each_rtd_cpu_dais(rtd, i, dai) {
 		w = snd_soc_dai_get_widget(dai, substream->stream);
+		if (!w) {
+			dev_err(cpu_dai->dev,
+				"%s widget not found, check amp link num in the topology\n",
+				dai->name);
+			return -EINVAL;
+		}
 		ipc4_copier = widget_to_copier(w);
 		memcpy(&ipc4_copier->dma_config_tlv[cpu_dai_id], dma_config_tlv,
 		       sizeof(*dma_config_tlv));
@@ -660,8 +686,7 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			}
 
 			ret = hda_link_dma_cleanup(hext_stream->link_substream,
-						   hext_stream,
-						   cpu_dai);
+						   hext_stream, cpu_dai, true);
 			if (ret < 0)
 				return ret;
 		}

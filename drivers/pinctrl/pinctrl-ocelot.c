@@ -1777,7 +1777,7 @@ static const struct pinctrl_ops ocelot_pctl_ops = {
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
-static struct ocelot_match_data luton_desc = {
+static const struct ocelot_match_data luton_desc = {
 	.desc = {
 		.name = "luton-pinctrl",
 		.pins = luton_pins,
@@ -1788,7 +1788,7 @@ static struct ocelot_match_data luton_desc = {
 	},
 };
 
-static struct ocelot_match_data serval_desc = {
+static const struct ocelot_match_data serval_desc = {
 	.desc = {
 		.name = "serval-pinctrl",
 		.pins = serval_pins,
@@ -1799,7 +1799,7 @@ static struct ocelot_match_data serval_desc = {
 	},
 };
 
-static struct ocelot_match_data ocelot_desc = {
+static const struct ocelot_match_data ocelot_desc = {
 	.desc = {
 		.name = "ocelot-pinctrl",
 		.pins = ocelot_pins,
@@ -1810,7 +1810,7 @@ static struct ocelot_match_data ocelot_desc = {
 	},
 };
 
-static struct ocelot_match_data jaguar2_desc = {
+static const struct ocelot_match_data jaguar2_desc = {
 	.desc = {
 		.name = "jaguar2-pinctrl",
 		.pins = jaguar2_pins,
@@ -1821,7 +1821,7 @@ static struct ocelot_match_data jaguar2_desc = {
 	},
 };
 
-static struct ocelot_match_data servalt_desc = {
+static const struct ocelot_match_data servalt_desc = {
 	.desc = {
 		.name = "servalt-pinctrl",
 		.pins = servalt_pins,
@@ -1832,7 +1832,7 @@ static struct ocelot_match_data servalt_desc = {
 	},
 };
 
-static struct ocelot_match_data sparx5_desc = {
+static const struct ocelot_match_data sparx5_desc = {
 	.desc = {
 		.name = "sparx5-pinctrl",
 		.pins = sparx5_pins,
@@ -1850,7 +1850,7 @@ static struct ocelot_match_data sparx5_desc = {
 	},
 };
 
-static struct ocelot_match_data lan966x_desc = {
+static const struct ocelot_match_data lan966x_desc = {
 	.desc = {
 		.name = "lan966x-pinctrl",
 		.pins = lan966x_pins,
@@ -1867,7 +1867,7 @@ static struct ocelot_match_data lan966x_desc = {
 	},
 };
 
-static struct ocelot_match_data lan969x_desc = {
+static const struct ocelot_match_data lan969x_desc = {
 	.desc = {
 		.name = "lan969x-pinctrl",
 		.pins = lan969x_pins,
@@ -2116,7 +2116,7 @@ static void ocelot_irq_ack(struct irq_data *data)
 
 static int ocelot_irq_set_type(struct irq_data *data, unsigned int type);
 
-static struct irq_chip ocelot_level_irqchip = {
+static const struct irq_chip ocelot_level_irqchip = {
 	.name		= "gpio",
 	.irq_mask	= ocelot_irq_mask,
 	.irq_ack	= ocelot_irq_ack,
@@ -2126,7 +2126,7 @@ static struct irq_chip ocelot_level_irqchip = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS
 };
 
-static struct irq_chip ocelot_irqchip = {
+static const struct irq_chip ocelot_irqchip = {
 	.name		= "gpio",
 	.irq_mask	= ocelot_irq_mask,
 	.irq_ack	= ocelot_irq_ack,

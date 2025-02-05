@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/smp.h>
 #include <linux/spinlock.h>
+#include <linux/string_choices.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
@@ -1606,7 +1607,7 @@ static void musb_pullup(struct musb *musb, int is_on)
 	/* FIXME if on, HdrcStart; if off, HdrcStop */
 
 	musb_dbg(musb, "gadget D+ pullup %s",
-		is_on ? "on" : "off");
+		str_on_off(is_on));
 	musb_writeb(musb->mregs, MUSB_POWER, power);
 }
 

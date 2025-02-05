@@ -132,7 +132,7 @@ enum  {
  * _`GUC_KLV_VGT_POLICY_SCHED_IF_IDLE` : 0x8001
  *      This config sets whether strict scheduling is enabled whereby any VF
  *      that doesn’t have work to submit is still allocated a fixed execution
- *      time-slice to ensure active VFs execution is always consitent even
+ *      time-slice to ensure active VFs execution is always consistent even
  *      during other VF reprovisiong / rebooting events. Changing this KLV
  *      impacts all VFs and takes effect on the next VF-Switch event.
  *
@@ -207,7 +207,7 @@ enum  {
  *      of and this will never be perfectly-exact (accumulated nano-second
  *      granularity) since the GPUs clock time runs off a different crystal
  *      from the CPUs clock. Changing this KLV on a VF that is currently
- *      running a context wont take effect until a new context is scheduled in.
+ *      running a context won't take effect until a new context is scheduled in.
  *      That said, when the PF is changing this value from 0x0 to
  *      a non-zero value, it might never take effect if the VF is running an
  *      infinitely long compute or shader kernel. In such a scenario, the
@@ -227,7 +227,7 @@ enum  {
  *      HW is capable and this will never be perfectly-exact (accumulated
  *      nano-second granularity) since the GPUs clock time runs off a
  *      different crystal from the CPUs clock. Changing this KLV on a VF
- *      that is currently running a context wont take effect until a new
+ *      that is currently running a context won't take effect until a new
  *      context is scheduled in.
  *      That said, when the PF is changing this value from 0x0 to
  *      a non-zero value, it might never take effect if the VF is running an
@@ -291,6 +291,14 @@ enum  {
  *
  *      :0: (default)
  *      :1-65535: number of contexts (Gen12)
+ *
+ * _`GUC_KLV_VF_CFG_SCHED_PRIORITY` : 0x8A0C
+ *      This config controls VF’s scheduling priority.
+ *
+ *      :0: LOW = schedule VF only if it has active work (default)
+ *      :1: NORMAL = schedule VF always, irrespective of whether it has work or not
+ *      :2: HIGH = schedule VF in the next time-slice after current active
+ *          time-slice completes if it has active work
  */
 
 #define GUC_KLV_VF_CFG_GGTT_START_KEY		0x0001
@@ -342,6 +350,12 @@ enum  {
 
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_KEY	0x8a0b
 #define GUC_KLV_VF_CFG_BEGIN_CONTEXT_ID_LEN	1u
+
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_KEY	0x8a0c
+#define GUC_KLV_VF_CFG_SCHED_PRIORITY_LEN	1u
+#define   GUC_SCHED_PRIORITY_LOW		0u
+#define   GUC_SCHED_PRIORITY_NORMAL		1u
+#define   GUC_SCHED_PRIORITY_HIGH		2u
 
 /*
  * Workaround keys:

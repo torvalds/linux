@@ -25,30 +25,9 @@ menuconfig RV
 	  For further information, see:
 	    Documentation/trace/rv/runtime-verification.rst
 
-config RV_MON_WIP
-	depends on RV
-	depends on PREEMPT_TRACER
-	select DA_MON_EVENTS_IMPLICIT
-	bool "wip monitor"
-	help
-	  Enable wip (wakeup in preemptive) sample monitor that illustrates
-	  the usage of per-cpu monitors, and one limitation of the
-	  preempt_disable/enable events.
-
-	  For further information, see:
-	    Documentation/trace/rv/monitor_wip.rst
-
-config RV_MON_WWNR
-	depends on RV
-	select DA_MON_EVENTS_ID
-	bool "wwnr monitor"
-	help
-	  Enable wwnr (wakeup while not running) sample monitor, this is a
-	  sample monitor that illustrates the usage of per-task monitor.
-	  The model is borken on purpose: it serves to test reactors.
-
-	  For further information, see:
-	    Documentation/trace/rv/monitor_wwnr.rst
+source "kernel/trace/rv/monitors/wip/Kconfig"
+source "kernel/trace/rv/monitors/wwnr/Kconfig"
+# Add new monitors here
 
 config RV_REACTORS
 	bool "Runtime verification reactors"

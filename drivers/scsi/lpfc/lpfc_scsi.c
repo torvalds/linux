@@ -5136,6 +5136,12 @@ lpfc_info(struct Scsi_Host *host)
 				goto buffer_done;
 		}
 
+		/* Support for BSG ioctls */
+		scnprintf(tmp, sizeof(tmp), " BSG");
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
 		/* PCI resettable */
 		if (!lpfc_check_pci_resettable(phba)) {
 			scnprintf(tmp, sizeof(tmp), " PCI resettable");
@@ -6120,31 +6126,28 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 
 		/* Issue LOGO, if no LOGO is outstanding */
 		spin_lock_irqsave(&pnode->lock, flags);
-		if (!(pnode->save_flags & NLP_WAIT_FOR_LOGO) &&
+		if (!test_bit(NLP_WAIT_FOR_LOGO, &pnode->save_flags) &&
 		    !pnode->logo_waitq) {
 			pnode->logo_waitq = &waitq;
 			pnode->nlp_fcp_info &= ~NLP_FCP_2_DEVICE;
-			set_bit(NLP_ISSUE_LOGO, &pnode->nlp_flag);
-			pnode->save_flags |= NLP_WAIT_FOR_LOGO;
 			spin_unlock_irqrestore(&pnode->lock, flags);
+			set_bit(NLP_ISSUE_LOGO, &pnode->nlp_flag);
+			set_bit(NLP_WAIT_FOR_LOGO, &pnode->save_flags);
 			lpfc_unreg_rpi(vport, pnode);
 			wait_event_timeout(waitq,
-					   (!(pnode->save_flags &
-					      NLP_WAIT_FOR_LOGO)),
+					   !test_bit(NLP_WAIT_FOR_LOGO,
+						     &pnode->save_flags),
 					   msecs_to_jiffies(dev_loss_tmo *
 							    1000));
 
-			if (pnode->save_flags & NLP_WAIT_FOR_LOGO) {
+			if (test_and_clear_bit(NLP_WAIT_FOR_LOGO,
+					       &pnode->save_flags))
 				lpfc_printf_vlog(vport, KERN_ERR, logit,
 						 "0725 SCSI layer TGTRST "
 						 "failed & LOGO TMO (%d, %llu) "
 						 "return x%x\n",
 						 tgt_id, lun_id, status);
-				spin_lock_irqsave(&pnode->lock, flags);
-				pnode->save_flags &= ~NLP_WAIT_FOR_LOGO;
-			} else {
-				spin_lock_irqsave(&pnode->lock, flags);
-			}
+			spin_lock_irqsave(&pnode->lock, flags);
 			pnode->logo_waitq = NULL;
 			spin_unlock_irqrestore(&pnode->lock, flags);
 			status = SUCCESS;
@@ -6226,7 +6229,7 @@ error:
 }
 
 /**
- * lpfc_slave_alloc - scsi_host_template slave_alloc entry point
+ * lpfc_sdev_init - scsi_host_template sdev_init entry point
  * @sdev: Pointer to scsi_device.
  *
  * This routine populates the cmds_per_lun count + 2 scsi_bufs into  this host's
@@ -6239,7 +6242,7 @@ error:
  *   0 - Success
  **/
 static int
-lpfc_slave_alloc(struct scsi_device *sdev)
+lpfc_sdev_init(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6342,8 +6345,9 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_configure - scsi_host_template slave_configure entry point
+ * lpfc_sdev_configure - scsi_host_template sdev_configure entry point
  * @sdev: Pointer to scsi_device.
+ * @lim: Request queue limits.
  *
  * This routine configures following items
  *   - Tag command queuing support for @sdev if supported.
@@ -6353,7 +6357,7 @@ lpfc_slave_alloc(struct scsi_device *sdev)
  *   0 - Success
  **/
 static int
-lpfc_slave_configure(struct scsi_device *sdev)
+lpfc_sdev_configure(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6371,13 +6375,13 @@ lpfc_slave_configure(struct scsi_device *sdev)
 }
 
 /**
- * lpfc_slave_destroy - slave_destroy entry point of SHT data structure
+ * lpfc_sdev_destroy - sdev_destroy entry point of SHT data structure
  * @sdev: Pointer to scsi_device.
  *
  * This routine sets @sdev hostatdata filed to null.
  **/
 static void
-lpfc_slave_destroy(struct scsi_device *sdev)
+lpfc_sdev_destroy(struct scsi_device *sdev)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) sdev->host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
@@ -6422,7 +6426,7 @@ lpfc_create_device_data(struct lpfc_hba *phba, struct lpfc_name *vport_wwpn,
 {
 
 	struct lpfc_device_data *lun_info;
-	int memory_flags;
+	gfp_t memory_flags;
 
 	if (unlikely(!phba) || !vport_wwpn || !target_wwpn  ||
 	    !(phba->cfg_fof))
@@ -6737,7 +6741,13 @@ lpfc_no_command(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 }
 
 static int
-lpfc_no_slave(struct scsi_device *sdev)
+lpfc_init_no_sdev(struct scsi_device *sdev)
+{
+	return -ENODEV;
+}
+
+static int
+lpfc_config_no_sdev(struct scsi_device *sdev, struct queue_limits *lim)
 {
 	return -ENODEV;
 }
@@ -6748,8 +6758,8 @@ struct scsi_host_template lpfc_template_nvme = {
 	.proc_name		= LPFC_DRIVER_NAME,
 	.info			= lpfc_info,
 	.queuecommand		= lpfc_no_command,
-	.slave_alloc		= lpfc_no_slave,
-	.slave_configure	= lpfc_no_slave,
+	.sdev_init		= lpfc_init_no_sdev,
+	.sdev_configure		= lpfc_config_no_sdev,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= 1,
@@ -6772,9 +6782,9 @@ struct scsi_host_template lpfc_template = {
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_host_reset_handler  = lpfc_host_reset_handler,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
+	.sdev_init		= lpfc_sdev_init,
+	.sdev_configure		= lpfc_sdev_configure,
+	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,
@@ -6799,9 +6809,9 @@ struct scsi_host_template lpfc_vport_template = {
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_bus_reset_handler	= NULL,
 	.eh_host_reset_handler	= NULL,
-	.slave_alloc		= lpfc_slave_alloc,
-	.slave_configure	= lpfc_slave_configure,
-	.slave_destroy		= lpfc_slave_destroy,
+	.sdev_init		= lpfc_sdev_init,
+	.sdev_configure		= lpfc_sdev_configure,
+	.sdev_destroy		= lpfc_sdev_destroy,
 	.scan_finished		= lpfc_scan_finished,
 	.this_id		= -1,
 	.sg_tablesize		= LPFC_DEFAULT_SG_SEG_CNT,

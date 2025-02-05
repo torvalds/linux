@@ -1248,6 +1248,12 @@ int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
  * to 1 if AT_SECURE should be set to request libc enable secure mode.  @bprm
  * contains the linux_binprm structure.
  *
+ * If execveat(2) is called with the AT_EXECVE_CHECK flag, bprm->is_check is
+ * set.  The result must be the same as without this flag even if the execution
+ * will never really happen and @bprm will always be dropped.
+ *
+ * This hook must not change current->cred, only @bprm->cred.
+ *
  * Return: Returns 0 if the hook is successful and permission is granted.
  */
 int security_bprm_creds_for_exec(struct linux_binprm *bprm)
@@ -1735,8 +1741,7 @@ void security_inode_free(struct inode *inode)
  * @mode: mode used to determine resource type
  * @name: name of the last path component
  * @xattr_name: name of the security/LSM xattr
- * @ctx: pointer to the resulting LSM context
- * @ctxlen: length of @ctx
+ * @lsmctx: pointer to the resulting LSM context
  *
  * Compute a context for a dentry as the inode is not yet available since NFSv4
  * has no label backed by an EA anyway.  It is important to note that
@@ -1746,11 +1751,11 @@ void security_inode_free(struct inode *inode)
  */
 int security_dentry_init_security(struct dentry *dentry, int mode,
 				  const struct qstr *name,
-				  const char **xattr_name, void **ctx,
-				  u32 *ctxlen)
+				  const char **xattr_name,
+				  struct lsm_context *lsmctx)
 {
 	return call_int_hook(dentry_init_security, dentry, mode, name,
-			     xattr_name, ctx, ctxlen);
+			     xattr_name, lsmctx);
 }
 EXPORT_SYMBOL(security_dentry_init_security);
 
@@ -3098,6 +3103,10 @@ int security_file_receive(struct file *file)
  * Save open-time permission checking state for later use upon file_permission,
  * and recheck access if anything has changed since inode_permission.
  *
+ * We can check if a file is opened for execution (e.g. execve(2) call), either
+ * directly or indirectly (e.g. ELF's ld.so) by checking file->f_flags &
+ * __FMODE_EXEC .
+ *
  * Return: Returns 0 if permission is granted.
  */
 int security_file_open(struct file *file)
@@ -4139,10 +4148,8 @@ int security_getselfattr(unsigned int attr, struct lsm_ctx __user *uctx,
 		if (base)
 			uctx = (struct lsm_ctx __user *)(base + total);
 		rc = scall->hl->hook.getselfattr(attr, uctx, &entrysize, flags);
-		if (rc == -EOPNOTSUPP) {
-			rc = 0;
+		if (rc == -EOPNOTSUPP)
 			continue;
-		}
 		if (rc == -E2BIG) {
 			rc = 0;
 			left = 0;
@@ -4304,40 +4311,36 @@ EXPORT_SYMBOL(security_ismaclabel);
 /**
  * security_secid_to_secctx() - Convert a secid to a secctx
  * @secid: secid
- * @secdata: secctx
- * @seclen: secctx length
+ * @cp: the LSM context
  *
- * Convert secid to security context.  If @secdata is NULL the length of the
- * result will be returned in @seclen, but no @secdata will be returned.  This
+ * Convert secid to security context.  If @cp is NULL the length of the
+ * result will be returned, but no data will be returned.  This
  * does mean that the length could change between calls to check the length and
- * the next call which actually allocates and returns the @secdata.
+ * the next call which actually allocates and returns the data.
  *
- * Return: Return 0 on success, error on failure.
+ * Return: Return length of data on success, error on failure.
  */
-int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen)
+int security_secid_to_secctx(u32 secid, struct lsm_context *cp)
 {
-	return call_int_hook(secid_to_secctx, secid, secdata, seclen);
+	return call_int_hook(secid_to_secctx, secid, cp);
 }
 EXPORT_SYMBOL(security_secid_to_secctx);
 
 /**
  * security_lsmprop_to_secctx() - Convert a lsm_prop to a secctx
  * @prop: lsm specific information
- * @secdata: secctx
- * @seclen: secctx length
+ * @cp: the LSM context
  *
- * Convert a @prop entry to security context.  If @secdata is NULL the
- * length of the result will be returned in @seclen, but no @secdata
- * will be returned.  This does mean that the length could change between
- * calls to check the length and the next call which actually allocates
- * and returns the @secdata.
+ * Convert a @prop entry to security context.  If @cp is NULL the
+ * length of the result will be returned. This does mean that the
+ * length could change between calls to check the length and the
+ * next call which actually allocates and returns the @cp.
  *
- * Return: Return 0 on success, error on failure.
+ * Return: Return length of data on success, error on failure.
  */
-int security_lsmprop_to_secctx(struct lsm_prop *prop, char **secdata,
-			       u32 *seclen)
+int security_lsmprop_to_secctx(struct lsm_prop *prop, struct lsm_context *cp)
 {
-	return call_int_hook(lsmprop_to_secctx, prop, secdata, seclen);
+	return call_int_hook(lsmprop_to_secctx, prop, cp);
 }
 EXPORT_SYMBOL(security_lsmprop_to_secctx);
 
@@ -4360,14 +4363,14 @@ EXPORT_SYMBOL(security_secctx_to_secid);
 
 /**
  * security_release_secctx() - Free a secctx buffer
- * @secdata: secctx
- * @seclen: length of secctx
+ * @cp: the security context
  *
  * Release the security context.
  */
-void security_release_secctx(char *secdata, u32 seclen)
+void security_release_secctx(struct lsm_context *cp)
 {
-	call_void_hook(release_secctx, secdata, seclen);
+	call_void_hook(release_secctx, cp);
+	memset(cp, 0, sizeof(*cp));
 }
 EXPORT_SYMBOL(security_release_secctx);
 
@@ -4430,17 +4433,17 @@ EXPORT_SYMBOL(security_inode_setsecctx);
 /**
  * security_inode_getsecctx() - Get the security label of an inode
  * @inode: inode
- * @ctx: secctx
- * @ctxlen: length of secctx
+ * @cp: security context
  *
- * On success, returns 0 and fills out @ctx and @ctxlen with the security
- * context for the given @inode.
+ * On success, returns 0 and fills out @cp with the security context
+ * for the given @inode.
  *
  * Return: Returns 0 on success, error on failure.
  */
-int security_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
+int security_inode_getsecctx(struct inode *inode, struct lsm_context *cp)
 {
-	return call_int_hook(inode_getsecctx, inode, ctx, ctxlen);
+	memset(cp, 0, sizeof(*cp));
+	return call_int_hook(inode_getsecctx, inode, cp);
 }
 EXPORT_SYMBOL(security_inode_getsecctx);
 

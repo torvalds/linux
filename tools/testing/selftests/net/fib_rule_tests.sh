@@ -291,6 +291,37 @@ fib_rule6_test()
 			"$getnomatch" "iif dscp redirect to table" \
 			"iif dscp no redirect to table"
 	fi
+
+	fib_check_iproute_support "flowlabel" "flowlabel"
+	if [ $? -eq 0 ]; then
+		match="flowlabel 0xfffff"
+		getmatch="flowlabel 0xfffff"
+		getnomatch="flowlabel 0xf"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "flowlabel redirect to table" \
+			"flowlabel no redirect to table"
+
+		match="flowlabel 0xfffff"
+		getmatch="from $SRC_IP6 iif $DEV flowlabel 0xfffff"
+		getnomatch="from $SRC_IP6 iif $DEV flowlabel 0xf"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif flowlabel redirect to table" \
+			"iif flowlabel no redirect to table"
+
+		match="flowlabel 0x08000/0x08000"
+		getmatch="flowlabel 0xfffff"
+		getnomatch="flowlabel 0xf7fff"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "flowlabel masked redirect to table" \
+			"flowlabel masked no redirect to table"
+
+		match="flowlabel 0x08000/0x08000"
+		getmatch="from $SRC_IP6 iif $DEV flowlabel 0xfffff"
+		getnomatch="from $SRC_IP6 iif $DEV flowlabel 0xf7fff"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "iif flowlabel masked redirect to table" \
+			"iif flowlabel masked no redirect to table"
+	fi
 }
 
 fib_rule6_vrf_test()

@@ -992,8 +992,7 @@ nv50_msto_atomic_check(struct drm_encoder *encoder,
 	if (!mst_state->pbn_div.full) {
 		struct nouveau_encoder *outp = mstc->mstm->outp;
 
-		mst_state->pbn_div = drm_dp_get_vc_payload_bw(&mstm->mgr,
-							      outp->dp.link_bw, outp->dp.link_nr);
+		mst_state->pbn_div = drm_dp_get_vc_payload_bw(outp->dp.link_bw, outp->dp.link_nr);
 	}
 
 	slots = drm_dp_atomic_find_time_slots(state, &mstm->mgr, mstc->port, asyh->dp.pbn);
@@ -1265,8 +1264,8 @@ nv50_mstc_new(struct nv50_mstm *mstm, struct drm_dp_mst_port *port,
 	mstc->mstm = mstm;
 	mstc->port = port;
 
-	ret = drm_connector_init(dev, &mstc->connector, &nv50_mstc,
-				 DRM_MODE_CONNECTOR_DisplayPort);
+	ret = drm_connector_dynamic_init(dev, &mstc->connector, &nv50_mstc,
+					 DRM_MODE_CONNECTOR_DisplayPort, NULL);
 	if (ret) {
 		kfree(*pmstc);
 		*pmstc = NULL;

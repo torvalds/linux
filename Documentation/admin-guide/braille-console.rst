@@ -21,8 +21,8 @@ override the baud rate to 115200, etc.
 By default, the braille device will just show the last kernel message (console
 mode).  To review previous messages, press the Insert key to switch to the VT
 review mode.  In review mode, the arrow keys permit to browse in the VT content,
-:kbd:`PAGE-UP`/:kbd:`PAGE-DOWN` keys go at the top/bottom of the screen, and
-the :kbd:`HOME` key goes back
+`PAGE-UP`/`PAGE-DOWN` keys go at the top/bottom of the screen, and
+the `HOME` key goes back
 to the cursor, hence providing very basic screen reviewing facility.
 
 Sound feedback can be obtained by adding the ``braille_console.sound=1`` kernel

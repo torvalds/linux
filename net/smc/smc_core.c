@@ -795,9 +795,14 @@ int smcr_link_init(struct smc_link_group *lgr, struct smc_link *lnk,
 	if (lgr->smc_version == SMC_V2) {
 		lnk->smcibdev = ini->smcrv2.ib_dev_v2;
 		lnk->ibport = ini->smcrv2.ib_port_v2;
+		lnk->wr_rx_sge_cnt = lnk->smcibdev->ibdev->attrs.max_recv_sge < 2 ? 1 : 2;
+		lnk->wr_rx_buflen = smc_link_shared_v2_rxbuf(lnk) ?
+			SMC_WR_BUF_SIZE : SMC_WR_BUF_V2_SIZE;
 	} else {
 		lnk->smcibdev = ini->ib_dev;
 		lnk->ibport = ini->ib_port;
+		lnk->wr_rx_sge_cnt = 1;
+		lnk->wr_rx_buflen = SMC_WR_BUF_SIZE;
 	}
 	get_device(&lnk->smcibdev->ibdev->dev);
 	atomic_inc(&lnk->smcibdev->lnk_cnt);
@@ -1818,7 +1823,9 @@ void smcr_link_down_cond_sched(struct smc_link *lnk)
 {
 	if (smc_link_downing(&lnk->state)) {
 		trace_smcr_link_down(lnk, __builtin_return_address(0));
-		schedule_work(&lnk->link_down_wrk);
+		smcr_link_hold(lnk); /* smcr_link_put in link_down_wrk */
+		if (!schedule_work(&lnk->link_down_wrk))
+			smcr_link_put(lnk);
 	}
 }
 
@@ -1850,11 +1857,14 @@ static void smc_link_down_work(struct work_struct *work)
 	struct smc_link_group *lgr = link->lgr;
 
 	if (list_empty(&lgr->list))
-		return;
+		goto out;
 	wake_up_all(&lgr->llc_msg_waiter);
 	down_write(&lgr->llc_conf_mutex);
 	smcr_link_down(link);
 	up_write(&lgr->llc_conf_mutex);
+
+out:
+	smcr_link_put(link); /* smcr_link_hold by schedulers of link_down_work */
 }
 
 static int smc_vlan_by_tcpsk_walk(struct net_device *lower_dev,
@@ -2145,7 +2155,7 @@ static int smcr_buf_map_link(struct smc_buf_desc *buf_desc, bool is_rmb,
 		for_each_sg(buf_desc->sgt[lnk->link_idx].sgl, sg, nents, i) {
 			size = min_t(int, PAGE_SIZE - offset, buf_size);
 			sg_set_page(sg, vmalloc_to_page(buf), size, offset);
-			buf += size / sizeof(*buf);
+			buf += size;
 			buf_size -= size;
 			offset = 0;
 		}

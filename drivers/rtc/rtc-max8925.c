@@ -270,7 +270,7 @@ static int max8925_rtc_probe(struct platform_device *pdev)
 	/* XXX - isn't this redundant? */
 	platform_set_drvdata(pdev, info);
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8925-rtc",
 					&max8925_rtc_ops, THIS_MODULE);

@@ -3177,7 +3177,7 @@ static struct dev_dependent_vals dev_briard_vals = { CXLFLASH_MAX_SECTORS,
 /*
  * PCI device binding table
  */
-static struct pci_device_id cxlflash_pci_table[] = {
+static const struct pci_device_id cxlflash_pci_table[] = {
 	{PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CORSA,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, (kernel_ulong_t)&dev_corsa_vals},
 	{PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_FLASH_GT,
@@ -3650,6 +3650,8 @@ static int cxlflash_probe(struct pci_dev *pdev,
 	struct dev_dependent_vals *ddv;
 	int rc = 0;
 	int k;
+
+	dev_err_once(&pdev->dev, "DEPRECATION: cxlflash is deprecated and will be removed in a future kernel release\n");
 
 	dev_dbg(&pdev->dev, "%s: Found CXLFLASH with IRQ: %d\n",
 		__func__, pdev->irq);

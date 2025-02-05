@@ -66,7 +66,6 @@ static inline bool nf_hook_egress_active(void)
  * @rc: result code which shall be returned by __dev_queue_xmit() on failure
  * @dev: netdev whose egress hooks shall be applied to @skb
  *
- * Returns @skb on success or %NULL if the packet was consumed or filtered.
  * Caller must hold rcu_read_lock.
  *
  * On ingress, packets are classified first by tc, then by netfilter.
@@ -81,6 +80,8 @@ static inline bool nf_hook_egress_active(void)
  * called recursively by tunnel drivers such as vxlan, the flag is reverted to
  * false after sch_handle_egress().  This ensures that netfilter is applied
  * both on the overlay and underlying network.
+ *
+ * Returns: @skb on success or %NULL if the packet was consumed or filtered.
  */
 static inline struct sk_buff *nf_hook_egress(struct sk_buff *skb, int *rc,
 					     struct net_device *dev)

@@ -87,8 +87,8 @@ int z_erofs_gbuf_growsize(unsigned int nrpages)
 			tmp_pages[j] = gbuf->pages[j];
 		do {
 			last = j;
-			j = alloc_pages_bulk_array(GFP_KERNEL, nrpages,
-						   tmp_pages);
+			j = alloc_pages_bulk(GFP_KERNEL, nrpages,
+					     tmp_pages);
 			if (last == j)
 				goto out;
 		} while (j != nrpages);
@@ -230,9 +230,10 @@ void erofs_shrinker_unregister(struct super_block *sb)
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 
 	mutex_lock(&sbi->umount_mutex);
-	/* clean up all remaining pclusters in memory */
-	z_erofs_shrink_scan(sbi, ~0UL);
-
+	while (!xa_empty(&sbi->managed_pslots)) {
+		z_erofs_shrink_scan(sbi, ~0UL);
+		cond_resched();
+	}
 	spin_lock(&erofs_sb_list_lock);
 	list_del(&sbi->list);
 	spin_unlock(&erofs_sb_list_lock);
@@ -242,7 +243,7 @@ void erofs_shrinker_unregister(struct super_block *sb)
 static unsigned long erofs_shrink_count(struct shrinker *shrink,
 					struct shrink_control *sc)
 {
-	return atomic_long_read(&erofs_global_shrink_cnt);
+	return atomic_long_read(&erofs_global_shrink_cnt) ?: SHRINK_EMPTY;
 }
 
 static unsigned long erofs_shrink_scan(struct shrinker *shrink,

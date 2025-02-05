@@ -120,7 +120,6 @@ static void print_duration(unsigned long duration)
 		} else
 			printf("%lu ns", duration);
 	}
-	return;
 }
 
 static int get_boost_mode_x86(unsigned int cpu)
@@ -255,7 +254,12 @@ static int get_freq_kernel(unsigned int cpu, unsigned int human)
 
 static int get_freq_hardware(unsigned int cpu, unsigned int human)
 {
-	unsigned long freq = cpufreq_get_freq_hardware(cpu);
+	unsigned long freq;
+
+	if (cpupower_cpu_info.caps & CPUPOWER_CAP_APERF)
+		return -EINVAL;
+
+	freq = cpufreq_get_freq_hardware(cpu);
 	printf(_("  current CPU frequency: "));
 	if (!freq) {
 		printf("Unable to call hardware\n");
@@ -418,11 +422,31 @@ static int get_freq_stats(unsigned int cpu, unsigned int human)
 	return 0;
 }
 
+/* --epp / -z */
+
+static int get_epp(unsigned int cpu, bool interactive)
+{
+	char *epp;
+
+	epp = cpufreq_get_energy_performance_preference(cpu);
+	if (!epp)
+		return -EINVAL;
+	if (interactive)
+		printf(_("  energy performance preference: %s\n"), epp);
+
+	cpufreq_put_energy_performance_preference(epp);
+
+	return 0;
+}
+
 /* --latency / -y */
 
 static int get_latency(unsigned int cpu, unsigned int human)
 {
 	unsigned long latency = cpufreq_get_transition_latency(cpu);
+
+	if (!get_epp(cpu, false))
+		return -EINVAL;
 
 	printf(_("  maximum transition latency: "));
 	if (!latency || latency == UINT_MAX) {
@@ -457,6 +481,7 @@ static void debug_output_one(unsigned int cpu)
 	get_related_cpus(cpu);
 	get_affected_cpus(cpu);
 	get_latency(cpu, 1);
+	get_epp(cpu, true);
 	get_hardware_limits(cpu, 1);
 
 	freqs = cpufreq_get_available_frequencies(cpu);
@@ -497,6 +522,7 @@ static struct option info_opts[] = {
 	{"human",	 no_argument,		 NULL,	 'm'},
 	{"no-rounding", no_argument,	 NULL,	 'n'},
 	{"performance", no_argument,	 NULL,	 'c'},
+	{"epp",		 no_argument,		 NULL,	 'z'},
 	{ },
 };
 
@@ -510,7 +536,7 @@ int cmd_freq_info(int argc, char **argv)
 	int output_param = 0;
 
 	do {
-		ret = getopt_long(argc, argv, "oefwldpgrasmybnc", info_opts,
+		ret = getopt_long(argc, argv, "oefwldpgrasmybncz", info_opts,
 				  NULL);
 		switch (ret) {
 		case '?':
@@ -534,6 +560,7 @@ int cmd_freq_info(int argc, char **argv)
 		case 's':
 		case 'y':
 		case 'c':
+		case 'z':
 			if (output_param) {
 				output_param = -1;
 				cont = 0;
@@ -642,6 +669,9 @@ int cmd_freq_info(int argc, char **argv)
 			break;
 		case 'c':
 			ret = get_perf_cap(cpu);
+			break;
+		case 'z':
+			ret = get_epp(cpu, true);
 			break;
 		}
 		if (ret)

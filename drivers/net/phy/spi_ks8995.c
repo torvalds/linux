@@ -289,7 +289,7 @@ static int ks8995_reset(struct ks8995_switch *ks)
 }
 
 static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
+	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
 {
 	struct device *dev;
 	struct ks8995_switch *ks8995;
@@ -301,7 +301,7 @@ static ssize_t ks8995_registers_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t ks8995_registers_write(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
+	const struct bin_attribute *bin_attr, char *buf, loff_t off, size_t count)
 {
 	struct device *dev;
 	struct ks8995_switch *ks8995;
@@ -401,8 +401,8 @@ static const struct bin_attribute ks8995_registers_attr = {
 		.mode   = 0600,
 	},
 	.size   = KS8995_REGS_SIZE,
-	.read   = ks8995_registers_read,
-	.write  = ks8995_registers_write,
+	.read_new   = ks8995_registers_read,
+	.write_new  = ks8995_registers_write,
 };
 
 /* ------------------------------------------------------------------------ */

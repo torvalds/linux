@@ -859,8 +859,7 @@ static_assert(sizeof(struct avs_aec_cfg) == 92);
 struct avs_asrc_cfg {
 	struct avs_modcfg_base base;
 	u32 out_freq;
-	u32 rsvd0:1;
-	u32 mode:1;
+	u32 mode:2;
 	u32 rsvd2:2;
 	u32 disable_jitter_buffer:1;
 	u32 rsvd3:27;

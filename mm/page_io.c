@@ -163,7 +163,6 @@ reprobe:
 		page_no = 1;	/* force Empty message */
 	sis->max = page_no;
 	sis->pages = page_no - 1;
-	sis->highest_bit = page_no - 1;
 out:
 	return ret;
 bad_bmap:

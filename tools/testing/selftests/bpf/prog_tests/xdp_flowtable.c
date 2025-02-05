@@ -3,7 +3,7 @@
 #include <network_helpers.h>
 #include <bpf/btf.h>
 #include <linux/if_link.h>
-#include <linux/udp.h>
+#include <netinet/udp.h>
 #include <net/if.h>
 #include <unistd.h>
 

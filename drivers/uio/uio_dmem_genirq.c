@@ -167,6 +167,8 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 		}
 		uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn",
 					       pdev->dev.of_node);
+		if (!uioinfo->name)
+			return -ENOMEM;
 		uioinfo->version = "devicetree";
 	}
 

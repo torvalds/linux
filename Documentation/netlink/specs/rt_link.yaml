@@ -1826,6 +1826,48 @@ attribute-sets:
         name: erspan-hwid
         type: u16
   -
+    name: linkinfo-vti-attrs
+    name-prefix: ifla-vti-
+    attributes:
+      -
+        name: link
+        type: u32
+      -
+        name: ikey
+        type: u32
+      -
+        name: okey
+        type: u32
+      -
+        name: local
+        type: binary
+        display-hint: ipv4
+      -
+        name: remote
+        type: binary
+        display-hint: ipv4
+      -
+        name: fwmark
+        type: u32
+  -
+    name: linkinfo-vti6-attrs
+    subset-of: linkinfo-vti-attrs
+    attributes:
+      -
+        name: link
+      -
+        name: ikey
+      -
+        name: okey
+      -
+        name: local
+        display-hint: ipv6
+      -
+        name: remote
+        display-hint: ipv6
+      -
+        name: fwmark
+  -
     name: linkinfo-geneve-attrs
     name-prefix: ifla-geneve-
     attributes:
@@ -1941,6 +1983,42 @@ attribute-sets:
       -
         name: fwmark
         type: u32
+  -
+    name: linkinfo-ip6tnl-attrs
+    subset-of: linkinfo-iptun-attrs
+    attributes:
+      -
+        name: link
+      -
+        name: local
+        display-hint: ipv6
+      -
+        name: remote
+        display-hint: ipv6
+      -
+        name: ttl
+      -
+        name: encap-limit
+      -
+        name: flowinfo
+      -
+        name: flags
+        # ip6tnl unlike ipip and sit has 32b flags
+        type: u32
+      -
+        name: proto
+      -
+        name: encap-type
+      -
+        name: encap-flags
+      -
+        name: encap-sport
+      -
+        name: encap-dport
+      -
+        name: collect-metadata
+      -
+        name: fwmark
   -
     name: linkinfo-tun-attrs
     name-prefix: ifla-tun-
@@ -2086,6 +2164,9 @@ attribute-sets:
       -
         name: mctp-net
         type: u32
+      -
+        name: phys-binding
+        type: u8
   -
     name: stats-attrs
     name-prefix: ifla-stats-
@@ -2166,6 +2247,12 @@ attribute-sets:
         name: peer-scrub
         type: u32
         enum: netkit-scrub
+      -
+        name: headroom
+        type: u16
+      -
+        name: tailroom
+        type: u16
 
 sub-messages:
   -
@@ -2193,6 +2280,9 @@ sub-messages:
         value: ipip
         attribute-set: linkinfo-iptun-attrs
       -
+        value: ip6tnl
+        attribute-set: linkinfo-ip6tnl-attrs
+      -
         value: sit
         attribute-set: linkinfo-iptun-attrs
       -
@@ -2204,6 +2294,12 @@ sub-messages:
       -
         value: vrf
         attribute-set: linkinfo-vrf-attrs
+      -
+        value: vti
+        attribute-set: linkinfo-vti-attrs
+      -
+        value: vti6
+        attribute-set: linkinfo-vti6-attrs
       -
         value: netkit
         attribute-set: linkinfo-netkit-attrs

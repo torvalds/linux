@@ -33,20 +33,18 @@ static void io_eventfd_free(struct rcu_head *rcu)
 	kfree(ev_fd);
 }
 
+static void io_eventfd_put(struct io_ev_fd *ev_fd)
+{
+	if (refcount_dec_and_test(&ev_fd->refs))
+		call_rcu(&ev_fd->rcu, io_eventfd_free);
+}
+
 static void io_eventfd_do_signal(struct rcu_head *rcu)
 {
 	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
 
 	eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
-
-	if (refcount_dec_and_test(&ev_fd->refs))
-		io_eventfd_free(rcu);
-}
-
-static void io_eventfd_put(struct io_ev_fd *ev_fd)
-{
-	if (refcount_dec_and_test(&ev_fd->refs))
-		call_rcu(&ev_fd->rcu, io_eventfd_free);
+	io_eventfd_put(ev_fd);
 }
 
 static void io_eventfd_release(struct io_ev_fd *ev_fd, bool put_ref)
