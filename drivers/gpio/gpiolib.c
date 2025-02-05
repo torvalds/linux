@@ -4712,10 +4712,10 @@ int gpiod_hog(struct gpio_desc *desc, const char *name,
 		return ret;
 	}
 
-	gpiod_dbg(desc, "hogged as %s%s\n",
+	gpiod_dbg(desc, "hogged as %s/%s\n",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ? "output" : "input",
 		(dflags & GPIOD_FLAGS_BIT_DIR_OUT) ?
-		  (dflags & GPIOD_FLAGS_BIT_DIR_VAL) ? "/high" : "/low" : "");
+		  str_high_low(dflags & GPIOD_FLAGS_BIT_DIR_VAL) : "?");
 
 	return 0;
 }
