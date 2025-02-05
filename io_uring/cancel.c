@@ -341,3 +341,24 @@ out:
 		fput(file);
 	return ret;
 }
+
+bool io_cancel_remove_all(struct io_ring_ctx *ctx, struct io_uring_task *tctx,
+			  struct hlist_head *list, bool cancel_all,
+			  bool (*cancel)(struct io_kiocb *))
+{
+	struct hlist_node *tmp;
+	struct io_kiocb *req;
+	bool found = false;
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	hlist_for_each_entry_safe(req, tmp, list, hash_node) {
+		if (!io_match_task_safe(req, tctx, cancel_all))
+			continue;
+		hlist_del_init(&req->hash_node);
+		if (cancel(req))
+			found = true;
+	}
+
+	return found;
+}
