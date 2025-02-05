@@ -839,7 +839,7 @@ static int cy8c95x0_gpio_get_pincfg(struct cy8c95x0_pinctrl *chip,
 	if (param == PIN_CONFIG_OUTPUT_ENABLE)
 		arg = !arg;
 
-	*config = pinconf_to_config_packed(param, (u16)arg);
+	*config = pinconf_to_config_packed(param, arg);
 	return 0;
 }
 
