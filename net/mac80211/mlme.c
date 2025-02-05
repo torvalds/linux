@@ -989,7 +989,7 @@ static void ieee80211_set_chanreq_ap(struct ieee80211_sub_if_data *sdata,
 	chanreq->ap = *ap_chandef;
 }
 
-static struct ieee802_11_elems *
+VISIBLE_IF_MAC80211_KUNIT struct ieee802_11_elems *
 ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_conn_settings *conn,
 			      struct cfg80211_bss *cbss, int link_id,
@@ -1214,6 +1214,7 @@ free:
 	kfree(elems);
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL_IF_MAC80211_KUNIT(ieee80211_determine_chan_mode);
 
 static int ieee80211_config_bw(struct ieee80211_link_data *link,
 			       struct ieee802_11_elems *elems,
