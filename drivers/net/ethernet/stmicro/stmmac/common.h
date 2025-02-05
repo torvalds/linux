@@ -530,6 +530,20 @@ struct dma_features {
 #define STMMAC_DEFAULT_TWT_LS	0x1E
 #define STMMAC_ET_MAX		0xFFFFF
 
+/* Common LPI register bits */
+#define LPI_CTRL_STATUS_LPITCSE	BIT(21)	/* LPI Tx Clock Stop Enable, gmac4, xgmac2 only */
+#define LPI_CTRL_STATUS_LPIATE	BIT(20)	/* LPI Timer Enable, gmac4 only */
+#define LPI_CTRL_STATUS_LPITXA	BIT(19)	/* Enable LPI TX Automate */
+#define LPI_CTRL_STATUS_PLSEN	BIT(18)	/* Enable PHY Link Status */
+#define LPI_CTRL_STATUS_PLS	BIT(17)	/* PHY Link Status */
+#define LPI_CTRL_STATUS_LPIEN	BIT(16)	/* LPI Enable */
+#define LPI_CTRL_STATUS_RLPIST	BIT(9)	/* Receive LPI state, gmac1000 only? */
+#define LPI_CTRL_STATUS_TLPIST	BIT(8)	/* Transmit LPI state, gmac1000 only? */
+#define LPI_CTRL_STATUS_RLPIEX	BIT(3)	/* Receive LPI Exit */
+#define LPI_CTRL_STATUS_RLPIEN	BIT(2)	/* Receive LPI Entry */
+#define LPI_CTRL_STATUS_TLPIEX	BIT(1)	/* Transmit LPI Exit */
+#define LPI_CTRL_STATUS_TLPIEN	BIT(0)	/* Transmit LPI Entry */
+
 #define STMMAC_CHAIN_MODE	0x1
 #define STMMAC_RING_MODE	0x2
 
