@@ -1495,10 +1495,7 @@ static void _spi_transfer_delay_ns(u32 ns)
 	} else {
 		u32 us = DIV_ROUND_UP(ns, NSEC_PER_USEC);
 
-		if (us <= 10)
-			udelay(us);
-		else
-			usleep_range(us, us + DIV_ROUND_UP(us, 10));
+		fsleep(us);
 	}
 }
 
