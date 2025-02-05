@@ -20,8 +20,6 @@
 /* BIDs are addressed by a 16-bit field in a CQE */
 #define MAX_BIDS_PER_BGID (1 << 16)
 
-struct kmem_cache *io_buf_cachep;
-
 struct io_provide_buf {
 	struct file			*file;
 	__u64				addr;
@@ -411,7 +409,7 @@ void io_destroy_buffers(struct io_ring_ctx *ctx)
 
 	list_for_each_safe(item, tmp, &ctx->io_buffers_cache) {
 		buf = list_entry(item, struct io_buffer, list);
-		kmem_cache_free(io_buf_cachep, buf);
+		kfree(buf);
 	}
 }
 
@@ -521,7 +519,7 @@ static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
 		spin_unlock(&ctx->completion_lock);
 	}
 
-	buf = kmem_cache_alloc(io_buf_cachep, GFP_KERNEL);
+	buf = kmalloc(sizeof(*buf), GFP_KERNEL_ACCOUNT);
 	if (!buf)
 		return -ENOMEM;
 	list_add_tail(&buf->list, &ctx->io_buffers_cache);
