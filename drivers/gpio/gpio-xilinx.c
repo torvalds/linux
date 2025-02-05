@@ -71,23 +71,6 @@ struct xgpio_instance {
 	struct clk *clk;
 };
 
-static inline u32 xgpio_get_value32(const unsigned long *map, int bit)
-{
-	const size_t index = BIT_WORD(bit);
-	const unsigned long offset = (bit % BITS_PER_LONG) & BIT(5);
-
-	return (map[index] >> offset) & 0xFFFFFFFFul;
-}
-
-static inline void xgpio_set_value32(unsigned long *map, int bit, u32 v)
-{
-	const size_t index = BIT_WORD(bit);
-	const unsigned long offset = (bit % BITS_PER_LONG) & BIT(5);
-
-	map[index] &= ~(0xFFFFFFFFul << offset);
-	map[index] |= (unsigned long)v << offset;
-}
-
 static inline int xgpio_regoffset(struct xgpio_instance *chip, int ch)
 {
 	switch (ch) {
@@ -103,15 +86,17 @@ static inline int xgpio_regoffset(struct xgpio_instance *chip, int ch)
 static void xgpio_read_ch(struct xgpio_instance *chip, int reg, int bit, unsigned long *a)
 {
 	void __iomem *addr = chip->regs + reg + xgpio_regoffset(chip, bit / 32);
+	unsigned long value = xgpio_readreg(addr);
 
-	xgpio_set_value32(a, bit, xgpio_readreg(addr));
+	bitmap_write(a, value, round_down(bit, 32), 32);
 }
 
 static void xgpio_write_ch(struct xgpio_instance *chip, int reg, int bit, unsigned long *a)
 {
 	void __iomem *addr = chip->regs + reg + xgpio_regoffset(chip, bit / 32);
+	unsigned long value = bitmap_read(a, round_down(bit, 32), 32);
 
-	xgpio_writereg(addr, xgpio_get_value32(a, bit));
+	xgpio_writereg(addr, value);
 }
 
 static void xgpio_read_ch_all(struct xgpio_instance *chip, int reg, unsigned long *a)
@@ -385,14 +370,15 @@ static void xgpio_irq_mask(struct irq_data *irq_data)
 	unsigned long flags;
 	struct xgpio_instance *chip = irq_data_get_irq_chip_data(irq_data);
 	int irq_offset = irqd_to_hwirq(irq_data);
-	unsigned long bit = find_nth_bit(chip->map, 64, irq_offset);
+	unsigned long bit = find_nth_bit(chip->map, 64, irq_offset), enable;
 	u32 mask = BIT(bit / 32), temp;
 
 	raw_spin_lock_irqsave(&chip->gpio_lock, flags);
 
 	__clear_bit(bit, chip->enable);
 
-	if (xgpio_get_value32(chip->enable, bit) == 0) {
+	enable = bitmap_read(chip->enable, round_down(bit, 32), 32);
+	if (enable == 0) {
 		/* Disable per channel interrupt */
 		temp = xgpio_readreg(chip->regs + XGPIO_IPIER_OFFSET);
 		temp &= ~mask;
@@ -412,17 +398,15 @@ static void xgpio_irq_unmask(struct irq_data *irq_data)
 	unsigned long flags;
 	struct xgpio_instance *chip = irq_data_get_irq_chip_data(irq_data);
 	int irq_offset = irqd_to_hwirq(irq_data);
-	unsigned long bit = find_nth_bit(chip->map, 64, irq_offset);
-	u32 old_enable = xgpio_get_value32(chip->enable, bit);
+	unsigned long bit = find_nth_bit(chip->map, 64, irq_offset), enable;
 	u32 mask = BIT(bit / 32), val;
 
 	gpiochip_enable_irq(&chip->gc, irq_offset);
 
 	raw_spin_lock_irqsave(&chip->gpio_lock, flags);
 
-	__set_bit(bit, chip->enable);
-
-	if (old_enable == 0) {
+	enable = bitmap_read(chip->enable, round_down(bit, 32), 32);
+	if (enable == 0) {
 		/* Clear any existing per-channel interrupts */
 		val = xgpio_readreg(chip->regs + XGPIO_IPISR_OFFSET);
 		val &= mask;
@@ -436,6 +420,8 @@ static void xgpio_irq_unmask(struct irq_data *irq_data)
 		val |= mask;
 		xgpio_writereg(chip->regs + XGPIO_IPIER_OFFSET, val);
 	}
+
+	__set_bit(bit, chip->enable);
 
 	raw_spin_unlock_irqrestore(&chip->gpio_lock, flags);
 }
