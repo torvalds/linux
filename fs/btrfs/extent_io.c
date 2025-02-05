@@ -939,7 +939,6 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	u64 cur = start;
 	u64 extent_offset;
 	u64 last_byte = i_size_read(inode);
-	u64 block_start;
 	struct extent_map *em;
 	int ret = 0;
 	size_t pg_offset = 0;
@@ -966,6 +965,7 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 		enum btrfs_compression_type compress_type = BTRFS_COMPRESS_NONE;
 		bool force_bio_submit = false;
 		u64 disk_bytenr;
+		u64 block_start;
 
 		ASSERT(IS_ALIGNED(cur, fs_info->sectorsize));
 		if (cur >= last_byte) {
@@ -991,9 +991,11 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 			disk_bytenr = em->disk_bytenr;
 		else
 			disk_bytenr = extent_map_block_start(em) + extent_offset;
-		block_start = extent_map_block_start(em);
+
 		if (em->flags & EXTENT_FLAG_PREALLOC)
 			block_start = EXTENT_MAP_HOLE;
+		else
+			block_start = extent_map_block_start(em);
 
 		/*
 		 * If we have a file range that points to a compressed extent
