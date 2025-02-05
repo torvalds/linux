@@ -160,14 +160,13 @@ static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
 	return ret;
 }
 
-static inline void __io_put_kbuf_list(struct io_kiocb *req, int len,
-				      struct list_head *list)
+static inline void __io_put_kbuf_list(struct io_kiocb *req, int len)
 {
 	if (req->flags & REQ_F_BUFFER_RING) {
 		__io_put_kbuf_ring(req, len, 1);
 	} else {
 		req->buf_index = req->kbuf->bgid;
-		list_add(&req->kbuf->list, list);
+		list_add(&req->kbuf->list, &req->ctx->io_buffers_comp);
 		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
 }
@@ -179,7 +178,7 @@ static inline void io_kbuf_drop(struct io_kiocb *req)
 
 	spin_lock(&req->ctx->completion_lock);
 	/* len == 0 is fine here, non-ring will always drop all of it */
-	__io_put_kbuf_list(req, 0, &req->ctx->io_buffers_comp);
+	__io_put_kbuf_list(req, 0);
 	spin_unlock(&req->ctx->completion_lock);
 }
 
