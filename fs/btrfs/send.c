@@ -566,19 +566,9 @@ static int fs_path_add(struct fs_path *p, const char *name, int name_len)
 	return 0;
 }
 
-static int fs_path_add_path(struct fs_path *p, struct fs_path *p2)
+static inline int fs_path_add_path(struct fs_path *p, const struct fs_path *p2)
 {
-	int ret;
-	const int p2_len = fs_path_len(p2);
-	char *prepared;
-
-	ret = fs_path_prepare_for_add(p, p2_len, &prepared);
-	if (ret < 0)
-		goto out;
-	memcpy(prepared, p2->start, p2_len);
-
-out:
-	return ret;
+	return fs_path_add(p, p2->start, fs_path_len(p2));
 }
 
 static int fs_path_add_from_extent_buffer(struct fs_path *p,
