@@ -85,7 +85,7 @@ void *get_shadow_from_swap_cache(swp_entry_t entry)
 
 /*
  * add_to_swap_cache resembles filemap_add_folio on swapper_space,
- * but sets SwapCache flag and private instead of mapping and index.
+ * but sets SwapCache flag and 'swap' instead of mapping and index.
  */
 int add_to_swap_cache(struct folio *folio, swp_entry_t entry,
 			gfp_t gfp, void **shadowp)
