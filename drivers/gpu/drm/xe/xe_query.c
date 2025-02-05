@@ -121,6 +121,9 @@ query_engine_cycles(struct xe_device *xe,
 	struct xe_gt *gt;
 	unsigned int fw_ref;
 
+	if (IS_SRIOV_VF(xe))
+		return -EOPNOTSUPP;
+
 	if (query->size == 0) {
 		query->size = size;
 		return 0;
