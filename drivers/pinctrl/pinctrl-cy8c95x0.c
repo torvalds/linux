@@ -40,6 +40,7 @@
 
 /* Port Select configures the port */
 #define CY8C95X0_PORTSEL	0x18
+
 /* Port settings, write PORTSEL first */
 #define CY8C95X0_INTMASK	0x19
 #define CY8C95X0_SELPWM		0x1A
@@ -53,6 +54,9 @@
 #define CY8C95X0_DRV_PP_FAST	0x21
 #define CY8C95X0_DRV_PP_SLOW	0x22
 #define CY8C95X0_DRV_HIZ	0x23
+
+/* Internal device configuration */
+#define CY8C95X0_ENABLE_WDE	0x2D
 #define CY8C95X0_DEVID		0x2E
 #define CY8C95X0_WATCHDOG	0x2F
 #define CY8C95X0_COMMAND	0x30
