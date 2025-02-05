@@ -270,9 +270,7 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
 		xa_unlock_irq(&address_space->i_pages);
 
 		/* search the next swapcache until we meet end */
-		curr >>= SWAP_ADDRESS_SPACE_SHIFT;
-		curr++;
-		curr <<= SWAP_ADDRESS_SPACE_SHIFT;
+		curr = ALIGN((curr + 1), SWAP_ADDRESS_SPACE_PAGES);
 		if (curr > end)
 			break;
 	}
