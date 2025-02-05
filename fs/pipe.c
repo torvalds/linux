@@ -878,6 +878,8 @@ static const struct dentry_operations pipefs_dentry_operations = {
 	.d_dname	= pipefs_dname,
 };
 
+static const struct file_operations pipeanon_fops;
+
 static struct inode * get_pipe_inode(void)
 {
 	struct inode *inode = new_inode_pseudo(pipe_mnt->mnt_sb);
@@ -895,7 +897,7 @@ static struct inode * get_pipe_inode(void)
 	inode->i_pipe = pipe;
 	pipe->files = 2;
 	pipe->readers = pipe->writers = 1;
-	inode->i_fop = &pipefifo_fops;
+	inode->i_fop = &pipeanon_fops;
 
 	/*
 	 * Mark the inode dirty from the very beginning,
@@ -938,7 +940,7 @@ int create_pipe_files(struct file **res, int flags)
 
 	f = alloc_file_pseudo(inode, pipe_mnt, "",
 				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
-				&pipefifo_fops);
+				&pipeanon_fops);
 	if (IS_ERR(f)) {
 		free_pipe_info(inode->i_pipe);
 		iput(inode);
@@ -949,7 +951,7 @@ int create_pipe_files(struct file **res, int flags)
 	f->f_pipe = 0;
 
 	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
-				  &pipefifo_fops);
+				  &pipeanon_fops);
 	if (IS_ERR(res[0])) {
 		put_pipe_info(inode, inode->i_pipe);
 		fput(f);
@@ -1107,8 +1109,8 @@ static void wake_up_partner(struct pipe_inode_info *pipe)
 
 static int fifo_open(struct inode *inode, struct file *filp)
 {
+	bool is_pipe = inode->i_fop == &pipeanon_fops;
 	struct pipe_inode_info *pipe;
-	bool is_pipe = inode->i_sb->s_magic == PIPEFS_MAGIC;
 	int ret;
 
 	filp->f_pipe = 0;
@@ -1231,6 +1233,17 @@ err:
 }
 
 const struct file_operations pipefifo_fops = {
+	.open		= fifo_open,
+	.read_iter	= pipe_read,
+	.write_iter	= pipe_write,
+	.poll		= pipe_poll,
+	.unlocked_ioctl	= pipe_ioctl,
+	.release	= pipe_release,
+	.fasync		= pipe_fasync,
+	.splice_write	= iter_file_splice_write,
+};
+
+static const struct file_operations pipeanon_fops = {
 	.open		= fifo_open,
 	.read_iter	= pipe_read,
 	.write_iter	= pipe_write,
@@ -1388,7 +1401,9 @@ struct pipe_inode_info *get_pipe_info(struct file *file, bool for_splice)
 {
 	struct pipe_inode_info *pipe = file->private_data;
 
-	if (file->f_op != &pipefifo_fops || !pipe)
+	if (!pipe)
+		return NULL;
+	if (file->f_op != &pipefifo_fops && file->f_op != &pipeanon_fops)
 		return NULL;
 	if (for_splice && pipe_has_watch_queue(pipe))
 		return NULL;
