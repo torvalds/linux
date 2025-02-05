@@ -85,7 +85,9 @@ static struct snd_soc_dai_driver dmic_dai = {
 			| SNDRV_PCM_FMTBIT_S16_LE
 			| SNDRV_PCM_FMTBIT_DSD_U8
 			| SNDRV_PCM_FMTBIT_DSD_U16_LE
-			| SNDRV_PCM_FMTBIT_DSD_U32_LE,
+			| SNDRV_PCM_FMTBIT_DSD_U32_LE
+			| SNDRV_PCM_FMTBIT_DSD_U16_BE
+			| SNDRV_PCM_FMTBIT_DSD_U32_BE,
 	},
 	.ops    = &dmic_dai_ops,
 };
