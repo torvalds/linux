@@ -26,6 +26,18 @@ struct sdca_function_desc;
  */
 #define SDCA_MAX_INIT_COUNT 2048
 
+/*
+ * The Cluster IDs are 16-bit, so a maximum of 65535 Clusters per
+ * function can be represented, however limit this to a slightly
+ * more reasonable value. Can be expanded if needed.
+ */
+#define SDCA_MAX_CLUSTER_COUNT 256
+
+/*
+ * Sanity check on number of channels per Cluster, can be expanded if needed.
+ */
+#define SDCA_MAX_CHANNEL_COUNT 32
+
 /**
  * enum sdca_function_type - SDCA Function Type codes
  * @SDCA_FUNCTION_TYPE_SMART_AMP: Amplifier with protection features.
@@ -733,12 +745,168 @@ struct sdca_entity {
 };
 
 /**
+ * enum sdca_channel_purpose - SDCA Channel Purpose code
+ *
+ * Channel Purpose codes as described in the SDCA specification v1.0
+ * section 11.4.3.
+ */
+enum sdca_channel_purpose {
+	/* Table 210 - Purpose */
+	SDCA_CHAN_PURPOSE_GENERIC_AUDIO			= 0x01,
+	SDCA_CHAN_PURPOSE_VOICE				= 0x02,
+	SDCA_CHAN_PURPOSE_SPEECH			= 0x03,
+	SDCA_CHAN_PURPOSE_AMBIENT			= 0x04,
+	SDCA_CHAN_PURPOSE_REFERENCE			= 0x05,
+	SDCA_CHAN_PURPOSE_ULTRASOUND			= 0x06,
+	SDCA_CHAN_PURPOSE_SENSE				= 0x08,
+	SDCA_CHAN_PURPOSE_SILENCE			= 0xFE,
+	SDCA_CHAN_PURPOSE_NON_AUDIO			= 0xFF,
+	/* Table 211 - Amp Sense */
+	SDCA_CHAN_PURPOSE_SENSE_V1			= 0x09,
+	SDCA_CHAN_PURPOSE_SENSE_V2			= 0x0A,
+	SDCA_CHAN_PURPOSE_SENSE_V12_INTERLEAVED		= 0x10,
+	SDCA_CHAN_PURPOSE_SENSE_V21_INTERLEAVED		= 0x11,
+	SDCA_CHAN_PURPOSE_SENSE_V12_PACKED		= 0x12,
+	SDCA_CHAN_PURPOSE_SENSE_V21_PACKED		= 0x13,
+	SDCA_CHAN_PURPOSE_SENSE_V1212_INTERLEAVED	= 0x14,
+	SDCA_CHAN_PURPOSE_SENSE_V2121_INTERLEAVED	= 0x15,
+	SDCA_CHAN_PURPOSE_SENSE_V1122_INTERLEAVED	= 0x16,
+	SDCA_CHAN_PURPOSE_SENSE_V2211_INTERLEAVED	= 0x17,
+	SDCA_CHAN_PURPOSE_SENSE_V1212_PACKED		= 0x18,
+	SDCA_CHAN_PURPOSE_SENSE_V2121_PACKED		= 0x19,
+	SDCA_CHAN_PURPOSE_SENSE_V1122_PACKED		= 0x1A,
+	SDCA_CHAN_PURPOSE_SENSE_V2211_PACKED		= 0x1B,
+};
+
+/**
+ * enum sdca_channel_relationship - SDCA Channel Relationship code
+ *
+ * Channel Relationship codes as described in the SDCA specification
+ * v1.0 section 11.4.2.
+ */
+enum sdca_channel_relationship {
+	/* Table 206 - Streaming */
+	SDCA_CHAN_REL_UNDEFINED				= 0x00,
+	SDCA_CHAN_REL_GENERIC_MONO			= 0x01,
+	SDCA_CHAN_REL_GENERIC_LEFT			= 0x02,
+	SDCA_CHAN_REL_GENERIC_RIGHT			= 0x03,
+	SDCA_CHAN_REL_GENERIC_TOP			= 0x48,
+	SDCA_CHAN_REL_GENERIC_BOTTOM			= 0x49,
+	SDCA_CHAN_REL_CAPTURE_DIRECT			= 0x4E,
+	SDCA_CHAN_REL_RENDER_DIRECT			= 0x4F,
+	SDCA_CHAN_REL_FRONT_LEFT			= 0x0B,
+	SDCA_CHAN_REL_FRONT_RIGHT			= 0x0C,
+	SDCA_CHAN_REL_FRONT_CENTER			= 0x0D,
+	SDCA_CHAN_REL_SIDE_LEFT				= 0x12,
+	SDCA_CHAN_REL_SIDE_RIGHT			= 0x13,
+	SDCA_CHAN_REL_BACK_LEFT				= 0x16,
+	SDCA_CHAN_REL_BACK_RIGHT			= 0x17,
+	SDCA_CHAN_REL_LOW_FREQUENCY_EFFECTS		= 0x43,
+	SDCA_CHAN_REL_SOUNDWIRE_MIC			= 0x55,
+	SDCA_CHAN_REL_SENSE_TRANSDUCER_1		= 0x58,
+	SDCA_CHAN_REL_SENSE_TRANSDUCER_2		= 0x59,
+	SDCA_CHAN_REL_SENSE_TRANSDUCER_12		= 0x5A,
+	SDCA_CHAN_REL_SENSE_TRANSDUCER_21		= 0x5B,
+	SDCA_CHAN_REL_ECHOREF_NONE			= 0x70,
+	SDCA_CHAN_REL_ECHOREF_1				= 0x71,
+	SDCA_CHAN_REL_ECHOREF_2				= 0x72,
+	SDCA_CHAN_REL_ECHOREF_3				= 0x73,
+	SDCA_CHAN_REL_ECHOREF_4				= 0x74,
+	SDCA_CHAN_REL_ECHOREF_ALL			= 0x75,
+	SDCA_CHAN_REL_ECHOREF_LFE_ALL			= 0x76,
+	/* Table 207 - Speaker */
+	SDCA_CHAN_REL_PRIMARY_TRANSDUCER		= 0x50,
+	SDCA_CHAN_REL_SECONDARY_TRANSDUCER		= 0x51,
+	SDCA_CHAN_REL_TERTIARY_TRANSDUCER		= 0x52,
+	SDCA_CHAN_REL_LOWER_LEFT_ALLTRANSDUCER		= 0x60,
+	SDCA_CHAN_REL_LOWER_RIGHT_ALLTRANSDUCER		= 0x61,
+	SDCA_CHAN_REL_UPPER_LEFT_ALLTRANSDUCER		= 0x62,
+	SDCA_CHAN_REL_UPPER_RIGHT_ALLTRANSDUCER		= 0x63,
+	SDCA_CHAN_REL_LOWER_LEFT_PRIMARY		= 0x64,
+	SDCA_CHAN_REL_LOWER_RIGHT_PRIMARY		= 0x65,
+	SDCA_CHAN_REL_UPPER_LEFT_PRIMARY		= 0x66,
+	SDCA_CHAN_REL_UPPER_RIGHT_PRIMARY		= 0x67,
+	SDCA_CHAN_REL_LOWER_LEFT_SECONDARY		= 0x68,
+	SDCA_CHAN_REL_LOWER_RIGHT_SECONDARY		= 0x69,
+	SDCA_CHAN_REL_UPPER_LEFT_SECONDARY		= 0x6A,
+	SDCA_CHAN_REL_UPPER_RIGHT_SECONDARY		= 0x6B,
+	SDCA_CHAN_REL_LOWER_LEFT_TERTIARY		= 0x6C,
+	SDCA_CHAN_REL_LOWER_RIGHT_TERTIARY		= 0x6D,
+	SDCA_CHAN_REL_UPPER_LEFT_TERTIARY		= 0x6E,
+	SDCA_CHAN_REL_UPPER_RIGHT_TERTIARY		= 0x6F,
+	SDCA_CHAN_REL_DERIVED_LOWER_LEFT_PRIMARY	= 0x94,
+	SDCA_CHAN_REL_DERIVED_LOWER_RIGHT_PRIMARY	= 0x95,
+	SDCA_CHAN_REL_DERIVED_UPPER_LEFT_PRIMARY	= 0x96,
+	SDCA_CHAN_REL_DERIVED_UPPER_RIGHT_PRIMARY	= 0x97,
+	SDCA_CHAN_REL_DERIVED_LOWER_LEFT_SECONDARY	= 0x98,
+	SDCA_CHAN_REL_DERIVED_LOWER_RIGHT_SECONDARY	= 0x99,
+	SDCA_CHAN_REL_DERIVED_UPPER_LEFT_SECONDARY	= 0x9A,
+	SDCA_CHAN_REL_DERIVED_UPPER_RIGHT_SECONDARY	= 0x9B,
+	SDCA_CHAN_REL_DERIVED_LOWER_LEFT_TERTIARY	= 0x9C,
+	SDCA_CHAN_REL_DERIVED_LOWER_RIGHT_TERTIARY	= 0x9D,
+	SDCA_CHAN_REL_DERIVED_UPPER_LEFT_TERTIARY	= 0x9E,
+	SDCA_CHAN_REL_DERIVED_UPPER_RIGHT_TERTIARY	= 0x9F,
+	SDCA_CHAN_REL_DERIVED_MONO_PRIMARY		= 0xA0,
+	SDCA_CHAN_REL_DERIVED_MONO_SECONDARY		= 0xAB,
+	SDCA_CHAN_REL_DERIVED_MONO_TERTIARY		= 0xAC,
+	/* Table 208 - Equipment */
+	SDCA_CHAN_REL_EQUIPMENT_LEFT			= 0x02,
+	SDCA_CHAN_REL_EQUIPMENT_RIGHT			= 0x03,
+	SDCA_CHAN_REL_EQUIPMENT_COMBINED		= 0x47,
+	SDCA_CHAN_REL_EQUIPMENT_TOP			= 0x48,
+	SDCA_CHAN_REL_EQUIPMENT_BOTTOM			= 0x49,
+	SDCA_CHAN_REL_EQUIPMENT_TOP_LEFT		= 0x4A,
+	SDCA_CHAN_REL_EQUIPMENT_BOTTOM_LEFT		= 0x4B,
+	SDCA_CHAN_REL_EQUIPMENT_TOP_RIGHT		= 0x4C,
+	SDCA_CHAN_REL_EQUIPMENT_BOTTOM_RIGHT		= 0x4D,
+	SDCA_CHAN_REL_EQUIPMENT_SILENCED_OUTPUT		= 0x57,
+	/* Table 209 - Other */
+	SDCA_CHAN_REL_ARRAY				= 0x04,
+	SDCA_CHAN_REL_MIC				= 0x53,
+	SDCA_CHAN_REL_RAW				= 0x54,
+	SDCA_CHAN_REL_SILENCED_MIC			= 0x56,
+	SDCA_CHAN_REL_MULTI_SOURCE_1			= 0x78,
+	SDCA_CHAN_REL_MULTI_SOURCE_2			= 0x79,
+	SDCA_CHAN_REL_MULTI_SOURCE_3			= 0x7A,
+	SDCA_CHAN_REL_MULTI_SOURCE_4			= 0x7B,
+};
+
+/**
+ * struct sdca_channel - a single Channel with a Cluster
+ * @id: Identifier used for addressing.
+ * @purpose: Indicates the purpose of the Channel, usually to give
+ * semantic meaning to the audio, eg. voice, ultrasound.
+ * @relationship: Indicates the relationship of this Channel to others
+ * in the Cluster, often used to identify the physical position of the
+ * Channel eg. left.
+ */
+struct sdca_channel {
+	int id;
+	enum sdca_channel_purpose purpose;
+	enum sdca_channel_relationship relationship;
+};
+
+/**
+ * struct sdca_cluster - information about an SDCA Channel Cluster
+ * @id: Identifier used for addressing.
+ * @num_channels: Number of Channels within this Cluster.
+ * @channels: Dynamically allocated array of Channels.
+ */
+struct sdca_cluster {
+	int id;
+	int num_channels;
+	struct sdca_channel *channels;
+};
+
+/**
  * struct sdca_function_data - top-level information for one SDCA function
  * @desc: Pointer to short descriptor from initial parsing.
  * @init_table: Pointer to a table of initialization writes.
  * @entities: Dynamically allocated array of Entities.
+ * @clusters: Dynamically allocated array of Channel Clusters.
  * @num_init_table: Number of initialization writes.
  * @num_entities: Number of Entities reported in this Function.
+ * @num_clusters: Number of Channel Clusters reported in this Function.
  * @busy_max_delay: Maximum Function busy delay in microseconds, before an
  * error should be reported.
  */
@@ -747,8 +915,10 @@ struct sdca_function_data {
 
 	struct sdca_init_write *init_table;
 	struct sdca_entity *entities;
+	struct sdca_cluster *clusters;
 	int num_init_table;
 	int num_entities;
+	int num_clusters;
 
 	unsigned int busy_max_delay;
 };

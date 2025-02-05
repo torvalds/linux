@@ -1059,6 +1059,167 @@ static int find_sdca_connections(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_cluster_channel(struct device *dev,
+				     struct sdca_cluster *cluster,
+				     struct fwnode_handle *channel_node,
+				     struct sdca_channel *channel)
+{
+	u32 tmp;
+	int ret;
+
+	ret = fwnode_property_read_u32(channel_node, "mipi-sdca-cluster-channel-id", &tmp);
+	if (ret) {
+		dev_err(dev, "cluster %#x: missing channel id: %d\n",
+			cluster->id, ret);
+		return ret;
+	}
+
+	channel->id = tmp;
+
+	ret = fwnode_property_read_u32(channel_node,
+				       "mipi-sdca-cluster-channel-purpose",
+				       &tmp);
+	if (ret) {
+		dev_err(dev, "cluster %#x: channel %#x: missing purpose: %d\n",
+			cluster->id, channel->id, ret);
+		return ret;
+	}
+
+	channel->purpose = tmp;
+
+	ret = fwnode_property_read_u32(channel_node,
+				       "mipi-sdca-cluster-channel-relationship",
+				       &tmp);
+	if (ret) {
+		dev_err(dev, "cluster %#x: channel %#x: missing relationship: %d\n",
+			cluster->id, channel->id, ret);
+		return ret;
+	}
+
+	channel->relationship = tmp;
+
+	dev_info(dev, "cluster %#x: channel id %#x purpose %#x relationship %#x\n",
+		 cluster->id, channel->id, channel->purpose, channel->relationship);
+
+	return 0;
+}
+
+static int find_sdca_cluster_channels(struct device *dev,
+				      struct fwnode_handle *cluster_node,
+				      struct sdca_cluster *cluster)
+{
+	struct sdca_channel *channels;
+	u32 num_channels;
+	int i, ret;
+
+	ret = fwnode_property_read_u32(cluster_node, "mipi-sdca-channel-count",
+				       &num_channels);
+	if (ret < 0) {
+		dev_err(dev, "cluster %#x: failed to read channel list: %d\n",
+			cluster->id, ret);
+		return ret;
+	} else if (num_channels > SDCA_MAX_CHANNEL_COUNT) {
+		dev_err(dev, "cluster %#x: maximum number of channels exceeded\n",
+			cluster->id);
+		return -EINVAL;
+	}
+
+	channels = devm_kcalloc(dev, num_channels, sizeof(*channels), GFP_KERNEL);
+	if (!channels)
+		return -ENOMEM;
+
+	for (i = 0; i < num_channels; i++) {
+		char channel_property[SDCA_PROPERTY_LENGTH];
+		struct fwnode_handle *channel_node;
+
+		/* DisCo uses upper-case for hex numbers */
+		snprintf(channel_property, sizeof(channel_property),
+			 "mipi-sdca-channel-%d-subproperties", i + 1);
+
+		channel_node = fwnode_get_named_child_node(cluster_node, channel_property);
+		if (!channel_node) {
+			dev_err(dev, "cluster %#x: channel node %s not found\n",
+				cluster->id, channel_property);
+			return -EINVAL;
+		}
+
+		ret = find_sdca_cluster_channel(dev, cluster, channel_node, &channels[i]);
+		fwnode_handle_put(channel_node);
+		if (ret)
+			return ret;
+	}
+
+	cluster->num_channels = num_channels;
+	cluster->channels = channels;
+
+	return 0;
+}
+
+static int find_sdca_clusters(struct device *dev,
+			      struct fwnode_handle *function_node,
+			      struct sdca_function_data *function)
+{
+	struct sdca_cluster *clusters;
+	int num_clusters;
+	u32 *cluster_list;
+	int i, ret;
+
+	num_clusters = fwnode_property_count_u32(function_node, "mipi-sdca-cluster-id-list");
+	if (!num_clusters || num_clusters == -EINVAL) {
+		return 0;
+	} else if (num_clusters < 0) {
+		dev_err(dev, "%pfwP: failed to read cluster id list: %d\n",
+			function_node, num_clusters);
+		return num_clusters;
+	} else if (num_clusters > SDCA_MAX_CLUSTER_COUNT) {
+		dev_err(dev, "%pfwP: maximum number of clusters exceeded\n", function_node);
+		return -EINVAL;
+	}
+
+	clusters = devm_kcalloc(dev, num_clusters, sizeof(*clusters), GFP_KERNEL);
+	if (!clusters)
+		return -ENOMEM;
+
+	cluster_list = kcalloc(num_clusters, sizeof(*cluster_list), GFP_KERNEL);
+	if (!cluster_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u32_array(function_node, "mipi-sdca-cluster-id-list",
+				       cluster_list, num_clusters);
+
+	for (i = 0; i < num_clusters; i++)
+		clusters[i].id = cluster_list[i];
+
+	kfree(cluster_list);
+
+	/* now read subproperties */
+	for (i = 0; i < num_clusters; i++) {
+		char cluster_property[SDCA_PROPERTY_LENGTH];
+		struct fwnode_handle *cluster_node;
+
+		/* DisCo uses upper-case for hex numbers */
+		snprintf(cluster_property, sizeof(cluster_property),
+			 "mipi-sdca-cluster-id-0x%X-subproperties", clusters[i].id);
+
+		cluster_node = fwnode_get_named_child_node(function_node, cluster_property);
+		if (!cluster_node) {
+			dev_err(dev, "%pfwP: cluster node %s not found\n",
+				function_node, cluster_property);
+			return -EINVAL;
+		}
+
+		ret = find_sdca_cluster_channels(dev, cluster_node, &clusters[i]);
+		fwnode_handle_put(cluster_node);
+		if (ret)
+			return ret;
+	}
+
+	function->num_clusters = num_clusters;
+	function->clusters = clusters;
+
+	return 0;
+}
+
 /**
  * sdca_parse_function - parse ACPI DisCo for a Function
  * @dev: Pointer to device against which function data will be allocated.
@@ -1094,6 +1255,10 @@ int sdca_parse_function(struct device *dev,
 
 	ret = find_sdca_connections(dev, function_desc->node, function);
 	if (ret)
+		return ret;
+
+	ret = find_sdca_clusters(dev, function_desc->node, function);
+	if (ret < 0)
 		return ret;
 
 	return 0;
