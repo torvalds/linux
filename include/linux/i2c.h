@@ -244,6 +244,7 @@ enum i2c_driver_flags {
  * @id_table: List of I2C devices supported by this driver
  * @detect: Callback for device detection
  * @address_list: The I2C addresses to probe (for detect)
+ * @clients: List of detected clients we created (for i2c-core use only)
  * @flags: A bitmask of flags defined in &enum i2c_driver_flags
  *
  * The driver.owner field should be set to the module owner of this driver.
@@ -298,6 +299,7 @@ struct i2c_driver {
 	/* Device detection callback for automatic device creation */
 	int (*detect)(struct i2c_client *client, struct i2c_board_info *info);
 	const unsigned short *address_list;
+	struct list_head clients;
 
 	u32 flags;
 };
@@ -334,7 +336,6 @@ struct i2c_client {
 #define I2C_CLIENT_SLAVE	0x20	/* we are the slave */
 #define I2C_CLIENT_HOST_NOTIFY	0x40	/* We want to use I2C host notify */
 #define I2C_CLIENT_WAKE		0x80	/* for board_info; true iff can wake */
-#define I2C_CLIENT_AUTO		0x100	/* client was auto-detected */
 #define I2C_CLIENT_SCCB		0x9000	/* Use Omnivision SCCB protocol */
 					/* Must match I2C_M_STOP|IGNORE_NAK */
 
