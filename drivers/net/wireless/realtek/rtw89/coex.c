@@ -4583,17 +4583,11 @@ static void _action_bt_hid(struct rtw89_dev *rtwdev)
 static void _action_bt_a2dp(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
-	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
-	if (a2dp.vendor_id == 0x4c || dm->leak_ap || bt_linfo->slave_role)
-		dm->slot_dur[CXST_W1] = 20;
-	else
-		dm->slot_dur[CXST_W1] = 40;
-
+	dm->slot_dur[CXST_W1] = 20;
 	dm->slot_dur[CXST_B1] = BTC_B1_MAX;
 
 	switch (btc->cx.state_map) {
@@ -4690,17 +4684,11 @@ static void _action_bt_pan(struct rtw89_dev *rtwdev)
 static void _action_bt_a2dp_hid(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
-	struct rtw89_btc_bt_link_info *bt_linfo = &btc->cx.bt.link_info;
-	struct rtw89_btc_bt_a2dp_desc a2dp = bt_linfo->a2dp_desc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 
 	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W2G);
 
-	if (a2dp.vendor_id == 0x4c || dm->leak_ap || bt_linfo->slave_role)
-		dm->slot_dur[CXST_W1] = 20;
-	else
-		dm->slot_dur[CXST_W1] = 40;
-
+	dm->slot_dur[CXST_W1] = 20;
 	dm->slot_dur[CXST_B1] = BTC_B1_MAX;
 
 	switch (btc->cx.state_map) {
