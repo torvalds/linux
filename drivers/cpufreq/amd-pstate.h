@@ -70,13 +70,13 @@ struct amd_cpudata {
 	struct	freq_qos_request req[2];
 	u64	cppc_req_cached;
 
-	u32	highest_perf;
-	u32	nominal_perf;
-	u32	lowest_nonlinear_perf;
-	u32	lowest_perf;
-	u32     prefcore_ranking;
-	u32     min_limit_perf;
-	u32     max_limit_perf;
+	u8	highest_perf;
+	u8	nominal_perf;
+	u8	lowest_nonlinear_perf;
+	u8	lowest_perf;
+	u8	prefcore_ranking;
+	u8	min_limit_perf;
+	u8	max_limit_perf;
 	u32     min_limit_freq;
 	u32     max_limit_freq;
 
@@ -93,11 +93,11 @@ struct amd_cpudata {
 	bool	hw_prefcore;
 
 	/* EPP feature related attributes*/
-	s16	epp_cached;
+	u8	epp_cached;
 	u32	policy;
 	u64	cppc_cap1_cached;
 	bool	suspended;
-	s16	epp_default;
+	u8	epp_default;
 };
 
 /*
