@@ -615,7 +615,7 @@ static int amd_pstate_update_freq(struct cpufreq_policy *policy,
 {
 	struct cpufreq_freqs freqs;
 	struct amd_cpudata *cpudata = policy->driver_data;
-	unsigned long max_perf, min_perf, des_perf, cap_perf;
+	unsigned long des_perf, cap_perf;
 
 	if (!cpudata->max_freq)
 		return -ENODEV;
@@ -624,8 +624,6 @@ static int amd_pstate_update_freq(struct cpufreq_policy *policy,
 		amd_pstate_update_min_max_limit(policy);
 
 	cap_perf = READ_ONCE(cpudata->highest_perf);
-	min_perf = READ_ONCE(cpudata->lowest_perf);
-	max_perf = cap_perf;
 
 	freqs.old = policy->cur;
 	freqs.new = target_freq;
@@ -642,8 +640,9 @@ static int amd_pstate_update_freq(struct cpufreq_policy *policy,
 	if (!fast_switch)
 		cpufreq_freq_transition_begin(policy, &freqs);
 
-	amd_pstate_update(cpudata, min_perf, des_perf,
-			max_perf, fast_switch, policy->governor->flags);
+	amd_pstate_update(cpudata, cpudata->min_limit_perf, des_perf,
+			  cpudata->max_limit_perf, fast_switch,
+			  policy->governor->flags);
 
 	if (!fast_switch)
 		cpufreq_freq_transition_end(policy, &freqs, false);
