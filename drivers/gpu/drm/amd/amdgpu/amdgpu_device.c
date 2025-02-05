@@ -1397,6 +1397,9 @@ static uint32_t amdgpu_device_get_vbios_flags(struct amdgpu_device *adev)
 	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU))
 		return AMDGPU_VBIOS_SKIP;
 
+	if (hweight32(adev->aid_mask) && amdgpu_passthrough(adev))
+		return AMDGPU_VBIOS_OPTIONAL;
+
 	return 0;
 }
 
