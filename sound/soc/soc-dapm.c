@@ -2783,7 +2783,6 @@ int snd_soc_dapm_update_dai(struct snd_pcm_substream *substream,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_update_dai);
 
 int snd_soc_dapm_widget_name_cmp(struct snd_soc_dapm_widget *widget, const char *s)
 {
