@@ -3375,10 +3375,10 @@ void ieee80211_mgd_set_link_qos_params(struct ieee80211_link_data *link)
 
 /* MLME */
 static bool
-ieee80211_sta_wmm_params(struct ieee80211_local *local,
-			 struct ieee80211_link_data *link,
-			 const u8 *wmm_param, size_t wmm_param_len,
-			 const struct ieee80211_mu_edca_param_set *mu_edca)
+_ieee80211_sta_wmm_params(struct ieee80211_local *local,
+			  struct ieee80211_link_data *link,
+			  const u8 *wmm_param, size_t wmm_param_len,
+			  const struct ieee80211_mu_edca_param_set *mu_edca)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_tx_queue_params params[IEEE80211_NUM_ACS];
@@ -3506,6 +3506,19 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 		link->tx_conf[ac] = params[ac];
+
+	return true;
+}
+
+static bool
+ieee80211_sta_wmm_params(struct ieee80211_local *local,
+			 struct ieee80211_link_data *link,
+			 const u8 *wmm_param, size_t wmm_param_len,
+			 const struct ieee80211_mu_edca_param_set *mu_edca)
+{
+	if (!_ieee80211_sta_wmm_params(local, link, wmm_param, wmm_param_len,
+				       mu_edca))
+		return false;
 
 	ieee80211_mgd_set_link_qos_params(link);
 
