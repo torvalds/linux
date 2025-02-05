@@ -514,8 +514,6 @@ int snd_soc_dapm_force_enable_pin(struct snd_soc_dapm_context *dapm, const char 
 int snd_soc_dapm_force_enable_pin_unlocked(struct snd_soc_dapm_context *dapm, const char *pin);
 int snd_soc_dapm_ignore_suspend(struct snd_soc_dapm_context *dapm, const char *pin);
 unsigned int dapm_kcontrol_get_value(const struct snd_kcontrol *kcontrol);
-
-/* Mostly internal - should not normally be used */
 void dapm_mark_endpoints_dirty(struct snd_soc_card *card);
 
 /* dapm path query */
