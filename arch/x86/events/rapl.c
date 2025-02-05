@@ -274,8 +274,7 @@ static void rapl_hrtimer_init(struct rapl_pmu *rapl_pmu)
 {
 	struct hrtimer *hr = &rapl_pmu->hrtimer;
 
-	hrtimer_init(hr, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hr->function = rapl_hrtimer_handle;
+	hrtimer_setup(hr, rapl_hrtimer_handle, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 }
 
 static void __rapl_pmu_event_start(struct rapl_pmu *rapl_pmu,
