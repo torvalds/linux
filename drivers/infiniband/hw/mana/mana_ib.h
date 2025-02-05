@@ -58,6 +58,7 @@ struct mana_ib_adapter_caps {
 	u32 max_send_sge_count;
 	u32 max_recv_sge_count;
 	u32 max_inline_data_size;
+	u64 feature_flags;
 };
 
 struct mana_ib_queue {
@@ -230,6 +231,7 @@ struct mana_ib_query_adapter_caps_resp {
 	u32 max_send_sge_count;
 	u32 max_recv_sge_count;
 	u32 max_inline_data_size;
+	u64 feature_flags;
 }; /* HW Data */
 
 struct mana_rnic_create_adapter_req {

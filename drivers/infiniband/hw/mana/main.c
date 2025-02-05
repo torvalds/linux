@@ -665,7 +665,7 @@ int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *dev)
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_IB_GET_ADAPTER_CAP, sizeof(req),
 			     sizeof(resp));
-	req.hdr.resp.msg_version = GDMA_MESSAGE_V3;
+	req.hdr.resp.msg_version = GDMA_MESSAGE_V4;
 	req.hdr.dev_id = dev->gdma_dev->dev_id;
 
 	err = mana_gd_send_request(mdev_to_gc(dev), sizeof(req),
@@ -694,6 +694,7 @@ int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *dev)
 	caps->max_inline_data_size = resp.max_inline_data_size;
 	caps->max_send_sge_count = resp.max_send_sge_count;
 	caps->max_recv_sge_count = resp.max_recv_sge_count;
+	caps->feature_flags = resp.feature_flags;
 
 	return 0;
 }
