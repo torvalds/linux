@@ -1213,38 +1213,6 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
 
-static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
-{
-	u32 value = 0;
-	/* default behaviour is disabled */
-	bool bios_enable_rfi = false;
-	int ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_RFI_CONFIG, &value);
-
-
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm, "Failed to get DSM RFI, ret=%d\n", ret);
-		return bios_enable_rfi;
-	}
-
-	value &= DSM_VALUE_RFI_DISABLE;
-	/* RFI BIOS CONFIG value can be 0 or 3 only.
-	 * i.e 0 means DDR and DLVR enabled. 3 means DDR and DLVR disabled.
-	 * 1 and 2 are invalid BIOS configurations, So, it's not possible to
-	 * disable ddr/dlvr separately.
-	 */
-	if (!value) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to enable\n");
-		bios_enable_rfi = true;
-	} else if (value == DSM_VALUE_RFI_DISABLE) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to disable\n");
-	} else {
-		IWL_DEBUG_RADIO(mvm,
-				"DSM RFI got invalid value, value=%d\n", value);
-	}
-
-	return bios_enable_rfi;
-}
-
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	struct iwl_lari_config_change_cmd cmd;
@@ -1631,7 +1599,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_uats_init(mvm);
 
 	if (iwl_rfi_supported(mvm)) {
-		if (iwl_mvm_eval_dsm_rfi(mvm))
+		if (iwl_rfi_is_enabled_in_bios(&mvm->fwrt))
 			iwl_rfi_send_config_cmd(mvm, NULL);
 	}
 
