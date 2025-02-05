@@ -13,6 +13,7 @@
 #include <linux/types.h>
 
 struct device;
+struct sdca_entity;
 struct sdca_function_desc;
 
 /*
@@ -672,6 +673,118 @@ struct sdca_control {
 };
 
 /**
+ * enum sdca_terminal_type - SDCA Terminal Types
+ *
+ * Indicate what a Terminal Entity is used for, see in section 6.2.3
+ * of the SDCA v1.0 specification.
+ */
+enum sdca_terminal_type {
+	/* Table 77 - Data Port*/
+	SDCA_TERM_TYPE_GENERIC				= 0x101,
+	SDCA_TERM_TYPE_ULTRASOUND			= 0x180,
+	SDCA_TERM_TYPE_CAPTURE_DIRECT_PCM_MIC		= 0x181,
+	SDCA_TERM_TYPE_RAW_PDM_MIC			= 0x182,
+	SDCA_TERM_TYPE_SPEECH				= 0x183,
+	SDCA_TERM_TYPE_VOICE				= 0x184,
+	SDCA_TERM_TYPE_SECONDARY_PCM_MIC		= 0x185,
+	SDCA_TERM_TYPE_ACOUSTIC_CONTEXT_AWARENESS	= 0x186,
+	SDCA_TERM_TYPE_DTOD_STREAM			= 0x187,
+	SDCA_TERM_TYPE_REFERENCE_STREAM			= 0x188,
+	SDCA_TERM_TYPE_SENSE_CAPTURE			= 0x189,
+	SDCA_TERM_TYPE_STREAMING_MIC			= 0x18A,
+	SDCA_TERM_TYPE_OPTIMIZATION_STREAM		= 0x190,
+	SDCA_TERM_TYPE_PDM_RENDER_STREAM		= 0x191,
+	SDCA_TERM_TYPE_COMPANION_DATA			= 0x192,
+	/* Table 78 - Transducer */
+	SDCA_TERM_TYPE_MICROPHONE_TRANSDUCER		= 0x201,
+	SDCA_TERM_TYPE_MICROPHONE_ARRAY_TRANSDUCER	= 0x205,
+	SDCA_TERM_TYPE_PRIMARY_FULL_RANGE_SPEAKER	= 0x380,
+	SDCA_TERM_TYPE_PRIMARY_LFE_SPEAKER		= 0x381,
+	SDCA_TERM_TYPE_PRIMARY_TWEETER_SPEAKER		= 0x382,
+	SDCA_TERM_TYPE_PRIMARY_ULTRASOUND_SPEAKER	= 0x383,
+	SDCA_TERM_TYPE_SECONDARY_FULL_RANGE_SPEAKER	= 0x390,
+	SDCA_TERM_TYPE_SECONDARY_LFE_SPEAKER		= 0x391,
+	SDCA_TERM_TYPE_SECONDARY_TWEETER_SPEAKER	= 0x392,
+	SDCA_TERM_TYPE_SECONDARY_ULTRASOUND_SPEAKER	= 0x393,
+	SDCA_TERM_TYPE_TERTIARY_FULL_RANGE_SPEAKER	= 0x3A0,
+	SDCA_TERM_TYPE_TERTIARY_LFE_SPEAKER		= 0x3A1,
+	SDCA_TERM_TYPE_TERTIARY_TWEETER_SPEAKER		= 0x3A2,
+	SDCA_TERM_TYPE_TERTIARY_ULTRASOUND_SPEAKER	= 0x3A3,
+	SDCA_TERM_TYPE_SPDIF				= 0x605,
+	SDCA_TERM_TYPE_NDAI_DISPLAY_AUDIO		= 0x610,
+	SDCA_TERM_TYPE_NDAI_USB				= 0x612,
+	SDCA_TERM_TYPE_NDAI_BLUETOOTH_MAIN		= 0x614,
+	SDCA_TERM_TYPE_NDAI_BLUETOOTH_ALTERNATE		= 0x615,
+	SDCA_TERM_TYPE_NDAI_BLUETOOTH_BOTH		= 0x616,
+	SDCA_TERM_TYPE_LINEIN_STEREO			= 0x680,
+	SDCA_TERM_TYPE_LINEIN_FRONT_LR			= 0x681,
+	SDCA_TERM_TYPE_LINEIN_CENTER_LFE		= 0x682,
+	SDCA_TERM_TYPE_LINEIN_SURROUND_LR		= 0x683,
+	SDCA_TERM_TYPE_LINEIN_REAR_LR			= 0x684,
+	SDCA_TERM_TYPE_LINEOUT_STEREO			= 0x690,
+	SDCA_TERM_TYPE_LINEOUT_FRONT_LR			= 0x691,
+	SDCA_TERM_TYPE_LINEOUT_CENTER_LFE		= 0x692,
+	SDCA_TERM_TYPE_LINEOUT_SURROUND_LR		= 0x693,
+	SDCA_TERM_TYPE_LINEOUT_REAR_LR			= 0x694,
+	SDCA_TERM_TYPE_MIC_JACK				= 0x6A0,
+	SDCA_TERM_TYPE_STEREO_JACK			= 0x6B0,
+	SDCA_TERM_TYPE_FRONT_LR_JACK			= 0x6B1,
+	SDCA_TERM_TYPE_CENTER_LFE_JACK			= 0x6B2,
+	SDCA_TERM_TYPE_SURROUND_LR_JACK			= 0x6B3,
+	SDCA_TERM_TYPE_REAR_LR_JACK			= 0x6B4,
+	SDCA_TERM_TYPE_HEADPHONE_JACK			= 0x6C0,
+	SDCA_TERM_TYPE_HEADSET_JACK			= 0x6D0,
+	/* Table 79 - System */
+	SDCA_TERM_TYPE_SENSE_DATA			= 0x280,
+	SDCA_TERM_TYPE_PRIVACY_SIGNALING		= 0x741,
+	SDCA_TERM_TYPE_PRIVACY_INDICATORS		= 0x747,
+};
+
+/**
+ * enum sdca_connector_type - SDCA Connector Types
+ *
+ * Indicate the type of Connector that a Terminal Entity represents,
+ * see section 6.2.4 of the SDCA v1.0 specification.
+ */
+enum sdca_connector_type {
+	SDCA_CONN_TYPE_UNKNOWN				= 0x00,
+	SDCA_CONN_TYPE_2P5MM_JACK			= 0x01,
+	SDCA_CONN_TYPE_3P5MM_JACK			= 0x02,
+	SDCA_CONN_TYPE_QUARTER_INCH_JACK		= 0x03,
+	SDCA_CONN_TYPE_XLR				= 0x05,
+	SDCA_CONN_TYPE_SPDIF_OPTICAL			= 0x06,
+	SDCA_CONN_TYPE_RCA				= 0x07,
+	SDCA_CONN_TYPE_DIN				= 0x0E,
+	SDCA_CONN_TYPE_MINI_DIN				= 0x0F,
+	SDCA_CONN_TYPE_EIAJ_OPTICAL			= 0x13,
+	SDCA_CONN_TYPE_HDMI				= 0x14,
+	SDCA_CONN_TYPE_DISPLAYPORT			= 0x17,
+	SDCA_CONN_TYPE_LIGHTNING			= 0x1B,
+	SDCA_CONN_TYPE_USB_C				= 0x1E,
+	SDCA_CONN_TYPE_OTHER				= 0xFF,
+};
+
+/**
+ * struct sdca_entity_iot - information specific to Input/Output Entities
+ * @clock: Pointer to the Entity providing this Terminal's clock.
+ * @type: Usage of the Terminal Entity.
+ * @connector: Physical Connector of the Terminal Entity.
+ * @reference: Physical Jack number of the Terminal Entity.
+ * @num_transducer: Number of transducers attached to the Terminal Entity.
+ * @is_dataport: Boolean indicating if this Terminal represents a Dataport.
+ */
+struct sdca_entity_iot {
+	struct sdca_entity *clock;
+
+	enum sdca_terminal_type type;
+	enum sdca_connector_type connector;
+	int reference;
+	int num_transducer;
+
+	bool is_dataport;
+};
+
+/**
  * enum sdca_entity_type - SDCA Entity Type codes
  * @SDCA_ENTITY_TYPE_ENTITY_0: Entity 0, not actually from the
  * specification but useful internally as an Entity structure
@@ -732,6 +845,7 @@ enum sdca_entity_type {
  * @controls: Dynamically allocated array of Controls.
  * @num_sources: Number of sources for the Entity.
  * @num_controls: Number of Controls for the Entity.
+ * @iot: Input/Output Terminal specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -742,6 +856,9 @@ struct sdca_entity {
 	struct sdca_control *controls;
 	int num_sources;
 	int num_controls;
+	union {
+		struct sdca_entity_iot iot;
+	};
 };
 
 /**

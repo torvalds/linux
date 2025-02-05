@@ -818,6 +818,69 @@ static int find_sdca_entity_controls(struct device *dev,
 	return 0;
 }
 
+static bool find_sdca_iot_dataport(struct sdca_entity_iot *terminal)
+{
+	switch (terminal->type) {
+	case SDCA_TERM_TYPE_GENERIC:
+	case SDCA_TERM_TYPE_ULTRASOUND:
+	case SDCA_TERM_TYPE_CAPTURE_DIRECT_PCM_MIC:
+	case SDCA_TERM_TYPE_RAW_PDM_MIC:
+	case SDCA_TERM_TYPE_SPEECH:
+	case SDCA_TERM_TYPE_VOICE:
+	case SDCA_TERM_TYPE_SECONDARY_PCM_MIC:
+	case SDCA_TERM_TYPE_ACOUSTIC_CONTEXT_AWARENESS:
+	case SDCA_TERM_TYPE_DTOD_STREAM:
+	case SDCA_TERM_TYPE_REFERENCE_STREAM:
+	case SDCA_TERM_TYPE_SENSE_CAPTURE:
+	case SDCA_TERM_TYPE_STREAMING_MIC:
+	case SDCA_TERM_TYPE_OPTIMIZATION_STREAM:
+	case SDCA_TERM_TYPE_PDM_RENDER_STREAM:
+	case SDCA_TERM_TYPE_COMPANION_DATA:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static int find_sdca_entity_iot(struct device *dev,
+				struct fwnode_handle *entity_node,
+				struct sdca_entity *entity)
+{
+	struct sdca_entity_iot *terminal = &entity->iot;
+	u32 tmp;
+	int ret;
+
+	ret = fwnode_property_read_u32(entity_node, "mipi-sdca-terminal-type", &tmp);
+	if (ret) {
+		dev_err(dev, "%s: terminal type missing: %d\n", entity->label, ret);
+		return ret;
+	}
+
+	terminal->type = tmp;
+	terminal->is_dataport = find_sdca_iot_dataport(terminal);
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-terminal-reference-number", &tmp);
+	if (!ret)
+		terminal->reference = tmp;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-terminal-connector-type", &tmp);
+	if (!ret)
+		terminal->connector = tmp;
+
+	ret = fwnode_property_read_u32(entity_node,
+				       "mipi-sdca-terminal-transducer-count", &tmp);
+	if (!ret)
+		terminal->num_transducer = tmp;
+
+	dev_info(dev, "%s: terminal type %#x ref %#x conn %#x count %d\n",
+		 entity->label, terminal->type, terminal->reference,
+		 terminal->connector, terminal->num_transducer);
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -844,6 +907,17 @@ static int find_sdca_entity(struct device *dev,
 
 	dev_info(dev, "%s: entity %#x type %#x\n",
 		 entity->label, entity->id, entity->type);
+
+	switch (entity->type) {
+	case SDCA_ENTITY_TYPE_IT:
+	case SDCA_ENTITY_TYPE_OT:
+		ret = find_sdca_entity_iot(dev, entity_node, entity);
+		break;
+	default:
+		break;
+	}
+	if (ret)
+		return ret;
 
 	ret = find_sdca_entity_controls(dev, entity_node, entity);
 	if (ret)
@@ -943,6 +1017,46 @@ static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *
 	return NULL;
 }
 
+static int find_sdca_entity_connection_iot(struct device *dev,
+					   struct sdca_function_data *function,
+					   struct fwnode_handle *entity_node,
+					   struct sdca_entity *entity)
+{
+	struct sdca_entity_iot *terminal = &entity->iot;
+	struct fwnode_handle *clock_node;
+	struct sdca_entity *clock_entity;
+	const char *clock_label;
+	int ret;
+
+	clock_node = fwnode_get_named_child_node(entity_node,
+						 "mipi-sdca-terminal-clock-connection");
+	if (!clock_node)
+		return 0;
+
+	ret = fwnode_property_read_string(clock_node, "mipi-sdca-entity-label",
+					  &clock_label);
+	if (ret) {
+		dev_err(dev, "%s: clock label missing: %d\n", entity->label, ret);
+		fwnode_handle_put(clock_node);
+		return ret;
+	}
+
+	clock_entity = find_sdca_entity_by_label(function, clock_label);
+	if (!clock_entity) {
+		dev_err(dev, "%s: failed to find clock with label %s\n",
+			entity->label, clock_label);
+		fwnode_handle_put(clock_node);
+		return -EINVAL;
+	}
+
+	terminal->clock = clock_entity;
+
+	dev_info(dev, "%s -> %s\n", clock_entity->label, entity->label);
+
+	fwnode_handle_put(clock_node);
+	return 0;
+}
+
 static int find_sdca_entity_connection(struct device *dev,
 				       struct sdca_function_data *function,
 				       struct fwnode_handle *entity_node,
@@ -952,6 +1066,19 @@ static int find_sdca_entity_connection(struct device *dev,
 	int num_pins, pin;
 	u64 pin_list;
 	int i, ret;
+
+	switch (entity->type) {
+	case SDCA_ENTITY_TYPE_IT:
+	case SDCA_ENTITY_TYPE_OT:
+		ret = find_sdca_entity_connection_iot(dev, function,
+						      entity_node, entity);
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+	if (ret)
+		return ret;
 
 	ret = fwnode_property_read_u64(entity_node, "mipi-sdca-input-pin-list", &pin_list);
 	if (ret == -EINVAL) {
