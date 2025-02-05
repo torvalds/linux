@@ -50,6 +50,22 @@
 #define PIDFD_NONBLOCK O_NONBLOCK
 #endif
 
+#ifndef PIDFD_SELF_THREAD
+#define PIDFD_SELF_THREAD		-10000 /* Current thread. */
+#endif
+
+#ifndef PIDFD_SELF_THREAD_GROUP
+#define PIDFD_SELF_THREAD_GROUP		-20000 /* Current thread group leader. */
+#endif
+
+#ifndef PIDFD_SELF
+#define PIDFD_SELF		PIDFD_SELF_THREAD
+#endif
+
+#ifndef PIDFD_SELF_PROCESS
+#define PIDFD_SELF_PROCESS	PIDFD_SELF_THREAD_GROUP
+#endif
+
 /*
  * The kernel reserves 300 pids via RESERVED_PIDS in kernel/pid.c
  * That means, when it wraps around any pid < 300 will be skipped.
