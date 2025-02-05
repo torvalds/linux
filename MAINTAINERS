@@ -8036,7 +8036,8 @@ F:	drivers/gpu/drm/ttm/
 F:	include/drm/ttm/
 
 DRM AUTOMATED TESTING
-M:	Helen Koike <helen.koike@collabora.com>
+M:	Helen Koike <helen.fornazier@gmail.com>
+M:	Vignesh Raman <vignesh.raman@collabora.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git https://gitlab.freedesktop.org/drm/misc/kernel.git
