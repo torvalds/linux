@@ -186,6 +186,12 @@ static int cdns_ti_probe(struct platform_device *pdev)
 	data->vbus_divider = device_property_read_bool(dev, "ti,vbus-divider");
 	data->usb2_only = device_property_read_bool(dev, "ti,usb2-only");
 
+	/*
+	 * The call below to pm_runtime_get_sync() MIGHT reset hardware, if it
+	 * detects it as uninitialised. We want to enforce a reset at probe,
+	 * and so do it manually here. This means the first runtime_resume()
+	 * will be a no-op.
+	 */
 	cdns_ti_reset_and_init_hw(data);
 
 	pm_runtime_enable(dev);
@@ -230,6 +236,24 @@ static void cdns_ti_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 }
 
+static int cdns_ti_runtime_resume(struct device *dev)
+{
+	const u32 mask = USBSS_W1_PWRUP_RST | USBSS_W1_MODESTRAP_SEL;
+	struct cdns_ti *data = dev_get_drvdata(dev);
+	u32 w1;
+
+	w1 = cdns_ti_readl(data, USBSS_W1);
+	if ((w1 & mask) != mask)
+		cdns_ti_reset_and_init_hw(data);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cdns_ti_pm_ops = {
+	RUNTIME_PM_OPS(NULL, cdns_ti_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+};
+
 static const struct of_device_id cdns_ti_of_match[] = {
 	{ .compatible = "ti,j721e-usb", },
 	{ .compatible = "ti,am64-usb", },
@@ -243,6 +267,7 @@ static struct platform_driver cdns_ti_driver = {
 	.driver		= {
 		.name	= "cdns3-ti",
 		.of_match_table	= cdns_ti_of_match,
+		.pm     = pm_ptr(&cdns_ti_pm_ops),
 	},
 };
 
