@@ -10391,9 +10391,6 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!sta))
 		return -ENOLINK;
 
-	if (rem_links & BIT(sta->sta.deflink.link_id))
-		return -EINVAL;
-
 	/* Adding links to the set of valid link is done only after a successful
 	 * ML reconfiguration frame exchange. Here prepare the data for the ML
 	 * reconfiguration frame construction and allocate the required
