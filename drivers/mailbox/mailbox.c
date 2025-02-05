@@ -534,9 +534,7 @@ int mbox_controller_register(struct mbox_controller *mbox)
 			return -EINVAL;
 		}
 
-		hrtimer_init(&mbox->poll_hrt, CLOCK_MONOTONIC,
-			     HRTIMER_MODE_REL);
-		mbox->poll_hrt.function = txdone_hrtimer;
+		hrtimer_setup(&mbox->poll_hrt, txdone_hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		spin_lock_init(&mbox->poll_hrt_lock);
 	}
 
