@@ -3042,9 +3042,8 @@ int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 conf_id)
 }
 IWL_EXPORT_SYMBOL(iwl_fw_start_dbg_conf);
 
-void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
-				    u32 timepoint,
-				    u32 timepoint_data)
+static void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
+					   u32 timepoint, u32 timepoint_data)
 {
 	struct iwl_dbg_dump_complete_cmd hcmd_data;
 	struct iwl_host_cmd hcmd = {

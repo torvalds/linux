@@ -324,9 +324,6 @@ static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 }
 
 void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
-void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
-				    u32 timepoint,
-				    u32 timepoint_data);
 bool iwl_fwrt_read_err_table(struct iwl_trans *trans, u32 base, u32 *err_id);
 void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt);
