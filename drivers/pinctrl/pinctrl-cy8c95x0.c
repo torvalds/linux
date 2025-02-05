@@ -1076,7 +1076,7 @@ static irqreturn_t cy8c95x0_irq_handler(int irq, void *devid)
 	if (!ret)
 		return IRQ_RETVAL(0);
 
-	ret = 0;
+	ret = false;
 	for_each_set_bit(level, pending, MAX_LINE) {
 		/* Already accounted for 4bit gap in GPort2 */
 		nested_irq = irq_find_mapping(gc->irq.domain, level);
@@ -1095,7 +1095,7 @@ static irqreturn_t cy8c95x0_irq_handler(int irq, void *devid)
 		else
 			handle_nested_irq(nested_irq);
 
-		ret = 1;
+		ret = true;
 	}
 
 	return IRQ_RETVAL(ret);
