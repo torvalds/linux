@@ -313,15 +313,14 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 	struct spi_gpio *spi_gpio = spi_controller_get_devdata(host);
 	int i;
 
-	if (!pdata || !pdata->num_chipselect)
+	if (!pdata)
 		return -ENODEV;
 
-	/*
-	 * The host needs to think there is a chipselect even if not
-	 * connected
-	 */
-	host->num_chipselect = pdata->num_chipselect ?: 1;
+	/* It's just one always-selected device, fine to continue */
+	if (!pdata->num_chipselect)
+		return 0;
 
+	host->num_chipselect = pdata->num_chipselect;
 	spi_gpio->cs_gpios = devm_kcalloc(dev, host->num_chipselect,
 					  sizeof(*spi_gpio->cs_gpios),
 					  GFP_KERNEL);
