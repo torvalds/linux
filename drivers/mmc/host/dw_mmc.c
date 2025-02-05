@@ -1875,8 +1875,7 @@ static void dw_mci_init_fault(struct dw_mci *host)
 {
 	host->fail_data_crc = (struct fault_attr) FAULT_ATTR_INITIALIZER;
 
-	hrtimer_init(&host->fault_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	host->fault_timer.function = dw_mci_fault_timer;
+	hrtimer_setup(&host->fault_timer, dw_mci_fault_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 }
 #else
 static void dw_mci_init_fault(struct dw_mci *host)
