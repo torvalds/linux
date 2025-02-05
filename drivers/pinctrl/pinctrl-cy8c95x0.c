@@ -517,7 +517,7 @@ static int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
 		regcache_cache_only(chip->regmap, false);
 	}
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -1286,7 +1286,7 @@ static int cy8c95x0_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *configs, unsigned int num_configs)
 {
 	struct cy8c95x0_pinctrl *chip = pinctrl_dev_get_drvdata(pctldev);
-	int ret = 0;
+	int ret;
 	int i;
 
 	for (i = 0; i < num_configs; i++) {
@@ -1295,7 +1295,7 @@ static int cy8c95x0_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 static const struct pinconf_ops cy8c95x0_pinconf_ops = {
