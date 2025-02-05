@@ -1053,7 +1053,6 @@ static int hi556_set_stream(struct v4l2_subdev *sd, int enable)
 
 		ret = hi556_start_streaming(hi556);
 		if (ret) {
-			enable = 0;
 			hi556_stop_streaming(hi556);
 			pm_runtime_put(&client->dev);
 		}
