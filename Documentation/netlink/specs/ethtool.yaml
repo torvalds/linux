@@ -1524,7 +1524,8 @@ attribute-sets:
         nested-attributes: bitset
       -
         name: hwtstamp-flags
-        type: u32
+        type: nest
+        nested-attributes: bitset
 
 operations:
   enum-model: directional
