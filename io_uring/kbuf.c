@@ -501,12 +501,9 @@ int io_provide_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 	return 0;
 }
 
-#define IO_BUFFER_ALLOC_BATCH 64
-
 static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
 {
-	struct io_buffer *bufs[IO_BUFFER_ALLOC_BATCH];
-	int allocated;
+	struct io_buffer *buf;
 
 	/*
 	 * Completions that don't happen inline (eg not under uring_lock) will
@@ -524,27 +521,10 @@ static int io_refill_buffer_cache(struct io_ring_ctx *ctx)
 		spin_unlock(&ctx->completion_lock);
 	}
 
-	/*
-	 * No free buffers and no completion entries either. Allocate a new
-	 * batch of buffer entries and add those to our freelist.
-	 */
-
-	allocated = kmem_cache_alloc_bulk(io_buf_cachep, GFP_KERNEL_ACCOUNT,
-					  ARRAY_SIZE(bufs), (void **) bufs);
-	if (unlikely(!allocated)) {
-		/*
-		 * Bulk alloc is all-or-nothing. If we fail to get a batch,
-		 * retry single alloc to be on the safe side.
-		 */
-		bufs[0] = kmem_cache_alloc(io_buf_cachep, GFP_KERNEL);
-		if (!bufs[0])
-			return -ENOMEM;
-		allocated = 1;
-	}
-
-	while (allocated)
-		list_add_tail(&bufs[--allocated]->list, &ctx->io_buffers_cache);
-
+	buf = kmem_cache_alloc(io_buf_cachep, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	list_add_tail(&buf->list, &ctx->io_buffers_cache);
 	return 0;
 }
 
