@@ -853,10 +853,6 @@ static void amd_pstate_update_limits(unsigned int cpu)
 			sched_set_itmt_core_prio((int)cur_high, cpu);
 	}
 	cpufreq_cpu_put(policy);
-
-	if (!highest_perf_changed)
-		cpufreq_update_policy(cpu);
-
 }
 
 /*
