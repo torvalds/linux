@@ -74,8 +74,6 @@ int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 
-void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags);
-
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
 struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
@@ -194,7 +192,7 @@ static inline unsigned int __io_put_kbufs(struct io_kiocb *req, int len,
 		if (!__io_put_kbuf_ring(req, len, nbufs))
 			ret |= IORING_CQE_F_BUF_MORE;
 	} else {
-		__io_put_kbuf(req, len, issue_flags);
+		__io_put_kbuf_list(req, len);
 	}
 	return ret;
 }
