@@ -203,10 +203,6 @@ bool add_to_swap(struct folio *folio)
 	err = add_to_swap_cache(folio, entry,
 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN, NULL);
 	if (err)
-		/*
-		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-		 * clear SWAP_HAS_CACHE flag.
-		 */
 		goto fail;
 	/*
 	 * Normally the folio will be dirtied in unmap because its
