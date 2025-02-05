@@ -21,7 +21,9 @@
 				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
 				clock-lanes = <0>;
 				data-lanes = <1 2 3>;
-				line-orders = <0 3 0>;
+				line-orders = <MEDIA_BUS_CSI2_CPHY_LINE_ORDER_ABC
+					       MEDIA_BUS_CSI2_CPHY_LINE_ORDER_BCA
+					       MEDIA_BUS_CSI2_CPHY_LINE_ORDER_ABC>;
 				remote-endpoint = <&max96712_out0>;
 			};
 		};
@@ -42,7 +44,9 @@
 				bus-type = <MEDIA_BUS_TYPE_CSI2_CPHY>;
 				clock-lanes = <0>;
 				data-lanes = <1 2 3>;
-				line-orders = <0 3 0>;
+				line-orders = <MEDIA_BUS_CSI2_CPHY_LINE_ORDER_ABC
+					       MEDIA_BUS_CSI2_CPHY_LINE_ORDER_BCA
+					       MEDIA_BUS_CSI2_CPHY_LINE_ORDER_ABC>;
 				remote-endpoint = <&max96712_out1>;
 			};
 		};
