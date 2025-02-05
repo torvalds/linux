@@ -238,7 +238,7 @@ int mpi3mr_issue_diag_buf_post(struct mpi3mr_ioc *mrioc,
 	int retval = 0;
 
 	if (diag_buffer->disabled_after_reset) {
-		dprint_bsg_err(mrioc, "%s: skiping diag buffer posting\n"
+		dprint_bsg_err(mrioc, "%s: skipping diag buffer posting\n"
 				"as it is disabled after reset\n", __func__);
 		return -1;
 	}
