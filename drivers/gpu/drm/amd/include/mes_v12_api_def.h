@@ -310,7 +310,8 @@ union MESAPI_SET_HW_RESOURCES_1 {
 		union {
 			struct {
 				uint32_t enable_mes_debug_ctx : 1;
-				uint32_t reserved : 31;
+				uint32_t mes_coop_mode : 1; /* 0: non-coop; 1: coop */
+				uint32_t reserved : 30;
 			};
 			uint32_t uint32_all;
 		};
@@ -318,7 +319,8 @@ union MESAPI_SET_HW_RESOURCES_1 {
 		uint32_t                            mes_debug_ctx_size;
 		/* unit is 100ms */
 		uint32_t                            mes_kiq_unmap_timeout;
-		uint64_t                            reserved1;
+		/* shared buffer of master/slaves, valid if mes_coop_mode=1 */
+		uint64_t                            coop_sch_shared_mc_addr;
 		uint64_t                            cleaner_shader_fence_mc_addr;
 	};
 
@@ -383,6 +385,7 @@ union MESAPI__ADD_QUEUE {
 		uint32_t		pipe_id;	//used for mapping legacy kernel queue
 		uint32_t		queue_id;
 		uint32_t		alignment_mode_setting;
+		uint32_t		full_sh_mem_config_data;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -672,6 +675,7 @@ union MESAPI__SET_DEBUG_VMID {
 		uint32_t		process_context_array_index;
 
 		uint32_t		alignment_mode_setting;
+		uint32_t		full_sh_mem_config_data;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -696,9 +700,26 @@ enum MESAPI_MISC_OPCODE {
 
 enum {MISC_DATA_MAX_SIZE_IN_DWORDS = 20};
 
+/*
+ * RRMT(Register Remapping Table), allow the firmware to modify the upper
+ * address to correctly steer the register transaction to expected DIE
+ */
+struct RRMT_OPTION {
+	union {
+		struct {
+			uint32_t mode : 4;
+			uint32_t mid_die_id : 4;
+			uint32_t xcd_die_id : 4;
+		};
+		uint32_t all;
+	};
+};
+
+
 struct WRITE_REG {
-	uint32_t	reg_offset;
-	uint32_t	reg_value;
+	uint32_t                  reg_offset;
+	uint32_t                  reg_value;
+	struct RRMT_OPTION        rrmt_opt;
 };
 
 struct READ_REG {
@@ -711,6 +732,7 @@ struct READ_REG {
 		} bits;
 		uint32_t all;
 	} option;
+	struct RRMT_OPTION        rrmt_opt;
 };
 
 struct INV_GART {
@@ -736,6 +758,8 @@ struct WAIT_REG_MEM {
 	uint32_t mask;
 	uint32_t reg_offset1;
 	uint32_t reg_offset2;
+	struct RRMT_OPTION rrmt_opt1; /* for reg1 */
+	struct RRMT_OPTION rrmt_opt2; /* for reg2 */
 };
 
 struct SET_SHADER_DEBUGGER {
