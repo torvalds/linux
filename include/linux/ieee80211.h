@@ -1543,6 +1543,10 @@ struct ieee80211_mgmt {
 					u8 count;
 					u8 variable[];
 				} __packed ml_reconf_resp;
+				struct {
+					u8 action_code;
+					u8 variable[];
+				} __packed epcs;
 			} u;
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
@@ -5569,6 +5573,9 @@ static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len - 1 <= len;
 }
+
+#define IEEE80211_MLE_STA_EPCS_CONTROL_LINK_ID			0x000f
+#define IEEE80211_EPCS_ENA_RESP_BODY_LEN                        3
 
 static inline bool ieee80211_tid_to_link_map_size_ok(const u8 *data, size_t len)
 {

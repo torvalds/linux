@@ -613,6 +613,12 @@ struct ieee80211_if_managed {
 		u16 added_links;
 		u8 dialog_token;
 	} reconf;
+
+	/* Support for epcs */
+	struct {
+		bool enabled;
+		u8 dialog_token;
+	} epcs;
 };
 
 struct ieee80211_if_ibss {
@@ -2775,6 +2781,11 @@ int ieee80211_req_neg_ttlm(struct ieee80211_sub_if_data *sdata,
 void ieee80211_check_wbrf_support(struct ieee80211_local *local);
 void ieee80211_add_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
+int ieee80211_mgd_set_epcs(struct ieee80211_sub_if_data *sdata, bool enable);
+void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len);
+void ieee80211_process_epcs_teardown(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len);
 
 int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_assoc_link *add_links,

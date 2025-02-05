@@ -702,6 +702,7 @@ struct ieee80211_parsed_tpe {
  * @tpe: transmit power envelope information
  * @pwr_reduction: power constraint of BSS.
  * @eht_support: does this BSS support EHT
+ * @epcs_support: does this BSS support EPCS
  * @csa_active: marks whether a channel switch is going on.
  * @mu_mimo_owner: indicates interface owns MU-MIMO capability
  * @chanctx_conf: The channel context this interface is assigned to, or %NULL
@@ -823,7 +824,7 @@ struct ieee80211_bss_conf {
 
 	u8 pwr_reduction;
 	bool eht_support;
-
+	bool epcs_support;
 	bool csa_active;
 
 	bool mu_mimo_owner;

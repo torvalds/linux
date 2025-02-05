@@ -3823,6 +3823,23 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 					u.action.u.ml_reconf_resp) + 3)
 				goto invalid;
 			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_RESP:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.epcs) +
+			    IEEE80211_EPCS_ENA_RESP_BODY_LEN)
+				goto invalid;
+			goto queue;
+		case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+
+			if (len < offsetofend(typeof(*mgmt),
+					      u.action.u.epcs))
+				goto invalid;
+			goto queue;
 		default:
 			break;
 		}

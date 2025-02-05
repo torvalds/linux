@@ -5196,6 +5196,14 @@ ieee80211_assoc_ml_reconf(struct wiphy *wiphy, struct net_device *dev,
 	return ieee80211_mgd_assoc_ml_reconf(sdata, add_links, rem_links);
 }
 
+static int
+ieee80211_set_epcs(struct wiphy *wiphy, struct net_device *dev, bool enable)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	return ieee80211_mgd_set_epcs(sdata, enable);
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -5311,4 +5319,5 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_ttlm = ieee80211_set_ttlm,
 	.get_radio_mask = ieee80211_get_radio_mask,
 	.assoc_ml_reconf = ieee80211_assoc_ml_reconf,
+	.set_epcs = ieee80211_set_epcs,
 };

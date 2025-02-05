@@ -3794,6 +3794,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	/* other links will be destroyed */
 	sdata->deflink.conf->bss = NULL;
+	sdata->deflink.conf->epcs_support = false;
 	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
 
 	netif_carrier_off(sdata->dev);
@@ -3980,6 +3981,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	 * when the flow started.
 	 */
 	ieee80211_ml_reconf_reset(sdata);
+
+	ifmgd->epcs.enabled = false;
+	ifmgd->epcs.dialog_token = 0;
 }
 
 static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
@@ -4848,6 +4852,82 @@ static bool ieee80211_twt_bcast_support(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT);
 }
 
+static void ieee80211_epcs_changed(struct ieee80211_sub_if_data *sdata,
+				   bool enabled)
+{
+	/* in any case this is called, dialog token should be reset */
+	sdata->u.mgd.epcs.dialog_token = 0;
+
+	if (sdata->u.mgd.epcs.enabled == enabled)
+		return;
+
+	sdata->u.mgd.epcs.enabled = enabled;
+	cfg80211_epcs_changed(sdata->dev, enabled);
+}
+
+static void ieee80211_epcs_teardown(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	u8 link_id;
+
+	if (!sdata->u.mgd.epcs.enabled)
+		return;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		struct ieee802_11_elems *elems;
+		struct ieee80211_link_data *link;
+		const struct cfg80211_bss_ies *ies;
+		bool ret;
+
+		rcu_read_lock();
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link || !link->conf || !link->conf->bss) {
+			rcu_read_unlock();
+			continue;
+		}
+
+		if (link->u.mgd.disable_wmm_tracking) {
+			rcu_read_unlock();
+			ieee80211_set_wmm_default(link, false, false);
+			continue;
+		}
+
+		ies = rcu_dereference(link->conf->bss->beacon_ies);
+		if (!ies) {
+			rcu_read_unlock();
+			ieee80211_set_wmm_default(link, false, false);
+			continue;
+		}
+
+		elems = ieee802_11_parse_elems(ies->data, ies->len, false,
+					       NULL);
+		if (!elems) {
+			rcu_read_unlock();
+			ieee80211_set_wmm_default(link, false, false);
+			continue;
+		}
+
+		ret = _ieee80211_sta_wmm_params(local, link,
+						elems->wmm_param,
+						elems->wmm_param_len,
+						elems->mu_edca_param_set);
+
+		kfree(elems);
+		rcu_read_unlock();
+
+		if (!ret) {
+			ieee80211_set_wmm_default(link, false, false);
+			continue;
+		}
+
+		ieee80211_mgd_set_link_qos_params(link);
+		ieee80211_link_info_change_notify(sdata, link, BSS_CHANGED_QOS);
+	}
+}
+
 static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 					struct link_sta_info *link_sta,
 					struct cfg80211_bss *cbss,
@@ -5121,14 +5201,27 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 							    link_sta);
 
 			bss_conf->eht_support = link_sta->pub->eht_cap.has_eht;
+			bss_conf->epcs_support = bss_conf->eht_support &&
+				!!(elems->eht_cap->fixed.mac_cap_info[0] &
+				   IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS);
+
+			/* EPCS might be already enabled but a new added link
+			 * does not support EPCS. This should not really happen
+			 * in practice.
+			 */
+			if (sdata->u.mgd.epcs.enabled &&
+			    !bss_conf->epcs_support)
+				ieee80211_epcs_teardown(sdata);
 		} else {
 			bss_conf->eht_support = false;
+			bss_conf->epcs_support = false;
 		}
 	} else {
 		bss_conf->he_support = false;
 		bss_conf->twt_requester = false;
 		bss_conf->twt_protected = false;
 		bss_conf->eht_support = false;
+		bss_conf->epcs_support = false;
 	}
 
 	bss_conf->twt_broadcast =
@@ -7159,7 +7252,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	ieee80211_mgd_update_bss_param_ch_cnt(sdata, bss_conf, elems);
 
-	if (!link->u.mgd.disable_wmm_tracking &&
+	if (!sdata->u.mgd.epcs.enabled &&
+	    !link->u.mgd.disable_wmm_tracking &&
 	    ieee80211_sta_wmm_params(local, link, elems->wmm_param,
 				     elems->wmm_param_len,
 				     elems->mu_edca_param_set))
@@ -10333,4 +10427,199 @@ int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
  err_free:
 	kfree(data);
 	return err;
+}
+
+static bool ieee80211_mgd_epcs_supp(struct ieee80211_sub_if_data *sdata)
+{
+	unsigned long valid_links = sdata->vif.valid_links;
+	u8 link_id;
+
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
+
+	if (!ieee80211_vif_is_mld(&sdata->vif))
+		return false;
+
+	for_each_set_bit(link_id, &valid_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *bss_conf =
+			sdata_dereference(sdata->vif.link_conf[link_id], sdata);
+
+		if (WARN_ON(!bss_conf) || !bss_conf->epcs_support)
+			return false;
+	}
+
+	return true;
+}
+
+int ieee80211_mgd_set_epcs(struct ieee80211_sub_if_data *sdata, bool enable)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_mgmt *mgmt;
+	struct sk_buff *skb;
+	int frame_len = offsetofend(struct ieee80211_mgmt,
+				    u.action.u.epcs) + (enable ? 1 : 0);
+
+	if (!ieee80211_mgd_epcs_supp(sdata))
+		return -EINVAL;
+
+	if (sdata->u.mgd.epcs.enabled == enable &&
+	    !sdata->u.mgd.epcs.dialog_token)
+		return 0;
+
+	/* Do not allow enabling EPCS if the AP didn't respond yet.
+	 * However, allow disabling EPCS in such a case.
+	 */
+	if (sdata->u.mgd.epcs.dialog_token && enable)
+		return -EALREADY;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + frame_len);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	mgmt = skb_put_zero(skb, frame_len);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	memcpy(mgmt->da, sdata->vif.cfg.ap_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
+
+	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
+	if (enable) {
+		u8 *pos = mgmt->u.action.u.epcs.variable;
+
+		mgmt->u.action.u.epcs.action_code =
+			WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_REQ;
+
+		*pos = ++sdata->u.mgd.dialog_token_alloc;
+		sdata->u.mgd.epcs.dialog_token = *pos;
+	} else {
+		mgmt->u.action.u.epcs.action_code =
+			WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN;
+
+		ieee80211_epcs_teardown(sdata);
+		ieee80211_epcs_changed(sdata, false);
+	}
+
+	ieee80211_tx_skb(sdata, skb);
+	return 0;
+}
+
+static void ieee80211_ml_epcs(struct ieee80211_sub_if_data *sdata,
+			      struct ieee802_11_elems *elems)
+{
+	const struct element *sub;
+	size_t scratch_len = elems->ml_epcs_len;
+	u8 *scratch __free(kfree) = kzalloc(scratch_len, GFP_KERNEL);
+
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
+
+	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_epcs)
+		return;
+
+	if (WARN_ON(!scratch))
+		return;
+
+	/* Directly parse the sub elements as the common information doesn't
+	 * hold any useful information.
+	 */
+	for_each_mle_subelement(sub, (const u8 *)elems->ml_epcs,
+				elems->ml_epcs_len) {
+		struct ieee80211_link_data *link;
+		struct ieee802_11_elems *link_elems __free(kfree);
+		u8 *pos = (void *)sub->data;
+		u16 control;
+		ssize_t len;
+		u8 link_id;
+
+		if (sub->id != IEEE80211_MLE_SUBELEM_PER_STA_PROFILE)
+			continue;
+
+		if (sub->datalen < sizeof(control))
+			break;
+
+		control = get_unaligned_le16(pos);
+		link_id = control & IEEE80211_MLE_STA_EPCS_CONTROL_LINK_ID;
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link)
+			continue;
+
+		len = cfg80211_defragment_element(sub, (u8 *)elems->ml_epcs,
+						  elems->ml_epcs_len,
+						  scratch, scratch_len,
+						  IEEE80211_MLE_SUBELEM_FRAGMENT);
+		if (len < sizeof(control))
+			continue;
+
+		pos = scratch + sizeof(control);
+		len -= sizeof(control);
+
+		link_elems = ieee802_11_parse_elems(pos, len, false, NULL);
+		if (!link_elems)
+			continue;
+
+		if (ieee80211_sta_wmm_params(sdata->local, link,
+					     link_elems->wmm_param,
+					     link_elems->wmm_param_len,
+					     link_elems->mu_edca_param_set))
+			ieee80211_link_info_change_notify(sdata, link,
+							  BSS_CHANGED_QOS);
+	}
+}
+
+void ieee80211_process_epcs_ena_resp(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee802_11_elems *elems __free(kfree) = NULL;
+	size_t ies_len;
+	u16 status_code;
+	u8 *pos, dialog_token;
+
+	if (!ieee80211_mgd_epcs_supp(sdata))
+		return;
+
+	/* Handle dialog token and status code */
+	pos = mgmt->u.action.u.epcs.variable;
+	dialog_token = *pos;
+	status_code = get_unaligned_le16(pos + 1);
+
+	/* An EPCS enable response with dialog token == 0 is an unsolicited
+	 * notification from the AP MLD. In such a case, EPCS should already be
+	 * enabled and status must be success
+	 */
+	if (!dialog_token &&
+	    (!sdata->u.mgd.epcs.enabled ||
+	     status_code != WLAN_STATUS_SUCCESS))
+		return;
+
+	if (sdata->u.mgd.epcs.dialog_token != dialog_token)
+		return;
+
+	sdata->u.mgd.epcs.dialog_token = 0;
+
+	if (status_code != WLAN_STATUS_SUCCESS)
+		return;
+
+	pos += IEEE80211_EPCS_ENA_RESP_BODY_LEN;
+	ies_len = len - offsetof(struct ieee80211_mgmt,
+				 u.action.u.epcs.variable) -
+		IEEE80211_EPCS_ENA_RESP_BODY_LEN;
+
+	elems = ieee802_11_parse_elems(pos, ies_len, true, NULL);
+	if (!elems)
+		return;
+
+	ieee80211_ml_epcs(sdata, elems);
+	ieee80211_epcs_changed(sdata, true);
+}
+
+void ieee80211_process_epcs_teardown(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_mgmt *mgmt, size_t len)
+{
+	if (!ieee80211_vif_is_mld(&sdata->vif) ||
+	    !sdata->u.mgd.epcs.enabled)
+		return;
+
+	ieee80211_epcs_teardown(sdata);
+	ieee80211_epcs_changed(sdata, false);
 }

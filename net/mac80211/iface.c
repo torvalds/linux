@@ -1556,6 +1556,14 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 				ieee80211_process_ml_reconf_resp(sdata, mgmt,
 								 skb->len);
 				break;
+			case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_RESP:
+				ieee80211_process_epcs_ena_resp(sdata, mgmt,
+								skb->len);
+				break;
+			case WLAN_PROTECTED_EHT_ACTION_EPCS_ENABLE_TEARDOWN:
+				ieee80211_process_epcs_teardown(sdata, mgmt,
+								skb->len);
+				break;
 			default:
 				break;
 			}
