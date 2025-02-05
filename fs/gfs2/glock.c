@@ -607,14 +607,19 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 		if (gh && (ret & LM_OUT_CANCELED))
 			gfs2_holder_wake(gh);
 		if (gh && !test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags)) {
-			/* move to back of queue and try next entry */
 			if (ret & LM_OUT_CANCELED) {
-				list_move_tail(&gh->gh_list, &gl->gl_holders);
+				list_del_init(&gh->gh_list);
+				trace_gfs2_glock_queue(gh, 0);
+				gl->gl_target = gl->gl_state;
 				gh = find_first_waiter(gl);
-				gl->gl_target = gh->gh_state;
-				if (do_promote(gl))
-					goto out;
-				goto retry;
+				if (gh) {
+					gl->gl_target = gh->gh_state;
+					if (do_promote(gl))
+						goto out;
+					do_xmote(gl, gh, gl->gl_target);
+					return;
+				}
+				goto out;
 			}
 			/* Some error or failed "try lock" - report it */
 			if ((ret & LM_OUT_ERROR) ||
@@ -627,7 +632,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 		switch(state) {
 		/* Unlocked due to conversion deadlock, try again */
 		case LM_ST_UNLOCKED:
-retry:
 			do_xmote(gl, gh, gl->gl_target);
 			break;
 		/* Conversion fails, unlock and try again */
@@ -1672,6 +1676,8 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 		gl->gl_name.ln_sbd->sd_lockstruct.ls_ops->lm_cancel(gl);
 		wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
 		spin_lock(&gl->gl_lockref.lock);
+		if (!gfs2_holder_queued(gh))
+			goto out;
 	}
 
 	/*
