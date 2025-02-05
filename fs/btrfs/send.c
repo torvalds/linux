@@ -535,7 +535,7 @@ static int fs_path_prepare_for_add(struct fs_path *p, int name_len,
 		new_len++;
 	ret = fs_path_ensure_buf(p, new_len);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (p->reversed) {
 		if (p->start != p->end)
@@ -550,8 +550,7 @@ static int fs_path_prepare_for_add(struct fs_path *p, int name_len,
 		*p->end = 0;
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int fs_path_add(struct fs_path *p, const char *name, int name_len)
