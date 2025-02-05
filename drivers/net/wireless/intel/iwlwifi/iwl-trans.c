@@ -97,7 +97,7 @@ static void iwl_trans_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-#define IWL_TRANS_RESET_OK_TIME	180 /* seconds */
+#define IWL_TRANS_RESET_OK_TIME	7 /* seconds */
 
 static enum iwl_reset_mode
 iwl_trans_determine_restart_mode(struct iwl_trans *trans)
