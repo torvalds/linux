@@ -4118,7 +4118,7 @@ TRACE_EVENT(cfg80211_links_removed,
 		NETDEV_ASSIGN;
 		__entry->link_mask = link_mask;
 	),
-	TP_printk(NETDEV_PR_FMT ", link_mask:%u", NETDEV_PR_ARG,
+	TP_printk(NETDEV_PR_FMT ", link_mask:0x%x", NETDEV_PR_ARG,
 		  __entry->link_mask)
 );
 
