@@ -3943,8 +3943,8 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 		if (rc)
 			return rc;
 	}
-	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	vcpu->arch.ckc_timer.function = kvm_s390_idle_wakeup;
+	hrtimer_setup(&vcpu->arch.ckc_timer, kvm_s390_idle_wakeup, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 
 	vcpu->arch.sie_block->hpid = HPID_KVM;
 
