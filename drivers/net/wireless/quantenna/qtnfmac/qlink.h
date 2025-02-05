@@ -1510,10 +1510,15 @@ enum qlink_tlv_id {
 };
 
 struct qlink_tlv_hdr {
-	__le16 type;
-	__le16 len;
+	/* New members MUST be added within the struct_group() macro below. */
+	__struct_group(qlink_tlv_hdr_fixed, __hdr, __packed,
+		__le16 type;
+		__le16 len;
+	);
 	u8 val[];
 } __packed;
+static_assert(offsetof(struct qlink_tlv_hdr, val) == sizeof(struct qlink_tlv_hdr_fixed),
+	      "struct member likely outside of __struct_group()");
 
 struct qlink_iface_limit {
 	__le16 max_num;
@@ -1567,7 +1572,7 @@ enum qlink_reg_rule_flags {
  * @dfs_cac_ms: DFS CAC period.
  */
 struct qlink_tlv_reg_rule {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	__le32 start_freq_khz;
 	__le32 end_freq_khz;
 	__le32 max_bandwidth_khz;
@@ -1606,7 +1611,7 @@ enum qlink_dfs_state {
  * @channel: ieee80211 channel settings.
  */
 struct qlink_tlv_channel {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	struct qlink_channel chan;
 } __packed;
 
@@ -1618,7 +1623,7 @@ struct qlink_tlv_channel {
  * @chan: channel definition data.
  */
 struct qlink_tlv_chandef {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	struct qlink_chandef chdef;
 } __packed;
 
@@ -1643,7 +1648,7 @@ enum qlink_ie_set_type {
  * @ie_data: IEs data.
  */
 struct qlink_tlv_ie_set {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	u8 type;
 	u8 flags;
 	u8 rsvd[2];
@@ -1657,7 +1662,7 @@ struct qlink_tlv_ie_set {
  * @ie_data: IEs data.
  */
 struct qlink_tlv_ext_ie {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	u8 eid_ext;
 	u8 rsvd[3];
 	u8 ie_data[];
@@ -1678,7 +1683,7 @@ struct qlink_sband_iftype_data {
  * @iftype_data: interface type data entries.
  */
 struct qlink_tlv_iftype_data {
-	struct qlink_tlv_hdr hdr;
+	struct qlink_tlv_hdr_fixed hdr;
 	u8 n_iftype_data;
 	u8 rsvd[3];
 	struct qlink_sband_iftype_data iftype_data[];
