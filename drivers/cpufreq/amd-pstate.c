@@ -548,7 +548,7 @@ static inline bool amd_pstate_sample(struct amd_cpudata *cpudata)
 static void amd_pstate_update(struct amd_cpudata *cpudata, u8 min_perf,
 			      u8 des_perf, u8 max_perf, bool fast_switch, int gov_flags)
 {
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpudata->cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpudata->cpu);
 	u8 nominal_perf = READ_ONCE(cpudata->nominal_perf);
 
 	if (!policy)
@@ -574,8 +574,6 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u8 min_perf,
 	}
 
 	amd_pstate_update_perf(cpudata, min_perf, des_perf, max_perf, 0, fast_switch);
-
-	cpufreq_cpu_put(policy);
 }
 
 static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
@@ -587,7 +585,8 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 	 * amd-pstate qos_requests.
 	 */
 	if (policy_data->min == FREQ_QOS_MIN_DEFAULT_VALUE) {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(policy_data->cpu);
+		struct cpufreq_policy *policy __free(put_cpufreq_policy) =
+					      cpufreq_cpu_get(policy_data->cpu);
 		struct amd_cpudata *cpudata;
 
 		if (!policy)
@@ -595,7 +594,6 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy_data)
 
 		cpudata = policy->driver_data;
 		policy_data->min = cpudata->lowest_nonlinear_freq;
-		cpufreq_cpu_put(policy);
 	}
 
 	cpufreq_verify_within_cpu_limits(policy_data);
@@ -678,7 +676,7 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 				   unsigned long capacity)
 {
 	u8 max_perf, min_perf, des_perf, cap_perf, min_limit_perf;
-	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	struct amd_cpudata *cpudata;
 
 	if (!policy)
@@ -710,7 +708,6 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 
 	amd_pstate_update(cpudata, min_perf, des_perf, max_perf, true,
 			policy->governor->flags);
-	cpufreq_cpu_put(policy);
 }
 
 static int amd_pstate_cpu_boost_update(struct cpufreq_policy *policy, bool on)
@@ -824,28 +821,23 @@ static void amd_pstate_init_prefcore(struct amd_cpudata *cpudata)
 
 static void amd_pstate_update_limits(unsigned int cpu)
 {
-	struct cpufreq_policy *policy = NULL;
+	struct cpufreq_policy *policy __free(put_cpufreq_policy) = cpufreq_cpu_get(cpu);
 	struct amd_cpudata *cpudata;
 	u32 prev_high = 0, cur_high = 0;
-	int ret;
 	bool highest_perf_changed = false;
 
 	if (!amd_pstate_prefcore)
 		return;
 
-	policy = cpufreq_cpu_get(cpu);
 	if (!policy)
 		return;
 
-	cpudata = policy->driver_data;
-
 	guard(mutex)(&amd_pstate_driver_lock);
 
-	ret = amd_get_highest_perf(cpu, &cur_high);
-	if (ret) {
-		cpufreq_cpu_put(policy);
+	if (amd_get_highest_perf(cpu, &cur_high))
 		return;
-	}
+
+	cpudata = policy->driver_data;
 
 	prev_high = READ_ONCE(cpudata->prefcore_ranking);
 	highest_perf_changed = (prev_high != cur_high);
@@ -855,7 +847,6 @@ static void amd_pstate_update_limits(unsigned int cpu)
 		if (cur_high < CPPC_MAX_PERF)
 			sched_set_itmt_core_prio((int)cur_high, cpu);
 	}
-	cpufreq_cpu_put(policy);
 }
 
 /*

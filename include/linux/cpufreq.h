@@ -210,6 +210,9 @@ static inline struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 static inline void cpufreq_cpu_put(struct cpufreq_policy *policy) { }
 #endif
 
+/* Scope based cleanup macro for cpufreq_policy kobject reference counting */
+DEFINE_FREE(put_cpufreq_policy, struct cpufreq_policy *, if (_T) cpufreq_cpu_put(_T))
+
 static inline bool policy_is_inactive(struct cpufreq_policy *policy)
 {
 	return cpumask_empty(policy->cpus);
