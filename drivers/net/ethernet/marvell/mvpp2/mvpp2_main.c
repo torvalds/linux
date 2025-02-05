@@ -6985,9 +6985,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		for (thread = 0; thread < priv->nthreads; thread++) {
 			port_pcpu = per_cpu_ptr(port->pcpu, thread);
 
-			hrtimer_init(&port_pcpu->tx_done_timer, CLOCK_MONOTONIC,
-				     HRTIMER_MODE_REL_PINNED_SOFT);
-			port_pcpu->tx_done_timer.function = mvpp2_hr_timer_cb;
+			hrtimer_setup(&port_pcpu->tx_done_timer, mvpp2_hr_timer_cb, CLOCK_MONOTONIC,
+				      HRTIMER_MODE_REL_PINNED_SOFT);
 			port_pcpu->timer_scheduled = false;
 			port_pcpu->dev = dev;
 		}
