@@ -477,19 +477,13 @@ static const struct regmap_config cy8c9520_i2c_regmap = {
 #endif
 };
 
-static inline int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
-						   unsigned int reg,
-						   unsigned int port,
-						   unsigned int mask,
-						   unsigned int val,
-						   bool *change, bool async,
-						   bool force)
+/* Caller should never modify PORTSEL directly */
+static int cy8c95x0_regmap_update_bits_base(struct cy8c95x0_pinctrl *chip,
+					    unsigned int reg, unsigned int port,
+					    unsigned int mask, unsigned int val,
+					    bool *change, bool async, bool force)
 {
 	int ret, off, i;
-
-	/* Caller should never modify PORTSEL directly */
-	if (reg == CY8C95X0_PORTSEL)
-		return -EINVAL;
 
 	/* Registers behind the PORTSEL mux have their own range in regmap */
 	if (cy8c95x0_muxed_register(reg)) {
