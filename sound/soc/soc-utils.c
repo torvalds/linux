@@ -28,6 +28,7 @@ int snd_soc_ret(const struct device *dev, int ret, const char *fmt, ...)
 	switch (ret) {
 	case -EPROBE_DEFER:
 	case -ENOTSUPP:
+	case -EOPNOTSUPP:
 		break;
 	default:
 		va_start(args, fmt);
