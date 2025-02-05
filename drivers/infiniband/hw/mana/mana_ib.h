@@ -15,6 +15,7 @@
 
 #include <net/mana/mana.h>
 #include "shadow_queue.h"
+#include "counters.h"
 
 #define PAGE_SZ_BM                                                             \
 	(SZ_4K | SZ_8K | SZ_16K | SZ_32K | SZ_64K | SZ_128K | SZ_256K |        \
@@ -205,6 +206,7 @@ enum mana_ib_command_code {
 	MANA_IB_CREATE_RC_QP    = 0x3000a,
 	MANA_IB_DESTROY_RC_QP   = 0x3000b,
 	MANA_IB_SET_QP_STATE	= 0x3000d,
+	MANA_IB_QUERY_VF_COUNTERS = 0x30022,
 };
 
 struct mana_ib_query_adapter_caps_req {
@@ -475,6 +477,41 @@ struct mana_rdma_cqe {
 		} ud_recv;
 	};
 }; /* HW DATA */
+
+struct mana_rnic_query_vf_cntrs_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+}; /* HW Data */
+
+struct mana_rnic_query_vf_cntrs_resp {
+	struct gdma_resp_hdr hdr;
+	u64 requester_timeout;
+	u64 requester_oos_nak;
+	u64 requester_rnr_nak;
+	u64 responder_rnr_nak;
+	u64 responder_oos;
+	u64 responder_dup_request;
+	u64 requester_implicit_nak;
+	u64 requester_readresp_psn_mismatch;
+	u64 nak_inv_req;
+	u64 nak_access_err;
+	u64 nak_opp_err;
+	u64 nak_inv_read;
+	u64 responder_local_len_err;
+	u64 requestor_local_prot_err;
+	u64 responder_rem_access_err;
+	u64 responder_local_qp_err;
+	u64 responder_malformed_wqe;
+	u64 general_hw_err;
+	u64 requester_rnr_nak_retries_exceeded;
+	u64 requester_retries_exceeded;
+	u64 total_fatal_err;
+	u64 received_cnps;
+	u64 num_qps_congested;
+	u64 rate_inc_events;
+	u64 num_qps_recovered;
+	u64 current_rate;
+}; /* HW Data */
 
 static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 {

@@ -59,6 +59,11 @@ static const struct ib_device_ops mana_ib_dev_ops = {
 			   ib_ind_table),
 };
 
+static const struct ib_device_ops mana_ib_stats_ops = {
+	.alloc_hw_port_stats = mana_ib_alloc_hw_port_stats,
+	.get_hw_stats = mana_ib_get_hw_stats,
+};
+
 static int mana_ib_probe(struct auxiliary_device *adev,
 			 const struct auxiliary_device_id *id)
 {
@@ -123,6 +128,8 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 			  ret);
 		goto deregister_device;
 	}
+
+	ib_set_device_ops(&dev->ib_dev, &mana_ib_stats_ops);
 
 	ret = mana_ib_create_eqs(dev);
 	if (ret) {
