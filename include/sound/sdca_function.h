@@ -39,6 +39,11 @@ struct sdca_function_desc;
  */
 #define SDCA_MAX_CHANNEL_COUNT 32
 
+/*
+ * Sanity check on number of PDE delays, can be expanded if needed.
+ */
+#define SDCA_MAX_DELAY_COUNT 256
+
 /**
  * enum sdca_function_type - SDCA Function Type codes
  * @SDCA_FUNCTION_TYPE_SMART_AMP: Amplifier with protection features.
@@ -808,6 +813,47 @@ struct sdca_entity_cs {
 };
 
 /**
+ * enum sdca_pde_power_state - SDCA Power States
+ *
+ * SDCA Power State values from SDCA specification v1.0 Section 7.12.4.
+ */
+enum sdca_pde_power_state {
+	SDCA_PDE_PS0					= 0x0,
+	SDCA_PDE_PS1					= 0x1,
+	SDCA_PDE_PS2					= 0x2,
+	SDCA_PDE_PS3					= 0x3,
+	SDCA_PDE_PS4					= 0x4,
+};
+
+/**
+ * struct sdca_pde_delay - describes the delay changing between 2 power states
+ * @from_ps: The power state being exited.
+ * @to_ps: The power state being entered.
+ * @us: The delay in microseconds switching between the two states.
+ */
+struct sdca_pde_delay {
+	int from_ps;
+	int to_ps;
+	unsigned int us;
+};
+
+/**
+ * struct sdca_entity_pde - information specific to Power Domain Entities
+ * @managed: Dynamically allocated array pointing to each Entity
+ * controlled by this PDE.
+ * @max_delay: Dynamically allocated array of delays for switching
+ * between power states.
+ * @num_managed: Number of Entities controlled by this PDE.
+ * @num_max_delay: Number of delays specified for state changes.
+ */
+struct sdca_entity_pde {
+	struct sdca_entity **managed;
+	struct sdca_pde_delay *max_delay;
+	int num_managed;
+	int num_max_delay;
+};
+
+/**
  * enum sdca_entity_type - SDCA Entity Type codes
  * @SDCA_ENTITY_TYPE_ENTITY_0: Entity 0, not actually from the
  * specification but useful internally as an Entity structure
@@ -870,6 +916,7 @@ enum sdca_entity_type {
  * @num_controls: Number of Controls for the Entity.
  * @iot: Input/Output Terminal specific Entity properties.
  * @cs: Clock Source specific Entity properties.
+ * @pde: Power Domain Entity specific Entity properties.
  */
 struct sdca_entity {
 	const char *label;
@@ -883,6 +930,7 @@ struct sdca_entity {
 	union {
 		struct sdca_entity_iot iot;
 		struct sdca_entity_cs cs;
+		struct sdca_entity_pde pde;
 	};
 };
 

@@ -908,6 +908,66 @@ static int find_sdca_entity_cs(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_entity_pde(struct device *dev,
+				struct fwnode_handle *entity_node,
+				struct sdca_entity *entity)
+{
+	static const int mult_delay = 3;
+	struct sdca_entity_pde *power = &entity->pde;
+	struct sdca_pde_delay *delays;
+	int num_delays;
+	u32 *delay_list;
+	int i, j;
+
+	num_delays = fwnode_property_count_u32(entity_node,
+					       "mipi-sdca-powerdomain-transition-max-delay");
+	if (num_delays <= 0) {
+		dev_err(dev, "%s: max delay list missing: %d\n",
+			entity->label, num_delays);
+		return -EINVAL;
+	} else if (num_delays % mult_delay != 0) {
+		dev_err(dev, "%s: delays not multiple of %d\n",
+			entity->label, mult_delay);
+		return -EINVAL;
+	} else if (num_delays > SDCA_MAX_DELAY_COUNT) {
+		dev_err(dev, "%s: maximum number of transition delays exceeded\n",
+			entity->label);
+		return -EINVAL;
+	}
+
+	/* There are 3 values per delay */
+	delays = devm_kcalloc(dev, num_delays / mult_delay,
+			      sizeof(*delays), GFP_KERNEL);
+	if (!delays)
+		return -ENOMEM;
+
+	delay_list = kcalloc(num_delays, sizeof(*delay_list), GFP_KERNEL);
+	if (!delay_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u32_array(entity_node,
+				       "mipi-sdca-powerdomain-transition-max-delay",
+				       delay_list, num_delays);
+
+	num_delays /= mult_delay;
+
+	for (i = 0, j = 0; i < num_delays; i++) {
+		delays[i].from_ps = delay_list[j++];
+		delays[i].to_ps = delay_list[j++];
+		delays[i].us = delay_list[j++];
+
+		dev_info(dev, "%s: from %#x to %#x delay %dus\n", entity->label,
+			 delays[i].from_ps, delays[i].to_ps, delays[i].us);
+	}
+
+	power->num_max_delay = num_delays;
+	power->max_delay = delays;
+
+	kfree(delay_list);
+
+	return 0;
+}
+
 static int find_sdca_entity(struct device *dev,
 			    struct fwnode_handle *function_node,
 			    struct fwnode_handle *entity_node,
@@ -942,6 +1002,9 @@ static int find_sdca_entity(struct device *dev,
 		break;
 	case SDCA_ENTITY_TYPE_CS:
 		ret = find_sdca_entity_cs(dev, entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_PDE:
+		ret = find_sdca_entity_pde(dev, entity_node, entity);
 		break;
 	default:
 		break;
@@ -1047,6 +1110,21 @@ static struct sdca_entity *find_sdca_entity_by_label(struct sdca_function_data *
 	return NULL;
 }
 
+static struct sdca_entity *find_sdca_entity_by_id(struct sdca_function_data *function,
+						  const int id)
+{
+	int i;
+
+	for (i = 0; i < function->num_entities; i++) {
+		struct sdca_entity *entity = &function->entities[i];
+
+		if (entity->id == id)
+			return entity;
+	}
+
+	return NULL;
+}
+
 static int find_sdca_entity_connection_iot(struct device *dev,
 					   struct sdca_function_data *function,
 					   struct fwnode_handle *entity_node,
@@ -1087,6 +1165,62 @@ static int find_sdca_entity_connection_iot(struct device *dev,
 	return 0;
 }
 
+static int find_sdca_entity_connection_pde(struct device *dev,
+					   struct sdca_function_data *function,
+					   struct fwnode_handle *entity_node,
+					   struct sdca_entity *entity)
+{
+	struct sdca_entity_pde *power = &entity->pde;
+	struct sdca_entity **managed;
+	u32 *managed_list;
+	int num_managed;
+	int i;
+
+	num_managed = fwnode_property_count_u32(entity_node,
+						"mipi-sdca-powerdomain-managed-list");
+	if (!num_managed) {
+		return 0;
+	} else if (num_managed < 0) {
+		dev_err(dev, "%s: managed list missing: %d\n", entity->label, num_managed);
+		return num_managed;
+	} else if (num_managed > SDCA_MAX_ENTITY_COUNT) {
+		dev_err(dev, "%s: maximum number of managed entities exceeded\n",
+			entity->label);
+		return -EINVAL;
+	}
+
+	managed = devm_kcalloc(dev, num_managed, sizeof(*managed), GFP_KERNEL);
+	if (!managed)
+		return -ENOMEM;
+
+	managed_list = kcalloc(num_managed, sizeof(*managed_list), GFP_KERNEL);
+	if (!managed_list)
+		return -ENOMEM;
+
+	fwnode_property_read_u32_array(entity_node,
+				       "mipi-sdca-powerdomain-managed-list",
+				       managed_list, num_managed);
+
+	for (i = 0; i < num_managed; i++) {
+		managed[i] = find_sdca_entity_by_id(function, managed_list[i]);
+		if (!managed[i]) {
+			dev_err(dev, "%s: failed to find entity with id %#x\n",
+				entity->label, managed_list[i]);
+			kfree(managed_list);
+			return -EINVAL;
+		}
+
+		dev_info(dev, "%s -> %s\n", managed[i]->label, entity->label);
+	}
+
+	kfree(managed_list);
+
+	power->num_managed = num_managed;
+	power->managed = managed;
+
+	return 0;
+}
+
 static int find_sdca_entity_connection(struct device *dev,
 				       struct sdca_function_data *function,
 				       struct fwnode_handle *entity_node,
@@ -1101,6 +1235,10 @@ static int find_sdca_entity_connection(struct device *dev,
 	case SDCA_ENTITY_TYPE_IT:
 	case SDCA_ENTITY_TYPE_OT:
 		ret = find_sdca_entity_connection_iot(dev, function,
+						      entity_node, entity);
+		break;
+	case SDCA_ENTITY_TYPE_PDE:
+		ret = find_sdca_entity_connection_pde(dev, function,
 						      entity_node, entity);
 		break;
 	default:
