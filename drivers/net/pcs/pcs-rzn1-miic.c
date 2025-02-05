@@ -464,11 +464,8 @@ static int miic_parse_dt(struct device *dev, u32 *mode_cfg)
 	if (of_property_read_u32(np, "renesas,miic-switch-portin", &conf) == 0)
 		dt_val[0] = conf;
 
-	for_each_child_of_node(np, conv) {
+	for_each_available_child_of_node(np, conv) {
 		if (of_property_read_u32(conv, "reg", &port))
-			continue;
-
-		if (!of_device_is_available(conv))
 			continue;
 
 		if (of_property_read_u32(conv, "renesas,miic-input", &conf) == 0)
