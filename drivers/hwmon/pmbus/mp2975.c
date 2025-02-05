@@ -176,7 +176,6 @@ mp2975_vid2direct(int vrf, int val)
 static u16 mp2975_data2reg_linear11(s64 val)
 {
 	s16 exponent = 0, mantissa;
-	bool negative = false;
 
 	/* simple case */
 	if (val == 0)
@@ -195,10 +194,6 @@ static u16 mp2975_data2reg_linear11(s64 val)
 
 	/* Convert mantissa from milli-units to units */
 	mantissa = clamp_val(DIV_ROUND_CLOSEST_ULL(val, 1000), 0, 0x3ff);
-
-	/* restore sign */
-	if (negative)
-		mantissa = -mantissa;
 
 	/* Convert to 5 bit exponent, 11 bit mantissa */
 	return (mantissa & 0x7ff) | ((exponent << 11) & 0xf800);
