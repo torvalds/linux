@@ -672,7 +672,7 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 				   unsigned long capacity)
 {
 	unsigned long max_perf, min_perf, des_perf,
-		      cap_perf, lowest_nonlinear_perf;
+		      cap_perf, min_limit_perf;
 	struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
 	struct amd_cpudata *cpudata;
 
@@ -684,20 +684,20 @@ static void amd_pstate_adjust_perf(unsigned int cpu,
 	if (policy->min != cpudata->min_limit_freq || policy->max != cpudata->max_limit_freq)
 		amd_pstate_update_min_max_limit(policy);
 
-
 	cap_perf = READ_ONCE(cpudata->highest_perf);
-	lowest_nonlinear_perf = READ_ONCE(cpudata->lowest_nonlinear_perf);
+	min_limit_perf = READ_ONCE(cpudata->min_limit_perf);
 
 	des_perf = cap_perf;
 	if (target_perf < capacity)
 		des_perf = DIV_ROUND_UP(cap_perf * target_perf, capacity);
 
-	min_perf = READ_ONCE(cpudata->lowest_perf);
 	if (_min_perf < capacity)
 		min_perf = DIV_ROUND_UP(cap_perf * _min_perf, capacity);
+	else
+		min_perf = cap_perf;
 
-	if (min_perf < lowest_nonlinear_perf)
-		min_perf = lowest_nonlinear_perf;
+	if (min_perf < min_limit_perf)
+		min_perf = min_limit_perf;
 
 	max_perf = cpudata->max_limit_perf;
 	if (max_perf < min_perf)
