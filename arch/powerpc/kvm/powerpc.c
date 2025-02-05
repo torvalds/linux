@@ -766,8 +766,8 @@ int kvm_arch_vcpu_create(struct kvm_vcpu *vcpu)
 {
 	int err;
 
-	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
+	hrtimer_setup(&vcpu->arch.dec_timer, kvmppc_decrementer_wakeup, CLOCK_REALTIME,
+		      HRTIMER_MODE_ABS);
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	mutex_init(&vcpu->arch.exit_timing_lock);
