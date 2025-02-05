@@ -1426,8 +1426,7 @@ static void nullb_setup_bwtimer(struct nullb *nullb)
 {
 	ktime_t timer_interval = ktime_set(0, TIMER_INTERVAL);
 
-	hrtimer_init(&nullb->bw_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	nullb->bw_timer.function = nullb_bwtimer_fn;
+	hrtimer_setup(&nullb->bw_timer, nullb_bwtimer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	atomic_long_set(&nullb->cur_bytes, mb_per_tick(nullb->dev->mbps));
 	hrtimer_start(&nullb->bw_timer, timer_interval, HRTIMER_MODE_REL);
 }
@@ -1604,8 +1603,8 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
 	if (!is_poll && nq->dev->irqmode == NULL_IRQ_TIMER) {
-		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		cmd->timer.function = null_cmd_timer_expired;
+		hrtimer_setup(&cmd->timer, null_cmd_timer_expired, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 	}
 	cmd->error = BLK_STS_OK;
 	cmd->nq = nq;
