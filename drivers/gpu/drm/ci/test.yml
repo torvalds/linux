@@ -1,16 +1,11 @@
-.test-rules:
-  rules:
-    - !reference [.no_scheduled_pipelines-rules, rules]
-    - !reference [.collabora-farm-rules, rules]
-    - !reference [.google-freedreno-farm-rules, rules]
-    - when: on_success
-
 .lava-test:
   extends:
-    - .test-rules
-    - .build-rules
     - .container+build-rules
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - !reference [.collabora-farm-rules, rules]
+    - when: on_success
   script:
     # Note: Build dir (and thus install) may be dirty due to GIT_STRATEGY
     - rm -rf install
@@ -74,8 +69,11 @@
   extends:
     - .baremetal-test-arm64
     - .use-debian/baremetal_arm64_test
-    - .test-rules
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - !reference [.google-freedreno-farm-rules, rules]
+    - when: on_success
   variables:
     FDO_CI_CONCURRENT: 10
     HWCI_TEST_SCRIPT: "/install/igt_runner.sh"
@@ -444,13 +442,15 @@ panfrost:g12b:
 virtio_gpu:none:
   stage: software-driver
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - when: on_success
   variables:
     CROSVM_GALLIUM_DRIVER: llvmpipe
     DRIVER_NAME: virtio_gpu
     GPU_VERSION: none
   extends:
     - .test-gl
-    - .test-rules
   tags:
     - kvm
   script:
@@ -465,12 +465,14 @@ virtio_gpu:none:
 vkms:none:
   stage: software-driver
   timeout: "1h30m"
+  rules:
+    - !reference [.scheduled_pipeline-rules, rules]
+    - when: on_success
   variables:
     DRIVER_NAME: vkms
     GPU_VERSION: none
   extends:
     - .test-gl
-    - .test-rules
   tags:
     - kvm
   script:
