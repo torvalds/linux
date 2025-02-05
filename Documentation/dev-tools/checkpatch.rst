@@ -342,24 +342,6 @@ API usage
 
     See: https://www.kernel.org/doc/html/latest/RCU/whatisRCU.html#full-list-of-rcu-apis
 
-  **DEPRECATED_VARIABLE**
-    EXTRA_{A,C,CPP,LD}FLAGS are deprecated and should be replaced by the new
-    flags added via commit f77bf01425b1 ("kbuild: introduce ccflags-y,
-    asflags-y and ldflags-y").
-
-    The following conversion scheme maybe used::
-
-      EXTRA_AFLAGS    ->  asflags-y
-      EXTRA_CFLAGS    ->  ccflags-y
-      EXTRA_CPPFLAGS  ->  cppflags-y
-      EXTRA_LDFLAGS   ->  ldflags-y
-
-    See:
-
-      1. https://lore.kernel.org/lkml/20070930191054.GA15876@uranus.ravnborg.org/
-      2. https://lore.kernel.org/lkml/1313384834-24433-12-git-send-email-lacombar@gmail.com/
-      3. https://www.kernel.org/doc/html/latest/kbuild/makefiles.html#compilation-flags
-
   **DEVICE_ATTR_FUNCTIONS**
     The function names used in DEVICE_ATTR is unusual.
     Typically, the store and show functions are used with <attr>_store and
