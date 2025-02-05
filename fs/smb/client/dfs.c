@@ -150,25 +150,27 @@ again:
 			if (rc)
 				continue;
 
-			if (tgt.flags & DFSREF_STORAGE_SERVER) {
-				rc = cifs_mount_get_tcon(mnt_ctx);
-				if (!rc)
-					rc = cifs_is_path_remote(mnt_ctx);
+			rc = cifs_mount_get_tcon(mnt_ctx);
+			if (rc) {
+				if (tgt.server_type == DFS_TYPE_LINK &&
+				    DFS_INTERLINK(tgt.flags))
+					rc = -EREMOTE;
+			} else {
+				rc = cifs_is_path_remote(mnt_ctx);
 				if (!rc) {
 					ref_walk_set_tgt_hint(rw);
 					break;
 				}
-				if (rc != -EREMOTE)
-					continue;
 			}
-
-			rc = ref_walk_advance(rw);
-			if (!rc) {
-				rc = setup_dfs_ref(&tgt, rw);
-				if (rc)
-					break;
-				ref_walk_mark_end(rw);
-				goto again;
+			if (rc == -EREMOTE) {
+				rc = ref_walk_advance(rw);
+				if (!rc) {
+					rc = setup_dfs_ref(&tgt, rw);
+					if (rc)
+						break;
+					ref_walk_mark_end(rw);
+					goto again;
+				}
 			}
 		}
 	} while (rc && ref_walk_descend(rw));
