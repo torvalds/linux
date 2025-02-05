@@ -355,4 +355,6 @@ static struct i2c_driver sg2042_mcu_driver = {
 };
 module_i2c_driver(sg2042_mcu_driver);
 
+MODULE_AUTHOR("Inochi Amaoto <inochiama@outlook.com>");
+MODULE_DESCRIPTION("MCU I2C driver for SG2042 soc platform");
 MODULE_LICENSE("GPL");
