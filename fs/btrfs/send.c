@@ -489,7 +489,7 @@ static int fs_path_ensure_buf(struct fs_path *p, int len)
 		return -ENOMEM;
 	}
 
-	path_len = p->end - p->start;
+	path_len = fs_path_len(p);
 	old_buf_len = p->buf_len;
 
 	/*
@@ -530,7 +530,7 @@ static int fs_path_prepare_for_add(struct fs_path *p, int name_len,
 	int ret;
 	int new_len;
 
-	new_len = p->end - p->start + name_len;
+	new_len = fs_path_len(p) + name_len;
 	if (p->start != p->end)
 		new_len++;
 	ret = fs_path_ensure_buf(p, new_len);
@@ -571,12 +571,13 @@ out:
 static int fs_path_add_path(struct fs_path *p, struct fs_path *p2)
 {
 	int ret;
+	const int p2_len = fs_path_len(p2);
 	char *prepared;
 
-	ret = fs_path_prepare_for_add(p, p2->end - p2->start, &prepared);
+	ret = fs_path_prepare_for_add(p, p2_len, &prepared);
 	if (ret < 0)
 		goto out;
-	memcpy(prepared, p2->start, p2->end - p2->start);
+	memcpy(prepared, p2->start, p2_len);
 
 out:
 	return ret;
@@ -616,7 +617,7 @@ static void fs_path_unreverse(struct fs_path *p)
 		return;
 
 	tmp = p->start;
-	len = p->end - p->start;
+	len = fs_path_len(p);
 	p->start = p->buf;
 	p->end = p->start + len;
 	memmove(p->start, tmp, len + 1);
@@ -737,7 +738,7 @@ static int tlv_put_btrfs_timespec(struct send_ctx *sctx, u16 attr,
 #define TLV_PUT_PATH(sctx, attrtype, p) \
 	do { \
 		ret = tlv_put_string(sctx, attrtype, p->start, \
-			p->end - p->start); \
+				     fs_path_len((p)));	       \
 		if (ret < 0) \
 			goto tlv_put_failure; \
 	} while(0)
@@ -2364,7 +2365,7 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	 * earlier. If yes, treat as orphan and return 1.
 	 */
 	ret = did_overwrite_ref(sctx, *parent_ino, *parent_gen, ino, gen,
-			dest->start, dest->end - dest->start);
+				dest->start, fs_path_len(dest));
 	if (ret < 0)
 		goto out;
 	if (ret) {
