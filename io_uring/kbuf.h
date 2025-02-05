@@ -75,6 +75,7 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
+void io_kbuf_drop_legacy(struct io_kiocb *req);
 
 struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
 					    unsigned int bgid);
@@ -158,27 +159,6 @@ static inline bool __io_put_kbuf_ring(struct io_kiocb *req, int len, int nr)
 	return ret;
 }
 
-static inline void __io_put_kbuf_list(struct io_kiocb *req, int len)
-{
-	if (req->flags & REQ_F_BUFFER_RING) {
-		__io_put_kbuf_ring(req, len, 1);
-	} else {
-		req->buf_index = req->kbuf->bgid;
-		req->flags &= ~REQ_F_BUFFER_SELECTED;
-		kfree(req->kbuf);
-		req->kbuf = NULL;
-	}
-}
-
-static inline void io_kbuf_drop(struct io_kiocb *req)
-{
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
-		return;
-
-	/* len == 0 is fine here, non-ring will always drop all of it */
-	__io_put_kbuf_list(req, 0);
-}
-
 static inline unsigned int __io_put_kbufs(struct io_kiocb *req, int len,
 					  int nbufs, unsigned issue_flags)
 {
@@ -192,7 +172,7 @@ static inline unsigned int __io_put_kbufs(struct io_kiocb *req, int len,
 		if (!__io_put_kbuf_ring(req, len, nbufs))
 			ret |= IORING_CQE_F_BUF_MORE;
 	} else {
-		__io_put_kbuf_list(req, len);
+		io_kbuf_drop_legacy(req);
 	}
 	return ret;
 }
