@@ -1136,33 +1136,19 @@ static bool is_ses_good(struct cifs_ses *ses)
 	return ret;
 }
 
-static char *get_ses_refpath(struct cifs_ses *ses)
-{
-	struct TCP_Server_Info *server = ses->server;
-	char *path = ERR_PTR(-ENOENT);
-
-	if (server->leaf_fullpath) {
-		path = kstrdup(server->leaf_fullpath + 1, GFP_KERNEL);
-		if (!path)
-			path = ERR_PTR(-ENOMEM);
-	}
-	return path;
-}
-
 /* Refresh dfs referral of @ses */
 static void refresh_ses_referral(struct cifs_ses *ses)
 {
 	struct cache_entry *ce;
 	unsigned int xid;
-	char *path;
+	const char *path;
 	int rc = 0;
 
 	xid = get_xid();
 
-	path = get_ses_refpath(ses);
+	path = dfs_ses_refpath(ses);
 	if (IS_ERR(path)) {
 		rc = PTR_ERR(path);
-		path = NULL;
 		goto out;
 	}
 
@@ -1181,7 +1167,6 @@ static void refresh_ses_referral(struct cifs_ses *ses)
 
 out:
 	free_xid(xid);
-	kfree(path);
 }
 
 static int __refresh_tcon_referral(struct cifs_tcon *tcon,
@@ -1231,19 +1216,18 @@ static void refresh_tcon_referral(struct cifs_tcon *tcon, bool force_refresh)
 	struct dfs_info3_param *refs = NULL;
 	struct cache_entry *ce;
 	struct cifs_ses *ses;
-	unsigned int xid;
 	bool needs_refresh;
-	char *path;
+	const char *path;
+	unsigned int xid;
 	int numrefs = 0;
 	int rc = 0;
 
 	xid = get_xid();
 	ses = tcon->ses;
 
-	path = get_ses_refpath(ses);
+	path = dfs_ses_refpath(ses);
 	if (IS_ERR(path)) {
 		rc = PTR_ERR(path);
-		path = NULL;
 		goto out;
 	}
 
@@ -1271,7 +1255,6 @@ static void refresh_tcon_referral(struct cifs_tcon *tcon, bool force_refresh)
 
 out:
 	free_xid(xid);
-	kfree(path);
 	free_dfs_info_array(refs, numrefs);
 }
 
