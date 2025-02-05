@@ -1626,8 +1626,8 @@ static int cdns_rs485_config(struct uart_port *port, struct ktermios *termios,
 		writel(val, port->membase + CDNS_UART_MODEMCR);
 
 		/* Timer setup */
-		hrtimer_init(&cdns_uart->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		cdns_uart->tx_timer.function = &cdns_rs485_tx_callback;
+		hrtimer_setup(&cdns_uart->tx_timer, &cdns_rs485_tx_callback, CLOCK_MONOTONIC,
+			      HRTIMER_MODE_REL);
 
 		/* Disable transmitter and make Rx setup*/
 		cdns_uart_stop_tx(port);
