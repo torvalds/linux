@@ -18,6 +18,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/msr.h>
 #include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
 #include <asm/segment.h>
 #include <asm/setup.h>
@@ -51,6 +52,9 @@ SYM_FUNC_START(startup_64_mixed_mode)
 	lea	efi32_boot_args(%rip), %rdx
 	mov	0(%rdx), %edi
 	mov	4(%rdx), %esi
+
+	leaq	(pte + 5 * PAGE_SIZE)(%rip), %rax
+	movq	%rax, %cr3		// reload after startup_32
 
 	/* Switch to the firmware's stack */
 	movl	efi32_boot_sp(%rip), %esp
@@ -267,10 +271,31 @@ SYM_FUNC_START_LOCAL(efi32_entry)
 	movl	$_end - 1b, BP_init_size(%esi)
 	subl	$startup_32 - 1b, BP_init_size(%esi)
 
+	call	1f
+1:	pop	%edi
+
 	/* Disable paging */
 	movl	%cr0, %eax
 	btrl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
+
+	/* Set up 1:1 mapping */
+	leal	(pte - 1b)(%edi), %eax
+	movl	$_PAGE_PRESENT | _PAGE_RW | _PAGE_PSE, %ecx
+	leal	(_PAGE_PRESENT | _PAGE_RW)(%eax), %edx
+2:	movl	%ecx, (%eax)
+	addl	$8, %eax
+	addl	$PMD_SIZE, %ecx
+	jnc	2b
+
+	movl	$PAGE_SIZE, %ecx
+	.irpc	l, 0123
+	movl	%edx, \l * 8(%eax)
+	addl	%ecx, %edx
+	.endr
+	addl	%ecx, %eax
+	movl	%edx, (%eax)
+	movl	%eax, %cr3
 
 	jmp	startup_32
 SYM_FUNC_END(efi32_entry)
@@ -322,3 +347,7 @@ SYM_DATA_LOCAL(efi32_boot_ds, .word 0)
 SYM_DATA_LOCAL(efi32_boot_sp, .long 0)
 SYM_DATA_LOCAL(efi32_boot_args, .long 0, 0, 0)
 SYM_DATA(efi_is64, .byte 1)
+
+	.bss
+	.balign PAGE_SIZE
+SYM_DATA_LOCAL(pte, .fill 6 * PAGE_SIZE, 1, 0)
