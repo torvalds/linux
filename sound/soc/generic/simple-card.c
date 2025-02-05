@@ -223,7 +223,7 @@ static int simple_link_init(struct simple_util_priv *priv,
 	dai_link->init			= simple_util_dai_init;
 	dai_link->ops			= &simple_ops;
 
-	ret = simple_util_set_dailink_name(dev, dai_link, name);
+	ret = simple_util_set_dailink_name(priv, dai_link, name);
 end:
 	return simple_ret(priv, ret);
 }
@@ -544,7 +544,7 @@ static int simple_parse_of(struct simple_util_priv *priv, struct link_info *li)
 	if (ret < 0)
 		goto end;
 
-	ret = simple_util_parse_card_name(card, PREFIX);
+	ret = simple_util_parse_card_name(priv, PREFIX);
 	if (ret < 0)
 		goto end;
 
