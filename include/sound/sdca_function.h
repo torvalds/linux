@@ -117,6 +117,9 @@ enum sdca_entity0_controls {
 
 /**
  * enum sdca_entity_type - SDCA Entity Type codes
+ * @SDCA_ENTITY_TYPE_ENTITY_0: Entity 0, not actually from the
+ * specification but useful internally as an Entity structure
+ * is allocated for Entity 0, to hold Entity 0 controls.
  * @SDCA_ENTITY_TYPE_IT: Input Terminal.
  * @SDCA_ENTITY_TYPE_OT: Output Terminal.
  * @SDCA_ENTITY_TYPE_MU: Mixer Unit.
@@ -141,6 +144,7 @@ enum sdca_entity0_controls {
  * all Entity Types not described are reserved.
  */
 enum sdca_entity_type {
+	SDCA_ENTITY_TYPE_ENTITY_0			= 0x00,
 	SDCA_ENTITY_TYPE_IT				= 0x02,
 	SDCA_ENTITY_TYPE_OT				= 0x03,
 	SDCA_ENTITY_TYPE_MU				= 0x05,
