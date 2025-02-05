@@ -91,7 +91,7 @@ static struct lockdep_map xe_pm_runtime_nod3cold_map = {
  */
 bool xe_rpm_reclaim_safe(const struct xe_device *xe)
 {
-	return !xe->d3cold.capable && !xe->info.has_sriov;
+	return !xe->d3cold.capable;
 }
 
 static void xe_rpm_lockmap_acquire(const struct xe_device *xe)
