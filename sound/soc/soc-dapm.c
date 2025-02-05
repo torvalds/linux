@@ -4865,7 +4865,6 @@ void snd_soc_dapm_init(struct snd_soc_dapm_context *dapm,
 	/* see for_each_card_dapms */
 	list_add(&dapm->list, &card->dapm_list);
 }
-EXPORT_SYMBOL_GPL(snd_soc_dapm_init);
 
 static void soc_dapm_shutdown_dapm(struct snd_soc_dapm_context *dapm)
 {
