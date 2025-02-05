@@ -2,7 +2,7 @@
 /*
  * KUnit tests for the iwlwifi device info table
  *
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  */
 #include <kunit/test.h>
 #include <linux/pci.h>
@@ -13,9 +13,9 @@ MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 
 static void iwl_pci_print_dev_info(const char *pfx, const struct iwl_dev_info *di)
 {
-	printk(KERN_DEBUG "%sdev=%.4x,subdev=%.4x,mac_type=%.4x,mac_step=%.4x,rf_type=%.4x,cdb=%d,jacket=%d,rf_id=%.2x,no_160=%d,cores=%.2x\n",
+	printk(KERN_DEBUG "%sdev=%.4x,subdev=%.4x,mac_type=%.4x,mac_step=%.4x,rf_type=%.4x,cdb=%d,jacket=%d,rf_id=%.2x,bw_limit=%d,cores=%.2x\n",
 	       pfx, di->device, di->subdevice, di->mac_type, di->mac_step,
-	       di->rf_type, di->cdb, di->jacket, di->rf_id, di->no_160,
+	       di->rf_type, di->cdb, di->jacket, di->rf_id, di->bw_limit,
 	       di->cores);
 }
 
@@ -31,8 +31,13 @@ static void devinfo_table_order(struct kunit *test)
 					    di->mac_type, di->mac_step,
 					    di->rf_type, di->cdb,
 					    di->jacket, di->rf_id,
-					    di->no_160, di->cores, di->rf_step);
-		if (ret != di) {
+					    di->bw_limit != IWL_CFG_BW_NO_LIM,
+					    di->cores, di->rf_step);
+		if (!ret) {
+			iwl_pci_print_dev_info("No entry found for: ", di);
+			KUNIT_FAIL(test,
+				   "No entry found for entry at index %d\n", idx);
+		} else if (ret != di) {
 			iwl_pci_print_dev_info("searched: ", di);
 			iwl_pci_print_dev_info("found:    ", ret);
 			KUNIT_FAIL(test,
