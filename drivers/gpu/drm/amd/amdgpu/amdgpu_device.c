@@ -102,6 +102,8 @@ MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 #define AMDGPU_PCIE_INDEX_HI_FALLBACK (0x44 >> 2)
 #define AMDGPU_PCIE_DATA_FALLBACK (0x3C >> 2)
 
+#define AMDGPU_VBIOS_SKIP (1U << 0)
+
 static const struct drm_driver amdgpu_kms_driver;
 
 const char *amdgpu_asic_name[] = {
@@ -1698,12 +1700,12 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	return 0;
 }
 
-static bool amdgpu_device_read_bios(struct amdgpu_device *adev)
+static uint32_t amdgpu_device_get_vbios_flags(struct amdgpu_device *adev)
 {
 	if (hweight32(adev->aid_mask) && (adev->flags & AMD_IS_APU))
-		return false;
+		return AMDGPU_VBIOS_SKIP;
 
-	return true;
+	return 0;
 }
 
 /*
@@ -1720,12 +1722,13 @@ static bool amdgpu_device_read_bios(struct amdgpu_device *adev)
  */
 bool amdgpu_device_need_post(struct amdgpu_device *adev)
 {
-	uint32_t reg;
+	uint32_t reg, flags;
 
 	if (amdgpu_sriov_vf(adev))
 		return false;
 
-	if (!amdgpu_device_read_bios(adev))
+	flags = amdgpu_device_get_vbios_flags(adev);
+	if (flags & AMDGPU_VBIOS_SKIP)
 		return false;
 
 	if (amdgpu_passthrough(adev)) {
@@ -2578,8 +2581,9 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ip_block *ip_block;
 	struct pci_dev *parent;
+	bool total, skip_bios;
+	uint32_t bios_flags;
 	int i, r;
-	bool total;
 
 	amdgpu_device_enable_virtual_display(adev);
 
@@ -2692,8 +2696,10 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 			if (r)
 				return r;
 
+			bios_flags = amdgpu_device_get_vbios_flags(adev);
+			skip_bios = !!(bios_flags & AMDGPU_VBIOS_SKIP);
 			/* Read BIOS */
-			if (amdgpu_device_read_bios(adev)) {
+			if (!skip_bios) {
 				if (!amdgpu_get_bios(adev))
 					return -EINVAL;
 
