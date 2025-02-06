@@ -16,7 +16,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
 
-#define AD5398_SW_POWER_DOWN	BIT(16)
+#define AD5398_SW_POWER_DOWN	BIT(15)
 
 struct ad5398_chip_info {
 	struct i2c_client *client;
