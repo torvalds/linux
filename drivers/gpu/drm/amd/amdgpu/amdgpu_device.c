@@ -7028,6 +7028,7 @@ struct dma_fence *amdgpu_device_enforce_isolation(struct amdgpu_device *adev,
 		dma_fence_put(isolation->spearhead);
 		isolation->spearhead = dma_fence_get(&f->scheduled);
 		amdgpu_sync_move(&isolation->active, &isolation->prev);
+		trace_amdgpu_isolation(isolation->owner, owner);
 		isolation->owner = owner;
 	}
 
