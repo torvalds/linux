@@ -23,7 +23,7 @@ all_archs=(
 	mips32le mips32be
 	ppc ppc64 ppc64le
 	riscv32 riscv64
-	s390x
+	s390x s390
 	loongarch
 )
 archs="${all_archs[@]}"
@@ -179,6 +179,10 @@ test_arch() {
 			exit 1
 	esac
 	printf '%-15s' "$arch:"
+	if [ "$arch" = "s390" ] && ([ "$llvm" = "1" ] || [ "$test_mode" = "user" ]); then
+		echo "Unsupported configuration"
+		return
+	fi
 
 	mkdir -p "$build_dir"
 	swallow_output "${MAKE[@]}" defconfig
