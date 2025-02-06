@@ -61,7 +61,7 @@ void fbnic_rss_disable_hw(struct fbnic_dev *fbd)
 #define FBNIC_FH_2_RSSEM_BIT(_fh, _rssem, _val)		\
 	FIELD_PREP(FBNIC_RPC_ACT_TBL1_RSS_ENA_##_rssem,	\
 		   FIELD_GET(RXH_##_fh, _val))
-static u16 fbnic_flow_hash_2_rss_en_mask(struct fbnic_net *fbn, int flow_type)
+u16 fbnic_flow_hash_2_rss_en_mask(struct fbnic_net *fbn, int flow_type)
 {
 	u32 flow_hash = fbn->rss_flow_hash[flow_type];
 	u32 rss_en_mask = 0;

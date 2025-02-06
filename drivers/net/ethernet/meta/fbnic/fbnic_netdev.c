@@ -639,6 +639,7 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 	netdev->hw_features |= netdev->features;
 	netdev->vlan_features |= netdev->features;
 	netdev->hw_enc_features |= netdev->features;
+	netdev->features |= NETIF_F_NTUPLE;
 
 	netdev->min_mtu = IPV6_MIN_MTU;
 	netdev->max_mtu = FBNIC_MAX_JUMBO_FRAME_SIZE - ETH_HLEN;

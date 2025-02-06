@@ -96,12 +96,20 @@ enum {
 #define FBNIC_RPC_ACT_TBL_BMC_OFFSET		0
 #define FBNIC_RPC_ACT_TBL_BMC_ALL_MULTI_OFFSET	1
 
+/* This should leave us with 48 total entries in the TCAM that can be used
+ * for NFC after also deducting the 14 needed for RSS table programming.
+ */
+#define FBNIC_RPC_ACT_TBL_NFC_OFFSET		2
+
 /* We reserve the last 14 entries for RSS rules on the host. The BMC
  * unicast rule will need to be populated above these and is expected to
  * use MACDA TCAM entry 23 to store the BMC MAC address.
  */
 #define FBNIC_RPC_ACT_TBL_RSS_OFFSET \
 	(FBNIC_RPC_ACT_TBL_NUM_ENTRIES - FBNIC_RSS_EN_NUM_ENTRIES)
+
+#define FBNIC_RPC_ACT_TBL_NFC_ENTRIES \
+	(FBNIC_RPC_ACT_TBL_RSS_OFFSET - FBNIC_RPC_ACT_TBL_NFC_OFFSET)
 
 /* Flags used to identify the owner for this MAC filter. Note that any
  * flags set for Broadcast thru Promisc indicate that the rule belongs
@@ -183,6 +191,7 @@ void fbnic_rss_init_en_mask(struct fbnic_net *fbn);
 void fbnic_rss_disable_hw(struct fbnic_dev *fbd);
 void fbnic_rss_reinit_hw(struct fbnic_dev *fbd, struct fbnic_net *fbn);
 void fbnic_rss_reinit(struct fbnic_dev *fbd, struct fbnic_net *fbn);
+u16 fbnic_flow_hash_2_rss_en_mask(struct fbnic_net *fbn, int flow_type);
 
 int __fbnic_xc_unsync(struct fbnic_mac_addr *mac_addr, unsigned int tcam_idx);
 struct fbnic_mac_addr *__fbnic_uc_sync(struct fbnic_dev *fbd,
