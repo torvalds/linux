@@ -474,6 +474,21 @@ TRACE_EVENT(amdgpu_isolation,
 		      __entry->next)
 );
 
+TRACE_EVENT(amdgpu_cleaner_shader,
+	    TP_PROTO(struct amdgpu_ring *ring, struct dma_fence *fence),
+	    TP_ARGS(ring, fence),
+	    TP_STRUCT__entry(
+			     __string(ring, ring->name)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __assign_str(ring);
+			   __entry->seqno = fence->seqno;
+			   ),
+	    TP_printk("ring=%s, seqno=%Lu", __get_str(ring), __entry->seqno)
+);
+
 TRACE_EVENT(amdgpu_bo_list_set,
 	    TP_PROTO(struct amdgpu_bo_list *list, struct amdgpu_bo *bo),
 	    TP_ARGS(list, bo),

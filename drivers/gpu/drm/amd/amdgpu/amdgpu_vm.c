@@ -853,6 +853,7 @@ int amdgpu_vm_flush(struct amdgpu_ring *ring, struct amdgpu_job *job,
 	 * finish before we push them to the HW.
 	 */
 	if (cleaner_shader_needed) {
+		trace_amdgpu_cleaner_shader(ring, fence);
 		mutex_lock(&adev->enforce_isolation_mutex);
 		dma_fence_put(isolation->spearhead);
 		isolation->spearhead = dma_fence_get(fence);
