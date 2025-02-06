@@ -123,6 +123,7 @@ struct netconsole_target_stats  {
  *		remote_ip	(read-write)
  *		local_mac	(read-only)
  *		remote_mac	(read-write)
+ * @buf:	The buffer used to send the full msg to the network stack
  */
 struct netconsole_target {
 	struct list_head	list;
@@ -137,6 +138,8 @@ struct netconsole_target {
 	bool			extended;
 	bool			release;
 	struct netpoll		np;
+	/* protected by target_list_lock */
+	char			buf[MAX_PRINT_CHUNK];
 };
 
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
@@ -1117,7 +1120,6 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 				      int msg_len,
 				      int release_len)
 {
-	static char buf[MAX_PRINT_CHUNK]; /* protected by target_list_lock */
 	const char *userdata = NULL;
 	const char *release;
 
@@ -1128,18 +1130,18 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 	if (release_len) {
 		release = init_utsname()->release;
 
-		scnprintf(buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
+		scnprintf(nt->buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
 		msg_len += release_len;
 	} else {
-		memcpy(buf, msg, msg_len);
+		memcpy(nt->buf, msg, msg_len);
 	}
 
 	if (userdata)
-		msg_len += scnprintf(&buf[msg_len],
+		msg_len += scnprintf(&nt->buf[msg_len],
 				     MAX_PRINT_CHUNK - msg_len,
 				     "%s", userdata);
 
-	send_udp(nt, buf, msg_len);
+	send_udp(nt, nt->buf, msg_len);
 }
 
 static void append_release(char *buf)
@@ -1150,7 +1152,7 @@ static void append_release(char *buf)
 	scnprintf(buf, MAX_PRINT_CHUNK, "%s,", release);
 }
 
-static void send_fragmented_body(struct netconsole_target *nt, char *buf,
+static void send_fragmented_body(struct netconsole_target *nt,
 				 const char *msgbody, int header_len,
 				 int msgbody_len)
 {
@@ -1181,7 +1183,7 @@ static void send_fragmented_body(struct netconsole_target *nt, char *buf,
 		int this_offset = 0;
 		int this_chunk = 0;
 
-		this_header += scnprintf(buf + this_header,
+		this_header += scnprintf(nt->buf + this_header,
 					 MAX_PRINT_CHUNK - this_header,
 					 ",ncfrag=%d/%d;", offset,
 					 body_len);
@@ -1192,7 +1194,8 @@ static void send_fragmented_body(struct netconsole_target *nt, char *buf,
 					 MAX_PRINT_CHUNK - this_header);
 			if (WARN_ON_ONCE(this_chunk <= 0))
 				return;
-			memcpy(buf + this_header, msgbody + offset, this_chunk);
+			memcpy(nt->buf + this_header, msgbody + offset,
+			       this_chunk);
 			this_offset += this_chunk;
 		}
 
@@ -1226,13 +1229,13 @@ static void send_fragmented_body(struct netconsole_target *nt, char *buf,
 				 */
 				return;
 
-			memcpy(buf + this_header + this_offset,
+			memcpy(nt->buf + this_header + this_offset,
 			       userdata + sent_userdata,
 			       this_chunk);
 			this_offset += this_chunk;
 		}
 
-		send_udp(nt, buf, this_header + this_offset);
+		send_udp(nt, nt->buf, this_header + this_offset);
 		offset += this_offset;
 	}
 }
@@ -1242,7 +1245,6 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 				int msg_len,
 				int release_len)
 {
-	static char buf[MAX_PRINT_CHUNK]; /* protected by target_list_lock */
 	int header_len, msgbody_len;
 	const char *msgbody;
 
@@ -1260,16 +1262,16 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 	 * "ncfrag=<byte-offset>/<total-bytes>"
 	 */
 	if (release_len)
-		append_release(buf);
+		append_release(nt->buf);
 
 	/* Copy the header into the buffer */
-	memcpy(buf + release_len, msg, header_len);
+	memcpy(nt->buf + release_len, msg, header_len);
 	header_len += release_len;
 
 	/* for now on, the header will be persisted, and the msgbody
 	 * will be replaced
 	 */
-	send_fragmented_body(nt, buf, msgbody, header_len, msgbody_len);
+	send_fragmented_body(nt, msgbody, header_len, msgbody_len);
 }
 
 /**
