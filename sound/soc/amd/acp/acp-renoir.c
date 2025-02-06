@@ -254,6 +254,6 @@ static struct platform_driver renoir_driver = {
 module_platform_driver(renoir_driver);
 
 MODULE_DESCRIPTION("AMD ACP Renoir Driver");
-MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
+MODULE_IMPORT_NS("SND_SOC_ACP_COMMON");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);

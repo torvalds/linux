@@ -1323,7 +1323,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(exynos_fimd_pm_ops, exynos_fimd_suspend,
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
-	.remove_new	= fimd_remove,
+	.remove		= fimd_remove,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.pm	= pm_ptr(&exynos_fimd_pm_ops),

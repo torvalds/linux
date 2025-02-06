@@ -23,7 +23,6 @@
 
 #define DRIVER_NAME	"sprd"
 #define DRIVER_DESC	"Spreadtrum SoCs' DRM Driver"
-#define DRIVER_DATE	"20200201"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -59,7 +58,6 @@ static struct drm_driver sprd_drm_drv = {
 
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
 	.minor			= DRIVER_MINOR,
 };
@@ -163,7 +161,7 @@ MODULE_DEVICE_TABLE(of, drm_match_table);
 
 static struct platform_driver sprd_drm_driver = {
 	.probe = sprd_drm_probe,
-	.remove_new = sprd_drm_remove,
+	.remove = sprd_drm_remove,
 	.shutdown = sprd_drm_shutdown,
 	.driver = {
 		.name = "sprd-drm-drv",

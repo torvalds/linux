@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author:Mark Yao <mark.yao@rock-chips.com>
  */
 
@@ -1284,7 +1284,7 @@ static void vop_remove(struct platform_device *pdev)
 
 struct platform_driver vop_platform_driver = {
 	.probe = vop_probe,
-	.remove_new = vop_remove,
+	.remove = vop_remove,
 	.driver = {
 		.name = "rockchip-vop",
 		.of_match_table = vop_driver_dt_match,

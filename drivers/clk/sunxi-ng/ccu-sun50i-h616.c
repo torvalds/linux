@@ -1185,6 +1185,6 @@ static struct platform_driver sun50i_h616_ccu_driver = {
 };
 module_platform_driver(sun50i_h616_ccu_driver);
 
-MODULE_IMPORT_NS(SUNXI_CCU);
+MODULE_IMPORT_NS("SUNXI_CCU");
 MODULE_DESCRIPTION("Support for the Allwinner H616 CCU");
 MODULE_LICENSE("GPL");

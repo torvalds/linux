@@ -1506,7 +1506,7 @@ err_bb:
  * using the default engine for the updates, they will be performed in the
  * order they grab the job_mutex. If different engines are used, external
  * synchronization is needed for overlapping updates to maintain page-table
- * consistency. Note that the meaing of "overlapping" is that the updates
+ * consistency. Note that the meaning of "overlapping" is that the updates
  * touch the same page-table, which might be a higher-level page-directory.
  * If no pipelining is needed, then updates may be performed by the cpu.
  *

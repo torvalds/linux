@@ -814,7 +814,7 @@ static struct platform_driver us3mc_driver = {
 		.of_match_table = us3mc_match,
 	},
 	.probe		= us3mc_probe,
-	.remove_new	= us3mc_remove,
+	.remove		= us3mc_remove,
 };
 
 static inline bool us3mc_platform(void)

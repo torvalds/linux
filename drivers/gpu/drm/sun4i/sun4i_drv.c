@@ -15,8 +15,8 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -50,7 +50,6 @@ static const struct drm_driver sun4i_drv_driver = {
 	.fops			= &sun4i_drv_fops,
 	.name			= "sun4i-drm",
 	.desc			= "Allwinner sun4i Display Engine",
-	.date			= "20150629",
 	.major			= 1,
 	.minor			= 0,
 
@@ -443,7 +442,7 @@ MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);
 
 static struct platform_driver sun4i_drv_platform_driver = {
 	.probe		= sun4i_drv_probe,
-	.remove_new	= sun4i_drv_remove,
+	.remove		= sun4i_drv_remove,
 	.shutdown	= sun4i_drv_shutdown,
 	.driver		= {
 		.name		= "sun4i-drm",

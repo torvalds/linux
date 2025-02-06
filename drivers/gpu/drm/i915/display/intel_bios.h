@@ -50,14 +50,6 @@ enum intel_backlight_type {
 	INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE,
 };
 
-struct edp_power_seq {
-	u16 t1_t3;
-	u16 t8;
-	u16 t9;
-	u16 t10;
-	u16 t11_t12;
-} __packed;
-
 /*
  * MIPI Sequence Block definitions
  *

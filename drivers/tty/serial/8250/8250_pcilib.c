@@ -19,7 +19,7 @@ int serial_8250_warn_need_ioport(struct pci_dev *dev)
 
 	return -ENXIO;
 }
-EXPORT_SYMBOL_NS_GPL(serial_8250_warn_need_ioport, SERIAL_8250_PCI);
+EXPORT_SYMBOL_NS_GPL(serial_8250_warn_need_ioport, "SERIAL_8250_PCI");
 
 int serial8250_pci_setup_port(struct pci_dev *dev, struct uart_8250_port *port,
 		   u8 bar, unsigned int offset, int regshift)
@@ -47,6 +47,6 @@ int serial8250_pci_setup_port(struct pci_dev *dev, struct uart_8250_port *port,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(serial8250_pci_setup_port, SERIAL_8250_PCI);
+EXPORT_SYMBOL_NS_GPL(serial8250_pci_setup_port, "SERIAL_8250_PCI");
 MODULE_DESCRIPTION("8250 PCI library");
 MODULE_LICENSE("GPL");

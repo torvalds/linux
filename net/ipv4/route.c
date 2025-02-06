@@ -2445,6 +2445,7 @@ martian_destination:
 		net_warn_ratelimited("martian destination %pI4 from %pI4, dev %s\n",
 				     &daddr, &saddr, dev->name);
 #endif
+	goto out;
 
 e_nobufs:
 	reason = SKB_DROP_REASON_NOMEM;
@@ -2478,7 +2479,8 @@ ip_route_input_rcu(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		int our = 0;
 
 		if (!in_dev)
-			return -EINVAL;
+			return reason;
+
 		our = ip_check_mc_rcu(in_dev, daddr, saddr,
 				      ip_hdr(skb)->protocol);
 

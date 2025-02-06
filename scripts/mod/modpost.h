@@ -65,6 +65,20 @@
 #define TO_NATIVE(x)	\
 	(target_is_big_endian == host_is_big_endian ? x : bswap(x))
 
+#define __get_unaligned_t(type, ptr) ({					\
+	const struct { type x; } __attribute__((__packed__)) *__pptr =	\
+						(typeof(__pptr))(ptr);	\
+	__pptr->x;							\
+})
+
+#define get_unaligned(ptr)	__get_unaligned_t(typeof(*(ptr)), (ptr))
+
+#define get_unaligned_native(ptr) \
+({ \
+	typeof(*(ptr)) _val = get_unaligned(ptr); \
+	TO_NATIVE(_val); \
+})
+
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
@@ -95,14 +109,15 @@ struct module_alias {
 /**
  * struct module - represent a module (vmlinux or *.ko)
  *
+ * @dump_file: path to the .symvers file if loaded from a file
  * @aliases: list head for module_aliases
  */
 struct module {
 	struct list_head list;
 	struct list_head exported_symbols;
 	struct list_head unresolved_symbols;
+	const char *dump_file;
 	bool is_gpl_compatible;
-	bool from_dump;		/* true if module was loaded from *.symvers */
 	bool is_vmlinux;
 	bool seen;
 	bool has_init;

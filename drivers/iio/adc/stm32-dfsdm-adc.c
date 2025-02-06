@@ -691,11 +691,14 @@ static int stm32_dfsdm_generic_channel_parse_of(struct stm32_dfsdm *dfsdm,
 		return -EINVAL;
 	}
 
-	ret = fwnode_property_read_string(node, "label", &ch->datasheet_name);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev,
-			" Error parsing 'label' for idx %d\n", ch->channel);
-		return ret;
+	if (fwnode_property_present(node, "label")) {
+		/* label is optional */
+		ret = fwnode_property_read_string(node, "label", &ch->datasheet_name);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev,
+				" Error parsing 'label' for idx %d\n", ch->channel);
+			return ret;
+		}
 	}
 
 	df_ch =  &dfsdm->ch_list[ch->channel];
@@ -1897,4 +1900,4 @@ module_platform_driver(stm32_dfsdm_adc_driver);
 MODULE_DESCRIPTION("STM32 sigma delta ADC");
 MODULE_AUTHOR("Arnaud Pouliquen <arnaud.pouliquen@st.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_BACKEND);
+MODULE_IMPORT_NS("IIO_BACKEND");

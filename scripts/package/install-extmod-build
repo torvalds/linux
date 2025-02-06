@@ -69,7 +69,7 @@ if [ "${CC}" != "${HOSTCC}" ]; then
 	#
 	# Use the single-target build to avoid the modpost invocation, which
 	# would overwrite Module.symvers.
-	"${MAKE}" HOSTCC="${CC}" KBUILD_EXTMOD="${destdir}" scripts/
+	"${MAKE}" HOSTCC="${CC}" KBUILD_OUTPUT=. KBUILD_EXTMOD="${destdir}" scripts/
 
 	cat <<-'EOF' >  "${destdir}/scripts/Kbuild"
 	subdir-y := basic
@@ -78,7 +78,7 @@ if [ "${CC}" != "${HOSTCC}" ]; then
 	EOF
 
 	# Run once again to rebuild scripts/basic/ and scripts/mod/modpost.
-	"${MAKE}" HOSTCC="${CC}" KBUILD_EXTMOD="${destdir}" scripts/
+	"${MAKE}" HOSTCC="${CC}" KBUILD_OUTPUT=. KBUILD_EXTMOD="${destdir}" scripts/
 
 	rm -f "${destdir}/Kbuild" "${destdir}/scripts/Kbuild"
 fi

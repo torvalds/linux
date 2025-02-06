@@ -542,7 +542,8 @@ ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
 /**
  * ice_find_netlist_node
  * @hw: pointer to the hw struct
- * @node_type_ctx: type of netlist node to look for
+ * @node_type: type of netlist node to look for
+ * @ctx: context of the search
  * @node_part_number: node part number to look for
  * @node_handle: output parameter if node found - optional
  *
@@ -552,10 +553,12 @@ ice_aq_get_netlist_node(struct ice_hw *hw, struct ice_aqc_get_link_topo *cmd,
  * valid if the function returns zero, and should be ignored on any non-zero
  * return value.
  *
- * Returns: 0 if the node is found, -ENOENT if no handle was found, and
- * a negative error code on failure to access the AQ.
+ * Return:
+ * * 0 if the node is found,
+ * * -ENOENT if no handle was found,
+ * * negative error code on failure to access the AQ.
  */
-static int ice_find_netlist_node(struct ice_hw *hw, u8 node_type_ctx,
+static int ice_find_netlist_node(struct ice_hw *hw, u8 node_type, u8 ctx,
 				 u8 node_part_number, u16 *node_handle)
 {
 	u8 idx;
@@ -566,8 +569,8 @@ static int ice_find_netlist_node(struct ice_hw *hw, u8 node_type_ctx,
 		int status;
 
 		cmd.addr.topo_params.node_type_ctx =
-			FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_TYPE_M,
-				   node_type_ctx);
+			FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_TYPE_M, node_type) |
+			FIELD_PREP(ICE_AQC_LINK_TOPO_NODE_CTX_M, ctx);
 		cmd.addr.topo_params.index = idx;
 
 		status = ice_aq_get_netlist_node(hw, &cmd,
@@ -2747,9 +2750,11 @@ bool ice_is_pf_c827(struct ice_hw *hw)
  */
 bool ice_is_phy_rclk_in_netlist(struct ice_hw *hw)
 {
-	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
+	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_PHY,
+				  ICE_AQC_LINK_TOPO_NODE_CTX_PORT,
 				  ICE_AQC_GET_LINK_TOPO_NODE_NR_C827, NULL) &&
-	    ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
+	    ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_PHY,
+				  ICE_AQC_LINK_TOPO_NODE_CTX_PORT,
 				  ICE_AQC_GET_LINK_TOPO_NODE_NR_E822_PHY, NULL))
 		return false;
 
@@ -2765,6 +2770,7 @@ bool ice_is_phy_rclk_in_netlist(struct ice_hw *hw)
 bool ice_is_clock_mux_in_netlist(struct ice_hw *hw)
 {
 	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_MUX,
+				  ICE_AQC_LINK_TOPO_NODE_CTX_GLOBAL,
 				  ICE_AQC_GET_LINK_TOPO_NODE_NR_GEN_CLK_MUX,
 				  NULL))
 		return false;
@@ -2785,12 +2791,14 @@ bool ice_is_clock_mux_in_netlist(struct ice_hw *hw)
 bool ice_is_cgu_in_netlist(struct ice_hw *hw)
 {
 	if (!ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
+				   ICE_AQC_LINK_TOPO_NODE_CTX_GLOBAL,
 				   ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032,
 				   NULL)) {
 		hw->cgu_part_number = ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032;
 		return true;
 	} else if (!ice_find_netlist_node(hw,
 					  ICE_AQC_LINK_TOPO_NODE_TYPE_CLK_CTRL,
+					  ICE_AQC_LINK_TOPO_NODE_CTX_GLOBAL,
 					  ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384,
 					  NULL)) {
 		hw->cgu_part_number = ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384;
@@ -2809,6 +2817,7 @@ bool ice_is_cgu_in_netlist(struct ice_hw *hw)
 bool ice_is_gps_in_netlist(struct ice_hw *hw)
 {
 	if (ice_find_netlist_node(hw, ICE_AQC_LINK_TOPO_NODE_TYPE_GPS,
+				  ICE_AQC_LINK_TOPO_NODE_CTX_GLOBAL,
 				  ICE_AQC_GET_LINK_TOPO_NODE_NR_GEN_GPS, NULL))
 		return false;
 
@@ -4084,6 +4093,57 @@ ice_aq_set_port_option(struct ice_hw *hw, u8 lport, u8 lport_valid,
 	cmd->selected_port_option = new_option;
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, NULL);
+}
+
+/**
+ * ice_get_phy_lane_number - Get PHY lane number for current adapter
+ * @hw: pointer to the hw struct
+ *
+ * Return: PHY lane number on success, negative error code otherwise.
+ */
+int ice_get_phy_lane_number(struct ice_hw *hw)
+{
+	struct ice_aqc_get_port_options_elem *options;
+	unsigned int lport = 0;
+	unsigned int lane;
+	int err;
+
+	options = kcalloc(ICE_AQC_PORT_OPT_MAX, sizeof(*options), GFP_KERNEL);
+	if (!options)
+		return -ENOMEM;
+
+	for (lane = 0; lane < ICE_MAX_PORT_PER_PCI_DEV; lane++) {
+		u8 options_count = ICE_AQC_PORT_OPT_MAX;
+		u8 speed, active_idx, pending_idx;
+		bool active_valid, pending_valid;
+
+		err = ice_aq_get_port_options(hw, options, &options_count, lane,
+					      true, &active_idx, &active_valid,
+					      &pending_idx, &pending_valid);
+		if (err)
+			goto err;
+
+		if (!active_valid)
+			continue;
+
+		speed = options[active_idx].max_lane_speed;
+		/* If we don't get speed for this lane, it's unoccupied */
+		if (speed > ICE_AQC_PORT_OPT_MAX_LANE_200G)
+			continue;
+
+		if (hw->pf_id == lport) {
+			kfree(options);
+			return lane;
+		}
+
+		lport++;
+	}
+
+	/* PHY lane not found */
+	err = -ENXIO;
+err:
+	kfree(options);
+	return err;
 }
 
 /**

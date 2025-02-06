@@ -51,4 +51,4 @@ module_pci_driver(loongson_spi_pci_driver);
 
 MODULE_DESCRIPTION("Loongson spi pci driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(SPI_LOONGSON_CORE);
+MODULE_IMPORT_NS("SPI_LOONGSON_CORE");

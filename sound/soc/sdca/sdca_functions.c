@@ -171,7 +171,7 @@ void sdca_lookup_functions(struct sdw_slave *slave)
 	}
 	acpi_dev_for_each_child(adev, find_sdca_function, &slave->sdca_data);
 }
-EXPORT_SYMBOL_NS(sdca_lookup_functions, SND_SOC_SDCA);
+EXPORT_SYMBOL_NS(sdca_lookup_functions, "SND_SOC_SDCA");
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("SDCA library");

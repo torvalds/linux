@@ -482,8 +482,9 @@ config GPIO_MT7621
 	  Say yes here to support the Mediatek MT7621 SoC GPIO device.
 
 config GPIO_MVEBU
-	def_bool y
+	bool "Marvell Orion and EBU GPIO support" if COMPILE_TEST
 	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
+	default PLAT_ORION || ARCH_MVEBU
 	select GENERIC_IRQ_CHIP
 	select REGMAP_MMIO
 

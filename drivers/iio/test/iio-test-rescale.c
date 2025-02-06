@@ -652,6 +652,8 @@ static void iio_rescale_test_scale(struct kunit *test)
 	int rel_ppm;
 	int ret;
 
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buff);
+
 	rescale.numerator = t->numerator;
 	rescale.denominator = t->denominator;
 	rescale.offset = t->offset;
@@ -680,6 +682,8 @@ static void iio_rescale_test_offset(struct kunit *test)
 	struct rescale rescale;
 	int values[2];
 	int ret;
+
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buff_off);
 
 	rescale.numerator = t->numerator;
 	rescale.denominator = t->denominator;
@@ -712,4 +716,4 @@ kunit_test_suite(iio_rescale_test_suite);
 MODULE_AUTHOR("Liam Beguin <liambeguin@gmail.com>");
 MODULE_DESCRIPTION("Test IIO rescale conversion functions");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(IIO_RESCALE);
+MODULE_IMPORT_NS("IIO_RESCALE");

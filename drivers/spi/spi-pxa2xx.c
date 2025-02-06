@@ -1468,7 +1468,7 @@ out_error_dma_irq_alloc:
 
 	return status;
 }
-EXPORT_SYMBOL_NS_GPL(pxa2xx_spi_probe, SPI_PXA2xx);
+EXPORT_SYMBOL_NS_GPL(pxa2xx_spi_probe, "SPI_PXA2xx");
 
 void pxa2xx_spi_remove(struct device *dev)
 {
@@ -1488,7 +1488,7 @@ void pxa2xx_spi_remove(struct device *dev)
 	/* Release IRQ */
 	free_irq(ssp->irq, drv_data);
 }
-EXPORT_SYMBOL_NS_GPL(pxa2xx_spi_remove, SPI_PXA2xx);
+EXPORT_SYMBOL_NS_GPL(pxa2xx_spi_remove, "SPI_PXA2xx");
 
 static int pxa2xx_spi_suspend(struct device *dev)
 {

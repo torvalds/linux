@@ -25,6 +25,8 @@ int main(void)
 	unsigned long vl;
 	char *datap, *tmp;
 
+	ksft_set_plan(1);
+
 	datap = malloc(MAX_VSIZE);
 	if (!datap) {
 		ksft_test_result_fail("fail to allocate memory for size = %d\n", MAX_VSIZE);
@@ -63,6 +65,8 @@ int main(void)
 	}
 
 	free(datap);
+
+	ksft_test_result_pass("tests for v_initval_nolibc pass\n");
 	ksft_exit_pass();
 	return 0;
 }

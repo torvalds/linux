@@ -97,4 +97,4 @@ module_i2c_driver(mpr_i2c_driver);
 MODULE_AUTHOR("Andreas Klinger <ak@it-klinger.de>");
 MODULE_DESCRIPTION("Honeywell MPR pressure sensor i2c driver");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_HONEYWELL_MPRLS0025PA);
+MODULE_IMPORT_NS("IIO_HONEYWELL_MPRLS0025PA");

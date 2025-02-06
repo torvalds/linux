@@ -18,6 +18,7 @@ properties:
   compatible:
     enum:
       - qcom,qca6390-pmu
+      - qcom,wcn6750-pmu
       - qcom,wcn6855-pmu
       - qcom,wcn7850-pmu
 
@@ -26,6 +27,9 @@ properties:
 
   vddaon-supply:
     description: VDD_AON supply regulator handle
+
+  vddasd-supply:
+    description: VDD_ASD supply regulator handle
 
   vdddig-supply:
     description: VDD_DIG supply regulator handle
@@ -42,6 +46,9 @@ properties:
   vddio1p2-supply:
     description: VDD_IO_1P2 supply regulator handle
 
+  vddrfa0p8-supply:
+    description: VDD_RFA_0P8 supply regulator handle
+
   vddrfa0p95-supply:
     description: VDD_RFA_0P95 supply regulator handle
 
@@ -51,11 +58,17 @@ properties:
   vddrfa1p3-supply:
     description: VDD_RFA_1P3 supply regulator handle
 
+  vddrfa1p7-supply:
+    description: VDD_RFA_1P7 supply regulator handle
+
   vddrfa1p8-supply:
     description: VDD_RFA_1P8 supply regulator handle
 
   vddrfa1p9-supply:
     description: VDD_RFA_1P9 supply regulator handle
+
+  vddrfa2p2-supply:
+    description: VDD_RFA_2P2 supply regulator handle
 
   vddpcie1p3-supply:
     description: VDD_PCIE_1P3 supply regulator handle
@@ -119,6 +132,20 @@ allOf:
         - vddpcie1p3-supply
         - vddpcie1p9-supply
         - vddio-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,wcn6750-pmu
+    then:
+      required:
+        - vddaon-supply
+        - vddasd-supply
+        - vddpmu-supply
+        - vddrfa0p8-supply
+        - vddrfa1p2-supply
+        - vddrfa1p7-supply
+        - vddrfa2p2-supply
   - if:
       properties:
         compatible:

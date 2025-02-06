@@ -836,6 +836,9 @@ static ssize_t rcd_pcie_cap_emit(struct device *dev, u16 offset, char *buf, size
 	if (!root_dev)
 		return -ENXIO;
 
+	if (!dport->regs.rcd_pcie_cap)
+		return -ENXIO;
+
 	guard(device)(root_dev);
 	if (!root_dev->driver)
 		return -ENXIO;
@@ -1032,8 +1035,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	rc = cxl_pci_ras_unmask(pdev);
-	if (rc)
+	if (cxl_pci_ras_unmask(pdev))
 		dev_dbg(&pdev->dev, "No RAS reporting unmasked\n");
 
 	pci_save_state(pdev);
@@ -1184,4 +1186,4 @@ module_init(cxl_pci_driver_init);
 module_exit(cxl_pci_driver_exit);
 MODULE_DESCRIPTION("CXL: PCI manageability");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(CXL);
+MODULE_IMPORT_NS("CXL");

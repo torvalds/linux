@@ -1622,7 +1622,7 @@ static void __exit sensors_nct6775_platform_exit(void)
 MODULE_AUTHOR("Guenter Roeck <linux@roeck-us.net>");
 MODULE_DESCRIPTION("Platform driver for NCT6775F and compatible chips");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(HWMON_NCT6775);
+MODULE_IMPORT_NS("HWMON_NCT6775");
 
 module_init(sensors_nct6775_platform_init);
 module_exit(sensors_nct6775_platform_exit);

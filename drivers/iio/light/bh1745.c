@@ -746,6 +746,8 @@ static irqreturn_t bh1745_trigger_handler(int interrupt, void *p)
 	int i;
 	int j = 0;
 
+	memset(&scan, 0, sizeof(scan));
+
 	iio_for_each_active_channel(indio_dev, i) {
 		ret = regmap_bulk_read(data->regmap, BH1745_RED_LSB + 2 * i,
 				       &value, 2);
@@ -899,4 +901,4 @@ module_i2c_driver(bh1745_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mudit Sharma <muditsharma.info@gmail.com>");
 MODULE_DESCRIPTION("BH1745 colour sensor driver");
-MODULE_IMPORT_NS(IIO_GTS_HELPER);
+MODULE_IMPORT_NS("IIO_GTS_HELPER");

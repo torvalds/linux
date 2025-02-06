@@ -250,7 +250,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <32>;
+				ngpios = <32>;
 				reg = <0>;
 			};
 
@@ -258,7 +258,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <8>;
+				ngpios = <8>;
 				reg = <1>;
 			};
 
@@ -266,7 +266,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <8>;
+				ngpios = <8>;
 				reg = <2>;
 			};
 		};
@@ -281,7 +281,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <30>;
+				ngpios = <30>;
 				reg = <0>;
 			};
 
@@ -289,7 +289,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <10>;
+				ngpios = <10>;
 				reg = <1>;
 			};
 
@@ -297,7 +297,7 @@
 				compatible = "snps,dw-apb-gpio-port";
 				gpio-controller;
 				#gpio-cells = <2>;
-				snps,nr-gpios = <8>;
+				ngpios = <8>;
 				reg = <2>;
 			};
 		};

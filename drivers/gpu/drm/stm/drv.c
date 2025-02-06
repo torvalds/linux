@@ -16,9 +16,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_fourcc.h>
@@ -62,7 +62,6 @@ static const struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.name = "stm",
 	.desc = "STMicroelectronics SoC DRM",
-	.date = "20170330",
 	.major = 1,
 	.minor = 0,
 	.patchlevel = 0,
@@ -245,7 +244,7 @@ MODULE_DEVICE_TABLE(of, drv_dt_ids);
 
 static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
-	.remove_new = stm_drm_platform_remove,
+	.remove = stm_drm_platform_remove,
 	.shutdown = stm_drm_platform_shutdown,
 	.driver = {
 		.name = "stm32-display",

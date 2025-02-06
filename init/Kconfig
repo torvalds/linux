@@ -1136,6 +1136,16 @@ config CGROUP_RDMA
 	  Attaching processes with active RDMA resources to the cgroup
 	  hierarchy is allowed even if can cross the hierarchy's limit.
 
+config CGROUP_DMEM
+	bool "Device memory controller (DMEM)"
+	select PAGE_COUNTER
+	help
+	  The DMEM controller allows compatible devices to restrict device
+	  memory usage based on the cgroup hierarchy.
+
+	  As an example, it allows you to restrict VRAM usage for applications
+	  in the DRM subsystem.
+
 config CGROUP_FREEZER
 	bool "Freezer controller"
 	help

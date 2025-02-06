@@ -7,9 +7,10 @@
 #include <linux/kernel.h>
 
 #include <drm/drm_drv.h>
+#include <drm/drm_file.h>
 
+#include "intel_display_core.h"
 #include "intel_display_debugfs_params.h"
-#include "i915_drv.h"
 #include "intel_display_params.h"
 
 /* int param */

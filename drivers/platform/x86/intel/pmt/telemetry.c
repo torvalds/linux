@@ -153,7 +153,7 @@ unsigned long pmt_telem_get_next_endpoint(unsigned long start)
 
 	return found_idx == start ? 0 : found_idx;
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_get_next_endpoint, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_get_next_endpoint, "INTEL_PMT_TELEMETRY");
 
 struct telem_endpoint *pmt_telem_register_endpoint(int devid)
 {
@@ -172,13 +172,13 @@ struct telem_endpoint *pmt_telem_register_endpoint(int devid)
 
 	return entry->ep;
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_register_endpoint, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_register_endpoint, "INTEL_PMT_TELEMETRY");
 
 void pmt_telem_unregister_endpoint(struct telem_endpoint *ep)
 {
 	kref_put(&ep->kref, pmt_telem_ep_release);
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_unregister_endpoint, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_unregister_endpoint, "INTEL_PMT_TELEMETRY");
 
 int pmt_telem_get_endpoint_info(int devid, struct telem_endpoint_info *info)
 {
@@ -204,7 +204,7 @@ unlock:
 	return err;
 
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_get_endpoint_info, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_get_endpoint_info, "INTEL_PMT_TELEMETRY");
 
 int pmt_telem_read(struct telem_endpoint *ep, u32 id, u64 *data, u32 count)
 {
@@ -224,7 +224,7 @@ int pmt_telem_read(struct telem_endpoint *ep, u32 id, u64 *data, u32 count)
 
 	return ep->present ? 0 : -EPIPE;
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_read, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_read, "INTEL_PMT_TELEMETRY");
 
 int pmt_telem_read32(struct telem_endpoint *ep, u32 id, u32 *data, u32 count)
 {
@@ -243,7 +243,7 @@ int pmt_telem_read32(struct telem_endpoint *ep, u32 id, u32 *data, u32 count)
 
 	return ep->present ? 0 : -EPIPE;
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_read32, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_read32, "INTEL_PMT_TELEMETRY");
 
 struct telem_endpoint *
 pmt_telem_find_and_register_endpoint(struct pci_dev *pcidev, u32 guid, u16 pos)
@@ -268,7 +268,7 @@ pmt_telem_find_and_register_endpoint(struct pci_dev *pcidev, u32 guid, u16 pos)
 
 	return ERR_PTR(-ENXIO);
 }
-EXPORT_SYMBOL_NS_GPL(pmt_telem_find_and_register_endpoint, INTEL_PMT_TELEMETRY);
+EXPORT_SYMBOL_NS_GPL(pmt_telem_find_and_register_endpoint, "INTEL_PMT_TELEMETRY");
 
 static void pmt_telem_remove(struct auxiliary_device *auxdev)
 {
@@ -347,4 +347,4 @@ module_exit(pmt_telem_exit);
 MODULE_AUTHOR("David E. Box <david.e.box@linux.intel.com>");
 MODULE_DESCRIPTION("Intel PMT Telemetry driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(INTEL_PMT);
+MODULE_IMPORT_NS("INTEL_PMT");

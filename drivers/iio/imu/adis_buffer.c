@@ -124,7 +124,7 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(adis_update_scan_mode, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(adis_update_scan_mode, "IIO_ADISLIB");
 
 static int adis_paging_trigger_handler(struct adis *adis)
 {
@@ -222,4 +222,4 @@ devm_adis_setup_buffer_and_trigger_with_attrs(struct adis *adis, struct iio_dev 
 	return devm_add_action_or_reset(&adis->spi->dev, adis_buffer_cleanup,
 					adis);
 }
-EXPORT_SYMBOL_NS_GPL(devm_adis_setup_buffer_and_trigger_with_attrs, IIO_ADISLIB);
+EXPORT_SYMBOL_NS_GPL(devm_adis_setup_buffer_and_trigger_with_attrs, "IIO_ADISLIB");

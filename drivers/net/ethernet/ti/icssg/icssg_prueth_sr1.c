@@ -440,13 +440,35 @@ static int prueth_emac_start(struct prueth *prueth, struct prueth_emac *emac)
 		goto halt_pru;
 	}
 
-	emac->fw_running = 1;
 	return 0;
 
 halt_pru:
 	rproc_shutdown(prueth->pru[slice]);
 
 	return ret;
+}
+
+static void prueth_emac_stop(struct prueth_emac *emac)
+{
+	struct prueth *prueth = emac->prueth;
+	int slice;
+
+	switch (emac->port_id) {
+	case PRUETH_PORT_MII0:
+		slice = ICSS_SLICE0;
+		break;
+	case PRUETH_PORT_MII1:
+		slice = ICSS_SLICE1;
+		break;
+	default:
+		netdev_err(emac->ndev, "invalid port\n");
+		return;
+	}
+
+	if (!emac->is_sr1)
+		rproc_shutdown(prueth->txpru[slice]);
+	rproc_shutdown(prueth->rtu[slice]);
+	rproc_shutdown(prueth->pru[slice]);
 }
 
 /**

@@ -205,7 +205,7 @@ void intel_dpt_resume(struct drm_i915_private *i915)
 		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
 
 		if (fb->dpt_vm)
-			i915_ggtt_resume_vm(fb->dpt_vm);
+			i915_ggtt_resume_vm(fb->dpt_vm, true);
 	}
 	mutex_unlock(&i915->drm.mode_config.fb_lock);
 }
@@ -233,7 +233,7 @@ void intel_dpt_suspend(struct drm_i915_private *i915)
 		struct intel_framebuffer *fb = to_intel_framebuffer(drm_fb);
 
 		if (fb->dpt_vm)
-			i915_ggtt_suspend_vm(fb->dpt_vm);
+			i915_ggtt_suspend_vm(fb->dpt_vm, true);
 	}
 
 	mutex_unlock(&i915->drm.mode_config.fb_lock);

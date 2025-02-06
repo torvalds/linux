@@ -2094,7 +2094,7 @@ static void __exit iaa_crypto_cleanup_module(void)
 	pr_debug("cleaned up\n");
 }
 
-MODULE_IMPORT_NS(IDXD);
+MODULE_IMPORT_NS("IDXD");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_IDXD_DEVICE(0);
 MODULE_AUTHOR("Intel Corporation");

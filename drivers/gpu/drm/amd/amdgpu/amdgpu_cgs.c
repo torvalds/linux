@@ -414,7 +414,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				return -EINVAL;
 			}
 
-			err = amdgpu_ucode_request(adev, &adev->pm.fw, "%s", fw_name);
+			err = amdgpu_ucode_request(adev, &adev->pm.fw,
+						   AMDGPU_UCODE_REQUIRED,
+						   "%s", fw_name);
 			if (err) {
 				DRM_ERROR("Failed to load firmware \"%s\"", fw_name);
 				amdgpu_ucode_release(&adev->pm.fw);

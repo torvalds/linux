@@ -18,8 +18,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
 #include <drm/drm_gem_dma_helper.h>
@@ -174,7 +174,6 @@ static const struct drm_driver fsl_dcu_drm_driver = {
 	.fops			= &fsl_dcu_drm_fops,
 	.name			= "fsl-dcu-drm",
 	.desc			= "Freescale DCU DRM",
-	.date			= "20160425",
 	.major			= 1,
 	.minor			= 1,
 };
@@ -378,7 +377,7 @@ static void fsl_dcu_drm_shutdown(struct platform_device *pdev)
 
 static struct platform_driver fsl_dcu_drm_platform_driver = {
 	.probe		= fsl_dcu_drm_probe,
-	.remove_new	= fsl_dcu_drm_remove,
+	.remove		= fsl_dcu_drm_remove,
 	.shutdown	= fsl_dcu_drm_shutdown,
 	.driver		= {
 		.name	= "fsl-dcu",

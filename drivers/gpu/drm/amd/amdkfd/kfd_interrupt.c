@@ -46,7 +46,7 @@
 #include <linux/kfifo.h>
 #include "kfd_priv.h"
 
-#define KFD_IH_NUM_ENTRIES 8192
+#define KFD_IH_NUM_ENTRIES 16384
 
 static void interrupt_wq(struct work_struct *);
 
@@ -62,11 +62,14 @@ int kfd_interrupt_init(struct kfd_node *node)
 		return r;
 	}
 
-	node->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI, 1);
-	if (unlikely(!node->ih_wq)) {
-		kfifo_free(&node->ih_fifo);
-		dev_err(node->adev->dev, "Failed to allocate KFD IH workqueue\n");
-		return -ENOMEM;
+	if (!node->kfd->ih_wq) {
+		node->kfd->ih_wq = alloc_workqueue("KFD IH", WQ_HIGHPRI | WQ_UNBOUND,
+						   node->kfd->num_nodes);
+		if (unlikely(!node->kfd->ih_wq)) {
+			kfifo_free(&node->ih_fifo);
+			dev_err(node->adev->dev, "Failed to allocate KFD IH workqueue\n");
+			return -ENOMEM;
+		}
 	}
 	spin_lock_init(&node->interrupt_lock);
 
@@ -96,16 +99,6 @@ void kfd_interrupt_exit(struct kfd_node *node)
 	spin_lock_irqsave(&node->interrupt_lock, flags);
 	node->interrupts_active = false;
 	spin_unlock_irqrestore(&node->interrupt_lock, flags);
-
-	/*
-	 * flush_work ensures that there are no outstanding
-	 * work-queue items that will access interrupt_ring. New work items
-	 * can't be created because we stopped interrupt handling above.
-	 */
-	flush_workqueue(node->ih_wq);
-
-	destroy_workqueue(node->ih_wq);
-
 	kfifo_free(&node->ih_fifo);
 }
 
@@ -114,55 +107,48 @@ void kfd_interrupt_exit(struct kfd_node *node)
  */
 bool enqueue_ih_ring_entry(struct kfd_node *node, const void *ih_ring_entry)
 {
-	int count;
-
-	count = kfifo_in(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
-	if (count != node->kfd->device_info.ih_ring_entry_size) {
-		dev_dbg_ratelimited(node->adev->dev,
-			"Interrupt ring overflow, dropping interrupt %d\n",
-			count);
+	if (kfifo_is_full(&node->ih_fifo)) {
+		dev_warn_ratelimited(node->adev->dev, "KFD node %d ih_fifo overflow\n",
+				     node->node_id);
 		return false;
 	}
 
+	kfifo_in(&node->ih_fifo, ih_ring_entry, node->kfd->device_info.ih_ring_entry_size);
 	return true;
 }
 
 /*
  * Assumption: single reader/writer. This function is not re-entrant
  */
-static bool dequeue_ih_ring_entry(struct kfd_node *node, void *ih_ring_entry)
+static bool dequeue_ih_ring_entry(struct kfd_node *node, u32 **ih_ring_entry)
 {
 	int count;
 
-	count = kfifo_out(&node->ih_fifo, ih_ring_entry,
-				node->kfd->device_info.ih_ring_entry_size);
+	if (kfifo_is_empty(&node->ih_fifo))
+		return false;
 
-	WARN_ON(count && count != node->kfd->device_info.ih_ring_entry_size);
-
+	count = kfifo_out_linear_ptr(&node->ih_fifo, ih_ring_entry,
+				     node->kfd->device_info.ih_ring_entry_size);
+	WARN_ON(count != node->kfd->device_info.ih_ring_entry_size);
 	return count == node->kfd->device_info.ih_ring_entry_size;
 }
 
 static void interrupt_wq(struct work_struct *work)
 {
-	struct kfd_node *dev = container_of(work, struct kfd_node,
-						interrupt_work);
-	uint32_t ih_ring_entry[KFD_MAX_RING_ENTRY_SIZE];
+	struct kfd_node *dev = container_of(work, struct kfd_node, interrupt_work);
+	uint32_t *ih_ring_entry;
 	unsigned long start_jiffies = jiffies;
 
-	if (dev->kfd->device_info.ih_ring_entry_size > sizeof(ih_ring_entry)) {
-		dev_err_once(dev->adev->dev, "Ring entry too small\n");
-		return;
-	}
-
-	while (dequeue_ih_ring_entry(dev, ih_ring_entry)) {
+	while (dequeue_ih_ring_entry(dev, &ih_ring_entry)) {
 		dev->kfd->device_info.event_interrupt_class->interrupt_wq(dev,
 								ih_ring_entry);
+		kfifo_skip_count(&dev->ih_fifo, dev->kfd->device_info.ih_ring_entry_size);
+
 		if (time_is_before_jiffies(start_jiffies + HZ)) {
 			/* If we spent more than a second processing signals,
 			 * reschedule the worker to avoid soft-lockup warnings
 			 */
-			queue_work(dev->ih_wq, &dev->interrupt_work);
+			queue_work(dev->kfd->ih_wq, &dev->interrupt_work);
 			break;
 		}
 	}

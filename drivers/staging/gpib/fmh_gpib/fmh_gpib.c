@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB Driver for fmh_gpib_core");
+MODULE_AUTHOR("Frank Mori Hess <fmh6jj@gmail.com>");
 
 static irqreturn_t fmh_gpib_interrupt(int irq, void *arg);
 static int fmh_gpib_attach_holdoff_all(gpib_board_t *board, const gpib_board_config_t *config);
@@ -1419,15 +1421,14 @@ static int fmh_gpib_attach_impl(gpib_board_t *board, const gpib_board_config_t *
 	}
 	e_priv->gpib_iomem_res = res;
 
-	nec_priv->iobase = ioremap(e_priv->gpib_iomem_res->start,
+	nec_priv->mmiobase = ioremap(e_priv->gpib_iomem_res->start,
 				   resource_size(e_priv->gpib_iomem_res));
-	if (!nec_priv->iobase) {
+	if (!nec_priv->mmiobase) {
 		dev_err(board->dev, "Could not map I/O memory for gpib\n");
 		return -ENOMEM;
 	}
-	dev_info(board->dev, "iobase 0x%lx remapped to %p, length=%ld\n",
-		 (unsigned long)e_priv->gpib_iomem_res->start,
-		 nec_priv->iobase, (unsigned long)resource_size(e_priv->gpib_iomem_res));
+	dev_info(board->dev, "iobase %pr remapped to %p\n",
+		 e_priv->gpib_iomem_res, nec_priv->mmiobase);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dma_fifos");
 	if (!res) {
@@ -1507,14 +1508,14 @@ void fmh_gpib_detach(gpib_board_t *board)
 			free_irq(e_priv->irq, board);
 		if (e_priv->fifo_base)
 			fifos_write(e_priv, 0, FIFO_CONTROL_STATUS_REG);
-		if (nec_priv->iobase) {
+		if (nec_priv->mmiobase) {
 			write_byte(nec_priv, 0, ISR0_IMR0_REG);
 			nec7210_board_reset(nec_priv, board);
 		}
 		if (e_priv->fifo_base)
 			iounmap(e_priv->fifo_base);
-		if (nec_priv->iobase)
-			iounmap(nec_priv->iobase);
+		if (nec_priv->mmiobase)
+			iounmap(nec_priv->mmiobase);
 		if (e_priv->dma_port_res) {
 			release_mem_region(e_priv->dma_port_res->start,
 					   resource_size(e_priv->dma_port_res));
@@ -1564,12 +1565,12 @@ static int fmh_gpib_pci_attach_impl(gpib_board_t *board, const gpib_board_config
 	e_priv->gpib_iomem_res = &pci_device->resource[gpib_control_status_pci_resource_index];
 	e_priv->dma_port_res =  &pci_device->resource[gpib_fifo_pci_resource_index];
 
-	nec_priv->iobase = ioremap(pci_resource_start(pci_device,
+	nec_priv->mmiobase = ioremap(pci_resource_start(pci_device,
 						      gpib_control_status_pci_resource_index),
 				   pci_resource_len(pci_device,
 						    gpib_control_status_pci_resource_index));
 	dev_info(board->dev, "base address for gpib control/status registers remapped to 0x%p\n",
-		 nec_priv->iobase);
+		 nec_priv->mmiobase);
 
 	if (e_priv->dma_port_res->flags & IORESOURCE_MEM) {
 		e_priv->fifo_base = ioremap(pci_resource_start(pci_device,
@@ -1632,14 +1633,14 @@ void fmh_gpib_pci_detach(gpib_board_t *board)
 			free_irq(e_priv->irq, board);
 		if (e_priv->fifo_base)
 			fifos_write(e_priv, 0, FIFO_CONTROL_STATUS_REG);
-		if (nec_priv->iobase) {
+		if (nec_priv->mmiobase) {
 			write_byte(nec_priv, 0, ISR0_IMR0_REG);
 			nec7210_board_reset(nec_priv, board);
 		}
 		if (e_priv->fifo_base)
 			iounmap(e_priv->fifo_base);
-		if (nec_priv->iobase)
-			iounmap(nec_priv->iobase);
+		if (nec_priv->mmiobase)
+			iounmap(nec_priv->mmiobase);
 		if (e_priv->dma_port_res || e_priv->gpib_iomem_res)
 			pci_release_regions(to_pci_dev(board->dev));
 		if (board->dev)

@@ -71,7 +71,8 @@
 /* Map our scrub type to a sick mask and a set of health update functions. */
 
 enum xchk_health_group {
-	XHG_FS = 1,
+	XHG_NONE = 1,
+	XHG_FS,
 	XHG_AG,
 	XHG_INO,
 	XHG_RTGROUP,
@@ -83,6 +84,7 @@ struct xchk_health_map {
 };
 
 static const struct xchk_health_map type_to_health_flag[XFS_SCRUB_TYPE_NR] = {
+	[XFS_SCRUB_TYPE_PROBE]		= { XHG_NONE,  0 },
 	[XFS_SCRUB_TYPE_SB]		= { XHG_AG,  XFS_SICK_AG_SB },
 	[XFS_SCRUB_TYPE_AGF]		= { XHG_AG,  XFS_SICK_AG_AGF },
 	[XFS_SCRUB_TYPE_AGFL]		= { XHG_AG,  XFS_SICK_AG_AGFL },
@@ -133,7 +135,7 @@ xchk_mark_healthy_if_clean(
 {
 	if (!(sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
 				  XFS_SCRUB_OFLAG_XCORRUPT)))
-		sc->sick_mask |= mask;
+		sc->healthy_mask |= mask;
 }
 
 /*
@@ -189,6 +191,7 @@ xchk_update_health(
 {
 	struct xfs_perag	*pag;
 	struct xfs_rtgroup	*rtg;
+	unsigned int		mask = sc->sick_mask;
 	bool			bad;
 
 	/*
@@ -203,50 +206,56 @@ xchk_update_health(
 		return;
 	}
 
-	if (!sc->sick_mask)
-		return;
-
 	bad = (sc->sm->sm_flags & (XFS_SCRUB_OFLAG_CORRUPT |
 				   XFS_SCRUB_OFLAG_XCORRUPT));
+	if (!bad)
+		mask |= sc->healthy_mask;
 	switch (type_to_health_flag[sc->sm->sm_type].group) {
+	case XHG_NONE:
+		break;
 	case XHG_AG:
+		if (!mask)
+			return;
 		pag = xfs_perag_get(sc->mp, sc->sm->sm_agno);
 		if (bad)
-			xfs_group_mark_corrupt(pag_group(pag), sc->sick_mask);
+			xfs_group_mark_corrupt(pag_group(pag), mask);
 		else
-			xfs_group_mark_healthy(pag_group(pag), sc->sick_mask);
+			xfs_group_mark_healthy(pag_group(pag), mask);
 		xfs_perag_put(pag);
 		break;
 	case XHG_INO:
 		if (!sc->ip)
 			return;
-		if (bad) {
-			unsigned int	mask = sc->sick_mask;
-
-			/*
-			 * If we're coming in for repairs then we don't want
-			 * sickness flags to propagate to the incore health
-			 * status if the inode gets inactivated before we can
-			 * fix it.
-			 */
-			if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
-				mask |= XFS_SICK_INO_FORGET;
+		/*
+		 * If we're coming in for repairs then we don't want sickness
+		 * flags to propagate to the incore health status if the inode
+		 * gets inactivated before we can fix it.
+		 */
+		if (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+			mask |= XFS_SICK_INO_FORGET;
+		if (!mask)
+			return;
+		if (bad)
 			xfs_inode_mark_corrupt(sc->ip, mask);
-		} else
-			xfs_inode_mark_healthy(sc->ip, sc->sick_mask);
+		else
+			xfs_inode_mark_healthy(sc->ip, mask);
 		break;
 	case XHG_FS:
+		if (!mask)
+			return;
 		if (bad)
-			xfs_fs_mark_corrupt(sc->mp, sc->sick_mask);
+			xfs_fs_mark_corrupt(sc->mp, mask);
 		else
-			xfs_fs_mark_healthy(sc->mp, sc->sick_mask);
+			xfs_fs_mark_healthy(sc->mp, mask);
 		break;
 	case XHG_RTGROUP:
+		if (!mask)
+			return;
 		rtg = xfs_rtgroup_get(sc->mp, sc->sm->sm_agno);
 		if (bad)
-			xfs_group_mark_corrupt(rtg_group(rtg), sc->sick_mask);
+			xfs_group_mark_corrupt(rtg_group(rtg), mask);
 		else
-			xfs_group_mark_healthy(rtg_group(rtg), sc->sick_mask);
+			xfs_group_mark_healthy(rtg_group(rtg), mask);
 		xfs_rtgroup_put(rtg);
 		break;
 	default:

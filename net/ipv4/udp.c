@@ -533,7 +533,7 @@ begin:
 	return NULL;
 }
 
-/* In hash4, rehash can happen in connect(), where hash4_cnt keeps unchanged. */
+/* udp_rehash4() only checks hslot4, and hash4_cnt is not processed. */
 static void udp_rehash4(struct udp_table *udptable, struct sock *sk,
 			u16 newhash4)
 {
@@ -582,15 +582,13 @@ void udp_lib_hash4(struct sock *sk, u16 hash)
 	struct net *net = sock_net(sk);
 	struct udp_table *udptable;
 
-	/* Connected udp socket can re-connect to another remote address,
-	 * so rehash4 is needed.
+	/* Connected udp socket can re-connect to another remote address, which
+	 * will be handled by rehash. Thus no need to redo hash4 here.
 	 */
-	udptable = net->ipv4.udp_table;
-	if (udp_hashed4(sk)) {
-		udp_rehash4(udptable, sk, hash);
+	if (udp_hashed4(sk))
 		return;
-	}
 
+	udptable = net->ipv4.udp_table;
 	hslot = udp_hashslot(udptable, net, udp_sk(sk)->udp_port_hash);
 	hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 	hslot4 = udp_hashslot4(udptable, hash);
@@ -1674,7 +1672,6 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 	int rmem, err = -ENOMEM;
 	spinlock_t *busy = NULL;
-	bool becomes_readable;
 	int size, rcvbuf;
 
 	/* Immediately drop when the receive queue is full.
@@ -1715,19 +1712,12 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	 */
 	sock_skb_set_dropcount(sk, skb);
 
-	becomes_readable = skb_queue_empty(list);
 	__skb_queue_tail(list, skb);
 	spin_unlock(&list->lock);
 
-	if (!sock_flag(sk, SOCK_DEAD)) {
-		if (becomes_readable ||
-		    sk->sk_data_ready != sock_def_readable ||
-		    READ_ONCE(sk->sk_peek_off) >= 0)
-			INDIRECT_CALL_1(sk->sk_data_ready,
-					sock_def_readable, sk);
-		else
-			sk_wake_async_rcu(sk, SOCK_WAKE_WAITD, POLL_IN);
-	}
+	if (!sock_flag(sk, SOCK_DEAD))
+		INDIRECT_CALL_1(sk->sk_data_ready, sock_def_readable, sk);
+
 	busylock_release(busy);
 	return 0;
 
@@ -2181,14 +2171,14 @@ void udp_lib_rehash(struct sock *sk, u16 newhash, u16 newhash4)
 		struct udp_table *udptable = udp_get_table_prot(sk);
 		struct udp_hslot *hslot, *hslot2, *nhslot2;
 
+		hslot = udp_hashslot(udptable, sock_net(sk),
+				     udp_sk(sk)->udp_port_hash);
 		hslot2 = udp_hashslot2(udptable, udp_sk(sk)->udp_portaddr_hash);
 		nhslot2 = udp_hashslot2(udptable, newhash);
 		udp_sk(sk)->udp_portaddr_hash = newhash;
 
 		if (hslot2 != nhslot2 ||
 		    rcu_access_pointer(sk->sk_reuseport_cb)) {
-			hslot = udp_hashslot(udptable, sock_net(sk),
-					     udp_sk(sk)->udp_port_hash);
 			/* we must lock primary chain too */
 			spin_lock_bh(&hslot->lock);
 			if (rcu_access_pointer(sk->sk_reuseport_cb))
@@ -2207,19 +2197,29 @@ void udp_lib_rehash(struct sock *sk, u16 newhash, u16 newhash4)
 				spin_unlock(&nhslot2->lock);
 			}
 
-			if (udp_hashed4(sk)) {
-				udp_rehash4(udptable, sk, newhash4);
+			spin_unlock_bh(&hslot->lock);
+		}
 
-				if (hslot2 != nhslot2) {
-					spin_lock(&hslot2->lock);
-					udp_hash4_dec(hslot2);
-					spin_unlock(&hslot2->lock);
+		/* Now process hash4 if necessary:
+		 * (1) update hslot4;
+		 * (2) update hslot2->hash4_cnt.
+		 * Note that hslot2/hslot4 should be checked separately, as
+		 * either of them may change with the other unchanged.
+		 */
+		if (udp_hashed4(sk)) {
+			spin_lock_bh(&hslot->lock);
 
-					spin_lock(&nhslot2->lock);
-					udp_hash4_inc(nhslot2);
-					spin_unlock(&nhslot2->lock);
-				}
+			udp_rehash4(udptable, sk, newhash4);
+			if (hslot2 != nhslot2) {
+				spin_lock(&hslot2->lock);
+				udp_hash4_dec(hslot2);
+				spin_unlock(&hslot2->lock);
+
+				spin_lock(&nhslot2->lock);
+				udp_hash4_inc(nhslot2);
+				spin_unlock(&nhslot2->lock);
 			}
+
 			spin_unlock_bh(&hslot->lock);
 		}
 	}

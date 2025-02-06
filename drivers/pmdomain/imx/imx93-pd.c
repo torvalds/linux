@@ -162,7 +162,7 @@ static struct platform_driver imx93_power_domain_driver = {
 		.of_match_table = imx93_pd_ids,
 	},
 	.probe = imx93_pd_probe,
-	.remove_new = imx93_pd_remove,
+	.remove = imx93_pd_remove,
 };
 module_platform_driver(imx93_power_domain_driver);
 

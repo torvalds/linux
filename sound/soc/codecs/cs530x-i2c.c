@@ -67,6 +67,6 @@ static struct i2c_driver cs530x_i2c_driver = {
 module_i2c_driver(cs530x_i2c_driver);
 
 MODULE_DESCRIPTION("I2C CS530X driver");
-MODULE_IMPORT_NS(SND_SOC_CS530X);
+MODULE_IMPORT_NS("SND_SOC_CS530X");
 MODULE_AUTHOR("Paul Handrigan, Cirrus Logic Inc, <paulha@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

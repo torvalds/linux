@@ -4354,6 +4354,7 @@ int mas_alloc_cyclic(struct ma_state *mas, unsigned long *startp,
 		ret = 1;
 	}
 	if (ret < 0 && range_lo > min) {
+		mas_reset(mas);
 		ret = mas_empty_area(mas, min, range_hi, 1);
 		if (ret == 0)
 			ret = 1;

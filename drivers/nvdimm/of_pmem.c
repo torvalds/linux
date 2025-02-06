@@ -100,7 +100,7 @@ static const struct of_device_id of_pmem_region_match[] = {
 
 static struct platform_driver of_pmem_region_driver = {
 	.probe = of_pmem_region_probe,
-	.remove_new = of_pmem_region_remove,
+	.remove = of_pmem_region_remove,
 	.driver = {
 		.name = "of_pmem",
 		.of_match_table = of_pmem_region_match,

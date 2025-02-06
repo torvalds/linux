@@ -27,6 +27,7 @@ void intel_audio_codec_get_config(struct intel_encoder *encoder,
 				  struct intel_crtc_state *crtc_state);
 void intel_audio_cdclk_change_pre(struct drm_i915_private *dev_priv);
 void intel_audio_cdclk_change_post(struct drm_i915_private *dev_priv);
+int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state);
 void intel_audio_init(struct drm_i915_private *dev_priv);
 void intel_audio_register(struct drm_i915_private *i915);
 void intel_audio_deinit(struct drm_i915_private *dev_priv);

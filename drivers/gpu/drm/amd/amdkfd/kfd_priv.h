@@ -32,7 +32,7 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
-#include <linux/kfd_ioctl.h>
+#include <uapi/linux/kfd_ioctl.h>
 #include <linux/idr.h>
 #include <linux/kfifo.h>
 #include <linux/seq_file.h>
@@ -207,7 +207,8 @@ enum cache_policy {
 #define KFD_SUPPORT_XNACK_PER_PROCESS(dev)\
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
 
 struct kfd_node;
 
@@ -273,7 +274,6 @@ struct kfd_node {
 
 	/* Interrupts */
 	struct kfifo ih_fifo;
-	struct workqueue_struct *ih_wq;
 	struct work_struct interrupt_work;
 	spinlock_t interrupt_lock;
 
@@ -365,6 +365,8 @@ struct kfd_dev {
 
 	struct kfd_node *nodes[MAX_KFD_NODES];
 	unsigned int num_nodes;
+
+	struct workqueue_struct *ih_wq;
 
 	/* Kernel doorbells for KFD device */
 	struct amdgpu_bo *doorbells;
@@ -1002,6 +1004,9 @@ struct kfd_process {
 	struct semaphore runtime_enable_sema;
 	bool is_runtime_retry;
 	struct kfd_runtime_info runtime_info;
+
+	/* if gpu page fault sent to KFD */
+	bool gpu_page_fault;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -1150,7 +1155,8 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4))
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0))
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)

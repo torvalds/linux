@@ -126,18 +126,31 @@ typedef struct {
   uint32_t MaxGfxClk;
 } DpmClocks_t_dcn35;
 
-
-// Throttler Status Bitmask
-
-
-
-
-
-
-
-
-
-
+typedef struct {
+	uint32_t DcfClocks[NUM_DCFCLK_DPM_LEVELS];
+	uint32_t DispClocks[NUM_DISPCLK_DPM_LEVELS];
+	uint32_t DppClocks[NUM_DPPCLK_DPM_LEVELS];
+	uint32_t SocClocks[NUM_SOCCLK_DPM_LEVELS];
+	uint32_t VClocks0[NUM_VCN_DPM_LEVELS];
+	uint32_t VClocks1[NUM_VCN_DPM_LEVELS];
+	uint32_t DClocks0[NUM_VCN_DPM_LEVELS];
+	uint32_t DClocks1[NUM_VCN_DPM_LEVELS];
+	uint32_t VPEClocks[NUM_VPE_DPM_LEVELS];
+	uint32_t FclkClocks_Freq[NUM_FCLK_DPM_LEVELS];
+	uint32_t FclkClocks_Voltage[NUM_FCLK_DPM_LEVELS];
+	uint32_t SocVoltage[NUM_SOC_VOLTAGE_LEVELS];
+	MemPstateTable_t MemPstateTable[NUM_MEM_PSTATE_LEVELS];
+	uint8_t NumDcfClkLevelsEnabled;
+	uint8_t NumDispClkLevelsEnabled; // Applies to both Dispclk and Dppclk
+	uint8_t NumSocClkLevelsEnabled;
+	uint8_t Vcn0ClkLevelsEnabled; // Applies to both Vclk0 and Dclk0
+	uint8_t Vcn1ClkLevelsEnabled; // Applies to both Vclk1 and Dclk1
+	uint8_t VpeClkLevelsEnabled;
+	uint8_t NumMemPstatesEnabled;
+	uint8_t NumFclkLevelsEnabled;
+	uint32_t MinGfxClk;
+	uint32_t MaxGfxClk;
+} DpmClocks_t_dcn351;
 
 #define TABLE_BIOS_IF            0 // Called by BIOS
 #define TABLE_WATERMARKS         1 // Called by DAL through VBIOS
@@ -163,6 +176,10 @@ struct dcn35_smu_dpm_clks {
 	union large_integer mc_address;
 };
 
+struct dcn351_smu_dpm_clks {
+	DpmClocks_t_dcn351 *dpm_clks;
+	union large_integer mc_address;
+};
 /* TODO: taken from vgh, may not be correct */
 struct display_idle_optimization {
 	unsigned int df_request_disabled : 1;

@@ -467,7 +467,8 @@ static void set_io_from_upio(struct uart_port *p)
 		break;
 #endif
 	default:
-		WARN(1, "Unsupported UART type %x\n", p->iotype);
+		WARN(p->iotype != UPIO_PORT || p->iobase,
+		     "Unsupported UART type %x\n", p->iotype);
 		p->serial_in = no_serial_in;
 		p->serial_out = no_serial_out;
 	}

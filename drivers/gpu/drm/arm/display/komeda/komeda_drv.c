@@ -9,7 +9,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <drm/drm_client_setup.h>
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_module.h>
 #include <drm/drm_of.h>
 #include "komeda_dev.h"
@@ -153,7 +153,7 @@ static const struct dev_pm_ops komeda_pm_ops = {
 
 static struct platform_driver komeda_platform_driver = {
 	.probe	= komeda_platform_probe,
-	.remove_new = komeda_platform_remove,
+	.remove = komeda_platform_remove,
 	.shutdown = komeda_platform_shutdown,
 	.driver	= {
 		.name = "komeda",

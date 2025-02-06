@@ -14,7 +14,7 @@
 #include "fweh.h"
 
 #if IS_MODULE(CONFIG_BRCMFMAC)
-#define BRCMF_EXPORT_SYMBOL_GPL(__sym)	EXPORT_SYMBOL_NS_GPL(__sym, BRCMFMAC)
+#define BRCMF_EXPORT_SYMBOL_GPL(__sym)	EXPORT_SYMBOL_NS_GPL(__sym, "BRCMFMAC")
 #else
 #define BRCMF_EXPORT_SYMBOL_GPL(__sym)
 #endif

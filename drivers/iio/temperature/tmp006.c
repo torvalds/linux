@@ -252,6 +252,8 @@ static irqreturn_t tmp006_trigger_handler(int irq, void *p)
 	} scan;
 	s32 ret;
 
+	memset(&scan, 0, sizeof(scan));
+
 	ret = i2c_smbus_read_word_data(data->client, TMP006_VOBJECT);
 	if (ret < 0)
 		goto err;

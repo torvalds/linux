@@ -681,4 +681,4 @@ module_platform_driver(ad7625_driver);
 MODULE_AUTHOR("Trevor Gamblin <tgamblin@baylibre.com>");
 MODULE_DESCRIPTION("Analog Devices AD7625 ADC");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_IMPORT_NS(IIO_BACKEND);
+MODULE_IMPORT_NS("IIO_BACKEND");

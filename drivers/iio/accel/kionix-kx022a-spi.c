@@ -65,4 +65,4 @@ module_spi_driver(kx022a_spi_driver);
 MODULE_DESCRIPTION("ROHM/Kionix kx022A accelerometer driver");
 MODULE_AUTHOR("Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(IIO_KX022A);
+MODULE_IMPORT_NS("IIO_KX022A");

@@ -1180,7 +1180,7 @@ MODULE_DEVICE_TABLE(acpi, surface_dtx_acpi_match);
 
 static struct platform_driver surface_dtx_platform_driver = {
 	.probe = surface_dtx_platform_probe,
-	.remove_new = surface_dtx_platform_remove,
+	.remove = surface_dtx_platform_remove,
 	.driver = {
 		.name = "surface_dtx_pltf",
 		.acpi_match_table = surface_dtx_acpi_match,

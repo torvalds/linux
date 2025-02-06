@@ -194,7 +194,7 @@ const struct adxl380_chip_info adxl380_chip_info = {
 	.temp_offset =  25 * 102 / 10 - 470,
 
 };
-EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_chip_info, "IIO_ADXL380");
 
 const struct adxl380_chip_info adxl382_chip_info = {
 	.name = "adxl382",
@@ -211,7 +211,7 @@ const struct adxl380_chip_info adxl382_chip_info = {
 	 */
 	.temp_offset =  25 * 102 / 10 - 570,
 };
-EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl382_chip_info, "IIO_ADXL380");
 
 static const unsigned int adxl380_th_reg_high_addr[2] = {
 	[ADXL380_ACTIVITY] = ADXL380_THRESH_ACT_H_REG,
@@ -263,7 +263,7 @@ bool adxl380_readable_noinc_reg(struct device *dev, unsigned int reg)
 {
 	return reg == ADXL380_FIFO_DATA;
 }
-EXPORT_SYMBOL_NS_GPL(adxl380_readable_noinc_reg, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_readable_noinc_reg, "IIO_ADXL380");
 
 static int adxl380_set_measure_en(struct adxl380_state *st, bool en)
 {
@@ -1892,7 +1892,7 @@ int adxl380_probe(struct device *dev, struct regmap *regmap,
 
 	return devm_iio_device_register(dev, indio_dev);
 }
-EXPORT_SYMBOL_NS_GPL(adxl380_probe, IIO_ADXL380);
+EXPORT_SYMBOL_NS_GPL(adxl380_probe, "IIO_ADXL380");
 
 MODULE_AUTHOR("Ramona Gradinariu <ramona.gradinariu@analog.com>");
 MODULE_AUTHOR("Antoniu Miclaus <antoniu.miclaus@analog.com>");

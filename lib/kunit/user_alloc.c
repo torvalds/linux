@@ -114,4 +114,4 @@ unsigned long kunit_vm_mmap(struct kunit *test, struct file *file,
 }
 EXPORT_SYMBOL_GPL(kunit_vm_mmap);
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");

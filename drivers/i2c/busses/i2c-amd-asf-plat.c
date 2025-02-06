@@ -364,6 +364,6 @@ static struct platform_driver amd_asf_driver = {
 };
 module_platform_driver(amd_asf_driver);
 
-MODULE_IMPORT_NS(PIIX4_SMBUS);
+MODULE_IMPORT_NS("PIIX4_SMBUS");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("AMD Alert Standard Format Driver");
