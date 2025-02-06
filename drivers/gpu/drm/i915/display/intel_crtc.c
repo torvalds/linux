@@ -321,7 +321,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 	if (DISPLAY_VER(display) >= 9)
 		primary = skl_universal_plane_create(dev_priv, pipe, PLANE_1);
 	else
-		primary = intel_primary_plane_create(dev_priv, pipe);
+		primary = intel_primary_plane_create(display, pipe);
 	if (IS_ERR(primary)) {
 		ret = PTR_ERR(primary);
 		goto fail;
