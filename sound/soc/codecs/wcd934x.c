@@ -23,6 +23,8 @@
 #include "wcd-clsh-v2.h"
 #include "wcd-mbhc-v2.h"
 
+#include <dt-bindings/sound/qcom,wcd934x.h>
+
 #define WCD934X_RATES_MASK (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			    SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
 			    SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_192000)
@@ -307,6 +309,7 @@
 	{"SLIM TX" #id, NULL, "CDC_IF TX" #id " MUX"}
 
 #define WCD934X_MAX_MICBIAS	MIC_BIAS_4
+#define NUM_CODEC_DAIS          9
 
 enum {
 	SIDO_SOURCE_INTERNAL,
@@ -432,19 +435,6 @@ enum {
 	COMPANDER_7, /* SWR SPK CH1 */
 	COMPANDER_8, /* SWR SPK CH2 */
 	COMPANDER_MAX,
-};
-
-enum {
-	AIF1_PB = 0,
-	AIF1_CAP,
-	AIF2_PB,
-	AIF2_CAP,
-	AIF3_PB,
-	AIF3_CAP,
-	AIF4_PB,
-	AIF4_VIFEED,
-	AIF4_MAD_TX,
-	NUM_CODEC_DAIS,
 };
 
 enum {
