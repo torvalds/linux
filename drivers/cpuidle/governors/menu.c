@@ -116,30 +116,37 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev);
  */
 static unsigned int get_typical_interval(struct menu_device *data)
 {
-	unsigned int max, divisor, thresh = UINT_MAX;
+	s64 value, min_thresh = -1, max_thresh = UINT_MAX;
+	unsigned int max, min, divisor;
 	u64 avg, variance, avg_sq;
 	int i;
 
 again:
 	/* Compute the average and variance of past intervals. */
 	max = 0;
+	min = UINT_MAX;
 	avg = 0;
 	variance = 0;
 	divisor = 0;
 	for (i = 0; i < INTERVALS; i++) {
-		unsigned int value = data->intervals[i];
-
-		/* Discard data points above or at the threshold. */
-		if (value >= thresh)
+		value = data->intervals[i];
+		/*
+		 * Discard the samples outside the interval between the min and
+		 * max thresholds.
+		 */
+		if (value <= min_thresh || value >= max_thresh)
 			continue;
 
 		divisor++;
 
 		avg += value;
-		variance += (u64)value * value;
+		variance += value * value;
 
 		if (value > max)
 			max = value;
+
+		if (value < min)
+			min = value;
 	}
 
 	if (!max)
@@ -175,10 +182,10 @@ again:
 	}
 
 	/*
-	 * If we have outliers to the upside in our distribution, discard
-	 * those by setting the threshold to exclude these outliers, then
+	 * If there are outliers, discard them by setting thresholds to exclude
+	 * data points at a large enough distance from the average, then
 	 * calculate the average and standard deviation again. Once we get
-	 * down to the bottom 3/4 of our samples, stop excluding samples.
+	 * down to the last 3/4 of our samples, stop excluding samples.
 	 *
 	 * This can deal with workloads that have long pauses interspersed
 	 * with sporadic activity with a bunch of short pauses.
@@ -186,7 +193,12 @@ again:
 	if ((divisor * 4) <= INTERVALS * 3)
 		return UINT_MAX;
 
-	thresh = max;
+	/* Update the thresholds for the next round. */
+	if (avg - min > max - avg)
+		min_thresh = min;
+	else
+		max_thresh = max;
+
 	goto again;
 }
 
