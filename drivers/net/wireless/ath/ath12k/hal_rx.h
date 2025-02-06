@@ -781,39 +781,6 @@ struct hal_eht_sig_ofdma_cmn_eb {
 	union hal_eht_sig_user_field user_field;
 } __packed;
 
-static inline
-enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
-{
-	enum nl80211_he_ru_alloc ret;
-
-	switch (ru_tones) {
-	case RU_52:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_52;
-		break;
-	case RU_106:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_106;
-		break;
-	case RU_242:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_242;
-		break;
-	case RU_484:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_484;
-		break;
-	case RU_996:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_996;
-		break;
-	case RU_2X996:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
-		break;
-	case RU_26:
-		fallthrough;
-	default:
-		ret = NL80211_RATE_INFO_HE_RU_ALLOC_26;
-		break;
-	}
-	return ret;
-}
-
 enum hal_eht_bw {
 	HAL_EHT_BW_20,
 	HAL_EHT_BW_40,
@@ -871,6 +838,264 @@ struct hal_mon_usig_hdr {
 	struct hal_mon_usig_cmn cmn;
 	union hal_mon_usig_non_cmn non_cmn;
 } __packed;
+
+#define HAL_RX_USR_INFO0_PHY_PPDU_ID		GENMASK(15, 0)
+#define HAL_RX_USR_INFO0_USR_RSSI		GENMASK(23, 16)
+#define HAL_RX_USR_INFO0_PKT_TYPE		GENMASK(27, 24)
+#define HAL_RX_USR_INFO0_STBC			BIT(28)
+#define HAL_RX_USR_INFO0_RECEPTION_TYPE		GENMASK(31, 29)
+
+#define HAL_RX_USR_INFO1_MCS			GENMASK(3, 0)
+#define HAL_RX_USR_INFO1_SGI			GENMASK(5, 4)
+#define HAL_RX_USR_INFO1_HE_RANGING_NDP		BIT(6)
+#define HAL_RX_USR_INFO1_MIMO_SS_BITMAP		GENMASK(15, 8)
+#define HAL_RX_USR_INFO1_RX_BW			GENMASK(18, 16)
+#define HAL_RX_USR_INFO1_DL_OFMDA_USR_IDX	GENMASK(31, 24)
+
+#define HAL_RX_USR_INFO2_DL_OFDMA_CONTENT_CHAN	BIT(0)
+#define HAL_RX_USR_INFO2_NSS			GENMASK(10, 8)
+#define HAL_RX_USR_INFO2_STREAM_OFFSET		GENMASK(13, 11)
+#define HAL_RX_USR_INFO2_STA_DCM		BIT(14)
+#define HAL_RX_USR_INFO2_LDPC			BIT(15)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_0		GENMASK(19, 16)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_1		GENMASK(23, 20)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_2		GENMASK(27, 24)
+#define HAL_RX_USR_INFO2_RU_TYPE_80_3		GENMASK(31, 28)
+
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_0	GENMASK(5, 0)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_1	GENMASK(13, 8)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_2	GENMASK(21, 16)
+#define HAL_RX_USR_INFO3_RU_START_IDX_80_3	GENMASK(29, 24)
+
+struct hal_receive_user_info {
+	__le32 info0;
+	__le32 info1;
+	__le32 info2;
+	__le32 info3;
+	__le32 user_fd_rssi_seg0;
+	__le32 user_fd_rssi_seg1;
+	__le32 user_fd_rssi_seg2;
+	__le32 user_fd_rssi_seg3;
+} __packed;
+
+enum hal_mon_reception_type {
+	HAL_RECEPTION_TYPE_SU,
+	HAL_RECEPTION_TYPE_DL_MU_MIMO,
+	HAL_RECEPTION_TYPE_DL_MU_OFMA,
+	HAL_RECEPTION_TYPE_DL_MU_OFDMA_MIMO,
+	HAL_RECEPTION_TYPE_UL_MU_MIMO,
+	HAL_RECEPTION_TYPE_UL_MU_OFDMA,
+	HAL_RECEPTION_TYPE_UL_MU_OFDMA_MIMO,
+};
+
+/* Different allowed RU in 11BE */
+#define HAL_EHT_RU_26		0ULL
+#define HAL_EHT_RU_52		1ULL
+#define HAL_EHT_RU_78		2ULL
+#define HAL_EHT_RU_106		3ULL
+#define HAL_EHT_RU_132		4ULL
+#define HAL_EHT_RU_242		5ULL
+#define HAL_EHT_RU_484		6ULL
+#define HAL_EHT_RU_726		7ULL
+#define HAL_EHT_RU_996		8ULL
+#define HAL_EHT_RU_996x2	9ULL
+#define HAL_EHT_RU_996x3	10ULL
+#define HAL_EHT_RU_996x4	11ULL
+#define HAL_EHT_RU_NONE		15ULL
+#define HAL_EHT_RU_INVALID	31ULL
+/* MRUs spanning above 80Mhz
+ * HAL_EHT_RU_996_484 = HAL_EHT_RU_484 + HAL_EHT_RU_996 + 4 (reserved)
+ */
+#define HAL_EHT_RU_996_484	18ULL
+#define HAL_EHT_RU_996x2_484	28ULL
+#define HAL_EHT_RU_996x3_484	40ULL
+#define HAL_EHT_RU_996_484_242	23ULL
+
+#define NUM_RU_BITS_PER80	16
+#define NUM_RU_BITS_PER20	4
+
+/* Different per_80Mhz band in 320Mhz bandwidth */
+#define HAL_80_0	0
+#define HAL_80_1	1
+#define HAL_80_2	2
+#define HAL_80_3	3
+
+#define HAL_RU_80MHZ(num_band)		((num_band) * NUM_RU_BITS_PER80)
+#define HAL_RU_20MHZ(idx_per_80)	((idx_per_80) * NUM_RU_BITS_PER20)
+
+#define HAL_RU_SHIFT(num_band, idx_per_80)	\
+		(HAL_RU_80MHZ(num_band) + HAL_RU_20MHZ(idx_per_80))
+
+#define HAL_RU(ru, num_band, idx_per_80)	\
+		((u64)(ru) << HAL_RU_SHIFT(num_band, idx_per_80))
+
+/* MRU-996+484 */
+#define HAL_EHT_RU_996_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_2	(HAL_RU(HAL_EHT_RU_996, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1))
+#define HAL_EHT_RU_996_484_3	(HAL_RU(HAL_EHT_RU_996, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0))
+#define HAL_EHT_RU_996_484_4	(HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_3, 0))
+#define HAL_EHT_RU_996_484_5	(HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996, HAL_80_3, 0))
+#define HAL_EHT_RU_996_484_6	(HAL_RU(HAL_EHT_RU_996, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996_484_7	(HAL_RU(HAL_EHT_RU_996, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+/* MRU-996x2+484 */
+#define HAL_EHT_RU_996x2_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_2	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_3	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_4	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1))
+#define HAL_EHT_RU_996x2_484_5	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0))
+#define HAL_EHT_RU_996x2_484_6	(HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_7	(HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_8	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_9	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_3, 0))
+#define HAL_EHT_RU_996x2_484_10	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996x2_484_11	(HAL_RU(HAL_EHT_RU_996x2, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x2, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+/* MRU-996x3+484 */
+#define HAL_EHT_RU_996x3_484_0	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_1	(HAL_RU(HAL_EHT_RU_484, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_2	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_3	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_4	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 1) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_5	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_3, 0))
+#define HAL_EHT_RU_996x3_484_6	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 1))
+#define HAL_EHT_RU_996x3_484_7	(HAL_RU(HAL_EHT_RU_996x3, HAL_80_0, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_1, 0) |	\
+				 HAL_RU(HAL_EHT_RU_996x3, HAL_80_2, 0) |	\
+				 HAL_RU(HAL_EHT_RU_484, HAL_80_3, 0))
+
+#define HAL_RU_PER80(ru_per80, num_80mhz, ru_idx_per80mhz) \
+			(HAL_RU(ru_per80, num_80mhz, ru_idx_per80mhz))
+
+#define RU_INVALID		0
+#define RU_26			1
+#define RU_52			2
+#define RU_106			4
+#define RU_242			9
+#define RU_484			18
+#define RU_996			37
+#define RU_2X996		74
+#define RU_3X996		111
+#define RU_4X996		148
+#define RU_52_26		(RU_52 + RU_26)
+#define RU_106_26		(RU_106 + RU_26)
+#define RU_484_242		(RU_484 + RU_242)
+#define RU_996_484		(RU_996 + RU_484)
+#define RU_996_484_242		(RU_996 + RU_484_242)
+#define RU_2X996_484		(RU_2X996 + RU_484)
+#define RU_3X996_484		(RU_3X996 + RU_484)
+
+enum ath12k_eht_ru_size {
+	ATH12K_EHT_RU_26,
+	ATH12K_EHT_RU_52,
+	ATH12K_EHT_RU_106,
+	ATH12K_EHT_RU_242,
+	ATH12K_EHT_RU_484,
+	ATH12K_EHT_RU_996,
+	ATH12K_EHT_RU_996x2,
+	ATH12K_EHT_RU_996x4,
+	ATH12K_EHT_RU_52_26,
+	ATH12K_EHT_RU_106_26,
+	ATH12K_EHT_RU_484_242,
+	ATH12K_EHT_RU_996_484,
+	ATH12K_EHT_RU_996_484_242,
+	ATH12K_EHT_RU_996x2_484,
+	ATH12K_EHT_RU_996x3,
+	ATH12K_EHT_RU_996x3_484,
+
+	/* Keep last */
+	ATH12K_EHT_RU_INVALID,
+};
+
+#define HAL_RX_RU_ALLOC_TYPE_MAX	ATH12K_EHT_RU_INVALID
+
+static inline
+enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
+{
+	enum nl80211_he_ru_alloc ret;
+
+	switch (ru_tones) {
+	case RU_52:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_52;
+		break;
+	case RU_106:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_106;
+		break;
+	case RU_242:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_242;
+		break;
+	case RU_484:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_484;
+		break;
+	case RU_996:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_996;
+		break;
+	case RU_2X996:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_2x996;
+		break;
+	case RU_26:
+		fallthrough;
+	default:
+		ret = NL80211_RATE_INFO_HE_RU_ALLOC_26;
+		break;
+	}
+	return ret;
+}
 
 void ath12k_hal_reo_status_queue_stats(struct ath12k_base *ab,
 				       struct hal_tlv_64_hdr *tlv,
