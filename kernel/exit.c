@@ -122,14 +122,22 @@ static __init int kernel_exit_sysfs_init(void)
 late_initcall(kernel_exit_sysfs_init);
 #endif
 
-static void __unhash_process(struct task_struct *p, bool group_dead)
+/*
+ * For things release_task() would like to do *after* tasklist_lock is released.
+ */
+struct release_task_post {
+	struct pid *pids[PIDTYPE_MAX];
+};
+
+static void __unhash_process(struct release_task_post *post, struct task_struct *p,
+			     bool group_dead)
 {
 	nr_threads--;
-	detach_pid(p, PIDTYPE_PID);
+	detach_pid(post->pids, p, PIDTYPE_PID);
 	if (group_dead) {
-		detach_pid(p, PIDTYPE_TGID);
-		detach_pid(p, PIDTYPE_PGID);
-		detach_pid(p, PIDTYPE_SID);
+		detach_pid(post->pids, p, PIDTYPE_TGID);
+		detach_pid(post->pids, p, PIDTYPE_PGID);
+		detach_pid(post->pids, p, PIDTYPE_SID);
 
 		list_del_rcu(&p->tasks);
 		list_del_init(&p->sibling);
@@ -141,7 +149,7 @@ static void __unhash_process(struct task_struct *p, bool group_dead)
 /*
  * This function expects the tasklist_lock write-locked.
  */
-static void __exit_signal(struct task_struct *tsk)
+static void __exit_signal(struct release_task_post *post, struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 	bool group_dead = thread_group_leader(tsk);
@@ -194,7 +202,7 @@ static void __exit_signal(struct task_struct *tsk)
 	task_io_accounting_add(&sig->ioac, &tsk->ioac);
 	sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 	sig->nr_threads--;
-	__unhash_process(tsk, group_dead);
+	__unhash_process(post, tsk, group_dead);
 	write_sequnlock(&sig->stats_lock);
 
 	tsk->sighand = NULL;
@@ -228,10 +236,13 @@ void __weak release_thread(struct task_struct *dead_task)
 
 void release_task(struct task_struct *p)
 {
+	struct release_task_post post;
 	struct task_struct *leader;
 	struct pid *thread_pid;
 	int zap_leader;
 repeat:
+	memset(&post, 0, sizeof(post));
+
 	/* don't need to get the RCU readlock here - the process is dead and
 	 * can't be modifying its own credentials. But shut RCU-lockdep up */
 	rcu_read_lock();
@@ -244,7 +255,7 @@ repeat:
 
 	write_lock_irq(&tasklist_lock);
 	ptrace_release_task(p);
-	__exit_signal(p);
+	__exit_signal(&post, p);
 
 	/*
 	 * If we are the last non-leader member of the thread
@@ -270,6 +281,7 @@ repeat:
 	put_pid(thread_pid);
 	add_device_randomness(&p->se.sum_exec_runtime,
 			      sizeof(p->se.sum_exec_runtime));
+	free_pids(post.pids);
 	release_thread(p);
 	/*
 	 * This task was already removed from the process/thread/pid lists

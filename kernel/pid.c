@@ -88,20 +88,6 @@ struct pid_namespace init_pid_ns = {
 };
 EXPORT_SYMBOL_GPL(init_pid_ns);
 
-/*
- * Note: disable interrupts while the pidmap_lock is held as an
- * interrupt might come in and do read_lock(&tasklist_lock).
- *
- * If we don't disable interrupts there is a nasty deadlock between
- * detach_pid()->free_pid() and another cpu that does
- * spin_lock(&pidmap_lock) followed by an interrupt routine that does
- * read_lock(&tasklist_lock);
- *
- * After we clean up the tasklist_lock and know there are no
- * irq handlers that take it we can leave the interrupts enabled.
- * For now it is easier to be safe than to prove it can't happen.
- */
-
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(pidmap_lock);
 seqcount_spinlock_t pidmap_lock_seq = SEQCNT_SPINLOCK_ZERO(pidmap_lock_seq, &pidmap_lock);
 
@@ -128,9 +114,10 @@ static void delayed_put_pid(struct rcu_head *rhp)
 
 void free_pid(struct pid *pid)
 {
-	/* We can be called with write_lock_irq(&tasklist_lock) held */
 	int i;
 	unsigned long flags;
+
+	lockdep_assert_not_held(&tasklist_lock);
 
 	spin_lock_irqsave(&pidmap_lock, flags);
 	for (i = 0; i <= pid->level; i++) {
@@ -158,6 +145,18 @@ void free_pid(struct pid *pid)
 	spin_unlock_irqrestore(&pidmap_lock, flags);
 
 	call_rcu(&pid->rcu, delayed_put_pid);
+}
+
+void free_pids(struct pid **pids)
+{
+	int tmp;
+
+	/*
+	 * This can batch pidmap_lock.
+	 */
+	for (tmp = PIDTYPE_MAX; --tmp >= 0; )
+		if (pids[tmp])
+			free_pid(pids[tmp]);
 }
 
 struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
@@ -347,8 +346,8 @@ void attach_pid(struct task_struct *task, enum pid_type type)
 	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
 }
 
-static void __change_pid(struct task_struct *task, enum pid_type type,
-			struct pid *new)
+static void __change_pid(struct pid **pids, struct task_struct *task,
+			 enum pid_type type, struct pid *new)
 {
 	struct pid **pid_ptr, *pid;
 	int tmp;
@@ -370,18 +369,19 @@ static void __change_pid(struct task_struct *task, enum pid_type type,
 		if (pid_has_task(pid, tmp))
 			return;
 
-	free_pid(pid);
+	WARN_ON(pids[type]);
+	pids[type] = pid;
 }
 
-void detach_pid(struct task_struct *task, enum pid_type type)
+void detach_pid(struct pid **pids, struct task_struct *task, enum pid_type type)
 {
-	__change_pid(task, type, NULL);
+	__change_pid(pids, task, type, NULL);
 }
 
-void change_pid(struct task_struct *task, enum pid_type type,
+void change_pid(struct pid **pids, struct task_struct *task, enum pid_type type,
 		struct pid *pid)
 {
-	__change_pid(task, type, pid);
+	__change_pid(pids, task, type, pid);
 	attach_pid(task, type);
 }
 
