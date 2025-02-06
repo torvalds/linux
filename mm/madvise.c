@@ -1618,6 +1618,27 @@ static void madvise_unlock(struct mm_struct *mm, int behavior)
 		mmap_read_unlock(mm);
 }
 
+static bool is_valid_madvise(unsigned long start, size_t len_in, int behavior)
+{
+	size_t len;
+
+	if (!madvise_behavior_valid(behavior))
+		return false;
+
+	if (!PAGE_ALIGNED(start))
+		return false;
+	len = PAGE_ALIGN(len_in);
+
+	/* Check to see whether len was rounded up from small -ve to zero */
+	if (len_in && !len)
+		return false;
+
+	if (start + len < start)
+		return false;
+
+	return true;
+}
+
 /*
  * The madvise(2) system call.
  *
@@ -1697,20 +1718,11 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	size_t len;
 	struct blk_plug plug;
 
-	if (!madvise_behavior_valid(behavior))
+	if (!is_valid_madvise(start, len_in, behavior))
 		return -EINVAL;
 
-	if (!PAGE_ALIGNED(start))
-		return -EINVAL;
 	len = PAGE_ALIGN(len_in);
-
-	/* Check to see whether len was rounded up from small -ve to zero */
-	if (len_in && !len)
-		return -EINVAL;
-
 	end = start + len;
-	if (end < start)
-		return -EINVAL;
 
 	if (end == start)
 		return 0;
