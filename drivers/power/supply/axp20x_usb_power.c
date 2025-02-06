@@ -492,7 +492,7 @@ static int axp717_usb_power_set_input_current_limit(struct axp20x_usb_power *pow
 
 	if (power->max_input_cur && (intval > power->max_input_cur)) {
 		dev_warn(power->dev,
-			 "reqested current %d clamped to max current %d\n",
+			 "requested current %d clamped to max current %d\n",
 			 intval, power->max_input_cur);
 		intval = power->max_input_cur;
 	}
