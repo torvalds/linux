@@ -116,7 +116,7 @@ static void menu_update(struct cpuidle_driver *drv, struct cpuidle_device *dev);
  */
 static unsigned int get_typical_interval(struct menu_device *data)
 {
-	unsigned int max, divisor, thresh = INT_MAX;
+	unsigned int max, divisor, thresh = UINT_MAX;
 	u64 avg, variance, avg_sq;
 	int i;
 
@@ -129,8 +129,8 @@ again:
 	for (i = 0; i < INTERVALS; i++) {
 		unsigned int value = data->intervals[i];
 
-		/* Discard data points above the threshold. */
-		if (value > thresh)
+		/* Discard data points above or at the threshold. */
+		if (value >= thresh)
 			continue;
 
 		divisor++;
@@ -186,7 +186,7 @@ again:
 	if ((divisor * 4) <= INTERVALS * 3)
 		return UINT_MAX;
 
-	thresh = max - 1;
+	thresh = max;
 	goto again;
 }
 
