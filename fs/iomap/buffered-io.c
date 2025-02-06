@@ -12,16 +12,14 @@
 #include <linux/buffer_head.h>
 #include <linux/dax.h>
 #include <linux/writeback.h>
-#include <linux/list_sort.h>
 #include <linux/swap.h>
 #include <linux/bio.h>
 #include <linux/sched/signal.h>
 #include <linux/migrate.h>
+#include "internal.h"
 #include "trace.h"
 
 #include "../internal.h"
-
-#define IOEND_BATCH_SIZE	4096
 
 /*
  * Structure allocated for each folio to track per-block uptodate, dirty state
@@ -39,8 +37,6 @@ struct iomap_folio_state {
 	 */
 	unsigned long		state[];
 };
-
-static struct bio_set iomap_ioend_bioset;
 
 static inline bool ifs_is_fully_uptodate(struct folio *folio,
 		struct iomap_folio_state *ifs)
@@ -1395,13 +1391,14 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 
 int
 iomap_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
-		const struct iomap_ops *ops)
+		const struct iomap_ops *ops, void *private)
 {
 	struct iomap_iter iter = {
 		.inode		= inode,
 		.pos		= pos,
 		.len		= len,
 		.flags		= IOMAP_ZERO,
+		.private	= private,
 	};
 	struct address_space *mapping = inode->i_mapping;
 	unsigned int blocksize = i_blocksize(inode);
@@ -1461,7 +1458,7 @@ EXPORT_SYMBOL_GPL(iomap_zero_range);
 
 int
 iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
-		const struct iomap_ops *ops)
+		const struct iomap_ops *ops, void *private)
 {
 	unsigned int blocksize = i_blocksize(inode);
 	unsigned int off = pos & (blocksize - 1);
@@ -1469,7 +1466,8 @@ iomap_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 	/* Block boundary? Nothing to do */
 	if (!off)
 		return 0;
-	return iomap_zero_range(inode, pos, blocksize - off, did_zero, ops);
+	return iomap_zero_range(inode, pos, blocksize - off, did_zero, ops,
+			private);
 }
 EXPORT_SYMBOL_GPL(iomap_truncate_page);
 
@@ -1493,11 +1491,13 @@ static loff_t iomap_folio_mkwrite_iter(struct iomap_iter *iter,
 	return length;
 }
 
-vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
+vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops,
+		void *private)
 {
 	struct iomap_iter iter = {
 		.inode		= file_inode(vmf->vma->vm_file),
 		.flags		= IOMAP_WRITE | IOMAP_FAULT,
+		.private	= private,
 	};
 	struct folio *folio = page_folio(vmf->page);
 	ssize_t ret;
@@ -1538,16 +1538,15 @@ static void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
  * state, release holds on bios, and finally free up memory.  Do not use the
  * ioend after this.
  */
-static u32
-iomap_finish_ioend(struct iomap_ioend *ioend, int error)
+u32 iomap_finish_ioend_buffered(struct iomap_ioend *ioend)
 {
 	struct inode *inode = ioend->io_inode;
 	struct bio *bio = &ioend->io_bio;
 	struct folio_iter fi;
 	u32 folio_count = 0;
 
-	if (error) {
-		mapping_set_error(inode->i_mapping, error);
+	if (ioend->io_error) {
+		mapping_set_error(inode->i_mapping, ioend->io_error);
 		if (!bio_flagged(bio, BIO_QUIET)) {
 			pr_err_ratelimited(
 "%s: writeback error on inode %lu, offset %lld, sector %llu",
@@ -1566,116 +1565,16 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 	return folio_count;
 }
 
-/*
- * Ioend completion routine for merged bios. This can only be called from task
- * contexts as merged ioends can be of unbound length. Hence we have to break up
- * the writeback completions into manageable chunks to avoid long scheduler
- * holdoffs. We aim to keep scheduler holdoffs down below 10ms so that we get
- * good batch processing throughput without creating adverse scheduler latency
- * conditions.
- */
-void
-iomap_finish_ioends(struct iomap_ioend *ioend, int error)
-{
-	struct list_head tmp;
-	u32 completions;
-
-	might_sleep();
-
-	list_replace_init(&ioend->io_list, &tmp);
-	completions = iomap_finish_ioend(ioend, error);
-
-	while (!list_empty(&tmp)) {
-		if (completions > IOEND_BATCH_SIZE * 8) {
-			cond_resched();
-			completions = 0;
-		}
-		ioend = list_first_entry(&tmp, struct iomap_ioend, io_list);
-		list_del_init(&ioend->io_list);
-		completions += iomap_finish_ioend(ioend, error);
-	}
-}
-EXPORT_SYMBOL_GPL(iomap_finish_ioends);
-
-/*
- * We can merge two adjacent ioends if they have the same set of work to do.
- */
-static bool
-iomap_ioend_can_merge(struct iomap_ioend *ioend, struct iomap_ioend *next)
-{
-	if (ioend->io_bio.bi_status != next->io_bio.bi_status)
-		return false;
-	if (next->io_flags & IOMAP_F_BOUNDARY)
-		return false;
-	if ((ioend->io_flags & IOMAP_F_SHARED) ^
-	    (next->io_flags & IOMAP_F_SHARED))
-		return false;
-	if ((ioend->io_type == IOMAP_UNWRITTEN) ^
-	    (next->io_type == IOMAP_UNWRITTEN))
-		return false;
-	if (ioend->io_offset + ioend->io_size != next->io_offset)
-		return false;
-	/*
-	 * Do not merge physically discontiguous ioends. The filesystem
-	 * completion functions will have to iterate the physical
-	 * discontiguities even if we merge the ioends at a logical level, so
-	 * we don't gain anything by merging physical discontiguities here.
-	 *
-	 * We cannot use bio->bi_iter.bi_sector here as it is modified during
-	 * submission so does not point to the start sector of the bio at
-	 * completion.
-	 */
-	if (ioend->io_sector + (ioend->io_size >> 9) != next->io_sector)
-		return false;
-	return true;
-}
-
-void
-iomap_ioend_try_merge(struct iomap_ioend *ioend, struct list_head *more_ioends)
-{
-	struct iomap_ioend *next;
-
-	INIT_LIST_HEAD(&ioend->io_list);
-
-	while ((next = list_first_entry_or_null(more_ioends, struct iomap_ioend,
-			io_list))) {
-		if (!iomap_ioend_can_merge(ioend, next))
-			break;
-		list_move_tail(&next->io_list, &ioend->io_list);
-		ioend->io_size += next->io_size;
-	}
-}
-EXPORT_SYMBOL_GPL(iomap_ioend_try_merge);
-
-static int
-iomap_ioend_compare(void *priv, const struct list_head *a,
-		const struct list_head *b)
-{
-	struct iomap_ioend *ia = container_of(a, struct iomap_ioend, io_list);
-	struct iomap_ioend *ib = container_of(b, struct iomap_ioend, io_list);
-
-	if (ia->io_offset < ib->io_offset)
-		return -1;
-	if (ia->io_offset > ib->io_offset)
-		return 1;
-	return 0;
-}
-
-void
-iomap_sort_ioends(struct list_head *ioend_list)
-{
-	list_sort(NULL, ioend_list, iomap_ioend_compare);
-}
-EXPORT_SYMBOL_GPL(iomap_sort_ioends);
-
 static void iomap_writepage_end_bio(struct bio *bio)
 {
-	iomap_finish_ioend(iomap_ioend_from_bio(bio),
-			blk_status_to_errno(bio->bi_status));
+	struct iomap_ioend *ioend = iomap_ioend_from_bio(bio);
+
+	ioend->io_error = blk_status_to_errno(bio->bi_status);
+	iomap_finish_ioend_buffered(ioend);
 }
 
 /*
- * Submit the final bio for an ioend.
+ * Submit an ioend.
  *
  * If @error is non-zero, it means that we have a situation where some part of
  * the submission process has failed after we've marked pages for writeback.
@@ -1694,14 +1593,18 @@ static int iomap_submit_ioend(struct iomap_writepage_ctx *wpc, int error)
 	 * failure happened so that the file system end I/O handler gets called
 	 * to clean up.
 	 */
-	if (wpc->ops->prepare_ioend)
-		error = wpc->ops->prepare_ioend(wpc->ioend, error);
+	if (wpc->ops->submit_ioend) {
+		error = wpc->ops->submit_ioend(wpc, error);
+	} else {
+		if (WARN_ON_ONCE(wpc->iomap.flags & IOMAP_F_ANON_WRITE))
+			error = -EIO;
+		if (!error)
+			submit_bio(&wpc->ioend->io_bio);
+	}
 
 	if (error) {
 		wpc->ioend->io_bio.bi_status = errno_to_blk_status(error);
 		bio_endio(&wpc->ioend->io_bio);
-	} else {
-		submit_bio(&wpc->ioend->io_bio);
 	}
 
 	wpc->ioend = NULL;
@@ -1709,9 +1612,9 @@ static int iomap_submit_ioend(struct iomap_writepage_ctx *wpc, int error)
 }
 
 static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
-		struct writeback_control *wbc, struct inode *inode, loff_t pos)
+		struct writeback_control *wbc, struct inode *inode, loff_t pos,
+		u16 ioend_flags)
 {
-	struct iomap_ioend *ioend;
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(wpc->iomap.bdev, BIO_MAX_VECS,
@@ -1719,36 +1622,24 @@ static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
 			       GFP_NOFS, &iomap_ioend_bioset);
 	bio->bi_iter.bi_sector = iomap_sector(&wpc->iomap, pos);
 	bio->bi_end_io = iomap_writepage_end_bio;
-	wbc_init_bio(wbc, bio);
 	bio->bi_write_hint = inode->i_write_hint;
-
-	ioend = iomap_ioend_from_bio(bio);
-	INIT_LIST_HEAD(&ioend->io_list);
-	ioend->io_type = wpc->iomap.type;
-	ioend->io_flags = wpc->iomap.flags;
-	if (pos > wpc->iomap.offset)
-		wpc->iomap.flags &= ~IOMAP_F_BOUNDARY;
-	ioend->io_inode = inode;
-	ioend->io_size = 0;
-	ioend->io_offset = pos;
-	ioend->io_sector = bio->bi_iter.bi_sector;
-
+	wbc_init_bio(wbc, bio);
 	wpc->nr_folios = 0;
-	return ioend;
+	return iomap_init_ioend(inode, bio, pos, ioend_flags);
 }
 
-static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos)
+static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos,
+		u16 ioend_flags)
 {
-	if (wpc->iomap.offset == pos && (wpc->iomap.flags & IOMAP_F_BOUNDARY))
+	if (ioend_flags & IOMAP_IOEND_BOUNDARY)
 		return false;
-	if ((wpc->iomap.flags & IOMAP_F_SHARED) !=
-	    (wpc->ioend->io_flags & IOMAP_F_SHARED))
-		return false;
-	if (wpc->iomap.type != wpc->ioend->io_type)
+	if ((ioend_flags & IOMAP_IOEND_NOMERGE_FLAGS) !=
+	    (wpc->ioend->io_flags & IOMAP_IOEND_NOMERGE_FLAGS))
 		return false;
 	if (pos != wpc->ioend->io_offset + wpc->ioend->io_size)
 		return false;
-	if (iomap_sector(&wpc->iomap, pos) !=
+	if (!(wpc->iomap.flags & IOMAP_F_ANON_WRITE) &&
+	    iomap_sector(&wpc->iomap, pos) !=
 	    bio_end_sector(&wpc->ioend->io_bio))
 		return false;
 	/*
@@ -1779,14 +1670,23 @@ static int iomap_add_to_ioend(struct iomap_writepage_ctx *wpc,
 {
 	struct iomap_folio_state *ifs = folio->private;
 	size_t poff = offset_in_folio(folio, pos);
+	unsigned int ioend_flags = 0;
 	int error;
 
-	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, pos)) {
+	if (wpc->iomap.type == IOMAP_UNWRITTEN)
+		ioend_flags |= IOMAP_IOEND_UNWRITTEN;
+	if (wpc->iomap.flags & IOMAP_F_SHARED)
+		ioend_flags |= IOMAP_IOEND_SHARED;
+	if (pos == wpc->iomap.offset && (wpc->iomap.flags & IOMAP_F_BOUNDARY))
+		ioend_flags |= IOMAP_IOEND_BOUNDARY;
+
+	if (!wpc->ioend || !iomap_can_add_to_ioend(wpc, pos, ioend_flags)) {
 new_ioend:
 		error = iomap_submit_ioend(wpc, 0);
 		if (error)
 			return error;
-		wpc->ioend = iomap_alloc_ioend(wpc, wbc, inode, pos);
+		wpc->ioend = iomap_alloc_ioend(wpc, wbc, inode, pos,
+				ioend_flags);
 	}
 
 	if (!bio_add_folio(&wpc->ioend->io_bio, folio, len, poff))
@@ -2062,11 +1962,3 @@ iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 	return iomap_submit_ioend(wpc, error);
 }
 EXPORT_SYMBOL_GPL(iomap_writepages);
-
-static int __init iomap_buffered_init(void)
-{
-	return bioset_init(&iomap_ioend_bioset, 4 * (PAGE_SIZE / SECTOR_SIZE),
-			   offsetof(struct iomap_ioend, io_bio),
-			   BIOSET_NEED_BVECS);
-}
-fs_initcall(iomap_buffered_init);
