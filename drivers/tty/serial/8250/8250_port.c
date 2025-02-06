@@ -319,24 +319,6 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 8, 16, 30},
 		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
 	},
-	/* From here on after additional uart config port defines are placed in 8250.h
-	 */
-	[PORT_AIROHA] = {
-		.name		= "Airoha UART",
-		.fifo_size	= 8,
-		.tx_loadsz	= 1,
-		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_01 | UART_FCR_CLEAR_RCVR,
-		.rxtrig_bytes	= {1, 4},
-		.flags		= UART_CAP_FIFO,
-	},
-	[PORT_AIROHA_HS] = {
-		.name		= "Airoha HSUART",
-		.fifo_size	= 128,
-		.tx_loadsz	= 128,
-		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_01 | UART_FCR_CLEAR_RCVR,
-		.rxtrig_bytes	= {1, 4},
-		.flags		= UART_CAP_FIFO,
-	},
 };
 
 /* Uart divisor latch read */
@@ -2882,14 +2864,6 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	serial8250_set_divisor(port, baud, quot, frac);
-
-	/*
-	 * Airoha SoCs have custom registers for baud rate settings
-	 */
-	if (port->type == PORT_AIROHA)
-		airoha8250_set_baud_rate(port, baud, 0);
-	if (port->type == PORT_AIROHA_HS)
-		airoha8250_set_baud_rate(port, baud, 1);
 
 	/*
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
