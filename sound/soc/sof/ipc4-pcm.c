@@ -610,12 +610,11 @@ static int sof_ipc4_pcm_dai_link_fixup_rate(struct snd_sof_dev *sdev,
 	 * Copier does not change sampling rate, so we
 	 * need to only consider the input pin information.
 	 */
+	be_rate = pin_fmts[0].audio_fmt.sampling_frequency;
 	for (i = 0; i < num_input_formats; i++) {
 		unsigned int val = pin_fmts[i].audio_fmt.sampling_frequency;
 
-		if (i == 0)
-			be_rate = val;
-		else if (val != be_rate)
+		if (val != be_rate)
 			single_be_rate = false;
 
 		if (val == fe_rate) {
