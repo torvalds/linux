@@ -2216,56 +2216,6 @@ out_free_command:
 	return err;
 }
 
-static int annotation_options__init_disassemblers(struct annotation_options *options)
-{
-	char *disassembler;
-
-	if (options->disassemblers_str == NULL) {
-		const char *default_disassemblers_str =
-#ifdef HAVE_LIBLLVM_SUPPORT
-				"llvm,"
-#endif
-#ifdef HAVE_LIBCAPSTONE_SUPPORT
-				"capstone,"
-#endif
-				"objdump";
-
-		options->disassemblers_str = strdup(default_disassemblers_str);
-		if (!options->disassemblers_str)
-			goto out_enomem;
-	}
-
-	disassembler = strdup(options->disassemblers_str);
-	if (disassembler == NULL)
-		goto out_enomem;
-
-	while (1) {
-		char *comma = strchr(disassembler, ',');
-
-		if (comma != NULL)
-			*comma = '\0';
-
-		options->disassemblers[options->nr_disassemblers++] = strim(disassembler);
-
-		if (comma == NULL)
-			break;
-
-		disassembler = comma + 1;
-
-		if (options->nr_disassemblers >= MAX_DISASSEMBLERS) {
-			pr_debug("annotate.disassemblers can have at most %d entries, ignoring \"%s\"\n",
-				 MAX_DISASSEMBLERS, disassembler);
-			break;
-		}
-	}
-
-	return 0;
-
-out_enomem:
-	pr_err("Not enough memory for annotate.disassemblers\n");
-	return -1;
-}
-
 int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
 	struct annotation_options *options = args->options;
@@ -2274,7 +2224,6 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	char symfs_filename[PATH_MAX];
 	bool delete_extract = false;
 	struct kcore_extract kce;
-	const char *disassembler;
 	bool decomp = false;
 	int err = dso__disassemble_filename(dso, symfs_filename, sizeof(symfs_filename));
 
@@ -2334,28 +2283,26 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		}
 	}
 
-	err = annotation_options__init_disassemblers(options);
-	if (err)
-		goto out_remove_tmp;
-
 	err = -1;
+	for (u8 i = 0; i < ARRAY_SIZE(options->disassemblers) && err != 0; i++) {
+		enum perf_disassembler dis = options->disassemblers[i];
 
-	for (int i = 0; i < options->nr_disassemblers && err != 0; ++i) {
-		disassembler = options->disassemblers[i];
-
-		if (!strcmp(disassembler, "llvm"))
+		switch (dis) {
+		case PERF_DISASM_LLVM:
 			err = symbol__disassemble_llvm(symfs_filename, sym, args);
-		else if (!strcmp(disassembler, "capstone"))
+			break;
+		case PERF_DISASM_CAPSTONE:
 			err = symbol__disassemble_capstone(symfs_filename, sym, args);
-		else if (!strcmp(disassembler, "objdump"))
+			break;
+		case PERF_DISASM_OBJDUMP:
 			err = symbol__disassemble_objdump(symfs_filename, sym, args);
-		else
-			pr_debug("Unknown disassembler %s, skipping...\n", disassembler);
-	}
-
-	if (err == 0) {
-		pr_debug("Disassembled with %s\nannotate.disassemblers=%s\n",
-			 disassembler, options->disassemblers_str);
+			break;
+		case PERF_DISASM_UNKNOWN: /* End of disassemblers. */
+		default:
+			goto out_remove_tmp;
+		}
+		if (err == 0)
+			pr_debug("Disassembled with %s\n", perf_disassembler__strs[dis]);
 	}
 out_remove_tmp:
 	if (decomp)

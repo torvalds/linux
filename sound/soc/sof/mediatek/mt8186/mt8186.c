@@ -238,7 +238,7 @@ static int mt8186_run(struct snd_sof_dev *sdev)
 
 static int mt8186_dsp_probe(struct snd_sof_dev *sdev)
 {
-	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(sdev->dev);
 	struct adsp_priv *priv;
 	int ret;
 

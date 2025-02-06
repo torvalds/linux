@@ -1090,7 +1090,7 @@ F:	drivers/video/fbdev/geode/
 
 AMD HSMP DRIVER
 M:	Naveen Krishna Chatradhi <naveenkrishna.chatradhi@amd.com>
-R:	Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
+R:	Carlos Bilbao <carlos.bilbao@kernel.org>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	Documentation/arch/x86/amd_hsmp.rst
@@ -5857,7 +5857,7 @@ F:	drivers/usb/atm/cxacru.c
 
 CONFIDENTIAL COMPUTING THREAT MODEL FOR X86 VIRTUALIZATION (SNP/TDX)
 M:	Elena Reshetova <elena.reshetova@intel.com>
-M:	Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
+M:	Carlos Bilbao <carlos.bilbao@kernel.org>
 S:	Maintained
 F:	Documentation/security/snp-tdx-threat-model.rst
 
@@ -9641,6 +9641,13 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media.git
 F:	drivers/media/radio/radio-gemtek*
 
+GENDWARFKSYMS
+M:	Sami Tolvanen <samitolvanen@google.com>
+L:	linux-modules@vger.kernel.org
+L:	linux-kbuild@vger.kernel.org
+S:	Maintained
+F:	scripts/gendwarfksyms/
+
 GENERIC ARCHITECTURE TOPOLOGY
 M:	Sudeep Holla <sudeep.holla@arm.com>
 L:	linux-kernel@vger.kernel.org
@@ -11324,7 +11331,7 @@ S:	Orphan
 F:	drivers/video/fbdev/imsttfb.c
 
 INDEX OF FURTHER KERNEL DOCUMENTATION
-M:	Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
+M:	Carlos Bilbao <carlos.bilbao@kernel.org>
 S:	Maintained
 F:	Documentation/process/kernel-docs.rst
 
@@ -16455,6 +16462,22 @@ F:	include/net/dsa.h
 F:	net/dsa/
 F:	tools/testing/selftests/drivers/net/dsa/
 
+NETWORKING [ETHTOOL]
+M:	Andrew Lunn <andrew@lunn.ch>
+M:	Jakub Kicinski <kuba@kernel.org>
+F:	Documentation/netlink/specs/ethtool.yaml
+F:	Documentation/networking/ethtool-netlink.rst
+F:	include/linux/ethtool*
+F:	include/uapi/linux/ethtool*
+F:	net/ethtool/
+F:	tools/testing/selftests/drivers/net/*/ethtool*
+
+NETWORKING [ETHTOOL CABLE TEST]
+M:	Andrew Lunn <andrew@lunn.ch>
+F:	net/ethtool/cabletest.c
+F:	tools/testing/selftests/drivers/net/*/ethtool*
+K:	cable_test
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
@@ -16614,6 +16637,7 @@ F:	tools/testing/selftests/net/mptcp/
 NETWORKING [TCP]
 M:	Eric Dumazet <edumazet@google.com>
 M:	Neal Cardwell <ncardwell@google.com>
+R:	Kuniyuki Iwashima <kuniyu@amazon.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/networking/net_cachelines/tcp_sock.rst
@@ -16640,6 +16664,31 @@ S:	Maintained
 F:	include/net/tls.h
 F:	include/uapi/linux/tls.h
 F:	net/tls/*
+
+NETWORKING [SOCKETS]
+M:	Eric Dumazet <edumazet@google.com>
+M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+M:	Paolo Abeni <pabeni@redhat.com>
+M:	Willem de Bruijn <willemb@google.com>
+S:	Maintained
+F:	include/linux/sock_diag.h
+F:	include/linux/socket.h
+F:	include/linux/sockptr.h
+F:	include/net/sock.h
+F:	include/net/sock_reuseport.h
+F:	include/uapi/linux/socket.h
+F:	net/core/*sock*
+F:	net/core/scm.c
+F:	net/socket.c
+
+NETWORKING [UNIX SOCKETS]
+M:	Kuniyuki Iwashima <kuniyu@amazon.com>
+S:	Maintained
+F:	include/net/af_unix.h
+F:	include/net/netns/unix.h
+F:	include/uapi/linux/unix_diag.h
+F:	net/unix/
+F:	tools/testing/selftests/net/af_unix/
 
 NETXEN (1/10) GbE SUPPORT
 M:	Manish Chopra <manishc@marvell.com>
@@ -17706,6 +17755,7 @@ L:	netdev@vger.kernel.org
 L:	dev@openvswitch.org
 S:	Maintained
 W:	http://openvswitch.org
+F:	Documentation/networking/openvswitch.rst
 F:	include/uapi/linux/openvswitch.h
 F:	net/openvswitch/
 F:	tools/testing/selftests/net/openvswitch/
@@ -19446,7 +19496,7 @@ F:	drivers/misc/fastrpc.c
 F:	include/uapi/misc/fastrpc.h
 
 QUALCOMM HEXAGON ARCHITECTURE
-M:	Brian Cain <bcain@quicinc.com>
+M:	Brian Cain <brian.cain@oss.qualcomm.com>
 L:	linux-hexagon@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bcain/linux.git
@@ -22208,7 +22258,7 @@ Q:	http://patchwork.linuxtv.org/project/linux-media/list/
 F:	drivers/media/dvb-frontends/sp2*
 
 SPANISH DOCUMENTATION
-M:	Carlos Bilbao <carlos.bilbao.osdev@gmail.com>
+M:	Carlos Bilbao <carlos.bilbao@kernel.org>
 R:	Avadhut Naik <avadhut.naik@amd.com>
 S:	Maintained
 F:	Documentation/translations/sp_SP/
@@ -25732,11 +25782,13 @@ F:	arch/x86/entry/vdso/
 XARRAY
 M:	Matthew Wilcox <willy@infradead.org>
 L:	linux-fsdevel@vger.kernel.org
+L:	linux-mm@kvack.org
 S:	Supported
 F:	Documentation/core-api/xarray.rst
 F:	include/linux/idr.h
 F:	include/linux/xarray.h
 F:	lib/idr.c
+F:	lib/test_xarray.c
 F:	lib/xarray.c
 F:	tools/testing/radix-tree
 
@@ -26216,7 +26268,7 @@ K:	zstd
 
 ZSWAP COMPRESSED SWAP CACHING
 M:	Johannes Weiner <hannes@cmpxchg.org>
-M:	Yosry Ahmed <yosryahmed@google.com>
+M:	Yosry Ahmed <yosry.ahmed@linux.dev>
 M:	Nhat Pham <nphamcs@gmail.com>
 R:	Chengming Zhou <chengming.zhou@linux.dev>
 L:	linux-mm@kvack.org

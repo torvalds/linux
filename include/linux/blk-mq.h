@@ -900,8 +900,22 @@ void blk_mq_delay_run_hw_queues(struct request_queue *q, unsigned long msecs);
 void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 		busy_tag_iter_fn *fn, void *priv);
 void blk_mq_tagset_wait_completed_request(struct blk_mq_tag_set *tagset);
-void blk_mq_freeze_queue(struct request_queue *q);
-void blk_mq_unfreeze_queue(struct request_queue *q);
+void blk_mq_freeze_queue_nomemsave(struct request_queue *q);
+void blk_mq_unfreeze_queue_nomemrestore(struct request_queue *q);
+static inline unsigned int __must_check
+blk_mq_freeze_queue(struct request_queue *q)
+{
+	unsigned int memflags = memalloc_noio_save();
+
+	blk_mq_freeze_queue_nomemsave(q);
+	return memflags;
+}
+static inline void
+blk_mq_unfreeze_queue(struct request_queue *q, unsigned int memflags)
+{
+	blk_mq_unfreeze_queue_nomemrestore(q);
+	memalloc_noio_restore(memflags);
+}
 void blk_freeze_queue_start(struct request_queue *q);
 void blk_mq_freeze_queue_wait(struct request_queue *q);
 int blk_mq_freeze_queue_wait_timeout(struct request_queue *q,

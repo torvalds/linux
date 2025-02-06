@@ -313,7 +313,6 @@ static const struct {
 	ERRDOS, 2215, NT_STATUS_NO_LOGON_SERVERS}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_LOGON_SESSION}, {
 	ERRHRD, ERRgeneral, NT_STATUS_NO_SUCH_PRIVILEGE}, {
-	ERRDOS, ERRnoaccess, NT_STATUS_PRIVILEGE_NOT_HELD}, {
 	ERRHRD, ERRgeneral, NT_STATUS_INVALID_ACCOUNT_NAME}, {
 	ERRHRD, ERRgeneral, NT_STATUS_USER_EXISTS},
 /*	{ This NT error code was 'sqashed'
@@ -870,6 +869,15 @@ map_smb_to_linux_error(char *buf, bool logErr)
 		}
 	}
 	/* else ERRHRD class errors or junk  - return EIO */
+
+	/* special cases for NT status codes which cannot be translated to DOS codes */
+	if (smb->Flags2 & SMBFLG2_ERR_STATUS) {
+		__u32 err = le32_to_cpu(smb->Status.CifsError);
+		if (err == (NT_STATUS_NOT_A_REPARSE_POINT))
+			rc = -ENODATA;
+		else if (err == (NT_STATUS_PRIVILEGE_NOT_HELD))
+			rc = -EPERM;
+	}
 
 	cifs_dbg(FYI, "Mapping smb error code 0x%x to POSIX err %d\n",
 		 le32_to_cpu(smb->Status.CifsError), rc);

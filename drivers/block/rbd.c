@@ -7281,9 +7281,10 @@ static ssize_t do_rbd_remove(const char *buf, size_t count)
 		 * Prevent new IO from being queued and wait for existing
 		 * IO to complete/fail.
 		 */
-		blk_mq_freeze_queue(rbd_dev->disk->queue);
+		unsigned int memflags = blk_mq_freeze_queue(rbd_dev->disk->queue);
+
 		blk_mark_disk_dead(rbd_dev->disk);
-		blk_mq_unfreeze_queue(rbd_dev->disk->queue);
+		blk_mq_unfreeze_queue(rbd_dev->disk->queue, memflags);
 	}
 
 	del_gendisk(rbd_dev->disk);

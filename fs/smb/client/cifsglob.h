@@ -151,6 +151,7 @@ enum securityEnum {
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
 	Kerberos,		/* Kerberos via SPNEGO */
+	IAKerb,			/* Kerberos proxy */
 };
 
 enum upcall_target_enum {
@@ -160,6 +161,7 @@ enum upcall_target_enum {
 };
 
 enum cifs_reparse_type {
+	CIFS_REPARSE_TYPE_NONE,
 	CIFS_REPARSE_TYPE_NFS,
 	CIFS_REPARSE_TYPE_WSL,
 	CIFS_REPARSE_TYPE_DEFAULT = CIFS_REPARSE_TYPE_NFS,
@@ -168,9 +170,44 @@ enum cifs_reparse_type {
 static inline const char *cifs_reparse_type_str(enum cifs_reparse_type type)
 {
 	switch (type) {
+	case CIFS_REPARSE_TYPE_NONE:
+		return "none";
 	case CIFS_REPARSE_TYPE_NFS:
 		return "nfs";
 	case CIFS_REPARSE_TYPE_WSL:
+		return "wsl";
+	default:
+		return "unknown";
+	}
+}
+
+enum cifs_symlink_type {
+	CIFS_SYMLINK_TYPE_DEFAULT,
+	CIFS_SYMLINK_TYPE_NONE,
+	CIFS_SYMLINK_TYPE_NATIVE,
+	CIFS_SYMLINK_TYPE_UNIX,
+	CIFS_SYMLINK_TYPE_MFSYMLINKS,
+	CIFS_SYMLINK_TYPE_SFU,
+	CIFS_SYMLINK_TYPE_NFS,
+	CIFS_SYMLINK_TYPE_WSL,
+};
+
+static inline const char *cifs_symlink_type_str(enum cifs_symlink_type type)
+{
+	switch (type) {
+	case CIFS_SYMLINK_TYPE_NONE:
+		return "none";
+	case CIFS_SYMLINK_TYPE_NATIVE:
+		return "native";
+	case CIFS_SYMLINK_TYPE_UNIX:
+		return "unix";
+	case CIFS_SYMLINK_TYPE_MFSYMLINKS:
+		return "mfsymlinks";
+	case CIFS_SYMLINK_TYPE_SFU:
+		return "sfu";
+	case CIFS_SYMLINK_TYPE_NFS:
+		return "nfs";
+	case CIFS_SYMLINK_TYPE_WSL:
 		return "wsl";
 	default:
 		return "unknown";
@@ -215,10 +252,7 @@ struct cifs_cred {
 
 struct cifs_open_info_data {
 	bool adjust_tz;
-	union {
-		bool reparse_point;
-		bool symlink;
-	};
+	bool reparse_point;
 	struct {
 		/* ioctl response buffer */
 		struct {
@@ -226,10 +260,7 @@ struct cifs_open_info_data {
 			struct kvec iov;
 		} io;
 		__u32 tag;
-		union {
-			struct reparse_data_buffer *buf;
-			struct reparse_posix_data *posix;
-		};
+		struct reparse_data_buffer *buf;
 	} reparse;
 	struct {
 		__u8		eas[SMB2_WSL_MAX_QUERY_EA_RESP_SIZE];
@@ -751,6 +782,7 @@ struct TCP_Server_Info {
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
+	bool	sec_iakerb;		/* supports pass-through auth for Kerberos (krb5 proxy) */
 	bool	large_buf;		/* is current buffer large? */
 	/* use SMBD connection instead of socket */
 	bool	rdma;
@@ -2118,6 +2150,8 @@ static inline char *get_security_type_str(enum securityEnum sectype)
 		return "Kerberos";
 	case NTLMv2:
 		return "NTLMv2";
+	case IAKerb:
+		return "IAKerb";
 	default:
 		return "Unknown";
 	}
@@ -2173,11 +2207,13 @@ static inline size_t ntlmssp_workstation_name_size(const struct cifs_ses *ses)
 
 static inline void move_cifs_info_to_smb2(struct smb2_file_all_info *dst, const FILE_ALL_INFO *src)
 {
-	memcpy(dst, src, (size_t)((u8 *)&src->AccessFlags - (u8 *)src));
-	dst->AccessFlags = src->AccessFlags;
-	dst->CurrentByteOffset = src->CurrentByteOffset;
-	dst->Mode = src->Mode;
-	dst->AlignmentRequirement = src->AlignmentRequirement;
+	memcpy(dst, src, (size_t)((u8 *)&src->EASize - (u8 *)src));
+	dst->IndexNumber = 0;
+	dst->EASize = src->EASize;
+	dst->AccessFlags = 0;
+	dst->CurrentByteOffset = 0;
+	dst->Mode = 0;
+	dst->AlignmentRequirement = 0;
 	dst->FileNameLength = src->FileNameLength;
 }
 

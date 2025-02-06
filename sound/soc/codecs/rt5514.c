@@ -1091,8 +1091,7 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 static int rt5514_probe(struct snd_soc_component *component)
 {
 	struct rt5514_priv *rt5514 = snd_soc_component_get_drvdata(component);
-	struct platform_device *pdev = container_of(component->dev,
-						   struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(component->dev);
 
 	rt5514->mclk = devm_clk_get_optional(component->dev, "mclk");
 	if (IS_ERR(rt5514->mclk))

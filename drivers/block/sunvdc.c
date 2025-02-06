@@ -1113,6 +1113,7 @@ static void vdc_requeue_inflight(struct vdc_port *port)
 static void vdc_queue_drain(struct vdc_port *port)
 {
 	struct request_queue *q = port->disk->queue;
+	unsigned int memflags;
 
 	/*
 	 * Mark the queue as draining, then freeze/quiesce to ensure
@@ -1121,12 +1122,12 @@ static void vdc_queue_drain(struct vdc_port *port)
 	port->drain = 1;
 	spin_unlock_irq(&port->vio.lock);
 
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
 	spin_lock_irq(&port->vio.lock);
 	port->drain = 0;
-	blk_mq_unquiesce_queue(q);
+	blk_mq_unquiesce_queue(q, memflags);
 	blk_mq_unfreeze_queue(q);
 }
 

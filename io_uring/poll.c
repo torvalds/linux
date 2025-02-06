@@ -273,6 +273,8 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 				return IOU_POLL_REISSUE;
 			}
 		}
+		if (unlikely(req->cqe.res & EPOLLERR))
+			req_set_fail(req);
 		if (req->apoll_events & EPOLLONESHOT)
 			return IOU_POLL_DONE;
 
@@ -315,8 +317,10 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 
 	ret = io_poll_check_events(req, ts);
 	if (ret == IOU_POLL_NO_ACTION) {
+		io_kbuf_recycle(req, 0);
 		return;
 	} else if (ret == IOU_POLL_REQUEUE) {
+		io_kbuf_recycle(req, 0);
 		__io_poll_execute(req, 0);
 		return;
 	}
@@ -650,7 +654,7 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 		kfree(apoll->double_poll);
 	} else {
 		if (!(issue_flags & IO_URING_F_UNLOCKED))
-			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC, NULL);
+			apoll = io_cache_alloc(&ctx->apoll_cache, GFP_ATOMIC);
 		else
 			apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 		if (!apoll)

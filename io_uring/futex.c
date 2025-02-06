@@ -36,7 +36,7 @@ struct io_futex_data {
 bool io_futex_cache_init(struct io_ring_ctx *ctx)
 {
 	return io_alloc_cache_init(&ctx->futex_cache, IO_FUTEX_ALLOC_CACHE_MAX,
-				sizeof(struct io_futex_data));
+				sizeof(struct io_futex_data), 0);
 }
 
 void io_futex_cache_free(struct io_ring_ctx *ctx)
@@ -320,7 +320,7 @@ int io_futex_wait(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	io_ring_submit_lock(ctx, issue_flags);
-	ifd = io_cache_alloc(&ctx->futex_cache, GFP_NOWAIT, NULL);
+	ifd = io_cache_alloc(&ctx->futex_cache, GFP_NOWAIT);
 	if (!ifd) {
 		ret = -ENOMEM;
 		goto done_unlock;

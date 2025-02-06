@@ -32,7 +32,6 @@
 #include <linux/sort.h>
 #include <linux/stat.h>
 
-#define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
 int bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
 {

@@ -21,7 +21,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/prctl.h>
+#include <sys/syscall.h>
 #include <unistd.h>
+
+static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
+			char *const envp[], int flags)
+{
+	return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
 
 /* Returns 1 on error, 0 otherwise. */
 static int interpret_buffer(char *buffer, size_t buffer_size)
@@ -78,8 +85,8 @@ static int interpret_stream(FILE *script, char *const script_name,
 	 * script execution.  We must use the script file descriptor instead of
 	 * the script path name to avoid race conditions.
 	 */
-	err = execveat(fileno(script), "", script_argv, envp,
-		       AT_EMPTY_PATH | AT_EXECVE_CHECK);
+	err = sys_execveat(fileno(script), "", script_argv, envp,
+			   AT_EMPTY_PATH | AT_EXECVE_CHECK);
 	if (err && restrict_stream) {
 		perror("ERROR: Script execution check");
 		return 1;

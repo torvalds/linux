@@ -2966,11 +2966,11 @@ static int __d_unalias(struct dentry *dentry, struct dentry *alias)
 		goto out_err;
 	m2 = &alias->d_parent->d_inode->i_rwsem;
 out_unalias:
-	if (alias->d_op->d_unalias_trylock &&
+	if (alias->d_op && alias->d_op->d_unalias_trylock &&
 	    !alias->d_op->d_unalias_trylock(alias))
 		goto out_err;
 	__d_move(alias, dentry, false);
-	if (alias->d_op->d_unalias_unlock)
+	if (alias->d_op && alias->d_op->d_unalias_unlock)
 		alias->d_op->d_unalias_unlock(alias);
 	ret = 0;
 out_err:

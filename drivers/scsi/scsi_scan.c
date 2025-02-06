@@ -220,6 +220,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	int new_shift = sbitmap_calculate_shift(depth);
 	bool need_alloc = !sdev->budget_map.map;
 	bool need_free = false;
+	unsigned int memflags;
 	int ret;
 	struct sbitmap sb_backup;
 
@@ -240,7 +241,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 	 * and here disk isn't added yet, so freezing is pretty fast
 	 */
 	if (need_free) {
-		blk_mq_freeze_queue(sdev->request_queue);
+		memflags = blk_mq_freeze_queue(sdev->request_queue);
 		sb_backup = sdev->budget_map;
 	}
 	ret = sbitmap_init_node(&sdev->budget_map,
@@ -256,7 +257,7 @@ static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
 		else
 			sbitmap_free(&sb_backup);
 		ret = 0;
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue(sdev->request_queue, memflags);
 	}
 	return ret;
 }

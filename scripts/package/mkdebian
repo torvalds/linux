@@ -205,7 +205,7 @@ Priority: optional
 Maintainer: $maintainer
 Rules-Requires-Root: no
 Build-Depends: debhelper-compat (= 12)
-Build-Depends-Arch: bc, bison, cpio, flex,
+Build-Depends-Arch: bc, bison, flex,
  gcc-${host_gnu} <!pkg.${sourcename}.nokernelheaders>,
  kmod, libelf-dev:native,
  libssl-dev:native, libssl-dev <!pkg.${sourcename}.nokernelheaders>,

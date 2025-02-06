@@ -367,7 +367,7 @@ static int jz4740_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	device_init_wakeup(dev, 1);
+	device_init_wakeup(dev, true);
 
 	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret)

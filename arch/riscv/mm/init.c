@@ -268,8 +268,12 @@ static void __init setup_bootmem(void)
 	 */
 	if (IS_ENABLED(CONFIG_64BIT) && IS_ENABLED(CONFIG_MMU)) {
 		max_mapped_addr = __pa(PAGE_OFFSET) + KERN_VIRT_SIZE;
-		memblock_cap_memory_range(phys_ram_base,
-					  max_mapped_addr - phys_ram_base);
+		if (memblock_end_of_DRAM() > max_mapped_addr) {
+			memblock_cap_memory_range(phys_ram_base,
+						  max_mapped_addr - phys_ram_base);
+			pr_warn("Physical memory overflows the linear mapping size: region above %pa removed",
+				&max_mapped_addr);
+		}
 	}
 
 	/*

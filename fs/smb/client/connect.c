@@ -2849,6 +2849,10 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 		return 0;
 	if (old->ctx->reparse_type != new->ctx->reparse_type)
 		return 0;
+	if (old->ctx->nonativesocket != new->ctx->nonativesocket)
+		return 0;
+	if (old->ctx->symlink_type != new->ctx->symlink_type)
+		return 0;
 
 	return 1;
 }

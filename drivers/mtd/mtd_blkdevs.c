@@ -404,6 +404,7 @@ out_list_del:
 int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 {
 	unsigned long flags;
+	unsigned int memflags;
 
 	lockdep_assert_held(&mtd_table_mutex);
 
@@ -420,10 +421,10 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	spin_unlock_irqrestore(&old->queue_lock, flags);
 
 	/* freeze+quiesce queue to ensure all requests are flushed */
-	blk_mq_freeze_queue(old->rq);
+	memflags = blk_mq_freeze_queue(old->rq);
 	blk_mq_quiesce_queue(old->rq);
 	blk_mq_unquiesce_queue(old->rq);
-	blk_mq_unfreeze_queue(old->rq);
+	blk_mq_unfreeze_queue(old->rq, memflags);
 
 	/* If the device is currently open, tell trans driver to close it,
 		then put mtd device, and don't touch it again */

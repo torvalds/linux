@@ -2491,7 +2491,8 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
  */
 static enum compact_result
 compaction_suit_allocation_order(struct zone *zone, unsigned int order,
-				 int highest_zoneidx, unsigned int alloc_flags)
+				 int highest_zoneidx, unsigned int alloc_flags,
+				 bool async)
 {
 	unsigned long watermark;
 
@@ -2499,6 +2500,23 @@ compaction_suit_allocation_order(struct zone *zone, unsigned int order,
 	if (zone_watermark_ok(zone, order, watermark, highest_zoneidx,
 			      alloc_flags))
 		return COMPACT_SUCCESS;
+
+	/*
+	 * For unmovable allocations (without ALLOC_CMA), check if there is enough
+	 * free memory in the non-CMA pageblocks. Otherwise compaction could form
+	 * the high-order page in CMA pageblocks, which would not help the
+	 * allocation to succeed. However, limit the check to costly order async
+	 * compaction (such as opportunistic THP attempts) because there is the
+	 * possibility that compaction would migrate pages from non-CMA to CMA
+	 * pageblock.
+	 */
+	if (order > PAGE_ALLOC_COSTLY_ORDER && async &&
+	    !(alloc_flags & ALLOC_CMA)) {
+		watermark = low_wmark_pages(zone) + compact_gap(order);
+		if (!__zone_watermark_ok(zone, 0, watermark, highest_zoneidx,
+					   0, zone_page_state(zone, NR_FREE_PAGES)))
+			return COMPACT_SKIPPED;
+	}
 
 	if (!compaction_suitable(zone, order, highest_zoneidx))
 		return COMPACT_SKIPPED;
@@ -2535,7 +2553,8 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	if (!is_via_compact_memory(cc->order)) {
 		ret = compaction_suit_allocation_order(cc->zone, cc->order,
 						       cc->highest_zoneidx,
-						       cc->alloc_flags);
+						       cc->alloc_flags,
+						       cc->mode == MIGRATE_ASYNC);
 		if (ret != COMPACT_CONTINUE)
 			return ret;
 	}
@@ -3038,7 +3057,8 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
 
 		ret = compaction_suit_allocation_order(zone,
 				pgdat->kcompactd_max_order,
-				highest_zoneidx, ALLOC_WMARK_MIN);
+				highest_zoneidx, ALLOC_WMARK_MIN,
+				false);
 		if (ret == COMPACT_CONTINUE)
 			return true;
 	}
@@ -3079,7 +3099,8 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 			continue;
 
 		ret = compaction_suit_allocation_order(zone,
-				cc.order, zoneid, ALLOC_WMARK_MIN);
+				cc.order, zoneid, ALLOC_WMARK_MIN,
+				false);
 		if (ret != COMPACT_CONTINUE)
 			continue;
 

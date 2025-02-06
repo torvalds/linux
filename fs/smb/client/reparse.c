@@ -14,6 +14,20 @@
 #include "fs_context.h"
 #include "reparse.h"
 
+static int mknod_nfs(unsigned int xid, struct inode *inode,
+		     struct dentry *dentry, struct cifs_tcon *tcon,
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname);
+
+static int mknod_wsl(unsigned int xid, struct inode *inode,
+		     struct dentry *dentry, struct cifs_tcon *tcon,
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname);
+
+static int create_native_symlink(const unsigned int xid, struct inode *inode,
+				 struct dentry *dentry, struct cifs_tcon *tcon,
+				 const char *full_path, const char *symname);
+
 static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 					   const unsigned int xid,
 					   const char *full_path,
@@ -24,35 +38,146 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname)
 {
+	switch (get_cifs_symlink_type(CIFS_SB(inode->i_sb))) {
+	case CIFS_SYMLINK_TYPE_NATIVE:
+		return create_native_symlink(xid, inode, dentry, tcon, full_path, symname);
+	case CIFS_SYMLINK_TYPE_NFS:
+		return mknod_nfs(xid, inode, dentry, tcon, full_path, S_IFLNK, 0, symname);
+	case CIFS_SYMLINK_TYPE_WSL:
+		return mknod_wsl(xid, inode, dentry, tcon, full_path, S_IFLNK, 0, symname);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int create_native_symlink(const unsigned int xid, struct inode *inode,
+				 struct dentry *dentry, struct cifs_tcon *tcon,
+				 const char *full_path, const char *symname)
+{
 	struct reparse_symlink_data_buffer *buf = NULL;
-	struct cifs_open_info_data data;
+	struct cifs_open_info_data data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct inode *new;
 	struct kvec iov;
-	__le16 *path;
+	__le16 *path = NULL;
 	bool directory;
-	char *sym, sep = CIFS_DIR_SEP(cifs_sb);
-	u16 len, plen;
+	char *symlink_target = NULL;
+	char *sym = NULL;
+	char sep = CIFS_DIR_SEP(cifs_sb);
+	u16 len, plen, poff, slen;
 	int rc = 0;
 
 	if (strlen(symname) > REPARSE_SYM_PATH_MAX)
 		return -ENAMETOOLONG;
 
-	sym = kstrdup(symname, GFP_KERNEL);
-	if (!sym)
-		return -ENOMEM;
+	symlink_target = kstrdup(symname, GFP_KERNEL);
+	if (!symlink_target) {
+		rc = -ENOMEM;
+		goto out;
+	}
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
 		.reparse = { .tag = IO_REPARSE_TAG_SYMLINK, },
-		.symlink_target = sym,
+		.symlink_target = symlink_target,
 	};
 
-	convert_delimiter(sym, sep);
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		/*
+		 * This is a request to create an absolute symlink on the server
+		 * which does not support POSIX paths, and expects symlink in
+		 * NT-style path. So convert absolute Linux symlink target path
+		 * to the absolute NT-style path. Root of the NT-style path for
+		 * symlinks is specified in "symlinkroot" mount option. This will
+		 * ensure compatibility of this symlink stored in absolute form
+		 * on the SMB server.
+		 */
+		if (!strstarts(symname, cifs_sb->ctx->symlinkroot)) {
+			/*
+			 * If the absolute Linux symlink target path is not
+			 * inside "symlinkroot" location then there is no way
+			 * to convert such Linux symlink to NT-style path.
+			 */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted to NT format "
+				 "because it is outside of symlinkroot='%s'\n",
+				 symname, cifs_sb->ctx->symlinkroot);
+			rc = -EINVAL;
+			goto out;
+		}
+		len = strlen(cifs_sb->ctx->symlinkroot);
+		if (cifs_sb->ctx->symlinkroot[len-1] != '/')
+			len++;
+		if (symname[len] >= 'a' && symname[len] <= 'z' &&
+		    (symname[len+1] == '/' || symname[len+1] == '\0')) {
+			/*
+			 * Symlink points to Linux target /symlinkroot/x/path/...
+			 * where 'x' is the lowercase local Windows drive.
+			 * NT-style path for 'x' has common form \??\X:\path\...
+			 * with uppercase local Windows drive.
+			 */
+			int common_path_len = strlen(symname+len+1)+1;
+			sym = kzalloc(6+common_path_len, GFP_KERNEL);
+			if (!sym) {
+				rc = -ENOMEM;
+				goto out;
+			}
+			memcpy(sym, "\\??\\", 4);
+			sym[4] = symname[len] - ('a'-'A');
+			sym[5] = ':';
+			memcpy(sym+6, symname+len+1, common_path_len);
+		} else {
+			/* Unhandled absolute symlink. Report an error. */
+			cifs_dbg(
+				 VFS,
+				 "absolute symlink '%s' cannot be converted to NT format "
+				 "because it points to unknown target\n",
+				 symname);
+			rc = -EINVAL;
+			goto out;
+		}
+	} else {
+		/*
+		 * This is request to either create an absolute symlink on
+		 * server which expects POSIX paths or it is an request to
+		 * create a relative symlink from the current directory.
+		 * These paths have same format as relative SMB symlinks,
+		 * so no conversion is needed. So just take symname as-is.
+		 */
+		sym = kstrdup(symname, GFP_KERNEL);
+		if (!sym) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	}
+
+	if (sep == '\\')
+		convert_delimiter(sym, sep);
+
+	/*
+	 * For absolute NT symlinks it is required to pass also leading
+	 * backslash and to not mangle NT object prefix "\\??\\" and not to
+	 * mangle colon in drive letter. But cifs_convert_path_to_utf16()
+	 * removes leading backslash and replaces '?' and ':'. So temporary
+	 * mask these characters in NT object prefix by '_' and then change
+	 * them back.
+	 */
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/')
+		sym[0] = sym[1] = sym[2] = sym[5] = '_';
+
 	path = cifs_convert_path_to_utf16(sym, cifs_sb);
 	if (!path) {
 		rc = -ENOMEM;
 		goto out;
+	}
+
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		sym[0] = '\\';
+		sym[1] = sym[2] = '?';
+		sym[5] = ':';
+		path[0] = cpu_to_le16('\\');
+		path[1] = path[2] = cpu_to_le16('?');
+		path[5] = cpu_to_le16(':');
 	}
 
 	/*
@@ -67,8 +192,18 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	if (rc < 0)
 		goto out;
 
-	plen = 2 * UniStrnlen((wchar_t *)path, REPARSE_SYM_PATH_MAX);
-	len = sizeof(*buf) + plen * 2;
+	slen = 2 * UniStrnlen((wchar_t *)path, REPARSE_SYM_PATH_MAX);
+	poff = 0;
+	plen = slen;
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && symname[0] == '/') {
+		/*
+		 * For absolute NT symlinks skip leading "\\??\\" in PrintName as
+		 * PrintName is user visible location in DOS/Win32 format (not in NT format).
+		 */
+		poff = 4;
+		plen -= 2 * poff;
+	}
+	len = sizeof(*buf) + plen + slen;
 	buf = kzalloc(len, GFP_KERNEL);
 	if (!buf) {
 		rc = -ENOMEM;
@@ -77,17 +212,17 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 
 	buf->ReparseTag = cpu_to_le32(IO_REPARSE_TAG_SYMLINK);
 	buf->ReparseDataLength = cpu_to_le16(len - sizeof(struct reparse_data_buffer));
+
 	buf->SubstituteNameOffset = cpu_to_le16(plen);
-	buf->SubstituteNameLength = cpu_to_le16(plen);
-	memcpy(&buf->PathBuffer[plen], path, plen);
+	buf->SubstituteNameLength = cpu_to_le16(slen);
+	memcpy(&buf->PathBuffer[plen], path, slen);
+
 	buf->PrintNameOffset = 0;
 	buf->PrintNameLength = cpu_to_le16(plen);
-	memcpy(buf->PathBuffer, path, plen);
-	buf->Flags = cpu_to_le32(*symname != '/' ? SYMLINK_FLAG_RELATIVE : 0);
-	if (*sym != sep)
-		buf->Flags = cpu_to_le32(SYMLINK_FLAG_RELATIVE);
+	memcpy(buf->PathBuffer, path+poff, plen);
 
-	convert_delimiter(sym, '/');
+	buf->Flags = cpu_to_le32(*symname != '/' ? SYMLINK_FLAG_RELATIVE : 0);
+
 	iov.iov_base = buf;
 	iov.iov_len = len;
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
@@ -98,6 +233,7 @@ int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 	else
 		rc = PTR_ERR(new);
 out:
+	kfree(sym);
 	kfree(path);
 	cifs_free_open_info(&data);
 	kfree(buf);
@@ -242,8 +378,39 @@ static int detect_directory_symlink_target(struct cifs_sb_info *cifs_sb,
 	return 0;
 }
 
-static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
+static int create_native_socket(const unsigned int xid, struct inode *inode,
+				struct dentry *dentry, struct cifs_tcon *tcon,
+				const char *full_path)
+{
+	struct reparse_data_buffer buf = {
+		.ReparseTag = cpu_to_le32(IO_REPARSE_TAG_AF_UNIX),
+		.ReparseDataLength = cpu_to_le16(0),
+	};
+	struct cifs_open_info_data data = {
+		.reparse_point = true,
+		.reparse = { .tag = IO_REPARSE_TAG_AF_UNIX, .buf = &buf, },
+	};
+	struct kvec iov = {
+		.iov_base = &buf,
+		.iov_len = sizeof(buf),
+	};
+	struct inode *new;
+	int rc = 0;
+
+	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
+				     tcon, full_path, false, &iov, NULL);
+	if (!IS_ERR(new))
+		d_instantiate(dentry, new);
+	else
+		rc = PTR_ERR(new);
+	cifs_free_open_info(&data);
+	return rc;
+}
+
+static int nfs_set_reparse_buf(struct reparse_nfs_data_buffer *buf,
 			       mode_t mode, dev_t dev,
+			       __le16 *symname_utf16,
+			       int symname_utf16_len,
 			       struct kvec *iov)
 {
 	u64 type;
@@ -254,7 +421,13 @@ static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
 	switch ((type = reparse_mode_nfs_type(mode))) {
 	case NFS_SPECFILE_BLK:
 	case NFS_SPECFILE_CHR:
-		dlen = sizeof(__le64);
+		dlen = 2 * sizeof(__le32);
+		((__le32 *)buf->DataBuffer)[0] = cpu_to_le32(MAJOR(dev));
+		((__le32 *)buf->DataBuffer)[1] = cpu_to_le32(MINOR(dev));
+		break;
+	case NFS_SPECFILE_LNK:
+		dlen = symname_utf16_len;
+		memcpy(buf->DataBuffer, symname_utf16, symname_utf16_len);
 		break;
 	case NFS_SPECFILE_FIFO:
 	case NFS_SPECFILE_SOCK:
@@ -269,8 +442,6 @@ static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
 	buf->InodeType = cpu_to_le64(type);
 	buf->ReparseDataLength = cpu_to_le16(len + dlen -
 					     sizeof(struct reparse_data_buffer));
-	*(__le64 *)buf->DataBuffer = cpu_to_le64(((u64)MINOR(dev) << 32) |
-						 MAJOR(dev));
 	iov->iov_base = buf;
 	iov->iov_len = len + dlen;
 	return 0;
@@ -278,23 +449,45 @@ static int nfs_set_reparse_buf(struct reparse_posix_data *buf,
 
 static int mknod_nfs(unsigned int xid, struct inode *inode,
 		     struct dentry *dentry, struct cifs_tcon *tcon,
-		     const char *full_path, umode_t mode, dev_t dev)
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_open_info_data data;
-	struct reparse_posix_data *p;
+	struct reparse_nfs_data_buffer *p = NULL;
+	__le16 *symname_utf16 = NULL;
+	int symname_utf16_len = 0;
 	struct inode *new;
 	struct kvec iov;
 	__u8 buf[sizeof(*p) + sizeof(__le64)];
 	int rc;
 
-	p = (struct reparse_posix_data *)buf;
-	rc = nfs_set_reparse_buf(p, mode, dev, &iov);
+	if (S_ISLNK(mode)) {
+		symname_utf16 = cifs_strndup_to_utf16(symname, strlen(symname),
+						      &symname_utf16_len,
+						      cifs_sb->local_nls,
+						      NO_MAP_UNI_RSVD);
+		if (!symname_utf16) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		symname_utf16_len -= 2; /* symlink is without trailing wide-nul */
+		p = kzalloc(sizeof(*p) + symname_utf16_len, GFP_KERNEL);
+		if (!p) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	} else {
+		p = (struct reparse_nfs_data_buffer *)buf;
+	}
+	rc = nfs_set_reparse_buf(p, mode, dev, symname_utf16, symname_utf16_len, &iov);
 	if (rc)
-		return rc;
+		goto out;
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
-		.reparse = { .tag = IO_REPARSE_TAG_NFS, .posix = p, },
+		.reparse = { .tag = IO_REPARSE_TAG_NFS, .buf = (struct reparse_data_buffer *)p, },
+		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb, xid,
@@ -304,12 +497,25 @@ static int mknod_nfs(unsigned int xid, struct inode *inode,
 	else
 		rc = PTR_ERR(new);
 	cifs_free_open_info(&data);
+out:
+	if (S_ISLNK(mode)) {
+		kfree(symname_utf16);
+		kfree(p);
+	}
 	return rc;
 }
 
-static int wsl_set_reparse_buf(struct reparse_data_buffer *buf,
-			       mode_t mode, struct kvec *iov)
+static int wsl_set_reparse_buf(struct reparse_data_buffer **buf,
+			       mode_t mode, const char *symname,
+			       struct cifs_sb_info *cifs_sb,
+			       struct kvec *iov)
 {
+	struct reparse_wsl_symlink_data_buffer *symlink_buf;
+	__le16 *symname_utf16;
+	int symname_utf16_len;
+	int symname_utf8_maxlen;
+	int symname_utf8_len;
+	size_t buf_len;
 	u32 tag;
 
 	switch ((tag = reparse_mode_wsl_tag(mode))) {
@@ -317,16 +523,45 @@ static int wsl_set_reparse_buf(struct reparse_data_buffer *buf,
 	case IO_REPARSE_TAG_LX_CHR:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
+		buf_len = sizeof(struct reparse_data_buffer);
+		*buf = kzalloc(buf_len, GFP_KERNEL);
+		if (!*buf)
+			return -ENOMEM;
+		break;
+	case IO_REPARSE_TAG_LX_SYMLINK:
+		symname_utf16 = cifs_strndup_to_utf16(symname, strlen(symname),
+						      &symname_utf16_len,
+						      cifs_sb->local_nls,
+						      NO_MAP_UNI_RSVD);
+		if (!symname_utf16)
+			return -ENOMEM;
+		symname_utf8_maxlen = symname_utf16_len/2*3;
+		symlink_buf = kzalloc(sizeof(struct reparse_wsl_symlink_data_buffer) +
+				      symname_utf8_maxlen, GFP_KERNEL);
+		if (!symlink_buf) {
+			kfree(symname_utf16);
+			return -ENOMEM;
+		}
+		/* Flag 0x02000000 is unknown, but all wsl symlinks have this value */
+		symlink_buf->Flags = cpu_to_le32(0x02000000);
+		/* PathBuffer is in UTF-8 but without trailing null-term byte */
+		symname_utf8_len = utf16s_to_utf8s((wchar_t *)symname_utf16, symname_utf16_len/2,
+						   UTF16_LITTLE_ENDIAN,
+						   symlink_buf->PathBuffer,
+						   symname_utf8_maxlen);
+		*buf = (struct reparse_data_buffer *)symlink_buf;
+		buf_len = sizeof(struct reparse_wsl_symlink_data_buffer) + symname_utf8_len;
+		kfree(symname_utf16);
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	buf->ReparseTag = cpu_to_le32(tag);
-	buf->Reserved = 0;
-	buf->ReparseDataLength = 0;
-	iov->iov_base = buf;
-	iov->iov_len = sizeof(*buf);
+	(*buf)->ReparseTag = cpu_to_le32(tag);
+	(*buf)->Reserved = 0;
+	(*buf)->ReparseDataLength = cpu_to_le16(buf_len - sizeof(struct reparse_data_buffer));
+	iov->iov_base = *buf;
+	iov->iov_len = buf_len;
 	return 0;
 }
 
@@ -415,27 +650,32 @@ static int wsl_set_xattrs(struct inode *inode, umode_t _mode,
 
 static int mknod_wsl(unsigned int xid, struct inode *inode,
 		     struct dentry *dentry, struct cifs_tcon *tcon,
-		     const char *full_path, umode_t mode, dev_t dev)
+		     const char *full_path, umode_t mode, dev_t dev,
+		     const char *symname)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifs_open_info_data data;
-	struct reparse_data_buffer buf;
+	struct reparse_data_buffer *buf;
 	struct smb2_create_ea_ctx *cc;
 	struct inode *new;
 	unsigned int len;
 	struct kvec reparse_iov, xattr_iov;
 	int rc;
 
-	rc = wsl_set_reparse_buf(&buf, mode, &reparse_iov);
+	rc = wsl_set_reparse_buf(&buf, mode, symname, cifs_sb, &reparse_iov);
 	if (rc)
 		return rc;
 
 	rc = wsl_set_xattrs(inode, mode, dev, &xattr_iov);
-	if (rc)
+	if (rc) {
+		kfree(buf);
 		return rc;
+	}
 
 	data = (struct cifs_open_info_data) {
 		.reparse_point = true,
-		.reparse = { .tag = le32_to_cpu(buf.ReparseTag), .buf = &buf, },
+		.reparse = { .tag = le32_to_cpu(buf->ReparseTag), .buf = buf, },
+		.symlink_target = kstrdup(symname, GFP_KERNEL),
 	};
 
 	cc = xattr_iov.iov_base;
@@ -452,6 +692,7 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 		rc = PTR_ERR(new);
 	cifs_free_open_info(&data);
 	kfree(xattr_iov.iov_base);
+	kfree(buf);
 	return rc;
 }
 
@@ -460,21 +701,22 @@ int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       const char *full_path, umode_t mode, dev_t dev)
 {
 	struct smb3_fs_context *ctx = CIFS_SB(inode->i_sb)->ctx;
-	int rc = -EOPNOTSUPP;
+
+	if (S_ISSOCK(mode) && !ctx->nonativesocket && ctx->reparse_type != CIFS_REPARSE_TYPE_NONE)
+		return create_native_socket(xid, inode, dentry, tcon, full_path);
 
 	switch (ctx->reparse_type) {
 	case CIFS_REPARSE_TYPE_NFS:
-		rc = mknod_nfs(xid, inode, dentry, tcon, full_path, mode, dev);
-		break;
+		return mknod_nfs(xid, inode, dentry, tcon, full_path, mode, dev, NULL);
 	case CIFS_REPARSE_TYPE_WSL:
-		rc = mknod_wsl(xid, inode, dentry, tcon, full_path, mode, dev);
-		break;
+		return mknod_wsl(xid, inode, dentry, tcon, full_path, mode, dev, NULL);
+	default:
+		return -EOPNOTSUPP;
 	}
-	return rc;
 }
 
 /* See MS-FSCC 2.1.2.6 for the 'NFS' style reparse tags */
-static int parse_reparse_posix(struct reparse_posix_data *buf,
+static int parse_reparse_nfs(struct reparse_nfs_data_buffer *buf,
 			       struct cifs_sb_info *cifs_sb,
 			       struct cifs_open_info_data *data)
 {
@@ -536,43 +778,160 @@ static int parse_reparse_posix(struct reparse_posix_data *buf,
 }
 
 int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
-			      bool unicode, bool relative,
+			      bool relative,
 			      const char *full_path,
 			      struct cifs_sb_info *cifs_sb)
 {
 	char sep = CIFS_DIR_SEP(cifs_sb);
 	char *linux_target = NULL;
 	char *smb_target = NULL;
+	int symlinkroot_len;
+	int abs_path_len;
+	char *abs_path;
 	int levels;
 	int rc;
 	int i;
 
-	/* Check that length it valid for unicode/non-unicode mode */
-	if (!len || (unicode && (len % 2))) {
+	/* Check that length it valid */
+	if (!len || (len % 2)) {
 		cifs_dbg(VFS, "srv returned malformed symlink buffer\n");
 		rc = -EIO;
 		goto out;
 	}
 
 	/*
-	 * Check that buffer does not contain UTF-16 null codepoint in unicode
-	 * mode or null byte in non-unicode mode because Linux cannot process
-	 * symlink with null byte.
+	 * Check that buffer does not contain UTF-16 null codepoint
+	 * because Linux cannot process symlink with null byte.
 	 */
-	if ((unicode && UniStrnlen((wchar_t *)buf, len/2) != len/2) ||
-	    (!unicode && strnlen(buf, len) != len)) {
+	if (UniStrnlen((wchar_t *)buf, len/2) != len/2) {
 		cifs_dbg(VFS, "srv returned null byte in native symlink target location\n");
 		rc = -EIO;
 		goto out;
 	}
 
-	smb_target = cifs_strndup_from_utf16(buf, len, unicode, cifs_sb->local_nls);
+	smb_target = cifs_strndup_from_utf16(buf, len, true, cifs_sb->local_nls);
 	if (!smb_target) {
 		rc = -ENOMEM;
 		goto out;
 	}
 
-	if (smb_target[0] == sep && relative) {
+	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS) && !relative) {
+		/*
+		 * This is an absolute symlink from the server which does not
+		 * support POSIX paths, so the symlink is in NT-style path.
+		 * So convert it to absolute Linux symlink target path. Root of
+		 * the NT-style path for symlinks is specified in "symlinkroot"
+		 * mount option.
+		 *
+		 * Root of the DOS and Win32 paths is at NT path \??\
+		 * It means that DOS/Win32 path C:\folder\file.txt is
+		 * NT path \??\C:\folder\file.txt
+		 *
+		 * NT systems have some well-known object symlinks in their NT
+		 * hierarchy, which is needed to take into account when resolving
+		 * other symlinks. Most commonly used symlink paths are:
+		 * \?? -> \GLOBAL??
+		 * \DosDevices -> \??
+		 * \GLOBAL??\GLOBALROOT -> \
+		 * \GLOBAL??\Global -> \GLOBAL??
+		 * \GLOBAL??\NUL -> \Device\Null
+		 * \GLOBAL??\UNC -> \Device\Mup
+		 * \GLOBAL??\PhysicalDrive0 -> \Device\Harddisk0\DR0 (for each harddisk)
+		 * \GLOBAL??\A: -> \Device\Floppy0 (if A: is the first floppy)
+		 * \GLOBAL??\C: -> \Device\HarddiskVolume1 (if C: is the first harddisk)
+		 * \GLOBAL??\D: -> \Device\CdRom0 (if D: is first cdrom)
+		 * \SystemRoot -> \Device\Harddisk0\Partition1\WINDOWS (or where is NT system installed)
+		 * \Volume{...} -> \Device\HarddiskVolume1 (where ... is system generated guid)
+		 *
+		 * In most common cases, absolute NT symlinks points to path on
+		 * DOS/Win32 drive letter, system-specific Volume or on UNC share.
+		 * Here are few examples of commonly used absolute NT symlinks
+		 * created by mklink.exe tool:
+		 * \??\C:\folder\file.txt
+		 * \??\\C:\folder\file.txt
+		 * \??\UNC\server\share\file.txt
+		 * \??\\UNC\server\share\file.txt
+		 * \??\Volume{b75e2c83-0000-0000-0000-602f00000000}\folder\file.txt
+		 *
+		 * It means that the most common path prefix \??\ is also NT path
+		 * symlink (to \GLOBAL??). It is less common that second path
+		 * separator is double backslash, but it is valid.
+		 *
+		 * Volume guid is randomly generated by the target system and so
+		 * only the target system knows the mapping between guid and the
+		 * hardisk number. Over SMB it is not possible to resolve this
+		 * mapping, therefore symlinks pointing to target location of
+		 * volume guids are totally unusable over SMB.
+		 *
+		 * For now parse only symlink paths available for DOS and Win32.
+		 * Those are paths with \??\ prefix or paths which points to \??\
+		 * via other NT symlink (\DosDevices\, \GLOBAL??\, ...).
+		 */
+		abs_path = smb_target;
+globalroot:
+		if (strstarts(abs_path, "\\??\\"))
+			abs_path += sizeof("\\??\\")-1;
+		else if (strstarts(abs_path, "\\DosDevices\\"))
+			abs_path += sizeof("\\DosDevices\\")-1;
+		else if (strstarts(abs_path, "\\GLOBAL??\\"))
+			abs_path += sizeof("\\GLOBAL??\\")-1;
+		else {
+			/* Unhandled absolute symlink, points outside of DOS/Win32 */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted from NT format "
+				 "because points to unknown target\n",
+				 smb_target);
+			rc = -EIO;
+			goto out;
+		}
+
+		/* Sometimes path separator after \?? is double backslash */
+		if (abs_path[0] == '\\')
+			abs_path++;
+
+		while (strstarts(abs_path, "Global\\"))
+			abs_path += sizeof("Global\\")-1;
+
+		if (strstarts(abs_path, "GLOBALROOT\\")) {
+			/* Label globalroot requires path with leading '\\', so do not trim '\\' */
+			abs_path += sizeof("GLOBALROOT")-1;
+			goto globalroot;
+		}
+
+		/* For now parse only paths to drive letters */
+		if (((abs_path[0] >= 'A' && abs_path[0] <= 'Z') ||
+		     (abs_path[0] >= 'a' && abs_path[0] <= 'z')) &&
+		    abs_path[1] == ':' &&
+		    (abs_path[2] == '\\' || abs_path[2] == '\0')) {
+			/* Convert drive letter to lowercase and drop colon */
+			char drive_letter = abs_path[0];
+			if (drive_letter >= 'A' && drive_letter <= 'Z')
+				drive_letter += 'a'-'A';
+			abs_path++;
+			abs_path[0] = drive_letter;
+		} else {
+			/* Unhandled absolute symlink. Report an error. */
+			cifs_dbg(VFS,
+				 "absolute symlink '%s' cannot be converted from NT format "
+				 "because points to unknown target\n",
+				 smb_target);
+			rc = -EIO;
+			goto out;
+		}
+
+		abs_path_len = strlen(abs_path)+1;
+		symlinkroot_len = strlen(cifs_sb->ctx->symlinkroot);
+		if (cifs_sb->ctx->symlinkroot[symlinkroot_len-1] == '/')
+			symlinkroot_len--;
+		linux_target = kmalloc(symlinkroot_len + 1 + abs_path_len, GFP_KERNEL);
+		if (!linux_target) {
+			rc = -ENOMEM;
+			goto out;
+		}
+		memcpy(linux_target, cifs_sb->ctx->symlinkroot, symlinkroot_len);
+		linux_target[symlinkroot_len] = '/';
+		memcpy(linux_target + symlinkroot_len + 1, abs_path, abs_path_len);
+	} else if (smb_target[0] == sep && relative) {
 		/*
 		 * This is a relative SMB symlink from the top of the share,
 		 * which is the top level directory of the Linux mount point.
@@ -601,6 +960,12 @@ int smb2_parse_native_symlink(char **target, const char *buf, unsigned int len,
 		}
 		memcpy(linux_target + levels*3, smb_target+1, smb_target_len); /* +1 to skip leading sep */
 	} else {
+		/*
+		 * This is either an absolute symlink in POSIX-style format
+		 * or relative SMB symlink from the current directory.
+		 * These paths have same format as Linux symlinks, so no
+		 * conversion is needed.
+		 */
 		linux_target = smb_target;
 		smb_target = NULL;
 	}
@@ -620,8 +985,8 @@ out:
 	return rc;
 }
 
-static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
-				 u32 plen, bool unicode,
+static int parse_reparse_native_symlink(struct reparse_symlink_data_buffer *sym,
+				 u32 plen,
 				 struct cifs_sb_info *cifs_sb,
 				 const char *full_path,
 				 struct cifs_open_info_data *data)
@@ -641,7 +1006,6 @@ static int parse_reparse_symlink(struct reparse_symlink_data_buffer *sym,
 	return smb2_parse_native_symlink(&data->symlink_target,
 					 sym->PathBuffer + offs,
 					 len,
-					 unicode,
 					 le32_to_cpu(sym->Flags) & SYMLINK_FLAG_RELATIVE,
 					 full_path,
 					 cifs_sb);
@@ -696,7 +1060,7 @@ static int parse_reparse_wsl_symlink(struct reparse_wsl_symlink_data_buffer *buf
 int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			const char *full_path,
-			bool unicode, struct cifs_open_info_data *data)
+			struct cifs_open_info_data *data)
 {
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
 
@@ -705,12 +1069,12 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 	/* See MS-FSCC 2.1.2 */
 	switch (le32_to_cpu(buf->ReparseTag)) {
 	case IO_REPARSE_TAG_NFS:
-		return parse_reparse_posix((struct reparse_posix_data *)buf,
+		return parse_reparse_nfs((struct reparse_nfs_data_buffer *)buf,
 					   cifs_sb, data);
 	case IO_REPARSE_TAG_SYMLINK:
-		return parse_reparse_symlink(
+		return parse_reparse_native_symlink(
 			(struct reparse_symlink_data_buffer *)buf,
-			plen, unicode, cifs_sb, full_path, data);
+			plen, cifs_sb, full_path, data);
 	case IO_REPARSE_TAG_LX_SYMLINK:
 		return parse_reparse_wsl_symlink(
 			(struct reparse_wsl_symlink_data_buffer *)buf,
@@ -744,14 +1108,15 @@ int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
 
 	buf = (struct reparse_data_buffer *)((u8 *)io +
 					     le32_to_cpu(io->OutputOffset));
-	return parse_reparse_point(buf, plen, cifs_sb, full_path, true, data);
+	return parse_reparse_point(buf, plen, cifs_sb, full_path, data);
 }
 
-static void wsl_to_fattr(struct cifs_open_info_data *data,
+static bool wsl_to_fattr(struct cifs_open_info_data *data,
 			 struct cifs_sb_info *cifs_sb,
 			 u32 tag, struct cifs_fattr *fattr)
 {
 	struct smb2_file_full_ea_info *ea;
+	bool have_xattr_dev = false;
 	u32 next = 0;
 
 	switch (tag) {
@@ -794,21 +1159,31 @@ static void wsl_to_fattr(struct cifs_open_info_data *data,
 			fattr->cf_uid = wsl_make_kuid(cifs_sb, v);
 		else if (!strncmp(name, SMB2_WSL_XATTR_GID, nlen))
 			fattr->cf_gid = wsl_make_kgid(cifs_sb, v);
-		else if (!strncmp(name, SMB2_WSL_XATTR_MODE, nlen))
+		else if (!strncmp(name, SMB2_WSL_XATTR_MODE, nlen)) {
+			/* File type in reparse point tag and in xattr mode must match. */
+			if (S_DT(fattr->cf_mode) != S_DT(le32_to_cpu(*(__le32 *)v)))
+				return false;
 			fattr->cf_mode = (umode_t)le32_to_cpu(*(__le32 *)v);
-		else if (!strncmp(name, SMB2_WSL_XATTR_DEV, nlen))
+		} else if (!strncmp(name, SMB2_WSL_XATTR_DEV, nlen)) {
 			fattr->cf_rdev = reparse_mkdev(v);
+			have_xattr_dev = true;
+		}
 	} while (next);
 out:
+
+	/* Major and minor numbers for char and block devices are mandatory. */
+	if (!have_xattr_dev && (tag == IO_REPARSE_TAG_LX_CHR || tag == IO_REPARSE_TAG_LX_BLK))
+		return false;
+
 	fattr->cf_dtype = S_DT(fattr->cf_mode);
+	return true;
 }
 
 static bool posix_reparse_to_fattr(struct cifs_sb_info *cifs_sb,
 				   struct cifs_fattr *fattr,
 				   struct cifs_open_info_data *data)
 {
-	struct reparse_posix_data *buf = data->reparse.posix;
-
+	struct reparse_nfs_data_buffer *buf = (struct reparse_nfs_data_buffer *)data->reparse.buf;
 
 	if (buf == NULL)
 		return true;
@@ -874,7 +1249,9 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	case IO_REPARSE_TAG_AF_UNIX:
 	case IO_REPARSE_TAG_LX_CHR:
 	case IO_REPARSE_TAG_LX_BLK:
-		wsl_to_fattr(data, cifs_sb, tag, fattr);
+		ok = wsl_to_fattr(data, cifs_sb, tag, fattr);
+		if (!ok)
+			return false;
 		break;
 	case IO_REPARSE_TAG_NFS:
 		ok = posix_reparse_to_fattr(cifs_sb, fattr, data);

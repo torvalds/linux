@@ -1010,6 +1010,11 @@ int smb2_query_path_info(const unsigned int xid,
 			else
 				rc = -EOPNOTSUPP;
 		}
+
+		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK && !rc) {
+			bool directory = le32_to_cpu(data->fi.Attributes) & ATTR_DIRECTORY;
+			rc = smb2_fix_symlink_target_type(&data->symlink_target, directory, cifs_sb);
+		}
 		break;
 	case -EREMOTE:
 		break;

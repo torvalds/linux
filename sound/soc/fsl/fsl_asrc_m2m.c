@@ -183,7 +183,7 @@ static int asrc_dmaconfig(struct fsl_asrc_pair *pair,
 }
 
 /* main function of converter */
-static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_task_runtime *task)
+static int asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_task_runtime *task)
 {
 	struct fsl_asrc *asrc = pair->asrc;
 	struct device *dev = &asrc->pdev->dev;
@@ -193,7 +193,7 @@ static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_tas
 	unsigned int out_dma_len;
 	unsigned int width;
 	u32 fifo_addr;
-	int ret;
+	int ret = 0;
 
 	/* set ratio mod */
 	if (asrc->m2m_set_ratio_mod) {
@@ -215,6 +215,7 @@ static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_tas
 	    in_buf_len > ASRC_M2M_BUFFER_SIZE ||
 	    in_buf_len % (width * pair->channels / 8)) {
 		dev_err(dev, "out buffer size is error: [%d]\n", in_buf_len);
+		ret = -EINVAL;
 		goto end;
 	}
 
@@ -245,6 +246,7 @@ static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_tas
 		}
 	} else if (out_dma_len > ASRC_M2M_BUFFER_SIZE) {
 		dev_err(dev, "cap buffer size error\n");
+		ret = -EINVAL;
 		goto end;
 	}
 
@@ -263,12 +265,14 @@ static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_tas
 
 	if (!wait_for_completion_interruptible_timeout(&pair->complete[IN], 10 * HZ)) {
 		dev_err(dev, "out DMA task timeout\n");
+		ret = -ETIMEDOUT;
 		goto end;
 	}
 
 	if (out_dma_len > 0) {
 		if (!wait_for_completion_interruptible_timeout(&pair->complete[OUT], 10 * HZ)) {
 			dev_err(dev, "cap DMA task timeout\n");
+			ret = -ETIMEDOUT;
 			goto end;
 		}
 	}
@@ -278,7 +282,7 @@ static void asrc_m2m_device_run(struct fsl_asrc_pair *pair, struct snd_compr_tas
 	/* update payload length for capture */
 	task->output_size = out_dma_len;
 end:
-	return;
+	return ret;
 }
 
 static int fsl_asrc_m2m_comp_open(struct snd_compr_stream *stream)
@@ -525,9 +529,7 @@ static int fsl_asrc_m2m_comp_task_start(struct snd_compr_stream *stream,
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 
-	asrc_m2m_device_run(pair, task);
-
-	return 0;
+	return asrc_m2m_device_run(pair, task);
 }
 
 static int fsl_asrc_m2m_comp_task_stop(struct snd_compr_stream *stream,
@@ -633,7 +635,7 @@ int fsl_asrc_m2m_suspend(struct fsl_asrc *asrc)
 
 	for (i = 0; i < PAIR_CTX_NUM; i++) {
 		pair = asrc->pair[i];
-		if (!pair)
+		if (!pair || !pair->dma_buffer[IN].area || !pair->dma_buffer[OUT].area)
 			continue;
 		if (!completion_done(&pair->complete[IN])) {
 			if (pair->dma_chan[IN])
