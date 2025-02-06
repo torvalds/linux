@@ -86,12 +86,12 @@ in_cksum(const u_short *addr, register int len, u_short csum)
 
 static int lkl_test_sleep(void)
 {
-	struct lkl_timespec ts = {
+	struct __lkl__kernel_timespec ts = {
 		.tv_sec = cla.sleep,
 	};
 	int ret;
 
-	ret = lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
+	ret = lkl_sys_nanosleep(&ts, NULL);
 	if (ret < 0) {
 		lkl_test_logf("nanosleep error: %s\n", lkl_strerror(ret));
 		return TEST_FAILURE;

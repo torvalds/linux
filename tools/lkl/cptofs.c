@@ -263,6 +263,9 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 
 	if (cptofs) {
 		ret = lstat(path, &stat);
+		if (ret)
+			goto err_out;
+
 		if (type)
 			*type = stat.st_mode & S_IFMT;
 		if (mode)
@@ -279,6 +282,9 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 		}
 	} else {
 		ret = lkl_sys_lstat(path, &lkl_stat);
+		if (ret)
+			goto err_out;
+
 		if (type)
 			*type = lkl_stat.st_mode & S_IFMT;
 		if (mode)
@@ -295,6 +301,7 @@ static int stat_src(const char *path, unsigned int *type, unsigned int *mode,
 		}
 	}
 
+err_out:
 	if (ret)
 		fprintf(stderr, "fsimg lstat(%s) error: %s\n",
 			path, cptofs ? strerror(errno) : lkl_strerror(ret));
@@ -430,6 +437,8 @@ static int do_entry(const char *_src, const char *_dst, const char *name, uid_t 
 	snprintf(dst, sizeof(dst), "%s/%s", _dst, name);
 
 	ret = stat_src(src, &type, &mode, NULL, &mtime, &atime);
+	if (ret)
+		goto err_out;
 
 	switch (type) {
 	case S_IFREG:
@@ -454,24 +463,27 @@ static int do_entry(const char *_src, const char *_dst, const char *name, uid_t 
 		printf("skipping %s: unsupported entry type %d\n", src, type);
 	}
 
-	if (!ret) {
-		if (cptofs) {
-			struct lkl_timespec lkl_ts[] = { atime, mtime };
+	if (ret)
+		goto err_out;
 
-			ret = lkl_sys_utimensat(LKL_AT_FDCWD, dst,
-						(struct __lkl__kernel_timespec
-						 *)lkl_ts,
-						LKL_AT_SYMLINK_NOFOLLOW);
-		} else {
-			struct timespec ts[] = {
-				{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
-				{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
-			};
+	if (cptofs) {
+		struct __lkl__kernel_timespec lkl_ts[] = {
+			{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
+			{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
+		};
 
-			ret = utimensat(AT_FDCWD, dst, ts, AT_SYMLINK_NOFOLLOW);
-		}
+		ret = lkl_sys_utimensat(LKL_AT_FDCWD, dst, lkl_ts,
+					LKL_AT_SYMLINK_NOFOLLOW);
+	} else {
+		struct timespec ts[] = {
+			{ .tv_sec = atime.tv_sec, .tv_nsec = atime.tv_nsec, },
+			{ .tv_sec = mtime.tv_sec, .tv_nsec = mtime.tv_nsec, },
+		};
+
+		ret = utimensat(AT_FDCWD, dst, ts, AT_SYMLINK_NOFOLLOW);
 	}
 
+err_out:
 	if (ret)
 		printf("error processing entry %s, aborting\n", src);
 
@@ -684,11 +696,11 @@ int main(int argc, char **argv)
 		if (ret == 0)
 			break;
 		if (ret == -EBUSY) {
-			struct lkl_timespec ts = {
+			struct __lkl__kernel_timespec ts = {
 				.tv_sec = 1,
 				.tv_nsec = 0,
 			};
-			lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
+			lkl_sys_nanosleep(&ts, NULL);
 			continue;
 		} else if (ret < 0) {
 			fprintf(stderr, "cannot remount mount disk read-only: %s\n", lkl_strerror(ret));

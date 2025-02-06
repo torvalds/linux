@@ -27,7 +27,7 @@
 #define sleep_ns 87654321
 int lkl_test_nanosleep(void)
 {
-	struct lkl_timespec ts = {
+	struct __lkl__kernel_timespec ts = {
 		.tv_sec = 0,
 		.tv_nsec = sleep_ns,
 	};
@@ -36,13 +36,14 @@ int lkl_test_nanosleep(void)
 	long ret;
 
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	ret = lkl_sys_nanosleep((struct __lkl__kernel_timespec *)&ts, NULL);
+	ret = lkl_sys_nanosleep(&ts, NULL);
 	clock_gettime(CLOCK_MONOTONIC, &stop);
 
 	delta = 1e9*(stop.tv_sec - start.tv_sec) +
 		(stop.tv_nsec - start.tv_nsec);
 
-	lkl_test_logf("sleep %ld, expected sleep %d\n", delta, sleep_ns);
+	lkl_test_logf("sleep %ld (ret=%ld), expected sleep %d\n",
+		      delta, ret, sleep_ns);
 
 	if (ret == 0 && delta > sleep_ns * 0.9)
 		return TEST_SUCCESS;
