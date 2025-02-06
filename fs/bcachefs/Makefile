@@ -67,6 +67,7 @@ bcachefs-y		:=	\
 	nocow_locking.o		\
 	opts.o			\
 	printbuf.o		\
+	progress.o		\
 	quota.o			\
 	rebalance.o		\
 	rcu_pending.o		\

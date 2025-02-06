@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_BACKPOINTERS_BACKGROUND_H
-#define _BCACHEFS_BACKPOINTERS_BACKGROUND_H
+#ifndef _BCACHEFS_BACKPOINTERS_H
+#define _BCACHEFS_BACKPOINTERS_H
 
 #include "btree_cache.h"
 #include "btree_iter.h"
