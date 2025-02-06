@@ -2817,7 +2817,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			  INTEL_PLANE_CAP_CCS_RC_CC |
 			  INTEL_PLANE_CAP_CCS_MC);
 
-	modifiers = intel_fb_plane_get_modifiers(dev_priv, caps);
+	modifiers = intel_fb_plane_get_modifiers(display, caps);
 
 	ret = drm_universal_plane_init(&dev_priv->drm, &plane->base,
 				       0, plane_funcs,
@@ -2994,7 +2994,7 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	}
 
 	if (!dev_priv->display.params.enable_dpt &&
-	    intel_fb_modifier_uses_dpt(dev_priv, fb->modifier)) {
+	    intel_fb_modifier_uses_dpt(display, fb->modifier)) {
 		drm_dbg_kms(&dev_priv->drm, "DPT disabled, skipping initial FB\n");
 		goto error;
 	}
