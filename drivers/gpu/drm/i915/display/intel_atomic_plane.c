@@ -944,9 +944,9 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 	hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
 	vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
 	if (hscale < 0 || vscale < 0) {
-		drm_dbg_kms(&i915->drm, "Invalid scaling of plane\n");
-		drm_rect_debug_print("src: ", src, true);
-		drm_rect_debug_print("dst: ", dst, false);
+		drm_dbg_kms(&i915->drm,
+			    "Invalid scaling of plane " DRM_RECT_FP_FMT " -> " DRM_RECT_FMT "\n",
+			    DRM_RECT_FP_ARG(src), DRM_RECT_ARG(dst));
 		return -ERANGE;
 	}
 
@@ -960,9 +960,8 @@ int intel_atomic_plane_check_clipping(struct intel_plane_state *plane_state,
 
 	if (!can_position && plane_state->uapi.visible &&
 	    !drm_rect_equals(dst, clip)) {
-		drm_dbg_kms(&i915->drm, "Plane must cover entire CRTC\n");
-		drm_rect_debug_print("dst: ", dst, false);
-		drm_rect_debug_print("clip: ", clip, false);
+		drm_dbg_kms(&i915->drm, "Plane (" DRM_RECT_FMT ") must cover entire CRTC (" DRM_RECT_FMT ")\n",
+			    DRM_RECT_ARG(dst), DRM_RECT_ARG(clip));
 		return -EINVAL;
 	}
 
