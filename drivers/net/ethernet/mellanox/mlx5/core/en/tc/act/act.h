@@ -73,11 +73,6 @@ struct mlx5e_tc_act {
 	bool is_terminating_action;
 };
 
-struct mlx5e_tc_flow_action {
-	unsigned int num_entries;
-	struct flow_action_entry **entries;
-};
-
 extern struct mlx5e_tc_act mlx5e_tc_act_drop;
 extern struct mlx5e_tc_act mlx5e_tc_act_trap;
 extern struct mlx5e_tc_act mlx5e_tc_act_accept;
