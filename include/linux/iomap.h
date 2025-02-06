@@ -353,12 +353,19 @@ sector_t iomap_bmap(struct address_space *mapping, sector_t bno,
 
 /*
  * Structure for writeback I/O completions.
+ *
+ * File systems implementing ->submit_ioend can split a bio generated
+ * by iomap.  In that case the parent ioend it was split from is recorded
+ * in ioend->io_parent.
  */
 struct iomap_ioend {
 	struct list_head	io_list;	/* next ioend in chain */
 	u16			io_flags;	/* IOMAP_IOEND_* */
 	struct inode		*io_inode;	/* file being written to */
-	size_t			io_size;	/* size of data within eof */
+	size_t			io_size;	/* size of the extent */
+	atomic_t		io_remaining;	/* completetion defer count */
+	int			io_error;	/* stashed away status */
+	struct iomap_ioend	*io_parent;	/* parent for completions */
 	loff_t			io_offset;	/* offset in the file */
 	sector_t		io_sector;	/* start sector of ioend */
 	struct bio		io_bio;		/* MUST BE LAST! */
@@ -408,6 +415,10 @@ struct iomap_writepage_ctx {
 	u32			nr_folios;	/* folios added to the ioend */
 };
 
+struct iomap_ioend *iomap_init_ioend(struct inode *inode, struct bio *bio,
+		loff_t file_offset, u16 ioend_flags);
+struct iomap_ioend *iomap_split_ioend(struct iomap_ioend *ioend,
+		unsigned int max_len, bool is_append);
 void iomap_finish_ioends(struct iomap_ioend *ioend, int error);
 void iomap_ioend_try_merge(struct iomap_ioend *ioend,
 		struct list_head *more_ioends);
@@ -478,5 +489,7 @@ int iomap_swapfile_activate(struct swap_info_struct *sis,
 #else
 # define iomap_swapfile_activate(sis, swapfile, pagespan, ops)	(-EIO)
 #endif /* CONFIG_SWAP */
+
+extern struct bio_set iomap_ioend_bioset;
 
 #endif /* LINUX_IOMAP_H */

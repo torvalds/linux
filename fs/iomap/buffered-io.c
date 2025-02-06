@@ -40,7 +40,8 @@ struct iomap_folio_state {
 	unsigned long		state[];
 };
 
-static struct bio_set iomap_ioend_bioset;
+struct bio_set iomap_ioend_bioset;
+EXPORT_SYMBOL_GPL(iomap_ioend_bioset);
 
 static inline bool ifs_is_fully_uptodate(struct folio *folio,
 		struct iomap_folio_state *ifs)
@@ -1539,15 +1540,15 @@ static void iomap_finish_folio_write(struct inode *inode, struct folio *folio,
  * ioend after this.
  */
 static u32
-iomap_finish_ioend(struct iomap_ioend *ioend, int error)
+iomap_finish_ioend_buffered(struct iomap_ioend *ioend)
 {
 	struct inode *inode = ioend->io_inode;
 	struct bio *bio = &ioend->io_bio;
 	struct folio_iter fi;
 	u32 folio_count = 0;
 
-	if (error) {
-		mapping_set_error(inode->i_mapping, error);
+	if (ioend->io_error) {
+		mapping_set_error(inode->i_mapping, ioend->io_error);
 		if (!bio_flagged(bio, BIO_QUIET)) {
 			pr_err_ratelimited(
 "%s: writeback error on inode %lu, offset %lld, sector %llu",
@@ -1564,6 +1565,24 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 
 	bio_put(bio);	/* frees the ioend */
 	return folio_count;
+}
+
+static u32
+iomap_finish_ioend(struct iomap_ioend *ioend, int error)
+{
+	if (ioend->io_parent) {
+		struct bio *bio = &ioend->io_bio;
+
+		ioend = ioend->io_parent;
+		bio_put(bio);
+	}
+
+	if (error)
+		cmpxchg(&ioend->io_error, 0, error);
+
+	if (!atomic_dec_and_test(&ioend->io_remaining))
+		return 0;
+	return iomap_finish_ioend_buffered(ioend);
 }
 
 /*
@@ -1667,8 +1686,10 @@ EXPORT_SYMBOL_GPL(iomap_sort_ioends);
 
 static void iomap_writepage_end_bio(struct bio *bio)
 {
-	iomap_finish_ioend(iomap_ioend_from_bio(bio),
-			blk_status_to_errno(bio->bi_status));
+	struct iomap_ioend *ioend = iomap_ioend_from_bio(bio);
+
+	ioend->io_error = blk_status_to_errno(bio->bi_status);
+	iomap_finish_ioend_buffered(ioend);
 }
 
 /*
@@ -1713,7 +1734,6 @@ static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
 		struct writeback_control *wbc, struct inode *inode, loff_t pos,
 		u16 ioend_flags)
 {
-	struct iomap_ioend *ioend;
 	struct bio *bio;
 
 	bio = bio_alloc_bioset(wpc->iomap.bdev, BIO_MAX_VECS,
@@ -1721,21 +1741,10 @@ static struct iomap_ioend *iomap_alloc_ioend(struct iomap_writepage_ctx *wpc,
 			       GFP_NOFS, &iomap_ioend_bioset);
 	bio->bi_iter.bi_sector = iomap_sector(&wpc->iomap, pos);
 	bio->bi_end_io = iomap_writepage_end_bio;
-	wbc_init_bio(wbc, bio);
 	bio->bi_write_hint = inode->i_write_hint;
-
-	ioend = iomap_ioend_from_bio(bio);
-	INIT_LIST_HEAD(&ioend->io_list);
-	ioend->io_flags = ioend_flags;
-	if (pos > wpc->iomap.offset)
-		wpc->iomap.flags &= ~IOMAP_F_BOUNDARY;
-	ioend->io_inode = inode;
-	ioend->io_size = 0;
-	ioend->io_offset = pos;
-	ioend->io_sector = bio->bi_iter.bi_sector;
-
+	wbc_init_bio(wbc, bio);
 	wpc->nr_folios = 0;
-	return ioend;
+	return iomap_init_ioend(inode, bio, pos, ioend_flags);
 }
 
 static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos,
