@@ -451,6 +451,26 @@ intel_dp_aux_hdr_setup_backlight(struct intel_connector *connector, enum pipe pi
 /* VESA backlight callbacks */
 static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector, enum pipe unused)
 {
+	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	struct intel_panel *panel = &connector->panel;
+	u8 buf[3];
+	u32 val = 0;
+	int ret;
+
+	if (panel->backlight.edp.vesa.luminance_control_support) {
+		ret = drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE, buf,
+				       sizeof(buf));
+		if (ret < 0) {
+			drm_err(intel_dp->aux.drm_dev,
+				"[CONNECTOR:%d:%s] Failed to read Luminance from DPCD\n",
+				connector->base.base.id, connector->base.name);
+			return 0;
+		}
+
+		val |= buf[0] | buf[1] << 8 | buf[2] << 16;
+		return val / 1000;
+	}
+
 	return connector->panel.backlight.level;
 }
 
