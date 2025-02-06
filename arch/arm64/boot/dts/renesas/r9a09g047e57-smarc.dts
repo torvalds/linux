@@ -7,6 +7,9 @@
 
 /dts-v1/;
 
+/* Switch selection settings */
+#define SW_SD0_DEV_SEL		0
+
 #include <dt-bindings/pinctrl/renesas,r9a09g047-pinctrl.h>
 #include "r9a09g047e57.dtsi"
 #include "rzg3e-smarc-som.dtsi"
