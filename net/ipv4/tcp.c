@@ -3179,7 +3179,7 @@ adjudge_to_death:
 			const int tmo = tcp_fin_time(sk);
 
 			if (tmo > TCP_TIMEWAIT_LEN) {
-				inet_csk_reset_keepalive_timer(sk,
+				tcp_reset_keepalive_timer(sk,
 						tmo - TCP_TIMEWAIT_LEN);
 			} else {
 				tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
@@ -3632,7 +3632,7 @@ int tcp_sock_set_keepidle_locked(struct sock *sk, int val)
 			elapsed = tp->keepalive_time - elapsed;
 		else
 			elapsed = 0;
-		inet_csk_reset_keepalive_timer(sk, elapsed);
+		tcp_reset_keepalive_timer(sk, elapsed);
 	}
 
 	return 0;

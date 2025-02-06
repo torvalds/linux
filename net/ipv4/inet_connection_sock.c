@@ -799,18 +799,6 @@ void inet_csk_clear_xmit_timers_sync(struct sock *sk)
 	sk_stop_timer_sync(sk, &sk->sk_timer);
 }
 
-void inet_csk_delete_keepalive_timer(struct sock *sk)
-{
-	sk_stop_timer(sk, &sk->sk_timer);
-}
-EXPORT_SYMBOL(inet_csk_delete_keepalive_timer);
-
-void inet_csk_reset_keepalive_timer(struct sock *sk, unsigned long len)
-{
-	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
-}
-EXPORT_SYMBOL(inet_csk_reset_keepalive_timer);
-
 struct dst_entry *inet_csk_route_req(const struct sock *sk,
 				     struct flowi4 *fl4,
 				     const struct request_sock *req)

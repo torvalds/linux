@@ -751,20 +751,29 @@ void tcp_syn_ack_timeout(const struct request_sock *req)
 }
 EXPORT_SYMBOL(tcp_syn_ack_timeout);
 
+void tcp_reset_keepalive_timer(struct sock *sk, unsigned long len)
+{
+	sk_reset_timer(sk, &sk->sk_timer, jiffies + len);
+}
+
+static void tcp_delete_keepalive_timer(struct sock *sk)
+{
+	sk_stop_timer(sk, &sk->sk_timer);
+}
+
 void tcp_set_keepalive(struct sock *sk, int val)
 {
 	if ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))
 		return;
 
 	if (val && !sock_flag(sk, SOCK_KEEPOPEN))
-		inet_csk_reset_keepalive_timer(sk, keepalive_time_when(tcp_sk(sk)));
+		tcp_reset_keepalive_timer(sk, keepalive_time_when(tcp_sk(sk)));
 	else if (!val)
-		inet_csk_delete_keepalive_timer(sk);
+		tcp_delete_keepalive_timer(sk);
 }
 EXPORT_SYMBOL_GPL(tcp_set_keepalive);
 
-
-static void tcp_keepalive_timer (struct timer_list *t)
+static void tcp_keepalive_timer(struct timer_list *t)
 {
 	struct sock *sk = from_timer(sk, t, sk_timer);
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -775,7 +784,7 @@ static void tcp_keepalive_timer (struct timer_list *t)
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
 		/* Try again later. */
-		inet_csk_reset_keepalive_timer (sk, HZ/20);
+		tcp_reset_keepalive_timer(sk, HZ/20);
 		goto out;
 	}
 
@@ -841,7 +850,7 @@ static void tcp_keepalive_timer (struct timer_list *t)
 	}
 
 resched:
-	inet_csk_reset_keepalive_timer (sk, elapsed);
+	tcp_reset_keepalive_timer(sk, elapsed);
 	goto out;
 
 death:
