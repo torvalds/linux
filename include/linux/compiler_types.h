@@ -446,11 +446,14 @@ struct ftrace_likely_data {
 #define __member_size(p)	__builtin_object_size(p, 1)
 #endif
 
-/* Determine if an attribute has been applied to a variable. */
+/*
+ * Determine if an attribute has been applied to a variable.
+ * Using __annotated needs to check for __annotated being available,
+ * or negative tests may fail when annotation cannot be checked. For
+ * example, see the definition of __is_cstr().
+ */
 #if __has_builtin(__builtin_has_attribute)
 #define __annotated(var, attr)	__builtin_has_attribute(var, attr)
-#else
-#define __annotated(var, attr)	(false)
 #endif
 
 /*
