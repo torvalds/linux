@@ -536,15 +536,6 @@ static int sof_pcm_open(struct snd_soc_component *component,
 	 */
 	runtime->hw.buffer_bytes_max = le32_to_cpu(caps->buffer_size_max);
 
-	dev_dbg(component->dev, "period min %zd max %zd bytes\n",
-		runtime->hw.period_bytes_min,
-		runtime->hw.period_bytes_max);
-	dev_dbg(component->dev, "period count %d max %d\n",
-		runtime->hw.periods_min,
-		runtime->hw.periods_max);
-	dev_dbg(component->dev, "buffer max %zd bytes\n",
-		runtime->hw.buffer_bytes_max);
-
 	/* set wait time - TODO: come from topology */
 	substream->wait_time = 500;
 
@@ -554,10 +545,21 @@ static int sof_pcm_open(struct snd_soc_component *component,
 	spcm->prepared[substream->stream] = false;
 
 	ret = snd_sof_pcm_platform_open(sdev, substream);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(component->dev, "error: pcm open failed %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	dev_dbg(component->dev, "period bytes min %zd, max %zd\n",
+		runtime->hw.period_bytes_min,
+		runtime->hw.period_bytes_max);
+	dev_dbg(component->dev, "period count min %d, max %d\n",
+		runtime->hw.periods_min,
+		runtime->hw.periods_max);
+	dev_dbg(component->dev, "buffer bytes max %zd\n",
+		runtime->hw.buffer_bytes_max);
+
+	return 0;
 }
 
 static int sof_pcm_close(struct snd_soc_component *component,
