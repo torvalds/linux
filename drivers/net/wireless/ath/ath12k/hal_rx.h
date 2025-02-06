@@ -71,6 +71,8 @@ enum hal_rx_preamble {
 	HAL_RX_PREAMBLE_11N,
 	HAL_RX_PREAMBLE_11AC,
 	HAL_RX_PREAMBLE_11AX,
+	HAL_RX_PREAMBLE_11BA,
+	HAL_RX_PREAMBLE_11BE,
 	HAL_RX_PREAMBLE_MAX,
 };
 
@@ -149,6 +151,37 @@ struct hal_rx_user_status {
 };
 
 #define HAL_MAX_UL_MU_USERS	37
+
+struct hal_rx_u_sig_info {
+	bool ul_dl;
+	u8 bw;
+	u8 ppdu_type_comp_mode;
+	u8 eht_sig_mcs;
+	u8 num_eht_sig_sym;
+	struct ieee80211_radiotap_eht_usig usig;
+};
+
+#define HAL_RX_MON_MAX_AGGR_SIZE	128
+
+struct hal_rx_tlv_aggr_info {
+	bool in_progress;
+	u16 cur_len;
+	u16 tlv_tag;
+	u8 buf[HAL_RX_MON_MAX_AGGR_SIZE];
+};
+
+struct hal_rx_radiotap_eht {
+	__le32 known;
+	__le32 data[9];
+};
+
+#define EHT_MAX_USER_INFO	4
+
+struct hal_rx_eht_info {
+	u8 num_user_info;
+	struct hal_rx_radiotap_eht eht;
+	u32 user_info[EHT_MAX_USER_INFO];
+};
 
 struct hal_rx_mon_ppdu_info {
 	u32 ppdu_id;
@@ -236,7 +269,10 @@ struct hal_rx_mon_ppdu_info {
 	u8 medium_prot_type;
 	bool ppdu_continuation;
 	bool eht_usig;
-	struct ieee80211_radiotap_eht_usig usig;
+	struct hal_rx_u_sig_info u_sig_info;
+	bool is_eht;
+	struct hal_rx_eht_info eht_info;
+	struct hal_rx_tlv_aggr_info tlv_aggr;
 };
 
 #define HAL_RX_PPDU_START_INFO0_PPDU_ID			GENMASK(15, 0)
@@ -646,6 +682,104 @@ struct hal_rx_resp_req_info {
 #define HAL_RX_MPDU_ERR_MSDU_LEN		BIT(5)
 #define HAL_RX_MPDU_ERR_MPDU_LEN		BIT(6)
 #define HAL_RX_MPDU_ERR_UNENCRYPTED_FRAME	BIT(7)
+
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_SPATIAL_REUSE	GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_GI_LTF		GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_NUM_LTF_SYM	GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_NSS		GENMASK(10, 7)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_BEAMFORMED		BIT(11)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_DISREGARD		GENMASK(13, 12)
+#define HAL_RX_EHT_SIG_NDP_CMN_INFO0_CRC		GENMASK(17, 14)
+
+struct hal_eht_sig_ndp_cmn_eb {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_SPATIAL_REUSE		GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_GI_LTF			GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_NUM_LTF_SYM		GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_LDPC_EXTA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_PRE_FEC_PAD_FACTOR	GENMASK(11, 10)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_DISAMBIGUITY		BIT(12)
+#define HAL_RX_EHT_SIG_OVERFLOW_INFO0_DISREGARD			GENMASK(16, 13)
+
+struct hal_eht_sig_usig_overflow {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_STA_ID	GENMASK(10, 0)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_MCS	GENMASK(14, 11)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_VALIDATE	BIT(15)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_NSS	GENMASK(19, 16)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_BEAMFORMED	BIT(20)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_CODING	BIT(21)
+#define HAL_RX_EHT_SIG_NON_MUMIMO_USER_INFO0_CRC	GENMASK(25, 22)
+
+struct hal_eht_sig_non_mu_mimo {
+	__le32 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_STA_ID		GENMASK(10, 0)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_MCS		GENMASK(14, 11)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_CODING		BIT(15)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_SPATIAL_CODING	GENMASK(22, 16)
+#define HAL_RX_EHT_SIG_MUMIMO_USER_INFO0_CRC		GENMASK(26, 23)
+
+struct hal_eht_sig_mu_mimo {
+	__le32 info0;
+} __packed;
+
+union hal_eht_sig_user_field {
+	struct hal_eht_sig_mu_mimo mu_mimo;
+	struct hal_eht_sig_non_mu_mimo n_mu_mimo;
+};
+
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_SPATIAL_REUSE		GENMASK(3, 0)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_GI_LTF			GENMASK(5, 4)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_NUM_LTF_SYM		GENMASK(8, 6)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_LDPC_EXTA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_PRE_FEC_PAD_FACTOR	GENMASK(11, 10)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_DISAMBIGUITY		BIT(12)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_DISREGARD		GENMASK(16, 13)
+#define HAL_RX_EHT_SIG_NON_OFDMA_INFO0_NUM_USERS		GENMASK(19, 17)
+
+struct hal_eht_sig_non_ofdma_cmn_eb {
+	__le32 info0;
+	union hal_eht_sig_user_field user_field;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OFDMA_EB1_SPATIAL_REUSE		GENMASK_ULL(3, 0)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_GI_LTF			GENMASK_ULL(5, 4)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_NUM_LFT_SYM		GENMASK_ULL(8, 6)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_LDPC_EXTRA_SYM		BIT(9)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_PRE_FEC_PAD_FACTOR	GENMASK_ULL(11, 10)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_PRE_DISAMBIGUITY	BIT(12)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_DISREGARD		GENMASK_ULL(16, 13)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_RU_ALLOC_1_1		GENMASK_ULL(25, 17)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_RU_ALLOC_1_2		GENMASK_ULL(34, 26)
+#define HAL_RX_EHT_SIG_OFDMA_EB1_CRC			GENMASK_ULL(30, 27)
+
+struct hal_eht_sig_ofdma_cmn_eb1 {
+	__le64 info0;
+} __packed;
+
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_1		GENMASK_ULL(8, 0)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_2		GENMASK_ULL(17, 9)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_3		GENMASK_ULL(26, 18)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_4		GENMASK_ULL(35, 27)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_5		GENMASK_ULL(44, 36)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_RU_ALLOC_2_6		GENMASK_ULL(53, 45)
+#define HAL_RX_EHT_SIG_OFDMA_EB2_MCS			GNEMASK_ULL(57, 54)
+
+struct hal_eht_sig_ofdma_cmn_eb2 {
+	__le64 info0;
+} __packed;
+
+struct hal_eht_sig_ofdma_cmn_eb {
+	struct hal_eht_sig_ofdma_cmn_eb1 eb1;
+	struct hal_eht_sig_ofdma_cmn_eb2 eb2;
+	union hal_eht_sig_user_field user_field;
+} __packed;
 
 static inline
 enum nl80211_he_ru_alloc ath12k_he_ru_tones_to_nl80211_he_ru_alloc(u16 ru_tones)
