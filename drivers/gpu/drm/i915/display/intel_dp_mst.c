@@ -1006,7 +1006,8 @@ static void mst_stream_disable(struct intel_atomic_state *state,
 
 	intel_dp_sink_disable_decompression(state, connector, old_crtc_state);
 
-	intel_de_write(display, DP_MIN_HBLANK_CTL(trans), 0x00);
+	if (DISPLAY_VER(display) >= 20)
+		intel_de_write(display, DP_MIN_HBLANK_CTL(trans), 0);
 }
 
 static void mst_stream_post_disable(struct intel_atomic_state *state,
