@@ -246,6 +246,10 @@ The fields are as follows:
    * **IOMAP_F_PRIVATE**: Starting with this value, the upper bits can
      be set by the filesystem for its own purposes.
 
+   * **IOMAP_F_ANON_WRITE**: Indicates that (write) I/O does not have a target
+     block assigned to it yet and the file system will do that in the bio
+     submission handler, splitting the I/O as needed.
+
    These flags can be set by iomap itself during file operations.
    The filesystem should supply an ``->iomap_end`` function if it needs
    to observe these flags:

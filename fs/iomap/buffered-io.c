@@ -1691,10 +1691,14 @@ static int iomap_submit_ioend(struct iomap_writepage_ctx *wpc, int error)
 	 * failure happened so that the file system end I/O handler gets called
 	 * to clean up.
 	 */
-	if (wpc->ops->submit_ioend)
+	if (wpc->ops->submit_ioend) {
 		error = wpc->ops->submit_ioend(wpc, error);
-	else if (!error)
-		submit_bio(&wpc->ioend->io_bio);
+	} else {
+		if (WARN_ON_ONCE(wpc->iomap.flags & IOMAP_F_ANON_WRITE))
+			error = -EIO;
+		if (!error)
+			submit_bio(&wpc->ioend->io_bio);
+	}
 
 	if (error) {
 		wpc->ioend->io_bio.bi_status = errno_to_blk_status(error);
@@ -1744,7 +1748,8 @@ static bool iomap_can_add_to_ioend(struct iomap_writepage_ctx *wpc, loff_t pos,
 		return false;
 	if (pos != wpc->ioend->io_offset + wpc->ioend->io_size)
 		return false;
-	if (iomap_sector(&wpc->iomap, pos) !=
+	if (!(wpc->iomap.flags & IOMAP_F_ANON_WRITE) &&
+	    iomap_sector(&wpc->iomap, pos) !=
 	    bio_end_sector(&wpc->ioend->io_bio))
 		return false;
 	/*

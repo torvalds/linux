@@ -56,6 +56,10 @@ struct vm_fault;
  *
  * IOMAP_F_BOUNDARY indicates that I/O and I/O completions for this iomap must
  * never be merged with the mapping before it.
+ *
+ * IOMAP_F_ANON_WRITE indicates that (write) I/O does not have a target block
+ * assigned to it yet and the file system will do that in the bio submission
+ * handler, splitting the I/O as needed.
  */
 #define IOMAP_F_NEW		(1U << 0)
 #define IOMAP_F_DIRTY		(1U << 1)
@@ -68,6 +72,7 @@ struct vm_fault;
 #endif /* CONFIG_BUFFER_HEAD */
 #define IOMAP_F_XATTR		(1U << 5)
 #define IOMAP_F_BOUNDARY	(1U << 6)
+#define IOMAP_F_ANON_WRITE	(1U << 7)
 
 /*
  * Flags set by the core iomap code during operations:
@@ -111,6 +116,8 @@ struct iomap {
 
 static inline sector_t iomap_sector(const struct iomap *iomap, loff_t pos)
 {
+	if (iomap->flags & IOMAP_F_ANON_WRITE)
+		return U64_MAX; /* invalid */
 	return (iomap->addr + pos - iomap->offset) >> SECTOR_SHIFT;
 }
 

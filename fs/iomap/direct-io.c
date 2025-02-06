@@ -81,10 +81,12 @@ static void iomap_dio_submit_bio(const struct iomap_iter *iter,
 		WRITE_ONCE(iocb->private, bio);
 	}
 
-	if (dio->dops && dio->dops->submit_io)
+	if (dio->dops && dio->dops->submit_io) {
 		dio->dops->submit_io(iter, bio, pos);
-	else
+	} else {
+		WARN_ON_ONCE(iter->iomap.flags & IOMAP_F_ANON_WRITE);
 		submit_bio(bio);
+	}
 }
 
 ssize_t iomap_dio_complete(struct iomap_dio *dio)
