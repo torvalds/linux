@@ -1670,7 +1670,6 @@ static bool vxlan_ecn_decapsulate(struct vxlan_sock *vs, void *oiph,
 	return err <= 1;
 }
 
-/* Callback from net/ipv4/udp.c to receive packets */
 static int vxlan_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct vxlan_vni_node *vninode = NULL;
@@ -1840,7 +1839,6 @@ drop:
 	return 0;
 }
 
-/* Callback from net/ipv{4,6}/udp.c to check that we have a VNI for errors */
 static int vxlan_err_lookup(struct sock *sk, struct sk_buff *skb)
 {
 	struct vxlan_dev *vxlan;
