@@ -370,6 +370,7 @@ struct iomap_ioend {
 	struct iomap_ioend	*io_parent;	/* parent for completions */
 	loff_t			io_offset;	/* offset in the file */
 	sector_t		io_sector;	/* start sector of ioend */
+	void			*io_private;	/* file system private data */
 	struct bio		io_bio;		/* MUST BE LAST! */
 };
 
