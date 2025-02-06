@@ -451,6 +451,8 @@ enum avs_fw_cfg_params {
 	AVS_FW_CFG_RESERVED,
 	AVS_FW_CFG_POWER_GATING_POLICY,
 	AVS_FW_CFG_ASSERT_MODE,
+	AVS_FW_CFG_RESERVED2,
+	AVS_FW_CFG_BUS_HARDWARE_ID,
 };
 
 struct avs_fw_cfg {
@@ -475,7 +477,14 @@ struct avs_fw_cfg {
 	u32 power_gating_policy;
 };
 
+struct avs_bus_hwid {
+	u32 device;
+	u32 subsystem;
+	u8 revision;
+};
+
 int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg);
+int avs_ipc_set_fw_config(struct avs_dev *adev, size_t num_tlvs, ...);
 
 enum avs_hw_cfg_params {
 	AVS_HW_CFG_AVS_VER,
@@ -642,6 +651,9 @@ int avs_ipc_set_system_time(struct avs_dev *adev);
 
 #define AVS_INTELWOV_MOD_UUID \
 	GUID_INIT(0xEC774FA9, 0x28D3, 0x424A, 0x90, 0xE4, 0x69, 0xF9, 0x84, 0xF1, 0xEE, 0xB7)
+
+#define AVS_WOVHOSTM_MOD_UUID \
+	GUID_INIT(0xF9ED62B7, 0x092E, 0x4A90, 0x8F, 0x4D, 0x82, 0xDA, 0xA8, 0xB3, 0x8F, 0x3B)
 
 /* channel map */
 enum avs_channel_index {
@@ -871,6 +883,16 @@ struct avs_wov_cfg {
 	u32 cpc_lp_mode;
 } __packed;
 static_assert(sizeof(struct avs_wov_cfg) == 44);
+
+struct avs_whm_cfg {
+	struct avs_modcfg_base base;
+	/* Audio format for output pin 0 */
+	struct avs_audio_format ref_fmt;
+	struct avs_audio_format out_fmt;
+	u32 wake_tick_period;
+	struct avs_copier_gtw_cfg gtw_cfg;
+} __packed;
+static_assert(sizeof(struct avs_whm_cfg) == 108);
 
 /* Module runtime parameters */
 
