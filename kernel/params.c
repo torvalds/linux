@@ -538,7 +538,7 @@ const struct kernel_param_ops param_ops_string = {
 EXPORT_SYMBOL(param_ops_string);
 
 /* sysfs output in /sys/modules/XYZ/parameters/ */
-#define to_module_attr(n) container_of(n, struct module_attribute, attr)
+#define to_module_attr(n) container_of_const(n, struct module_attribute, attr)
 #define to_module_kobject(n) container_of(n, struct module_kobject, kobj)
 
 struct param_attribute
@@ -555,13 +555,13 @@ struct module_param_attrs
 };
 
 #ifdef CONFIG_SYSFS
-#define to_param_attr(n) container_of(n, struct param_attribute, mattr)
+#define to_param_attr(n) container_of_const(n, struct param_attribute, mattr)
 
-static ssize_t param_attr_show(struct module_attribute *mattr,
+static ssize_t param_attr_show(const struct module_attribute *mattr,
 			       struct module_kobject *mk, char *buf)
 {
 	int count;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->get)
 		return -EPERM;
@@ -573,12 +573,12 @@ static ssize_t param_attr_show(struct module_attribute *mattr,
 }
 
 /* sysfs always hands a nul-terminated string in buf.  We rely on that. */
-static ssize_t param_attr_store(struct module_attribute *mattr,
+static ssize_t param_attr_store(const struct module_attribute *mattr,
 				struct module_kobject *mk,
 				const char *buf, size_t len)
 {
  	int err;
-	struct param_attribute *attribute = to_param_attr(mattr);
+	const struct param_attribute *attribute = to_param_attr(mattr);
 
 	if (!attribute->param->ops->set)
 		return -EPERM;
@@ -857,11 +857,11 @@ static void __init param_sysfs_builtin(void)
 	}
 }
 
-ssize_t __modver_version_show(struct module_attribute *mattr,
+ssize_t __modver_version_show(const struct module_attribute *mattr,
 			      struct module_kobject *mk, char *buf)
 {
-	struct module_version_attribute *vattr =
-		container_of(mattr, struct module_version_attribute, mattr);
+	const struct module_version_attribute *vattr =
+		container_of_const(mattr, struct module_version_attribute, mattr);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", vattr->version);
 }
@@ -892,7 +892,7 @@ static ssize_t module_attr_show(struct kobject *kobj,
 				struct attribute *attr,
 				char *buf)
 {
-	struct module_attribute *attribute;
+	const struct module_attribute *attribute;
 	struct module_kobject *mk;
 	int ret;
 
@@ -911,7 +911,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 				struct attribute *attr,
 				const char *buf, size_t len)
 {
-	struct module_attribute *attribute;
+	const struct module_attribute *attribute;
 	struct module_kobject *mk;
 	int ret;
 

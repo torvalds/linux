@@ -26,6 +26,7 @@ properties:
           - mediatek,mt8173-disp-ovl
           - mediatek,mt8183-disp-ovl
           - mediatek,mt8192-disp-ovl
+          - mediatek,mt8195-disp-ovl
           - mediatek,mt8195-mdp3-ovl
       - items:
           - enum:
@@ -38,14 +39,15 @@ properties:
           - const: mediatek,mt8173-disp-ovl
       - items:
           - enum:
-              - mediatek,mt8188-disp-ovl
-              - mediatek,mt8195-disp-ovl
-          - const: mediatek,mt8183-disp-ovl
-      - items:
-          - enum:
               - mediatek,mt8186-disp-ovl
               - mediatek,mt8365-disp-ovl
           - const: mediatek,mt8192-disp-ovl
+      - items:
+          - const: mediatek,mt8188-disp-ovl
+          - const: mediatek,mt8195-disp-ovl
+      - items:
+          - const: mediatek,mt8188-mdp3-ovl
+          - const: mediatek,mt8195-mdp3-ovl
 
   reg:
     maxItems: 1

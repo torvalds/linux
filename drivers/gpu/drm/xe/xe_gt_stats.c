@@ -12,7 +12,7 @@
 
 /**
  * xe_gt_stats_incr - Increments the specified stats counter
- * @gt: graphics tile
+ * @gt: GT structure
  * @id: xe_gt_stats_id type id that needs to be incremented
  * @incr: value to be incremented with
  *
@@ -32,7 +32,7 @@ static const char *const stat_description[__XE_GT_STATS_NUM_IDS] = {
 
 /**
  * xe_gt_stats_print_info - Print the GT stats
- * @gt: graphics tile
+ * @gt: GT structure
  * @p: drm_printer where it will be printed out.
  *
  * This prints out all the available GT stats.

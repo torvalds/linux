@@ -691,7 +691,7 @@ struct drm_bridge_funcs {
 				  struct drm_bridge *bridge);
 
 	/**
-	 * @prepare:
+	 * @hdmi_audio_prepare:
 	 * Configures HDMI-encoder for audio stream. Can be called multiple
 	 * times for each setup. Mandatory if HDMI audio is enabled in the
 	 * bridge's configuration.

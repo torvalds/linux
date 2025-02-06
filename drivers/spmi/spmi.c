@@ -517,7 +517,7 @@ static void of_spmi_register_devices(struct spmi_controller *ctrl)
 		if (!sdev)
 			continue;
 
-		sdev->dev.of_node = node;
+		device_set_node(&sdev->dev, of_fwnode_handle(node));
 		sdev->usid = (u8)reg[0];
 
 		err = spmi_device_add(sdev);

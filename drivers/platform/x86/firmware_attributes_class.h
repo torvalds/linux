@@ -5,7 +5,8 @@
 #ifndef FW_ATTR_CLASS_H
 #define FW_ATTR_CLASS_H
 
-int fw_attributes_class_get(const struct class **fw_attr_class);
-int fw_attributes_class_put(void);
+#include <linux/device/class.h>
+
+extern const struct class firmware_attributes_class;
 
 #endif /* FW_ATTR_CLASS_H */

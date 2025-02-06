@@ -928,7 +928,7 @@ static struct phy_driver dp83869_driver[] = {
 };
 module_phy_driver(dp83869_driver);
 
-static struct mdio_device_id __maybe_unused dp83869_tbl[] = {
+static const struct mdio_device_id __maybe_unused dp83869_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(DP83869_PHY_ID) },
 	{ PHY_ID_MATCH_MODEL(DP83561_PHY_ID) },
 	{ }

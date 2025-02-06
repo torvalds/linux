@@ -159,7 +159,7 @@ config ETHOC
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
 
 config OA_TC6
-	tristate "OPEN Alliance TC6 10BASE-T1x MAC-PHY support"
+	tristate "OPEN Alliance TC6 10BASE-T1x MAC-PHY support" if COMPILE_TEST
 	depends on SPI
 	select PHYLIB
 	help

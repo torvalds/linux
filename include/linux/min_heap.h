@@ -6,6 +6,17 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
+/*
+ * The Min Heap API provides utilities for managing min-heaps, a binary tree
+ * structure where each node's value is less than or equal to its children's
+ * values, ensuring the smallest element is at the root.
+ *
+ * Users should avoid directly calling functions prefixed with __min_heap_*().
+ * Instead, use the provided macro wrappers.
+ *
+ * For further details and examples, refer to Documentation/core-api/min_heap.rst.
+ */
+
 /**
  * Data structure to hold a min-heap.
  * @nr: Number of elements currently in the heap.
@@ -15,8 +26,8 @@
  */
 #define MIN_HEAP_PREALLOCATED(_type, _name, _nr)	\
 struct _name {	\
-	int nr;	\
-	int size;	\
+	size_t nr;	\
+	size_t size;	\
 	_type *data;	\
 	_type preallocated[_nr];	\
 }
@@ -218,7 +229,7 @@ void __min_heap_init_inline(min_heap_char *heap, void *data, int size)
 }
 
 #define min_heap_init_inline(_heap, _data, _size)	\
-	__min_heap_init_inline((min_heap_char *)_heap, _data, _size)
+	__min_heap_init_inline(container_of(&(_heap)->nr, min_heap_char, nr), _data, _size)
 
 /* Get the minimum element from the heap. */
 static __always_inline
@@ -228,7 +239,8 @@ void *__min_heap_peek_inline(struct min_heap_char *heap)
 }
 
 #define min_heap_peek_inline(_heap)	\
-	(__minheap_cast(_heap) __min_heap_peek_inline((min_heap_char *)_heap))
+	(__minheap_cast(_heap)	\
+	 __min_heap_peek_inline(container_of(&(_heap)->nr, min_heap_char, nr)))
 
 /* Check if the heap is full. */
 static __always_inline
@@ -238,7 +250,7 @@ bool __min_heap_full_inline(min_heap_char *heap)
 }
 
 #define min_heap_full_inline(_heap)	\
-	__min_heap_full_inline((min_heap_char *)_heap)
+	__min_heap_full_inline(container_of(&(_heap)->nr, min_heap_char, nr))
 
 /* Sift the element at pos down the heap. */
 static __always_inline
@@ -277,8 +289,8 @@ void __min_heap_sift_down_inline(min_heap_char *heap, int pos, size_t elem_size,
 }
 
 #define min_heap_sift_down_inline(_heap, _pos, _func, _args)	\
-	__min_heap_sift_down_inline((min_heap_char *)_heap, _pos, __minheap_obj_size(_heap),	\
-				    _func, _args)
+	__min_heap_sift_down_inline(container_of(&(_heap)->nr, min_heap_char, nr), _pos,	\
+				    __minheap_obj_size(_heap), _func, _args)
 
 /* Sift up ith element from the heap, O(log2(nr)). */
 static __always_inline
@@ -304,8 +316,8 @@ void __min_heap_sift_up_inline(min_heap_char *heap, size_t elem_size, size_t idx
 }
 
 #define min_heap_sift_up_inline(_heap, _idx, _func, _args)	\
-	__min_heap_sift_up_inline((min_heap_char *)_heap, __minheap_obj_size(_heap), _idx,	\
-				  _func, _args)
+	__min_heap_sift_up_inline(container_of(&(_heap)->nr, min_heap_char, nr),	\
+				  __minheap_obj_size(_heap), _idx, _func, _args)
 
 /* Floyd's approach to heapification that is O(nr). */
 static __always_inline
@@ -319,7 +331,8 @@ void __min_heapify_all_inline(min_heap_char *heap, size_t elem_size,
 }
 
 #define min_heapify_all_inline(_heap, _func, _args)	\
-	__min_heapify_all_inline((min_heap_char *)_heap, __minheap_obj_size(_heap), _func, _args)
+	__min_heapify_all_inline(container_of(&(_heap)->nr, min_heap_char, nr),	\
+				 __minheap_obj_size(_heap), _func, _args)
 
 /* Remove minimum element from the heap, O(log2(nr)). */
 static __always_inline
@@ -340,7 +353,8 @@ bool __min_heap_pop_inline(min_heap_char *heap, size_t elem_size,
 }
 
 #define min_heap_pop_inline(_heap, _func, _args)	\
-	__min_heap_pop_inline((min_heap_char *)_heap, __minheap_obj_size(_heap), _func, _args)
+	__min_heap_pop_inline(container_of(&(_heap)->nr, min_heap_char, nr),	\
+			      __minheap_obj_size(_heap), _func, _args)
 
 /*
  * Remove the minimum element and then push the given element. The
@@ -356,8 +370,8 @@ void __min_heap_pop_push_inline(min_heap_char *heap, const void *element, size_t
 }
 
 #define min_heap_pop_push_inline(_heap, _element, _func, _args)	\
-	__min_heap_pop_push_inline((min_heap_char *)_heap, _element, __minheap_obj_size(_heap),	\
-				   _func, _args)
+	__min_heap_pop_push_inline(container_of(&(_heap)->nr, min_heap_char, nr), _element,	\
+				   __minheap_obj_size(_heap), _func, _args)
 
 /* Push an element on to the heap, O(log2(nr)). */
 static __always_inline
@@ -382,8 +396,8 @@ bool __min_heap_push_inline(min_heap_char *heap, const void *element, size_t ele
 }
 
 #define min_heap_push_inline(_heap, _element, _func, _args)	\
-	__min_heap_push_inline((min_heap_char *)_heap, _element, __minheap_obj_size(_heap),	\
-			       _func, _args)
+	__min_heap_push_inline(container_of(&(_heap)->nr, min_heap_char, nr), _element,	\
+					    __minheap_obj_size(_heap), _func, _args)
 
 /* Remove ith element from the heap, O(log2(nr)). */
 static __always_inline
@@ -411,8 +425,8 @@ bool __min_heap_del_inline(min_heap_char *heap, size_t elem_size, size_t idx,
 }
 
 #define min_heap_del_inline(_heap, _idx, _func, _args)	\
-	__min_heap_del_inline((min_heap_char *)_heap, __minheap_obj_size(_heap), _idx,	\
-			      _func, _args)
+	__min_heap_del_inline(container_of(&(_heap)->nr, min_heap_char, nr),	\
+			      __minheap_obj_size(_heap), _idx, _func, _args)
 
 void __min_heap_init(min_heap_char *heap, void *data, int size);
 void *__min_heap_peek(struct min_heap_char *heap);
@@ -433,25 +447,31 @@ bool __min_heap_del(min_heap_char *heap, size_t elem_size, size_t idx,
 		    const struct min_heap_callbacks *func, void *args);
 
 #define min_heap_init(_heap, _data, _size)	\
-	__min_heap_init((min_heap_char *)_heap, _data, _size)
+	__min_heap_init(container_of(&(_heap)->nr, min_heap_char, nr), _data, _size)
 #define min_heap_peek(_heap)	\
-	(__minheap_cast(_heap) __min_heap_peek((min_heap_char *)_heap))
+	(__minheap_cast(_heap) __min_heap_peek(container_of(&(_heap)->nr, min_heap_char, nr)))
 #define min_heap_full(_heap)	\
-	__min_heap_full((min_heap_char *)_heap)
+	__min_heap_full(container_of(&(_heap)->nr, min_heap_char, nr))
 #define min_heap_sift_down(_heap, _pos, _func, _args)	\
-	__min_heap_sift_down((min_heap_char *)_heap, _pos, __minheap_obj_size(_heap), _func, _args)
+	__min_heap_sift_down(container_of(&(_heap)->nr, min_heap_char, nr), _pos,	\
+			     __minheap_obj_size(_heap), _func, _args)
 #define min_heap_sift_up(_heap, _idx, _func, _args)	\
-	__min_heap_sift_up((min_heap_char *)_heap, __minheap_obj_size(_heap), _idx, _func, _args)
+	__min_heap_sift_up(container_of(&(_heap)->nr, min_heap_char, nr),	\
+			   __minheap_obj_size(_heap), _idx, _func, _args)
 #define min_heapify_all(_heap, _func, _args)	\
-	__min_heapify_all((min_heap_char *)_heap, __minheap_obj_size(_heap), _func, _args)
+	__min_heapify_all(container_of(&(_heap)->nr, min_heap_char, nr),	\
+			  __minheap_obj_size(_heap), _func, _args)
 #define min_heap_pop(_heap, _func, _args)	\
-	__min_heap_pop((min_heap_char *)_heap, __minheap_obj_size(_heap), _func, _args)
+	__min_heap_pop(container_of(&(_heap)->nr, min_heap_char, nr),	\
+		       __minheap_obj_size(_heap), _func, _args)
 #define min_heap_pop_push(_heap, _element, _func, _args)	\
-	__min_heap_pop_push((min_heap_char *)_heap, _element, __minheap_obj_size(_heap),	\
-			    _func, _args)
+	__min_heap_pop_push(container_of(&(_heap)->nr, min_heap_char, nr), _element,	\
+			    __minheap_obj_size(_heap), _func, _args)
 #define min_heap_push(_heap, _element, _func, _args)	\
-	__min_heap_push((min_heap_char *)_heap, _element, __minheap_obj_size(_heap), _func, _args)
+	__min_heap_push(container_of(&(_heap)->nr, min_heap_char, nr), _element,	\
+			__minheap_obj_size(_heap), _func, _args)
 #define min_heap_del(_heap, _idx, _func, _args)	\
-	__min_heap_del((min_heap_char *)_heap, __minheap_obj_size(_heap), _idx, _func, _args)
+	__min_heap_del(container_of(&(_heap)->nr, min_heap_char, nr),	\
+		       __minheap_obj_size(_heap), _idx, _func, _args)
 
 #endif /* _LINUX_MIN_HEAP_H */

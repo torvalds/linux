@@ -228,7 +228,7 @@ legacy:
  *
  * This operation may be reordered on other architectures than x86.
  */
-static inline int arch_test_and_set_bit(int nr, volatile unsigned long *addr)
+static __always_inline int arch_test_and_set_bit(int nr, volatile unsigned long *addr)
 {
 	return __test_and_op_bit(or, __NOP, nr, addr);
 }
@@ -240,7 +240,7 @@ static inline int arch_test_and_set_bit(int nr, volatile unsigned long *addr)
  *
  * This operation can be reordered on other architectures other than x86.
  */
-static inline int arch_test_and_clear_bit(int nr, volatile unsigned long *addr)
+static __always_inline int arch_test_and_clear_bit(int nr, volatile unsigned long *addr)
 {
 	return __test_and_op_bit(and, __NOT, nr, addr);
 }
@@ -253,7 +253,7 @@ static inline int arch_test_and_clear_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and cannot be reordered.
  * It also implies a memory barrier.
  */
-static inline int arch_test_and_change_bit(int nr, volatile unsigned long *addr)
+static __always_inline int arch_test_and_change_bit(int nr, volatile unsigned long *addr)
 {
 	return __test_and_op_bit(xor, __NOP, nr, addr);
 }
@@ -270,7 +270,7 @@ static inline int arch_test_and_change_bit(int nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void arch_set_bit(int nr, volatile unsigned long *addr)
+static __always_inline void arch_set_bit(int nr, volatile unsigned long *addr)
 {
 	__op_bit(or, __NOP, nr, addr);
 }
@@ -284,7 +284,7 @@ static inline void arch_set_bit(int nr, volatile unsigned long *addr)
  * on non x86 architectures, so if you are writing portable code,
  * make sure not to rely on its reordering guarantees.
  */
-static inline void arch_clear_bit(int nr, volatile unsigned long *addr)
+static __always_inline void arch_clear_bit(int nr, volatile unsigned long *addr)
 {
 	__op_bit(and, __NOT, nr, addr);
 }
@@ -298,7 +298,7 @@ static inline void arch_clear_bit(int nr, volatile unsigned long *addr)
  * Note that @nr may be almost arbitrarily large; this function is not
  * restricted to acting on a single-word quantity.
  */
-static inline void arch_change_bit(int nr, volatile unsigned long *addr)
+static __always_inline void arch_change_bit(int nr, volatile unsigned long *addr)
 {
 	__op_bit(xor, __NOP, nr, addr);
 }
@@ -311,7 +311,7 @@ static inline void arch_change_bit(int nr, volatile unsigned long *addr)
  * This operation is atomic and provides acquire barrier semantics.
  * It can be used to implement bit locks.
  */
-static inline int arch_test_and_set_bit_lock(
+static __always_inline int arch_test_and_set_bit_lock(
 	unsigned long nr, volatile unsigned long *addr)
 {
 	return __test_and_op_bit_ord(or, __NOP, nr, addr, .aq);
@@ -324,7 +324,7 @@ static inline int arch_test_and_set_bit_lock(
  *
  * This operation is atomic and provides release barrier semantics.
  */
-static inline void arch_clear_bit_unlock(
+static __always_inline void arch_clear_bit_unlock(
 	unsigned long nr, volatile unsigned long *addr)
 {
 	__op_bit_ord(and, __NOT, nr, addr, .rl);
@@ -345,13 +345,13 @@ static inline void arch_clear_bit_unlock(
  * non-atomic property here: it's a lot more instructions and we still have to
  * provide release semantics anyway.
  */
-static inline void arch___clear_bit_unlock(
+static __always_inline void arch___clear_bit_unlock(
 	unsigned long nr, volatile unsigned long *addr)
 {
 	arch_clear_bit_unlock(nr, addr);
 }
 
-static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
 		volatile unsigned long *addr)
 {
 	unsigned long res;

@@ -131,7 +131,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_max(trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					0, k, ({
 			BUG_ON(k.k->p.offset != i++);
@@ -186,7 +186,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_max(trans, iter, BTREE_ID_extents,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					0, k, ({
 			BUG_ON(bkey_start_offset(k.k) != i);
@@ -242,7 +242,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_max(trans, iter, BTREE_ID_xattrs,
 					  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					  0, k, ({
 			BUG_ON(k.k->p.offset != i);
@@ -259,7 +259,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_max(trans, iter, BTREE_ID_xattrs,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					BTREE_ITER_slots, k, ({
 			if (i >= nr * 2)
@@ -302,7 +302,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_max(trans, iter, BTREE_ID_extents,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					0, k, ({
 			BUG_ON(bkey_start_offset(k.k) != i + 8);
@@ -320,7 +320,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 	i = 0;
 
 	ret = bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_extents,
+		for_each_btree_key_max(trans, iter, BTREE_ID_extents,
 					SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 					BTREE_ITER_slots, k, ({
 			if (i == nr)
@@ -349,10 +349,10 @@ static int test_peek_end(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs,
 			     SPOS(0, 0, U32_MAX), 0);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
 	bch2_trans_iter_exit(trans, &iter);
@@ -369,10 +369,10 @@ static int test_peek_end_extents(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     SPOS(0, 0, U32_MAX), 0);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
 	BUG_ON(k.k);
 
 	bch2_trans_iter_exit(trans, &iter);
@@ -488,7 +488,7 @@ static int test_snapshot_filter(struct bch_fs *c, u32 snapid_lo, u32 snapid_hi)
 	trans = bch2_trans_get(c);
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs,
 			     SPOS(0, 0, snapid_lo), 0);
-	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX))));
+	lockrestart_do(trans, bkey_err(k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX))));
 
 	BUG_ON(k.k->p.snapshot != U32_MAX);
 
@@ -672,7 +672,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, pos,
 			     BTREE_ITER_intent);
-	k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX));
+	k = bch2_btree_iter_peek_max(&iter, POS(0, U64_MAX));
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -726,7 +726,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 static int seq_lookup(struct bch_fs *c, u64 nr)
 {
 	return bch2_trans_run(c,
-		for_each_btree_key_upto(trans, iter, BTREE_ID_xattrs,
+		for_each_btree_key_max(trans, iter, BTREE_ID_xattrs,
 				  SPOS(0, 0, U32_MAX), POS(0, U64_MAX),
 				  0, k,
 		0));

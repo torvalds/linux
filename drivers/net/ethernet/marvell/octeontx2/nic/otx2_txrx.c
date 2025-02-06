@@ -11,6 +11,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_trace.h>
 #include <net/ip6_checksum.h>
+#include <net/xfrm.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -26,11 +27,24 @@
  */
 #define PTP_SYNC_SEC_OFFSET	34
 
+DEFINE_STATIC_KEY_FALSE(cn10k_ipsec_sa_enabled);
+
 static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,
 				     struct otx2_cq_queue *cq,
 				     bool *need_xdp_flush);
+
+static void otx2_sq_set_sqe_base(struct otx2_snd_queue *sq,
+				 struct sk_buff *skb)
+{
+	if (static_branch_unlikely(&cn10k_ipsec_sa_enabled) &&
+	    (xfrm_offload(skb)))
+		sq->sqe_base = sq->sqe_ring->base + sq->sqe_size +
+				(sq->head * (sq->sqe_size * 2));
+	else
+		sq->sqe_base = sq->sqe->base;
+}
 
 static int otx2_nix_cq_op_status(struct otx2_nic *pfvf,
 				 struct otx2_cq_queue *cq)
@@ -78,38 +92,6 @@ static unsigned int frag_num(unsigned int i)
 #else
 	return i;
 #endif
-}
-
-static dma_addr_t otx2_dma_map_skb_frag(struct otx2_nic *pfvf,
-					struct sk_buff *skb, int seg, int *len)
-{
-	const skb_frag_t *frag;
-	struct page *page;
-	int offset;
-
-	/* First segment is always skb->data */
-	if (!seg) {
-		page = virt_to_page(skb->data);
-		offset = offset_in_page(skb->data);
-		*len = skb_headlen(skb);
-	} else {
-		frag = &skb_shinfo(skb)->frags[seg - 1];
-		page = skb_frag_page(frag);
-		offset = skb_frag_off(frag);
-		*len = skb_frag_size(frag);
-	}
-	return otx2_dma_map_page(pfvf, page, offset, *len, DMA_TO_DEVICE);
-}
-
-static void otx2_dma_unmap_skb_frags(struct otx2_nic *pfvf, struct sg_list *sg)
-{
-	int seg;
-
-	for (seg = 0; seg < sg->num_segs; seg++) {
-		otx2_dma_unmap_page(pfvf, sg->dma_addr[seg],
-				    sg->size[seg], DMA_TO_DEVICE);
-	}
-	sg->num_segs = 0;
 }
 
 static void otx2_xdp_snd_pkt_handler(struct otx2_nic *pfvf,
@@ -625,7 +607,6 @@ void otx2_sqe_flush(void *dev, struct otx2_snd_queue *sq,
 	sq->head &= (sq->sqe_cnt - 1);
 }
 
-#define MAX_SEGS_PER_SG	3
 /* Add SQE scatter/gather subdescriptor structure */
 static bool otx2_sqe_add_sg(struct otx2_nic *pfvf, struct otx2_snd_queue *sq,
 			    struct sk_buff *skb, int num_segs, int *offset)
@@ -1161,6 +1142,7 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	int offset, num_segs, free_desc;
 	struct nix_sqe_hdr_s *sqe_hdr;
 	struct otx2_nic *pfvf = dev;
+	bool ret;
 
 	/* Check if there is enough room between producer
 	 * and consumer index.
@@ -1177,6 +1159,7 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	/* If SKB doesn't fit in a single SQE, linearize it.
 	 * TODO: Consider adding JUMP descriptor instead.
 	 */
+
 	if (unlikely(num_segs > OTX2_MAX_FRAGS_IN_SQE)) {
 		if (__skb_linearize(skb)) {
 			dev_kfree_skb_any(skb);
@@ -1196,6 +1179,9 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 		return true;
 	}
 
+	/* Set sqe base address */
+	otx2_sq_set_sqe_base(sq, skb);
+
 	/* Set SQE's SEND_HDR.
 	 * Do not clear the first 64bit as it contains constant info.
 	 */
@@ -1208,7 +1194,13 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	otx2_sqe_add_ext(pfvf, sq, skb, &offset);
 
 	/* Add SG subdesc with data frags */
-	if (!otx2_sqe_add_sg(pfvf, sq, skb, num_segs, &offset)) {
+	if (static_branch_unlikely(&cn10k_ipsec_sa_enabled) &&
+	    (xfrm_offload(skb)))
+		ret = otx2_sqe_add_sg_ipsec(pfvf, sq, skb, num_segs, &offset);
+	else
+		ret = otx2_sqe_add_sg(pfvf, sq, skb, num_segs, &offset);
+
+	if (!ret) {
 		otx2_dma_unmap_skb_frags(pfvf, &sq->sg[sq->head]);
 		return false;
 	}
@@ -1217,11 +1209,15 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 
 	sqe_hdr->sizem1 = (offset / 16) - 1;
 
+	if (static_branch_unlikely(&cn10k_ipsec_sa_enabled) &&
+	    (xfrm_offload(skb)))
+		return cn10k_ipsec_transmit(pfvf, txq, sq, skb, num_segs,
+					    offset);
+
 	netdev_tx_sent_queue(txq, skb->len);
 
 	/* Flush SQE to HW */
 	pfvf->hw_ops->sqe_flush(pfvf, sq, offset, qidx);
-
 	return true;
 }
 EXPORT_SYMBOL(otx2_sq_append_skb);

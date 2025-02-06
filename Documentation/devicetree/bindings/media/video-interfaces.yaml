@@ -210,6 +210,27 @@ properties:
       lane-polarities property is omitted, the value must be interpreted as 0
       (normal). This property is valid for serial busses only.
 
+  line-orders:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+    items:
+      enum:
+        - 0 # ABC
+        - 1 # ACB
+        - 2 # BAC
+        - 3 # BCA
+        - 4 # CAB
+        - 5 # CBA
+    description:
+      An array of line orders of the CSI-2 C-PHY data lanes. The order of the
+      lanes are the same as in data-lanes property. Valid values are 0-5 as
+      defined in the MIPI Discovery and Configuration (DisCo) Specification for
+      Imaging. The length of the array must be the same length as the
+      data-lanes property. If the line-orders property is omitted, the value
+      shall be interpreted as 0 (ABC). This property is valid for CSI-2 C-PHY
+      busses only.
+
   strobe:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 0, 1 ]

@@ -93,7 +93,7 @@ struct kvm_vm *test_vm_create(void)
 		vcpu_init_vector_tables(vcpus[i]);
 
 	/* Initialize guest timer frequency. */
-	vcpu_get_reg(vcpus[0], RISCV_TIMER_REG(frequency), &timer_freq);
+	timer_freq = vcpu_get_reg(vcpus[0], RISCV_TIMER_REG(frequency));
 	sync_global_to_guest(vm, timer_freq);
 	pr_debug("timer_freq: %lu\n", timer_freq);
 

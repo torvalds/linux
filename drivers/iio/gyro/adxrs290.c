@@ -75,7 +75,7 @@ struct adxrs290_state {
 	/* Ensure correct alignment of timestamp when present */
 	struct {
 		s16 channels[3];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} buffer;
 };
 

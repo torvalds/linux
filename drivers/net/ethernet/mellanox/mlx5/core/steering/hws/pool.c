@@ -183,7 +183,7 @@ static int hws_pool_buddy_get_mem_chunk(struct mlx5hws_pool *pool,
 	*seg = -1;
 
 	/* Find the next free place from the buddy array */
-	while (*seg == -1) {
+	while (*seg < 0) {
 		for (i = 0; i < MLX5HWS_POOL_RESOURCE_ARR_SZ; i++) {
 			buddy = hws_pool_buddy_get_next_buddy(pool, i,
 							      order,
@@ -194,7 +194,7 @@ static int hws_pool_buddy_get_mem_chunk(struct mlx5hws_pool *pool,
 			}
 
 			*seg = mlx5hws_buddy_alloc_mem(buddy, order);
-			if (*seg != -1)
+			if (*seg >= 0)
 				goto found;
 
 			if (pool->flags & MLX5HWS_POOL_FLAGS_ONE_RESOURCE) {

@@ -27,7 +27,9 @@ properties:
           - fsl,imx8mm-mipi-dsim
           - fsl,imx8mp-mipi-dsim
       - items:
-          - const: fsl,imx8mn-mipi-dsim
+          - enum:
+              - fsl,imx7d-mipi-dsim
+              - fsl,imx8mn-mipi-dsim
           - const: fsl,imx8mm-mipi-dsim
 
   reg:
@@ -241,40 +243,40 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     dsi@13900000 {
-       compatible = "samsung,exynos5433-mipi-dsi";
-       reg = <0x13900000 0xC0>;
-       interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
-       phys = <&mipi_phy 1>;
-       phy-names = "dsim";
-       clocks = <&cmu_disp CLK_PCLK_DSIM0>,
-                <&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8>,
-                <&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0>,
-                <&cmu_disp CLK_SCLK_RGB_VCLK_TO_DSIM0>,
-                <&cmu_disp CLK_SCLK_DSIM0>;
-       clock-names = "bus_clk",
-                     "phyclk_mipidphy0_bitclkdiv8",
-                     "phyclk_mipidphy0_rxclkesc0",
-                     "sclk_rgb_vclk_to_dsim0",
-                     "sclk_mipi";
-       power-domains = <&pd_disp>;
-       vddcore-supply = <&ldo6_reg>;
-       vddio-supply = <&ldo7_reg>;
-       samsung,burst-clock-frequency = <512000000>;
-       samsung,esc-clock-frequency = <16000000>;
-       samsung,pll-clock-frequency = <24000000>;
-       pinctrl-names = "default";
-       pinctrl-0 = <&te_irq>;
+        compatible = "samsung,exynos5433-mipi-dsi";
+        reg = <0x13900000 0xC0>;
+        interrupts = <GIC_SPI 205 IRQ_TYPE_LEVEL_HIGH>;
+        phys = <&mipi_phy 1>;
+        phy-names = "dsim";
+        clocks = <&cmu_disp CLK_PCLK_DSIM0>,
+                 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8>,
+                 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0>,
+                 <&cmu_disp CLK_SCLK_RGB_VCLK_TO_DSIM0>,
+                 <&cmu_disp CLK_SCLK_DSIM0>;
+        clock-names = "bus_clk",
+                      "phyclk_mipidphy0_bitclkdiv8",
+                      "phyclk_mipidphy0_rxclkesc0",
+                      "sclk_rgb_vclk_to_dsim0",
+                      "sclk_mipi";
+        power-domains = <&pd_disp>;
+        vddcore-supply = <&ldo6_reg>;
+        vddio-supply = <&ldo7_reg>;
+        samsung,burst-clock-frequency = <512000000>;
+        samsung,esc-clock-frequency = <16000000>;
+        samsung,pll-clock-frequency = <24000000>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&te_irq>;
 
-       ports {
-          #address-cells = <1>;
-          #size-cells = <0>;
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
 
-          port@0 {
-             reg = <0>;
+            port@0 {
+                reg = <0>;
 
-             dsi_to_mic: endpoint {
-                remote-endpoint = <&mic_to_dsi>;
-             };
-          };
-       };
+                dsi_to_mic: endpoint {
+                    remote-endpoint = <&mic_to_dsi>;
+                };
+            };
+        };
     };

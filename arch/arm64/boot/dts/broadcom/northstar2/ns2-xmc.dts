@@ -151,7 +151,6 @@
 		#size-cells = <1>;
 		compatible = "m25p80";
 		spi-max-frequency = <62500000>;
-		m25p,default-addr-width = <3>;
 		reg = <0x0 0x0>;
 
 		partition@0 {

@@ -275,7 +275,7 @@ static int ipu6_cpd_validate_moduledata(struct ipu6_device *isp,
 		return -EINVAL;
 	}
 
-	dev_info(&isp->pdev->dev, "FW version: %x\n", mod_hdr->fw_pkg_date);
+	dev_dbg(&isp->pdev->dev, "FW version: %x\n", mod_hdr->fw_pkg_date);
 	ret = ipu6_cpd_validate_cpd(isp, moduledata + mod_hdr->hdr_len,
 				    moduledata_size - mod_hdr->hdr_len,
 				    moduledata_size);

@@ -35,7 +35,7 @@ struct am2315_data {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		s16 chans[2];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 };
 

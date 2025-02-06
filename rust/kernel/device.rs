@@ -6,6 +6,7 @@
 
 use crate::{
     bindings,
+    str::CStr,
     types::{ARef, Opaque},
 };
 use core::{fmt, ptr};
@@ -173,12 +174,18 @@ impl Device {
         #[cfg(CONFIG_PRINTK)]
         unsafe {
             bindings::_dev_printk(
-                klevel as *const _ as *const core::ffi::c_char,
+                klevel as *const _ as *const crate::ffi::c_char,
                 self.as_raw(),
                 c_str!("%pA").as_char_ptr(),
-                &msg as *const _ as *const core::ffi::c_void,
+                &msg as *const _ as *const crate::ffi::c_void,
             )
         };
+    }
+
+    /// Checks if property is present or not.
+    pub fn property_present(&self, name: &CStr) -> bool {
+        // SAFETY: By the invariant of `CStr`, `name` is null-terminated.
+        unsafe { bindings::device_property_present(self.as_raw().cast_const(), name.as_char_ptr()) }
     }
 }
 

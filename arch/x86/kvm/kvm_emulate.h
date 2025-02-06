@@ -88,6 +88,8 @@ struct x86_instruction_info {
 #define X86EMUL_CMPXCHG_FAILED  4 /* cmpxchg did not see expected value */
 #define X86EMUL_IO_NEEDED       5 /* IO is needed to complete emulation */
 #define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
+/* Emulation during event vectoring is unhandleable. */
+#define X86EMUL_UNHANDLEABLE_VECTORING	7
 
 /* x86-specific emulation flags */
 #define X86EMUL_F_WRITE			BIT(0)

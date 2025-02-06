@@ -14,7 +14,7 @@
 
 static struct ctl_table_header *nfs_callback_sysctl_table;
 
-static struct ctl_table nfs_cb_sysctls[] = {
+static const struct ctl_table nfs_cb_sysctls[] = {
 	{
 		.procname	= "nfs_mountpoint_timeout",
 		.data		= &nfs_mountpoint_expiry_timeout,

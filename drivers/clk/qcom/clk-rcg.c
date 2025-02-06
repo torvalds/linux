@@ -597,6 +597,7 @@ struct frac_entry {
 };
 
 static const struct frac_entry pixel_table[] = {
+	{ 1, 1 },
 	{ 1, 2 },
 	{ 1, 3 },
 	{ 3, 16 },

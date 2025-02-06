@@ -787,5 +787,13 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 	},
 #endif
 	{
+		.desc = "Broken CNTVOFF_EL2",
+		.capability = ARM64_WORKAROUND_QCOM_ORYON_CNTVOFF,
+		ERRATA_MIDR_RANGE_LIST(((const struct midr_range[]) {
+					MIDR_ALL_VERSIONS(MIDR_QCOM_ORYON_X1),
+					{}
+				})),
+	},
+	{
 	}
 };

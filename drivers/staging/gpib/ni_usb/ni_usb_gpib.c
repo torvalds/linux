@@ -85,7 +85,7 @@ static void ni_usb_bulk_complete(struct urb *urb)
 
 //	printk("debug: %s: status=0x%x, error_count=%i, actual_length=%i\n",  __func__,
 //		urb->status, urb->error_count, urb->actual_length);
-	up(&context->complete);
+	complete(&context->complete);
 }
 
 static void ni_usb_timeout_handler(struct timer_list *t)
@@ -94,7 +94,7 @@ static void ni_usb_timeout_handler(struct timer_list *t)
 	struct ni_usb_urb_ctx *context = &ni_priv->context;
 
 	context->timed_out = 1;
-	up(&context->complete);
+	complete(&context->complete);
 };
 
 // I'm using nonblocking loosely here, it only means -EAGAIN can be returned in certain cases
@@ -124,7 +124,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 	}
 	usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	out_pipe = usb_sndbulkpipe(usb_dev, ni_priv->bulk_out_endpoint);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(ni_priv->bulk_urb, usb_dev, out_pipe, data, data_length,
 			  &ni_usb_bulk_complete, context);
@@ -143,7 +143,7 @@ static int ni_usb_nonblocking_send_bulk_msg(struct ni_usb_priv *ni_priv, void *d
 		return retval;
 	}
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
-	down(&context->complete);    // wait for ni_usb_bulk_complete
+	wait_for_completion(&context->complete);    // wait for ni_usb_bulk_complete
 	if (context->timed_out) {
 		usb_kill_urb(ni_priv->bulk_urb);
 		dev_err(&usb_dev->dev, "%s: killed urb due to timeout\n", __func__);
@@ -210,7 +210,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	}
 	usb_dev = interface_to_usbdev(ni_priv->bus_interface);
 	in_pipe = usb_rcvbulkpipe(usb_dev, ni_priv->bulk_in_endpoint);
-	sema_init(&context->complete, 0);
+	init_completion(&context->complete);
 	context->timed_out = 0;
 	usb_fill_bulk_urb(ni_priv->bulk_urb, usb_dev, in_pipe, data, data_length,
 			  &ni_usb_bulk_complete, context);
@@ -231,7 +231,7 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 	}
 	mutex_unlock(&ni_priv->bulk_transfer_lock);
 	if (interruptible) {
-		if (down_interruptible(&context->complete)) {
+		if (wait_for_completion_interruptible(&context->complete)) {
 			/* If we got interrupted by a signal while
 			 * waiting for the usb gpib to respond, we
 			 * should send a stop command so it will
@@ -243,10 +243,10 @@ static int ni_usb_nonblocking_receive_bulk_msg(struct ni_usb_priv *ni_priv,
 			/* now do an uninterruptible wait, it shouldn't take long
 			 *	for the board to respond now.
 			 */
-			down(&context->complete);
+			wait_for_completion(&context->complete);
 		}
 	} else {
-		down(&context->complete);
+		wait_for_completion(&context->complete);
 	}
 	if (context->timed_out) {
 		usb_kill_urb(ni_priv->bulk_urb);
@@ -783,8 +783,10 @@ static int ni_usb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 	}
 
 	in_data = kmalloc(in_data_length, GFP_KERNEL);
-	if (!in_data)
+	if (!in_data) {
+		mutex_unlock(&ni_priv->addressed_transfer_lock);
 		return -ENOMEM;
+	}
 	retval = ni_usb_receive_bulk_msg(ni_priv, in_data, in_data_length, &usb_bytes_read,
 					 ni_usb_timeout_msecs(board->usec_timeout), 1);
 
@@ -2351,33 +2353,33 @@ static void ni_usb_detach(gpib_board_t *board)
 	mutex_unlock(&ni_usb_hotplug_lock);
 }
 
-gpib_interface_t ni_usb_gpib_interface = {
-name: "ni_usb_b",
-attach : ni_usb_attach,
-detach : ni_usb_detach,
-read : ni_usb_read,
-write : ni_usb_write,
-command : ni_usb_command,
-take_control : ni_usb_take_control,
-go_to_standby : ni_usb_go_to_standby,
-request_system_control : ni_usb_request_system_control,
-interface_clear : ni_usb_interface_clear,
-remote_enable : ni_usb_remote_enable,
-enable_eos : ni_usb_enable_eos,
-disable_eos : ni_usb_disable_eos,
-parallel_poll : ni_usb_parallel_poll,
-parallel_poll_configure : ni_usb_parallel_poll_configure,
-parallel_poll_response : ni_usb_parallel_poll_response,
-local_parallel_poll_mode : NULL, // XXX
-line_status : ni_usb_line_status,
-update_status : ni_usb_update_status,
-primary_address : ni_usb_primary_address,
-secondary_address : ni_usb_secondary_address,
-serial_poll_response : ni_usb_serial_poll_response,
-serial_poll_status : ni_usb_serial_poll_status,
-t1_delay : ni_usb_t1_delay,
-return_to_local : ni_usb_return_to_local,
-skip_check_for_command_acceptors : 1
+static gpib_interface_t ni_usb_gpib_interface = {
+	.name = "ni_usb_b",
+	.attach = ni_usb_attach,
+	.detach = ni_usb_detach,
+	.read = ni_usb_read,
+	.write = ni_usb_write,
+	.command = ni_usb_command,
+	.take_control = ni_usb_take_control,
+	.go_to_standby = ni_usb_go_to_standby,
+	.request_system_control = ni_usb_request_system_control,
+	.interface_clear = ni_usb_interface_clear,
+	.remote_enable = ni_usb_remote_enable,
+	.enable_eos = ni_usb_enable_eos,
+	.disable_eos = ni_usb_disable_eos,
+	.parallel_poll = ni_usb_parallel_poll,
+	.parallel_poll_configure = ni_usb_parallel_poll_configure,
+	.parallel_poll_response = ni_usb_parallel_poll_response,
+	.local_parallel_poll_mode = NULL, // XXX
+	.line_status = ni_usb_line_status,
+	.update_status = ni_usb_update_status,
+	.primary_address = ni_usb_primary_address,
+	.secondary_address = ni_usb_secondary_address,
+	.serial_poll_response = ni_usb_serial_poll_response,
+	.serial_poll_status = ni_usb_serial_poll_status,
+	.t1_delay = ni_usb_t1_delay,
+	.return_to_local = ni_usb_return_to_local,
+	.skip_check_for_command_acceptors = 1
 };
 
 // Table with the USB-devices: just now only testing IDs
@@ -2619,12 +2621,23 @@ static struct usb_driver ni_usb_bus_driver = {
 static int __init ni_usb_init_module(void)
 {
 	int i;
+	int ret;
 
 	pr_info("ni_usb_gpib driver loading\n");
 	for (i = 0; i < MAX_NUM_NI_USB_INTERFACES; i++)
 		ni_usb_driver_interfaces[i] = NULL;
-	usb_register(&ni_usb_bus_driver);
-	gpib_register_driver(&ni_usb_gpib_interface, THIS_MODULE);
+
+	ret = usb_register(&ni_usb_bus_driver);
+	if (ret) {
+		pr_err("ni_usb_gpib: usb_register failed: error = %d\n", ret);
+		return ret;
+	}
+
+	ret = gpib_register_driver(&ni_usb_gpib_interface, THIS_MODULE);
+	if (ret) {
+		pr_err("ni_usb_gpib: gpib_register_driver failed: error = %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }

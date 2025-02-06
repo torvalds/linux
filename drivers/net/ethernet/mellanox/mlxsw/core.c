@@ -35,6 +35,7 @@
 #include "reg.h"
 #include "resources.h"
 #include "../mlxfw/mlxfw.h"
+#include "txheader.h"
 
 static LIST_HEAD(mlxsw_core_driver_list);
 static DEFINE_SPINLOCK(mlxsw_core_driver_list_lock);
@@ -677,7 +678,7 @@ struct mlxsw_reg_trans {
 	struct list_head bulk_list;
 	struct mlxsw_core *core;
 	struct sk_buff *tx_skb;
-	struct mlxsw_tx_info tx_info;
+	struct mlxsw_txhdr_info txhdr_info;
 	struct delayed_work timeout_dw;
 	unsigned int retries;
 	u64 tid;
@@ -737,12 +738,11 @@ static int mlxsw_emad_transmit(struct mlxsw_core *mlxsw_core,
 	if (!skb)
 		return -ENOMEM;
 
-	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0,
-			    skb->data + mlxsw_core->driver->txhdr_len,
-			    skb->len - mlxsw_core->driver->txhdr_len);
+	trace_devlink_hwmsg(priv_to_devlink(mlxsw_core), false, 0, skb->data,
+			    skb->len);
 
 	atomic_set(&trans->active, 1);
-	err = mlxsw_core_skb_transmit(mlxsw_core, skb, &trans->tx_info);
+	err = mlxsw_core_skb_transmit(mlxsw_core, skb, &trans->txhdr_info);
 	if (err) {
 		dev_kfree_skb(skb);
 		return err;
@@ -944,7 +944,7 @@ static struct sk_buff *mlxsw_emad_alloc(const struct mlxsw_core *mlxsw_core,
 
 	emad_len = (reg_len + sizeof(u32) + MLXSW_EMAD_ETH_HDR_LEN +
 		    (MLXSW_EMAD_OP_TLV_LEN + MLXSW_EMAD_END_TLV_LEN) *
-		    sizeof(u32) + mlxsw_core->driver->txhdr_len);
+		    sizeof(u32) + MLXSW_TXHDR_LEN);
 	if (mlxsw_core->emad.enable_string_tlv)
 		emad_len += MLXSW_EMAD_STRING_TLV_LEN * sizeof(u32);
 	if (mlxsw_core->emad.enable_latency_tlv)
@@ -984,8 +984,8 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 	list_add_tail(&trans->bulk_list, bulk_list);
 	trans->core = mlxsw_core;
 	trans->tx_skb = skb;
-	trans->tx_info.local_port = MLXSW_PORT_CPU_PORT;
-	trans->tx_info.is_emad = true;
+	trans->txhdr_info.tx_info.local_port = MLXSW_PORT_CPU_PORT;
+	trans->txhdr_info.tx_info.is_emad = true;
 	INIT_DELAYED_WORK(&trans->timeout_dw, mlxsw_emad_trans_timeout_work);
 	trans->tid = tid;
 	init_completion(&trans->completion);
@@ -995,7 +995,6 @@ static int mlxsw_emad_reg_access(struct mlxsw_core *mlxsw_core,
 	trans->type = type;
 
 	mlxsw_emad_construct(mlxsw_core, skb, reg, payload, type, trans->tid);
-	mlxsw_core->driver->txhdr_construct(skb, &trans->tx_info);
 
 	spin_lock_bh(&mlxsw_core->emad.trans_list_lock);
 	list_add_tail_rcu(&trans->list, &mlxsw_core->emad.trans_list);
@@ -2330,10 +2329,10 @@ bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 EXPORT_SYMBOL(mlxsw_core_skb_transmit_busy);
 
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
-			    const struct mlxsw_tx_info *tx_info)
+			    const struct mlxsw_txhdr_info *txhdr_info)
 {
 	return mlxsw_core->bus->skb_transmit(mlxsw_core->bus_priv, skb,
-					     tx_info);
+					     txhdr_info);
 }
 EXPORT_SYMBOL(mlxsw_core_skb_transmit);
 

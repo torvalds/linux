@@ -187,17 +187,6 @@ static int get_path_from_fd(int fd, struct path *root)
 	return 0;
 }
 
-enum handle_to_path_flags {
-	HANDLE_CHECK_PERMS   = (1 << 0),
-	HANDLE_CHECK_SUBTREE = (1 << 1),
-};
-
-struct handle_to_path_ctx {
-	struct path root;
-	enum handle_to_path_flags flags;
-	unsigned int fh_flags;
-};
-
 static int vfs_dentry_acceptable(void *context, struct dentry *dentry)
 {
 	struct handle_to_path_ctx *ctx = context;
@@ -261,50 +250,55 @@ static int do_handle_to_path(struct file_handle *handle, struct path *path,
 {
 	int handle_dwords;
 	struct vfsmount *mnt = ctx->root.mnt;
+	struct dentry *dentry;
 
 	/* change the handle size to multiple of sizeof(u32) */
 	handle_dwords = handle->handle_bytes >> 2;
-	path->dentry = exportfs_decode_fh_raw(mnt,
-					  (struct fid *)handle->f_handle,
-					  handle_dwords, handle->handle_type,
-					  ctx->fh_flags,
-					  vfs_dentry_acceptable, ctx);
-	if (IS_ERR_OR_NULL(path->dentry)) {
-		if (path->dentry == ERR_PTR(-ENOMEM))
+	dentry = exportfs_decode_fh_raw(mnt, (struct fid *)handle->f_handle,
+					handle_dwords, handle->handle_type,
+					ctx->fh_flags, vfs_dentry_acceptable,
+					ctx);
+	if (IS_ERR_OR_NULL(dentry)) {
+		if (dentry == ERR_PTR(-ENOMEM))
 			return -ENOMEM;
 		return -ESTALE;
 	}
+	path->dentry = dentry;
 	path->mnt = mntget(mnt);
 	return 0;
 }
 
-/*
- * Allow relaxed permissions of file handles if the caller has the
- * ability to mount the filesystem or create a bind-mount of the
- * provided @mountdirfd.
- *
- * In both cases the caller may be able to get an unobstructed way to
- * the encoded file handle. If the caller is only able to create a
- * bind-mount we need to verify that there are no locked mounts on top
- * of it that could prevent us from getting to the encoded file.
- *
- * In principle, locked mounts can prevent the caller from mounting the
- * filesystem but that only applies to procfs and sysfs neither of which
- * support decoding file handles.
- */
-static inline bool may_decode_fh(struct handle_to_path_ctx *ctx,
-				 unsigned int o_flags)
+static inline int may_decode_fh(struct handle_to_path_ctx *ctx,
+				unsigned int o_flags)
 {
 	struct path *root = &ctx->root;
 
+	if (capable(CAP_DAC_READ_SEARCH))
+		return 0;
+
 	/*
-	 * Restrict to O_DIRECTORY to provide a deterministic API that avoids a
-	 * confusing api in the face of disconnected non-dir dentries.
+	 * Allow relaxed permissions of file handles if the caller has
+	 * the ability to mount the filesystem or create a bind-mount of
+	 * the provided @mountdirfd.
+	 *
+	 * In both cases the caller may be able to get an unobstructed
+	 * way to the encoded file handle. If the caller is only able to
+	 * create a bind-mount we need to verify that there are no
+	 * locked mounts on top of it that could prevent us from getting
+	 * to the encoded file.
+	 *
+	 * In principle, locked mounts can prevent the caller from
+	 * mounting the filesystem but that only applies to procfs and
+	 * sysfs neither of which support decoding file handles.
+	 *
+	 * Restrict to O_DIRECTORY to provide a deterministic API that
+	 * avoids a confusing api in the face of disconnected non-dir
+	 * dentries.
 	 *
 	 * There's only one dentry for each directory inode (VFS rule)...
 	 */
 	if (!(o_flags & O_DIRECTORY))
-		return false;
+		return -EPERM;
 
 	if (ns_capable(root->mnt->mnt_sb->s_user_ns, CAP_SYS_ADMIN))
 		ctx->flags = HANDLE_CHECK_PERMS;
@@ -314,14 +308,14 @@ static inline bool may_decode_fh(struct handle_to_path_ctx *ctx,
 		 !has_locked_children(real_mount(root->mnt), root->dentry))
 		ctx->flags = HANDLE_CHECK_PERMS | HANDLE_CHECK_SUBTREE;
 	else
-		return false;
+		return -EPERM;
 
 	/* Are we able to override DAC permissions? */
 	if (!ns_capable(current_user_ns(), CAP_DAC_READ_SEARCH))
-		return false;
+		return -EPERM;
 
 	ctx->fh_flags = EXPORT_FH_DIR_ONLY;
-	return true;
+	return 0;
 }
 
 static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
@@ -331,15 +325,19 @@ static int handle_to_path(int mountdirfd, struct file_handle __user *ufh,
 	struct file_handle f_handle;
 	struct file_handle *handle = NULL;
 	struct handle_to_path_ctx ctx = {};
+	const struct export_operations *eops;
 
 	retval = get_path_from_fd(mountdirfd, &ctx.root);
 	if (retval)
 		goto out_err;
 
-	if (!capable(CAP_DAC_READ_SEARCH) && !may_decode_fh(&ctx, o_flags)) {
-		retval = -EPERM;
+	eops = ctx.root.mnt->mnt_sb->s_export_op;
+	if (eops && eops->permission)
+		retval = eops->permission(&ctx, o_flags);
+	else
+		retval = may_decode_fh(&ctx, o_flags);
+	if (retval)
 		goto out_path;
-	}
 
 	if (copy_from_user(&f_handle, ufh, sizeof(struct file_handle))) {
 		retval = -EFAULT;
@@ -398,29 +396,28 @@ static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
 			   int open_flag)
 {
 	long retval = 0;
-	struct path path;
+	struct path path __free(path_put) = {};
 	struct file *file;
-	int fd;
+	const struct export_operations *eops;
 
 	retval = handle_to_path(mountdirfd, ufh, &path, open_flag);
 	if (retval)
 		return retval;
 
-	fd = get_unused_fd_flags(open_flag);
-	if (fd < 0) {
-		path_put(&path);
+	CLASS(get_unused_fd, fd)(O_CLOEXEC);
+	if (fd < 0)
 		return fd;
-	}
-	file = file_open_root(&path, "", open_flag, 0);
-	if (IS_ERR(file)) {
-		put_unused_fd(fd);
-		retval =  PTR_ERR(file);
-	} else {
-		retval = fd;
-		fd_install(fd, file);
-	}
-	path_put(&path);
-	return retval;
+
+	eops = path.mnt->mnt_sb->s_export_op;
+	if (eops->open)
+		file = eops->open(&path, open_flag);
+	else
+		file = file_open_root(&path, "", open_flag, 0);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	fd_install(fd, file);
+	return take_fd(fd);
 }
 
 /**

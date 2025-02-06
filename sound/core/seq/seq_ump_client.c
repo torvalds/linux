@@ -272,8 +272,6 @@ static void update_port_infos(struct seq_ump_client *client)
 						new);
 		if (err < 0)
 			continue;
-		/* notify to system port */
-		snd_seq_system_client_ev_port_change(client->seq_client, i);
 	}
 }
 
@@ -390,6 +388,33 @@ static void handle_group_notify(struct work_struct *work)
 	setup_client_group_filter(client);
 }
 
+/* UMP EP change notification */
+static int seq_ump_notify_ep_change(struct snd_ump_endpoint *ump)
+{
+	struct seq_ump_client *client = ump->seq_client;
+	struct snd_seq_client *cptr;
+	int client_id;
+
+	if (!client)
+		return -ENODEV;
+	client_id = client->seq_client;
+	cptr = snd_seq_kernel_client_get(client_id);
+	if (!cptr)
+		return -ENODEV;
+
+	snd_seq_system_ump_notify(client_id, 0, SNDRV_SEQ_EVENT_UMP_EP_CHANGE,
+				  true);
+
+	/* update sequencer client name if needed */
+	if (*ump->core.name && strcmp(ump->core.name, cptr->name)) {
+		strscpy(cptr->name, ump->core.name, sizeof(cptr->name));
+		snd_seq_system_client_ev_client_change(client_id);
+	}
+
+	snd_seq_kernel_client_put(cptr);
+	return 0;
+}
+
 /* UMP FB change notification */
 static int seq_ump_notify_fb_change(struct snd_ump_endpoint *ump,
 				    struct snd_ump_block *fb)
@@ -399,20 +424,29 @@ static int seq_ump_notify_fb_change(struct snd_ump_endpoint *ump,
 	if (!client)
 		return -ENODEV;
 	schedule_work(&client->group_notify_work);
+	snd_seq_system_ump_notify(client->seq_client, fb->info.block_id,
+				  SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE,
+				  true);
 	return 0;
 }
 
 /* UMP protocol change notification; just update the midi_version field */
 static int seq_ump_switch_protocol(struct snd_ump_endpoint *ump)
 {
-	if (!ump->seq_client)
+	struct seq_ump_client *client = ump->seq_client;
+
+	if (!client)
 		return -ENODEV;
-	setup_client_midi_version(ump->seq_client);
+	setup_client_midi_version(client);
+	snd_seq_system_ump_notify(client->seq_client, 0,
+				  SNDRV_SEQ_EVENT_UMP_EP_CHANGE,
+				  true);
 	return 0;
 }
 
 static const struct snd_seq_ump_ops seq_ump_ops = {
 	.input_receive = seq_ump_input_receive,
+	.notify_ep_change = seq_ump_notify_ep_change,
 	.notify_fb_change = seq_ump_notify_fb_change,
 	.switch_protocol = seq_ump_switch_protocol,
 };

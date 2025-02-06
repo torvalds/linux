@@ -145,40 +145,40 @@ additionalProperties:
 
 examples:
   - |
-     #include <dt-bindings/clock/at91.h>
-     #include <dt-bindings/interrupt-controller/irq.h>
-     #include <dt-bindings/pinctrl/at91.h>
+    #include <dt-bindings/clock/at91.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/pinctrl/at91.h>
 
-     pinctrl@fffff400 {
-       #address-cells = <1>;
-       #size-cells = <1>;
-       compatible = "atmel,at91rm9200-pinctrl", "simple-mfd";
-       ranges = <0xfffff400 0xfffff400 0x600>;
+    pinctrl@fffff400 {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "atmel,at91rm9200-pinctrl", "simple-mfd";
+        ranges = <0xfffff400 0xfffff400 0x600>;
 
-       atmel,mux-mask = <
-         /*    A         B     */
-         0xffffffff 0xffc00c3b  /* pioA */
-         0xffffffff 0x7fff3ccf  /* pioB */
-         0xffffffff 0x007fffff  /* pioC */
-         >;
+        atmel,mux-mask = <
+          /*    A         B     */
+          0xffffffff 0xffc00c3b  /* pioA */
+          0xffffffff 0x7fff3ccf  /* pioB */
+          0xffffffff 0x007fffff  /* pioC */
+          >;
 
-       dbgu {
-         pinctrl_dbgu: dbgu-0 {
-           atmel,pins =
-             <AT91_PIOB 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
-              AT91_PIOB 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;
-         };
-       };
+        dbgu {
+            dbgu-0 {
+                atmel,pins =
+                  <AT91_PIOB 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+                   AT91_PIOB 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;
+            };
+        };
 
-       pioA: gpio@fffff400 {
-         compatible = "atmel,at91rm9200-gpio";
-         reg = <0xfffff400 0x200>;
-         interrupts = <2 IRQ_TYPE_LEVEL_HIGH 1>;
-         #gpio-cells = <2>;
-         gpio-controller;
-         interrupt-controller;
-         #interrupt-cells = <2>;
-         clocks = <&pmc PMC_TYPE_PERIPHERAL 2>;
-       };
-     };
+        gpio@fffff400 {
+            compatible = "atmel,at91rm9200-gpio";
+            reg = <0xfffff400 0x200>;
+            interrupts = <2 IRQ_TYPE_LEVEL_HIGH 1>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+            clocks = <&pmc PMC_TYPE_PERIPHERAL 2>;
+        };
+    };
 ...

@@ -7,9 +7,9 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/dma-map-ops.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/amd_qdma.h>
 #include <linux/regmap.h>
@@ -283,16 +283,20 @@ static int qdma_check_queue_status(struct qdma_device *qdev,
 
 static int qdma_clear_queue_context(const struct qdma_queue *queue)
 {
-	enum qdma_ctxt_type h2c_types[] = { QDMA_CTXT_DESC_SW_H2C,
-					    QDMA_CTXT_DESC_HW_H2C,
-					    QDMA_CTXT_DESC_CR_H2C,
-					    QDMA_CTXT_PFTCH, };
-	enum qdma_ctxt_type c2h_types[] = { QDMA_CTXT_DESC_SW_C2H,
-					    QDMA_CTXT_DESC_HW_C2H,
-					    QDMA_CTXT_DESC_CR_C2H,
-					    QDMA_CTXT_PFTCH, };
+	static const enum qdma_ctxt_type h2c_types[] = {
+		QDMA_CTXT_DESC_SW_H2C,
+		QDMA_CTXT_DESC_HW_H2C,
+		QDMA_CTXT_DESC_CR_H2C,
+		QDMA_CTXT_PFTCH,
+	};
+	static const enum qdma_ctxt_type c2h_types[] = {
+		QDMA_CTXT_DESC_SW_C2H,
+		QDMA_CTXT_DESC_HW_C2H,
+		QDMA_CTXT_DESC_CR_C2H,
+		QDMA_CTXT_PFTCH,
+	};
 	struct qdma_device *qdev = queue->qdev;
-	enum qdma_ctxt_type *type;
+	const enum qdma_ctxt_type *type;
 	int ret, num, i;
 
 	if (queue->dir == DMA_MEM_TO_DEV) {
@@ -492,17 +496,8 @@ static int qdma_device_verify(struct qdma_device *qdev)
 
 static int qdma_device_setup(struct qdma_device *qdev)
 {
-	struct device *dev = &qdev->pdev->dev;
 	u32 ring_sz = QDMA_DEFAULT_RING_SIZE;
 	int ret = 0;
-
-	while (dev && get_dma_ops(dev))
-		dev = dev->parent;
-	if (!dev) {
-		qdma_err(qdev, "dma device not found");
-		return -EINVAL;
-	}
-	set_dma_ops(&qdev->pdev->dev, get_dma_ops(dev));
 
 	ret = qdma_setup_fmap_context(qdev);
 	if (ret) {
@@ -548,11 +543,12 @@ static void qdma_free_queue_resources(struct dma_chan *chan)
 {
 	struct qdma_queue *queue = to_qdma_queue(chan);
 	struct qdma_device *qdev = queue->qdev;
-	struct device *dev = qdev->dma_dev.dev;
+	struct qdma_platdata *pdata;
 
 	qdma_clear_queue_context(queue);
 	vchan_free_chan_resources(&queue->vchan);
-	dma_free_coherent(dev, queue->ring_size * QDMA_MM_DESC_SIZE,
+	pdata = dev_get_platdata(&qdev->pdev->dev);
+	dma_free_coherent(pdata->dma_dev, queue->ring_size * QDMA_MM_DESC_SIZE,
 			  queue->desc_base, queue->dma_desc_base);
 }
 
@@ -565,6 +561,7 @@ static int qdma_alloc_queue_resources(struct dma_chan *chan)
 	struct qdma_queue *queue = to_qdma_queue(chan);
 	struct qdma_device *qdev = queue->qdev;
 	struct qdma_ctxt_sw_desc desc;
+	struct qdma_platdata *pdata;
 	size_t size;
 	int ret;
 
@@ -572,8 +569,9 @@ static int qdma_alloc_queue_resources(struct dma_chan *chan)
 	if (ret)
 		return ret;
 
+	pdata = dev_get_platdata(&qdev->pdev->dev);
 	size = queue->ring_size * QDMA_MM_DESC_SIZE;
-	queue->desc_base = dma_alloc_coherent(qdev->dma_dev.dev, size,
+	queue->desc_base = dma_alloc_coherent(pdata->dma_dev, size,
 					      &queue->dma_desc_base,
 					      GFP_KERNEL);
 	if (!queue->desc_base) {
@@ -588,7 +586,7 @@ static int qdma_alloc_queue_resources(struct dma_chan *chan)
 	if (ret) {
 		qdma_err(qdev, "Failed to setup SW desc ctxt for %s",
 			 chan->name);
-		dma_free_coherent(qdev->dma_dev.dev, size, queue->desc_base,
+		dma_free_coherent(pdata->dma_dev, size, queue->desc_base,
 				  queue->dma_desc_base);
 		return ret;
 	}
@@ -948,8 +946,9 @@ static int qdma_init_error_irq(struct qdma_device *qdev)
 
 static int qdmam_alloc_qintr_rings(struct qdma_device *qdev)
 {
-	u32 ctxt[QDMA_CTXT_REGMAP_LEN];
+	struct qdma_platdata *pdata = dev_get_platdata(&qdev->pdev->dev);
 	struct device *dev = &qdev->pdev->dev;
+	u32 ctxt[QDMA_CTXT_REGMAP_LEN];
 	struct qdma_intr_ring *ring;
 	struct qdma_ctxt_intr intr_ctxt;
 	u32 vector;
@@ -969,7 +968,8 @@ static int qdmam_alloc_qintr_rings(struct qdma_device *qdev)
 		ring->msix_id = qdev->err_irq_idx + i + 1;
 		ring->ridx = i;
 		ring->color = 1;
-		ring->base = dmam_alloc_coherent(dev, QDMA_INTR_RING_SIZE,
+		ring->base = dmam_alloc_coherent(pdata->dma_dev,
+						 QDMA_INTR_RING_SIZE,
 						 &ring->dev_base, GFP_KERNEL);
 		if (!ring->base) {
 			qdma_err(qdev, "Failed to alloc intr ring %d", i);

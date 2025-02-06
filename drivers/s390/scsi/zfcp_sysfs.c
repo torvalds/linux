@@ -284,7 +284,7 @@ static bool zfcp_sysfs_port_in_use(struct zfcp_port *const port)
 		goto unlock_host_lock;
 	}
 
-	/* port is about to be removed, so no more unit_add or slave_alloc */
+	/* port is about to be removed, so no more unit_add or sdev_init */
 	zfcp_sysfs_port_set_removing(port);
 	in_use = false;
 

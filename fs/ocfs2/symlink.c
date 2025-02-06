@@ -54,31 +54,27 @@
 
 static int ocfs2_fast_symlink_read_folio(struct file *f, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct buffer_head *bh = NULL;
 	int status = ocfs2_read_inode_block(inode, &bh);
 	struct ocfs2_dinode *fe;
 	const char *link;
-	void *kaddr;
 	size_t len;
 
 	if (status < 0) {
 		mlog_errno(status);
-		return status;
+		goto out;
 	}
 
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	link = (char *) fe->id2.i_symlink;
 	/* will be less than a page size */
 	len = strnlen(link, ocfs2_fast_symlink_chars(inode->i_sb));
-	kaddr = kmap_atomic(page);
-	memcpy(kaddr, link, len + 1);
-	kunmap_atomic(kaddr);
-	SetPageUptodate(page);
-	unlock_page(page);
+	memcpy_to_folio(folio, 0, link, len + 1);
+out:
+	folio_end_read(folio, status == 0);
 	brelse(bh);
-	return 0;
+	return status;
 }
 
 const struct address_space_operations ocfs2_fast_symlink_aops = {

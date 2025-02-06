@@ -204,15 +204,6 @@ int __is_hw_update_params(struct fimc_is *is)
 	return ret;
 }
 
-void __is_get_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf)
-{
-	struct isp_param *isp;
-
-	isp = &is->config[is->config_index].isp;
-	mf->width = isp->otf_input.width;
-	mf->height = isp->otf_input.height;
-}
-
 void __is_set_frame_size(struct fimc_is *is, struct v4l2_mbus_framefmt *mf)
 {
 	unsigned int index = is->config_index;

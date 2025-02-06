@@ -126,8 +126,9 @@ static struct cp500_devs cp520_devices = {
 };
 
 struct cp500_nvmem {
-	struct nvmem_device *nvmem;
+	struct nvmem_device *base_nvmem;
 	unsigned int offset;
+	struct nvmem_device *nvmem;
 };
 
 struct cp500 {
@@ -581,8 +582,8 @@ static int cp500_nvmem_read(void *priv, unsigned int offset, void *val,
 	struct cp500_nvmem *nvmem = priv;
 	int ret;
 
-	ret = nvmem_device_read(nvmem->nvmem, nvmem->offset + offset, bytes,
-				val);
+	ret = nvmem_device_read(nvmem->base_nvmem, nvmem->offset + offset,
+				bytes, val);
 	if (ret != bytes)
 		return ret;
 
@@ -595,15 +596,16 @@ static int cp500_nvmem_write(void *priv, unsigned int offset, void *val,
 	struct cp500_nvmem *nvmem = priv;
 	int ret;
 
-	ret = nvmem_device_write(nvmem->nvmem, nvmem->offset + offset, bytes,
-				 val);
+	ret = nvmem_device_write(nvmem->base_nvmem, nvmem->offset + offset,
+				 bytes, val);
 	if (ret != bytes)
 		return ret;
 
 	return 0;
 }
 
-static int cp500_nvmem_register(struct cp500 *cp500, struct nvmem_device *nvmem)
+static int cp500_nvmem_register(struct cp500 *cp500,
+				struct nvmem_device *base_nvmem)
 {
 	struct device *dev = &cp500->pci_dev->dev;
 	struct nvmem_config nvmem_config = {};
@@ -625,25 +627,50 @@ static int cp500_nvmem_register(struct cp500 *cp500, struct nvmem_device *nvmem)
 	nvmem_config.reg_read = cp500_nvmem_read;
 	nvmem_config.reg_write = cp500_nvmem_write;
 
-	cp500->nvmem_cpu.nvmem = nvmem;
+	cp500->nvmem_cpu.base_nvmem = base_nvmem;
 	cp500->nvmem_cpu.offset = CP500_EEPROM_CPU_OFFSET;
 	nvmem_config.name = CP500_EEPROM_CPU_NAME;
 	nvmem_config.size = CP500_EEPROM_CPU_SIZE;
 	nvmem_config.priv = &cp500->nvmem_cpu;
-	tmp = devm_nvmem_register(dev, &nvmem_config);
+	tmp = nvmem_register(&nvmem_config);
 	if (IS_ERR(tmp))
 		return PTR_ERR(tmp);
+	cp500->nvmem_cpu.nvmem = tmp;
 
-	cp500->nvmem_user.nvmem = nvmem;
+	cp500->nvmem_user.base_nvmem = base_nvmem;
 	cp500->nvmem_user.offset = CP500_EEPROM_USER_OFFSET;
 	nvmem_config.name = CP500_EEPROM_USER_NAME;
 	nvmem_config.size = CP500_EEPROM_USER_SIZE;
 	nvmem_config.priv = &cp500->nvmem_user;
-	tmp = devm_nvmem_register(dev, &nvmem_config);
-	if (IS_ERR(tmp))
+	tmp = nvmem_register(&nvmem_config);
+	if (IS_ERR(tmp)) {
+		nvmem_unregister(cp500->nvmem_cpu.nvmem);
+		cp500->nvmem_cpu.nvmem = NULL;
+
 		return PTR_ERR(tmp);
+	}
+	cp500->nvmem_user.nvmem = tmp;
 
 	return 0;
+}
+
+static void cp500_nvmem_unregister(struct cp500 *cp500)
+{
+	int notified;
+
+	if (cp500->nvmem_user.nvmem) {
+		nvmem_unregister(cp500->nvmem_user.nvmem);
+		cp500->nvmem_user.nvmem = NULL;
+	}
+	if (cp500->nvmem_cpu.nvmem) {
+		nvmem_unregister(cp500->nvmem_cpu.nvmem);
+		cp500->nvmem_cpu.nvmem = NULL;
+	}
+
+	/* CPU and user nvmem use the same base_nvmem, put only once */
+	notified = atomic_read(&cp500->nvmem_notified);
+	if (notified)
+		nvmem_device_put(cp500->nvmem_cpu.base_nvmem);
 }
 
 static int cp500_nvmem_match(struct device *dev, const void *data)
@@ -661,13 +688,6 @@ static int cp500_nvmem_match(struct device *dev, const void *data)
 			return 1;
 
 	return 0;
-}
-
-static void cp500_devm_nvmem_put(void *data)
-{
-	struct nvmem_device *nvmem = data;
-
-	nvmem_device_put(nvmem);
 }
 
 static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
@@ -697,10 +717,6 @@ static int cp500_nvmem(struct notifier_block *nb, unsigned long action,
 
 		return NOTIFY_DONE;
 	}
-
-	ret = devm_add_action_or_reset(dev, cp500_devm_nvmem_put, nvmem);
-	if (ret)
-		return ret;
 
 	ret = cp500_nvmem_register(cp500, nvmem);
 	if (ret)
@@ -932,11 +948,16 @@ static void cp500_remove(struct pci_dev *pci_dev)
 {
 	struct cp500 *cp500 = pci_get_drvdata(pci_dev);
 
+	/*
+	 * unregister CPU and user nvmem and put base_nvmem before parent
+	 * auxiliary device of base_nvmem is unregistered
+	 */
+	nvmem_unregister_notifier(&cp500->nvmem_notifier);
+	cp500_nvmem_unregister(cp500);
+
 	cp500_unregister_auxiliary_devs(cp500);
 
 	cp500_disable(cp500);
-
-	nvmem_unregister_notifier(&cp500->nvmem_notifier);
 
 	pci_set_drvdata(pci_dev, 0);
 

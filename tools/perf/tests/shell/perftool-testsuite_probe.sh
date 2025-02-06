@@ -1,5 +1,5 @@
 #!/bin/bash
-# perftool-testsuite_probe
+# perftool-testsuite_probe (exclusive)
 # SPDX-License-Identifier: GPL-2.0
 
 test -d "$(dirname "$0")/base_probe" || exit 2

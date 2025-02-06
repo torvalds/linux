@@ -431,11 +431,11 @@ enum {
 	((((_p)[0] & 0xFF) << 24) | (((_p)[1] & 0xFF) << 16) | ((_p)[2]))
 
 /*
- * The VMCI IOCTLs.  We use identity code 7, as noted in ioctl-number.h, and
- * we start at sequence 9f.  This gives us the same values that our shipping
- * products use, starting at 1951, provided we leave out the direction and
- * structure size.  Note that VMMon occupies the block following us, starting
- * at 2001.
+ * The VMCI IOCTLs.  We use identity code 7, as noted in ioctl-number.rst,
+ * and we start at sequence 9f.  This gives us the same values that our
+ * shipping products use, starting at 1951, provided we leave out the
+ * direction and structure size.  Note that VMMon occupies the block
+ * following us, starting at 2001.
  */
 #define IOCTL_VMCI_VERSION			_IO(7, 0x9f)	/* 1951 */
 #define IOCTL_VMCI_INIT_CONTEXT			_IO(7, 0xa0)
@@ -453,9 +453,7 @@ enum {
 #define IOCTL_VMCI_CTX_GET_CPT_STATE		_IO(7, 0xb1)
 #define IOCTL_VMCI_CTX_SET_CPT_STATE		_IO(7, 0xb2)
 #define IOCTL_VMCI_GET_CONTEXT_ID		_IO(7, 0xb3)
-#define IOCTL_VMCI_SOCKETS_VERSION		_IO(7, 0xb4)
-#define IOCTL_VMCI_SOCKETS_GET_AF_VALUE		_IO(7, 0xb8)
-#define IOCTL_VMCI_SOCKETS_GET_LOCAL_CID	_IO(7, 0xb9)
+/*IOCTL_VM_SOCKETS_GET_LOCAL_CID		_IO(7, 0xb9)*/
 #define IOCTL_VMCI_SET_NOTIFY			_IO(7, 0xcb)	/* 1995 */
 /*IOCTL_VMMON_START				_IO(7, 0xd1)*/	/* 2001 */
 

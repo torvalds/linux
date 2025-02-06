@@ -60,7 +60,7 @@ int main(void)
 
 	TEST_ASSERT_KVM_EXIT_REASON(vcpu, KVM_EXIT_DEBUG);
 
-	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.pc), &pc);
+	pc = vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.pc));
 	TEST_ASSERT_EQ(pc, LABEL_ADDRESS(sw_bp_1));
 
 	/* skip sw_bp_1 */

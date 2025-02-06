@@ -207,17 +207,29 @@ resources, that can cause performance disruptions or even OOM kills.
 device coredump
 ---------------
 
-Prerequisite: ``#include <linux/devcoredump.h>``
+Prerequisite: ``CONFIG_DEV_COREDUMP`` & ``#include <linux/devcoredump.h>``
 
 Provides the infrastructure for a driver to provide arbitrary data to userland.
 It is most often used in conjunction with udev or similar userland application
 to listen for kernel uevents, which indicate that the dump is ready. Udev has
 rules to copy that file somewhere for long-term storage and analysis, as by
-default, the data for the dump is automatically cleaned up after 5 minutes.
-That data is analyzed with driver-specific tools or GDB.
+default, the data for the dump is automatically cleaned up after a default
+5 minutes. That data is analyzed with driver-specific tools or GDB.
+
+A device coredump can be created with a vmalloc area, with read/free
+methods, or as a scatter/gather list.
 
 You can find an example implementation at:
 `drivers/media/platform/qcom/venus/core.c
-<https://elixir.bootlin.com/linux/v6.11.6/source/drivers/media/platform/qcom/venus/core.c#L30>`__
+<https://elixir.bootlin.com/linux/v6.11.6/source/drivers/media/platform/qcom/venus/core.c#L30>`__,
+in the Bluetooth HCI layer, in several wireless drivers, and in several
+DRM drivers.
+
+devcoredump interfaces
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: include/linux/devcoredump.h
+
+.. kernel-doc:: drivers/base/devcoredump.c
 
 **Copyright** ©2024 : Collabora

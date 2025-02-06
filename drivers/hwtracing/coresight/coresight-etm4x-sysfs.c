@@ -2319,11 +2319,11 @@ static ssize_t ts_source_show(struct device *dev,
 		goto out;
 	}
 
-	switch (drvdata->trfcr & TRFCR_ELx_TS_MASK) {
-	case TRFCR_ELx_TS_VIRTUAL:
-	case TRFCR_ELx_TS_GUEST_PHYSICAL:
-	case TRFCR_ELx_TS_PHYSICAL:
-		val = FIELD_GET(TRFCR_ELx_TS_MASK, drvdata->trfcr);
+	switch (drvdata->trfcr & TRFCR_EL1_TS_MASK) {
+	case TRFCR_EL1_TS_VIRTUAL:
+	case TRFCR_EL1_TS_GUEST_PHYSICAL:
+	case TRFCR_EL1_TS_PHYSICAL:
+		val = FIELD_GET(TRFCR_EL1_TS_MASK, drvdata->trfcr);
 		break;
 	default:
 		val = -1;

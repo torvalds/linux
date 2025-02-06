@@ -60,7 +60,7 @@ struct mag3110_data {
 	struct {
 		__be16 channels[3];
 		u8 temperature;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

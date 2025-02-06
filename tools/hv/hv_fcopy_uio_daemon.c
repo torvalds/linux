@@ -35,8 +35,6 @@
 #define WIN8_SRV_MINOR		1
 #define WIN8_SRV_VERSION	(WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
 
-#define MAX_FOLDER_NAME		15
-#define MAX_PATH_LEN		15
 #define FCOPY_UIO		"/sys/bus/vmbus/devices/eb765408-105f-49b6-b4aa-c123b64d17d4/uio"
 
 #define FCOPY_VER_COUNT		1
@@ -51,7 +49,7 @@ static const int fw_versions[] = {
 
 #define HV_RING_SIZE		0x4000 /* 16KB ring buffer size */
 
-unsigned char desc[HV_RING_SIZE];
+static unsigned char desc[HV_RING_SIZE];
 
 static int target_fd;
 static char target_fname[PATH_MAX];
@@ -409,8 +407,8 @@ int main(int argc, char *argv[])
 	struct vmbus_br txbr, rxbr;
 	void *ring;
 	uint32_t len = HV_RING_SIZE;
-	char uio_name[MAX_FOLDER_NAME] = {0};
-	char uio_dev_path[MAX_PATH_LEN] = {0};
+	char uio_name[NAME_MAX] = {0};
+	char uio_dev_path[PATH_MAX] = {0};
 
 	static struct option long_options[] = {
 		{"help",	no_argument,	   0,  'h' },
@@ -468,8 +466,10 @@ int main(int argc, char *argv[])
 		 */
 		ret = pread(fcopy_fd, &tmp, sizeof(int), 0);
 		if (ret < 0) {
+			if (errno == EINTR || errno == EAGAIN)
+				continue;
 			syslog(LOG_ERR, "pread failed: %s", strerror(errno));
-			continue;
+			goto close;
 		}
 
 		len = HV_RING_SIZE;

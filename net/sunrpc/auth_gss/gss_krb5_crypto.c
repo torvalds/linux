@@ -442,35 +442,6 @@ encryptor(struct scatterlist *sg, void *data)
 	return 0;
 }
 
-int
-gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
-		    int offset, struct page **pages)
-{
-	int ret;
-	struct encryptor_desc desc;
-	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
-
-	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
-
-	skcipher_request_set_sync_tfm(req, tfm);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-
-	memset(desc.iv, 0, sizeof(desc.iv));
-	desc.req = req;
-	desc.pos = offset;
-	desc.outbuf = buf;
-	desc.pages = pages;
-	desc.fragno = 0;
-	desc.fraglen = 0;
-
-	sg_init_table(desc.infrags, 4);
-	sg_init_table(desc.outfrags, 4);
-
-	ret = xdr_process_buf(buf, offset, buf->len - offset, encryptor, &desc);
-	skcipher_request_zero(req);
-	return ret;
-}
-
 struct decryptor_desc {
 	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct skcipher_request *req;
@@ -523,32 +494,6 @@ decryptor(struct scatterlist *sg, void *data)
 		desc->fraglen = 0;
 	}
 	return 0;
-}
-
-int
-gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
-		    int offset)
-{
-	int ret;
-	struct decryptor_desc desc;
-	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
-
-	/* XXXJBF: */
-	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
-
-	skcipher_request_set_sync_tfm(req, tfm);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-
-	memset(desc.iv, 0, sizeof(desc.iv));
-	desc.req = req;
-	desc.fragno = 0;
-	desc.fraglen = 0;
-
-	sg_init_table(desc.frags, 4);
-
-	ret = xdr_process_buf(buf, offset, buf->len - offset, decryptor, &desc);
-	skcipher_request_zero(req);
-	return ret;
 }
 
 /*

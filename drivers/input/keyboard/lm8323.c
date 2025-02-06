@@ -21,6 +21,7 @@
 #include <linux/platform_data/lm8323.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 /* Commands to send to the chip. */
 #define LM8323_CMD_READ_ID		0x80 /* Read chip ID. */
@@ -269,7 +270,7 @@ static void process_keys(struct lm8323_chip *lm)
 		unsigned short keycode = lm->keymap[key];
 
 		dev_vdbg(&lm->client->dev, "key 0x%02x %s\n",
-			 key, isdown ? "down" : "up");
+			 key, str_down_up(isdown));
 
 		if (lm->kp_enabled) {
 			input_event(lm->idev, EV_MSC, MSC_SCAN, key);

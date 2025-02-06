@@ -36,6 +36,7 @@ properties:
       - enum:
           - mediatek,mt6323
           - mediatek,mt6331 # "mediatek,mt6331" for PMIC MT6331 and MT6332.
+          - mediatek,mt6328
           - mediatek,mt6358
           - mediatek,mt6359
           - mediatek,mt6397
@@ -88,6 +89,7 @@ properties:
         oneOf:
           - enum:
               - mediatek,mt6323-regulator
+              - mediatek,mt6328-regulator
               - mediatek,mt6358-regulator
               - mediatek,mt6359-regulator
               - mediatek,mt6397-regulator

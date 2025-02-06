@@ -57,7 +57,6 @@ struct amd_aperf_mperf {
  * @hw_prefcore: check whether HW supports preferred core featue.
  * 		  Only when hw_prefcore and early prefcore param are true,
  * 		  AMD P-State driver supports preferred core featue.
- * @epp_policy: Last saved policy used to set energy-performance preference
  * @epp_cached: Cached CPPC energy-performance preference value
  * @policy: Cpufreq policy value
  * @cppc_cap1_cached Cached MSR_AMD_CPPC_CAP1 register value
@@ -94,13 +93,11 @@ struct amd_cpudata {
 	bool	hw_prefcore;
 
 	/* EPP feature related attributes*/
-	s16	epp_policy;
 	s16	epp_cached;
 	u32	policy;
 	u64	cppc_cap1_cached;
 	bool	suspended;
 	s16	epp_default;
-	bool	boost_state;
 };
 
 /*

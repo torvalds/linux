@@ -527,7 +527,7 @@ static enum power_supply_property olpc_xo15_bat_props[] = {
 #define EEPROM_SIZE	(EEPROM_END - EEPROM_START)
 
 static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
+		const struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;
 	int ret;
@@ -547,13 +547,13 @@ static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute olpc_bat_eeprom = {
+static const struct bin_attribute olpc_bat_eeprom = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,
 	},
 	.size = EEPROM_SIZE,
-	.read = olpc_bat_eeprom_read,
+	.read_new = olpc_bat_eeprom_read,
 };
 
 /* Allow userspace to see the specific error value pulled from the EC */
@@ -584,15 +584,14 @@ static struct attribute *olpc_bat_sysfs_attrs[] = {
 	NULL
 };
 
-static struct bin_attribute *olpc_bat_sysfs_bin_attrs[] = {
+static const struct bin_attribute *const olpc_bat_sysfs_bin_attrs[] = {
 	&olpc_bat_eeprom,
 	NULL
 };
 
 static const struct attribute_group olpc_bat_sysfs_group = {
 	.attrs = olpc_bat_sysfs_attrs,
-	.bin_attrs = olpc_bat_sysfs_bin_attrs,
-
+	.bin_attrs_new = olpc_bat_sysfs_bin_attrs,
 };
 
 static const struct attribute_group *olpc_bat_sysfs_groups[] = {

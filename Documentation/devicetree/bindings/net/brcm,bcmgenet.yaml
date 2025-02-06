@@ -85,16 +85,16 @@ examples:
         #size-cells = <1>;
 
         mdio0: mdio@e14 {
-           compatible = "brcm,genet-mdio-v4";
-           #address-cells = <1>;
-           #size-cells = <0>;
-           reg = <0xe14 0x8>;
+            compatible = "brcm,genet-mdio-v4";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0xe14 0x8>;
 
-           phy1: ethernet-phy@1 {
+            phy1: ethernet-phy@1 {
                 max-speed = <1000>;
                 reg = <1>;
                 compatible = "ethernet-phy-ieee802.3-c22";
-           };
+            };
         };
     };
 
@@ -110,10 +110,10 @@ examples:
         interrupts = <0x0 0x16 0x0>, <0x0 0x17 0x0>;
 
         mdio1: mdio@e14 {
-           compatible = "brcm,genet-mdio-v4";
-           #address-cells = <1>;
-           #size-cells = <0>;
-           reg = <0xe14 0x8>;
+            compatible = "brcm,genet-mdio-v4";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0xe14 0x8>;
         };
     };
 
@@ -129,15 +129,15 @@ examples:
         interrupts = <0x0 0x18 0x0>, <0x0 0x19 0x0>;
 
         mdio2: mdio@e14 {
-           compatible = "brcm,genet-mdio-v4";
-           #address-cells = <1>;
-           #size-cells = <0>;
-           reg = <0xe14 0x8>;
+            compatible = "brcm,genet-mdio-v4";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reg = <0xe14 0x8>;
 
-           phy0: ethernet-phy@0 {
+            phy0: ethernet-phy@0 {
                 max-speed = <1000>;
                 reg = <0>;
                 compatible = "ethernet-phy-ieee802.3-c22";
-           };
+            };
         };
     };

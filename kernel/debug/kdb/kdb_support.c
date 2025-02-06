@@ -305,7 +305,7 @@ int kdb_putarea_size(unsigned long addr, void *res, size_t size)
 
 /*
  * kdb_getphys - Read data from a physical address. Validate the
- * 	address is in range, use kmap_atomic() to get data
+ *	address is in range, use kmap_local_page() to get data
  * 	similar to kdb_getarea() - but for phys addresses
  * Inputs:
  * 	res	Pointer to the word to receive the result
@@ -324,9 +324,9 @@ static int kdb_getphys(void *res, unsigned long addr, size_t size)
 	if (!pfn_valid(pfn))
 		return 1;
 	page = pfn_to_page(pfn);
-	vaddr = kmap_atomic(page);
+	vaddr = kmap_local_page(page);
 	memcpy(res, vaddr + (addr & (PAGE_SIZE - 1)), size);
-	kunmap_atomic(vaddr);
+	kunmap_local(vaddr);
 
 	return 0;
 }
@@ -535,22 +535,4 @@ bool kdb_task_state(const struct task_struct *p, const char *mask)
 		return true;
 
 	return strchr(mask, state);
-}
-
-/* Maintain a small stack of kdb_flags to allow recursion without disturbing
- * the global kdb state.
- */
-
-static int kdb_flags_stack[4], kdb_flags_index;
-
-void kdb_save_flags(void)
-{
-	BUG_ON(kdb_flags_index >= ARRAY_SIZE(kdb_flags_stack));
-	kdb_flags_stack[kdb_flags_index++] = kdb_flags;
-}
-
-void kdb_restore_flags(void)
-{
-	BUG_ON(kdb_flags_index <= 0);
-	kdb_flags = kdb_flags_stack[--kdb_flags_index];
 }

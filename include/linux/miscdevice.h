@@ -76,7 +76,7 @@
 struct device;
 struct attribute_group;
 
-struct miscdevice  {
+struct miscdevice {
 	int minor;
 	const char *name;
 	const struct file_operations *fops;

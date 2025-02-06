@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test tcpi_last_data_recv for active session
+`./defaults.sh`
+
+// Create a socket and set it to non-blocking.
++0    socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
++0    fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
++0    fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
++0    connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
++0    > S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
++.030 < S. 0:0(0) ack 1 win 10000 <mss 1000,sackOK,nop,nop,nop,wscale 8>
++0    > . 1:1(0) ack 1
+
++1 %{ assert 990 <= tcpi_last_data_recv <= 1010, tcpi_last_data_recv }%
+
++0    < . 1:1001(1000) ack 1 win 300
++0    > . 1:1(0) ack 1001
+
++0 %{ assert tcpi_last_data_recv <= 10, tcpi_last_data_recv }%

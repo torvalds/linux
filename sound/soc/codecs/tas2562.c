@@ -731,16 +731,14 @@ static int tas2562_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct tas2562_data *data;
 	int ret;
-	const struct i2c_device_id *id;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	id = i2c_match_id(tas2562_id, client);
 	data->client = client;
 	data->dev = &client->dev;
-	data->model_id = id->driver_data;
+	data->model_id = (uintptr_t)i2c_get_match_data(client);
 
 	tas2562_parse_dt(data);
 

@@ -596,6 +596,9 @@ struct drm_connector *drm_bridge_connector_init(struct drm_device *drm,
 		return ERR_PTR(-EINVAL);
 
 	if (bridge_connector->bridge_hdmi) {
+		if (!connector->ycbcr_420_allowed)
+			supported_formats &= ~BIT(HDMI_COLORSPACE_YUV420);
+
 		bridge = bridge_connector->bridge_hdmi;
 
 		ret = drmm_connector_hdmi_init(drm, connector,

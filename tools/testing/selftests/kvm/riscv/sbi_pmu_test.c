@@ -608,7 +608,7 @@ static void test_vm_events_overflow(void *guest_code)
 
 	vcpu_init_vector_tables(vcpu);
 	/* Initialize guest timer frequency. */
-	vcpu_get_reg(vcpu, RISCV_TIMER_REG(frequency), &timer_freq);
+	timer_freq = vcpu_get_reg(vcpu, RISCV_TIMER_REG(frequency));
 	sync_global_to_guest(vm, timer_freq);
 
 	run_vcpu(vcpu);

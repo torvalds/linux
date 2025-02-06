@@ -43,6 +43,8 @@
 #include "t7xx_state_monitor.h"
 #include "t7xx_port_proxy.h"
 
+#define DRIVER_NAME "mtk_t7xx"
+
 #define T7XX_PCI_IREG_BASE		0
 #define T7XX_PCI_EREG_BASE		2
 
@@ -833,6 +835,7 @@ static void t7xx_pci_infracfg_ao_calc(struct t7xx_pci_dev *t7xx_dev)
 static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct t7xx_pci_dev *t7xx_dev;
+	void __iomem *iomem;
 	int ret;
 
 	t7xx_dev = devm_kzalloc(&pdev->dev, sizeof(*t7xx_dev), GFP_KERNEL);
@@ -848,12 +851,21 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	ret = pcim_iomap_regions(pdev, BIT(T7XX_PCI_IREG_BASE) | BIT(T7XX_PCI_EREG_BASE),
-				 pci_name(pdev));
+	iomem = pcim_iomap_region(pdev, T7XX_PCI_IREG_BASE, DRIVER_NAME);
+	ret = PTR_ERR_OR_ZERO(iomem);
 	if (ret) {
-		dev_err(&pdev->dev, "Could not request BARs: %d\n", ret);
+		dev_err(&pdev->dev, "Could not request IREG BAR: %d\n", ret);
 		return -ENOMEM;
 	}
+	IREG_BASE(t7xx_dev) = iomem;
+
+	iomem = pcim_iomap_region(pdev, T7XX_PCI_EREG_BASE, DRIVER_NAME);
+	ret = PTR_ERR_OR_ZERO(iomem);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not request EREG BAR: %d\n", ret);
+		return -ENOMEM;
+	}
+	t7xx_dev->base_addr.pcie_ext_reg_base = iomem;
 
 	ret = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (ret) {
@@ -866,9 +878,6 @@ static int t7xx_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(&pdev->dev, "Could not set consistent PCI DMA mask: %d\n", ret);
 		return ret;
 	}
-
-	IREG_BASE(t7xx_dev) = pcim_iomap_table(pdev)[T7XX_PCI_IREG_BASE];
-	t7xx_dev->base_addr.pcie_ext_reg_base = pcim_iomap_table(pdev)[T7XX_PCI_EREG_BASE];
 
 	ret = t7xx_pci_pm_init(t7xx_dev);
 	if (ret)
@@ -937,7 +946,7 @@ static const struct pci_device_id t7xx_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, t7xx_pci_table);
 
 static struct pci_driver t7xx_pci_driver = {
-	.name = "mtk_t7xx",
+	.name = DRIVER_NAME,
 	.id_table = t7xx_pci_table,
 	.probe = t7xx_pci_probe,
 	.remove = t7xx_pci_remove,
