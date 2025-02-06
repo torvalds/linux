@@ -413,6 +413,7 @@ struct intel_panel {
 		union {
 			struct {
 				struct drm_edp_backlight_info info;
+				bool luminance_control_support;
 			} vesa;
 			struct {
 				bool sdr_uses_aux;
