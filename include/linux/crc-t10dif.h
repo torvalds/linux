@@ -4,9 +4,6 @@
 
 #include <linux/types.h>
 
-#define CRC_T10DIF_DIGEST_SIZE 2
-#define CRC_T10DIF_BLOCK_SIZE 1
-
 u16 crc_t10dif_arch(u16 crc, const u8 *p, size_t len);
 u16 crc_t10dif_generic(u16 crc, const u8 *p, size_t len);
 

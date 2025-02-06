@@ -1081,15 +1081,6 @@ config CRYPTO_CRC32
 
 	  Used by RoCEv2 and f2fs.
 
-config CRYPTO_CRCT10DIF
-	tristate "CRCT10DIF"
-	select CRYPTO_HASH
-	select CRC_T10DIF
-	help
-	  CRC16 CRC algorithm used for the T10 (SCSI) Data Integrity Field (DIF)
-
-	  CRC algorithm used by the SCSI Block Commands standard.
-
 endmenu
 
 menu "Compression"
