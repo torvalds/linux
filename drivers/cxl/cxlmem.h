@@ -506,8 +506,6 @@ static inline struct cxl_dev_state *mbox_to_cxlds(struct cxl_mailbox *cxl_mbox)
  * @partition_align_bytes: alignment size for partition-able capacity
  * @active_volatile_bytes: sum of hard + soft volatile
  * @active_persistent_bytes: sum of hard + soft persistent
- * @next_volatile_bytes: volatile capacity change pending device reset
- * @next_persistent_bytes: persistent capacity change pending device reset
  * @event: event log driver state
  * @poison: poison driver state info
  * @security: security driver state info
@@ -528,8 +526,6 @@ struct cxl_memdev_state {
 	u64 partition_align_bytes;
 	u64 active_volatile_bytes;
 	u64 active_persistent_bytes;
-	u64 next_volatile_bytes;
-	u64 next_persistent_bytes;
 
 	struct cxl_event_state event;
 	struct cxl_poison_state poison;
