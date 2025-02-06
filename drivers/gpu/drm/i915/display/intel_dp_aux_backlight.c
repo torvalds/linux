@@ -474,12 +474,42 @@ static u32 intel_dp_aux_vesa_get_backlight(struct intel_connector *connector, en
 	return connector->panel.backlight.level;
 }
 
+static int
+intel_dp_aux_vesa_set_luminance(struct intel_connector *connector, u32 level)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+	u8 buf[3];
+	int ret;
+
+	level = level * 1000;
+	level &= 0xffffff;
+	buf[0] = (level & 0x0000ff);
+	buf[1] = (level & 0x00ff00) >> 8;
+	buf[2] = (level & 0xff0000) >> 16;
+
+	ret = drm_dp_dpcd_write(&intel_dp->aux, DP_EDP_PANEL_TARGET_LUMINANCE_VALUE,
+				buf, sizeof(buf));
+	if (ret != sizeof(buf)) {
+		drm_err(intel_dp->aux.drm_dev,
+			"%s: Failed to set VESA Aux Luminance: %d\n",
+			intel_dp->aux.name, ret);
+		return -EINVAL;
+	} else {
+		return 0;
+	}
+}
+
 static void
 intel_dp_aux_vesa_set_backlight(const struct drm_connector_state *conn_state, u32 level)
 {
 	struct intel_connector *connector = to_intel_connector(conn_state->connector);
 	struct intel_panel *panel = &connector->panel;
 	struct intel_dp *intel_dp = enc_to_intel_dp(connector->encoder);
+
+	if (panel->backlight.edp.vesa.luminance_control_support) {
+		if (!intel_dp_aux_vesa_set_luminance(connector, level))
+			return;
+	}
 
 	if (!panel->backlight.edp.vesa.info.aux_set) {
 		const u32 pwm_level = intel_backlight_level_to_pwm(connector, level);
