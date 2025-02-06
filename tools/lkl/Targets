@@ -25,8 +25,13 @@ progs-$(LKL_HOST_CONFIG_ARCHIVE) += cptofs
 LDLIBS_cptofs-y := -larchive
 LDLIBS_cptofs-$(LKL_HOST_CONFIG_NEEDS_LARGP) += -largp
 
-progs-y += tests/boot
+# tools/build/Makefile.build does not support parallel builds when
+# objects are shared between build objects so keep the test that uses
+# the most common object first and insert a build barrier to avoid
+# rebuilding common objects
 progs-y += tests/disk
+progs-y += .WAIT
+progs-y += tests/boot
 progs-y += tests/disk-vfio-pci
 progs-y += tests/net-test
 progs-y += tests/config

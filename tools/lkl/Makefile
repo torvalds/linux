@@ -50,8 +50,14 @@ export CFLAGS += -I$(OUTPUT)/include -Iinclude -Wall -g -O2 -Wextra \
 
 -include Targets
 
-TARGETS := $(progs-y:%=$(OUTPUT)%$(EXESUF))
-TARGETS += $(libs-y:%=$(OUTPUT)%$(SOSUF))
+# Expand targets to output location and suffix but preserve special
+# targets (e.g. .WAIT)
+# $1 - targets
+# $2 - suffix
+expand-targets = $(foreach t,$(1),$(if $(filter .%,$(t)),$(t),$(OUTPUT)$(t)$(2)))
+
+TARGETS := $(call expand-targets,$(progs-y),$(EXESUF))
+TARGETS += $(call expand-targets,$(libs-y),$(SOSUF))
 all: $(TARGETS)
 
 # this workaround is for FreeBSD
@@ -135,7 +141,7 @@ libraries_install: $(libs-y:%=$(OUTPUT)%$(SOSUF)) $(OUTPUT)liblkl.a
 	    install -d $(DESTDIR)$(LIBDIR) ; \
 	    install -m 644 $^ $(DESTDIR)$(LIBDIR)
 
-programs_install: $(progs-y:%=$(OUTPUT)%$(EXESUF))
+programs_install: $(call expand-targets,$(progs-y),$(EXESUF))
 	$(call QUIET_INSTALL, programs) \
 	    install -d $(DESTDIR)$(BINDIR) ; \
 	    install -m 755 $^ $(DESTDIR)$(BINDIR)
@@ -157,4 +163,4 @@ FORCE: ;
 .PHONY: headers_install libraries_install programs_install install
 .NOTPARALLEL : lib/lkl.o
 .SECONDARY:
-
+.WAIT:
