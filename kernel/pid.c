@@ -339,17 +339,23 @@ static struct pid **task_pid_ptr(struct task_struct *task, enum pid_type type)
  */
 void attach_pid(struct task_struct *task, enum pid_type type)
 {
-	struct pid *pid = *task_pid_ptr(task, type);
+	struct pid *pid;
+
+	lockdep_assert_held_write(&tasklist_lock);
+
+	pid = *task_pid_ptr(task, type);
 	hlist_add_head_rcu(&task->pid_links[type], &pid->tasks[type]);
 }
 
 static void __change_pid(struct task_struct *task, enum pid_type type,
 			struct pid *new)
 {
-	struct pid **pid_ptr = task_pid_ptr(task, type);
-	struct pid *pid;
+	struct pid **pid_ptr, *pid;
 	int tmp;
 
+	lockdep_assert_held_write(&tasklist_lock);
+
+	pid_ptr = task_pid_ptr(task, type);
 	pid = *pid_ptr;
 
 	hlist_del_rcu(&task->pid_links[type]);
@@ -386,6 +392,8 @@ void exchange_tids(struct task_struct *left, struct task_struct *right)
 	struct hlist_head *head1 = &pid1->tasks[PIDTYPE_PID];
 	struct hlist_head *head2 = &pid2->tasks[PIDTYPE_PID];
 
+	lockdep_assert_held_write(&tasklist_lock);
+
 	/* Swap the single entry tid lists */
 	hlists_swap_heads_rcu(head1, head2);
 
@@ -403,6 +411,7 @@ void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
 	WARN_ON_ONCE(type == PIDTYPE_PID);
+	lockdep_assert_held_write(&tasklist_lock);
 	hlist_replace_rcu(&old->pid_links[type], &new->pid_links[type]);
 }
 
