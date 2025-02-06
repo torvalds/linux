@@ -617,6 +617,20 @@ struct snd_sof_pcm *snd_sof_find_spcm_comp(struct snd_soc_component *scomp,
 void snd_sof_pcm_period_elapsed(struct snd_pcm_substream *substream);
 void snd_sof_pcm_init_elapsed_work(struct work_struct *work);
 
+/*
+ * snd_sof_pcm specific wrappers for dev_dbg() and dev_err() to provide
+ * consistent and useful prints.
+ */
+#define spcm_dbg(__spcm, __dir, __fmt, ...)					\
+	dev_dbg((__spcm)->scomp->dev, "pcm%u (%s), dir %d: " __fmt,		\
+		(__spcm)->pcm.pcm_id, (__spcm)->pcm.pcm_name, __dir,		\
+		##__VA_ARGS__)
+
+#define spcm_err(__spcm, __dir, __fmt, ...)					\
+	dev_err((__spcm)->scomp->dev, "%s: pcm%u (%s), dir %d: " __fmt,		\
+		__func__, (__spcm)->pcm.pcm_id, (__spcm)->pcm.pcm_name, __dir,	\
+		##__VA_ARGS__)
+
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
 void snd_sof_compr_fragment_elapsed(struct snd_compr_stream *cstream);
 void snd_sof_compr_init_elapsed_work(struct work_struct *work);
