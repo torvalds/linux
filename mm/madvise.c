@@ -1639,6 +1639,35 @@ static bool is_valid_madvise(unsigned long start, size_t len_in, int behavior)
 	return true;
 }
 
+static int madvise_do_behavior(struct mm_struct *mm,
+		unsigned long start, size_t len_in, size_t len, int behavior)
+{
+	struct blk_plug plug;
+	unsigned long end;
+	int error;
+
+#ifdef CONFIG_MEMORY_FAILURE
+	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+		return madvise_inject_error(behavior, start, start + len_in);
+#endif
+	start = untagged_addr_remote(mm, start);
+	end = start + len;
+
+	blk_start_plug(&plug);
+	switch (behavior) {
+	case MADV_POPULATE_READ:
+	case MADV_POPULATE_WRITE:
+		error = madvise_populate(mm, start, end, behavior);
+		break;
+	default:
+		error = madvise_walk_vmas(mm, start, end, behavior,
+					  madvise_vma_behavior);
+		break;
+	}
+	blk_finish_plug(&plug);
+	return error;
+}
+
 /*
  * The madvise(2) system call.
  *
@@ -1716,7 +1745,6 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	unsigned long end;
 	int error;
 	size_t len;
-	struct blk_plug plug;
 
 	if (!is_valid_madvise(start, len_in, behavior))
 		return -EINVAL;
@@ -1730,28 +1758,7 @@ int do_madvise(struct mm_struct *mm, unsigned long start, size_t len_in, int beh
 	error = madvise_lock(mm, behavior);
 	if (error)
 		return error;
-
-#ifdef CONFIG_MEMORY_FAILURE
-	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-		return madvise_inject_error(behavior, start, start + len_in);
-#endif
-
-	start = untagged_addr_remote(mm, start);
-	end = start + len;
-
-	blk_start_plug(&plug);
-	switch (behavior) {
-	case MADV_POPULATE_READ:
-	case MADV_POPULATE_WRITE:
-		error = madvise_populate(mm, start, end, behavior);
-		break;
-	default:
-		error = madvise_walk_vmas(mm, start, end, behavior,
-					  madvise_vma_behavior);
-		break;
-	}
-	blk_finish_plug(&plug);
-
+	error = madvise_do_behavior(mm, start, len_in, len, behavior);
 	madvise_unlock(mm, behavior);
 
 	return error;
