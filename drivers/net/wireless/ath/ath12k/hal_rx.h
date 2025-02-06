@@ -22,9 +22,6 @@ struct hal_rx_wbm_rel_info {
 #define HAL_INVALID_PEERID	0x3fff
 #define VHT_SIG_SU_NSS_MASK 0x7
 
-#define HAL_RX_MAX_MCS 12
-#define HAL_RX_MAX_NSS 8
-
 #define HAL_RX_MPDU_INFO_PN_GET_BYTE1(__val) \
 	le32_get_bits((__val), GENMASK(7, 0))
 

@@ -16,6 +16,16 @@ void ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 				     struct ath12k_fw_stats *stats);
 void ath12k_debugfs_fw_stats_reset(struct ath12k *ar);
 
+static inline bool ath12k_debugfs_is_extd_rx_stats_enabled(struct ath12k *ar)
+{
+	return ar->debug.extd_rx_stats;
+}
+
+static inline int ath12k_debugfs_rx_filter(struct ath12k *ar)
+{
+	return ar->debug.rx_filter;
+}
+
 #define ATH12K_CCK_RATES			4
 #define ATH12K_OFDM_RATES			8
 #define ATH12K_HT_RATES				8
@@ -97,7 +107,6 @@ enum ath12k_debug_tpc_stats_support_modes {
 	ATH12K_TPC_STATS_SUPPORT_BE,
 	ATH12K_TPC_STATS_SUPPORT_BE_PUNC,
 };
-
 #else
 static inline void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
@@ -122,6 +131,16 @@ static inline void ath12k_debugfs_fw_stats_process(struct ath12k *ar,
 
 static inline void ath12k_debugfs_fw_stats_reset(struct ath12k *ar)
 {
+}
+
+static inline bool ath12k_debugfs_is_extd_rx_stats_enabled(struct ath12k *ar)
+{
+	return false;
+}
+
+static inline int ath12k_debugfs_rx_filter(struct ath12k *ar)
+{
+	return 0;
 }
 #endif /* CONFIG_ATH12K_DEBUGFS */
 

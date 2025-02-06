@@ -5,6 +5,7 @@
  */
 
 #include "core.h"
+#include "dp_tx.h"
 #include "debug.h"
 #include "debugfs.h"
 #include "debugfs_htt_stats.h"
@@ -740,6 +741,98 @@ static const struct file_operations fops_tpc_stats_type = {
 	.llseek = default_llseek,
 };
 
+static ssize_t ath12k_write_extd_rx_stats(struct file *file,
+					  const char __user *ubuf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath12k *ar = file->private_data;
+	struct htt_rx_ring_tlv_filter tlv_filter = {0};
+	u32 ring_id, rx_filter = 0;
+	bool enable;
+	int ret, i;
+
+	if (kstrtobool_from_user(ubuf, count, &enable))
+		return -EINVAL;
+
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
+
+	if (!ar->ab->hw_params->rxdma1_enable) {
+		ret = count;
+		goto exit;
+	}
+
+	if (ar->ah->state != ATH12K_HW_STATE_ON) {
+		ret = -ENETDOWN;
+		goto exit;
+	}
+
+	if (enable == ar->debug.extd_rx_stats) {
+		ret = count;
+		goto exit;
+	}
+
+	if (enable) {
+		rx_filter =  HTT_RX_FILTER_TLV_FLAGS_MPDU_START;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_START;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_END;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS_EXT;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE;
+		rx_filter |= HTT_RX_FILTER_TLV_FLAGS_PPDU_START_USER_INFO;
+
+		tlv_filter.rx_filter = rx_filter;
+		tlv_filter.pkt_filter_flags0 = HTT_RX_FP_MGMT_FILTER_FLAGS0;
+		tlv_filter.pkt_filter_flags1 = HTT_RX_FP_MGMT_FILTER_FLAGS1;
+		tlv_filter.pkt_filter_flags2 = HTT_RX_FP_CTRL_FILTER_FLASG2;
+		tlv_filter.pkt_filter_flags3 = HTT_RX_FP_CTRL_FILTER_FLASG3 |
+			HTT_RX_FP_DATA_FILTER_FLASG3;
+	} else {
+		tlv_filter = ath12k_mac_mon_status_filter_default;
+	}
+
+	ar->debug.rx_filter = tlv_filter.rx_filter;
+
+	for (i = 0; i < ar->ab->hw_params->num_rxdma_per_pdev; i++) {
+		ring_id = ar->dp.rxdma_mon_dst_ring[i].ring_id;
+		ret = ath12k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id + i,
+						       HAL_RXDMA_MONITOR_DST,
+						       DP_RXDMA_REFILL_RING_SIZE,
+						       &tlv_filter);
+		if (ret) {
+			ath12k_warn(ar->ab, "failed to set rx filter for monitor status ring\n");
+			goto exit;
+		}
+	}
+
+	ar->debug.extd_rx_stats = !!enable;
+	ret = count;
+exit:
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
+	return ret;
+}
+
+static ssize_t ath12k_read_extd_rx_stats(struct file *file,
+					 char __user *ubuf,
+					 size_t count, loff_t *ppos)
+{
+	struct ath12k *ar = file->private_data;
+	char buf[32];
+	int len = 0;
+
+	wiphy_lock(ath12k_ar_to_hw(ar)->wiphy);
+	len = scnprintf(buf, sizeof(buf) - len, "%d\n",
+			ar->debug.extd_rx_stats);
+	wiphy_unlock(ath12k_ar_to_hw(ar)->wiphy);
+
+	return simple_read_from_buffer(ubuf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_extd_rx_stats = {
+	.read = ath12k_read_extd_rx_stats,
+	.write = ath12k_write_extd_rx_stats,
+	.open = simple_open,
+};
+
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
@@ -1184,6 +1277,10 @@ void ath12k_debugfs_register(struct ath12k *ar)
 
 	ath12k_debugfs_htt_stats_register(ar);
 	ath12k_debugfs_fw_stats_register(ar);
+
+	debugfs_create_file("ext_rx_stats", 0644,
+			    ar->debug.debugfs_pdev, ar,
+			    &fops_extd_rx_stats);
 }
 
 void ath12k_debugfs_unregister(struct ath12k *ar)
