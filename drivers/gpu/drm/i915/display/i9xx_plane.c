@@ -780,13 +780,13 @@ unsigned int vlv_plane_min_alignment(struct intel_plane *plane,
 				     const struct drm_framebuffer *fb,
 				     int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 
 	if (intel_plane_can_async_flip(plane, fb->modifier))
 		return 256 * 1024;
 
 	/* FIXME undocumented so not sure what's actually needed */
-	if (intel_scanout_needs_vtd_wa(i915))
+	if (intel_scanout_needs_vtd_wa(display))
 		return 256 * 1024;
 
 	switch (fb->modifier) {
@@ -804,12 +804,12 @@ static unsigned int g4x_primary_min_alignment(struct intel_plane *plane,
 					      const struct drm_framebuffer *fb,
 					      int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 
 	if (intel_plane_can_async_flip(plane, fb->modifier))
 		return 256 * 1024;
 
-	if (intel_scanout_needs_vtd_wa(i915))
+	if (intel_scanout_needs_vtd_wa(display))
 		return 256 * 1024;
 
 	switch (fb->modifier) {
@@ -865,6 +865,7 @@ static const struct drm_plane_funcs i8xx_plane_funcs = {
 struct intel_plane *
 intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *plane;
 	const struct drm_plane_funcs *plane_funcs;
 	unsigned int supported_rotations;
@@ -959,7 +960,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->min_alignment = i9xx_plane_min_alignment;
 
 	/* FIXME undocumented for VLV/CHV so not sure what's actually needed */
-	if (intel_scanout_needs_vtd_wa(dev_priv))
+	if (intel_scanout_needs_vtd_wa(display))
 		plane->vtd_guard = 128;
 
 	if (IS_I830(dev_priv) || IS_I845G(dev_priv)) {

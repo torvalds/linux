@@ -980,9 +980,9 @@ static unsigned int g4x_sprite_min_alignment(struct intel_plane *plane,
 					     const struct drm_framebuffer *fb,
 					     int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 
-	if (intel_scanout_needs_vtd_wa(i915))
+	if (intel_scanout_needs_vtd_wa(display))
 		return 128 * 1024;
 
 	return 4 * 1024;
@@ -1610,7 +1610,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_cdclk = vlv_plane_min_cdclk;
 
 		/* FIXME undocumented for VLV/CHV so not sure what's actually needed */
-		if (intel_scanout_needs_vtd_wa(dev_priv))
+		if (intel_scanout_needs_vtd_wa(display))
 			plane->vtd_guard = 128;
 
 		if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B) {
@@ -1639,7 +1639,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 		plane->min_alignment = g4x_sprite_min_alignment;
 
-		if (intel_scanout_needs_vtd_wa(dev_priv))
+		if (intel_scanout_needs_vtd_wa(display))
 			plane->vtd_guard = 64;
 
 		formats = snb_sprite_formats;
@@ -1656,7 +1656,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane->min_alignment = g4x_sprite_min_alignment;
 		plane->min_cdclk = g4x_sprite_min_cdclk;
 
-		if (intel_scanout_needs_vtd_wa(dev_priv))
+		if (intel_scanout_needs_vtd_wa(display))
 			plane->vtd_guard = 64;
 
 		if (IS_SANDYBRIDGE(dev_priv)) {

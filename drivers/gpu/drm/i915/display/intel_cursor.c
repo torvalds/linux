@@ -372,9 +372,9 @@ static unsigned int i9xx_cursor_min_alignment(struct intel_plane *plane,
 					      const struct drm_framebuffer *fb,
 					      int color_plane)
 {
-	struct drm_i915_private *i915 = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 
-	if (intel_scanout_needs_vtd_wa(i915))
+	if (intel_scanout_needs_vtd_wa(display))
 		return 64 * 1024;
 
 	return 4 * 1024; /* physical for i915/i945 */
@@ -989,6 +989,7 @@ struct intel_plane *
 intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 			  enum pipe pipe)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_plane *cursor;
 	int ret, zpos;
 	u64 *modifiers;
@@ -1019,7 +1020,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 		else
 			cursor->min_alignment = i9xx_cursor_min_alignment;
 
-		if (intel_scanout_needs_vtd_wa(dev_priv))
+		if (intel_scanout_needs_vtd_wa(display))
 			cursor->vtd_guard = 2;
 
 		cursor->update_arm = i9xx_cursor_update_arm;

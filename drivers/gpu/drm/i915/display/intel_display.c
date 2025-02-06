@@ -8784,7 +8784,9 @@ void intel_hpd_poll_fini(struct drm_i915_private *i915)
 	drm_connector_list_iter_end(&conn_iter);
 }
 
-bool intel_scanout_needs_vtd_wa(struct drm_i915_private *i915)
+bool intel_scanout_needs_vtd_wa(struct intel_display *display)
 {
-	return IS_DISPLAY_VER(i915, 6, 11) && i915_vtd_active(i915);
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
+	return IS_DISPLAY_VER(display, 6, 11) && i915_vtd_active(i915);
 }

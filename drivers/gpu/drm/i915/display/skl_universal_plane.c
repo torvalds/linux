@@ -2697,6 +2697,7 @@ struct intel_plane *
 skl_universal_plane_create(struct drm_i915_private *dev_priv,
 			   enum pipe pipe, enum plane_id plane_id)
 {
+	struct intel_display *display = &dev_priv->display;
 	const struct drm_plane_funcs *plane_funcs;
 	struct intel_plane *plane;
 	enum drm_plane_type plane_type;
@@ -2750,7 +2751,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 	else
 		plane->min_alignment = skl_plane_min_alignment;
 
-	if (intel_scanout_needs_vtd_wa(dev_priv))
+	if (intel_scanout_needs_vtd_wa(display))
 		plane->vtd_guard = DISPLAY_VER(dev_priv) >= 10 ? 168 : 136;
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
