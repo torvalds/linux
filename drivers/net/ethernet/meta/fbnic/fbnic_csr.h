@@ -677,6 +677,9 @@ enum {
 
 #define FBNIC_RPC_TCAM_OUTER_IPSRC(m, n)\
 	(0x08c00 + 0x08 * (n) + (m))		/* 0x023000 + 32*n + 4*m */
+#define FBNIC_RPC_TCAM_IP_ADDR_VALUE		CSR_GENMASK(15, 0)
+#define FBNIC_RPC_TCAM_IP_ADDR_MASK		CSR_GENMASK(31, 16)
+
 #define FBNIC_RPC_TCAM_OUTER_IPDST(m, n)\
 	(0x08c48 + 0x08 * (n) + (m))		/* 0x023120 + 32*n + 4*m */
 #define FBNIC_RPC_TCAM_IPSRC(m, n)\

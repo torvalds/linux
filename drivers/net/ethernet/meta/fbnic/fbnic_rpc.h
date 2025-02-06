@@ -7,6 +7,8 @@
 #include <uapi/linux/in6.h>
 #include <linux/bitfield.h>
 
+struct in_addr;
+
 /*  The TCAM state definitions follow an expected ordering.
  *  They start out disabled, then move through the following states:
  *  Disabled  0	-> Add	      2
@@ -32,6 +34,12 @@ enum {
 #define FBNIC_RPC_TCAM_MACDA_WORD_LEN		3
 #define FBNIC_RPC_TCAM_MACDA_NUM_ENTRIES	32
 
+/* 8 IPSRC and IPDST TCAM Entries each
+ * 8 registers, Validate each
+ */
+#define FBNIC_RPC_TCAM_IP_ADDR_WORD_LEN		8
+#define FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES	8
+
 #define FBNIC_RPC_TCAM_ACT_WORD_LEN		11
 #define FBNIC_RPC_TCAM_ACT_NUM_ENTRIES		64
 
@@ -43,6 +51,13 @@ struct fbnic_mac_addr {
 		unsigned char addr8[ETH_ALEN];
 		__be16 addr16[FBNIC_RPC_TCAM_MACDA_WORD_LEN];
 	} mask, value;
+	unsigned char state;
+	DECLARE_BITMAP(act_tcam, FBNIC_RPC_TCAM_ACT_NUM_ENTRIES);
+};
+
+struct fbnic_ip_addr {
+	struct in6_addr mask, value;
+	unsigned char version;
 	unsigned char state;
 	DECLARE_BITMAP(act_tcam, FBNIC_RPC_TCAM_ACT_NUM_ENTRIES);
 };
@@ -176,6 +191,17 @@ struct fbnic_mac_addr *__fbnic_mc_sync(struct fbnic_dev *fbd,
 				       const unsigned char *addr);
 void fbnic_sift_macda(struct fbnic_dev *fbd);
 void fbnic_write_macda(struct fbnic_dev *fbd);
+
+struct fbnic_ip_addr *__fbnic_ip4_sync(struct fbnic_dev *fbd,
+				       struct fbnic_ip_addr *ip_addr,
+				       const struct in_addr *addr,
+				       const struct in_addr *mask);
+struct fbnic_ip_addr *__fbnic_ip6_sync(struct fbnic_dev *fbd,
+				       struct fbnic_ip_addr *ip_addr,
+				       const struct in6_addr *addr,
+				       const struct in6_addr *mask);
+int __fbnic_ip_unsync(struct fbnic_ip_addr *ip_addr, unsigned int tcam_idx);
+void fbnic_write_ip_addr(struct fbnic_dev *fbd);
 
 static inline int __fbnic_uc_unsync(struct fbnic_mac_addr *mac_addr)
 {
