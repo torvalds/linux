@@ -442,7 +442,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 		    INTEL_NUM_PIPES(display) > 1 ? "s" : "");
 
 	for_each_pipe(display, pipe) {
-		ret = intel_crtc_init(i915, pipe);
+		ret = intel_crtc_init(display, pipe);
 		if (ret)
 			goto err_mode_config;
 	}

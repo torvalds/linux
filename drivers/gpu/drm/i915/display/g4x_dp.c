@@ -224,7 +224,7 @@ static void ilk_edp_pll_on(struct intel_dp *intel_dp,
 	 * 2. Program DP PLL enable
 	 */
 	if (IS_IRONLAKE(dev_priv))
-		intel_wait_for_vblank_if_active(dev_priv, !crtc->pipe);
+		intel_wait_for_vblank_if_active(display, !crtc->pipe);
 
 	intel_dp->DP |= DP_PLL_ENABLE;
 
@@ -471,7 +471,7 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_de_write(display, intel_dp->output_reg, intel_dp->DP);
 		intel_de_posting_read(display, intel_dp->output_reg);
 
-		intel_wait_for_vblank_if_active(dev_priv, PIPE_A);
+		intel_wait_for_vblank_if_active(display, PIPE_A);
 		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
 	}

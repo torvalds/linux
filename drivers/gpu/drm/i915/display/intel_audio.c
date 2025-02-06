@@ -954,13 +954,12 @@ static int glk_force_audio_cdclk_commit(struct intel_atomic_state *state,
 static void glk_force_audio_cdclk(struct intel_display *display,
 				  bool enable)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
 	struct intel_crtc *crtc;
 	int ret;
 
-	crtc = intel_first_crtc(i915);
+	crtc = intel_first_crtc(display);
 	if (!crtc)
 		return;
 
