@@ -363,6 +363,7 @@ static const struct xe_device_desc ptl_desc = {
 	PLATFORM(PANTHERLAKE),
 	.dma_mask_size = 46,
 	.has_display = true,
+	.has_sriov = true,
 	.require_force_probe = true,
 };
 
