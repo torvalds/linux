@@ -1640,6 +1640,21 @@ static CLOSURE_CALLBACK(journal_write_done)
 		j->err_seq	= seq;
 	w->write_done = true;
 
+	if (!j->free_buf || j->free_buf_size < w->buf_size) {
+		swap(j->free_buf,	w->data);
+		swap(j->free_buf_size,	w->buf_size);
+	}
+
+	if (w->data) {
+		void *buf = w->data;
+		w->data = NULL;
+		w->buf_size = 0;
+
+		spin_unlock(&j->lock);
+		kvfree(buf);
+		spin_lock(&j->lock);
+	}
+
 	bool completed = false;
 
 	for (seq = journal_last_unwritten_seq(j);
@@ -1649,7 +1664,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 		if (!w->write_done)
 			break;
 
-		if (!j->err_seq && !JSET_NO_FLUSH(w->data)) {
+		if (!j->err_seq && !w->noflush) {
 			j->flushed_seq_ondisk = seq;
 			j->last_seq_ondisk = w->last_seq;
 

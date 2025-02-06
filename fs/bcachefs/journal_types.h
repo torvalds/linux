@@ -156,6 +156,7 @@ enum journal_flags {
 	x(journal_full)			\
 	x(journal_pin_full)		\
 	x(journal_stuck)		\
+	x(enomem)			\
 	x(insufficient_devices)
 
 enum journal_errors {
@@ -218,6 +219,8 @@ struct journal {
 	 * other is possibly being written out.
 	 */
 	struct journal_buf	buf[JOURNAL_BUF_NR];
+	void			*free_buf;
+	unsigned		free_buf_size;
 
 	spinlock_t		lock;
 
