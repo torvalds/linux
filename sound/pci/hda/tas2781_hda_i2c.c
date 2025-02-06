@@ -594,7 +594,6 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 	efi_guid_t efi_guid = EFI_GUID(0x02f9af02, 0x7734, 0x4233, 0xb4, 0x3d,
 		0x93, 0xfe, 0x5a, 0xa3, 0x5d, 0xb3);
 	static efi_char16_t efi_name[] = L"CALI_DATA";
-	struct tm *tm = &tas_priv->tm;
 	unsigned int attr, crc;
 	unsigned int *tmp_val;
 	efi_status_t status;
@@ -629,10 +628,9 @@ static int tas2781_save_calibration(struct tasdevice_priv *tas_priv)
 		crc, tmp_val[21]);
 
 	if (crc == tmp_val[21]) {
-		time64_to_tm(tmp_val[20], 0, tm);
-		dev_dbg(tas_priv->dev, "%4ld-%2d-%2d, %2d:%2d:%2d\n",
-			tm->tm_year, tm->tm_mon, tm->tm_mday,
-			tm->tm_hour, tm->tm_min, tm->tm_sec);
+		time64_t seconds = tmp_val[20];
+
+		dev_dbg(tas_priv->dev, "%ptTsr\n", &seconds);
 		tasdevice_apply_calibration(tas_priv);
 	} else
 		tas_priv->cali_data.total_sz = 0;

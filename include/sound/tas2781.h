@@ -161,7 +161,6 @@ struct tasdevice_priv {
 	struct mutex codec_lock;
 	struct regmap *regmap;
 	struct device *dev;
-	struct tm tm;
 
 	enum device_catlog_id catlog_id;
 	unsigned char cal_binaryname[TASDEVICE_MAX_CHANNELS][64];
