@@ -2209,7 +2209,6 @@ F:	sound/soc/codecs/cs42l84.*
 F:	sound/soc/codecs/ssm3515.c
 
 ARM/APPLE MACHINE SUPPORT
-M:	Hector Martin <marcan@marcan.st>
 M:	Sven Peter <sven@svenpeter.dev>
 R:	Alyssa Rosenzweig <alyssa@rosenzweig.io>
 L:	asahi@lists.linux.dev
