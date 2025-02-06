@@ -713,13 +713,15 @@ void intel_add_fb_offsets(int *x, int *y,
 	*y += state->view.color_plane[color_plane].y;
 }
 
-u32 intel_plane_fb_max_stride(struct drm_i915_private *dev_priv,
+u32 intel_plane_fb_max_stride(struct drm_device *drm,
 			      u32 pixel_format, u64 modifier)
 {
+	struct intel_display *display = to_intel_display(drm);
+	struct drm_i915_private *dev_priv = to_i915(drm);
 	struct intel_crtc *crtc;
 	struct intel_plane *plane;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(display))
 		return 0;
 
 	/*
