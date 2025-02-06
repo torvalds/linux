@@ -41,6 +41,8 @@ static u32 iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 
 	if (!atomic_dec_and_test(&ioend->io_remaining))
 		return 0;
+	if (ioend->io_flags & IOMAP_IOEND_DIRECT)
+		return iomap_finish_ioend_direct(ioend);
 	return iomap_finish_ioend_buffered(ioend);
 }
 
