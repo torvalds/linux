@@ -1722,3 +1722,26 @@ bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
 		adev->gmc.xgmi.hive_id &&
 		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
 }
+
+void amdgpu_xgmi_early_init(struct amdgpu_device *adev)
+{
+	if (!adev->gmc.xgmi.supported)
+		return;
+
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(9, 4, 0):
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
+		adev->gmc.xgmi.max_speed = XGMI_SPEED_25GT;
+		adev->gmc.xgmi.max_width = 16;
+		break;
+	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
+		adev->gmc.xgmi.max_speed = XGMI_SPEED_32GT;
+		adev->gmc.xgmi.max_width = 16;
+		break;
+	default:
+		break;
+	}
+}

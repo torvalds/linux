@@ -25,6 +25,12 @@
 #include <drm/task_barrier.h>
 #include "amdgpu_ras.h"
 
+enum amdgpu_xgmi_link_speed {
+	XGMI_SPEED_16GT = 16,
+	XGMI_SPEED_25GT = 25,
+	XGMI_SPEED_32GT = 32
+};
+
 struct amdgpu_hive_info {
 	struct kobject kobj;
 	uint64_t hive_id;
@@ -91,6 +97,8 @@ struct amdgpu_xgmi {
 	struct ras_common_if *ras_if;
 	bool connected_to_cpu;
 	struct amdgpu_xgmi_ras *ras;
+	enum amdgpu_xgmi_link_speed max_speed;
+	uint8_t max_width;
 };
 
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
@@ -117,5 +125,8 @@ int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
 				   int req_nps_mode);
 int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev,
 				int global_link_num);
+
+void amdgpu_xgmi_early_init(struct amdgpu_device *adev);
+uint32_t amdgpu_xgmi_get_max_bandwidth(struct amdgpu_device *adev);
 
 #endif
