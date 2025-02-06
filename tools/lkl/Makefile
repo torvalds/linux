@@ -57,6 +57,7 @@ export CFLAGS += -I$(OUTPUT)/include -Iinclude -Wall -g -O2 -Wextra \
 expand-targets = $(foreach t,$(1),$(if $(filter .%,$(t)),$(t),$(OUTPUT)$(t)$(2)))
 
 TARGETS := $(call expand-targets,$(progs-y),$(EXESUF))
+TARGETS += $(call expand-targets,$(tests-y),$(EXESUF))
 TARGETS += $(call expand-targets,$(libs-y),$(SOSUF))
 all: $(TARGETS)
 
