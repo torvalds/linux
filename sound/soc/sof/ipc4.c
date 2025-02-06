@@ -825,8 +825,14 @@ static void sof_ipc4_exit(struct snd_sof_dev *sdev)
 
 static int sof_ipc4_post_boot(struct snd_sof_dev *sdev)
 {
-	if (sdev->first_boot)
+	if (sdev->first_boot) {
+		int  ret = sof_ipc4_complete_split_release(sdev);
+
+		if (ret)
+			return ret;
+
 		return sof_ipc4_query_fw_configuration(sdev);
+	}
 
 	return sof_ipc4_reload_fw_libraries(sdev);
 }
