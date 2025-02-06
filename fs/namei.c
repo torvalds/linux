@@ -218,11 +218,6 @@ struct filename *getname_uflags(const char __user *filename, int uflags)
 	return getname_flags(filename, flags);
 }
 
-struct filename *getname(const char __user * filename)
-{
-	return getname_flags(filename, 0);
-}
-
 struct filename *__getname_maybe_null(const char __user *pathname)
 {
 	struct filename *name;

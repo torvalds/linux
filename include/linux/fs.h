@@ -2842,7 +2842,10 @@ extern int filp_close(struct file *, fl_owner_t id);
 
 extern struct filename *getname_flags(const char __user *, int);
 extern struct filename *getname_uflags(const char __user *, int);
-extern struct filename *getname(const char __user *);
+static inline struct filename *getname(const char __user *name)
+{
+	return getname_flags(name, 0);
+}
 extern struct filename *getname_kernel(const char *);
 extern struct filename *__getname_maybe_null(const char __user *);
 static inline struct filename *getname_maybe_null(const char __user *name, int flags)
