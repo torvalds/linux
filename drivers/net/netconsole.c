@@ -694,7 +694,15 @@ out_unlock:
  */
 static size_t count_extradata_entries(struct netconsole_target *nt)
 {
-	return list_count_nodes(&nt->userdata_group.cg_children);
+	size_t entries;
+
+	/* Userdata entries */
+	entries = list_count_nodes(&nt->userdata_group.cg_children);
+	/* Plus sysdata entries */
+	if (nt->sysdata_fields & CPU_NR)
+		entries += 1;
+
+	return entries;
 }
 
 static ssize_t remote_mac_store(struct config_item *item, const char *buf,
