@@ -484,7 +484,9 @@ struct skbuf_dma_descriptor {
  * @regs:	Base address for the axienet_local device address space
  * @dma_regs:	Base address for the axidma device address space
  * @napi_rx:	NAPI RX control structure
+ * @rx_cr_lock: Lock protecting @rx_dma_cr, its register, and @rx_dma_started
  * @rx_dma_cr:  Nominal content of RX DMA control register
+ * @rx_dma_started: Set when RX DMA is started
  * @rx_bd_v:	Virtual address of the RX buffer descriptor ring
  * @rx_bd_p:	Physical address(start address) of the RX buffer descr. ring
  * @rx_bd_num:	Size of RX buffer descriptor ring
@@ -494,7 +496,9 @@ struct skbuf_dma_descriptor {
  * @rx_bytes:	RX byte count for statistics
  * @rx_stat_sync: Synchronization object for RX stats
  * @napi_tx:	NAPI TX control structure
+ * @tx_cr_lock: Lock protecting @tx_dma_cr, its register, and @tx_dma_started
  * @tx_dma_cr:  Nominal content of TX DMA control register
+ * @tx_dma_started: Set when TX DMA is started
  * @tx_bd_v:	Virtual address of the TX buffer descriptor ring
  * @tx_bd_p:	Physical address(start address) of the TX buffer descr. ring
  * @tx_bd_num:	Size of TX buffer descriptor ring
@@ -566,7 +570,9 @@ struct axienet_local {
 	void __iomem *dma_regs;
 
 	struct napi_struct napi_rx;
+	spinlock_t rx_cr_lock;
 	u32 rx_dma_cr;
+	bool rx_dma_started;
 	struct axidma_bd *rx_bd_v;
 	dma_addr_t rx_bd_p;
 	u32 rx_bd_num;
@@ -576,7 +582,9 @@ struct axienet_local {
 	struct u64_stats_sync rx_stat_sync;
 
 	struct napi_struct napi_tx;
+	spinlock_t tx_cr_lock;
 	u32 tx_dma_cr;
+	bool tx_dma_started;
 	struct axidma_bd *tx_bd_v;
 	dma_addr_t tx_bd_p;
 	u32 tx_bd_num;

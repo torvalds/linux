@@ -266,15 +266,11 @@ static u32 axienet_calc_cr(struct axienet_local *lp, u32 count, u32 usec)
  */
 static void axienet_dma_start(struct axienet_local *lp)
 {
-	/* Start updating the Rx channel control register */
-	lp->rx_dma_cr = axienet_calc_cr(lp, lp->coalesce_count_rx,
-					lp->coalesce_usec_rx);
-	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
+	spin_lock_irq(&lp->rx_cr_lock);
 
-	/* Start updating the Tx channel control register */
-	lp->tx_dma_cr = axienet_calc_cr(lp, lp->coalesce_count_tx,
-					lp->coalesce_usec_tx);
-	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, lp->tx_dma_cr);
+	/* Start updating the Rx channel control register */
+	lp->rx_dma_cr &= ~XAXIDMA_CR_RUNSTOP_MASK;
+	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
 
 	/* Populate the tail pointer and bring the Rx Axi DMA engine out of
 	 * halted state. This will make the Rx side ready for reception.
@@ -284,6 +280,14 @@ static void axienet_dma_start(struct axienet_local *lp)
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
 	axienet_dma_out_addr(lp, XAXIDMA_RX_TDESC_OFFSET, lp->rx_bd_p +
 			     (sizeof(*lp->rx_bd_v) * (lp->rx_bd_num - 1)));
+	lp->rx_dma_started = true;
+
+	spin_unlock_irq(&lp->rx_cr_lock);
+	spin_lock_irq(&lp->tx_cr_lock);
+
+	/* Start updating the Tx channel control register */
+	lp->tx_dma_cr &= ~XAXIDMA_CR_RUNSTOP_MASK;
+	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, lp->tx_dma_cr);
 
 	/* Write to the RS (Run-stop) bit in the Tx channel control register.
 	 * Tx channel is now ready to run. But only after we write to the
@@ -292,6 +296,9 @@ static void axienet_dma_start(struct axienet_local *lp)
 	axienet_dma_out_addr(lp, XAXIDMA_TX_CDESC_OFFSET, lp->tx_bd_p);
 	lp->tx_dma_cr |= XAXIDMA_CR_RUNSTOP_MASK;
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, lp->tx_dma_cr);
+	lp->tx_dma_started = true;
+
+	spin_unlock_irq(&lp->tx_cr_lock);
 }
 
 /**
@@ -627,14 +634,22 @@ static void axienet_dma_stop(struct axienet_local *lp)
 	int count;
 	u32 cr, sr;
 
-	cr = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
-	cr &= ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
+	spin_lock_irq(&lp->rx_cr_lock);
+
+	cr = lp->rx_dma_cr & ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
 	axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
+	lp->rx_dma_started = false;
+
+	spin_unlock_irq(&lp->rx_cr_lock);
 	synchronize_irq(lp->rx_irq);
 
-	cr = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
-	cr &= ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
+	spin_lock_irq(&lp->tx_cr_lock);
+
+	cr = lp->tx_dma_cr & ~(XAXIDMA_CR_RUNSTOP_MASK | XAXIDMA_IRQ_ALL_MASK);
 	axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
+	lp->tx_dma_started = false;
+
+	spin_unlock_irq(&lp->tx_cr_lock);
 	synchronize_irq(lp->tx_irq);
 
 	/* Give DMAs a chance to halt gracefully */
@@ -983,7 +998,9 @@ static int axienet_tx_poll(struct napi_struct *napi, int budget)
 		 * cause an immediate interrupt if any TX packets are
 		 * already pending.
 		 */
+		spin_lock_irq(&lp->tx_cr_lock);
 		axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, lp->tx_dma_cr);
+		spin_unlock_irq(&lp->tx_cr_lock);
 	}
 	return packets;
 }
@@ -1249,7 +1266,9 @@ static int axienet_rx_poll(struct napi_struct *napi, int budget)
 		 * cause an immediate interrupt if any RX packets are
 		 * already pending.
 		 */
+		spin_lock_irq(&lp->rx_cr_lock);
 		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, lp->rx_dma_cr);
+		spin_unlock_irq(&lp->rx_cr_lock);
 	}
 	return packets;
 }
@@ -1287,11 +1306,14 @@ static irqreturn_t axienet_tx_irq(int irq, void *_ndev)
 		/* Disable further TX completion interrupts and schedule
 		 * NAPI to handle the completions.
 		 */
-		u32 cr = lp->tx_dma_cr;
-
-		cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 		if (napi_schedule_prep(&lp->napi_tx)) {
+			u32 cr;
+
+			spin_lock(&lp->tx_cr_lock);
+			cr = lp->tx_dma_cr;
+			cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 			axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
+			spin_unlock(&lp->tx_cr_lock);
 			__napi_schedule(&lp->napi_tx);
 		}
 	}
@@ -1332,11 +1354,15 @@ static irqreturn_t axienet_rx_irq(int irq, void *_ndev)
 		/* Disable further RX completion interrupts and schedule
 		 * NAPI receive.
 		 */
-		u32 cr = lp->rx_dma_cr;
-
-		cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 		if (napi_schedule_prep(&lp->napi_rx)) {
+			u32 cr;
+
+			spin_lock(&lp->rx_cr_lock);
+			cr = lp->rx_dma_cr;
+			cr &= ~(XAXIDMA_IRQ_IOC_MASK | XAXIDMA_IRQ_DELAY_MASK);
 			axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
+			spin_unlock(&lp->rx_cr_lock);
+
 			__napi_schedule(&lp->napi_rx);
 		}
 	}
@@ -2003,6 +2029,62 @@ axienet_ethtools_set_pauseparam(struct net_device *ndev,
 }
 
 /**
+ * axienet_update_coalesce_rx() - Set RX CR
+ * @lp: Device private data
+ * @cr: Value to write to the RX CR
+ * @mask: Bits to set from @cr
+ */
+static void axienet_update_coalesce_rx(struct axienet_local *lp, u32 cr,
+				       u32 mask)
+{
+	spin_lock_irq(&lp->rx_cr_lock);
+	lp->rx_dma_cr &= ~mask;
+	lp->rx_dma_cr |= cr;
+	/* If DMA isn't started, then the settings will be applied the next
+	 * time dma_start() is called.
+	 */
+	if (lp->rx_dma_started) {
+		u32 reg = axienet_dma_in32(lp, XAXIDMA_RX_CR_OFFSET);
+
+		/* Don't enable IRQs if they are disabled by NAPI */
+		if (reg & XAXIDMA_IRQ_ALL_MASK)
+			cr = lp->rx_dma_cr;
+		else
+			cr = lp->rx_dma_cr & ~XAXIDMA_IRQ_ALL_MASK;
+		axienet_dma_out32(lp, XAXIDMA_RX_CR_OFFSET, cr);
+	}
+	spin_unlock_irq(&lp->rx_cr_lock);
+}
+
+/**
+ * axienet_update_coalesce_tx() - Set TX CR
+ * @lp: Device private data
+ * @cr: Value to write to the TX CR
+ * @mask: Bits to set from @cr
+ */
+static void axienet_update_coalesce_tx(struct axienet_local *lp, u32 cr,
+				       u32 mask)
+{
+	spin_lock_irq(&lp->tx_cr_lock);
+	lp->tx_dma_cr &= ~mask;
+	lp->tx_dma_cr |= cr;
+	/* If DMA isn't started, then the settings will be applied the next
+	 * time dma_start() is called.
+	 */
+	if (lp->tx_dma_started) {
+		u32 reg = axienet_dma_in32(lp, XAXIDMA_TX_CR_OFFSET);
+
+		/* Don't enable IRQs if they are disabled by NAPI */
+		if (reg & XAXIDMA_IRQ_ALL_MASK)
+			cr = lp->tx_dma_cr;
+		else
+			cr = lp->tx_dma_cr & ~XAXIDMA_IRQ_ALL_MASK;
+		axienet_dma_out32(lp, XAXIDMA_TX_CR_OFFSET, cr);
+	}
+	spin_unlock_irq(&lp->tx_cr_lock);
+}
+
+/**
  * axienet_ethtools_get_coalesce - Get DMA interrupt coalescing count.
  * @ndev:	Pointer to net_device structure
  * @ecoalesce:	Pointer to ethtool_coalesce structure
@@ -2050,12 +2132,7 @@ axienet_ethtools_set_coalesce(struct net_device *ndev,
 			      struct netlink_ext_ack *extack)
 {
 	struct axienet_local *lp = netdev_priv(ndev);
-
-	if (netif_running(ndev)) {
-		NL_SET_ERR_MSG(extack,
-			       "Please stop netif before applying configuration");
-		return -EBUSY;
-	}
+	u32 cr;
 
 	if (ecoalesce->rx_max_coalesced_frames > 255 ||
 	    ecoalesce->tx_max_coalesced_frames > 255) {
@@ -2083,6 +2160,11 @@ axienet_ethtools_set_coalesce(struct net_device *ndev,
 	lp->coalesce_count_tx = ecoalesce->tx_max_coalesced_frames;
 	lp->coalesce_usec_tx = ecoalesce->tx_coalesce_usecs;
 
+	cr = axienet_calc_cr(lp, lp->coalesce_count_rx, lp->coalesce_usec_rx);
+	axienet_update_coalesce_rx(lp, cr, ~XAXIDMA_CR_RUNSTOP_MASK);
+
+	cr = axienet_calc_cr(lp, lp->coalesce_count_tx, lp->coalesce_usec_tx);
+	axienet_update_coalesce_tx(lp, cr, ~XAXIDMA_CR_RUNSTOP_MASK);
 	return 0;
 }
 
@@ -2862,10 +2944,16 @@ static int axienet_probe(struct platform_device *pdev)
 		axienet_set_mac_address(ndev, NULL);
 	}
 
+	spin_lock_init(&lp->rx_cr_lock);
+	spin_lock_init(&lp->tx_cr_lock);
 	lp->coalesce_count_rx = XAXIDMA_DFT_RX_THRESHOLD;
 	lp->coalesce_count_tx = XAXIDMA_DFT_TX_THRESHOLD;
 	lp->coalesce_usec_rx = XAXIDMA_DFT_RX_USEC;
 	lp->coalesce_usec_tx = XAXIDMA_DFT_TX_USEC;
+	lp->rx_dma_cr = axienet_calc_cr(lp, lp->coalesce_count_rx,
+					lp->coalesce_usec_rx);
+	lp->tx_dma_cr = axienet_calc_cr(lp, lp->coalesce_count_tx,
+					lp->coalesce_usec_tx);
 
 	ret = axienet_mdio_setup(lp);
 	if (ret)
