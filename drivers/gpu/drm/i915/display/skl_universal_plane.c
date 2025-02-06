@@ -1706,6 +1706,7 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 			      const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 
@@ -1715,15 +1716,16 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	if (rotation & ~(DRM_MODE_ROTATE_0 | DRM_MODE_ROTATE_180) &&
 	    intel_fb_is_ccs_modifier(fb->modifier)) {
 		drm_dbg_kms(display->drm,
-			    "RC support only with 0/180 degree rotation (%x)\n",
-			    rotation);
+			    "[PLANE:%d:%s] RC support only with 0/180 degree rotation (%x)\n",
+			    plane->base.base.id, plane->base.name, rotation);
 		return -EINVAL;
 	}
 
 	if (rotation & DRM_MODE_REFLECT_X &&
 	    fb->modifier == DRM_FORMAT_MOD_LINEAR) {
 		drm_dbg_kms(display->drm,
-			    "horizontal flip is not supported with linear surface formats\n");
+			    "[PLANE:%d:%s] horizontal flip is not supported with linear surface formats\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -1734,14 +1736,16 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	    intel_fb_is_tile4_modifier(fb->modifier) &&
 	    DISPLAY_VER(display) >= 20) {
 		drm_dbg_kms(display->drm,
-			    "horizontal flip is not supported with tile4 surface formats\n");
+			    "[PLANE:%d:%s] horizontal flip is not supported with tile4 surface formats\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
 	if (drm_rotation_90_or_270(rotation)) {
 		if (!intel_fb_supports_90_270_rotation(to_intel_framebuffer(fb))) {
 			drm_dbg_kms(display->drm,
-				    "Y/Yf tiling required for 90/270!\n");
+				    "[PLANE:%d:%s] Y/Yf tiling required for 90/270!\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 
@@ -1765,8 +1769,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 		case DRM_FORMAT_XVYU12_16161616:
 		case DRM_FORMAT_XVYU16161616:
 			drm_dbg_kms(display->drm,
-				    "Unsupported pixel format %p4cc for 90/270!\n",
-				    &fb->format->format);
+				    "[PLANE:%d:%s] unsupported pixel format %p4cc for 90/270!\n",
+				    plane->base.base.id, plane->base.name, &fb->format->format);
 			return -EINVAL;
 		default:
 			break;
@@ -1779,7 +1783,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	    fb->modifier != DRM_FORMAT_MOD_LINEAR &&
 	    fb->modifier != I915_FORMAT_MOD_X_TILED) {
 		drm_dbg_kms(display->drm,
-			    "Y/Yf tiling not supported in IF-ID mode\n");
+			    "[PLANE:%d:%s] Y/Yf tiling not supported in IF-ID mode\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -1788,7 +1793,8 @@ static int skl_plane_check_fb(const struct intel_crtc_state *crtc_state,
 	    plane_state->ckey.flags & I915_SET_COLORKEY_SOURCE &&
 	    intel_format_is_p01x(fb->format->format)) {
 		drm_dbg_kms(display->drm,
-			    "Source color keying not supported with P01x formats\n");
+			    "[PLANE:%d:%s] source color keying not supported with P01x formats\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -1799,6 +1805,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 					   const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	int crtc_x = plane_state->uapi.dst.x1;
 	int crtc_w = drm_rect_width(&plane_state->uapi.dst);
 	int pipe_src_w = drm_rect_width(&crtc_state->pipe_src);
@@ -1815,7 +1822,8 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 	if (DISPLAY_VER(display) == 10 &&
 	    (crtc_x + crtc_w < 4 || crtc_x > pipe_src_w - 4)) {
 		drm_dbg_kms(display->drm,
-			    "requested plane X %s position %d invalid (valid range %d-%d)\n",
+			    "[PLANE:%d:%s] requested plane X %s position %d invalid (valid range %d-%d)\n",
+			    plane->base.base.id, plane->base.name,
 			    crtc_x + crtc_w < 4 ? "end" : "start",
 			    crtc_x + crtc_w < 4 ? crtc_x + crtc_w : crtc_x,
 			    4, pipe_src_w - 4);
@@ -1828,6 +1836,7 @@ static int skl_plane_check_dst_coordinates(const struct intel_crtc_state *crtc_s
 static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int rotation = plane_state->hw.rotation;
 	int src_w = drm_rect_width(&plane_state->uapi.src) >> 16;
@@ -1837,7 +1846,9 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	    src_w & 3 &&
 	    (rotation == DRM_MODE_ROTATE_270 ||
 	     rotation == (DRM_MODE_REFLECT_X | DRM_MODE_ROTATE_90))) {
-		drm_dbg_kms(display->drm, "src width must be multiple of 4 for rotated planar YUV\n");
+		drm_dbg_kms(display->drm,
+			    "[PLANE:%d:%s] src width must be multiple of 4 for rotated planar YUV\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -1977,7 +1988,8 @@ int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 		while ((*x + w) * cpp > plane_state->view.color_plane[0].mapping_stride) {
 			if (*offset == 0) {
 				drm_dbg_kms(display->drm,
-					    "Unable to find suitable display surface offset due to X-tiling\n");
+					    "[PLANE:%d:%s] unable to find suitable display surface offset due to X-tiling\n",
+					    plane->base.base.id, plane->base.name);
 				return -EINVAL;
 			}
 
@@ -2010,7 +2022,8 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 
 	if (w > max_width || w < min_width || h > max_height || h < 1) {
 		drm_dbg_kms(display->drm,
-			    "requested Y/RGB source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
+			    "[PLANE:%d:%s] requested Y/RGB source size %dx%d outside limits (min: %dx1 max: %dx%d)\n",
+			    plane->base.base.id, plane->base.name,
 			    w, h, min_width, max_width, max_height);
 		return -EINVAL;
 	}
@@ -2037,7 +2050,8 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 		if (x != plane_state->view.color_plane[aux_plane].x ||
 		    y != plane_state->view.color_plane[aux_plane].y) {
 			drm_dbg_kms(display->drm,
-				    "Unable to find suitable display surface offset due to CCS\n");
+				    "[PLANE:%d:%s] unable to find suitable display surface offset due to CCS\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 	}
@@ -2081,7 +2095,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 	/* FIXME not quite sure how/if these apply to the chroma plane */
 	if (w > max_width || h > max_height) {
 		drm_dbg_kms(display->drm,
-			    "CbCr source size %dx%d too big (limit %dx%d)\n",
+			    "[PLANE:%d:%s] CbCr source size %dx%d too big (limit %dx%d)\n",
+			    plane->base.base.id, plane->base.name,
 			    w, h, max_width, max_height);
 		return -EINVAL;
 	}
@@ -2115,7 +2130,8 @@ static int skl_check_nv12_aux_surface(struct intel_plane_state *plane_state)
 		if (x != plane_state->view.color_plane[ccs_plane].x ||
 		    y != plane_state->view.color_plane[ccs_plane].y) {
 			drm_dbg_kms(display->drm,
-				    "Unable to find suitable display surface offset due to CCS\n");
+				    "[PLANE:%d:%s] unable to find suitable display surface offset due to CCS\n",
+				    plane->base.base.id, plane->base.name);
 			return -EINVAL;
 		}
 	}
@@ -2899,7 +2915,8 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 	if (crtc_state->joiner_pipes) {
 		drm_dbg_kms(display->drm,
-			    "Unsupported joiner configuration for initial FB\n");
+			    "[CRTC:%d:%s] Unsupported joiner configuration for initial FB\n",
+			    crtc->base.base.id, crtc->base.name);
 		return;
 	}
 
@@ -3036,10 +3053,11 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 	plane_config->size = fb->pitches[0] * aligned_height;
 
 	drm_dbg_kms(display->drm,
-		    "%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		    crtc->base.name, plane->base.name, fb->width, fb->height,
-		    fb->format->cpp[0] * 8, base, fb->pitches[0],
-		    plane_config->size);
+		    "[CRTC:%d:%s][PLANE:%d:%s] with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		    crtc->base.base.id, crtc->base.name,
+		    plane->base.base.id, plane->base.name,
+		    fb->width, fb->height, fb->format->cpp[0] * 8,
+		    base, fb->pitches[0], plane_config->size);
 
 	plane_config->fb = intel_fb;
 	return;

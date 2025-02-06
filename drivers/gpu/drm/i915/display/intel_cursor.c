@@ -92,6 +92,7 @@ static bool intel_cursor_size_ok(const struct intel_plane_state *plane_state)
 static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	unsigned int rotation = plane_state->hw.rotation;
 	int src_x, src_y;
 	u32 offset;
@@ -113,7 +114,8 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 
 	if (src_x != 0 || src_y != 0) {
 		drm_dbg_kms(display->drm,
-			    "Arbitrary cursor panning not supported\n");
+			    "[PLANE:%d:%s] arbitrary cursor panning not supported\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -144,13 +146,15 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	const struct drm_rect src = plane_state->uapi.src;
 	const struct drm_rect dst = plane_state->uapi.dst;
 	int ret;
 
 	if (fb && fb->modifier != DRM_FORMAT_MOD_LINEAR) {
-		drm_dbg_kms(display->drm, "cursor cannot be tiled\n");
+		drm_dbg_kms(display->drm, "[PLANE:%d:%s] cursor cannot be tiled\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 
@@ -232,6 +236,7 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 			     struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	int ret;
 
@@ -246,7 +251,8 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	/* Check for which cursor types we support */
 	if (!i845_cursor_size_ok(plane_state)) {
 		drm_dbg_kms(display->drm,
-			    "Cursor dimension %dx%d not supported\n",
+			    "[PLANE:%d:%s] cursor dimension %dx%d not supported\n",
+			    plane->base.base.id, plane->base.name,
 			    drm_rect_width(&plane_state->uapi.dst),
 			    drm_rect_height(&plane_state->uapi.dst));
 		return -EINVAL;
@@ -262,7 +268,8 @@ static int i845_check_cursor(struct intel_crtc_state *crtc_state,
 	case 2048:
 		break;
 	default:
-		 drm_dbg_kms(display->drm, "Invalid cursor stride (%u)\n",
+		 drm_dbg_kms(display->drm, "[PLANE:%d:%s] invalid cursor stride (%u)\n",
+			     plane->base.base.id, plane->base.name,
 			     fb->pitches[0]);
 		return -EINVAL;
 	}
@@ -489,10 +496,11 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 
 	/* Check for which cursor types we support */
 	if (!i9xx_cursor_size_ok(plane_state)) {
-		drm_dbg(display->drm,
-			"Cursor dimension %dx%d not supported\n",
-			drm_rect_width(&plane_state->uapi.dst),
-			drm_rect_height(&plane_state->uapi.dst));
+		drm_dbg_kms(display->drm,
+			    "[PLANE:%d:%s] cursor dimension %dx%d not supported\n",
+			    plane->base.base.id, plane->base.name,
+			    drm_rect_width(&plane_state->uapi.dst),
+			    drm_rect_height(&plane_state->uapi.dst));
 		return -EINVAL;
 	}
 
@@ -502,9 +510,9 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	if (fb->pitches[0] !=
 	    drm_rect_width(&plane_state->uapi.dst) * fb->format->cpp[0]) {
 		drm_dbg_kms(display->drm,
-			    "Invalid cursor stride (%u) (cursor width %d)\n",
-			    fb->pitches[0],
-			    drm_rect_width(&plane_state->uapi.dst));
+			    "[PLANE:%d:%s] invalid cursor stride (%u) (cursor width %d)\n",
+			    plane->base.base.id, plane->base.name,
+			    fb->pitches[0], drm_rect_width(&plane_state->uapi.dst));
 		return -EINVAL;
 	}
 
@@ -521,7 +529,8 @@ static int i9xx_check_cursor(struct intel_crtc_state *crtc_state,
 	if (display->platform.cherryview && pipe == PIPE_C &&
 	    plane_state->uapi.visible && plane_state->uapi.dst.x1 < 0) {
 		drm_dbg_kms(display->drm,
-			    "CHV cursor C not allowed to straddle the left screen edge\n");
+			    "[PLANE:%d:%s] cursor not allowed to straddle the left screen edge\n",
+			    plane->base.base.id, plane->base.name);
 		return -EINVAL;
 	}
 

@@ -244,8 +244,12 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	src_y = plane_state->uapi.src.y1 >> 16;
 
 	/* Undocumented hardware limit on i965/g4x/vlv/chv */
-	if (HAS_GMCH(display) && fb->format->cpp[0] == 8 && src_w > 2048)
+	if (HAS_GMCH(display) && fb->format->cpp[0] == 8 && src_w > 2048) {
+		drm_dbg_kms(display->drm,
+			    "[PLANE:%d:%s] plane too wide (%d) for 64bpp\n",
+			    plane->base.base.id, plane->base.name, src_w);
 		return -EINVAL;
+	}
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 
@@ -273,7 +277,8 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 		while ((src_x + src_w) * cpp > plane_state->view.color_plane[0].mapping_stride) {
 			if (offset == 0) {
 				drm_dbg_kms(display->drm,
-					    "Unable to find suitable display surface offset due to X-tiling\n");
+					    "[PLANE:%d:%s] unable to find suitable display surface offset due to X-tiling\n",
+					    plane->base.base.id, plane->base.name);
 				return -EINVAL;
 			}
 
@@ -1162,10 +1167,11 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 	plane_config->size = fb->pitches[0] * aligned_height;
 
 	drm_dbg_kms(display->drm,
-		    "%s/%s with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
-		    crtc->base.name, plane->base.name, fb->width, fb->height,
-		    fb->format->cpp[0] * 8, base, fb->pitches[0],
-		    plane_config->size);
+		    "[CRTC:%d:%s][PLANE:%d:%s] with fb: size=%dx%d@%d, offset=%x, pitch %d, size 0x%x\n",
+		    crtc->base.base.id, crtc->base.name,
+		    plane->base.base.id, plane->base.name,
+		    fb->width, fb->height, fb->format->cpp[0] * 8,
+		    base, fb->pitches[0], plane_config->size);
 
 	plane_config->fb = intel_fb;
 }

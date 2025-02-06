@@ -4495,9 +4495,9 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 
 		if (!linked_state) {
 			drm_dbg_kms(&dev_priv->drm,
-				    "Need %d free Y planes for planar YUV\n",
+				    "[CRTC:%d:%s] need %d free Y planes for planar YUV\n",
+				    crtc->base.base.id, crtc->base.name,
 				    hweight8(crtc_state->nv12_planes));
-
 			return -EINVAL;
 		}
 
@@ -4512,8 +4512,9 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			crtc_state->data_rate_y[plane->id];
 		crtc_state->rel_data_rate[linked->id] =
 			crtc_state->rel_data_rate_y[plane->id];
-		drm_dbg_kms(&dev_priv->drm, "Using %s as Y plane for %s\n",
-			    linked->base.name, plane->base.name);
+		drm_dbg_kms(&dev_priv->drm, "UV plane [PLANE:%d:%s] using [PLANE:%d:%s] as Y plane\n",
+			    plane->base.base.id, plane->base.name,
+			    linked->base.base.id, linked->base.name);
 
 		/* Copy parameters to slave plane */
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
