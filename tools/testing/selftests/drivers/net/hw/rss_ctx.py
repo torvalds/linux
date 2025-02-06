@@ -4,7 +4,8 @@
 import datetime
 import random
 import re
-from lib.py import ksft_run, ksft_pr, ksft_exit, ksft_eq, ksft_ne, ksft_ge, ksft_lt, ksft_true
+from lib.py import ksft_run, ksft_pr, ksft_exit
+from lib.py import ksft_eq, ksft_ne, ksft_ge, ksft_in, ksft_lt, ksft_true, ksft_raises
 from lib.py import NetDrvEpEnv
 from lib.py import EthtoolFamily, NetdevFamily
 from lib.py import KsftSkipEx, KsftFailEx
@@ -649,6 +650,29 @@ def test_rss_context_overlap2(cfg):
     test_rss_context_overlap(cfg, True)
 
 
+def test_flow_add_context_missing(cfg):
+    """
+    Test that we are not allowed to add a rule pointing to an RSS context
+    which was never created.
+    """
+
+    require_ntuple(cfg)
+
+    # Find a context which doesn't exist
+    for ctx_id in range(1, 100):
+        try:
+            get_rss(cfg, context=ctx_id)
+        except CmdExitFailure:
+            break
+
+    with ksft_raises(CmdExitFailure) as cm:
+        flow = f"flow-type tcp{cfg.addr_ipver} dst-ip {cfg.addr} dst-port 1234 context {ctx_id}"
+        ntuple_id = ethtool_create(cfg, "-N", flow)
+        ethtool(f"-N {cfg.ifname} delete {ntuple_id}")
+    if cm.exception:
+        ksft_in('Invalid argument', cm.exception.cmd.stderr)
+
+
 def test_delete_rss_context_busy(cfg):
     """
     Test that deletion returns -EBUSY when an rss context is being used
@@ -726,6 +750,7 @@ def main() -> None:
                   test_rss_context_dump, test_rss_context_queue_reconfigure,
                   test_rss_context_overlap, test_rss_context_overlap2,
                   test_rss_context_out_of_order, test_rss_context4_create_with_cfg,
+                  test_flow_add_context_missing,
                   test_delete_rss_context_busy, test_rss_ntuple_addition],
                  args=(cfg, ))
     ksft_exit()
