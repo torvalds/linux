@@ -30,22 +30,8 @@
 static inline int _soc_pcm_ret(struct snd_soc_pcm_runtime *rtd,
 			       const char *func, int ret)
 {
-	/* Positive, Zero values are not errors */
-	if (ret >= 0)
-		return ret;
-
-	/* Negative values might be errors */
-	switch (ret) {
-	case -EPROBE_DEFER:
-	case -ENOTSUPP:
-		break;
-	default:
-		dev_err(rtd->dev,
-			"ASoC: error at %s on %s: %d\n",
-			func, rtd->dai_link->name, ret);
-	}
-
-	return ret;
+	return snd_soc_ret(rtd->dev, ret,
+			   "at %s() on %s\n", func, rtd->dai_link->name);
 }
 
 /* is the current PCM operation for this FE ? */
@@ -252,11 +238,9 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 	int stream;
 	char *buf;
 
-	if (fe->dai_link->num_cpus > 1) {
-		dev_err(fe->dev,
+	if (fe->dai_link->num_cpus > 1)
+		return snd_soc_ret(fe->dev, -EINVAL,
 			"%s doesn't support Multi CPU yet\n", __func__);
-		return -EINVAL;
-	}
 
 	buf = kmalloc(out_count, GFP_KERNEL);
 	if (!buf)
@@ -474,12 +458,9 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 		ret = snd_pcm_hw_constraint_single(substream->runtime,	\
 						   SNDRV_PCM_HW_PARAM_##NAME,\
 						   soc_dai->symmetric_##name);	\
-		if (ret < 0) {						\
-			dev_err(soc_dai->dev,				\
-				"ASoC: Unable to apply %s constraint: %d\n",\
-				#name, ret);				\
-			return ret;					\
-		}							\
+		if (ret < 0)							\
+			return snd_soc_ret(soc_dai->dev, ret,			\
+				"Unable to apply %s constraint\n", #name);	\
 	}
 
 	__soc_pcm_apply_symmetry(rate,		RATE);
@@ -510,12 +491,11 @@ static int soc_pcm_params_symmetry(struct snd_pcm_substream *substream,
 		for_each_rtd_cpu_dais(rtd, i, cpu_dai)			\
 			if (!snd_soc_dai_is_dummy(cpu_dai) &&		\
 			    cpu_dai->symmetric_##xxx &&			\
-			    cpu_dai->symmetric_##xxx != d.symmetric_##xxx) { \
-				dev_err(rtd->dev, "ASoC: unmatched %s symmetry: %s:%d - %s:%d\n", \
-					#xxx, cpu_dai->name, cpu_dai->symmetric_##xxx, \
-					d.name, d.symmetric_##xxx);	\
-				return -EINVAL;				\
-			}
+			    cpu_dai->symmetric_##xxx != d.symmetric_##xxx) \
+				return snd_soc_ret(rtd->dev, -EINVAL,	\
+						   "unmatched %s symmetry: %s:%d - %s:%d\n", \
+						   #xxx, cpu_dai->name, cpu_dai->symmetric_##xxx, \
+						   d.name, d.symmetric_##xxx);
 
 	/* reject unmatched parameters when applying symmetry */
 	__soc_pcm_params_symmetry(rate);
@@ -860,9 +840,8 @@ static int soc_hw_sanity_check(struct snd_pcm_substream *substream)
 	return 0;
 
 config_err:
-	dev_err(dev, "ASoC: %s <-> %s No matching %s\n",
-		name_codec, name_cpu, err_msg);
-	return -EINVAL;
+	return snd_soc_ret(dev, -EINVAL,
+			"%s <-> %s No matching %s\n", name_codec, name_cpu, err_msg);
 }
 
 /*
@@ -1333,11 +1312,11 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	fe_substream = snd_soc_dpcm_get_substream(fe, stream);
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
 
-	if (!fe_substream->pcm->nonatomic && be_substream->pcm->nonatomic) {
-		dev_err(be->dev, "%s: FE is atomic but BE is nonatomic, invalid configuration\n",
-			__func__);
-		return -EINVAL;
-	}
+	if (!fe_substream->pcm->nonatomic && be_substream->pcm->nonatomic)
+		return snd_soc_ret(be->dev, -EINVAL,
+			"%s: %s is atomic but %s is nonatomic, invalid configuration\n",
+				   __func__, fe->dai_link->name, be->dai_link->name);
+
 	if (fe_substream->pcm->nonatomic && !be_substream->pcm->nonatomic) {
 		dev_dbg(be->dev, "FE is nonatomic but BE is not, forcing BE as nonatomic\n");
 		be_substream->pcm->nonatomic = 1;
@@ -1507,11 +1486,9 @@ int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(fe, 0);
 	int paths;
 
-	if (fe->dai_link->num_cpus > 1) {
-		dev_err(fe->dev,
+	if (fe->dai_link->num_cpus > 1)
+		return snd_soc_ret(fe->dev, -EINVAL,
 			"%s doesn't support Multi CPU yet\n", __func__);
-		return -EINVAL;
-	}
 
 	/* get number of valid DAI paths and their widgets */
 	paths = snd_soc_dapm_dai_get_connected_widgets(cpu_dai, stream, list,
@@ -2402,23 +2379,23 @@ static int dpcm_dai_trigger_fe_be(struct snd_pcm_substream *substream,
 
 		ret = soc_pcm_trigger(substream, cmd);
 		if (ret < 0)
-			return ret;
+			goto end;
 
 		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-		return ret;
+		goto end;
 	}
 
 	/* call trigger on the frontend after the backend. */
 	ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
 	if (ret < 0)
-		return ret;
+		goto end;
 
 	dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
 		fe->dai_link->name, cmd);
 
 	ret = soc_pcm_trigger(substream, cmd);
-
-	return ret;
+end:
+	return snd_soc_ret(fe->dev, ret, "trigger FE cmd: %d failed\n", cmd);
 }
 
 static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
@@ -2474,11 +2451,8 @@ static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 		goto out;
 	}
 
-	if (ret < 0) {
-		dev_err(fe->dev, "ASoC: trigger FE cmd: %d failed: %d\n",
-			cmd, ret);
+	if (ret < 0)
 		goto out;
-	}
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -2707,11 +2681,9 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	if (!fe->dai_link->dynamic)
 		return 0;
 
-	if (fe->dai_link->num_cpus > 1) {
-		dev_err(fe->dev,
+	if (fe->dai_link->num_cpus > 1)
+		return snd_soc_ret(fe->dev, -EINVAL,
 			"%s doesn't support Multi CPU yet\n", __func__);
-		return -EINVAL;
-	}
 
 	/* only check active links */
 	if (!snd_soc_dai_active(snd_soc_rtd_to_cpu(fe, 0)))
@@ -2782,7 +2754,8 @@ int snd_soc_dpcm_runtime_update(struct snd_soc_card *card)
 
 out:
 	snd_soc_dpcm_mutex_unlock(card);
-	return ret;
+
+	return snd_soc_ret(card->dev, ret, "%s() failed\n", __func__);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_runtime_update);
 
@@ -2856,10 +2829,9 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	int has_capture  = 0;
 	int i;
 
-	if (dai_link->dynamic && dai_link->num_cpus > 1) {
-		dev_err(rtd->dev, "DPCM doesn't support Multi CPU for Front-Ends yet\n");
-		return -EINVAL;
-	}
+	if (dai_link->dynamic && dai_link->num_cpus > 1)
+		return snd_soc_ret(rtd->dev, -EINVAL,
+				"DPCM doesn't support Multi CPU for Front-Ends yet\n");
 
 	/* Adapt stream for codec2codec links */
 	cpu_capture  = snd_soc_get_stream_cpu(dai_link, SNDRV_PCM_STREAM_CAPTURE);
@@ -2901,12 +2873,9 @@ static int soc_get_playback_capture(struct snd_soc_pcm_runtime *rtd,
 	if (dai_link->capture_only)
 		has_playback = 0;
 
-	if (!has_playback && !has_capture) {
-		dev_err(rtd->dev, "substream %s has no playback, no capture\n",
-			dai_link->stream_name);
-
-		return -EINVAL;
-	}
+	if (!has_playback && !has_capture)
+		return snd_soc_ret(rtd->dev, -EINVAL,
+			"substream %s has no playback, no capture\n", dai_link->stream_name);
 
 	*playback = has_playback;
 	*capture  = has_capture;
@@ -2946,11 +2915,10 @@ static int soc_create_pcm(struct snd_pcm **pcm,
 		ret = snd_pcm_new(rtd->card->snd_card, new_name, rtd->id, playback,
 			capture, pcm);
 	}
-	if (ret < 0) {
-		dev_err(rtd->card->dev, "ASoC: can't create pcm %s for dailink %s: %d\n",
-			new_name, rtd->dai_link->name, ret);
-		return ret;
-	}
+	if (ret < 0)
+		return snd_soc_ret(rtd->dev, ret,
+			"can't create pcm %s for dailink %s\n", new_name, rtd->dai_link->name);
+
 	dev_dbg(rtd->card->dev, "ASoC: registered pcm #%d %s\n", rtd->id, new_name);
 
 	return 0;
