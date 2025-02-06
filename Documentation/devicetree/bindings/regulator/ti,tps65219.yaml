@@ -4,7 +4,7 @@
 $id: http://devicetree.org/schemas/regulator/ti,tps65219.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: TI TPS65215/TPS65219 Power Management Integrated Circuits
+title: TI TPS65214/TPS65215/TPS65219 Power Management Integrated Circuit
 
 maintainers:
   - Jerome Neanne <jerome.neanne@baylibre.com>
@@ -18,9 +18,13 @@ description: |
   TI TPS65215 is a derivative of TPS65219 with 3 Buck regulators, 2 Low
   Drop-out Regulators (LDOs), 1 GPIO, 1 GPO, and power-button.
 
+  TI TPS65214 is a derivative of TPS65219 with 3 Buck regulators, 2 Low
+  Drop-out Regulators (LDOs), 1 GPIO, 1 GPO, and power-button.
+
 properties:
   compatible:
     enum:
+      - ti,tps65214
       - ti,tps65215
       - ti,tps65219
 
@@ -102,7 +106,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: ti,tps65215
+            enum:
+              - ti,tps65214
+              - ti,tps65215
     then:
       properties:
         regulators:
