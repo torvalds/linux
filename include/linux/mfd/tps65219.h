@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Functions to access TPS65219 Power Management IC.
+ * Functions to access TPS65215/TPS65219 Power Management Integrated Chips
  *
  * Copyright (C) 2022 BayLibre Incorporated - https://www.baylibre.com/
+ * Copyright (C) 2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 #ifndef MFD_TPS65219_H
@@ -13,8 +14,11 @@
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
 
-/* TPS chip id list */
-#define TPS65219					0xF0
+/* Chip id list*/
+enum pmic_id {
+	TPS65215,
+	TPS65219,
+};
 
 /* I2C ID for TPS65219 part */
 #define TPS65219_I2C_ID					0x24
@@ -26,6 +30,7 @@
 #define TPS65219_REG_BUCKS_CONFIG			0x03
 #define TPS65219_REG_LDO4_VOUT				0x04
 #define TPS65219_REG_LDO3_VOUT				0x05
+#define TPS65215_REG_LDO2_VOUT                          0x05
 #define TPS65219_REG_LDO2_VOUT				0x06
 #define TPS65219_REG_LDO1_VOUT				0x07
 #define TPS65219_REG_BUCK3_VOUT				0x8
@@ -33,6 +38,7 @@
 #define TPS65219_REG_BUCK1_VOUT				0xA
 #define TPS65219_REG_LDO4_SEQUENCE_SLOT			0xB
 #define TPS65219_REG_LDO3_SEQUENCE_SLOT			0xC
+#define TPS65215_REG_LDO2_SEQUENCE_SLOT                 0xC
 #define TPS65219_REG_LDO2_SEQUENCE_SLOT			0xD
 #define TPS65219_REG_LDO1_SEQUENCE_SLOT			0xE
 #define TPS65219_REG_BUCK3_SEQUENCE_SLOT		0xF
@@ -67,9 +73,16 @@
 #define TPS65219_REG_DISCHARGE_CONFIG			0x2A
 /* main irq registers */
 #define TPS65219_REG_INT_SOURCE				0x2B
-/* 'sub irq' registers */
+
+/* TPS65219 'sub irq' registers */
 #define TPS65219_REG_INT_LDO_3_4			0x2C
 #define TPS65219_REG_INT_LDO_1_2			0x2D
+
+/* TPS65215 specific 'sub irq' registers */
+#define TPS65215_REG_INT_LDO_2				0x2C
+#define TPS65215_REG_INT_LDO_1				0x2D
+
+/* Common TPS65215 & TPS65219 'sub irq' registers */
 #define TPS65219_REG_INT_BUCK_3				0x2E
 #define TPS65219_REG_INT_BUCK_1_2			0x2F
 #define TPS65219_REG_INT_SYSTEM				0x30
@@ -85,6 +98,9 @@
 #define TPS65219_REG_INT_RV_POS				5
 #define TPS65219_REG_INT_TO_RV_POS			6
 #define TPS65219_REG_INT_PB_POS				7
+
+#define TPS65215_REG_INT_LDO_2_POS			0
+#define TPS65215_REG_INT_LDO_1_POS			1
 
 #define TPS65219_REG_USER_NVM_CMD			0x34
 #define TPS65219_REG_POWER_UP_STATUS			0x35
@@ -107,6 +123,7 @@
 #define TPS65219_ENABLE_LDO1_EN_MASK			BIT(3)
 #define TPS65219_ENABLE_LDO2_EN_MASK			BIT(4)
 #define TPS65219_ENABLE_LDO3_EN_MASK			BIT(5)
+#define TPS65215_ENABLE_LDO2_EN_MASK                    BIT(5)
 #define TPS65219_ENABLE_LDO4_EN_MASK			BIT(6)
 /* power ON-OFF sequence slot */
 #define TPS65219_BUCKS_LDOS_SEQUENCE_OFF_SLOT_MASK	GENMASK(3, 0)
@@ -172,6 +189,13 @@
 #define TPS65219_INT_LDO2_SCG_MASK			BIT(3)
 #define TPS65219_INT_LDO2_OC_MASK			BIT(4)
 #define TPS65219_INT_LDO2_UV_MASK			BIT(5)
+/* TPS65215 LDO1-2*/
+#define TPS65215_INT_LDO1_SCG_MASK			BIT(0)
+#define TPS65215_INT_LDO1_OC_MASK			BIT(1)
+#define TPS65215_INT_LDO1_UV_MASK			BIT(2)
+#define TPS65215_INT_LDO2_SCG_MASK			BIT(0)
+#define TPS65215_INT_LDO2_OC_MASK			BIT(1)
+#define TPS65215_INT_LDO2_UV_MASK			BIT(2)
 /* BUCK3 */
 #define TPS65219_INT_BUCK3_SCG_MASK			BIT(0)
 #define TPS65219_INT_BUCK3_OC_MASK			BIT(1)
@@ -202,6 +226,7 @@
 #define TPS65219_INT_LDO1_RV_MASK			BIT(3)
 #define TPS65219_INT_LDO2_RV_MASK			BIT(4)
 #define TPS65219_INT_LDO3_RV_MASK			BIT(5)
+#define TPS65215_INT_LDO2_RV_MASK			BIT(5)
 #define TPS65219_INT_LDO4_RV_MASK			BIT(6)
 /* Residual Voltage ShutDown */
 #define TPS65219_INT_BUCK1_RV_SD_MASK			BIT(0)
@@ -210,6 +235,7 @@
 #define TPS65219_INT_LDO1_RV_SD_MASK			BIT(3)
 #define TPS65219_INT_LDO2_RV_SD_MASK			BIT(4)
 #define TPS65219_INT_LDO3_RV_SD_MASK			BIT(5)
+#define TPS65215_INT_LDO2_RV_SD_MASK			BIT(5)
 #define TPS65219_INT_LDO4_RV_SD_MASK			BIT(6)
 #define TPS65219_INT_TIMEOUT_MASK			BIT(7)
 /* Power Button */
@@ -235,6 +261,14 @@ enum {
 	TPS65219_INT_LDO4_SCG,
 	TPS65219_INT_LDO4_OC,
 	TPS65219_INT_LDO4_UV,
+	/* TPS65215 LDO1*/
+	TPS65215_INT_LDO1_SCG,
+	TPS65215_INT_LDO1_OC,
+	TPS65215_INT_LDO1_UV,
+	/* TPS65215 LDO2*/
+	TPS65215_INT_LDO2_SCG,
+	TPS65215_INT_LDO2_OC,
+	TPS65215_INT_LDO2_UV,
 	/* LDO1-2 */
 	TPS65219_INT_LDO1_SCG,
 	TPS65219_INT_LDO1_OC,
@@ -271,6 +305,7 @@ enum {
 	TPS65219_INT_BUCK3_RV,
 	TPS65219_INT_LDO1_RV,
 	TPS65219_INT_LDO2_RV,
+	TPS65215_INT_LDO2_RV,
 	TPS65219_INT_LDO3_RV,
 	TPS65219_INT_LDO4_RV,
 	/* Residual Voltage ShutDown */
@@ -278,6 +313,7 @@ enum {
 	TPS65219_INT_BUCK2_RV_SD,
 	TPS65219_INT_BUCK3_RV_SD,
 	TPS65219_INT_LDO1_RV_SD,
+	TPS65215_INT_LDO2_RV_SD,
 	TPS65219_INT_LDO2_RV_SD,
 	TPS65219_INT_LDO3_RV_SD,
 	TPS65219_INT_LDO4_RV_SD,
@@ -285,6 +321,12 @@ enum {
 	/* Power Button */
 	TPS65219_INT_PB_FALLING_EDGE_DETECT,
 	TPS65219_INT_PB_RISING_EDGE_DETECT,
+};
+
+enum tps65215_regulator_id {
+	/* DCDC's same as TPS65219 */
+	/* LDO1 is the same as TPS65219 */
+	TPS65215_LDO_2 = 4,
 };
 
 enum tps65219_regulator_id {
@@ -300,11 +342,26 @@ enum tps65219_regulator_id {
 };
 
 /* Number of step-down converters available */
-#define TPS65219_NUM_DCDC		3
+#define TPS6521X_NUM_BUCKS		3
 /* Number of LDO voltage regulators available */
 #define TPS65219_NUM_LDO		4
+#define TPS65215_NUM_LDO		2
 /* Number of total regulators available */
-#define TPS65219_NUM_REGULATOR		(TPS65219_NUM_DCDC + TPS65219_NUM_LDO)
+#define TPS65219_NUM_REGULATOR		(TPS6521X_NUM_BUCKS + TPS65219_NUM_LDO)
+#define TPS65215_NUM_REGULATOR		(TPS6521X_NUM_BUCKS + TPS65215_NUM_LDO)
+
+/* Define the TPS65215 IRQ numbers */
+enum tps65215_irqs {
+	/* INT source registers */
+	TPS65215_TO_RV_SD_SET_IRQ,
+	TPS65215_RV_SET_IRQ,
+	TPS65215_SYS_SET_IRQ,
+	TPS65215_BUCK_1_2_SET_IRQ,
+	TPS65215_BUCK_3_SET_IRQ,
+	TPS65215_LDO_1_SET_IRQ,
+	TPS65215_LDO_2_SET_IRQ,
+	TPS65215_PB_SET_IRQ,
+};
 
 /* Define the TPS65219 IRQ numbers */
 enum tps65219_irqs {
@@ -326,6 +383,7 @@ enum tps65219_irqs {
  *
  * @dev: MFD device
  * @regmap: Regmap for accessing the device registers
+ * @chip_id: Chip ID
  * @irq_data: Regmap irq data used for the irq chip
  * @nb: notifier block for the restart handler
  */
@@ -333,6 +391,7 @@ struct tps65219 {
 	struct device *dev;
 	struct regmap *regmap;
 
+	unsigned int chip_id;
 	struct regmap_irq_chip_data *irq_data;
 	struct notifier_block nb;
 };
