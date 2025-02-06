@@ -2575,7 +2575,7 @@ static int btf_ref_type_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	if (btf_type_kflag(t)) {
+	if (btf_type_kflag(t) && !btf_type_is_type_tag(t)) {
 		btf_verifier_log_type(env, t, "Invalid btf_info kind_flag");
 		return -EINVAL;
 	}
@@ -3332,6 +3332,8 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 			 u32 off, int sz, struct btf_field_info *info, u32 field_mask)
 {
 	enum btf_field_type type;
+	const char *tag_value;
+	bool is_type_tag;
 	u32 res_id;
 
 	/* Permit modifiers on the pointer itself */
@@ -3341,19 +3343,20 @@ static int btf_find_kptr(const struct btf *btf, const struct btf_type *t,
 	if (!btf_type_is_ptr(t))
 		return BTF_FIELD_IGNORE;
 	t = btf_type_by_id(btf, t->type);
-
-	if (!btf_type_is_type_tag(t))
+	is_type_tag = btf_type_is_type_tag(t) && !btf_type_kflag(t);
+	if (!is_type_tag)
 		return BTF_FIELD_IGNORE;
 	/* Reject extra tags */
 	if (btf_type_is_type_tag(btf_type_by_id(btf, t->type)))
 		return -EINVAL;
-	if (!strcmp("kptr_untrusted", __btf_name_by_offset(btf, t->name_off)))
+	tag_value = __btf_name_by_offset(btf, t->name_off);
+	if (!strcmp("kptr_untrusted", tag_value))
 		type = BPF_KPTR_UNREF;
-	else if (!strcmp("kptr", __btf_name_by_offset(btf, t->name_off)))
+	else if (!strcmp("kptr", tag_value))
 		type = BPF_KPTR_REF;
-	else if (!strcmp("percpu_kptr", __btf_name_by_offset(btf, t->name_off)))
+	else if (!strcmp("percpu_kptr", tag_value))
 		type = BPF_KPTR_PERCPU;
-	else if (!strcmp("uptr", __btf_name_by_offset(btf, t->name_off)))
+	else if (!strcmp("uptr", tag_value))
 		type = BPF_UPTR;
 	else
 		return -EINVAL;
@@ -4941,11 +4944,6 @@ static s32 btf_decl_tag_check_meta(struct btf_verifier_env *env,
 
 	if (btf_type_vlen(t)) {
 		btf_verifier_log_type(env, t, "vlen != 0");
-		return -EINVAL;
-	}
-
-	if (btf_type_kflag(t)) {
-		btf_verifier_log_type(env, t, "Invalid btf_info kind_flag");
 		return -EINVAL;
 	}
 
@@ -6743,7 +6741,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	info->btf_id = t->type;
 	t = btf_type_by_id(btf, t->type);
 
-	if (btf_type_is_type_tag(t)) {
+	if (btf_type_is_type_tag(t) && !btf_type_kflag(t)) {
 		tag_value = __btf_name_by_offset(btf, t->name_off);
 		if (strcmp(tag_value, "user") == 0)
 			info->reg_type |= MEM_USER;
@@ -7002,7 +7000,7 @@ error:
 
 			/* check type tag */
 			t = btf_type_by_id(btf, mtype->type);
-			if (btf_type_is_type_tag(t)) {
+			if (btf_type_is_type_tag(t) && !btf_type_kflag(t)) {
 				tag_value = __btf_name_by_offset(btf, t->name_off);
 				/* check __user tag */
 				if (strcmp(tag_value, "user") == 0)
