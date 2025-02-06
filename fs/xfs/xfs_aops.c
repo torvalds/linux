@@ -395,10 +395,11 @@ allocate_blocks:
 }
 
 static int
-xfs_prepare_ioend(
-	struct iomap_ioend	*ioend,
+xfs_submit_ioend(
+	struct iomap_writepage_ctx *wpc,
 	int			status)
 {
+	struct iomap_ioend	*ioend = wpc->ioend;
 	unsigned int		nofs_flag;
 
 	/*
@@ -420,7 +421,11 @@ xfs_prepare_ioend(
 	if (xfs_ioend_is_append(ioend) || ioend->io_type == IOMAP_UNWRITTEN ||
 	    (ioend->io_flags & IOMAP_F_SHARED))
 		ioend->io_bio.bi_end_io = xfs_end_bio;
-	return status;
+
+	if (status)
+		return status;
+	submit_bio(&ioend->io_bio);
+	return 0;
 }
 
 /*
@@ -462,7 +467,7 @@ xfs_discard_folio(
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
 	.map_blocks		= xfs_map_blocks,
-	.prepare_ioend		= xfs_prepare_ioend,
+	.submit_ioend		= xfs_submit_ioend,
 	.discard_folio		= xfs_discard_folio,
 };
 

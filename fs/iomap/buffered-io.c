@@ -1675,7 +1675,7 @@ static void iomap_writepage_end_bio(struct bio *bio)
 }
 
 /*
- * Submit the final bio for an ioend.
+ * Submit an ioend.
  *
  * If @error is non-zero, it means that we have a situation where some part of
  * the submission process has failed after we've marked pages for writeback.
@@ -1694,14 +1694,14 @@ static int iomap_submit_ioend(struct iomap_writepage_ctx *wpc, int error)
 	 * failure happened so that the file system end I/O handler gets called
 	 * to clean up.
 	 */
-	if (wpc->ops->prepare_ioend)
-		error = wpc->ops->prepare_ioend(wpc->ioend, error);
+	if (wpc->ops->submit_ioend)
+		error = wpc->ops->submit_ioend(wpc, error);
+	else if (!error)
+		submit_bio(&wpc->ioend->io_bio);
 
 	if (error) {
 		wpc->ioend->io_bio.bi_status = errno_to_blk_status(error);
 		bio_endio(&wpc->ioend->io_bio);
-	} else {
-		submit_bio(&wpc->ioend->io_bio);
 	}
 
 	wpc->ioend = NULL;

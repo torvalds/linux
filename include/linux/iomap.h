@@ -362,12 +362,14 @@ struct iomap_writeback_ops {
 			  loff_t offset, unsigned len);
 
 	/*
-	 * Optional, allows the file systems to perform actions just before
-	 * submitting the bio and/or override the bio end_io handler for complex
-	 * operations like copy on write extent manipulation or unwritten extent
-	 * conversions.
+	 * Optional, allows the file systems to hook into bio submission,
+	 * including overriding the bi_end_io handler.
+	 *
+	 * Returns 0 if the bio was successfully submitted, or a negative
+	 * error code if status was non-zero or another error happened and
+	 * the bio could not be submitted.
 	 */
-	int (*prepare_ioend)(struct iomap_ioend *ioend, int status);
+	int (*submit_ioend)(struct iomap_writepage_ctx *wpc, int status);
 
 	/*
 	 * Optional, allows the file system to discard state on a page where
