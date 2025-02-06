@@ -15,6 +15,7 @@
 #include "keylist.h"
 #include "migrate.h"
 #include "move.h"
+#include "progress.h"
 #include "replicas.h"
 #include "super-io.h"
 
@@ -76,7 +77,9 @@ static int bch2_dev_usrdata_drop_key(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
+static int bch2_dev_usrdata_drop(struct bch_fs *c,
+				 struct progress_indicator_state *progress,
+				 unsigned dev_idx, int flags)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	enum btree_id id;
@@ -88,8 +91,10 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 		ret = for_each_btree_key_commit(trans, iter, id, POS_MIN,
 				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
-				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags));
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+			bch2_progress_update_iter(trans, progress, &iter, "dropping user data");
+			bch2_dev_usrdata_drop_key(trans, &iter, k, dev_idx, flags);
+		}));
 		if (ret)
 			break;
 	}
@@ -99,7 +104,9 @@ static int bch2_dev_usrdata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 	return ret;
 }
 
-static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
+static int bch2_dev_metadata_drop(struct bch_fs *c,
+				  struct progress_indicator_state *progress,
+				  unsigned dev_idx, int flags)
 {
 	struct btree_trans *trans;
 	struct btree_iter iter;
@@ -125,6 +132,8 @@ retry:
 		while (bch2_trans_begin(trans),
 		       (b = bch2_btree_iter_peek_node(&iter)) &&
 		       !(ret = PTR_ERR_OR_ZERO(b))) {
+			bch2_progress_update_iter(trans, progress, &iter, "dropping metadata");
+
 			if (!bch2_bkey_has_device_c(bkey_i_to_s_c(&b->key), dev_idx))
 				goto next;
 
@@ -169,6 +178,11 @@ err:
 
 int bch2_dev_data_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 {
-	return bch2_dev_usrdata_drop(c, dev_idx, flags) ?:
-		bch2_dev_metadata_drop(c, dev_idx, flags);
+	struct progress_indicator_state progress;
+	bch2_progress_init(&progress, c,
+			   BIT_ULL(BTREE_ID_extents)|
+			   BIT_ULL(BTREE_ID_reflink));
+
+	return bch2_dev_usrdata_drop(c, &progress, dev_idx, flags) ?:
+		bch2_dev_metadata_drop(c, &progress, dev_idx, flags);
 }
