@@ -319,7 +319,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 	crtc->num_scalers = DISPLAY_RUNTIME_INFO(display)->num_scalers[pipe];
 
 	if (DISPLAY_VER(display) >= 9)
-		primary = skl_universal_plane_create(dev_priv, pipe, PLANE_1);
+		primary = skl_universal_plane_create(display, pipe, PLANE_1);
 	else
 		primary = intel_primary_plane_create(display, pipe);
 	if (IS_ERR(primary)) {
@@ -334,7 +334,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 		struct intel_plane *plane;
 
 		if (DISPLAY_VER(dev_priv) >= 9)
-			plane = skl_universal_plane_create(dev_priv, pipe, PLANE_2 + sprite);
+			plane = skl_universal_plane_create(display, pipe, PLANE_2 + sprite);
 		else
 			plane = intel_sprite_plane_create(display, pipe, sprite);
 		if (IS_ERR(plane)) {

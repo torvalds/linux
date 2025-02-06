@@ -4438,6 +4438,7 @@ static int icl_add_linked_planes(struct intel_atomic_state *state)
 static int icl_check_nv12_planes(struct intel_atomic_state *state,
 				 struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
@@ -4479,7 +4480,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			continue;
 
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, linked) {
-			if (!icl_is_nv12_y_plane(dev_priv, linked->id))
+			if (!icl_is_nv12_y_plane(display, linked->id))
 				continue;
 
 			if (crtc_state->active_planes & BIT(linked->id))
@@ -4524,7 +4525,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 		linked_state->uapi.src = plane_state->uapi.src;
 		linked_state->uapi.dst = plane_state->uapi.dst;
 
-		if (icl_is_hdr_plane(dev_priv, plane->id)) {
+		if (icl_is_hdr_plane(display, plane->id)) {
 			if (linked->id == PLANE_7)
 				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
 			else if (linked->id == PLANE_6)

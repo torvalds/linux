@@ -279,14 +279,14 @@ int skl_update_scaler_crtc(struct intel_crtc_state *crtc_state)
 int skl_update_scaler_plane(struct intel_crtc_state *crtc_state,
 			    struct intel_plane_state *plane_state)
 {
+	struct intel_display *display = to_intel_display(plane_state);
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct drm_framebuffer *fb = plane_state->hw.fb;
 	bool force_detach = !fb || !plane_state->uapi.visible;
 	bool need_scaler = false;
 
 	/* Pre-gen11 and SDR planes always need a scaler for planar formats. */
-	if (!icl_is_hdr_plane(dev_priv, plane->id) &&
+	if (!icl_is_hdr_plane(display, plane->id) &&
 	    fb && intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier))
 		need_scaler = true;
 
@@ -364,9 +364,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_state *crtc_state,
 				     int *scaler_id)
 {
 	struct intel_display *display = to_intel_display(crtc);
-	struct intel_crtc_scaler_state *scaler_state =
-					&crtc_state->scaler_state;
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_crtc_scaler_state *scaler_state = &crtc_state->scaler_state;
 	u32 mode;
 	int hscale = 0;
 	int vscale = 0;
@@ -386,7 +384,7 @@ static int intel_atomic_setup_scaler(struct intel_crtc_state *crtc_state,
 
 		if (DISPLAY_VER(display) == 9) {
 			mode = SKL_PS_SCALER_MODE_NV12;
-		} else if (icl_is_hdr_plane(dev_priv, plane->id)) {
+		} else if (icl_is_hdr_plane(display, plane->id)) {
 			/*
 			 * On gen11+'s HDR planes we only use the scaler for
 			 * scaling. They have a dedicated chroma upsampler, so
@@ -782,7 +780,6 @@ skl_program_plane_scaler(struct intel_plane *plane,
 			 const struct intel_plane_state *plane_state)
 {
 	struct intel_display *display = to_intel_display(plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	enum pipe pipe = plane->pipe;
 	int scaler_id = plane_state->scaler_id;
@@ -806,7 +803,7 @@ skl_program_plane_scaler(struct intel_plane *plane,
 
 	/* TODO: handle sub-pixel coordinates */
 	if (intel_format_info_is_yuv_semiplanar(fb->format, fb->modifier) &&
-	    !icl_is_hdr_plane(dev_priv, plane->id)) {
+	    !icl_is_hdr_plane(display, plane->id)) {
 		y_hphase = skl_scaler_calc_phase(1, hscale, false);
 		y_vphase = skl_scaler_calc_phase(1, vscale, false);
 
