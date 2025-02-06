@@ -24,7 +24,7 @@ void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 	xe_bo_put(bo);
 }
 
-int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
+int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
 				 struct drm_gem_object *obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -68,10 +68,11 @@ err:
 	return ret;
 }
 
-struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
+struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_device *drm,
 						   struct drm_file *filp,
 						   const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct xe_device *xe = to_xe_device(drm);
 	struct xe_bo *bo;
 	struct drm_gem_object *gem = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 
@@ -80,7 +81,7 @@ struct drm_gem_object *intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915
 
 	bo = gem_to_xe_bo(gem);
 	/* Require vram placement or dma-buf import */
-	if (IS_DGFX(i915) &&
+	if (IS_DGFX(xe) &&
 	    !xe_bo_can_migrate(bo, XE_PL_VRAM0) &&
 	    bo->ttm.type != ttm_bo_type_sg) {
 		drm_gem_object_put(gem);

@@ -16,7 +16,7 @@ void intel_fb_bo_framebuffer_fini(struct drm_gem_object *obj)
 	/* Nothing to do for i915 */
 }
 
-int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
+int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
 				 struct drm_gem_object *_obj,
 				 struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -76,10 +76,11 @@ int intel_fb_bo_framebuffer_init(struct intel_framebuffer *intel_fb,
 }
 
 struct drm_gem_object *
-intel_fb_bo_lookup_valid_bo(struct drm_i915_private *i915,
+intel_fb_bo_lookup_valid_bo(struct drm_device *drm,
 			    struct drm_file *filp,
 			    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
+	struct drm_i915_private *i915 = to_i915(drm);
 	struct drm_i915_gem_object *obj;
 
 	obj = i915_gem_object_lookup(filp, mode_cmd->handles[0]);

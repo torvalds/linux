@@ -2126,7 +2126,7 @@ int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	int ret = -EINVAL;
 	int i;
 
-	ret = intel_fb_bo_framebuffer_init(intel_fb, obj, mode_cmd);
+	ret = intel_fb_bo_framebuffer_init(fb, obj, mode_cmd);
 	if (ret)
 		return ret;
 
@@ -2242,9 +2242,8 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *obj;
 	struct drm_mode_fb_cmd2 mode_cmd = *user_mode_cmd;
-	struct drm_i915_private *i915 = to_i915(dev);
 
-	obj = intel_fb_bo_lookup_valid_bo(i915, filp, &mode_cmd);
+	obj = intel_fb_bo_lookup_valid_bo(dev, filp, &mode_cmd);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
