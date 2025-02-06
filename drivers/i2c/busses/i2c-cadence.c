@@ -1609,9 +1609,9 @@ static int cdns_i2c_probe(struct platform_device *pdev)
 
 err_clk_notifier_unregister:
 	clk_notifier_unregister(id->clk, &id->clk_rate_change_nb);
-	reset_control_assert(id->reset);
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
+	reset_control_assert(id->reset);
 	return ret;
 }
 
