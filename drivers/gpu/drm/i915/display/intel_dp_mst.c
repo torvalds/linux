@@ -210,11 +210,9 @@ static int intel_dp_mst_dsc_get_slice_count(const struct intel_connector *connec
 }
 
 static void intel_dp_mst_compute_min_hblank(struct intel_crtc_state *crtc_state,
-					    struct intel_connector *connector,
 					    int bpp_x16)
 {
-	struct intel_encoder *encoder = connector->encoder;
-	struct intel_display *display = to_intel_display(encoder);
+	struct intel_display *display = to_intel_display(crtc_state);
 	const struct drm_display_mode *adjusted_mode =
 					&crtc_state->hw.adjusted_mode;
 	int symbol_size = intel_dp_is_uhbr(crtc_state) ? 32 : 8;
@@ -301,7 +299,7 @@ int intel_dp_mtp_tu_compute_config(struct intel_dp *intel_dp,
 		local_bw_overhead = intel_dp_mst_bw_overhead(crtc_state,
 							     false, dsc_slice_count, link_bpp_x16);
 
-		intel_dp_mst_compute_min_hblank(crtc_state, connector, link_bpp_x16);
+		intel_dp_mst_compute_min_hblank(crtc_state, link_bpp_x16);
 
 		intel_dp_mst_compute_m_n(crtc_state,
 					 local_bw_overhead,
