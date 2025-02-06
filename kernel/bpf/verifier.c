@@ -1501,6 +1501,8 @@ static int acquire_lock_state(struct bpf_verifier_env *env, int insn_idx, enum r
 	struct bpf_reference_state *s;
 
 	s = acquire_reference_state(env, insn_idx);
+	if (!s)
+		return -ENOMEM;
 	s->type = type;
 	s->id = id;
 	s->ptr = ptr;
