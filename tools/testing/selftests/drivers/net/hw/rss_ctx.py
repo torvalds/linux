@@ -59,6 +59,14 @@ def require_ntuple(cfg):
         raise KsftSkipEx("Ntuple filters not enabled on the device: " + str(features["ntuple-filters"]))
 
 
+def require_context_cnt(cfg, need_cnt):
+    # There's no good API to get the context count, so the tests
+    # which try to add a lot opportunisitically set the count they
+    # discovered. Careful with test ordering!
+    if need_cnt and cfg.context_cnt and cfg.context_cnt < need_cnt:
+        raise KsftSkipEx(f"Test requires at least {need_cnt} contexts, but device only has {cfg.context_cnt}")
+
+
 # Get Rx packet counts for all queues, as a simple list of integers
 # if @prev is specified the prev counts will be subtracted
 def _get_rx_cnts(cfg, prev=None):
@@ -457,6 +465,8 @@ def test_rss_context(cfg, ctx_cnt=1, create_with_cfg=None):
                 raise
             ksft_pr(f"Failed to create context {i + 1}, trying to test what we got")
             ctx_cnt = i
+            if cfg.context_cnt is None:
+                cfg.context_cnt = ctx_cnt
             break
 
         _rss_key_check(cfg, context=ctx_id)
@@ -512,8 +522,7 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
     """
 
     require_ntuple(cfg)
-
-    requested_ctx_cnt = ctx_cnt
+    require_context_cnt(cfg, 4)
 
     # Try to allocate more queues when necessary
     qcnt = len(_get_rx_cnts(cfg))
@@ -578,9 +587,6 @@ def test_rss_context_out_of_order(cfg, ctx_cnt=4):
     remove_ctx(-1)
     check_traffic()
 
-    if requested_ctx_cnt != ctx_cnt:
-        raise KsftSkipEx(f"Tested only {ctx_cnt} contexts, wanted {requested_ctx_cnt}")
-
 
 def test_rss_context_overlap(cfg, other_ctx=0):
     """
@@ -589,6 +595,8 @@ def test_rss_context_overlap(cfg, other_ctx=0):
     """
 
     require_ntuple(cfg)
+    if other_ctx:
+        require_context_cnt(cfg, 2)
 
     queue_cnt = len(_get_rx_cnts(cfg))
     if queue_cnt < 4:
@@ -741,6 +749,7 @@ def test_rss_ntuple_addition(cfg):
 
 def main() -> None:
     with NetDrvEpEnv(__file__, nsim_test=False) as cfg:
+        cfg.context_cnt = None
         cfg.ethnl = EthtoolFamily()
         cfg.netdevnl = NetdevFamily()
 
