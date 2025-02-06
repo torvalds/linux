@@ -374,6 +374,61 @@ fbnic_set_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh,
 	return 0;
 }
 
+static int
+fbnic_modify_rxfh_context(struct net_device *netdev,
+			  struct ethtool_rxfh_context *ctx,
+			  const struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+	const u32 *indir = rxfh->indir;
+	unsigned int changes;
+
+	if (!indir)
+		indir = ethtool_rxfh_context_indir(ctx);
+
+	changes = fbnic_set_indir(fbn, rxfh->rss_context, indir);
+	if (changes && netif_running(netdev))
+		fbnic_rss_reinit_hw(fbn->fbd, fbn);
+
+	return 0;
+}
+
+static int
+fbnic_create_rxfh_context(struct net_device *netdev,
+			  struct ethtool_rxfh_context *ctx,
+			  const struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP) {
+		NL_SET_ERR_MSG_MOD(extack, "RSS hash function not supported");
+		return -EOPNOTSUPP;
+	}
+	ctx->hfunc = ETH_RSS_HASH_TOP;
+
+	if (!rxfh->indir) {
+		u32 *indir = ethtool_rxfh_context_indir(ctx);
+		unsigned int num_rx = fbn->num_rx_queues;
+		unsigned int i;
+
+		for (i = 0; i < FBNIC_RPC_RSS_TBL_SIZE; i++)
+			indir[i] = ethtool_rxfh_indir_default(i, num_rx);
+	}
+
+	return fbnic_modify_rxfh_context(netdev, ctx, rxfh, extack);
+}
+
+static int
+fbnic_remove_rxfh_context(struct net_device *netdev,
+			  struct ethtool_rxfh_context *ctx, u32 rss_context,
+			  struct netlink_ext_ack *extack)
+{
+	/* Nothing to do, contexts are allocated statically */
+	return 0;
+}
+
 static void fbnic_get_channels(struct net_device *netdev,
 			       struct ethtool_channels *ch)
 {
@@ -586,6 +641,7 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 }
 
 static const struct ethtool_ops fbnic_ethtool_ops = {
+	.rxfh_max_num_contexts	= FBNIC_RPC_RSS_TBL_COUNT,
 	.get_drvinfo		= fbnic_get_drvinfo,
 	.get_regs_len		= fbnic_get_regs_len,
 	.get_regs		= fbnic_get_regs,
@@ -598,6 +654,9 @@ static const struct ethtool_ops fbnic_ethtool_ops = {
 	.get_rxfh_indir_size	= fbnic_get_rxfh_indir_size,
 	.get_rxfh		= fbnic_get_rxfh,
 	.set_rxfh		= fbnic_set_rxfh,
+	.create_rxfh_context	= fbnic_create_rxfh_context,
+	.modify_rxfh_context	= fbnic_modify_rxfh_context,
+	.remove_rxfh_context	= fbnic_remove_rxfh_context,
 	.get_channels		= fbnic_get_channels,
 	.set_channels		= fbnic_set_channels,
 	.get_ts_info		= fbnic_get_ts_info,
