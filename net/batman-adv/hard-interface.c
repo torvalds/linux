@@ -51,7 +51,7 @@ void batadv_hardif_release(struct kref *ref)
 	struct batadv_hard_iface *hard_iface;
 
 	hard_iface = container_of(ref, struct batadv_hard_iface, refcount);
-	dev_put(hard_iface->net_dev);
+	netdev_put(hard_iface->net_dev, &hard_iface->dev_tracker);
 
 	kfree_rcu(hard_iface, rcu);
 }
@@ -728,6 +728,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 	kref_get(&hard_iface->refcount);
 
 	dev_hold(soft_iface);
+	netdev_hold(soft_iface, &hard_iface->softif_dev_tracker, GFP_ATOMIC);
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -784,7 +785,7 @@ err_upper:
 	netdev_upper_dev_unlink(hard_iface->net_dev, soft_iface);
 err_dev:
 	hard_iface->soft_iface = NULL;
-	dev_put(soft_iface);
+	netdev_put(soft_iface, &hard_iface->softif_dev_tracker);
 	batadv_hardif_put(hard_iface);
 	return ret;
 }
@@ -851,7 +852,7 @@ void batadv_hardif_disable_interface(struct batadv_hard_iface *hard_iface)
 	/* delete all references to this hard_iface */
 	batadv_purge_orig_ref(bat_priv);
 	batadv_purge_outstanding_packets(bat_priv, hard_iface);
-	dev_put(hard_iface->soft_iface);
+	netdev_put(hard_iface->soft_iface, &hard_iface->softif_dev_tracker);
 
 	netdev_upper_dev_unlink(hard_iface->net_dev, hard_iface->soft_iface);
 	batadv_hardif_recalc_extra_skbroom(hard_iface->soft_iface);
@@ -875,15 +876,15 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	ASSERT_RTNL();
 
 	if (!batadv_is_valid_iface(net_dev))
-		goto out;
-
-	dev_hold(net_dev);
+		return NULL;
 
 	hard_iface = kzalloc(sizeof(*hard_iface), GFP_ATOMIC);
 	if (!hard_iface)
-		goto release_dev;
+		return NULL;
 
+	netdev_hold(net_dev, &hard_iface->dev_tracker, GFP_ATOMIC);
 	hard_iface->net_dev = net_dev;
+
 	hard_iface->soft_iface = NULL;
 	hard_iface->if_status = BATADV_IF_NOT_IN_USE;
 
@@ -909,11 +910,6 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 	batadv_hardif_generation++;
 
 	return hard_iface;
-
-release_dev:
-	dev_put(net_dev);
-out:
-	return NULL;
 }
 
 static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
