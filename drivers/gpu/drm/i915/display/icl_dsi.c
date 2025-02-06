@@ -387,13 +387,12 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 static void get_dsi_io_power_domains(struct intel_dsi *intel_dsi)
 {
 	struct intel_display *display = to_intel_display(&intel_dsi->base);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
 		drm_WARN_ON(display->drm, intel_dsi->io_wakeref[port]);
 		intel_dsi->io_wakeref[port] =
-			intel_display_power_get(dev_priv,
+			intel_display_power_get(display,
 						port == PORT_A ?
 						POWER_DOMAIN_PORT_DDI_IO_A :
 						POWER_DOMAIN_PORT_DDI_IO_B);
@@ -1385,7 +1384,6 @@ static void gen11_dsi_disable_port(struct intel_encoder *encoder)
 static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 
@@ -1393,7 +1391,7 @@ static void gen11_dsi_disable_io_power(struct intel_encoder *encoder)
 		intel_wakeref_t wakeref;
 
 		wakeref = fetch_and_zero(&intel_dsi->io_wakeref[port]);
-		intel_display_power_put(dev_priv,
+		intel_display_power_put(display,
 					port == PORT_A ?
 					POWER_DOMAIN_PORT_DDI_IO_A :
 					POWER_DOMAIN_PORT_DDI_IO_B,
@@ -1697,7 +1695,6 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum transcoder dsi_trans;
 	intel_wakeref_t wakeref;
@@ -1705,7 +1702,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 	bool ret = false;
 	u32 tmp;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -1736,7 +1733,7 @@ static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
 		ret = tmp & TRANSCONF_ENABLE;
 	}
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 	return ret;
 }
 

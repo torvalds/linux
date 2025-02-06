@@ -452,15 +452,14 @@ static bool
 vlv_sprite_get_hw_state(struct intel_plane *plane,
 			enum pipe *pipe)
 {
-	struct intel_display *display = to_intel_display(plane->base.dev);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct intel_display *display = to_intel_display(plane);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
 	intel_wakeref_t wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -468,7 +467,7 @@ vlv_sprite_get_hw_state(struct intel_plane *plane,
 
 	*pipe = plane->pipe;
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }
@@ -884,13 +883,12 @@ ivb_sprite_get_hw_state(struct intel_plane *plane,
 			enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(plane->base.dev);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -898,7 +896,7 @@ ivb_sprite_get_hw_state(struct intel_plane *plane,
 
 	*pipe = plane->pipe;
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }
@@ -1222,13 +1220,12 @@ g4x_sprite_get_hw_state(struct intel_plane *plane,
 			enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(plane->base.dev);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -1236,7 +1233,7 @@ g4x_sprite_get_hw_state(struct intel_plane *plane,
 
 	*pipe = plane->pipe;
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }

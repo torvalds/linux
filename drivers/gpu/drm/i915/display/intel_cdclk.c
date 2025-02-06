@@ -656,7 +656,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 	 * a system suspend.  So grab the display core domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_DISPLAY_CORE);
 
 	vlv_iosf_sb_get(dev_priv,
 			BIT(VLV_IOSF_SB_CCK) |
@@ -716,7 +716,7 @@ static void vlv_set_cdclk(struct intel_display *display,
 
 	vlv_program_pfi_credits(display);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 }
 
 static void chv_set_cdclk(struct intel_display *display,
@@ -745,7 +745,7 @@ static void chv_set_cdclk(struct intel_display *display,
 	 * a system suspend.  So grab the display core domain, which covers
 	 * the HW blocks needed for the following programming.
 	 */
-	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_DISPLAY_CORE);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_DISPLAY_CORE);
 
 	vlv_punit_get(dev_priv);
 	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
@@ -765,7 +765,7 @@ static void chv_set_cdclk(struct intel_display *display,
 
 	vlv_program_pfi_credits(display);
 
-	intel_display_power_put(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_DISPLAY_CORE, wakeref);
 }
 
 static int bdw_calc_cdclk(int min_cdclk)

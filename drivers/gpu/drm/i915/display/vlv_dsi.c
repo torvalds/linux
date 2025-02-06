@@ -947,7 +947,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	drm_dbg_kms(display->drm, "\n");
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -1007,7 +1007,7 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 	}
 
 out_put_power:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return active;
 }

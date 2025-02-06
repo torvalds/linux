@@ -5470,13 +5470,13 @@ void intel_digital_port_unlock(struct intel_encoder *encoder)
  */
 bool intel_digital_port_connected_locked(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool is_glitch_free = intel_tc_port_handles_hpd_glitches(dig_port);
 	bool is_connected = false;
 	intel_wakeref_t wakeref;
 
-	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+	with_intel_display_power(display, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
 		unsigned long wait_expires = jiffies + msecs_to_jiffies_timeout(4);
 
 		do {
@@ -6523,7 +6523,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	struct intel_dp *intel_dp = &dig_port->dp;
 	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_device *dev = encoder->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum port port = encoder->port;
 	int type;
 
@@ -6623,7 +6622,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	return true;
 
 fail:
-	intel_display_power_flush_work(dev_priv);
+	intel_display_power_flush_work(display);
 	drm_connector_cleanup(&connector->base);
 
 	return false;

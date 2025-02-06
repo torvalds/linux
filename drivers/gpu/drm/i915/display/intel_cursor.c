@@ -326,13 +326,14 @@ static void i845_cursor_disable_arm(struct intel_dsb *dsb,
 static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 				     enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(PIPE_A);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -340,7 +341,7 @@ static bool i845_cursor_get_hw_state(struct intel_plane *plane,
 
 	*pipe = PIPE_A;
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }
@@ -733,6 +734,7 @@ static void i9xx_cursor_disable_arm(struct intel_dsb *dsb,
 static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 				     enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
@@ -745,7 +747,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 	 * display power wells.
 	 */
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -758,7 +760,7 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 	else
 		*pipe = REG_FIELD_GET(MCURSOR_PIPE_SEL_MASK, val);
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }

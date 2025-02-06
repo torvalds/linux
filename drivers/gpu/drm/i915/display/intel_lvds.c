@@ -102,18 +102,19 @@ bool intel_lvds_port_enabled(struct drm_i915_private *i915,
 static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(i915, encoder->power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, encoder->power_domain);
 	if (!wakeref)
 		return false;
 
 	ret = intel_lvds_port_enabled(i915, lvds_encoder->reg, pipe);
 
-	intel_display_power_put(i915, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }

@@ -59,7 +59,6 @@ void intel_vga_redisable_power_on(struct intel_display *display)
 
 void intel_vga_redisable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 
 	/*
@@ -71,13 +70,13 @@ void intel_vga_redisable(struct intel_display *display)
 	 * follow the "don't touch the power well if we don't need it" policy
 	 * the rest of the driver uses.
 	 */
-	wakeref = intel_display_power_get_if_enabled(i915, POWER_DOMAIN_VGA);
+	wakeref = intel_display_power_get_if_enabled(display, POWER_DOMAIN_VGA);
 	if (!wakeref)
 		return;
 
 	intel_vga_redisable_power_on(display);
 
-	intel_display_power_put(i915, POWER_DOMAIN_VGA, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_VGA, wakeref);
 }
 
 void intel_vga_reset_io_mem(struct intel_display *display)

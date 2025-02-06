@@ -73,10 +73,9 @@ static u8 intel_cx0_get_owned_lane_mask(struct intel_encoder *encoder)
 static void
 assert_dc_off(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	bool enabled;
 
-	enabled = intel_display_power_is_enabled(i915, POWER_DOMAIN_DC_OFF);
+	enabled = intel_display_power_is_enabled(display, POWER_DOMAIN_DC_OFF);
 	drm_WARN_ON(display->drm, !enabled);
 }
 
@@ -103,12 +102,12 @@ static void intel_cx0_program_msgbus_timer(struct intel_encoder *encoder)
  */
 static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *encoder)
 {
-	intel_wakeref_t wakeref;
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	intel_wakeref_t wakeref;
 
 	intel_psr_pause(intel_dp);
-	wakeref = intel_display_power_get(i915, POWER_DOMAIN_DC_OFF);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_DC_OFF);
 	intel_cx0_program_msgbus_timer(encoder);
 
 	return wakeref;
@@ -116,11 +115,11 @@ static intel_wakeref_t intel_cx0_phy_transaction_begin(struct intel_encoder *enc
 
 static void intel_cx0_phy_transaction_end(struct intel_encoder *encoder, intel_wakeref_t wakeref)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 	intel_psr_resume(intel_dp);
-	intel_display_power_put(i915, POWER_DOMAIN_DC_OFF, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_DC_OFF, wakeref);
 }
 
 static void intel_clear_response_ready_flag(struct intel_encoder *encoder,

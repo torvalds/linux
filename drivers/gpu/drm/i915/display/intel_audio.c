@@ -1037,13 +1037,12 @@ int intel_audio_min_cdclk(const struct intel_crtc_state *crtc_state)
 static unsigned long intel_audio_component_get_power(struct device *kdev)
 {
 	struct intel_display *display = to_intel_display(kdev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 
 	/* Catch potential impedance mismatches before they occur! */
 	BUILD_BUG_ON(sizeof(intel_wakeref_t) > sizeof(unsigned long));
 
-	wakeref = intel_display_power_get(i915, POWER_DOMAIN_AUDIO_PLAYBACK);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_AUDIO_PLAYBACK);
 
 	if (display->audio.power_refcount++ == 0) {
 		if (DISPLAY_VER(display) >= 9) {
@@ -1070,7 +1069,6 @@ static void intel_audio_component_put_power(struct device *kdev,
 					    unsigned long cookie)
 {
 	struct intel_display *display = to_intel_display(kdev);
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	intel_wakeref_t wakeref = (intel_wakeref_t)cookie;
 
 	/* Stop forcing CDCLK to 2*BCLK if no need for audio to be powered. */
@@ -1078,7 +1076,7 @@ static void intel_audio_component_put_power(struct device *kdev,
 		if (display->platform.geminilake)
 			glk_force_audio_cdclk(display, false);
 
-	intel_display_power_put(i915, POWER_DOMAIN_AUDIO_PLAYBACK, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_AUDIO_PLAYBACK, wakeref);
 }
 
 static void intel_audio_component_codec_wake_override(struct device *kdev,

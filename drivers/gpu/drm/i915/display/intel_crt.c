@@ -108,19 +108,18 @@ static bool intel_crt_get_hw_state(struct intel_encoder *encoder,
 				   enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crt *crt = intel_encoder_to_crt(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
 
 	ret = intel_crt_port_enabled(display, crt->adpa_reg, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -858,7 +857,6 @@ intel_crt_detect(struct drm_connector *connector,
 		 bool force)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	struct intel_crt *crt = intel_attached_crt(to_intel_connector(connector));
 	struct intel_encoder *encoder = &crt->base;
 	struct drm_atomic_state *state;
@@ -876,7 +874,7 @@ intel_crt_detect(struct drm_connector *connector,
 		return connector->status;
 
 	if (display->params.load_detect_test) {
-		wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+		wakeref = intel_display_power_get(display, encoder->power_domain);
 		goto load_detect;
 	}
 
@@ -884,7 +882,7 @@ intel_crt_detect(struct drm_connector *connector,
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
 
-	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+	wakeref = intel_display_power_get(display, encoder->power_domain);
 
 	if (I915_HAS_HOTPLUG(display)) {
 		/* We can not rely on the HPD pin always being correctly wired
@@ -941,7 +939,7 @@ load_detect:
 	}
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return status;
 }
@@ -959,7 +957,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	if (!intel_display_driver_check_access(display))
 		return drm_edid_connector_add_modes(connector);
 
-	wakeref = intel_display_power_get(dev_priv, encoder->power_domain);
+	wakeref = intel_display_power_get(display, encoder->power_domain);
 
 	ret = intel_crt_ddc_get_modes(connector, connector->ddc);
 	if (ret || !IS_G4X(dev_priv))
@@ -970,7 +968,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	ret = intel_crt_ddc_get_modes(connector, ddc);
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }

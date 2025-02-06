@@ -836,6 +836,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 				      struct skl_ddb_entry *ddb_y,
 				      u16 *min_ddb, u16 *interim_ddb)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum pipe pipe = crtc->pipe;
@@ -843,7 +844,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 	enum plane_id plane_id;
 
 	power_domain = POWER_DOMAIN_PIPE(pipe);
-	wakeref = intel_display_power_get_if_enabled(i915, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return;
 
@@ -855,7 +856,7 @@ static void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 					   &min_ddb[plane_id],
 					   &interim_ddb[plane_id]);
 
-	intel_display_power_put(i915, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 }
 
 struct dbuf_slice_conf_entry {

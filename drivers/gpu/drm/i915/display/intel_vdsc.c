@@ -962,6 +962,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -974,7 +975,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	power_domain = intel_dsc_power_domain(crtc, cpu_transcoder);
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return;
 
@@ -994,7 +995,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	intel_dsc_get_pps_config(crtc_state);
 out:
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 }
 
 static void intel_vdsc_dump_state(struct drm_printer *p, int indent,

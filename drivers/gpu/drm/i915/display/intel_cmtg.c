@@ -85,7 +85,6 @@ static void intel_cmtg_dump_config(struct intel_display *display,
 static bool intel_cmtg_transcoder_is_secondary(struct intel_display *display,
 					       enum transcoder trans)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 	u32 val = 0;
@@ -95,7 +94,7 @@ static bool intel_cmtg_transcoder_is_secondary(struct intel_display *display,
 
 	power_domain = POWER_DOMAIN_TRANSCODER(trans);
 
-	with_intel_display_power_if_enabled(i915, power_domain, wakeref)
+	with_intel_display_power_if_enabled(display, power_domain, wakeref)
 		val = intel_de_read(display, TRANS_DDI_FUNC_CTL2(display, trans));
 
 	return val & CMTG_SECONDARY_MODE;

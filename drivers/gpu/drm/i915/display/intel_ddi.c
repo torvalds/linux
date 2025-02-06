@@ -705,19 +705,20 @@ int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       enum transcoder cpu_transcoder,
 			       bool enable, u32 hdcp_mask)
 {
+	struct intel_display *display = to_intel_display(intel_encoder);
 	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	intel_wakeref_t wakeref;
 	int ret = 0;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     intel_encoder->power_domain);
 	if (drm_WARN_ON(dev, !wakeref))
 		return -ENXIO;
 
 	intel_de_rmw(dev_priv, TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder),
 		     hdcp_mask, enable ? hdcp_mask : 0);
-	intel_display_power_put(dev_priv, intel_encoder->power_domain, wakeref);
+	intel_display_power_put(display, intel_encoder->power_domain, wakeref);
 	return ret;
 }
 
@@ -734,7 +735,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	u32 ddi_mode;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -775,7 +776,7 @@ bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector)
 	}
 
 out:
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }
@@ -794,7 +795,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 	*pipe_mask = 0;
 	*is_dp_mst = false;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return;
@@ -831,7 +832,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 		u32 port_mask, ddi_select, ddi_mode;
 		intel_wakeref_t trans_wakeref;
 
-		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
+		trans_wakeref = intel_display_power_get_if_enabled(display,
 								   POWER_DOMAIN_TRANSCODER(cpu_transcoder));
 		if (!trans_wakeref)
 			continue;
@@ -846,7 +847,7 @@ static void intel_ddi_get_encoder_pipes(struct intel_encoder *encoder,
 
 		tmp = intel_de_read(dev_priv,
 				    TRANS_DDI_FUNC_CTL(dev_priv, cpu_transcoder));
-		intel_display_power_put(dev_priv, POWER_DOMAIN_TRANSCODER(cpu_transcoder),
+		intel_display_power_put(display, POWER_DOMAIN_TRANSCODER(cpu_transcoder),
 					trans_wakeref);
 
 		if ((tmp & port_mask) != ddi_select)
@@ -911,7 +912,7 @@ out:
 				encoder->base.base.id, encoder->base.name, tmp);
 	}
 
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 }
 
 bool intel_ddi_get_hw_state(struct intel_encoder *encoder,
@@ -963,23 +964,23 @@ static void
 main_link_aux_power_domain_get(struct intel_digital_port *dig_port,
 			       const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	enum intel_display_power_domain domain =
 		intel_ddi_main_link_aux_domain(dig_port, crtc_state);
 
-	drm_WARN_ON(&i915->drm, dig_port->aux_wakeref);
+	drm_WARN_ON(display->drm, dig_port->aux_wakeref);
 
 	if (domain == POWER_DOMAIN_INVALID)
 		return;
 
-	dig_port->aux_wakeref = intel_display_power_get(i915, domain);
+	dig_port->aux_wakeref = intel_display_power_get(display, domain);
 }
 
 static void
 main_link_aux_power_domain_put(struct intel_digital_port *dig_port,
 			       const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	enum intel_display_power_domain domain =
 		intel_ddi_main_link_aux_domain(dig_port, crtc_state);
 	intel_wakeref_t wf;
@@ -988,13 +989,13 @@ main_link_aux_power_domain_put(struct intel_digital_port *dig_port,
 	if (!wf)
 		return;
 
-	intel_display_power_put(i915, domain, wf);
+	intel_display_power_put(display, domain, wf);
 }
 
 static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 					struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port;
 
 	/*
@@ -1002,15 +1003,15 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	 * happen since fake-MST encoders don't set their get_power_domains()
 	 * hook.
 	 */
-	if (drm_WARN_ON(&dev_priv->drm,
+	if (drm_WARN_ON(display->drm,
 			intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)))
 		return;
 
 	dig_port = enc_to_dig_port(encoder);
 
 	if (!intel_tc_port_in_tbt_alt_mode(dig_port)) {
-		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
-		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+		drm_WARN_ON(display->drm, dig_port->ddi_io_wakeref);
+		dig_port->ddi_io_wakeref = intel_display_power_get(display,
 								   dig_port->ddi_io_power_domain);
 	}
 
@@ -2721,6 +2722,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -2767,7 +2769,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 	/* 5. If IO power is controlled through PWR_WELL_CTL, Enable IO Power */
 	if (!intel_tc_port_in_tbt_alt_mode(dig_port)) {
 		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
-		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+		dig_port->ddi_io_wakeref = intel_display_power_get(display,
 								   dig_port->ddi_io_power_domain);
 	}
 
@@ -2868,6 +2870,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
@@ -2896,7 +2899,7 @@ static void hsw_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	if (!intel_tc_port_in_tbt_alt_mode(dig_port)) {
 		drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
-		dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+		dig_port->ddi_io_wakeref = intel_display_power_get(display,
 								   dig_port->ddi_io_power_domain);
 	}
 
@@ -2963,6 +2966,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 				      const struct intel_crtc_state *crtc_state,
 				      const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -2971,7 +2975,7 @@ static void intel_ddi_pre_enable_hdmi(struct intel_atomic_state *state,
 	intel_ddi_enable_clock(encoder, crtc_state);
 
 	drm_WARN_ON(&dev_priv->drm, dig_port->ddi_io_wakeref);
-	dig_port->ddi_io_wakeref = intel_display_power_get(dev_priv,
+	dig_port->ddi_io_wakeref = intel_display_power_get(display,
 							   dig_port->ddi_io_power_domain);
 
 	icl_program_mg_dp_mode(dig_port, crtc_state);
@@ -3130,6 +3134,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 				      const struct intel_crtc_state *old_crtc_state,
 				      const struct drm_connector_state *old_conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &dig_port->dp;
@@ -3181,7 +3186,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 	wakeref = fetch_and_zero(&dig_port->ddi_io_wakeref);
 
 	if (wakeref)
-		intel_display_power_put(dev_priv,
+		intel_display_power_put(display,
 					dig_port->ddi_io_power_domain,
 					wakeref);
 
@@ -3198,6 +3203,7 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 					const struct intel_crtc_state *old_crtc_state,
 					const struct drm_connector_state *old_conn_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct intel_hdmi *intel_hdmi = &dig_port->hdmi;
@@ -3216,7 +3222,7 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 
 	wakeref = fetch_and_zero(&dig_port->ddi_io_wakeref);
 	if (wakeref)
-		intel_display_power_put(dev_priv,
+		intel_display_power_put(display,
 					dig_port->ddi_io_power_domain,
 					wakeref);
 
@@ -3893,10 +3899,12 @@ static void intel_ddi_set_idle_link_train(struct intel_dp *intel_dp,
 static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 				       enum transcoder cpu_transcoder)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	if (cpu_transcoder == TRANSCODER_EDP)
 		return false;
 
-	if (!intel_display_power_is_enabled(dev_priv, POWER_DOMAIN_AUDIO_MMIO))
+	if (!intel_display_power_is_enabled(display, POWER_DOMAIN_AUDIO_MMIO))
 		return false;
 
 	return intel_de_read(dev_priv, HSW_AUD_PIN_ELD_CP_VLD) &
@@ -3972,6 +3980,7 @@ static enum transcoder bdw_transcoder_master_readout(struct drm_i915_private *de
 
 static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 transcoders = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
@@ -3985,7 +3994,7 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 		intel_wakeref_t trans_wakeref;
 
 		power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
-		trans_wakeref = intel_display_power_get_if_enabled(dev_priv,
+		trans_wakeref = intel_display_power_get_if_enabled(display,
 								   power_domain);
 
 		if (!trans_wakeref)
@@ -3995,7 +4004,7 @@ static void bdw_get_trans_port_sync_config(struct intel_crtc_state *crtc_state)
 		    crtc_state->cpu_transcoder)
 			crtc_state->sync_mode_slaves_mask |= BIT(cpu_transcoder);
 
-		intel_display_power_put(dev_priv, power_domain, trans_wakeref);
+		intel_display_power_put(display, power_domain, trans_wakeref);
 	}
 
 	drm_WARN_ON(&dev_priv->drm,
@@ -4610,13 +4619,13 @@ static int intel_ddi_compute_config_late(struct intel_encoder *encoder,
 
 static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->dev);
+	struct intel_display *display = to_intel_display(encoder->dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(to_intel_encoder(encoder));
 
 	intel_dp_encoder_flush_work(encoder);
 	if (intel_encoder_is_tc(&dig_port->base))
 		intel_tc_port_cleanup(dig_port);
-	intel_display_power_flush_work(i915);
+	intel_display_power_flush_work(display);
 
 	drm_encoder_cleanup(encoder);
 	kfree(dig_port->hdcp_port_data.streams);

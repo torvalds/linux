@@ -305,12 +305,13 @@ bool g4x_dp_port_enabled(struct drm_i915_private *dev_priv,
 static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv,
+	wakeref = intel_display_power_get_if_enabled(display,
 						     encoder->power_domain);
 	if (!wakeref)
 		return false;
@@ -318,7 +319,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	ret = g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
 				  encoder->port, pipe);
 
-	intel_display_power_put(dev_priv, encoder->power_domain, wakeref);
+	intel_display_power_put(display, encoder->power_domain, wakeref);
 
 	return ret;
 }

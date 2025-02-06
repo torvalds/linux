@@ -922,6 +922,7 @@ static bool
 skl_plane_get_hw_state(struct intel_plane *plane,
 		       enum pipe *pipe)
 {
+	struct intel_display *display = to_intel_display(plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
@@ -929,7 +930,7 @@ skl_plane_get_hw_state(struct intel_plane *plane,
 	bool ret;
 
 	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return false;
 
@@ -937,7 +938,7 @@ skl_plane_get_hw_state(struct intel_plane *plane,
 
 	*pipe = plane->pipe;
 
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 
 	return ret;
 }

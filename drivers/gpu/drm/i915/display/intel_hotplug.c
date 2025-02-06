@@ -732,6 +732,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	struct drm_i915_private *dev_priv =
 		container_of(work, struct drm_i915_private,
 			     display.hotplug.poll_init_work);
+	struct intel_display *display = &dev_priv->display;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_connector *connector;
 	intel_wakeref_t wakeref;
@@ -747,7 +748,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	 * and so risk an endless loop of this same sequence.
 	 */
 	if (!enabled) {
-		wakeref = intel_display_power_get(dev_priv,
+		wakeref = intel_display_power_get(display,
 						  POWER_DOMAIN_DISPLAY_CORE);
 		drm_WARN_ON(&dev_priv->drm,
 			    READ_ONCE(dev_priv->display.hotplug.poll_enabled));
@@ -789,7 +790,7 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 	if (!enabled) {
 		i915_hpd_poll_detect_connectors(dev_priv);
 
-		intel_display_power_put(dev_priv,
+		intel_display_power_put(display,
 					POWER_DOMAIN_DISPLAY_CORE,
 					wakeref);
 	}

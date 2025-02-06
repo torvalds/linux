@@ -1617,7 +1617,7 @@ void gen8_display_irq_reset(struct drm_i915_private *dev_priv)
 	intel_de_write(display, EDP_PSR_IIR, 0xffffffff);
 
 	for_each_pipe(dev_priv, pipe)
-		if (intel_display_power_is_enabled(dev_priv,
+		if (intel_display_power_is_enabled(display,
 						   POWER_DOMAIN_PIPE(pipe)))
 			intel_display_irq_regs_reset(display, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
@@ -1644,7 +1644,7 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);
-			if (!intel_display_power_is_enabled(dev_priv, domain))
+			if (!intel_display_power_is_enabled(display, domain))
 				continue;
 
 			intel_de_write(display,
@@ -1660,7 +1660,7 @@ void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 	}
 
 	for_each_pipe(dev_priv, pipe)
-		if (intel_display_power_is_enabled(dev_priv,
+		if (intel_display_power_is_enabled(display,
 						   POWER_DOMAIN_PIPE(pipe)))
 			intel_display_irq_regs_reset(display, GEN8_DE_PIPE_IRQ_REGS(pipe));
 
@@ -1887,7 +1887,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);
-			if (!intel_display_power_is_enabled(dev_priv, domain))
+			if (!intel_display_power_is_enabled(display, domain))
 				continue;
 
 			intel_display_irq_regs_assert_irr_is_zero(display,
@@ -1900,7 +1900,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	for_each_pipe(dev_priv, pipe) {
 		dev_priv->display.irq.de_irq_mask[pipe] = ~de_pipe_masked;
 
-		if (intel_display_power_is_enabled(dev_priv,
+		if (intel_display_power_is_enabled(display,
 						   POWER_DOMAIN_PIPE(pipe)))
 			intel_display_irq_regs_init(display, GEN8_DE_PIPE_IRQ_REGS(pipe),
 						    dev_priv->display.irq.de_irq_mask[pipe],

@@ -177,7 +177,7 @@ static void intel_crtc_disable_noatomic_complete(struct intel_crtc *crtc)
 	intel_fbc_disable(crtc);
 	intel_update_watermarks(i915);
 
-	intel_display_power_put_all_in_set(i915, &crtc->enabled_power_domains);
+	intel_display_power_put_all_in_set(display, &crtc->enabled_power_domains);
 
 	cdclk_state->min_cdclk[pipe] = 0;
 	cdclk_state->min_voltage_level[pipe] = 0;
@@ -969,7 +969,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 	struct intel_crtc *crtc;
 	intel_wakeref_t wakeref;
 
-	wakeref = intel_display_power_get(i915, POWER_DOMAIN_INIT);
+	wakeref = intel_display_power_get(display, POWER_DOMAIN_INIT);
 
 	intel_early_display_was(i915);
 	intel_modeset_readout_hw_state(i915);
@@ -1028,7 +1028,7 @@ void intel_modeset_setup_hw_state(struct drm_i915_private *i915,
 			intel_modeset_put_crtc_power_domains(crtc, &put_domains);
 	}
 
-	intel_display_power_put(i915, POWER_DOMAIN_INIT, wakeref);
+	intel_display_power_put(display, POWER_DOMAIN_INIT, wakeref);
 
 	intel_power_domains_sanitize_state(display);
 }
