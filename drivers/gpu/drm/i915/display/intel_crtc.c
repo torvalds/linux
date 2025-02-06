@@ -344,7 +344,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 		crtc->plane_ids_mask |= BIT(plane->id);
 	}
 
-	cursor = intel_cursor_plane_create(dev_priv, pipe);
+	cursor = intel_cursor_plane_create(display, pipe);
 	if (IS_ERR(cursor)) {
 		ret = PTR_ERR(cursor);
 		goto fail;
