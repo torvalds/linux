@@ -950,24 +950,23 @@ static void kfd_update_system_properties(void)
 	up_read(&topology_lock);
 }
 
-static void find_system_memory(const struct dmi_header *dm,
-	void *private)
+static void find_system_memory(const struct dmi_header *dm, void *private)
 {
+	struct dmi_mem_device *memdev = container_of(dm, struct dmi_mem_device, header);
 	struct kfd_mem_properties *mem;
-	u16 mem_width, mem_clock;
 	struct kfd_topology_device *kdev =
 		(struct kfd_topology_device *)private;
-	const u8 *dmi_data = (const u8 *)(dm + 1);
 
-	if (dm->type == DMI_ENTRY_MEM_DEVICE && dm->length >= 0x15) {
-		mem_width = (u16)(*(const u16 *)(dmi_data + 0x6));
-		mem_clock = (u16)(*(const u16 *)(dmi_data + 0x11));
-		list_for_each_entry(mem, &kdev->mem_props, list) {
-			if (mem_width != 0xFFFF && mem_width != 0)
-				mem->width = mem_width;
-			if (mem_clock != 0)
-				mem->mem_clk_max = mem_clock;
-		}
+	if (memdev->header.type != DMI_ENTRY_MEM_DEVICE)
+		return;
+	if (memdev->header.length < sizeof(struct dmi_mem_device))
+		return;
+
+	list_for_each_entry(mem, &kdev->mem_props, list) {
+		if (memdev->total_width != 0xFFFF && memdev->total_width != 0)
+			mem->width = memdev->total_width;
+		if (memdev->speed != 0)
+			mem->mem_clk_max = memdev->speed;
 	}
 }
 
