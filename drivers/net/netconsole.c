@@ -45,12 +45,12 @@ MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
 
 #define MAX_PARAM_LENGTH		256
-#define MAX_USERDATA_ENTRY_LENGTH	256
-#define MAX_USERDATA_VALUE_LENGTH	200
+#define MAX_EXTRADATA_ENTRY_LEN		256
+#define MAX_EXTRADATA_VALUE_LEN	200
 /* The number 3 comes from userdata entry format characters (' ', '=', '\n') */
-#define MAX_USERDATA_NAME_LENGTH	(MAX_USERDATA_ENTRY_LENGTH - \
-					MAX_USERDATA_VALUE_LENGTH - 3)
-#define MAX_USERDATA_ITEMS		16
+#define MAX_EXTRADATA_NAME_LEN		(MAX_EXTRADATA_ENTRY_LEN - \
+					MAX_EXTRADATA_VALUE_LEN - 3)
+#define MAX_EXTRADATA_ITEMS		16
 #define MAX_PRINT_CHUNK			1000
 
 static char config[MAX_PARAM_LENGTH];
@@ -102,8 +102,8 @@ struct netconsole_target_stats  {
  * @list:	Links this target into the target_list.
  * @group:	Links us into the configfs subsystem hierarchy.
  * @userdata_group:	Links to the userdata configfs hierarchy
- * @userdata_complete:	Cached, formatted string of append
- * @userdata_length:	String length of userdata_complete
+ * @extradata_complete:	Cached, formatted string of append
+ * @userdata_length:	String length of usedata in extradata_complete.
  * @stats:	Packet send stats for the target. Used for debugging.
  * @enabled:	On / off knob to enable / disable target.
  *		Visible from userspace (read-write).
@@ -130,7 +130,7 @@ struct netconsole_target {
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 	struct config_group	group;
 	struct config_group	userdata_group;
-	char userdata_complete[MAX_USERDATA_ENTRY_LENGTH * MAX_USERDATA_ITEMS];
+	char extradata_complete[MAX_EXTRADATA_ENTRY_LEN * MAX_EXTRADATA_ITEMS];
 	size_t			userdata_length;
 #endif
 	struct netconsole_target_stats stats;
@@ -690,7 +690,7 @@ out_unlock:
 
 struct userdatum {
 	struct config_item item;
-	char value[MAX_USERDATA_VALUE_LENGTH];
+	char value[MAX_EXTRADATA_VALUE_LEN];
 };
 
 static struct userdatum *to_userdatum(struct config_item *item)
@@ -727,13 +727,13 @@ static void update_userdata(struct netconsole_target *nt)
 
 	/* Clear the current string in case the last userdatum was deleted */
 	nt->userdata_length = 0;
-	nt->userdata_complete[0] = 0;
+	nt->extradata_complete[0] = 0;
 
 	list_for_each(entry, &nt->userdata_group.cg_children) {
 		struct userdatum *udm_item;
 		struct config_item *item;
 
-		if (WARN_ON_ONCE(child_count >= MAX_USERDATA_ITEMS))
+		if (WARN_ON_ONCE(child_count >= MAX_EXTRADATA_ITEMS))
 			break;
 		child_count++;
 
@@ -741,19 +741,19 @@ static void update_userdata(struct netconsole_target *nt)
 		udm_item = to_userdatum(item);
 
 		/* Skip userdata with no value set */
-		if (strnlen(udm_item->value, MAX_USERDATA_VALUE_LENGTH) == 0)
+		if (strnlen(udm_item->value, MAX_EXTRADATA_VALUE_LEN) == 0)
 			continue;
 
-		/* This doesn't overflow userdata_complete since it will write
-		 * one entry length (1/MAX_USERDATA_ITEMS long), entry count is
+		/* This doesn't overflow extradata_complete since it will write
+		 * one entry length (1/MAX_EXTRADATA_ITEMS long), entry count is
 		 * checked to not exceed MAX items with child_count above
 		 */
-		complete_idx += scnprintf(&nt->userdata_complete[complete_idx],
-					  MAX_USERDATA_ENTRY_LENGTH, " %s=%s\n",
+		complete_idx += scnprintf(&nt->extradata_complete[complete_idx],
+					  MAX_EXTRADATA_ENTRY_LEN, " %s=%s\n",
 					  item->ci_name, udm_item->value);
 	}
-	nt->userdata_length = strnlen(nt->userdata_complete,
-				      sizeof(nt->userdata_complete));
+	nt->userdata_length = strnlen(nt->extradata_complete,
+				      sizeof(nt->extradata_complete));
 }
 
 static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
@@ -764,7 +764,7 @@ static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
 	struct userdata *ud;
 	ssize_t ret;
 
-	if (count > MAX_USERDATA_VALUE_LENGTH)
+	if (count > MAX_EXTRADATA_VALUE_LEN)
 		return -EMSGSIZE;
 
 	mutex_lock(&dynamic_netconsole_mutex);
@@ -813,13 +813,13 @@ static struct config_item *userdatum_make_item(struct config_group *group,
 	struct userdata *ud;
 	size_t child_count;
 
-	if (strlen(name) > MAX_USERDATA_NAME_LENGTH)
+	if (strlen(name) > MAX_EXTRADATA_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	ud = to_userdata(&group->cg_item);
 	nt = userdata_to_target(ud);
 	child_count = list_count_nodes(&nt->userdata_group.cg_children);
-	if (child_count >= MAX_USERDATA_ITEMS)
+	if (child_count >= MAX_EXTRADATA_ITEMS)
 		return ERR_PTR(-ENOSPC);
 
 	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
@@ -1120,11 +1120,11 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 				      int msg_len,
 				      int release_len)
 {
-	const char *userdata = NULL;
+	const char *extradata = NULL;
 	const char *release;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata = nt->userdata_complete;
+	extradata = nt->extradata_complete;
 #endif
 
 	if (release_len) {
@@ -1136,10 +1136,10 @@ static void send_msg_no_fragmentation(struct netconsole_target *nt,
 		memcpy(nt->buf, msg, msg_len);
 	}
 
-	if (userdata)
+	if (extradata)
 		msg_len += scnprintf(&nt->buf[msg_len],
 				     MAX_PRINT_CHUNK - msg_len,
-				     "%s", userdata);
+				     "%s", extradata);
 
 	send_udp(nt, nt->buf, msg_len);
 }
@@ -1156,24 +1156,25 @@ static void send_fragmented_body(struct netconsole_target *nt,
 				 const char *msgbody, int header_len,
 				 int msgbody_len)
 {
-	const char *userdata = NULL;
+	int sent_extradata, preceding_bytes;
+	const char *extradata = NULL;
 	int body_len, offset = 0;
-	int userdata_len = 0;
+	int extradata_len = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata = nt->userdata_complete;
-	userdata_len = nt->userdata_length;
+	extradata = nt->extradata_complete;
+	extradata_len = nt->userdata_length;
 #endif
 
 	/* body_len represents the number of bytes that will be sent. This is
 	 * bigger than MAX_PRINT_CHUNK, thus, it will be split in multiple
 	 * packets
 	 */
-	body_len = msgbody_len + userdata_len;
+	body_len = msgbody_len + extradata_len;
 
 	/* In each iteration of the while loop below, we send a packet
 	 * containing the header and a portion of the body. The body is
-	 * composed of two parts: msgbody and userdata. We keep track of how
+	 * composed of two parts: msgbody and extradata. We keep track of how
 	 * many bytes have been sent so far using the offset variable, which
 	 * ranges from 0 to the total length of the body.
 	 */
@@ -1201,36 +1202,36 @@ static void send_fragmented_body(struct netconsole_target *nt,
 
 		/* msgbody was finally written, either in the previous
 		 * messages and/or in the current buf. Time to write
-		 * the userdata.
+		 * the extradata.
 		 */
 		msgbody_written |= offset + this_offset >= msgbody_len;
 
-		/* Msg body is fully written and there is pending userdata to
-		 * write, append userdata in this chunk
+		/* Msg body is fully written and there is pending extradata to
+		 * write, append extradata in this chunk
 		 */
 		if (msgbody_written && offset + this_offset < body_len) {
 			/* Track how much user data was already sent. First
 			 * time here, sent_userdata is zero
 			 */
-			int sent_userdata = (offset + this_offset) - msgbody_len;
+			sent_extradata = (offset + this_offset) - msgbody_len;
 			/* offset of bytes used in current buf */
-			int preceding_bytes = this_chunk + this_header;
+			preceding_bytes = this_chunk + this_header;
 
-			if (WARN_ON_ONCE(sent_userdata < 0))
+			if (WARN_ON_ONCE(sent_extradata < 0))
 				return;
 
-			this_chunk = min(userdata_len - sent_userdata,
+			this_chunk = min(extradata_len - sent_extradata,
 					 MAX_PRINT_CHUNK - preceding_bytes);
 			if (WARN_ON_ONCE(this_chunk < 0))
 				/* this_chunk could be zero if all the previous
 				 * message used all the buffer. This is not a
-				 * problem, userdata will be sent in the next
+				 * problem, extradata will be sent in the next
 				 * iteration
 				 */
 				return;
 
 			memcpy(nt->buf + this_header + this_offset,
-			       userdata + sent_userdata,
+			       extradata + sent_extradata,
 			       this_chunk);
 			this_offset += this_chunk;
 		}
@@ -1287,17 +1288,17 @@ static void send_msg_fragmented(struct netconsole_target *nt,
 static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 			     int msg_len)
 {
-	int userdata_len = 0;
+	int extradata_len = 0;
 	int release_len = 0;
 
 #ifdef CONFIG_NETCONSOLE_DYNAMIC
-	userdata_len = nt->userdata_length;
+	extradata_len = nt->userdata_length;
 #endif
 
 	if (nt->release)
 		release_len = strlen(init_utsname()->release) + 1;
 
-	if (msg_len + release_len + userdata_len <= MAX_PRINT_CHUNK)
+	if (msg_len + release_len + extradata_len <= MAX_PRINT_CHUNK)
 		return send_msg_no_fragmentation(nt, msg, msg_len, release_len);
 
 	return send_msg_fragmented(nt, msg, msg_len, release_len);
