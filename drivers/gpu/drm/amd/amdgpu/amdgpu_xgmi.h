@@ -23,7 +23,6 @@
 #define __AMDGPU_XGMI_H__
 
 #include <drm/task_barrier.h>
-#include "amdgpu_psp.h"
 #include "amdgpu_ras.h"
 
 struct amdgpu_hive_info {
@@ -71,7 +70,29 @@ enum amdgpu_xgmi_bw_unit {
 	AMDGPU_XGMI_BW_UNIT_MBYTES
 };
 
-extern struct amdgpu_xgmi_ras  xgmi_ras;
+struct amdgpu_xgmi_ras {
+	struct amdgpu_ras_block_object ras_block;
+};
+extern struct amdgpu_xgmi_ras xgmi_ras;
+
+struct amdgpu_xgmi {
+	/* from psp */
+	u64 node_id;
+	u64 hive_id;
+	/* fixed per family */
+	u64 node_segment_size;
+	/* physical node (0-3) */
+	unsigned physical_node_id;
+	/* number of nodes (0-4) */
+	unsigned num_physical_nodes;
+	/* gpu list in the same hive */
+	struct list_head head;
+	bool supported;
+	struct ras_common_if *ras_if;
+	bool connected_to_cpu;
+	struct amdgpu_xgmi_ras *ras;
+};
+
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
 void amdgpu_put_xgmi_hive(struct amdgpu_hive_info *hive);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);
@@ -86,14 +107,8 @@ bool amdgpu_xgmi_get_is_sharing_enabled(struct amdgpu_device *adev,
 					struct amdgpu_device *peer_adev);
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
 					   uint64_t addr);
-static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
-		struct amdgpu_device *bo_adev)
-{
-	return (amdgpu_use_xgmi_p2p &&
-		adev != bo_adev &&
-		adev->gmc.xgmi.hive_id &&
-		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
-}
+bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
+			   struct amdgpu_device *bo_adev);
 int amdgpu_xgmi_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_xgmi_reset_on_init(struct amdgpu_device *adev);
 

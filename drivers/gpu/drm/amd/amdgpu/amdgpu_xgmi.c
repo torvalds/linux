@@ -1714,3 +1714,11 @@ int amdgpu_xgmi_request_nps_change(struct amdgpu_device *adev,
 
 	return r;
 }
+
+bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
+			   struct amdgpu_device *bo_adev)
+{
+	return (amdgpu_use_xgmi_p2p && adev != bo_adev &&
+		adev->gmc.xgmi.hive_id &&
+		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
+}
