@@ -1339,7 +1339,7 @@ static int maps__set_module_path(struct maps *maps, const char *path, struct kmo
 
 static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, int depth)
 {
-	struct dirent *dent;
+	const struct dirent *dent;
 	DIR *dir = opendir(dir_name);
 	int ret = 0;
 
@@ -1350,14 +1350,20 @@ static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, i
 
 	while ((dent = readdir(dir)) != NULL) {
 		char path[PATH_MAX];
-		struct stat st;
+		unsigned char d_type = dent->d_type;
 
-		/*sshfs might return bad dent->d_type, so we have to stat*/
 		path__join(path, sizeof(path), dir_name, dent->d_name);
-		if (stat(path, &st))
-			continue;
 
-		if (S_ISDIR(st.st_mode)) {
+		if (d_type == DT_UNKNOWN) {
+			struct stat st;
+
+			if (stat(path, &st))
+				continue;
+			if (S_ISDIR(st.st_mode))
+				d_type = DT_DIR;
+		}
+
+		if (d_type == DT_DIR) {
 			if (!strcmp(dent->d_name, ".") ||
 			    !strcmp(dent->d_name, ".."))
 				continue;
