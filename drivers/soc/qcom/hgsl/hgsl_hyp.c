@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "hgsl.h"
@@ -2321,7 +2321,7 @@ out:
 
 int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhandle,
 	uint32_t ctxthandle, uint32_t length, uint32_t *db_signal, uint32_t *queue_gmuaddr,
-	uint32_t *irq_idx)
+	uint32_t *irq_bit_idx)
 {
 	struct query_dbcq_params_t rpc_params = { 0 };
 	struct gsl_hab_payload *send_buf = NULL;
@@ -2386,7 +2386,7 @@ int hgsl_hyp_query_dbcq(struct hgsl_hab_channel_t *hab_channel, uint32_t devhand
 		ret = -EINVAL;
 		goto out;
 	}
-	ret = gsl_rpc_read_uint32_l(recv_buf, irq_idx);
+	ret = gsl_rpc_read_uint32_l(recv_buf, irq_bit_idx);
 	if (ret) {
 		LOGE("failed to read irq_idx, %d", ret);
 		ret = -EINVAL;
