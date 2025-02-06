@@ -112,9 +112,6 @@
 #define XAXIDMA_DELAY_MASK		0xFF000000 /* Delay timeout counter */
 #define XAXIDMA_COALESCE_MASK		0x00FF0000 /* Coalesce counter */
 
-#define XAXIDMA_DELAY_SHIFT		24
-#define XAXIDMA_COALESCE_SHIFT		16
-
 #define XAXIDMA_IRQ_IOC_MASK		0x00001000 /* Completion intr */
 #define XAXIDMA_IRQ_DELAY_MASK		0x00002000 /* Delay interrupt */
 #define XAXIDMA_IRQ_ERROR_MASK		0x00004000 /* Error interrupt */
