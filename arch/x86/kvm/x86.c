@@ -3733,7 +3733,13 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	u32 msr = msr_info->index;
 	u64 data = msr_info->data;
 
-	if (msr && msr == vcpu->kvm->arch.xen_hvm_config.msr)
+	/*
+	 * Do not allow host-initiated writes to trigger the Xen hypercall
+	 * page setup; it could incur locking paths which are not expected
+	 * if userspace sets the MSR in an unusual location.
+	 */
+	if (msr && msr == vcpu->kvm->arch.xen_hvm_config.msr &&
+	    !msr_info->host_initiated)
 		return kvm_xen_write_hypercall_page(vcpu, data);
 
 	switch (msr) {
