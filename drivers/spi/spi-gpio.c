@@ -39,35 +39,7 @@ struct spi_gpio {
 
 /*----------------------------------------------------------------------*/
 
-/*
- * Because the overhead of going through four GPIO procedure calls
- * per transferred bit can make performance a problem, this code
- * is set up so that you can use it in either of two ways:
- *
- *   - The slow generic way:  set up platform_data to hold the GPIO
- *     numbers used for MISO/MOSI/SCK, and issue procedure calls for
- *     each of them.  This driver can handle several such busses.
- *
- *   - The quicker inlined way:  only helps with platform GPIO code
- *     that inlines operations for constant GPIOs.  This can give
- *     you tight (fast!) inner loops, but each such bus needs a
- *     new driver.  You'll define a new C file, with Makefile and
- *     Kconfig support; the C code can be a total of six lines:
- *
- *		#define DRIVER_NAME	"myboard_spi2"
- *		#define	SPI_MISO_GPIO	119
- *		#define	SPI_MOSI_GPIO	120
- *		#define	SPI_SCK_GPIO	121
- *		#define	SPI_N_CHIPSEL	4
- *		#include "spi-gpio.c"
- */
-
-#ifndef DRIVER_NAME
 #define DRIVER_NAME	"spi_gpio"
-
-#define GENERIC_BITBANG	/* vs tight inlines */
-
-#endif
 
 /*----------------------------------------------------------------------*/
 
@@ -341,16 +313,14 @@ static int spi_gpio_probe_pdata(struct platform_device *pdev,
 	struct spi_gpio *spi_gpio = spi_controller_get_devdata(host);
 	int i;
 
-#ifdef GENERIC_BITBANG
-	if (!pdata || !pdata->num_chipselect)
+	if (!pdata)
 		return -ENODEV;
-#endif
-	/*
-	 * The host needs to think there is a chipselect even if not
-	 * connected
-	 */
-	host->num_chipselect = pdata->num_chipselect ?: 1;
 
+	/* It's just one always-selected device, fine to continue */
+	if (!pdata->num_chipselect)
+		return 0;
+
+	host->num_chipselect = pdata->num_chipselect;
 	spi_gpio->cs_gpios = devm_kcalloc(dev, host->num_chipselect,
 					  sizeof(*spi_gpio->cs_gpios),
 					  GFP_KERNEL);
@@ -445,8 +415,6 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	return devm_spi_register_controller(&pdev->dev, host);
 }
 
-MODULE_ALIAS("platform:" DRIVER_NAME);
-
 static const struct of_device_id spi_gpio_dt_ids[] = {
 	{ .compatible = "spi-gpio" },
 	{}
@@ -465,3 +433,4 @@ module_platform_driver(spi_gpio_driver);
 MODULE_DESCRIPTION("SPI host driver using generic bitbanged GPIO ");
 MODULE_AUTHOR("David Brownell");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRIVER_NAME);
