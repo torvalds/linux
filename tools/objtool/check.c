@@ -2273,7 +2273,7 @@ static int read_annotate(struct objtool_file *file,
 
 	if (sec->sh.sh_entsize != 8) {
 		static bool warned = false;
-		if (!warned) {
+		if (!warned && opts.verbose) {
 			WARN("%s: dodgy linker, sh_entsize != 8", sec->name);
 			warned = true;
 		}
