@@ -38,13 +38,17 @@ int netdev_rx_queue_restart(struct net_device *dev, unsigned int rxq_idx)
 	if (err)
 		goto err_free_new_queue_mem;
 
-	err = qops->ndo_queue_stop(dev, old_mem, rxq_idx);
-	if (err)
-		goto err_free_new_queue_mem;
+	if (netif_running(dev)) {
+		err = qops->ndo_queue_stop(dev, old_mem, rxq_idx);
+		if (err)
+			goto err_free_new_queue_mem;
 
-	err = qops->ndo_queue_start(dev, new_mem, rxq_idx);
-	if (err)
-		goto err_start_queue;
+		err = qops->ndo_queue_start(dev, new_mem, rxq_idx);
+		if (err)
+			goto err_start_queue;
+	} else {
+		swap(new_mem, old_mem);
+	}
 
 	qops->ndo_queue_mem_free(dev, old_mem);
 
