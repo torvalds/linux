@@ -1815,15 +1815,19 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	bool single_output_bitdepth;
 	int i;
 
-	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
-
 	switch (swidget->id) {
 	case snd_soc_dapm_aif_in:
 	case snd_soc_dapm_aif_out:
 	{
+		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 		struct sof_ipc4_gtw_attributes *gtw_attr;
-		struct snd_sof_widget *pipe_widget;
-		struct sof_ipc4_pipeline *pipeline;
+
+		dev_dbg(sdev->dev,
+			"Host copier %s, type %d, ChainDMA: %s, stream_tag: %d\n",
+			swidget->widget->name, swidget->id,
+			str_yes_no(pipeline->use_chain_dma),
+			platform_params->stream_tag);
 
 		/* parse the deep buffer dma size */
 		ret = sof_update_ipc_object(scomp, &deep_buffer_dma_ms,
@@ -1839,9 +1843,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		gtw_attr = ipc4_copier->gtw_attr;
 		copier_data = &ipc4_copier->data;
 		available_fmt = &ipc4_copier->available_fmt;
-
-		pipe_widget = swidget->spipe->pipe_widget;
-		pipeline = pipe_widget->private;
 
 		if (pipeline->use_chain_dma) {
 			u32 host_dma_id;
@@ -1896,6 +1897,10 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
 
+		dev_dbg(sdev->dev, "Dai copier %s, type %d, ChainDMA: %s\n",
+			swidget->widget->name, swidget->id,
+			str_yes_no(pipeline->use_chain_dma));
+
 		if (pipeline->use_chain_dma)
 			return 0;
 
@@ -1929,6 +1934,9 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	}
 	case snd_soc_dapm_buffer:
 	{
+		dev_dbg(sdev->dev, "Module copier %s, type %d\n",
+			swidget->widget->name, swidget->id);
+
 		ipc4_copier = (struct sof_ipc4_copier *)swidget->private;
 		copier_data = &ipc4_copier->data;
 		available_fmt = &ipc4_copier->available_fmt;
@@ -3401,9 +3409,6 @@ static int sof_ipc4_dai_get_param(struct snd_sof_dev *sdev, struct snd_sof_dai *
 
 static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verify)
 {
-	struct snd_sof_pcm *spcm;
-	int dir, ret;
-
 	/*
 	 * This function is called during system suspend, we need to make sure
 	 * that all streams have been freed up.
@@ -3415,21 +3420,8 @@ static int sof_ipc4_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 	 *
 	 * This will also make sure that paused streams handled correctly.
 	 */
-	list_for_each_entry(spcm, &sdev->pcm_list, list) {
-		for_each_pcm_streams(dir) {
-			struct snd_pcm_substream *substream = spcm->stream[dir].substream;
 
-			if (!substream || !substream->runtime || spcm->stream[dir].suspend_ignored)
-				continue;
-
-			if (spcm->stream[dir].list) {
-				ret = sof_pcm_stream_free(sdev, substream, spcm, dir, true);
-				if (ret < 0)
-					return ret;
-			}
-		}
-	}
-	return 0;
+	return sof_pcm_free_all_streams(sdev);
 }
 
 static int sof_ipc4_link_setup(struct snd_sof_dev *sdev, struct snd_soc_dai_link *link)
