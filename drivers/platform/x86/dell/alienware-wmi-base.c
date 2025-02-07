@@ -17,10 +17,7 @@
 #include <linux/dmi.h>
 #include <linux/leds.h>
 #include <linux/wmi.h>
-
-#define LEGACY_CONTROL_GUID		"A90597CE-A997-11DA-B012-B622A1EF5492"
-#define LEGACY_POWER_CONTROL_GUID	"A80593CE-A997-11DA-B012-B622A1EF5492"
-#define WMAX_CONTROL_GUID		"A70591CE-A997-11DA-B012-B622A1EF5492"
+#include "alienware-wmi.h"
 
 #define WMAX_METHOD_HDMI_SOURCE		0x1
 #define WMAX_METHOD_HDMI_STATUS		0x2
@@ -49,23 +46,6 @@ MODULE_PARM_DESC(force_platform_profile, "Forces auto-detecting thermal profiles
 static bool force_gmode;
 module_param_unsafe(force_gmode, bool, 0);
 MODULE_PARM_DESC(force_gmode, "Forces G-Mode when performance profile is selected");
-
-enum INTERFACE_FLAGS {
-	LEGACY,
-	WMAX,
-};
-
-enum LEGACY_CONTROL_STATES {
-	LEGACY_RUNNING = 1,
-	LEGACY_BOOTING = 0,
-	LEGACY_SUSPEND = 3,
-};
-
-enum WMAX_CONTROL_STATES {
-	WMAX_RUNNING = 0xFF,
-	WMAX_BOOTING = 0,
-	WMAX_SUSPEND = 3,
-};
 
 enum WMAX_THERMAL_INFORMATION_OPERATIONS {
 	WMAX_OPERATION_SYS_DESCRIPTION		= 0x02,
@@ -114,15 +94,7 @@ static const enum platform_profile_option wmax_mode_to_platform_profile[THERMAL_
 	[THERMAL_MODE_BASIC_PERFORMANCE]		= PLATFORM_PROFILE_PERFORMANCE,
 };
 
-struct alienfx_quirks {
-	u8 num_zones;
-	bool hdmi_mux;
-	bool amplifier;
-	bool deepslp;
-};
-
-static struct alienfx_quirks *alienfx;
-
+struct alienfx_quirks *alienfx;
 
 static struct alienfx_quirks quirk_inspiron5675 = {
 	.num_zones = 2,
@@ -246,12 +218,6 @@ static const struct dmi_system_id alienware_quirks[] __initconst = {
 	{}
 };
 
-struct color_platform {
-	u8 blue;
-	u8 green;
-	u8 red;
-} __packed;
-
 struct wmax_brightness_args {
 	u32 led_mask;
 	u32 percentage;
@@ -286,27 +252,7 @@ struct awcc_priv {
 	enum wmax_thermal_mode supported_thermal_profiles[PLATFORM_PROFILE_LAST];
 };
 
-struct alienfx_priv {
-	struct platform_device *pdev;
-	struct led_classdev global_led;
-	struct color_platform colors[4];
-	u8 global_brightness;
-	u8 lighting_control_state;
-};
-
-struct alienfx_ops {
-	int (*upd_led)(struct alienfx_priv *priv, struct wmi_device *wdev,
-		       u8 location);
-	int (*upd_brightness)(struct alienfx_priv *priv, struct wmi_device *wdev,
-			      u8 brightness);
-};
-
-struct alienfx_platdata {
-	struct wmi_device *wdev;
-	struct alienfx_ops ops;
-};
-
-static u8 interface;
+u8 alienware_interface;
 
 struct awcc_quirks {
 	bool pprof;
@@ -418,8 +364,8 @@ static const struct dmi_system_id awcc_dmi_table[] __initconst = {
 
 static struct awcc_quirks *awcc;
 
-static int alienware_wmi_command(struct wmi_device *wdev, u32 method_id,
-				 void *in_args, size_t in_size, u32 *out_data)
+int alienware_wmi_command(struct wmi_device *wdev, u32 method_id,
+			  void *in_args, size_t in_size, u32 *out_data)
 {
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	struct acpi_buffer in = {in_size, in_args};
@@ -583,7 +529,7 @@ static ssize_t lighting_control_state_store(struct device *dev,
 		val = LEGACY_BOOTING;
 	else if (strcmp(buf, "suspend\n") == 0)
 		val = LEGACY_SUSPEND;
-	else if (interface == LEGACY)
+	else if (alienware_interface == LEGACY)
 		val = LEGACY_RUNNING;
 	else
 		val = WMAX_RUNNING;
@@ -731,7 +677,7 @@ static DEVICE_ATTR_RW(source);
 
 static bool hdmi_group_visible(struct kobject *kobj)
 {
-	return interface == WMAX && alienfx->hdmi_mux;
+	return alienware_interface == WMAX && alienfx->hdmi_mux;
 }
 DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(hdmi);
 
@@ -741,7 +687,7 @@ static struct attribute *hdmi_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group hdmi_attribute_group = {
+const struct attribute_group wmax_hdmi_attribute_group = {
 	.name = "hdmi",
 	.is_visible = SYSFS_GROUP_VISIBLE(hdmi),
 	.attrs = hdmi_attrs,
@@ -779,7 +725,7 @@ static DEVICE_ATTR_RO(status);
 
 static bool amplifier_group_visible(struct kobject *kobj)
 {
-	return interface == WMAX && alienfx->amplifier;
+	return alienware_interface == WMAX && alienfx->amplifier;
 }
 DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(amplifier);
 
@@ -788,7 +734,7 @@ static struct attribute *amplifier_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group amplifier_attribute_group = {
+const struct attribute_group wmax_amplifier_attribute_group = {
 	.name = "amplifier",
 	.is_visible = SYSFS_GROUP_VISIBLE(amplifier),
 	.attrs = amplifier_attrs,
@@ -850,7 +796,7 @@ static DEVICE_ATTR_RW(deepsleep);
 
 static bool deepsleep_group_visible(struct kobject *kobj)
 {
-	return interface == WMAX && alienfx->deepslp;
+	return alienware_interface == WMAX && alienfx->deepslp;
 }
 DEFINE_SIMPLE_SYSFS_GROUP_VISIBLE(deepsleep);
 
@@ -859,7 +805,7 @@ static struct attribute *deepsleep_attrs[] = {
 	NULL,
 };
 
-static const struct attribute_group deepsleep_attribute_group = {
+const struct attribute_group wmax_deepsleep_attribute_group = {
 	.name = "deepsleep",
 	.is_visible = SYSFS_GROUP_VISIBLE(deepsleep),
 	.attrs = deepsleep_attrs,
@@ -1114,7 +1060,7 @@ static int alienfx_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	if (interface == WMAX)
+	if (alienware_interface == WMAX)
 		priv->lighting_control_state = WMAX_RUNNING;
 	else
 		priv->lighting_control_state = LEGACY_RUNNING;
@@ -1132,9 +1078,7 @@ static int alienfx_probe(struct platform_device *pdev)
 
 static const struct attribute_group *alienfx_groups[] = {
 	&zone_attribute_group,
-	&hdmi_attribute_group,
-	&amplifier_attribute_group,
-	&deepsleep_attribute_group,
+	WMAX_DEV_GROUPS
 	NULL
 };
 
@@ -1153,7 +1097,7 @@ static void alienware_alienfx_remove(void *data)
 	platform_device_unregister(pdev);
 }
 
-static int alienware_alienfx_setup(struct alienfx_platdata *pdata)
+int alienware_alienfx_setup(struct alienfx_platdata *pdata)
 {
 	struct device *dev = &pdata->wdev->dev;
 	struct platform_device *pdev;
@@ -1240,12 +1184,12 @@ static struct wmi_driver alienware_legacy_wmi_driver = {
 	.no_singleton = true,
 };
 
-static int __init alienware_legacy_wmi_init(void)
+int __init alienware_legacy_wmi_init(void)
 {
 	return wmi_driver_register(&alienware_legacy_wmi_driver);
 }
 
-static void __exit alienware_legacy_wmi_exit(void)
+void __exit alienware_legacy_wmi_exit(void)
 {
 	wmi_driver_unregister(&alienware_legacy_wmi_driver);
 }
@@ -1313,7 +1257,7 @@ static struct wmi_driver alienware_wmax_wmi_driver = {
 	.no_singleton = true,
 };
 
-static int __init alienware_wmax_wmi_init(void)
+int __init alienware_wmax_wmi_init(void)
 {
 	const struct dmi_system_id *id;
 
@@ -1338,7 +1282,7 @@ static int __init alienware_wmax_wmi_init(void)
 	return wmi_driver_register(&alienware_wmax_wmi_driver);
 }
 
-static void __exit alienware_wmax_wmi_exit(void)
+void __exit alienware_wmax_wmi_exit(void)
 {
 	wmi_driver_unregister(&alienware_wmax_wmi_driver);
 }
@@ -1356,10 +1300,10 @@ static int __init alienware_wmi_init(void)
 		return ret;
 
 	if (wmi_has_guid(WMAX_CONTROL_GUID)) {
-		interface = WMAX;
+		alienware_interface = WMAX;
 		ret = alienware_wmax_wmi_init();
 	} else {
-		interface = LEGACY;
+		alienware_interface = LEGACY;
 		ret = alienware_legacy_wmi_init();
 	}
 
@@ -1373,7 +1317,7 @@ module_init(alienware_wmi_init);
 
 static void __exit alienware_wmi_exit(void)
 {
-	if (interface == WMAX)
+	if (alienware_interface == WMAX)
 		alienware_wmax_wmi_exit();
 	else
 		alienware_legacy_wmi_exit();
