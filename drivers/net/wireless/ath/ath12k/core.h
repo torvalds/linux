@@ -1055,9 +1055,6 @@ struct ath12k_base {
 
 	const struct hal_rx_ops *hal_rx_ops;
 
-	/* Denotes the whether MLO is possible within the chip */
-	bool single_chip_mlo_supp;
-
 	struct completion restart_completed;
 
 #ifdef CONFIG_ACPI
