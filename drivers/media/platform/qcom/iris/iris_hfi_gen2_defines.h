@@ -1,0 +1,46 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#ifndef __IRIS_HFI_GEN2_DEFINES_H__
+#define __IRIS_HFI_GEN2_DEFINES_H__
+
+#include <linux/types.h>
+
+#define HFI_VIDEO_ARCH_LX			0x1
+
+#define HFI_CMD_BEGIN				0x01000000
+#define HFI_CMD_INIT				0x01000001
+#define HFI_CMD_END				0x01FFFFFF
+
+#define HFI_PROP_BEGIN				0x03000000
+#define HFI_PROP_IMAGE_VERSION			0x03000001
+#define HFI_PROP_INTRA_FRAME_POWER_COLLAPSE	0x03000002
+#define HFI_PROP_UBWC_MAX_CHANNELS		0x03000003
+#define HFI_PROP_UBWC_MAL_LENGTH		0x03000004
+#define HFI_PROP_UBWC_HBB			0x03000005
+#define HFI_PROP_UBWC_BANK_SWZL_LEVEL1		0x03000006
+#define HFI_PROP_UBWC_BANK_SWZL_LEVEL2		0x03000007
+#define HFI_PROP_UBWC_BANK_SWZL_LEVEL3		0x03000008
+#define HFI_PROP_UBWC_BANK_SPREADING		0x03000009
+#define HFI_PROP_END				0x03FFFFFF
+
+#define HFI_SYSTEM_ERROR_BEGIN			0x05000000
+#define HFI_SYS_ERROR_WD_TIMEOUT		0x05000001
+#define HFI_SYSTEM_ERROR_END			0x05FFFFFF
+
+enum hfi_packet_firmware_flags {
+	HFI_FW_FLAGS_SUCCESS			= 0x00000001,
+	HFI_FW_FLAGS_INFORMATION		= 0x00000002,
+	HFI_FW_FLAGS_SESSION_ERROR		= 0x00000004,
+	HFI_FW_FLAGS_SYSTEM_ERROR		= 0x00000008,
+};
+
+struct hfi_debug_header {
+	u32 size;
+	u32 debug_level;
+	u32 reserved[2];
+};
+
+#endif

@@ -174,4 +174,9 @@ struct iris_iface_q_info {
 int iris_hfi_queues_init(struct iris_core *core);
 void iris_hfi_queues_deinit(struct iris_core *core);
 
+int iris_hfi_queue_cmd_write_locked(struct iris_core *core, void *pkt, u32 pkt_size);
+int iris_hfi_queue_cmd_write(struct iris_core *core, void *pkt, u32 pkt_size);
+int iris_hfi_queue_msg_read(struct iris_core *core, void *pkt);
+int iris_hfi_queue_dbg_read(struct iris_core *core, void *pkt);
+
 #endif

@@ -6,7 +6,10 @@
 #ifndef __IRIS_PLATFORM_COMMON_H__
 #define __IRIS_PLATFORM_COMMON_H__
 
+struct iris_core;
+
 #define IRIS_PAS_ID				9
+#define HW_RESPONSE_TIMEOUT_VALUE               (1000) /* milliseconds */
 
 extern struct iris_platform_data sm8550_data;
 
@@ -28,7 +31,19 @@ struct tz_cp_config {
 	u32 cp_nonpixel_size;
 };
 
+struct ubwc_config_data {
+	u32	max_channels;
+	u32	mal_length;
+	u32	highest_bank_bit;
+	u32	bank_swzl_level;
+	u32	bank_swz2_level;
+	u32	bank_swz3_level;
+	u32	bank_spreading;
+};
+
 struct iris_platform_data {
+	void (*init_hfi_command_ops)(struct iris_core *core);
+	void (*init_hfi_response_ops)(struct iris_core *core);
 	struct iris_inst *(*get_instance)(void);
 	const struct icc_info *icc_tbl;
 	unsigned int icc_tbl_size;
@@ -45,6 +60,8 @@ struct iris_platform_data {
 	u32 pas_id;
 	struct tz_cp_config *tz_cp_config_data;
 	u32 core_arch;
+	u32 hw_response_timeout;
+	struct ubwc_config_data *ubwc_config;
 };
 
 #endif

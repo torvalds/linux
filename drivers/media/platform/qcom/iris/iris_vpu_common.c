@@ -11,10 +11,15 @@
 #define CPU_BASE_OFFS				0x000A0000
 
 #define CPU_CS_BASE_OFFS			(CPU_BASE_OFFS)
+#define CPU_IC_BASE_OFFS			(CPU_BASE_OFFS)
+
+#define CPU_CS_A2HSOFTINTCLR			(CPU_CS_BASE_OFFS + 0x1C)
+#define CLEAR_XTENSA2HOST_INTR			BIT(0)
 
 #define CTRL_INIT				(CPU_CS_BASE_OFFS + 0x48)
 #define CTRL_STATUS				(CPU_CS_BASE_OFFS + 0x4C)
 
+#define CTRL_INIT_IDLE_MSG_BMSK			0x40000000
 #define CTRL_ERROR_STATUS__M			0xfe
 
 #define QTBL_INFO				(CPU_CS_BASE_OFFS + 0x50)
@@ -30,6 +35,14 @@
 #define HOST2XTENSA_INTR_ENABLE			BIT(0)
 
 #define CPU_CS_X2RPMH				(CPU_CS_BASE_OFFS + 0x168)
+
+#define CPU_IC_SOFTINT				(CPU_IC_BASE_OFFS + 0x150)
+#define CPU_IC_SOFTINT_H2A_SHFT			0x0
+
+#define WRAPPER_BASE_OFFS			0x000B0000
+#define WRAPPER_INTR_STATUS			(WRAPPER_BASE_OFFS + 0x0C)
+#define WRAPPER_INTR_STATUS_A2HWD_BMSK		BIT(3)
+#define WRAPPER_INTR_STATUS_A2H_BMSK		BIT(2)
 
 static void iris_vpu_setup_ucregion_memory_map(struct iris_core *core)
 {
@@ -84,6 +97,36 @@ int iris_vpu_boot_firmware(struct iris_core *core)
 
 	writel(HOST2XTENSA_INTR_ENABLE, core->reg_base + CPU_CS_H2XSOFTINTEN);
 	writel(0x0, core->reg_base + CPU_CS_X2RPMH);
+
+	return 0;
+}
+
+void iris_vpu_raise_interrupt(struct iris_core *core)
+{
+	writel(1 << CPU_IC_SOFTINT_H2A_SHFT, core->reg_base + CPU_IC_SOFTINT);
+}
+
+void iris_vpu_clear_interrupt(struct iris_core *core)
+{
+	u32 intr_status, mask;
+
+	intr_status = readl(core->reg_base + WRAPPER_INTR_STATUS);
+	mask = (WRAPPER_INTR_STATUS_A2H_BMSK |
+		WRAPPER_INTR_STATUS_A2HWD_BMSK |
+		CTRL_INIT_IDLE_MSG_BMSK);
+
+	if (intr_status & mask)
+		core->intr_status |= intr_status;
+
+	writel(CLEAR_XTENSA2HOST_INTR, core->reg_base + CPU_CS_A2HSOFTINTCLR);
+}
+
+int iris_vpu_watchdog(struct iris_core *core, u32 intr_status)
+{
+	if (intr_status & WRAPPER_INTR_STATUS_A2HWD_BMSK) {
+		dev_err(core->dev, "received watchdog interrupt\n");
+		return -ETIME;
+	}
 
 	return 0;
 }

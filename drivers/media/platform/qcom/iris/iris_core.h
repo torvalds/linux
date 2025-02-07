@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <media/v4l2-device.h>
 
+#include "iris_hfi_common.h"
 #include "iris_hfi_queue.h"
 #include "iris_platform_common.h"
 #include "iris_state.h"
@@ -18,6 +19,9 @@ struct icc_info {
 	u32			bw_min_kbps;
 	u32			bw_max_kbps;
 };
+
+#define IRIS_FW_VERSION_LENGTH		128
+#define IFACEQ_CORE_PKT_SIZE		(1024 * 4)
 
 /**
  * struct iris_core - holds core parameters valid for all instances
@@ -45,6 +49,14 @@ struct icc_info {
  * @message_queue: shared interface queue to receive responses from firmware
  * @debug_queue: shared interface queue to receive debug info from firmware
  * @lock: a lock for this strucure
+ * @response_packet: a pointer to response packet from fw to driver
+ * @header_id: id of packet header
+ * @packet_id: id of packet
+ * @hfi_ops: iris hfi command ops
+ * @hfi_response_ops: iris hfi response ops
+ * @core_init_done: structure of signal completion for system response
+ * @intr_status: interrupt status
+ * @sys_error_handler: a delayed work for handling system fatal error
  */
 
 struct iris_core {
@@ -71,6 +83,14 @@ struct iris_core {
 	struct iris_iface_q_info		message_queue;
 	struct iris_iface_q_info		debug_queue;
 	struct mutex				lock; /* lock for core related operations */
+	u8					*response_packet;
+	u32					header_id;
+	u32					packet_id;
+	const struct iris_hfi_command_ops	*hfi_ops;
+	const struct iris_hfi_response_ops	*hfi_response_ops;
+	struct completion			core_init_done;
+	u32					intr_status;
+	struct delayed_work			sys_error_handler;
 };
 
 int iris_core_init(struct iris_core *core);

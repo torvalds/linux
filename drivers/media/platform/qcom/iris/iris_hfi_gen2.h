@@ -8,6 +8,8 @@
 
 #include "iris_instance.h"
 
+struct iris_core;
+
 /**
  * struct iris_inst_hfi_gen2 - holds per video instance parameters for hfi_gen2
  *
@@ -17,6 +19,8 @@ struct iris_inst_hfi_gen2 {
 	struct iris_inst		inst;
 };
 
+void iris_hfi_gen2_command_ops_init(struct iris_core *core);
+void iris_hfi_gen2_response_ops_init(struct iris_core *core);
 struct iris_inst *iris_hfi_gen2_get_instance(void);
 
 #endif

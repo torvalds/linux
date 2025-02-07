@@ -17,6 +17,24 @@ void iris_core_deinit(struct iris_core *core)
 	mutex_unlock(&core->lock);
 }
 
+static int iris_wait_for_system_response(struct iris_core *core)
+{
+	u32 hw_response_timeout_val = core->iris_platform_data->hw_response_timeout;
+	int ret;
+
+	if (core->state == IRIS_CORE_ERROR)
+		return -EIO;
+
+	ret = wait_for_completion_timeout(&core->core_init_done,
+					  msecs_to_jiffies(hw_response_timeout_val));
+	if (!ret) {
+		core->state = IRIS_CORE_ERROR;
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 int iris_core_init(struct iris_core *core)
 {
 	int ret;
@@ -44,9 +62,13 @@ int iris_core_init(struct iris_core *core)
 	if (ret)
 		goto error_unload_fw;
 
+	ret = iris_hfi_core_init(core);
+	if (ret)
+		goto error_unload_fw;
+
 	mutex_unlock(&core->lock);
 
-	return 0;
+	return iris_wait_for_system_response(core);
 
 error_unload_fw:
 	iris_fw_unload(core);

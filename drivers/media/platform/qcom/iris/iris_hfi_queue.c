@@ -5,6 +5,179 @@
 
 #include "iris_core.h"
 #include "iris_hfi_queue.h"
+#include "iris_vpu_common.h"
+
+static int iris_hfi_queue_write(struct iris_iface_q_info *qinfo, void *packet, u32 packet_size)
+{
+	struct iris_hfi_queue_header *queue = qinfo->qhdr;
+	u32 write_idx = queue->write_idx * sizeof(u32);
+	u32 read_idx = queue->read_idx * sizeof(u32);
+	u32 empty_space, new_write_idx, residue;
+	u32 *write_ptr;
+
+	if (write_idx < read_idx)
+		empty_space = read_idx - write_idx;
+	else
+		empty_space = IFACEQ_QUEUE_SIZE - (write_idx -  read_idx);
+	if (empty_space < packet_size)
+		return -ENOSPC;
+
+	queue->tx_req =  0;
+
+	new_write_idx = write_idx + packet_size;
+	write_ptr = (u32 *)((u8 *)qinfo->kernel_vaddr + write_idx);
+
+	if (write_ptr < (u32 *)qinfo->kernel_vaddr ||
+	    write_ptr > (u32 *)(qinfo->kernel_vaddr +
+	    IFACEQ_QUEUE_SIZE))
+		return -EINVAL;
+
+	if (new_write_idx < IFACEQ_QUEUE_SIZE) {
+		memcpy(write_ptr, packet, packet_size);
+	} else {
+		residue = new_write_idx - IFACEQ_QUEUE_SIZE;
+		memcpy(write_ptr, packet, (packet_size - residue));
+		memcpy(qinfo->kernel_vaddr,
+		       packet + (packet_size - residue), residue);
+		new_write_idx = residue;
+	}
+
+	/* Make sure packet is written before updating the write index */
+	mb();
+	queue->write_idx = new_write_idx / sizeof(u32);
+
+	/* Make sure write index is updated before an interrupt is raised */
+	mb();
+
+	return 0;
+}
+
+static int iris_hfi_queue_read(struct iris_iface_q_info *qinfo, void *packet)
+{
+	struct iris_hfi_queue_header *queue = qinfo->qhdr;
+	u32 write_idx = queue->write_idx * sizeof(u32);
+	u32 read_idx = queue->read_idx * sizeof(u32);
+	u32 packet_size, receive_request = 0;
+	u32 new_read_idx, residue;
+	u32 *read_ptr;
+	int ret = 0;
+
+	if (queue->queue_type == IFACEQ_MSGQ_ID)
+		receive_request = 1;
+
+	if (read_idx == write_idx) {
+		queue->rx_req = receive_request;
+		/* Ensure qhdr is updated in main memory */
+		mb();
+		return -ENODATA;
+	}
+
+	read_ptr = qinfo->kernel_vaddr + read_idx;
+	if (read_ptr < (u32 *)qinfo->kernel_vaddr ||
+	    read_ptr > (u32 *)(qinfo->kernel_vaddr +
+	    IFACEQ_QUEUE_SIZE - sizeof(*read_ptr)))
+		return -ENODATA;
+
+	packet_size = *read_ptr;
+	if (!packet_size)
+		return -EINVAL;
+
+	new_read_idx = read_idx + packet_size;
+	if (packet_size <= IFACEQ_CORE_PKT_SIZE) {
+		if (new_read_idx < IFACEQ_QUEUE_SIZE) {
+			memcpy(packet, read_ptr, packet_size);
+		} else {
+			residue = new_read_idx - IFACEQ_QUEUE_SIZE;
+			memcpy(packet, read_ptr, (packet_size - residue));
+			memcpy((packet + (packet_size - residue)),
+			       qinfo->kernel_vaddr, residue);
+			new_read_idx = residue;
+		}
+	} else {
+		new_read_idx = write_idx;
+		ret = -EBADMSG;
+	}
+
+	queue->rx_req = receive_request;
+
+	queue->read_idx = new_read_idx / sizeof(u32);
+	/* Ensure qhdr is updated in main memory */
+	mb();
+
+	return ret;
+}
+
+int iris_hfi_queue_cmd_write_locked(struct iris_core *core, void *pkt, u32 pkt_size)
+{
+	struct iris_iface_q_info *q_info = &core->command_queue;
+
+	if (core->state == IRIS_CORE_ERROR)
+		return -EINVAL;
+
+	if (!iris_hfi_queue_write(q_info, pkt, pkt_size)) {
+		iris_vpu_raise_interrupt(core);
+	} else {
+		dev_err(core->dev, "queue full\n");
+		return -ENODATA;
+	}
+
+	return 0;
+}
+
+int iris_hfi_queue_cmd_write(struct iris_core *core, void *pkt, u32 pkt_size)
+{
+	int ret;
+
+	mutex_lock(&core->lock);
+	ret = iris_hfi_queue_cmd_write_locked(core, pkt, pkt_size);
+	mutex_unlock(&core->lock);
+
+	return ret;
+}
+
+int iris_hfi_queue_msg_read(struct iris_core *core, void *pkt)
+{
+	struct iris_iface_q_info *q_info = &core->message_queue;
+	int ret = 0;
+
+	mutex_lock(&core->lock);
+	if (core->state != IRIS_CORE_INIT) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	if (iris_hfi_queue_read(q_info, pkt)) {
+		ret = -ENODATA;
+		goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&core->lock);
+
+	return ret;
+}
+
+int iris_hfi_queue_dbg_read(struct iris_core *core, void *pkt)
+{
+	struct iris_iface_q_info *q_info = &core->debug_queue;
+	int ret = 0;
+
+	mutex_lock(&core->lock);
+	if (core->state != IRIS_CORE_INIT) {
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	if (iris_hfi_queue_read(q_info, pkt)) {
+		ret = -ENODATA;
+		goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&core->lock);
+
+	return ret;
+}
 
 static void iris_hfi_queue_set_header(struct iris_core *core, u32 queue_id,
 				      struct iris_iface_q_info *iface_q)
