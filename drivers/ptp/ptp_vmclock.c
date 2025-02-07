@@ -414,6 +414,7 @@ static ssize_t vmclock_miscdev_read(struct file *fp, char __user *buf,
 }
 
 static const struct file_operations vmclock_miscdev_fops = {
+	.owner = THIS_MODULE,
 	.mmap = vmclock_miscdev_mmap,
 	.read = vmclock_miscdev_read,
 };
