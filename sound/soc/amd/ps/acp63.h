@@ -332,6 +332,10 @@ struct acp_hw_ops {
  * manager-SW0 instance
  * @acp63_sdw_dma_intr_stat: DMA interrupt status array for ACP6.3 platform SoundWire
  * manager-SW1 instance
+ * @acp70_sdw0-dma_intr_stat: DMA interrupt status array for ACP7.0 platform SoundWire
+ * manager-SW0 instance
+ * @acp70_sdw_dma_intr_stat: DMA interrupt status array for ACP7.0 platform SoundWire
+ * manager-SW1 instance
  */
 
 struct acp63_dev_data {
@@ -357,6 +361,8 @@ struct acp63_dev_data {
 	u32 acp_rev;
 	u16 acp63_sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
 	u16 acp63_sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
+	u16 acp70_sdw0_dma_intr_stat[ACP70_SDW0_DMA_MAX_STREAMS];
+	u16 acp70_sdw1_dma_intr_stat[ACP70_SDW1_DMA_MAX_STREAMS];
 };
 
 void acp63_hw_init_ops(struct acp_hw_ops *hw_ops);

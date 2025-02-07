@@ -378,6 +378,29 @@ static void acp70_get_config(struct pci_dev *pci, struct acp63_dev_data *acp_dat
 	}
 }
 
+static void acp70_sdw_dma_irq_thread(struct acp63_dev_data *adata)
+{
+	struct sdw_dma_dev_data *sdw_data;
+	u32 stream_id;
+
+	sdw_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
+
+	for (stream_id = 0; stream_id < ACP70_SDW0_DMA_MAX_STREAMS; stream_id++) {
+		if (adata->acp70_sdw0_dma_intr_stat[stream_id]) {
+			if (sdw_data->acp70_sdw0_dma_stream[stream_id])
+				snd_pcm_period_elapsed(sdw_data->acp70_sdw0_dma_stream[stream_id]);
+			adata->acp70_sdw0_dma_intr_stat[stream_id] = 0;
+		}
+	}
+	for (stream_id = 0; stream_id < ACP70_SDW1_DMA_MAX_STREAMS; stream_id++) {
+		if (adata->acp70_sdw1_dma_intr_stat[stream_id]) {
+			if (sdw_data->acp70_sdw1_dma_stream[stream_id])
+				snd_pcm_period_elapsed(sdw_data->acp70_sdw1_dma_stream[stream_id]);
+			adata->acp70_sdw1_dma_intr_stat[stream_id] = 0;
+		}
+	}
+}
+
 static int __maybe_unused snd_acp70_suspend(struct device *dev)
 {
 	struct acp63_dev_data *adata;
@@ -444,6 +467,7 @@ void acp70_hw_init_ops(struct acp_hw_ops *hw_ops)
 	hw_ops->acp_init = acp70_init;
 	hw_ops->acp_deinit = acp70_deinit;
 	hw_ops->acp_get_config = acp70_get_config;
+	hw_ops->acp_sdw_dma_irq_thread = acp70_sdw_dma_irq_thread;
 	hw_ops->acp_suspend = snd_acp70_suspend;
 	hw_ops->acp_resume = snd_acp70_resume;
 	hw_ops->acp_suspend_runtime = snd_acp70_suspend;

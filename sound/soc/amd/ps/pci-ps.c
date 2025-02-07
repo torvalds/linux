@@ -52,20 +52,61 @@ static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 
 					stream_id = ACP63_SDW0_AUDIO2_RX;
 					break;
 				}
-				adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
+				if (adata->acp_rev >= ACP70_PCI_REV)
+					adata->acp70_sdw0_dma_intr_stat[stream_id] = 1;
+				else
+					adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
+
 				sdw_dma_irq_flag = 1;
 			}
 		}
 	}
-	if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
-		writel(ACP63_P1_AUDIO1_RX_THRESHOLD, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
-		sdw_dma_irq_flag = 1;
-	}
-	if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
-		writel(ACP63_P1_AUDIO1_TX_THRESHOLD, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
-		sdw_dma_irq_flag = 1;
+	if (adata->acp_rev == ACP63_PCI_REV) {
+		if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
+			writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
+			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		       adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
+			sdw_dma_irq_flag = 1;
+		}
+		if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
+			writel(ACP63_P1_AUDIO1_TX_THRESHOLD,
+			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+			adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
+			sdw_dma_irq_flag = 1;
+		}
+	} else  {
+		if (ext_intr_stat1 & ACP70_P1_SDW_DMA_IRQ_MASK) {
+			for (index = ACP70_P1_AUDIO2_RX_THRESHOLD;
+			     index <= ACP70_P1_AUDIO0_TX_THRESHOLD; index++) {
+				if (ext_intr_stat1 & BIT(index)) {
+					writel(BIT(index),
+					       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+					switch (index) {
+					case ACP70_P1_AUDIO0_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO0_TX;
+						break;
+					case ACP70_P1_AUDIO1_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO1_TX;
+						break;
+					case ACP70_P1_AUDIO2_TX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO2_TX;
+						break;
+					case ACP70_P1_AUDIO0_RX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO0_RX;
+						break;
+					case ACP70_P1_AUDIO1_RX_THRESHOLD:
+						 stream_id = ACP70_SDW_AUDIO1_RX;
+						break;
+					case ACP70_P1_AUDIO2_RX_THRESHOLD:
+						stream_id = ACP70_SDW_AUDIO2_RX;
+						break;
+					}
+
+					adata->acp70_sdw1_dma_intr_stat[stream_id] = 1;
+					sdw_dma_irq_flag = 1;
+				}
+			}
+		}
 	}
 	return sdw_dma_irq_flag;
 }
