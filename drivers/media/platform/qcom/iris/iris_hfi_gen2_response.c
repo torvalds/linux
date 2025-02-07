@@ -201,6 +201,10 @@ static int iris_hfi_gen2_handle_session_info(struct iris_inst *inst,
 		info = "buffer overflow";
 		inst_hfi_gen2->hfi_frame_info.overflow = 1;
 		break;
+	case HFI_INFO_HFI_FLAG_DRAIN_LAST:
+		info = "drain last flag";
+		ret = iris_inst_sub_state_change_drain_last(inst);
+		break;
 	case HFI_INFO_HFI_FLAG_PSC_LAST:
 		info = "drc last flag";
 		ret = iris_inst_sub_state_change_drc_last(inst);
@@ -337,6 +341,12 @@ static int iris_hfi_gen2_handle_output_buffer(struct iris_inst *inst,
 	bool found = false;
 	int ret;
 
+	if (hfi_buffer->flags & HFI_BUF_FW_FLAG_LAST) {
+		ret = iris_inst_sub_state_change_drain_last(inst);
+		if (ret)
+			return ret;
+	}
+
 	if (hfi_buffer->flags & HFI_BUF_FW_FLAG_PSC_LAST) {
 		ret = iris_inst_sub_state_change_drc_last(inst);
 		if (ret)
@@ -425,6 +435,21 @@ static int iris_hfi_gen2_handle_release_internal_buffer(struct iris_inst *inst,
 	return ret;
 }
 
+static int iris_hfi_gen2_handle_session_stop(struct iris_inst *inst,
+					     struct iris_hfi_packet *pkt)
+{
+	int ret = 0;
+
+	if (pkt->port == HFI_PORT_RAW)
+		ret = iris_inst_sub_state_change_pause(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+	else if (pkt->port == HFI_PORT_BITSTREAM)
+		ret = iris_inst_sub_state_change_pause(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+
+	complete(&inst->completion);
+
+	return ret;
+}
+
 static int iris_hfi_gen2_handle_session_buffer(struct iris_inst *inst,
 					       struct iris_hfi_packet *pkt)
 {
@@ -451,6 +476,22 @@ static int iris_hfi_gen2_handle_session_buffer(struct iris_inst *inst,
 		return iris_hfi_gen2_handle_output_buffer(inst, buffer);
 	else
 		return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+}
+
+static int iris_hfi_gen2_handle_session_drain(struct iris_inst *inst,
+					      struct iris_hfi_packet *pkt)
+{
+	int ret = 0;
+
+	if (!(pkt->flags & HFI_FW_FLAGS_SUCCESS)) {
+		iris_inst_change_state(inst, IRIS_INST_ERROR);
+		return 0;
+	}
+
+	if (inst->sub_state & IRIS_INST_SUB_DRAIN)
+		ret = iris_inst_change_sub_state(inst, 0, IRIS_INST_SUB_INPUT_PAUSE);
+
+	return ret;
 }
 
 static void iris_hfi_gen2_read_input_subcr_params(struct iris_inst *inst)
@@ -572,13 +613,16 @@ static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
 		iris_hfi_gen2_handle_session_close(inst, pkt);
 		break;
 	case HFI_CMD_STOP:
-		complete(&inst->completion);
+		iris_hfi_gen2_handle_session_stop(inst, pkt);
 		break;
 	case HFI_CMD_BUFFER:
 		ret = iris_hfi_gen2_handle_session_buffer(inst, pkt);
 		break;
 	case HFI_CMD_SETTINGS_CHANGE:
 		ret = iris_hfi_gen2_handle_src_change(inst, pkt);
+		break;
+	case HFI_CMD_DRAIN:
+		ret = iris_hfi_gen2_handle_session_drain(inst, pkt);
 		break;
 	default:
 		break;

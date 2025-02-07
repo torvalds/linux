@@ -121,6 +121,8 @@ struct iris_hfi_command_ops {
 	int (*session_pause)(struct iris_inst *inst, u32 plane);
 	int (*session_resume_drc)(struct iris_inst *inst, u32 plane);
 	int (*session_stop)(struct iris_inst *inst, u32 plane);
+	int (*session_drain)(struct iris_inst *inst, u32 plane);
+	int (*session_resume_drain)(struct iris_inst *inst, u32 plane);
 	int (*session_close)(struct iris_inst *inst);
 };
 

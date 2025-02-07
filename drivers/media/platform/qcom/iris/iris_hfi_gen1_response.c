@@ -386,6 +386,7 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 	struct hfi_msg_session_fbd_uncompressed_plane0_pkt *pkt = packet;
 	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
 	struct v4l2_m2m_buffer *m2m_buffer, *n;
+	struct hfi_session_flush_pkt flush_pkt;
 	u32 timestamp_hi = pkt->time_stamp_hi;
 	u32 timestamp_lo = pkt->time_stamp_lo;
 	struct iris_core *core = inst->core;
@@ -394,10 +395,24 @@ static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
 	u32 output_tag = pkt->output_tag;
 	struct iris_buffer *buf, *iter;
 	struct iris_buffers *buffers;
+	u32 hfi_flags = pkt->flags;
 	u32 offset = pkt->offset;
 	u64 timestamp_us = 0;
 	bool found = false;
 	u32 flags = 0;
+
+	if ((hfi_flags & HFI_BUFFERFLAG_EOS) && !filled_len) {
+		reinit_completion(&inst->flush_completion);
+
+		flush_pkt.shdr.hdr.size = sizeof(struct hfi_session_flush_pkt);
+		flush_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_FLUSH;
+		flush_pkt.shdr.session_id = inst->session_id;
+		flush_pkt.flush_type = HFI_FLUSH_OUTPUT;
+		iris_hfi_queue_cmd_write(core, &flush_pkt, flush_pkt.shdr.hdr.size);
+		iris_inst_sub_state_change_drain_last(inst);
+
+		return;
+	}
 
 	if (iris_split_mode_enabled(inst) && pkt->stream_id == 0) {
 		buffers = &inst->buffers[BUF_DPB];

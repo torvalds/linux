@@ -104,6 +104,9 @@ enum iris_inst_state {
  *		      sent to client.
  * @IRIS_INST_SUB_DRC_LAST: indicates last buffer is received from firmware
  *                         as part of source change.
+ * @IRIS_INST_SUB_DRAIN: indicates drain is in progress.
+ * @IRIS_INST_SUB_DRAIN_LAST: indicates last buffer is received from firmware
+ *                           as part of drain sequence.
  * @IRIS_INST_SUB_INPUT_PAUSE: source change is received form firmware. This
  *                            indicates that firmware is paused to process
  *                            any further input frames.
@@ -115,8 +118,10 @@ enum iris_inst_sub_state {
 	IRIS_INST_SUB_FIRST_IPSC	= BIT(0),
 	IRIS_INST_SUB_DRC		= BIT(1),
 	IRIS_INST_SUB_DRC_LAST		= BIT(2),
-	IRIS_INST_SUB_INPUT_PAUSE	= BIT(3),
-	IRIS_INST_SUB_OUTPUT_PAUSE	= BIT(4),
+	IRIS_INST_SUB_DRAIN		= BIT(3),
+	IRIS_INST_SUB_DRAIN_LAST	= BIT(4),
+	IRIS_INST_SUB_INPUT_PAUSE	= BIT(5),
+	IRIS_INST_SUB_OUTPUT_PAUSE	= BIT(6),
 };
 
 int iris_inst_change_state(struct iris_inst *inst,
@@ -124,9 +129,13 @@ int iris_inst_change_state(struct iris_inst *inst,
 int iris_inst_change_sub_state(struct iris_inst *inst,
 			       enum iris_inst_sub_state clear_sub_state,
 			       enum iris_inst_sub_state set_sub_state);
+
 int iris_inst_state_change_streamon(struct iris_inst *inst, u32 plane);
 int iris_inst_state_change_streamoff(struct iris_inst *inst, u32 plane);
 int iris_inst_sub_state_change_drc(struct iris_inst *inst);
+int iris_inst_sub_state_change_drain_last(struct iris_inst *inst);
 int iris_inst_sub_state_change_drc_last(struct iris_inst *inst);
+int iris_inst_sub_state_change_pause(struct iris_inst *inst, u32 plane);
+bool iris_allow_cmd(struct iris_inst *inst, u32 cmd);
 
 #endif

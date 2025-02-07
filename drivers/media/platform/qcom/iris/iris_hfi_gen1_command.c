@@ -368,6 +368,18 @@ exit:
 	return ret;
 }
 
+static int iris_hfi_gen1_session_drain(struct iris_inst *inst, u32 plane)
+{
+	struct hfi_session_empty_buffer_compressed_pkt ip_pkt = {0};
+
+	ip_pkt.shdr.hdr.size = sizeof(struct hfi_session_empty_buffer_compressed_pkt);
+	ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
+	ip_pkt.shdr.session_id = inst->session_id;
+	ip_pkt.flags = HFI_BUFFERFLAG_EOS;
+
+	return iris_hfi_queue_cmd_write(inst->core, &ip_pkt, ip_pkt.shdr.hdr.size);
+}
+
 static int
 iris_hfi_gen1_packet_session_set_property(struct hfi_session_set_property_pkt *packet,
 					  struct iris_inst *inst, u32 ptype, void *pdata)
@@ -789,6 +801,7 @@ static const struct iris_hfi_command_ops iris_hfi_gen1_command_ops = {
 	.session_release_buf = iris_hfi_gen1_session_unset_buffers,
 	.session_resume_drc = iris_hfi_gen1_session_continue,
 	.session_stop = iris_hfi_gen1_session_stop,
+	.session_drain = iris_hfi_gen1_session_drain,
 	.session_close = iris_hfi_gen1_session_close,
 };
 
