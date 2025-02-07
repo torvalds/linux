@@ -30,10 +30,10 @@ static int acp63_power_on(void __iomem *acp_base)
 	if (!val)
 		return val;
 
-	if ((val & ACP_PGFSM_STATUS_MASK) != ACP_POWER_ON_IN_PROGRESS)
-		writel(ACP_PGFSM_CNTL_POWER_ON_MASK, acp_base + ACP_PGFSM_CONTROL);
+	if ((val & ACP63_PGFSM_STATUS_MASK) != ACP63_POWER_ON_IN_PROGRESS)
+		writel(ACP63_PGFSM_CNTL_POWER_ON_MASK, acp_base + ACP_PGFSM_CONTROL);
 
-	return readl_poll_timeout(acp_base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
+	return readl_poll_timeout(acp_base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP63_TIMEOUT);
 }
 
 static int acp63_reset(void __iomem *acp_base)
@@ -45,13 +45,13 @@ static int acp63_reset(void __iomem *acp_base)
 
 	ret = readl_poll_timeout(acp_base + ACP_SOFT_RESET, val,
 				 val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK,
-				 DELAY_US, ACP_TIMEOUT);
+				 DELAY_US, ACP63_TIMEOUT);
 	if (ret)
 		return ret;
 
 	writel(0, acp_base + ACP_SOFT_RESET);
 
-	return readl_poll_timeout(acp_base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP_TIMEOUT);
+	return readl_poll_timeout(acp_base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP63_TIMEOUT);
 }
 
 static void acp63_enable_interrupts(void __iomem *acp_base)
@@ -104,24 +104,24 @@ static int acp63_deinit(void __iomem *acp_base, struct device *dev)
 
 static irqreturn_t acp63_irq_thread(int irq, void *context)
 {
-	struct sdw_dma_dev_data *sdw_dma_data;
+	struct sdw_dma_dev_data *sdw_data;
 	struct acp63_dev_data *adata = context;
-	u32 stream_index;
+	u32 stream_id;
 
-	sdw_dma_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
+	sdw_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
 
-	for (stream_index = 0; stream_index < ACP63_SDW0_DMA_MAX_STREAMS; stream_index++) {
-		if (adata->sdw0_dma_intr_stat[stream_index]) {
-			if (sdw_dma_data->sdw0_dma_stream[stream_index])
-				snd_pcm_period_elapsed(sdw_dma_data->sdw0_dma_stream[stream_index]);
-			adata->sdw0_dma_intr_stat[stream_index] = 0;
+	for (stream_id = 0; stream_id < ACP63_SDW0_DMA_MAX_STREAMS; stream_id++) {
+		if (adata->acp63_sdw0_dma_intr_stat[stream_id]) {
+			if (sdw_data->acp63_sdw0_dma_stream[stream_id])
+				snd_pcm_period_elapsed(sdw_data->acp63_sdw0_dma_stream[stream_id]);
+			adata->acp63_sdw0_dma_intr_stat[stream_id] = 0;
 		}
 	}
-	for (stream_index = 0; stream_index < ACP63_SDW1_DMA_MAX_STREAMS; stream_index++) {
-		if (adata->sdw1_dma_intr_stat[stream_index]) {
-			if (sdw_dma_data->sdw1_dma_stream[stream_index])
-				snd_pcm_period_elapsed(sdw_dma_data->sdw1_dma_stream[stream_index]);
-			adata->sdw1_dma_intr_stat[stream_index] = 0;
+	for (stream_id = 0; stream_id < ACP63_SDW1_DMA_MAX_STREAMS; stream_id++) {
+		if (adata->acp63_sdw1_dma_intr_stat[stream_id]) {
+			if (sdw_data->acp63_sdw1_dma_stream[stream_id])
+				snd_pcm_period_elapsed(sdw_data->acp63_sdw1_dma_stream[stream_id]);
+			adata->acp63_sdw1_dma_intr_stat[stream_id] = 0;
 		}
 	}
 	return IRQ_HANDLED;
@@ -180,48 +180,48 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
 		irq_flag = 1;
 	}
-	if (ext_intr_stat & ACP_SDW_DMA_IRQ_MASK) {
+	if (ext_intr_stat & ACP63_SDW_DMA_IRQ_MASK) {
 		for (index = ACP_AUDIO2_RX_THRESHOLD; index <= ACP_AUDIO0_TX_THRESHOLD; index++) {
 			if (ext_intr_stat & BIT(index)) {
 				writel(BIT(index), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 				switch (index) {
 				case ACP_AUDIO0_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO0_TX;
+					stream_id = ACP63_SDW0_AUDIO0_TX;
 					break;
 				case ACP_AUDIO1_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO1_TX;
+					stream_id = ACP63_SDW0_AUDIO1_TX;
 					break;
 				case ACP_AUDIO2_TX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO2_TX;
+					stream_id = ACP63_SDW0_AUDIO2_TX;
 					break;
 				case ACP_AUDIO0_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO0_RX;
+					stream_id = ACP63_SDW0_AUDIO0_RX;
 					break;
 				case ACP_AUDIO1_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO1_RX;
+					stream_id = ACP63_SDW0_AUDIO1_RX;
 					break;
 				case ACP_AUDIO2_RX_THRESHOLD:
-					stream_id = ACP_SDW0_AUDIO2_RX;
+					stream_id = ACP63_SDW0_AUDIO2_RX;
 					break;
 				}
 
-				adata->sdw0_dma_intr_stat[stream_id] = 1;
+				adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
 				sdw_dma_irq_flag = 1;
 			}
 		}
 	}
 
-	if (ext_intr_stat1 & ACP_P1_AUDIO1_RX_THRESHOLD) {
-		writel(ACP_P1_AUDIO1_RX_THRESHOLD,
+	if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
+		writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
 		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->sdw1_dma_intr_stat[ACP_SDW1_AUDIO1_RX] = 1;
+		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
 		sdw_dma_irq_flag = 1;
 	}
 
-	if (ext_intr_stat1 & ACP_P1_AUDIO1_TX_THRESHOLD) {
-		writel(ACP_P1_AUDIO1_TX_THRESHOLD,
+	if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
+		writel(ACP63_P1_AUDIO1_TX_THRESHOLD,
 		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->sdw1_dma_intr_stat[ACP_SDW1_AUDIO1_TX] = 1;
+		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
 		sdw_dma_irq_flag = 1;
 	}
 

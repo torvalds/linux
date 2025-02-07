@@ -13,13 +13,13 @@
 #define ACP63_REG_END		0x125C000
 
 #define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
-#define ACP_PGFSM_CNTL_POWER_ON_MASK	1
-#define ACP_PGFSM_CNTL_POWER_OFF_MASK	0
-#define ACP_PGFSM_STATUS_MASK		3
-#define ACP_POWERED_ON			0
-#define ACP_POWER_ON_IN_PROGRESS	1
-#define ACP_POWERED_OFF		2
-#define ACP_POWER_OFF_IN_PROGRESS	3
+#define ACP63_PGFSM_CNTL_POWER_ON_MASK	1
+#define ACP63_PGFSM_CNTL_POWER_OFF_MASK	0
+#define ACP63_PGFSM_STATUS_MASK		3
+#define ACP63_POWERED_ON			0
+#define ACP63_POWER_ON_IN_PROGRESS	1
+#define ACP63_POWERED_OFF		2
+#define ACP63_POWER_OFF_IN_PROGRESS	3
 
 #define ACP_ERROR_MASK 0x20000000
 #define ACP_EXT_INTR_STAT_CLEAR_MASK 0xFFFFFFFF
@@ -60,7 +60,7 @@
 #define AMD_SDW_MAX_MANAGERS		2
 
 /* time in ms for acp timeout */
-#define ACP_TIMEOUT		500
+#define ACP63_TIMEOUT		500
 
 #define ACP_SDW0_STAT			BIT(21)
 #define ACP_SDW1_STAT			BIT(2)
@@ -72,13 +72,13 @@
 #define ACP_AUDIO0_RX_THRESHOLD		0x1b
 #define ACP_AUDIO1_RX_THRESHOLD		0x19
 #define ACP_AUDIO2_RX_THRESHOLD		0x17
-#define ACP_P1_AUDIO1_TX_THRESHOLD	BIT(6)
-#define ACP_P1_AUDIO1_RX_THRESHOLD	BIT(5)
-#define ACP_SDW_DMA_IRQ_MASK		0x1F800000
-#define ACP_P1_SDW_DMA_IRQ_MASK		0x60
+#define ACP63_P1_AUDIO1_TX_THRESHOLD	BIT(6)
+#define ACP63_P1_AUDIO1_RX_THRESHOLD	BIT(5)
+#define ACP63_SDW_DMA_IRQ_MASK		0x1F800000
+#define ACP63_P1_SDW_DMA_IRQ_MASK	0x60
 #define ACP63_SDW0_DMA_MAX_STREAMS	6
 #define ACP63_SDW1_DMA_MAX_STREAMS	2
-#define ACP_P1_AUDIO_TX_THRESHOLD	6
+#define ACP63_P1_AUDIO_TX_THRESHOLD	6
 
 /*
  * Below entries describes SDW0 instance DMA stream id and DMA irq bit mapping
@@ -91,8 +91,8 @@
  * 4 (SDW0_AUDIO1_RX)	25
  * 5 (SDW0_AUDIO2_RX)	23
  */
-#define SDW0_DMA_TX_IRQ_MASK(i)	(ACP_AUDIO0_TX_THRESHOLD - (2 * (i)))
-#define SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
+#define ACP63_SDW0_DMA_TX_IRQ_MASK(i)	(ACP_AUDIO0_TX_THRESHOLD - (2 * (i)))
+#define ACP63_SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
 
 /*
  * Below entries describes SDW1 instance DMA stream id and DMA irq bit mapping
@@ -101,7 +101,7 @@
  * 0 (SDW1_AUDIO1_TX)	6
  * 1 (SDW1_AUDIO1_RX)	5
  */
-#define SDW1_DMA_IRQ_MASK(i)	(ACP_P1_AUDIO_TX_THRESHOLD - (i))
+#define ACP63_SDW1_DMA_IRQ_MASK(i)	(ACP63_P1_AUDIO_TX_THRESHOLD - (i))
 
 #define ACP_DELAY_US		5
 #define ACP_SDW_RING_BUFF_ADDR_OFFSET (128 * 1024)
@@ -148,18 +148,18 @@ enum acp_config {
 	ACP_CONFIG_15,
 };
 
-enum amd_sdw0_channel {
-	ACP_SDW0_AUDIO0_TX = 0,
-	ACP_SDW0_AUDIO1_TX,
-	ACP_SDW0_AUDIO2_TX,
-	ACP_SDW0_AUDIO0_RX,
-	ACP_SDW0_AUDIO1_RX,
-	ACP_SDW0_AUDIO2_RX,
+enum amd_acp63_sdw0_channel {
+	ACP63_SDW0_AUDIO0_TX = 0,
+	ACP63_SDW0_AUDIO1_TX,
+	ACP63_SDW0_AUDIO2_TX,
+	ACP63_SDW0_AUDIO0_RX,
+	ACP63_SDW0_AUDIO1_RX,
+	ACP63_SDW0_AUDIO2_RX,
 };
 
-enum amd_sdw1_channel {
-	ACP_SDW1_AUDIO1_TX,
-	ACP_SDW1_AUDIO1_RX,
+enum amd_acp63_sdw1_channel {
+	ACP63_SDW1_AUDIO1_TX,
+	ACP63_SDW1_AUDIO1_RX,
 };
 
 struct pdm_stream_instance {
@@ -180,8 +180,8 @@ struct pdm_dev_data {
 struct sdw_dma_dev_data {
 	void __iomem *acp_base;
 	struct mutex *acp_lock; /* used to protect acp common register access */
-	struct snd_pcm_substream *sdw0_dma_stream[ACP63_SDW0_DMA_MAX_STREAMS];
-	struct snd_pcm_substream *sdw1_dma_stream[ACP63_SDW1_DMA_MAX_STREAMS];
+	struct snd_pcm_substream *acp63_sdw0_dma_stream[ACP63_SDW0_DMA_MAX_STREAMS];
+	struct snd_pcm_substream *acp63_sdw1_dma_stream[ACP63_SDW1_DMA_MAX_STREAMS];
 };
 
 struct acp_sdw_dma_stream {
@@ -232,8 +232,10 @@ struct sdw_dma_ring_buf_reg {
  * @addr: pci ioremap address
  * @reg_range: ACP reigister range
  * @acp_rev: ACP PCI revision id
- * @sdw0-dma_intr_stat: DMA interrupt status array for SoundWire manager-SW0 instance
- * @sdw_dma_intr_stat: DMA interrupt status array for SoundWire manager-SW1 instance
+ * @acp63_sdw0-dma_intr_stat: DMA interrupt status array for ACP6.3 platform SoundWire
+ * manager-SW0 instance
+ * @acp63_sdw_dma_intr_stat: DMA interrupt status array for ACP6.3 platform SoundWire
+ * manager-SW1 instance
  */
 
 struct acp63_dev_data {
@@ -256,8 +258,8 @@ struct acp63_dev_data {
 	u32 addr;
 	u32 reg_range;
 	u32 acp_rev;
-	u16 sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
-	u16 sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
+	u16 acp63_sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
+	u16 acp63_sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
 };
 
 int snd_amd_acp_find_config(struct pci_dev *pci);

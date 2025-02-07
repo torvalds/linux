@@ -18,7 +18,7 @@
 
 #define DRV_NAME "amd_ps_sdw_dma"
 
-static struct sdw_dma_ring_buf_reg sdw0_dma_ring_buf_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
+static struct sdw_dma_ring_buf_reg acp63_sdw0_dma_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
 	{ACP_AUDIO0_TX_DMA_SIZE, ACP_AUDIO0_TX_FIFOADDR, ACP_AUDIO0_TX_FIFOSIZE,
 	 ACP_AUDIO0_TX_RINGBUFSIZE, ACP_AUDIO0_TX_RINGBUFADDR, ACP_AUDIO0_TX_INTR_WATERMARK_SIZE,
 	 ACP_AUDIO0_TX_LINEARPOSITIONCNTR_LOW, ACP_AUDIO0_TX_LINEARPOSITIONCNTR_HIGH},
@@ -44,7 +44,7 @@ static struct sdw_dma_ring_buf_reg sdw0_dma_ring_buf_reg[ACP63_SDW0_DMA_MAX_STRE
  * For TX/RX streams DMA registers programming for SDW1 instance, it uses ACP_P1_AUDIO1 register
  * set as per hardware register documentation
  */
-static struct sdw_dma_ring_buf_reg sdw1_dma_ring_buf_reg[ACP63_SDW1_DMA_MAX_STREAMS] =  {
+static struct sdw_dma_ring_buf_reg acp63_sdw1_dma_reg[ACP63_SDW1_DMA_MAX_STREAMS] =  {
 	{ACP_P1_AUDIO1_TX_DMA_SIZE, ACP_P1_AUDIO1_TX_FIFOADDR, ACP_P1_AUDIO1_TX_FIFOSIZE,
 	 ACP_P1_AUDIO1_TX_RINGBUFSIZE, ACP_P1_AUDIO1_TX_RINGBUFADDR,
 	 ACP_P1_AUDIO1_TX_INTR_WATERMARK_SIZE,
@@ -55,7 +55,7 @@ static struct sdw_dma_ring_buf_reg sdw1_dma_ring_buf_reg[ACP63_SDW1_DMA_MAX_STRE
 	 ACP_P1_AUDIO1_RX_LINEARPOSITIONCNTR_LOW, ACP_P1_AUDIO1_RX_LINEARPOSITIONCNTR_HIGH},
 };
 
-static u32 sdw0_dma_enable_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
+static u32 acp63_sdw0_dma_enable_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
 	ACP_SW0_AUDIO0_TX_EN,
 	ACP_SW0_AUDIO1_TX_EN,
 	ACP_SW0_AUDIO2_TX_EN,
@@ -70,7 +70,7 @@ static u32 sdw0_dma_enable_reg[ACP63_SDW0_DMA_MAX_STREAMS] = {
  * it uses ACP_SW1_AUDIO1_TX_EN and ACP_SW1_AUDIO1_RX_EN registers
  * as per hardware register documentation.
  */
-static u32 sdw1_dma_enable_reg[ACP63_SDW1_DMA_MAX_STREAMS] = {
+static u32 acp63_sdw1_dma_enable_reg[ACP63_SDW1_DMA_MAX_STREAMS] = {
 	ACP_SW1_AUDIO1_TX_EN,
 	ACP_SW1_AUDIO1_RX_EN,
 };
@@ -117,8 +117,8 @@ static const struct snd_pcm_hardware acp63_sdw_hardware_capture = {
 static void acp63_enable_disable_sdw_dma_interrupts(void __iomem *acp_base, bool enable)
 {
 	u32 ext_intr_cntl, ext_intr_cntl1;
-	u32 irq_mask = ACP_SDW_DMA_IRQ_MASK;
-	u32 irq_mask1 = ACP_P1_SDW_DMA_IRQ_MASK;
+	u32 irq_mask = ACP63_SDW_DMA_IRQ_MASK;
+	u32 irq_mask1 = ACP63_P1_SDW_DMA_IRQ_MASK;
 
 	if (enable) {
 		ext_intr_cntl = readl(acp_base + ACP_EXTERNAL_INTR_CNTL);
@@ -182,18 +182,18 @@ static int acp63_configure_sdw_ringbuffer(void __iomem *acp_base, u32 stream_id,
 
 	switch (manager_instance) {
 	case ACP_SDW0:
-		reg_dma_size = sdw0_dma_ring_buf_reg[stream_id].reg_dma_size;
-		reg_fifo_addr =	sdw0_dma_ring_buf_reg[stream_id].reg_fifo_addr;
-		reg_fifo_size = sdw0_dma_ring_buf_reg[stream_id].reg_fifo_size;
-		reg_ring_buf_size = sdw0_dma_ring_buf_reg[stream_id].reg_ring_buf_size;
-		reg_ring_buf_addr = sdw0_dma_ring_buf_reg[stream_id].reg_ring_buf_addr;
+		reg_dma_size = acp63_sdw0_dma_reg[stream_id].reg_dma_size;
+		reg_fifo_addr =	acp63_sdw0_dma_reg[stream_id].reg_fifo_addr;
+		reg_fifo_size = acp63_sdw0_dma_reg[stream_id].reg_fifo_size;
+		reg_ring_buf_size = acp63_sdw0_dma_reg[stream_id].reg_ring_buf_size;
+		reg_ring_buf_addr = acp63_sdw0_dma_reg[stream_id].reg_ring_buf_addr;
 		break;
 	case ACP_SDW1:
-		reg_dma_size = sdw1_dma_ring_buf_reg[stream_id].reg_dma_size;
-		reg_fifo_addr =	sdw1_dma_ring_buf_reg[stream_id].reg_fifo_addr;
-		reg_fifo_size = sdw1_dma_ring_buf_reg[stream_id].reg_fifo_size;
-		reg_ring_buf_size = sdw1_dma_ring_buf_reg[stream_id].reg_ring_buf_size;
-		reg_ring_buf_addr = sdw1_dma_ring_buf_reg[stream_id].reg_ring_buf_addr;
+		reg_dma_size = acp63_sdw1_dma_reg[stream_id].reg_dma_size;
+		reg_fifo_addr =	acp63_sdw1_dma_reg[stream_id].reg_fifo_addr;
+		reg_fifo_size = acp63_sdw1_dma_reg[stream_id].reg_fifo_size;
+		reg_ring_buf_size = acp63_sdw1_dma_reg[stream_id].reg_ring_buf_size;
+		reg_ring_buf_addr = acp63_sdw1_dma_reg[stream_id].reg_ring_buf_addr;
 		break;
 	default:
 		return -EINVAL;
@@ -267,19 +267,19 @@ static int acp63_sdw_dma_hw_params(struct snd_soc_component *component,
 	stream_id = stream->stream_id;
 	switch (stream->instance) {
 	case ACP_SDW0:
-		sdw_data->sdw0_dma_stream[stream_id] = substream;
-		water_mark_size_reg = sdw0_dma_ring_buf_reg[stream_id].water_mark_size_reg;
+		sdw_data->acp63_sdw0_dma_stream[stream_id] = substream;
+		water_mark_size_reg = acp63_sdw0_dma_reg[stream_id].water_mark_size_reg;
 		acp_ext_intr_cntl_reg = ACP_EXTERNAL_INTR_CNTL;
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			irq_mask = BIT(SDW0_DMA_TX_IRQ_MASK(stream_id));
+			irq_mask = BIT(ACP63_SDW0_DMA_TX_IRQ_MASK(stream_id));
 		else
-			irq_mask = BIT(SDW0_DMA_RX_IRQ_MASK(stream_id));
+			irq_mask = BIT(ACP63_SDW0_DMA_RX_IRQ_MASK(stream_id));
 		break;
 	case ACP_SDW1:
-		sdw_data->sdw1_dma_stream[stream_id] = substream;
+		sdw_data->acp63_sdw1_dma_stream[stream_id] = substream;
 		acp_ext_intr_cntl_reg = ACP_EXTERNAL_INTR_CNTL1;
-		water_mark_size_reg = sdw1_dma_ring_buf_reg[stream_id].water_mark_size_reg;
-		irq_mask = BIT(SDW1_DMA_IRQ_MASK(stream_id));
+		water_mark_size_reg = acp63_sdw1_dma_reg[stream_id].water_mark_size_reg;
+		irq_mask = BIT(ACP63_SDW1_DMA_IRQ_MASK(stream_id));
 		break;
 	default:
 		return -EINVAL;
@@ -310,12 +310,12 @@ static u64 acp63_sdw_get_byte_count(struct acp_sdw_dma_stream *stream, void __io
 	byte_count.bytescount = 0;
 	switch (stream->instance) {
 	case ACP_SDW0:
-		pos_low_reg = sdw0_dma_ring_buf_reg[stream->stream_id].pos_low_reg;
-		pos_high_reg = sdw0_dma_ring_buf_reg[stream->stream_id].pos_high_reg;
+		pos_low_reg = acp63_sdw0_dma_reg[stream->stream_id].pos_low_reg;
+		pos_high_reg = acp63_sdw0_dma_reg[stream->stream_id].pos_high_reg;
 		break;
 	case ACP_SDW1:
-		pos_low_reg = sdw1_dma_ring_buf_reg[stream->stream_id].pos_low_reg;
-		pos_high_reg = sdw1_dma_ring_buf_reg[stream->stream_id].pos_high_reg;
+		pos_low_reg = acp63_sdw1_dma_reg[stream->stream_id].pos_low_reg;
+		pos_high_reg = acp63_sdw1_dma_reg[stream->stream_id].pos_high_reg;
 		break;
 	default:
 		goto POINTER_RETURN_BYTES;
@@ -369,10 +369,10 @@ static int acp63_sdw_dma_close(struct snd_soc_component *component,
 		return -EINVAL;
 	switch (stream->instance) {
 	case ACP_SDW0:
-		sdw_data->sdw0_dma_stream[stream->stream_id] = NULL;
+		sdw_data->acp63_sdw0_dma_stream[stream->stream_id] = NULL;
 		break;
 	case ACP_SDW1:
-		sdw_data->sdw1_dma_stream[stream->stream_id] = NULL;
+		sdw_data->acp63_sdw1_dma_stream[stream->stream_id] = NULL;
 		break;
 	default:
 		return -EINVAL;
@@ -395,10 +395,10 @@ static int acp63_sdw_dma_enable(struct snd_pcm_substream *substream,
 	stream_id = stream->stream_id;
 	switch (stream->instance) {
 	case ACP_SDW0:
-		sdw_dma_en_reg = sdw0_dma_enable_reg[stream_id];
+		sdw_dma_en_reg = acp63_sdw0_dma_enable_reg[stream_id];
 		break;
 	case ACP_SDW1:
-		sdw_dma_en_reg = sdw1_dma_enable_reg[stream_id];
+		sdw_dma_en_reg = acp63_sdw1_dma_enable_reg[stream_id];
 		break;
 	default:
 		return -EINVAL;
@@ -512,13 +512,11 @@ static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 
 		for (index = 0; index < stream_count; index++) {
 			if (instance == ACP_SDW0) {
-				substream = sdw_data->sdw0_dma_stream[index];
-				water_mark_size_reg =
-						sdw0_dma_ring_buf_reg[index].water_mark_size_reg;
+				substream = sdw_data->acp63_sdw0_dma_stream[index];
+				water_mark_size_reg = acp63_sdw0_dma_reg[index].water_mark_size_reg;
 			} else {
-				substream = sdw_data->sdw1_dma_stream[index];
-				water_mark_size_reg =
-						sdw1_dma_ring_buf_reg[index].water_mark_size_reg;
+				substream = sdw_data->acp63_sdw1_dma_stream[index];
+				water_mark_size_reg = acp63_sdw1_dma_reg[index].water_mark_size_reg;
 			}
 
 			if (substream && substream->runtime) {
