@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD Pink Sardine ACP PCI Driver
+ * AMD common ACP PCI driver for ACP6.3, ACP7.0 & ACP7.1 platforms.
  *
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2022, 2025 Advanced Micro Devices, Inc.
  */
 
 #include <linux/pci.h>

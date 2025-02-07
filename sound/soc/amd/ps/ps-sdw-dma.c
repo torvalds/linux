@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD ALSA SoC Pink Sardine SoundWire DMA Driver
+ * AMD ALSA SoC common SoundWire DMA Driver for ACP6.3, ACP7.0 and ACP7.1
+ * platforms.
  *
- * Copyright 2023 Advanced Micro Devices, Inc.
+ * Copyright 2023, 2025 Advanced Micro Devices, Inc.
  */
 
 #include <linux/err.h>

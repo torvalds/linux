@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * AMD ALSA SoC PDM Driver
+ * AMD Common ACP header file for ACP6.3, ACP7.0 & ACP7.1 platforms
  *
- * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc. All rights reserved.
+ * Copyright (C) 2022, 2023, 2025 Advanced Micro Devices, Inc. All rights reserved.
  */
 
 #include <linux/soundwire/sdw_amd.h>
