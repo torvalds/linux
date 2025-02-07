@@ -125,10 +125,8 @@ static int gen_74x164_probe(struct spi_device *spi)
 		return ret;
 
 	ret = device_property_read_u32(&spi->dev, "registers-number", &nregs);
-	if (ret) {
-		dev_err(&spi->dev, "Missing 'registers-number' property.\n");
-		return -EINVAL;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Missing 'registers-number' property.\n");
 
 	chip = devm_kzalloc(dev, struct_size(chip, buffer, nregs), GFP_KERNEL);
 	if (!chip)
