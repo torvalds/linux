@@ -474,6 +474,7 @@ static int acp63_sdw_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	sdw_data->acp_lock = &acp_data->acp_lock;
+	sdw_data->acp_rev = acp_data->acp_rev;
 	dev_set_drvdata(&pdev->dev, sdw_data);
 	status = devm_snd_soc_register_component(&pdev->dev,
 						 &acp63_sdw_component,
