@@ -249,8 +249,6 @@ static __init void detect_machine_facilities(void)
 		get_lowcore()->machine_flags |= MACHINE_FLAG_TE;
 		system_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
 	}
-	if (test_facility(51))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_TLB_LC;
 	if (test_facility(129))
 		system_ctl_set_bit(0, CR0_VECTOR_BIT);
 	if (test_facility(139) && (tod_clock_base.tod >> 63)) {

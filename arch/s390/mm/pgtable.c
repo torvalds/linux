@@ -4,6 +4,7 @@
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  */
 
+#include <linux/cpufeature.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -94,7 +95,7 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	if (unlikely(pte_val(old) & _PAGE_INVALID))
 		return old;
 	atomic_inc(&mm->context.flush_count);
-	if (MACHINE_HAS_TLB_LC &&
+	if (cpu_has_tlb_lc() &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
 		ptep_ipte_local(mm, addr, ptep, nodat);
 	else
@@ -411,7 +412,7 @@ static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 	if (pmd_val(old) & _SEGMENT_ENTRY_INVALID)
 		return old;
 	atomic_inc(&mm->context.flush_count);
-	if (MACHINE_HAS_TLB_LC &&
+	if (cpu_has_tlb_lc() &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
 		pmdp_idte_local(mm, addr, pmdp);
 	else
@@ -537,7 +538,7 @@ static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 	if (pud_val(old) & _REGION_ENTRY_INVALID)
 		return old;
 	atomic_inc(&mm->context.flush_count);
-	if (MACHINE_HAS_TLB_LC &&
+	if (cpu_has_tlb_lc() &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
 		pudp_idte_local(mm, addr, pudp);
 	else
