@@ -173,12 +173,6 @@ static inline bool fuse_uring_ready(struct fuse_conn *fc)
 
 #else /* CONFIG_FUSE_IO_URING */
 
-struct fuse_ring;
-
-static inline void fuse_uring_create(struct fuse_conn *fc)
-{
-}
-
 static inline void fuse_uring_destruct(struct fuse_conn *fc)
 {
 }
