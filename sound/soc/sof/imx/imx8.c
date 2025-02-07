@@ -8,6 +8,7 @@
 
 #include <dt-bindings/firmware/imx/rsrc.h>
 
+#include <linux/arm-smccc.h>
 #include <linux/firmware/imx/svc/misc.h>
 #include <linux/mfd/syscon.h>
 
@@ -28,6 +29,16 @@
 #define AudioDSP_REG3 0x10c
 
 #define AudioDSP_REG2_RUNSTALL  BIT(5)
+
+/* imx8ulp macros */
+#define FSL_SIP_HIFI_XRDC       0xc200000e
+#define SYSCTRL0                0x8
+#define EXECUTE_BIT             BIT(13)
+#define RESET_BIT               BIT(16)
+#define HIFI4_CLK_BIT           BIT(17)
+#define PB_CLK_BIT              BIT(18)
+#define PLAT_CLK_BIT            BIT(19)
+#define DEBUG_LOGIC_BIT         BIT(25)
 
 struct imx8m_chip_data {
 	void __iomem *dap;
@@ -173,6 +184,68 @@ static int imx8m_probe(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int imx8ulp_run(struct snd_sof_dev *sdev)
+{
+	struct regmap *regmap = get_chip_pdata(sdev);
+
+	/* Controls the HiFi4 DSP Reset: 1 in reset, 0 out of reset */
+	regmap_update_bits(regmap, SYSCTRL0, RESET_BIT, 0);
+
+	/* Reset HiFi4 DSP Debug logic: 1 debug reset, 0  out of reset*/
+	regmap_update_bits(regmap, SYSCTRL0, DEBUG_LOGIC_BIT, 0);
+
+	/* Stall HIFI4 DSP Execution: 1 stall, 0 run */
+	regmap_update_bits(regmap, SYSCTRL0, EXECUTE_BIT, 0);
+
+	return 0;
+}
+
+static int imx8ulp_reset(struct snd_sof_dev *sdev)
+{
+	struct arm_smccc_res smc_res;
+	struct regmap *regmap;
+
+	regmap = get_chip_pdata(sdev);
+
+	/* HiFi4 Platform Clock Enable: 1 enabled, 0 disabled */
+	regmap_update_bits(regmap, SYSCTRL0, PLAT_CLK_BIT, PLAT_CLK_BIT);
+
+	/* HiFi4 PBCLK clock enable: 1 enabled, 0 disabled */
+	regmap_update_bits(regmap, SYSCTRL0, PB_CLK_BIT, PB_CLK_BIT);
+
+	/* HiFi4 Clock Enable: 1 enabled, 0 disabled */
+	regmap_update_bits(regmap, SYSCTRL0, HIFI4_CLK_BIT, HIFI4_CLK_BIT);
+
+	regmap_update_bits(regmap, SYSCTRL0, RESET_BIT, RESET_BIT);
+
+	usleep_range(1, 2);
+
+	/* Stall HIFI4 DSP Execution: 1 stall, 0 not stall */
+	regmap_update_bits(regmap, SYSCTRL0, EXECUTE_BIT, EXECUTE_BIT);
+	usleep_range(1, 2);
+
+	arm_smccc_smc(FSL_SIP_HIFI_XRDC, 0, 0, 0, 0, 0, 0, 0, &smc_res);
+
+	return smc_res.a0;
+}
+
+static int imx8ulp_probe(struct snd_sof_dev *sdev)
+{
+	struct imx_common_data *common;
+	struct regmap *regmap;
+
+	common = sdev->pdata->hw_pdata;
+
+	regmap = syscon_regmap_lookup_by_phandle(sdev->dev->of_node, "fsl,dsp-ctrl");
+	if (IS_ERR(regmap))
+		return dev_err_probe(sdev->dev, PTR_ERR(regmap),
+				     "failed to fetch dsp ctrl regmap\n");
+
+	common->chip_pdata = regmap;
+
+	return 0;
+}
+
 static struct snd_soc_dai_driver imx8_dai[] = {
 	IMX_SOF_DAI_DRV_ENTRY_BIDIR("esai0", 1, 8),
 	IMX_SOF_DAI_DRV_ENTRY_BIDIR("sai1", 1, 32),
@@ -186,6 +259,11 @@ static struct snd_soc_dai_driver imx8m_dai[] = {
 	IMX_SOF_DAI_DRV_ENTRY_BIDIR("sai6", 1, 32),
 	IMX_SOF_DAI_DRV_ENTRY_BIDIR("sai7", 1, 32),
 	IMX_SOF_DAI_DRV_ENTRY("micfil", 0, 0, 1, 8),
+};
+
+static struct snd_soc_dai_driver imx8ulp_dai[] = {
+	IMX_SOF_DAI_DRV_ENTRY_BIDIR("sai5", 1, 32),
+	IMX_SOF_DAI_DRV_ENTRY_BIDIR("sai6", 1, 32),
 };
 
 static struct snd_sof_dsp_ops sof_imx8_ops;
@@ -224,6 +302,12 @@ static const struct imx_chip_ops imx8m_chip_ops = {
 	.core_reset = imx8m_reset,
 };
 
+static const struct imx_chip_ops imx8ulp_chip_ops = {
+	.probe = imx8ulp_probe,
+	.core_kick = imx8ulp_run,
+	.core_reset = imx8ulp_reset,
+};
+
 static struct imx_memory_info imx8_memory_regions[] = {
 	{ .name = "iram", .reserved = false },
 	{ .name = "sram", .reserved = true },
@@ -231,6 +315,12 @@ static struct imx_memory_info imx8_memory_regions[] = {
 };
 
 static struct imx_memory_info imx8m_memory_regions[] = {
+	{ .name = "iram", .reserved = false },
+	{ .name = "sram", .reserved = true },
+	{ }
+};
+
+static struct imx_memory_info imx8ulp_memory_regions[] = {
 	{ .name = "iram", .reserved = false },
 	{ .name = "sram", .reserved = true },
 	{ }
@@ -270,6 +360,19 @@ static const struct imx_chip_info imx8m_chip_info = {
 	.drv = imx8m_dai,
 	.num_drv = ARRAY_SIZE(imx8m_dai),
 	.ops = &imx8m_chip_ops,
+};
+
+static const struct imx_chip_info imx8ulp_chip_info = {
+	.ipc_info = {
+		.has_panic_code = true,
+		.boot_mbox_offset = 0x800000,
+		.window_offset = 0x800000,
+	},
+	.has_dma_reserved = true,
+	.memory = imx8ulp_memory_regions,
+	.drv = imx8ulp_dai,
+	.num_drv = ARRAY_SIZE(imx8ulp_dai),
+	.ops = &imx8ulp_chip_ops,
 };
 
 static struct snd_sof_of_mach sof_imx8_machs[] = {
@@ -313,12 +416,18 @@ static struct snd_sof_of_mach sof_imx8_machs[] = {
 		.sof_tplg_filename = "sof-imx8mp-wm8962.tplg",
 		.drv_name = "asoc-audio-graph-card2",
 	},
+	{
+		.compatible = "fsl,imx8ulp-evk",
+		.sof_tplg_filename = "sof-imx8ulp-btsco.tplg",
+		.drv_name = "asoc-audio-graph-card2",
+	},
 	{}
 };
 
 IMX_SOF_DEV_DESC(imx8, sof_imx8_machs, &imx8_chip_info, &sof_imx8_ops, imx8_ops_init);
 IMX_SOF_DEV_DESC(imx8x, sof_imx8_machs, &imx8x_chip_info, &sof_imx8_ops, imx8_ops_init);
 IMX_SOF_DEV_DESC(imx8m, sof_imx8_machs, &imx8m_chip_info, &sof_imx8_ops, imx8_ops_init);
+IMX_SOF_DEV_DESC(imx8ulp, sof_imx8_machs, &imx8ulp_chip_info, &sof_imx8_ops, imx8_ops_init);
 
 static const struct of_device_id sof_of_imx8_ids[] = {
 	{
@@ -332,6 +441,10 @@ static const struct of_device_id sof_of_imx8_ids[] = {
 	{
 		.compatible = "fsl,imx8mp-dsp",
 		.data = &IMX_SOF_DEV_DESC_NAME(imx8m),
+	},
+	{
+		.compatible = "fsl,imx8ulp-dsp",
+		.data = &IMX_SOF_DEV_DESC_NAME(imx8ulp),
 	},
 	{ }
 };

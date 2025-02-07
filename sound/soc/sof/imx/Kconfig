@@ -32,13 +32,4 @@ config SND_SOC_SOF_IMX8
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
-config SND_SOC_SOF_IMX8ULP
-	tristate "SOF support for i.MX8ULP"
-	depends on IMX_DSP
-	select SND_SOC_SOF_IMX_COMMON
-	help
-	  This adds support for Sound Open Firmware for NXP i.MX8ULP platforms.
-	  Say Y if you have such a device.
-	  If unsure select "N".
-
 endif ## SND_SOC_SOF_IMX_TOPLEVEL
