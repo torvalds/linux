@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <media/v4l2-device.h>
 
+struct iris_inst;
 struct iris_core;
 
 enum hfi_packet_port_type {
@@ -47,6 +48,8 @@ struct iris_hfi_command_ops {
 	int (*sys_image_version)(struct iris_core *core);
 	int (*sys_interframe_powercollapse)(struct iris_core *core);
 	int (*sys_pc_prep)(struct iris_core *core);
+	int (*session_open)(struct iris_inst *inst);
+	int (*session_close)(struct iris_inst *inst);
 };
 
 struct iris_hfi_response_ops {

@@ -10,6 +10,10 @@
 
 #define VIDEO_ARCH_LX 1
 
+static struct platform_inst_caps platform_inst_cap_sm8550 = {
+	.max_mbpf = (8192 * 4352) / 256,
+};
+
 static void iris_set_sm8550_preset_registers(struct iris_core *core)
 {
 	writel(0x0, core->reg_base + 0xB0088);
@@ -69,9 +73,11 @@ struct iris_platform_data sm8550_data = {
 	.dma_mask = 0xe0000000 - 1,
 	.fwname = "qcom/vpu/vpu30_p4.mbn",
 	.pas_id = IRIS_PAS_ID,
+	.inst_caps = &platform_inst_cap_sm8550,
 	.tz_cp_config_data = &tz_cp_config_sm8550,
 	.core_arch = VIDEO_ARCH_LX,
 	.hw_response_timeout = HW_RESPONSE_TIMEOUT_VALUE,
 	.ubwc_config = &ubwc_config_sm8550,
 	.num_vpp_pipe = 4,
+	.max_session_count = 16,
 };

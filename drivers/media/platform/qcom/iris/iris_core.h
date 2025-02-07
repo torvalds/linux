@@ -34,6 +34,8 @@ struct icc_info {
  * @v4l2_dev: a holder for v4l2 device structure
  * @vdev_dec: iris video device structure for decoder
  * @iris_v4l2_file_ops: iris v4l2 file ops
+ * @iris_v4l2_ioctl_ops: iris v4l2 ioctl ops
+ * @iris_vb2_ops: iris vb2 ops
  * @icc_tbl: table of iris interconnects
  * @icc_count: count of iris interconnects
  * @pmdomain_tbl: table of iris power domains
@@ -60,6 +62,7 @@ struct icc_info {
  * @core_init_done: structure of signal completion for system response
  * @intr_status: interrupt status
  * @sys_error_handler: a delayed work for handling system fatal error
+ * @instances: a list_head of all instances
  */
 
 struct iris_core {
@@ -69,6 +72,8 @@ struct iris_core {
 	struct v4l2_device			v4l2_dev;
 	struct video_device			*vdev_dec;
 	const struct v4l2_file_operations	*iris_v4l2_file_ops;
+	const struct v4l2_ioctl_ops		*iris_v4l2_ioctl_ops;
+	const struct vb2_ops			*iris_vb2_ops;
 	struct icc_bulk_data			*icc_tbl;
 	u32					icc_count;
 	struct dev_pm_domain_list		*pmdomain_tbl;
@@ -95,6 +100,7 @@ struct iris_core {
 	struct completion			core_init_done;
 	u32					intr_status;
 	struct delayed_work			sys_error_handler;
+	struct list_head			instances;
 };
 
 int iris_core_init(struct iris_core *core);

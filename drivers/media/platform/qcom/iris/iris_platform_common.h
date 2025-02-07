@@ -42,6 +42,9 @@ struct ubwc_config_data {
 	u32	bank_spreading;
 };
 
+struct platform_inst_caps {
+	u32 max_mbpf;
+};
 struct iris_core_power {
 	u64 clk_freq;
 	u64 icc_bw;
@@ -71,11 +74,13 @@ struct iris_platform_data {
 	u64 dma_mask;
 	const char *fwname;
 	u32 pas_id;
+	struct platform_inst_caps *inst_caps;
 	struct tz_cp_config *tz_cp_config_data;
 	u32 core_arch;
 	u32 hw_response_timeout;
 	struct ubwc_config_data *ubwc_config;
 	u32 num_vpp_pipe;
+	u32 max_session_count;
 };
 
 #endif

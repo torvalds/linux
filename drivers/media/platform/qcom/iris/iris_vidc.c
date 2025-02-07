@@ -9,6 +9,9 @@
 
 #include "iris_vidc.h"
 #include "iris_instance.h"
+#include "iris_vdec.h"
+#include "iris_vb2.h"
+#include "iris_vpu_buffer.h"
 #include "iris_platform_common.h"
 
 #define IRIS_DRV_NAME "iris_driver"
@@ -26,6 +29,38 @@ static void iris_v4l2_fh_deinit(struct iris_inst *inst)
 {
 	v4l2_fh_del(&inst->fh);
 	v4l2_fh_exit(&inst->fh);
+}
+
+static void iris_add_session(struct iris_inst *inst)
+{
+	struct iris_core *core = inst->core;
+	struct iris_inst *iter;
+	u32 count = 0;
+
+	mutex_lock(&core->lock);
+
+	list_for_each_entry(iter, &core->instances, list)
+		count++;
+
+	if (count < core->iris_platform_data->max_session_count)
+		list_add_tail(&inst->list, &core->instances);
+
+	mutex_unlock(&core->lock);
+}
+
+static void iris_remove_session(struct iris_inst *inst)
+{
+	struct iris_core *core = inst->core;
+	struct iris_inst *iter, *temp;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry_safe(iter, temp, &core->instances, list) {
+		if (iter->session_id == inst->session_id) {
+			list_del_init(&iter->list);
+			break;
+		}
+	}
+	mutex_unlock(&core->lock);
 }
 
 static inline struct iris_inst *iris_get_inst(struct file *filp, void *fh)
@@ -59,7 +94,10 @@ iris_m2m_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_
 	src_vq->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
 	src_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	src_vq->ops = inst->core->iris_vb2_ops;
 	src_vq->drv_priv = inst;
+	src_vq->buf_struct_size = sizeof(struct iris_buffer);
+	src_vq->min_reqbufs_allocation = MIN_BUFFERS;
 	src_vq->dev = inst->core->dev;
 	src_vq->lock = &inst->ctx_q_lock;
 	ret = vb2_queue_init(src_vq);
@@ -69,7 +107,10 @@ iris_m2m_queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
+	dst_vq->ops = inst->core->iris_vb2_ops;
 	dst_vq->drv_priv = inst;
+	dst_vq->buf_struct_size = sizeof(struct iris_buffer);
+	dst_vq->min_reqbufs_allocation = MIN_BUFFERS;
 	dst_vq->dev = inst->core->dev;
 	dst_vq->lock = &inst->ctx_q_lock;
 
@@ -100,8 +141,11 @@ int iris_open(struct file *filp)
 		return -ENOMEM;
 
 	inst->core = core;
+	inst->session_id = hash32_ptr(inst);
 
+	mutex_init(&inst->lock);
 	mutex_init(&inst->ctx_q_lock);
+	init_completion(&inst->completion);
 
 	iris_v4l2_fh_init(inst);
 
@@ -117,6 +161,10 @@ int iris_open(struct file *filp)
 		goto fail_m2m_release;
 	}
 
+	iris_vdec_inst_init(inst);
+
+	iris_add_session(inst);
+
 	inst->fh.m2m_ctx = inst->m2m_ctx;
 	filp->private_data = &inst->fh;
 
@@ -127,9 +175,26 @@ fail_m2m_release:
 fail_v4l2_fh_deinit:
 	iris_v4l2_fh_deinit(inst);
 	mutex_destroy(&inst->ctx_q_lock);
+	mutex_destroy(&inst->lock);
 	kfree(inst);
 
 	return ret;
+}
+
+static void iris_session_close(struct iris_inst *inst)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	bool wait_for_response = true;
+	int ret;
+
+	reinit_completion(&inst->completion);
+
+	ret = hfi_ops->session_close(inst);
+	if (ret)
+		wait_for_response = false;
+
+	if (wait_for_response)
+		iris_wait_for_session_response(inst);
 }
 
 int iris_close(struct file *filp)
@@ -138,8 +203,14 @@ int iris_close(struct file *filp)
 
 	v4l2_m2m_ctx_release(inst->m2m_ctx);
 	v4l2_m2m_release(inst->m2m_dev);
+	mutex_lock(&inst->lock);
+	iris_vdec_inst_deinit(inst);
+	iris_session_close(inst);
 	iris_v4l2_fh_deinit(inst);
+	iris_remove_session(inst);
+	mutex_unlock(&inst->lock);
 	mutex_destroy(&inst->ctx_q_lock);
+	mutex_destroy(&inst->lock);
 	kfree(inst);
 	filp->private_data = NULL;
 
@@ -155,7 +226,17 @@ static struct v4l2_file_operations iris_v4l2_file_ops = {
 	.mmap                           = v4l2_m2m_fop_mmap,
 };
 
+static const struct vb2_ops iris_vb2_ops = {
+	.queue_setup                    = iris_vb2_queue_setup,
+};
+
+static const struct v4l2_ioctl_ops iris_v4l2_ioctl_ops = {
+	.vidioc_reqbufs                 = v4l2_m2m_ioctl_reqbufs,
+};
+
 void iris_init_ops(struct iris_core *core)
 {
 	core->iris_v4l2_file_ops = &iris_v4l2_file_ops;
+	core->iris_vb2_ops = &iris_vb2_ops;
+	core->iris_v4l2_ioctl_ops = &iris_v4l2_ioctl_ops;
 }

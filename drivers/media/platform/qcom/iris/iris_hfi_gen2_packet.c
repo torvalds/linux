@@ -143,6 +143,45 @@ void iris_hfi_gen2_packet_image_version(struct iris_core *core, struct iris_hfi_
 				    NULL, 0);
 }
 
+void iris_hfi_gen2_packet_session_command(struct iris_inst *inst, u32 pkt_type,
+					  u32 flags, u32 port, u32 session_id,
+					  u32 payload_type, void *payload,
+					  u32 payload_size)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	struct iris_core *core = inst->core;
+
+	iris_hfi_gen2_create_header(inst_hfi_gen2->packet, session_id, core->header_id++);
+
+	iris_hfi_gen2_create_packet(inst_hfi_gen2->packet,
+				    pkt_type,
+				    flags,
+				    payload_type,
+				    port,
+				    core->packet_id++,
+				    payload,
+				    payload_size);
+}
+
+void iris_hfi_gen2_packet_session_property(struct iris_inst *inst,
+					   u32 pkt_type, u32 flags, u32 port,
+					   u32 payload_type, void *payload, u32 payload_size)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	struct iris_core *core = inst->core;
+
+	iris_hfi_gen2_create_header(inst_hfi_gen2->packet, inst->session_id, core->header_id++);
+
+	iris_hfi_gen2_create_packet(inst_hfi_gen2->packet,
+				    pkt_type,
+				    flags,
+				    payload_type,
+				    port,
+				    core->packet_id++,
+				    payload,
+				    payload_size);
+}
+
 void iris_hfi_gen2_packet_sys_interframe_powercollapse(struct iris_core *core,
 						       struct iris_hfi_header *hdr)
 {

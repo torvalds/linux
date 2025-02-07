@@ -66,11 +66,51 @@ static int iris_hfi_gen1_sys_pc_prep(struct iris_core *core)
 	return iris_hfi_queue_cmd_write_locked(core, &pkt, pkt.hdr.size);
 }
 
+static int iris_hfi_gen1_session_open(struct iris_inst *inst)
+{
+	struct hfi_session_open_pkt packet;
+	int ret;
+
+	packet.shdr.hdr.size = sizeof(struct hfi_session_open_pkt);
+	packet.shdr.hdr.pkt_type = HFI_CMD_SYS_SESSION_INIT;
+	packet.shdr.session_id = inst->session_id;
+	packet.session_domain = HFI_SESSION_TYPE_DEC;
+	packet.session_codec = HFI_VIDEO_CODEC_H264;
+
+	reinit_completion(&inst->completion);
+
+	ret = iris_hfi_queue_cmd_write(inst->core, &packet, packet.shdr.hdr.size);
+	if (ret)
+		return ret;
+
+	return iris_wait_for_session_response(inst);
+}
+
+static void iris_hfi_gen1_packet_session_cmd(struct iris_inst *inst,
+					     struct hfi_session_pkt *packet,
+					     u32 ptype)
+{
+	packet->shdr.hdr.size = sizeof(*packet);
+	packet->shdr.hdr.pkt_type = ptype;
+	packet->shdr.session_id = inst->session_id;
+}
+
+static int iris_hfi_gen1_session_close(struct iris_inst *inst)
+{
+	struct hfi_session_pkt packet;
+
+	iris_hfi_gen1_packet_session_cmd(inst, &packet, HFI_CMD_SYS_SESSION_END);
+
+	return iris_hfi_queue_cmd_write(inst->core, &packet, packet.shdr.hdr.size);
+}
+
 static const struct iris_hfi_command_ops iris_hfi_gen1_command_ops = {
 	.sys_init = iris_hfi_gen1_sys_init,
 	.sys_image_version = iris_hfi_gen1_sys_image_version,
 	.sys_interframe_powercollapse = iris_hfi_gen1_sys_interframe_powercollapse,
 	.sys_pc_prep = iris_hfi_gen1_sys_pc_prep,
+	.session_open = iris_hfi_gen1_session_open,
+	.session_close = iris_hfi_gen1_session_close,
 };
 
 void iris_hfi_gen1_command_ops_init(struct iris_core *core)

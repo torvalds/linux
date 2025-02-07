@@ -63,6 +63,13 @@ struct iris_hfi_packet {
 
 void iris_hfi_gen2_packet_sys_init(struct iris_core *core, struct iris_hfi_header *hdr);
 void iris_hfi_gen2_packet_image_version(struct iris_core *core, struct iris_hfi_header *hdr);
+void iris_hfi_gen2_packet_session_command(struct iris_inst *inst, u32 pkt_type,
+					  u32 flags, u32 port, u32 session_id,
+					  u32 payload_type, void *payload,
+					  u32 payload_size);
+void iris_hfi_gen2_packet_session_property(struct iris_inst *inst,
+					   u32 pkt_type, u32 flags, u32 port,
+					   u32 payload_type, void *payload, u32 payload_size);
 void iris_hfi_gen2_packet_sys_interframe_powercollapse(struct iris_core *core,
 						       struct iris_hfi_header *hdr);
 void iris_hfi_gen2_packet_sys_pc_prep(struct iris_core *core, struct iris_hfi_header *hdr);

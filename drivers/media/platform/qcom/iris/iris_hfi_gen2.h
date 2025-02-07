@@ -10,13 +10,18 @@
 
 struct iris_core;
 
+#define to_iris_inst_hfi_gen2(ptr) \
+	container_of(ptr, struct iris_inst_hfi_gen2, inst)
+
 /**
  * struct iris_inst_hfi_gen2 - holds per video instance parameters for hfi_gen2
  *
  * @inst: pointer to iris_instance structure
+ * @packet: HFI packet
  */
 struct iris_inst_hfi_gen2 {
 	struct iris_inst		inst;
+	struct iris_hfi_header		*packet;
 };
 
 void iris_hfi_gen2_command_ops_init(struct iris_core *core);

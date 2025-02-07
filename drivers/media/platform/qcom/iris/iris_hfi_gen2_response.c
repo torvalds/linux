@@ -14,6 +14,17 @@ struct iris_hfi_gen2_core_hfi_range {
 	int (*handle)(struct iris_core *core, struct iris_hfi_packet *pkt);
 };
 
+struct iris_hfi_gen2_inst_hfi_range {
+	u32 begin;
+	u32 end;
+	int (*handle)(struct iris_inst *inst, struct iris_hfi_packet *pkt);
+};
+
+struct iris_hfi_gen2_packet_handle {
+	enum hfi_buffer_type type;
+	int (*handle)(struct iris_inst *inst, struct iris_hfi_packet *pkt);
+};
+
 static int iris_hfi_gen2_validate_packet(u8 *response_pkt, u8 *core_resp_pkt)
 {
 	u8 *response_limit = core_resp_pkt + IFACEQ_CORE_PKT_SIZE;
@@ -55,6 +66,45 @@ static int iris_hfi_gen2_validate_hdr_packet(struct iris_core *core, struct iris
 	return 0;
 }
 
+static int iris_hfi_gen2_handle_session_error(struct iris_inst *inst,
+					      struct iris_hfi_packet *pkt)
+{
+	struct iris_core *core = inst->core;
+	char *error;
+
+	switch (pkt->type) {
+	case HFI_ERROR_MAX_SESSIONS:
+		error = "exceeded max sessions";
+		break;
+	case HFI_ERROR_UNKNOWN_SESSION:
+		error = "unknown session id";
+		break;
+	case HFI_ERROR_INVALID_STATE:
+		error = "invalid operation for current state";
+		break;
+	case HFI_ERROR_INSUFFICIENT_RESOURCES:
+		error = "insufficient resources";
+		break;
+	case HFI_ERROR_BUFFER_NOT_SET:
+		error = "internal buffers not set";
+		break;
+	case HFI_ERROR_FATAL:
+		error = "fatal error";
+		break;
+	case HFI_ERROR_STREAM_UNSUPPORTED:
+		error = "unsupported stream";
+		break;
+	default:
+		error = "unknown";
+		break;
+	}
+
+	dev_err(core->dev, "session error received %#x: %s\n", pkt->type, error);
+	iris_vb2_queue_error(inst);
+
+	return 0;
+}
+
 static int iris_hfi_gen2_handle_system_error(struct iris_core *core,
 					     struct iris_hfi_packet *pkt)
 {
@@ -77,6 +127,22 @@ static int iris_hfi_gen2_handle_system_init(struct iris_core *core,
 	complete(&core->core_init_done);
 
 	return 0;
+}
+
+static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
+						struct iris_hfi_packet *pkt)
+{
+	int ret = 0;
+
+	switch (pkt->type) {
+	case HFI_CMD_CLOSE:
+		complete(&inst->completion);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static int iris_hfi_gen2_handle_image_version_property(struct iris_core *core,
@@ -152,6 +218,46 @@ static int iris_hfi_gen2_handle_system_response(struct iris_core *core,
 	return 0;
 }
 
+static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
+						 struct iris_hfi_header *hdr)
+{
+	struct iris_hfi_packet *packet;
+	struct iris_inst *inst;
+	int ret = 0;
+	u32 i, j;
+	u8 *pkt;
+	static const struct iris_hfi_gen2_inst_hfi_range range[] = {
+		{HFI_SESSION_ERROR_BEGIN, HFI_SESSION_ERROR_END,
+		 iris_hfi_gen2_handle_session_error},
+		{HFI_CMD_BEGIN, HFI_CMD_END,
+		 iris_hfi_gen2_handle_session_command },
+	};
+
+	inst = iris_get_instance(core, hdr->session_id);
+	if (!inst)
+		return -EINVAL;
+
+	mutex_lock(&inst->lock);
+
+	pkt = (u8 *)((u8 *)hdr + sizeof(*hdr));
+	for (i = 0; i < ARRAY_SIZE(range); i++) {
+		pkt = (u8 *)((u8 *)hdr + sizeof(*hdr));
+		for (j = 0; j < hdr->num_packets; j++) {
+			packet = (struct iris_hfi_packet *)pkt;
+			if (packet->flags & HFI_FW_FLAGS_SESSION_ERROR)
+				iris_hfi_gen2_handle_session_error(inst, packet);
+
+			if (packet->type > range[i].begin && packet->type < range[i].end)
+				ret = range[i].handle(inst, packet);
+			pkt += packet->size;
+		}
+	}
+
+	mutex_unlock(&inst->lock);
+
+	return ret;
+}
+
 static int iris_hfi_gen2_handle_response(struct iris_core *core, void *response)
 {
 	struct iris_hfi_header *hdr = (struct iris_hfi_header *)response;
@@ -161,7 +267,10 @@ static int iris_hfi_gen2_handle_response(struct iris_core *core, void *response)
 	if (ret)
 		return iris_hfi_gen2_handle_system_error(core, NULL);
 
-	return iris_hfi_gen2_handle_system_response(core, hdr);
+	if (!hdr->session_id)
+		return iris_hfi_gen2_handle_system_response(core, hdr);
+	else
+		return iris_hfi_gen2_handle_session_response(core, hdr);
 }
 
 static void iris_hfi_gen2_flush_debug_queue(struct iris_core *core, u8 *packet)
