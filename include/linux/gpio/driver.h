@@ -560,11 +560,9 @@ DEFINE_CLASS(_gpiochip_for_each_data,
  */
 #define for_each_hwgpio_in_range(_chip, _i, _base, _size, _label)			\
 	for (CLASS(_gpiochip_for_each_data, _data)(&_label, &_i);			\
-	     *_data.i < _size;								\
-	     (*_data.i)++, kfree(*(_data.label)), *_data.label = NULL)			\
-		if (IS_ERR(*_data.label =						\
-			gpiochip_dup_line_label(_chip, _base + *_data.i))) {}		\
-		else
+	     _i < _size;								\
+	     _i++, kfree(_label), _label = NULL)					\
+		if (IS_ERR(_label = gpiochip_dup_line_label(_chip, _base + _i))) {} else
 
 /**
  * for_each_hwgpio - Iterates over all GPIOs for given chip.
