@@ -18,7 +18,19 @@
 
 static char *cpu_name(int level)
 {
-	static char buf[6];
+	switch(level)	{
+		case 64:	return "x86-64"; break;
+		case 15:	return "i686"; break;
+		default:
+			if (level > 1 && level < 6)	{
+				static char buf[5];
+				sprintf(buf, "i%d86", level);
+				return buf;
+			}
+			else return "unknwn";
+	}		
+
+	/*static char buf[6];
 
 	if (level == 64) {
 		return "x86-64";
@@ -27,7 +39,7 @@ static char *cpu_name(int level)
 			level = 6;
 		sprintf(buf, "i%d86", level);
 		return buf;
-	}
+	}*/
 }
 
 static void show_cap_strs(u32 *err_flags)
