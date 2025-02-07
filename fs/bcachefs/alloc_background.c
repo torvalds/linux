@@ -2055,16 +2055,71 @@ put_ref:
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
+static int invalidate_one_bp(struct btree_trans *trans,
+			     struct bch_dev *ca,
+			     struct bkey_s_c_backpointer bp,
+			     struct bkey_buf *last_flushed)
+{
+	struct btree_iter extent_iter;
+	struct bkey_s_c extent_k =
+		bch2_backpointer_get_key(trans, bp, &extent_iter, 0, last_flushed);
+	int ret = bkey_err(extent_k);
+	if (ret)
+		return ret;
+
+	struct bkey_i *n =
+		bch2_bkey_make_mut(trans, &extent_iter, &extent_k,
+				   BTREE_UPDATE_internal_snapshot_node);
+	ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		goto err;
+
+	bch2_bkey_drop_device(bkey_i_to_s(n), ca->dev_idx);
+err:
+	bch2_trans_iter_exit(trans, &extent_iter);
+	return ret;
+}
+
+static int invalidate_one_bucket_by_bps(struct btree_trans *trans,
+					struct bch_dev *ca,
+					struct bpos bucket,
+					u8 gen,
+					struct bkey_buf *last_flushed)
+{
+	struct bpos bp_start	= bucket_pos_to_bp_start(ca,	bucket);
+	struct bpos bp_end	= bucket_pos_to_bp_end(ca,	bucket);
+
+	return for_each_btree_key_max_commit(trans, iter, BTREE_ID_backpointers,
+				      bp_start, bp_end, 0, k,
+				      NULL, NULL,
+				      BCH_WATERMARK_btree|
+				      BCH_TRANS_COMMIT_no_enospc, ({
+		if (k.k->type != KEY_TYPE_backpointer)
+			continue;
+
+		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
+
+		if (bp.v->bucket_gen != gen)
+			continue;
+
+		/* filter out bps with gens that don't match */
+
+		invalidate_one_bp(trans, ca, bp, last_flushed);
+	}));
+}
+
+noinline_for_stack
 static int invalidate_one_bucket(struct btree_trans *trans,
+				 struct bch_dev *ca,
 				 struct btree_iter *lru_iter,
 				 struct bkey_s_c lru_k,
+				 struct bkey_buf *last_flushed,
 				 s64 *nr_to_invalidate)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_i_alloc_v4 *a = NULL;
 	struct printbuf buf = PRINTBUF;
 	struct bpos bucket = u64_to_bucket(lru_k.k->p.offset);
-	unsigned cached_sectors;
+	struct btree_iter alloc_iter = {};
 	int ret = 0;
 
 	if (*nr_to_invalidate <= 0)
@@ -2081,13 +2136,18 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	if (bch2_bucket_is_open_safe(c, bucket.inode, bucket.offset))
 		return 0;
 
-	a = bch2_trans_start_alloc_update(trans, bucket, BTREE_TRIGGER_bucket_invalidate);
-	ret = PTR_ERR_OR_ZERO(a);
+	struct bkey_s_c alloc_k = bch2_bkey_get_iter(trans, &alloc_iter,
+						     BTREE_ID_alloc, bucket,
+						     BTREE_ITER_cached);
+	ret = bkey_err(alloc_k);
 	if (ret)
-		goto out;
+		return ret;
+
+	struct bch_alloc_v4 a_convert;
+	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(alloc_k, &a_convert);
 
 	/* We expect harmless races here due to the btree write buffer: */
-	if (lru_pos_time(lru_iter->pos) != alloc_lru_idx_read(a->v))
+	if (lru_pos_time(lru_iter->pos) != alloc_lru_idx_read(*a))
 		goto out;
 
 	/*
@@ -2097,26 +2157,16 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	 *
 	 * bch2_lru_validate() also disallows lru keys with lru_pos_time() == 0
 	 */
-	BUG_ON(a->v.data_type != BCH_DATA_cached);
-	BUG_ON(a->v.dirty_sectors);
+	BUG_ON(a->data_type != BCH_DATA_cached);
+	BUG_ON(a->dirty_sectors);
 
-	if (!a->v.cached_sectors)
+	if (!a->cached_sectors)
 		bch_err(c, "invalidating empty bucket, confused");
 
-	cached_sectors = a->v.cached_sectors;
+	unsigned cached_sectors = a->cached_sectors;
+	u8 gen = a->gen;
 
-	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
-	a->v.gen++;
-	a->v.data_type		= 0;
-	a->v.dirty_sectors	= 0;
-	a->v.stripe_sectors	= 0;
-	a->v.cached_sectors	= 0;
-	a->v.io_time[READ]	= bch2_current_io_time(c, READ);
-	a->v.io_time[WRITE]	= bch2_current_io_time(c, WRITE);
-
-	ret = bch2_trans_commit(trans, NULL, NULL,
-				BCH_WATERMARK_btree|
-				BCH_TRANS_COMMIT_no_enospc);
+	ret = invalidate_one_bucket_by_bps(trans, ca, bucket, gen, last_flushed);
 	if (ret)
 		goto out;
 
@@ -2124,6 +2174,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 	--*nr_to_invalidate;
 out:
 fsck_err:
+	bch2_trans_iter_exit(trans, &alloc_iter);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -2150,6 +2201,10 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	struct btree_trans *trans = bch2_trans_get(c);
 	int ret = 0;
 
+	struct bkey_buf last_flushed;
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
 	ret = bch2_btree_write_buffer_tryflush(trans);
 	if (ret)
 		goto err;
@@ -2174,7 +2229,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 		if (!k.k)
 			break;
 
-		ret = invalidate_one_bucket(trans, &iter, k, &nr_to_invalidate);
+		ret = invalidate_one_bucket(trans, ca, &iter, k, &last_flushed, &nr_to_invalidate);
 restart_err:
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
@@ -2187,6 +2242,7 @@ restart_err:
 err:
 	bch2_trans_put(trans);
 	percpu_ref_put(&ca->io_ref);
+	bch2_bkey_buf_exit(&last_flushed, c);
 	bch2_write_ref_put(c, BCH_WRITE_REF_invalidate);
 }
 
