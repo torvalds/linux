@@ -506,14 +506,13 @@ static int vmclock_probe(struct platform_device *pdev)
 
 	if (ret) {
 		dev_info(dev, "Failed to obtain physical address: %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	if (resource_size(&st->res) < VMCLOCK_MIN_SIZE) {
 		dev_info(dev, "Region too small (0x%llx)\n",
 			 resource_size(&st->res));
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	st->clk = devm_memremap(dev, st->res.start, resource_size(&st->res),
 				MEMREMAP_WB | MEMREMAP_DEC);
@@ -521,37 +520,34 @@ static int vmclock_probe(struct platform_device *pdev)
 		ret = PTR_ERR(st->clk);
 		dev_info(dev, "failed to map shared memory\n");
 		st->clk = NULL;
-		goto out;
+		return ret;
 	}
 
 	if (le32_to_cpu(st->clk->magic) != VMCLOCK_MAGIC ||
 	    le32_to_cpu(st->clk->size) > resource_size(&st->res) ||
 	    le16_to_cpu(st->clk->version) != 1) {
 		dev_info(dev, "vmclock magic fields invalid\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	ret = ida_alloc(&vmclock_ida, GFP_KERNEL);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	st->index = ret;
 	ret = devm_add_action_or_reset(&pdev->dev, vmclock_put_idx, st);
 	if (ret)
-		goto out;
+		return ret;
 
 	st->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "vmclock%d", st->index);
-	if (!st->name) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!st->name)
+		return -ENOMEM;
 
 	st->miscdev.minor = MISC_DYNAMIC_MINOR;
 
 	ret = devm_add_action_or_reset(&pdev->dev, vmclock_remove, st);
 	if (ret)
-		goto out;
+		return ret;
 
 	/*
 	 * If the structure is big enough, it can be mapped to userspace.
@@ -565,7 +561,7 @@ static int vmclock_probe(struct platform_device *pdev)
 
 		ret = misc_register(&st->miscdev);
 		if (ret)
-			goto out;
+			return ret;
 	}
 
 	/* If there is valid clock information, register a PTP clock */
@@ -575,15 +571,14 @@ static int vmclock_probe(struct platform_device *pdev)
 		if (IS_ERR(st->ptp_clock)) {
 			ret = PTR_ERR(st->ptp_clock);
 			st->ptp_clock = NULL;
-			goto out;
+			return ret;
 		}
 	}
 
 	if (!st->miscdev.minor && !st->ptp_clock) {
 		/* Neither miscdev nor PTP registered */
 		dev_info(dev, "vmclock: Neither miscdev nor PTP available; not registering\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 
 	dev_info(dev, "%s: registered %s%s%s\n", st->name,
@@ -591,8 +586,7 @@ static int vmclock_probe(struct platform_device *pdev)
 		 (st->miscdev.minor && st->ptp_clock) ? ", " : "",
 		 st->ptp_clock ? "PTP" : "");
 
- out:
-	return ret;
+	return 0;
 }
 
 static const struct acpi_device_id vmclock_acpi_ids[] = {
