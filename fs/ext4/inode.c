@@ -94,7 +94,7 @@ static int ext4_inode_csum_verify(struct inode *inode, struct ext4_inode *raw,
 
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_LINUX) ||
-	    !ext4_has_metadata_csum(inode->i_sb))
+	    !ext4_has_feature_metadata_csum(inode->i_sb))
 		return 1;
 
 	provided = le16_to_cpu(raw->i_checksum_lo);
@@ -115,7 +115,7 @@ void ext4_inode_csum_set(struct inode *inode, struct ext4_inode *raw,
 
 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
 	    cpu_to_le32(EXT4_OS_LINUX) ||
-	    !ext4_has_metadata_csum(inode->i_sb))
+	    !ext4_has_feature_metadata_csum(inode->i_sb))
 		return;
 
 	csum = ext4_inode_csum(inode, raw, ei);
@@ -4822,7 +4822,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		ei->i_extra_isize = 0;
 
 	/* Precompute checksum seed for inode metadata */
-	if (ext4_has_metadata_csum(sb)) {
+	if (ext4_has_feature_metadata_csum(sb)) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 		__u32 csum;
 		__le32 inum = cpu_to_le32(inode->i_ino);
@@ -4909,7 +4909,8 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 	 * we'd normally treat htree data as empty space. But with metadata
 	 * checksumming that corrupts checksums so forbid that.
 	 */
-	if (!ext4_has_feature_dir_index(sb) && ext4_has_metadata_csum(sb) &&
+	if (!ext4_has_feature_dir_index(sb) &&
+	    ext4_has_feature_metadata_csum(sb) &&
 	    ext4_test_inode_flag(inode, EXT4_INODE_INDEX)) {
 		ext4_error_inode(inode, function, line, 0,
 			 "iget: Dir with htree data on filesystem without dir_index feature.");

@@ -246,7 +246,8 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 		}
 	} else
 		ext4_check_bdev_write_error(sb);
-	if (trigger_type == EXT4_JTR_NONE || !ext4_has_metadata_csum(sb))
+	if (trigger_type == EXT4_JTR_NONE ||
+	    !ext4_has_feature_metadata_csum(sb))
 		return 0;
 	BUG_ON(trigger_type >= EXT4_JOURNAL_TRIGGER_COUNT);
 	jbd2_journal_set_triggers(bh,
@@ -333,7 +334,8 @@ int __ext4_journal_get_create_access(const char *where, unsigned int line,
 					  err);
 		return err;
 	}
-	if (trigger_type == EXT4_JTR_NONE || !ext4_has_metadata_csum(sb))
+	if (trigger_type == EXT4_JTR_NONE ||
+	    !ext4_has_feature_metadata_csum(sb))
 		return 0;
 	BUG_ON(trigger_type >= EXT4_JOURNAL_TRIGGER_COUNT);
 	jbd2_journal_set_triggers(bh,

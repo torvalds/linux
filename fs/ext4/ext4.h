@@ -3280,14 +3280,10 @@ extern void ext4_group_desc_csum_set(struct super_block *sb, __u32 group,
 extern int ext4_register_li_request(struct super_block *sb,
 				    ext4_group_t first_not_zeroed);
 
-static inline int ext4_has_metadata_csum(struct super_block *sb)
-{
-	return ext4_has_feature_metadata_csum(sb);
-}
-
 static inline int ext4_has_group_desc_csum(struct super_block *sb)
 {
-	return ext4_has_feature_gdt_csum(sb) || ext4_has_metadata_csum(sb);
+	return ext4_has_feature_gdt_csum(sb) ||
+	       ext4_has_feature_metadata_csum(sb);
 }
 
 #define ext4_read_incompat_64bit_val(es, name) \

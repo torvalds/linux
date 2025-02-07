@@ -1081,7 +1081,7 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	memcpy((void *)de, buf + EXT4_INLINE_DOTDOT_SIZE,
 		inline_size - EXT4_INLINE_DOTDOT_SIZE);
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	inode->i_size = inode->i_sb->s_blocksize;

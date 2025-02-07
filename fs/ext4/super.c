@@ -301,7 +301,7 @@ __le32 ext4_superblock_csum(struct super_block *sb,
 static int ext4_superblock_csum_verify(struct super_block *sb,
 				       struct ext4_super_block *es)
 {
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
 	return es->s_checksum == ext4_superblock_csum(sb, es);
@@ -311,7 +311,7 @@ void ext4_superblock_csum_set(struct super_block *sb)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return;
 
 	es->s_checksum = ext4_superblock_csum(sb, es);
@@ -3202,7 +3202,7 @@ static __le16 ext4_group_desc_csum(struct super_block *sb, __u32 block_group,
 	__le32 le_group = cpu_to_le32(block_group);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (ext4_has_metadata_csum(sbi->s_sb)) {
+	if (ext4_has_feature_metadata_csum(sbi->s_sb)) {
 		/* Use new metadata_csum algorithm */
 		__u32 csum32;
 		__u16 dummy_csum = 0;
@@ -4059,7 +4059,7 @@ static int set_journal_csum_feature_set(struct super_block *sb)
 	int compat, incompat;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (ext4_has_metadata_csum(sb)) {
+	if (ext4_has_feature_metadata_csum(sb)) {
 		/* journal checksum v3 */
 		compat = 0;
 		incompat = JBD2_FEATURE_INCOMPAT_CSUM_V3;
@@ -4347,7 +4347,7 @@ static void ext4_set_def_opts(struct super_block *sb,
 	if (ext4_has_feature_fast_commit(sb))
 		set_opt2(sb, JOURNAL_FAST_COMMIT);
 	/* don't forget to enable journal_csum when metadata_csum is enabled. */
-	if (ext4_has_metadata_csum(sb))
+	if (ext4_has_feature_metadata_csum(sb))
 		set_opt(sb, JOURNAL_CHECKSUM);
 
 	if ((def_mount_opts & EXT4_DEFM_JMODE) == EXT4_DEFM_JMODE_DATA)
@@ -4640,7 +4640,8 @@ static int ext4_init_metadata_csum(struct super_block *sb, struct ext4_super_blo
 	/* Precompute checksum seed for all metadata */
 	if (ext4_has_feature_csum_seed(sb))
 		sbi->s_csum_seed = le32_to_cpu(es->s_checksum_seed);
-	else if (ext4_has_metadata_csum(sb) || ext4_has_feature_ea_inode(sb))
+	else if (ext4_has_feature_metadata_csum(sb) ||
+		 ext4_has_feature_ea_inode(sb))
 		sbi->s_csum_seed = ext4_chksum(sbi, ~0, es->s_uuid,
 					       sizeof(es->s_uuid));
 	return 0;

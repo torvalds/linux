@@ -176,7 +176,7 @@ static struct buffer_head *__ext4_read_dirblock(struct inode *inode,
 		brelse(bh);
 		return ERR_PTR(-EFSCORRUPTED);
 	}
-	if (!ext4_has_metadata_csum(inode->i_sb) ||
+	if (!ext4_has_feature_metadata_csum(inode->i_sb) ||
 	    buffer_verified(bh))
 		return bh;
 
@@ -368,7 +368,7 @@ int ext4_dirblock_csum_verify(struct inode *inode, struct buffer_head *bh)
 {
 	struct ext4_dir_entry_tail *t;
 
-	if (!ext4_has_metadata_csum(inode->i_sb))
+	if (!ext4_has_feature_metadata_csum(inode->i_sb))
 		return 1;
 
 	t = get_dirent_tail(inode, bh);
@@ -389,7 +389,7 @@ static void ext4_dirblock_csum_set(struct inode *inode,
 {
 	struct ext4_dir_entry_tail *t;
 
-	if (!ext4_has_metadata_csum(inode->i_sb))
+	if (!ext4_has_feature_metadata_csum(inode->i_sb))
 		return;
 
 	t = get_dirent_tail(inode, bh);
@@ -464,7 +464,7 @@ static int ext4_dx_csum_verify(struct inode *inode,
 	struct dx_tail *t;
 	int count_offset, limit, count;
 
-	if (!ext4_has_metadata_csum(inode->i_sb))
+	if (!ext4_has_feature_metadata_csum(inode->i_sb))
 		return 1;
 
 	c = get_dx_countlimit(inode, dirent, &count_offset);
@@ -493,7 +493,7 @@ static void ext4_dx_csum_set(struct inode *inode, struct ext4_dir_entry *dirent)
 	struct dx_tail *t;
 	int count_offset, limit, count;
 
-	if (!ext4_has_metadata_csum(inode->i_sb))
+	if (!ext4_has_feature_metadata_csum(inode->i_sb))
 		return;
 
 	c = get_dx_countlimit(inode, dirent, &count_offset);
@@ -582,7 +582,7 @@ static inline unsigned dx_root_limit(struct inode *dir, unsigned infosize)
 			ext4_dir_rec_len(1, NULL) -
 			ext4_dir_rec_len(2, NULL) - infosize;
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		entry_space -= sizeof(struct dx_tail);
 	return entry_space / sizeof(struct dx_entry);
 }
@@ -592,7 +592,7 @@ static inline unsigned dx_node_limit(struct inode *dir)
 	unsigned int entry_space = dir->i_sb->s_blocksize -
 			ext4_dir_rec_len(0, dir);
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		entry_space -= sizeof(struct dx_tail);
 	return entry_space / sizeof(struct dx_entry);
 }
@@ -1046,7 +1046,7 @@ static int htree_dirblock_to_tree(struct file *dir_file,
 	struct ext4_dir_entry_2 *de, *top;
 	int err = 0, count = 0;
 	struct fscrypt_str fname_crypto_str = FSTR_INIT(NULL, 0), tmp_str;
-	int csum = ext4_has_metadata_csum(dir->i_sb);
+	int csum = ext4_has_feature_metadata_csum(dir->i_sb);
 
 	dxtrace(printk(KERN_INFO "In htree dirblock_to_tree: block %lu\n",
 							(unsigned long)block));
@@ -1290,7 +1290,7 @@ static int dx_make_map(struct inode *dir, struct buffer_head *bh,
 	struct dx_hash_info h = *hinfo;
 	int blocksize = EXT4_BLOCK_SIZE(dir->i_sb);
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		buflen -= sizeof(struct ext4_dir_entry_tail);
 
 	while ((char *) de < base + buflen) {
@@ -1921,7 +1921,7 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	int	csum_size = 0;
 	int	err = 0, i;
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	bh2 = ext4_append(handle, dir, &newblock);
@@ -2118,7 +2118,7 @@ static int add_dirent_to_buf(handle_t *handle, struct ext4_filename *fname,
 	int		csum_size = 0;
 	int		err, err2;
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	if (!de) {
@@ -2227,7 +2227,7 @@ static int make_indexed_dir(handle_t *handle, struct ext4_filename *fname,
 	struct fake_dirent *fde;
 	int csum_size = 0;
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	blocksize =  dir->i_sb->s_blocksize;
@@ -2371,7 +2371,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	ext4_lblk_t block, blocks;
 	int	csum_size = 0;
 
-	if (ext4_has_metadata_csum(inode->i_sb))
+	if (ext4_has_feature_metadata_csum(inode->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	sb = dir->i_sb;
@@ -2402,7 +2402,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		if (!retval || (retval != ERR_BAD_DX_DIR))
 			goto out;
 		/* Can we just ignore htree data? */
-		if (ext4_has_metadata_csum(sb)) {
+		if (ext4_has_feature_metadata_csum(sb)) {
 			EXT4_ERROR_INODE(dir,
 				"Directory has corrupted htree index.");
 			retval = -EFSCORRUPTED;
@@ -2716,7 +2716,7 @@ static int ext4_delete_entry(handle_t *handle,
 			return err;
 	}
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	BUFFER_TRACE(bh, "get_write_access");
@@ -2956,7 +2956,7 @@ int ext4_init_new_dir(handle_t *handle, struct inode *dir,
 	int csum_size = 0;
 	int err;
 
-	if (ext4_has_metadata_csum(dir->i_sb))
+	if (ext4_has_feature_metadata_csum(dir->i_sb))
 		csum_size = sizeof(struct ext4_dir_entry_tail);
 
 	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {

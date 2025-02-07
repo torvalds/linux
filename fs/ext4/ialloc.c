@@ -1283,7 +1283,7 @@ got:
 	inode->i_generation = get_random_u32();
 
 	/* Precompute checksum seed for inode metadata */
-	if (ext4_has_metadata_csum(sb)) {
+	if (ext4_has_feature_metadata_csum(sb)) {
 		__u32 csum;
 		__le32 inum = cpu_to_le32(inode->i_ino);
 		__le32 gen = cpu_to_le32(inode->i_generation);

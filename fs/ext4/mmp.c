@@ -21,7 +21,7 @@ static __le32 ext4_mmp_csum(struct super_block *sb, struct mmp_struct *mmp)
 
 static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return 1;
 
 	return mmp->mmp_checksum == ext4_mmp_csum(sb, mmp);
@@ -29,7 +29,7 @@ static int ext4_mmp_csum_verify(struct super_block *sb, struct mmp_struct *mmp)
 
 static void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp)
 {
-	if (!ext4_has_metadata_csum(sb))
+	if (!ext4_has_feature_metadata_csum(sb))
 		return;
 
 	mmp->mmp_checksum = ext4_mmp_csum(sb, mmp);
