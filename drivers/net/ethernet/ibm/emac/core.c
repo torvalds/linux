@@ -2554,15 +2554,10 @@ static int emac_dt_mdio_probe(struct emac_instance *dev)
 	struct mii_bus *bus;
 	int res;
 
-	mii_np = of_get_child_by_name(dev->ofdev->dev.of_node, "mdio");
+	mii_np = of_get_available_child_by_name(dev->ofdev->dev.of_node, "mdio");
 	if (!mii_np) {
 		dev_err(&dev->ofdev->dev, "no mdio definition found.");
 		return -ENODEV;
-	}
-
-	if (!of_device_is_available(mii_np)) {
-		res = -ENODEV;
-		goto put_node;
 	}
 
 	bus = devm_mdiobus_alloc(&dev->ofdev->dev);
