@@ -38,7 +38,9 @@
 #include "soc15_common.h"
 #include "nbif_v6_3_1.h"
 #include "gfxhub_v12_0.h"
+#include "gfxhub_v12_1.h"
 #include "mmhub_v4_1_0.h"
+#include "mmhub_v4_2_0.h"
 #include "athub_v4_1_0.h"
 #include "umc_v8_14.h"
 
@@ -623,6 +625,9 @@ static void gmc_v12_0_set_mmhub_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(4, 1, 0):
 		adev->mmhub.funcs = &mmhub_v4_1_0_funcs;
 		break;
+	case IP_VERSION(4, 2, 0):
+		adev->mmhub.funcs = &mmhub_v4_2_0_funcs;
+		break;
 	default:
 		break;
 	}
@@ -634,6 +639,9 @@ static void gmc_v12_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
 		adev->gfxhub.funcs = &gfxhub_v12_0_funcs;
+		break;
+	case IP_VERSION(12, 1, 0):
+		adev->gfxhub.funcs = &gfxhub_v12_1_funcs;
 		break;
 	default:
 		break;
@@ -788,6 +796,7 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
+	case IP_VERSION(12, 1, 0):
 		set_bit(AMDGPU_GFXHUB(0), adev->vmhubs_mask);
 		set_bit(AMDGPU_MMHUB0(0), adev->vmhubs_mask);
 		/*
@@ -809,9 +818,14 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
-			      UTCL2_1_0__SRCID__FAULT,
-			      &adev->gmc.vm_fault);
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0))
+		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_UTCL2,
+				      UTCL2_1_0__SRCID__FAULT,
+				      &adev->gmc.vm_fault);
+	else
+		r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_GFX,
+				      UTCL2_1_0__SRCID__FAULT,
+				      &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -858,7 +872,11 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	 * amdgpu graphics/compute will use VMIDs 1-7
 	 * amdkfd will use VMIDs 8-15
 	 */
-	adev->vm_manager.first_kfd_vmid = adev->gfx.disable_kq ? 1 : 8;
+	adev->vm_manager.first_kfd_vmid =
+		 amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(12, 1, 0) ?
+		3 : 8;
+	adev->vm_manager.first_kfd_vmid =
+		adev->gfx.disable_kq ? 1 : (adev->vm_manager.first_kfd_vmid);
 
 	amdgpu_vm_manager_init(adev);
 
@@ -1026,7 +1044,10 @@ static int gmc_v12_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	if (r)
 		return r;
 
-	return athub_v4_1_0_set_clockgating(adev, state);
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 1, 0))
+		return athub_v4_1_0_set_clockgating(adev, state);
+	else
+		return 0;
 }
 
 static void gmc_v12_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
@@ -1035,7 +1056,8 @@ static void gmc_v12_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u6
 
 	adev->mmhub.funcs->get_clockgating(adev, flags);
 
-	athub_v4_1_0_get_clockgating(adev, flags);
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(12, 1, 0))
+		athub_v4_1_0_get_clockgating(adev, flags);
 }
 
 static int gmc_v12_0_set_powergating_state(struct amdgpu_ip_block *ip_block,
