@@ -784,6 +784,8 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 		   scx_read_event(&events, SCX_EV_DISPATCH_KEEP_LAST));
 	bpf_printk("%35s: %llu\n", "SCX_EV_ENQ_SKIP_EXITING",
 		   scx_read_event(&events, SCX_EV_ENQ_SKIP_EXITING));
+	bpf_printk("%35s: %llu\n", "SCX_EV_ENQ_SLICE_DFL",
+		   scx_read_event(&events, SCX_EV_ENQ_SLICE_DFL));
 	bpf_printk("%35s: %llu\n", "SCX_EV_BYPASS_DURATION",
 		   scx_read_event(&events, SCX_EV_BYPASS_DURATION));
 	bpf_printk("%35s: %llu\n", "SCX_EV_BYPASS_DISPATCH",
