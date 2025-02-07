@@ -525,6 +525,8 @@ static int vmclock_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	dev_set_drvdata(dev, st);
+
 	if (le32_to_cpu(st->clk->magic) != VMCLOCK_MAGIC ||
 	    le32_to_cpu(st->clk->size) > resource_size(&st->res) ||
 	    le16_to_cpu(st->clk->version) != 1) {
@@ -587,8 +589,6 @@ static int vmclock_probe(struct platform_device *pdev)
 		 st->miscdev.minor ? "miscdev" : "",
 		 (st->miscdev.minor && st->ptp_clock) ? ", " : "",
 		 st->ptp_clock ? "PTP" : "");
-
-	dev_set_drvdata(dev, st);
 
  out:
 	return ret;
