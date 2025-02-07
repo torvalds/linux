@@ -81,6 +81,7 @@
 #include <linux/skbuff.h>
 #include <linux/inetdevice.h>
 #include <linux/igmp.h>
+#include "igmp_internal.h"
 #include <linux/if_arp.h>
 #include <linux/rtnetlink.h>
 #include <linux/times.h>
@@ -1432,14 +1433,16 @@ static void ip_mc_hash_remove(struct in_device *in_dev,
 	*mc_hash = im->next_hash;
 }
 
-static int inet_fill_ifmcaddr(struct sk_buff *skb, struct net_device *dev,
-			      const struct ip_mc_list *im, int event)
+int inet_fill_ifmcaddr(struct sk_buff *skb, struct net_device *dev,
+		       const struct ip_mc_list *im,
+		       struct inet_fill_args *args)
 {
 	struct ifa_cacheinfo ci;
 	struct ifaddrmsg *ifm;
 	struct nlmsghdr *nlh;
 
-	nlh = nlmsg_put(skb, 0, 0, event, sizeof(struct ifaddrmsg), 0);
+	nlh = nlmsg_put(skb, args->portid, args->seq, args->event,
+			sizeof(struct ifaddrmsg), args->flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
@@ -1468,6 +1471,9 @@ static int inet_fill_ifmcaddr(struct sk_buff *skb, struct net_device *dev,
 static void inet_ifmcaddr_notify(struct net_device *dev,
 				 const struct ip_mc_list *im, int event)
 {
+	struct inet_fill_args fillargs = {
+		.event = event,
+	};
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOMEM;
@@ -1479,7 +1485,7 @@ static void inet_ifmcaddr_notify(struct net_device *dev,
 	if (!skb)
 		goto error;
 
-	err = inet_fill_ifmcaddr(skb, dev, im, event);
+	err = inet_fill_ifmcaddr(skb, dev, im, &fillargs);
 	if (err < 0) {
 		WARN_ON_ONCE(err == -EMSGSIZE);
 		nlmsg_free(skb);
