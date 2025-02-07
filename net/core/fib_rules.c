@@ -512,14 +512,13 @@ static int fib_nl2rule_l3mdev(struct nlattr *nla, struct fib_rule *nlrule,
 }
 #endif
 
-static int fib_nl2rule(struct sk_buff *skb, struct nlmsghdr *nlh,
+static int fib_nl2rule(struct net *net, struct nlmsghdr *nlh,
 		       struct netlink_ext_ack *extack,
 		       struct fib_rules_ops *ops,
 		       struct nlattr *tb[],
 		       struct fib_rule **rule,
 		       bool *user_priority)
 {
-	struct net *net = sock_net(skb->sk);
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rule *nlrule = NULL;
 	int err = -EINVAL;
@@ -798,7 +797,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
-	err = fib_nl2rule(skb, nlh, extack, ops, tb, &rule, &user_priority);
+	err = fib_nl2rule(net, nlh, extack, ops, tb, &rule, &user_priority);
 	if (err)
 		goto errout;
 
@@ -906,7 +905,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto errout;
 	}
 
-	err = fib_nl2rule(skb, nlh, extack, ops, tb, &nlrule, &user_priority);
+	err = fib_nl2rule(net, nlh, extack, ops, tb, &nlrule, &user_priority);
 	if (err)
 		goto errout;
 
