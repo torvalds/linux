@@ -109,7 +109,7 @@ static int tcp_out_of_resources(struct sock *sk, bool do_reset)
 
 	/* If peer does not open window for long time, or did not transmit
 	 * anything for long time, penalize it. */
-	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 2*TCP_RTO_MAX || !do_reset)
+	if ((s32)(tcp_jiffies32 - tp->lsndtime) > 2*tcp_rto_max(sk) || !do_reset)
 		shift++;
 
 	/* If some dubious ICMP arrived, penalize even more. */
@@ -189,12 +189,12 @@ static unsigned int tcp_model_timeout(struct sock *sk,
 {
 	unsigned int linear_backoff_thresh, timeout;
 
-	linear_backoff_thresh = ilog2(TCP_RTO_MAX / rto_base);
+	linear_backoff_thresh = ilog2(tcp_rto_max(sk) / rto_base);
 	if (boundary <= linear_backoff_thresh)
 		timeout = ((2 << boundary) - 1) * rto_base;
 	else
 		timeout = ((2 << linear_backoff_thresh) - 1) * rto_base +
-			(boundary - linear_backoff_thresh) * TCP_RTO_MAX;
+			(boundary - linear_backoff_thresh) * tcp_rto_max(sk);
 	return jiffies_to_msecs(timeout);
 }
 /**
@@ -268,7 +268,7 @@ static int tcp_write_timeout(struct sock *sk)
 
 		retry_until = READ_ONCE(net->ipv4.sysctl_tcp_retries2);
 		if (sock_flag(sk, SOCK_DEAD)) {
-			const bool alive = icsk->icsk_rto < TCP_RTO_MAX;
+			const bool alive = icsk->icsk_rto < tcp_rto_max(sk);
 
 			retry_until = tcp_orphan_retries(sk, alive);
 			do_reset = alive ||
@@ -416,7 +416,8 @@ static void tcp_probe_timer(struct sock *sk)
 	}
 	max_probes = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_retries2);
 	if (sock_flag(sk, SOCK_DEAD)) {
-		const bool alive = inet_csk_rto_backoff(icsk, TCP_RTO_MAX) < TCP_RTO_MAX;
+		unsigned int rto_max = tcp_rto_max(sk);
+		const bool alive = inet_csk_rto_backoff(icsk, rto_max) < rto_max;
 
 		max_probes = tcp_orphan_retries(sk, alive);
 		if (!alive && icsk->icsk_backoff >= max_probes)
@@ -492,7 +493,7 @@ static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	u32 user_timeout = READ_ONCE(icsk->icsk_user_timeout);
 	const struct tcp_sock *tp = tcp_sk(sk);
-	int timeout = TCP_RTO_MAX * 2;
+	int timeout = tcp_rto_max(sk) * 2;
 	s32 rcv_delta;
 
 	if (user_timeout) {
@@ -665,7 +666,7 @@ out_reset_timer:
 		icsk->icsk_backoff = 0;
 		icsk->icsk_rto = clamp(__tcp_set_rto(tp),
 				       tcp_rto_min(sk),
-				       TCP_RTO_MAX);
+				       tcp_rto_max(sk));
 	} else if (sk->sk_state != TCP_SYN_SENT ||
 		   tp->total_rto >
 		   READ_ONCE(net->ipv4.sysctl_tcp_syn_linear_timeouts)) {
@@ -673,7 +674,7 @@ out_reset_timer:
 		 * activated.
 		 */
 		icsk->icsk_backoff++;
-		icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
+		icsk->icsk_rto = min(icsk->icsk_rto << 1, tcp_rto_max(sk));
 	}
 	tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
 			     tcp_clamp_rto_to_user_timeout(sk), false);

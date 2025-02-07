@@ -136,6 +136,7 @@ enum {
 #define TCP_AO_REPAIR		42	/* Get/Set SNEs and ISNs */
 
 #define TCP_IS_MPTCP		43	/* Is MPTCP being used? */
+#define TCP_RTO_MAX_MS		44	/* max rto time in ms */
 
 #define TCP_REPAIR_ON		1
 #define TCP_REPAIR_OFF		0

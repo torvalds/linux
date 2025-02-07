@@ -17,6 +17,7 @@ struct timer_list                   icsk_retransmit_timer  read_mostly          
 struct timer_list                   icsk_delack_timer      read_mostly                             inet_csk_reset_xmit_timer,tcp_connect
 u32                                 icsk_rto               read_write                              tcp_cwnd_validate,tcp_schedule_loss_probe,tcp_connect_init,tcp_connect,tcp_write_xmit,tcp_push_one
 u32                                 icsk_rto_min
+u32                                 icsk_rto_max           read_mostly                             tcp_reset_xmit_timer
 u32                                 icsk_delack_max
 u32                                 icsk_pmtu_cookie       read_write                              tcp_sync_mss,tcp_current_mss,tcp_send_syn_data,tcp_connect_init,tcp_connect
 struct tcp_congestion_ops           icsk_ca_ops            read_write                              tcp_cwnd_validate,tcp_tso_segs,tcp_ca_dst_init,tcp_connect_init,tcp_connect,tcp_write_xmit
