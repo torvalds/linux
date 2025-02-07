@@ -72,6 +72,9 @@ static int __init hyperv_init(void)
 		return ret;
 	}
 
+	if (ms_hyperv.priv_high & HV_ACCESS_PARTITION_ID)
+		hv_get_partition_id();
+
 	ms_hyperv_late_init();
 
 	hyperv_initialized = true;

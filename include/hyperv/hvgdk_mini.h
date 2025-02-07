@@ -182,7 +182,7 @@ struct hv_tsc_emulation_control {	 /* HV_TSC_INVARIANT_CONTROL */
 
 #endif /* CONFIG_X86 */
 
-struct hv_get_partition_id {	 /* HV_OUTPUT_GET_PARTITION_ID */
+struct hv_output_get_partition_id {
 	u64 partition_id;
 } __packed;
 

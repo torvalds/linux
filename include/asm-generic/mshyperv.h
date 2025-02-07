@@ -58,6 +58,7 @@ struct ms_hyperv_info {
 };
 extern struct ms_hyperv_info ms_hyperv;
 extern bool hv_nested;
+extern u64 hv_current_partition_id;
 
 extern void * __percpu *hyperv_pcpu_input_arg;
 extern void * __percpu *hyperv_pcpu_output_arg;
@@ -207,6 +208,7 @@ extern u64 (*hv_read_reference_counter)(void);
 #define VP_INVAL	U32_MAX
 
 int __init hv_common_init(void);
+void __init hv_get_partition_id(void);
 void __init hv_common_free(void);
 void __init ms_hyperv_late_init(void);
 int hv_common_cpu_init(unsigned int cpu);

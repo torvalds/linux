@@ -31,6 +31,9 @@
 #include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>
 
+u64 hv_current_partition_id = HV_PARTITION_ID_SELF;
+EXPORT_SYMBOL_GPL(hv_current_partition_id);
+
 /*
  * hv_root_partition, ms_hyperv and hv_nested are defined here with other
  * Hyper-V specific globals so they are shared across all architectures and are
@@ -281,6 +284,25 @@ static void hv_kmsg_dump_register(void)
 static inline bool hv_output_page_exists(void)
 {
 	return hv_root_partition || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
+}
+
+void __init hv_get_partition_id(void)
+{
+	struct hv_output_get_partition_id *output;
+	unsigned long flags;
+	u64 status, pt_id;
+
+	local_irq_save(flags);
+	output = *this_cpu_ptr(hyperv_pcpu_input_arg);
+	status = hv_do_hypercall(HVCALL_GET_PARTITION_ID, NULL, &output);
+	pt_id = output->partition_id;
+	local_irq_restore(flags);
+
+	if (hv_result_success(status))
+		hv_current_partition_id = pt_id;
+	else
+		pr_err("Hyper-V: failed to get partition ID: %#x\n",
+		       hv_result(status));
 }
 
 int __init hv_common_init(void)
