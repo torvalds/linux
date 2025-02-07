@@ -131,7 +131,7 @@ static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
 	if (a.stripe)
 		return data_type == BCH_DATA_parity ? data_type : BCH_DATA_stripe;
 	if (bch2_bucket_sectors_dirty(a))
-		return data_type;
+		return bucket_data_type(data_type);
 	if (a.cached_sectors)
 		return BCH_DATA_cached;
 	if (BCH_ALLOC_V4_NEED_DISCARD(&a))
