@@ -10,6 +10,7 @@
 #include "iris_instance.h"
 #include "iris_vb2.h"
 #include "iris_vdec.h"
+#include "iris_power.h"
 
 static int iris_check_core_mbpf(struct iris_inst *inst)
 {
@@ -186,6 +187,8 @@ int iris_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
 		ret = -EINVAL;
 		goto error;
 	}
+
+	iris_scale_power(inst);
 
 	ret = iris_check_session_supported(inst);
 	if (ret)
