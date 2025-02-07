@@ -311,13 +311,8 @@ const struct pmc_reg_map adl_reg_map = {
 	.pson_residency_counter_step = TGL_PSON_RES_COUNTER_STEP,
 };
 
-static struct pmc_dev_info adl_pmc_dev = {
+struct pmc_dev_info adl_pmc_dev = {
 	.map = &adl_reg_map,
 	.suspend = cnl_suspend,
 	.resume = cnl_resume,
 };
-
-int adl_core_init(struct pmc_dev *pmcdev)
-{
-	return generic_core_init(pmcdev, &adl_pmc_dev);
-}

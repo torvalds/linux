@@ -550,14 +550,15 @@ static int lnl_resume(struct pmc_dev *pmcdev)
 	return cnl_resume(pmcdev);
 }
 
-static struct pmc_dev_info lnl_pmc_dev = {
+static int lnl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+{
+	lnl_d3_fixup();
+	return generic_core_init(pmcdev, pmc_dev_info);
+}
+
+struct pmc_dev_info lnl_pmc_dev = {
 	.map = &lnl_socm_reg_map,
 	.suspend = cnl_suspend,
 	.resume = lnl_resume,
+	.init = lnl_core_init,
 };
-
-int lnl_core_init(struct pmc_dev *pmcdev)
-{
-	lnl_d3_fixup();
-	return generic_core_init(pmcdev, &lnl_pmc_dev);
-}

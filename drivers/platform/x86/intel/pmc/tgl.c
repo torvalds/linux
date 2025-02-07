@@ -285,19 +285,7 @@ free_acpi_obj:
 	ACPI_FREE(out_obj);
 }
 
-static struct pmc_dev_info tgl_l_pmc_dev = {
-	.map = &tgl_reg_map,
-	.suspend = cnl_suspend,
-	.resume = cnl_resume,
-};
-
-static struct pmc_dev_info tgl_pmc_dev = {
-	.map = &tgl_h_reg_map,
-	.suspend = cnl_suspend,
-	.resume = cnl_resume,
-};
-
-static int tgl_core_generic_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+static int tgl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 {
 	int ret;
 
@@ -309,12 +297,16 @@ static int tgl_core_generic_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pm
 	return 0;
 }
 
-int tgl_l_core_init(struct pmc_dev *pmcdev)
-{
-	return tgl_core_generic_init(pmcdev, &tgl_l_pmc_dev);
-}
+struct pmc_dev_info tgl_l_pmc_dev = {
+	.map = &tgl_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+	.init = tgl_core_init,
+};
 
-int tgl_core_init(struct pmc_dev *pmcdev)
-{
-	return tgl_core_generic_init(pmcdev, &tgl_pmc_dev);
-}
+struct pmc_dev_info tgl_pmc_dev = {
+	.map = &tgl_h_reg_map,
+	.suspend = cnl_suspend,
+	.resume = cnl_resume,
+	.init = tgl_core_init,
+};

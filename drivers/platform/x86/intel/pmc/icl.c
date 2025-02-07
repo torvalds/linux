@@ -50,11 +50,6 @@ const struct pmc_reg_map icl_reg_map = {
 	.etr3_offset = ETR3_OFFSET,
 };
 
-static struct pmc_dev_info icl_pmc_dev = {
+struct pmc_dev_info icl_pmc_dev = {
 	.map = &icl_reg_map,
 };
-
-int icl_core_init(struct pmc_dev *pmcdev)
-{
-	return generic_core_init(pmcdev, &icl_pmc_dev);
-}

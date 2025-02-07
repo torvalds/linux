@@ -990,17 +990,18 @@ static int mtl_resume(struct pmc_dev *pmcdev)
 	return cnl_resume(pmcdev);
 }
 
-static struct pmc_dev_info mtl_pmc_dev = {
+static int mtl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+{
+	mtl_d3_fixup();
+	return generic_core_init(pmcdev, pmc_dev_info);
+}
+
+struct pmc_dev_info mtl_pmc_dev = {
 	.pci_func = 2,
 	.dmu_guid = MTL_PMT_DMU_GUID,
 	.regmap_list = mtl_pmc_info_list,
 	.map = &mtl_socm_reg_map,
 	.suspend = cnl_suspend,
 	.resume = mtl_resume,
+	.init = mtl_core_init,
 };
-
-int mtl_core_init(struct pmc_dev *pmcdev)
-{
-	mtl_d3_fixup();
-	return generic_core_init(pmcdev, &mtl_pmc_dev);
-}

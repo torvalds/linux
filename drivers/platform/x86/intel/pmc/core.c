@@ -1388,29 +1388,29 @@ int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
 }
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	X86_MATCH_VFM(INTEL_SKYLAKE_L,		spt_core_init),
-	X86_MATCH_VFM(INTEL_SKYLAKE,		spt_core_init),
-	X86_MATCH_VFM(INTEL_KABYLAKE_L,		spt_core_init),
-	X86_MATCH_VFM(INTEL_KABYLAKE,		spt_core_init),
-	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	cnp_core_init),
-	X86_MATCH_VFM(INTEL_ICELAKE_L,		icl_core_init),
-	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,	icl_core_init),
-	X86_MATCH_VFM(INTEL_COMETLAKE,		cnp_core_init),
-	X86_MATCH_VFM(INTEL_COMETLAKE_L,	cnp_core_init),
-	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_TIGERLAKE,		tgl_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	icl_core_init),
-	X86_MATCH_VFM(INTEL_ROCKETLAKE,		tgl_core_init),
-	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_ALDERLAKE,		adl_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,	tgl_l_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE,		adl_core_init),
-	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	adl_core_init),
-	X86_MATCH_VFM(INTEL_METEORLAKE_L,	mtl_core_init),
-	X86_MATCH_VFM(INTEL_ARROWLAKE,		arl_core_init),
-	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	lnl_core_init),
+	X86_MATCH_VFM(INTEL_SKYLAKE_L,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_SKYLAKE,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_KABYLAKE_L,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_KABYLAKE,		&spt_pmc_dev),
+	X86_MATCH_VFM(INTEL_CANNONLAKE_L,	&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_ICELAKE_L,		&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ICELAKE_NNPI,	&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_COMETLAKE,		&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_COMETLAKE_L,	&cnp_pmc_dev),
+	X86_MATCH_VFM(INTEL_TIGERLAKE_L,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_TIGERLAKE,		&tgl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_TREMONT_L,	&icl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ROCKETLAKE,		&tgl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ALDERLAKE_L,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ATOM_GRACEMONT,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_ALDERLAKE,		&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_P,	&tgl_l_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE,		&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_RAPTORLAKE_S,	&adl_pmc_dev),
+	X86_MATCH_VFM(INTEL_METEORLAKE_L,	&mtl_pmc_dev),
+	X86_MATCH_VFM(INTEL_ARROWLAKE,		&arl_pmc_dev),
+	X86_MATCH_VFM(INTEL_LUNARLAKE_M,	&lnl_pmc_dev),
 	{}
 };
 
@@ -1494,7 +1494,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	static bool device_initialized;
 	struct pmc_dev *pmcdev;
 	const struct x86_cpu_id *cpu_id;
-	int (*core_init)(struct pmc_dev *pmcdev);
+	struct pmc_dev_info *pmc_dev_info;
 	struct pmc *primary_pmc;
 	int ret;
 
@@ -1514,7 +1514,7 @@ static int pmc_core_probe(struct platform_device *pdev)
 	if (!cpu_id)
 		return -ENODEV;
 
-	core_init = (int (*)(struct pmc_dev *))cpu_id->driver_data;
+	pmc_dev_info = (struct pmc_dev_info *)cpu_id->driver_data;
 
 	/* Primary PMC */
 	primary_pmc = devm_kzalloc(&pdev->dev, sizeof(*primary_pmc), GFP_KERNEL);
@@ -1536,11 +1536,16 @@ static int pmc_core_probe(struct platform_device *pdev)
 	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
 	 * in this case.
 	 */
-	if (core_init == spt_core_init && !pci_dev_present(pmc_pci_ids))
-		core_init = cnp_core_init;
+	if (pmc_dev_info == &spt_pmc_dev && !pci_dev_present(pmc_pci_ids))
+		pmc_dev_info = &cnp_pmc_dev;
 
 	mutex_init(&pmcdev->lock);
-	ret = core_init(pmcdev);
+
+	if (pmc_dev_info->init)
+		ret = pmc_dev_info->init(pmcdev, pmc_dev_info);
+	else
+		ret = generic_core_init(pmcdev, pmc_dev_info);
+
 	if (ret) {
 		pmc_core_clean_structure(pdev);
 		return ret;

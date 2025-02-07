@@ -446,6 +446,7 @@ enum pmc_index {
  *			specific attributes of the primary PMC
  * @suspend:		Function to perform platform specific suspend
  * @resume:		Function to perform platform specific resume
+ * @init:		Function to perform platform specific init action
  */
 struct pmc_dev_info {
 	u8 pci_func;
@@ -454,6 +455,7 @@ struct pmc_dev_info {
 	const struct pmc_reg_map *map;
 	void (*suspend)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
+	int (*init)(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
 };
 
 extern const struct pmc_bit_map msr_map[];
@@ -613,15 +615,16 @@ extern void pmc_core_set_device_d3(unsigned int device);
 extern int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
-int spt_core_init(struct pmc_dev *pmcdev);
-int cnp_core_init(struct pmc_dev *pmcdev);
-int icl_core_init(struct pmc_dev *pmcdev);
-int tgl_core_init(struct pmc_dev *pmcdev);
-int tgl_l_core_init(struct pmc_dev *pmcdev);
-int adl_core_init(struct pmc_dev *pmcdev);
-int mtl_core_init(struct pmc_dev *pmcdev);
-int arl_core_init(struct pmc_dev *pmcdev);
-int lnl_core_init(struct pmc_dev *pmcdev);
+
+extern struct pmc_dev_info spt_pmc_dev;
+extern struct pmc_dev_info cnp_pmc_dev;
+extern struct pmc_dev_info icl_pmc_dev;
+extern struct pmc_dev_info tgl_l_pmc_dev;
+extern struct pmc_dev_info tgl_pmc_dev;
+extern struct pmc_dev_info adl_pmc_dev;
+extern struct pmc_dev_info mtl_pmc_dev;
+extern struct pmc_dev_info arl_pmc_dev;
+extern struct pmc_dev_info lnl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);

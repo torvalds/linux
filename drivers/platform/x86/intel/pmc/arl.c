@@ -691,17 +691,18 @@ static int arl_resume(struct pmc_dev *pmcdev)
 	return cnl_resume(pmcdev);
 }
 
-static struct pmc_dev_info arl_pmc_dev = {
+static int arl_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+{
+	arl_d3_fixup();
+	return generic_core_init(pmcdev, pmc_dev_info);
+}
+
+struct pmc_dev_info arl_pmc_dev = {
 	.pci_func = 0,
 	.dmu_guid = ARL_PMT_DMU_GUID,
 	.regmap_list = arl_pmc_info_list,
 	.map = &arl_socs_reg_map,
 	.suspend = cnl_suspend,
 	.resume = arl_resume,
+	.init = arl_core_init,
 };
-
-int arl_core_init(struct pmc_dev *pmcdev)
-{
-	arl_d3_fixup();
-	return generic_core_init(pmcdev, &arl_pmc_dev);
-}
