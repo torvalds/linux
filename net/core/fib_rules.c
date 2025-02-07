@@ -816,6 +816,9 @@ int fib_newrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		goto errout;
 
+	if (!rtnl_held)
+		rtnl_net_lock(net);
+
 	err = fib_nl2rule_rtnl(rule, ops, tb, extack);
 	if (err)
 		goto errout_free;
@@ -881,12 +884,20 @@ int fib_newrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (rule->tun_id)
 		ip_tunnel_need_metadata();
 
+	fib_rule_get(rule);
+
+	if (!rtnl_held)
+		rtnl_net_unlock(net);
+
 	notify_rule_change(RTM_NEWRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
+	fib_rule_put(rule);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
 	return 0;
 
 errout_free:
+	if (!rtnl_held)
+		rtnl_net_unlock(net);
 	kfree(rule);
 errout:
 	rules_ops_put(ops);
@@ -897,7 +908,7 @@ EXPORT_SYMBOL_GPL(fib_newrule);
 static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
-	return fib_newrule(sock_net(skb->sk), skb, nlh, extack, true);
+	return fib_newrule(sock_net(skb->sk), skb, nlh, extack, false);
 }
 
 int fib_delrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -1320,7 +1331,8 @@ static struct pernet_operations fib_rules_net_ops = {
 };
 
 static const struct rtnl_msg_handler fib_rules_rtnl_msg_handlers[] __initconst = {
-	{.msgtype = RTM_NEWRULE, .doit = fib_nl_newrule},
+	{.msgtype = RTM_NEWRULE, .doit = fib_nl_newrule,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.msgtype = RTM_DELRULE, .doit = fib_nl_delrule},
 	{.msgtype = RTM_GETRULE, .dumpit = fib_nl_dumprule,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
