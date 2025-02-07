@@ -64,6 +64,7 @@ void parse_boot_command_line(void);
 void verify_facilities(void);
 void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
+void alt_debug_setup(char *str);
 void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);

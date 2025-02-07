@@ -296,6 +296,9 @@ void parse_boot_command_line(void)
 		if (!strcmp(param, "facilities") && val)
 			modify_fac_list(val);
 
+		if (!strcmp(param, "debug-alternative"))
+			alt_debug_setup(val);
+
 		if (!strcmp(param, "nokaslr"))
 			__kaslr_enabled = 0;
 
