@@ -114,11 +114,10 @@ static const struct snd_pcm_hardware acp63_sdw_hardware_capture = {
 	.periods_max = SDW_CAPTURE_MAX_NUM_PERIODS,
 };
 
-static void acp63_enable_disable_sdw_dma_interrupts(void __iomem *acp_base, bool enable)
+static void acp63_enable_disable_sdw_dma_interrupts(void __iomem *acp_base, u32 irq_mask,
+						    u32 irq_mask1, bool enable)
 {
 	u32 ext_intr_cntl, ext_intr_cntl1;
-	u32 irq_mask = ACP63_SDW_DMA_IRQ_MASK;
-	u32 irq_mask1 = ACP63_P1_SDW_DMA_IRQ_MASK;
 
 	if (enable) {
 		ext_intr_cntl = readl(acp_base + ACP_EXTERNAL_INTR_CNTL);
@@ -533,9 +532,11 @@ static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
 	u32 period_bytes, buf_size, water_mark_size_reg;
-	u32 stream_count;
+	u32 stream_count, irq_mask, irq_mask1;
 	int index, instance, ret;
 
+	irq_mask = ACP63_SDW_DMA_IRQ_MASK;
+	irq_mask1 = ACP63_P1_SDW_DMA_IRQ_MASK;
 	for (instance = 0; instance < AMD_SDW_MAX_MANAGERS; instance++) {
 		if (instance == ACP_SDW0)
 			stream_count = ACP63_SDW0_DMA_MAX_STREAMS;
@@ -566,7 +567,7 @@ static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 			}
 		}
 	}
-	acp63_enable_disable_sdw_dma_interrupts(sdw_data->acp_base, true);
+	acp63_enable_disable_sdw_dma_interrupts(sdw_data->acp_base, irq_mask, irq_mask1, true);
 	return 0;
 }
 
