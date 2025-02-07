@@ -127,7 +127,7 @@ struct lowcore {
 	__u64	int_clock;			/* 0x0318 */
 	__u8	pad_0x0320[0x0328-0x0320];	/* 0x0320 */
 	__u64	clock_comparator;		/* 0x0328 */
-	__u64	boot_clock[2];			/* 0x0330 */
+	__u8	pad_0x0330[0x0340-0x0330];	/* 0x0330 */
 
 	/* Current process. */
 	__u64	current_task;			/* 0x0340 */

@@ -10,6 +10,7 @@
 #include <asm/machine.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
+#include <asm/timex.h>
 #include <asm/kasan.h>
 #include <asm/kexec.h>
 #include <asm/sclp.h>
@@ -35,6 +36,8 @@ unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata_preserved(page_noexec_mask);
 unsigned long __bootdata_preserved(segment_noexec_mask);
 unsigned long __bootdata_preserved(region_noexec_mask);
+union tod_clock __bootdata_preserved(tod_clock_base);
+u64 __bootdata_preserved(clock_comparator_max) = -1UL;
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);
@@ -44,6 +47,20 @@ void error(char *x)
 	boot_emerg("%s\n", x);
 	boot_emerg(" -- System halted\n");
 	disabled_wait();
+}
+
+static void reset_tod_clock(void)
+{
+	union tod_clock clk;
+
+	if (store_tod_clock_ext_cc(&clk) == 0)
+		return;
+	/* TOD clock not running. Set the clock to Unix Epoch. */
+	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
+		disabled_wait();
+	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
+	tod_clock_base.tod = TOD_UNIX_EPOCH;
+	get_lowcore()->last_update_clock = TOD_UNIX_EPOCH;
 }
 
 static void detect_facilities(void)
@@ -60,6 +77,13 @@ static void detect_facilities(void)
 	}
 	if (IS_ENABLED(CONFIG_PCI) && test_facility(153))
 		set_machine_feature(MFEATURE_PCI_MIO);
+	reset_tod_clock();
+	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
+		/* Enable signed clock comparator comparisons */
+		set_machine_feature(MFEATURE_SCC);
+		clock_comparator_max = -1UL >> 1;
+		local_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
+	}
 }
 
 static int cmma_test_essa(void)

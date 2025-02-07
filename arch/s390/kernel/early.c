@@ -64,21 +64,6 @@ static void __init kasan_early_init(void)
 #endif
 }
 
-static void __init reset_tod_clock(void)
-{
-	union tod_clock clk;
-
-	if (store_tod_clock_ext_cc(&clk) == 0)
-		return;
-	/* TOD clock not running. Set the clock to Unix Epoch. */
-	if (set_tod_clock(TOD_UNIX_EPOCH) || store_tod_clock_ext_cc(&clk))
-		disabled_wait();
-
-	memset(&tod_clock_base, 0, sizeof(tod_clock_base));
-	tod_clock_base.tod = TOD_UNIX_EPOCH;
-	get_lowcore()->last_update_clock = TOD_UNIX_EPOCH;
-}
-
 /*
  * Initialize storage key for kernel pages
  */
@@ -243,12 +228,6 @@ static __init void detect_machine_facilities(void)
 	}
 	if (test_facility(129))
 		system_ctl_set_bit(0, CR0_VECTOR_BIT);
-	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
-		/* Enabled signed clock comparator comparisons */
-		get_lowcore()->machine_flags |= MACHINE_FLAG_SCC;
-		clock_comparator_max = -1ULL >> 1;
-		system_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
-	}
 }
 
 static inline void save_vector_registers(void)
@@ -286,7 +265,6 @@ static void __init sort_amode31_extable(void)
 void __init startup_init(void)
 {
 	kasan_early_init();
-	reset_tod_clock();
 	time_early_init();
 	init_kernel_storage_key();
 	lockdep_off();

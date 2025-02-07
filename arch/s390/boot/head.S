@@ -254,8 +254,9 @@ SYM_CODE_START_LOCAL(startup_normal)
 	xc	0xf00(256),0xf00
 	larl	%r13,.Lctl
 	lctlg	%c0,%c15,0(%r13)	# load control registers
-	stcke	__LC_BOOT_CLOCK
-	mvc	__LC_LAST_UPDATE_CLOCK(8),__LC_BOOT_CLOCK+1
+	larl	%r13,tod_clock_base
+	stcke	0(%r13)
+	mvc	__LC_LAST_UPDATE_CLOCK(8),1(%r13)
 	larl	%r13,6f
 	spt	0(%r13)
 	mvc	__LC_LAST_UPDATE_TIMER(8),0(%r13)

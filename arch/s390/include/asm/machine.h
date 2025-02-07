@@ -10,6 +10,7 @@
 
 #define MFEATURE_LOWCORE	0
 #define MFEATURE_PCI_MIO	1
+#define MFEATURE_SCC		2
 
 #ifndef __ASSEMBLY__
 
@@ -78,6 +79,7 @@ static __always_inline bool machine_has_##name(void)				\
 }
 
 DEFINE_MACHINE_HAS_FEATURE(relocated_lowcore, MFEATURE_LOWCORE)
+DEFINE_MACHINE_HAS_FEATURE(scc, MFEATURE_SCC)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_S390_MACHINE_H */

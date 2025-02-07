@@ -122,7 +122,6 @@ int main(void)
 	OFFSET(__LC_LAST_UPDATE_TIMER, lowcore, last_update_timer);
 	OFFSET(__LC_LAST_UPDATE_CLOCK, lowcore, last_update_clock);
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
-	OFFSET(__LC_BOOT_CLOCK, lowcore, boot_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
