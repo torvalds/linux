@@ -315,7 +315,7 @@ static unsigned long try_get_large_pud_pa(pud_t *pu_dir, unsigned long addr, uns
 {
 	unsigned long pa, size = end - addr;
 
-	if (!machine.has_edat2 || !large_page_mapping_allowed(mode) ||
+	if (!cpu_has_edat2() || !large_page_mapping_allowed(mode) ||
 	    !IS_ALIGNED(addr, PUD_SIZE) || (size < PUD_SIZE))
 		return INVALID_PHYS_ADDR;
 

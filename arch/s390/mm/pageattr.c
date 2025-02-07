@@ -64,7 +64,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 	unsigned long *table, mask;
 
 	mask = 0;
-	if (MACHINE_HAS_EDAT2) {
+	if (cpu_has_edat2()) {
 		switch (dtt) {
 		case CRDTE_DTT_REGION3:
 			mask = ~(PTRS_PER_PUD * sizeof(pud_t) - 1);

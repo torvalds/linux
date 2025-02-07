@@ -251,7 +251,7 @@ bool __init arch_hugetlb_valid_size(unsigned long size)
 {
 	if (cpu_has_edat1() && size == PMD_SIZE)
 		return true;
-	else if (MACHINE_HAS_EDAT2 && size == PUD_SIZE)
+	else if (cpu_has_edat2() && size == PUD_SIZE)
 		return true;
 	else
 		return false;

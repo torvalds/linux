@@ -11,10 +11,6 @@
 #include <linux/printk.h>
 #include <asm/physmem_info.h>
 
-struct machine_info {
-	unsigned char has_edat2 : 1;
-};
-
 struct vmlinux_info {
 	unsigned long entry;
 	unsigned long image_size;	/* does not include .bss */

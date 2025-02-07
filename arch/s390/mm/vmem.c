@@ -336,7 +336,7 @@ static int modify_pud_table(p4d_t *p4d, unsigned long addr, unsigned long end,
 		} else if (pud_none(*pud)) {
 			if (IS_ALIGNED(addr, PUD_SIZE) &&
 			    IS_ALIGNED(next, PUD_SIZE) &&
-			    MACHINE_HAS_EDAT2 && direct &&
+			    cpu_has_edat2() && direct &&
 			    !debug_pagealloc_enabled()) {
 				set_pud(pud, __pud(__pa(addr) | prot));
 				pages++;

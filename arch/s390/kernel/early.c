@@ -237,8 +237,6 @@ static __init void detect_diag9c(void)
 
 static __init void detect_machine_facilities(void)
 {
-	if (test_facility(78))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		get_lowcore()->machine_flags |= MACHINE_FLAG_IDTE;
 	if (test_facility(50) && test_facility(73)) {
