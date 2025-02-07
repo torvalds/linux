@@ -2910,7 +2910,7 @@ bool tcp_schedule_loss_probe(struct sock *sk, bool advancing_rto)
 	if (rto_delta_us > 0)
 		timeout = min_t(u32, timeout, usecs_to_jiffies(rto_delta_us));
 
-	tcp_reset_xmit_timer(sk, ICSK_TIME_LOSS_PROBE, timeout);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_LOSS_PROBE, timeout, true);
 	return true;
 }
 
@@ -3544,7 +3544,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	}
 	if (rearm_timer)
 		tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-				     inet_csk(sk)->icsk_rto);
+				     inet_csk(sk)->icsk_rto, true);
 }
 
 /* We allow to exceed memory limits for FIN packets to expedite
@@ -4400,7 +4400,7 @@ void tcp_send_probe0(struct sock *sk)
 	}
 
 	timeout = tcp_clamp_probe0_to_user_timeout(sk, timeout);
-	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0, timeout);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0, timeout, true);
 }
 
 int tcp_rtx_synack(const struct sock *sk, struct request_sock *req)

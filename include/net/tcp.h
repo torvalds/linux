@@ -1423,10 +1423,12 @@ static inline unsigned long tcp_pacing_delay(const struct sock *sk)
 
 static inline void tcp_reset_xmit_timer(struct sock *sk,
 					const int what,
-					unsigned long when)
+					unsigned long when,
+					bool pace_delay)
 {
-	inet_csk_reset_xmit_timer(sk, what, when + tcp_pacing_delay(sk),
-				  TCP_RTO_MAX);
+	if (pace_delay)
+		when += tcp_pacing_delay(sk);
+	inet_csk_reset_xmit_timer(sk, what, when, TCP_RTO_MAX);
 }
 
 /* Something is really bad, we could not queue an additional packet,
@@ -1455,7 +1457,7 @@ static inline void tcp_check_probe_timer(struct sock *sk)
 {
 	if (!tcp_sk(sk)->packets_out && !inet_csk(sk)->icsk_pending)
 		tcp_reset_xmit_timer(sk, ICSK_TIME_PROBE0,
-				     tcp_probe0_base(sk));
+				     tcp_probe0_base(sk), true);
 }
 
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
