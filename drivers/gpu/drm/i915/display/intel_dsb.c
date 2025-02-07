@@ -116,7 +116,13 @@ static int dsb_vblank_delay(struct intel_atomic_state *state,
 		intel_pre_commit_crtc_state(state, crtc);
 
 	if (pre_commit_is_vrr_active(state, crtc))
-		return intel_vrr_vblank_delay(crtc_state);
+		/*
+		 * When the push is sent during vblank it will trigger
+		 * on the next scanline, hence we have up to one extra
+		 * scanline until the delayed vblank occurs after
+		 * TRANS_PUSH has been written.
+		 */
+		return intel_vrr_vblank_delay(crtc_state) + 1;
 	else
 		return intel_mode_vblank_delay(&crtc_state->hw.adjusted_mode);
 }
