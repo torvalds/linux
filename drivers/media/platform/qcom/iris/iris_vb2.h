@@ -9,4 +9,7 @@
 int iris_vb2_queue_setup(struct vb2_queue *q,
 			 unsigned int *num_buffers, unsigned int *num_planes,
 			 unsigned int sizes[], struct device *alloc_devs[]);
+int iris_vb2_start_streaming(struct vb2_queue *q, unsigned int count);
+void iris_vb2_stop_streaming(struct vb2_queue *q);
+
 #endif

@@ -145,10 +145,12 @@ int iris_open(struct file *filp)
 
 	inst->core = core;
 	inst->session_id = hash32_ptr(inst);
+	inst->state = IRIS_INST_DEINIT;
 
 	mutex_init(&inst->lock);
 	mutex_init(&inst->ctx_q_lock);
 	init_completion(&inst->completion);
+	init_completion(&inst->flush_completion);
 
 	iris_v4l2_fh_init(inst);
 
@@ -194,6 +196,9 @@ static void iris_session_close(struct iris_inst *inst)
 	bool wait_for_response = true;
 	int ret;
 
+	if (inst->state == IRIS_INST_DEINIT)
+		return;
+
 	reinit_completion(&inst->completion);
 
 	ret = hfi_ops->session_close(inst);
@@ -201,7 +206,7 @@ static void iris_session_close(struct iris_inst *inst)
 		wait_for_response = false;
 
 	if (wait_for_response)
-		iris_wait_for_session_response(inst);
+		iris_wait_for_session_response(inst, false);
 }
 
 int iris_close(struct file *filp)
@@ -214,6 +219,7 @@ int iris_close(struct file *filp)
 	mutex_lock(&inst->lock);
 	iris_vdec_inst_deinit(inst);
 	iris_session_close(inst);
+	iris_inst_change_state(inst, IRIS_INST_DEINIT);
 	iris_v4l2_fh_deinit(inst);
 	iris_remove_session(inst);
 	mutex_unlock(&inst->lock);
@@ -356,6 +362,8 @@ static struct v4l2_file_operations iris_v4l2_file_ops = {
 
 static const struct vb2_ops iris_vb2_ops = {
 	.queue_setup                    = iris_vb2_queue_setup,
+	.start_streaming                = iris_vb2_start_streaming,
+	.stop_streaming                 = iris_vb2_stop_streaming,
 };
 
 static const struct v4l2_ioctl_ops iris_v4l2_ioctl_ops = {
@@ -373,6 +381,8 @@ static const struct v4l2_ioctl_ops iris_v4l2_ioctl_ops = {
 	.vidioc_g_selection             = iris_g_selection,
 	.vidioc_subscribe_event         = iris_subscribe_event,
 	.vidioc_unsubscribe_event       = v4l2_event_unsubscribe,
+	.vidioc_streamon                = v4l2_m2m_ioctl_streamon,
+	.vidioc_streamoff               = v4l2_m2m_ioctl_streamoff,
 };
 
 void iris_init_ops(struct iris_core *core)

@@ -23,6 +23,12 @@
 #define HFI_CMD_SYS_SESSION_INIT			0x10007
 #define HFI_CMD_SYS_SESSION_END				0x10008
 
+#define HFI_CMD_SESSION_LOAD_RESOURCES			0x211001
+#define HFI_CMD_SESSION_START				0x211002
+#define HFI_CMD_SESSION_STOP				0x211003
+#define HFI_CMD_SESSION_FLUSH				0x211008
+#define HFI_CMD_SESSION_RELEASE_RESOURCES		0x21100c
+
 #define HFI_ERR_SESSION_UNSUPPORTED_SETTING		0x1008
 #define HFI_ERR_SESSION_UNSUPPORT_BUFFERTYPE		0x1010
 #define HFI_ERR_SESSION_INVALID_SCALE_FACTOR		0x1012
@@ -31,6 +37,9 @@
 #define HFI_EVENT_SYS_ERROR				0x1
 #define HFI_EVENT_SESSION_ERROR				0x2
 
+#define HFI_FLUSH_OUTPUT				0x1000002
+#define HFI_FLUSH_OUTPUT2				0x1000003
+#define HFI_FLUSH_ALL					0x1000004
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL		0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
 
@@ -41,6 +50,11 @@
 #define HFI_MSG_SYS_PROPERTY_INFO			0x2000a
 
 #define HFI_MSG_EVENT_NOTIFY				0x21001
+#define HFI_MSG_SESSION_LOAD_RESOURCES			0x221001
+#define HFI_MSG_SESSION_START				0x221002
+#define HFI_MSG_SESSION_STOP				0x221003
+#define HFI_MSG_SESSION_FLUSH				0x221006
+#define HFI_MSG_SESSION_RELEASE_RESOURCES		0x22100a
 
 struct hfi_pkt_hdr {
 	u32 size;
@@ -83,6 +97,11 @@ struct hfi_sys_pc_prep_pkt {
 	struct hfi_pkt_hdr hdr;
 };
 
+struct hfi_session_flush_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 flush_type;
+};
+
 struct hfi_msg_event_notify_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 event_id;
@@ -114,6 +133,11 @@ struct hfi_msg_sys_property_info_pkt {
 	u32 num_properties;
 	u32 property;
 	u8 data[];
+};
+
+struct hfi_msg_session_flush_done_pkt {
+	struct hfi_msg_session_hdr_pkt shdr;
+	u32 flush_type;
 };
 
 struct hfi_enable {

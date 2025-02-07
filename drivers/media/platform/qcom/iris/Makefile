@@ -12,6 +12,7 @@ iris-objs += iris_buffer.o \
              iris_platform_sm8550.o \
              iris_probe.o \
              iris_resources.o \
+             iris_state.o \
              iris_utils.o \
              iris_vidc.o \
              iris_vb2.o \

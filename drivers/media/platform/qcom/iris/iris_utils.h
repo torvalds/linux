@@ -29,6 +29,6 @@ static inline enum iris_buffer_type iris_v4l2_type_to_driver(u32 type)
 
 int iris_get_mbpf(struct iris_inst *inst);
 struct iris_inst *iris_get_instance(struct iris_core *core, u32 session_id);
-int iris_wait_for_session_response(struct iris_inst *inst);
+int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush);
 
 #endif

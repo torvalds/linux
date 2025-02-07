@@ -49,6 +49,8 @@ struct iris_hfi_command_ops {
 	int (*sys_interframe_powercollapse)(struct iris_core *core);
 	int (*sys_pc_prep)(struct iris_core *core);
 	int (*session_open)(struct iris_inst *inst);
+	int (*session_start)(struct iris_inst *inst, u32 plane);
+	int (*session_stop)(struct iris_inst *inst, u32 plane);
 	int (*session_close)(struct iris_inst *inst);
 };
 

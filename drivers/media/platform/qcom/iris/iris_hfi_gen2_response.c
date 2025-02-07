@@ -101,6 +101,7 @@ static int iris_hfi_gen2_handle_session_error(struct iris_inst *inst,
 
 	dev_err(core->dev, "session error received %#x: %s\n", pkt->type, error);
 	iris_vb2_queue_error(inst);
+	iris_inst_change_state(inst, IRIS_INST_ERROR);
 
 	return 0;
 }
@@ -108,9 +109,17 @@ static int iris_hfi_gen2_handle_session_error(struct iris_inst *inst,
 static int iris_hfi_gen2_handle_system_error(struct iris_core *core,
 					     struct iris_hfi_packet *pkt)
 {
+	struct iris_inst *instance;
+
 	dev_err(core->dev, "received system error of type %#x\n", pkt->type);
 
 	core->state = IRIS_CORE_ERROR;
+
+	mutex_lock(&core->lock);
+	list_for_each_entry(instance, &core->instances, list)
+		iris_inst_change_state(instance, IRIS_INST_ERROR);
+	mutex_unlock(&core->lock);
+
 	schedule_delayed_work(&core->sys_error_handler, msecs_to_jiffies(10));
 
 	return 0;
@@ -129,20 +138,32 @@ static int iris_hfi_gen2_handle_system_init(struct iris_core *core,
 	return 0;
 }
 
+static void iris_hfi_gen2_handle_session_close(struct iris_inst *inst,
+					       struct iris_hfi_packet *pkt)
+{
+	if (!(pkt->flags & HFI_FW_FLAGS_SUCCESS)) {
+		iris_inst_change_state(inst, IRIS_INST_ERROR);
+		return;
+	}
+
+	complete(&inst->completion);
+}
+
 static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
 						struct iris_hfi_packet *pkt)
 {
-	int ret = 0;
-
 	switch (pkt->type) {
 	case HFI_CMD_CLOSE:
+		iris_hfi_gen2_handle_session_close(inst, pkt);
+		break;
+	case HFI_CMD_STOP:
 		complete(&inst->completion);
 		break;
 	default:
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int iris_hfi_gen2_handle_image_version_property(struct iris_core *core,
@@ -247,8 +268,11 @@ static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 			if (packet->flags & HFI_FW_FLAGS_SESSION_ERROR)
 				iris_hfi_gen2_handle_session_error(inst, packet);
 
-			if (packet->type > range[i].begin && packet->type < range[i].end)
+			if (packet->type > range[i].begin && packet->type < range[i].end) {
 				ret = range[i].handle(inst, packet);
+				if (ret)
+					iris_inst_change_state(inst, IRIS_INST_ERROR);
+			}
 			pkt += packet->size;
 		}
 	}

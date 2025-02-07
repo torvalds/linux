@@ -17,20 +17,23 @@ int iris_get_mbpf(struct iris_inst *inst)
 	return NUM_MBS_PER_FRAME(height, width);
 }
 
-int iris_wait_for_session_response(struct iris_inst *inst)
+int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush)
 {
 	struct iris_core *core = inst->core;
 	u32 hw_response_timeout_val;
+	struct completion *done;
 	int ret;
 
 	hw_response_timeout_val = core->iris_platform_data->hw_response_timeout;
+	done = is_flush ? &inst->flush_completion : &inst->completion;
 
 	mutex_unlock(&inst->lock);
-	ret = wait_for_completion_timeout(&inst->completion,
-					  msecs_to_jiffies(hw_response_timeout_val));
+	ret = wait_for_completion_timeout(done, msecs_to_jiffies(hw_response_timeout_val));
 	mutex_lock(&inst->lock);
-	if (!ret)
+	if (!ret) {
+		iris_inst_change_state(inst, IRIS_INST_ERROR);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }

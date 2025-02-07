@@ -222,3 +222,78 @@ int iris_vdec_subscribe_event(struct iris_inst *inst, const struct v4l2_event_su
 
 	return ret;
 }
+
+static void iris_vdec_kill_session(struct iris_inst *inst)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+
+	if (!inst->session_id)
+		return;
+
+	hfi_ops->session_close(inst);
+	iris_inst_change_state(inst, IRIS_INST_ERROR);
+}
+
+void iris_vdec_session_streamoff(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	int ret;
+
+	ret = hfi_ops->session_stop(inst, plane);
+	if (ret)
+		goto error;
+
+	ret = iris_inst_state_change_streamoff(inst, plane);
+	if (ret)
+		goto error;
+
+	return;
+
+error:
+	iris_vdec_kill_session(inst);
+}
+
+static int iris_vdec_process_streamon_input(struct iris_inst *inst)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	int ret;
+
+	ret = hfi_ops->session_start(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	if (ret)
+		return ret;
+
+	return iris_inst_state_change_streamon(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+}
+
+int iris_vdec_streamon_input(struct iris_inst *inst)
+{
+	return iris_vdec_process_streamon_input(inst);
+}
+
+static int iris_vdec_process_streamon_output(struct iris_inst *inst)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	int ret;
+
+	ret = hfi_ops->session_start(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+	if (ret)
+		return ret;
+
+	return iris_inst_state_change_streamon(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+}
+
+int iris_vdec_streamon_output(struct iris_inst *inst)
+{
+	int ret;
+
+	ret = iris_vdec_process_streamon_output(inst);
+	if (ret)
+		goto error;
+
+	return ret;
+
+error:
+	iris_vdec_session_streamoff(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+
+	return ret;
+}
