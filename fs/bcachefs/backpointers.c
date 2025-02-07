@@ -611,9 +611,6 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 	struct extent_ptr_decoded p;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		if (p.ptr.cached)
-			continue;
-
 		if (p.ptr.dev == BCH_SB_MEMBER_INVALID)
 			continue;
 
@@ -621,9 +618,11 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 		struct bch_dev *ca = bch2_dev_rcu_noerror(c, p.ptr.dev);
 		bool check = ca && test_bit(PTR_BUCKET_NR(ca, &p.ptr), ca->bucket_backpointer_mismatches);
 		bool empty = ca && test_bit(PTR_BUCKET_NR(ca, &p.ptr), ca->bucket_backpointer_empty);
+
+		bool stale = p.ptr.cached && (!ca || dev_ptr_stale_rcu(ca, &p.ptr));
 		rcu_read_unlock();
 
-		if (check || empty) {
+		if ((check || empty) && !stale) {
 			struct bkey_i_backpointer bp;
 			bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bp);
 
@@ -857,9 +856,8 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 			goto err;
 	}
 
-	/* Cached pointers don't have backpointers: */
-
 	if (sectors[ALLOC_dirty]  != a->dirty_sectors ||
+	    sectors[ALLOC_cached] != a->cached_sectors ||
 	    sectors[ALLOC_stripe] != a->stripe_sectors) {
 		if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_backpointer_bucket_gen) {
 			ret = bch2_backpointers_maybe_flush(trans, alloc_k, last_flushed);
@@ -868,6 +866,7 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 		}
 
 		if (sectors[ALLOC_dirty]  > a->dirty_sectors ||
+		    sectors[ALLOC_cached] > a->cached_sectors ||
 		    sectors[ALLOC_stripe] > a->stripe_sectors) {
 			ret = check_bucket_backpointers_to_extents(trans, ca, alloc_k.k->p) ?:
 				-BCH_ERR_transaction_restart_nested;
@@ -875,7 +874,8 @@ static int check_bucket_backpointer_mismatch(struct btree_trans *trans, struct b
 		}
 
 		if (!sectors[ALLOC_dirty] &&
-		    !sectors[ALLOC_stripe])
+		    !sectors[ALLOC_stripe] &&
+		    !sectors[ALLOC_cached])
 			__set_bit(alloc_k.k->p.offset, ca->bucket_backpointer_empty);
 		else
 			__set_bit(alloc_k.k->p.offset, ca->bucket_backpointer_mismatches);
