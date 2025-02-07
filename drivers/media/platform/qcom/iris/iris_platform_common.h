@@ -33,6 +33,7 @@ enum pipe_type {
 	PIPE_4 = 4,
 };
 
+extern struct iris_platform_data sm8250_data;
 extern struct iris_platform_data sm8550_data;
 
 enum platform_clk_type {

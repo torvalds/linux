@@ -324,6 +324,12 @@ static const struct of_device_id iris_dt_match[] = {
 		.compatible = "qcom,sm8550-iris",
 		.data = &sm8550_data,
 	},
+#if (!IS_ENABLED(CONFIG_VIDEO_QCOM_VENUS))
+		{
+			.compatible = "qcom,sm8250-venus",
+			.data = &sm8250_data,
+		},
+#endif
 	{ },
 };
 MODULE_DEVICE_TABLE(of, iris_dt_match);
