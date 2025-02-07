@@ -378,9 +378,74 @@ static void acp70_get_config(struct pci_dev *pci, struct acp63_dev_data *acp_dat
 	}
 }
 
+static int __maybe_unused snd_acp70_suspend(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->is_sdw_dev) {
+		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
+		if (adata->sdw_en_stat) {
+			writel(1, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+			return 0;
+		}
+	}
+	ret = acp_hw_deinit(adata, dev);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+
+	return ret;
+}
+
+static int __maybe_unused snd_acp70_runtime_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+		writel(1, adata->acp63_base + ACP_PME_EN);
+		return 0;
+	}
+
+	ret = acp_hw_init(adata, dev);
+	if (ret) {
+		dev_err(dev, "ACP init failed\n");
+		return ret;
+	}
+	return 0;
+}
+
+static int __maybe_unused snd_acp70_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+		writel(1, adata->acp63_base + ACP_PME_EN);
+		return 0;
+	}
+
+	ret = acp_hw_init(adata, dev);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+
+	return ret;
+}
+
 void acp70_hw_init_ops(struct acp_hw_ops *hw_ops)
 {
 	hw_ops->acp_init = acp70_init;
 	hw_ops->acp_deinit = acp70_deinit;
 	hw_ops->acp_get_config = acp70_get_config;
+	hw_ops->acp_suspend = snd_acp70_suspend;
+	hw_ops->acp_resume = snd_acp70_resume;
+	hw_ops->acp_suspend_runtime = snd_acp70_suspend;
+	hw_ops->acp_resume_runtime = snd_acp70_runtime_resume;
 }
