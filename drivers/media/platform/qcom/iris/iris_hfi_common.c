@@ -3,6 +3,9 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/pm_runtime.h>
+
+#include "iris_firmware.h"
 #include "iris_core.h"
 #include "iris_hfi_common.h"
 #include "iris_vpu_common.h"
@@ -38,6 +41,7 @@ irqreturn_t iris_hfi_isr_handler(int irq, void *data)
 		return IRQ_NONE;
 
 	mutex_lock(&core->lock);
+	pm_runtime_mark_last_busy(core->dev);
 	iris_vpu_clear_interrupt(core);
 	mutex_unlock(&core->lock);
 
@@ -47,4 +51,62 @@ irqreturn_t iris_hfi_isr_handler(int irq, void *data)
 		enable_irq(irq);
 
 	return IRQ_HANDLED;
+}
+
+int iris_hfi_pm_suspend(struct iris_core *core)
+{
+	int ret;
+
+	ret = iris_vpu_prepare_pc(core);
+	if (ret) {
+		pm_runtime_mark_last_busy(core->dev);
+		ret = -EAGAIN;
+		goto error;
+	}
+
+	ret = iris_set_hw_state(core, false);
+	if (ret)
+		goto error;
+
+	iris_vpu_power_off(core);
+
+	return 0;
+
+error:
+	dev_err(core->dev, "failed to suspend\n");
+
+	return ret;
+}
+
+int iris_hfi_pm_resume(struct iris_core *core)
+{
+	const struct iris_hfi_command_ops *ops = core->hfi_ops;
+	int ret;
+
+	ret = iris_vpu_power_on(core);
+	if (ret)
+		goto error;
+
+	ret = iris_set_hw_state(core, true);
+	if (ret)
+		goto err_power_off;
+
+	ret = iris_vpu_boot_firmware(core);
+	if (ret)
+		goto err_suspend_hw;
+
+	ret = ops->sys_interframe_powercollapse(core);
+	if (ret)
+		goto err_suspend_hw;
+
+	return 0;
+
+err_suspend_hw:
+	iris_set_hw_state(core, false);
+err_power_off:
+	iris_vpu_power_off(core);
+error:
+	dev_err(core->dev, "failed to resume\n");
+
+	return -EBUSY;
 }

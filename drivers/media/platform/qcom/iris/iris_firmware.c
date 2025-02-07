@@ -109,3 +109,8 @@ int iris_fw_unload(struct iris_core *core)
 {
 	return qcom_scm_pas_shutdown(core->iris_platform_data->pas_id);
 }
+
+int iris_set_hw_state(struct iris_core *core, bool resume)
+{
+	return qcom_scm_set_remote_state(resume, 0);
+}

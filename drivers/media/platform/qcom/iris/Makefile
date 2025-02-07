@@ -9,7 +9,10 @@ iris-objs += iris_core.o \
              iris_hfi_queue.o \
              iris_platform_sm8550.o \
              iris_probe.o \
+             iris_resources.o \
              iris_vidc.o \
+             iris_vpu2.o \
+             iris_vpu3.o \
              iris_vpu_common.o \
 
 obj-$(CONFIG_VIDEO_QCOM_IRIS) += iris.o

@@ -46,6 +46,7 @@ struct iris_hfi_command_ops {
 	int (*sys_init)(struct iris_core *core);
 	int (*sys_image_version)(struct iris_core *core);
 	int (*sys_interframe_powercollapse)(struct iris_core *core);
+	int (*sys_pc_prep)(struct iris_core *core);
 };
 
 struct iris_hfi_response_ops {
@@ -53,6 +54,8 @@ struct iris_hfi_response_ops {
 };
 
 int iris_hfi_core_init(struct iris_core *core);
+int iris_hfi_pm_suspend(struct iris_core *core);
+int iris_hfi_pm_resume(struct iris_core *core);
 
 irqreturn_t iris_hfi_isr(int irq, void *data);
 irqreturn_t iris_hfi_isr_handler(int irq, void *data);

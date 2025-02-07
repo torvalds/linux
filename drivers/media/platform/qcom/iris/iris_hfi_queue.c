@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/pm_runtime.h>
+
 #include "iris_core.h"
 #include "iris_hfi_queue.h"
 #include "iris_vpu_common.h"
@@ -128,9 +130,25 @@ int iris_hfi_queue_cmd_write(struct iris_core *core, void *pkt, u32 pkt_size)
 {
 	int ret;
 
+	ret = pm_runtime_resume_and_get(core->dev);
+	if (ret < 0)
+		goto exit;
+
 	mutex_lock(&core->lock);
 	ret = iris_hfi_queue_cmd_write_locked(core, pkt, pkt_size);
+	if (ret) {
+		mutex_unlock(&core->lock);
+		goto exit;
+	}
 	mutex_unlock(&core->lock);
+
+	pm_runtime_mark_last_busy(core->dev);
+	pm_runtime_put_autosuspend(core->dev);
+
+	return 0;
+
+exit:
+	pm_runtime_put_sync(core->dev);
 
 	return ret;
 }

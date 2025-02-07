@@ -56,10 +56,21 @@ static int iris_hfi_gen1_sys_interframe_powercollapse(struct iris_core *core)
 	return ret;
 }
 
+static int iris_hfi_gen1_sys_pc_prep(struct iris_core *core)
+{
+	struct hfi_sys_pc_prep_pkt pkt;
+
+	pkt.hdr.size = sizeof(struct hfi_sys_pc_prep_pkt);
+	pkt.hdr.pkt_type = HFI_CMD_SYS_PC_PREP;
+
+	return iris_hfi_queue_cmd_write_locked(core, &pkt, pkt.hdr.size);
+}
+
 static const struct iris_hfi_command_ops iris_hfi_gen1_command_ops = {
 	.sys_init = iris_hfi_gen1_sys_init,
 	.sys_image_version = iris_hfi_gen1_sys_image_version,
 	.sys_interframe_powercollapse = iris_hfi_gen1_sys_interframe_powercollapse,
+	.sys_pc_prep = iris_hfi_gen1_sys_pc_prep,
 };
 
 void iris_hfi_gen1_command_ops_init(struct iris_core *core)

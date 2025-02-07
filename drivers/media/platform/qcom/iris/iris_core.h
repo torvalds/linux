@@ -7,11 +7,13 @@
 #define __IRIS_CORE_H__
 
 #include <linux/types.h>
+#include <linux/pm_domain.h>
 #include <media/v4l2-device.h>
 
 #include "iris_hfi_common.h"
 #include "iris_hfi_queue.h"
 #include "iris_platform_common.h"
+#include "iris_resources.h"
 #include "iris_state.h"
 
 struct icc_info {
@@ -52,6 +54,7 @@ struct icc_info {
  * @response_packet: a pointer to response packet from fw to driver
  * @header_id: id of packet header
  * @packet_id: id of packet
+ * @power: a structure for clock and bw information
  * @hfi_ops: iris hfi command ops
  * @hfi_response_ops: iris hfi response ops
  * @core_init_done: structure of signal completion for system response
@@ -86,6 +89,7 @@ struct iris_core {
 	u8					*response_packet;
 	u32					header_id;
 	u32					packet_id;
+	struct iris_core_power			power;
 	const struct iris_hfi_command_ops	*hfi_ops;
 	const struct iris_hfi_response_ops	*hfi_response_ops;
 	struct completion			core_init_done;

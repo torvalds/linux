@@ -12,6 +12,7 @@
 #define HFI_ERR_NONE					0x0
 
 #define HFI_CMD_SYS_INIT				0x10001
+#define HFI_CMD_SYS_PC_PREP				0x10002
 #define HFI_CMD_SYS_SET_PROPERTY			0x10005
 #define HFI_CMD_SYS_GET_PROPERTY			0x10006
 
@@ -46,6 +47,10 @@ struct hfi_sys_get_property_pkt {
 	struct hfi_pkt_hdr hdr;
 	u32 num_properties;
 	u32 data;
+};
+
+struct hfi_sys_pc_prep_pkt {
+	struct hfi_pkt_hdr hdr;
 };
 
 struct hfi_msg_event_notify_pkt {

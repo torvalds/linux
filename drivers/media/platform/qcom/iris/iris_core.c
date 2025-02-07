@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/pm_runtime.h>
+
 #include "iris_core.h"
 #include "iris_firmware.h"
 #include "iris_state.h"
@@ -10,11 +12,16 @@
 
 void iris_core_deinit(struct iris_core *core)
 {
+	pm_runtime_resume_and_get(core->dev);
+
 	mutex_lock(&core->lock);
 	iris_fw_unload(core);
+	iris_vpu_power_off(core);
 	iris_hfi_queues_deinit(core);
 	core->state = IRIS_CORE_DEINIT;
 	mutex_unlock(&core->lock);
+
+	pm_runtime_put_sync(core->dev);
 }
 
 static int iris_wait_for_system_response(struct iris_core *core)
@@ -54,9 +61,13 @@ int iris_core_init(struct iris_core *core)
 	if (ret)
 		goto error;
 
-	ret = iris_fw_load(core);
+	ret = iris_vpu_power_on(core);
 	if (ret)
 		goto error_queue_deinit;
+
+	ret = iris_fw_load(core);
+	if (ret)
+		goto error_power_off;
 
 	ret = iris_vpu_boot_firmware(core);
 	if (ret)
@@ -72,6 +83,8 @@ int iris_core_init(struct iris_core *core)
 
 error_unload_fw:
 	iris_fw_unload(core);
+error_power_off:
+	iris_vpu_power_off(core);
 error_queue_deinit:
 	iris_hfi_queues_deinit(core);
 error:

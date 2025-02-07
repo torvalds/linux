@@ -3,6 +3,7 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/pm_runtime.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
 
@@ -81,11 +82,18 @@ int iris_open(struct file *filp)
 	struct iris_inst *inst;
 	int ret;
 
+	ret = pm_runtime_resume_and_get(core->dev);
+	if (ret < 0)
+		return ret;
+
 	ret = iris_core_init(core);
 	if (ret) {
 		dev_err(core->dev, "core init failed\n");
+		pm_runtime_put_sync(core->dev);
 		return ret;
 	}
+
+	pm_runtime_put_sync(core->dev);
 
 	inst = core->iris_platform_data->get_instance();
 	if (!inst)

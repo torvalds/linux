@@ -159,3 +159,16 @@ void iris_hfi_gen2_packet_sys_interframe_powercollapse(struct iris_core *core,
 				    &payload,
 				    sizeof(u32));
 }
+
+void iris_hfi_gen2_packet_sys_pc_prep(struct iris_core *core, struct iris_hfi_header *hdr)
+{
+	iris_hfi_gen2_create_header(hdr, 0 /*session_id*/, core->header_id++);
+
+	iris_hfi_gen2_create_packet(hdr,
+				    HFI_CMD_POWER_COLLAPSE,
+				    HFI_HOST_FLAGS_NONE,
+				    HFI_PAYLOAD_NONE,
+				    HFI_PORT_NONE,
+				    core->packet_id++,
+				    NULL, 0);
+}
