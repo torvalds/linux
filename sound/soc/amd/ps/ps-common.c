@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "acp63.h"
 
@@ -97,8 +98,93 @@ static int acp63_deinit(void __iomem *acp_base, struct device *dev)
 	return 0;
 }
 
+static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
+{
+	u32 sdw0_en, sdw1_en;
+
+	sdw0_en = readl(adata->acp63_base + ACP_SW0_EN);
+	sdw1_en = readl(adata->acp63_base + ACP_SW1_EN);
+	return (sdw0_en || sdw1_en);
+}
+
+static void handle_acp63_sdw_pme_event(struct acp63_dev_data *adata)
+{
+	u32 val;
+
+	val = readl(adata->acp63_base + ACP_SW0_WAKE_EN);
+	if (val && adata->sdw->pdev[0])
+		pm_request_resume(&adata->sdw->pdev[0]->dev);
+
+	val = readl(adata->acp63_base + ACP_SW1_WAKE_EN);
+	if (val && adata->sdw->pdev[1])
+		pm_request_resume(&adata->sdw->pdev[1]->dev);
+}
+
+static int __maybe_unused snd_acp63_suspend(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->is_sdw_dev) {
+		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
+		if (adata->sdw_en_stat) {
+			writel(1, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+			return 0;
+		}
+	}
+	ret = acp_hw_deinit(adata, dev);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+
+	return ret;
+}
+
+static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+		return 0;
+	}
+	ret = acp_hw_init(adata, dev);
+	if (ret) {
+		dev_err(dev, "ACP init failed\n");
+		return ret;
+	}
+
+	if (!adata->sdw_en_stat)
+		handle_acp63_sdw_pme_event(adata);
+	return 0;
+}
+
+static int __maybe_unused snd_acp63_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
+		return 0;
+	}
+
+	ret = acp_hw_init(adata, dev);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+
+	return ret;
+}
+
 void acp63_hw_init_ops(struct acp_hw_ops *hw_ops)
 {
 	hw_ops->acp_init = acp63_init;
 	hw_ops->acp_deinit = acp63_deinit;
+	hw_ops->acp_suspend = snd_acp63_suspend;
+	hw_ops->acp_resume = snd_acp63_resume;
+	hw_ops->acp_suspend_runtime = snd_acp63_suspend;
+	hw_ops->acp_resume_runtime = snd_acp63_runtime_resume;
 }

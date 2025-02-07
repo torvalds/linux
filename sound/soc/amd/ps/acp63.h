@@ -221,10 +221,18 @@ struct acp63_dev_data;
  * struct acp_hw_ops - ACP PCI driver platform specific ops
  * @acp_init: ACP initialization
  * @acp_deinit: ACP de-initialization
+ * acp_suspend: ACP system level suspend callback
+ * acp_resume: ACP system level resume callback
+ * acp_suspend_runtime: ACP runtime suspend callback
+ * acp_resume_runtime: ACP runtime resume callback
  */
 struct acp_hw_ops {
 	int (*acp_init)(void __iomem *acp_base, struct device *dev);
 	int (*acp_deinit)(void __iomem *acp_base, struct device *dev);
+	int (*acp_suspend)(struct device *dev);
+	int (*acp_resume)(struct device *dev);
+	int (*acp_suspend_runtime)(struct device *dev);
+	int (*acp_resume_runtime)(struct device *dev);
 };
 
 /**
@@ -292,6 +300,42 @@ static inline int acp_hw_deinit(struct acp63_dev_data *adata, struct device *dev
 {
 	if (adata && adata->hw_ops && adata->hw_ops->acp_deinit)
 		return ACP_HW_OPS(adata, acp_deinit)(adata->acp63_base, dev);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_suspend(struct device *dev)
+{
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+
+	if (adata && adata->hw_ops && adata->hw_ops->acp_suspend)
+		return ACP_HW_OPS(adata, acp_suspend)(dev);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+
+	if (adata && adata->hw_ops && adata->hw_ops->acp_resume)
+		return ACP_HW_OPS(adata, acp_resume)(dev);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_suspend_runtime(struct device *dev)
+{
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+
+	if (adata && adata->hw_ops && adata->hw_ops->acp_suspend_runtime)
+		return ACP_HW_OPS(adata, acp_suspend_runtime)(dev);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_runtime_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+
+	if (adata && adata->hw_ops && adata->hw_ops->acp_resume_runtime)
+		return ACP_HW_OPS(adata, acp_resume_runtime)(dev);
 	return -EOPNOTSUPP;
 }
 
