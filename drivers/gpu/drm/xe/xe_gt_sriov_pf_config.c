@@ -1336,7 +1336,7 @@ static void pf_reset_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	struct xe_tile *tile;
 	unsigned int tid;
 
-	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, xe_device_has_lmtt(xe));
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
 	for_each_tile(tile, xe, tid) {
@@ -1357,7 +1357,7 @@ static int pf_update_vf_lmtt(struct xe_device *xe, unsigned int vfid)
 	unsigned int tid;
 	int err;
 
-	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, xe_device_has_lmtt(xe));
 	xe_assert(xe, IS_SRIOV_PF(xe));
 
 	total = 0;
@@ -1434,7 +1434,8 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 		if (unlikely(err))
 			return err;
 
-		pf_reset_vf_lmtt(xe, vfid);
+		if (xe_device_has_lmtt(xe))
+			pf_reset_vf_lmtt(xe, vfid);
 		pf_release_vf_config_lmem(gt, config);
 	}
 	xe_gt_assert(gt, !config->lmem_obj);
@@ -1454,9 +1455,11 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 
 	config->lmem_obj = bo;
 
-	err = pf_update_vf_lmtt(xe, vfid);
-	if (unlikely(err))
-		goto release;
+	if (xe_device_has_lmtt(xe)) {
+		err = pf_update_vf_lmtt(xe, vfid);
+		if (unlikely(err))
+			goto release;
+	}
 
 	err = pf_push_vf_cfg_lmem(gt, vfid, bo->size);
 	if (unlikely(err))
@@ -1467,7 +1470,8 @@ static int pf_provision_vf_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
 	return 0;
 
 reset_lmtt:
-	pf_reset_vf_lmtt(xe, vfid);
+	if (xe_device_has_lmtt(xe))
+		pf_reset_vf_lmtt(xe, vfid);
 release:
 	pf_release_vf_config_lmem(gt, config);
 	return err;
@@ -1981,7 +1985,8 @@ static void pf_release_vf_config(struct xe_gt *gt, unsigned int vfid)
 		pf_release_vf_config_ggtt(gt, config);
 		if (IS_DGFX(xe)) {
 			pf_release_vf_config_lmem(gt, config);
-			pf_update_vf_lmtt(xe, vfid);
+			if (xe_device_has_lmtt(xe))
+				pf_update_vf_lmtt(xe, vfid);
 		}
 	}
 	pf_release_config_ctxs(gt, config);
