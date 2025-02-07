@@ -286,13 +286,11 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 		pch_type = intel_pch_type(dev_priv, id);
 		if (pch_type != PCH_NONE) {
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 			break;
 		} else if (intel_is_virt_pch(id, pch->subsystem_vendor,
 					     pch->subsystem_device)) {
 			intel_virt_detect_pch(dev_priv, &id, &pch_type);
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 			break;
 		}
 	}
@@ -305,12 +303,10 @@ void intel_detect_pch(struct drm_i915_private *dev_priv)
 		drm_dbg_kms(&dev_priv->drm,
 			    "Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
-		dev_priv->pch_id = 0;
 	} else if (!pch) {
 		if (i915_run_as_guest() && HAS_DISPLAY(dev_priv)) {
 			intel_virt_detect_pch(dev_priv, &id, &pch_type);
 			dev_priv->pch_type = pch_type;
-			dev_priv->pch_id = id;
 		} else {
 			drm_dbg_kms(&dev_priv->drm, "No PCH found.\n");
 		}
