@@ -526,7 +526,7 @@ static void acp63_sdw_platform_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-static int acp_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
+static int acp63_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 {
 	struct acp_sdw_dma_stream *stream;
 	struct snd_pcm_substream *substream;
@@ -576,7 +576,7 @@ static int __maybe_unused acp63_sdw_pcm_resume(struct device *dev)
 	struct sdw_dma_dev_data *sdw_data;
 
 	sdw_data = dev_get_drvdata(dev);
-	return acp_restore_sdw_dma_config(sdw_data);
+	return acp63_restore_sdw_dma_config(sdw_data);
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
