@@ -329,9 +329,10 @@ nopromote:
 static int bch2_read_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
 				   struct bch_read_bio *rbio, struct bpos read_pos)
 {
-	return bch2_inum_offset_err_msg_trans(trans, out,
-		(subvol_inum) { rbio->subvol, read_pos.inode },
-		read_pos.offset << 9);
+	return lockrestart_do(trans,
+		bch2_inum_offset_err_msg_trans(trans, out,
+				(subvol_inum) { rbio->subvol, read_pos.inode },
+				read_pos.offset << 9));
 }
 
 static void bch2_read_err_msg(struct bch_fs *c, struct printbuf *out,
@@ -1281,7 +1282,9 @@ err:
 
 	if (ret) {
 		struct printbuf buf = PRINTBUF;
-		bch2_inum_offset_err_msg_trans(trans, &buf, inum, bvec_iter.bi_sector << 9);
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, &buf, inum,
+						       bvec_iter.bi_sector << 9));
 		prt_printf(&buf, "read error %i from btree lookup", ret);
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);

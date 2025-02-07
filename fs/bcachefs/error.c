@@ -530,42 +530,33 @@ void bch2_flush_fsck_errs(struct bch_fs *c)
 	mutex_unlock(&c->fsck_error_msgs_lock);
 }
 
-int bch2_inum_err_msg_trans(struct btree_trans *trans, struct printbuf *out, subvol_inum inum)
+int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+				    subvol_inum inum, u64 offset)
 {
 	u32 restart_count = trans->restart_count;
 	int ret = 0;
 
-	if (inum.subvol)
-		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
+	if (inum.subvol) {
+		ret = bch2_inum_to_path(trans, inum, out);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ret;
+	}
 	if (!inum.subvol || ret)
 		prt_printf(out, "inum %llu:%llu", inum.subvol, inum.inum);
+	prt_printf(out, " offset %llu: ", offset);
 
 	return trans_was_restarted(trans, restart_count);
-}
-
-int bch2_inum_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
-				    subvol_inum inum, u64 offset)
-{
-	int ret = bch2_inum_err_msg_trans(trans, out, inum);
-	prt_printf(out, " offset %llu: ", offset);
-	return ret;
-}
-
-void bch2_inum_err_msg(struct bch_fs *c, struct printbuf *out, subvol_inum inum)
-{
-	bch2_trans_run(c, bch2_inum_err_msg_trans(trans, out, inum));
 }
 
 void bch2_inum_offset_err_msg(struct bch_fs *c, struct printbuf *out,
 			      subvol_inum inum, u64 offset)
 {
-	bch2_trans_run(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
+	bch2_trans_do(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
 }
 
-int bch2_inum_snap_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
-				 struct bpos pos)
+int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+					struct bpos pos)
 {
-	u32 restart_count = trans->restart_count;
 	struct bch_fs *c = trans->c;
 	int ret = 0;
 
@@ -577,18 +568,15 @@ int bch2_inum_snap_err_msg_trans(struct btree_trans *trans, struct printbuf *out
 		.inum	= pos.inode,
 	};
 
-	if (inum.subvol)
-		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
+	if (inum.subvol) {
+		ret = bch2_inum_to_path(trans, inum, out);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+			return ret;
+	}
+
 	if (!inum.subvol || ret)
 		prt_printf(out, "inum %llu:%u", pos.inode, pos.snapshot);
 
-	return trans_was_restarted(trans, restart_count);
-}
-
-int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
-					struct bpos pos)
-{
-	int ret = bch2_inum_snap_err_msg_trans(trans, out, pos);
 	prt_printf(out, " offset %llu: ", pos.offset << 8);
-	return ret;
+	return 0;
 }

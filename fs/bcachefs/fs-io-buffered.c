@@ -240,7 +240,8 @@ err:
 
 	if (ret) {
 		struct printbuf buf = PRINTBUF;
-		bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter.pos.offset << 9);
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, &buf, inum, iter.pos.offset << 9));
 		prt_printf(&buf, "read error %i from btree lookup", ret);
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
