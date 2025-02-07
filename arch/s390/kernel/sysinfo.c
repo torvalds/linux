@@ -34,10 +34,9 @@ static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
 		"	lr	0,%[r0]\n"
 		"	lr	1,%[r1]\n"
 		"	stsi	0(%[sysinfo])\n"
-		"0:	jz	2f\n"
-		"1:	lhi	%[rc],%[retval]\n"
-		"2:	lr	%[r0],0\n"
-		EX_TABLE(0b, 1b)
+		"	jz	0f\n"
+		"	lhi	%[rc],%[retval]\n"
+		"0:	lr	%[r0],0\n"
 		: [r0] "+d" (r0), [rc] "+d" (rc)
 		: [r1] "d" (sel2),
 		  [sysinfo] "a" (sysinfo),
