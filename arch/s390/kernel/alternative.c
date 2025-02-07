@@ -5,6 +5,10 @@
 #include <asm/abs_lowcore.h>
 #include <asm/alternative.h>
 #include <asm/facility.h>
+#include <asm/sections.h>
+#include <asm/machine.h>
+
+unsigned long __bootdata_preserved(machine_features[1]);
 
 void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsigned int ctx)
 {
@@ -22,6 +26,9 @@ void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsign
 		switch (a->type) {
 		case ALT_TYPE_FACILITY:
 			replace = test_facility(a->data);
+			break;
+		case ALT_TYPE_FEATURE:
+			replace = test_machine_feature(a->data);
 			break;
 		case ALT_TYPE_SPEC:
 			replace = nobp_enabled();
