@@ -41,7 +41,7 @@ intel_hdcp_adjust_hdcp_line_rekeying(struct intel_encoder *encoder,
 	u32 rekey_bit = 0;
 
 	/* Here we assume HDMI is in TMDS mode of operation */
-	if (encoder->type != INTEL_OUTPUT_HDMI)
+	if (!intel_encoder_is_hdmi(encoder))
 		return;
 
 	if (DISPLAY_VER(display) >= 30) {
@@ -2188,6 +2188,19 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 
 		drm_dbg_kms(display->drm,
 			    "HDCP2.2 Downstream topology change\n");
+
+		ret = hdcp2_authenticate_repeater_topology(connector);
+		if (!ret) {
+			intel_hdcp_update_value(connector,
+						DRM_MODE_CONTENT_PROTECTION_ENABLED,
+						true);
+			goto out;
+		}
+
+		drm_dbg_kms(display->drm,
+			    "[CONNECTOR:%d:%s] Repeater topology auth failed.(%d)\n",
+			    connector->base.base.id, connector->base.name,
+			    ret);
 	} else {
 		drm_dbg_kms(display->drm,
 			    "[CONNECTOR:%d:%s] HDCP2.2 link failed, retrying auth\n",
