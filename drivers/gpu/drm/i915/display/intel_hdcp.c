@@ -2733,23 +2733,21 @@ void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
 	queue_delayed_work(i915->unordered_wq, &hdcp->check_work, 0);
 }
 
-static void __intel_hdcp_info(struct seq_file *m, struct intel_connector *intel_connector,
+static void __intel_hdcp_info(struct seq_file *m, struct intel_connector *connector,
 			      bool remote_req)
 {
 	bool hdcp_cap = false, hdcp2_cap = false;
 
-	if (!intel_connector->hdcp.shim) {
+	if (!connector->hdcp.shim) {
 		seq_puts(m, "No Connector Support");
 		goto out;
 	}
 
 	if (remote_req) {
-		intel_hdcp_get_remote_capability(intel_connector,
-						 &hdcp_cap,
-						 &hdcp2_cap);
+		intel_hdcp_get_remote_capability(connector, &hdcp_cap, &hdcp2_cap);
 	} else {
-		hdcp_cap = intel_hdcp_get_capability(intel_connector);
-		hdcp2_cap = intel_hdcp2_get_capability(intel_connector);
+		hdcp_cap = intel_hdcp_get_capability(connector);
+		hdcp2_cap = intel_hdcp2_get_capability(connector);
 	}
 
 	if (hdcp_cap)
