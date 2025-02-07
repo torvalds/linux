@@ -554,7 +554,8 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info);
 void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
 
 int pcie_read_tlp_log(struct pci_dev *dev, int where, int where2,
-		      unsigned int tlp_len, struct pcie_tlp_log *log);
+		      unsigned int tlp_len, bool flit,
+		      struct pcie_tlp_log *log);
 unsigned int aer_tlp_log_len(struct pci_dev *dev, u32 aercc);
 void pcie_print_tlp_log(const struct pci_dev *dev,
 			const struct pcie_tlp_log *log, const char *pfx);

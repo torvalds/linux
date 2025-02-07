@@ -1249,6 +1249,7 @@ int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
 			pcie_read_tlp_log(dev, aer + PCI_ERR_HEADER_LOG,
 					  aer + PCI_ERR_PREFIX_LOG,
 					  aer_tlp_log_len(dev, aercc),
+					  aercc & PCI_ERR_CAP_TLP_LOG_FLIT,
 					  &info->tlp);
 		}
 	}
