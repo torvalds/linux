@@ -18,6 +18,18 @@ class NetDrvEnvBase:
         self.src_path = src_path
         self.env = self._load_env_file()
 
+    def rpath(self, path):
+        """
+        Get an absolute path to a file based on a path relative to the directory
+        containing the test which constructed env.
+
+        For example, if the test.py is in the same directory as
+        a binary (built from helper.c), the test can use env.rpath("helper")
+        to get the absolute path to the binary
+        """
+        src_dir = Path(self.src_path).parent.resolve()
+        return (src_dir / path).as_posix()
+
     def _load_env_file(self):
         env = os.environ.copy()
 
