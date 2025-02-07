@@ -12,6 +12,7 @@
  *  platform.
  */
 
+#include <linux/cpufeature.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -127,7 +128,7 @@ void noinstr __do_syscall(struct pt_regs *regs, int per_trap)
 	regs->psw = get_lowcore()->svc_old_psw;
 	regs->int_code = get_lowcore()->svc_int_code;
 	update_timer_sys();
-	if (static_branch_likely(&cpu_has_bear))
+	if (cpu_has_bear())
 		current->thread.last_break = regs->last_break;
 
 	local_irq_enable();

@@ -15,6 +15,7 @@
  */
 #include "asm/irqflags.h"
 #include "asm/ptrace.h"
+#include <linux/cpufeature.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/randomize_kstack.h>
@@ -341,7 +342,7 @@ void noinstr __do_pgm_check(struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 		update_timer_sys();
-		if (!static_branch_likely(&cpu_has_bear)) {
+		if (!cpu_has_bear()) {
 			if (regs->last_break < 4096)
 				regs->last_break = 1;
 		}

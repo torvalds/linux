@@ -84,7 +84,7 @@ static void note_prot_wx(struct pg_state *st, unsigned long addr)
 	 * in which case we have two lpswe instructions in lowcore that need
 	 * to be executable.
 	 */
-	if (addr == PAGE_SIZE && (nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)))
+	if (addr == PAGE_SIZE && (nospec_uses_trampoline() || !cpu_has_bear()))
 		return;
 	WARN_ONCE(IS_ENABLED(CONFIG_DEBUG_WX),
 		  "s390/mm: Found insecure W+X mapping at address %pS\n",
@@ -178,7 +178,7 @@ bool ptdump_check_wx(void)
 		return false;
 	} else {
 		pr_info("Checked W+X mappings: passed, no %sW+X pages found\n",
-			(nospec_uses_trampoline() || !static_key_enabled(&cpu_has_bear)) ?
+			(nospec_uses_trampoline() || !cpu_has_bear()) ?
 			"unexpected " : "");
 
 		return true;

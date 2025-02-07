@@ -660,7 +660,7 @@ void __init vmem_map_init(void)
 	 * prefix page is used to return to the previous context with
 	 * an LPSWE instruction and therefore must be executable.
 	 */
-	if (!static_key_enabled(&cpu_has_bear))
+	if (!cpu_has_bear())
 		set_memory_x(0, 1);
 	if (debug_pagealloc_enabled())
 		__set_memory_4k(__va(0), absolute_pointer(__va(0)) + ident_map_size);

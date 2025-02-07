@@ -9,6 +9,7 @@
  */
 
 #include <linux/kernel_stat.h>
+#include <linux/cpufeature.h>
 #include <linux/interrupt.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
@@ -150,7 +151,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 		update_timer_sys();
-		if (static_branch_likely(&cpu_has_bear))
+		if (cpu_has_bear())
 			current->thread.last_break = regs->last_break;
 	}
 
@@ -186,7 +187,7 @@ void noinstr do_ext_irq(struct pt_regs *regs)
 
 	if (user_mode(regs)) {
 		update_timer_sys();
-		if (static_branch_likely(&cpu_has_bear))
+		if (cpu_has_bear())
 			current->thread.last_break = regs->last_break;
 	}
 

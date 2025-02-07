@@ -181,8 +181,6 @@ unsigned long __bootdata_preserved(MODULES_END);
 struct lowcore *lowcore_ptr[NR_CPUS];
 EXPORT_SYMBOL(lowcore_ptr);
 
-DEFINE_STATIC_KEY_FALSE(cpu_has_bear);
-
 /*
  * The Write Back bit position in the physaddr is given by the SLPC PCI.
  * Leaving the mask zero always uses write through which is safe
@@ -982,10 +980,6 @@ void __init setup_arch(char **cmdline_p)
 	numa_setup();
 	smp_detect_cpus();
 	topology_init_early();
-
-	if (test_facility(193))
-		static_branch_enable(&cpu_has_bear);
-
 	setup_protection_map();
 	/*
 	 * Create kernel page tables.
