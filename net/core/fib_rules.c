@@ -371,7 +371,8 @@ static int call_fib_rule_notifiers(struct net *net,
 		.rule = rule,
 	};
 
-	ASSERT_RTNL();
+	ASSERT_RTNL_NET(net);
+
 	/* Paired with READ_ONCE() in fib_rules_seq() */
 	WRITE_ONCE(ops->fib_rules_seq, ops->fib_rules_seq + 1);
 	return call_fib_notifiers(net, event_type, &info.info);
@@ -944,6 +945,9 @@ int fib_delrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err)
 		goto errout;
 
+	if (!rtnl_held)
+		rtnl_net_lock(net);
+
 	err = fib_nl2rule_rtnl(nlrule, ops, tb, extack);
 	if (err)
 		goto errout_free;
@@ -998,10 +1002,12 @@ int fib_delrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	}
 
-	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops,
-				NULL);
-	notify_rule_change(RTM_DELRULE, rule, ops, nlh,
-			   NETLINK_CB(skb).portid);
+	call_fib_rule_notifiers(net, FIB_EVENT_RULE_DEL, rule, ops, NULL);
+
+	if (!rtnl_held)
+		rtnl_net_unlock(net);
+
+	notify_rule_change(RTM_DELRULE, rule, ops, nlh, NETLINK_CB(skb).portid);
 	fib_rule_put(rule);
 	flush_route_cache(ops);
 	rules_ops_put(ops);
@@ -1009,6 +1015,8 @@ int fib_delrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 
 errout_free:
+	if (!rtnl_held)
+		rtnl_net_unlock(net);
 	kfree(nlrule);
 errout:
 	rules_ops_put(ops);
@@ -1019,7 +1027,7 @@ EXPORT_SYMBOL_GPL(fib_delrule);
 static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct netlink_ext_ack *extack)
 {
-	return fib_delrule(sock_net(skb->sk), skb, nlh, extack, true);
+	return fib_delrule(sock_net(skb->sk), skb, nlh, extack, false);
 }
 
 static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
@@ -1334,7 +1342,8 @@ static struct pernet_operations fib_rules_net_ops = {
 static const struct rtnl_msg_handler fib_rules_rtnl_msg_handlers[] __initconst = {
 	{.msgtype = RTM_NEWRULE, .doit = fib_nl_newrule,
 	 .flags = RTNL_FLAG_DOIT_PERNET},
-	{.msgtype = RTM_DELRULE, .doit = fib_nl_delrule},
+	{.msgtype = RTM_DELRULE, .doit = fib_nl_delrule,
+	 .flags = RTNL_FLAG_DOIT_PERNET},
 	{.msgtype = RTM_GETRULE, .dumpit = fib_nl_dumprule,
 	 .flags = RTNL_FLAG_DUMP_UNLOCKED},
 };
