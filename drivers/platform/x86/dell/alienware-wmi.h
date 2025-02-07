@@ -75,9 +75,21 @@ int alienware_wmi_command(struct wmi_device *wdev, u32 method_id,
 
 int alienware_alienfx_setup(struct alienfx_platdata *pdata);
 
+#if IS_ENABLED(CONFIG_ALIENWARE_WMI_LEGACY)
 int __init alienware_legacy_wmi_init(void);
 void __exit alienware_legacy_wmi_exit(void);
+#else
+static inline int alienware_legacy_wmi_init(void)
+{
+	return -ENODEV;
+}
 
+static inline void alienware_legacy_wmi_exit(void)
+{
+}
+#endif
+
+#if IS_ENABLED(CONFIG_ALIENWARE_WMI_WMAX)
 extern const struct attribute_group wmax_hdmi_attribute_group;
 extern const struct attribute_group wmax_amplifier_attribute_group;
 extern const struct attribute_group wmax_deepsleep_attribute_group;
@@ -88,5 +100,18 @@ extern const struct attribute_group wmax_deepsleep_attribute_group;
 
 int __init alienware_wmax_wmi_init(void);
 void __exit alienware_wmax_wmi_exit(void);
+#else
+#define WMAX_DEV_GROUPS
+
+static inline int alienware_wmax_wmi_init(void)
+{
+	return -ENODEV;
+}
+
+
+static inline void alienware_wmax_wmi_exit(void)
+{
+}
+#endif
 
 #endif
