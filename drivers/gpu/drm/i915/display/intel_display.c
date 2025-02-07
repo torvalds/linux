@@ -2633,14 +2633,6 @@ static int intel_crtc_vblank_delay(const struct intel_crtc_state *crtc_state)
 	if (intel_crtc_needs_wa_14015401596(crtc_state))
 		vblank_delay = max(vblank_delay, 1);
 
-	/*
-	 * Add a minimal vblank delay to make sure the push
-	 * doesn't race with the "wait for safe window" used
-	 * for frame completion with DSB.
-	 */
-	if (intel_vrr_possible(crtc_state))
-		vblank_delay = max(vblank_delay, 1);
-
 	return vblank_delay;
 }
 
@@ -7751,10 +7743,10 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 		intel_crtc_planes_update_arm(new_crtc_state->dsb_commit,
 					     state, crtc);
 
-		intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
-
 		if (!new_crtc_state->dsb_color_vblank) {
 			intel_dsb_wait_vblanks(new_crtc_state->dsb_commit, 1);
+
+			intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
 			intel_dsb_wait_vblank_delay(state, new_crtc_state->dsb_commit);
 			intel_dsb_interrupt(new_crtc_state->dsb_commit);
 		}

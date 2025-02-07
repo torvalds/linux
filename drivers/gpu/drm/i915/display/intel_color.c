@@ -29,6 +29,7 @@
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dsb.h"
+#include "intel_vrr.h"
 
 struct intel_color_funcs {
 	int (*color_check)(struct intel_atomic_state *state,
@@ -1988,6 +1989,7 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	display->funcs.color->load_luts(crtc_state);
 
 	if (crtc_state->use_dsb) {
+		intel_vrr_send_push(crtc_state->dsb_color_vblank, crtc_state);
 		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
 		intel_dsb_interrupt(crtc_state->dsb_color_vblank);
 	}
