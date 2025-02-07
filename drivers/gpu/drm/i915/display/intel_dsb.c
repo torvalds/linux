@@ -369,7 +369,8 @@ void intel_dsb_interrupt(struct intel_dsb *dsb)
 
 void intel_dsb_wait_usec(struct intel_dsb *dsb, int count)
 {
-	intel_dsb_emit(dsb, count,
+	/* +1 to make sure we never wait less time than asked for */
+	intel_dsb_emit(dsb, count + 1,
 		       DSB_OPCODE_WAIT_USEC << DSB_OPCODE_SHIFT);
 }
 
@@ -622,7 +623,7 @@ void intel_dsb_wait_vblank_delay(struct intel_atomic_state *state,
 	const struct intel_crtc_state *crtc_state =
 		intel_pre_commit_crtc_state(state, crtc);
 	int usecs = intel_scanlines_to_usecs(&crtc_state->hw.adjusted_mode,
-					     dsb_vblank_delay(state, crtc)) + 1;
+					     dsb_vblank_delay(state, crtc));
 
 	intel_dsb_wait_usec(dsb, usecs);
 }
