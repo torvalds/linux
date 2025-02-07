@@ -77,7 +77,7 @@ pub trait ForeignOwnable: Sized {
     ///
     /// The provided pointer must have been returned by a previous call to [`into_foreign`], and if
     /// the pointer is ever passed to [`from_foreign`], then that call must happen after the end of
-    /// the lifetime 'a.
+    /// the lifetime `'a`.
     ///
     /// [`into_foreign`]: Self::into_foreign
     /// [`from_foreign`]: Self::from_foreign
@@ -100,9 +100,9 @@ pub trait ForeignOwnable: Sized {
     ///
     /// The provided pointer must have been returned by a previous call to [`into_foreign`], and if
     /// the pointer is ever passed to [`from_foreign`], then that call must happen after the end of
-    /// the lifetime 'a.
+    /// the lifetime `'a`.
     ///
-    /// The lifetime 'a must not overlap with the lifetime of any other call to [`borrow`] or
+    /// The lifetime `'a` must not overlap with the lifetime of any other call to [`borrow`] or
     /// `borrow_mut` on the same object.
     ///
     /// [`into_foreign`]: Self::into_foreign
