@@ -3694,6 +3694,15 @@ static int __init intel_pstate_init(void)
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
 		return -ENODEV;
 
+	/*
+	 * The Intel pstate driver will be ignored if the platform
+	 * firmware has its own power management modes.
+	 */
+	if (intel_pstate_platform_pwr_mgmt_exists()) {
+		pr_info("P-states controlled by the platform\n");
+		return -ENODEV;
+	}
+
 	id = x86_match_cpu(hwp_support_ids);
 	if (id) {
 		hwp_forced = intel_pstate_hwp_is_enabled();
@@ -3749,15 +3758,6 @@ static int __init intel_pstate_init(void)
 		default_driver = &intel_cpufreq;
 
 hwp_cpu_matched:
-	/*
-	 * The Intel pstate driver will be ignored if the platform
-	 * firmware has its own power management modes.
-	 */
-	if (intel_pstate_platform_pwr_mgmt_exists()) {
-		pr_info("P-states controlled by the platform\n");
-		return -ENODEV;
-	}
-
 	if (!hwp_active && hwp_only)
 		return -ENOTSUPP;
 
