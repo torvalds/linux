@@ -342,6 +342,8 @@ void __init sclp_early_detect_machine_features(void)
 
 	if (!sclp_info_sccb_valid)
 		return;
+	if (sccb->fac85 & 0x02)
+		set_machine_feature(MFEATURE_ESOP);
 	if (sccb->fac91 & 0x40)
 		set_machine_feature(MFEATURE_TLB_GUEST);
 }

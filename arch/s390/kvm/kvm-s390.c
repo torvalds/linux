@@ -445,13 +445,13 @@ static void __init kvm_s390_cpu_feat_init(void)
 	if (test_facility(201))	/* PFCR */
 		pfcr_query(&kvm_s390_available_subfunc.pfcr);
 
-	if (MACHINE_HAS_ESOP)
+	if (machine_has_esop())
 		allow_cpu_feat(KVM_S390_VM_CPU_FEAT_ESOP);
 	/*
 	 * We need SIE support, ESOP (PROT_READ protection for gmap_shadow),
 	 * 64bit SCAO (SCA passthrough) and IDTE (for gmap_shadow unshadowing).
 	 */
-	if (!sclp.has_sief2 || !MACHINE_HAS_ESOP || !sclp.has_64bscao ||
+	if (!sclp.has_sief2 || !machine_has_esop() || !sclp.has_64bscao ||
 	    !test_facility(3) || !nested)
 		return;
 	allow_cpu_feat(KVM_S390_VM_CPU_FEAT_SIEF2);
@@ -640,7 +640,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 			r = min_t(unsigned int, num_online_cpus(), r);
 		break;
 	case KVM_CAP_S390_COW:
-		r = MACHINE_HAS_ESOP;
+		r = machine_has_esop();
 		break;
 	case KVM_CAP_S390_VECTOR_REGISTERS:
 		r = test_facility(129);
@@ -3894,8 +3894,8 @@ static int kvm_s390_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvm_s390_vcpu_setup_model(vcpu);
 
-	/* pgste_set_pte has special handling for !MACHINE_HAS_ESOP */
-	if (MACHINE_HAS_ESOP)
+	/* pgste_set_pte has special handling for !machine_has_esop() */
+	if (machine_has_esop())
 		vcpu->arch.sie_block->ecb |= ECB_HOSTPROTINT;
 	if (test_kvm_facility(vcpu->kvm, 9))
 		vcpu->arch.sie_block->ecb |= ECB_SRSI;

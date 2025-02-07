@@ -212,7 +212,7 @@ static inline pgste_t pgste_set_pte(pte_t *ptep, pgste_t pgste, pte_t entry)
 	if ((pte_val(entry) & _PAGE_PRESENT) &&
 	    (pte_val(entry) & _PAGE_WRITE) &&
 	    !(pte_val(entry) & _PAGE_INVALID)) {
-		if (!MACHINE_HAS_ESOP) {
+		if (!machine_has_esop()) {
 			/*
 			 * Without enhanced suppression-on-protection force
 			 * the dirty bit on for all writable ptes.
@@ -788,7 +788,7 @@ bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long addr,
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
 		nodat = !!(pgste_val(pgste) & _PGSTE_GPS_NODAT);
 		ptep_ipte_global(mm, addr, ptep, nodat);
-		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
+		if (machine_has_esop() || !(pte_val(pte) & _PAGE_WRITE))
 			pte = set_pte_bit(pte, __pgprot(_PAGE_PROTECT));
 		else
 			pte = set_pte_bit(pte, __pgprot(_PAGE_INVALID));

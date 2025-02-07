@@ -50,8 +50,6 @@ static void __init sclp_early_facilities_detect(void)
 	sclp.has_aeni = !!(sccb->fac118 & 0x20);
 	sclp.has_aisi = !!(sccb->fac118 & 0x10);
 	sclp.has_zpci_lsi = !!(sccb->fac118 & 0x01);
-	if (sccb->fac85 & 0x02)
-		get_lowcore()->machine_flags |= MACHINE_FLAG_ESOP;
 	sclp.has_diag204_bif = !!(sccb->fac98 & 0x80);
 	sclp.has_diag310 = !!(sccb->fac91 & 0x80);
 	if (sccb->cpuoff > 134) {
