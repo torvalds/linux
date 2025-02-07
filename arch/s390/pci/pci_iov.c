@@ -74,7 +74,7 @@ static int zpci_iov_link_virtfn(struct pci_dev *pdev, struct pci_dev *virtfn, in
  * found. If the function is not a VF or has no RequesterID information,
  * NULL is returned as well.
  */
-static struct pci_dev *zpci_iov_find_parent_pf(struct zpci_bus *zbus, struct zpci_dev *zdev)
+struct pci_dev *zpci_iov_find_parent_pf(struct zpci_bus *zbus, struct zpci_dev *zdev)
 {
 	int i, vfid, devfn, cand_devfn;
 	struct pci_dev *pdev;
