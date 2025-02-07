@@ -774,6 +774,9 @@ static int __bch2_move_data_phys(struct moving_context *ctxt,
 		if (!(data_types & BIT(bp.v->data_type)))
 			goto next;
 
+		if (!bp.v->level && bp.v->btree_id == BTREE_ID_stripes)
+			goto next;
+
 		k = bch2_backpointer_get_key(trans, bp, &iter, 0, &last_flushed);
 		ret = bkey_err(k);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))

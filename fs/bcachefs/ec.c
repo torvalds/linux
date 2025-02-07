@@ -298,10 +298,22 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	struct bpos bucket = PTR_BUCKET_POS(ca, ptr);
 
 	if (flags & BTREE_TRIGGER_transactional) {
+		struct extent_ptr_decoded p = {
+			.ptr = *ptr,
+			.crc = bch2_extent_crc_unpack(s.k, NULL),
+		};
+		struct bkey_i_backpointer bp;
+		bch2_extent_ptr_to_bp(c, BTREE_ID_stripes, 0, s.s_c, p,
+				      (const union bch_extent_entry *) ptr, &bp);
+
 		struct bkey_i_alloc_v4 *a =
 			bch2_trans_start_alloc_update(trans, bucket, 0);
-		ret = PTR_ERR_OR_ZERO(a) ?:
-			__mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &a->v, flags);
+		ret   = PTR_ERR_OR_ZERO(a) ?:
+			__mark_stripe_bucket(trans, ca, s, ptr_idx, deleting, bucket, &a->v, flags) ?:
+			bch2_bucket_backpointer_mod(trans, s.s_c, &bp,
+						    !(flags & BTREE_TRIGGER_overwrite));
+		if (ret)
+			goto err;
 	}
 
 	if (flags & BTREE_TRIGGER_gc) {

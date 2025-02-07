@@ -687,7 +687,8 @@ struct bch_sb_field_ext {
 	x(persistent_inode_cursors,	BCH_VERSION(1, 18))		\
 	x(autofix_errors,		BCH_VERSION(1, 19))		\
 	x(directory_size,		BCH_VERSION(1, 20))		\
-	x(cached_backpointers,		BCH_VERSION(1, 21))
+	x(cached_backpointers,		BCH_VERSION(1, 21))		\
+	x(stripe_backpointers,		BCH_VERSION(1, 22))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
