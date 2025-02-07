@@ -124,7 +124,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ret = device_property_read_u32(&spi->dev, "registers-number", &nregs);
+	ret = device_property_read_u32(dev, "registers-number", &nregs);
 	if (ret)
 		return dev_err_probe(dev, ret, "Missing 'registers-number' property.\n");
 
@@ -134,8 +134,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 
 	chip->registers = nregs;
 
-	chip->gpiod_oe = devm_gpiod_get_optional(&spi->dev, "enable",
-						 GPIOD_OUT_LOW);
+	chip->gpiod_oe = devm_gpiod_get_optional(dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(chip->gpiod_oe))
 		return PTR_ERR(chip->gpiod_oe);
 
@@ -147,22 +146,22 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.base = -1;
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
 	chip->gpio_chip.can_sleep = true;
-	chip->gpio_chip.parent = &spi->dev;
+	chip->gpio_chip.parent = dev;
 	chip->gpio_chip.owner = THIS_MODULE;
 
-	ret = devm_mutex_init(&spi->dev, &chip->lock);
+	ret = devm_mutex_init(dev, &chip->lock);
 	if (ret)
 		return ret;
 
 	ret = __gen_74x164_write_config(chip);
 	if (ret)
-		return dev_err_probe(&spi->dev, ret, "Config write failed\n");
+		return dev_err_probe(dev, ret, "Config write failed\n");
 
 	ret = gen_74x164_activate(dev, chip);
 	if (ret)
 		return ret;
 
-	return devm_gpiochip_add_data(&spi->dev, &chip->gpio_chip, chip);
+	return devm_gpiochip_add_data(dev, &chip->gpio_chip, chip);
 }
 
 static const struct spi_device_id gen_74x164_spi_ids[] = {
