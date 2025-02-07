@@ -7,6 +7,7 @@
 
 #include "iris_buffer.h"
 #include "iris_instance.h"
+#include "iris_vpu_buffer.h"
 
 #define PIXELS_4K 4096
 #define MAX_WIDTH 4096
@@ -226,6 +227,211 @@ int iris_get_buffer_size(struct iris_inst *inst,
 	default:
 		return 0;
 	}
+}
+
+static void iris_fill_internal_buf_info(struct iris_inst *inst,
+					enum iris_buffer_type buffer_type)
+{
+	struct iris_buffers *buffers = &inst->buffers[buffer_type];
+
+	buffers->size = iris_vpu_buf_size(inst, buffer_type);
+	buffers->min_count = iris_vpu_buf_count(inst, buffer_type);
+}
+
+void iris_get_internal_buffers(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_platform_data *platform_data = inst->core->iris_platform_data;
+	const u32 *internal_buf_type;
+	u32 internal_buffer_count, i;
+
+	if (V4L2_TYPE_IS_OUTPUT(plane)) {
+		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+		for (i = 0; i < internal_buffer_count; i++)
+			iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+	} else {
+		internal_buf_type = platform_data->dec_op_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+		for (i = 0; i < internal_buffer_count; i++)
+			iris_fill_internal_buf_info(inst, internal_buf_type[i]);
+	}
+}
+
+static int iris_create_internal_buffer(struct iris_inst *inst,
+				       enum iris_buffer_type buffer_type, u32 index)
+{
+	struct iris_buffers *buffers = &inst->buffers[buffer_type];
+	struct iris_core *core = inst->core;
+	struct iris_buffer *buffer;
+
+	if (!buffers->size)
+		return 0;
+
+	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&buffer->list);
+	buffer->type = buffer_type;
+	buffer->index = index;
+	buffer->buffer_size = buffers->size;
+	buffer->dma_attrs = DMA_ATTR_WRITE_COMBINE | DMA_ATTR_NO_KERNEL_MAPPING;
+	list_add_tail(&buffer->list, &buffers->list);
+
+	buffer->kvaddr = dma_alloc_attrs(core->dev, buffer->buffer_size,
+					 &buffer->device_addr, GFP_KERNEL, buffer->dma_attrs);
+	if (!buffer->kvaddr)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int iris_create_internal_buffers(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_platform_data *platform_data = inst->core->iris_platform_data;
+	u32 internal_buffer_count, i, j;
+	struct iris_buffers *buffers;
+	const u32 *internal_buf_type;
+	int ret;
+
+	if (V4L2_TYPE_IS_OUTPUT(plane)) {
+		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	} else {
+		internal_buf_type = platform_data->dec_op_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+	}
+
+	for (i = 0; i < internal_buffer_count; i++) {
+		buffers = &inst->buffers[internal_buf_type[i]];
+		for (j = 0; j < buffers->min_count; j++) {
+			ret = iris_create_internal_buffer(inst, internal_buf_type[i], j);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+int iris_queue_buffer(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	int ret;
+
+	ret = hfi_ops->session_queue_buf(inst, buf);
+	if (ret)
+		return ret;
+
+	buf->attr &= ~BUF_ATTR_DEFERRED;
+	buf->attr |= BUF_ATTR_QUEUED;
+
+	return 0;
+}
+
+int iris_queue_internal_buffers(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_platform_data *platform_data = inst->core->iris_platform_data;
+	struct iris_buffer *buffer, *next;
+	struct iris_buffers *buffers;
+	const u32 *internal_buf_type;
+	u32 internal_buffer_count, i;
+	int ret;
+
+	if (V4L2_TYPE_IS_OUTPUT(plane)) {
+		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_ip_int_buf_tbl_size;
+	} else {
+		internal_buf_type = platform_data->dec_op_int_buf_tbl;
+		internal_buffer_count = platform_data->dec_op_int_buf_tbl_size;
+	}
+
+	for (i = 0; i < internal_buffer_count; i++) {
+		buffers = &inst->buffers[internal_buf_type[i]];
+		list_for_each_entry_safe(buffer, next, &buffers->list, list) {
+			if (buffer->attr & BUF_ATTR_PENDING_RELEASE)
+				continue;
+			if (buffer->attr & BUF_ATTR_QUEUED)
+				continue;
+			ret = iris_queue_buffer(inst, buffer);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+int iris_destroy_internal_buffer(struct iris_inst *inst, struct iris_buffer *buffer)
+{
+	struct iris_core *core = inst->core;
+
+	list_del(&buffer->list);
+	dma_free_attrs(core->dev, buffer->buffer_size, buffer->kvaddr,
+		       buffer->device_addr, buffer->dma_attrs);
+	kfree(buffer);
+
+	return 0;
+}
+
+int iris_destroy_internal_buffers(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_platform_data *platform_data = inst->core->iris_platform_data;
+	struct iris_buffer *buf, *next;
+	struct iris_buffers *buffers;
+	const u32 *internal_buf_type;
+	u32 i, len;
+	int ret;
+
+	if (V4L2_TYPE_IS_OUTPUT(plane)) {
+		internal_buf_type = platform_data->dec_ip_int_buf_tbl;
+		len = platform_data->dec_ip_int_buf_tbl_size;
+	} else {
+		internal_buf_type = platform_data->dec_op_int_buf_tbl;
+		len = platform_data->dec_op_int_buf_tbl_size;
+	}
+
+	for (i = 0; i < len; i++) {
+		buffers = &inst->buffers[internal_buf_type[i]];
+		list_for_each_entry_safe(buf, next, &buffers->list, list) {
+			ret = iris_destroy_internal_buffer(inst, buf);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst)
+{
+	struct iris_buffers *buffers = &inst->buffers[BUF_PERSIST];
+	struct iris_buffer *buffer, *next;
+	int ret;
+	u32 i;
+
+	if (!list_empty(&buffers->list))
+		return 0;
+
+	iris_fill_internal_buf_info(inst, BUF_PERSIST);
+
+	for (i = 0; i < buffers->min_count; i++) {
+		ret = iris_create_internal_buffer(inst, BUF_PERSIST, i);
+		if (ret)
+			return ret;
+	}
+
+	list_for_each_entry_safe(buffer, next, &buffers->list, list) {
+		if (buffer->attr & BUF_ATTR_PENDING_RELEASE)
+			continue;
+		if (buffer->attr & BUF_ATTR_QUEUED)
+			continue;
+		ret = iris_queue_buffer(inst, buffer);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void iris_vb2_queue_error(struct iris_inst *inst)

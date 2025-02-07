@@ -67,6 +67,7 @@ struct platform_inst_caps {
 	u32 min_frame_height;
 	u32 max_frame_height;
 	u32 max_mbpf;
+	u32 num_comv;
 };
 
 enum platform_inst_fw_cap_type {
@@ -151,6 +152,10 @@ struct iris_platform_data {
 	unsigned int dec_input_prop_size;
 	const u32 *dec_output_prop;
 	unsigned int dec_output_prop_size;
+	const u32 *dec_ip_int_buf_tbl;
+	unsigned int dec_ip_int_buf_tbl_size;
+	const u32 *dec_op_int_buf_tbl;
+	unsigned int dec_op_int_buf_tbl_size;
 };
 
 #endif

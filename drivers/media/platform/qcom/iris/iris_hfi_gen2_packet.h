@@ -61,6 +61,47 @@ struct iris_hfi_packet {
 	u32 payload[];
 };
 
+/**
+ * struct iris_hfi_buffer
+ *
+ * @type: buffer type indicated by "enum hfi_buffer_type"
+ *        FW needs to return proper type for any buffer command.
+ * @index: index of the buffer
+ * @base_address: base address of the buffer.
+ *                This buffer address is always 4KBytes aligned.
+ * @addr_offset: accessible buffer offset from base address
+ *               Decoder bitstream buffer: 256 Bytes aligned
+ *               Firmware can uniquely identify a buffer based on
+ *               base_address & addr_offset.
+ *               HW can read memory only from base_address+addr_offset.
+ * @buffer_size: accessible buffer size in bytes starting from addr_offset
+ * @data_offset: data starts from "base_address + addr_offset + data_offset"
+ *               RAW buffer: data_offset is 0. Restriction: 4KBytes aligned
+ *               decoder bitstream buffer: no restriction (can be any value)
+ * @data_size: data size in bytes
+ * @flags: buffer flags. It is represented as bit masks.
+ *         host buffer flags are "enum hfi_buffer_host_flags"
+ *         firmware buffer flags are "enum hfi_buffer_firmware_flags"
+ * @timestamp: timestamp of the buffer in nano seconds (ns)
+ *             It is Presentation timestamp (PTS) for encoder & decoder.
+ *             Decoder: it is pass through from bitstream to raw buffer.
+ *                      firmware does not need to return as part of input buffer done.
+ *             For any internal buffers: there is no timestamp. Host sets as 0.
+ * @reserved: reserved for future use
+ */
+struct iris_hfi_buffer {
+	u32 type;
+	u32 index;
+	u64 base_address;
+	u32 addr_offset;
+	u32 buffer_size;
+	u32 data_offset;
+	u32 data_size;
+	u64 timestamp;
+	u32 flags;
+	u32 reserved[5];
+};
+
 u32 iris_hfi_gen2_get_color_primaries(u32 primaries);
 u32 iris_hfi_gen2_get_transfer_char(u32 characterstics);
 u32 iris_hfi_gen2_get_matrix_coefficients(u32 coefficients);

@@ -100,6 +100,24 @@ static u32 iris_hfi_gen2_get_port(u32 plane)
 	}
 }
 
+static u32 iris_hfi_gen2_get_port_from_buf_type(enum iris_buffer_type buffer_type)
+{
+	switch (buffer_type) {
+	case BUF_INPUT:
+	case BUF_BIN:
+	case BUF_COMV:
+	case BUF_NON_COMV:
+	case BUF_LINE:
+		return HFI_PORT_BITSTREAM;
+	case BUF_OUTPUT:
+	case BUF_DPB:
+		return HFI_PORT_RAW;
+	case BUF_PERSIST:
+	default:
+		return HFI_PORT_NONE;
+	}
+}
+
 static int iris_hfi_gen2_session_set_property(struct iris_inst *inst, u32 packet_type, u32 flag,
 					      u32 plane, u32 payload_type, void *payload,
 					      u32 payload_size)
@@ -719,6 +737,118 @@ static int iris_hfi_gen2_session_stop(struct iris_inst *inst, u32 plane)
 	return iris_wait_for_session_response(inst, false);
 }
 
+static u32 iris_hfi_gen2_buf_type_from_driver(enum iris_buffer_type buffer_type)
+{
+	switch (buffer_type) {
+	case BUF_INPUT:
+		return HFI_BUFFER_BITSTREAM;
+	case BUF_OUTPUT:
+		return HFI_BUFFER_RAW;
+	case BUF_BIN:
+		return HFI_BUFFER_BIN;
+	case BUF_COMV:
+		return HFI_BUFFER_COMV;
+	case BUF_NON_COMV:
+		return HFI_BUFFER_NON_COMV;
+	case BUF_LINE:
+		return HFI_BUFFER_LINE;
+	case BUF_DPB:
+		return HFI_BUFFER_DPB;
+	case BUF_PERSIST:
+		return HFI_BUFFER_PERSIST;
+	default:
+		return 0;
+	}
+}
+
+static int iris_set_num_comv(struct iris_inst *inst)
+{
+	struct platform_inst_caps *caps;
+	struct iris_core *core = inst->core;
+	u32 num_comv;
+
+	caps = core->iris_platform_data->inst_caps;
+	num_comv = caps->num_comv;
+
+	return core->hfi_ops->session_set_property(inst,
+						   HFI_PROP_COMV_BUFFER_COUNT,
+						   HFI_HOST_FLAGS_NONE,
+						   HFI_PORT_BITSTREAM,
+						   HFI_PAYLOAD_U32,
+						   &num_comv, sizeof(u32));
+}
+
+static void iris_hfi_gen2_get_buffer(struct iris_buffer *buffer, struct iris_hfi_buffer *buf)
+{
+	memset(buf, 0, sizeof(*buf));
+	buf->type = iris_hfi_gen2_buf_type_from_driver(buffer->type);
+	buf->index = buffer->index;
+	buf->base_address = buffer->device_addr;
+	buf->addr_offset = 0;
+	buf->buffer_size = buffer->buffer_size;
+
+	if (buffer->type == BUF_INPUT)
+		buf->buffer_size = ALIGN(buffer->buffer_size, 256);
+	buf->data_offset = buffer->data_offset;
+	buf->data_size = buffer->data_size;
+	if (buffer->attr & BUF_ATTR_PENDING_RELEASE)
+		buf->flags |= HFI_BUF_HOST_FLAG_RELEASE;
+	buf->flags |= HFI_BUF_HOST_FLAGS_CB_NON_SECURE;
+	buf->timestamp = buffer->timestamp;
+}
+
+static int iris_hfi_gen2_session_queue_buffer(struct iris_inst *inst, struct iris_buffer *buffer)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	struct iris_hfi_buffer hfi_buffer;
+	u32 port;
+	int ret;
+
+	iris_hfi_gen2_get_buffer(buffer, &hfi_buffer);
+	if (buffer->type == BUF_COMV) {
+		ret = iris_set_num_comv(inst);
+		if (ret)
+			return ret;
+	}
+
+	port = iris_hfi_gen2_get_port_from_buf_type(buffer->type);
+	iris_hfi_gen2_packet_session_command(inst,
+					     HFI_CMD_BUFFER,
+					     HFI_HOST_FLAGS_INTR_REQUIRED,
+					     port,
+					     inst->session_id,
+					     HFI_PAYLOAD_STRUCTURE,
+					     &hfi_buffer,
+					     sizeof(hfi_buffer));
+
+	return iris_hfi_queue_cmd_write(inst->core, inst_hfi_gen2->packet,
+					inst_hfi_gen2->packet->size);
+}
+
+static int iris_hfi_gen2_session_release_buffer(struct iris_inst *inst, struct iris_buffer *buffer)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	struct iris_hfi_buffer hfi_buffer;
+	u32 port;
+
+	iris_hfi_gen2_get_buffer(buffer, &hfi_buffer);
+	hfi_buffer.flags |= HFI_BUF_HOST_FLAG_RELEASE;
+	port = iris_hfi_gen2_get_port_from_buf_type(buffer->type);
+
+	iris_hfi_gen2_packet_session_command(inst,
+					     HFI_CMD_BUFFER,
+					     (HFI_HOST_FLAGS_RESPONSE_REQUIRED |
+					     HFI_HOST_FLAGS_INTR_REQUIRED),
+					     port,
+					     inst->session_id,
+					     HFI_PAYLOAD_STRUCTURE,
+					     &hfi_buffer,
+					     sizeof(hfi_buffer));
+
+	return iris_hfi_queue_cmd_write(inst->core, inst_hfi_gen2->packet,
+					inst_hfi_gen2->packet->size);
+}
+
 static const struct iris_hfi_command_ops iris_hfi_gen2_command_ops = {
 	.sys_init = iris_hfi_gen2_sys_init,
 	.sys_image_version = iris_hfi_gen2_sys_image_version,
@@ -728,6 +858,8 @@ static const struct iris_hfi_command_ops iris_hfi_gen2_command_ops = {
 	.session_set_config_params = iris_hfi_gen2_session_set_config_params,
 	.session_set_property = iris_hfi_gen2_session_set_property,
 	.session_start = iris_hfi_gen2_session_start,
+	.session_queue_buf = iris_hfi_gen2_session_queue_buffer,
+	.session_release_buf = iris_hfi_gen2_session_release_buffer,
 	.session_stop = iris_hfi_gen2_session_stop,
 	.session_close = iris_hfi_gen2_session_close,
 };

@@ -8,6 +8,24 @@
 #include "iris_instance.h"
 #include "iris_vpu_buffer.h"
 
+static u32 iris_hfi_gen1_buf_type_from_driver(enum iris_buffer_type buffer_type)
+{
+	switch (buffer_type) {
+	case BUF_INPUT:
+		return HFI_BUFFER_INPUT;
+	case BUF_OUTPUT:
+		return HFI_BUFFER_OUTPUT;
+	case BUF_PERSIST:
+		return HFI_BUFFER_INTERNAL_PERSIST_1;
+	case BUF_BIN:
+		return HFI_BUFFER_INTERNAL_SCRATCH;
+	case BUF_SCRATCH_1:
+		return HFI_BUFFER_INTERNAL_SCRATCH_1;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int iris_hfi_gen1_sys_init(struct iris_core *core)
 {
 	struct hfi_sys_init_pkt sys_init_pkt;
@@ -179,6 +197,111 @@ static int iris_hfi_gen1_session_stop(struct iris_inst *inst, u32 plane)
 		if (!ret)
 			ret = iris_wait_for_session_response(inst, true);
 	}
+
+	return ret;
+}
+
+static int iris_hfi_gen1_queue_internal_buffer(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	struct hfi_session_set_buffers_pkt *int_pkt;
+	u32 buffer_type, i;
+	u32 packet_size;
+	int ret;
+
+	packet_size = struct_size(int_pkt, buffer_info, 1);
+	int_pkt = kzalloc(packet_size, GFP_KERNEL);
+	if (!int_pkt)
+		return -ENOMEM;
+
+	int_pkt->shdr.hdr.pkt_type = HFI_CMD_SESSION_SET_BUFFERS;
+	int_pkt->shdr.session_id = inst->session_id;
+	int_pkt->buffer_size = buf->buffer_size;
+	int_pkt->min_buffer_size = buf->buffer_size;
+	int_pkt->num_buffers = 1;
+	int_pkt->extradata_size = 0;
+	int_pkt->shdr.hdr.size = packet_size;
+	for (i = 0; i < int_pkt->num_buffers; i++)
+		int_pkt->buffer_info[i] = buf->device_addr;
+	buffer_type = iris_hfi_gen1_buf_type_from_driver(buf->type);
+	if (buffer_type == -EINVAL) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	int_pkt->buffer_type = buffer_type;
+	ret = iris_hfi_queue_cmd_write(inst->core, int_pkt, int_pkt->shdr.hdr.size);
+
+exit:
+	kfree(int_pkt);
+
+	return ret;
+}
+
+static int iris_hfi_gen1_session_queue_buffer(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	switch (buf->type) {
+	case BUF_PERSIST:
+	case BUF_BIN:
+	case BUF_SCRATCH_1:
+		return iris_hfi_gen1_queue_internal_buffer(inst, buf);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int iris_hfi_gen1_session_unset_buffers(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	struct hfi_session_release_buffer_pkt *pkt;
+	u32 packet_size, buffer_type, i;
+	int ret;
+
+	buffer_type = iris_hfi_gen1_buf_type_from_driver(buf->type);
+	if (buffer_type == -EINVAL)
+		return -EINVAL;
+
+	if (buffer_type == HFI_BUFFER_INPUT)
+		return 0;
+
+	packet_size = sizeof(*pkt) + sizeof(struct hfi_buffer_info);
+	pkt = kzalloc(packet_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	pkt->shdr.hdr.pkt_type = HFI_CMD_SESSION_RELEASE_BUFFERS;
+	pkt->shdr.session_id = inst->session_id;
+	pkt->buffer_size = buf->buffer_size;
+	pkt->num_buffers = 1;
+
+	if (buffer_type == HFI_BUFFER_OUTPUT ||
+	    buffer_type == HFI_BUFFER_OUTPUT2) {
+		struct hfi_buffer_info *bi;
+
+		bi = (struct hfi_buffer_info *)pkt->buffer_info;
+		for (i = 0; i < pkt->num_buffers; i++) {
+			bi->buffer_addr = buf->device_addr;
+			bi->extradata_addr = 0;
+		}
+		pkt->shdr.hdr.size = packet_size;
+	} else {
+		for (i = 0; i < pkt->num_buffers; i++)
+			pkt->buffer_info[i] = buf->device_addr;
+		pkt->extradata_size = 0;
+		pkt->shdr.hdr.size =
+				sizeof(struct hfi_session_set_buffers_pkt) +
+				((pkt->num_buffers) * sizeof(u32));
+	}
+
+	pkt->response_req = true;
+	pkt->buffer_type = buffer_type;
+
+	ret = iris_hfi_queue_cmd_write(inst->core, pkt, pkt->shdr.hdr.size);
+	if (ret)
+		goto exit;
+
+	ret = iris_wait_for_session_response(inst, false);
+
+exit:
+	kfree(pkt);
 
 	return ret;
 }
@@ -495,7 +618,7 @@ static int iris_hfi_gen1_set_bufsize(struct iris_inst *inst)
 
 	if (iris_split_mode_enabled(inst)) {
 		bufsz.type = HFI_BUFFER_OUTPUT;
-		bufsz.size = iris_vpu_dec_dpb_size(inst);
+		bufsz.size = iris_vpu_buf_size(inst, BUF_DPB);
 
 		ret = hfi_gen1_set_property(inst, ptype, &bufsz, sizeof(bufsz));
 		if (ret)
@@ -600,6 +723,8 @@ static const struct iris_hfi_command_ops iris_hfi_gen1_command_ops = {
 	.session_set_config_params = iris_hfi_gen1_session_set_config_params,
 	.session_set_property = iris_hfi_gen1_session_set_property,
 	.session_start = iris_hfi_gen1_session_start,
+	.session_queue_buf = iris_hfi_gen1_session_queue_buffer,
+	.session_release_buf = iris_hfi_gen1_session_unset_buffers,
 	.session_stop = iris_hfi_gen1_session_stop,
 	.session_close = iris_hfi_gen1_session_close,
 };

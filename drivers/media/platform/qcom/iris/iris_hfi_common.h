@@ -9,6 +9,8 @@
 #include <linux/types.h>
 #include <media/v4l2-device.h>
 
+#include "iris_buffer.h"
+
 struct iris_inst;
 struct iris_core;
 
@@ -114,6 +116,8 @@ struct iris_hfi_command_ops {
 				    void *payload, u32 payload_size);
 	int (*session_open)(struct iris_inst *inst);
 	int (*session_start)(struct iris_inst *inst, u32 plane);
+	int (*session_queue_buf)(struct iris_inst *inst, struct iris_buffer *buffer);
+	int (*session_release_buf)(struct iris_inst *inst, struct iris_buffer *buffer);
 	int (*session_stop)(struct iris_inst *inst, u32 plane);
 	int (*session_close)(struct iris_inst *inst);
 };

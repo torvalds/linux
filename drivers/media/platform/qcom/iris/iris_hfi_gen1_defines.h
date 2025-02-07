@@ -24,11 +24,13 @@
 #define HFI_CMD_SYS_SESSION_END				0x10008
 
 #define HFI_CMD_SESSION_SET_PROPERTY			0x11001
+#define HFI_CMD_SESSION_SET_BUFFERS			0x11002
 
 #define HFI_CMD_SESSION_LOAD_RESOURCES			0x211001
 #define HFI_CMD_SESSION_START				0x211002
 #define HFI_CMD_SESSION_STOP				0x211003
 #define HFI_CMD_SESSION_FLUSH				0x211008
+#define HFI_CMD_SESSION_RELEASE_BUFFERS			0x21100b
 #define HFI_CMD_SESSION_RELEASE_RESOURCES		0x21100c
 
 #define HFI_ERR_SESSION_UNSUPPORTED_SETTING		0x1008
@@ -53,6 +55,9 @@
 #define HFI_BUFFER_INPUT				0x1
 #define HFI_BUFFER_OUTPUT				0x2
 #define HFI_BUFFER_OUTPUT2				0x3
+#define HFI_BUFFER_INTERNAL_PERSIST_1			0x5
+#define HFI_BUFFER_INTERNAL_SCRATCH			0x6
+#define HFI_BUFFER_INTERNAL_SCRATCH_1			0x7
 
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL		0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
@@ -80,6 +85,7 @@
 #define HFI_MSG_SESSION_STOP				0x221003
 #define HFI_MSG_SESSION_FLUSH				0x221006
 #define HFI_MSG_SESSION_RELEASE_RESOURCES		0x22100a
+#define HFI_MSG_SESSION_RELEASE_BUFFERS			0x22100c
 
 struct hfi_pkt_hdr {
 	u32 size;
@@ -128,9 +134,34 @@ struct hfi_sys_pc_prep_pkt {
 	struct hfi_pkt_hdr hdr;
 };
 
+struct hfi_session_set_buffers_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 buffer_type;
+	u32 buffer_size;
+	u32 extradata_size;
+	u32 min_buffer_size;
+	u32 num_buffers;
+	u32 buffer_info[];
+};
+
 struct hfi_session_flush_pkt {
 	struct hfi_session_hdr_pkt shdr;
 	u32 flush_type;
+};
+
+struct hfi_session_release_buffer_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 buffer_type;
+	u32 buffer_size;
+	u32 extradata_size;
+	u32 response_req;
+	u32 num_buffers;
+	u32 buffer_info[];
+};
+
+struct hfi_buffer_info {
+	u32 buffer_addr;
+	u32 extradata_addr;
 };
 
 struct hfi_msg_event_notify_pkt {
@@ -225,6 +256,12 @@ struct hfi_buffer_size_actual {
 struct hfi_multi_stream {
 	u32 buffer_type;
 	u32 enable;
+};
+
+struct hfi_msg_session_release_buffers_done_pkt {
+	struct hfi_msg_session_hdr_pkt shdr;
+	u32 num_buffers;
+	u32 buffer_info[];
 };
 
 struct hfi_msg_sys_debug_pkt {

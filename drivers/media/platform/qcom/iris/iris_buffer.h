@@ -102,6 +102,13 @@ struct iris_buffers {
 };
 
 int iris_get_buffer_size(struct iris_inst *inst, enum iris_buffer_type buffer_type);
+void iris_get_internal_buffers(struct iris_inst *inst, u32 plane);
+int iris_create_internal_buffers(struct iris_inst *inst, u32 plane);
+int iris_queue_internal_buffers(struct iris_inst *inst, u32 plane);
+int iris_destroy_internal_buffer(struct iris_inst *inst, struct iris_buffer *buffer);
+int iris_destroy_internal_buffers(struct iris_inst *inst, u32 plane);
+int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst);
+int iris_queue_buffer(struct iris_inst *inst, struct iris_buffer *buf);
 void iris_vb2_queue_error(struct iris_inst *inst);
 
 #endif

@@ -126,6 +126,7 @@ static struct platform_inst_caps platform_inst_cap_sm8550 = {
 	.min_frame_height = 96,
 	.max_frame_height = 8192,
 	.max_mbpf = (8192 * 4352) / 256,
+	.num_comv = 0,
 };
 
 static void iris_set_sm8550_preset_registers(struct iris_core *core)
@@ -192,6 +193,17 @@ static const u32 sm8550_vdec_subscribe_output_properties[] = {
 	HFI_PROP_CABAC_SESSION,
 };
 
+static const u32 sm8550_dec_ip_int_buf_tbl[] = {
+	BUF_BIN,
+	BUF_COMV,
+	BUF_NON_COMV,
+	BUF_LINE,
+};
+
+static const u32 sm8550_dec_op_int_buf_tbl[] = {
+	BUF_DPB,
+};
+
 struct iris_platform_data sm8550_data = {
 	.get_instance = iris_hfi_gen2_get_instance,
 	.init_hfi_command_ops = iris_hfi_gen2_command_ops_init,
@@ -233,4 +245,9 @@ struct iris_platform_data sm8550_data = {
 	.dec_input_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_input_properties),
 	.dec_output_prop = sm8550_vdec_subscribe_output_properties,
 	.dec_output_prop_size = ARRAY_SIZE(sm8550_vdec_subscribe_output_properties),
+
+	.dec_ip_int_buf_tbl = sm8550_dec_ip_int_buf_tbl,
+	.dec_ip_int_buf_tbl_size = ARRAY_SIZE(sm8550_dec_ip_int_buf_tbl),
+	.dec_op_int_buf_tbl = sm8550_dec_op_int_buf_tbl,
+	.dec_op_int_buf_tbl_size = ARRAY_SIZE(sm8550_dec_op_int_buf_tbl),
 };

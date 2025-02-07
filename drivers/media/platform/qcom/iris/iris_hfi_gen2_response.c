@@ -25,6 +25,94 @@ struct iris_hfi_gen2_packet_handle {
 	int (*handle)(struct iris_inst *inst, struct iris_hfi_packet *pkt);
 };
 
+static u32 iris_hfi_gen2_buf_type_to_driver(enum hfi_buffer_type buf_type)
+{
+	switch (buf_type) {
+	case HFI_BUFFER_BITSTREAM:
+		return BUF_INPUT;
+	case HFI_BUFFER_RAW:
+		return BUF_OUTPUT;
+	case HFI_BUFFER_BIN:
+		return BUF_BIN;
+	case HFI_BUFFER_ARP:
+		return BUF_ARP;
+	case HFI_BUFFER_COMV:
+		return BUF_COMV;
+	case HFI_BUFFER_NON_COMV:
+		return BUF_NON_COMV;
+	case HFI_BUFFER_LINE:
+		return BUF_LINE;
+	case HFI_BUFFER_DPB:
+		return BUF_DPB;
+	case HFI_BUFFER_PERSIST:
+		return BUF_PERSIST;
+	default:
+		return 0;
+	}
+}
+
+static bool iris_hfi_gen2_is_valid_hfi_buffer_type(u32 buffer_type)
+{
+	switch (buffer_type) {
+	case HFI_BUFFER_BITSTREAM:
+	case HFI_BUFFER_RAW:
+	case HFI_BUFFER_BIN:
+	case HFI_BUFFER_ARP:
+	case HFI_BUFFER_COMV:
+	case HFI_BUFFER_NON_COMV:
+	case HFI_BUFFER_LINE:
+	case HFI_BUFFER_DPB:
+	case HFI_BUFFER_PERSIST:
+	case HFI_BUFFER_VPSS:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool iris_hfi_gen2_is_valid_hfi_port(u32 port, u32 buffer_type)
+{
+	if (port == HFI_PORT_NONE && buffer_type != HFI_BUFFER_PERSIST)
+		return false;
+
+	if (port != HFI_PORT_BITSTREAM && port != HFI_PORT_RAW)
+		return false;
+
+	return true;
+}
+
+static bool iris_hfi_gen2_validate_packet_payload(struct iris_hfi_packet *pkt)
+{
+	u32 payload_size = 0;
+
+	switch (pkt->payload_info) {
+	case HFI_PAYLOAD_U32:
+	case HFI_PAYLOAD_S32:
+	case HFI_PAYLOAD_Q16:
+	case HFI_PAYLOAD_U32_ENUM:
+	case HFI_PAYLOAD_32_PACKED:
+		payload_size = 4;
+		break;
+	case HFI_PAYLOAD_U64:
+	case HFI_PAYLOAD_S64:
+	case HFI_PAYLOAD_64_PACKED:
+		payload_size = 8;
+		break;
+	case HFI_PAYLOAD_STRUCTURE:
+		if (pkt->type == HFI_CMD_BUFFER)
+			payload_size = sizeof(struct iris_hfi_buffer);
+		break;
+	default:
+		payload_size = 0;
+		break;
+	}
+
+	if (pkt->size < sizeof(struct iris_hfi_packet) + payload_size)
+		return false;
+
+	return true;
+}
+
 static int iris_hfi_gen2_validate_packet(u8 *response_pkt, u8 *core_resp_pkt)
 {
 	u8 *response_limit = core_resp_pkt + IFACEQ_CORE_PKT_SIZE;
@@ -149,9 +237,65 @@ static void iris_hfi_gen2_handle_session_close(struct iris_inst *inst,
 	complete(&inst->completion);
 }
 
+static int iris_hfi_gen2_handle_release_internal_buffer(struct iris_inst *inst,
+							struct iris_hfi_buffer *buffer)
+{
+	struct iris_buffer *buf, *iter;
+	struct iris_buffers *buffers;
+	u32 buf_type;
+	int ret = 0;
+	bool found;
+
+	buf_type = iris_hfi_gen2_buf_type_to_driver(buffer->type);
+	buffers = &inst->buffers[buf_type];
+
+	found = false;
+	list_for_each_entry(iter, &buffers->list, list) {
+		if (iter->device_addr == buffer->base_address) {
+			found = true;
+			buf = iter;
+			break;
+		}
+	}
+	if (!found)
+		return -EINVAL;
+
+	buf->attr &= ~BUF_ATTR_QUEUED;
+
+	if (buf->attr & BUF_ATTR_PENDING_RELEASE)
+		ret = iris_destroy_internal_buffer(inst, buf);
+
+	return ret;
+}
+
+static int iris_hfi_gen2_handle_session_buffer(struct iris_inst *inst,
+					       struct iris_hfi_packet *pkt)
+{
+	struct iris_hfi_buffer *buffer;
+
+	if (pkt->payload_info == HFI_PAYLOAD_NONE)
+		return 0;
+
+	if (!iris_hfi_gen2_validate_packet_payload(pkt)) {
+		iris_inst_change_state(inst, IRIS_INST_ERROR);
+		return 0;
+	}
+
+	buffer = (struct iris_hfi_buffer *)((u8 *)pkt + sizeof(*pkt));
+	if (!iris_hfi_gen2_is_valid_hfi_buffer_type(buffer->type))
+		return 0;
+
+	if (!iris_hfi_gen2_is_valid_hfi_port(pkt->port, buffer->type))
+		return 0;
+
+	return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+}
+
 static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
 						struct iris_hfi_packet *pkt)
 {
+	int ret = 0;
+
 	switch (pkt->type) {
 	case HFI_CMD_CLOSE:
 		iris_hfi_gen2_handle_session_close(inst, pkt);
@@ -159,11 +303,14 @@ static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
 	case HFI_CMD_STOP:
 		complete(&inst->completion);
 		break;
+	case HFI_CMD_BUFFER:
+		ret = iris_hfi_gen2_handle_session_buffer(inst, pkt);
+		break;
 	default:
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int iris_hfi_gen2_handle_session_property(struct iris_inst *inst,

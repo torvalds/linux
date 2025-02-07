@@ -149,6 +149,15 @@ int iris_open(struct file *filp)
 
 	mutex_init(&inst->lock);
 	mutex_init(&inst->ctx_q_lock);
+
+	INIT_LIST_HEAD(&inst->buffers[BUF_BIN].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_ARP].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_COMV].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_NON_COMV].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_LINE].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_DPB].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_PERSIST].list);
+	INIT_LIST_HEAD(&inst->buffers[BUF_SCRATCH_1].list);
 	init_completion(&inst->completion);
 	init_completion(&inst->flush_completion);
 
@@ -221,6 +230,8 @@ int iris_close(struct file *filp)
 	iris_session_close(inst);
 	iris_inst_change_state(inst, IRIS_INST_DEINIT);
 	iris_v4l2_fh_deinit(inst);
+	iris_destroy_internal_buffers(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	iris_destroy_internal_buffers(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	iris_remove_session(inst);
 	mutex_unlock(&inst->lock);
 	mutex_destroy(&inst->ctx_q_lock);
