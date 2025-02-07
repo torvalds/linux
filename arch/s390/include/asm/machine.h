@@ -15,6 +15,9 @@
 #define MFEATURE_TX		4
 #define MFEATURE_ESOP		5
 #define MFEATURE_DIAG9C		6
+#define MFEATURE_VM		7
+#define MFEATURE_KVM		8
+#define MFEATURE_LPAR		9
 
 #ifndef __ASSEMBLY__
 
@@ -88,6 +91,13 @@ DEFINE_MACHINE_HAS_FEATURE(tlb_guest, MFEATURE_TLB_GUEST)
 DEFINE_MACHINE_HAS_FEATURE(tx, MFEATURE_TX)
 DEFINE_MACHINE_HAS_FEATURE(esop, MFEATURE_ESOP)
 DEFINE_MACHINE_HAS_FEATURE(diag9c, MFEATURE_DIAG9C)
+DEFINE_MACHINE_HAS_FEATURE(vm, MFEATURE_VM)
+DEFINE_MACHINE_HAS_FEATURE(kvm, MFEATURE_KVM)
+DEFINE_MACHINE_HAS_FEATURE(lpar, MFEATURE_LPAR)
+
+#define machine_is_vm	machine_has_vm
+#define machine_is_kvm	machine_has_kvm
+#define machine_is_lpar	machine_has_lpar
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_S390_MACHINE_H */

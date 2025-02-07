@@ -15,6 +15,7 @@
 #include <linux/debug_locks.h>
 #include <linux/cpufeature.h>
 #include <asm/guarded_storage.h>
+#include <asm/machine.h>
 #include <asm/pfault.h>
 #include <asm/cio.h>
 #include <asm/fpu.h>
@@ -179,7 +180,7 @@ void arch_kexec_unprotect_crashkres(void)
 static int machine_kexec_prepare_kdump(void)
 {
 #ifdef CONFIG_CRASH_DUMP
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		diag10_range(PFN_DOWN(crashk_res.start),
 			     PFN_DOWN(crashk_res.end - crashk_res.start + 1));
 	return 0;

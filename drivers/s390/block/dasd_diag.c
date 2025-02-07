@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 #include <asm/asm-extable.h>
+#include <asm/machine.h>
 #include <asm/dasd.h>
 #include <asm/debug.h>
 #include <asm/diag.h>
@@ -654,7 +655,7 @@ static struct dasd_discipline dasd_diag_discipline = {
 static int __init
 dasd_diag_init(void)
 {
-	if (!MACHINE_IS_VM) {
+	if (!machine_is_vm()) {
 		pr_info("Discipline %s cannot be used without z/VM\n",
 			dasd_diag_discipline.name);
 		return -ENODEV;

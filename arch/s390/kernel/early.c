@@ -22,6 +22,7 @@
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
 #include <asm/access-regs.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/fpu.h>
@@ -82,26 +83,6 @@ static noinline __init void init_kernel_storage_key(void)
 
 static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
-static noinline __init void detect_machine_type(void)
-{
-	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
-
-	/* Check current-configuration-level */
-	if (stsi(NULL, 0, 0, 0) <= 2) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_LPAR;
-		return;
-	}
-	/* Get virtual-machine cpu information. */
-	if (stsi(vmms, 3, 2, 2) || !vmms->count)
-		return;
-
-	/* Detect known hypervisors */
-	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_KVM;
-	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_VM;
-}
-
 /* Remove leading, trailing and double whitespace. */
 static inline void strim_all(char *str)
 {
@@ -142,9 +123,9 @@ static noinline __init void setup_arch_string(void)
 		strim_all(hvstr);
 	} else {
 		sprintf(hvstr, "%s",
-			MACHINE_IS_LPAR ? "LPAR" :
-			MACHINE_IS_VM ? "z/VM" :
-			MACHINE_IS_KVM ? "KVM" : "unknown");
+			machine_is_lpar() ? "LPAR" :
+			machine_is_vm() ? "z/VM" :
+			machine_is_kvm() ? "KVM" : "unknown");
 	}
 	dump_stack_set_arch_desc("%s (%s)", mstr, hvstr);
 }
@@ -249,7 +230,6 @@ void __init startup_init(void)
 	lockdep_off();
 	sort_amode31_extable();
 	setup_lowcore_early();
-	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();
 	detect_machine_facilities();

@@ -13,13 +13,6 @@
 #define PARMAREA		0x10400
 
 #define COMMAND_LINE_SIZE CONFIG_COMMAND_LINE_SIZE
-/*
- * Machine features detected in early.c
- */
-
-#define MACHINE_FLAG_VM		BIT(0)
-#define MACHINE_FLAG_KVM	BIT(1)
-#define MACHINE_FLAG_LPAR	BIT(2)
 
 #define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
@@ -62,10 +55,6 @@ extern unsigned long max_mappable;
 
 /* The Write Back bit position in the physaddr is given by the SLPC PCI */
 extern unsigned long mio_wb_bit_mask;
-
-#define MACHINE_IS_VM		(get_lowcore()->machine_flags & MACHINE_FLAG_VM)
-#define MACHINE_IS_KVM		(get_lowcore()->machine_flags & MACHINE_FLAG_KVM)
-#define MACHINE_IS_LPAR		(get_lowcore()->machine_flags & MACHINE_FLAG_LPAR)
 
 /*
  * Console mode. Override with conmode=

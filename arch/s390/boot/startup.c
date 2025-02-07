@@ -8,6 +8,7 @@
 #include <asm/sections.h>
 #include <asm/maccess.h>
 #include <asm/machine.h>
+#include <asm/sysinfo.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
@@ -47,6 +48,27 @@ void error(char *x)
 	boot_emerg("%s\n", x);
 	boot_emerg(" -- System halted\n");
 	disabled_wait();
+}
+
+static char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
+
+static void detect_machine_type(void)
+{
+	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
+
+	/* Check current-configuration-level */
+	if (stsi(NULL, 0, 0, 0) <= 2) {
+		set_machine_feature(MFEATURE_LPAR);
+		return;
+	}
+	/* Get virtual-machine cpu information. */
+	if (stsi(vmms, 3, 2, 2) || !vmms->count)
+		return;
+	/* Detect known hypervisors */
+	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
+		set_machine_feature(MFEATURE_KVM);
+	else if (!memcmp(vmms->vm[0].cpi, "\xa9\x61\xe5\xd4", 4))
+		set_machine_feature(MFEATURE_VM);
 }
 
 static void detect_diag9c(void)
@@ -520,6 +542,7 @@ void startup_kernel(void)
 	sclp_early_detect_machine_features();
 	detect_facilities();
 	detect_diag9c();
+	detect_machine_type();
 	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();

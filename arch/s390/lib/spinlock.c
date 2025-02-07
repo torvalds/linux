@@ -15,6 +15,7 @@
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <asm/alternative.h>
+#include <asm/machine.h>
 #include <asm/asm.h>
 
 int spin_retry = -1;
@@ -212,7 +213,7 @@ static inline void arch_spin_lock_queued(arch_spinlock_t *lp)
 		if (count-- >= 0)
 			continue;
 		count = spin_retry;
-		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(owner - 1))
+		if (!machine_is_lpar() || arch_vcpu_is_preempted(owner - 1))
 			smp_yield_cpu(owner - 1);
 	}
 
@@ -255,7 +256,7 @@ static inline void arch_spin_lock_classic(arch_spinlock_t *lp)
 		if (count-- >= 0)
 			continue;
 		count = spin_retry;
-		if (!MACHINE_IS_LPAR || arch_vcpu_is_preempted(owner - 1))
+		if (!machine_is_lpar() || arch_vcpu_is_preempted(owner - 1))
 			smp_yield_cpu(owner - 1);
 	}
 }
@@ -337,7 +338,7 @@ void arch_spin_relax(arch_spinlock_t *lp)
 	cpu = READ_ONCE(lp->lock) & _Q_LOCK_CPU_MASK;
 	if (!cpu)
 		return;
-	if (MACHINE_IS_LPAR && !arch_vcpu_is_preempted(cpu - 1))
+	if (machine_is_lpar() && !arch_vcpu_is_preempted(cpu - 1))
 		return;
 	smp_yield_cpu(cpu - 1);
 }

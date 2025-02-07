@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/asm-extable.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/debug.h>
 #include <asm/sysinfo.h>
@@ -378,7 +379,7 @@ static struct service_level service_level_vm = {
 static __init int create_proc_service_level(void)
 {
 	proc_create_seq("service_levels", 0, NULL, &service_level_seq_ops);
-	if (MACHINE_IS_VM)
+	if (machine_is_vm())
 		register_service_level(&service_level_vm);
 	return 0;
 }

@@ -25,6 +25,7 @@
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/lowcore.h>
+#include <asm/machine.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/stacktrace.h>
@@ -164,7 +165,7 @@ void noinstr do_io_irq(struct pt_regs *regs)
 			do_irq_async(regs, THIN_INTERRUPT);
 		else
 			do_irq_async(regs, IO_INTERRUPT);
-	} while (MACHINE_IS_LPAR && irq_pending(regs));
+	} while (machine_is_lpar() && irq_pending(regs));
 
 	irq_exit_rcu();
 

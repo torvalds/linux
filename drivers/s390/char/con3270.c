@@ -23,6 +23,7 @@
 #include <linux/memblock.h>
 #include <linux/compat.h>
 
+#include <asm/machine.h>
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
@@ -2156,7 +2157,7 @@ con3270_init(void)
 		return -ENODEV;
 
 	/* Set the console mode for VM */
-	if (MACHINE_IS_VM) {
+	if (machine_is_vm()) {
 		cpcmd("TERM CONMODE 3270", NULL, 0, NULL);
 		cpcmd("TERM AUTOCR OFF", NULL, 0, NULL);
 	}

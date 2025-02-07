@@ -74,7 +74,7 @@ static void __init sclp_early_facilities_detect(void)
 		sclp.hamax = U64_MAX;
 
 	if (!sccb->hcpua) {
-		if (MACHINE_IS_VM)
+		if (machine_is_vm())
 			sclp.max_cores = 64;
 		else
 			sclp.max_cores = sccb->ncpurl;
