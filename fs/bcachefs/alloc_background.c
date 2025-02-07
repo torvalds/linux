@@ -1803,7 +1803,6 @@ struct discard_buckets_state {
 	u64		open;
 	u64		need_journal_commit;
 	u64		discarded;
-	u64		need_journal_commit_this_dev;
 };
 
 static int bch2_discard_one_bucket(struct btree_trans *trans,
@@ -1827,11 +1826,11 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-			c->journal.flushed_seq_ondisk,
-			pos.inode, pos.offset)) {
-		s->need_journal_commit++;
-		s->need_journal_commit_this_dev++;
+	u64 seq_ready = bch2_bucket_journal_seq_ready(&c->buckets_waiting_for_journal,
+						      pos.inode, pos.offset);
+	if (seq_ready > c->journal.flushed_seq_ondisk) {
+		if (seq_ready > c->journal.flushing_seq)
+			s->need_journal_commit++;
 		goto out;
 	}
 
@@ -1865,23 +1864,24 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		discard_locked = true;
 	}
 
-	if (!bkey_eq(*discard_pos_done, iter.pos) &&
-	    ca->mi.discard && !c->opts.nochanges) {
-		/*
-		 * This works without any other locks because this is the only
-		 * thread that removes items from the need_discard tree
-		 */
-		bch2_trans_unlock_long(trans);
-		blkdev_issue_discard(ca->disk_sb.bdev,
-				     k.k->p.offset * ca->mi.bucket_size,
-				     ca->mi.bucket_size,
-				     GFP_KERNEL);
-		*discard_pos_done = iter.pos;
+	if (!bkey_eq(*discard_pos_done, iter.pos)) {
 		s->discarded++;
+		*discard_pos_done = iter.pos;
 
-		ret = bch2_trans_relock_notrace(trans);
-		if (ret)
-			goto out;
+		if (ca->mi.discard && !c->opts.nochanges) {
+			/*
+			 * This works without any other locks because this is the only
+			 * thread that removes items from the need_discard tree
+			 */
+			bch2_trans_unlock_long(trans);
+			blkdev_issue_discard(ca->disk_sb.bdev,
+					     k.k->p.offset * ca->mi.bucket_size,
+					     ca->mi.bucket_size,
+					     GFP_KERNEL);
+			ret = bch2_trans_relock_notrace(trans);
+			if (ret)
+				goto out;
+		}
 	}
 
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
@@ -1928,6 +1928,9 @@ static void bch2_do_discards_work(struct work_struct *work)
 				   POS(ca->dev_idx, 0),
 				   POS(ca->dev_idx, U64_MAX), 0, k,
 			bch2_discard_one_bucket(trans, ca, &iter, &discard_pos_done, &s, false)));
+
+	if (s.need_journal_commit > dev_buckets_available(ca, BCH_WATERMARK_normal))
+		bch2_journal_flush_async(&c->journal, NULL);
 
 	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
 			      bch2_err_str(ret));
@@ -2024,7 +2027,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			break;
 	}
 
-	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded, bch2_err_str(ret));
+	trace_discard_buckets_fast(c, s.seen, s.open, s.need_journal_commit, s.discarded, bch2_err_str(ret));
 
 	bch2_trans_put(trans);
 	percpu_ref_put(&ca->io_ref);
