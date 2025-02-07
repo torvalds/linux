@@ -459,6 +459,25 @@ void intel_dsb_wait_scanline_out(struct intel_atomic_state *state,
 			   start, end);
 }
 
+void intel_dsb_poll(struct intel_dsb *dsb,
+		    i915_reg_t reg, u32 mask, u32 val,
+		    int wait_us, int count)
+{
+	struct intel_crtc *crtc = dsb->crtc;
+	enum pipe pipe = crtc->pipe;
+
+	intel_dsb_reg_write(dsb, DSB_POLLMASK(pipe, dsb->id), mask);
+	intel_dsb_reg_write(dsb, DSB_POLLFUNC(pipe, dsb->id),
+			    DSB_POLL_ENABLE |
+			    DSB_POLL_WAIT(wait_us) | DSB_POLL_COUNT(count));
+
+	intel_dsb_noop(dsb, 5);
+
+	intel_dsb_emit(dsb, val,
+		       (DSB_OPCODE_POLL << DSB_OPCODE_SHIFT) |
+		       i915_mmio_reg_offset(reg));
+}
+
 static void intel_dsb_align_tail(struct intel_dsb *dsb)
 {
 	u32 aligned_tail, tail;
