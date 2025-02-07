@@ -12,6 +12,8 @@
 #define ACP63_REG_START		0x1240000
 #define ACP63_REG_END		0x125C000
 #define ACP63_PCI_REV		0x63
+#define ACP70_PCI_REV		0x70
+#define ACP71_PCI_REV		0x71
 
 #define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
 #define ACP63_PGFSM_CNTL_POWER_ON_MASK	1
@@ -132,6 +134,12 @@
 
 #define ACP_HW_OPS(acp_data, cb)	((acp_data)->hw_ops->cb)
 
+#define ACP70_PGFSM_CNTL_POWER_ON_MASK		0x1F
+#define ACP70_PGFSM_CNTL_POWER_OFF_MASK		0
+#define ACP70_PGFSM_STATUS_MASK			0xFF
+#define ACP70_TIMEOUT				2000
+#define ACP70_SDW_HOST_WAKE_MASK	0x0C00000
+
 enum acp_config {
 	ACP_CONFIG_0 = 0,
 	ACP_CONFIG_1,
@@ -149,6 +157,11 @@ enum acp_config {
 	ACP_CONFIG_13,
 	ACP_CONFIG_14,
 	ACP_CONFIG_15,
+	ACP_CONFIG_16,
+	ACP_CONFIG_17,
+	ACP_CONFIG_18,
+	ACP_CONFIG_19,
+	ACP_CONFIG_20,
 };
 
 enum amd_acp63_sdw0_channel {
@@ -293,6 +306,7 @@ struct acp63_dev_data {
 };
 
 void acp63_hw_init_ops(struct acp_hw_ops *hw_ops);
+void acp70_hw_init_ops(struct acp_hw_ops *hw_ops);
 
 static inline int acp_hw_init(struct acp63_dev_data *adata, struct device *dev)
 {

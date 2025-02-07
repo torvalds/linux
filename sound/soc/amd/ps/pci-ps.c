@@ -438,6 +438,10 @@ static int acp_hw_init_ops(struct acp63_dev_data *adata, struct pci_dev *pci)
 	case ACP63_PCI_REV:
 		acp63_hw_init_ops(adata->hw_ops);
 		break;
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
+		acp70_hw_init_ops(adata->hw_ops);
+		break;
 	default:
 		dev_err(&pci->dev, "ACP device not found\n");
 		return -ENODEV;
@@ -460,12 +464,14 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	if (flag)
 		return -ENODEV;
 
-	/* Pink Sardine device check */
+	/* ACP PCI revision id check for ACP6.3, ACP7.0 & ACP7.1 platforms */
 	switch (pci->revision) {
 	case ACP63_PCI_REV:
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
 		break;
 	default:
-		dev_dbg(&pci->dev, "acp63 pci device not found\n");
+		dev_dbg(&pci->dev, "acp63/acp70/acp71 pci device not found\n");
 		return -ENODEV;
 	}
 	if (pci_enable_device(pci)) {

@@ -246,3 +246,141 @@ void acp63_hw_init_ops(struct acp_hw_ops *hw_ops)
 	hw_ops->acp_suspend_runtime = snd_acp63_suspend;
 	hw_ops->acp_resume_runtime = snd_acp63_runtime_resume;
 }
+
+static int acp70_power_on(void __iomem *acp_base)
+{
+	u32 val = 0;
+
+	val = readl(acp_base + ACP_PGFSM_STATUS);
+
+	if (!val)
+		return 0;
+	if (val & ACP70_PGFSM_STATUS_MASK)
+		writel(ACP70_PGFSM_CNTL_POWER_ON_MASK, acp_base + ACP_PGFSM_CONTROL);
+
+	return readl_poll_timeout(acp_base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP70_TIMEOUT);
+}
+
+static int acp70_reset(void __iomem *acp_base)
+{
+	u32 val;
+	int ret;
+
+	writel(1, acp_base + ACP_SOFT_RESET);
+
+	ret = readl_poll_timeout(acp_base + ACP_SOFT_RESET, val,
+				 val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK,
+				 DELAY_US, ACP70_TIMEOUT);
+	if (ret)
+		return ret;
+
+	writel(0, acp_base + ACP_SOFT_RESET);
+
+	return readl_poll_timeout(acp_base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP70_TIMEOUT);
+}
+
+static void acp70_enable_sdw_host_wake_interrupts(void __iomem *acp_base)
+{
+	u32 ext_intr_cntl1;
+
+	ext_intr_cntl1 = readl(acp_base + ACP_EXTERNAL_INTR_CNTL1);
+	ext_intr_cntl1 |= ACP70_SDW_HOST_WAKE_MASK;
+	writel(ext_intr_cntl1, acp_base + ACP_EXTERNAL_INTR_CNTL1);
+}
+
+static void acp70_enable_interrupts(void __iomem *acp_base)
+{
+	u32 sdw0_wake_en, sdw1_wake_en;
+
+	writel(1, acp_base + ACP_EXTERNAL_INTR_ENB);
+	writel(ACP_ERROR_IRQ, acp_base + ACP_EXTERNAL_INTR_CNTL);
+	sdw0_wake_en = readl(acp_base + ACP_SW0_WAKE_EN);
+	sdw1_wake_en = readl(acp_base + ACP_SW1_WAKE_EN);
+	if (sdw0_wake_en || sdw1_wake_en)
+		acp70_enable_sdw_host_wake_interrupts(acp_base);
+}
+
+static void acp70_disable_interrupts(void __iomem *acp_base)
+{
+	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, acp_base + ACP_EXTERNAL_INTR_STAT);
+	writel(0, acp_base + ACP_EXTERNAL_INTR_CNTL);
+	writel(0, acp_base + ACP_EXTERNAL_INTR_ENB);
+}
+
+static int acp70_init(void __iomem *acp_base, struct device *dev)
+{
+	int ret;
+
+	ret = acp70_power_on(acp_base);
+	if (ret) {
+		dev_err(dev, "ACP power on failed\n");
+		return ret;
+	}
+	writel(0x01, acp_base + ACP_CONTROL);
+	ret = acp70_reset(acp_base);
+	if (ret) {
+		dev_err(dev, "ACP reset failed\n");
+		return ret;
+	}
+	writel(0, acp_base + ACP_ZSC_DSP_CTRL);
+	acp70_enable_interrupts(acp_base);
+	writel(0x1, acp_base + ACP_PME_EN);
+	return 0;
+}
+
+static int acp70_deinit(void __iomem *acp_base, struct device *dev)
+{
+	int ret;
+
+	acp70_disable_interrupts(acp_base);
+	ret = acp70_reset(acp_base);
+	if (ret) {
+		dev_err(dev, "ACP reset failed\n");
+		return ret;
+	}
+	writel(0x01, acp_base + ACP_ZSC_DSP_CTRL);
+	return 0;
+}
+
+static void acp70_get_config(struct pci_dev *pci, struct acp63_dev_data *acp_data)
+{
+	u32 config;
+
+	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
+	dev_dbg(&pci->dev, "ACP config value: %d\n", config);
+	switch (config) {
+	case ACP_CONFIG_4:
+	case ACP_CONFIG_5:
+	case ACP_CONFIG_10:
+	case ACP_CONFIG_11:
+	case ACP_CONFIG_20:
+		acp_data->is_pdm_config = true;
+		break;
+	case ACP_CONFIG_2:
+	case ACP_CONFIG_3:
+	case ACP_CONFIG_16:
+		acp_data->is_sdw_config = true;
+		break;
+	case ACP_CONFIG_6:
+	case ACP_CONFIG_7:
+	case ACP_CONFIG_12:
+	case ACP_CONFIG_8:
+	case ACP_CONFIG_13:
+	case ACP_CONFIG_14:
+	case ACP_CONFIG_17:
+	case ACP_CONFIG_18:
+	case ACP_CONFIG_19:
+		acp_data->is_pdm_config = true;
+		acp_data->is_sdw_config = true;
+		break;
+	default:
+		break;
+	}
+}
+
+void acp70_hw_init_ops(struct acp_hw_ops *hw_ops)
+{
+	hw_ops->acp_init = acp70_init;
+	hw_ops->acp_deinit = acp70_deinit;
+	hw_ops->acp_get_config = acp70_get_config;
+}
