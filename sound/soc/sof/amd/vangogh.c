@@ -12,13 +12,9 @@
  */
 
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/module.h>
 
-#include "../ops.h"
-#include "../sof-audio.h"
 #include "acp.h"
-#include "acp-dsp-offset.h"
 
 #define I2S_HS_INSTANCE		0
 #define I2S_BT_INSTANCE		1

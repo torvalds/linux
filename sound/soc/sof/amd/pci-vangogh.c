@@ -13,11 +13,9 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/platform_device.h>
 #include <sound/sof.h>
 #include <sound/soc-acpi.h>
 
-#include "../ops.h"
 #include "../sof-pci-dev.h"
 #include "../../amd/mach-config.h"
 #include "acp.h"
