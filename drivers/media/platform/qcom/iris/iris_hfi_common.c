@@ -10,6 +10,70 @@
 #include "iris_hfi_common.h"
 #include "iris_vpu_common.h"
 
+u32 iris_hfi_get_v4l2_color_primaries(u32 hfi_primaries)
+{
+	switch (hfi_primaries) {
+	case HFI_PRIMARIES_RESERVED:
+		return V4L2_COLORSPACE_DEFAULT;
+	case HFI_PRIMARIES_BT709:
+		return V4L2_COLORSPACE_REC709;
+	case HFI_PRIMARIES_BT470_SYSTEM_M:
+		return V4L2_COLORSPACE_470_SYSTEM_M;
+	case HFI_PRIMARIES_BT470_SYSTEM_BG:
+		return V4L2_COLORSPACE_470_SYSTEM_BG;
+	case HFI_PRIMARIES_BT601_525:
+		return V4L2_COLORSPACE_SMPTE170M;
+	case HFI_PRIMARIES_SMPTE_ST240M:
+		return V4L2_COLORSPACE_SMPTE240M;
+	case HFI_PRIMARIES_BT2020:
+		return V4L2_COLORSPACE_BT2020;
+	case V4L2_COLORSPACE_DCI_P3:
+		return HFI_PRIMARIES_SMPTE_RP431_2;
+	default:
+		return V4L2_COLORSPACE_DEFAULT;
+	}
+}
+
+u32 iris_hfi_get_v4l2_transfer_char(u32 hfi_characterstics)
+{
+	switch (hfi_characterstics) {
+	case HFI_TRANSFER_RESERVED:
+		return V4L2_XFER_FUNC_DEFAULT;
+	case HFI_TRANSFER_BT709:
+		return V4L2_XFER_FUNC_709;
+	case HFI_TRANSFER_SMPTE_ST240M:
+		return V4L2_XFER_FUNC_SMPTE240M;
+	case HFI_TRANSFER_SRGB_SYCC:
+		return V4L2_XFER_FUNC_SRGB;
+	case HFI_TRANSFER_SMPTE_ST2084_PQ:
+		return V4L2_XFER_FUNC_SMPTE2084;
+	default:
+		return V4L2_XFER_FUNC_DEFAULT;
+	}
+}
+
+u32 iris_hfi_get_v4l2_matrix_coefficients(u32 hfi_coefficients)
+{
+	switch (hfi_coefficients) {
+	case HFI_MATRIX_COEFF_RESERVED:
+		return V4L2_YCBCR_ENC_DEFAULT;
+	case HFI_MATRIX_COEFF_BT709:
+		return V4L2_YCBCR_ENC_709;
+	case HFI_MATRIX_COEFF_BT470_SYS_BG_OR_BT601_625:
+		return V4L2_YCBCR_ENC_XV601;
+	case HFI_MATRIX_COEFF_BT601_525_BT1358_525_OR_625:
+		return V4L2_YCBCR_ENC_601;
+	case HFI_MATRIX_COEFF_SMPTE_ST240:
+		return V4L2_YCBCR_ENC_SMPTE240M;
+	case HFI_MATRIX_COEFF_BT2020_NON_CONSTANT:
+		return V4L2_YCBCR_ENC_BT2020;
+	case HFI_MATRIX_COEFF_BT2020_CONSTANT:
+		return V4L2_YCBCR_ENC_BT2020_CONST_LUM;
+	default:
+		return V4L2_YCBCR_ENC_DEFAULT;
+	}
+}
+
 int iris_hfi_core_init(struct iris_core *core)
 {
 	const struct iris_hfi_command_ops *hfi_ops = core->hfi_ops;

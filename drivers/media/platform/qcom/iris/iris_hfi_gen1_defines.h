@@ -44,18 +44,28 @@
 #define HFI_EVENT_SYS_ERROR				0x1
 #define HFI_EVENT_SESSION_ERROR				0x2
 
+#define HFI_EVENT_DATA_SEQUENCE_CHANGED_SUFFICIENT_BUF_RESOURCES   0x1000001
+#define HFI_EVENT_DATA_SEQUENCE_CHANGED_INSUFFICIENT_BUF_RESOURCES 0x1000002
+#define HFI_EVENT_SESSION_SEQUENCE_CHANGED			   0x1000003
+
 #define HFI_BUFFERFLAG_TIMESTAMPINVALID			0x00000100
 
 #define HFI_FLUSH_OUTPUT				0x1000002
 #define HFI_FLUSH_OUTPUT2				0x1000003
 #define HFI_FLUSH_ALL					0x1000004
 
+#define HFI_INDEX_EXTRADATA_INPUT_CROP			0x0700000e
+
 #define HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL				0x201001
 #define HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO	0x201002
 #define HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE				0x201008
 #define HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL				0x20100c
 
+#define HFI_PROPERTY_CONFIG_BUFFER_REQUIREMENTS		0x202001
+
 #define HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER	0x1200001
+#define HFI_PROPERTY_PARAM_VDEC_DPB_COUNTS		0x120300e
+#define HFI_PROPERTY_CONFIG_VDEC_ENTROPY		0x1204004
 
 #define HFI_BUFFER_INPUT				0x1
 #define HFI_BUFFER_OUTPUT				0x2
@@ -69,11 +79,15 @@
 
 #define HFI_PROPERTY_PARAM_FRAME_SIZE			0x1001
 #define HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT	0x1003
+#define HFI_PROPERTY_PARAM_PROFILE_LEVEL_CURRENT	0x1005
 #define HFI_PROPERTY_PARAM_WORK_MODE			0x1015
 #define HFI_PROPERTY_PARAM_WORK_ROUTE			0x1017
 #define HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE		0x2002
 
 #define HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM		0x1003001
+#define HFI_PROPERTY_PARAM_VDEC_PIXEL_BITDEPTH		0x1003007
+#define HFI_PROPERTY_PARAM_VDEC_PIC_STRUCT		0x1003009
+#define HFI_PROPERTY_PARAM_VDEC_COLOUR_SPACE		0x100300a
 #define HFI_CORE_ID_1					1
 #define HFI_COLOR_FORMAT_NV12				0x02
 #define HFI_COLOR_FORMAT_NV12_UBWC			0x8002
@@ -249,6 +263,11 @@ struct hfi_enable {
 	u32 enable;
 };
 
+struct hfi_profile_level {
+	u32 profile;
+	u32 level;
+};
+
 struct hfi_framesize {
 	u32 buffer_type;
 	u32 width;
@@ -265,6 +284,37 @@ struct hfi_video_work_mode {
 
 struct hfi_video_work_route {
 	u32 video_work_route;
+};
+
+struct hfi_bit_depth {
+	u32 buffer_type;
+	u32 bit_depth;
+};
+
+struct hfi_pic_struct {
+	u32 progressive_only;
+};
+
+struct hfi_colour_space {
+	u32 colour_space;
+};
+
+struct hfi_extradata_input_crop {
+	u32 size;
+	u32 version;
+	u32 port_index;
+	u32 left;
+	u32 top;
+	u32 width;
+	u32 height;
+};
+
+struct hfi_dpb_counts {
+	u32 max_dpb_count;
+	u32 max_ref_frames;
+	u32 max_dec_buffering;
+	u32 max_reorder_frames;
+	u32 fw_min_count;
 };
 
 struct hfi_uncompressed_format_select {
@@ -299,6 +349,38 @@ struct hfi_buffer_size_actual {
 struct hfi_multi_stream {
 	u32 buffer_type;
 	u32 enable;
+};
+
+struct hfi_buffer_requirements {
+	u32 type;
+	u32 size;
+	u32 region_size;
+	u32 hold_count;
+	u32 count_min;
+	u32 count_actual;
+	u32 contiguous;
+	u32 alignment;
+};
+
+struct hfi_event_data {
+	u32 error;
+	u32 height;
+	u32 width;
+	u32 event_type;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 tag;
+	u32 profile;
+	u32 level;
+	u32 bit_depth;
+	u32 pic_struct;
+	u32 colour_space;
+	u32 entropy_mode;
+	u32 buf_count;
+	struct {
+		u32 left, top;
+		u32 width, height;
+	} input_crop;
 };
 
 struct hfi_msg_session_empty_buffer_done_pkt {

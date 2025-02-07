@@ -91,9 +91,42 @@ enum iris_inst_state {
 	IRIS_INST_ERROR,
 };
 
+#define IRIS_INST_SUB_STATES		8
+#define IRIS_INST_MAX_SUB_STATE_VALUE	((1 << IRIS_INST_SUB_STATES) - 1)
+
+/**
+ * enum iris_inst_sub_state
+ *
+ * @IRIS_INST_SUB_FIRST_IPSC: indicates source change is received from firmware
+ *			     when output port is not yet streaming.
+ * @IRIS_INST_SUB_DRC: indicates source change is received from firmware
+ *		      when output port is streaming and source change event is
+ *		      sent to client.
+ * @IRIS_INST_SUB_DRC_LAST: indicates last buffer is received from firmware
+ *                         as part of source change.
+ * @IRIS_INST_SUB_INPUT_PAUSE: source change is received form firmware. This
+ *                            indicates that firmware is paused to process
+ *                            any further input frames.
+ * @IRIS_INST_SUB_OUTPUT_PAUSE: last buffer is received form firmware as part
+ *                             of drc sequence. This indicates that
+ *                             firmware is paused to process any further output frames.
+ */
+enum iris_inst_sub_state {
+	IRIS_INST_SUB_FIRST_IPSC	= BIT(0),
+	IRIS_INST_SUB_DRC		= BIT(1),
+	IRIS_INST_SUB_DRC_LAST		= BIT(2),
+	IRIS_INST_SUB_INPUT_PAUSE	= BIT(3),
+	IRIS_INST_SUB_OUTPUT_PAUSE	= BIT(4),
+};
+
 int iris_inst_change_state(struct iris_inst *inst,
 			   enum iris_inst_state request_state);
+int iris_inst_change_sub_state(struct iris_inst *inst,
+			       enum iris_inst_sub_state clear_sub_state,
+			       enum iris_inst_sub_state set_sub_state);
 int iris_inst_state_change_streamon(struct iris_inst *inst, u32 plane);
 int iris_inst_state_change_streamoff(struct iris_inst *inst, u32 plane);
+int iris_inst_sub_state_change_drc(struct iris_inst *inst);
+int iris_inst_sub_state_change_drc_last(struct iris_inst *inst);
 
 #endif

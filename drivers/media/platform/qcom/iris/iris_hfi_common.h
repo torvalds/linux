@@ -138,6 +138,9 @@ struct hfi_subscription_params {
 	u32	level;
 };
 
+u32 iris_hfi_get_v4l2_color_primaries(u32 hfi_primaries);
+u32 iris_hfi_get_v4l2_transfer_char(u32 hfi_characterstics);
+u32 iris_hfi_get_v4l2_matrix_coefficients(u32 hfi_coefficients);
 int iris_hfi_core_init(struct iris_core *core);
 int iris_hfi_pm_suspend(struct iris_core *core);
 int iris_hfi_pm_resume(struct iris_core *core);

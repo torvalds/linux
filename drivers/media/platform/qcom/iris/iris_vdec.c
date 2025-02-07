@@ -223,6 +223,21 @@ int iris_vdec_subscribe_event(struct iris_inst *inst, const struct v4l2_event_su
 	return ret;
 }
 
+void iris_vdec_src_change(struct iris_inst *inst)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_event event = {0};
+	struct vb2_queue *src_q;
+
+	src_q = v4l2_m2m_get_src_vq(m2m_ctx);
+	if (!vb2_is_streaming(src_q))
+		return;
+
+	event.type = V4L2_EVENT_SOURCE_CHANGE;
+	event.u.src_change.changes = V4L2_EVENT_SRC_CH_RESOLUTION;
+	v4l2_event_queue_fh(&inst->fh, &event);
+}
+
 static int iris_vdec_get_num_queued_buffers(struct iris_inst *inst,
 					    enum iris_buffer_type type)
 {

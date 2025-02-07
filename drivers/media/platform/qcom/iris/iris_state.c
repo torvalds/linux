@@ -102,3 +102,67 @@ int iris_inst_state_change_streamoff(struct iris_inst *inst, u32 plane)
 
 	return iris_inst_change_state(inst, new_state);
 }
+
+int iris_inst_change_sub_state(struct iris_inst *inst,
+			       enum iris_inst_sub_state clear_sub_state,
+			       enum iris_inst_sub_state set_sub_state)
+{
+	enum iris_inst_sub_state prev_sub_state;
+
+	if (inst->state == IRIS_INST_ERROR)
+		return 0;
+
+	if (!clear_sub_state && !set_sub_state)
+		return 0;
+
+	if ((clear_sub_state & set_sub_state) ||
+	    set_sub_state > IRIS_INST_MAX_SUB_STATE_VALUE ||
+	    clear_sub_state > IRIS_INST_MAX_SUB_STATE_VALUE)
+		return -EINVAL;
+
+	prev_sub_state = inst->sub_state;
+
+	inst->sub_state |= set_sub_state;
+	inst->sub_state &= ~clear_sub_state;
+
+	if (inst->sub_state != prev_sub_state)
+		dev_dbg(inst->core->dev, "sub_state changed from %x to %x\n",
+			prev_sub_state, inst->sub_state);
+
+	return 0;
+}
+
+int iris_inst_sub_state_change_drc(struct iris_inst *inst)
+{
+	enum iris_inst_sub_state set_sub_state = 0;
+
+	if (inst->sub_state & IRIS_INST_SUB_DRC)
+		return -EINVAL;
+
+	if (inst->state == IRIS_INST_INPUT_STREAMING ||
+	    inst->state == IRIS_INST_INIT)
+		set_sub_state = IRIS_INST_SUB_FIRST_IPSC | IRIS_INST_SUB_INPUT_PAUSE;
+	else
+		set_sub_state = IRIS_INST_SUB_DRC | IRIS_INST_SUB_INPUT_PAUSE;
+
+	return iris_inst_change_sub_state(inst, 0, set_sub_state);
+}
+
+int iris_inst_sub_state_change_drc_last(struct iris_inst *inst)
+{
+	enum iris_inst_sub_state set_sub_state;
+
+	if (inst->sub_state & IRIS_INST_SUB_DRC_LAST)
+		return -EINVAL;
+
+	if (!(inst->sub_state & IRIS_INST_SUB_DRC) ||
+	    !(inst->sub_state & IRIS_INST_SUB_INPUT_PAUSE))
+		return -EINVAL;
+
+	if (inst->sub_state & IRIS_INST_SUB_FIRST_IPSC)
+		return 0;
+
+	set_sub_state = IRIS_INST_SUB_DRC_LAST | IRIS_INST_SUB_OUTPUT_PAUSE;
+
+	return iris_inst_change_sub_state(inst, 0, set_sub_state);
+}

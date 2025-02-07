@@ -4,6 +4,7 @@
  */
 
 #include <media/videobuf2-dma-contig.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 
 #include "iris_instance.h"
@@ -180,6 +181,7 @@ int iris_vb2_buf_out_validate(struct vb2_buffer *vb)
 
 void iris_vb2_buf_queue(struct vb2_buffer *vb2)
 {
+	static const struct v4l2_event eos = { .type = V4L2_EVENT_EOS };
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb2);
 	struct v4l2_m2m_ctx *m2m_ctx;
 	struct iris_inst *inst;
@@ -201,6 +203,22 @@ void iris_vb2_buf_queue(struct vb2_buffer *vb2)
 	if (!vb2->planes[0].bytesused && V4L2_TYPE_IS_OUTPUT(vb2->type)) {
 		ret = -EINVAL;
 		goto exit;
+	}
+
+	if (V4L2_TYPE_IS_CAPTURE(vb2->vb2_queue->type)) {
+		if (inst->sub_state & IRIS_INST_SUB_DRC &&
+		    inst->sub_state & IRIS_INST_SUB_DRC_LAST) {
+			vbuf->flags |= V4L2_BUF_FLAG_LAST;
+			vbuf->sequence = inst->sequence_cap++;
+			vbuf->field = V4L2_FIELD_NONE;
+			vb2_set_plane_payload(vb2, 0, 0);
+			v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_DONE);
+			if (!v4l2_m2m_has_stopped(m2m_ctx)) {
+				v4l2_event_queue_fh(&inst->fh, &eos);
+				v4l2_m2m_mark_stopped(m2m_ctx);
+			}
+			goto exit;
+		}
 	}
 
 	v4l2_m2m_buf_queue(m2m_ctx, vbuf);
