@@ -693,7 +693,7 @@ static int arl_resume(struct pmc_dev *pmcdev)
 
 int arl_core_init(struct pmc_dev *pmcdev)
 {
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 	int func = 0;
 	bool ssram_init = true;

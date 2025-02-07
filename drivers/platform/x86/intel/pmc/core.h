@@ -430,7 +430,6 @@ struct pmc_dev {
 
 enum pmc_index {
 	PMC_IDX_MAIN,
-	PMC_IDX_SOC = PMC_IDX_MAIN,
 	PMC_IDX_IOE,
 	PMC_IDX_PCH,
 	PMC_IDX_MAX

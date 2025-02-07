@@ -553,7 +553,7 @@ static int lnl_resume(struct pmc_dev *pmcdev)
 int lnl_core_init(struct pmc_dev *pmcdev)
 {
 	int ret;
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 
 	lnl_d3_fixup();
 
