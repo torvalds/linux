@@ -1578,7 +1578,7 @@ static int cpufreq_online(unsigned int cpu)
 		if (ret) {
 			/* If the set_boost fails, the online operation is not affected */
 			pr_info("%s: CPU%d: Cannot %s BOOST\n", __func__, policy->cpu,
-				policy->boost_enabled ? "enable" : "disable");
+				str_enable_disable(policy->boost_enabled));
 			policy->boost_enabled = !policy->boost_enabled;
 		}
 	}
