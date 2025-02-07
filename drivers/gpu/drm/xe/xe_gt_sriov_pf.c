@@ -68,6 +68,19 @@ int xe_gt_sriov_pf_init_early(struct xe_gt *gt)
 	return 0;
 }
 
+/**
+ * xe_gt_sriov_pf_init - Prepare SR-IOV PF data structures on PF.
+ * @gt: the &xe_gt to initialize
+ *
+ * Late one-time initialization of the PF data.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_sriov_pf_init(struct xe_gt *gt)
+{
+	return xe_gt_sriov_pf_migration_init(gt);
+}
+
 static bool pf_needs_enable_ggtt_guest_update(struct xe_device *xe)
 {
 	return GRAPHICS_VERx100(xe) == 1200;
@@ -90,7 +103,6 @@ void xe_gt_sriov_pf_init_hw(struct xe_gt *gt)
 		pf_enable_ggtt_guest_update(gt);
 
 	xe_gt_sriov_pf_service_update(gt);
-	xe_gt_sriov_pf_migration_init(gt);
 }
 
 static u32 pf_get_vf_regs_stride(struct xe_device *xe)
