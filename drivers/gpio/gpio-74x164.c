@@ -95,6 +95,19 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 	return 0;
 }
 
+static void gen_74x164_deactivate(void *data)
+{
+	struct gen_74x164_chip *chip = data;
+
+	gpiod_set_value_cansleep(chip->gpiod_oe, 0);
+}
+
+static int gen_74x164_activate(struct device *dev, struct gen_74x164_chip *chip)
+{
+	gpiod_set_value_cansleep(chip->gpiod_oe, 1);
+	return devm_add_action_or_reset(dev, gen_74x164_deactivate, chip);
+}
+
 static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -128,8 +141,6 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (IS_ERR(chip->gpiod_oe))
 		return PTR_ERR(chip->gpiod_oe);
 
-	spi_set_drvdata(spi, chip);
-
 	chip->gpio_chip.label = spi->modalias;
 	chip->gpio_chip.direction_output = gen_74x164_direction_output;
 	chip->gpio_chip.get = gen_74x164_get_value;
@@ -149,16 +160,11 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(&spi->dev, ret, "Config write failed\n");
 
-	gpiod_set_value_cansleep(chip->gpiod_oe, 1);
+	ret = gen_74x164_activate(dev, chip);
+	if (ret)
+		return ret;
 
 	return devm_gpiochip_add_data(&spi->dev, &chip->gpio_chip, chip);
-}
-
-static void gen_74x164_remove(struct spi_device *spi)
-{
-	struct gen_74x164_chip *chip = spi_get_drvdata(spi);
-
-	gpiod_set_value_cansleep(chip->gpiod_oe, 0);
 }
 
 static const struct spi_device_id gen_74x164_spi_ids[] = {
@@ -181,7 +187,6 @@ static struct spi_driver gen_74x164_driver = {
 		.of_match_table	= gen_74x164_dt_ids,
 	},
 	.probe		= gen_74x164_probe,
-	.remove		= gen_74x164_remove,
 	.id_table	= gen_74x164_spi_ids,
 };
 module_spi_driver(gen_74x164_driver);
