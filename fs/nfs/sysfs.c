@@ -272,6 +272,38 @@ out:
 
 static struct kobj_attribute nfs_sysfs_attr_shutdown = __ATTR_RW(shutdown);
 
+#if IS_ENABLED(CONFIG_NFS_V4_1)
+static ssize_t
+implid_domain_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	struct nfs41_impl_id *impl_id = server->nfs_client->cl_implid;
+
+	if (!impl_id || strlen(impl_id->domain) == 0)
+		return 0; //sysfs_emit(buf, "");
+	return sysfs_emit(buf, "%s\n", impl_id->domain);
+}
+
+static struct kobj_attribute nfs_sysfs_attr_implid_domain = __ATTR_RO(implid_domain);
+
+
+static ssize_t
+implid_name_show(struct kobject *kobj, struct kobj_attribute *attr,
+				char *buf)
+{
+	struct nfs_server *server = container_of(kobj, struct nfs_server, kobj);
+	struct nfs41_impl_id *impl_id = server->nfs_client->cl_implid;
+
+	if (!impl_id || strlen(impl_id->name) == 0)
+		return 0; //sysfs_emit(buf, "");
+	return sysfs_emit(buf, "%s\n", impl_id->name);
+}
+
+static struct kobj_attribute nfs_sysfs_attr_implid_name = __ATTR_RO(implid_name);
+
+#endif /* IS_ENABLED(CONFIG_NFS_V4_1) */
+
 #define RPC_CLIENT_NAME_SIZE 64
 
 void nfs_sysfs_link_rpc_client(struct nfs_server *server,
@@ -309,6 +341,32 @@ static struct kobj_type nfs_sb_ktype = {
 	.child_ns_type = nfs_netns_object_child_ns_type,
 };
 
+#if IS_ENABLED(CONFIG_NFS_V4_1)
+static void nfs_sysfs_add_nfsv41_server(struct nfs_server *server)
+{
+	int ret;
+
+	if (!server->nfs_client->cl_implid)
+		return;
+
+	ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_implid_domain.attr,
+					   nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
+
+	ret = sysfs_create_file_ns(&server->kobj, &nfs_sysfs_attr_implid_name.attr,
+				   nfs_netns_server_namespace(&server->kobj));
+	if (ret < 0)
+		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
+			server->s_sysfs_id, ret);
+}
+#else /* CONFIG_NFS_V4_1 */
+static inline void nfs_sysfs_add_nfsv41_server(struct nfs_server *server)
+{
+}
+#endif /* CONFIG_NFS_V4_1 */
+
 void nfs_sysfs_add_server(struct nfs_server *server)
 {
 	int ret;
@@ -325,6 +383,8 @@ void nfs_sysfs_add_server(struct nfs_server *server)
 	if (ret < 0)
 		pr_warn("NFS: sysfs_create_file_ns for server-%d failed (%d)\n",
 			server->s_sysfs_id, ret);
+
+	nfs_sysfs_add_nfsv41_server(server);
 }
 EXPORT_SYMBOL_GPL(nfs_sysfs_add_server);
 
