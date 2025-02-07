@@ -19,9 +19,12 @@
 
 #define AMD_SDW_MAX_GROUPS		9
 #define ACP63_PCI_REV			0x63
+#define ACP70_PCI_REV			0x70
+#define ACP71_PCI_REV			0x71
 #define SOC_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
 #define ASOC_SDW_FOUR_SPK		BIT(4)
 #define ASOC_SDW_ACP_DMIC		BIT(5)
+#define ASOC_SDW_CODEC_SPKR		BIT(15)
 
 #define AMD_SDW0	0
 #define AMD_SDW1	1
@@ -38,11 +41,20 @@
 
 #define ACP_DMIC_BE_ID		4
 
+#define ACP70_SW_AUDIO0_TX	0
+#define ACP70_SW_AUDIO1_TX	1
+#define ACP70_SW_AUDIO2_TX	2
+
+#define ACP70_SW_AUDIO0_RX	3
+#define ACP70_SW_AUDIO1_RX	4
+#define ACP70_SW_AUDIO2_RX	5
+
 struct amd_mc_ctx {
 	unsigned int acp_rev;
 	unsigned int max_sdw_links;
 };
 
 int get_acp63_cpu_pin_id(u32 sdw_link_id, int be_id, int *cpu_pin_id, struct device *dev);
+int get_acp70_cpu_pin_id(u32 sdw_link_id, int be_id, int *cpu_pin_id, struct device *dev);
 
 #endif

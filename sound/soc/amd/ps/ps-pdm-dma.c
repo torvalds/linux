@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * AMD ALSA SoC Pink Sardine PDM Driver
+ * AMD ALSA SoC common PDM Driver for ACP6.3, ACP7.0 & ACP7.1 platforms.
  *
- * Copyright 2022 Advanced Micro Devices, Inc.
+ * Copyright 2022, 2025 Advanced Micro Devices, Inc.
  */
 
 #include <linux/platform_device.h>
@@ -458,6 +458,6 @@ static struct platform_driver acp63_pdm_dma_driver = {
 module_platform_driver(acp63_pdm_dma_driver);
 
 MODULE_AUTHOR("Syed.SabaKareem@amd.com");
-MODULE_DESCRIPTION("AMD PINK SARDINE PDM Driver");
+MODULE_DESCRIPTION("AMD common PDM Driver for ACP6.3, ACP7,0 & ACP7.1 platforms");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
