@@ -783,15 +783,14 @@ static const struct nla_policy fib_rule_policy[FRA_MAX + 1] = {
 	[FRA_FLOWLABEL_MASK] = { .type = NLA_BE32 },
 };
 
-int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
-		   struct netlink_ext_ack *extack)
+int fib_newrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
+		struct netlink_ext_ack *extack, bool rtnl_held)
 {
-	struct net *net = sock_net(skb->sk);
-	struct fib_rule_hdr *frh = nlmsg_data(nlh);
-	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule = NULL, *r, *last = NULL;
-	struct nlattr *tb[FRA_MAX + 1];
+	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	int err = -EINVAL, unresolved = 0;
+	struct fib_rules_ops *ops = NULL;
+	struct nlattr *tb[FRA_MAX + 1];
 	bool user_priority = false;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh))) {
@@ -893,18 +892,23 @@ errout:
 	rules_ops_put(ops);
 	return err;
 }
-EXPORT_SYMBOL_GPL(fib_nl_newrule);
+EXPORT_SYMBOL_GPL(fib_newrule);
 
-int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
-		   struct netlink_ext_ack *extack)
+static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
 {
-	struct net *net = sock_net(skb->sk);
+	return fib_newrule(sock_net(skb->sk), skb, nlh, extack, true);
+}
+
+int fib_delrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
+		struct netlink_ext_ack *extack, bool rtnl_held)
+{
+	struct fib_rule *rule = NULL, *nlrule = NULL;
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
-	struct fib_rule *rule = NULL, *r, *nlrule = NULL;
 	struct nlattr *tb[FRA_MAX+1];
-	int err = -EINVAL;
 	bool user_priority = false;
+	int err = -EINVAL;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh))) {
 		NL_SET_ERR_MSG(extack, "Invalid msg length");
@@ -969,7 +973,7 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 	 * current if it is goto rule, have actually been added.
 	 */
 	if (ops->nr_goto_rules > 0) {
-		struct fib_rule *n;
+		struct fib_rule *n, *r;
 
 		n = list_next_entry(rule, list);
 		if (&n->list == &ops->rules_list || n->pref != rule->pref)
@@ -998,7 +1002,13 @@ errout:
 	rules_ops_put(ops);
 	return err;
 }
-EXPORT_SYMBOL_GPL(fib_nl_delrule);
+EXPORT_SYMBOL_GPL(fib_delrule);
+
+static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
+			  struct netlink_ext_ack *extack)
+{
+	return fib_delrule(sock_net(skb->sk), skb, nlh, extack, true);
+}
 
 static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
 					 struct fib_rule *rule)
