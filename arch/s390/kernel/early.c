@@ -249,10 +249,6 @@ static __init void detect_machine_facilities(void)
 		clock_comparator_max = -1ULL >> 1;
 		system_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
 	}
-	if (IS_ENABLED(CONFIG_PCI) && test_facility(153)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_PCI_MIO;
-		/* the control bit is set during PCI initialization */
-	}
 }
 
 static inline void save_vector_registers(void)

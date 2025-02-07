@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <asm/text-patching.h>
+#include <asm/machine.h>
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -248,7 +249,7 @@ static int __init setup_hwcaps(void)
 	if (cpu_has_gs())
 		elf_hwcap |= HWCAP_GS;
 
-	if (MACHINE_HAS_PCI_MIO)
+	if (test_machine_feature(MFEATURE_PCI_MIO))
 		elf_hwcap |= HWCAP_PCI_MIO;
 
 	/* virtualization support */

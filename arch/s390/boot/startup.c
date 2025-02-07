@@ -7,6 +7,7 @@
 #include <asm/extmem.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
+#include <asm/machine.h>
 #include <asm/cpu_mf.h>
 #include <asm/setup.h>
 #include <asm/kasan.h>
@@ -57,6 +58,8 @@ static void detect_facilities(void)
 		segment_noexec_mask &= ~_SEGMENT_ENTRY_NOEXEC;
 		region_noexec_mask &= ~_REGION_ENTRY_NOEXEC;
 	}
+	if (IS_ENABLED(CONFIG_PCI) && test_facility(153))
+		set_machine_feature(MFEATURE_PCI_MIO);
 }
 
 static int cmma_test_essa(void)

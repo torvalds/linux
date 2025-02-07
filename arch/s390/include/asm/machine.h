@@ -9,6 +9,7 @@
 #include <linux/const.h>
 
 #define MFEATURE_LOWCORE	0
+#define MFEATURE_PCI_MIO	1
 
 #ifndef __ASSEMBLY__
 
