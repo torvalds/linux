@@ -18,6 +18,7 @@
    credentials
    lsm
    sak
+   self-protection
    siphash
    tpm/index
    digsig
@@ -29,6 +30,5 @@ TODOLIST:
 * keys/index
 * lsm-development
 * SCTP
-* self-protection
 * secrets/index
 * ipe
