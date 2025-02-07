@@ -69,5 +69,6 @@ nouveau-y += nv17_fence.o
 nouveau-y += nv50_fence.o
 nouveau-y += nv84_fence.o
 nouveau-y += nvc0_fence.o
+nouveau-y += gv100_fence.o
 
 obj-$(CONFIG_DRM_NOUVEAU) += nouveau.o
