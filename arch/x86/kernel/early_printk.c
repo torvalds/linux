@@ -19,6 +19,7 @@
 #include <linux/usb/ehci_def.h>
 #include <linux/usb/xhci-dbgp.h>
 #include <asm/pci_x86.h>
+#include <linux/static_call.h>
 
 /* Simple VGA output */
 #define VGABASE		(__ISA_IO_base + 0xb8000)
@@ -94,26 +95,28 @@ static unsigned long early_serial_base = 0x3f8;  /* ttyS0 */
 #define DLL             0       /*  Divisor Latch Low         */
 #define DLH             1       /*  Divisor latch High        */
 
-static unsigned int io_serial_in(unsigned long addr, int offset)
+static __noendbr unsigned int io_serial_in(unsigned long addr, int offset)
 {
 	return inb(addr + offset);
 }
+ANNOTATE_NOENDBR_SYM(io_serial_in);
 
-static void io_serial_out(unsigned long addr, int offset, int value)
+static __noendbr void io_serial_out(unsigned long addr, int offset, int value)
 {
 	outb(value, addr + offset);
 }
+ANNOTATE_NOENDBR_SYM(io_serial_out);
 
-static unsigned int (*serial_in)(unsigned long addr, int offset) = io_serial_in;
-static void (*serial_out)(unsigned long addr, int offset, int value) = io_serial_out;
+DEFINE_STATIC_CALL(serial_in, io_serial_in);
+DEFINE_STATIC_CALL(serial_out, io_serial_out);
 
 static int early_serial_putc(unsigned char ch)
 {
 	unsigned timeout = 0xffff;
 
-	while ((serial_in(early_serial_base, LSR) & XMTRDY) == 0 && --timeout)
+	while ((static_call(serial_in)(early_serial_base, LSR) & XMTRDY) == 0 && --timeout)
 		cpu_relax();
-	serial_out(early_serial_base, TXR, ch);
+	static_call(serial_out)(early_serial_base, TXR, ch);
 	return timeout ? 0 : -1;
 }
 
@@ -131,16 +134,16 @@ static __init void early_serial_hw_init(unsigned divisor)
 {
 	unsigned char c;
 
-	serial_out(early_serial_base, LCR, 0x3);	/* 8n1 */
-	serial_out(early_serial_base, IER, 0);	/* no interrupt */
-	serial_out(early_serial_base, FCR, 0);	/* no fifo */
-	serial_out(early_serial_base, MCR, 0x3);	/* DTR + RTS */
+	static_call(serial_out)(early_serial_base, LCR, 0x3);	/* 8n1 */
+	static_call(serial_out)(early_serial_base, IER, 0);	/* no interrupt */
+	static_call(serial_out)(early_serial_base, FCR, 0);	/* no fifo */
+	static_call(serial_out)(early_serial_base, MCR, 0x3);	/* DTR + RTS */
 
-	c = serial_in(early_serial_base, LCR);
-	serial_out(early_serial_base, LCR, c | DLAB);
-	serial_out(early_serial_base, DLL, divisor & 0xff);
-	serial_out(early_serial_base, DLH, (divisor >> 8) & 0xff);
-	serial_out(early_serial_base, LCR, c & ~DLAB);
+	c = static_call(serial_in)(early_serial_base, LCR);
+	static_call(serial_out)(early_serial_base, LCR, c | DLAB);
+	static_call(serial_out)(early_serial_base, DLL, divisor & 0xff);
+	static_call(serial_out)(early_serial_base, DLH, (divisor >> 8) & 0xff);
+	static_call(serial_out)(early_serial_base, LCR, c & ~DLAB);
 }
 
 #define DEFAULT_BAUD 9600
@@ -183,28 +186,26 @@ static __init void early_serial_init(char *s)
 	/* Convert from baud to divisor value */
 	divisor = 115200 / baud;
 
-	/* These will always be IO based ports */
-	serial_in = io_serial_in;
-	serial_out = io_serial_out;
-
 	/* Set up the HW */
 	early_serial_hw_init(divisor);
 }
 
 #ifdef CONFIG_PCI
-static void mem32_serial_out(unsigned long addr, int offset, int value)
+static __noendbr void mem32_serial_out(unsigned long addr, int offset, int value)
 {
 	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	writel(value, vaddr + offset);
 }
+ANNOTATE_NOENDBR_SYM(mem32_serial_out);
 
-static unsigned int mem32_serial_in(unsigned long addr, int offset)
+static __noendbr unsigned int mem32_serial_in(unsigned long addr, int offset)
 {
 	u32 __iomem *vaddr = (u32 __iomem *)addr;
 	/* shift implied by pointer type */
 	return readl(vaddr + offset);
 }
+ANNOTATE_NOENDBR_SYM(mem32_serial_in);
 
 /*
  * early_pci_serial_init()
@@ -278,15 +279,13 @@ static __init void early_pci_serial_init(char *s)
 	 */
 	if ((bar0 & PCI_BASE_ADDRESS_SPACE) == PCI_BASE_ADDRESS_SPACE_IO) {
 		/* it is IO mapped */
-		serial_in = io_serial_in;
-		serial_out = io_serial_out;
 		early_serial_base = bar0 & PCI_BASE_ADDRESS_IO_MASK;
 		write_pci_config(bus, slot, func, PCI_COMMAND,
 				 cmdreg|PCI_COMMAND_IO);
 	} else {
 		/* It is memory mapped - assume 32-bit alignment */
-		serial_in = mem32_serial_in;
-		serial_out = mem32_serial_out;
+		static_call_update(serial_in, mem32_serial_in);
+		static_call_update(serial_out, mem32_serial_out);
 		/* WARNING! assuming the address is always in the first 4G */
 		early_serial_base =
 			(unsigned long)early_ioremap(bar0 & PCI_BASE_ADDRESS_MEM_MASK, 0x10);
