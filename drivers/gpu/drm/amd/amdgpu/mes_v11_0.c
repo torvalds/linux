@@ -732,7 +732,9 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 
 static int mes_v11_0_set_hw_resources_1(struct amdgpu_mes *mes)
 {
-	int size = 128 * AMDGPU_GPU_PAGE_SIZE;
+	unsigned int hw_rsrc_size = 128 * AMDGPU_GPU_PAGE_SIZE;
+	/* add a page for the cleaner shader fence */
+	unsigned int alloc_size = hw_rsrc_size + AMDGPU_GPU_PAGE_SIZE;
 	int ret = 0;
 	struct amdgpu_device *adev = mes->adev;
 	union MESAPI_SET_HW_RESOURCES_1 mes_set_hw_res_pkt;
@@ -743,7 +745,7 @@ static int mes_v11_0_set_hw_resources_1(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 	mes_set_hw_res_pkt.enable_mes_info_ctx = 1;
 
-	ret = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
+	ret = amdgpu_bo_create_kernel(adev, alloc_size, PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_VRAM,
 				&mes->resource_1,
 				&mes->resource_1_gpu_addr,
@@ -754,7 +756,10 @@ static int mes_v11_0_set_hw_resources_1(struct amdgpu_mes *mes)
 	}
 
 	mes_set_hw_res_pkt.mes_info_ctx_mc_addr = mes->resource_1_gpu_addr;
-	mes_set_hw_res_pkt.mes_info_ctx_size = mes->resource_1->tbo.base.size;
+	mes_set_hw_res_pkt.mes_info_ctx_size = hw_rsrc_size;
+	mes_set_hw_res_pkt.cleaner_shader_fence_mc_addr =
+		mes->resource_1_gpu_addr + hw_rsrc_size;
+
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
 			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
 			offsetof(union MESAPI_SET_HW_RESOURCES_1, api_status));
@@ -1621,7 +1626,8 @@ static int mes_v11_0_hw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		goto failure;
 
-	if (amdgpu_sriov_is_mes_info_enable(adev)) {
+	if (amdgpu_sriov_is_mes_info_enable(adev) ||
+	    adev->gfx.enable_cleaner_shader) {
 		r = mes_v11_0_set_hw_resources_1(&adev->mes);
 		if (r) {
 			DRM_ERROR("failed mes_v11_0_set_hw_resources_1, r=%d\n", r);
@@ -1654,10 +1660,13 @@ failure:
 static int mes_v11_0_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
-	if (amdgpu_sriov_is_mes_info_enable(adev)) {
+
+	if (amdgpu_sriov_is_mes_info_enable(adev) ||
+	    adev->gfx.enable_cleaner_shader) {
 		amdgpu_bo_free_kernel(&adev->mes.resource_1, &adev->mes.resource_1_gpu_addr,
-					&adev->mes.resource_1_addr);
+				      &adev->mes.resource_1_addr);
 	}
+
 	return 0;
 }
 
