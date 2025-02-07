@@ -723,7 +723,7 @@ module_pci_driver(ps_acp63_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_AUTHOR("Syed.SabaKareem@amd.com");
-MODULE_DESCRIPTION("AMD ACP Pink Sardine PCI driver");
+MODULE_DESCRIPTION("AMD common ACP PCI driver for ACP6.3, ACP7.0 & ACP7.1 platforms");
 MODULE_IMPORT_NS("SOUNDWIRE_AMD_INIT");
 MODULE_IMPORT_NS("SND_AMD_SOUNDWIRE_ACPI");
 MODULE_LICENSE("GPL v2");

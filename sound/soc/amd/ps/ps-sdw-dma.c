@@ -793,6 +793,6 @@ static struct platform_driver acp63_sdw_dma_driver = {
 module_platform_driver(acp63_sdw_dma_driver);
 
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
-MODULE_DESCRIPTION("AMD ACP6.3 PS SDW DMA Driver");
+MODULE_DESCRIPTION("AMD common SDW DMA Driver for ACP6.3, ACP7.0 & ACP7.1 platforms");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
