@@ -10,38 +10,46 @@ from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
 
 
-def _load_env_file(src_path):
-    env = os.environ.copy()
+class NetDrvEnvBase:
+    """
+    Base class for a NIC / host envirnoments
+    """
+    def __init__(self, src_path):
+        self.src_path = src_path
+        self.env = self._load_env_file()
 
-    src_dir = Path(src_path).parent.resolve()
-    if not (src_dir / "net.config").exists():
+    def _load_env_file(self):
+        env = os.environ.copy()
+
+        src_dir = Path(self.src_path).parent.resolve()
+        if not (src_dir / "net.config").exists():
+            return ksft_setup(env)
+
+        with open((src_dir / "net.config").as_posix(), 'r') as fp:
+            for line in fp.readlines():
+                full_file = line
+                # Strip comments
+                pos = line.find("#")
+                if pos >= 0:
+                    line = line[:pos]
+                line = line.strip()
+                if not line:
+                    continue
+                pair = line.split('=', maxsplit=1)
+                if len(pair) != 2:
+                    raise Exception("Can't parse configuration line:", full_file)
+                env[pair[0]] = pair[1]
         return ksft_setup(env)
 
-    with open((src_dir / "net.config").as_posix(), 'r') as fp:
-        for line in fp.readlines():
-            full_file = line
-            # Strip comments
-            pos = line.find("#")
-            if pos >= 0:
-                line = line[:pos]
-            line = line.strip()
-            if not line:
-                continue
-            pair = line.split('=', maxsplit=1)
-            if len(pair) != 2:
-                raise Exception("Can't parse configuration line:", full_file)
-            env[pair[0]] = pair[1]
-    return ksft_setup(env)
 
-
-class NetDrvEnv:
+class NetDrvEnv(NetDrvEnvBase):
     """
     Class for a single NIC / host env, with no remote end
     """
     def __init__(self, src_path, **kwargs):
-        self._ns = None
+        super().__init__(src_path)
 
-        self.env = _load_env_file(src_path)
+        self._ns = None
 
         if 'NETIF' in self.env:
             self.dev = ip("link show dev " + self.env['NETIF'], json=True)[0]
@@ -68,7 +76,7 @@ class NetDrvEnv:
             self._ns = None
 
 
-class NetDrvEpEnv:
+class NetDrvEpEnv(NetDrvEnvBase):
     """
     Class for an environment with a local device and "remote endpoint"
     which can be used to send traffic in.
@@ -82,8 +90,7 @@ class NetDrvEpEnv:
     nsim_v6_pfx = "2001:db8::"
 
     def __init__(self, src_path, nsim_test=None):
-
-        self.env = _load_env_file(src_path)
+        super().__init__(src_path)
 
         self._stats_settle_time = None
 
