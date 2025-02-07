@@ -4134,7 +4134,7 @@ static int selinux_kernel_read_file(struct file *file,
 
 	switch (id) {
 	case READING_MODULE:
-		rc = selinux_kernel_module_from_file(contents ? file : NULL);
+		rc = selinux_kernel_module_from_file(file);
 		break;
 	default:
 		break;
