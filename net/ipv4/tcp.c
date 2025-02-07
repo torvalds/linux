@@ -423,7 +423,7 @@ void tcp_init_sock(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	int rto_min_us;
+	int rto_min_us, rto_max_ms;
 
 	tp->out_of_order_queue = RB_ROOT;
 	sk->tcp_rtx_queue = RB_ROOT;
@@ -433,8 +433,8 @@ void tcp_init_sock(struct sock *sk)
 
 	icsk->icsk_rto = TCP_TIMEOUT_INIT;
 
-	/* Use a sysctl ? */
-	icsk->icsk_rto_max = TCP_RTO_MAX;
+	rto_max_ms = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_rto_max_ms);
+	icsk->icsk_rto_max = msecs_to_jiffies(rto_max_ms);
 
 	rto_min_us = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_rto_min_us);
 	icsk->icsk_rto_min = usecs_to_jiffies(rto_min_us);
