@@ -6,6 +6,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/processor.h>
+#include <asm/machine.h>
 
 /*
  * Flush all TLB entries on the local CPU.
@@ -23,7 +24,7 @@ static inline void __tlb_flush_idte(unsigned long asce)
 	unsigned long opt;
 
 	opt = IDTE_PTOA;
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		opt |= IDTE_GUEST_ASCE;
 	/* Global TLB flush for the mm */
 	asm volatile("idte 0,%1,%0" : : "a" (opt), "a" (asce) : "cc");

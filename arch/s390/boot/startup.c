@@ -482,6 +482,7 @@ void startup_kernel(void)
 
 	read_ipl_report();
 	sclp_early_read_info();
+	sclp_early_detect_machine_features();
 	detect_facilities();
 	cmma_init();
 	sanitize_prot_virt_host();

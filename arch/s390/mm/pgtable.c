@@ -24,6 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/page-states.h>
+#include <asm/machine.h>
 
 pgprot_t pgprot_writecombine(pgprot_t prot)
 {
@@ -50,7 +51,7 @@ static inline void ptep_ipte_local(struct mm_struct *mm, unsigned long addr,
 {
 	unsigned long opt, asce;
 
-	if (MACHINE_HAS_TLB_GUEST) {
+	if (machine_has_tlb_guest()) {
 		opt = 0;
 		asce = READ_ONCE(mm->context.gmap_asce);
 		if (asce == 0UL || nodat)
@@ -70,7 +71,7 @@ static inline void ptep_ipte_global(struct mm_struct *mm, unsigned long addr,
 {
 	unsigned long opt, asce;
 
-	if (MACHINE_HAS_TLB_GUEST) {
+	if (machine_has_tlb_guest()) {
 		opt = 0;
 		asce = READ_ONCE(mm->context.gmap_asce);
 		if (asce == 0UL || nodat)
@@ -375,7 +376,7 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr,
 static inline void pmdp_idte_local(struct mm_struct *mm,
 				   unsigned long addr, pmd_t *pmdp)
 {
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		__pmdp_idte(addr, pmdp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_LOCAL);
 	else
@@ -387,7 +388,7 @@ static inline void pmdp_idte_local(struct mm_struct *mm,
 static inline void pmdp_idte_global(struct mm_struct *mm,
 				    unsigned long addr, pmd_t *pmdp)
 {
-	if (MACHINE_HAS_TLB_GUEST) {
+	if (machine_has_tlb_guest()) {
 		__pmdp_idte(addr, pmdp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
@@ -506,7 +507,7 @@ EXPORT_SYMBOL(pmdp_xchg_lazy);
 static inline void pudp_idte_local(struct mm_struct *mm,
 				   unsigned long addr, pud_t *pudp)
 {
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		__pudp_idte(addr, pudp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_LOCAL);
 	else
@@ -516,7 +517,7 @@ static inline void pudp_idte_local(struct mm_struct *mm,
 static inline void pudp_idte_global(struct mm_struct *mm,
 				    unsigned long addr, pud_t *pudp)
 {
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		__pudp_idte(addr, pudp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
 	else if (cpu_has_idte())

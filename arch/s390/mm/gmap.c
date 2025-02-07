@@ -21,6 +21,7 @@
 #include <linux/pgtable.h>
 #include <asm/page-states.h>
 #include <asm/pgalloc.h>
+#include <asm/machine.h>
 #include <asm/gmap.h>
 #include <asm/page.h>
 #include <asm/tlb.h>
@@ -2026,7 +2027,7 @@ static void gmap_pmdp_xchg(struct gmap *gmap, pmd_t *pmdp, pmd_t new,
 	gaddr &= HPAGE_MASK;
 	pmdp_notify_gmap(gmap, pmdp, gaddr);
 	new = clear_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_GMAP_IN));
-	if (MACHINE_HAS_TLB_GUEST)
+	if (machine_has_tlb_guest())
 		__pmdp_idte(gaddr, (pmd_t *)pmdp, IDTE_GUEST_ASCE, gmap->asce,
 			    IDTE_GLOBAL);
 	else if (cpu_has_idte())
@@ -2104,7 +2105,7 @@ void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr)
 			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
 						   _SEGMENT_ENTRY_GMAP_UC |
 						   _SEGMENT_ENTRY));
-			if (MACHINE_HAS_TLB_GUEST)
+			if (machine_has_tlb_guest())
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_LOCAL);
 			else if (cpu_has_idte())
@@ -2137,7 +2138,7 @@ void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr)
 			WARN_ON(pmd_val(*pmdp) & ~(_SEGMENT_ENTRY_HARDWARE_BITS_LARGE |
 						   _SEGMENT_ENTRY_GMAP_UC |
 						   _SEGMENT_ENTRY));
-			if (MACHINE_HAS_TLB_GUEST)
+			if (machine_has_tlb_guest())
 				__pmdp_idte(gaddr, pmdp, IDTE_GUEST_ASCE,
 					    gmap->asce, IDTE_GLOBAL);
 			else if (cpu_has_idte())
