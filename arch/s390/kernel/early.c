@@ -237,10 +237,6 @@ static __init void detect_diag9c(void)
 
 static __init void detect_machine_facilities(void)
 {
-	if (test_facility(8)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT1;
-		system_ctl_set_bit(0, CR0_EDAT_BIT);
-	}
 	if (test_facility(78))
 		get_lowcore()->machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))

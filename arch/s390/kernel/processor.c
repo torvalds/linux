@@ -210,7 +210,7 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_DFP;
 
 	/* huge page support */
-	if (MACHINE_HAS_EDAT1)
+	if (cpu_has_edat1())
 		elf_hwcap |= HWCAP_HPAGE;
 
 	/* 64-bit register support for 31-bit processes */

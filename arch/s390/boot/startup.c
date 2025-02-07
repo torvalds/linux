@@ -50,10 +50,8 @@ void error(char *x)
 
 static void detect_facilities(void)
 {
-	if (test_facility(8)) {
-		machine.has_edat1 = 1;
+	if (cpu_has_edat1())
 		local_ctl_set_bit(0, CR0_EDAT_BIT);
-	}
 	if (test_facility(78))
 		machine.has_edat2 = 1;
 	page_noexec_mask = -1UL;

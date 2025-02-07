@@ -4,6 +4,7 @@
  */
 
 #include <linux/memory_hotplug.h>
+#include <linux/cpufeature.h>
 #include <linux/memblock.h>
 #include <linux/pfn.h>
 #include <linux/mm.h>
@@ -249,12 +250,12 @@ static int __ref modify_pmd_table(pud_t *pud, unsigned long addr,
 		} else if (pmd_none(*pmd)) {
 			if (IS_ALIGNED(addr, PMD_SIZE) &&
 			    IS_ALIGNED(next, PMD_SIZE) &&
-			    MACHINE_HAS_EDAT1 && direct &&
+			    cpu_has_edat1() && direct &&
 			    !debug_pagealloc_enabled()) {
 				set_pmd(pmd, __pmd(__pa(addr) | prot));
 				pages++;
 				continue;
-			} else if (!direct && MACHINE_HAS_EDAT1) {
+			} else if (!direct && cpu_has_edat1()) {
 				void *new_page;
 
 				/*

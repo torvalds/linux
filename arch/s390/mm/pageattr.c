@@ -28,7 +28,7 @@ void __storage_key_init_range(unsigned long start, unsigned long end)
 	unsigned long boundary, size;
 
 	while (start < end) {
-		if (MACHINE_HAS_EDAT1) {
+		if (cpu_has_edat1()) {
 			/* set storage keys for a 1MB frame */
 			size = 1UL << 20;
 			boundary = (start + size) & ~(size - 1);
