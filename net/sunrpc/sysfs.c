@@ -286,6 +286,14 @@ static ssize_t rpc_sysfs_xprt_state_show(struct kobject *kobj,
 	return ret;
 }
 
+static ssize_t rpc_sysfs_xprt_del_xprt_show(struct kobject *kobj,
+					    struct kobj_attribute *attr,
+					    char *buf)
+{
+	return sprintf(buf, "# delete this xprt\n");
+}
+
+
 static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 					       struct kobj_attribute *attr,
 					       char *buf)
@@ -464,6 +472,40 @@ out_put:
 	return count;
 }
 
+static ssize_t rpc_sysfs_xprt_del_xprt(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t count)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	struct rpc_xprt_switch *xps = rpc_sysfs_xprt_kobj_get_xprt_switch(kobj);
+
+	if (!xprt || !xps) {
+		count = 0;
+		goto out;
+	}
+
+	if (xprt->main) {
+		count = -EINVAL;
+		goto release_tasks;
+	}
+
+	if (wait_on_bit_lock(&xprt->state, XPRT_LOCKED, TASK_KILLABLE)) {
+		count = -EINTR;
+		goto out_put;
+	}
+
+	xprt_set_offline_locked(xprt, xps);
+	xprt_delete_locked(xprt, xps);
+
+release_tasks:
+	xprt_release_write(xprt, NULL);
+out_put:
+	xprt_put(xprt);
+	xprt_switch_put(xps);
+out:
+	return count;
+}
+
 int rpc_sysfs_init(void)
 {
 	rpc_sunrpc_kset = kset_create_and_add("sunrpc", NULL, kernel_kobj);
@@ -559,12 +601,16 @@ static struct kobj_attribute rpc_sysfs_xprt_info = __ATTR(xprt_info,
 static struct kobj_attribute rpc_sysfs_xprt_change_state = __ATTR(xprt_state,
 	0644, rpc_sysfs_xprt_state_show, rpc_sysfs_xprt_state_change);
 
+static struct kobj_attribute rpc_sysfs_xprt_del = __ATTR(del_xprt,
+	0644, rpc_sysfs_xprt_del_xprt_show, rpc_sysfs_xprt_del_xprt);
+
 static struct attribute *rpc_sysfs_xprt_attrs[] = {
 	&rpc_sysfs_xprt_dstaddr.attr,
 	&rpc_sysfs_xprt_srcaddr.attr,
 	&rpc_sysfs_xprt_xprtsec.attr,
 	&rpc_sysfs_xprt_info.attr,
 	&rpc_sysfs_xprt_change_state.attr,
+	&rpc_sysfs_xprt_del.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(rpc_sysfs_xprt);
