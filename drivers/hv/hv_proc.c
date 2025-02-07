@@ -6,11 +6,7 @@
 #include <linux/slab.h>
 #include <linux/cpuhotplug.h>
 #include <linux/minmax.h>
-#include <asm/hypervisor.h>
 #include <asm/mshyperv.h>
-#include <asm/apic.h>
-
-#include <asm/trace/hyperv.h>
 
 /*
  * See struct hv_deposit_memory. The first u64 is partition ID, the rest
