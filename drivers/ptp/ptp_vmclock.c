@@ -421,10 +421,9 @@ static const struct file_operations vmclock_miscdev_fops = {
 
 /* module operations */
 
-static void vmclock_remove(struct platform_device *pdev)
+static void vmclock_remove(void *data)
 {
-	struct device *dev = &pdev->dev;
-	struct vmclock_state *st = dev_get_drvdata(dev);
+	struct vmclock_state *st = data;
 
 	if (st->ptp_clock)
 		ptp_clock_unregister(st->ptp_clock);
@@ -525,8 +524,6 @@ static int vmclock_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	dev_set_drvdata(dev, st);
-
 	if (le32_to_cpu(st->clk->magic) != VMCLOCK_MAGIC ||
 	    le32_to_cpu(st->clk->size) > resource_size(&st->res) ||
 	    le16_to_cpu(st->clk->version) != 1) {
@@ -552,6 +549,10 @@ static int vmclock_probe(struct platform_device *pdev)
 
 	st->miscdev.minor = MISC_DYNAMIC_MINOR;
 
+	ret = devm_add_action_or_reset(&pdev->dev, vmclock_remove, st);
+	if (ret)
+		goto out;
+
 	/*
 	 * If the structure is big enough, it can be mapped to userspace.
 	 * Theoretically a guest OS even using larger pages could still
@@ -574,7 +575,6 @@ static int vmclock_probe(struct platform_device *pdev)
 		if (IS_ERR(st->ptp_clock)) {
 			ret = PTR_ERR(st->ptp_clock);
 			st->ptp_clock = NULL;
-			vmclock_remove(pdev);
 			goto out;
 		}
 	}
@@ -603,7 +603,6 @@ MODULE_DEVICE_TABLE(acpi, vmclock_acpi_ids);
 
 static struct platform_driver vmclock_platform_driver = {
 	.probe		= vmclock_probe,
-	.remove		= vmclock_remove,
 	.driver	= {
 		.name	= "vmclock",
 		.acpi_match_table = vmclock_acpi_ids,
