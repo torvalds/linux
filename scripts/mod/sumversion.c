@@ -309,15 +309,10 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 
 	cmd = xmalloc(strlen(objfile) + sizeof("..cmd"));
 
-	base = strrchr(objfile, '/');
-	if (base) {
-		base++;
-		dirlen = base - objfile;
-		sprintf(cmd, "%.*s.%s.cmd", dirlen, objfile, base);
-	} else {
-		dirlen = 0;
-		sprintf(cmd, ".%s.cmd", objfile);
-	}
+	base = get_basename(objfile);
+	dirlen = base - objfile;
+	sprintf(cmd, "%.*s.%s.cmd", dirlen, objfile, base);
+
 	dir = xmalloc(dirlen + 1);
 	strncpy(dir, objfile, dirlen);
 	dir[dirlen] = '\0';

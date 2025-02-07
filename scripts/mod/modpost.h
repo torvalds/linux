@@ -216,6 +216,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen);
 /* from modpost.c */
 extern bool target_is_big_endian;
 extern bool host_is_big_endian;
+const char *get_basename(const char *path);
 char *read_text_file(const char *filename);
 char *get_line(char **stringp);
 void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
