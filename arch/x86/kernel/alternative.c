@@ -865,14 +865,12 @@ Efault:
 
 static void poison_cfi(void *addr);
 
-static void __init_or_module poison_endbr(void *addr, bool warn)
+static void __init_or_module poison_endbr(void *addr)
 {
 	u32 poison = gen_endbr_poison();
 
-	if (!is_endbr(addr)) {
-		WARN_ON_ONCE(warn);
+	if (WARN_ON_ONCE(!is_endbr(addr)))
 		return;
-	}
 
 	DPRINTK(ENDBR, "ENDBR at: %pS (%px)", addr, addr);
 
@@ -897,7 +895,7 @@ void __init_or_module noinline apply_seal_endbr(s32 *start, s32 *end)
 	for (s = start; s < end; s++) {
 		void *addr = (void *)s + *s;
 
-		poison_endbr(addr, true);
+		poison_endbr(addr);
 		if (IS_ENABLED(CONFIG_FINEIBT))
 			poison_cfi(addr - 16);
 	}
@@ -1200,6 +1198,14 @@ static int cfi_rewrite_preamble(s32 *start, s32 *end)
 		void *addr = (void *)s + *s;
 		u32 hash;
 
+		/*
+		 * When the function doesn't start with ENDBR the compiler will
+		 * have determined there are no indirect calls to it and we
+		 * don't need no CFI either.
+		 */
+		if (!is_endbr(addr + 16))
+			continue;
+
 		hash = decode_preamble_hash(addr);
 		if (WARN(!hash, "no CFI hash found at: %pS %px %*ph\n",
 			 addr, addr, 5, addr))
@@ -1220,7 +1226,10 @@ static void cfi_rewrite_endbr(s32 *start, s32 *end)
 	for (s = start; s < end; s++) {
 		void *addr = (void *)s + *s;
 
-		poison_endbr(addr+16, false);
+		if (!is_endbr(addr + 16))
+			continue;
+
+		poison_endbr(addr + 16);
 	}
 }
 
@@ -1353,8 +1362,22 @@ static inline void poison_hash(void *addr)
 
 static void poison_cfi(void *addr)
 {
+	/*
+	 * Compilers manage to be inconsistent with ENDBR vs __cfi prefixes,
+	 * some (static) functions for which they can determine the address
+	 * is never taken do not get a __cfi prefix, but *DO* get an ENDBR.
+	 *
+	 * As such, these functions will get sealed, but we need to be careful
+	 * to not unconditionally scribble the previous function.
+	 */
 	switch (cfi_mode) {
 	case CFI_FINEIBT:
+		/*
+		 * FineIBT prefix should start with an ENDBR.
+		 */
+		if (!is_endbr(addr))
+			break;
+
 		/*
 		 * __cfi_\func:
 		 *	osp nopl (%rax)
@@ -1363,11 +1386,17 @@ static void poison_cfi(void *addr)
 		 *	ud2
 		 * 1:	nop
 		 */
-		poison_endbr(addr, false);
+		poison_endbr(addr);
 		poison_hash(addr + fineibt_preamble_hash);
 		break;
 
 	case CFI_KCFI:
+		/*
+		 * kCFI prefix should start with a valid hash.
+		 */
+		if (!decode_preamble_hash(addr))
+			break;
+
 		/*
 		 * __cfi_\func:
 		 *	movl	$0, %eax
