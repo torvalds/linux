@@ -343,7 +343,7 @@ static bool hdcp_key_loadable(struct intel_display *display)
 	 * On HSW and BDW, Display HW loads the Key as soon as Display resumes.
 	 * On all BXT+, SW can load the keys only when the PW#1 is turned on.
 	 */
-	if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+	if (display->platform.haswell || display->platform.broadwell)
 		id = HSW_DISP_PW_GLOBAL;
 	else
 		id = SKL_DISP_PW_1;
@@ -382,7 +382,7 @@ static int intel_hdcp_load_keys(struct intel_display *display)
 	 * On HSW and BDW HW loads the HDCP1.4 Key when Display comes
 	 * out of reset. So if Key is not already loaded, its an error state.
 	 */
-	if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+	if (display->platform.haswell || display->platform.broadwell)
 		if (!(intel_de_read(display, HDCP_KEY_STATUS) & HDCP_KEY_LOAD_DONE))
 			return -ENXIO;
 
@@ -394,7 +394,7 @@ static int intel_hdcp_load_keys(struct intel_display *display)
 	 * process from other platforms. These platforms use the GT Driver
 	 * Mailbox interface.
 	 */
-	if (DISPLAY_VER(display) == 9 && !IS_BROXTON(i915)) {
+	if (DISPLAY_VER(display) == 9 && !display->platform.broxton) {
 		ret = snb_pcode_write(&i915->uncore, SKL_PCODE_LOAD_HDCP_KEYS, 1);
 		if (ret) {
 			drm_err(display->drm,
@@ -2339,18 +2339,16 @@ static int initialize_hdcp_port_data(struct intel_connector *connector,
 
 static bool is_hdcp2_supported(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (intel_hdcp_gsc_cs_required(display))
 		return true;
 
 	if (!IS_ENABLED(CONFIG_INTEL_MEI_HDCP))
 		return false;
 
-	return (DISPLAY_VER(display) >= 10 ||
-		IS_KABYLAKE(i915) ||
-		IS_COFFEELAKE(i915) ||
-		IS_COMETLAKE(i915));
+	return DISPLAY_VER(display) >= 10 ||
+		display->platform.kabylake ||
+		display->platform.coffeelake ||
+		display->platform.cometlake;
 }
 
 void intel_hdcp_component_init(struct intel_display *display)
@@ -2775,10 +2773,10 @@ void intel_hdcp_info(struct seq_file *m, struct intel_connector *connector)
 static int intel_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
 	struct intel_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 	int ret;
 
-	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	ret = drm_modeset_lock_single_interruptible(&display->drm->mode_config.connection_mutex);
 	if (ret)
 		return ret;
 
@@ -2793,7 +2791,7 @@ static int intel_hdcp_sink_capability_show(struct seq_file *m, void *data)
 	__intel_hdcp_info(m, connector, false);
 
 out:
-	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+	drm_modeset_unlock(&display->drm->mode_config.connection_mutex);
 
 	return ret;
 }
