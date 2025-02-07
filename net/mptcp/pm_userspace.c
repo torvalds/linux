@@ -189,7 +189,8 @@ static struct mptcp_sock *mptcp_userspace_pm_get_sock(const struct genl_info *in
 	}
 
 	if (!mptcp_pm_is_userspace(msk)) {
-		GENL_SET_ERR_MSG(info, "userspace PM not selected");
+		NL_SET_ERR_MSG_ATTR(info->extack, token,
+				    "userspace PM not selected");
 		sock_put((struct sock *)msk);
 		return NULL;
 	}
@@ -220,20 +221,21 @@ int mptcp_pm_nl_announce_doit(struct sk_buff *skb, struct genl_info *info)
 		goto announce_err;
 
 	if (addr_val.addr.id == 0) {
-		GENL_SET_ERR_MSG(info, "invalid addr id");
+		NL_SET_ERR_MSG_ATTR(info->extack, addr, "invalid addr id");
 		err = -EINVAL;
 		goto announce_err;
 	}
 
 	if (!(addr_val.flags & MPTCP_PM_ADDR_FLAG_SIGNAL)) {
-		GENL_SET_ERR_MSG(info, "invalid addr flags");
+		NL_SET_ERR_MSG_ATTR(info->extack, addr, "invalid addr flags");
 		err = -EINVAL;
 		goto announce_err;
 	}
 
 	err = mptcp_userspace_pm_append_new_local_addr(msk, &addr_val, false);
 	if (err < 0) {
-		GENL_SET_ERR_MSG(info, "did not match address and id");
+		NL_SET_ERR_MSG_ATTR(info->extack, addr,
+				    "did not match address and id");
 		goto announce_err;
 	}
 
@@ -354,9 +356,9 @@ int mptcp_pm_nl_remove_doit(struct sk_buff *skb, struct genl_info *info)
 	err = 0;
 out:
 	if (err)
-		GENL_SET_ERR_MSG_FMT(info,
-				     "address with id %u not found",
-				     id_val);
+		NL_SET_ERR_MSG_ATTR_FMT(info->extack, id,
+					"address with id %u not found",
+					id_val);
 
 	sock_put(sk);
 	return err;
@@ -388,7 +390,7 @@ int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb, struct genl_info *info)
 		goto create_err;
 
 	if (entry.flags & MPTCP_PM_ADDR_FLAG_SIGNAL) {
-		GENL_SET_ERR_MSG(info, "invalid addr flags");
+		NL_SET_ERR_MSG_ATTR(info->extack, laddr, "invalid addr flags");
 		err = -EINVAL;
 		goto create_err;
 	}
@@ -407,7 +409,8 @@ int mptcp_pm_nl_subflow_create_doit(struct sk_buff *skb, struct genl_info *info)
 
 	err = mptcp_userspace_pm_append_new_local_addr(msk, &entry, false);
 	if (err < 0) {
-		GENL_SET_ERR_MSG(info, "did not match address and id");
+		NL_SET_ERR_MSG_ATTR(info->extack, laddr,
+				    "did not match address and id");
 		goto create_err;
 	}
 
@@ -528,13 +531,13 @@ int mptcp_pm_nl_subflow_destroy_doit(struct sk_buff *skb, struct genl_info *info
 	}
 
 	if (!addr_l.addr.port) {
-		GENL_SET_ERR_MSG(info, "missing local port");
+		NL_SET_ERR_MSG_ATTR(info->extack, laddr, "missing local port");
 		err = -EINVAL;
 		goto destroy_err;
 	}
 
 	if (!addr_r.port) {
-		GENL_SET_ERR_MSG(info, "missing remote port");
+		NL_SET_ERR_MSG_ATTR(info->extack, raddr, "missing remote port");
 		err = -EINVAL;
 		goto destroy_err;
 	}
@@ -588,7 +591,8 @@ int mptcp_userspace_pm_set_flags(struct sk_buff *skb, struct genl_info *info)
 		goto set_flags_err;
 
 	if (loc.addr.family == AF_UNSPEC) {
-		GENL_SET_ERR_MSG(info, "invalid local address family");
+		NL_SET_ERR_MSG_ATTR(info->extack, attr,
+				    "invalid local address family");
 		ret = -EINVAL;
 		goto set_flags_err;
 	}
@@ -599,7 +603,8 @@ int mptcp_userspace_pm_set_flags(struct sk_buff *skb, struct genl_info *info)
 		goto set_flags_err;
 
 	if (rem.addr.family == AF_UNSPEC) {
-		GENL_SET_ERR_MSG(info, "invalid remote address family");
+		NL_SET_ERR_MSG_ATTR(info->extack, attr_rem,
+				    "invalid remote address family");
 		ret = -EINVAL;
 		goto set_flags_err;
 	}
@@ -722,7 +727,7 @@ int mptcp_userspace_pm_get_addr(struct sk_buff *skb,
 	spin_lock_bh(&msk->pm.lock);
 	entry = mptcp_userspace_pm_lookup_addr_by_id(msk, addr.addr.id);
 	if (!entry) {
-		GENL_SET_ERR_MSG(info, "address not found");
+		NL_SET_ERR_MSG_ATTR(info->extack, attr, "address not found");
 		ret = -EINVAL;
 		goto unlock_fail;
 	}
