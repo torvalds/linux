@@ -1727,14 +1727,10 @@ static inline int tid_geq(tid_t x, tid_t y)
 extern int jbd2_journal_blocks_per_page(struct inode *inode);
 extern size_t journal_tag_bytes(journal_t *journal);
 
-static inline bool jbd2_journal_has_csum_v2or3_feature(journal_t *j)
-{
-	return jbd2_has_feature_csum2(j) || jbd2_has_feature_csum3(j);
-}
-
 static inline int jbd2_journal_has_csum_v2or3(journal_t *journal)
 {
-	return jbd2_journal_has_csum_v2or3_feature(journal);
+	return jbd2_has_feature_csum2(journal) ||
+	       jbd2_has_feature_csum3(journal);
 }
 
 static inline int jbd2_journal_get_num_fc_blks(journal_superblock_t *jsb)

@@ -1361,7 +1361,7 @@ static int journal_check_superblock(journal_t *journal)
 		return err;
 	}
 
-	if (jbd2_journal_has_csum_v2or3_feature(journal) &&
+	if (jbd2_journal_has_csum_v2or3(journal) &&
 	    jbd2_has_feature_checksum(journal)) {
 		/* Can't have checksum v1 and v2 on at the same time! */
 		printk(KERN_ERR "JBD2: Can't enable checksumming v1 and v2/3 "
@@ -1369,7 +1369,7 @@ static int journal_check_superblock(journal_t *journal)
 		return err;
 	}
 
-	if (jbd2_journal_has_csum_v2or3_feature(journal)) {
+	if (jbd2_journal_has_csum_v2or3(journal)) {
 		if (sb->s_checksum_type != JBD2_CRC32C_CHKSUM) {
 			printk(KERN_ERR "JBD2: Unknown checksum type\n");
 			return err;
