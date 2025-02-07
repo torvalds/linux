@@ -287,7 +287,6 @@ static bool pidfs_ioctl_valid(unsigned int cmd)
 	switch (cmd) {
 	case FS_IOC_GETVERSION:
 	case PIDFD_GET_CGROUP_NAMESPACE:
-	case PIDFD_GET_INFO:
 	case PIDFD_GET_IPC_NAMESPACE:
 	case PIDFD_GET_MNT_NAMESPACE:
 	case PIDFD_GET_NET_NAMESPACE:
@@ -298,6 +297,17 @@ static bool pidfs_ioctl_valid(unsigned int cmd)
 	case PIDFD_GET_USER_NAMESPACE:
 	case PIDFD_GET_PID_NAMESPACE:
 		return true;
+	}
+
+	/* Extensible ioctls require some more careful checks. */
+	switch (_IOC_NR(cmd)) {
+	case _IOC_NR(PIDFD_GET_INFO):
+		/*
+		 * Try to prevent performing a pidfd ioctl when someone
+		 * erronously mistook the file descriptor for a pidfd.
+		 * This is not perfect but will catch most cases.
+		 */
+		return (_IOC_TYPE(cmd) == _IOC_TYPE(PIDFD_GET_INFO));
 	}
 
 	return false;
