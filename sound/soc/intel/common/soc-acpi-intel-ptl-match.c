@@ -270,7 +270,7 @@ static const struct snd_soc_acpi_link_adr lnl_sdw_rt713_vb_l2_rt1320_l13[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_link_adr lnl_sdw_rt712_vb_l2_rt1320_l1[] = {
+static const struct snd_soc_acpi_link_adr ptl_sdw_rt712_vb_l2_rt1320_l1[] = {
 	{
 		.mask = BIT(2),
 		.num_adr = ARRAY_SIZE(rt712_vb_2_group1_adr),
@@ -337,10 +337,10 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_ptl_sdw_machines[] = {
 	},
 	{
 		.link_mask = BIT(1) | BIT(2),
-		.links = lnl_sdw_rt712_vb_l2_rt1320_l1,
+		.links = ptl_sdw_rt712_vb_l2_rt1320_l1,
 		.drv_name = "sof_sdw",
 		.machine_check = snd_soc_acpi_intel_sdca_is_device_rt712_vb,
-		.sof_tplg_filename = "sof-lnl-rt712-l2-rt1320-l1.tplg"
+		.sof_tplg_filename = "sof-ptl-rt712-l2-rt1320-l1.tplg"
 	},
 	{
 		.link_mask = BIT(1) | BIT(2) | BIT(3),
