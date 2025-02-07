@@ -22,29 +22,9 @@
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
 #include <asm/fpu.h>
+#include <asm/asm.h>
 
 int topology_max_mnest;
-
-static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
-{
-	int r0 = (fc << 28) | sel1;
-	int rc = 0;
-
-	asm volatile(
-		"	lr	0,%[r0]\n"
-		"	lr	1,%[r1]\n"
-		"	stsi	0(%[sysinfo])\n"
-		"	jz	0f\n"
-		"	lhi	%[rc],%[retval]\n"
-		"0:	lr	%[r0],0\n"
-		: [r0] "+d" (r0), [rc] "+d" (rc)
-		: [r1] "d" (sel2),
-		  [sysinfo] "a" (sysinfo),
-		  [retval] "K" (-EOPNOTSUPP)
-		: "cc", "0", "1", "memory");
-	*lvl = ((unsigned int) r0) >> 28;
-	return rc;
-}
 
 /*
  * stsi - store system information
@@ -54,12 +34,21 @@ static inline int __stsi(void *sysinfo, int fc, int sel1, int sel2, int *lvl)
  */
 int stsi(void *sysinfo, int fc, int sel1, int sel2)
 {
-	int lvl, rc;
+	int r0 = (fc << 28) | sel1;
+	int cc;
 
-	rc = __stsi(sysinfo, fc, sel1, sel2, &lvl);
-	if (rc)
-		return rc;
-	return fc ? 0 : lvl;
+	asm volatile(
+		"	lr	%%r0,%[r0]\n"
+		"	lr	%%r1,%[r1]\n"
+		"	stsi	%[sysinfo]\n"
+		"	lr	%[r0],%%r0\n"
+		CC_IPM(cc)
+		: CC_OUT(cc, cc), [r0] "+d" (r0), [sysinfo] "=Q" (*(char *)sysinfo)
+		: [r1] "d" (sel2)
+		: CC_CLOBBER_LIST("0", "1", "memory"));
+	if (cc == 3)
+		return -EOPNOTSUPP;
+	return fc ? 0 : (unsigned int)r0 >> 28;
 }
 EXPORT_SYMBOL(stsi);
 
