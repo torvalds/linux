@@ -6,6 +6,7 @@
 #include <linux/mnt_idmapping.h>
 #include <linux/slab.h>
 #include <linux/user_namespace.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
@@ -334,3 +335,53 @@ void mnt_idmap_put(struct mnt_idmap *idmap)
 		free_mnt_idmap(idmap);
 }
 EXPORT_SYMBOL_GPL(mnt_idmap_put);
+
+int statmount_mnt_idmap(struct mnt_idmap *idmap, struct seq_file *seq, bool uid_map)
+{
+	struct uid_gid_map *map, *map_up;
+	u32 idx, nr_mappings;
+
+	if (!is_valid_mnt_idmap(idmap))
+		return 0;
+
+	/*
+	 * Idmappings are shown relative to the caller's idmapping.
+	 * This is both the most intuitive and most useful solution.
+	 */
+	if (uid_map) {
+		map = &idmap->uid_map;
+		map_up = &current_user_ns()->uid_map;
+	} else {
+		map = &idmap->gid_map;
+		map_up = &current_user_ns()->gid_map;
+	}
+
+	for (idx = 0, nr_mappings = 0; idx < map->nr_extents; idx++) {
+		uid_t lower;
+		struct uid_gid_extent *extent;
+
+		if (map->nr_extents <= UID_GID_MAP_MAX_BASE_EXTENTS)
+			extent = &map->extent[idx];
+		else
+			extent = &map->forward[idx];
+
+		/*
+		 * Verify that the whole range of the mapping can be
+		 * resolved in the caller's idmapping. If it cannot be
+		 * resolved skip the mapping.
+		 */
+		lower = map_id_range_up(map_up, extent->lower_first, extent->count);
+		if (lower == (uid_t) -1)
+			continue;
+
+		seq_printf(seq, "%u %u %u", extent->first, lower, extent->count);
+
+		seq->count++; /* mappings are separated by \0 */
+		if (seq_has_overflowed(seq))
+			return -EAGAIN;
+
+		nr_mappings++;
+	}
+
+	return nr_mappings;
+}
