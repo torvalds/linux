@@ -129,6 +129,31 @@ static ssize_t rpc_sysfs_xprt_srcaddr_show(struct kobject *kobj,
 	return ret;
 }
 
+static const char *xprtsec_strings[] = {
+	[RPC_XPRTSEC_NONE] = "none",
+	[RPC_XPRTSEC_TLS_ANON] = "tls-anon",
+	[RPC_XPRTSEC_TLS_X509] = "tls-x509",
+};
+
+static ssize_t rpc_sysfs_xprt_xprtsec_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_xprt *xprt = rpc_sysfs_xprt_kobj_get_xprt(kobj);
+	ssize_t ret;
+
+	if (!xprt) {
+		ret = sprintf(buf, "<closed>\n");
+		goto out;
+	}
+
+	ret = sprintf(buf, "%s\n", xprtsec_strings[xprt->xprtsec.policy]);
+	xprt_put(xprt);
+out:
+	return ret;
+
+}
+
 static ssize_t rpc_sysfs_xprt_info_show(struct kobject *kobj,
 					struct kobj_attribute *attr, char *buf)
 {
@@ -404,6 +429,9 @@ static struct kobj_attribute rpc_sysfs_xprt_dstaddr = __ATTR(dstaddr,
 static struct kobj_attribute rpc_sysfs_xprt_srcaddr = __ATTR(srcaddr,
 	0644, rpc_sysfs_xprt_srcaddr_show, NULL);
 
+static struct kobj_attribute rpc_sysfs_xprt_xprtsec = __ATTR(xprtsec,
+	0644, rpc_sysfs_xprt_xprtsec_show, NULL);
+
 static struct kobj_attribute rpc_sysfs_xprt_info = __ATTR(xprt_info,
 	0444, rpc_sysfs_xprt_info_show, NULL);
 
@@ -413,6 +441,7 @@ static struct kobj_attribute rpc_sysfs_xprt_change_state = __ATTR(xprt_state,
 static struct attribute *rpc_sysfs_xprt_attrs[] = {
 	&rpc_sysfs_xprt_dstaddr.attr,
 	&rpc_sysfs_xprt_srcaddr.attr,
+	&rpc_sysfs_xprt_xprtsec.attr,
 	&rpc_sysfs_xprt_info.attr,
 	&rpc_sysfs_xprt_change_state.attr,
 	NULL,
