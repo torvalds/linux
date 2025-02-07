@@ -31,6 +31,7 @@ struct iris_platform_data {
 	unsigned int clk_tbl_size;
 	const char * const *clk_rst_tbl;
 	unsigned int clk_rst_tbl_size;
+	u64 dma_mask;
 };
 
 #endif

@@ -81,6 +81,12 @@ int iris_open(struct file *filp)
 	struct iris_inst *inst;
 	int ret;
 
+	ret = iris_core_init(core);
+	if (ret) {
+		dev_err(core->dev, "core init failed\n");
+		return ret;
+	}
+
 	inst = core->iris_platform_data->get_instance();
 	if (!inst)
 		return -ENOMEM;

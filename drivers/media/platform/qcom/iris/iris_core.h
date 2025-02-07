@@ -9,7 +9,9 @@
 #include <linux/types.h>
 #include <media/v4l2-device.h>
 
+#include "iris_hfi_queue.h"
 #include "iris_platform_common.h"
+#include "iris_state.h"
 
 struct icc_info {
 	const char		*name;
@@ -34,6 +36,15 @@ struct icc_info {
  * @clk_count: count of iris clocks
  * @resets: table of iris reset clocks
  * @iris_platform_data: a structure for platform data
+ * @state: current state of core
+ * @iface_q_table_daddr: device address for interface queue table memory
+ * @sfr_daddr: device address for SFR (Sub System Failure Reason) register memory
+ * @iface_q_table_vaddr: virtual address for interface queue table memory
+ * @sfr_vaddr: virtual address for SFR (Sub System Failure Reason) register memory
+ * @command_queue: shared interface queue to send commands to firmware
+ * @message_queue: shared interface queue to receive responses from firmware
+ * @debug_queue: shared interface queue to receive debug info from firmware
+ * @lock: a lock for this strucure
  */
 
 struct iris_core {
@@ -51,6 +62,18 @@ struct iris_core {
 	u32					clk_count;
 	struct reset_control_bulk_data		*resets;
 	const struct iris_platform_data		*iris_platform_data;
+	enum iris_core_state			state;
+	dma_addr_t				iface_q_table_daddr;
+	dma_addr_t				sfr_daddr;
+	void					*iface_q_table_vaddr;
+	void					*sfr_vaddr;
+	struct iris_iface_q_info		command_queue;
+	struct iris_iface_q_info		message_queue;
+	struct iris_iface_q_info		debug_queue;
+	struct mutex				lock; /* lock for core related operations */
 };
+
+int iris_core_init(struct iris_core *core);
+void iris_core_deinit(struct iris_core *core);
 
 #endif
