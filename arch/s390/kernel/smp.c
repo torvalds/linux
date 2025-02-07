@@ -39,6 +39,7 @@
 #include <linux/kprobes.h>
 #include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
+#include <asm/machine.h>
 #include <asm/ctlreg.h>
 #include <asm/pfault.h>
 #include <asm/diag.h>
@@ -417,7 +418,7 @@ EXPORT_SYMBOL(arch_vcpu_is_preempted);
 
 void notrace smp_yield_cpu(int cpu)
 {
-	if (!MACHINE_HAS_DIAG9C)
+	if (!machine_has_diag9c())
 		return;
 	diag_stat_inc_norecursion(DIAG_STAT_X09C);
 	asm volatile("diag %0,0,0x9c"

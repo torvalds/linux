@@ -203,23 +203,6 @@ static noinline __init void setup_lowcore_early(void)
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 }
 
-static __init void detect_diag9c(void)
-{
-	unsigned int cpu_address;
-	int rc;
-
-	cpu_address = stap();
-	diag_stat_inc(DIAG_STAT_X09C);
-	asm volatile(
-		"	diag	%2,0,0x9c\n"
-		"0:	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc) : "0" (-EOPNOTSUPP), "d" (cpu_address) : "cc");
-	if (!rc)
-		get_lowcore()->machine_flags |= MACHINE_FLAG_DIAG9C;
-}
-
 static __init void detect_machine_facilities(void)
 {
 	if (test_facility(129))
@@ -269,7 +252,6 @@ void __init startup_init(void)
 	detect_machine_type();
 	setup_arch_string();
 	setup_boot_command_line();
-	detect_diag9c();
 	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();

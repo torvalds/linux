@@ -49,6 +49,37 @@ void error(char *x)
 	disabled_wait();
 }
 
+static void detect_diag9c(void)
+{
+	unsigned long reg1, reg2;
+	unsigned int cpu;
+	int rc = 1;
+	psw_t old;
+
+	cpu = stap();
+	asm volatile(
+		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
+		"	epsw	%[reg1],%[reg2]\n"
+		"	st	%[reg1],0(%[psw_pgm])\n"
+		"	st	%[reg2],4(%[psw_pgm])\n"
+		"	larl	%[reg1],1f\n"
+		"	stg	%[reg1],8(%[psw_pgm])\n"
+		"	diag	%[cpu],0,0x9c\n"
+		"	lhi	%[rc],0\n"
+		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		: [reg1] "=&d" (reg1),
+		  [reg2] "=&a" (reg2),
+		  [rc] "+&d" (rc),
+		  "+Q" (get_lowcore()->program_new_psw),
+		  "=Q" (old)
+		: [psw_old] "a" (&old),
+		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
+		  [cpu] "d" (cpu)
+		: "cc", "memory");
+	if (!rc)
+		set_machine_feature(MFEATURE_DIAG9C);
+}
+
 static void reset_tod_clock(void)
 {
 	union tod_clock clk;
@@ -488,6 +519,7 @@ void startup_kernel(void)
 	sclp_early_read_info();
 	sclp_early_detect_machine_features();
 	detect_facilities();
+	detect_diag9c();
 	cmma_init();
 	sanitize_prot_virt_host();
 	max_physmem_end = detect_max_physmem_end();
