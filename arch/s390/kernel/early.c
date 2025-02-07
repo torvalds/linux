@@ -38,12 +38,14 @@
 #include <asm/boot_data.h>
 #include "entry.h"
 
-#define decompressor_handled_param(param)			\
-static int __init ignore_decompressor_param_##param(char *s)	\
+#define __decompressor_handled_param(func, param)		\
+static int __init ignore_decompressor_param_##func(char *s)	\
 {								\
 	return 0;						\
 }								\
-early_param(#param, ignore_decompressor_param_##param)
+early_param(#param, ignore_decompressor_param_##func)
+
+#define decompressor_handled_param(param) __decompressor_handled_param(param, param)
 
 decompressor_handled_param(mem);
 decompressor_handled_param(vmalloc);
