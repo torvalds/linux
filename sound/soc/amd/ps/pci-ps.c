@@ -632,7 +632,11 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
 		goto de_init;
 	}
-	adata->machines = snd_soc_acpi_amd_acp63_sdw_machines;
+	if (adata->acp_rev >= ACP70_PCI_REV)
+		adata->machines = snd_soc_acpi_amd_acp70_sdw_machines;
+	else
+		adata->machines = snd_soc_acpi_amd_acp63_sdw_machines;
+
 	ret = acp63_machine_register(&pci->dev);
 	if (ret) {
 		dev_err(&pci->dev, "ACP machine register failed\n");
