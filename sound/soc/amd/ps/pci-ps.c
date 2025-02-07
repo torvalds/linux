@@ -299,7 +299,6 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 	const union acpi_object *obj;
 	acpi_handle handle;
 	acpi_integer dmic_status;
-	u32 config;
 	bool is_dmic_dev = false;
 	bool is_sdw_dev = false;
 	bool wov_en, dmic_en;
@@ -309,30 +308,7 @@ static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *a
 	wov_en = true;
 	dmic_en = false;
 
-	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
-	switch (config) {
-	case ACP_CONFIG_4:
-	case ACP_CONFIG_5:
-	case ACP_CONFIG_10:
-	case ACP_CONFIG_11:
-		acp_data->is_pdm_config = true;
-		break;
-	case ACP_CONFIG_2:
-	case ACP_CONFIG_3:
-		acp_data->is_sdw_config = true;
-		break;
-	case ACP_CONFIG_6:
-	case ACP_CONFIG_7:
-	case ACP_CONFIG_12:
-	case ACP_CONFIG_8:
-	case ACP_CONFIG_13:
-	case ACP_CONFIG_14:
-		acp_data->is_pdm_config = true;
-		acp_data->is_sdw_config = true;
-		break;
-	default:
-		break;
-	}
+	acp_hw_get_config(pci, acp_data);
 
 	if (acp_data->is_pdm_config) {
 		pdm_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);

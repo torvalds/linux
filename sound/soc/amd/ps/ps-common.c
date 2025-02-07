@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -96,6 +97,37 @@ static int acp63_deinit(void __iomem *acp_base, struct device *dev)
 	writel(0, acp_base + ACP_CONTROL);
 	writel(1, acp_base + ACP_ZSC_DSP_CTRL);
 	return 0;
+}
+
+static void acp63_get_config(struct pci_dev *pci, struct acp63_dev_data *acp_data)
+{
+	u32 config;
+
+	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
+	dev_dbg(&pci->dev, "ACP config value: %d\n", config);
+	switch (config) {
+	case ACP_CONFIG_4:
+	case ACP_CONFIG_5:
+	case ACP_CONFIG_10:
+	case ACP_CONFIG_11:
+		acp_data->is_pdm_config = true;
+		break;
+	case ACP_CONFIG_2:
+	case ACP_CONFIG_3:
+		acp_data->is_sdw_config = true;
+		break;
+	case ACP_CONFIG_6:
+	case ACP_CONFIG_7:
+	case ACP_CONFIG_12:
+	case ACP_CONFIG_8:
+	case ACP_CONFIG_13:
+	case ACP_CONFIG_14:
+		acp_data->is_pdm_config = true;
+		acp_data->is_sdw_config = true;
+		break;
+	default:
+		break;
+	}
 }
 
 static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
@@ -183,6 +215,7 @@ void acp63_hw_init_ops(struct acp_hw_ops *hw_ops)
 {
 	hw_ops->acp_init = acp63_init;
 	hw_ops->acp_deinit = acp63_deinit;
+	hw_ops->acp_get_config = acp63_get_config;
 	hw_ops->acp_suspend = snd_acp63_suspend;
 	hw_ops->acp_resume = snd_acp63_resume;
 	hw_ops->acp_suspend_runtime = snd_acp63_suspend;
