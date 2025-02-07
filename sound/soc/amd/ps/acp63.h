@@ -222,6 +222,7 @@ struct acp63_dev_data;
  * @acp_init: ACP initialization
  * @acp_deinit: ACP de-initialization
  * @acp_get_config: function to read the acp pin configuration
+ * @acp_sdw_dma_irq_thread: ACP SoundWire DMA interrupt thread
  * acp_suspend: ACP system level suspend callback
  * acp_resume: ACP system level resume callback
  * acp_suspend_runtime: ACP runtime suspend callback
@@ -231,6 +232,7 @@ struct acp_hw_ops {
 	int (*acp_init)(void __iomem *acp_base, struct device *dev);
 	int (*acp_deinit)(void __iomem *acp_base, struct device *dev);
 	void (*acp_get_config)(struct pci_dev *pci, struct acp63_dev_data *acp_data);
+	void (*acp_sdw_dma_irq_thread)(struct acp63_dev_data *acp_data);
 	int (*acp_suspend)(struct device *dev);
 	int (*acp_resume)(struct device *dev);
 	int (*acp_suspend_runtime)(struct device *dev);
@@ -309,6 +311,12 @@ static inline void acp_hw_get_config(struct pci_dev *pci, struct acp63_dev_data 
 {
 	if (adata && adata->hw_ops && adata->hw_ops->acp_get_config)
 		ACP_HW_OPS(adata, acp_get_config)(pci, adata);
+}
+
+static inline void acp_hw_sdw_dma_irq_thread(struct acp63_dev_data *adata)
+{
+	if (adata && adata->hw_ops && adata->hw_ops->acp_sdw_dma_irq_thread)
+		ACP_HW_OPS(adata, acp_sdw_dma_irq_thread)(adata);
 }
 
 static inline int acp_hw_suspend(struct device *dev)

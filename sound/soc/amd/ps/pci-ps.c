@@ -23,26 +23,9 @@
 
 static irqreturn_t acp63_irq_thread(int irq, void *context)
 {
-	struct sdw_dma_dev_data *sdw_data;
 	struct acp63_dev_data *adata = context;
-	u32 stream_id;
 
-	sdw_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
-
-	for (stream_id = 0; stream_id < ACP63_SDW0_DMA_MAX_STREAMS; stream_id++) {
-		if (adata->acp63_sdw0_dma_intr_stat[stream_id]) {
-			if (sdw_data->acp63_sdw0_dma_stream[stream_id])
-				snd_pcm_period_elapsed(sdw_data->acp63_sdw0_dma_stream[stream_id]);
-			adata->acp63_sdw0_dma_intr_stat[stream_id] = 0;
-		}
-	}
-	for (stream_id = 0; stream_id < ACP63_SDW1_DMA_MAX_STREAMS; stream_id++) {
-		if (adata->acp63_sdw1_dma_intr_stat[stream_id]) {
-			if (sdw_data->acp63_sdw1_dma_stream[stream_id])
-				snd_pcm_period_elapsed(sdw_data->acp63_sdw1_dma_stream[stream_id]);
-			adata->acp63_sdw1_dma_intr_stat[stream_id] = 0;
-		}
-	}
+	acp_hw_sdw_dma_irq_thread(adata);
 	return IRQ_HANDLED;
 }
 
