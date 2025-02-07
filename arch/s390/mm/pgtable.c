@@ -392,7 +392,7 @@ static inline void pmdp_idte_global(struct mm_struct *mm,
 			    mm->context.asce, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
-	} else if (MACHINE_HAS_IDTE) {
+	} else if (cpu_has_idte()) {
 		__pmdp_idte(addr, pmdp, 0, 0, IDTE_GLOBAL);
 		if (mm_has_pgste(mm) && mm->context.allow_gmap_hpage_1m)
 			gmap_pmdp_idte_global(mm, addr);
@@ -519,7 +519,7 @@ static inline void pudp_idte_global(struct mm_struct *mm,
 	if (MACHINE_HAS_TLB_GUEST)
 		__pudp_idte(addr, pudp, IDTE_NODAT | IDTE_GUEST_ASCE,
 			    mm->context.asce, IDTE_GLOBAL);
-	else if (MACHINE_HAS_IDTE)
+	else if (cpu_has_idte())
 		__pudp_idte(addr, pudp, 0, 0, IDTE_GLOBAL);
 	else
 		/*

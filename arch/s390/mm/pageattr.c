@@ -78,7 +78,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 		}
 		table = (unsigned long *)((unsigned long)old & mask);
 		crdte(*old, new, table, dtt, addr, get_lowcore()->kernel_asce.val);
-	} else if (MACHINE_HAS_IDTE) {
+	} else if (cpu_has_idte()) {
 		cspg(old, *old, new);
 	} else {
 		csp((unsigned int *)old + 1, *old, new);

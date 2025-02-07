@@ -22,7 +22,6 @@
 #define MACHINE_FLAG_LPAR	BIT(2)
 #define MACHINE_FLAG_DIAG9C	BIT(3)
 #define MACHINE_FLAG_ESOP	BIT(4)
-#define MACHINE_FLAG_IDTE	BIT(5)
 #define MACHINE_FLAG_TE		BIT(11)
 #define MACHINE_FLAG_TLB_GUEST	BIT(14)
 #define MACHINE_FLAG_SCC	BIT(17)
@@ -76,7 +75,6 @@ extern unsigned long mio_wb_bit_mask;
 
 #define MACHINE_HAS_DIAG9C	(get_lowcore()->machine_flags & MACHINE_FLAG_DIAG9C)
 #define MACHINE_HAS_ESOP	(get_lowcore()->machine_flags & MACHINE_FLAG_ESOP)
-#define MACHINE_HAS_IDTE	(get_lowcore()->machine_flags & MACHINE_FLAG_IDTE)
 #define MACHINE_HAS_TE		(get_lowcore()->machine_flags & MACHINE_FLAG_TE)
 #define MACHINE_HAS_TLB_GUEST	(get_lowcore()->machine_flags & MACHINE_FLAG_TLB_GUEST)
 #define MACHINE_HAS_SCC		(get_lowcore()->machine_flags & MACHINE_FLAG_SCC)
