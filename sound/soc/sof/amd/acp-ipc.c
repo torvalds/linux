@@ -165,7 +165,7 @@ irqreturn_t acp_sof_ipc_irq_thread(int irq, void *context)
 	int dsp_msg, dsp_ack;
 	unsigned int status;
 
-	if (sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE) {
+	if (unlikely(sdev->first_boot && sdev->fw_state != SOF_FW_BOOT_COMPLETE)) {
 		acp_mailbox_read(sdev, sdev->dsp_box.offset, &status, sizeof(status));
 
 		if ((status & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
