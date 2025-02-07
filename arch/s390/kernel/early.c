@@ -184,16 +184,10 @@ static noinline __init void setup_lowcore_early(void)
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 }
 
-static __init void detect_machine_facilities(void)
-{
-	if (test_facility(129))
-		system_ctl_set_bit(0, CR0_VECTOR_BIT);
-}
-
 static inline void save_vector_registers(void)
 {
 #ifdef CONFIG_CRASH_DUMP
-	if (test_facility(129))
+	if (cpu_has_vx())
 		save_vx_regs(boot_cpu_vector_save_area);
 #endif
 }
@@ -232,7 +226,6 @@ void __init startup_init(void)
 	setup_lowcore_early();
 	setup_arch_string();
 	setup_boot_command_line();
-	detect_machine_facilities();
 	save_vector_registers();
 	setup_topology();
 	sclp_early_detect();

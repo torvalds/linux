@@ -31,5 +31,6 @@ int cpu_have_feature(unsigned int nr);
 #define cpu_has_seq_insn()	test_facility(85)
 #define cpu_has_tlb_lc()	test_facility(51)
 #define cpu_has_topology()	test_facility(11)
+#define cpu_has_vx()		test_facility(129)
 
 #endif /* __ASM_S390_CPUFEATURE_H */
