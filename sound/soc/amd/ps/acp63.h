@@ -140,6 +140,47 @@
 #define ACP70_TIMEOUT				2000
 #define ACP70_SDW_HOST_WAKE_MASK	0x0C00000
 
+#define ACP70_SDW0_DMA_MAX_STREAMS	6
+#define ACP70_SDW1_DMA_MAX_STREAMS	ACP70_SDW0_DMA_MAX_STREAMS
+
+#define ACP70_P1_AUDIO0_TX_THRESHOLD      0x8
+#define ACP70_P1_AUDIO1_TX_THRESHOLD      0x6
+#define ACP70_P1_AUDIO2_TX_THRESHOLD      0x4
+#define ACP70_P1_AUDIO0_RX_THRESHOLD      0x7
+#define ACP70_P1_AUDIO1_RX_THRESHOLD      0x5
+#define ACP70_P1_AUDIO2_RX_THRESHOLD      0x3
+
+#define ACP70_SDW0_DMA_TX_IRQ_MASK(i)	(ACP_AUDIO0_TX_THRESHOLD - (2 * (i)))
+#define ACP70_SDW0_DMA_RX_IRQ_MASK(i)	(ACP_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
+
+/*
+ * Below entries describes SDW1 instance DMA stream id and DMA irq bit mapping
+ * in ACP_EXTENAL_INTR_CNTL1 register for ACP70/ACP71 platforms
+ * Stream id		IRQ Bit
+ * 0 (SDW1_AUDIO0_TX)	8
+ * 1 (SDW1_AUDIO1_TX)	6
+ * 2 (SDW1_AUDIO2_TX)	4
+ * 3 (SDW1_AUDIO0_RX)	7
+ * 4 (SDW1_AUDIO1_RX)	5
+ * 5 (SDW1_AUDIO2_RX)	3
+ */
+#define ACP70_SDW1_DMA_TX_IRQ_MASK(i)	(ACP70_P1_AUDIO0_TX_THRESHOLD - (2 * (i)))
+#define ACP70_SDW1_DMA_RX_IRQ_MASK(i)	(ACP70_P1_AUDIO0_RX_THRESHOLD - (2 * ((i) - 3)))
+
+#define ACP70_SW0_AUDIO0_TX_EN		ACP_SW0_AUDIO0_TX_EN
+#define ACP70_SW0_AUDIO1_TX_EN		ACP_SW0_AUDIO1_TX_EN
+#define ACP70_SW0_AUDIO2_TX_EN		ACP_SW0_AUDIO2_TX_EN
+#define ACP70_SW0_AUDIO0_RX_EN		ACP_SW0_AUDIO0_RX_EN
+#define ACP70_SW0_AUDIO1_RX_EN		ACP_SW0_AUDIO1_RX_EN
+#define ACP70_SW0_AUDIO2_RX_EN		ACP_SW0_AUDIO2_RX_EN
+
+#define ACP70_SW1_AUDIO0_TX_EN		0x0003C10
+#define ACP70_SW1_AUDIO1_TX_EN		0x0003C50
+#define ACP70_SW1_AUDIO2_TX_EN		0x0003C6C
+#define ACP70_SW1_AUDIO0_RX_EN		0x0003C88
+#define ACP70_SW1_AUDIO1_RX_EN		0x0003D28
+#define ACP70_SW1_AUDIO2_RX_EN		0x0003D44
+
 enum acp_config {
 	ACP_CONFIG_0 = 0,
 	ACP_CONFIG_1,
@@ -178,6 +219,15 @@ enum amd_acp63_sdw1_channel {
 	ACP63_SDW1_AUDIO1_RX,
 };
 
+enum amd_acp70_sdw_channel {
+	ACP70_SDW_AUDIO0_TX = 0,
+	ACP70_SDW_AUDIO1_TX,
+	ACP70_SDW_AUDIO2_TX,
+	ACP70_SDW_AUDIO0_RX,
+	ACP70_SDW_AUDIO1_RX,
+	ACP70_SDW_AUDIO2_RX,
+};
+
 struct pdm_stream_instance {
 	u16 num_pages;
 	u16 channels;
@@ -199,6 +249,8 @@ struct sdw_dma_dev_data {
 	u32 acp_rev;
 	struct snd_pcm_substream *acp63_sdw0_dma_stream[ACP63_SDW0_DMA_MAX_STREAMS];
 	struct snd_pcm_substream *acp63_sdw1_dma_stream[ACP63_SDW1_DMA_MAX_STREAMS];
+	struct snd_pcm_substream *acp70_sdw0_dma_stream[ACP70_SDW0_DMA_MAX_STREAMS];
+	struct snd_pcm_substream *acp70_sdw1_dma_stream[ACP70_SDW1_DMA_MAX_STREAMS];
 };
 
 struct acp_sdw_dma_stream {
