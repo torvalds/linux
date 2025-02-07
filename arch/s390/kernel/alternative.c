@@ -33,9 +33,6 @@ void __apply_alternatives(struct alt_instr *start, struct alt_instr *end, unsign
 		case ALT_TYPE_SPEC:
 			replace = nobp_enabled();
 			break;
-		case ALT_TYPE_LOWCORE:
-			replace = have_relocated_lowcore();
-			break;
 		default:
 			replace = false;
 		}

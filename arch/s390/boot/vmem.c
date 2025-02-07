@@ -11,6 +11,7 @@
 #include <asm/ctlreg.h>
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
+#include <asm/machine.h>
 #include <asm/abs_lowcore.h>
 #include "decompressor.h"
 #include "boot.h"
@@ -517,7 +518,7 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 	__arch_set_page_dat((void *)swapper_pg_dir, 1UL << CRST_ALLOC_ORDER);
 	__arch_set_page_dat((void *)invalid_pg_dir, 1UL << CRST_ALLOC_ORDER);
 
-	if (relocate_lowcore)
+	if (machine_has_relocated_lowcore())
 		lowcore_address = LOWCORE_ALT_ADDRESS;
 
 	/*

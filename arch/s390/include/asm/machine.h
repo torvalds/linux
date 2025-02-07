@@ -6,6 +6,10 @@
 #ifndef __ASM_S390_MACHINE_H
 #define __ASM_S390_MACHINE_H
 
+#include <linux/const.h>
+
+#define MFEATURE_LOWCORE	0
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bitops.h>
@@ -71,6 +75,8 @@ static __always_inline bool machine_has_##name(void)				\
 		return __test_machine_feature_constant(feature);		\
 	return test_machine_feature(feature);					\
 }
+
+DEFINE_MACHINE_HAS_FEATURE(relocated_lowcore, MFEATURE_LOWCORE)
 
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_S390_MACHINE_H */

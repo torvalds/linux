@@ -10,6 +10,7 @@
 #define _ASM_S390_LOWCORE_H
 
 #include <linux/types.h>
+#include <asm/machine.h>
 #include <asm/ptrace.h>
 #include <asm/ctlreg.h>
 #include <asm/cpu.h>
@@ -222,7 +223,7 @@ static __always_inline struct lowcore *get_lowcore(void)
 
 	if (__is_defined(__DECOMPRESSOR))
 		return NULL;
-	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_LOWCORE)
+	asm(ALTERNATIVE("llilh %[lc],0", "llilh %[lc],%[alt]", ALT_FEATURE(MFEATURE_LOWCORE))
 	    : [lc] "=d" (lc)
 	    : [alt] "i" (LOWCORE_ALT_ADDRESS >> 16));
 	return lc;
@@ -240,13 +241,13 @@ static inline void set_prefix(__u32 address)
 .macro GET_LC reg
 	ALTERNATIVE "llilh	\reg,0",					\
 		__stringify(llilh	\reg, LOWCORE_ALT_ADDRESS >> 16),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 .endm
 
 .macro STMG_LC start, end, savearea
 	ALTERNATIVE "stmg	\start, \end, \savearea",				\
 		__stringify(stmg	\start, \end, LOWCORE_ALT_ADDRESS + \savearea),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 .endm
 
 #endif /* __ASSEMBLY__ */

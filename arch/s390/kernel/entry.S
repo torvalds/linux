@@ -29,6 +29,7 @@
 #include <asm/nmi.h>
 #include <asm/nospec-insn.h>
 #include <asm/lowcore.h>
+#include <asm/machine.h>
 
 _LPP_OFFSET	= __LC_LPP
 
@@ -44,7 +45,7 @@ _LPP_OFFSET	= __LC_LPP
 	ALTERNATIVE_2 "b \lpswe;nopr", \
 		".insn siy,0xeb0000000071,\address,0", ALT_FACILITY(193),		\
 		__stringify(.insn siy,0xeb0000000071,LOWCORE_ALT_ADDRESS+\address,0),	\
-		ALT_LOWCORE
+		ALT_FEATURE(MFEATURE_LOWCORE)
 	.endm
 
 	.macro MBEAR reg, lowcore

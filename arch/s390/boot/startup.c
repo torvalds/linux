@@ -34,7 +34,6 @@ unsigned long __bootdata_preserved(max_mappable);
 unsigned long __bootdata_preserved(page_noexec_mask);
 unsigned long __bootdata_preserved(segment_noexec_mask);
 unsigned long __bootdata_preserved(region_noexec_mask);
-int __bootdata_preserved(relocate_lowcore);
 
 u64 __bootdata_preserved(stfle_fac_list[16]);
 struct oldmem_data __bootdata_preserved(oldmem_data);

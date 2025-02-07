@@ -5,6 +5,7 @@
 #include <linux/pgtable.h>
 #include <asm/abs_lowcore.h>
 #include <asm/page-states.h>
+#include <asm/machine.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
@@ -312,7 +313,7 @@ void parse_boot_command_line(void)
 		}
 #endif
 		if (!strcmp(param, "relocate_lowcore") && test_facility(193))
-			relocate_lowcore = 1;
+			set_machine_feature(MFEATURE_LOWCORE);
 		if (!strcmp(param, "earlyprintk"))
 			boot_earlyprintk = true;
 		if (!strcmp(param, "debug"))

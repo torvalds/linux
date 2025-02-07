@@ -54,6 +54,7 @@
 
 #include <asm/archrandom.h>
 #include <asm/boot_data.h>
+#include <asm/machine.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
 #include <asm/smp.h>
@@ -911,7 +912,7 @@ void __init setup_arch(char **cmdline_p)
 	if (!boot_earlyprintk)
 		boot_rb_foreach(print_rb_entry);
 
-	if (have_relocated_lowcore())
+	if (machine_has_relocated_lowcore())
 		pr_info("Lowcore relocated to 0x%px\n", get_lowcore());
 
 	log_component_list();
