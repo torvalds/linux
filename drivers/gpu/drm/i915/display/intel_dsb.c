@@ -860,7 +860,16 @@ void intel_dsb_irq_handler(struct intel_display *display,
 	}
 
 	errors = tmp & dsb_error_int_status(display);
-	if (errors)
-		drm_err(display->drm, "[CRTC:%d:%s] DSB %d error interrupt: 0x%x\n",
-			crtc->base.base.id, crtc->base.name, dsb_id, errors);
+	if (errors & DSB_ATS_FAULT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d ATS fault\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_GTT_FAULT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d GTT fault\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_RSPTIMEOUT_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d response timeout\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
+	if (errors & DSB_POLL_ERR_INT_STATUS)
+		drm_err(display->drm, "[CRTC:%d:%s] DSB %d poll error\n",
+			crtc->base.base.id, crtc->base.name, dsb_id);
 }
