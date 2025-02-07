@@ -39,6 +39,10 @@ int perf_ftrace__latency_prepare_bpf(struct perf_ftrace *ftrace)
 
 	skel->rodata->bucket_range = ftrace->bucket_range;
 	skel->rodata->min_latency = ftrace->min_latency;
+	skel->rodata->bucket_num = ftrace->bucket_num;
+	if (ftrace->bucket_range && ftrace->bucket_num) {
+		bpf_map__set_max_entries(skel->maps.latency, ftrace->bucket_num);
+	}
 
 	/* don't need to set cpu filter for system-wide mode */
 	if (ftrace->target.cpu_list) {
@@ -138,7 +142,7 @@ int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace __maybe_unused,
 	if (hist == NULL)
 		return -ENOMEM;
 
-	for (idx = 0; idx < NUM_BUCKET; idx++) {
+	for (idx = 0; idx < skel->rodata->bucket_num; idx++) {
 		err = bpf_map_lookup_elem(fd, &idx, hist);
 		if (err) {
 			buckets[idx] = 0;
