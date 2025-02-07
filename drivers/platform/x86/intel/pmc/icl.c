@@ -50,18 +50,11 @@ const struct pmc_reg_map icl_reg_map = {
 	.etr3_offset = ETR3_OFFSET,
 };
 
+static struct pmc_dev_info icl_pmc_dev = {
+	.map = &icl_reg_map,
+};
+
 int icl_core_init(struct pmc_dev *pmcdev)
 {
-	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
-	int ret;
-
-	pmc->map = &icl_reg_map;
-
-	ret = get_primary_reg_base(pmc);
-	if (ret)
-		return ret;
-
-	pmc_core_get_low_power_modes(pmcdev);
-
-	return ret;
+	return generic_core_init(pmcdev, &icl_pmc_dev);
 }
