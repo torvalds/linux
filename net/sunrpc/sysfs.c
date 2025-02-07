@@ -59,6 +59,16 @@ static struct kobject *rpc_sysfs_object_alloc(const char *name,
 	return NULL;
 }
 
+static inline struct rpc_clnt *
+rpc_sysfs_client_kobj_get_clnt(struct kobject *kobj)
+{
+	struct rpc_sysfs_client *c = container_of(kobj,
+		struct rpc_sysfs_client, kobject);
+	struct rpc_clnt *ret = c->clnt;
+
+	return refcount_inc_not_zero(&ret->cl_count) ? ret : NULL;
+}
+
 static inline struct rpc_xprt *
 rpc_sysfs_xprt_kobj_get_xprt(struct kobject *kobj)
 {
@@ -84,6 +94,51 @@ rpc_sysfs_xprt_switch_kobj_get_xprt(struct kobject *kobj)
 		struct rpc_sysfs_xprt_switch, kobject);
 
 	return xprt_switch_get(x->xprt_switch);
+}
+
+static ssize_t rpc_sysfs_clnt_version_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%u", clnt->cl_vers);
+	refcount_dec(&clnt->cl_count);
+	return ret;
+}
+
+static ssize_t rpc_sysfs_clnt_program_show(struct kobject *kobj,
+					   struct kobj_attribute *attr,
+					   char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%s", clnt->cl_program->name);
+	refcount_dec(&clnt->cl_count);
+	return ret;
+}
+
+static ssize_t rpc_sysfs_clnt_max_connect_show(struct kobject *kobj,
+					       struct kobj_attribute *attr,
+					       char *buf)
+{
+	struct rpc_clnt *clnt = rpc_sysfs_client_kobj_get_clnt(kobj);
+	ssize_t ret;
+
+	if (!clnt)
+		return sprintf(buf, "<closed>\n");
+
+	ret = sprintf(buf, "%u\n", clnt->cl_max_connect);
+	refcount_dec(&clnt->cl_count);
+	return ret;
 }
 
 static ssize_t rpc_sysfs_xprt_dstaddr_show(struct kobject *kobj,
@@ -423,6 +478,23 @@ static const void *rpc_sysfs_xprt_namespace(const struct kobject *kobj)
 			    kobject)->xprt->xprt_net;
 }
 
+static struct kobj_attribute rpc_sysfs_clnt_version = __ATTR(rpc_version,
+	0444, rpc_sysfs_clnt_version_show, NULL);
+
+static struct kobj_attribute rpc_sysfs_clnt_program = __ATTR(program,
+	0444, rpc_sysfs_clnt_program_show, NULL);
+
+static struct kobj_attribute rpc_sysfs_clnt_max_connect = __ATTR(max_connect,
+	0444, rpc_sysfs_clnt_max_connect_show, NULL);
+
+static struct attribute *rpc_sysfs_rpc_clnt_attrs[] = {
+	&rpc_sysfs_clnt_version.attr,
+	&rpc_sysfs_clnt_program.attr,
+	&rpc_sysfs_clnt_max_connect.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(rpc_sysfs_rpc_clnt);
+
 static struct kobj_attribute rpc_sysfs_xprt_dstaddr = __ATTR(dstaddr,
 	0644, rpc_sysfs_xprt_dstaddr_show, rpc_sysfs_xprt_dstaddr_store);
 
@@ -459,6 +531,7 @@ ATTRIBUTE_GROUPS(rpc_sysfs_xprt_switch);
 
 static const struct kobj_type rpc_sysfs_client_type = {
 	.release = rpc_sysfs_client_release,
+	.default_groups = rpc_sysfs_rpc_clnt_groups,
 	.sysfs_ops = &kobj_sysfs_ops,
 	.namespace = rpc_sysfs_client_namespace,
 };
