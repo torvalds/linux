@@ -213,38 +213,6 @@ static void intel_panel_info(struct seq_file *m,
 		intel_seq_print_mode(m, 2, fixed_mode);
 }
 
-static void intel_hdcp_info(struct seq_file *m,
-			    struct intel_connector *intel_connector,
-			    bool remote_req)
-{
-	bool hdcp_cap = false, hdcp2_cap = false;
-
-	if (!intel_connector->hdcp.shim) {
-		seq_puts(m, "No Connector Support");
-		goto out;
-	}
-
-	if (remote_req) {
-		intel_hdcp_get_remote_capability(intel_connector,
-						 &hdcp_cap,
-						 &hdcp2_cap);
-	} else {
-		hdcp_cap = intel_hdcp_get_capability(intel_connector);
-		hdcp2_cap = intel_hdcp2_get_capability(intel_connector);
-	}
-
-	if (hdcp_cap)
-		seq_puts(m, "HDCP1.4 ");
-	if (hdcp2_cap)
-		seq_puts(m, "HDCP2.2 ");
-
-	if (!hdcp_cap && !hdcp2_cap)
-		seq_puts(m, "None");
-
-out:
-	seq_puts(m, "\n");
-}
-
 static void intel_dp_info(struct seq_file *m, struct intel_connector *connector)
 {
 	struct intel_encoder *intel_encoder = intel_attached_encoder(connector);
@@ -309,12 +277,7 @@ static void intel_connector_info(struct seq_file *m,
 		break;
 	}
 
-	seq_puts(m, "\tHDCP version: ");
-	if (intel_connector->mst_port) {
-		intel_hdcp_info(m, intel_connector, true);
-		seq_puts(m, "\tMST Hub HDCP version: ");
-	}
-	intel_hdcp_info(m, intel_connector, false);
+	intel_hdcp_info(m, intel_connector);
 
 	seq_printf(m, "\tmax bpc: %u\n", connector->display_info.bpc);
 
@@ -893,33 +856,6 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_display_debugfs_params(display);
 }
 
-static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
-{
-	struct intel_connector *connector = m->private;
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-	int ret;
-
-	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
-	if (ret)
-		return ret;
-
-	if (!connector->base.encoder ||
-	    connector->base.status != connector_status_connected) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	seq_printf(m, "%s:%d HDCP version: ", connector->base.name,
-		   connector->base.base.id);
-	intel_hdcp_info(m, connector, false);
-
-out:
-	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
-
-	return ret;
-}
-DEFINE_SHOW_ATTRIBUTE(i915_hdcp_sink_capability);
-
 static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 {
 	struct intel_connector *connector = m->private;
@@ -1401,17 +1337,11 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 		return;
 
 	intel_drrs_connector_debugfs_add(connector);
+	intel_hdcp_connector_debugfs_add(connector);
 	intel_pps_connector_debugfs_add(connector);
 	intel_psr_connector_debugfs_add(connector);
 	intel_alpm_lobf_debugfs_add(connector);
 	intel_dp_link_training_debugfs_add(connector);
-
-	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
-	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
-		debugfs_create_file("i915_hdcp_sink_capability", 0444, root,
-				    connector, &i915_hdcp_sink_capability_fops);
-	}
 
 	if (DISPLAY_VER(i915) >= 11 &&
 	    ((connector_type == DRM_MODE_CONNECTOR_DisplayPort && !connector->mst_port) ||

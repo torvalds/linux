@@ -9,6 +9,7 @@
  */
 
 #include <linux/component.h>
+#include <linux/debugfs.h>
 #include <linux/i2c.h>
 #include <linux/random.h>
 
@@ -2730,4 +2731,85 @@ void intel_hdcp_handle_cp_irq(struct intel_connector *connector)
 	wake_up_all(&connector->hdcp.cp_irq_queue);
 
 	queue_delayed_work(i915->unordered_wq, &hdcp->check_work, 0);
+}
+
+static void __intel_hdcp_info(struct seq_file *m, struct intel_connector *intel_connector,
+			      bool remote_req)
+{
+	bool hdcp_cap = false, hdcp2_cap = false;
+
+	if (!intel_connector->hdcp.shim) {
+		seq_puts(m, "No Connector Support");
+		goto out;
+	}
+
+	if (remote_req) {
+		intel_hdcp_get_remote_capability(intel_connector,
+						 &hdcp_cap,
+						 &hdcp2_cap);
+	} else {
+		hdcp_cap = intel_hdcp_get_capability(intel_connector);
+		hdcp2_cap = intel_hdcp2_get_capability(intel_connector);
+	}
+
+	if (hdcp_cap)
+		seq_puts(m, "HDCP1.4 ");
+	if (hdcp2_cap)
+		seq_puts(m, "HDCP2.2 ");
+
+	if (!hdcp_cap && !hdcp2_cap)
+		seq_puts(m, "None");
+
+out:
+	seq_puts(m, "\n");
+}
+
+void intel_hdcp_info(struct seq_file *m, struct intel_connector *connector)
+{
+	seq_puts(m, "\tHDCP version: ");
+	if (connector->mst_port) {
+		__intel_hdcp_info(m, connector, true);
+		seq_puts(m, "\tMST Hub HDCP version: ");
+	}
+	__intel_hdcp_info(m, connector, false);
+}
+
+static int intel_hdcp_sink_capability_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = m->private;
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	int ret;
+
+	ret = drm_modeset_lock_single_interruptible(&i915->drm.mode_config.connection_mutex);
+	if (ret)
+		return ret;
+
+	if (!connector->base.encoder ||
+	    connector->base.status != connector_status_connected) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	seq_printf(m, "%s:%d HDCP version: ", connector->base.name,
+		   connector->base.base.id);
+	__intel_hdcp_info(m, connector, false);
+
+out:
+	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
+
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(intel_hdcp_sink_capability);
+
+void intel_hdcp_connector_debugfs_add(struct intel_connector *connector)
+{
+	struct dentry *root = connector->base.debugfs_entry;
+	int connector_type = connector->base.connector_type;
+
+	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+		debugfs_create_file("i915_hdcp_sink_capability", 0444, root,
+				    connector, &intel_hdcp_sink_capability_fops);
+	}
 }

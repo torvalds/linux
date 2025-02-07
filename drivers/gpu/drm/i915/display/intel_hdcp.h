@@ -19,6 +19,7 @@ struct intel_digital_port;
 struct intel_display;
 struct intel_encoder;
 struct intel_hdcp_shim;
+struct seq_file;
 enum port;
 enum transcoder;
 
@@ -47,5 +48,8 @@ void intel_hdcp_component_init(struct intel_display *display);
 void intel_hdcp_component_fini(struct intel_display *display);
 void intel_hdcp_cleanup(struct intel_connector *connector);
 void intel_hdcp_handle_cp_irq(struct intel_connector *connector);
+
+void intel_hdcp_info(struct seq_file *m, struct intel_connector *connector);
+void intel_hdcp_connector_debugfs_add(struct intel_connector *connector);
 
 #endif /* __INTEL_HDCP_H__ */
