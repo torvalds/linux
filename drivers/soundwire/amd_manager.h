@@ -199,6 +199,7 @@
 #define AMD_SDW1_DEVICE_STATE_MASK			GENMASK(3, 2)
 #define AMD_SDW_DEVICE_STATE_D0				0
 #define AMD_SDW_DEVICE_STATE_D3				3
+#define ACP_PME_EN					0x0001400
 
 static u32 amd_sdw_freq_tbl[AMD_SDW_MAX_FREQ_NUM] = {
 	AMD_SDW_DEFAULT_CLK_FREQ,
