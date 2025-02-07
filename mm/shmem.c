@@ -5664,19 +5664,19 @@ static int __init setup_thp_shmem(char *str)
 								 THP_ORDERS_ALL_FILE_DEFAULT);
 			}
 
-			if (start == -EINVAL) {
+			if (start < 0) {
 				pr_err("invalid size %s in thp_shmem boot parameter\n",
 				       start_size);
 				goto err;
 			}
 
-			if (end == -EINVAL) {
+			if (end < 0) {
 				pr_err("invalid size %s in thp_shmem boot parameter\n",
 				       end_size);
 				goto err;
 			}
 
-			if (start < 0 || end < 0 || start > end)
+			if (start > end)
 				goto err;
 
 			nr = end - start + 1;
