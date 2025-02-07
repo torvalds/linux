@@ -1,0 +1,237 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#include <linux/clk.h>
+#include <linux/interconnect.h>
+#include <linux/module.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_opp.h>
+#include <linux/reset.h>
+
+#include "iris_core.h"
+
+static int iris_init_icc(struct iris_core *core)
+{
+	const struct icc_info *icc_tbl;
+	u32 i = 0;
+
+	icc_tbl = core->iris_platform_data->icc_tbl;
+
+	core->icc_count = core->iris_platform_data->icc_tbl_size;
+	core->icc_tbl = devm_kzalloc(core->dev,
+				     sizeof(struct icc_bulk_data) * core->icc_count,
+				     GFP_KERNEL);
+	if (!core->icc_tbl)
+		return -ENOMEM;
+
+	for (i = 0; i < core->icc_count; i++) {
+		core->icc_tbl[i].name = icc_tbl[i].name;
+		core->icc_tbl[i].avg_bw = icc_tbl[i].bw_min_kbps;
+		core->icc_tbl[i].peak_bw = 0;
+	}
+
+	return devm_of_icc_bulk_get(core->dev, core->icc_count, core->icc_tbl);
+}
+
+static int iris_init_power_domains(struct iris_core *core)
+{
+	const struct platform_clk_data *clk_tbl;
+	u32 clk_cnt, i;
+	int ret;
+
+	struct dev_pm_domain_attach_data iris_pd_data = {
+		.pd_names = core->iris_platform_data->pmdomain_tbl,
+		.num_pd_names = core->iris_platform_data->pmdomain_tbl_size,
+		.pd_flags = PD_FLAG_NO_DEV_LINK,
+	};
+
+	struct dev_pm_domain_attach_data iris_opp_pd_data = {
+		.pd_names = core->iris_platform_data->opp_pd_tbl,
+		.num_pd_names = core->iris_platform_data->opp_pd_tbl_size,
+		.pd_flags = PD_FLAG_DEV_LINK_ON,
+	};
+
+	ret = devm_pm_domain_attach_list(core->dev, &iris_pd_data, &core->pmdomain_tbl);
+	if (ret < 0)
+		return ret;
+
+	ret =  devm_pm_domain_attach_list(core->dev, &iris_opp_pd_data, &core->opp_pmdomain_tbl);
+	if (ret < 0)
+		return ret;
+
+	clk_tbl = core->iris_platform_data->clk_tbl;
+	clk_cnt = core->iris_platform_data->clk_tbl_size;
+
+	for (i = 0; i < clk_cnt; i++) {
+		if (clk_tbl[i].clk_type == IRIS_HW_CLK) {
+			ret = devm_pm_opp_set_clkname(core->dev, clk_tbl[i].clk_name);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return devm_pm_opp_of_add_table(core->dev);
+}
+
+static int iris_init_clocks(struct iris_core *core)
+{
+	int ret;
+
+	ret = devm_clk_bulk_get_all(core->dev, &core->clock_tbl);
+	if (ret < 0)
+		return ret;
+
+	core->clk_count = ret;
+
+	return 0;
+}
+
+static int iris_init_resets(struct iris_core *core)
+{
+	const char * const *rst_tbl;
+	u32 rst_tbl_size;
+	u32 i = 0;
+
+	rst_tbl = core->iris_platform_data->clk_rst_tbl;
+	rst_tbl_size = core->iris_platform_data->clk_rst_tbl_size;
+
+	core->resets = devm_kzalloc(core->dev,
+				    sizeof(*core->resets) * rst_tbl_size,
+				    GFP_KERNEL);
+	if (!core->resets)
+		return -ENOMEM;
+
+	for (i = 0; i < rst_tbl_size; i++)
+		core->resets[i].id = rst_tbl[i];
+
+	return devm_reset_control_bulk_get_exclusive(core->dev, rst_tbl_size, core->resets);
+}
+
+static int iris_init_resources(struct iris_core *core)
+{
+	int ret;
+
+	ret = iris_init_icc(core);
+	if (ret)
+		return ret;
+
+	ret = iris_init_power_domains(core);
+	if (ret)
+		return ret;
+
+	ret = iris_init_clocks(core);
+	if (ret)
+		return ret;
+
+	return iris_init_resets(core);
+}
+
+static int iris_register_video_device(struct iris_core *core)
+{
+	struct video_device *vdev;
+	int ret;
+
+	vdev = video_device_alloc();
+	if (!vdev)
+		return -ENOMEM;
+
+	strscpy(vdev->name, "qcom-iris-decoder", sizeof(vdev->name));
+	vdev->release = video_device_release;
+	vdev->vfl_dir = VFL_DIR_M2M;
+	vdev->v4l2_dev = &core->v4l2_dev;
+	vdev->device_caps = V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
+
+	ret = video_register_device(vdev, VFL_TYPE_VIDEO, -1);
+	if (ret)
+		goto err_vdev_release;
+
+	core->vdev_dec = vdev;
+	video_set_drvdata(vdev, core);
+
+	return 0;
+
+err_vdev_release:
+	video_device_release(vdev);
+
+	return ret;
+}
+
+static void iris_remove(struct platform_device *pdev)
+{
+	struct iris_core *core;
+
+	core = platform_get_drvdata(pdev);
+	if (!core)
+		return;
+
+	video_unregister_device(core->vdev_dec);
+
+	v4l2_device_unregister(&core->v4l2_dev);
+}
+
+static int iris_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct iris_core *core;
+	int ret;
+
+	core = devm_kzalloc(&pdev->dev, sizeof(*core), GFP_KERNEL);
+	if (!core)
+		return -ENOMEM;
+	core->dev = dev;
+
+	core->reg_base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(core->reg_base))
+		return PTR_ERR(core->reg_base);
+
+	core->irq = platform_get_irq(pdev, 0);
+	if (core->irq < 0)
+		return core->irq;
+
+	core->iris_platform_data = of_device_get_match_data(core->dev);
+
+	ret = iris_init_resources(core);
+	if (ret)
+		return ret;
+
+	ret = v4l2_device_register(dev, &core->v4l2_dev);
+	if (ret)
+		return ret;
+
+	ret = iris_register_video_device(core);
+	if (ret)
+		goto err_v4l2_unreg;
+
+	platform_set_drvdata(pdev, core);
+
+	return 0;
+
+err_v4l2_unreg:
+	v4l2_device_unregister(&core->v4l2_dev);
+
+	return ret;
+}
+
+static const struct of_device_id iris_dt_match[] = {
+	{
+		.compatible = "qcom,sm8550-iris",
+		.data = &sm8550_data,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, iris_dt_match);
+
+static struct platform_driver qcom_iris_driver = {
+	.probe = iris_probe,
+	.remove = iris_remove,
+	.driver = {
+		.name = "qcom-iris",
+		.of_match_table = iris_dt_match,
+	},
+};
+
+module_platform_driver(qcom_iris_driver);
+MODULE_DESCRIPTION("Qualcomm iris video driver");
+MODULE_LICENSE("GPL");
