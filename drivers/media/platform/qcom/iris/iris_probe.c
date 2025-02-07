@@ -12,6 +12,7 @@
 #include <linux/reset.h>
 
 #include "iris_core.h"
+#include "iris_ctrls.h"
 #include "iris_vidc.h"
 
 static int iris_init_icc(struct iris_core *core)
@@ -235,6 +236,8 @@ static int iris_probe(struct platform_device *pdev)
 	ret = iris_init_resources(core);
 	if (ret)
 		return ret;
+
+	iris_session_init_caps(core);
 
 	ret = v4l2_device_register(dev, &core->v4l2_dev);
 	if (ret)
