@@ -7688,12 +7688,6 @@ static void intel_atomic_prepare_plane_clear_colors(struct intel_atomic_state *s
 static void intel_atomic_dsb_prepare(struct intel_atomic_state *state,
 				     struct intel_crtc *crtc)
 {
-	intel_color_prepare_commit(state, crtc);
-}
-
-static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
-				    struct intel_crtc *crtc)
-{
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
 	struct intel_crtc_state *new_crtc_state =
@@ -7714,6 +7708,15 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 		!old_crtc_state->scaler_state.scaler_users &&
 		!intel_crtc_needs_modeset(new_crtc_state) &&
 		!intel_crtc_needs_fastset(new_crtc_state);
+
+	intel_color_prepare_commit(state, crtc);
+}
+
+static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	if (!new_crtc_state->use_dsb && !new_crtc_state->dsb_color_vblank)
 		return;

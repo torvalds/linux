@@ -1987,8 +1987,10 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 
 	display->funcs.color->load_luts(crtc_state);
 
-	intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
-	intel_dsb_interrupt(crtc_state->dsb_color_vblank);
+	if (crtc_state->use_dsb) {
+		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
+		intel_dsb_interrupt(crtc_state->dsb_color_vblank);
+	}
 
 	intel_dsb_finish(crtc_state->dsb_color_vblank);
 }
