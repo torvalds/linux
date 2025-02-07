@@ -465,8 +465,7 @@ void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
 	remaining = icsk->icsk_rto - usecs_to_jiffies(delta_us);
 
 	if (remaining > 0) {
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  remaining, TCP_RTO_MAX);
+		tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS, remaining, false);
 	} else {
 		/* RTO revert clocked out retransmission.
 		 * Will retransmit now.

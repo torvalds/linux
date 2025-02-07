@@ -481,8 +481,8 @@ static void tcp_fastopen_synack_timer(struct sock *sk, struct request_sock *req)
 	tcp_update_rto_stats(sk);
 	if (!tp->retrans_stamp)
 		tp->retrans_stamp = tcp_time_stamp_ts(tp);
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-			  req->timeout << req->num_timeout, TCP_RTO_MAX);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+			  req->timeout << req->num_timeout, false);
 }
 
 static bool tcp_rtx_probe0_timed_out(const struct sock *sk,
@@ -626,9 +626,9 @@ void tcp_retransmit_timer(struct sock *sk)
 		/* Retransmission failed because of local congestion,
 		 * Let senders fight for local resources conservatively.
 		 */
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  TCP_RESOURCE_PROBE_INTERVAL,
-					  TCP_RTO_MAX);
+		tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+				     TCP_RESOURCE_PROBE_INTERVAL,
+				     false);
 		goto out;
 	}
 
@@ -675,8 +675,8 @@ out_reset_timer:
 		icsk->icsk_backoff++;
 		icsk->icsk_rto = min(icsk->icsk_rto << 1, TCP_RTO_MAX);
 	}
-	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-				  tcp_clamp_rto_to_user_timeout(sk), TCP_RTO_MAX);
+	tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+			     tcp_clamp_rto_to_user_timeout(sk), false);
 	if (retransmits_timed_out(sk, READ_ONCE(net->ipv4.sysctl_tcp_retries1) + 1, 0))
 		__sk_dst_reset(sk);
 
