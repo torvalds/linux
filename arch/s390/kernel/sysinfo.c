@@ -5,6 +5,7 @@
  *	       Martin Schwidefsky <schwidefsky@de.ibm.com>,
  */
 
+#include <linux/cpufeature.h>
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -154,7 +155,7 @@ static void stsi_15_1_x(struct seq_file *m, struct sysinfo_15_1_x *info)
 	int i;
 
 	seq_putc(m, '\n');
-	if (!MACHINE_HAS_TOPOLOGY)
+	if (!cpu_has_topology())
 		return;
 	if (stsi(info, 15, 1, topology_max_mnest))
 		return;
@@ -559,7 +560,7 @@ static __init int stsi_init_debugfs(void)
 		sf = &stsi_file[i];
 		debugfs_create_file(sf->name, 0400, stsi_root, NULL, sf->fops);
 	}
-	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && MACHINE_HAS_TOPOLOGY) {
+	if (IS_ENABLED(CONFIG_SCHED_TOPOLOGY) && cpu_has_topology()) {
 		char link_to[10];
 
 		sprintf(link_to, "15_1_%d", topology_mnest_limit());
