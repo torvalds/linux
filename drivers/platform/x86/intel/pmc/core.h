@@ -624,6 +624,7 @@ extern struct pmc_dev_info tgl_pmc_dev;
 extern struct pmc_dev_info adl_pmc_dev;
 extern struct pmc_dev_info mtl_pmc_dev;
 extern struct pmc_dev_info arl_pmc_dev;
+extern struct pmc_dev_info arl_h_pmc_dev;
 extern struct pmc_dev_info lnl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
