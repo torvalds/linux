@@ -305,6 +305,55 @@ static ssize_t rpc_sysfs_xprt_switch_info_show(struct kobject *kobj,
 	return ret;
 }
 
+static ssize_t rpc_sysfs_xprt_switch_add_xprt_show(struct kobject *kobj,
+						   struct kobj_attribute *attr,
+						   char *buf)
+{
+	return sprintf(buf, "# add one xprt to this xprt_switch\n");
+}
+
+static ssize_t rpc_sysfs_xprt_switch_add_xprt_store(struct kobject *kobj,
+						    struct kobj_attribute *attr,
+						    const char *buf, size_t count)
+{
+	struct rpc_xprt_switch *xprt_switch =
+		rpc_sysfs_xprt_switch_kobj_get_xprt(kobj);
+	struct xprt_create xprt_create_args;
+	struct rpc_xprt *xprt, *new;
+
+	if (!xprt_switch)
+		return 0;
+
+	xprt = rpc_xprt_switch_get_main_xprt(xprt_switch);
+	if (!xprt)
+		goto out;
+
+	xprt_create_args.ident = xprt->xprt_class->ident;
+	xprt_create_args.net = xprt->xprt_net;
+	xprt_create_args.dstaddr = (struct sockaddr *)&xprt->addr;
+	xprt_create_args.addrlen = xprt->addrlen;
+	xprt_create_args.servername = xprt->servername;
+	xprt_create_args.bc_xprt = xprt->bc_xprt;
+	xprt_create_args.xprtsec = xprt->xprtsec;
+	xprt_create_args.connect_timeout = xprt->connect_timeout;
+	xprt_create_args.reconnect_timeout = xprt->max_reconnect_timeout;
+
+	new = xprt_create_transport(&xprt_create_args);
+	if (IS_ERR_OR_NULL(new)) {
+		count = PTR_ERR(new);
+		goto out_put_xprt;
+	}
+
+	rpc_xprt_switch_add_xprt(xprt_switch, new);
+	xprt_put(new);
+
+out_put_xprt:
+	xprt_put(xprt);
+out:
+	xprt_switch_put(xprt_switch);
+	return count;
+}
+
 static ssize_t rpc_sysfs_xprt_dstaddr_store(struct kobject *kobj,
 					    struct kobj_attribute *attr,
 					    const char *buf, size_t count)
@@ -523,8 +572,13 @@ ATTRIBUTE_GROUPS(rpc_sysfs_xprt);
 static struct kobj_attribute rpc_sysfs_xprt_switch_info =
 	__ATTR(xprt_switch_info, 0444, rpc_sysfs_xprt_switch_info_show, NULL);
 
+static struct kobj_attribute rpc_sysfs_xprt_switch_add_xprt =
+	__ATTR(add_xprt, 0644, rpc_sysfs_xprt_switch_add_xprt_show,
+		rpc_sysfs_xprt_switch_add_xprt_store);
+
 static struct attribute *rpc_sysfs_xprt_switch_attrs[] = {
 	&rpc_sysfs_xprt_switch_info.attr,
+	&rpc_sysfs_xprt_switch_add_xprt.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(rpc_sysfs_xprt_switch);
