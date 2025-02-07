@@ -952,7 +952,7 @@ void pci_iov_remove(struct pci_dev *dev)
 void pci_iov_update_resource(struct pci_dev *dev, int resno)
 {
 	struct pci_sriov *iov = dev->is_physfn ? dev->sriov : NULL;
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	int vf_bar = resno - PCI_IOV_RESOURCES;
 	struct pci_bus_region region;
 	u16 cmd;

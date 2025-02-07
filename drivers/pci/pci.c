@@ -1884,7 +1884,7 @@ static void pci_restore_rebar_state(struct pci_dev *pdev)
 
 		pci_read_config_dword(pdev, pos + PCI_REBAR_CTRL, &ctrl);
 		bar_idx = ctrl & PCI_REBAR_CTRL_BAR_IDX;
-		res = pdev->resource + bar_idx;
+		res = pci_resource_n(pdev, bar_idx);
 		size = pci_rebar_bytes_to_size(resource_size(res));
 		ctrl &= ~PCI_REBAR_CTRL_BAR_SIZE;
 		ctrl |= FIELD_PREP(PCI_REBAR_CTRL_BAR_SIZE, size);

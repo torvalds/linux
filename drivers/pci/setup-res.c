@@ -29,7 +29,7 @@ static void pci_std_update_resource(struct pci_dev *dev, int resno)
 	u16 cmd;
 	u32 new, check, mask;
 	int reg;
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
 
 	/* Per SR-IOV spec 3.4.1.11, VF BARs are RO zero */
@@ -262,7 +262,7 @@ resource_size_t __weak pcibios_align_resource(void *data,
 static int __pci_assign_resource(struct pci_bus *bus, struct pci_dev *dev,
 		int resno, resource_size_t size, resource_size_t align)
 {
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	resource_size_t min;
 	int ret;
 
@@ -325,7 +325,7 @@ static int _pci_assign_resource(struct pci_dev *dev, int resno,
 
 int pci_assign_resource(struct pci_dev *dev, int resno)
 {
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
 	resource_size_t align, size;
 	int ret;
@@ -372,7 +372,7 @@ EXPORT_SYMBOL(pci_assign_resource);
 int pci_reassign_resource(struct pci_dev *dev, int resno,
 			  resource_size_t addsize, resource_size_t min_align)
 {
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
 	unsigned long flags;
 	resource_size_t new_size;
@@ -411,7 +411,7 @@ int pci_reassign_resource(struct pci_dev *dev, int resno,
 
 void pci_release_resource(struct pci_dev *dev, int resno)
 {
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	const char *res_name = pci_resource_name(dev, resno);
 
 	pci_info(dev, "%s %pR: releasing\n", res_name, res);
@@ -428,7 +428,7 @@ EXPORT_SYMBOL(pci_release_resource);
 
 int pci_resize_resource(struct pci_dev *dev, int resno, int size)
 {
-	struct resource *res = dev->resource + resno;
+	struct resource *res = pci_resource_n(dev, resno);
 	struct pci_host_bridge *host;
 	int old, ret;
 	u32 sizes;
