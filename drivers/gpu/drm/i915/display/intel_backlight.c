@@ -1829,7 +1829,7 @@ void intel_backlight_init_funcs(struct intel_panel *panel)
 		panel->backlight.pwm_funcs = &bxt_pwm_funcs;
 	} else if (INTEL_PCH_TYPE(i915) >= PCH_CNP) {
 		panel->backlight.pwm_funcs = &cnp_pwm_funcs;
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_LPT) {
+	} else if (INTEL_PCH_TYPE(i915) >= PCH_LPT_H) {
 		if (HAS_PCH_LPT(i915))
 			panel->backlight.pwm_funcs = &lpt_pwm_funcs;
 		else
