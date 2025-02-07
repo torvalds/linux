@@ -180,6 +180,10 @@ static int iris_hfi_gen1_session_stop(struct iris_inst *inst, u32 plane)
 		ret = iris_hfi_queue_cmd_write(core, &pkt, pkt.shdr.hdr.size);
 		if (!ret)
 			ret = iris_wait_for_session_response(inst, false);
+		iris_helper_buffers_done(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
+					 VB2_BUF_STATE_ERROR);
+		iris_helper_buffers_done(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
+					 VB2_BUF_STATE_ERROR);
 	} else if (inst->state == IRIS_INST_STREAMING) {
 		if (V4L2_TYPE_IS_OUTPUT(plane))
 			flush_type = HFI_FLUSH_ALL;
@@ -199,6 +203,50 @@ static int iris_hfi_gen1_session_stop(struct iris_inst *inst, u32 plane)
 	}
 
 	return ret;
+}
+
+static int iris_hfi_gen1_queue_input_buffer(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	struct hfi_session_empty_buffer_compressed_pkt ip_pkt;
+
+	ip_pkt.shdr.hdr.size = sizeof(struct hfi_session_empty_buffer_compressed_pkt);
+	ip_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_EMPTY_BUFFER;
+	ip_pkt.shdr.session_id = inst->session_id;
+	ip_pkt.time_stamp_hi = upper_32_bits(buf->timestamp);
+	ip_pkt.time_stamp_lo = lower_32_bits(buf->timestamp);
+	ip_pkt.flags = buf->flags;
+	ip_pkt.mark_target = 0;
+	ip_pkt.mark_data = 0;
+	ip_pkt.offset = buf->data_offset;
+	ip_pkt.alloc_len = buf->buffer_size;
+	ip_pkt.filled_len = buf->data_size;
+	ip_pkt.input_tag = buf->index;
+	ip_pkt.packet_buffer = buf->device_addr;
+
+	return iris_hfi_queue_cmd_write(inst->core, &ip_pkt, ip_pkt.shdr.hdr.size);
+}
+
+static int iris_hfi_gen1_queue_output_buffer(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	struct hfi_session_fill_buffer_pkt op_pkt;
+
+	op_pkt.shdr.hdr.size = sizeof(struct hfi_session_fill_buffer_pkt);
+	op_pkt.shdr.hdr.pkt_type = HFI_CMD_SESSION_FILL_BUFFER;
+	op_pkt.shdr.session_id = inst->session_id;
+	op_pkt.output_tag = buf->index;
+	op_pkt.packet_buffer = buf->device_addr;
+	op_pkt.extradata_buffer = 0;
+	op_pkt.alloc_len = buf->buffer_size;
+	op_pkt.filled_len = buf->data_size;
+	op_pkt.offset = buf->data_offset;
+	op_pkt.data = 0;
+
+	if (buf->type == BUF_OUTPUT && iris_split_mode_enabled(inst))
+		op_pkt.stream_id = 1;
+	else
+		op_pkt.stream_id = 0;
+
+	return iris_hfi_queue_cmd_write(inst->core, &op_pkt, op_pkt.shdr.hdr.size);
 }
 
 static int iris_hfi_gen1_queue_internal_buffer(struct iris_inst *inst, struct iris_buffer *buf)
@@ -240,6 +288,11 @@ exit:
 static int iris_hfi_gen1_session_queue_buffer(struct iris_inst *inst, struct iris_buffer *buf)
 {
 	switch (buf->type) {
+	case BUF_INPUT:
+		return iris_hfi_gen1_queue_input_buffer(inst, buf);
+	case BUF_OUTPUT:
+	case BUF_DPB:
+		return iris_hfi_gen1_queue_output_buffer(inst, buf);
 	case BUF_PERSIST:
 	case BUF_BIN:
 	case BUF_SCRATCH_1:

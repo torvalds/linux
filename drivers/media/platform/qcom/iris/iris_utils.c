@@ -4,6 +4,7 @@
  */
 
 #include <linux/pm_runtime.h>
+#include <media/v4l2-mem2mem.h>
 
 #include "iris_instance.h"
 #include "iris_utils.h"
@@ -34,6 +35,21 @@ int iris_get_mbpf(struct iris_inst *inst)
 bool iris_split_mode_enabled(struct iris_inst *inst)
 {
 	return inst->fmt_dst->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12;
+}
+
+void iris_helper_buffers_done(struct iris_inst *inst, unsigned int type,
+			      enum vb2_buffer_state state)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct vb2_v4l2_buffer *buf;
+
+	if (V4L2_TYPE_IS_OUTPUT(type)) {
+		while ((buf = v4l2_m2m_src_buf_remove(m2m_ctx)))
+			v4l2_m2m_buf_done(buf, state);
+	} else if (V4L2_TYPE_IS_CAPTURE(type)) {
+		while ((buf = v4l2_m2m_dst_buf_remove(m2m_ctx)))
+			v4l2_m2m_buf_done(buf, state);
+	}
 }
 
 int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush)

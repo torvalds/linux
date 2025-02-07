@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <media/v4l2-mem2mem.h>
+
 #include "iris_hfi_gen2.h"
 #include "iris_hfi_gen2_defines.h"
 #include "iris_hfi_gen2_packet.h"
@@ -81,6 +83,29 @@ static bool iris_hfi_gen2_is_valid_hfi_port(u32 port, u32 buffer_type)
 	return true;
 }
 
+static int iris_hfi_gen2_get_driver_buffer_flags(struct iris_inst *inst, u32 hfi_flags)
+{
+	u32 keyframe = HFI_PICTURE_IDR | HFI_PICTURE_I | HFI_PICTURE_CRA | HFI_PICTURE_BLA;
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	u32 driver_flags = 0;
+
+	if (inst_hfi_gen2->hfi_frame_info.picture_type & keyframe)
+		driver_flags |= V4L2_BUF_FLAG_KEYFRAME;
+	else if (inst_hfi_gen2->hfi_frame_info.picture_type & HFI_PICTURE_P)
+		driver_flags |= V4L2_BUF_FLAG_PFRAME;
+	else if (inst_hfi_gen2->hfi_frame_info.picture_type & HFI_PICTURE_B)
+		driver_flags |= V4L2_BUF_FLAG_BFRAME;
+
+	if (inst_hfi_gen2->hfi_frame_info.data_corrupt || inst_hfi_gen2->hfi_frame_info.overflow)
+		driver_flags |= V4L2_BUF_FLAG_ERROR;
+
+	if (hfi_flags & HFI_BUF_FW_FLAG_LAST ||
+	    hfi_flags & HFI_BUF_FW_FLAG_PSC_LAST)
+		driver_flags |= V4L2_BUF_FLAG_LAST;
+
+	return driver_flags;
+}
+
 static bool iris_hfi_gen2_validate_packet_payload(struct iris_hfi_packet *pkt)
 {
 	u32 payload_size = 0;
@@ -152,6 +177,37 @@ static int iris_hfi_gen2_validate_hdr_packet(struct iris_core *core, struct iris
 	}
 
 	return 0;
+}
+
+static int iris_hfi_gen2_handle_session_info(struct iris_inst *inst,
+					     struct iris_hfi_packet *pkt)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	struct iris_core *core = inst->core;
+	int ret = 0;
+	char *info;
+
+	switch (pkt->type) {
+	case HFI_INFO_UNSUPPORTED:
+		info = "unsupported";
+		break;
+	case HFI_INFO_DATA_CORRUPT:
+		info = "data corrupt";
+		inst_hfi_gen2->hfi_frame_info.data_corrupt = 1;
+		break;
+	case HFI_INFO_BUFFER_OVERFLOW:
+		info = "buffer overflow";
+		inst_hfi_gen2->hfi_frame_info.overflow = 1;
+		break;
+	default:
+		info = "unknown";
+		break;
+	}
+
+	dev_dbg(core->dev, "session info received %#x: %s\n",
+		pkt->type, info);
+
+	return ret;
 }
 
 static int iris_hfi_gen2_handle_session_error(struct iris_inst *inst,
@@ -237,19 +293,108 @@ static void iris_hfi_gen2_handle_session_close(struct iris_inst *inst,
 	complete(&inst->completion);
 }
 
+static int iris_hfi_gen2_handle_input_buffer(struct iris_inst *inst,
+					     struct iris_hfi_buffer *buffer)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *m2m_buffer, *n;
+	struct iris_buffer *buf;
+	bool found = false;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, m2m_buffer, n) {
+		buf = to_iris_buffer(&m2m_buffer->vb);
+		if (buf->index == buffer->index) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return -EINVAL;
+
+	if (!(buf->attr & BUF_ATTR_QUEUED))
+		return -EINVAL;
+
+	buf->attr &= ~BUF_ATTR_QUEUED;
+	buf->attr |= BUF_ATTR_DEQUEUED;
+
+	buf->flags = iris_hfi_gen2_get_driver_buffer_flags(inst, buffer->flags);
+
+	return 0;
+}
+
+static int iris_hfi_gen2_handle_output_buffer(struct iris_inst *inst,
+					      struct iris_hfi_buffer *hfi_buffer)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *m2m_buffer, *n;
+	struct iris_buffer *buf;
+	bool found = false;
+
+	v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, m2m_buffer, n) {
+		buf = to_iris_buffer(&m2m_buffer->vb);
+		if (buf->index == hfi_buffer->index &&
+		    buf->device_addr == hfi_buffer->base_address &&
+		    buf->data_offset == hfi_buffer->data_offset) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		return -EINVAL;
+
+	if (!(buf->attr & BUF_ATTR_QUEUED))
+		return -EINVAL;
+
+	buf->data_offset = hfi_buffer->data_offset;
+	buf->data_size = hfi_buffer->data_size;
+	buf->timestamp = hfi_buffer->timestamp;
+
+	buf->attr &= ~BUF_ATTR_QUEUED;
+	buf->attr |= BUF_ATTR_DEQUEUED;
+
+	buf->flags = iris_hfi_gen2_get_driver_buffer_flags(inst, hfi_buffer->flags);
+
+	return 0;
+}
+
+static void iris_hfi_gen2_handle_dequeue_buffers(struct iris_inst *inst)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buffer, *n;
+	struct iris_buffer *buf = NULL;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buffer, n) {
+		buf = to_iris_buffer(&buffer->vb);
+		if (buf->attr & BUF_ATTR_DEQUEUED) {
+			buf->attr &= ~BUF_ATTR_DEQUEUED;
+			if (!(buf->attr & BUF_ATTR_BUFFER_DONE)) {
+				buf->attr |= BUF_ATTR_BUFFER_DONE;
+				iris_vb2_buffer_done(inst, buf);
+			}
+		}
+	}
+
+	v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, buffer, n) {
+		buf = to_iris_buffer(&buffer->vb);
+		if (buf->attr & BUF_ATTR_DEQUEUED) {
+			buf->attr &= ~BUF_ATTR_DEQUEUED;
+			if (!(buf->attr & BUF_ATTR_BUFFER_DONE)) {
+				buf->attr |= BUF_ATTR_BUFFER_DONE;
+				iris_vb2_buffer_done(inst, buf);
+			}
+		}
+	}
+}
+
 static int iris_hfi_gen2_handle_release_internal_buffer(struct iris_inst *inst,
 							struct iris_hfi_buffer *buffer)
 {
+	u32 buf_type = iris_hfi_gen2_buf_type_to_driver(buffer->type);
+	struct iris_buffers *buffers = &inst->buffers[buf_type];
 	struct iris_buffer *buf, *iter;
-	struct iris_buffers *buffers;
-	u32 buf_type;
+	bool found = false;
 	int ret = 0;
-	bool found;
 
-	buf_type = iris_hfi_gen2_buf_type_to_driver(buffer->type);
-	buffers = &inst->buffers[buf_type];
-
-	found = false;
 	list_for_each_entry(iter, &buffers->list, list) {
 		if (iter->device_addr == buffer->base_address) {
 			found = true;
@@ -261,7 +406,6 @@ static int iris_hfi_gen2_handle_release_internal_buffer(struct iris_inst *inst,
 		return -EINVAL;
 
 	buf->attr &= ~BUF_ATTR_QUEUED;
-
 	if (buf->attr & BUF_ATTR_PENDING_RELEASE)
 		ret = iris_destroy_internal_buffer(inst, buf);
 
@@ -288,7 +432,12 @@ static int iris_hfi_gen2_handle_session_buffer(struct iris_inst *inst,
 	if (!iris_hfi_gen2_is_valid_hfi_port(pkt->port, buffer->type))
 		return 0;
 
-	return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
+	if (buffer->type == HFI_BUFFER_BITSTREAM)
+		return iris_hfi_gen2_handle_input_buffer(inst, buffer);
+	else if (buffer->type == HFI_BUFFER_RAW)
+		return iris_hfi_gen2_handle_output_buffer(inst, buffer);
+	else
+		return iris_hfi_gen2_handle_release_internal_buffer(inst, buffer);
 }
 
 static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
@@ -349,6 +498,12 @@ static int iris_hfi_gen2_handle_session_property(struct iris_inst *inst,
 		break;
 	case HFI_PROP_LEVEL:
 		inst_hfi_gen2->src_subcr_params.level = pkt->payload[0];
+		break;
+	case HFI_PROP_PICTURE_TYPE:
+		inst_hfi_gen2->hfi_frame_info.picture_type = pkt->payload[0];
+		break;
+	case HFI_PROP_NO_OUTPUT:
+		inst_hfi_gen2->hfi_frame_info.no_output = 1;
 		break;
 	case HFI_PROP_QUALITY_MODE:
 	case HFI_PROP_STAGE:
@@ -436,14 +591,18 @@ static int iris_hfi_gen2_handle_system_response(struct iris_core *core,
 static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 						 struct iris_hfi_header *hdr)
 {
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2;
 	struct iris_hfi_packet *packet;
 	struct iris_inst *inst;
+	bool dequeue = false;
 	int ret = 0;
 	u32 i, j;
 	u8 *pkt;
 	static const struct iris_hfi_gen2_inst_hfi_range range[] = {
 		{HFI_SESSION_ERROR_BEGIN, HFI_SESSION_ERROR_END,
 		 iris_hfi_gen2_handle_session_error},
+		{HFI_INFORMATION_BEGIN, HFI_INFORMATION_END,
+		 iris_hfi_gen2_handle_session_info},
 		{HFI_PROP_BEGIN, HFI_PROP_END,
 		 iris_hfi_gen2_handle_session_property},
 		{HFI_CMD_BEGIN, HFI_CMD_END,
@@ -455,6 +614,8 @@ static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 		return -EINVAL;
 
 	mutex_lock(&inst->lock);
+	inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+	memset(&inst_hfi_gen2->hfi_frame_info, 0, sizeof(struct iris_hfi_frame_info));
 
 	pkt = (u8 *)((u8 *)hdr + sizeof(*hdr));
 	for (i = 0; i < ARRAY_SIZE(range); i++) {
@@ -465,6 +626,7 @@ static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 				iris_hfi_gen2_handle_session_error(inst, packet);
 
 			if (packet->type > range[i].begin && packet->type < range[i].end) {
+				dequeue |= (packet->type == HFI_CMD_BUFFER);
 				ret = range[i].handle(inst, packet);
 				if (ret)
 					iris_inst_change_state(inst, IRIS_INST_ERROR);
@@ -472,6 +634,9 @@ static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 			pkt += packet->size;
 		}
 	}
+
+	if (dequeue)
+		iris_hfi_gen2_handle_dequeue_buffers(inst);
 
 	mutex_unlock(&inst->lock);
 

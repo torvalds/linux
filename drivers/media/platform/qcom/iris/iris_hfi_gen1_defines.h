@@ -29,17 +29,22 @@
 #define HFI_CMD_SESSION_LOAD_RESOURCES			0x211001
 #define HFI_CMD_SESSION_START				0x211002
 #define HFI_CMD_SESSION_STOP				0x211003
+#define HFI_CMD_SESSION_EMPTY_BUFFER			0x211004
+#define HFI_CMD_SESSION_FILL_BUFFER			0x211005
 #define HFI_CMD_SESSION_FLUSH				0x211008
 #define HFI_CMD_SESSION_RELEASE_BUFFERS			0x21100b
 #define HFI_CMD_SESSION_RELEASE_RESOURCES		0x21100c
 
 #define HFI_ERR_SESSION_UNSUPPORTED_SETTING		0x1008
+#define HFI_ERR_SESSION_UNSUPPORTED_STREAM		0x100d
 #define HFI_ERR_SESSION_UNSUPPORT_BUFFERTYPE		0x1010
 #define HFI_ERR_SESSION_INVALID_SCALE_FACTOR		0x1012
 #define HFI_ERR_SESSION_UPSCALE_NOT_SUPPORTED		0x1013
 
 #define HFI_EVENT_SYS_ERROR				0x1
 #define HFI_EVENT_SESSION_ERROR				0x2
+
+#define HFI_BUFFERFLAG_TIMESTAMPINVALID			0x00000100
 
 #define HFI_FLUSH_OUTPUT				0x1000002
 #define HFI_FLUSH_OUTPUT2				0x1000003
@@ -84,8 +89,18 @@
 #define HFI_MSG_SESSION_START				0x221002
 #define HFI_MSG_SESSION_STOP				0x221003
 #define HFI_MSG_SESSION_FLUSH				0x221006
+#define HFI_MSG_SESSION_EMPTY_BUFFER			0x221007
+#define HFI_MSG_SESSION_FILL_BUFFER			0x221008
 #define HFI_MSG_SESSION_RELEASE_RESOURCES		0x22100a
 #define HFI_MSG_SESSION_RELEASE_BUFFERS			0x22100c
+
+#define HFI_PICTURE_I					0x00000001
+#define HFI_PICTURE_P					0x00000002
+#define HFI_PICTURE_B					0x00000004
+#define HFI_PICTURE_IDR					0x00000008
+#define HFI_FRAME_NOTCODED				0x7f002000
+#define HFI_FRAME_YUV					0x7f004000
+#define HFI_UNUSED_PICT					0x10000000
 
 struct hfi_pkt_hdr {
 	u32 size;
@@ -142,6 +157,34 @@ struct hfi_session_set_buffers_pkt {
 	u32 min_buffer_size;
 	u32 num_buffers;
 	u32 buffer_info[];
+};
+
+struct hfi_session_empty_buffer_compressed_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 offset;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data;
+};
+
+struct hfi_session_fill_buffer_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 stream_id;
+	u32 offset;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 output_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data;
 };
 
 struct hfi_session_flush_pkt {
@@ -256,6 +299,43 @@ struct hfi_buffer_size_actual {
 struct hfi_multi_stream {
 	u32 buffer_type;
 	u32 enable;
+};
+
+struct hfi_msg_session_empty_buffer_done_pkt {
+	struct hfi_msg_session_hdr_pkt shdr;
+	u32 offset;
+	u32 filled_len;
+	u32 input_tag;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data[];
+};
+
+struct hfi_msg_session_fbd_uncompressed_plane0_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 stream_id;
+	u32 view_id;
+	u32 error_type;
+	u32 time_stamp_hi;
+	u32 time_stamp_lo;
+	u32 flags;
+	u32 mark_target;
+	u32 mark_data;
+	u32 stats;
+	u32 alloc_len;
+	u32 filled_len;
+	u32 offset;
+	u32 frame_width;
+	u32 frame_height;
+	u32 start_x_coord;
+	u32 start_y_coord;
+	u32 input_tag;
+	u32 input_tag2;
+	u32 output_tag;
+	u32 picture_type;
+	u32 packet_buffer;
+	u32 extradata_buffer;
+	u32 data[];
 };
 
 struct hfi_msg_session_release_buffers_done_pkt {

@@ -3,6 +3,7 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <media/v4l2-event.h>
 #include <media/v4l2-mem2mem.h>
 
 #include "iris_buffer.h"
@@ -434,6 +435,36 @@ int iris_alloc_and_queue_persist_bufs(struct iris_inst *inst)
 	return 0;
 }
 
+int iris_queue_deferred_buffers(struct iris_inst *inst, enum iris_buffer_type buf_type)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *buffer, *n;
+	struct iris_buffer *buf;
+	int ret;
+
+	if (buf_type == BUF_INPUT) {
+		v4l2_m2m_for_each_src_buf_safe(m2m_ctx, buffer, n) {
+			buf = to_iris_buffer(&buffer->vb);
+			if (!(buf->attr & BUF_ATTR_DEFERRED))
+				continue;
+			ret = iris_queue_buffer(inst, buf);
+			if (ret)
+				return ret;
+		}
+	} else {
+		v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, buffer, n) {
+			buf = to_iris_buffer(&buffer->vb);
+			if (!(buf->attr & BUF_ATTR_DEFERRED))
+				continue;
+			ret = iris_queue_buffer(inst, buf);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
 void iris_vb2_queue_error(struct iris_inst *inst)
 {
 	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
@@ -443,4 +474,89 @@ void iris_vb2_queue_error(struct iris_inst *inst)
 	vb2_queue_error(q);
 	q = v4l2_m2m_get_dst_vq(m2m_ctx);
 	vb2_queue_error(q);
+}
+
+static struct vb2_v4l2_buffer *
+iris_helper_find_buf(struct iris_inst *inst, u32 type, u32 idx)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+
+	if (V4L2_TYPE_IS_OUTPUT(type))
+		return v4l2_m2m_src_buf_remove_by_idx(m2m_ctx, idx);
+	else
+		return v4l2_m2m_dst_buf_remove_by_idx(m2m_ctx, idx);
+}
+
+static void iris_get_ts_metadata(struct iris_inst *inst, u64 timestamp_ns,
+				 struct vb2_v4l2_buffer *vbuf)
+{
+	u32 mask = V4L2_BUF_FLAG_TIMECODE | V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(inst->tss); ++i) {
+		if (inst->tss[i].ts_ns != timestamp_ns)
+			continue;
+
+		vbuf->flags &= ~mask;
+		vbuf->flags |= inst->tss[i].flags;
+		vbuf->timecode = inst->tss[i].tc;
+		return;
+	}
+
+	vbuf->flags &= ~mask;
+	vbuf->flags |= inst->tss[inst->metadata_idx].flags;
+	vbuf->timecode = inst->tss[inst->metadata_idx].tc;
+}
+
+int iris_vb2_buffer_done(struct iris_inst *inst, struct iris_buffer *buf)
+{
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct vb2_v4l2_buffer *vbuf;
+	struct vb2_buffer *vb2;
+	u32 type, state;
+
+	switch (buf->type) {
+	case BUF_INPUT:
+		type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
+		break;
+	case BUF_OUTPUT:
+		type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+		break;
+	default:
+		return 0; /* Internal DPB Buffers */
+	}
+
+	vbuf = iris_helper_find_buf(inst, type, buf->index);
+	if (!vbuf)
+		return -EINVAL;
+
+	vb2 = &vbuf->vb2_buf;
+
+	if (buf->flags & V4L2_BUF_FLAG_ERROR)
+		state = VB2_BUF_STATE_ERROR;
+	else
+		state = VB2_BUF_STATE_DONE;
+
+	vbuf->flags |= buf->flags;
+
+	if (V4L2_TYPE_IS_CAPTURE(type)) {
+		vb2_set_plane_payload(vb2, 0, buf->data_size);
+		vbuf->sequence = inst->sequence_cap++;
+		iris_get_ts_metadata(inst, buf->timestamp, vbuf);
+	} else {
+		vbuf->sequence = inst->sequence_out++;
+	}
+
+	if (vbuf->flags & V4L2_BUF_FLAG_LAST) {
+		if (!v4l2_m2m_has_stopped(m2m_ctx)) {
+			const struct v4l2_event ev = { .type = V4L2_EVENT_EOS };
+
+			v4l2_event_queue_fh(&inst->fh, &ev);
+			v4l2_m2m_mark_stopped(m2m_ctx);
+		}
+	}
+	vb2->timestamp = buf->timestamp;
+	v4l2_m2m_buf_done(vbuf, state);
+
+	return 0;
 }

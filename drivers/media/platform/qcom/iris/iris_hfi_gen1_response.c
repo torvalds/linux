@@ -3,6 +3,8 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <media/v4l2-mem2mem.h>
+
 #include "iris_hfi_gen1.h"
 #include "iris_hfi_gen1_defines.h"
 #include "iris_instance.h"
@@ -130,6 +132,143 @@ static void iris_hfi_gen1_sys_property_info(struct iris_core *core, void *packet
 	}
 }
 
+static void iris_hfi_gen1_session_etb_done(struct iris_inst *inst, void *packet)
+{
+	struct hfi_msg_session_empty_buffer_done_pkt *pkt = packet;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *m2m_buffer, *n;
+	struct iris_buffer *buf = NULL;
+	bool found = false;
+
+	v4l2_m2m_for_each_src_buf_safe(m2m_ctx, m2m_buffer, n) {
+		buf = to_iris_buffer(&m2m_buffer->vb);
+		if (buf->index == pkt->input_tag) {
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+		goto error;
+
+	if (pkt->shdr.error_type == HFI_ERR_SESSION_UNSUPPORTED_STREAM) {
+		buf->flags = V4L2_BUF_FLAG_ERROR;
+		iris_vb2_queue_error(inst);
+		iris_inst_change_state(inst, IRIS_INST_ERROR);
+	}
+
+	if (!(buf->attr & BUF_ATTR_QUEUED))
+		return;
+
+	buf->attr &= ~BUF_ATTR_QUEUED;
+
+	if (!(buf->attr & BUF_ATTR_BUFFER_DONE)) {
+		buf->attr |= BUF_ATTR_BUFFER_DONE;
+		iris_vb2_buffer_done(inst, buf);
+	}
+
+	return;
+
+error:
+	iris_inst_change_state(inst, IRIS_INST_ERROR);
+	dev_err(inst->core->dev, "error in etb done\n");
+}
+
+static void iris_hfi_gen1_session_ftb_done(struct iris_inst *inst, void *packet)
+{
+	struct hfi_msg_session_fbd_uncompressed_plane0_pkt *pkt = packet;
+	struct v4l2_m2m_ctx *m2m_ctx = inst->m2m_ctx;
+	struct v4l2_m2m_buffer *m2m_buffer, *n;
+	u32 timestamp_hi = pkt->time_stamp_hi;
+	u32 timestamp_lo = pkt->time_stamp_lo;
+	struct iris_core *core = inst->core;
+	u32 filled_len = pkt->filled_len;
+	u32 pic_type = pkt->picture_type;
+	u32 output_tag = pkt->output_tag;
+	struct iris_buffer *buf, *iter;
+	struct iris_buffers *buffers;
+	u32 offset = pkt->offset;
+	u64 timestamp_us = 0;
+	bool found = false;
+	u32 flags = 0;
+
+	if (iris_split_mode_enabled(inst) && pkt->stream_id == 0) {
+		buffers = &inst->buffers[BUF_DPB];
+		if (!buffers)
+			goto error;
+
+		found = false;
+		list_for_each_entry(iter, &buffers->list, list) {
+			if (!(iter->attr & BUF_ATTR_QUEUED))
+				continue;
+
+			found = (iter->index == output_tag &&
+				iter->data_offset == offset);
+
+			if (found) {
+				buf = iter;
+				break;
+			}
+		}
+	} else {
+		v4l2_m2m_for_each_dst_buf_safe(m2m_ctx, m2m_buffer, n) {
+			buf = to_iris_buffer(&m2m_buffer->vb);
+			if (!(buf->attr & BUF_ATTR_QUEUED))
+				continue;
+
+			found = (buf->index == output_tag &&
+				 buf->data_offset == offset);
+
+			if (found)
+				break;
+		}
+	}
+	if (!found)
+		goto error;
+
+	buf->data_offset = offset;
+	buf->data_size = filled_len;
+
+	if (filled_len) {
+		timestamp_us = timestamp_hi;
+		timestamp_us = (timestamp_us << 32) | timestamp_lo;
+	} else {
+		flags |= V4L2_BUF_FLAG_LAST;
+	}
+	buf->timestamp = timestamp_us;
+
+	switch (pic_type) {
+	case HFI_PICTURE_IDR:
+	case HFI_PICTURE_I:
+		flags |= V4L2_BUF_FLAG_KEYFRAME;
+		break;
+	case HFI_PICTURE_P:
+		flags |= V4L2_BUF_FLAG_PFRAME;
+		break;
+	case HFI_PICTURE_B:
+		flags |= V4L2_BUF_FLAG_BFRAME;
+		break;
+	case HFI_FRAME_NOTCODED:
+	case HFI_UNUSED_PICT:
+	case HFI_FRAME_YUV:
+	default:
+		break;
+	}
+
+	buf->attr &= ~BUF_ATTR_QUEUED;
+	buf->attr |= BUF_ATTR_DEQUEUED;
+	buf->attr |= BUF_ATTR_BUFFER_DONE;
+
+	buf->flags |= flags;
+
+	iris_vb2_buffer_done(inst, buf);
+
+	return;
+
+error:
+	iris_inst_change_state(inst, IRIS_INST_ERROR);
+	dev_err(core->dev, "error in ftb done\n");
+}
+
 struct iris_hfi_gen1_response_pkt_info {
 	u32 pkt;
 	u32 pkt_sz;
@@ -167,6 +306,14 @@ static const struct iris_hfi_gen1_response_pkt_info pkt_infos[] = {
 	{
 	 .pkt = HFI_MSG_SESSION_STOP,
 	 .pkt_sz = sizeof(struct hfi_msg_session_hdr_pkt),
+	},
+	{
+	 .pkt = HFI_MSG_SESSION_EMPTY_BUFFER,
+	 .pkt_sz = sizeof(struct hfi_msg_session_empty_buffer_done_pkt),
+	},
+	{
+	 .pkt = HFI_MSG_SESSION_FILL_BUFFER,
+	 .pkt_sz = sizeof(struct hfi_msg_session_fbd_uncompressed_plane0_pkt),
 	},
 	{
 	 .pkt = HFI_MSG_SESSION_FLUSH,
@@ -238,15 +385,21 @@ static void iris_hfi_gen1_handle_response(struct iris_core *core, void *response
 		}
 
 		mutex_lock(&inst->lock);
-		struct hfi_msg_session_hdr_pkt *shdr;
+		if (hdr->pkt_type == HFI_MSG_SESSION_EMPTY_BUFFER) {
+			iris_hfi_gen1_session_etb_done(inst, hdr);
+		} else if (hdr->pkt_type == HFI_MSG_SESSION_FILL_BUFFER) {
+			iris_hfi_gen1_session_ftb_done(inst, hdr);
+		} else {
+			struct hfi_msg_session_hdr_pkt *shdr;
 
-		shdr = (struct hfi_msg_session_hdr_pkt *)hdr;
-		if (shdr->error_type != HFI_ERR_NONE)
-			iris_inst_change_state(inst, IRIS_INST_ERROR);
+			shdr = (struct hfi_msg_session_hdr_pkt *)hdr;
+			if (shdr->error_type != HFI_ERR_NONE)
+				iris_inst_change_state(inst, IRIS_INST_ERROR);
 
-		done = pkt_info->pkt == HFI_MSG_SESSION_FLUSH ?
-			&inst->flush_completion : &inst->completion;
-		complete(done);
+			done = pkt_info->pkt == HFI_MSG_SESSION_FLUSH ?
+				&inst->flush_completion : &inst->completion;
+			complete(done);
+		}
 		mutex_unlock(&inst->lock);
 
 		break;
