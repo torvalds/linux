@@ -244,4 +244,7 @@ int bch2_inum_offset_err_msg_trans(struct btree_trans *, struct printbuf *, subv
 void bch2_inum_err_msg(struct bch_fs *, struct printbuf *, subvol_inum);
 void bch2_inum_offset_err_msg(struct bch_fs *, struct printbuf *, subvol_inum, u64);
 
+int bch2_inum_snap_err_msg_trans(struct btree_trans *, struct printbuf *, struct bpos);
+int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *, struct printbuf *, struct bpos);
+
 #endif /* _BCACHEFS_ERROR_H */

@@ -390,7 +390,7 @@ static u32 bch2_snapshot_tree_next(struct bch_fs *c, u32 id)
 	return 0;
 }
 
-static u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
+u32 bch2_snapshot_tree_oldest_subvol(struct bch_fs *c, u32 snapshot_root)
 {
 	u32 id = snapshot_root;
 	u32 subvol = 0, s;

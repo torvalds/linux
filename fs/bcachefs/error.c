@@ -535,7 +535,6 @@ int bch2_inum_err_msg_trans(struct btree_trans *trans, struct printbuf *out, sub
 	u32 restart_count = trans->restart_count;
 	int ret = 0;
 
-	/* XXX: we don't yet attempt to print paths when we don't know the subvol */
 	if (inum.subvol)
 		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
 	if (!inum.subvol || ret)
@@ -561,4 +560,35 @@ void bch2_inum_offset_err_msg(struct bch_fs *c, struct printbuf *out,
 			      subvol_inum inum, u64 offset)
 {
 	bch2_trans_run(c, bch2_inum_offset_err_msg_trans(trans, out, inum, offset));
+}
+
+int bch2_inum_snap_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+				 struct bpos pos)
+{
+	u32 restart_count = trans->restart_count;
+	struct bch_fs *c = trans->c;
+	int ret = 0;
+
+	if (!bch2_snapshot_is_leaf(c, pos.snapshot))
+		prt_str(out, "(multiple snapshots) ");
+
+	subvol_inum inum = {
+		.subvol	= bch2_snapshot_tree_oldest_subvol(c, pos.snapshot),
+		.inum	= pos.inode,
+	};
+
+	if (inum.subvol)
+		ret = lockrestart_do(trans, bch2_inum_to_path(trans, inum, out));
+	if (!inum.subvol || ret)
+		prt_printf(out, "inum %llu:%u", pos.inode, pos.snapshot);
+
+	return trans_was_restarted(trans, restart_count);
+}
+
+int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printbuf *out,
+					struct bpos pos)
+{
+	int ret = bch2_inum_snap_err_msg_trans(trans, out, pos);
+	prt_printf(out, " offset %llu: ", pos.offset << 8);
+	return ret;
 }
