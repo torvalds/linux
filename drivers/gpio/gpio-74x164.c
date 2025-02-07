@@ -47,7 +47,7 @@ static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 
 	guard(mutex)(&chip->lock);
 
-	return (chip->buffer[bank] >> pin) & 0x1;
+	return !!(chip->buffer[bank] & BIT(pin));
 }
 
 static void gen_74x164_set_value(struct gpio_chip *gc,
@@ -60,9 +60,9 @@ static void gen_74x164_set_value(struct gpio_chip *gc,
 	guard(mutex)(&chip->lock);
 
 	if (val)
-		chip->buffer[bank] |= (1 << pin);
+		chip->buffer[bank] |= BIT(pin);
 	else
-		chip->buffer[bank] &= ~(1 << pin);
+		chip->buffer[bank] &= ~BIT(pin);
 
 	__gen_74x164_write_config(chip);
 }
