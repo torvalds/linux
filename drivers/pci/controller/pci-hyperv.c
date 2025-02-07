@@ -1356,7 +1356,7 @@ static struct pci_ops hv_pcifront_ops = {
  *
  * If the PF driver wishes to initiate communication, it can "invalidate" one or
  * more of the first 64 blocks.  This invalidation is delivered via a callback
- * supplied by the VF driver by this driver.
+ * supplied to the VF driver by this driver.
  *
  * No protocol is implied, except that supplied by the PF and VF drivers.
  */
