@@ -21,7 +21,6 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_cache.h>
 #include <rdma/ib_addr.h>
-#include <crypto/hash.h>
 
 #include "rxe_net.h"
 #include "rxe_opcode.h"

@@ -1546,10 +1546,6 @@ int rxe_register_device(struct rxe_dev *rxe, const char *ibdev_name,
 	if (err)
 		return err;
 
-	err = rxe_icrc_init(rxe);
-	if (err)
-		return err;
-
 	err = ib_register_device(dev, ibdev_name, NULL);
 	if (err)
 		rxe_dbg_dev(rxe, "failed with error %d\n", err);

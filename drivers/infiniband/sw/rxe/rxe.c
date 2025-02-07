@@ -31,9 +31,6 @@ void rxe_dealloc(struct ib_device *ib_dev)
 
 	WARN_ON(!RB_EMPTY_ROOT(&rxe->mcg_tree));
 
-	if (rxe->tfm)
-		crypto_free_shash(rxe->tfm);
-
 	mutex_destroy(&rxe->usdev_lock);
 }
 
