@@ -21,7 +21,6 @@ struct intel_encoder;
 struct intel_hdcp_shim;
 struct seq_file;
 enum port;
-enum transcoder;
 
 void intel_hdcp_atomic_check(struct drm_connector *connector,
 			     struct drm_connector_state *old_state,
@@ -39,11 +38,6 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 			    const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state);
 bool is_hdcp_supported(struct intel_display *display, enum port port);
-bool intel_hdcp_get_capability(struct intel_connector *connector);
-bool intel_hdcp2_get_capability(struct intel_connector *connector);
-void intel_hdcp_get_remote_capability(struct intel_connector *connector,
-				      bool *hdcp_capable,
-				      bool *hdcp2_capable);
 void intel_hdcp_component_init(struct intel_display *display);
 void intel_hdcp_component_fini(struct intel_display *display);
 void intel_hdcp_cleanup(struct intel_connector *connector);

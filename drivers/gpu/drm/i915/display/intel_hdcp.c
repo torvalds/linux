@@ -209,7 +209,7 @@ int intel_hdcp_read_valid_bksv(struct intel_digital_port *dig_port,
 }
 
 /* Is HDCP1.4 capable on Platform and Sink */
-bool intel_hdcp_get_capability(struct intel_connector *connector)
+static bool intel_hdcp_get_capability(struct intel_connector *connector)
 {
 	struct intel_digital_port *dig_port;
 	const struct intel_hdcp_shim *shim = connector->hdcp.shim;
@@ -265,7 +265,7 @@ static bool intel_hdcp2_prerequisite(struct intel_connector *connector)
 }
 
 /* Is HDCP2.2 capable on Platform and Sink */
-bool intel_hdcp2_get_capability(struct intel_connector *connector)
+static bool intel_hdcp2_get_capability(struct intel_connector *connector)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	bool capable = false;
@@ -279,9 +279,9 @@ bool intel_hdcp2_get_capability(struct intel_connector *connector)
 	return capable;
 }
 
-void intel_hdcp_get_remote_capability(struct intel_connector *connector,
-				      bool *hdcp_capable,
-				      bool *hdcp2_capable)
+static void intel_hdcp_get_remote_capability(struct intel_connector *connector,
+					     bool *hdcp_capable,
+					     bool *hdcp2_capable)
 {
 	struct intel_hdcp *hdcp = &connector->hdcp;
 
