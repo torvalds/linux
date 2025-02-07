@@ -459,9 +459,6 @@ static struct fib_rule *rule_find(struct fib_rules_ops *ops,
 		if (rule->tun_id && r->tun_id != rule->tun_id)
 			continue;
 
-		if (r->fr_net != rule->fr_net)
-			continue;
-
 		if (rule->l3mdev && r->l3mdev != rule->l3mdev)
 			continue;
 
@@ -717,9 +714,6 @@ static int rule_exists(struct fib_rules_ops *ops, struct fib_rule_hdr *frh,
 			continue;
 
 		if (r->tun_id != rule->tun_id)
-			continue;
-
-		if (r->fr_net != rule->fr_net)
 			continue;
 
 		if (r->l3mdev != rule->l3mdev)
