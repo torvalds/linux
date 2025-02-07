@@ -6,6 +6,7 @@
 #include "iris_hfi_gen1.h"
 #include "iris_hfi_gen1_defines.h"
 #include "iris_instance.h"
+#include "iris_vpu_buffer.h"
 
 static int iris_hfi_gen1_sys_init(struct iris_core *core)
 {
@@ -182,12 +183,422 @@ static int iris_hfi_gen1_session_stop(struct iris_inst *inst, u32 plane)
 	return ret;
 }
 
+static int
+iris_hfi_gen1_packet_session_set_property(struct hfi_session_set_property_pkt *packet,
+					  struct iris_inst *inst, u32 ptype, void *pdata)
+{
+	void *prop_data = &packet->data[1];
+
+	packet->shdr.hdr.size = sizeof(*packet);
+	packet->shdr.hdr.pkt_type = HFI_CMD_SESSION_SET_PROPERTY;
+	packet->shdr.session_id = inst->session_id;
+	packet->num_properties = 1;
+	packet->data[0] = ptype;
+
+	switch (ptype) {
+	case HFI_PROPERTY_PARAM_FRAME_SIZE: {
+		struct hfi_framesize *in = pdata, *fsize = prop_data;
+
+		fsize->buffer_type = in->buffer_type;
+		fsize->height = in->height;
+		fsize->width = in->width;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*fsize);
+		break;
+	}
+	case HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE: {
+		struct hfi_videocores_usage_type *in = pdata, *cu = prop_data;
+
+		cu->video_core_enable_mask = in->video_core_enable_mask;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*cu);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT: {
+		struct hfi_uncompressed_format_select *in = pdata;
+		struct hfi_uncompressed_format_select *hfi = prop_data;
+
+		hfi->buffer_type = in->buffer_type;
+		hfi->format = in->format;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*hfi);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO: {
+		struct hfi_uncompressed_plane_actual_constraints_info *info = prop_data;
+
+		info->buffer_type = HFI_BUFFER_OUTPUT2;
+		info->num_planes = 2;
+		info->plane_format[0].stride_multiples = 128;
+		info->plane_format[0].max_stride = 8192;
+		info->plane_format[0].min_plane_buffer_height_multiple = 32;
+		info->plane_format[0].buffer_alignment = 256;
+		if (info->num_planes > 1) {
+			info->plane_format[1].stride_multiples = 128;
+			info->plane_format[1].max_stride = 8192;
+			info->plane_format[1].min_plane_buffer_height_multiple = 16;
+			info->plane_format[1].buffer_alignment = 256;
+		}
+
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*info);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL: {
+		struct hfi_buffer_count_actual *in = pdata;
+		struct hfi_buffer_count_actual *count = prop_data;
+
+		count->type = in->type;
+		count->count_actual = in->count_actual;
+		count->count_min_host = in->count_min_host;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*count);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM: {
+		struct hfi_multi_stream *in = pdata;
+		struct hfi_multi_stream *multi = prop_data;
+
+		multi->buffer_type = in->buffer_type;
+		multi->enable = in->enable;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*multi);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL: {
+		struct hfi_buffer_size_actual *in = pdata, *sz = prop_data;
+
+		sz->size = in->size;
+		sz->type = in->type;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*sz);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_WORK_ROUTE: {
+		struct hfi_video_work_route *wr = prop_data;
+		u32 *in = pdata;
+
+		wr->video_work_route = *in;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*wr);
+		break;
+	}
+	case HFI_PROPERTY_PARAM_WORK_MODE: {
+		struct hfi_video_work_mode *wm = prop_data;
+		u32 *in = pdata;
+
+		wm->video_work_mode = *in;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*wm);
+		break;
+	}
+	case HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER: {
+		struct hfi_enable *en = prop_data;
+		u32 *in = pdata;
+
+		en->enable = *in;
+		packet->shdr.hdr.size += sizeof(u32) + sizeof(*en);
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int hfi_gen1_set_property(struct iris_inst *inst, u32 packet_type,
+				 void *payload, u32 payload_size)
+{
+	struct hfi_session_set_property_pkt *pkt;
+	u32 packet_size;
+	int ret;
+
+	packet_size = sizeof(*pkt) + sizeof(u32) + payload_size;
+	pkt = kzalloc(packet_size, GFP_KERNEL);
+	if (!pkt)
+		return -ENOMEM;
+
+	ret = iris_hfi_gen1_packet_session_set_property(pkt, inst, packet_type, payload);
+	if (ret == -EOPNOTSUPP) {
+		ret = 0;
+		goto exit;
+	}
+	if (ret)
+		goto exit;
+
+	ret = iris_hfi_queue_cmd_write(inst->core, pkt, pkt->shdr.hdr.size);
+
+exit:
+	kfree(pkt);
+
+	return ret;
+}
+
+static int iris_hfi_gen1_session_set_property(struct iris_inst *inst, u32 packet_type,
+					      u32 flag, u32 plane, u32 payload_type,
+					      void *payload, u32 payload_size)
+{
+	return hfi_gen1_set_property(inst, packet_type, payload, payload_size);
+}
+
+static int iris_hfi_gen1_set_resolution(struct iris_inst *inst)
+{
+	u32 ptype = HFI_PROPERTY_PARAM_FRAME_SIZE;
+	struct hfi_framesize fs;
+	int ret;
+
+	fs.buffer_type = HFI_BUFFER_INPUT;
+	fs.width = inst->fmt_src->fmt.pix_mp.width;
+	fs.height = inst->fmt_src->fmt.pix_mp.height;
+
+	ret = hfi_gen1_set_property(inst, ptype, &fs, sizeof(fs));
+	if (ret)
+		return ret;
+
+	fs.buffer_type = HFI_BUFFER_OUTPUT2;
+	fs.width = inst->fmt_dst->fmt.pix_mp.width;
+	fs.height = inst->fmt_dst->fmt.pix_mp.height;
+
+	return hfi_gen1_set_property(inst, ptype, &fs, sizeof(fs));
+}
+
+static int iris_hfi_gen1_decide_core(struct iris_inst *inst)
+{
+	const u32 ptype = HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE;
+	struct hfi_videocores_usage_type cu;
+
+	cu.video_core_enable_mask = HFI_CORE_ID_1;
+
+	return hfi_gen1_set_property(inst, ptype, &cu, sizeof(cu));
+}
+
+static int iris_hfi_gen1_set_raw_format(struct iris_inst *inst)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT;
+	u32 pixelformat = inst->fmt_dst->fmt.pix_mp.pixelformat;
+	struct hfi_uncompressed_format_select fmt;
+	int ret;
+
+	if (iris_split_mode_enabled(inst)) {
+		fmt.buffer_type = HFI_BUFFER_OUTPUT;
+		fmt.format = pixelformat == V4L2_PIX_FMT_NV12 ? HFI_COLOR_FORMAT_NV12_UBWC : 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &fmt, sizeof(fmt));
+		if (ret)
+			return ret;
+
+		fmt.buffer_type = HFI_BUFFER_OUTPUT2;
+		fmt.format = pixelformat == V4L2_PIX_FMT_NV12 ? HFI_COLOR_FORMAT_NV12 : 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &fmt, sizeof(fmt));
+	} else {
+		fmt.buffer_type = HFI_BUFFER_OUTPUT;
+		fmt.format = pixelformat == V4L2_PIX_FMT_NV12 ? HFI_COLOR_FORMAT_NV12 : 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &fmt, sizeof(fmt));
+	}
+
+	return ret;
+}
+
+static int iris_hfi_gen1_set_format_constraints(struct iris_inst *inst)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO;
+	struct hfi_uncompressed_plane_actual_constraints_info pconstraint;
+
+	pconstraint.buffer_type = HFI_BUFFER_OUTPUT2;
+	pconstraint.num_planes = 2;
+	pconstraint.plane_format[0].stride_multiples = 128;
+	pconstraint.plane_format[0].max_stride = 8192;
+	pconstraint.plane_format[0].min_plane_buffer_height_multiple = 32;
+	pconstraint.plane_format[0].buffer_alignment = 256;
+
+	pconstraint.plane_format[1].stride_multiples = 128;
+	pconstraint.plane_format[1].max_stride = 8192;
+	pconstraint.plane_format[1].min_plane_buffer_height_multiple = 16;
+	pconstraint.plane_format[1].buffer_alignment = 256;
+
+	return hfi_gen1_set_property(inst, ptype, &pconstraint, sizeof(pconstraint));
+}
+
+static int iris_hfi_gen1_set_num_bufs(struct iris_inst *inst)
+{
+	u32 ptype = HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL;
+	struct hfi_buffer_count_actual buf_count;
+	int ret;
+
+	buf_count.type = HFI_BUFFER_INPUT;
+	buf_count.count_actual = VIDEO_MAX_FRAME;
+	buf_count.count_min_host = VIDEO_MAX_FRAME;
+
+	ret = hfi_gen1_set_property(inst, ptype, &buf_count, sizeof(buf_count));
+	if (ret)
+		return ret;
+
+	if (iris_split_mode_enabled(inst)) {
+		buf_count.type = HFI_BUFFER_OUTPUT;
+		buf_count.count_actual = VIDEO_MAX_FRAME;
+		buf_count.count_min_host = VIDEO_MAX_FRAME;
+
+		ret = hfi_gen1_set_property(inst, ptype, &buf_count, sizeof(buf_count));
+		if (ret)
+			return ret;
+
+		buf_count.type = HFI_BUFFER_OUTPUT2;
+		buf_count.count_actual = iris_vpu_buf_count(inst, BUF_DPB);
+		buf_count.count_min_host = iris_vpu_buf_count(inst, BUF_DPB);
+
+		ret = hfi_gen1_set_property(inst, ptype, &buf_count, sizeof(buf_count));
+	} else {
+		buf_count.type = HFI_BUFFER_OUTPUT;
+		buf_count.count_actual = VIDEO_MAX_FRAME;
+		buf_count.count_min_host = VIDEO_MAX_FRAME;
+
+		ret = hfi_gen1_set_property(inst, ptype, &buf_count, sizeof(buf_count));
+	}
+
+	return ret;
+}
+
+static int iris_hfi_gen1_set_multistream(struct iris_inst *inst)
+{
+	u32 ptype = HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM;
+	struct hfi_multi_stream multi = {0};
+	int ret;
+
+	if (iris_split_mode_enabled(inst)) {
+		multi.buffer_type = HFI_BUFFER_OUTPUT;
+		multi.enable = 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &multi, sizeof(multi));
+		if (ret)
+			return ret;
+
+		multi.buffer_type = HFI_BUFFER_OUTPUT2;
+		multi.enable = 1;
+
+		ret = hfi_gen1_set_property(inst, ptype, &multi, sizeof(multi));
+	} else {
+		multi.buffer_type = HFI_BUFFER_OUTPUT;
+		multi.enable = 1;
+
+		ret = hfi_gen1_set_property(inst, ptype, &multi, sizeof(multi));
+		if (ret)
+			return ret;
+
+		multi.buffer_type = HFI_BUFFER_OUTPUT2;
+		multi.enable = 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &multi, sizeof(multi));
+	}
+
+	return ret;
+}
+
+static int iris_hfi_gen1_set_bufsize(struct iris_inst *inst)
+{
+	const u32 ptype = HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL;
+	struct hfi_buffer_size_actual bufsz;
+	int ret;
+
+	if (iris_split_mode_enabled(inst)) {
+		bufsz.type = HFI_BUFFER_OUTPUT;
+		bufsz.size = iris_vpu_dec_dpb_size(inst);
+
+		ret = hfi_gen1_set_property(inst, ptype, &bufsz, sizeof(bufsz));
+		if (ret)
+			return ret;
+
+		bufsz.type = HFI_BUFFER_OUTPUT2;
+		bufsz.size = inst->buffers[BUF_OUTPUT].size;
+
+		ret = hfi_gen1_set_property(inst, ptype, &bufsz, sizeof(bufsz));
+	} else {
+		bufsz.type = HFI_BUFFER_OUTPUT;
+		bufsz.size = inst->buffers[BUF_OUTPUT].size;
+
+		ret = hfi_gen1_set_property(inst, ptype, &bufsz, sizeof(bufsz));
+		if (ret)
+			return ret;
+
+		bufsz.type = HFI_BUFFER_OUTPUT2;
+		bufsz.size = 0;
+
+		ret = hfi_gen1_set_property(inst, ptype, &bufsz, sizeof(bufsz));
+	}
+
+	return ret;
+}
+
+static int iris_hfi_gen1_session_set_config_params(struct iris_inst *inst, u32 plane)
+{
+	struct iris_core *core = inst->core;
+	u32 config_params_size, i, j;
+	const u32 *config_params;
+	int ret;
+
+	static const struct iris_hfi_prop_type_handle prop_type_handle_inp_arr[] = {
+		{HFI_PROPERTY_PARAM_FRAME_SIZE,
+			iris_hfi_gen1_set_resolution},
+		{HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE,
+			iris_hfi_gen1_decide_core},
+		{HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT,
+			iris_hfi_gen1_set_raw_format},
+		{HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO,
+			iris_hfi_gen1_set_format_constraints},
+		{HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL,
+			iris_hfi_gen1_set_num_bufs},
+		{HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM,
+			iris_hfi_gen1_set_multistream},
+		{HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL,
+			iris_hfi_gen1_set_bufsize},
+	};
+
+	static const struct iris_hfi_prop_type_handle prop_type_handle_out_arr[] = {
+		{HFI_PROPERTY_PARAM_FRAME_SIZE,
+			iris_hfi_gen1_set_resolution},
+		{HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT,
+			iris_hfi_gen1_set_raw_format},
+		{HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO,
+			iris_hfi_gen1_set_format_constraints},
+		{HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL,
+			iris_hfi_gen1_set_num_bufs},
+		{HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM,
+			iris_hfi_gen1_set_multistream},
+		{HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL,
+			iris_hfi_gen1_set_bufsize},
+	};
+
+	config_params = core->iris_platform_data->input_config_params;
+	config_params_size = core->iris_platform_data->input_config_params_size;
+
+	if (V4L2_TYPE_IS_OUTPUT(plane)) {
+		for (i = 0; i < config_params_size; i++) {
+			for (j = 0; j < ARRAY_SIZE(prop_type_handle_inp_arr); j++) {
+				if (prop_type_handle_inp_arr[j].type == config_params[i]) {
+					ret = prop_type_handle_inp_arr[j].handle(inst);
+					if (ret)
+						return ret;
+					break;
+				}
+			}
+		}
+	} else if (V4L2_TYPE_IS_CAPTURE(plane)) {
+		for (i = 0; i < config_params_size; i++) {
+			for (j = 0; j < ARRAY_SIZE(prop_type_handle_out_arr); j++) {
+				if (prop_type_handle_out_arr[j].type == config_params[i]) {
+					ret = prop_type_handle_out_arr[j].handle(inst);
+					if (ret)
+						return ret;
+					break;
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
 static const struct iris_hfi_command_ops iris_hfi_gen1_command_ops = {
 	.sys_init = iris_hfi_gen1_sys_init,
 	.sys_image_version = iris_hfi_gen1_sys_image_version,
 	.sys_interframe_powercollapse = iris_hfi_gen1_sys_interframe_powercollapse,
 	.sys_pc_prep = iris_hfi_gen1_sys_pc_prep,
 	.session_open = iris_hfi_gen1_session_open,
+	.session_set_config_params = iris_hfi_gen1_session_set_config_params,
+	.session_set_property = iris_hfi_gen1_session_set_property,
 	.session_start = iris_hfi_gen1_session_start,
 	.session_stop = iris_hfi_gen1_session_stop,
 	.session_close = iris_hfi_gen1_session_close,

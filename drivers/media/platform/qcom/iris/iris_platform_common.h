@@ -6,11 +6,30 @@
 #ifndef __IRIS_PLATFORM_COMMON_H__
 #define __IRIS_PLATFORM_COMMON_H__
 
+#include <linux/bits.h>
+
 struct iris_core;
+struct iris_inst;
 
 #define IRIS_PAS_ID				9
 #define HW_RESPONSE_TIMEOUT_VALUE               (1000) /* milliseconds */
 #define AUTOSUSPEND_DELAY_VALUE			(HW_RESPONSE_TIMEOUT_VALUE + 500) /* milliseconds */
+
+#define REGISTER_BIT_DEPTH(luma, chroma)	((luma) << 16 | (chroma))
+#define BIT_DEPTH_8				REGISTER_BIT_DEPTH(8, 8)
+#define CODED_FRAMES_PROGRESSIVE		0x0
+#define DEFAULT_MAX_HOST_BUF_COUNT		64
+#define DEFAULT_MAX_HOST_BURST_BUF_COUNT	256
+enum stage_type {
+	STAGE_1 = 1,
+	STAGE_2 = 2,
+};
+
+enum pipe_type {
+	PIPE_1 = 1,
+	PIPE_2 = 2,
+	PIPE_4 = 4,
+};
 
 extern struct iris_platform_data sm8550_data;
 
@@ -53,6 +72,13 @@ struct platform_inst_caps {
 enum platform_inst_fw_cap_type {
 	PROFILE = 1,
 	LEVEL,
+	INPUT_BUF_HOST_MAX_COUNT,
+	STAGE,
+	PIPE,
+	POC,
+	CODED_FRAMES,
+	BIT_DEPTH,
+	RAP_FRAME,
 	DEBLOCK,
 	INST_FW_CAP_MAX,
 };
@@ -75,6 +101,8 @@ struct platform_inst_fw_cap {
 	s64 value;
 	u32 hfi_id;
 	enum platform_inst_fw_cap_flags flags;
+	int (*set)(struct iris_inst *inst,
+		   enum platform_inst_fw_cap_type cap_id);
 };
 
 struct iris_core_power {
@@ -115,6 +143,10 @@ struct iris_platform_data {
 	struct ubwc_config_data *ubwc_config;
 	u32 num_vpp_pipe;
 	u32 max_session_count;
+	const u32 *input_config_params;
+	unsigned int input_config_params_size;
+	const u32 *output_config_params;
+	unsigned int output_config_params_size;
 };
 
 #endif

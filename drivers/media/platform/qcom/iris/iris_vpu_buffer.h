@@ -10,6 +10,7 @@ struct iris_inst;
 
 #define MIN_BUFFERS			4
 
+u32 iris_vpu_dec_dpb_size(struct iris_inst *inst);
 int iris_vpu_buf_count(struct iris_inst *inst, enum iris_buffer_type buffer_type);
 
 #endif

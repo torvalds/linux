@@ -18,10 +18,12 @@ struct iris_core;
  *
  * @inst: pointer to iris_instance structure
  * @packet: HFI packet
+ * @src_subcr_params: subscription params to fw on input port
  */
 struct iris_inst_hfi_gen2 {
 	struct iris_inst		inst;
 	struct iris_hfi_header		*packet;
+	struct hfi_subscription_params	src_subcr_params;
 };
 
 void iris_hfi_gen2_command_ops_init(struct iris_core *core);

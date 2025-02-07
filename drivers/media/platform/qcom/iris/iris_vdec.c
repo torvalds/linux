@@ -267,6 +267,12 @@ static int iris_vdec_process_streamon_input(struct iris_inst *inst)
 
 int iris_vdec_streamon_input(struct iris_inst *inst)
 {
+	int ret;
+
+	ret = iris_set_properties(inst, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+	if (ret)
+		return ret;
+
 	return iris_vdec_process_streamon_input(inst);
 }
 
@@ -284,7 +290,12 @@ static int iris_vdec_process_streamon_output(struct iris_inst *inst)
 
 int iris_vdec_streamon_output(struct iris_inst *inst)
 {
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
 	int ret;
+
+	ret = hfi_ops->session_set_config_params(inst, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+	if (ret)
+		return ret;
 
 	ret = iris_vdec_process_streamon_output(inst);
 	if (ret)

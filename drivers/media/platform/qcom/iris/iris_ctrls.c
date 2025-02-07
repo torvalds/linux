@@ -3,7 +3,9 @@
  * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/types.h>
 #include <media/v4l2-mem2mem.h>
+
 #include "iris_ctrls.h"
 #include "iris_instance.h"
 
@@ -162,4 +164,96 @@ void iris_session_init_caps(struct iris_core *core)
 		core->inst_fw_caps[cap_id].flags = caps[i].flags;
 		core->inst_fw_caps[cap_id].hfi_id = caps[i].hfi_id;
 	}
+}
+
+static u32 iris_get_port_info(struct iris_inst *inst,
+			      enum platform_inst_fw_cap_type cap_id)
+{
+	if (inst->fw_caps[cap_id].flags & CAP_FLAG_INPUT_PORT)
+		return HFI_PORT_BITSTREAM;
+	else if (inst->fw_caps[cap_id].flags & CAP_FLAG_OUTPUT_PORT)
+		return HFI_PORT_RAW;
+
+	return HFI_PORT_NONE;
+}
+
+int iris_set_u32_enum(struct iris_inst *inst, enum platform_inst_fw_cap_type cap_id)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	u32 hfi_value = inst->fw_caps[cap_id].value;
+	u32 hfi_id = inst->fw_caps[cap_id].hfi_id;
+
+	return hfi_ops->session_set_property(inst, hfi_id,
+					     HFI_HOST_FLAGS_NONE,
+					     iris_get_port_info(inst, cap_id),
+					     HFI_PAYLOAD_U32_ENUM,
+					     &hfi_value, sizeof(u32));
+}
+
+int iris_set_u32(struct iris_inst *inst, enum platform_inst_fw_cap_type cap_id)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	u32 hfi_value = inst->fw_caps[cap_id].value;
+	u32 hfi_id = inst->fw_caps[cap_id].hfi_id;
+
+	return hfi_ops->session_set_property(inst, hfi_id,
+					     HFI_HOST_FLAGS_NONE,
+					     iris_get_port_info(inst, cap_id),
+					     HFI_PAYLOAD_U32,
+					     &hfi_value, sizeof(u32));
+}
+
+int iris_set_stage(struct iris_inst *inst, enum platform_inst_fw_cap_type cap_id)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	struct v4l2_format *inp_f = inst->fmt_src;
+	u32 hfi_id = inst->fw_caps[cap_id].hfi_id;
+	u32 height = inp_f->fmt.pix_mp.height;
+	u32 width = inp_f->fmt.pix_mp.width;
+	u32 work_mode = STAGE_2;
+
+	if (iris_res_is_less_than(width, height, 1280, 720))
+		work_mode = STAGE_1;
+
+	return hfi_ops->session_set_property(inst, hfi_id,
+					     HFI_HOST_FLAGS_NONE,
+					     iris_get_port_info(inst, cap_id),
+					     HFI_PAYLOAD_U32,
+					     &work_mode, sizeof(u32));
+}
+
+int iris_set_pipe(struct iris_inst *inst, enum platform_inst_fw_cap_type cap_id)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	u32 work_route = inst->fw_caps[PIPE].value;
+	u32 hfi_id = inst->fw_caps[cap_id].hfi_id;
+
+	return hfi_ops->session_set_property(inst, hfi_id,
+					     HFI_HOST_FLAGS_NONE,
+					     iris_get_port_info(inst, cap_id),
+					     HFI_PAYLOAD_U32,
+					     &work_route, sizeof(u32));
+}
+
+int iris_set_properties(struct iris_inst *inst, u32 plane)
+{
+	const struct iris_hfi_command_ops *hfi_ops = inst->core->hfi_ops;
+	struct platform_inst_fw_cap *cap;
+	int ret;
+	u32 i;
+
+	ret = hfi_ops->session_set_config_params(inst, plane);
+	if (ret)
+		return ret;
+
+	for (i = 1; i < INST_FW_CAP_MAX; i++) {
+		cap = &inst->fw_caps[i];
+		if (!iris_valid_cap_id(cap->cap_id))
+			continue;
+
+		if (cap->cap_id && cap->set)
+			cap->set(inst, i);
+	}
+
+	return 0;
 }

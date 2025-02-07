@@ -8,6 +8,20 @@
 #include "iris_instance.h"
 #include "iris_utils.h"
 
+bool iris_res_is_less_than(u32 width, u32 height,
+			   u32 ref_width, u32 ref_height)
+{
+	u32 num_mbs = NUM_MBS_PER_FRAME(height, width);
+	u32 max_side = max(ref_width, ref_height);
+
+	if (num_mbs < NUM_MBS_PER_FRAME(ref_height, ref_width) &&
+	    width < max_side &&
+	    height < max_side)
+		return true;
+
+	return false;
+}
+
 int iris_get_mbpf(struct iris_inst *inst)
 {
 	struct v4l2_format *inp_f = inst->fmt_src;
@@ -15,6 +29,11 @@ int iris_get_mbpf(struct iris_inst *inst)
 	u32 width = max(inp_f->fmt.pix_mp.width, inst->crop.width);
 
 	return NUM_MBS_PER_FRAME(height, width);
+}
+
+bool iris_split_mode_enabled(struct iris_inst *inst)
+{
+	return inst->fmt_dst->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12;
 }
 
 int iris_wait_for_session_response(struct iris_inst *inst, bool is_flush)

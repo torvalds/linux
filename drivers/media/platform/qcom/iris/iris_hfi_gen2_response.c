@@ -166,6 +166,53 @@ static int iris_hfi_gen2_handle_session_command(struct iris_inst *inst,
 	return 0;
 }
 
+static int iris_hfi_gen2_handle_session_property(struct iris_inst *inst,
+						 struct iris_hfi_packet *pkt)
+{
+	struct iris_inst_hfi_gen2 *inst_hfi_gen2 = to_iris_inst_hfi_gen2(inst);
+
+	if (pkt->port != HFI_PORT_BITSTREAM)
+		return 0;
+
+	if (pkt->flags & HFI_FW_FLAGS_INFORMATION)
+		return 0;
+
+	switch (pkt->type) {
+	case HFI_PROP_BITSTREAM_RESOLUTION:
+		inst_hfi_gen2->src_subcr_params.bitstream_resolution = pkt->payload[0];
+		break;
+	case HFI_PROP_CROP_OFFSETS:
+		inst_hfi_gen2->src_subcr_params.crop_offsets[0] = pkt->payload[0];
+		inst_hfi_gen2->src_subcr_params.crop_offsets[1] = pkt->payload[1];
+		break;
+	case HFI_PROP_CODED_FRAMES:
+		inst_hfi_gen2->src_subcr_params.coded_frames = pkt->payload[0];
+		break;
+	case HFI_PROP_BUFFER_FW_MIN_OUTPUT_COUNT:
+		inst_hfi_gen2->src_subcr_params.fw_min_count = pkt->payload[0];
+		break;
+	case HFI_PROP_PIC_ORDER_CNT_TYPE:
+		inst_hfi_gen2->src_subcr_params.pic_order_cnt = pkt->payload[0];
+		break;
+	case HFI_PROP_SIGNAL_COLOR_INFO:
+		inst_hfi_gen2->src_subcr_params.color_info = pkt->payload[0];
+		break;
+	case HFI_PROP_PROFILE:
+		inst_hfi_gen2->src_subcr_params.profile = pkt->payload[0];
+		break;
+	case HFI_PROP_LEVEL:
+		inst_hfi_gen2->src_subcr_params.level = pkt->payload[0];
+		break;
+	case HFI_PROP_QUALITY_MODE:
+	case HFI_PROP_STAGE:
+	case HFI_PROP_PIPE:
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int iris_hfi_gen2_handle_image_version_property(struct iris_core *core,
 						       struct iris_hfi_packet *pkt)
 {
@@ -250,6 +297,8 @@ static int iris_hfi_gen2_handle_session_response(struct iris_core *core,
 	static const struct iris_hfi_gen2_inst_hfi_range range[] = {
 		{HFI_SESSION_ERROR_BEGIN, HFI_SESSION_ERROR_END,
 		 iris_hfi_gen2_handle_session_error},
+		{HFI_PROP_BEGIN, HFI_PROP_END,
+		 iris_hfi_gen2_handle_session_property},
 		{HFI_CMD_BEGIN, HFI_CMD_END,
 		 iris_hfi_gen2_handle_session_command },
 	};

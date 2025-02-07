@@ -23,6 +23,8 @@
 #define HFI_CMD_SYS_SESSION_INIT			0x10007
 #define HFI_CMD_SYS_SESSION_END				0x10008
 
+#define HFI_CMD_SESSION_SET_PROPERTY			0x11001
+
 #define HFI_CMD_SESSION_LOAD_RESOURCES			0x211001
 #define HFI_CMD_SESSION_START				0x211002
 #define HFI_CMD_SESSION_STOP				0x211003
@@ -40,8 +42,31 @@
 #define HFI_FLUSH_OUTPUT				0x1000002
 #define HFI_FLUSH_OUTPUT2				0x1000003
 #define HFI_FLUSH_ALL					0x1000004
+
+#define HFI_PROPERTY_PARAM_BUFFER_COUNT_ACTUAL				0x201001
+#define HFI_PROPERTY_PARAM_UNCOMPRESSED_PLANE_ACTUAL_CONSTRAINTS_INFO	0x201002
+#define HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE				0x201008
+#define HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL				0x20100c
+
+#define HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER	0x1200001
+
+#define HFI_BUFFER_INPUT				0x1
+#define HFI_BUFFER_OUTPUT				0x2
+#define HFI_BUFFER_OUTPUT2				0x3
+
 #define HFI_PROPERTY_SYS_CODEC_POWER_PLANE_CTRL		0x5
 #define HFI_PROPERTY_SYS_IMAGE_VERSION			0x6
+
+#define HFI_PROPERTY_PARAM_FRAME_SIZE			0x1001
+#define HFI_PROPERTY_PARAM_UNCOMPRESSED_FORMAT_SELECT	0x1003
+#define HFI_PROPERTY_PARAM_WORK_MODE			0x1015
+#define HFI_PROPERTY_PARAM_WORK_ROUTE			0x1017
+#define HFI_PROPERTY_CONFIG_VIDEOCORES_USAGE		0x2002
+
+#define HFI_PROPERTY_PARAM_VDEC_MULTI_STREAM		0x1003001
+#define HFI_CORE_ID_1					1
+#define HFI_COLOR_FORMAT_NV12				0x02
+#define HFI_COLOR_FORMAT_NV12_UBWC			0x8002
 
 #define HFI_MSG_SYS_INIT				0x20001
 #define HFI_MSG_SYS_SESSION_INIT			0x20006
@@ -93,6 +118,12 @@ struct hfi_sys_get_property_pkt {
 	u32 data;
 };
 
+struct hfi_session_set_property_pkt {
+	struct hfi_session_hdr_pkt shdr;
+	u32 num_properties;
+	u32 data[];
+};
+
 struct hfi_sys_pc_prep_pkt {
 	struct hfi_pkt_hdr hdr;
 };
@@ -141,6 +172,58 @@ struct hfi_msg_session_flush_done_pkt {
 };
 
 struct hfi_enable {
+	u32 enable;
+};
+
+struct hfi_framesize {
+	u32 buffer_type;
+	u32 width;
+	u32 height;
+};
+
+struct hfi_videocores_usage_type {
+	u32 video_core_enable_mask;
+};
+
+struct hfi_video_work_mode {
+	u32 video_work_mode;
+};
+
+struct hfi_video_work_route {
+	u32 video_work_route;
+};
+
+struct hfi_uncompressed_format_select {
+	u32 buffer_type;
+	u32 format;
+};
+
+struct hfi_uncompressed_plane_constraints {
+	u32 stride_multiples;
+	u32 max_stride;
+	u32 min_plane_buffer_height_multiple;
+	u32 buffer_alignment;
+};
+
+struct hfi_uncompressed_plane_actual_constraints_info {
+	u32 buffer_type;
+	u32 num_planes;
+	struct hfi_uncompressed_plane_constraints plane_format[2];
+};
+
+struct hfi_buffer_count_actual {
+	u32 type;
+	u32 count_actual;
+	u32 count_min_host;
+};
+
+struct hfi_buffer_size_actual {
+	u32 type;
+	u32 size;
+};
+
+struct hfi_multi_stream {
+	u32 buffer_type;
 	u32 enable;
 };
 
