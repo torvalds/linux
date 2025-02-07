@@ -21,6 +21,55 @@
 
 #include "acp63.h"
 
+static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 ext_intr_stat,
+					      u32 ext_intr_stat1)
+{
+	u32 stream_id = 0;
+	u16 sdw_dma_irq_flag = 0;
+	u16 index;
+
+	if (ext_intr_stat & ACP63_SDW_DMA_IRQ_MASK) {
+		for (index = ACP_AUDIO2_RX_THRESHOLD; index <= ACP_AUDIO0_TX_THRESHOLD; index++) {
+			if (ext_intr_stat & BIT(index)) {
+				writel(BIT(index), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
+				switch (index) {
+				case ACP_AUDIO0_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO0_TX;
+					break;
+				case ACP_AUDIO1_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO1_TX;
+					break;
+				case ACP_AUDIO2_TX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO2_TX;
+					break;
+				case ACP_AUDIO0_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO0_RX;
+					break;
+				case ACP_AUDIO1_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO1_RX;
+					break;
+				case ACP_AUDIO2_RX_THRESHOLD:
+					stream_id = ACP63_SDW0_AUDIO2_RX;
+					break;
+				}
+				adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
+				sdw_dma_irq_flag = 1;
+			}
+		}
+	}
+	if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
+		writel(ACP63_P1_AUDIO1_RX_THRESHOLD, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
+		sdw_dma_irq_flag = 1;
+	}
+	if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
+		writel(ACP63_P1_AUDIO1_TX_THRESHOLD, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
+		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
+		sdw_dma_irq_flag = 1;
+	}
+	return sdw_dma_irq_flag;
+}
+
 static irqreturn_t acp63_irq_thread(int irq, void *context)
 {
 	struct acp63_dev_data *adata = context;
@@ -35,10 +84,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	struct pdm_dev_data *ps_pdm_data;
 	struct amd_sdw_manager *amd_manager;
 	u32 ext_intr_stat, ext_intr_stat1;
-	u32 stream_id = 0;
 	u16 irq_flag = 0;
 	u16 sdw_dma_irq_flag = 0;
-	u16 index;
 
 	adata = dev_id;
 	if (!adata)
@@ -82,51 +129,8 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
 		irq_flag = 1;
 	}
-	if (ext_intr_stat & ACP63_SDW_DMA_IRQ_MASK) {
-		for (index = ACP_AUDIO2_RX_THRESHOLD; index <= ACP_AUDIO0_TX_THRESHOLD; index++) {
-			if (ext_intr_stat & BIT(index)) {
-				writel(BIT(index), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
-				switch (index) {
-				case ACP_AUDIO0_TX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO0_TX;
-					break;
-				case ACP_AUDIO1_TX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO1_TX;
-					break;
-				case ACP_AUDIO2_TX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO2_TX;
-					break;
-				case ACP_AUDIO0_RX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO0_RX;
-					break;
-				case ACP_AUDIO1_RX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO1_RX;
-					break;
-				case ACP_AUDIO2_RX_THRESHOLD:
-					stream_id = ACP63_SDW0_AUDIO2_RX;
-					break;
-				}
 
-				adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
-				sdw_dma_irq_flag = 1;
-			}
-		}
-	}
-
-	if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
-		writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
-		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
-		sdw_dma_irq_flag = 1;
-	}
-
-	if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
-		writel(ACP63_P1_AUDIO1_TX_THRESHOLD,
-		       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
-		sdw_dma_irq_flag = 1;
-	}
-
+	sdw_dma_irq_flag = check_and_handle_sdw_dma_irq(adata, ext_intr_stat, ext_intr_stat1);
 	if (sdw_dma_irq_flag)
 		return IRQ_WAKE_THREAD;
 
