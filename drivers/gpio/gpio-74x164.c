@@ -30,7 +30,7 @@ struct gen_74x164_chip {
 	 * register at the end of the transfer. So, to have a logical
 	 * numbering, store the bytes in reverse order.
 	 */
-	u8			buffer[];
+	u8			buffer[] __counted_by(registers);
 };
 
 static int __gen_74x164_write_config(struct gen_74x164_chip *chip)
@@ -97,6 +97,7 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 
 static int gen_74x164_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct gen_74x164_chip *chip;
 	u32 nregs;
 	int ret;
@@ -116,9 +117,11 @@ static int gen_74x164_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(&spi->dev, sizeof(*chip) + nregs, GFP_KERNEL);
+	chip = devm_kzalloc(dev, struct_size(chip, buffer, nregs), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
+
+	chip->registers = nregs;
 
 	chip->gpiod_oe = devm_gpiod_get_optional(&spi->dev, "enable",
 						 GPIOD_OUT_LOW);
@@ -133,10 +136,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	chip->gpio_chip.set = gen_74x164_set_value;
 	chip->gpio_chip.set_multiple = gen_74x164_set_multiple;
 	chip->gpio_chip.base = -1;
-
-	chip->registers = nregs;
 	chip->gpio_chip.ngpio = GEN_74X164_NUMBER_GPIOS * chip->registers;
-
 	chip->gpio_chip.can_sleep = true;
 	chip->gpio_chip.parent = &spi->dev;
 	chip->gpio_chip.owner = THIS_MODULE;
