@@ -255,8 +255,6 @@ static __init void detect_machine_facilities(void)
 		system_ctl_set_bit(0, CR0_VECTOR_BIT);
 	if (test_facility(130))
 		get_lowcore()->machine_flags |= MACHINE_FLAG_NX;
-	if (test_facility(133))
-		get_lowcore()->machine_flags |= MACHINE_FLAG_GS;
 	if (test_facility(139) && (tod_clock_base.tod >> 63)) {
 		/* Enabled signed clock comparator comparisons */
 		get_lowcore()->machine_flags |= MACHINE_FLAG_SCC;

@@ -8,6 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/stop_machine.h>
+#include <linux/cpufeature.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -244,7 +245,7 @@ static int __init setup_hwcaps(void)
 		elf_hwcap |= HWCAP_NNPA;
 
 	/* guarded storage */
-	if (MACHINE_HAS_GS)
+	if (cpu_has_gs())
 		elf_hwcap |= HWCAP_GS;
 
 	if (MACHINE_HAS_PCI_MIO)

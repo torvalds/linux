@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/cpufeature.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/errno.h>
@@ -75,7 +76,7 @@ void update_cr_regs(struct task_struct *task)
 		}
 	}
 	/* Take care of enable/disable of guarded storage. */
-	if (MACHINE_HAS_GS) {
+	if (cpu_has_gs()) {
 		cr2_new.gse = 0;
 		if (task->thread.gs_cb)
 			cr2_new.gse = 1;
@@ -1033,7 +1034,7 @@ static int s390_gs_cb_get(struct task_struct *target,
 {
 	struct gs_cb *data = target->thread.gs_cb;
 
-	if (!MACHINE_HAS_GS)
+	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!data)
 		return -ENODATA;
@@ -1050,7 +1051,7 @@ static int s390_gs_cb_set(struct task_struct *target,
 	struct gs_cb gs_cb = { }, *data = NULL;
 	int rc;
 
-	if (!MACHINE_HAS_GS)
+	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!target->thread.gs_cb) {
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -1087,7 +1088,7 @@ static int s390_gs_bc_get(struct task_struct *target,
 {
 	struct gs_cb *data = target->thread.gs_bc_cb;
 
-	if (!MACHINE_HAS_GS)
+	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!data)
 		return -ENODATA;
@@ -1101,7 +1102,7 @@ static int s390_gs_bc_set(struct task_struct *target,
 {
 	struct gs_cb *data = target->thread.gs_bc_cb;
 
-	if (!MACHINE_HAS_GS)
+	if (!cpu_has_gs())
 		return -ENODEV;
 	if (!data) {
 		data = kzalloc(sizeof(*data), GFP_KERNEL);
