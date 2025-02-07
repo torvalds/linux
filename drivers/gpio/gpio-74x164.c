@@ -7,6 +7,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
@@ -43,13 +44,10 @@ static int gen_74x164_get_value(struct gpio_chip *gc, unsigned offset)
 	struct gen_74x164_chip *chip = gpiochip_get_data(gc);
 	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
-	int ret;
 
-	mutex_lock(&chip->lock);
-	ret = (chip->buffer[bank] >> pin) & 0x1;
-	mutex_unlock(&chip->lock);
+	guard(mutex)(&chip->lock);
 
-	return ret;
+	return (chip->buffer[bank] >> pin) & 0x1;
 }
 
 static void gen_74x164_set_value(struct gpio_chip *gc,
@@ -59,14 +57,14 @@ static void gen_74x164_set_value(struct gpio_chip *gc,
 	u8 bank = chip->registers - 1 - offset / 8;
 	u8 pin = offset % 8;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	if (val)
 		chip->buffer[bank] |= (1 << pin);
 	else
 		chip->buffer[bank] &= ~(1 << pin);
 
 	__gen_74x164_write_config(chip);
-	mutex_unlock(&chip->lock);
 }
 
 static void gen_74x164_set_multiple(struct gpio_chip *gc, unsigned long *mask,
@@ -78,7 +76,8 @@ static void gen_74x164_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 	size_t bank;
 	unsigned long bitmask;
 
-	mutex_lock(&chip->lock);
+	guard(mutex)(&chip->lock);
+
 	for_each_set_clump8(offset, bankmask, mask, chip->registers * 8) {
 		bank = chip->registers - 1 - offset / 8;
 		bitmask = bitmap_get_value8(bits, offset) & bankmask;
@@ -87,7 +86,6 @@ static void gen_74x164_set_multiple(struct gpio_chip *gc, unsigned long *mask,
 		chip->buffer[bank] |= bitmask;
 	}
 	__gen_74x164_write_config(chip);
-	mutex_unlock(&chip->lock);
 }
 
 static int gen_74x164_direction_output(struct gpio_chip *gc,
