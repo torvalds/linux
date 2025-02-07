@@ -725,12 +725,56 @@ static int acp63_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
 	return 0;
 }
 
+static int acp70_restore_sdw_dma_config(struct sdw_dma_dev_data *sdw_data)
+{
+	struct acp_sdw_dma_stream *stream;
+	struct snd_pcm_substream *substream;
+	struct snd_pcm_runtime *runtime;
+	u32 period_bytes, buf_size, water_mark_size_reg;
+	u32 stream_count, irq_mask, irq_mask1;
+	int index, instance, ret;
+
+	irq_mask = ACP70_SDW_DMA_IRQ_MASK;
+	irq_mask1 = ACP70_P1_SDW_DMA_IRQ_MASK;
+	stream_count = ACP70_SDW0_DMA_MAX_STREAMS;
+	for (instance = 0; instance < AMD_SDW_MAX_MANAGERS; instance++) {
+		for (index = 0; index < stream_count; index++) {
+			if (instance == ACP_SDW0) {
+				substream = sdw_data->acp70_sdw0_dma_stream[index];
+				water_mark_size_reg = acp70_sdw0_dma_reg[index].water_mark_size_reg;
+			} else {
+				substream = sdw_data->acp70_sdw1_dma_stream[index];
+				water_mark_size_reg = acp70_sdw1_dma_reg[index].water_mark_size_reg;
+			}
+
+			if (substream && substream->runtime) {
+				runtime = substream->runtime;
+				stream = runtime->private_data;
+				period_bytes = frames_to_bytes(runtime, runtime->period_size);
+				buf_size = frames_to_bytes(runtime, runtime->buffer_size);
+				acp63_config_dma(stream, sdw_data->acp_base, index);
+				ret = acp63_configure_sdw_ringbuffer(sdw_data->acp_base, index,
+								     buf_size, instance,
+								     sdw_data->acp_rev);
+				if (ret)
+					return ret;
+				writel(period_bytes, sdw_data->acp_base + water_mark_size_reg);
+			}
+		}
+	}
+	acp63_enable_disable_sdw_dma_interrupts(sdw_data->acp_base, irq_mask, irq_mask1, true);
+	return 0;
+}
+
 static int __maybe_unused acp63_sdw_pcm_resume(struct device *dev)
 {
 	struct sdw_dma_dev_data *sdw_data;
 
 	sdw_data = dev_get_drvdata(dev);
-	return acp63_restore_sdw_dma_config(sdw_data);
+	if (sdw_data->acp_rev == ACP63_PCI_REV)
+		return acp63_restore_sdw_dma_config(sdw_data);
+	else
+		return acp70_restore_sdw_dma_config(sdw_data);
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
