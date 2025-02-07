@@ -130,6 +130,8 @@
 #define SDW_MAX_BUFFER (SDW_PLAYBACK_MAX_PERIOD_SIZE * SDW_PLAYBACK_MAX_NUM_PERIODS)
 #define SDW_MIN_BUFFER SDW_MAX_BUFFER
 
+#define ACP_HW_OPS(acp_data, cb)	((acp_data)->hw_ops->cb)
+
 enum acp_config {
 	ACP_CONFIG_0 = 0,
 	ACP_CONFIG_1,
@@ -213,10 +215,23 @@ struct sdw_dma_ring_buf_reg {
 	u32 pos_high_reg;
 };
 
+struct acp63_dev_data;
+
+/**
+ * struct acp_hw_ops - ACP PCI driver platform specific ops
+ * @acp_init: ACP initialization
+ * @acp_deinit: ACP de-initialization
+ */
+struct acp_hw_ops {
+	int (*acp_init)(void __iomem *acp_base, struct device *dev);
+	int (*acp_deinit)(void __iomem *acp_base, struct device *dev);
+};
+
 /**
  * struct acp63_dev_data - acp pci driver context
  * @acp63_base: acp mmio base
  * @res: resource
+ * @hw_ops: ACP pci driver platform-specific ops
  * @pdm_dev: ACP PDM controller platform device
  * @dmic_codec: platform device for DMIC Codec
  * sdw_dma_dev: platform device for SoundWire DMA controller
@@ -242,6 +257,7 @@ struct sdw_dma_ring_buf_reg {
 struct acp63_dev_data {
 	void __iomem *acp63_base;
 	struct resource *res;
+	struct acp_hw_ops *hw_ops;
 	struct platform_device *pdm_dev;
 	struct platform_device *dmic_codec_dev;
 	struct platform_device *sdw_dma_dev;
@@ -262,5 +278,21 @@ struct acp63_dev_data {
 	u16 acp63_sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
 	u16 acp63_sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
 };
+
+void acp63_hw_init_ops(struct acp_hw_ops *hw_ops);
+
+static inline int acp_hw_init(struct acp63_dev_data *adata, struct device *dev)
+{
+	if (adata && adata->hw_ops && adata->hw_ops->acp_init)
+		return ACP_HW_OPS(adata, acp_init)(adata->acp63_base, dev);
+	return -EOPNOTSUPP;
+}
+
+static inline int acp_hw_deinit(struct acp63_dev_data *adata, struct device *dev)
+{
+	if (adata && adata->hw_ops && adata->hw_ops->acp_deinit)
+		return ACP_HW_OPS(adata, acp_deinit)(adata->acp63_base, dev);
+	return -EOPNOTSUPP;
+}
 
 int snd_amd_acp_find_config(struct pci_dev *pci);

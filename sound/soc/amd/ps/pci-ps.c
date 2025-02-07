@@ -21,87 +21,6 @@
 
 #include "acp63.h"
 
-static int acp63_power_on(void __iomem *acp_base)
-{
-	u32 val;
-
-	val = readl(acp_base + ACP_PGFSM_STATUS);
-
-	if (!val)
-		return val;
-
-	if ((val & ACP63_PGFSM_STATUS_MASK) != ACP63_POWER_ON_IN_PROGRESS)
-		writel(ACP63_PGFSM_CNTL_POWER_ON_MASK, acp_base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(acp_base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP63_TIMEOUT);
-}
-
-static int acp63_reset(void __iomem *acp_base)
-{
-	u32 val;
-	int ret;
-
-	writel(1, acp_base + ACP_SOFT_RESET);
-
-	ret = readl_poll_timeout(acp_base + ACP_SOFT_RESET, val,
-				 val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK,
-				 DELAY_US, ACP63_TIMEOUT);
-	if (ret)
-		return ret;
-
-	writel(0, acp_base + ACP_SOFT_RESET);
-
-	return readl_poll_timeout(acp_base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP63_TIMEOUT);
-}
-
-static void acp63_enable_interrupts(void __iomem *acp_base)
-{
-	writel(1, acp_base + ACP_EXTERNAL_INTR_ENB);
-	writel(ACP_ERROR_IRQ, acp_base + ACP_EXTERNAL_INTR_CNTL);
-}
-
-static void acp63_disable_interrupts(void __iomem *acp_base)
-{
-	writel(ACP_EXT_INTR_STAT_CLEAR_MASK, acp_base + ACP_EXTERNAL_INTR_STAT);
-	writel(0, acp_base + ACP_EXTERNAL_INTR_CNTL);
-	writel(0, acp_base + ACP_EXTERNAL_INTR_ENB);
-}
-
-static int acp63_init(void __iomem *acp_base, struct device *dev)
-{
-	int ret;
-
-	ret = acp63_power_on(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP power on failed\n");
-		return ret;
-	}
-	writel(0x01, acp_base + ACP_CONTROL);
-	ret = acp63_reset(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP reset failed\n");
-		return ret;
-	}
-	acp63_enable_interrupts(acp_base);
-	writel(0, acp_base + ACP_ZSC_DSP_CTRL);
-	return 0;
-}
-
-static int acp63_deinit(void __iomem *acp_base, struct device *dev)
-{
-	int ret;
-
-	acp63_disable_interrupts(acp_base);
-	ret = acp63_reset(acp_base);
-	if (ret) {
-		dev_err(dev, "ACP reset failed\n");
-		return ret;
-	}
-	writel(0, acp_base + ACP_CONTROL);
-	writel(1, acp_base + ACP_ZSC_DSP_CTRL);
-	return 0;
-}
-
 static irqreturn_t acp63_irq_thread(int irq, void *context)
 {
 	struct sdw_dma_dev_data *sdw_data;
@@ -540,9 +459,27 @@ unregister_dmic_codec_dev:
 unregister_pdm_dev:
 		platform_device_unregister(adata->pdm_dev);
 de_init:
-	if (acp63_deinit(adata->acp63_base, &pci->dev))
+	if (acp_hw_deinit(adata, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	return ret;
+}
+
+static int acp_hw_init_ops(struct acp63_dev_data *adata, struct pci_dev *pci)
+{
+	adata->hw_ops = devm_kzalloc(&pci->dev, sizeof(struct acp_hw_ops),
+				     GFP_KERNEL);
+	if (!adata->hw_ops)
+		return -ENOMEM;
+
+	switch (adata->acp_rev) {
+	case ACP63_PCI_REV:
+		acp63_hw_init_ops(adata->hw_ops);
+		break;
+	default:
+		dev_err(&pci->dev, "ACP device not found\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static int snd_acp63_probe(struct pci_dev *pci,
@@ -598,7 +535,12 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	mutex_init(&adata->acp_lock);
-	ret = acp63_init(adata->acp63_base, &pci->dev);
+	ret = acp_hw_init_ops(adata, pci);
+	if (ret) {
+		dev_err(&pci->dev, "ACP hw ops init failed\n");
+		goto release_regions;
+	}
+	ret = acp_hw_init(adata, &pci->dev);
 	if (ret)
 		goto release_regions;
 	ret = devm_request_threaded_irq(&pci->dev, pci->irq, acp63_irq_handler,
@@ -632,7 +574,7 @@ skip_pdev_creation:
 	pm_runtime_allow(&pci->dev);
 	return 0;
 de_init:
-	if (acp63_deinit(adata->acp63_base, &pci->dev))
+	if (acp_hw_deinit(adata, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
 release_regions:
 	pci_release_regions(pci);
@@ -677,7 +619,7 @@ static int __maybe_unused snd_acp63_suspend(struct device *dev)
 			return 0;
 		}
 	}
-	ret = acp63_deinit(adata->acp63_base, dev);
+	ret = acp_hw_deinit(adata, dev);
 	if (ret)
 		dev_err(dev, "ACP de-init failed\n");
 
@@ -694,7 +636,7 @@ static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
 		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
 		return 0;
 	}
-	ret = acp63_init(adata->acp63_base, dev);
+	ret = acp_hw_init(adata, dev);
 	if (ret) {
 		dev_err(dev, "ACP init failed\n");
 		return ret;
@@ -716,7 +658,7 @@ static int __maybe_unused snd_acp63_resume(struct device *dev)
 		return 0;
 	}
 
-	ret = acp63_init(adata->acp63_base, dev);
+	ret = acp_hw_deinit(adata, dev);
 	if (ret)
 		dev_err(dev, "ACP init failed\n");
 
@@ -744,7 +686,7 @@ static void snd_acp63_remove(struct pci_dev *pci)
 	}
 	if (adata->mach_dev)
 		platform_device_unregister(adata->mach_dev);
-	ret = acp63_deinit(adata->acp63_base, &pci->dev);
+	ret = acp_hw_deinit(adata, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
 	pm_runtime_forbid(&pci->dev);
