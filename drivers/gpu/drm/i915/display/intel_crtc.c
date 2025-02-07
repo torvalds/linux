@@ -717,7 +717,8 @@ void intel_pipe_update_end(struct intel_atomic_state *state,
 	 * which would cause the next frame to terminate already at vmin
 	 * vblank start instead of vmax vblank start.
 	 */
-	intel_vrr_send_push(NULL, new_crtc_state);
+	if (!state->base.legacy_cursor_update)
+		intel_vrr_send_push(NULL, new_crtc_state);
 
 	local_irq_enable();
 
