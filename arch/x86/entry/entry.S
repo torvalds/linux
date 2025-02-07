@@ -5,6 +5,7 @@
 
 #include <linux/export.h>
 #include <linux/linkage.h>
+#include <linux/objtool.h>
 #include <asm/msr-index.h>
 #include <asm/unwind_hints.h>
 #include <asm/segment.h>
@@ -17,6 +18,7 @@
 .pushsection .noinstr.text, "ax"
 
 SYM_FUNC_START(entry_ibpb)
+	ANNOTATE_NOENDBR
 	movl	$MSR_IA32_PRED_CMD, %ecx
 	movl	$PRED_CMD_IBPB, %eax
 	xorl	%edx, %edx

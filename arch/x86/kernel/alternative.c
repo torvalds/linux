@@ -926,11 +926,7 @@ struct bpf_insn;
 extern unsigned int __bpf_prog_runX(const void *ctx,
 				    const struct bpf_insn *insn);
 
-/*
- * Force a reference to the external symbol so the compiler generates
- * __kcfi_typid.
- */
-__ADDRESSABLE(__bpf_prog_runX);
+KCFI_REFERENCE(__bpf_prog_runX);
 
 /* u32 __ro_after_init cfi_bpf_hash = __kcfi_typeid___bpf_prog_runX; */
 asm (
@@ -947,7 +943,7 @@ asm (
 /* Must match bpf_callback_t */
 extern u64 __bpf_callback_fn(u64, u64, u64, u64, u64);
 
-__ADDRESSABLE(__bpf_callback_fn);
+KCFI_REFERENCE(__bpf_callback_fn);
 
 /* u32 __ro_after_init cfi_bpf_subprog_hash = __kcfi_typeid___bpf_callback_fn; */
 asm (

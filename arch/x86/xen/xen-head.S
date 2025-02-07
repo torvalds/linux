@@ -133,11 +133,13 @@ SYM_FUNC_START(xen_hypercall_hvm)
 SYM_FUNC_END(xen_hypercall_hvm)
 
 SYM_FUNC_START(xen_hypercall_amd)
+	ANNOTATE_NOENDBR
 	vmmcall
 	RET
 SYM_FUNC_END(xen_hypercall_amd)
 
 SYM_FUNC_START(xen_hypercall_intel)
+	ANNOTATE_NOENDBR
 	vmcall
 	RET
 SYM_FUNC_END(xen_hypercall_intel)

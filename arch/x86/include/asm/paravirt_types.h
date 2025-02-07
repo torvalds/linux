@@ -244,7 +244,17 @@ extern struct paravirt_patch_template pv_ops;
 
 int paravirt_disable_iospace(void);
 
-/* This generates an indirect call based on the operation type number. */
+/*
+ * This generates an indirect call based on the operation type number.
+ *
+ * Since alternatives run after enabling CET/IBT -- the latter setting/clearing
+ * capabilities and the former requiring all capabilities being finalized --
+ * these indirect calls are subject to IBT and the paravirt stubs should have
+ * ENDBR on.
+ *
+ * OTOH since this is effectively a __nocfi indirect call, the paravirt stubs
+ * don't need to bother with CFI prefixes.
+ */
 #define PARAVIRT_CALL					\
 	ANNOTATE_RETPOLINE_SAFE				\
 	"call *%[paravirt_opptr];"

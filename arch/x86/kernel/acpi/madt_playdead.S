@@ -14,6 +14,7 @@
  * rsi: PGD of the identity mapping
  */
 SYM_FUNC_START(asm_acpi_mp_play_dead)
+	ANNOTATE_NOENDBR
 	/* Turn off global entries. Following CR3 write will flush them. */
 	movq	%cr4, %rdx
 	andq	$~(X86_CR4_PGE), %rdx

@@ -60,6 +60,7 @@ static inline void clear_page(void *page)
 }
 
 void copy_page(void *to, void *from);
+KCFI_REFERENCE(copy_page);
 
 #ifdef CONFIG_X86_5LEVEL
 /*

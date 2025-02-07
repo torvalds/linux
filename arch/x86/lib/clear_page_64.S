@@ -2,6 +2,7 @@
 #include <linux/export.h>
 #include <linux/linkage.h>
 #include <linux/cfi_types.h>
+#include <linux/objtool.h>
 #include <asm/asm.h>
 
 /*
@@ -64,6 +65,7 @@ EXPORT_SYMBOL_GPL(clear_page_erms)
  * rcx: uncleared bytes or 0 if successful.
  */
 SYM_FUNC_START(rep_stos_alternative)
+	ANNOTATE_NOENDBR
 	cmpq $64,%rcx
 	jae .Lunrolled
 
