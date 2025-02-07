@@ -218,7 +218,7 @@ static int __init setup_hwcaps(void)
 	elf_hwcap |= HWCAP_HIGH_GPRS;
 
 	/* transactional execution */
-	if (MACHINE_HAS_TE)
+	if (machine_has_tx())
 		elf_hwcap |= HWCAP_TE;
 
 	/* vector */

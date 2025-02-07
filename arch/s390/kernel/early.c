@@ -222,10 +222,6 @@ static __init void detect_diag9c(void)
 
 static __init void detect_machine_facilities(void)
 {
-	if (test_facility(50) && test_facility(73)) {
-		get_lowcore()->machine_flags |= MACHINE_FLAG_TE;
-		system_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
-	}
 	if (test_facility(129))
 		system_ctl_set_bit(0, CR0_VECTOR_BIT);
 }

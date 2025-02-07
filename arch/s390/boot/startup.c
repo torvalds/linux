@@ -84,6 +84,10 @@ static void detect_facilities(void)
 		clock_comparator_max = -1UL >> 1;
 		local_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SIGN_BIT);
 	}
+	if (test_facility(50) && test_facility(73)) {
+		set_machine_feature(MFEATURE_TX);
+		local_ctl_set_bit(0, CR0_TRANSACTIONAL_EXECUTION_BIT);
+	}
 }
 
 static int cmma_test_essa(void)

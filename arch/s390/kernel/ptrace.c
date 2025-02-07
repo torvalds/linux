@@ -32,6 +32,7 @@
 #include <asm/unistd.h>
 #include <asm/runtime_instr.h>
 #include <asm/facility.h>
+#include <asm/machine.h>
 #include <asm/fpu.h>
 
 #include "entry.h"
@@ -61,7 +62,7 @@ void update_cr_regs(struct task_struct *task)
 	cr0_new = cr0_old;
 	cr2_new = cr2_old;
 	/* Take care of the enable/disable of transactional execution. */
-	if (MACHINE_HAS_TE) {
+	if (machine_has_tx()) {
 		/* Set or clear transaction execution TXC bit 8. */
 		cr0_new.tcx = 1;
 		if (task->thread.per_flags & PER_FLAG_NO_TE)
@@ -471,18 +472,18 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_GET_LAST_BREAK:
 		return put_user(child->thread.last_break, (unsigned long __user *)data);
 	case PTRACE_ENABLE_TE:
-		if (!MACHINE_HAS_TE)
+		if (!machine_has_tx())
 			return -EIO;
 		child->thread.per_flags &= ~PER_FLAG_NO_TE;
 		return 0;
 	case PTRACE_DISABLE_TE:
-		if (!MACHINE_HAS_TE)
+		if (!machine_has_tx())
 			return -EIO;
 		child->thread.per_flags |= PER_FLAG_NO_TE;
 		child->thread.per_flags &= ~PER_FLAG_TE_ABORT_RAND;
 		return 0;
 	case PTRACE_TE_ABORT_RAND:
-		if (!MACHINE_HAS_TE || (child->thread.per_flags & PER_FLAG_NO_TE))
+		if (!machine_has_tx() || (child->thread.per_flags & PER_FLAG_NO_TE))
 			return -EIO;
 		switch (data) {
 		case 0UL:

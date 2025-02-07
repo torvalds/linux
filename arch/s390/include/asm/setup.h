@@ -22,7 +22,6 @@
 #define MACHINE_FLAG_LPAR	BIT(2)
 #define MACHINE_FLAG_DIAG9C	BIT(3)
 #define MACHINE_FLAG_ESOP	BIT(4)
-#define MACHINE_FLAG_TE		BIT(11)
 
 #define LPP_MAGIC		BIT(31)
 #define LPP_PID_MASK		_AC(0xffffffff, UL)
@@ -72,7 +71,6 @@ extern unsigned long mio_wb_bit_mask;
 
 #define MACHINE_HAS_DIAG9C	(get_lowcore()->machine_flags & MACHINE_FLAG_DIAG9C)
 #define MACHINE_HAS_ESOP	(get_lowcore()->machine_flags & MACHINE_FLAG_ESOP)
-#define MACHINE_HAS_TE		(get_lowcore()->machine_flags & MACHINE_FLAG_TE)
 
 /*
  * Console mode. Override with conmode=
