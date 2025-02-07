@@ -151,8 +151,10 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 
 	dev->av_pool = dma_pool_create("mana_ib_av", mdev->gdma_context->dev,
 				       MANA_AV_BUFFER_SIZE, MANA_AV_BUFFER_SIZE, 0);
-	if (!dev->av_pool)
+	if (!dev->av_pool) {
+		ret = -ENOMEM;
 		goto destroy_rnic;
+	}
 
 	ret = ib_register_device(&dev->ib_dev, "mana_%d",
 				 mdev->gdma_context->dev);
