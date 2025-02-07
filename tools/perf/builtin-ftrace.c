@@ -841,14 +841,17 @@ static void display_histogram(struct perf_ftrace *ftrace, int buckets[])
 
 	bar_len = buckets[0] * bar_total / total;
 
-	printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
-	       0, min_latency ?: 1, use_nsec ? "ns" : "us",
-	       buckets[0], bar_len, bar, bar_total - bar_len, "");
+	if (!ftrace->hide_empty || buckets[0])
+		printf("  %4d - %4d %s | %10d | %.*s%*s |\n",
+		       0, min_latency ?: 1, use_nsec ? "ns" : "us",
+		       buckets[0], bar_len, bar, bar_total - bar_len, "");
 
 	for (i = 1; i < bucket_num - 1; i++) {
 		unsigned int start, stop;
 		const char *unit = use_nsec ? "ns" : "us";
 
+		if (ftrace->hide_empty && !buckets[i])
+			continue;
 		if (!ftrace->bucket_range) {
 			start = (1 << (i - 1));
 			stop  = 1 << i;
@@ -884,6 +887,8 @@ print_bucket_info:
 	}
 
 	bar_len = buckets[bucket_num - 1] * bar_total / total;
+	if (ftrace->hide_empty && !buckets[bucket_num - 1])
+		goto print_stats;
 	if (!ftrace->bucket_range) {
 		printf("  %4d - %-4s %s", 1, "...", use_nsec ? "ms" : "s ");
 	} else {
@@ -902,6 +907,7 @@ print_bucket_info:
 	printf(" | %10d | %.*s%*s |\n", buckets[bucket_num - 1],
 	       bar_len, bar, bar_total - bar_len, "");
 
+print_stats:
 	printf("\n# statistics  (in %s)\n", ftrace->use_nsec ? "nsec" : "usec");
 	printf("  total time: %20.0f\n", latency_stats.mean * latency_stats.n);
 	printf("    avg time: %20.0f\n", latency_stats.mean);
@@ -1645,6 +1651,8 @@ int cmd_ftrace(int argc, const char **argv)
 		    "Minimum latency (1st bucket). Works only with --bucket-range."),
 	OPT_UINTEGER(0, "max-latency", &ftrace.max_latency,
 		    "Maximum latency (last bucket). Works only with --bucket-range."),
+	OPT_BOOLEAN(0, "hide-empty", &ftrace.hide_empty,
+		    "Hide empty buckets in the histogram"),
 	OPT_PARENT(common_options),
 	};
 	const struct option profile_options[] = {
