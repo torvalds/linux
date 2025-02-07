@@ -1182,6 +1182,16 @@ static inline bool file_needs_f_pos_lock(struct file *file)
 		(file_count(file) > 1 || file->f_op->iterate_shared);
 }
 
+bool file_seek_cur_needs_f_lock(struct file *file)
+{
+	if (!(file->f_mode & FMODE_ATOMIC_POS) && !file->f_op->iterate_shared)
+		return false;
+
+	VFS_WARN_ON_ONCE((file_count(file) > 1) &&
+			 !mutex_is_locked(&file->f_pos_lock));
+	return true;
+}
+
 struct fd fdget_pos(unsigned int fd)
 {
 	struct fd f = fdget(fd);
