@@ -1534,10 +1534,10 @@ zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	}
 
 	/* Check with link rate and lane count */
-	mutex_lock(&dp->lock);
-	rate = zynqmp_dp_max_rate(dp->link_config.max_rate,
-				  dp->link_config.max_lanes, dp->config.bpp);
-	mutex_unlock(&dp->lock);
+	scoped_guard(mutex, &dp->lock)
+		rate = zynqmp_dp_max_rate(dp->link_config.max_rate,
+					  dp->link_config.max_lanes,
+					  dp->config.bpp);
 	if (mode->clock > rate) {
 		dev_dbg(dp->dev, "filtered mode %s for high pixel rate\n",
 			mode->name);
@@ -1722,13 +1722,9 @@ disconnected:
 static enum drm_connector_status zynqmp_dp_bridge_detect(struct drm_bridge *bridge)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
-	enum drm_connector_status ret;
 
-	mutex_lock(&dp->lock);
-	ret = __zynqmp_dp_bridge_detect(dp);
-	mutex_unlock(&dp->lock);
-
-	return ret;
+	guard(mutex)(&dp->lock);
+	return __zynqmp_dp_bridge_detect(dp);
 }
 
 static const struct drm_edid *zynqmp_dp_bridge_edid_read(struct drm_bridge *bridge,
@@ -1881,10 +1877,9 @@ static ssize_t zynqmp_dp_pattern_read(struct file *file, char __user *user_buf,
 	if (unlikely(ret))
 		return ret;
 
-	mutex_lock(&dp->lock);
-	ret = snprintf(buf, sizeof(buf), "%s\n",
-		       test_pattern_str[dp->test.pattern]);
-	mutex_unlock(&dp->lock);
+	scoped_guard(mutex, &dp->lock)
+		ret = snprintf(buf, sizeof(buf), "%s\n",
+			       test_pattern_str[dp->test.pattern]);
 
 	debugfs_file_put(dentry);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, ret);
@@ -1939,24 +1934,18 @@ static int zynqmp_dp_enhanced_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->test.enhanced;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
 static int zynqmp_dp_enhanced_set(void *data, u64 val)
 {
 	struct zynqmp_dp *dp = data;
-	int ret = 0;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	dp->test.enhanced = val;
-	if (dp->test.active)
-		ret = zynqmp_dp_test_setup(dp);
-	mutex_unlock(&dp->lock);
-
-	return ret;
+	return dp->test.active ? zynqmp_dp_test_setup(dp) : 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_enhanced, zynqmp_dp_enhanced_get,
@@ -1966,24 +1955,19 @@ static int zynqmp_dp_downspread_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->test.downspread;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
 static int zynqmp_dp_downspread_set(void *data, u64 val)
 {
 	struct zynqmp_dp *dp = data;
-	int ret = 0;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	dp->test.downspread = val;
-	if (dp->test.active)
-		ret = zynqmp_dp_test_setup(dp);
-	mutex_unlock(&dp->lock);
 
-	return ret;
+	return dp->test.active ? zynqmp_dp_test_setup(dp) : 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_downspread, zynqmp_dp_downspread_get,
@@ -1993,33 +1977,32 @@ static int zynqmp_dp_active_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->test.active;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
 static int zynqmp_dp_active_set(void *data, u64 val)
 {
 	struct zynqmp_dp *dp = data;
-	int ret = 0;
+	int ret;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	if (val) {
 		if (val < 2) {
 			ret = zynqmp_dp_test_setup(dp);
 			if (ret)
-				goto out;
+				return ret;
 		}
 
 		ret = zynqmp_dp_set_test_pattern(dp, dp->test.pattern,
 						 dp->test.custom);
 		if (ret)
-			goto out;
+			return ret;
 
 		ret = zynqmp_dp_update_vs_emph(dp, dp->test.train_set);
 		if (ret)
-			goto out;
+			return ret;
 
 		dp->test.active = true;
 	} else {
@@ -2032,10 +2015,8 @@ static int zynqmp_dp_active_set(void *data, u64 val)
 				 err);
 		zynqmp_dp_train_loop(dp);
 	}
-out:
-	mutex_unlock(&dp->lock);
 
-	return ret;
+	return 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_active, zynqmp_dp_active_get,
@@ -2102,9 +2083,8 @@ static int zynqmp_dp_swing_get(void *data, u64 *val)
 	struct zynqmp_dp_train_set_priv *priv = data;
 	struct zynqmp_dp *dp = priv->dp;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->test.train_set[priv->lane] & DP_TRAIN_VOLTAGE_SWING_MASK;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
@@ -2113,12 +2093,11 @@ static int zynqmp_dp_swing_set(void *data, u64 val)
 	struct zynqmp_dp_train_set_priv *priv = data;
 	struct zynqmp_dp *dp = priv->dp;
 	u8 *train_set = &dp->test.train_set[priv->lane];
-	int ret = 0;
 
 	if (val > 3)
 		return -EINVAL;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*train_set &= ~(DP_TRAIN_MAX_SWING_REACHED |
 			DP_TRAIN_VOLTAGE_SWING_MASK);
 	*train_set |= val;
@@ -2126,10 +2105,9 @@ static int zynqmp_dp_swing_set(void *data, u64 val)
 		*train_set |= DP_TRAIN_MAX_SWING_REACHED;
 
 	if (dp->test.active)
-		ret = zynqmp_dp_update_vs_emph(dp, dp->test.train_set);
-	mutex_unlock(&dp->lock);
+		return zynqmp_dp_update_vs_emph(dp, dp->test.train_set);
 
-	return ret;
+	return 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_swing, zynqmp_dp_swing_get,
@@ -2140,10 +2118,9 @@ static int zynqmp_dp_preemphasis_get(void *data, u64 *val)
 	struct zynqmp_dp_train_set_priv *priv = data;
 	struct zynqmp_dp *dp = priv->dp;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = FIELD_GET(DP_TRAIN_PRE_EMPHASIS_MASK,
 			 dp->test.train_set[priv->lane]);
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
@@ -2152,12 +2129,11 @@ static int zynqmp_dp_preemphasis_set(void *data, u64 val)
 	struct zynqmp_dp_train_set_priv *priv = data;
 	struct zynqmp_dp *dp = priv->dp;
 	u8 *train_set = &dp->test.train_set[priv->lane];
-	int ret = 0;
 
 	if (val > 2)
 		return -EINVAL;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*train_set &= ~(DP_TRAIN_MAX_PRE_EMPHASIS_REACHED |
 			DP_TRAIN_PRE_EMPHASIS_MASK);
 	*train_set |= val;
@@ -2165,10 +2141,9 @@ static int zynqmp_dp_preemphasis_set(void *data, u64 val)
 		*train_set |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 	if (dp->test.active)
-		ret = zynqmp_dp_update_vs_emph(dp, dp->test.train_set);
-	mutex_unlock(&dp->lock);
+		return zynqmp_dp_update_vs_emph(dp, dp->test.train_set);
 
-	return ret;
+	return 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_preemphasis, zynqmp_dp_preemphasis_get,
@@ -2178,31 +2153,24 @@ static int zynqmp_dp_lanes_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->test.link_cnt;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
 static int zynqmp_dp_lanes_set(void *data, u64 val)
 {
 	struct zynqmp_dp *dp = data;
-	int ret = 0;
 
 	if (val > ZYNQMP_DP_MAX_LANES)
 		return -EINVAL;
 
-	mutex_lock(&dp->lock);
-	if (val > dp->num_lanes) {
-		ret = -EINVAL;
-	} else {
-		dp->test.link_cnt = val;
-		if (dp->test.active)
-			ret = zynqmp_dp_test_setup(dp);
-	}
-	mutex_unlock(&dp->lock);
+	guard(mutex)(&dp->lock);
+	if (val > dp->num_lanes)
+		return -EINVAL;
 
-	return ret;
+	dp->test.link_cnt = val;
+	return dp->test.active ? zynqmp_dp_test_setup(dp) : 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_lanes, zynqmp_dp_lanes_get,
@@ -2212,9 +2180,8 @@ static int zynqmp_dp_rate_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = drm_dp_bw_code_to_link_rate(dp->test.bw_code) * 10000ULL;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
@@ -2222,7 +2189,6 @@ static int zynqmp_dp_rate_set(void *data, u64 val)
 {
 	struct zynqmp_dp *dp = data;
 	int link_rate;
-	int ret = 0;
 	u8 bw_code;
 
 	if (do_div(val, 10000))
@@ -2237,13 +2203,9 @@ static int zynqmp_dp_rate_set(void *data, u64 val)
 	    bw_code != DP_LINK_BW_5_4)
 		return -EINVAL;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	dp->test.bw_code = bw_code;
-	if (dp->test.active)
-		ret = zynqmp_dp_test_setup(dp);
-	mutex_unlock(&dp->lock);
-
-	return ret;
+	return dp->test.active ? zynqmp_dp_test_setup(dp) : 0;
 }
 
 DEFINE_DEBUGFS_ATTRIBUTE(fops_zynqmp_dp_rate, zynqmp_dp_rate_get,
@@ -2253,9 +2215,8 @@ static int zynqmp_dp_ignore_aux_errors_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->aux.hw_mutex);
+	guard(mutex)(&dp->lock);
 	*val = dp->ignore_aux_errors;
-	mutex_unlock(&dp->aux.hw_mutex);
 	return 0;
 }
 
@@ -2266,9 +2227,8 @@ static int zynqmp_dp_ignore_aux_errors_set(void *data, u64 val)
 	if (val != !!val)
 		return -EINVAL;
 
-	mutex_lock(&dp->aux.hw_mutex);
+	guard(mutex)(&dp->lock);
 	dp->ignore_aux_errors = val;
-	mutex_unlock(&dp->aux.hw_mutex);
 	return 0;
 }
 
@@ -2280,9 +2240,8 @@ static int zynqmp_dp_ignore_hpd_get(void *data, u64 *val)
 {
 	struct zynqmp_dp *dp = data;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	*val = dp->ignore_hpd;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
@@ -2293,9 +2252,8 @@ static int zynqmp_dp_ignore_hpd_set(void *data, u64 val)
 	if (val != !!val)
 		return -EINVAL;
 
-	mutex_lock(&dp->lock);
+	guard(mutex)(&dp->lock);
 	dp->ignore_hpd = val;
-	mutex_unlock(&dp->lock);
 	return 0;
 }
 
@@ -2391,14 +2349,12 @@ static void zynqmp_dp_hpd_work_func(struct work_struct *work)
 	struct zynqmp_dp *dp = container_of(work, struct zynqmp_dp, hpd_work);
 	enum drm_connector_status status;
 
-	mutex_lock(&dp->lock);
-	if (dp->ignore_hpd) {
-		mutex_unlock(&dp->lock);
-		return;
-	}
+	scoped_guard(mutex, &dp->lock) {
+		if (dp->ignore_hpd)
+			return;
 
-	status = __zynqmp_dp_bridge_detect(dp);
-	mutex_unlock(&dp->lock);
+		status = __zynqmp_dp_bridge_detect(dp);
+	}
 
 	drm_bridge_hpd_notify(&dp->bridge, status);
 }
@@ -2410,11 +2366,9 @@ static void zynqmp_dp_hpd_irq_work_func(struct work_struct *work)
 	u8 status[DP_LINK_STATUS_SIZE + 2];
 	int err;
 
-	mutex_lock(&dp->lock);
-	if (dp->ignore_hpd) {
-		mutex_unlock(&dp->lock);
+	guard(mutex)(&dp->lock);
+	if (dp->ignore_hpd)
 		return;
-	}
 
 	err = drm_dp_dpcd_read(&dp->aux, DP_SINK_COUNT, status,
 			       DP_LINK_STATUS_SIZE + 2);
@@ -2428,7 +2382,6 @@ static void zynqmp_dp_hpd_irq_work_func(struct work_struct *work)
 			zynqmp_dp_train_loop(dp);
 		}
 	}
-	mutex_unlock(&dp->lock);
 }
 
 static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
