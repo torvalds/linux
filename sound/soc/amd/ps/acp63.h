@@ -139,6 +139,10 @@
 #define ACP70_PGFSM_STATUS_MASK			0xFF
 #define ACP70_TIMEOUT				2000
 #define ACP70_SDW_HOST_WAKE_MASK	0x0C00000
+#define ACP70_SDW0_HOST_WAKE_STAT	BIT(24)
+#define ACP70_SDW1_HOST_WAKE_STAT	BIT(25)
+#define ACP70_SDW0_PME_STAT		BIT(26)
+#define ACP70_SDW1_PME_STAT		BIT(27)
 
 #define ACP70_SDW0_DMA_MAX_STREAMS	6
 #define ACP70_SDW1_DMA_MAX_STREAMS	ACP70_SDW0_DMA_MAX_STREAMS
@@ -325,6 +329,8 @@ struct acp_hw_ops {
  * @is_pdm_config: flat set to true when PDM configuration is selected from BIOS
  * @is_sdw_config: flag set to true when SDW configuration is selected from BIOS
  * @sdw_en_stat: flag set to true when any one of the SoundWire manager instance is enabled
+ * @acp70_sdw0_wake_event: flag set to true when wake irq asserted for SW0 instance
+ * @acp70_sdw1_wake_event: flag set to true when wake irq asserted for SW1 instance
  * @addr: pci ioremap address
  * @reg_range: ACP reigister range
  * @acp_rev: ACP PCI revision id
@@ -356,6 +362,8 @@ struct acp63_dev_data {
 	bool is_pdm_config;
 	bool is_sdw_config;
 	bool sdw_en_stat;
+	bool acp70_sdw0_wake_event;
+	bool acp70_sdw1_wake_event;
 	u32 addr;
 	u32 reg_range;
 	u32 acp_rev;
