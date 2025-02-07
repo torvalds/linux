@@ -285,6 +285,9 @@ static ssize_t bnxt_re_cc_config_set(struct file *filp, const char __user *buffe
 	u32 val;
 	int rc;
 
+	if (count >= sizeof(buf))
+		return -EINVAL;
+
 	if (copy_from_user(buf, buffer, count))
 		return -EFAULT;
 
