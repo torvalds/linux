@@ -11,6 +11,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/mmu_context.h>
+#include <linux/cpufeature.h>
 #include <linux/perf_event.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -366,7 +367,7 @@ void do_protection_exception(struct pt_regs *regs)
 		 */
 		return handle_fault_error_nolock(regs, 0);
 	}
-	if (unlikely(MACHINE_HAS_NX && teid.b56)) {
+	if (unlikely(cpu_has_nx() && teid.b56)) {
 		regs->int_parm_long = (teid.addr * PAGE_SIZE) | (regs->psw.addr & PAGE_MASK);
 		return handle_fault_error_nolock(regs, SEGV_ACCERR);
 	}

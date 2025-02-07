@@ -3,6 +3,7 @@
  * Copyright IBM Corp. 2011
  * Author(s): Jan Glauber <jang@linux.vnet.ibm.com>
  */
+#include <linux/cpufeature.h>
 #include <linux/hugetlb.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
@@ -373,7 +374,7 @@ int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags
 	unsigned long end;
 	int rc;
 
-	if (!MACHINE_HAS_NX)
+	if (!cpu_has_nx())
 		flags &= ~(SET_MEMORY_NX | SET_MEMORY_X);
 	if (!flags)
 		return 0;

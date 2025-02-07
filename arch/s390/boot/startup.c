@@ -59,7 +59,7 @@ static void detect_facilities(void)
 	page_noexec_mask = -1UL;
 	segment_noexec_mask = -1UL;
 	region_noexec_mask = -1UL;
-	if (!test_facility(130)) {
+	if (!cpu_has_nx()) {
 		page_noexec_mask &= ~_PAGE_NOEXEC;
 		segment_noexec_mask &= ~_SEGMENT_ENTRY_NOEXEC;
 		region_noexec_mask &= ~_REGION_ENTRY_NOEXEC;

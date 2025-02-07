@@ -23,6 +23,7 @@ enum {
 int cpu_have_feature(unsigned int nr);
 
 #define cpu_has_gs()		test_facility(133)
+#define cpu_has_nx()		test_facility(130)
 #define cpu_has_rdp()		test_facility(194)
 #define cpu_has_seq_insn()	test_facility(85)
 
