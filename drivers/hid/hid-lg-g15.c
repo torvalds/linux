@@ -8,11 +8,13 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/leds.h>
+#include <linux/led-class-multicolor.h>
 #include <linux/module.h>
 #include <linux/random.h>
 #include <linux/sched.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
+#include <dt-bindings/leds/common.h>
 
 #include "hid-ids.h"
 
@@ -44,9 +46,13 @@ enum lg_g15_led_type {
 };
 
 struct lg_g15_led {
-	struct led_classdev cdev;
+	union {
+		struct led_classdev cdev;
+		struct led_classdev_mc mcdev;
+	};
 	enum led_brightness brightness;
 	enum lg_g15_led_type led;
+	/* Used to store initial color intensities before subled_info is allocated */
 	u8 red, green, blue;
 };
 
@@ -229,15 +235,15 @@ static int lg_g510_kbd_led_write(struct lg_g15_data *g15,
 				 struct lg_g15_led *g15_led,
 				 enum led_brightness brightness)
 {
+	struct mc_subled *subleds = g15_led->mcdev.subled_info;
 	int ret;
 
+	led_mc_calc_color_components(&g15_led->mcdev, brightness);
+
 	g15->transfer_buf[0] = 5 + g15_led->led;
-	g15->transfer_buf[1] =
-		DIV_ROUND_CLOSEST(g15_led->red * brightness, 255);
-	g15->transfer_buf[2] =
-		DIV_ROUND_CLOSEST(g15_led->green * brightness, 255);
-	g15->transfer_buf[3] =
-		DIV_ROUND_CLOSEST(g15_led->blue * brightness, 255);
+	g15->transfer_buf[1] = subleds[0].brightness;
+	g15->transfer_buf[2] = subleds[1].brightness;
+	g15->transfer_buf[3] = subleds[2].brightness;
 
 	ret = hid_hw_raw_request(g15->hdev,
 				 LG_G510_FEATURE_BACKLIGHT_RGB + g15_led->led,
@@ -258,8 +264,9 @@ static int lg_g510_kbd_led_write(struct lg_g15_data *g15,
 static int lg_g510_kbd_led_set(struct led_classdev *led_cdev,
 			       enum led_brightness brightness)
 {
+	struct led_classdev_mc *mc = lcdev_to_mccdev(led_cdev);
 	struct lg_g15_led *g15_led =
-		container_of(led_cdev, struct lg_g15_led, cdev);
+		container_of(mc, struct lg_g15_led, mcdev);
 	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
 	int ret;
 
@@ -276,82 +283,20 @@ static int lg_g510_kbd_led_set(struct led_classdev *led_cdev,
 
 static enum led_brightness lg_g510_kbd_led_get(struct led_classdev *led_cdev)
 {
+	struct led_classdev_mc *mc = lcdev_to_mccdev(led_cdev);
 	struct lg_g15_led *g15_led =
-		container_of(led_cdev, struct lg_g15_led, cdev);
+		container_of(mc, struct lg_g15_led, mcdev);
 
 	return g15_led->brightness;
 }
 
-static ssize_t color_store(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct lg_g15_led *g15_led =
-		container_of(led_cdev, struct lg_g15_led, cdev);
-	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
-	unsigned long value;
-	int ret;
-
-	if (count < 7 || (count == 8 && buf[7] != '\n') || count > 8)
-		return -EINVAL;
-
-	if (buf[0] != '#')
-		return -EINVAL;
-
-	ret = kstrtoul(buf + 1, 16, &value);
-	if (ret)
-		return ret;
-
-	mutex_lock(&g15->mutex);
-	g15_led->red   = (value & 0xff0000) >> 16;
-	g15_led->green = (value & 0x00ff00) >> 8;
-	g15_led->blue  = (value & 0x0000ff);
-	ret = lg_g510_kbd_led_write(g15, g15_led, g15_led->brightness);
-	mutex_unlock(&g15->mutex);
-
-	return (ret < 0) ? ret : count;
-}
-
-static ssize_t color_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
-{
-	struct led_classdev *led_cdev = dev_get_drvdata(dev);
-	struct lg_g15_led *g15_led =
-		container_of(led_cdev, struct lg_g15_led, cdev);
-	struct lg_g15_data *g15 = dev_get_drvdata(led_cdev->dev->parent);
-	ssize_t ret;
-
-	mutex_lock(&g15->mutex);
-	ret = sprintf(buf, "#%02x%02x%02x\n",
-		      g15_led->red, g15_led->green, g15_led->blue);
-	mutex_unlock(&g15->mutex);
-
-	return ret;
-}
-
-static DEVICE_ATTR_RW(color);
-
-static struct attribute *lg_g510_kbd_led_attrs[] = {
-	&dev_attr_color.attr,
-	NULL,
-};
-
-static const struct attribute_group lg_g510_kbd_led_group = {
-	.attrs = lg_g510_kbd_led_attrs,
-};
-
-static const struct attribute_group *lg_g510_kbd_led_groups[] = {
-	&lg_g510_kbd_led_group,
-	NULL,
-};
-
 static void lg_g510_leds_sync_work(struct work_struct *work)
 {
 	struct lg_g15_data *g15 = container_of(work, struct lg_g15_data, work);
+	struct lg_g15_led *g15_led = &g15->leds[LG_G15_KBD_BRIGHTNESS];
 
 	mutex_lock(&g15->mutex);
-	lg_g510_kbd_led_write(g15, &g15->leds[LG_G15_KBD_BRIGHTNESS],
-			      g15->leds[LG_G15_KBD_BRIGHTNESS].brightness);
+	lg_g510_kbd_led_write(g15, g15_led, g15_led->brightness);
 	mutex_unlock(&g15->mutex);
 }
 
@@ -667,8 +612,46 @@ static void lg_g15_input_close(struct input_dev *dev)
 	hid_hw_close(hdev);
 }
 
+static void lg_g15_setup_led_rgb(struct lg_g15_data *g15, int index)
+{
+	int i;
+	struct mc_subled *subled_info;
+
+	g15->leds[index].mcdev.led_cdev.brightness_set_blocking =
+		lg_g510_kbd_led_set;
+	g15->leds[index].mcdev.led_cdev.brightness_get =
+		lg_g510_kbd_led_get;
+	g15->leds[index].mcdev.led_cdev.max_brightness = 255;
+	g15->leds[index].mcdev.num_colors = 3;
+
+	subled_info = devm_kcalloc(&g15->hdev->dev, 3, sizeof(*subled_info), GFP_KERNEL);
+	if (!subled_info)
+		return;
+
+	for (i = 0; i < 3; i++) {
+		switch (i + 1) {
+		case LED_COLOR_ID_RED:
+			subled_info[i].color_index = LED_COLOR_ID_RED;
+			subled_info[i].intensity = g15->leds[index].red;
+			break;
+		case LED_COLOR_ID_GREEN:
+			subled_info[i].color_index = LED_COLOR_ID_GREEN;
+			subled_info[i].intensity = g15->leds[index].green;
+			break;
+		case LED_COLOR_ID_BLUE:
+			subled_info[i].color_index = LED_COLOR_ID_BLUE;
+			subled_info[i].intensity = g15->leds[index].blue;
+			break;
+		}
+		subled_info[i].channel = i;
+	}
+	g15->leds[index].mcdev.subled_info = subled_info;
+}
+
 static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 {
+	int ret;
+
 	g15->leds[i].led = i;
 	g15->leds[i].cdev.name = name;
 
@@ -685,6 +668,7 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 		} else {
 			g15->leds[i].cdev.max_brightness = 1;
 		}
+		ret = devm_led_classdev_register(&g15->hdev->dev, &g15->leds[i].cdev);
 		break;
 	case LG_G510:
 	case LG_G510_USB_AUDIO:
@@ -697,12 +681,11 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 			g15->leds[i].cdev.name = "g15::power_on_backlight_val";
 			fallthrough;
 		case LG_G15_KBD_BRIGHTNESS:
-			g15->leds[i].cdev.brightness_set_blocking =
-				lg_g510_kbd_led_set;
-			g15->leds[i].cdev.brightness_get =
-				lg_g510_kbd_led_get;
-			g15->leds[i].cdev.max_brightness = 255;
-			g15->leds[i].cdev.groups = lg_g510_kbd_led_groups;
+			/* register multicolor LED */
+			lg_g15_setup_led_rgb(g15, i);
+			ret = devm_led_classdev_multicolor_register_ext(&g15->hdev->dev,
+									&g15->leds[i].mcdev,
+									NULL);
 			break;
 		default:
 			g15->leds[i].cdev.brightness_set_blocking =
@@ -710,11 +693,12 @@ static int lg_g15_register_led(struct lg_g15_data *g15, int i, const char *name)
 			g15->leds[i].cdev.brightness_get =
 				lg_g510_mkey_led_get;
 			g15->leds[i].cdev.max_brightness = 1;
+			ret = devm_led_classdev_register(&g15->hdev->dev, &g15->leds[i].cdev);
 		}
 		break;
 	}
 
-	return devm_led_classdev_register(&g15->hdev->dev, &g15->leds[i].cdev);
+	return ret;
 }
 
 /* Common input device init code shared between keyboards and Z-10 speaker handling */
