@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This module tests the blackhole_dev that is created during the
+ * This tests the blackhole_dev that is created during the
  * net subsystem initialization. The test this module performs is
  * by injecting an skb into the stack with skb->dev as the
  * blackhole_dev and expects kernel to behave in a sane manner
@@ -9,9 +9,8 @@
  * Copyright (c) 2018, Mahesh Bandewar <maheshb@google.com>
  */
 
-#include <linux/init.h>
+#include <kunit/test.h>
 #include <linux/module.h>
-#include <linux/printk.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/udp.h>
@@ -25,17 +24,15 @@
 
 #define UDP_PORT 1234
 
-static int __init test_blackholedev_init(void)
+static void test_blackholedev(struct kunit *test)
 {
 	struct ipv6hdr *ip6h;
 	struct sk_buff *skb;
 	struct udphdr *uh;
 	int data_len;
-	int ret;
 
 	skb = alloc_skb(SKB_SIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOMEM;
+	KUNIT_ASSERT_NOT_NULL(test, skb);
 
 	/* Reserve head-room for the headers */
 	skb_reserve(skb, HEAD_SIZE);
@@ -55,7 +52,7 @@ static int __init test_blackholedev_init(void)
 	ip6h = (struct ipv6hdr *)skb_push(skb, sizeof(struct ipv6hdr));
 	skb_set_network_header(skb, 0);
 	ip6h->hop_limit = 32;
-	ip6h->payload_len = data_len + sizeof(struct udphdr);
+	ip6h->payload_len = htons(data_len + sizeof(struct udphdr));
 	ip6h->nexthdr = IPPROTO_UDP;
 	ip6h->saddr = in6addr_loopback;
 	ip6h->daddr = in6addr_loopback;
@@ -68,32 +65,20 @@ static int __init test_blackholedev_init(void)
 	skb->dev = blackhole_netdev;
 
 	/* Now attempt to send the packet */
-	ret = dev_queue_xmit(skb);
-
-	switch (ret) {
-	case NET_XMIT_SUCCESS:
-		pr_warn("dev_queue_xmit() returned NET_XMIT_SUCCESS\n");
-		break;
-	case NET_XMIT_DROP:
-		pr_warn("dev_queue_xmit() returned NET_XMIT_DROP\n");
-		break;
-	case NET_XMIT_CN:
-		pr_warn("dev_queue_xmit() returned NET_XMIT_CN\n");
-		break;
-	default:
-		pr_err("dev_queue_xmit() returned UNKNOWN(%d)\n", ret);
-	}
-
-	return 0;
+	KUNIT_EXPECT_EQ(test, dev_queue_xmit(skb), NET_XMIT_SUCCESS);
 }
 
-static void __exit test_blackholedev_exit(void)
-{
-	pr_warn("test_blackholedev module terminating.\n");
-}
+static struct kunit_case blackholedev_cases[] = {
+	KUNIT_CASE(test_blackholedev),
+	{},
+};
 
-module_init(test_blackholedev_init);
-module_exit(test_blackholedev_exit);
+static struct kunit_suite blackholedev_suite = {
+	.name = "blackholedev",
+	.test_cases = blackholedev_cases,
+};
+
+kunit_test_suite(blackholedev_suite);
 
 MODULE_AUTHOR("Mahesh Bandewar <maheshb@google.com>");
 MODULE_DESCRIPTION("module test of the blackhole_dev");
