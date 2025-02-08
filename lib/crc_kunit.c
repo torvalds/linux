@@ -363,7 +363,7 @@ static u64 crc32c_wrapper(u64 crc, const u8 *p, size_t len)
 
 static u64 crc32c_combine_wrapper(u64 crc1, u64 crc2, size_t len2)
 {
-	return __crc32c_le_combine(crc1, crc2, len2);
+	return crc32c_combine(crc1, crc2, len2);
 }
 
 static const struct crc_variant crc_variant_crc32c = {

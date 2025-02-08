@@ -117,13 +117,13 @@ u32 crc32_le_shift(u32 crc, size_t len)
 {
 	return crc32_generic_shift(crc, len, CRC32_POLY_LE);
 }
+EXPORT_SYMBOL(crc32_le_shift);
 
-u32 __crc32c_le_shift(u32 crc, size_t len)
+u32 crc32c_shift(u32 crc, size_t len)
 {
 	return crc32_generic_shift(crc, len, CRC32C_POLY_LE);
 }
-EXPORT_SYMBOL(crc32_le_shift);
-EXPORT_SYMBOL(__crc32c_le_shift);
+EXPORT_SYMBOL(crc32c_shift);
 
 u32 crc32_be_base(u32 crc, const u8 *p, size_t len)
 {
