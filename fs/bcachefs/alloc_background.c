@@ -871,6 +871,9 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		if (data_type_is_empty(new_a->data_type) &&
 		    BCH_ALLOC_V4_NEED_INC_GEN(new_a) &&
 		    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset)) {
+			if (new_a->oldest_gen == new_a->gen &&
+			    !bch2_bucket_sectors_total(*new_a))
+				new_a->oldest_gen++;
 			new_a->gen++;
 			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
 			alloc_data_type_set(new_a, new_a->data_type);
