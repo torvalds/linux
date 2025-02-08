@@ -265,7 +265,7 @@ static int bnxt_re_configure_cc(struct bnxt_re_dev *rdev, u32 gen_ext, u32 offse
 	struct bnxt_qplib_cc_param ccparam = { };
 
 	/* Supporting only Gen 0 now */
-	if (gen_ext != CC_CONFIG_GEN0_EXT0)
+	if (gen_ext == CC_CONFIG_GEN0_EXT0)
 		bnxt_re_fill_gen0_ext0(&ccparam, offset, val);
 	else
 		return -EINVAL;
