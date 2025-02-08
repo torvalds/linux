@@ -27,17 +27,17 @@ EXPORT_SYMBOL(crc32_le_arch);
 
 void crc32c_sparc64(u32 *crcp, const u64 *data, size_t len);
 
-u32 crc32c_le_arch(u32 crc, const u8 *data, size_t len)
+u32 crc32c_arch(u32 crc, const u8 *data, size_t len)
 {
 	size_t n = -(uintptr_t)data & 7;
 
 	if (!static_branch_likely(&have_crc32c_opcode))
-		return crc32c_le_base(crc, data, len);
+		return crc32c_base(crc, data, len);
 
 	if (n) {
 		/* Data isn't 8-byte aligned.  Align it. */
 		n = min(n, len);
-		crc = crc32c_le_base(crc, data, n);
+		crc = crc32c_base(crc, data, n);
 		data += n;
 		len -= n;
 	}
@@ -48,10 +48,10 @@ u32 crc32c_le_arch(u32 crc, const u8 *data, size_t len)
 		len -= n;
 	}
 	if (len)
-		crc = crc32c_le_base(crc, data, len);
+		crc = crc32c_base(crc, data, len);
 	return crc;
 }
-EXPORT_SYMBOL(crc32c_le_arch);
+EXPORT_SYMBOL(crc32c_arch);
 
 u32 crc32_be_arch(u32 crc, const u8 *data, size_t len)
 {

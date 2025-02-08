@@ -45,13 +45,13 @@ u32 crc32_le_base(u32 crc, const u8 *p, size_t len)
 }
 EXPORT_SYMBOL(crc32_le_base);
 
-u32 crc32c_le_base(u32 crc, const u8 *p, size_t len)
+u32 crc32c_base(u32 crc, const u8 *p, size_t len)
 {
 	while (len--)
 		crc = (crc >> 8) ^ crc32ctable_le[(crc & 255) ^ *p++];
 	return crc;
 }
-EXPORT_SYMBOL(crc32c_le_base);
+EXPORT_SYMBOL(crc32c_base);
 
 /*
  * This multiplies the polynomials x and y modulo the given modulus.

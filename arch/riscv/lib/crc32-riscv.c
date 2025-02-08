@@ -224,12 +224,12 @@ u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 }
 EXPORT_SYMBOL(crc32_le_arch);
 
-u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, CRC32C_POLY_LE,
-				CRC32C_POLY_QT_LE, crc32c_le_base);
+				CRC32C_POLY_QT_LE, crc32c_base);
 }
-EXPORT_SYMBOL(crc32c_le_arch);
+EXPORT_SYMBOL(crc32c_arch);
 
 static inline u32 crc32_be_unaligned(u32 crc, unsigned char const *p,
 				     size_t len)

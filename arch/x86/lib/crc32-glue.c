@@ -61,12 +61,12 @@ EXPORT_SYMBOL(crc32_le_arch);
 
 asmlinkage u32 crc32c_x86_3way(u32 crc, const u8 *buffer, size_t len);
 
-u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 {
 	size_t num_longs;
 
 	if (!static_branch_likely(&have_crc32))
-		return crc32c_le_base(crc, p, len);
+		return crc32c_base(crc, p, len);
 
 	if (IS_ENABLED(CONFIG_X86_64) && len >= CRC32C_PCLMUL_BREAKEVEN &&
 	    static_branch_likely(&have_pclmulqdq) && crypto_simd_usable()) {
@@ -85,7 +85,7 @@ u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 
 	return crc;
 }
-EXPORT_SYMBOL(crc32c_le_arch);
+EXPORT_SYMBOL(crc32c_arch);
 
 u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
 {
