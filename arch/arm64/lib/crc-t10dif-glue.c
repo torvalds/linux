@@ -70,12 +70,6 @@ static void __exit crc_t10dif_arm64_exit(void)
 }
 module_exit(crc_t10dif_arm64_exit);
 
-bool crc_t10dif_is_optimized(void)
-{
-	return static_key_enabled(&have_asimd);
-}
-EXPORT_SYMBOL(crc_t10dif_is_optimized);
-
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_DESCRIPTION("CRC-T10DIF using arm64 NEON and Crypto Extensions");
 MODULE_LICENSE("GPL v2");

@@ -41,11 +41,5 @@ static void __exit crc_t10dif_x86_exit(void)
 }
 module_exit(crc_t10dif_x86_exit);
 
-bool crc_t10dif_is_optimized(void)
-{
-	return static_key_enabled(&have_pclmulqdq);
-}
-EXPORT_SYMBOL(crc_t10dif_is_optimized);
-
 MODULE_DESCRIPTION("CRC-T10DIF using PCLMULQDQ instructions");
 MODULE_LICENSE("GPL");

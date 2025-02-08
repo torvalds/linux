@@ -19,13 +19,4 @@ static inline u16 crc_t10dif(const u8 *p, size_t len)
 	return crc_t10dif_update(0, p, len);
 }
 
-#if IS_ENABLED(CONFIG_CRC_T10DIF_ARCH)
-bool crc_t10dif_is_optimized(void);
-#else
-static inline bool crc_t10dif_is_optimized(void)
-{
-	return false;
-}
-#endif
-
 #endif
