@@ -175,10 +175,9 @@ static inline u32 crc32_le_unaligned(u32 crc, unsigned char const *p,
 	return crc;
 }
 
-static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
-					  size_t len, u32 poly,
-					  unsigned long poly_qt,
-					  fallback crc_fb)
+static inline u32 crc32_le_generic(u32 crc, unsigned char const *p, size_t len,
+				   u32 poly, unsigned long poly_qt,
+				   fallback crc_fb)
 {
 	size_t offset, head_len, tail_len;
 	unsigned long const *p_ul;
@@ -218,14 +217,14 @@ legacy:
 	return crc_fb(crc, p, len);
 }
 
-u32 __pure crc32_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, CRC32_POLY_LE, CRC32_POLY_QT_LE,
 				crc32_le_base);
 }
 EXPORT_SYMBOL(crc32_le_arch);
 
-u32 __pure crc32c_le_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len)
 {
 	return crc32_le_generic(crc, p, len, CRC32C_POLY_LE,
 				CRC32C_POLY_QT_LE, crc32c_le_base);
@@ -256,7 +255,7 @@ static inline u32 crc32_be_unaligned(u32 crc, unsigned char const *p,
 	return crc;
 }
 
-u32 __pure crc32_be_arch(u32 crc, const u8 *p, size_t len)
+u32 crc32_be_arch(u32 crc, const u8 *p, size_t len)
 {
 	size_t offset, head_len, tail_len;
 	unsigned long const *p_ul;

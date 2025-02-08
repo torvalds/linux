@@ -8,21 +8,21 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 
-u32 __pure crc32_le_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_le_base(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_be_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32_be_base(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32c_le_arch(u32 crc, const u8 *p, size_t len);
-u32 __pure crc32c_le_base(u32 crc, const u8 *p, size_t len);
+u32 crc32_le_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32_le_base(u32 crc, const u8 *p, size_t len);
+u32 crc32_be_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32_be_base(u32 crc, const u8 *p, size_t len);
+u32 crc32c_le_arch(u32 crc, const u8 *p, size_t len);
+u32 crc32c_le_base(u32 crc, const u8 *p, size_t len);
 
-static inline u32 __pure crc32_le(u32 crc, const void *p, size_t len)
+static inline u32 crc32_le(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32_le_arch(crc, p, len);
 	return crc32_le_base(crc, p, len);
 }
 
-static inline u32 __pure crc32_be(u32 crc, const void *p, size_t len)
+static inline u32 crc32_be(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32_be_arch(crc, p, len);
@@ -30,7 +30,7 @@ static inline u32 __pure crc32_be(u32 crc, const void *p, size_t len)
 }
 
 /* TODO: leading underscores should be dropped once callers have been updated */
-static inline u32 __pure __crc32c_le(u32 crc, const void *p, size_t len)
+static inline u32 __crc32c_le(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32c_le_arch(crc, p, len);
@@ -70,7 +70,7 @@ static inline u32 crc32_optimizations(void) { return 0; }
  * 	   with the same initializer as crc1, and crc2 seed was 0. See
  * 	   also crc32_combine_test().
  */
-u32 __attribute_const__ crc32_le_shift(u32 crc, size_t len);
+u32 crc32_le_shift(u32 crc, size_t len);
 
 static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
 {
@@ -95,7 +95,7 @@ static inline u32 crc32_le_combine(u32 crc1, u32 crc2, size_t len2)
  * 	   seeded with the same initializer as crc1, and crc2 seed
  * 	   was 0. See also crc32c_combine_test().
  */
-u32 __attribute_const__ __crc32c_le_shift(u32 crc, size_t len);
+u32 __crc32c_le_shift(u32 crc, size_t len);
 
 static inline u32 __crc32c_le_combine(u32 crc1, u32 crc2, size_t len2)
 {
