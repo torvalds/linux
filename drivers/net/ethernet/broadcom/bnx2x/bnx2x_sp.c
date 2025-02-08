@@ -2593,7 +2593,7 @@ void bnx2x_init_rx_mode_obj(struct bnx2x *bp,
 /********************* Multicast verbs: SET, CLEAR ****************************/
 static inline u8 bnx2x_mcast_bin_from_mac(u8 *mac)
 {
-	return (crc32c_le(0, mac, ETH_ALEN) >> 24) & 0xff;
+	return (crc32c(0, mac, ETH_ALEN) >> 24) & 0xff;
 }
 
 struct bnx2x_mcast_mac_elem {

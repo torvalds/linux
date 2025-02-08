@@ -211,7 +211,7 @@ static u8 tb_crc8(u8 *data, int len)
 
 static u32 tb_crc32(void *data, size_t len)
 {
-	return ~__crc32c_le(~0, data, len);
+	return ~crc32c(~0, data, len);
 }
 
 #define TB_DROM_DATA_START		13

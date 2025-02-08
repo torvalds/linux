@@ -30,9 +30,6 @@
 
 static inline __wsum sctp_csum_update(const void *buff, int len, __wsum sum)
 {
-	/* This uses the crypto implementation of crc32c, which is either
-	 * implemented w/ hardware support or resolves to __crc32c_le().
-	 */
 	return (__force __wsum)crc32c((__force __u32)sum, buff, len);
 }
 

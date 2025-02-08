@@ -29,8 +29,7 @@ static inline u32 crc32_be(u32 crc, const void *p, size_t len)
 	return crc32_be_base(crc, p, len);
 }
 
-/* TODO: leading underscores should be dropped once callers have been updated */
-static inline u32 __crc32c_le(u32 crc, const void *p, size_t len)
+static inline u32 crc32c(u32 crc, const void *p, size_t len)
 {
 	if (IS_ENABLED(CONFIG_CRC32_ARCH))
 		return crc32c_le_arch(crc, p, len);
@@ -45,7 +44,7 @@ static inline u32 __crc32c_le(u32 crc, const void *p, size_t len)
  */
 #define CRC32_LE_OPTIMIZATION	BIT(0) /* crc32_le() is optimized */
 #define CRC32_BE_OPTIMIZATION	BIT(1) /* crc32_be() is optimized */
-#define CRC32C_OPTIMIZATION	BIT(2) /* __crc32c_le() is optimized */
+#define CRC32C_OPTIMIZATION	BIT(2) /* crc32c() is optimized */
 #if IS_ENABLED(CONFIG_CRC32_ARCH)
 u32 crc32_optimizations(void);
 #else
