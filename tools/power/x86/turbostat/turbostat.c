@@ -10265,6 +10265,7 @@ void probe_sysfs(void)
 	char name_buf[16];
 	FILE *input;
 	int state;
+	int min_state = 1024, max_state = 0;
 	char *sp;
 
 	for (state = 10; state >= 0; --state) {
@@ -10296,6 +10297,11 @@ void probe_sysfs(void)
 			continue;
 
 		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC, FORMAT_PERCENT, SYSFS_PERCPU, 0);
+
+		if (state > max_state)
+			max_state = state;
+		if (state < min_state)
+			min_state = state;
 	}
 
 	for (state = 10; state >= 0; --state) {
@@ -10306,16 +10312,9 @@ void probe_sysfs(void)
 			continue;
 		if (!fgets(name_buf, sizeof(name_buf), input))
 			err(1, "%s: failed to read file", path);
-		/* truncate "C1-HSW\n" to "C1", or truncate "C1\n" to "C1" */
-		sp = strchr(name_buf, '-');
-		if (!sp)
-			sp = strchrnul(name_buf, '\n');
-		*sp = '\0';
 		fclose(input);
 
 		remove_underbar(name_buf);
-
-		sprintf(path, "cpuidle/state%d/usage", state);
 
 		if (!DO_BIC(BIC_sysfs) && !is_deferred_add(name_buf))
 			continue;
@@ -10323,9 +10322,42 @@ void probe_sysfs(void)
 		if (is_deferred_skip(name_buf))
 			continue;
 
-		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
-	}
+		/* truncate "C1-HSW\n" to "C1", or truncate "C1\n" to "C1" */
+		sp = strchr(name_buf, '-');
+		if (!sp)
+			sp = strchrnul(name_buf, '\n');
 
+		/*
+		 * The 'below' sysfs file always contains 0 for the deepest state (largest index),
+		 * do not add it.
+		 */
+		if (state != max_state) {
+			/*
+			 * Add 'C1+' for C1, and so on. The 'below' sysfs file always contains 0 for
+			 * the last state, so do not add it.
+			 */
+
+			*sp = '+';
+			*(sp + 1) = '\0';
+			sprintf(path, "cpuidle/state%d/below", state);
+			add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
+		}
+
+		*sp = '\0';
+		sprintf(path, "cpuidle/state%d/usage", state);
+		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
+
+		/*
+		 * The 'above' sysfs file always contains 0 for the shallowest state (smallest
+		 * index), do not add it.
+		 */
+		if (state != min_state) {
+			*sp = '-';
+			*(sp + 1) = '\0';
+			sprintf(path, "cpuidle/state%d/above", state);
+			add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
+		}
+	}
 }
 
 /*
