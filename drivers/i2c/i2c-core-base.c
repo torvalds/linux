@@ -1300,27 +1300,20 @@ new_device_store(struct device *dev, struct device_attribute *attr,
 		info.flags |= I2C_CLIENT_SLAVE;
 	}
 
-	info.flags |= I2C_CLIENT_USER;
-
 	client = i2c_new_client_device(adap, &info);
 	if (IS_ERR(client))
 		return PTR_ERR(client);
 
+	/* Keep track of the added device */
+	mutex_lock(&adap->userspace_clients_lock);
+	list_add_tail(&client->detected, &adap->userspace_clients);
+	mutex_unlock(&adap->userspace_clients_lock);
 	dev_info(dev, "%s: Instantiated device %s at 0x%02hx\n", "new_device",
 		 info.type, info.addr);
 
 	return count;
 }
 static DEVICE_ATTR_WO(new_device);
-
-static int __i2c_find_user_addr(struct device *dev, const void *addrp)
-{
-	struct i2c_client *client = i2c_verify_client(dev);
-	unsigned short addr = *(unsigned short *)addrp;
-
-	return client && client->flags & I2C_CLIENT_USER &&
-	       i2c_encode_flags_to_addr(client) == addr;
-}
 
 /*
  * And of course let the users delete the devices they instantiated, if
@@ -1336,7 +1329,7 @@ delete_device_store(struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t count)
 {
 	struct i2c_adapter *adap = to_i2c_adapter(dev);
-	struct device *child_dev;
+	struct i2c_client *client, *next;
 	unsigned short addr;
 	char end;
 	int res;
@@ -1352,19 +1345,28 @@ delete_device_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	mutex_lock(&core_lock);
 	/* Make sure the device was added through sysfs */
-	child_dev = device_find_child(&adap->dev, &addr, __i2c_find_user_addr);
-	if (child_dev) {
-		i2c_unregister_device(i2c_verify_client(child_dev));
-		put_device(child_dev);
-	} else {
-		dev_err(dev, "Can't find userspace-created device at %#x\n", addr);
-		count = -ENOENT;
-	}
-	mutex_unlock(&core_lock);
+	res = -ENOENT;
+	mutex_lock_nested(&adap->userspace_clients_lock,
+			  i2c_adapter_depth(adap));
+	list_for_each_entry_safe(client, next, &adap->userspace_clients,
+				 detected) {
+		if (i2c_encode_flags_to_addr(client) == addr) {
+			dev_info(dev, "%s: Deleting device %s at 0x%02hx\n",
+				 "delete_device", client->name, client->addr);
 
-	return count;
+			list_del(&client->detected);
+			i2c_unregister_device(client);
+			res = count;
+			break;
+		}
+	}
+	mutex_unlock(&adap->userspace_clients_lock);
+
+	if (res < 0)
+		dev_err(dev, "%s: Can't find device in list\n",
+			"delete_device");
+	return res;
 }
 static DEVICE_ATTR_IGNORE_LOCKDEP(delete_device, S_IWUSR, NULL,
 				  delete_device_store);
@@ -1535,6 +1537,8 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	adap->locked_flags = 0;
 	rt_mutex_init(&adap->bus_lock);
 	rt_mutex_init(&adap->mux_lock);
+	mutex_init(&adap->userspace_clients_lock);
+	INIT_LIST_HEAD(&adap->userspace_clients);
 
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
@@ -1700,6 +1704,23 @@ int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
+static void i2c_do_del_adapter(struct i2c_driver *driver,
+			      struct i2c_adapter *adapter)
+{
+	struct i2c_client *client, *_n;
+
+	/* Remove the devices we created ourselves as the result of hardware
+	 * probing (using a driver's detect method) */
+	list_for_each_entry_safe(client, _n, &driver->clients, detected) {
+		if (client->adapter == adapter) {
+			dev_dbg(&adapter->dev, "Removing %s at 0x%x\n",
+				client->name, client->addr);
+			list_del(&client->detected);
+			i2c_unregister_device(client);
+		}
+	}
+}
+
 static int __unregister_client(struct device *dev, void *dummy)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -1715,6 +1736,12 @@ static int __unregister_dummy(struct device *dev, void *dummy)
 	return 0;
 }
 
+static int __process_removed_adapter(struct device_driver *d, void *data)
+{
+	i2c_do_del_adapter(to_i2c_driver(d), data);
+	return 0;
+}
+
 /**
  * i2c_del_adapter - unregister I2C adapter
  * @adap: the adapter being unregistered
@@ -1726,6 +1753,7 @@ static int __unregister_dummy(struct device *dev, void *dummy)
 void i2c_del_adapter(struct i2c_adapter *adap)
 {
 	struct i2c_adapter *found;
+	struct i2c_client *client, *next;
 
 	/* First make sure that this adapter was ever added */
 	mutex_lock(&core_lock);
@@ -1737,16 +1765,31 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 	}
 
 	i2c_acpi_remove_space_handler(adap);
+	/* Tell drivers about this removal */
+	mutex_lock(&core_lock);
+	bus_for_each_drv(&i2c_bus_type, NULL, adap,
+			       __process_removed_adapter);
+	mutex_unlock(&core_lock);
+
+	/* Remove devices instantiated from sysfs */
+	mutex_lock_nested(&adap->userspace_clients_lock,
+			  i2c_adapter_depth(adap));
+	list_for_each_entry_safe(client, next, &adap->userspace_clients,
+				 detected) {
+		dev_dbg(&adap->dev, "Removing %s at 0x%x\n", client->name,
+			client->addr);
+		list_del(&client->detected);
+		i2c_unregister_device(client);
+	}
+	mutex_unlock(&adap->userspace_clients_lock);
 
 	/* Detach any active clients. This can't fail, thus we do not
 	 * check the returned value. This is a two-pass process, because
 	 * we can't remove the dummy devices during the first pass: they
 	 * could have been instantiated by real devices wishing to clean
 	 * them up properly, so we give them a chance to do that first. */
-	mutex_lock(&core_lock);
 	device_for_each_child(&adap->dev, NULL, __unregister_client);
 	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
-	mutex_unlock(&core_lock);
 
 	/* device name is gone after device_unregister */
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
@@ -1966,6 +2009,7 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 	/* add the driver to the list of i2c drivers in the driver core */
 	driver->driver.owner = owner;
 	driver->driver.bus = &i2c_bus_type;
+	INIT_LIST_HEAD(&driver->clients);
 
 	/* When registration returns, the driver core
 	 * will have called probe() for all matching-but-unbound devices.
@@ -1983,13 +2027,10 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 }
 EXPORT_SYMBOL(i2c_register_driver);
 
-static int __i2c_unregister_detected_client(struct device *dev, void *argp)
+static int __process_removed_driver(struct device *dev, void *data)
 {
-	struct i2c_client *client = i2c_verify_client(dev);
-
-	if (client && client->flags & I2C_CLIENT_AUTO)
-		i2c_unregister_device(client);
-
+	if (dev->type == &i2c_adapter_type)
+		i2c_do_del_adapter(data, to_i2c_adapter(dev));
 	return 0;
 }
 
@@ -2000,12 +2041,7 @@ static int __i2c_unregister_detected_client(struct device *dev, void *argp)
  */
 void i2c_del_driver(struct i2c_driver *driver)
 {
-	mutex_lock(&core_lock);
-	/* Satisfy __must_check, function can't fail */
-	if (driver_for_each_device(&driver->driver, NULL, NULL,
-				   __i2c_unregister_detected_client)) {
-	}
-	mutex_unlock(&core_lock);
+	i2c_for_each_dev(driver, __process_removed_driver);
 
 	driver_unregister(&driver->driver);
 	pr_debug("driver [%s] unregistered\n", driver->driver.name);
@@ -2432,7 +2468,6 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = addr;
-	info.flags = I2C_CLIENT_AUTO;
 	err = driver->detect(temp_client, &info);
 	if (err) {
 		/* -ENODEV is returned if the detection fails. We catch it
@@ -2459,7 +2494,9 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 		dev_dbg(&adapter->dev, "Creating %s at 0x%02x\n",
 			info.type, info.addr);
 		client = i2c_new_client_device(adapter, &info);
-		if (IS_ERR(client))
+		if (!IS_ERR(client))
+			list_add_tail(&client->detected, &driver->clients);
+		else
 			dev_err(&adapter->dev, "Failed creating %s at 0x%02x\n",
 				info.type, info.addr);
 	}
