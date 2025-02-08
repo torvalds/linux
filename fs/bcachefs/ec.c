@@ -1380,8 +1380,12 @@ static int ec_stripe_update_bucket(struct btree_trans *trans, struct ec_stripe_b
 		if (bp_k.k->type != KEY_TYPE_backpointer)
 			continue;
 
+		struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(bp_k);
+		if (bp.v->btree_id == BTREE_ID_stripes)
+			continue;
+
 		ec_stripe_update_extent(trans, ca, bucket_pos, ptr.gen, s,
-					bkey_s_c_to_backpointer(bp_k), &last_flushed);
+					bp, &last_flushed);
 	}));
 
 	bch2_bkey_buf_exit(&last_flushed, c);
