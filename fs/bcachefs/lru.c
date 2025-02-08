@@ -6,6 +6,7 @@
 #include "btree_iter.h"
 #include "btree_update.h"
 #include "btree_write_buffer.h"
+#include "ec.h"
 #include "error.h"
 #include "lru.h"
 #include "recovery.h"
@@ -124,6 +125,8 @@ static struct bbpos lru_pos_to_bp(struct bkey_s_c lru_k)
 	case BCH_LRU_read:
 	case BCH_LRU_fragmentation:
 		return BBPOS(BTREE_ID_alloc, u64_to_bucket(lru_k.k->p.offset));
+	case BCH_LRU_stripes:
+		return BBPOS(BTREE_ID_stripes, POS(0, lru_k.k->p.offset));
 	default:
 		BUG();
 	}
@@ -151,6 +154,10 @@ static u64 bkey_lru_type_idx(struct bch_fs *c,
 		rcu_read_unlock();
 		return idx;
 	}
+	case BCH_LRU_stripes:
+		return k.k->type == KEY_TYPE_stripe
+			? stripe_lru_pos(bkey_s_c_to_stripe(k).v)
+			: 0;
 	default:
 		BUG();
 	}

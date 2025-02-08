@@ -92,6 +92,31 @@ static inline void stripe_csum_set(struct bch_stripe *s,
 	memcpy(stripe_csum(s, block, csum_idx), &csum, bch_crc_bytes[s->csum_type]);
 }
 
+#define STRIPE_LRU_POS_EMPTY	1
+
+static inline u64 stripe_lru_pos(const struct bch_stripe *s)
+{
+	if (!s)
+		return 0;
+
+	unsigned blocks_empty = 0, blocks_nonempty = 0;
+
+	for (unsigned i = 0; i < s->nr_blocks; i++) {
+		blocks_empty	+=  !stripe_blockcount_get(s, i);
+		blocks_nonempty	+= !!stripe_blockcount_get(s, i);
+	}
+
+	/* Will be picked up by the stripe_delete worker */
+	if (!blocks_nonempty)
+		return STRIPE_LRU_POS_EMPTY;
+
+	if (!blocks_empty)
+		return 0;
+
+	/* invert: more blocks empty = reuse first */
+	return LRU_TIME_MAX - blocks_empty;
+}
+
 static inline bool __bch2_ptr_matches_stripe(const struct bch_extent_ptr *stripe_ptr,
 					     const struct bch_extent_ptr *data_ptr,
 					     unsigned sectors)
@@ -281,5 +306,7 @@ void bch2_new_stripes_to_text(struct printbuf *, struct bch_fs *);
 void bch2_fs_ec_exit(struct bch_fs *);
 void bch2_fs_ec_init_early(struct bch_fs *);
 int bch2_fs_ec_init(struct bch_fs *);
+
+int bch2_check_stripe_to_lru_refs(struct bch_fs *);
 
 #endif /* _BCACHEFS_EC_H */

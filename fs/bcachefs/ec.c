@@ -20,6 +20,7 @@
 #include "io_read.h"
 #include "io_write.h"
 #include "keylist.h"
+#include "lru.h"
 #include "recovery.h"
 #include "replicas.h"
 #include "super-io.h"
@@ -411,6 +412,15 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 	       (new_s->nr_blocks	!= old_s->nr_blocks ||
 		new_s->nr_redundant	!= old_s->nr_redundant));
 
+	if (flags & BTREE_TRIGGER_transactional) {
+		int ret = bch2_lru_change(trans,
+					  BCH_LRU_STRIPE_FRAGMENTATION,
+					  idx,
+					  stripe_lru_pos(old_s),
+					  stripe_lru_pos(new_s));
+		if (ret)
+			return ret;
+	}
 
 	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) {
 		/*
@@ -1175,6 +1185,10 @@ err:
 	return ret;
 }
 
+/*
+ * XXX
+ * can we kill this and delete stripes from the trigger?
+ */
 static void ec_stripe_delete_work(struct work_struct *work)
 {
 	struct bch_fs *c =
@@ -2518,4 +2532,41 @@ int bch2_fs_ec_init(struct bch_fs *c)
 {
 	return bioset_init(&c->ec_bioset, 1, offsetof(struct ec_bio, bio),
 			   BIOSET_NEED_BVECS);
+}
+
+static int bch2_check_stripe_to_lru_ref(struct btree_trans *trans,
+					struct bkey_s_c k,
+					struct bkey_buf *last_flushed)
+{
+	if (k.k->type != KEY_TYPE_stripe)
+		return 0;
+
+	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+
+	u64 lru_idx = stripe_lru_pos(s.v);
+	if (lru_idx) {
+		int ret = bch2_lru_check_set(trans, BCH_LRU_STRIPE_FRAGMENTATION,
+					     k.k->p.offset, lru_idx, k, last_flushed);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+int bch2_check_stripe_to_lru_refs(struct bch_fs *c)
+{
+	struct bkey_buf last_flushed;
+
+	bch2_bkey_buf_init(&last_flushed);
+	bkey_init(&last_flushed.k->k);
+
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter, BTREE_ID_stripes,
+				POS_MIN, BTREE_ITER_prefetch, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			bch2_check_stripe_to_lru_ref(trans, k, &last_flushed)));
+
+	bch2_bkey_buf_exit(&last_flushed, c);
+	bch_err_fn(c, ret);
+	return ret;
 }

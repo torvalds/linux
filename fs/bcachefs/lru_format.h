@@ -9,7 +9,8 @@ struct bch_lru {
 
 #define BCH_LRU_TYPES()		\
 	x(read)			\
-	x(fragmentation)
+	x(fragmentation)	\
+	x(stripes)
 
 enum bch_lru_type {
 #define x(n) BCH_LRU_##n,
@@ -18,6 +19,7 @@ enum bch_lru_type {
 };
 
 #define BCH_LRU_BUCKET_FRAGMENTATION	((1U << 16) - 1)
+#define BCH_LRU_STRIPE_FRAGMENTATION	((1U << 16) - 2)
 
 #define LRU_TIME_BITS			48
 #define LRU_TIME_MAX			((1ULL << LRU_TIME_BITS) - 1)

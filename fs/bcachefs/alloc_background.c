@@ -1757,7 +1757,8 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-			bch2_check_alloc_to_lru_ref(trans, &iter, &last_flushed)));
+			bch2_check_alloc_to_lru_ref(trans, &iter, &last_flushed))) ?:
+		bch2_check_stripe_to_lru_refs(c);
 
 	bch2_bkey_buf_exit(&last_flushed, c);
 	bch_err_fn(c, ret);
