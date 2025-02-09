@@ -140,76 +140,6 @@ static void _dpu_core_perf_calc_crtc(const struct dpu_core_perf *core_perf,
 			perf->max_per_pipe_ib, perf->bw_ctl);
 }
 
-/**
- * dpu_core_perf_crtc_check - validate performance of the given crtc state
- * @crtc: Pointer to crtc
- * @state: Pointer to new crtc state
- * return: zero if success, or error code otherwise
- */
-int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
-{
-	u32 bw, threshold;
-	u64 bw_sum_of_intfs = 0;
-	enum dpu_crtc_client_type curr_client_type;
-	struct dpu_crtc_state *dpu_cstate;
-	struct drm_crtc *tmp_crtc;
-	struct dpu_kms *kms;
-
-	if (!crtc || !state) {
-		DPU_ERROR("invalid crtc\n");
-		return -EINVAL;
-	}
-
-	kms = _dpu_crtc_get_kms(crtc);
-
-	/* we only need bandwidth check on real-time clients (interfaces) */
-	if (dpu_crtc_get_client_type(crtc) == NRT_CLIENT)
-		return 0;
-
-	dpu_cstate = to_dpu_crtc_state(state);
-
-	/* obtain new values */
-	_dpu_core_perf_calc_crtc(&kms->perf, crtc, state, &dpu_cstate->new_perf);
-
-	bw_sum_of_intfs = dpu_cstate->new_perf.bw_ctl;
-	curr_client_type = dpu_crtc_get_client_type(crtc);
-
-	drm_for_each_crtc(tmp_crtc, crtc->dev) {
-		if (tmp_crtc->enabled &&
-		    dpu_crtc_get_client_type(tmp_crtc) == curr_client_type &&
-		    tmp_crtc != crtc) {
-			struct dpu_crtc_state *tmp_cstate =
-				to_dpu_crtc_state(tmp_crtc->state);
-
-			DRM_DEBUG_ATOMIC("crtc:%d bw:%llu ctrl:%d\n",
-					 tmp_crtc->base.id, tmp_cstate->new_perf.bw_ctl,
-					 tmp_cstate->bw_control);
-
-			bw_sum_of_intfs += tmp_cstate->new_perf.bw_ctl;
-		}
-
-		/* convert bandwidth to kb */
-		bw = DIV_ROUND_UP_ULL(bw_sum_of_intfs, 1000);
-		DRM_DEBUG_ATOMIC("calculated bandwidth=%uk\n", bw);
-
-		threshold = kms->perf.perf_cfg->max_bw_high;
-
-		DRM_DEBUG_ATOMIC("final threshold bw limit = %d\n", threshold);
-
-		if (!threshold) {
-			DPU_ERROR("no bandwidth limits specified\n");
-			return -E2BIG;
-		} else if (bw > threshold) {
-			DPU_ERROR("exceeds bandwidth: %ukb > %ukb\n", bw,
-					threshold);
-			return -E2BIG;
-		}
-	}
-
-	return 0;
-}
-
 static void dpu_core_perf_aggregate(struct drm_device *ddev,
 				    enum dpu_crtc_client_type curr_client_type,
 				    struct dpu_core_perf_params *perf)
@@ -232,6 +162,58 @@ static void dpu_core_perf_aggregate(struct drm_device *ddev,
 					 dpu_cstate->new_perf.bw_ctl);
 		}
 	}
+}
+
+/**
+ * dpu_core_perf_crtc_check - validate performance of the given crtc state
+ * @crtc: Pointer to crtc
+ * @state: Pointer to new crtc state
+ * return: zero if success, or error code otherwise
+ */
+int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
+{
+	u32 bw, threshold;
+	struct dpu_crtc_state *dpu_cstate;
+	struct dpu_kms *kms;
+	struct dpu_core_perf_params perf;
+
+	if (!crtc || !state) {
+		DPU_ERROR("invalid crtc\n");
+		return -EINVAL;
+	}
+
+	kms = _dpu_crtc_get_kms(crtc);
+
+	/* we only need bandwidth check on real-time clients (interfaces) */
+	if (dpu_crtc_get_client_type(crtc) == NRT_CLIENT)
+		return 0;
+
+	dpu_cstate = to_dpu_crtc_state(state);
+
+	/* obtain new values */
+	_dpu_core_perf_calc_crtc(&kms->perf, crtc, state, &dpu_cstate->new_perf);
+
+	dpu_core_perf_aggregate(crtc->dev, dpu_crtc_get_client_type(crtc), &perf);
+
+	/* convert bandwidth to kb */
+	bw = DIV_ROUND_UP_ULL(perf.bw_ctl, 1000);
+	DRM_DEBUG_ATOMIC("calculated bandwidth=%uk\n", bw);
+
+	threshold = kms->perf.perf_cfg->max_bw_high;
+
+	DRM_DEBUG_ATOMIC("final threshold bw limit = %d\n", threshold);
+
+	if (!threshold) {
+		DPU_ERROR("no bandwidth limits specified\n");
+		return -E2BIG;
+	} else if (bw > threshold) {
+		DPU_ERROR("exceeds bandwidth: %ukb > %ukb\n", bw,
+				threshold);
+		return -E2BIG;
+	}
+
+	return 0;
 }
 
 static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
