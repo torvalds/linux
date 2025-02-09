@@ -126,6 +126,19 @@ enum scx_ops_flags {
 	SCX_OPS_SWITCH_PARTIAL	= 1LLU << 3,
 
 	/*
+	 * A migration disabled task can only execute on its current CPU. By
+	 * default, such tasks are automatically put on the CPU's local DSQ with
+	 * the default slice on enqueue. If this ops flag is set, they also go
+	 * through ops.enqueue().
+	 *
+	 * A migration disabled task never invokes ops.select_cpu() as it can
+	 * only select the current CPU. Also, p->cpus_ptr will only contain its
+	 * current CPU while p->nr_cpus_allowed keeps tracking p->user_cpus_ptr
+	 * and thus may disagree with cpumask_weight(p->cpus_ptr).
+	 */
+	SCX_OPS_ENQ_MIGRATION_DISABLED = 1LLU << 4,
+
+	/*
 	 * CPU cgroup support flags
 	 */
 	SCX_OPS_HAS_CGROUP_WEIGHT = 1LLU << 16,	/* cpu.weight */
@@ -133,6 +146,7 @@ enum scx_ops_flags {
 	SCX_OPS_ALL_FLAGS	= SCX_OPS_KEEP_BUILTIN_IDLE |
 				  SCX_OPS_ENQ_LAST |
 				  SCX_OPS_ENQ_EXITING |
+				  SCX_OPS_ENQ_MIGRATION_DISABLED |
 				  SCX_OPS_SWITCH_PARTIAL |
 				  SCX_OPS_HAS_CGROUP_WEIGHT,
 };
@@ -885,6 +899,7 @@ static bool scx_warned_zero_slice;
 
 static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_last);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_exiting);
+static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_migration_disabled);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_cpu_preempt);
 
 static struct static_key_false scx_has_op[SCX_OPI_END] =
@@ -2102,6 +2117,11 @@ static void do_enqueue_task(struct rq *rq, struct task_struct *p, u64 enq_flags,
 		goto local;
 	}
 
+	/* see %SCX_OPS_ENQ_MIGRATION_DISABLED */
+	if (!static_branch_unlikely(&scx_ops_enq_migration_disabled) &&
+	    is_migration_disabled(p))
+		goto local;
+
 	if (!SCX_HAS_OP(enqueue))
 		goto global;
 
@@ -2407,11 +2427,15 @@ static void move_remote_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
  *
  * - The BPF scheduler is bypassed while the rq is offline and we can always say
  *   no to the BPF scheduler initiated migrations while offline.
+ *
+ * The caller must ensure that @p and @rq are on different CPUs.
  */
 static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
 				      bool trigger_error)
 {
 	int cpu = cpu_of(rq);
+
+	SCHED_WARN_ON(task_cpu(p) == cpu);
 
 	/*
 	 * We don't require the BPF scheduler to avoid dispatching to offline
@@ -2426,8 +2450,11 @@ static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
 		return false;
 	}
 
-	if (unlikely(is_migration_disabled(p)))
-		return false;
+	/*
+	 * If @p has migration disabled, @p->cpus_ptr only contains its current
+	 * CPU and the above task_allowed_on_cpu() test should have failed.
+	 */
+	SCHED_WARN_ON(is_migration_disabled(p));
 
 	if (!scx_rq_online(rq))
 		return false;
@@ -2531,7 +2558,8 @@ static struct rq *move_task_between_dsqs(struct task_struct *p, u64 enq_flags,
 
 	if (dst_dsq->id == SCX_DSQ_LOCAL) {
 		dst_rq = container_of(dst_dsq, struct rq, scx.local_dsq);
-		if (!task_can_run_on_remote_rq(p, dst_rq, true)) {
+		if (src_rq != dst_rq &&
+		    unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
 			dst_dsq = find_global_dsq(p);
 			dst_rq = src_rq;
 		}
@@ -2685,7 +2713,8 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 	}
 
 #ifdef CONFIG_SMP
-	if (unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
+	if (src_rq != dst_rq &&
+	    unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
 		dispatch_enqueue(find_global_dsq(p), p,
 				 enq_flags | SCX_ENQ_CLEAR_OPSS);
 		__scx_add_event(SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE, 1);
@@ -4666,6 +4695,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 		static_branch_disable(&scx_has_op[i]);
 	static_branch_disable(&scx_ops_enq_last);
 	static_branch_disable(&scx_ops_enq_exiting);
+	static_branch_disable(&scx_ops_enq_migration_disabled);
 	static_branch_disable(&scx_ops_cpu_preempt);
 	static_branch_disable(&scx_builtin_idle_enabled);
 	synchronize_rcu();
@@ -5298,6 +5328,8 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 
 	if (ops->flags & SCX_OPS_ENQ_EXITING)
 		static_branch_enable(&scx_ops_enq_exiting);
+	if (ops->flags & SCX_OPS_ENQ_MIGRATION_DISABLED)
+		static_branch_enable(&scx_ops_enq_migration_disabled);
 	if (scx_ops.cpu_acquire || scx_ops.cpu_release)
 		static_branch_enable(&scx_ops_cpu_preempt);
 
