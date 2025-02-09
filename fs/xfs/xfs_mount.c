@@ -1257,7 +1257,6 @@ xfs_dec_freecounter(
 	uint64_t		delta,
 	bool			rsvd)
 {
-	int64_t			lcounter;
 	uint64_t		set_aside = 0;
 	s32			batch;
 	bool			has_resv_pool;
@@ -1296,28 +1295,26 @@ xfs_dec_freecounter(
 		set_aside = xfs_fdblocks_unavailable(mp);
 	percpu_counter_add_batch(counter, -((int64_t)delta), batch);
 	if (__percpu_counter_compare(counter, set_aside,
-				     XFS_FDBLOCKS_BATCH) >= 0) {
-		/* we had space! */
-		return 0;
-	}
-
-	/*
-	 * lock up the sb for dipping into reserves before releasing the space
-	 * that took us to ENOSPC.
-	 */
-	spin_lock(&mp->m_sb_lock);
-	percpu_counter_add(counter, delta);
-	if (!has_resv_pool || !rsvd)
-		goto fdblocks_enospc;
-
-	lcounter = (long long)mp->m_resblks_avail - delta;
-	if (lcounter >= 0) {
-		mp->m_resblks_avail = lcounter;
-		spin_unlock(&mp->m_sb_lock);
-		return 0;
-	}
-	xfs_warn_once(mp,
+			XFS_FDBLOCKS_BATCH) < 0) {
+		/*
+		 * Lock up the sb for dipping into reserves before releasing the
+		 * space that took us to ENOSPC.
+		 */
+		spin_lock(&mp->m_sb_lock);
+		percpu_counter_add(counter, delta);
+		if (!rsvd)
+			goto fdblocks_enospc;
+		if (delta > mp->m_resblks_avail) {
+			xfs_warn_once(mp,
 "Reserve blocks depleted! Consider increasing reserve pool size.");
+			goto fdblocks_enospc;
+		}
+		mp->m_resblks_avail -= delta;
+		spin_unlock(&mp->m_sb_lock);
+	}
+
+	/* we had space! */
+	return 0;
 
 fdblocks_enospc:
 	spin_unlock(&mp->m_sb_lock);
