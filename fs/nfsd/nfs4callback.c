@@ -1405,6 +1405,7 @@ retry_nowait:
 	rpc_restart_call_prepare(task);
 	goto out;
 requeue:
+	nfsd41_cb_release_slot(cb);
 	nfsd4_requeue_cb(task, cb);
 	return false;
 }
