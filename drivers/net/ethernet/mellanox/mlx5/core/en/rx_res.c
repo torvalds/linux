@@ -5,8 +5,6 @@
 #include "channels.h"
 #include "params.h"
 
-#define MLX5E_MAX_NUM_RSS 16
-
 struct mlx5e_rx_res {
 	struct mlx5_core_dev *mdev; /* primary */
 	enum mlx5e_rx_res_features features;
