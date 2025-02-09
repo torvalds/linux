@@ -1927,7 +1927,7 @@ xfs_dialloc(
 	 * that we can immediately allocate, but then we allow allocation on the
 	 * second pass if we fail to find an AG with free inodes in it.
 	 */
-	if (percpu_counter_read_positive(&mp->m_fdblocks) <
+	if (xfs_estimate_freecounter(mp, XC_FREE_BLOCKS) <
 			mp->m_low_space[XFS_LOWSP_1_PCNT]) {
 		ok_alloc = false;
 		low_space = true;

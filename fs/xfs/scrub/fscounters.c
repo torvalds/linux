@@ -513,8 +513,8 @@ xchk_fscounters(
 	/* Snapshot the percpu counters. */
 	icount = percpu_counter_sum(&mp->m_icount);
 	ifree = percpu_counter_sum(&mp->m_ifree);
-	fdblocks = percpu_counter_sum(&mp->m_fdblocks);
-	frextents = percpu_counter_sum(&mp->m_frextents);
+	fdblocks = xfs_sum_freecounter_raw(mp, XC_FREE_BLOCKS);
+	frextents = xfs_sum_freecounter_raw(mp, XC_FREE_RTEXTENTS);
 
 	/* No negative values, please! */
 	if (icount < 0 || ifree < 0)
@@ -589,15 +589,16 @@ xchk_fscounters(
 			try_again = true;
 	}
 
-	if (!xchk_fscount_within_range(sc, fdblocks, &mp->m_fdblocks,
-			fsc->fdblocks)) {
+	if (!xchk_fscount_within_range(sc, fdblocks,
+			&mp->m_free[XC_FREE_BLOCKS].count, fsc->fdblocks)) {
 		if (fsc->frozen)
 			xchk_set_corrupt(sc);
 		else
 			try_again = true;
 	}
 
-	if (!xchk_fscount_within_range(sc, frextents, &mp->m_frextents,
+	if (!xchk_fscount_within_range(sc, frextents,
+			&mp->m_free[XC_FREE_RTEXTENTS].count,
 			fsc->frextents - fsc->frextents_delayed)) {
 		if (fsc->frozen)
 			xchk_set_corrupt(sc);

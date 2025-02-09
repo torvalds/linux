@@ -95,7 +95,7 @@ xfs_metafile_resv_can_cover(
 	 * There aren't enough blocks left in the inode's reservation, but it
 	 * isn't critical unless there also isn't enough free space.
 	 */
-	return __percpu_counter_compare(&ip->i_mount->m_fdblocks,
+	return xfs_compare_freecounter(ip->i_mount, XC_FREE_BLOCKS,
 			rhs - ip->i_delayed_blks, 2048) >= 0;
 }
 

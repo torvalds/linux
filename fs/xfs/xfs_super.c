@@ -834,10 +834,12 @@ xfs_statfs_data(
 	struct kstatfs		*st)
 {
 	int64_t			fdblocks =
-		percpu_counter_sum(&mp->m_fdblocks);
+		xfs_sum_freecounter(mp, XC_FREE_BLOCKS);
 
 	/* make sure st->f_bfree does not underflow */
-	st->f_bfree = max(0LL, fdblocks - xfs_fdblocks_unavailable(mp));
+	st->f_bfree = max(0LL,
+		fdblocks - xfs_freecounter_unavailable(mp, XC_FREE_BLOCKS));
+
 	/*
 	 * sb_dblocks can change during growfs, but nothing cares about reporting
 	 * the old or new value during growfs.
@@ -856,7 +858,7 @@ xfs_statfs_rt(
 	struct kstatfs		*st)
 {
 	st->f_bfree = xfs_rtbxlen_to_blen(mp,
-			percpu_counter_sum_positive(&mp->m_frextents));
+			xfs_sum_freecounter(mp, XC_FREE_RTEXTENTS));
 	st->f_blocks = mp->m_sb.sb_rblocks;
 }
 
@@ -1065,7 +1067,8 @@ static int
 xfs_init_percpu_counters(
 	struct xfs_mount	*mp)
 {
-	int		error;
+	int			error;
+	int			i;
 
 	error = percpu_counter_init(&mp->m_icount, 0, GFP_KERNEL);
 	if (error)
@@ -1075,30 +1078,29 @@ xfs_init_percpu_counters(
 	if (error)
 		goto free_icount;
 
-	error = percpu_counter_init(&mp->m_fdblocks, 0, GFP_KERNEL);
-	if (error)
-		goto free_ifree;
-
 	error = percpu_counter_init(&mp->m_delalloc_blks, 0, GFP_KERNEL);
 	if (error)
-		goto free_fdblocks;
+		goto free_ifree;
 
 	error = percpu_counter_init(&mp->m_delalloc_rtextents, 0, GFP_KERNEL);
 	if (error)
 		goto free_delalloc;
 
-	error = percpu_counter_init(&mp->m_frextents, 0, GFP_KERNEL);
-	if (error)
-		goto free_delalloc_rt;
+	for (i = 0; i < XC_FREE_NR; i++) {
+		error = percpu_counter_init(&mp->m_free[i].count, 0,
+				GFP_KERNEL);
+		if (error)
+			goto free_freecounters;
+	}
 
 	return 0;
 
-free_delalloc_rt:
+free_freecounters:
+	while (--i > 0)
+		percpu_counter_destroy(&mp->m_free[i].count);
 	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 free_delalloc:
 	percpu_counter_destroy(&mp->m_delalloc_blks);
-free_fdblocks:
-	percpu_counter_destroy(&mp->m_fdblocks);
 free_ifree:
 	percpu_counter_destroy(&mp->m_ifree);
 free_icount:
@@ -1112,24 +1114,26 @@ xfs_reinit_percpu_counters(
 {
 	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
 	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
-	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
-	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
+	xfs_set_freecounter(mp, XC_FREE_BLOCKS, mp->m_sb.sb_fdblocks);
+	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS, mp->m_sb.sb_frextents);
 }
 
 static void
 xfs_destroy_percpu_counters(
 	struct xfs_mount	*mp)
 {
+	enum xfs_free_counter	i;
+
+	for (i = 0; i < XC_FREE_NR; i++)
+		percpu_counter_destroy(&mp->m_free[i].count);
 	percpu_counter_destroy(&mp->m_icount);
 	percpu_counter_destroy(&mp->m_ifree);
-	percpu_counter_destroy(&mp->m_fdblocks);
 	ASSERT(xfs_is_shutdown(mp) ||
 	       percpu_counter_sum(&mp->m_delalloc_rtextents) == 0);
 	percpu_counter_destroy(&mp->m_delalloc_rtextents);
 	ASSERT(xfs_is_shutdown(mp) ||
 	       percpu_counter_sum(&mp->m_delalloc_blks) == 0);
 	percpu_counter_destroy(&mp->m_delalloc_blks);
-	percpu_counter_destroy(&mp->m_frextents);
 }
 
 static int

@@ -431,13 +431,14 @@ xfs_quota_calc_throttle(
 
 static int64_t
 xfs_iomap_freesp(
-	struct percpu_counter	*counter,
+	struct xfs_mount	*mp,
+	unsigned int		idx,
 	uint64_t		low_space[XFS_LOWSP_MAX],
 	int			*shift)
 {
 	int64_t			freesp;
 
-	freesp = percpu_counter_read_positive(counter);
+	freesp = xfs_estimate_freecounter(mp, idx);
 	if (freesp < low_space[XFS_LOWSP_5_PCNT]) {
 		*shift = 2;
 		if (freesp < low_space[XFS_LOWSP_4_PCNT])
@@ -536,10 +537,10 @@ xfs_iomap_prealloc_size(
 
 	if (unlikely(XFS_IS_REALTIME_INODE(ip)))
 		freesp = xfs_rtbxlen_to_blen(mp,
-				xfs_iomap_freesp(&mp->m_frextents,
+				xfs_iomap_freesp(mp, XC_FREE_RTEXTENTS,
 					mp->m_low_rtexts, &shift));
 	else
-		freesp = xfs_iomap_freesp(&mp->m_fdblocks, mp->m_low_space,
+		freesp = xfs_iomap_freesp(mp, XC_FREE_BLOCKS, mp->m_low_space,
 				&shift);
 
 	/*

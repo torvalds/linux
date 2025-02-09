@@ -1519,7 +1519,7 @@ xfs_rtalloc_reinit_frextents(
 	spin_lock(&mp->m_sb_lock);
 	mp->m_sb.sb_frextents = val;
 	spin_unlock(&mp->m_sb_lock);
-	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
+	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS, mp->m_sb.sb_frextents);
 	return 0;
 }
 

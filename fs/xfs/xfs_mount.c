@@ -1220,13 +1220,31 @@ xfs_fs_writable(
 	return true;
 }
 
+/*
+ * Estimate the amount of free space that is not available to userspace and is
+ * not explicitly reserved from the incore fdblocks.  This includes:
+ *
+ * - The minimum number of blocks needed to support splitting a bmap btree
+ * - The blocks currently in use by the freespace btrees because they record
+ *   the actual blocks that will fill per-AG metadata space reservations
+ */
+uint64_t
+xfs_freecounter_unavailable(
+	struct xfs_mount	*mp,
+	enum xfs_free_counter	ctr)
+{
+	if (ctr != XC_FREE_BLOCKS)
+		return 0;
+	return mp->m_alloc_set_aside + atomic64_read(&mp->m_allocbt_blks);
+}
+
 void
 xfs_add_freecounter(
 	struct xfs_mount	*mp,
-	struct percpu_counter	*counter,
+	enum xfs_free_counter	ctr,
 	uint64_t		delta)
 {
-	bool			has_resv_pool = (counter == &mp->m_fdblocks);
+	bool			has_resv_pool = (ctr == XC_FREE_BLOCKS);
 	uint64_t		res_used;
 
 	/*
@@ -1234,7 +1252,7 @@ xfs_add_freecounter(
 	 * Most of the time the pool is full.
 	 */
 	if (!has_resv_pool || mp->m_resblks == mp->m_resblks_avail) {
-		percpu_counter_add(counter, delta);
+		percpu_counter_add(&mp->m_free[ctr].count, delta);
 		return;
 	}
 
@@ -1245,24 +1263,27 @@ xfs_add_freecounter(
 	} else {
 		delta -= res_used;
 		mp->m_resblks_avail = mp->m_resblks;
-		percpu_counter_add(counter, delta);
+		percpu_counter_add(&mp->m_free[ctr].count, delta);
 	}
 	spin_unlock(&mp->m_sb_lock);
 }
 
+
+/* Adjust in-core free blocks or RT extents. */
 int
 xfs_dec_freecounter(
 	struct xfs_mount	*mp,
-	struct percpu_counter	*counter,
+	enum xfs_free_counter	ctr,
 	uint64_t		delta,
 	bool			rsvd)
 {
+	struct percpu_counter	*counter = &mp->m_free[ctr].count;
 	uint64_t		set_aside = 0;
 	s32			batch;
 	bool			has_resv_pool;
 
-	ASSERT(counter == &mp->m_fdblocks || counter == &mp->m_frextents);
-	has_resv_pool = (counter == &mp->m_fdblocks);
+	ASSERT(ctr < XC_FREE_NR);
+	has_resv_pool = (ctr == XC_FREE_BLOCKS);
 	if (rsvd)
 		ASSERT(has_resv_pool);
 
@@ -1292,7 +1313,7 @@ xfs_dec_freecounter(
 	 * slightly premature -ENOSPC.
 	 */
 	if (has_resv_pool)
-		set_aside = xfs_fdblocks_unavailable(mp);
+		set_aside = xfs_freecounter_unavailable(mp, ctr);
 	percpu_counter_add_batch(counter, -((int64_t)delta), batch);
 	if (__percpu_counter_compare(counter, set_aside,
 			XFS_FDBLOCKS_BATCH) < 0) {

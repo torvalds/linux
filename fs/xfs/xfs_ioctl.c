@@ -1155,9 +1155,9 @@ xfs_ioctl_fs_counts(
 	struct xfs_fsop_counts	out = {
 		.allocino = percpu_counter_read_positive(&mp->m_icount),
 		.freeino  = percpu_counter_read_positive(&mp->m_ifree),
-		.freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
-				xfs_fdblocks_unavailable(mp),
-		.freertx  = percpu_counter_read_positive(&mp->m_frextents),
+		.freedata = xfs_estimate_freecounter(mp, XC_FREE_BLOCKS) -
+				xfs_freecounter_unavailable(mp, XC_FREE_BLOCKS),
+		.freertx  = xfs_estimate_freecounter(mp, XC_FREE_RTEXTENTS),
 	};
 
 	if (copy_to_user(uarg, &out, sizeof(out)))

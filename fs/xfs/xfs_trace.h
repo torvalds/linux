@@ -5622,7 +5622,7 @@ DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
 
 		__entry->dev = mp->m_super->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->freeblks = percpu_counter_sum(&mp->m_fdblocks);
+		__entry->freeblks = xfs_sum_freecounter_raw(mp, XC_FREE_BLOCKS);
 		__entry->reserved = ip->i_delayed_blks;
 		__entry->asked = ip->i_meta_resv_asked;
 		__entry->used = ip->i_nblocks;

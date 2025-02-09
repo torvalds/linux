@@ -409,7 +409,7 @@ xfs_reserve_blocks(
 
 	/*
 	 * If the request is larger than the current reservation, reserve the
-	 * blocks before we update the reserve counters. Sample m_fdblocks and
+	 * blocks before we update the reserve counters. Sample m_free and
 	 * perform a partial reservation if the request exceeds free space.
 	 *
 	 * The code below estimates how many blocks it can request from
@@ -419,8 +419,8 @@ xfs_reserve_blocks(
 	 * space to fill it because mod_fdblocks will refill an undersized
 	 * reserve when it can.
 	 */
-	free = percpu_counter_sum(&mp->m_fdblocks) -
-						xfs_fdblocks_unavailable(mp);
+	free = xfs_sum_freecounter_raw(mp, XC_FREE_BLOCKS) -
+		xfs_freecounter_unavailable(mp, XC_FREE_BLOCKS);
 	delta = request - mp->m_resblks;
 	mp->m_resblks = request;
 	if (delta > 0 && free > 0) {

@@ -233,6 +233,23 @@ enum xfs_group_type {
 	{ XG_TYPE_AG,	"ag" }, \
 	{ XG_TYPE_RTG,	"rtg" }
 
+enum xfs_free_counter {
+	/*
+	 * Number of free blocks on the data device.
+	 */
+	XC_FREE_BLOCKS,
+
+	/*
+	 * Number of free RT extents on the RT device.
+	 */
+	XC_FREE_RTEXTENTS,
+	XC_FREE_NR,
+};
+
+#define XFS_FREECOUNTER_STR \
+	{ XC_FREE_BLOCKS,		"blocks" }, \
+	{ XC_FREE_RTEXTENTS,		"rtextents" }
+
 /*
  * Type verifier functions
  */
