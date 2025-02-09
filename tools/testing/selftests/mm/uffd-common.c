@@ -323,7 +323,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	ret = userfaultfd_open(&features);
 	if (ret) {
 		if (errmsg)
-			*errmsg = "possible lack of priviledge";
+			*errmsg = "possible lack of privilege";
 		return ret;
 	}
 
