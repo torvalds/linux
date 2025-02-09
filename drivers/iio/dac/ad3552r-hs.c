@@ -129,16 +129,19 @@ static int ad3552r_hs_write_raw(struct iio_dev *indio_dev,
 				int val, int val2, long mask)
 {
 	struct ad3552r_hs_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		/* For RAW accesses, stay always in simple-spi. */
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			return st->data->bus_reg_write(st->back,
-				    AD3552R_REG_ADDR_CH_DAC_16B(chan->channel),
-				    val, 2);
-		}
-		unreachable();
+		ret = st->data->bus_reg_write(st->back,
+			AD3552R_REG_ADDR_CH_DAC_16B(chan->channel),
+			val, 2);
+
+		iio_device_release_direct(indio_dev);
+		return ret;
 	default:
 		return -EINVAL;
 	}
