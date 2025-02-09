@@ -1659,6 +1659,7 @@ static void __init of_unittest_irq_refcount(void)
 {
 	struct of_phandle_args args;
 	struct device_node *intc0, *int_ext0;
+	struct device_node *int2, *intc_intmap0;
 	unsigned int ref_c0, ref_c1, ref_c2;
 	int rc;
 	bool passed;
@@ -1668,7 +1669,9 @@ static void __init of_unittest_irq_refcount(void)
 
 	intc0 = of_find_node_by_path("/testcase-data/interrupts/intc0");
 	int_ext0 = of_find_node_by_path("/testcase-data/interrupts/interrupts-extended0");
-	if (!intc0 || !int_ext0) {
+	intc_intmap0 = of_find_node_by_path("/testcase-data/interrupts/intc-intmap0");
+	int2 = of_find_node_by_path("/testcase-data/interrupts/interrupts2");
+	if (!intc0 || !int_ext0 || !intc_intmap0 || !int2) {
 		pr_err("missing testcase data\n");
 		goto out;
 	}
@@ -1690,7 +1693,26 @@ static void __init of_unittest_irq_refcount(void)
 	unittest(passed, "IRQ refcount case #1 failed, original(%u) expected(%u) got(%u)\n",
 		 ref_c0, ref_c1, ref_c2);
 
+	/* Test refcount for API of_irq_parse_raw() */
+	passed = true;
+	ref_c0 = OF_KREF_READ(intc_intmap0);
+	ref_c1 = ref_c0 + 1;
+	memset(&args, 0, sizeof(args));
+	rc = of_irq_parse_one(int2, 0, &args);
+	ref_c2 = OF_KREF_READ(intc_intmap0);
+	of_node_put(args.np);
+
+	passed &= !rc;
+	passed &= (args.np == intc_intmap0);
+	passed &= (args.args_count == 1);
+	passed &= (args.args[0] == 2);
+	passed &= (ref_c1 == ref_c2);
+	unittest(passed, "IRQ refcount case #2 failed, original(%u) expected(%u) got(%u)\n",
+		 ref_c0, ref_c1, ref_c2);
+
 out:
+	of_node_put(int2);
+	of_node_put(intc_intmap0);
 	of_node_put(int_ext0);
 	of_node_put(intc0);
 }
