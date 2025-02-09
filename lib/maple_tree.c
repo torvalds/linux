@@ -1353,7 +1353,7 @@ static void mas_node_count(struct ma_state *mas, int count)
  * mas_start() - Sets up maple state for operations.
  * @mas: The maple state.
  *
- * If mas->status == mas_start, then set the min, max and depth to
+ * If mas->status == ma_start, then set the min, max and depth to
  * defaults.
  *
  * Return:
