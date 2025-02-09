@@ -108,6 +108,15 @@ struct xfs_groups {
 struct xfs_freecounter {
 	/* free blocks for general use: */
 	struct percpu_counter	count;
+
+	/* total reserved blocks: */
+	uint64_t		res_total;
+
+	/* available reserved blocks: */
+	uint64_t		res_avail;
+
+	/* reserved blks @ remount,ro: */
+	uint64_t		res_saved;
 };
 
 /*
@@ -250,9 +259,6 @@ typedef struct xfs_mount {
 	atomic64_t		m_allocbt_blks;
 
 	struct xfs_groups	m_groups[XG_TYPE_MAX];
-	uint64_t		m_resblks;	/* total reserved blocks */
-	uint64_t		m_resblks_avail;/* available reserved blocks */
-	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct dentry		*m_debugfs;	/* debugfs parent */
 	struct xfs_kobj		m_kobj;
@@ -638,7 +644,8 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 extern void	xfs_uuid_table_free(void);
-extern uint64_t xfs_default_resblks(xfs_mount_t *mp);
+uint64_t	xfs_default_resblks(struct xfs_mount *mp,
+			enum xfs_free_counter ctr);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 extern void	xfs_unmountfs(xfs_mount_t *);
 

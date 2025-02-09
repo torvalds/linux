@@ -1131,15 +1131,15 @@ xfs_ioctl_getset_resblocks(
 		error = mnt_want_write_file(filp);
 		if (error)
 			return error;
-		error = xfs_reserve_blocks(mp, fsop.resblks);
+		error = xfs_reserve_blocks(mp, XC_FREE_BLOCKS, fsop.resblks);
 		mnt_drop_write_file(filp);
 		if (error)
 			return error;
 	}
 
 	spin_lock(&mp->m_sb_lock);
-	fsop.resblks = mp->m_resblks;
-	fsop.resblks_avail = mp->m_resblks_avail;
+	fsop.resblks = mp->m_free[XC_FREE_BLOCKS].res_total;
+	fsop.resblks_avail = mp->m_free[XC_FREE_BLOCKS].res_avail;
 	spin_unlock(&mp->m_sb_lock);
 
 	if (copy_to_user(arg, &fsop, sizeof(fsop)))

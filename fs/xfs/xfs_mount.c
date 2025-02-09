@@ -461,10 +461,20 @@ xfs_mount_reset_sbqflags(
 	return xfs_sync_sb(mp, false);
 }
 
+static const char *const xfs_free_pool_name[] = {
+	[XC_FREE_BLOCKS]	= "free blocks",
+	[XC_FREE_RTEXTENTS]	= "free rt extents",
+};
+
 uint64_t
-xfs_default_resblks(xfs_mount_t *mp)
+xfs_default_resblks(
+	struct xfs_mount	*mp,
+	enum xfs_free_counter	ctr)
 {
 	uint64_t resblks;
+
+	if (ctr == XC_FREE_RTEXTENTS)
+		return 0;
 
 	/*
 	 * We default to 5% or 8192 fsbs of space reserved, whichever is
@@ -678,6 +688,7 @@ xfs_mountfs(
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
+	int			i;
 
 	xfs_sb_mount_common(mp, sbp);
 
@@ -1046,17 +1057,21 @@ xfs_mountfs(
 	 * privileged transactions. This is needed so that transaction
 	 * space required for critical operations can dip into this pool
 	 * when at ENOSPC. This is needed for operations like create with
-	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
-	 * are not allowed to use this reserved space.
+	 * attr, unwritten extent conversion at ENOSPC, garbage collection
+	 * etc. Data allocations are not allowed to use this reserved space.
 	 *
 	 * This may drive us straight to ENOSPC on mount, but that implies
 	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	if (!xfs_is_readonly(mp)) {
-		error = xfs_reserve_blocks(mp, xfs_default_resblks(mp));
-		if (error)
-			xfs_warn(mp,
-	"Unable to allocate reserve blocks. Continuing without reserve pool.");
+		for (i = 0; i < XC_FREE_NR; i++) {
+			error = xfs_reserve_blocks(mp, i,
+					xfs_default_resblks(mp, i));
+			if (error)
+				xfs_warn(mp,
+"Unable to allocate reserve blocks. Continuing without reserve pool for %s.",
+					xfs_free_pool_name[i]);
+		}
 
 		/* Reserve AG blocks for future btree expansion. */
 		error = xfs_fs_reserve_ag_blocks(mp);
@@ -1173,7 +1188,7 @@ xfs_unmountfs(
 	 * we only every apply deltas to the superblock and hence the incore
 	 * value does not matter....
 	 */
-	error = xfs_reserve_blocks(mp, 0);
+	error = xfs_reserve_blocks(mp, XC_FREE_BLOCKS, 0);
 	if (error)
 		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
@@ -1244,26 +1259,26 @@ xfs_add_freecounter(
 	enum xfs_free_counter	ctr,
 	uint64_t		delta)
 {
-	bool			has_resv_pool = (ctr == XC_FREE_BLOCKS);
+	struct xfs_freecounter	*counter = &mp->m_free[ctr];
 	uint64_t		res_used;
 
 	/*
 	 * If the reserve pool is depleted, put blocks back into it first.
 	 * Most of the time the pool is full.
 	 */
-	if (!has_resv_pool || mp->m_resblks == mp->m_resblks_avail) {
-		percpu_counter_add(&mp->m_free[ctr].count, delta);
+	if (likely(counter->res_avail == counter->res_total)) {
+		percpu_counter_add(&counter->count, delta);
 		return;
 	}
 
 	spin_lock(&mp->m_sb_lock);
-	res_used = mp->m_resblks - mp->m_resblks_avail;
+	res_used = counter->res_total - counter->res_avail;
 	if (res_used > delta) {
-		mp->m_resblks_avail += delta;
+		counter->res_avail += delta;
 	} else {
 		delta -= res_used;
-		mp->m_resblks_avail = mp->m_resblks;
-		percpu_counter_add(&mp->m_free[ctr].count, delta);
+		counter->res_avail = counter->res_total;
+		percpu_counter_add(&counter->count, delta);
 	}
 	spin_unlock(&mp->m_sb_lock);
 }
@@ -1277,15 +1292,10 @@ xfs_dec_freecounter(
 	uint64_t		delta,
 	bool			rsvd)
 {
-	struct percpu_counter	*counter = &mp->m_free[ctr].count;
-	uint64_t		set_aside = 0;
+	struct xfs_freecounter	*counter = &mp->m_free[ctr];
 	s32			batch;
-	bool			has_resv_pool;
 
 	ASSERT(ctr < XC_FREE_NR);
-	has_resv_pool = (ctr == XC_FREE_BLOCKS);
-	if (rsvd)
-		ASSERT(has_resv_pool);
 
 	/*
 	 * Taking blocks away, need to be more accurate the closer we
@@ -1295,7 +1305,7 @@ xfs_dec_freecounter(
 	 * then make everything serialise as we are real close to
 	 * ENOSPC.
 	 */
-	if (__percpu_counter_compare(counter, 2 * XFS_FDBLOCKS_BATCH,
+	if (__percpu_counter_compare(&counter->count, 2 * XFS_FDBLOCKS_BATCH,
 				     XFS_FDBLOCKS_BATCH) < 0)
 		batch = 1;
 	else
@@ -1312,25 +1322,25 @@ xfs_dec_freecounter(
 	 * problems (i.e. transaction abort, pagecache discards, etc.) than
 	 * slightly premature -ENOSPC.
 	 */
-	if (has_resv_pool)
-		set_aside = xfs_freecounter_unavailable(mp, ctr);
-	percpu_counter_add_batch(counter, -((int64_t)delta), batch);
-	if (__percpu_counter_compare(counter, set_aside,
+	percpu_counter_add_batch(&counter->count, -((int64_t)delta), batch);
+	if (__percpu_counter_compare(&counter->count,
+			xfs_freecounter_unavailable(mp, ctr),
 			XFS_FDBLOCKS_BATCH) < 0) {
 		/*
 		 * Lock up the sb for dipping into reserves before releasing the
 		 * space that took us to ENOSPC.
 		 */
 		spin_lock(&mp->m_sb_lock);
-		percpu_counter_add(counter, delta);
+		percpu_counter_add(&counter->count, delta);
 		if (!rsvd)
 			goto fdblocks_enospc;
-		if (delta > mp->m_resblks_avail) {
-			xfs_warn_once(mp,
+		if (delta > counter->res_avail) {
+			if (ctr == XC_FREE_BLOCKS)
+				xfs_warn_once(mp,
 "Reserve blocks depleted! Consider increasing reserve pool size.");
 			goto fdblocks_enospc;
 		}
-		mp->m_resblks_avail -= delta;
+		counter->res_avail -= delta;
 		spin_unlock(&mp->m_sb_lock);
 	}
 

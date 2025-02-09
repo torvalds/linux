@@ -924,24 +924,32 @@ xfs_fs_statfs(
 }
 
 STATIC void
-xfs_save_resvblks(struct xfs_mount *mp)
+xfs_save_resvblks(
+	struct xfs_mount	*mp)
 {
-	mp->m_resblks_save = mp->m_resblks;
-	xfs_reserve_blocks(mp, 0);
+	enum xfs_free_counter	i;
+
+	for (i = 0; i < XC_FREE_NR; i++) {
+		mp->m_free[i].res_saved = mp->m_free[i].res_total;
+		xfs_reserve_blocks(mp, i, 0);
+	}
 }
 
 STATIC void
-xfs_restore_resvblks(struct xfs_mount *mp)
+xfs_restore_resvblks(
+	struct xfs_mount	*mp)
 {
-	uint64_t resblks;
+	uint64_t		resblks;
+	enum xfs_free_counter	i;
 
-	if (mp->m_resblks_save) {
-		resblks = mp->m_resblks_save;
-		mp->m_resblks_save = 0;
-	} else
-		resblks = xfs_default_resblks(mp);
-
-	xfs_reserve_blocks(mp, resblks);
+	for (i = 0; i < XC_FREE_NR; i++) {
+		if (mp->m_free[i].res_saved) {
+			resblks = mp->m_free[i].res_saved;
+			mp->m_free[i].res_saved = 0;
+		} else
+			resblks = xfs_default_resblks(mp, i);
+		xfs_reserve_blocks(mp, i, resblks);
+	}
 }
 
 /*

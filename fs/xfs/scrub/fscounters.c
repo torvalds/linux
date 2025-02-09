@@ -350,7 +350,7 @@ retry:
 	 * The global incore space reservation is taken from the incore
 	 * counters, so leave that out of the computation.
 	 */
-	fsc->fdblocks -= mp->m_resblks_avail;
+	fsc->fdblocks -= mp->m_free[XC_FREE_BLOCKS].res_avail;
 
 	/*
 	 * Delayed allocation reservations are taken out of the incore counters
