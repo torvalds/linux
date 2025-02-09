@@ -4,7 +4,7 @@
  *
  * Copyright (c) 2017-2018 Ronald Tschalär
  * Copyright (c) 2022-2023 Kerem Karabay <kekrby@gmail.com>
- * Copyright (c) 2024 Aditya Garg <gargaditya08@live.com>
+ * Copyright (c) 2024-2025 Aditya Garg <gargaditya08@live.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -143,7 +143,7 @@ static ssize_t mode_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(mode);
 
-struct attribute *appletb_kbd_attrs[] = {
+static struct attribute *appletb_kbd_attrs[] = {
 	&dev_attr_mode.attr,
 	NULL
 };
