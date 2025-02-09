@@ -2760,7 +2760,7 @@ EXPORT_SYMBOL(get_user_pages_unlocked);
  *
  *  *) ptes can be read atomically by the architecture.
  *
- *  *) access_ok is sufficient to validate userspace address ranges.
+ *  *) valid user addesses are below TASK_MAX_SIZE
  *
  * The last two assumptions can be relaxed by the addition of helper functions.
  *
@@ -3413,8 +3413,6 @@ static int gup_fast_fallback(unsigned long start, unsigned long nr_pages,
 	if (check_add_overflow(start, len, &end))
 		return -EOVERFLOW;
 	if (end > TASK_SIZE_MAX)
-		return -EFAULT;
-	if (unlikely(!access_ok((void __user *)start, len)))
 		return -EFAULT;
 
 	nr_pinned = gup_fast(start, end, gup_flags, pages);
