@@ -305,7 +305,7 @@ endef
 # These are shared by some Makefile.* files.
 
 ifdef CONFIG_LTO_CLANG
-# Run $(LD) here to covert LLVM IR to ELF in the following cases:
+# Run $(LD) here to convert LLVM IR to ELF in the following cases:
 #  - when this object needs objtool processing, as objtool cannot process LLVM IR
 #  - when this is a single-object module, as modpost cannot process LLVM IR
 cmd_ld_single = $(if $(objtool-enabled)$(is-single-obj-m), ; $(LD) $(ld_flags) -r -o $(tmp-target) $@; mv $(tmp-target) $@)
