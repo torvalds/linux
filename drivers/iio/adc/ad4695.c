@@ -1029,6 +1029,25 @@ static int ad4695_read_one_sample(struct ad4695_state *st, unsigned int address)
 	return spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 }
 
+static int __ad4695_read_info_raw(struct ad4695_state *st,
+				  struct iio_chan_spec const *chan,
+				  int *val)
+{
+	u8 realbits = chan->scan_type.realbits;
+	int ret;
+
+	ret = ad4695_read_one_sample(st, chan->address);
+	if (ret)
+		return ret;
+
+	if (chan->scan_type.sign == 's')
+		*val = sign_extend32(st->raw_data, realbits - 1);
+	else
+		*val = st->raw_data;
+
+	return IIO_VAL_INT;
+}
+
 static int ad4695_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2, long mask)
@@ -1049,19 +1068,12 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-			ret = ad4695_read_one_sample(st, chan->address);
-			if (ret)
-				return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
-			if (scan_type->sign == 's')
-				*val = sign_extend32(st->raw_data, realbits - 1);
-			else
-				*val = st->raw_data;
-
-			return IIO_VAL_INT;
-		}
-		unreachable();
+		ret = __ad4695_read_info_raw(st, chan, val);
+		iio_device_release_direct(indio_dev);
+		return ret;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
@@ -1099,63 +1111,62 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_CALIBSCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = regmap_read(st->regmap16,
-					AD4695_REG_GAIN_IN(chan->scan_index),
-					&reg_val);
-				if (ret)
-					return ret;
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+			ret = regmap_read(st->regmap16,
+					  AD4695_REG_GAIN_IN(chan->scan_index),
+					  &reg_val);
+			iio_device_release_direct(indio_dev);
+			if (ret)
+				return ret;
+			*val = reg_val;
+			*val2 = 15;
 
-				*val = reg_val;
-				*val2 = 15;
-
-				return IIO_VAL_FRACTIONAL_LOG2;
-			}
-			unreachable();
+			return IIO_VAL_FRACTIONAL_LOG2;
 		default:
 			return -EINVAL;
 		}
 	case IIO_CHAN_INFO_CALIBBIAS:
-		switch (chan->type) {
-		case IIO_VOLTAGE:
-			iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-				ret = regmap_read(st->regmap16,
-					AD4695_REG_OFFSET_IN(chan->scan_index),
-					&reg_val);
-				if (ret)
-					return ret;
+		switch (chan->type)
+		case IIO_VOLTAGE: {
+			if (!iio_device_claim_direct(indio_dev))
+				return -EBUSY;
+			ret = regmap_read(st->regmap16,
+					  AD4695_REG_OFFSET_IN(chan->scan_index),
+					  &reg_val);
+			iio_device_release_direct(indio_dev);
+			if (ret)
+				return ret;
 
-				tmp = sign_extend32(reg_val, 15);
+			tmp = sign_extend32(reg_val, 15);
 
-				switch (cfg->oversampling_ratio) {
-				case 1:
-					*val = tmp / 4;
-					*val2 = abs(tmp) % 4 * MICRO / 4;
-					break;
-				case 4:
-					*val = tmp / 2;
-					*val2 = abs(tmp) % 2 * MICRO / 2;
-					break;
-				case 16:
-					*val = tmp;
-					*val2 = 0;
-					break;
-				case 64:
-					*val = tmp * 2;
-					*val2 = 0;
-					break;
-				default:
-					return -EINVAL;
-				}
-
-				if (tmp < 0 && *val2) {
-					*val *= -1;
-					*val2 *= -1;
-				}
-
-				return IIO_VAL_INT_PLUS_MICRO;
+			switch (osr) {
+			case 1:
+				*val = tmp / 4;
+				*val2 = abs(tmp) % 4 * MICRO / 4;
+				break;
+			case 4:
+				*val = tmp / 2;
+				*val2 = abs(tmp) % 2 * MICRO / 2;
+				break;
+			case 16:
+				*val = tmp;
+				*val2 = 0;
+				break;
+			case 64:
+				*val = tmp * 2;
+				*val2 = 0;
+				break;
+			default:
+				return -EINVAL;
 			}
-			unreachable();
+
+			if (tmp < 0 && *val2) {
+				*val *= -1;
+				*val2 *= -1;
+			}
+
+			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
@@ -1255,72 +1266,83 @@ static unsigned int ad4695_get_calibbias(int val, int val2, int osr)
 	return clamp_t(int, val_calc, S16_MIN, S16_MAX);
 }
 
-static int ad4695_write_raw(struct iio_dev *indio_dev,
-			    struct iio_chan_spec const *chan,
-			    int val, int val2, long mask)
+static int __ad4695_write_raw(struct iio_dev *indio_dev,
+			      struct iio_chan_spec const *chan,
+			      int val, int val2, long mask)
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
 	unsigned int reg_val;
 	unsigned int osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		switch (mask) {
-		case IIO_CHAN_INFO_CALIBSCALE:
-			switch (chan->type) {
-			case IIO_VOLTAGE:
-				if (val < 0 || val2 < 0)
-					reg_val = 0;
-				else if (val > 1)
-					reg_val = U16_MAX;
-				else
-					reg_val = (val * (1 << 16) +
-						   mul_u64_u32_div(val2, 1 << 16,
-								   MICRO)) / 2;
+	switch (mask) {
+	case IIO_CHAN_INFO_CALIBSCALE:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			if (val < 0 || val2 < 0)
+				reg_val = 0;
+			else if (val > 1)
+				reg_val = U16_MAX;
+			else
+				reg_val = (val * (1 << 16) +
+					   mul_u64_u32_div(val2, 1 << 16,
+							   MICRO)) / 2;
 
-				return regmap_write(st->regmap16,
-					AD4695_REG_GAIN_IN(chan->scan_index),
-					reg_val);
-			default:
-				return -EINVAL;
-			}
-		case IIO_CHAN_INFO_CALIBBIAS:
-			switch (chan->type) {
-			case IIO_VOLTAGE:
-				reg_val = ad4695_get_calibbias(val, val2, osr);
-				return regmap_write(st->regmap16,
-					AD4695_REG_OFFSET_IN(chan->scan_index),
-					reg_val);
-			default:
-				return -EINVAL;
-			}
-		case IIO_CHAN_INFO_SAMP_FREQ: {
-			struct pwm_state state;
-			/*
-			 * Limit the maximum acceptable sample rate according to
-			 * the channel's oversampling ratio.
-			 */
-			u64 max_osr_rate = DIV_ROUND_UP_ULL(st->chip_info->max_sample_rate,
-							    osr);
-
-			if (val <= 0 || val > max_osr_rate)
-				return -EINVAL;
-
-			guard(mutex)(&st->cnv_pwm_lock);
-			pwm_get_state(st->cnv_pwm, &state);
-			/*
-			 * The required sample frequency for a given OSR is the
-			 * input frequency multiplied by it.
-			 */
-			state.period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, val * osr);
-			return pwm_apply_might_sleep(st->cnv_pwm, &state);
-		}
-		case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-			return ad4695_set_osr_val(st, chan, val);
+			return regmap_write(st->regmap16,
+					    AD4695_REG_GAIN_IN(chan->scan_index),
+					    reg_val);
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_CALIBBIAS:
+		switch (chan->type) {
+		case IIO_VOLTAGE:
+			reg_val = ad4695_get_calibbias(val, val2, osr);
+			return regmap_write(st->regmap16,
+					    AD4695_REG_OFFSET_IN(chan->scan_index),
+					    reg_val);
+		default:
+			return -EINVAL;
+		}
+	case IIO_CHAN_INFO_SAMP_FREQ: {
+		struct pwm_state state;
+		/*
+		 * Limit the maximum acceptable sample rate according to
+		 * the channel's oversampling ratio.
+		 */
+		u64 max_osr_rate = DIV_ROUND_UP_ULL(st->chip_info->max_sample_rate,
+						    osr);
+
+		if (val <= 0 || val > max_osr_rate)
+			return -EINVAL;
+
+		guard(mutex)(&st->cnv_pwm_lock);
+		pwm_get_state(st->cnv_pwm, &state);
+		/*
+		 * The required sample frequency for a given OSR is the
+		 * input frequency multiplied by it.
+		 */
+		state.period = DIV_ROUND_UP_ULL(NSEC_PER_SEC, val * osr);
+		return pwm_apply_might_sleep(st->cnv_pwm, &state);
 	}
-	unreachable();
+	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+		return ad4695_set_osr_val(st, chan, val);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int ad4695_write_raw(struct iio_dev *indio_dev,
+			    struct iio_chan_spec const *chan,
+			    int val, int val2, long mask)
+{
+	int ret;
+
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+	ret = __ad4695_write_raw(indio_dev, chan, val, val2, mask);
+	iio_device_release_direct(indio_dev);
+
+	return ret;
 }
 
 static int ad4695_read_avail(struct iio_dev *indio_dev,
@@ -1417,26 +1439,29 @@ static int ad4695_debugfs_reg_access(struct iio_dev *indio_dev,
 				     unsigned int *readval)
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
+	int ret = -EINVAL;
 
-	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
-		if (readval) {
-			if (regmap_check_range_table(st->regmap, reg,
-						     &ad4695_regmap_rd_table))
-				return regmap_read(st->regmap, reg, readval);
-			if (regmap_check_range_table(st->regmap16, reg,
-						     &ad4695_regmap16_rd_table))
-				return regmap_read(st->regmap16, reg, readval);
-		} else {
-			if (regmap_check_range_table(st->regmap, reg,
-						     &ad4695_regmap_wr_table))
-				return regmap_write(st->regmap, reg, writeval);
-			if (regmap_check_range_table(st->regmap16, reg,
-						     &ad4695_regmap16_wr_table))
-				return regmap_write(st->regmap16, reg, writeval);
-		}
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
+	if (readval) {
+		if (regmap_check_range_table(st->regmap, reg,
+					     &ad4695_regmap_rd_table))
+			ret = regmap_read(st->regmap, reg, readval);
+		if (regmap_check_range_table(st->regmap16, reg,
+					     &ad4695_regmap16_rd_table))
+			ret = regmap_read(st->regmap16, reg, readval);
+	} else {
+		if (regmap_check_range_table(st->regmap, reg,
+					     &ad4695_regmap_wr_table))
+			ret = regmap_write(st->regmap, reg, writeval);
+		if (regmap_check_range_table(st->regmap16, reg,
+					     &ad4695_regmap16_wr_table))
+			ret = regmap_write(st->regmap16, reg, writeval);
 	}
+	iio_device_release_direct(indio_dev);
 
-	return -EINVAL;
+	return ret;
 }
 
 static int ad4695_get_current_scan_type(const struct iio_dev *indio_dev,
