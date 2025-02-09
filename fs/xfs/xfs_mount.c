@@ -1341,6 +1341,7 @@ xfs_dec_freecounter(
 			goto fdblocks_enospc;
 		}
 		counter->res_avail -= delta;
+		trace_xfs_freecounter_reserved(mp, ctr, delta, _RET_IP_);
 		spin_unlock(&mp->m_sb_lock);
 	}
 
@@ -1348,6 +1349,7 @@ xfs_dec_freecounter(
 	return 0;
 
 fdblocks_enospc:
+	trace_xfs_freecounter_enospc(mp, ctr, delta, _RET_IP_);
 	spin_unlock(&mp->m_sb_lock);
 	return -ENOSPC;
 }
