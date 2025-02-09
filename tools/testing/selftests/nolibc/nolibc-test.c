@@ -1325,6 +1325,73 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 	return ret;
 }
 
+static int test_scanf(void)
+{
+	unsigned long long ull;
+	unsigned long ul;
+	unsigned int u;
+	long long ll;
+	long l;
+	void *p;
+	int i;
+
+	/* return __LINE__ to point to the specific failure */
+
+	/* test EOF */
+	if (sscanf("", "foo") != EOF)
+		return __LINE__;
+
+	/* test simple literal without placeholder */
+	if (sscanf("foo", "foo") != 0)
+		return __LINE__;
+
+	/* test single placeholder */
+	if (sscanf("123", "%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 123)
+		return __LINE__;
+
+	/* test multiple place holders and separators */
+	if (sscanf("a123b456c0x90", "a%db%uc%p", &i, &u, &p) != 3)
+		return __LINE__;
+
+	if (i != 123)
+		return __LINE__;
+
+	if (u != 456)
+		return __LINE__;
+
+	if (p != (void *)0x90)
+		return __LINE__;
+
+	/* test space handling */
+	if (sscanf("a    b1", "a b%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 1)
+		return __LINE__;
+
+	/* test literal percent */
+	if (sscanf("a%1", "a%%%d", &i) != 1)
+		return __LINE__;
+
+	if (i != 1)
+		return __LINE__;
+
+	/* test stdint.h types */
+	if (sscanf("1|2|3|4|5|6",
+		   "%d|%ld|%lld|%u|%lu|%llu",
+		   &i, &l, &ll, &u, &ul, &ull) != 6)
+		return __LINE__;
+
+	if (i != 1 || l != 2 || ll != 3 ||
+	    u != 4 || ul != 5 || ull != 6)
+		return __LINE__;
+
+	return 0;
+}
+
 static int run_vfprintf(int min, int max)
 {
 	int test;
@@ -1346,6 +1413,7 @@ static int run_vfprintf(int min, int max)
 		CASE_TEST(char);         EXPECT_VFPRINTF(1, "c", "%c", 'c'); break;
 		CASE_TEST(hex);          EXPECT_VFPRINTF(1, "f", "%x", 0xf); break;
 		CASE_TEST(pointer);      EXPECT_VFPRINTF(3, "0x1", "%p", (void *) 0x1); break;
+		CASE_TEST(scanf);        EXPECT_ZR(1, test_scanf()); break;
 		case __LINE__:
 			return ret; /* must be last */
 		/* note: do not set any defaults so as to permit holes above */
