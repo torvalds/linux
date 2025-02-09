@@ -317,10 +317,8 @@ mlx5e_rx_reporter_diagnose_common_ptp_config(struct mlx5e_priv *priv, struct mlx
 }
 
 static void
-mlx5e_rx_reporter_diagnose_common_config(struct devlink_health_reporter *reporter,
-					 struct devlink_fmsg *fmsg)
+mlx5e_rx_reporter_diagnose_common_config(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg)
 {
-	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
 	struct mlx5e_rq *generic_rq = &priv->channels.c[0]->rq;
 	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
 
@@ -340,20 +338,11 @@ static void mlx5e_rx_reporter_build_diagnose_output_ptp_rq(struct mlx5e_rq *rq,
 	devlink_fmsg_obj_nest_end(fmsg);
 }
 
-static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
-				      struct devlink_fmsg *fmsg,
-				      struct netlink_ext_ack *extack)
+static void mlx5e_rx_reporter_diagnose_rqs(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg)
 {
-	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
 	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
 	int i;
 
-	mutex_lock(&priv->state_lock);
-
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto unlock;
-
-	mlx5e_rx_reporter_diagnose_common_config(reporter, fmsg);
 	devlink_fmsg_arr_pair_nest_start(fmsg, "RQs");
 
 	for (i = 0; i < priv->channels.num; i++) {
@@ -367,7 +356,23 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	}
 	if (ptp_ch && test_bit(MLX5E_PTP_STATE_RX, ptp_ch->state))
 		mlx5e_rx_reporter_build_diagnose_output_ptp_rq(&ptp_ch->rq, fmsg);
+
 	devlink_fmsg_arr_pair_nest_end(fmsg);
+}
+
+static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
+				      struct devlink_fmsg *fmsg,
+				      struct netlink_ext_ack *extack)
+{
+	struct mlx5e_priv *priv = devlink_health_reporter_priv(reporter);
+
+	mutex_lock(&priv->state_lock);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
+		goto unlock;
+
+	mlx5e_rx_reporter_diagnose_common_config(priv, fmsg);
+	mlx5e_rx_reporter_diagnose_rqs(priv, fmsg);
 unlock:
 	mutex_unlock(&priv->state_lock);
 	return 0;
