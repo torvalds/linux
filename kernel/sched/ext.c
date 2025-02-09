@@ -2431,7 +2431,7 @@ static void move_remote_task_to_local_dsq(struct task_struct *p, u64 enq_flags,
  * The caller must ensure that @p and @rq are on different CPUs.
  */
 static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
-				      bool trigger_error)
+				      bool enforce)
 {
 	int cpu = cpu_of(rq);
 
@@ -2444,7 +2444,7 @@ static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
 	 * picked CPU is outside the allowed mask.
 	 */
 	if (!task_allowed_on_cpu(p, cpu)) {
-		if (trigger_error)
+		if (enforce)
 			scx_ops_error("SCX_DSQ_LOCAL[_ON] verdict target cpu %d not allowed for %s[%d]",
 				      cpu_of(rq), p->comm, p->pid);
 		return false;
@@ -2456,8 +2456,11 @@ static bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq,
 	 */
 	SCHED_WARN_ON(is_migration_disabled(p));
 
-	if (!scx_rq_online(rq))
+	if (!scx_rq_online(rq)) {
+		if (enforce)
+			__scx_add_event(SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE, 1);
 		return false;
+	}
 
 	return true;
 }
@@ -2527,7 +2530,7 @@ static bool consume_remote_task(struct rq *this_rq, struct task_struct *p,
 }
 #else	/* CONFIG_SMP */
 static inline void move_remote_task_to_local_dsq(struct task_struct *p, u64 enq_flags, struct rq *src_rq, struct rq *dst_rq) { WARN_ON_ONCE(1); }
-static inline bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq, bool trigger_error) { return false; }
+static inline bool task_can_run_on_remote_rq(struct task_struct *p, struct rq *rq, bool enforce) { return false; }
 static inline bool consume_remote_task(struct rq *this_rq, struct task_struct *p, struct scx_dispatch_q *dsq, struct rq *task_rq) { return false; }
 #endif	/* CONFIG_SMP */
 
@@ -2717,7 +2720,6 @@ static void dispatch_to_local_dsq(struct rq *rq, struct scx_dispatch_q *dst_dsq,
 	    unlikely(!task_can_run_on_remote_rq(p, dst_rq, true))) {
 		dispatch_enqueue(find_global_dsq(p), p,
 				 enq_flags | SCX_ENQ_CLEAR_OPSS);
-		__scx_add_event(SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE, 1);
 		return;
 	}
 
