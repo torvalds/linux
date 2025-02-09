@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 #include <linux/acpi.h>
@@ -197,7 +198,7 @@ static int __get_state(acpi_handle handle, u8 *state)
 	cur_state = sta & ACPI_POWER_RESOURCE_STATE_ON;
 
 	acpi_handle_debug(handle, "Power resource is %s\n",
-			  cur_state ? "on" : "off");
+			  str_on_off(cur_state));
 
 	*state = cur_state;
 	return 0;
@@ -240,7 +241,7 @@ static int acpi_power_get_list_state(struct list_head *list, u8 *state)
 			break;
 	}
 
-	pr_debug("Power resource list is %s\n", cur_state ? "on" : "off");
+	pr_debug("Power resource list is %s\n", str_on_off(cur_state));
 
 	*state = cur_state;
 	return 0;
