@@ -616,3 +616,49 @@ void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt)
 
 	kvm->arch.fgu[fgt] = val;
 }
+
+void get_reg_fixed_bits(struct kvm *kvm, enum vcpu_sysreg reg, u64 *res0, u64 *res1)
+{
+	switch (reg) {
+	case HFGRTR_EL2:
+		*res0 = compute_res0_bits(kvm, hfgrtr_feat_map,
+					  ARRAY_SIZE(hfgrtr_feat_map), 0, 0);
+		*res0 |= hfgrtr_masks.res0;
+		*res1 = HFGRTR_EL2_RES1;
+		break;
+	case HFGWTR_EL2:
+		*res0 = compute_res0_bits(kvm, hfgwtr_feat_map,
+					  ARRAY_SIZE(hfgwtr_feat_map), 0, 0);
+		*res0 |= hfgwtr_masks.res0;
+		*res1 = HFGWTR_EL2_RES1;
+		break;
+	case HFGITR_EL2:
+		*res0 = compute_res0_bits(kvm, hfgitr_feat_map,
+					  ARRAY_SIZE(hfgitr_feat_map), 0, 0);
+		*res0 |= hfgitr_masks.res0;
+		*res1 = HFGITR_EL2_RES1;
+		break;
+	case HDFGRTR_EL2:
+		*res0 = compute_res0_bits(kvm, hdfgrtr_feat_map,
+					  ARRAY_SIZE(hdfgrtr_feat_map), 0, 0);
+		*res0 |= hdfgrtr_masks.res0;
+		*res1 = HDFGRTR_EL2_RES1;
+		break;
+	case HDFGWTR_EL2:
+		*res0 = compute_res0_bits(kvm, hdfgwtr_feat_map,
+					  ARRAY_SIZE(hdfgwtr_feat_map), 0, 0);
+		*res0 |= hdfgwtr_masks.res0;
+		*res1 = HDFGWTR_EL2_RES1;
+		break;
+	case HAFGRTR_EL2:
+		*res0 = compute_res0_bits(kvm, hafgrtr_feat_map,
+					  ARRAY_SIZE(hafgrtr_feat_map), 0, 0);
+		*res0 |= hafgrtr_masks.res0;
+		*res1 = HAFGRTR_EL2_RES1;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		*res0 = *res1 = 0;
+		break;
+	}
+}
