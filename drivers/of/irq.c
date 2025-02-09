@@ -55,8 +55,8 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
  * of_irq_find_parent - Given a device node, find its interrupt parent node
  * @child: pointer to device node
  *
- * Return: A pointer to the interrupt parent node, or NULL if the interrupt
- * parent could not be determined.
+ * Return: A pointer to the interrupt parent node with refcount increased
+ * or NULL if the interrupt parent could not be determined.
  */
 struct device_node *of_irq_find_parent(struct device_node *child)
 {
