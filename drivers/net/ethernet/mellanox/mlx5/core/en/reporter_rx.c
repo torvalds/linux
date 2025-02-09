@@ -338,6 +338,37 @@ static void mlx5e_rx_reporter_build_diagnose_output_ptp_rq(struct mlx5e_rq *rq,
 	devlink_fmsg_obj_nest_end(fmsg);
 }
 
+static void mlx5e_rx_reporter_diagnose_rx_res_dir_tirns(struct mlx5e_rx_res *rx_res,
+							struct devlink_fmsg *fmsg)
+{
+	unsigned int max_nch = mlx5e_rx_res_get_max_nch(rx_res);
+	int i;
+
+	devlink_fmsg_arr_pair_nest_start(fmsg, "Direct TIRs");
+
+	for (i = 0; i < max_nch; i++) {
+		devlink_fmsg_obj_nest_start(fmsg);
+
+		devlink_fmsg_u32_pair_put(fmsg, "ix", i);
+		devlink_fmsg_u32_pair_put(fmsg, "tirn", mlx5e_rx_res_get_tirn_direct(rx_res, i));
+		devlink_fmsg_u32_pair_put(fmsg, "rqtn", mlx5e_rx_res_get_rqtn_direct(rx_res, i));
+
+		devlink_fmsg_obj_nest_end(fmsg);
+	}
+
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+}
+
+static void mlx5e_rx_reporter_diagnose_rx_res(struct mlx5e_priv *priv,
+					      struct devlink_fmsg *fmsg)
+{
+	struct mlx5e_rx_res *rx_res = priv->rx_res;
+
+	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RX resources");
+	mlx5e_rx_reporter_diagnose_rx_res_dir_tirns(rx_res, fmsg);
+	mlx5e_health_fmsg_named_obj_nest_end(fmsg);
+}
+
 static void mlx5e_rx_reporter_diagnose_rqs(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg)
 {
 	struct mlx5e_ptp *ptp_ch = priv->channels.ptp;
@@ -373,6 +404,7 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 
 	mlx5e_rx_reporter_diagnose_common_config(priv, fmsg);
 	mlx5e_rx_reporter_diagnose_rqs(priv, fmsg);
+	mlx5e_rx_reporter_diagnose_rx_res(priv, fmsg);
 unlock:
 	mutex_unlock(&priv->state_lock);
 	return 0;

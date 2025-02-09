@@ -497,6 +497,11 @@ void mlx5e_rx_res_destroy(struct mlx5e_rx_res *res)
 	mlx5e_rx_res_free(res);
 }
 
+unsigned int mlx5e_rx_res_get_max_nch(struct mlx5e_rx_res *res)
+{
+	return res->max_nch;
+}
+
 u32 mlx5e_rx_res_get_tirn_direct(struct mlx5e_rx_res *res, unsigned int ix)
 {
 	return mlx5e_tir_get_tirn(&res->channels[ix].direct_tir);
@@ -522,7 +527,7 @@ u32 mlx5e_rx_res_get_tirn_ptp(struct mlx5e_rx_res *res)
 	return mlx5e_tir_get_tirn(&res->ptp.tir);
 }
 
-static u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int ix)
+u32 mlx5e_rx_res_get_rqtn_direct(struct mlx5e_rx_res *res, unsigned int ix)
 {
 	return mlx5e_rqt_get_rqtn(&res->channels[ix].direct_rqt);
 }
