@@ -125,6 +125,58 @@ bool scx_bpf_dispatch_vtime_from_dsq___compat(struct bpf_iter_scx_dsq *it__iter,
 	false;									\
 })
 
+/**
+ * __COMPAT_is_enq_cpu_selected - Test if SCX_ENQ_CPU_SELECTED is on
+ * in a compatible way. We will preserve this __COMPAT helper until v6.16.
+ *
+ * @enq_flags: enqueue flags from ops.enqueue()
+ *
+ * Return: True if SCX_ENQ_CPU_SELECTED is turned on in @enq_flags
+ */
+static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
+{
+#ifdef HAVE_SCX_ENQ_CPU_SELECTED
+	/*
+	 * This is the case that a BPF code compiled against vmlinux.h
+	 * where the enum SCX_ENQ_CPU_SELECTED exists.
+	 */
+
+	/*
+	 * We should temporarily suspend the macro expansion of
+	 * 'SCX_ENQ_CPU_SELECTED'. This avoids 'SCX_ENQ_CPU_SELECTED' being
+	 * rewritten to '__SCX_ENQ_CPU_SELECTED' when 'SCX_ENQ_CPU_SELECTED'
+	 * is defined in 'scripts/gen_enums.py'.
+	 */
+#pragma push_macro("SCX_ENQ_CPU_SELECTED")
+#undef SCX_ENQ_CPU_SELECTED
+	u64 flag;
+
+	/*
+	 * When the kernel did not have SCX_ENQ_CPU_SELECTED,
+	 * select_task_rq_scx() has never been skipped. Thus, this case
+	 * should be considered that the CPU has already been selected.
+	 */
+	if (!bpf_core_enum_value_exists(enum scx_enq_flags,
+					SCX_ENQ_CPU_SELECTED))
+		return true;
+
+	flag = bpf_core_enum_value(enum scx_enq_flags, SCX_ENQ_CPU_SELECTED);
+	return enq_flags & flag;
+
+	/*
+	 * Once done, resume the macro expansion of 'SCX_ENQ_CPU_SELECTED'.
+	 */
+#pragma pop_macro("SCX_ENQ_CPU_SELECTED")
+#else
+	/*
+	 * This is the case that a BPF code compiled against vmlinux.h
+	 * where the enum SCX_ENQ_CPU_SELECTED does NOT exist.
+	 */
+	return true;
+#endif /* HAVE_SCX_ENQ_CPU_SELECTED */
+}
+
+
 #define scx_bpf_now()								\
 	(bpf_ksym_exists(scx_bpf_now) ?						\
 	 scx_bpf_now() :							\

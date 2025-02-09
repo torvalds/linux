@@ -18,6 +18,7 @@
 #include <bpf/bpf_tracing.h>
 #include <asm-generic/errno.h>
 #include "user_exit_info.h"
+#include "enum_defs.autogen.h"
 
 #define PF_WQ_WORKER			0x00000020	/* I'm a workqueue worker */
 #define PF_KTHREAD			0x00200000	/* I am a kernel thread */
