@@ -227,6 +227,7 @@
 		#clock-cells = <0>;
 		/* This value must be overridden by the board. */
 		clock-frequency = <0>;
+		bootph-all;
 	};
 
 	/* External PCIe clock - can be overridden by the board */
@@ -265,6 +266,7 @@
 	soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
+		bootph-all;
 
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -374,6 +376,7 @@
 		pfc: pinctrl@e6060000 {
 			compatible = "renesas,pfc-r8a7790";
 			reg = <0 0xe6060000 0 0x250>;
+			bootph-all;
 		};
 
 		tpu: pwm@e60f0000 {
@@ -395,6 +398,7 @@
 			#clock-cells = <2>;
 			#power-domain-cells = <0>;
 			#reset-cells = <1>;
+			bootph-all;
 		};
 
 		apmu@e6151000 {
@@ -412,6 +416,7 @@
 		rst: reset-controller@e6160000 {
 			compatible = "renesas,r8a7790-rst";
 			reg = <0 0xe6160000 0 0x0100>;
+			bootph-all;
 		};
 
 		sysc: system-controller@e6180000 {
@@ -1948,6 +1953,7 @@
 		prr: chipid@ff000044 {
 			compatible = "renesas,prr";
 			reg = <0 0xff000044 0 4>;
+			bootph-all;
 		};
 
 		cmt0: timer@ffca0000 {
@@ -2018,5 +2024,6 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <48000000>;
+		bootph-all;
 	};
 };
