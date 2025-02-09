@@ -1247,7 +1247,6 @@ void mlx5e_build_xdpsq_param(struct mlx5_core_dev *mdev,
 	mlx5e_build_sq_param_common(mdev, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	param->is_mpw = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_XDP_TX_MPWQE);
-	param->is_xdp_mb = !mlx5e_rx_is_linear_skb(mdev, params, xsk);
 	mlx5e_build_tx_cq_param(mdev, params, &param->cqp);
 }
 
