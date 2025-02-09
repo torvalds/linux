@@ -1610,4 +1610,6 @@ void kvm_set_vm_id_reg(struct kvm *kvm, u32 reg, u64 val);
 #define kvm_has_s1poe(k)				\
 	(kvm_has_feat((k), ID_AA64MMFR3_EL1, S1POE, IMP))
 
+void compute_fgu(struct kvm *kvm, enum fgt_group_id fgt);
+
 #endif /* __ARM64_KVM_HOST_H__ */
