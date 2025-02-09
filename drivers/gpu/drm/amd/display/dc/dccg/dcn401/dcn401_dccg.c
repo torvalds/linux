@@ -531,7 +531,7 @@ static void dccg401_enable_dpstreamclk(struct dccg *dccg, int otg_inst, int dp_h
 			DPSTREAMCLK_ROOT_GATE_DISABLE, 1);
 }
 
-static void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
+void dccg401_disable_dpstreamclk(struct dccg *dccg, int dp_hpo_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
