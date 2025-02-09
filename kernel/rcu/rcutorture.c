@@ -2513,6 +2513,29 @@ static void rcu_torture_updown_cleanup(void)
 	updownreaders = NULL;
 }
 
+// Do one reader for rcu_torture_updown().
+static void rcu_torture_updown_one(struct rcu_torture_one_read_state_updown *rtorsup)
+{
+	int idx;
+	int rawidx;
+	ktime_t t;
+
+	init_rcu_torture_one_read_state(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs);
+	rawidx = cur_ops->down_read();
+	idx = (rawidx << RCUTORTURE_RDR_SHIFT_1) & RCUTORTURE_RDR_MASK_1;
+	rtorsup->rtorsu_rtors.readstate = idx | RCUTORTURE_RDR_UPDOWN;
+	rtorsup->rtorsu_rtors.rtrsp++;
+	if (!rcu_torture_one_read_start(&rtorsup->rtorsu_rtors, &rtorsup->rtorsu_trs, -1)) {
+		schedule_timeout_idle(HZ);
+		return;
+	}
+	smp_store_release(&rtorsup->rtorsu_inuse, true);
+	t = torture_random(&rtorsup->rtorsu_trs) & 0xfffff; // One per million.
+	if (t < 10 * 1000)
+		t = 200 * 1000 * 1000;
+	hrtimer_start(&rtorsup->rtorsu_hrt, t, HRTIMER_MODE_REL | HRTIMER_MODE_SOFT);
+}
+
 /*
  * RCU torture up/down reader kthread, starting RCU readers in kthread
  * context and ending them in hrtimer handlers.  Otherwise similar to
@@ -2521,10 +2544,7 @@ static void rcu_torture_updown_cleanup(void)
 static int
 rcu_torture_updown(void *arg)
 {
-	int idx;
-	int rawidx;
 	struct rcu_torture_one_read_state_updown *rtorsup;
-	ktime_t t;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_updown task started");
 	do {
@@ -2533,23 +2553,7 @@ rcu_torture_updown(void *arg)
 				break;
 			if (smp_load_acquire(&rtorsup->rtorsu_inuse))
 				continue;
-			init_rcu_torture_one_read_state(&rtorsup->rtorsu_rtors,
-							&rtorsup->rtorsu_trs);
-			rawidx = cur_ops->down_read();
-			idx = (rawidx << RCUTORTURE_RDR_SHIFT_1) & RCUTORTURE_RDR_MASK_1;
-			rtorsup->rtorsu_rtors.readstate = idx | RCUTORTURE_RDR_UPDOWN;
-			rtorsup->rtorsu_rtors.rtrsp++;
-			if (!rcu_torture_one_read_start(&rtorsup->rtorsu_rtors,
-							&rtorsup->rtorsu_trs, -1)) {
-				schedule_timeout_idle(HZ);
-				continue;
-			}
-			smp_store_release(&rtorsup->rtorsu_inuse, true);
-			t = torture_random(&rtorsup->rtorsu_trs) & 0xfffff; // One per million.
-			if (t < 10 * 1000)
-				t = 200 * 1000 * 1000;
-			hrtimer_start(&rtorsup->rtorsu_hrt, t,
-				      HRTIMER_MODE_REL | HRTIMER_MODE_SOFT);
+			rcu_torture_updown_one(rtorsup);
 		}
 		torture_hrtimeout_ms(1, 1000, &rcu_torture_updown_rand);
 		stutter_wait("rcu_torture_updown");
