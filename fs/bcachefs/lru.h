@@ -28,7 +28,7 @@ static inline enum bch_lru_type lru_type(struct bkey_s_c l)
 {
 	u16 lru_id = l.k->p.inode >> 48;
 
-	if (lru_id == BCH_LRU_FRAGMENTATION_START)
+	if (lru_id == BCH_LRU_BUCKET_FRAGMENTATION)
 		return BCH_LRU_fragmentation;
 	return BCH_LRU_read;
 }

@@ -897,7 +897,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			goto err;
 
 		ret = bch2_lru_change(trans,
-				      BCH_LRU_FRAGMENTATION_START,
+				      BCH_LRU_BUCKET_FRAGMENTATION,
 				      bucket_to_u64(new.k->p),
 				      alloc_lru_idx_fragmentation(*old_a, ca),
 				      alloc_lru_idx_fragmentation(*new_a, ca));
@@ -1699,7 +1699,7 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 
 	u64 lru_idx = alloc_lru_idx_fragmentation(*a, ca);
 	if (lru_idx) {
-		ret = bch2_lru_check_set(trans, BCH_LRU_FRAGMENTATION_START,
+		ret = bch2_lru_check_set(trans, BCH_LRU_BUCKET_FRAGMENTATION,
 					 lru_idx, alloc_k, last_flushed);
 		if (ret)
 			goto err;

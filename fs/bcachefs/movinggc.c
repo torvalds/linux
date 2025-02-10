@@ -167,8 +167,8 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	ret = for_each_btree_key_max(trans, iter, BTREE_ID_lru,
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, 0, 0),
-				  lru_pos(BCH_LRU_FRAGMENTATION_START, U64_MAX, LRU_TIME_MAX),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, 0, 0),
+				  lru_pos(BCH_LRU_BUCKET_FRAGMENTATION, U64_MAX, LRU_TIME_MAX),
 				  0, k, ({
 		struct move_bucket b = { .k.bucket = u64_to_bucket(k.k->p.offset) };
 		int ret2 = 0;

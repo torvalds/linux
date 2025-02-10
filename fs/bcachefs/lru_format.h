@@ -17,7 +17,7 @@ enum bch_lru_type {
 #undef x
 };
 
-#define BCH_LRU_FRAGMENTATION_START	((1U << 16) - 1)
+#define BCH_LRU_BUCKET_FRAGMENTATION	((1U << 16) - 1)
 
 #define LRU_TIME_BITS			48
 #define LRU_TIME_MAX			((1ULL << LRU_TIME_BITS) - 1)
