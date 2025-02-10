@@ -62,18 +62,6 @@ enum rvin_isp_id {
 	 (unsigned int)RVIN_CSI_MAX : (unsigned int)RVIN_ISP_MAX)
 
 /**
- * enum rvin_dma_state - DMA states
- * @STOPPED:   No operation in progress
- * @RUNNING:   Operation in progress have buffers
- * @STOPPING:  Stopping operation
- */
-enum rvin_dma_state {
-	STOPPED = 0,
-	RUNNING,
-	STOPPING,
-};
-
-/**
  * struct rvin_video_format - Data format stored in memory
  * @fourcc:	Pixelformat
  * @bpp:	Bytes per pixel
@@ -173,11 +161,11 @@ struct rvin_info {
  * @scratch:		cpu address for scratch buffer
  * @scratch_phys:	physical address of the scratch buffer
  *
- * @qlock:		protects @buf_hw, @buf_list, @sequence and @state
+ * @qlock:		Protects @buf_hw, @buf_list, @sequence and @running
  * @buf_hw:		Keeps track of buffers given to HW slot
  * @buf_list:		list of queued buffers
  * @sequence:		V4L2 buffers sequence number
- * @state:		keeps track of operation state
+ * @running:		Keeps track of if the VIN is running
  *
  * @is_csi:		flag to mark the VIN as using a CSI-2 subdevice
  * @chsel:		Cached value of the current CSI-2 channel selection
@@ -220,7 +208,7 @@ struct rvin_dev {
 	} buf_hw[HW_BUFFER_NUM];
 	struct list_head buf_list;
 	unsigned int sequence;
-	enum rvin_dma_state state;
+	bool running;
 
 	bool is_csi;
 	unsigned int chsel;

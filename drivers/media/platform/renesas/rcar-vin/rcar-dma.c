@@ -1006,8 +1006,7 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 	if (WARN_ON(vin->buf_hw[slot].buffer))
 		return;
 
-	if ((vin->state != STOPPED && vin->state != RUNNING) ||
-	    list_empty(&vin->buf_list)) {
+	if (list_empty(&vin->buf_list)) {
 		vin->buf_hw[slot].buffer = NULL;
 		phys_addr = vin->scratch_phys;
 	} else {
@@ -1047,8 +1046,6 @@ static int rvin_capture_start(struct rvin_dev *vin)
 
 	/* Continuous Frame Capture Mode */
 	rvin_write(vin, VNFC_C_FRAME, VNFC_REG);
-
-	vin->state = RUNNING;
 
 	return 0;
 }
@@ -1090,9 +1087,9 @@ static irqreturn_t rvin_irq(int irq, void *data)
 	if (!(int_status & VNINTS_FIS))
 		goto done;
 
-	/* Nothing to do if capture status is 'STOPPED' */
-	if (vin->state == STOPPED) {
-		vin_dbg(vin, "IRQ while state stopped\n");
+	/* Nothing to do if not running. */
+	if (!vin->running) {
+		vin_dbg(vin, "IRQ while not running, ignoring\n");
 		goto done;
 	}
 
@@ -1373,6 +1370,8 @@ int rvin_start_streaming(struct rvin_dev *vin)
 	if (ret)
 		rvin_set_stream(vin, 0);
 
+	vin->running = true;
+
 	spin_unlock_irqrestore(&vin->qlock, flags);
 
 	return ret;
@@ -1405,44 +1404,21 @@ err_scratch:
 
 void rvin_stop_streaming(struct rvin_dev *vin)
 {
-	unsigned int i, retries;
 	unsigned long flags;
-	bool buffersFreed;
 
 	spin_lock_irqsave(&vin->qlock, flags);
 
-	if (vin->state == STOPPED) {
+	if (!vin->running) {
 		spin_unlock_irqrestore(&vin->qlock, flags);
 		return;
 	}
 
-	vin->state = STOPPING;
-
-	/* Wait until only scratch buffer is used, max 3 interrupts. */
-	retries = 0;
-	while (retries++ < RVIN_RETRIES) {
-		buffersFreed = true;
-		for (i = 0; i < HW_BUFFER_NUM; i++)
-			if (vin->buf_hw[i].buffer)
-				buffersFreed = false;
-
-		if (buffersFreed)
-			break;
-
-		spin_unlock_irqrestore(&vin->qlock, flags);
-		msleep(RVIN_TIMEOUT_MS);
-		spin_lock_irqsave(&vin->qlock, flags);
-	}
-
 	/* Wait for streaming to stop */
-	retries = 0;
-	while (retries++ < RVIN_RETRIES) {
-
+	for (unsigned int i = 0; i < RVIN_RETRIES; i++) {
 		rvin_capture_stop(vin);
 
 		/* Check if HW is stopped */
 		if (!rvin_capture_active(vin)) {
-			vin->state = STOPPED;
 			break;
 		}
 
@@ -1451,32 +1427,25 @@ void rvin_stop_streaming(struct rvin_dev *vin)
 		spin_lock_irqsave(&vin->qlock, flags);
 	}
 
-	if (!buffersFreed || vin->state != STOPPED) {
-		/*
-		 * If this happens something have gone horribly wrong.
-		 * Set state to stopped to prevent the interrupt handler
-		 * to make things worse...
-		 */
-		vin_err(vin, "Failed stop HW, something is seriously broken\n");
-		vin->state = STOPPED;
-	}
+	if (rvin_capture_active(vin))
+		vin_err(vin, "Hardware did not stop\n");
+
+	vin->running = false;
 
 	spin_unlock_irqrestore(&vin->qlock, flags);
-
-	/* If something went wrong, free buffers with an error. */
-	if (!buffersFreed) {
-		return_unused_buffers(vin, VB2_BUF_STATE_ERROR);
-		for (i = 0; i < HW_BUFFER_NUM; i++) {
-			if (vin->buf_hw[i].buffer)
-				vb2_buffer_done(&vin->buf_hw[i].buffer->vb2_buf,
-						VB2_BUF_STATE_ERROR);
-		}
-	}
 
 	rvin_set_stream(vin, 0);
 
 	/* disable interrupts */
 	rvin_disable_interrupts(vin);
+
+	/* Return unprocessed buffers from hardware. */
+	for (unsigned int i = 0; i < HW_BUFFER_NUM; i++) {
+		if (vin->buf_hw[i].buffer)
+			vb2_buffer_done(&vin->buf_hw[i].buffer->vb2_buf,
+					VB2_BUF_STATE_ERROR);
+	}
+
 }
 
 static void rvin_stop_streaming_vq(struct vb2_queue *vq)
@@ -1521,8 +1490,6 @@ int rvin_dma_register(struct rvin_dev *vin, int irq)
 	INIT_LIST_HEAD(&vin->buf_list);
 
 	spin_lock_init(&vin->qlock);
-
-	vin->state = STOPPED;
 
 	for (i = 0; i < HW_BUFFER_NUM; i++)
 		vin->buf_hw[i].buffer = NULL;
@@ -1626,7 +1593,7 @@ void rvin_set_alpha(struct rvin_dev *vin, unsigned int alpha)
 
 	vin->alpha = alpha;
 
-	if (vin->state == STOPPED)
+	if (!vin->running)
 		goto out;
 
 	switch (vin->format.pixelformat) {
