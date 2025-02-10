@@ -36,7 +36,7 @@ import os
 import re
 import sys
 
-from docutils import nodes
+from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from sphinx.util.docutils import switch_source_input
@@ -105,7 +105,8 @@ class KernelCmd(Directive):
             old_f = fname
             n = 0
             for msg, f, ln in self.parser.doc():
-                msg_list = msg.split("\n")
+                msg_list = statemachine.string2lines(msg, tab_width,
+                                                     convert_whitespace=True)
                 if "debug" in self.options:
                     lines = [
                         "", "",  ".. code-block:: rst",
