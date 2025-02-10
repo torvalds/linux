@@ -198,15 +198,14 @@ struct buffer_head *gfs2_meta_new(struct gfs2_glock *gl, u64 blkno)
 
 static void gfs2_meta_read_endio(struct bio *bio)
 {
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *page = bvec->bv_page;
-		struct buffer_head *bh = page_buffers(page);
-		unsigned int len = bvec->bv_len;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
+		struct buffer_head *bh = folio_buffers(folio);
+		size_t len = fi.length;
 
-		while (bh_offset(bh) < bvec->bv_offset)
+		while (bh_offset(bh) < fi.offset)
 			bh = bh->b_this_page;
 		do {
 			struct buffer_head *next = bh->b_this_page;
