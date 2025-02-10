@@ -384,12 +384,16 @@ void bch2_journal_pin_drop(struct journal *j,
 	spin_unlock(&j->lock);
 }
 
-static enum journal_pin_type journal_pin_type(journal_pin_flush_fn fn)
+static enum journal_pin_type journal_pin_type(struct journal_entry_pin *pin,
+					      journal_pin_flush_fn fn)
 {
 	if (fn == bch2_btree_node_flush0 ||
-	    fn == bch2_btree_node_flush1)
-		return JOURNAL_PIN_TYPE_btree;
-	else if (fn == bch2_btree_key_cache_journal_flush)
+	    fn == bch2_btree_node_flush1) {
+		unsigned idx = fn == bch2_btree_node_flush1;
+		struct btree *b = container_of(pin, struct btree, writes[idx].journal);
+
+		return JOURNAL_PIN_TYPE_btree0 - b->c.level;
+	} else if (fn == bch2_btree_key_cache_journal_flush)
 		return JOURNAL_PIN_TYPE_key_cache;
 	else
 		return JOURNAL_PIN_TYPE_other;
@@ -441,7 +445,7 @@ void bch2_journal_pin_copy(struct journal *j,
 
 	bool reclaim = __journal_pin_drop(j, dst);
 
-	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(flush_fn));
+	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(dst, flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
@@ -465,7 +469,7 @@ void bch2_journal_pin_set(struct journal *j, u64 seq,
 
 	bool reclaim = __journal_pin_drop(j, pin);
 
-	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(flush_fn));
+	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(pin, flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
@@ -587,7 +591,7 @@ static size_t journal_flush_pins(struct journal *j,
 		spin_lock(&j->lock);
 		/* Pin might have been dropped or rearmed: */
 		if (likely(!err && !j->flush_in_progress_dropped))
-			list_move(&pin->list, &journal_seq_pin(j, seq)->flushed[journal_pin_type(flush_fn)]);
+			list_move(&pin->list, &journal_seq_pin(j, seq)->flushed[journal_pin_type(pin, flush_fn)]);
 		j->flush_in_progress = NULL;
 		j->flush_in_progress_dropped = false;
 		spin_unlock(&j->lock);
@@ -869,18 +873,13 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 
 	mutex_lock(&j->reclaim_lock);
 
-	if (journal_flush_pins_or_still_flushing(j, seq_to_flush,
-			       BIT(JOURNAL_PIN_TYPE_key_cache)|
-			       BIT(JOURNAL_PIN_TYPE_other))) {
-		*did_work = true;
-		goto unlock;
-	}
-
-	if (journal_flush_pins_or_still_flushing(j, seq_to_flush,
-			       BIT(JOURNAL_PIN_TYPE_btree))) {
-		*did_work = true;
-		goto unlock;
-	}
+	for (int type = JOURNAL_PIN_TYPE_NR - 1;
+	     type >= 0;
+	     --type)
+		if (journal_flush_pins_or_still_flushing(j, seq_to_flush, BIT(type))) {
+			*did_work = true;
+			goto unlock;
+		}
 
 	if (seq_to_flush > journal_cur_seq(j))
 		bch2_journal_entry_close(j);
