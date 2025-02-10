@@ -92,7 +92,7 @@ while (<IN>) {
 	next if ($f =~ m,^Next/,);
 
 	# Makefiles and scripts contain nasty expressions to parse docs
-	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
+	next if ($f =~ m/Makefile/ || $f =~ m/\.(sh|py|pl|~|rej|org|orig)$/);
 
 	# It doesn't make sense to parse hidden files
 	next if ($f =~ m#/\.#);

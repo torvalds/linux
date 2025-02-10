@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 ABI stable symbols
 ==================
 
@@ -10,5 +12,5 @@ for at least 2 years.
 Most interfaces (like syscalls) are expected to never change and always
 be available.
 
-.. kernel-abi:: ABI/stable
-   :rst:
+.. kernel-abi:: stable
+   :no-files:
