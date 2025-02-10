@@ -2349,6 +2349,8 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 			ret = guard.gc->request(guard.gc, offset);
 		else
 			ret = -EINVAL;
+		if (ret > 0)
+			ret = -EBADE;
 		if (ret)
 			goto out_clear_bit;
 	}

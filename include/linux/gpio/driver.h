@@ -329,7 +329,8 @@ struct gpio_irq_chip {
  * @fwnode: optional fwnode providing this controller's properties
  * @owner: helps prevent removal of modules exporting active GPIOs
  * @request: optional hook for chip-specific activation, such as
- *	enabling module power and clock; may sleep
+ *	enabling module power and clock; may sleep; must return 0 on success
+ *	or negative error number on failure
  * @free: optional hook for chip-specific deactivation, such as
  *	disabling module power and clock; may sleep
  * @get_direction: returns direction for signal "offset", 0=out, 1=in,
