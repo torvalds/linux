@@ -14,7 +14,7 @@ u"""
     :license:    GPL Version 2, June 1991 see Linux/COPYING for details.
 
     The ``kernel-abi`` (:py:class:`KernelCmd`) directive calls the
-    scripts/get_abi.pl script to parse the Kernel ABI files.
+    scripts/get_abi.py script to parse the Kernel ABI files.
 
     Overview of directive's argument and options.
 
@@ -67,7 +67,6 @@ class KernelCmd(Directive):
 
     option_spec = {
         "debug"     : directives.flag,
-        "rst"       : directives.unchanged
     }
 
     def run(self):
@@ -78,14 +77,11 @@ class KernelCmd(Directive):
         srctree = os.path.abspath(os.environ["srctree"])
 
         args = [
-            os.path.join(srctree, 'scripts/get_abi.pl'),
+            os.path.join(srctree, 'scripts/get_abi.py'),
+            '-D', os.path.join(srctree, 'Documentation', self.arguments[0]),
             'rest',
             '--enable-lineno',
-            '--dir', os.path.join(srctree, 'Documentation', self.arguments[0]),
         ]
-
-        if 'rst' in self.options:
-            args.append('--rst-source')
 
         lines = subprocess.check_output(args, cwd=os.path.dirname(doc.current_source)).decode('utf-8')
         nodeList = self.nestedParse(lines, self.arguments[0])

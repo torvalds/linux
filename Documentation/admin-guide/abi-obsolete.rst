@@ -10,4 +10,3 @@ The description of the interface will document the reason why it is
 obsolete and when it can be expected to be removed.
 
 .. kernel-abi:: ABI/obsolete
-   :rst:
