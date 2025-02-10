@@ -147,10 +147,13 @@ static struct xe_vram_region *res_to_mem_region(struct ttm_resource *res)
 {
 	struct xe_device *xe = ttm_to_xe_device(res->bo->bdev);
 	struct ttm_resource_manager *mgr;
+	struct xe_ttm_vram_mgr *vram_mgr;
 
 	xe_assert(xe, resource_is_vram(res));
 	mgr = ttm_manager_type(&xe->ttm, res->mem_type);
-	return to_xe_ttm_vram_mgr(mgr)->vram;
+	vram_mgr = to_xe_ttm_vram_mgr(mgr);
+
+	return container_of(vram_mgr, struct xe_vram_region, ttm);
 }
 
 static void try_add_system(struct xe_device *xe, struct xe_bo *bo,
@@ -179,12 +182,15 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 		     struct ttm_place *places, u32 bo_flags, u32 mem_type, u32 *c)
 {
 	struct ttm_place place = { .mem_type = mem_type };
+	struct ttm_resource_manager *mgr = ttm_manager_type(&xe->ttm, mem_type);
+	struct xe_ttm_vram_mgr *vram_mgr = to_xe_ttm_vram_mgr(mgr);
+
 	struct xe_vram_region *vram;
 	u64 io_size;
 
 	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
 
-	vram = to_xe_ttm_vram_mgr(ttm_manager_type(&xe->ttm, mem_type))->vram;
+	vram = container_of(vram_mgr, struct xe_vram_region, ttm);
 	xe_assert(xe, vram && vram->usable_size);
 	io_size = vram->io_size;
 

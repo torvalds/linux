@@ -94,10 +94,6 @@ static int xe_tile_alloc(struct xe_tile *tile)
 		return -ENOMEM;
 	tile->mem.ggtt->tile = tile;
 
-	tile->mem.vram_mgr = drmm_kzalloc(drm, sizeof(*tile->mem.vram_mgr), GFP_KERNEL);
-	if (!tile->mem.vram_mgr)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -139,7 +135,7 @@ static int tile_ttm_mgr_init(struct xe_tile *tile)
 	int err;
 
 	if (tile->mem.vram.usable_size) {
-		err = xe_ttm_vram_mgr_init(tile, tile->mem.vram_mgr);
+		err = xe_ttm_vram_mgr_init(tile, &tile->mem.vram.ttm);
 		if (err)
 			return err;
 		xe->info.mem_region_mask |= BIT(tile->id) << 1;
