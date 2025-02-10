@@ -1991,6 +1991,7 @@ void intel_color_prepare_commit(struct intel_atomic_state *state,
 	if (crtc_state->use_dsb) {
 		intel_vrr_send_push(crtc_state->dsb_color_vblank, crtc_state);
 		intel_dsb_wait_vblank_delay(state, crtc_state->dsb_color_vblank);
+		intel_vrr_check_push_sent(crtc_state->dsb_color_vblank, crtc_state);
 		intel_dsb_interrupt(crtc_state->dsb_color_vblank);
 	}
 

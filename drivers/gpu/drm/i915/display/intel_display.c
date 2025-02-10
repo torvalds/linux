@@ -7748,6 +7748,7 @@ static void intel_atomic_dsb_finish(struct intel_atomic_state *state,
 
 			intel_vrr_send_push(new_crtc_state->dsb_commit, new_crtc_state);
 			intel_dsb_wait_vblank_delay(state, new_crtc_state->dsb_commit);
+			intel_vrr_check_push_sent(new_crtc_state->dsb_commit, new_crtc_state);
 			intel_dsb_interrupt(new_crtc_state->dsb_commit);
 		}
 	}
@@ -7898,6 +7899,9 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 			intel_crtc_disable_flip_done(state, crtc);
 
 		intel_atomic_dsb_wait_commit(new_crtc_state);
+
+		if (!state->base.legacy_cursor_update && !new_crtc_state->use_dsb)
+			intel_vrr_check_push_sent(NULL, new_crtc_state);
 	}
 
 	/*

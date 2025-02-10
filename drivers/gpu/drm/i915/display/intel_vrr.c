@@ -416,6 +416,40 @@ void intel_vrr_send_push(struct intel_dsb *dsb,
 		intel_dsb_nonpost_end(dsb);
 }
 
+void intel_vrr_check_push_sent(struct intel_dsb *dsb,
+			       const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	if (!crtc_state->vrr.enable)
+		return;
+
+	/*
+	 * Make sure the push send bit has cleared. This should
+	 * already be the case as long as the caller makes sure
+	 * this is called after the delayed vblank has occurred.
+	 */
+	if (dsb) {
+		int wait_us, count;
+
+		wait_us = 2;
+		count = 1;
+
+		/*
+		 * If the bit hasn't cleared the DSB will
+		 * raise the poll error interrupt.
+		 */
+		intel_dsb_poll(dsb, TRANS_PUSH(display, cpu_transcoder),
+			       TRANS_PUSH_SEND, 0, wait_us, count);
+	} else {
+		if (intel_vrr_is_push_sent(crtc_state))
+			drm_err(display->drm, "[CRTC:%d:%s] VRR push send still pending\n",
+				crtc->base.base.id, crtc->base.name);
+	}
+}
+
 bool intel_vrr_is_push_sent(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
