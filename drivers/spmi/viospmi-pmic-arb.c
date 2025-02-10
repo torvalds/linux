@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <linux/bitmap.h>
 #include <linux/delay.h>
@@ -377,8 +377,14 @@ static void periph_interrupt(struct spmi_pmic_arb *pa, u16 apid)
 	u8 sid = (pa->apid_data[apid].ppid >> 8) & 0xF;
 	u8 per = pa->apid_data[apid].ppid & 0xFF;
 
-	irq = irq_find_mapping(pa->domain,
-					spec_to_hwirq(sid, per, id, apid));
+	for ( ; id < 32; id++) {
+		irq = irq_find_mapping(pa->domain,
+						spec_to_hwirq(sid, per, id, apid));
+
+		if (irq)
+			break;
+	}
+
 	generic_handle_irq(irq);
 }
 
