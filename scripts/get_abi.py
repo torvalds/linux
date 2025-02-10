@@ -85,6 +85,29 @@ class AbiValidate:
         parser.check_issues()
 
 
+class AbiSearch:
+    """Initialize an argparse subparser for ABI search"""
+
+    def __init__(self, subparsers):
+        """Initialize argparse subparsers"""
+
+        parser = subparsers.add_parser("search",
+                                       formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+                                       description="Search ABI using a regular expression")
+
+        parser.add_argument("expression",
+                            help="Case-insensitive search pattern for the ABI symbol")
+
+        parser.set_defaults(func=self.run)
+
+    def run(self, args):
+        """Run subparser"""
+
+        parser = AbiParser(args.dir, debug=args.debug)
+        parser.parse_abi()
+        parser.search_symbols(args.expression)
+
+
 def main():
     """Main program"""
 
@@ -97,6 +120,7 @@ def main():
 
     AbiRest(subparsers)
     AbiValidate(subparsers)
+    AbiSearch(subparsers)
 
     args = parser.parse_args()
 

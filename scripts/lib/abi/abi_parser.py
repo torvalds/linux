@@ -510,3 +510,55 @@ class AbiParser:
                     f.append(f"{fname} lines {", ".join(str(x) for x in lines)}")
 
             self.log.warning("%s is defined %d times: %s", what, len(f), "; ".join(f))
+
+    def search_symbols(self, expr):
+        """ Searches for ABI symbols """
+
+        regex = re.compile(expr, re.I)
+
+        found_keys = 0
+        for t in sorted(self.data.items(), key=lambda x: [0]):
+            v = t[1]
+
+            wtype = v.get("type", "")
+            if wtype == "File":
+                continue
+
+            for what in v.get("what", [""]):
+                if regex.search(what):
+                    found_keys += 1
+
+                    kernelversion = v.get("kernelversion", "").strip(" \t\n")
+                    date = v.get("date", "").strip(" \t\n")
+                    contact = v.get("contact", "").strip(" \t\n")
+                    users = v.get("users", "").strip(" \t\n")
+                    desc = v.get("description", "").strip(" \t\n")
+
+                    files = []
+                    for f in v.get("file", ()):
+                        files.append(f[0])
+
+                    what = str(found_keys) + ". " + what
+                    title_tag = "-" * len(what)
+
+                    print(f"\n{what}\n{title_tag}\n")
+
+                    if kernelversion:
+                        print(f"Kernel version:\t\t{kernelversion}")
+
+                    if date:
+                        print(f"Date:\t\t\t{date}")
+
+                    if contact:
+                        print(f"Contact:\t\t{contact}")
+
+                    if users:
+                        print(f"Users:\t\t\t{users}")
+
+                    print(f"Defined on file{'s'[:len(files) ^ 1]}:\t{", ".join(files)}")
+
+                    if desc:
+                        print(f"\n{desc.strip("\n")}\n")
+
+        if not found_keys:
+            print(f"Regular expression /{expr}/ not found.")
