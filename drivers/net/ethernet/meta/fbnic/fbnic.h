@@ -60,6 +60,12 @@ struct fbnic_dev {
 	u8 mac_addr_boundary;
 	u8 tce_tcam_last;
 
+	/* IP TCAM */
+	struct fbnic_ip_addr ip_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ip_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_src[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+	struct fbnic_ip_addr ipo_dst[FBNIC_RPC_TCAM_IP_ADDR_NUM_ENTRIES];
+
 	/* Number of TCQs/RCQs available on hardware */
 	u16 max_num_queues;
 
