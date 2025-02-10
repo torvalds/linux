@@ -2701,6 +2701,23 @@ int gpio_set_debounce_timeout(struct gpio_desc *desc, unsigned int debounce)
 	return ret;
 }
 
+static int gpiochip_direction_output(struct gpio_chip *gc, unsigned int offset,
+				     int value)
+{
+	int ret;
+
+	lockdep_assert_held(&gc->gpiodev->srcu);
+
+	if (WARN_ON(!gc->direction_output))
+		return -EOPNOTSUPP;
+
+	ret = gc->direction_output(gc, offset, value);
+	if (ret > 0)
+		ret = -EBADE;
+
+	return ret;
+}
+
 /**
  * gpiod_direction_input - set the GPIO direction to input
  * @desc:	GPIO to set to input
@@ -2798,8 +2815,8 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	}
 
 	if (guard.gc->direction_output) {
-		ret = guard.gc->direction_output(guard.gc,
-						 gpio_chip_hwgpio(desc), val);
+		ret = gpiochip_direction_output(guard.gc,
+						gpio_chip_hwgpio(desc), val);
 	} else {
 		/* Check that we are in output mode if we can */
 		if (guard.gc->get_direction) {
@@ -3460,7 +3477,7 @@ static void gpio_set_open_drain_value_commit(struct gpio_desc *desc, bool value)
 	if (value) {
 		ret = guard.gc->direction_input(guard.gc, offset);
 	} else {
-		ret = guard.gc->direction_output(guard.gc, offset, 0);
+		ret = gpiochip_direction_output(guard.gc, offset, 0);
 		if (!ret)
 			set_bit(FLAG_IS_OUT, &desc->flags);
 	}
@@ -3485,7 +3502,7 @@ static void gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value
 		return;
 
 	if (value) {
-		ret = guard.gc->direction_output(guard.gc, offset, 1);
+		ret = gpiochip_direction_output(guard.gc, offset, 1);
 		if (!ret)
 			set_bit(FLAG_IS_OUT, &desc->flags);
 	} else {
