@@ -314,7 +314,7 @@ class AbiParser:
         fdata.ftype = path.split("/")[0]
 
         fdata.nametag = {}
-        fdata.nametag["what"] = [f"File {path}/{basename}"]
+        fdata.nametag["what"] = [f"ABI file {path}/{basename}"]
         fdata.nametag["type"] = "File"
         fdata.nametag["path"] = fdata.ftype
         fdata.nametag["file"] = [fdata.file_ref]
