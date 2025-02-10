@@ -380,8 +380,9 @@ __fh_verify(struct svc_rqst *rqstp,
 	error = check_nfsd_access(exp, rqstp, may_bypass_gss);
 	if (error)
 		goto out;
-
-	svc_xprt_set_valid(rqstp->rq_xprt);
+	/* During LOCALIO call to fh_verify will be called with a NULL rqstp */
+	if (rqstp)
+		svc_xprt_set_valid(rqstp->rq_xprt);
 
 	/* Finally, check access permissions. */
 	error = nfsd_permission(cred, exp, dentry, access);
