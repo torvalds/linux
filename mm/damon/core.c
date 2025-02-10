@@ -1494,6 +1494,9 @@ static void damos_walk_complete(struct damon_ctx *ctx, struct damos *s)
 		if (!siter->walk_completed)
 			return;
 	}
+	damon_for_each_scheme(siter, ctx)
+		siter->walk_completed = false;
+
 	complete(&control->completion);
 	mutex_lock(&ctx->walk_control_lock);
 	ctx->walk_control = NULL;
