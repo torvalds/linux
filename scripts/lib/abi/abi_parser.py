@@ -12,7 +12,6 @@ import logging
 import os
 import re
 
-from glob import glob
 from pprint import pformat
 from random import randrange, seed
 
@@ -46,7 +45,11 @@ class AbiParser:
         self.file_refs = {}
         self.what_refs = {}
 
+        # Ignore files that contain such suffixes
+        self.ignore_suffixes = (".rej", ".org", ".orig", ".bak", "~")
+
         # Regular expressions used on parser
+        self.re_abi_dir = re.compile(r"(.*)" + ABI_DIR)
         self.re_tag = re.compile(r"(\S+)(:\s*)(.*)", re.I)
         self.re_valid = re.compile(self.TAGS)
         self.re_start_spc = re.compile(r"(\s*)(\S.*)")
@@ -322,26 +325,42 @@ class AbiParser:
                 for w in fdata.what:
                     self.add_symbol(what=w, fname=fname, xref=fdata.key)
 
-    def parse_abi(self):
+    def _parse_abi(self, root=None):
+        """Internal function to parse documentation ABI recursively"""
+
+        if not root:
+            root = self.directory
+
+        with os.scandir(root) as obj:
+            for entry in obj:
+                name = os.path.join(root, entry.name)
+
+                if entry.is_dir():
+                    self.parse_abi(name)
+                    continue
+
+                if not entry.is_file():
+                    continue
+
+                basename = os.path.basename(name)
+
+                if basename == "README":
+                    continue
+
+                if basename.startswith("."):
+                    continue
+
+                if basename.endswith(self.ignore_suffixes):
+                    continue
+
+                path = self.re_abi_dir.sub("", os.path.dirname(name))
+
+                self.parse_file(name, path, basename)
+
+    def parse_abi(self, root=None):
         """Parse documentation ABI"""
 
-        ignore_suffixes = ("rej", "org", "orig", "bak", "~")
-        re_abi = re.compile(r".*" + ABI_DIR)
-
-        for fname in glob(os.path.join(self.directory, "**"), recursive=True):
-            if os.path.isdir(fname):
-                continue
-
-            basename = os.path.basename(fname)
-
-            if basename == "README":
-                continue
-            if basename.startswith(".") or basename.endswith(ignore_suffixes):
-                continue
-
-            path = re_abi.sub("", os.path.dirname(fname))
-
-            self.parse_file(fname, path, basename)
+        self._parse_abi(root)
 
         if self.debug & AbiDebug.DUMP_ABI_STRUCTS:
             self.log.debug(pformat(self.data))
