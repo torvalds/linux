@@ -20,7 +20,9 @@ SRC_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, os.path.join(SRC_DIR, LIB_DIR))
 
 from abi_parser import AbiParser                # pylint: disable=C0413
+from abi_regex import AbiRegex                  # pylint: disable=C0413
 from helpers import ABI_DIR, DEBUG_HELP         # pylint: disable=C0413
+from system_symbols import SystemSymbols        # pylint: disable=C0413
 
 # Command line classes
 
@@ -111,6 +113,71 @@ class AbiSearch:
         parser.parse_abi()
         parser.search_symbols(args.expression)
 
+UNDEFINED_DESC="""
+Check undefined ABIs on local machine.
+
+Read sysfs devnodes and check if the devnodes there are defined inside
+ABI documentation.
+
+The search logic tries to minimize the number of regular expressions to
+search per each symbol.
+
+By default, it runs on a single CPU, as Python support for CPU threads
+is still experimental, and multi-process runs on Python is very slow.
+
+On experimental tests, if the number of ABI symbols to search per devnode
+is contained on a limit of ~150 regular expressions, using a single CPU
+is a lot faster than using multiple processes. However, if the number of
+regular expressions to check is at the order of ~30000, using multiple
+CPUs speeds up the check.
+"""
+
+class AbiUndefined:
+    """
+    Initialize an argparse subparser for logic to check undefined ABI at
+    the current machine's sysfs
+    """
+
+    def __init__(self, subparsers):
+        """Initialize argparse subparsers"""
+
+        parser = subparsers.add_parser("undefined",
+                                       formatter_class=argparse.RawTextHelpFormatter,
+                                       description=UNDEFINED_DESC)
+
+        parser.add_argument("-S", "--sysfs-dir", default="/sys",
+                            help="directory where sysfs is mounted")
+        parser.add_argument("-s", "--search-string",
+                            help="search string regular expression to limit symbol search")
+        parser.add_argument("-H", "--show-hints", action="store_true",
+                            help="Hints about definitions for missing ABI symbols.")
+        parser.add_argument("-j", "--jobs", "--max-workers", type=int, default=1,
+                            help="If bigger than one, enables multiprocessing.")
+        parser.add_argument("-c", "--max-chunk-size", type=int, default=50,
+                            help="Maximum number of chunk size")
+        parser.add_argument("-f", "--found", action="store_true",
+                            help="Also show found items. "
+                                 "Helpful to debug the parser."),
+        parser.add_argument("-d", "--dry-run", action="store_true",
+                            help="Don't actually search for undefined. "
+                                 "Helpful to debug the parser."),
+
+        parser.set_defaults(func=self.run)
+
+    def run(self, args):
+        """Run subparser"""
+
+        abi = AbiRegex(args.dir, debug=args.debug,
+                       search_string=args.search_string)
+
+        abi_symbols = SystemSymbols(abi=abi, hints=args.show_hints,
+                                    sysfs=args.sysfs_dir)
+
+        abi_symbols.check_undefined_symbols(dry_run=args.dry_run,
+                                            found=args.found,
+                                            max_workers=args.jobs,
+                                            chunk_size=args.max_chunk_size)
+
 
 def main():
     """Main program"""
@@ -125,6 +192,7 @@ def main():
     AbiRest(subparsers)
     AbiValidate(subparsers)
     AbiSearch(subparsers)
+    AbiUndefined(subparsers)
 
     args = parser.parse_args()
 
