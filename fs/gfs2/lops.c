@@ -157,7 +157,9 @@ u64 gfs2_log_bmap(struct gfs2_jdesc *jd, unsigned int lblock)
 /**
  * gfs2_end_log_write_bh - end log write of pagecache data with buffers
  * @sdp: The superblock
- * @bvec: The bio_vec
+ * @folio: The folio
+ * @offset: The first byte within the folio that completed
+ * @size: The number of bytes that completed
  * @error: The i/o status
  *
  * This finds the relevant buffers and unlocks them and sets the
@@ -166,17 +168,13 @@ u64 gfs2_log_bmap(struct gfs2_jdesc *jd, unsigned int lblock)
  * that is pinned in the pagecache.
  */
 
-static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp,
-				  struct bio_vec *bvec,
-				  blk_status_t error)
+static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp, struct folio *folio,
+		size_t offset, size_t size, blk_status_t error)
 {
 	struct buffer_head *bh, *next;
-	struct page *page = bvec->bv_page;
-	unsigned size;
 
-	bh = page_buffers(page);
-	size = bvec->bv_len;
-	while (bh_offset(bh) < bvec->bv_offset)
+	bh = folio_buffers(folio);
+	while (bh_offset(bh) < offset)
 		bh = bh->b_this_page;
 	do {
 		if (error)
@@ -186,7 +184,7 @@ static void gfs2_end_log_write_bh(struct gfs2_sbd *sdp,
 		size -= bh->b_size;
 		brelse(bh);
 		bh = next;
-	} while(bh && size);
+	} while (bh && size);
 }
 
 /**
@@ -203,7 +201,6 @@ static void gfs2_end_log_write(struct bio *bio)
 {
 	struct gfs2_sbd *sdp = bio->bi_private;
 	struct bio_vec *bvec;
-	struct page *page;
 	struct bvec_iter_all iter_all;
 
 	if (bio->bi_status) {
@@ -217,9 +214,12 @@ static void gfs2_end_log_write(struct bio *bio)
 	}
 
 	bio_for_each_segment_all(bvec, bio, iter_all) {
-		page = bvec->bv_page;
-		if (page_has_buffers(page))
-			gfs2_end_log_write_bh(sdp, bvec, bio->bi_status);
+		struct page *page = bvec->bv_page;
+		struct folio *folio = page_folio(page);
+
+		if (folio && folio_buffers(folio))
+			gfs2_end_log_write_bh(sdp, folio, bvec->bv_offset,
+					bvec->bv_len, bio->bi_status);
 		else
 			mempool_free(page, gfs2_page_pool);
 	}
