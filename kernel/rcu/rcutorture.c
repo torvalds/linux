@@ -2447,6 +2447,8 @@ rcu_torture_reader(void *arg)
 struct rcu_torture_one_read_state_updown {
 	struct hrtimer rtorsu_hrt;
 	bool rtorsu_inuse;
+	ktime_t rtorsu_kt;
+	unsigned long rtorsu_j;
 	struct torture_random_state rtorsu_trs;
 	struct rcu_torture_one_read_state rtorsu_rtors;
 };
@@ -2485,7 +2487,7 @@ static int rcu_torture_updown_init(void)
 	for (i = 0; i < n_up_down; i++) {
 		init_rcu_torture_one_read_state(&updownreaders[i].rtorsu_rtors, rand);
 		hrtimer_setup(&updownreaders[i].rtorsu_hrt, rcu_torture_updown_hrt, CLOCK_MONOTONIC,
-			      HRTIMER_MODE_REL | HRTIMER_MODE_SOFT);
+			      HRTIMER_MODE_REL | HRTIMER_MODE_HARD);
 		torture_random_init(&updownreaders[i].rtorsu_trs);
 		init_rcu_torture_one_read_state(&updownreaders[i].rtorsu_rtors,
 						&updownreaders[i].rtorsu_trs);
@@ -2533,7 +2535,10 @@ static void rcu_torture_updown_one(struct rcu_torture_one_read_state_updown *rto
 	t = torture_random(&rtorsup->rtorsu_trs) & 0xfffff; // One per million.
 	if (t < 10 * 1000)
 		t = 200 * 1000 * 1000;
-	hrtimer_start(&rtorsup->rtorsu_hrt, t, HRTIMER_MODE_REL | HRTIMER_MODE_SOFT);
+	hrtimer_start(&rtorsup->rtorsu_hrt, t, HRTIMER_MODE_REL | HRTIMER_MODE_HARD);
+	smp_mb(); // Sample jiffies after posting hrtimer.
+	rtorsup->rtorsu_j = jiffies;  // Not used by hrtimer handler.
+	rtorsup->rtorsu_kt = t;
 }
 
 /*
@@ -2544,6 +2549,7 @@ static void rcu_torture_updown_one(struct rcu_torture_one_read_state_updown *rto
 static int
 rcu_torture_updown(void *arg)
 {
+	unsigned long j;
 	struct rcu_torture_one_read_state_updown *rtorsup;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_updown task started");
@@ -2551,8 +2557,12 @@ rcu_torture_updown(void *arg)
 		for (rtorsup = updownreaders; rtorsup < &updownreaders[n_up_down]; rtorsup++) {
 			if (torture_must_stop())
 				break;
-			if (smp_load_acquire(&rtorsup->rtorsu_inuse))
+			j = smp_load_acquire(&jiffies); // Time before ->rtorsu_inuse.
+			if (smp_load_acquire(&rtorsup->rtorsu_inuse)) {
+				WARN_ONCE(time_after(j, rtorsup->rtorsu_j + 1 + HZ * 10),
+					  "hrtimer queued at jiffies %lu for %lld ns took %lu jiffies\n", rtorsup->rtorsu_j, rtorsup->rtorsu_kt, j - rtorsup->rtorsu_j);
 				continue;
+			}
 			rcu_torture_updown_one(rtorsup);
 		}
 		torture_hrtimeout_ms(1, 1000, &rcu_torture_updown_rand);
