@@ -101,15 +101,15 @@ static int decode_cb_fattr4(struct xdr_stream *xdr, uint32_t *bitmap,
 
 	if (bitmap[0] & FATTR4_WORD0_CHANGE)
 		if (xdr_stream_decode_u64(xdr, &fattr->ncf_cb_change) < 0)
-			return -NFSERR_BAD_XDR;
+			return -EIO;
 	if (bitmap[0] & FATTR4_WORD0_SIZE)
 		if (xdr_stream_decode_u64(xdr, &fattr->ncf_cb_fsize) < 0)
-			return -NFSERR_BAD_XDR;
+			return -EIO;
 	if (bitmap[2] & FATTR4_WORD2_TIME_DELEG_ACCESS) {
 		fattr4_time_deleg_access access;
 
 		if (!xdrgen_decode_fattr4_time_deleg_access(xdr, &access))
-			return -NFSERR_BAD_XDR;
+			return -EIO;
 		fattr->ncf_cb_atime.tv_sec = access.seconds;
 		fattr->ncf_cb_atime.tv_nsec = access.nseconds;
 
@@ -118,7 +118,7 @@ static int decode_cb_fattr4(struct xdr_stream *xdr, uint32_t *bitmap,
 		fattr4_time_deleg_modify modify;
 
 		if (!xdrgen_decode_fattr4_time_deleg_modify(xdr, &modify))
-			return -NFSERR_BAD_XDR;
+			return -EIO;
 		fattr->ncf_cb_mtime.tv_sec = modify.seconds;
 		fattr->ncf_cb_mtime.tv_nsec = modify.nseconds;
 
@@ -682,15 +682,15 @@ static int nfs4_xdr_dec_cb_getattr(struct rpc_rqst *rqstp,
 	if (unlikely(status || cb->cb_status))
 		return status;
 	if (xdr_stream_decode_uint32_array(xdr, bitmap, 3) < 0)
-		return -NFSERR_BAD_XDR;
+		return -EIO;
 	if (xdr_stream_decode_u32(xdr, &attrlen) < 0)
-		return -NFSERR_BAD_XDR;
+		return -EIO;
 	maxlen = sizeof(ncf->ncf_cb_change) + sizeof(ncf->ncf_cb_fsize);
 	if (bitmap[2] != 0)
 		maxlen += (sizeof(ncf->ncf_cb_mtime.tv_sec) +
 			   sizeof(ncf->ncf_cb_mtime.tv_nsec)) * 2;
 	if (attrlen > maxlen)
-		return -NFSERR_BAD_XDR;
+		return -EIO;
 	status = decode_cb_fattr4(xdr, bitmap, ncf);
 	return status;
 }
