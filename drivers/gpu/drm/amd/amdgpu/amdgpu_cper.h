@@ -64,6 +64,7 @@ struct amdgpu_cper {
 
 	void *ring[CPER_MAX_ALLOWED_COUNT];
 	struct amdgpu_ring ring_buf;
+	struct mutex ring_lock;
 };
 
 void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,

@@ -510,13 +510,18 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 	result = 0;
 
 	if (*pos < 12) {
+		if (ring->funcs->type == AMDGPU_RING_TYPE_CPER)
+			mutex_lock(&ring->adev->cper.ring_lock);
+
 		early[0] = amdgpu_ring_get_rptr(ring) & ring->buf_mask;
 		early[1] = amdgpu_ring_get_wptr(ring) & ring->buf_mask;
 		early[2] = ring->wptr & ring->buf_mask;
 		for (i = *pos / 4; i < 3 && size; i++) {
 			r = put_user(early[i], (uint32_t *)buf);
-			if (r)
-				return r;
+			if (r) {
+				result = r;
+				goto out;
+			}
 			buf += 4;
 			result += 4;
 			size -= 4;
@@ -547,12 +552,14 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 
 		while (size) {
 			if (p == early[1])
-				return result;
+				goto out;
 
 			value = ring->ring[p];
 			r = put_user(value, (uint32_t *)buf);
-			if (r)
-				return r;
+			if (r) {
+				result = r;
+				goto out;
+			}
 
 			buf += 4;
 			result += 4;
@@ -561,6 +568,10 @@ static ssize_t amdgpu_debugfs_ring_read(struct file *f, char __user *buf,
 			p &= ring->ptr_mask;
 		}
 	}
+
+out:
+	if (ring->funcs->type == AMDGPU_RING_TYPE_CPER)
+		mutex_unlock(&ring->adev->cper.ring_lock);
 
 	return result;
 }

@@ -440,6 +440,7 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
 
 	wptr_old = ring->wptr;
 
+	mutex_lock(&ring->adev->cper.ring_lock);
 	while (count) {
 		ent_sz = amdgpu_cper_ring_get_ent_sz(ring, ring->wptr);
 		chunk = umin(ent_sz, count);
@@ -468,6 +469,7 @@ void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
 			pos = rptr;
 		} while (!amdgpu_cper_is_hdr(ring, rptr));
 	}
+	mutex_unlock(&ring->adev->cper.ring_lock);
 
 	if (ring->count_dw >= (count >> 2))
 		ring->count_dw -= (count >> 2);
@@ -496,6 +498,8 @@ static const struct amdgpu_ring_funcs cper_ring_funcs = {
 static int amdgpu_cper_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring = &(adev->cper.ring_buf);
+
+	mutex_init(&adev->cper.ring_lock);
 
 	ring->adev = NULL;
 	ring->ring_obj = NULL;
