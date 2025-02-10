@@ -427,7 +427,7 @@ class AbiParser:
 
         return new_desc + "\n\n"
 
-    def doc(self, enable_lineno, output_in_txt, show_file=False):
+    def doc(self, enable_lineno, output_in_txt=False, show_file=False):
         """Print ABI at stdout"""
 
         part = None

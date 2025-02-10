@@ -34,7 +34,6 @@ u"""
 
 import os
 import re
-import subprocess
 import sys
 
 from docutils import nodes
@@ -42,6 +41,11 @@ from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from sphinx.util.docutils import switch_source_input
 from sphinx.util import logging
+
+srctree = os.path.abspath(os.environ["srctree"])
+sys.path.insert(0, os.path.join(srctree, "scripts/lib/abi"))
+
+from abi_parser import AbiParser
 
 __version__ = "1.0"
 
@@ -66,7 +70,7 @@ class KernelCmd(Directive):
     logger = logging.getLogger('kernel_abi')
 
     option_spec = {
-        "debug"     : directives.flag,
+        "debug": directives.flag,
     }
 
     def run(self):
@@ -74,20 +78,19 @@ class KernelCmd(Directive):
         if not doc.settings.file_insertion_enabled:
             raise self.warning("docutils: file insertion disabled")
 
-        srctree = os.path.abspath(os.environ["srctree"])
+        path = os.path.join(srctree, "Documentation", self.arguments[0])
+        parser = AbiParser(path, logger=self.logger)
+        parser.parse_abi()
+        parser.check_issues()
 
-        args = [
-            os.path.join(srctree, 'scripts/get_abi.py'),
-            '-D', os.path.join(srctree, 'Documentation', self.arguments[0]),
-            'rest',
-            '--enable-lineno',
-        ]
+        msg = ""
+        for m in parser.doc(enable_lineno=True, show_file=True):
+            msg += m
 
-        lines = subprocess.check_output(args, cwd=os.path.dirname(doc.current_source)).decode('utf-8')
-        nodeList = self.nestedParse(lines, self.arguments[0])
-        return nodeList
+        node = self.nested_parse(msg, self.arguments[0])
+        return node
 
-    def nestedParse(self, lines, fname):
+    def nested_parse(self, lines, fname):
         env = self.state.document.settings.env
         content = ViewList()
         node = nodes.section()
