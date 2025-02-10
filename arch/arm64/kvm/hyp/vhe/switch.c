@@ -579,6 +579,8 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 
 	sysreg_save_host_state_vhe(host_ctxt);
 
+	fpsimd_lazy_switch_to_guest(vcpu);
+
 	/*
 	 * Note that ARM erratum 1165522 requires us to configure both stage 1
 	 * and stage 2 translation for the guest context before we clear
@@ -602,6 +604,8 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	sysreg_save_guest_state_vhe(guest_ctxt);
 
 	__deactivate_traps(vcpu);
+
+	fpsimd_lazy_switch_to_host(vcpu);
 
 	sysreg_restore_host_state_vhe(host_ctxt);
 

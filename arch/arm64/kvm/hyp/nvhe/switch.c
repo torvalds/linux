@@ -73,12 +73,10 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 
 static void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
 {
-	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
-
 	if (has_hvhe()) {
 		u64 val = CPACR_EL1_FPEN;
 
-		if (!kvm_has_sve(kvm) || !guest_owns_fp_regs())
+		if (cpus_have_final_cap(ARM64_SVE))
 			val |= CPACR_EL1_ZEN;
 		if (cpus_have_final_cap(ARM64_SME))
 			val |= CPACR_EL1_SMEN;
@@ -87,7 +85,7 @@ static void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
 	} else {
 		u64 val = CPTR_NVHE_EL2_RES1;
 
-		if (kvm_has_sve(kvm) && guest_owns_fp_regs())
+		if (!cpus_have_final_cap(ARM64_SVE))
 			val |= CPTR_EL2_TZ;
 		if (!cpus_have_final_cap(ARM64_SME))
 			val |= CPTR_EL2_TSM;
