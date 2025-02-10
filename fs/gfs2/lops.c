@@ -615,15 +615,13 @@ static struct page *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type,
 
 static void gfs2_check_magic(struct buffer_head *bh)
 {
-	void *kaddr;
 	__be32 *ptr;
 
 	clear_buffer_escaped(bh);
-	kaddr = kmap_local_page(bh->b_page);
-	ptr = kaddr + bh_offset(bh);
+	ptr = kmap_local_folio(bh->b_folio, bh_offset(bh));
 	if (*ptr == cpu_to_be32(GFS2_MAGIC))
 		set_buffer_escaped(bh);
-	kunmap_local(kaddr);
+	kunmap_local(ptr);
 }
 
 static int blocknr_cmp(void *priv, const struct list_head *a,
