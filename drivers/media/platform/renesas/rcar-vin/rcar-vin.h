@@ -64,13 +64,11 @@ enum rvin_isp_id {
 /**
  * enum rvin_dma_state - DMA states
  * @STOPPED:   No operation in progress
- * @STARTING:  Capture starting up
  * @RUNNING:   Operation in progress have buffers
  * @STOPPING:  Stopping operation
  */
 enum rvin_dma_state {
 	STOPPED = 0,
-	STARTING,
 	RUNNING,
 	STOPPING,
 };
