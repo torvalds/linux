@@ -232,7 +232,7 @@ static void gfs2_submit_bhs(blk_opf_t opf, struct buffer_head *bhs[], int num)
 		bio->bi_iter.bi_sector = bh->b_blocknr * (bh->b_size >> 9);
 		while (num > 0) {
 			bh = *bhs;
-			if (!bio_add_page(bio, bh->b_page, bh->b_size, bh_offset(bh))) {
+			if (!bio_add_folio(bio, bh->b_folio, bh->b_size, bh_offset(bh))) {
 				BUG_ON(bio->bi_iter.bi_size == 0);
 				break;
 			}
