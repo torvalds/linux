@@ -2953,3 +2953,18 @@ umode_t mode_strip_sgid(struct mnt_idmap *idmap,
 	return mode & ~S_ISGID;
 }
 EXPORT_SYMBOL(mode_strip_sgid);
+
+#ifdef CONFIG_DEBUG_VFS
+/*
+ * Dump an inode.
+ *
+ * TODO: add a proper inode dumping routine, this is a stub to get debug off the
+ * ground.
+ */
+void dump_inode(struct inode *inode, const char *reason)
+{
+       pr_warn("%s encountered for inode %px", reason, inode);
+}
+
+EXPORT_SYMBOL(dump_inode);
+#endif
