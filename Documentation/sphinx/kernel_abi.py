@@ -68,6 +68,7 @@ class KernelCmd(Directive):
     has_content = False
     final_argument_whitespace = True
     logger = logging.getLogger('kernel_abi')
+    parser = None
 
     option_spec = {
         "debug": directives.flag,
@@ -79,59 +80,60 @@ class KernelCmd(Directive):
             raise self.warning("docutils: file insertion disabled")
 
         path = os.path.join(srctree, "Documentation", self.arguments[0])
-        parser = AbiParser(path, logger=self.logger)
-        parser.parse_abi()
-        parser.check_issues()
+        self.parser = AbiParser(path, logger=self.logger)
+        self.parser.parse_abi()
+        self.parser.check_issues()
 
-        msg = ""
-        for m in parser.doc(enable_lineno=True, show_file=True):
-            msg += m
-
-        node = self.nested_parse(msg, self.arguments[0])
+        node = self.nested_parse(None, self.arguments[0])
         return node
 
-    def nested_parse(self, lines, fname):
+    def nested_parse(self, data, fname):
         env = self.state.document.settings.env
         content = ViewList()
         node = nodes.section()
 
-        if "debug" in self.options:
-            code_block = "\n\n.. code-block:: rst\n    :linenos:\n"
-            for line in lines.split("\n"):
-                code_block += "\n    " + line
-            lines = code_block + "\n\n"
+        if data is not None:
+            # Handles the .rst file
+            for line in data.split("\n"):
+                content.append(line, fname, 0)
 
-        line_regex = re.compile(r"^\.\. LINENO (\S+)\#([0-9]+)$")
-        ln = 0
-        n = 0
-        f = fname
+            self.do_parse(content, node)
 
-        for line in lines.split("\n"):
-            n = n + 1
-            match = line_regex.search(line)
-            if match:
-                new_f = match.group(1)
+        else:
+            # Handles the ABI parser content, symbol by symbol
 
-                # Sphinx parser is lazy: it stops parsing contents in the
-                # middle, if it is too big. So, handle it per input file
-                if new_f != f and content:
-                    self.do_parse(content, node)
-                    content = ViewList()
+            old_f = fname
+            n = 0
+            for msg, f, ln in self.parser.doc():
+                msg_list = msg.split("\n")
+                if "debug" in self.options:
+                    lines = [
+                        "", "",  ".. code-block:: rst",
+                        "    :linenos:", ""
+                    ]
+                    for m in msg_list:
+                        lines.append("    " + m)
+                else:
+                    lines = msg_list
 
+                for line in lines:
+                    # sphinx counts lines from 0
+                    content.append(line, f, ln - 1)
+                    n += 1
+
+                if f != old_f:
                     # Add the file to Sphinx build dependencies
                     env.note_dependency(os.path.abspath(f))
 
-                f = new_f
+                    old_f = f
 
-                # sphinx counts lines from 0
-                ln = int(match.group(2)) - 1
-            else:
-                content.append(line, f, ln)
+                # Sphinx doesn't like to parse big messages. So, let's
+                # add content symbol by symbol
+                if content:
+                    self.do_parse(content, node)
+                    content = ViewList()
 
-        self.logger.info("%s: parsed %i lines" % (fname, n))
-
-        if content:
-            self.do_parse(content, node)
+            self.logger.info("%s: parsed %i lines" % (fname, n))
 
         return node.children
 
