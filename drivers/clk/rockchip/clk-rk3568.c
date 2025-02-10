@@ -1602,6 +1602,7 @@ static const char *const rk3568_cru_critical_clocks[] __initconst = {
 	"pclk_php",
 	"hclk_usb",
 	"pclk_usb",
+	"hclk_vi",
 	"hclk_vo",
 };
 
