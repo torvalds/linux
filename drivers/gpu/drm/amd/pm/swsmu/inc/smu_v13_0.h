@@ -308,5 +308,6 @@ int smu_v13_0_get_boot_freq_by_index(struct smu_context *smu,
 void smu_v13_0_interrupt_work(struct smu_context *smu);
 bool smu_v13_0_12_is_dpm_running(struct smu_context *smu);
 extern const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[];
+extern const struct cmn2asic_msg_mapping smu_v13_0_12_message_map[];
 #endif
 #endif
