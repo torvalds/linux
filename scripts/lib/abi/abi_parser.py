@@ -266,12 +266,20 @@ class AbiParser:
     def parse_readme(self, nametag, fname):
         """Parse ABI README file"""
 
+        nametag["what"] = ["ABI file contents"]
+        nametag["path"] = "README"
         with open(fname, "r", encoding="utf8", errors="backslashreplace") as fp:
-            nametag["description"] = "```\n"
             for line in fp:
-                nametag["description"] += "  " + line
+                match = self.re_tag.match(line)
+                if match:
+                    new = match.group(1).lower()
 
-            nametag["description"] += "```\n"
+                    match = self.re_valid.search(new)
+                    if match:
+                        nametag["description"] += "\n:" + line
+                        continue
+
+                nametag["description"] += line
 
     def parse_file(self, fname, path, basename):
         """Parse a single file"""
@@ -459,12 +467,8 @@ class AbiParser:
                     continue
 
             if filter_path:
-                if filter_path == "README":
-                    if not names[0].endswith("README"):
-                        continue
-                else:
-                    if v.get("path") != filter_path:
-                        continue
+                if v.get("path") != filter_path:
+                    continue
 
             msg = ""
 

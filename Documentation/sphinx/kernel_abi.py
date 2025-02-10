@@ -49,6 +49,13 @@ from abi_parser import AbiParser
 
 __version__ = "1.0"
 
+logger = logging.getLogger('kernel_abi')
+path = os.path.join(srctree, "Documentation/ABI")
+
+# Parse ABI symbols only once
+kernel_abi = AbiParser(path, logger=logger)
+kernel_abi.parse_abi()
+kernel_abi.check_issues()
 
 def setup(app):
 
@@ -64,14 +71,15 @@ class KernelCmd(Directive):
     u"""KernelABI (``kernel-abi``) directive"""
 
     required_arguments = 1
-    optional_arguments = 2
+    optional_arguments = 3
     has_content = False
     final_argument_whitespace = True
-    logger = logging.getLogger('kernel_abi')
     parser = None
 
     option_spec = {
         "debug": directives.flag,
+        "no-symbols": directives.flag,
+        "no-files":  directives.flag,
     }
 
     def run(self):
@@ -79,62 +87,67 @@ class KernelCmd(Directive):
         if not doc.settings.file_insertion_enabled:
             raise self.warning("docutils: file insertion disabled")
 
-        path = os.path.join(srctree, "Documentation", self.arguments[0])
-        self.parser = AbiParser(path, logger=self.logger)
-        self.parser.parse_abi()
-        self.parser.check_issues()
-
-        node = self.nested_parse(None, self.arguments[0])
-        return node
-
-    def nested_parse(self, data, fname):
         env = self.state.document.settings.env
         content = ViewList()
         node = nodes.section()
 
-        if data is not None:
-            # Handles the .rst file
-            for line in data.split("\n"):
-                content.append(line, fname, 0)
+        abi_type = self.arguments[0]
 
-            self.do_parse(content, node)
-
+        if "no-symbols" in self.options:
+            show_symbols = False
         else:
-            # Handles the ABI parser content, symbol by symbol
+            show_symbols = True
 
-            old_f = fname
-            n = 0
-            for msg, f, ln in self.parser.doc():
-                msg_list = statemachine.string2lines(msg, tab_width,
-                                                     convert_whitespace=True)
-                if "debug" in self.options:
-                    lines = [
-                        "", "",  ".. code-block:: rst",
-                        "    :linenos:", ""
-                    ]
-                    for m in msg_list:
-                        lines.append("    " + m)
-                else:
-                    lines = msg_list
+        if "no-files" in self.options:
+            show_file = False
+        else:
+            show_file = True
 
-                for line in lines:
-                    # sphinx counts lines from 0
-                    content.append(line, f, ln - 1)
-                    n += 1
+        tab_width = self.options.get('tab-width',
+                                     self.state.document.settings.tab_width)
 
-                if f != old_f:
-                    # Add the file to Sphinx build dependencies
-                    env.note_dependency(os.path.abspath(f))
+        old_f = None
+        n = 0
+        n_sym = 0
+        for msg, f, ln in kernel_abi.doc(show_file=show_file,
+                                            show_symbols=show_symbols,
+                                            filter_path=abi_type):
+            n_sym += 1
+            msg_list = statemachine.string2lines(msg, tab_width,
+                                                 convert_whitespace=True)
+            if "debug" in self.options:
+                lines = [
+                    "", "",  ".. code-block:: rst",
+                    "    :linenos:", ""
+                ]
+                for m in msg_list:
+                    lines.append("    " + m)
+            else:
+                lines = msg_list
 
-                    old_f = f
+            for line in lines:
+                # sphinx counts lines from 0
+                content.append(line, f, ln - 1)
+                n += 1
 
-                # Sphinx doesn't like to parse big messages. So, let's
-                # add content symbol by symbol
-                if content:
-                    self.do_parse(content, node)
-                    content = ViewList()
+            if f != old_f:
+                # Add the file to Sphinx build dependencies
+                env.note_dependency(os.path.abspath(f))
 
-            self.logger.info("%s: parsed %i lines" % (fname, n))
+                old_f = f
+
+            # Sphinx doesn't like to parse big messages. So, let's
+            # add content symbol by symbol
+            if content:
+                self.do_parse(content, node)
+                content = ViewList()
+
+        if show_symbols and not show_file:
+            logger.verbose("%s ABI: %i symbols (%i ReST lines)" % (abi_type, n_sym, n))
+        elif not show_symbols and show_file:
+            logger.verbose("%s ABI: %i files (%i ReST lines)" % (abi_type, n_sym, n))
+        else:
+            logger.verbose("%s ABI: %i data (%i ReST lines)" % (abi_type, n_sym, n))
 
         return node.children
 

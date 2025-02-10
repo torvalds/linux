@@ -3,4 +3,4 @@
 ABI removed symbols
 ===================
 
-.. kernel-abi:: ABI/removed
+.. kernel-abi:: removed
