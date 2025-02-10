@@ -89,7 +89,6 @@ struct idle_cpu {
 	 * Indicate which enable bits to clear here.
 	 */
 	unsigned long auto_demotion_disable_flags;
-	bool byt_auto_demotion_disable_flag;
 	bool disable_promotion_to_c1e;
 	bool use_acpi;
 };
@@ -1463,13 +1462,11 @@ static const struct idle_cpu idle_cpu_snx __initconst = {
 static const struct idle_cpu idle_cpu_byt __initconst = {
 	.state_table = byt_cstates,
 	.disable_promotion_to_c1e = true,
-	.byt_auto_demotion_disable_flag = true,
 };
 
 static const struct idle_cpu idle_cpu_cht __initconst = {
 	.state_table = cht_cstates,
 	.disable_promotion_to_c1e = true,
-	.byt_auto_demotion_disable_flag = true,
 };
 
 static const struct idle_cpu idle_cpu_ivb __initconst = {
@@ -2055,6 +2052,15 @@ static void __init spr_idle_state_table_update(void)
 	}
 }
 
+/**
+ * byt_cht_auto_demotion_disable - Disable Bay/Cherry Trail auto-demotion.
+ */
+static void __init byt_cht_auto_demotion_disable(void)
+{
+	wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
+	wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
+}
+
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 {
 	unsigned int mwait_cstate = (MWAIT_HINT2CSTATE(mwait_hint) + 1) &
@@ -2136,6 +2142,10 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 	case INTEL_ATOM_GRACEMONT:
 		adl_idle_state_table_update();
 		break;
+	case INTEL_ATOM_SILVERMONT:
+	case INTEL_ATOM_AIRMONT:
+		byt_cht_auto_demotion_disable();
+		break;
 	}
 
 	for (cstate = 0; cstate < CPUIDLE_STATE_MAX; ++cstate) {
@@ -2177,11 +2187,6 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 			state->flags |= CPUIDLE_FLAG_TIMER_STOP;
 
 		drv->state_count++;
-	}
-
-	if (icpu->byt_auto_demotion_disable_flag) {
-		wrmsrl(MSR_CC6_DEMOTION_POLICY_CONFIG, 0);
-		wrmsrl(MSR_MC6_DEMOTION_POLICY_CONFIG, 0);
 	}
 }
 
