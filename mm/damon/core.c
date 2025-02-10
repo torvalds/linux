@@ -1461,11 +1461,10 @@ static void damos_walk_call_walk(struct damon_ctx *ctx, struct damon_target *t,
 	if (s->walk_completed)
 		return;
 
-	mutex_lock(&ctx->walk_control_lock);
 	control = ctx->walk_control;
-	mutex_unlock(&ctx->walk_control_lock);
 	if (!control)
 		return;
+
 	control->walk_fn(control->data, ctx, t, r, s, sz_filter_passed);
 }
 
@@ -1485,9 +1484,7 @@ static void damos_walk_complete(struct damon_ctx *ctx, struct damos *s)
 	struct damos *siter;
 	struct damos_walk_control *control;
 
-	mutex_lock(&ctx->walk_control_lock);
 	control = ctx->walk_control;
-	mutex_unlock(&ctx->walk_control_lock);
 	if (!control)
 		return;
 
@@ -1501,9 +1498,7 @@ static void damos_walk_complete(struct damon_ctx *ctx, struct damos *s)
 		siter->walk_completed = false;
 
 	complete(&control->completion);
-	mutex_lock(&ctx->walk_control_lock);
 	ctx->walk_control = NULL;
-	mutex_unlock(&ctx->walk_control_lock);
 }
 
 /*
@@ -1850,6 +1845,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 	if (!has_schemes_to_apply)
 		return;
 
+	mutex_lock(&c->walk_control_lock);
 	damon_for_each_target(t, c) {
 		damon_for_each_region_safe(r, next_r, t)
 			damon_do_apply_schemes(c, t, r);
@@ -1864,6 +1860,7 @@ static void kdamond_apply_schemes(struct damon_ctx *c)
 			 c->attrs.aggr_interval) / sample_interval;
 		s->last_applied = NULL;
 	}
+	mutex_unlock(&c->walk_control_lock);
 }
 
 /*
