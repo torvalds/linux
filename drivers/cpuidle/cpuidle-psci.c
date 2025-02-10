@@ -25,6 +25,7 @@
 #include <linux/syscore_ops.h>
 
 #include <asm/cpuidle.h>
+#include <trace/events/power.h>
 
 #include "cpuidle-psci.h"
 #include "dt_idle_states.h"
@@ -74,7 +75,9 @@ static __cpuidle int __psci_enter_domain_idle_state(struct cpuidle_device *dev,
 	if (!state)
 		state = states[idx];
 
+	trace_psci_domain_idle_enter(dev->cpu, state, s2idle);
 	ret = psci_cpu_suspend_enter(state) ? -1 : idx;
+	trace_psci_domain_idle_exit(dev->cpu, state, s2idle);
 
 	if (s2idle)
 		dev_pm_genpd_resume(pd_dev);
