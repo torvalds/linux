@@ -1950,17 +1950,14 @@ static int is_inode_existent(struct send_ctx *sctx, u64 ino, u64 gen,
 
 	ret = get_cur_inode_state(sctx, ino, gen, send_gen, parent_gen);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (ret == inode_state_no_change ||
 	    ret == inode_state_did_create ||
 	    ret == inode_state_will_delete)
-		ret = 1;
-	else
-		ret = 0;
+		return 1;
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
