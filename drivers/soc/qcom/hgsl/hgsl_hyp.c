@@ -566,6 +566,15 @@ static int hgsl_rpc_create_channel(
 		LOGE("sub handshake failed %d", ret);
 		gsl_hab_close(socket);
 		hab_channel->socket = HAB_INVALID_HANDLE;
+	}
+
+out:
+	if (unlikely(ret)) {
+		LOGE("Failed to create channel %d exiting", ret);
+		if (hab_channel != NULL) {
+			hgsl_hyp_close_channel(hab_channel);
+			hab_channel = NULL;
+		}
 		if (first_handshake) {
 			/* The sub handshake may failed due to the overhead
 			 * of hab transition between GVM and PVM, we shall
@@ -574,15 +583,6 @@ static int hgsl_rpc_create_channel(
 			 */
 			priv->conn_id = 0;
 			ret = -EAGAIN;
-		}
-	}
-
-out:
-	if (ret) {
-		LOGE("Failed to create channel %d exiting", ret);
-		if (hab_channel != NULL) {
-			hgsl_hyp_close_channel(hab_channel);
-			hab_channel = NULL;
 		}
 	} else {
 		*channel = hab_channel;
