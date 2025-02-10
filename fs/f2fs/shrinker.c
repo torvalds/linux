@@ -73,7 +73,7 @@ unsigned long f2fs_shrink_count(struct shrinker *shrink,
 		mutex_unlock(&sbi->umount_mutex);
 	}
 	spin_unlock(&f2fs_list_lock);
-	return count;
+	return count ?: SHRINK_EMPTY;
 }
 
 unsigned long f2fs_shrink_scan(struct shrinker *shrink,
