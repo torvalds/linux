@@ -1170,9 +1170,11 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 	struct xdp_frame *xdpf;
 	struct bpf_prog *prog;
 	struct page *page;
+	int pkt_len;
 	u32 act;
 	int err;
 
+	pkt_len = *len;
 	prog = READ_ONCE(port->xdp_prog);
 	if (!prog)
 		return AM65_CPSW_XDP_PASS;
@@ -1190,8 +1192,10 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 		netif_txq = netdev_get_tx_queue(ndev, tx_chn->id);
 
 		xdpf = xdp_convert_buff_to_frame(xdp);
-		if (unlikely(!xdpf))
+		if (unlikely(!xdpf)) {
+			ndev->stats.tx_dropped++;
 			goto drop;
+		}
 
 		__netif_tx_lock(netif_txq, cpu);
 		err = am65_cpsw_xdp_tx_frame(ndev, tx_chn, xdpf,
@@ -1200,14 +1204,14 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 		if (err)
 			goto drop;
 
-		dev_sw_netstats_tx_add(ndev, 1, *len);
+		dev_sw_netstats_rx_add(ndev, pkt_len);
 		ret = AM65_CPSW_XDP_CONSUMED;
 		goto out;
 	case XDP_REDIRECT:
 		if (unlikely(xdp_do_redirect(ndev, xdp, prog)))
 			goto drop;
 
-		dev_sw_netstats_rx_add(ndev, *len);
+		dev_sw_netstats_rx_add(ndev, pkt_len);
 		ret = AM65_CPSW_XDP_REDIRECT;
 		goto out;
 	default:
