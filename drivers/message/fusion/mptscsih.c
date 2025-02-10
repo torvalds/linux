@@ -2856,14 +2856,14 @@ mptscsih_do_cmd(MPT_SCSI_HOST *hd, INTERNAL_CMD *io)
 		timeout = 10;
 		break;
 
-	case RESERVE:
+	case RESERVE_6:
 		cmdLen = 6;
 		dir = MPI_SCSIIO_CONTROL_READ;
 		CDB[0] = cmd;
 		timeout = 10;
 		break;
 
-	case RELEASE:
+	case RELEASE_6:
 		cmdLen = 6;
 		dir = MPI_SCSIIO_CONTROL_READ;
 		CDB[0] = cmd;
