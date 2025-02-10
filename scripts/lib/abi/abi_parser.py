@@ -391,6 +391,17 @@ class AbiParser:
 
         return desc + "\n\n"
 
+    def xref(self, fname):
+        """
+        Converts a Documentation/ABI + basename into a ReST cross-reference
+        """
+
+        xref = self.file_refs.get(fname)
+        if not xref:
+            return None
+        else:
+            return xref
+
     def desc_rst(self, desc):
         """Enrich ReST output by creating cross-references"""
 
