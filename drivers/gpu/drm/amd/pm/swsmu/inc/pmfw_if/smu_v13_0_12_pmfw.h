@@ -38,6 +38,13 @@
 #define NUM_SOC_P2S_TABLES    6
 #define NUM_GFX_P2S_TABLES    8
 #define NUM_PSM_DIDT_THRESHOLDS 3
+#define NUM_XVMIN_VMIN_THRESHOLDS 3
+
+#define PRODUCT_MODEL_NUMBER_LEN      20
+#define PRODUCT_NAME_LEN              64
+#define PRODUCT_SERIAL_LEN            20
+#define PRODUCT_MANUFACTURER_NAME_LEN 32
+#define PRODUCT_FRU_ID_LEN            32
 
 typedef enum {
 /*0*/   FEATURE_DATA_CALCULATION            = 0,
@@ -85,11 +92,11 @@ typedef enum {
 
 //enum for MPIO PCIe gen speed msgs
 typedef enum {
+  PCIE_LINK_SPEED_INDEX_TABLE_RESERVED,
   PCIE_LINK_SPEED_INDEX_TABLE_GEN1,
   PCIE_LINK_SPEED_INDEX_TABLE_GEN2,
   PCIE_LINK_SPEED_INDEX_TABLE_GEN3,
   PCIE_LINK_SPEED_INDEX_TABLE_GEN4,
-  PCIE_LINK_SPEED_INDEX_TABLE_GEN4_ESM,
   PCIE_LINK_SPEED_INDEX_TABLE_GEN5,
   PCIE_LINK_SPEED_INDEX_TABLE_COUNT
 } PCIE_LINK_SPEED_INDEX_TABLE_e;
@@ -126,13 +133,149 @@ typedef enum {
   GFX_DVM_MARGIN_COUNT
 } GFX_DVM_MARGIN_e;
 
-#define SMU_VF_METRICS_TABLE_VERSION 0x3
+#define SMU_METRICS_TABLE_VERSION 0x12
+
+typedef struct __attribute__((packed, aligned(4))) {
+  uint64_t AccumulationCounter;
+
+  //TEMPERATURE
+  uint32_t MaxSocketTemperature;
+  uint32_t MaxVrTemperature;
+  uint32_t MaxHbmTemperature;
+  uint64_t MaxSocketTemperatureAcc;
+  uint64_t MaxVrTemperatureAcc;
+  uint64_t MaxHbmTemperatureAcc;
+
+  //POWER
+  uint32_t SocketPowerLimit;
+  uint32_t SocketPower;
+
+  //ENERGY
+  uint64_t Timestamp;
+  uint64_t SocketEnergyAcc;
+  uint64_t XcdEnergyAcc;
+  uint64_t AidEnergyAcc;
+  uint64_t HbmEnergyAcc;
+
+  //FREQUENCY
+  uint32_t GfxclkFrequencyLimit;
+  uint32_t FclkFrequency;
+  uint32_t UclkFrequency;
+  uint32_t SocclkFrequency[4];
+  uint32_t VclkFrequency[4];
+  uint32_t DclkFrequency[4];
+  uint32_t LclkFrequency[4];
+  uint64_t GfxclkFrequencyAcc[8];
+
+  //FREQUENCY RANGE
+  uint32_t MaxLclkDpmRange;
+  uint32_t MinLclkDpmRange;
+
+  //XGMI
+  uint32_t XgmiWidth;
+  uint32_t XgmiBitrate;
+  uint64_t XgmiReadBandwidthAcc[8];
+  uint64_t XgmiWriteBandwidthAcc[8];
+
+  //ACTIVITY
+  uint32_t SocketGfxBusy;
+  uint32_t DramBandwidthUtilization;
+  uint64_t SocketGfxBusyAcc;
+  uint64_t DramBandwidthAcc;
+  uint32_t MaxDramBandwidth;
+  uint64_t DramBandwidthUtilizationAcc;
+  uint64_t PcieBandwidthAcc[4];
+
+  //THROTTLERS
+  uint32_t ProchotResidencyAcc;
+  uint32_t PptResidencyAcc;
+  uint32_t SocketThmResidencyAcc;
+  uint32_t VrThmResidencyAcc;
+  uint32_t HbmThmResidencyAcc;
+  uint32_t GfxLockXCDMak;
+
+  // New Items at end to maintain driver compatibility
+  uint32_t GfxclkFrequency[8];
+
+  //XGMI Data tranfser size
+  uint64_t XgmiReadDataSizeAcc[8];//in KByte
+  uint64_t XgmiWriteDataSizeAcc[8];//in KByte
+
+  //PCIE BW Data and error count
+  uint32_t PcieBandwidth[4];
+  uint32_t PCIeL0ToRecoveryCountAcc;      // The Pcie counter itself is accumulated
+  uint32_t PCIenReplayAAcc;               // The Pcie counter itself is accumulated
+  uint32_t PCIenReplayARolloverCountAcc;  // The Pcie counter itself is accumulated
+  uint32_t PCIeNAKSentCountAcc;           // The Pcie counter itself is accumulated
+  uint32_t PCIeNAKReceivedCountAcc;       // The Pcie counter itself is accumulated
+
+  // VCN/JPEG ACTIVITY
+  uint32_t VcnBusy[4];
+  uint32_t JpegBusy[40];
+
+  // PCIE LINK Speed and width
+  uint32_t PCIeLinkSpeed;
+  uint32_t PCIeLinkWidth;
+
+  // PER XCD ACTIVITY
+  uint32_t GfxBusy[8];
+  uint64_t GfxBusyAcc[8];
+
+  //PCIE BW Data and error count
+  uint32_t PCIeOtherEndRecoveryAcc;       // The Pcie counter itself is accumulated
+
+  //Total App Clock Counter
+  uint64_t GfxclkBelowHostLimitPptAcc[8];
+  uint64_t GfxclkBelowHostLimitThmAcc[8];
+  uint64_t GfxclkBelowHostLimitTotalAcc[8];
+  uint64_t GfxclkLowUtilizationAcc[8];
+} MetricsTable_t;
+
+#define SMU_VF_METRICS_TABLE_MASK (1 << 31)
+#define SMU_VF_METRICS_TABLE_VERSION (0x6 | SMU_VF_METRICS_TABLE_MASK)
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
   uint32_t InstGfxclk_TargFreq;
   uint64_t AccGfxclk_TargFreq;
   uint64_t AccGfxRsmuDpm_Busy;
+  uint64_t AccGfxclkBelowHostLimitPpt;
+  uint64_t AccGfxclkBelowHostLimitThm;
+  uint64_t AccGfxclkBelowHostLimitTotal;
+  uint64_t AccGfxclkLowUtilization;
 } VfMetricsTable_t;
+
+/* FRU product information */
+typedef struct __attribute__((packed, aligned(4))) {
+  uint8_t  ModelNumber[PRODUCT_MODEL_NUMBER_LEN];
+  uint8_t  Name[PRODUCT_NAME_LEN];
+  uint8_t  Serial[PRODUCT_SERIAL_LEN];
+  uint8_t  ManufacturerName[PRODUCT_MANUFACTURER_NAME_LEN];
+  uint8_t  FruId[PRODUCT_FRU_ID_LEN];
+} FRUProductInfo_t;
+
+#pragma pack(push, 4)
+typedef struct {
+  //FRU PRODUCT INFO
+  FRUProductInfo_t  ProductInfo;
+
+  //POWER
+  uint32_t MaxSocketPowerLimit;
+
+  //FREQUENCY RANGE
+  uint32_t MaxGfxclkFrequency;
+  uint32_t MinGfxclkFrequency;
+  uint32_t FclkFrequencyTable[4];
+  uint32_t UclkFrequencyTable[4];
+  uint32_t SocclkFrequencyTable[4];
+  uint32_t VclkFrequencyTable[4];
+  uint32_t DclkFrequencyTable[4];
+  uint32_t LclkFrequencyTable[4];
+
+  //PSNs
+  uint64_t PublicSerialNumber_AID[4];
+  uint64_t PublicSerialNumber_XCD[8];
+} StaticMetricsTable_t;
+#pragma pack(pop)
 
 #endif
