@@ -1075,6 +1075,184 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	return 0;
 }
 
+/*
+ * Check if we can skip waiting the @ordered extent covering the block at @fileoff.
+ *
+ * @fileoff:	Both input and output.
+ *		Input as the file offset where the check should start at.
+ *		Output as where the next check should start at,
+ *		if the function returns true.
+ *
+ * Return true if we can skip to @fileoff. The caller needs to check the new
+ * @fileoff value to make sure it covers the full range, before skipping the
+ * full OE.
+ *
+ * Return false if we must wait for the ordered extent.
+ */
+static bool can_skip_one_ordered_range(struct btrfs_inode *inode,
+				       struct btrfs_ordered_extent *ordered,
+				       u64 *fileoff)
+{
+	const struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct folio *folio;
+	const u32 blocksize = fs_info->sectorsize;
+	u64 cur = *fileoff;
+	bool ret;
+
+	folio = filemap_get_folio(inode->vfs_inode.i_mapping, cur >> PAGE_SHIFT);
+
+	/*
+	 * We should have locked the folio(s) for range [start, end], thus
+	 * there must be a folio and it must be locked.
+	 */
+	ASSERT(!IS_ERR(folio));
+	ASSERT(folio_test_locked(folio));
+
+	/*
+	 * There are several cases for the folio and OE combination:
+	 *
+	 * 1) Folio has no private flag
+	 *    The OE has all its IO done but not yet finished, and folio got
+	 *    invalidated.
+	 *
+	 * Have we have to wait for the OE to finish, as it may contain the
+	 * to-be-inserted data checksum.
+	 * Without the data checksum inserted into the csum tree, read will
+	 * just fail with missing csum.
+	 */
+	if (!folio_test_private(folio)) {
+		ret = false;
+		goto out;
+	}
+
+	/*
+	 * 2) The first block is DIRTY.
+	 *
+	 * This means the OE is created by some other folios whose file pos is
+	 * before this one. And since we are holding the folio lock, the writeback
+	 * of this folio cannot start.
+	 *
+	 * We must skip the whole OE, because it will never start until we
+	 * finished our folio read and unlocked the folio.
+	 */
+	if (btrfs_folio_test_dirty(fs_info, folio, cur, blocksize)) {
+		u64 range_len = min(folio_pos(folio) + folio_size(folio),
+				    ordered->file_offset + ordered->num_bytes) - cur;
+
+		ret = true;
+		/*
+		 * At least inside the folio, all the remaining blocks should
+		 * also be dirty.
+		 */
+		ASSERT(btrfs_folio_test_dirty(fs_info, folio, cur, range_len));
+		*fileoff = ordered->file_offset + ordered->num_bytes;
+		goto out;
+	}
+
+	/*
+	 * 3) The first block is uptodate.
+	 *
+	 * At least the first block can be skipped, but we are still not fully
+	 * sure. E.g. if the OE has some other folios in the range that cannot
+	 * be skipped.
+	 * So we return true and update @next_ret to the OE/folio boundary.
+	 */
+	if (btrfs_folio_test_uptodate(fs_info, folio, cur, blocksize)) {
+		u64 range_len = min(folio_pos(folio) + folio_size(folio),
+				    ordered->file_offset + ordered->num_bytes) - cur;
+
+		/*
+		 * The whole range to the OE end or folio boundary should also
+		 * be uptodate.
+		 */
+		ASSERT(btrfs_folio_test_uptodate(fs_info, folio, cur, range_len));
+		ret = true;
+		*fileoff = cur + range_len;
+		goto out;
+	}
+
+	/*
+	 * 4) The first block is not uptodate.
+	 *
+	 * This means the folio is invalidated after the writeback was finished,
+	 * but by some other operations (e.g. block aligned buffered write) the
+	 * folio is inserted into filemap.
+	 * Very much the same as case 1).
+	 */
+	ret = false;
+out:
+	folio_put(folio);
+	return ret;
+}
+
+static bool can_skip_ordered_extent(struct btrfs_inode *inode,
+				    struct btrfs_ordered_extent *ordered,
+				    u64 start, u64 end)
+{
+	const u64 range_end = min(end, ordered->file_offset + ordered->num_bytes - 1);
+	u64 cur = max(start, ordered->file_offset);
+
+	while (cur < range_end) {
+		bool can_skip;
+
+		can_skip = can_skip_one_ordered_range(inode, ordered, &cur);
+		if (!can_skip)
+			return false;
+	}
+	return true;
+}
+
+/*
+ * Locking helper to make sure we get a stable view of extent maps for the
+ * involved range.
+ *
+ * This is for folio read paths (read and readahead), thus the involved range
+ * should have all the folios locked.
+ */
+static void lock_extents_for_read(struct btrfs_inode *inode, u64 start, u64 end,
+				  struct extent_state **cached_state)
+{
+	u64 cur_pos;
+
+	/* Caller must provide a valid @cached_state. */
+	ASSERT(cached_state);
+
+	/* The range must at least be page aligned, as all read paths are folio based. */
+	ASSERT(IS_ALIGNED(start, PAGE_SIZE));
+	ASSERT(IS_ALIGNED(end + 1, PAGE_SIZE));
+
+again:
+	lock_extent(&inode->io_tree, start, end, cached_state);
+	cur_pos = start;
+	while (cur_pos < end) {
+		struct btrfs_ordered_extent *ordered;
+
+		ordered = btrfs_lookup_ordered_range(inode, cur_pos,
+						     end - cur_pos + 1);
+		/*
+		 * No ordered extents in the range, and we hold the extent lock,
+		 * no one can modify the extent maps in the range, we're safe to return.
+		 */
+		if (!ordered)
+			break;
+
+		/* Check if we can skip waiting for the whole OE. */
+		if (can_skip_ordered_extent(inode, ordered, start, end)) {
+			cur_pos = min(ordered->file_offset + ordered->num_bytes,
+				      end + 1);
+			btrfs_put_ordered_extent(ordered);
+			continue;
+		}
+
+		/* Now wait for the OE to finish. */
+		unlock_extent(&inode->io_tree, start, end, cached_state);
+		btrfs_start_ordered_extent_nowriteback(ordered, start, end + 1 - start);
+		btrfs_put_ordered_extent(ordered);
+		/* We have unlocked the whole range, restart from the beginning. */
+		goto again;
+	}
+}
+
 int btrfs_read_folio(struct file *file, struct folio *folio)
 {
 	struct btrfs_inode *inode = folio_to_inode(folio);
@@ -1085,7 +1263,7 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 	struct extent_map *em_cached = NULL;
 	int ret;
 
-	btrfs_lock_and_flush_ordered_range(inode, start, end, &cached_state);
+	lock_extents_for_read(inode, start, end, &cached_state);
 	ret = btrfs_do_readpage(folio, &em_cached, &bio_ctrl, NULL);
 	unlock_extent(&inode->io_tree, start, end, &cached_state);
 
@@ -2370,7 +2548,7 @@ void btrfs_readahead(struct readahead_control *rac)
 	struct extent_map *em_cached = NULL;
 	u64 prev_em_start = (u64)-1;
 
-	btrfs_lock_and_flush_ordered_range(inode, start, end, &cached_state);
+	lock_extents_for_read(inode, start, end, &cached_state);
 
 	while ((folio = readahead_folio(rac)) != NULL)
 		btrfs_do_readpage(folio, &em_cached, &bio_ctrl, &prev_em_start);
