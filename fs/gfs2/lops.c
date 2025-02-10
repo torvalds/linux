@@ -512,9 +512,9 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 	unsigned int shift = PAGE_SHIFT - bsize_shift;
 	unsigned int max_blocks = 2 * 1024 * 1024 >> bsize_shift;
 	struct gfs2_journal_extent *je;
-	int sz, ret = 0;
+	int ret = 0;
 	struct bio *bio = NULL;
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 	bool done = false;
 	errseq_t since;
 
@@ -527,9 +527,10 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 		u64 dblock = je->dblock;
 
 		for (; block < je->lblock + je->blocks; block++, dblock++) {
-			if (!page) {
-				page = grab_cache_page(mapping, block >> shift);
-				if (!page) {
+			if (!folio) {
+				folio = filemap_grab_folio(mapping,
+						block >> shift);
+				if (!folio) {
 					ret = -ENOMEM;
 					done = true;
 					goto out;
@@ -541,8 +542,7 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 				sector_t sector = dblock << sdp->sd_fsb2bb_shift;
 
 				if (bio_end_sector(bio) == sector) {
-					sz = bio_add_page(bio, page, bsize, off);
-					if (sz == bsize)
+					if (bio_add_folio(bio, folio, bsize, off))
 						goto block_added;
 				}
 				if (off) {
@@ -562,12 +562,12 @@ int gfs2_find_jhead(struct gfs2_jdesc *jd, struct gfs2_log_header_host *head,
 			bio = gfs2_log_alloc_bio(sdp, dblock, gfs2_end_log_read);
 			bio->bi_opf = REQ_OP_READ;
 add_block_to_new_bio:
-			sz = bio_add_page(bio, page, bsize, off);
-			BUG_ON(sz != bsize);
+			if (!bio_add_folio(bio, folio, bsize, off))
+				BUG();
 block_added:
 			off += bsize;
-			if (off == PAGE_SIZE)
-				page = NULL;
+			if (off == folio_size(folio))
+				folio = NULL;
 			if (blocks_submitted <= blocks_read + max_blocks) {
 				/* Keep at least one bio in flight */
 				continue;
