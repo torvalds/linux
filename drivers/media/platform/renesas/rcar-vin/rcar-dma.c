@@ -642,8 +642,6 @@ void rvin_scaler_gen3(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_SEQ_TB:
-	case V4L2_FIELD_SEQ_BT:
 		clip_size |= vin->compose.height / 2;
 		break;
 	default:
@@ -711,8 +709,6 @@ static int rvin_setup(struct rvin_dev *vin)
 	case V4L2_FIELD_INTERLACED_BT:
 		vnmc = VNMC_IM_FULL | VNMC_FOC;
 		break;
-	case V4L2_FIELD_SEQ_TB:
-	case V4L2_FIELD_SEQ_BT:
 	case V4L2_FIELD_NONE:
 	case V4L2_FIELD_ALTERNATE:
 		vnmc = VNMC_IM_ODD_EVEN;
@@ -1005,33 +1001,14 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 	struct rvin_buffer *buf;
 	struct vb2_v4l2_buffer *vbuf;
 	dma_addr_t phys_addr;
-	int prev;
 
 	/* A already populated slot shall never be overwritten. */
 	if (WARN_ON(vin->buf_hw[slot].buffer))
 		return;
 
-	prev = (slot == 0 ? HW_BUFFER_NUM : slot) - 1;
-
-	if (vin->buf_hw[prev].type == HALF_TOP) {
-		vbuf = vin->buf_hw[prev].buffer;
-		vin->buf_hw[slot].buffer = vbuf;
-		vin->buf_hw[slot].type = HALF_BOTTOM;
-		switch (vin->format.pixelformat) {
-		case V4L2_PIX_FMT_NV12:
-		case V4L2_PIX_FMT_NV16:
-			phys_addr = vin->buf_hw[prev].phys +
-				vin->format.sizeimage / 4;
-			break;
-		default:
-			phys_addr = vin->buf_hw[prev].phys +
-				vin->format.sizeimage / 2;
-			break;
-		}
-	} else if ((vin->state != STOPPED && vin->state != RUNNING) ||
-		   list_empty(&vin->buf_list)) {
+	if ((vin->state != STOPPED && vin->state != RUNNING) ||
+	    list_empty(&vin->buf_list)) {
 		vin->buf_hw[slot].buffer = NULL;
-		vin->buf_hw[slot].type = FULL;
 		phys_addr = vin->scratch_phys;
 	} else {
 		/* Keep track of buffer we give to HW */
@@ -1040,16 +1017,12 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 		list_del_init(to_buf_list(vbuf));
 		vin->buf_hw[slot].buffer = vbuf;
 
-		vin->buf_hw[slot].type =
-			V4L2_FIELD_IS_SEQUENTIAL(vin->format.field) ?
-			HALF_TOP : FULL;
-
 		/* Setup DMA */
 		phys_addr = vb2_dma_contig_plane_dma_addr(&vbuf->vb2_buf, 0);
 	}
 
-	vin_dbg(vin, "Filling HW slot: %d type: %d buffer: %p\n",
-		slot, vin->buf_hw[slot].type, vin->buf_hw[slot].buffer);
+	vin_dbg(vin, "Filling HW slot: %d buffer: %p\n",
+		slot, vin->buf_hw[slot].buffer);
 
 	vin->buf_hw[slot].phys = phys_addr;
 	rvin_set_slot_addr(vin, slot, phys_addr);
@@ -1057,15 +1030,12 @@ static void rvin_fill_hw_slot(struct rvin_dev *vin, int slot)
 
 static int rvin_capture_start(struct rvin_dev *vin)
 {
-	int slot, ret;
+	int ret;
 
-	for (slot = 0; slot < HW_BUFFER_NUM; slot++) {
+	for (unsigned int slot = 0; slot < HW_BUFFER_NUM; slot++) {
 		vin->buf_hw[slot].buffer = NULL;
-		vin->buf_hw[slot].type = FULL;
-	}
-
-	for (slot = 0; slot < HW_BUFFER_NUM; slot++)
 		rvin_fill_hw_slot(vin, slot);
+	}
 
 	ret = rvin_setup(vin);
 	if (ret)
@@ -1146,16 +1116,6 @@ static irqreturn_t rvin_irq(int irq, void *data)
 
 	/* Capture frame */
 	if (vin->buf_hw[slot].buffer) {
-		/*
-		 * Nothing to do but refill the hardware slot if
-		 * capture only filled first half of vb2 buffer.
-		 */
-		if (vin->buf_hw[slot].type == HALF_TOP) {
-			vin->buf_hw[slot].buffer = NULL;
-			rvin_fill_hw_slot(vin, slot);
-			goto done;
-		}
-
 		vin->buf_hw[slot].buffer->field =
 			rvin_get_active_field(vin, vnms);
 		vin->buf_hw[slot].buffer->sequence = vin->sequence;
@@ -1306,8 +1266,6 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 	case V4L2_FIELD_INTERLACED:
-	case V4L2_FIELD_SEQ_TB:
-	case V4L2_FIELD_SEQ_BT:
 		/* Supported natively */
 		break;
 	case V4L2_FIELD_ALTERNATE:
@@ -1320,8 +1278,6 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 		case V4L2_FIELD_INTERLACED_TB:
 		case V4L2_FIELD_INTERLACED_BT:
 		case V4L2_FIELD_INTERLACED:
-		case V4L2_FIELD_SEQ_TB:
-		case V4L2_FIELD_SEQ_BT:
 			/* Use VIN hardware to combine the two fields */
 			fmt.format.height *= 2;
 			break;
