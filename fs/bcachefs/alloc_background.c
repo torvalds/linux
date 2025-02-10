@@ -889,26 +889,20 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		    !new_a->io_time[READ])
 			new_a->io_time[READ] = bch2_current_io_time(c, READ);
 
-		u64 old_lru = alloc_lru_idx_read(*old_a);
-		u64 new_lru = alloc_lru_idx_read(*new_a);
-		if (old_lru != new_lru) {
-			ret = bch2_lru_change(trans, new.k->p.inode,
-					      bucket_to_u64(new.k->p),
-					      old_lru, new_lru);
-			if (ret)
-				goto err;
-		}
+		ret = bch2_lru_change(trans, new.k->p.inode,
+				      bucket_to_u64(new.k->p),
+				      alloc_lru_idx_read(*old_a),
+				      alloc_lru_idx_read(*new_a));
+		if (ret)
+			goto err;
 
-		old_lru = alloc_lru_idx_fragmentation(*old_a, ca);
-		new_lru = alloc_lru_idx_fragmentation(*new_a, ca);
-		if (old_lru != new_lru) {
-			ret = bch2_lru_change(trans,
-					BCH_LRU_FRAGMENTATION_START,
-					bucket_to_u64(new.k->p),
-					old_lru, new_lru);
-			if (ret)
-				goto err;
-		}
+		ret = bch2_lru_change(trans,
+				      BCH_LRU_FRAGMENTATION_START,
+				      bucket_to_u64(new.k->p),
+				      alloc_lru_idx_fragmentation(*old_a, ca),
+				      alloc_lru_idx_fragmentation(*new_a, ca));
+		if (ret)
+			goto err;
 
 		if (old_a->gen != new_a->gen) {
 			ret = bch2_bucket_gen_update(trans, new.k->p, new_a->gen);

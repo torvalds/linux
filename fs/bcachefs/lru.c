@@ -59,9 +59,9 @@ int bch2_lru_set(struct btree_trans *trans, u16 lru_id, u64 dev_bucket, u64 time
 	return __bch2_lru_set(trans, lru_id, dev_bucket, time, KEY_TYPE_set);
 }
 
-int bch2_lru_change(struct btree_trans *trans,
-		    u16 lru_id, u64 dev_bucket,
-		    u64 old_time, u64 new_time)
+int __bch2_lru_change(struct btree_trans *trans,
+		      u16 lru_id, u64 dev_bucket,
+		      u64 old_time, u64 new_time)
 {
 	if (old_time == new_time)
 		return 0;

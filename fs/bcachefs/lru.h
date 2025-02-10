@@ -46,7 +46,16 @@ void bch2_lru_pos_to_text(struct printbuf *, struct bpos);
 
 int bch2_lru_del(struct btree_trans *, u16, u64, u64);
 int bch2_lru_set(struct btree_trans *, u16, u64, u64);
-int bch2_lru_change(struct btree_trans *, u16, u64, u64, u64);
+int __bch2_lru_change(struct btree_trans *, u16, u64, u64, u64);
+
+static inline int bch2_lru_change(struct btree_trans *trans,
+		      u16 lru_id, u64 dev_bucket,
+		      u64 old_time, u64 new_time)
+{
+	return old_time != new_time
+		? __bch2_lru_change(trans, lru_id, dev_bucket, old_time, new_time)
+		: 0;
+}
 
 struct bkey_buf;
 int bch2_lru_check_set(struct btree_trans *, u16, u64, struct bkey_s_c, struct bkey_buf *);
