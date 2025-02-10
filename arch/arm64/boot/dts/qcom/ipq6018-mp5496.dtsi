@@ -7,26 +7,26 @@
 #include "ipq6018.dtsi"
 
 &cpu0 {
-	cpu-supply = <&ipq6018_s2>;
+	cpu-supply = <&mp5496_s2>;
 };
 
 &cpu1 {
-	cpu-supply = <&ipq6018_s2>;
+	cpu-supply = <&mp5496_s2>;
 };
 
 &cpu2 {
-	cpu-supply = <&ipq6018_s2>;
+	cpu-supply = <&mp5496_s2>;
 };
 
 &cpu3 {
-	cpu-supply = <&ipq6018_s2>;
+	cpu-supply = <&mp5496_s2>;
 };
 
 &rpm_requests {
 	regulators {
 		compatible = "qcom,rpm-mp5496-regulators";
 
-		ipq6018_s2: s2 {
+		mp5496_s2: s2 {
 			regulator-min-microvolt = <725000>;
 			regulator-max-microvolt = <1062500>;
 			regulator-always-on;
