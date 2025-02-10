@@ -65,12 +65,6 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 	fpsimd_save_and_flush_cpu_state();
 	*host_data_ptr(fp_owner) = FP_STATE_FREE;
 
-	if (system_supports_sme()) {
-		host_data_clear_flag(HOST_SME_ENABLED);
-		if (read_sysreg(cpacr_el1) & CPACR_EL1_SMEN_EL0EN)
-			host_data_set_flag(HOST_SME_ENABLED);
-	}
-
 	/*
 	 * If normal guests gain SME support, maintain this behavior for pKVM
 	 * guests, which don't support SME.
@@ -140,21 +134,6 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-
-	/*
-	 * If we have VHE then the Hyp code will reset CPACR_EL1 to
-	 * the default value and we need to reenable SME.
-	 */
-	if (has_vhe() && system_supports_sme()) {
-		/* Also restore EL0 state seen on entry */
-		if (host_data_test_flag(HOST_SME_ENABLED))
-			sysreg_clear_set(CPACR_EL1, 0, CPACR_EL1_SMEN);
-		else
-			sysreg_clear_set(CPACR_EL1,
-					 CPACR_EL1_SMEN_EL0EN,
-					 CPACR_EL1_SMEN_EL1EN);
-		isb();
-	}
 
 	if (guest_owns_fp_regs()) {
 		if (vcpu_has_sve(vcpu)) {
