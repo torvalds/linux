@@ -3501,7 +3501,7 @@ static int efx_ef10_mtd_probe_partition(struct efx_nic *efx,
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_NVRAM_METADATA_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_NVRAM_METADATA_OUT_LENMAX);
 	const struct efx_ef10_nvram_type_info *info;
-	size_t size, erase_size, outlen;
+	size_t size, erase_size, write_size, outlen;
 	int type_idx = 0;
 	bool protected;
 	int rc;
@@ -3516,7 +3516,8 @@ static int efx_ef10_mtd_probe_partition(struct efx_nic *efx,
 	if (info->port != efx_port_num(efx))
 		return -ENODEV;
 
-	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_size, &protected);
+	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_size, &write_size,
+				 &protected);
 	if (rc)
 		return rc;
 	if (protected &&
@@ -3560,6 +3561,8 @@ static int efx_ef10_mtd_probe_partition(struct efx_nic *efx,
 	/* sfc_status is read-only */
 	if (!erase_size)
 		part->common.mtd.flags |= MTD_NO_ERASE;
+
+	part->common.mtd.writesize = write_size;
 
 	return 0;
 }
