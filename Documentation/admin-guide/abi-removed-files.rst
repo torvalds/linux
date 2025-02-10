@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-ABI removed symbols
-===================
+Removed ABI Files
+=================
 
 .. kernel-abi:: removed
-   :no-files:
+   :no-symbols:

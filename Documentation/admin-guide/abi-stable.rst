@@ -13,3 +13,4 @@ Most interfaces (like syscalls) are expected to never change and always
 be available.
 
 .. kernel-abi:: stable
+   :no-files:
