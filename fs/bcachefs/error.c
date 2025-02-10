@@ -580,3 +580,9 @@ int bch2_inum_snap_offset_err_msg_trans(struct btree_trans *trans, struct printb
 	prt_printf(out, " offset %llu: ", pos.offset << 8);
 	return 0;
 }
+
+void bch2_inum_snap_offset_err_msg(struct bch_fs *c, struct printbuf *out,
+				  struct bpos pos)
+{
+	bch2_trans_do(c, bch2_inum_snap_offset_err_msg_trans(trans, out, pos));
+}

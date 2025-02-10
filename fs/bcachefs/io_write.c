@@ -396,29 +396,61 @@ static int bch2_write_index_default(struct bch_write_op *op)
 
 /* Writes */
 
-static void __bch2_write_op_error(struct printbuf *out, struct bch_write_op *op,
-				  u64 offset)
+void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf *out,
+			       struct bch_write_op *op, u64 offset, const char *fmt, ...)
 {
-	bch2_inum_offset_err_msg(op->c, out,
-				 (subvol_inum) { op->subvol, op->pos.inode, },
-				 offset << 9);
-	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_move ? "(internal move)" : "");
+	if (op->subvol)
+		lockrestart_do(trans,
+			bch2_inum_offset_err_msg_trans(trans, out,
+						       (subvol_inum) { op->subvol, op->pos.inode, },
+						       offset << 9));
+	else {
+		struct bpos pos = op->pos;
+		pos.offset = offset;
+		lockrestart_do(trans, bch2_inum_snap_offset_err_msg_trans(trans, out, pos));
+	}
+
+	prt_str(out, "write error: ");
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(out, fmt, args);
+	va_end(args);
+
+	if (op->flags & BCH_WRITE_move) {
+		struct data_update *u = container_of(op, struct data_update, op);
+
+		prt_printf(out, "\n  from internal move ");
+		bch2_bkey_val_to_text(out, op->c, bkey_i_to_s_c(u->k.k));
+	}
 }
 
-void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op)
+void bch2_write_op_error(struct printbuf *out, struct bch_write_op *op, u64 offset,
+			 const char *fmt, ...)
 {
-	__bch2_write_op_error(out, op, op->pos.offset);
-}
+	if (op->subvol)
+		bch2_inum_offset_err_msg(op->c, out,
+					 (subvol_inum) { op->subvol, op->pos.inode, },
+					 offset << 9);
+	else {
+		struct bpos pos = op->pos;
+		pos.offset = offset;
+		bch2_inum_snap_offset_err_msg(op->c, out, pos);
+	}
 
-static void bch2_write_op_error_trans(struct btree_trans *trans, struct printbuf *out,
-				      struct bch_write_op *op, u64 offset)
-{
-	bch2_inum_offset_err_msg_trans(trans, out,
-				       (subvol_inum) { op->subvol, op->pos.inode, },
-				       offset << 9);
-	prt_printf(out, "write error%s: ",
-		   op->flags & BCH_WRITE_move ? "(internal move)" : "");
+	prt_str(out, "write error: ");
+
+	va_list args;
+	va_start(args, fmt);
+	prt_vprintf(out, fmt, args);
+	va_end(args);
+
+	if (op->flags & BCH_WRITE_move) {
+		struct data_update *u = container_of(op, struct data_update, op);
+
+		prt_printf(out, "\n  from internal move ");
+		bch2_bkey_val_to_text(out, op->c, bkey_i_to_s_c(u->k.k));
+	}
 }
 
 void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
@@ -561,8 +593,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
 			struct printbuf buf = PRINTBUF;
-			__bch2_write_op_error(&buf, op, bkey_start_offset(&insert->k));
-			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
+			bch2_write_op_error(&buf, op, bkey_start_offset(&insert->k),
+					    "btree update error: %s", bch2_err_str(ret));
 			bch_err_ratelimited(c, "%s", buf.buf);
 			printbuf_exit(&buf);
 		}
@@ -1114,8 +1146,8 @@ do_write:
 csum_err:
 	{
 		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "error verifying existing checksum while rewriting existing data (memory corruption?)");
+		bch2_write_op_error(&buf, op, op->pos.offset,
+				    "error verifying existing checksum while rewriting existing data (memory corruption?)");
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 	}
@@ -1211,8 +1243,8 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 			struct bkey_i *insert = bch2_keylist_front(&op->insert_keys);
 
 			struct printbuf buf = PRINTBUF;
-			bch2_write_op_error_trans(trans, &buf, op, bkey_start_offset(&insert->k));
-			prt_printf(&buf, "btree update error: %s", bch2_err_str(ret));
+			bch2_write_op_error_trans(trans, &buf, op, bkey_start_offset(&insert->k),
+						  "btree update error: %s", bch2_err_str(ret));
 			bch_err_ratelimited(c, "%s", buf.buf);
 			printbuf_exit(&buf);
 		}
@@ -1379,8 +1411,8 @@ err:
 
 	if (ret) {
 		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "%s(): btree lookup error: %s", __func__, bch2_err_str(ret));
+		bch2_write_op_error(&buf, op, op->pos.offset,
+				    "%s(): btree lookup error: %s", __func__, bch2_err_str(ret));
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		op->error = ret;
@@ -1502,8 +1534,8 @@ err:
 			if (unlikely(ret < 0)) {
 				if (!(op->flags & BCH_WRITE_alloc_nowait)) {
 					struct printbuf buf = PRINTBUF;
-					bch2_write_op_error(&buf, op);
-					prt_printf(&buf, "%s(): %s", __func__, bch2_err_str(ret));
+					bch2_write_op_error(&buf, op, op->pos.offset,
+							    "%s(): %s", __func__, bch2_err_str(ret));
 					bch_err_ratelimited(c, "%s", buf.buf);
 					printbuf_exit(&buf);
 				}
@@ -1634,8 +1666,8 @@ CLOSURE_CALLBACK(bch2_write)
 
 	if (unlikely(bio->bi_iter.bi_size & (c->opts.block_size - 1))) {
 		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "misaligned write");
+		bch2_write_op_error(&buf, op, op->pos.offset,
+				    "misaligned write");
 		printbuf_exit(&buf);
 		op->error = -EIO;
 		goto err;

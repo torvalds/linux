@@ -271,8 +271,8 @@ int bch2_bio_uncompress_inplace(struct bch_write_op *op,
 	if (crc->uncompressed_size << 9	> c->opts.encoded_extent_max ||
 	    crc->compressed_size << 9	> c->opts.encoded_extent_max) {
 		struct printbuf buf = PRINTBUF;
-		bch2_write_op_error(&buf, op);
-		prt_printf(&buf, "error rewriting existing data: extent too big");
+		bch2_write_op_error(&buf, op, op->pos.offset,
+				    "extent too big to decompress");
 		bch_err_ratelimited(c, "%s", buf.buf);
 		printbuf_exit(&buf);
 		return -EIO;
@@ -283,8 +283,8 @@ int bch2_bio_uncompress_inplace(struct bch_write_op *op,
 	if (__bio_uncompress(c, bio, data.b, *crc)) {
 		if (!c->opts.no_data_io) {
 			struct printbuf buf = PRINTBUF;
-			bch2_write_op_error(&buf, op);
-			prt_printf(&buf, "error rewriting existing data: decompression error");
+			bch2_write_op_error(&buf, op, op->pos.offset,
+					    "decompression error");
 			bch_err_ratelimited(c, "%s", buf.buf);
 			printbuf_exit(&buf);
 		}
