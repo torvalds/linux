@@ -11,7 +11,7 @@ from sphinx.errors import NoUri
 import re
 from itertools import chain
 
-from kernel_abi import kernel_abi
+from kernel_abi import get_kernel_abi
 
 #
 # Python 2 lacks re.ASCII...
@@ -287,6 +287,8 @@ def markup_abi_ref(docname, app, match):
     #
     # Go through the dance of getting an xref out of the std domain
     #
+    kernel_abi = get_kernel_abi()
+
     fname = match.group(1)
     target = kernel_abi.xref(fname)
 

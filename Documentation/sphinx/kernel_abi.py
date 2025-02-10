@@ -52,10 +52,23 @@ __version__ = "1.0"
 logger = logging.getLogger('kernel_abi')
 path = os.path.join(srctree, "Documentation/ABI")
 
-# Parse ABI symbols only once
-kernel_abi = AbiParser(path, logger=logger)
-kernel_abi.parse_abi()
-kernel_abi.check_issues()
+_kernel_abi = None
+
+def get_kernel_abi():
+    u"""
+    Initialize kernel_abi global var, if not initialized yet.
+
+    This is needed to avoid warnings during Sphinx module initialization.
+    """
+    global _kernel_abi
+
+    if not _kernel_abi:
+        # Parse ABI symbols only once
+        _kernel_abi = AbiParser(path, logger=logger)
+        _kernel_abi.parse_abi()
+        _kernel_abi.check_issues()
+
+    return _kernel_abi
 
 def setup(app):
 
@@ -83,6 +96,8 @@ class KernelCmd(Directive):
     }
 
     def run(self):
+        kernel_abi = get_kernel_abi()
+
         doc = self.state.document
         if not doc.settings.file_insertion_enabled:
             raise self.warning("docutils: file insertion disabled")
