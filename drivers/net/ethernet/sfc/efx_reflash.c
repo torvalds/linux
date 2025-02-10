@@ -255,13 +255,151 @@ static int efx_reflash_parse_firmware_data(const struct firmware *fw,
 	return -EINVAL;
 }
 
+/* Limit the number of status updates during the erase or write phases */
+#define EFX_DEVLINK_STATUS_UPDATE_COUNT		50
+
+/* Expected timeout for the efx_mcdi_nvram_update_finish_polled() */
+#define EFX_DEVLINK_UPDATE_FINISH_TIMEOUT	900
+
+/* Ideal erase chunk size.  This is a balance between minimising the number of
+ * MCDI requests to erase an entire partition whilst avoiding tripping the MCDI
+ * RPC timeout.
+ */
+#define EFX_NVRAM_ERASE_IDEAL_CHUNK_SIZE	(64 * 1024)
+
+static int efx_reflash_erase_partition(struct efx_nic *efx,
+				       struct netlink_ext_ack *extack,
+				       struct devlink *devlink, u32 type,
+				       size_t partition_size,
+				       size_t align)
+{
+	size_t chunk, offset, next_update;
+	int rc;
+
+	/* Partitions that cannot be erased or do not require erase before
+	 * write are advertised with a erase alignment/sector size of zero.
+	 */
+	if (align == 0)
+		/* Nothing to do */
+		return 0;
+
+	if (partition_size % align)
+		return -EINVAL;
+
+	/* Erase the entire NVRAM partition a chunk at a time to avoid
+	 * potentially tripping the MCDI RPC timeout.
+	 */
+	if (align >= EFX_NVRAM_ERASE_IDEAL_CHUNK_SIZE)
+		chunk = align;
+	else
+		chunk = rounddown(EFX_NVRAM_ERASE_IDEAL_CHUNK_SIZE, align);
+
+	for (offset = 0, next_update = 0; offset < partition_size; offset += chunk) {
+		if (offset >= next_update) {
+			devlink_flash_update_status_notify(devlink, "Erasing",
+							   NULL, offset,
+							   partition_size);
+			next_update += partition_size / EFX_DEVLINK_STATUS_UPDATE_COUNT;
+		}
+
+		chunk = min_t(size_t, partition_size - offset, chunk);
+		rc = efx_mcdi_nvram_erase(efx, type, offset, chunk);
+		if (rc) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Erase failed for NVRAM partition %#x at %#zx-%#zx",
+					       type, offset, offset + chunk - 1);
+			return rc;
+		}
+	}
+
+	devlink_flash_update_status_notify(devlink, "Erasing", NULL,
+					   partition_size, partition_size);
+
+	return 0;
+}
+
+static int efx_reflash_write_partition(struct efx_nic *efx,
+				       struct netlink_ext_ack *extack,
+				       struct devlink *devlink, u32 type,
+				       const u8 *data, size_t data_size,
+				       size_t align)
+{
+	size_t write_max, chunk, offset, next_update;
+	int rc;
+
+	if (align == 0)
+		return -EINVAL;
+
+	/* Write the NVRAM partition in chunks that are the largest multiple
+	 * of the partition's required write alignment that will fit into the
+	 * MCDI NVRAM_WRITE RPC payload.
+	 */
+	if (efx->type->mcdi_max_ver < 2)
+		write_max = MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_LEN *
+			    MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_MAXNUM;
+	else
+		write_max = MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_LEN *
+			    MC_CMD_NVRAM_WRITE_IN_WRITE_BUFFER_MAXNUM_MCDI2;
+	chunk = rounddown(write_max, align);
+
+	for (offset = 0, next_update = 0; offset + chunk <= data_size; offset += chunk) {
+		if (offset >= next_update) {
+			devlink_flash_update_status_notify(devlink, "Writing",
+							   NULL, offset,
+							   data_size);
+			next_update += data_size / EFX_DEVLINK_STATUS_UPDATE_COUNT;
+		}
+
+		rc = efx_mcdi_nvram_write(efx, type, offset, data + offset, chunk);
+		if (rc) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Write failed for NVRAM partition %#x at %#zx-%#zx",
+					       type, offset, offset + chunk - 1);
+			return rc;
+		}
+	}
+
+	/* Round up left over data to satisfy write alignment */
+	if (offset < data_size) {
+		size_t remaining = data_size - offset;
+		u8 *buf;
+
+		if (offset >= next_update)
+			devlink_flash_update_status_notify(devlink, "Writing",
+							   NULL, offset,
+							   data_size);
+
+		chunk = roundup(remaining, align);
+		buf = kmalloc(chunk, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		memcpy(buf, data + offset, remaining);
+		memset(buf + remaining, 0xFF, chunk - remaining);
+		rc = efx_mcdi_nvram_write(efx, type, offset, buf, chunk);
+		kfree(buf);
+		if (rc) {
+			NL_SET_ERR_MSG_FMT_MOD(extack,
+					       "Write failed for NVRAM partition %#x at %#zx-%#zx",
+					       type, offset, offset + chunk - 1);
+			return rc;
+		}
+	}
+
+	devlink_flash_update_status_notify(devlink, "Writing", NULL, data_size,
+					   data_size);
+
+	return 0;
+}
+
 int efx_reflash_flash_firmware(struct efx_nic *efx, const struct firmware *fw,
 			       struct netlink_ext_ack *extack)
 {
+	size_t data_size, size, erase_align, write_align;
 	struct devlink *devlink = efx->devlink;
-	u32 type, data_subtype;
-	size_t data_size;
+	u32 type, data_subtype, subtype;
 	const u8 *data;
+	bool protected;
 	int rc;
 
 	if (!efx_has_cap(efx, BUNDLE_UPDATE)) {
@@ -279,8 +417,95 @@ int efx_reflash_flash_firmware(struct efx_nic *efx, const struct firmware *fw,
 		goto out;
 	}
 
-	rc = -EOPNOTSUPP;
+	mutex_lock(&efx->reflash_mutex);
 
+	rc = efx_mcdi_nvram_metadata(efx, type, &subtype, NULL, NULL, 0);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Metadata query for NVRAM partition %#x failed",
+				       type);
+		goto out_unlock;
+	}
+
+	if (subtype != data_subtype) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Firmware image is not appropriate for this adapter");
+		rc = -EINVAL;
+		goto out_unlock;
+	}
+
+	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_align, &write_align,
+				 &protected);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Info query for NVRAM partition %#x failed",
+				       type);
+		goto out_unlock;
+	}
+
+	if (protected) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "NVRAM partition %#x is protected",
+				       type);
+		rc = -EPERM;
+		goto out_unlock;
+	}
+
+	if (write_align == 0) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "NVRAM partition %#x is not writable",
+				       type);
+		rc = -EACCES;
+		goto out_unlock;
+	}
+
+	if (erase_align != 0 && size % erase_align) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "NVRAM partition %#x has a bad partition table entry, can't erase it",
+				       type);
+		rc = -EACCES;
+		goto out_unlock;
+	}
+
+	if (data_size > size) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Firmware image is too big for NVRAM partition %#x",
+				       type);
+		rc = -EFBIG;
+		goto out_unlock;
+	}
+
+	devlink_flash_update_status_notify(devlink, "Starting update", NULL, 0, 0);
+
+	rc = efx_mcdi_nvram_update_start(efx, type);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack,
+				       "Update start request for NVRAM partition %#x failed",
+				       type);
+		goto out_unlock;
+	}
+
+	rc = efx_reflash_erase_partition(efx, extack, devlink, type, size,
+					 erase_align);
+	if (rc)
+		goto out_update_finish;
+
+	rc = efx_reflash_write_partition(efx, extack, devlink, type, data,
+					 data_size, write_align);
+	if (rc)
+		goto out_update_finish;
+
+	devlink_flash_update_timeout_notify(devlink, "Finishing update", NULL,
+					    EFX_DEVLINK_UPDATE_FINISH_TIMEOUT);
+
+out_update_finish:
+	if (rc)
+		/* Don't obscure the return code from an earlier failure */
+		efx_mcdi_nvram_update_finish(efx, type, EFX_UPDATE_FINISH_ABORT);
+	else
+		rc = efx_mcdi_nvram_update_finish_polled(efx, type);
+out_unlock:
+	mutex_unlock(&efx->reflash_mutex);
 out:
 	devlink_flash_update_status_notify(devlink, rc ? "Update failed" :
 							 "Update complete",
