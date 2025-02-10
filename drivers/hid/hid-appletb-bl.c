@@ -141,12 +141,8 @@ static int appletb_bl_probe(struct hid_device *hdev, const struct hid_device_id 
 	bl->aux1_field = aux1_field;
 	bl->brightness_field = brightness_field;
 
-	if (appletb_bl_def_brightness == 0)
-		ret = appletb_bl_set_brightness(bl, APPLETB_BL_OFF);
-	else if (appletb_bl_def_brightness == 1)
-		ret = appletb_bl_set_brightness(bl, APPLETB_BL_DIM);
-	else
-		ret = appletb_bl_set_brightness(bl, APPLETB_BL_ON);
+	ret = appletb_bl_set_brightness(bl,
+		appletb_bl_brightness_map[(appletb_bl_def_brightness > 2) ? 2 : appletb_bl_def_brightness]);
 
 	if (ret) {
 		dev_err_probe(dev, ret, "Failed to set touch bar brightness to off\n");
