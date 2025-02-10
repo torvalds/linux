@@ -11,6 +11,7 @@
 
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
+#include <linux/string_choices.h>
 #include <sound/sof/ipc4/header.h>
 #include <trace/events/sof_intel.h>
 #include "../ipc4-priv.h"
@@ -176,7 +177,7 @@ static void mtl_enable_sdw_irq(struct snd_sof_dev *sdev, bool enable)
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0)
 		dev_err(sdev->dev, "failed to set SoundWire IPC interrupt %s\n",
-			enable ? "enable" : "disable");
+			str_enable_disable(enable));
 }
 
 int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
@@ -209,7 +210,7 @@ int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to %s Host IPC and/or SOUNDWIRE\n",
-			enable ? "enable" : "disable");
+			str_enable_disable(enable));
 		return ret;
 	}
 
@@ -228,7 +229,7 @@ int mtl_enable_interrupts(struct snd_sof_dev *sdev, bool enable)
 					    HDA_DSP_REG_POLL_INTERVAL_US, HDA_DSP_RESET_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to set Host IPC interrupt %s\n",
-			enable ? "enable" : "disable");
+			str_enable_disable(enable));
 		return ret;
 	}
 
