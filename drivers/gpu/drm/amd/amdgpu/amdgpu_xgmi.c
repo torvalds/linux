@@ -818,28 +818,69 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
  * num_hops[2:0] = number of hops
  */
 int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
-		struct amdgpu_device *peer_adev)
+			       struct amdgpu_device *peer_adev)
 {
 	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
 	uint8_t num_hops_mask = 0x7;
 	int i;
 
+	if (!adev->gmc.xgmi.supported)
+		return 0;
+
 	for (i = 0 ; i < top->num_nodes; ++i)
 		if (top->nodes[i].node_id == peer_adev->gmc.xgmi.node_id)
 			return top->nodes[i].num_hops & num_hops_mask;
-	return	-EINVAL;
+
+	dev_err(adev->dev, "Failed to get xgmi hops count for peer %d.\n",
+		peer_adev->gmc.xgmi.physical_node_id);
+
+	return 0;
 }
 
-int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
-		struct amdgpu_device *peer_adev)
+int amdgpu_xgmi_get_bandwidth(struct amdgpu_device *adev, struct amdgpu_device *peer_adev,
+			      enum amdgpu_xgmi_bw_mode bw_mode, enum amdgpu_xgmi_bw_unit bw_unit,
+			      uint32_t *min_bw, uint32_t *max_bw)
 {
-	struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
-	int i;
+	bool peer_mode = bw_mode == AMDGPU_XGMI_BW_MODE_PER_PEER;
+	int unit_scale = bw_unit == AMDGPU_XGMI_BW_UNIT_MBYTES ? 1000 : 1;
+	int speed = 25, num_lanes = 16, num_links = !peer_mode ? 1 : -1;
 
-	for (i = 0 ; i < top->num_nodes; ++i)
-		if (top->nodes[i].node_id == peer_adev->gmc.xgmi.node_id)
-			return top->nodes[i].num_links;
-	return	-EINVAL;
+	if (!(min_bw && max_bw))
+		return -EINVAL;
+
+	*min_bw = 0;
+	*max_bw = 0;
+
+	if (!adev->gmc.xgmi.supported)
+		return -ENODATA;
+
+	if (peer_mode && !peer_adev)
+		return -EINVAL;
+
+	if (peer_mode) {
+		struct psp_xgmi_topology_info *top = &adev->psp.xgmi_context.top_info;
+		int i;
+
+		for (i = 0 ; i < top->num_nodes; ++i) {
+			if (top->nodes[i].node_id != peer_adev->gmc.xgmi.node_id)
+				continue;
+
+			num_links =  top->nodes[i].num_links;
+			break;
+		}
+	}
+
+	if (num_links == -1) {
+		dev_err(adev->dev, "Failed to get number of xgmi links for peer %d.\n",
+			peer_adev->gmc.xgmi.physical_node_id);
+	} else if (num_links) {
+		int per_link_bw = (speed * num_lanes * unit_scale)/BITS_PER_BYTE;
+
+		*min_bw = per_link_bw;
+		*max_bw = num_links * per_link_bw;
+	}
+
+	return 0;
 }
 
 bool amdgpu_xgmi_get_is_sharing_enabled(struct amdgpu_device *adev,

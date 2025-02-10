@@ -55,6 +55,22 @@ struct amdgpu_pcs_ras_field {
 	uint32_t pcs_err_shift;
 };
 
+/**
+ * Bandwidth range reporting comes in two modes.
+ *
+ * PER_LINK - range for any xgmi link
+ * PER_PEER - range of max of single xgmi link to max of multiple links based on source peer
+ */
+enum amdgpu_xgmi_bw_mode {
+	AMDGPU_XGMI_BW_MODE_PER_LINK = 0,
+	AMDGPU_XGMI_BW_MODE_PER_PEER
+};
+
+enum amdgpu_xgmi_bw_unit {
+	AMDGPU_XGMI_BW_UNIT_GBYTES = 0,
+	AMDGPU_XGMI_BW_UNIT_MBYTES
+};
+
 extern struct amdgpu_xgmi_ras  xgmi_ras;
 struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
 void amdgpu_put_xgmi_hive(struct amdgpu_hive_info *hive);
@@ -62,10 +78,10 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev);
 int amdgpu_xgmi_remove_device(struct amdgpu_device *adev);
 int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate);
-int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
-		struct amdgpu_device *peer_adev);
-int amdgpu_xgmi_get_num_links(struct amdgpu_device *adev,
-		struct amdgpu_device *peer_adev);
+int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev, struct amdgpu_device *peer_adev);
+int amdgpu_xgmi_get_bandwidth(struct amdgpu_device *adev, struct amdgpu_device *peer_adev,
+			      enum amdgpu_xgmi_bw_mode bw_mode, enum amdgpu_xgmi_bw_unit bw_unit,
+			      uint32_t *min_bw, uint32_t *max_bw);
 bool amdgpu_xgmi_get_is_sharing_enabled(struct amdgpu_device *adev,
 					struct amdgpu_device *peer_adev);
 uint64_t amdgpu_xgmi_get_relative_phy_addr(struct amdgpu_device *adev,
