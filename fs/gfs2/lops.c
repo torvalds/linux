@@ -406,17 +406,16 @@ static void gfs2_end_log_read(struct bio *bio)
 }
 
 /**
- * gfs2_jhead_pg_srch - Look for the journal head in a given page.
+ * gfs2_jhead_folio_search - Look for the journal head in a given page.
  * @jd: The journal descriptor
  * @head: The journal head to start from
- * @page: The page to look in
+ * @folio: The folio to look in
  *
  * Returns: 1 if found, 0 otherwise.
  */
-
-static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
-			      struct gfs2_log_header_host *head,
-			      struct page *page)
+static bool gfs2_jhead_folio_search(struct gfs2_jdesc *jd,
+				    struct gfs2_log_header_host *head,
+				    struct folio *folio)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(jd->jd_inode);
 	struct gfs2_log_header_host lh;
@@ -424,7 +423,8 @@ static bool gfs2_jhead_pg_srch(struct gfs2_jdesc *jd,
 	unsigned int offset;
 	bool ret = false;
 
-	kaddr = kmap_local_page(page);
+	VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
+	kaddr = kmap_local_folio(folio, 0);
 	for (offset = 0; offset < PAGE_SIZE; offset += sdp->sd_sb.sb_bsize) {
 		if (!__get_log_header(sdp, kaddr + offset, 0, &lh)) {
 			if (lh.lh_sequence >= head->lh_sequence)
@@ -472,7 +472,7 @@ static void gfs2_jhead_process_page(struct gfs2_jdesc *jd, unsigned long index,
 		*done = true;
 
 	if (!*done)
-		*done = gfs2_jhead_pg_srch(jd, head, &folio->page);
+		*done = gfs2_jhead_folio_search(jd, head, folio);
 
 	/* filemap_get_folio() and the earlier grab_cache_page() */
 	folio_put_refs(folio, 2);
