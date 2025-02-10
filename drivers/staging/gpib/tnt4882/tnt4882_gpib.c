@@ -1399,7 +1399,7 @@ static const struct pnp_device_id tnt4882_pnp_table[] = {
 MODULE_DEVICE_TABLE(pnp, tnt4882_pnp_table);
 #endif
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 static gpib_interface_t ni_pcmcia_interface;
 static gpib_interface_t ni_pcmcia_accel_interface;
 static int __init init_ni_gpib_cs(void);
@@ -1464,7 +1464,7 @@ static int __init tnt4882_init_module(void)
 		goto err_pci_accel;
 	}
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	result = gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
 	if (result) {
 		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
@@ -1489,7 +1489,7 @@ static int __init tnt4882_init_module(void)
 
 	return 0;
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 err_pcmcia_driver:
 	gpib_unregister_driver(&ni_pcmcia_accel_interface);
 err_pcmcia_accel:
@@ -1527,7 +1527,7 @@ static void __exit tnt4882_exit_module(void)
 	gpib_unregister_driver(&ni_nec_isa_accel_interface);
 	gpib_unregister_driver(&ni_pci_interface);
 	gpib_unregister_driver(&ni_pci_accel_interface);
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	gpib_unregister_driver(&ni_pcmcia_interface);
 	gpib_unregister_driver(&ni_pcmcia_accel_interface);
 	exit_ni_gpib_cs();
@@ -1538,7 +1538,7 @@ static void __exit tnt4882_exit_module(void)
 	pci_unregister_driver(&tnt4882_pci_driver);
 }
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
@@ -1892,7 +1892,7 @@ static gpib_interface_t ni_pcmcia_accel_interface = {
 	.return_to_local = tnt4882_return_to_local,
 };
 
-#endif	// GPIB_PCMCIA
+#endif	// CONFIG_GPIB_PCMCIA
 
 module_init(tnt4882_init_module);
 module_exit(tnt4882_exit_module);

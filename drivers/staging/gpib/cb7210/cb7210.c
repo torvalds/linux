@@ -1111,7 +1111,7 @@ static struct pci_driver cb7210_pci_driver = {
  *  pcmcia skeleton example (presumably David Hinds)
  ***************************************************************************/
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -1501,7 +1501,7 @@ static void cb_pcmcia_detach(gpib_board_t *board)
 	cb7210_generic_detach(board);
 }
 
-#endif /* GPIB_PCMCIA */
+#endif /* CONFIG_GPIB_PCMCIA */
 
 static int __init cb7210_init_module(void)
 {
@@ -1549,7 +1549,7 @@ static int __init cb7210_init_module(void)
 		goto err_isa_unaccel;
 	}
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	ret = gpib_register_driver(&cb_pcmcia_interface, THIS_MODULE);
 	if (ret) {
 		pr_err("cb7210: gpib_register_driver failed: error = %d\n", ret);
@@ -1577,7 +1577,7 @@ static int __init cb7210_init_module(void)
 
 	return 0;
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 err_pcmcia_driver:
 	gpib_unregister_driver(&cb_pcmcia_unaccel_interface);
 err_pcmcia_unaccel:
@@ -1611,7 +1611,7 @@ static void __exit cb7210_exit_module(void)
 	gpib_unregister_driver(&cb_pci_unaccel_interface);
 	gpib_unregister_driver(&cb_isa_accel_interface);
 	gpib_unregister_driver(&cb_isa_unaccel_interface);
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	gpib_unregister_driver(&cb_pcmcia_interface);
 	gpib_unregister_driver(&cb_pcmcia_accel_interface);
 	gpib_unregister_driver(&cb_pcmcia_unaccel_interface);

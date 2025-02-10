@@ -977,7 +977,7 @@ static struct pci_driver ines_pci_driver = {
 	.probe = &ines_pci_probe
 };
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 
 #include <linux/kernel.h>
 #include <linux/ptrace.h>
@@ -1410,7 +1410,7 @@ void ines_pcmcia_detach(gpib_board_t *board)
 	ines_free_private(board);
 }
 
-#endif /* GPIB_PCMCIA */
+#endif /* CONFIG_GPIB_PCMCIA */
 
 static int __init ines_init_module(void)
 {
@@ -1446,7 +1446,7 @@ static int __init ines_init_module(void)
 		goto err_isa;
 	}
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 	ret = gpib_register_driver(&ines_pcmcia_interface, THIS_MODULE);
 	if (ret) {
 		pr_err("ines_gpib: gpib_register_driver failed: error = %d\n", ret);
@@ -1474,7 +1474,7 @@ static int __init ines_init_module(void)
 
 	return 0;
 
-#ifdef GPIB_PCMCIA
+#ifdef CONFIG_GPIB_PCMCIA
 err_pcmcia_driver:
 	gpib_unregister_driver(&ines_pcmcia_accel_interface);
 err_pcmcia_accel:
