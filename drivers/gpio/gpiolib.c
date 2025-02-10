@@ -2701,6 +2701,22 @@ int gpio_set_debounce_timeout(struct gpio_desc *desc, unsigned int debounce)
 	return ret;
 }
 
+static int gpiochip_direction_input(struct gpio_chip *gc, unsigned int offset)
+{
+	int ret;
+
+	lockdep_assert_held(&gc->gpiodev->srcu);
+
+	if (WARN_ON(!gc->direction_input))
+		return -EOPNOTSUPP;
+
+	ret = gc->direction_input(gc, offset);
+	if (ret > 0)
+		ret = -EBADE;
+
+	return ret;
+}
+
 static int gpiochip_direction_output(struct gpio_chip *gc, unsigned int offset,
 				     int value)
 {
@@ -2769,8 +2785,8 @@ int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 	 * assume we are in input mode after this.
 	 */
 	if (guard.gc->direction_input) {
-		ret = guard.gc->direction_input(guard.gc,
-						gpio_chip_hwgpio(desc));
+		ret = gpiochip_direction_input(guard.gc,
+					       gpio_chip_hwgpio(desc));
 	} else if (guard.gc->get_direction) {
 		ret = guard.gc->get_direction(guard.gc,
 					      gpio_chip_hwgpio(desc));
@@ -3475,7 +3491,7 @@ static void gpio_set_open_drain_value_commit(struct gpio_desc *desc, bool value)
 		return;
 
 	if (value) {
-		ret = guard.gc->direction_input(guard.gc, offset);
+		ret = gpiochip_direction_input(guard.gc, offset);
 	} else {
 		ret = gpiochip_direction_output(guard.gc, offset, 0);
 		if (!ret)
@@ -3506,7 +3522,7 @@ static void gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value
 		if (!ret)
 			set_bit(FLAG_IS_OUT, &desc->flags);
 	} else {
-		ret = guard.gc->direction_input(guard.gc, offset);
+		ret = gpiochip_direction_input(guard.gc, offset);
 	}
 	trace_gpio_direction(desc_to_gpio(desc), !value, ret);
 	if (ret < 0)
