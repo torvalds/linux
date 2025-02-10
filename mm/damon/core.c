@@ -1458,6 +1458,9 @@ static void damos_walk_call_walk(struct damon_ctx *ctx, struct damon_target *t,
 {
 	struct damos_walk_control *control;
 
+	if (s->walk_completed)
+		return;
+
 	mutex_lock(&ctx->walk_control_lock);
 	control = ctx->walk_control;
 	mutex_unlock(&ctx->walk_control_lock);
