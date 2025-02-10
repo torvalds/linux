@@ -2309,9 +2309,8 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 			*parent_gen = nce->parent_gen;
 			ret = fs_path_add(dest, nce->name, nce->name_len);
 			if (ret < 0)
-				goto out;
-			ret = nce->ret;
-			goto out;
+				return ret;
+			return nce->ret;
 		}
 	}
 
@@ -2322,12 +2321,12 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	 */
 	ret = is_inode_existent(sctx, ino, gen, NULL, NULL);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	if (!ret) {
 		ret = gen_unique_name(sctx, ino, gen, dest);
 		if (ret < 0)
-			goto out;
+			return ret;
 		ret = 1;
 		goto out_cache;
 	}
@@ -2343,7 +2342,7 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 		ret = get_first_ref(sctx->parent_root, ino,
 				    parent_ino, parent_gen, dest);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	/*
 	 * Check if the ref was overwritten by an inode's ref that was processed
@@ -2352,12 +2351,12 @@ static int __get_cur_name_and_parent(struct send_ctx *sctx,
 	ret = did_overwrite_ref(sctx, *parent_ino, *parent_gen, ino, gen,
 				dest->start, fs_path_len(dest));
 	if (ret < 0)
-		goto out;
+		return ret;
 	if (ret) {
 		fs_path_reset(dest);
 		ret = gen_unique_name(sctx, ino, gen, dest);
 		if (ret < 0)
-			goto out;
+			return ret;
 		ret = 1;
 	}
 
@@ -2366,10 +2365,8 @@ out_cache:
 	 * Store the result of the lookup in the name cache.
 	 */
 	nce = kmalloc(sizeof(*nce) + fs_path_len(dest), GFP_KERNEL);
-	if (!nce) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!nce)
+		return -ENOMEM;
 
 	nce->entry.key = ino;
 	nce->entry.gen = gen;
@@ -2387,10 +2384,9 @@ out_cache:
 	nce_ret = btrfs_lru_cache_store(&sctx->name_cache, &nce->entry, GFP_KERNEL);
 	if (nce_ret < 0) {
 		kfree(nce);
-		ret = nce_ret;
+		return nce_ret;
 	}
 
-out:
 	return ret;
 }
 
