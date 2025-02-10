@@ -359,8 +359,8 @@ static void gfs2_log_write_bh(struct gfs2_sbd *sdp, struct buffer_head *bh)
 
 	dblock = gfs2_log_bmap(sdp->sd_jdesc, sdp->sd_log_flush_head);
 	gfs2_log_incr_head(sdp);
-	gfs2_log_write(sdp, sdp->sd_jdesc, bh->b_page, bh->b_size,
-		       bh_offset(bh), dblock);
+	gfs2_log_write(sdp, sdp->sd_jdesc, folio_page(bh->b_folio, 0),
+			bh->b_size, bh_offset(bh), dblock);
 }
 
 /**
