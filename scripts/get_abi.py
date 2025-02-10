@@ -62,8 +62,9 @@ class AbiRest:
         parser = AbiParser(args.dir, debug=args.debug)
         parser.parse_abi()
         parser.check_issues()
-        parser.print_data(args.enable_lineno, args.raw, not args.no_file)
 
+        for msg in parser.doc(args.enable_lineno, args.raw, not args.no_file):
+            print(msg)
 
 class AbiValidate:
     """Initialize an argparse subparser for ABI validation"""

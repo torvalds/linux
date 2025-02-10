@@ -336,7 +336,7 @@ class AbiParser:
                 name = os.path.join(root, entry.name)
 
                 if entry.is_dir():
-                    self.parse_abi(name)
+                    self._parse_abi(name)
                     continue
 
                 if not entry.is_file():
@@ -365,14 +365,14 @@ class AbiParser:
         if self.debug & AbiDebug.DUMP_ABI_STRUCTS:
             self.log.debug(pformat(self.data))
 
-    def print_desc_txt(self, desc):
+    def desc_txt(self, desc):
         """Print description as found inside ABI files"""
 
         desc = desc.strip(" \t\n")
 
-        print(desc + "\n")
+        return desc + "\n\n"
 
-    def print_desc_rst(self, desc):
+    def desc_rst(self, desc):
         """Enrich ReST output by creating cross-references"""
 
         # Remove title markups from the description
@@ -425,9 +425,9 @@ class AbiParser:
 
             new_desc += d + "\n"
 
-        print(new_desc + "\n")
+        return new_desc + "\n\n"
 
-    def print_data(self, enable_lineno, output_in_txt, show_file=False):
+    def doc(self, enable_lineno, output_in_txt, show_file=False):
         """Print ABI at stdout"""
 
         part = None
@@ -442,9 +442,11 @@ class AbiParser:
             if not show_file and wtype == "File":
                 continue
 
+            msg = ""
+
             if enable_lineno:
                 ln = v.get("line_no", 1)
-                print(f".. LINENO {file_ref[0][0]}#{ln}\n")
+                msg += f".. LINENO {file_ref[0][0]}#{ln}\n\n"
 
             if wtype != "File":
                 cur_part = names[0]
@@ -456,9 +458,9 @@ class AbiParser:
 
                 if cur_part and cur_part != part:
                     part = cur_part
-                    print(f"{part}\n{"-" * len(part)}\n")
+                    msg += f"{part}\n{"-" * len(part)}\n\n"
 
-                print(f".. _{key}:\n")
+                msg += f".. _{key}:\n\n"
 
                 max_len = 0
                 for i in range(0, len(names)):           # pylint: disable=C0200
@@ -466,45 +468,47 @@ class AbiParser:
 
                     max_len = max(max_len, len(names[i]))
 
-                print("+-" + "-" * max_len + "-+")
+                msg += "+-" + "-" * max_len + "-+\n"
                 for name in names:
-                    print(f"| {name}" + " " * (max_len - len(name)) + " |")
-                    print("+-" + "-" * max_len + "-+")
-                print()
+                    msg += f"| {name}" + " " * (max_len - len(name)) + " |\n"
+                    msg += "+-" + "-" * max_len + "-+\n"
+                msg += "\n"
 
             for ref in file_ref:
                 if wtype == "File":
-                    print(f".. _{ref[1]}:\n")
+                    msg += f".. _{ref[1]}:\n\n"
                 else:
                     base = os.path.basename(ref[0])
-                    print(f"Defined on file :ref:`{base} <{ref[1]}>`\n")
+                    msg += f"Defined on file :ref:`{base} <{ref[1]}>`\n\n"
 
             if wtype == "File":
-                print(f"{names[0]}\n{"-" * len(names[0])}\n")
+                msg += f"{names[0]}\n{"-" * len(names[0])}\n\n"
 
             desc = v.get("description")
             if not desc and wtype != "File":
-                print(f"DESCRIPTION MISSING for {names[0]}\n")
+                msg += f"DESCRIPTION MISSING for {names[0]}\n\n"
 
             if desc:
                 if output_in_txt:
-                    self.print_desc_txt(desc)
+                    msg += self.desc_txt(desc)
                 else:
-                    self.print_desc_rst(desc)
+                    msg += self.desc_rst(desc)
 
             symbols = v.get("symbols")
             if symbols:
-                print("Has the following ABI:\n")
+                msg += "Has the following ABI:\n\n"
 
                 for w, label in symbols:
                     # Escape special chars from content
                     content = self.re_escape.sub(r"\\\1", w)
 
-                    print(f"- :ref:`{content} <{label}>`\n")
+                    msg += f"- :ref:`{content} <{label}>`\n\n"
 
             users = v.get("users")
             if users and users.strip(" \t\n"):
-                print(f"Users:\n\t{users.strip("\n").replace('\n', '\n\t')}\n")
+                msg += f"Users:\n\t{users.strip("\n").replace('\n', '\n\t')}\n\n"
+
+            yield msg
 
     def check_issues(self):
         """Warn about duplicated ABI entries"""
