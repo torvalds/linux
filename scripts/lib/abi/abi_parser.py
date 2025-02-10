@@ -160,6 +160,7 @@ class AbiParser:
                         self.data[fdata.key] = {
                             "what": [content],
                             "file": [fdata.file_ref],
+                            "path": fdata.ftype,
                             "line_no": fdata.ln,
                         }
 
@@ -181,8 +182,6 @@ class AbiParser:
 
                 if new_what:
                     fdata.label = ""
-
-                    self.data[fdata.key]["type"] = fdata.ftype
 
                     if "description" in self.data[fdata.key]:
                         self.data[fdata.key]["description"] += "\n\n"
@@ -299,6 +298,7 @@ class AbiParser:
         fdata.nametag = {}
         fdata.nametag["what"] = [f"File {path}/{basename}"]
         fdata.nametag["type"] = "File"
+        fdata.nametag["path"] = fdata.ftype
         fdata.nametag["file"] = [fdata.file_ref]
         fdata.nametag["line_no"] = 1
         fdata.nametag["description"] = ""
@@ -427,7 +427,8 @@ class AbiParser:
 
         return new_desc + "\n\n"
 
-    def doc(self, output_in_txt=False, show_file=True):
+    def doc(self, output_in_txt=False, show_symbols=True, show_file=True,
+            filter_path=None):
         """Print ABI at stdout"""
 
         part = None
@@ -435,12 +436,20 @@ class AbiParser:
                              key=lambda x: (x[1].get("type", ""),
                                             x[1].get("what"))):
 
-            wtype = v.get("type", "Var")
+            wtype = v.get("type", "Symbol")
             file_ref = v.get("file")
             names = v.get("what", [""])
 
-            if not show_file and wtype == "File":
-                continue
+            if wtype == "File":
+                if not show_file:
+                    continue
+            else:
+                if not show_symbols:
+                    continue
+
+            if filter_path:
+                if v.get("path") != filter_path:
+                    continue
 
             msg = ""
 
