@@ -55,10 +55,10 @@ u32 crc32c_arch(u32 crc, const u8 *p, size_t len)
 
 	for (num_longs = len / sizeof(unsigned long);
 	     num_longs != 0; num_longs--, p += sizeof(unsigned long))
-		asm(CRC32_INST : "+r" (crc) : "rm" (*(unsigned long *)p));
+		asm(CRC32_INST : "+r" (crc) : ASM_INPUT_RM (*(unsigned long *)p));
 
 	for (len %= sizeof(unsigned long); len; len--, p++)
-		asm("crc32b %1, %0" : "+r" (crc) : "rm" (*p));
+		asm("crc32b %1, %0" : "+r" (crc) : ASM_INPUT_RM (*p));
 
 	return crc;
 }
