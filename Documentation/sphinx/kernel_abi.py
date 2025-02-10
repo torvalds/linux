@@ -37,13 +37,13 @@ import os
 import subprocess
 import sys
 import re
-import kernellog
 
 from docutils import nodes, statemachine
 from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 from docutils.utils.error_reporting import ErrorString
 from sphinx.util.docutils import switch_source_input
+from sphinx.util import logging
 
 __version__  = '1.0'
 
@@ -64,6 +64,7 @@ class KernelCmd(Directive):
     optional_arguments = 2
     has_content = False
     final_argument_whitespace = True
+    logger = logging.getLogger('kernel_abi')
 
     option_spec = {
         "debug"     : directives.flag,
@@ -129,7 +130,7 @@ class KernelCmd(Directive):
             else:
                 content.append(line, f, ln)
 
-        kernellog.info(self.state.document.settings.env.app, "%s: parsed %i lines" % (fname, n))
+        self.logger.info("%s: parsed %i lines" % (fname, n))
 
         if content:
             self.do_parse(content, node)

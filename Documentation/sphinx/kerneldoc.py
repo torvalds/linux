@@ -39,7 +39,7 @@ from docutils.statemachine import ViewList
 from docutils.parsers.rst import directives, Directive
 import sphinx
 from sphinx.util.docutils import switch_source_input
-import kernellog
+from sphinx.util import logging
 
 __version__  = '1.0'
 
@@ -56,6 +56,7 @@ class KernelDocDirective(Directive):
         'functions': directives.unchanged,
     }
     has_content = False
+    logger = logging.getLogger('kerneldoc')
 
     def run(self):
         env = self.state.document.settings.env
@@ -109,8 +110,7 @@ class KernelDocDirective(Directive):
         cmd += [filename]
 
         try:
-            kernellog.verbose(env.app,
-                              'calling kernel-doc \'%s\'' % (" ".join(cmd)))
+            self.logger.verbose("calling kernel-doc '%s'" % (" ".join(cmd)))
 
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             out, err = p.communicate()
@@ -120,8 +120,8 @@ class KernelDocDirective(Directive):
             if p.returncode != 0:
                 sys.stderr.write(err)
 
-                kernellog.warn(env.app,
-                               'kernel-doc \'%s\' failed with return code %d' % (" ".join(cmd), p.returncode))
+                self.logger.warning("kernel-doc '%s' failed with return code %d"
+                                    % (" ".join(cmd), p.returncode))
                 return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
             elif env.config.kerneldoc_verbosity > 0:
                 sys.stderr.write(err)
@@ -148,8 +148,8 @@ class KernelDocDirective(Directive):
             return node.children
 
         except Exception as e:  # pylint: disable=W0703
-            kernellog.warn(env.app, 'kernel-doc \'%s\' processing failed with: %s' %
-                           (" ".join(cmd), str(e)))
+            self.logger.warning("kernel-doc '%s' processing failed with: %s" %
+                                (" ".join(cmd), str(e)))
             return [nodes.error(None, nodes.paragraph(text = "kernel-doc missing"))]
 
     def do_parse(self, result, node):
