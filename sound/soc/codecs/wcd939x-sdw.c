@@ -1429,7 +1429,7 @@ static int wcd9390_probe(struct sdw_slave *pdev, const struct sdw_device_id *id)
 	 * Port map index starts with 0, however the data port for this codec
 	 * are from index 1
 	 */
-	if (of_property_read_bool(dev->of_node, "qcom,tx-port-mapping")) {
+	if (of_property_present(dev->of_node, "qcom,tx-port-mapping")) {
 		wcd->is_tx = true;
 		ret = of_property_read_u32_array(dev->of_node,
 						 "qcom,tx-port-mapping",
