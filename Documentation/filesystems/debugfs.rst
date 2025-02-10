@@ -220,7 +220,7 @@ There are a couple of other directory-oriented helper functions::
 
 A call to debugfs_change_name() will give a new name to an existing debugfs
 file, always in the same directory.  The new_name must not exist prior
-to the call; the return value is 0 on success and -E... on failuer.
+to the call; the return value is 0 on success and -E... on failure.
 Symbolic links can be created with debugfs_create_symlink().
 
 There is one important thing that all debugfs users must take into account:

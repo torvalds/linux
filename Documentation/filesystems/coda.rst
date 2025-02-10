@@ -141,7 +141,7 @@ kernel support.
   a process P which accessing a Coda file. It makes a system call which
   traps to the OS kernel. Examples of such calls trapping to the kernel
   are ``read``, ``write``, ``open``, ``close``, ``create``, ``mkdir``,
-  ``rmdir``, ``chmod`` in a Unix ontext.  Similar calls exist in the Win32
+  ``rmdir``, ``chmod`` in a Unix context.  Similar calls exist in the Win32
   environment, and are named ``CreateFile``.
 
   Generally the operating system handles the request in a virtual
