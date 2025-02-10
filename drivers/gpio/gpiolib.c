@@ -2593,6 +2593,9 @@ int gpio_do_set_config(struct gpio_desc *desc, unsigned long config)
 		return -ENOTSUPP;
 
 	ret = guard.gc->set_config(guard.gc, gpio_chip_hwgpio(desc), config);
+	if (ret > 0)
+		ret = -EBADE;
+
 #ifdef CONFIG_GPIO_CDEV
 	/*
 	 * Special case - if we're setting debounce period, we need to store
