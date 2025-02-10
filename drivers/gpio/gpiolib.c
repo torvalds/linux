@@ -342,6 +342,22 @@ static int gpiochip_find_base_unlocked(u16 ngpio)
 	}
 }
 
+static int gpiochip_get_direction(struct gpio_chip *gc, unsigned int offset)
+{
+	int ret;
+
+	lockdep_assert_held(&gc->gpiodev->srcu);
+
+	if (WARN_ON(!gc->get_direction))
+		return -EOPNOTSUPP;
+
+	ret = gc->get_direction(gc, offset);
+	if (ret > 1)
+		ret = -EBADE;
+
+	return ret;
+}
+
 /**
  * gpiod_get_direction - return the current direction of a GPIO
  * @desc:	GPIO to get the direction of
@@ -382,7 +398,7 @@ int gpiod_get_direction(struct gpio_desc *desc)
 	if (!guard.gc->get_direction)
 		return -ENOTSUPP;
 
-	ret = guard.gc->get_direction(guard.gc, offset);
+	ret = gpiochip_get_direction(guard.gc, offset);
 	if (ret < 0)
 		return ret;
 
@@ -1067,7 +1083,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		desc->gdev = gdev;
 
 		if (gc->get_direction && gpiochip_line_is_valid(gc, desc_index)) {
-			ret = gc->get_direction(gc, desc_index);
+			ret = gpiochip_get_direction(gc, desc_index);
 			if (ret < 0)
 				/*
 				 * FIXME: Bail-out here once all GPIO drivers
@@ -2788,8 +2804,7 @@ int gpiod_direction_input_nonotify(struct gpio_desc *desc)
 		ret = gpiochip_direction_input(guard.gc,
 					       gpio_chip_hwgpio(desc));
 	} else if (guard.gc->get_direction) {
-		ret = guard.gc->get_direction(guard.gc,
-					      gpio_chip_hwgpio(desc));
+		ret = gpiochip_get_direction(guard.gc, gpio_chip_hwgpio(desc));
 		if (ret < 0)
 			return ret;
 
@@ -2836,8 +2851,8 @@ static int gpiod_direction_output_raw_commit(struct gpio_desc *desc, int value)
 	} else {
 		/* Check that we are in output mode if we can */
 		if (guard.gc->get_direction) {
-			ret = guard.gc->get_direction(guard.gc,
-						      gpio_chip_hwgpio(desc));
+			ret = gpiochip_get_direction(guard.gc,
+						     gpio_chip_hwgpio(desc));
 			if (ret < 0)
 				return ret;
 
