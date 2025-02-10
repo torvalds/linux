@@ -3115,9 +3115,25 @@ void gpiod_toggle_active_low(struct gpio_desc *desc)
 }
 EXPORT_SYMBOL_GPL(gpiod_toggle_active_low);
 
+static int gpiochip_get(struct gpio_chip *gc, unsigned int offset)
+{
+	int ret;
+
+	lockdep_assert_held(&gc->gpiodev->srcu);
+
+	if (!gc->get)
+		return -EIO;
+
+	ret = gc->get(gc, offset);
+	if (ret > 1)
+		ret = -EBADE;
+
+	return ret;
+}
+
 static int gpio_chip_get_value(struct gpio_chip *gc, const struct gpio_desc *desc)
 {
-	return gc->get ? gc->get(gc, gpio_chip_hwgpio(desc)) : -EIO;
+	return gpiochip_get(gc, gpio_chip_hwgpio(desc));
 }
 
 /* I/O calls are only valid after configuration completed; the relevant
@@ -3174,7 +3190,7 @@ static int gpio_chip_get_multiple(struct gpio_chip *gc,
 		int i, value;
 
 		for_each_set_bit(i, mask, gc->ngpio) {
-			value = gc->get(gc, i);
+			value = gpiochip_get(gc, i);
 			if (value < 0)
 				return value;
 			__assign_bit(i, bits, value);
