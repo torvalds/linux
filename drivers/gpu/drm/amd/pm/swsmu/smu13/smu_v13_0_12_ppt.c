@@ -145,6 +145,76 @@ static int smu_v13_0_12_get_enabled_mask(struct smu_context *smu,
 	return ret;
 }
 
+int smu_v13_0_12_get_max_metrics_size(void)
+{
+	return sizeof(StaticMetricsTable_t);
+}
+
+static int smu_v13_0_12_get_static_metrics_table(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	uint32_t table_size = smu_table->tables[SMU_TABLE_SMU_METRICS].size;
+	struct smu_table *table = &smu_table->driver_table;
+	int ret;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetStaticMetricsTable, NULL);
+	if (ret) {
+		dev_info(smu->adev->dev,
+			 "Failed to export static metrics table!\n");
+		return ret;
+	}
+
+	amdgpu_asic_invalidate_hdp(smu->adev, NULL);
+	memcpy(smu_table->metrics_table, table->cpu_addr, table_size);
+
+	return 0;
+}
+
+int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
+	struct PPTable_t *pptable =
+		(struct PPTable_t *)smu_table->driver_pptable;
+	int ret, i;
+
+	if (!pptable->Init) {
+		ret = smu_v13_0_12_get_static_metrics_table(smu);
+		if (ret)
+			return ret;
+
+		pptable->MaxSocketPowerLimit =
+			SMUQ10_ROUND(static_metrics->MaxSocketPowerLimit);
+		pptable->MaxGfxclkFrequency =
+			SMUQ10_ROUND(static_metrics->MaxGfxclkFrequency);
+		pptable->MinGfxclkFrequency =
+			SMUQ10_ROUND(static_metrics->MinGfxclkFrequency);
+
+		for (i = 0; i < 4; ++i) {
+			pptable->FclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->FclkFrequencyTable[i]);
+			pptable->UclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->UclkFrequencyTable[i]);
+			pptable->SocclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->SocclkFrequencyTable[i]);
+			pptable->VclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->VclkFrequencyTable[i]);
+			pptable->DclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->DclkFrequencyTable[i]);
+			pptable->LclkFrequencyTable[i] =
+				SMUQ10_ROUND(static_metrics->LclkFrequencyTable[i]);
+		}
+
+		/* use AID0 serial number by default */
+		pptable->PublicSerialNumber_AID =
+			static_metrics->PublicSerialNumber_AID[0];
+
+		pptable->Init = true;
+	}
+
+	return 0;
+}
+
 bool smu_v13_0_12_is_dpm_running(struct smu_context *smu)
 {
 	int ret;

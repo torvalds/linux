@@ -35,6 +35,22 @@ typedef enum {
 /*3*/   NUM_METRICS                         = 3
 } METRICS_LIST_e;
 
+struct PPTable_t {
+	uint32_t MaxSocketPowerLimit;
+	uint32_t MaxGfxclkFrequency;
+	uint32_t MinGfxclkFrequency;
+	uint32_t FclkFrequencyTable[4];
+	uint32_t UclkFrequencyTable[4];
+	uint32_t SocclkFrequencyTable[4];
+	uint32_t VclkFrequencyTable[4];
+	uint32_t DclkFrequencyTable[4];
+	uint32_t LclkFrequencyTable[4];
+	uint32_t MaxLclkDpmRange;
+	uint32_t MinLclkDpmRange;
+	uint64_t PublicSerialNumber_AID;
+	bool Init;
+};
+
 extern void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu);
 
 #endif

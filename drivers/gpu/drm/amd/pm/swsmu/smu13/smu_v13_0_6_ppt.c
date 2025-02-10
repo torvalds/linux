@@ -116,6 +116,7 @@ enum smu_v13_0_6_caps {
 	SMU_CAP(RMA_MSG),
 	SMU_CAP(ACA_SYND),
 	SMU_CAP(SDMA_RESET),
+	SMU_CAP(STATIC_METRICS),
 	SMU_CAP(ALL),
 };
 
@@ -252,25 +253,6 @@ static const uint8_t smu_v13_0_6_throttler_map[] = {
 	[THROTTLER_PROCHOT_BIT]		= (SMU_THROTTLER_PROCHOT_GFX_BIT),
 };
 
-struct PPTable_t {
-	uint32_t MaxSocketPowerLimit;
-	uint32_t MaxGfxclkFrequency;
-	uint32_t MinGfxclkFrequency;
-	uint32_t FclkFrequencyTable[4];
-	uint32_t UclkFrequencyTable[4];
-	uint32_t SocclkFrequencyTable[4];
-	uint32_t VclkFrequencyTable[4];
-	uint32_t DclkFrequencyTable[4];
-	uint32_t LclkFrequencyTable[4];
-	uint32_t MaxLclkDpmRange;
-	uint32_t MinLclkDpmRange;
-	uint64_t PublicSerialNumber_AID;
-	bool Init;
-};
-
-#define SMUQ10_TO_UINT(x) ((x) >> 10)
-#define SMUQ10_FRAC(x) ((x) & 0x3ff)
-#define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
 #define GET_GPU_METRIC_FIELD(field, version) ((version == METRICS_VERSION_V0) ?\
 		(metrics_v0->field) : (metrics_v2->field))
 #define GET_METRIC_FIELD(field, version) ((version == METRICS_VERSION_V1) ?\
@@ -368,6 +350,9 @@ static void smu_v13_0_12_init_caps(struct smu_context *smu)
 
 	if (fw_ver >= 0x00561700)
 		smu_v13_0_6_cap_set(smu, SMU_CAP(SDMA_RESET));
+
+	if (fw_ver >= 0x00561E00)
+		smu_v13_0_6_cap_set(smu, SMU_CAP(STATIC_METRICS));
 }
 
 static void smu_v13_0_6_init_caps(struct smu_context *smu)
@@ -523,13 +508,14 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = smu_table->tables;
 	struct amdgpu_device *adev = smu->adev;
+	int gpu_metrcs_size = METRICS_TABLE_SIZE;
 
 	if (!(adev->flags & AMD_IS_APU))
 		SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU13_TOOL_SIZE,
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
-		       METRICS_TABLE_SIZE,
+		       max(gpu_metrcs_size, smu_v13_0_12_get_max_metrics_size()),
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
@@ -775,6 +761,9 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 	int version = smu_v13_0_6_get_metrics_version(smu);
 	int ret, i, retry = 100;
 	uint32_t table_version;
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
+		return smu_v13_0_12_setup_driver_pptable(smu);
 
 	/* Store one-time values in driver PPTable */
 	if (!pptable->Init) {
