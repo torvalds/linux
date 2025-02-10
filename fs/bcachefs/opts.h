@@ -197,7 +197,7 @@ enum fsck_err_opts {
 	  BCH_SB_STR_HASH_TYPE,		BCH_STR_HASH_OPT_siphash,	\
 	  NULL,		"Hash function for directory entries and xattrs")\
 	x(metadata_target,		u16,				\
-	  OPT_FS|OPT_INODE|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,		\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_FN(bch2_opt_target),					\
 	  BCH_SB_METADATA_TARGET,	0,				\
 	  "(target)",	"Device or label for metadata writes")		\
