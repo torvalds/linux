@@ -1700,6 +1700,7 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	u64 lru_idx = alloc_lru_idx_fragmentation(*a, ca);
 	if (lru_idx) {
 		ret = bch2_lru_check_set(trans, BCH_LRU_BUCKET_FRAGMENTATION,
+					 bucket_to_u64(alloc_k.k->p),
 					 lru_idx, alloc_k, last_flushed);
 		if (ret)
 			goto err;
@@ -1729,7 +1730,9 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 		a = &a_mut->v;
 	}
 
-	ret = bch2_lru_check_set(trans, alloc_k.k->p.inode, a->io_time[READ],
+	ret = bch2_lru_check_set(trans, alloc_k.k->p.inode,
+				 bucket_to_u64(alloc_k.k->p),
+				 a->io_time[READ],
 				 alloc_k, last_flushed);
 	if (ret)
 		goto err;

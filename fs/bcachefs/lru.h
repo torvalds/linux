@@ -58,7 +58,7 @@ static inline int bch2_lru_change(struct btree_trans *trans,
 }
 
 struct bkey_buf;
-int bch2_lru_check_set(struct btree_trans *, u16, u64, struct bkey_s_c, struct bkey_buf *);
+int bch2_lru_check_set(struct btree_trans *, u16, u64, u64, struct bkey_s_c, struct bkey_buf *);
 
 int bch2_check_lrus(struct bch_fs *);
 
