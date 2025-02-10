@@ -1571,7 +1571,8 @@ static int cpufreq_online(unsigned int cpu)
 		policy->cdev = of_cpufreq_cooling_register(policy);
 
 	/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
-	if (policy->boost_enabled != cpufreq_boost_enabled()) {
+	if (cpufreq_driver->set_boost &&
+	    policy->boost_enabled != cpufreq_boost_enabled()) {
 		policy->boost_enabled = cpufreq_boost_enabled();
 		ret = cpufreq_driver->set_boost(policy, policy->boost_enabled);
 		if (ret) {

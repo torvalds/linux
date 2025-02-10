@@ -479,6 +479,11 @@ struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
 	sock->file = file;
 	file->private_data = sock;
 	stream_open(SOCK_INODE(sock), file);
+	/*
+	 * Disable permission and pre-content events, but enable legacy
+	 * inotify events for legacy users.
+	 */
+	file_set_fsnotify_mode(file, FMODE_NONOTIFY_PERM);
 	return file;
 }
 EXPORT_SYMBOL(sock_alloc_file);

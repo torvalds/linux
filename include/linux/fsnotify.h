@@ -129,7 +129,7 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 
-void file_set_fsnotify_mode(struct file *file);
+void file_set_fsnotify_mode_from_watchers(struct file *file);
 
 /*
  * fsnotify_file_area_perm - permission hook before access to file range
@@ -213,7 +213,7 @@ static inline int fsnotify_open_perm(struct file *file)
 }
 
 #else
-static inline void file_set_fsnotify_mode(struct file *file)
+static inline void file_set_fsnotify_mode_from_watchers(struct file *file)
 {
 }
 

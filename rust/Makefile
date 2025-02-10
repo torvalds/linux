@@ -144,7 +144,7 @@ rusttestlib-kernel: private rustc_target_flags = --extern ffi \
     --extern bindings --extern uapi
 rusttestlib-kernel: $(src)/kernel/lib.rs \
     rusttestlib-bindings rusttestlib-uapi rusttestlib-build_error \
-    $(obj)/libmacros.so $(obj)/bindings.o FORCE
+    $(obj)/$(libmacros_name) $(obj)/bindings.o FORCE
 	+$(call if_changed,rustc_test_library)
 
 rusttestlib-bindings: private rustc_target_flags = --extern ffi
@@ -240,6 +240,7 @@ bindgen_skip_c_flags := -mno-fp-ret-in-387 -mpreferred-stack-boundary=% \
 	-fzero-call-used-regs=% -fno-stack-clash-protection \
 	-fno-inline-functions-called-once -fsanitize=bounds-strict \
 	-fstrict-flex-arrays=% -fmin-function-alignment=% \
+	-fzero-init-padding-bits=% \
 	--param=% --param asan-%
 
 # Derived from `scripts/Makefile.clang`.
@@ -331,7 +332,7 @@ $(obj)/bindings/bindings_helpers_generated.rs: private bindgen_target_extra = ; 
 $(obj)/bindings/bindings_helpers_generated.rs: $(src)/helpers/helpers.c FORCE
 	$(call if_changed_dep,bindgen)
 
-rust_exports = $(NM) -p --defined-only $(1) | awk '$$2~/(T|R|D|B)/ && $$3!~/__cfi/ { printf $(2),$$3 }'
+rust_exports = $(NM) -p --defined-only $(1) | awk '$$2~/(T|R|D|B)/ && $$3!~/__cfi/ && $$3!~/__odr_asan/ { printf $(2),$$3 }'
 
 quiet_cmd_exports = EXPORTS $@
       cmd_exports = \

@@ -306,7 +306,8 @@ function check_result {
 	result=$(dmesg | awk -v last_dmesg="$LAST_DMESG" 'p; $0 == last_dmesg { p=1 }' | \
 		 grep -e 'livepatch:' -e 'test_klp' | \
 		 grep -v '\(tainting\|taints\) kernel' | \
-		 sed 's/^\[[ 0-9.]*\] //')
+		 sed 's/^\[[ 0-9.]*\] //' | \
+		 sed 's/^\[[ ]*[CT][0-9]*\] //')
 
 	if [[ "$expect" == "$result" ]] ; then
 		echo "ok"
