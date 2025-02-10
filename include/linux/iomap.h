@@ -218,8 +218,11 @@ struct iomap_ops {
  *	calls to iomap_iter().  Treat as read-only in the body.
  * @len: The remaining length of the file segment we're operating on.
  *	It is updated at the same time as @pos.
- * @processed: The number of bytes processed by the body in the most recent
- *	iteration, or a negative errno. 0 causes the iteration to stop.
+ * @iter_start_pos: The original start pos for the current iomap. Used for
+ *	incremental iter advance.
+ * @processed: The number of bytes the most recent iteration needs iomap_iter()
+ *	to advance the iter, zero if the iter was already advanced, or a
+ *	negative errno for an error during the operation.
  * @flags: Zero or more of the iomap_begin flags above.
  * @iomap: Map describing the I/O iteration
  * @srcmap: Source map for COW operations
@@ -228,6 +231,7 @@ struct iomap_iter {
 	struct inode *inode;
 	loff_t pos;
 	u64 len;
+	loff_t iter_start_pos;
 	s64 processed;
 	unsigned flags;
 	struct iomap iomap;
@@ -236,6 +240,26 @@ struct iomap_iter {
 };
 
 int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops);
+int iomap_iter_advance(struct iomap_iter *iter, u64 *count);
+
+/**
+ * iomap_length_trim - trimmed length of the current iomap iteration
+ * @iter: iteration structure
+ * @pos: File position to trim from.
+ * @len: Length of the mapping to trim to.
+ *
+ * Returns a trimmed length that the operation applies to for the current
+ * iteration.
+ */
+static inline u64 iomap_length_trim(const struct iomap_iter *iter, loff_t pos,
+		u64 len)
+{
+	u64 end = iter->iomap.offset + iter->iomap.length;
+
+	if (iter->srcmap.type != IOMAP_HOLE)
+		end = min(end, iter->srcmap.offset + iter->srcmap.length);
+	return min(len, end - pos);
+}
 
 /**
  * iomap_length - length of the current iomap iteration
@@ -245,11 +269,7 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops);
  */
 static inline u64 iomap_length(const struct iomap_iter *iter)
 {
-	u64 end = iter->iomap.offset + iter->iomap.length;
-
-	if (iter->srcmap.type != IOMAP_HOLE)
-		end = min(end, iter->srcmap.offset + iter->srcmap.length);
-	return min(iter->len, end - iter->pos);
+	return iomap_length_trim(iter, iter->pos, iter->len);
 }
 
 /**
