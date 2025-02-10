@@ -42,6 +42,9 @@ obj-$(CONFIG_CRC32_ARCH) += crc32-x86.o
 crc32-x86-y := crc32-glue.o crc32-pclmul.o
 crc32-x86-$(CONFIG_64BIT) += crc32c-3way.o
 
+obj-$(CONFIG_CRC64_ARCH) += crc64-x86.o
+crc64-x86-y := crc64-glue.o crc64-pclmul.o
+
 obj-$(CONFIG_CRC_T10DIF_ARCH) += crc-t10dif-x86.o
 crc-t10dif-x86-y := crc-t10dif-glue.o crc16-msb-pclmul.o
 
