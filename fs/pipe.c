@@ -360,29 +360,9 @@ anon_pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			break;
 		}
 		mutex_unlock(&pipe->mutex);
-
 		/*
 		 * We only get here if we didn't actually read anything.
 		 *
-		 * However, we could have seen (and removed) a zero-sized
-		 * pipe buffer, and might have made space in the buffers
-		 * that way.
-		 *
-		 * You can't make zero-sized pipe buffers by doing an empty
-		 * write (not even in packet mode), but they can happen if
-		 * the writer gets an EFAULT when trying to fill a buffer
-		 * that already got allocated and inserted in the buffer
-		 * array.
-		 *
-		 * So we still need to wake up any pending writers in the
-		 * _very_ unlikely case that the pipe was full, but we got
-		 * no data.
-		 */
-		if (unlikely(wake_writer))
-			wake_up_interruptible_sync_poll(&pipe->wr_wait, EPOLLOUT | EPOLLWRNORM);
-		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
-
-		/*
 		 * But because we didn't read anything, at this point we can
 		 * just return directly with -ERESTARTSYS if we're interrupted,
 		 * since we've done any required wakeups and there's no need
@@ -391,7 +371,6 @@ anon_pipe_read(struct kiocb *iocb, struct iov_iter *to)
 		if (wait_event_interruptible_exclusive(pipe->rd_wait, pipe_readable(pipe)) < 0)
 			return -ERESTARTSYS;
 
-		wake_writer = false;
 		wake_next_reader = true;
 		mutex_lock(&pipe->mutex);
 	}
@@ -526,33 +505,27 @@ anon_pipe_write(struct kiocb *iocb, struct iov_iter *from)
 				pipe->tmp_page = page;
 			}
 
-			/* Allocate a slot in the ring in advance and attach an
-			 * empty buffer.  If we fault or otherwise fail to use
-			 * it, either the reader will consume it or it'll still
-			 * be there for the next write.
-			 */
-			pipe->head = head + 1;
-
-			/* Insert it into the buffer array */
-			buf = &pipe->bufs[head & mask];
-			buf->page = page;
-			buf->ops = &anon_pipe_buf_ops;
-			buf->offset = 0;
-			buf->len = 0;
-			if (is_packetized(filp))
-				buf->flags = PIPE_BUF_FLAG_PACKET;
-			else
-				buf->flags = PIPE_BUF_FLAG_CAN_MERGE;
-			pipe->tmp_page = NULL;
-
 			copied = copy_page_from_iter(page, 0, PAGE_SIZE, from);
 			if (unlikely(copied < PAGE_SIZE && iov_iter_count(from))) {
 				if (!ret)
 					ret = -EFAULT;
 				break;
 			}
-			ret += copied;
+
+			pipe->head = head + 1;
+			pipe->tmp_page = NULL;
+			/* Insert it into the buffer array */
+			buf = &pipe->bufs[head & mask];
+			buf->page = page;
+			buf->ops = &anon_pipe_buf_ops;
+			buf->offset = 0;
+			if (is_packetized(filp))
+				buf->flags = PIPE_BUF_FLAG_PACKET;
+			else
+				buf->flags = PIPE_BUF_FLAG_CAN_MERGE;
+
 			buf->len = copied;
+			ret += copied;
 
 			if (!iov_iter_count(from))
 				break;
