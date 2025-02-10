@@ -8,14 +8,23 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/spinand.h>
 
+/**
+ * spinand_otp_page_size() - Get SPI-NAND OTP page size
+ * @spinand: the spinand device
+ *
+ * Return: the OTP page size.
+ */
+size_t spinand_otp_page_size(struct spinand_device *spinand)
+{
+	struct nand_device *nand = spinand_to_nand(spinand);
+
+	return nanddev_page_size(nand) + nanddev_per_page_oobsize(nand);
+}
+
 static size_t spinand_otp_size(struct spinand_device *spinand,
 			       const struct spinand_otp_layout *layout)
 {
-	struct nand_device *nand = spinand_to_nand(spinand);
-	size_t otp_pagesize = nanddev_page_size(nand) +
-			      nanddev_per_page_oobsize(nand);
-
-	return layout->npages * otp_pagesize;
+	return layout->npages * spinand_otp_page_size(spinand);
 }
 
 /**
