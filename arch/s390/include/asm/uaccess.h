@@ -49,6 +49,8 @@ raw_copy_from_user(void *to, const void __user *from, unsigned long size)
 			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char *)to)
 			: [spec] "I" (0x81), [from] "Q" (*(const char __user *)from)
 			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
 		if (likely(CC_TRANSFORM(cc) == 0))
 			return osize - size;
 		size -= 4096;
@@ -75,6 +77,8 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long size)
 			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char __user *)to)
 			: [spec] "I" (0x81), [from] "Q" (*(const char *)from)
 			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
 		if (likely(CC_TRANSFORM(cc) == 0))
 			return osize - size;
 		size -= 4096;
