@@ -751,6 +751,7 @@ static const struct sophgo_pinctrl_data cv1812h_pindata = {
 	.pindata	= cv1812h_pin_data,
 	.pdnames	= cv1812h_power_domain_desc,
 	.vddio_ops	= &cv1812h_vddio_cfg_ops,
+	.cfg_ops	= &cv1800_cfg_ops,
 	.npins		= ARRAY_SIZE(cv1812h_pins),
 	.npds		= ARRAY_SIZE(cv1812h_power_domain_desc),
 	.pinsize	= sizeof(struct cv1800_pin),

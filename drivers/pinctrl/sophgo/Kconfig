@@ -3,17 +3,21 @@
 # Sophgo SoC PINCTRL drivers
 #
 
-config PINCTRL_SOPHGO_CV18XX
-	bool
+config PINCTRL_SOPHGO_COMMON
+	tristate
 	select GENERIC_PINCTRL_GROUPS
 	select GENERIC_PINMUX_FUNCTIONS
 	select GENERIC_PINCONF
+
+config PINCTRL_SOPHGO_CV18XX_OPS
+	bool
 
 config PINCTRL_SOPHGO_CV1800B
 	tristate "Sophgo CV1800B SoC Pinctrl driver"
 	depends on ARCH_SOPHGO || COMPILE_TEST
 	depends on OF
-	select PINCTRL_SOPHGO_CV18XX
+	select PINCTRL_SOPHGO_COMMON
+	select PINCTRL_SOPHGO_CV18XX_OPS
 	help
 	  Say Y to select the pinctrl driver for CV1800B SoC.
 	  This pin controller allows selecting the mux function for
@@ -24,7 +28,8 @@ config PINCTRL_SOPHGO_CV1812H
 	tristate "Sophgo CV1812H SoC Pinctrl driver"
 	depends on ARCH_SOPHGO || COMPILE_TEST
 	depends on OF
-	select PINCTRL_SOPHGO_CV18XX
+	select PINCTRL_SOPHGO_COMMON
+	select PINCTRL_SOPHGO_CV18XX_OPS
 	help
 	  Say Y to select the pinctrl driver for CV1812H SoC.
 	  This pin controller allows selecting the mux function for
@@ -35,7 +40,8 @@ config PINCTRL_SOPHGO_SG2000
 	tristate "Sophgo SG2000 SoC Pinctrl driver"
 	depends on ARCH_SOPHGO || COMPILE_TEST
 	depends on OF
-	select PINCTRL_SOPHGO_CV18XX
+	select PINCTRL_SOPHGO_COMMON
+	select PINCTRL_SOPHGO_CV18XX_OPS
 	help
 	  Say Y to select the pinctrl driver for SG2000 SoC.
 	  This pin controller allows selecting the mux function for
@@ -46,7 +52,8 @@ config PINCTRL_SOPHGO_SG2002
 	tristate "Sophgo SG2002 SoC Pinctrl driver"
 	depends on ARCH_SOPHGO || COMPILE_TEST
 	depends on OF
-	select PINCTRL_SOPHGO_CV18XX
+	select PINCTRL_SOPHGO_COMMON
+	select PINCTRL_SOPHGO_CV18XX_OPS
 	help
 	  Say Y to select the pinctrl driver for SG2002 SoC.
 	  This pin controller allows selecting the mux function for

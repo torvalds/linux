@@ -68,6 +68,8 @@ static inline enum cv1800_pin_io_type cv1800_pin_io_type(const struct cv1800_pin
 	return FIELD_GET(CV1800_PIN_IO_TYPE, pin->pin.flags);
 };
 
+extern const struct sophgo_cfg_ops cv1800_cfg_ops;
+
 int cv1800_pinctrl_probe(struct platform_device *pdev);
 
 #define CV1800_FUNC_PIN(_id, _power_domain, _type,			\

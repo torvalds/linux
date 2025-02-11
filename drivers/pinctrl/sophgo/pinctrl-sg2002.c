@@ -522,6 +522,7 @@ static const struct sophgo_pinctrl_data sg2002_pindata = {
 	.pindata	= sg2002_pin_data,
 	.pdnames	= sg2002_power_domain_desc,
 	.vddio_ops	= &sg2002_vddio_cfg_ops,
+	.cfg_ops	= &cv1800_cfg_ops,
 	.npins		= ARRAY_SIZE(sg2002_pins),
 	.npds		= ARRAY_SIZE(sg2002_power_domain_desc),
 	.pinsize	= sizeof(struct cv1800_pin),
