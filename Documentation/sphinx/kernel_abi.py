@@ -2,7 +2,7 @@
 # coding=utf-8
 # SPDX-License-Identifier: GPL-2.0
 #
-u"""
+"""
     kernel-abi
     ~~~~~~~~~~
 
@@ -55,7 +55,7 @@ path = os.path.join(srctree, "Documentation/ABI")
 _kernel_abi = None
 
 def get_kernel_abi():
-    u"""
+    """
     Initialize kernel_abi global var, if not initialized yet.
 
     This is needed to avoid warnings during Sphinx module initialization.
@@ -81,7 +81,7 @@ def setup(app):
 
 
 class KernelCmd(Directive):
-    u"""KernelABI (``kernel-abi``) directive"""
+    """KernelABI (``kernel-abi``) directive"""
 
     required_arguments = 1
     optional_arguments = 3
