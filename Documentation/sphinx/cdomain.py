@@ -45,9 +45,6 @@ import re
 
 __version__  = '1.1'
 
-# Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
-
 # Namespace to be prepended to the full name
 namespace = None
 
