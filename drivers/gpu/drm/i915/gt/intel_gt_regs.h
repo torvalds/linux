@@ -326,6 +326,7 @@
 							    _RING_FAULT_REG_VCS, \
 							    _RING_FAULT_REG_VECS, \
 							    _RING_FAULT_REG_BCS))
+#define   RING_FAULT_VADDR_MASK			REG_GENMASK(31, 12) /* pre-bdw */
 #define   RING_FAULT_ENGINE_ID_MASK		REG_GENMASK(16, 12) /* bdw+ */
 #define   RING_FAULT_GTTSEL_MASK		REG_BIT(11) /* pre-bdw */
 #define   RING_FAULT_SRCID_MASK			REG_GENMASK(10, 3)

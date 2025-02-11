@@ -302,17 +302,19 @@ static void gen6_check_faults(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	unsigned long fault;
 
 	for_each_engine(engine, gt, id) {
+		u32 fault;
+
 		fault = GEN6_RING_FAULT_REG_READ(engine);
+
 		if (fault & RING_FAULT_VALID) {
 			gt_dbg(gt, "Unexpected fault\n"
-			       "\tAddr: 0x%08lx\n"
+			       "\tAddr: 0x%08x\n"
 			       "\tAddress space: %s\n"
 			       "\tSource ID: %d\n"
 			       "\tType: %d\n",
-			       fault & PAGE_MASK,
+			       fault & RING_FAULT_VADDR_MASK,
 			       fault & RING_FAULT_GTTSEL_MASK ?
 			       "GGTT" : "PPGTT",
 			       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
