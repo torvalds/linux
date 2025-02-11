@@ -211,6 +211,7 @@ static bool damos_pa_filter_match(struct damos_filter *filter,
 {
 	bool matched = false;
 	struct mem_cgroup *memcg;
+	size_t folio_sz;
 
 	switch (filter->type) {
 	case DAMOS_FILTER_TYPE_ANON:
@@ -229,6 +230,11 @@ static bool damos_pa_filter_match(struct damos_filter *filter,
 		matched = damon_folio_young(folio);
 		if (matched)
 			damon_folio_mkold(folio);
+		break;
+	case DAMOS_FILTER_TYPE_HUGEPAGE_SIZE:
+		folio_sz = folio_size(folio);
+		matched = filter->sz_range.min <= folio_sz &&
+			  folio_sz <= filter->sz_range.max;
 		break;
 	default:
 		break;
