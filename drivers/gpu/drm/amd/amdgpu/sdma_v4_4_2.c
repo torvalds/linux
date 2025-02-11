@@ -1783,6 +1783,9 @@ static int sdma_v4_4_2_process_trap_irq(struct amdgpu_device *adev,
 	case 0:
 		amdgpu_fence_process(&adev->sdma.instance[i].ring);
 		break;
+	case 1:
+		amdgpu_fence_process(&adev->sdma.instance[i].page);
+		break;
 	default:
 		break;
 	}
