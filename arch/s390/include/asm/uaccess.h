@@ -22,28 +22,6 @@
 
 void debug_user_asce(int exit);
 
-union oac {
-	unsigned int val;
-	struct {
-		struct {
-			unsigned short key : 4;
-			unsigned short	   : 4;
-			unsigned short as  : 2;
-			unsigned short	   : 4;
-			unsigned short k   : 1;
-			unsigned short a   : 1;
-		} oac1;
-		struct {
-			unsigned short key : 4;
-			unsigned short	   : 4;
-			unsigned short as  : 2;
-			unsigned short	   : 4;
-			unsigned short k   : 1;
-			unsigned short a   : 1;
-		} oac2;
-	};
-};
-
 #ifdef CONFIG_KMSAN
 #define uaccess_kmsan_or_inline noinline __maybe_unused __no_sanitize_memory
 #else
@@ -51,28 +29,22 @@ union oac {
 #endif
 
 static uaccess_kmsan_or_inline __must_check unsigned long
-raw_copy_from_user_key(void *to, const void __user *from, unsigned long size, unsigned long key)
+raw_copy_from_user(void *to, const void __user *from, unsigned long size)
 {
 	unsigned long osize;
-	union oac spec = {
-		.oac2.key = key,
-		.oac2.as = PSW_BITS_AS_SECONDARY,
-		.oac2.k = 1,
-		.oac2.a = 1,
-	};
 	int cc;
 
 	while (1) {
 		osize = size;
 		asm_inline volatile(
-			"	lr	%%r0,%[spec]\n"
+			"	lhi	%%r0,%[spec]\n"
 			"0:	mvcos	%[to],%[from],%[size]\n"
 			"1:	nopr	%%r7\n"
 			CC_IPM(cc)
 			EX_TABLE_UA_MVCOS_FROM(0b, 0b)
 			EX_TABLE_UA_MVCOS_FROM(1b, 0b)
 			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char *)to)
-			: [spec] "d" (spec.val), [from] "Q" (*(const char __user *)from)
+			: [spec] "I" (0x81), [from] "Q" (*(const char __user *)from)
 			: CC_CLOBBER_LIST("memory", "0"));
 		if (likely(CC_TRANSFORM(cc) == 0))
 			return osize - size;
@@ -82,35 +54,23 @@ raw_copy_from_user_key(void *to, const void __user *from, unsigned long size, un
 	}
 }
 
-static __always_inline __must_check unsigned long
-raw_copy_from_user(void *to, const void __user *from, unsigned long n)
-{
-	return raw_copy_from_user_key(to, from, n, 0);
-}
-
 static uaccess_kmsan_or_inline __must_check unsigned long
-raw_copy_to_user_key(void __user *to, const void *from, unsigned long size, unsigned long key)
+raw_copy_to_user(void __user *to, const void *from, unsigned long size)
 {
 	unsigned long osize;
-	union oac spec = {
-		.oac1.key = key,
-		.oac1.as = PSW_BITS_AS_SECONDARY,
-		.oac1.k = 1,
-		.oac1.a = 1,
-	};
 	int cc;
 
 	while (1) {
 		osize = size;
 		asm_inline volatile(
-			"	lr	%%r0,%[spec]\n"
+			"	llilh	%%r0,%[spec]\n"
 			"0:	mvcos	%[to],%[from],%[size]\n"
 			"1:	nopr	%%r7\n"
 			CC_IPM(cc)
 			EX_TABLE_UA_MVCOS_TO(0b, 0b)
 			EX_TABLE_UA_MVCOS_TO(1b, 0b)
 			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char __user *)to)
-			: [spec] "d" (spec.val), [from] "Q" (*(const char *)from)
+			: [spec] "I" (0x81), [from] "Q" (*(const char *)from)
 			: CC_CLOBBER_LIST("memory", "0"));
 		if (likely(CC_TRANSFORM(cc) == 0))
 			return osize - size;
@@ -118,12 +78,6 @@ raw_copy_to_user_key(void __user *to, const void *from, unsigned long size, unsi
 		to += 4096;
 		from += 4096;
 	}
-}
-
-static __always_inline __must_check unsigned long
-raw_copy_to_user(void __user *to, const void *from, unsigned long n)
-{
-	return raw_copy_to_user_key(to, from, n, 0);
 }
 
 unsigned long __must_check
