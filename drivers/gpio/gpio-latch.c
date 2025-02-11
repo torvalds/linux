@@ -44,6 +44,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/delay.h>
 
 #include "gpiolib.h"
@@ -138,9 +139,9 @@ static bool gpio_latch_can_sleep(struct gpio_latch_priv *priv, unsigned int n_la
 
 static int gpio_latch_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct gpio_latch_priv *priv;
 	unsigned int n_latches;
-	struct device_node *np = pdev->dev.of_node;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -172,14 +173,16 @@ static int gpio_latch_probe(struct platform_device *pdev)
 		spin_lock_init(&priv->spinlock);
 	}
 
-	of_property_read_u32(np, "setup-duration-ns", &priv->setup_duration_ns);
+	device_property_read_u32(dev, "setup-duration-ns",
+				 &priv->setup_duration_ns);
 	if (priv->setup_duration_ns > DURATION_NS_MAX) {
 		dev_warn(&pdev->dev, "setup-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
 		priv->setup_duration_ns = DURATION_NS_MAX;
 	}
 
-	of_property_read_u32(np, "clock-duration-ns", &priv->clock_duration_ns);
+	device_property_read_u32(dev, "clock-duration-ns",
+				 &priv->clock_duration_ns);
 	if (priv->clock_duration_ns > DURATION_NS_MAX) {
 		dev_warn(&pdev->dev, "clock-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
