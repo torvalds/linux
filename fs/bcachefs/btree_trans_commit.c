@@ -336,6 +336,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	BUG_ON(i->cached	!= path->cached);
 	BUG_ON(i->level		!= path->level);
 	BUG_ON(i->btree_id	!= path->btree_id);
+	BUG_ON(i->bkey_type	!= __btree_node_type(path->level, path->btree_id));
 	EBUG_ON(!i->level &&
 		btree_type_has_snapshots(i->btree_id) &&
 		!(i->flags & BTREE_UPDATE_internal_snapshot_node) &&
@@ -517,68 +518,44 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 	}
 }
 
-static int run_btree_triggers(struct btree_trans *trans, enum btree_id btree_id,
-			      unsigned *btree_id_updates_start)
-{
-	bool trans_trigger_run;
-
-	/*
-	 * Running triggers will append more updates to the list of updates as
-	 * we're walking it:
-	 */
-	do {
-		trans_trigger_run = false;
-
-		for (unsigned i = *btree_id_updates_start;
-		     i < trans->nr_updates && trans->updates[i].btree_id <= btree_id;
-		     i++) {
-			if (trans->updates[i].btree_id < btree_id) {
-				*btree_id_updates_start = i;
-				continue;
-			}
-
-			int ret = run_one_trans_trigger(trans, trans->updates + i);
-			if (ret < 0)
-				return ret;
-			if (ret)
-				trans_trigger_run = true;
-		}
-	} while (trans_trigger_run);
-
-	trans_for_each_update(trans, i)
-		BUG_ON(!(i->flags & BTREE_TRIGGER_norun) &&
-		       i->btree_id == btree_id &&
-		       btree_node_type_has_trans_triggers(i->bkey_type) &&
-		       (!i->insert_trigger_run || !i->overwrite_trigger_run));
-
-	return 0;
-}
-
 static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 {
-	unsigned btree_id = 0, btree_id_updates_start = 0;
-	int ret = 0;
+	unsigned sort_id_start = 0;
 
-	/*
-	 *
-	 * For a given btree, this algorithm runs insert triggers before
-	 * overwrite triggers: this is so that when extents are being moved
-	 * (e.g. by FALLOCATE_FL_INSERT_RANGE), we don't drop references before
-	 * they are re-added.
-	 */
-	for (btree_id = 0; btree_id < BTREE_ID_NR; btree_id++) {
-		if (btree_id == BTREE_ID_alloc)
-			continue;
+	while (sort_id_start < trans->nr_updates) {
+		unsigned i, sort_id = trans->updates[sort_id_start].sort_order;
+		bool trans_trigger_run;
 
-		ret = run_btree_triggers(trans, btree_id, &btree_id_updates_start);
-		if (ret)
-			return ret;
+		/*
+		 * For a given btree, this algorithm runs insert triggers before
+		 * overwrite triggers: this is so that when extents are being
+		 * moved (e.g. by FALLOCATE_FL_INSERT_RANGE), we don't drop
+		 * references before they are re-added.
+		 *
+		 * Running triggers will append more updates to the list of
+		 * updates as we're walking it:
+		 */
+		do {
+			trans_trigger_run = false;
+
+			for (i = sort_id_start;
+			     i < trans->nr_updates && trans->updates[i].sort_order <= sort_id;
+			     i++) {
+				if (trans->updates[i].sort_order < sort_id) {
+					sort_id_start = i;
+					continue;
+				}
+
+				int ret = run_one_trans_trigger(trans, trans->updates + i);
+				if (ret < 0)
+					return ret;
+				if (ret)
+					trans_trigger_run = true;
+			}
+		} while (trans_trigger_run);
+
+		sort_id_start = i;
 	}
-
-	btree_id_updates_start = 0;
-	ret = run_btree_triggers(trans, BTREE_ID_alloc, &btree_id_updates_start);
-	if (ret)
-		return ret;
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i)
