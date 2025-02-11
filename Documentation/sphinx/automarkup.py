@@ -88,13 +88,13 @@ def markup_refs(docname, app, node):
     # Associate each regex with the function that will markup its matches
     #
     markup_func_sphinx2 = {RE_doc: markup_doc_ref,
-                           RE_abi_file: markup_abi_ref,
+                           RE_abi_file: markup_abi_file_ref,
                            RE_abi_symbol: markup_abi_ref,
                            RE_function: markup_c_ref,
                            RE_generic_type: markup_c_ref}
 
     markup_func_sphinx3 = {RE_doc: markup_doc_ref,
-                           RE_abi_file: markup_abi_ref,
+                           RE_abi_file: markup_abi_file_ref,
                            RE_abi_symbol: markup_abi_ref,
                            RE_function: markup_func_ref_sphinx3,
                            RE_struct: markup_c_ref,
@@ -279,10 +279,10 @@ def markup_doc_ref(docname, app, match):
         return nodes.Text(match.group(0))
 
 #
-# Try to replace a documentation reference of the form Documentation/ABI/...
+# Try to replace a documentation reference for ABI symbols and files
 # with a cross reference to that page
 #
-def markup_abi_ref(docname, app, match):
+def markup_abi_ref(docname, app, match, warning=False):
     stddom = app.env.domains['std']
     #
     # Go through the dance of getting an xref out of the std domain
@@ -294,6 +294,8 @@ def markup_abi_ref(docname, app, match):
 
     # Kernel ABI doesn't describe such file or symbol
     if not target:
+        if warning:
+            kernel_abi.log.warning("%s not found", fname)
         return nodes.Text(match.group(0))
 
     pxref = addnodes.pending_xref('', refdomain = 'std', reftype = 'ref',
@@ -316,6 +318,13 @@ def markup_abi_ref(docname, app, match):
         return xref
     else:
         return nodes.Text(match.group(0))
+
+#
+# Variant of markup_abi_ref() that warns whan a reference is not found
+#
+def markup_abi_file_ref(docname, app, match):
+    return markup_abi_ref(docname, app, match, warning=True)
+
 
 def get_c_namespace(app, docname):
     source = app.env.doc2path(docname)
