@@ -258,10 +258,6 @@ struct ec_stripe_head *bch2_ec_stripe_head_get(struct btree_trans *,
 			unsigned, unsigned, unsigned,
 			enum bch_watermark, struct closure *);
 
-void bch2_stripes_heap_update(struct bch_fs *, struct stripe *, size_t);
-void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);
-void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
-
 void bch2_do_stripe_deletes(struct bch_fs *);
 void bch2_ec_do_stripe_creates(struct bch_fs *);
 void bch2_ec_stripe_new_free(struct bch_fs *, struct ec_stripe_new *);
@@ -298,7 +294,6 @@ void bch2_fs_ec_flush(struct bch_fs *);
 
 int bch2_stripes_read(struct bch_fs *);
 
-void bch2_stripes_heap_to_text(struct printbuf *, struct bch_fs *);
 void bch2_new_stripes_to_text(struct printbuf *, struct bch_fs *);
 
 void bch2_fs_ec_exit(struct bch_fs *);
