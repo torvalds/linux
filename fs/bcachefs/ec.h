@@ -132,6 +132,20 @@ static inline bool bch2_ptr_matches_stripe_m(const struct gc_stripe *m,
 					 m->sectors);
 }
 
+static inline void gc_stripe_unlock(struct gc_stripe *s)
+{
+	BUILD_BUG_ON(!((union ulong_byte_assert) { .ulong = 1UL << BUCKET_LOCK_BITNR }).byte);
+
+	clear_bit_unlock(BUCKET_LOCK_BITNR, (void *) &s->lock);
+	wake_up_bit((void *) &s->lock, BUCKET_LOCK_BITNR);
+}
+
+static inline void gc_stripe_lock(struct gc_stripe *s)
+{
+	wait_on_bit_lock((void *) &s->lock, BUCKET_LOCK_BITNR,
+			 TASK_UNINTERRUPTIBLE);
+}
+
 struct bch_read_bio;
 
 struct ec_stripe_buf {

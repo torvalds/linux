@@ -20,12 +20,11 @@ struct stripe {
 };
 
 struct gc_stripe {
+	u8			lock;
+	unsigned		alive:1; /* does a corresponding key exist in stripes btree? */
 	u16			sectors;
-
 	u8			nr_blocks;
 	u8			nr_redundant;
-
-	unsigned		alive:1; /* does a corresponding key exist in stripes btree? */
 	u16			block_sectors[BCH_BKEY_PTRS_MAX];
 	struct bch_extent_ptr	ptrs[BCH_BKEY_PTRS_MAX];
 
