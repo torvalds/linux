@@ -2311,6 +2311,16 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 	u64 full_va_range = 1ull << va_bits;
 	struct drm_gem_object *dummy_gem;
 	struct drm_gpu_scheduler *sched;
+	const struct drm_sched_init_args sched_args = {
+		.ops = &panthor_vm_bind_ops,
+		.submit_wq = ptdev->mmu->vm.wq,
+		.num_rqs = 1,
+		.credit_limit = 1,
+		/* Bind operations are synchronous for now, no timeout needed. */
+		.timeout = MAX_SCHEDULE_TIMEOUT,
+		.name = "panthor-vm-bind",
+		.dev = ptdev->base.dev,
+	};
 	struct io_pgtable_cfg pgtbl_cfg;
 	u64 mair, min_va, va_range;
 	struct panthor_vm *vm;
@@ -2368,11 +2378,7 @@ panthor_vm_create(struct panthor_device *ptdev, bool for_mcu,
 		goto err_mm_takedown;
 	}
 
-	/* Bind operations are synchronous for now, no timeout needed. */
-	ret = drm_sched_init(&vm->sched, &panthor_vm_bind_ops, ptdev->mmu->vm.wq,
-			     1, 1, 0,
-			     MAX_SCHEDULE_TIMEOUT, NULL, NULL,
-			     "panthor-vm-bind", ptdev->base.dev);
+	ret = drm_sched_init(&vm->sched, &sched_args);
 	if (ret)
 		goto err_free_io_pgtable;
 

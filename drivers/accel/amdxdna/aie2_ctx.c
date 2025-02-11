@@ -516,6 +516,14 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 {
 	struct amdxdna_client *client = hwctx->client;
 	struct amdxdna_dev *xdna = client->xdna;
+	const struct drm_sched_init_args args = {
+		.ops = &sched_ops,
+		.num_rqs = DRM_SCHED_PRIORITY_COUNT,
+		.credit_limit = HWCTX_MAX_CMDS,
+		.timeout = msecs_to_jiffies(HWCTX_MAX_TIMEOUT),
+		.name = hwctx->name,
+		.dev = xdna->ddev.dev,
+	};
 	struct drm_gpu_scheduler *sched;
 	struct amdxdna_hwctx_priv *priv;
 	struct amdxdna_gem_obj *heap;
@@ -573,9 +581,7 @@ int aie2_hwctx_init(struct amdxdna_hwctx *hwctx)
 	might_lock(&priv->io_lock);
 	fs_reclaim_release(GFP_KERNEL);
 
-	ret = drm_sched_init(sched, &sched_ops, NULL, DRM_SCHED_PRIORITY_COUNT,
-			     HWCTX_MAX_CMDS, 0, msecs_to_jiffies(HWCTX_MAX_TIMEOUT),
-			     NULL, NULL, hwctx->name, xdna->ddev.dev);
+	ret = drm_sched_init(sched, &args);
 	if (ret) {
 		XDNA_ERR(xdna, "Failed to init DRM scheduler. ret %d", ret);
 		goto free_cmd_bufs;
