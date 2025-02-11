@@ -132,6 +132,27 @@
 			};
 		};
 
+		flx10: flexcom@e2824000 {
+			compatible = "microchip,sama7d65-flexcom", "atmel,sama5d2-flexcom";
+			reg = <0xe2824000 0x200>;
+			ranges = <0x0 0xe2824000 0x800>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 44>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			status = "disabled";
+
+			i2c10: i2c@600 {
+				compatible = "microchip,sama7d65-i2c", "microchip,sam9x60-i2c";
+				reg = <0x600 0x200>;
+				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 44>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				atmel,fifo-size = <32>;
+				status = "disabled";
+			};
+		};
+
 		gic: interrupt-controller@e8c11000 {
 			compatible = "arm,cortex-a7-gic";
 			reg = <0xe8c11000 0x1000>,
