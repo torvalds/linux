@@ -1794,34 +1794,47 @@ int psp_ras_initialize(struct psp_context *psp)
 		if (ret)
 			dev_warn(adev->dev, "PSP get boot config failed\n");
 
-		if (!amdgpu_ras_is_supported(psp->adev, AMDGPU_RAS_BLOCK__UMC)) {
-			if (!boot_cfg) {
-				dev_info(adev->dev, "GECC is disabled\n");
-			} else {
-				/* disable GECC in next boot cycle if ras is
-				 * disabled by module parameter amdgpu_ras_enable
-				 * and/or amdgpu_ras_mask, or boot_config_get call
-				 * is failed
-				 */
-				ret = psp_boot_config_set(adev, 0);
-				if (ret)
-					dev_warn(adev->dev, "PSP set boot config failed\n");
-				else
-					dev_warn(adev->dev, "GECC will be disabled in next boot cycle if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
-			}
+		if (boot_cfg == 1 && !adev->ras_default_ecc_enabled &&
+		    amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC)) {
+			dev_warn(adev->dev, "GECC is currently enabled, which may affect performance\n");
+			dev_warn(adev->dev,
+				"To disable GECC, please reboot the system and load the amdgpu driver with the parameter amdgpu_ras_enable=0\n");
 		} else {
-			if (boot_cfg == 1) {
-				dev_info(adev->dev, "GECC is enabled\n");
+			if ((adev->ras_default_ecc_enabled || amdgpu_ras_enable == 1) &&
+				amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC)) {
+				if (boot_cfg == 1) {
+					dev_info(adev->dev, "GECC is enabled\n");
+				} else {
+					/* enable GECC in next boot cycle if it is disabled
+					 * in boot config, or force enable GECC if failed to
+					 * get boot configuration
+					 */
+					ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
+					if (ret)
+						dev_warn(adev->dev, "PSP set boot config failed\n");
+					else
+						dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+				}
 			} else {
-				/* enable GECC in next boot cycle if it is disabled
-				 * in boot config, or force enable GECC if failed to
-				 * get boot configuration
-				 */
-				ret = psp_boot_config_set(adev, BOOT_CONFIG_GECC);
-				if (ret)
-					dev_warn(adev->dev, "PSP set boot config failed\n");
-				else
-					dev_warn(adev->dev, "GECC will be enabled in next boot cycle\n");
+				if (!boot_cfg) {
+					if (!adev->ras_default_ecc_enabled &&
+					    amdgpu_ras_enable != 1 &&
+					    amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__UMC))
+						dev_warn(adev->dev, "GECC is disabled, set amdgpu_ras_enable=1 to enable GECC in next boot cycle if needed\n");
+					else
+						dev_info(adev->dev, "GECC is disabled\n");
+				} else {
+					/* disable GECC in next boot cycle if ras is
+					 * disabled by module parameter amdgpu_ras_enable
+					 * and/or amdgpu_ras_mask, or boot_config_get call
+					 * is failed
+					 */
+					ret = psp_boot_config_set(adev, 0);
+					if (ret)
+						dev_warn(adev->dev, "PSP set boot config failed\n");
+					else
+						dev_warn(adev->dev, "GECC will be disabled in next boot cycle if set amdgpu_ras_enable and/or amdgpu_ras_mask to 0x0\n");
+				}
 			}
 		}
 	}
