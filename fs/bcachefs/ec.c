@@ -1981,39 +1981,40 @@ static int new_stripe_alloc_buckets(struct btree_trans *trans,
 	return 0;
 }
 
-static s64 get_existing_stripe(struct bch_fs *c,
-			       struct ec_stripe_head *head)
+static int __get_existing_stripe(struct btree_trans *trans,
+				 struct ec_stripe_head *head,
+				 struct ec_stripe_buf *stripe,
+				 u64 idx)
 {
-	ec_stripes_heap *h = &c->ec_stripes_heap;
-	struct stripe *m;
-	size_t heap_idx;
-	u64 stripe_idx;
-	s64 ret = -1;
+	struct bch_fs *c = trans->c;
 
-	if (may_create_new_stripe(c))
-		return -1;
+	struct btree_iter iter;
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter,
+					  BTREE_ID_stripes, POS(0, idx), 0);
+	int ret = bkey_err(k);
+	if (ret)
+		goto err;
 
-	mutex_lock(&c->ec_stripes_heap_lock);
-	for (heap_idx = 0; heap_idx < h->nr; heap_idx++) {
-		/* No blocks worth reusing, stripe will just be deleted: */
-		if (!h->data[heap_idx].blocks_nonempty)
-			continue;
+	/* We expect write buffer races here */
+	if (k.k->type != KEY_TYPE_stripe)
+		goto out;
 
-		stripe_idx = h->data[heap_idx].idx;
+	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+	if (stripe_lru_pos(s.v) <= 1)
+		goto out;
 
-		m = genradix_ptr(&c->stripes, stripe_idx);
-
-		if (m->disk_label	== head->disk_label &&
-		    m->algorithm	== head->algo &&
-		    m->nr_redundant	== head->redundancy &&
-		    m->sectors		== head->blocksize &&
-		    m->blocks_nonempty	< m->nr_blocks - m->nr_redundant &&
-		    bch2_try_open_stripe(c, head->s, stripe_idx)) {
-			ret = stripe_idx;
-			break;
-		}
+	if (s.v->disk_label		== head->disk_label &&
+	    s.v->algorithm		== head->algo &&
+	    s.v->nr_redundant		== head->redundancy &&
+	    le16_to_cpu(s.v->sectors)	== head->blocksize &&
+	    bch2_try_open_stripe(c, head->s, idx)) {
+		bkey_reassemble(&stripe->key, k);
+		ret = 1;
 	}
-	mutex_unlock(&c->ec_stripes_heap_lock);
+out:
+	bch2_set_btree_iter_dontneed(&iter);
+err:
+	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
@@ -2065,24 +2066,33 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 				       struct ec_stripe_new *s)
 {
 	struct bch_fs *c = trans->c;
-	s64 idx;
-	int ret;
 
 	/*
 	 * If we can't allocate a new stripe, and there's no stripes with empty
 	 * blocks for us to reuse, that means we have to wait on copygc:
 	 */
-	idx = get_existing_stripe(c, h);
-	if (idx < 0)
-		return -BCH_ERR_stripe_alloc_blocked;
+	if (may_create_new_stripe(c))
+		return -1;
 
-	ret = get_stripe_key_trans(trans, idx, &s->existing_stripe);
-	bch2_fs_fatal_err_on(ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart), c,
-			     "reading stripe key: %s", bch2_err_str(ret));
-	if (ret) {
-		bch2_stripe_close(c, s);
-		return ret;
+	struct btree_iter lru_iter;
+	struct bkey_s_c lru_k;
+	int ret = 0;
+
+	for_each_btree_key_max_norestart(trans, lru_iter, BTREE_ID_lru,
+			lru_pos(BCH_LRU_STRIPE_FRAGMENTATION, 2, 0),
+			lru_pos(BCH_LRU_STRIPE_FRAGMENTATION, 2, LRU_TIME_MAX),
+			0, lru_k, ret) {
+		ret = __get_existing_stripe(trans, h, &s->existing_stripe, lru_k.k->p.offset);
+		if (ret)
+			break;
 	}
+	bch2_trans_iter_exit(trans, &lru_iter);
+	if (!ret)
+		ret = -BCH_ERR_stripe_alloc_blocked;
+	if (ret == 1)
+		ret = 0;
+	if (ret)
+		return ret;
 
 	return init_new_stripe_from_existing(c, s);
 }

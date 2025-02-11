@@ -99,15 +99,13 @@ static inline u64 stripe_lru_pos(const struct bch_stripe *s)
 	if (!s)
 		return 0;
 
-	unsigned blocks_empty = 0, blocks_nonempty = 0;
+	unsigned nr_data = s->nr_blocks - s->nr_redundant, blocks_empty = 0;
 
-	for (unsigned i = 0; i < s->nr_blocks; i++) {
-		blocks_empty	+=  !stripe_blockcount_get(s, i);
-		blocks_nonempty	+= !!stripe_blockcount_get(s, i);
-	}
+	for (unsigned i = 0; i < nr_data; i++)
+		blocks_empty += !stripe_blockcount_get(s, i);
 
 	/* Will be picked up by the stripe_delete worker */
-	if (!blocks_nonempty)
+	if (blocks_empty == nr_data)
 		return STRIPE_LRU_POS_EMPTY;
 
 	if (!blocks_empty)
