@@ -1239,8 +1239,8 @@ static int rzg2l_mod_clock_endisable(struct clk_hw *hw, bool enable)
 	error = readl_poll_timeout_atomic(priv->base + CLK_MON_R(reg), value,
 					  value & bitmask, 0, 10);
 	if (error)
-		dev_err(dev, "Failed to enable CLK_ON %p\n",
-			priv->base + CLK_ON_R(reg));
+		dev_err(dev, "Failed to enable CLK_ON 0x%x/%pC\n",
+			CLK_ON_R(reg), hw->clk);
 
 	return error;
 }
