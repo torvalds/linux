@@ -517,9 +517,9 @@
 #define GEN9_SLICE_PGCTL_ACK(slice)		_MMIO(0x804c + (slice) * 0x4)
 #define GEN10_SLICE_PGCTL_ACK(slice)		_MMIO(0x804c + ((slice) / 3) * 0x34 + \
 						      ((slice) % 3) * 0x4)
-#define   GEN9_PGCTL_SLICE_ACK			(1 << 0)
-#define   GEN9_PGCTL_SS_ACK(subslice)		(1 << (2 + (subslice) * 2))
-#define   GEN10_PGCTL_VALID_SS_MASK(slice)	((slice) == 0 ? 0x7F : 0x1F)
+#define   GEN9_PGCTL_SLICE_ACK			REG_BIT(0)
+#define   GEN9_PGCTL_SS_ACK(subslice)		REG_BIT(2 + (subslice) * 2)
+#define   GEN10_PGCTL_VALID_SS_MASK(slice)	((slice) == 0 ? REG_GENMASK(6, 0) : REG_GENMASK(4, 0))
 
 #define GEN9_SS01_EU_PGCTL_ACK(slice)		_MMIO(0x805c + (slice) * 0x8)
 #define GEN10_SS01_EU_PGCTL_ACK(slice)		_MMIO(0x805c + ((slice) / 3) * 0x30 + \
@@ -527,14 +527,14 @@
 #define GEN9_SS23_EU_PGCTL_ACK(slice)		_MMIO(0x8060 + (slice) * 0x8)
 #define GEN10_SS23_EU_PGCTL_ACK(slice)		_MMIO(0x8060 + ((slice) / 3) * 0x30 + \
 						      ((slice) % 3) * 0x8)
-#define   GEN9_PGCTL_SSA_EU08_ACK		(1 << 0)
-#define   GEN9_PGCTL_SSA_EU19_ACK		(1 << 2)
-#define   GEN9_PGCTL_SSA_EU210_ACK		(1 << 4)
-#define   GEN9_PGCTL_SSA_EU311_ACK		(1 << 6)
-#define   GEN9_PGCTL_SSB_EU08_ACK		(1 << 8)
-#define   GEN9_PGCTL_SSB_EU19_ACK		(1 << 10)
-#define   GEN9_PGCTL_SSB_EU210_ACK		(1 << 12)
-#define   GEN9_PGCTL_SSB_EU311_ACK		(1 << 14)
+#define   GEN9_PGCTL_SSA_EU08_ACK			REG_BIT(0)
+#define   GEN9_PGCTL_SSA_EU19_ACK			REG_BIT(2)
+#define   GEN9_PGCTL_SSA_EU210_ACK			REG_BIT(4)
+#define   GEN9_PGCTL_SSA_EU311_ACK			REG_BIT(6)
+#define   GEN9_PGCTL_SSB_EU08_ACK			REG_BIT(8)
+#define   GEN9_PGCTL_SSB_EU19_ACK			REG_BIT(10)
+#define   GEN9_PGCTL_SSB_EU210_ACK			REG_BIT(12)
+#define   GEN9_PGCTL_SSB_EU311_ACK			REG_BIT(14)
 
 #define VF_PREEMPTION				_MMIO(0x83a4)
 #define   PREEMPTION_VERTEX_COUNT		REG_GENMASK(15, 0)
@@ -591,7 +591,7 @@
 #define   GEN10_L3BANK_MASK			0x0F
 /* on Xe_HP the same fuses indicates mslices instead of L3 banks */
 #define   GEN12_MAX_MSLICES			4
-#define   GEN12_MEML3_EN_MASK			0x0F
+#define   GEN12_MEML3_EN_MASK			REG_GENMASK(3, 0)
 
 #define HSW_PAVP_FUSE1				_MMIO(0x911c)
 #define   XEHP_SFC_ENABLE_MASK			REG_GENMASK(27, 24)
@@ -601,37 +601,30 @@
 #define   HSW_F1_EU_DIS_6EUS			2
 
 #define GEN8_FUSE2				_MMIO(0x9120)
-#define   GEN8_F2_SS_DIS_SHIFT			21
-#define   GEN8_F2_SS_DIS_MASK			(0x7 << GEN8_F2_SS_DIS_SHIFT)
-#define   GEN8_F2_S_ENA_SHIFT			25
-#define   GEN8_F2_S_ENA_MASK			(0x7 << GEN8_F2_S_ENA_SHIFT)
-#define   GEN9_F2_SS_DIS_SHIFT			20
-#define   GEN9_F2_SS_DIS_MASK			(0xf << GEN9_F2_SS_DIS_SHIFT)
-#define   GEN10_F2_S_ENA_SHIFT			22
-#define   GEN10_F2_S_ENA_MASK			(0x3f << GEN10_F2_S_ENA_SHIFT)
-#define   GEN10_F2_SS_DIS_SHIFT			18
-#define   GEN10_F2_SS_DIS_MASK			(0xf << GEN10_F2_SS_DIS_SHIFT)
+#define   GEN8_F2_SS_DIS_MASK			REG_GENMASK(23, 21)
+#define   GEN8_F2_S_ENA_MASK			REG_GENMASK(27, 25)
+#define   GEN9_F2_SS_DIS_MASK			REG_GENMASK(23, 20)
+#define   GEN10_F2_S_ENA_MASK			REG_GENMASK(27, 22)
+#define   GEN10_F2_SS_DIS_MASK			REG_GENMASK(21, 18)
 
 #define GEN8_EU_DISABLE0			_MMIO(0x9134)
 #define GEN9_EU_DISABLE(slice)			_MMIO(0x9134 + (slice) * 0x4)
 #define GEN11_EU_DISABLE			_MMIO(0x9134)
-#define   GEN8_EU_DIS0_S0_MASK			0xffffff
-#define   GEN8_EU_DIS0_S1_SHIFT			24
-#define   GEN8_EU_DIS0_S1_MASK			(0xff << GEN8_EU_DIS0_S1_SHIFT)
-#define   GEN11_EU_DIS_MASK			0xFF
+#define   GEN8_EU_DIS0_S0_MASK			REG_GENMASK(23, 0)
+#define   GEN8_EU_DIS0_S1_MASK			REG_GENMASK(31, 24)
+#define   GEN11_EU_DIS_MASK			REG_GENMASK(7, 0)
 #define XEHP_EU_ENABLE				_MMIO(0x9134)
-#define   XEHP_EU_ENA_MASK			0xFF
+#define   XEHP_EU_ENA_MASK			REG_GENMASK(7, 0)
 
 #define GEN8_EU_DISABLE1			_MMIO(0x9138)
-#define   GEN8_EU_DIS1_S1_MASK			0xffff
-#define   GEN8_EU_DIS1_S2_SHIFT			16
-#define   GEN8_EU_DIS1_S2_MASK			(0xffff << GEN8_EU_DIS1_S2_SHIFT)
+#define   GEN8_EU_DIS1_S1_MASK			REG_GENMASK(15, 0)
+#define   GEN8_EU_DIS1_S2_MASK			REG_GENMASK(31, 16)
 
 #define GEN11_GT_SLICE_ENABLE			_MMIO(0x9138)
-#define   GEN11_GT_S_ENA_MASK			0xFF
+#define   GEN11_GT_S_ENA_MASK			REG_GENMASK(7, 0)
 
 #define GEN8_EU_DISABLE2			_MMIO(0x913c)
-#define   GEN8_EU_DIS2_S2_MASK			0xff
+#define   GEN8_EU_DIS2_S2_MASK			REG_GENMASK(7, 0)
 
 #define GEN11_GT_SUBSLICE_DISABLE		_MMIO(0x913c)
 #define GEN12_GT_GEOMETRY_DSS_ENABLE		_MMIO(0x913c)
@@ -639,9 +632,8 @@
 #define GEN10_EU_DISABLE3			_MMIO(0x9140)
 #define   GEN10_EU_DIS_SS_MASK			0xff
 #define GEN11_GT_VEBOX_VDBOX_DISABLE		_MMIO(0x9140)
-#define   GEN11_GT_VDBOX_DISABLE_MASK		0xff
-#define   GEN11_GT_VEBOX_DISABLE_SHIFT		16
-#define   GEN11_GT_VEBOX_DISABLE_MASK		(0x0f << GEN11_GT_VEBOX_DISABLE_SHIFT)
+#define   GEN11_GT_VDBOX_DISABLE_MASK		REG_GENMASK(7, 0)
+#define   GEN11_GT_VEBOX_DISABLE_MASK		REG_GENMASK(19, 16)
 
 #define GEN12_GT_COMPUTE_DSS_ENABLE		_MMIO(0x9144)
 #define XEHPC_GT_COMPUTE_DSS_ENABLE_EXT		_MMIO(0x9148)

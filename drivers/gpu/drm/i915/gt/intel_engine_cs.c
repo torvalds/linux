@@ -769,9 +769,8 @@ static void engine_mask_apply_media_fuses(struct intel_gt *gt)
 	if (MEDIA_VER_FULL(i915) < IP_VER(12, 55))
 		media_fuse = ~media_fuse;
 
-	vdbox_mask = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	vebox_mask = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-		      GEN11_GT_VEBOX_DISABLE_SHIFT;
+	vdbox_mask = REG_FIELD_GET(GEN11_GT_VDBOX_DISABLE_MASK, media_fuse);
+	vebox_mask = REG_FIELD_GET(GEN11_GT_VEBOX_DISABLE_MASK, media_fuse);
 
 	if (MEDIA_VER_FULL(i915) >= IP_VER(12, 55)) {
 		fuse1 = intel_uncore_read(gt->uncore, HSW_PAVP_FUSE1);
