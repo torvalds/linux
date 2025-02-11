@@ -444,7 +444,7 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	if (unlikely(discard)) {
 		u64_stats_update_begin(&ring->stats.syncp);
 		ring->stats.dropped += total_packets;
-		ring->stats.ts_lost += ts_lost;
+		ring->stats.twq.ts_lost += ts_lost;
 		u64_stats_update_end(&ring->stats.syncp);
 
 		netdev_tx_completed_queue(txq, total_packets, total_bytes);
@@ -507,7 +507,7 @@ static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
 
 	skb_tstamp_tx(skb, &hwtstamp);
 	u64_stats_update_begin(&ring->stats.syncp);
-	ring->stats.ts_packets++;
+	ring->stats.twq.ts_packets++;
 	u64_stats_update_end(&ring->stats.syncp);
 }
 
@@ -1065,8 +1065,10 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 	fbn->tx_stats.dropped += stats->dropped;
-	fbn->tx_stats.ts_lost += stats->ts_lost;
-	fbn->tx_stats.ts_packets += stats->ts_packets;
+	fbn->tx_stats.twq.ts_lost += stats->twq.ts_lost;
+	fbn->tx_stats.twq.ts_packets += stats->twq.ts_packets;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 2);
 }
 
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,

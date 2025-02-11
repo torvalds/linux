@@ -56,9 +56,13 @@ struct fbnic_pkt_buff {
 struct fbnic_queue_stats {
 	u64 packets;
 	u64 bytes;
+	union {
+		struct {
+			u64 ts_packets;
+			u64 ts_lost;
+		} twq;
+	};
 	u64 dropped;
-	u64 ts_packets;
-	u64 ts_lost;
 	struct u64_stats_sync syncp;
 };
 
