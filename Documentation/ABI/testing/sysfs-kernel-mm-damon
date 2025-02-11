@@ -345,6 +345,20 @@ Description:	If 'addr' is written to the 'type' file, writing to or reading
 		from this file sets or gets the end address of the address
 		range for the filter.
 
+What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/<F>/min
+Date:		Feb 2025
+Contact:	SeongJae Park <sj@kernel.org>
+Description:	If 'hugepage_size' is written to the 'type' file, writing to
+		or reading from this file sets or gets the minimum size of the
+		hugepage for the filter.
+
+What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/<F>/max
+Date:		Feb 2025
+Contact:	SeongJae Park <sj@kernel.org>
+Description:	If 'hugepage_size' is written to the 'type' file, writing to
+		or reading from this file sets or gets the maximum size of the
+		hugepage for the filter.
+
 What:		/sys/kernel/mm/damon/admin/kdamonds/<K>/contexts/<C>/schemes/<S>/filters/<F>/target_idx
 Date:		Dec 2022
 Contact:	SeongJae Park <sj@kernel.org>
