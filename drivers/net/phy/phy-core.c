@@ -406,7 +406,7 @@ void of_set_phy_supported(struct phy_device *phydev)
 void of_set_phy_eee_broken(struct phy_device *phydev)
 {
 	struct device_node *node = phydev->mdio.dev.of_node;
-	unsigned long *modes = phydev->eee_broken_modes;
+	unsigned long *modes = phydev->eee_disabled_modes;
 
 	if (!IS_ENABLED(CONFIG_OF_MDIO) || !node)
 		return;
