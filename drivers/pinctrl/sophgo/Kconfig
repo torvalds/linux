@@ -59,3 +59,18 @@ config PINCTRL_SOPHGO_SG2002
 	  This pin controller allows selecting the mux function for
 	  each pin. This driver can also be built as a module called
 	  pinctrl-sg2002.
+
+config PINCTRL_SOPHGO_SG2042_OPS
+	bool
+
+config PINCTRL_SOPHGO_SG2042
+	tristate "Sophgo SG2042 SoC Pinctrl driver"
+	depends on ARCH_SOPHGO || COMPILE_TEST
+	depends on OF
+	select PINCTRL_SOPHGO_COMMON
+	select PINCTRL_SOPHGO_SG2042_OPS
+	help
+	  Say Y to select the pinctrl driver for SG2042 SoC.
+	  This pin controller allows selecting the mux function for
+	  each pin. This driver can also be built as a module called
+	  pinctrl-sg2042.
