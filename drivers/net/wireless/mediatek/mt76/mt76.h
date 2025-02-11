@@ -1483,6 +1483,8 @@ void mt76_sta_pre_rcu_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 int mt76_get_min_avg_rssi(struct mt76_dev *dev, u8 phy_idx);
 
+s8 mt76_get_power_bound(struct mt76_phy *phy, s8 txpower);
+
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     unsigned int link_id, int *dbm);
 int mt76_init_sar_power(struct ieee80211_hw *hw,
