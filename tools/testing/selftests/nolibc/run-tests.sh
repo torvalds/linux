@@ -17,7 +17,16 @@ perform_download=0
 test_mode=system
 werror=1
 llvm=
-archs="i386 x86_64 arm64 arm mips32le mips32be ppc ppc64 ppc64le riscv32 riscv64 s390 loongarch"
+all_archs=(
+	i386 x86_64
+	arm64 arm
+	mips32le mips32be
+	ppc ppc64 ppc64le
+	riscv32 riscv64
+	s390
+	loongarch
+)
+archs="${all_archs[@]}"
 
 TEMP=$(getopt -o 'j:d:c:b:a:m:pelh' -n "$0" -- "$@")
 
