@@ -36,6 +36,22 @@ static void __inc_entry_length(struct cper_hdr *hdr, uint32_t size)
 	hdr->record_length += size;
 }
 
+static void amdgpu_cper_get_timestamp(struct cper_timestamp *timestamp)
+{
+	struct tm tm;
+	time64_t now = ktime_get_real_seconds();
+
+	time64_to_tm(now, 0, &tm);
+	timestamp->seconds = tm.tm_sec;
+	timestamp->minutes = tm.tm_min;
+	timestamp->hours = tm.tm_hour;
+	timestamp->flag = 0;
+	timestamp->day = tm.tm_mday;
+	timestamp->month = 1 + tm.tm_mon;
+	timestamp->year = (1900 + tm.tm_year) % 100;
+	timestamp->century = (1900 + tm.tm_year) / 100;
+}
+
 void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 				struct cper_hdr *hdr,
 				enum amdgpu_cper_type type,
@@ -52,7 +68,8 @@ void amdgpu_cper_entry_fill_hdr(struct amdgpu_device *adev,
 	hdr->valid_bits.platform_id	= 1;
 	hdr->valid_bits.partition_id	= 1;
 	hdr->valid_bits.timestamp	= 1;
-	/*TODO need to initialize hdr->timestamp */
+
+	amdgpu_cper_get_timestamp(&hdr->timestamp);
 
 	snprintf(hdr->record_id, 8, "%d", atomic_inc_return(&adev->cper.unique_id));
 	snprintf(hdr->platform_id, 16, "0x%04X:0x%04X",
