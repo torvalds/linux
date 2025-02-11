@@ -14,36 +14,28 @@ from itertools import chain
 from kernel_abi import get_kernel_abi
 
 #
-# Python 2 lacks re.ASCII...
-#
-try:
-    ascii_p3 = re.ASCII
-except AttributeError:
-    ascii_p3 = 0
-
-#
 # Regex nastiness.  Of course.
 # Try to identify "function()" that's not already marked up some
 # other way.  Sphinx doesn't like a lot of stuff right after a
 # :c:func: block (i.e. ":c:func:`mmap()`s" flakes out), so the last
 # bit tries to restrict matches to things that won't create trouble.
 #
-RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=ascii_p3)
+RE_function = re.compile(r'\b(([a-zA-Z_]\w+)\(\))', flags=re.ASCII)
 
 #
 # Sphinx 2 uses the same :c:type role for struct, union, enum and typedef
 #
 RE_generic_type = re.compile(r'\b(struct|union|enum|typedef)\s+([a-zA-Z_]\w+)',
-                             flags=ascii_p3)
+                             flags=re.ASCII)
 
 #
 # Sphinx 3 uses a different C role for each one of struct, union, enum and
 # typedef
 #
-RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
-RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=ascii_p3)
+RE_struct = re.compile(r'\b(struct)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_union = re.compile(r'\b(union)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_enum = re.compile(r'\b(enum)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
+RE_typedef = re.compile(r'\b(typedef)\s+([a-zA-Z_]\w+)', flags=re.ASCII)
 
 #
 # Detects a reference to a documentation page of the form Documentation/... with
@@ -87,13 +79,8 @@ def markup_refs(docname, app, node):
     #
     # Associate each regex with the function that will markup its matches
     #
-    markup_func_sphinx2 = {RE_doc: markup_doc_ref,
-                           RE_abi_file: markup_abi_file_ref,
-                           RE_abi_symbol: markup_abi_ref,
-                           RE_function: markup_c_ref,
-                           RE_generic_type: markup_c_ref}
 
-    markup_func_sphinx3 = {RE_doc: markup_doc_ref,
+    markup_func = {RE_doc: markup_doc_ref,
                            RE_abi_file: markup_abi_file_ref,
                            RE_abi_symbol: markup_abi_ref,
                            RE_function: markup_func_ref_sphinx3,
@@ -102,11 +89,6 @@ def markup_refs(docname, app, node):
                            RE_enum: markup_c_ref,
                            RE_typedef: markup_c_ref,
                            RE_git: markup_git}
-
-    if sphinx.version_info[0] >= 3:
-        markup_func = markup_func_sphinx3
-    else:
-        markup_func = markup_func_sphinx2
 
     match_iterators = [regex.finditer(t) for regex in markup_func]
     #
