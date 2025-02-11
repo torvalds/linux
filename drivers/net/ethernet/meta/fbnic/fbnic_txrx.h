@@ -58,8 +58,11 @@ struct fbnic_queue_stats {
 	u64 bytes;
 	union {
 		struct {
+			u64 csum_partial;
 			u64 ts_packets;
 			u64 ts_lost;
+			u64 stop;
+			u64 wake;
 		} twq;
 		struct {
 			u64 alloc_failed;

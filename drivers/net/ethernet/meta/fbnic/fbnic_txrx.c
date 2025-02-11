@@ -113,6 +113,11 @@ static int fbnic_maybe_stop_tx(const struct net_device *dev,
 
 	res = netif_txq_maybe_stop(txq, fbnic_desc_unused(ring), size,
 				   FBNIC_TX_DESC_WAKEUP);
+	if (!res) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.twq.stop++;
+		u64_stats_update_end(&ring->stats.syncp);
+	}
 
 	return !res;
 }
@@ -191,6 +196,9 @@ fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 					skb->csum_offset / 2));
 
 	*meta |= cpu_to_le64(FBNIC_TWD_FLAG_REQ_CSO);
+	u64_stats_update_begin(&ring->stats.syncp);
+	ring->stats.twq.csum_partial++;
+	u64_stats_update_end(&ring->stats.syncp);
 
 	*meta |= cpu_to_le64(FIELD_PREP(FBNIC_TWD_L2_HLEN_MASK, l2len / 2) |
 			     FIELD_PREP(FBNIC_TWD_L3_IHLEN_MASK, i3len / 2));
@@ -460,9 +468,13 @@ static void fbnic_clean_twq0(struct fbnic_napi_vector *nv, int napi_budget,
 	ring->stats.packets += total_packets;
 	u64_stats_update_end(&ring->stats.syncp);
 
-	netif_txq_completed_wake(txq, total_packets, total_bytes,
-				 fbnic_desc_unused(ring),
-				 FBNIC_TX_DESC_WAKEUP);
+	if (!netif_txq_completed_wake(txq, total_packets, total_bytes,
+				      fbnic_desc_unused(ring),
+				      FBNIC_TX_DESC_WAKEUP)) {
+		u64_stats_update_begin(&ring->stats.syncp);
+		ring->stats.twq.wake++;
+		u64_stats_update_end(&ring->stats.syncp);
+	}
 }
 
 static void fbnic_clean_tsq(struct fbnic_napi_vector *nv,
@@ -1092,10 +1104,13 @@ void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
 	fbn->tx_stats.bytes += stats->bytes;
 	fbn->tx_stats.packets += stats->packets;
 	fbn->tx_stats.dropped += stats->dropped;
+	fbn->tx_stats.twq.csum_partial += stats->twq.csum_partial;
 	fbn->tx_stats.twq.ts_lost += stats->twq.ts_lost;
 	fbn->tx_stats.twq.ts_packets += stats->twq.ts_packets;
+	fbn->tx_stats.twq.stop += stats->twq.stop;
+	fbn->tx_stats.twq.wake += stats->twq.wake;
 	/* Remember to add new stats here */
-	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 2);
+	BUILD_BUG_ON(sizeof(fbn->tx_stats.twq) / 8 != 5);
 }
 
 static void fbnic_remove_tx_ring(struct fbnic_net *fbn,
