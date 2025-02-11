@@ -523,6 +523,9 @@ static const struct sophgo_pinctrl_data sg2002_pindata = {
 	.pdnames	= sg2002_power_domain_desc,
 	.vddio_ops	= &sg2002_vddio_cfg_ops,
 	.cfg_ops	= &cv1800_cfg_ops,
+	.pctl_ops	= &cv1800_pctrl_ops,
+	.pmx_ops	= &cv1800_pmx_ops,
+	.pconf_ops	= &cv1800_pconf_ops,
 	.npins		= ARRAY_SIZE(sg2002_pins),
 	.npds		= ARRAY_SIZE(sg2002_power_domain_desc),
 	.pinsize	= sizeof(struct cv1800_pin),
@@ -535,7 +538,7 @@ static const struct of_device_id sg2002_pinctrl_ids[] = {
 MODULE_DEVICE_TABLE(of, sg2002_pinctrl_ids);
 
 static struct platform_driver sg2002_pinctrl_driver = {
-	.probe	= cv1800_pinctrl_probe,
+	.probe	= sophgo_pinctrl_probe,
 	.driver	= {
 		.name			= "sg2002-pinctrl",
 		.suppress_bind_attrs	= true,

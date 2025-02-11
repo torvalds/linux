@@ -443,6 +443,9 @@ static const struct sophgo_pinctrl_data cv1800b_pindata = {
 	.pdnames	= cv1800b_power_domain_desc,
 	.vddio_ops	= &cv1800b_vddio_cfg_ops,
 	.cfg_ops	= &cv1800_cfg_ops,
+	.pctl_ops	= &cv1800_pctrl_ops,
+	.pmx_ops	= &cv1800_pmx_ops,
+	.pconf_ops	= &cv1800_pconf_ops,
 	.npins		= ARRAY_SIZE(cv1800b_pins),
 	.npds		= ARRAY_SIZE(cv1800b_power_domain_desc),
 	.pinsize	= sizeof(struct cv1800_pin),
@@ -455,7 +458,7 @@ static const struct of_device_id cv1800b_pinctrl_ids[] = {
 MODULE_DEVICE_TABLE(of, cv1800b_pinctrl_ids);
 
 static struct platform_driver cv1800b_pinctrl_driver = {
-	.probe	= cv1800_pinctrl_probe,
+	.probe	= sophgo_pinctrl_probe,
 	.driver	= {
 		.name			= "cv1800b-pinctrl",
 		.suppress_bind_attrs	= true,

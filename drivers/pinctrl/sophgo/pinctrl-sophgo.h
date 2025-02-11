@@ -29,6 +29,7 @@ struct sophgo_pin_mux_config {
 /**
  * struct sophgo_cfg_ops - pin configuration operations
  *
+ * @pctrl_init: soc specific init callback
  * @verify_pinmux_config: verify the pinmux config for a pin
  * @verify_pin_group: verify the whole pinmux group
  * @dt_node_to_map_post: post init for the pinmux config map
@@ -37,6 +38,8 @@ struct sophgo_pin_mux_config {
  * @set_pinmux_config: set mux config (the caller holds lock)
  */
 struct sophgo_cfg_ops {
+	int (*pctrl_init)(struct platform_device *pdev,
+			  struct sophgo_pinctrl *pctrl);
 	int (*verify_pinmux_config)(const struct sophgo_pin_mux_config *config);
 	int (*verify_pin_group)(const struct sophgo_pin_mux_config *pinmuxs,
 				unsigned int npins);
@@ -81,6 +84,9 @@ struct sophgo_pinctrl_data {
 	const char				* const *pdnames;
 	const struct sophgo_vddio_cfg_ops	*vddio_ops;
 	const struct sophgo_cfg_ops		*cfg_ops;
+	const struct pinctrl_ops		*pctl_ops;
+	const struct pinmux_ops			*pmx_ops;
+	const struct pinconf_ops		*pconf_ops;
 	u16					npins;
 	u16					npds;
 	u16					pinsize;
@@ -125,5 +131,6 @@ int sophgo_pinctrl_schmitt2reg(struct sophgo_pinctrl *pctrl,
 int sophgo_pinctrl_reg2schmitt(struct sophgo_pinctrl *pctrl,
 			       const struct sophgo_pin *pin,
 			       const u32 *power_cfg, u32 reg);
+int sophgo_pinctrl_probe(struct platform_device *pdev);
 
 #endif /* _PINCTRL_SOPHGO_H */

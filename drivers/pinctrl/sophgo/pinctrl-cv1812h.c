@@ -752,6 +752,9 @@ static const struct sophgo_pinctrl_data cv1812h_pindata = {
 	.pdnames	= cv1812h_power_domain_desc,
 	.vddio_ops	= &cv1812h_vddio_cfg_ops,
 	.cfg_ops	= &cv1800_cfg_ops,
+	.pctl_ops	= &cv1800_pctrl_ops,
+	.pmx_ops	= &cv1800_pmx_ops,
+	.pconf_ops	= &cv1800_pconf_ops,
 	.npins		= ARRAY_SIZE(cv1812h_pins),
 	.npds		= ARRAY_SIZE(cv1812h_power_domain_desc),
 	.pinsize	= sizeof(struct cv1800_pin),
@@ -764,7 +767,7 @@ static const struct of_device_id cv1812h_pinctrl_ids[] = {
 MODULE_DEVICE_TABLE(of, cv1812h_pinctrl_ids);
 
 static struct platform_driver cv1812h_pinctrl_driver = {
-	.probe	= cv1800_pinctrl_probe,
+	.probe	= sophgo_pinctrl_probe,
 	.driver	= {
 		.name			= "cv1812h-pinctrl",
 		.suppress_bind_attrs	= true,

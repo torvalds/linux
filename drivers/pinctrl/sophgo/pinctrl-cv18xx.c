@@ -15,8 +15,6 @@
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
 
-#include <linux/pinctrl/consumer.h>
-#include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -25,7 +23,6 @@
 #include <dt-bindings/pinctrl/pinctrl-cv18xx.h>
 
 #include "../pinctrl-utils.h"
-#include "../pinconf.h"
 #include "../pinmux.h"
 #include "pinctrl-cv18xx.h"
 
@@ -195,7 +192,7 @@ static int cv1800_dt_node_to_map_post(struct device_node *cur,
 	return cv1800_set_power_cfg(pctrl, pin->power_domain, power);
 }
 
-static const struct pinctrl_ops cv1800_pctrl_ops = {
+const struct pinctrl_ops cv1800_pctrl_ops = {
 	.get_groups_count	= pinctrl_generic_get_group_count,
 	.get_group_name		= pinctrl_generic_get_group_name,
 	.get_group_pins		= pinctrl_generic_get_group_pins,
@@ -203,6 +200,7 @@ static const struct pinctrl_ops cv1800_pctrl_ops = {
 	.dt_node_to_map		= sophgo_pctrl_dt_node_to_map,
 	.dt_free_map		= pinctrl_utils_free_map,
 };
+EXPORT_SYMBOL_GPL(cv1800_pctrl_ops);
 
 static void cv1800_set_pinmux_config(struct sophgo_pinctrl *pctrl,
 				     const struct sophgo_pin *sp, u32 config)
@@ -224,13 +222,14 @@ static void cv1800_set_pinmux_config(struct sophgo_pinctrl *pctrl,
 		writel_relaxed(mux2, reg_mux2);
 }
 
-static const struct pinmux_ops cv1800_pmx_ops = {
+const struct pinmux_ops cv1800_pmx_ops = {
 	.get_functions_count	= pinmux_generic_get_function_count,
 	.get_function_name	= pinmux_generic_get_function_name,
 	.get_function_groups	= pinmux_generic_get_function_groups,
 	.set_mux		= sophgo_pmx_set_mux,
 	.strict			= true,
 };
+EXPORT_SYMBOL_GPL(cv1800_pmx_ops);
 
 #define PIN_IO_PULLUP		BIT(2)
 #define PIN_IO_PULLDOWN		BIT(3)
@@ -404,37 +403,25 @@ static int cv1800_set_pinconf_config(struct sophgo_pinctrl *pctrl,
 	return 0;
 }
 
-static const struct pinconf_ops cv1800_pconf_ops = {
+const struct pinconf_ops cv1800_pconf_ops = {
 	.pin_config_get			= cv1800_pconf_get,
 	.pin_config_set			= sophgo_pconf_set,
 	.pin_config_group_set		= sophgo_pconf_group_set,
 	.is_generic			= true,
 };
+EXPORT_SYMBOL_GPL(cv1800_pconf_ops);
 
-int cv1800_pinctrl_probe(struct platform_device *pdev)
+static int cv1800_pinctrl_init(struct platform_device *pdev,
+			       struct sophgo_pinctrl *pctrl)
 {
-	struct device *dev = &pdev->dev;
-	struct sophgo_pinctrl *pctrl;
+	const struct sophgo_pinctrl_data *pctrl_data = pctrl->data;
 	struct cv1800_priv *priv;
-	const struct sophgo_pinctrl_data *pctrl_data;
-	int ret;
 
-	pctrl_data = device_get_match_data(dev);
-	if (!pctrl_data)
-		return -ENODEV;
-
-	if (pctrl_data->npins == 0 || pctrl_data->npds == 0)
-		return dev_err_probe(dev, -EINVAL, "invalid pin data\n");
-
-	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
-	if (!pctrl)
-		return -ENOMEM;
-
-	priv = devm_kzalloc(dev, sizeof(struct cv1800_priv), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(struct cv1800_priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->power_cfg = devm_kcalloc(dev, pctrl_data->npds,
+	priv->power_cfg = devm_kcalloc(&pdev->dev, pctrl_data->npds,
 				       sizeof(u32), GFP_KERNEL);
 	if (!priv->power_cfg)
 		return -ENOMEM;
@@ -447,33 +434,13 @@ int cv1800_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regs[1]))
 		return PTR_ERR(priv->regs[1]);
 
-	pctrl->pdesc.name = dev_name(dev);
-	pctrl->pdesc.pins = pctrl_data->pins;
-	pctrl->pdesc.npins = pctrl_data->npins;
-	pctrl->pdesc.pctlops = &cv1800_pctrl_ops;
-	pctrl->pdesc.pmxops = &cv1800_pmx_ops;
-	pctrl->pdesc.confops = &cv1800_pconf_ops;
-	pctrl->pdesc.owner = THIS_MODULE;
-
-	pctrl->data = pctrl_data;
 	pctrl->priv_ctrl = priv;
-	pctrl->dev = dev;
-	raw_spin_lock_init(&pctrl->lock);
-	mutex_init(&pctrl->mutex);
 
-	platform_set_drvdata(pdev, pctrl);
-
-	ret = devm_pinctrl_register_and_init(dev, &pctrl->pdesc,
-					     pctrl, &pctrl->pctrl_dev);
-	if (ret)
-		return dev_err_probe(dev, ret,
-				     "fail to register pinctrl driver\n");
-
-	return pinctrl_enable(pctrl->pctrl_dev);
+	return 0;
 }
-EXPORT_SYMBOL_GPL(cv1800_pinctrl_probe);
 
 const struct sophgo_cfg_ops cv1800_cfg_ops = {
+	.pctrl_init = cv1800_pinctrl_init,
 	.verify_pinmux_config = cv1800_verify_pinmux_config,
 	.verify_pin_group = cv1800_verify_pin_group,
 	.dt_node_to_map_post = cv1800_dt_node_to_map_post,

@@ -400,5 +400,52 @@ int sophgo_pinctrl_reg2schmitt(struct sophgo_pinctrl *pctrl,
 	return map[reg];
 }
 
+int sophgo_pinctrl_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct sophgo_pinctrl *pctrl;
+	const struct sophgo_pinctrl_data *pctrl_data;
+	int ret;
+
+	pctrl_data = device_get_match_data(dev);
+	if (!pctrl_data)
+		return -ENODEV;
+
+	if (pctrl_data->npins == 0)
+		return dev_err_probe(dev, -EINVAL, "invalid pin data\n");
+
+	pctrl = devm_kzalloc(dev, sizeof(*pctrl), GFP_KERNEL);
+	if (!pctrl)
+		return -ENOMEM;
+
+	pctrl->pdesc.name = dev_name(dev);
+	pctrl->pdesc.pins = pctrl_data->pins;
+	pctrl->pdesc.npins = pctrl_data->npins;
+	pctrl->pdesc.pctlops = pctrl_data->pctl_ops;
+	pctrl->pdesc.pmxops = pctrl_data->pmx_ops;
+	pctrl->pdesc.confops = pctrl_data->pconf_ops;
+	pctrl->pdesc.owner = THIS_MODULE;
+
+	pctrl->data = pctrl_data;
+	pctrl->dev = dev;
+	raw_spin_lock_init(&pctrl->lock);
+	mutex_init(&pctrl->mutex);
+
+	ret = pctrl->data->cfg_ops->pctrl_init(pdev, pctrl);
+	if (ret)
+		return ret;
+
+	platform_set_drvdata(pdev, pctrl);
+
+	ret = devm_pinctrl_register_and_init(dev, &pctrl->pdesc,
+					     pctrl, &pctrl->pctrl_dev);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "fail to register pinctrl driver\n");
+
+	return pinctrl_enable(pctrl->pctrl_dev);
+}
+EXPORT_SYMBOL_GPL(sophgo_pinctrl_probe);
+
 MODULE_DESCRIPTION("Common pinctrl helper function for the Sophgo SoC");
 MODULE_LICENSE("GPL");
