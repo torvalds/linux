@@ -795,6 +795,8 @@ struct hid_usage_id {
  * @suspend: invoked on suspend (NULL means nop)
  * @resume: invoked on resume if device was not reset (NULL means nop)
  * @reset_resume: invoked on resume if device was reset (NULL means nop)
+ * @on_hid_hw_open: invoked when hid core opens first instance (NULL means nop)
+ * @on_hid_hw_close: invoked when hid core closes last instance (NULL means nop)
  *
  * probe should return -errno on error, or 0 on success. During probe,
  * input will not be passed to raw_event unless hid_device_io_start is
@@ -850,6 +852,8 @@ struct hid_driver {
 	int (*suspend)(struct hid_device *hdev, pm_message_t message);
 	int (*resume)(struct hid_device *hdev);
 	int (*reset_resume)(struct hid_device *hdev);
+	void (*on_hid_hw_open)(struct hid_device *hdev);
+	void (*on_hid_hw_close)(struct hid_device *hdev);
 
 /* private: */
 	struct device_driver driver;
