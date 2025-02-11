@@ -217,7 +217,7 @@ intel_display_power_put_async_delay(struct intel_display *display,
 	__intel_display_power_put_async(display, domain, wakeref, delay_ms);
 }
 #else
-void intel_display_power_put_unchecked(struct drm_i915_private *dev_priv,
+void intel_display_power_put_unchecked(struct intel_display *display,
 				       enum intel_display_power_domain domain);
 
 static inline void
