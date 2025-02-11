@@ -514,6 +514,22 @@ check_existing_bp:
 	if (!other_extent.k)
 		goto missing;
 
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_rcu_noerror(c, bp->k.p.inode);
+	if (ca) {
+		struct bkey_ptrs_c other_extent_ptrs = bch2_bkey_ptrs_c(other_extent);
+		bkey_for_each_ptr(other_extent_ptrs, ptr)
+			if (ptr->dev == bp->k.p.inode &&
+			    dev_ptr_stale_rcu(ca, ptr)) {
+				ret = drop_dev_and_update(trans, other_bp.v->btree_id,
+							  other_extent, bp->k.p.inode);
+				if (ret)
+					goto err;
+				goto out;
+			}
+	}
+	rcu_read_unlock();
+
 	if (bch2_extents_match(orig_k, other_extent)) {
 		printbuf_reset(&buf);
 		prt_printf(&buf, "duplicate versions of same extent, deleting smaller\n  ");
