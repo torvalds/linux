@@ -397,6 +397,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 
 	n = (struct btree_insert_entry) {
 		.flags		= flags,
+		.sort_order	= btree_trigger_order(path->btree_id),
 		.bkey_type	= __btree_node_type(path->level, path->btree_id),
 		.btree_id	= path->btree_id,
 		.level		= path->level,
