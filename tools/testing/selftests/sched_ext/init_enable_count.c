@@ -150,7 +150,7 @@ static enum scx_test_status run(void *ctx)
 
 struct scx_test init_enable_count = {
 	.name = "init_enable_count",
-	.description = "Verify we do the correct amount of counting of init, "
+	.description = "Verify we correctly count the occurrences of init, "
 		       "enable, etc callbacks.",
 	.run = run,
 };
