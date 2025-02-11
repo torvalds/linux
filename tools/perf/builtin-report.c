@@ -1865,6 +1865,11 @@ repeat:
 	if (ret == K_SWITCH_INPUT_DATA || ret == K_RELOAD) {
 		perf_session__delete(session);
 		last_key = K_SWITCH_INPUT_DATA;
+		/*
+		 * To support switching between data with and without callchains.
+		 * report__setup_sample_type() will update it properly.
+		 */
+		symbol_conf.use_callchain = false;
 		goto repeat;
 	} else
 		ret = 0;
