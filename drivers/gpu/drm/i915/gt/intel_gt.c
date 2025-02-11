@@ -323,6 +323,27 @@ static void gen6_check_faults(struct intel_gt *gt)
 	}
 }
 
+static void gen8_report_fault(struct intel_gt *gt, u32 fault,
+			      u32 fault_data0, u32 fault_data1)
+{
+	u64 fault_addr;
+
+	fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
+		((u64)fault_data0 << 12);
+
+	gt_dbg(gt, "Unexpected fault\n"
+	       "\tAddr: 0x%08x_%08x\n"
+	       "\tAddress space: %s\n"
+	       "\tEngine ID: %d\n"
+	       "\tSource ID: %d\n"
+	       "\tType: %d\n",
+	       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
+	       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+	       REG_FIELD_GET(RING_FAULT_ENGINE_ID_MASK, fault),
+	       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
+	       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
+}
+
 static void xehp_check_faults(struct intel_gt *gt)
 {
 	u32 fault;
@@ -335,28 +356,10 @@ static void xehp_check_faults(struct intel_gt *gt)
 	 * toward the primary instance.
 	 */
 	fault = intel_gt_mcr_read_any(gt, XEHP_RING_FAULT_REG);
-	if (fault & RING_FAULT_VALID) {
-		u32 fault_data0, fault_data1;
-		u64 fault_addr;
-
-		fault_data0 = intel_gt_mcr_read_any(gt, XEHP_FAULT_TLB_DATA0);
-		fault_data1 = intel_gt_mcr_read_any(gt, XEHP_FAULT_TLB_DATA1);
-
-		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
-			     ((u64)fault_data0 << 12);
-
-		gt_dbg(gt, "Unexpected fault\n"
-		       "\tAddr: 0x%08x_%08x\n"
-		       "\tAddress space: %s\n"
-		       "\tEngine ID: %d\n"
-		       "\tSource ID: %d\n"
-		       "\tType: %d\n",
-		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
-		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-		       REG_FIELD_GET(RING_FAULT_ENGINE_ID_MASK, fault),
-		       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
-		       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
-	}
+	if (fault & RING_FAULT_VALID)
+		gen8_report_fault(gt, fault,
+				  intel_gt_mcr_read_any(gt, XEHP_FAULT_TLB_DATA0),
+				  intel_gt_mcr_read_any(gt, XEHP_FAULT_TLB_DATA1));
 }
 
 static void gen8_check_faults(struct intel_gt *gt)
@@ -376,28 +379,10 @@ static void gen8_check_faults(struct intel_gt *gt)
 	}
 
 	fault = intel_uncore_read(uncore, fault_reg);
-	if (fault & RING_FAULT_VALID) {
-		u32 fault_data0, fault_data1;
-		u64 fault_addr;
-
-		fault_data0 = intel_uncore_read(uncore, fault_data0_reg);
-		fault_data1 = intel_uncore_read(uncore, fault_data1_reg);
-
-		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
-			     ((u64)fault_data0 << 12);
-
-		gt_dbg(gt, "Unexpected fault\n"
-		       "\tAddr: 0x%08x_%08x\n"
-		       "\tAddress space: %s\n"
-		       "\tEngine ID: %d\n"
-		       "\tSource ID: %d\n"
-		       "\tType: %d\n",
-		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
-		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-		       REG_FIELD_GET(RING_FAULT_ENGINE_ID_MASK, fault),
-		       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
-		       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
-	}
+	if (fault & RING_FAULT_VALID)
+		gen8_report_fault(gt, fault,
+				  intel_uncore_read(uncore, fault_data0_reg),
+				  intel_uncore_read(uncore, fault_data1_reg));
 }
 
 void intel_gt_check_and_clear_faults(struct intel_gt *gt)
