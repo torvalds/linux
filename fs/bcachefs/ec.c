@@ -1152,37 +1152,22 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 static int ec_stripe_delete(struct btree_trans *trans, u64 idx)
 {
-	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_s_c_stripe s;
-	int ret;
-
-	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes, POS(0, idx),
-			       BTREE_ITER_intent);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter,
+					       BTREE_ID_stripes, POS(0, idx),
+					       BTREE_ITER_intent);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	if (k.k->type != KEY_TYPE_stripe) {
-		bch2_fs_inconsistent(c, "attempting to delete nonexistent stripe %llu", idx);
-		ret = -EINVAL;
-		goto err;
-	}
-
-	s = bkey_s_c_to_stripe(k);
-	for (unsigned i = 0; i < s.v->nr_blocks; i++)
-		if (stripe_blockcount_get(s.v, i)) {
-			struct printbuf buf = PRINTBUF;
-
-			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_inconsistent(c, "attempting to delete nonempty stripe %s", buf.buf);
-			printbuf_exit(&buf);
-			ret = -EINVAL;
-			goto err;
-		}
-
-	ret = bch2_btree_delete_at(trans, &iter, 0);
+	/*
+	 * We expect write buffer races here
+	 * Important: check stripe_is_open with stripe key locked:
+	 */
+	if (k.k->type == KEY_TYPE_stripe &&
+	    !bch2_stripe_is_open(trans->c, idx) &&
+	    stripe_lru_pos(bkey_s_c_to_stripe(k).v) == 1)
+		ret = bch2_btree_delete_at(trans, &iter, 0);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -1197,21 +1182,16 @@ static void ec_stripe_delete_work(struct work_struct *work)
 	struct bch_fs *c =
 		container_of(work, struct bch_fs, ec_stripe_delete_work);
 
-	while (1) {
-		mutex_lock(&c->ec_stripes_heap_lock);
-		u64 idx = stripe_idx_to_delete(c);
-		mutex_unlock(&c->ec_stripes_heap_lock);
-
-		if (!idx)
-			break;
-
-		int ret = bch2_trans_commit_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
-					ec_stripe_delete(trans, idx));
-		bch_err_fn(c, ret);
-		if (ret)
-			break;
-	}
-
+	bch2_trans_run(c,
+		bch2_btree_write_buffer_tryflush(trans) ?:
+		for_each_btree_key_max_commit(trans, lru_iter, BTREE_ID_lru,
+				lru_pos(BCH_LRU_STRIPE_FRAGMENTATION, 1, 0),
+				lru_pos(BCH_LRU_STRIPE_FRAGMENTATION, 1, LRU_TIME_MAX),
+				0, lru_k,
+				NULL, NULL,
+				BCH_TRANS_COMMIT_no_enospc, ({
+			ec_stripe_delete(trans, lru_k.k->p.offset);
+		})));
 	bch2_write_ref_put(c, BCH_WRITE_REF_stripe_delete);
 }
 
