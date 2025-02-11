@@ -52,7 +52,7 @@ Provide documentation
 4) All new module parameters are documented with ``MODULE_PARM_DESC()``
 
 5) All new userspace interfaces are documented in ``Documentation/ABI/``.
-   See ``Documentation/ABI/README`` for more information.
+   See Documentation/ABI/README for more information.
    Patches that change userspace interfaces should be CCed to
    linux-api@vger.kernel.org.
 
