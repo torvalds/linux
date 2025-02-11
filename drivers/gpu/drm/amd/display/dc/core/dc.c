@@ -905,7 +905,8 @@ void dc_stream_set_static_screen_params(struct dc *dc,
 static void dc_destruct(struct dc *dc)
 {
 	// reset link encoder assignment table on destruct
-	if (dc->res_pool && dc->res_pool->funcs->link_encs_assign)
+	if (dc->res_pool && dc->res_pool->funcs->link_encs_assign &&
+			!dc->config.unify_link_enc_assignment)
 		link_enc_cfg_init(dc, dc->current_state);
 
 	if (dc->current_state) {

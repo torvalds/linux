@@ -1575,7 +1575,8 @@ enum link_training_result dp_perform_link_training(
 
 	/* configure link prior to entering training mode */
 	dpcd_configure_lttpr_mode(link, &lt_settings);
-	dp_set_fec_ready(link, link_res, lt_settings.should_set_fec_ready);
+	if (link_dp_get_encoding_format(link_settings) == DP_8b_10b_ENCODING)
+		dp_set_fec_ready(link, link_res, lt_settings.should_set_fec_ready);
 	dpcd_configure_channel_coding(link, &lt_settings);
 
 	/* enter training mode:

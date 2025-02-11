@@ -328,7 +328,10 @@ static const struct link_hwss dio_link_hwss = {
 bool can_use_dio_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res)
 {
-	return link->link_enc != NULL;
+	if (!link->dc->config.unify_link_enc_assignment)
+		return link->link_enc != NULL;
+	else
+		return link_res->dio_link_enc != NULL;
 }
 
 /**
