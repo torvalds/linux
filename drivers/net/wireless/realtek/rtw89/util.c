@@ -104,3 +104,14 @@ u64 rtw89_db_2_linear(u32 db)
 	return linear;
 }
 EXPORT_SYMBOL(rtw89_db_2_linear);
+
+void rtw89_might_trailing_ellipsis(char *buf, size_t size, ssize_t used)
+{
+	static const char ellipsis[] = "...";
+
+	/* length of null terminiator isn't included in 'used' */
+	if (used + 1 < size || size < sizeof(ellipsis))
+		return;
+
+	memcpy(buf + size - sizeof(ellipsis), ellipsis, sizeof(ellipsis));
+}
