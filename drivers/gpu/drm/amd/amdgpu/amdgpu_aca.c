@@ -384,6 +384,36 @@ static bool aca_bank_should_update(struct amdgpu_device *adev, enum aca_smu_type
 	return ret;
 }
 
+static void aca_banks_generate_cper(struct amdgpu_device *adev,
+				    enum aca_smu_type type,
+				    struct aca_banks *banks,
+				    int count)
+{
+	struct aca_bank_node *node;
+	struct aca_bank *bank;
+
+	if (!adev || !banks || !count) {
+		dev_warn(adev->dev, "fail to generate cper records\n");
+		return;
+	}
+
+	/* UEs must be encoded into separate CPER entries */
+	if (type == ACA_SMU_TYPE_UE) {
+		list_for_each_entry(node, &banks->list, node) {
+			bank = &node->bank;
+			if (amdgpu_cper_generate_ue_record(adev, bank))
+				dev_warn(adev->dev, "fail to generate ue cper records\n");
+		}
+	} else {
+		/*
+		 * SMU_TYPE_CE banks are combined into 1 CPER entries,
+		 * they could be CEs or DEs or both
+		 */
+		if (amdgpu_cper_generate_ce_records(adev, banks, count))
+			dev_warn(adev->dev, "fail to generate ce cper records\n");
+	}
+}
+
 static int aca_banks_update(struct amdgpu_device *adev, enum aca_smu_type type,
 			    bank_handler_t handler, struct ras_query_context *qctx, void *data)
 {
@@ -420,6 +450,8 @@ static int aca_banks_update(struct amdgpu_device *adev, enum aca_smu_type type,
 				 handler, data);
 	if (ret)
 		goto err_release_banks;
+
+	aca_banks_generate_cper(adev, type, &banks, count);
 
 err_release_banks:
 	aca_banks_release(&banks);
