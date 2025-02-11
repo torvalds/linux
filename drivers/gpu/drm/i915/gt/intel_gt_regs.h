@@ -1044,7 +1044,7 @@
 #define GEN12_RING_FAULT_REG			_MMIO(0xcec4)
 #define XEHP_RING_FAULT_REG			MCR_REG(0xcec4)
 #define XELPMP_RING_FAULT_REG			_MMIO(0xcec4)
-#define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x7)
+#define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x1f)
 #define   RING_FAULT_GTTSEL_MASK		(1 << 11)
 #define   RING_FAULT_SRCID(x)			(((x) >> 3) & 0xff)
 #define   RING_FAULT_FAULT_TYPE(x)		(((x) >> 1) & 0x3)
