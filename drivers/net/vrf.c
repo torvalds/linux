@@ -1537,14 +1537,12 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 
 	nlmsg_end(skb, nlh);
 
-	/* fib_nl_{new,del}rule handling looks for net from skb->sk */
-	skb->sk = dev_net(dev)->rtnl;
 	if (add_it) {
-		err = fib_nl_newrule(skb, nlh, NULL);
+		err = fib_newrule(dev_net(dev), skb, nlh, NULL, true);
 		if (err == -EEXIST)
 			err = 0;
 	} else {
-		err = fib_nl_delrule(skb, nlh, NULL);
+		err = fib_delrule(dev_net(dev), skb, nlh, NULL, true);
 		if (err == -ENOENT)
 			err = 0;
 	}
