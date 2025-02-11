@@ -962,8 +962,7 @@ static bool gen9_dc_off_power_well_enabled(struct intel_display *display,
 
 static void gen9_assert_dbuf_enabled(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	u8 hw_enabled_dbuf_slices = intel_enabled_dbuf_slices_mask(display);
 	u8 enabled_dbuf_slices = display->dbuf.enabled_slices;
 
 	drm_WARN(display->drm,

@@ -13,7 +13,6 @@
 
 enum aux_ch;
 enum port;
-struct drm_i915_private;
 struct i915_power_well;
 struct intel_display;
 struct intel_encoder;
@@ -268,18 +267,18 @@ intel_display_power_put_all_in_set(struct intel_display *display,
 	intel_display_power_put_mask_in_set(display, power_domain_set, &power_domain_set->mask);
 }
 
-void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m);
+void intel_display_power_debug(struct intel_display *display, struct seq_file *m);
 
 enum intel_display_power_domain
-intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port);
+intel_display_power_ddi_lanes_domain(struct intel_display *display, enum port port);
 enum intel_display_power_domain
-intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port);
+intel_display_power_ddi_io_domain(struct intel_display *display, enum port port);
 enum intel_display_power_domain
-intel_display_power_aux_io_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
+intel_display_power_aux_io_domain(struct intel_display *display, enum aux_ch aux_ch);
 enum intel_display_power_domain
-intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
+intel_display_power_legacy_aux_domain(struct intel_display *display, enum aux_ch aux_ch);
 enum intel_display_power_domain
-intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
+intel_display_power_tbt_aux_domain(struct intel_display *display, enum aux_ch aux_ch);
 
 /*
  * FIXME: We should probably switch this to a 0-based scheme to be consistent
@@ -293,7 +292,7 @@ enum dbuf_slice {
 	I915_MAX_DBUF_SLICES
 };
 
-void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+void gen9_dbuf_slices_update(struct intel_display *display,
 			     u8 req_slices);
 
 #define with_intel_display_power(display, domain, wf) \

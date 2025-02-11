@@ -2112,12 +2112,12 @@ enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder)
 enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 
 	if (intel_tc_port_in_tbt_alt_mode(dig_port))
-		return intel_display_power_tbt_aux_domain(i915, dig_port->aux_ch);
+		return intel_display_power_tbt_aux_domain(display, dig_port->aux_ch);
 
-	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+	return intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 }
 
 static void get_crtc_power_domains(struct intel_crtc_state *crtc_state,

@@ -177,11 +177,11 @@ bool intel_tc_port_handles_hpd_glitches(struct intel_digital_port *dig_port)
  */
 bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 	struct intel_tc_port *tc = to_tc_port(dig_port);
 
 	return tc_phy_cold_off_domain(tc) ==
-	       intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+	       intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 }
 
 static intel_wakeref_t
@@ -478,11 +478,11 @@ static void tc_phy_load_fia_params(struct intel_tc_port *tc, bool modular_fia)
 static enum intel_display_power_domain
 icl_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 
 	if (tc->legacy_port)
-		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+		return intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 
 	return POWER_DOMAIN_TC_COLD_OFF;
 }
@@ -763,11 +763,11 @@ static const struct intel_tc_phy_ops tgl_tc_phy_ops = {
 static enum intel_display_power_domain
 adlp_tc_phy_cold_off_domain(struct intel_tc_port *tc)
 {
-	struct drm_i915_private *i915 = tc_to_i915(tc);
+	struct intel_display *display = to_intel_display(tc->dig_port);
 	struct intel_digital_port *dig_port = tc->dig_port;
 
 	if (tc->mode != TC_PORT_TBT_ALT)
-		return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
+		return intel_display_power_legacy_aux_domain(display, dig_port->aux_ch);
 
 	return POWER_DOMAIN_TC_COLD_OFF;
 }

@@ -17,12 +17,13 @@ struct intel_atomic_state;
 struct intel_bw_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_plane;
 struct intel_plane_state;
 struct skl_pipe_wm;
 struct skl_wm_level;
 
-u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *i915);
+u8 intel_enabled_dbuf_slices_mask(struct intel_display *display);
 
 void intel_sagv_pre_plane_update(struct intel_atomic_state *state);
 void intel_sagv_post_plane_update(struct intel_atomic_state *state);

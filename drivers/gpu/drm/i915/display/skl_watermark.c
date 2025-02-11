@@ -52,13 +52,13 @@ struct skl_wm_params {
 	u32 dbuf_block_size;
 };
 
-u8 intel_enabled_dbuf_slices_mask(struct drm_i915_private *i915)
+u8 intel_enabled_dbuf_slices_mask(struct intel_display *display)
 {
 	u8 enabled_slices = 0;
 	enum dbuf_slice slice;
 
-	for_each_dbuf_slice(i915, slice) {
-		if (intel_de_read(i915, DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
+	for_each_dbuf_slice(display, slice) {
+		if (intel_de_read(display, DBUF_CTL_S(slice)) & DBUF_POWER_STATE)
 			enabled_slices |= BIT(slice);
 	}
 
@@ -3701,7 +3701,7 @@ void intel_dbuf_mbus_post_ddb_update(struct intel_atomic_state *state)
 
 void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -3719,12 +3719,12 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915, new_slices);
+	gen9_dbuf_slices_update(display, new_slices);
 }
 
 void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
@@ -3742,7 +3742,7 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915, new_slices);
+	gen9_dbuf_slices_update(display, new_slices);
 }
 
 static void skl_mbus_sanitize(struct drm_i915_private *i915)
@@ -3875,7 +3875,7 @@ void intel_wm_state_verify(struct intel_atomic_state *state,
 
 	skl_pipe_ddb_get_hw_state(crtc, hw->ddb, hw->ddb_y, hw->min_ddb, hw->interim_ddb);
 
-	hw_enabled_slices = intel_enabled_dbuf_slices_mask(i915);
+	hw_enabled_slices = intel_enabled_dbuf_slices_mask(display);
 
 	if (DISPLAY_VER(i915) >= 11 &&
 	    hw_enabled_slices != i915->display.dbuf.enabled_slices)

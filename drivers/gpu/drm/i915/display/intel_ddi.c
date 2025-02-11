@@ -935,7 +935,7 @@ static enum intel_display_power_domain
 intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port,
 			       const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	struct intel_display *display = to_intel_display(dig_port);
 
 	/*
 	 * ICL+ HW requires corresponding AUX IOs to be powered up for PSR with
@@ -951,8 +951,8 @@ intel_ddi_main_link_aux_domain(struct intel_digital_port *dig_port,
 	 * extra wells.
 	 */
 	if (intel_psr_needs_aux_io_power(&dig_port->base, crtc_state))
-		return intel_display_power_aux_io_domain(i915, dig_port->aux_ch);
-	else if (DISPLAY_VER(i915) < 14 &&
+		return intel_display_power_aux_io_domain(display, dig_port->aux_ch);
+	else if (DISPLAY_VER(display) < 14 &&
 		 (intel_crtc_has_dp_encoder(crtc_state) ||
 		  intel_encoder_is_tc(&dig_port->base)))
 		return intel_aux_power_domain(dig_port);
@@ -5257,7 +5257,7 @@ void intel_ddi_init(struct intel_display *display,
 	encoder->get_power_domains = intel_ddi_get_power_domains;
 
 	encoder->type = INTEL_OUTPUT_DDI;
-	encoder->power_domain = intel_display_power_ddi_lanes_domain(dev_priv, port);
+	encoder->power_domain = intel_display_power_ddi_lanes_domain(display, port);
 	encoder->port = port;
 	encoder->cloneable = 0;
 	encoder->pipe_mask = ~0;
@@ -5408,7 +5408,7 @@ void intel_ddi_init(struct intel_display *display,
 	}
 
 	drm_WARN_ON(&dev_priv->drm, port > PORT_I);
-	dig_port->ddi_io_power_domain = intel_display_power_ddi_io_domain(dev_priv, port);
+	dig_port->ddi_io_power_domain = intel_display_power_ddi_io_domain(display, port);
 
 	if (DISPLAY_VER(dev_priv) >= 11) {
 		if (intel_encoder_is_tc(encoder))

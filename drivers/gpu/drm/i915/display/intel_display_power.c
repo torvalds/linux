@@ -1056,10 +1056,9 @@ static void gen9_dbuf_slice_set(struct intel_display *display,
 		 slice, str_enable_disable(enable));
 }
 
-void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
+void gen9_dbuf_slices_update(struct intel_display *display,
 			     u8 req_slices)
 {
-	struct intel_display *display = &dev_priv->display;
 	struct i915_power_domains *power_domains = &display->power.domains;
 	u8 slice_mask = DISPLAY_INFO(display)->dbuf.slice_mask;
 	enum dbuf_slice slice;
@@ -1090,10 +1089,9 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 
 static void gen9_dbuf_enable(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	u8 slices_mask;
 
-	display->dbuf.enabled_slices = intel_enabled_dbuf_slices_mask(dev_priv);
+	display->dbuf.enabled_slices = intel_enabled_dbuf_slices_mask(display);
 
 	slices_mask = BIT(DBUF_S1) | display->dbuf.enabled_slices;
 
@@ -1104,14 +1102,12 @@ static void gen9_dbuf_enable(struct intel_display *display)
 	 * Just power up at least 1 slice, we will
 	 * figure out later which slices we have and what we need.
 	 */
-	gen9_dbuf_slices_update(dev_priv, slices_mask);
+	gen9_dbuf_slices_update(display, slices_mask);
 }
 
 static void gen9_dbuf_disable(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
-
-	gen9_dbuf_slices_update(dev_priv, 0);
+	gen9_dbuf_slices_update(display, 0);
 
 	if (DISPLAY_VER(display) >= 14)
 		intel_pmdemand_program_dbuf(display, 0);
@@ -2315,9 +2311,8 @@ void intel_display_power_resume(struct intel_display *display)
 	}
 }
 
-void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m)
+void intel_display_power_debug(struct intel_display *display, struct seq_file *m)
 {
-	struct intel_display *display = &i915->display;
 	struct i915_power_domains *power_domains = &display->power.domains;
 	int i;
 
@@ -2498,9 +2493,8 @@ intel_port_domains_for_port(struct intel_display *display, enum port port)
 }
 
 enum intel_display_power_domain
-intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port)
+intel_display_power_ddi_io_domain(struct intel_display *display, enum port port)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_ddi_port_domains *domains = intel_port_domains_for_port(display, port);
 
 	if (drm_WARN_ON(display->drm, !domains || domains->ddi_io == POWER_DOMAIN_INVALID))
@@ -2510,9 +2504,8 @@ intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port)
 }
 
 enum intel_display_power_domain
-intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port)
+intel_display_power_ddi_lanes_domain(struct intel_display *display, enum port port)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_ddi_port_domains *domains = intel_port_domains_for_port(display, port);
 
 	if (drm_WARN_ON(display->drm, !domains || domains->ddi_lanes == POWER_DOMAIN_INVALID))
@@ -2537,9 +2530,8 @@ intel_port_domains_for_aux_ch(struct intel_display *display, enum aux_ch aux_ch)
 }
 
 enum intel_display_power_domain
-intel_display_power_aux_io_domain(struct drm_i915_private *i915, enum aux_ch aux_ch)
+intel_display_power_aux_io_domain(struct intel_display *display, enum aux_ch aux_ch)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_ddi_port_domains *domains = intel_port_domains_for_aux_ch(display, aux_ch);
 
 	if (drm_WARN_ON(display->drm, !domains || domains->aux_io == POWER_DOMAIN_INVALID))
@@ -2549,9 +2541,8 @@ intel_display_power_aux_io_domain(struct drm_i915_private *i915, enum aux_ch aux
 }
 
 enum intel_display_power_domain
-intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch)
+intel_display_power_legacy_aux_domain(struct intel_display *display, enum aux_ch aux_ch)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_ddi_port_domains *domains = intel_port_domains_for_aux_ch(display, aux_ch);
 
 	if (drm_WARN_ON(display->drm, !domains || domains->aux_legacy_usbc == POWER_DOMAIN_INVALID))
@@ -2561,9 +2552,8 @@ intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch
 }
 
 enum intel_display_power_domain
-intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch)
+intel_display_power_tbt_aux_domain(struct intel_display *display, enum aux_ch aux_ch)
 {
-	struct intel_display *display = &i915->display;
 	const struct intel_ddi_port_domains *domains = intel_port_domains_for_aux_ch(display, aux_ch);
 
 	if (drm_WARN_ON(display->drm, !domains || domains->aux_tbt == POWER_DOMAIN_INVALID))

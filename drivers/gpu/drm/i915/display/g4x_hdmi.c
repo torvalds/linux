@@ -763,7 +763,7 @@ bool g4x_hdmi_init(struct drm_i915_private *dev_priv,
 	intel_encoder->shutdown = intel_hdmi_encoder_shutdown;
 
 	intel_encoder->type = INTEL_OUTPUT_HDMI;
-	intel_encoder->power_domain = intel_display_power_ddi_lanes_domain(dev_priv, port);
+	intel_encoder->power_domain = intel_display_power_ddi_lanes_domain(display, port);
 	intel_encoder->port = port;
 	if (IS_CHERRYVIEW(dev_priv)) {
 		if (port == PORT_D)

@@ -158,8 +158,9 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_display *display = &i915->display;
 
-	intel_display_power_debug(i915, m);
+	intel_display_power_debug(display, m);
 
 	return 0;
 }
