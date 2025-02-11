@@ -10668,8 +10668,8 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 			"DYTC version %d: thermal mode available\n", dytc_version);
 
 	/* Create platform_profile structure and register */
-	tpacpi_pprof = devm_platform_profile_register(&tpacpi_pdev->dev, "thinkpad-acpi",
-						      NULL, &dytc_profile_ops);
+	tpacpi_pprof = platform_profile_register(&tpacpi_pdev->dev, "thinkpad-acpi-profile",
+						 NULL, &dytc_profile_ops);
 	/*
 	 * If for some reason platform_profiles aren't enabled
 	 * don't quit terminally.
@@ -10687,8 +10687,15 @@ static int tpacpi_dytc_profile_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
+static void dytc_profile_exit(void)
+{
+	if (!IS_ERR_OR_NULL(tpacpi_pprof))
+		platform_profile_remove(tpacpi_pprof);
+}
+
 static struct ibm_struct  dytc_profile_driver_data = {
 	.name = "dytc-profile",
+	.exit = dytc_profile_exit,
 };
 
 /*************************************************************************
