@@ -1,25 +1,5 @@
 [
     {
-        "BriefDescription": "Number of non data (control) flits transmitted . Derived from unc_q_txl_flits_g0.non_data",
-        "Counter": "0,1,2,3",
-        "EventName": "QPI_CTL_BANDWIDTH_TX",
-        "PerPkg": "1",
-        "PublicDescription": "Counts the number of flits transmitted across the QPI Link.  It includes filters for Idle, protocol, and Data Flits.  Each flit is made up of 80 bits of information (in addition to some ECC data).  In full-width (L0) mode, flits are made up of four fits, each of which contains 20 bits of data (along with some additional ECC data).   In half-width (L0p) mode, the fits are only 10 bits, and therefore it takes twice as many fits to transmit a flit.  When one talks about QPI speed (for example, 8.0 GT/s), the transfers here refer to fits.  Therefore, in L0, the system will transfer 1 flit at the rate of 1/4th the QPI speed.  One can calculate the bandwidth of the link by taking: flits*80b/time.  Note that this is not the same as data bandwidth.  For example, when we are transferring a 64B cacheline across QPI, we will break it into 9 flits -- 1 with header information and 8 with 64 bits of actual data and an additional 16 bits of other information.  To calculate data bandwidth, one should therefore do: data flits * 8B / time (for L0) or 4B instead of 8B for L0p.; Number of non-NULL non-data flits transmitted across QPI.  This basically tracks the protocol overhead on the QPI link.  One can get a good picture of the QPI-link characteristics by evaluating the protocol flits, data flits, and idle/null flits.  This includes the header flits for data packets.",
-        "ScaleUnit": "8Bytes",
-        "UMask": "0x4",
-        "Unit": "QPI"
-    },
-    {
-        "BriefDescription": "Number of data flits transmitted . Derived from unc_q_txl_flits_g0.data",
-        "Counter": "0,1,2,3",
-        "EventName": "QPI_DATA_BANDWIDTH_TX",
-        "PerPkg": "1",
-        "PublicDescription": "Counts the number of flits transmitted across the QPI Link.  It includes filters for Idle, protocol, and Data Flits.  Each flit is made up of 80 bits of information (in addition to some ECC data).  In full-width (L0) mode, flits are made up of four fits, each of which contains 20 bits of data (along with some additional ECC data).   In half-width (L0p) mode, the fits are only 10 bits, and therefore it takes twice as many fits to transmit a flit.  When one talks about QPI speed (for example, 8.0 GT/s), the transfers here refer to fits.  Therefore, in L0, the system will transfer 1 flit at the rate of 1/4th the QPI speed.  One can calculate the bandwidth of the link by taking: flits*80b/time.  Note that this is not the same as data bandwidth.  For example, when we are transferring a 64B cacheline across QPI, we will break it into 9 flits -- 1 with header information and 8 with 64 bits of actual data and an additional 16 bits of other information.  To calculate data bandwidth, one should therefore do: data flits * 8B / time (for L0) or 4B instead of 8B for L0p.; Number of data flits transmitted over QPI.  Each flit contains 64b of data.  This includes both DRS and NCB data flits (coherent and non-coherent).  This can be used to calculate the data bandwidth of the QPI link.  One can get a good picture of the QPI-link characteristics by evaluating the protocol flits, data flits, and idle/null flits.  This does not include the header flits that go in data packets.",
-        "ScaleUnit": "8Bytes",
-        "UMask": "0x2",
-        "Unit": "QPI"
-    },
-    {
         "BriefDescription": "Total Write Cache Occupancy; Any Source",
         "Counter": "0,1",
         "EventCode": "0x12",
@@ -53,7 +33,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.CLFLUSH",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x80",
         "Unit": "IRP"
     },
@@ -63,7 +43,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.CRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x2",
         "Unit": "IRP"
     },
@@ -73,7 +53,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.DRD",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x4",
         "Unit": "IRP"
     },
@@ -83,7 +63,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCIDCAHINT",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x20",
         "Unit": "IRP"
     },
@@ -93,7 +73,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCIRDCUR",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x1",
         "Unit": "IRP"
     },
@@ -103,7 +83,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.PCITOM",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x10",
         "Unit": "IRP"
     },
@@ -113,7 +93,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.RFO",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x8",
         "Unit": "IRP"
     },
@@ -123,7 +103,7 @@
         "EventCode": "0x13",
         "EventName": "UNC_I_COHERENT_OPS.WBMTOI",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of coherency related operations servied by the IRP",
+        "PublicDescription": "Counts the number of coherency related operations serviced by the IRP",
         "UMask": "0x40",
         "Unit": "IRP"
     },
@@ -493,7 +473,7 @@
         "EventCode": "0x16",
         "EventName": "UNC_I_TRANSACTIONS.WRITES",
         "PerPkg": "1",
-        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Trackes only write requests.  Each write request should have a prefetch, so there is no need to explicitly track these requests.  For writes that are tickled and have to retry, the counter will be incremented for each retry.",
+        "PublicDescription": "Counts the number of Inbound transactions from the IRP to the Uncore.  This can be filtered based on request type in addition to the source queue.  Note the special filtering equation.  We do OR-reduction on the request type.  If the SOURCE bit is set, then we also do AND qualification based on the source portID.; Tracks only write requests.  Each write request should have a prefetch, so there is no need to explicitly track these requests.  For writes that are tickled and have to retry, the counter will be incremented for each retry.",
         "UMask": "0x2",
         "Unit": "IRP"
     },
