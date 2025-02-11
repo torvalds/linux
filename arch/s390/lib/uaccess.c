@@ -144,39 +144,3 @@ unsigned long _copy_to_user_key(void __user *to, const void *from,
 	return raw_copy_to_user_key(to, from, n, key);
 }
 EXPORT_SYMBOL(_copy_to_user_key);
-
-unsigned long __clear_user(void __user *to, unsigned long size)
-{
-	unsigned long rem;
-	union oac spec = {
-		.oac1.as = PSW_BITS_AS_SECONDARY,
-		.oac1.a = 1,
-	};
-
-	asm volatile(
-		"	lr	0,%[spec]\n"
-		"0:	mvcos	0(%[to]),0(%[zeropg]),%[size]\n"
-		"1:	jz	5f\n"
-		"	algr	%[size],%[val]\n"
-		"	slgr	%[to],%[val]\n"
-		"	j	0b\n"
-		"2:	la	%[rem],4095(%[to])\n"	/* rem = to + 4095 */
-		"	nr	%[rem],%[val]\n"	/* rem = (to + 4095) & -4096 */
-		"	slgr	%[rem],%[to]\n"
-		"	clgr	%[size],%[rem]\n"	/* copy crosses next page boundary? */
-		"	jnh	6f\n"
-		"3:	mvcos	0(%[to]),0(%[zeropg]),%[rem]\n"
-		"4:	slgr	%[size],%[rem]\n"
-		"	j	6f\n"
-		"5:	slgr	%[size],%[size]\n"
-		"6:\n"
-		EX_TABLE(0b, 2b)
-		EX_TABLE(1b, 2b)
-		EX_TABLE(3b, 6b)
-		EX_TABLE(4b, 6b)
-		: [size] "+&a" (size), [to] "+&a" (to), [rem] "=&a" (rem)
-		: [val] "a" (-4096UL), [zeropg] "a" (empty_zero_page), [spec] "d" (spec.val)
-		: "cc", "memory", "0");
-	return size;
-}
-EXPORT_SYMBOL(__clear_user);

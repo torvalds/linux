@@ -13,6 +13,7 @@
 /*
  * User space memory access functions
  */
+#include <linux/pgtable.h>
 #include <asm/asm-extable.h>
 #include <asm/processor.h>
 #include <asm/extable.h>
@@ -362,12 +363,34 @@ long __must_check strncpy_from_user(char *dst, const char __user *src, long coun
 
 long __must_check strnlen_user(const char __user *src, long count);
 
-/*
- * Zero Userspace
- */
-unsigned long __must_check __clear_user(void __user *to, unsigned long size);
+static uaccess_kmsan_or_inline __must_check unsigned long
+__clear_user(void __user *to, unsigned long size)
+{
+	unsigned long osize;
+	int cc;
 
-static inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
+	while (1) {
+		osize = size;
+		asm_inline volatile(
+			"	llilh	%%r0,%[spec]\n"
+			"0:	mvcos	%[to],%[from],%[size]\n"
+			"1:	nopr	%%r7\n"
+			CC_IPM(cc)
+			EX_TABLE_UA_MVCOS_TO(0b, 0b)
+			EX_TABLE_UA_MVCOS_TO(1b, 0b)
+			: CC_OUT(cc, cc), [size] "+d" (size), [to] "=Q" (*(char __user *)to)
+			: [spec] "I" (0x81), [from] "Q" (*(const char *)empty_zero_page)
+			: CC_CLOBBER_LIST("memory", "0"));
+		if (__builtin_constant_p(osize) && osize <= 4096)
+			return osize - size;
+		if (CC_TRANSFORM(cc) == 0)
+			return osize - size;
+		size -= 4096;
+		to += 4096;
+	}
+}
+
+static __always_inline unsigned long __must_check clear_user(void __user *to, unsigned long n)
 {
 	might_fault();
 	return __clear_user(to, n);
