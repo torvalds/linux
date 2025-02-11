@@ -570,14 +570,15 @@ enum {
 	GVT_FAILSAFE_GUEST_ERR,
 };
 
-static inline void mmio_hw_access_pre(struct intel_gt *gt)
+static inline intel_wakeref_t mmio_hw_access_pre(struct intel_gt *gt)
 {
-	intel_runtime_pm_get(gt->uncore->rpm);
+	return intel_runtime_pm_get(gt->uncore->rpm);
 }
 
-static inline void mmio_hw_access_post(struct intel_gt *gt)
+static inline void mmio_hw_access_post(struct intel_gt *gt,
+				       intel_wakeref_t wakeref)
 {
-	intel_runtime_pm_put_unchecked(gt->uncore->rpm);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 /**
