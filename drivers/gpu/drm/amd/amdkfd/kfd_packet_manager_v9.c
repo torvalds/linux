@@ -297,23 +297,54 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 	return 0;
 }
 
-static int pm_set_grace_period_v9(struct packet_manager *pm,
+static inline void pm_build_dequeue_wait_counts_packet_info(struct packet_manager *pm,
+			uint32_t sch_value, uint32_t *reg_offset,
+			uint32_t *reg_data)
+{
+	pm->dqm->dev->kfd2kgd->build_grace_period_packet_info(
+		pm->dqm->dev->adev,
+		pm->dqm->wait_times,
+		sch_value,
+		reg_offset,
+		reg_data);
+}
+
+static int pm_config_dequeue_wait_counts_v9(struct packet_manager *pm,
 		uint32_t *buffer,
-		uint32_t grace_period)
+		enum kfd_config_dequeue_wait_counts_cmd cmd,
+		uint32_t value)
 {
 	struct pm4_mec_write_data_mmio *packet;
 	uint32_t reg_offset = 0;
 	uint32_t reg_data = 0;
 
-	pm->dqm->dev->kfd2kgd->build_grace_period_packet_info(
-			pm->dqm->dev->adev,
-			pm->dqm->wait_times,
-			grace_period,
-			&reg_offset,
-			&reg_data);
-
-	if (grace_period == USE_DEFAULT_GRACE_PERIOD)
+	switch (cmd) {
+	case KFD_DEQUEUE_WAIT_INIT:
+		/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
+		if (amdgpu_emu_mode == 0 && pm->dqm->dev->adev->gmc.is_app_apu &&
+		   (KFD_GC_VERSION(pm->dqm->dev) == IP_VERSION(9, 4, 3)))
+			pm_build_dequeue_wait_counts_packet_info(pm, 1, &reg_offset, &reg_data);
+		else
+			return 0;
+		break;
+	case KFD_DEQUEUE_WAIT_RESET:
+		/* function called only to get reg_offset */
+		pm_build_dequeue_wait_counts_packet_info(pm, 0, &reg_offset, &reg_data);
 		reg_data = pm->dqm->wait_times;
+		break;
+
+	case KFD_DEQUEUE_WAIT_SET_SCH_WAVE:
+		/* The CP cannot handle value 0 and it will result in
+		 * an infinite grace period being set so set to 1 to prevent this.
+		 */
+		if (!value)
+			value = 1;
+		pm_build_dequeue_wait_counts_packet_info(pm, value, &reg_offset, &reg_data);
+		break;
+	default:
+		pr_err("Invalid dequeue wait cmd\n");
+		return -EINVAL;
+	}
 
 	packet = (struct pm4_mec_write_data_mmio *)buffer;
 	memset(buffer, 0, sizeof(struct pm4_mec_write_data_mmio));
@@ -415,7 +446,7 @@ const struct packet_manager_funcs kfd_v9_pm_funcs = {
 	.set_resources		= pm_set_resources_v9,
 	.map_queues		= pm_map_queues_v9,
 	.unmap_queues		= pm_unmap_queues_v9,
-	.set_grace_period       = pm_set_grace_period_v9,
+	.config_dequeue_wait_counts = pm_config_dequeue_wait_counts_v9,
 	.query_status		= pm_query_status_v9,
 	.release_mem		= NULL,
 	.map_process_size	= sizeof(struct pm4_mes_map_process),
@@ -423,7 +454,7 @@ const struct packet_manager_funcs kfd_v9_pm_funcs = {
 	.set_resources_size	= sizeof(struct pm4_mes_set_resources),
 	.map_queues_size	= sizeof(struct pm4_mes_map_queues),
 	.unmap_queues_size	= sizeof(struct pm4_mes_unmap_queues),
-	.set_grace_period_size  = sizeof(struct pm4_mec_write_data_mmio),
+	.config_dequeue_wait_counts_size  = sizeof(struct pm4_mec_write_data_mmio),
 	.query_status_size	= sizeof(struct pm4_mes_query_status),
 	.release_mem_size	= 0,
 };
@@ -434,7 +465,7 @@ const struct packet_manager_funcs kfd_aldebaran_pm_funcs = {
 	.set_resources		= pm_set_resources_v9,
 	.map_queues		= pm_map_queues_v9,
 	.unmap_queues		= pm_unmap_queues_v9,
-	.set_grace_period       = pm_set_grace_period_v9,
+	.config_dequeue_wait_counts = pm_config_dequeue_wait_counts_v9,
 	.query_status		= pm_query_status_v9,
 	.release_mem		= NULL,
 	.map_process_size	= sizeof(struct pm4_mes_map_process_aldebaran),
@@ -442,7 +473,7 @@ const struct packet_manager_funcs kfd_aldebaran_pm_funcs = {
 	.set_resources_size	= sizeof(struct pm4_mes_set_resources),
 	.map_queues_size	= sizeof(struct pm4_mes_map_queues),
 	.unmap_queues_size	= sizeof(struct pm4_mes_unmap_queues),
-	.set_grace_period_size  = sizeof(struct pm4_mec_write_data_mmio),
+	.config_dequeue_wait_counts_size  = sizeof(struct pm4_mec_write_data_mmio),
 	.query_status_size	= sizeof(struct pm4_mes_query_status),
 	.release_mem_size	= 0,
 };

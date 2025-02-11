@@ -396,14 +396,29 @@ out:
 	return retval;
 }
 
-int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period)
+/* pm_config_dequeue_wait_counts: Configure dequeue timer Wait Counts
+ *  by writing to CP_IQ_WAIT_TIME2 registers.
+ *
+ *  @cmd: See emum kfd_config_dequeue_wait_counts_cmd definition
+ *  @value: Depends on the cmd. This parameter is unused for
+ *    KFD_DEQUEUE_WAIT_INIT and KFD_DEQUEUE_WAIT_RESET. For
+ *    KFD_DEQUEUE_WAIT_SET_SCH_WAVE it holds value to be set
+ *
+ */
+int pm_config_dequeue_wait_counts(struct packet_manager *pm,
+		enum kfd_config_dequeue_wait_counts_cmd cmd,
+		uint32_t value)
 {
 	struct kfd_node *node = pm->dqm->dev;
 	struct device *dev = node->adev->dev;
 	int retval = 0;
 	uint32_t *buffer, size;
 
-	size = pm->pmf->set_grace_period_size;
+	if (!pm->pmf->config_dequeue_wait_counts ||
+	    !pm->pmf->config_dequeue_wait_counts_size)
+		return 0;
+
+	size = pm->pmf->config_dequeue_wait_counts_size;
 
 	mutex_lock(&pm->lock);
 
@@ -419,12 +434,17 @@ int pm_update_grace_period(struct packet_manager *pm, uint32_t grace_period)
 			goto out;
 		}
 
-		retval = pm->pmf->set_grace_period(pm, buffer, grace_period);
+		retval = pm->pmf->config_dequeue_wait_counts(pm, buffer,
+							     cmd, value);
 		if (!retval)
 			retval = kq_submit_packet(pm->priv_queue);
 		else
 			kq_rollback_packet(pm->priv_queue);
 	}
+
+	/* If default value is modified, cache that value in dqm->wait_times */
+	if (!retval && cmd == KFD_DEQUEUE_WAIT_INIT)
+		update_dqm_wait_times(pm->dqm);
 
 out:
 	mutex_unlock(&pm->lock);
