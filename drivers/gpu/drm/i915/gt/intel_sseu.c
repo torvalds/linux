@@ -335,10 +335,8 @@ static void cherryview_sseu_info_init(struct intel_gt *gt)
 
 	if (!(fuse & CHV_FGT_DISABLE_SS0)) {
 		u8 disabled_mask =
-			((fuse & CHV_FGT_EU_DIS_SS0_R0_MASK) >>
-			 CHV_FGT_EU_DIS_SS0_R0_SHIFT) |
-			(((fuse & CHV_FGT_EU_DIS_SS0_R1_MASK) >>
-			  CHV_FGT_EU_DIS_SS0_R1_SHIFT) << 4);
+			REG_FIELD_GET(CHV_FGT_EU_DIS_SS0_R0_MASK, fuse) |
+			REG_FIELD_GET(CHV_FGT_EU_DIS_SS0_R1_MASK, fuse) << hweight32(CHV_FGT_EU_DIS_SS0_R0_MASK);
 
 		sseu->subslice_mask.hsw[0] |= BIT(0);
 		sseu_set_eus(sseu, 0, 0, ~disabled_mask & 0xFF);
@@ -346,10 +344,8 @@ static void cherryview_sseu_info_init(struct intel_gt *gt)
 
 	if (!(fuse & CHV_FGT_DISABLE_SS1)) {
 		u8 disabled_mask =
-			((fuse & CHV_FGT_EU_DIS_SS1_R0_MASK) >>
-			 CHV_FGT_EU_DIS_SS1_R0_SHIFT) |
-			(((fuse & CHV_FGT_EU_DIS_SS1_R1_MASK) >>
-			  CHV_FGT_EU_DIS_SS1_R1_SHIFT) << 4);
+			REG_FIELD_GET(CHV_FGT_EU_DIS_SS1_R0_MASK, fuse) |
+			REG_FIELD_GET(CHV_FGT_EU_DIS_SS1_R1_MASK, fuse) << hweight32(CHV_FGT_EU_DIS_SS1_R0_MASK);
 
 		sseu->subslice_mask.hsw[0] |= BIT(1);
 		sseu_set_eus(sseu, 0, 1, ~disabled_mask & 0xFF);
