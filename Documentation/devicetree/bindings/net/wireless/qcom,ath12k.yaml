@@ -9,7 +9,6 @@ title: Qualcomm Technologies ath12k wireless devices (PCIe)
 
 maintainers:
   - Jeff Johnson <quic_jjohnson@quicinc.com>
-  - Kalle Valo <kvalo@kernel.org>
 
 description:
   Qualcomm Technologies IEEE 802.11be PCIe devices.
