@@ -412,7 +412,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xc9",
         "EventName": "RTM_RETIRED.ABORTED",
-        "PEBS": "2",
+        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x4"
     },
