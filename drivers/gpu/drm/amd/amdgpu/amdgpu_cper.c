@@ -207,7 +207,7 @@ int amdgpu_cper_entry_fill_bad_page_threshold_section(struct amdgpu_device *adev
 		   NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	amdgpu_cper_entry_fill_section_desc(adev, section_desc, true, false,
-					    CPER_SEV_FATAL, RUNTIME, NONSTD_SEC_LEN,
+					    CPER_SEV_NUM, RUNTIME, NONSTD_SEC_LEN,
 					    NONSTD_SEC_OFFSET(hdr->sec_cnt, idx));
 
 	section->hdr.valid_bits.err_info_cnt = 1;
@@ -304,6 +304,28 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 		return ret;
 
 	amdgpu_cper_ring_write(ring, fatal, fatal->record_length);
+
+	return 0;
+}
+
+int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev)
+{
+	struct cper_hdr *bp_threshold = NULL;
+	struct amdgpu_ring *ring = &adev->cper.ring_buf;
+	int ret;
+
+	bp_threshold = amdgpu_cper_alloc_entry(adev, AMDGPU_CPER_TYPE_BP_THRESHOLD, 1);
+	if (!bp_threshold) {
+		dev_err(adev->dev, "fail to alloc cper entry for bad page threshold record\n");
+		return -ENOMEM;
+	}
+
+	amdgpu_cper_entry_fill_hdr(adev, bp_threshold, AMDGPU_CPER_TYPE_BP_THRESHOLD, CPER_SEV_NUM);
+	ret = amdgpu_cper_entry_fill_bad_page_threshold_section(adev, bp_threshold, 0);
+	if (ret)
+		return ret;
+
+	amdgpu_cper_ring_write(ring, bp_threshold, bp_threshold->record_length);
 
 	return 0;
 }

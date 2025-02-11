@@ -716,6 +716,9 @@ int amdgpu_dpm_send_rma_reason(struct amdgpu_device *adev)
 	ret = smu_send_rma_reason(smu);
 	mutex_unlock(&adev->pm.mutex);
 
+	if (amdgpu_cper_generate_bp_threshold_record(adev))
+		dev_warn(adev->dev, "fail to generate bad page threshold cper records\n");
+
 	return ret;
 }
 

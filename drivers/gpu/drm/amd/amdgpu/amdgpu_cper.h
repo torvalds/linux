@@ -95,6 +95,8 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 				    struct aca_banks *banks,
 				    uint16_t bank_count);
+/* Bad page threshold is encoded into separated cper entry */
+int amdgpu_cper_generate_bp_threshold_record(struct amdgpu_device *adev);
 void amdgpu_cper_ring_write(struct amdgpu_ring *ring,
 			void *src, int count);
 int amdgpu_cper_init(struct amdgpu_device *adev);
