@@ -1085,13 +1085,13 @@ mt7915_rate_txpower_set(struct file *file, const char __user *user_buf,
 		return -EINVAL;
 
 	if (pwr160)
-		pwr160 = mt7915_get_power_bound(phy, pwr160);
+		pwr160 = mt76_get_power_bound(mphy, pwr160);
 	if (pwr80)
-		pwr80 = mt7915_get_power_bound(phy, pwr80);
+		pwr80 = mt76_get_power_bound(mphy, pwr80);
 	if (pwr40)
-		pwr40 = mt7915_get_power_bound(phy, pwr40);
+		pwr40 = mt76_get_power_bound(mphy, pwr40);
 	if (pwr20)
-		pwr20 = mt7915_get_power_bound(phy, pwr20);
+		pwr20 = mt76_get_power_bound(mphy, pwr20);
 
 	if (pwr160 < 0 || pwr80 < 0 || pwr40 < 0 || pwr20 < 0)
 		return -EINVAL;
