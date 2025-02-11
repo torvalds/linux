@@ -3760,8 +3760,9 @@ init_ras_enabled_flag:
 	adev->ras_enabled = amdgpu_ras_enable == 0 ? 0 :
 		adev->ras_hw_enabled & amdgpu_ras_mask;
 
-	/* aca is disabled by default */
-	adev->aca.is_enabled = false;
+	/* aca is disabled by default except for psp v13_0_12 */
+	adev->aca.is_enabled =
+		(amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 12));
 
 	/* bad page feature is not applicable to specific app platform */
 	if (adev->gmc.is_app_apu &&
