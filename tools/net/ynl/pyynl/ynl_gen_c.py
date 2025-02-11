@@ -74,6 +74,8 @@ class Type(SpecAttr):
         self.c_name = c_lower(self.name)
         if self.c_name in _C_KW:
             self.c_name += '_'
+        if self.c_name[0].isdigit():
+            self.c_name = '_' + self.c_name
 
         # Added by resolve():
         self.enum_name = None
