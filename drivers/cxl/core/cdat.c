@@ -658,7 +658,6 @@ static int cxl_endpoint_gather_bandwidth(struct cxl_region *cxlr,
 	if (IS_ERR(perf))
 		return PTR_ERR(perf);
 
-	gp_port = to_cxl_port(parent_port->dev.parent);
 	*gp_is_root = is_cxl_root(gp_port);
 
 	/*
