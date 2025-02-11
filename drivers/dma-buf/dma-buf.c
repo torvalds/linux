@@ -636,10 +636,6 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 		    || !exp_info->ops->release))
 		return ERR_PTR(-EINVAL);
 
-	if (WARN_ON(exp_info->ops->cache_sgt_mapping &&
-		    (exp_info->ops->pin || exp_info->ops->unpin)))
-		return ERR_PTR(-EINVAL);
-
 	if (WARN_ON(!exp_info->ops->pin != !exp_info->ops->unpin))
 		return ERR_PTR(-EINVAL);
 
@@ -963,17 +959,7 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 		return;
 
 	dma_resv_lock(dmabuf->resv, NULL);
-
-	if (attach->sgt) {
-		mangle_sg_table(attach->sgt);
-		attach->dmabuf->ops->unmap_dma_buf(attach, attach->sgt,
-						   attach->dir);
-
-		if (dma_buf_pin_on_map(attach))
-			dma_buf_unpin(attach);
-	}
 	list_del(&attach->node);
-
 	dma_resv_unlock(dmabuf->resv);
 
 	if (dmabuf->ops->detach)
@@ -1068,18 +1054,6 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 
 	dma_resv_assert_held(attach->dmabuf->resv);
 
-	if (attach->sgt) {
-		/*
-		 * Two mappings with different directions for the same
-		 * attachment are not allowed.
-		 */
-		if (attach->dir != direction &&
-		    attach->dir != DMA_BIDIRECTIONAL)
-			return ERR_PTR(-EBUSY);
-
-		return attach->sgt;
-	}
-
 	if (dma_buf_pin_on_map(attach)) {
 		ret = attach->dmabuf->ops->pin(attach);
 		/*
@@ -1108,11 +1082,6 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 			goto error_unmap;
 	}
 	mangle_sg_table(sg_table);
-
-	if (attach->dmabuf->ops->cache_sgt_mapping) {
-		attach->sgt = sg_table;
-		attach->dir = direction;
-	}
 
 #ifdef CONFIG_DMA_API_DEBUG
 	{
@@ -1193,9 +1162,6 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 		return;
 
 	dma_resv_assert_held(attach->dmabuf->resv);
-
-	if (attach->sgt == sg_table)
-		return;
 
 	mangle_sg_table(sg_table);
 	attach->dmabuf->ops->unmap_dma_buf(attach, sg_table, direction);
