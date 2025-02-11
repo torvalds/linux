@@ -378,6 +378,7 @@ static int imx_probe(struct snd_sof_dev *sdev)
 	if (!common)
 		return dev_err_probe(sdev->dev, -ENOMEM,
 				     "failed to allocate common data\n");
+	sdev->pdata->hw_pdata = common;
 
 	common->ipc_dev = platform_device_register_data(sdev->dev, "imx-dsp",
 							PLATFORM_DEVID_NONE,
@@ -436,7 +437,6 @@ static int imx_probe(struct snd_sof_dev *sdev)
 	imx_dsp_set_data(common->ipc_handle, sdev);
 
 	sdev->num_cores = 1;
-	sdev->pdata->hw_pdata = common;
 	sdev->mailbox_bar = SOF_FW_BLK_TYPE_SRAM;
 	sdev->dsp_box.offset = get_chip_info(sdev)->ipc_info.boot_mbox_offset;
 
