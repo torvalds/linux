@@ -326,11 +326,11 @@
 							    _RING_FAULT_REG_VCS, \
 							    _RING_FAULT_REG_VECS, \
 							    _RING_FAULT_REG_BCS))
-#define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x1f)
-#define   RING_FAULT_GTTSEL_MASK		(1 << 11)
-#define   RING_FAULT_SRCID(x)			(((x) >> 3) & 0xff)
-#define   RING_FAULT_FAULT_TYPE(x)		(((x) >> 1) & 0x3)
-#define   RING_FAULT_VALID			(1 << 0)
+#define   RING_FAULT_ENGINE_ID_MASK		REG_GENMASK(16, 12)
+#define   RING_FAULT_GTTSEL_MASK		REG_BIT(11)
+#define   RING_FAULT_SRCID_MASK			REG_GENMASK(10, 3)
+#define   RING_FAULT_FAULT_TYPE_MASK		REG_GENMASK(2, 1)
+#define   RING_FAULT_VALID			REG_BIT(0)
 
 #define ERROR_GEN6				_MMIO(0x40a0)
 
@@ -390,8 +390,8 @@
 
 #define GEN8_FAULT_TLB_DATA0			_MMIO(0x4b10)
 #define GEN8_FAULT_TLB_DATA1			_MMIO(0x4b14)
-#define   FAULT_GTT_SEL				(1 << 4)
-#define   FAULT_VA_HIGH_BITS			(0xf << 0)
+#define   FAULT_GTT_SEL				REG_BIT(4)
+#define   FAULT_VA_HIGH_BITS			REG_GENMASK(3, 0)
 
 #define GEN11_GACB_PERF_CTRL			_MMIO(0x4b80)
 #define   GEN11_HASH_CTRL_MASK			(0x3 << 12 | 0xf << 0)

@@ -310,13 +310,13 @@ static void gen6_check_faults(struct intel_gt *gt)
 			gt_dbg(gt, "Unexpected fault\n"
 			       "\tAddr: 0x%08lx\n"
 			       "\tAddress space: %s\n"
-			       "\tSource ID: %ld\n"
-			       "\tType: %ld\n",
+			       "\tSource ID: %d\n"
+			       "\tType: %d\n",
 			       fault & PAGE_MASK,
 			       fault & RING_FAULT_GTTSEL_MASK ?
 			       "GGTT" : "PPGTT",
-			       RING_FAULT_SRCID(fault),
-			       RING_FAULT_FAULT_TYPE(fault));
+			       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
+			       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
 		}
 	}
 }
@@ -351,9 +351,9 @@ static void xehp_check_faults(struct intel_gt *gt)
 		       "\tType: %d\n",
 		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
 		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-		       GEN8_RING_FAULT_ENGINE_ID(fault),
-		       RING_FAULT_SRCID(fault),
-		       RING_FAULT_FAULT_TYPE(fault));
+		       REG_FIELD_GET(RING_FAULT_ENGINE_ID_MASK, fault),
+		       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
+		       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
 	}
 }
 
@@ -392,9 +392,9 @@ static void gen8_check_faults(struct intel_gt *gt)
 		       "\tType: %d\n",
 		       upper_32_bits(fault_addr), lower_32_bits(fault_addr),
 		       fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-		       GEN8_RING_FAULT_ENGINE_ID(fault),
-		       RING_FAULT_SRCID(fault),
-		       RING_FAULT_FAULT_TYPE(fault));
+		       REG_FIELD_GET(RING_FAULT_ENGINE_ID_MASK, fault),
+		       REG_FIELD_GET(RING_FAULT_SRCID_MASK, fault),
+		       REG_FIELD_GET(RING_FAULT_FAULT_TYPE_MASK, fault));
 	}
 }
 
