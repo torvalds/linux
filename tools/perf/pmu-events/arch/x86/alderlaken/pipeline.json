@@ -1,10 +1,59 @@
 [
     {
+        "BriefDescription": "Counts the number of cycles when any of the floating point or integer dividers are active.",
+        "Counter": "0,1,2,3,4,5",
+        "CounterMask": "1",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.DIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Counts the number of active floating point and integer dividers per cycle.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.DIV_OCCUPANCY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Counts the number of floating point and integer divider uops executed per cycle.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.DIV_UOPS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0xc"
+    },
+    {
+        "BriefDescription": "Counts the number of cycles any of the two integer dividers are active.",
+        "Counter": "0,1,2,3,4,5",
+        "CounterMask": "1",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of active integer dividers per cycle.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_OCCUPANCY",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of integer divider uops executed per cycle.",
+        "Counter": "0,1,2,3,4,5",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.IDIV_UOPS",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
         "BriefDescription": "Counts the total number of branch instructions retired for all branch types.",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
-        "PEBS": "1",
         "PublicDescription": "Counts the total number of instructions in which the instruction pointer (IP) of the processor is resteered due to a branch instruction and the branch instruction successfully retires.  All branch type instructions are accounted for.",
         "SampleAfterValue": "200003"
     },
@@ -14,7 +63,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xf9"
     },
@@ -23,7 +71,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -32,7 +79,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND_TAKEN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -41,7 +87,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.FAR_BRANCH",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xbf"
     },
@@ -50,7 +95,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -59,7 +103,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -69,7 +112,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.IND_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -79,7 +121,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.JCC",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -88,7 +129,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xf9"
     },
@@ -97,7 +137,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_RETURN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xf7"
     },
@@ -106,7 +145,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NEAR_TAKEN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xc0"
     },
@@ -116,7 +154,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.NON_RETURN_IND",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -125,7 +162,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.REL_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfd"
     },
@@ -135,7 +171,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.RETURN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xf7"
     },
@@ -145,7 +180,6 @@
         "Deprecated": "1",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.TAKEN_JCC",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -154,7 +188,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.ALL_BRANCHES",
-        "PEBS": "1",
         "PublicDescription": "Counts the total number of mispredicted branch instructions retired.  All branch type instructions are accounted for.  Prediction of the branch target address enables the processor to begin executing instructions before the non-speculative execution path is known. The branch prediction unit (BPU) predicts the target address based on the instruction pointer (IP) of the branch and on the execution path through which execution reached this IP.    A branch misprediction occurs when the prediction is wrong, and results in discarding all instructions executed in the speculative path and re-fetching from the correct path.",
         "SampleAfterValue": "200003"
     },
@@ -163,7 +196,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.COND",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -172,7 +204,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.COND_TAKEN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -181,7 +212,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.INDIRECT",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -190,7 +220,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.INDIRECT_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -200,7 +229,6 @@
         "Deprecated": "1",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.IND_CALL",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfb"
     },
@@ -210,7 +238,6 @@
         "Deprecated": "1",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.JCC",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x7e"
     },
@@ -219,7 +246,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.NEAR_TAKEN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0x80"
     },
@@ -229,7 +255,6 @@
         "Deprecated": "1",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xeb"
     },
@@ -238,7 +263,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.RETURN",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xf7"
     },
@@ -248,7 +272,6 @@
         "Deprecated": "1",
         "EventCode": "0xc5",
         "EventName": "BR_MISP_RETIRED.TAKEN_JCC",
-        "PEBS": "1",
         "SampleAfterValue": "200003",
         "UMask": "0xfe"
     },
@@ -267,6 +290,15 @@
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
         "PublicDescription": "Counts the number of core cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. This event uses a programmable general purpose performance counter.",
         "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event CPU_CLK_UNHALTED.REF_TSC_P",
+        "Counter": "0,1,2,3,4,5",
+        "Deprecated": "1",
+        "EventCode": "0x3c",
+        "EventName": "CPU_CLK_UNHALTED.REF",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts the number of unhalted reference clock cycles at TSC frequency. (Fixed event)",
@@ -305,7 +337,6 @@
         "BriefDescription": "Counts the total number of instructions retired. (Fixed event)",
         "Counter": "Fixed counter 0",
         "EventName": "INST_RETIRED.ANY",
-        "PEBS": "1",
         "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses fixed counter 0.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
@@ -315,7 +346,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.ANY_P",
-        "PEBS": "1",
         "PublicDescription": "Counts the total number of instructions that retired. For instructions that consist of multiple uops, this event counts the retirement of the last uop of the instruction. This event continues counting during hardware interrupts, traps, and inside interrupt handlers. This event uses a programmable general purpose performance counter.",
         "SampleAfterValue": "2000003"
     },
@@ -325,7 +355,6 @@
         "Deprecated": "1",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.4K_ALIAS",
-        "PEBS": "1",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -334,7 +363,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.ADDRESS_ALIAS",
-        "PEBS": "1",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
@@ -343,7 +371,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x03",
         "EventName": "LD_BLOCKS.DATA_UNKNOWN",
-        "PEBS": "1",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -392,7 +419,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xe4",
         "EventName": "MISC_RETIRED.LBR_INSERTS",
-        "PEBS": "1",
         "PublicDescription": "Counts the number of LBR entries recorded. Requires LBRs to be enabled in IA32_LBR_CTL. This event is PDIR on GP0 and NPEBS on all other GPs [This event is alias to LBR_INSERTS.ANY]",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
@@ -588,7 +614,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "TOPDOWN_RETIRING.ALL",
-        "PEBS": "1",
         "SampleAfterValue": "1000003"
     },
     {
@@ -604,7 +629,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.ALL",
-        "PEBS": "1",
         "SampleAfterValue": "2000003"
     },
     {
@@ -612,7 +636,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.IDIV",
-        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x10"
     },
@@ -621,7 +644,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.MS",
-        "PEBS": "1",
         "PublicDescription": "Counts the number of uops that are from complex flows issued by the Microcode Sequencer (MS). This includes uops from flows due to complex instructions, faults, assists, and inserted flows.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
@@ -631,7 +653,6 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.X87",
-        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     }
