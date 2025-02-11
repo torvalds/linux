@@ -28,6 +28,15 @@
         "UMask": "0xe"
     },
     {
+        "BriefDescription": "Page walks completed due to a demand data load to a 1G page.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x08",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED_1G",
+        "PublicDescription": "Counts completed page walks  (1G sizes) caused by demand data loads. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
+    },
+    {
         "BriefDescription": "Page walks completed due to a demand data load to a 2M/4M page.",
         "Counter": "0,1,2,3",
         "EventCode": "0x08",
@@ -81,6 +90,15 @@
         "PublicDescription": "Counts completed page walks  (all page sizes) caused by demand data stores. This implies it missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
         "UMask": "0xe"
+    },
+    {
+        "BriefDescription": "Page walks completed due to a demand data store to a 1G page.",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x49",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED_1G",
+        "PublicDescription": "Counts completed page walks  (1G sizes) caused by demand data stores. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
+        "SampleAfterValue": "100003",
+        "UMask": "0x8"
     },
     {
         "BriefDescription": "Page walks completed due to a demand data store to a 2M/4M page.",
