@@ -583,20 +583,6 @@ static inline bool dma_buf_is_dynamic(struct dma_buf *dmabuf)
 	return !!dmabuf->ops->pin;
 }
 
-/**
- * dma_buf_attachment_is_dynamic - check if a DMA-buf attachment uses dynamic
- * mappings
- * @attach: the DMA-buf attachment to check
- *
- * Returns true if a DMA-buf importer wants to call the map/unmap functions with
- * the dma_resv lock held.
- */
-static inline bool
-dma_buf_attachment_is_dynamic(struct dma_buf_attachment *attach)
-{
-	return !!attach->importer_ops;
-}
-
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 					  struct device *dev);
 struct dma_buf_attachment *
