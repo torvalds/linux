@@ -143,22 +143,22 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	struct gpio_latch_priv *priv;
 	unsigned int n_latches;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->clk_gpios = devm_gpiod_get_array(&pdev->dev, "clk", GPIOD_OUT_LOW);
+	priv->clk_gpios = devm_gpiod_get_array(dev, "clk", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->clk_gpios))
 		return PTR_ERR(priv->clk_gpios);
 
-	priv->latched_gpios = devm_gpiod_get_array(&pdev->dev, "latched", GPIOD_OUT_LOW);
+	priv->latched_gpios = devm_gpiod_get_array(dev, "latched", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->latched_gpios))
 		return PTR_ERR(priv->latched_gpios);
 
 	n_latches = priv->clk_gpios->ndescs;
 	priv->n_latched_gpios = priv->latched_gpios->ndescs;
 
-	priv->shadow = devm_bitmap_zalloc(&pdev->dev, n_latches * priv->n_latched_gpios,
+	priv->shadow = devm_bitmap_zalloc(dev, n_latches * priv->n_latched_gpios,
 					  GFP_KERNEL);
 	if (!priv->shadow)
 		return -ENOMEM;
@@ -176,7 +176,7 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "setup-duration-ns",
 				 &priv->setup_duration_ns);
 	if (priv->setup_duration_ns > DURATION_NS_MAX) {
-		dev_warn(&pdev->dev, "setup-duration-ns too high, limit to %d\n",
+		dev_warn(dev, "setup-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
 		priv->setup_duration_ns = DURATION_NS_MAX;
 	}
@@ -184,7 +184,7 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	device_property_read_u32(dev, "clock-duration-ns",
 				 &priv->clock_duration_ns);
 	if (priv->clock_duration_ns > DURATION_NS_MAX) {
-		dev_warn(&pdev->dev, "clock-duration-ns too high, limit to %d\n",
+		dev_warn(dev, "clock-duration-ns too high, limit to %d\n",
 			 DURATION_NS_MAX);
 		priv->clock_duration_ns = DURATION_NS_MAX;
 	}
@@ -193,11 +193,11 @@ static int gpio_latch_probe(struct platform_device *pdev)
 	priv->gc.ngpio = n_latches * priv->n_latched_gpios;
 	priv->gc.owner = THIS_MODULE;
 	priv->gc.base = -1;
-	priv->gc.parent = &pdev->dev;
+	priv->gc.parent = dev;
 
 	platform_set_drvdata(pdev, priv);
 
-	return devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
+	return devm_gpiochip_add_data(dev, &priv->gc, priv);
 }
 
 static const struct of_device_id gpio_latch_ids[] = {
