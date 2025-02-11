@@ -694,6 +694,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		renoir_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		vangogh_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 1):
@@ -1566,6 +1567,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 11):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 	case IP_VERSION(11, 0, 12):
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
@@ -1919,6 +1921,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 7):
 		case IP_VERSION(11, 0, 11):
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 2):
 		case IP_VERSION(11, 0, 12):
 		case IP_VERSION(11, 0, 13):
 			return 0;
