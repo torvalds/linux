@@ -61,6 +61,11 @@ struct fbnic_queue_stats {
 			u64 ts_packets;
 			u64 ts_lost;
 		} twq;
+		struct {
+			u64 alloc_failed;
+			u64 csum_complete;
+			u64 csum_none;
+		} rx;
 	};
 	u64 dropped;
 	struct u64_stats_sync syncp;

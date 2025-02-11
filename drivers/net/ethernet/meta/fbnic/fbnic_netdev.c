@@ -487,8 +487,9 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *rxr = fbn->rx[idx];
 	struct fbnic_queue_stats *stats;
+	u64 bytes, packets, alloc_fail;
+	u64 csum_complete, csum_none;
 	unsigned int start;
-	u64 bytes, packets;
 
 	if (!rxr)
 		return;
@@ -498,10 +499,16 @@ static void fbnic_get_queue_stats_rx(struct net_device *dev, int idx,
 		start = u64_stats_fetch_begin(&stats->syncp);
 		bytes = stats->bytes;
 		packets = stats->packets;
+		alloc_fail = stats->rx.alloc_failed;
+		csum_complete = stats->rx.csum_complete;
+		csum_none = stats->rx.csum_none;
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 	rx->bytes = bytes;
 	rx->packets = packets;
+	rx->alloc_fail = alloc_fail;
+	rx->csum_complete = csum_complete;
+	rx->csum_none = csum_none;
 }
 
 static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
@@ -538,6 +545,9 @@ static void fbnic_get_base_stats(struct net_device *dev,
 
 	rx->bytes = fbn->rx_stats.bytes;
 	rx->packets = fbn->rx_stats.packets;
+	rx->alloc_fail = fbn->rx_stats.rx.alloc_failed;
+	rx->csum_complete = fbn->rx_stats.rx.csum_complete;
+	rx->csum_none = fbn->rx_stats.rx.csum_none;
 }
 
 static const struct netdev_stat_ops fbnic_stat_ops = {

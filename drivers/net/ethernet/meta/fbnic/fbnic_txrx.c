@@ -198,12 +198,15 @@ fbnic_tx_offloads(struct fbnic_ring *ring, struct sk_buff *skb, __le64 *meta)
 }
 
 static void
-fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq)
+fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq,
+	      u64 *csum_cmpl, u64 *csum_none)
 {
 	skb_checksum_none_assert(skb);
 
-	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM)))
+	if (unlikely(!(skb->dev->features & NETIF_F_RXCSUM))) {
+		(*csum_none)++;
 		return;
+	}
 
 	if (FIELD_GET(FBNIC_RCD_META_L4_CSUM_UNNECESSARY, rcd)) {
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -212,6 +215,7 @@ fbnic_rx_csum(u64 rcd, struct sk_buff *skb, struct fbnic_ring *rcq)
 
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = (__force __wsum)csum;
+		(*csum_cmpl)++;
 	}
 }
 
@@ -661,8 +665,13 @@ static void fbnic_fill_bdq(struct fbnic_napi_vector *nv, struct fbnic_ring *bdq)
 		struct page *page;
 
 		page = page_pool_dev_alloc_pages(nv->page_pool);
-		if (!page)
+		if (!page) {
+			u64_stats_update_begin(&bdq->stats.syncp);
+			bdq->stats.rx.alloc_failed++;
+			u64_stats_update_end(&bdq->stats.syncp);
+
 			break;
+		}
 
 		fbnic_page_pool_init(bdq, i, page);
 		fbnic_bd_prep(bdq, i, page);
@@ -875,12 +884,13 @@ static void fbnic_rx_tstamp(struct fbnic_napi_vector *nv, u64 rcd,
 
 static void fbnic_populate_skb_fields(struct fbnic_napi_vector *nv,
 				      u64 rcd, struct sk_buff *skb,
-				      struct fbnic_q_triad *qt)
+				      struct fbnic_q_triad *qt,
+				      u64 *csum_cmpl, u64 *csum_none)
 {
 	struct net_device *netdev = nv->napi.dev;
 	struct fbnic_ring *rcq = &qt->cmpl;
 
-	fbnic_rx_csum(rcd, skb, rcq);
+	fbnic_rx_csum(rcd, skb, rcq, csum_cmpl, csum_none);
 
 	if (netdev->features & NETIF_F_RXHASH)
 		skb_set_hash(skb,
@@ -898,7 +908,8 @@ static bool fbnic_rcd_metadata_err(u64 rcd)
 static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 			   struct fbnic_q_triad *qt, int budget)
 {
-	unsigned int packets = 0, bytes = 0, dropped = 0;
+	unsigned int packets = 0, bytes = 0, dropped = 0, alloc_failed = 0;
+	u64 csum_complete = 0, csum_none = 0;
 	struct fbnic_ring *rcq = &qt->cmpl;
 	struct fbnic_pkt_buff *pkt;
 	s32 head0 = -1, head1 = -1;
@@ -947,14 +958,22 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 
 			/* Populate skb and invalidate XDP */
 			if (!IS_ERR_OR_NULL(skb)) {
-				fbnic_populate_skb_fields(nv, rcd, skb, qt);
+				fbnic_populate_skb_fields(nv, rcd, skb, qt,
+							  &csum_complete,
+							  &csum_none);
 
 				packets++;
 				bytes += skb->len;
 
 				napi_gro_receive(&nv->napi, skb);
 			} else {
-				dropped++;
+				if (!skb) {
+					alloc_failed++;
+					dropped++;
+				} else {
+					dropped++;
+				}
+
 				fbnic_put_pkt_buff(nv, pkt, 1);
 			}
 
@@ -977,6 +996,9 @@ static int fbnic_clean_rcq(struct fbnic_napi_vector *nv,
 	/* Re-add ethernet header length (removed in fbnic_build_skb) */
 	rcq->stats.bytes += ETH_HLEN * packets;
 	rcq->stats.dropped += dropped;
+	rcq->stats.rx.alloc_failed += alloc_failed;
+	rcq->stats.rx.csum_complete += csum_complete;
+	rcq->stats.rx.csum_none += csum_none;
 	u64_stats_update_end(&rcq->stats.syncp);
 
 	/* Unmap and free processed buffers */
@@ -1054,6 +1076,11 @@ void fbnic_aggregate_ring_rx_counters(struct fbnic_net *fbn,
 	fbn->rx_stats.bytes += stats->bytes;
 	fbn->rx_stats.packets += stats->packets;
 	fbn->rx_stats.dropped += stats->dropped;
+	fbn->rx_stats.rx.alloc_failed += stats->rx.alloc_failed;
+	fbn->rx_stats.rx.csum_complete += stats->rx.csum_complete;
+	fbn->rx_stats.rx.csum_none += stats->rx.csum_none;
+	/* Remember to add new stats here */
+	BUILD_BUG_ON(sizeof(fbn->tx_stats.rx) / 8 != 3);
 }
 
 void fbnic_aggregate_ring_tx_counters(struct fbnic_net *fbn,
