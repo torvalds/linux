@@ -4,6 +4,8 @@
 Linux ABI description
 =====================
 
+.. kernel-abi:: README
+
 ABI symbols
 -----------
 
@@ -21,7 +23,6 @@ ABI files
 .. toctree::
    :maxdepth: 2
 
-   abi-readme-file
    abi-stable-files
    abi-testing-files
    abi-obsolete-files

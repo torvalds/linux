@@ -266,7 +266,7 @@ class AbiParser:
     def parse_readme(self, nametag, fname):
         """Parse ABI README file"""
 
-        nametag["what"] = ["ABI file contents"]
+        nametag["what"] = ["Introduction"]
         nametag["path"] = "README"
         with open(fname, "r", encoding="utf8", errors="backslashreplace") as fp:
             for line in fp:
