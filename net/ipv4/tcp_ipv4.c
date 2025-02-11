@@ -458,15 +458,14 @@ void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
 
 	icsk->icsk_backoff--;
 	icsk->icsk_rto = tp->srtt_us ? __tcp_set_rto(tp) : TCP_TIMEOUT_INIT;
-	icsk->icsk_rto = inet_csk_rto_backoff(icsk, TCP_RTO_MAX);
+	icsk->icsk_rto = inet_csk_rto_backoff(icsk, tcp_rto_max(sk));
 
 	tcp_mstamp_refresh(tp);
 	delta_us = (u32)(tp->tcp_mstamp - tcp_skb_timestamp_us(skb));
 	remaining = icsk->icsk_rto - usecs_to_jiffies(delta_us);
 
 	if (remaining > 0) {
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  remaining, TCP_RTO_MAX);
+		tcp_reset_xmit_timer(sk, ICSK_TIME_RETRANS, remaining, false);
 	} else {
 		/* RTO revert clocked out retransmission.
 		 * Will retransmit now.
@@ -3533,6 +3532,7 @@ static int __net_init tcp_sk_init(struct net *net)
 
 	net->ipv4.sysctl_tcp_pingpong_thresh = 1;
 	net->ipv4.sysctl_tcp_rto_min_us = jiffies_to_usecs(TCP_RTO_MIN);
+	net->ipv4.sysctl_tcp_rto_max_ms = TCP_RTO_MAX_SEC * MSEC_PER_SEC;
 
 	return 0;
 }

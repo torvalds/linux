@@ -274,8 +274,8 @@ static struct sock *tcp_fastopen_create_child(struct sock *sk,
 	 * because it's been added to the accept queue directly.
 	 */
 	req->timeout = tcp_timeout_init(child);
-	inet_csk_reset_xmit_timer(child, ICSK_TIME_RETRANS,
-				  req->timeout, TCP_RTO_MAX);
+	tcp_reset_xmit_timer(child, ICSK_TIME_RETRANS,
+			     req->timeout, false);
 
 	refcount_set(&req->rsk_refcnt, 2);
 
