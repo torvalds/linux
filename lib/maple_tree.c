@@ -584,13 +584,10 @@ static __always_inline bool ma_dead_node(const struct maple_node *node)
  */
 static __always_inline bool mte_dead_node(const struct maple_enode *enode)
 {
-	struct maple_node *parent, *node;
+	struct maple_node *node;
 
 	node = mte_to_node(enode);
-	/* Do not reorder reads from the node prior to the parent check */
-	smp_rmb();
-	parent = mte_parent(enode);
-	return (parent == node);
+	return ma_dead_node(node);
 }
 
 /*
