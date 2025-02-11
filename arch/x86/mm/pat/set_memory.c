@@ -225,13 +225,13 @@ within(unsigned long addr, unsigned long start, unsigned long end)
 	return addr >= start && addr < end;
 }
 
+#ifdef CONFIG_X86_64
+
 static inline int
 within_inclusive(unsigned long addr, unsigned long start, unsigned long end)
 {
 	return addr >= start && addr <= end;
 }
-
-#ifdef CONFIG_X86_64
 
 /*
  * The kernel image is mapped into two places in the virtual address space
