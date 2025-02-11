@@ -326,6 +326,11 @@
 							    _RING_FAULT_REG_VCS, \
 							    _RING_FAULT_REG_VECS, \
 							    _RING_FAULT_REG_BCS))
+#define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x1f)
+#define   RING_FAULT_GTTSEL_MASK		(1 << 11)
+#define   RING_FAULT_SRCID(x)			(((x) >> 3) & 0xff)
+#define   RING_FAULT_FAULT_TYPE(x)		(((x) >> 1) & 0x3)
+#define   RING_FAULT_VALID			(1 << 0)
 
 #define ERROR_GEN6				_MMIO(0x40a0)
 
@@ -385,6 +390,8 @@
 
 #define GEN8_FAULT_TLB_DATA0			_MMIO(0x4b10)
 #define GEN8_FAULT_TLB_DATA1			_MMIO(0x4b14)
+#define   FAULT_GTT_SEL				(1 << 4)
+#define   FAULT_VA_HIGH_BITS			(0xf << 0)
 
 #define GEN11_GACB_PERF_CTRL			_MMIO(0x4b80)
 #define   GEN11_HASH_CTRL_MASK			(0x3 << 12 | 0xf << 0)
@@ -1038,17 +1045,12 @@
 #define XEHP_FAULT_TLB_DATA0			MCR_REG(0xceb8)
 #define GEN12_FAULT_TLB_DATA1			_MMIO(0xcebc)
 #define XEHP_FAULT_TLB_DATA1			MCR_REG(0xcebc)
-#define   FAULT_VA_HIGH_BITS			(0xf << 0)
-#define   FAULT_GTT_SEL				(1 << 4)
+/* see GEN8_FAULT_TLB_DATA0/1 */
 
 #define GEN12_RING_FAULT_REG			_MMIO(0xcec4)
 #define XEHP_RING_FAULT_REG			MCR_REG(0xcec4)
 #define XELPMP_RING_FAULT_REG			_MMIO(0xcec4)
-#define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x1f)
-#define   RING_FAULT_GTTSEL_MASK		(1 << 11)
-#define   RING_FAULT_SRCID(x)			(((x) >> 3) & 0xff)
-#define   RING_FAULT_FAULT_TYPE(x)		(((x) >> 1) & 0x3)
-#define   RING_FAULT_VALID			(1 << 0)
+/* see GEN8_RING_FAULT_REG */
 
 #define GEN12_GFX_TLB_INV_CR			_MMIO(0xced8)
 #define XEHP_GFX_TLB_INV_CR			MCR_REG(0xced8)
