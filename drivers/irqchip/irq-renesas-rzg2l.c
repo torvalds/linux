@@ -565,11 +565,11 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 	}
 
 	ret = devm_pm_runtime_enable(dev);
-	if (ret < 0)
+	if (ret)
 		return dev_err_probe(dev, ret, "devm_pm_runtime_enable failed: %d\n", ret);
 
 	ret = pm_runtime_resume_and_get(dev);
-	if (ret < 0)
+	if (ret)
 		return dev_err_probe(dev, ret, "pm_runtime_resume_and_get failed: %d\n", ret);
 
 	raw_spin_lock_init(&rzg2l_irqc_data->lock);
