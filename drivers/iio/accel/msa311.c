@@ -332,7 +332,7 @@ static const struct regmap_config msa311_regmap_config = {
 	.wr_table = &msa311_writeable_table,
 	.rd_table = &msa311_readable_table,
 	.volatile_table = &msa311_volatile_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 #define MSA311_GENMASK(field) ({                \
