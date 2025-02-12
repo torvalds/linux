@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -70,7 +70,7 @@ static const struct ieee80211_iface_combination iwl_mvm_iface_combinations[] = {
 };
 
 static const struct cfg80211_pmsr_capabilities iwl_mvm_pmsr_capa = {
-	.max_peers = IWL_MVM_TOF_MAX_APS,
+	.max_peers = IWL_TOF_MAX_APS,
 	.report_ap_tsf = 1,
 	.randomize_mac_addr = 1,
 

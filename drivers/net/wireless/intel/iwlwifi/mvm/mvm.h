@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1310,7 +1310,7 @@ struct iwl_mvm {
 		struct cfg80211_pmsr_request *req;
 		struct wireless_dev *req_wdev;
 		struct list_head loc_list;
-		int responses[IWL_MVM_TOF_MAX_APS];
+		int responses[IWL_TOF_MAX_APS];
 		struct {
 			struct list_head resp;
 		} smooth;
