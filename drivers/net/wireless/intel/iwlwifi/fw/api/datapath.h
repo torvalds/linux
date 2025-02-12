@@ -91,6 +91,12 @@ enum iwl_data_path_subcmd_ids {
 	SEC_KEY_CMD = 0x18,
 
 	/**
+	 * @OMI_SEND_STATUS_NOTIF: notification after OMI was sent
+	 *	uses &struct iwl_omi_send_status_notif
+	 */
+	OMI_SEND_STATUS_NOTIF = 0xF2,
+
+	/**
 	 * @ESR_MODE_NOTIF: notification to recommend/force a wanted esr mode,
 	 *	uses &struct iwl_esr_mode_notif
 	 */
@@ -687,5 +693,14 @@ struct iwl_sec_key_cmd {
 		} __packed remove; /* SEC_KEY_REMOVE_CMD_API_S_VER_1 */
 	} __packed u; /* SEC_KEY_OPERATION_API_U_VER_1 */
 } __packed; /* SEC_KEY_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_omi_send_status_notif - OMI status notification
+ * @success: indicates that the OMI was sent successfully
+ *	(currently always set)
+ */
+struct iwl_omi_send_status_notif {
+	__le32 success;
+} __packed; /* OMI_SEND_STATUS_NTFY_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_datapath_h__ */
