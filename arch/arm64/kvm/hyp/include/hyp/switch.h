@@ -581,9 +581,22 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	return true;
 }
 
+/* Open-coded version of timer_get_offset() to allow for kern_hyp_va() */
+static inline u64 hyp_timer_get_offset(struct arch_timer_context *ctxt)
+{
+	u64 offset = 0;
+
+	if (ctxt->offset.vm_offset)
+		offset += *kern_hyp_va(ctxt->offset.vm_offset);
+	if (ctxt->offset.vcpu_offset)
+		offset += *kern_hyp_va(ctxt->offset.vcpu_offset);
+
+	return offset;
+}
+
 static inline u64 compute_counter_value(struct arch_timer_context *ctxt)
 {
-	return arch_timer_read_cntpct_el0() - timer_get_offset(ctxt);
+	return arch_timer_read_cntpct_el0() - hyp_timer_get_offset(ctxt);
 }
 
 static bool kvm_handle_cntxct(struct kvm_vcpu *vcpu)
