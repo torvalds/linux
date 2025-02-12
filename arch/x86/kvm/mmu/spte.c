@@ -141,8 +141,11 @@ bool spte_needs_atomic_update(u64 spte)
 	if (!is_writable_pte(spte) && is_mmu_writable_spte(spte))
 		return true;
 
-	/* Access-tracked SPTEs can be restored by KVM's fast page fault handler. */
-	if (is_access_track_spte(spte))
+	/*
+	 * A/D-disabled SPTEs can be access-tracked by aging, and access-tracked
+	 * SPTEs can be restored by KVM's fast page fault handler.
+	 */
+	if (!spte_ad_enabled(spte))
 		return true;
 
 	/*
@@ -151,8 +154,7 @@ bool spte_needs_atomic_update(u64 spte)
 	 * invalidate TLBs when aging SPTEs, and so it's safe to clobber the
 	 * Accessed bit (and rare in practice).
 	 */
-	return spte_ad_enabled(spte) && is_writable_pte(spte) &&
-	       !(spte & shadow_dirty_mask);
+	return is_writable_pte(spte) && !(spte & shadow_dirty_mask);
 }
 
 bool make_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
