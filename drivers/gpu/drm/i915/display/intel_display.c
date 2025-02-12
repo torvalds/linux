@@ -4405,6 +4405,24 @@ static bool check_single_encoder_cloning(struct intel_atomic_state *state,
 	return true;
 }
 
+static void unlink_nv12_plane(struct intel_crtc_state *crtc_state,
+			      struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+
+	plane_state->planar_linked_plane = NULL;
+
+	if (plane_state->is_y_plane && !plane_state->uapi.visible) {
+		crtc_state->enabled_planes &= ~BIT(plane->id);
+		crtc_state->active_planes &= ~BIT(plane->id);
+		crtc_state->update_planes |= BIT(plane->id);
+		crtc_state->data_rate[plane->id] = 0;
+		crtc_state->rel_data_rate[plane->id] = 0;
+	}
+
+	plane_state->is_y_plane = false;
+}
+
 static int icl_check_nv12_planes(struct intel_atomic_state *state,
 				 struct intel_crtc *crtc)
 {
@@ -4424,19 +4442,11 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 	 * in the crtc_state->active_planes mask.
 	 */
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe != crtc->pipe || !plane_state->planar_linked_plane)
+		if (plane->pipe != crtc->pipe)
 			continue;
 
-		plane_state->planar_linked_plane = NULL;
-		if (plane_state->is_y_plane && !plane_state->uapi.visible) {
-			crtc_state->enabled_planes &= ~BIT(plane->id);
-			crtc_state->active_planes &= ~BIT(plane->id);
-			crtc_state->update_planes |= BIT(plane->id);
-			crtc_state->data_rate[plane->id] = 0;
-			crtc_state->rel_data_rate[plane->id] = 0;
-		}
-
-		plane_state->is_y_plane = false;
+		if (plane_state->planar_linked_plane)
+			unlink_nv12_plane(crtc_state, plane_state);
 	}
 
 	if (!crtc_state->nv12_planes)
