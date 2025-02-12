@@ -122,10 +122,8 @@ EXPORT_SYMBOL_GPL(snd_soc_put_enum_double);
  * This functions reads a codec register. The register value is shifted right
  * by 'shift' bits and masked with the given 'mask'. Afterwards it translates
  * the given registervalue into a signed integer if sign_bit is non-zero.
- *
- * Returns 0 on sucess, otherwise an error value
  */
-static int snd_soc_read_signed(struct snd_soc_component *component,
+static void snd_soc_read_signed(struct snd_soc_component *component,
 	unsigned int reg, unsigned int mask, unsigned int shift,
 	unsigned int sign_bit, int *signed_val)
 {
@@ -137,13 +135,13 @@ static int snd_soc_read_signed(struct snd_soc_component *component,
 
 	if (!sign_bit) {
 		*signed_val = val;
-		return 0;
+		return;
 	}
 
 	/* non-negative number */
 	if (!(val & BIT(sign_bit))) {
 		*signed_val = val;
-		return 0;
+		return;
 	}
 
 	ret = val;
@@ -157,8 +155,6 @@ static int snd_soc_read_signed(struct snd_soc_component *component,
 	ret |= ~((int)(BIT(sign_bit) - 1));
 
 	*signed_val = ret;
-
-	return 0;
 }
 
 /**
@@ -266,14 +262,11 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 	unsigned int mask = (1ULL << fls(max)) - 1;
 	unsigned int invert = mc->invert;
 	int val;
-	int ret;
 
 	if (sign_bit)
 		mask = BIT(sign_bit + 1) - 1;
 
-	ret = snd_soc_read_signed(component, reg, mask, shift, sign_bit, &val);
-	if (ret)
-		return ret;
+	snd_soc_read_signed(component, reg, mask, shift, sign_bit, &val);
 
 	ucontrol->value.integer.value[0] = val - min;
 	if (invert)
@@ -282,13 +275,9 @@ int snd_soc_get_volsw(struct snd_kcontrol *kcontrol,
 
 	if (snd_soc_volsw_is_stereo(mc)) {
 		if (reg == reg2)
-			ret = snd_soc_read_signed(component, reg, mask, rshift,
-				sign_bit, &val);
+			snd_soc_read_signed(component, reg, mask, rshift, sign_bit, &val);
 		else
-			ret = snd_soc_read_signed(component, reg2, mask, shift,
-				sign_bit, &val);
-		if (ret)
-			return ret;
+			snd_soc_read_signed(component, reg2, mask, shift, sign_bit, &val);
 
 		ucontrol->value.integer.value[1] = val - min;
 		if (invert)
