@@ -179,7 +179,7 @@ my ($function, %function_table, %parametertypes, $declaration_purpose);
 my %nosymbol_table = ();
 my $declaration_start_line;
 my ($type, $declaration_name, $return_type);
-my ($newsection, $newcontents, $prototype, $brcount, %source_map);
+my ($newsection, $newcontents, $prototype, $brcount);
 
 if (defined($ENV{'KBUILD_VERBOSE'}) && $ENV{'KBUILD_VERBOSE'} =~ '1') {
     $verbose = 1;
@@ -2005,10 +2005,6 @@ sub map_filename($) {
         $file = $orig_file;
     }
 
-    if (defined($source_map{$file})) {
-        $file = $source_map{$file};
-    }
-
     return $file;
 }
 
@@ -2401,19 +2397,6 @@ for (my $k = 0; $k < @highlights; $k++) {
     my $result = $highlights[$k][1];
 #   print STDERR "scanning pattern:$pattern, highlight:($result)\n";
     $dohighlight .=  "\$contents =~ s:$pattern:$result:gs;\n";
-}
-
-# Read the file that maps relative names to absolute names for
-# separate source and object directories and for shadow trees.
-if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
-    my ($relname, $absname);
-    while(<SOURCE_MAP>) {
-        chop();
-        ($relname, $absname) = (split())[0..1];
-        $relname =~ s:^/+::;
-        $source_map{$relname} = $absname;
-    }
-    close(SOURCE_MAP);
 }
 
 if ($output_selection == OUTPUT_EXPORTED ||
