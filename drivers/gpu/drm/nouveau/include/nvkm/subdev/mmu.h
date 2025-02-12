@@ -8,7 +8,7 @@ struct nvkm_vma {
 	struct list_head head;
 	struct rb_node tree;
 	u64 addr;
-	u64 size:50;
+	u64 size;
 	bool mapref:1; /* PTs (de)referenced on (un)map (vs pre-allocated). */
 	bool sparse:1; /* Unmapped PDEs/PTEs will not trigger MMU faults. */
 #define NVKM_VMA_PAGE_NONE 7
