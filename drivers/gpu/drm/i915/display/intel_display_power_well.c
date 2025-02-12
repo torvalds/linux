@@ -507,7 +507,6 @@ static void
 icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 				 struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum aux_ch aux_ch = icl_aux_pw_to_ch(power_well);
 	struct intel_digital_port *dig_port = aux_ch_to_digital_port(display, aux_ch);
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
@@ -539,7 +538,7 @@ icl_tc_phy_aux_power_well_enable(struct intel_display *display,
 
 		tc_port = TGL_AUX_PW_TO_TC_PORT(i915_power_well_instance(power_well)->hsw.idx);
 
-		if (wait_for(intel_dkl_phy_read(dev_priv, DKL_CMN_UC_DW_27(tc_port)) &
+		if (wait_for(intel_dkl_phy_read(display, DKL_CMN_UC_DW_27(tc_port)) &
 			     DKL_CMN_UC_DW27_UC_HEALTH, 1))
 			drm_warn(display->drm,
 				 "Timeout waiting TC uC health\n");
