@@ -332,6 +332,7 @@ enum {
 	GLF_VERIFY_DELETE		= 18, /* iopen glocks only */
 	GLF_PENDING_REPLY		= 19,
 	GLF_DEFER_DELETE		= 20, /* iopen glocks only */
+	GLF_CANCELING			= 21,
 };
 
 struct gfs2_glock {

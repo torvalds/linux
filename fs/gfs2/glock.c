@@ -665,7 +665,8 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 		do_promote(gl);
 	}
 out:
-	clear_bit(GLF_LOCK, &gl->gl_flags);
+	if (!test_bit(GLF_CANCELING, &gl->gl_flags))
+		clear_bit(GLF_LOCK, &gl->gl_flags);
 }
 
 static bool is_system_glock(struct gfs2_glock *gl)
@@ -1671,11 +1672,17 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	}
 
 	if (list_is_first(&gh->gh_list, &gl->gl_holders) &&
-	    !test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+	    !test_bit(HIF_HOLDER, &gh->gh_iflags) &&
+	    test_bit(GLF_LOCK, &gl->gl_flags) &&
+	    !test_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags) &&
+	    !test_bit(GLF_CANCELING, &gl->gl_flags)) {
+		set_bit(GLF_CANCELING, &gl->gl_flags);
 		spin_unlock(&gl->gl_lockref.lock);
 		gl->gl_name.ln_sbd->sd_lockstruct.ls_ops->lm_cancel(gl);
 		wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
 		spin_lock(&gl->gl_lockref.lock);
+		clear_bit(GLF_CANCELING, &gl->gl_flags);
+		clear_bit(GLF_LOCK, &gl->gl_flags);
 		if (!gfs2_holder_queued(gh))
 			goto out;
 	}
@@ -2352,6 +2359,8 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'E';
 	if (test_bit(GLF_DEFER_DELETE, gflags))
 		*p++ = 's';
+	if (test_bit(GLF_CANCELING, gflags))
+		*p++ = 'C';
 	*p = 0;
 	return buf;
 }
