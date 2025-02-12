@@ -14,6 +14,7 @@ static void netfs_reissue_read(struct netfs_io_request *rreq,
 {
 	__clear_bit(NETFS_SREQ_MADE_PROGRESS, &subreq->flags);
 	__set_bit(NETFS_SREQ_IN_PROGRESS, &subreq->flags);
+	netfs_stat(&netfs_n_rh_retry_read_subreq);
 	subreq->rreq->netfs_ops->issue_read(subreq);
 }
 
@@ -259,6 +260,8 @@ void netfs_retry_reads(struct netfs_io_request *rreq)
 	struct netfs_io_subrequest *subreq;
 	struct netfs_io_stream *stream = &rreq->io_streams[0];
 	DEFINE_WAIT(myself);
+
+	netfs_stat(&netfs_n_rh_retry_read_req);
 
 	set_bit(NETFS_RREQ_RETRYING, &rreq->flags);
 
