@@ -252,7 +252,7 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	if (ret == -EAGAIN) {
 		struct io_uring_cmd_data *cache = req->async_data;
 
-		if (ioucmd->sqe != (void *) cache)
+		if (ioucmd->sqe != cache->sqes)
 			memcpy(cache->sqes, ioucmd->sqe, uring_sqe_size(req->ctx));
 		return -EAGAIN;
 	} else if (ret == -EIOCBQUEUED) {
