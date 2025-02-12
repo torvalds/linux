@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2021, 2024 Intel Corporation
+ * Copyright(c) 2018 - 2021, 2024-2025 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project.
  *****************************************************************************/
@@ -156,6 +156,7 @@ do {                                            			\
 #define IWL_DL_FW		0x00010000
 #define IWL_DL_RF_KILL		0x00020000
 #define IWL_DL_TPT		0x00040000
+#define IWL_DL_PTP		0x00080000
 /* 0x00F00000 - 0x00100000 */
 #define IWL_DL_RATE		0x00100000
 #define IWL_DL_CALIB		0x00200000
@@ -216,5 +217,6 @@ do {                                            			\
 #define IWL_DEBUG_LAR(p, f, a...)	IWL_DEBUG(p, IWL_DL_LAR, f, ## a)
 #define IWL_DEBUG_FW_INFO(p, f, a...)		\
 		IWL_DEBUG(p, IWL_DL_INFO | IWL_DL_FW, f, ## a)
+#define IWL_DEBUG_PTP(p, f, a...)	IWL_DEBUG(p, IWL_DL_PTP, f, ## a)
 
 #endif
