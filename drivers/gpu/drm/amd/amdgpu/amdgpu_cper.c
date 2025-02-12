@@ -280,6 +280,7 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 {
 	struct cper_hdr *fatal = NULL;
 	struct cper_sec_crashdump_reg_data reg_data = { 0 };
+	struct amdgpu_ring *ring = &adev->cper.ring_buf;
 	int ret;
 
 	fatal = amdgpu_cper_alloc_entry(adev, AMDGPU_CPER_TYPE_FATAL, 1);
@@ -302,7 +303,7 @@ int amdgpu_cper_generate_ue_record(struct amdgpu_device *adev,
 	if (ret)
 		return ret;
 
-	/*TODO: commit the cper entry to cper ring */
+	amdgpu_cper_ring_write(ring, fatal, fatal->record_length);
 
 	return 0;
 }
@@ -329,6 +330,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 {
 	struct cper_hdr *corrected = NULL;
 	enum cper_error_severity sev = CPER_SEV_NON_FATAL_CORRECTED;
+	struct amdgpu_ring *ring = &adev->cper.ring_buf;
 	uint32_t reg_data[CPER_ACA_REG_COUNT] = { 0 };
 	struct aca_bank_node *node;
 	struct aca_bank *bank;
@@ -377,7 +379,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 			return ret;
 	}
 
-	/*TODO: commit the cper entry to cper ring */
+	amdgpu_cper_ring_write(ring, corrected, corrected->record_length);
 
 	return 0;
 }
