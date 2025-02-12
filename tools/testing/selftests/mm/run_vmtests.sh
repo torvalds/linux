@@ -187,9 +187,10 @@ if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 		printf "Not enough huge pages available (%d < %d)\n" \
 		       "$freepgs" "$needpgs"
 	fi
+	HAVE_HUGEPAGES=1
 else
 	echo "no hugetlbfs support in kernel?"
-	exit 1
+	HAVE_HUGEPAGES=0
 fi
 
 # filter 64bit architectures
@@ -218,13 +219,20 @@ pretty_name() {
 # Usage: run_test [test binary] [arbitrary test arguments...]
 run_test() {
 	if test_selected ${CATEGORY}; then
+		local skip=0
+
 		# On memory constrainted systems some tests can fail to allocate hugepages.
 		# perform some cleanup before the test for a higher success rate.
 		if [ ${CATEGORY} == "thp" -o ${CATEGORY} == "hugetlb" ]; then
-			echo 3 > /proc/sys/vm/drop_caches
-			sleep 2
-			echo 1 > /proc/sys/vm/compact_memory
-			sleep 2
+			if [ "${HAVE_HUGEPAGES}" = "1" ]; then
+				echo 3 > /proc/sys/vm/drop_caches
+				sleep 2
+				echo 1 > /proc/sys/vm/compact_memory
+				sleep 2
+			else
+				echo "hugepages not supported" | tap_prefix
+				skip=1
+			fi
 		fi
 
 		local test=$(pretty_name "$*")
@@ -232,8 +240,12 @@ run_test() {
 		local sep=$(echo -n "$title" | tr "[:graph:][:space:]" -)
 		printf "%s\n%s\n%s\n" "$sep" "$title" "$sep" | tap_prefix
 
-		("$@" 2>&1) | tap_prefix
-		local ret=${PIPESTATUS[0]}
+		if [ "${skip}" != "1" ]; then
+			("$@" 2>&1) | tap_prefix
+			local ret=${PIPESTATUS[0]}
+		else
+			local ret=$ksft_skip
+		fi
 		count_total=$(( count_total + 1 ))
 		if [ $ret -eq 0 ]; then
 			count_pass=$(( count_pass + 1 ))
@@ -271,13 +283,15 @@ CATEGORY="hugetlb" run_test ./hugepage-vmemmap
 CATEGORY="hugetlb" run_test ./hugetlb-madvise
 CATEGORY="hugetlb" run_test ./hugetlb_dio
 
-nr_hugepages_tmp=$(cat /proc/sys/vm/nr_hugepages)
-# For this test, we need one and just one huge page
-echo 1 > /proc/sys/vm/nr_hugepages
-CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
-CATEGORY="hugetlb" run_test ./hugetlb_madv_vs_map
-# Restore the previous number of huge pages, since further tests rely on it
-echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
+if [ "${HAVE_HUGEPAGES}" = "1" ]; then
+	nr_hugepages_tmp=$(cat /proc/sys/vm/nr_hugepages)
+	# For this test, we need one and just one huge page
+	echo 1 > /proc/sys/vm/nr_hugepages
+	CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
+	CATEGORY="hugetlb" run_test ./hugetlb_madv_vs_map
+	# Restore the previous number of huge pages, since further tests rely on it
+	echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
+fi
 
 if test_selected "hugetlb"; then
 	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"	  | tap_prefix
@@ -393,7 +407,9 @@ CATEGORY="memfd_secret" run_test ./memfd_secret
 fi
 
 # KSM KSM_MERGE_TIME_HUGE_PAGES test with size of 100
-CATEGORY="ksm" run_test ./ksm_tests -H -s 100
+if [ "${HAVE_HUGEPAGES}" = "1" ]; then
+	CATEGORY="ksm" run_test ./ksm_tests -H -s 100
+fi
 # KSM KSM_MERGE_TIME test with size of 100
 CATEGORY="ksm" run_test ./ksm_tests -P -s 100
 # KSM MADV_MERGEABLE test with 10 identical pages
@@ -442,15 +458,17 @@ CATEGORY="thp" run_test ./transhuge-stress -d 20
 
 # Try to create XFS if not provided
 if [ -z "${SPLIT_HUGE_PAGE_TEST_XFS_PATH}" ]; then
-    if test_selected "thp"; then
-        if grep xfs /proc/filesystems &>/dev/null; then
-            XFS_IMG=$(mktemp /tmp/xfs_img_XXXXXX)
-            SPLIT_HUGE_PAGE_TEST_XFS_PATH=$(mktemp -d /tmp/xfs_dir_XXXXXX)
-            truncate -s 314572800 ${XFS_IMG}
-            mkfs.xfs -q ${XFS_IMG}
-            mount -o loop ${XFS_IMG} ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
-            MOUNTED_XFS=1
-        fi
+    if [ "${HAVE_HUGEPAGES}" = "1" ]; then
+	if test_selected "thp"; then
+	    if grep xfs /proc/filesystems &>/dev/null; then
+		XFS_IMG=$(mktemp /tmp/xfs_img_XXXXXX)
+		SPLIT_HUGE_PAGE_TEST_XFS_PATH=$(mktemp -d /tmp/xfs_dir_XXXXXX)
+		truncate -s 314572800 ${XFS_IMG}
+		mkfs.xfs -q ${XFS_IMG}
+		mount -o loop ${XFS_IMG} ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+		MOUNTED_XFS=1
+	    fi
+	fi
     fi
 fi
 
