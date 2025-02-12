@@ -54,9 +54,6 @@ bool io_uring_try_cancel_uring_cmd(struct io_ring_ctx *ctx,
 			continue;
 
 		if (cmd->flags & IORING_URING_CMD_CANCELABLE) {
-			/* ->sqe isn't available if no async data */
-			if (!req_has_async_data(req))
-				cmd->sqe = NULL;
 			file->f_op->uring_cmd(cmd, IO_URING_F_CANCEL |
 						   IO_URING_F_COMPLETE_DEFER);
 			ret = true;
