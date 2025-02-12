@@ -56,6 +56,10 @@
 	(FEATURE_MASK(FEATURE_DATA_CALCULATION) |                              \
 	 FEATURE_MASK(FEATURE_DPM_GFXCLK) | FEATURE_MASK(FEATURE_DPM_FCLK))
 
+#define NUM_JPEG_RINGS_FW	10
+#define NUM_JPEG_RINGS_GPU_METRICS(gpu_metrics) \
+	(ARRAY_SIZE(gpu_metrics->xcp_stats[0].jpeg_busy) / 4)
+
 const struct cmn2asic_mapping smu_v13_0_12_feature_mask_map[SMU_FEATURE_COUNT] = {
 	SMU_13_0_12_FEA_MAP(SMU_FEATURE_DATA_CALCULATIONS_BIT, 		FEATURE_DATA_CALCULATION),
 	SMU_13_0_12_FEA_MAP(SMU_FEATURE_DPM_GFXCLK_BIT, 		FEATURE_DPM_GFXCLK),
@@ -175,7 +179,7 @@ static int smu_v13_0_12_fru_get_product_info(struct smu_context *smu,
 
 int smu_v13_0_12_get_max_metrics_size(void)
 {
-	return sizeof(StaticMetricsTable_t);
+	return max(sizeof(StaticMetricsTable_t), sizeof(MetricsTable_t));
 }
 
 static int smu_v13_0_12_get_static_metrics_table(struct smu_context *smu)
@@ -257,4 +261,217 @@ bool smu_v13_0_12_is_dpm_running(struct smu_context *smu)
 		return false;
 
 	return !!(feature_enabled & SMC_DPM_FEATURE);
+}
+
+int smu_v13_0_12_get_smu_metrics_data(struct smu_context *smu,
+				      MetricsMember_t member,
+				      uint32_t *value)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	int xcc_id;
+
+	/* For clocks with multiple instances, only report the first one */
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+	case METRICS_AVERAGE_GFXCLK:
+		xcc_id = GET_INST(GC, 0);
+		*value = SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
+		break;
+	case METRICS_CURR_SOCCLK:
+	case METRICS_AVERAGE_SOCCLK:
+		*value = SMUQ10_ROUND(metrics->SocclkFrequency[0]);
+		break;
+	case METRICS_CURR_UCLK:
+	case METRICS_AVERAGE_UCLK:
+		*value = SMUQ10_ROUND(metrics->UclkFrequency);
+		break;
+	case METRICS_CURR_VCLK:
+		*value = SMUQ10_ROUND(metrics->VclkFrequency[0]);
+		break;
+	case METRICS_CURR_DCLK:
+		*value = SMUQ10_ROUND(metrics->DclkFrequency[0]);
+		break;
+	case METRICS_CURR_FCLK:
+		*value = SMUQ10_ROUND(metrics->FclkFrequency);
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = SMUQ10_ROUND(metrics->SocketGfxBusy);
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
+		break;
+	case METRICS_CURR_SOCKETPOWER:
+		*value = SMUQ10_ROUND(metrics->SocketPower) << 8;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = SMUQ10_ROUND(metrics->MaxHbmTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	/* This is the max of all VRs and not just SOC VR.
+	 * No need to define another data type for the same.
+	 */
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
+			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	return ret;
+}
+
+ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct gpu_metrics_v1_7 *gpu_metrics =
+		(struct gpu_metrics_v1_7 *)smu_table->gpu_metrics_table;
+	int ret = 0, xcc_id, inst, i, j, k, idx;
+	struct amdgpu_device *adev = smu->adev;
+	u8 num_jpeg_rings_gpu_metrics;
+	MetricsTable_t *metrics;
+	struct amdgpu_xcp *xcp;
+	u32 inst_mask;
+
+	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
+	memcpy(metrics, smu_table->metrics_table, sizeof(MetricsTable_t));
+
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 7);
+
+	gpu_metrics->temperature_hotspot =
+		SMUQ10_ROUND(metrics->MaxSocketTemperature);
+	/* Individual HBM stack temperature is not reported */
+	gpu_metrics->temperature_mem =
+		SMUQ10_ROUND(metrics->MaxHbmTemperature);
+	/* Reports max temperature of all voltage rails */
+	gpu_metrics->temperature_vrsoc =
+		SMUQ10_ROUND(metrics->MaxVrTemperature);
+
+	gpu_metrics->average_gfx_activity =
+		SMUQ10_ROUND(metrics->SocketGfxBusy);
+	gpu_metrics->average_umc_activity =
+		SMUQ10_ROUND(metrics->DramBandwidthUtilization);
+
+	gpu_metrics->mem_max_bandwidth =
+		SMUQ10_ROUND(metrics->MaxDramBandwidth);
+
+	gpu_metrics->curr_socket_power =
+		SMUQ10_ROUND(metrics->SocketPower);
+	/* Energy counter reported in 15.259uJ (2^-16) units */
+	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
+
+	for (i = 0; i < MAX_GFX_CLKS; i++) {
+		xcc_id = GET_INST(GC, i);
+		if (xcc_id >= 0)
+			gpu_metrics->current_gfxclk[i] =
+				SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
+
+		if (i < MAX_CLKS) {
+			gpu_metrics->current_socclk[i] =
+				SMUQ10_ROUND(metrics->SocclkFrequency[i]);
+			inst = GET_INST(VCN, i);
+			if (inst >= 0) {
+				gpu_metrics->current_vclk0[i] =
+					SMUQ10_ROUND(metrics->VclkFrequency[inst]);
+				gpu_metrics->current_dclk0[i] =
+					SMUQ10_ROUND(metrics->DclkFrequency[inst]);
+			}
+		}
+	}
+
+	gpu_metrics->current_uclk = SMUQ10_ROUND(metrics->UclkFrequency);
+
+	/* Total accumulated cycle counter */
+	gpu_metrics->accumulation_counter = metrics->AccumulationCounter;
+
+	/* Accumulated throttler residencies */
+	gpu_metrics->prochot_residency_acc = metrics->ProchotResidencyAcc;
+	gpu_metrics->ppt_residency_acc = metrics->PptResidencyAcc;
+	gpu_metrics->socket_thm_residency_acc = metrics->SocketThmResidencyAcc;
+	gpu_metrics->vr_thm_residency_acc = metrics->VrThmResidencyAcc;
+	gpu_metrics->hbm_thm_residency_acc = metrics->HbmThmResidencyAcc;
+
+	/* Clock Lock Status. Each bit corresponds to each GFXCLK instance */
+	gpu_metrics->gfxclk_lock_status = metrics->GfxLockXCDMak >> GET_INST(GC, 0);
+
+	gpu_metrics->pcie_link_width = metrics->PCIeLinkWidth;
+	gpu_metrics->pcie_link_speed =
+		pcie_gen_to_speed(metrics->PCIeLinkSpeed);
+	gpu_metrics->pcie_bandwidth_acc =
+		SMUQ10_ROUND(metrics->PcieBandwidthAcc[0]);
+	gpu_metrics->pcie_bandwidth_inst =
+		SMUQ10_ROUND(metrics->PcieBandwidth[0]);
+	gpu_metrics->pcie_l0_to_recov_count_acc = metrics->PCIeL0ToRecoveryCountAcc;
+	gpu_metrics->pcie_replay_count_acc = metrics->PCIenReplayAAcc;
+	gpu_metrics->pcie_replay_rover_count_acc =
+		metrics->PCIenReplayARolloverCountAcc;
+	gpu_metrics->pcie_nak_sent_count_acc = metrics->PCIeNAKSentCountAcc;
+	gpu_metrics->pcie_nak_rcvd_count_acc = metrics->PCIeNAKReceivedCountAcc;
+	gpu_metrics->pcie_lc_perf_other_end_recovery = metrics->PCIeOtherEndRecoveryAcc;
+
+	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
+
+	gpu_metrics->gfx_activity_acc = SMUQ10_ROUND(metrics->SocketGfxBusyAcc);
+	gpu_metrics->mem_activity_acc = SMUQ10_ROUND(metrics->DramBandwidthUtilizationAcc);
+
+	for (i = 0; i < NUM_XGMI_LINKS; i++) {
+		gpu_metrics->xgmi_read_data_acc[i] =
+			SMUQ10_ROUND(metrics->XgmiReadDataSizeAcc[i]);
+		gpu_metrics->xgmi_write_data_acc[i] =
+			SMUQ10_ROUND(metrics->XgmiWriteDataSizeAcc[i]);
+		ret = amdgpu_get_xgmi_link_status(adev, i);
+		if (ret >= 0)
+			gpu_metrics->xgmi_link_status[i] = ret;
+	}
+
+	gpu_metrics->num_partition = adev->xcp_mgr->num_xcps;
+
+	num_jpeg_rings_gpu_metrics = NUM_JPEG_RINGS_GPU_METRICS(gpu_metrics);
+	for_each_xcp(adev->xcp_mgr, xcp, i) {
+		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
+		idx = 0;
+		for_each_inst(k, inst_mask) {
+			/* Both JPEG and VCN has same instances */
+			inst = GET_INST(VCN, k);
+
+			for (j = 0; j < num_jpeg_rings_gpu_metrics; ++j) {
+				gpu_metrics->xcp_stats[i].jpeg_busy
+					[(idx * num_jpeg_rings_gpu_metrics) + j] =
+					SMUQ10_ROUND(metrics->JpegBusy
+							[(inst * NUM_JPEG_RINGS_FW) + j]);
+			}
+			gpu_metrics->xcp_stats[i].vcn_busy[idx] =
+			       SMUQ10_ROUND(metrics->VcnBusy[inst]);
+			idx++;
+		}
+
+		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_GFX, &inst_mask);
+		idx = 0;
+		for_each_inst(k, inst_mask) {
+			inst = GET_INST(GC, k);
+			gpu_metrics->xcp_stats[i].gfx_busy_inst[idx] =
+				SMUQ10_ROUND(metrics->GfxBusy[inst]);
+			gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
+				SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
+				idx++;
+		}
+	}
+
+	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(metrics->XgmiWidth);
+	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(metrics->XgmiBitrate);
+
+	gpu_metrics->firmware_timestamp = metrics->Timestamp;
+
+	*table = (void *)gpu_metrics;
+	kfree(metrics);
+
+	return sizeof(*gpu_metrics);
 }

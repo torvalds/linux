@@ -515,7 +515,8 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
 	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
-		       max(gpu_metrcs_size, smu_v13_0_12_get_max_metrics_size()),
+		       max(gpu_metrcs_size,
+			    smu_v13_0_12_get_max_metrics_size()),
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
@@ -1144,6 +1145,9 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	ret = smu_v13_0_6_get_metrics_table(smu, NULL, false);
 	if (ret)
 		return ret;
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
+		return smu_v13_0_12_get_smu_metrics_data(smu, member, value);
 
 	/* For clocks with multiple instances, only report the first one */
 	switch (member) {
@@ -2506,6 +2510,9 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		kfree(metrics_v0);
 		return ret;
 	}
+
+	if (smu_v13_0_6_cap_supported(smu, SMU_CAP(STATIC_METRICS)))
+		return smu_v13_0_12_get_gpu_metrics(smu, table);
 
 	metrics_v1 = (MetricsTableV1_t *)metrics_v0;
 	metrics_v2 = (MetricsTableV2_t *)metrics_v0;
