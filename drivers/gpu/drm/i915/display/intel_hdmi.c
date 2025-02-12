@@ -2015,7 +2015,6 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum drm_mode_status status;
 	int clock = mode->clock;
 	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
@@ -2068,7 +2067,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 			return status;
 	}
 
-	return intel_mode_valid_max_plane_size(dev_priv, mode, 1);
+	return intel_mode_valid_max_plane_size(display, mode, 1);
 }
 
 bool intel_hdmi_bpc_possible(const struct intel_crtc_state *crtc_state,

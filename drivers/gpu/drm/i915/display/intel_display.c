@@ -8497,7 +8497,7 @@ enum drm_mode_status intel_cpu_transcoder_mode_valid(struct intel_display *displ
 }
 
 enum drm_mode_status
-intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
+intel_mode_valid_max_plane_size(struct intel_display *display,
 				const struct drm_display_mode *mode,
 				int num_joined_pipes)
 {
@@ -8507,7 +8507,7 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 	 * intel_mode_valid() should be
 	 * sufficient on older platforms.
 	 */
-	if (DISPLAY_VER(dev_priv) < 9)
+	if (DISPLAY_VER(display) < 9)
 		return MODE_OK;
 
 	/*
@@ -8515,10 +8515,10 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 	 * plane so let's not advertize modes that are
 	 * too big for that.
 	 */
-	if (DISPLAY_VER(dev_priv) >= 30) {
+	if (DISPLAY_VER(display) >= 30) {
 		plane_width_max = 6144 * num_joined_pipes;
 		plane_height_max = 4800;
-	} else if (DISPLAY_VER(dev_priv) >= 11) {
+	} else if (DISPLAY_VER(display) >= 11) {
 		plane_width_max = 5120 * num_joined_pipes;
 		plane_height_max = 4320;
 	} else {

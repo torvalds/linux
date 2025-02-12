@@ -424,7 +424,7 @@ void intel_link_compute_m_n(u16 bpp, int nlanes,
 u32 intel_plane_fb_max_stride(struct drm_device *drm,
 			      u32 pixel_format, u64 modifier);
 enum drm_mode_status
-intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
+intel_mode_valid_max_plane_size(struct intel_display *display,
 				const struct drm_display_mode *mode,
 				int num_joined_pipes);
 enum drm_mode_status
