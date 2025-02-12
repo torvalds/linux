@@ -4405,31 +4405,6 @@ static bool check_single_encoder_cloning(struct intel_atomic_state *state,
 	return true;
 }
 
-static int icl_add_linked_planes(struct intel_atomic_state *state)
-{
-	struct intel_plane *plane, *linked;
-	struct intel_plane_state *plane_state, *linked_plane_state;
-	int i;
-
-	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		linked = plane_state->planar_linked_plane;
-
-		if (!linked)
-			continue;
-
-		linked_plane_state = intel_atomic_get_plane_state(state, linked);
-		if (IS_ERR(linked_plane_state))
-			return PTR_ERR(linked_plane_state);
-
-		drm_WARN_ON(state->base.dev,
-			    linked_plane_state->planar_linked_plane != plane);
-		drm_WARN_ON(state->base.dev,
-			    linked_plane_state->planar_slave == plane_state->planar_slave);
-	}
-
-	return 0;
-}
-
 static int icl_check_nv12_planes(struct intel_atomic_state *state,
 				 struct intel_crtc *crtc)
 {
@@ -6180,44 +6155,75 @@ static bool active_planes_affects_min_cdclk(struct drm_i915_private *dev_priv)
 		IS_IVYBRIDGE(dev_priv);
 }
 
-static int intel_crtc_add_joiner_planes(struct intel_atomic_state *state,
-					struct intel_crtc *crtc,
-					struct intel_crtc *other)
+static u8 intel_joiner_affected_planes(struct intel_atomic_state *state,
+				       u8 joined_pipes)
 {
-	const struct intel_plane_state __maybe_unused *plane_state;
+	const struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
-	u8 plane_ids = 0;
+	u8 affected_planes = 0;
 	int i;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
-		if (plane->pipe == crtc->pipe)
-			plane_ids |= BIT(plane->id);
+		struct intel_plane *linked = plane_state->planar_linked_plane;
+
+		if ((joined_pipes & BIT(plane->pipe)) == 0)
+			continue;
+
+		affected_planes |= BIT(plane->id);
+		if (linked)
+			affected_planes |= BIT(linked->id);
 	}
 
-	return intel_crtc_add_planes_to_state(state, other, plane_ids);
+	return affected_planes;
 }
 
-static int intel_joiner_add_affected_planes(struct intel_atomic_state *state)
+static int intel_joiner_add_affected_planes(struct intel_atomic_state *state,
+					    u8 joined_pipes)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	u8 prev_affected_planes, affected_planes = 0;
+
+	/*
+	 * We want all the joined pipes to have the same
+	 * set of planes in the atomic state, to make sure
+	 * state copying always works correctly, and the
+	 * UV<->Y plane linkage is always up to date.
+	 * Keep pulling planes in until we've determined
+	 * the full set of affected planes. A bit complicated
+	 * on account of each pipe being capable of selecting
+	 * their own Y planes independently of the other pipes,
+	 * and the selection being done from the set of
+	 * inactive planes.
+	 */
+	do {
+		struct intel_crtc *crtc;
+
+		for_each_intel_crtc_in_pipe_mask(state->base.dev, crtc, joined_pipes) {
+			int ret;
+
+			ret = intel_crtc_add_planes_to_state(state, crtc, affected_planes);
+			if (ret)
+				return ret;
+		}
+
+		prev_affected_planes = affected_planes;
+		affected_planes = intel_joiner_affected_planes(state, joined_pipes);
+	} while (affected_planes != prev_affected_planes);
+
+	return 0;
+}
+
+static int intel_add_affected_planes(struct intel_atomic_state *state)
+{
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		struct intel_crtc *other;
+		int ret;
 
-		for_each_intel_crtc_in_pipe_mask(&i915->drm, other,
-						 crtc_state->joiner_pipes) {
-			int ret;
-
-			if (crtc == other)
-				continue;
-
-			ret = intel_crtc_add_joiner_planes(state, crtc, other);
-			if (ret)
-				return ret;
-		}
+		ret = intel_joiner_add_affected_planes(state, intel_crtc_joined_pipe_mask(crtc_state));
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -6232,11 +6238,7 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int i, ret;
 
-	ret = icl_add_linked_planes(state);
-	if (ret)
-		return ret;
-
-	ret = intel_joiner_add_affected_planes(state);
+	ret = intel_add_affected_planes(state);
 	if (ret)
 		return ret;
 
