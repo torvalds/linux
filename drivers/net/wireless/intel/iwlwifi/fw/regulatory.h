@@ -215,6 +215,7 @@ int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_bios_get_eckv(struct iwl_fw_runtime *fwrt, u32 *ext_clk);
 int iwl_bios_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
 
+__le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 			 struct iwl_lari_config_change_cmd *cmd,
 			 size_t *cmd_size);
