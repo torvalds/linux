@@ -12717,3 +12717,10 @@ bool dm_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count, 
 {
 	return dc_dmub_srv_cmd_run_list(ctx->dmub_srv, count, cmd, wait_type);
 }
+
+void dm_acpi_process_phy_transition_interlock(
+	const struct dc_context *ctx,
+	struct dm_process_phy_transition_init_params process_phy_transition_init_params)
+{
+	// Not yet implemented
+}

@@ -1083,6 +1083,7 @@ struct dc_debug_options {
 	unsigned int enable_oled_edp_power_up_opt;
 	bool enable_hblank_borrow;
 	bool force_subvp_df_throttle;
+	uint32_t acpi_transition_bitmasks[MAX_PIPES];
 };
 
 
@@ -1806,6 +1807,7 @@ struct dc_link {
 
 	struct dc_panel_config panel_config;
 	struct phy_state phy_state;
+	uint32_t phy_transition_bitmask;
 	// BW ALLOCATON USB4 ONLY
 	struct dc_dpia_bw_alloc dpia_bw_alloc_config;
 	bool skip_implict_edp_power_control;
