@@ -7953,8 +7953,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	}
 
 	/* Underruns don't always raise interrupts, so check manually */
-	intel_check_cpu_fifo_underruns(dev_priv);
-	intel_check_pch_fifo_underruns(dev_priv);
+	intel_check_cpu_fifo_underruns(display);
+	intel_check_pch_fifo_underruns(display);
 
 	if (state->modeset)
 		intel_verify_planes(state);

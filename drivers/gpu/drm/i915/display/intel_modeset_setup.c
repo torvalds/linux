@@ -454,8 +454,8 @@ static struct intel_connector *intel_encoder_find_connector(struct intel_encoder
 
 static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/*
 	 * We start out with underrun reporting disabled on active
@@ -470,9 +470,9 @@ static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state
 	 * No protection against concurrent access is required - at
 	 * worst a fifo underrun happens which also sets this to false.
 	 */
-	intel_init_fifo_underrun_reporting(i915, crtc,
+	intel_init_fifo_underrun_reporting(display, crtc,
 					   !crtc_state->hw.active &&
-					   !HAS_GMCH(i915));
+					   !HAS_GMCH(display));
 }
 
 static bool intel_sanitize_crtc(struct intel_crtc *crtc,

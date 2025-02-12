@@ -562,7 +562,7 @@ void i915_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 	}
 
 	if (blc_event || (iir & I915_ASLE_INTERRUPT))
@@ -587,7 +587,7 @@ void i965_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 	}
 
 	if (blc_event || (iir & I915_ASLE_INTERRUPT))
@@ -614,7 +614,7 @@ void valleyview_pipestat_irq_handler(struct drm_i915_private *dev_priv,
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
 
 		if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 	}
 
 	if (pipe_stats[0] & PIPE_GMBUS_INTERRUPT_STATUS)
@@ -666,10 +666,10 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 			"PCH transcoder CRC error interrupt\n");
 
 	if (pch_iir & SDE_TRANSA_FIFO_UNDER)
-		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_A);
+		intel_pch_fifo_underrun_irq_handler(display, PIPE_A);
 
 	if (pch_iir & SDE_TRANSB_FIFO_UNDER)
-		intel_pch_fifo_underrun_irq_handler(dev_priv, PIPE_B);
+		intel_pch_fifo_underrun_irq_handler(display, PIPE_B);
 }
 
 static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
@@ -683,7 +683,7 @@ static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 
 	for_each_pipe(dev_priv, pipe) {
 		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe))
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 
 		if (err_int & ERR_INT_PIPE_CRC_DONE(pipe)) {
 			if (IS_IVYBRIDGE(dev_priv))
@@ -707,7 +707,7 @@ static void cpt_serr_int_handler(struct drm_i915_private *dev_priv)
 
 	for_each_pipe(dev_priv, pipe)
 		if (serr_int & SERR_INT_TRANS_FIFO_UNDERRUN(pipe))
-			intel_pch_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_pch_fifo_underrun_irq_handler(display, pipe);
 
 	intel_de_write(display, SERR_INT, serr_int);
 }
@@ -776,7 +776,7 @@ void ilk_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 			flip_done_handler(dev_priv, pipe);
 
 		if (de_iir & DE_PIPE_FIFO_UNDERRUN(pipe))
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 
 		if (de_iir & DE_PIPE_CRC_DONE(pipe))
 			i9xx_pipe_crc_irq_handler(dev_priv, pipe);
@@ -1228,7 +1228,7 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 			hsw_pipe_crc_irq_handler(dev_priv, pipe);
 
 		if (iir & GEN8_PIPE_FIFO_UNDERRUN)
-			intel_cpu_fifo_underrun_irq_handler(dev_priv, pipe);
+			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 
 		fault_errors = iir & gen8_de_pipe_fault_mask(dev_priv);
 		if (fault_errors)

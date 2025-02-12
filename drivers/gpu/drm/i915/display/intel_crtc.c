@@ -328,7 +328,7 @@ int intel_crtc_init(struct intel_display *display, enum pipe pipe)
 	}
 	crtc->plane_ids_mask |= BIT(primary->id);
 
-	intel_init_fifo_underrun_reporting(dev_priv, crtc, false);
+	intel_init_fifo_underrun_reporting(display, crtc, false);
 
 	for_each_sprite(display, pipe, sprite) {
 		struct intel_plane *plane;
