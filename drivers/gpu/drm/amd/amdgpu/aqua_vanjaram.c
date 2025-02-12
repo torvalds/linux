@@ -559,8 +559,11 @@ static bool __aqua_vanjaram_is_valid_mode(struct amdgpu_xcp_mgr *xcp_mgr,
 			adev->gmc.num_mem_partitions == 4) &&
 		       (num_xccs_per_xcp >= 2);
 	case AMDGPU_CPX_PARTITION_MODE:
+		/* (num_xcc > 1) because 1 XCC is considered SPX, not CPX.
+		 * (num_xcc % adev->gmc.num_mem_partitions) == 0 because
+		 * num_compute_partitions can't be less than num_mem_partitions
+		 */
 		return ((num_xcc > 1) &&
-		       (adev->gmc.num_mem_partitions == 1 || adev->gmc.num_mem_partitions == 4) &&
 		       (num_xcc % adev->gmc.num_mem_partitions) == 0);
 	default:
 		return false;
