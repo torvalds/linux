@@ -8,15 +8,16 @@
 
 #include <linux/types.h>
 
+enum pipe;
 struct drm_i915_private;
 struct intel_crtc;
-enum pipe;
+struct intel_display;
 
 void intel_init_fifo_underrun_reporting(struct drm_i915_private *i915,
 					struct intel_crtc *crtc, bool enable);
-bool intel_set_cpu_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
+bool intel_set_cpu_fifo_underrun_reporting(struct intel_display *display,
 					   enum pipe pipe, bool enable);
-bool intel_set_pch_fifo_underrun_reporting(struct drm_i915_private *dev_priv,
+bool intel_set_pch_fifo_underrun_reporting(struct intel_display *display,
 					   enum pipe pch_transcoder,
 					   bool enable);
 void intel_cpu_fifo_underrun_irq_handler(struct drm_i915_private *dev_priv,

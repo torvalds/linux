@@ -739,7 +739,7 @@ static void intel_dsi_pre_enable(struct intel_atomic_state *state,
 
 	intel_dsi_wait_panel_power_cycle(intel_dsi);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 
 	/*
 	 * The BIOS may leave the PLL in a wonky state where it doesn't

@@ -774,6 +774,7 @@ void intel_plane_fixup_bitmasks(struct intel_crtc_state *crtc_state)
 void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 				  struct intel_plane *plane)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_crtc_state *crtc_state =
 		to_intel_crtc_state(crtc->base.state);
@@ -817,7 +818,7 @@ void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	 * So disable underrun reporting before all the planes get disabled.
 	 */
 	if (DISPLAY_VER(dev_priv) == 2 && !crtc_state->active_planes)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, false);
+		intel_set_cpu_fifo_underrun_reporting(display, crtc->pipe, false);
 
 	intel_plane_disable_arm(NULL, plane, crtc_state);
 	intel_crtc_wait_for_next_vblank(crtc);
@@ -1305,6 +1306,7 @@ static void intel_crtc_async_flip_disable_wa(struct intel_atomic_state *state,
 static void intel_pre_plane_update(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
@@ -1406,7 +1408,7 @@ static void intel_pre_plane_update(struct intel_atomic_state *state,
 	 * vs. the old plane configuration.
 	 */
 	if (DISPLAY_VER(dev_priv) == 2 && planes_disabling(old_crtc_state, new_crtc_state))
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+		intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
 
 	/*
 	 * WA for platforms where async address update enable bit
@@ -1645,6 +1647,7 @@ static void ilk_configure_cpu_transcoder(const struct intel_crtc_state *crtc_sta
 static void ilk_crtc_enable(struct intel_atomic_state *state,
 			    struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1663,8 +1666,8 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	 *
 	 * Spurious PCH underruns also occur during PCH enabling.
 	 */
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
+	intel_set_pch_fifo_underrun_reporting(display, pipe, false);
 
 	ilk_configure_cpu_transcoder(new_crtc_state);
 
@@ -1712,8 +1715,8 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 		intel_crtc_wait_for_next_vblank(crtc);
 		intel_crtc_wait_for_next_vblank(crtc);
 	}
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(display, pipe, true);
 }
 
 /* Display WA #1180: WaDisableScalarClockGating: glk */
@@ -1901,9 +1904,9 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 static void ilk_crtc_disable(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	const struct intel_crtc_state *old_crtc_state =
 		intel_atomic_get_old_crtc_state(state, crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	/*
@@ -1911,8 +1914,8 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 	 * pipe is already disabled, but FDI RX/TX is still enabled.
 	 * Happens at least with VGA+HDMI cloning. Suppress them.
 	 */
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
+	intel_set_pch_fifo_underrun_reporting(display, pipe, false);
 
 	intel_encoders_disable(state, crtc);
 
@@ -1930,8 +1933,8 @@ static void ilk_crtc_disable(struct intel_atomic_state *state,
 	if (old_crtc_state->has_pch_encoder)
 		ilk_pch_post_disable(state, crtc);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(display, pipe, true);
 
 	intel_disable_shared_dpll(old_crtc_state);
 }
@@ -2211,6 +2214,7 @@ static void i9xx_configure_cpu_transcoder(const struct intel_crtc_state *crtc_st
 static void valleyview_crtc_enable(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -2233,7 +2237,7 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 
 	crtc->active = true;
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 
 	intel_encoders_pre_pll_enable(state, crtc);
 
@@ -2259,6 +2263,7 @@ static void valleyview_crtc_enable(struct intel_atomic_state *state,
 static void i9xx_crtc_enable(struct intel_atomic_state *state,
 			     struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -2274,7 +2279,7 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 	crtc->active = true;
 
 	if (DISPLAY_VER(dev_priv) != 2)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+		intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 
 	intel_encoders_pre_enable(state, crtc);
 
@@ -2349,7 +2354,7 @@ static void i9xx_crtc_disable(struct intel_atomic_state *state,
 	intel_encoders_post_pll_disable(state, crtc);
 
 	if (DISPLAY_VER(dev_priv) != 2)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+		intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
 
 	if (!dev_priv->display.funcs.wm->initial_watermarks)
 		intel_update_watermarks(dev_priv);
@@ -7061,16 +7066,16 @@ static int intel_atomic_prepare_commit(struct intel_atomic_state *state)
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
-	if (DISPLAY_VER(dev_priv) != 2 || crtc_state->active_planes)
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+	if (DISPLAY_VER(display) != 2 || crtc_state->active_planes)
+		intel_set_cpu_fifo_underrun_reporting(display, crtc->pipe, true);
 
 	if (crtc_state->has_pch_encoder) {
 		enum pipe pch_transcoder =
 			intel_crtc_pch_transcoder(crtc);
 
-		intel_set_pch_fifo_underrun_reporting(dev_priv, pch_transcoder, true);
+		intel_set_pch_fifo_underrun_reporting(display, pch_transcoder, true);
 	}
 }
 
@@ -7920,7 +7925,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 		 * vs. the new plane configuration.
 		 */
 		if (DISPLAY_VER(dev_priv) == 2 && planes_enabling(old_crtc_state, new_crtc_state))
-			intel_set_cpu_fifo_underrun_reporting(dev_priv, crtc->pipe, true);
+			intel_set_cpu_fifo_underrun_reporting(display, crtc->pipe, true);
 
 		intel_optimize_watermarks(state, crtc);
 	}

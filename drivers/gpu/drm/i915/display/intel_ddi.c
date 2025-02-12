@@ -3009,13 +3009,14 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 				 const struct intel_crtc_state *crtc_state,
 				 const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
 	drm_WARN_ON(&dev_priv->drm, crtc_state->has_pch_encoder);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
 		intel_ddi_pre_enable_hdmi(state, encoder, crtc_state,

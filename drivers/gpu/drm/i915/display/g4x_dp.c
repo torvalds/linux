@@ -453,8 +453,8 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
 		 */
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+		intel_set_cpu_fifo_underrun_reporting(display, PIPE_A, false);
+		intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 
 		/* always enable with pattern 1 (as per spec) */
 		intel_dp->DP &= ~(DP_PIPE_SEL_MASK | DP_LINK_TRAIN_MASK);
@@ -468,8 +468,8 @@ intel_dp_link_down(struct intel_encoder *encoder,
 		intel_de_posting_read(display, intel_dp->output_reg);
 
 		intel_wait_for_vblank_if_active(display, PIPE_A);
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+		intel_set_cpu_fifo_underrun_reporting(display, PIPE_A, true);
+		intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 	}
 
 	msleep(intel_dp->pps.panel_power_down_delay);

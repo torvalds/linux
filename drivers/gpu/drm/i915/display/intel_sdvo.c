@@ -1864,8 +1864,8 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 		 * We get CPU/PCH FIFO underruns on the other pipe when
 		 * doing the workaround. Sweep them under the rug.
 		 */
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, false);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+		intel_set_cpu_fifo_underrun_reporting(display, PIPE_A, false);
+		intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 
 		temp &= ~SDVO_PIPE_SEL_MASK;
 		temp |= SDVO_ENABLE | SDVO_PIPE_SEL(PIPE_A);
@@ -1875,8 +1875,8 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 		intel_sdvo_write_sdvox(intel_sdvo, temp);
 
 		intel_wait_for_vblank_if_active(display, PIPE_A);
-		intel_set_cpu_fifo_underrun_reporting(dev_priv, PIPE_A, true);
-		intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+		intel_set_cpu_fifo_underrun_reporting(display, PIPE_A, true);
+		intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 	}
 }
 

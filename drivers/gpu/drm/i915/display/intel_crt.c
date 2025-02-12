@@ -250,11 +250,10 @@ static void hsw_disable_crt(struct intel_atomic_state *state,
 			    const struct drm_connector_state *old_conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_WARN_ON(display->drm, !old_crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 }
 
 static void hsw_post_disable_crt(struct intel_atomic_state *state,
@@ -264,7 +263,6 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 {
 	struct intel_display *display = to_intel_display(encoder);
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	intel_crtc_vblank_off(old_crtc_state);
 
@@ -284,7 +282,7 @@ static void hsw_post_disable_crt(struct intel_atomic_state *state,
 
 	drm_WARN_ON(display->drm, !old_crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 }
 
 static void hsw_pre_pll_enable_crt(struct intel_atomic_state *state,
@@ -293,11 +291,10 @@ static void hsw_pre_pll_enable_crt(struct intel_atomic_state *state,
 				   const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	drm_WARN_ON(display->drm, !crtc_state->has_pch_encoder);
 
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, false);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, false);
 }
 
 static void hsw_pre_enable_crt(struct intel_atomic_state *state,
@@ -306,13 +303,12 @@ static void hsw_pre_enable_crt(struct intel_atomic_state *state,
 			       const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 
 	drm_WARN_ON(display->drm, !crtc_state->has_pch_encoder);
 
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, false);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, false);
 
 	hsw_fdi_link_train(encoder, crtc_state);
 
@@ -325,7 +321,6 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 			   const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum pipe pipe = crtc->pipe;
 
@@ -343,8 +338,8 @@ static void hsw_enable_crt(struct intel_atomic_state *state,
 
 	intel_crtc_wait_for_next_vblank(crtc);
 	intel_crtc_wait_for_next_vblank(crtc);
-	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
-	intel_set_pch_fifo_underrun_reporting(dev_priv, PIPE_A, true);
+	intel_set_cpu_fifo_underrun_reporting(display, pipe, true);
+	intel_set_pch_fifo_underrun_reporting(display, PIPE_A, true);
 }
 
 static void intel_enable_crt(struct intel_atomic_state *state,
