@@ -1525,8 +1525,8 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 		return ret;
 
 	data->eee_active = phydev->eee_active;
-	linkmode_copy(data->supported, phydev->supported_eee);
-
+	linkmode_andnot(data->supported, phydev->supported_eee,
+			phydev->eee_disabled_modes);
 	return 0;
 }
 EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
@@ -1559,7 +1559,9 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
 				return -EINVAL;
 			}
-			linkmode_copy(phydev->advertising_eee, adv);
+
+			linkmode_andnot(phydev->advertising_eee, adv,
+					phydev->eee_disabled_modes);
 		} else if (linkmode_empty(phydev->advertising_eee)) {
 			phy_advertise_eee_all(phydev);
 		}
