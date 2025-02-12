@@ -123,7 +123,6 @@
 #include "intel_wm.h"
 #include "skl_scaler.h"
 #include "skl_universal_plane.h"
-#include "skl_universal_plane_regs.h"
 #include "skl_watermark.h"
 #include "vlv_dpio_phy_regs.h"
 #include "vlv_dsi.h"
@@ -4430,33 +4429,16 @@ static void link_nv12_planes(struct intel_crtc_state *crtc_state,
 	crtc_state->rel_data_rate[y_plane->id] = crtc_state->rel_data_rate_y[uv_plane->id];
 
 	/* Copy parameters to Y plane */
-	y_plane_state->ctl = uv_plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
-	y_plane_state->color_ctl = uv_plane_state->color_ctl;
-	y_plane_state->view = uv_plane_state->view;
-	y_plane_state->decrypt = uv_plane_state->decrypt;
-
 	intel_plane_copy_hw_state(y_plane_state, uv_plane_state);
 	y_plane_state->uapi.src = uv_plane_state->uapi.src;
 	y_plane_state->uapi.dst = uv_plane_state->uapi.dst;
 
-	if (icl_is_hdr_plane(display, uv_plane->id)) {
-		switch (y_plane->id) {
-		case PLANE_7:
-			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
-			break;
-		case PLANE_6:
-			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_6_ICL;
-			break;
-		case PLANE_5:
-			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_5_RKL;
-			break;
-		case PLANE_4:
-			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_4_RKL;
-			break;
-		default:
-			MISSING_CASE(y_plane->id);
-		}
-	}
+	y_plane_state->ctl = uv_plane_state->ctl;
+	y_plane_state->color_ctl = uv_plane_state->color_ctl;
+	y_plane_state->view = uv_plane_state->view;
+	y_plane_state->decrypt = uv_plane_state->decrypt;
+
+	icl_link_nv12_planes(uv_plane_state, y_plane_state);
 }
 
 static void unlink_nv12_plane(struct intel_crtc_state *crtc_state,

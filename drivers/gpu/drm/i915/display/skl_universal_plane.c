@@ -2327,6 +2327,38 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	return 0;
 }
 
+void icl_link_nv12_planes(struct intel_plane_state *uv_plane_state,
+			  struct intel_plane_state *y_plane_state)
+{
+	struct intel_display *display = to_intel_display(uv_plane_state);
+	struct intel_plane *uv_plane = to_intel_plane(uv_plane_state->uapi.plane);
+	struct intel_plane *y_plane = to_intel_plane(y_plane_state->uapi.plane);
+
+	drm_WARN_ON(display->drm, icl_is_nv12_y_plane(display, uv_plane->id));
+	drm_WARN_ON(display->drm, !icl_is_nv12_y_plane(display, y_plane->id));
+
+	y_plane_state->ctl |= PLANE_CTL_YUV420_Y_PLANE;
+
+	if (icl_is_hdr_plane(display, uv_plane->id)) {
+		switch (y_plane->id) {
+		case PLANE_7:
+			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
+			break;
+		case PLANE_6:
+			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_6_ICL;
+			break;
+		case PLANE_5:
+			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_5_RKL;
+			break;
+		case PLANE_4:
+			uv_plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_4_RKL;
+			break;
+		default:
+			MISSING_CASE(y_plane->id);
+		}
+	}
+}
+
 static enum intel_fbc_id skl_fbc_id_for_pipe(enum pipe pipe)
 {
 	return pipe - PIPE_A + INTEL_FBC_A;

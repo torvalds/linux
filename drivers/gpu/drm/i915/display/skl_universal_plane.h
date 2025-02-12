@@ -32,6 +32,9 @@ int skl_format_to_fourcc(int format, bool rgb_order, bool alpha);
 int skl_calc_main_surface_offset(const struct intel_plane_state *plane_state,
 				 int *x, int *y, u32 *offset);
 
+void icl_link_nv12_planes(struct intel_plane_state *uv_plane_state,
+			  struct intel_plane_state *y_plane_state);
+
 bool icl_is_nv12_y_plane(struct intel_display *display,
 			 enum plane_id plane_id);
 u8 icl_hdr_plane_mask(void);
