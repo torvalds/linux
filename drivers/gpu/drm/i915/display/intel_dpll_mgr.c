@@ -2044,8 +2044,8 @@ static void bxt_ddi_pll_enable(struct intel_display *display,
 {
 	const struct bxt_dpll_hw_state *hw_state = &dpll_hw_state->bxt;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
-	enum dpio_phy phy;
-	enum dpio_channel ch;
+	enum dpio_phy phy = DPIO_PHY0;
+	enum dpio_channel ch = DPIO_CH0;
 	u32 temp;
 
 	bxt_port_to_phy_channel(display, port, &phy, &ch);
@@ -4304,40 +4304,41 @@ static const struct intel_dpll_mgr adlp_pll_mgr = {
 
 /**
  * intel_shared_dpll_init - Initialize shared DPLLs
- * @i915: i915 device
+ * @display: intel_display device
  *
- * Initialize shared DPLLs for @i915.
+ * Initialize shared DPLLs for @display.
  */
-void intel_shared_dpll_init(struct drm_i915_private *i915)
+void intel_shared_dpll_init(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
 	const struct intel_dpll_mgr *dpll_mgr = NULL;
 	const struct dpll_info *dpll_info;
 	int i;
 
-	mutex_init(&i915->display.dpll.lock);
+	mutex_init(&display->dpll.lock);
 
-	if (DISPLAY_VER(i915) >= 14 || IS_DG2(i915))
+	if (DISPLAY_VER(display) >= 14 || display->platform.dg2)
 		/* No shared DPLLs on DG2; port PLLs are part of the PHY */
 		dpll_mgr = NULL;
-	else if (IS_ALDERLAKE_P(i915))
+	else if (display->platform.alderlake_p)
 		dpll_mgr = &adlp_pll_mgr;
-	else if (IS_ALDERLAKE_S(i915))
+	else if (display->platform.alderlake_s)
 		dpll_mgr = &adls_pll_mgr;
-	else if (IS_DG1(i915))
+	else if (display->platform.dg1)
 		dpll_mgr = &dg1_pll_mgr;
-	else if (IS_ROCKETLAKE(i915))
+	else if (display->platform.rocketlake)
 		dpll_mgr = &rkl_pll_mgr;
-	else if (DISPLAY_VER(i915) >= 12)
+	else if (DISPLAY_VER(display) >= 12)
 		dpll_mgr = &tgl_pll_mgr;
-	else if (IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915))
+	else if (display->platform.jasperlake || display->platform.elkhartlake)
 		dpll_mgr = &ehl_pll_mgr;
-	else if (DISPLAY_VER(i915) >= 11)
+	else if (DISPLAY_VER(display) >= 11)
 		dpll_mgr = &icl_pll_mgr;
-	else if (IS_GEMINILAKE(i915) || IS_BROXTON(i915))
+	else if (display->platform.geminilake || display->platform.broxton)
 		dpll_mgr = &bxt_pll_mgr;
-	else if (DISPLAY_VER(i915) == 9)
+	else if (DISPLAY_VER(display) == 9)
 		dpll_mgr = &skl_pll_mgr;
-	else if (HAS_DDI(i915))
+	else if (HAS_DDI(display))
 		dpll_mgr = &hsw_pll_mgr;
 	else if (HAS_PCH_IBX(i915) || HAS_PCH_CPT(i915))
 		dpll_mgr = &pch_pll_mgr;
@@ -4348,20 +4349,20 @@ void intel_shared_dpll_init(struct drm_i915_private *i915)
 	dpll_info = dpll_mgr->dpll_info;
 
 	for (i = 0; dpll_info[i].name; i++) {
-		if (drm_WARN_ON(&i915->drm,
-				i >= ARRAY_SIZE(i915->display.dpll.shared_dplls)))
+		if (drm_WARN_ON(display->drm,
+				i >= ARRAY_SIZE(display->dpll.shared_dplls)))
 			break;
 
 		/* must fit into unsigned long bitmask on 32bit */
-		if (drm_WARN_ON(&i915->drm, dpll_info[i].id >= 32))
+		if (drm_WARN_ON(display->drm, dpll_info[i].id >= 32))
 			break;
 
-		i915->display.dpll.shared_dplls[i].info = &dpll_info[i];
-		i915->display.dpll.shared_dplls[i].index = i;
+		display->dpll.shared_dplls[i].info = &dpll_info[i];
+		display->dpll.shared_dplls[i].index = i;
 	}
 
-	i915->display.dpll.mgr = dpll_mgr;
-	i915->display.dpll.num_shared_dpll = i;
+	display->dpll.mgr = dpll_mgr;
+	display->dpll.num_shared_dpll = i;
 }
 
 /**
