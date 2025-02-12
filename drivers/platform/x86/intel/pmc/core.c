@@ -1418,11 +1418,6 @@ static const struct x86_cpu_id intel_pmc_core_ids[] = {
 
 MODULE_DEVICE_TABLE(x86cpu, intel_pmc_core_ids);
 
-static const struct pci_device_id pmc_pci_ids[] = {
-	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID) },
-	{ }
-};
-
 /*
  * This quirk can be used on those platforms where
  * the platform BIOS enforces 24Mhz crystal to shutdown
@@ -1532,14 +1527,6 @@ static int pmc_core_probe(struct platform_device *pdev)
 					    GFP_KERNEL);
 	if (!pmcdev->pkgc_res_cnt)
 		return -ENOMEM;
-
-	/*
-	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
-	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
-	 * in this case.
-	 */
-	if (pmc_dev_info == &spt_pmc_dev && !pci_dev_present(pmc_pci_ids))
-		pmc_dev_info = &cnp_pmc_dev;
 
 	mutex_init(&pmcdev->lock);
 

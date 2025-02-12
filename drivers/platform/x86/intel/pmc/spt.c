@@ -8,6 +8,8 @@
  *
  */
 
+#include <linux/pci.h>
+
 #include "core.h"
 
 const struct pmc_bit_map spt_pll_map[] = {
@@ -134,6 +136,25 @@ const struct pmc_reg_map spt_reg_map = {
 	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 
+static const struct pci_device_id spt_pmc_pci_id[] = {
+	{ PCI_VDEVICE(INTEL, SPT_PMC_PCI_DEVICE_ID) },
+	{ }
+};
+
+static int spt_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info)
+{
+	/*
+	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
+	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
+	 * in this case.
+	 */
+	if (!pci_dev_present(spt_pmc_pci_id))
+		return generic_core_init(pmcdev, &cnp_pmc_dev);
+
+	return generic_core_init(pmcdev, pmc_dev_info);
+}
+
 struct pmc_dev_info spt_pmc_dev = {
 	.map = &spt_reg_map,
+	.init = spt_core_init,
 };
