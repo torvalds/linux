@@ -189,10 +189,36 @@ static void mutex_free(struct lkl_mutex *_mutex)
 	free(_mutex);
 }
 
+struct lkl_thread_wrapper_arg {
+	void (*fn)(void *arg);
+	void *arg;
+};
+
+void *lkl_thread_wrapper(void *arg)
+{
+	struct lkl_thread_wrapper_arg *lt = arg;
+	void (*fn)(void *) = lt->fn;
+	void *fn_arg = lt->arg;
+
+	free(lt);
+
+	fn(fn_arg);
+	return NULL;
+}
+
 static lkl_thread_t thread_create(void (*fn)(void *), void *arg)
 {
 	pthread_t thread;
-	if (WARN_PTHREAD(pthread_create(&thread, NULL, (void* (*)(void *))fn, arg)))
+	struct lkl_thread_wrapper_arg *wrapper_arg;
+
+	wrapper_arg = malloc(sizeof(*wrapper_arg));
+	if (!wrapper_arg)
+		return 0;
+	wrapper_arg->fn = fn;
+	wrapper_arg->arg = arg;
+
+	if (WARN_PTHREAD(pthread_create(&thread, NULL, lkl_thread_wrapper,
+					wrapper_arg)))
 		return 0;
 	else
 		return (lkl_thread_t) thread;
