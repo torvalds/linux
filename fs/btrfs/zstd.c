@@ -53,6 +53,7 @@ struct workspace {
 	struct list_head lru_list;
 	zstd_in_buffer in_buf;
 	zstd_out_buffer out_buf;
+	zstd_parameters params;
 };
 
 /*
@@ -402,15 +403,14 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	unsigned long max_out = nr_dest_folios * PAGE_SIZE;
 	unsigned int pg_off;
 	unsigned int cur_len;
-	zstd_parameters params = zstd_get_btrfs_parameters(workspace->req_level,
-							   len);
 
+	workspace->params = zstd_get_btrfs_parameters(workspace->req_level, len);
 	*out_folios = 0;
 	*total_out = 0;
 	*total_in = 0;
 
 	/* Initialize the stream */
-	stream = zstd_init_cstream(&params, len, workspace->mem,
+	stream = zstd_init_cstream(&workspace->params, len, workspace->mem,
 			workspace->size);
 	if (unlikely(!stream)) {
 		struct btrfs_inode *inode = BTRFS_I(mapping->host);
