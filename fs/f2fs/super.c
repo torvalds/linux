@@ -4250,6 +4250,8 @@ void f2fs_handle_critical_error(struct f2fs_sb_info *sbi, unsigned char reason)
 
 	if (shutdown)
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
+	else
+		dump_stack();
 
 	/*
 	 * Continue filesystem operators if errors=continue. Should not set
