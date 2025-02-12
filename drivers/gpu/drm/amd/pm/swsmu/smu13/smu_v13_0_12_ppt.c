@@ -31,6 +31,7 @@
 #include "smu_v13_0_12_ppsmc.h"
 #include "smu_v13_0.h"
 #include "amdgpu_xgmi.h"
+#include "amdgpu_fru_eeprom.h"
 #include <linux/pci.h>
 #include "smu_cmn.h"
 
@@ -145,6 +146,33 @@ static int smu_v13_0_12_get_enabled_mask(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v13_0_12_fru_get_product_info(struct smu_context *smu,
+					     StaticMetricsTable_t *static_metrics)
+{
+	struct amdgpu_fru_info *fru_info;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (!adev->fru_info) {
+		adev->fru_info = kzalloc(sizeof(*adev->fru_info), GFP_KERNEL);
+		if (!adev->fru_info)
+			return -ENOMEM;
+	}
+
+	fru_info = adev->fru_info;
+	strscpy(fru_info->product_number, static_metrics->ProductInfo.ModelNumber,
+		sizeof(fru_info->product_number));
+	strscpy(fru_info->product_name, static_metrics->ProductInfo.Name,
+		sizeof(fru_info->product_name));
+	strscpy(fru_info->serial, static_metrics->ProductInfo.Serial,
+		sizeof(fru_info->serial));
+	strscpy(fru_info->manufacturer_name, static_metrics->ProductInfo.ManufacturerName,
+		sizeof(fru_info->manufacturer_name));
+	strscpy(fru_info->fru_id, static_metrics->ProductInfo.FruId,
+		sizeof(fru_info->fru_id));
+
+	return 0;
+}
+
 int smu_v13_0_12_get_max_metrics_size(void)
 {
 	return sizeof(StaticMetricsTable_t);
@@ -208,6 +236,9 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 		/* use AID0 serial number by default */
 		pptable->PublicSerialNumber_AID =
 			static_metrics->PublicSerialNumber_AID[0];
+		ret = smu_v13_0_12_fru_get_product_info(smu, static_metrics);
+		if (ret)
+			return ret;
 
 		pptable->Init = true;
 	}
