@@ -697,11 +697,11 @@ enum iwl_mvm_fw_esr_recommendation {
 }; /* ESR_MODE_RECOMMENDATION_CODE_API_E_VER_1 */
 
 /**
- * struct iwl_mvm_esr_mode_notif - FWs recommendation/force for esr mode
+ * struct iwl_esr_mode_notif - FWs recommendation/force for esr mode
  *
  * @action: the action to apply on esr state. See &iwl_mvm_fw_esr_recommendation
  */
-struct iwl_mvm_esr_mode_notif {
+struct iwl_esr_mode_notif {
 	__le32 action;
 } __packed; /* ESR_MODE_RECOMMENDATION_NTFY_API_S_VER_1 */
 
