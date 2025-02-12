@@ -1237,39 +1237,43 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 				 const gfp_t priority)
 {
 	struct sock *newsk = sk_clone_lock(sk, priority);
+	struct inet_connection_sock *newicsk;
 
-	if (newsk) {
-		struct inet_connection_sock *newicsk = inet_csk(newsk);
+	if (!newsk)
+		return NULL;
 
-		inet_sk_set_state(newsk, TCP_SYN_RECV);
-		newicsk->icsk_bind_hash = NULL;
-		newicsk->icsk_bind2_hash = NULL;
+	newicsk = inet_csk(newsk);
 
-		inet_sk(newsk)->inet_dport = inet_rsk(req)->ir_rmt_port;
-		inet_sk(newsk)->inet_num = inet_rsk(req)->ir_num;
-		inet_sk(newsk)->inet_sport = htons(inet_rsk(req)->ir_num);
+	inet_sk_set_state(newsk, TCP_SYN_RECV);
+	newicsk->icsk_bind_hash = NULL;
+	newicsk->icsk_bind2_hash = NULL;
 
-		/* listeners have SOCK_RCU_FREE, not the children */
-		sock_reset_flag(newsk, SOCK_RCU_FREE);
+	inet_sk(newsk)->inet_dport = inet_rsk(req)->ir_rmt_port;
+	inet_sk(newsk)->inet_num = inet_rsk(req)->ir_num;
+	inet_sk(newsk)->inet_sport = htons(inet_rsk(req)->ir_num);
 
-		inet_sk(newsk)->mc_list = NULL;
+	/* listeners have SOCK_RCU_FREE, not the children */
+	sock_reset_flag(newsk, SOCK_RCU_FREE);
 
-		newsk->sk_mark = inet_rsk(req)->ir_mark;
-		atomic64_set(&newsk->sk_cookie,
-			     atomic64_read(&inet_rsk(req)->ir_cookie));
+	inet_sk(newsk)->mc_list = NULL;
 
-		newicsk->icsk_retransmits = 0;
-		newicsk->icsk_backoff	  = 0;
-		newicsk->icsk_probes_out  = 0;
-		newicsk->icsk_probes_tstamp = 0;
+	newsk->sk_mark = inet_rsk(req)->ir_mark;
+	atomic64_set(&newsk->sk_cookie,
+		     atomic64_read(&inet_rsk(req)->ir_cookie));
 
-		/* Deinitialize accept_queue to trap illegal accesses. */
-		memset(&newicsk->icsk_accept_queue, 0, sizeof(newicsk->icsk_accept_queue));
+	newicsk->icsk_retransmits = 0;
+	newicsk->icsk_backoff	  = 0;
+	newicsk->icsk_probes_out  = 0;
+	newicsk->icsk_probes_tstamp = 0;
 
-		inet_clone_ulp(req, newsk, priority);
+	/* Deinitialize accept_queue to trap illegal accesses. */
+	memset(&newicsk->icsk_accept_queue, 0,
+	       sizeof(newicsk->icsk_accept_queue));
 
-		security_inet_csk_clone(newsk, req);
-	}
+	inet_clone_ulp(req, newsk, priority);
+
+	security_inet_csk_clone(newsk, req);
+
 	return newsk;
 }
 EXPORT_SYMBOL_GPL(inet_csk_clone_lock);
