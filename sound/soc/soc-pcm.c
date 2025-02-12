@@ -400,8 +400,7 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* DPCM stream event, send event to FE and all active BEs. */
-int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
-	int event)
+void dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir, int event)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -422,8 +421,6 @@ int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	}
 
 	snd_soc_dapm_stream_event(fe, dir, event);
-
-	return 0;
 }
 
 static void soc_pcm_set_dai_params(struct snd_soc_dai *dai,
