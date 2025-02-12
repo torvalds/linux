@@ -81,6 +81,11 @@ struct mlx5e_rss {
 	refcount_t refcnt;
 };
 
+bool mlx5e_rss_get_inner_ft_support(struct mlx5e_rss *rss)
+{
+	return rss->inner_ft_support;
+}
+
 void mlx5e_rss_params_indir_modify_actual_size(struct mlx5e_rss *rss, u32 num_channels)
 {
 	rss->indir.actual_table_size = mlx5e_rqt_size(rss->mdev, num_channels);
@@ -447,6 +452,16 @@ u32 mlx5e_rss_get_tirn(struct mlx5e_rss *rss, enum mlx5_traffic_types tt,
 	WARN_ON(!tir);
 
 	return mlx5e_tir_get_tirn(tir);
+}
+
+u32 mlx5e_rss_get_rqtn(struct mlx5e_rss *rss)
+{
+	return mlx5e_rqt_get_rqtn(&rss->rqt);
+}
+
+bool mlx5e_rss_valid_tir(struct mlx5e_rss *rss, enum mlx5_traffic_types tt, bool inner)
+{
+	return !!rss_get_tir(rss, tt, inner);
 }
 
 /* Fill the "tirn" output parameter.
