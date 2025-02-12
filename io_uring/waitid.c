@@ -118,7 +118,6 @@ static int io_waitid_finish(struct io_kiocb *req, int ret)
 static void io_waitid_complete(struct io_kiocb *req, int ret)
 {
 	struct io_waitid *iw = io_kiocb_to_cmd(req, struct io_waitid);
-	struct io_tw_state ts = {};
 
 	/* anyone completing better be holding a reference */
 	WARN_ON_ONCE(!(atomic_read(&iw->refs) & IO_WAITID_REF_MASK));
@@ -131,7 +130,6 @@ static void io_waitid_complete(struct io_kiocb *req, int ret)
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	io_req_task_complete(req, &ts);
 }
 
 static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
@@ -153,6 +151,7 @@ static bool __io_waitid_cancel(struct io_ring_ctx *ctx, struct io_kiocb *req)
 	list_del_init(&iwa->wo.child_wait.entry);
 	spin_unlock_irq(&iw->head->lock);
 	io_waitid_complete(req, -ECANCELED);
+	io_req_queue_tw_complete(req, -ECANCELED);
 	return true;
 }
 
@@ -258,6 +257,7 @@ static void io_waitid_cb(struct io_kiocb *req, struct io_tw_state *ts)
 	}
 
 	io_waitid_complete(req, ret);
+	io_req_task_complete(req, ts);
 }
 
 static int io_waitid_wait(struct wait_queue_entry *wait, unsigned mode,
