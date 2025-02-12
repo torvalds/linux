@@ -28,6 +28,23 @@
  *      | |                | |                | |
  *      | ------------------ ------------------ |
  *      -----------------------------------------
+ *
+ * - [test_xdp_veth_broadcast_redirect]: broadcast from veth11
+ *     - IPv4 ping : BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS
+ *          -> echo request received by all except veth11
+ *     - IPv4 ping : BPF_F_BROADCAST
+ *          -> echo request received by all veth
+ *
+ *    veth11             veth22              veth33
+ *  (XDP_PASS)         (XDP_PASS)          (XDP_PASS)
+ *       |                  |                  |
+ *       |                  |                  |
+ *     veth1		  veth2              veth3
+ * (XDP_REDIRECT)     (XDP_REDIRECT)     (XDP_REDIRECT)
+ *      |                   ^                  ^
+ *      |                   |                  |
+ *      ----------------------------------------
+ *
  */
 
 #define _GNU_SOURCE
@@ -36,6 +53,7 @@
 #include "network_helpers.h"
 #include "xdp_dummy.skel.h"
 #include "xdp_redirect_map.skel.h"
+#include "xdp_redirect_multi_kern.skel.h"
 #include "xdp_tx.skel.h"
 #include <uapi/linux/if_link.h>
 
@@ -44,6 +62,7 @@
 #define IP_MAX_LEN		16
 #define IP_SRC				"10.1.1.11"
 #define IP_DST				"10.1.1.33"
+#define IP_NEIGH			"10.1.1.253"
 #define PROG_NAME_MAX_LEN	128
 #define NS_NAME_MAX_LEN		32
 
@@ -297,6 +316,121 @@ destroy_xdp_dummy:
 	cleanup_network(&net_config);
 }
 
+#define BROADCAST_REDIRECT_SKEL_NB	2
+static void xdp_veth_broadcast_redirect(u32 attach_flags, u64 redirect_flags)
+{
+	struct prog_configuration prog_cfg[VETH_PAIRS_COUNT] = {
+		{
+			.local_name = "xdp_redirect_map_multi_prog",
+			.remote_name = "xdp_count_0",
+			.local_flags = attach_flags,
+			.remote_flags = attach_flags,
+		},
+		{
+			.local_name = "xdp_redirect_map_multi_prog",
+			.remote_name = "xdp_count_1",
+			.local_flags = attach_flags,
+			.remote_flags = attach_flags,
+		},
+		{
+			.local_name = "xdp_redirect_map_multi_prog",
+			.remote_name = "xdp_count_2",
+			.local_flags = attach_flags,
+			.remote_flags = attach_flags,
+		}
+	};
+	struct bpf_object *bpf_objs[BROADCAST_REDIRECT_SKEL_NB];
+	struct xdp_redirect_multi_kern *xdp_redirect_multi_kern;
+	struct xdp_redirect_map *xdp_redirect_map;
+	struct bpf_devmap_val devmap_val = {};
+	struct net_configuration net_config;
+	struct nstoken *nstoken = NULL;
+	u16 protocol = ETH_P_IP;
+	int group_map;
+	int flags_map;
+	int cnt_map;
+	u64 cnt = 0;
+	int i, err;
+
+	xdp_redirect_multi_kern = xdp_redirect_multi_kern__open_and_load();
+	if (!ASSERT_OK_PTR(xdp_redirect_multi_kern, "xdp_redirect_multi_kern__open_and_load"))
+		return;
+
+	xdp_redirect_map = xdp_redirect_map__open_and_load();
+	if (!ASSERT_OK_PTR(xdp_redirect_map, "xdp_redirect_map__open_and_load"))
+		goto destroy_xdp_redirect_multi_kern;
+
+	if (!ASSERT_OK(create_network(&net_config), "create network"))
+		goto destroy_xdp_redirect_map;
+
+	group_map = bpf_map__fd(xdp_redirect_multi_kern->maps.map_all);
+	if (!ASSERT_OK_FD(group_map, "open map_all"))
+		goto destroy_xdp_redirect_map;
+
+	flags_map = bpf_map__fd(xdp_redirect_multi_kern->maps.redirect_flags);
+	if (!ASSERT_OK_FD(group_map, "open map_all"))
+		goto destroy_xdp_redirect_map;
+
+	err = bpf_map_update_elem(flags_map, &protocol, &redirect_flags, BPF_NOEXIST);
+	if (!ASSERT_OK(err, "init IP count"))
+		goto destroy_xdp_redirect_map;
+
+	cnt_map = bpf_map__fd(xdp_redirect_map->maps.rxcnt);
+	if (!ASSERT_OK_FD(cnt_map, "open rxcnt map"))
+		goto destroy_xdp_redirect_map;
+
+	bpf_objs[0] = xdp_redirect_multi_kern->obj;
+	bpf_objs[1] = xdp_redirect_map->obj;
+
+	nstoken = open_netns(net_config.ns0_name);
+	if (!ASSERT_OK_PTR(nstoken, "open NS0"))
+		goto destroy_xdp_redirect_map;
+
+	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
+		int ifindex = if_nametoindex(net_config.veth_cfg[i].local_veth);
+
+		if (attach_programs_to_veth_pair(bpf_objs, BROADCAST_REDIRECT_SKEL_NB,
+						 &net_config, prog_cfg, i))
+			goto destroy_xdp_redirect_map;
+
+		SYS(destroy_xdp_redirect_map,
+		    "ip -n %s neigh add %s lladdr 00:00:00:00:00:01 dev %s",
+		    net_config.veth_cfg[i].namespace, IP_NEIGH, net_config.veth_cfg[i].remote_veth);
+
+		devmap_val.ifindex = ifindex;
+		err = bpf_map_update_elem(group_map, &ifindex, &devmap_val, 0);
+		if (!ASSERT_OK(err, "bpf_map_update_elem"))
+			goto destroy_xdp_redirect_map;
+
+	}
+
+	SYS_NOFAIL("ip netns exec %s ping %s -i 0.1 -c 4 -W1 > /dev/null ",
+		    net_config.veth_cfg[0].namespace, IP_NEIGH);
+
+	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
+		err =  bpf_map_lookup_elem(cnt_map, &i, &cnt);
+		if (!ASSERT_OK(err, "get IP cnt"))
+			goto destroy_xdp_redirect_map;
+
+		if (redirect_flags & BPF_F_EXCLUDE_INGRESS)
+			/* veth11 shouldn't receive the ICMP requests;
+			 * others should
+			 */
+			ASSERT_EQ(cnt, i ? 4 : 0, "compare IP cnt");
+		else
+			/* All remote veth should receive the ICMP requests */
+			ASSERT_EQ(cnt, 4, "compare IP cnt");
+	}
+
+destroy_xdp_redirect_map:
+	close_netns(nstoken);
+	xdp_redirect_map__destroy(xdp_redirect_map);
+destroy_xdp_redirect_multi_kern:
+	xdp_redirect_multi_kern__destroy(xdp_redirect_multi_kern);
+
+	cleanup_network(&net_config);
+}
+
 void test_xdp_veth_redirect(void)
 {
 	if (test__start_subtest("0"))
@@ -307,4 +441,27 @@ void test_xdp_veth_redirect(void)
 
 	if (test__start_subtest("SKB_MODE"))
 		xdp_veth_redirect(XDP_FLAGS_SKB_MODE);
+}
+
+void test_xdp_veth_broadcast_redirect(void)
+{
+	if (test__start_subtest("0/BROADCAST"))
+		xdp_veth_broadcast_redirect(0, BPF_F_BROADCAST);
+
+	if (test__start_subtest("0/(BROADCAST | EXCLUDE_INGRESS)"))
+		xdp_veth_broadcast_redirect(0, BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS);
+
+	if (test__start_subtest("DRV_MODE/BROADCAST"))
+		xdp_veth_broadcast_redirect(XDP_FLAGS_DRV_MODE, BPF_F_BROADCAST);
+
+	if (test__start_subtest("DRV_MODE/(BROADCAST | EXCLUDE_INGRESS)"))
+		xdp_veth_broadcast_redirect(XDP_FLAGS_DRV_MODE,
+					    BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS);
+
+	if (test__start_subtest("SKB_MODE/BROADCAST"))
+		xdp_veth_broadcast_redirect(XDP_FLAGS_SKB_MODE, BPF_F_BROADCAST);
+
+	if (test__start_subtest("SKB_MODE/(BROADCAST | EXCLUDE_INGRESS)"))
+		xdp_veth_broadcast_redirect(XDP_FLAGS_SKB_MODE,
+					    BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS);
 }
