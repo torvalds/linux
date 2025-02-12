@@ -1286,7 +1286,7 @@ bool g4x_dp_init(struct intel_display *display,
 	struct drm_encoder *encoder;
 	struct intel_connector *intel_connector;
 
-	if (!assert_port_valid(dev_priv, port))
+	if (!assert_port_valid(display, port))
 		return false;
 
 	devdata = intel_bios_encoder_data_lookup(display, port);

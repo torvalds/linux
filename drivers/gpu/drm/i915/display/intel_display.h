@@ -579,7 +579,7 @@ void assert_transcoder(struct intel_display *display,
 #define assert_transcoder_enabled(d, t) assert_transcoder(d, t, true)
 #define assert_transcoder_disabled(d, t) assert_transcoder(d, t, false)
 
-bool assert_port_valid(struct drm_i915_private *i915, enum port port);
+bool assert_port_valid(struct intel_display *display, enum port port);
 
 /*
  * Use INTEL_DISPLAY_STATE_WARN(x) (rather than WARN() and WARN_ON()) for hw

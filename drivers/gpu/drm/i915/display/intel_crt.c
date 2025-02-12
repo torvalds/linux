@@ -1099,7 +1099,7 @@ void intel_crt_init(struct intel_display *display)
 	connector->base.polled = connector->polled;
 
 	if (HAS_DDI(display)) {
-		assert_port_valid(dev_priv, PORT_E);
+		assert_port_valid(display, PORT_E);
 
 		crt->base.port = PORT_E;
 		crt->base.get_config = hsw_crt_get_config;

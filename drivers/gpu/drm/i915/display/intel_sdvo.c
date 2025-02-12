@@ -3386,11 +3386,12 @@ static bool assert_sdvo_port_valid(struct drm_i915_private *dev_priv,
 bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 		     i915_reg_t sdvo_reg, enum port port)
 {
+	struct intel_display *display = &dev_priv->display;
 	struct intel_encoder *intel_encoder;
 	struct intel_sdvo *intel_sdvo;
 	int i;
 
-	if (!assert_port_valid(dev_priv, port))
+	if (!assert_port_valid(display, port))
 		return false;
 
 	if (!assert_sdvo_port_valid(dev_priv, port))

@@ -5128,7 +5128,7 @@ void intel_ddi_init(struct intel_display *display,
 		return;
 	}
 
-	if (!assert_port_valid(dev_priv, port))
+	if (!assert_port_valid(display, port))
 		return;
 
 	if (port_in_use(dev_priv, port)) {

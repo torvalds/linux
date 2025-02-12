@@ -691,7 +691,7 @@ bool g4x_hdmi_init(struct intel_display *display,
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 
-	if (!assert_port_valid(dev_priv, port))
+	if (!assert_port_valid(display, port))
 		return false;
 
 	if (!assert_hdmi_port_valid(display, port))
