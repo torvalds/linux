@@ -841,7 +841,7 @@ void intel_crtc_planes_update_noarm(struct intel_dsb *dsb,
 
 		/* TODO: for mailbox updates this should be skipped */
 		if (new_plane_state->uapi.visible ||
-		    new_plane_state->planar_slave)
+		    new_plane_state->is_y_plane)
 			intel_plane_update_noarm(dsb, plane,
 						 new_crtc_state, new_plane_state);
 	}
@@ -874,7 +874,7 @@ static void skl_crtc_planes_update_arm(struct intel_dsb *dsb,
 		 * would have to be called here as well.
 		 */
 		if (new_plane_state->uapi.visible ||
-		    new_plane_state->planar_slave)
+		    new_plane_state->is_y_plane)
 			intel_plane_update_arm(dsb, plane, new_crtc_state, new_plane_state);
 		else
 			intel_plane_disable_arm(dsb, plane, new_crtc_state);

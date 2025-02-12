@@ -4420,7 +4420,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 		return 0;
 
 	/*
-	 * Destroy all old plane links and make the slave plane invisible
+	 * Destroy all old plane links and make the Y plane invisible
 	 * in the crtc_state->active_planes mask.
 	 */
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
@@ -4428,7 +4428,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			continue;
 
 		plane_state->planar_linked_plane = NULL;
-		if (plane_state->planar_slave && !plane_state->uapi.visible) {
+		if (plane_state->is_y_plane && !plane_state->uapi.visible) {
 			crtc_state->enabled_planes &= ~BIT(plane->id);
 			crtc_state->active_planes &= ~BIT(plane->id);
 			crtc_state->update_planes |= BIT(plane->id);
@@ -4436,7 +4436,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			crtc_state->rel_data_rate[plane->id] = 0;
 		}
 
-		plane_state->planar_slave = false;
+		plane_state->is_y_plane = false;
 	}
 
 	if (!crtc_state->nv12_planes)
@@ -4473,7 +4473,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 
 		plane_state->planar_linked_plane = linked;
 
-		linked_state->planar_slave = true;
+		linked_state->is_y_plane = true;
 		linked_state->planar_linked_plane = plane;
 		crtc_state->enabled_planes |= BIT(linked->id);
 		crtc_state->active_planes |= BIT(linked->id);
@@ -4486,7 +4486,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			    plane->base.base.id, plane->base.name,
 			    linked->base.base.id, linked->base.name);
 
-		/* Copy parameters to slave plane */
+		/* Copy parameters to Y plane */
 		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
 		linked_state->color_ctl = plane_state->color_ctl;
 		linked_state->view = plane_state->view;
@@ -5820,7 +5820,7 @@ intel_verify_planes(struct intel_atomic_state *state)
 
 	for_each_new_intel_plane_in_state(state, plane,
 					  plane_state, i)
-		assert_plane(plane, plane_state->planar_slave ||
+		assert_plane(plane, plane_state->is_y_plane ||
 			     plane_state->uapi.visible);
 }
 

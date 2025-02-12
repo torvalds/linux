@@ -330,8 +330,8 @@ static const char *plane_visibility(const struct intel_plane_state *plane_state)
 	if (plane_state->uapi.visible)
 		return "visible";
 
-	if (plane_state->planar_slave)
-		return "planar-slave";
+	if (plane_state->is_y_plane)
+		return "Y plane";
 
 	return "hidden";
 }
@@ -364,7 +364,7 @@ static void intel_plane_uapi_info(struct seq_file *m, struct intel_plane *plane)
 	if (plane_state->planar_linked_plane)
 		seq_printf(m, "\t\tplanar: Linked to [PLANE:%d:%s] as a %s\n",
 			   plane_state->planar_linked_plane->base.base.id, plane_state->planar_linked_plane->base.name,
-			   plane_state->planar_slave ? "slave" : "master");
+			   plane_state->is_y_plane ? "Y plane" : "UV plane");
 }
 
 static void intel_plane_hw_info(struct seq_file *m, struct intel_plane *plane)

@@ -2260,8 +2260,8 @@ static int icl_build_plane_wm(struct intel_crtc_state *crtc_state,
 	struct skl_plane_wm *wm = &crtc_state->wm.skl.raw.planes[plane_id];
 	int ret;
 
-	/* Watermarks calculated in master */
-	if (plane_state->planar_slave)
+	/* Watermarks calculated on UV plane */
+	if (plane_state->is_y_plane)
 		return 0;
 
 	memset(wm, 0, sizeof(*wm));

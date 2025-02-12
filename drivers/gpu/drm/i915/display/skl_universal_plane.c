@@ -1375,8 +1375,7 @@ static void icl_plane_csc_load_black(struct intel_dsb *dsb,
 
 static int icl_plane_color_plane(const struct intel_plane_state *plane_state)
 {
-	/* Program the UV plane on planar master */
-	if (plane_state->planar_linked_plane && !plane_state->planar_slave)
+	if (plane_state->planar_linked_plane && !plane_state->is_y_plane)
 		return 1;
 	else
 		return 0;

@@ -640,6 +640,9 @@ struct intel_plane_state {
 	/* Plane state to display black pixels when pxp is borked */
 	bool force_black;
 
+	/* Acting as Y plane for another UV plane? */
+	bool is_y_plane;
+
 	/* plane control register */
 	u32 ctl;
 
@@ -678,16 +681,6 @@ struct intel_plane_state {
 	 * plane_state to pass as argument.
 	 */
 	struct intel_plane *planar_linked_plane;
-
-	/*
-	 * planar_slave:
-	 * If set don't update use the linked plane's state for updating
-	 * this plane during atomic commit with the update_slave() callback.
-	 *
-	 * It's also used by the watermark code to ignore wm calculations on
-	 * this plane. They're calculated by the linked plane's wm code.
-	 */
-	u32 planar_slave;
 
 	struct drm_intel_sprite_colorkey ckey;
 
