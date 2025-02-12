@@ -149,7 +149,7 @@ static const struct regmap_config kx022a_regmap_config = {
 	.rd_noinc_table = &kx022a_nir_regs,
 	.precious_table = &kx022a_precious_regs,
 	.max_register = KX022A_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /* Regmap configs kx132 */
@@ -260,7 +260,7 @@ static const struct regmap_config kx132_regmap_config = {
 	.rd_noinc_table = &kx132_nir_regs,
 	.precious_table = &kx132_precious_regs,
 	.max_register = KX132_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 struct kx022a_data {
