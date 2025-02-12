@@ -148,7 +148,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	snd_soc_dpcm_mutex_lock(fe);
 
 	/* calculate valid and active FE <-> BE dpcms */
-	dpcm_process_paths(fe, stream, &list, 1);
+	dpcm_add_paths(fe, stream, &list);
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 

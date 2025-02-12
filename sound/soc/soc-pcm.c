@@ -1550,8 +1550,8 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	return prune;
 }
 
-static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
-	struct snd_soc_dapm_widget_list **list_)
+int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
+		   struct snd_soc_dapm_widget_list **list_)
 {
 	struct snd_soc_card *card = fe->card;
 	struct snd_soc_dapm_widget_list *list = *list_;
@@ -1614,19 +1614,6 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 
 	dev_dbg(fe->dev, "ASoC: found %d new BE paths\n", new);
 	return new;
-}
-
-/*
- * Find the corresponding BE DAIs that source or sink audio to this
- * FE substream.
- */
-int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
-	int stream, struct snd_soc_dapm_widget_list **list, int new)
-{
-	if (new)
-		return dpcm_add_paths(fe, stream, list);
-	else
-		return dpcm_prune_paths(fe, stream, list);
 }
 
 void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2706,7 +2693,14 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 			return paths;
 
 		/* update any playback/capture paths */
-		count = dpcm_process_paths(fe, stream, &list, new);
+		/*
+		 * Find the corresponding BE DAIs that source or sink audio to this
+		 * FE substream.
+		 */
+		if (new)
+			count = dpcm_add_paths(fe, stream, &list);
+		else
+			count = dpcm_prune_paths(fe, stream, &list);
 		if (count) {
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 			if (new)
@@ -2798,7 +2792,7 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 		goto open_end;
 
 	/* calculate valid and active FE <-> BE dpcms */
-	dpcm_process_paths(fe, stream, &list, 1);
+	dpcm_add_paths(fe, stream, &list);
 
 	ret = dpcm_fe_dai_startup(fe_substream);
 	if (ret < 0)
