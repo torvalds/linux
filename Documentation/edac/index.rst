@@ -8,3 +8,4 @@ EDAC Subsystem
    :maxdepth: 1
 
    features
+   scrub

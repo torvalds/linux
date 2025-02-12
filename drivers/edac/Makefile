@@ -12,6 +12,7 @@ edac_core-y	:= edac_mc.o edac_device.o edac_mc_sysfs.o
 edac_core-y	+= edac_module.o edac_device_sysfs.o wq.o
 
 edac_core-$(CONFIG_EDAC_DEBUG)		+= debugfs.o
+edac_core-$(CONFIG_EDAC_SCRUB)		+= scrub.o
 
 ifdef CONFIG_PCI
 edac_core-y	+= edac_pci.o edac_pci_sysfs.o
