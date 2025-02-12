@@ -426,9 +426,6 @@ struct sock *dccp_v4_request_recv_sock(const struct sock *sk,
 
 	newinet		   = inet_sk(newsk);
 	ireq		   = inet_rsk(req);
-	sk_daddr_set(newsk, ireq->ir_rmt_addr);
-	sk_rcv_saddr_set(newsk, ireq->ir_loc_addr);
-	newinet->inet_saddr	= ireq->ir_loc_addr;
 	RCU_INIT_POINTER(newinet->inet_opt, rcu_dereference(ireq->ireq_opt));
 	newinet->mc_index  = inet_iif(skb);
 	newinet->mc_ttl	   = ip_hdr(skb)->ttl;

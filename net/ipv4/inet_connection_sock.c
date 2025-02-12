@@ -1238,19 +1238,33 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 {
 	struct sock *newsk = sk_clone_lock(sk, priority);
 	struct inet_connection_sock *newicsk;
+	struct inet_request_sock *ireq;
+	struct inet_sock *newinet;
 
 	if (!newsk)
 		return NULL;
 
 	newicsk = inet_csk(newsk);
+	newinet = inet_sk(newsk);
+	ireq = inet_rsk(req);
 
-	inet_sk_set_state(newsk, TCP_SYN_RECV);
 	newicsk->icsk_bind_hash = NULL;
 	newicsk->icsk_bind2_hash = NULL;
 
-	inet_sk(newsk)->inet_dport = inet_rsk(req)->ir_rmt_port;
-	inet_sk(newsk)->inet_num = inet_rsk(req)->ir_num;
-	inet_sk(newsk)->inet_sport = htons(inet_rsk(req)->ir_num);
+	newinet->inet_dport = ireq->ir_rmt_port;
+	newinet->inet_num = ireq->ir_num;
+	newinet->inet_sport = htons(ireq->ir_num);
+
+	newsk->sk_bound_dev_if = ireq->ir_iif;
+
+	newsk->sk_daddr = ireq->ir_rmt_addr;
+	newsk->sk_rcv_saddr = ireq->ir_loc_addr;
+	newinet->inet_saddr = ireq->ir_loc_addr;
+
+#if IS_ENABLED(CONFIG_IPV6)
+	newsk->sk_v6_daddr = ireq->ir_v6_rmt_addr;
+	newsk->sk_v6_rcv_saddr = ireq->ir_v6_loc_addr;
+#endif
 
 	/* listeners have SOCK_RCU_FREE, not the children */
 	sock_reset_flag(newsk, SOCK_RCU_FREE);
@@ -1269,6 +1283,8 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 	/* Deinitialize accept_queue to trap illegal accesses. */
 	memset(&newicsk->icsk_accept_queue, 0,
 	       sizeof(newicsk->icsk_accept_queue));
+
+	inet_sk_set_state(newsk, TCP_SYN_RECV);
 
 	inet_clone_ulp(req, newsk, priority);
 
