@@ -16,7 +16,7 @@
 
 #include "dma-iommu.h"
 
-static const struct iommu_ops s390_iommu_ops;
+static const struct iommu_ops s390_iommu_ops, s390_iommu_rtr_ops;
 
 static struct kmem_cache *dma_region_table_cache;
 static struct kmem_cache *dma_page_table_cache;
@@ -432,9 +432,11 @@ static int blocking_domain_attach_device(struct iommu_domain *domain,
 		return 0;
 
 	s390_domain = to_s390_domain(zdev->s390_domain);
-	spin_lock_irqsave(&s390_domain->list_lock, flags);
-	list_del_rcu(&zdev->iommu_list);
-	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
+	if (zdev->dma_table) {
+		spin_lock_irqsave(&s390_domain->list_lock, flags);
+		list_del_rcu(&zdev->iommu_list);
+		spin_unlock_irqrestore(&s390_domain->list_lock, flags);
+	}
 
 	zpci_unregister_ioat(zdev, 0);
 	zdev->dma_table = NULL;
@@ -762,7 +764,13 @@ int zpci_init_iommu(struct zpci_dev *zdev)
 	if (rc)
 		goto out_err;
 
-	rc = iommu_device_register(&zdev->iommu_dev, &s390_iommu_ops, NULL);
+	if (zdev->rtr_avail) {
+		rc = iommu_device_register(&zdev->iommu_dev,
+					   &s390_iommu_rtr_ops, NULL);
+	} else {
+		rc = iommu_device_register(&zdev->iommu_dev, &s390_iommu_ops,
+					   NULL);
+	}
 	if (rc)
 		goto out_sysfs;
 
@@ -826,6 +834,39 @@ static int __init s390_iommu_init(void)
 }
 subsys_initcall(s390_iommu_init);
 
+static int s390_attach_dev_identity(struct iommu_domain *domain,
+				    struct device *dev)
+{
+	struct zpci_dev *zdev = to_zpci_dev(dev);
+	u8 status;
+	int cc;
+
+	blocking_domain_attach_device(&blocking_domain, dev);
+
+	/* If we fail now DMA remains blocked via blocking domain */
+	cc = s390_iommu_domain_reg_ioat(zdev, domain, &status);
+
+	/*
+	 * If the device is undergoing error recovery the reset code
+	 * will re-establish the new domain.
+	 */
+	if (cc && status != ZPCI_PCI_ST_FUNC_NOT_AVAIL)
+		return -EIO;
+
+	zdev_s390_domain_update(zdev, domain);
+
+	return 0;
+}
+
+static const struct iommu_domain_ops s390_identity_ops = {
+	.attach_dev = s390_attach_dev_identity,
+};
+
+static struct iommu_domain s390_identity_domain = {
+	.type = IOMMU_DOMAIN_IDENTITY,
+	.ops = &s390_identity_ops,
+};
+
 static struct iommu_domain blocking_domain = {
 	.type = IOMMU_DOMAIN_BLOCKED,
 	.ops = &(const struct iommu_domain_ops) {
@@ -833,23 +874,31 @@ static struct iommu_domain blocking_domain = {
 	}
 };
 
-static const struct iommu_ops s390_iommu_ops = {
-	.blocked_domain		= &blocking_domain,
-	.release_domain		= &blocking_domain,
-	.capable = s390_iommu_capable,
-	.domain_alloc_paging = s390_domain_alloc_paging,
-	.probe_device = s390_iommu_probe_device,
-	.device_group = generic_device_group,
-	.pgsize_bitmap = SZ_4K,
-	.get_resv_regions = s390_iommu_get_resv_regions,
-	.default_domain_ops = &(const struct iommu_domain_ops) {
-		.attach_dev	= s390_iommu_attach_device,
-		.map_pages	= s390_iommu_map_pages,
-		.unmap_pages	= s390_iommu_unmap_pages,
-		.flush_iotlb_all = s390_iommu_flush_iotlb_all,
-		.iotlb_sync      = s390_iommu_iotlb_sync,
-		.iotlb_sync_map  = s390_iommu_iotlb_sync_map,
-		.iova_to_phys	= s390_iommu_iova_to_phys,
-		.free		= s390_domain_free,
+#define S390_IOMMU_COMMON_OPS() \
+	.blocked_domain		= &blocking_domain, \
+	.release_domain		= &blocking_domain, \
+	.capable = s390_iommu_capable, \
+	.domain_alloc_paging = s390_domain_alloc_paging, \
+	.probe_device = s390_iommu_probe_device, \
+	.device_group = generic_device_group, \
+	.pgsize_bitmap = SZ_4K, \
+	.get_resv_regions = s390_iommu_get_resv_regions, \
+	.default_domain_ops = &(const struct iommu_domain_ops) { \
+		.attach_dev	= s390_iommu_attach_device, \
+		.map_pages	= s390_iommu_map_pages, \
+		.unmap_pages	= s390_iommu_unmap_pages, \
+		.flush_iotlb_all = s390_iommu_flush_iotlb_all, \
+		.iotlb_sync      = s390_iommu_iotlb_sync, \
+		.iotlb_sync_map  = s390_iommu_iotlb_sync_map, \
+		.iova_to_phys	= s390_iommu_iova_to_phys, \
+		.free		= s390_domain_free, \
 	}
+
+static const struct iommu_ops s390_iommu_ops = {
+	S390_IOMMU_COMMON_OPS()
+};
+
+static const struct iommu_ops s390_iommu_rtr_ops = {
+	.identity_domain	= &s390_identity_domain,
+	S390_IOMMU_COMMON_OPS()
 };
