@@ -8463,14 +8463,14 @@ enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 	return MODE_OK;
 }
 
-enum drm_mode_status intel_cpu_transcoder_mode_valid(struct drm_i915_private *dev_priv,
+enum drm_mode_status intel_cpu_transcoder_mode_valid(struct intel_display *display,
 						     const struct drm_display_mode *mode)
 {
 	/*
 	 * Additional transcoder timing limits,
 	 * excluding BXT/GLK DSI transcoders.
 	 */
-	if (DISPLAY_VER(dev_priv) >= 5) {
+	if (DISPLAY_VER(display) >= 5) {
 		if (mode->hdisplay < 64 ||
 		    mode->htotal - mode->hdisplay < 32)
 			return MODE_H_ILLEGAL;
@@ -8489,7 +8489,7 @@ enum drm_mode_status intel_cpu_transcoder_mode_valid(struct drm_i915_private *de
 	 * Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
-	if ((DISPLAY_VER(dev_priv) >= 5 || IS_G4X(dev_priv)) &&
+	if ((DISPLAY_VER(display) >= 5 || display->platform.g4x) &&
 	    mode->hsync_start == mode->hdisplay)
 		return MODE_H_ILLEGAL;
 

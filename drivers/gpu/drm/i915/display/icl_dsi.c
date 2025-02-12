@@ -1460,10 +1460,10 @@ static void gen11_dsi_post_disable(struct intel_atomic_state *state,
 static enum drm_mode_status gen11_dsi_mode_valid(struct drm_connector *connector,
 						 struct drm_display_mode *mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 	enum drm_mode_status status;
 
-	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 

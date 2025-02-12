@@ -2023,7 +2023,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	bool ycbcr_420_only;
 	enum intel_output_format sink_format;
 
-	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 

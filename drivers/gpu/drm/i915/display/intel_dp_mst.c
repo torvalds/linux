@@ -1481,7 +1481,7 @@ mst_connector_mode_valid_ctx(struct drm_connector *_connector,
 		return 0;
 	}
 
-	*status = intel_cpu_transcoder_mode_valid(i915, mode);
+	*status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (*status != MODE_OK)
 		return 0;
 

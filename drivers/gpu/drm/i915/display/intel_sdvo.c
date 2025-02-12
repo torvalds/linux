@@ -1943,7 +1943,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
-	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(connector);
@@ -1952,7 +1951,7 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	enum drm_mode_status status;
 	int clock = mode->clock;
 
-	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 

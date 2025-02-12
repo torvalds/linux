@@ -360,7 +360,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	enum drm_mode_status status;
 	int max_clock;
 
-	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 

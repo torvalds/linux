@@ -428,7 +428,7 @@ intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				const struct drm_display_mode *mode,
 				int num_joined_pipes);
 enum drm_mode_status
-intel_cpu_transcoder_mode_valid(struct drm_i915_private *i915,
+intel_cpu_transcoder_mode_valid(struct intel_display *display,
 				const struct drm_display_mode *mode);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
 bool is_trans_port_sync_mode(const struct intel_crtc_state *state);

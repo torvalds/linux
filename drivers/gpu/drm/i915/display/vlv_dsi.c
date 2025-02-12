@@ -1543,12 +1543,12 @@ static const struct drm_encoder_funcs intel_dsi_funcs = {
 static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
 					       struct drm_display_mode *mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->dev);
+	struct intel_display *display = to_intel_display(connector->dev);
 
-	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+	if (display->platform.valleyview || display->platform.cherryview) {
 		enum drm_mode_status status;
 
-		status = intel_cpu_transcoder_mode_valid(i915, mode);
+		status = intel_cpu_transcoder_mode_valid(display, mode);
 		if (status != MODE_OK)
 			return status;
 	}

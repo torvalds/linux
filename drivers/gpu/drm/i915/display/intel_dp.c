@@ -1407,7 +1407,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 	bool dsc = false;
 	int num_joined_pipes;
 
-	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	status = intel_cpu_transcoder_mode_valid(display, mode);
 	if (status != MODE_OK)
 		return status;
 
