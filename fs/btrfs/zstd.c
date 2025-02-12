@@ -401,7 +401,6 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	const unsigned long nr_dest_folios = *out_folios;
 	const u64 orig_end = start + len;
 	unsigned long max_out = nr_dest_folios * PAGE_SIZE;
-	unsigned int pg_off;
 	unsigned int cur_len;
 
 	workspace->params = zstd_get_btrfs_parameters(workspace->req_level, len);
@@ -427,9 +426,8 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 	ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 	if (ret < 0)
 		goto out;
-	pg_off = offset_in_page(start);
 	cur_len = btrfs_calc_input_length(orig_end, start);
-	workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
+	workspace->in_buf.src = kmap_local_folio(in_folio, offset_in_page(start));
 	workspace->in_buf.pos = 0;
 	workspace->in_buf.size = cur_len;
 
@@ -513,9 +511,9 @@ int zstd_compress_folios(struct list_head *ws, struct address_space *mapping,
 			ret = btrfs_compress_filemap_get_folio(mapping, start, &in_folio);
 			if (ret < 0)
 				goto out;
-			pg_off = offset_in_page(start);
 			cur_len = btrfs_calc_input_length(orig_end, start);
-			workspace->in_buf.src = kmap_local_folio(in_folio, pg_off);
+			workspace->in_buf.src = kmap_local_folio(in_folio,
+							 offset_in_page(start));
 			workspace->in_buf.pos = 0;
 			workspace->in_buf.size = cur_len;
 		}
