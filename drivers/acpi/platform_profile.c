@@ -569,24 +569,23 @@ EXPORT_SYMBOL_GPL(platform_profile_register);
 /**
  * platform_profile_remove - Unregisters a platform profile class device
  * @dev: Class device
- *
- * Return: 0
  */
-int platform_profile_remove(struct device *dev)
+void platform_profile_remove(struct device *dev)
 {
-	struct platform_profile_handler *pprof = to_pprof_handler(dev);
-	int id;
+	struct platform_profile_handler *pprof;
+
+	if (IS_ERR_OR_NULL(dev))
+		return;
+
+	pprof = to_pprof_handler(dev);
+
 	guard(mutex)(&profile_lock);
 
-	id = pprof->minor;
+	ida_free(&platform_profile_ida, pprof->minor);
 	device_unregister(&pprof->dev);
-	ida_free(&platform_profile_ida, id);
 
 	sysfs_notify(acpi_kobj, NULL, "platform_profile");
-
 	sysfs_update_group(acpi_kobj, &platform_profile_group);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(platform_profile_remove);
 
