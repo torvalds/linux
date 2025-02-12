@@ -453,7 +453,7 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 
 	intel_update_czclk(i915);
 	intel_display_driver_init_hw(display);
-	intel_dpll_update_ref_clks(i915);
+	intel_dpll_update_ref_clks(display);
 
 	if (display->cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(display);

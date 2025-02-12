@@ -109,7 +109,7 @@ struct intel_dpll_mgr {
 	void (*update_active_dpll)(struct intel_atomic_state *state,
 				   struct intel_crtc *crtc,
 				   struct intel_encoder *encoder);
-	void (*update_ref_clks)(struct drm_i915_private *i915);
+	void (*update_ref_clks)(struct intel_display *display);
 	void (*dump_hw_state)(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *dpll_hw_state);
 	bool (*compare_hw_state)(const struct intel_dpll_hw_state *a,
@@ -1242,14 +1242,14 @@ static int hsw_get_dpll(struct intel_atomic_state *state,
 	return 0;
 }
 
-static void hsw_update_dpll_ref_clks(struct drm_i915_private *i915)
+static void hsw_update_dpll_ref_clks(struct intel_display *display)
 {
-	i915->display.dpll.ref_clks.ssc = 135000;
+	display->dpll.ref_clks.ssc = 135000;
 	/* Non-SSC is only used on non-ULT HSW. */
-	if (intel_de_read(i915, FUSE_STRAP3) & HSW_REF_CLK_SELECT)
-		i915->display.dpll.ref_clks.nssc = 24000;
+	if (intel_de_read(display, FUSE_STRAP3) & HSW_REF_CLK_SELECT)
+		display->dpll.ref_clks.nssc = 24000;
 	else
-		i915->display.dpll.ref_clks.nssc = 135000;
+		display->dpll.ref_clks.nssc = 135000;
 }
 
 static void hsw_dump_hw_state(struct drm_printer *p,
@@ -1979,10 +1979,10 @@ static int skl_ddi_pll_get_freq(struct intel_display *display,
 		return skl_ddi_lcpll_get_freq(display, pll, dpll_hw_state);
 }
 
-static void skl_update_dpll_ref_clks(struct drm_i915_private *i915)
+static void skl_update_dpll_ref_clks(struct intel_display *display)
 {
 	/* No SSC ref */
-	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
+	display->dpll.ref_clks.nssc = display->cdclk.hw.ref;
 }
 
 static void skl_dump_hw_state(struct drm_printer *p,
@@ -2448,10 +2448,10 @@ static int bxt_get_dpll(struct intel_atomic_state *state,
 	return 0;
 }
 
-static void bxt_update_dpll_ref_clks(struct drm_i915_private *i915)
+static void bxt_update_dpll_ref_clks(struct intel_display *display)
 {
-	i915->display.dpll.ref_clks.ssc = 100000;
-	i915->display.dpll.ref_clks.nssc = 100000;
+	display->dpll.ref_clks.ssc = 100000;
+	display->dpll.ref_clks.nssc = 100000;
 	/* DSI non-SSC ref 19.2MHz */
 }
 
@@ -4080,10 +4080,10 @@ static void mg_pll_disable(struct intel_display *display,
 	icl_pll_disable(display, pll, enable_reg);
 }
 
-static void icl_update_dpll_ref_clks(struct drm_i915_private *i915)
+static void icl_update_dpll_ref_clks(struct intel_display *display)
 {
 	/* No SSC ref */
-	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
+	display->dpll.ref_clks.nssc = display->cdclk.hw.ref;
 }
 
 static void icl_dump_hw_state(struct drm_printer *p,
@@ -4534,10 +4534,10 @@ static void readout_dpll_hw_state(struct intel_display *display,
 		    pll->info->name, pll->state.pipe_mask, pll->on);
 }
 
-void intel_dpll_update_ref_clks(struct drm_i915_private *i915)
+void intel_dpll_update_ref_clks(struct intel_display *display)
 {
-	if (i915->display.dpll.mgr && i915->display.dpll.mgr->update_ref_clks)
-		i915->display.dpll.mgr->update_ref_clks(i915);
+	if (display->dpll.mgr && display->dpll.mgr->update_ref_clks)
+		display->dpll.mgr->update_ref_clks(display);
 }
 
 void intel_dpll_readout_hw_state(struct intel_display *display)
