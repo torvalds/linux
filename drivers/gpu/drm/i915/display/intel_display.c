@@ -5348,14 +5348,14 @@ pipe_config_pll_mismatch(struct drm_printer *p, bool fastset,
 			 const struct intel_dpll_hw_state *a,
 			 const struct intel_dpll_hw_state *b)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
 	pipe_config_mismatch(p, fastset, crtc, name, " "); /* stupid -Werror=format-zero-length */
 
 	drm_printf(p, "expected:\n");
-	intel_dpll_dump_hw_state(i915, p, a);
+	intel_dpll_dump_hw_state(display, p, a);
 	drm_printf(p, "found:\n");
-	intel_dpll_dump_hw_state(i915, p, b);
+	intel_dpll_dump_hw_state(display, p, b);
 }
 
 static void
@@ -5495,7 +5495,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 } while (0)
 
 #define PIPE_CONF_CHECK_PLL(name) do { \
-	if (!intel_dpll_compare_hw_state(dev_priv, &current_config->name, \
+	if (!intel_dpll_compare_hw_state(display, &current_config->name, \
 					 &pipe_config->name)) { \
 		pipe_config_pll_mismatch(&p, fastset, crtc, __stringify(name), \
 					 &current_config->name, \

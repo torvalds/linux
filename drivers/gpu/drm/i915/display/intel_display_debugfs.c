@@ -631,7 +631,6 @@ static int i915_display_capabilities(struct seq_file *m, void *unused)
 
 static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_display *display = node_to_intel_display(m->private);
 	struct drm_printer p = drm_seq_file_printer(m);
 	struct intel_shared_dpll *pll;
@@ -650,7 +649,7 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 			   pll->state.pipe_mask, pll->active_mask,
 			   str_yes_no(pll->on));
 		drm_printf(&p, " tracked hardware state:\n");
-		intel_dpll_dump_hw_state(dev_priv, &p, &pll->state.hw_state);
+		intel_dpll_dump_hw_state(display, &p, &pll->state.hw_state);
 	}
 	drm_modeset_unlock_all(display->drm);
 

@@ -4592,18 +4592,18 @@ void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 
 /**
  * intel_dpll_dump_hw_state - dump hw_state
- * @i915: i915 drm device
+ * @display: intel_display structure
  * @p: where to print the state to
  * @dpll_hw_state: hw state to be dumped
  *
  * Dumo out the relevant values in @dpll_hw_state.
  */
-void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
+void intel_dpll_dump_hw_state(struct intel_display *display,
 			      struct drm_printer *p,
 			      const struct intel_dpll_hw_state *dpll_hw_state)
 {
-	if (i915->display.dpll.mgr) {
-		i915->display.dpll.mgr->dump_hw_state(p, dpll_hw_state);
+	if (display->dpll.mgr) {
+		display->dpll.mgr->dump_hw_state(p, dpll_hw_state);
 	} else {
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
@@ -4614,7 +4614,7 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 
 /**
  * intel_dpll_compare_hw_state - compare the two states
- * @i915: i915 drm device
+ * @display: intel_display structure
  * @a: first DPLL hw state
  * @b: second DPLL hw state
  *
@@ -4622,12 +4622,12 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
  *
  * Returns: true if the states are equal, false if the differ
  */
-bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
+bool intel_dpll_compare_hw_state(struct intel_display *display,
 				 const struct intel_dpll_hw_state *a,
 				 const struct intel_dpll_hw_state *b)
 {
-	if (i915->display.dpll.mgr) {
-		return i915->display.dpll.mgr->compare_hw_state(a, b);
+	if (display->dpll.mgr) {
+		return display->dpll.mgr->compare_hw_state(a, b);
 	} else {
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
