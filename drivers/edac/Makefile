@@ -14,6 +14,7 @@ edac_core-y	+= edac_module.o edac_device_sysfs.o wq.o
 edac_core-$(CONFIG_EDAC_DEBUG)		+= debugfs.o
 edac_core-$(CONFIG_EDAC_SCRUB)		+= scrub.o
 edac_core-$(CONFIG_EDAC_ECS)		+= ecs.o
+edac_core-$(CONFIG_EDAC_MEM_REPAIR)	+= mem_repair.o
 
 ifdef CONFIG_PCI
 edac_core-y	+= edac_pci.o edac_pci_sysfs.o

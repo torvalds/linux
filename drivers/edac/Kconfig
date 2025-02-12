@@ -93,6 +93,16 @@ config EDAC_ECS
 	  into a unified set of functions.
 	  Say 'y/n' to enable/disable EDAC ECS feature.
 
+config EDAC_MEM_REPAIR
+	bool "EDAC memory repair feature"
+	help
+	  The EDAC memory repair feature is optional and is designed to control
+	  the memory devices with repair features, such as Post Package Repair
+	  (PPR), memory sparing etc. The common sysfs memory repair interface
+	  abstracts the control of various memory repair functionalities into
+	  a unified set of functions.
+	  Say 'y/n' to enable/disable EDAC memory repair feature.
+
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64)"
 	depends on AMD_NB && EDAC_DECODE_MCE

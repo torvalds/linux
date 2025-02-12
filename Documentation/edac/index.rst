@@ -8,4 +8,5 @@ EDAC Subsystem
    :maxdepth: 1
 
    features
+   memory_repair
    scrub

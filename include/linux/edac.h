@@ -668,6 +668,7 @@ static inline struct dimm_info *edac_get_dimm(struct mem_ctl_info *mci,
 enum edac_dev_feat {
 	RAS_FEAT_SCRUB,
 	RAS_FEAT_ECS,
+	RAS_FEAT_MEM_REPAIR,
 	RAS_FEAT_MAX
 };
 
@@ -743,11 +744,82 @@ static inline int edac_ecs_get_desc(struct device *ecs_dev,
 { return -EOPNOTSUPP; }
 #endif /* CONFIG_EDAC_ECS */
 
+enum edac_mem_repair_type {
+	EDAC_REPAIR_MAX
+};
+
+enum edac_mem_repair_cmd {
+	EDAC_DO_MEM_REPAIR = 1,
+};
+
+/**
+ * struct edac_mem_repair_ops - memory repair operations
+ * (all elements are optional except do_repair, set_hpa/set_dpa)
+ * @get_repair_type: get the memory repair type, listed in
+ *			 enum edac_mem_repair_function.
+ * @get_persist_mode: get the current persist mode.
+ *		      false - Soft repair type (temporary repair).
+ *		      true - Hard memory repair type (permanent repair).
+ * @set_persist_mode: set the persist mode of the memory repair instance.
+ * @get_repair_safe_when_in_use: get whether memory media is accessible and
+ *				 data is retained during repair operation.
+ * @get_hpa: get current host physical address (HPA) of memory to repair.
+ * @set_hpa: set host physical address (HPA) of memory to repair.
+ * @get_min_hpa: get the minimum supported host physical address (HPA).
+ * @get_max_hpa: get the maximum supported host physical address (HPA).
+ * @get_dpa: get current device physical address (DPA) of memory to repair.
+ * @set_dpa: set device physical address (DPA) of memory to repair.
+ *	     In some states of system configuration (e.g. before address decoders
+ *	     have been configured), memory devices (e.g. CXL) may not have an active
+ *	     mapping in the host physical address map. As such, the memory
+ *	     to repair must be identified by a device specific physical addressing
+ *	     scheme using a device physical address(DPA). The DPA and other control
+ *	     attributes to use for the repair operations will be presented in related
+ *	     error records.
+ * @get_min_dpa: get the minimum supported device physical address (DPA).
+ * @get_max_dpa: get the maximum supported device physical address (DPA).
+ * @get_nibble_mask: get current nibble mask of memory to repair.
+ * @set_nibble_mask: set nibble mask of memory to repair.
+ * @do_repair: Issue memory repair operation for the HPA/DPA and
+ *	       other control attributes set for the memory to repair.
+ *
+ * All elements are optional except do_repair and at least one of set_hpa/set_dpa.
+ */
+struct edac_mem_repair_ops {
+	int (*get_repair_type)(struct device *dev, void *drv_data, const char **type);
+	int (*get_persist_mode)(struct device *dev, void *drv_data, bool *persist);
+	int (*set_persist_mode)(struct device *dev, void *drv_data, bool persist);
+	int (*get_repair_safe_when_in_use)(struct device *dev, void *drv_data, bool *safe);
+	int (*get_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*set_hpa)(struct device *dev, void *drv_data, u64 hpa);
+	int (*get_min_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*get_max_hpa)(struct device *dev, void *drv_data, u64 *hpa);
+	int (*get_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*set_dpa)(struct device *dev, void *drv_data, u64 dpa);
+	int (*get_min_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*get_max_dpa)(struct device *dev, void *drv_data, u64 *dpa);
+	int (*get_nibble_mask)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_nibble_mask)(struct device *dev, void *drv_data, u32 val);
+	int (*do_repair)(struct device *dev, void *drv_data, u32 val);
+};
+
+#if IS_ENABLED(CONFIG_EDAC_MEM_REPAIR)
+int edac_mem_repair_get_desc(struct device *dev,
+			     const struct attribute_group **attr_groups,
+			     u8 instance);
+#else
+static inline int edac_mem_repair_get_desc(struct device *dev,
+					   const struct attribute_group **attr_groups,
+					   u8 instance)
+{ return -EOPNOTSUPP; }
+#endif /* CONFIG_EDAC_MEM_REPAIR */
+
 /* EDAC device feature information structure */
 struct edac_dev_data {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	u8 instance;
 	void *private;
@@ -758,6 +830,7 @@ struct edac_dev_feat_ctx {
 	void *private;
 	struct edac_dev_data *scrub;
 	struct edac_dev_data ecs;
+	struct edac_dev_data *mem_repair;
 };
 
 struct edac_dev_feature {
@@ -766,6 +839,7 @@ struct edac_dev_feature {
 	union {
 		const struct edac_scrub_ops *scrub_ops;
 		const struct edac_ecs_ops *ecs_ops;
+		const struct edac_mem_repair_ops *mem_repair_ops;
 	};
 	void *ctx;
 	struct edac_ecs_ex_info ecs_info;
