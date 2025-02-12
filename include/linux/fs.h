@@ -3285,7 +3285,11 @@ static inline void __iget(struct inode *inode)
 extern void iget_failed(struct inode *);
 extern void clear_inode(struct inode *);
 extern void __destroy_inode(struct inode *);
-extern struct inode *new_inode_pseudo(struct super_block *sb);
+struct inode *alloc_inode(struct super_block *sb);
+static inline struct inode *new_inode_pseudo(struct super_block *sb)
+{
+	return alloc_inode(sb);
+}
 extern struct inode *new_inode(struct super_block *sb);
 extern void free_inode_nonrcu(struct inode *inode);
 extern int setattr_should_drop_suidgid(struct mnt_idmap *, struct inode *);
