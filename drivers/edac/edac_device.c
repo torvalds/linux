@@ -628,6 +628,9 @@ int edac_dev_register(struct device *parent, char *name,
 			attr_gcnt++;
 			scrub_cnt++;
 			break;
+		case RAS_FEAT_ECS:
+			attr_gcnt += ras_features[feat].ecs_info.num_media_frus;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -668,6 +671,22 @@ int edac_dev_register(struct device *parent, char *name,
 
 			scrub_cnt++;
 			attr_gcnt++;
+			break;
+		case RAS_FEAT_ECS:
+			if (!ras_features->ecs_ops) {
+				ret = -EINVAL;
+				goto data_mem_free;
+			}
+
+			dev_data = &ctx->ecs;
+			dev_data->ecs_ops = ras_features->ecs_ops;
+			dev_data->private = ras_features->ctx;
+			ret = edac_ecs_get_desc(parent, &ras_attr_groups[attr_gcnt],
+						ras_features->ecs_info.num_media_frus);
+			if (ret)
+				goto data_mem_free;
+
+			attr_gcnt += ras_features->ecs_info.num_media_frus;
 			break;
 		default:
 			ret = -EINVAL;

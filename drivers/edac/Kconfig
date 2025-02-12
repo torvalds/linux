@@ -84,6 +84,15 @@ config EDAC_SCRUB
 	  into a unified set of functions.
 	  Say 'y/n' to enable/disable EDAC scrub feature.
 
+config EDAC_ECS
+	bool "EDAC ECS (Error Check Scrub) feature"
+	help
+	  The EDAC ECS feature is optional and is designed to control on-die
+	  error check scrub (e.g., DDR5 ECS) in the system. The common sysfs
+	  ECS interface abstracts the control of various ECS functionalities
+	  into a unified set of functions.
+	  Say 'y/n' to enable/disable EDAC ECS feature.
+
 config EDAC_AMD64
 	tristate "AMD64 (Opteron, Athlon64)"
 	depends on AMD_NB && EDAC_DECODE_MCE
