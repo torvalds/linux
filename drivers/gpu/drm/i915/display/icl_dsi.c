@@ -345,7 +345,6 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 					  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	int afe_clk_khz;
@@ -354,7 +353,7 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 
 	afe_clk_khz = afe_clk(encoder, crtc_state);
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+	if (display->platform.alderlake_s || display->platform.alderlake_p) {
 		theo_word_clk = DIV_ROUND_UP(afe_clk_khz, 8 * DSI_MAX_ESC_CLK);
 		act_word_clk = max(3, theo_word_clk + (theo_word_clk + 1) % 2);
 		esc_clk_div_m = act_word_clk * 8;
@@ -375,7 +374,7 @@ static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder,
 		intel_de_posting_read(display, ICL_DPHY_ESC_CLK_DIV(port));
 	}
 
-	if (IS_ALDERLAKE_S(dev_priv) || IS_ALDERLAKE_P(dev_priv)) {
+	if (display->platform.alderlake_s || display->platform.alderlake_p) {
 		for_each_dsi_port(port, intel_dsi->ports) {
 			intel_de_write(display, ADL_MIPIO_DW(port, 8),
 				       esc_clk_div_m_phy & TX_ESC_CLK_DIV_PHY);
@@ -426,7 +425,6 @@ static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum phy phy;
 	u32 tmp;
@@ -451,7 +449,7 @@ static void gen11_dsi_config_phy_lanes_sequence(struct intel_encoder *encoder)
 		intel_de_write(display, ICL_PORT_TX_DW2_GRP(phy), tmp);
 
 		/* For EHL, TGL, set latency optimization for PCS_DW1 lanes */
-		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv) ||
+		if (display->platform.jasperlake || display->platform.elkhartlake ||
 		    (DISPLAY_VER(display) >= 12)) {
 			intel_de_rmw(display, ICL_PORT_PCS_DW1_AUX(phy),
 				     LATENCY_OPTIM_MASK, LATENCY_OPTIM_VAL(0));
@@ -533,7 +531,6 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 			     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 	enum phy phy;
@@ -563,7 +560,7 @@ gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder,
 		}
 	}
 
-	if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
+	if (display->platform.jasperlake || display->platform.elkhartlake) {
 		for_each_dsi_phy(phy, intel_dsi->phys)
 			intel_de_rmw(display, ICL_DPHY_CHKN(phy),
 				     0, ICL_DPHY_CHKN_AFE_OVER_PPI_STRAP);
