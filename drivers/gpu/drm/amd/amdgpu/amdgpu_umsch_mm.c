@@ -32,6 +32,8 @@
 #include "amdgpu_umsch_mm.h"
 #include "umsch_mm_v4_0.h"
 
+MODULE_FIRMWARE("amdgpu/umsch_mm_4_0_0.bin");
+
 int amdgpu_umsch_mm_submit_pkt(struct amdgpu_umsch_mm *umsch, void *pkt, int ndws)
 {
 	struct amdgpu_ring *ring = &umsch->ring;
