@@ -1101,9 +1101,11 @@ struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
 }
 
 /*
- * Initialize subvolume root in-memory structure
+ * Initialize subvolume root in-memory structure.
  *
  * @anon_dev:	anonymous device to attach to the root, if zero, allocate new
+ *
+ * In case of failure the caller is responsible to call btrfs_free_fs_root()
  */
 static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 {
@@ -1127,7 +1129,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 		if (!anon_dev) {
 			ret = get_anon_bdev(&root->anon_dev);
 			if (ret)
-				goto fail;
+				return ret;
 		} else {
 			root->anon_dev = anon_dev;
 		}
@@ -1137,7 +1139,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 	ret = btrfs_init_root_free_objectid(root);
 	if (ret) {
 		mutex_unlock(&root->objectid_mutex);
-		goto fail;
+		return ret;
 	}
 
 	ASSERT(root->free_objectid <= BTRFS_LAST_FREE_OBJECTID);
@@ -1145,9 +1147,6 @@ static int btrfs_init_fs_root(struct btrfs_root *root, dev_t anon_dev)
 	mutex_unlock(&root->objectid_mutex);
 
 	return 0;
-fail:
-	/* The caller is responsible to call btrfs_free_fs_root */
-	return ret;
 }
 
 static struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
