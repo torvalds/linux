@@ -1000,7 +1000,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 
 	WARN_ON(tm_suspend_disabled);
 
-	TM_DEBUG("--- tm_reclaim on pid %d (NIP=%lx, "
+	TM_DEBUG("---- tm_reclaim on pid %d (NIP=%lx, "
 		 "ccr=%lx, msr=%lx, trap=%lx)\n",
 		 tsk->pid, thr->regs->nip,
 		 thr->regs->ccr, thr->regs->msr,
@@ -1008,7 +1008,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 
 	tm_reclaim_thread(thr, TM_CAUSE_RESCHED);
 
-	TM_DEBUG("--- tm_reclaim on pid %d complete\n",
+	TM_DEBUG("---- tm_reclaim on pid %d complete\n",
 		 tsk->pid);
 
 out_and_saveregs:
@@ -2367,14 +2367,14 @@ void __no_sanitize_address show_stack(struct task_struct *tsk,
 				(sp + STACK_INT_FRAME_REGS);
 
 			lr = regs->link;
-			printk("%s--- interrupt: %lx at %pS\n",
+			printk("%s---- interrupt: %lx at %pS\n",
 			       loglvl, regs->trap, (void *)regs->nip);
 
 			// Detect the case of an empty pt_regs at the very base
 			// of the stack and suppress showing it in full.
 			if (!empty_user_regs(regs, tsk)) {
 				__show_regs(regs);
-				printk("%s--- interrupt: %lx\n", loglvl, regs->trap);
+				printk("%s---- interrupt: %lx\n", loglvl, regs->trap);
 			}
 
 			firstframe = 1;
