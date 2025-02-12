@@ -518,7 +518,7 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 	enum pipe pipe = crtc->pipe;
 	u32 val;
 
-	drm_dbg_kms(&dev_priv->drm, "enabling pipe %c\n", pipe_name(pipe));
+	drm_dbg_kms(display->drm, "enabling pipe %c\n", pipe_name(pipe));
 
 	assert_planes_disabled(crtc);
 
@@ -529,15 +529,15 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 	 */
 	if (HAS_GMCH(dev_priv)) {
 		if (intel_crtc_has_type(new_crtc_state, INTEL_OUTPUT_DSI))
-			assert_dsi_pll_enabled(dev_priv);
+			assert_dsi_pll_enabled(display);
 		else
-			assert_pll_enabled(dev_priv, pipe);
+			assert_pll_enabled(display, pipe);
 	} else {
 		if (new_crtc_state->has_pch_encoder) {
 			/* if driving the PCH, we need FDI enabled */
-			assert_fdi_rx_pll_enabled(dev_priv,
+			assert_fdi_rx_pll_enabled(display,
 						  intel_crtc_pch_transcoder(crtc));
-			assert_fdi_tx_pll_enabled(dev_priv,
+			assert_fdi_tx_pll_enabled(display,
 						  (enum pipe) cpu_transcoder);
 		}
 		/* FIXME: assert CPU port conditions for SNB+ */
@@ -545,21 +545,21 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 
 	/* Wa_22012358565:adl-p */
 	if (DISPLAY_VER(dev_priv) == 13)
-		intel_de_rmw(dev_priv, PIPE_ARB_CTL(dev_priv, pipe),
+		intel_de_rmw(display, PIPE_ARB_CTL(display, pipe),
 			     0, PIPE_ARB_USE_PROG_SLOTS);
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
 		u32 clear = DP_DSC_INSERT_SF_AT_EOL_WA;
 		u32 set = 0;
 
-		if (DISPLAY_VER(dev_priv) == 14)
+		if (DISPLAY_VER(display) == 14)
 			set |= DP_FEC_BS_JITTER_WA;
 
 		intel_de_rmw(display, CHICKEN_TRANS(display, cpu_transcoder),
 			     clear, set);
 	}
 
-	val = intel_de_read(dev_priv, TRANSCONF(dev_priv, cpu_transcoder));
+	val = intel_de_read(display, TRANSCONF(display, cpu_transcoder));
 	if (val & TRANSCONF_ENABLE) {
 		/* we keep both pipes enabled on 830 */
 		drm_WARN_ON(&dev_priv->drm, !IS_I830(dev_priv));
@@ -567,16 +567,16 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 	}
 
 	/* Wa_1409098942:adlp+ */
-	if (DISPLAY_VER(dev_priv) >= 13 &&
+	if (DISPLAY_VER(display) >= 13 &&
 	    new_crtc_state->dsc.compression_enable) {
 		val &= ~TRANSCONF_PIXEL_COUNT_SCALING_MASK;
 		val |= REG_FIELD_PREP(TRANSCONF_PIXEL_COUNT_SCALING_MASK,
 				      TRANSCONF_PIXEL_COUNT_SCALING_X4);
 	}
 
-	intel_de_write(dev_priv, TRANSCONF(dev_priv, cpu_transcoder),
+	intel_de_write(display, TRANSCONF(display, cpu_transcoder),
 		       val | TRANSCONF_ENABLE);
-	intel_de_posting_read(dev_priv, TRANSCONF(dev_priv, cpu_transcoder));
+	intel_de_posting_read(display, TRANSCONF(display, cpu_transcoder));
 
 	/*
 	 * Until the pipe starts PIPEDSL reads will return a stale value,

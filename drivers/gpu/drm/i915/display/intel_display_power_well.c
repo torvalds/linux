@@ -1312,11 +1312,10 @@ static void vlv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void vlv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum pipe pipe;
 
 	for_each_pipe(display, pipe)
-		assert_pll_disabled(dev_priv, pipe);
+		assert_pll_disabled(display, pipe);
 
 	/* Assert common reset */
 	intel_de_rmw(display, DPIO_CTL, DPIO_CMNRST, 0);
@@ -1498,7 +1497,6 @@ static void chv_dpio_cmn_power_well_enable(struct intel_display *display,
 static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 					    struct i915_power_well *power_well)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	enum i915_power_well_id id = i915_power_well_instance(power_well)->id;
 	enum dpio_phy phy;
 
@@ -1508,11 +1506,11 @@ static void chv_dpio_cmn_power_well_disable(struct intel_display *display,
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
 		phy = DPIO_PHY0;
-		assert_pll_disabled(dev_priv, PIPE_A);
-		assert_pll_disabled(dev_priv, PIPE_B);
+		assert_pll_disabled(display, PIPE_A);
+		assert_pll_disabled(display, PIPE_B);
 	} else {
 		phy = DPIO_PHY1;
-		assert_pll_disabled(dev_priv, PIPE_C);
+		assert_pll_disabled(display, PIPE_C);
 	}
 
 	display->power.chv_phy_control &= ~PHY_COM_LANE_RESET_DEASSERT(phy);

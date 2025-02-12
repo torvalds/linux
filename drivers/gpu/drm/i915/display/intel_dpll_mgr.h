@@ -392,7 +392,7 @@ struct intel_shared_dpll {
 struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct intel_display *display,
 			    enum intel_dpll_id id);
-void assert_shared_dpll(struct drm_i915_private *i915,
+void assert_shared_dpll(struct intel_display *display,
 			struct intel_shared_dpll *pll,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)

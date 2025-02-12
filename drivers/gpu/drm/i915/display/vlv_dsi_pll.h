@@ -11,6 +11,7 @@
 enum port;
 struct drm_i915_private;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_encoder;
 
 int vlv_dsi_pll_compute(struct intel_encoder *encoder,
@@ -33,13 +34,14 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
 #ifdef I915
-void assert_dsi_pll_enabled(struct drm_i915_private *i915);
-void assert_dsi_pll_disabled(struct drm_i915_private *i915);
+void assert_dsi_pll_enabled(struct intel_display *display);
+void assert_dsi_pll_disabled(struct intel_display *display);
 #else
-static inline void assert_dsi_pll_enabled(struct drm_i915_private *i915)
+static inline void assert_dsi_pll_enabled(struct intel_display *display)
 {
 }
-static inline void assert_dsi_pll_disabled(struct drm_i915_private *i915)
+
+static inline void assert_dsi_pll_disabled(struct intel_display *display)
 {
 }
 #endif

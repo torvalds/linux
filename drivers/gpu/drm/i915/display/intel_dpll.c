@@ -2329,10 +2329,9 @@ void vlv_force_pll_off(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 /* Only for pre-ILK configs */
-static void assert_pll(struct drm_i915_private *dev_priv,
+static void assert_pll(struct intel_display *display,
 		       enum pipe pipe, bool state)
 {
-	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 
 	cur_state = intel_de_read(display, DPLL(display, pipe)) & DPLL_VCO_ENABLE;
@@ -2341,12 +2340,12 @@ static void assert_pll(struct drm_i915_private *dev_priv,
 				 str_on_off(state), str_on_off(cur_state));
 }
 
-void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_pll_enabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_pll(i915, pipe, true);
+	assert_pll(display, pipe, true);
 }
 
-void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+void assert_pll_disabled(struct intel_display *display, enum pipe pipe)
 {
-	assert_pll(i915, pipe, false);
+	assert_pll(display, pipe, false);
 }

@@ -240,6 +240,7 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -248,10 +249,10 @@ static void intel_pre_enable_lvds(struct intel_atomic_state *state,
 	u32 temp;
 
 	if (HAS_PCH_SPLIT(i915)) {
-		assert_fdi_rx_pll_disabled(i915, pipe);
-		assert_shared_dpll_disabled(i915, crtc_state->shared_dpll);
+		assert_fdi_rx_pll_disabled(display, pipe);
+		assert_shared_dpll_disabled(display, crtc_state->shared_dpll);
 	} else {
-		assert_pll_disabled(i915, pipe);
+		assert_pll_disabled(display, pipe);
 	}
 
 	intel_lvds_pps_init_hw(i915, &lvds_encoder->init_pps);
