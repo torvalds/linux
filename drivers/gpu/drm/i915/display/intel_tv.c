@@ -1436,7 +1436,6 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 				const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	struct intel_tv *intel_tv = enc_to_tv(encoder);
 	const struct intel_tv_connector_state *tv_conn_state =
@@ -1543,7 +1542,7 @@ static void intel_tv_pre_enable(struct intel_atomic_state *state,
 		intel_de_write(display, TV_CLR_LEVEL,
 			       ((video_levels->black << TV_BLACK_LEVEL_SHIFT) | (video_levels->blank << TV_BLANK_LEVEL_SHIFT)));
 
-	assert_transcoder_disabled(dev_priv, pipe_config->cpu_transcoder);
+	assert_transcoder_disabled(display, pipe_config->cpu_transcoder);
 
 	/* Filter ctl must be set before TV_WIN_SIZE */
 	tv_filter_ctl = TV_AUTO_SCALE;

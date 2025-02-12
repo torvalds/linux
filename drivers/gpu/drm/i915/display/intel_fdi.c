@@ -511,6 +511,7 @@ void intel_fdi_normal_train(struct intel_crtc *crtc)
 static void ilk_fdi_link_train(struct intel_crtc *crtc,
 			       const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum pipe pipe = crtc->pipe;
@@ -525,7 +526,7 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 		       intel_de_read(dev_priv, PIPE_DATA_M1(dev_priv, pipe)) & TU_SIZE_MASK);
 
 	/* FDI needs bits from pipe first */
-	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_enabled(display, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */

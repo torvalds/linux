@@ -574,7 +574,7 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 void intel_hpd_poll_fini(struct drm_i915_private *i915);
 
 /* modesetting asserts */
-void assert_transcoder(struct drm_i915_private *dev_priv,
+void assert_transcoder(struct intel_display *display,
 		       enum transcoder cpu_transcoder, bool state);
 #define assert_transcoder_enabled(d, t) assert_transcoder(d, t, true)
 #define assert_transcoder_disabled(d, t) assert_transcoder(d, t, false)

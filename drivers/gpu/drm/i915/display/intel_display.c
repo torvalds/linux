@@ -419,23 +419,22 @@ intel_wait_for_pipe_off(const struct intel_crtc_state *old_crtc_state)
 	}
 }
 
-void assert_transcoder(struct drm_i915_private *dev_priv,
+void assert_transcoder(struct intel_display *display,
 		       enum transcoder cpu_transcoder, bool state)
 {
-	struct intel_display *display = &dev_priv->display;
 	bool cur_state;
 	enum intel_display_power_domain power_domain;
 	intel_wakeref_t wakeref;
 
 	/* we keep both pipes enabled on 830 */
-	if (IS_I830(dev_priv))
+	if (display->platform.i830)
 		state = true;
 
 	power_domain = POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (wakeref) {
-		u32 val = intel_de_read(dev_priv,
-					TRANSCONF(dev_priv, cpu_transcoder));
+		u32 val = intel_de_read(display,
+					TRANSCONF(display, cpu_transcoder));
 		cur_state = !!(val & TRANSCONF_ENABLE);
 
 		intel_display_power_put(display, power_domain, wakeref);
@@ -1968,8 +1967,8 @@ static void hsw_crtc_disable(struct intel_atomic_state *state,
 
 static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!crtc_state->gmch_pfit.control)
 		return;
@@ -1978,18 +1977,18 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	 * The panel fitter should only be adjusted whilst the pipe is disabled,
 	 * according to register description and PRM.
 	 */
-	drm_WARN_ON(&dev_priv->drm,
-		    intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)) & PFIT_ENABLE);
-	assert_transcoder_disabled(dev_priv, crtc_state->cpu_transcoder);
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, PFIT_CONTROL(display)) & PFIT_ENABLE);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
 
-	intel_de_write(dev_priv, PFIT_PGM_RATIOS(dev_priv),
+	intel_de_write(display, PFIT_PGM_RATIOS(display),
 		       crtc_state->gmch_pfit.pgm_ratios);
-	intel_de_write(dev_priv, PFIT_CONTROL(dev_priv),
+	intel_de_write(display, PFIT_CONTROL(display),
 		       crtc_state->gmch_pfit.control);
 
 	/* Border color in case we don't scale up to the full screen. Black by
 	 * default, change to something else for debugging. */
-	intel_de_write(dev_priv, BCLRPAT(dev_priv, crtc->pipe), 0);
+	intel_de_write(display, BCLRPAT(display, crtc->pipe), 0);
 }
 
 /* Prefer intel_encoder_is_combo() */
@@ -2300,17 +2299,16 @@ static void i9xx_crtc_enable(struct intel_atomic_state *state,
 
 static void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(old_crtc_state);
 
 	if (!old_crtc_state->gmch_pfit.control)
 		return;
 
-	assert_transcoder_disabled(dev_priv, old_crtc_state->cpu_transcoder);
+	assert_transcoder_disabled(display, old_crtc_state->cpu_transcoder);
 
-	drm_dbg_kms(&dev_priv->drm, "disabling pfit, current: 0x%08x\n",
-		    intel_de_read(dev_priv, PFIT_CONTROL(dev_priv)));
-	intel_de_write(dev_priv, PFIT_CONTROL(dev_priv), 0);
+	drm_dbg_kms(display->drm, "disabling pfit, current: 0x%08x\n",
+		    intel_de_read(display, PFIT_CONTROL(display)));
+	intel_de_write(display, PFIT_CONTROL(display), 0);
 }
 
 static void i9xx_crtc_disable(struct intel_atomic_state *state,
