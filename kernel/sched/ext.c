@@ -96,7 +96,7 @@ enum scx_ops_flags {
 	/*
 	 * Keep built-in idle tracking even if ops.update_idle() is implemented.
 	 */
-	SCX_OPS_KEEP_BUILTIN_IDLE = 1LLU << 0,
+	SCX_OPS_KEEP_BUILTIN_IDLE	= 1LLU << 0,
 
 	/*
 	 * By default, if there are no other task to run on the CPU, ext core
@@ -104,7 +104,7 @@ enum scx_ops_flags {
 	 * flag is specified, such tasks are passed to ops.enqueue() with
 	 * %SCX_ENQ_LAST. See the comment above %SCX_ENQ_LAST for more info.
 	 */
-	SCX_OPS_ENQ_LAST	= 1LLU << 1,
+	SCX_OPS_ENQ_LAST		= 1LLU << 1,
 
 	/*
 	 * An exiting task may schedule after PF_EXITING is set. In such cases,
@@ -117,13 +117,13 @@ enum scx_ops_flags {
 	 * depend on pid lookups and wants to handle these tasks directly, the
 	 * following flag can be used.
 	 */
-	SCX_OPS_ENQ_EXITING	= 1LLU << 2,
+	SCX_OPS_ENQ_EXITING		= 1LLU << 2,
 
 	/*
 	 * If set, only tasks with policy set to SCHED_EXT are attached to
 	 * sched_ext. If clear, SCHED_NORMAL tasks are also included.
 	 */
-	SCX_OPS_SWITCH_PARTIAL	= 1LLU << 3,
+	SCX_OPS_SWITCH_PARTIAL		= 1LLU << 3,
 
 	/*
 	 * A migration disabled task can only execute on its current CPU. By
@@ -136,7 +136,23 @@ enum scx_ops_flags {
 	 * current CPU while p->nr_cpus_allowed keeps tracking p->user_cpus_ptr
 	 * and thus may disagree with cpumask_weight(p->cpus_ptr).
 	 */
-	SCX_OPS_ENQ_MIGRATION_DISABLED = 1LLU << 4,
+	SCX_OPS_ENQ_MIGRATION_DISABLED	= 1LLU << 4,
+
+	/*
+	 * Queued wakeup (ttwu_queue) is a wakeup optimization that invokes
+	 * ops.enqueue() on the ops.select_cpu() selected or the wakee's
+	 * previous CPU via IPI (inter-processor interrupt) to reduce cacheline
+	 * transfers. When this optimization is enabled, ops.select_cpu() is
+	 * skipped in some cases (when racing against the wakee switching out).
+	 * As the BPF scheduler may depend on ops.select_cpu() being invoked
+	 * during wakeups, queued wakeup is disabled by default.
+	 *
+	 * If this ops flag is set, queued wakeup optimization is enabled and
+	 * the BPF scheduler must be able to handle ops.enqueue() invoked on the
+	 * wakee's CPU without preceding ops.select_cpu() even for tasks which
+	 * may be executed on multiple CPUs.
+	 */
+	SCX_OPS_ALLOW_QUEUED_WAKEUP	= 1LLU << 5,
 
 	/*
 	 * CPU cgroup support flags
@@ -147,6 +163,7 @@ enum scx_ops_flags {
 				  SCX_OPS_ENQ_LAST |
 				  SCX_OPS_ENQ_EXITING |
 				  SCX_OPS_ENQ_MIGRATION_DISABLED |
+				  SCX_OPS_ALLOW_QUEUED_WAKEUP |
 				  SCX_OPS_SWITCH_PARTIAL |
 				  SCX_OPS_HAS_CGROUP_WEIGHT,
 };
@@ -897,6 +914,7 @@ DEFINE_STATIC_KEY_FALSE(__scx_switched_all);
 static struct sched_ext_ops scx_ops;
 static bool scx_warned_zero_slice;
 
+DEFINE_STATIC_KEY_FALSE(scx_ops_allow_queued_wakeup);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_last);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_exiting);
 static DEFINE_STATIC_KEY_FALSE(scx_ops_enq_migration_disabled);
@@ -4717,6 +4735,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	static_branch_disable(&__scx_ops_enabled);
 	for (i = SCX_OPI_BEGIN; i < SCX_OPI_END; i++)
 		static_branch_disable(&scx_has_op[i]);
+	static_branch_disable(&scx_ops_allow_queued_wakeup);
 	static_branch_disable(&scx_ops_enq_last);
 	static_branch_disable(&scx_ops_enq_exiting);
 	static_branch_disable(&scx_ops_enq_migration_disabled);
@@ -5348,9 +5367,10 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 		if (((void (**)(void))ops)[i])
 			static_branch_enable(&scx_has_op[i]);
 
+	if (ops->flags & SCX_OPS_ALLOW_QUEUED_WAKEUP)
+		static_branch_enable(&scx_ops_allow_queued_wakeup);
 	if (ops->flags & SCX_OPS_ENQ_LAST)
 		static_branch_enable(&scx_ops_enq_last);
-
 	if (ops->flags & SCX_OPS_ENQ_EXITING)
 		static_branch_enable(&scx_ops_enq_exiting);
 	if (ops->flags & SCX_OPS_ENQ_MIGRATION_DISABLED)
