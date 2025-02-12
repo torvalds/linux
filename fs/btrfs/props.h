@@ -6,6 +6,7 @@
 #ifndef BTRFS_PROPS_H
 #define BTRFS_PROPS_H
 
+#include <linux/types.h>
 #include <linux/compiler_types.h>
 
 struct inode;

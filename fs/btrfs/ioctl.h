@@ -9,6 +9,8 @@ struct file;
 struct dentry;
 struct mnt_idmap;
 struct fileattr;
+struct inode;
+struct io_uring_cmd;
 struct btrfs_fs_info;
 struct btrfs_ioctl_balance_args;
 

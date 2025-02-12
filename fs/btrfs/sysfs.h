@@ -7,6 +7,7 @@
 #include <linux/compiler_types.h>
 #include <linux/kobject.h>
 
+struct block_device;
 struct btrfs_fs_info;
 struct btrfs_device;
 struct btrfs_fs_devices;

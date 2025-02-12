@@ -6,6 +6,8 @@
 #ifndef BTRFS_XATTR_H
 #define BTRFS_XATTR_H
 
+#include <linux/types.h>
+
 struct dentry;
 struct inode;
 struct qstr;

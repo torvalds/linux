@@ -16,7 +16,6 @@
 #include <linux/compat.h>
 #include <linux/crc32c.h>
 #include <linux/fsverity.h>
-
 #include "send.h"
 #include "ctree.h"
 #include "backref.h"

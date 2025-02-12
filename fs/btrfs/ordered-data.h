@@ -17,6 +17,7 @@
 struct inode;
 struct page;
 struct extent_state;
+struct btrfs_block_group;
 struct btrfs_inode;
 struct btrfs_root;
 struct btrfs_fs_info;
