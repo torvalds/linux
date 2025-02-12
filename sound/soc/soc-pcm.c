@@ -2365,18 +2365,18 @@ static int dpcm_dai_trigger_fe_be(struct snd_pcm_substream *substream,
 			goto end;
 
 		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-		goto end;
 	}
-
 	/* call trigger on the frontend after the backend. */
-	ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-	if (ret < 0)
-		goto end;
+	else {
+		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
+		if (ret < 0)
+			goto end;
 
-	dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
-		fe->dai_link->name, cmd);
+		dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
+			fe->dai_link->name, cmd);
 
-	ret = soc_pcm_trigger(substream, cmd);
+		ret = soc_pcm_trigger(substream, cmd);
+	}
 end:
 	return snd_soc_ret(fe->dev, ret, "trigger FE cmd: %d failed\n", cmd);
 }
