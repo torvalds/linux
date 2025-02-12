@@ -353,9 +353,9 @@ struct ufs_hba_variant_ops {
 	int	(*link_startup_notify)(struct ufs_hba *,
 				       enum ufs_notify_change_status);
 	int	(*pwr_change_notify)(struct ufs_hba *,
-				enum ufs_notify_change_status status,
-				struct ufs_pa_layer_attr *desired_pwr_mode,
-				struct ufs_pa_layer_attr *final_params);
+			enum ufs_notify_change_status status,
+			const struct ufs_pa_layer_attr *desired_pwr_mode,
+			struct ufs_pa_layer_attr *final_params);
 	void	(*setup_xfer_req)(struct ufs_hba *hba, int tag,
 				  bool is_scsi_cmd);
 	void	(*setup_task_mgmt)(struct ufs_hba *, int, u8);
@@ -1429,7 +1429,7 @@ static inline int ufshcd_dme_peer_get(struct ufs_hba *hba,
 	return ufshcd_dme_get_attr(hba, attr_sel, mib_val, DME_PEER);
 }
 
-static inline bool ufshcd_is_hs_mode(struct ufs_pa_layer_attr *pwr_info)
+static inline bool ufshcd_is_hs_mode(const struct ufs_pa_layer_attr *pwr_info)
 {
 	return (pwr_info->pwr_rx == FAST_MODE ||
 		pwr_info->pwr_rx == FASTAUTO_MODE) &&
