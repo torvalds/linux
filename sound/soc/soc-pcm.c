@@ -1062,10 +1062,10 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
  * function can also be called multiple times and can allocate buffers
  * (using snd_pcm_lib_* ). It's non-atomic.
  */
-static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
-			       struct snd_pcm_substream *substream,
+static int __soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	struct snd_pcm_hw_params tmp_params;
@@ -1171,7 +1171,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	snd_soc_dpcm_mutex_lock(rtd);
-	ret = __soc_pcm_hw_params(rtd, substream, params);
+	ret = __soc_pcm_hw_params(substream, params);
 	snd_soc_dpcm_mutex_unlock(rtd);
 	return ret;
 }
@@ -2123,7 +2123,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		dev_dbg(be->dev, "ASoC: hw_params BE %s\n",
 			be->dai_link->name);
 
-		ret = __soc_pcm_hw_params(be, be_substream, &hw_params);
+		ret = __soc_pcm_hw_params(be_substream, &hw_params);
 		if (ret < 0)
 			goto unwind;
 
@@ -2179,7 +2179,7 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 			params_channels(params), params_format(params));
 
 	/* call hw_params on the frontend */
-	ret = __soc_pcm_hw_params(fe, substream, params);
+	ret = __soc_pcm_hw_params(substream, params);
 	if (ret < 0)
 		dpcm_be_dai_hw_free(fe, stream);
 	else
