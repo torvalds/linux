@@ -11,8 +11,9 @@
 #include "intel_display_limits.h"
 
 enum pipe;
-struct drm_i915_private;
 struct drm_crtc;
+struct drm_i915_private;
+struct intel_display;
 
 void valleyview_enable_display_irqs(struct drm_i915_private *i915);
 void valleyview_disable_display_irqs(struct drm_i915_private *i915);
@@ -64,7 +65,7 @@ void gen8_de_irq_postinstall(struct drm_i915_private *i915);
 void gen11_de_irq_postinstall(struct drm_i915_private *i915);
 void dg1_de_irq_postinstall(struct drm_i915_private *i915);
 
-u32 i915_pipestat_enable_mask(struct drm_i915_private *i915, enum pipe pipe);
+u32 i915_pipestat_enable_mask(struct intel_display *display, enum pipe pipe);
 void i915_enable_pipestat(struct drm_i915_private *i915, enum pipe pipe, u32 status_mask);
 void i915_disable_pipestat(struct drm_i915_private *i915, enum pipe pipe, u32 status_mask);
 void i915_enable_asle_pipestat(struct drm_i915_private *i915);

@@ -103,7 +103,7 @@ static void i9xx_check_fifo_underruns(struct intel_crtc *crtc)
 	if ((intel_de_read(display, reg) & PIPE_FIFO_UNDERRUN_STATUS) == 0)
 		return;
 
-	enable_mask = i915_pipestat_enable_mask(dev_priv, crtc->pipe);
+	enable_mask = i915_pipestat_enable_mask(display, crtc->pipe);
 	intel_de_write(display, reg, enable_mask | PIPE_FIFO_UNDERRUN_STATUS);
 	intel_de_posting_read(display, reg);
 
@@ -121,7 +121,7 @@ static void i9xx_set_fifo_underrun_reporting(struct intel_display *display,
 	lockdep_assert_held(&dev_priv->irq_lock);
 
 	if (enable) {
-		u32 enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+		u32 enable_mask = i915_pipestat_enable_mask(display, pipe);
 
 		intel_de_write(display, reg,
 			       enable_mask | PIPE_FIFO_UNDERRUN_STATUS);

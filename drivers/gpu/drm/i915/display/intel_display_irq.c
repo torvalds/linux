@@ -226,29 +226,30 @@ void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits)
 	ibx_display_interrupt_update(i915, bits, 0);
 }
 
-u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
+u32 i915_pipestat_enable_mask(struct intel_display *display,
 			      enum pipe pipe)
 {
-	u32 status_mask = dev_priv->display.irq.pipestat_irq_mask[pipe];
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
+	u32 status_mask = display->irq.pipestat_irq_mask[pipe];
 	u32 enable_mask = status_mask << 16;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
 
-	if (DISPLAY_VER(dev_priv) < 5)
+	if (DISPLAY_VER(display) < 5)
 		goto out;
 
 	/*
 	 * On pipe A we don't support the PSR interrupt yet,
 	 * on pipe B and C the same bit MBZ.
 	 */
-	if (drm_WARN_ON_ONCE(&dev_priv->drm,
+	if (drm_WARN_ON_ONCE(display->drm,
 			     status_mask & PIPE_A_PSR_STATUS_VLV))
 		return 0;
 	/*
 	 * On pipe B and C we don't support the PSR interrupt yet, on pipe
 	 * A the same bit is for perf counters which we don't use either.
 	 */
-	if (drm_WARN_ON_ONCE(&dev_priv->drm,
+	if (drm_WARN_ON_ONCE(display->drm,
 			     status_mask & PIPE_B_PSR_STATUS_VLV))
 		return 0;
 
@@ -261,7 +262,7 @@ u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
 		enable_mask |= SPRITE1_FLIP_DONE_INT_EN_VLV;
 
 out:
-	drm_WARN_ONCE(&dev_priv->drm,
+	drm_WARN_ONCE(display->drm,
 		      enable_mask & ~PIPESTAT_INT_ENABLE_MASK ||
 		      status_mask & ~PIPESTAT_INT_STATUS_MASK,
 		      "pipe %c: enable_mask=0x%x, status_mask=0x%x\n",
@@ -288,7 +289,7 @@ void i915_enable_pipestat(struct drm_i915_private *dev_priv,
 		return;
 
 	dev_priv->display.irq.pipestat_irq_mask[pipe] |= status_mask;
-	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+	enable_mask = i915_pipestat_enable_mask(display, pipe);
 
 	intel_de_write(display, reg, enable_mask | status_mask);
 	intel_de_posting_read(display, reg);
@@ -312,7 +313,7 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 		return;
 
 	dev_priv->display.irq.pipestat_irq_mask[pipe] &= ~status_mask;
-	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+	enable_mask = i915_pipestat_enable_mask(display, pipe);
 
 	intel_de_write(display, reg, enable_mask | status_mask);
 	intel_de_posting_read(display, reg);
@@ -525,7 +526,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 
 		reg = PIPESTAT(dev_priv, pipe);
 		pipe_stats[pipe] = intel_de_read(display, reg) & status_mask;
-		enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
+		enable_mask = i915_pipestat_enable_mask(display, pipe);
 
 		/*
 		 * Clear the PIPE*STAT regs before the IIR
