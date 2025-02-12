@@ -100,7 +100,6 @@ TEST_FILES = xsk_prereqs.sh $(wildcard progs/btf_dump_test_case_*.c)
 
 # Order correspond to 'make run_tests' order
 TEST_PROGS := test_kmod.sh \
-	test_xdp_redirect_multi.sh \
 	test_tunnel.sh \
 	test_lwt_seg6local.sh \
 	test_lirc_mode2.sh \
@@ -135,7 +134,6 @@ TEST_GEN_PROGS_EXTENDED = \
 	veristat \
 	xdp_features \
 	xdp_hw_metadata \
-	xdp_redirect_multi \
 	xdp_synproxy \
 	xdping \
 	xskxceiver
