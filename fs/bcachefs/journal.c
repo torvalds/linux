@@ -981,7 +981,7 @@ int bch2_journal_meta(struct journal *j)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_journal))
-		return -EROFS;
+		return -BCH_ERR_erofs_no_writes;
 
 	int ret = __bch2_journal_meta(j);
 	bch2_write_ref_put(c, BCH_WRITE_REF_journal);
