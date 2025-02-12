@@ -751,7 +751,7 @@ transaction_restart:							\
 	if (!_ret2)							\
 		bch2_trans_verify_not_restarted(_trans, _restart_count);\
 									\
-	_ret2 ?: trans_was_restarted(_trans, _restart_count);		\
+	_ret2 ?: trans_was_restarted(_trans, _orig_restart_count);		\
 })
 
 #define for_each_btree_key_max_continue(_trans, _iter,			\
