@@ -562,14 +562,10 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 		return ret;
 	}
 
-	resetn = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(resetn))
+	resetn = devm_reset_control_get_exclusive_deasserted(dev, NULL);
+	if (IS_ERR(resetn)) {
+		dev_err(dev, "failed to acquire deasserted reset: %d\n", ret);
 		return PTR_ERR(resetn);
-
-	ret = reset_control_deassert(resetn);
-	if (ret) {
-		dev_err(dev, "failed to deassert resetn pin, %d\n", ret);
-		return ret;
 	}
 
 	pm_runtime_enable(dev);
@@ -609,7 +605,6 @@ pm_put:
 	pm_runtime_put(dev);
 pm_disable:
 	pm_runtime_disable(dev);
-	reset_control_assert(resetn);
 	return ret;
 }
 
