@@ -67,7 +67,6 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 				    enum pipe *pipe)
 {
 	struct intel_display *display = to_intel_display(encoder);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	intel_wakeref_t wakeref;
 	bool ret;
@@ -77,7 +76,7 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	if (!wakeref)
 		return false;
 
-	ret = intel_sdvo_port_enabled(dev_priv, intel_hdmi->hdmi_reg, pipe);
+	ret = intel_sdvo_port_enabled(display, intel_hdmi->hdmi_reg, pipe);
 
 	intel_display_power_put(display, encoder->power_domain, wakeref);
 

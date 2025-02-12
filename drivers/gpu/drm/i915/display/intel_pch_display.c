@@ -65,7 +65,7 @@ static void assert_pch_hdmi_disabled(struct drm_i915_private *dev_priv,
 	enum pipe port_pipe;
 	bool state;
 
-	state = intel_sdvo_port_enabled(dev_priv, hdmi_reg, &port_pipe);
+	state = intel_sdvo_port_enabled(display, hdmi_reg, &port_pipe);
 
 	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
 				 "PCH HDMI %c enabled on transcoder %c, should be disabled\n",
