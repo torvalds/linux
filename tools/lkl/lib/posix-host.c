@@ -361,7 +361,6 @@ static void *tls_get(struct lkl_tls_key *key)
 	return __tls_keys[idx].data;
 }
 
-
 static unsigned long long time_ns(void)
 {
 	struct timespec ts;
@@ -371,28 +370,46 @@ static unsigned long long time_ns(void)
 	return 1e9*ts.tv_sec + ts.tv_nsec;
 }
 
+struct lkl_timer {
+	timer_t timer;
+	void (*fn)(void *arg);
+	void *arg;
+};
+
+static void lkl_timer_callback(union sigval sv)
+{
+	struct lkl_timer *lt = (struct lkl_timer *)sv.sival_ptr;
+
+	lt->fn(lt->arg);
+}
+
 static void *timer_alloc(void (*fn)(void *), void *arg)
 {
 	int err;
-	timer_t timer;
 	struct sigevent se =  {
 		.sigev_notify = SIGEV_THREAD,
-		.sigev_value = {
-			.sival_ptr = arg,
-		},
-		.sigev_notify_function = (void (*)(union sigval))fn,
+		.sigev_notify_function = lkl_timer_callback,
 	};
+	struct lkl_timer *pt;
 
-	err = timer_create(CLOCK_REALTIME, &se, &timer);
+
+	pt = malloc(sizeof(*pt));
+	if (!pt)
+		return NULL;
+
+	pt->fn = fn;
+	pt->arg = arg;
+	se.sigev_value.sival_ptr = pt;
+	err = timer_create(CLOCK_REALTIME, &se, &pt->timer);
 	if (err)
 		return NULL;
 
-	return (void *)(long)timer;
+	return pt;
 }
 
-static int timer_set_oneshot(void *_timer, unsigned long ns)
+static int timer_set_oneshot(void *timer, unsigned long ns)
 {
-	timer_t timer = (timer_t)(long)_timer;
+	struct lkl_timer *lt = timer;
 	struct itimerspec ts = {
 		.it_value = {
 			.tv_sec = ns / 1000000000,
@@ -400,14 +417,15 @@ static int timer_set_oneshot(void *_timer, unsigned long ns)
 		},
 	};
 
-	return timer_settime(timer, 0, &ts, NULL);
+	return timer_settime(lt->timer, 0, &ts, NULL);
 }
 
-static void timer_free(void *_timer)
+static void timer_free(void *timer)
 {
-	timer_t timer = (timer_t)(long)_timer;
+	struct lkl_timer *lt = timer;
 
-	timer_delete(timer);
+	timer_delete(lt->timer);
+	free(lt);
 }
 
 static void panic(void)
