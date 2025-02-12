@@ -381,6 +381,46 @@ static void zdev_s390_domain_update(struct zpci_dev *zdev,
 	spin_unlock_irqrestore(&zdev->dom_lock, flags);
 }
 
+static int s390_iommu_domain_reg_ioat(struct zpci_dev *zdev,
+				      struct iommu_domain *domain, u8 *status)
+{
+	struct s390_domain *s390_domain;
+	int rc = 0;
+	u64 iota;
+
+	switch (domain->type) {
+	case IOMMU_DOMAIN_IDENTITY:
+		rc = zpci_register_ioat(zdev, 0, zdev->start_dma,
+					zdev->end_dma, 0, status);
+		break;
+	case IOMMU_DOMAIN_BLOCKED:
+		/* Nothing to do in this case */
+		break;
+	default:
+		s390_domain = to_s390_domain(domain);
+		iota = virt_to_phys(s390_domain->dma_table) |
+		       ZPCI_IOTA_RTTO_FLAG;
+		rc = zpci_register_ioat(zdev, 0, zdev->start_dma,
+					zdev->end_dma, iota, status);
+	}
+
+	return rc;
+}
+
+int zpci_iommu_register_ioat(struct zpci_dev *zdev, u8 *status)
+{
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&zdev->dom_lock, flags);
+
+	rc = s390_iommu_domain_reg_ioat(zdev, zdev->s390_domain, status);
+
+	spin_unlock_irqrestore(&zdev->dom_lock, flags);
+
+	return rc;
+}
+
 static int blocking_domain_attach_device(struct iommu_domain *domain,
 					 struct device *dev)
 {
@@ -422,8 +462,7 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 	blocking_domain_attach_device(&blocking_domain, dev);
 
 	/* If we fail now DMA remains blocked via blocking domain */
-	cc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
-				virt_to_phys(s390_domain->dma_table), &status);
+	cc = s390_iommu_domain_reg_ioat(zdev, domain, &status);
 	if (cc && status != ZPCI_PCI_ST_FUNC_NOT_AVAIL)
 		return -EIO;
 	zdev->dma_table = s390_domain->dma_table;
