@@ -954,6 +954,10 @@
 #define regUVD_JMI0_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_LOW_BASE_IDX                                       1
 #define regUVD_JMI0_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH                                               0x0679
 #define regUVD_JMI0_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      1
+#define regUVD_JMI0_UVD_JMI_CLIENT_STALL                                                                0x067a
+#define regUVD_JMI0_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       1
+#define regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x067b
+#define regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                1
 #define regUVD_JMI0_UVD_JMI_ATOMIC_CNTL2                                                                0x067d
 #define regUVD_JMI0_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       1
 
@@ -1056,6 +1060,8 @@
 #define regJPEG_PERF_BANK_COUNT2_BASE_IDX                                                               1
 #define regJPEG_PERF_BANK_COUNT3                                                                        0x072c
 #define regJPEG_PERF_BANK_COUNT3_BASE_IDX                                                               1
+#define regJPEG_CORE_RST_CTRL                                                                           0x072e
+#define regJPEG_CORE_RST_CTRL_BASE_IDX                                                                  1
 
 
 // addressBlock: aid_uvd0_uvd_pg_dec
@@ -1930,6 +1936,10 @@
 #define regUVD_JMI1_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI1_UVD_JMI_ATOMIC_CNTL2                                                                0x003d
 #define regUVD_JMI1_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI1_UVD_JMI_CLIENT_STALL                                                                0x003a
+#define regUVD_JMI1_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI1_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x003b
+#define regUVD_JMI1_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi2_uvd_jmi_dec
@@ -1988,6 +1998,10 @@
 #define regUVD_JMI2_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI2_UVD_JMI_ATOMIC_CNTL2                                                                0x007d
 #define regUVD_JMI2_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI2_UVD_JMI_CLIENT_STALL                                                                0x007a
+#define regUVD_JMI2_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI2_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x007b
+#define regUVD_JMI2_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi3_uvd_jmi_dec
@@ -2046,6 +2060,10 @@
 #define regUVD_JMI3_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI3_UVD_JMI_ATOMIC_CNTL2                                                                0x00bd
 #define regUVD_JMI3_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI3_UVD_JMI_CLIENT_STALL                                                                0x00ba
+#define regUVD_JMI3_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI3_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x00bb
+#define regUVD_JMI3_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi4_uvd_jmi_dec
@@ -2104,6 +2122,10 @@
 #define regUVD_JMI4_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI4_UVD_JMI_ATOMIC_CNTL2                                                                0x00fd
 #define regUVD_JMI4_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI4_UVD_JMI_CLIENT_STALL                                                                0x00fa
+#define regUVD_JMI4_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI4_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x00fb
+#define regUVD_JMI4_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi5_uvd_jmi_dec
@@ -2162,6 +2184,10 @@
 #define regUVD_JMI5_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI5_UVD_JMI_ATOMIC_CNTL2                                                                0x013d
 #define regUVD_JMI5_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI5_UVD_JMI_CLIENT_STALL                                                                0x013a
+#define regUVD_JMI5_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI5_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x013b
+#define regUVD_JMI5_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi6_uvd_jmi_dec
@@ -2220,6 +2246,10 @@
 #define regUVD_JMI6_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI6_UVD_JMI_ATOMIC_CNTL2                                                                0x017d
 #define regUVD_JMI6_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI6_UVD_JMI_CLIENT_STALL                                                                0x017a
+#define regUVD_JMI6_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI6_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x017b
+#define regUVD_JMI6_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: aid_uvd0_uvd_jmi7_uvd_jmi_dec
@@ -2278,6 +2308,10 @@
 #define regUVD_JMI7_UVD_LMI_JRBC_IB_MEM_WR_64BIT_BAR_HIGH_BASE_IDX                                      0
 #define regUVD_JMI7_UVD_JMI_ATOMIC_CNTL2                                                                0x01bd
 #define regUVD_JMI7_UVD_JMI_ATOMIC_CNTL2_BASE_IDX                                                       0
+#define regUVD_JMI7_UVD_JMI_CLIENT_STALL                                                                0x01ba
+#define regUVD_JMI7_UVD_JMI_CLIENT_STALL_BASE_IDX                                                       0
+#define regUVD_JMI7_UVD_JMI_CLIENT_CLEAN_STATUS                                                         0x01bb
+#define regUVD_JMI7_UVD_JMI_CLIENT_CLEAN_STATUS_BASE_IDX                                                0
 
 
 // addressBlock: uvdctxind
