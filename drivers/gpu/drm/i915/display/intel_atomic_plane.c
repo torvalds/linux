@@ -1132,7 +1132,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 		 * This should only fail upon a hung GPU, in which case we
 		 * can safely continue.
 		 */
-		if (new_crtc_state && intel_crtc_needs_modeset(new_crtc_state)) {
+		if (intel_crtc_needs_modeset(new_crtc_state)) {
 			ret = add_dma_resv_fences(old_obj->resv,
 						  &new_plane_state->uapi);
 			if (ret < 0)
