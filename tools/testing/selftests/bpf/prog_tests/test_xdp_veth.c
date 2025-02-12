@@ -9,7 +9,11 @@
  *  | veth11 |        | veth22 |       | veth33 |
  *  ----|-----        -----|----       -----|----
  *      |                  |                |
- *    veth1              veth2            veth3
+ *  ----|------------------|----------------|----
+ *  | veth1              veth2            veth3 |
+ *  |                                           |
+ *  |                     NSO                   |
+ *  ---------------------------------------------
  *
  * Test cases:
  *  - [test_xdp_veth_redirect] : ping veth33 from veth11
@@ -52,10 +56,12 @@ struct veth_configuration {
 };
 
 struct net_configuration {
+	char ns0_name[NS_NAME_MAX_LEN];
 	struct veth_configuration veth_cfg[VETH_PAIRS_COUNT];
 };
 
 static const struct net_configuration default_config = {
+	.ns0_name = "ns0-",
 	{
 		{
 			.local_veth = "veth1-",
@@ -144,21 +150,30 @@ static int attach_programs_to_veth_pair(struct bpf_object **objs, size_t nb_obj,
 
 static int create_network(struct net_configuration *net_config)
 {
+	struct nstoken *nstoken = NULL;
 	int i, err;
 
 	memcpy(net_config, &default_config, sizeof(struct net_configuration));
 
-	/* First create and configure all interfaces */
+	/* Create unique namespaces */
+	err = append_tid(net_config->ns0_name, NS_NAME_MAX_LEN);
+	if (!ASSERT_OK(err, "append TID to ns0 name"))
+		goto fail;
+	SYS(fail, "ip netns add %s", net_config->ns0_name);
+
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
 		err = append_tid(net_config->veth_cfg[i].namespace, NS_NAME_MAX_LEN);
 		if (!ASSERT_OK(err, "append TID to ns name"))
-			return -1;
-
-		err = append_tid(net_config->veth_cfg[i].local_veth, VETH_NAME_MAX_LEN);
-		if (!ASSERT_OK(err, "append TID to local veth name"))
-			return -1;
-
+			goto fail;
 		SYS(fail, "ip netns add %s", net_config->veth_cfg[i].namespace);
+	}
+
+	/* Create interfaces */
+	nstoken = open_netns(net_config->ns0_name);
+	if (!nstoken)
+		goto fail;
+
+	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
 		SYS(fail, "ip link add %s type veth peer name %s netns %s",
 		    net_config->veth_cfg[i].local_veth, net_config->veth_cfg[i].remote_veth,
 		    net_config->veth_cfg[i].namespace);
@@ -172,29 +187,21 @@ static int create_network(struct net_configuration *net_config)
 		    net_config->veth_cfg[i].remote_veth);
 	}
 
+	close_netns(nstoken);
 	return 0;
 
 fail:
+	close_netns(nstoken);
 	return -1;
 }
 
 static void cleanup_network(struct net_configuration *net_config)
 {
-	struct nstoken *nstoken;
 	int i;
 
-	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
-		bpf_xdp_detach(if_nametoindex(net_config->veth_cfg[i].local_veth), 0, NULL);
-		nstoken = open_netns(net_config->veth_cfg[i].namespace);
-		if (nstoken) {
-			bpf_xdp_detach(if_nametoindex(net_config->veth_cfg[i].remote_veth),
-				       0, NULL);
-			close_netns(nstoken);
-		}
-		/* in case the detach failed */
-		SYS_NOFAIL("ip link del %s", net_config->veth_cfg[i].local_veth);
+	SYS_NOFAIL("ip netns del %s", net_config->ns0_name);
+	for (i = 0; i < VETH_PAIRS_COUNT; i++)
 		SYS_NOFAIL("ip netns del %s", net_config->veth_cfg[i].namespace);
-	}
 }
 
 #define VETH_REDIRECT_SKEL_NB	3
@@ -223,6 +230,7 @@ static void xdp_veth_redirect(u32 flags)
 	struct bpf_object *bpf_objs[VETH_REDIRECT_SKEL_NB];
 	struct xdp_redirect_map *xdp_redirect_map;
 	struct net_configuration net_config;
+	struct nstoken *nstoken = NULL;
 	struct xdp_dummy *xdp_dummy;
 	struct xdp_tx *xdp_tx;
 	int map_fd;
@@ -251,6 +259,11 @@ static void xdp_veth_redirect(u32 flags)
 	bpf_objs[0] = xdp_dummy->obj;
 	bpf_objs[1] = xdp_tx->obj;
 	bpf_objs[2] = xdp_redirect_map->obj;
+
+	nstoken = open_netns(net_config.ns0_name);
+	if (!ASSERT_OK_PTR(nstoken, "open NS0"))
+		goto destroy_xdp_redirect_map;
+
 	for (i = 0; i < VETH_PAIRS_COUNT; i++) {
 		int next_veth = net_config.veth_cfg[i].next_veth;
 		int interface_id;
@@ -274,6 +287,7 @@ static void xdp_veth_redirect(u32 flags)
 			     net_config.veth_cfg[0].namespace, IP_DST), "ping");
 
 destroy_xdp_redirect_map:
+	close_netns(nstoken);
 	xdp_redirect_map__destroy(xdp_redirect_map);
 destroy_xdp_tx:
 	xdp_tx__destroy(xdp_tx);
