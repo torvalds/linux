@@ -1046,10 +1046,5 @@ static inline void ice_clear_rdma_cap(struct ice_pf *pf)
 	clear_bit(ICE_FLAG_RDMA_ENA, pf->flags);
 }
 
-static inline enum ice_phy_model ice_get_phy_model(const struct ice_hw *hw)
-{
-	return hw->ptp.phy_model;
-}
-
 extern const struct xdp_metadata_ops ice_xdp_md_ops;
 #endif /* _ICE_H_ */
