@@ -1431,7 +1431,7 @@ void __meminit init_currently_empty_zone(struct zone *zone,
 
 #ifndef CONFIG_SPARSEMEM
 /*
- * Calculate the size of the zone->blockflags rounded to an unsigned long
+ * Calculate the size of the zone->pageblock_flags rounded to an unsigned long
  * Start by making sure zonesize is a multiple of pageblock_order by rounding
  * up. Then use 1 NR_PAGEBLOCK_BITS worth of bits per pageblock, finally
  * round what is now in bits to nearest long in bits, then return it in
@@ -1442,10 +1442,10 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
 	unsigned long usemapsize;
 
 	zonesize += zone_start_pfn & (pageblock_nr_pages-1);
-	usemapsize = roundup(zonesize, pageblock_nr_pages);
+	usemapsize = round_up(zonesize, pageblock_nr_pages);
 	usemapsize = usemapsize >> pageblock_order;
 	usemapsize *= NR_PAGEBLOCK_BITS;
-	usemapsize = roundup(usemapsize, BITS_PER_LONG);
+	usemapsize = round_up(usemapsize, BITS_PER_LONG);
 
 	return usemapsize / BITS_PER_BYTE;
 }
