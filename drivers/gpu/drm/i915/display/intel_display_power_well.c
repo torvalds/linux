@@ -973,7 +973,6 @@ static void gen9_assert_dbuf_enabled(struct intel_display *display)
 
 void gen9_disable_dc_states(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct intel_cdclk_config cdclk_config = {};
 	u32 old_state = power_domains->dc_state;
@@ -1013,7 +1012,7 @@ void gen9_disable_dc_states(struct intel_display *display)
 		 * PHY's HW context for port B is lost after DC transitions,
 		 * so we need to restore it manually.
 		 */
-		intel_combo_phy_init(dev_priv);
+		intel_combo_phy_init(display);
 }
 
 static void gen9_dc_off_power_well_enable(struct intel_display *display,

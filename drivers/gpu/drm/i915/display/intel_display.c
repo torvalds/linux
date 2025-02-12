@@ -1995,17 +1995,17 @@ static void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 }
 
 /* Prefer intel_encoder_is_combo() */
-bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy)
+bool intel_phy_is_combo(struct intel_display *display, enum phy phy)
 {
 	if (phy == PHY_NONE)
 		return false;
-	else if (IS_ALDERLAKE_S(dev_priv))
+	else if (display->platform.alderlake_s)
 		return phy <= PHY_E;
-	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+	else if (display->platform.dg1 || display->platform.rocketlake)
 		return phy <= PHY_D;
-	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
+	else if (display->platform.jasperlake || display->platform.elkhartlake)
 		return phy <= PHY_C;
-	else if (IS_ALDERLAKE_P(dev_priv) || IS_DISPLAY_VER(dev_priv, 11, 12))
+	else if (display->platform.alderlake_p || IS_DISPLAY_VER(display, 11, 12))
 		return phy <= PHY_B;
 	else
 		/*
@@ -2085,9 +2085,9 @@ enum phy intel_encoder_to_phy(struct intel_encoder *encoder)
 
 bool intel_encoder_is_combo(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_phy_is_combo(i915, intel_encoder_to_phy(encoder));
+	return intel_phy_is_combo(display, intel_encoder_to_phy(encoder));
 }
 
 bool intel_encoder_is_snps(struct intel_encoder *encoder)

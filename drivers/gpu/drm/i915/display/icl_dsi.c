@@ -31,8 +31,8 @@
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_probe_helper.h>
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "icl_dsi.h"
 #include "icl_dsi_regs.h"
 #include "intel_atomic.h"
@@ -413,12 +413,12 @@ static void gen11_dsi_enable_io_power(struct intel_encoder *encoder)
 
 static void gen11_dsi_power_up_lanes(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum phy phy;
 
 	for_each_dsi_phy(phy, intel_dsi->phys)
-		intel_combo_phy_power_up_lanes(dev_priv, phy, true,
+		intel_combo_phy_power_up_lanes(display, phy, true,
 					       intel_dsi->lane_count, false);
 }
 

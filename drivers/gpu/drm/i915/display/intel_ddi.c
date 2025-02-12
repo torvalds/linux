@@ -2437,13 +2437,13 @@ static void intel_ddi_disable_fec(struct intel_encoder *encoder,
 static void intel_ddi_power_up_lanes(struct intel_encoder *encoder,
 				     const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 
 	if (intel_encoder_is_combo(encoder)) {
 		enum phy phy = intel_encoder_to_phy(encoder);
 
-		intel_combo_phy_power_up_lanes(i915, phy, false,
+		intel_combo_phy_power_up_lanes(display, phy, false,
 					       crtc_state->lane_count,
 					       dig_port->lane_reversal);
 	}

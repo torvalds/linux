@@ -1651,7 +1651,7 @@ static void icl_display_core_init(struct intel_display *display,
 		return;
 
 	/* 2. Initialize all combo phys */
-	intel_combo_phy_init(dev_priv);
+	intel_combo_phy_init(display);
 
 	/*
 	 * 3. Enable Power Well 1 (PG1).
@@ -1714,7 +1714,6 @@ static void icl_display_core_init(struct intel_display *display,
 
 static void icl_display_core_uninit(struct intel_display *display)
 {
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct i915_power_domains *power_domains = &display->power.domains;
 	struct i915_power_well *well;
 
@@ -1747,7 +1746,7 @@ static void icl_display_core_uninit(struct intel_display *display)
 	mutex_unlock(&power_domains->lock);
 
 	/* 5. */
-	intel_combo_phy_uninit(dev_priv);
+	intel_combo_phy_uninit(display);
 }
 
 static void chv_phy_control_init(struct intel_display *display)
