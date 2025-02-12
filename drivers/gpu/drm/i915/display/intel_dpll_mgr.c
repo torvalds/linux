@@ -121,10 +121,11 @@ intel_atomic_duplicate_dpll_state(struct drm_i915_private *i915,
 				  struct intel_shared_dpll_state *shared_dpll)
 {
 	struct intel_shared_dpll *pll;
+	struct intel_display *display = &i915->display;
 	int i;
 
 	/* Copy shared dpll state */
-	for_each_shared_dpll(i915, pll, i)
+	for_each_shared_dpll(display, pll, i)
 		shared_dpll[pll->index] = pll->state;
 }
 
@@ -157,10 +158,11 @@ struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct drm_i915_private *i915,
 			    enum intel_dpll_id id)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_shared_dpll *pll;
 	int i;
 
-	for_each_shared_dpll(i915, pll, i) {
+	for_each_shared_dpll(display, pll, i) {
 		if (pll->info->id == id)
 			return pll;
 	}
@@ -344,12 +346,13 @@ out:
 static unsigned long
 intel_dpll_mask_all(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_shared_dpll *pll;
 	unsigned long dpll_mask = 0;
 	int i;
 
-	for_each_shared_dpll(i915, pll, i) {
-		drm_WARN_ON(&i915->drm, dpll_mask & BIT(pll->info->id));
+	for_each_shared_dpll(display, pll, i) {
+		drm_WARN_ON(display->drm, dpll_mask & BIT(pll->info->id));
 
 		dpll_mask |= BIT(pll->info->id);
 	}
@@ -513,7 +516,7 @@ static void intel_put_dpll(struct intel_atomic_state *state,
  */
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
 {
-	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_display *display = to_intel_display(state);
 	struct intel_shared_dpll_state *shared_dpll = state->shared_dpll;
 	struct intel_shared_dpll *pll;
 	int i;
@@ -521,7 +524,7 @@ void intel_shared_dpll_swap_state(struct intel_atomic_state *state)
 	if (!state->dpll_set)
 		return;
 
-	for_each_shared_dpll(i915, pll, i)
+	for_each_shared_dpll(display, pll, i)
 		swap(pll->state, shared_dpll[pll->index]);
 }
 
@@ -4551,10 +4554,11 @@ void intel_dpll_update_ref_clks(struct drm_i915_private *i915)
 
 void intel_dpll_readout_hw_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_shared_dpll *pll;
 	int i;
 
-	for_each_shared_dpll(i915, pll, i)
+	for_each_shared_dpll(display, pll, i)
 		readout_dpll_hw_state(i915, pll);
 }
 
@@ -4578,10 +4582,11 @@ static void sanitize_dpll_state(struct drm_i915_private *i915,
 
 void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 {
+	struct intel_display *display = &i915->display;
 	struct intel_shared_dpll *pll;
 	int i;
 
-	for_each_shared_dpll(i915, pll, i)
+	for_each_shared_dpll(display, pll, i)
 		sanitize_dpll_state(i915, pll);
 }
 
@@ -4728,10 +4733,11 @@ void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
 
 void intel_shared_dpll_verify_disabled(struct intel_atomic_state *state)
 {
+	struct intel_display *display = to_intel_display(state);
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_shared_dpll *pll;
 	int i;
 
-	for_each_shared_dpll(i915, pll, i)
+	for_each_shared_dpll(display, pll, i)
 		verify_single_dpll_state(i915, pll, NULL, NULL);
 }
