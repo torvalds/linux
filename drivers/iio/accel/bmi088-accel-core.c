@@ -145,7 +145,7 @@ const struct regmap_config bmi088_regmap_conf = {
 	.val_bits = 8,
 	.max_register = 0x7E,
 	.volatile_table = &bmi088_volatile_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 EXPORT_SYMBOL_NS_GPL(bmi088_regmap_conf, "IIO_BMI088");
 
