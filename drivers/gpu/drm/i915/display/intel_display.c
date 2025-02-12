@@ -4405,6 +4405,54 @@ static bool check_single_encoder_cloning(struct intel_atomic_state *state,
 	return true;
 }
 
+static void link_nv12_planes(struct intel_crtc_state *crtc_state,
+			     struct intel_plane_state *plane_state,
+			     struct intel_plane_state *linked_state)
+{
+	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	struct intel_plane *linked = to_intel_plane(linked_state->uapi.plane);
+
+	drm_dbg_kms(display->drm, "UV plane [PLANE:%d:%s] using Y plane [PLANE:%d:%s]\n",
+		    plane->base.base.id, plane->base.name,
+		    linked->base.base.id, linked->base.name);
+
+	plane_state->planar_linked_plane = linked;
+
+	linked_state->is_y_plane = true;
+	linked_state->planar_linked_plane = plane;
+
+	crtc_state->enabled_planes |= BIT(linked->id);
+	crtc_state->active_planes |= BIT(linked->id);
+	crtc_state->update_planes |= BIT(linked->id);
+
+	crtc_state->data_rate[linked->id] = crtc_state->data_rate_y[plane->id];
+	crtc_state->rel_data_rate[linked->id] = crtc_state->rel_data_rate_y[plane->id];
+
+	/* Copy parameters to Y plane */
+	linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
+	linked_state->color_ctl = plane_state->color_ctl;
+	linked_state->view = plane_state->view;
+	linked_state->decrypt = plane_state->decrypt;
+
+	intel_plane_copy_hw_state(linked_state, plane_state);
+	linked_state->uapi.src = plane_state->uapi.src;
+	linked_state->uapi.dst = plane_state->uapi.dst;
+
+	if (icl_is_hdr_plane(display, plane->id)) {
+		if (linked->id == PLANE_7)
+			plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
+		else if (linked->id == PLANE_6)
+			plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_6_ICL;
+		else if (linked->id == PLANE_5)
+			plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_5_RKL;
+		else if (linked->id == PLANE_4)
+			plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_4_RKL;
+		else
+			MISSING_CASE(linked->id);
+	}
+}
+
 static void unlink_nv12_plane(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
@@ -4485,43 +4533,7 @@ static int icl_check_nv12_planes(struct intel_atomic_state *state,
 			return -EINVAL;
 		}
 
-		plane_state->planar_linked_plane = linked;
-
-		linked_state->is_y_plane = true;
-		linked_state->planar_linked_plane = plane;
-		crtc_state->enabled_planes |= BIT(linked->id);
-		crtc_state->active_planes |= BIT(linked->id);
-		crtc_state->update_planes |= BIT(linked->id);
-		crtc_state->data_rate[linked->id] =
-			crtc_state->data_rate_y[plane->id];
-		crtc_state->rel_data_rate[linked->id] =
-			crtc_state->rel_data_rate_y[plane->id];
-		drm_dbg_kms(&dev_priv->drm, "UV plane [PLANE:%d:%s] using [PLANE:%d:%s] as Y plane\n",
-			    plane->base.base.id, plane->base.name,
-			    linked->base.base.id, linked->base.name);
-
-		/* Copy parameters to Y plane */
-		linked_state->ctl = plane_state->ctl | PLANE_CTL_YUV420_Y_PLANE;
-		linked_state->color_ctl = plane_state->color_ctl;
-		linked_state->view = plane_state->view;
-		linked_state->decrypt = plane_state->decrypt;
-
-		intel_plane_copy_hw_state(linked_state, plane_state);
-		linked_state->uapi.src = plane_state->uapi.src;
-		linked_state->uapi.dst = plane_state->uapi.dst;
-
-		if (icl_is_hdr_plane(display, plane->id)) {
-			if (linked->id == PLANE_7)
-				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_7_ICL;
-			else if (linked->id == PLANE_6)
-				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_6_ICL;
-			else if (linked->id == PLANE_5)
-				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_5_RKL;
-			else if (linked->id == PLANE_4)
-				plane_state->cus_ctl |= PLANE_CUS_Y_PLANE_4_RKL;
-			else
-				MISSING_CASE(linked->id);
-		}
+		link_nv12_planes(crtc_state, plane_state, linked_state);
 	}
 
 	return 0;
