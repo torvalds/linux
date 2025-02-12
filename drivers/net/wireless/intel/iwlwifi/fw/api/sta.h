@@ -191,6 +191,7 @@ enum iwl_sta_sleep_flag {
 #define STA_KEY_IDX_INVALID (0xff)
 #define STA_KEY_MAX_DATA_KEY_NUM (4)
 #define IWL_MAX_GLOBAL_KEYS (4)
+#define IWL_MAX_NUM_IGTKS 2
 #define STA_KEY_LEN_WEP40 (5)
 #define STA_KEY_LEN_WEP104 (13)
 
