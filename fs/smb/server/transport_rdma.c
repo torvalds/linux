@@ -14,6 +14,7 @@
 #include <linux/mempool.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
+#include <linux/string_choices.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
@@ -1396,7 +1397,7 @@ static int smb_direct_rdma_xmit(struct smb_direct_transport *t,
 	}
 
 	ksmbd_debug(RDMA, "RDMA %s, len %#x, needed credits %#x\n",
-		    is_read ? "read" : "write", buf_len, credits_needed);
+		    str_read_write(is_read), buf_len, credits_needed);
 
 	ret = wait_for_rw_credits(t, credits_needed);
 	if (ret < 0)
@@ -2289,7 +2290,7 @@ out:
 	}
 
 	ksmbd_debug(RDMA, "netdev(%s) rdma capable : %s\n",
-		    netdev->name, rdma_capable ? "true" : "false");
+		    netdev->name, str_true_false(rdma_capable));
 
 	return rdma_capable;
 }
