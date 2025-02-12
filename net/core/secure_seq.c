@@ -71,7 +71,7 @@ u32 secure_tcpv6_ts_off(const struct net *net,
 	return siphash(&combined, offsetofend(typeof(combined), daddr),
 		       &ts_secret);
 }
-EXPORT_SYMBOL(secure_tcpv6_ts_off);
+EXPORT_IPV6_MOD(secure_tcpv6_ts_off);
 
 u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
 		     __be16 sport, __be16 dport)
