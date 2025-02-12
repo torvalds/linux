@@ -2386,52 +2386,40 @@ static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *fe = snd_soc_substream_to_rtd(substream);
 	int stream = substream->stream;
 	int ret = 0;
+	int fe_first;
 	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
 	switch (trigger) {
 	case SND_SOC_DPCM_TRIGGER_PRE:
-		switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		case SNDRV_PCM_TRIGGER_DRAIN:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+		fe_first = true;
 		break;
 	case SND_SOC_DPCM_TRIGGER_POST:
-		switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		case SNDRV_PCM_TRIGGER_DRAIN:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+		fe_first = false;
 		break;
 	default:
 		dev_err(fe->dev, "ASoC: invalid trigger cmd %d for %s\n", cmd,
 				fe->dai_link->name);
 		ret = -EINVAL;
 		goto out;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_DRAIN:
+		ret = dpcm_dai_trigger_fe_be(substream, cmd, fe_first);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ret = dpcm_dai_trigger_fe_be(substream, cmd, !fe_first);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	if (ret < 0)
