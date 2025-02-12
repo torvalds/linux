@@ -5364,7 +5364,7 @@ void intel_ddi_init(struct intel_display *display,
 	else if (DISPLAY_VER(dev_priv) == 9 && !IS_BROXTON(dev_priv))
 		encoder->hpd_pin = skl_hpd_pin(dev_priv, port);
 	else
-		encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
+		encoder->hpd_pin = intel_hpd_pin_default(port);
 
 	ddi_buf_ctl = intel_de_read(dev_priv, DDI_BUF_CTL(port));
 

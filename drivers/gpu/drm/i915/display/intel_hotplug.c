@@ -82,15 +82,13 @@
 
 /**
  * intel_hpd_pin_default - return default pin associated with certain port.
- * @dev_priv: private driver data pointer
  * @port: the hpd port to get associated pin
  *
  * It is only valid and used by digital port encoder.
  *
  * Return pin that is associatade with @port.
  */
-enum hpd_pin intel_hpd_pin_default(struct drm_i915_private *dev_priv,
-				   enum port port)
+enum hpd_pin intel_hpd_pin_default(enum port port)
 {
 	return HPD_PORT_A + port - PORT_A;
 }

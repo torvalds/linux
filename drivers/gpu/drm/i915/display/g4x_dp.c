@@ -1393,7 +1393,7 @@ bool g4x_dp_init(struct intel_display *display,
 	}
 	intel_encoder->cloneable = 0;
 	intel_encoder->port = port;
-	intel_encoder->hpd_pin = intel_hpd_pin_default(dev_priv, port);
+	intel_encoder->hpd_pin = intel_hpd_pin_default(port);
 
 	dig_port->hpd_pulse = intel_dp_hpd_pulse;
 
