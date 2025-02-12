@@ -1304,10 +1304,9 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	snd_soc_dpcm_mutex_assert_held(fe);
 
 	/* only add new dpcms */
-	for_each_dpcm_be(fe, stream, dpcm) {
-		if (dpcm->be == be && dpcm->fe == fe)
+	for_each_dpcm_be(fe, stream, dpcm)
+		if (dpcm->be == be)
 			return 0;
-	}
 
 	fe_substream = snd_soc_dpcm_get_substream(fe, stream);
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
