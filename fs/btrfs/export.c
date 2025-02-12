@@ -249,8 +249,8 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 		root = fs_info->tree_root;
 	} else {
 		key.objectid = ino;
-		key.offset = btrfs_ino(BTRFS_I(dir));
 		key.type = BTRFS_INODE_REF_KEY;
+		key.offset = btrfs_ino(BTRFS_I(dir));
 	}
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);

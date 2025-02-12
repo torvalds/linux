@@ -747,8 +747,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				(unsigned long)item,  sizeof(*item));
 
 		ins.objectid = btrfs_file_extent_disk_bytenr(eb, item);
-		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
 		ins.type = BTRFS_EXTENT_ITEM_KEY;
+		ins.offset = btrfs_file_extent_disk_num_bytes(eb, item);
 		offset = key->offset - btrfs_file_extent_offset(eb, item);
 
 		/*
@@ -3560,8 +3560,8 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 	struct btrfs_dir_log_item *item;
 
 	key.objectid = dirid;
-	key.offset = first_offset;
 	key.type = BTRFS_DIR_LOG_INDEX_KEY;
+	key.offset = first_offset;
 	ret = btrfs_insert_empty_item(trans, log, path, &key, sizeof(*item));
 	/*
 	 * -EEXIST is fine and can happen sporadically when we are logging a
@@ -7247,8 +7247,8 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 
 again:
 	key.objectid = BTRFS_TREE_LOG_OBJECTID;
-	key.offset = (u64)-1;
 	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
 
 	while (1) {
 		ret = btrfs_search_slot(NULL, log_root_tree, &key, path, 0, 0);

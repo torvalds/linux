@@ -79,8 +79,8 @@ int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
 		return -ENOMEM;
 
 	key.objectid = start;
-	key.offset = len;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = len;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	btrfs_free_path(path);
 	return ret;
@@ -125,11 +125,11 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 
 search_again:
 	key.objectid = bytenr;
-	key.offset = offset;
 	if (metadata)
 		key.type = BTRFS_METADATA_ITEM_KEY;
 	else
 		key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = offset;
 
 	extent_root = btrfs_extent_root(fs_info, bytenr);
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
@@ -1679,8 +1679,8 @@ again:
 				metadata = 0;
 
 				key.objectid = head->bytenr;
-				key.offset = head->num_bytes;
 				key.type = BTRFS_EXTENT_ITEM_KEY;
+				key.offset = head->num_bytes;
 				goto again;
 			}
 		} else {
@@ -2348,8 +2348,8 @@ static noinline int check_committed_ref(struct btrfs_inode *inode,
 	int ret;
 
 	key.objectid = bytenr;
-	key.offset = (u64)-1;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = (u64)-1;
 
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)

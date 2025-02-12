@@ -489,8 +489,8 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		size_t datasize;
 
 		key.objectid = btrfs_ino(inode);
-		key.offset = 0;
 		key.type = BTRFS_EXTENT_DATA_KEY;
+		key.offset = 0;
 
 		datasize = btrfs_file_extent_calc_inline_size(cur_size);
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
@@ -2963,8 +2963,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 
 	if (!drop_args.extent_inserted) {
 		ins.objectid = btrfs_ino(inode);
-		ins.offset = file_pos;
 		ins.type = BTRFS_EXTENT_DATA_KEY;
+		ins.offset = file_pos;
 
 		ret = btrfs_insert_empty_item(trans, root, path, &ins,
 					      sizeof(*stack_fi));
@@ -2999,8 +2999,8 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 		btrfs_update_inode_bytes(inode, num_bytes, drop_args.bytes_found);
 
 	ins.objectid = disk_bytenr;
-	ins.offset = disk_num_bytes;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
+	ins.offset = disk_num_bytes;
 
 	ret = btrfs_inode_set_file_extent_range(inode, file_pos, ram_bytes);
 	if (ret)
@@ -8712,8 +8712,8 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 		goto out;
 	}
 	key.objectid = btrfs_ino(BTRFS_I(inode));
-	key.offset = 0;
 	key.type = BTRFS_EXTENT_DATA_KEY;
+	key.offset = 0;
 	datasize = btrfs_file_extent_calc_inline_size(name_len);
 	err = btrfs_insert_empty_item(trans, root, path, &key,
 				      datasize);

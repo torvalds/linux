@@ -169,9 +169,10 @@ int btrfs_insert_hole_extent(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
 	file_key.objectid = objectid;
-	file_key.offset = pos;
 	file_key.type = BTRFS_EXTENT_DATA_KEY;
+	file_key.offset = pos;
 
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      sizeof(*item));
@@ -212,8 +213,8 @@ btrfs_lookup_csum(struct btrfs_trans_handle *trans,
 	int csums_in_item;
 
 	file_key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	file_key.offset = bytenr;
 	file_key.type = BTRFS_EXTENT_CSUM_KEY;
+	file_key.offset = bytenr;
 	ret = btrfs_search_slot(trans, root, &file_key, path, 0, cow);
 	if (ret < 0)
 		goto fail;
@@ -259,8 +260,8 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	int cow = mod != 0;
 
 	file_key.objectid = objectid;
-	file_key.offset = offset;
 	file_key.type = BTRFS_EXTENT_DATA_KEY;
+	file_key.offset = offset;
 
 	return btrfs_search_slot(trans, root, &file_key, path, ins_len, cow);
 }
@@ -484,8 +485,8 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 	path->nowait = nowait;
 
 	key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	key.offset = start;
 	key.type = BTRFS_EXTENT_CSUM_KEY;
+	key.offset = start;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -892,8 +893,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 
 	while (1) {
 		key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-		key.offset = end_byte - 1;
 		key.type = BTRFS_EXTENT_CSUM_KEY;
+		key.offset = end_byte - 1;
 
 		ret = btrfs_search_slot(trans, root, &key, path, -1, 1);
 		if (ret > 0) {
@@ -1074,8 +1075,8 @@ again:
 	found_next = 0;
 	bytenr = sums->logical + total_bytes;
 	file_key.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
-	file_key.offset = bytenr;
 	file_key.type = BTRFS_EXTENT_CSUM_KEY;
+	file_key.offset = bytenr;
 
 	item = btrfs_lookup_csum(trans, root, path, bytenr, 1);
 	if (!IS_ERR(item)) {

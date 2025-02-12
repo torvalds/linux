@@ -1690,8 +1690,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	}
 
 	key.objectid = objectid;
-	key.offset = (u64)-1;
 	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
 
 	rsv = trans->block_rsv;
 	trans->block_rsv = &pending->block_rsv;

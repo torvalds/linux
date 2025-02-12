@@ -93,8 +93,8 @@ static struct inode *__lookup_free_space_inode(struct btrfs_root *root,
 	int ret;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -201,8 +201,8 @@ static int __create_free_space_inode(struct btrfs_root *root,
 	btrfs_release_path(path);
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 	ret = btrfs_insert_empty_item(trans, root, path, &key,
 				      sizeof(struct btrfs_free_space_header));
 	if (ret < 0) {
@@ -755,8 +755,8 @@ static int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		return 0;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
@@ -1158,8 +1158,8 @@ update_cache_item(struct btrfs_trans_handle *trans,
 	int ret;
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
-	key.offset = offset;
 	key.type = 0;
+	key.offset = offset;
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {

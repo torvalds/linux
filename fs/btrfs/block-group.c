@@ -738,8 +738,8 @@ static int load_extent_tree_free(struct btrfs_caching_control *caching_ctl)
 	path->reada = READA_FORWARD;
 
 	key.objectid = last;
-	key.offset = 0;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.offset = 0;
 
 next:
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
@@ -785,8 +785,8 @@ next:
 
 		if (key.objectid < last) {
 			key.objectid = last;
-			key.offset = 0;
 			key.type = BTRFS_EXTENT_ITEM_KEY;
+			key.offset = 0;
 			btrfs_release_path(path);
 			goto next;
 		}
@@ -2509,8 +2509,8 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		return fill_dummy_bgs(info);
 
 	key.objectid = 0;
-	key.offset = 0;
 	key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
+	key.offset = 0;
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
