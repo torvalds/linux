@@ -1850,7 +1850,9 @@ static struct resource_funcs dcn31_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.get_panel_config_defaults = dcn31_get_panel_config_defaults,
 	.get_det_buffer_size = dcn31_get_det_buffer_size,
-	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe
+	.get_vstartup_for_pipe = dcn10_get_vstartup_for_pipe,
+	.update_dc_state_for_encoder_switch = dcn31_update_dc_state_for_encoder_switch,
+	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params
 };
 
 static struct clock_source *dcn30_clock_source_create(
@@ -2230,4 +2232,36 @@ struct resource_pool *dcn31_create_resource_pool(
 	BREAK_TO_DEBUGGER();
 	kfree(pool);
 	return NULL;
+}
+
+enum dc_status dcn31_update_dc_state_for_encoder_switch(struct dc_link *link,
+	struct dc_link_settings *link_setting,
+	uint8_t pipe_count,
+	struct pipe_ctx *pipes,
+	struct audio_output *audio_output)
+{
+	struct dc_state *state = link->dc->current_state;
+	int i;
+
+#if defined(CONFIG_DRM_AMD_DC_FP)
+	for (i = 0; i < state->stream_count; i++)
+		if (state->streams[i] && state->streams[i]->link && state->streams[i]->link == link)
+			link->dc->hwss.calculate_pix_rate_divider((struct dc *)link->dc, state, state->streams[i]);
+
+	for (i = 0; i < pipe_count; i++) {
+		link->dc->res_pool->funcs->build_pipe_pix_clk_params(&pipes[i]);
+
+		// Setup audio
+		if (pipes[i].stream_res.audio != NULL)
+			build_audio_output(state, &pipes[i], &audio_output[i]);
+	}
+#else
+	/* This DCN requires rate divider updates and audio reprogramming to allow DP1<-->DP2 link rate switching,
+	 * but the above will not compile on architectures without an FPU.
+	 */
+	DC_LOG_WARNING("%s: DP1<-->DP2 link retraining will not work on this DCN on non-FPU platforms", __func__);
+	ASSERT(0);
+#endif
+
+	return DC_OK;
 }
