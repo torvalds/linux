@@ -586,9 +586,9 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 					      node, &rzg2l_irqc_domain_ops,
 					      rzg2l_irqc_data);
 	if (!irq_domain) {
+		pm_runtime_put(dev);
 		dev_err(dev, "failed to add irq domain\n");
-		ret = -ENOMEM;
-		goto pm_put;
+		return -ENOMEM;
 	}
 
 	register_syscore_ops(&rzg2l_irqc_syscore_ops);
@@ -605,11 +605,6 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 	dev = NULL;
 
 	return 0;
-
-pm_put:
-	pm_runtime_put(dev);
-
-	return ret;
 }
 
 static int __init rzg2l_irqc_init(struct device_node *node,
