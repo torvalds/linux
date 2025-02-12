@@ -108,6 +108,7 @@ struct spi_offload *devm_spi_offload_get(struct device *dev,
 					 const struct spi_offload_config *config)
 {
 	struct spi_controller_and_offload *resource;
+	struct spi_offload *offload;
 	int ret;
 
 	if (!spi || !config)
@@ -120,18 +121,20 @@ struct spi_offload *devm_spi_offload_get(struct device *dev,
 	if (!resource)
 		return ERR_PTR(-ENOMEM);
 
-	resource->controller = spi->controller;
-	resource->offload = spi->controller->get_offload(spi, config);
-	if (IS_ERR(resource->offload)) {
+	offload = spi->controller->get_offload(spi, config);
+	if (IS_ERR(offload)) {
 		kfree(resource);
-		return resource->offload;
+		return offload;
 	}
+
+	resource->controller = spi->controller;
+	resource->offload = offload;
 
 	ret = devm_add_action_or_reset(dev, spi_offload_put, resource);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return resource->offload;
+	return offload;
 }
 EXPORT_SYMBOL_GPL(devm_spi_offload_get);
 
