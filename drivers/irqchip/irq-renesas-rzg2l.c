@@ -568,11 +568,16 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 		return PTR_ERR(resetn);
 	}
 
-	pm_runtime_enable(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0) {
+		dev_err(dev, "devm_pm_runtime_enable failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
 		dev_err(dev, "pm_runtime_resume_and_get failed: %d\n", ret);
-		goto pm_disable;
+		return ret;
 	}
 
 	raw_spin_lock_init(&rzg2l_irqc_data->lock);
@@ -603,8 +608,7 @@ static int rzg2l_irqc_common_init(struct device_node *node, struct device_node *
 
 pm_put:
 	pm_runtime_put(dev);
-pm_disable:
-	pm_runtime_disable(dev);
+
 	return ret;
 }
 
