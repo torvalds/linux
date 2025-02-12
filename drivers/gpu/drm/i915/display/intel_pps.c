@@ -134,7 +134,7 @@ vlv_power_sequencer_kick(struct intel_dp *intel_dp)
 		release_cl_override = display->platform.cherryview &&
 			!chv_phy_powergate_ch(display, phy, ch, true);
 
-		if (vlv_force_pll_on(dev_priv, pipe, vlv_get_dpll(dev_priv))) {
+		if (vlv_force_pll_on(dev_priv, pipe, vlv_get_dpll(display))) {
 			drm_err(display->drm,
 				"Failed to force on PLL for pipe %c!\n",
 				pipe_name(pipe));
@@ -1225,11 +1225,10 @@ static void vlv_steal_power_sequencer(struct intel_display *display,
 static enum pipe vlv_active_pipe(struct intel_dp *intel_dp)
 {
 	struct intel_display *display = to_intel_display(intel_dp);
-	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	enum pipe pipe;
 
-	if (g4x_dp_port_enabled(dev_priv, intel_dp->output_reg,
+	if (g4x_dp_port_enabled(display, intel_dp->output_reg,
 				encoder->port, &pipe))
 		return pipe;
 
@@ -1859,13 +1858,13 @@ void assert_pps_unlocked(struct intel_display *display, enum pipe pipe)
 			intel_lvds_port_enabled(dev_priv, PCH_LVDS, &panel_pipe);
 			break;
 		case PANEL_PORT_SELECT_DPA:
-			g4x_dp_port_enabled(dev_priv, DP_A, PORT_A, &panel_pipe);
+			g4x_dp_port_enabled(display, DP_A, PORT_A, &panel_pipe);
 			break;
 		case PANEL_PORT_SELECT_DPC:
-			g4x_dp_port_enabled(dev_priv, PCH_DP_C, PORT_C, &panel_pipe);
+			g4x_dp_port_enabled(display, PCH_DP_C, PORT_C, &panel_pipe);
 			break;
 		case PANEL_PORT_SELECT_DPD:
-			g4x_dp_port_enabled(dev_priv, PCH_DP_D, PORT_D, &panel_pipe);
+			g4x_dp_port_enabled(display, PCH_DP_D, PORT_D, &panel_pipe);
 			break;
 		default:
 			MISSING_CASE(port_sel);

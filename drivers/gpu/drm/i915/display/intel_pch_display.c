@@ -45,7 +45,7 @@ static void assert_pch_dp_disabled(struct drm_i915_private *dev_priv,
 	enum pipe port_pipe;
 	bool state;
 
-	state = g4x_dp_port_enabled(dev_priv, dp_reg, port, &port_pipe);
+	state = g4x_dp_port_enabled(display, dp_reg, port, &port_pipe);
 
 	INTEL_DISPLAY_STATE_WARN(display, state && port_pipe == pipe,
 				 "PCH DP %c enabled on transcoder %c, should be disabled\n",
