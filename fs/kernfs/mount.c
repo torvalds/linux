@@ -209,6 +209,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 {
 	struct dentry *dentry;
 	struct kernfs_node *knparent;
+	struct kernfs_root *root;
 
 	BUG_ON(sb->s_op != &kernfs_sops);
 
@@ -217,6 +218,9 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	/* Check if this is the root kernfs_node */
 	if (!kn->parent)
 		return dentry;
+
+	root = kernfs_root(kn);
+	guard(rwsem_read)(&root->kernfs_rwsem);
 
 	knparent = find_next_ancestor(kn, NULL);
 	if (WARN_ON(!knparent)) {
