@@ -29,7 +29,7 @@ MODULE_PARM_DESC(use_lut_mws,
 		 "Enable the use of the LUT based memory windows");
 
 #define SWITCHTEC_NTB_MAGIC 0x45CC0001
-#define MAX_MWS     128
+#define MAX_MWS     256
 
 struct shared_mw {
 	u32 magic;
