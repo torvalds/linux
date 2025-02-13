@@ -878,7 +878,6 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err_fini_oa;
 
-	/* A PXP init failure is not fatal */
 	err = xe_pxp_init(xe);
 	if (err)
 		goto err_fini_display;
