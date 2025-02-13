@@ -100,7 +100,7 @@ static inline void push_hyp_memcache(struct kvm_hyp_memcache *mc,
 static inline void *pop_hyp_memcache(struct kvm_hyp_memcache *mc,
 				     void *(*to_va)(phys_addr_t phys))
 {
-	phys_addr_t *p = to_va(mc->head);
+	phys_addr_t *p = to_va(mc->head & PAGE_MASK);
 
 	if (!mc->nr_pages)
 		return NULL;
