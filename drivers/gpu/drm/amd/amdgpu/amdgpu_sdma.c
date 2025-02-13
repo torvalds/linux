@@ -356,23 +356,44 @@ int amdgpu_sdma_ras_sw_init(struct amdgpu_device *adev)
 static int amdgpu_debugfs_sdma_sched_mask_set(void *data, u64 val)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
-	u32 i;
+	u64 i, num_ring;
 	u64 mask = 0;
-	struct amdgpu_ring *ring;
+	struct amdgpu_ring *ring, *page = NULL;
 
 	if (!adev)
 		return -ENODEV;
 
-	mask = BIT_ULL(adev->sdma.num_instances) - 1;
+	/* Determine the number of rings per SDMA instance
+	 * (1 for sdma gfx ring, 2 if page queue exists)
+	 */
+	if (adev->sdma.has_page_queue)
+		num_ring = 2;
+	else
+		num_ring = 1;
+
+	/* Calculate the maximum possible mask value
+	 * based on the number of SDMA instances and rings
+	*/
+	mask = BIT_ULL(adev->sdma.num_instances * num_ring) - 1;
+
 	if ((val & mask) == 0)
 		return -EINVAL;
 
 	for (i = 0; i < adev->sdma.num_instances; ++i) {
 		ring = &adev->sdma.instance[i].ring;
-		if (val & BIT_ULL(i))
+		if (adev->sdma.has_page_queue)
+			page = &adev->sdma.instance[i].page;
+		if (val & BIT_ULL(i * num_ring))
 			ring->sched.ready = true;
 		else
 			ring->sched.ready = false;
+
+		if (page) {
+			if (val & BIT_ULL(i * num_ring + 1))
+				page->sched.ready = true;
+			else
+				page->sched.ready = false;
+		}
 	}
 	/* publish sched.ready flag update effective immediately across smp */
 	smp_rmb();
@@ -382,16 +403,37 @@ static int amdgpu_debugfs_sdma_sched_mask_set(void *data, u64 val)
 static int amdgpu_debugfs_sdma_sched_mask_get(void *data, u64 *val)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
-	u32 i;
+	u64 i, num_ring;
 	u64 mask = 0;
-	struct amdgpu_ring *ring;
+	struct amdgpu_ring *ring, *page = NULL;
 
 	if (!adev)
 		return -ENODEV;
+
+	/* Determine the number of rings per SDMA instance
+	 * (1 for sdma gfx ring, 2 if page queue exists)
+	 */
+	if (adev->sdma.has_page_queue)
+		num_ring = 2;
+	else
+		num_ring = 1;
+
 	for (i = 0; i < adev->sdma.num_instances; ++i) {
 		ring = &adev->sdma.instance[i].ring;
+		if (adev->sdma.has_page_queue)
+			page = &adev->sdma.instance[i].page;
+
 		if (ring->sched.ready)
-			mask |= 1 << i;
+			mask |= BIT_ULL(i * num_ring);
+		else
+			mask &= ~BIT_ULL(i * num_ring);
+
+		if (page) {
+			if (page->sched.ready)
+				mask |= BIT_ULL(i * num_ring + 1);
+			else
+				mask &= ~BIT_ULL(i * num_ring + 1);
+		}
 	}
 
 	*val = mask;
