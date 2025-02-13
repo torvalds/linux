@@ -736,9 +736,8 @@ static int nwl_dsi_disable(struct nwl_dsi *dsi)
 	return 0;
 }
 
-static void
-nwl_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
-			      struct drm_bridge_state *old_bridge_state)
+static void nwl_dsi_bridge_atomic_disable(struct drm_bridge *bridge,
+					  struct drm_atomic_state *state)
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
 	int ret;

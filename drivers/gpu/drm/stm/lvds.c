@@ -1016,7 +1016,7 @@ static void lvds_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void lvds_atomic_disable(struct drm_bridge *bridge,
-				struct drm_bridge_state *old_bridge_state)
+				struct drm_atomic_state *state)
 {
 	struct stm_lvds *lvds = bridge_to_stm_lvds(bridge);
 

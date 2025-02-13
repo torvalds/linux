@@ -1625,8 +1625,10 @@ static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void zynqmp_dp_bridge_atomic_disable(struct drm_bridge *bridge,
-					    struct drm_bridge_state *old_bridge_state)
+					    struct drm_atomic_state *state)
 {
+	struct drm_bridge_state *old_bridge_state = drm_atomic_get_old_bridge_state(state,
+										    bridge);
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 
 	mutex_lock(&dp->lock);

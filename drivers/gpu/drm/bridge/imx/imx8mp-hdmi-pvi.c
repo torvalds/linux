@@ -89,7 +89,7 @@ static void imx8mp_hdmi_pvi_bridge_enable(struct drm_bridge *bridge,
 }
 
 static void imx8mp_hdmi_pvi_bridge_disable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *bridge_state)
+					   struct drm_atomic_state *state)
 {
 	struct imx8mp_hdmi_pvi *pvi = to_imx8mp_hdmi_pvi(bridge);
 

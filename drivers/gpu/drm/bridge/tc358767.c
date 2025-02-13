@@ -1563,9 +1563,8 @@ static void tc_dpi_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_dpi_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;
@@ -1601,9 +1600,8 @@ static void tc_edp_bridge_atomic_enable(struct drm_bridge *bridge,
 	}
 }
 
-static void
-tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 	int ret;

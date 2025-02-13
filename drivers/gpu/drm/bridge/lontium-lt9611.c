@@ -687,9 +687,8 @@ static void lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
 	regmap_write(lt9611->regmap, 0x8130, 0xea);
 }
 
-static void
-lt9611_bridge_atomic_disable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void lt9611_bridge_atomic_disable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	int ret;

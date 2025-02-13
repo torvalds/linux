@@ -249,7 +249,7 @@ static void meson_encoder_hdmi_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_hdmi_atomic_disable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *bridge_state)
+					      struct drm_atomic_state *state)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
 	struct meson_drm *priv = encoder_hdmi->priv;

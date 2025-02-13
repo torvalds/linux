@@ -246,9 +246,8 @@ static void imx8qm_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 	ldb_bridge_enable_helper(bridge);
 }
 
-static void
-imx8qm_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void imx8qm_ldb_bridge_atomic_disable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
