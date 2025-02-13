@@ -131,6 +131,8 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 			EXT_KEY(ZVE64D);
 			EXT_KEY(ZVE64F);
 			EXT_KEY(ZVE64X);
+			EXT_KEY(ZVFBFMIN);
+			EXT_KEY(ZVFBFWMA);
 			EXT_KEY(ZVFH);
 			EXT_KEY(ZVFHMIN);
 			EXT_KEY(ZVKB);
@@ -147,6 +149,7 @@ static void hwprobe_isa_ext0(struct riscv_hwprobe *pair,
 			EXT_KEY(ZCD);
 			EXT_KEY(ZCF);
 			EXT_KEY(ZFA);
+			EXT_KEY(ZFBFMIN);
 			EXT_KEY(ZFH);
 			EXT_KEY(ZFHMIN);
 		}
