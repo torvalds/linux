@@ -71,6 +71,10 @@ static const char *sdebug_version_date = "20210520";
 #define NO_ADDITIONAL_SENSE 0x0
 #define OVERLAP_ATOMIC_COMMAND_ASC 0x0
 #define OVERLAP_ATOMIC_COMMAND_ASCQ 0x23
+#define FILEMARK_DETECTED_ASCQ 0x1
+#define EOP_EOM_DETECTED_ASCQ 0x2
+#define BEGINNING_OF_P_M_DETECTED_ASCQ 0x4
+#define EOD_DETECTED_ASCQ 0x5
 #define LOGICAL_UNIT_NOT_READY 0x4
 #define LOGICAL_UNIT_COMMUNICATION_FAILURE 0x8
 #define UNRECOVERED_READ_ERR 0x11
@@ -83,6 +87,7 @@ static const char *sdebug_version_date = "20210520";
 #define UA_READY_ASC 0x28
 #define UA_RESET_ASC 0x29
 #define UA_CHANGED_ASC 0x2a
+#define TOO_MANY_IN_PARTITION_ASC 0x3b
 #define TARGET_CHANGED_ASC 0x3f
 #define LUNS_CHANGED_ASCQ 0x0e
 #define INSUFF_RES_ASC 0x55
@@ -180,7 +185,29 @@ static const char *sdebug_version_date = "20210520";
 #define TAPE_DEF_BLKSIZE  0
 #define TAPE_MIN_BLKSIZE  512
 #define TAPE_MAX_BLKSIZE  1048576
+#define TAPE_EW 20
 #define TAPE_MAX_PARTITIONS 2
+#define TAPE_UNITS 10000
+
+/* The tape block data definitions */
+#define TAPE_BLOCK_FM_FLAG   ((u32)0x1 << 30)
+#define TAPE_BLOCK_EOD_FLAG  ((u32)0x2 << 30)
+#define TAPE_BLOCK_MARK_MASK ((u32)0x3 << 30)
+#define TAPE_BLOCK_SIZE_MASK (~TAPE_BLOCK_MARK_MASK)
+#define TAPE_BLOCK_MARK(a) (a & TAPE_BLOCK_MARK_MASK)
+#define TAPE_BLOCK_SIZE(a) (a & TAPE_BLOCK_SIZE_MASK)
+#define IS_TAPE_BLOCK_FM(a)   ((a & TAPE_BLOCK_FM_FLAG) != 0)
+#define IS_TAPE_BLOCK_EOD(a)  ((a & TAPE_BLOCK_EOD_FLAG) != 0)
+
+struct tape_block {
+	u32 fl_size;
+	unsigned char data[4];
+};
+
+/* Flags for sense data */
+#define SENSE_FLAG_FILEMARK  0x80
+#define SENSE_FLAG_EOM 0x40
+#define SENSE_FLAG_ILI 0x20
 
 #define SDEBUG_LUN_0_VAL 0
 
@@ -377,7 +404,10 @@ struct sdebug_dev_info {
 	unsigned int tape_blksize;
 	unsigned int tape_density;
 	unsigned char tape_partition;
+	unsigned char tape_nbr_partitions;
 	unsigned int tape_location[TAPE_MAX_PARTITIONS];
+	unsigned int tape_eop[TAPE_MAX_PARTITIONS];
+	struct tape_block *tape_blocks[TAPE_MAX_PARTITIONS];
 
 	struct dentry *debugfs_entry;
 	struct spinlock list_lock;
@@ -501,7 +531,8 @@ enum sdeb_opcode_index {
 	SDEB_I_ATOMIC_WRITE_16 = 32,
 	SDEB_I_READ_BLOCK_LIMITS = 33,
 	SDEB_I_LOCATE = 34,
-	SDEB_I_LAST_ELEM_P1 = 35,	/* keep this last (previous + 1) */
+	SDEB_I_WRITE_FILEMARKS = 35,
+	SDEB_I_LAST_ELEM_P1 = 36,	/* keep this last (previous + 1) */
 };
 
 
@@ -510,8 +541,8 @@ static const unsigned char opcode_ind_arr[256] = {
 	SDEB_I_TEST_UNIT_READY, SDEB_I_REZERO_UNIT, 0, SDEB_I_REQUEST_SENSE,
 	    0, SDEB_I_READ_BLOCK_LIMITS, 0, 0,
 	SDEB_I_READ, 0, SDEB_I_WRITE, 0, 0, 0, 0, 0,
-	0, 0, SDEB_I_INQUIRY, 0, 0, SDEB_I_MODE_SELECT, SDEB_I_RESERVE,
-	    SDEB_I_RELEASE,
+	SDEB_I_WRITE_FILEMARKS, 0, SDEB_I_INQUIRY, 0, 0,
+	    SDEB_I_MODE_SELECT, SDEB_I_RESERVE, SDEB_I_RELEASE,
 	0, 0, SDEB_I_MODE_SENSE, SDEB_I_START_STOP, 0, SDEB_I_SEND_DIAG,
 	    SDEB_I_ALLOW_REMOVAL, 0,
 /* 0x20; 0x20->0x3f: 10 byte cdbs */
@@ -593,6 +624,8 @@ static int resp_finish_zone(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_rwp_zone(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_read_blklimits(struct scsi_cmnd *, struct sdebug_dev_info *);
 static int resp_locate(struct scsi_cmnd *, struct sdebug_dev_info *);
+static int resp_write_filemarks(struct scsi_cmnd *, struct sdebug_dev_info *);
+static int resp_rewind(struct scsi_cmnd *, struct sdebug_dev_info *);
 
 static int sdebug_do_add_host(bool mk_new_store);
 static int sdebug_add_host_helper(int per_host_idx);
@@ -793,7 +826,7 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 /* 20 */
 	{0, 0x1e, 0, 0, NULL, NULL, /* ALLOW REMOVAL */
 	    {6,  0, 0, 0, 0x3, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
-	{0, 0x1, 0, 0, NULL, NULL, /* REWIND ?? */
+	{0, 0x1, 0, 0, resp_rewind, NULL,
 	    {6,  0x1, 0, 0, 0, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 	{0, 0, 0, F_INV_OP | FF_RESPOND, NULL, NULL, /* ATA_PT */
 	    {0,  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
@@ -841,6 +874,8 @@ static const struct opcode_info_t opcode_info_arr[SDEB_I_LAST_ELEM_P1 + 1] = {
 	{0, 0x2b, 0, F_D_UNKN, resp_locate, NULL,    /* LOCATE (10) */
 	    {10,  0x2, 0xff, 0xff, 0xff, 0xff, 0x3f, 0xff, 0xff, 0xc7, 0, 0,
 	     0, 0, 0, 0} },
+	{0, 0x10, 0, F_D_IN, resp_write_filemarks, NULL,    /* WRITE FILEMARKS (6) */
+	    {6,  0x01, 0xff, 0xff, 0xff, 0xc7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} },
 
 /* sentinel */
 	{0xff, 0, 0, 0, NULL, NULL,		/* terminating element */
@@ -1351,6 +1386,30 @@ static void mk_sense_buffer(struct scsi_cmnd *scp, int key, int asc, int asq)
 	memset(scp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 
 	scsi_build_sense(scp, sdebug_dsense, key, asc, asq);
+
+	if (sdebug_verbose)
+		sdev_printk(KERN_INFO, scp->device,
+			    "%s:  [sense_key,asc,ascq]: [0x%x,0x%x,0x%x]\n",
+			    my_name, key, asc, asq);
+}
+
+/* Sense data that has information fields for tapes */
+static void mk_sense_info_tape(struct scsi_cmnd *scp, int key, int asc, int asq,
+			unsigned int information, unsigned char tape_flags)
+{
+	if (!scp->sense_buffer) {
+		sdev_printk(KERN_ERR, scp->device,
+			    "%s: sense_buffer is NULL\n", __func__);
+		return;
+	}
+	memset(scp->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
+
+	scsi_build_sense(scp, /* sdebug_dsense */ 0, key, asc, asq);
+	/* only fixed format so far */
+
+	scp->sense_buffer[0] |= 0x80; /* valid */
+	scp->sense_buffer[2] |= tape_flags;
+	put_unaligned_be32(information, &scp->sense_buffer[3]);
 
 	if (sdebug_verbose)
 		sdev_printk(KERN_INFO, scp->device,
@@ -3252,7 +3311,7 @@ static int resp_locate(struct scsi_cmnd *scp,
 	unsigned char *cmd = scp->cmnd;
 
 	if ((cmd[1] & 0x02) != 0) {
-		if (cmd[8] >= TAPE_MAX_PARTITIONS) {
+		if (cmd[8] >= devip->tape_nbr_partitions) {
 			mk_sense_invalid_fld(scp, SDEB_IN_CDB, 8, -1);
 			return check_condition_result;
 		}
@@ -3262,6 +3321,71 @@ static int resp_locate(struct scsi_cmnd *scp,
 		get_unaligned_be32(cmd + 3);
 
 	return 0;
+}
+
+static int resp_write_filemarks(struct scsi_cmnd *scp,
+		struct sdebug_dev_info *devip)
+{
+	unsigned char *cmd = scp->cmnd;
+	unsigned int i, count, pos;
+	u32 data;
+	int partition = devip->tape_partition;
+
+	if ((cmd[1] & 0xfe) != 0) { /* probably write setmarks, not in >= SCSI-3 */
+		mk_sense_invalid_fld(scp, SDEB_IN_CDB, 1, 1);
+		return check_condition_result;
+	}
+	count = get_unaligned_be24(cmd + 2);
+	data = TAPE_BLOCK_FM_FLAG;
+	for (i = 0, pos = devip->tape_location[partition]; i < count; i++, pos++) {
+		if (pos >= devip->tape_eop[partition] - 1) { /* don't overwrite EOD */
+			devip->tape_location[partition] = devip->tape_eop[partition] - 1;
+			mk_sense_info_tape(scp, VOLUME_OVERFLOW, NO_ADDITIONAL_SENSE,
+					EOP_EOM_DETECTED_ASCQ, count, SENSE_FLAG_EOM);
+			return check_condition_result;
+		}
+		(devip->tape_blocks[partition] + pos)->fl_size = data;
+	}
+	(devip->tape_blocks[partition] + pos)->fl_size =
+		TAPE_BLOCK_EOD_FLAG;
+	devip->tape_location[partition] = pos;
+
+	return 0;
+}
+
+static int resp_rewind(struct scsi_cmnd *scp,
+		struct sdebug_dev_info *devip)
+{
+	devip->tape_location[devip->tape_partition] = 0;
+
+	return 0;
+}
+
+static int partition_tape(struct sdebug_dev_info *devip, int nbr_partitions,
+			int part_0_size, int part_1_size)
+{
+	int i;
+
+	if (part_0_size + part_1_size > TAPE_UNITS)
+		return -1;
+	devip->tape_eop[0] = part_0_size;
+	devip->tape_blocks[0]->fl_size = TAPE_BLOCK_EOD_FLAG;
+	devip->tape_eop[1] = part_1_size;
+	devip->tape_blocks[1] = devip->tape_blocks[0] +
+			devip->tape_eop[0];
+	devip->tape_blocks[1]->fl_size = TAPE_BLOCK_EOD_FLAG;
+
+	for (i = 0 ; i < TAPE_MAX_PARTITIONS; i++)
+		devip->tape_location[i] = 0;
+
+	devip->tape_nbr_partitions = nbr_partitions;
+	devip->tape_partition = 0;
+
+	partition_pg[3] = nbr_partitions - 1;
+	put_unaligned_be16(devip->tape_eop[0], partition_pg + 8);
+	put_unaligned_be16(devip->tape_eop[1], partition_pg + 10);
+
+	return nbr_partitions;
 }
 
 static inline bool sdebug_dev_is_zoned(struct sdebug_dev_info *devip)
@@ -4304,6 +4428,67 @@ static void unmap_region(struct sdeb_store_info *sip, sector_t lba,
 	}
 }
 
+static int resp_write_tape(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
+{
+	u32 i, num, transfer, size, written = 0;
+	u8 *cmd = scp->cmnd;
+	struct scsi_data_buffer *sdb = &scp->sdb;
+	int partition = devip->tape_partition;
+	int pos = devip->tape_location[partition];
+	struct tape_block *blp;
+	bool fixed, ew;
+
+	if (cmd[0] != WRITE_6) { /* Only Write(6) supported */
+		mk_sense_invalid_opcode(scp);
+		return illegal_condition_result;
+	}
+
+	fixed = (cmd[1] & 1) != 0;
+	transfer = get_unaligned_be24(cmd + 2);
+	if (fixed) {
+		num = transfer;
+		size = devip->tape_blksize;
+	} else {
+		if (transfer < TAPE_MIN_BLKSIZE ||
+			transfer > TAPE_MAX_BLKSIZE) {
+			mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, -1);
+			return check_condition_result;
+		}
+		num = 1;
+		size = transfer;
+	}
+
+	scsi_set_resid(scp, num * transfer);
+	for (i = 0, blp = devip->tape_blocks[partition] + pos, ew = false;
+	     i < num && pos < devip->tape_eop[partition] - 1; i++, pos++, blp++) {
+		blp->fl_size = size;
+		sg_copy_buffer(sdb->table.sgl, sdb->table.nents,
+			&(blp->data), 4, i * size, true);
+		written += size;
+		scsi_set_resid(scp, num * transfer - written);
+		ew |= (pos == devip->tape_eop[partition] - TAPE_EW);
+	}
+
+	devip->tape_location[partition] = pos;
+	blp->fl_size = TAPE_BLOCK_EOD_FLAG;
+	if (pos >= devip->tape_eop[partition] - 1) {
+		mk_sense_info_tape(scp, VOLUME_OVERFLOW,
+				NO_ADDITIONAL_SENSE, EOP_EOM_DETECTED_ASCQ,
+				fixed ? num - i : transfer,
+				SENSE_FLAG_EOM);
+		return check_condition_result;
+	}
+	if (ew) { /* early warning */
+		mk_sense_info_tape(scp, NO_SENSE,
+				NO_ADDITIONAL_SENSE, EOP_EOM_DETECTED_ASCQ,
+				fixed ? num - i : transfer,
+				SENSE_FLAG_EOM);
+		return check_condition_result;
+	}
+
+	return 0;
+}
+
 static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 {
 	bool check_prot;
@@ -4315,6 +4500,9 @@ static int resp_write_dt0(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	struct sdeb_store_info *sip = devip2sip(devip, true);
 	u8 *cmd = scp->cmnd;
 	bool meta_data_locked = false;
+
+	if (sdebug_ptype == TYPE_TAPE)
+		return resp_write_tape(scp, devip);
 
 	switch (cmd[0]) {
 	case WRITE_16:
@@ -6063,6 +6251,20 @@ static int scsi_debug_sdev_configure(struct scsi_device *sdp,
 		if (devip == NULL)
 			return 1;  /* no resources, will be marked offline */
 	}
+	if (sdebug_ptype == TYPE_TAPE) {
+		if (!devip->tape_blocks[0]) {
+			devip->tape_blocks[0] =
+				kcalloc(TAPE_UNITS, sizeof(struct tape_block),
+					GFP_KERNEL);
+			if (!devip->tape_blocks[0])
+				return 1;
+		}
+		if (partition_tape(devip, 1, TAPE_UNITS, 0) < 0) {
+			kfree(devip->tape_blocks[0]);
+			devip->tape_blocks[0] = NULL;
+			return 1;
+		}
+	}
 	sdp->hostdata = devip;
 	if (sdebug_no_uld)
 		sdp->no_uld_attach = 1;
@@ -6107,6 +6309,11 @@ static void scsi_debug_sdev_destroy(struct scsi_device *sdp)
 	spin_unlock(&devip->list_lock);
 
 	debugfs_remove(devip->debugfs_entry);
+
+	if (sdebug_ptype == TYPE_TAPE) {
+		kfree(devip->tape_blocks[0]);
+		devip->tape_blocks[0] = NULL;
+	}
 
 	/* make this slot available for re-use */
 	devip->used = false;
