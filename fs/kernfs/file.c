@@ -915,6 +915,7 @@ repeat:
 	list_for_each_entry(info, &kernfs_root(kn)->supers, node) {
 		struct kernfs_node *parent;
 		struct inode *p_inode = NULL;
+		const char *kn_name;
 		struct inode *inode;
 		struct qstr name;
 
@@ -928,7 +929,8 @@ repeat:
 		if (!inode)
 			continue;
 
-		name = QSTR(kn->name);
+		kn_name = kernfs_rcu_name(kn);
+		name = QSTR(kn_name);
 		parent = kernfs_get_parent(kn);
 		if (parent) {
 			p_inode = ilookup(info->sb, kernfs_ino(parent));

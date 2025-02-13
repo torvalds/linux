@@ -916,14 +916,14 @@ int proc_resctrl_show(struct seq_file *s, struct pid_namespace *ns,
 			continue;
 
 		seq_printf(s, "res:%s%s\n", (rdtg == &rdtgroup_default) ? "/" : "",
-			   rdtg->kn->name);
+			   rdt_kn_name(rdtg->kn));
 		seq_puts(s, "mon:");
 		list_for_each_entry(crg, &rdtg->mon.crdtgrp_list,
 				    mon.crdtgrp_list) {
 			if (!resctrl_arch_match_rmid(tsk, crg->mon.parent->closid,
 						     crg->mon.rmid))
 				continue;
-			seq_printf(s, "%s", crg->kn->name);
+			seq_printf(s, "%s", rdt_kn_name(crg->kn));
 			break;
 		}
 		seq_putc(s, '\n');
@@ -3675,7 +3675,7 @@ out_unlock:
  */
 static bool is_mon_groups(struct kernfs_node *kn, const char *name)
 {
-	return (!strcmp(kn->name, "mon_groups") &&
+	return (!strcmp(rdt_kn_name(kn), "mon_groups") &&
 		strcmp(name, "mon_groups"));
 }
 
@@ -3824,7 +3824,7 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 			ret = rdtgroup_rmdir_ctrl(rdtgrp, tmpmask);
 		}
 	} else if (rdtgrp->type == RDTMON_GROUP &&
-		 is_mon_groups(parent_kn, kn->name)) {
+		 is_mon_groups(parent_kn, rdt_kn_name(kn))) {
 		ret = rdtgroup_rmdir_mon(rdtgrp, tmpmask);
 	} else {
 		ret = -EPERM;
@@ -3912,7 +3912,7 @@ static int rdtgroup_rename(struct kernfs_node *kn,
 
 	kn_parent = rdt_kn_parent(kn);
 	if (rdtgrp->type != RDTMON_GROUP || !kn_parent ||
-	    !is_mon_groups(kn_parent, kn->name)) {
+	    !is_mon_groups(kn_parent, rdt_kn_name(kn))) {
 		rdt_last_cmd_puts("Source must be a MON group\n");
 		ret = -EPERM;
 		goto out;

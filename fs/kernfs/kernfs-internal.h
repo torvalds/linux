@@ -107,6 +107,11 @@ static inline bool kernfs_root_is_locked(const struct kernfs_node *kn)
 	return lockdep_is_held(&kernfs_root(kn)->kernfs_rwsem);
 }
 
+static inline const char *kernfs_rcu_name(const struct kernfs_node *kn)
+{
+	return rcu_dereference_check(kn->name, kernfs_root_is_locked(kn));
+}
+
 static inline struct kernfs_node *kernfs_parent(const struct kernfs_node *kn)
 {
 	/*

@@ -51,14 +51,6 @@ static bool kernfs_lockdep(struct kernfs_node *kn)
 #endif
 }
 
-static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
-{
-	if (!kn)
-		return strscpy(buf, "(null)", buflen);
-
-	return strscpy(buf, rcu_access_pointer(kn->__parent) ? kn->name : "/", buflen);
-}
-
 /* kernfs_node_depth - compute depth from @from to @to */
 static size_t kernfs_depth(struct kernfs_node *from, struct kernfs_node *to)
 {
@@ -168,11 +160,13 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 
 	/* Calculate how many bytes we need for the rest */
 	for (i = depth_to - 1; i >= 0; i--) {
+		const char *name;
 
 		for (kn = kn_to, j = 0; j < i; j++)
 			kn = rcu_dereference(kn->__parent);
 
-		len += scnprintf(buf + len, buflen - len, "/%s", kn->name);
+		name = rcu_dereference(kn->name);
+		len += scnprintf(buf + len, buflen - len, "/%s", name);
 	}
 
 	return len;
@@ -196,13 +190,18 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
  */
 int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 {
-	unsigned long flags;
-	int ret;
+	struct kernfs_node *kn_parent;
 
-	read_lock_irqsave(&kernfs_rename_lock, flags);
-	ret = kernfs_name_locked(kn, buf, buflen);
-	read_unlock_irqrestore(&kernfs_rename_lock, flags);
-	return ret;
+	if (!kn)
+		return strscpy(buf, "(null)", buflen);
+
+	guard(rcu)();
+	/*
+	 * KERNFS_ROOT_INVARIANT_PARENT is ignored here. The name is RCU freed and
+	 * the parent is either existing or not.
+	 */
+	kn_parent = rcu_dereference(kn->__parent);
+	return strscpy(buf, kn_parent ? rcu_dereference(kn->name) : "/", buflen);
 }
 
 /**
@@ -224,14 +223,17 @@ int kernfs_name(struct kernfs_node *kn, char *buf, size_t buflen)
 int kernfs_path_from_node(struct kernfs_node *to, struct kernfs_node *from,
 			  char *buf, size_t buflen)
 {
-	unsigned long flags;
-	int ret;
+	struct kernfs_root *root;
 
 	guard(rcu)();
-	read_lock_irqsave(&kernfs_rename_lock, flags);
-	ret = kernfs_path_from_node_locked(to, from, buf, buflen);
-	read_unlock_irqrestore(&kernfs_rename_lock, flags);
-	return ret;
+	if (to) {
+		root = kernfs_root(to);
+		if (!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)) {
+			guard(read_lock_irqsave)(&kernfs_rename_lock);
+			return kernfs_path_from_node_locked(to, from, buf, buflen);
+		}
+	}
+	return kernfs_path_from_node_locked(to, from, buf, buflen);
 }
 EXPORT_SYMBOL_GPL(kernfs_path_from_node);
 
@@ -338,13 +340,13 @@ static int kernfs_name_compare(unsigned int hash, const char *name,
 		return -1;
 	if (ns > kn->ns)
 		return 1;
-	return strcmp(name, kn->name);
+	return strcmp(name, kernfs_rcu_name(kn));
 }
 
 static int kernfs_sd_compare(const struct kernfs_node *left,
 			     const struct kernfs_node *right)
 {
-	return kernfs_name_compare(left->hash, left->name, left->ns, right);
+	return kernfs_name_compare(left->hash, kernfs_rcu_name(left), left->ns, right);
 }
 
 /**
@@ -542,7 +544,8 @@ static void kernfs_free_rcu(struct rcu_head *rcu)
 {
 	struct kernfs_node *kn = container_of(rcu, struct kernfs_node, rcu);
 
-	kfree_const(kn->name);
+	/* If the whole node goes away, then name can't be used outside */
+	kfree_const(rcu_access_pointer(kn->name));
 
 	if (kn->iattr) {
 		simple_xattrs_free(&kn->iattr->xattrs, NULL);
@@ -575,7 +578,8 @@ void kernfs_put(struct kernfs_node *kn)
 
 	WARN_ONCE(atomic_read(&kn->active) != KN_DEACTIVATED_BIAS,
 		  "kernfs_put: %s/%s: released with incorrect active_ref %d\n",
-		  parent ? parent->name : "", kn->name, atomic_read(&kn->active));
+		  parent ? rcu_dereference(parent->name) : "",
+		  rcu_dereference(kn->name), atomic_read(&kn->active));
 
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
@@ -652,7 +656,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	atomic_set(&kn->active, KN_DEACTIVATED_BIAS);
 	RB_CLEAR_NODE(&kn->rb);
 
-	kn->name = name;
+	rcu_assign_pointer(kn->name, name);
 	kn->mode = mode;
 	kn->flags = flags;
 
@@ -790,7 +794,8 @@ int kernfs_add_one(struct kernfs_node *kn)
 	ret = -EINVAL;
 	has_ns = kernfs_ns_enabled(parent);
 	if (WARN(has_ns != (bool)kn->ns, KERN_WARNING "kernfs: ns %s in '%s' for '%s'\n",
-		 has_ns ? "required" : "invalid", parent->name, kn->name))
+		 has_ns ? "required" : "invalid",
+		 kernfs_rcu_name(parent), kernfs_rcu_name(kn)))
 		goto out_unlock;
 
 	if (kernfs_type(parent) != KERNFS_DIR)
@@ -800,7 +805,7 @@ int kernfs_add_one(struct kernfs_node *kn)
 	if (parent->flags & (KERNFS_REMOVING | KERNFS_EMPTY_DIR))
 		goto out_unlock;
 
-	kn->hash = kernfs_name_hash(kn->name, kn->ns);
+	kn->hash = kernfs_name_hash(kernfs_rcu_name(kn), kn->ns);
 
 	ret = kernfs_link_sibling(kn);
 	if (ret)
@@ -856,7 +861,7 @@ static struct kernfs_node *kernfs_find_ns(struct kernfs_node *parent,
 
 	if (has_ns != (bool)ns) {
 		WARN(1, KERN_WARNING "kernfs: ns %s in '%s' for '%s'\n",
-		     has_ns ? "required" : "invalid", parent->name, name);
+		     has_ns ? "required" : "invalid", kernfs_rcu_name(parent), name);
 		return NULL;
 	}
 
@@ -1135,8 +1140,6 @@ static int kernfs_dop_revalidate(struct inode *dir, const struct qstr *name,
 
 	/* Negative hashed dentry? */
 	if (d_really_is_negative(dentry)) {
-		struct kernfs_node *parent;
-
 		/* If the kernfs parent node has changed discard and
 		 * proceed to ->lookup.
 		 *
@@ -1184,7 +1187,7 @@ static int kernfs_dop_revalidate(struct inode *dir, const struct qstr *name,
 		goto out_bad;
 
 	/* The kernfs node has been renamed */
-	if (strcmp(dentry->d_name.name, kn->name) != 0)
+	if (strcmp(dentry->d_name.name, kernfs_rcu_name(kn)) != 0)
 		goto out_bad;
 
 	/* The kernfs node has been moved to a different namespace */
@@ -1478,7 +1481,7 @@ static void __kernfs_remove(struct kernfs_node *kn)
 	if (kernfs_parent(kn) && RB_EMPTY_NODE(&kn->rb))
 		return;
 
-	pr_debug("kernfs %s: removing\n", kn->name);
+	pr_debug("kernfs %s: removing\n", kernfs_rcu_name(kn));
 
 	/* prevent new usage by marking all nodes removing and deactivating */
 	pos = NULL;
@@ -1734,7 +1737,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 {
 	struct kernfs_node *old_parent;
 	struct kernfs_root *root;
-	const char *old_name = NULL;
+	const char *old_name;
 	int error;
 
 	/* can't move or rename root */
@@ -1757,8 +1760,11 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	}
 
 	error = 0;
+	old_name = kernfs_rcu_name(kn);
+	if (!new_name)
+		new_name = old_name;
 	if ((old_parent == new_parent) && (kn->ns == new_ns) &&
-	    (strcmp(kn->name, new_name) == 0))
+	    (strcmp(old_name, new_name) == 0))
 		goto out;	/* nothing to rename */
 
 	error = -EEXIST;
@@ -1766,7 +1772,7 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 		goto out;
 
 	/* rename kernfs_node */
-	if (strcmp(kn->name, new_name) != 0) {
+	if (strcmp(old_name, new_name) != 0) {
 		error = -ENOMEM;
 		new_name = kstrdup_const(new_name, GFP_KERNEL);
 		if (!new_name)
@@ -1779,27 +1785,32 @@ int kernfs_rename_ns(struct kernfs_node *kn, struct kernfs_node *new_parent,
 	 * Move to the appropriate place in the appropriate directories rbtree.
 	 */
 	kernfs_unlink_sibling(kn);
-	kernfs_get(new_parent);
 
-	/* rename_lock protects ->parent and ->name accessors */
-	write_lock_irq(&kernfs_rename_lock);
+	/* rename_lock protects ->parent accessors */
+	if (old_parent != new_parent) {
+		kernfs_get(new_parent);
+		write_lock_irq(&kernfs_rename_lock);
 
-	old_parent = kernfs_parent(kn);
-	rcu_assign_pointer(kn->__parent, new_parent);
+		rcu_assign_pointer(kn->__parent, new_parent);
 
-	kn->ns = new_ns;
-	if (new_name) {
-		old_name = kn->name;
-		kn->name = new_name;
+		kn->ns = new_ns;
+		if (new_name)
+			rcu_assign_pointer(kn->name, new_name);
+
+		write_unlock_irq(&kernfs_rename_lock);
+		kernfs_put(old_parent);
+	} else {
+		/* name assignment is RCU protected, parent is the same */
+		kn->ns = new_ns;
+		if (new_name)
+			rcu_assign_pointer(kn->name, new_name);
 	}
 
-	write_unlock_irq(&kernfs_rename_lock);
-
-	kn->hash = kernfs_name_hash(kn->name, kn->ns);
+	kn->hash = kernfs_name_hash(new_name ?: old_name, kn->ns);
 	kernfs_link_sibling(kn);
 
-	kernfs_put(old_parent);
-	kfree_const(old_name);
+	if (new_name && !is_kernel_rodata((unsigned long)old_name))
+		kfree_rcu_mightsleep(old_name);
 
 	error = 0;
  out:
@@ -1884,7 +1895,7 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 	for (pos = kernfs_dir_pos(ns, parent, ctx->pos, pos);
 	     pos;
 	     pos = kernfs_dir_next_pos(ns, parent, ctx->pos, pos)) {
-		const char *name = pos->name;
+		const char *name = kernfs_rcu_name(pos);
 		unsigned int type = fs_umode_to_dtype(pos->mode);
 		int len = strlen(name);
 		ino_t ino = kernfs_ino(pos);
