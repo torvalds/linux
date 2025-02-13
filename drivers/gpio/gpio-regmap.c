@@ -233,9 +233,6 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->parent = config->parent;
 	gpio->driver_data = config->drvdata;
 	gpio->regmap = config->regmap;
-	gpio->ngpio_per_reg = config->ngpio_per_reg;
-	gpio->reg_stride = config->reg_stride;
-	gpio->reg_mask_xlate = config->reg_mask_xlate;
 	gpio->reg_dat_base = config->reg_dat_base;
 	gpio->reg_set_base = config->reg_set_base;
 	gpio->reg_clr_base = config->reg_clr_base;
@@ -243,13 +240,16 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->reg_dir_out_base = config->reg_dir_out_base;
 
 	/* if not set, assume there is only one register */
+	gpio->ngpio_per_reg = config->ngpio_per_reg;
 	if (!gpio->ngpio_per_reg)
 		gpio->ngpio_per_reg = config->ngpio;
 
 	/* if not set, assume they are consecutive */
+	gpio->reg_stride = config->reg_stride;
 	if (!gpio->reg_stride)
 		gpio->reg_stride = 1;
 
+	gpio->reg_mask_xlate = config->reg_mask_xlate;
 	if (!gpio->reg_mask_xlate)
 		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
 
