@@ -600,37 +600,6 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 		intel_wait_for_pipe_off(old_crtc_state);
 }
 
-/*
- * Convert the x/y offsets into a linear offset.
- * Only valid with 0/180 degree rotation, which is fine since linear
- * offset is only used with linear buffers on pre-hsw and tiled buffers
- * with gen2/3, and 90/270 degree rotations isn't supported on any of them.
- */
-u32 intel_fb_xy_to_linear(int x, int y,
-			  const struct intel_plane_state *state,
-			  int color_plane)
-{
-	const struct drm_framebuffer *fb = state->hw.fb;
-	unsigned int cpp = fb->format->cpp[color_plane];
-	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
-
-	return y * pitch + x * cpp;
-}
-
-/*
- * Add the x/y offsets derived from fb->offsets[] to the user
- * specified plane src x/y offsets. The resulting x/y offsets
- * specify the start of scanout from the beginning of the gtt mapping.
- */
-void intel_add_fb_offsets(int *x, int *y,
-			  const struct intel_plane_state *state,
-			  int color_plane)
-
-{
-	*x += state->view.color_plane[color_plane].x;
-	*y += state->view.color_plane[color_plane].y;
-}
-
 u32 intel_plane_fb_max_stride(struct drm_device *drm,
 			      u32 pixel_format, u64 modifier)
 {

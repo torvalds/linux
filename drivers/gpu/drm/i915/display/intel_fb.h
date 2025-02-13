@@ -93,6 +93,12 @@ unsigned int intel_fb_view_vtd_guard(const struct drm_framebuffer *fb,
 				     unsigned int rotation);
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 
+unsigned int intel_fb_xy_to_linear(int x, int y,
+				   const struct intel_plane_state *state,
+				   int plane);
+void intel_add_fb_offsets(int *x, int *y,
+			  const struct intel_plane_state *state, int plane);
+
 int intel_framebuffer_init(struct intel_framebuffer *ifb,
 			   struct drm_gem_object *obj,
 			   struct drm_mode_fb_cmd2 *mode_cmd);

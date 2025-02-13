@@ -458,11 +458,6 @@ int vlv_get_cck_clock(struct drm_i915_private *dev_priv,
 int vlv_get_cck_clock_hpll(struct drm_i915_private *dev_priv,
 			   const char *name, u32 reg);
 void intel_init_display_hooks(struct drm_i915_private *dev_priv);
-unsigned int intel_fb_xy_to_linear(int x, int y,
-				   const struct intel_plane_state *state,
-				   int plane);
-void intel_add_fb_offsets(int *x, int *y,
-			  const struct intel_plane_state *state, int plane);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
