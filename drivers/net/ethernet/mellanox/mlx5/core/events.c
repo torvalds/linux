@@ -167,7 +167,7 @@ static int temp_warn(struct notifier_block *nb, unsigned long type, void *data)
 
 	if (net_ratelimit())
 		mlx5_core_warn(events->dev,
-			       "High temperature on sensors with bit set %llx %llx",
+			       "High temperature on sensors with bit set %#llx %#llx",
 			       value_msb, value_lsb);
 
 	return NOTIFY_OK;
