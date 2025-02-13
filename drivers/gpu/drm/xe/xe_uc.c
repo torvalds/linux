@@ -289,19 +289,6 @@ int xe_uc_suspend(struct xe_uc *uc)
 }
 
 /**
- * xe_uc_remove() - Clean up the UC structures before driver removal
- * @uc: the UC object
- *
- * This function should only act on objects/structures that must be cleaned
- * before the driver removal callback is complete and therefore can't be
- * deferred to a drmm action.
- */
-void xe_uc_remove(struct xe_uc *uc)
-{
-	xe_gsc_remove(&uc->gsc);
-}
-
-/**
  * xe_uc_declare_wedged() - Declare UC wedged
  * @uc: the UC object
  *
