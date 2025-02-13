@@ -148,7 +148,7 @@ static struct dentry *kernfs_get_parent_dentry(struct dentry *child)
 	struct kernfs_root *root = kernfs_root(kn);
 
 	guard(rwsem_read)(&root->kernfs_rwsem);
-	return d_obtain_alias(kernfs_get_inode(child->d_sb, kn->parent));
+	return d_obtain_alias(kernfs_get_inode(child->d_sb, kernfs_parent(kn)));
 }
 
 static const struct export_operations kernfs_export_ops = {
@@ -188,10 +188,10 @@ static struct kernfs_node *find_next_ancestor(struct kernfs_node *child,
 		return NULL;
 	}
 
-	while (child->parent != parent) {
-		if (!child->parent)
+	while (kernfs_parent(child) != parent) {
+		child = kernfs_parent(child);
+		if (!child)
 			return NULL;
-		child = child->parent;
 	}
 
 	return child;
@@ -216,7 +216,7 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	dentry = dget(sb->s_root);
 
 	/* Check if this is the root kernfs_node */
-	if (!kn->parent)
+	if (!rcu_access_pointer(kn->__parent))
 		return dentry;
 
 	root = kernfs_root(kn);
