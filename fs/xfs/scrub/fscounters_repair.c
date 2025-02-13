@@ -74,10 +74,12 @@ xrep_fscounters(
 	 * track of the delalloc reservations separately, as they are are
 	 * subtracted from m_frextents, but not included in sb_frextents.
 	 */
-	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
-		fsc->frextents - fsc->frextents_delayed);
-	if (!xfs_has_rtgroups(mp))
-		mp->m_sb.sb_frextents = fsc->frextents;
+	if (!xfs_has_zoned(mp)) {
+		xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
+				fsc->frextents - fsc->frextents_delayed);
+		if (!xfs_has_rtgroups(mp))
+			mp->m_sb.sb_frextents = fsc->frextents;
+	}
 
 	return 0;
 }

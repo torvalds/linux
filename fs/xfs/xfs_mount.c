@@ -553,7 +553,7 @@ xfs_check_summary_counts(
 	 * If we're mounting the rt volume after recovering the log, recompute
 	 * frextents from the rtbitmap file to fix the inconsistency.
 	 */
-	if (xfs_has_realtime(mp) && !xfs_is_clean(mp)) {
+	if (xfs_has_realtime(mp) && !xfs_has_zoned(mp) && !xfs_is_clean(mp)) {
 		error = xfs_rtalloc_reinit_frextents(mp);
 		if (error)
 			return error;

@@ -1131,7 +1131,9 @@ xfs_reinit_percpu_counters(
 	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
 	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
 	xfs_set_freecounter(mp, XC_FREE_BLOCKS, mp->m_sb.sb_fdblocks);
-	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS, mp->m_sb.sb_frextents);
+	if (!xfs_has_zoned(mp))
+		xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
+				mp->m_sb.sb_frextents);
 }
 
 static void
