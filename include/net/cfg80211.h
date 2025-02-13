@@ -2045,9 +2045,6 @@ struct cfg80211_tid_stats {
  * @assoc_at: bootime (ns) of the last association
  * @rx_bytes: bytes (size of MPDUs) received from this station
  * @tx_bytes: bytes (size of MPDUs) transmitted to this station
- * @llid: mesh local link id
- * @plid: mesh peer link id
- * @plink_state: mesh peer link state
  * @signal: The signal strength, type depends on the wiphy's signal_type.
  *	For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
  * @signal_avg: Average signal strength, type depends on the wiphy's signal_type.
@@ -2067,14 +2064,20 @@ struct cfg80211_tid_stats {
  *	This number should increase every time the list of stations
  *	changes, i.e. when a station is added or removed, so that
  *	userspace can tell whether it got a consistent snapshot.
+ * @beacon_loss_count: Number of times beacon loss event has triggered.
  * @assoc_req_ies: IEs from (Re)Association Request.
  *	This is used only when in AP mode with drivers that do not use
  *	user space MLME/SME implementation. The information is provided for
  *	the cfg80211_new_sta() calls to notify user space of the IEs.
  * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
  * @sta_flags: station flags mask & values
- * @beacon_loss_count: Number of times beacon loss event has triggered.
  * @t_offset: Time offset of the station relative to this host.
+ * @llid: mesh local link id
+ * @plid: mesh peer link id
+ * @plink_state: mesh peer link state
+ * @connected_to_gate: true if mesh STA has a path to mesh gate
+ * @connected_to_as: true if mesh STA has a path to authentication server
+ * @airtime_link_metric: mesh airtime link metric.
  * @local_pm: local mesh STA power save mode
  * @peer_pm: peer mesh STA power save mode
  * @nonpeer_pm: non-peer mesh STA power save mode
@@ -2083,7 +2086,6 @@ struct cfg80211_tid_stats {
  * @rx_beacon: number of beacons received from this peer
  * @rx_beacon_signal_avg: signal strength average (in dBm) for beacons received
  *	from this peer
- * @connected_to_gate: true if mesh STA has a path to mesh gate
  * @rx_duration: aggregate PPDU duration(usecs) for all the frames from a peer
  * @tx_duration: aggregate PPDU duration(usecs) for all the frames to a peer
  * @airtime_weight: current airtime scheduling weight
@@ -2097,8 +2099,6 @@ struct cfg80211_tid_stats {
  * @fcs_err_count: number of packets (MPDUs) received from this station with
  *	an FCS error. This counter should be incremented only when TA of the
  *	received packet with an FCS error matches the peer MAC address.
- * @airtime_link_metric: mesh airtime link metric.
- * @connected_to_as: true if mesh STA has a path to authentication server
  * @mlo_params_valid: Indicates @assoc_link_id and @mld_addr fields are filled
  *	by driver. Drivers use this only in cfg80211_new_sta() calls when AP
  *	MLD's MLME/SME is offload to driver. Drivers won't fill this
@@ -2125,9 +2125,6 @@ struct station_info {
 	u64 assoc_at;
 	u64 rx_bytes;
 	u64 tx_bytes;
-	u16 llid;
-	u16 plid;
-	u8 plink_state;
 	s8 signal;
 	s8 signal_avg;
 
@@ -2147,35 +2144,37 @@ struct station_info {
 
 	int generation;
 
+	u32 beacon_loss_count;
+
 	const u8 *assoc_req_ies;
 	size_t assoc_req_ies_len;
 
-	u32 beacon_loss_count;
 	s64 t_offset;
+	u16 llid;
+	u16 plid;
+	u8 plink_state;
+	u8 connected_to_gate;
+	u8 connected_to_as;
+	u32 airtime_link_metric;
 	enum nl80211_mesh_power_mode local_pm;
 	enum nl80211_mesh_power_mode peer_pm;
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	u32 expected_throughput;
 
+	u16 airtime_weight;
+
+	s8 ack_signal;
+	s8 avg_ack_signal;
+	struct cfg80211_tid_stats *pertid;
+
 	u64 tx_duration;
 	u64 rx_duration;
 	u64 rx_beacon;
 	u8 rx_beacon_signal_avg;
-	u8 connected_to_gate;
-
-	struct cfg80211_tid_stats *pertid;
-	s8 ack_signal;
-	s8 avg_ack_signal;
-
-	u16 airtime_weight;
 
 	u32 rx_mpdu_count;
 	u32 fcs_err_count;
-
-	u32 airtime_link_metric;
-
-	u8 connected_to_as;
 
 	bool mlo_params_valid;
 	u8 assoc_link_id;
