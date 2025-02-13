@@ -162,27 +162,29 @@ err_opregion:
 	return err;
 }
 
+static void xe_display_fini(void *arg)
+{
+	struct xe_device *xe = arg;
+	struct intel_display *display = &xe->display;
+
+	intel_hpd_poll_fini(xe);
+	intel_hdcp_component_fini(display);
+	intel_audio_deinit(xe);
+}
+
 int xe_display_init(struct xe_device *xe)
 {
 	struct intel_display *display = &xe->display;
+	int err;
 
 	if (!xe->info.probe_display)
 		return 0;
 
-	return intel_display_driver_probe(display);
-}
+	err = intel_display_driver_probe(display);
+	if (err)
+		return err;
 
-void xe_display_fini(struct xe_device *xe)
-{
-	struct intel_display *display = &xe->display;
-
-	if (!xe->info.probe_display)
-		return;
-
-	intel_hpd_poll_fini(xe);
-
-	intel_hdcp_component_fini(display);
-	intel_audio_deinit(xe);
+	return xe_device_add_action_or_reset(xe, xe_display_fini, xe);
 }
 
 void xe_display_register(struct xe_device *xe)

@@ -741,6 +741,7 @@ static int probe_has_flat_ccs(struct xe_device *xe)
 			"Flat CCS has been disabled in bios, May lead to performance impact");
 
 	xe_force_wake_put(gt_to_fw(gt), fw_ref);
+
 	return 0;
 }
 
@@ -812,22 +813,26 @@ int xe_device_probe(struct xe_device *xe)
 	err = xe_devcoredump_init(xe);
 	if (err)
 		return err;
+
+	/*
+	 * From here on, if a step fails, make sure a Driver-FLR is triggereed
+	 */
 	err = devm_add_action_or_reset(xe->drm.dev, xe_driver_flr_fini, xe);
 	if (err)
 		return err;
 
 	err = probe_has_flat_ccs(xe);
 	if (err)
-		goto err;
+		return err;
 
 	err = xe_vram_probe(xe);
 	if (err)
-		goto err;
+		return err;
 
 	for_each_tile(tile, xe, id) {
 		err = xe_tile_init_noalloc(tile);
 		if (err)
-			goto err;
+			return err;
 	}
 
 	/* Allocate and map stolen after potential VRAM resize */
@@ -841,17 +846,17 @@ int xe_device_probe(struct xe_device *xe)
 	 */
 	err = xe_display_init_early(xe);
 	if (err)
-		goto err;
+		return err;
 
 	for_each_tile(tile, xe, id) {
 		err = xe_tile_init(tile);
 		if (err)
-			goto err;
+			return err;
 	}
 
 	err = xe_irq_install(xe);
 	if (err)
-		goto err;
+		return err;
 
 	for_each_gt(gt, xe, id) {
 		last_gt = id;
@@ -913,8 +918,6 @@ err_fini_gt:
 			break;
 	}
 
-err:
-	xe_display_fini(xe);
 	return err;
 }
 
@@ -989,8 +992,6 @@ void xe_device_remove(struct xe_device *xe)
 	xe_oa_unregister(xe);
 
 	xe_device_remove_display(xe);
-
-	xe_display_fini(xe);
 
 	xe_oa_fini(xe);
 
