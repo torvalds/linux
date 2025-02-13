@@ -84,8 +84,17 @@ static inline void i2c_acpi_remove_space_handler(struct i2c_adapter *adapter) { 
 
 #ifdef CONFIG_OF
 void of_i2c_register_devices(struct i2c_adapter *adap);
+const struct of_device_id *i2c_of_match_device(const struct of_device_id *matches,
+					       struct i2c_client *client);
+
 #else
 static inline void of_i2c_register_devices(struct i2c_adapter *adap) { }
+static inline
+const struct of_device_id *i2c_of_match_device(const struct of_device_id *matches,
+					       struct i2c_client *client)
+{
+	return NULL;
+}
 #endif
 extern struct notifier_block i2c_of_notifier;
 
