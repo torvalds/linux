@@ -305,9 +305,10 @@ static long hist_time(unsigned long htime)
 	return htime;
 }
 
-static void he_stat__add_period(struct he_stat *he_stat, u64 period)
+static void he_stat__add_period(struct he_stat *he_stat, u64 period, u64 latency)
 {
 	he_stat->period		+= period;
+	he_stat->latency	+= latency;
 	he_stat->nr_events	+= 1;
 }
 
@@ -322,6 +323,7 @@ static void he_stat__add_stat(struct he_stat *dest, struct he_stat *src)
 	dest->weight2		+= src->weight2;
 	dest->weight3		+= src->weight3;
 	dest->nr_events		+= src->nr_events;
+	dest->latency		+= src->latency;
 }
 
 static void he_stat__decay(struct he_stat *he_stat)
@@ -331,6 +333,7 @@ static void he_stat__decay(struct he_stat *he_stat)
 	he_stat->weight1 = (he_stat->weight1 * 7) / 8;
 	he_stat->weight2 = (he_stat->weight2 * 7) / 8;
 	he_stat->weight3 = (he_stat->weight3 * 7) / 8;
+	he_stat->latency = (he_stat->latency * 7) / 8;
 }
 
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he);
@@ -338,7 +341,7 @@ static void hists__delete_entry(struct hists *hists, struct hist_entry *he);
 static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 {
 	u64 prev_period = he->stat.period;
-	u64 diff;
+	u64 prev_latency = he->stat.latency;
 
 	if (prev_period == 0)
 		return true;
@@ -348,12 +351,16 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 		he_stat__decay(he->stat_acc);
 	decay_callchain(he->callchain);
 
-	diff = prev_period - he->stat.period;
-
 	if (!he->depth) {
-		hists->stats.total_period -= diff;
-		if (!he->filtered)
-			hists->stats.total_non_filtered_period -= diff;
+		u64 period_diff = prev_period - he->stat.period;
+		u64 latency_diff = prev_latency - he->stat.latency;
+
+		hists->stats.total_period -= period_diff;
+		hists->stats.total_latency -= latency_diff;
+		if (!he->filtered) {
+			hists->stats.total_non_filtered_period -= period_diff;
+			hists->stats.total_non_filtered_latency -= latency_diff;
+		}
 	}
 
 	if (!he->leaf) {
@@ -368,7 +375,7 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 		}
 	}
 
-	return he->stat.period == 0;
+	return he->stat.period == 0 && he->stat.latency == 0;
 }
 
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
@@ -594,14 +601,17 @@ static filter_mask_t symbol__parent_filter(const struct symbol *parent)
 	return 0;
 }
 
-static void hist_entry__add_callchain_period(struct hist_entry *he, u64 period)
+static void hist_entry__add_callchain_period(struct hist_entry *he, u64 period, u64 latency)
 {
 	if (!hist_entry__has_callchains(he) || !symbol_conf.use_callchain)
 		return;
 
 	he->hists->callchain_period += period;
-	if (!he->filtered)
+	he->hists->callchain_latency += latency;
+	if (!he->filtered) {
 		he->hists->callchain_non_filtered_period += period;
+		he->hists->callchain_non_filtered_latency += latency;
+	}
 }
 
 static struct hist_entry *hists__findnew_entry(struct hists *hists,
@@ -614,6 +624,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 	struct hist_entry *he;
 	int64_t cmp;
 	u64 period = entry->stat.period;
+	u64 latency = entry->stat.latency;
 	bool leftmost = true;
 
 	p = &hists->entries_in->rb_root.rb_node;
@@ -632,10 +643,10 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		if (!cmp) {
 			if (sample_self) {
 				he_stat__add_stat(&he->stat, &entry->stat);
-				hist_entry__add_callchain_period(he, period);
+				hist_entry__add_callchain_period(he, period, latency);
 			}
 			if (symbol_conf.cumulate_callchain)
-				he_stat__add_period(he->stat_acc, period);
+				he_stat__add_period(he->stat_acc, period, latency);
 
 			block_info__delete(entry->block_info);
 
@@ -672,7 +683,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		return NULL;
 
 	if (sample_self)
-		hist_entry__add_callchain_period(he, period);
+		hist_entry__add_callchain_period(he, period, latency);
 	hists->nr_entries++;
 
 	rb_link_node(&he->rb_node_in, parent, p);
@@ -751,6 +762,7 @@ __hists__add_entry(struct hists *hists,
 			.weight1 = sample->weight,
 			.weight2 = sample->ins_lat,
 			.weight3 = sample->p_stage_cyc,
+			.latency = al->latency,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent) | al->filtered,
@@ -1768,12 +1780,14 @@ static void hists__reset_filter_stats(struct hists *hists)
 {
 	hists->nr_non_filtered_entries = 0;
 	hists->stats.total_non_filtered_period = 0;
+	hists->stats.total_non_filtered_latency = 0;
 }
 
 void hists__reset_stats(struct hists *hists)
 {
 	hists->nr_entries = 0;
 	hists->stats.total_period = 0;
+	hists->stats.total_latency = 0;
 
 	hists__reset_filter_stats(hists);
 }
@@ -1782,6 +1796,7 @@ static void hists__inc_filter_stats(struct hists *hists, struct hist_entry *h)
 {
 	hists->nr_non_filtered_entries++;
 	hists->stats.total_non_filtered_period += h->stat.period;
+	hists->stats.total_non_filtered_latency += h->stat.latency;
 }
 
 void hists__inc_stats(struct hists *hists, struct hist_entry *h)
@@ -1791,6 +1806,7 @@ void hists__inc_stats(struct hists *hists, struct hist_entry *h)
 
 	hists->nr_entries++;
 	hists->stats.total_period += h->stat.period;
+	hists->stats.total_latency += h->stat.latency;
 }
 
 static void hierarchy_recalc_total_periods(struct hists *hists)
@@ -1802,6 +1818,8 @@ static void hierarchy_recalc_total_periods(struct hists *hists)
 
 	hists->stats.total_period = 0;
 	hists->stats.total_non_filtered_period = 0;
+	hists->stats.total_latency = 0;
+	hists->stats.total_non_filtered_latency = 0;
 
 	/*
 	 * recalculate total period using top-level entries only
@@ -1813,8 +1831,11 @@ static void hierarchy_recalc_total_periods(struct hists *hists)
 		node = rb_next(node);
 
 		hists->stats.total_period += he->stat.period;
-		if (!he->filtered)
+		hists->stats.total_latency += he->stat.latency;
+		if (!he->filtered) {
 			hists->stats.total_non_filtered_period += he->stat.period;
+			hists->stats.total_non_filtered_latency += he->stat.latency;
+		}
 	}
 }
 
@@ -2789,6 +2810,12 @@ u64 hists__total_period(struct hists *hists)
 {
 	return symbol_conf.filter_relative ? hists->stats.total_non_filtered_period :
 		hists->stats.total_period;
+}
+
+u64 hists__total_latency(struct hists *hists)
+{
+	return symbol_conf.filter_relative ? hists->stats.total_non_filtered_latency :
+		hists->stats.total_latency;
 }
 
 int __hists__scnprintf_title(struct hists *hists, char *bf, size_t size, bool show_freq)

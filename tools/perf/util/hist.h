@@ -109,6 +109,8 @@ struct hists {
 	u64			nr_non_filtered_entries;
 	u64			callchain_period;
 	u64			callchain_non_filtered_period;
+	u64			callchain_latency;
+	u64			callchain_non_filtered_latency;
 	struct thread		*thread_filter;
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
@@ -170,6 +172,12 @@ struct res_sample {
 
 struct he_stat {
 	u64			period;
+	/*
+	 * Period re-scaled from CPU time to wall-clock time (divided by the
+	 * parallelism at the time of the sample). This represents effect of
+	 * the event on latency rather than CPU consumption.
+	 */
+	u64			latency;
 	u64			period_sys;
 	u64			period_us;
 	u64			period_guest_sys;
@@ -374,6 +382,7 @@ void hists__output_recalc_col_len(struct hists *hists, int max_rows);
 struct hist_entry *hists__get_entry(struct hists *hists, int idx);
 
 u64 hists__total_period(struct hists *hists);
+u64 hists__total_latency(struct hists *hists);
 void hists__reset_stats(struct hists *hists);
 void hists__inc_stats(struct hists *hists, struct hist_entry *h);
 void hists__inc_nr_events(struct hists *hists);
@@ -555,11 +564,13 @@ extern struct perf_hpp_fmt perf_hpp__format[];
 enum {
 	/* Matches perf_hpp__format array. */
 	PERF_HPP__OVERHEAD,
+	PERF_HPP__LATENCY,
 	PERF_HPP__OVERHEAD_SYS,
 	PERF_HPP__OVERHEAD_US,
 	PERF_HPP__OVERHEAD_GUEST_SYS,
 	PERF_HPP__OVERHEAD_GUEST_US,
 	PERF_HPP__OVERHEAD_ACC,
+	PERF_HPP__LATENCY_ACC,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
 	PERF_HPP__WEIGHT1,
@@ -615,6 +626,7 @@ void hists__reset_column_width(struct hists *hists);
 enum perf_hpp_fmt_type {
 	PERF_HPP_FMT_TYPE__RAW,
 	PERF_HPP_FMT_TYPE__PERCENT,
+	PERF_HPP_FMT_TYPE__LATENCY,
 	PERF_HPP_FMT_TYPE__AVERAGE,
 };
 

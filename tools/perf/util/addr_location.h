@@ -23,6 +23,8 @@ struct addr_location {
 	s32	      socket;
 	/* Same as machine.parallelism but within [1, nr_cpus]. */
 	int	      parallelism;
+	/* See he_stat.latency. */
+	u64	      latency;
 };
 
 void addr_location__init(struct addr_location *al);

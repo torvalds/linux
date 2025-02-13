@@ -2628,11 +2628,13 @@ struct hpp_dimension {
 
 static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__OVERHEAD, "overhead"),
+	DIM(PERF_HPP__LATENCY, "latency"),
 	DIM(PERF_HPP__OVERHEAD_SYS, "overhead_sys"),
 	DIM(PERF_HPP__OVERHEAD_US, "overhead_us"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_SYS, "overhead_guest_sys"),
 	DIM(PERF_HPP__OVERHEAD_GUEST_US, "overhead_guest_us"),
 	DIM(PERF_HPP__OVERHEAD_ACC, "overhead_children"),
+	DIM(PERF_HPP__LATENCY_ACC, "latency_children"),
 	DIM(PERF_HPP__SAMPLES, "sample"),
 	DIM(PERF_HPP__PERIOD, "period"),
 	DIM(PERF_HPP__WEIGHT1, "weight1"),
