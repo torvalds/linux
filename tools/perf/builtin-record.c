@@ -161,6 +161,7 @@ struct record {
 	struct evlist		*sb_evlist;
 	pthread_t		thread_id;
 	int			realtime_prio;
+	bool			latency;
 	bool			switch_output_event_set;
 	bool			no_buildid;
 	bool			no_buildid_set;
@@ -3373,6 +3374,9 @@ static struct option __record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
+	OPT_BOOLEAN(0, "latency", &record.latency,
+		    "Enable data collection for latency profiling.\n"
+		    "\t\t\t  Use perf report --latency for latency-centric profile."),
 	OPT_CALLBACK_NOOPT(0, "exclude-perf", &record.evlist,
 			   NULL, "don't record events from perf itself",
 			   exclude_perf),
@@ -4017,6 +4021,22 @@ int cmd_record(int argc, const char **argv)
 		usage_with_options_msg(record_usage, record_options,
 			"cgroup monitoring only available in system-wide mode");
 
+	}
+
+	if (record.latency) {
+		/*
+		 * There is no fundamental reason why latency profiling
+		 * can't work for system-wide mode, but exact semantics
+		 * and details are to be defined.
+		 * See the following thread for details:
+		 * https://lore.kernel.org/all/Z4XDJyvjiie3howF@google.com/
+		 */
+		if (record.opts.target.system_wide) {
+			pr_err("Failed: latency profiling is not supported with system-wide collection.\n");
+			err = -EINVAL;
+			goto out_opts;
+		}
+		record.opts.record_switch_events = true;
 	}
 
 	if (rec->buildid_mmap) {

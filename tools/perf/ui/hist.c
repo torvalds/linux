@@ -631,28 +631,48 @@ void perf_hpp__init(void)
 	if (is_strict_order(field_order))
 		return;
 
+	/*
+	 * Overhead and latency columns are added in setup_overhead(),
+	 * so they are added implicitly here only if they were added
+	 * by setup_overhead() before (have was_taken flag set).
+	 * This is required because setup_overhead() has more complex
+	 * logic, in particular it does not add "overhead" if user
+	 * specified "latency" in sort order, and vise versa.
+	 */
 	if (symbol_conf.cumulate_callchain) {
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_ACC);
+		/*
+		 * Addition of fields is idempotent, so we add latency
+		 * column twice to get desired order with simpler logic.
+		 */
+		if (symbol_conf.prefer_latency)
+			hpp_dimension__add_output(PERF_HPP__LATENCY_ACC, true);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_ACC, true);
+		if (symbol_conf.enable_latency)
+			hpp_dimension__add_output(PERF_HPP__LATENCY_ACC, true);
 		perf_hpp__format[PERF_HPP__OVERHEAD].name = "Self";
 	}
 
-	hpp_dimension__add_output(PERF_HPP__OVERHEAD);
+	if (symbol_conf.prefer_latency)
+		hpp_dimension__add_output(PERF_HPP__LATENCY, true);
+	hpp_dimension__add_output(PERF_HPP__OVERHEAD, true);
+	if (symbol_conf.enable_latency)
+		hpp_dimension__add_output(PERF_HPP__LATENCY, true);
 
 	if (symbol_conf.show_cpu_utilization) {
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_SYS);
-		hpp_dimension__add_output(PERF_HPP__OVERHEAD_US);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_SYS, false);
+		hpp_dimension__add_output(PERF_HPP__OVERHEAD_US, false);
 
 		if (perf_guest) {
-			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_SYS);
-			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_US);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_SYS, false);
+			hpp_dimension__add_output(PERF_HPP__OVERHEAD_GUEST_US, false);
 		}
 	}
 
 	if (symbol_conf.show_nr_samples)
-		hpp_dimension__add_output(PERF_HPP__SAMPLES);
+		hpp_dimension__add_output(PERF_HPP__SAMPLES, false);
 
 	if (symbol_conf.show_total_period)
-		hpp_dimension__add_output(PERF_HPP__PERIOD);
+		hpp_dimension__add_output(PERF_HPP__PERIOD, false);
 }
 
 void perf_hpp_list__column_register(struct perf_hpp_list *list,
@@ -698,6 +718,24 @@ void perf_hpp__cancel_cumulate(void)
 
 		if (fmt_equal(ovh, fmt))
 			fmt->name = "Overhead";
+	}
+}
+
+void perf_hpp__cancel_latency(void)
+{
+	struct perf_hpp_fmt *fmt, *lat, *acc, *tmp;
+
+	if (is_strict_order(field_order))
+		return;
+	if (sort_order && strstr(sort_order, "latency"))
+		return;
+
+	lat = &perf_hpp__format[PERF_HPP__LATENCY];
+	acc = &perf_hpp__format[PERF_HPP__LATENCY_ACC];
+
+	perf_hpp_list__for_each_format_safe(&perf_hpp_list, fmt, tmp) {
+		if (fmt_equal(lat, fmt) || fmt_equal(acc, fmt))
+			perf_hpp__column_unregister(fmt);
 	}
 }
 

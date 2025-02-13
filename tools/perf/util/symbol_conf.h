@@ -49,7 +49,9 @@ struct symbol_conf {
 			keep_exited_threads,
 			annotate_data_member,
 			annotate_data_sample,
-			skip_empty;
+			skip_empty,
+			enable_latency,
+			prefer_latency;
 	const char	*vmlinux_name,
 			*kallsyms_name,
 			*source_prefix,

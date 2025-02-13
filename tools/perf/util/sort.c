@@ -2622,6 +2622,7 @@ struct hpp_dimension {
 	const char		*name;
 	struct perf_hpp_fmt	*fmt;
 	int			taken;
+	int			was_taken;
 };
 
 #define DIM(d, n) { .name = n, .fmt = &perf_hpp__format[d], }
@@ -3513,6 +3514,7 @@ static int __hpp_dimension__add(struct hpp_dimension *hd,
 		return -1;
 
 	hd->taken = 1;
+	hd->was_taken = 1;
 	perf_hpp_list__register_sort_field(list, fmt);
 	return 0;
 }
@@ -3547,10 +3549,15 @@ static int __hpp_dimension__add_output(struct perf_hpp_list *list,
 	return 0;
 }
 
-int hpp_dimension__add_output(unsigned col)
+int hpp_dimension__add_output(unsigned col, bool implicit)
 {
+	struct hpp_dimension *hd;
+
 	BUG_ON(col >= PERF_HPP__MAX_INDEX);
-	return __hpp_dimension__add_output(&perf_hpp_list, &hpp_sort_dimensions[col]);
+	hd = &hpp_sort_dimensions[col];
+	if (implicit && !hd->was_taken)
+		return 0;
+	return __hpp_dimension__add_output(&perf_hpp_list, hd);
 }
 
 int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
@@ -3809,10 +3816,24 @@ static char *setup_overhead(char *keys)
 	if (sort__mode == SORT_MODE__DIFF)
 		return keys;
 
-	keys = prefix_if_not_in("overhead", keys);
-
-	if (symbol_conf.cumulate_callchain)
-		keys = prefix_if_not_in("overhead_children", keys);
+	if (symbol_conf.prefer_latency) {
+		keys = prefix_if_not_in("overhead", keys);
+		keys = prefix_if_not_in("latency", keys);
+		if (symbol_conf.cumulate_callchain) {
+			keys = prefix_if_not_in("overhead_children", keys);
+			keys = prefix_if_not_in("latency_children", keys);
+		}
+	} else if (!keys || (!strstr(keys, "overhead") &&
+			!strstr(keys, "latency"))) {
+		if (symbol_conf.enable_latency)
+			keys = prefix_if_not_in("latency", keys);
+		keys = prefix_if_not_in("overhead", keys);
+		if (symbol_conf.cumulate_callchain) {
+			if (symbol_conf.enable_latency)
+				keys = prefix_if_not_in("latency_children", keys);
+			keys = prefix_if_not_in("overhead_children", keys);
+		}
+	}
 
 	return keys;
 }

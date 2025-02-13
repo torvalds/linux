@@ -68,6 +68,11 @@ OPTIONS
 --hide-unresolved::
         Only display entries resolved to a symbol.
 
+--latency::
+        Show latency-centric profile rather than the default
+        CPU-consumption-centric profile
+        (requires perf record --latency flag).
+
 -s::
 --sort=::
 	Sort histogram entries by given key(s) - multiple keys can be specified

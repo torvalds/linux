@@ -112,6 +112,8 @@ struct report {
 	u64			nr_entries;
 	u64			queue_size;
 	u64			total_cycles;
+	u64			total_samples;
+	u64			singlethreaded_samples;
 	int			socket_filter;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 	struct branch_type_stat	brtype_stat;
@@ -330,6 +332,10 @@ static int process_sample_event(const struct perf_tool *tool,
 				     rep->nonany_branch_mode,
 				     &rep->total_cycles, evsel);
 	}
+
+	rep->total_samples++;
+	if (al.parallelism == 1)
+		rep->singlethreaded_samples++;
 
 	ret = hist_entry_iter__add(&iter, &al, rep->max_stack, rep);
 	if (ret < 0)
@@ -1079,6 +1085,11 @@ static int __cmd_report(struct report *rep)
 		return ret;
 	}
 
+	/* Don't show Latency column for non-parallel profiles by default. */
+	if (!symbol_conf.prefer_latency && rep->total_samples &&
+		rep->singlethreaded_samples * 100 / rep->total_samples >= 99)
+		perf_hpp__cancel_latency();
+
 	evlist__check_mem_load_aux(session->evlist);
 
 	if (rep->stats_mode)
@@ -1468,6 +1479,10 @@ int cmd_report(int argc, const char **argv)
 		    "Disable raw trace ordering"),
 	OPT_BOOLEAN(0, "skip-empty", &report.skip_empty,
 		    "Do not display empty (or dummy) events in the output"),
+	OPT_BOOLEAN(0, "latency", &symbol_conf.prefer_latency,
+		    "Show latency-centric profile rather than the default\n"
+		    "\t\t\t  CPU-consumption-centric profile\n"
+		    "\t\t\t  (requires perf record --latency flag)."),
 	OPT_END()
 	};
 	struct perf_data data = {
@@ -1722,16 +1737,25 @@ repeat:
 		symbol_conf.annotate_data_sample = true;
 	}
 
+	symbol_conf.enable_latency = true;
 	if (report.disable_order || !perf_session__has_switch_events(session)) {
 		if (symbol_conf.parallelism_list_str ||
-				(sort_order && strstr(sort_order, "parallelism")) ||
-				(field_order && strstr(field_order, "parallelism"))) {
+			symbol_conf.prefer_latency ||
+			(sort_order && (strstr(sort_order, "latency") ||
+				strstr(sort_order, "parallelism"))) ||
+			(field_order && (strstr(field_order, "latency") ||
+				strstr(field_order, "parallelism")))) {
 			if (report.disable_order)
-				ui__error("Use of parallelism is incompatible with --disable-order.\n");
+				ui__error("Use of latency profile or parallelism is incompatible with --disable-order.\n");
 			else
-				ui__error("Use of parallelism requires --switch-events during record.\n");
+				ui__error("Use of latency profile or parallelism requires --latency flag during record.\n");
 			return -1;
 		}
+		/*
+		 * If user did not ask for anything related to
+		 * latency/parallelism explicitly, just don't show it.
+		 */
+		symbol_conf.enable_latency = false;
 	}
 
 	if (sort_order && strstr(sort_order, "ipc")) {
