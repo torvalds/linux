@@ -2410,6 +2410,8 @@ struct bnxt {
 	u8			max_q;
 	u8			num_tc;
 
+	u8			tph_mode;
+
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
 
