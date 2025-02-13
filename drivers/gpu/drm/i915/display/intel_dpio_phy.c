@@ -1156,3 +1156,37 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
 	vlv_dpio_put(dev_priv);
 }
+
+void vlv_wait_port_ready(struct intel_display *display,
+			 struct intel_digital_port *dig_port,
+			 unsigned int expected_mask)
+{
+	u32 port_mask;
+	i915_reg_t dpll_reg;
+
+	switch (dig_port->base.port) {
+	default:
+		MISSING_CASE(dig_port->base.port);
+		fallthrough;
+	case PORT_B:
+		port_mask = DPLL_PORTB_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		break;
+	case PORT_C:
+		port_mask = DPLL_PORTC_READY_MASK;
+		dpll_reg = DPLL(display, 0);
+		expected_mask <<= 4;
+		break;
+	case PORT_D:
+		port_mask = DPLL_PORTD_READY_MASK;
+		dpll_reg = DPIO_PHY_STATUS;
+		break;
+	}
+
+	if (intel_de_wait(display, dpll_reg, port_mask, expected_mask, 1000))
+		drm_WARN(display->drm, 1,
+			 "timed out waiting for [ENCODER:%d:%s] port ready: got 0x%x, expected 0x%x\n",
+			 dig_port->base.base.base.id, dig_port->base.base.name,
+			 intel_de_read(display, dpll_reg) & port_mask,
+			 expected_mask);
+}

@@ -486,9 +486,6 @@ bool intel_encoder_is_tc(struct intel_encoder *encoder);
 enum tc_port intel_encoder_to_tc(struct intel_encoder *encoder);
 
 int ilk_get_lanes_required(int target_clock, int link_bw, int bpp);
-void vlv_wait_port_ready(struct intel_display *display,
-			 struct intel_digital_port *dig_port,
-			 unsigned int expected_mask);
 
 bool intel_fuzzy_clock_check(int clock1, int clock2);
 
