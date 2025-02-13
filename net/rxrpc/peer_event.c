@@ -169,6 +169,13 @@ void rxrpc_input_error(struct rxrpc_local *local, struct sk_buff *skb)
 		goto out;
 	}
 
+	if ((serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6 &&
+	     serr->ee.ee_type == ICMPV6_PKT_TOOBIG &&
+	     serr->ee.ee_code == 0)) {
+		rxrpc_adjust_mtu(peer, serr->ee.ee_info);
+		goto out;
+	}
+
 	rxrpc_store_error(peer, skb);
 out:
 	rxrpc_put_peer(peer, rxrpc_peer_put_input_error);

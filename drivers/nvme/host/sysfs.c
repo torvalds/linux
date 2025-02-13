@@ -792,7 +792,7 @@ static umode_t nvme_tls_attrs_are_visible(struct kobject *kobj,
 	return a->mode;
 }
 
-const struct attribute_group nvme_tls_attrs_group = {
+static const struct attribute_group nvme_tls_attrs_group = {
 	.attrs		= nvme_tls_attrs,
 	.is_visible	= nvme_tls_attrs_are_visible,
 };

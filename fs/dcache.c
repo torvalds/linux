@@ -1700,7 +1700,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	smp_store_release(&dentry->d_name.name, dname); /* ^^^ */
 
 	dentry->d_flags = 0;
-	lockref_init(&dentry->d_lockref, 1);
+	lockref_init(&dentry->d_lockref);
 	seqcount_spinlock_init(&dentry->d_seq, &dentry->d_lock);
 	dentry->d_inode = NULL;
 	dentry->d_parent = dentry;
