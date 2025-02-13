@@ -405,6 +405,7 @@ struct sdebug_dev_info {
 	unsigned int tape_density;
 	unsigned char tape_partition;
 	unsigned char tape_nbr_partitions;
+	unsigned char tape_dce;
 	unsigned int tape_location[TAPE_MAX_PARTITIONS];
 	unsigned int tape_eop[TAPE_MAX_PARTITIONS];
 	struct tape_block *tape_blocks[TAPE_MAX_PARTITIONS];
@@ -2843,6 +2844,20 @@ static int resp_partition_m_pg(unsigned char *p, int pcontrol, int target)
 	return sizeof(partition_pg);
 }
 
+static int resp_compression_m_pg(unsigned char *p, int pcontrol, int target,
+	unsigned char dce)
+{	/* Compression page for mode_sense (tape) */
+	unsigned char compression_pg[] = {0x0f, 14, 0x40, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 00, 00};
+
+	memcpy(p, compression_pg, sizeof(compression_pg));
+	if (dce)
+		p[2] |= 0x80;
+	if (pcontrol == 1)
+		memset(p + 2, 0, sizeof(compression_pg) - 2);
+	return sizeof(compression_pg);
+}
+
 /* PAGE_SIZE is more than necessary but provides room for future expansion. */
 #define SDEBUG_MAX_MSENSE_SZ PAGE_SIZE
 
@@ -2981,6 +2996,12 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 		default:
 			goto bad_subpcode;
 		}
+		offset += len;
+		break;
+	case 0xf:	/* Compression Mode Page (tape) */
+		if (!is_tape)
+			goto bad_pcode;
+		len += resp_compression_m_pg(ap, pcontrol, target, devip->tape_dce);
 		offset += len;
 		break;
 	case 0x11:	/* Partition Mode Page (tape) */
@@ -3143,6 +3164,14 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 			goto set_mode_changed_ua;
 		}
 		break;
+	case 0xf:       /* Compression mode page */
+		if (sdebug_ptype != TYPE_TAPE)
+			goto bad_pcode;
+		if ((arr[off + 2] & 0x40) != 0) {
+			devip->tape_dce = (arr[off + 2] & 0x80) != 0;
+			return 0;
+		}
+		break;
 	case 0x1c:      /* Informational Exceptions Mode page */
 		if (iec_m_pg[1] == arr[off + 1]) {
 			memcpy(iec_m_pg + 2, arr + off + 2,
@@ -3158,6 +3187,10 @@ static int resp_mode_select(struct scsi_cmnd *scp,
 set_mode_changed_ua:
 	set_bit(SDEBUG_UA_MODE_CHANGED, devip->uas_bm);
 	return 0;
+
+bad_pcode:
+	mk_sense_invalid_fld(scp, SDEB_IN_CDB, 2, 5);
+	return check_condition_result;
 }
 
 static int resp_temp_l_pg(unsigned char *arr)
