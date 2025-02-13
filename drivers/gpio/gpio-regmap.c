@@ -239,20 +239,6 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	gpio->reg_dir_in_base = config->reg_dir_in_base;
 	gpio->reg_dir_out_base = config->reg_dir_out_base;
 
-	/* if not set, assume there is only one register */
-	gpio->ngpio_per_reg = config->ngpio_per_reg;
-	if (!gpio->ngpio_per_reg)
-		gpio->ngpio_per_reg = config->ngpio;
-
-	/* if not set, assume they are consecutive */
-	gpio->reg_stride = config->reg_stride;
-	if (!gpio->reg_stride)
-		gpio->reg_stride = 1;
-
-	gpio->reg_mask_xlate = config->reg_mask_xlate;
-	if (!gpio->reg_mask_xlate)
-		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
-
 	chip = &gpio->gpio_chip;
 	chip->parent = config->parent;
 	chip->fwnode = config->fwnode;
@@ -275,6 +261,20 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 		chip->direction_input = gpio_regmap_direction_input;
 		chip->direction_output = gpio_regmap_direction_output;
 	}
+
+	/* if not set, assume there is only one register */
+	gpio->ngpio_per_reg = config->ngpio_per_reg;
+	if (!gpio->ngpio_per_reg)
+		gpio->ngpio_per_reg = config->ngpio;
+
+	/* if not set, assume they are consecutive */
+	gpio->reg_stride = config->reg_stride;
+	if (!gpio->reg_stride)
+		gpio->reg_stride = 1;
+
+	gpio->reg_mask_xlate = config->reg_mask_xlate;
+	if (!gpio->reg_mask_xlate)
+		gpio->reg_mask_xlate = gpio_regmap_simple_xlate;
 
 	ret = gpiochip_add_data(chip, gpio);
 	if (ret < 0)
