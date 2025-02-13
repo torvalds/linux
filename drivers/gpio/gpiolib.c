@@ -900,11 +900,12 @@ static struct fwnode_handle *gpiochip_choose_fwnode(struct gpio_chip *gc)
 
 int gpiochip_get_ngpios(struct gpio_chip *gc, struct device *dev)
 {
+	struct fwnode_handle *fwnode = gpiochip_choose_fwnode(gc);
 	u32 ngpios = gc->ngpio;
 	int ret;
 
 	if (ngpios == 0) {
-		ret = device_property_read_u32(dev, "ngpios", &ngpios);
+		ret = fwnode_property_read_u32(fwnode, "ngpios", &ngpios);
 		if (ret == -ENODATA)
 			/*
 			 * -ENODATA means that there is no property found and
