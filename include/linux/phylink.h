@@ -442,7 +442,6 @@ struct phylink_pcs_ops;
  *                        are supported by this PCS.
  * @ops: a pointer to the &struct phylink_pcs_ops structure
  * @phylink: pointer to &struct phylink_config
- * @neg_mode: provide PCS neg mode via "mode" argument
  * @poll: poll the PCS for link changes
  * @rxc_always_on: The MAC driver requires the reference clock
  *                 to always be on. Standalone PCS drivers which
@@ -459,7 +458,6 @@ struct phylink_pcs {
 	DECLARE_PHY_INTERFACE_MASK(supported_interfaces);
 	const struct phylink_pcs_ops *ops;
 	struct phylink *phylink;
-	bool neg_mode;
 	bool poll;
 	bool rxc_always_on;
 };

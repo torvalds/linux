@@ -1403,7 +1403,6 @@ static struct dw_xpcs *xpcs_create_data(struct mdio_device *mdiodev)
 	mdio_device_get(mdiodev);
 	xpcs->mdiodev = mdiodev;
 	xpcs->pcs.ops = &xpcs_phylink_ops;
-	xpcs->pcs.neg_mode = true;
 	xpcs->pcs.poll = true;
 
 	return xpcs;

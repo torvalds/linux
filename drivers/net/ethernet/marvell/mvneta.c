@@ -5557,7 +5557,6 @@ static int mvneta_probe(struct platform_device *pdev)
 		clk_prepare_enable(pp->clk_bus);
 
 	pp->phylink_pcs.ops = &mvneta_phylink_pcs_ops;
-	pp->phylink_pcs.neg_mode = true;
 
 	pp->phylink_config.dev = &dev->dev;
 	pp->phylink_config.type = PHYLINK_NETDEV;

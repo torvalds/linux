@@ -349,7 +349,6 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 	miic_port->miic = miic;
 	miic_port->port = port - 1;
 	miic_port->pcs.ops = &miic_phylink_ops;
-	miic_port->pcs.neg_mode = true;
 
 	phy_interface_set_rgmii(miic_port->pcs.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_RMII, miic_port->pcs.supported_interfaces);
