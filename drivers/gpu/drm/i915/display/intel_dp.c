@@ -3056,15 +3056,6 @@ intel_dp_audio_compute_config(struct intel_encoder *encoder,
 					intel_dp_is_uhbr(pipe_config);
 }
 
-static void intel_dp_queue_modeset_retry_work(struct intel_connector *connector)
-{
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-
-	drm_connector_get(&connector->base);
-	if (!queue_work(i915->unordered_wq, &connector->modeset_retry_work))
-		drm_connector_put(&connector->base);
-}
-
 void
 intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 				      struct intel_encoder *encoder,
@@ -3081,7 +3072,7 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 	intel_dp->needs_modeset_retry = true;
 
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST)) {
-		intel_dp_queue_modeset_retry_work(intel_dp->attached_connector);
+		intel_connector_queue_modeset_retry_work(intel_dp->attached_connector);
 
 		return;
 	}
@@ -3091,7 +3082,7 @@ intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
 			continue;
 
 		if (connector->mst_port == intel_dp)
-			intel_dp_queue_modeset_retry_work(connector);
+			intel_connector_queue_modeset_retry_work(connector);
 	}
 }
 
@@ -6485,35 +6476,6 @@ out_vdd_off:
 	return false;
 }
 
-static void intel_dp_modeset_retry_work_fn(struct work_struct *work)
-{
-	struct intel_connector *connector = container_of(work, typeof(*connector),
-							 modeset_retry_work);
-	struct intel_display *display = to_intel_display(connector);
-
-	drm_dbg_kms(display->drm, "[CONNECTOR:%d:%s]\n", connector->base.base.id,
-		    connector->base.name);
-
-	/* Grab the locks before changing connector property*/
-	mutex_lock(&display->drm->mode_config.mutex);
-	/* Set connector link status to BAD and send a Uevent to notify
-	 * userspace to do a modeset.
-	 */
-	drm_connector_set_link_status_property(&connector->base,
-					       DRM_MODE_LINK_STATUS_BAD);
-	mutex_unlock(&display->drm->mode_config.mutex);
-	/* Send Hotplug uevent so userspace can reprobe */
-	drm_kms_helper_connector_hotplug_event(&connector->base);
-
-	drm_connector_put(&connector->base);
-}
-
-void intel_dp_init_modeset_retry_work(struct intel_connector *connector)
-{
-	INIT_WORK(&connector->modeset_retry_work,
-		  intel_dp_modeset_retry_work_fn);
-}
-
 bool
 intel_dp_init_connector(struct intel_digital_port *dig_port,
 			struct intel_connector *connector)
@@ -6526,7 +6488,7 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	int type;
 
 	/* Initialize the work for modeset in case of link train failure */
-	intel_dp_init_modeset_retry_work(connector);
+	intel_connector_init_modeset_retry_work(connector);
 
 	if (drm_WARN(dev, dig_port->max_lanes < 1,
 		     "Not enough lanes (%d) for DP on [ENCODER:%d:%s]\n",

@@ -1747,7 +1747,7 @@ mst_topology_add_connector(struct drm_dp_mst_topology_mgr *mgr,
 	connector->port = port;
 	drm_dp_mst_get_port_malloc(port);
 
-	intel_dp_init_modeset_retry_work(connector);
+	intel_connector_init_modeset_retry_work(connector);
 
 	ret = drm_connector_dynamic_init(display->drm, &connector->base, &mst_connector_funcs,
 					 DRM_MODE_CONNECTOR_DisplayPort, NULL);
