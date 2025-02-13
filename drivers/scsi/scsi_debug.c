@@ -6772,6 +6772,20 @@ static int sdebug_fail_lun_reset(struct scsi_cmnd *cmnd)
 	return 0;
 }
 
+static void scsi_tape_reset_clear(struct sdebug_dev_info *devip)
+{
+	if (sdebug_ptype == TYPE_TAPE) {
+		int i;
+
+		devip->tape_blksize = TAPE_DEF_BLKSIZE;
+		devip->tape_density = TAPE_DEF_DENSITY;
+		devip->tape_partition = 0;
+		devip->tape_dce = 0;
+		for (i = 0; i < TAPE_MAX_PARTITIONS; i++)
+			devip->tape_location[i] = 0;
+	}
+}
+
 static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 {
 	struct scsi_device *sdp = SCpnt->device;
@@ -6785,8 +6799,10 @@ static int scsi_debug_device_reset(struct scsi_cmnd *SCpnt)
 		sdev_printk(KERN_INFO, sdp, "%s\n", __func__);
 
 	scsi_debug_stop_all_queued(sdp);
-	if (devip)
+	if (devip) {
 		set_bit(SDEBUG_UA_POR, devip->uas_bm);
+		scsi_tape_reset_clear(devip);
+	}
 
 	if (sdebug_fail_lun_reset(SCpnt)) {
 		scmd_printk(KERN_INFO, SCpnt, "fail lun reset 0x%x\n", opcode);
@@ -6824,6 +6840,7 @@ static int scsi_debug_target_reset(struct scsi_cmnd *SCpnt)
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
 		if (devip->target == sdp->id) {
 			set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
+			scsi_tape_reset_clear(devip);
 			++k;
 		}
 	}
@@ -6855,6 +6872,7 @@ static int scsi_debug_bus_reset(struct scsi_cmnd *SCpnt)
 
 	list_for_each_entry(devip, &sdbg_host->dev_info_list, dev_list) {
 		set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
+		scsi_tape_reset_clear(devip);
 		++k;
 	}
 
@@ -6878,6 +6896,7 @@ static int scsi_debug_host_reset(struct scsi_cmnd *SCpnt)
 		list_for_each_entry(devip, &sdbg_host->dev_info_list,
 				    dev_list) {
 			set_bit(SDEBUG_UA_BUS_RESET, devip->uas_bm);
+			scsi_tape_reset_clear(devip);
 			++k;
 		}
 	}
