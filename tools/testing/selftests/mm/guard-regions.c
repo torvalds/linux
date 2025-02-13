@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <linux/limits.h>
 #include <linux/userfaultfd.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -36,6 +37,79 @@ static sigjmp_buf signal_jmp_buf;
  * volatile to stop the compiler from optimising this away.
  */
 #define FORCE_READ(x) (*(volatile typeof(x) *)x)
+
+/*
+ * How is the test backing the mapping being tested?
+ */
+enum backing_type {
+	ANON_BACKED,
+	SHMEM_BACKED,
+	LOCAL_FILE_BACKED,
+};
+
+FIXTURE(guard_regions)
+{
+	unsigned long page_size;
+	char path[PATH_MAX];
+	int fd;
+};
+
+FIXTURE_VARIANT(guard_regions)
+{
+	enum backing_type backing;
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, anon)
+{
+	.backing = ANON_BACKED,
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, shmem)
+{
+	.backing = SHMEM_BACKED,
+};
+
+FIXTURE_VARIANT_ADD(guard_regions, file)
+{
+	.backing = LOCAL_FILE_BACKED,
+};
+
+static bool is_anon_backed(const FIXTURE_VARIANT(guard_regions) * variant)
+{
+	switch (variant->backing) {
+	case  ANON_BACKED:
+	case  SHMEM_BACKED:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static void *mmap_(FIXTURE_DATA(guard_regions) * self,
+		   const FIXTURE_VARIANT(guard_regions) * variant,
+		   void *addr, size_t length, int prot, int extra_flags,
+		   off_t offset)
+{
+	int fd;
+	int flags = extra_flags;
+
+	switch (variant->backing) {
+	case ANON_BACKED:
+		flags |= MAP_PRIVATE | MAP_ANON;
+		fd = -1;
+		break;
+	case SHMEM_BACKED:
+	case LOCAL_FILE_BACKED:
+		flags |= MAP_SHARED;
+		fd = self->fd;
+		break;
+	default:
+		ksft_exit_fail();
+		break;
+	}
+
+	return mmap(addr, length, prot, flags, fd, offset);
+}
 
 static int userfaultfd(int flags)
 {
@@ -107,12 +181,7 @@ static bool try_read_write_buf(char *ptr)
 	return try_read_buf(ptr) && try_write_buf(ptr);
 }
 
-FIXTURE(guard_regions)
-{
-	unsigned long page_size;
-};
-
-FIXTURE_SETUP(guard_regions)
+static void setup_sighandler(void)
 {
 	struct sigaction act = {
 		.sa_handler = &handle_fatal,
@@ -122,11 +191,9 @@ FIXTURE_SETUP(guard_regions)
 	sigemptyset(&act.sa_mask);
 	if (sigaction(SIGSEGV, &act, NULL))
 		ksft_exit_fail_perror("sigaction");
+}
 
-	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
-};
-
-FIXTURE_TEARDOWN(guard_regions)
+static void teardown_sighandler(void)
 {
 	struct sigaction act = {
 		.sa_handler = SIG_DFL,
@@ -137,6 +204,48 @@ FIXTURE_TEARDOWN(guard_regions)
 	sigaction(SIGSEGV, &act, NULL);
 }
 
+static int open_file(const char *prefix, char *path)
+{
+	int fd;
+
+	snprintf(path, PATH_MAX, "%sguard_regions_test_file_XXXXXX", prefix);
+	fd = mkstemp(path);
+	if (fd < 0)
+		ksft_exit_fail_perror("mkstemp");
+
+	return fd;
+}
+
+FIXTURE_SETUP(guard_regions)
+{
+	self->page_size = (unsigned long)sysconf(_SC_PAGESIZE);
+	setup_sighandler();
+
+	if (variant->backing == ANON_BACKED)
+		return;
+
+	self->fd = open_file(
+		variant->backing == SHMEM_BACKED ? "/tmp/" : "",
+		self->path);
+
+	/* We truncate file to at least 100 pages, tests can modify as needed. */
+	ASSERT_EQ(ftruncate(self->fd, 100 * self->page_size), 0);
+};
+
+FIXTURE_TEARDOWN_PARENT(guard_regions)
+{
+	teardown_sighandler();
+
+	if (variant->backing == ANON_BACKED)
+		return;
+
+	if (self->fd >= 0)
+		close(self->fd);
+
+	if (self->path[0] != '\0')
+		unlink(self->path);
+}
+
 TEST_F(guard_regions, basic)
 {
 	const unsigned long NUM_PAGES = 10;
@@ -144,8 +253,8 @@ TEST_F(guard_regions, basic)
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, NUM_PAGES * page_size, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANON, -1, 0);
+	ptr = mmap_(self, variant, NULL, NUM_PAGES * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Trivially assert we can touch the first page. */
@@ -238,25 +347,23 @@ TEST_F(guard_regions, multi_vma)
 	int i;
 
 	/* Reserve a 100 page region over which we can install VMAs. */
-	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
-			  MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_region = mmap_(self, variant, NULL, 100 * page_size,
+			   PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_region, MAP_FAILED);
 
 	/* Place a VMA of 10 pages size at the start of the region. */
-	ptr1 = mmap(ptr_region, 10 * page_size, PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr1 = mmap_(self, variant, ptr_region, 10 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr1, MAP_FAILED);
 
 	/* Place a VMA of 5 pages size 50 pages into the region. */
-	ptr2 = mmap(&ptr_region[50 * page_size], 5 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr2 = mmap_(self, variant, &ptr_region[50 * page_size], 5 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr2, MAP_FAILED);
 
 	/* Place a VMA of 20 pages size at the end of the region. */
-	ptr3 = mmap(&ptr_region[80 * page_size], 20 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr3 = mmap_(self, variant, &ptr_region[80 * page_size], 20 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr3, MAP_FAILED);
 
 	/* Unmap gaps. */
@@ -326,13 +433,11 @@ TEST_F(guard_regions, multi_vma)
 	}
 
 	/* Now map incompatible VMAs in the gaps. */
-	ptr = mmap(&ptr_region[10 * page_size], 40 * page_size,
-		   PROT_READ | PROT_WRITE | PROT_EXEC,
-		   MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, &ptr_region[10 * page_size], 40 * page_size,
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_FIXED, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
-	ptr = mmap(&ptr_region[55 * page_size], 25 * page_size,
-		   PROT_READ | PROT_WRITE | PROT_EXEC,
-		   MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, &ptr_region[55 * page_size], 25 * page_size,
+		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_FIXED, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/*
@@ -379,8 +484,8 @@ TEST_F(guard_regions, process_madvise)
 	ASSERT_NE(pidfd, -1);
 
 	/* Reserve region to map over. */
-	ptr_region = mmap(NULL, 100 * page_size, PROT_NONE,
-			  MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_region = mmap_(self, variant, NULL, 100 * page_size,
+			   PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_region, MAP_FAILED);
 
 	/*
@@ -388,9 +493,8 @@ TEST_F(guard_regions, process_madvise)
 	 * overwrite existing entries and test this code path against
 	 * overwriting existing entries.
 	 */
-	ptr1 = mmap(&ptr_region[page_size], 10 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE | MAP_POPULATE, -1, 0);
+	ptr1 = mmap_(self, variant, &ptr_region[page_size], 10 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED | MAP_POPULATE, 0);
 	ASSERT_NE(ptr1, MAP_FAILED);
 	/* We want guard markers at start/end of each VMA. */
 	vec[0].iov_base = ptr1;
@@ -399,9 +503,8 @@ TEST_F(guard_regions, process_madvise)
 	vec[1].iov_len = page_size;
 
 	/* 5 pages offset 50 pages into reserve region. */
-	ptr2 = mmap(&ptr_region[50 * page_size], 5 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr2 = mmap_(self, variant, &ptr_region[50 * page_size], 5 * page_size,
+		     PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr2, MAP_FAILED);
 	vec[2].iov_base = ptr2;
 	vec[2].iov_len = page_size;
@@ -409,9 +512,8 @@ TEST_F(guard_regions, process_madvise)
 	vec[3].iov_len = page_size;
 
 	/* 20 pages offset 79 pages into reserve region. */
-	ptr3 = mmap(&ptr_region[79 * page_size], 20 * page_size,
-		    PROT_READ | PROT_WRITE,
-		    MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr3 = mmap_(self, variant, &ptr_region[79 * page_size], 20 * page_size,
+		    PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr3, MAP_FAILED);
 	vec[4].iov_base = ptr3;
 	vec[4].iov_len = page_size;
@@ -472,8 +574,8 @@ TEST_F(guard_regions, munmap)
 	const unsigned long page_size = self->page_size;
 	char *ptr, *ptr_new1, *ptr_new2;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard first and last pages. */
@@ -489,11 +591,11 @@ TEST_F(guard_regions, munmap)
 	ASSERT_EQ(munmap(&ptr[9 * page_size], page_size), 0);
 
 	/* Map over them.*/
-	ptr_new1 = mmap(ptr, page_size, PROT_READ | PROT_WRITE,
-			MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new1 = mmap_(self, variant, ptr, page_size, PROT_READ | PROT_WRITE,
+			 MAP_FIXED, 0);
 	ASSERT_NE(ptr_new1, MAP_FAILED);
-	ptr_new2 = mmap(&ptr[9 * page_size], page_size, PROT_READ | PROT_WRITE,
-			MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new2 = mmap_(self, variant, &ptr[9 * page_size], page_size,
+			 PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new2, MAP_FAILED);
 
 	/* Assert that they are now not guarded. */
@@ -511,8 +613,8 @@ TEST_F(guard_regions, mprotect)
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard the middle of the range. */
@@ -559,8 +661,8 @@ TEST_F(guard_regions, split_merge)
 	char *ptr, *ptr_new;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard the whole range. */
@@ -601,14 +703,14 @@ TEST_F(guard_regions, split_merge)
 	}
 
 	/* Now map them again - the unmap will have cleared the guards. */
-	ptr_new = mmap(&ptr[2 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[2 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
-	ptr_new = mmap(&ptr[5 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[5 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
-	ptr_new = mmap(&ptr[8 * page_size], page_size, PROT_READ | PROT_WRITE,
-		       MAP_FIXED | MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, &ptr[8 * page_size], page_size,
+			PROT_READ | PROT_WRITE, MAP_FIXED, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	/* Now make sure guard pages are established. */
@@ -690,8 +792,8 @@ TEST_F(guard_regions, dontneed)
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Back the whole range. */
@@ -721,8 +823,16 @@ TEST_F(guard_regions, dontneed)
 			ASSERT_FALSE(result);
 		} else {
 			ASSERT_TRUE(result);
-			/* Make sure we really did get reset to zero page. */
-			ASSERT_EQ(*curr, '\0');
+			switch (variant->backing) {
+			case ANON_BACKED:
+				/* If anon, then we get a zero page. */
+				ASSERT_EQ(*curr, '\0');
+				break;
+			default:
+				/* Otherwise, we get the file data. */
+				ASSERT_EQ(*curr, 'y');
+				break;
+			}
 		}
 
 		/* Now write... */
@@ -743,8 +853,8 @@ TEST_F(guard_regions, mlock)
 	char *ptr;
 	int i;
 
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Populate. */
@@ -816,8 +926,8 @@ TEST_F(guard_regions, mremap_move)
 	char *ptr, *ptr_new;
 
 	/* Map 5 pages. */
-	ptr = mmap(NULL, 5 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 5 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Place guard markers at both ends of the 5 page span. */
@@ -831,8 +941,7 @@ TEST_F(guard_regions, mremap_move)
 	/* Map a new region we will move this range into. Doing this ensures
 	 * that we have reserved a range to map into.
 	 */
-	ptr_new = mmap(NULL, 5 * page_size, PROT_NONE, MAP_ANON | MAP_PRIVATE,
-		       -1, 0);
+	ptr_new = mmap_(self, variant, NULL, 5 * page_size, PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	ASSERT_EQ(mremap(ptr, 5 * page_size, 5 * page_size,
@@ -863,8 +972,8 @@ TEST_F(guard_regions, mremap_expand)
 	char *ptr, *ptr_new;
 
 	/* Map 10 pages... */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 	/* ...But unmap the last 5 so we can ensure we can expand into them. */
 	ASSERT_EQ(munmap(&ptr[5 * page_size], 5 * page_size), 0);
@@ -888,8 +997,7 @@ TEST_F(guard_regions, mremap_expand)
 	ASSERT_FALSE(try_read_write_buf(&ptr[4 * page_size]));
 
 	/* Reserve a region which we can move to and expand into. */
-	ptr_new = mmap(NULL, 20 * page_size, PROT_NONE,
-		       MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr_new = mmap_(self, variant, NULL, 20 * page_size, PROT_NONE, 0, 0);
 	ASSERT_NE(ptr_new, MAP_FAILED);
 
 	/* Now move and expand into it. */
@@ -927,8 +1035,8 @@ TEST_F(guard_regions, mremap_shrink)
 	int i;
 
 	/* Map 5 pages. */
-	ptr = mmap(NULL, 5 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 5 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Place guard markers at both ends of the 5 page span. */
@@ -992,8 +1100,8 @@ TEST_F(guard_regions, fork)
 	int i;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Establish guard pages in the first 5 pages. */
@@ -1046,9 +1154,12 @@ TEST_F(guard_regions, fork_cow)
 	pid_t pid;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "CoW only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Populate range. */
@@ -1117,9 +1228,12 @@ TEST_F(guard_regions, fork_wipeonfork)
 	pid_t pid;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "Wipe on fork only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Mark wipe on fork. */
@@ -1166,9 +1280,12 @@ TEST_F(guard_regions, lazyfree)
 	char *ptr;
 	int i;
 
+	if (variant->backing != ANON_BACKED)
+		SKIP(return, "MADV_FREE only supported on anon mappings");
+
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1202,8 +1319,8 @@ TEST_F(guard_regions, populate)
 	char *ptr;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1229,8 +1346,8 @@ TEST_F(guard_regions, cold_pageout)
 	int i;
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Guard range. */
@@ -1281,6 +1398,9 @@ TEST_F(guard_regions, uffd)
 	struct uffdio_register reg;
 	struct uffdio_range range;
 
+	if (!is_anon_backed(variant))
+		SKIP(return, "uffd only works on anon backing");
+
 	/* Set up uffd. */
 	uffd = userfaultfd(0);
 	if (uffd == -1 && errno == EPERM)
@@ -1290,8 +1410,8 @@ TEST_F(guard_regions, uffd)
 	ASSERT_EQ(ioctl(uffd, UFFDIO_API, &api), 0);
 
 	/* Map 10 pages. */
-	ptr = mmap(NULL, 10 * page_size, PROT_READ | PROT_WRITE,
-		   MAP_ANON | MAP_PRIVATE, -1, 0);
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
 	ASSERT_NE(ptr, MAP_FAILED);
 
 	/* Register the range with uffd. */
