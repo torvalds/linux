@@ -335,10 +335,11 @@ struct mlx4_en_rx_ring {
 	u16 stride;
 	u16 log_stride;
 	u16 cqn;	/* index of port CQ associated with this ring */
+	u8  fcs_del;
 	u32 prod;
 	u32 cons;
 	u32 buf_size;
-	u8  fcs_del;
+	struct page_pool *pp;
 	void *buf;
 	void *rx_info;
 	struct bpf_prog __rcu *xdp_prog;

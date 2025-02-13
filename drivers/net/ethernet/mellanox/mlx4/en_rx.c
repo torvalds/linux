@@ -48,6 +48,7 @@
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_checksum.h>
 #endif
+#include <net/page_pool/helpers.h>
 
 #include "mlx4_en.h"
 
@@ -268,6 +269,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 			   u32 size, u16 stride, int node, int queue_index)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
+	struct page_pool_params pp = {};
 	struct mlx4_en_rx_ring *ring;
 	int err = -ENOMEM;
 	int tmp;
@@ -286,8 +288,25 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	ring->log_stride = ffs(ring->stride) - 1;
 	ring->buf_size = ring->size * ring->stride + TXBB_SIZE;
 
-	if (xdp_rxq_info_reg(&ring->xdp_rxq, priv->dev, queue_index, 0) < 0)
+	pp.flags = PP_FLAG_DMA_MAP;
+	pp.pool_size = size * DIV_ROUND_UP(priv->rx_skb_size, PAGE_SIZE);
+	pp.nid = node;
+	pp.napi = &priv->rx_cq[queue_index]->napi;
+	pp.netdev = priv->dev;
+	pp.dev = &mdev->dev->persist->pdev->dev;
+	pp.dma_dir = priv->dma_dir;
+
+	ring->pp = page_pool_create(&pp);
+	if (!ring->pp)
 		goto err_ring;
+
+	if (xdp_rxq_info_reg(&ring->xdp_rxq, priv->dev, queue_index, 0) < 0)
+		goto err_pp;
+
+	err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq, MEM_TYPE_PAGE_POOL,
+					 ring->pp);
+	if (err)
+		goto err_xdp_info;
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
@@ -319,6 +338,8 @@ err_info:
 	ring->rx_info = NULL;
 err_xdp_info:
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
+err_pp:
+	page_pool_destroy(ring->pp);
 err_ring:
 	kfree(ring);
 	*pring = NULL;
@@ -445,6 +466,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
 	kvfree(ring->rx_info);
+	page_pool_destroy(ring->pp);
 	ring->rx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
