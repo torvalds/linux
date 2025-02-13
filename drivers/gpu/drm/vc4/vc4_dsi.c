@@ -873,9 +873,8 @@ static bool vc4_dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 }
 
 static void vc4_dsi_bridge_pre_enable(struct drm_bridge *bridge,
-				      struct drm_bridge_state *old_state)
+				      struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = old_state->base.state;
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	const struct drm_crtc_state *crtc_state;
 	struct device *dev = &dsi->pdev->dev;

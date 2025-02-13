@@ -437,7 +437,7 @@ static const struct dev_pm_ops ps8640_pm_ops = {
 };
 
 static void ps8640_atomic_pre_enable(struct drm_bridge *bridge,
-				     struct drm_bridge_state *old_bridge_state)
+				     struct drm_atomic_state *state)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 	struct regmap *map = ps_bridge->regmap[PAGE2_TOP_CNTL];

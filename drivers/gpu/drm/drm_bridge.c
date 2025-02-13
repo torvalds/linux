@@ -698,19 +698,10 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_post_disable);
 static void drm_atomic_bridge_call_pre_enable(struct drm_bridge *bridge,
 					      struct drm_atomic_state *old_state)
 {
-	if (old_state && bridge->funcs->atomic_pre_enable) {
-		struct drm_bridge_state *old_bridge_state;
-
-		old_bridge_state =
-			drm_atomic_get_old_bridge_state(old_state,
-							bridge);
-		if (WARN_ON(!old_bridge_state))
-			return;
-
-		bridge->funcs->atomic_pre_enable(bridge, old_bridge_state);
-	} else if (bridge->funcs->pre_enable) {
+	if (old_state && bridge->funcs->atomic_pre_enable)
+		bridge->funcs->atomic_pre_enable(bridge, old_state);
+	else if (bridge->funcs->pre_enable)
 		bridge->funcs->pre_enable(bridge);
-	}
 }
 
 /**

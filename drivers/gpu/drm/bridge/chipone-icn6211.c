@@ -445,7 +445,7 @@ static void chipone_atomic_enable(struct drm_bridge *bridge,
 }
 
 static void chipone_atomic_pre_enable(struct drm_bridge *bridge,
-				      struct drm_bridge_state *old_bridge_state)
+				      struct drm_atomic_state *state)
 {
 	struct chipone *icn = bridge_to_chipone(bridge);
 	int ret;

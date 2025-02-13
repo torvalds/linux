@@ -767,7 +767,7 @@ static enum drm_mode_status lt9611_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void lt9611_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					    struct drm_bridge_state *old_bridge_state)
+					    struct drm_atomic_state *state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
 	static const struct reg_sequence reg_cfg[] = {

@@ -821,7 +821,7 @@ static void dw_mipi_dsi2_mode_set(struct dw_mipi_dsi2 *dsi2,
 }
 
 static void dw_mipi_dsi2_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-						  struct drm_bridge_state *old_bridge_state)
+						  struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi2 *dsi2 = bridge_to_dsi2(bridge);
 
