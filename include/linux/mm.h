@@ -258,8 +258,6 @@ void setup_initial_init_mm(void *start_code, void *end_code,
 struct vm_area_struct *vm_area_alloc(struct mm_struct *);
 struct vm_area_struct *vm_area_dup(struct vm_area_struct *);
 void vm_area_free(struct vm_area_struct *);
-/* Use only if VMA has no other users */
-void __vm_area_free(struct vm_area_struct *vma);
 
 #ifndef CONFIG_MMU
 extern struct rb_root nommu_region_tree;
@@ -890,7 +888,7 @@ static inline void vma_mark_attached(struct vm_area_struct *vma)
 {
 	vma_assert_write_locked(vma);
 	vma_assert_detached(vma);
-	refcount_set(&vma->vm_refcnt, 1);
+	refcount_set_release(&vma->vm_refcnt, 1);
 }
 
 void vma_mark_detached(struct vm_area_struct *vma);

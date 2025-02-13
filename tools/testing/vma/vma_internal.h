@@ -476,7 +476,7 @@ static inline void vma_mark_attached(struct vm_area_struct *vma)
 {
 	vma_assert_write_locked(vma);
 	vma_assert_detached(vma);
-	refcount_set(&vma->vm_refcnt, 1);
+	refcount_set_release(&vma->vm_refcnt, 1);
 }
 
 static inline void vma_mark_detached(struct vm_area_struct *vma)
@@ -696,14 +696,9 @@ static inline void mpol_put(struct mempolicy *)
 {
 }
 
-static inline void __vm_area_free(struct vm_area_struct *vma)
-{
-	free(vma);
-}
-
 static inline void vm_area_free(struct vm_area_struct *vma)
 {
-	__vm_area_free(vma);
+	free(vma);
 }
 
 static inline void lru_add_drain(void)
