@@ -1694,6 +1694,7 @@ static void nvmet_pci_epf_poll_sqs_work(struct work_struct *work)
 	struct nvmet_pci_epf_ctrl *ctrl =
 		container_of(work, struct nvmet_pci_epf_ctrl, poll_sqs.work);
 	struct nvmet_pci_epf_queue *sq;
+	unsigned long limit = jiffies;
 	unsigned long last = 0;
 	int i, nr_sqs;
 
@@ -1706,6 +1707,16 @@ static void nvmet_pci_epf_poll_sqs_work(struct work_struct *work)
 				continue;
 			if (nvmet_pci_epf_process_sq(ctrl, sq))
 				nr_sqs++;
+		}
+
+		/*
+		 * If we have been running for a while, reschedule to let other
+		 * tasks run and to avoid RCU stalls.
+		 */
+		if (time_is_before_jiffies(limit + secs_to_jiffies(1))) {
+			cond_resched();
+			limit = jiffies;
+			continue;
 		}
 
 		if (nr_sqs) {
