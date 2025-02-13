@@ -524,8 +524,6 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
 int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
-bool intel_plane_uses_fence(const struct intel_plane_state *plane_state);
-
 struct intel_encoder *
 intel_get_crtc_new_encoder(const struct intel_atomic_state *state,
 			   const struct intel_crtc_state *crtc_state);

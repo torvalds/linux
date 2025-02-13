@@ -636,16 +636,6 @@ unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info
 	return size;
 }
 
-bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
-{
-	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-
-	return DISPLAY_VER(dev_priv) < 4 ||
-		(plane->fbc && !plane_state->no_fbc_reason &&
-		 plane_state->view.gtt.type == I915_GTT_VIEW_NORMAL);
-}
-
 /*
  * Convert the x/y offsets into a linear offset.
  * Only valid with 0/180 degree rotation, which is fine since linear
