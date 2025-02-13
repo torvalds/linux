@@ -17,8 +17,8 @@ struct addr_location {
 	const char    *srcline;
 	u64	      addr;
 	char	      level;
-	u8	      filtered;
 	u8	      cpumode;
+	u16	      filtered;
 	s32	      cpu;
 	s32	      socket;
 	/* Same as machine.parallelism but within [1, nr_cpus]. */
