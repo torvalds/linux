@@ -900,8 +900,10 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return err;
 
 	err = xe_device_probe(xe);
-	if (err)
+	if (err) {
+		xe_device_call_remove_actions(xe);
 		return err;
+	}
 
 	err = xe_pm_init(xe);
 	if (err)

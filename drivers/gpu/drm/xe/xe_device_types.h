@@ -429,6 +429,20 @@ struct xe_device {
 	struct xe_tile tiles[XE_MAX_TILES_PER_DEVICE];
 
 	/**
+	 * @remove_action_list: list of actions to execute on device remove.
+	 * Use xe_device_add_remove_action() for that. Actions can only be added
+	 * during probe and are executed during the call from PCI subsystem to
+	 * remove the driver from the device.
+	 */
+	struct list_head remove_action_list;
+
+	/**
+	 * @probing: cover the section in which @remove_action_list can be used
+	 * to post cleaning actions
+	 */
+	bool probing;
+
+	/**
 	 * @mem_access: keep track of memory access in the device, possibly
 	 * triggering additional actions when they occur.
 	 */
