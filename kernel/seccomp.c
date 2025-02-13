@@ -574,6 +574,9 @@ void seccomp_filter_release(struct task_struct *tsk)
 	if (WARN_ON((tsk->flags & PF_EXITING) == 0))
 		return;
 
+	if (READ_ONCE(tsk->seccomp.filter) == NULL)
+		return;
+
 	spin_lock_irq(&tsk->sighand->siglock);
 	orig = tsk->seccomp.filter;
 	/* Detach task from its filter tree. */
@@ -598,6 +601,13 @@ static inline void seccomp_sync_threads(unsigned long flags)
 
 	BUG_ON(!mutex_is_locked(&current->signal->cred_guard_mutex));
 	assert_spin_locked(&current->sighand->siglock);
+
+	/*
+	 * Don't touch any of the threads if the process is being killed.
+	 * This allows for a lockless check in seccomp_filter_release.
+	 */
+	if (current->signal->flags & SIGNAL_GROUP_EXIT)
+		return;
 
 	/* Synchronize all threads. */
 	caller = current;
