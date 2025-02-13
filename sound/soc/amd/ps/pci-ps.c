@@ -111,16 +111,21 @@ static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 
 					stream_id = ACP63_SDW0_AUDIO2_RX;
 					break;
 				}
-				if (adata->acp_rev >= ACP70_PCI_REV)
-					adata->acp70_sdw0_dma_intr_stat[stream_id] = 1;
-				else
+				switch (adata->acp_rev) {
+				case ACP63_PCI_REV:
 					adata->acp63_sdw0_dma_intr_stat[stream_id] = 1;
-
+					break;
+				case ACP70_PCI_REV:
+				case ACP71_PCI_REV:
+					adata->acp70_sdw0_dma_intr_stat[stream_id] = 1;
+					break;
+				}
 				sdw_dma_irq_flag = 1;
 			}
 		}
 	}
-	if (adata->acp_rev == ACP63_PCI_REV) {
+	switch (adata->acp_rev) {
+	case ACP63_PCI_REV:
 		if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
 			writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
 			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
@@ -133,7 +138,9 @@ static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 
 			adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_TX] = 1;
 			sdw_dma_irq_flag = 1;
 		}
-	} else  {
+		break;
+	case ACP70_PCI_REV:
+	case ACP71_PCI_REV:
 		if (ext_intr_stat1 & ACP70_P1_SDW_DMA_IRQ_MASK) {
 			for (index = ACP70_P1_AUDIO2_RX_THRESHOLD;
 			     index <= ACP70_P1_AUDIO0_TX_THRESHOLD; index++) {
@@ -166,6 +173,7 @@ static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 
 				}
 			}
 		}
+		break;
 	}
 	return sdw_dma_irq_flag;
 }
