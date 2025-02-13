@@ -9,9 +9,6 @@ title: Microchip USB2514 Hub Controller
 maintainers:
   - Fabio Estevam <festevam@gmail.com>
 
-allOf:
-  - $ref: usb-device.yaml#
-
 properties:
   compatible:
     enum:
@@ -28,6 +25,9 @@ properties:
   vdd-supply:
     description: 3.3V power supply.
 
+  vdda-supply:
+    description: 3.3V analog power supply.
+
   clocks:
     description: External 24MHz clock connected to the CLKIN pin.
     maxItems: 1
@@ -42,6 +42,18 @@ patternProperties:
     type: object
     $ref: /schemas/usb/usb-device.yaml
     additionalProperties: true
+
+allOf:
+  - $ref: usb-device.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: usb424,2514
+    then:
+      properties:
+        vdda-supply: false
 
 unevaluatedProperties: false
 
@@ -60,6 +72,7 @@ examples:
             clocks = <&clks IMX6QDL_CLK_CKO>;
             reset-gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
             vdd-supply = <&reg_3v3_hub>;
+            vdda-supply = <&reg_3v3a_hub>;
             #address-cells = <1>;
             #size-cells = <0>;
 
