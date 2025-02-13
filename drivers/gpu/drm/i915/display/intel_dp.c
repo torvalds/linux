@@ -6487,9 +6487,6 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 	enum port port = encoder->port;
 	int type;
 
-	/* Initialize the work for modeset in case of link train failure */
-	intel_connector_init_modeset_retry_work(connector);
-
 	if (drm_WARN(dev, dig_port->max_lanes < 1,
 		     "Not enough lanes (%d) for DP on [ENCODER:%d:%s]\n",
 		     dig_port->max_lanes, encoder->base.base.id,

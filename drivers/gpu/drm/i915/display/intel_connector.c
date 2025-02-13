@@ -70,12 +70,6 @@ void intel_connector_queue_modeset_retry_work(struct intel_connector *connector)
 		drm_connector_put(&connector->base);
 }
 
-void intel_connector_init_modeset_retry_work(struct intel_connector *connector)
-{
-	INIT_WORK(&connector->modeset_retry_work,
-		  intel_connector_modeset_retry_work_fn);
-}
-
 int intel_connector_init(struct intel_connector *connector)
 {
 	struct intel_digital_connector_state *conn_state;
@@ -94,6 +88,9 @@ int intel_connector_init(struct intel_connector *connector)
 					    &conn_state->base);
 
 	intel_panel_init_alloc(connector);
+
+	INIT_WORK(&connector->modeset_retry_work,
+		  intel_connector_modeset_retry_work_fn);
 
 	return 0;
 }
