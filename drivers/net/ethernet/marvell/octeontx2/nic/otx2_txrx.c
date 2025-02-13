@@ -30,6 +30,12 @@
 
 DEFINE_STATIC_KEY_FALSE(cn10k_ipsec_sa_enabled);
 
+static int otx2_get_free_sqe(struct otx2_snd_queue *sq)
+{
+	return (sq->cons_head - sq->head - 1 + sq->sqe_cnt)
+		& (sq->sqe_cnt - 1);
+}
+
 static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct bpf_prog *prog,
 				     struct nix_cqe_rx_s *cqe,
@@ -1157,7 +1163,7 @@ bool otx2_sq_append_skb(void *dev, struct netdev_queue *txq,
 	/* Check if there is enough room between producer
 	 * and consumer index.
 	 */
-	free_desc = (sq->cons_head - sq->head - 1 + sq->sqe_cnt) & (sq->sqe_cnt - 1);
+	free_desc = otx2_get_free_sqe(sq);
 	if (free_desc < sq->sqe_thresh)
 		return false;
 
@@ -1396,6 +1402,21 @@ static void otx2_xdp_sqe_add_sg(struct otx2_snd_queue *sq,
 	sq->sg[sq->head].skb = (u64)xdpf;
 }
 
+int otx2_read_free_sqe(struct otx2_nic *pfvf, u16 qidx)
+{
+	struct otx2_snd_queue *sq;
+	int free_sqe;
+
+	sq = &pfvf->qset.sq[qidx];
+	free_sqe = otx2_get_free_sqe(sq);
+	if (free_sqe < sq->sqe_thresh) {
+		netdev_warn(pfvf->netdev, "No free sqe for Send queue%d\n", qidx);
+		return 0;
+	}
+
+	return free_sqe - sq->sqe_thresh;
+}
+
 bool otx2_xdp_sq_append_pkt(struct otx2_nic *pfvf, struct xdp_frame *xdpf,
 			    u64 iova, int len, u16 qidx, u16 flags)
 {
@@ -1404,7 +1425,7 @@ bool otx2_xdp_sq_append_pkt(struct otx2_nic *pfvf, struct xdp_frame *xdpf,
 	int offset, free_sqe;
 
 	sq = &pfvf->qset.sq[qidx];
-	free_sqe = (sq->num_sqbs - *sq->aura_fc_addr) * sq->sqe_per_sqb;
+	free_sqe = otx2_get_free_sqe(sq);
 	if (free_sqe < sq->sqe_thresh)
 		return false;
 
