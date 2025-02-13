@@ -94,6 +94,19 @@ void intel_plane_free(struct intel_plane *plane)
 }
 
 /**
+ * intel_plane_destroy - destroy a plane
+ * @plane: plane to destroy
+ *
+ * Common destruction function for all types of planes (primary, cursor,
+ * sprite).
+ */
+void intel_plane_destroy(struct drm_plane *plane)
+{
+	drm_plane_cleanup(plane);
+	kfree(to_intel_plane(plane));
+}
+
+/**
  * intel_plane_duplicate_state - duplicate plane state
  * @plane: drm plane
  *

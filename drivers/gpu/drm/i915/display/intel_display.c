@@ -7874,19 +7874,6 @@ int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 	return 0;
 }
 
-/**
- * intel_plane_destroy - destroy a plane
- * @plane: plane to destroy
- *
- * Common destruction function for all types of planes (primary, cursor,
- * sprite).
- */
-void intel_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_cleanup(plane);
-	kfree(to_intel_plane(plane));
-}
-
 static u32 intel_encoder_possible_clones(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
