@@ -963,19 +963,15 @@ int xe_device_add_action_or_reset(struct xe_device *xe,
 	return 0;
 }
 
-static void xe_device_remove_display(struct xe_device *xe)
+void xe_device_remove(struct xe_device *xe)
 {
 	xe_display_unregister(xe);
 
 	drm_dev_unplug(&xe->drm);
+
 	xe_display_driver_remove(xe);
-}
 
-void xe_device_remove(struct xe_device *xe)
-{
 	xe_oa_unregister(xe);
-
-	xe_device_remove_display(xe);
 
 	xe_heci_gsc_fini(xe);
 
