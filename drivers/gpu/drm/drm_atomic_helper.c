@@ -2731,7 +2731,7 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
 /**
  * drm_atomic_helper_commit_planes - commit plane state
  * @dev: DRM device
- * @old_state: atomic state object with old state structures
+ * @state: atomic state object being committed
  * @flags: flags for committing plane state
  *
  * This function commits the new plane state using the plane and atomic helper
@@ -2739,7 +2739,7 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
  * been pushed into the relevant object state pointers, since this step can no
  * longer fail.
  *
- * It still requires the global state object @old_state to know which planes and
+ * It still requires the global state object @state to know which planes and
  * crtcs need to be updated though.
  *
  * Note that this function does all plane updates across all CRTCs in one step.
@@ -2770,7 +2770,7 @@ static bool plane_crtc_active(const struct drm_plane_state *state)
  * This should not be copied blindly by drivers.
  */
 void drm_atomic_helper_commit_planes(struct drm_device *dev,
-				     struct drm_atomic_state *old_state,
+				     struct drm_atomic_state *state,
 				     uint32_t flags)
 {
 	struct drm_crtc *crtc;
@@ -2781,7 +2781,7 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 	bool active_only = flags & DRM_PLANE_COMMIT_ACTIVE_ONLY;
 	bool no_disable = flags & DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET;
 
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
 
 		funcs = crtc->helper_private;
@@ -2792,10 +2792,10 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_begin(crtc, old_state);
+		funcs->atomic_begin(crtc, state);
 	}
 
-	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
 		bool disabling;
 
@@ -2833,18 +2833,18 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 			    no_disable)
 				continue;
 
-			funcs->atomic_disable(plane, old_state);
+			funcs->atomic_disable(plane, state);
 		} else if (new_plane_state->crtc || disabling) {
-			funcs->atomic_update(plane, old_state);
+			funcs->atomic_update(plane, state);
 
 			if (!disabling && funcs->atomic_enable) {
 				if (drm_atomic_plane_enabling(old_plane_state, new_plane_state))
-					funcs->atomic_enable(plane, old_state);
+					funcs->atomic_enable(plane, state);
 			}
 		}
 	}
 
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		const struct drm_crtc_helper_funcs *funcs;
 
 		funcs = crtc->helper_private;
@@ -2855,14 +2855,14 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 		if (active_only && !new_crtc_state->active)
 			continue;
 
-		funcs->atomic_flush(crtc, old_state);
+		funcs->atomic_flush(crtc, state);
 	}
 
 	/*
 	 * Signal end of framebuffer access here before hw_done. After hw_done,
 	 * a later commit might have already released the plane state.
 	 */
-	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
+	for_each_old_plane_in_state(state, plane, old_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
 
 		if (funcs->end_fb_access)
