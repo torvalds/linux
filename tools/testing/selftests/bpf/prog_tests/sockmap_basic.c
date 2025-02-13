@@ -1065,6 +1065,34 @@ destroy:
 	test_sockmap_pass_prog__destroy(skel);
 }
 
+static void test_sockmap_vsock_unconnected(void)
+{
+	struct sockaddr_storage addr;
+	int map, s, zero = 0;
+	socklen_t alen;
+
+	map = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(int),
+			     sizeof(int), 1, NULL);
+	if (!ASSERT_OK_FD(map, "bpf_map_create"))
+		return;
+
+	s = xsocket(AF_VSOCK, SOCK_STREAM, 0);
+	if (s < 0)
+		goto close_map;
+
+	/* Fail connect(), but trigger transport assignment. */
+	init_addr_loopback(AF_VSOCK, &addr, &alen);
+	if (!ASSERT_ERR(connect(s, sockaddr(&addr), alen), "connect"))
+		goto close_sock;
+
+	ASSERT_ERR(bpf_map_update_elem(map, &zero, &s, BPF_ANY), "map_update");
+
+close_sock:
+	xclose(s);
+close_map:
+	xclose(map);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -1131,4 +1159,6 @@ void test_sockmap_basic(void)
 		test_skmsg_helpers_with_link(BPF_MAP_TYPE_SOCKHASH);
 	if (test__start_subtest("sockmap skb_verdict vsock poll"))
 		test_sockmap_skb_verdict_vsock_poll();
+	if (test__start_subtest("sockmap vsock unconnected"))
+		test_sockmap_vsock_unconnected();
 }
