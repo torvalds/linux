@@ -31,7 +31,6 @@ struct loongson_gpio_chip_data {
 
 struct loongson_gpio_chip {
 	struct gpio_chip	chip;
-	struct fwnode_handle	*fwnode;
 	spinlock_t		lock;
 	void __iomem		*reg_base;
 	const struct loongson_gpio_chip_data *chip_data;
@@ -138,7 +137,6 @@ static int loongson_gpio_init(struct device *dev, struct loongson_gpio_chip *lgp
 			      void __iomem *reg_base)
 {
 	int ret;
-	u32 ngpios;
 
 	lgpio->reg_base = reg_base;
 	if (lgpio->chip_data->mode == BIT_CTRL_MODE) {
@@ -159,8 +157,6 @@ static int loongson_gpio_init(struct device *dev, struct loongson_gpio_chip *lgp
 		lgpio->chip.direction_output = loongson_gpio_direction_output;
 		lgpio->chip.set = loongson_gpio_set;
 		lgpio->chip.parent = dev;
-		device_property_read_u32(dev, "ngpios", &ngpios);
-		lgpio->chip.ngpio = ngpios;
 		spin_lock_init(&lgpio->lock);
 	}
 
