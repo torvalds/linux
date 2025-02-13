@@ -752,7 +752,7 @@ static void ext4_update_bh_state(struct buffer_head *bh, unsigned long flags)
 	flags &= EXT4_MAP_FLAGS;
 
 	/* Dummy buffer_head? Set non-atomically. */
-	if (!bh->b_page) {
+	if (!bh->b_folio) {
 		bh->b_state = (bh->b_state & ~EXT4_MAP_FLAGS) | flags;
 		return;
 	}

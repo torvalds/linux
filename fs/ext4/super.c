@@ -7306,7 +7306,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	}
 	lock_buffer(bh);
 	memcpy(bh->b_data+offset, data, len);
-	flush_dcache_page(bh->b_page);
+	flush_dcache_folio(bh->b_folio);
 	unlock_buffer(bh);
 	err = ext4_handle_dirty_metadata(handle, NULL, bh);
 	brelse(bh);
