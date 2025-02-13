@@ -265,6 +265,8 @@ static uint32_t intersect_frl_link_bw_support(
 		supported_bw_in_kbps = 18000000;
 	else if (hdmi_encoded_link_bw.bits.BW_9Gbps)
 		supported_bw_in_kbps = 9000000;
+	else if (hdmi_encoded_link_bw.bits.FRL_LINK_TRAINING_FINISHED)
+		supported_bw_in_kbps = 0; /* This case should only get hit in regulated autonomous mode. */
 
 	return supported_bw_in_kbps;
 }
@@ -1075,6 +1077,48 @@ static enum dc_status wake_up_aux_channel(struct dc_link *link)
 	return DC_OK;
 }
 
+static void read_and_intersect_post_frl_lt_status(
+	struct dc_link *link)
+{
+	union autonomous_mode_and_frl_link_status autonomous_mode_caps = {0};
+	union hdmi_tx_link_status hdmi_tx_link_status = {0};
+	union hdmi_encoded_link_bw hdmi_encoded_link_bw = {0};
+
+	/* Check if dongle supports regulated autonomous mode. */
+	core_link_read_dpcd(link, DP_REGULATED_AUTONOMOUS_MODE_SUPPORTED_AND_HDMI_LINK_TRAINING_STATUS,
+		&autonomous_mode_caps.raw, sizeof(autonomous_mode_caps));
+
+	link->dpcd_caps.dongle_caps.dp_hdmi_regulated_autonomous_mode_support =
+			autonomous_mode_caps.bits.REGULATED_AUTONOMOUS_MODE_SUPPORTED;
+
+	if (link->dpcd_caps.dongle_caps.dp_hdmi_regulated_autonomous_mode_support) {
+		DC_LOG_DC("%s: PCON supports regulated autonomous mode.\n", __func__);
+
+		core_link_read_dpcd(link, DP_PCON_HDMI_TX_LINK_STATUS,
+				&hdmi_tx_link_status.raw, sizeof(hdmi_tx_link_status));
+	}
+
+	// Intersect reported max link bw support with the supported link rate post FRL link training
+	if (core_link_read_dpcd(link, DP_PCON_HDMI_POST_FRL_STATUS,
+			&hdmi_encoded_link_bw.raw, sizeof(hdmi_encoded_link_bw)) == DC_OK) {
+
+		if (link->dpcd_caps.dongle_caps.dp_hdmi_regulated_autonomous_mode_support &&
+				(!hdmi_tx_link_status.bits.HDMI_TX_READY_STATUS ||
+						!hdmi_encoded_link_bw.bits.FRL_LINK_TRAINING_FINISHED)) {
+			DC_LOG_WARNING("%s: PCON TX link training has not finished.\n", __func__);
+
+			/* Link training not finished, ignore values from this DPCD reg. */
+			return;
+		}
+
+		link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps = intersect_frl_link_bw_support(
+				link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps,
+				hdmi_encoded_link_bw);
+		DC_LOG_DC("%s: pcon frl link bw = %u\n", __func__,
+			link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps);
+	}
+}
+
 static void get_active_converter_info(
 	uint8_t data, struct dc_link *link)
 {
@@ -1163,21 +1207,12 @@ static void get_active_converter_info(
 							hdmi_color_caps.bits.MAX_BITS_PER_COLOR_COMPONENT);
 
 					if (link->dc->caps.dp_hdmi21_pcon_support) {
-						union hdmi_encoded_link_bw hdmi_encoded_link_bw;
 
 						link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps =
 								link_bw_kbps_from_raw_frl_link_rate_data(
 										hdmi_color_caps.bits.MAX_ENCODED_LINK_BW_SUPPORT);
 
-						// Intersect reported max link bw support with the supported link rate post FRL link training
-						if (core_link_read_dpcd(link, DP_PCON_HDMI_POST_FRL_STATUS,
-								&hdmi_encoded_link_bw.raw, sizeof(hdmi_encoded_link_bw)) == DC_OK) {
-							link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps = intersect_frl_link_bw_support(
-									link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps,
-									hdmi_encoded_link_bw);
-							DC_LOG_DC("%s: pcon frl link bw = %u\n", __func__,
-								link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps);
-						}
+						read_and_intersect_post_frl_lt_status(link);
 
 						if (link->dpcd_caps.dongle_caps.dp_hdmi_frl_max_link_bw_in_kbps > 0)
 							link->dpcd_caps.dongle_caps.extendedCapValid = true;
