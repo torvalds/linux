@@ -69,6 +69,13 @@ void mtk_tr_modify(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
 }
 EXPORT_SYMBOL_GPL(mtk_tr_modify);
 
+void __mtk_tr_set_bits(struct phy_device *phydev, u8 ch_addr, u8 node_addr,
+		       u8 data_addr, u32 set)
+{
+	__mtk_tr_modify(phydev, ch_addr, node_addr, data_addr, 0, set);
+}
+EXPORT_SYMBOL_GPL(__mtk_tr_set_bits);
+
 int mtk_phy_read_page(struct phy_device *phydev)
 {
 	return __phy_read(phydev, MTK_EXT_PAGE_ACCESS);

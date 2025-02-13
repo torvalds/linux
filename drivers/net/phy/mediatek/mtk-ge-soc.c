@@ -62,6 +62,10 @@
 /* MasDSPreadyTime */
 #define MASTER_DSP_READY_TIME_MASK		GENMASK(14, 7)
 
+/* ch_addr = 0x1, node_addr = 0xf, data_addr = 0x18 */
+/* EnabRandUpdTrig */
+#define ENABLE_RANDOM_UPDOWN_COUNTER_TRIGGER	BIT(8)
+
 /* ch_addr = 0x1, node_addr = 0xf, data_addr = 0x20 */
 /* ResetSyncOffset */
 #define RESET_SYNC_OFFSET_MASK			GENMASK(11, 8)
@@ -789,10 +793,8 @@ static void mt798x_phy_common_finetune(struct phy_device *phydev)
 			FIELD_PREP(SLAVE_DSP_READY_TIME_MASK, 0x18) |
 			FIELD_PREP(MASTER_DSP_READY_TIME_MASK, 0x18));
 
-	/* EnabRandUpdTrig = 1 */
-	__phy_write(phydev, 0x11, 0x2f00);
-	__phy_write(phydev, 0x12, 0xe);
-	__phy_write(phydev, 0x10, 0x8fb0);
+	__mtk_tr_set_bits(phydev, 0x1, 0xf, 0x18,
+			  ENABLE_RANDOM_UPDOWN_COUNTER_TRIGGER);
 
 	__mtk_tr_modify(phydev, 0x0, 0x7, 0x15,
 			NORMAL_MSE_LO_THRESH_MASK,
