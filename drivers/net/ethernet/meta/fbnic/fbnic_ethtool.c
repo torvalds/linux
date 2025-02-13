@@ -1224,14 +1224,14 @@ static void fbnic_get_ts_stats(struct net_device *netdev,
 	unsigned int start;
 	int i;
 
-	ts_stats->pkts = fbn->tx_stats.ts_packets;
-	ts_stats->lost = fbn->tx_stats.ts_lost;
+	ts_stats->pkts = fbn->tx_stats.twq.ts_packets;
+	ts_stats->lost = fbn->tx_stats.twq.ts_lost;
 	for (i = 0; i < fbn->num_tx_queues; i++) {
 		ring = fbn->tx[i];
 		do {
 			start = u64_stats_fetch_begin(&ring->stats.syncp);
-			ts_packets = ring->stats.ts_packets;
-			ts_lost = ring->stats.ts_lost;
+			ts_packets = ring->stats.twq.ts_packets;
+			ts_lost = ring->stats.twq.ts_lost;
 		} while (u64_stats_fetch_retry(&ring->stats.syncp, start));
 		ts_stats->pkts += ts_packets;
 		ts_stats->lost += ts_lost;

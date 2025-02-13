@@ -23,6 +23,7 @@ struct netdev_queue_stats_rx {
 	u64 hw_drops;
 	u64 hw_drop_overruns;
 
+	u64 csum_complete;
 	u64 csum_unnecessary;
 	u64 csum_none;
 	u64 csum_bad;
