@@ -160,6 +160,9 @@ struct mpt3_ioctl_pci_info {
 #define MPT3_IOCTL_INTERFACE_SAS35	(0x07)
 #define MPT2_IOCTL_VERSION_LENGTH	(32)
 
+/* Bits set for mpt3_ioctl_iocinfo.driver_cap */
+#define MPT3_IOCTL_IOCINFO_DRIVER_CAP_MCTP_PASSTHRU		0x1
+
 /**
  * struct mpt3_ioctl_iocinfo - generic controller info
  * @hdr - generic header
@@ -175,6 +178,7 @@ struct mpt3_ioctl_pci_info {
  * @driver_version - driver version - 32 ASCII characters
  * @rsvd1 - reserved
  * @scsi_id - scsi id of adapter 0
+ * @driver_capability - driver capabilities
  * @rsvd2 - reserved
  * @pci_information - pci info (2nd revision)
  */
@@ -192,7 +196,8 @@ struct mpt3_ioctl_iocinfo {
 	uint8_t driver_version[MPT2_IOCTL_VERSION_LENGTH];
 	uint8_t rsvd1;
 	uint8_t scsi_id;
-	uint16_t rsvd2;
+	uint8_t driver_capability;
+	uint8_t rsvd2;
 	struct mpt3_ioctl_pci_info pci_information;
 };
 

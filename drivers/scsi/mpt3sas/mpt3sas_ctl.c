@@ -1254,6 +1254,8 @@ _ctl_getiocinfo(struct MPT3SAS_ADAPTER *ioc, void __user *arg)
 	}
 	karg.bios_version = le32_to_cpu(ioc->bios_pg3.BiosVersion);
 
+	karg.driver_capability |= MPT3_IOCTL_IOCINFO_DRIVER_CAP_MCTP_PASSTHRU;
+
 	if (copy_to_user(arg, &karg, sizeof(karg))) {
 		pr_err("failure at %s:%d/%s()!\n",
 		    __FILE__, __LINE__, __func__);
