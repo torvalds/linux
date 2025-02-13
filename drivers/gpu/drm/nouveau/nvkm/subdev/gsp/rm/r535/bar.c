@@ -50,7 +50,7 @@ r535_bar_bar2_wait(struct nvkm_bar *base)
 }
 
 static int
-r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u64 addr)
+r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u8 page_shift, u64 pdbe)
 {
 	rpc_update_bar_pde_v15_00 *rpc;
 
@@ -59,8 +59,8 @@ r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u64 addr)
 		return -EIO;
 
 	rpc->info.barType = NV_RPC_UPDATE_PDE_BAR_2;
-	rpc->info.entryValue = addr ? ((addr >> 4) | 2) : 0; /* PD3 entry format! */
-	rpc->info.entryLevelShift = 47; //XXX: probably fetch this from mmu!
+	rpc->info.entryValue = pdbe;
+	rpc->info.entryLevelShift = page_shift;
 
 	return nvkm_gsp_rpc_wr(gsp, rpc, NVKM_GSP_RPC_REPLY_RECV);
 }
@@ -68,12 +68,13 @@ r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u64 addr)
 static void
 r535_bar_bar2_fini(struct nvkm_bar *bar)
 {
+	struct nvkm_vmm *vmm = gf100_bar(bar)->bar[0].vmm;
 	struct nvkm_gsp *gsp = bar->subdev.device->gsp;
 
 	bar->flushBAR2 = bar->flushBAR2PhysMode;
 	nvkm_done(bar->flushFBZero);
 
-	WARN_ON(r535_bar_bar2_update_pde(gsp, 0));
+	WARN_ON(r535_bar_bar2_update_pde(gsp, vmm->func->page[0].shift, 0));
 }
 
 static void
@@ -82,8 +83,18 @@ r535_bar_bar2_init(struct nvkm_bar *bar)
 	struct nvkm_device *device = bar->subdev.device;
 	struct nvkm_vmm *vmm = gf100_bar(bar)->bar[0].vmm;
 	struct nvkm_gsp *gsp = device->gsp;
+	struct nvkm_memory *pdb = vmm->pd->pt[0]->memory;
+	u32 pdb_offset = vmm->pd->pt[0]->base;
+	u32 pdbe_lo, pdbe_hi;
+	u64 pdbe;
 
-	WARN_ON(r535_bar_bar2_update_pde(gsp, vmm->pd->pde[0]->pt[0]->addr));
+	nvkm_kmap(pdb);
+	pdbe_lo = nvkm_ro32(pdb, pdb_offset + 0);
+	pdbe_hi = nvkm_ro32(pdb, pdb_offset + 4);
+	pdbe = ((u64)pdbe_hi << 32) | pdbe_lo;
+	nvkm_done(pdb);
+
+	WARN_ON(r535_bar_bar2_update_pde(gsp, vmm->func->page[0].shift, pdbe));
 	vmm->rm.bar2_pdb = gsp->bar.rm_bar2_pdb;
 
 	if (!bar->flushFBZero) {
