@@ -17,6 +17,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/gpio/regmap.h>
 
+#include "gpiolib.h"
+
 struct gpio_regmap {
 	struct device *parent;
 	struct regmap *regmap;
@@ -210,9 +212,6 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	if (!config->parent)
 		return ERR_PTR(-EINVAL);
 
-	if (!config->ngpio)
-		return ERR_PTR(-EINVAL);
-
 	/* we need at least one */
 	if (!config->reg_dat_base && !config->reg_set_base)
 		return ERR_PTR(-EINVAL);
@@ -243,7 +242,6 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	chip->parent = config->parent;
 	chip->fwnode = config->fwnode;
 	chip->base = -1;
-	chip->ngpio = config->ngpio;
 	chip->names = config->names;
 	chip->label = config->label ?: dev_name(config->parent);
 	chip->can_sleep = regmap_might_sleep(config->regmap);
@@ -260,6 +258,13 @@ struct gpio_regmap *gpio_regmap_register(const struct gpio_regmap_config *config
 	if (gpio->reg_dir_in_base || gpio->reg_dir_out_base) {
 		chip->direction_input = gpio_regmap_direction_input;
 		chip->direction_output = gpio_regmap_direction_output;
+	}
+
+	chip->ngpio = config->ngpio;
+	if (!chip->ngpio) {
+		ret = gpiochip_get_ngpios(chip, chip->parent);
+		if (ret)
+			return ERR_PTR(ret);
 	}
 
 	/* if not set, assume there is only one register */

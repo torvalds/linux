@@ -21,7 +21,7 @@ struct regmap;
  *			If not given, the fwnode of the parent is used.
  * @label:		(Optional) Descriptive name for GPIO controller.
  *			If not given, the name of the device is used.
- * @ngpio:		Number of GPIOs
+ * @ngpio:		(Optional) Number of GPIOs
  * @names:		(Optional) Array of names for gpios
  * @reg_dat_base:	(Optional) (in) register base address
  * @reg_set_base:	(Optional) set register base address
