@@ -53,7 +53,10 @@ struct journal_buf {
  */
 
 enum journal_pin_type {
-	JOURNAL_PIN_TYPE_btree,
+	JOURNAL_PIN_TYPE_btree3,
+	JOURNAL_PIN_TYPE_btree2,
+	JOURNAL_PIN_TYPE_btree1,
+	JOURNAL_PIN_TYPE_btree0,
 	JOURNAL_PIN_TYPE_key_cache,
 	JOURNAL_PIN_TYPE_other,
 	JOURNAL_PIN_TYPE_NR,

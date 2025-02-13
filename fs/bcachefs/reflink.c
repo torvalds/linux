@@ -381,6 +381,8 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 not_found:
 	if (flags & BTREE_TRIGGER_check_repair) {
 		ret = bch2_indirect_extent_missing_error(trans, p, *idx, next_idx, false);
+		if (ret == -BCH_ERR_missing_indirect_extent)
+			ret = 0;
 		if (ret)
 			goto err;
 	}

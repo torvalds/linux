@@ -278,12 +278,12 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c, struct bt
 {
 	struct bset_tree *t = bset_tree_last(b);
 	struct btree_node_entry *bne = max(write_block(b),
-			(void *) btree_bkey_last(b, bset_tree_last(b)));
+			(void *) btree_bkey_last(b, t));
 	ssize_t remaining_space =
 		__bch2_btree_u64s_remaining(b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
-		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
+		if (b->written + block_sectors(c) <= btree_sectors(c))
 			return bne;
 	} else {
 		if (unlikely(bset_u64s(t) * sizeof(u64) > btree_write_set_buffer(b)) &&
