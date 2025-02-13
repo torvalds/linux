@@ -219,6 +219,7 @@ typedef struct xfs_mount {
 	bool			m_fail_unmount;
 	bool			m_finobt_nores; /* no per-AG finobt resv. */
 	bool			m_update_sb;	/* sb needs update in mount */
+	unsigned int		m_max_open_zones;
 
 	/*
 	 * Bitsets of per-fs metadata that have been checked and/or are sick.
@@ -267,6 +268,7 @@ typedef struct xfs_mount {
 
 	struct xfs_groups	m_groups[XG_TYPE_MAX];
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct xfs_zone_info	*m_zone_info;	/* zone allocator information */
 	struct dentry		*m_debugfs;	/* debugfs parent */
 	struct xfs_kobj		m_kobj;
 	struct xfs_kobj		m_error_kobj;

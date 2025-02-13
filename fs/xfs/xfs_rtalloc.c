@@ -33,6 +33,7 @@
 #include "xfs_trace.h"
 #include "xfs_rtrefcount_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_zone_alloc.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -663,7 +664,8 @@ xfs_rtunmount_rtg(
 
 	for (i = 0; i < XFS_RTGI_MAX; i++)
 		xfs_rtginode_irele(&rtg->rtg_inodes[i]);
-	kvfree(rtg->rtg_rsum_cache);
+	if (!xfs_has_zoned(rtg_mount(rtg)))
+		kvfree(rtg->rtg_rsum_cache);
 }
 
 static int
@@ -1573,6 +1575,8 @@ xfs_rtmount_rtg(
 		}
 	}
 
+	if (xfs_has_zoned(mp))
+		return 0;
 	return xfs_alloc_rsum_cache(rtg, mp->m_sb.sb_rbmblocks);
 }
 

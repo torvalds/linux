@@ -243,6 +243,7 @@ enum xfs_free_counter {
 	 * Number of free RT extents on the RT device.
 	 */
 	XC_FREE_RTEXTENTS,
+
 	XC_FREE_NR,
 };
 

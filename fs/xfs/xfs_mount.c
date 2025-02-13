@@ -40,6 +40,7 @@
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtrefcount_btree.h"
 #include "scrub/stats.h"
+#include "xfs_zone_alloc.h"
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
 static int xfs_uuid_table_size;
@@ -1042,6 +1043,12 @@ xfs_mountfs(
 	if (xfs_is_readonly(mp) && !xfs_has_norecovery(mp))
 		xfs_log_clean(mp);
 
+	if (xfs_has_zoned(mp)) {
+		error = xfs_mount_zones(mp);
+		if (error)
+			goto out_rtunmount;
+	}
+
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
@@ -1084,6 +1091,8 @@ xfs_mountfs(
  out_agresv:
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
+	if (xfs_has_zoned(mp))
+		xfs_unmount_zones(mp);
  out_rtunmount:
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
@@ -1165,6 +1174,8 @@ xfs_unmountfs(
 	xfs_blockgc_stop(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
+	if (xfs_has_zoned(mp))
+		xfs_unmount_zones(mp);
 	xfs_rtunmount_inodes(mp);
 	xfs_irele(mp->m_rootip);
 	if (mp->m_metadirip)
