@@ -458,4 +458,46 @@ struct mpt3_enable_diag_sbr_reload {
 	struct mpt3_ioctl_header hdr;
 };
 
+/**
+ * struct mpt3_passthru_command - generic mpt firmware passthru command
+ * @dev_index - device index
+ * @timeout - command timeout in seconds. (if zero then use driver default
+ *  value).
+ * @reply_frame_buf_ptr - MPI reply location
+ * @data_in_buf_ptr - destination for read
+ * @data_out_buf_ptr - data source for write
+ * @max_reply_bytes - maximum number of reply bytes to be sent to app.
+ * @data_in_size - number bytes for data transfer in (read)
+ * @data_out_size - number bytes for data transfer out (write)
+ * @mpi_request - request frame
+ */
+struct mpt3_passthru_command {
+	u8 dev_index;
+	uint32_t timeout;
+	void *reply_frame_buf_ptr;
+	void *data_in_buf_ptr;
+	void *data_out_buf_ptr;
+	uint32_t max_reply_bytes;
+	uint32_t data_in_size;
+	uint32_t data_out_size;
+	Mpi26MctpPassthroughRequest_t *mpi_request;
+};
+
+/*
+ * mpt3sas_get_device_count - Retrieve the count of MCTP passthrough
+ *			      capable devices managed by the driver.
+ *
+ * Returns number of devices that support MCTP passthrough.
+ */
+int mpt3sas_get_device_count(void);
+
+/*
+ * mpt3sas_send_passthru_cmd - Send an MPI MCTP passthrough command to
+ *			       firmware
+ * @command: The MPI MCTP passthrough command to send to firmware
+ *
+ * Returns 0 on success, anything else is error .
+ */
+int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command);
+
 #endif /* MPT3SAS_CTL_H_INCLUDED */
