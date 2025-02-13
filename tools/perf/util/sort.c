@@ -900,6 +900,16 @@ sort__parallelism_cmp(struct hist_entry *left, struct hist_entry *right)
 	return right->parallelism - left->parallelism;
 }
 
+static int hist_entry__parallelism_filter(struct hist_entry *he, int type, const void *arg)
+{
+	const unsigned long *parallelism_filter = arg;
+
+	if (type != HIST_FILTER__PARALLELISM)
+		return -1;
+
+	return test_bit(he->parallelism, parallelism_filter);
+}
+
 static int hist_entry__parallelism_snprintf(struct hist_entry *he, char *bf,
 				    size_t size, unsigned int width)
 {
@@ -909,6 +919,7 @@ static int hist_entry__parallelism_snprintf(struct hist_entry *he, char *bf,
 struct sort_entry sort_parallelism = {
 	.se_header      = "Parallelism",
 	.se_cmp	        = sort__parallelism_cmp,
+	.se_filter	= hist_entry__parallelism_filter,
 	.se_snprintf    = hist_entry__parallelism_snprintf,
 	.se_width_idx	= HISTC_PARALLELISM,
 };

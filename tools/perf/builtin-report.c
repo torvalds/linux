@@ -1390,6 +1390,8 @@ int cmd_report(int argc, const char **argv)
 		     symbol__config_symfs),
 	OPT_STRING('C', "cpu", &report.cpu_list, "cpu",
 		   "list of cpus to profile"),
+	OPT_STRING(0, "parallelism", &symbol_conf.parallelism_list_str, "parallelism",
+		   "only consider these parallelism levels (cpu set format)"),
 	OPT_BOOLEAN('I', "show-info", &report.show_full_info,
 		    "Display extended information about perf.data file"),
 	OPT_BOOLEAN(0, "source", &annotate_opts.annotate_src,
@@ -1721,7 +1723,8 @@ repeat:
 	}
 
 	if (report.disable_order || !perf_session__has_switch_events(session)) {
-		if ((sort_order && strstr(sort_order, "parallelism")) ||
+		if (symbol_conf.parallelism_list_str ||
+				(sort_order && strstr(sort_order, "parallelism")) ||
 				(field_order && strstr(field_order, "parallelism"))) {
 			if (report.disable_order)
 				ui__error("Use of parallelism is incompatible with --disable-order.\n");

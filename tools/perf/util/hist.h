@@ -31,6 +31,7 @@ enum hist_filter {
 	HIST_FILTER__HOST,
 	HIST_FILTER__SOCKET,
 	HIST_FILTER__C2C,
+	HIST_FILTER__PARALLELISM,
 };
 
 typedef u16 filter_mask_t;
@@ -112,6 +113,7 @@ struct hists {
 	const struct dso	*dso_filter;
 	const char		*uid_filter_str;
 	const char		*symbol_filter_str;
+	unsigned long		*parallelism_filter;
 	struct mutex		lock;
 	struct hists_stats	stats;
 	u64			event_stream;
@@ -388,11 +390,13 @@ void hists__filter_by_dso(struct hists *hists);
 void hists__filter_by_thread(struct hists *hists);
 void hists__filter_by_symbol(struct hists *hists);
 void hists__filter_by_socket(struct hists *hists);
+void hists__filter_by_parallelism(struct hists *hists);
 
 static inline bool hists__has_filter(struct hists *hists)
 {
 	return hists->thread_filter || hists->dso_filter ||
-		hists->symbol_filter_str || (hists->socket_filter > -1);
+		hists->symbol_filter_str || (hists->socket_filter > -1) ||
+		hists->parallelism_filter;
 }
 
 u16 hists__col_len(struct hists *hists, enum hist_column col);

@@ -769,6 +769,8 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 
 	/* Account for possible out-of-order switch events. */
 	al->parallelism = max(1, min(machine->parallelism, machine__nr_cpus_avail(machine)));
+	if (test_bit(al->parallelism, symbol_conf.parallelism_filter))
+		al->filtered |= (1 << HIST_FILTER__PARALLELISM);
 
 	if (al->map) {
 		if (symbol_conf.dso_list &&
