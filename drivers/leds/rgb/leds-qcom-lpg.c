@@ -24,6 +24,7 @@
 #define LPG_PATTERN_CONFIG_REG	0x40
 #define LPG_SIZE_CLK_REG	0x41
 #define  PWM_CLK_SELECT_MASK	GENMASK(1, 0)
+#define  PWM_SIZE_SELECT_MASK	BIT(2)
 #define  PWM_CLK_SELECT_HI_RES_MASK	GENMASK(2, 0)
 #define  PWM_SIZE_HI_RES_MASK	GENMASK(6, 4)
 #define LPG_PREDIV_CLK_REG	0x42
@@ -412,8 +413,8 @@ static int lpg_lut_sync(struct lpg *lpg, unsigned int mask)
 static const unsigned int lpg_clk_rates[] = {0, 1024, 32768, 19200000};
 static const unsigned int lpg_clk_rates_hi_res[] = {0, 1024, 32768, 19200000, 76800000};
 static const unsigned int lpg_pre_divs[] = {1, 3, 5, 6};
-static const unsigned int lpg_pwm_resolution[] =  {9};
-static const unsigned int lpg_pwm_resolution_hi_res[] =  {8, 9, 10, 11, 12, 13, 14, 15};
+static const unsigned int lpg_pwm_resolution[] = {6, 9};
+static const unsigned int lpg_pwm_resolution_hi_res[] = {8, 9, 10, 11, 12, 13, 14, 15};
 
 static int lpg_calc_freq(struct lpg_channel *chan, uint64_t period)
 {
@@ -436,12 +437,12 @@ static int lpg_calc_freq(struct lpg_channel *chan, uint64_t period)
 	 * period = --------------------------
 	 *                   refclk
 	 *
-	 * Resolution = 2^9 bits for PWM or
+	 * Resolution = 2^{6 or 9} bits for PWM or
 	 *              2^{8, 9, 10, 11, 12, 13, 14, 15} bits for high resolution PWM
 	 * pre_div = {1, 3, 5, 6} and
 	 * M = [0..7].
 	 *
-	 * This allows for periods between 27uS and 384s for PWM channels and periods between
+	 * This allows for periods between 3uS and 384s for PWM channels and periods between
 	 * 3uS and 24576s for high resolution PWMs.
 	 * The PWM framework wants a period of equal or lower length than requested,
 	 * reject anything below minimum period.
@@ -558,7 +559,7 @@ static void lpg_apply_freq(struct lpg_channel *chan)
 		val |= GENMASK(5, 4);
 		break;
 	case LPG_SUBTYPE_PWM:
-		val |= BIT(2);
+		val |= FIELD_PREP(PWM_SIZE_SELECT_MASK, chan->pwm_resolution_sel);
 		break;
 	case LPG_SUBTYPE_HI_RES_PWM:
 		val |= FIELD_PREP(PWM_SIZE_HI_RES_MASK, chan->pwm_resolution_sel);
@@ -1276,7 +1277,7 @@ static int lpg_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		resolution = lpg_pwm_resolution_hi_res[FIELD_GET(PWM_SIZE_HI_RES_MASK, val)];
 	} else {
 		refclk = lpg_clk_rates[FIELD_GET(PWM_CLK_SELECT_MASK, val)];
-		resolution = 9;
+		resolution = lpg_pwm_resolution[FIELD_GET(PWM_SIZE_SELECT_MASK, val)];
 	}
 
 	if (refclk) {
