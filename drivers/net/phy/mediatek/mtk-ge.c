@@ -18,6 +18,10 @@
 
 #define MTK_PHY_PAGE_EXTENDED_2A30		0x2a30
 
+/* Registers on Token Ring debug nodes */
+/* ch_addr = 0x1, node_addr = 0xf, data_addr = 0x17 */
+#define SLAVE_DSP_READY_TIME_MASK		GENMASK(22, 15)
+
 /* Registers on MDIO_MMD_VEND1 */
 #define MTK_PHY_GBE_MODE_TX_DELAY_SEL		0x13
 #define MTK_PHY_TEST_MODE_TX_DELAY_SEL		0x14
@@ -42,11 +46,8 @@ static void mtk_gephy_config_init(struct phy_device *phydev)
 			 0, MTK_PHY_ENABLE_DOWNSHIFT);
 
 	/* Increase SlvDPSready time */
-	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
-	__phy_write(phydev, 0x10, 0xafae);
-	__phy_write(phydev, 0x12, 0x2f);
-	__phy_write(phydev, 0x10, 0x8fae);
-	phy_restore_page(phydev, MTK_PHY_PAGE_STANDARD, 0);
+	mtk_tr_modify(phydev, 0x1, 0xf, 0x17, SLAVE_DSP_READY_TIME_MASK,
+		      FIELD_PREP(SLAVE_DSP_READY_TIME_MASK, 0x5e));
 
 	/* Adjust 100_mse_threshold */
 	phy_modify_mmd(phydev, MDIO_MMD_VEND1,
