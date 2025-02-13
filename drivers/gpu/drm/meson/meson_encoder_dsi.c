@@ -42,10 +42,9 @@ static int meson_encoder_dsi_attach(struct drm_bridge *bridge,
 }
 
 static void meson_encoder_dsi_atomic_enable(struct drm_bridge *bridge,
-					    struct drm_bridge_state *bridge_state)
+					    struct drm_atomic_state *state)
 {
 	struct meson_encoder_dsi *encoder_dsi = bridge_to_meson_encoder_dsi(bridge);
-	struct drm_atomic_state *state = bridge_state->base.state;
 	struct meson_drm *priv = encoder_dsi->priv;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;

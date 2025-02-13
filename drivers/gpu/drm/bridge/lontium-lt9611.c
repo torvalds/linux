@@ -640,12 +640,10 @@ lt9611_get_edid_block(void *data, u8 *buf, unsigned int block, size_t len)
 }
 
 /* bridge funcs */
-static void
-lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void lt9611_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 {
 	struct lt9611 *lt9611 = bridge_to_lt9611(bridge);
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
 	struct drm_crtc_state *crtc_state;

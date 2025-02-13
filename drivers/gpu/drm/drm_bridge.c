@@ -806,15 +806,7 @@ void drm_atomic_bridge_chain_enable(struct drm_bridge *bridge,
 	encoder = bridge->encoder;
 	list_for_each_entry_from(bridge, &encoder->bridge_chain, chain_node) {
 		if (bridge->funcs->atomic_enable) {
-			struct drm_bridge_state *old_bridge_state;
-
-			old_bridge_state =
-				drm_atomic_get_old_bridge_state(old_state,
-								bridge);
-			if (WARN_ON(!old_bridge_state))
-				return;
-
-			bridge->funcs->atomic_enable(bridge, old_bridge_state);
+			bridge->funcs->atomic_enable(bridge, old_state);
 		} else if (bridge->funcs->enable) {
 			bridge->funcs->enable(bridge);
 		}

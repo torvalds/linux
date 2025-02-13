@@ -581,11 +581,9 @@ it6263_bridge_atomic_disable(struct drm_bridge *bridge,
 		     AFE_DRV_RST | AFE_DRV_PWD);
 }
 
-static void
-it6263_bridge_atomic_enable(struct drm_bridge *bridge,
-			    struct drm_bridge_state *old_bridge_state)
+static void it6263_bridge_atomic_enable(struct drm_bridge *bridge,
+					struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct it6263 *it = bridge_to_it6263(bridge);
 	const struct drm_crtc_state *crtc_state;
 	struct regmap *regmap = it->hdmi_regmap;

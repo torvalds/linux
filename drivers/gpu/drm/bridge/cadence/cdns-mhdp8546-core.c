@@ -1979,10 +1979,9 @@ static void cdns_mhdp_sst_enable(struct cdns_mhdp_device *mhdp,
 }
 
 static void cdns_mhdp_atomic_enable(struct drm_bridge *bridge,
-				    struct drm_bridge_state *bridge_state)
+				    struct drm_atomic_state *state)
 {
 	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
-	struct drm_atomic_state *state = bridge_state->base.state;
 	struct cdns_mhdp_bridge_state *mhdp_state;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;

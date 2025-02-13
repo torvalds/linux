@@ -18,7 +18,8 @@ struct tdp158 {
 	struct device *dev;
 };
 
-static void tdp158_enable(struct drm_bridge *bridge, struct drm_bridge_state *prev)
+static void tdp158_enable(struct drm_bridge *bridge,
+			  struct drm_atomic_state *state)
 {
 	int err;
 	struct tdp158 *tdp158 = bridge->driver_private;

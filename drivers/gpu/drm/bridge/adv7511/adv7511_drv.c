@@ -911,7 +911,7 @@ static struct adv7511 *bridge_to_adv7511(struct drm_bridge *bridge)
 }
 
 static void adv7511_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *bridge_state)
+					 struct drm_atomic_state *state)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 

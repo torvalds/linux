@@ -2959,10 +2959,9 @@ static void dw_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void dw_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_state)
+					 struct drm_atomic_state *state)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
-	struct drm_atomic_state *state = old_state->base.state;
 	struct drm_connector *connector;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state,

@@ -1043,7 +1043,7 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void dw_mipi_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
-					     struct drm_bridge_state *old_bridge_state)
+					     struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 

@@ -980,9 +980,8 @@ static int lvds_attach(struct drm_bridge *bridge,
 }
 
 static void lvds_atomic_enable(struct drm_bridge *bridge,
-			       struct drm_bridge_state *old_bridge_state)
+			       struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct stm_lvds *lvds = bridge_to_stm_lvds(bridge);
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;

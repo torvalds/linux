@@ -105,7 +105,7 @@ static const struct regmap_config dlpc_regmap_config = {
 };
 
 static void dlpc_atomic_enable(struct drm_bridge *bridge,
-			       struct drm_bridge_state *old_bridge_state)
+			       struct drm_atomic_state *state)
 {
 	struct dlpc *dlpc = bridge_to_dlpc(bridge);
 	struct device *dev = dlpc->dev;

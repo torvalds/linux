@@ -137,9 +137,8 @@ static int msm_edp_bridge_atomic_check(struct drm_bridge *drm_bridge,
 }
 
 static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
-				     struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *atomic_state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
@@ -151,19 +150,19 @@ static void msm_edp_bridge_atomic_enable(struct drm_bridge *drm_bridge,
 	 * If the panel is in psr, just exit psr state and skip the full
 	 * bridge enable sequence.
 	 */
-	crtc = drm_atomic_get_new_crtc_for_encoder(atomic_state,
+	crtc = drm_atomic_get_new_crtc_for_encoder(state,
 						   drm_bridge->encoder);
 	if (!crtc)
 		return;
 
-	old_crtc_state = drm_atomic_get_old_crtc_state(atomic_state, crtc);
+	old_crtc_state = drm_atomic_get_old_crtc_state(state, crtc);
 
 	if (old_crtc_state && old_crtc_state->self_refresh_active) {
 		msm_dp_display_set_psr(dp, false);
 		return;
 	}
 
-	msm_dp_bridge_atomic_enable(drm_bridge, old_bridge_state);
+	msm_dp_bridge_atomic_enable(drm_bridge, state);
 }
 
 static void msm_edp_bridge_atomic_disable(struct drm_bridge *drm_bridge,

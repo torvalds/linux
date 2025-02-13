@@ -219,9 +219,8 @@ static void imx8qxp_ldb_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 		companion->funcs->atomic_pre_enable(companion, state);
 }
 
-static void
-imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
-				 struct drm_bridge_state *old_bridge_state)
+static void imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
+					     struct drm_atomic_state *state)
 {
 	struct ldb_channel *ldb_ch = bridge->driver_private;
 	struct ldb *ldb = ldb_ch->ldb;
@@ -251,7 +250,7 @@ imx8qxp_ldb_bridge_atomic_enable(struct drm_bridge *bridge,
 		DRM_DEV_ERROR(dev, "failed to power on PHY: %d\n", ret);
 
 	if (is_split && companion)
-		companion->funcs->atomic_enable(companion, old_bridge_state);
+		companion->funcs->atomic_enable(companion, state);
 }
 
 static void

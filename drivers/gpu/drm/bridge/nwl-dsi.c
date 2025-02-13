@@ -898,9 +898,8 @@ runtime_put:
 	pm_runtime_put_sync(dev);
 }
 
-static void
-nwl_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
-			     struct drm_bridge_state *old_bridge_state)
+static void nwl_dsi_bridge_atomic_enable(struct drm_bridge *bridge,
+					 struct drm_atomic_state *state)
 {
 	struct nwl_dsi *dsi = bridge_to_dsi(bridge);
 	int ret;

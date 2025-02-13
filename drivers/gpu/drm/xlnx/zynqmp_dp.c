@@ -1437,7 +1437,7 @@ zynqmp_dp_disp_connected_live_layer(struct zynqmp_dp *dp)
 }
 
 static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
-				  struct drm_bridge_state *old_bridge_state)
+				  struct drm_atomic_state *state)
 {
 	struct zynqmp_disp_layer *layer;
 	struct drm_bridge_state *bridge_state;
@@ -1447,8 +1447,7 @@ static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
 	if (!layer)
 		return;
 
-	bridge_state = drm_atomic_get_new_bridge_state(old_bridge_state->base.state,
-						       old_bridge_state->bridge);
+	bridge_state = drm_atomic_get_new_bridge_state(state, &dp->bridge);
 	if (WARN_ON(!bridge_state))
 		return;
 
@@ -1549,10 +1548,9 @@ zynqmp_dp_bridge_mode_valid(struct drm_bridge *bridge,
 }
 
 static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_state *state)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	const struct drm_crtc_state *crtc_state;
 	const struct drm_display_mode *adjusted_mode;
 	const struct drm_display_mode *mode;
@@ -1565,7 +1563,7 @@ static void zynqmp_dp_bridge_atomic_enable(struct drm_bridge *bridge,
 	pm_runtime_get_sync(dp->dev);
 
 	guard(mutex)(&dp->lock);
-	zynqmp_dp_disp_enable(dp, old_bridge_state);
+	zynqmp_dp_disp_enable(dp, state);
 
 	/*
 	 * Retrieve the CRTC mode and adjusted mode. This requires a little

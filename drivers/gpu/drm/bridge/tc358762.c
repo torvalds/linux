@@ -189,7 +189,8 @@ static void tc358762_pre_enable(struct drm_bridge *bridge,
 	ctx->pre_enabled = true;
 }
 
-static void tc358762_enable(struct drm_bridge *bridge, struct drm_bridge_state *state)
+static void tc358762_enable(struct drm_bridge *bridge,
+			    struct drm_atomic_state *state)
 {
 	struct tc358762 *ctx = bridge_to_tc358762(bridge);
 	int ret;
