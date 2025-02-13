@@ -2615,6 +2615,15 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 		_intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 }
 
+void intel_hdcp_cancel_works(struct intel_connector *connector)
+{
+	if (!connector->hdcp.shim)
+		return;
+
+	cancel_delayed_work_sync(&connector->hdcp.check_work);
+	cancel_work_sync(&connector->hdcp.prop_work);
+}
+
 void intel_hdcp_component_fini(struct intel_display *display)
 {
 	mutex_lock(&display->hdcp.hdcp_mutex);
