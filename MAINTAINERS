@@ -3859,13 +3859,6 @@ W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/pwm/adi,axi-pwmgen.yaml
 F:	drivers/pwm/pwm-axi-pwmgen.c
 
-AXXIA I2C CONTROLLER
-M:	Krzysztof Adamski <krzysztof.adamski@nokia.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/i2c/i2c-axxia.txt
-F:	drivers/i2c/busses/i2c-axxia.c
-
 AZ6007 DVB DRIVER
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 L:	linux-media@vger.kernel.org
