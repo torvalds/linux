@@ -532,6 +532,8 @@ struct otx2_nic {
 
 	/* Inline ipsec */
 	struct cn10k_ipsec	ipsec;
+	/* af_xdp zero-copy */
+	unsigned long		*af_xdp_zc_qidx;
 };
 
 static inline bool is_otx2_lbkvf(struct pci_dev *pdev)
@@ -1003,7 +1005,7 @@ void otx2_txschq_free_one(struct otx2_nic *pfvf, u16 lvl, u16 schq);
 void otx2_free_pending_sqe(struct otx2_nic *pfvf);
 void otx2_sqb_flush(struct otx2_nic *pfvf);
 int otx2_alloc_rbuf(struct otx2_nic *pfvf, struct otx2_pool *pool,
-		    dma_addr_t *dma);
+		    dma_addr_t *dma, int qidx, int idx);
 int otx2_rxtx_enable(struct otx2_nic *pfvf, bool enable);
 void otx2_ctx_disable(struct mbox *mbox, int type, bool npa);
 int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable);
@@ -1033,6 +1035,8 @@ void otx2_pfaf_mbox_destroy(struct otx2_nic *pf);
 void otx2_disable_mbox_intr(struct otx2_nic *pf);
 void otx2_disable_napi(struct otx2_nic *pf);
 irqreturn_t otx2_cq_intr_handler(int irq, void *cq_irq);
+int otx2_rq_init(struct otx2_nic *pfvf, u16 qidx, u16 lpb_aura);
+int otx2_cq_init(struct otx2_nic *pfvf, u16 qidx);
 
 /* RSS configuration APIs*/
 int otx2_rss_init(struct otx2_nic *pfvf);

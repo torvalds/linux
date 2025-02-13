@@ -12,6 +12,7 @@
 #include <linux/bpf_trace.h>
 #include <net/ip6_checksum.h>
 #include <net/xfrm.h>
+#include <net/xdp.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
@@ -523,9 +524,10 @@ static void otx2_adjust_adaptive_coalese(struct otx2_nic *pfvf, struct otx2_cq_p
 int otx2_napi_handler(struct napi_struct *napi, int budget)
 {
 	struct otx2_cq_queue *rx_cq = NULL;
+	struct otx2_cq_queue *cq = NULL;
+	struct otx2_pool *pool = NULL;
 	struct otx2_cq_poll *cq_poll;
 	int workdone = 0, cq_idx, i;
-	struct otx2_cq_queue *cq;
 	struct otx2_qset *qset;
 	struct otx2_nic *pfvf;
 	int filled_cnt = -1;
@@ -550,6 +552,7 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 
 	if (rx_cq && rx_cq->pool_ptrs)
 		filled_cnt = pfvf->hw_ops->refill_pool_ptrs(pfvf, rx_cq);
+
 	/* Clear the IRQ */
 	otx2_write64(pfvf, NIX_LF_CINTX_INT(cq_poll->cint_idx), BIT_ULL(0));
 
@@ -562,20 +565,31 @@ int otx2_napi_handler(struct napi_struct *napi, int budget)
 		if (pfvf->flags & OTX2_FLAG_ADPTV_INT_COAL_ENABLED)
 			otx2_adjust_adaptive_coalese(pfvf, cq_poll);
 
+		if (likely(cq))
+			pool = &pfvf->qset.pool[cq->cq_idx];
+
 		if (unlikely(!filled_cnt)) {
 			struct refill_work *work;
 			struct delayed_work *dwork;
 
-			work = &pfvf->refill_wrk[cq->cq_idx];
-			dwork = &work->pool_refill_work;
-			/* Schedule a task if no other task is running */
-			if (!cq->refill_task_sched) {
-				work->napi = napi;
-				cq->refill_task_sched = true;
-				schedule_delayed_work(dwork,
-						      msecs_to_jiffies(100));
+			if (likely(cq)) {
+				work = &pfvf->refill_wrk[cq->cq_idx];
+				dwork = &work->pool_refill_work;
+				/* Schedule a task if no other task is running */
+				if (!cq->refill_task_sched) {
+					work->napi = napi;
+					cq->refill_task_sched = true;
+					schedule_delayed_work(dwork,
+							      msecs_to_jiffies(100));
+				}
+				/* Call wake-up for not able to fill buffers */
+				if (pool->xsk_pool)
+					xsk_set_rx_need_wakeup(pool->xsk_pool);
 			}
 		} else {
+			/* Clear wake-up, since buffers are filled successfully */
+			if (pool && pool->xsk_pool)
+				xsk_clear_rx_need_wakeup(pool->xsk_pool);
 			/* Re-enable interrupts */
 			otx2_write64(pfvf,
 				     NIX_LF_CINTX_ENA_W1S(cq_poll->cint_idx),
@@ -1226,14 +1240,18 @@ void otx2_cleanup_rx_cqes(struct otx2_nic *pfvf, struct otx2_cq_queue *cq, int q
 	u16 pool_id;
 	u64 iova;
 
-	if (pfvf->xdp_prog)
+	pool_id = otx2_get_pool_idx(pfvf, AURA_NIX_RQ, qidx);
+	pool = &pfvf->qset.pool[pool_id];
+
+	if (pfvf->xdp_prog) {
+		if (pool->page_pool)
+			xdp_rxq_info_unreg_mem_model(&cq->xdp_rxq);
+
 		xdp_rxq_info_unreg(&cq->xdp_rxq);
+	}
 
 	if (otx2_nix_cq_op_status(pfvf, cq) || !cq->pend_cqe)
 		return;
-
-	pool_id = otx2_get_pool_idx(pfvf, AURA_NIX_RQ, qidx);
-	pool = &pfvf->qset.pool[pool_id];
 
 	while (cq->pend_cqe) {
 		cqe = (struct nix_cqe_rx_s *)otx2_get_next_cqe(cq);
@@ -1418,17 +1436,28 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct otx2_cq_queue *cq,
 				     bool *need_xdp_flush)
 {
+	struct xdp_buff xdp, *xsk_buff = NULL;
 	unsigned char *hard_start;
 	struct otx2_pool *pool;
 	struct xdp_frame *xdpf;
 	int qidx = cq->cq_idx;
-	struct xdp_buff xdp;
 	struct page *page;
 	u64 iova, pa;
 	u32 act;
 	int err;
 
 	pool = &pfvf->qset.pool[qidx];
+
+	if (pool->xsk_pool) {
+		xsk_buff = pool->xdp[--cq->rbpool->xdp_top];
+		if (!xsk_buff)
+			return false;
+
+		xsk_buff->data_end = xsk_buff->data + cqe->sg.seg_size;
+		act = bpf_prog_run_xdp(prog, xsk_buff);
+		goto handle_xdp_verdict;
+	}
+
 	iova = cqe->sg.seg_addr - OTX2_HEAD_ROOM;
 	pa = otx2_iova_to_phys(pfvf->iommu_domain, iova);
 	page = virt_to_page(phys_to_virt(pa));
@@ -1441,6 +1470,7 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 
 	act = bpf_prog_run_xdp(prog, &xdp);
 
+handle_xdp_verdict:
 	switch (act) {
 	case XDP_PASS:
 		break;
@@ -1452,6 +1482,15 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 					      cqe->sg.seg_size, qidx, XDP_TX);
 	case XDP_REDIRECT:
 		cq->pool_ptrs++;
+		if (xsk_buff) {
+			err = xdp_do_redirect(pfvf->netdev, xsk_buff, prog);
+			if (!err) {
+				*need_xdp_flush = true;
+				return true;
+			}
+			return false;
+		}
+
 		err = xdp_do_redirect(pfvf->netdev, &xdp, prog);
 		if (!err) {
 			*need_xdp_flush = true;
@@ -1467,11 +1506,15 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 		bpf_warn_invalid_xdp_action(pfvf->netdev, prog, act);
 		break;
 	case XDP_ABORTED:
+		if (xsk_buff)
+			xsk_buff_free(xsk_buff);
 		trace_xdp_exception(pfvf->netdev, prog, act);
 		break;
 	case XDP_DROP:
 		cq->pool_ptrs++;
-		if (page->pp) {
+		if (xsk_buff) {
+			xsk_buff_free(xsk_buff);
+		} else if (page->pp) {
 			page_pool_recycle_direct(pool->page_pool, page);
 		} else {
 			otx2_dma_unmap_page(pfvf, iova, pfvf->rbsize,
