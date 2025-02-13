@@ -44,6 +44,7 @@
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "intel_snps_phy.h"
+#include "intel_vblank.h"
 #include "skl_universal_plane.h"
 
 /**
@@ -2287,6 +2288,27 @@ bool intel_psr_needs_block_dc_vblank(const struct intel_crtc_state *crtc_state)
 	}
 
 	return false;
+}
+
+/**
+ * intel_psr_trigger_frame_change_event - Trigger "Frame Change" event
+ * @dsb: DSB context
+ * @state: the atomic state
+ * @crtc: the CRTC
+ *
+ * Generate PSR "Frame Change" event.
+ */
+void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
+					  struct intel_atomic_state *state,
+					  struct intel_crtc *crtc)
+{
+	const struct intel_crtc_state *crtc_state =
+		intel_pre_commit_crtc_state(state, crtc);
+	struct intel_display *display = to_intel_display(crtc);
+
+	if (crtc_state->has_psr)
+		intel_de_write_dsb(display, dsb,
+				   CURSURFLIVE(display, crtc->pipe), 0);
 }
 
 static u32 man_trk_ctl_enable_bit_get(struct intel_display *display)

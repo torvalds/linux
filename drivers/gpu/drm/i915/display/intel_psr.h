@@ -64,6 +64,9 @@ bool intel_psr_link_ok(struct intel_dp *intel_dp);
 
 void intel_psr_lock(const struct intel_crtc_state *crtc_state);
 void intel_psr_unlock(const struct intel_crtc_state *crtc_state);
+void intel_psr_trigger_frame_change_event(struct intel_dsb *dsb,
+					  struct intel_atomic_state *state,
+					  struct intel_crtc *crtc);
 void intel_psr_connector_debugfs_add(struct intel_connector *connector);
 void intel_psr_debugfs_register(struct intel_display *display);
 
