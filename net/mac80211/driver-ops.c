@@ -121,7 +121,7 @@ void drv_remove_interface(struct ieee80211_local *local,
 	 * The virtual monitor interface doesn't get a debugfs
 	 * entry, so it's exempt here.
 	 */
-	if (sdata != local->monitor_sdata)
+	if (sdata != rcu_access_pointer(local->monitor_sdata))
 		ieee80211_debugfs_recreate_netdev(sdata,
 						  sdata->vif.valid_links);
 
