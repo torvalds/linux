@@ -877,15 +877,17 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_pxp_init(xe);
 	if (err)
-		goto err_fini_display;
+		goto err_remove_display;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
-		goto err_fini_display;
+		goto err_remove_display;
 
 	xe_display_register(xe);
 
-	xe_oa_register(xe);
+	err = xe_oa_register(xe);
+	if (err)
+		goto err_unregister_display;
 
 	xe_pmu_register(&xe->pmu);
 
@@ -902,7 +904,9 @@ int xe_device_probe(struct xe_device *xe)
 
 	return devm_add_action_or_reset(xe->drm.dev, xe_device_sanitize, xe);
 
-err_fini_display:
+err_unregister_display:
+	xe_display_unregister(xe);
+err_remove_display:
 	xe_display_driver_remove(xe);
 
 	return err;
@@ -970,8 +974,6 @@ void xe_device_remove(struct xe_device *xe)
 	drm_dev_unplug(&xe->drm);
 
 	xe_display_driver_remove(xe);
-
-	xe_oa_unregister(xe);
 
 	xe_heci_gsc_fini(xe);
 
