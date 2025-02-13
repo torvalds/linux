@@ -1,32 +1,32 @@
 [
   {
-    "EventName": "ICACHE_RETIRED",
+    "EventName": "ICACHE_MISS",
     "EventCode": "0x102",
-    "BriefDescription": "Instruction cache miss"
+    "BriefDescription": "Counts instruction cache misses"
   },
   {
-    "EventName": "DCACHE_MISS_MMIO_ACCESSES",
+    "EventName": "DCACHE_MISS",
     "EventCode": "0x202",
-    "BriefDescription": "Data cache miss or memory-mapped I/O access"
+    "BriefDescription": "Counts data cache misses"
   },
   {
-    "EventName": "DCACHE_WRITEBACK",
+    "EventName": "DCACHE_RELEASE",
     "EventCode": "0x402",
-    "BriefDescription": "Data cache write-back"
+    "BriefDescription": "Counts writeback requests from the data cache"
   },
   {
-    "EventName": "INST_TLB_MISS",
+    "EventName": "ITLB_MISS",
     "EventCode": "0x802",
-    "BriefDescription": "Instruction TLB miss"
+    "BriefDescription": "Counts Instruction TLB misses caused by instruction address translation requests"
   },
   {
-    "EventName": "DATA_TLB_MISS",
+    "EventName": "DTLB_MISS",
     "EventCode": "0x1002",
-    "BriefDescription": "Data TLB miss"
+    "BriefDescription": "Counts Data TLB misses caused by data address translation requests"
   },
   {
     "EventName": "UTLB_MISS",
     "EventCode": "0x2002",
-    "BriefDescription": "UTLB miss"
+    "BriefDescription": "Counts Unified TLB misses caused by address translation requests"
   }
 ]

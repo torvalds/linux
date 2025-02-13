@@ -2,56 +2,56 @@
   {
     "EventName": "ADDRESSGEN_INTERLOCK",
     "EventCode": "0x101",
-    "BriefDescription": "Address-generation interlock"
+    "BriefDescription": "Counts cycles with an address-generation interlock"
   },
   {
-    "EventName": "LONGLAT_INTERLOCK",
+    "EventName": "LONGLATENCY_INTERLOCK",
     "EventCode": "0x201",
-    "BriefDescription": "Long-latency interlock"
+    "BriefDescription": "Counts cycles with a long-latency interlock"
   },
   {
-    "EventName": "CSR_READ_INTERLOCK",
+    "EventName": "CSR_INTERLOCK",
     "EventCode": "0x401",
-    "BriefDescription": "CSR read interlock"
+    "BriefDescription": "Counts cycles with a CSR interlock"
   },
   {
-    "EventName": "ICACHE_ITIM_BUSY",
+    "EventName": "ICACHE_BLOCKED",
     "EventCode": "0x801",
-    "BriefDescription": "Instruction cache/ITIM busy"
+    "BriefDescription": "Counts cycles in which the instruction cache was not able to provide an instruction"
   },
   {
-    "EventName": "DCACHE_DTIM_BUSY",
+    "EventName": "DCACHE_BLOCKED",
     "EventCode": "0x1001",
-    "BriefDescription": "Data cache/DTIM busy"
+    "BriefDescription": "Counts cycles in which the data cache blocked an instruction"
   },
   {
     "EventName": "BRANCH_DIRECTION_MISPREDICTION",
     "EventCode": "0x2001",
-    "BriefDescription": "Branch direction misprediction"
+    "BriefDescription": "Counts mispredictions of conditional branch direction (taken/not taken)"
   },
   {
     "EventName": "BRANCH_TARGET_MISPREDICTION",
     "EventCode": "0x4001",
-    "BriefDescription": "Branch/jump target misprediction"
+    "BriefDescription": "Counts mispredictions of the target PC of control-flow instructions"
   },
   {
-    "EventName": "PIPE_FLUSH_CSR_WRITE",
+    "EventName": "PIPELINE_FLUSH",
     "EventCode": "0x8001",
-    "BriefDescription": "Pipeline flush from CSR write"
+    "BriefDescription": "Counts flushes of the core pipeline. Common causes include fence.i and CSR accesses"
   },
   {
-    "EventName": "PIPE_FLUSH_OTHER_EVENT",
+    "EventName": "REPLAY",
     "EventCode": "0x10001",
-    "BriefDescription": "Pipeline flush from other event"
+    "BriefDescription": "Counts instruction replays"
   },
   {
-    "EventName": "INTEGER_MULTIPLICATION_INTERLOCK",
+    "EventName": "INTEGER_MUL_DIV_INTERLOCK",
     "EventCode": "0x20001",
-    "BriefDescription": "Integer multiplication interlock"
+    "BriefDescription": "Counts cycles with a multiply or divide interlock"
   },
   {
     "EventName": "FP_INTERLOCK",
     "EventCode": "0x40001",
-    "BriefDescription": "Floating-point interlock"
+    "BriefDescription": "Counts cycles with a floating-point interlock"
   }
 ]
