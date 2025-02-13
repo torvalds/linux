@@ -146,6 +146,7 @@ write_attribute(trigger_journal_writes);
 write_attribute(trigger_btree_cache_shrink);
 write_attribute(trigger_btree_key_cache_shrink);
 write_attribute(trigger_freelist_wakeup);
+write_attribute(trigger_btree_updates);
 read_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -411,6 +412,9 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
+	if (attr == &sysfs_trigger_btree_updates)
+		queue_work(c->btree_interior_update_worker, &c->btree_interior_update_work);
+
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs))
 		return -EROFS;
 
@@ -580,6 +584,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_btree_cache_shrink,
 	&sysfs_trigger_btree_key_cache_shrink,
 	&sysfs_trigger_freelist_wakeup,
+	&sysfs_trigger_btree_updates,
 
 	&sysfs_gc_gens_pos,
 
