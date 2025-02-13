@@ -1532,7 +1532,7 @@ xfs_reflink_zero_posteof(
 		return 0;
 
 	trace_xfs_zero_eof(ip, isize, pos - isize);
-	return xfs_zero_range(ip, isize, pos - isize, NULL);
+	return xfs_zero_range(ip, isize, pos - isize, NULL, NULL);
 }
 
 /*

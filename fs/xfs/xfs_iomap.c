@@ -31,6 +31,7 @@
 #include "xfs_health.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_icache.h"
+#include "xfs_zone_alloc.h"
 
 #define XFS_ALLOC_ALIGN(mp, off) \
 	(((off) >> mp->m_allocsize_log) << mp->m_allocsize_log)
@@ -1269,6 +1270,176 @@ out:
 }
 
 static int
+xfs_zoned_buffered_write_iomap_begin(
+	struct inode		*inode,
+	loff_t			offset,
+	loff_t			count,
+	unsigned		flags,
+	struct iomap		*iomap,
+	struct iomap		*srcmap)
+{
+	struct iomap_iter	*iter =
+		container_of(iomap, struct iomap_iter, iomap);
+	struct xfs_zone_alloc_ctx *ac = iter->private;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, count);
+	u16			iomap_flags = IOMAP_F_SHARED;
+	unsigned int		lockmode = XFS_ILOCK_EXCL;
+	xfs_filblks_t		count_fsb;
+	xfs_extlen_t		indlen;
+	struct xfs_bmbt_irec	got;
+	struct xfs_iext_cursor	icur;
+	int			error = 0;
+
+	ASSERT(!xfs_get_extsz_hint(ip));
+	ASSERT(!(flags & IOMAP_UNSHARE));
+	ASSERT(ac);
+
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	error = xfs_qm_dqattach(ip);
+	if (error)
+		return error;
+
+	error = xfs_ilock_for_iomap(ip, flags, &lockmode);
+	if (error)
+		return error;
+
+	if (XFS_IS_CORRUPT(mp, !xfs_ifork_has_extents(&ip->i_df)) ||
+	    XFS_TEST_ERROR(false, mp, XFS_ERRTAG_BMAPIFORMAT)) {
+		xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
+		error = -EFSCORRUPTED;
+		goto out_unlock;
+	}
+
+	XFS_STATS_INC(mp, xs_blk_mapw);
+
+	error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
+	if (error)
+		goto out_unlock;
+
+	/*
+	 * For zeroing operations check if there is any data to zero first.
+	 *
+	 * For regular writes we always need to allocate new blocks, but need to
+	 * provide the source mapping when the range is unaligned to support
+	 * read-modify-write of the whole block in the page cache.
+	 *
+	 * In either case we need to limit the reported range to the boundaries
+	 * of the source map in the data fork.
+	 */
+	if (!IS_ALIGNED(offset, mp->m_sb.sb_blocksize) ||
+	    !IS_ALIGNED(offset + count, mp->m_sb.sb_blocksize) ||
+	    (flags & IOMAP_ZERO)) {
+		struct xfs_bmbt_irec	smap;
+		struct xfs_iext_cursor	scur;
+
+		if (!xfs_iext_lookup_extent(ip, &ip->i_df, offset_fsb, &scur,
+				&smap))
+			smap.br_startoff = end_fsb; /* fake hole until EOF */
+		if (smap.br_startoff > offset_fsb) {
+			/*
+			 * We never need to allocate blocks for zeroing a hole.
+			 */
+			if (flags & IOMAP_ZERO) {
+				xfs_hole_to_iomap(ip, iomap, offset_fsb,
+						smap.br_startoff);
+				goto out_unlock;
+			}
+			end_fsb = min(end_fsb, smap.br_startoff);
+		} else {
+			end_fsb = min(end_fsb,
+				smap.br_startoff + smap.br_blockcount);
+			xfs_trim_extent(&smap, offset_fsb,
+					end_fsb - offset_fsb);
+			error = xfs_bmbt_to_iomap(ip, srcmap, &smap, flags, 0,
+					xfs_iomap_inode_sequence(ip, 0));
+			if (error)
+				goto out_unlock;
+		}
+	}
+
+	if (!ip->i_cowfp)
+		xfs_ifork_init_cow(ip);
+
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got))
+		got.br_startoff = end_fsb;
+	if (got.br_startoff <= offset_fsb) {
+		trace_xfs_reflink_cow_found(ip, &got);
+		goto done;
+	}
+
+	/*
+	 * Cap the maximum length to keep the chunks of work done here somewhat
+	 * symmetric with the work writeback does.
+	 */
+	end_fsb = min(end_fsb, got.br_startoff);
+	count_fsb = min3(end_fsb - offset_fsb, XFS_MAX_BMBT_EXTLEN,
+			 XFS_B_TO_FSB(mp, 1024 * PAGE_SIZE));
+
+	/*
+	 * The block reservation is supposed to cover all blocks that the
+	 * operation could possible write, but there is a nasty corner case
+	 * where blocks could be stolen from underneath us:
+	 *
+	 *  1) while this thread iterates over a larger buffered write,
+	 *  2) another thread is causing a write fault that calls into
+	 *     ->page_mkwrite in range this thread writes to, using up the
+	 *     delalloc reservation created by a previous call to this function.
+	 *  3) another thread does direct I/O on the range that the write fault
+	 *     happened on, which causes writeback of the dirty data.
+	 *  4) this then set the stale flag, which cuts the current iomap
+	 *     iteration short, causing the new call to ->iomap_begin that gets
+	 *     us here again, but now without a sufficient reservation.
+	 *
+	 * This is a very unusual I/O pattern, and nothing but generic/095 is
+	 * known to hit it. There's not really much we can do here, so turn this
+	 * into a short write.
+	 */
+	if (count_fsb > ac->reserved_blocks) {
+		xfs_warn_ratelimited(mp,
+"Short write on ino 0x%llx comm %.20s due to three-way race with write fault and direct I/O",
+			ip->i_ino, current->comm);
+		count_fsb = ac->reserved_blocks;
+		if (!count_fsb) {
+			error = -EIO;
+			goto out_unlock;
+		}
+	}
+
+	error = xfs_quota_reserve_blkres(ip, count_fsb);
+	if (error)
+		goto out_unlock;
+
+	indlen = xfs_bmap_worst_indlen(ip, count_fsb);
+	error = xfs_dec_fdblocks(mp, indlen, false);
+	if (error)
+		goto out_unlock;
+	ip->i_delayed_blks += count_fsb;
+	xfs_mod_delalloc(ip, count_fsb, indlen);
+
+	got.br_startoff = offset_fsb;
+	got.br_startblock = nullstartblock(indlen);
+	got.br_blockcount = count_fsb;
+	got.br_state = XFS_EXT_NORM;
+	xfs_bmap_add_extent_hole_delay(ip, XFS_COW_FORK, &icur, &got);
+	ac->reserved_blocks -= count_fsb;
+	iomap_flags |= IOMAP_F_NEW;
+
+	trace_xfs_iomap_alloc(ip, offset, XFS_FSB_TO_B(mp, count_fsb),
+			XFS_COW_FORK, &got);
+done:
+	error = xfs_bmbt_to_iomap(ip, iomap, &got, flags, iomap_flags,
+			xfs_iomap_inode_sequence(ip, IOMAP_F_SHARED));
+out_unlock:
+	xfs_iunlock(ip, lockmode);
+	return error;
+}
+
+static int
 xfs_buffered_write_iomap_begin(
 	struct inode		*inode,
 	loff_t			offset,
@@ -1293,6 +1464,10 @@ xfs_buffered_write_iomap_begin(
 
 	if (xfs_is_shutdown(mp))
 		return -EIO;
+
+	if (xfs_is_zoned_inode(ip))
+		return xfs_zoned_buffered_write_iomap_begin(inode, offset,
+				count, flags, iomap, srcmap);
 
 	/* we can't use delayed allocations when using extent size hints */
 	if (xfs_get_extsz_hint(ip))
@@ -1526,10 +1701,13 @@ xfs_buffered_write_delalloc_punch(
 	loff_t			length,
 	struct iomap		*iomap)
 {
+	struct iomap_iter	*iter =
+		container_of(iomap, struct iomap_iter, iomap);
+
 	xfs_bmap_punch_delalloc_range(XFS_I(inode),
 			(iomap->flags & IOMAP_F_SHARED) ?
 				XFS_COW_FORK : XFS_DATA_FORK,
-			offset, offset + length);
+			offset, offset + length, iter->private);
 }
 
 static int
@@ -1766,6 +1944,7 @@ xfs_zero_range(
 	struct xfs_inode	*ip,
 	loff_t			pos,
 	loff_t			len,
+	struct xfs_zone_alloc_ctx *ac,
 	bool			*did_zero)
 {
 	struct inode		*inode = VFS_I(ip);
@@ -1776,13 +1955,14 @@ xfs_zero_range(
 		return dax_zero_range(inode, pos, len, did_zero,
 				      &xfs_dax_write_iomap_ops);
 	return iomap_zero_range(inode, pos, len, did_zero,
-				&xfs_buffered_write_iomap_ops, NULL);
+				&xfs_buffered_write_iomap_ops, ac);
 }
 
 int
 xfs_truncate_page(
 	struct xfs_inode	*ip,
 	loff_t			pos,
+	struct xfs_zone_alloc_ctx *ac,
 	bool			*did_zero)
 {
 	struct inode		*inode = VFS_I(ip);
@@ -1791,5 +1971,5 @@ xfs_truncate_page(
 		return dax_truncate_page(inode, pos, did_zero,
 					&xfs_dax_write_iomap_ops);
 	return iomap_truncate_page(inode, pos, did_zero,
-				   &xfs_buffered_write_iomap_ops, NULL);
+				   &xfs_buffered_write_iomap_ops, ac);
 }

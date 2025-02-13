@@ -25,6 +25,7 @@
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
 #include "xfs_file.h"
+#include "xfs_zone_alloc.h"
 
 #include <linux/dax.h>
 #include <linux/falloc.h>
@@ -360,7 +361,8 @@ xfs_file_write_zero_eof(
 	struct iov_iter		*from,
 	unsigned int		*iolock,
 	size_t			count,
-	bool			*drained_dio)
+	bool			*drained_dio,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
 	loff_t			isize;
@@ -414,7 +416,7 @@ xfs_file_write_zero_eof(
 	trace_xfs_zero_eof(ip, isize, iocb->ki_pos - isize);
 
 	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	error = xfs_zero_range(ip, isize, iocb->ki_pos - isize, NULL);
+	error = xfs_zero_range(ip, isize, iocb->ki_pos - isize, ac, NULL);
 	xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 
 	return error;
@@ -431,7 +433,8 @@ STATIC ssize_t
 xfs_file_write_checks(
 	struct kiocb		*iocb,
 	struct iov_iter		*from,
-	unsigned int		*iolock)
+	unsigned int		*iolock,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct inode		*inode = iocb->ki_filp->f_mapping->host;
 	size_t			count = iov_iter_count(from);
@@ -481,7 +484,7 @@ restart:
 	 */
 	if (iocb->ki_pos > i_size_read(inode)) {
 		error = xfs_file_write_zero_eof(iocb, from, iolock, count,
-				&drained_dio);
+				&drained_dio, ac);
 		if (error == 1)
 			goto restart;
 		if (error)
@@ -489,6 +492,48 @@ restart:
 	}
 
 	return kiocb_modified(iocb);
+}
+
+static ssize_t
+xfs_zoned_write_space_reserve(
+	struct xfs_inode		*ip,
+	struct kiocb			*iocb,
+	struct iov_iter			*from,
+	unsigned int			flags,
+	struct xfs_zone_alloc_ctx	*ac)
+{
+	loff_t				count = iov_iter_count(from);
+	int				error;
+
+	if (iocb->ki_flags & IOCB_NOWAIT)
+		flags |= XFS_ZR_NOWAIT;
+
+	/*
+	 * Check the rlimit and LFS boundary first so that we don't over-reserve
+	 * by possibly a lot.
+	 *
+	 * The generic write path will redo this check later, and it might have
+	 * changed by then.  If it got expanded we'll stick to our earlier
+	 * smaller limit, and if it is decreased the new smaller limit will be
+	 * used and our extra space reservation will be returned after finishing
+	 * the write.
+	 */
+	error = generic_write_check_limits(iocb->ki_filp, iocb->ki_pos, &count);
+	if (error)
+		return error;
+
+	/*
+	 * Sloppily round up count to file system blocks.
+	 *
+	 * This will often reserve an extra block, but that avoids having to look
+	 * at the start offset, which isn't stable for O_APPEND until taking the
+	 * iolock.  Also we need to reserve a block each for zeroing the old
+	 * EOF block and the new start block if they are unaligned.
+	 *
+	 * Any remaining block will be returned after the write.
+	 */
+	return xfs_zoned_space_reserve(ip,
+			XFS_B_TO_FSB(ip->i_mount, count) + 1 + 2, flags, ac);
 }
 
 static int
@@ -597,7 +642,7 @@ xfs_file_dio_write_aligned(
 	ret = xfs_ilock_iocb_for_write(iocb, &iolock);
 	if (ret)
 		return ret;
-	ret = xfs_file_write_checks(iocb, from, &iolock);
+	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -675,7 +720,7 @@ retry_exclusive:
 		goto out_unlock;
 	}
 
-	ret = xfs_file_write_checks(iocb, from, &iolock);
+	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
 	if (ret)
 		goto out_unlock;
 
@@ -749,7 +794,7 @@ xfs_file_dax_write(
 	ret = xfs_ilock_iocb(iocb, iolock);
 	if (ret)
 		return ret;
-	ret = xfs_file_write_checks(iocb, from, &iolock);
+	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
 	if (ret)
 		goto out;
 
@@ -793,7 +838,7 @@ write_retry:
 	if (ret)
 		return ret;
 
-	ret = xfs_file_write_checks(iocb, from, &iolock);
+	ret = xfs_file_write_checks(iocb, from, &iolock, NULL);
 	if (ret)
 		goto out;
 
@@ -835,6 +880,67 @@ out:
 	if (ret > 0) {
 		XFS_STATS_ADD(ip->i_mount, xs_write_bytes, ret);
 		/* Handle various SYNC-type writes */
+		ret = generic_write_sync(iocb, ret);
+	}
+	return ret;
+}
+
+STATIC ssize_t
+xfs_file_buffered_write_zoned(
+	struct kiocb		*iocb,
+	struct iov_iter		*from)
+{
+	struct xfs_inode	*ip = XFS_I(iocb->ki_filp->f_mapping->host);
+	struct xfs_mount	*mp = ip->i_mount;
+	unsigned int		iolock = XFS_IOLOCK_EXCL;
+	bool			cleared_space = false;
+	struct xfs_zone_alloc_ctx ac = { };
+	ssize_t			ret;
+
+	ret = xfs_zoned_write_space_reserve(ip, iocb, from, XFS_ZR_GREEDY, &ac);
+	if (ret < 0)
+		return ret;
+
+	ret = xfs_ilock_iocb(iocb, iolock);
+	if (ret)
+		goto out_unreserve;
+
+	ret = xfs_file_write_checks(iocb, from, &iolock, &ac);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * Truncate the iter to the length that we were actually able to
+	 * allocate blocks for.  This needs to happen after
+	 * xfs_file_write_checks, because that assigns ki_pos for O_APPEND
+	 * writes.
+	 */
+	iov_iter_truncate(from,
+			XFS_FSB_TO_B(mp, ac.reserved_blocks) -
+			(iocb->ki_pos & mp->m_blockmask));
+	if (!iov_iter_count(from))
+		goto out_unlock;
+
+retry:
+	trace_xfs_file_buffered_write(iocb, from);
+	ret = iomap_file_buffered_write(iocb, from,
+			&xfs_buffered_write_iomap_ops, &ac);
+	if (ret == -ENOSPC && !cleared_space) {
+		/*
+		 * Kick off writeback to convert delalloc space and release the
+		 * usually too pessimistic indirect block reservations.
+		 */
+		xfs_flush_inodes(mp);
+		cleared_space = true;
+		goto retry;
+	}
+
+out_unlock:
+	xfs_iunlock(ip, iolock);
+out_unreserve:
+	xfs_zoned_space_unreserve(ip, &ac);
+	if (ret > 0) {
+		XFS_STATS_ADD(mp, xs_write_bytes, ret);
 		ret = generic_write_sync(iocb, ret);
 	}
 	return ret;
@@ -887,6 +993,8 @@ xfs_file_write_iter(
 			return ret;
 	}
 
+	if (xfs_is_zoned_inode(ip))
+		return xfs_file_buffered_write_zoned(iocb, from);
 	return xfs_file_buffered_write(iocb, from);
 }
 
@@ -941,7 +1049,8 @@ static int
 xfs_falloc_collapse_range(
 	struct file		*file,
 	loff_t			offset,
-	loff_t			len)
+	loff_t			len,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct inode		*inode = file_inode(file);
 	loff_t			new_size = i_size_read(inode) - len;
@@ -957,7 +1066,7 @@ xfs_falloc_collapse_range(
 	if (offset + len >= i_size_read(inode))
 		return -EINVAL;
 
-	error = xfs_collapse_file_space(XFS_I(inode), offset, len);
+	error = xfs_collapse_file_space(XFS_I(inode), offset, len, ac);
 	if (error)
 		return error;
 	return xfs_falloc_setsize(file, new_size);
@@ -1013,7 +1122,8 @@ xfs_falloc_zero_range(
 	struct file		*file,
 	int			mode,
 	loff_t			offset,
-	loff_t			len)
+	loff_t			len,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct inode		*inode = file_inode(file);
 	unsigned int		blksize = i_blocksize(inode);
@@ -1026,7 +1136,7 @@ xfs_falloc_zero_range(
 	if (error)
 		return error;
 
-	error = xfs_free_file_space(XFS_I(inode), offset, len);
+	error = xfs_free_file_space(XFS_I(inode), offset, len, ac);
 	if (error)
 		return error;
 
@@ -1097,21 +1207,17 @@ xfs_falloc_allocate_range(
 		 FALLOC_FL_INSERT_RANGE | FALLOC_FL_UNSHARE_RANGE)
 
 STATIC long
-xfs_file_fallocate(
+__xfs_file_fallocate(
 	struct file		*file,
 	int			mode,
 	loff_t			offset,
-	loff_t			len)
+	loff_t			len,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct inode		*inode = file_inode(file);
 	struct xfs_inode	*ip = XFS_I(inode);
 	long			error;
 	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
-
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-	if (mode & ~XFS_FALLOC_FL_SUPPORTED)
-		return -EOPNOTSUPP;
 
 	xfs_ilock(ip, iolock);
 	error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
@@ -1133,16 +1239,16 @@ xfs_file_fallocate(
 
 	switch (mode & FALLOC_FL_MODE_MASK) {
 	case FALLOC_FL_PUNCH_HOLE:
-		error = xfs_free_file_space(ip, offset, len);
+		error = xfs_free_file_space(ip, offset, len, ac);
 		break;
 	case FALLOC_FL_COLLAPSE_RANGE:
-		error = xfs_falloc_collapse_range(file, offset, len);
+		error = xfs_falloc_collapse_range(file, offset, len, ac);
 		break;
 	case FALLOC_FL_INSERT_RANGE:
 		error = xfs_falloc_insert_range(file, offset, len);
 		break;
 	case FALLOC_FL_ZERO_RANGE:
-		error = xfs_falloc_zero_range(file, mode, offset, len);
+		error = xfs_falloc_zero_range(file, mode, offset, len, ac);
 		break;
 	case FALLOC_FL_UNSHARE_RANGE:
 		error = xfs_falloc_unshare_range(file, mode, offset, len);
@@ -1161,6 +1267,54 @@ xfs_file_fallocate(
 out_unlock:
 	xfs_iunlock(ip, iolock);
 	return error;
+}
+
+static long
+xfs_file_zoned_fallocate(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct xfs_zone_alloc_ctx ac = { };
+	struct xfs_inode	*ip = XFS_I(file_inode(file));
+	int			error;
+
+	error = xfs_zoned_space_reserve(ip, 2, XFS_ZR_RESERVED, &ac);
+	if (error)
+		return error;
+	error = __xfs_file_fallocate(file, mode, offset, len, &ac);
+	xfs_zoned_space_unreserve(ip, &ac);
+	return error;
+}
+
+static long
+xfs_file_fallocate(
+	struct file		*file,
+	int			mode,
+	loff_t			offset,
+	loff_t			len)
+{
+	struct inode		*inode = file_inode(file);
+
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+	if (mode & ~XFS_FALLOC_FL_SUPPORTED)
+		return -EOPNOTSUPP;
+
+	/*
+	 * For zoned file systems, zeroing the first and last block of a hole
+	 * punch requires allocating a new block to rewrite the remaining data
+	 * and new zeroes out of place.  Get a reservations for those before
+	 * taking the iolock.  Dip into the reserved pool because we are
+	 * expected to be able to punch a hole even on a completely full
+	 * file system.
+	 */
+	if (xfs_is_zoned_inode(XFS_I(inode)) &&
+	    (mode & (FALLOC_FL_PUNCH_HOLE | FALLOC_FL_ZERO_RANGE |
+		     FALLOC_FL_COLLAPSE_RANGE)))
+		return xfs_file_zoned_fallocate(file, mode, offset, len);
+	return __xfs_file_fallocate(file, mode, offset, len, NULL);
 }
 
 STATIC int
@@ -1488,9 +1642,10 @@ xfs_dax_read_fault(
  *         i_lock (XFS - extent map serialisation)
  */
 static vm_fault_t
-xfs_write_fault(
+__xfs_write_fault(
 	struct vm_fault		*vmf,
-	unsigned int		order)
+	unsigned int		order,
+	struct xfs_zone_alloc_ctx *ac)
 {
 	struct inode		*inode = file_inode(vmf->vma->vm_file);
 	struct xfs_inode	*ip = XFS_I(inode);
@@ -1528,11 +1683,47 @@ xfs_write_fault(
 		ret = xfs_dax_fault_locked(vmf, order, true);
 	else
 		ret = iomap_page_mkwrite(vmf, &xfs_buffered_write_iomap_ops,
-				NULL);
+				ac);
 	xfs_iunlock(ip, lock_mode);
 
 	sb_end_pagefault(inode->i_sb);
 	return ret;
+}
+
+static vm_fault_t
+xfs_write_fault_zoned(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(vmf->vma->vm_file));
+	unsigned int		len = folio_size(page_folio(vmf->page));
+	struct xfs_zone_alloc_ctx ac = { };
+	int			error;
+	vm_fault_t		ret;
+
+	/*
+	 * This could over-allocate as it doesn't check for truncation.
+	 *
+	 * But as the overallocation is limited to less than a folio and will be
+	 * release instantly that's just fine.
+	 */
+	error = xfs_zoned_space_reserve(ip, XFS_B_TO_FSB(ip->i_mount, len), 0,
+			&ac);
+	if (error < 0)
+		return vmf_fs_error(error);
+	ret = __xfs_write_fault(vmf, order, &ac);
+	xfs_zoned_space_unreserve(ip, &ac);
+	return ret;
+}
+
+static vm_fault_t
+xfs_write_fault(
+	struct vm_fault		*vmf,
+	unsigned int		order)
+{
+	if (xfs_is_zoned_inode(XFS_I(file_inode(vmf->vma->vm_file))))
+		return xfs_write_fault_zoned(vmf, order);
+	return __xfs_write_fault(vmf, order, NULL);
 }
 
 static inline bool
