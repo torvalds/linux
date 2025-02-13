@@ -71,11 +71,11 @@ void intel_fb_plane_get_subsampling(int *hsub, int *vsub,
 				    int color_plane);
 
 u32 intel_plane_adjust_aligned_offset(int *x, int *y,
-				      const struct intel_plane_state *state,
+				      const struct intel_plane_state *plane_state,
 				      int color_plane,
 				      u32 old_offset, u32 new_offset);
 u32 intel_plane_compute_aligned_offset(int *x, int *y,
-				       const struct intel_plane_state *state,
+				       const struct intel_plane_state *plane_state,
 				       int color_plane);
 
 bool intel_fb_needs_pot_stride_remap(const struct intel_framebuffer *fb);
@@ -94,10 +94,11 @@ unsigned int intel_fb_view_vtd_guard(const struct drm_framebuffer *fb,
 int intel_plane_compute_gtt(struct intel_plane_state *plane_state);
 
 unsigned int intel_fb_xy_to_linear(int x, int y,
-				   const struct intel_plane_state *state,
-				   int plane);
+				   const struct intel_plane_state *plane_state,
+				   int color_plane);
 void intel_add_fb_offsets(int *x, int *y,
-			  const struct intel_plane_state *state, int plane);
+			  const struct intel_plane_state *plane_state,
+			  int color_plane);
 
 int intel_framebuffer_init(struct intel_framebuffer *ifb,
 			   struct drm_gem_object *obj,

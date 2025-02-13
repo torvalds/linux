@@ -1049,13 +1049,13 @@ static u32 intel_adjust_aligned_offset(int *x, int *y,
  * the x/y offsets.
  */
 u32 intel_plane_adjust_aligned_offset(int *x, int *y,
-				      const struct intel_plane_state *state,
+				      const struct intel_plane_state *plane_state,
 				      int color_plane,
 				      u32 old_offset, u32 new_offset)
 {
-	return intel_adjust_aligned_offset(x, y, state->hw.fb, color_plane,
-					   state->hw.rotation,
-					   state->view.color_plane[color_plane].mapping_stride,
+	return intel_adjust_aligned_offset(x, y, plane_state->hw.fb, color_plane,
+					   plane_state->hw.rotation,
+					   plane_state->view.color_plane[color_plane].mapping_stride,
 					   old_offset, new_offset);
 }
 
@@ -1129,14 +1129,14 @@ static u32 intel_compute_aligned_offset(struct intel_display *display,
 }
 
 u32 intel_plane_compute_aligned_offset(int *x, int *y,
-				       const struct intel_plane_state *state,
+				       const struct intel_plane_state *plane_state,
 				       int color_plane)
 {
-	struct intel_display *display = to_intel_display(state);
-	struct intel_plane *plane = to_intel_plane(state->uapi.plane);
-	const struct drm_framebuffer *fb = state->hw.fb;
-	unsigned int rotation = state->hw.rotation;
-	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
+	struct intel_display *display = to_intel_display(plane_state);
+	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
+	unsigned int rotation = plane_state->hw.rotation;
+	unsigned int pitch = plane_state->view.color_plane[color_plane].mapping_stride;
 	unsigned int alignment = plane->min_alignment(plane, fb, color_plane);
 
 	return intel_compute_aligned_offset(display, x, y, fb, color_plane,
@@ -1945,12 +1945,12 @@ void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotatio
  * with gen2/3, and 90/270 degree rotations isn't supported on any of them.
  */
 u32 intel_fb_xy_to_linear(int x, int y,
-			  const struct intel_plane_state *state,
+			  const struct intel_plane_state *plane_state,
 			  int color_plane)
 {
-	const struct drm_framebuffer *fb = state->hw.fb;
+	const struct drm_framebuffer *fb = plane_state->hw.fb;
 	unsigned int cpp = fb->format->cpp[color_plane];
-	unsigned int pitch = state->view.color_plane[color_plane].mapping_stride;
+	unsigned int pitch = plane_state->view.color_plane[color_plane].mapping_stride;
 
 	return y * pitch + x * cpp;
 }
@@ -1961,12 +1961,12 @@ u32 intel_fb_xy_to_linear(int x, int y,
  * specify the start of scanout from the beginning of the gtt mapping.
  */
 void intel_add_fb_offsets(int *x, int *y,
-			  const struct intel_plane_state *state,
+			  const struct intel_plane_state *plane_state,
 			  int color_plane)
 
 {
-	*x += state->view.color_plane[color_plane].x;
-	*y += state->view.color_plane[color_plane].y;
+	*x += plane_state->view.color_plane[color_plane].x;
+	*y += plane_state->view.color_plane[color_plane].y;
 }
 
 static
