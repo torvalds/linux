@@ -472,7 +472,7 @@ static void ps8640_atomic_pre_enable(struct drm_bridge *bridge,
 }
 
 static void ps8640_atomic_post_disable(struct drm_bridge *bridge,
-				       struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct ps8640 *ps_bridge = bridge_to_ps8640(bridge);
 

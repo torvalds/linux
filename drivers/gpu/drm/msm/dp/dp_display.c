@@ -1564,11 +1564,11 @@ void msm_dp_bridge_atomic_disable(struct drm_bridge *drm_bridge,
 }
 
 void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
-				   struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct msm_dp_bridge *msm_dp_bridge = to_dp_bridge(drm_bridge);
 	struct msm_dp *dp = msm_dp_bridge->msm_dp_display;
-	u32 state;
+	u32 hpd_state;
 	struct msm_dp_display_private *msm_dp_display;
 
 	msm_dp_display = container_of(dp, struct msm_dp_display_private, msm_dp_display);
@@ -1578,15 +1578,15 @@ void msm_dp_bridge_atomic_post_disable(struct drm_bridge *drm_bridge,
 
 	mutex_lock(&msm_dp_display->event_mutex);
 
-	state = msm_dp_display->hpd_state;
-	if (state != ST_DISCONNECT_PENDING && state != ST_CONNECTED)
+	hpd_state = msm_dp_display->hpd_state;
+	if (hpd_state != ST_DISCONNECT_PENDING && hpd_state != ST_CONNECTED)
 		drm_dbg_dp(dp->drm_dev, "type=%d wrong hpd_state=%d\n",
-			   dp->connector_type, state);
+			   dp->connector_type, hpd_state);
 
 	msm_dp_display_disable(msm_dp_display);
 
-	state =  msm_dp_display->hpd_state;
-	if (state == ST_DISCONNECT_PENDING) {
+	hpd_state =  msm_dp_display->hpd_state;
+	if (hpd_state == ST_DISCONNECT_PENDING) {
 		/* completed disconnection */
 		msm_dp_display->hpd_state = ST_DISCONNECTED;
 	} else {

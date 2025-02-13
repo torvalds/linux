@@ -1326,7 +1326,7 @@ static void mtk_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_bridge_atomic_post_disable(struct drm_bridge *bridge,
-						struct drm_bridge_state *old_state)
+						struct drm_atomic_state *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 

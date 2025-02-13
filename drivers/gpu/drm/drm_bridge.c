@@ -585,20 +585,10 @@ EXPORT_SYMBOL(drm_atomic_bridge_chain_disable);
 static void drm_atomic_bridge_call_post_disable(struct drm_bridge *bridge,
 						struct drm_atomic_state *old_state)
 {
-	if (old_state && bridge->funcs->atomic_post_disable) {
-		struct drm_bridge_state *old_bridge_state;
-
-		old_bridge_state =
-			drm_atomic_get_old_bridge_state(old_state,
-							bridge);
-		if (WARN_ON(!old_bridge_state))
-			return;
-
-		bridge->funcs->atomic_post_disable(bridge,
-						   old_bridge_state);
-	} else if (bridge->funcs->post_disable) {
+	if (old_state && bridge->funcs->atomic_post_disable)
+		bridge->funcs->atomic_post_disable(bridge, old_state);
+	else if (bridge->funcs->post_disable)
 		bridge->funcs->post_disable(bridge);
-	}
 }
 
 /**

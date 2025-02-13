@@ -361,7 +361,7 @@ struct drm_bridge_funcs {
 	 * The @atomic_post_disable callback is optional.
 	 */
 	void (*atomic_post_disable)(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state);
+				    struct drm_atomic_state *state);
 
 	/**
 	 * @atomic_duplicate_state:

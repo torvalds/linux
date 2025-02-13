@@ -745,7 +745,7 @@ static int dw_mipi_dsi2_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static void dw_mipi_dsi2_bridge_post_atomic_disable(struct drm_bridge *bridge,
-						    struct drm_bridge_state *old_bridge_state)
+						    struct drm_atomic_state *state)
 {
 	struct dw_mipi_dsi2 *dsi2 = bridge_to_dsi2(bridge);
 	const struct dw_mipi_dsi2_phy_ops *phy_ops = dsi2->plat_data->phy_ops;

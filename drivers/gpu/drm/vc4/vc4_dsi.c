@@ -811,7 +811,7 @@ static void vc4_dsi_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void vc4_dsi_bridge_post_disable(struct drm_bridge *bridge,
-					struct drm_bridge_state *state)
+					struct drm_atomic_state *state)
 {
 	struct vc4_dsi *dsi = bridge_to_vc4_dsi(bridge);
 	struct device *dev = &dsi->pdev->dev;
