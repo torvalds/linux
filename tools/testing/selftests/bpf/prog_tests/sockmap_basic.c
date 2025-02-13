@@ -111,31 +111,35 @@ out:
 
 static void test_sockmap_vsock_delete_on_close(void)
 {
-	int err, c, p, map;
-	const int zero = 0;
-
-	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
-	if (!ASSERT_OK(err, "create_pair(AF_VSOCK)"))
-		return;
+	int map, c, p, err, zero = 0;
 
 	map = bpf_map_create(BPF_MAP_TYPE_SOCKMAP, NULL, sizeof(int),
 			     sizeof(int), 1, NULL);
-	if (!ASSERT_GE(map, 0, "bpf_map_create")) {
-		close(c);
-		goto out;
-	}
+	if (!ASSERT_OK_FD(map, "bpf_map_create"))
+		return;
+
+	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
+	if (!ASSERT_OK(err, "create_pair"))
+		goto close_map;
+
+	if (xbpf_map_update_elem(map, &zero, &c, BPF_NOEXIST))
+		goto close_socks;
+
+	xclose(c);
+	xclose(p);
+
+	err = create_pair(AF_VSOCK, SOCK_STREAM, &c, &p);
+	if (!ASSERT_OK(err, "create_pair"))
+		goto close_map;
 
 	err = bpf_map_update_elem(map, &zero, &c, BPF_NOEXIST);
-	close(c);
-	if (!ASSERT_OK(err, "bpf_map_update"))
-		goto out;
-
-	err = bpf_map_update_elem(map, &zero, &p, BPF_NOEXIST);
 	ASSERT_OK(err, "after close(), bpf_map_update");
 
-out:
-	close(p);
-	close(map);
+close_socks:
+	xclose(c);
+	xclose(p);
+close_map:
+	xclose(map);
 }
 
 static void test_skmsg_helpers(enum bpf_map_type map_type)
