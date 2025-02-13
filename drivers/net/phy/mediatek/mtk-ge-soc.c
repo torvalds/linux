@@ -76,6 +76,10 @@
 /* FfeUpdGainForce */
 #define FFE_UPDATE_GAIN_FORCE			BIT(6)
 
+/* ch_addr = 0x2, node_addr = 0xd, data_addr = 0x3 */
+/* TrFreeze */
+#define TR_FREEZE_MASK				GENMASK(11, 0)
+
 /* ch_addr = 0x2, node_addr = 0xd, data_addr = 0x6 */
 /* SS: Steady-state, KP: Proportional Gain */
 /* SSTrKp100 */
@@ -90,6 +94,11 @@
 #define SS_TR_KP1000_SLAVE_MASK			GENMASK(9, 7)
 /* SSTrKf1000Slv */
 #define SS_TR_KF1000_SLAVE_MASK			GENMASK(6, 4)
+
+/* ch_addr = 0x2, node_addr = 0xd, data_addr = 0x8 */
+/* clear this bit if wanna select from AFE */
+/* Regsigdet_sel_1000 */
+#define EEE1000_SELECT_SIGNAL_DETECTION_FROM_DFE	BIT(4)
 
 /* ch_addr = 0x2, node_addr = 0xd, data_addr = 0xd */
 /* RegEEE_st2TrKf1000 */
@@ -112,6 +121,10 @@
 /* ch_addr = 0x2, node_addr = 0xd, data_addr = 0x1c */
 /* RegEEE100Stg1_tar */
 #define EEE100_LPSYNC_STAGE1_UPDATE_TIMER_MASK	GENMASK(8, 0)
+
+/* ch_addr = 0x2, node_addr = 0xd, data_addr = 0x25 */
+/* REGEEE_wake_slv_tr_wait_dfesigdet_en */
+#define WAKE_SLAVE_TR_WAIT_DFE_DETECTION_EN	BIT(11)
 
 #define ANALOG_INTERNAL_OPERATION_MAX_US	20
 #define TXRESERVE_MIN				0
@@ -805,10 +818,7 @@ static void mt798x_phy_common_finetune(struct phy_device *phydev)
 			FIELD_PREP(FFE_UPDATE_GAIN_FORCE_VAL_MASK, 0x4) |
 				   FFE_UPDATE_GAIN_FORCE);
 
-	/* TrFreeze = 0 (mt7988 default) */
-	__phy_write(phydev, 0x11, 0x0);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x10, 0x9686);
+	__mtk_tr_clr_bits(phydev, 0x2, 0xd, 0x3, TR_FREEZE_MASK);
 
 	__mtk_tr_modify(phydev, 0x2, 0xd, 0x6,
 			SS_TR_KP100_MASK | SS_TR_KF100_MASK |
@@ -1009,10 +1019,8 @@ static void mt798x_phy_eee(struct phy_device *phydev)
 			 MTK_PHY_TR_READY_SKIP_AFE_WAKEUP);
 
 	phy_select_page(phydev, MTK_PHY_PAGE_EXTENDED_52B5);
-	/* Regsigdet_sel_1000 = 0 */
-	__phy_write(phydev, 0x11, 0xb);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x10, 0x9690);
+	__mtk_tr_clr_bits(phydev, 0x2, 0xd, 0x8,
+			  EEE1000_SELECT_SIGNAL_DETECTION_FROM_DFE);
 
 	__mtk_tr_modify(phydev, 0x2, 0xd, 0xd,
 			EEE1000_STAGE2_TR_KF_MASK,
@@ -1036,10 +1044,8 @@ static void mt798x_phy_eee(struct phy_device *phydev)
 			FIELD_PREP(EEE100_LPSYNC_STAGE1_UPDATE_TIMER_MASK,
 				   0x10));
 
-	/* REGEEE_wake_slv_tr_wait_dfesigdet_en = 0 */
-	__phy_write(phydev, 0x11, 0x1463);
-	__phy_write(phydev, 0x12, 0x0);
-	__phy_write(phydev, 0x10, 0x96ca);
+	__mtk_tr_clr_bits(phydev, 0x2, 0xd, 0x25,
+			  WAKE_SLAVE_TR_WAIT_DFE_DETECTION_EN);
 
 	__mtk_tr_modify(phydev, 0x1, 0xf, 0x0,
 			DFE_TAIL_EANBLE_VGA_TRHESH_1000,
