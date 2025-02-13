@@ -59,8 +59,6 @@ struct intel_link_m_n;
 struct intel_plane;
 struct intel_plane_state;
 struct intel_power_domain_mask;
-struct intel_remapped_info;
-struct intel_rotation_info;
 struct pci_dev;
 struct work_struct;
 
@@ -465,8 +463,6 @@ unsigned int intel_fb_xy_to_linear(int x, int y,
 				   int plane);
 void intel_add_fb_offsets(int *x, int *y,
 			  const struct intel_plane_state *state, int plane);
-unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info);
-unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info);
 bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *

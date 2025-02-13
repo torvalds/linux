@@ -1891,6 +1891,42 @@ static void intel_plane_remap_gtt(struct intel_plane_state *plane_state)
 	}
 }
 
+unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info)
+{
+	unsigned int size = 0;
+	int i;
+
+	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++)
+		size += rot_info->plane[i].dst_stride * rot_info->plane[i].width;
+
+	return size;
+}
+
+unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info)
+{
+	unsigned int size = 0;
+	int i;
+
+	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
+		unsigned int plane_size;
+
+		if (rem_info->plane[i].linear)
+			plane_size = rem_info->plane[i].size;
+		else
+			plane_size = rem_info->plane[i].dst_stride * rem_info->plane[i].height;
+
+		if (plane_size == 0)
+			continue;
+
+		if (rem_info->plane_alignment)
+			size = ALIGN(size, rem_info->plane_alignment);
+
+		size += plane_size;
+	}
+
+	return size;
+}
+
 void intel_fb_fill_view(const struct intel_framebuffer *fb, unsigned int rotation,
 			struct intel_fb_view *view)
 {

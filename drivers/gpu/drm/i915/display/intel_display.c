@@ -600,42 +600,6 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 		intel_wait_for_pipe_off(old_crtc_state);
 }
 
-unsigned int intel_rotation_info_size(const struct intel_rotation_info *rot_info)
-{
-	unsigned int size = 0;
-	int i;
-
-	for (i = 0 ; i < ARRAY_SIZE(rot_info->plane); i++)
-		size += rot_info->plane[i].dst_stride * rot_info->plane[i].width;
-
-	return size;
-}
-
-unsigned int intel_remapped_info_size(const struct intel_remapped_info *rem_info)
-{
-	unsigned int size = 0;
-	int i;
-
-	for (i = 0 ; i < ARRAY_SIZE(rem_info->plane); i++) {
-		unsigned int plane_size;
-
-		if (rem_info->plane[i].linear)
-			plane_size = rem_info->plane[i].size;
-		else
-			plane_size = rem_info->plane[i].dst_stride * rem_info->plane[i].height;
-
-		if (plane_size == 0)
-			continue;
-
-		if (rem_info->plane_alignment)
-			size = ALIGN(size, rem_info->plane_alignment);
-
-		size += plane_size;
-	}
-
-	return size;
-}
-
 /*
  * Convert the x/y offsets into a linear offset.
  * Only valid with 0/180 degree rotation, which is fine since linear
