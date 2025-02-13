@@ -52,10 +52,6 @@
 		};
 	};
 
-	switchphy: ethernet-phy@0 {
-		// Fixed link
-	};
-
 	front_gpio_leds {
 		compatible = "gpio-leds";
 		sys_log_id {
@@ -285,7 +281,6 @@
 &mac2 {
 	status = "okay";
 	phy-mode = "rgmii";
-	phy-handle = <&switchphy>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_rgmii3_default>;
 
