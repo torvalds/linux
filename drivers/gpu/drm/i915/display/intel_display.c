@@ -7136,11 +7136,13 @@ static void commit_pipe_pre_planes(struct intel_atomic_state *state,
 		intel_atomic_get_new_crtc_state(state, crtc);
 	bool modeset = intel_crtc_needs_modeset(new_crtc_state);
 
+	drm_WARN_ON(&dev_priv->drm, new_crtc_state->use_dsb);
+
 	/*
 	 * During modesets pipe configuration was programmed as the
 	 * CRTC was enabled.
 	 */
-	if (!modeset && !new_crtc_state->use_dsb) {
+	if (!modeset) {
 		if (intel_crtc_needs_color_update(new_crtc_state))
 			intel_color_commit_arm(NULL, new_crtc_state);
 
@@ -7162,6 +7164,8 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	const struct intel_crtc_state *new_crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+
+	drm_WARN_ON(&dev_priv->drm, new_crtc_state->use_dsb);
 
 	/*
 	 * Disable the scaler(s) after the plane(s) so that we don't
