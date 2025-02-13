@@ -701,7 +701,7 @@ static void intel_enable_dp(struct intel_atomic_state *state,
 		if (display->platform.cherryview)
 			lane_mask = intel_dp_unused_lane_mask(pipe_config->lane_count);
 
-		vlv_wait_port_ready(display, dp_to_dig_port(intel_dp), lane_mask);
+		vlv_wait_port_ready(encoder, lane_mask);
 	}
 
 	intel_dp_set_power(intel_dp, DP_SET_POWER_D0);

@@ -72,8 +72,7 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 				const struct intel_crtc_state *crtc_state);
 void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *old_crtc_state);
-void vlv_wait_port_ready(struct intel_display *display,
-			 struct intel_digital_port *dig_port,
+void vlv_wait_port_ready(struct intel_encoder *encoder,
 			 unsigned int expected_mask);
 #else
 static inline void bxt_port_to_phy_channel(struct intel_display *display, enum port port,
@@ -173,8 +172,7 @@ static inline void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 				       const struct intel_crtc_state *old_crtc_state)
 {
 }
-static inline void vlv_wait_port_ready(struct intel_display *display,
-				       struct intel_digital_port *dig_port,
+static inline void vlv_wait_port_ready(struct intel_encoder *encoder,
 				       unsigned int expected_mask)
 {
 }
