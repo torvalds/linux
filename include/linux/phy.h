@@ -1740,15 +1740,6 @@ static inline bool phy_is_default_hwtstamp(struct phy_device *phydev)
 }
 
 /**
- * phy_is_internal - Convenience function for testing if a PHY is internal
- * @phydev: the phy_device struct
- */
-static inline bool phy_is_internal(struct phy_device *phydev)
-{
-	return phydev->is_internal;
-}
-
-/**
  * phy_on_sfp - Convenience function for testing if a PHY is on an SFP module
  * @phydev: the phy_device struct
  */

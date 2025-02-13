@@ -544,7 +544,7 @@ phy_interface_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct phy_device *phydev = to_phy_device(dev);
 	const char *mode = NULL;
 
-	if (phy_is_internal(phydev))
+	if (phydev->is_internal)
 		mode = "internal";
 	else
 		mode = phy_modes(phydev->interface);

@@ -302,7 +302,7 @@ void phy_ethtool_ksettings_get(struct phy_device *phydev,
 		cmd->base.port = PORT_BNC;
 	else
 		cmd->base.port = phydev->port;
-	cmd->base.transceiver = phy_is_internal(phydev) ?
+	cmd->base.transceiver = phydev->is_internal ?
 				XCVR_INTERNAL : XCVR_EXTERNAL;
 	cmd->base.phy_address = phydev->mdio.addr;
 	cmd->base.autoneg = phydev->autoneg;
