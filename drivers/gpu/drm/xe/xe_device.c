@@ -889,7 +889,9 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		goto err_unregister_display;
 
-	xe_pmu_register(&xe->pmu);
+	err = xe_pmu_register(&xe->pmu);
+	if (err)
+		goto err_unregister_display;
 
 	xe_debugfs_register(xe);
 
