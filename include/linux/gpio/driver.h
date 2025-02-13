@@ -14,6 +14,7 @@
 #include <linux/property.h>
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
+#include <linux/util_macros.h>
 
 #ifdef CONFIG_GENERIC_MSI_IRQ
 #include <asm/msi.h>
@@ -562,7 +563,7 @@ DEFINE_CLASS(_gpiochip_for_each_data,
 	for (CLASS(_gpiochip_for_each_data, _data)(&_label, &_i);			\
 	     _i < _size;								\
 	     _i++, kfree(_label), _label = NULL)					\
-		if (IS_ERR(_label = gpiochip_dup_line_label(_chip, _base + _i))) {} else
+		for_each_if(!IS_ERR(_label = gpiochip_dup_line_label(_chip, _base + _i)))
 
 /**
  * for_each_hwgpio - Iterates over all GPIOs for given chip.
@@ -584,7 +585,7 @@ DEFINE_CLASS(_gpiochip_for_each_data,
  */
 #define for_each_requested_gpio_in_range(_chip, _i, _base, _size, _label)		\
 	for_each_hwgpio_in_range(_chip, _i, _base, _size, _label)			\
-		if (_label == NULL) {} else
+		for_each_if(_label)
 
 /* Iterates over all requested GPIO of the given @chip */
 #define for_each_requested_gpio(chip, i, label)						\
@@ -870,7 +871,7 @@ static inline void gpiochip_unlock_as_irq(struct gpio_chip *gc,
 
 #define for_each_gpiochip_node(dev, child)					\
 	device_for_each_child_node(dev, child)					\
-		if (!fwnode_property_present(child, "gpio-controller")) {} else
+		for_each_if(fwnode_property_present(child, "gpio-controller"))
 
 static inline unsigned int gpiochip_node_count(struct device *dev)
 {
