@@ -496,6 +496,8 @@ struct intel_hdcp {
 	enum transcoder cpu_transcoder;
 	/* Only used for DP MST stream encryption */
 	enum transcoder stream_transcoder;
+	/* Used to force HDCP 1.4 bypassing HDCP 2.x */
+	bool force_hdcp14;
 };
 
 struct intel_connector {

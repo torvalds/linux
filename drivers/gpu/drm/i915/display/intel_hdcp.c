@@ -2472,12 +2472,15 @@ static int _intel_hdcp_enable(struct intel_atomic_state *state,
 	 * Considering that HDCP2.2 is more secure than HDCP1.4, If the setup
 	 * is capable of HDCP2.2, it is preferred to use HDCP2.2.
 	 */
-	if (intel_hdcp2_get_capability(connector)) {
+	if (!hdcp->force_hdcp14 && intel_hdcp2_get_capability(connector)) {
 		ret = _intel_hdcp2_enable(state, connector);
 		if (!ret)
 			check_link_interval =
 				DRM_HDCP2_CHECK_PERIOD_MS;
 	}
+
+	if (hdcp->force_hdcp14)
+		drm_dbg_kms(display->drm, "Forcing HDCP 1.4\n");
 
 	/*
 	 * When HDCP2.2 fails and Content Type is not Type1, HDCP1.4 will
@@ -2806,6 +2809,75 @@ out:
 }
 DEFINE_SHOW_ATTRIBUTE(intel_hdcp_sink_capability);
 
+static ssize_t intel_hdcp_force_14_write(struct file *file,
+					 const char __user *ubuf,
+					 size_t len, loff_t *offp)
+{
+	struct seq_file *m = file->private_data;
+	struct intel_connector *connector = m->private;
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	bool force_hdcp14 = false;
+	int ret;
+
+	if (len == 0)
+		return 0;
+
+	ret = kstrtobool_from_user(ubuf, len, &force_hdcp14);
+	if (ret < 0)
+		return ret;
+
+	hdcp->force_hdcp14 = force_hdcp14;
+	*offp += len;
+
+	return len;
+}
+
+static int intel_hdcp_force_14_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = m->private;
+	struct intel_display *display = to_intel_display(connector);
+	struct intel_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+	struct drm_crtc *crtc;
+	int ret;
+
+	if (!encoder)
+		return -ENODEV;
+
+	ret = drm_modeset_lock_single_interruptible(&display->drm->mode_config.connection_mutex);
+	if (ret)
+		return ret;
+
+	crtc = connector->base.state->crtc;
+	if (connector->base.status != connector_status_connected || !crtc) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	seq_printf(m, "%s\n",
+		   str_yes_no(hdcp->force_hdcp14));
+out:
+	drm_modeset_unlock(&display->drm->mode_config.connection_mutex);
+
+	return ret;
+}
+
+static int intel_hdcp_force_14_open(struct inode *inode,
+				    struct file *file)
+{
+	return single_open(file, intel_hdcp_force_14_show,
+			   inode->i_private);
+}
+
+static const struct file_operations intel_hdcp_force_14_fops = {
+	.owner = THIS_MODULE,
+	.open = intel_hdcp_force_14_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = intel_hdcp_force_14_write
+};
+
 void intel_hdcp_connector_debugfs_add(struct intel_connector *connector)
 {
 	struct dentry *root = connector->base.debugfs_entry;
@@ -2816,5 +2888,7 @@ void intel_hdcp_connector_debugfs_add(struct intel_connector *connector)
 	    connector_type == DRM_MODE_CONNECTOR_HDMIB) {
 		debugfs_create_file("i915_hdcp_sink_capability", 0444, root,
 				    connector, &intel_hdcp_sink_capability_fops);
+		debugfs_create_file("i915_force_hdcp14", 0644, root,
+				    connector, &intel_hdcp_force_14_fops);
 	}
 }
