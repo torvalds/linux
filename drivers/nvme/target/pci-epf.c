@@ -46,7 +46,7 @@ static DEFINE_MUTEX(nvmet_pci_epf_ports_mutex);
 /*
  * BAR CC register and SQ polling intervals.
  */
-#define NVMET_PCI_EPF_CC_POLL_INTERVAL	msecs_to_jiffies(5)
+#define NVMET_PCI_EPF_CC_POLL_INTERVAL	msecs_to_jiffies(10)
 #define NVMET_PCI_EPF_SQ_POLL_INTERVAL	msecs_to_jiffies(5)
 #define NVMET_PCI_EPF_SQ_POLL_IDLE	msecs_to_jiffies(5000)
 
@@ -1910,12 +1910,15 @@ static void nvmet_pci_epf_poll_cc_work(struct work_struct *work)
 
 	old_cc = ctrl->cc;
 	new_cc = nvmet_pci_epf_bar_read32(ctrl, NVME_REG_CC);
+	if (new_cc == old_cc)
+		goto reschedule_work;
+
 	ctrl->cc = new_cc;
 
 	if (nvmet_cc_en(new_cc) && !nvmet_cc_en(old_cc)) {
 		ret = nvmet_pci_epf_enable_ctrl(ctrl);
 		if (ret)
-			return;
+			goto reschedule_work;
 	}
 
 	if (!nvmet_cc_en(new_cc) && nvmet_cc_en(old_cc))
@@ -1932,6 +1935,7 @@ static void nvmet_pci_epf_poll_cc_work(struct work_struct *work)
 	nvmet_update_cc(ctrl->tctrl, ctrl->cc);
 	nvmet_pci_epf_bar_write32(ctrl, NVME_REG_CSTS, ctrl->csts);
 
+reschedule_work:
 	schedule_delayed_work(&ctrl->poll_cc, NVMET_PCI_EPF_CC_POLL_INTERVAL);
 }
 
