@@ -46,6 +46,7 @@ struct dce_hwseq;
 struct link_resource;
 struct dc_dmub_cmd;
 struct pg_block_update;
+struct drr_params;
 
 struct subvp_pipe_control_lock_fast_params {
 	struct dc *dc;
@@ -526,6 +527,11 @@ void set_p_state_switch_method(
 		struct dc *dc,
 		struct dc_state *context,
 		struct pipe_ctx *pipe_ctx);
+
+void set_drr_and_clear_adjust_pending(
+		struct pipe_ctx *pipe_ctx,
+		struct dc_stream_state *stream,
+		struct drr_params *params);
 
 void hwss_execute_sequence(struct dc *dc,
 		struct block_sequence block_sequence[],
