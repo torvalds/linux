@@ -46,7 +46,6 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 	struct buffer_head *bh = NULL;
 	struct buffer_head *buffer_cache_bh = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	void *kaddr;
 
 	trace_ocfs2_symlink_get_block(
 			(unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -91,17 +90,11 @@ static int ocfs2_symlink_get_block(struct inode *inode, sector_t iblock,
 		 * could've happened. Since we've got a reference on
 		 * the bh, even if it commits while we're doing the
 		 * copy, the data is still good. */
-		if (buffer_jbd(buffer_cache_bh)
-		    && ocfs2_inode_is_new(inode)) {
-			kaddr = kmap_atomic(bh_result->b_page);
-			if (!kaddr) {
-				mlog(ML_ERROR, "couldn't kmap!\n");
-				goto bail;
-			}
-			memcpy(kaddr + (bh_result->b_size * iblock),
-			       buffer_cache_bh->b_data,
-			       bh_result->b_size);
-			kunmap_atomic(kaddr);
+		if (buffer_jbd(buffer_cache_bh) && ocfs2_inode_is_new(inode)) {
+			memcpy_to_folio(bh_result->b_folio,
+					bh_result->b_size * iblock,
+					buffer_cache_bh->b_data,
+					bh_result->b_size);
 			set_buffer_uptodate(bh_result);
 		}
 		brelse(buffer_cache_bh);
