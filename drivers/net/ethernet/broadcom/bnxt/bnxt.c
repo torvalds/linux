@@ -11279,6 +11279,78 @@ int bnxt_reserve_rings(struct bnxt *bp, bool irq_re_init)
 	return 0;
 }
 
+static void bnxt_tx_queue_stop(struct bnxt *bp, int idx)
+{
+	struct bnxt_tx_ring_info *txr;
+	struct netdev_queue *txq;
+	struct bnxt_napi *bnapi;
+	int i;
+
+	bnapi = bp->bnapi[idx];
+	bnxt_for_each_napi_tx(i, bnapi, txr) {
+		WRITE_ONCE(txr->dev_state, BNXT_DEV_STATE_CLOSING);
+		synchronize_net();
+
+		if (!(bnapi->flags & BNXT_NAPI_FLAG_XDP)) {
+			txq = netdev_get_tx_queue(bp->dev, txr->txq_index);
+			if (txq) {
+				__netif_tx_lock_bh(txq);
+				netif_tx_stop_queue(txq);
+				__netif_tx_unlock_bh(txq);
+			}
+		}
+
+		if (!bp->tph_mode)
+			continue;
+
+		bnxt_hwrm_tx_ring_free(bp, txr, true);
+		bnxt_hwrm_cp_ring_free(bp, txr->tx_cpr);
+		bnxt_free_one_tx_ring_skbs(bp, txr, txr->txq_index);
+		bnxt_clear_one_cp_ring(bp, txr->tx_cpr);
+	}
+}
+
+static int bnxt_tx_queue_start(struct bnxt *bp, int idx)
+{
+	struct bnxt_tx_ring_info *txr;
+	struct netdev_queue *txq;
+	struct bnxt_napi *bnapi;
+	int rc, i;
+
+	bnapi = bp->bnapi[idx];
+	/* All rings have been reserved and previously allocated.
+	 * Reallocating with the same parameters should never fail.
+	 */
+	bnxt_for_each_napi_tx(i, bnapi, txr) {
+		if (!bp->tph_mode)
+			goto start_tx;
+
+		rc = bnxt_hwrm_cp_ring_alloc_p5(bp, txr->tx_cpr);
+		if (rc)
+			return rc;
+
+		rc = bnxt_hwrm_tx_ring_alloc(bp, txr, false);
+		if (rc)
+			return rc;
+
+		txr->tx_prod = 0;
+		txr->tx_cons = 0;
+		txr->tx_hw_cons = 0;
+start_tx:
+		WRITE_ONCE(txr->dev_state, 0);
+		synchronize_net();
+
+		if (bnapi->flags & BNXT_NAPI_FLAG_XDP)
+			continue;
+
+		txq = netdev_get_tx_queue(bp->dev, txr->txq_index);
+		if (txq)
+			netif_tx_start_queue(txq);
+	}
+
+	return 0;
+}
+
 static void bnxt_free_irq(struct bnxt *bp)
 {
 	struct bnxt_irq *irq;
@@ -15641,7 +15713,9 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_rx_ring_info *rxr, *clone;
+	struct bnxt_cp_ring_info *cpr;
 	struct bnxt_vnic_info *vnic;
+	struct bnxt_napi *bnapi;
 	int i, rc;
 
 	rxr = &bp->rx_ring[idx];
@@ -15659,26 +15733,38 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 
 	bnxt_copy_rx_ring(bp, rxr, clone);
 
+	bnapi = rxr->bnapi;
+	cpr = &bnapi->cp_ring;
+
 	/* All rings have been reserved and previously allocated.
 	 * Reallocating with the same parameters should never fail.
 	 */
 	rc = bnxt_hwrm_rx_ring_alloc(bp, rxr);
 	if (rc)
-		return rc;
+		goto err_reset;
 
 	if (bp->tph_mode) {
 		rc = bnxt_hwrm_cp_ring_alloc_p5(bp, rxr->rx_cpr);
 		if (rc)
-			goto err_free_hwrm_rx_ring;
+			goto err_reset;
 	}
 
 	rc = bnxt_hwrm_rx_agg_ring_alloc(bp, rxr);
 	if (rc)
-		goto err_free_hwrm_cp_ring;
+		goto err_reset;
 
 	bnxt_db_write(bp, &rxr->rx_db, rxr->rx_prod);
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		bnxt_db_write(bp, &rxr->rx_agg_db, rxr->rx_agg_prod);
+
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS) {
+		rc = bnxt_tx_queue_start(bp, idx);
+		if (rc)
+			goto err_reset;
+	}
+
+	napi_enable(&bnapi->napi);
+	bnxt_db_nq_arm(bp, &cpr->cp_db, cpr->cp_raw_cons);
 
 	for (i = 0; i <= BNXT_VNIC_NTUPLE; i++) {
 		vnic = &bp->vnic_info[i];
@@ -15696,11 +15782,12 @@ static int bnxt_queue_start(struct net_device *dev, void *qmem, int idx)
 
 	return 0;
 
-err_free_hwrm_cp_ring:
-	if (bp->tph_mode)
-		bnxt_hwrm_cp_ring_free(bp, rxr->rx_cpr);
-err_free_hwrm_rx_ring:
-	bnxt_hwrm_rx_ring_free(bp, rxr, false);
+err_reset:
+	netdev_err(bp->dev, "Unexpected HWRM error during queue start rc: %d\n",
+		   rc);
+	napi_enable(&bnapi->napi);
+	bnxt_db_nq_arm(bp, &cpr->cp_db, cpr->cp_raw_cons);
+	bnxt_reset_task(bp, true);
 	return rc;
 }
 
@@ -15708,7 +15795,9 @@ static int bnxt_queue_stop(struct net_device *dev, void *qmem, int idx)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_rx_ring_info *rxr;
+	struct bnxt_cp_ring_info *cpr;
 	struct bnxt_vnic_info *vnic;
+	struct bnxt_napi *bnapi;
 	int i;
 
 	for (i = 0; i <= BNXT_VNIC_NTUPLE; i++) {
@@ -15720,17 +15809,29 @@ static int bnxt_queue_stop(struct net_device *dev, void *qmem, int idx)
 	/* Make sure NAPI sees that the VNIC is disabled */
 	synchronize_net();
 	rxr = &bp->rx_ring[idx];
-	cancel_work_sync(&rxr->bnapi->cp_ring.dim.work);
+	bnapi = rxr->bnapi;
+	cpr = &bnapi->cp_ring;
+	cancel_work_sync(&cpr->dim.work);
 	bnxt_hwrm_rx_ring_free(bp, rxr, false);
 	bnxt_hwrm_rx_agg_ring_free(bp, rxr, false);
 	page_pool_disable_direct_recycling(rxr->page_pool);
 	if (bnxt_separate_head_pool())
 		page_pool_disable_direct_recycling(rxr->head_pool);
 
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+		bnxt_tx_queue_stop(bp, idx);
+
+	/* Disable NAPI now after freeing the rings because HWRM_RING_FREE
+	 * completion is handled in NAPI to guarantee no more DMA on that ring
+	 * after seeing the completion.
+	 */
+	napi_disable(&bnapi->napi);
+
 	if (bp->tph_mode) {
 		bnxt_hwrm_cp_ring_free(bp, rxr->rx_cpr);
 		bnxt_clear_one_cp_ring(bp, rxr->rx_cpr);
 	}
+	bnxt_db_nq(bp, &cpr->cp_db, cpr->cp_raw_cons);
 
 	memcpy(qmem, rxr, sizeof(*rxr));
 	bnxt_init_rx_ring_struct(bp, qmem);
