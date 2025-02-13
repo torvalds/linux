@@ -295,7 +295,7 @@ static void release_dma_buffers(struct thc_device *dev,
 		return;
 
 	for (i = 0; i < config->prd_tbl_num; i++) {
-		if (!config->sgls[i] | !config->sgls_nent[i])
+		if (!config->sgls[i] || !config->sgls_nent[i])
 			continue;
 
 		dma_unmap_sg(dev->dev, config->sgls[i],
