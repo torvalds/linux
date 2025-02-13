@@ -9460,6 +9460,13 @@ static bool md_choose_sync_action(struct mddev *mddev, int *spares)
 		return true;
 	}
 
+	/* Check if resync is in progress. */
+	if (mddev->recovery_cp < MaxSector) {
+		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
+		return true;
+	}
+
 	/*
 	 * Remove any failed drives, then add spares if possible. Spares are
 	 * also removed and re-added, to allow the personality to fail the
@@ -9473,13 +9480,6 @@ static bool md_choose_sync_action(struct mddev *mddev, int *spares)
 
 		/* Start new recovery. */
 		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
-		return true;
-	}
-
-	/* Check if recovery is in progress. */
-	if (mddev->recovery_cp < MaxSector) {
-		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
-		clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		return true;
 	}
 
