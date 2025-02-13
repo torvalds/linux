@@ -52,57 +52,39 @@
 
 #include "mlx4_en.h"
 
-static int mlx4_alloc_page(struct mlx4_en_priv *priv,
-			   struct mlx4_en_rx_alloc *frag,
-			   gfp_t gfp)
-{
-	struct page *page;
-	dma_addr_t dma;
-
-	page = alloc_page(gfp);
-	if (unlikely(!page))
-		return -ENOMEM;
-	dma = dma_map_page(priv->ddev, page, 0, PAGE_SIZE, priv->dma_dir);
-	if (unlikely(dma_mapping_error(priv->ddev, dma))) {
-		__free_page(page);
-		return -ENOMEM;
-	}
-	frag->page = page;
-	frag->dma = dma;
-	frag->page_offset = priv->rx_headroom;
-	return 0;
-}
-
 static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 			       struct mlx4_en_rx_ring *ring,
 			       struct mlx4_en_rx_desc *rx_desc,
 			       struct mlx4_en_rx_alloc *frags,
 			       gfp_t gfp)
 {
+	dma_addr_t dma;
 	int i;
 
 	for (i = 0; i < priv->num_frags; i++, frags++) {
 		if (!frags->page) {
-			if (mlx4_alloc_page(priv, frags, gfp)) {
+			frags->page = page_pool_alloc_pages(ring->pp, gfp);
+			if (!frags->page) {
 				ring->alloc_fail++;
 				return -ENOMEM;
 			}
+			page_pool_fragment_page(frags->page, 1);
+			frags->page_offset = priv->rx_headroom;
+
 			ring->rx_alloc_pages++;
 		}
-		rx_desc->data[i].addr = cpu_to_be64(frags->dma +
-						    frags->page_offset);
+		dma = page_pool_get_dma_addr(frags->page);
+		rx_desc->data[i].addr = cpu_to_be64(dma + frags->page_offset);
 	}
 	return 0;
 }
 
 static void mlx4_en_free_frag(const struct mlx4_en_priv *priv,
+			      struct mlx4_en_rx_ring *ring,
 			      struct mlx4_en_rx_alloc *frag)
 {
-	if (frag->page) {
-		dma_unmap_page(priv->ddev, frag->dma,
-			       PAGE_SIZE, priv->dma_dir);
-		__free_page(frag->page);
-	}
+	if (frag->page)
+		page_pool_put_full_page(ring->pp, frag->page, false);
 	/* We need to clear all fields, otherwise a change of priv->log_rx_info
 	 * could lead to see garbage later in frag->page.
 	 */
@@ -167,7 +149,7 @@ static void mlx4_en_free_rx_desc(const struct mlx4_en_priv *priv,
 	frags = ring->rx_info + (index << priv->log_rx_info);
 	for (nr = 0; nr < priv->num_frags; nr++) {
 		en_dbg(DRV, priv, "Freeing fragment:%d\n", nr);
-		mlx4_en_free_frag(priv, frags + nr);
+		mlx4_en_free_frag(priv, ring, frags + nr);
 	}
 }
 
@@ -469,7 +451,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (unlikely(!page))
 			goto fail;
 
-		dma = frags->dma;
+		dma = page_pool_get_dma_addr(page);
 		dma_sync_single_range_for_cpu(priv->ddev, dma, frags->page_offset,
 					      frag_size, priv->dma_dir);
 
@@ -480,6 +462,7 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 		if (frag_info->frag_stride == PAGE_SIZE / 2) {
 			frags->page_offset ^= PAGE_SIZE / 2;
 			release = page_count(page) != 1 ||
+				  atomic_long_read(&page->pp_ref_count) != 1 ||
 				  page_is_pfmemalloc(page) ||
 				  page_to_nid(page) != numa_mem_id();
 		} else if (!priv->rx_headroom) {
@@ -493,10 +476,9 @@ static int mlx4_en_complete_rx_desc(struct mlx4_en_priv *priv,
 			release = frags->page_offset + frag_info->frag_size > PAGE_SIZE;
 		}
 		if (release) {
-			dma_unmap_page(priv->ddev, dma, PAGE_SIZE, priv->dma_dir);
 			frags->page = NULL;
 		} else {
-			page_ref_inc(page);
+			page_pool_ref_page(page);
 		}
 
 		nr++;
@@ -766,7 +748,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			/* Get pointer to first fragment since we haven't
 			 * skb yet and cast it to ethhdr struct
 			 */
-			dma = frags[0].dma + frags[0].page_offset;
+			dma = page_pool_get_dma_addr(frags[0].page);
+			dma += frags[0].page_offset;
 			dma_sync_single_for_cpu(priv->ddev, dma, sizeof(*ethh),
 						DMA_FROM_DEVICE);
 
@@ -805,7 +788,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			void *orig_data;
 			u32 act;
 
-			dma = frags[0].dma + frags[0].page_offset;
+			dma = page_pool_get_dma_addr(frags[0].page);
+			dma += frags[0].page_offset;
 			dma_sync_single_for_cpu(priv->ddev, dma,
 						priv->frag_info[0].frag_size,
 						DMA_FROM_DEVICE);
@@ -868,6 +852,7 @@ xdp_drop_no_cnt:
 		skb = napi_get_frags(&cq->napi);
 		if (unlikely(!skb))
 			goto next;
+		skb_mark_for_recycle(skb);
 
 		if (unlikely(ring->hwtstamp_rx_filter == HWTSTAMP_FILTER_ALL)) {
 			u64 timestamp = mlx4_en_get_cqe_ts(cqe);
