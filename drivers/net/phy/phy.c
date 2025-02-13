@@ -520,12 +520,12 @@ int __phy_hwtstamp_set(struct phy_device *phydev,
  * @phydev: the phy_device struct
  * @jiffies: Run the state machine after these jiffies
  */
-void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies)
+static void phy_queue_state_machine(struct phy_device *phydev,
+				    unsigned long jiffies)
 {
 	mod_delayed_work(system_power_efficient_wq, &phydev->state_queue,
 			 jiffies);
 }
-EXPORT_SYMBOL(phy_queue_state_machine);
 
 /**
  * phy_trigger_machine - Trigger the state machine to run now
