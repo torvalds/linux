@@ -169,7 +169,7 @@
     },
     {
         "MetricName": "fp_ops_per_cycle",
-        "MetricExpr": "(FP_SCALE_OPS_SPEC + FP_FIXED_OPS_SPEC) / CPU_CYCLE",
+        "MetricExpr": "(FP_SCALE_OPS_SPEC + FP_FIXED_OPS_SPEC) / CPU_CYCLES",
         "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by any instruction. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
         "MetricGroup": "FP_Arithmetic_Intensity",
         "ScaleUnit": "1operations per cycle"
@@ -383,7 +383,7 @@
     },
     {
         "MetricName": "nonsve_fp_ops_per_cycle",
-        "MetricExpr": "FP_FIXED_OPS_SPEC / CPU_CYCLE",
+        "MetricExpr": "FP_FIXED_OPS_SPEC / CPU_CYCLES",
         "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by an instruction that is not an SVE instruction. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
         "MetricGroup": "FP_Arithmetic_Intensity",
         "ScaleUnit": "1operations per cycle"
@@ -421,7 +421,7 @@
     },
     {
         "MetricName": "sve_fp_ops_per_cycle",
-        "MetricExpr": "FP_SCALE_OPS_SPEC / CPU_CYCLE",
+        "MetricExpr": "FP_SCALE_OPS_SPEC / CPU_CYCLES",
         "BriefDescription": "This metric measures floating point operations per cycle in any precision performed by SVE instructions. Operations are counted by computation and by vector lanes, fused computations such as multiply-add count as twice per vector lane for example.",
         "MetricGroup": "FP_Arithmetic_Intensity",
         "ScaleUnit": "1operations per cycle"
