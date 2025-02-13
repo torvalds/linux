@@ -227,15 +227,12 @@ void __filemap_remove_folio(struct folio *folio, void *shadow)
 void filemap_free_folio(struct address_space *mapping, struct folio *folio)
 {
 	void (*free_folio)(struct folio *);
-	int refs = 1;
 
 	free_folio = mapping->a_ops->free_folio;
 	if (free_folio)
 		free_folio(folio);
 
-	if (folio_test_large(folio))
-		refs = folio_nr_pages(folio);
-	folio_put_refs(folio, refs);
+	folio_put_refs(folio, folio_nr_pages(folio));
 }
 
 /**
