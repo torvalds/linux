@@ -873,7 +873,7 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_display_init(xe);
 	if (err)
-		goto err_fini_oa;
+		return err;
 
 	err = xe_pxp_init(xe);
 	if (err)
@@ -904,9 +904,6 @@ int xe_device_probe(struct xe_device *xe)
 
 err_fini_display:
 	xe_display_driver_remove(xe);
-
-err_fini_oa:
-	xe_oa_fini(xe);
 
 	return err;
 }
@@ -979,8 +976,6 @@ void xe_device_remove(struct xe_device *xe)
 	xe_oa_unregister(xe);
 
 	xe_device_remove_display(xe);
-
-	xe_oa_fini(xe);
 
 	xe_heci_gsc_fini(xe);
 
