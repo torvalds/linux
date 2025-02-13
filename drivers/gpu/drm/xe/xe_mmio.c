@@ -55,7 +55,6 @@ static void tiles_fini(void *arg)
 static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 {
 	struct xe_tile *tile;
-	void __iomem *regs;
 	u8 id;
 
 	/*
@@ -94,13 +93,8 @@ static void mmio_multi_tile_setup(struct xe_device *xe, size_t tile_mmio_size)
 		}
 	}
 
-	regs = xe->mmio.regs;
-	for_each_tile(tile, xe, id) {
-		tile->mmio.regs_size = SZ_4M;
-		tile->mmio.regs = regs;
-		tile->mmio.tile = tile;
-		regs += tile_mmio_size;
-	}
+	for_each_remote_tile(tile, xe, id)
+		xe_mmio_init(&tile->mmio, tile, xe->mmio.regs + id * tile_mmio_size, SZ_4M);
 }
 
 int xe_mmio_probe_tiles(struct xe_device *xe)
@@ -140,11 +134,27 @@ int xe_mmio_probe_early(struct xe_device *xe)
 	}
 
 	/* Setup first tile; other tiles (if present) will be setup later. */
-	root_tile->mmio.regs_size = SZ_4M;
-	root_tile->mmio.regs = xe->mmio.regs;
-	root_tile->mmio.tile = root_tile;
+	xe_mmio_init(&root_tile->mmio, root_tile, xe->mmio.regs, SZ_4M);
 
 	return devm_add_action_or_reset(xe->drm.dev, mmio_fini, xe);
+}
+
+/**
+ * xe_mmio_init() - Initialize an MMIO instance
+ * @mmio: Pointer to the MMIO instance to initialize
+ * @tile: The tile to which the MMIO region belongs
+ * @ptr: Pointer to the start of the MMIO region
+ * @size: The size of the MMIO region in bytes
+ *
+ * This is a convenience function for minimal initialization of struct xe_mmio.
+ */
+void xe_mmio_init(struct xe_mmio *mmio, struct xe_tile *tile, void __iomem *ptr, u32 size)
+{
+	xe_tile_assert(tile, size <= XE_REG_ADDR_MAX);
+
+	mmio->regs = ptr;
+	mmio->regs_size = size;
+	mmio->tile = tile;
 }
 
 static void mmio_flush_pending_writes(struct xe_mmio *mmio)

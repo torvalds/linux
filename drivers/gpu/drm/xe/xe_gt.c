@@ -626,10 +626,9 @@ int xe_gt_init(struct xe_gt *gt)
 void xe_gt_mmio_init(struct xe_gt *gt)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
+	struct xe_device *xe = tile_to_xe(tile);
 
-	gt->mmio.regs = tile->mmio.regs;
-	gt->mmio.regs_size = tile->mmio.regs_size;
-	gt->mmio.tile = tile;
+	xe_mmio_init(&gt->mmio, tile, tile->mmio.regs, tile->mmio.regs_size);
 
 	if (gt->info.type == XE_GT_TYPE_MEDIA) {
 		gt->mmio.adj_offset = MEDIA_GT_GSI_OFFSET;
@@ -639,7 +638,7 @@ void xe_gt_mmio_init(struct xe_gt *gt)
 		gt->mmio.adj_limit = 0;
 	}
 
-	if (IS_SRIOV_VF(gt_to_xe(gt)))
+	if (IS_SRIOV_VF(xe))
 		gt->mmio.sriov_vf_gt = gt;
 }
 
