@@ -28,8 +28,10 @@
 
 #include "i915_drv.h"
 #include "i915_irq.h"
+#include "intel_connector.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_hotplug_irq.h"
 
@@ -862,6 +864,20 @@ void intel_hpd_poll_disable(struct drm_i915_private *dev_priv)
 	queue_detection_work(dev_priv,
 			     &dev_priv->display.hotplug.poll_init_work);
 	spin_unlock_irq(&dev_priv->irq_lock);
+}
+
+void intel_hpd_poll_fini(struct drm_i915_private *i915)
+{
+	struct intel_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+
+	/* Kill all the work that may have been queued by hpd. */
+	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
+	for_each_intel_connector_iter(connector, &conn_iter) {
+		intel_connector_cancel_modeset_retry_work(connector);
+		intel_hdcp_cancel_works(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 }
 
 void intel_hpd_init_early(struct drm_i915_private *i915)

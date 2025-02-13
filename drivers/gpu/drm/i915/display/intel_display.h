@@ -569,8 +569,6 @@ enum drm_mode_status intel_mode_valid(struct drm_device *dev,
 int intel_atomic_commit(struct drm_device *dev, struct drm_atomic_state *_state,
 			bool nonblock);
 
-void intel_hpd_poll_fini(struct drm_i915_private *i915);
-
 /* modesetting asserts */
 void assert_transcoder(struct intel_display *display,
 		       enum transcoder cpu_transcoder, bool state);

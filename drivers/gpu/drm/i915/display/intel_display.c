@@ -63,7 +63,6 @@
 #include "intel_cdclk.h"
 #include "intel_clock_gating.h"
 #include "intel_color.h"
-#include "intel_connector.h"
 #include "intel_crt.h"
 #include "intel_crtc.h"
 #include "intel_crtc_state_dump.h"
@@ -93,7 +92,6 @@
 #include "intel_fdi.h"
 #include "intel_fifo_underrun.h"
 #include "intel_frontbuffer.h"
-#include "intel_hdcp.h"
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_link_bw.h"
@@ -8536,20 +8534,6 @@ void i830_disable_pipe(struct intel_display *display, enum pipe pipe)
 
 	intel_de_write(display, DPLL(display, pipe), DPLL_VGA_MODE_DIS);
 	intel_de_posting_read(display, DPLL(display, pipe));
-}
-
-void intel_hpd_poll_fini(struct drm_i915_private *i915)
-{
-	struct intel_connector *connector;
-	struct drm_connector_list_iter conn_iter;
-
-	/* Kill all the work that may have been queued by hpd. */
-	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
-	for_each_intel_connector_iter(connector, &conn_iter) {
-		intel_connector_cancel_modeset_retry_work(connector);
-		intel_hdcp_cancel_works(connector);
-	}
-	drm_connector_list_iter_end(&conn_iter);
 }
 
 bool intel_scanout_needs_vtd_wa(struct intel_display *display)
