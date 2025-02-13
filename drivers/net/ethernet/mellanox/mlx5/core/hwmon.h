@@ -10,6 +10,7 @@
 
 int mlx5_hwmon_dev_register(struct mlx5_core_dev *mdev);
 void mlx5_hwmon_dev_unregister(struct mlx5_core_dev *mdev);
+const char *hwmon_get_sensor_name(struct mlx5_hwmon *hwmon, int channel);
 
 #else
 static inline int mlx5_hwmon_dev_register(struct mlx5_core_dev *mdev)
