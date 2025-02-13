@@ -363,6 +363,28 @@ DEFINE_EVENT(xfs_zone_alloc_class, name,			\
 	TP_ARGS(oz, rgbno, len))
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_record_blocks);
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_alloc_blocks);
+
+TRACE_EVENT(xfs_zones_mount,
+	TP_PROTO(struct xfs_mount *mp),
+	TP_ARGS(mp),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgcount)
+		__field(uint32_t, blocks)
+		__field(unsigned int, max_open_zones)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->rgcount = mp->m_sb.sb_rgcount;
+		__entry->blocks = mp->m_groups[XG_TYPE_RTG].blocks;
+		__entry->max_open_zones = mp->m_max_open_zones;
+	),
+	TP_printk("dev %d:%d zoned %u blocks_per_zone %u, max_open %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		__entry->rgcount,
+		__entry->blocks,
+		__entry->max_open_zones)
+);
 #endif /* CONFIG_XFS_RT */
 
 TRACE_EVENT(xfs_inodegc_worker,
@@ -5767,6 +5789,7 @@ TRACE_EVENT(xfs_growfs_check_rtgeom,
 
 TRACE_DEFINE_ENUM(XC_FREE_BLOCKS);
 TRACE_DEFINE_ENUM(XC_FREE_RTEXTENTS);
+TRACE_DEFINE_ENUM(XC_FREE_RTAVAILABLE);
 
 DECLARE_EVENT_CLASS(xfs_freeblocks_resv_class,
 	TP_PROTO(struct xfs_mount *mp, enum xfs_free_counter ctr,

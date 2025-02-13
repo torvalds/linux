@@ -922,6 +922,7 @@ xfs_mount_zones(
 	xfs_info(mp, "%u zones of %u blocks size (%u max open)",
 		 mp->m_sb.sb_rgcount, mp->m_groups[XG_TYPE_RTG].blocks,
 		 mp->m_max_open_zones);
+	trace_xfs_zones_mount(mp);
 
 	if (bdev_is_zoned(bt->bt_bdev)) {
 		error = blkdev_report_zones(bt->bt_bdev,
@@ -939,6 +940,7 @@ xfs_mount_zones(
 		}
 	}
 
+	xfs_set_freecounter(mp, XC_FREE_RTAVAILABLE, iz.available);
 	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
 			iz.available + iz.reclaimable);
 	return 0;

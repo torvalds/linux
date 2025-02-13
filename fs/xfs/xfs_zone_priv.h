@@ -86,4 +86,6 @@ struct xfs_zone_info {
 
 struct xfs_open_zone *xfs_open_zone(struct xfs_mount *mp, bool is_gc);
 
+void xfs_zoned_resv_wake_all(struct xfs_mount *mp);
+
 #endif /* _XFS_ZONE_PRIV_H */

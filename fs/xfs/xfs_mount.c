@@ -465,6 +465,7 @@ xfs_mount_reset_sbqflags(
 static const char *const xfs_free_pool_name[] = {
 	[XC_FREE_BLOCKS]	= "free blocks",
 	[XC_FREE_RTEXTENTS]	= "free rt extents",
+	[XC_FREE_RTAVAILABLE]	= "available rt extents",
 };
 
 uint64_t
@@ -472,22 +473,27 @@ xfs_default_resblks(
 	struct xfs_mount	*mp,
 	enum xfs_free_counter	ctr)
 {
-	uint64_t resblks;
-
-	if (ctr == XC_FREE_RTEXTENTS)
+	switch (ctr) {
+	case XC_FREE_BLOCKS:
+		/*
+		 * Default to 5% or 8192 FSBs of space reserved, whichever is
+		 * smaller.
+		 *
+		 * This is intended to cover concurrent allocation transactions
+		 * when we initially hit ENOSPC.  These each require a 4 block
+		 * reservation. Hence by default we cover roughly 2000
+		 * concurrent allocation reservations.
+		 */
+		return min(div_u64(mp->m_sb.sb_dblocks, 20), 8192ULL);
+	case XC_FREE_RTEXTENTS:
+	case XC_FREE_RTAVAILABLE:
+		if (IS_ENABLED(CONFIG_XFS_RT) && xfs_has_zoned(mp))
+			return xfs_zoned_default_resblks(mp, ctr);
 		return 0;
-
-	/*
-	 * We default to 5% or 8192 fsbs of space reserved, whichever is
-	 * smaller.  This is intended to cover concurrent allocation
-	 * transactions when we initially hit enospc. These each require a 4
-	 * block reservation. Hence by default we cover roughly 2000 concurrent
-	 * allocation reservations.
-	 */
-	resblks = mp->m_sb.sb_dblocks;
-	do_div(resblks, 20);
-	resblks = min_t(uint64_t, resblks, 8192);
-	return resblks;
+	default:
+		ASSERT(0);
+		return 0;
+	}
 }
 
 /* Ensure the summary counts are correct. */
