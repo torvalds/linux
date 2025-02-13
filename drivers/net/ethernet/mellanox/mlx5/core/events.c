@@ -165,9 +165,10 @@ static int temp_warn(struct notifier_block *nb, unsigned long type, void *data)
 	value_lsb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb);
 	value_msb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb);
 
-	mlx5_core_warn(events->dev,
-		       "High temperature on sensors with bit set %llx %llx",
-		       value_msb, value_lsb);
+	if (net_ratelimit())
+		mlx5_core_warn(events->dev,
+			       "High temperature on sensors with bit set %llx %llx",
+			       value_msb, value_lsb);
 
 	return NOTIFY_OK;
 }
