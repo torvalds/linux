@@ -387,7 +387,6 @@ static void *tls_get(struct lkl_tls_key *key)
 	return __tls_keys[idx].data;
 }
 
-
 static unsigned long long time_ns(void)
 {
 	struct timespec ts;
@@ -397,16 +396,23 @@ static unsigned long long time_ns(void)
 	return 1e9*ts.tv_sec + ts.tv_nsec;
 }
 
-static void *timer_alloc(void (*fn)(void *), void *arg)
+static void lkl_timer_callback(union sigval sv)
+{
+	void (*fn)(void) = sv.sival_ptr;
+
+	fn();
+}
+
+static void *timer_alloc(void (*fn)(void))
 {
 	int err;
 	timer_t timer;
 	struct sigevent se =  {
 		.sigev_notify = SIGEV_THREAD,
 		.sigev_value = {
-			.sival_ptr = arg,
+			.sival_ptr = fn,
 		},
-		.sigev_notify_function = (void (*)(union sigval))fn,
+		.sigev_notify_function = lkl_timer_callback,
 	};
 
 	err = timer_create(CLOCK_REALTIME, &se, &timer);

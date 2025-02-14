@@ -99,7 +99,7 @@ enum lkl_prot {
  * @page_alloc - allocate page aligned memory
  * @page_free - free memory allocated by page_alloc
  *
- * @timer_create - allocate a host timer that runs fn(arg) when the timer
+ * @timer_create - allocate a host timer that runs fn() when the timer
  * fires.
  * @timer_free - disarms and free the timer
  * @timer_set_oneshot - arm the timer to fire once, after delta ns.
@@ -169,7 +169,7 @@ struct lkl_host_operations {
 
 	unsigned long long (*time)(void);
 
-	void* (*timer_alloc)(void (*fn)(void *), void *arg);
+	void* (*timer_alloc)(void (*fn)(void));
 	int (*timer_set_oneshot)(void *timer, unsigned long delta);
 	void (*timer_free)(void *timer);
 
