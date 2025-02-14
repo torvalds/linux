@@ -92,7 +92,9 @@ static inline void ipcm_init(struct ipcm_cookie *ipcm)
 static inline void ipcm_init_sk(struct ipcm_cookie *ipcm,
 				const struct inet_sock *inet)
 {
-	ipcm_init(ipcm);
+	*ipcm = (struct ipcm_cookie) {
+		.tos = READ_ONCE(inet->tos),
+	};
 
 	sockcm_init(&ipcm->sockc, &inet->sk);
 
@@ -254,13 +256,6 @@ static inline u8 ip_sendmsg_scope(const struct inet_sock *inet,
 		return RT_SCOPE_LINK;
 
 	return RT_SCOPE_UNIVERSE;
-}
-
-static inline __u8 get_rttos(struct ipcm_cookie* ipc, struct inet_sock *inet)
-{
-	u8 dsfield = ipc->tos != -1 ? ipc->tos : READ_ONCE(inet->tos);
-
-	return dsfield & INET_DSCP_MASK;
 }
 
 /* datagram.c */
