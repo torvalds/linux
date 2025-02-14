@@ -704,12 +704,11 @@ static unsigned int tnt4882_update_status(gpib_board_t *board, unsigned int clea
 {
 	unsigned long flags;
 	u8 line_status;
-	unsigned int retval;
 	struct tnt4882_priv *priv = board->private_data;
 
 	spin_lock_irqsave(&board->spinlock, flags);
 	board->status &= ~clear_mask;
-	retval = nec7210_update_status_nolock(board, &priv->nec7210_priv);
+	nec7210_update_status_nolock(board, &priv->nec7210_priv);
 	/* set / clear SRQ state since it is not cleared by interrupt */
 	line_status = tnt_readb(priv, BSR);
 	if (line_status & BCSR_SRQ_BIT)
