@@ -992,8 +992,10 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 	if (rc)
 		return rc;
 
-	/* Nonzero ring with RSS only makes sense if NIC adds them together */
 	if (cmd == ETHTOOL_SRXCLSRLINS && info.fs.flow_type & FLOW_RSS) {
+		/* Nonzero ring with RSS only makes sense
+		 * if NIC adds them together
+		 */
 		if (!ops->cap_rss_rxnfc_adds &&
 		    ethtool_get_flow_spec_ring(info.fs.ring_cookie))
 			return -EINVAL;
