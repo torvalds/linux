@@ -2266,6 +2266,51 @@ ice_vfhw_mac_add(struct ice_vf *vf, struct virtchnl_ether_addr *vc_ether_addr)
 }
 
 /**
+ * ice_is_mc_lldp_eth_addr - check if the given MAC is a multicast LLDP address
+ * @mac: address to check
+ *
+ * Return: true if the address is one of the three possible LLDP multicast
+ *	   addresses, false otherwise.
+ */
+static bool ice_is_mc_lldp_eth_addr(const u8 *mac)
+{
+	const u8 lldp_mac_base[] = {0x01, 0x80, 0xc2, 0x00, 0x00};
+
+	if (memcmp(mac, lldp_mac_base, sizeof(lldp_mac_base)))
+		return false;
+
+	return (mac[5] == 0x0e || mac[5] == 0x03 || mac[5] == 0x00);
+}
+
+/**
+ * ice_vc_can_add_mac - check if the VF is allowed to add a given MAC
+ * @vf: a VF to add the address to
+ * @mac: address to check
+ *
+ * Return: true if the VF is allowed to add such MAC address, false otherwise.
+ */
+static bool ice_vc_can_add_mac(const struct ice_vf *vf, const u8 *mac)
+{
+	struct device *dev = ice_pf_to_dev(vf->pf);
+
+	if (is_unicast_ether_addr(mac) &&
+	    !ice_can_vf_change_mac((struct ice_vf *)vf)) {
+		dev_err(dev,
+			"VF attempting to override administratively set MAC address, bring down and up the VF interface to resume normal operation\n");
+		return false;
+	}
+
+	if (!vf->trusted && ice_is_mc_lldp_eth_addr(mac)) {
+		dev_warn(dev,
+			 "An untrusted VF %u is attempting to configure an LLDP multicast address\n",
+			 vf->vf_id);
+		return false;
+	}
+
+	return true;
+}
+
+/**
  * ice_vc_add_mac_addr - attempt to add the MAC address passed in
  * @vf: pointer to the VF info
  * @vsi: pointer to the VF's VSI
@@ -2283,10 +2328,8 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	if (ether_addr_equal(mac_addr, vf->dev_lan_addr))
 		return 0;
 
-	if (is_unicast_ether_addr(mac_addr) && !ice_can_vf_change_mac(vf)) {
-		dev_err(dev, "VF attempting to override administratively set MAC address, bring down and up the VF interface to resume normal operation\n");
+	if (!ice_vc_can_add_mac(vf, mac_addr))
 		return -EPERM;
-	}
 
 	ret = ice_fltr_add_mac(vsi, mac_addr, ICE_FWD_TO_VSI);
 	if (ret == -EEXIST) {
@@ -2301,6 +2344,8 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 		return ret;
 	} else {
 		vf->num_mac++;
+		if (ice_is_mc_lldp_eth_addr(mac_addr))
+			ice_vf_update_mac_lldp_num(vf, vsi, true);
 	}
 
 	ice_vfhw_mac_add(vf, vc_ether_addr);
@@ -2395,6 +2440,8 @@ ice_vc_del_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi,
 	ice_vfhw_mac_del(vf, vc_ether_addr);
 
 	vf->num_mac--;
+	if (ice_is_mc_lldp_eth_addr(mac_addr))
+		ice_vf_update_mac_lldp_num(vf, vsi, false);
 
 	return 0;
 }
