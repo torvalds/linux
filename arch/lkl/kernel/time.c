@@ -65,7 +65,7 @@ static void *timer;
 
 static int timer_irq;
 
-static void timer_fn(void *arg)
+static void timer_fn(void)
 {
 	lkl_trigger_irq(timer_irq);
 }
@@ -82,7 +82,7 @@ static int clockevent_set_state_shutdown(struct clock_event_device *evt)
 
 static int clockevent_set_state_oneshot(struct clock_event_device *evt)
 {
-	timer = lkl_ops->timer_alloc(timer_fn, NULL);
+	timer = lkl_ops->timer_alloc(timer_fn);
 	if (!timer)
 		return -ENOMEM;
 

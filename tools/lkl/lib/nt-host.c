@@ -178,11 +178,10 @@ static unsigned long long time_ns(void)
 
 struct timer {
 	HANDLE queue;
-	void (*callback)(void *);
-	void *arg;
+	void (*callback)(void);
 };
 
-static void *timer_alloc(void (*fn)(void *), void *arg)
+static void *timer_alloc(void (*fn)(void))
 {
 	struct timer *t;
 
@@ -197,7 +196,6 @@ static void *timer_alloc(void (*fn)(void *), void *arg)
 	}
 
 	t->callback = fn;
-	t->arg = arg;
 
 	return t;
 }
@@ -207,7 +205,7 @@ static void CALLBACK timer_callback(void *arg, BOOLEAN TimerOrWaitFired)
 	struct timer *t = (struct timer *)arg;
 
 	if (TimerOrWaitFired)
-		t->callback(t->arg);
+		t->callback();
 }
 
 static int timer_set_oneshot(void *timer, unsigned long ns)
