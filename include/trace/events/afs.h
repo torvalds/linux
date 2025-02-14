@@ -1539,25 +1539,29 @@ TRACE_EVENT(afs_server,
 	    );
 
 TRACE_EVENT(afs_volume,
-	    TP_PROTO(afs_volid_t vid, int ref, enum afs_volume_trace reason),
+	    TP_PROTO(unsigned int debug_id, afs_volid_t vid, int ref,
+		     enum afs_volume_trace reason),
 
-	    TP_ARGS(vid, ref, reason),
+	    TP_ARGS(debug_id, vid, ref, reason),
 
 	    TP_STRUCT__entry(
+		    __field(unsigned int,		debug_id)
 		    __field(afs_volid_t,		vid)
 		    __field(int,			ref)
 		    __field(enum afs_volume_trace,	reason)
 			     ),
 
 	    TP_fast_assign(
-		    __entry->vid = vid;
-		    __entry->ref = ref;
-		    __entry->reason = reason;
+		    __entry->debug_id	= debug_id;
+		    __entry->vid	= vid;
+		    __entry->ref	= ref;
+		    __entry->reason	= reason;
 			   ),
 
-	    TP_printk("V=%llx %s ur=%d",
-		      __entry->vid,
+	    TP_printk("V=%08x %s vid=%llx r=%d",
+		      __entry->debug_id,
 		      __print_symbolic(__entry->reason, afs_volume_traces),
+		      __entry->vid,
 		      __entry->ref)
 	    );
 

@@ -623,6 +623,7 @@ struct afs_volume {
 	afs_volid_t		vid;		/* The volume ID of this volume */
 	afs_volid_t		vids[AFS_MAXTYPES]; /* All associated volume IDs */
 	refcount_t		ref;
+	unsigned int		debug_id;	/* Debugging ID for traces */
 	time64_t		update_at;	/* Time at which to next update */
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
 	struct rb_node		cell_node;	/* Link in cell->volumes */
