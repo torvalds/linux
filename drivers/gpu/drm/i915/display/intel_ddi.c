@@ -3072,7 +3072,18 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 			port_name(port));
 }
 
-static void intel_disable_ddi_buf(struct intel_encoder *encoder,
+static void intel_ddi_buf_enable(struct intel_encoder *encoder, u32 buf_ctl)
+{
+	struct intel_display *display = to_intel_display(encoder);
+	enum port port = encoder->port;
+
+	intel_de_write(display, DDI_BUF_CTL(port), buf_ctl | DDI_BUF_CTL_ENABLE);
+	intel_de_posting_read(display, DDI_BUF_CTL(port));
+
+	intel_wait_ddi_buf_active(encoder);
+}
+
+static void intel_ddi_buf_disable(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_display *display = to_intel_display(encoder);
@@ -3136,7 +3147,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 			intel_ddi_disable_transcoder_clock(old_crtc_state);
 	}
 
-	intel_disable_ddi_buf(encoder, old_crtc_state);
+	intel_ddi_buf_disable(encoder, old_crtc_state);
 
 	intel_dp_sink_set_fec_ready(intel_dp, old_crtc_state, false);
 
@@ -3185,7 +3196,7 @@ static void intel_ddi_post_disable_hdmi(struct intel_atomic_state *state,
 	if (DISPLAY_VER(dev_priv) < 12)
 		intel_ddi_disable_transcoder_clock(old_crtc_state);
 
-	intel_disable_ddi_buf(encoder, old_crtc_state);
+	intel_ddi_buf_disable(encoder, old_crtc_state);
 
 	if (DISPLAY_VER(dev_priv) >= 12)
 		intel_ddi_disable_transcoder_clock(old_crtc_state);
@@ -3392,7 +3403,7 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_connector *connector = conn_state->connector;
 	enum port port = encoder->port;
-	u32 buf_ctl;
+	u32 buf_ctl = 0;
 
 	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
 					       crtc_state->hdmi_high_tmds_clock_ratio,
@@ -3457,8 +3468,6 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 	 * is filled with lane count, already set in the crtc_state.
 	 * The same is required to be filled in PORT_BUF_CTL for C10/20 Phy.
 	 */
-	buf_ctl = DDI_BUF_CTL_ENABLE;
-
 	if (dig_port->lane_reversal)
 		buf_ctl |= DDI_BUF_PORT_REVERSAL;
 	if (dig_port->ddi_a_4_lanes)
@@ -3484,9 +3493,7 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 		buf_ctl |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
 	}
 
-	intel_de_write(dev_priv, DDI_BUF_CTL(port), buf_ctl);
-
-	intel_wait_ddi_buf_active(encoder);
+	intel_ddi_buf_enable(encoder, buf_ctl);
 }
 
 static void intel_ddi_enable(struct intel_atomic_state *state,
@@ -3710,7 +3717,6 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
-	enum port port = encoder->port;
 	u32 dp_tp_ctl;
 
 	/*
@@ -3744,15 +3750,11 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	mtl_port_buf_ctl_program(encoder, crtc_state);
 
 	/* 6.i Configure and enable DDI_CTL_DE to start sending valid data to port slice */
-	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
 	if (DISPLAY_VER(display) >= 20)
 		intel_dp->DP |= XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
 
-	intel_de_write(display, DDI_BUF_CTL(port), intel_dp->DP);
-	intel_de_posting_read(display, DDI_BUF_CTL(port));
-
-	/* 6.j Poll for PORT_BUF_CTL Idle Status == 0, timeout after 100 us */
-	intel_wait_ddi_buf_active(encoder);
+	intel_ddi_buf_enable(encoder, intel_dp->DP);
+	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
 }
 
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
@@ -3762,7 +3764,6 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
 	u32 dp_tp_ctl;
 
 	dp_tp_ctl = intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
@@ -3785,11 +3786,8 @@ static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	    (intel_tc_port_in_dp_alt_mode(dig_port) || intel_tc_port_in_legacy_mode(dig_port)))
 		adlp_tbt_to_dp_alt_switch_wa(encoder);
 
+	intel_ddi_buf_enable(encoder, intel_dp->DP);
 	intel_dp->DP |= DDI_BUF_CTL_ENABLE;
-	intel_de_write(dev_priv, DDI_BUF_CTL(port), intel_dp->DP);
-	intel_de_posting_read(dev_priv, DDI_BUF_CTL(port));
-
-	intel_wait_ddi_buf_active(encoder);
 }
 
 static void intel_ddi_set_link_train(struct intel_dp *intel_dp,
