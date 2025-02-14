@@ -3761,8 +3761,8 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 	 * necessary disable and enable port
 	 */
 	dp_tp_ctl = intel_de_read(display, dp_tp_ctl_reg(encoder, crtc_state));
-	if (dp_tp_ctl & DP_TP_CTL_ENABLE)
-		mtl_disable_ddi_buf(encoder, crtc_state);
+
+	drm_WARN_ON(display->drm, dp_tp_ctl & DP_TP_CTL_ENABLE);
 
 	/* 6.d Configure and enable DP_TP_CTL with link training pattern 1 selected */
 	dp_tp_ctl = DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_PAT1;
@@ -3801,30 +3801,16 @@ static void mtl_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 static void intel_ddi_prepare_link_retrain(struct intel_dp *intel_dp,
 					   const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
-	u32 dp_tp_ctl, ddi_buf_ctl;
-	bool wait = false;
+	u32 dp_tp_ctl;
 
 	dp_tp_ctl = intel_de_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
 
-	if (dp_tp_ctl & DP_TP_CTL_ENABLE) {
-		ddi_buf_ctl = intel_de_read(dev_priv, DDI_BUF_CTL(port));
-		if (ddi_buf_ctl & DDI_BUF_CTL_ENABLE) {
-			intel_de_write(dev_priv, DDI_BUF_CTL(port),
-				       ddi_buf_ctl & ~DDI_BUF_CTL_ENABLE);
-			wait = true;
-		}
-
-		dp_tp_ctl &= ~DP_TP_CTL_ENABLE;
-		intel_de_write(dev_priv, dp_tp_ctl_reg(encoder, crtc_state), dp_tp_ctl);
-		intel_de_posting_read(dev_priv, dp_tp_ctl_reg(encoder, crtc_state));
-
-		if (wait)
-			intel_wait_ddi_buf_idle(dev_priv, port);
-	}
+	drm_WARN_ON(display->drm, dp_tp_ctl & DP_TP_CTL_ENABLE);
 
 	dp_tp_ctl = DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_PAT1;
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) ||
