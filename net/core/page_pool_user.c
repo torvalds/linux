@@ -233,7 +233,7 @@ page_pool_nl_fill(struct sk_buff *rsp, const struct page_pool *pool,
 		goto err_cancel;
 
 	napi_id = pool->p.napi ? READ_ONCE(pool->p.napi->napi_id) : 0;
-	if (napi_id >= MIN_NAPI_ID &&
+	if (napi_id_valid(napi_id) &&
 	    nla_put_uint(rsp, NETDEV_A_PAGE_POOL_NAPI_ID, napi_id))
 		goto err_cancel;
 

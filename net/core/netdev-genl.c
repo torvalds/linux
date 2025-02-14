@@ -267,7 +267,7 @@ netdev_nl_napi_dump_one(struct net_device *netdev, struct sk_buff *rsp,
 
 	prev_id = UINT_MAX;
 	list_for_each_entry(napi, &netdev->napi_list, dev_list) {
-		if (napi->napi_id < MIN_NAPI_ID)
+		if (!napi_id_valid(napi->napi_id))
 			continue;
 
 		/* Dump continuation below depends on the list being sorted */

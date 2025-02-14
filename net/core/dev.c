@@ -1008,7 +1008,7 @@ struct net_device *dev_get_by_napi_id(unsigned int napi_id)
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
-	if (napi_id < MIN_NAPI_ID)
+	if (!napi_id_valid(napi_id))
 		return NULL;
 
 	napi = napi_by_id(napi_id);
@@ -6740,7 +6740,7 @@ static void napi_hash_add(struct napi_struct *napi)
 
 	/* 0..NR_CPUS range is reserved for sender_cpu use */
 	do {
-		if (unlikely(++napi_gen_id < MIN_NAPI_ID))
+		if (unlikely(!napi_id_valid(++napi_gen_id)))
 			napi_gen_id = MIN_NAPI_ID;
 	} while (napi_by_id(napi_gen_id));
 
@@ -6911,7 +6911,7 @@ netif_napi_dev_list_add(struct net_device *dev, struct napi_struct *napi)
 
 	higher = &dev->napi_list;
 	list_for_each_entry(pos, &dev->napi_list, dev_list) {
-		if (pos->napi_id >= MIN_NAPI_ID)
+		if (napi_id_valid(pos->napi_id))
 			pos_id = pos->napi_id;
 		else if (pos->config)
 			pos_id = pos->config->napi_id;

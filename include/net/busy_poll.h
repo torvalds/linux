@@ -119,7 +119,7 @@ static inline void sk_busy_loop(struct sock *sk, int nonblock)
 #ifdef CONFIG_NET_RX_BUSY_POLL
 	unsigned int napi_id = READ_ONCE(sk->sk_napi_id);
 
-	if (napi_id >= MIN_NAPI_ID)
+	if (napi_id_valid(napi_id))
 		napi_busy_loop(napi_id, nonblock ? NULL : sk_busy_loop_end, sk,
 			       READ_ONCE(sk->sk_prefer_busy_poll),
 			       READ_ONCE(sk->sk_busy_poll_budget) ?: BUSY_POLL_BUDGET);
@@ -134,7 +134,7 @@ static inline void skb_mark_napi_id(struct sk_buff *skb,
 	/* If the skb was already marked with a valid NAPI ID, avoid overwriting
 	 * it.
 	 */
-	if (skb->napi_id < MIN_NAPI_ID)
+	if (!napi_id_valid(skb->napi_id))
 		skb->napi_id = napi->napi_id;
 #endif
 }
