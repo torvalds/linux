@@ -98,7 +98,7 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 	return devm_pwmchip_add(&pdev->dev, chip);
 }
 
-static const struct of_device_id __maybe_unused clps711x_pwm_dt_ids[] = {
+static const struct of_device_id clps711x_pwm_dt_ids[] = {
 	{ .compatible = "cirrus,ep7209-pwm", },
 	{ }
 };
@@ -107,7 +107,7 @@ MODULE_DEVICE_TABLE(of, clps711x_pwm_dt_ids);
 static struct platform_driver clps711x_pwm_driver = {
 	.driver = {
 		.name = "clps711x-pwm",
-		.of_match_table = of_match_ptr(clps711x_pwm_dt_ids),
+		.of_match_table = clps711x_pwm_dt_ids,
 	},
 	.probe = clps711x_pwm_probe,
 };
