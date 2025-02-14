@@ -189,6 +189,7 @@
 
 #define TURING_A                                      /* cl9097.h */ 0x0000c597
 
+#define AMPERE_A                                                     0x0000c697
 #define AMPERE_B                                      /* cl9097.h */ 0x0000c797
 
 #define ADA_A                                         /* cl9097.h */ 0x0000c997
@@ -246,6 +247,7 @@
 #define PASCAL_COMPUTE_B                                             0x0000c1c0
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
 #define TURING_COMPUTE_A                                             0x0000c5c0
+#define AMPERE_COMPUTE_A                                             0x0000c6c0
 #define AMPERE_COMPUTE_B                                             0x0000c7c0
 #define ADA_COMPUTE_A                                                0x0000c9c0
 

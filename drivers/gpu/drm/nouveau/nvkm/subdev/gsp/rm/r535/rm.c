@@ -11,6 +11,11 @@ r535_api = {
 	.alloc = &r535_alloc,
 	.client = &r535_client,
 	.device = &r535_device,
+	.ce = &r535_ce,
+	.nvdec = &r535_nvdec,
+	.nvenc = &r535_nvenc,
+	.nvjpg = &r535_nvjpg,
+	.ofa = &r535_ofa,
 };
 
 const struct nvkm_rm_impl

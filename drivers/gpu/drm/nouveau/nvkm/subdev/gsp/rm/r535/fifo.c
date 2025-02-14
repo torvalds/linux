@@ -31,7 +31,7 @@
 #include <subdev/vfn.h>
 #include <engine/gr.h>
 
-#include <rm/gpu.h>
+#include <rm/engine.h>
 
 #include <nvhw/drf.h>
 
@@ -230,7 +230,7 @@ r535_engn_nonstall(struct nvkm_engn *engn)
 }
 
 static const struct nvkm_engn_func
-r535_ce = {
+r535_engn_ce = {
 	.nonstall = r535_engn_nonstall,
 };
 
@@ -463,9 +463,17 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 			continue;
 		}
 
+		ret = nvkm_rm_engine_new(gsp->rm, type, inst);
+		if (ret) {
+			nvkm_runl_del(runl);
+			continue;
+		}
+
+		engn = NULL;
+
 		switch (type) {
 		case NVKM_ENGINE_CE:
-			engn = nvkm_runl_add(runl, nv2080, &r535_ce, type, inst);
+			engn = nvkm_runl_add(runl, nv2080, &r535_engn_ce, type, inst);
 			break;
 		case NVKM_ENGINE_GR:
 			engn = nvkm_runl_add(runl, nv2080, &r535_gr, type, inst);

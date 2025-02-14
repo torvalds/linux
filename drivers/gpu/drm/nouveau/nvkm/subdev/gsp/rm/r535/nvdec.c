@@ -19,91 +19,27 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <engine/nvdec/priv.h>
-
-#include <core/object.h>
-#include <subdev/gsp.h>
-#include <engine/fifo.h>
+#include <rm/engine.h>
 
 #include "nvrm/nvdec.h"
 
-struct r535_nvdec_obj {
-	struct nvkm_object object;
-	struct nvkm_gsp_object rm;
-};
-
-static void *
-r535_nvdec_obj_dtor(struct nvkm_object *object)
-{
-	struct r535_nvdec_obj *obj = container_of(object, typeof(*obj), object);
-
-	nvkm_gsp_rm_free(&obj->rm);
-	return obj;
-}
-
-static const struct nvkm_object_func
-r535_nvdec_obj = {
-	.dtor = r535_nvdec_obj_dtor,
-};
-
 static int
-r535_nvdec_obj_ctor(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		 struct nvkm_object **pobject)
+r535_nvdec_alloc(struct nvkm_gsp_object *chan, u32 handle, u32 class, int inst,
+		 struct nvkm_gsp_object *nvdec)
 {
-	struct nvkm_chan *chan = nvkm_uchan_chan(oclass->parent);
-	struct r535_nvdec_obj *obj;
 	NV_BSP_ALLOCATION_PARAMETERS *args;
 
-	if (!(obj = kzalloc(sizeof(*obj), GFP_KERNEL)))
-		return -ENOMEM;
-
-	nvkm_object_ctor(&r535_nvdec_obj, oclass, &obj->object);
-	*pobject = &obj->object;
-
-	args = nvkm_gsp_rm_alloc_get(&chan->rm.object, oclass->handle, oclass->base.oclass,
-				     sizeof(*args), &obj->rm);
+	args = nvkm_gsp_rm_alloc_get(chan, handle, class, sizeof(*args), nvdec);
 	if (WARN_ON(IS_ERR(args)))
 		return PTR_ERR(args);
 
 	args->size = sizeof(*args);
-	args->engineInstance = oclass->engine->subdev.inst;
+	args->engineInstance = inst;
 
-	return nvkm_gsp_rm_alloc_wr(&obj->rm, args);
+	return nvkm_gsp_rm_alloc_wr(nvdec, args);
 }
 
-static void *
-r535_nvdec_dtor(struct nvkm_engine *engine)
-{
-	struct nvkm_nvdec *nvdec = nvkm_nvdec(engine);
-
-	kfree(nvdec->engine.func);
-	return nvdec;
-}
-
-int
-r535_nvdec_new(const struct nvkm_engine_func *hw, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, struct nvkm_nvdec **pnvdec)
-{
-	struct nvkm_engine_func *rm;
-	int nclass;
-
-	for (nclass = 0; hw->sclass[nclass].oclass; nclass++);
-
-	if (!(rm = kzalloc(sizeof(*rm) + (nclass + 1) * sizeof(rm->sclass[0]), GFP_KERNEL)))
-		return -ENOMEM;
-
-	rm->dtor = r535_nvdec_dtor;
-	for (int i = 0; i < nclass; i++) {
-		rm->sclass[i].minver = hw->sclass[i].minver;
-		rm->sclass[i].maxver = hw->sclass[i].maxver;
-		rm->sclass[i].oclass = hw->sclass[i].oclass;
-		rm->sclass[i].ctor = r535_nvdec_obj_ctor;
-	}
-
-	if (!(*pnvdec = kzalloc(sizeof(**pnvdec), GFP_KERNEL))) {
-		kfree(rm);
-		return -ENOMEM;
-	}
-
-	return nvkm_engine_ctor(rm, device, type, inst, true, &(*pnvdec)->engine);
-}
+const struct nvkm_rm_api_engine
+r535_nvdec = {
+	.alloc = r535_nvdec_alloc,
+};

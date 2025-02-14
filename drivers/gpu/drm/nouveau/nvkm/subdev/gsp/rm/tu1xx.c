@@ -22,4 +22,14 @@ tu1xx_gpu = {
 	.fifo.chan = {
 		.class = TURING_CHANNEL_GPFIFO_A,
 	},
+
+	.ce.class = TURING_DMA_COPY_A,
+	.gr.class = {
+		.i2m = KEPLER_INLINE_TO_MEMORY_B,
+		.twod = FERMI_TWOD_A,
+		.threed = TURING_A,
+		.compute = TURING_COMPUTE_A,
+	},
+	.nvdec.class = NVC4B0_VIDEO_DECODER,
+	.nvenc.class = NVC4B7_VIDEO_ENCODER,
 };

@@ -13,4 +13,13 @@ ga100_gpu = {
 	.fifo.chan = {
 		.class = AMPERE_CHANNEL_GPFIFO_A,
 	},
+
+	.ce.class = AMPERE_DMA_COPY_A,
+	.gr.class = {
+		.i2m = KEPLER_INLINE_TO_MEMORY_B,
+		.twod = FERMI_TWOD_A,
+		.threed = AMPERE_A,
+		.compute = AMPERE_COMPUTE_A,
+	},
+	.nvdec.class = NVC6B0_VIDEO_DECODER,
 };

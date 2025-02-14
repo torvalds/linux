@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: MIT
 #
 # Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
+nvkm-y += nvkm/subdev/gsp/rm/engine.o
+nvkm-y += nvkm/subdev/gsp/rm/gr.o
+nvkm-y += nvkm/subdev/gsp/rm/nvdec.o
+nvkm-y += nvkm/subdev/gsp/rm/nvenc.o
 
 nvkm-y += nvkm/subdev/gsp/rm/tu1xx.o
 nvkm-y += nvkm/subdev/gsp/rm/ga100.o

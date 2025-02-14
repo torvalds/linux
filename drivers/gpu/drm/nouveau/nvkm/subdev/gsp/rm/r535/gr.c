@@ -19,12 +19,13 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include <engine/gr/gf100.h>
+#include <rm/gr.h>
 
 #include <core/memory.h>
 #include <subdev/gsp.h>
 #include <subdev/mmu/vmm.h>
 #include <engine/fifo/priv.h>
+#include <engine/gr/priv.h>
 
 #include <nvif/if900d.h>
 
@@ -33,72 +34,6 @@
 #include "nvrm/gr.h"
 
 #define r535_gr(p) container_of((p), struct r535_gr, base)
-
-#define R515_GR_MAX_CTXBUFS 9
-
-struct r535_gr {
-	struct nvkm_gr base;
-
-	struct {
-		u16 bufferId;
-		u32 size;
-		u8  page;
-		u8  align;
-		bool global;
-		bool init;
-		bool ro;
-	} ctxbuf[R515_GR_MAX_CTXBUFS];
-	int ctxbuf_nr;
-
-	struct nvkm_memory *ctxbuf_mem[R515_GR_MAX_CTXBUFS];
-};
-
-struct r535_gr_chan {
-	struct nvkm_object object;
-	struct r535_gr *gr;
-
-	struct nvkm_vmm *vmm;
-	struct nvkm_chan *chan;
-
-	struct nvkm_memory *mem[R515_GR_MAX_CTXBUFS];
-	struct nvkm_vma    *vma[R515_GR_MAX_CTXBUFS];
-};
-
-struct r535_gr_obj {
-	struct nvkm_object object;
-	struct nvkm_gsp_object rm;
-};
-
-static void *
-r535_gr_obj_dtor(struct nvkm_object *object)
-{
-	struct r535_gr_obj *obj = container_of(object, typeof(*obj), object);
-
-	nvkm_gsp_rm_free(&obj->rm);
-	return obj;
-}
-
-static const struct nvkm_object_func
-r535_gr_obj = {
-	.dtor = r535_gr_obj_dtor,
-};
-
-static int
-r535_gr_obj_ctor(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		 struct nvkm_object **pobject)
-{
-	struct r535_gr_chan *chan = container_of(oclass->parent, typeof(*chan), object);
-	struct r535_gr_obj *obj;
-
-	if (!(obj = kzalloc(sizeof(*obj), GFP_KERNEL)))
-		return -ENOMEM;
-
-	nvkm_object_ctor(&r535_gr_obj, oclass, &obj->object);
-	*pobject = &obj->object;
-
-	return nvkm_gsp_rm_alloc(&chan->chan->rm.object, oclass->handle, oclass->base.oclass, 0,
-				 &obj->rm);
-}
 
 static void *
 r535_gr_chan_dtor(struct nvkm_object *object)
@@ -203,7 +138,7 @@ r535_gr_promote_ctx(struct r535_gr *gr, bool golden, struct nvkm_vmm *vmm,
 	return nvkm_gsp_rm_ctrl_wr(&vmm->rm.device.subdevice, ctrl);
 }
 
-static int
+int
 r535_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *chan, const struct nvkm_oclass *oclass,
 		 struct nvkm_object **pobject)
 {
@@ -227,7 +162,7 @@ r535_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *chan, const struct nvkm
 	return 0;
 }
 
-static u64
+u64
 r535_gr_units(struct nvkm_gr *gr)
 {
 	struct nvkm_gsp *gsp = gr->engine.subdev.device->gsp;
@@ -235,7 +170,7 @@ r535_gr_units(struct nvkm_gr *gr)
 	return (gsp->gr.tpcs << 8) | gsp->gr.gpcs;
 }
 
-static int
+int
 r535_gr_oneinit(struct nvkm_gr *base)
 {
 	NV2080_CTRL_INTERNAL_STATIC_GR_GET_CONTEXT_BUFFERS_INFO_PARAMS *info;
@@ -243,6 +178,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_gsp *gsp = device->gsp;
+	struct nvkm_rm *rm = gsp->rm;
 	struct nvkm_mmu *mmu = device->mmu;
 	struct {
 		struct nvkm_memory *inst;
@@ -250,6 +186,7 @@ r535_gr_oneinit(struct nvkm_gr *base)
 		struct nvkm_gsp_object chan;
 		struct nvkm_vma *vma[R515_GR_MAX_CTXBUFS];
 	} golden = {};
+	struct nvkm_gsp_object threed;
 	int ret;
 
 	/* Allocate a channel to use for golden context init. */
@@ -421,30 +358,12 @@ r535_gr_oneinit(struct nvkm_gr *base)
 		goto done;
 
 	/* Allocate 3D class on channel to trigger golden context init in RM. */
-	{
-		int i;
+	ret = nvkm_gsp_rm_alloc(&golden.chan, 0x97000000, rm->gpu->gr.class.threed, 0, &threed);
+	if (ret)
+		goto done;
 
-		for (i = 0; gr->base.func->sclass[i].ctor; i++) {
-			if ((gr->base.func->sclass[i].oclass & 0xff) == 0x97) {
-				struct nvkm_gsp_object threed;
-
-				ret = nvkm_gsp_rm_alloc(&golden.chan, 0x97000000,
-							gr->base.func->sclass[i].oclass, 0,
-							&threed);
-				if (ret)
-					goto done;
-
-				nvkm_gsp_rm_free(&threed);
-				break;
-			}
-		}
-
-		if (WARN_ON(!gr->base.func->sclass[i].ctor)) {
-			ret = -EINVAL;
-			goto done;
-		}
-	}
-
+	/* There's no need to keep the golden channel around, as RM caches the context. */
+	nvkm_gsp_rm_free(&threed);
 done:
 	nvkm_gsp_rm_free(&golden.chan);
 	for (int i = gr->ctxbuf_nr - 1; i >= 0; i--)
@@ -455,7 +374,7 @@ done:
 
 }
 
-static void *
+void *
 r535_gr_dtor(struct nvkm_gr *base)
 {
 	struct r535_gr *gr = r535_gr(base);
@@ -465,39 +384,4 @@ r535_gr_dtor(struct nvkm_gr *base)
 
 	kfree(gr->base.func);
 	return gr;
-}
-
-int
-r535_gr_new(const struct gf100_gr_func *hw,
-	    struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
-{
-	struct nvkm_gr_func *rm;
-	struct r535_gr *gr;
-	int nclass;
-
-	for (nclass = 0; hw->sclass[nclass].oclass; nclass++);
-
-	if (!(rm = kzalloc(sizeof(*rm) + (nclass + 1) * sizeof(rm->sclass[0]), GFP_KERNEL)))
-		return -ENOMEM;
-
-	rm->dtor = r535_gr_dtor;
-	rm->oneinit = r535_gr_oneinit;
-	rm->units = r535_gr_units;
-	rm->chan_new = r535_gr_chan_new;
-
-	for (int i = 0; i < nclass; i++) {
-		rm->sclass[i].minver = hw->sclass[i].minver;
-		rm->sclass[i].maxver = hw->sclass[i].maxver;
-		rm->sclass[i].oclass = hw->sclass[i].oclass;
-		rm->sclass[i].ctor = r535_gr_obj_ctor;
-	}
-
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL))) {
-		kfree(rm);
-		return -ENOMEM;
-	}
-
-	*pgr = &gr->base;
-
-	return nvkm_gr_ctor(rm, device, type, inst, true, &gr->base);
 }

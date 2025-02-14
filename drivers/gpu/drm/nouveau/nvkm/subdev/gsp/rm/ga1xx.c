@@ -22,4 +22,15 @@ ga1xx_gpu = {
 	.fifo.chan = {
 		.class = AMPERE_CHANNEL_GPFIFO_A,
 	},
+
+	.ce.class = AMPERE_DMA_COPY_B,
+	.gr.class = {
+		.i2m = KEPLER_INLINE_TO_MEMORY_B,
+		.twod = FERMI_TWOD_A,
+		.threed = AMPERE_B,
+		.compute = AMPERE_COMPUTE_B,
+	},
+	.nvdec.class = NVC7B0_VIDEO_DECODER,
+	.nvenc.class = NVC7B7_VIDEO_ENCODER,
+	.ofa.class = NVC7FA_VIDEO_OFA,
 };

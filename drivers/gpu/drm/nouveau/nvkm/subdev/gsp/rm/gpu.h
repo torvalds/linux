@@ -27,6 +27,35 @@ struct nvkm_rm_gpu {
 			u32 class;
 		} chan;
 	} fifo;
+
+	struct {
+		u32 class;
+	} ce;
+
+	struct {
+		struct {
+			u32 i2m;
+			u32 twod;
+			u32 threed;
+			u32 compute;
+		} class;
+	} gr;
+
+	struct {
+		u32 class;
+	} nvdec;
+
+	struct {
+		u32 class;
+	} nvenc;
+
+	struct {
+		u32 class;
+	} nvjpg;
+
+	struct {
+		u32 class;
+	} ofa;
 };
 
 extern const struct nvkm_rm_gpu tu1xx_gpu;

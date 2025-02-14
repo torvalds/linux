@@ -22,4 +22,15 @@ ad10x_gpu = {
 	.fifo.chan = {
 		.class = AMPERE_CHANNEL_GPFIFO_A,
 	},
+
+	.ce.class = AMPERE_DMA_COPY_B,
+	.gr.class = {
+		.i2m = KEPLER_INLINE_TO_MEMORY_B,
+		.twod = FERMI_TWOD_A,
+		.threed = ADA_A,
+		.compute = ADA_COMPUTE_A,
+	},
+	.nvdec.class = NVC9B0_VIDEO_DECODER,
+	.nvenc.class = NVC9B7_VIDEO_ENCODER,
+	.ofa.class = NVC9FA_VIDEO_OFA,
 };
