@@ -57,9 +57,6 @@ struct agilent_82350b_priv {
 	bool using_fifos;
 };
 
-// driver name
-extern const char *driver_name;
-
 //registers
 enum agilent_82350b_gpib_registers
 

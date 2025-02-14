@@ -4,6 +4,10 @@
  *   copyright            : (C) 2002, 2004 by Frank Mori Hess              *
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "agilent_82350b.h"
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -54,9 +58,6 @@ static int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_
 
 		retval = tms9914_read(board, tms_priv, buffer, 1, end, &num_bytes);
 		*bytes_read += num_bytes;
-		if (retval < 0)
-			dev_err(board->gpib_dev, "%s: tms9914_read failed retval=%i\n",
-				driver_name, retval);
 		if (retval < 0 || *end)
 			return retval;
 		++buffer;
@@ -89,7 +90,6 @@ static int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_
 						  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 						  test_bit(TIMO_NUM, &board->status));
 		if (retval) {
-			dev_dbg(board->gpib_dev, "%s: read wait interrupted\n", driver_name);
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -103,13 +103,10 @@ static int agilent_82350b_accel_read(gpib_board_t *board, uint8_t *buffer, size_
 			*end = 1;
 		}
 		if (test_bit(TIMO_NUM, &board->status)) {
-			dev_err(board->gpib_dev, "%s: read timed out\n", driver_name);
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-			dev_err(board->gpib_dev, "%s: device clear interrupted read\n",
-				driver_name);
 			retval = -EINTR;
 			break;
 		}
@@ -139,18 +136,12 @@ static int translate_wait_return_value(gpib_board_t *board, int retval)
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	struct tms9914_priv *tms_priv = &a_priv->tms9914_priv;
 
-	if (retval) {
-		dev_err(board->gpib_dev, "%s: write wait interrupted\n", driver_name);
+	if (retval)
 		return -ERESTARTSYS;
-	}
-	if (test_bit(TIMO_NUM, &board->status)) {
-		dev_err(board->gpib_dev, "%s: write timed out\n", driver_name);
+	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
-	}
-	if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-		dev_err(board->gpib_dev, "%s: device clear interrupted write\n", driver_name);
+	if (test_bit(DEV_CLEAR_BN, &tms_priv->state))
 		return -EINTR;
-	}
 	return 0;
 }
 
@@ -176,10 +167,8 @@ static int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size
 
 	event_status = read_and_clear_event_status(board);
 
-	//pr_info("ag_ac_wr: event status 0x%x tms state 0x%lx\n", event_status, tms_priv->state);
-
 #ifdef EXPERIMENTAL
-	pr_info("ag_ac_wr: wait for previous BO to complete if any\n");
+	// wait for previous BO to complete if any
 	retval = wait_event_interruptible(board->wait,
 					  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 					  test_bit(WRITE_READY_BN, &tms_priv->state) ||
@@ -190,13 +179,10 @@ static int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size
 		return retval;
 #endif
 
-	//pr_info("ag_ac_wr: sending first byte\n");
 	retval = agilent_82350b_write(board, buffer, 1, 0, &num_bytes);
 	*bytes_written += num_bytes;
 	if (retval < 0)
 		return retval;
-
-	//pr_info("ag_ac_wr: %ld bytes eoi %d tms state 0x%lx\n",length, send_eoi, tms_priv->state);
 
 	write_byte(tms_priv, tms_priv->imr0_bits & ~HR_BOIE, IMR0);
 	for (i = 1; i < fifotransferlength;) {
@@ -210,13 +196,8 @@ static int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size
 		}
 		writeb(ENABLE_TI_TO_SRAM, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 
-		//pr_info("ag_ac_wr: send block: %d bytes tms 0x%lx\n", block_size,
-		// tms_priv->state);
-
-		if (agilent_82350b_fifo_is_halted(a_priv)) {
+		if (agilent_82350b_fifo_is_halted(a_priv))
 			writeb(RESTART_STREAM_BIT, a_priv->gpib_base + STREAM_STATUS_REG);
-			//	pr_info("ag_ac_wr: needed restart\n");
-		}
 
 		retval = wait_event_interruptible(board->wait,
 						  ((event_status =
@@ -226,7 +207,6 @@ static int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size
 						  test_bit(TIMO_NUM, &board->status));
 		writeb(0, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 		num_bytes = block_size - read_transfer_counter(a_priv);
-		//pr_info("ag_ac_wr: sent  %ld bytes tms 0x%lx\n", num_bytes, tms_priv->state);
 
 		*bytes_written += num_bytes;
 		retval = translate_wait_return_value(board, retval);
@@ -238,9 +218,6 @@ static int agilent_82350b_accel_write(gpib_board_t *board, uint8_t *buffer, size
 		return retval;
 
 	if (send_eoi) {
-		//pr_info("ag_ac_wr: sending last byte with eoi byte no:   %d\n",
-		// fifotransferlength+1);
-
 		retval = agilent_82350b_write(board, buffer + fifotransferlength, 1, send_eoi,
 					      &num_bytes);
 		*bytes_written += num_bytes;
@@ -284,7 +261,6 @@ static irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 		tms9914_interrupt_have_status(board, &a_priv->tms9914_priv, tms9914_status1,
 					      tms9914_status2);
 	}
-//pr_info("event_status=0x%x s1 %x s2 %x\n", event_status,tms9914_status1,tms9914_status2);
 //write-clear status bits
 	if (event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT)) {
 		writeb(event_status & (BUFFER_END_STATUS_BIT | TERM_COUNT_STATUS_BIT),
@@ -297,8 +273,6 @@ static irqreturn_t agilent_82350b_interrupt(int irq, void *arg)
 }
 
 static void agilent_82350b_detach(gpib_board_t *board);
-
-const char *driver_name = "agilent_82350b";
 
 static int read_transfer_counter(struct agilent_82350b_priv *a_priv)
 {
@@ -536,11 +510,10 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 		return 0;
 	// need to programme borg
 	if (!config->init_data || config->init_data_length != firmware_length) {
-		dev_err(board->gpib_dev, "%s: the 82350A board requires firmware after powering on.\n",
-			driver_name);
+		dev_err(board->gpib_dev, "the 82350A board requires firmware after powering on.\n");
 		return -EIO;
 	}
-	dev_info(board->gpib_dev, "%s: Loading firmware...\n", driver_name);
+	dev_dbg(board->gpib_dev, "Loading firmware...\n");
 
 	// tickle the borg
 	writel(plx_cntrl_static_bits | PLX9050_USER3_DATA_BIT,
@@ -559,7 +532,7 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 			usleep_range(10, 20);
 		}
 		if (j == timeout) {
-			dev_err(board->gpib_dev, "%s: timed out loading firmware.\n", driver_name);
+			dev_err(board->gpib_dev, "timed out loading firmware.\n");
 			return -ETIMEDOUT;
 		}
 		writeb(firmware_data[i], a_priv->gpib_base + CONFIG_DATA_REG);
@@ -570,11 +543,10 @@ static int init_82350a_hardware(gpib_board_t *board, const gpib_board_config_t *
 		usleep_range(10, 20);
 	}
 	if (j == timeout) {
-		dev_err(board->gpib_dev, "%s: timed out waiting for firmware load to complete.\n",
-			driver_name);
+		dev_err(board->gpib_dev, "timed out waiting for firmware load to complete.\n");
 		return -ETIMEDOUT;
 	}
-	dev_info(board->gpib_dev, "%s: ...done.\n", driver_name);
+	dev_dbg(board->gpib_dev, " ...done.\n");
 	return 0;
 }
 
@@ -596,15 +568,14 @@ static int test_sram(gpib_board_t *board)
 		unsigned int read_value = readb(a_priv->sram_base + i);
 
 		if ((i & byte_mask) != read_value) {
-			dev_err(board->gpib_dev, "%s: SRAM test failed at %d wanted %d got %d\n",
-				driver_name, i, (i & byte_mask), read_value);
+			dev_err(board->gpib_dev, "SRAM test failed at %d wanted %d got %d\n",
+				i, (i & byte_mask), read_value);
 			return -EIO;
 		}
 		if (need_resched())
 			schedule();
 	}
-	dev_info(board->gpib_dev, "%s: SRAM test passed 0x%x bytes checked\n",
-		 driver_name, sram_length);
+	dev_dbg(board->gpib_dev, "SRAM test passed 0x%x bytes checked\n", sram_length);
 	return 0;
 }
 
@@ -632,14 +603,14 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 						 PCI_DEVICE_ID_82350B, NULL);
 	if (a_priv->pci_device) {
 		a_priv->model = MODEL_82350B;
-		dev_info(board->gpib_dev, "%s: Agilent 82350B board found\n", driver_name);
+		dev_dbg(board->gpib_dev, "Agilent 82350B board found\n");
 
 	} else	{
 		a_priv->pci_device = gpib_pci_get_device(config, PCI_VENDOR_ID_AGILENT,
 							 PCI_DEVICE_ID_82351A, NULL);
 		if (a_priv->pci_device)	{
 			a_priv->model = MODEL_82351A;
-			dev_info(board->gpib_dev, "%s: Agilent 82351B board found\n", driver_name);
+			dev_dbg(board->gpib_dev, "Agilent 82351B board found\n");
 
 		} else {
 			a_priv->pci_device = gpib_pci_get_subsys(config, PCI_VENDOR_ID_PLX,
@@ -649,46 +620,40 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 								 a_priv->pci_device);
 			if (a_priv->pci_device) {
 				a_priv->model = MODEL_82350A;
-				dev_info(board->gpib_dev, "%s: HP/Agilent 82350A board found\n",
-					 driver_name);
+				dev_dbg(board->gpib_dev, "HP/Agilent 82350A board found\n");
 			} else {
-				dev_err(board->gpib_dev, "%s: no 82350/82351 board found\n",
-					driver_name);
+				dev_err(board->gpib_dev, "no 82350/82351 board found\n");
 				return -ENODEV;
 			}
 		}
 	}
 	if (pci_enable_device(a_priv->pci_device)) {
-		dev_err(board->gpib_dev, "%s: error enabling pci device\n", driver_name);
+		dev_err(board->gpib_dev, "error enabling pci device\n");
 		return -EIO;
 	}
-	if (pci_request_regions(a_priv->pci_device, driver_name))
-		return -EIO;
+	if (pci_request_regions(a_priv->pci_device, DRV_NAME))
+		return -ENOMEM;
 	switch (a_priv->model) {
 	case MODEL_82350A:
 		a_priv->plx_base = ioremap(pci_resource_start(a_priv->pci_device, PLX_MEM_REGION),
 					   pci_resource_len(a_priv->pci_device, PLX_MEM_REGION));
-		dev_dbg(board->gpib_dev, "%s: plx base address remapped to 0x%p\n",
-			driver_name, a_priv->plx_base);
+		dev_dbg(board->gpib_dev, "plx base address remapped to 0x%p\n", a_priv->plx_base);
 		a_priv->gpib_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       GPIB_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     GPIB_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: gpib base address remapped to 0x%p\n",
-			driver_name, a_priv->gpib_base);
+		dev_dbg(board->gpib_dev, "chip base address remapped to 0x%p\n", a_priv->gpib_base);
 		tms_priv->mmiobase = a_priv->gpib_base + TMS9914_BASE_REG;
 		a_priv->sram_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       SRAM_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     SRAM_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: sram base address remapped to 0x%p\n",
-			driver_name, a_priv->sram_base);
+		dev_dbg(board->gpib_dev, "sram base address remapped to 0x%p\n", a_priv->sram_base);
 		a_priv->borg_base = ioremap(pci_resource_start(a_priv->pci_device,
 							       BORG_82350A_REGION),
 					    pci_resource_len(a_priv->pci_device,
 							     BORG_82350A_REGION));
-		dev_dbg(board->gpib_dev, "%s: borg base address remapped to 0x%p\n",
-			driver_name, a_priv->borg_base);
+		dev_dbg(board->gpib_dev, "borg base address remapped to 0x%p\n", a_priv->borg_base);
 
 		retval = init_82350a_hardware(board, config);
 		if (retval < 0)
@@ -698,21 +663,18 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 	case MODEL_82351A:
 		a_priv->gpib_base = ioremap(pci_resource_start(a_priv->pci_device, GPIB_REGION),
 					    pci_resource_len(a_priv->pci_device, GPIB_REGION));
-		dev_dbg(board->gpib_dev, "%s: gpib base address remapped to 0x%p\n",
-			driver_name, a_priv->gpib_base);
+		dev_dbg(board->gpib_dev, "chip base address remapped to 0x%p\n", a_priv->gpib_base);
 		tms_priv->mmiobase = a_priv->gpib_base + TMS9914_BASE_REG;
 		a_priv->sram_base = ioremap(pci_resource_start(a_priv->pci_device, SRAM_REGION),
 					    pci_resource_len(a_priv->pci_device, SRAM_REGION));
-		dev_dbg(board->gpib_dev, "%s: sram base address remapped to 0x%p\n",
-			driver_name, a_priv->sram_base);
+		dev_dbg(board->gpib_dev, "sram base address remapped to 0x%p\n", a_priv->sram_base);
 		a_priv->misc_base = ioremap(pci_resource_start(a_priv->pci_device, MISC_REGION),
 					    pci_resource_len(a_priv->pci_device, MISC_REGION));
-		dev_dbg(board->gpib_dev, "%s: misc base address remapped to 0x%p\n",
-			driver_name, a_priv->misc_base);
+		dev_dbg(board->gpib_dev, "misc base address remapped to 0x%p\n", a_priv->misc_base);
 		break;
 	default:
-		pr_err("%s: invalid board\n", driver_name);
-		return -1;
+		dev_err(board->gpib_dev, "invalid board\n");
+		return -ENODEV;
 	}
 
 	retval = test_sram(board);
@@ -720,12 +682,12 @@ static int agilent_82350b_generic_attach(gpib_board_t *board, const gpib_board_c
 		return retval;
 
 	if (request_irq(a_priv->pci_device->irq, agilent_82350b_interrupt,
-			IRQF_SHARED, driver_name, board)) {
-		pr_err("%s: can't request IRQ %d\n", driver_name, a_priv->pci_device->irq);
+			IRQF_SHARED, DRV_NAME, board)) {
+		dev_err(board->gpib_dev, "failed to obtain irq %d\n", a_priv->pci_device->irq);
 		return -EIO;
 	}
 	a_priv->irq = a_priv->pci_device->irq;
-	dev_dbg(board->gpib_dev, "%s: IRQ %d\n", driver_name, a_priv->irq);
+	dev_dbg(board->gpib_dev, " IRQ %d\n", a_priv->irq);
 
 	writeb(0, a_priv->gpib_base + SRAM_ACCESS_CONTROL_REG);
 	a_priv->card_mode_bits = ENABLE_PCI_IRQ_BIT;
@@ -873,7 +835,7 @@ static const struct pci_device_id agilent_82350b_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agilent_82350b_pci_table);
 
 static struct pci_driver agilent_82350b_pci_driver = {
-	.name = "agilent_82350b",
+	.name = DRV_NAME,
 	.id_table = agilent_82350b_pci_table,
 	.probe = &agilent_82350b_pci_probe
 };
@@ -884,19 +846,19 @@ static int __init agilent_82350b_init_module(void)
 
 	result = pci_register_driver(&agilent_82350b_pci_driver);
 	if (result) {
-		pr_err("agilent_82350b: pci_register_driver failed: error = %d\n", result);
+		pr_err("pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
 	result = gpib_register_driver(&agilent_82350b_unaccel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_unaccel;
 	}
 
 	result = gpib_register_driver(&agilent_82350b_interface, THIS_MODULE);
 	if (result) {
-		pr_err("agilent_82350b: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_interface;
 	}
 
