@@ -285,6 +285,14 @@ enum ppfear_regs {
 #define LNL_PPFEAR_NUM_ENTRIES			12
 #define LNL_S0IX_BLOCKER_OFFSET			0x2004
 
+/* Panther Lake Power Management Controller register offsets */
+#define PTL_LPM_NUM_MAPS			14
+#define PTL_PMC_LTR_SATA2			0x1B90
+#define PTL_PMC_LTR_PMC				0x1BA8
+#define PTL_PMC_LTR_CUR_ASLT			0x1C28
+#define PTL_PMC_LTR_CUR_PLT			0x1C2C
+#define PTL_PCD_PMC_MMIO_REG_LEN		0x31A8
+
 extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
@@ -626,6 +634,7 @@ extern struct pmc_dev_info mtl_pmc_dev;
 extern struct pmc_dev_info arl_pmc_dev;
 extern struct pmc_dev_info arl_h_pmc_dev;
 extern struct pmc_dev_info lnl_pmc_dev;
+extern struct pmc_dev_info ptl_pmc_dev;
 
 void cnl_suspend(struct pmc_dev *pmcdev);
 int cnl_resume(struct pmc_dev *pmcdev);
