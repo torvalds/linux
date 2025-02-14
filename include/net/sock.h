@@ -1829,6 +1829,7 @@ static inline void sockcm_init(struct sockcm_cookie *sockc,
 			       const struct sock *sk)
 {
 	*sockc = (struct sockcm_cookie) {
+		.mark = READ_ONCE(sk->sk_mark),
 		.tsflags = READ_ONCE(sk->sk_tsflags),
 		.priority = READ_ONCE(sk->sk_priority),
 	};

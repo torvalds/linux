@@ -963,7 +963,7 @@ static int raw_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 
 	skb->dev = dev;
 	skb->priority = sockc.priority;
-	skb->mark = READ_ONCE(sk->sk_mark);
+	skb->mark = sockc.mark;
 	skb->tstamp = sockc.transmit_time;
 
 	skb_setup_tx_timestamp(skb, &sockc);
