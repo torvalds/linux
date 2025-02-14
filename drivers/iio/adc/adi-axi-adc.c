@@ -46,6 +46,12 @@
 #define ADI_AXI_ADC_REG_CTRL			0x0044
 #define    ADI_AXI_ADC_CTRL_DDR_EDGESEL_MASK	BIT(1)
 
+#define ADI_AXI_ADC_REG_CNTRL_3			0x004c
+#define   AXI_AD485X_CNTRL_3_PACKET_FORMAT_MSK	GENMASK(1, 0)
+#define   AXI_AD485X_PACKET_FORMAT_20BIT	0x0
+#define   AXI_AD485X_PACKET_FORMAT_24BIT	0x1
+#define   AXI_AD485X_PACKET_FORMAT_32BIT	0x2
+
 #define ADI_AXI_ADC_REG_DRP_STATUS		0x0074
 #define   ADI_AXI_ADC_DRP_LOCKED		BIT(17)
 
@@ -332,6 +338,47 @@ static int axi_adc_interface_type_get(struct iio_backend *back,
 	return 0;
 }
 
+static int axi_adc_ad485x_data_size_set(struct iio_backend *back,
+					unsigned int size)
+{
+	struct adi_axi_adc_state *st = iio_backend_get_priv(back);
+	unsigned int val;
+
+	switch (size) {
+	/*
+	 * There are two different variants of the AXI AXI_AD485X IP block, a
+	 * 16-bit and a 20-bit variant.
+	 * The 0x0 value (AXI_AD485X_PACKET_FORMAT_20BIT) is corresponding also
+	 * to the 16-bit variant of the IP block.
+	 */
+	case 16:
+	case 20:
+		val = AXI_AD485X_PACKET_FORMAT_20BIT;
+		break;
+	case 24:
+		val = AXI_AD485X_PACKET_FORMAT_24BIT;
+		break;
+	/*
+	 * The 0x2 (AXI_AD485X_PACKET_FORMAT_32BIT) corresponds only to the
+	 * 20-bit variant of the IP block. Setting this value properly is
+	 * ensured by the upper layers of the drivers calling the axi-adc
+	 * functions.
+	 * Also, for 16-bit IP block, the 0x2 (AXI_AD485X_PACKET_FORMAT_32BIT)
+	 * value is handled as maximum size available which is 24-bit for this
+	 * configuration.
+	 */
+	case 32:
+		val = AXI_AD485X_PACKET_FORMAT_32BIT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(st->regmap, ADI_AXI_ADC_REG_CNTRL_3,
+				  AXI_AD485X_CNTRL_3_PACKET_FORMAT_MSK,
+				  FIELD_PREP(AXI_AD485X_CNTRL_3_PACKET_FORMAT_MSK, val));
+}
+
 static struct iio_buffer *axi_adc_request_buffer(struct iio_backend *back,
 						 struct iio_dev *indio_dev)
 {
@@ -488,6 +535,29 @@ static const struct iio_backend_info adi_axi_adc_generic = {
 	.ops = &adi_axi_adc_ops,
 };
 
+static const struct iio_backend_ops adi_ad485x_ops = {
+	.enable = axi_adc_enable,
+	.disable = axi_adc_disable,
+	.data_format_set = axi_adc_data_format_set,
+	.chan_enable = axi_adc_chan_enable,
+	.chan_disable = axi_adc_chan_disable,
+	.request_buffer = axi_adc_request_buffer,
+	.free_buffer = axi_adc_free_buffer,
+	.data_sample_trigger = axi_adc_data_sample_trigger,
+	.iodelay_set = axi_adc_iodelays_set,
+	.chan_status = axi_adc_chan_status,
+	.interface_type_get = axi_adc_interface_type_get,
+	.data_size_set = axi_adc_ad485x_data_size_set,
+	.debugfs_reg_access = iio_backend_debugfs_ptr(axi_adc_reg_access),
+	.debugfs_print_chan_status =
+		iio_backend_debugfs_ptr(axi_adc_debugfs_print_chan_status),
+};
+
+static const struct iio_backend_info axi_ad485x = {
+	.name = "axi-ad485x",
+	.ops = &adi_ad485x_ops,
+};
+
 static int adi_axi_adc_probe(struct platform_device *pdev)
 {
 	struct adi_axi_adc_state *st;
@@ -545,7 +615,7 @@ static int adi_axi_adc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ret = devm_iio_backend_register(&pdev->dev, &adi_axi_adc_generic, st);
+	ret = devm_iio_backend_register(&pdev->dev, st->info->backend_info, st);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
 				     "failed to register iio backend\n");
@@ -585,6 +655,11 @@ static const struct axi_adc_info adc_generic = {
 	.backend_info = &adi_axi_adc_generic,
 };
 
+static const struct axi_adc_info adi_axi_ad485x = {
+	.version = ADI_AXI_PCORE_VER(10, 0, 'a'),
+	.backend_info = &axi_ad485x,
+};
+
 static const struct ad7606_platform_data ad7606_pdata = {
 	.bus_reg_read = ad7606_bus_reg_read,
 	.bus_reg_write = ad7606_bus_reg_write,
@@ -601,6 +676,7 @@ static const struct axi_adc_info adc_ad7606 = {
 /* Match table for of_platform binding */
 static const struct of_device_id adi_axi_adc_of_match[] = {
 	{ .compatible = "adi,axi-adc-10.0.a", .data = &adc_generic },
+	{ .compatible = "adi,axi-ad485x", .data = &adi_axi_ad485x },
 	{ .compatible = "adi,axi-ad7606x", .data = &adc_ad7606 },
 	{ /* end of list */ }
 };
