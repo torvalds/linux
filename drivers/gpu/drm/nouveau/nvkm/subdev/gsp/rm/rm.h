@@ -6,6 +6,16 @@
 #ifndef __NVKM_RM_H__
 #define __NVKM_RM_H__
 
+struct nvkm_rm_impl {
+	const struct nvkm_rm_api *api;
+};
+
+struct nvkm_rm {
+	struct nvkm_device *device;
+	const struct nvkm_rm_gpu *gpu;
+	const struct nvkm_rm_api *api;
+};
+
 struct nvkm_rm_api {
 	const struct nvkm_rm_api_rpc {
 		void *(*get)(struct nvkm_gsp *, u32 fn, u32 argc);
@@ -45,7 +55,8 @@ struct nvkm_rm_api {
 	} *device;
 };
 
-extern const struct nvkm_rm_api r535_rm;
+extern const struct nvkm_rm_impl r535_rm_tu102;
+extern const struct nvkm_rm_impl r535_rm_ga102;
 extern const struct nvkm_rm_api_rpc r535_rpc;
 extern const struct nvkm_rm_api_ctrl r535_ctrl;
 extern const struct nvkm_rm_api_alloc r535_alloc;

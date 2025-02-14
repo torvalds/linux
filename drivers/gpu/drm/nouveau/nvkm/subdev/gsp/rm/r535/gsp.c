@@ -44,11 +44,6 @@
 
 extern struct dentry *nouveau_debugfs_root;
 
-const struct nvkm_gsp_rm
-r535_gsp_rm = {
-	.api = &r535_rm,
-};
-
 static void
 r535_gsp_msgq_work(struct work_struct *work)
 {

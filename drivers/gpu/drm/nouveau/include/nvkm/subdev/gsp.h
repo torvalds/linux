@@ -209,9 +209,7 @@ struct nvkm_gsp {
 		u8 tpcs;
 	} gr;
 
-	const struct nvkm_gsp_rm {
-		const struct nvkm_rm_api *api;
-	} *rm;
+	struct nvkm_rm *rm;
 
 	struct {
 		struct mutex mutex;
@@ -467,7 +465,7 @@ static inline int
 nvkm_gsp_device_event_ctor(struct nvkm_gsp_device *device, u32 handle, u32 id,
 			   nvkm_gsp_event_func func, struct nvkm_gsp_event *event)
 {
-	const struct nvkm_gsp_rm *rm = device->object.client->gsp->rm;
+	struct nvkm_rm *rm = device->object.client->gsp->rm;
 
 	return rm->api->device->event.ctor(device, handle, id, func, event);
 }

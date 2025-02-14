@@ -2,4 +2,9 @@
 #
 # Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
 
+nvkm-y += nvkm/subdev/gsp/rm/tu1xx.o
+nvkm-y += nvkm/subdev/gsp/rm/ga100.o
+nvkm-y += nvkm/subdev/gsp/rm/ga1xx.o
+nvkm-y += nvkm/subdev/gsp/rm/ad10x.o
+
 include $(src)/nvkm/subdev/gsp/rm/r535/Kbuild

@@ -268,7 +268,7 @@ tu102_gsp_flcn = {
 };
 
 static const struct nvkm_gsp_func
-tu102_gsp_r535_113_01 = {
+tu102_gsp = {
 	.flcn = &tu102_gsp_flcn,
 	.fwsec = &tu102_gsp_fwsec,
 
@@ -285,7 +285,7 @@ tu102_gsp_r535_113_01 = {
 	.fini = tu102_gsp_fini,
 	.reset = tu102_gsp_reset,
 
-	.rm = &r535_gsp_rm,
+	.rm.gpu = &tu1xx_gpu,
 };
 
 static int
@@ -336,7 +336,7 @@ done:
 
 static struct nvkm_gsp_fwif
 tu102_gsps[] = {
-	{  0, tu102_gsp_load, &tu102_gsp_r535_113_01, "535.113.01" },
+	{  0, tu102_gsp_load, &tu102_gsp, &r535_rm_tu102, "535.113.01" },
 	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };

@@ -1,0 +1,16 @@
+/* SPDX-License-Identifier: MIT
+ *
+ * Copyright (c) 2025, NVIDIA CORPORATION. All rights reserved.
+ */
+#ifndef __NVKM_RM_GPU_H__
+#define __NVKM_RM_GPU_H__
+#include "rm.h"
+
+struct nvkm_rm_gpu {
+};
+
+extern const struct nvkm_rm_gpu tu1xx_gpu;
+extern const struct nvkm_rm_gpu ga100_gpu;
+extern const struct nvkm_rm_gpu ga1xx_gpu;
+extern const struct nvkm_rm_gpu ad10x_gpu;
+#endif
