@@ -742,6 +742,12 @@ static void gen12_ctx_workarounds_init(struct intel_engine_cs *engine,
 		/* Wa_1606376872 */
 		wa_masked_en(wal, COMMON_SLICE_CHICKEN4, DISABLE_TDC_LOAD_BALANCING_CALC);
 	}
+
+	/*
+	 * This bit must be set to enable performance optimization for fast
+	 * clears.
+	 */
+	wa_mcr_write_or(wal, GEN8_WM_CHICKEN2, WAIT_ON_DEPTH_STALL_DONE_DISABLE);
 }
 
 static void dg1_ctx_workarounds_init(struct intel_engine_cs *engine,
