@@ -346,6 +346,11 @@ static int cs8409_i2c_bulk_write(struct sub_codec *scodec, const struct cs8409_i
 
 		if (cs8409_i2c_wait_complete(codec) < 0)
 			goto error;
+		/* Certain use cases may require a delay
+		 * after a write operation before proceeding.
+		 */
+		if (seq[i].delay)
+			fsleep(seq[i].delay);
 	}
 
 	mutex_unlock(&spec->i2c_mux);
@@ -888,7 +893,6 @@ static void cs42l42_resume(struct sub_codec *cs42l42)
 
 	/* Initialize CS42L42 companion codec */
 	cs8409_i2c_bulk_write(cs42l42, cs42l42->init_seq, cs42l42->init_seq_num);
-	msleep(CS42L42_INIT_TIMEOUT_MS);
 
 	/* Clear interrupts, by reading interrupt status registers */
 	cs8409_i2c_bulk_read(cs42l42, irq_regs, ARRAY_SIZE(irq_regs));
