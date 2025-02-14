@@ -35,15 +35,6 @@ enum e820_type {
 	 * marking it with the IORES_DESC_SOFT_RESERVED designation.
 	 */
 	E820_TYPE_SOFT_RESERVED	= 0xefffffff,
-
-	/*
-	 * Reserved RAM used by the kernel itself if
-	 * CONFIG_INTEL_TXT=y is enabled, memory of this type
-	 * will be included in the S3 integrity calculation
-	 * and so should not include any memory that the BIOS
-	 * might alter over the S3 transition:
-	 */
-	E820_TYPE_RESERVED_KERN	= 128,
 };
 
 /*
