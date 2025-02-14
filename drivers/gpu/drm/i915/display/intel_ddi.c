@@ -3072,58 +3072,29 @@ mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 			port_name(port));
 }
 
-static void mtl_disable_ddi_buf(struct intel_encoder *encoder,
-				const struct intel_crtc_state *crtc_state)
+static void intel_disable_ddi_buf(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 
-	/* 3.b Clear DDI_CTL_DE Enable to 0. */
 	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
-	/* 3.c Poll for PORT_BUF_CTL Idle Status == 1, timeout after 100us */
-	intel_wait_ddi_buf_idle(dev_priv, port);
+	if (DISPLAY_VER(display) >= 14)
+		intel_wait_ddi_buf_idle(dev_priv, port);
 
-	/* 3.d Disable D2D Link */
 	mtl_ddi_disable_d2d(encoder);
 
-	/* 3.e Disable DP_TP_CTL */
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
 		intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
 			     DP_TP_CTL_ENABLE, 0);
 	}
-}
-
-static void disable_ddi_buf(struct intel_encoder *encoder,
-			    const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	enum port port = encoder->port;
-
-	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
-
-	if (intel_crtc_has_dp_encoder(crtc_state))
-		intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
-			     DP_TP_CTL_ENABLE, 0);
 
 	intel_ddi_disable_fec(encoder, crtc_state);
 
-	intel_wait_ddi_buf_idle(dev_priv, port);
-}
-
-static void intel_disable_ddi_buf(struct intel_encoder *encoder,
-				  const struct intel_crtc_state *crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (DISPLAY_VER(dev_priv) >= 14) {
-		mtl_disable_ddi_buf(encoder, crtc_state);
-
-		/* 3.f Disable DP_TP_CTL FEC Enable if it is needed */
-		intel_ddi_disable_fec(encoder, crtc_state);
-	} else {
-		disable_ddi_buf(encoder, crtc_state);
-	}
+	if (DISPLAY_VER(display) < 14)
+		intel_wait_ddi_buf_idle(dev_priv, port);
 
 	intel_ddi_wait_for_fec_status(encoder, crtc_state, false);
 }
