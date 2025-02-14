@@ -3077,17 +3077,12 @@ static void mtl_disable_ddi_buf(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
-	u32 val;
 
 	/* 3.b Clear DDI_CTL_DE Enable to 0. */
-	val = intel_de_read(dev_priv, DDI_BUF_CTL(port));
-	if (val & DDI_BUF_CTL_ENABLE) {
-		val &= ~DDI_BUF_CTL_ENABLE;
-		intel_de_write(dev_priv, DDI_BUF_CTL(port), val);
+	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
-		/* 3.c Poll for PORT_BUF_CTL Idle Status == 1, timeout after 100us */
-		mtl_wait_ddi_buf_idle(dev_priv, port);
-	}
+	/* 3.c Poll for PORT_BUF_CTL Idle Status == 1, timeout after 100us */
+	mtl_wait_ddi_buf_idle(dev_priv, port);
 
 	/* 3.d Disable D2D Link */
 	mtl_ddi_disable_d2d_link(encoder);
@@ -3104,15 +3099,8 @@ static void disable_ddi_buf(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
-	bool wait = false;
-	u32 val;
 
-	val = intel_de_read(dev_priv, DDI_BUF_CTL(port));
-	if (val & DDI_BUF_CTL_ENABLE) {
-		val &= ~DDI_BUF_CTL_ENABLE;
-		intel_de_write(dev_priv, DDI_BUF_CTL(port), val);
-		wait = true;
-	}
+	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
 	if (intel_crtc_has_dp_encoder(crtc_state))
 		intel_de_rmw(dev_priv, dp_tp_ctl_reg(encoder, crtc_state),
@@ -3120,8 +3108,7 @@ static void disable_ddi_buf(struct intel_encoder *encoder,
 
 	intel_ddi_disable_fec(encoder, crtc_state);
 
-	if (wait)
-		intel_wait_ddi_buf_idle(dev_priv, port);
+	intel_wait_ddi_buf_idle(dev_priv, port);
 }
 
 static void intel_disable_ddi_buf(struct intel_encoder *encoder,
