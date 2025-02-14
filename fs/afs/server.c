@@ -33,7 +33,7 @@ struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer 
 
 	do {
 		if (server)
-			afs_unuse_server_notime(net, server, afs_server_trace_put_find_rsq);
+			afs_unuse_server_notime(net, server, afs_server_trace_unuse_find_rsq);
 		server = NULL;
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&net->fs_addr_lock, &seq);
@@ -49,7 +49,7 @@ struct afs_server *afs_find_server(struct afs_net *net, const struct rxrpc_peer 
 		server = NULL;
 		continue;
 	found:
-		server = afs_maybe_use_server(server, afs_server_trace_get_by_addr);
+		server = afs_maybe_use_server(server, afs_server_trace_use_by_addr);
 
 	} while (need_seqretry(&net->fs_addr_lock, seq));
 
@@ -76,7 +76,7 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 		 * changes.
 		 */
 		if (server)
-			afs_unuse_server(net, server, afs_server_trace_put_uuid_rsq);
+			afs_unuse_server(net, server, afs_server_trace_unuse_uuid_rsq);
 		server = NULL;
 		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&net->fs_lock, &seq);
@@ -91,7 +91,7 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 			} else if (diff > 0) {
 				p = p->rb_right;
 			} else {
-				afs_use_server(server, afs_server_trace_get_by_uuid);
+				afs_use_server(server, afs_server_trace_use_by_uuid);
 				break;
 			}
 
@@ -273,7 +273,8 @@ static struct afs_addr_list *afs_vl_lookup_addrs(struct afs_cell *cell,
 }
 
 /*
- * Get or create a fileserver record.
+ * Get or create a fileserver record and return it with an active-use count on
+ * it.
  */
 struct afs_server *afs_lookup_server(struct afs_cell *cell, struct key *key,
 				     const uuid_t *uuid, u32 addr_version)

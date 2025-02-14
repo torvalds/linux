@@ -179,7 +179,7 @@ static void afs_free_call(struct afs_call *call)
 	if (call->type->destructor)
 		call->type->destructor(call);
 
-	afs_unuse_server_notime(call->net, call->server, afs_server_trace_put_call);
+	afs_unuse_server_notime(call->net, call->server, afs_server_trace_unuse_call);
 	kfree(call->request);
 
 	o = atomic_read(&net->nr_outstanding_calls);

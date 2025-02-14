@@ -132,22 +132,25 @@ enum yfs_cm_operation {
 	EM(afs_server_trace_destroy,		"DESTROY  ") \
 	EM(afs_server_trace_free,		"FREE     ") \
 	EM(afs_server_trace_gc,			"GC       ") \
-	EM(afs_server_trace_get_by_addr,	"GET addr ") \
-	EM(afs_server_trace_get_by_uuid,	"GET uuid ") \
-	EM(afs_server_trace_get_caps,		"GET caps ") \
 	EM(afs_server_trace_get_install,	"GET inst ") \
-	EM(afs_server_trace_get_new_cbi,	"GET cbi  ") \
 	EM(afs_server_trace_get_probe,		"GET probe") \
-	EM(afs_server_trace_give_up_cb,		"giveup-cb") \
 	EM(afs_server_trace_purging,		"PURGE    ") \
-	EM(afs_server_trace_put_call,		"PUT call ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
-	EM(afs_server_trace_put_find_rsq,	"PUT f-rsq") \
 	EM(afs_server_trace_put_probe,		"PUT probe") \
-	EM(afs_server_trace_put_slist,		"PUT slist") \
-	EM(afs_server_trace_put_slist_isort,	"PUT isort") \
-	EM(afs_server_trace_put_uuid_rsq,	"PUT u-req") \
-	E_(afs_server_trace_update,		"UPDATE")
+	EM(afs_server_trace_see_expired,	"SEE expd ") \
+	EM(afs_server_trace_unuse_call,		"UNU call ") \
+	EM(afs_server_trace_unuse_create_fail,	"UNU cfail") \
+	EM(afs_server_trace_unuse_find_rsq,	"UNU f-rsq") \
+	EM(afs_server_trace_unuse_slist,	"UNU slist") \
+	EM(afs_server_trace_unuse_slist_isort,	"UNU isort") \
+	EM(afs_server_trace_unuse_uuid_rsq,	"PUT u-req") \
+	EM(afs_server_trace_update,		"UPDATE   ") \
+	EM(afs_server_trace_use_by_addr,	"USE addr ") \
+	EM(afs_server_trace_use_by_uuid,	"USE uuid ") \
+	EM(afs_server_trace_use_cm_call,	"USE cm-cl") \
+	EM(afs_server_trace_use_get_caps,	"USE gcaps") \
+	EM(afs_server_trace_use_give_up_cb,	"USE gvupc") \
+	E_(afs_server_trace_wait_create,	"WAIT crt ")
 
 #define afs_volume_traces \
 	EM(afs_volume_trace_alloc,		"ALLOC         ") \
@@ -1531,7 +1534,7 @@ TRACE_EVENT(afs_server,
 		    __entry->reason = reason;
 			   ),
 
-	    TP_printk("s=%08x %s u=%d a=%d",
+	    TP_printk("s=%08x %s r=%d a=%d",
 		      __entry->server,
 		      __print_symbolic(__entry->reason, afs_server_traces),
 		      __entry->ref,
