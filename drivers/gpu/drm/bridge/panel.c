@@ -322,8 +322,10 @@ void drm_panel_bridge_remove(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-	if (!drm_bridge_is_panel(bridge))
+	if (!drm_bridge_is_panel(bridge)) {
+		drm_warn(bridge->dev, "%s: called on non-panel bridge!\n", __func__);
 		return;
+	}
 
 	panel_bridge = drm_bridge_to_panel_bridge(bridge);
 
