@@ -259,6 +259,12 @@ TRACE_EVENT(tcp_retransmit_synack,
 		  __entry->saddr_v6, __entry->daddr_v6)
 );
 
+DECLARE_TRACE(tcp_cwnd_reduction_tp,
+	TP_PROTO(const struct sock *sk, int newly_acked_sacked,
+		 int newly_lost, int flag),
+	TP_ARGS(sk, newly_acked_sacked, newly_lost, flag)
+);
+
 #include <trace/events/net_probe_common.h>
 
 TRACE_EVENT(tcp_probe,
