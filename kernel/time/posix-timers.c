@@ -1099,8 +1099,10 @@ void exit_itimers(struct task_struct *tsk)
 	spin_unlock_irq(&tsk->sighand->siglock);
 
 	/* The timers are not longer accessible via tsk::signal */
-	while (!hlist_empty(&timers))
+	while (!hlist_empty(&timers)) {
 		itimer_delete(hlist_entry(timers.first, struct k_itimer, list));
+		cond_resched();
+	}
 
 	/*
 	 * There should be no timers on the ignored list. itimer_delete() has
