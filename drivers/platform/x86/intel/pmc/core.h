@@ -484,17 +484,17 @@ extern const struct pmc_bit_map mtl_socm_signal_status_map[];
 extern const struct pmc_reg_map mtl_socm_reg_map;
 extern const struct pmc_reg_map mtl_ioep_reg_map;
 
-extern void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
-extern int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
+void pmc_core_get_tgl_lpm_reqs(struct platform_device *pdev);
+int pmc_core_ssram_get_lpm_reqs(struct pmc_dev *pmcdev);
 int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore);
 
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
-extern void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
-extern void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
-extern void pmc_core_set_device_d3(unsigned int device);
+void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
+void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
+void pmc_core_set_device_d3(unsigned int device);
 
-extern int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
+int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 
 int generic_core_init(struct pmc_dev *pmcdev, struct pmc_dev_info *pmc_dev_info);
 
