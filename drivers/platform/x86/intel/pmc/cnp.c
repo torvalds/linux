@@ -88,7 +88,7 @@ const struct pmc_bit_map cnp_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_cnp_pfear_map[] = {
+static const struct pmc_bit_map *ext_cnp_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of cnp_reg_map for
 	 * a list of core SoCs using this.
@@ -97,7 +97,7 @@ const struct pmc_bit_map *ext_cnp_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
 	{"AUDIO_D3",		BIT(0)},
 	{"OTG_D3",		BIT(1)},
 	{"XHCI_D3",		BIT(2)},
@@ -110,7 +110,7 @@ const struct pmc_bit_map cnp_slps0_dbg0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
 	{"SDIO_PLL_OFF",	BIT(0)},
 	{"USB2_PLL_OFF",	BIT(1)},
 	{"AUDIO_PLL_OFF",	BIT(2)},
@@ -127,7 +127,7 @@ const struct pmc_bit_map cnp_slps0_dbg1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map cnp_slps0_dbg2_map[] = {
+static const struct pmc_bit_map cnp_slps0_dbg2_map[] = {
 	{"MPHY_CORE_GATED",	BIT(0)},
 	{"CSME_GATED",		BIT(1)},
 	{"USB2_SUS_GATED",	BIT(2)},

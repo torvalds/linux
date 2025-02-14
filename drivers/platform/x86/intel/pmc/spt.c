@@ -12,7 +12,7 @@
 
 #include "core.h"
 
-const struct pmc_bit_map spt_pll_map[] = {
+static const struct pmc_bit_map spt_pll_map[] = {
 	{"MIPI PLL",			SPT_PMC_BIT_MPHY_CMN_LANE0},
 	{"GEN2 USB2PCIE2 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE1},
 	{"DMIPCIE3 PLL",		SPT_PMC_BIT_MPHY_CMN_LANE2},
@@ -20,7 +20,7 @@ const struct pmc_bit_map spt_pll_map[] = {
 	{}
 };
 
-const struct pmc_bit_map spt_mphy_map[] = {
+static const struct pmc_bit_map spt_mphy_map[] = {
 	{"MPHY CORE LANE 0",           SPT_PMC_BIT_MPHY_LANE0},
 	{"MPHY CORE LANE 1",           SPT_PMC_BIT_MPHY_LANE1},
 	{"MPHY CORE LANE 2",           SPT_PMC_BIT_MPHY_LANE2},
@@ -40,7 +40,7 @@ const struct pmc_bit_map spt_mphy_map[] = {
 	{}
 };
 
-const struct pmc_bit_map spt_pfear_map[] = {
+static const struct pmc_bit_map spt_pfear_map[] = {
 	{"PMC",				SPT_PMC_BIT_PMC},
 	{"OPI-DMI",			SPT_PMC_BIT_OPI},
 	{"SPI / eSPI",			SPT_PMC_BIT_SPI},
@@ -84,7 +84,7 @@ const struct pmc_bit_map spt_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_spt_pfear_map[] = {
+static const struct pmc_bit_map *ext_spt_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of spt_reg_map for
 	 * a list of core SoCs using this.
@@ -93,7 +93,7 @@ const struct pmc_bit_map *ext_spt_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_bit_map spt_ltr_show_map[] = {
+static const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"SOUTHPORT_A",		SPT_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		SPT_PMC_LTR_SPB},
 	{"SATA",		SPT_PMC_LTR_SATA},
@@ -118,7 +118,7 @@ const struct pmc_bit_map spt_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_reg_map spt_reg_map = {
+static const struct pmc_reg_map spt_reg_map = {
 	.pfear_sts = ext_spt_pfear_map,
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,

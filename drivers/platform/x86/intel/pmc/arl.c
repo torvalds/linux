@@ -20,7 +20,7 @@
 
 static const u8 ARL_LPM_REG_INDEX[] = {0, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20};
 
-const struct pmc_bit_map arl_socs_ltr_show_map[] = {
+static const struct pmc_bit_map arl_socs_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -60,7 +60,7 @@ const struct pmc_bit_map arl_socs_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_clocksource_status_map[] = {
+static const struct pmc_bit_map arl_socs_clocksource_status_map[] = {
 	{"AON2_OFF_STS",		BIT(0)},
 	{"AON3_OFF_STS",		BIT(1)},
 	{"AON4_OFF_STS",		BIT(2)},
@@ -88,7 +88,7 @@ const struct pmc_bit_map arl_socs_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_power_gating_status_0_map[] = {
+static const struct pmc_bit_map arl_socs_power_gating_status_0_map[] = {
 	{"PMC_PGD0_PG_STS",		BIT(0)},
 	{"DMI_PGD0_PG_STS",		BIT(1)},
 	{"ESPISPI_PGD0_PG_STS",		BIT(2)},
@@ -124,7 +124,7 @@ const struct pmc_bit_map arl_socs_power_gating_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_power_gating_status_1_map[] = {
+static const struct pmc_bit_map arl_socs_power_gating_status_1_map[] = {
 	{"USBR0_PGD0_PG_STS",		BIT(0)},
 	{"SUSRAM_PGD0_PG_STS",		BIT(1)},
 	{"SMT1_PGD0_PG_STS",		BIT(2)},
@@ -160,7 +160,7 @@ const struct pmc_bit_map arl_socs_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_power_gating_status_2_map[] = {
+static const struct pmc_bit_map arl_socs_power_gating_status_2_map[] = {
 	{"PSF8_PGD0_PG_STS",		BIT(0)},
 	{"FIA_PGD0_PG_STS",		BIT(1)},
 	{"SOC_D2D_PGD3_PG_STS",		BIT(2)},
@@ -188,7 +188,7 @@ const struct pmc_bit_map arl_socs_power_gating_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_d3_status_2_map[] = {
+static const struct pmc_bit_map arl_socs_d3_status_2_map[] = {
 	{"CSMERTC_D3_STS",		BIT(1)},
 	{"SUSRAM_D3_STS",		BIT(2)},
 	{"CSE_D3_STS",			BIT(4)},
@@ -207,7 +207,7 @@ const struct pmc_bit_map arl_socs_d3_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_d3_status_3_map[] = {
+static const struct pmc_bit_map arl_socs_d3_status_3_map[] = {
 	{"GBETSN_D3_STS",		BIT(13)},
 	{"THC0_D3_STS",			BIT(14)},
 	{"THC1_D3_STS",			BIT(15)},
@@ -215,13 +215,13 @@ const struct pmc_bit_map arl_socs_d3_status_3_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_socs_vnn_req_status_3_map[] = {
+static const struct pmc_bit_map arl_socs_vnn_req_status_3_map[] = {
 	{"DTS0_VNN_REQ_STS",		BIT(7)},
 	{"GPIOCOM5_VNN_REQ_STS",	BIT(11)},
 	{}
 };
 
-const struct pmc_bit_map *arl_socs_lpm_maps[] = {
+static const struct pmc_bit_map *arl_socs_lpm_maps[] = {
 	arl_socs_clocksource_status_map,
 	arl_socs_power_gating_status_0_map,
 	arl_socs_power_gating_status_1_map,
@@ -239,7 +239,7 @@ const struct pmc_bit_map *arl_socs_lpm_maps[] = {
 	NULL
 };
 
-const struct pmc_bit_map arl_socs_pfear_map[] = {
+static const struct pmc_bit_map arl_socs_pfear_map[] = {
 	{"RSVD64",			BIT(0)},
 	{"RSVD65",			BIT(1)},
 	{"RSVD66",			BIT(2)},
@@ -250,13 +250,13 @@ const struct pmc_bit_map arl_socs_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_arl_socs_pfear_map[] = {
+static const struct pmc_bit_map *ext_arl_socs_pfear_map[] = {
 	mtl_socm_pfear_map,
 	arl_socs_pfear_map,
 	NULL
 };
 
-const struct pmc_reg_map arl_socs_reg_map = {
+static const struct pmc_reg_map arl_socs_reg_map = {
 	.pfear_sts = ext_arl_socs_pfear_map,
 	.ppfear_buckets = ARL_SOCS_PPFEAR_NUM_ENTRIES,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
@@ -284,7 +284,7 @@ const struct pmc_reg_map arl_socs_reg_map = {
 	.pson_residency_counter_step = TGL_PSON_RES_COUNTER_STEP,
 };
 
-const struct pmc_bit_map arl_pchs_ltr_show_map[] = {
+static const struct pmc_bit_map arl_pchs_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
 	{"SATA",		CNP_PMC_LTR_SATA},
@@ -324,7 +324,7 @@ const struct pmc_bit_map arl_pchs_ltr_show_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_clocksource_status_map[] = {
+static const struct pmc_bit_map arl_pchs_clocksource_status_map[] = {
 	{"AON2_OFF_STS",		BIT(0)},
 	{"AON3_OFF_STS",		BIT(1)},
 	{"AON4_OFF_STS",		BIT(2)},
@@ -359,7 +359,7 @@ const struct pmc_bit_map arl_pchs_clocksource_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_power_gating_status_0_map[] = {
+static const struct pmc_bit_map arl_pchs_power_gating_status_0_map[] = {
 	{"PMC_PGD0_PG_STS",		BIT(0)},
 	{"DMI_PGD0_PG_STS",		BIT(1)},
 	{"ESPISPI_PGD0_PG_STS",		BIT(2)},
@@ -395,7 +395,7 @@ const struct pmc_bit_map arl_pchs_power_gating_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_power_gating_status_1_map[] = {
+static const struct pmc_bit_map arl_pchs_power_gating_status_1_map[] = {
 	{"USBR0_PGD0_PG_STS",		BIT(0)},
 	{"SUSRAM_PGD0_PG_STS",		BIT(1)},
 	{"SMT1_PGD0_PG_STS",		BIT(2)},
@@ -431,7 +431,7 @@ const struct pmc_bit_map arl_pchs_power_gating_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_power_gating_status_2_map[] = {
+static const struct pmc_bit_map arl_pchs_power_gating_status_2_map[] = {
 	{"U3FPW2_PGD0_PG_STS",		BIT(0)},
 	{"FIA_PGD0_PG_STS",		BIT(1)},
 	{"FIACPCB_X_PGD0_PG_STS",	BIT(2)},
@@ -458,7 +458,7 @@ const struct pmc_bit_map arl_pchs_power_gating_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_d3_status_0_map[] = {
+static const struct pmc_bit_map arl_pchs_d3_status_0_map[] = {
 	{"SPF_D3_STS",			BIT(0)},
 	{"LPSS_D3_STS",			BIT(3)},
 	{"XDCI_D3_STS",			BIT(4)},
@@ -475,7 +475,7 @@ const struct pmc_bit_map arl_pchs_d3_status_0_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_d3_status_1_map[] = {
+static const struct pmc_bit_map arl_pchs_d3_status_1_map[] = {
 	{"GBETSN1_D3_STS",		BIT(14)},
 	{"GBE_D3_STS",			BIT(19)},
 	{"ITSS_D3_STS",			BIT(23)},
@@ -484,7 +484,7 @@ const struct pmc_bit_map arl_pchs_d3_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_d3_status_2_map[] = {
+static const struct pmc_bit_map arl_pchs_d3_status_2_map[] = {
 	{"CSMERTC_D3_STS",		BIT(1)},
 	{"SUSRAM_D3_STS",		BIT(2)},
 	{"CSE_D3_STS",			BIT(4)},
@@ -505,7 +505,7 @@ const struct pmc_bit_map arl_pchs_d3_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_d3_status_3_map[] = {
+static const struct pmc_bit_map arl_pchs_d3_status_3_map[] = {
 	{"ESE_D3_STS",			BIT(3)},
 	{"GBETSN_D3_STS",		BIT(13)},
 	{"THC0_D3_STS",			BIT(14)},
@@ -514,13 +514,13 @@ const struct pmc_bit_map arl_pchs_d3_status_3_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_vnn_req_status_0_map[] = {
+static const struct pmc_bit_map arl_pchs_vnn_req_status_0_map[] = {
 	{"FIA_VNN_REQ_STS",		BIT(17)},
 	{"ESPISPI_VNN_REQ_STS",		BIT(18)},
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_vnn_req_status_1_map[] = {
+static const struct pmc_bit_map arl_pchs_vnn_req_status_1_map[] = {
 	{"NPK_VNN_REQ_STS",		BIT(4)},
 	{"DFXAGG_VNN_REQ_STS",		BIT(8)},
 	{"EXI_VNN_REQ_STS",		BIT(9)},
@@ -531,7 +531,7 @@ const struct pmc_bit_map arl_pchs_vnn_req_status_1_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_vnn_req_status_2_map[] = {
+static const struct pmc_bit_map arl_pchs_vnn_req_status_2_map[] = {
 	{"FIA2_VNN_REQ_STS",		BIT(0)},
 	{"CSMERTC_VNN_REQ_STS",		BIT(1)},
 	{"CSE_VNN_REQ_STS",		BIT(4)},
@@ -549,7 +549,7 @@ const struct pmc_bit_map arl_pchs_vnn_req_status_2_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_vnn_req_status_3_map[] = {
+static const struct pmc_bit_map arl_pchs_vnn_req_status_3_map[] = {
 	{"ESE_VNN_REQ_STS",		BIT(3)},
 	{"DTS0_VNN_REQ_STS",		BIT(7)},
 	{"GPIOCOM5_VNN_REQ_STS",	BIT(11)},
@@ -557,7 +557,7 @@ const struct pmc_bit_map arl_pchs_vnn_req_status_3_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_vnn_misc_status_map[] = {
+static const struct pmc_bit_map arl_pchs_vnn_misc_status_map[] = {
 	{"CPU_C10_REQ_STS",			BIT(0)},
 	{"TS_OFF_REQ_STS",			BIT(1)},
 	{"PNDE_MET_REQ_STS",			BIT(2)},
@@ -587,7 +587,7 @@ const struct pmc_bit_map arl_pchs_vnn_misc_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map arl_pchs_signal_status_map[] = {
+static const struct pmc_bit_map arl_pchs_signal_status_map[] = {
 	{"LSX_Wake0_STS",		BIT(0)},
 	{"LSX_Wake1_STS",		BIT(1)},
 	{"LSX_Wake2_STS",		BIT(2)},
@@ -607,7 +607,7 @@ const struct pmc_bit_map arl_pchs_signal_status_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *arl_pchs_lpm_maps[] = {
+static const struct pmc_bit_map *arl_pchs_lpm_maps[] = {
 	arl_pchs_clocksource_status_map,
 	arl_pchs_power_gating_status_0_map,
 	arl_pchs_power_gating_status_1_map,
@@ -625,7 +625,7 @@ const struct pmc_bit_map *arl_pchs_lpm_maps[] = {
 	NULL
 };
 
-const struct pmc_reg_map arl_pchs_reg_map = {
+static const struct pmc_reg_map arl_pchs_reg_map = {
 	.pfear_sts = ext_arl_socs_pfear_map,
 	.ppfear_buckets = ARL_SOCS_PPFEAR_NUM_ENTRIES,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,

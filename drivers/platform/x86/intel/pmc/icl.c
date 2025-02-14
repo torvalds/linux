@@ -10,7 +10,7 @@
 
 #include "core.h"
 
-const struct pmc_bit_map icl_pfear_map[] = {
+static const struct pmc_bit_map icl_pfear_map[] = {
 	{"RES_65",		BIT(0)},
 	{"RES_66",		BIT(1)},
 	{"RES_67",		BIT(2)},
@@ -22,7 +22,7 @@ const struct pmc_bit_map icl_pfear_map[] = {
 	{}
 };
 
-const struct pmc_bit_map *ext_icl_pfear_map[] = {
+static const struct pmc_bit_map *ext_icl_pfear_map[] = {
 	/*
 	 * Check intel_pmc_core_ids[] users of icl_reg_map for
 	 * a list of core SoCs using this.
@@ -32,7 +32,7 @@ const struct pmc_bit_map *ext_icl_pfear_map[] = {
 	NULL
 };
 
-const struct pmc_reg_map icl_reg_map = {
+static const struct pmc_reg_map icl_reg_map = {
 	.pfear_sts = ext_icl_pfear_map,
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slp_s0_res_counter_step = ICL_PMC_SLP_S0_RES_COUNTER_STEP,
