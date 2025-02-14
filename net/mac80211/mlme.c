@@ -10704,7 +10704,7 @@ static void ieee80211_ml_epcs(struct ieee80211_sub_if_data *sdata,
 						  elems->ml_epcs_len,
 						  scratch, scratch_len,
 						  IEEE80211_MLE_SUBELEM_FRAGMENT);
-		if (len < sizeof(control))
+		if (len < (ssize_t)sizeof(control))
 			continue;
 
 		pos = scratch + sizeof(control);
