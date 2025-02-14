@@ -79,9 +79,7 @@
 /* RTL822X_VND2_XXXXX registers are only accessible when phydev->is_c45
  * is set, they cannot be accessed by C45-over-C22.
  */
-#define RTL822X_VND2_GBCR				0xa412
-
-#define RTL822X_VND2_GANLPAR				0xa414
+#define RTL822X_VND2_C22_REG(reg)		(0xa400 + 2 * (reg))
 
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
@@ -1015,7 +1013,8 @@ static int rtl822x_c45_config_aneg(struct phy_device *phydev)
 	val = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 
 	/* Vendor register as C45 has no standardized support for 1000BaseT */
-	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_VEND2, RTL822X_VND2_GBCR,
+	ret = phy_modify_mmd_changed(phydev, MDIO_MMD_VEND2,
+				     RTL822X_VND2_C22_REG(MII_CTRL1000),
 				     ADVERTISE_1000FULL, val);
 	if (ret < 0)
 		return ret;
@@ -1032,7 +1031,7 @@ static int rtl822x_c45_read_status(struct phy_device *phydev)
 	/* Vendor register as C45 has no standardized support for 1000BaseT */
 	if (phydev->autoneg == AUTONEG_ENABLE && genphy_c45_aneg_done(phydev)) {
 		val = phy_read_mmd(phydev, MDIO_MMD_VEND2,
-				   RTL822X_VND2_GANLPAR);
+				   RTL822X_VND2_C22_REG(MII_STAT1000));
 		if (val < 0)
 			return val;
 	} else {
