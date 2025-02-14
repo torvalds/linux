@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include <linux/bitops.h>
 #include <linux/iopoll.h>
 #include <asm/div64.h>
 #include "adf_accel_devices.h"
@@ -265,17 +266,28 @@ static bool is_single_service(int service_id)
 	case SVC_SYM:
 	case SVC_ASYM:
 		return true;
-	case SVC_CY:
-	case SVC_CY2:
-	case SVC_DCC:
-	case SVC_ASYM_DC:
-	case SVC_DC_ASYM:
-	case SVC_SYM_DC:
-	case SVC_DC_SYM:
 	default:
 		return false;
 	}
 }
+
+bool adf_gen4_services_supported(unsigned long mask)
+{
+	unsigned long num_svc = hweight_long(mask);
+
+	if (mask >= BIT(SVC_BASE_COUNT))
+		return false;
+
+	switch (num_svc) {
+	case ADF_ONE_SERVICE:
+		return true;
+	case ADF_TWO_SERVICES:
+		return !test_bit(SVC_DCC, &mask);
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(adf_gen4_services_supported);
 
 int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 {
