@@ -967,7 +967,7 @@ struct drm_connector_helper_funcs {
 	 * drm_mode_status.
 	 */
 	enum drm_mode_status (*mode_valid)(struct drm_connector *connector,
-					   struct drm_display_mode *mode);
+					   const struct drm_display_mode *mode);
 
 	/**
 	 * @mode_valid_ctx:
@@ -1006,7 +1006,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 */
 	int (*mode_valid_ctx)(struct drm_connector *connector,
-			      struct drm_display_mode *mode,
+			      const struct drm_display_mode *mode,
 			      struct drm_modeset_acquire_ctx *ctx,
 			      enum drm_mode_status *status);
 

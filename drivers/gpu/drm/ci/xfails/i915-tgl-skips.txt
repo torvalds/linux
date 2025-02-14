@@ -35,3 +35,16 @@ syncobj_wait.*
 
 # Kernel panic and test hangs with multiple kms tests
 kms_.*
+
+# The test alternates between failing and timing out on reruns, causing the pipeline to fail
+api_intel_allocator@reopen
+api_intel_bb@destroy-bb
+core_hotunplug@hotrebind-lateclose
+dumb_buffer@map-valid
+i915_pm_rps@engine-order
+perf_pmu@busy
+perf_pmu@enable-race
+perf_pmu@semaphore-wait-idle
+prime_mmap@test_refcounting
+sriov_basic@enable-vfs-bind-unbind-each-numvfs-all
+syncobj_basic@illegal-fd-to-handle

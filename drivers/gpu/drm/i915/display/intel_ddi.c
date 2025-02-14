@@ -2594,6 +2594,7 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	bool is_mst = intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST);
+	bool transparent_mode;
 	int ret;
 
 	intel_dp_set_link_params(intel_dp,
@@ -2644,6 +2645,9 @@ static void mtl_ddi_pre_enable_dp(struct intel_atomic_state *state,
 
 	if (!is_mst)
 		intel_dp_set_power(intel_dp, DP_SET_POWER_D0);
+
+	transparent_mode = intel_dp_lttpr_transparent_mode_enabled(intel_dp);
+	drm_dp_lttpr_wake_timeout_setup(&intel_dp->aux, transparent_mode);
 
 	intel_dp_configure_protocol_converter(intel_dp, crtc_state);
 	if (!is_mst)

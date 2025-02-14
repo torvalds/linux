@@ -1391,7 +1391,7 @@ bool intel_dp_has_dsc(const struct intel_connector *connector)
 
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *_connector,
-		    struct drm_display_mode *mode)
+		    const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(_connector->dev);
 	struct intel_connector *connector = to_intel_connector(_connector);

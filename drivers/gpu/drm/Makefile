@@ -135,7 +135,6 @@ drm_kms_helper-y := \
 	drm_atomic_state_helper.o \
 	drm_crtc_helper.o \
 	drm_damage_helper.o \
-	drm_encoder_slave.o \
 	drm_flip_work.o \
 	drm_format_helper.o \
 	drm_gem_atomic_helper.o \

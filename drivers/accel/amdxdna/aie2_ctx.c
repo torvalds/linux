@@ -185,7 +185,7 @@ aie2_sched_notify(struct amdxdna_sched_job *job)
 }
 
 static int
-aie2_sched_resp_handler(void *handle, const u32 *data, size_t size)
+aie2_sched_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
 	struct amdxdna_gem_obj *cmd_abo;
@@ -203,7 +203,7 @@ aie2_sched_resp_handler(void *handle, const u32 *data, size_t size)
 		goto out;
 	}
 
-	status = *data;
+	status = readl(data);
 	XDNA_DBG(job->hwctx->client->xdna, "Resp status 0x%x", status);
 	if (status == AIE2_STATUS_SUCCESS)
 		amdxdna_cmd_set_state(cmd_abo, ERT_CMD_STATE_COMPLETED);
@@ -216,7 +216,7 @@ out:
 }
 
 static int
-aie2_sched_nocmd_resp_handler(void *handle, const u32 *data, size_t size)
+aie2_sched_nocmd_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
 	u32 ret = 0;
@@ -230,7 +230,7 @@ aie2_sched_nocmd_resp_handler(void *handle, const u32 *data, size_t size)
 		goto out;
 	}
 
-	status = *data;
+	status = readl(data);
 	XDNA_DBG(job->hwctx->client->xdna, "Resp status 0x%x", status);
 
 out:
@@ -239,14 +239,14 @@ out:
 }
 
 static int
-aie2_sched_cmdlist_resp_handler(void *handle, const u32 *data, size_t size)
+aie2_sched_cmdlist_resp_handler(void *handle, void __iomem *data, size_t size)
 {
 	struct amdxdna_sched_job *job = handle;
 	struct amdxdna_gem_obj *cmd_abo;
-	struct cmd_chain_resp *resp;
 	struct amdxdna_dev *xdna;
 	u32 fail_cmd_status;
 	u32 fail_cmd_idx;
+	u32 cmd_status;
 	u32 ret = 0;
 
 	cmd_abo = job->cmd_bo;
@@ -256,17 +256,17 @@ aie2_sched_cmdlist_resp_handler(void *handle, const u32 *data, size_t size)
 		goto out;
 	}
 
-	resp = (struct cmd_chain_resp *)data;
+	cmd_status = readl(data + offsetof(struct cmd_chain_resp, status));
 	xdna = job->hwctx->client->xdna;
-	XDNA_DBG(xdna, "Status 0x%x", resp->status);
-	if (resp->status == AIE2_STATUS_SUCCESS) {
+	XDNA_DBG(xdna, "Status 0x%x", cmd_status);
+	if (cmd_status == AIE2_STATUS_SUCCESS) {
 		amdxdna_cmd_set_state(cmd_abo, ERT_CMD_STATE_COMPLETED);
 		goto out;
 	}
 
 	/* Slow path to handle error, read from ringbuf on BAR */
-	fail_cmd_idx = resp->fail_cmd_idx;
-	fail_cmd_status = resp->fail_cmd_status;
+	fail_cmd_idx = readl(data + offsetof(struct cmd_chain_resp, fail_cmd_idx));
+	fail_cmd_status = readl(data + offsetof(struct cmd_chain_resp, fail_cmd_status));
 	XDNA_DBG(xdna, "Failed cmd idx %d, status 0x%x",
 		 fail_cmd_idx, fail_cmd_status);
 
@@ -361,7 +361,7 @@ aie2_sched_job_timedout(struct drm_sched_job *sched_job)
 	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
-const struct drm_sched_backend_ops sched_ops = {
+static const struct drm_sched_backend_ops sched_ops = {
 	.run_job = aie2_sched_job_run,
 	.free_job = aie2_sched_job_free,
 	.timedout_job = aie2_sched_job_timedout,

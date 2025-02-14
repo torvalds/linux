@@ -1541,7 +1541,7 @@ static const struct drm_encoder_funcs intel_dsi_funcs = {
 };
 
 static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
-					       struct drm_display_mode *mode)
+					       const struct drm_display_mode *mode)
 {
 	struct drm_i915_private *i915 = to_i915(connector->dev);
 

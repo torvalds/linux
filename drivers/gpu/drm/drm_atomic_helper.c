@@ -574,6 +574,30 @@ mode_valid(struct drm_atomic_state *state)
 	return 0;
 }
 
+static int drm_atomic_check_valid_clones(struct drm_atomic_state *state,
+					 struct drm_crtc *crtc)
+{
+	struct drm_encoder *drm_enc;
+	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
+									  crtc);
+
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask) {
+		if (!drm_enc->possible_clones) {
+			DRM_DEBUG("enc%d possible_clones is 0\n", drm_enc->base.id);
+			continue;
+		}
+
+		if ((crtc_state->encoder_mask & drm_enc->possible_clones) !=
+		    crtc_state->encoder_mask) {
+			DRM_DEBUG("crtc%d failed valid clone check for mask 0x%x\n",
+				  crtc->base.id, crtc_state->encoder_mask);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * drm_atomic_helper_check_modeset - validate state object for modeset changes
  * @dev: DRM device
@@ -666,8 +690,9 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		}
 
 		if (new_crtc_state->enable != has_connectors) {
-			drm_dbg_atomic(dev, "[CRTC:%d:%s] enabled/connectors mismatch\n",
-				       crtc->base.id, crtc->name);
+			drm_dbg_atomic(dev, "[CRTC:%d:%s] enabled/connectors mismatch (%d/%d)\n",
+				       crtc->base.id, crtc->name,
+				       new_crtc_state->enable, has_connectors);
 
 			return -EINVAL;
 		}
@@ -743,6 +768,10 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 			return ret;
 
 		ret = drm_atomic_add_affected_planes(state, crtc);
+		if (ret != 0)
+			return ret;
+
+		ret = drm_atomic_check_valid_clones(state, crtc);
 		if (ret != 0)
 			return ret;
 	}
@@ -1058,6 +1087,15 @@ EXPORT_SYMBOL(drm_atomic_helper_check_planes);
  * might not desired for some drivers.
  * For example enable/disable of a cursor plane which have fixed zpos value
  * would trigger all other enabled planes to be forced to the state change.
+ *
+ * IMPORTANT:
+ *
+ * As this function calls drm_atomic_helper_check_modeset() internally, its
+ * restrictions also apply:
+ * Drivers which set &drm_crtc_state.mode_changed (e.g. in their
+ * &drm_plane_helper_funcs.atomic_check hooks if a plane update can't be done
+ * without a full modeset) _must_ call drm_atomic_helper_check_modeset()
+ * function again after that change.
  *
  * RETURNS:
  * Zero for success or -errno
@@ -1376,7 +1414,7 @@ crtc_set_mode(struct drm_device *dev, struct drm_atomic_state *old_state)
 		mode = &new_crtc_state->mode;
 		adjusted_mode = &new_crtc_state->adjusted_mode;
 
-		if (!new_crtc_state->mode_changed)
+		if (!new_crtc_state->mode_changed && !new_crtc_state->connectors_changed)
 			continue;
 
 		drm_dbg_atomic(dev, "modeset on [ENCODER:%d:%s]\n",

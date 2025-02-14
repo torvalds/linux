@@ -27,10 +27,11 @@
 #include <linux/module.h>
 
 #include <drm/drm_drv.h>
-#include <drm/drm_encoder_slave.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/i2c/sil164.h>
+
+#include <dispnv04/i2c/encoder_i2c.h>
+#include <dispnv04/i2c/sil164.h>
 
 struct sil164_priv {
 	struct sil164_encoder_params config;
@@ -41,7 +42,7 @@ struct sil164_priv {
 };
 
 #define to_sil164_priv(x) \
-	((struct sil164_priv *)to_encoder_slave(x)->slave_priv)
+	((struct sil164_priv *)to_encoder_i2c(x)->encoder_i2c_priv)
 
 #define sil164_dbg(client, format, ...) do {				\
 		if (drm_debug_enabled(DRM_UT_KMS))			\
@@ -221,7 +222,7 @@ sil164_encoder_dpms(struct drm_encoder *encoder, int mode)
 	bool on = (mode == DRM_MODE_DPMS_ON);
 	bool duallink = (on && encoder->crtc->mode.clock > 165000);
 
-	sil164_set_power_state(drm_i2c_encoder_get_client(encoder), on);
+	sil164_set_power_state(nouveau_i2c_encoder_get_client(encoder), on);
 
 	if (priv->duallink_slave)
 		sil164_set_power_state(priv->duallink_slave, duallink);
@@ -232,7 +233,7 @@ sil164_encoder_save(struct drm_encoder *encoder)
 {
 	struct sil164_priv *priv = to_sil164_priv(encoder);
 
-	sil164_save_state(drm_i2c_encoder_get_client(encoder),
+	sil164_save_state(nouveau_i2c_encoder_get_client(encoder),
 			  priv->saved_state);
 
 	if (priv->duallink_slave)
@@ -245,7 +246,7 @@ sil164_encoder_restore(struct drm_encoder *encoder)
 {
 	struct sil164_priv *priv = to_sil164_priv(encoder);
 
-	sil164_restore_state(drm_i2c_encoder_get_client(encoder),
+	sil164_restore_state(nouveau_i2c_encoder_get_client(encoder),
 			     priv->saved_state);
 
 	if (priv->duallink_slave)
@@ -255,7 +256,7 @@ sil164_encoder_restore(struct drm_encoder *encoder)
 
 static int
 sil164_encoder_mode_valid(struct drm_encoder *encoder,
-			  struct drm_display_mode *mode)
+			  const struct drm_display_mode *mode)
 {
 	struct sil164_priv *priv = to_sil164_priv(encoder);
 
@@ -277,7 +278,7 @@ sil164_encoder_mode_set(struct drm_encoder *encoder,
 	struct sil164_priv *priv = to_sil164_priv(encoder);
 	bool duallink = adjusted_mode->clock > 165000;
 
-	sil164_init_state(drm_i2c_encoder_get_client(encoder),
+	sil164_init_state(nouveau_i2c_encoder_get_client(encoder),
 			  &priv->config, duallink);
 
 	if (priv->duallink_slave)
@@ -291,7 +292,7 @@ static enum drm_connector_status
 sil164_encoder_detect(struct drm_encoder *encoder,
 		      struct drm_connector *connector)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 
 	if (sil164_read(client, SIL164_DETECT) & SIL164_DETECT_HOTPLUG_STAT)
 		return connector_status_connected;
@@ -330,10 +331,10 @@ sil164_encoder_destroy(struct drm_encoder *encoder)
 	i2c_unregister_device(priv->duallink_slave);
 
 	kfree(priv);
-	drm_i2c_encoder_destroy(encoder);
+	nouveau_i2c_encoder_destroy(encoder);
 }
 
-static const struct drm_encoder_slave_funcs sil164_encoder_funcs = {
+static const struct nouveau_i2c_encoder_funcs sil164_encoder_funcs = {
 	.set_config = sil164_encoder_set_config,
 	.destroy = sil164_encoder_destroy,
 	.dpms = sil164_encoder_dpms,
@@ -393,7 +394,7 @@ sil164_detect_slave(struct i2c_client *client)
 static int
 sil164_encoder_init(struct i2c_client *client,
 		    struct drm_device *dev,
-		    struct drm_encoder_slave *encoder)
+		    struct nouveau_i2c_encoder *encoder)
 {
 	struct sil164_priv *priv;
 	struct i2c_client *slave_client;
@@ -402,8 +403,8 @@ sil164_encoder_init(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
-	encoder->slave_priv = priv;
-	encoder->slave_funcs = &sil164_encoder_funcs;
+	encoder->encoder_i2c_priv = priv;
+	encoder->encoder_i2c_funcs = &sil164_encoder_funcs;
 
 	slave_client = sil164_detect_slave(client);
 	if (!IS_ERR(slave_client))
@@ -418,7 +419,7 @@ static const struct i2c_device_id sil164_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sil164_ids);
 
-static struct drm_i2c_encoder_driver sil164_driver = {
+static struct nouveau_i2c_encoder_driver sil164_driver = {
 	.i2c_driver = {
 		.probe = sil164_probe,
 		.driver = {
@@ -434,13 +435,13 @@ static struct drm_i2c_encoder_driver sil164_driver = {
 static int __init
 sil164_init(void)
 {
-	return drm_i2c_encoder_register(THIS_MODULE, &sil164_driver);
+	return i2c_add_driver(&sil164_driver.i2c_driver);
 }
 
 static void __exit
 sil164_exit(void)
 {
-	drm_i2c_encoder_unregister(&sil164_driver);
+	i2c_del_driver(&sil164_driver.i2c_driver);
 }
 
 MODULE_AUTHOR("Francisco Jerez <currojerez@riseup.net>");

@@ -1619,7 +1619,7 @@ bool cdns_mhdp_bandwidth_ok(struct cdns_mhdp_device *mhdp,
 
 static
 enum drm_mode_status cdns_mhdp_mode_valid(struct drm_connector *conn,
-					  struct drm_display_mode *mode)
+					  const struct drm_display_mode *mode)
 {
 	struct cdns_mhdp_device *mhdp = connector_to_mhdp(conn);
 

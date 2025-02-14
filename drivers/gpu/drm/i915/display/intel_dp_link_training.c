@@ -128,7 +128,7 @@ intel_dp_set_lttpr_transparent_mode(struct intel_dp *intel_dp, bool enable)
 	return true;
 }
 
-static bool intel_dp_lttpr_transparent_mode_enabled(struct intel_dp *intel_dp)
+bool intel_dp_lttpr_transparent_mode_enabled(struct intel_dp *intel_dp)
 {
 	return intel_dp->lttpr_common_caps[DP_PHY_REPEATER_MODE -
 					   DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV] ==

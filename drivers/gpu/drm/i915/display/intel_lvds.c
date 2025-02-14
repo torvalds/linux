@@ -390,7 +390,7 @@ static void intel_lvds_shutdown(struct intel_encoder *encoder)
 
 static enum drm_mode_status
 intel_lvds_mode_valid(struct drm_connector *_connector,
-		      struct drm_display_mode *mode)
+		      const struct drm_display_mode *mode)
 {
 	struct intel_connector *connector = to_intel_connector(_connector);
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);

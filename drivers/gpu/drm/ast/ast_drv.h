@@ -39,6 +39,8 @@
 
 #include "ast_reg.h"
 
+struct ast_vbios_enhtable;
+
 #define DRIVER_AUTHOR		"Dave Airlie"
 
 #define DRIVER_NAME		"ast"
@@ -205,7 +207,9 @@ struct ast_device {
 		} astdp;
 	} output;
 
-	bool support_wide_screen;
+	bool support_wsxga_p; /* 1680x1050 */
+	bool support_fullhd; /* 1920x1080 */
+	bool support_wuxga; /* 1920x1200 */
 
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
@@ -348,31 +352,10 @@ struct ast_vbios_stdtable {
 	u8 gr[9];
 };
 
-struct ast_vbios_enhtable {
-	u32 ht;
-	u32 hde;
-	u32 hfp;
-	u32 hsync;
-	u32 vt;
-	u32 vde;
-	u32 vfp;
-	u32 vsync;
-	u32 dclk_index;
-	u32 flags;
-	u32 refresh_rate;
-	u32 refresh_rate_index;
-	u32 mode_id;
-};
-
 struct ast_vbios_dclk_info {
 	u8 param1;
 	u8 param2;
 	u8 param3;
-};
-
-struct ast_vbios_mode_info {
-	const struct ast_vbios_stdtable *std_table;
-	const struct ast_vbios_enhtable *enh_table;
 };
 
 struct ast_crtc_state {
@@ -381,7 +364,8 @@ struct ast_crtc_state {
 	/* Last known format of primary plane */
 	const struct drm_format_info *format;
 
-	struct ast_vbios_mode_info vbios_mode_info;
+	const struct ast_vbios_stdtable *std_table;
+	const struct ast_vbios_enhtable *vmode;
 };
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
@@ -445,7 +429,7 @@ int ast_mode_config_init(struct ast_device *ast);
 int ast_mm_init(struct ast_device *ast);
 
 /* ast post */
-void ast_post_gpu(struct ast_device *ast);
+int ast_post_gpu(struct ast_device *ast);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
 void ast_patch_ahb_2500(void __iomem *regs);

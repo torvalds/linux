@@ -49,7 +49,7 @@ enum dispc_common_regs {
 /*
  * dispc_common_regmap should be defined as const u16 * and pointing
  * to a valid dss common register map for the platform, before the
- * macros bellow can be used.
+ * macros below can be used.
  */
 
 #define REG(r) (dispc_common_regmap[r ## _OFF])

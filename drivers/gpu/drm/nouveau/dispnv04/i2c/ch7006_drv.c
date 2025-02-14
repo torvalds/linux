@@ -47,14 +47,14 @@ static void ch7006_encoder_destroy(struct drm_encoder *encoder)
 	drm_property_destroy(encoder->dev, priv->scale_property);
 
 	kfree(priv);
-	to_encoder_slave(encoder)->slave_priv = NULL;
+	to_encoder_i2c(encoder)->encoder_i2c_priv = NULL;
 
-	drm_i2c_encoder_destroy(encoder);
+	nouveau_i2c_encoder_destroy(encoder);
 }
 
 static void  ch7006_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
 
@@ -71,7 +71,7 @@ static void  ch7006_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 static void ch7006_encoder_save(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 
 	ch7006_dbg(client, "\n");
@@ -81,7 +81,7 @@ static void ch7006_encoder_save(struct drm_encoder *encoder)
 
 static void ch7006_encoder_restore(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 
 	ch7006_dbg(client, "\n");
@@ -104,7 +104,7 @@ static bool ch7006_encoder_mode_fixup(struct drm_encoder *encoder,
 }
 
 static int ch7006_encoder_mode_valid(struct drm_encoder *encoder,
-				     struct drm_display_mode *mode)
+				     const struct drm_display_mode *mode)
 {
 	if (ch7006_lookup_mode(encoder, mode))
 		return MODE_OK;
@@ -116,7 +116,7 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 				     struct drm_display_mode *drm_mode,
 				     struct drm_display_mode *adjusted_mode)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_encoder_params *params = &priv->params;
 	struct ch7006_state *state = &priv->state;
@@ -179,7 +179,7 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 static enum drm_connector_status ch7006_encoder_detect(struct drm_encoder *encoder,
 						       struct drm_connector *connector)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
 	int det;
@@ -285,7 +285,7 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 				       struct drm_property *property,
 				       uint64_t val)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
 	struct drm_mode_config *conf = &encoder->dev->mode_config;
@@ -370,7 +370,7 @@ static int ch7006_encoder_set_property(struct drm_encoder *encoder,
 	return 0;
 }
 
-static const struct drm_encoder_slave_funcs ch7006_encoder_funcs = {
+static const struct nouveau_i2c_encoder_funcs ch7006_encoder_funcs = {
 	.set_config = ch7006_encoder_set_config,
 	.destroy = ch7006_encoder_destroy,
 	.dpms = ch7006_encoder_dpms,
@@ -437,7 +437,7 @@ static int ch7006_resume(struct device *dev)
 
 static int ch7006_encoder_init(struct i2c_client *client,
 			       struct drm_device *dev,
-			       struct drm_encoder_slave *encoder)
+			       struct nouveau_i2c_encoder *encoder)
 {
 	struct ch7006_priv *priv;
 	int i;
@@ -448,8 +448,8 @@ static int ch7006_encoder_init(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
-	encoder->slave_priv = priv;
-	encoder->slave_funcs = &ch7006_encoder_funcs;
+	encoder->encoder_i2c_priv = priv;
+	encoder->encoder_i2c_funcs = &ch7006_encoder_funcs;
 
 	priv->norm = TV_NORM_PAL;
 	priv->select_subconnector = DRM_MODE_SUBCONNECTOR_Automatic;
@@ -495,7 +495,7 @@ static const struct dev_pm_ops ch7006_pm_ops = {
 	.resume = ch7006_resume,
 };
 
-static struct drm_i2c_encoder_driver ch7006_driver = {
+static struct nouveau_i2c_encoder_driver ch7006_driver = {
 	.i2c_driver = {
 		.probe = ch7006_probe,
 		.remove = ch7006_remove,
@@ -516,12 +516,12 @@ static struct drm_i2c_encoder_driver ch7006_driver = {
 
 static int __init ch7006_init(void)
 {
-	return drm_i2c_encoder_register(THIS_MODULE, &ch7006_driver);
+	return i2c_add_driver(&ch7006_driver.i2c_driver);
 }
 
 static void __exit ch7006_exit(void)
 {
-	drm_i2c_encoder_unregister(&ch7006_driver);
+	i2c_del_driver(&ch7006_driver.i2c_driver);
 }
 
 int ch7006_debug;

@@ -13,6 +13,7 @@ ast-y := \
 	ast_mode.o \
 	ast_post.o \
 	ast_sil164.o \
+	ast_vbios.o \
 	ast_vga.o
 
 obj-$(CONFIG_DRM_AST) := ast.o

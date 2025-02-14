@@ -198,7 +198,7 @@ const struct ch7006_mode *ch7006_lookup_mode(struct drm_encoder *encoder,
 
 void ch7006_setup_levels(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	uint8_t *regs = priv->state.regs;
 	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
@@ -229,7 +229,7 @@ void ch7006_setup_levels(struct drm_encoder *encoder)
 
 void ch7006_setup_subcarrier(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
 	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];
@@ -253,7 +253,7 @@ void ch7006_setup_subcarrier(struct drm_encoder *encoder)
 
 void ch7006_setup_pll(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	uint8_t *regs = priv->state.regs;
 	const struct ch7006_mode *mode = priv->mode;
@@ -324,7 +324,7 @@ void ch7006_setup_power_state(struct drm_encoder *encoder)
 
 void ch7006_setup_properties(struct drm_encoder *encoder)
 {
-	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
+	struct i2c_client *client = nouveau_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 	struct ch7006_state *state = &priv->state;
 	const struct ch7006_tv_norm_info *norm = &ch7006_tv_norms[priv->norm];

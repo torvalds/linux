@@ -27,3 +27,301 @@ perf.*
 # Kernel panic
 drm_fdinfo.*
 kms_plane_alpha_blend.*
+
+kms_async_flips.*
+# [IGT] kms_async_flips: executing
+# ------------[ cut here ]------------
+# i915 0000:00:02.0: [drm] drm_WARN_ON(intel_dp->pps.vdd_wakeref)
+# WARNING: CPU: 0 PID: 1253 at drivers/gpu/drm/i915/display/intel_pps.c:760 intel_pps_vdd_on_unlocked+0x351/0x360
+# Modules linked in:
+# CPU: 0 UID: 0 PID: 1253 Comm: kms_async_flips Tainted: G        W          6.13.0-rc2-ge95c88d68ac3 #1
+# Tainted: [W]=WARN
+# Hardware name: HP Bloog/Bloog, BIOS  09/19/2019
+# RIP: 0010:intel_pps_vdd_on_unlocked+0x351/0x360
+# Code: 8b 77 50 4d 85 f6 75 03 4c 8b 37 e8 19 98 03 00 48 c7 c1 10 d3 61 84 4c 89 f2 48 c7 c7 67 56 69 84 48 89 c6 e8 a0 22 63 ff 90 <0f> 0b 90 90 e9 5f fd ff ff e8 81 94 69 00 90 90 90 90 90 90 90 90
+# RSP: 0018:ffff9573c0dcfad8 EFLAGS: 00010286
+# RAX: 0000000000000000 RBX: ffff93498148e238 RCX: 00000000ffffdfff
+# RDX: 0000000000000000 RSI: ffff9573c0dcf988 RDI: 0000000000000001
+# RBP: ffff934980d80000 R08: 0000000000009ffb R09: 00000000ffffdfff
+# R10: 00000000ffffdfff R11: ffffffff8488c8a0 R12: ffff934980d80d68
+# R13: 0000000000000000 R14: ffff93498093c9b0 R15: 0000000000000000
+# FS:  00007fbf1f4486c0(0000) GS:ffff9349fbc00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 000055f260419028 CR3: 0000000106594000 CR4: 0000000000350ef0
+# Call Trace:
+#  <TASK>
+#  intel_pps_vdd_on+0x78/0x150
+#  intel_dp_detect+0xb9/0x7c0
+#  drm_helper_probe_detect+0x47/0xb0
+#  drm_helper_probe_single_connector_modes+0x40b/0x660
+#  drm_mode_getconnector+0x369/0x490
+#  drm_ioctl_kernel+0xad/0x110
+#  drm_ioctl+0x235/0x4b0
+#  __x64_sys_ioctl+0x8f/0xc0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7fbf208e4cdb
+# Code: 00 48 89 44 24 18 31 c0 48 8d 44 24 60 c7 04 24 10 00 00 00 48 89 44 24 08 48 8d 44 24 20 48 89 44 24 10 b8 10 00 00 00 0f 05 <89> c2 3d 00 f0 ff ff 77 1c 48 8b 44 24 18 64 48 2b 04 25 28 00 00
+# RSP: 002b:00007ffe061f6c60 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+# RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007fbf208e4cdb
+# RDX: 00007ffe061f6d00 RSI: 00000000c05064a7 RDI: 0000000000000003
+# RBP: 00007ffe061f6d00 R08: 0000000000000007 R09: 000055f260410cb0
+# R10: 650094cf40322201 R11: 0000000000000246 R12: 00000000c05064a7
+# R13: 0000000000000003 R14: 00000000c05064a7 R15: 00007ffe061f6d00
+#  </TASK>
+# irq event stamp: 0
+# hardirqs last  enabled at (0): [<0000000000000000>] 0x0
+# hardirqs last disabled at (0): [<ffffffff82d0a283>] copy_process+0xaf3/0x2eb0
+# softirqs last  enabled at (0): [<ffffffff82d0a283>] copy_process+0xaf3/0x2eb0
+# softirqs last disabled at (0): [<0000000000000000>] 0x0
+# ---[ end trace 0000000000000000 ]---
+# i915 0000:00:02.0: [drm] *ERROR* PPS state mismatch
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* Failed to read DPCD register 0x92
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# [IGT] kms_async_flips: starting subtest test-time-stamp
+# i915 0000:00:02.0: [drm] *ERROR* [CRTC:70:pipe A] flip_done timed out
+# i915 0000:00:02.0: [drm] *ERROR* flip_done timed out
+# i915 0000:00:02.0: [drm] *ERROR* [CRTC:70:pipe A] commit wait timed out
+# INFO: task kms_async_flips:1253 blocked for more than 122 seconds.
+#       Tainted: G        W          6.13.0-rc2-ge95c88d68ac3 #1
+# "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+# task:kms_async_flips state:D stack:12720 pid:1253  tgid:1253  ppid:164    flags:0x00004006
+# Call Trace:
+#  <TASK>
+#  __schedule+0x495/0xd20
+#  schedule+0x35/0x120
+#  drm_vblank_work_flush+0x91/0xf0
+#  intel_wait_for_vblank_workers+0x58/0x90
+#  intel_atomic_commit_tail+0xa86/0x15f0
+#  intel_atomic_commit+0x257/0x2a0
+#  drm_atomic_commit+0xac/0xe0
+#  set_property_atomic+0x91/0x160
+#  drm_mode_obj_set_property_ioctl+0xc1/0x110
+#  drm_ioctl_kernel+0xad/0x110
+#  drm_ioctl+0x235/0x4b0
+#  __x64_sys_ioctl+0x8f/0xc0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7fbf208e4cdb
+# RSP: 002b:00007ffe061f6c50 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+# RAX: ffffffffffffffda RBX: 000055f24e272330 RCX: 00007fbf208e4cdb
+# RDX: 00007ffe061f6ce0 RSI: 00000000c01864ba RDI: 0000000000000003
+# RBP: 00007ffe061f6ce0 R08: 0000000000000000 R09: 000055f2604184f0
+# R10: 00007fbf209ca310 R11: 0000000000000246 R12: 00000000c01864ba
+# R13: 0000000000000003 R14: 0000000000000000 R15: 000055f26040ab90
+#  </TASK>
+# INFO: lockdep is turned off.
+
+kms_lease.*
+# [IGT] kms_lease: executing
+# ------------[ cut here ]------------
+# i915 0000:00:02.0: [drm] drm_WARN_ON(intel_dp->pps.vdd_wakeref)
+# WARNING: CPU: 1 PID: 1271 at drivers/gpu/drm/i915/display/intel_pps.c:760 intel_pps_vdd_on_unlocked+0x351/0x360
+# Modules linked in:
+# CPU: 1 UID: 0 PID: 1271 Comm: kms_lease Tainted: G        W          6.13.0-rc2-gfb6fd142a8eb #1
+# Tainted: [W]=WARN
+# Hardware name: HP Bloog/Bloog, BIOS  09/19/2019
+# RIP: 0010:intel_pps_vdd_on_unlocked+0x351/0x360
+# Code: 8b 77 50 4d 85 f6 75 03 4c 8b 37 e8 19 98 03 00 48 c7 c1 10 d3 61 a1 4c 89 f2 48 c7 c7 67 56 69 a1 48 89 c6 e8 a0 22 63 ff 90 <0f> 0b 90 90 e9 5f fd ff ff e8 81 94 69 00 90 90 90 90 90 90 90 90
+# RSP: 0018:ffffb26500ddfad8 EFLAGS: 00010286
+# RAX: 0000000000000000 RBX: ffff988580dc6238 RCX: 00000000ffffdfff
+# RDX: 0000000000000000 RSI: ffffb26500ddf988 RDI: 0000000000000001
+# RBP: ffff988580d90000 R08: 0000000000009ffb R09: 00000000ffffdfff
+# R10: 00000000ffffdfff R11: ffffffffa188c8a0 R12: ffff988580d90d68
+# R13: 0000000000000000 R14: ffff98858093c9b0 R15: 0000000000000000
+# FS:  00007f6b0c60d6c0(0000) GS:ffff9885fbd00000(0000) knlGS:0000000000000000
+# CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+# CR2: 000055eea27460a8 CR3: 0000000105ac6000 CR4: 0000000000350ef0
+# Call Trace:
+#  <TASK>
+#  intel_pps_vdd_on+0x78/0x150
+#  intel_dp_detect+0xb9/0x7c0
+#  drm_helper_probe_detect+0x47/0xb0
+#  drm_helper_probe_single_connector_modes+0x40b/0x660
+#  drm_mode_getconnector+0x369/0x490
+#  drm_ioctl_kernel+0xad/0x110
+#  drm_ioctl+0x235/0x4b0
+#  __x64_sys_ioctl+0x8f/0xc0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7f6b0d637c5b
+# Code: 00 48 89 44 24 18 31 c0 48 8d 44 24 60 c7 04 24 10 00 00 00 48 89 44 24 08 48 8d 44 24 20 48 89 44 24 10 b8 10 00 00 00 0f 05 <89> c2 3d 00 f0 ff ff 77 1c 48 8b 44 24 18 64 48 2b 04 25 28 00 00
+# RSP: 002b:00007ffc42b13670 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+# RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007f6b0d637c5b
+# RDX: 00007ffc42b13710 RSI: 00000000c05064a7 RDI: 0000000000000003
+# RBP: 00007ffc42b13710 R08: 0000000000000007 R09: 000055eea2741720
+# R10: 9fb9be4e118bfa43 R11: 0000000000000246 R12: 00000000c05064a7
+# R13: 0000000000000003 R14: 00000000c05064a7 R15: 00007ffc42b13710
+#  </TASK>
+# irq event stamp: 0
+# hardirqs last  enabled at (0): [<0000000000000000>] 0x0
+# hardirqs last disabled at (0): [<ffffffff9fd0a283>] copy_process+0xaf3/0x2eb0
+# softirqs last  enabled at (0): [<ffffffff9fd0a283>] copy_process+0xaf3/0x2eb0
+# softirqs last disabled at (0): [<0000000000000000>] 0x0
+# ---[ end trace 0000000000000000 ]---
+# i915 0000:00:02.0: [drm] *ERROR* PPS state mismatch
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* Failed to read DPCD register 0x92
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# i915 0000:00:02.0: [drm] *ERROR* AUX A/DDI A/PHY A: not done (status 0x00000000)
+# [IGT] kms_lease: starting subtest page-flip-implicit-plane
+# [IGT] kms_lease: starting dynamic subtest pipe-A-eDP-1
+# i915 0000:00:02.0: [drm] *ERROR* [CRTC:70:pipe A] flip_done timed out
+# i915 0000:00:02.0: [drm] *ERROR* flip_done timed out
+# i915 0000:00:02.0: [drm] *ERROR* [CRTC:70:pipe A] commit wait timed out
+# INFO: task kms_lease:1271 blocked for more than 122 seconds.
+#       Tainted: G        W          6.13.0-rc2-gfb6fd142a8eb #1
+# "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+# task:kms_lease       state:D stack:12720 pid:1271  tgid:1271  ppid:184    flags:0x00004006
+# Call Trace:
+#  <TASK>
+#  __schedule+0x495/0xd20
+#  schedule+0x35/0x120
+#  drm_vblank_work_flush+0x91/0xf0
+#  intel_wait_for_vblank_workers+0x58/0x90
+#  intel_atomic_commit_tail+0xa86/0x15f0
+#  intel_atomic_commit+0x257/0x2a0
+#  drm_atomic_commit+0xac/0xe0
+#  set_property_atomic+0x91/0x160
+#  drm_mode_obj_set_property_ioctl+0xc1/0x110
+#  drm_ioctl_kernel+0xad/0x110
+#  drm_ioctl+0x235/0x4b0
+#  __x64_sys_ioctl+0x8f/0xc0
+#  do_syscall_64+0xbb/0x1d0
+#  entry_SYSCALL_64_after_hwframe+0x77/0x7f
+# RIP: 0033:0x7f6b0d637c5b
+# RSP: 002b:00007ffc42b13650 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+# RAX: ffffffffffffffda RBX: 00007ffc42b14270 RCX: 00007f6b0d637c5b
+# RDX: 00007ffc42b136e0 RSI: 00000000c01864ba RDI: 0000000000000003
+# RBP: 00007ffc42b136e0 R08: 0000000000000000 R09: 000055eea2741750
+# R10: 00007f6b0d71d310 R11: 0000000000000246 R12: 00000000c01864ba
+# R13: 0000000000000003 R14: 0000000000000000 R15: 000055eea27378d0
+#  </TASK>
+# INFO: lockdep is turned off.
+
+# The test alternates between failing and timing out on reruns, causing the pipeline to fail
+gen9_exec_parse@unaligned-access

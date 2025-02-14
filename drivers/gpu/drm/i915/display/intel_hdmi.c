@@ -2023,7 +2023,7 @@ intel_hdmi_mode_clock_valid(struct drm_connector *connector, int clock,
 
 static enum drm_mode_status
 intel_hdmi_mode_valid(struct drm_connector *connector,
-		      struct drm_display_mode *mode)
+		      const struct drm_display_mode *mode)
 {
 	struct intel_display *display = to_intel_display(connector->dev);
 	struct intel_hdmi *hdmi = intel_attached_hdmi(to_intel_connector(connector));

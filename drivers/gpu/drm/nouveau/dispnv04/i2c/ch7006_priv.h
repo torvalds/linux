@@ -24,12 +24,13 @@
  *
  */
 
-#ifndef __DRM_I2C_CH7006_PRIV_H__
-#define __DRM_I2C_CH7006_PRIV_H__
+#ifndef __NOUVEAU_I2C_CH7006_PRIV_H__
+#define __NOUVEAU_I2C_CH7006_PRIV_H__
 
-#include <drm/drm_encoder_slave.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/i2c/ch7006.h>
+
+#include <dispnv04/i2c/encoder_i2c.h>
+#include <dispnv04/i2c/ch7006.h>
 
 typedef int64_t fixed;
 #define fixed1 (1LL << 32)
@@ -99,7 +100,7 @@ struct ch7006_priv {
 };
 
 #define to_ch7006_priv(x) \
-	((struct ch7006_priv *)to_encoder_slave(x)->slave_priv)
+	((struct ch7006_priv *)to_encoder_i2c(x)->encoder_i2c_priv)
 
 extern int ch7006_debug;
 extern char *ch7006_tv_norm;
