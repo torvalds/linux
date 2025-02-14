@@ -322,7 +322,7 @@ void drm_panel_bridge_remove(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-	if (bridge->funcs != &panel_bridge_bridge_funcs)
+	if (!drm_bridge_is_panel(bridge))
 		return;
 
 	panel_bridge = drm_bridge_to_panel_bridge(bridge);
