@@ -25,6 +25,8 @@
  *	device support (non master operation)
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
 #define NAME KBUILD_MODNAME
 
 #define ENABLE_IRQ(IRQ, TYPE) irq_set_irq_type(IRQ, TYPE)
@@ -41,7 +43,7 @@
  */
 #define dbg_printk(level, frm, ...)					\
 	do { if (debug >= (level))					\
-			pr_info("%s:%s - " frm, NAME, __func__, ## __VA_ARGS__); } \
+			dev_dbg(board->gpib_dev, frm, ## __VA_ARGS__); } \
 	while (0)
 
 #define LINVAL gpiod_get_value(DAV),		\
@@ -316,13 +318,14 @@ struct bb_priv {
 };
 
 static inline long usec_diff(struct timespec64 *a, struct timespec64 *b);
-static void bb_buffer_print(unsigned char *buffer, size_t length, int cmd, int eoi);
+static void bb_buffer_print(gpib_board_t *board, unsigned char *buffer, size_t length,
+			    int cmd, int eoi);
 static void set_data_lines(u8 byte);
 static u8 get_data_lines(void);
 static void set_data_lines_input(void);
 static void set_data_lines_output(void);
 static inline int check_for_eos(struct bb_priv *priv, uint8_t byte);
-static void set_atn(struct bb_priv *priv, int atn_asserted);
+static void set_atn(gpib_board_t *board, int atn_asserted);
 
 static inline void SET_DIR_WRITE(struct bb_priv *priv);
 static inline void SET_DIR_READ(struct bb_priv *priv);
@@ -334,11 +337,7 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("GPIB helper functions for bitbanging I/O");
 
 /****  global variables	 ****/
-#ifdef CONFIG_GPIB_DEBUG
-static int debug = 1;
-#else
 static int debug;
-#endif
 module_param(debug, int, 0644);
 
 static char printable(char x)
@@ -508,7 +507,7 @@ static int bb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 		   board, mutex_is_locked(&board->user_mutex), length);
 
 	if (debug > 1)
-		bb_buffer_print(buffer, length, priv->cmd, send_eoi);
+		bb_buffer_print(board, buffer, length, priv->cmd, send_eoi);
 	priv->count = 0;
 	priv->phase = 300;
 
@@ -550,7 +549,6 @@ static int bb_write(gpib_board_t *board, uint8_t *buffer, size_t length,
 			dbg_printk(1, "timeout after %zu/%zu at %d " LINFMT " eoi: %d\n",
 				   priv->w_cnt, length, priv->phase, LINVAL, send_eoi);
 		} else {
-			// dbg_printk(1,"written %zu\n", priv->w_cnt);
 			retval = priv->w_cnt;
 		}
 	} else {
@@ -811,7 +809,8 @@ static char *cmd_string[32] = {
 	"CFE"  // 0x1f
 };
 
-static void bb_buffer_print(unsigned char *buffer, size_t length, int cmd, int eoi)
+static void bb_buffer_print(gpib_board_t *board, unsigned char *buffer, size_t length,
+			    int cmd, int eoi)
 {
 	int i;
 
@@ -843,11 +842,13 @@ static void bb_buffer_print(unsigned char *buffer, size_t length, int cmd, int e
  * STATUS Management							   *
  *									   *
  ***************************************************************************/
-static void set_atn(struct bb_priv *priv, int atn_asserted)
+static void set_atn(gpib_board_t *board, int atn_asserted)
 {
+	struct bb_priv *priv = board->private_data;
+
 	if (priv->listener_state != listener_idle &&
 	    priv->talker_state != talker_idle) {
-		dbg_printk(0, "listener/talker state machine conflict\n");
+		dev_err(board->gpib_dev, "listener/talker state machine conflict\n");
 	}
 	if (atn_asserted) {
 		if (priv->listener_state == listener_active)
@@ -869,7 +870,7 @@ static void set_atn(struct bb_priv *priv, int atn_asserted)
 static int bb_take_control(gpib_board_t *board, int synchronous)
 {
 	dbg_printk(2, "%d\n", synchronous);
-	set_atn(board->private_data, 1);
+	set_atn(board, 1);
 	set_bit(CIC_NUM, &board->status);
 	return 0;
 }
@@ -877,7 +878,7 @@ static int bb_take_control(gpib_board_t *board, int synchronous)
 static int bb_go_to_standby(gpib_board_t *board)
 {
 	dbg_printk(2, "\n");
-	set_atn(board->private_data, 0);
+	set_atn(board, 0);
 	return 0;
 }
 
@@ -988,13 +989,11 @@ static int bb_secondary_address(gpib_board_t *board, unsigned int address, int e
 
 static int bb_parallel_poll(gpib_board_t *board, uint8_t *result)
 {
-	dbg_printk(1, "%s\n", "not implemented");
-	return -EPERM;
+	return -ENOENT;
 }
 
 static void bb_parallel_poll_configure(gpib_board_t *board, uint8_t config)
 {
-	dbg_printk(1, "%s\n", "not implemented");
 }
 
 static void bb_parallel_poll_response(gpib_board_t *board, int ist)
@@ -1003,13 +1002,11 @@ static void bb_parallel_poll_response(gpib_board_t *board, int ist)
 
 static void bb_serial_poll_response(gpib_board_t *board, uint8_t status)
 {
-	dbg_printk(1, "%s\n", "not implemented");
 }
 
 static uint8_t bb_serial_poll_status(gpib_board_t *board)
 {
-	dbg_printk(1, "%s\n", "not implemented");
-	return 0; // -ENOSYS;
+	return 0; // -ENOENT;
 }
 
 static unsigned int bb_t1_delay(gpib_board_t *board,  unsigned int nano_sec)
@@ -1030,14 +1027,11 @@ static unsigned int bb_t1_delay(gpib_board_t *board,  unsigned int nano_sec)
 
 static void bb_return_to_local(gpib_board_t *board)
 {
-	dbg_printk(1, "%s\n", "not implemented");
 }
 
 static int bb_line_status(const gpib_board_t *board)
 {
 	int line_status = ValidALL;
-
-//	  dbg_printk(1,"\n");
 
 	if (gpiod_get_value(REN) == 0)
 		line_status |= BusREN;
@@ -1091,11 +1085,11 @@ static int bb_get_irq(gpib_board_t *board, char *name,
 	*irq = gpiod_to_irq(gpio);
 	dbg_printk(2, "IRQ %s: %d\n", name, *irq);
 	if (*irq < 0) {
-		dbg_printk(0, "gpib: can't get IRQ for %s\n", name);
+		dev_err(board->gpib_dev, "can't get IRQ for %s\n", name);
 		return -1;
 	}
 	if (request_threaded_irq(*irq, handler, thread_fn, flags, name, board)) {
-		dbg_printk(0, "gpib: can't request IRQ for %s %d\n", name, *irq);
+		dev_err(board->gpib_dev, "can't request IRQ for %s %d\n", name, *irq);
 		*irq = 0;
 		return -1;
 	}
@@ -1163,8 +1157,8 @@ try_again:
 				gpiod_add_lookup_table(lookup_table);
 				goto try_again;
 			}
-			dbg_printk(0, "Unable to obtain gpio descriptor for pin %d error %ld\n",
-				   gpios_vector[j], PTR_ERR(desc));
+			dev_err(board->gpib_dev, "Unable to obtain gpio descriptor for pin %d error %ld\n",
+				gpios_vector[j], PTR_ERR(desc));
 			error = true;
 			break;
 		}
@@ -1253,7 +1247,7 @@ static int bb_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		gpios_vector[&(DC)  - &all_descriptors[0]] = -1;
 		gpios_vector[&(ACT_LED)	 - &all_descriptors[0]] = -1;
 	} else {
-		dbg_printk(0, "Unrecognized pin mapping.\n");
+		dev_err(board->gpib_dev, "Unrecognized pin map %s\n", pin_map);
 		goto bb_attach_fail;
 	}
 	dbg_printk(0, "Using pin map \"%s\" %s\n", pin_map, (sn7516x) ?
@@ -1344,19 +1338,15 @@ static int __init bb_init_module(void)
 	int result = gpib_register_driver(&bb_interface, THIS_MODULE);
 
 	if (result) {
-		pr_err("gpib_bitbang: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
-	dbg_printk(0, "module loaded with pin map \"%s\"%s\n",
-		   pin_map, (sn7516x_used) ? " and SN7516x driver support" : "");
 	return 0;
 }
 
 static void __exit bb_exit_module(void)
 {
-	dbg_printk(0, "module unloaded!");
-
 	gpib_unregister_driver(&bb_interface);
 }
 
