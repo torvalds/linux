@@ -4,6 +4,9 @@
  *    copyright            : (C) 2001, 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -268,7 +271,8 @@ static int pc2_generic_attach(gpib_board_t *board, const gpib_board_config_t *co
 	 *  is adapted to use isa_register_driver.
 	 */
 	if (config->ibdma)
-		pr_err("DMA disabled for pc2 gpib, driver needs to be adapted to use isa_register_driver to get a struct device*");
+	// driver needs to be adapted to use isa_register_driver to get a struct device*
+		dev_err(board->gpib_dev, "DMA disabled for pc2 gpib");
 #else
 	if (config->ibdma) {
 		nec_priv->dma_buffer_length = 0x1000;
@@ -280,7 +284,7 @@ static int pc2_generic_attach(gpib_board_t *board, const gpib_board_config_t *co
 
 		// request isa dma channel
 		if (request_dma(config->ibdma, "pc2")) {
-			pr_err("gpib: can't request DMA %d\n", config->ibdma);
+			dev_err(board->gpib_dev, "can't request DMA %d\n", config->ibdma);
 			return -1;
 		}
 		nec_priv->dma_channel = config->ibdma;
@@ -306,8 +310,8 @@ static int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv->offset = pc2_reg_offset;
 
 	if (!request_region(config->ibbase, pc2_iosize, "pc2")) {
-		pr_err("gpib: ioports are already in use\n");
-		return -1;
+		dev_err(board->gpib_dev, "ioports are already in use\n");
+		return -EBUSY;
 	}
 	nec_priv->iobase = config->ibbase;
 
@@ -316,14 +320,14 @@ static int pc2_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	// install interrupt handler
 	if (config->ibirq) {
 		if (request_irq(config->ibirq, pc2_interrupt, isr_flags, "pc2", board))	{
-			pr_err("gpib: can't request IRQ %d\n", config->ibirq);
-			return -1;
+			dev_err(board->gpib_dev, "can't request IRQ %d\n", config->ibirq);
+			return -EBUSY;
 		}
 	}
 	pc2_priv->irq = config->ibirq;
 	/* poll so we can detect assertion of ATN */
 	if (gpib_request_pseudo_irq(board, pc2_interrupt)) {
-		pr_err("pc2_gpib: failed to allocate pseudo_irq\n");
+		dev_err(board->gpib_dev, "failed to allocate pseudo_irq\n");
 		return -1;
 	}
 	/* set internal counter register for 8 MHz input clock */
@@ -384,18 +388,19 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	case 0x62e1:
 		break;
 	default:
-		pr_err("PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%x\n",
-		       config->ibbase);
+		dev_err(board->gpib_dev, "PCIIa base range invalid, must be one of 0x[0246]2e1, but is 0x%x\n",
+			config->ibbase);
 		return -1;
 	}
 
 	if (config->ibirq) {
 		if (config->ibirq < 2 || config->ibirq > 7) {
-			pr_err("pc2_gpib: illegal interrupt level %i\n", config->ibirq);
+			dev_err(board->gpib_dev, "illegal interrupt level %i\n",
+				config->ibirq);
 			return -1;
 		}
 	} else	{
-		pr_err("pc2_gpib: interrupt disabled, using polling mode (slow)\n");
+		dev_err(board->gpib_dev, "interrupt disabled, using polling mode (slow)\n");
 	}
 #ifdef CHECK_IOPORTS
 	unsigned int err = 0;
@@ -407,36 +412,36 @@ static int pc2a_common_attach(gpib_board_t *board, const gpib_board_config_t *co
 	if (config->ibirq && check_region(pc2a_clear_intr_iobase + config->ibirq, 1))
 		err++;
 	if (err) {
-		pr_err("gpib: ioports are already in use");
-		return -1;
+		dev_err(board->gpib_dev, "ioports are already in use");
+		return -EBUSY;
 	}
 #endif
 	for (i = 0; i < num_registers; i++) {
 		if (!request_region(config->ibbase +
 					i * pc2a_reg_offset, 1, "pc2a")) {
-			pr_err("gpib: ioports are already in use");
+			dev_err(board->gpib_dev, "ioports are already in use");
 			for (j = 0; j < i; j++)
 				release_region(config->ibbase +
 					j * pc2a_reg_offset, 1);
-			return -1;
+			return -EBUSY;
 		}
 	}
 	nec_priv->iobase = config->ibbase;
 	if (config->ibirq) {
 		if (!request_region(pc2a_clear_intr_iobase + config->ibirq, 1, "pc2a"))  {
-			pr_err("gpib: ioports are already in use");
+			dev_err(board->gpib_dev, "ioports are already in use");
 			return -1;
 		}
 		pc2_priv->clear_intr_addr = pc2a_clear_intr_iobase + config->ibirq;
 		if (request_irq(config->ibirq, pc2a_interrupt, 0, "pc2a", board)) {
-			pr_err("gpib: can't request IRQ %d\n", config->ibirq);
-			return -1;
+			dev_err(board->gpib_dev, "can't request IRQ %d\n", config->ibirq);
+			return -EBUSY;
 		}
 	}
 	pc2_priv->irq = config->ibirq;
 	/* poll so we can detect assertion of ATN */
 	if (gpib_request_pseudo_irq(board, pc2_interrupt)) {
-		pr_err("pc2_gpib: failed to allocate pseudo_irq\n");
+		dev_err(board->gpib_dev, "failed to allocate pseudo_irq\n");
 		return -1;
 	}
 
@@ -630,25 +635,25 @@ static int __init pc2_init_module(void)
 
 	ret = gpib_register_driver(&pc2_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		return ret;
 	}
 
 	ret = gpib_register_driver(&pc2a_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pc2a;
 	}
 
 	ret = gpib_register_driver(&pc2a_cb7210_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_cb7210;
 	}
 
 	ret = gpib_register_driver(&pc2_2a_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("pc2_gpib: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		goto err_pc2_2a;
 	}
 
