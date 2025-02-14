@@ -2644,7 +2644,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	per_inst = smu_v13_0_6_cap_supported(smu, SMU_CAP(PER_INST_METRICS));
 
-	num_jpeg_rings = max_t(u8, adev->jpeg.num_jpeg_rings, 8);
+	num_jpeg_rings = AMDGPU_MAX_JPEG_RINGS_4_0_3;
 	for_each_xcp(adev->xcp_mgr, xcp, i) {
 		amdgpu_xcp_get_inst_details(xcp, AMDGPU_XCP_VCN, &inst_mask);
 		idx = 0;
