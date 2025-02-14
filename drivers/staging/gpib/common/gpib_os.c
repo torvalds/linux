@@ -5,6 +5,9 @@
  ***************************************************************************
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+
 #include "ibsys.h"
 #include <linux/module.h>
 #include <linux/wait.h>
@@ -90,7 +93,7 @@ void os_start_timer(gpib_board_t *board, unsigned int usec_timeout)
 /* Starts the timeout task  */
 {
 	if (timer_pending(&board->timer)) {
-		pr_err("gpib: bug! timer already running?\n");
+		dev_err(board->gpib_dev, "bug! timer already running?\n");
 		return;
 	}
 	clear_bit(TIMO_NUM, &board->status);
@@ -140,7 +143,7 @@ static void pseudo_irq_handler(struct timer_list *t)
 int gpib_request_pseudo_irq(gpib_board_t *board, irqreturn_t (*handler)(int, void *))
 {
 	if (timer_pending(&board->pseudo_irq.timer) || board->pseudo_irq.handler) {
-		pr_err("gpib: only one pseudo interrupt per board allowed\n");
+		dev_err(board->gpib_dev, "only one pseudo interrupt per board allowed\n");
 		return -1;
 	}
 
@@ -260,8 +263,6 @@ int get_serial_poll_byte(gpib_board_t *board, unsigned int pad, int sad, unsigne
 {
 	gpib_status_queue_t *device;
 
-	dev_dbg(board->gpib_dev, "%s:()\n", __func__);
-
 	device = get_gpib_status_queue(board, pad, sad);
 	if (num_status_bytes(device))
 		return pop_status_byte(board, device, poll_byte);
@@ -273,7 +274,6 @@ int autopoll_all_devices(gpib_board_t *board)
 {
 	int retval;
 
-	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 	if (mutex_lock_interruptible(&board->user_mutex))
 		return -ERESTARTSYS;
 	if (mutex_lock_interruptible(&board->big_gpib_mutex)) {
@@ -290,7 +290,7 @@ int autopoll_all_devices(gpib_board_t *board)
 		return retval;
 	}
 
-	dev_dbg(board->gpib_dev, "%s complete\n", __func__);
+	dev_dbg(board->gpib_dev, "complete\n");
 	/* need to wake wait queue in case someone is
 	 * waiting on RQS
 	 */
@@ -308,8 +308,6 @@ static int setup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	size_t bytes_written;
 	int ret;
 
-	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
-
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
 	if (ret < 0) {
@@ -326,7 +324,7 @@ static int setup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 
 	ret = board->interface->command(board, cmd_string, i, &bytes_written);
 	if (ret < 0 || bytes_written < i) {
-		pr_err("gpib: failed to setup serial poll\n");
+		dev_dbg(board->gpib_dev, "failed to setup serial poll\n");
 		os_remove_timer(board);
 		return -EIO;
 	}
@@ -344,7 +342,7 @@ static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
 	int i;
 	size_t nbytes;
 
-	dev_dbg(board->gpib_dev, "entering %s(), pad=%i sad=%i\n", __func__, pad, sad);
+	dev_dbg(board->gpib_dev, "entering  pad=%i sad=%i\n", pad, sad);
 
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
@@ -361,7 +359,7 @@ static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
 
 	ret = board->interface->command(board, cmd_string, i, &nbytes);
 	if (ret < 0 || nbytes < i) {
-		pr_err("gpib: failed to setup serial poll\n");
+		dev_err(board->gpib_dev, "failed to setup serial poll\n");
 		os_remove_timer(board);
 		return -EIO;
 	}
@@ -371,7 +369,7 @@ static int read_serial_poll_byte(gpib_board_t *board, unsigned int pad,
 	// read poll result
 	ret = board->interface->read(board, result, 1, &end_flag, &nbytes);
 	if (ret < 0 || nbytes < 1) {
-		pr_err("gpib: serial poll failed\n");
+		dev_err(board->gpib_dev, "serial poll failed\n");
 		os_remove_timer(board);
 		return -EIO;
 	}
@@ -386,8 +384,6 @@ static int cleanup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	int ret;
 	size_t bytes_written;
 
-	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
-
 	os_start_timer(board, usec_timeout);
 	ret = ibcac(board, 1, 1);
 	if (ret < 0) {
@@ -399,7 +395,7 @@ static int cleanup_serial_poll(gpib_board_t *board, unsigned int usec_timeout)
 	cmd_string[1] = UNT;
 	ret = board->interface->command(board, cmd_string, 2, &bytes_written);
 	if (ret < 0 || bytes_written < 2) {
-		pr_err("gpib: failed to disable serial poll\n");
+		dev_err(board->gpib_dev, "failed to disable serial poll\n");
 		os_remove_timer(board);
 		return -EIO;
 	}
@@ -434,8 +430,6 @@ int serial_poll_all(gpib_board_t *board, unsigned int usec_timeout)
 	gpib_status_queue_t *device;
 	u8 result;
 	unsigned int num_bytes = 0;
-
-	dev_dbg(board->gpib_dev, "entering %s()\n", __func__);
 
 	head = &board->device_list;
 	if (head->next == head)
@@ -482,12 +476,12 @@ int dvrsp(gpib_board_t *board, unsigned int pad, int sad,
 	int retval;
 
 	if ((status & CIC) == 0) {
-		pr_err("gpib: not CIC during serial poll\n");
+		dev_err(board->gpib_dev, "not CIC during serial poll\n");
 		return -1;
 	}
 
 	if (pad > MAX_GPIB_PRIMARY_ADDRESS || sad > MAX_GPIB_SECONDARY_ADDRESS || sad < -1) {
-		pr_err("gpib: bad address for serial poll");
+		dev_err(board->gpib_dev, "bad address for serial poll");
 		return -1;
 	}
 
@@ -544,20 +538,16 @@ int ibopen(struct inode *inode, struct file *filep)
 	priv = filep->private_data;
 	init_gpib_file_private((gpib_file_private_t *)filep->private_data);
 
-	dev_dbg(board->gpib_dev, "pid %i, gpib: opening minor %d\n", current->pid, minor);
-
 	if (board->use_count == 0) {
 		int retval;
 
 		retval = request_module("gpib%i", minor);
-		if (retval) {
-			dev_dbg(board->gpib_dev, "pid %i, gpib: request module returned %i\n",
-				current->pid, retval);
-		}
+		if (retval)
+			dev_dbg(board->gpib_dev, "request module returned %i\n", retval);
 	}
 	if (board->interface) {
 		if (!try_module_get(board->provider_module)) {
-			pr_err("gpib: try_module_get() failed\n");
+			dev_err(board->gpib_dev, "try_module_get() failed\n");
 			return -EIO;
 		}
 		board->use_count++;
@@ -580,21 +570,19 @@ int ibclose(struct inode *inode, struct file *filep)
 
 	board = &board_array[minor];
 
-	dev_dbg(board->gpib_dev, "pid %i, closing minor %d\n", current->pid, minor);
-
 	if (priv) {
 		desc = handle_to_descriptor(priv, 0);
 		if (desc) {
 			if (desc->autopoll_enabled) {
-				dev_dbg(board->gpib_dev, "pid %i, decrementing autospollers\n",
-					current->pid);
+				dev_dbg(board->gpib_dev, "decrementing autospollers\n");
 				if (board->autospollers > 0)
 					board->autospollers--;
 				else
-					pr_err("gpib: Attempt to decrement zero autospollers\n");
+					dev_err(board->gpib_dev,
+						"Attempt to decrement zero autospollers\n");
 			}
 		} else {
-			pr_err("gpib: Unexpected null gpib_descriptor\n");
+			dev_err(board->gpib_dev, "Unexpected null gpib_descriptor\n");
 		}
 
 		cleanup_open_devices(priv, board);
@@ -630,8 +618,8 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	if (mutex_lock_interruptible(&board->big_gpib_mutex))
 		return -ERESTARTSYS;
 
-	dev_dbg(board->gpib_dev, "pid %i, ioctl %d, interface=%s, use=%d, onl=%d\n",
-		current->pid, cmd & 0xff,
+	dev_dbg(board->gpib_dev, "ioctl %d, interface=%s, use=%d, onl=%d\n",
+		cmd & 0xff,
 		board->interface ? board->interface->name : "",
 		board->use_count,
 		board->online);
@@ -647,13 +635,13 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 		break;
 	}
 	if (!board->interface) {
-		pr_err("gpib: no gpib board configured on /dev/gpib%i\n", minor);
+		dev_err(board->gpib_dev, "no gpib board configured\n");
 		retval = -ENODEV;
 		goto done;
 	}
 	if (file_priv->got_module == 0)	{
 		if (!try_module_get(board->provider_module)) {
-			pr_err("gpib: try_module_get() failed\n");
+			dev_err(board->gpib_dev, "try_module_get() failed\n");
 			retval = -EIO;
 			goto done;
 		}
@@ -699,8 +687,6 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	}
 
 	if (!board->online) {
-		pr_err("gpib: ioctl %i invalid for offline board\n",
-		       cmd & 0xff);
 		retval = -EINVAL;
 		goto done;
 	}
@@ -737,8 +723,6 @@ long ibioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	spin_lock(&board->locking_pid_spinlock);
 	if (current->pid != board->locking_pid)	{
 		spin_unlock(&board->locking_pid_spinlock);
-		pr_err("gpib: need to hold board lock to perform ioctl %i\n",
-		       cmd & 0xff);
 		retval = -EPERM;
 		goto done;
 	}
@@ -830,10 +814,8 @@ static int board_type_ioctl(gpib_file_private_t *file_priv, gpib_board_t *board,
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (board->online) {
-		pr_err("gpib: can't change board type while board is online.\n");
+	if (board->online)
 		return -EBUSY;
-	}
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(board_type_ioctl_t));
 	if (retval)
@@ -1140,8 +1122,8 @@ static int increment_open_device_count(gpib_board_t *board, struct list_head *he
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
 		device = list_entry(list_ptr, gpib_status_queue_t, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
-			dev_dbg(board->gpib_dev, "pid %i, incrementing open count for pad %i, sad %i\n",
-				current->pid, device->pad, device->sad);
+			dev_dbg(board->gpib_dev, "incrementing open count for pad %i, sad %i\n",
+				device->pad, device->sad);
 			device->reference_count++;
 			return 0;
 		}
@@ -1158,8 +1140,7 @@ static int increment_open_device_count(gpib_board_t *board, struct list_head *he
 
 	list_add(&device->list, head);
 
-	dev_dbg(board->gpib_dev, "pid %i, opened pad %i, sad %i\n",
-		current->pid, device->pad, device->sad);
+	dev_dbg(board->gpib_dev, "opened pad %i, sad %i\n", device->pad, device->sad);
 
 	return 0;
 }
@@ -1173,23 +1154,23 @@ static int subtract_open_device_count(gpib_board_t *board, struct list_head *hea
 	for (list_ptr = head->next; list_ptr != head; list_ptr = list_ptr->next) {
 		device = list_entry(list_ptr, gpib_status_queue_t, list);
 		if (gpib_address_equal(device->pad, device->sad, pad, sad)) {
-			dev_dbg(board->gpib_dev, "pid %i, decrementing open count for pad %i, sad %i\n",
-				current->pid, device->pad, device->sad);
+			dev_dbg(board->gpib_dev, "decrementing open count for pad %i, sad %i\n",
+				device->pad, device->sad);
 			if (count > device->reference_count) {
-				pr_err("gpib: bug! in %s()\n", __func__);
+				dev_err(board->gpib_dev, "bug! in %s()\n", __func__);
 				return -EINVAL;
 			}
 			device->reference_count -= count;
 			if (device->reference_count == 0) {
-				dev_dbg(board->gpib_dev, "pid %i, closing pad %i, sad %i\n",
-					current->pid, device->pad, device->sad);
+				dev_dbg(board->gpib_dev, "closing pad %i, sad %i\n",
+					device->pad, device->sad);
 				list_del(list_ptr);
 				kfree(device);
 			}
 			return 0;
 		}
 	}
-	pr_err("gpib: bug! tried to close address that was never opened!\n");
+	dev_err(board->gpib_dev, "bug! tried to close address that was never opened!\n");
 	return -EINVAL;
 }
 
@@ -1305,8 +1286,6 @@ static int serial_poll_ioctl(gpib_board_t *board, unsigned long arg)
 {
 	serial_poll_ioctl_t serial_cmd;
 	int retval;
-
-	dev_dbg(board->gpib_dev, "pid %i, entering %s()\n", current->pid, __func__);
 
 	retval = copy_from_user(&serial_cmd, (void __user *)arg, sizeof(serial_cmd));
 	if (retval)
@@ -1639,11 +1618,12 @@ static int autospoll_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 				board->autospollers--;
 				retval = 0;
 			} else {
-				pr_err("gpib: tried to set number of autospollers negative\n");
+				dev_err(board->gpib_dev,
+					"tried to set number of autospollers negative\n");
 				retval = -EINVAL;
 			}
 		} else {
-			pr_err("gpib: autopoll disable requested before enable\n");
+			dev_err(board->gpib_dev, "autopoll disable requested before enable\n");
 			retval = -EINVAL;
 		}
 	}
@@ -1661,10 +1641,8 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 
 	if (lock_mutex)	{
 		retval = mutex_lock_interruptible(&board->user_mutex);
-		if (retval) {
-			pr_warn("gpib: ioctl interrupted while waiting on lock\n");
+		if (retval)
 			return -ERESTARTSYS;
-		}
 
 		spin_lock(&board->locking_pid_spinlock);
 		board->locking_pid = current->pid;
@@ -1672,13 +1650,12 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 
 		atomic_set(&file_priv->holding_mutex, 1);
 
-		dev_dbg(board->gpib_dev, "pid %i, locked board %d mutex\n",
-			current->pid, board->minor);
+		dev_dbg(board->gpib_dev, "locked board mutex\n");
 	} else {
 		spin_lock(&board->locking_pid_spinlock);
 		if (current->pid != board->locking_pid) {
-			pr_err("gpib: bug! pid %i tried to release mutex held by pid %i\n",
-			       current->pid, board->locking_pid);
+			dev_err(board->gpib_dev, "bug! pid %i tried to release mutex held by pid %i\n",
+				current->pid, board->locking_pid);
 			spin_unlock(&board->locking_pid_spinlock);
 			return -EPERM;
 		}
@@ -1688,8 +1665,7 @@ static int mutex_ioctl(gpib_board_t *board, gpib_file_private_t *file_priv,
 		atomic_set(&file_priv->holding_mutex, 0);
 
 		mutex_unlock(&board->user_mutex);
-		dev_dbg(board->gpib_dev, "pid %i, unlocked board %i mutex\n",
-			current->pid, board->minor);
+		dev_dbg(board->gpib_dev, "unlocked board mutex\n");
 	}
 	return 0;
 }
@@ -1704,7 +1680,7 @@ static int timeout_ioctl(gpib_board_t *board, unsigned long arg)
 		return -EFAULT;
 
 	board->usec_timeout = timeout;
-	dev_dbg(board->gpib_dev, "pid %i, timeout set to %i usec\n", current->pid, timeout);
+	dev_dbg(board->gpib_dev, "timeout set to %i usec\n", timeout);
 
 	return 0;
 }
@@ -1744,10 +1720,8 @@ static int set_local_ppoll_mode_ioctl(gpib_board_t *board, unsigned long arg)
 	if (retval)
 		return -EFAULT;
 
-	if (!board->interface->local_parallel_poll_mode)	{
-		pr_warn("gpib: local/remote parallel poll mode not supported by driver.");
-		return -EIO;
-	}
+	if (!board->interface->local_parallel_poll_mode)
+		return -ENOENT;
 	board->local_ppoll_mode = cmd != 0;
 	board->interface->local_parallel_poll_mode(board, board->local_ppoll_mode);
 
@@ -1887,7 +1861,7 @@ static int push_gpib_event_nolock(gpib_board_t *board, short event_type)
 	event = kmalloc(sizeof(gpib_event_t), GFP_ATOMIC);
 	if (!event) {
 		queue->dropped_event = 1;
-		pr_err("gpib: failed to allocate memory for event\n");
+		dev_err(board->gpib_dev, "failed to allocate memory for event\n");
 		return -ENOMEM;
 	}
 
@@ -2007,10 +1981,8 @@ static int t1_delay_ioctl(gpib_board_t *board, unsigned long arg)
 	unsigned int delay;
 	int retval;
 
-	if (!board->interface->t1_delay)	{
-		pr_warn("gpib: t1 delay not implemented in driver!\n");
-		return -EIO;
-	}
+	if (!board->interface->t1_delay)
+		return -ENOENT;
 
 	retval = copy_from_user(&cmd, (void __user *)arg, sizeof(cmd));
 	if (retval)
@@ -2087,7 +2059,6 @@ void gpib_unregister_driver(gpib_interface_t *interface)
 			kfree(entry);
 		}
 	}
-	pr_info("gpib: unregistered %s interface\n", interface->name);
 }
 EXPORT_SYMBOL(gpib_unregister_driver);
 
@@ -2184,7 +2155,7 @@ static int __init gpib_common_init_module(void)
 {
 	int i;
 
-	pr_info("Linux-GPIB core driver\n");
+	pr_info("GPIB core driver\n");
 	init_board_array(board_array, GPIB_MAX_NUM_BOARDS);
 	if (register_chrdev(GPIB_CODE, "gpib", &ib_fops)) {
 		pr_err("gpib: can't get major %d\n", GPIB_CODE);
