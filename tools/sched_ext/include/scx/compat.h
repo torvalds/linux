@@ -109,6 +109,9 @@ static inline bool __COMPAT_struct_has_field(const char *type, const char *field
 #define SCX_OPS_SWITCH_PARTIAL							\
 	__COMPAT_ENUM_OR_ZERO("scx_ops_flags", "SCX_OPS_SWITCH_PARTIAL")
 
+#define SCX_OPS_BUILTIN_IDLE_PER_NODE						\
+	__COMPAT_ENUM_OR_ZERO("scx_ops_flags", "SCX_OPS_BUILTIN_IDLE_PER_NODE")
+
 static inline long scx_hotplug_seq(void)
 {
 	int fd;
