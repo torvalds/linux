@@ -22,11 +22,11 @@
 	};
 
 	/* EC turns on w/ pp900_usb_en */
-	pp900_usb: pp900-ap {
+	pp900_usb: regulator-pp900-ap {
 	};
 
 	/* EC turns on w/ pp900_pcie_en */
-	pp900_pcie: pp900-ap {
+	pp900_pcie: regulator-pp900-ap {
 	};
 
 	pp3000: regulator-pp3000 {
@@ -126,7 +126,7 @@
 	};
 
 	/* Always on; plain and simple */
-	pp3000_ap: pp3000_emmc: pp3000 {
+	pp3000_ap: pp3000_emmc: regulator-pp3000 {
 	};
 
 	pp1500_ap_io: regulator-pp1500-ap-io {
@@ -160,7 +160,7 @@
 	};
 
 	/* EC turns on w/ pp3300_usb_en_l */
-	pp3300_usb: pp3300 {
+	pp3300_usb: regulator-pp3300 {
 	};
 
 	/* gpio is shared with pp1800_pcie and pinctrl is set there */
