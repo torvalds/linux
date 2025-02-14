@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 #define _GNU_SOURCE
+#define _DEFAULT_SOURCE /* glibc preadv/pwritev */
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -667,16 +668,41 @@ static inline ssize_t pwrite_fn(int fd, void *buf, size_t len, off_t off)
 	return pwrite(fd, (const void *)buf, len, off);
 }
 
+static ssize_t sum_iovlen(struct iovec iovs[], int count)
+{
+	int i;
+	ssize_t sum = 0;
+
+	for (i = 0; i < count; i++)
+		sum += iovs[i].iov_len;
+
+	return sum;
+}
+
 static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 {
 	int err = 0;
+	ssize_t len;
 
 	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = do_rw(pread, disk.fd, req);
+		len = preadv(disk.fd, req->buf, req->count, req->sector * 512);
+		if (len < 0) {
+			err = -1;
+			break;
+		}
+		/* redo entire request on short I/O */
+		if (len != sum_iovlen(req->buf, req->count))
+			err = do_rw(pread, disk.fd, req);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = do_rw(pwrite_fn, disk.fd, req);
+		len = pwritev(disk.fd, req->buf, req->count, req->sector * 512);
+		if (len < 0) {
+			err = -1;
+			break;
+		}
+		if (len != sum_iovlen(req->buf, req->count))
+			err = do_rw(pwrite_fn, disk.fd, req);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
