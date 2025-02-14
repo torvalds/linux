@@ -1073,6 +1073,18 @@ static void phylink_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 		pcs->ops->pcs_link_up(pcs, neg_mode, interface, speed, duplex);
 }
 
+static void phylink_pcs_disable_eee(struct phylink_pcs *pcs)
+{
+	if (pcs && pcs->ops->pcs_disable_eee)
+		pcs->ops->pcs_disable_eee(pcs);
+}
+
+static void phylink_pcs_enable_eee(struct phylink_pcs *pcs)
+{
+	if (pcs && pcs->ops->pcs_enable_eee)
+		pcs->ops->pcs_enable_eee(pcs);
+}
+
 /* Query inband for a specific interface mode, asking the MAC for the
  * PCS which will be used to handle the interface mode.
  */
@@ -1601,6 +1613,8 @@ static void phylink_deactivate_lpi(struct phylink *pl)
 		phylink_dbg(pl, "disabling LPI\n");
 
 		pl->mac_ops->mac_disable_tx_lpi(pl->config);
+
+		phylink_pcs_disable_eee(pl->pcs);
 	}
 }
 
@@ -1617,13 +1631,18 @@ static void phylink_activate_lpi(struct phylink *pl)
 	phylink_dbg(pl, "LPI timer %uus, tx clock stop %u\n",
 		    pl->mac_tx_lpi_timer, pl->mac_tx_clk_stop);
 
+	phylink_pcs_enable_eee(pl->pcs);
+
 	err = pl->mac_ops->mac_enable_tx_lpi(pl->config, pl->mac_tx_lpi_timer,
 					     pl->mac_tx_clk_stop);
-	if (!err)
-		pl->mac_enable_tx_lpi = true;
-	else
+	if (err) {
+		phylink_pcs_disable_eee(pl->pcs);
 		phylink_err(pl, "%ps() failed: %pe\n",
 			    pl->mac_ops->mac_enable_tx_lpi, ERR_PTR(err));
+		return;
+	}
+
+	pl->mac_enable_tx_lpi = true;
 }
 
 static void phylink_link_up(struct phylink *pl,
