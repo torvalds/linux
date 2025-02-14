@@ -2556,6 +2556,9 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 	i915_reg_t reg;
 	u32 set_bits, wait_bits;
 
+	if (DISPLAY_VER(dev_priv) < 14)
+		return;
+
 	if (DISPLAY_VER(dev_priv) >= 20) {
 		reg = DDI_BUF_CTL(port);
 		set_bits = XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
@@ -3043,12 +3046,15 @@ static void intel_ddi_pre_enable(struct intel_atomic_state *state,
 }
 
 static void
-mtl_ddi_disable_d2d_link(struct intel_encoder *encoder)
+mtl_ddi_disable_d2d(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
 	i915_reg_t reg;
 	u32 clr_bits, wait_bits;
+
+	if (DISPLAY_VER(dev_priv) < 14)
+		return;
 
 	if (DISPLAY_VER(dev_priv) >= 20) {
 		reg = DDI_BUF_CTL(port);
@@ -3079,7 +3085,7 @@ static void mtl_disable_ddi_buf(struct intel_encoder *encoder,
 	intel_wait_ddi_buf_idle(dev_priv, port);
 
 	/* 3.d Disable D2D Link */
-	mtl_ddi_disable_d2d_link(encoder);
+	mtl_ddi_disable_d2d(encoder);
 
 	/* 3.e Disable DP_TP_CTL */
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
@@ -3428,8 +3434,7 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 		hsw_prepare_hdmi_ddi_buffers(encoder, crtc_state);
 
 	/* e. Enable D2D Link for C10/C20 Phy */
-	if (DISPLAY_VER(dev_priv) >= 14)
-		mtl_ddi_enable_d2d(encoder);
+	mtl_ddi_enable_d2d(encoder);
 
 	encoder->set_signal_levels(encoder, crtc_state);
 
