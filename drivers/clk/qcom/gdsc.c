@@ -46,7 +46,7 @@
 #define RETAIN_MEM		BIT(14)
 #define RETAIN_PERIPH		BIT(13)
 
-#define STATUS_POLL_TIMEOUT_US	1500
+#define STATUS_POLL_TIMEOUT_US	2000
 #define TIMEOUT_US		500
 
 #define domain_to_gdsc(domain) container_of(domain, struct gdsc, pd)
