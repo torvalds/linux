@@ -3936,7 +3936,7 @@ static void vxlan_config_apply(struct net_device *dev,
 }
 
 static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
-			       struct vxlan_config *conf, bool changelink,
+			       struct vxlan_config *conf,
 			       struct netlink_ext_ack *extack)
 {
 	struct vxlan_dev *vxlan = netdev_priv(dev);
@@ -3947,7 +3947,7 @@ static int vxlan_dev_configure(struct net *src_net, struct net_device *dev,
 	if (ret)
 		return ret;
 
-	vxlan_config_apply(dev, conf, lowerdev, src_net, changelink);
+	vxlan_config_apply(dev, conf, lowerdev, src_net, false);
 
 	return 0;
 }
@@ -3965,7 +3965,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 	int err;
 
 	dst = &vxlan->default_dst;
-	err = vxlan_dev_configure(net, dev, conf, false, extack);
+	err = vxlan_dev_configure(net, dev, conf, extack);
 	if (err)
 		return err;
 
