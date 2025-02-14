@@ -4,6 +4,10 @@
  *   copyright            : (C) 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "cec.h"
 #include <linux/pci.h>
 #include <linux/io.h>
@@ -284,31 +288,29 @@ static int cec_pci_attach(gpib_board_t *board, const gpib_board_config_t *config
 			break;
 	}
 	if (!cec_priv->pci_device) {
-		pr_err("gpib: no cec PCI board found\n");
-		return -1;
+		dev_err(board->gpib_dev, "no cec PCI board found\n");
+		return -ENODEV;
 	}
 
 	if (pci_enable_device(cec_priv->pci_device)) {
-		pr_err("error enabling pci device\n");
-		return -1;
+		dev_err(board->gpib_dev, "error enabling pci device\n");
+		return -EIO;
 	}
 
 	if (pci_request_regions(cec_priv->pci_device, "cec-gpib"))
-		return -1;
+		return -EBUSY;
 
 	cec_priv->plx_iobase = pci_resource_start(cec_priv->pci_device, 1);
-	pr_info(" plx9050 base address 0x%lx\n", cec_priv->plx_iobase);
-	nec_priv->iobase = pci_resource_start(cec_priv->pci_device, 3);
-	pr_info(" nec7210 base address 0x%x\n", nec_priv->iobase);
+		nec_priv->iobase = pci_resource_start(cec_priv->pci_device, 3);
 
 	isr_flags |= IRQF_SHARED;
-	if (request_irq(cec_priv->pci_device->irq, cec_interrupt, isr_flags, "pci-gpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", cec_priv->pci_device->irq);
-		return -1;
+	if (request_irq(cec_priv->pci_device->irq, cec_interrupt, isr_flags, DRV_NAME, board)) {
+		dev_err(board->gpib_dev, "failed to obtain IRQ %d\n", cec_priv->pci_device->irq);
+		return -EBUSY;
 	}
 	cec_priv->irq = cec_priv->pci_device->irq;
 	if (gpib_request_pseudo_irq(board, cec_interrupt)) {
-		pr_err("cec: failed to allocate pseudo irq\n");
+		dev_err(board->gpib_dev, "failed to allocate pseudo irq\n");
 		return -1;
 	}
 	cec_init(cec_priv, board);
@@ -355,7 +357,7 @@ static const struct pci_device_id cec_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, cec_pci_table);
 
 static struct pci_driver cec_pci_driver = {
-	.name = "cec_gpib",
+	.name = DRV_NAME,
 	.id_table = cec_pci_table,
 	.probe = &cec_pci_probe
 };
@@ -366,13 +368,13 @@ static int __init cec_init_module(void)
 
 	result = pci_register_driver(&cec_pci_driver);
 	if (result) {
-		pr_err("cec_gpib: pci_register_driver failed: error = %d\n", result);
+		pr_err("pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
 	result = gpib_register_driver(&cec_pci_interface, THIS_MODULE);
 	if (result) {
-		pr_err("cec_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
