@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <assert.h>
 #include <libgen.h>
 #include <bpf/bpf.h>
 #include <scx/common.h>
@@ -60,14 +61,22 @@ restart:
 	skel->rodata->nr_cpu_ids = libbpf_num_possible_cpus();
 	skel->rodata->slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
+	assert(skel->rodata->nr_cpu_ids <= INT32_MAX);
+
 	while ((opt = getopt(argc, argv, "s:c:pvh")) != -1) {
 		switch (opt) {
 		case 's':
 			skel->rodata->slice_ns = strtoull(optarg, NULL, 0) * 1000;
 			break;
-		case 'c':
-			skel->rodata->central_cpu = strtoul(optarg, NULL, 0);
+		case 'c': {
+			u32 central_cpu = strtoul(optarg, NULL, 0);
+			if (central_cpu >= skel->rodata->nr_cpu_ids) {
+				fprintf(stderr, "invalid central CPU id value, %u given (%u max)\n", central_cpu, skel->rodata->nr_cpu_ids);
+				return -1;
+			}
+			skel->rodata->central_cpu = (s32)central_cpu;
 			break;
+		}
 		case 'v':
 			verbose = true;
 			break;
@@ -96,7 +105,7 @@ restart:
 	 */
 	cpuset = CPU_ALLOC(skel->rodata->nr_cpu_ids);
 	SCX_BUG_ON(!cpuset, "Failed to allocate cpuset");
-	CPU_ZERO(cpuset);
+	CPU_ZERO_S(CPU_ALLOC_SIZE(skel->rodata->nr_cpu_ids), cpuset);
 	CPU_SET(skel->rodata->central_cpu, cpuset);
 	SCX_BUG_ON(sched_setaffinity(0, sizeof(*cpuset), cpuset),
 		   "Failed to affinitize to central CPU %d (max %d)",

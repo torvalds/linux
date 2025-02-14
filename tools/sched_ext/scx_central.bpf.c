@@ -256,7 +256,6 @@ static int central_timerfn(void *map, int *key, struct bpf_timer *timer)
 	u64 now = scx_bpf_now();
 	u64 nr_to_kick = nr_queued;
 	s32 i, curr_cpu;
-	struct scx_event_stats events;
 
 	curr_cpu = bpf_get_smp_processor_id();
 	if (timer_pinned && (curr_cpu != central_cpu)) {
@@ -292,7 +291,6 @@ static int central_timerfn(void *map, int *key, struct bpf_timer *timer)
 
 	bpf_timer_start(timer, TIMER_INTERVAL_NS, BPF_F_TIMER_CPU_PIN);
 	__sync_fetch_and_add(&nr_timers, 1);
-
 	return 0;
 }
 
