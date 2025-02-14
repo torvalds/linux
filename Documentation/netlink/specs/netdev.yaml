@@ -467,6 +467,8 @@ attribute-sets:
         name: tx-needs-csum
         doc: |
           Number of packets that required the device to calculate the checksum.
+          This counter includes the number of GSO wire packets for which device
+          calculated the L4 checksum.
         type: uint
       -
         name: tx-hw-gso-packets
