@@ -4,6 +4,8 @@
  *   copyright            : (C) 2001, 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define dev_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "board.h"
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -198,7 +200,6 @@ unsigned int nec7210_update_status_nolock(gpib_board_t *board, struct nec7210_pr
 		priv->srq_pending = 0;
 		set_bit(SPOLL_NUM, &board->status);
 	}
-//	dev_dbg(board->gpib_dev, "status 0x%x, state 0x%x\n", board->status, priv->state);
 
 	/* we rely on the interrupt handler to set the
 	 * rest of the status bits
@@ -319,10 +320,8 @@ int nec7210_go_to_standby(gpib_board_t *board, struct nec7210_priv *priv)
 			if (adsr_bits & HR_NATN)
 				break;
 		}
-		if (i == HZ) {
-			pr_err("nec7210: error waiting for NATN\n");
+		if (i == HZ)
 			return -ETIMEDOUT;
-		}
 	}
 
 	clear_bit(COMMAND_READY_BN, &priv->state);
@@ -430,17 +429,14 @@ int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 					     test_bit(COMMAND_READY_BN, &priv->state) ||
 					     test_bit(BUS_ERROR_BN, &priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			dev_dbg(board->gpib_dev, "gpib command wait interrupted\n");
+			dev_dbg(board->gpib_dev, "command wait interrupted\n");
 			retval = -ERESTARTSYS;
 			break;
 		}
 		if (test_bit(TIMO_NUM, &board->status))
 			break;
-		if (test_and_clear_bit(BUS_ERROR_BN, &priv->state)) {
-			pr_err("nec7210: bus error on command byte\n");
+		if (test_and_clear_bit(BUS_ERROR_BN, &priv->state))
 			break;
-		}
-
 		spin_lock_irqsave(&board->spinlock, flags);
 		clear_bit(COMMAND_READY_BN, &priv->state);
 		write_byte(priv, buffer[*bytes_written], CDOR);
@@ -454,18 +450,14 @@ int nec7210_command(gpib_board_t *board, struct nec7210_priv *priv, uint8_t
 	// wait for last byte to get sent
 	if (wait_event_interruptible(board->wait, test_bit(COMMAND_READY_BN, &priv->state) ||
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib command wait interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		retval = -ERESTARTSYS;
-	}
-	if (test_bit(TIMO_NUM, &board->status))	{
-		dev_dbg(board->gpib_dev, "gpib command timed out\n");
+
+	if (test_bit(TIMO_NUM, &board->status))
 		retval = -ETIMEDOUT;
-	}
-	if (test_and_clear_bit(BUS_ERROR_BN, &priv->state)) {
-		pr_err("nec7210: bus error on command byte\n");
+
+	if (test_and_clear_bit(BUS_ERROR_BN, &priv->state))
 		retval = -EIO;
-	}
 
 	return retval;
 }
@@ -484,7 +476,6 @@ static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buf
 					     test_bit(READ_READY_BN, &priv->state) ||
 					     test_bit(DEV_CLEAR_BN, &priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			dev_dbg(board->gpib_dev, "nec7210: pio read wait interrupted\n");
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -503,12 +494,10 @@ static int pio_read(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *buf
 				break;
 		}
 		if (test_bit(TIMO_NUM, &board->status)) {
-			dev_dbg(board->gpib_dev, "interrupted by timeout\n");
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &priv->state)) {
-			dev_dbg(board->gpib_dev, "interrupted by device clear\n");
 			retval = -EINTR;
 			break;
 		}
@@ -557,10 +546,9 @@ static ssize_t __dma_read(gpib_board_t *board, struct nec7210_priv *priv, size_t
 	if (wait_event_interruptible(board->wait,
 				     test_bit(DMA_READ_IN_PROGRESS_BN, &priv->state) == 0 ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "nec7210: dma read wait interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		retval = -ERESTARTSYS;
-	}
+
 	if (test_bit(TIMO_NUM, &board->status))
 		retval = -ETIMEDOUT;
 	if (test_bit(DEV_CLEAR_BN, &priv->state))
@@ -638,22 +626,18 @@ static int pio_write_wait(gpib_board_t *board, struct nec7210_priv *priv,
 				     (wake_on_bus_error && test_bit(BUS_ERROR_BN, &priv->state)) ||
 				     (wake_on_lacs && test_bit(LACS_NUM, &board->status)) ||
 				     (wake_on_atn && test_bit(ATN_NUM, &board->status)) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		return -ERESTARTSYS;
-	}
-	if (test_bit(TIMO_NUM, &board->status))	{
-		dev_dbg(board->gpib_dev, "nec7210: write timed out\n");
+
+	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
-	}
-	if (test_bit(DEV_CLEAR_BN, &priv->state)) {
-		dev_dbg(board->gpib_dev, "nec7210: write interrupted by clear\n");
+
+	if (test_bit(DEV_CLEAR_BN, &priv->state))
 		return -EINTR;
-	}
-	if (wake_on_bus_error && test_and_clear_bit(BUS_ERROR_BN, &priv->state)) {
-		dev_dbg(board->gpib_dev, "nec7210: bus error on write\n");
+
+	if (wake_on_bus_error && test_and_clear_bit(BUS_ERROR_BN, &priv->state))
 		return -EIO;
-	}
+
 	return 0;
 }
 
@@ -677,7 +661,6 @@ static int pio_write(gpib_board_t *board, struct nec7210_priv *priv, uint8_t *bu
 		if (retval == -EIO) {
 			/* resend last byte on bus error */
 			*bytes_written = last_count;
-			dev_dbg(board->gpib_dev, "resending %c\n", buffer[*bytes_written]);
 			/* we can get unrecoverable bus errors,
 			 * so give up after a while
 			 */
@@ -733,10 +716,9 @@ static ssize_t __dma_write(gpib_board_t *board, struct nec7210_priv *priv, dma_a
 				     test_bit(DMA_WRITE_IN_PROGRESS_BN, &priv->state) == 0 ||
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		retval = -ERESTARTSYS;
-	}
+
 	if (test_bit(TIMO_NUM, &board->status))
 		retval = -ETIMEDOUT;
 	if (test_and_clear_bit(DEV_CLEAR_BN, &priv->state))
@@ -937,13 +919,8 @@ irqreturn_t nec7210_interrupt_have_status(gpib_board_t *board,
 		set_bit(COMMAND_READY_BN, &priv->state);
 
 	// command pass through received
-	if (status1 & HR_CPT) {
-		unsigned int command;
-
-		command = read_byte(priv, CPTR) & gpib_command_mask;
+	if (status1 & HR_CPT)
 		write_byte(priv, AUX_NVAL, AUXMR);
-//		printk("gpib: command pass through 0x%x\n", command);
-	}
 
 	if (status1 & HR_ERR)
 		set_bit(BUS_ERROR_BN, &priv->state);
