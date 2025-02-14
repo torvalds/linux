@@ -11766,6 +11766,8 @@ enum special_kfunc_type {
 	KF_bpf_iter_num_new,
 	KF_bpf_iter_num_next,
 	KF_bpf_iter_num_destroy,
+	KF_bpf_set_dentry_xattr,
+	KF_bpf_remove_dentry_xattr,
 };
 
 BTF_SET_START(special_kfunc_set)
@@ -11794,6 +11796,10 @@ BTF_ID(func, bpf_throw)
 BTF_ID(func, bpf_wq_set_callback_impl)
 #ifdef CONFIG_CGROUPS
 BTF_ID(func, bpf_iter_css_task_new)
+#endif
+#ifdef CONFIG_BPF_LSM
+BTF_ID(func, bpf_set_dentry_xattr)
+BTF_ID(func, bpf_remove_dentry_xattr)
 #endif
 BTF_SET_END(special_kfunc_set)
 
@@ -11844,6 +11850,13 @@ BTF_ID(func, bpf_local_irq_restore)
 BTF_ID(func, bpf_iter_num_new)
 BTF_ID(func, bpf_iter_num_next)
 BTF_ID(func, bpf_iter_num_destroy)
+#ifdef CONFIG_BPF_LSM
+BTF_ID(func, bpf_set_dentry_xattr)
+BTF_ID(func, bpf_remove_dentry_xattr)
+#else
+BTF_ID_UNUSED
+BTF_ID_UNUSED
+#endif
 
 static bool is_kfunc_ret_null(struct bpf_kfunc_call_arg_meta *meta)
 {
@@ -20924,6 +20937,14 @@ static void specialize_kfunc(struct bpf_verifier_env *env,
 		 */
 		env->seen_direct_write = seen_direct_write;
 	}
+
+	if (func_id == special_kfunc_list[KF_bpf_set_dentry_xattr] &&
+	    bpf_lsm_has_d_inode_locked(prog))
+		*addr = (unsigned long)bpf_set_dentry_xattr_locked;
+
+	if (func_id == special_kfunc_list[KF_bpf_remove_dentry_xattr] &&
+	    bpf_lsm_has_d_inode_locked(prog))
+		*addr = (unsigned long)bpf_remove_dentry_xattr_locked;
 }
 
 static void __fixup_collection_insert_kfunc(struct bpf_insn_aux_data *insn_aux,
