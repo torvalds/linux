@@ -4,6 +4,9 @@
  *   copyright		  : (C) 2001, 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -83,10 +86,8 @@ int tms9914_go_to_standby(gpib_board_t *board, struct tms9914_priv *priv)
 			break;
 		udelay(1);
 	}
-	if (i == timeout) {
-		pr_err("error waiting for NATN\n");
+	if (i == timeout)
 		return -ETIMEDOUT;
-	}
 
 	clear_bit(COMMAND_READY_BN, &priv->state);
 
@@ -175,7 +176,7 @@ void tms9914_set_holdoff_mode(struct tms9914_priv *priv, enum tms9914_holdoff_mo
 		write_byte(priv, AUX_HLDA | AUX_CS, AUXCR);
 		break;
 	default:
-		pr_err("%s: bug! bad holdoff mode %i\n", __func__, mode);
+		pr_err("bug! bad holdoff mode %i\n", mode);
 		break;
 	}
 	priv->holdoff_mode = mode;
@@ -437,10 +438,9 @@ static int wait_for_read_byte(gpib_board_t *board, struct tms9914_priv *priv)
 	if (wait_event_interruptible(board->wait,
 				     test_bit(READ_READY_BN, &priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		pr_debug("gpib: pio read wait interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		return -ERESTARTSYS;
-	}
+
 	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
 
@@ -472,7 +472,7 @@ static inline uint8_t tms9914_read_data_in(gpib_board_t *board, struct tms9914_p
 	case TMS9914_HOLDOFF_NONE:
 		break;
 	default:
-		pr_err("%s: bug! bad holdoff mode %i\n", __func__, priv->holdoff_mode);
+		dev_err(board->gpib_dev, "bug! bad holdoff mode %i\n", priv->holdoff_mode);
 		break;
 	}
 	spin_unlock_irqrestore(&board->spinlock, flags);
@@ -548,10 +548,9 @@ static int pio_write_wait(gpib_board_t *board, struct tms9914_priv *priv)
 				     test_bit(WRITE_READY_BN, &priv->state) ||
 				     test_bit(BUS_ERROR_BN, &priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted!\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		return -ERESTARTSYS;
-	}
+
 	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
 	if (test_bit(BUS_ERROR_BN, &priv->state))
@@ -667,10 +666,8 @@ int tms9914_command(gpib_board_t *board, struct tms9914_priv *priv,  uint8_t *bu
 		if (wait_event_interruptible(board->wait,
 					     test_bit(COMMAND_READY_BN,
 						      &priv->state) ||
-					     test_bit(TIMO_NUM, &board->status))) {
-			pr_debug("gpib command wait interrupted\n");
+					     test_bit(TIMO_NUM, &board->status)))
 			break;
-		}
 		if (test_bit(TIMO_NUM, &board->status))
 			break;
 
@@ -761,8 +758,6 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 					write_byte(priv, AUX_INVAL, AUXCR);
 				}
 			} else	{
-				// printk("tms9914: unrecognized gpib command pass thru 0x%x\n",
-				// command_byte);
 				// clear dac holdoff
 				write_byte(priv, AUX_INVAL, AUXCR);
 			}
@@ -799,7 +794,7 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 	// check for being addressed with secondary addressing
 	if (status1 & HR_APT) {
 		if (board->sad < 0)
-			pr_err("tms9914: bug, APT interrupt without secondary addressing?\n");
+			dev_err(board->gpib_dev, "bug, APT interrupt without secondary addressing?\n");
 		if ((read_byte(priv, CPTR) & gpib_command_mask) == MSA(board->sad))
 			write_byte(priv, AUX_VAL, AUXCR);
 		else
@@ -807,8 +802,8 @@ irqreturn_t tms9914_interrupt_have_status(gpib_board_t *board, struct tms9914_pr
 	}
 
 	if ((status0 & priv->imr0_bits) || (status1 & priv->imr1_bits))	{
-//		dev_dbg(board->gpib_dev, "isr0 0x%x, imr0 0x%x, isr1 0x%x, imr1 0x%x\n",
-//			status0, priv->imr0_bits, status1, priv->imr1_bits);
+		dev_dbg(board->gpib_dev, "isr0 0x%x, imr0 0x%x, isr1 0x%x, imr1 0x%x\n",
+			status0, priv->imr0_bits, status1, priv->imr1_bits);
 		update_status_nolock(board, priv);
 		wake_up_interruptible(&board->wait);
 	}
