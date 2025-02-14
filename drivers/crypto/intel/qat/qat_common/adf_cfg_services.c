@@ -20,7 +20,6 @@ const char *const adf_cfg_services[] = {
 	[SVC_DC_SYM] = ADF_CFG_DC_SYM,
 	[SVC_SYM_DC] = ADF_CFG_SYM_DC,
 };
-EXPORT_SYMBOL_GPL(adf_cfg_services);
 
 int adf_get_service_enabled(struct adf_accel_dev *accel_dev)
 {
