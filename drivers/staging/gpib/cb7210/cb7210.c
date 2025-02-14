@@ -383,10 +383,8 @@ static int cb7210_line_status(const gpib_board_t *board)
 	int status = ValidALL;
 	int bsr_bits;
 	struct cb7210_priv *cb_priv;
-	struct nec7210_priv *nec_priv;
 
 	cb_priv = board->private_data;
-	nec_priv = &cb_priv->nec7210_priv;
 
 	bsr_bits = cb7210_paged_read_byte(cb_priv, BUS_STATUS, BUS_STATUS_PAGE);
 
