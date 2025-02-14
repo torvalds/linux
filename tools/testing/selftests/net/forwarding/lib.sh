@@ -291,16 +291,6 @@ if [[ "$CHECK_TC" = "yes" ]]; then
 	check_tc_version
 fi
 
-require_command()
-{
-	local cmd=$1; shift
-
-	if [[ ! -x "$(command -v "$cmd")" ]]; then
-		echo "SKIP: $cmd not installed"
-		exit $ksft_skip
-	fi
-}
-
 # IPv6 support was added in v3.0
 check_mtools_version()
 {
