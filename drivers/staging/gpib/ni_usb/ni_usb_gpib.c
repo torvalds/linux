@@ -426,7 +426,6 @@ static int parse_board_ibrd_readback(const u8 *raw_data, struct ni_usb_status_bl
 	int i = 0;
 	int j = 0;
 	int k;
-	unsigned int adr1_bits;
 	int num_data_blocks = 0;
 	struct ni_usb_status_block register_write_status;
 	int unexpected = 0;
@@ -459,7 +458,7 @@ static int parse_board_ibrd_readback(const u8 *raw_data, struct ni_usb_status_bl
 		pr_err("bug: status->id=%i, != ibrd_status_id\n", status->id);
 		return -EIO;
 	}
-	adr1_bits = raw_data[i++];
+	i++;
 	if (num_data_blocks) {
 		*actual_bytes_read = (num_data_blocks - 1) * data_block_length + raw_data[i++];
 	} else {
