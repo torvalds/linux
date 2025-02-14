@@ -2013,6 +2013,7 @@ static struct snd_soc_card *sun50i_h616_codec_create_card(struct device *dev)
 	card->dev		= dev;
 	card->owner		= THIS_MODULE;
 	card->name		= "H616 Audio Codec";
+	card->long_name		= "h616-audio-codec";
 	card->driver_name	= "sun4i-codec";
 	card->controls		= sun50i_h616_card_controls;
 	card->num_controls	= ARRAY_SIZE(sun50i_h616_card_controls);
