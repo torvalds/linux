@@ -94,7 +94,6 @@
 #include <linux/bitmap.h>
 #include <linux/minmax.h>
 #include <linux/nodemask_types.h>
-#include <linux/numa.h>
 #include <linux/random.h>
 
 extern nodemask_t _unused_nodemask_arg_;
