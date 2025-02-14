@@ -1576,7 +1576,7 @@ static DEFINE_PER_CPU(struct scx_event_stats, event_stats_cpu);
  * @kind: a kind of event to dump
  */
 #define scx_dump_event(s, events, kind) do {					\
-	dump_line(&(s), "%30s: %16llu", #kind, (events)->kind);			\
+	dump_line(&(s), "%40s: %16llu", #kind, (events)->kind);			\
 } while (0)
 
 
@@ -4383,8 +4383,33 @@ static ssize_t scx_attr_ops_show(struct kobject *kobj,
 }
 SCX_ATTR(ops);
 
+#define scx_attr_event_show(buf, at, events, kind) ({				\
+	sysfs_emit_at(buf, at, "%s %llu\n", #kind, (events)->kind);		\
+})
+
+static ssize_t scx_attr_events_show(struct kobject *kobj,
+				    struct kobj_attribute *ka, char *buf)
+{
+	struct scx_event_stats events;
+	int at = 0;
+
+	scx_bpf_events(&events, sizeof(events));
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_SELECT_CPU_FALLBACK);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_LOCAL_DSQ_OFFLINE);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_DISPATCH_KEEP_LAST);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_EXITING);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SKIP_MIGRATION_DISABLED);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_ENQ_SLICE_DFL);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DURATION);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_DISPATCH);
+	at += scx_attr_event_show(buf, at, &events, SCX_EV_BYPASS_ACTIVATE);
+	return at;
+}
+SCX_ATTR(events);
+
 static struct attribute *scx_sched_attrs[] = {
 	&scx_attr_ops.attr,
+	&scx_attr_events.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(scx_sched);
