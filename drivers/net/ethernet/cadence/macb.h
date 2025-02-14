@@ -975,8 +975,7 @@ struct macb_stats {
 };
 
 struct gem_stats {
-	u64	tx_octets_31_0;
-	u64	tx_octets_47_32;
+	u64	tx_octets;
 	u64	tx_frames;
 	u64	tx_broadcast_frames;
 	u64	tx_multicast_frames;
@@ -995,8 +994,7 @@ struct gem_stats {
 	u64	tx_late_collisions;
 	u64	tx_deferred_frames;
 	u64	tx_carrier_sense_errors;
-	u64	rx_octets_31_0;
-	u64	rx_octets_47_32;
+	u64	rx_octets;
 	u64	rx_frames;
 	u64	rx_broadcast_frames;
 	u64	rx_multicast_frames;
