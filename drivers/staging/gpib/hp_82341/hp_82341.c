@@ -6,6 +6,10 @@
  *   copyright            : (C) 2002, 2005 by Frank Mori Hess              *
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "hp_82341.h"
 #include <linux/delay.h>
 #include <linux/ioport.h>
@@ -57,7 +61,7 @@ static int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t leng
 		retval = tms9914_read(board, tms_priv, buffer, 1, end, &num_bytes);
 		*bytes_read += num_bytes;
 		if (retval < 0)
-			pr_err("tms9914_read failed retval=%i\n", retval);
+			dev_err(board->gpib_dev, "tms9914_read failed retval=%i\n", retval);
 		if (retval < 0 || *end)
 			return retval;
 		++buffer;
@@ -93,7 +97,6 @@ static int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t leng
 						  test_bit(DEV_CLEAR_BN, &tms_priv->state) ||
 						  test_bit(TIMO_NUM, &board->status));
 		if (retval)  {
-			pr_warn("%s: read wait interrupted\n", __func__);
 			retval = -ERESTARTSYS;
 			break;
 		}
@@ -118,12 +121,10 @@ static int hp_82341_accel_read(gpib_board_t *board, uint8_t *buffer, size_t leng
 			tms_priv->holdoff_active = 1;
 		}
 		if (test_bit(TIMO_NUM, &board->status))	{
-			pr_debug("%s: minor %i: read timed out\n", __FILE__, board->minor);
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-			pr_warn("%s: device clear interrupted read\n", __FILE__);
 			retval = -EINTR;
 			break;
 		}
@@ -211,7 +212,7 @@ static int hp_82341_accel_write(gpib_board_t *board, uint8_t *buffer, size_t len
 		outb(ENABLE_TI_BUFFER_BIT, hp_priv->iobase[3] + BUFFER_CONTROL_REG);
 		retval = restart_write_fifo(board, hp_priv);
 		if (retval < 0)	{
-			pr_err("hp82341: failed to restart write stream\n");
+			dev_err(board->gpib_dev, "failed to restart write stream\n");
 			break;
 		}
 		retval = wait_event_interruptible(board->wait,
@@ -223,17 +224,14 @@ static int hp_82341_accel_write(gpib_board_t *board, uint8_t *buffer, size_t len
 		outb(0, hp_priv->iobase[3] + BUFFER_CONTROL_REG);
 		*bytes_written += block_size - read_transfer_counter(hp_priv);
 		if (retval) {
-			pr_warn("%s: write wait interrupted\n", __FILE__);
 			retval = -ERESTARTSYS;
 			break;
 		}
 		if (test_bit(TIMO_NUM, &board->status))	{
-			pr_debug("%s: minor %i: write timed out\n", __FILE__, board->minor);
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &tms_priv->state)) {
-			pr_warn("%s: device clear interrupted write\n", __FILE__);
 			retval = -EINTR;
 			break;
 		}
@@ -495,21 +493,21 @@ static int hp_82341_find_isapnp_board(struct pnp_dev **dev)
 	*dev = pnp_find_dev(NULL, ISAPNP_VENDOR('H', 'W', 'P'),
 			    ISAPNP_FUNCTION(0x1411), NULL);
 	if (!*dev || !(*dev)->card) {
-		pr_err("hp_82341: failed to find isapnp board\n");
+		pr_err("failed to find isapnp board\n");
 		return -ENODEV;
 	}
 	if (pnp_device_attach(*dev) < 0) {
-		pr_err("hp_82341: board already active, skipping\n");
+		pr_err("board already active, skipping\n");
 		return -EBUSY;
 	}
 	if (pnp_activate_dev(*dev) < 0) {
 		pnp_device_detach(*dev);
-		pr_err("hp_82341: failed to activate() atgpib/tnt, aborting\n");
+		pr_err("failed to activate(), aborting\n");
 		return -EAGAIN;
 	}
 	if (!pnp_port_valid(*dev, 0) || !pnp_irq_valid(*dev, 0)) {
 		pnp_device_detach(*dev);
-		pr_err("hp_82341: invalid port or irq for atgpib/tnt, aborting\n");
+		pr_err("invalid port or irq, aborting\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -530,7 +528,7 @@ static int xilinx_ready(struct hp_82341_priv *hp_priv)
 		else
 			return 0;
 	default:
-		pr_err("hp_82341: %s: bug! unknown hw_version\n", __func__);
+		pr_err("bug! unknown hw_version\n");
 		break;
 	}
 	return 0;
@@ -550,7 +548,7 @@ static int xilinx_done(struct hp_82341_priv *hp_priv)
 		else
 			return 0;
 	default:
-		pr_err("hp_82341: %s: bug! unknown hw_version\n", __func__);
+		pr_err("bug! unknown hw_version\n");
 		break;
 	}
 	return 0;
@@ -571,7 +569,7 @@ static int irq_valid(struct hp_82341_priv *hp_priv, int irq)
 		case 15:
 			return 1;
 		default:
-			pr_err("hp_82341: invalid irq=%i for 82341C, irq must be 3, 5, 7, 9, 10, 11, 12, or 15.\n",
+			pr_err("invalid irq=%i for 82341C, irq must be 3, 5, 7, 9, 10, 11, 12, or 15.\n",
 			       irq);
 			return 0;
 		}
@@ -579,7 +577,7 @@ static int irq_valid(struct hp_82341_priv *hp_priv, int irq)
 	case HW_VERSION_82341D:
 		return 1;
 	default:
-		pr_err("hp_82341: %s: bug! unknown hw_version\n", __func__);
+		pr_err("bug! unknown hw_version\n");
 		break;
 	}
 	return 0;
@@ -601,7 +599,7 @@ static int hp_82341_load_firmware_array(struct hp_82341_priv *hp_priv,
 			usleep_range(10, 15);
 		}
 		if (j == timeout) {
-			pr_err("hp_82341: timed out waiting for Xilinx ready.\n");
+			pr_err("timed out waiting for Xilinx ready.\n");
 			return -ETIMEDOUT;
 		}
 		outb(firmware_data[i], hp_priv->iobase[0] + XILINX_DATA_REG);
@@ -614,7 +612,7 @@ static int hp_82341_load_firmware_array(struct hp_82341_priv *hp_priv,
 		usleep_range(10, 15);
 	}
 	if (j == timeout) {
-		pr_err("hp_82341: timed out waiting for Xilinx done.\n");
+		pr_err("timed out waiting for Xilinx done.\n");
 		return -ETIMEDOUT;
 	}
 	return 0;
@@ -625,27 +623,27 @@ static int hp_82341_load_firmware(struct hp_82341_priv *hp_priv, const gpib_boar
 	if (config->init_data_length == 0) {
 		if (xilinx_done(hp_priv))
 			return 0;
-		pr_err("hp_82341: board needs be initialized with firmware upload.\n"
+		pr_err("board needs be initialized with firmware upload.\n"
 		       "\tUse the --init-data option of gpib_config.\n");
 		return -EINVAL;
 	}
 	switch (hp_priv->hw_version) {
 	case HW_VERSION_82341C:
 		if (config->init_data_length != hp_82341c_firmware_length) {
-			pr_err("hp_82341: bad firmware length=%i for 82341c (expected %i).\n",
+			pr_err("bad firmware length=%i for 82341c (expected %i).\n",
 			       config->init_data_length, hp_82341c_firmware_length);
 			return -EINVAL;
 		}
 		break;
 	case HW_VERSION_82341D:
 		if (config->init_data_length != hp_82341d_firmware_length) {
-			pr_err("hp_82341: bad firmware length=%i for 82341d (expected %i).\n",
+			pr_err("bad firmware length=%i for 82341d (expected %i).\n",
 			       config->init_data_length, hp_82341d_firmware_length);
 			return -EINVAL;
 		}
 		break;
 	default:
-		pr_err("hp_82341: %s: bug! unknown hw_version\n", __func__);
+		pr_err("bug! unknown hw_version\n");
 		break;
 	}
 	return hp_82341_load_firmware_array(hp_priv, config->init_data, config->init_data_length);
@@ -723,13 +721,12 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 		hp_priv->hw_version = HW_VERSION_82341C;
 		hp_priv->io_region_offset = 0x400;
 	}
-	pr_info("hp_82341: base io 0x%u\n", iobase);
 	for (i = 0; i < hp_82341_num_io_regions; ++i) {
 		start_addr = iobase + i * hp_priv->io_region_offset;
-		if (!request_region(start_addr, hp_82341_region_iosize, "hp_82341")) {
-			pr_err("hp_82341: failed to allocate io ports 0x%x-0x%x\n",
-			       start_addr,
-			       start_addr + hp_82341_region_iosize - 1);
+		if (!request_region(start_addr, hp_82341_region_iosize, DRV_NAME)) {
+			dev_err(board->gpib_dev, "failed to allocate io ports 0x%x-0x%x\n",
+				start_addr,
+				start_addr + hp_82341_region_iosize - 1);
 			return -EIO;
 		}
 		hp_priv->iobase[i] = start_addr;
@@ -739,7 +736,7 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 		retval = isapnp_cfg_begin(hp_priv->pnp_dev->card->number,
 					  hp_priv->pnp_dev->number);
 		if (retval < 0)	{
-			pr_err("hp_82341: isapnp_cfg_begin returned error\n");
+			dev_err(board->gpib_dev, "isapnp_cfg_begin returned error\n");
 			return retval;
 		}
 		isapnp_write_byte(PIO_DIRECTION_REG, HP_82341D_XILINX_READY_BIT |
@@ -755,12 +752,11 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 		return retval;
 	if (irq_valid(hp_priv, irq) == 0)
 		return -EINVAL;
-	if (request_irq(irq, hp_82341_interrupt, 0, "hp_82341", board))	{
-		pr_err("hp_82341: failed to allocate IRQ %d\n", irq);
+	if (request_irq(irq, hp_82341_interrupt, 0, DRV_NAME, board))	{
+		dev_err(board->gpib_dev, "failed to allocate IRQ %d\n", irq);
 		return -EIO;
 	}
 	hp_priv->irq = irq;
-	pr_info("hp_82341: IRQ %d\n", irq);
 	hp_priv->config_control_bits &= ~IRQ_SELECT_MASK;
 	hp_priv->config_control_bits |= IRQ_SELECT_BITS(irq);
 	outb(hp_priv->config_control_bits, hp_priv->iobase[0] + CONFIG_CONTROL_STATUS_REG);
@@ -777,9 +773,7 @@ static int hp_82341_attach(gpib_board_t *board, const gpib_board_config_t *confi
 	     hp_priv->iobase[0] + EVENT_STATUS_REG);
 
 	tms9914_online(board, tms_priv);
-	pr_info("hp_82341: board id %x %x %x %x\n", inb(hp_priv->iobase[1] + ID0_REG),
-		inb(hp_priv->iobase[1] + ID1_REG), inb(hp_priv->iobase[2] + ID2_REG),
-		inb(hp_priv->iobase[2] + ID3_REG));
+
 	return 0;
 }
 
@@ -820,13 +814,13 @@ static int __init hp_82341_init_module(void)
 
 	ret = gpib_register_driver(&hp_82341_unaccel_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		return ret;
 	}
 
 	ret = gpib_register_driver(&hp_82341_interface, THIS_MODULE);
 	if (ret) {
-		pr_err("hp_82341: gpib_register_driver failed: error = %d\n", ret);
+		pr_err("gpib_register_driver failed: error = %d\n", ret);
 		gpib_unregister_driver(&hp_82341_unaccel_interface);
 		return ret;
 	}
@@ -871,7 +865,6 @@ static irqreturn_t hp_82341_interrupt(int irq, void *arg)
 
 	spin_lock_irqsave(&board->spinlock, flags);
 	event_status = inb(hp_priv->iobase[0] + EVENT_STATUS_REG);
-//	printk("hp_82341: interrupt event_status=0x%x\n", event_status);
 	if (event_status & INTERRUPT_PENDING_EVENT_BIT)
 		retval = IRQ_HANDLED;
 	//write-clear status bits
@@ -886,9 +879,6 @@ static irqreturn_t hp_82341_interrupt(int irq, void *arg)
 		status1 = read_byte(tms_priv, ISR0);
 		status2 = read_byte(tms_priv, ISR1);
 		tms9914_interrupt_have_status(board, tms_priv, status1, status2);
-/*		printk("hp_82341: interrupt status1=0x%x status2=0x%x\n",
- *			status1, status2);
- */
 	}
 	spin_unlock_irqrestore(&board->spinlock, flags);
 	return retval;
