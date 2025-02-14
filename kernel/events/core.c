@@ -13742,13 +13742,13 @@ perf_event_exit_event(struct perf_event *event, struct perf_event_context *ctx)
 	perf_event_wakeup(event);
 }
 
-static void perf_event_exit_task_context(struct task_struct *child, bool exit)
+static void perf_event_exit_task_context(struct task_struct *task, bool exit)
 {
-	struct perf_event_context *child_ctx, *clone_ctx = NULL;
+	struct perf_event_context *ctx, *clone_ctx = NULL;
 	struct perf_event *child_event, *next;
 
-	child_ctx = perf_pin_task_context(child);
-	if (!child_ctx)
+	ctx = perf_pin_task_context(task);
+	if (!ctx)
 		return;
 
 	/*
@@ -13761,28 +13761,28 @@ static void perf_event_exit_task_context(struct task_struct *child, bool exit)
 	 * without ctx::mutex (it cannot because of the move_group double mutex
 	 * lock thing). See the comments in perf_install_in_context().
 	 */
-	mutex_lock(&child_ctx->mutex);
+	mutex_lock(&ctx->mutex);
 
 	/*
 	 * In a single ctx::lock section, de-schedule the events and detach the
 	 * context from the task such that we cannot ever get it scheduled back
 	 * in.
 	 */
-	raw_spin_lock_irq(&child_ctx->lock);
+	raw_spin_lock_irq(&ctx->lock);
 	if (exit)
-		task_ctx_sched_out(child_ctx, NULL, EVENT_ALL);
+		task_ctx_sched_out(ctx, NULL, EVENT_ALL);
 
 	/*
 	 * Now that the context is inactive, destroy the task <-> ctx relation
 	 * and mark the context dead.
 	 */
-	RCU_INIT_POINTER(child->perf_event_ctxp, NULL);
-	put_ctx(child_ctx); /* cannot be last */
-	WRITE_ONCE(child_ctx->task, TASK_TOMBSTONE);
-	put_task_struct(child); /* cannot be last */
+	RCU_INIT_POINTER(task->perf_event_ctxp, NULL);
+	put_ctx(ctx); /* cannot be last */
+	WRITE_ONCE(ctx->task, TASK_TOMBSTONE);
+	put_task_struct(task); /* cannot be last */
 
-	clone_ctx = unclone_ctx(child_ctx);
-	raw_spin_unlock_irq(&child_ctx->lock);
+	clone_ctx = unclone_ctx(ctx);
+	raw_spin_unlock_irq(&ctx->lock);
 
 	if (clone_ctx)
 		put_ctx(clone_ctx);
@@ -13793,12 +13793,12 @@ static void perf_event_exit_task_context(struct task_struct *child, bool exit)
 	 * get a few PERF_RECORD_READ events.
 	 */
 	if (exit)
-		perf_event_task(child, child_ctx, 0);
+		perf_event_task(task, ctx, 0);
 
-	list_for_each_entry_safe(child_event, next, &child_ctx->event_list, event_entry)
-		perf_event_exit_event(child_event, child_ctx);
+	list_for_each_entry_safe(child_event, next, &ctx->event_list, event_entry)
+		perf_event_exit_event(child_event, ctx);
 
-	mutex_unlock(&child_ctx->mutex);
+	mutex_unlock(&ctx->mutex);
 
 	if (!exit) {
 		/*
@@ -13814,24 +13814,26 @@ static void perf_event_exit_task_context(struct task_struct *child, bool exit)
 		 *
 		 * Wait for all events to drop their context reference.
 		 */
-		wait_var_event(&child_ctx->refcount,
-			       refcount_read(&child_ctx->refcount) == 1);
+		wait_var_event(&ctx->refcount,
+			       refcount_read(&ctx->refcount) == 1);
 	}
-	put_ctx(child_ctx);
+	put_ctx(ctx);
 }
 
 /*
- * When a child task exits, feed back event values to parent events.
+ * When a task exits, feed back event values to parent events.
  *
  * Can be called with exec_update_lock held when called from
  * setup_new_exec().
  */
-void perf_event_exit_task(struct task_struct *child)
+void perf_event_exit_task(struct task_struct *task)
 {
 	struct perf_event *event, *tmp;
 
-	mutex_lock(&child->perf_event_mutex);
-	list_for_each_entry_safe(event, tmp, &child->perf_event_list,
+	WARN_ON_ONCE(task != current);
+
+	mutex_lock(&task->perf_event_mutex);
+	list_for_each_entry_safe(event, tmp, &task->perf_event_list,
 				 owner_entry) {
 		list_del_init(&event->owner_entry);
 
@@ -13842,23 +13844,23 @@ void perf_event_exit_task(struct task_struct *child)
 		 */
 		smp_store_release(&event->owner, NULL);
 	}
-	mutex_unlock(&child->perf_event_mutex);
+	mutex_unlock(&task->perf_event_mutex);
 
-	perf_event_exit_task_context(child, true);
+	perf_event_exit_task_context(task, true);
 
 	/*
 	 * The perf_event_exit_task_context calls perf_event_task
-	 * with child's task_ctx, which generates EXIT events for
-	 * child contexts and sets child->perf_event_ctxp[] to NULL.
+	 * with task's task_ctx, which generates EXIT events for
+	 * task contexts and sets task->perf_event_ctxp[] to NULL.
 	 * At this point we need to send EXIT events to cpu contexts.
 	 */
-	perf_event_task(child, NULL, 0);
+	perf_event_task(task, NULL, 0);
 
 	/*
 	 * Detach the perf_ctx_data for the system-wide event.
 	 */
 	guard(percpu_read)(&global_ctx_data_rwsem);
-	detach_task_ctx_data(child);
+	detach_task_ctx_data(task);
 }
 
 /*
