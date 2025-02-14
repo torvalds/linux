@@ -481,4 +481,56 @@ l1_%=:	r0 = 42;					\
 	: __clobber_all);
 }
 
+SEC("socket")
+__description("PTR_TO_STACK stack size > 512")
+__failure __msg("invalid write to stack R1 off=-520 size=8")
+__naked void stack_check_size_gt_512(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -520;					\
+	r0 = 42;					\
+	*(u64*)(r1 + 0) = r0;				\
+	exit;						\
+"	::: __clobber_all);
+}
+
+#ifdef __BPF_FEATURE_MAY_GOTO
+SEC("socket")
+__description("PTR_TO_STACK stack size 512 with may_goto with jit")
+__load_if_JITed()
+__success __retval(42)
+__naked void stack_check_size_512_with_may_goto_jit(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -512;					\
+	r0 = 42;					\
+	*(u32*)(r1 + 0) = r0;				\
+	may_goto l0_%=;					\
+	r2 = 100;					\
+	l0_%=:						\
+	exit;						\
+"	::: __clobber_all);
+}
+
+SEC("socket")
+__description("PTR_TO_STACK stack size 512 with may_goto without jit")
+__load_if_no_JITed()
+__failure __msg("stack size 520(extra 8) is too large")
+__naked void stack_check_size_512_with_may_goto(void)
+{
+	asm volatile ("					\
+	r1 = r10;					\
+	r1 += -512;					\
+	r0 = 42;					\
+	*(u32*)(r1 + 0) = r0;				\
+	may_goto l0_%=;					\
+	r2 = 100;					\
+	l0_%=:						\
+	exit;						\
+"	::: __clobber_all);
+}
+#endif
+
 char _license[] SEC("license") = "GPL";
