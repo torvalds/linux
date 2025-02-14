@@ -270,7 +270,7 @@ static bool bvec_split_segs(const struct queue_limits *lim,
 		const struct bio_vec *bv, unsigned *nsegs, unsigned *bytes,
 		unsigned max_segs, unsigned max_bytes)
 {
-	unsigned max_len = min(max_bytes, UINT_MAX) - *bytes;
+	unsigned max_len = max_bytes - *bytes;
 	unsigned len = min(bv->bv_len, max_len);
 	unsigned total_len = 0;
 	unsigned seg_size = 0;
