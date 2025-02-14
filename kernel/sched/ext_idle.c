@@ -12,7 +12,7 @@
 #include "ext_idle.h"
 
 /* Enable/disable built-in idle CPU selection policy */
-DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_enabled);
+static DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_enabled);
 
 #ifdef CONFIG_SMP
 #ifdef CONFIG_CPUMASK_OFFSTACK
@@ -22,10 +22,10 @@ DEFINE_STATIC_KEY_FALSE(scx_builtin_idle_enabled);
 #endif
 
 /* Enable/disable LLC aware optimizations */
-DEFINE_STATIC_KEY_FALSE(scx_selcpu_topo_llc);
+static DEFINE_STATIC_KEY_FALSE(scx_selcpu_topo_llc);
 
 /* Enable/disable NUMA aware optimizations */
-DEFINE_STATIC_KEY_FALSE(scx_selcpu_topo_numa);
+static DEFINE_STATIC_KEY_FALSE(scx_selcpu_topo_numa);
 
 static struct {
 	cpumask_var_t cpu;
@@ -441,16 +441,6 @@ cpu_found:
 	return cpu;
 }
 
-void scx_idle_reset_masks(void)
-{
-	/*
-	 * Consider all online cpus idle. Should converge to the actual state
-	 * quickly.
-	 */
-	cpumask_copy(idle_masks.cpu, cpu_online_mask);
-	cpumask_copy(idle_masks.smt, cpu_online_mask);
-}
-
 void scx_idle_init_masks(void)
 {
 	BUG_ON(!alloc_cpumask_var(&idle_masks.cpu, GFP_KERNEL));
@@ -531,6 +521,29 @@ void __scx_update_idle(struct rq *rq, bool idle, bool do_notify)
 			update_builtin_idle(cpu, idle);
 }
 #endif	/* CONFIG_SMP */
+
+void scx_idle_enable(struct sched_ext_ops *ops)
+{
+	if (ops->update_idle && !(ops->flags & SCX_OPS_KEEP_BUILTIN_IDLE)) {
+		static_branch_disable(&scx_builtin_idle_enabled);
+		return;
+	}
+	static_branch_enable(&scx_builtin_idle_enabled);
+
+#ifdef CONFIG_SMP
+	/*
+	 * Consider all online cpus idle. Should converge to the actual state
+	 * quickly.
+	 */
+	cpumask_copy(idle_masks.cpu, cpu_online_mask);
+	cpumask_copy(idle_masks.smt, cpu_online_mask);
+#endif
+}
+
+void scx_idle_disable(void)
+{
+	static_branch_disable(&scx_builtin_idle_enabled);
+}
 
 /********************************************************************************
  * Helpers that can be called from the BPF scheduler.

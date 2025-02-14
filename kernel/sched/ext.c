@@ -4765,7 +4765,7 @@ static void scx_ops_disable_workfn(struct kthread_work *work)
 	static_branch_disable(&scx_ops_enq_exiting);
 	static_branch_disable(&scx_ops_enq_migration_disabled);
 	static_branch_disable(&scx_ops_cpu_preempt);
-	static_branch_disable(&scx_builtin_idle_enabled);
+	scx_idle_disable();
 	synchronize_rcu();
 
 	if (ei->kind >= SCX_EXIT_ERROR) {
@@ -5403,12 +5403,7 @@ static int scx_ops_enable(struct sched_ext_ops *ops, struct bpf_link *link)
 	if (scx_ops.cpu_acquire || scx_ops.cpu_release)
 		static_branch_enable(&scx_ops_cpu_preempt);
 
-	if (!ops->update_idle || (ops->flags & SCX_OPS_KEEP_BUILTIN_IDLE)) {
-		scx_idle_reset_masks();
-		static_branch_enable(&scx_builtin_idle_enabled);
-	} else {
-		static_branch_disable(&scx_builtin_idle_enabled);
-	}
+	scx_idle_enable(ops);
 
 	/*
 	 * Lock out forks, cgroup on/offlining and moves before opening the

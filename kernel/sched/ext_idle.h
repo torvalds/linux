@@ -10,20 +10,15 @@
 #ifndef _KERNEL_SCHED_EXT_IDLE_H
 #define _KERNEL_SCHED_EXT_IDLE_H
 
-extern struct static_key_false scx_builtin_idle_enabled;
+struct sched_ext_ops;
 
 #ifdef CONFIG_SMP
-extern struct static_key_false scx_selcpu_topo_llc;
-extern struct static_key_false scx_selcpu_topo_numa;
-
 void scx_idle_update_selcpu_topology(void);
-void scx_idle_reset_masks(void);
 void scx_idle_init_masks(void);
 bool scx_idle_test_and_clear_cpu(int cpu);
 s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, u64 flags);
 #else /* !CONFIG_SMP */
 static inline void scx_idle_update_selcpu_topology(void) {}
-static inline void scx_idle_reset_masks(void) {}
 static inline void scx_idle_init_masks(void) {}
 static inline bool scx_idle_test_and_clear_cpu(int cpu) { return false; }
 static inline s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, u64 flags)
@@ -33,7 +28,8 @@ static inline s32 scx_pick_idle_cpu(const struct cpumask *cpus_allowed, u64 flag
 #endif /* CONFIG_SMP */
 
 s32 scx_select_cpu_dfl(struct task_struct *p, s32 prev_cpu, u64 wake_flags, bool *found);
-
-extern int scx_idle_init(void);
+void scx_idle_enable(struct sched_ext_ops *ops);
+void scx_idle_disable(void);
+int scx_idle_init(void);
 
 #endif /* _KERNEL_SCHED_EXT_IDLE_H */
