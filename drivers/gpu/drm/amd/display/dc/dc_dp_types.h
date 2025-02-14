@@ -410,14 +410,6 @@ union dwnstream_port_caps_byte3_hdmi {
 	uint8_t raw;
 };
 
-union hdmi_sink_encoded_link_bw_support {
-	struct {
-		uint8_t HDMI_SINK_ENCODED_LINK_BW_SUPPORT:3;
-		uint8_t RESERVED:5;
-	} bits;
-	uint8_t raw;
-};
-
 union hdmi_encoded_link_bw {
 	struct {
 		uint8_t FRL_MODE:1; // Bit 0
