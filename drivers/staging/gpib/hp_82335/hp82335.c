@@ -8,6 +8,10 @@
  *	implement recovery from bus errors (if necessary)
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include "hp82335.h"
 #include <linux/io.h>
 #include <linux/ioport.h>
@@ -274,26 +278,23 @@ static int hp82335_attach(gpib_board_t *board, const gpib_board_config_t *config
 	case 0xfc000:
 		break;
 	default:
-		pr_err("hp82335: invalid base io address 0x%u\n", config->ibbase);
+		dev_err(board->gpib_dev, "invalid base io address 0x%x\n", config->ibbase);
 		return -EINVAL;
 	}
 	if (!request_mem_region(upper_iomem_base, hp82335_upper_iomem_size, "hp82335")) {
-		pr_err("hp82335: failed to allocate io memory region 0x%lx-0x%lx\n",
-		       upper_iomem_base, upper_iomem_base + hp82335_upper_iomem_size - 1);
+		dev_err(board->gpib_dev, "failed to allocate io memory region 0x%lx-0x%lx\n",
+			upper_iomem_base, upper_iomem_base + hp82335_upper_iomem_size - 1);
 		return -EBUSY;
 	}
 	hp_priv->raw_iobase = upper_iomem_base;
 	tms_priv->mmiobase = ioremap(upper_iomem_base, hp82335_upper_iomem_size);
-	pr_info("hp82335: upper half of 82335 iomem region 0x%lx remapped to 0x%p\n",
-		hp_priv->raw_iobase, tms_priv->mmiobase);
 
-	retval = request_irq(config->ibirq, hp82335_interrupt, 0, "hp82335", board);
+	retval = request_irq(config->ibirq, hp82335_interrupt, 0, DRV_NAME, board);
 	if (retval) {
-		pr_err("hp82335: can't request IRQ %d\n", config->ibirq);
+		dev_err(board->gpib_dev, "can't request IRQ %d\n", config->ibirq);
 		return retval;
 	}
 	hp_priv->irq = config->ibirq;
-	pr_info("hp82335: IRQ %d\n", config->ibirq);
 
 	tms9914_board_reset(tms_priv);
 
@@ -331,7 +332,7 @@ static int __init hp82335_init_module(void)
 	int result = gpib_register_driver(&hp82335_interface, THIS_MODULE);
 
 	if (result) {
-		pr_err("hp82335: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
