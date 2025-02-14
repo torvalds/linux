@@ -116,12 +116,12 @@ static int amd_pstate_ut_check_perf(u32 index)
 	struct amd_cpudata *cpudata = NULL;
 	union perf_cached cur_perf;
 
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
 
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
-			break;
+			continue;
 		cpudata = policy->driver_data;
 
 		if (get_shared_mem()) {
@@ -188,12 +188,12 @@ static int amd_pstate_ut_check_freq(u32 index)
 	int cpu = 0;
 	struct amd_cpudata *cpudata = NULL;
 
-	for_each_possible_cpu(cpu) {
+	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy __free(put_cpufreq_policy) = NULL;
 
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
-			break;
+			continue;
 		cpudata = policy->driver_data;
 
 		if (!((policy->cpuinfo.max_freq >= cpudata->nominal_freq) &&
