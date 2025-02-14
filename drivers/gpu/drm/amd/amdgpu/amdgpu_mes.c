@@ -1681,7 +1681,8 @@ bool amdgpu_mes_suspend_resume_all_supported(struct amdgpu_device *adev)
 }
 
 /* Fix me -- node_id is used to identify the correct MES instances in the future */
-int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_id, bool enable)
+static int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev,
+					    uint32_t node_id, bool enable)
 {
 	struct mes_misc_op_input op_input = {0};
 	int r;
@@ -1700,6 +1701,23 @@ int amdgpu_mes_set_enforce_isolation(struct amdgpu_device *adev, uint32_t node_i
 		dev_err(adev->dev, "failed to change_config.\n");
 
 error:
+	return r;
+}
+
+int amdgpu_mes_update_enforce_isolation(struct amdgpu_device *adev)
+{
+	int i, r = 0;
+
+	if (adev->enable_mes && adev->gfx.enable_cleaner_shader) {
+		mutex_lock(&adev->enforce_isolation_mutex);
+		for (i = 0; i < (adev->xcp_mgr ? adev->xcp_mgr->num_xcps : 1); i++) {
+			if (adev->enforce_isolation[i])
+				r |= amdgpu_mes_set_enforce_isolation(adev, i, true);
+			else
+				r |= amdgpu_mes_set_enforce_isolation(adev, i, false);
+		}
+		mutex_unlock(&adev->enforce_isolation_mutex);
+	}
 	return r;
 }
 
