@@ -22,6 +22,8 @@
 		serial3 = &main_uart1;
 		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
+		rtc0 = &wkup_rtc0;
+		rtc1 = &tps659312;
 	};
 
 	chosen {
