@@ -2525,23 +2525,6 @@ static void intel_ddi_mso_configure(const struct intel_crtc_state *crtc_state)
 		     OVERLAP_PIXELS_MASK, dss1);
 }
 
-static u8 mtl_get_port_width(u8 lane_count)
-{
-	switch (lane_count) {
-	case 1:
-		return 0;
-	case 2:
-		return 1;
-	case 3:
-		return 4;
-	case 4:
-		return 3;
-	default:
-		MISSING_CASE(lane_count);
-		return 4;
-	}
-}
-
 static void
 mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 {
@@ -2575,7 +2558,7 @@ static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	u32 val = 0;
 
-	val |= XELPDP_PORT_WIDTH(mtl_get_port_width(crtc_state->lane_count));
+	val |= XELPDP_PORT_WIDTH(crtc_state->lane_count);
 
 	if (intel_dp_is_uhbr(crtc_state))
 		val |= XELPDP_PORT_BUF_PORT_DATA_40BIT;
@@ -3496,10 +3479,9 @@ static void intel_ddi_enable_hdmi(struct intel_atomic_state *state,
 		buf_ctl |= DDI_A_4_LANES;
 
 	if (DISPLAY_VER(dev_priv) >= 14) {
-		u8  lane_count = mtl_get_port_width(crtc_state->lane_count);
 		u32 port_buf = 0;
 
-		port_buf |= XELPDP_PORT_WIDTH(lane_count);
+		port_buf |= XELPDP_PORT_WIDTH(crtc_state->lane_count);
 
 		if (dig_port->lane_reversal)
 			port_buf |= XELPDP_PORT_REVERSAL;
