@@ -24,10 +24,10 @@ static asmlinkage long sys_new_thread_group_leader(void);
 typedef long (*syscall_handler_t)(long arg1, ...);
 
 #undef __SYSCALL
-#define __SYSCALL(nr, sym) [nr] = (syscall_handler_t)sym,
+#define __SYSCALL(nr, sym)[nr] = sym,
 
-syscall_handler_t syscall_table[__NR_syscalls] = {
-	[0 ... __NR_syscalls - 1] =  (syscall_handler_t)sys_ni_syscall,
+void *syscall_table[__NR_syscalls] = {
+	[0 ... __NR_syscalls - 1] =  sys_ni_syscall,
 #include <asm/unistd.h>
 
 #if __BITS_PER_LONG == 32
@@ -38,12 +38,13 @@ syscall_handler_t syscall_table[__NR_syscalls] = {
 static long run_syscall(long no, long *params)
 {
 	long ret;
+	syscall_handler_t handler = (syscall_handler_t)syscall_table[no];
 
 	if (no < 0 || no >= __NR_syscalls)
 		return -ENOSYS;
 
-	ret = syscall_table[no](params[0], params[1], params[2], params[3],
-				params[4], params[5]);
+	ret = handler(params[0], params[1], params[2], params[3], params[4],
+		      params[5]);
 
 	task_work_run();
 
