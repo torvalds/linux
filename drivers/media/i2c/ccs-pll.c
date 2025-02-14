@@ -124,9 +124,10 @@ static void print_pll(struct device *dev, const struct ccs_pll *pll)
 	dev_dbg(dev, "pixel rate on CSI-2 bus:\t%u\n",
 		pll->pixel_rate_csi);
 
-	dev_dbg(dev, "flags%s%s%s%s%s%s%s%s%s%s\n",
+	dev_dbg(dev, "flags%s%s%s%s%s%s%s%s%s%s%s\n",
 		pll->flags & PLL_FL(OP_PIX_CLOCK_PER_LANE) ? " op-pix-clock-per-lane" : "",
 		pll->flags & PLL_FL(NO_OP_CLOCKS) ? " no-op-clocks" : "",
+		pll->flags & PLL_FL(EVEN_PLL_MULTIPLIER) ? " even-pll-multiplier" : "",
 		pll->flags & PLL_FL(LANE_SPEED_MODEL) ? " lane-speed" : "",
 		pll->flags & PLL_FL(EXT_IP_PLL_DIVIDER) ?
 		" ext-ip-pll-divider" : "",
@@ -311,6 +312,10 @@ __ccs_pll_calculate_vt_tree(struct device *dev,
 	dev_dbg(dev, "more_mul: %u\n", more_mul);
 	more_mul *= DIV_ROUND_UP(lim_fr->min_pll_multiplier, mul * more_mul);
 	dev_dbg(dev, "more_mul2: %u\n", more_mul);
+
+	if (pll->flags & CCS_PLL_FLAG_EVEN_PLL_MULTIPLIER &&
+	    (mul & 1) && (more_mul & 1))
+		more_mul <<= 1;
 
 	pll_fr->pll_multiplier = mul * more_mul;
 	if (pll_fr->pll_multiplier > lim_fr->max_pll_multiplier) {
@@ -666,6 +671,10 @@ ccs_pll_calculate_op(struct device *dev, const struct ccs_pll_limits *lim,
 		more_mul_factor);
 	i = roundup(more_mul_min, more_mul_factor);
 	if (!is_one_or_even(i))
+		i <<= 1;
+
+	if (pll->flags & CCS_PLL_FLAG_EVEN_PLL_MULTIPLIER &&
+	    mul & 1 && i & 1)
 		i <<= 1;
 
 	dev_dbg(dev, "final more_mul: %u\n", i);

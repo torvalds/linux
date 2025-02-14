@@ -22,6 +22,7 @@
 /* op pix clock is for all lanes in total normally */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
 #define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+#define CCS_PLL_FLAG_EVEN_PLL_MULTIPLIER			BIT(3)
 /* CCS PLL flags */
 #define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
 #define CCS_PLL_FLAG_EXT_IP_PLL_DIVIDER				BIT(4)
