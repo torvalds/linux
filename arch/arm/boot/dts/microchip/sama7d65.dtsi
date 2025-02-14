@@ -9,6 +9,7 @@
  */
 
 #include <dt-bindings/clock/at91.h>
+#include <dt-bindings/dma/at91.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -88,6 +89,17 @@
 			reg = <0xe0020000 0x8>;
 		};
 
+		dma2: dma-controller@e1200000 {
+			compatible = "microchip,sama7d65-dma", "microchip,sama7g5-dma";
+			reg = <0xe1200000 0x1000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 23>;
+			clock-names = "dma_clk";
+			dma-requests = <0>;
+			status = "disabled";
+		};
+
 		sdmmc1: mmc@e1208000 {
 			compatible = "microchip,sama7d65-sdhci", "microchip,sam9x60-sdhci";
 			reg = <0xe1208000 0x400>;
@@ -97,6 +109,26 @@
 			assigned-clocks = <&pmc PMC_TYPE_GCK 76>;
 			assigned-clock-rates = <200000000>;
 			assigned-clock-parents = <&pmc PMC_TYPE_CORE PMC_MCK1>;
+			status = "disabled";
+		};
+
+		dma0: dma-controller@e1610000 {
+			compatible = "microchip,sama7d65-dma", "microchip,sama7g5-dma";
+			reg = <0xe1610000 0x1000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 21>;
+			clock-names = "dma_clk";
+			status = "disabled";
+		};
+
+		dma1: dma-controller@e1614000 {
+			compatible = "microchip,sama7d65-dma", "microchip,sama7g5-dma";
+			reg = <0xe1614000 0x1000>;
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			#dma-cells = <1>;
+			clocks = <&pmc PMC_TYPE_PERIPHERAL 22>;
+			clock-names = "dma_clk";
 			status = "disabled";
 		};
 
