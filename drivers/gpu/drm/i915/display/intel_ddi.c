@@ -177,69 +177,63 @@ static void hsw_prepare_hdmi_ddi_buffers(struct intel_encoder *encoder,
 		       trans->entries[level].hsw.trans2);
 }
 
-static void mtl_wait_ddi_buf_idle(struct drm_i915_private *i915, enum port port)
+static i915_reg_t intel_ddi_buf_status_reg(struct intel_display *display, enum port port)
 {
-	int ret;
+	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	/* FIXME: find out why Bspec's 100us timeout is too short */
-	ret = wait_for_us((intel_de_read(i915, XELPDP_PORT_BUF_CTL1(i915, port)) &
-			   XELPDP_PORT_BUF_PHY_IDLE), 10000);
-	if (ret)
-		drm_err(&i915->drm, "Timeout waiting for DDI BUF %c to get idle\n",
-			port_name(port));
+	if (DISPLAY_VER(display) >= 14)
+		return XELPDP_PORT_BUF_CTL1(i915, port);
+	else
+		return DDI_BUF_CTL(port);
 }
 
 void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 			     enum port port)
 {
-	if (IS_BROXTON(dev_priv)) {
+	struct intel_display *display = &dev_priv->display;
+
+	/*
+	 * Bspec's platform specific timeouts:
+	 * MTL+   : 100 us
+	 * BXT    : fixed 16 us
+	 * HSW-ADL: 8 us
+	 *
+	 * FIXME: MTL requires 10 ms based on tests, find out why 100 us is too short
+	 */
+	if (display->platform.broxton) {
 		udelay(16);
 		return;
 	}
 
-	if (wait_for_us((intel_de_read(dev_priv, DDI_BUF_CTL(port)) &
-			 DDI_BUF_IS_IDLE), 8))
-		drm_err(&dev_priv->drm, "Timeout waiting for DDI BUF %c to get idle\n",
+	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
+	if (intel_de_wait_for_set(display, intel_ddi_buf_status_reg(display, port),
+				  DDI_BUF_IS_IDLE, 10))
+		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get idle\n",
 			port_name(port));
 }
 
 static void intel_wait_ddi_buf_active(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 	enum port port = encoder->port;
-	int timeout_us;
-	int ret;
 
-	/* Wait > 518 usecs for DDI_BUF_CTL to be non idle */
-	if (DISPLAY_VER(dev_priv) < 10) {
+	/*
+	 * Bspec's platform specific timeouts:
+	 * MTL+             : 10000 us
+	 * DG2              : 1200 us
+	 * TGL-ADL combo PHY: 1000 us
+	 * TGL-ADL TypeC PHY: 3000 us
+	 * HSW-ICL          : fixed 518 us
+	 */
+	if (DISPLAY_VER(display) < 10) {
 		usleep_range(518, 1000);
 		return;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 14) {
-		timeout_us = 10000;
-	} else if (IS_DG2(dev_priv)) {
-		timeout_us = 1200;
-	} else if (DISPLAY_VER(dev_priv) >= 12) {
-		if (intel_encoder_is_tc(encoder))
-			timeout_us = 3000;
-		else
-			timeout_us = 1000;
-	} else {
-		timeout_us = 500;
-	}
-
-	if (DISPLAY_VER(dev_priv) >= 14)
-		ret = _wait_for(!(intel_de_read(dev_priv,
-						XELPDP_PORT_BUF_CTL1(dev_priv, port)) &
-				  XELPDP_PORT_BUF_PHY_IDLE),
-				timeout_us, 10, 10);
-	else
-		ret = _wait_for(!(intel_de_read(dev_priv, DDI_BUF_CTL(port)) & DDI_BUF_IS_IDLE),
-				timeout_us, 10, 10);
-
-	if (ret)
-		drm_err(&dev_priv->drm, "Timeout waiting for DDI BUF %c to get active\n",
+	static_assert(DDI_BUF_IS_IDLE == XELPDP_PORT_BUF_PHY_IDLE);
+	if (intel_de_wait_for_clear(display, intel_ddi_buf_status_reg(display, port),
+				    DDI_BUF_IS_IDLE, 10))
+		drm_err(display->drm, "Timeout waiting for DDI BUF %c to get active\n",
 			port_name(port));
 }
 
@@ -3082,7 +3076,7 @@ static void mtl_disable_ddi_buf(struct intel_encoder *encoder,
 	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
 	/* 3.c Poll for PORT_BUF_CTL Idle Status == 1, timeout after 100us */
-	mtl_wait_ddi_buf_idle(dev_priv, port);
+	intel_wait_ddi_buf_idle(dev_priv, port);
 
 	/* 3.d Disable D2D Link */
 	mtl_ddi_disable_d2d_link(encoder);
