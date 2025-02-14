@@ -834,13 +834,24 @@ static int mv88q2xxx_leds_probe(struct phy_device *phydev)
 static int mv88q2xxx_probe(struct phy_device *phydev)
 {
 	struct mv88q2xxx_priv *priv;
-	int ret;
 
 	priv = devm_kzalloc(&phydev->mdio.dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	phydev->priv = priv;
+
+	return 0;
+}
+
+static int mv88q222x_probe(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = mv88q2xxx_probe(phydev);
+	if (ret)
+		return ret;
+
 	ret = mv88q2xxx_leds_probe(phydev);
 	if (ret)
 		return ret;
@@ -1098,6 +1109,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.phy_id			= MARVELL_PHY_ID_88Q2110,
 		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2110",
+		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.config_init		= mv88q2110_config_init,
@@ -1112,7 +1124,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.phy_id_mask		= MARVELL_PHY_ID_MASK,
 		.name			= "mv88q2220",
 		.flags			= PHY_POLL_CABLE_TEST,
-		.probe			= mv88q2xxx_probe,
+		.probe			= mv88q222x_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q2xxx_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,
