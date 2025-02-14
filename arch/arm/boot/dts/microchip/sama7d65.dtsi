@@ -83,6 +83,11 @@
 			#clock-cells = <1>;
 		};
 
+		chipid@e0020000 {
+			compatible = "microchip,sama7d65-chipid";
+			reg = <0xe0020000 0x8>;
+		};
+
 		sdmmc1: mmc@e1208000 {
 			compatible = "microchip,sama7d65-sdhci", "microchip,sam9x60-sdhci";
 			reg = <0xe1208000 0x400>;
