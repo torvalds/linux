@@ -191,6 +191,13 @@ static __always_inline void __nodes_andnot(nodemask_t *dstp, const nodemask_t *s
 	bitmap_andnot(dstp->bits, src1p->bits, src2p->bits, nbits);
 }
 
+#define nodes_copy(dst, src) __nodes_copy(&(dst), &(src), MAX_NUMNODES)
+static __always_inline void __nodes_copy(nodemask_t *dstp,
+					const nodemask_t *srcp, unsigned int nbits)
+{
+	bitmap_copy(dstp->bits, srcp->bits, nbits);
+}
+
 #define nodes_complement(dst, src) \
 			__nodes_complement(&(dst), &(src), MAX_NUMNODES)
 static __always_inline void __nodes_complement(nodemask_t *dstp,
