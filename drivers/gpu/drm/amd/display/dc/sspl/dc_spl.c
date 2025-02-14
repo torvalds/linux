@@ -3,7 +3,6 @@
 // Copyright 2024 Advanced Micro Devices, Inc.
 
 #include "dc_spl.h"
-#include "dc_spl_scl_filters.h"
 #include "dc_spl_scl_easf_filters.h"
 #include "dc_spl_isharp_filters.h"
 #include "spl_debug.h"
