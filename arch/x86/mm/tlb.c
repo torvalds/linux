@@ -1325,7 +1325,7 @@ bool nmi_uaccess_okay(void)
 	if (loaded_mm != current_mm)
 		return false;
 
-	VM_WARN_ON_ONCE(current_mm->pgd != __va(read_cr3_pa()));
+	VM_WARN_ON_ONCE(__pa(current_mm->pgd) != read_cr3_pa());
 
 	return true;
 }
