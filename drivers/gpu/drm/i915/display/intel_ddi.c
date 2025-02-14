@@ -328,9 +328,32 @@ static u32 ddi_buf_phy_link_rate(int port_clock)
 	}
 }
 
+static int dp_phy_lane_stagger_delay(int port_clock)
+{
+	/*
+	 * Return the number of symbol clocks delay used to stagger the
+	 * assertion/desassertion of the port lane enables. The target delay
+	 * time is 100 ns or greater, return the number of symbols specific to
+	 * the provided port_clock (aka link clock) corresponding to this delay
+	 * time, i.e. so that
+	 *
+	 * number_of_symbols * duration_of_one_symbol >= 100 ns
+	 *
+	 * The delay must be applied only on TypeC DP outputs, for everything else
+	 * the delay must be set to 0.
+	 *
+	 * Return the number of link symbols per 100 ns:
+	 * port_clock (10 kHz) -> bits    / 100 us
+	 * / symbol_size       -> symbols / 100 us
+	 * / 1000              -> symbols / 100 ns
+	 */
+	return DIV_ROUND_UP(port_clock, intel_dp_link_symbol_size(port_clock) * 1000);
+}
+
 static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 				      const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -355,6 +378,12 @@ static void intel_ddi_init_dp_buf_reg(struct intel_encoder *encoder,
 		intel_dp->DP |= ddi_buf_phy_link_rate(crtc_state->port_clock);
 		if (!intel_tc_port_in_tbt_alt_mode(dig_port))
 			intel_dp->DP |= DDI_BUF_CTL_TC_PHY_OWNERSHIP;
+	}
+
+	if (IS_DISPLAY_VER(display, 11, 13) && intel_encoder_is_tc(encoder)) {
+		int delay = dp_phy_lane_stagger_delay(crtc_state->port_clock);
+
+		intel_dp->DP |= DDI_BUF_LANE_STAGGER_DELAY(delay);
 	}
 }
 
