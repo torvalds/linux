@@ -367,7 +367,6 @@ static struct {
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
 	u32 battery_force_primary:1;
-	u32 sensors_pdrv_registered:1;
 	u32 hotkey_poll_active:1;
 	u32 has_adaptive_kbd:1;
 	u32 kbd_lang:1;
@@ -11815,12 +11814,10 @@ static void thinkpad_acpi_module_exit(void)
 {
 	tpacpi_lifecycle = TPACPI_LIFE_EXITING;
 
-	if (tpacpi_hwmon)
-		hwmon_device_unregister(tpacpi_hwmon);
-	if (tp_features.sensors_pdrv_registered)
+	if (tpacpi_sensors_pdev) {
 		platform_driver_unregister(&tpacpi_hwmon_pdriver);
-	if (tpacpi_sensors_pdev)
 		platform_device_unregister(tpacpi_sensors_pdev);
+	}
 
 	if (tpacpi_pdev) {
 		platform_driver_unregister(&tpacpi_pdriver);
@@ -11889,6 +11886,17 @@ static int __init tpacpi_pdriver_probe(struct platform_device *pdev)
 		pr_err("unable to register input device\n");
 
 	return ret;
+}
+
+static int __init tpacpi_hwmon_pdriver_probe(struct platform_device *pdev)
+{
+	tpacpi_hwmon = devm_hwmon_device_register_with_groups(
+		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
+
+	if (IS_ERR(tpacpi_hwmon))
+		pr_err("unable to register hwmon device\n");
+
+	return PTR_ERR_OR_ZERO(tpacpi_hwmon);
 }
 
 static int __init thinkpad_acpi_module_init(void)
@@ -11964,36 +11972,18 @@ static int __init thinkpad_acpi_module_init(void)
 		return ret;
 	}
 
-	tpacpi_sensors_pdev = platform_device_register_simple(
-						TPACPI_HWMON_DRVR_NAME,
-						PLATFORM_DEVID_NONE, NULL, 0);
+	tpacpi_sensors_pdev = platform_create_bundle(&tpacpi_hwmon_pdriver,
+						     tpacpi_hwmon_pdriver_probe,
+						     NULL, 0, NULL, 0);
 	if (IS_ERR(tpacpi_sensors_pdev)) {
 		ret = PTR_ERR(tpacpi_sensors_pdev);
 		tpacpi_sensors_pdev = NULL;
-		pr_err("unable to register hwmon platform device\n");
+		pr_err("unable to register hwmon platform device/driver bundle\n");
 		thinkpad_acpi_module_exit();
 		return ret;
 	}
 
 	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
-
-	ret = platform_driver_register(&tpacpi_hwmon_pdriver);
-	if (ret) {
-		pr_err("unable to register hwmon platform driver\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
-	tp_features.sensors_pdrv_registered = 1;
-
-	tpacpi_hwmon = hwmon_device_register_with_groups(
-		&tpacpi_sensors_pdev->dev, TPACPI_NAME, NULL, tpacpi_hwmon_groups);
-	if (IS_ERR(tpacpi_hwmon)) {
-		ret = PTR_ERR(tpacpi_hwmon);
-		tpacpi_hwmon = NULL;
-		pr_err("unable to register hwmon device\n");
-		thinkpad_acpi_module_exit();
-		return ret;
-	}
 
 	return 0;
 }
