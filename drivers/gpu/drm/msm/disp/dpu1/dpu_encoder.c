@@ -2274,6 +2274,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 	intf_cfg.stream_sel = 0; /* Don't care value for video mode */
 	intf_cfg.mode_3d = dpu_encoder_helper_get_3d_blend_mode(phys_enc);
 	intf_cfg.dsc = dpu_encoder_helper_get_dsc(phys_enc);
+	intf_cfg.cwb = dpu_enc->cwb_mask;
 
 	if (phys_enc->hw_intf)
 		intf_cfg.intf = phys_enc->hw_intf->idx;
@@ -2296,6 +2297,7 @@ void dpu_encoder_helper_phys_setup_cwb(struct dpu_encoder_phys *phys_enc,
 {
 	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(phys_enc->parent);
 	struct dpu_hw_cwb *hw_cwb;
+	struct dpu_hw_ctl *hw_ctl;
 	struct dpu_hw_cwb_setup_cfg cwb_cfg;
 
 	struct dpu_kms *dpu_kms;
@@ -2305,6 +2307,14 @@ void dpu_encoder_helper_phys_setup_cwb(struct dpu_encoder_phys *phys_enc,
 
 	if (!phys_enc->hw_wb)
 		return;
+
+	hw_ctl = phys_enc->hw_ctl;
+
+	if (!phys_enc->hw_ctl) {
+		DPU_DEBUG("[wb:%d] no ctl assigned\n",
+			  phys_enc->hw_wb->idx - WB_0);
+		return;
+	}
 
 	dpu_kms = phys_enc->dpu_kms;
 	global_state = dpu_kms_get_existing_global_state(dpu_kms);
@@ -2338,6 +2348,9 @@ void dpu_encoder_helper_phys_setup_cwb(struct dpu_encoder_phys *phys_enc,
 		}
 
 		hw_cwb->ops.config_cwb(hw_cwb, &cwb_cfg);
+
+		if (hw_ctl->ops.update_pending_flush_cwb)
+			hw_ctl->ops.update_pending_flush_cwb(hw_ctl, hw_cwb->idx);
 	}
 }
 
