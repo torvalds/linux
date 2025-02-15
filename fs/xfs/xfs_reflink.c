@@ -1207,15 +1207,9 @@ xfs_reflink_ag_has_free_space(
 	if (!xfs_has_rmapbt(mp))
 		return 0;
 	if (XFS_IS_REALTIME_INODE(ip)) {
-		struct xfs_rtgroup	*rtg;
-		xfs_rgnumber_t		rgno;
-
-		rgno = xfs_rtb_to_rgno(mp, fsb);
-		rtg = xfs_rtgroup_get(mp, rgno);
-		if (xfs_metafile_resv_critical(rtg_rmap(rtg)))
-			error = -ENOSPC;
-		xfs_rtgroup_put(rtg);
-		return error;
+		if (xfs_metafile_resv_critical(mp))
+			return -ENOSPC;
+		return 0;
 	}
 
 	agno = XFS_FSB_TO_AGNO(mp, fsb);

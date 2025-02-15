@@ -5606,11 +5606,10 @@ DEFINE_METADIR_EVENT(xfs_metadir_lookup);
 /* metadata inode space reservations */
 
 DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
-	TP_PROTO(struct xfs_inode *ip, xfs_filblks_t len),
-	TP_ARGS(ip, len),
+	TP_PROTO(struct xfs_mount *mp, xfs_filblks_t len),
+	TP_ARGS(mp, len),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
 		__field(unsigned long long, freeblks)
 		__field(unsigned long long, reserved)
 		__field(unsigned long long, asked)
@@ -5618,19 +5617,15 @@ DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
 		__field(unsigned long long, len)
 	),
 	TP_fast_assign(
-		struct xfs_mount *mp = ip->i_mount;
-
 		__entry->dev = mp->m_super->s_dev;
-		__entry->ino = ip->i_ino;
 		__entry->freeblks = xfs_sum_freecounter_raw(mp, XC_FREE_BLOCKS);
-		__entry->reserved = ip->i_delayed_blks;
-		__entry->asked = ip->i_meta_resv_asked;
-		__entry->used = ip->i_nblocks;
+		__entry->reserved = mp->m_metafile_resv_avail;
+		__entry->asked = mp->m_metafile_resv_target;
+		__entry->used = mp->m_metafile_resv_used;
 		__entry->len = len;
 	),
-	TP_printk("dev %d:%d ino 0x%llx freeblks %llu resv %llu ask %llu used %llu len %llu",
+	TP_printk("dev %d:%d freeblks %llu resv %llu ask %llu used %llu len %llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
 		  __entry->freeblks,
 		  __entry->reserved,
 		  __entry->asked,
@@ -5639,14 +5634,14 @@ DECLARE_EVENT_CLASS(xfs_metafile_resv_class,
 )
 #define DEFINE_METAFILE_RESV_EVENT(name) \
 DEFINE_EVENT(xfs_metafile_resv_class, name, \
-	TP_PROTO(struct xfs_inode *ip, xfs_filblks_t len), \
-	TP_ARGS(ip, len))
+	TP_PROTO(struct xfs_mount *mp, xfs_filblks_t len), \
+	TP_ARGS(mp, len))
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_init);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_free);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_alloc_space);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_free_space);
 DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_critical);
-DEFINE_INODE_ERROR_EVENT(xfs_metafile_resv_init_error);
+DEFINE_METAFILE_RESV_EVENT(xfs_metafile_resv_init_error);
 
 #ifdef CONFIG_XFS_RT
 TRACE_EVENT(xfs_growfs_check_rtgeom,

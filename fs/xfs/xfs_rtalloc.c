@@ -1376,8 +1376,7 @@ xfs_growfs_rt(
 			error = error2;
 
 		/* Reset the rt metadata btree space reservations. */
-		xfs_rt_resv_free(mp);
-		error2 = xfs_rt_resv_init(mp);
+		error2 = xfs_metafile_resv_init(mp);
 		if (error2 && error2 != -ENOSPC)
 			error = error2;
 	}
@@ -1521,46 +1520,6 @@ xfs_rtalloc_reinit_frextents(
 	spin_unlock(&mp->m_sb_lock);
 	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS, mp->m_sb.sb_frextents);
 	return 0;
-}
-
-/* Free space reservations for rt metadata inodes. */
-void
-xfs_rt_resv_free(
-	struct xfs_mount	*mp)
-{
-	struct xfs_rtgroup	*rtg = NULL;
-	unsigned int		i;
-
-	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
-		for (i = 0; i < XFS_RTGI_MAX; i++)
-			xfs_metafile_resv_free(rtg->rtg_inodes[i]);
-	}
-}
-
-/* Reserve space for rt metadata inodes' space expansion. */
-int
-xfs_rt_resv_init(
-	struct xfs_mount	*mp)
-{
-	struct xfs_rtgroup	*rtg = NULL;
-	xfs_filblks_t		ask;
-	int			error = 0;
-
-	while ((rtg = xfs_rtgroup_next(mp, rtg))) {
-		int		err2;
-
-		ask = xfs_rtrmapbt_calc_reserves(mp);
-		err2 = xfs_metafile_resv_init(rtg_rmap(rtg), ask);
-		if (err2 && !error)
-			error = err2;
-
-		ask = xfs_rtrefcountbt_calc_reserves(mp);
-		err2 = xfs_metafile_resv_init(rtg_refcount(rtg), ask);
-		if (err2 && !error)
-			error = err2;
-	}
-
-	return error;
 }
 
 /*

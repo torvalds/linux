@@ -24,6 +24,7 @@
 #include "xfs_rtalloc.h"
 #include "xfs_rtrmap_btree.h"
 #include "xfs_rtrefcount_btree.h"
+#include "xfs_metafile.h"
 
 /*
  * Write new AG headers to disk. Non-transactional, but need to be
@@ -561,15 +562,13 @@ xfs_fs_reserve_ag_blocks(
 		return error;
 	}
 
-	if (xfs_has_realtime(mp)) {
-		err2 = xfs_rt_resv_init(mp);
-		if (err2 && err2 != -ENOSPC) {
-			xfs_warn(mp,
-		"Error %d reserving realtime metadata reserve pool.", err2);
-			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		}
+	err2 = xfs_metafile_resv_init(mp);
+	if (err2 && err2 != -ENOSPC) {
+		xfs_warn(mp,
+	"Error %d reserving realtime metadata reserve pool.", err2);
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
-		if (err2 && !error)
+		if (!error)
 			error = err2;
 	}
 
@@ -585,9 +584,7 @@ xfs_fs_unreserve_ag_blocks(
 {
 	struct xfs_perag	*pag = NULL;
 
-	if (xfs_has_realtime(mp))
-		xfs_rt_resv_free(mp);
-
+	xfs_metafile_resv_free(mp);
 	while ((pag = xfs_perag_next(mp, pag)))
 		xfs_ag_resv_free(pag);
 }

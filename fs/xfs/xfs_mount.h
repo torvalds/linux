@@ -273,6 +273,11 @@ typedef struct xfs_mount {
 	atomic_t		m_agirotor;	/* last ag dir inode alloced */
 	atomic_t		m_rtgrotor;	/* last rtgroup rtpicked */
 
+	struct mutex		m_metafile_resv_lock;
+	uint64_t		m_metafile_resv_target;
+	uint64_t		m_metafile_resv_used;
+	uint64_t		m_metafile_resv_avail;
+
 	/* Memory shrinker to throttle and reprioritize inodegc */
 	struct shrinker		*m_inodegc_shrinker;
 	/*
@@ -747,5 +752,9 @@ int xfs_add_incompat_log_feature(struct xfs_mount *mp, uint32_t feature);
 bool xfs_clear_incompat_log_features(struct xfs_mount *mp);
 void xfs_mod_delalloc(struct xfs_inode *ip, int64_t data_delta,
 		int64_t ind_delta);
+static inline void xfs_mod_sb_delalloc(struct xfs_mount *mp, int64_t delta)
+{
+	percpu_counter_add(&mp->m_delalloc_blks, delta);
+}
 
 #endif	/* __XFS_MOUNT_H__ */

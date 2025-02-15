@@ -1386,11 +1386,12 @@ int
 xrep_reset_metafile_resv(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_inode	*ip = sc->ip;
+	struct xfs_mount	*mp = sc->mp;
 	int64_t			delta;
 	int			error;
 
-	delta = ip->i_nblocks + ip->i_delayed_blks - ip->i_meta_resv_asked;
+	delta = mp->m_metafile_resv_used + mp->m_metafile_resv_avail -
+		mp->m_metafile_resv_target;
 	if (delta == 0)
 		return 0;
 
@@ -1401,11 +1402,11 @@ xrep_reset_metafile_resv(
 	if (delta > 0) {
 		int64_t		give_back;
 
-		give_back = min_t(uint64_t, delta, ip->i_delayed_blks);
+		give_back = min_t(uint64_t, delta, mp->m_metafile_resv_avail);
 		if (give_back > 0) {
-			xfs_mod_delalloc(ip, 0, -give_back);
-			xfs_add_fdblocks(ip->i_mount, give_back);
-			ip->i_delayed_blks -= give_back;
+			xfs_mod_sb_delalloc(mp, -give_back);
+			xfs_add_fdblocks(mp, give_back);
+			mp->m_metafile_resv_avail -= give_back;
 		}
 
 		return 0;
@@ -1413,24 +1414,23 @@ xrep_reset_metafile_resv(
 
 	/*
 	 * Not enough reservation; try to take some blocks from the filesystem
-	 * to the metadata inode.  @delta is negative here, so invert the sign.
+	 * to the metabtree reservation.
 	 */
-	delta = -delta;
-	error = xfs_dec_fdblocks(sc->mp, delta, true);
+	delta = -delta; /* delta is negative here, so invert the sign. */
+	error = xfs_dec_fdblocks(mp, delta, true);
 	while (error == -ENOSPC) {
 		delta--;
 		if (delta == 0) {
 			xfs_warn(sc->mp,
-"Insufficient free space to reset space reservation for inode 0x%llx after repair.",
-					ip->i_ino);
+"Insufficient free space to reset metabtree reservation after repair.");
 			return 0;
 		}
-		error = xfs_dec_fdblocks(sc->mp, delta, true);
+		error = xfs_dec_fdblocks(mp, delta, true);
 	}
 	if (error)
 		return error;
 
-	xfs_mod_delalloc(ip, 0, delta);
-	ip->i_delayed_blks += delta;
+	xfs_mod_sb_delalloc(mp, delta);
+	mp->m_metafile_resv_avail += delta;
 	return 0;
 }
