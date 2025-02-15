@@ -1166,7 +1166,7 @@ static int resize_bitmaps(struct mddev *mddev, sector_t newsize, sector_t oldsiz
 		struct dlm_lock_resource *bm_lockres;
 		char str[64];
 
-		if (i == md_cluster_ops->slot_number(mddev))
+		if (i == slot_number(mddev))
 			continue;
 
 		bitmap = mddev->bitmap_ops->get_from_slot(mddev, i);
@@ -1216,7 +1216,7 @@ out:
  */
 static int cluster_check_sync_size(struct mddev *mddev)
 {
-	int current_slot = md_cluster_ops->slot_number(mddev);
+	int current_slot = slot_number(mddev);
 	int node_num = mddev->bitmap_info.nodes;
 	struct dlm_lock_resource *bm_lockres;
 	struct md_bitmap_stats stats;
