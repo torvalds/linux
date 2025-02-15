@@ -1286,16 +1286,8 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 	struct dpu_kms *dpu_kms = _dpu_crtc_get_kms(crtc);
 	struct dpu_global_state *global_state;
 	struct dpu_crtc_state *cstate;
-	struct drm_encoder *drm_enc;
 	struct msm_display_topology topology;
 	int ret;
-
-	/*
-	 * For now, grab the first encoder in the crtc state as we don't
-	 * support clone mode yet
-	 */
-	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask)
-		break;
 
 	/*
 	 * Release and Allocate resources on every modeset
@@ -1304,29 +1296,29 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 	if (IS_ERR(global_state))
 		return PTR_ERR(global_state);
 
-	dpu_rm_release(global_state, drm_enc);
+	dpu_rm_release(global_state, crtc);
 
 	if (!crtc_state->enable)
 		return 0;
 
 	topology = dpu_crtc_get_topology(crtc, dpu_kms, crtc_state);
 	ret = dpu_rm_reserve(&dpu_kms->rm, global_state,
-			     drm_enc, crtc_state, &topology);
+			     crtc_state->crtc, &topology);
 	if (ret)
 		return ret;
 
 	cstate = to_dpu_crtc_state(crtc_state);
 
 	num_ctl = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
-						drm_enc->base.id,
+						crtc_state->crtc,
 						DPU_HW_BLK_CTL, hw_ctl,
 						ARRAY_SIZE(hw_ctl));
 	num_lm = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
-					       drm_enc->base.id,
+					       crtc_state->crtc,
 					       DPU_HW_BLK_LM, hw_lm,
 					       ARRAY_SIZE(hw_lm));
 	num_dspp = dpu_rm_get_assigned_resources(&dpu_kms->rm, global_state,
-						 drm_enc->base.id,
+						 crtc_state->crtc,
 						 DPU_HW_BLK_DSPP, hw_dspp,
 						 ARRAY_SIZE(hw_dspp));
 
