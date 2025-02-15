@@ -1090,6 +1090,8 @@ xfs_mountfs(
 		error = xfs_fs_reserve_ag_blocks(mp);
 		if (error && error != -ENOSPC)
 			goto out_agresv;
+
+		xfs_zone_gc_start(mp);
 	}
 
 	return 0;
@@ -1178,6 +1180,8 @@ xfs_unmountfs(
 	xfs_inodegc_flush(mp);
 
 	xfs_blockgc_stop(mp);
+	if (!test_bit(XFS_OPSTATE_READONLY, &mp->m_opstate))
+		xfs_zone_gc_stop(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	if (xfs_has_zoned(mp))

@@ -35,6 +35,104 @@ xfs_open_zone_put(
 	}
 }
 
+static inline uint32_t
+xfs_zone_bucket(
+	struct xfs_mount	*mp,
+	uint32_t		used_blocks)
+{
+	return XFS_ZONE_USED_BUCKETS * used_blocks /
+			mp->m_groups[XG_TYPE_RTG].blocks;
+}
+
+static inline void
+xfs_zone_add_to_bucket(
+	struct xfs_zone_info	*zi,
+	xfs_rgnumber_t		rgno,
+	uint32_t		to_bucket)
+{
+	__set_bit(rgno, zi->zi_used_bucket_bitmap[to_bucket]);
+	zi->zi_used_bucket_entries[to_bucket]++;
+}
+
+static inline void
+xfs_zone_remove_from_bucket(
+	struct xfs_zone_info	*zi,
+	xfs_rgnumber_t		rgno,
+	uint32_t		from_bucket)
+{
+	__clear_bit(rgno, zi->zi_used_bucket_bitmap[from_bucket]);
+	zi->zi_used_bucket_entries[from_bucket]--;
+}
+
+static void
+xfs_zone_account_reclaimable(
+	struct xfs_rtgroup	*rtg,
+	uint32_t		freed)
+{
+	struct xfs_group	*xg = &rtg->rtg_group;
+	struct xfs_mount	*mp = rtg_mount(rtg);
+	struct xfs_zone_info	*zi = mp->m_zone_info;
+	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
+	xfs_rgnumber_t		rgno = rtg_rgno(rtg);
+	uint32_t		from_bucket = xfs_zone_bucket(mp, used + freed);
+	uint32_t		to_bucket = xfs_zone_bucket(mp, used);
+	bool			was_full = (used + freed == rtg_blocks(rtg));
+
+	/*
+	 * This can be called from log recovery, where the zone_info structure
+	 * hasn't been allocated yet.  Skip all work as xfs_mount_zones will
+	 * add the zones to the right buckets before the file systems becomes
+	 * active.
+	 */
+	if (!zi)
+		return;
+
+	if (!used) {
+		/*
+		 * The zone is now empty, remove it from the bottom bucket and
+		 * trigger a reset.
+		 */
+		trace_xfs_zone_emptied(rtg);
+
+		if (!was_full)
+			xfs_group_clear_mark(xg, XFS_RTG_RECLAIMABLE);
+
+		spin_lock(&zi->zi_used_buckets_lock);
+		if (!was_full)
+			xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
+		spin_unlock(&zi->zi_used_buckets_lock);
+
+		spin_lock(&zi->zi_reset_list_lock);
+		xg->xg_next_reset = zi->zi_reset_list;
+		zi->zi_reset_list = xg;
+		spin_unlock(&zi->zi_reset_list_lock);
+
+		if (zi->zi_gc_thread)
+			wake_up_process(zi->zi_gc_thread);
+	} else if (was_full) {
+		/*
+		 * The zone transitioned from full, mark it up as reclaimable
+		 * and wake up GC which might be waiting for zones to reclaim.
+		 */
+		spin_lock(&zi->zi_used_buckets_lock);
+		xfs_zone_add_to_bucket(zi, rgno, to_bucket);
+		spin_unlock(&zi->zi_used_buckets_lock);
+
+		xfs_group_set_mark(xg, XFS_RTG_RECLAIMABLE);
+		if (zi->zi_gc_thread && xfs_zoned_need_gc(mp))
+			wake_up_process(zi->zi_gc_thread);
+	} else if (to_bucket != from_bucket) {
+		/*
+		 * Move the zone to a new bucket if it dropped below the
+		 * threshold.
+		 */
+		spin_lock(&zi->zi_used_buckets_lock);
+		xfs_zone_add_to_bucket(zi, rgno, to_bucket);
+		xfs_zone_remove_from_bucket(zi, rgno, from_bucket);
+		spin_unlock(&zi->zi_used_buckets_lock);
+	}
+}
+
 static void
 xfs_open_zone_mark_full(
 	struct xfs_open_zone	*oz)
@@ -42,6 +140,7 @@ xfs_open_zone_mark_full(
 	struct xfs_rtgroup	*rtg = oz->oz_rtg;
 	struct xfs_mount	*mp = rtg_mount(rtg);
 	struct xfs_zone_info	*zi = mp->m_zone_info;
+	uint32_t		used = rtg_rmap(rtg)->i_used_blocks;
 
 	trace_xfs_zone_full(rtg);
 
@@ -59,6 +158,8 @@ xfs_open_zone_mark_full(
 	xfs_open_zone_put(oz);
 
 	wake_up_all(&zi->zi_zone_wait);
+	if (used < rtg_blocks(rtg))
+		xfs_zone_account_reclaimable(rtg, rtg_blocks(rtg) - used);
 }
 
 static void
@@ -244,6 +345,13 @@ xfs_zone_free_blocks(
 	trace_xfs_zone_free_blocks(rtg, xfs_rtb_to_rgbno(mp, fsbno), len);
 
 	rmapip->i_used_blocks -= len;
+	/*
+	 * Don't add open zones to the reclaimable buckets.  The I/O completion
+	 * for writing the last block will take care of accounting for already
+	 * unused blocks instead.
+	 */
+	if (!READ_ONCE(rtg->rtg_open_zone))
+		xfs_zone_account_reclaimable(rtg, len);
 	xfs_add_frextents(mp, len);
 	xfs_trans_log_inode(tp, rmapip, XFS_ILOG_CORE);
 	return 0;
@@ -394,6 +502,9 @@ xfs_try_open_zone(
 	 * on us to write to it as well.
 	 */
 	wake_up_all(&zi->zi_zone_wait);
+
+	if (xfs_zoned_need_gc(mp))
+		wake_up_process(zi->zi_gc_thread);
 
 	trace_xfs_zone_opened(oz->oz_rtg);
 	return oz;
@@ -702,6 +813,7 @@ xfs_init_zone(
 	struct xfs_zone_info	*zi = mp->m_zone_info;
 	uint64_t		used = rtg_rmap(rtg)->i_used_blocks;
 	xfs_rgblock_t		write_pointer, highest_rgbno;
+	int			error;
 
 	if (zone && !xfs_zone_validate(zone, rtg, &write_pointer))
 		return -EFSCORRUPTED;
@@ -728,6 +840,18 @@ xfs_init_zone(
 		xfs_rtgroup_unlock(rtg, XFS_RTGLOCK_RMAP);
 	}
 
+	/*
+	 * If there are no used blocks, but the zone is not in empty state yet
+	 * we lost power before the zoned reset.  In that case finish the work
+	 * here.
+	 */
+	if (write_pointer == rtg_blocks(rtg) && used == 0) {
+		error = xfs_zone_gc_reset_sync(rtg);
+		if (error)
+			return error;
+		write_pointer = 0;
+	}
+
 	if (write_pointer == 0) {
 		/* zone is empty */
 		atomic_inc(&zi->zi_nr_free_zones);
@@ -746,6 +870,7 @@ xfs_init_zone(
 		iz->reclaimable += write_pointer - used;
 	} else if (used < rtg_blocks(rtg)) {
 		/* zone fully written, but has freed blocks */
+		xfs_zone_account_reclaimable(rtg, rtg_blocks(rtg) - used);
 		iz->reclaimable += (rtg_blocks(rtg) - used);
 	}
 
@@ -856,11 +981,20 @@ xfs_calc_open_zones(
 	return 0;
 }
 
+static unsigned long *
+xfs_alloc_bucket_bitmap(
+	struct xfs_mount	*mp)
+{
+	return kvmalloc_array(BITS_TO_LONGS(mp->m_sb.sb_rgcount),
+			sizeof(unsigned long), GFP_KERNEL | __GFP_ZERO);
+}
+
 static struct xfs_zone_info *
 xfs_alloc_zone_info(
 	struct xfs_mount	*mp)
 {
 	struct xfs_zone_info	*zi;
+	int			i;
 
 	zi = kzalloc(sizeof(*zi), GFP_KERNEL);
 	if (!zi)
@@ -871,14 +1005,30 @@ xfs_alloc_zone_info(
 	spin_lock_init(&zi->zi_open_zones_lock);
 	spin_lock_init(&zi->zi_reservation_lock);
 	init_waitqueue_head(&zi->zi_zone_wait);
+	spin_lock_init(&zi->zi_used_buckets_lock);
+	for (i = 0; i < XFS_ZONE_USED_BUCKETS; i++) {
+		zi->zi_used_bucket_bitmap[i] = xfs_alloc_bucket_bitmap(mp);
+		if (!zi->zi_used_bucket_bitmap[i])
+			goto out_free_bitmaps;
+	}
 	return zi;
+
+out_free_bitmaps:
+	while (--i > 0)
+		kvfree(zi->zi_used_bucket_bitmap[i]);
+	kfree(zi);
+	return NULL;
 }
 
 static void
 xfs_free_zone_info(
 	struct xfs_zone_info	*zi)
 {
+	int			i;
+
 	xfs_free_open_zones(zi);
+	for (i = 0; i < XFS_ZONE_USED_BUCKETS; i++)
+		kvfree(zi->zi_used_bucket_bitmap[i]);
 	kfree(zi);
 }
 
@@ -943,6 +1093,10 @@ xfs_mount_zones(
 	xfs_set_freecounter(mp, XC_FREE_RTAVAILABLE, iz.available);
 	xfs_set_freecounter(mp, XC_FREE_RTEXTENTS,
 			iz.available + iz.reclaimable);
+
+	error = xfs_zone_gc_mount(mp);
+	if (error)
+		goto out_free_zone_info;
 	return 0;
 
 out_free_zone_info:
@@ -954,5 +1108,6 @@ void
 xfs_unmount_zones(
 	struct xfs_mount	*mp)
 {
+	xfs_zone_gc_unmount(mp);
 	xfs_free_zone_info(mp->m_zone_info);
 }

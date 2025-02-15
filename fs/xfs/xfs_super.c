@@ -46,6 +46,7 @@
 #include "xfs_exchmaps_item.h"
 #include "xfs_parent.h"
 #include "xfs_rtalloc.h"
+#include "xfs_zone_alloc.h"
 #include "scrub/stats.h"
 #include "scrub/rcbag_btree.h"
 
@@ -822,6 +823,7 @@ xfs_fs_sync_fs(
 	if (sb->s_writers.frozen == SB_FREEZE_PAGEFAULT) {
 		xfs_inodegc_stop(mp);
 		xfs_blockgc_stop(mp);
+		xfs_zone_gc_stop(mp);
 	}
 
 	return 0;
@@ -994,6 +996,7 @@ xfs_fs_freeze(
 	if (ret && !xfs_is_readonly(mp)) {
 		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
+		xfs_zone_gc_start(mp);
 	}
 
 	return ret;
@@ -1015,6 +1018,7 @@ xfs_fs_unfreeze(
 	 * filesystem.
 	 */
 	if (!xfs_is_readonly(mp)) {
+		xfs_zone_gc_start(mp);
 		xfs_blockgc_start(mp);
 		xfs_inodegc_start(mp);
 	}
@@ -1948,6 +1952,9 @@ xfs_remount_rw(
 	/* Re-enable the background inode inactivation worker. */
 	xfs_inodegc_start(mp);
 
+	/* Restart zone reclaim */
+	xfs_zone_gc_start(mp);
+
 	return 0;
 }
 
@@ -1991,6 +1998,9 @@ xfs_remount_ro(
 	 * we send inodes straight to reclaim, so no inodes will be queued.
 	 */
 	xfs_inodegc_stop(mp);
+
+	/* Stop zone reclaim */
+	xfs_zone_gc_stop(mp);
 
 	/* Free the per-AG metadata reservation pool. */
 	xfs_fs_unreserve_ag_blocks(mp);

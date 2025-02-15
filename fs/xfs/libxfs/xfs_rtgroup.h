@@ -58,6 +58,12 @@ struct xfs_rtgroup {
  */
 #define XFS_RTG_FREE			XA_MARK_0
 
+/*
+ * For zoned RT devices this is set on groups that are fully written and that
+ * have unused blocks.  Used by the garbage collection to pick targets.
+ */
+#define XFS_RTG_RECLAIMABLE		XA_MARK_1
+
 static inline struct xfs_rtgroup *to_rtg(struct xfs_group *xg)
 {
 	return container_of(xg, struct xfs_rtgroup, rtg_group);

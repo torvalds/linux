@@ -40,6 +40,13 @@ struct xfs_open_zone {
 	struct xfs_rtgroup	*oz_rtg;
 };
 
+/*
+ * Number of bitmap buckets to track reclaimable zones.  There are 10 buckets
+ * so that each 10% of the usable capacity get their own bucket and GC can
+ * only has to walk the bitmaps of the lesser used zones if there are any.
+ */
+#define XFS_ZONE_USED_BUCKETS		10u
+
 struct xfs_zone_info {
 	/*
 	 * List of pending space reservations:
@@ -82,9 +89,23 @@ struct xfs_zone_info {
 	 */
 	spinlock_t		zi_reset_list_lock;
 	struct xfs_group	*zi_reset_list;
+
+	/*
+	 * A set of bitmaps to bucket-sort reclaimable zones by used blocks to help
+	 * garbage collection to quickly find the best candidate for reclaim.
+	 */
+	spinlock_t		zi_used_buckets_lock;
+	unsigned int		zi_used_bucket_entries[XFS_ZONE_USED_BUCKETS];
+	unsigned long		*zi_used_bucket_bitmap[XFS_ZONE_USED_BUCKETS];
+
 };
 
 struct xfs_open_zone *xfs_open_zone(struct xfs_mount *mp, bool is_gc);
+
+int xfs_zone_gc_reset_sync(struct xfs_rtgroup *rtg);
+bool xfs_zoned_need_gc(struct xfs_mount *mp);
+int xfs_zone_gc_mount(struct xfs_mount *mp);
+void xfs_zone_gc_unmount(struct xfs_mount *mp);
 
 void xfs_zoned_resv_wake_all(struct xfs_mount *mp);
 

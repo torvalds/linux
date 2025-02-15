@@ -159,6 +159,15 @@ xfs_zoned_reserve_available(
 		if (error != -ENOSPC)
 			break;
 
+		/*
+		 * If there is no reclaimable group left and we aren't still
+		 * processing a pending GC request give up as we're fully out
+		 * of space.
+		 */
+		if (!xfs_group_marked(mp, XG_TYPE_RTG, XFS_RTG_RECLAIMABLE) &&
+		    !xfs_is_zonegc_running(mp))
+			break;
+
 		spin_unlock(&zi->zi_reservation_lock);
 		schedule();
 		spin_lock(&zi->zi_reservation_lock);

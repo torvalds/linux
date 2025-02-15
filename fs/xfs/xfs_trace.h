@@ -295,8 +295,11 @@ DECLARE_EVENT_CLASS(xfs_zone_class,
 DEFINE_EVENT(xfs_zone_class, name,			\
 	TP_PROTO(struct xfs_rtgroup *rtg),		\
 	TP_ARGS(rtg))
+DEFINE_ZONE_EVENT(xfs_zone_emptied);
 DEFINE_ZONE_EVENT(xfs_zone_full);
 DEFINE_ZONE_EVENT(xfs_zone_opened);
+DEFINE_ZONE_EVENT(xfs_zone_reset);
+DEFINE_ZONE_EVENT(xfs_zone_gc_target_opened);
 
 TRACE_EVENT(xfs_zone_free_blocks,
 	TP_PROTO(struct xfs_rtgroup *rtg, xfs_rgblock_t rgbno,
@@ -363,6 +366,28 @@ DEFINE_EVENT(xfs_zone_alloc_class, name,			\
 	TP_ARGS(oz, rgbno, len))
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_record_blocks);
 DEFINE_ZONE_ALLOC_EVENT(xfs_zone_alloc_blocks);
+
+TRACE_EVENT(xfs_zone_gc_select_victim,
+	TP_PROTO(struct xfs_rtgroup *rtg, unsigned int bucket),
+	TP_ARGS(rtg, bucket),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_rgnumber_t, rgno)
+		__field(xfs_rgblock_t, used)
+		__field(unsigned int, bucket)
+	),
+	TP_fast_assign(
+		__entry->dev = rtg_mount(rtg)->m_super->s_dev;
+		__entry->rgno = rtg_rgno(rtg);
+		__entry->used = rtg_rmap(rtg)->i_used_blocks;
+		__entry->bucket = bucket;
+	),
+	TP_printk("dev %d:%d rgno 0x%x used 0x%x bucket %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->rgno,
+		  __entry->used,
+		  __entry->bucket)
+);
 
 TRACE_EVENT(xfs_zones_mount,
 	TP_PROTO(struct xfs_mount *mp),

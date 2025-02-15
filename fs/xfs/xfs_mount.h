@@ -556,6 +556,8 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_RESUMING_QUOTAON	18
 /* Kernel has logged a warning about zoned RT device being used on this fs. */
 #define XFS_OPSTATE_WARNED_ZONED	19
+/* (Zoned) GC is in progress */
+#define XFS_OPSTATE_ZONEGC_RUNNING	20
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -600,6 +602,7 @@ static inline bool xfs_clear_resuming_quotaon(struct xfs_mount *mp)
 #endif /* CONFIG_XFS_QUOTA */
 __XFS_IS_OPSTATE(done_with_log_incompat, UNSET_LOG_INCOMPAT)
 __XFS_IS_OPSTATE(using_logged_xattrs, USE_LARP)
+__XFS_IS_OPSTATE(zonegc_running, ZONEGC_RUNNING)
 
 static inline bool
 xfs_should_warn(struct xfs_mount *mp, long nr)
