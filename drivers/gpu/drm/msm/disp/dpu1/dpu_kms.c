@@ -449,11 +449,12 @@ static void dpu_kms_disable_commit(struct msm_kms *kms)
 static int dpu_kms_check_mode_changed(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc *crtc;
 	int i;
 
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
-		dpu_crtc_check_mode_changed(new_crtc_state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i)
+		dpu_crtc_check_mode_changed(old_crtc_state, new_crtc_state);
 
 	return 0;
 }

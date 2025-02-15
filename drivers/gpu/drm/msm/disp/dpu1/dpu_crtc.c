@@ -1351,18 +1351,25 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
  *
  * Check if the changes in the object properties demand full mode set.
  */
-int dpu_crtc_check_mode_changed(struct drm_crtc_state *crtc_state)
+int dpu_crtc_check_mode_changed(struct drm_crtc_state *old_crtc_state,
+				struct drm_crtc_state *new_crtc_state)
 {
 	struct drm_encoder *drm_enc;
-	struct drm_crtc *crtc = crtc_state->crtc;
+	struct drm_crtc *crtc = new_crtc_state->crtc;
+	bool clone_mode_enabled = drm_crtc_in_clone_mode(old_crtc_state);
+	bool clone_mode_requested = drm_crtc_in_clone_mode(new_crtc_state);
 
 	DRM_DEBUG_ATOMIC("%d\n", crtc->base.id);
 
 	/* there might be cases where encoder needs a modeset too */
-	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask) {
-		if (dpu_encoder_needs_modeset(drm_enc, crtc_state->state))
-			crtc_state->mode_changed = true;
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, new_crtc_state->encoder_mask) {
+		if (dpu_encoder_needs_modeset(drm_enc, new_crtc_state->state))
+			new_crtc_state->mode_changed = true;
 	}
+
+	if ((clone_mode_requested && !clone_mode_enabled) ||
+	    (!clone_mode_requested && clone_mode_enabled))
+		new_crtc_state->mode_changed = true;
 
 	return 0;
 }
