@@ -1829,13 +1829,12 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
  *   and cur's loop entry has to be updated (case A), handle this in
  *   update_branch_counts();
  * - use st->branch > 0 as a signal that st is in the current DFS path;
- * - handle cases B and C in is_state_visited();
- * - update topmost loop entry for intermediate states in get_loop_entry().
+ * - handle cases B and C in is_state_visited().
  */
 static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_env *env,
 						 struct bpf_verifier_state *st)
 {
-	struct bpf_verifier_state *topmost = st->loop_entry, *old;
+	struct bpf_verifier_state *topmost = st->loop_entry;
 	u32 steps = 0;
 
 	while (topmost && topmost->loop_entry) {
@@ -1845,14 +1844,6 @@ static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_env *env,
 			return ERR_PTR(-EFAULT);
 		}
 		topmost = topmost->loop_entry;
-	}
-	/* Update loop entries for intermediate states to avoid this
-	 * traversal in future get_loop_entry() calls.
-	 */
-	while (st && st->loop_entry != topmost) {
-		old = st->loop_entry;
-		st->loop_entry = topmost;
-		st = old;
 	}
 	return topmost;
 }
