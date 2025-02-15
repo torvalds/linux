@@ -135,6 +135,8 @@
 #define __arch_arm64		__arch("ARM64")
 #define __arch_riscv64		__arch("RISCV64")
 #define __caps_unpriv(caps)	__attribute__((btf_decl_tag("comment:test_caps_unpriv=" EXPAND_QUOTE(caps))))
+#define __load_if_JITed()	__attribute__((btf_decl_tag("comment:load_mode=jited")))
+#define __load_if_no_JITed()	__attribute__((btf_decl_tag("comment:load_mode=no_jited")))
 
 /* Define common capabilities tested using __caps_unpriv */
 #define CAP_NET_ADMIN		12
