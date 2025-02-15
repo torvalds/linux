@@ -735,29 +735,31 @@ static int rtlgen_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int rtlgen_read_vend2(struct phy_device *phydev, int regnum)
+{
+	return __mdiobus_c45_read(phydev->mdio.bus, 0, MDIO_MMD_VEND2, regnum);
+}
+
+static int rtlgen_write_vend2(struct phy_device *phydev, int regnum, u16 val)
+{
+	return __mdiobus_c45_write(phydev->mdio.bus, 0, MDIO_MMD_VEND2, regnum,
+				   val);
+}
+
 static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_VEND2) {
-		rtl821x_write_page(phydev, regnum >> 4);
-		ret = __phy_read(phydev, 0x10 + ((regnum & 0xf) >> 1));
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE) {
-		rtl821x_write_page(phydev, 0xa5c);
-		ret = __phy_read(phydev, 0x12);
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
-		rtl821x_write_page(phydev, 0xa5d);
-		ret = __phy_read(phydev, 0x10);
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE) {
-		rtl821x_write_page(phydev, 0xa5d);
-		ret = __phy_read(phydev, 0x11);
-		rtl821x_write_page(phydev, 0);
-	} else {
+	if (devnum == MDIO_MMD_VEND2)
+		ret = rtlgen_read_vend2(phydev, regnum);
+	else if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE)
+		ret = rtlgen_read_vend2(phydev, 0xa5c4);
+	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV)
+		ret = rtlgen_read_vend2(phydev, 0xa5d0);
+	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE)
+		ret = rtlgen_read_vend2(phydev, 0xa5d2);
+	else
 		ret = -EOPNOTSUPP;
-	}
 
 	return ret;
 }
@@ -767,17 +769,12 @@ static int rtlgen_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 {
 	int ret;
 
-	if (devnum == MDIO_MMD_VEND2) {
-		rtl821x_write_page(phydev, regnum >> 4);
-		ret = __phy_write(phydev, 0x10 + ((regnum & 0xf) >> 1), val);
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV) {
-		rtl821x_write_page(phydev, 0xa5d);
-		ret = __phy_write(phydev, 0x10, val);
-		rtl821x_write_page(phydev, 0);
-	} else {
+	if (devnum == MDIO_MMD_VEND2)
+		ret = rtlgen_write_vend2(phydev, regnum, val);
+	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV)
+		ret = rtlgen_write_vend2(phydev, regnum, 0xa5d0);
+	else
 		ret = -EOPNOTSUPP;
-	}
 
 	return ret;
 }
@@ -789,19 +786,12 @@ static int rtl822x_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
 	if (ret != -EOPNOTSUPP)
 		return ret;
 
-	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE2) {
-		rtl821x_write_page(phydev, 0xa6e);
-		ret = __phy_read(phydev, 0x16);
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
-		rtl821x_write_page(phydev, 0xa6d);
-		ret = __phy_read(phydev, 0x12);
-		rtl821x_write_page(phydev, 0);
-	} else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE2) {
-		rtl821x_write_page(phydev, 0xa6d);
-		ret = __phy_read(phydev, 0x10);
-		rtl821x_write_page(phydev, 0);
-	}
+	if (devnum == MDIO_MMD_PCS && regnum == MDIO_PCS_EEE_ABLE2)
+		ret = rtlgen_read_vend2(phydev, 0xa6ec);
+	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2)
+		ret = rtlgen_read_vend2(phydev, 0xa6d4);
+	else if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_LPABLE2)
+		ret = rtlgen_read_vend2(phydev, 0xa6d0);
 
 	return ret;
 }
@@ -814,11 +804,8 @@ static int rtl822x_write_mmd(struct phy_device *phydev, int devnum, u16 regnum,
 	if (ret != -EOPNOTSUPP)
 		return ret;
 
-	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2) {
-		rtl821x_write_page(phydev, 0xa6d);
-		ret = __phy_write(phydev, 0x12, val);
-		rtl821x_write_page(phydev, 0);
-	}
+	if (devnum == MDIO_MMD_AN && regnum == MDIO_AN_EEE_ADV2)
+		ret = rtlgen_write_vend2(phydev, 0xa6d4, val);
 
 	return ret;
 }
@@ -914,7 +901,7 @@ static int rtl822x_get_features(struct phy_device *phydev)
 {
 	int val;
 
-	val = phy_read_paged(phydev, 0xa61, 0x13);
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, 0xa616);
 	if (val < 0)
 		return val;
 
@@ -935,10 +922,9 @@ static int rtl822x_config_aneg(struct phy_device *phydev)
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		u16 adv = linkmode_adv_to_mii_10gbt_adv_t(phydev->advertising);
 
-		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
-					       MDIO_AN_10GBT_CTRL_ADV2_5G |
-					       MDIO_AN_10GBT_CTRL_ADV5G,
-					       adv);
+		ret = phy_modify_mmd_changed(phydev, MDIO_MMD_VEND2, 0xa5d4,
+					     MDIO_AN_10GBT_CTRL_ADV2_5G |
+					     MDIO_AN_10GBT_CTRL_ADV5G, adv);
 		if (ret < 0)
 			return ret;
 	}
@@ -982,7 +968,7 @@ static int rtl822x_read_status(struct phy_device *phydev)
 	    !phydev->autoneg_complete)
 		return 0;
 
-	lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
+	lpadv = phy_read_mmd(phydev, MDIO_MMD_VEND2, 0xa5d6);
 	if (lpadv < 0)
 		return lpadv;
 
