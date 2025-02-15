@@ -1803,12 +1803,9 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
  *             h = entries[h]
  *         return h
  *
- *     # Update n's loop entry if h's outermost entry comes
- *     # before n's outermost entry in current DFS path.
+ *     # Update n's loop entry if h comes before n in current DFS path.
  *     def update_loop_entry(n, h):
- *         n1 = get_loop_entry(n) or n
- *         h1 = get_loop_entry(h) or h
- *         if h1 in path and depths[h1] <= depths[n1]:
+ *         if h in path and depths[entries.get(n, n)] < depths[n]:
  *             entries[n] = h1
  *
  *     def dfs(n, depth):
@@ -1820,7 +1817,7 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
  *                 # Case A: explore succ and update cur's loop entry
  *                 #         only if succ's entry is in current DFS path.
  *                 dfs(succ, depth + 1)
- *                 h = get_loop_entry(succ)
+ *                 h = entries.get(succ, None)
  *                 update_loop_entry(n, h)
  *             else:
  *                 # Case B or C depending on `h1 in path` check in update_loop_entry().
@@ -1835,12 +1832,20 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
  * - handle cases B and C in is_state_visited();
  * - update topmost loop entry for intermediate states in get_loop_entry().
  */
-static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_state *st)
+static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_env *env,
+						 struct bpf_verifier_state *st)
 {
 	struct bpf_verifier_state *topmost = st->loop_entry, *old;
+	u32 steps = 0;
 
-	while (topmost && topmost->loop_entry && topmost != topmost->loop_entry)
+	while (topmost && topmost->loop_entry && topmost != topmost->loop_entry) {
+		if (steps++ > st->dfs_depth) {
+			WARN_ONCE(true, "verifier bug: infinite loop in get_loop_entry\n");
+			verbose(env, "verifier bug: infinite loop in get_loop_entry()\n");
+			return ERR_PTR(-EFAULT);
+		}
 		topmost = topmost->loop_entry;
+	}
 	/* Update loop entries for intermediate states to avoid this
 	 * traversal in future get_loop_entry() calls.
 	 */
@@ -1854,17 +1859,13 @@ static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_state *st)
 
 static void update_loop_entry(struct bpf_verifier_state *cur, struct bpf_verifier_state *hdr)
 {
-	struct bpf_verifier_state *cur1, *hdr1;
-
-	cur1 = get_loop_entry(cur) ?: cur;
-	hdr1 = get_loop_entry(hdr) ?: hdr;
-	/* The head1->branches check decides between cases B and C in
-	 * comment for get_loop_entry(). If hdr1->branches == 0 then
+	/* The hdr->branches check decides between cases B and C in
+	 * comment for get_loop_entry(). If hdr->branches == 0 then
 	 * head's topmost loop entry is not in current DFS path,
 	 * hence 'cur' and 'hdr' are not in the same loop and there is
 	 * no need to update cur->loop_entry.
 	 */
-	if (hdr1->branches && hdr1->dfs_depth <= cur1->dfs_depth) {
+	if (hdr->branches && hdr->dfs_depth <= (cur->loop_entry ?: cur)->dfs_depth) {
 		cur->loop_entry = hdr;
 		hdr->used_as_loop_entry = true;
 	}
@@ -17870,8 +17871,8 @@ static void clean_live_states(struct bpf_verifier_env *env, int insn,
 	while (sl) {
 		if (sl->state.branches)
 			goto next;
-		loop_entry = get_loop_entry(&sl->state);
-		if (loop_entry && loop_entry->branches)
+		loop_entry = get_loop_entry(env, &sl->state);
+		if (!IS_ERR_OR_NULL(loop_entry) && loop_entry->branches)
 			goto next;
 		if (sl->state.insn_idx != insn ||
 		    !same_callsites(&sl->state, cur))
@@ -18749,7 +18750,9 @@ skip_inf_loop_check:
 		 *
 		 * Additional details are in the comment before get_loop_entry().
 		 */
-		loop_entry = get_loop_entry(&sl->state);
+		loop_entry = get_loop_entry(env, &sl->state);
+		if (IS_ERR(loop_entry))
+			return PTR_ERR(loop_entry);
 		force_exact = loop_entry && loop_entry->branches > 0;
 		if (states_equal(env, &sl->state, cur, force_exact ? RANGE_WITHIN : NOT_EXACT)) {
 			if (force_exact)
