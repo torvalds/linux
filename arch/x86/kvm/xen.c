@@ -1280,10 +1280,10 @@ int kvm_xen_write_hypercall_page(struct kvm_vcpu *vcpu, u64 data)
 		 * Note, truncation is a non-issue as 'lm' is guaranteed to be
 		 * false for a 32-bit kernel, i.e. when hva_t is only 4 bytes.
 		 */
-		hva_t blob_addr = lm ? kvm->arch.xen_hvm_config.blob_addr_64
-				     : kvm->arch.xen_hvm_config.blob_addr_32;
-		u8 blob_size = lm ? kvm->arch.xen_hvm_config.blob_size_64
-				  : kvm->arch.xen_hvm_config.blob_size_32;
+		hva_t blob_addr = lm ? kvm->arch.xen.hvm_config.blob_addr_64
+				     : kvm->arch.xen.hvm_config.blob_addr_32;
+		u8 blob_size = lm ? kvm->arch.xen.hvm_config.blob_size_64
+				  : kvm->arch.xen.hvm_config.blob_size_32;
 		u8 *page;
 		int ret;
 
@@ -1335,13 +1335,13 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 
 	mutex_lock(&kvm->arch.xen.xen_lock);
 
-	if (xhc->msr && !kvm->arch.xen_hvm_config.msr)
+	if (xhc->msr && !kvm->arch.xen.hvm_config.msr)
 		static_branch_inc(&kvm_xen_enabled.key);
-	else if (!xhc->msr && kvm->arch.xen_hvm_config.msr)
+	else if (!xhc->msr && kvm->arch.xen.hvm_config.msr)
 		static_branch_slow_dec_deferred(&kvm_xen_enabled);
 
-	old_flags = kvm->arch.xen_hvm_config.flags;
-	memcpy(&kvm->arch.xen_hvm_config, xhc, sizeof(*xhc));
+	old_flags = kvm->arch.xen.hvm_config.flags;
+	memcpy(&kvm->arch.xen.hvm_config, xhc, sizeof(*xhc));
 
 	mutex_unlock(&kvm->arch.xen.xen_lock);
 
@@ -1422,7 +1422,7 @@ static bool kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, bool longmode,
 	int i;
 
 	if (!lapic_in_kernel(vcpu) ||
-	    !(vcpu->kvm->arch.xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
+	    !(vcpu->kvm->arch.xen.hvm_config.flags & KVM_XEN_HVM_CONFIG_EVTCHN_SEND))
 		return false;
 
 	if (IS_ENABLED(CONFIG_64BIT) && !longmode) {
@@ -2300,6 +2300,6 @@ void kvm_xen_destroy_vm(struct kvm *kvm)
 	}
 	idr_destroy(&kvm->arch.xen.evtchn_ports);
 
-	if (kvm->arch.xen_hvm_config.msr)
+	if (kvm->arch.xen.hvm_config.msr)
 		static_branch_slow_dec_deferred(&kvm_xen_enabled);
 }

@@ -3188,7 +3188,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 * problems if they observe PVCLOCK_TSC_STABLE_BIT in the pvclock flags.
 	 */
 	bool xen_pvclock_tsc_unstable =
-		ka->xen_hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE;
+		ka->xen.hvm_config.flags & KVM_XEN_HVM_CONFIG_PVCLOCK_TSC_UNSTABLE;
 #endif
 
 	kernel_ns = 0;
