@@ -888,16 +888,37 @@ struct md_rdev *md_find_rdev_rcu(struct mddev *mddev, dev_t dev)
 }
 EXPORT_SYMBOL_GPL(md_find_rdev_rcu);
 
-static struct md_personality *find_pers(int level, char *clevel)
+static struct md_personality *get_pers(int level, char *clevel)
 {
+	struct md_personality *ret = NULL;
 	struct md_personality *pers;
+
+	spin_lock(&pers_lock);
 	list_for_each_entry(pers, &pers_list, list) {
-		if (level != LEVEL_NONE && pers->level == level)
-			return pers;
-		if (strcmp(pers->name, clevel)==0)
-			return pers;
+		if ((level != LEVEL_NONE && pers->level == level) ||
+		    !strcmp(pers->name, clevel)) {
+			if (try_module_get(pers->owner))
+				ret = pers;
+			break;
+		}
 	}
-	return NULL;
+	spin_unlock(&pers_lock);
+
+	if (!ret) {
+		if (level != LEVEL_NONE)
+			pr_warn("md: personality for level %d is not loaded!\n",
+				level);
+		else
+			pr_warn("md: personality for level %s is not loaded!\n",
+				clevel);
+	}
+
+	return ret;
+}
+
+static void put_pers(struct md_personality *pers)
+{
+	module_put(pers->owner);
 }
 
 /* return the offset of the super block in 512byte sectors */
@@ -3931,24 +3952,20 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 
 	if (request_module("md-%s", clevel) != 0)
 		request_module("md-level-%s", clevel);
-	spin_lock(&pers_lock);
-	pers = find_pers(level, clevel);
-	if (!pers || !try_module_get(pers->owner)) {
-		spin_unlock(&pers_lock);
-		pr_warn("md: personality %s not loaded\n", clevel);
+	pers = get_pers(level, clevel);
+	if (!pers) {
 		rv = -EINVAL;
 		goto out_unlock;
 	}
-	spin_unlock(&pers_lock);
 
 	if (pers == mddev->pers) {
 		/* Nothing to do! */
-		module_put(pers->owner);
+		put_pers(pers);
 		rv = len;
 		goto out_unlock;
 	}
 	if (!pers->takeover) {
-		module_put(pers->owner);
+		put_pers(pers);
 		pr_warn("md: %s: %s does not support personality takeover\n",
 			mdname(mddev), clevel);
 		rv = -EINVAL;
@@ -3969,7 +3986,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 		mddev->raid_disks -= mddev->delta_disks;
 		mddev->delta_disks = 0;
 		mddev->reshape_backwards = 0;
-		module_put(pers->owner);
+		put_pers(pers);
 		pr_warn("md: %s: %s would not accept array\n",
 			mdname(mddev), clevel);
 		rv = PTR_ERR(priv);
@@ -4026,7 +4043,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 			mddev->to_remove = &md_redundancy_group;
 	}
 
-	module_put(oldpers->owner);
+	put_pers(oldpers);
 
 	rdev_for_each(rdev, mddev) {
 		if (rdev->raid_disk < 0)
@@ -6096,20 +6113,11 @@ int md_run(struct mddev *mddev)
 			goto exit_sync_set;
 	}
 
-	spin_lock(&pers_lock);
-	pers = find_pers(mddev->level, mddev->clevel);
-	if (!pers || !try_module_get(pers->owner)) {
-		spin_unlock(&pers_lock);
-		if (mddev->level != LEVEL_NONE)
-			pr_warn("md: personality for level %d is not loaded!\n",
-				mddev->level);
-		else
-			pr_warn("md: personality for level %s is not loaded!\n",
-				mddev->clevel);
+	pers = get_pers(mddev->level, mddev->clevel);
+	if (!pers) {
 		err = -EINVAL;
 		goto abort;
 	}
-	spin_unlock(&pers_lock);
 	if (mddev->level != pers->level) {
 		mddev->level = pers->level;
 		mddev->new_level = pers->level;
@@ -6119,7 +6127,7 @@ int md_run(struct mddev *mddev)
 	if (mddev->reshape_position != MaxSector &&
 	    pers->start_reshape == NULL) {
 		/* This personality cannot handle reshaping... */
-		module_put(pers->owner);
+		put_pers(pers);
 		err = -EINVAL;
 		goto abort;
 	}
@@ -6246,7 +6254,7 @@ bitmap_abort:
 	if (mddev->private)
 		pers->free(mddev, mddev->private);
 	mddev->private = NULL;
-	module_put(pers->owner);
+	put_pers(pers);
 	mddev->bitmap_ops->destroy(mddev);
 abort:
 	bioset_exit(&mddev->io_clone_set);
@@ -6467,7 +6475,7 @@ static void __md_stop(struct mddev *mddev)
 	mddev->private = NULL;
 	if (pers->sync_request && mddev->to_remove == NULL)
 		mddev->to_remove = &md_redundancy_group;
-	module_put(pers->owner);
+	put_pers(pers);
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 
 	bioset_exit(&mddev->bio_set);
