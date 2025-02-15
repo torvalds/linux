@@ -1356,9 +1356,9 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 	int error;
 
 	if ((mddev_is_clustered(mddev) &&
-	     md_cluster_ops->area_resyncing(mddev, WRITE,
-					    bio->bi_iter.bi_sector,
-					    bio_end_sector(bio)))) {
+	     mddev->cluster_ops->area_resyncing(mddev, WRITE,
+						bio->bi_iter.bi_sector,
+						bio_end_sector(bio)))) {
 		DEFINE_WAIT(w);
 		/* Bail out if REQ_NOWAIT is set for the bio */
 		if (bio->bi_opf & REQ_NOWAIT) {
@@ -1368,7 +1368,7 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 		for (;;) {
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_IDLE);
-			if (!md_cluster_ops->area_resyncing(mddev, WRITE,
+			if (!mddev->cluster_ops->area_resyncing(mddev, WRITE,
 				 bio->bi_iter.bi_sector, bio_end_sector(bio)))
 				break;
 			schedule();
@@ -3717,7 +3717,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 			conf->cluster_sync_low = mddev->curr_resync_completed;
 			raid10_set_cluster_sync_high(conf);
 			/* Send resync message */
-			md_cluster_ops->resync_info_update(mddev,
+			mddev->cluster_ops->resync_info_update(mddev,
 						conf->cluster_sync_low,
 						conf->cluster_sync_high);
 		}
@@ -3750,7 +3750,7 @@ static sector_t raid10_sync_request(struct mddev *mddev, sector_t sector_nr,
 		}
 		if (broadcast_msg) {
 			raid10_set_cluster_sync_high(conf);
-			md_cluster_ops->resync_info_update(mddev,
+			mddev->cluster_ops->resync_info_update(mddev,
 						conf->cluster_sync_low,
 						conf->cluster_sync_high);
 		}
@@ -4544,7 +4544,7 @@ static int raid10_start_reshape(struct mddev *mddev)
 		if (ret)
 			goto abort;
 
-		ret = md_cluster_ops->resize_bitmaps(mddev, newsize, oldsize);
+		ret = mddev->cluster_ops->resize_bitmaps(mddev, newsize, oldsize);
 		if (ret) {
 			mddev->bitmap_ops->resize(mddev, oldsize, 0, false);
 			goto abort;
@@ -4835,7 +4835,7 @@ read_more:
 				conf->cluster_sync_low = sb_reshape_pos;
 		}
 
-		md_cluster_ops->resync_info_update(mddev, conf->cluster_sync_low,
+		mddev->cluster_ops->resync_info_update(mddev, conf->cluster_sync_low,
 							  conf->cluster_sync_high);
 	}
 
@@ -4980,7 +4980,7 @@ static void raid10_update_reshape_pos(struct mddev *mddev)
 	struct r10conf *conf = mddev->private;
 	sector_t lo, hi;
 
-	md_cluster_ops->resync_info_get(mddev, &lo, &hi);
+	mddev->cluster_ops->resync_info_get(mddev, &lo, &hi);
 	if (((mddev->reshape_position <= hi) && (mddev->reshape_position >= lo))
 	    || mddev->reshape_position == MaxSector)
 		conf->reshape_progress = mddev->reshape_position;

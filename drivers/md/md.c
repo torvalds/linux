@@ -85,8 +85,7 @@ static DEFINE_SPINLOCK(pers_lock);
 
 static const struct kobj_type md_ktype;
 
-const struct md_cluster_operations *md_cluster_ops;
-EXPORT_SYMBOL(md_cluster_ops);
+static const struct md_cluster_operations *md_cluster_ops;
 static struct module *md_cluster_mod;
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
@@ -2663,11 +2662,11 @@ repeat:
 			force_change = 1;
 		if (test_and_clear_bit(MD_SB_CHANGE_CLEAN, &mddev->sb_flags))
 			nospares = 1;
-		ret = md_cluster_ops->metadata_update_start(mddev);
+		ret = mddev->cluster_ops->metadata_update_start(mddev);
 		/* Has someone else has updated the sb */
 		if (!does_sb_need_changing(mddev)) {
 			if (ret == 0)
-				md_cluster_ops->metadata_update_cancel(mddev);
+				mddev->cluster_ops->metadata_update_cancel(mddev);
 			bit_clear_unless(&mddev->sb_flags, BIT(MD_SB_CHANGE_PENDING),
 							 BIT(MD_SB_CHANGE_DEVS) |
 							 BIT(MD_SB_CHANGE_CLEAN));
@@ -2807,7 +2806,7 @@ rewrite:
 	/* if there was a failure, MD_SB_CHANGE_DEVS was set, and we re-write super */
 
 	if (mddev_is_clustered(mddev) && ret == 0)
-		md_cluster_ops->metadata_update_finish(mddev);
+		mddev->cluster_ops->metadata_update_finish(mddev);
 
 	if (mddev->in_sync != sync_req ||
 	    !bit_clear_unless(&mddev->sb_flags, BIT(MD_SB_CHANGE_PENDING),
@@ -2966,7 +2965,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 		else {
 			err = 0;
 			if (mddev_is_clustered(mddev))
-				err = md_cluster_ops->remove_disk(mddev, rdev);
+				err = mddev->cluster_ops->remove_disk(mddev, rdev);
 
 			if (err == 0) {
 				md_kick_rdev_from_array(rdev);
@@ -3076,7 +3075,7 @@ state_store(struct md_rdev *rdev, const char *buf, size_t len)
 			 * by this node eventually
 			 */
 			if (!mddev_is_clustered(rdev->mddev) ||
-			    (err = md_cluster_ops->gather_bitmaps(rdev)) == 0) {
+			    (err = mddev->cluster_ops->gather_bitmaps(rdev)) == 0) {
 				clear_bit(Faulty, &rdev->flags);
 				err = add_bound_rdev(rdev);
 			}
@@ -6994,7 +6993,7 @@ int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info)
 				set_bit(Candidate, &rdev->flags);
 			else if (info->state & (1 << MD_DISK_CLUSTER_ADD)) {
 				/* --add initiated by this node */
-				err = md_cluster_ops->add_new_disk(mddev, rdev);
+				err = mddev->cluster_ops->add_new_disk(mddev, rdev);
 				if (err) {
 					export_rdev(rdev, mddev);
 					return err;
@@ -7011,14 +7010,14 @@ int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info)
 		if (mddev_is_clustered(mddev)) {
 			if (info->state & (1 << MD_DISK_CANDIDATE)) {
 				if (!err) {
-					err = md_cluster_ops->new_disk_ack(mddev,
-						err == 0);
+					err = mddev->cluster_ops->new_disk_ack(
+							mddev, err == 0);
 					if (err)
 						md_kick_rdev_from_array(rdev);
 				}
 			} else {
 				if (err)
-					md_cluster_ops->add_new_disk_cancel(mddev);
+					mddev->cluster_ops->add_new_disk_cancel(mddev);
 				else
 					err = add_bound_rdev(rdev);
 			}
@@ -7098,10 +7097,9 @@ static int hot_remove_disk(struct mddev *mddev, dev_t dev)
 		goto busy;
 
 kick_rdev:
-	if (mddev_is_clustered(mddev)) {
-		if (md_cluster_ops->remove_disk(mddev, rdev))
-			goto busy;
-	}
+	if (mddev_is_clustered(mddev) &&
+	    mddev->cluster_ops->remove_disk(mddev, rdev))
+		goto busy;
 
 	md_kick_rdev_from_array(rdev);
 	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
@@ -7404,7 +7402,7 @@ static int update_size(struct mddev *mddev, sector_t num_sectors)
 	rv = mddev->pers->resize(mddev, num_sectors);
 	if (!rv) {
 		if (mddev_is_clustered(mddev))
-			md_cluster_ops->update_size(mddev, old_dev_sectors);
+			mddev->cluster_ops->update_size(mddev, old_dev_sectors);
 		else if (!mddev_is_dm(mddev))
 			set_capacity_and_notify(mddev->gendisk,
 						mddev->array_sectors);
@@ -7450,6 +7448,27 @@ static int update_raid_disks(struct mddev *mddev, int raid_disks)
 		mddev->reshape_backwards = 0;
 	}
 	return rv;
+}
+
+static int get_cluster_ops(struct mddev *mddev)
+{
+	spin_lock(&pers_lock);
+	mddev->cluster_ops = md_cluster_ops;
+	if (mddev->cluster_ops && !try_module_get(md_cluster_mod))
+		mddev->cluster_ops = NULL;
+	spin_unlock(&pers_lock);
+
+	return mddev->cluster_ops == NULL ? -ENOENT : 0;
+}
+
+static void put_cluster_ops(struct mddev *mddev)
+{
+	if (!mddev->cluster_ops)
+		return;
+
+	mddev->cluster_ops->leave(mddev);
+	module_put(md_cluster_mod);
+	mddev->cluster_ops = NULL;
 }
 
 /*
@@ -7560,16 +7579,15 @@ static int update_array_info(struct mddev *mddev, mdu_array_info_t *info)
 
 			if (mddev->bitmap_info.nodes) {
 				/* hold PW on all the bitmap lock */
-				if (md_cluster_ops->lock_all_bitmaps(mddev) <= 0) {
+				if (mddev->cluster_ops->lock_all_bitmaps(mddev) <= 0) {
 					pr_warn("md: can't change bitmap to none since the array is in use by more than one node\n");
 					rv = -EPERM;
-					md_cluster_ops->unlock_all_bitmaps(mddev);
+					mddev->cluster_ops->unlock_all_bitmaps(mddev);
 					goto err;
 				}
 
 				mddev->bitmap_info.nodes = 0;
-				md_cluster_ops->leave(mddev);
-				module_put(md_cluster_mod);
+				put_cluster_ops(mddev);
 				mddev->safemode_delay = DEFAULT_SAFEMODE_DELAY;
 			}
 			mddev->bitmap_ops->destroy(mddev);
@@ -7853,7 +7871,7 @@ static int md_ioctl(struct block_device *bdev, blk_mode_t mode,
 
 	case CLUSTERED_DISK_NACK:
 		if (mddev_is_clustered(mddev))
-			md_cluster_ops->new_disk_ack(mddev, false);
+			mddev->cluster_ops->new_disk_ack(mddev, false);
 		else
 			err = -EINVAL;
 		goto unlock;
@@ -8568,19 +8586,20 @@ EXPORT_SYMBOL(unregister_md_cluster_operations);
 
 int md_setup_cluster(struct mddev *mddev, int nodes)
 {
-	int ret;
-	if (!md_cluster_ops)
-		request_module("md-cluster");
-	spin_lock(&pers_lock);
-	/* ensure module won't be unloaded */
-	if (!md_cluster_ops || !try_module_get(md_cluster_mod)) {
-		pr_warn("can't find md-cluster module or get its reference.\n");
-		spin_unlock(&pers_lock);
-		return -ENOENT;
-	}
-	spin_unlock(&pers_lock);
+	int ret = get_cluster_ops(mddev);
 
-	ret = md_cluster_ops->join(mddev, nodes);
+	if (ret) {
+		request_module("md-cluster");
+		ret = get_cluster_ops(mddev);
+	}
+
+	/* ensure module won't be unloaded */
+	if (ret) {
+		pr_warn("can't find md-cluster module or get its reference.\n");
+		return ret;
+	}
+
+	ret = mddev->cluster_ops->join(mddev, nodes);
 	if (!ret)
 		mddev->safemode_delay = 0;
 	return ret;
@@ -8588,10 +8607,7 @@ int md_setup_cluster(struct mddev *mddev, int nodes)
 
 void md_cluster_stop(struct mddev *mddev)
 {
-	if (!md_cluster_ops)
-		return;
-	md_cluster_ops->leave(mddev);
-	module_put(md_cluster_mod);
+	put_cluster_ops(mddev);
 }
 
 static int is_mddev_idle(struct mddev *mddev, int init)
@@ -8984,7 +9000,7 @@ void md_do_sync(struct md_thread *thread)
 	}
 
 	if (mddev_is_clustered(mddev)) {
-		ret = md_cluster_ops->resync_start(mddev);
+		ret = mddev->cluster_ops->resync_start(mddev);
 		if (ret)
 			goto skip;
 
@@ -9011,7 +9027,7 @@ void md_do_sync(struct md_thread *thread)
 	 *
 	 */
 	if (mddev_is_clustered(mddev))
-		md_cluster_ops->resync_start_notify(mddev);
+		mddev->cluster_ops->resync_start_notify(mddev);
 	do {
 		int mddev2_minor = -1;
 		mddev->curr_resync = MD_RESYNC_DELAYED;
@@ -9795,7 +9811,7 @@ void md_reap_sync_thread(struct mddev *mddev)
 	 * call resync_finish here if MD_CLUSTER_RESYNC_LOCKED is set by
 	 * clustered raid */
 	if (test_and_clear_bit(MD_CLUSTER_RESYNC_LOCKED, &mddev->flags))
-		md_cluster_ops->resync_finish(mddev);
+		mddev->cluster_ops->resync_finish(mddev);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
 	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -9803,13 +9819,13 @@ void md_reap_sync_thread(struct mddev *mddev)
 	clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 	/*
-	 * We call md_cluster_ops->update_size here because sync_size could
+	 * We call mddev->cluster_ops->update_size here because sync_size could
 	 * be changed by md_update_sb, and MD_RECOVERY_RESHAPE is cleared,
 	 * so it is time to update size across cluster.
 	 */
 	if (mddev_is_clustered(mddev) && is_reshaped
 				      && !test_bit(MD_CLOSING, &mddev->flags))
-		md_cluster_ops->update_size(mddev, old_dev_sectors);
+		mddev->cluster_ops->update_size(mddev, old_dev_sectors);
 	/* flag recovery needed just to double check */
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	sysfs_notify_dirent_safe(mddev->sysfs_completed);
@@ -10035,7 +10051,7 @@ static void check_sb_changes(struct mddev *mddev, struct md_rdev *rdev)
 			if (rdev2->raid_disk == -1 && role != MD_DISK_ROLE_SPARE &&
 			    !(le32_to_cpu(sb->feature_map) &
 			      MD_FEATURE_RESHAPE_ACTIVE) &&
-			    !md_cluster_ops->resync_status_get(mddev)) {
+			    !mddev->cluster_ops->resync_status_get(mddev)) {
 				/*
 				 * -1 to make raid1_add_disk() set conf->fullsync
 				 * to 1. This could avoid skipping sync when the

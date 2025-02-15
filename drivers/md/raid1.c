@@ -1469,7 +1469,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 	bool is_discard = (bio_op(bio) == REQ_OP_DISCARD);
 
 	if (mddev_is_clustered(mddev) &&
-	     md_cluster_ops->area_resyncing(mddev, WRITE,
+	    mddev->cluster_ops->area_resyncing(mddev, WRITE,
 		     bio->bi_iter.bi_sector, bio_end_sector(bio))) {
 
 		DEFINE_WAIT(w);
@@ -1480,7 +1480,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		for (;;) {
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_IDLE);
-			if (!md_cluster_ops->area_resyncing(mddev, WRITE,
+			if (!mddev->cluster_ops->area_resyncing(mddev, WRITE,
 							bio->bi_iter.bi_sector,
 							bio_end_sector(bio)))
 				break;
@@ -3040,9 +3040,9 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		conf->cluster_sync_low = mddev->curr_resync_completed;
 		conf->cluster_sync_high = conf->cluster_sync_low + CLUSTER_RESYNC_WINDOW_SECTORS;
 		/* Send resync message */
-		md_cluster_ops->resync_info_update(mddev,
-				conf->cluster_sync_low,
-				conf->cluster_sync_high);
+		mddev->cluster_ops->resync_info_update(mddev,
+						       conf->cluster_sync_low,
+						       conf->cluster_sync_high);
 	}
 
 	/* For a user-requested sync, we read all readable devices and do a
