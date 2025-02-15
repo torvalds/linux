@@ -18,9 +18,36 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/raid/md_u.h>
 #include <trace/events/block.h>
 
 #define MaxSector (~(sector_t)0)
+
+enum md_submodule_type {
+	MD_PERSONALITY = 0,
+	MD_CLUSTER,
+	MD_BITMAP, /* TODO */
+};
+
+enum md_submodule_id {
+	ID_LINEAR	= LEVEL_LINEAR,
+	ID_RAID0	= 0,
+	ID_RAID1	= 1,
+	ID_RAID4	= 4,
+	ID_RAID5	= 5,
+	ID_RAID6	= 6,
+	ID_RAID10	= 10,
+	ID_CLUSTER,
+	ID_BITMAP,	/* TODO */
+	ID_LLBITMAP,	/* TODO */
+};
+
+struct md_submodule_head {
+	enum md_submodule_type	type;
+	enum md_submodule_id	id;
+	const char		*name;
+	struct module		*owner;
+};
 
 /*
  * These flags should really be called "NO_RETRY" rather than
@@ -698,6 +725,7 @@ static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
 
 struct md_personality
 {
+	struct md_submodule_head head;
 	char *name;
 	int level;
 	struct list_head list;
@@ -841,6 +869,9 @@ static inline void safe_put_page(struct page *p)
 {
 	if (p) put_page(p);
 }
+
+int register_md_submodule(struct md_submodule_head *msh);
+void unregister_md_submodule(struct md_submodule_head *msh);
 
 extern int register_md_personality(struct md_personality *p);
 extern int unregister_md_personality(struct md_personality *p);

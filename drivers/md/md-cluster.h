@@ -10,6 +10,8 @@ struct mddev;
 struct md_rdev;
 
 struct md_cluster_operations {
+	struct md_submodule_head head;
+
 	int (*join)(struct mddev *mddev, int nodes);
 	int (*leave)(struct mddev *mddev);
 	int (*slot_number)(struct mddev *mddev);

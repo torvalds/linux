@@ -79,6 +79,8 @@ static const char *action_name[NR_SYNC_ACTIONS] = {
 	[ACTION_IDLE]		= "idle",
 };
 
+static DEFINE_XARRAY(md_submodule);
+
 /* pers_list is a list of registered personalities protected by pers_lock. */
 static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
@@ -8521,6 +8523,18 @@ static const struct proc_ops mdstat_proc_ops = {
 	.proc_release	= seq_release,
 	.proc_poll	= mdstat_poll,
 };
+
+int register_md_submodule(struct md_submodule_head *msh)
+{
+	return xa_insert(&md_submodule, msh->id, msh, GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(register_md_submodule);
+
+void unregister_md_submodule(struct md_submodule_head *msh)
+{
+	xa_erase(&md_submodule, msh->id);
+}
+EXPORT_SYMBOL_GPL(unregister_md_submodule);
 
 int register_md_personality(struct md_personality *p)
 {
