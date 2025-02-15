@@ -70,6 +70,12 @@ void intel_connector_queue_modeset_retry_work(struct intel_connector *connector)
 		drm_connector_put(&connector->base);
 }
 
+void intel_connector_cancel_modeset_retry_work(struct intel_connector *connector)
+{
+	if (cancel_work_sync(&connector->modeset_retry_work))
+		drm_connector_put(&connector->base);
+}
+
 int intel_connector_init(struct intel_connector *connector)
 {
 	struct intel_digital_connector_state *conn_state;
