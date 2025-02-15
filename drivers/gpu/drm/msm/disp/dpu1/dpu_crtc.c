@@ -1231,6 +1231,50 @@ done:
 }
 
 #define MAX_CHANNELS_PER_CRTC 2
+#define MAX_HDISPLAY_SPLIT 1080
+
+static struct msm_display_topology dpu_crtc_get_topology(
+		struct drm_crtc *crtc,
+		struct dpu_kms *dpu_kms,
+		struct drm_crtc_state *crtc_state)
+{
+	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
+	struct msm_display_topology topology = {0};
+	struct drm_encoder *drm_enc;
+
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask)
+		dpu_encoder_update_topology(drm_enc, &topology, crtc_state->state,
+					    &crtc_state->adjusted_mode);
+
+	/*
+	 * Datapath topology selection
+	 *
+	 * Dual display
+	 * 2 LM, 2 INTF ( Split display using 2 interfaces)
+	 *
+	 * Single display
+	 * 1 LM, 1 INTF
+	 * 2 LM, 1 INTF (stream merge to support high resolution interfaces)
+	 *
+	 * If DSC is enabled, use 2 LMs for 2:2:1 topology
+	 *
+	 * Add dspps to the reservation requirements if ctm is requested
+	 */
+
+	if (topology.num_intf == 2)
+		topology.num_lm = 2;
+	else if (topology.num_dsc == 2)
+		topology.num_lm = 2;
+	else if (dpu_kms->catalog->caps->has_3d_merge)
+		topology.num_lm = (mode->hdisplay > MAX_HDISPLAY_SPLIT) ? 2 : 1;
+	else
+		topology.num_lm = 1;
+
+	if (crtc_state->ctm)
+		topology.num_dspp = topology.num_lm;
+
+	return topology;
+}
 
 static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 				     struct drm_crtc_state *crtc_state)
@@ -1243,6 +1287,8 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 	struct dpu_global_state *global_state;
 	struct dpu_crtc_state *cstate;
 	struct drm_encoder *drm_enc;
+	struct msm_display_topology topology;
+	int ret;
 
 	/*
 	 * For now, grab the first encoder in the crtc state as we don't
@@ -1251,12 +1297,23 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask)
 		break;
 
+	/*
+	 * Release and Allocate resources on every modeset
+	 */
 	global_state = dpu_kms_get_global_state(crtc_state->state);
 	if (IS_ERR(global_state))
 		return PTR_ERR(global_state);
 
+	dpu_rm_release(global_state, drm_enc);
+
 	if (!crtc_state->enable)
 		return 0;
+
+	topology = dpu_crtc_get_topology(crtc, dpu_kms, crtc_state);
+	ret = dpu_rm_reserve(&dpu_kms->rm, global_state,
+			     drm_enc, crtc_state, &topology);
+	if (ret)
+		return ret;
 
 	cstate = to_dpu_crtc_state(crtc_state);
 
@@ -1287,6 +1344,28 @@ static int dpu_crtc_assign_resources(struct drm_crtc *crtc,
 	return 0;
 }
 
+/**
+ * dpu_crtc_check_mode_changed: check if full modeset is required
+ * @crtc_state:	Corresponding CRTC state to be checked
+ *
+ * Check if the changes in the object properties demand full mode set.
+ */
+int dpu_crtc_check_mode_changed(struct drm_crtc_state *crtc_state)
+{
+	struct drm_encoder *drm_enc;
+	struct drm_crtc *crtc = crtc_state->crtc;
+
+	DRM_DEBUG_ATOMIC("%d\n", crtc->base.id);
+
+	/* there might be cases where encoder needs a modeset too */
+	drm_for_each_encoder_mask(drm_enc, crtc->dev, crtc_state->encoder_mask) {
+		if (dpu_encoder_needs_modeset(drm_enc, crtc_state->state))
+			crtc_state->mode_changed = true;
+	}
+
+	return 0;
+}
+
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 		struct drm_atomic_state *state)
 {
@@ -1302,7 +1381,8 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	bool needs_dirtyfb = dpu_crtc_needs_dirtyfb(crtc_state);
 
-	if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+	/* don't reallocate resources if only ACTIVE has beeen changed */
+	if (crtc_state->mode_changed || crtc_state->connectors_changed) {
 		rc = dpu_crtc_assign_resources(crtc, crtc_state);
 		if (rc < 0)
 			return rc;

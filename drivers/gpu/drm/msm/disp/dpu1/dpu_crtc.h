@@ -239,6 +239,8 @@ static inline int dpu_crtc_frame_pending(struct drm_crtc *crtc)
 	return crtc ? atomic_read(&to_dpu_crtc(crtc)->frame_pending) : -EINVAL;
 }
 
+int dpu_crtc_check_mode_changed(struct drm_crtc_state *crtc_state);
+
 int dpu_crtc_vblank(struct drm_crtc *crtc, bool en);
 
 void dpu_crtc_vblank_callback(struct drm_crtc *crtc);
