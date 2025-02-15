@@ -27,6 +27,7 @@ properties:
           - enum:
               - axis,artpec8-mct
               - google,gs101-mct
+              - samsung,exynos2200-mct-peris
               - samsung,exynos3250-mct
               - samsung,exynos5250-mct
               - samsung,exynos5260-mct
@@ -131,6 +132,7 @@ allOf:
             enum:
               - axis,artpec8-mct
               - google,gs101-mct
+              - samsung,exynos2200-mct-peris
               - samsung,exynos5260-mct
               - samsung,exynos5420-mct
               - samsung,exynos5433-mct
