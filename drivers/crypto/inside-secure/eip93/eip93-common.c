@@ -202,7 +202,6 @@ int check_valid_request(struct eip93_cipher_reqctx *rctx)
 {
 	struct scatterlist *src = rctx->sg_src;
 	struct scatterlist *dst = rctx->sg_dst;
-	u32 src_nents, dst_nents;
 	u32 textsize = rctx->textsize;
 	u32 authsize = rctx->authsize;
 	u32 blksize = rctx->blksize;
@@ -210,6 +209,7 @@ int check_valid_request(struct eip93_cipher_reqctx *rctx)
 	u32 totlen_dst = rctx->assoclen + rctx->textsize;
 	u32 copy_len;
 	bool src_align, dst_align;
+	int src_nents, dst_nents;
 	int err = -EINVAL;
 
 	if (!IS_CTR(rctx->flags)) {
@@ -225,19 +225,24 @@ int check_valid_request(struct eip93_cipher_reqctx *rctx)
 	}
 
 	src_nents = sg_nents_for_len(src, totlen_src);
+	if (src_nents < 0)
+		return src_nents;
+
 	dst_nents = sg_nents_for_len(dst, totlen_dst);
+	if (dst_nents < 0)
+		return dst_nents;
 
 	if (src == dst) {
 		src_nents = max(src_nents, dst_nents);
 		dst_nents = src_nents;
-		if (unlikely((totlen_src || totlen_dst) && src_nents <= 0))
+		if (unlikely((totlen_src || totlen_dst) && !src_nents))
 			return err;
 
 	} else {
-		if (unlikely(totlen_src && src_nents <= 0))
+		if (unlikely(totlen_src && !src_nents))
 			return err;
 
-		if (unlikely(totlen_dst && dst_nents <= 0))
+		if (unlikely(totlen_dst && !dst_nents))
 			return err;
 	}
 
@@ -273,8 +278,16 @@ int check_valid_request(struct eip93_cipher_reqctx *rctx)
 			return err;
 	}
 
-	rctx->src_nents = sg_nents_for_len(rctx->sg_src, totlen_src);
-	rctx->dst_nents = sg_nents_for_len(rctx->sg_dst, totlen_dst);
+	src_nents = sg_nents_for_len(rctx->sg_src, totlen_src);
+	if (src_nents < 0)
+		return src_nents;
+
+	dst_nents = sg_nents_for_len(rctx->sg_dst, totlen_dst);
+	if (dst_nents < 0)
+		return dst_nents;
+
+	rctx->src_nents = src_nents;
+	rctx->dst_nents = dst_nents;
 
 	return 0;
 }
