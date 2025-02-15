@@ -5111,6 +5111,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 	unsigned int gpio = gdev->base;
 	struct gpio_desc *desc;
 	struct gpio_chip *gc;
+	unsigned long flags;
 	int value;
 
 	guard(srcu)(&gdev->srcu);
@@ -5123,12 +5124,13 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 
 	for_each_gpio_desc(gc, desc) {
 		guard(srcu)(&desc->gdev->desc_srcu);
-		is_irq = test_bit(FLAG_USED_AS_IRQ, &desc->flags);
-		if (is_irq || test_bit(FLAG_REQUESTED, &desc->flags)) {
+		flags = READ_ONCE(desc->flags);
+		is_irq = test_bit(FLAG_USED_AS_IRQ, &flags);
+		if (is_irq || test_bit(FLAG_REQUESTED, &flags)) {
 			gpiod_get_direction(desc);
-			is_out = test_bit(FLAG_IS_OUT, &desc->flags);
+			is_out = test_bit(FLAG_IS_OUT, &flags);
 			value = gpio_chip_get_value(gc, desc);
-			active_low = test_bit(FLAG_ACTIVE_LOW, &desc->flags);
+			active_low = test_bit(FLAG_ACTIVE_LOW, &flags);
 			seq_printf(s, " gpio-%-3u (%-20.20s|%-20.20s) %s %s %s%s\n",
 				   gpio, desc->name ?: "", gpiod_get_label(desc),
 				   is_out ? "out" : "in ",
