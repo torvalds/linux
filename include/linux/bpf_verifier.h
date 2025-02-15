@@ -427,11 +427,6 @@ struct bpf_verifier_state {
 	bool active_rcu_lock;
 
 	bool speculative;
-	/* If this state was ever pointed-to by other state's loop_entry field
-	 * this flag would be set to true. Used to avoid freeing such states
-	 * while they are still in use.
-	 */
-	bool used_as_loop_entry;
 	bool in_sleepable;
 
 	/* first and last insn idx of this verifier state */
@@ -458,6 +453,11 @@ struct bpf_verifier_state {
 	u32 dfs_depth;
 	u32 callback_unroll_depth;
 	u32 may_goto_depth;
+	/* If this state was ever pointed-to by other state's loop_entry field
+	 * this flag would be set to true. Used to avoid freeing such states
+	 * while they are still in use.
+	 */
+	u32 used_as_loop_entry;
 };
 
 #define bpf_get_spilled_reg(slot, frame, mask)				\
@@ -499,7 +499,9 @@ struct bpf_verifier_state {
 struct bpf_verifier_state_list {
 	struct bpf_verifier_state state;
 	struct list_head node;
-	int miss_cnt, hit_cnt;
+	u32 miss_cnt;
+	u32 hit_cnt:31;
+	u32 in_free_list:1;
 };
 
 struct bpf_loop_inline_state {

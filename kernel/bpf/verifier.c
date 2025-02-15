@@ -1631,6 +1631,50 @@ static void free_verifier_state(struct bpf_verifier_state *state,
 		kfree(state);
 }
 
+/* struct bpf_verifier_state->{parent,loop_entry} refer to states
+ * that are in either of env->{expored_states,free_list}.
+ * In both cases the state is contained in struct bpf_verifier_state_list.
+ */
+static struct bpf_verifier_state_list *state_parent_as_list(struct bpf_verifier_state *st)
+{
+	if (st->parent)
+		return container_of(st->parent, struct bpf_verifier_state_list, state);
+	return NULL;
+}
+
+static struct bpf_verifier_state_list *state_loop_entry_as_list(struct bpf_verifier_state *st)
+{
+	if (st->loop_entry)
+		return container_of(st->loop_entry, struct bpf_verifier_state_list, state);
+	return NULL;
+}
+
+/* A state can be freed if it is no longer referenced:
+ * - is in the env->free_list;
+ * - has no children states;
+ * - is not used as loop_entry.
+ *
+ * Freeing a state can make it's loop_entry free-able.
+ */
+static void maybe_free_verifier_state(struct bpf_verifier_env *env,
+				      struct bpf_verifier_state_list *sl)
+{
+	struct bpf_verifier_state_list *loop_entry_sl;
+
+	while (sl && sl->in_free_list &&
+		     sl->state.branches == 0 &&
+		     sl->state.used_as_loop_entry == 0) {
+		loop_entry_sl = state_loop_entry_as_list(&sl->state);
+		if (loop_entry_sl)
+			loop_entry_sl->state.used_as_loop_entry--;
+		list_del(&sl->node);
+		free_verifier_state(&sl->state, false);
+		kfree(sl);
+		env->peak_states--;
+		sl = loop_entry_sl;
+	}
+}
+
 /* copy verifier state from src to dst growing dst stack space
  * when necessary to accommodate larger src stack
  */
@@ -1848,7 +1892,8 @@ static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_env *env,
 	return topmost;
 }
 
-static void update_loop_entry(struct bpf_verifier_state *cur, struct bpf_verifier_state *hdr)
+static void update_loop_entry(struct bpf_verifier_env *env,
+			      struct bpf_verifier_state *cur, struct bpf_verifier_state *hdr)
 {
 	/* The hdr->branches check decides between cases B and C in
 	 * comment for get_loop_entry(). If hdr->branches == 0 then
@@ -1857,13 +1902,20 @@ static void update_loop_entry(struct bpf_verifier_state *cur, struct bpf_verifie
 	 * no need to update cur->loop_entry.
 	 */
 	if (hdr->branches && hdr->dfs_depth < (cur->loop_entry ?: cur)->dfs_depth) {
+		if (cur->loop_entry) {
+			cur->loop_entry->used_as_loop_entry--;
+			maybe_free_verifier_state(env, state_loop_entry_as_list(cur));
+		}
 		cur->loop_entry = hdr;
-		hdr->used_as_loop_entry = true;
+		hdr->used_as_loop_entry++;
 	}
 }
 
 static void update_branch_counts(struct bpf_verifier_env *env, struct bpf_verifier_state *st)
 {
+	struct bpf_verifier_state_list *sl = NULL, *parent_sl;
+	struct bpf_verifier_state *parent;
+
 	while (st) {
 		u32 br = --st->branches;
 
@@ -1873,7 +1925,7 @@ static void update_branch_counts(struct bpf_verifier_env *env, struct bpf_verifi
 		 * This is a part of 'case A' in get_loop_entry() comment.
 		 */
 		if (br == 0 && st->parent && st->loop_entry)
-			update_loop_entry(st->parent, st->loop_entry);
+			update_loop_entry(env, st->parent, st->loop_entry);
 
 		/* WARN_ON(br > 1) technically makes sense here,
 		 * but see comment in push_stack(), hence:
@@ -1883,7 +1935,12 @@ static void update_branch_counts(struct bpf_verifier_env *env, struct bpf_verifi
 			  br);
 		if (br)
 			break;
-		st = st->parent;
+		parent = st->parent;
+		parent_sl = state_parent_as_list(st);
+		if (sl)
+			maybe_free_verifier_state(env, sl);
+		st = parent;
+		sl = parent_sl;
 	}
 }
 
@@ -18667,7 +18724,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 					spi = __get_spi(iter_reg->off + iter_reg->var_off.value);
 					iter_state = &func(env, iter_reg)->stack[spi].spilled_ptr;
 					if (iter_state->iter.state == BPF_ITER_STATE_ACTIVE) {
-						update_loop_entry(cur, &sl->state);
+						update_loop_entry(env, cur, &sl->state);
 						goto hit;
 					}
 				}
@@ -18676,7 +18733,7 @@ static int is_state_visited(struct bpf_verifier_env *env, int insn_idx)
 			if (is_may_goto_insn_at(env, insn_idx)) {
 				if (sl->state.may_goto_depth != cur->may_goto_depth &&
 				    states_equal(env, &sl->state, cur, RANGE_WITHIN)) {
-					update_loop_entry(cur, &sl->state);
+					update_loop_entry(env, cur, &sl->state);
 					goto hit;
 				}
 			}
@@ -18749,7 +18806,7 @@ skip_inf_loop_check:
 		force_exact = loop_entry && loop_entry->branches > 0;
 		if (states_equal(env, &sl->state, cur, force_exact ? RANGE_WITHIN : NOT_EXACT)) {
 			if (force_exact)
-				update_loop_entry(cur, loop_entry);
+				update_loop_entry(env, cur, loop_entry);
 hit:
 			sl->hit_cnt++;
 			/* reached equivalent register/stack state,
@@ -18798,24 +18855,10 @@ miss:
 			/* the state is unlikely to be useful. Remove it to
 			 * speed up verification
 			 */
+			sl->in_free_list = true;
 			list_del(&sl->node);
-			if (sl->state.frame[0]->regs[0].live & REG_LIVE_DONE &&
-			    !sl->state.used_as_loop_entry) {
-				u32 br = sl->state.branches;
-
-				WARN_ONCE(br,
-					  "BUG live_done but branches_to_explore %d\n",
-					  br);
-				free_verifier_state(&sl->state, false);
-				kfree(sl);
-				env->peak_states--;
-			} else {
-				/* cannot free this state, since parentage chain may
-				 * walk it later. Add it for free_list instead to
-				 * be freed at the end of verification
-				 */
-				list_add(&sl->node, &env->free_list);
-			}
+			list_add(&sl->node, &env->free_list);
+			maybe_free_verifier_state(env, sl);
 		}
 	}
 
