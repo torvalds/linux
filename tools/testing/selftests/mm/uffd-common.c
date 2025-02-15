@@ -348,7 +348,7 @@ int uffd_test_ctx_init(uint64_t features, const char **errmsg)
 	/*
 	 * After initialization of area_src, we must explicitly release pages
 	 * for area_dst to make sure it's fully empty.  Otherwise we could have
-	 * some area_dst pages be errornously initialized with zero pages,
+	 * some area_dst pages be erroneously initialized with zero pages,
 	 * hence we could hit memory corruption later in the test.
 	 *
 	 * One example is when THP is globally enabled, above allocate_area()
