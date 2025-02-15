@@ -997,8 +997,8 @@ struct kvm_vcpu_arch {
 		u64 msr_int_val; /* MSR_KVM_ASYNC_PF_INT */
 		u16 vec;
 		u32 id;
-		bool send_user_only;
 		u32 host_apf_flags;
+		bool send_always;
 		bool delivery_as_pf_vmexit;
 		bool pageready_pending;
 	} apf;
