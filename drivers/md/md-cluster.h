@@ -37,9 +37,6 @@ struct md_cluster_operations {
 	void (*update_size)(struct mddev *mddev, sector_t old_dev_sectors);
 };
 
-extern int register_md_cluster_operations(const struct md_cluster_operations *ops,
-		struct module *module);
-extern int unregister_md_cluster_operations(void);
 extern int md_setup_cluster(struct mddev *mddev, int nodes);
 extern void md_cluster_stop(struct mddev *mddev);
 extern void md_reload_sb(struct mddev *mddev, int raid_disk);

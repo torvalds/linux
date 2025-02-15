@@ -603,7 +603,7 @@ struct mddev {
 	mempool_t *serial_info_pool;
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
-	const struct md_cluster_operations *cluster_ops;
+	struct md_cluster_operations *cluster_ops;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
 	unsigned int			noio_flag; /* for memalloc scope API */
 

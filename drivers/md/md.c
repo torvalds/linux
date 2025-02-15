@@ -81,12 +81,7 @@ static const char *action_name[NR_SYNC_ACTIONS] = {
 
 static DEFINE_XARRAY(md_submodule);
 
-static DEFINE_SPINLOCK(pers_lock);
-
 static const struct kobj_type md_ktype;
-
-static const struct md_cluster_operations *md_cluster_ops;
-static struct module *md_cluster_mod;
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
@@ -7452,11 +7447,12 @@ static int update_raid_disks(struct mddev *mddev, int raid_disks)
 
 static int get_cluster_ops(struct mddev *mddev)
 {
-	spin_lock(&pers_lock);
-	mddev->cluster_ops = md_cluster_ops;
-	if (mddev->cluster_ops && !try_module_get(md_cluster_mod))
+	xa_lock(&md_submodule);
+	mddev->cluster_ops = xa_load(&md_submodule, ID_CLUSTER);
+	if (mddev->cluster_ops &&
+	    !try_module_get(mddev->cluster_ops->head.owner))
 		mddev->cluster_ops = NULL;
-	spin_unlock(&pers_lock);
+	xa_unlock(&md_submodule);
 
 	return mddev->cluster_ops == NULL ? -ENOENT : 0;
 }
@@ -7467,7 +7463,7 @@ static void put_cluster_ops(struct mddev *mddev)
 		return;
 
 	mddev->cluster_ops->leave(mddev);
-	module_put(md_cluster_mod);
+	module_put(mddev->cluster_ops->head.owner);
 	mddev->cluster_ops = NULL;
 }
 
@@ -8558,31 +8554,6 @@ void unregister_md_submodule(struct md_submodule_head *msh)
 	xa_erase(&md_submodule, msh->id);
 }
 EXPORT_SYMBOL_GPL(unregister_md_submodule);
-
-int register_md_cluster_operations(const struct md_cluster_operations *ops,
-				   struct module *module)
-{
-	int ret = 0;
-	spin_lock(&pers_lock);
-	if (md_cluster_ops != NULL)
-		ret = -EALREADY;
-	else {
-		md_cluster_ops = ops;
-		md_cluster_mod = module;
-	}
-	spin_unlock(&pers_lock);
-	return ret;
-}
-EXPORT_SYMBOL(register_md_cluster_operations);
-
-int unregister_md_cluster_operations(void)
-{
-	spin_lock(&pers_lock);
-	md_cluster_ops = NULL;
-	spin_unlock(&pers_lock);
-	return 0;
-}
-EXPORT_SYMBOL(unregister_md_cluster_operations);
 
 int md_setup_cluster(struct mddev *mddev, int nodes)
 {

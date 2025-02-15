@@ -1612,7 +1612,14 @@ out:
 	return err;
 }
 
-static const struct md_cluster_operations cluster_ops = {
+static struct md_cluster_operations cluster_ops = {
+	.head = {
+		.type	= MD_CLUSTER,
+		.id	= ID_CLUSTER,
+		.name	= "cluster",
+		.owner	= THIS_MODULE,
+	},
+
 	.join   = join,
 	.leave  = leave,
 	.slot_number = slot_number,
@@ -1642,13 +1649,12 @@ static int __init cluster_init(void)
 {
 	pr_warn("md-cluster: support raid1 and raid10 (limited support)\n");
 	pr_info("Registering Cluster MD functions\n");
-	register_md_cluster_operations(&cluster_ops, THIS_MODULE);
-	return 0;
+	return register_md_submodule(&cluster_ops.head);
 }
 
 static void cluster_exit(void)
 {
-	unregister_md_cluster_operations();
+	unregister_md_submodule(&cluster_ops.head);
 }
 
 module_init(cluster_init);
