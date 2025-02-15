@@ -1222,8 +1222,7 @@ static long btrfs_scan_root(struct btrfs_root *root, struct btrfs_em_shrink_ctx 
 		fs_info->em_shrinker_last_ino = btrfs_ino(inode);
 		btrfs_add_delayed_iput(inode);
 
-		if (ctx->scanned >= ctx->nr_to_scan ||
-		    btrfs_fs_closing(inode->root->fs_info))
+		if (ctx->scanned >= ctx->nr_to_scan || btrfs_fs_closing(fs_info))
 			break;
 
 		cond_resched();
