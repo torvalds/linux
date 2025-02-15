@@ -700,10 +700,10 @@ void dpu_encoder_update_topology(struct drm_encoder *drm_enc,
 		fb = conn_state->writeback_job->fb;
 
 		if (fb && MSM_FORMAT_IS_YUV(msm_framebuffer_format(fb)))
-			topology->needs_cdm = true;
+			topology->num_cdm++;
 	} else if (disp_info->intf_type == INTF_DP) {
 		if (msm_dp_is_yuv_420_enabled(priv->dp[disp_info->h_tile_instance[0]], adj_mode))
-			topology->needs_cdm = true;
+			topology->num_cdm++;
 	}
 }
 

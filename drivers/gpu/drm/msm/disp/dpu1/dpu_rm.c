@@ -585,12 +585,18 @@ static int _dpu_rm_reserve_dsc(struct dpu_rm *rm,
 
 static int _dpu_rm_reserve_cdm(struct dpu_rm *rm,
 			       struct dpu_global_state *global_state,
-			       uint32_t crtc_id)
+			       uint32_t crtc_id,
+			       int num_cdm)
 {
 	/* try allocating only one CDM block */
 	if (!rm->cdm_blk) {
 		DPU_ERROR("CDM block does not exist\n");
 		return -EIO;
+	}
+
+	if (num_cdm > 1) {
+		DPU_ERROR("More than 1 INTF requesting CDM\n");
+		return -EINVAL;
 	}
 
 	if (global_state->cdm_to_crtc_id) {
@@ -629,8 +635,8 @@ static int _dpu_rm_make_reservation(
 	if (ret)
 		return ret;
 
-	if (topology->needs_cdm) {
-		ret = _dpu_rm_reserve_cdm(rm, global_state, crtc_id);
+	if (topology->num_cdm > 0) {
+		ret = _dpu_rm_reserve_cdm(rm, global_state, crtc_id, topology->num_cdm);
 		if (ret) {
 			DPU_ERROR("unable to find CDM blk\n");
 			return ret;
