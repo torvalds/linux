@@ -1324,6 +1324,15 @@ int kvm_xen_hvm_config(struct kvm *kvm, struct kvm_xen_hvm_config *xhc)
 	     xhc->blob_size_32 || xhc->blob_size_64))
 		return -EINVAL;
 
+	/*
+	 * Restrict the MSR to the range that is unofficially reserved for
+	 * synthetic, virtualization-defined MSRs, e.g. to prevent confusing
+	 * KVM by colliding with a real MSR that requires special handling.
+	 */
+	if (xhc->msr &&
+	    (xhc->msr < KVM_XEN_MSR_MIN_INDEX || xhc->msr > KVM_XEN_MSR_MAX_INDEX))
+		return -EINVAL;
+
 	mutex_lock(&kvm->arch.xen.xen_lock);
 
 	if (xhc->msr && !kvm->arch.xen_hvm_config.msr)
