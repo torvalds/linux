@@ -70,6 +70,174 @@ static const struct samsung_pin_bank_type exynos8895_bank_type_off  = {
 /* Pad retention control code for accessing PMU regmap */
 static atomic_t exynos_shared_retention_refcnt;
 
+/* pin banks of exynos2200 pin-controller - ALIVE */
+static const struct samsung_pin_bank_data exynos2200_pin_banks0[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTW(8, 0x0, "gpa0", 0x00),
+	EXYNOS850_PIN_BANK_EINTW(8, 0x20, "gpa1", 0x04),
+	EXYNOS850_PIN_BANK_EINTW(8, 0x40, "gpa2", 0x08),
+	EXYNOS850_PIN_BANK_EINTW(8, 0x60, "gpa3", 0x0c),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x80, "gpa4", 0x10),
+	EXYNOS_PIN_BANK_EINTN(4, 0xa0, "gpq0"),
+	EXYNOS_PIN_BANK_EINTN(2, 0xc0, "gpq1"),
+	EXYNOS_PIN_BANK_EINTN(2, 0xe0, "gpq2"),
+};
+
+/* pin banks of exynos2200 pin-controller - CMGP */
+static const struct samsung_pin_bank_data exynos2200_pin_banks1[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTW(2, 0x0, "gpm0", 0x00),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x20, "gpm1", 0x04),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x40, "gpm2", 0x08),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x60, "gpm3", 0x0c),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x80, "gpm4", 0x10),
+	EXYNOS850_PIN_BANK_EINTW(2, 0xa0, "gpm5", 0x14),
+	EXYNOS850_PIN_BANK_EINTW(2, 0xc0, "gpm6", 0x18),
+	EXYNOS850_PIN_BANK_EINTW(2, 0xe0, "gpm7", 0x1c),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x100, "gpm8", 0x20),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x120, "gpm9", 0x24),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x140, "gpm10", 0x28),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x160, "gpm11", 0x2c),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x180, "gpm12", 0x30),
+	EXYNOS850_PIN_BANK_EINTW(2, 0x1a0, "gpm13", 0x34),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x1c0, "gpm14", 0x38),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x1e0, "gpm15", 0x3c),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x200, "gpm16", 0x40),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x220, "gpm17", 0x44),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x240, "gpm20", 0x48),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x260, "gpm21", 0x4c),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x280, "gpm22", 0x50),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x2a0, "gpm23", 0x54),
+	EXYNOS850_PIN_BANK_EINTW(1, 0x2c0, "gpm24", 0x58),
+};
+
+/* pin banks of exynos2200 pin-controller - HSI1 */
+static const struct samsung_pin_bank_data exynos2200_pin_banks2[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(4, 0x0, "gpf0", 0x00),
+};
+
+/* pin banks of exynos2200 pin-controller - UFS */
+static const struct samsung_pin_bank_data exynos2200_pin_banks3[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(7, 0x0, "gpf1", 0x00),
+};
+
+/* pin banks of exynos2200 pin-controller - HSI1UFS */
+static const struct samsung_pin_bank_data exynos2200_pin_banks4[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(2, 0x0, "gpf2", 0x00),
+};
+
+/* pin banks of exynos2200 pin-controller - PERIC0 */
+static const struct samsung_pin_bank_data exynos2200_pin_banks5[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(4, 0x0, "gpb0",  0x00),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x20, "gpb1",  0x04),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x40, "gpb2",  0x08),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x60, "gpb3",  0x0c),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x80, "gpp4",  0x10),
+	EXYNOS850_PIN_BANK_EINTG(2, 0xa0, "gpc0",  0x14),
+	EXYNOS850_PIN_BANK_EINTG(2, 0xc0, "gpc1",  0x18),
+	EXYNOS850_PIN_BANK_EINTG(2, 0xe0, "gpc2",  0x1c),
+	EXYNOS850_PIN_BANK_EINTG(7, 0x100, "gpg1",  0x20),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x120, "gpg2",  0x24),
+};
+
+/* pin banks of exynos2200 pin-controller - PERIC1 */
+static const struct samsung_pin_bank_data exynos2200_pin_banks6[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(4, 0x0,  "gpp7",  0x00),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x20, "gpp8",  0x04),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x40, "gpp9",  0x08),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x60, "gpp10", 0x0c),
+};
+
+/* pin banks of exynos2200 pin-controller - PERIC2 */
+static const struct samsung_pin_bank_data exynos2200_pin_banks7[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(4, 0x0, "gpp0",  0x00),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x20, "gpp1",  0x04),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x40, "gpp2",  0x08),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x60, "gpp3",  0x0c),
+	EXYNOS850_PIN_BANK_EINTG(4, 0x80, "gpp5",  0x10),
+	EXYNOS850_PIN_BANK_EINTG(4, 0xa0, "gpp6",  0x14),
+	EXYNOS850_PIN_BANK_EINTG(4, 0xc0, "gpp11", 0x18),
+	EXYNOS850_PIN_BANK_EINTG(2, 0xe0, "gpc3",  0x1c),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x100, "gpc4",  0x20),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x120, "gpc5",  0x24),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x140, "gpc6",  0x28),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x160, "gpc7",  0x2c),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x180, "gpc8",  0x30),
+	EXYNOS850_PIN_BANK_EINTG(2, 0x1a0, "gpc9",  0x34),
+	EXYNOS850_PIN_BANK_EINTG(5, 0x1c0, "gpg0",  0x38),
+};
+
+/* pin banks of exynos2200 pin-controller - VTS */
+static const struct samsung_pin_bank_data exynos2200_pin_banks8[] __initconst = {
+	EXYNOS850_PIN_BANK_EINTG(7, 0x0, "gpv0", 0x00),
+};
+
+static const struct samsung_pin_ctrl exynos2200_pin_ctrl[] = {
+	{
+		/* pin-controller instance 0 ALIVE data */
+		.pin_banks	= exynos2200_pin_banks0,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks0),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.eint_wkup_init = exynos_eint_wkup_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 1 CMGP data */
+		.pin_banks	= exynos2200_pin_banks1,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks1),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.eint_wkup_init = exynos_eint_wkup_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 2 HSI1 data */
+		.pin_banks	= exynos2200_pin_banks2,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks2),
+	}, {
+		/* pin-controller instance 3 UFS data */
+		.pin_banks	= exynos2200_pin_banks3,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks3),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 4 HSI1UFS data */
+		.pin_banks	= exynos2200_pin_banks4,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks4),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 5 PERIC0 data */
+		.pin_banks	= exynos2200_pin_banks5,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks5),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 6 PERIC1 data */
+		.pin_banks	= exynos2200_pin_banks6,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks6),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 7 PERIC2 data */
+		.pin_banks	= exynos2200_pin_banks7,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks7),
+		.eint_gpio_init = exynos_eint_gpio_init,
+		.suspend	= exynos_pinctrl_suspend,
+		.resume		= exynos_pinctrl_resume,
+	}, {
+		/* pin-controller instance 8 VTS data */
+		.pin_banks	= exynos2200_pin_banks8,
+		.nr_banks	= ARRAY_SIZE(exynos2200_pin_banks8),
+	},
+};
+
+const struct samsung_pinctrl_of_match_data exynos2200_of_data __initconst = {
+	.ctrl		= exynos2200_pin_ctrl,
+	.num_ctrl	= ARRAY_SIZE(exynos2200_pin_ctrl),
+};
+
 /* pin banks of exynos5433 pin-controller - ALIVE */
 static const struct samsung_pin_bank_data exynos5433_pin_banks0[] __initconst = {
 	/* Must start with EINTG banks, ordered by EINT group number. */
