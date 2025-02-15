@@ -727,7 +727,7 @@ DEFINE_EVENT(fs_str, bucket_alloc_fail,
 	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(discard_buckets,
+DECLARE_EVENT_CLASS(discard_buckets_class,
 	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
 		 u64 need_journal_commit, u64 discarded, const char *err),
 	TP_ARGS(c, seen, open, need_journal_commit, discarded, err),
@@ -757,6 +757,18 @@ TRACE_EVENT(discard_buckets,
 		  __entry->need_journal_commit,
 		  __entry->discarded,
 		  __entry->err)
+);
+
+DEFINE_EVENT(discard_buckets_class, discard_buckets,
+	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
+		 u64 need_journal_commit, u64 discarded, const char *err),
+	TP_ARGS(c, seen, open, need_journal_commit, discarded, err)
+);
+
+DEFINE_EVENT(discard_buckets_class, discard_buckets_fast,
+	TP_PROTO(struct bch_fs *c, u64 seen, u64 open,
+		 u64 need_journal_commit, u64 discarded, const char *err),
+	TP_ARGS(c, seen, open, need_journal_commit, discarded, err)
 );
 
 TRACE_EVENT(bucket_invalidate,
