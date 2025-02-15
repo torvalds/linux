@@ -24,6 +24,7 @@
 #include "raid10.h"
 #include "raid0.h"
 #include "md-bitmap.h"
+#include "md-cluster.h"
 
 /*
  * RAID10 provides a combination of RAID0 and RAID1 functionality.

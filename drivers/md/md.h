@@ -19,7 +19,6 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 #include <trace/events/block.h>
-#include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
 
@@ -845,11 +844,6 @@ static inline void safe_put_page(struct page *p)
 
 extern int register_md_personality(struct md_personality *p);
 extern int unregister_md_personality(struct md_personality *p);
-extern int register_md_cluster_operations(const struct md_cluster_operations *ops,
-		struct module *module);
-extern int unregister_md_cluster_operations(void);
-extern int md_setup_cluster(struct mddev *mddev, int nodes);
-extern void md_cluster_stop(struct mddev *mddev);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
@@ -906,7 +900,6 @@ extern void md_idle_sync_thread(struct mddev *mddev);
 extern void md_frozen_sync_thread(struct mddev *mddev);
 extern void md_unfrozen_sync_thread(struct mddev *mddev);
 
-extern void md_reload_sb(struct mddev *mddev, int raid_disk);
 extern void md_update_sb(struct mddev *mddev, int force);
 extern void mddev_create_serial_pool(struct mddev *mddev, struct md_rdev *rdev);
 extern void mddev_destroy_serial_pool(struct mddev *mddev,
