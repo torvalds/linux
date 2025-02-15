@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"[drm:%s:%d] " fmt, __func__, __LINE__
@@ -339,6 +339,8 @@ static void dpu_encoder_phys_wb_setup(
 	dpu_encoder_phys_wb_setup_fb(phys_enc, format);
 
 	dpu_encoder_helper_phys_setup_cdm(phys_enc, format, CDM_CDWN_OUTPUT_WB);
+
+	dpu_encoder_helper_phys_setup_cwb(phys_enc, true);
 
 	dpu_encoder_phys_wb_setup_ctl(phys_enc);
 }
