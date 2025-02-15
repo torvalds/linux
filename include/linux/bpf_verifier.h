@@ -498,7 +498,7 @@ struct bpf_verifier_state {
 /* linked list of verifier states used to prune search */
 struct bpf_verifier_state_list {
 	struct bpf_verifier_state state;
-	struct bpf_verifier_state_list *next;
+	struct list_head node;
 	int miss_cnt, hit_cnt;
 };
 
@@ -710,8 +710,11 @@ struct bpf_verifier_env {
 	bool test_state_freq;		/* test verifier with different pruning frequency */
 	bool test_reg_invariants;	/* fail verification on register invariants violations */
 	struct bpf_verifier_state *cur_state; /* current verifier state */
-	struct bpf_verifier_state_list **explored_states; /* search pruning optimization */
-	struct bpf_verifier_state_list *free_list;
+	/* Search pruning optimization, array of list_heads for
+	 * lists of struct bpf_verifier_state_list.
+	 */
+	struct list_head *explored_states;
+	struct list_head free_list;	/* list of struct bpf_verifier_state_list */
 	struct bpf_map *used_maps[MAX_USED_MAPS]; /* array of map's used by eBPF program */
 	struct btf_mod_pair used_btfs[MAX_USED_BTFS]; /* array of BTF's used by BPF program */
 	u32 used_map_cnt;		/* number of used maps */
