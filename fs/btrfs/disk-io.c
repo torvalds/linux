@@ -3410,11 +3410,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 */
 	fs_info->max_inline = min_t(u64, fs_info->max_inline, fs_info->sectorsize);
 
-	if (sectorsize < PAGE_SIZE)
-		btrfs_warn(fs_info,
-		"read-write for sector size %u with page size %lu is experimental",
-			   sectorsize, PAGE_SIZE);
-
 	ret = btrfs_init_workqueues(fs_info);
 	if (ret)
 		goto fail_sb_buffer;
