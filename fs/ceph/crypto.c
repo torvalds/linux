@@ -253,22 +253,15 @@ static struct inode *parse_longname(const struct inode *parent,
 	return dir;
 }
 
-int ceph_encode_encrypted_dname(struct inode *parent, struct qstr *d_name,
-				char *buf)
+int ceph_encode_encrypted_dname(struct inode *parent, char *buf, int elen)
 {
 	struct ceph_client *cl = ceph_inode_to_client(parent);
 	struct inode *dir = parent;
 	char *p = buf;
 	u32 len;
-	int name_len;
-	int elen;
+	int name_len = elen;
 	int ret;
 	u8 *cryptbuf = NULL;
-
-	memcpy(buf, d_name->name, d_name->len);
-	elen = d_name->len;
-
-	name_len = elen;
 
 	/* Handle the special case of snapshot names that start with '_' */
 	if (ceph_snap(dir) == CEPH_SNAPDIR && *p == '_') {
@@ -340,14 +333,6 @@ out:
 			iput(dir);
 	}
 	return elen;
-}
-
-int ceph_encode_encrypted_fname(struct inode *parent, struct dentry *dentry,
-				char *buf)
-{
-	WARN_ON_ONCE(!fscrypt_has_encryption_key(parent));
-
-	return ceph_encode_encrypted_dname(parent, &dentry->d_name, buf);
 }
 
 /**
