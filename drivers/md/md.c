@@ -81,8 +81,6 @@ static const char *action_name[NR_SYNC_ACTIONS] = {
 
 static DEFINE_XARRAY(md_submodule);
 
-/* pers_list is a list of registered personalities protected by pers_lock. */
-static LIST_HEAD(pers_list);
 static DEFINE_SPINLOCK(pers_lock);
 
 static const struct kobj_type md_ktype;
@@ -893,18 +891,21 @@ EXPORT_SYMBOL_GPL(md_find_rdev_rcu);
 static struct md_personality *get_pers(int level, char *clevel)
 {
 	struct md_personality *ret = NULL;
-	struct md_personality *pers;
+	struct md_submodule_head *head;
+	unsigned long i;
 
-	spin_lock(&pers_lock);
-	list_for_each_entry(pers, &pers_list, list) {
-		if ((level != LEVEL_NONE && pers->level == level) ||
-		    !strcmp(pers->name, clevel)) {
-			if (try_module_get(pers->owner))
-				ret = pers;
+	xa_lock(&md_submodule);
+	xa_for_each(&md_submodule, i, head) {
+		if (head->type != MD_PERSONALITY)
+			continue;
+		if ((level != LEVEL_NONE && head->id == level) ||
+		    !strcmp(head->name, clevel)) {
+			if (try_module_get(head->owner))
+				ret = (void *)head;
 			break;
 		}
 	}
-	spin_unlock(&pers_lock);
+	xa_unlock(&md_submodule);
 
 	if (!ret) {
 		if (level != LEVEL_NONE)
@@ -920,7 +921,7 @@ static struct md_personality *get_pers(int level, char *clevel)
 
 static void put_pers(struct md_personality *pers)
 {
-	module_put(pers->owner);
+	module_put(pers->head.owner);
 }
 
 /* return the offset of the super block in 512byte sectors */
@@ -1203,7 +1204,7 @@ int md_check_no_bitmap(struct mddev *mddev)
 	if (!mddev->bitmap_info.file && !mddev->bitmap_info.offset)
 		return 0;
 	pr_warn("%s: bitmaps are not supported for %s\n",
-		mdname(mddev), mddev->pers->name);
+		mdname(mddev), mddev->pers->head.name);
 	return 1;
 }
 EXPORT_SYMBOL(md_check_no_bitmap);
@@ -3883,7 +3884,7 @@ level_show(struct mddev *mddev, char *page)
 	spin_lock(&mddev->lock);
 	p = mddev->pers;
 	if (p)
-		ret = sprintf(page, "%s\n", p->name);
+		ret = sprintf(page, "%s\n", p->head.name);
 	else if (mddev->clevel[0])
 		ret = sprintf(page, "%s\n", mddev->clevel);
 	else if (mddev->level != LEVEL_NONE)
@@ -3940,7 +3941,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	rv = -EINVAL;
 	if (!mddev->pers->quiesce) {
 		pr_warn("md: %s: %s does not support online personality change\n",
-			mdname(mddev), mddev->pers->name);
+			mdname(mddev), mddev->pers->head.name);
 		goto out_unlock;
 	}
 
@@ -4003,7 +4004,7 @@ level_store(struct mddev *mddev, const char *buf, size_t len)
 	oldpriv = mddev->private;
 	mddev->pers = pers;
 	mddev->private = priv;
-	strscpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
+	strscpy(mddev->clevel, pers->head.name, sizeof(mddev->clevel));
 	mddev->level = mddev->new_level;
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = mddev->new_chunk_sectors;
@@ -5603,7 +5604,7 @@ __ATTR(fail_last_dev, S_IRUGO | S_IWUSR, fail_last_dev_show,
 
 static ssize_t serialize_policy_show(struct mddev *mddev, char *page)
 {
-	if (mddev->pers == NULL || (mddev->pers->level != 1))
+	if (mddev->pers == NULL || (mddev->pers->head.id != ID_RAID1))
 		return sprintf(page, "n/a\n");
 	else
 		return sprintf(page, "%d\n", mddev->serialize_policy);
@@ -5629,7 +5630,7 @@ serialize_policy_store(struct mddev *mddev, const char *buf, size_t len)
 	err = mddev_suspend_and_lock(mddev);
 	if (err)
 		return err;
-	if (mddev->pers == NULL || (mddev->pers->level != 1)) {
+	if (mddev->pers == NULL || (mddev->pers->head.id != ID_RAID1)) {
 		pr_err("md: serialize_policy is only effective for raid1\n");
 		err = -EINVAL;
 		goto unlock;
@@ -6120,11 +6121,11 @@ int md_run(struct mddev *mddev)
 		err = -EINVAL;
 		goto abort;
 	}
-	if (mddev->level != pers->level) {
-		mddev->level = pers->level;
-		mddev->new_level = pers->level;
+	if (mddev->level != pers->head.id) {
+		mddev->level = pers->head.id;
+		mddev->new_level = pers->head.id;
 	}
-	strscpy(mddev->clevel, pers->name, sizeof(mddev->clevel));
+	strscpy(mddev->clevel, pers->head.name, sizeof(mddev->clevel));
 
 	if (mddev->reshape_position != MaxSector &&
 	    pers->start_reshape == NULL) {
@@ -8134,7 +8135,8 @@ void md_error(struct mddev *mddev, struct md_rdev *rdev)
 		return;
 	mddev->pers->error_handler(mddev, rdev);
 
-	if (mddev->pers->level == 0 || mddev->pers->level == LEVEL_LINEAR)
+	if (mddev->pers->head.id == ID_RAID0 ||
+	    mddev->pers->head.id == ID_LINEAR)
 		return;
 
 	if (mddev->degraded && !test_bit(MD_BROKEN, &mddev->flags))
@@ -8172,14 +8174,17 @@ static void status_unused(struct seq_file *seq)
 
 static void status_personalities(struct seq_file *seq)
 {
-	struct md_personality *pers;
+	struct md_submodule_head *head;
+	unsigned long i;
 
 	seq_puts(seq, "Personalities : ");
-	spin_lock(&pers_lock);
-	list_for_each_entry(pers, &pers_list, list)
-		seq_printf(seq, "[%s] ", pers->name);
 
-	spin_unlock(&pers_lock);
+	xa_lock(&md_submodule);
+	xa_for_each(&md_submodule, i, head)
+		if (head->type == MD_PERSONALITY)
+			seq_printf(seq, "[%s] ", head->name);
+	xa_unlock(&md_submodule);
+
 	seq_puts(seq, "\n");
 }
 
@@ -8402,7 +8407,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				seq_printf(seq, " (read-only)");
 			if (mddev->ro == MD_AUTO_READ)
 				seq_printf(seq, " (auto-read-only)");
-			seq_printf(seq, " %s", mddev->pers->name);
+			seq_printf(seq, " %s", mddev->pers->head.name);
 		} else {
 			seq_printf(seq, "inactive");
 		}
@@ -8535,27 +8540,6 @@ void unregister_md_submodule(struct md_submodule_head *msh)
 	xa_erase(&md_submodule, msh->id);
 }
 EXPORT_SYMBOL_GPL(unregister_md_submodule);
-
-int register_md_personality(struct md_personality *p)
-{
-	pr_debug("md: %s personality registered for level %d\n",
-		 p->name, p->level);
-	spin_lock(&pers_lock);
-	list_add_tail(&p->list, &pers_list);
-	spin_unlock(&pers_lock);
-	return 0;
-}
-EXPORT_SYMBOL(register_md_personality);
-
-int unregister_md_personality(struct md_personality *p)
-{
-	pr_debug("md: %s personality unregistered\n", p->name);
-	spin_lock(&pers_lock);
-	list_del_init(&p->list);
-	spin_unlock(&pers_lock);
-	return 0;
-}
-EXPORT_SYMBOL(unregister_md_personality);
 
 int register_md_cluster_operations(const struct md_cluster_operations *ops,
 				   struct module *module)

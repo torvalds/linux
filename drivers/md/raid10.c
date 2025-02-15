@@ -5126,9 +5126,13 @@ static void raid10_finish_reshape(struct mddev *mddev)
 
 static struct md_personality raid10_personality =
 {
-	.name		= "raid10",
-	.level		= 10,
-	.owner		= THIS_MODULE,
+	.head = {
+		.type	= MD_PERSONALITY,
+		.id	= ID_RAID10,
+		.name	= "raid10",
+		.owner	= THIS_MODULE,
+	},
+
 	.make_request	= raid10_make_request,
 	.run		= raid10_run,
 	.free		= raid10_free,
@@ -5148,18 +5152,18 @@ static struct md_personality raid10_personality =
 	.update_reshape_pos = raid10_update_reshape_pos,
 };
 
-static int __init raid_init(void)
+static int __init raid10_init(void)
 {
-	return register_md_personality(&raid10_personality);
+	return register_md_submodule(&raid10_personality.head);
 }
 
-static void raid_exit(void)
+static void __exit raid10_exit(void)
 {
-	unregister_md_personality(&raid10_personality);
+	unregister_md_submodule(&raid10_personality.head);
 }
 
-module_init(raid_init);
-module_exit(raid_exit);
+module_init(raid10_init);
+module_exit(raid10_exit);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("RAID10 (striped mirror) personality for MD");
 MODULE_ALIAS("md-personality-9"); /* RAID10 */

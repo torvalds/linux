@@ -726,10 +726,7 @@ static inline void md_sync_acct_bio(struct bio *bio, unsigned long nr_sectors)
 struct md_personality
 {
 	struct md_submodule_head head;
-	char *name;
-	int level;
-	struct list_head list;
-	struct module *owner;
+
 	bool __must_check (*make_request)(struct mddev *mddev, struct bio *bio);
 	/*
 	 * start up works that do NOT require md_thread. tasks that
@@ -873,8 +870,6 @@ static inline void safe_put_page(struct page *p)
 int register_md_submodule(struct md_submodule_head *msh);
 void unregister_md_submodule(struct md_submodule_head *msh);
 
-extern int register_md_personality(struct md_personality *p);
-extern int unregister_md_personality(struct md_personality *p);
 extern struct md_thread *md_register_thread(
 	void (*run)(struct md_thread *thread),
 	struct mddev *mddev,
