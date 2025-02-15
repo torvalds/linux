@@ -1799,7 +1799,7 @@ static bool same_callsites(struct bpf_verifier_state *a, struct bpf_verifier_sta
  *     # Find outermost loop entry known for n
  *     def get_loop_entry(n):
  *         h = entries.get(n, None)
- *         while h in entries and entries[h] != h:
+ *         while h in entries:
  *             h = entries[h]
  *         return h
  *
@@ -1838,7 +1838,7 @@ static struct bpf_verifier_state *get_loop_entry(struct bpf_verifier_env *env,
 	struct bpf_verifier_state *topmost = st->loop_entry, *old;
 	u32 steps = 0;
 
-	while (topmost && topmost->loop_entry && topmost != topmost->loop_entry) {
+	while (topmost && topmost->loop_entry) {
 		if (steps++ > st->dfs_depth) {
 			WARN_ONCE(true, "verifier bug: infinite loop in get_loop_entry\n");
 			verbose(env, "verifier bug: infinite loop in get_loop_entry()\n");
@@ -1865,7 +1865,7 @@ static void update_loop_entry(struct bpf_verifier_state *cur, struct bpf_verifie
 	 * hence 'cur' and 'hdr' are not in the same loop and there is
 	 * no need to update cur->loop_entry.
 	 */
-	if (hdr->branches && hdr->dfs_depth <= (cur->loop_entry ?: cur)->dfs_depth) {
+	if (hdr->branches && hdr->dfs_depth < (cur->loop_entry ?: cur)->dfs_depth) {
 		cur->loop_entry = hdr;
 		hdr->used_as_loop_entry = true;
 	}
