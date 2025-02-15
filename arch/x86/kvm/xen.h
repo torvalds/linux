@@ -56,6 +56,11 @@ static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
 		kvm->arch.xen_hvm_config.msr;
 }
 
+static inline bool kvm_xen_is_hypercall_page_msr(struct kvm *kvm, u32 msr)
+{
+	return msr && msr == kvm->arch.xen_hvm_config.msr;
+}
+
 static inline bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
 	return static_branch_unlikely(&kvm_xen_enabled.key) &&
@@ -120,6 +125,11 @@ static inline void kvm_xen_sw_enable_lapic(struct kvm_vcpu *vcpu)
 }
 
 static inline bool kvm_xen_msr_enabled(struct kvm *kvm)
+{
+	return false;
+}
+
+static inline bool kvm_xen_is_hypercall_page_msr(struct kvm *kvm, u32 msr)
 {
 	return false;
 }

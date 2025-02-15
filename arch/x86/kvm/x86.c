@@ -3738,7 +3738,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	 * page setup; it could incur locking paths which are not expected
 	 * if userspace sets the MSR in an unusual location.
 	 */
-	if (msr && msr == vcpu->kvm->arch.xen_hvm_config.msr &&
+	if (kvm_xen_is_hypercall_page_msr(vcpu->kvm, msr) &&
 	    !msr_info->host_initiated)
 		return kvm_xen_write_hypercall_page(vcpu, data);
 
