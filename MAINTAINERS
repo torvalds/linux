@@ -16477,6 +16477,12 @@ F:	net/ethtool/cabletest.c
 F:	tools/testing/selftests/drivers/net/*/ethtool*
 K:	cable_test
 
+NETWORKING [ETHTOOL MAC MERGE]
+M:	Vladimir Oltean <vladimir.oltean@nxp.com>
+F:	net/ethtool/mm.c
+F:	tools/testing/selftests/drivers/net/hw/ethtool_mm.sh
+K:	ethtool_mm
+
 NETWORKING [GENERAL]
 M:	"David S. Miller" <davem@davemloft.net>
 M:	Eric Dumazet <edumazet@google.com>
