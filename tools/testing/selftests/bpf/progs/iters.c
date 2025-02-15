@@ -7,6 +7,8 @@
 #include "bpf_misc.h"
 #include "bpf_compiler.h"
 
+#define unlikely(x)	__builtin_expect(!!(x), 0)
+
 static volatile int zero = 0;
 
 int my_pid;
@@ -1625,6 +1627,27 @@ __failure __msg("arg#0 expected pointer to an iterator on stack")
 int iter_destroy_bad_arg(const void *ctx)
 {
 	bpf_iter_num_destroy(&global_it);
+	return 0;
+}
+
+SEC("raw_tp")
+__success
+int clean_live_states(const void *ctx)
+{
+	char buf[1];
+	int i, j, k, l, m, n, o;
+
+	bpf_for(i, 0, 10)
+	bpf_for(j, 0, 10)
+	bpf_for(k, 0, 10)
+	bpf_for(l, 0, 10)
+	bpf_for(m, 0, 10)
+	bpf_for(n, 0, 10)
+	bpf_for(o, 0, 10) {
+		if (unlikely(bpf_get_prandom_u32()))
+			buf[0] = 42;
+		bpf_printk("%s", buf);
+	}
 	return 0;
 }
 
