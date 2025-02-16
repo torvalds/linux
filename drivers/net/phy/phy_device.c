@@ -3580,22 +3580,21 @@ static int phy_probe(struct device *dev)
 	if (err)
 		goto out;
 
+	/* Get the EEE modes we want to prohibit. */
+	of_set_phy_eee_broken(phydev);
+
+	/* Some PHYs may advertise, by default, not support EEE modes. So,
+	 * we need to clean them. In addition remove all disabled EEE modes.
+	 */
+	linkmode_and(phydev->advertising_eee, phydev->supported_eee,
+		     phydev->advertising_eee);
+	linkmode_andnot(phydev->advertising_eee, phydev->advertising_eee,
+			phydev->eee_disabled_modes);
+
 	/* There is no "enabled" flag. If PHY is advertising, assume it is
 	 * kind of enabled.
 	 */
 	phydev->eee_cfg.eee_enabled = !linkmode_empty(phydev->advertising_eee);
-
-	/* Some PHYs may advertise, by default, not support EEE modes. So,
-	 * we need to clean them.
-	 */
-	if (phydev->eee_cfg.eee_enabled)
-		linkmode_and(phydev->advertising_eee, phydev->supported_eee,
-			     phydev->advertising_eee);
-
-	/* Get the EEE modes we want to prohibit. We will ask
-	 * the PHY stop advertising these mode later on
-	 */
-	of_set_phy_eee_broken(phydev);
 
 	/* Get master/slave strap overrides */
 	of_set_phy_timing_role(phydev);
