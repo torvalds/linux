@@ -55,9 +55,6 @@ struct ahash_request {
 	struct scatterlist *src;
 	u8 *result;
 
-	/* This field may only be used by the ahash API code. */
-	void *priv;
-
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 

@@ -41,6 +41,12 @@ struct crypto_hash_walk {
 	struct scatterlist *sg;
 };
 
+struct ahash_save_req_state {
+	struct ahash_request *req;
+	crypto_completion_t compl;
+	void *data;
+};
+
 static int hash_walk_next(struct crypto_hash_walk *walk)
 {
 	unsigned int offset = walk->offset;
@@ -279,67 +285,34 @@ int crypto_ahash_init(struct ahash_request *req)
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_init);
 
-static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt,
-			  bool has_state)
+static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	unsigned int ds = crypto_ahash_digestsize(tfm);
-	struct ahash_request *subreq;
-	unsigned int subreq_size;
-	unsigned int reqsize;
-	u8 *result;
+	struct ahash_save_req_state *state;
 	gfp_t gfp;
 	u32 flags;
 
-	subreq_size = sizeof(*subreq);
-	reqsize = crypto_ahash_reqsize(tfm);
-	reqsize = ALIGN(reqsize, crypto_tfm_ctx_alignment());
-	subreq_size += reqsize;
-	subreq_size += ds;
-
 	flags = ahash_request_flags(req);
 	gfp = (flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?  GFP_KERNEL : GFP_ATOMIC;
-	subreq = kmalloc(subreq_size, gfp);
-	if (!subreq)
+	state = kmalloc(sizeof(*state), gfp);
+	if (!state)
 		return -ENOMEM;
 
-	ahash_request_set_tfm(subreq, tfm);
-	ahash_request_set_callback(subreq, flags, cplt, req);
-
-	result = (u8 *)(subreq + 1) + reqsize;
-
-	ahash_request_set_crypt(subreq, req->src, result, req->nbytes);
-
-	if (has_state) {
-		void *state;
-
-		state = kmalloc(crypto_ahash_statesize(tfm), gfp);
-		if (!state) {
-			kfree(subreq);
-			return -ENOMEM;
-		}
-
-		crypto_ahash_export(req, state);
-		crypto_ahash_import(subreq, state);
-		kfree_sensitive(state);
-	}
-
-	req->priv = subreq;
+	state->compl = req->base.complete;
+	state->data = req->base.data;
+	req->base.complete = cplt;
+	req->base.data = state;
+	state->req = req;
 
 	return 0;
 }
 
-static void ahash_restore_req(struct ahash_request *req, int err)
+static void ahash_restore_req(struct ahash_request *req)
 {
-	struct ahash_request *subreq = req->priv;
+	struct ahash_save_req_state *state = req->base.data;
 
-	if (!err)
-		memcpy(req->result, subreq->result,
-		       crypto_ahash_digestsize(crypto_ahash_reqtfm(req)));
-
-	req->priv = NULL;
-
-	kfree_sensitive(subreq);
+	req->base.complete = state->compl;
+	req->base.data = state->data;
+	kfree(state);
 }
 
 int crypto_ahash_update(struct ahash_request *req)
@@ -391,51 +364,51 @@ EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
 static void ahash_def_finup_done2(void *data, int err)
 {
-	struct ahash_request *areq = data;
+	struct ahash_save_req_state *state = data;
+	struct ahash_request *areq = state->req;
 
 	if (err == -EINPROGRESS)
 		return;
 
-	ahash_restore_req(areq, err);
-
+	ahash_restore_req(areq);
 	ahash_request_complete(areq, err);
 }
 
 static int ahash_def_finup_finish1(struct ahash_request *req, int err)
 {
-	struct ahash_request *subreq = req->priv;
-
 	if (err)
 		goto out;
 
-	subreq->base.complete = ahash_def_finup_done2;
+	req->base.complete = ahash_def_finup_done2;
 
-	err = crypto_ahash_alg(crypto_ahash_reqtfm(req))->final(subreq);
+	err = crypto_ahash_alg(crypto_ahash_reqtfm(req))->final(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
 out:
-	ahash_restore_req(req, err);
+	ahash_restore_req(req);
 	return err;
 }
 
 static void ahash_def_finup_done1(void *data, int err)
 {
-	struct ahash_request *areq = data;
-	struct ahash_request *subreq;
+	struct ahash_save_req_state *state0 = data;
+	struct ahash_save_req_state state;
+	struct ahash_request *areq;
 
+	state = *state0;
+	areq = state.req;
 	if (err == -EINPROGRESS)
 		goto out;
 
-	subreq = areq->priv;
-	subreq->base.flags &= CRYPTO_TFM_REQ_MAY_BACKLOG;
+	areq->base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	err = ahash_def_finup_finish1(areq, err);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return;
 
 out:
-	ahash_request_complete(areq, err);
+	state.compl(state.data, err);
 }
 
 static int ahash_def_finup(struct ahash_request *req)
@@ -443,11 +416,11 @@ static int ahash_def_finup(struct ahash_request *req)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	int err;
 
-	err = ahash_save_req(req, ahash_def_finup_done1, true);
+	err = ahash_save_req(req, ahash_def_finup_done1);
 	if (err)
 		return err;
 
-	err = crypto_ahash_alg(tfm)->update(req->priv);
+	err = crypto_ahash_alg(tfm)->update(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
