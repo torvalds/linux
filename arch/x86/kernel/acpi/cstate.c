@@ -214,6 +214,7 @@ void acpi_processor_ffh_play_dead(struct acpi_processor_cx *cx)
 	percpu_entry = per_cpu_ptr(cpu_cstate_entry, cpu);
 	mwait_play_dead(percpu_entry->states[cx->index].eax);
 }
+EXPORT_SYMBOL_GPL(acpi_processor_ffh_play_dead);
 
 void __cpuidle acpi_processor_ffh_cstate_enter(struct acpi_processor_cx *cx)
 {
