@@ -38,6 +38,11 @@
 #define IWL_BZ_A_HR_B_MODULE_FIRMWARE(api) \
 	IWL_BZ_A_HR_B_FW_PRE "-" __stringify(api) ".ucode"
 
+#if !IS_ENABLED(CONFIG_IWLMVM)
+const char iwl_ax211_name[] = "Intel(R) Wi-Fi 6E AX211 160MHz";
+const char iwl_ax201_name[] = "Intel(R) Wi-Fi 6 AX201 160MHz";
+#endif
+
 static const struct iwl_base_params iwl_bz_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
 	.num_of_queues = 512,

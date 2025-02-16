@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2019-2022, 2024 Intel Corporation
+ * Copyright (C) 2012-2014, 2019-2022, 2024-2025 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_phy_h__
 #define __iwl_fw_api_phy_h__
+#include <linux/types.h>
+#include <linux/bits.h>
 
 /**
  * enum iwl_phy_ops_subcmd_ids - PHY group commands
