@@ -463,7 +463,14 @@ acpi_status wmi_set_block(const char *guid_string, u8 instance, const struct acp
 	if (IS_ERR(wdev))
 		return AE_ERROR;
 
+	if (wmi_device_enable(wdev, true) < 0)
+		dev_warn(&wdev->dev, "Failed to enable device\n");
+
 	status =  wmidev_block_set(wdev, instance, in);
+
+	if (wmi_device_enable(wdev, false) < 0)
+		dev_warn(&wdev->dev, "Failed to disable device\n");
+
 	wmi_device_put(wdev);
 
 	return status;
