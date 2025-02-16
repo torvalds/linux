@@ -2259,8 +2259,12 @@ static struct dma_chan *of_edma_xlate(struct of_phandle_args *dma_spec,
 
 	return NULL;
 out:
-	/* The channel is going to be used as HW synchronized */
-	echan->hw_triggered = true;
+	/*
+	 * The channel is going to be HW synchronized, unless it was
+	 * reserved as a memcpy channel
+	 */
+	echan->hw_triggered =
+		!edma_is_memcpy_channel(i, ecc->info->memcpy_channels);
 	return dma_get_slave_channel(chan);
 }
 #else
