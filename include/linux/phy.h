@@ -1355,7 +1355,10 @@ static inline bool phy_is_started(struct phy_device *phydev)
  */
 static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode)
 {
+	WARN_ON(phy_is_started(phydev));
+
 	linkmode_set_bit(link_mode, phydev->eee_disabled_modes);
+	linkmode_clear_bit(link_mode, phydev->advertising_eee);
 }
 
 void phy_resolve_aneg_pause(struct phy_device *phydev);
