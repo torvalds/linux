@@ -262,16 +262,11 @@ static int tlmi_simple_call(const char *guid, const char *arg)
 	return 0;
 }
 
-/* Extract output string from WMI return buffer */
-static int tlmi_extract_output_string(const struct acpi_buffer *output,
-				      char **string)
+/* Extract output string from WMI return value */
+static int tlmi_extract_output_string(union acpi_object *obj, char **string)
 {
-	const union acpi_object *obj;
 	char *s;
 
-	obj = output->pointer;
-	if (!obj)
-		return -ENOMEM;
 	if (obj->type != ACPI_TYPE_STRING || !obj->string.pointer)
 		return -EIO;
 
@@ -352,17 +347,21 @@ static int tlmi_opcode_setting(char *setting, const char *value)
 static int tlmi_setting(int item, char **value, const char *guid_string)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
 	acpi_status status;
 	int ret;
 
 	status = wmi_query_block(guid_string, item, &output);
-	if (ACPI_FAILURE(status)) {
-		kfree(output.pointer);
+	if (ACPI_FAILURE(status))
 		return -EIO;
-	}
 
-	ret = tlmi_extract_output_string(&output, value);
-	kfree(output.pointer);
+	obj = output.pointer;
+	if (!obj)
+		return -ENODATA;
+
+	ret = tlmi_extract_output_string(obj, value);
+	kfree(obj);
+
 	return ret;
 }
 
@@ -370,19 +369,22 @@ static int tlmi_get_bios_selections(const char *item, char **value)
 {
 	const struct acpi_buffer input = { strlen(item), (char *)item };
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
 	acpi_status status;
 	int ret;
 
 	status = wmi_evaluate_method(LENOVO_GET_BIOS_SELECTIONS_GUID,
 				     0, 0, &input, &output);
-
-	if (ACPI_FAILURE(status)) {
-		kfree(output.pointer);
+	if (ACPI_FAILURE(status))
 		return -EIO;
-	}
 
-	ret = tlmi_extract_output_string(&output, value);
-	kfree(output.pointer);
+	obj = output.pointer;
+	if (!obj)
+		return -ENODATA;
+
+	ret = tlmi_extract_output_string(obj, value);
+	kfree(obj);
+
 	return ret;
 }
 
