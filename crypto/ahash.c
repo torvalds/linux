@@ -879,6 +879,7 @@ static int crypto_ahash_init_tfm(struct crypto_tfm *tfm)
 	struct ahash_alg *alg = crypto_ahash_alg(hash);
 
 	crypto_ahash_set_statesize(hash, alg->halg.statesize);
+	crypto_ahash_set_reqsize(hash, alg->reqsize);
 
 	if (tfm->__crt_alg->cra_type == &crypto_shash_type)
 		return crypto_init_ahash_using_shash(tfm);
@@ -1042,6 +1043,9 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 	int err;
 
 	if (alg->halg.statesize == 0)
+		return -EINVAL;
+
+	if (alg->reqsize && alg->reqsize < alg->halg.statesize)
 		return -EINVAL;
 
 	err = hash_prepare_alg(&alg->halg);
