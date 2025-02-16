@@ -517,7 +517,7 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 	struct fbnic_net *fbn = netdev_priv(dev);
 	struct fbnic_ring *txr = fbn->tx[idx];
 	struct fbnic_queue_stats *stats;
-	u64 stop, wake, csum;
+	u64 stop, wake, csum, lso;
 	unsigned int start;
 	u64 bytes, packets;
 
@@ -530,13 +530,15 @@ static void fbnic_get_queue_stats_tx(struct net_device *dev, int idx,
 		bytes = stats->bytes;
 		packets = stats->packets;
 		csum = stats->twq.csum_partial;
+		lso = stats->twq.lso;
 		stop = stats->twq.stop;
 		wake = stats->twq.wake;
 	} while (u64_stats_fetch_retry(&stats->syncp, start));
 
 	tx->bytes = bytes;
 	tx->packets = packets;
-	tx->needs_csum = csum;
+	tx->needs_csum = csum + lso;
+	tx->hw_gso_wire_packets = lso;
 	tx->stop = stop;
 	tx->wake = wake;
 }
@@ -549,7 +551,8 @@ static void fbnic_get_base_stats(struct net_device *dev,
 
 	tx->bytes = fbn->tx_stats.bytes;
 	tx->packets = fbn->tx_stats.packets;
-	tx->needs_csum = fbn->tx_stats.twq.csum_partial;
+	tx->needs_csum = fbn->tx_stats.twq.csum_partial + fbn->tx_stats.twq.lso;
+	tx->hw_gso_wire_packets = fbn->tx_stats.twq.lso;
 	tx->stop = fbn->tx_stats.twq.stop;
 	tx->wake = fbn->tx_stats.twq.wake;
 
@@ -650,11 +653,25 @@ struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
+	netdev->gso_partial_features =
+		NETIF_F_GSO_GRE |
+		NETIF_F_GSO_GRE_CSUM |
+		NETIF_F_GSO_IPXIP4 |
+		NETIF_F_GSO_UDP_TUNNEL |
+		NETIF_F_GSO_UDP_TUNNEL_CSUM;
+
 	netdev->features |=
+		netdev->gso_partial_features |
+		FBNIC_TUN_GSO_FEATURES |
 		NETIF_F_RXHASH |
 		NETIF_F_SG |
 		NETIF_F_HW_CSUM |
-		NETIF_F_RXCSUM;
+		NETIF_F_RXCSUM |
+		NETIF_F_TSO |
+		NETIF_F_TSO_ECN |
+		NETIF_F_TSO6 |
+		NETIF_F_GSO_PARTIAL |
+		NETIF_F_GSO_UDP_L4;
 
 	netdev->hw_features |= netdev->features;
 	netdev->vlan_features |= netdev->features;

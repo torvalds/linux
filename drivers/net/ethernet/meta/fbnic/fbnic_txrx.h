@@ -59,6 +59,7 @@ struct fbnic_queue_stats {
 	union {
 		struct {
 			u64 csum_partial;
+			u64 lso;
 			u64 ts_packets;
 			u64 ts_lost;
 			u64 stop;
