@@ -344,20 +344,14 @@ static int tlmi_opcode_setting(char *setting, const char *value)
 	return ret;
 }
 
-static int tlmi_setting(int item, char **value, const char *guid_string)
+static int tlmi_setting(struct wmi_device *wdev, int item, char **value)
 {
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
-	acpi_status status;
 	int ret;
 
-	status = wmi_query_block(guid_string, item, &output);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	obj = output.pointer;
+	obj = wmidev_block_query(wdev, item);
 	if (!obj)
-		return -ENODATA;
+		return -EIO;
 
 	ret = tlmi_extract_output_string(obj, value);
 	kfree(obj);
@@ -995,7 +989,7 @@ static ssize_t current_value_show(struct kobject *kobj, struct kobj_attribute *a
 	char *item, *value;
 	int ret;
 
-	ret = tlmi_setting(setting->index, &item, LENOVO_BIOS_SETTING_GUID);
+	ret = tlmi_setting(setting->wdev, setting->index, &item);
 	if (ret)
 		return ret;
 
@@ -1588,7 +1582,7 @@ static struct tlmi_pwd_setting *tlmi_create_auth(const char *pwd_type,
 	return new_pwd;
 }
 
-static int tlmi_analyze(void)
+static int tlmi_analyze(struct wmi_device *wdev)
 {
 	int i, ret;
 
@@ -1625,7 +1619,7 @@ static int tlmi_analyze(void)
 		char *item = NULL;
 
 		tlmi_priv.setting[i] = NULL;
-		ret = tlmi_setting(i, &item, LENOVO_BIOS_SETTING_GUID);
+		ret = tlmi_setting(wdev, i, &item);
 		if (ret)
 			break;
 		if (!item)
@@ -1648,6 +1642,7 @@ static int tlmi_analyze(void)
 			kfree(item);
 			goto fail_clear_attr;
 		}
+		setting->wdev = wdev;
 		setting->index = i;
 		strscpy(setting->display_name, item);
 		/* If BIOS selections supported, load those */
@@ -1666,7 +1661,7 @@ static int tlmi_analyze(void)
 			 */
 			char *optitem, *optstart, *optend;
 
-			if (!tlmi_setting(setting->index, &optitem, LENOVO_BIOS_SETTING_GUID)) {
+			if (!tlmi_setting(setting->wdev, setting->index, &optitem)) {
 				optstart = strstr(optitem, "[Optional:");
 				if (optstart) {
 					optstart += strlen("[Optional:");
@@ -1791,7 +1786,7 @@ static int tlmi_probe(struct wmi_device *wdev, const void *context)
 {
 	int ret;
 
-	ret = tlmi_analyze();
+	ret = tlmi_analyze(wdev);
 	if (ret)
 		return ret;
 
