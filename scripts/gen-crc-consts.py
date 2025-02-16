@@ -105,6 +105,57 @@ def gen_slicebyN_tables(variants, n):
             print(f'\t{s}')
         print('};')
 
+def print_riscv_const(v, bits_per_long, name, val, desc):
+    print(f'\t.{name} = {fmt_poly(v, val, bits_per_long)}, /* {desc} */')
+
+def do_gen_riscv_clmul_consts(v, bits_per_long):
+    (G, n, lsb) = (v.G, v.bits, v.lsb)
+
+    pow_of_x = 3 * bits_per_long - (1 if lsb else 0)
+    print_riscv_const(v, bits_per_long, 'fold_across_2_longs_const_hi',
+                      reduce(1 << pow_of_x, G), f'x^{pow_of_x} mod G')
+    pow_of_x = 2 * bits_per_long - (1 if lsb else 0)
+    print_riscv_const(v, bits_per_long, 'fold_across_2_longs_const_lo',
+                      reduce(1 << pow_of_x, G), f'x^{pow_of_x} mod G')
+
+    pow_of_x = bits_per_long - 1 + n
+    print_riscv_const(v, bits_per_long, 'barrett_reduction_const_1',
+                      div(1 << pow_of_x, G), f'floor(x^{pow_of_x} / G)')
+
+    val = G - (1 << n)
+    desc = f'G - x^{n}'
+    if lsb:
+        val <<= bits_per_long - n
+        desc = f'({desc}) * x^{bits_per_long - n}'
+    print_riscv_const(v, bits_per_long, 'barrett_reduction_const_2', val, desc)
+
+def gen_riscv_clmul_consts(variants):
+    print('')
+    print('struct crc_clmul_consts {');
+    print('\tunsigned long fold_across_2_longs_const_hi;');
+    print('\tunsigned long fold_across_2_longs_const_lo;');
+    print('\tunsigned long barrett_reduction_const_1;');
+    print('\tunsigned long barrett_reduction_const_2;');
+    print('};');
+    for v in variants:
+        print('');
+        if v.bits > 32:
+            print_header(v, 'Constants')
+            print('#ifdef CONFIG_64BIT')
+            print(f'static const struct crc_clmul_consts {v.name}_consts __maybe_unused = {{')
+            do_gen_riscv_clmul_consts(v, 64)
+            print('};')
+            print('#endif')
+        else:
+            print_header(v, 'Constants')
+            print(f'static const struct crc_clmul_consts {v.name}_consts __maybe_unused = {{')
+            print('#ifdef CONFIG_64BIT')
+            do_gen_riscv_clmul_consts(v, 64)
+            print('#else')
+            do_gen_riscv_clmul_consts(v, 32)
+            print('#endif')
+            print('};')
+
 # Generate constants for carryless multiplication based CRC computation.
 def gen_x86_pclmul_consts(variants):
     # These are the distances, in bits, to generate folding constants for.
@@ -213,7 +264,7 @@ def parse_crc_variants(vars_string):
 
 if len(sys.argv) != 3:
     sys.stderr.write(f'Usage: {sys.argv[0]} CONSTS_TYPE[,CONSTS_TYPE]... CRC_VARIANT[,CRC_VARIANT]...\n')
-    sys.stderr.write('  CONSTS_TYPE can be sliceby[1-8] or x86_pclmul\n')
+    sys.stderr.write('  CONSTS_TYPE can be sliceby[1-8], riscv_clmul, or x86_pclmul\n')
     sys.stderr.write('  CRC_VARIANT is crc${num_bits}_${bit_order}_${generator_poly_as_hex}\n')
     sys.stderr.write('     E.g. crc16_msb_0x8bb7 or crc32_lsb_0xedb88320\n')
     sys.stderr.write('     Polynomial must use the given bit_order and exclude x^{num_bits}\n')
@@ -232,6 +283,8 @@ variants = parse_crc_variants(sys.argv[2])
 for consts_type in consts_types:
     if consts_type.startswith('sliceby'):
         gen_slicebyN_tables(variants, int(consts_type.removeprefix('sliceby')))
+    elif consts_type == 'riscv_clmul':
+        gen_riscv_clmul_consts(variants)
     elif consts_type == 'x86_pclmul':
         gen_x86_pclmul_consts(variants)
     else:
