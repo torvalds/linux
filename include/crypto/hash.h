@@ -572,16 +572,7 @@ static inline struct ahash_request *ahash_request_alloc_noprof(
  * ahash_request_free() - zeroize and free the request data structure
  * @req: request data structure cipher handle to be freed
  */
-static inline void ahash_request_free(struct ahash_request *req)
-{
-	kfree_sensitive(req);
-}
-
-static inline void ahash_request_zero(struct ahash_request *req)
-{
-	memzero_explicit(req, sizeof(*req) +
-			      crypto_ahash_reqsize(crypto_ahash_reqtfm(req)));
-}
+void ahash_request_free(struct ahash_request *req);
 
 static inline struct ahash_request *ahash_request_cast(
 	struct crypto_async_request *req)
@@ -622,6 +613,7 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
 	req->base.complete = compl;
 	req->base.data = data;
 	req->base.flags = flags;
+	crypto_reqchain_init(&req->base);
 }
 
 /**
@@ -644,6 +636,12 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
 	req->src = src;
 	req->nbytes = nbytes;
 	req->result = result;
+}
+
+static inline void ahash_request_chain(struct ahash_request *req,
+				       struct ahash_request *head)
+{
+	crypto_request_chain(&req->base, &head->base);
 }
 
 /**
@@ -945,6 +943,16 @@ static inline void shash_desc_zero(struct shash_desc *desc)
 {
 	memzero_explicit(desc,
 			 sizeof(*desc) + crypto_shash_descsize(desc->tfm));
+}
+
+static inline int ahash_request_err(struct ahash_request *req)
+{
+	return req->base.err;
+}
+
+static inline bool ahash_is_async(struct crypto_ahash *tfm)
+{
+	return crypto_tfm_is_async(&tfm->base);
 }
 
 #endif	/* _CRYPTO_HASH_H */

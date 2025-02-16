@@ -955,7 +955,7 @@ struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue)
 		queue->backlog = queue->backlog->next;
 
 	request = queue->list.next;
-	list_del(request);
+	list_del_init(request);
 
 	return list_entry(request, struct crypto_async_request, list);
 }

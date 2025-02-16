@@ -42,10 +42,18 @@ struct crypto_hash_walk {
 };
 
 struct ahash_save_req_state {
-	struct ahash_request *req;
+	struct list_head head;
+	struct ahash_request *req0;
+	struct ahash_request *cur;
+	int (*op)(struct ahash_request *req);
 	crypto_completion_t compl;
 	void *data;
 };
+
+static void ahash_reqchain_done(void *data, int err);
+static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt);
+static void ahash_restore_req(struct ahash_request *req);
+static int ahash_def_finup(struct ahash_request *req);
 
 static int hash_walk_next(struct crypto_hash_walk *walk)
 {
@@ -273,23 +281,144 @@ int crypto_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_setkey);
 
+static int ahash_reqchain_finish(struct ahash_save_req_state *state,
+				 int err, u32 mask)
+{
+	struct ahash_request *req0 = state->req0;
+	struct ahash_request *req = state->cur;
+	struct ahash_request *n;
+
+	req->base.err = err;
+
+	if (req != req0)
+		list_add_tail(&req->base.list, &req0->base.list);
+
+	list_for_each_entry_safe(req, n, &state->head, base.list) {
+		list_del_init(&req->base.list);
+
+		req->base.flags &= mask;
+		req->base.complete = ahash_reqchain_done;
+		req->base.data = state;
+		state->cur = req;
+		err = state->op(req);
+
+		if (err == -EINPROGRESS) {
+			if (!list_empty(&state->head))
+				err = -EBUSY;
+			goto out;
+		}
+
+		if (err == -EBUSY)
+			goto out;
+
+		req->base.err = err;
+		list_add_tail(&req->base.list, &req0->base.list);
+	}
+
+	ahash_restore_req(req0);
+
+out:
+	return err;
+}
+
+static void ahash_reqchain_done(void *data, int err)
+{
+	struct ahash_save_req_state *state = data;
+	crypto_completion_t compl = state->compl;
+
+	data = state->data;
+
+	if (err == -EINPROGRESS) {
+		if (!list_empty(&state->head))
+			return;
+		goto notify;
+	}
+
+	err = ahash_reqchain_finish(state, err, CRYPTO_TFM_REQ_MAY_BACKLOG);
+	if (err == -EBUSY)
+		return;
+
+notify:
+	compl(data, err);
+}
+
+static int ahash_do_req_chain(struct ahash_request *req,
+			      int (*op)(struct ahash_request *req))
+{
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ahash_save_req_state *state;
+	struct ahash_save_req_state state0;
+	int err;
+
+	if (!ahash_request_chained(req) || crypto_ahash_req_chain(tfm))
+		return op(req);
+
+	state = &state0;
+
+	if (ahash_is_async(tfm)) {
+		err = ahash_save_req(req, ahash_reqchain_done);
+		if (err) {
+			struct ahash_request *r2;
+
+			req->base.err = err;
+			list_for_each_entry(r2, &req->base.list, base.list)
+				r2->base.err = err;
+
+			return err;
+		}
+
+		state = req->base.data;
+	}
+
+	state->op = op;
+	state->cur = req;
+	INIT_LIST_HEAD(&state->head);
+	list_splice_init(&req->base.list, &state->head);
+
+	err = op(req);
+	if (err == -EBUSY || err == -EINPROGRESS)
+		return -EBUSY;
+
+	return ahash_reqchain_finish(state, err, ~0);
+}
+
 int crypto_ahash_init(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
-	if (likely(tfm->using_shash))
-		return crypto_shash_init(prepare_shash_desc(req, tfm));
+	if (likely(tfm->using_shash)) {
+		struct ahash_request *r2;
+		int err;
+
+		err = crypto_shash_init(prepare_shash_desc(req, tfm));
+		req->base.err = err;
+
+		list_for_each_entry(r2, &req->base.list, base.list) {
+			struct shash_desc *desc;
+
+			desc = prepare_shash_desc(r2, tfm);
+			r2->base.err = crypto_shash_init(desc);
+		}
+
+		return err;
+	}
+
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
-	return crypto_ahash_alg(tfm)->init(req);
+
+	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->init);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_init);
 
 static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct ahash_save_req_state *state;
 	gfp_t gfp;
 	u32 flags;
+
+	if (!ahash_is_async(tfm))
+		return 0;
 
 	flags = ahash_request_flags(req);
 	gfp = (flags & CRYPTO_TFM_REQ_MAY_SLEEP) ?  GFP_KERNEL : GFP_ATOMIC;
@@ -301,14 +430,20 @@ static int ahash_save_req(struct ahash_request *req, crypto_completion_t cplt)
 	state->data = req->base.data;
 	req->base.complete = cplt;
 	req->base.data = state;
-	state->req = req;
+	state->req0 = req;
 
 	return 0;
 }
 
 static void ahash_restore_req(struct ahash_request *req)
 {
-	struct ahash_save_req_state *state = req->base.data;
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct ahash_save_req_state *state;
+
+	if (!ahash_is_async(tfm))
+		return;
+
+	state = req->base.data;
 
 	req->base.complete = state->compl;
 	req->base.data = state->data;
@@ -319,10 +454,24 @@ int crypto_ahash_update(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
-	if (likely(tfm->using_shash))
-		return shash_ahash_update(req, ahash_request_ctx(req));
+	if (likely(tfm->using_shash)) {
+		struct ahash_request *r2;
+		int err;
 
-	return crypto_ahash_alg(tfm)->update(req);
+		err = shash_ahash_update(req, ahash_request_ctx(req));
+		req->base.err = err;
+
+		list_for_each_entry(r2, &req->base.list, base.list) {
+			struct shash_desc *desc;
+
+			desc = ahash_request_ctx(r2);
+			r2->base.err = shash_ahash_update(r2, desc);
+		}
+
+		return err;
+	}
+
+	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->update);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_update);
 
@@ -330,10 +479,24 @@ int crypto_ahash_final(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
-	if (likely(tfm->using_shash))
-		return crypto_shash_final(ahash_request_ctx(req), req->result);
+	if (likely(tfm->using_shash)) {
+		struct ahash_request *r2;
+		int err;
 
-	return crypto_ahash_alg(tfm)->final(req);
+		err = crypto_shash_final(ahash_request_ctx(req), req->result);
+		req->base.err = err;
+
+		list_for_each_entry(r2, &req->base.list, base.list) {
+			struct shash_desc *desc;
+
+			desc = ahash_request_ctx(r2);
+			r2->base.err = crypto_shash_final(desc, r2->result);
+		}
+
+		return err;
+	}
+
+	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->final);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
 
@@ -341,10 +504,27 @@ int crypto_ahash_finup(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
-	if (likely(tfm->using_shash))
-		return shash_ahash_finup(req, ahash_request_ctx(req));
+	if (likely(tfm->using_shash)) {
+		struct ahash_request *r2;
+		int err;
 
-	return crypto_ahash_alg(tfm)->finup(req);
+		err = shash_ahash_finup(req, ahash_request_ctx(req));
+		req->base.err = err;
+
+		list_for_each_entry(r2, &req->base.list, base.list) {
+			struct shash_desc *desc;
+
+			desc = ahash_request_ctx(r2);
+			r2->base.err = shash_ahash_finup(r2, desc);
+		}
+
+		return err;
+	}
+
+	if (!crypto_ahash_alg(tfm)->finup)
+		return ahash_def_finup(req);
+
+	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->finup);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 
@@ -352,20 +532,34 @@ int crypto_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
-	if (likely(tfm->using_shash))
-		return shash_ahash_digest(req, prepare_shash_desc(req, tfm));
+	if (likely(tfm->using_shash)) {
+		struct ahash_request *r2;
+		int err;
+
+		err = shash_ahash_digest(req, prepare_shash_desc(req, tfm));
+		req->base.err = err;
+
+		list_for_each_entry(r2, &req->base.list, base.list) {
+			struct shash_desc *desc;
+
+			desc = prepare_shash_desc(r2, tfm);
+			r2->base.err = shash_ahash_digest(r2, desc);
+		}
+
+		return err;
+	}
 
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
 
-	return crypto_ahash_alg(tfm)->digest(req);
+	return ahash_do_req_chain(req, crypto_ahash_alg(tfm)->digest);
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);
 
 static void ahash_def_finup_done2(void *data, int err)
 {
 	struct ahash_save_req_state *state = data;
-	struct ahash_request *areq = state->req;
+	struct ahash_request *areq = state->req0;
 
 	if (err == -EINPROGRESS)
 		return;
@@ -376,12 +570,15 @@ static void ahash_def_finup_done2(void *data, int err)
 
 static int ahash_def_finup_finish1(struct ahash_request *req, int err)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+
 	if (err)
 		goto out;
 
-	req->base.complete = ahash_def_finup_done2;
+	if (ahash_is_async(tfm))
+		req->base.complete = ahash_def_finup_done2;
 
-	err = crypto_ahash_alg(crypto_ahash_reqtfm(req))->final(req);
+	err = crypto_ahash_final(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
@@ -397,7 +594,7 @@ static void ahash_def_finup_done1(void *data, int err)
 	struct ahash_request *areq;
 
 	state = *state0;
-	areq = state.req;
+	areq = state.req0;
 	if (err == -EINPROGRESS)
 		goto out;
 
@@ -413,14 +610,13 @@ out:
 
 static int ahash_def_finup(struct ahash_request *req)
 {
-	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	int err;
 
 	err = ahash_save_req(req, ahash_def_finup_done1);
 	if (err)
 		return err;
 
-	err = crypto_ahash_alg(tfm)->update(req);
+	err = crypto_ahash_update(req);
 	if (err == -EINPROGRESS || err == -EBUSY)
 		return err;
 
@@ -635,8 +831,6 @@ static int ahash_prepare_alg(struct ahash_alg *alg)
 	base->cra_type = &crypto_ahash_type;
 	base->cra_flags |= CRYPTO_ALG_TYPE_AHASH;
 
-	if (!alg->finup)
-		alg->finup = ahash_def_finup;
 	if (!alg->setkey)
 		alg->setkey = ahash_nosetkey;
 
@@ -706,6 +900,21 @@ int ahash_register_instance(struct crypto_template *tmpl,
 	return crypto_register_instance(tmpl, ahash_crypto_instance(inst));
 }
 EXPORT_SYMBOL_GPL(ahash_register_instance);
+
+void ahash_request_free(struct ahash_request *req)
+{
+	struct ahash_request *tmp;
+	struct ahash_request *r2;
+
+	if (unlikely(!req))
+		return;
+
+	list_for_each_entry_safe(r2, tmp, &req->base.list, base.list)
+		kfree_sensitive(r2);
+
+	kfree_sensitive(req);
+}
+EXPORT_SYMBOL_GPL(ahash_request_free);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Asynchronous cryptographic hash type");
