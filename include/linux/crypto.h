@@ -126,7 +126,7 @@
  */
 #define CRYPTO_ALG_FIPS_INTERNAL	0x00020000
 
-/* Set if the algorithm supports request chains. */
+/* Set if the algorithm supports request chains and virtual addresses. */
 #define CRYPTO_ALG_REQ_CHAIN		0x00040000
 
 /*

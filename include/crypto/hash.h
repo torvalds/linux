@@ -12,6 +12,9 @@
 #include <linux/crypto.h>
 #include <linux/string.h>
 
+/* Set this bit for virtual address instead of SG list. */
+#define CRYPTO_AHASH_REQ_VIRT	0x00000001
+
 struct crypto_ahash;
 
 /**
@@ -52,7 +55,10 @@ struct ahash_request {
 	struct crypto_async_request base;
 
 	unsigned int nbytes;
-	struct scatterlist *src;
+	union {
+		struct scatterlist *src;
+		const u8 *svirt;
+	};
 	u8 *result;
 
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
@@ -610,9 +616,13 @@ static inline void ahash_request_set_callback(struct ahash_request *req,
 					      crypto_completion_t compl,
 					      void *data)
 {
+	u32 keep = CRYPTO_AHASH_REQ_VIRT;
+
 	req->base.complete = compl;
 	req->base.data = data;
-	req->base.flags = flags;
+	flags &= ~keep;
+	req->base.flags &= keep;
+	req->base.flags |= flags;
 	crypto_reqchain_init(&req->base);
 }
 
@@ -636,6 +646,30 @@ static inline void ahash_request_set_crypt(struct ahash_request *req,
 	req->src = src;
 	req->nbytes = nbytes;
 	req->result = result;
+	req->base.flags &= ~CRYPTO_AHASH_REQ_VIRT;
+}
+
+/**
+ * ahash_request_set_virt() - set virtual address data buffers
+ * @req: ahash_request handle to be updated
+ * @src: source virtual address
+ * @result: buffer that is filled with the message digest -- the caller must
+ *	    ensure that the buffer has sufficient space by, for example, calling
+ *	    crypto_ahash_digestsize()
+ * @nbytes: number of bytes to process from the source virtual address
+ *
+ * By using this call, the caller references the source virtual address.
+ * The source virtual address points to the data the message digest is to
+ * be calculated for.
+ */
+static inline void ahash_request_set_virt(struct ahash_request *req,
+					  const u8 *src, u8 *result,
+					  unsigned int nbytes)
+{
+	req->svirt = src;
+	req->nbytes = nbytes;
+	req->result = result;
+	req->base.flags |= CRYPTO_AHASH_REQ_VIRT;
 }
 
 static inline void ahash_request_chain(struct ahash_request *req,
