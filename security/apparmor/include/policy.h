@@ -198,7 +198,6 @@ struct aa_attachment {
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
- * @label - label this profile is an extension of
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @rename: optional profile name that this profile renamed
@@ -206,13 +205,19 @@ struct aa_attachment {
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @path_flags: flags controlling path generation behavior
+ * @signal: the signal that should be used when kill is used
  * @disconnected: what to prepend if attach_disconnected is specified
  * @attach: attachment rules for the profile
  * @rules: rules to be enforced
  *
+ * learning_cache: the accesses learned in complain mode
+ * raw_data: rawdata of the loaded profile policy
+ * hash: cryptographic hash of the profile
  * @dents: dentries for the profiles file entries in apparmorfs
  * @dirname: name of the profile dir in apparmorfs
+ * @dents: set of dentries associated with the profile
  * @data: hashtable for free-form policy aa_data
+ * @label - label this profile is an extension of
  *
  * The AppArmor profile contains the basic confinement data.  Each profile
  * has a name, and exists in a namespace.  The @name and @exec_match are
@@ -247,6 +252,8 @@ struct aa_profile {
 	char *dirname;
 	struct dentry *dents[AAFS_PROF_SIZEOF];
 	struct rhashtable *data;
+
+	/* special - variable length must be last entry in profile */
 	struct aa_label label;
 };
 
