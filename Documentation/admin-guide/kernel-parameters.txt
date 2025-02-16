@@ -5657,6 +5657,31 @@
 			are zero, rcutorture acts as if is interpreted
 			they are all non-zero.
 
+	rcutorture.gpwrap_lag= [KNL]
+			Enable grace-period wrap lag testing. Setting
+			to false prevents the gpwrap lag test from
+			running. Default is true.
+
+	rcutorture.gpwrap_lag_gps= [KNL]
+			Set the value for grace-period wrap lag during
+			active lag testing periods. This controls how many
+			grace periods differences we tolerate between
+			rdp and rnp's gp_seq before setting overflow flag.
+			The default is always set to 8.
+
+	rcutorture.gpwrap_lag_cycle_mins= [KNL]
+			Set the total cycle duration for gpwrap lag
+			testing in minutes. This is the total time for
+			one complete cycle of active and inactive
+			testing periods. Default is 30 minutes.
+
+	rcutorture.gpwrap_lag_active_mins= [KNL]
+			Set the duration for which gpwrap lag is active
+			within each cycle, in minutes. During this time,
+			the grace-period wrap lag will be set to the
+			value specified by gpwrap_lag_gps. Default is
+			5 minutes.
+
 	rcutorture.irqreader= [KNL]
 			Run RCU readers from irq handlers, or, more
 			accurately, from a timer handler.  Not all RCU
