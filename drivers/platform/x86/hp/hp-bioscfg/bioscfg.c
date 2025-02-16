@@ -388,16 +388,13 @@ union acpi_object *hp_get_wmiobj_pointer(int instance_id, const char *guid_strin
  */
 int hp_get_instance_count(const char *guid_string)
 {
-	union acpi_object *wmi_obj = NULL;
-	int i = 0;
+	int ret;
 
-	do {
-		kfree(wmi_obj);
-		wmi_obj = hp_get_wmiobj_pointer(i, guid_string);
-		i++;
-	} while (wmi_obj);
+	ret = wmi_instance_count(guid_string);
+	if (ret < 0)
+		return 0;
 
-	return i - 1;
+	return ret;
 }
 
 /**
