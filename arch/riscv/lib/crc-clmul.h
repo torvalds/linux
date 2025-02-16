@@ -7,6 +7,8 @@
 #include <linux/types.h>
 #include "crc-clmul-consts.h"
 
+u16 crc16_msb_clmul(u16 crc, const void *p, size_t len,
+		    const struct crc_clmul_consts *consts);
 u32 crc32_msb_clmul(u32 crc, const void *p, size_t len,
 		    const struct crc_clmul_consts *consts);
 u32 crc32_lsb_clmul(u32 crc, const void *p, size_t len,
