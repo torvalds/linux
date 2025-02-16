@@ -1340,6 +1340,15 @@ void of_set_phy_timing_role(struct phy_device *phydev);
 int phy_speed_down_core(struct phy_device *phydev);
 
 /**
+ * phy_is_started - Convenience function to check whether PHY is started
+ * @phydev: The phy_device struct
+ */
+static inline bool phy_is_started(struct phy_device *phydev)
+{
+	return phydev->state >= PHY_UP;
+}
+
+/**
  * phy_disable_eee_mode - Don't advertise an EEE mode.
  * @phydev: The phy_device struct
  * @link_mode: The EEE mode to be disabled
@@ -1347,15 +1356,6 @@ int phy_speed_down_core(struct phy_device *phydev);
 static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode)
 {
 	linkmode_set_bit(link_mode, phydev->eee_disabled_modes);
-}
-
-/**
- * phy_is_started - Convenience function to check whether PHY is started
- * @phydev: The phy_device struct
- */
-static inline bool phy_is_started(struct phy_device *phydev)
-{
-	return phydev->state >= PHY_UP;
 }
 
 void phy_resolve_aneg_pause(struct phy_device *phydev);
