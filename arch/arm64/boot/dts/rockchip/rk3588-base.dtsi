@@ -1970,7 +1970,7 @@
 		reg = <0x0 0xfe378000 0x0 0x200>;
 		interrupts = <GIC_SPI 400 IRQ_TYPE_LEVEL_HIGH 0>;
 		clocks = <&scmi_clk SCMI_HCLK_SECURE_NS>;
-		resets = <&scmi_reset 48>;
+		resets = <&scmi_reset SCMI_SRST_H_TRNG_NS>;
 	};
 
 	i2s0_8ch: i2s@fe470000 {
