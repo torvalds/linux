@@ -821,11 +821,19 @@ static int wmi_dev_match(struct device *dev, const struct device_driver *driver)
 	return 0;
 }
 
+static void wmi_dev_disable(void *data)
+{
+	struct wmi_block *wblock = data;
+
+	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+		dev_warn(&wblock->dev.dev, "Failed to disable device\n");
+}
+
 static int wmi_dev_probe(struct device *dev)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	struct wmi_driver *wdriver = to_wmi_driver(dev->driver);
-	int ret = 0;
+	int ret;
 
 	/* Some older WMI drivers will break if instantiated multiple times,
 	 * so they are blocked from probing WMI devices with a duplicated GUID.
@@ -847,15 +855,19 @@ static int wmi_dev_probe(struct device *dev)
 	if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
+	/*
+	 * We have to make sure that all devres-managed resources are released first because
+	 * some might still want to access the underlying WMI device.
+	 */
+	ret = devm_add_action_or_reset(dev, wmi_dev_disable, wblock);
+	if (ret < 0)
+		return ret;
+
 	if (wdriver->probe) {
 		ret = wdriver->probe(to_wmi_device(dev),
 				find_guid_context(wblock, wdriver));
-		if (ret) {
-			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
-				dev_warn(dev, "Failed to disable device\n");
-
+		if (ret)
 			return ret;
-		}
 	}
 
 	down_write(&wblock->notify_lock);
@@ -876,9 +888,6 @@ static void wmi_dev_remove(struct device *dev)
 
 	if (wdriver->remove)
 		wdriver->remove(to_wmi_device(dev));
-
-	if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
-		dev_warn(dev, "failed to disable device\n");
 }
 
 static void wmi_dev_shutdown(struct device *dev)
@@ -902,6 +911,10 @@ static void wmi_dev_shutdown(struct device *dev)
 		if (wdriver->shutdown)
 			wdriver->shutdown(to_wmi_device(dev));
 
+		/*
+		 * We still need to disable the WMI device here since devres-managed resources
+		 * like wmi_dev_disable() will not be release during shutdown.
+		 */
 		if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 			dev_warn(dev, "Failed to disable device\n");
 	}
