@@ -13,5 +13,11 @@ u32 crc32_msb_clmul(u32 crc, const void *p, size_t len,
 		    const struct crc_clmul_consts *consts);
 u32 crc32_lsb_clmul(u32 crc, const void *p, size_t len,
 		    const struct crc_clmul_consts *consts);
+#ifdef CONFIG_64BIT
+u64 crc64_msb_clmul(u64 crc, const void *p, size_t len,
+		    const struct crc_clmul_consts *consts);
+u64 crc64_lsb_clmul(u64 crc, const void *p, size_t len,
+		    const struct crc_clmul_consts *consts);
+#endif
 
 #endif /* _RISCV_CRC_CLMUL_H */
