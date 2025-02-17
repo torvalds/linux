@@ -741,7 +741,7 @@ ipv6_fcnal()
 	run_cmd "$IP nexthop add id 52 via 2001:db8:92::3"
 	log_test $? 2 "Create nexthop - gw only"
 
-	# gw is not reachable throught given dev
+	# gw is not reachable through given dev
 	run_cmd "$IP nexthop add id 53 via 2001:db8:3::3 dev veth1"
 	log_test $? 2 "Create nexthop - invalid gw+dev combination"
 
