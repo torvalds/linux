@@ -323,6 +323,42 @@ static struct avs_control_data *avs_get_module_control(struct avs_path_module *m
 	return NULL;
 }
 
+int avs_peakvol_set_volume(struct avs_dev *adev, struct avs_path_module *mod,
+			   struct soc_mixer_control *mc, long *input)
+{
+	struct avs_volume_cfg vols[SND_SOC_TPLG_MAX_CHAN] = {{0}};
+	struct avs_control_data *ctl_data;
+	struct avs_tplg_module *t;
+	int ret, i;
+
+	ctl_data = mc->dobj.private;
+	t = mod->template;
+	if (!input)
+		input = ctl_data->values;
+
+	if (mc->num_channels) {
+		for (i = 0; i < mc->num_channels; i++) {
+			vols[i].channel_id = i;
+			vols[i].target_volume = input[i];
+			vols[i].curve_type = t->cfg_ext->peakvol.curve_type;
+			vols[i].curve_duration = t->cfg_ext->peakvol.curve_duration;
+		}
+
+		ret = avs_ipc_peakvol_set_volumes(adev, mod->module_id, mod->instance_id, vols,
+						  mc->num_channels);
+		return AVS_IPC_RET(ret);
+	}
+
+	/* Target all channels if no individual selected. */
+	vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	vols[0].target_volume = input[0];
+	vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
+
+	ret = avs_ipc_peakvol_set_volume(adev, mod->module_id, mod->instance_id, &vols[0]);
+	return AVS_IPC_RET(ret);
+}
+
 static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
