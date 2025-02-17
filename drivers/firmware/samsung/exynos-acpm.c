@@ -620,7 +620,7 @@ static int acpm_probe(struct platform_device *pdev)
 	match_data = of_device_get_match_data(dev);
 	if (!match_data)
 		return dev_err_probe(dev, -EINVAL,
-				     "Faile to get match data.\n");
+				     "Failed to get match data.\n");
 
 	acpm->shmem = acpm->sram_base + match_data->initdata_base;
 	acpm->dev = dev;
