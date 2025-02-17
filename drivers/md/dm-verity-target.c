@@ -311,7 +311,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 
 	if (static_branch_unlikely(&use_bh_wq_enabled) && io->in_bh) {
 		data = dm_bufio_get(v->bufio, hash_block, &buf);
-		if (data == NULL) {
+		if (IS_ERR_OR_NULL(data)) {
 			/*
 			 * In tasklet and the hash was not in the bufio cache.
 			 * Return early and resume execution from a work-queue
@@ -324,8 +324,24 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 						&buf, bio->bi_ioprio);
 	}
 
-	if (IS_ERR(data))
-		return PTR_ERR(data);
+	if (IS_ERR(data)) {
+		if (skip_unverified)
+			return 1;
+		r = PTR_ERR(data);
+		data = dm_bufio_new(v->bufio, hash_block, &buf);
+		if (IS_ERR(data))
+			return r;
+		if (verity_fec_decode(v, io, DM_VERITY_BLOCK_TYPE_METADATA,
+				      hash_block, data) == 0) {
+			aux = dm_bufio_get_aux_data(buf);
+			aux->hash_verified = 1;
+			goto release_ok;
+		} else {
+			dm_bufio_release(buf);
+			dm_bufio_forget(v->bufio, hash_block);
+			return r;
+		}
+	}
 
 	aux = dm_bufio_get_aux_data(buf);
 
@@ -366,6 +382,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		}
 	}
 
+release_ok:
 	data += offset;
 	memcpy(want_digest, data, v->digest_size);
 	r = 0;
@@ -1761,7 +1778,7 @@ static struct target_type verity_target = {
 	.name		= "verity",
 /* Note: the LSMs depend on the singleton and immutable features */
 	.features	= DM_TARGET_SINGLETON | DM_TARGET_IMMUTABLE,
-	.version	= {1, 10, 0},
+	.version	= {1, 11, 0},
 	.module		= THIS_MODULE,
 	.ctr		= verity_ctr,
 	.dtr		= verity_dtr,
