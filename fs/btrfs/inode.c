@@ -7075,17 +7075,17 @@ static bool btrfs_extent_readonly(struct btrfs_fs_info *fs_info, u64 bytenr)
  * NOTE: This only checks the file extents, caller is responsible to wait for
  *	 any ordered extents.
  */
-noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
+noinline int can_nocow_extent(struct btrfs_inode *inode, u64 offset, u64 *len,
 			      struct btrfs_file_extent *file_extent,
 			      bool nowait)
 {
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct can_nocow_file_extent_args nocow_args = { 0 };
 	struct btrfs_path *path;
 	int ret;
 	struct extent_buffer *leaf;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	int found_type;
@@ -7095,8 +7095,8 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 		return -ENOMEM;
 	path->nowait = nowait;
 
-	ret = btrfs_lookup_file_extent(NULL, root, path,
-			btrfs_ino(BTRFS_I(inode)), offset, 0);
+	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode),
+				       offset, 0);
 	if (ret < 0)
 		goto out;
 
@@ -7111,7 +7111,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	ret = 0;
 	leaf = path->nodes[0];
 	btrfs_item_key_to_cpu(leaf, &key, path->slots[0]);
-	if (key.objectid != btrfs_ino(BTRFS_I(inode)) ||
+	if (key.objectid != btrfs_ino(inode) ||
 	    key.type != BTRFS_EXTENT_DATA_KEY) {
 		/* not our file or wrong item type, must cow */
 		goto out;
@@ -7132,7 +7132,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 	nocow_args.end = offset + *len - 1;
 	nocow_args.free_path = true;
 
-	ret = can_nocow_file_extent(path, &key, BTRFS_I(inode), &nocow_args);
+	ret = can_nocow_file_extent(path, &key, inode, &nocow_args);
 	/* can_nocow_file_extent() has freed the path. */
 	path = NULL;
 
@@ -7148,7 +7148,7 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 				  nocow_args.file_extent.offset))
 		goto out;
 
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW) &&
+	if (!(inode->flags & BTRFS_INODE_NODATACOW) &&
 	    found_type == BTRFS_FILE_EXTENT_PREALLOC) {
 		u64 range_end;
 
