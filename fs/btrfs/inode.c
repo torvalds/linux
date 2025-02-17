@@ -832,7 +832,7 @@ static inline void inode_should_defrag(struct btrfs_inode *inode,
 		btrfs_add_inode_defrag(inode, small_write);
 }
 
-static int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end)
+static int extent_range_clear_dirty_for_io(struct btrfs_inode *inode, u64 start, u64 end)
 {
 	unsigned long end_index = end >> PAGE_SHIFT;
 	struct folio *folio;
@@ -840,13 +840,13 @@ static int extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 e
 
 	for (unsigned long index = start >> PAGE_SHIFT;
 	     index <= end_index; index++) {
-		folio = filemap_get_folio(inode->i_mapping, index);
+		folio = filemap_get_folio(inode->vfs_inode.i_mapping, index);
 		if (IS_ERR(folio)) {
 			if (!ret)
 				ret = PTR_ERR(folio);
 			continue;
 		}
-		btrfs_folio_clamp_clear_dirty(inode_to_fs_info(inode), folio, start,
+		btrfs_folio_clamp_clear_dirty(inode->root->fs_info, folio, start,
 					      end + 1 - start);
 		folio_put(folio);
 	}
@@ -894,7 +894,7 @@ static void compress_file_range(struct btrfs_work *work)
 	 * Otherwise applications with the file mmap'd can wander in and change
 	 * the page contents while we are compressing them.
 	 */
-	ret = extent_range_clear_dirty_for_io(&inode->vfs_inode, start, end);
+	ret = extent_range_clear_dirty_for_io(inode, start, end);
 
 	/*
 	 * All the folios should have been locked thus no failure.
