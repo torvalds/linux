@@ -1117,6 +1117,7 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 struct notifier_cb_info {
 	struct hlist_node hnode;
 	struct ffa_device *dev;
+	ffa_fwk_notifier_cb fwk_cb;
 	ffa_notifier_cb cb;
 	void *cb_data;
 };
@@ -1180,28 +1181,61 @@ static enum notify_type ffa_notify_type_get(u16 vm_id)
 		return NON_SECURE_VM;
 }
 
-/* Should be called while the notify_lock is taken */
+/* notifier_hnode_get* should be called with notify_lock held */
 static struct notifier_cb_info *
-notifier_hash_node_get(u16 notify_id, enum notify_type type)
+notifier_hnode_get_by_vmid(u16 notify_id, int vmid)
 {
 	struct notifier_cb_info *node;
 
 	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (type == ffa_notify_type_get(node->dev->vm_id))
+		if (node->fwk_cb && vmid == node->dev->vm_id)
+			return node;
+
+	return NULL;
+}
+
+static struct notifier_cb_info *
+notifier_hnode_get_by_vmid_uuid(u16 notify_id, int vmid, const uuid_t *uuid)
+{
+	struct notifier_cb_info *node;
+
+	if (uuid_is_null(uuid))
+		return notifier_hnode_get_by_vmid(notify_id, vmid);
+
+	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
+		if (node->fwk_cb && vmid == node->dev->vm_id &&
+		    uuid_equal(&node->dev->uuid, uuid))
+			return node;
+
+	return NULL;
+}
+
+static struct notifier_cb_info *
+notifier_hnode_get_by_type(u16 notify_id, enum notify_type type)
+{
+	struct notifier_cb_info *node;
+
+	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
+		if (node->cb && type == ffa_notify_type_get(node->dev->vm_id))
 			return node;
 
 	return NULL;
 }
 
 static int
-update_notifier_cb(struct ffa_device *dev, int notify_id, ffa_notifier_cb cb,
-		   void *cb_data, bool is_registration)
+update_notifier_cb(struct ffa_device *dev, int notify_id, void *cb,
+		   void *cb_data, bool is_registration, bool is_framework)
 {
 	struct notifier_cb_info *cb_info = NULL;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
 	bool cb_found;
 
-	cb_info = notifier_hash_node_get(notify_id, type);
+	if (is_framework)
+		cb_info = notifier_hnode_get_by_vmid_uuid(notify_id, dev->vm_id,
+							  &dev->uuid);
+	else
+		cb_info = notifier_hnode_get_by_type(notify_id, type);
+
 	cb_found = !!cb_info;
 
 	if (!(is_registration ^ cb_found))
@@ -1213,8 +1247,11 @@ update_notifier_cb(struct ffa_device *dev, int notify_id, ffa_notifier_cb cb,
 			return -ENOMEM;
 
 		cb_info->dev = dev;
-		cb_info->cb = cb;
 		cb_info->cb_data = cb_data;
+		if (is_framework)
+			cb_info->fwk_cb = cb;
+		else
+			cb_info->cb = cb;
 
 		hash_add(drv_info->notifier_hash, &cb_info->hnode, notify_id);
 	} else {
@@ -1224,7 +1261,8 @@ update_notifier_cb(struct ffa_device *dev, int notify_id, ffa_notifier_cb cb,
 	return 0;
 }
 
-static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
+static int __ffa_notify_relinquish(struct ffa_device *dev, int notify_id,
+				   bool is_framework)
 {
 	int rc;
 
@@ -1236,22 +1274,35 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
 
 	mutex_lock(&drv_info->notify_lock);
 
-	rc = update_notifier_cb(dev, notify_id, NULL, NULL, false);
+	rc = update_notifier_cb(dev, notify_id, NULL, NULL, false,
+				is_framework);
 	if (rc) {
 		pr_err("Could not unregister notification callback\n");
 		mutex_unlock(&drv_info->notify_lock);
 		return rc;
 	}
 
-	rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+	if (!is_framework)
+		rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
 
 	mutex_unlock(&drv_info->notify_lock);
 
 	return rc;
 }
 
-static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
-			      ffa_notifier_cb cb, void *cb_data, int notify_id)
+static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
+{
+	return __ffa_notify_relinquish(dev, notify_id, false);
+}
+
+static int ffa_fwk_notify_relinquish(struct ffa_device *dev, int notify_id)
+{
+	return __ffa_notify_relinquish(dev, notify_id, true);
+}
+
+static int __ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
+				void *cb, void *cb_data,
+				int notify_id, bool is_framework)
 {
 	int rc;
 	u32 flags = 0;
@@ -1264,24 +1315,42 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 
 	mutex_lock(&drv_info->notify_lock);
 
-	if (is_per_vcpu)
-		flags = PER_VCPU_NOTIFICATION_FLAG;
+	if (!is_framework) {
+		if (is_per_vcpu)
+			flags = PER_VCPU_NOTIFICATION_FLAG;
 
-	rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
-	if (rc) {
-		mutex_unlock(&drv_info->notify_lock);
-		return rc;
+		rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
+		if (rc) {
+			mutex_unlock(&drv_info->notify_lock);
+			return rc;
+		}
 	}
 
-	rc = update_notifier_cb(dev, notify_id, cb, cb_data, true);
+	rc = update_notifier_cb(dev, notify_id, cb, cb_data, true,
+				is_framework);
 	if (rc) {
 		pr_err("Failed to register callback for %d - %d\n",
 		       notify_id, rc);
-		ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+		if (!is_framework)
+			ffa_notification_unbind(dev->vm_id, BIT(notify_id));
 	}
 	mutex_unlock(&drv_info->notify_lock);
 
 	return rc;
+}
+
+static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
+			      ffa_notifier_cb cb, void *cb_data, int notify_id)
+{
+	return __ffa_notify_request(dev, is_per_vcpu, cb, cb_data, notify_id,
+				    false);
+}
+
+static int
+ffa_fwk_notify_request(struct ffa_device *dev, ffa_fwk_notifier_cb cb,
+		       void *cb_data, int notify_id)
+{
+	return __ffa_notify_request(dev, false, cb, cb_data, notify_id, true);
 }
 
 static int ffa_notify_send(struct ffa_device *dev, int notify_id,
@@ -1313,7 +1382,7 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 			continue;
 
 		mutex_lock(&drv_info->notify_lock);
-		cb_info = notifier_hash_node_get(notify_id, type);
+		cb_info = notifier_hnode_get_by_type(notify_id, type);
 		mutex_unlock(&drv_info->notify_lock);
 
 		if (cb_info && cb_info->cb)
@@ -1386,6 +1455,8 @@ static const struct ffa_notifier_ops ffa_drv_notifier_ops = {
 	.sched_recv_cb_unregister = ffa_sched_recv_cb_unregister,
 	.notify_request = ffa_notify_request,
 	.notify_relinquish = ffa_notify_relinquish,
+	.fwk_notify_request = ffa_fwk_notify_request,
+	.fwk_notify_relinquish = ffa_fwk_notify_relinquish,
 	.notify_send = ffa_notify_send,
 };
 
