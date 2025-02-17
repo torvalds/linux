@@ -22,6 +22,8 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 
+#include <asm/amd_node.h>
+
 #include "amd.h"
 #include "../mach-config.h"
 #include "acp-mach.h"
@@ -31,7 +33,6 @@
 #define MP1_C2PMSG_69 0x3B10A14
 #define MP1_C2PMSG_85 0x3B10A54
 #define MP1_C2PMSG_93 0x3B10A74
-#define HOST_BRIDGE_ID 0x14B5
 
 static struct acp_resource rsrc = {
 	.offset = 0,
@@ -166,21 +167,20 @@ static struct snd_soc_dai_driver acp_rmb_dai[] = {
 
 static int acp6x_master_clock_generate(struct device *dev)
 {
-	int data = 0;
-	struct pci_dev *smn_dev;
+	int data, rc;
 
-	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, HOST_BRIDGE_ID, NULL);
-	if (!smn_dev) {
-		dev_err(dev, "Failed to get host bridge device\n");
-		return -ENODEV;
-	}
+	rc = amd_smn_write(0, MP1_C2PMSG_93, 0);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, MP1_C2PMSG_85, 0xC4);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, MP1_C2PMSG_69, 0x4);
+	if (rc)
+		return rc;
 
-	smn_write(smn_dev, MP1_C2PMSG_93, 0);
-	smn_write(smn_dev, MP1_C2PMSG_85, 0xC4);
-	smn_write(smn_dev, MP1_C2PMSG_69, 0x4);
-	read_poll_timeout(smn_read, data, data, DELAY_US,
-			  ACP_TIMEOUT, false, smn_dev, MP1_C2PMSG_93);
-	return 0;
+	return read_poll_timeout(smn_read_register, data, data > 0, DELAY_US,
+				 ACP_TIMEOUT, false, MP1_C2PMSG_93);
 }
 
 static int rembrandt_audio_probe(struct platform_device *pdev)
