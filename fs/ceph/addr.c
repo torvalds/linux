@@ -1132,18 +1132,17 @@ int ceph_check_page_before_write(struct address_space *mapping,
 	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
 	struct ceph_client *cl = fsc->client;
 	struct ceph_snap_context *pgsnapc;
-	struct page *page = &folio->page;
 
-	/* only dirty pages, or our accounting breaks */
-	if (unlikely(!PageDirty(page)) || unlikely(page->mapping != mapping)) {
-		doutc(cl, "!dirty or !mapping %p\n", page);
+	/* only dirty folios, or our accounting breaks */
+	if (unlikely(!folio_test_dirty(folio) || folio->mapping != mapping)) {
+		doutc(cl, "!dirty or !mapping %p\n", folio);
 		return -ENODATA;
 	}
 
 	/* only if matching snap context */
-	pgsnapc = page_snap_context(page);
+	pgsnapc = page_snap_context(&folio->page);
 	if (pgsnapc != ceph_wbc->snapc) {
-		doutc(cl, "page snapc %p %lld != oldest %p %lld\n",
+		doutc(cl, "folio snapc %p %lld != oldest %p %lld\n",
 		      pgsnapc, pgsnapc->seq,
 		      ceph_wbc->snapc, ceph_wbc->snapc->seq);
 
@@ -1154,7 +1153,7 @@ int ceph_check_page_before_write(struct address_space *mapping,
 		return -ENODATA;
 	}
 
-	if (page_offset(page) >= ceph_wbc->i_size) {
+	if (folio_pos(folio) >= ceph_wbc->i_size) {
 		doutc(cl, "folio at %lu beyond eof %llu\n",
 		      folio->index, ceph_wbc->i_size);
 
@@ -1167,8 +1166,8 @@ int ceph_check_page_before_write(struct address_space *mapping,
 	}
 
 	if (ceph_wbc->strip_unit_end &&
-	    (page->index > ceph_wbc->strip_unit_end)) {
-		doutc(cl, "end of strip unit %p\n", page);
+	    (folio->index > ceph_wbc->strip_unit_end)) {
+		doutc(cl, "end of strip unit %p\n", folio);
 		return -E2BIG;
 	}
 
