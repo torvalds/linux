@@ -113,7 +113,9 @@ enum ast_config_mode {
 #define AST_MAX_HWC_WIDTH	64
 #define AST_MAX_HWC_HEIGHT	64
 
-#define AST_HWC_SIZE		(AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
+#define AST_HWC_PITCH		(AST_MAX_HWC_WIDTH * SZ_2)
+#define AST_HWC_SIZE		(AST_MAX_HWC_HEIGHT * AST_HWC_PITCH)
+
 #define AST_HWC_SIGNATURE_SIZE	32
 
 /* define for signature structure */

@@ -659,61 +659,16 @@ static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, un
 	return csum;
 }
 
-static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, u8 *tmp, int width, int height)
+static void ast_set_cursor_image(struct ast_device *ast, const u8 *src,
+				 unsigned int width, unsigned int height)
 {
-	union {
-		u32 ul;
-		u8 b[4];
-	} srcdata32[2], data32;
-	union {
-		u16 us;
-		u8 b[2];
-	} data16;
+	u8 __iomem *dst = ast->cursor_plane.base.vaddr;
 	u32 csum;
-	s32 alpha_dst_delta, last_alpha_dst_delta;
-	u8 *dstxor;
-	const u8 *srcxor;
-	int i, j;
-	u32 per_pixel_copy, two_pixel_copy;
 
-	alpha_dst_delta = AST_MAX_HWC_WIDTH << 1;
-	last_alpha_dst_delta = alpha_dst_delta - (width << 1);
-
-	srcxor = src;
-	dstxor = tmp + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
-	per_pixel_copy = width & 1;
-	two_pixel_copy = width >> 1;
-
-	for (j = 0; j < height; j++) {
-		for (i = 0; i < two_pixel_copy; i++) {
-			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
-			srcdata32[1].ul = *((u32 *)(srcxor + 4)) & 0xf0f0f0f0;
-			data32.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data32.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			data32.b[2] = srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
-			data32.b[3] = srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
-			memcpy(dstxor, &data32, 4);
-
-			dstxor += 4;
-			srcxor += 8;
-		}
-
-		for (i = 0; i < per_pixel_copy; i++) {
-			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
-			data16.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
-			data16.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			memcpy(dstxor, &data16, 2);
-
-			dstxor += 2;
-			srcxor += 4;
-		}
-		dstxor += last_alpha_dst_delta;
-	}
-
-	csum = ast_cursor_calculate_checksum(tmp, width, height);
+	csum = ast_cursor_calculate_checksum(src, width, height);
 
 	/* write pixel data */
-	memcpy_toio(dst, tmp, AST_HWC_SIZE);
+	memcpy_toio(dst, src, AST_HWC_SIZE);
 
 	/* write checksum + signature */
 	dst += AST_HWC_SIZE;
@@ -802,9 +757,7 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state, plane);
 	struct ast_device *ast = to_ast_device(plane->dev);
-	struct iosys_map src_map = shadow_plane_state->data[0];
 	struct drm_rect damage;
-	const u8 *src = src_map.vaddr; /* TODO: Use mapping abstraction properly */
 	u64 dst_off = ast_plane->offset;
 	u8 __iomem *dst = ast_plane->vaddr; /* TODO: Use mapping abstraction properly */
 	u8 __iomem *sig = dst + AST_HWC_SIZE; /* TODO: Use mapping abstraction properly */
@@ -818,8 +771,18 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	 */
 
 	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &damage)) {
-		ast_update_cursor_image(dst, src, ast_cursor_plane->argb4444,
-					fb->width, fb->height);
+		u8 *argb4444 = ast_cursor_plane->argb4444;
+		struct iosys_map argb4444_dst[DRM_FORMAT_MAX_PLANES] = {
+			IOSYS_MAP_INIT_VADDR(argb4444),
+		};
+		unsigned int argb4444_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
+			AST_HWC_PITCH,
+		};
+
+		drm_fb_argb8888_to_argb4444(argb4444_dst, argb4444_dst_pitch,
+					    shadow_plane_state->data, fb, &damage,
+					    &shadow_plane_state->fmtcnv_state);
+		ast_set_cursor_image(ast, argb4444, fb->width, fb->height);
 		ast_set_cursor_base(ast, dst_off);
 	}
 
