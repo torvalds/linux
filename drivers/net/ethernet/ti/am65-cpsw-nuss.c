@@ -1193,8 +1193,7 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 
 	switch (act) {
 	case XDP_PASS:
-		ret = AM65_CPSW_XDP_PASS;
-		goto out;
+		return AM65_CPSW_XDP_PASS;
 	case XDP_TX:
 		tx_chn = &common->tx_chns[cpu % AM65_CPSW_MAX_QUEUES];
 		netif_txq = netdev_get_tx_queue(ndev, tx_chn->id);
@@ -1213,15 +1212,13 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 			goto drop;
 
 		dev_sw_netstats_rx_add(ndev, pkt_len);
-		ret = AM65_CPSW_XDP_CONSUMED;
-		goto out;
+		return AM65_CPSW_XDP_CONSUMED;
 	case XDP_REDIRECT:
 		if (unlikely(xdp_do_redirect(ndev, xdp, prog)))
 			goto drop;
 
 		dev_sw_netstats_rx_add(ndev, pkt_len);
-		ret = AM65_CPSW_XDP_REDIRECT;
-		goto out;
+		return AM65_CPSW_XDP_REDIRECT;
 	default:
 		bpf_warn_invalid_xdp_action(ndev, prog, act);
 		fallthrough;
@@ -1236,7 +1233,6 @@ drop:
 	page = virt_to_head_page(xdp->data);
 	am65_cpsw_put_page(flow, page, true);
 
-out:
 	return ret;
 }
 
