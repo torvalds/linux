@@ -10,6 +10,7 @@
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "icl_dsi_regs.h"
+#include "intel_atomic_plane.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
@@ -65,6 +66,52 @@ intel_display_irq_regs_assert_irr_is_zero(struct intel_display *display, i915_re
 	gen2_assert_iir_is_zero(to_intel_uncore(display->drm), reg);
 
 	intel_dmc_wl_put(display, reg);
+}
+
+struct pipe_fault_handler {
+	bool (*handle)(struct intel_crtc *crtc, enum plane_id plane_id);
+	u32 fault;
+	enum plane_id plane_id;
+};
+
+static bool handle_plane_fault(struct intel_crtc *crtc, enum plane_id plane_id)
+{
+	struct intel_display *display = to_intel_display(crtc);
+	struct intel_plane_error error = {};
+	struct intel_plane *plane;
+
+	plane = intel_crtc_get_plane(crtc, plane_id);
+	if (!plane || !plane->capture_error)
+		return false;
+
+	plane->capture_error(crtc, plane, &error);
+
+	drm_err_ratelimited(display->drm,
+			    "[CRTC:%d:%s][PLANE:%d:%s] fault (CTL=0x%x, SURF=0x%x, SURFLIVE=0x%x)\n",
+			    crtc->base.base.id, crtc->base.name,
+			    plane->base.base.id, plane->base.name,
+			    error.ctl, error.surf, error.surflive);
+
+	return true;
+}
+
+static void intel_pipe_fault_irq_handler(struct intel_display *display,
+					 const struct pipe_fault_handler *handlers,
+					 enum pipe pipe, u32 fault_errors)
+{
+	struct intel_crtc *crtc = intel_crtc_for_pipe(display, pipe);
+	const struct pipe_fault_handler *handler;
+
+	for (handler = handlers; handler && handler->fault; handler++) {
+		if ((fault_errors & handler->fault) == 0)
+			continue;
+
+		if (handler->handle(crtc, handler->plane_id))
+			fault_errors &= ~handler->fault;
+	}
+
+	WARN_ONCE(fault_errors, "[CRTC:%d:%s] unreported faults 0x%x\n",
+		  crtc->base.base.id, crtc->base.name, fault_errors);
 }
 
 static void
@@ -947,6 +994,108 @@ static u32 gen8_de_pipe_fault_mask(struct drm_i915_private *dev_priv)
 			GEN8_PIPE_PRIMARY_FAULT;
 }
 
+static bool handle_plane_ats_fault(struct intel_crtc *crtc, enum plane_id plane_id)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	drm_err_ratelimited(display->drm,
+			    "[CRTC:%d:%s] PLANE ATS fault\n",
+			    crtc->base.base.id, crtc->base.name);
+
+	return false;
+}
+
+static bool handle_pipedmc_ats_fault(struct intel_crtc *crtc, enum plane_id plane_id)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	drm_err_ratelimited(display->drm,
+			    "[CRTC:%d:%s] PIPEDMC ATS fault\n",
+			    crtc->base.base.id, crtc->base.name);
+
+	return false;
+}
+
+static bool handle_pipedmc_fault(struct intel_crtc *crtc, enum plane_id plane_id)
+{
+	struct intel_display *display = to_intel_display(crtc);
+
+	drm_err_ratelimited(display->drm,
+			    "[CRTC:%d:%s] PIPEDMC fault\n",
+			    crtc->base.base.id, crtc->base.name);
+
+	return false;
+}
+
+static const struct pipe_fault_handler mtl_pipe_fault_handlers[] = {
+	{ .fault = MTL_PLANE_ATS_FAULT,     .handle = handle_plane_ats_fault, },
+	{ .fault = MTL_PIPEDMC_ATS_FAULT,   .handle = handle_pipedmc_ats_fault, },
+	{ .fault = GEN12_PIPEDMC_FAULT,     .handle = handle_pipedmc_fault, },
+	{ .fault = GEN11_PIPE_PLANE5_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_5, },
+	{ .fault = GEN9_PIPE_PLANE4_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_4, },
+	{ .fault = GEN9_PIPE_PLANE3_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_3, },
+	{ .fault = GEN9_PIPE_PLANE2_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_2, },
+	{ .fault = GEN9_PIPE_PLANE1_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_1, },
+	{ .fault = GEN9_PIPE_CURSOR_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static const struct pipe_fault_handler tgl_pipe_fault_handlers[] = {
+	{ .fault = GEN12_PIPEDMC_FAULT,     .handle = handle_pipedmc_fault, },
+	{ .fault = GEN11_PIPE_PLANE7_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_7, },
+	{ .fault = GEN11_PIPE_PLANE6_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_6, },
+	{ .fault = GEN11_PIPE_PLANE5_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_5, },
+	{ .fault = GEN9_PIPE_PLANE4_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_4, },
+	{ .fault = GEN9_PIPE_PLANE3_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_3, },
+	{ .fault = GEN9_PIPE_PLANE2_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_2, },
+	{ .fault = GEN9_PIPE_PLANE1_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_1, },
+	{ .fault = GEN9_PIPE_CURSOR_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static const struct pipe_fault_handler icl_pipe_fault_handlers[] = {
+	{ .fault = GEN11_PIPE_PLANE7_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_7, },
+	{ .fault = GEN11_PIPE_PLANE6_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_6, },
+	{ .fault = GEN11_PIPE_PLANE5_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_5, },
+	{ .fault = GEN9_PIPE_PLANE4_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_4, },
+	{ .fault = GEN9_PIPE_PLANE3_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_3, },
+	{ .fault = GEN9_PIPE_PLANE2_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_2, },
+	{ .fault = GEN9_PIPE_PLANE1_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_1, },
+	{ .fault = GEN9_PIPE_CURSOR_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static const struct pipe_fault_handler skl_pipe_fault_handlers[] = {
+	{ .fault = GEN9_PIPE_PLANE4_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_4, },
+	{ .fault = GEN9_PIPE_PLANE3_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_3, },
+	{ .fault = GEN9_PIPE_PLANE2_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_2, },
+	{ .fault = GEN9_PIPE_PLANE1_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_1, },
+	{ .fault = GEN9_PIPE_CURSOR_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static const struct pipe_fault_handler bdw_pipe_fault_handlers[] = {
+	{ .fault = GEN8_PIPE_SPRITE_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = GEN8_PIPE_PRIMARY_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = GEN8_PIPE_CURSOR_FAULT,  .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static const struct pipe_fault_handler *
+gen8_pipe_fault_handlers(struct intel_display *display)
+{
+	if (DISPLAY_VER(display) >= 14)
+		return mtl_pipe_fault_handlers;
+	else if (DISPLAY_VER(display) >= 12)
+		return tgl_pipe_fault_handlers;
+	else if (DISPLAY_VER(display) >= 11)
+		return icl_pipe_fault_handlers;
+	else if (DISPLAY_VER(display) >= 9)
+		return skl_pipe_fault_handlers;
+	else
+		return bdw_pipe_fault_handlers;
+}
+
 static void intel_pmdemand_irq_handler(struct drm_i915_private *dev_priv)
 {
 	wake_up_all(&dev_priv->display.pmdemand.waitqueue);
@@ -1233,10 +1382,9 @@ void gen8_de_irq_handler(struct drm_i915_private *dev_priv, u32 master_ctl)
 
 		fault_errors = iir & gen8_de_pipe_fault_mask(dev_priv);
 		if (fault_errors)
-			drm_err_ratelimited(&dev_priv->drm,
-					    "Fault errors on pipe %c: 0x%08x\n",
-					    pipe_name(pipe),
-					    fault_errors);
+			intel_pipe_fault_irq_handler(display,
+						     gen8_pipe_fault_handlers(display),
+						     pipe, fault_errors);
 	}
 
 	if (HAS_PCH_SPLIT(dev_priv) && !HAS_PCH_NOP(dev_priv) &&
