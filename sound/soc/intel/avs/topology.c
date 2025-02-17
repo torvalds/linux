@@ -1943,17 +1943,19 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	struct avs_control_data *ctl_data;
 	struct soc_mixer_control *mc;
 	size_t block_size;
-	int ret;
+	int ret, i;
 
 	switch (le32_to_cpu(hdr->type)) {
 	case SND_SOC_TPLG_TYPE_MIXER:
-		tmc = container_of(hdr, typeof(*tmc), hdr);
-		tuples = tmc->priv.array;
-		block_size = le32_to_cpu(tmc->priv.size);
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	mc = (struct soc_mixer_control *)ctmpl->private_value;
+	tmc = container_of(hdr, typeof(*tmc), hdr);
+	tuples = tmc->priv.array;
+	block_size = le32_to_cpu(tmc->priv.size);
 
 	ctl_data = devm_kzalloc(comp->card->dev, sizeof(*ctl_data), GFP_KERNEL);
 	if (!ctl_data)
@@ -1965,8 +1967,13 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	if (ret)
 		return ret;
 
-	mc = (struct soc_mixer_control *)ctmpl->private_value;
 	mc->dobj.private = ctl_data;
+	if (tmc->invert) {
+		ctl_data->values[0] = mc->max;
+		for (i = 1; i < mc->num_channels; i++)
+			ctl_data->values[i] = mc->max;
+	}
+
 	return 0;
 }
 
