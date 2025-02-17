@@ -1759,8 +1759,20 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 		return -EINVAL;
 	}
 
-	if (dsc->bits_per_component != 8) {
-		DRM_DEV_ERROR(&msm_host->pdev->dev, "DSI does not support bits_per_component != 8 yet\n");
+	switch (dsc->bits_per_component) {
+	case 8:
+	case 10:
+	case 12:
+		/*
+		 * Only 8, 10, and 12 bpc are supported for DSC 1.1 block.
+		 * If additional bpc values need to be supported, update
+		 * this quard with the appropriate DSC version verification.
+		 */
+		break;
+	default:
+		DRM_DEV_ERROR(&msm_host->pdev->dev,
+			      "Unsupported bits_per_component value: %d\n",
+			      dsc->bits_per_component);
 		return -EOPNOTSUPP;
 	}
 
@@ -1771,7 +1783,7 @@ static int dsi_populate_dsc_params(struct msm_dsi_host *msm_host, struct drm_dsc
 	drm_dsc_set_const_params(dsc);
 	drm_dsc_set_rc_buf_thresh(dsc);
 
-	/* handle only bpp = bpc = 8, pre-SCR panels */
+	/* DPU supports only pre-SCR panels */
 	ret = drm_dsc_setup_rc_params(dsc, DRM_DSC_1_1_PRE_SCR);
 	if (ret) {
 		DRM_DEV_ERROR(&msm_host->pdev->dev, "could not find DSC RC parameters\n");
