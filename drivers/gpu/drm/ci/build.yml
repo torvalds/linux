@@ -67,7 +67,7 @@ testing:arm32:
     #
     # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
     # becoming too big for their bootloaders.
-    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT DEBUG_WW_MUTEX_SLOWPATH"
     UPLOAD_TO_MINIO: 1
     MERGE_FRAGMENT: arm.config
 
@@ -79,7 +79,7 @@ testing:arm64:
     #
     # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
     # becoming too big for their bootloaders.
-    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT DEBUG_WW_MUTEX_SLOWPATH"
     UPLOAD_TO_MINIO: 1
     MERGE_FRAGMENT: arm64.config
 
@@ -91,7 +91,7 @@ testing:x86_64:
     #
     # db410c and db820c don't boot with KASAN_INLINE, probably due to the kernel
     # becoming too big for their bootloaders.
-    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT"
+    ENABLE_KCONFIGS: "PROVE_LOCKING DEBUG_INFO_DWARF_TOOLCHAIN_DEFAULT DEBUG_WW_MUTEX_SLOWPATH"
     UPLOAD_TO_MINIO: 1
     MERGE_FRAGMENT: x86_64.config
 
