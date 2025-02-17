@@ -1912,6 +1912,7 @@ static const struct snd_soc_tplg_kcontrol_ops avs_control_ops[] = {
 		.id = AVS_CONTROL_OPS_VOLUME,
 		.get = avs_control_volume_get,
 		.put = avs_control_volume_put,
+		.info = avs_control_volume_info,
 	},
 };
 

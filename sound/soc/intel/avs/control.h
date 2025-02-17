@@ -14,15 +14,11 @@
 
 struct avs_control_data {
 	u32 id;
-
-	long volume;
 	long values[SND_SOC_TPLG_MAX_CHAN];
 };
 
-int avs_control_volume_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int avs_control_volume_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol);
-int avs_control_volume_get2(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl);
-int avs_control_volume_put2(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl);
+int avs_control_volume_get(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl);
+int avs_control_volume_put(struct snd_kcontrol *kctl, struct snd_ctl_elem_value *uctl);
 int avs_control_volume_info(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo);
 
 #endif

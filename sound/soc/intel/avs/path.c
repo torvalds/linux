@@ -370,7 +370,7 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 
 	ctl_data = avs_get_module_control(mod);
 	if (ctl_data)
-		volume = ctl_data->volume;
+		volume = ctl_data->values[0];
 
 	/* As 2+ channels controls are unsupported, have a single block for all channels. */
 	cfg_size = struct_size(cfg, vols, 1);
