@@ -176,6 +176,7 @@ void ffa_device_unregister(struct ffa_device *ffa_dev);
 int ffa_driver_register(struct ffa_driver *driver, struct module *owner,
 			const char *mod_name);
 void ffa_driver_unregister(struct ffa_driver *driver);
+void ffa_devices_unregister(void);
 bool ffa_device_is_valid(struct ffa_device *ffa_dev);
 
 #else
@@ -187,6 +188,8 @@ ffa_device_register(const struct ffa_partition_info *part_info,
 }
 
 static inline void ffa_device_unregister(struct ffa_device *dev) {}
+
+static inline void ffa_devices_unregister(void) {}
 
 static inline int
 ffa_driver_register(struct ffa_driver *driver, struct module *owner,
