@@ -720,6 +720,7 @@ static void ast_set_cursor_enabled(struct ast_device *ast, bool enabled)
 }
 
 static const uint32_t ast_cursor_plane_formats[] = {
+	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB8888,
 };
 
@@ -771,17 +772,28 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	 */
 
 	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &damage)) {
-		u8 *argb4444 = ast_cursor_plane->argb4444;
-		struct iosys_map argb4444_dst[DRM_FORMAT_MAX_PLANES] = {
-			IOSYS_MAP_INIT_VADDR(argb4444),
-		};
-		unsigned int argb4444_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
-			AST_HWC_PITCH,
-		};
+		u8 *argb4444;
 
-		drm_fb_argb8888_to_argb4444(argb4444_dst, argb4444_dst_pitch,
-					    shadow_plane_state->data, fb, &damage,
-					    &shadow_plane_state->fmtcnv_state);
+		switch (fb->format->format) {
+		case DRM_FORMAT_ARGB4444:
+			argb4444 = shadow_plane_state->data[0].vaddr;
+			break;
+		default:
+			argb4444 = ast_cursor_plane->argb4444;
+			{
+				struct iosys_map argb4444_dst[DRM_FORMAT_MAX_PLANES] = {
+					IOSYS_MAP_INIT_VADDR(argb4444),
+				};
+				unsigned int argb4444_dst_pitch[DRM_FORMAT_MAX_PLANES] = {
+					AST_HWC_PITCH,
+				};
+
+				drm_fb_argb8888_to_argb4444(argb4444_dst, argb4444_dst_pitch,
+							    shadow_plane_state->data, fb, &damage,
+							    &shadow_plane_state->fmtcnv_state);
+			}
+			break;
+		}
 		ast_set_cursor_image(ast, argb4444, fb->width, fb->height);
 		ast_set_cursor_base(ast, dst_off);
 	}
