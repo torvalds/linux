@@ -1157,11 +1157,10 @@ static int ad7173_write_raw(struct iio_dev *indio_dev,
 	struct ad7173_state *st = iio_priv(indio_dev);
 	struct ad7173_channel_config *cfg;
 	unsigned int freq, i;
-	int ret;
+	int ret = 0;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	switch (info) {
 	/*
@@ -1195,7 +1194,7 @@ static int ad7173_write_raw(struct iio_dev *indio_dev,
 		break;
 	}
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 	return ret;
 }
 
