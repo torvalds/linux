@@ -542,6 +542,23 @@ static int rtw89_fw_hdr_parser(struct rtw89_dev *rtwdev,
 	}
 }
 
+static
+const struct rtw89_mfw_hdr *rtw89_mfw_get_hdr_ptr(struct rtw89_dev *rtwdev,
+						  const struct firmware *firmware)
+{
+	const struct rtw89_mfw_hdr *mfw_hdr;
+
+	if (sizeof(*mfw_hdr) > firmware->size)
+		return NULL;
+
+	mfw_hdr = (const struct rtw89_mfw_hdr *)firmware->data;
+
+	if (mfw_hdr->sig != RTW89_MFW_SIG)
+		return NULL;
+
+	return mfw_hdr;
+}
+
 static int rtw89_mfw_validate_hdr(struct rtw89_dev *rtwdev,
 				  const struct firmware *firmware,
 				  const struct rtw89_mfw_hdr *mfw_hdr)
@@ -572,14 +589,15 @@ int rtw89_mfw_recognize(struct rtw89_dev *rtwdev, enum rtw89_fw_type type,
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const struct firmware *firmware = fw_info->req.firmware;
+	const struct rtw89_mfw_info *mfw_info = NULL, *tmp;
+	const struct rtw89_mfw_hdr *mfw_hdr;
 	const u8 *mfw = firmware->data;
 	u32 mfw_len = firmware->size;
-	const struct rtw89_mfw_hdr *mfw_hdr = (const struct rtw89_mfw_hdr *)mfw;
-	const struct rtw89_mfw_info *mfw_info = NULL, *tmp;
 	int ret;
 	int i;
 
-	if (mfw_hdr->sig != RTW89_MFW_SIG) {
+	mfw_hdr = rtw89_mfw_get_hdr_ptr(rtwdev, firmware);
+	if (!mfw_hdr) {
 		rtw89_debug(rtwdev, RTW89_DBG_FW, "use legacy firmware\n");
 		/* legacy firmware support normal type only */
 		if (type != RTW89_FW_NORMAL)
@@ -635,13 +653,13 @@ static u32 rtw89_mfw_get_size(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_fw_info *fw_info = &rtwdev->fw;
 	const struct firmware *firmware = fw_info->req.firmware;
-	const struct rtw89_mfw_hdr *mfw_hdr =
-		(const struct rtw89_mfw_hdr *)firmware->data;
 	const struct rtw89_mfw_info *mfw_info;
+	const struct rtw89_mfw_hdr *mfw_hdr;
 	u32 size;
 	int ret;
 
-	if (mfw_hdr->sig != RTW89_MFW_SIG) {
+	mfw_hdr = rtw89_mfw_get_hdr_ptr(rtwdev, firmware);
+	if (!mfw_hdr) {
 		rtw89_warn(rtwdev, "not mfw format\n");
 		return 0;
 	}
