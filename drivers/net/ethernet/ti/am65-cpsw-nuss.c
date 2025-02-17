@@ -1504,6 +1504,7 @@ static void am65_cpsw_nuss_tx_wake(struct am65_cpsw_tx_chn *tx_chn, struct net_d
 static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 					   int chn, unsigned int budget, bool *tdown)
 {
+	bool single_port = AM65_CPSW_IS_CPSW2G(common);
 	enum am65_cpsw_tx_buf_type buf_type;
 	struct device *dev = common->dev;
 	struct am65_cpsw_tx_chn *tx_chn;
@@ -1511,6 +1512,7 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 	unsigned int total_bytes = 0;
 	struct net_device *ndev;
 	struct xdp_frame *xdpf;
+	unsigned int pkt_len;
 	struct sk_buff *skb;
 	dma_addr_t desc_dma;
 	int res, num_tx = 0;
@@ -1518,9 +1520,12 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 	tx_chn = &common->tx_chns[chn];
 
 	while (true) {
-		spin_lock(&tx_chn->lock);
+		if (!single_port)
+			spin_lock(&tx_chn->lock);
 		res = k3_udma_glue_pop_tx_chn(tx_chn->tx_chn, &desc_dma);
-		spin_unlock(&tx_chn->lock);
+		if (!single_port)
+			spin_unlock(&tx_chn->lock);
+
 		if (res == -ENODATA)
 			break;
 
@@ -1535,85 +1540,37 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 		if (buf_type == AM65_CPSW_TX_BUF_TYPE_SKB) {
 			skb = am65_cpsw_nuss_tx_compl_packet_skb(tx_chn, desc_dma);
 			ndev = skb->dev;
-			total_bytes = skb->len;
+			pkt_len = skb->len;
 			napi_consume_skb(skb, budget);
 		} else {
 			xdpf = am65_cpsw_nuss_tx_compl_packet_xdp(common, tx_chn,
 								  desc_dma, &ndev);
-			total_bytes = xdpf->len;
+			pkt_len = xdpf->len;
 			if (buf_type == AM65_CPSW_TX_BUF_TYPE_XDP_TX)
 				xdp_return_frame_rx_napi(xdpf);
 			else
 				xdp_return_frame(xdpf);
 		}
+
+		total_bytes += pkt_len;
 		num_tx++;
 
+		if (!single_port) {
+			/* as packets from multi ports can be interleaved
+			 * on the same channel, we have to figure out the
+			 * port/queue at every packet and report it/wake queue.
+			 */
+			netif_txq = netdev_get_tx_queue(ndev, chn);
+			netdev_tx_completed_queue(netif_txq, 1, pkt_len);
+			am65_cpsw_nuss_tx_wake(tx_chn, ndev, netif_txq);
+		}
+	}
+
+	if (single_port) {
 		netif_txq = netdev_get_tx_queue(ndev, chn);
-
 		netdev_tx_completed_queue(netif_txq, num_tx, total_bytes);
-
 		am65_cpsw_nuss_tx_wake(tx_chn, ndev, netif_txq);
 	}
-
-	dev_dbg(dev, "%s:%u pkt:%d\n", __func__, chn, num_tx);
-
-	return num_tx;
-}
-
-static int am65_cpsw_nuss_tx_compl_packets_2g(struct am65_cpsw_common *common,
-					      int chn, unsigned int budget, bool *tdown)
-{
-	enum am65_cpsw_tx_buf_type buf_type;
-	struct device *dev = common->dev;
-	struct am65_cpsw_tx_chn *tx_chn;
-	struct netdev_queue *netif_txq;
-	unsigned int total_bytes = 0;
-	struct net_device *ndev;
-	struct xdp_frame *xdpf;
-	struct sk_buff *skb;
-	dma_addr_t desc_dma;
-	int res, num_tx = 0;
-
-	tx_chn = &common->tx_chns[chn];
-
-	while (true) {
-		res = k3_udma_glue_pop_tx_chn(tx_chn->tx_chn, &desc_dma);
-		if (res == -ENODATA)
-			break;
-
-		if (cppi5_desc_is_tdcm(desc_dma)) {
-			if (atomic_dec_and_test(&common->tdown_cnt))
-				complete(&common->tdown_complete);
-			*tdown = true;
-			break;
-		}
-
-		buf_type = am65_cpsw_nuss_buf_type(tx_chn, desc_dma);
-		if (buf_type == AM65_CPSW_TX_BUF_TYPE_SKB) {
-			skb = am65_cpsw_nuss_tx_compl_packet_skb(tx_chn, desc_dma);
-			ndev = skb->dev;
-			total_bytes += skb->len;
-			napi_consume_skb(skb, budget);
-		} else {
-			xdpf = am65_cpsw_nuss_tx_compl_packet_xdp(common, tx_chn,
-								  desc_dma, &ndev);
-			total_bytes += xdpf->len;
-			if (buf_type == AM65_CPSW_TX_BUF_TYPE_XDP_TX)
-				xdp_return_frame_rx_napi(xdpf);
-			else
-				xdp_return_frame(xdpf);
-		}
-		num_tx++;
-	}
-
-	if (!num_tx)
-		return 0;
-
-	netif_txq = netdev_get_tx_queue(ndev, chn);
-
-	netdev_tx_completed_queue(netif_txq, num_tx, total_bytes);
-
-	am65_cpsw_nuss_tx_wake(tx_chn, ndev, netif_txq);
 
 	dev_dbg(dev, "%s:%u pkt:%d\n", __func__, chn, num_tx);
 
@@ -1635,13 +1592,8 @@ static int am65_cpsw_nuss_tx_poll(struct napi_struct *napi_tx, int budget)
 	bool tdown = false;
 	int num_tx;
 
-	if (AM65_CPSW_IS_CPSW2G(tx_chn->common))
-		num_tx = am65_cpsw_nuss_tx_compl_packets_2g(tx_chn->common, tx_chn->id,
-							    budget, &tdown);
-	else
-		num_tx = am65_cpsw_nuss_tx_compl_packets(tx_chn->common,
-							 tx_chn->id, budget, &tdown);
-
+	num_tx = am65_cpsw_nuss_tx_compl_packets(tx_chn->common,
+						 tx_chn->id, budget, &tdown);
 	if (num_tx >= budget)
 		return budget;
 
