@@ -414,8 +414,11 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 			*mssc_len += section_info->mssc * FWDL_SECURITY_CHKSUM_LEN;
 
 		if (sec->secure_boot) {
-			if (sec->mss_idx >= section_info->mssc)
+			if (sec->mss_idx >= section_info->mssc) {
+				rtw89_err(rtwdev, "unexpected MSS %d >= %d\n",
+					  sec->mss_idx, section_info->mssc);
 				return -EFAULT;
+			}
 			section_info->key_addr = content + section_info->len +
 						 sec->mss_idx * FWDL_SECURITY_SIGLEN;
 			section_info->key_len = FWDL_SECURITY_SIGLEN;
