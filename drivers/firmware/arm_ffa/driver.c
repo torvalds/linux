@@ -848,6 +848,7 @@ enum notify_type {
 
 #define SPM_FRAMEWORK_BITMAP(x)			NOTIFICATION_BITMAP_LOW(x)
 #define NS_HYP_FRAMEWORK_BITMAP(x)		NOTIFICATION_BITMAP_HIGH(x)
+#define FRAMEWORK_NOTIFY_RX_BUFFER_FULL		BIT(0)
 
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
@@ -1373,9 +1374,6 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 	int notify_id;
 	struct notifier_cb_info *cb_info = NULL;
 
-	if (type == SPM_FRAMEWORK || type == NS_HYP_FRAMEWORK)
-		return;
-
 	for (notify_id = 0; notify_id <= FFA_MAX_NOTIFICATIONS && bitmap;
 	     notify_id++, bitmap >>= 1) {
 		if (!(bitmap & 1))
@@ -1390,6 +1388,46 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 	}
 }
 
+static void handle_fwk_notif_callbacks(u32 bitmap)
+{
+	void *buf;
+	uuid_t uuid;
+	int notify_id = 0, target;
+	struct ffa_indirect_msg_hdr *msg;
+	struct notifier_cb_info *cb_info = NULL;
+
+	/* Only one framework notification defined and supported for now */
+	if (!(bitmap & FRAMEWORK_NOTIFY_RX_BUFFER_FULL))
+		return;
+
+	mutex_lock(&drv_info->rx_lock);
+
+	msg = drv_info->rx_buffer;
+	buf = kmemdup((void *)msg + msg->offset, msg->size, GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&drv_info->rx_lock);
+		return;
+	}
+
+	target = SENDER_ID(msg->send_recv_id);
+	if (msg->offset >= sizeof(*msg))
+		uuid_copy(&uuid, &msg->uuid);
+	else
+		uuid_copy(&uuid, &uuid_null);
+
+	mutex_unlock(&drv_info->rx_lock);
+
+	ffa_rx_release();
+
+	mutex_lock(&drv_info->notify_lock);
+	cb_info = notifier_hnode_get_by_vmid_uuid(notify_id, target, &uuid);
+	mutex_unlock(&drv_info->notify_lock);
+
+	if (cb_info && cb_info->fwk_cb)
+		cb_info->fwk_cb(notify_id, cb_info->cb_data, buf);
+	kfree(buf);
+}
+
 static void notif_get_and_handle(void *unused)
 {
 	int rc;
@@ -1401,10 +1439,8 @@ static void notif_get_and_handle(void *unused)
 		return;
 	}
 
-	handle_notif_callbacks(SPM_FRAMEWORK_BITMAP(bitmaps.arch_map),
-			       SPM_FRAMEWORK);
-	handle_notif_callbacks(NS_HYP_FRAMEWORK_BITMAP(bitmaps.arch_map),
-			       NS_HYP_FRAMEWORK);
+	handle_fwk_notif_callbacks(SPM_FRAMEWORK_BITMAP(bitmaps.arch_map));
+	handle_fwk_notif_callbacks(NS_HYP_FRAMEWORK_BITMAP(bitmaps.arch_map));
 	handle_notif_callbacks(bitmaps.vm_map, NON_SECURE_VM);
 	handle_notif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
 }
