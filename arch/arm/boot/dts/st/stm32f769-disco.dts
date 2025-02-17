@@ -86,6 +86,9 @@
 		led-usr1 {
 			gpios = <&gpioj 13 GPIO_ACTIVE_HIGH>;
 		};
+		led-usr3 {
+			gpios = <&gpioa 12 GPIO_ACTIVE_HIGH>;
+		};
 	};
 
 	gpio-keys {
