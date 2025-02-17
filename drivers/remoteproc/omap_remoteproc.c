@@ -724,6 +724,7 @@ out:
  * @rproc: remote processor to apply the address translation for
  * @da: device address to translate
  * @len: length of the memory buffer
+ * @is_iomem: pointer filled in to indicate if @da is iomapped memory
  *
  * Custom function implementing the rproc .da_to_va ops to provide address
  * translation (device address to kernel virtual address) for internal RAMs
