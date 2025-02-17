@@ -925,27 +925,32 @@ struct ffa_dev_part_info {
 	ffa_sched_recv_cb callback;
 	void *cb_data;
 	rwlock_t rw_lock;
+	struct ffa_device *dev;
+	struct list_head node;
 };
 
 static void __do_sched_recv_cb(u16 part_id, u16 vcpu, bool is_per_vcpu)
 {
-	struct ffa_dev_part_info *partition;
+	struct ffa_dev_part_info *partition = NULL, *tmp;
 	ffa_sched_recv_cb callback;
+	struct list_head *phead;
 	void *cb_data;
 
-	partition = xa_load(&drv_info->partition_info, part_id);
-	if (!partition) {
+	phead = xa_load(&drv_info->partition_info, part_id);
+	if (!phead) {
 		pr_err("%s: Invalid partition ID 0x%x\n", __func__, part_id);
 		return;
 	}
 
-	read_lock(&partition->rw_lock);
-	callback = partition->callback;
-	cb_data = partition->cb_data;
-	read_unlock(&partition->rw_lock);
+	list_for_each_entry_safe(partition, tmp, phead, node) {
+		read_lock(&partition->rw_lock);
+		callback = partition->callback;
+		cb_data = partition->cb_data;
+		read_unlock(&partition->rw_lock);
 
-	if (callback)
-		callback(vcpu, is_per_vcpu, cb_data);
+		if (callback)
+			callback(vcpu, is_per_vcpu, cb_data);
+	}
 }
 
 static void ffa_notification_info_get(void)
@@ -1123,18 +1128,29 @@ struct notifier_cb_info {
 	void *cb_data;
 };
 
-static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
-				    void *cb_data, bool is_registration)
+static int
+ffa_sched_recv_cb_update(struct ffa_device *dev, ffa_sched_recv_cb callback,
+			 void *cb_data, bool is_registration)
 {
-	struct ffa_dev_part_info *partition;
+	struct ffa_dev_part_info *partition = NULL, *tmp;
+	struct list_head *phead;
 	bool cb_valid;
 
 	if (ffa_notifications_disabled())
 		return -EOPNOTSUPP;
 
-	partition = xa_load(&drv_info->partition_info, part_id);
+	phead = xa_load(&drv_info->partition_info, dev->vm_id);
+	if (!phead) {
+		pr_err("%s: Invalid partition ID 0x%x\n", __func__, dev->vm_id);
+		return -EINVAL;
+	}
+
+	list_for_each_entry_safe(partition, tmp, phead, node)
+		if (partition->dev == dev)
+			break;
+
 	if (!partition) {
-		pr_err("%s: Invalid partition ID 0x%x\n", __func__, part_id);
+		pr_err("%s: No such partition ID 0x%x\n", __func__, dev->vm_id);
 		return -EINVAL;
 	}
 
@@ -1156,12 +1172,12 @@ static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
 static int ffa_sched_recv_cb_register(struct ffa_device *dev,
 				      ffa_sched_recv_cb cb, void *cb_data)
 {
-	return ffa_sched_recv_cb_update(dev->vm_id, cb, cb_data, true);
+	return ffa_sched_recv_cb_update(dev, cb, cb_data, true);
 }
 
 static int ffa_sched_recv_cb_unregister(struct ffa_device *dev)
 {
-	return ffa_sched_recv_cb_update(dev->vm_id, NULL, NULL, false);
+	return ffa_sched_recv_cb_update(dev, NULL, NULL, false);
 }
 
 static int ffa_notification_bind(u16 dst_id, u64 bitmap, u32 flags)
@@ -1548,37 +1564,101 @@ static struct notifier_block ffa_bus_nb = {
 	.notifier_call = ffa_bus_notifier,
 };
 
-static int ffa_xa_add_partition_info(int vm_id)
+static int ffa_xa_add_partition_info(struct ffa_device *dev)
 {
 	struct ffa_dev_part_info *info;
-	int ret;
+	struct list_head *head, *phead;
+	int ret = -ENOMEM;
+
+	phead = xa_load(&drv_info->partition_info, dev->vm_id);
+	if (phead) {
+		head = phead;
+		list_for_each_entry(info, head, node) {
+			if (info->dev == dev) {
+				pr_err("%s: duplicate dev %p part ID 0x%x\n",
+				       __func__, dev, dev->vm_id);
+				return -EEXIST;
+			}
+		}
+	}
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return -ENOMEM;
+		return ret;
 
 	rwlock_init(&info->rw_lock);
-	ret = xa_insert(&drv_info->partition_info, vm_id, info, GFP_KERNEL);
-	if (ret) {
-		pr_err("%s: failed to save partition ID 0x%x - ret:%d. Abort.\n",
-		       __func__, vm_id, ret);
-		kfree(info);
+	info->dev = dev;
+
+	if (!phead) {
+		phead = kzalloc(sizeof(*phead), GFP_KERNEL);
+		if (!phead)
+			goto free_out;
+
+		INIT_LIST_HEAD(phead);
+
+		ret = xa_insert(&drv_info->partition_info, dev->vm_id, phead,
+				GFP_KERNEL);
+		if (ret) {
+			pr_err("%s: failed to save part ID 0x%x Ret:%d\n",
+			       __func__, dev->vm_id, ret);
+			goto free_out;
+		}
 	}
+	list_add(&info->node, phead);
+	return 0;
+
+free_out:
+	kfree(phead);
+	kfree(info);
+	return ret;
+}
+
+static int ffa_setup_host_partition(int vm_id)
+{
+	struct ffa_partition_info buf = { 0 };
+	struct ffa_device *ffa_dev;
+	int ret;
+
+	buf.id = vm_id;
+	ffa_dev = ffa_device_register(&buf, &ffa_drv_ops);
+	if (!ffa_dev) {
+		pr_err("%s: failed to register host partition ID 0x%x\n",
+		       __func__, vm_id);
+		return -EINVAL;
+	}
+
+	ret = ffa_xa_add_partition_info(ffa_dev);
+	if (ret)
+		return ret;
+
+	if (ffa_notifications_disabled())
+		return 0;
+
+	ret = ffa_sched_recv_cb_update(ffa_dev, ffa_self_notif_handle,
+				       drv_info, true);
+	if (ret)
+		pr_info("Failed to register driver sched callback %d\n", ret);
 
 	return ret;
 }
 
 static void ffa_partitions_cleanup(void)
 {
-	struct ffa_dev_part_info *info;
+	struct list_head *phead;
 	unsigned long idx;
 
 	/* Clean up/free all registered devices */
 	ffa_devices_unregister();
 
-	xa_for_each(&drv_info->partition_info, idx, info) {
+	xa_for_each(&drv_info->partition_info, idx, phead) {
+		struct ffa_dev_part_info *info, *tmp;
+
 		xa_erase(&drv_info->partition_info, idx);
-		kfree(info);
+		list_for_each_entry_safe(info, tmp, phead, node) {
+			list_del(&info->node);
+			kfree(info);
+		}
+		kfree(phead);
 	}
 
 	xa_destroy(&drv_info->partition_info);
@@ -1621,7 +1701,7 @@ static int ffa_setup_partitions(void)
 		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
 			ffa_mode_32bit_set(ffa_dev);
 
-		if (ffa_xa_add_partition_info(ffa_dev->vm_id)) {
+		if (ffa_xa_add_partition_info(ffa_dev)) {
 			ffa_device_unregister(ffa_dev);
 			continue;
 		}
@@ -1629,12 +1709,16 @@ static int ffa_setup_partitions(void)
 
 	kfree(pbuf);
 
-	/* Check if the host is already added as part of partition info */
+	/*
+	 * Check if the host is already added as part of partition info
+	 * No multiple UUID possible for the host, so just checking if
+	 * there is an entry will suffice
+	 */
 	if (xa_load(&drv_info->partition_info, drv_info->vm_id))
 		return 0;
 
 	/* Allocate for the host */
-	ret = ffa_xa_add_partition_info(drv_info->vm_id);
+	ret = ffa_setup_host_partition(drv_info->vm_id);
 	if (ret)
 		ffa_partitions_cleanup();
 
@@ -1943,19 +2027,10 @@ static int __init ffa_init(void)
 	ffa_notifications_setup();
 
 	ret = ffa_setup_partitions();
-	if (ret) {
-		pr_err("failed to setup partitions\n");
-		goto cleanup_notifs;
-	}
+	if (!ret)
+		return ret;
 
-	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
-				       drv_info, true);
-	if (ret)
-		pr_info("Failed to register driver sched callback %d\n", ret);
-
-	return 0;
-
-cleanup_notifs:
+	pr_err("failed to setup partitions\n");
 	ffa_notifications_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
