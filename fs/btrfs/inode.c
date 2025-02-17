@@ -5682,39 +5682,42 @@ struct inode *btrfs_iget(u64 ino, struct btrfs_root *root)
 	return &inode->vfs_inode;
 }
 
-static struct inode *new_simple_dir(struct inode *dir,
-				    struct btrfs_key *key,
-				    struct btrfs_root *root)
+static struct btrfs_inode *new_simple_dir(struct inode *dir,
+					  struct btrfs_key *key,
+					  struct btrfs_root *root)
 {
 	struct timespec64 ts;
-	struct inode *inode = new_inode(dir->i_sb);
+	struct inode *vfs_inode;
+	struct btrfs_inode *inode;
 
-	if (!inode)
+	vfs_inode = new_inode(dir->i_sb);
+	if (!vfs_inode)
 		return ERR_PTR(-ENOMEM);
 
-	BTRFS_I(inode)->root = btrfs_grab_root(root);
-	BTRFS_I(inode)->ref_root_id = key->objectid;
-	set_bit(BTRFS_INODE_ROOT_STUB, &BTRFS_I(inode)->runtime_flags);
-	set_bit(BTRFS_INODE_DUMMY, &BTRFS_I(inode)->runtime_flags);
+	inode = BTRFS_I(vfs_inode);
+	inode->root = btrfs_grab_root(root);
+	inode->ref_root_id = key->objectid;
+	set_bit(BTRFS_INODE_ROOT_STUB, &inode->runtime_flags);
+	set_bit(BTRFS_INODE_DUMMY, &inode->runtime_flags);
 
-	btrfs_set_inode_number(BTRFS_I(inode), BTRFS_EMPTY_SUBVOL_DIR_OBJECTID);
+	btrfs_set_inode_number(inode, BTRFS_EMPTY_SUBVOL_DIR_OBJECTID);
 	/*
 	 * We only need lookup, the rest is read-only and there's no inode
 	 * associated with the dentry
 	 */
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_opflags &= ~IOP_XATTR;
-	inode->i_fop = &simple_dir_operations;
-	inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
+	vfs_inode->i_op = &simple_dir_inode_operations;
+	vfs_inode->i_opflags &= ~IOP_XATTR;
+	vfs_inode->i_fop = &simple_dir_operations;
+	vfs_inode->i_mode = S_IFDIR | S_IRUGO | S_IWUSR | S_IXUGO;
 
-	ts = inode_set_ctime_current(inode);
-	inode_set_mtime_to_ts(inode, ts);
-	inode_set_atime_to_ts(inode, inode_get_atime(dir));
-	BTRFS_I(inode)->i_otime_sec = ts.tv_sec;
-	BTRFS_I(inode)->i_otime_nsec = ts.tv_nsec;
+	ts = inode_set_ctime_current(vfs_inode);
+	inode_set_mtime_to_ts(vfs_inode, ts);
+	inode_set_atime_to_ts(vfs_inode, inode_get_atime(dir));
+	inode->i_otime_sec = ts.tv_sec;
+	inode->i_otime_nsec = ts.tv_nsec;
 
-	inode->i_uid = dir->i_uid;
-	inode->i_gid = dir->i_gid;
+	vfs_inode->i_uid = dir->i_uid;
+	vfs_inode->i_gid = dir->i_gid;
 
 	return inode;
 }
@@ -5770,10 +5773,14 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 	ret = fixup_tree_root_location(fs_info, BTRFS_I(dir), dentry,
 				       &location, &sub_root);
 	if (ret < 0) {
-		if (ret != -ENOENT)
+		if (ret != -ENOENT) {
 			inode = ERR_PTR(ret);
-		else
-			inode = new_simple_dir(dir, &location, root);
+		} else {
+			struct btrfs_inode *b_inode;
+
+			b_inode = new_simple_dir(dir, &location, root);
+			inode = &b_inode->vfs_inode;
+		}
 	} else {
 		inode = btrfs_iget(location.objectid, sub_root);
 		btrfs_put_root(sub_root);
