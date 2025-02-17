@@ -1167,14 +1167,14 @@ pool_free:
 
 static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 			     struct am65_cpsw_port *port,
-			     struct xdp_buff *xdp,
-			     int cpu, int *len)
+			     struct xdp_buff *xdp, int *len)
 {
 	struct am65_cpsw_common *common = flow->common;
 	struct net_device *ndev = port->ndev;
 	int ret = AM65_CPSW_XDP_CONSUMED;
 	struct am65_cpsw_tx_chn *tx_chn;
 	struct netdev_queue *netif_txq;
+	int cpu = smp_processor_id();
 	struct xdp_frame *xdpf;
 	struct bpf_prog *prog;
 	struct page *page;
@@ -1274,7 +1274,7 @@ static void am65_cpsw_nuss_rx_csum(struct sk_buff *skb, u32 csum_info)
 }
 
 static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_rx_flow *flow,
-				     int cpu, int *xdp_state)
+				     int *xdp_state)
 {
 	struct am65_cpsw_rx_chn *rx_chn = &flow->common->rx_chns;
 	u32 buf_dma_len, pkt_len, port_id = 0, csum_info;
@@ -1334,8 +1334,7 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_rx_flow *flow,
 		xdp_init_buff(&xdp, PAGE_SIZE, &port->xdp_rxq[flow->id]);
 		xdp_prepare_buff(&xdp, page_addr, AM65_CPSW_HEADROOM,
 				 pkt_len, false);
-		*xdp_state = am65_cpsw_run_xdp(flow, port, &xdp,
-					       cpu, &pkt_len);
+		*xdp_state = am65_cpsw_run_xdp(flow, port, &xdp, &pkt_len);
 		if (*xdp_state != AM65_CPSW_XDP_PASS)
 			goto allocate;
 
@@ -1401,7 +1400,6 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 {
 	struct am65_cpsw_rx_flow *flow = am65_cpsw_napi_to_rx_flow(napi_rx);
 	struct am65_cpsw_common *common = flow->common;
-	int cpu = smp_processor_id();
 	int xdp_state_or = 0;
 	int cur_budget, ret;
 	int xdp_state;
@@ -1410,7 +1408,7 @@ static int am65_cpsw_nuss_rx_poll(struct napi_struct *napi_rx, int budget)
 	/* process only this flow */
 	cur_budget = budget;
 	while (cur_budget--) {
-		ret = am65_cpsw_nuss_rx_packets(flow, cpu, &xdp_state);
+		ret = am65_cpsw_nuss_rx_packets(flow, &xdp_state);
 		xdp_state_or |= xdp_state;
 		if (ret)
 			break;
