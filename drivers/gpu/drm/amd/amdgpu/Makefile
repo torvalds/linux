@@ -158,6 +158,7 @@ amdgpu-y += \
 	gfx_v11_0_3.o \
 	imu_v11_0_3.o \
 	gfx_v12_0.o \
+	gfx_v12_1.o \
 	imu_v12_0.o
 
 # add async DMA block
