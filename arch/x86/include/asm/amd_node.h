@@ -46,4 +46,15 @@ static inline int __must_check amd_smn_hsmp_rdwr(u16 node, u32 address, u32 *val
 }
 #endif /* CONFIG_AMD_NODE */
 
+/* helper for use with read_poll_timeout */
+static inline int smn_read_register(u32 reg)
+{
+	int data, rc;
+
+	rc = amd_smn_read(0, reg, &data);
+	if (rc)
+		return rc;
+
+	return data;
+}
 #endif /*_ASM_X86_AMD_NODE_H_*/
