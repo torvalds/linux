@@ -28,7 +28,6 @@
 #define ACP70_REG_END			0x125C000
 
 static const struct sof_amd_acp_desc acp70_chip_info = {
-	.host_bridge_id = HOST_BRIDGE_ACP70,
 	.pgfsm_base	= ACP70_PGFSM_BASE,
 	.ext_intr_enb = ACP70_EXTERNAL_INTR_ENB,
 	.ext_intr_cntl = ACP70_EXTERNAL_INTR_CNTL,

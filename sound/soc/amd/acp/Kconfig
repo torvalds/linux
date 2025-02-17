@@ -82,6 +82,7 @@ config SND_AMD_ASOC_ACP70
 	tristate "AMD ACP ASOC Acp7.0 Support"
 	depends on X86 && PCI
 	depends on ACPI
+	depends on AMD_NODE
 	select SND_SOC_AMD_ACP_PCM
 	select SND_SOC_AMD_ACP_I2S
 	select SND_SOC_AMD_ACP_PDM

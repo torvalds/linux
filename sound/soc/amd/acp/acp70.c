@@ -23,6 +23,8 @@
 #include "amd.h"
 #include "acp-mach.h"
 
+#include <asm/amd_node.h>
+
 #define DRV_NAME "acp_asoc_acp70"
 
 #define CLK7_CLK0_DFS_CNTL_N1		0X0006C1A4
@@ -137,29 +139,6 @@ static struct snd_soc_dai_driver acp70_dai[] = {
 },
 };
 
-static int acp70_i2s_master_clock_generate(struct acp_dev_data *adata)
-{
-	struct pci_dev *smn_dev;
-	u32 device_id;
-
-	if (adata->acp_rev == ACP70_PCI_ID)
-		device_id = 0x1507;
-	else if (adata->acp_rev == ACP71_PCI_ID)
-		device_id = 0x1122;
-	else
-		return -ENODEV;
-
-	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, device_id, NULL);
-
-	if (!smn_dev)
-		return -ENODEV;
-
-	/* Set clk7 DFS clock divider register value to get mclk as 196.608MHz*/
-	smn_write(smn_dev, CLK7_CLK0_DFS_CNTL_N1, CLK0_DIVIDER);
-
-	return 0;
-}
-
 static int acp_acp70_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -215,7 +194,8 @@ static int acp_acp70_audio_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, adata);
 
-	ret = acp70_i2s_master_clock_generate(adata);
+	/* Set clk7 DFS clock divider register value to get mclk as 196.608MHz*/
+	ret = amd_smn_write(0, CLK7_CLK0_DFS_CNTL_N1, CLK0_DIVIDER);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set I2S master clock as 196.608MHz\n");
 		return ret;
