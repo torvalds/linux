@@ -17,6 +17,7 @@ properties:
   compatible:
     oneOf:
       - enum:
+          - qcom,msm8226-mss-pil
           - qcom,msm8909-mss-pil
           - qcom,msm8916-mss-pil
           - qcom,msm8953-mss-pil
@@ -70,7 +71,7 @@ properties:
     items:
       - description: CX proxy power domain (control handed over after startup)
       - description: MX proxy power domain (control handed over after startup)
-                     (not valid for qcom,msm8974-mss-pil)
+                     (not valid for qcom,msm8226-mss-pil or qcom,msm8974-mss-pil)
       - description: MSS proxy power domain (control handed over after startup)
                      (only valid for qcom,msm8953-mss-pil)
     minItems: 1
@@ -78,7 +79,7 @@ properties:
   power-domain-names:
     items:
       - const: cx
-      - const: mx # not valid for qcom,msm8974-mss-pil
+      - const: mx # not valid for qcom,msm8226-mss-pil or qcom,msm8974-mss-pil
       - const: mss # only valid for qcom,msm8953-mss-pil
     minItems: 1
 
@@ -106,6 +107,15 @@ properties:
     description: Names of the states used by the AP to signal the Hexagon core
     items:
       - const: stop
+
+  qcom,ext-bhs-reg:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description: External power block headswitch (BHS) register
+                 (only valid for qcom,msm8226-mss-pil)
+    items:
+      - items:
+          - description: phandle to external BHS syscon region
+          - description: offset to the external BHS register
 
   qcom,halt-regs:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -230,6 +240,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,msm8226-mss-pil
               - qcom,msm8974-mss-pil
     then:
       properties:
@@ -239,6 +250,17 @@ allOf:
           maxItems: 1
       required:
         - mx-supply
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8226-mss-pil
+    then:
+      required:
+        - qcom,ext-bhs-reg
+    else:
+      properties:
+        qcom,ext-bhs-reg: false
 
   - if:
       properties:
