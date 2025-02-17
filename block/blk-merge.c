@@ -556,10 +556,13 @@ int __blk_rq_map_sg(struct request_queue *q, struct request *rq,
 {
 	struct req_iterator iter = {
 		.bio	= rq->bio,
-		.iter	= rq->bio->bi_iter,
 	};
 	struct phys_vec vec;
 	int nsegs = 0;
+
+	/* the internal flush request may not have bio attached */
+	if (iter.bio)
+		iter.iter = iter.bio->bi_iter;
 
 	while (blk_map_iter_next(rq, &iter, &vec)) {
 		*last_sg = blk_next_sg(last_sg, sglist);
