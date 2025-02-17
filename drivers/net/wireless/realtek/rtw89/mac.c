@@ -6441,7 +6441,7 @@ __rtw89_mac_set_tx_time(struct rtw89_dev *rtwdev, struct rtw89_sta_link *rtwsta_
 
 	if (rtwsta_link->cctl_tx_time) {
 		rtwsta_link->ampdu_max_time = (max_tx_time - 512) >> 9;
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
+		ret = rtw89_chip_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 	} else {
 		ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 		if (ret) {
@@ -6507,9 +6507,9 @@ int rtw89_mac_set_tx_retry_limit(struct rtw89_dev *rtwdev,
 
 	if (!resume) {
 		rtwsta_link->cctl_tx_retry_limit = true;
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
+		ret = rtw89_chip_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 	} else {
-		ret = rtw89_fw_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
+		ret = rtw89_chip_h2c_txtime_cmac_tbl(rtwdev, rtwsta_link);
 		rtwsta_link->cctl_tx_retry_limit = false;
 	}
 
