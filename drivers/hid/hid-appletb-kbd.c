@@ -402,13 +402,13 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 	}
 
 	kbd->backlight_dev = backlight_device_get_by_name("appletb_backlight");
-		if (!kbd->backlight_dev)
-			dev_err_probe(dev, ret, "Failed to get backlight device\n");
-		else {
-			backlight_device_set_brightness(kbd->backlight_dev, 2);
-			timer_setup(&kbd->inactivity_timer, appletb_inactivity_timer, 0);
-			mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
-		}
+	if (!kbd->backlight_dev) {
+		dev_err_probe(dev, -ENODEV, "Failed to get backlight device\n");
+	} else {
+		backlight_device_set_brightness(kbd->backlight_dev, 2);
+		timer_setup(&kbd->inactivity_timer, appletb_inactivity_timer, 0);
+		mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
+	}
 
 	kbd->inp_handler.event = appletb_kbd_inp_event;
 	kbd->inp_handler.connect = appletb_kbd_inp_connect;
