@@ -132,8 +132,8 @@ static inline void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 int dpcm_path_get(struct snd_soc_pcm_runtime *fe,
 	int stream, struct snd_soc_dapm_widget_list **list_);
 void dpcm_path_put(struct snd_soc_dapm_widget_list **list);
-int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
-	int stream, struct snd_soc_dapm_widget_list **list, int new);
+int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
+		   struct snd_soc_dapm_widget_list **list_);
 int dpcm_be_dai_startup(struct snd_soc_pcm_runtime *fe, int stream);
 void dpcm_be_dai_stop(struct snd_soc_pcm_runtime *fe, int stream,
 		      int do_hw_free, struct snd_soc_dpcm *last);
@@ -143,8 +143,8 @@ void dpcm_be_dai_hw_free(struct snd_soc_pcm_runtime *fe, int stream);
 int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int tream);
 int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream, int cmd);
 int dpcm_be_dai_prepare(struct snd_soc_pcm_runtime *fe, int stream);
-int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
-	int event);
+void dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir, int event);
+
 bool dpcm_end_walk_at_be(struct snd_soc_dapm_widget *widget, enum snd_soc_dapm_direction dir);
 int widget_in_list(struct snd_soc_dapm_widget_list *list,
 		   struct snd_soc_dapm_widget *widget);

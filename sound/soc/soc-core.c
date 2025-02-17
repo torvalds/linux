@@ -1887,7 +1887,6 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
 /**
  * snd_soc_set_dmi_name() - Register DMI names to card
  * @card: The card to register DMI names
- * @flavour: The flavour "differentiator" for the card amongst its peers.
  *
  * An Intel machine driver may be used by many different devices but are
  * difficult for userspace to differentiate, since machine drivers usually
@@ -1915,7 +1914,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  *
  * Returns 0 on success, otherwise a negative error code.
  */
-int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
+static int snd_soc_set_dmi_name(struct snd_soc_card *card)
 {
 	const char *vendor, *product, *board;
 
@@ -1959,16 +1958,16 @@ int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour)
 		return 0;
 	}
 
-	/* Add flavour to dmi long name */
-	if (flavour)
-		append_dmi_string(card, flavour);
-
 	/* set the card long name */
 	card->long_name = card->dmi_longname;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_soc_set_dmi_name);
+#else
+static inline int snd_soc_set_dmi_name(struct snd_soc_card *card)
+{
+	return 0;
+}
 #endif /* CONFIG_DMI */
 
 static void soc_check_tplg_fes(struct snd_soc_card *card)
@@ -2256,7 +2255,7 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 		goto probe_end;
 
 	/* try to set some sane longname if DMI is available */
-	snd_soc_set_dmi_name(card, NULL);
+	snd_soc_set_dmi_name(card);
 
 	soc_setup_card_name(card, card->snd_card->shortname,
 			    card->name, NULL);

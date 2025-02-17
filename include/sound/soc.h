@@ -522,16 +522,6 @@ int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
 int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	unsigned int dai_fmt);
 
-#ifdef CONFIG_DMI
-int snd_soc_set_dmi_name(struct snd_soc_card *card, const char *flavour);
-#else
-static inline int snd_soc_set_dmi_name(struct snd_soc_card *card,
-				       const char *flavour)
-{
-	return 0;
-}
-#endif
-
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
 int snd_soc_params_to_frame_size(const struct snd_pcm_hw_params *params);
@@ -1116,7 +1106,6 @@ struct snd_soc_card {
 	/* Generic DAPM context for the card */
 	struct snd_soc_dapm_context dapm;
 	struct snd_soc_dapm_stats dapm_stats;
-	struct snd_soc_dapm_update *update;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_card_root;

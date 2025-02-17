@@ -400,8 +400,7 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* DPCM stream event, send event to FE and all active BEs. */
-int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
-	int event)
+void dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir, int event)
 {
 	struct snd_soc_dpcm *dpcm;
 
@@ -422,8 +421,6 @@ int dpcm_dapm_stream_event(struct snd_soc_pcm_runtime *fe, int dir,
 	}
 
 	snd_soc_dapm_stream_event(fe, dir, event);
-
-	return 0;
 }
 
 static void soc_pcm_set_dai_params(struct snd_soc_dai *dai,
@@ -1065,10 +1062,10 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
  * function can also be called multiple times and can allocate buffers
  * (using snd_pcm_lib_* ). It's non-atomic.
  */
-static int __soc_pcm_hw_params(struct snd_soc_pcm_runtime *rtd,
-			       struct snd_pcm_substream *substream,
+static int __soc_pcm_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_dai *cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	struct snd_pcm_hw_params tmp_params;
@@ -1174,7 +1171,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	snd_soc_dpcm_mutex_lock(rtd);
-	ret = __soc_pcm_hw_params(rtd, substream, params);
+	ret = __soc_pcm_hw_params(substream, params);
 	snd_soc_dpcm_mutex_unlock(rtd);
 	return ret;
 }
@@ -1304,10 +1301,9 @@ static int dpcm_be_connect(struct snd_soc_pcm_runtime *fe,
 	snd_soc_dpcm_mutex_assert_held(fe);
 
 	/* only add new dpcms */
-	for_each_dpcm_be(fe, stream, dpcm) {
-		if (dpcm->be == be && dpcm->fe == fe)
+	for_each_dpcm_be(fe, stream, dpcm)
+		if (dpcm->be == be)
 			return 0;
-	}
 
 	fe_substream = snd_soc_dpcm_get_substream(fe, stream);
 	be_substream = snd_soc_dpcm_get_substream(be, stream);
@@ -1554,8 +1550,8 @@ static int dpcm_prune_paths(struct snd_soc_pcm_runtime *fe, int stream,
 	return prune;
 }
 
-static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
-	struct snd_soc_dapm_widget_list **list_)
+int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
+		   struct snd_soc_dapm_widget_list **list_)
 {
 	struct snd_soc_card *card = fe->card;
 	struct snd_soc_dapm_widget_list *list = *list_;
@@ -1618,19 +1614,6 @@ static int dpcm_add_paths(struct snd_soc_pcm_runtime *fe, int stream,
 
 	dev_dbg(fe->dev, "ASoC: found %d new BE paths\n", new);
 	return new;
-}
-
-/*
- * Find the corresponding BE DAIs that source or sink audio to this
- * FE substream.
- */
-int dpcm_process_paths(struct snd_soc_pcm_runtime *fe,
-	int stream, struct snd_soc_dapm_widget_list **list, int new)
-{
-	if (new)
-		return dpcm_add_paths(fe, stream, list);
-	else
-		return dpcm_prune_paths(fe, stream, list);
 }
 
 void dpcm_clear_pending_state(struct snd_soc_pcm_runtime *fe, int stream)
@@ -2127,7 +2110,7 @@ int dpcm_be_dai_hw_params(struct snd_soc_pcm_runtime *fe, int stream)
 		dev_dbg(be->dev, "ASoC: hw_params BE %s\n",
 			be->dai_link->name);
 
-		ret = __soc_pcm_hw_params(be, be_substream, &hw_params);
+		ret = __soc_pcm_hw_params(be_substream, &hw_params);
 		if (ret < 0)
 			goto unwind;
 
@@ -2183,7 +2166,7 @@ static int dpcm_fe_dai_hw_params(struct snd_pcm_substream *substream,
 			params_channels(params), params_format(params));
 
 	/* call hw_params on the frontend */
-	ret = __soc_pcm_hw_params(fe, substream, params);
+	ret = __soc_pcm_hw_params(substream, params);
 	if (ret < 0)
 		dpcm_be_dai_hw_free(fe, stream);
 	else
@@ -2382,18 +2365,18 @@ static int dpcm_dai_trigger_fe_be(struct snd_pcm_substream *substream,
 			goto end;
 
 		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-		goto end;
 	}
-
 	/* call trigger on the frontend after the backend. */
-	ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
-	if (ret < 0)
-		goto end;
+	else {
+		ret = dpcm_be_dai_trigger(fe, substream->stream, cmd);
+		if (ret < 0)
+			goto end;
 
-	dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
-		fe->dai_link->name, cmd);
+		dev_dbg(fe->dev, "ASoC: post trigger FE %s cmd %d\n",
+			fe->dai_link->name, cmd);
 
-	ret = soc_pcm_trigger(substream, cmd);
+		ret = soc_pcm_trigger(substream, cmd);
+	}
 end:
 	return snd_soc_ret(fe->dev, ret, "trigger FE cmd: %d failed\n", cmd);
 }
@@ -2403,52 +2386,40 @@ static int dpcm_fe_dai_do_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct snd_soc_pcm_runtime *fe = snd_soc_substream_to_rtd(substream);
 	int stream = substream->stream;
 	int ret = 0;
+	int fe_first;
 	enum snd_soc_dpcm_trigger trigger = fe->dai_link->trigger[stream];
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
 	switch (trigger) {
 	case SND_SOC_DPCM_TRIGGER_PRE:
-		switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		case SNDRV_PCM_TRIGGER_DRAIN:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+		fe_first = true;
 		break;
 	case SND_SOC_DPCM_TRIGGER_POST:
-		switch (cmd) {
-		case SNDRV_PCM_TRIGGER_START:
-		case SNDRV_PCM_TRIGGER_RESUME:
-		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		case SNDRV_PCM_TRIGGER_DRAIN:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, false);
-			break;
-		case SNDRV_PCM_TRIGGER_STOP:
-		case SNDRV_PCM_TRIGGER_SUSPEND:
-		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-			ret = dpcm_dai_trigger_fe_be(substream, cmd, true);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
+		fe_first = false;
 		break;
 	default:
 		dev_err(fe->dev, "ASoC: invalid trigger cmd %d for %s\n", cmd,
 				fe->dai_link->name);
 		ret = -EINVAL;
 		goto out;
+	}
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+	case SNDRV_PCM_TRIGGER_DRAIN:
+		ret = dpcm_dai_trigger_fe_be(substream, cmd, fe_first);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		ret = dpcm_dai_trigger_fe_be(substream, cmd, !fe_first);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
 	}
 
 	if (ret < 0)
@@ -2710,7 +2681,14 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 			return paths;
 
 		/* update any playback/capture paths */
-		count = dpcm_process_paths(fe, stream, &list, new);
+		/*
+		 * Find the corresponding BE DAIs that source or sink audio to this
+		 * FE substream.
+		 */
+		if (new)
+			count = dpcm_add_paths(fe, stream, &list);
+		else
+			count = dpcm_prune_paths(fe, stream, &list);
 		if (count) {
 			dpcm_set_fe_update_state(fe, stream, SND_SOC_DPCM_UPDATE_BE);
 			if (new)
@@ -2802,7 +2780,7 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 		goto open_end;
 
 	/* calculate valid and active FE <-> BE dpcms */
-	dpcm_process_paths(fe, stream, &list, 1);
+	dpcm_add_paths(fe, stream, &list);
 
 	ret = dpcm_fe_dai_startup(fe_substream);
 	if (ret < 0)
