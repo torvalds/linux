@@ -1605,7 +1605,7 @@ static int amd_pstate_epp_reenable(struct cpufreq_policy *policy)
 					  max_perf, policy->boost_enabled);
 	}
 
-	return amd_pstate_update_perf(cpudata, 0, 0, max_perf, cpudata->epp_cached, false);
+	return amd_pstate_epp_update_limit(policy);
 }
 
 static int amd_pstate_epp_cpu_online(struct cpufreq_policy *policy)
@@ -1653,6 +1653,9 @@ static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
 	/* avoid suspending when EPP is not enabled */
 	if (cppc_state != AMD_PSTATE_ACTIVE)
 		return 0;
+
+	/* invalidate to ensure it's rewritten during resume */
+	cpudata->cppc_req_cached = 0;
 
 	/* set this flag to avoid setting core offline*/
 	cpudata->suspended = true;
