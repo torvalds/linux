@@ -802,11 +802,14 @@ static void hp_82341_detach(gpib_board_t *board)
 	hp_82341_free_private(board);
 }
 
+#if 0
+/* unused, will be needed when the driver is turned into a pnp_driver */
 static const struct pnp_device_id hp_82341_pnp_table[] = {
 	{.id = "HWP1411"},
 	{.id = ""}
 };
 MODULE_DEVICE_TABLE(pnp, hp_82341_pnp_table);
+#endif
 
 static int __init hp_82341_init_module(void)
 {
