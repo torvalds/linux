@@ -20,6 +20,7 @@ properties:
           - qcom,msm8226-mss-pil
           - qcom,msm8909-mss-pil
           - qcom,msm8916-mss-pil
+          - qcom,msm8926-mss-pil
           - qcom,msm8953-mss-pil
           - qcom,msm8974-mss-pil
 
@@ -71,7 +72,8 @@ properties:
     items:
       - description: CX proxy power domain (control handed over after startup)
       - description: MX proxy power domain (control handed over after startup)
-                     (not valid for qcom,msm8226-mss-pil or qcom,msm8974-mss-pil)
+                     (not valid for qcom,msm8226-mss-pil, qcom,msm8926-mss-pil
+                     and qcom,msm8974-mss-pil)
       - description: MSS proxy power domain (control handed over after startup)
                      (only valid for qcom,msm8953-mss-pil)
     minItems: 1
@@ -79,7 +81,7 @@ properties:
   power-domain-names:
     items:
       - const: cx
-      - const: mx # not valid for qcom,msm8226-mss-pil or qcom,msm8974-mss-pil
+      - const: mx # not valid for qcom,msm8226-mss-pil, qcom-msm8926-mss-pil and qcom,msm8974-mss-pil
       - const: mss # only valid for qcom,msm8953-mss-pil
     minItems: 1
 
@@ -241,6 +243,7 @@ allOf:
           contains:
             enum:
               - qcom,msm8226-mss-pil
+              - qcom,msm8926-mss-pil
               - qcom,msm8974-mss-pil
     then:
       properties:
@@ -265,7 +268,10 @@ allOf:
   - if:
       properties:
         compatible:
-          const: qcom,msm8974-mss-pil
+          contains:
+            enum:
+              - qcom,msm8926-mss-pil
+              - qcom,msm8974-mss-pil
     then:
       required:
         - mss-supply
