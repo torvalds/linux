@@ -69,7 +69,7 @@ static void amd_asf_process_target(struct work_struct *work)
 	/* Check if no error bits are set in target status register */
 	if (reg & ASF_ERROR_STATUS) {
 		/* Set bank as full */
-		cmd = 0;
+		cmd = 1;
 		reg |= GENMASK(3, 2);
 		outb_p(reg, ASFDATABNKSEL);
 	} else {
