@@ -300,7 +300,8 @@ static int avs_whm_create(struct avs_dev *adev, struct avs_path_module *mod)
 	return ret;
 }
 
-static struct avs_control_data *avs_get_module_control(struct avs_path_module *mod)
+static struct soc_mixer_control *avs_get_module_control(struct avs_path_module *mod,
+							const char *name)
 {
 	struct avs_tplg_module *t = mod->template;
 	struct avs_tplg_path_template *path_tmpl;
@@ -316,8 +317,8 @@ static struct avs_control_data *avs_get_module_control(struct avs_path_module *m
 
 		mc = (struct soc_mixer_control *)w->kcontrols[i]->private_value;
 		ctl_data = (struct avs_control_data *)mc->dobj.private;
-		if (ctl_data->id == t->ctl_id)
-			return ctl_data;
+		if (ctl_data->id == t->ctl_id && strstr(w->kcontrols[i]->id.name, name))
+			return mc;
 	}
 
 	return NULL;
@@ -398,17 +399,11 @@ int avs_peakvol_set_mute(struct avs_dev *adev, struct avs_path_module *mod,
 static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
-	struct avs_control_data *ctl_data;
+	struct soc_mixer_control *mc;
 	struct avs_peakvol_cfg *cfg;
-	int volume = S32_MAX;
 	size_t cfg_size;
 	int ret;
 
-	ctl_data = avs_get_module_control(mod);
-	if (ctl_data)
-		volume = ctl_data->values[0];
-
-	/* As 2+ channels controls are unsupported, have a single block for all channels. */
 	cfg_size = struct_size(cfg, vols, 1);
 	if (cfg_size > AVS_MAILBOX_SIZE)
 		return -EINVAL;
@@ -420,15 +415,28 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.obs = t->cfg_base->obs;
 	cfg->base.is_pages = t->cfg_base->is_pages;
 	cfg->base.audio_fmt = *t->in_fmt;
-	cfg->vols[0].target_volume = volume;
 	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	cfg->vols[0].target_volume = S32_MAX;
 	cfg->vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
 	cfg->vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
 
 	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
 				  t->domain, cfg, cfg_size, &mod->instance_id);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Now configure both VOLUME and MUTE parameters. */
+	mc = avs_get_module_control(mod, "Volume");
+	if (mc) {
+		ret = avs_peakvol_set_volume(adev, mod, mc, NULL);
+		if (ret)
+			return ret;
+	}
+
+	mc = avs_get_module_control(mod, "Switch");
+	if (mc)
+		return avs_peakvol_set_mute(adev, mod, mc, NULL);
+	return 0;
 }
 
 static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *mod)
