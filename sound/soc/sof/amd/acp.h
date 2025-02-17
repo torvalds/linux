@@ -197,7 +197,6 @@ struct acp_dsp_stream {
 
 struct sof_amd_acp_desc {
 	const char *name;
-	unsigned int host_bridge_id;
 	u32 pgfsm_base;
 	u32 ext_intr_enb;
 	u32 ext_intr_cntl;
