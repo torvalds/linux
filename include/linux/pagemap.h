@@ -575,11 +575,6 @@ static inline struct address_space *folio_flush_mapping(struct folio *folio)
 	return folio_mapping(folio);
 }
 
-static inline struct address_space *page_file_mapping(struct page *page)
-{
-	return folio_file_mapping(page_folio(page));
-}
-
 /**
  * folio_inode - Get the host inode for this folio.
  * @folio: The folio.
