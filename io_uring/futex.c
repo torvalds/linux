@@ -44,30 +44,30 @@ void io_futex_cache_free(struct io_ring_ctx *ctx)
 	io_alloc_cache_free(&ctx->futex_cache, kfree);
 }
 
-static void __io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void __io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	req->async_data = NULL;
 	hlist_del_init(&req->hash_node);
-	io_req_task_complete(req, ts);
+	io_req_task_complete(req, tw);
 }
 
-static void io_futex_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void io_futex_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_futex_data *ifd = req->async_data;
 	struct io_ring_ctx *ctx = req->ctx;
 
-	io_tw_lock(ctx, ts);
+	io_tw_lock(ctx, tw);
 	if (!io_alloc_cache_put(&ctx->futex_cache, ifd))
 		kfree(ifd);
-	__io_futex_complete(req, ts);
+	__io_futex_complete(req, tw);
 }
 
-static void io_futexv_complete(struct io_kiocb *req, struct io_tw_state *ts)
+static void io_futexv_complete(struct io_kiocb *req, io_tw_token_t tw)
 {
 	struct io_futex *iof = io_kiocb_to_cmd(req, struct io_futex);
 	struct futex_vector *futexv = req->async_data;
 
-	io_tw_lock(req->ctx, ts);
+	io_tw_lock(req->ctx, tw);
 
 	if (!iof->futexv_unqueued) {
 		int res;
@@ -79,7 +79,7 @@ static void io_futexv_complete(struct io_kiocb *req, struct io_tw_state *ts)
 
 	kfree(req->async_data);
 	req->flags &= ~REQ_F_ASYNC_DATA;
-	__io_futex_complete(req, ts);
+	__io_futex_complete(req, tw);
 }
 
 static bool io_futexv_claim(struct io_futex *iof)
