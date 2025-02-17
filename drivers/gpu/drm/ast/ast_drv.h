@@ -142,6 +142,17 @@ static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
 	return container_of(plane, struct ast_plane, base);
 }
 
+struct ast_cursor_plane {
+	struct ast_plane base;
+
+	u8 argb4444[AST_HWC_SIZE];
+};
+
+static inline struct ast_cursor_plane *to_ast_cursor_plane(struct drm_plane *plane)
+{
+	return container_of(to_ast_plane(plane), struct ast_cursor_plane, base);
+}
+
 /*
  * Connector
  */
@@ -186,7 +197,7 @@ struct ast_device {
 	enum ast_tx_chip tx_chip;
 
 	struct ast_plane primary_plane;
-	struct ast_plane cursor_plane;
+	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
 	union {
 		struct {

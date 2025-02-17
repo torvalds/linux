@@ -632,7 +632,34 @@ static int ast_primary_plane_init(struct ast_device *ast)
  * Cursor plane
  */
 
-static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, int height)
+static u32 ast_cursor_calculate_checksum(const void *src, unsigned int width, unsigned int height)
+{
+	u32 csum = 0;
+	unsigned int one_pixel_copy = width & BIT(0);
+	unsigned int two_pixel_copy = width - one_pixel_copy;
+	unsigned int trailing_bytes = (AST_MAX_HWC_WIDTH - width) * sizeof(u16);
+	unsigned int x, y;
+
+	for (y = 0; y < height; y++) {
+		for (x = 0; x < two_pixel_copy; x += 2) {
+			const u32 *src32 = (const u32 *)src;
+
+			csum += *src32;
+			src += SZ_4;
+		}
+		if (one_pixel_copy) {
+			const u16 *src16 = (const u16 *)src;
+
+			csum += *src16;
+			src += SZ_2;
+		}
+		src += trailing_bytes;
+	}
+
+	return csum;
+}
+
+static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, u8 *tmp, int width, int height)
 {
 	union {
 		u32 ul;
@@ -642,9 +669,9 @@ static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, i
 		u16 us;
 		u8 b[2];
 	} data16;
-	u32 csum = 0;
+	u32 csum;
 	s32 alpha_dst_delta, last_alpha_dst_delta;
-	u8 __iomem *dstxor;
+	u8 *dstxor;
 	const u8 *srcxor;
 	int i, j;
 	u32 per_pixel_copy, two_pixel_copy;
@@ -653,7 +680,7 @@ static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, i
 	last_alpha_dst_delta = alpha_dst_delta - (width << 1);
 
 	srcxor = src;
-	dstxor = (u8 *)dst + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
+	dstxor = tmp + last_alpha_dst_delta + (AST_MAX_HWC_HEIGHT - height) * alpha_dst_delta;
 	per_pixel_copy = width & 1;
 	two_pixel_copy = width >> 1;
 
@@ -665,27 +692,28 @@ static void ast_update_cursor_image(u8 __iomem *dst, const u8 *src, int width, i
 			data32.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
 			data32.b[2] = srcdata32[1].b[1] | (srcdata32[1].b[0] >> 4);
 			data32.b[3] = srcdata32[1].b[3] | (srcdata32[1].b[2] >> 4);
-
-			writel(data32.ul, dstxor);
-			csum += data32.ul;
+			memcpy(dstxor, &data32, 4);
 
 			dstxor += 4;
 			srcxor += 8;
-
 		}
 
 		for (i = 0; i < per_pixel_copy; i++) {
 			srcdata32[0].ul = *((u32 *)srcxor) & 0xf0f0f0f0;
 			data16.b[0] = srcdata32[0].b[1] | (srcdata32[0].b[0] >> 4);
 			data16.b[1] = srcdata32[0].b[3] | (srcdata32[0].b[2] >> 4);
-			writew(data16.us, dstxor);
-			csum += (u32)data16.us;
+			memcpy(dstxor, &data16, 2);
 
 			dstxor += 2;
 			srcxor += 4;
 		}
 		dstxor += last_alpha_dst_delta;
 	}
+
+	csum = ast_cursor_calculate_checksum(tmp, width, height);
+
+	/* write pixel data */
+	memcpy_toio(dst, tmp, AST_HWC_SIZE);
 
 	/* write checksum + signature */
 	dst += AST_HWC_SIZE;
@@ -767,6 +795,7 @@ static int ast_cursor_plane_helper_atomic_check(struct drm_plane *plane,
 static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 						  struct drm_atomic_state *state)
 {
+	struct ast_cursor_plane *ast_cursor_plane = to_ast_cursor_plane(plane);
 	struct ast_plane *ast_plane = to_ast_plane(plane);
 	struct drm_plane_state *plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_shadow_plane_state *shadow_plane_state = to_drm_shadow_plane_state(plane_state);
@@ -789,7 +818,8 @@ static void ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	 */
 
 	if (drm_atomic_helper_damage_merged(old_plane_state, plane_state, &damage)) {
-		ast_update_cursor_image(dst, src, fb->width, fb->height);
+		ast_update_cursor_image(dst, src, ast_cursor_plane->argb4444,
+					fb->width, fb->height);
 		ast_set_cursor_base(ast, dst_off);
 	}
 
@@ -849,8 +879,9 @@ static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 static int ast_cursor_plane_init(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
-	struct ast_plane *ast_cursor_plane = &ast->cursor_plane;
-	struct drm_plane *cursor_plane = &ast_cursor_plane->base;
+	struct ast_cursor_plane *ast_cursor_plane = &ast->cursor_plane;
+	struct ast_plane *ast_plane = &ast_cursor_plane->base;
+	struct drm_plane *cursor_plane = &ast_plane->base;
 	size_t size;
 	void __iomem *vaddr;
 	u64 offset;
@@ -869,7 +900,7 @@ static int ast_cursor_plane_init(struct ast_device *ast)
 	vaddr = ast->vram + ast->vram_fb_available - size;
 	offset = ast->vram_fb_available - size;
 
-	ret = ast_plane_init(dev, ast_cursor_plane, vaddr, offset, size,
+	ret = ast_plane_init(dev, ast_plane, vaddr, offset, size,
 			     0x01, &ast_cursor_plane_funcs,
 			     ast_cursor_plane_formats, ARRAY_SIZE(ast_cursor_plane_formats),
 			     NULL, DRM_PLANE_TYPE_CURSOR);
@@ -1156,7 +1187,7 @@ static int ast_crtc_init(struct ast_device *ast)
 	int ret;
 
 	ret = drm_crtc_init_with_planes(dev, crtc, &ast->primary_plane.base,
-					&ast->cursor_plane.base, &ast_crtc_funcs,
+					&ast->cursor_plane.base.base, &ast_crtc_funcs,
 					NULL);
 	if (ret)
 		return ret;
