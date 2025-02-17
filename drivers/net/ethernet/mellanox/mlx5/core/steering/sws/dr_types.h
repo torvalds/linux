@@ -1473,7 +1473,6 @@ struct mlx5dr_send_ring {
 int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn);
 void mlx5dr_send_ring_free(struct mlx5dr_domain *dmn,
 			   struct mlx5dr_send_ring *send_ring);
-int mlx5dr_send_ring_force_drain(struct mlx5dr_domain *dmn);
 int mlx5dr_send_postsend_ste(struct mlx5dr_domain *dmn,
 			     struct mlx5dr_ste *ste,
 			     u8 *data,

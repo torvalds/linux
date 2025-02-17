@@ -110,6 +110,13 @@ function create_dynamic_target() {
 	echo 1 > "${NETCONS_PATH}"/enabled
 }
 
+# Do not append the release to the header of the message
+function disable_release_append() {
+	echo 0 > "${NETCONS_PATH}"/enabled
+	echo 0 > "${NETCONS_PATH}"/release
+	echo 1 > "${NETCONS_PATH}"/enabled
+}
+
 function cleanup() {
 	local NSIM_DEV_SYS_DEL="/sys/bus/netdevsim/del_device"
 
