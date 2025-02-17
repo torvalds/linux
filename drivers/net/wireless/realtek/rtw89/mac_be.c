@@ -2585,6 +2585,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 		.mask = B_BE_RXTRIG_RU26_DIS,
 	},
 	.wow_ctrl = {.addr = R_BE_WOW_CTRL, .mask = B_BE_WOW_WOWEN,},
+	.agg_limit = {.addr = R_BE_AMPDU_AGG_LIMIT, .mask = B_BE_AMPDU_MAX_TIME_MASK,},
+	.txcnt_limit = {.addr = R_BE_TXCNT, .mask = B_BE_L_TXCNT_LMT_MASK,},
 
 	.check_mac_en = rtw89_mac_check_mac_en_be,
 	.sys_init = sys_init_be,
