@@ -30,7 +30,7 @@ struct val_table_ent {
 	int value;
 };
 
-struct val_table_ent debug_values_table[] = {
+static struct val_table_ent debug_values_table[] = {
 	{ "N", DEBUG_NONE },
 	{ "none", DEBUG_NONE },
 	{ "n", DEBUG_NONE },
