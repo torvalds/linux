@@ -20,6 +20,7 @@
 #include <linux/isapnp.h>
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("GPIB driver for hp 82341a/b/c/d boards");
 
 static unsigned short read_and_clear_event_status(gpib_board_t *board);
 static void set_transfer_counter(struct hp_82341_priv *hp_priv, int count);
