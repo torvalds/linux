@@ -1691,6 +1691,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	if (unlikely(!avm->pasid)) {
 		dev_warn(pdd->dev->adev->dev, "WARN: vm %p has no pasid associated",
 				 avm);
+		ret = -EINVAL;
 		goto err_get_pasid;
 	}
 
