@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt)	"eusb2_phy: %s: " fmt, __func__
@@ -190,6 +191,8 @@ struct msm_eusb2_phy {
 	u8			tx_xv;
 
 	struct usb_repeater	*ur;
+
+	u8			eud_det_val;
 };
 
 static inline bool is_eud_debug_mode_active(struct msm_eusb2_phy *phy)
@@ -228,7 +231,7 @@ static void msm_eusb2_phy_update_eud_detect(struct msm_eusb2_phy *phy, bool set)
 	if (set) {
 		/* Make sure all the writes are processed before setting EUD_DETECT */
 		mb();
-		writel_relaxed(EUD_DETECT, phy->eud_detect_reg);
+		writel_relaxed(phy->eud_det_val, phy->eud_detect_reg);
 	} else {
 		writel_relaxed(readl_relaxed(phy->eud_detect_reg) & ~EUD_DETECT,
 					phy->eud_detect_reg);
@@ -977,6 +980,9 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 			dev_err(dev, "eud_detect_reg ioremap err:%d\n", ret);
 			goto err_ret;
 		}
+
+		phy->eud_det_val = EUD_DETECT;
+		device_property_read_u8(dev, "qcom,eud-det-val", &phy->eud_det_val);
 	}
 
 	phy->ref_clk_src = devm_clk_get(dev, "ref_clk_src");

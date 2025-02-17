@@ -233,6 +233,7 @@ class BazelBuilder:
                 logging.info('No target built so far')
                 extra_options = extra_options + ['--discard_analysis_cache']
                 cmds_with_outputs = [\
+                        [self.bazel_bin, 'info'],
                         [self.bazel_bin, 'version']
                         ]
                 outputs = []
@@ -247,9 +248,33 @@ class BazelBuilder:
                         logging.error(e)
                         sys.exit(1)
                     self.process_list.remove(cmd_proc)
-                bazel_version = outputs[0][0].split(':')[1].strip()
-                aserver_path = outputs[1][0]
-                java_path = outputs[2][0]
+                for o in outputs[0]:
+                    o_arr = o.split(':')
+                    if o_arr[0] == 'java-home':
+                        java_home = o_arr[1].strip()
+                    if o_arr[0] == 'install_base':
+                        install_base = o_arr[1].strip()
+                if outputs[1][3].strip() == 'Build timestamp as int: 0':
+                    bazel_version = '7.0.0'
+                cmds_with_outputs = [\
+                        ['find', install_base, '-name', 'A-server.jar', '-print'], \
+                        ['find', java_home, '-name', 'java', '-type', 'f', '-print'], \
+                        [self.bazel_bin, 'shutdown']
+                        ]
+                outputs = []
+                for o_cmd in cmds_with_outputs:
+                    try:
+                        logging.info('Running "%s"', " ".join(o_cmd))
+                        cmd_proc = subprocess.Popen(o_cmd, cwd=self.workspace, stdout=subprocess.PIPE)
+                        self.process_list.append(cmd_proc)
+                        outputs.append([l.decode("utf-8") for l in cmd_proc.stdout.read().splitlines()])
+                    except Exception as e:
+                        logging.error('Command Failed: "%s"', " ".join(o_cmd))
+                        logging.error(e)
+                        sys.exit(1)
+                    self.process_list.remove(cmd_proc)
+                aserver_path = outputs[0][0]
+                java_path = outputs[1][0]
                 logging.info('Bazel Version = %s', bazel_version)
                 logging.info('Absolute Path to A-server.jar is "%s"' % aserver_path)
                 logging.info('Absolute Path to java is "%s"' % java_path)
@@ -271,11 +296,7 @@ class BazelBuilder:
                         '%s/aspectj-1.9/bin/ajc -1.9 -cp %s:%s/aspectj-1.9/lib/aspectjrt.jar -outxml -outjar %s/aspectskp.jar %s/%s/aspectinstrumentation.java' % \
                         (repo_path, aserver_path, repo_path, repo_path, repo_path, inst_branch), \
                         '%s/%s/instrument.sh %s %s/aspectj-1.9/lib %s/aspectskp.jar' % (repo_path, inst_branch, repo_path, repo_path, repo_path),
-                        'touch -d "10 years" %s/prebuilts/jdk/jdk11/linux-x86/bin/java' % (self.workspace),
-                        " ".join([self.bazel_bin, 'shutdown']),
-                        'cp %s %s_original' % (java_path, java_path),
-                        'cp %s/prebuilts/jdk/jdk11/linux-x86/bin/java %s' % (self.workspace, java_path),
-                        'touch -d "10 years" %s' % (java_path),
+                        'touch -d "10 years" %s/prebuilts/jdk/jdk11/linux-x86/bin/java' % (self.workspace)
                         ]
                 for i, cmd in enumerate(commands):
                     logging.info('Running command %d : "%s"', i, cmd)
@@ -294,8 +315,10 @@ class BazelBuilder:
                         sys.exit(1)
             else:
                 logging.info('Re-entering this function; Hence instrumentation is already done')
+            cmdline = [self.bazel_bin, "--max_idle_secs=%s" % (os.environ.get("IDLE_TIMEOUT")), bazel_subcommand]
+        else:
+            cmdline = [self.bazel_bin, bazel_subcommand]
         logging.info('targets = "%s"', [t.bazel_label for t in targets])
-        cmdline = [self.bazel_bin, bazel_subcommand]
         if extra_options:
             cmdline.extend(extra_options)
         cmdline.extend([t.bazel_label for t in targets])
