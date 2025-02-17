@@ -20,6 +20,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
 #include <linux/pci.h>
+
+#include <asm/amd_node.h>
+
 #include "amd.h"
 #include "acp-mach.h"
 #include "../mach-config.h"
@@ -160,37 +163,53 @@ static struct snd_soc_dai_driver acp63_dai[] = {
 
 static int acp63_i2s_master_clock_generate(struct acp_dev_data *adata)
 {
+	int rc;
 	u32 data;
 	union clk_pll_req_no clk_pll;
-	struct pci_dev *smn_dev;
-
-	smn_dev = pci_get_device(PCI_VENDOR_ID_AMD, 0x14E8, NULL);
-	if (!smn_dev)
-		return -ENODEV;
 
 	/* Clk5 pll register values to get mclk as 196.6MHz*/
 	clk_pll.bits.fb_mult_int = 0x31;
 	clk_pll.bits.pll_spine_div = 0;
 	clk_pll.bits.gb_mult_frac = 0x26E9;
 
-	data = smn_read(smn_dev, CLK_PLL_PWR_REQ_N0);
-	smn_write(smn_dev, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_STOP_REQ);
+	rc = amd_smn_read(0, CLK_PLL_PWR_REQ_N0, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_STOP_REQ);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_SPLL_FIELD_2_N0);
-	if (data & PLL_FRANCE_EN)
-		smn_write(smn_dev, CLK_SPLL_FIELD_2_N0, data | PLL_FRANCE_EN);
+	rc = amd_smn_read(0, CLK_SPLL_FIELD_2_N0, &data);
+	if (rc)
+		return rc;
+	if (data & PLL_FRANCE_EN) {
+		rc = amd_smn_write(0, CLK_SPLL_FIELD_2_N0, data | PLL_FRANCE_EN);
+		if (rc)
+			return rc;
+	}
 
-	smn_write(smn_dev, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_no_reg);
+	rc = amd_smn_write(0, CLK_PLL_REQ_N0, clk_pll.clk_pll_req_no_reg);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_PLL_PWR_REQ_N0);
-	smn_write(smn_dev, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_START_REQ);
+	rc = amd_smn_read(0, CLK_PLL_PWR_REQ_N0, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_PLL_PWR_REQ_N0, data | PLL_AUTO_START_REQ);
+	if (rc)
+		return rc;
 
-	data = smn_read(smn_dev, CLK_DFSBYPASS_CONTR);
-	smn_write(smn_dev, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_0);
-	smn_write(smn_dev, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_1);
+	rc = amd_smn_read(0, CLK_DFSBYPASS_CONTR, &data);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_0);
+	if (rc)
+		return rc;
+	rc = amd_smn_write(0, CLK_DFSBYPASS_CONTR, data | EXIT_DPF_BYPASS_1);
+	if (rc)
+		return rc;
 
-	smn_write(smn_dev, CLK_DFS_CNTL_N0, CLK0_DIVIDER);
-	return 0;
+	return amd_smn_write(0, CLK_DFS_CNTL_N0, CLK0_DIVIDER);
 }
 
 static int acp63_audio_probe(struct platform_device *pdev)
