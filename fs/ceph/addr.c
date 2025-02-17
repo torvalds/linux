@@ -1216,10 +1216,10 @@ void ceph_allocate_page_array(struct address_space *mapping,
 }
 
 static inline
-bool is_page_index_contiguous(struct ceph_writeback_ctl *ceph_wbc,
-			      struct page *page)
+bool is_folio_index_contiguous(const struct ceph_writeback_ctl *ceph_wbc,
+			      const struct folio *folio)
 {
-	return page->index == (ceph_wbc->offset + ceph_wbc->len) >> PAGE_SHIFT;
+	return folio->index == (ceph_wbc->offset + ceph_wbc->len) >> PAGE_SHIFT;
 }
 
 static inline
@@ -1284,7 +1284,6 @@ int ceph_process_folio_batch(struct address_space *mapping,
 	struct ceph_fs_client *fsc = ceph_inode_to_fs_client(inode);
 	struct ceph_client *cl = fsc->client;
 	struct folio *folio = NULL;
-	struct page *page = NULL;
 	unsigned i;
 	int rc = 0;
 
@@ -1294,11 +1293,9 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		if (!folio)
 			continue;
 
-		page = &folio->page;
-
 		doutc(cl, "? %p idx %lu, folio_test_writeback %#x, "
 			"folio_test_dirty %#x, folio_test_locked %#x\n",
-			page, page->index, folio_test_writeback(folio),
+			folio, folio->index, folio_test_writeback(folio),
 			folio_test_dirty(folio),
 			folio_test_locked(folio));
 
@@ -1311,27 +1308,27 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		}
 
 		if (ceph_wbc->locked_pages == 0)
-			lock_page(page);  /* first page */
-		else if (!trylock_page(page))
+			folio_lock(folio);
+		else if (!folio_trylock(folio))
 			break;
 
 		rc = ceph_check_page_before_write(mapping, wbc,
 						  ceph_wbc, folio);
 		if (rc == -ENODATA) {
 			rc = 0;
-			unlock_page(page);
+			folio_unlock(folio);
 			ceph_wbc->fbatch.folios[i] = NULL;
 			continue;
 		} else if (rc == -E2BIG) {
 			rc = 0;
-			unlock_page(page);
+			folio_unlock(folio);
 			ceph_wbc->fbatch.folios[i] = NULL;
 			break;
 		}
 
-		if (!clear_page_dirty_for_io(page)) {
-			doutc(cl, "%p !clear_page_dirty_for_io\n", page);
-			unlock_page(page);
+		if (!folio_clear_dirty_for_io(folio)) {
+			doutc(cl, "%p !folio_clear_dirty_for_io\n", folio);
+			folio_unlock(folio);
 			ceph_wbc->fbatch.folios[i] = NULL;
 			continue;
 		}
@@ -1343,35 +1340,35 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		 * allocate a page array
 		 */
 		if (ceph_wbc->locked_pages == 0) {
-			ceph_allocate_page_array(mapping, ceph_wbc, page);
-		} else if (!is_page_index_contiguous(ceph_wbc, page)) {
+			ceph_allocate_page_array(mapping, ceph_wbc, &folio->page);
+		} else if (!is_folio_index_contiguous(ceph_wbc, folio)) {
 			if (is_num_ops_too_big(ceph_wbc)) {
-				redirty_page_for_writepage(wbc, page);
-				unlock_page(page);
+				folio_redirty_for_writepage(wbc, folio);
+				folio_unlock(folio);
 				break;
 			}
 
 			ceph_wbc->num_ops++;
-			ceph_wbc->offset = (u64)page_offset(page);
+			ceph_wbc->offset = (u64)folio_pos(folio);
 			ceph_wbc->len = 0;
 		}
 
 		/* note position of first page in fbatch */
-		doutc(cl, "%llx.%llx will write page %p idx %lu\n",
-		      ceph_vinop(inode), page, page->index);
+		doutc(cl, "%llx.%llx will write folio %p idx %lu\n",
+		      ceph_vinop(inode), folio, folio->index);
 
 		fsc->write_congested = is_write_congestion_happened(fsc);
 
 		rc = ceph_move_dirty_page_in_page_array(mapping, wbc,
-							ceph_wbc, page);
+							ceph_wbc, &folio->page);
 		if (rc) {
-			redirty_page_for_writepage(wbc, page);
-			unlock_page(page);
+			folio_redirty_for_writepage(wbc, folio);
+			folio_unlock(folio);
 			break;
 		}
 
 		ceph_wbc->fbatch.folios[i] = NULL;
-		ceph_wbc->len += thp_size(page);
+		ceph_wbc->len += folio_size(folio);
 	}
 
 	ceph_wbc->processed_in_fbatch = i;
