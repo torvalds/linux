@@ -908,6 +908,10 @@
 	status = "okay";
 };
 
+&gpu {
+	status = "okay";
+};
+
 &gpu_zap_shader {
 	firmware-name = "qcom/sm7325/nothing/spacewar/a660_zap.mbn";
 };
@@ -974,15 +978,44 @@
 	status = "okay";
 };
 
-/* MDSS remains disabled until the panel driver is present. */
+&mdss {
+	status = "okay";
+};
+
 &mdss_dsi {
 	vdda-supply = <&vdd_a_dsi_0_1p2>;
+	status = "okay";
 
-	/* Visionox RM692E5 panel */
+	panel: panel@0 {
+		compatible = "nothing,rm692e5-spacewar",
+			     "visionox,rm692e5";
+		reg = <0>;
+
+		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
+
+		vdd-supply = <&vdd_oled>;
+		vddio-supply = <&vdd_io_oled>;
+
+		pinctrl-0 = <&lcd_reset_n>,
+			    <&mdp_vsync_p>;
+		pinctrl-names = "default";
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
 };
 
 &mdss_dsi_phy {
 	vdds-supply = <&vdd_a_dsi_0_0p9>;
+	status = "okay";
 };
 
 &pm7325_gpios {
@@ -1294,6 +1327,20 @@
 	nfc_int_req: nfc-int-req-state {
 		pins = "gpio41";
 		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+	lcd_reset_n: lcd-reset-n-state {
+		pins = "gpio44";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdp_vsync_p: mdp-vsync-p-state {
+		pins = "gpio80";
+		function = "mdp_vsync";
 		drive-strength = <2>;
 		bias-pull-down;
 	};
