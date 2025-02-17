@@ -5731,9 +5731,9 @@ static_assert(BTRFS_FT_FIFO == FT_FIFO);
 static_assert(BTRFS_FT_SOCK == FT_SOCK);
 static_assert(BTRFS_FT_SYMLINK == FT_SYMLINK);
 
-static inline u8 btrfs_inode_type(struct inode *inode)
+static inline u8 btrfs_inode_type(const struct btrfs_inode *inode)
 {
-	return fs_umode_to_ftype(inode->i_mode);
+	return fs_umode_to_ftype(inode->vfs_inode.i_mode);
 }
 
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
@@ -5759,10 +5759,10 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 			return inode;
 
 		/* Do extra check against inode mode with di_type */
-		if (btrfs_inode_type(inode) != di_type) {
+		if (btrfs_inode_type(BTRFS_I(inode)) != di_type) {
 			btrfs_crit(fs_info,
 "inode mode mismatch with dir: inode mode=0%o btrfs type=%u dir type=%u",
-				  inode->i_mode, btrfs_inode_type(inode),
+				  inode->i_mode, btrfs_inode_type(BTRFS_I(inode)),
 				  di_type);
 			iput(inode);
 			return ERR_PTR(-EUCLEAN);
@@ -6563,7 +6563,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		return ret;
 
 	ret = btrfs_insert_dir_item(trans, name, parent_inode, &key,
-				    btrfs_inode_type(&inode->vfs_inode), index);
+				    btrfs_inode_type(inode), index);
 	if (ret == -EEXIST || ret == -EOVERFLOW)
 		goto fail_dir_item;
 	else if (ret) {
