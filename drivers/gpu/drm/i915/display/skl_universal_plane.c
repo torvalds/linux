@@ -1661,6 +1661,17 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 			   skl_plane_surf(plane_state, color_plane));
 }
 
+static void skl_plane_capture_error(struct intel_crtc *crtc,
+				    struct intel_plane *plane,
+				    struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, PLANE_CTL(crtc->pipe, plane->id));
+	error->surf = intel_de_read(display, PLANE_SURF(crtc->pipe, plane->id));
+	error->surflive = intel_de_read(display, PLANE_SURFLIVE(crtc->pipe, plane->id));
+}
+
 static void
 skl_plane_async_flip(struct intel_dsb *dsb,
 		     struct intel_plane *plane,
@@ -2803,6 +2814,7 @@ skl_universal_plane_create(struct intel_display *display,
 		plane->update_arm = skl_plane_update_arm;
 		plane->disable_arm = skl_plane_disable_arm;
 	}
+	plane->capture_error = skl_plane_capture_error;
 	plane->get_hw_state = skl_plane_get_hw_state;
 	plane->check_plane = skl_plane_check;
 

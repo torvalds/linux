@@ -557,6 +557,40 @@ static void i9xx_plane_disable_arm(struct intel_dsb *dsb,
 		intel_de_write_fw(display, DSPADDR(display, i9xx_plane), 0);
 }
 
+static void g4x_primary_capture_error(struct intel_crtc *crtc,
+				      struct intel_plane *plane,
+				      struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+
+	error->ctl = intel_de_read(display, DSPCNTR(display, i9xx_plane));
+	error->surf = intel_de_read(display, DSPSURF(display, i9xx_plane));
+	error->surflive = intel_de_read(display, DSPSURFLIVE(display, i9xx_plane));
+}
+
+static void i965_plane_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+
+	error->ctl = intel_de_read(display, DSPCNTR(display, i9xx_plane));
+	error->surf = intel_de_read(display, DSPSURF(display, i9xx_plane));
+}
+
+static void i8xx_plane_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+
+	error->ctl = intel_de_read(display, DSPCNTR(display, i9xx_plane));
+	error->surf = intel_de_read(display, DSPADDR(display, i9xx_plane));
+}
+
 static void
 g4x_primary_async_flip(struct intel_dsb *dsb,
 		       struct intel_plane *plane,
@@ -975,6 +1009,13 @@ intel_primary_plane_create(struct intel_display *display, enum pipe pipe)
 	plane->disable_arm = i9xx_plane_disable_arm;
 	plane->get_hw_state = i9xx_plane_get_hw_state;
 	plane->check_plane = i9xx_plane_check;
+
+	if (DISPLAY_VER(display) >= 5 || display->platform.g4x)
+		plane->capture_error = g4x_primary_capture_error;
+	else if (DISPLAY_VER(display) >= 4)
+		plane->capture_error = i965_plane_capture_error;
+	else
+		plane->capture_error = i8xx_plane_capture_error;
 
 	if (HAS_ASYNC_FLIPS(display)) {
 		if (display->platform.valleyview || display->platform.cherryview) {

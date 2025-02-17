@@ -765,6 +765,27 @@ static bool i9xx_cursor_get_hw_state(struct intel_plane *plane,
 	return ret;
 }
 
+static void g4x_cursor_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, CURCNTR(display, crtc->pipe));
+	error->surf = intel_de_read(display, CURBASE(display, crtc->pipe));
+	error->surflive = intel_de_read(display, CURSURFLIVE(display, crtc->pipe));
+}
+
+static void i9xx_cursor_capture_error(struct intel_crtc *crtc,
+				      struct intel_plane *plane,
+				      struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, CURCNTR(display, crtc->pipe));
+	error->surf = intel_de_read(display, CURBASE(display, crtc->pipe));
+}
+
 static bool intel_cursor_format_mod_supported(struct drm_plane *_plane,
 					      u32 format, u64 modifier)
 {
@@ -1029,6 +1050,11 @@ intel_cursor_plane_create(struct intel_display *display,
 		cursor->get_hw_state = i9xx_cursor_get_hw_state;
 		cursor->check_plane = i9xx_check_cursor;
 	}
+
+	if (DISPLAY_VER(display) >= 5 || display->platform.g4x)
+		cursor->capture_error = g4x_cursor_capture_error;
+	else
+		cursor->capture_error = i9xx_cursor_capture_error;
 
 	cursor->cursor.base = ~0;
 	cursor->cursor.cntl = ~0;

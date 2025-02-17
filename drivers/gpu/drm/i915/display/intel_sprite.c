@@ -447,6 +447,17 @@ vlv_sprite_disable_arm(struct intel_dsb *dsb,
 	intel_de_write_fw(display, SPSURF(pipe, plane_id), 0);
 }
 
+static void vlv_sprite_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, SPCNTR(crtc->pipe, plane->id));
+	error->surf = intel_de_read(display, SPSURF(crtc->pipe, plane->id));
+	error->surflive = intel_de_read(display, SPSURFLIVE(crtc->pipe, plane->id));
+}
+
 static bool
 vlv_sprite_get_hw_state(struct intel_plane *plane,
 			enum pipe *pipe)
@@ -872,6 +883,17 @@ ivb_sprite_disable_arm(struct intel_dsb *dsb,
 	intel_de_write_fw(display, SPRSURF(pipe), 0);
 }
 
+static void ivb_sprite_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, SPRCTL(crtc->pipe));
+	error->surf = intel_de_read(display, SPRSURF(crtc->pipe));
+	error->surflive = intel_de_read(display, SPRSURFLIVE(crtc->pipe));
+}
+
 static bool
 ivb_sprite_get_hw_state(struct intel_plane *plane,
 			enum pipe *pipe)
@@ -1205,6 +1227,17 @@ g4x_sprite_disable_arm(struct intel_dsb *dsb,
 	/* Disable the scaler */
 	intel_de_write_fw(display, DVSSCALE(pipe), 0);
 	intel_de_write_fw(display, DVSSURF(pipe), 0);
+}
+
+static void g4x_sprite_capture_error(struct intel_crtc *crtc,
+				     struct intel_plane *plane,
+				     struct intel_plane_error *error)
+{
+	struct intel_display *display = to_intel_display(plane);
+
+	error->ctl = intel_de_read(display, DVSCNTR(crtc->pipe));
+	error->surf = intel_de_read(display, DVSSURF(crtc->pipe));
+	error->surflive = intel_de_read(display, DVSSURFLIVE(crtc->pipe));
 }
 
 static bool
@@ -1587,6 +1620,7 @@ intel_sprite_plane_create(struct intel_display *display,
 		plane->update_noarm = vlv_sprite_update_noarm;
 		plane->update_arm = vlv_sprite_update_arm;
 		plane->disable_arm = vlv_sprite_disable_arm;
+		plane->capture_error = vlv_sprite_capture_error;
 		plane->get_hw_state = vlv_sprite_get_hw_state;
 		plane->check_plane = vlv_sprite_check;
 		plane->max_stride = i965_plane_max_stride;
@@ -1610,6 +1644,7 @@ intel_sprite_plane_create(struct intel_display *display,
 		plane->update_noarm = ivb_sprite_update_noarm;
 		plane->update_arm = ivb_sprite_update_arm;
 		plane->disable_arm = ivb_sprite_disable_arm;
+		plane->capture_error = ivb_sprite_capture_error;
 		plane->get_hw_state = ivb_sprite_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 
@@ -1634,6 +1669,7 @@ intel_sprite_plane_create(struct intel_display *display,
 		plane->update_noarm = g4x_sprite_update_noarm;
 		plane->update_arm = g4x_sprite_update_arm;
 		plane->disable_arm = g4x_sprite_disable_arm;
+		plane->capture_error = g4x_sprite_capture_error;
 		plane->get_hw_state = g4x_sprite_get_hw_state;
 		plane->check_plane = g4x_sprite_check;
 		plane->max_stride = g4x_sprite_max_stride;

@@ -1437,6 +1437,10 @@ struct intel_crtc {
 	bool block_dc_for_vblank;
 };
 
+struct intel_plane_error {
+	u32 ctl, surf, surflive;
+};
+
 struct intel_plane {
 	struct drm_plane base;
 	enum i9xx_plane_id i9xx_plane;
@@ -1488,6 +1492,9 @@ struct intel_plane {
 	void (*disable_arm)(struct intel_dsb *dsb,
 			    struct intel_plane *plane,
 			    const struct intel_crtc_state *crtc_state);
+	void (*capture_error)(struct intel_crtc *crtc,
+			      struct intel_plane *plane,
+			      struct intel_plane_error *error);
 	bool (*get_hw_state)(struct intel_plane *plane, enum pipe *pipe);
 	int (*check_plane)(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state);
