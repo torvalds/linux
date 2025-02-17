@@ -784,13 +784,12 @@ static int ad4030_read_raw(struct iio_dev *indio_dev,
 	if (info == IIO_CHAN_INFO_SCALE)
 		return ad4030_get_chan_scale(indio_dev, chan, val, val2);
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = ad4030_read_raw_dispatch(indio_dev, chan, val, val2, info);
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
@@ -822,13 +821,12 @@ static int ad4030_write_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	ret = ad4030_write_raw_dispatch(indio_dev, chan, val, val2, info);
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
@@ -839,16 +837,15 @@ static int ad4030_reg_access(struct iio_dev *indio_dev, unsigned int reg,
 	const struct ad4030_state *st = iio_priv(indio_dev);
 	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
 
 	if (readval)
 		ret = regmap_read(st->regmap, reg, readval);
 	else
 		ret = regmap_write(st->regmap, reg, writeval);
 
-	iio_device_release_direct_mode(indio_dev);
+	iio_device_release_direct(indio_dev);
 
 	return ret;
 }
