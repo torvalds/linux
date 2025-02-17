@@ -471,9 +471,8 @@ static int max11410_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		mutex_lock(&state->lock);
 
@@ -481,7 +480,7 @@ static int max11410_read_raw(struct iio_dev *indio_dev,
 
 		mutex_unlock(&state->lock);
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 
 		if (ret)
 			return ret;
@@ -550,9 +549,8 @@ static int max11410_write_raw(struct iio_dev *indio_dev,
 		if (val != 0 || val2 == 0)
 			return -EINVAL;
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		/* Convert from INT_PLUS_MICRO to FRACTIONAL_LOG2 */
 		val2 = val2 * DIV_ROUND_CLOSEST(BIT(24), 1000000);
@@ -561,16 +559,15 @@ static int max11410_write_raw(struct iio_dev *indio_dev,
 
 		st->channels[chan->address].gain = clamp_val(gain, 0, 7);
 
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 
 		return 0;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 
 		ret = __max11410_write_samp_freq(st, val, val2);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 
 		return ret;
 	default:
