@@ -1905,7 +1905,10 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 	return 0;
 }
 
-#define AVS_CONTROL_OPS_VOLUME	257
+enum {
+	AVS_CONTROL_OPS_VOLUME = 257,
+	AVS_CONTROL_OPS_MUTE,
+};
 
 static const struct snd_soc_tplg_kcontrol_ops avs_control_ops[] = {
 	{
@@ -1913,6 +1916,12 @@ static const struct snd_soc_tplg_kcontrol_ops avs_control_ops[] = {
 		.get = avs_control_volume_get,
 		.put = avs_control_volume_put,
 		.info = avs_control_volume_info,
+	},
+	{
+		.id = AVS_CONTROL_OPS_MUTE,
+		.get = avs_control_mute_get,
+		.put = avs_control_mute_put,
+		.info = avs_control_mute_info,
 	},
 };
 
