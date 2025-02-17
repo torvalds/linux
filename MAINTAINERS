@@ -9068,7 +9068,6 @@ F:	include/linux/fortify-string.h
 F:	lib/test_fortify/*
 F:	lib/tests/fortify_kunit.c
 F:	lib/tests/memcpy_kunit.c
-F:	scripts/test_fortify.sh
 K:	\bunsafe_memcpy\b
 K:	\b__NO_FORTIFY\b
 
@@ -12588,7 +12587,7 @@ F:	arch/*/configs/hardening.config
 F:	include/linux/overflow.h
 F:	include/linux/randomize_kstack.h
 F:	kernel/configs/hardening.config
-F:	lib/usercopy_kunit.c
+F:	lib/tests/usercopy_kunit.c
 F:	mm/usercopy.c
 F:	security/Kconfig.hardening
 K:	\b(add|choose)_random_kstack_offset\b
