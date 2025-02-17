@@ -507,12 +507,37 @@ static int max11410_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int __max11410_write_samp_freq(struct max11410_state *st,
+				      int val, int val2)
+{
+	int ret, i, reg_val, filter;
+
+	guard(mutex)(&st->lock);
+
+	ret = regmap_read(st->regmap, MAX11410_REG_FILTER, &reg_val);
+	if (ret)
+		return ret;
+
+	filter = FIELD_GET(MAX11410_FILTER_LINEF_MASK, reg_val);
+
+	for (i = 0; i < max11410_sampling_len[filter]; ++i) {
+		if (val == max11410_sampling_rates[filter][i][0] &&
+		    val2 == max11410_sampling_rates[filter][i][1])
+			break;
+	}
+	if (i == max11410_sampling_len[filter])
+		return -EINVAL;
+
+	return regmap_write_bits(st->regmap, MAX11410_REG_FILTER,
+				 MAX11410_FILTER_RATE_MASK, i);
+}
+
 static int max11410_write_raw(struct iio_dev *indio_dev,
 			      struct iio_chan_spec const *chan,
 			      int val, int val2, long mask)
 {
 	struct max11410_state *st = iio_priv(indio_dev);
-	int i, ret, reg_val, filter, gain;
+	int ret, gain;
 	u32 *scale_avail;
 
 	switch (mask) {
@@ -544,29 +569,7 @@ static int max11410_write_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		mutex_lock(&st->lock);
-
-		ret = regmap_read(st->regmap, MAX11410_REG_FILTER, &reg_val);
-		if (ret)
-			goto out;
-
-		filter = FIELD_GET(MAX11410_FILTER_LINEF_MASK, reg_val);
-
-		for (i = 0; i < max11410_sampling_len[filter]; ++i) {
-			if (val == max11410_sampling_rates[filter][i][0] &&
-			    val2 == max11410_sampling_rates[filter][i][1])
-				break;
-		}
-		if (i == max11410_sampling_len[filter]) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		ret = regmap_write_bits(st->regmap, MAX11410_REG_FILTER,
-					MAX11410_FILTER_RATE_MASK, i);
-
-out:
-		mutex_unlock(&st->lock);
+		ret = __max11410_write_samp_freq(st, val, val2);
 		iio_device_release_direct_mode(indio_dev);
 
 		return ret;
