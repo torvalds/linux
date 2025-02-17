@@ -255,7 +255,6 @@ struct acp_dev_data {
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;
-	struct pci_dev *smn_dev;
 	struct acp_dsp_stream *probe_stream;
 	bool enable_fw_debug;
 	bool is_dram_in_use;

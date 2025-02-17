@@ -25,6 +25,7 @@ config SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_ACP_PROBES
 	select SND_SOC_ACPI_AMD_MATCH
 	select SND_SOC_ACPI if ACPI
+	depends on AMD_NODE
 	help
 	  This option is not user-selectable but automatically handled by
 	  'select' statements at a higher level
