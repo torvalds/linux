@@ -22299,7 +22299,7 @@ SPI OFFLOAD
 R:	David Lechner <dlechner@baylibre.com>
 F:	drivers/spi/spi-offload-trigger-pwm.c
 F:	drivers/spi/spi-offload.c
-F:	include/linux/spi/spi-offload.h
+F:	include/linux/spi/offload/
 K:	spi_offload
 
 SPI SUBSYSTEM
