@@ -473,7 +473,6 @@ config READABLE_ASM
 
 config HEADERS_INSTALL
 	bool "Install uapi headers to usr/include"
-	depends on !UML
 	help
 	  This option will install uapi headers (headers exported to user-space)
 	  into the usr/include directory for use during the kernel build.
