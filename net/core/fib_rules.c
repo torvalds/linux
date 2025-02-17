@@ -784,6 +784,8 @@ static const struct nla_policy fib_rule_policy[FRA_MAX + 1] = {
 	[FRA_DSCP]	= NLA_POLICY_MAX(NLA_U8, INET_DSCP_MASK >> 2),
 	[FRA_FLOWLABEL] = { .type = NLA_BE32 },
 	[FRA_FLOWLABEL_MASK] = { .type = NLA_BE32 },
+	[FRA_SPORT_MASK] = { .type = NLA_REJECT },
+	[FRA_DPORT_MASK] = { .type = NLA_REJECT },
 };
 
 int fib_newrule(struct net *net, struct sk_buff *skb, struct nlmsghdr *nlh,
