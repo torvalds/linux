@@ -637,36 +637,34 @@ static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
 	return 0;
 }
 
-static int do_rw(ssize_t (*fn)(), struct lkl_disk disk, struct lkl_blk_req *req)
+static int do_rw(ssize_t (*fn)(int, void *, size_t, off_t),
+		 int fd, struct lkl_blk_req *req)
 {
 	off_t off = req->sector * 512;
-	void *addr;
-	int len;
 	int i;
-	int ret = 0;
 
 	for (i = 0; i < req->count; i++) {
-
-		addr = req->buf[i].iov_base;
-		len = req->buf[i].iov_len;
+		void *addr = req->buf[i].iov_base;
+		size_t len = req->buf[i].iov_len;
 
 		do {
-			ret = fn(disk.fd, addr, len, off);
+			ssize_t got = fn(fd, addr, len, off);
 
-			if (ret <= 0) {
-				ret = -1;
-				goto out;
-			}
+			if (got <= 0)
+				return -1;
 
-			addr += ret;
-			len -= ret;
-			off += ret;
-
+			addr += got;
+			len -= got;
+			off += got;
 		} while (len);
 	}
 
-out:
-	return ret;
+	return 0;
+}
+
+static inline ssize_t pwrite_fn(int fd, void *buf, size_t len, off_t off)
+{
+	return pwrite(fd, (const void *)buf, len, off);
 }
 
 static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
@@ -675,10 +673,10 @@ static int blk_request(struct lkl_disk disk, struct lkl_blk_req *req)
 
 	switch (req->type) {
 	case LKL_DEV_BLK_TYPE_READ:
-		err = do_rw(pread, disk, req);
+		err = do_rw(pread, disk.fd, req);
 		break;
 	case LKL_DEV_BLK_TYPE_WRITE:
-		err = do_rw(pwrite, disk, req);
+		err = do_rw(pwrite_fn, disk.fd, req);
 		break;
 	case LKL_DEV_BLK_TYPE_FLUSH:
 	case LKL_DEV_BLK_TYPE_FLUSH_OUT:
