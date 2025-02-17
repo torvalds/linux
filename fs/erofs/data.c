@@ -25,8 +25,7 @@ void erofs_put_metabuf(struct erofs_buf *buf)
 	buf->page = NULL;
 }
 
-void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
-		  enum erofs_kmap_type type)
+void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset, bool need_kmap)
 {
 	pgoff_t index = offset >> PAGE_SHIFT;
 	struct folio *folio = NULL;
@@ -43,10 +42,10 @@ void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 			return folio;
 	}
 	buf->page = folio_file_page(folio, index);
-	if (!buf->base && type == EROFS_KMAP)
-		buf->base = kmap_local_page(buf->page);
-	if (type == EROFS_NO_KMAP)
+	if (!need_kmap)
 		return NULL;
+	if (!buf->base)
+		buf->base = kmap_local_page(buf->page);
 	return buf->base + (offset & ~PAGE_MASK);
 }
 
@@ -65,10 +64,10 @@ void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb)
 }
 
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
-			 erofs_off_t offset, enum erofs_kmap_type type)
+			 erofs_off_t offset, bool need_kmap)
 {
 	erofs_init_metabuf(buf, sb);
-	return erofs_bread(buf, offset, type);
+	return erofs_bread(buf, offset, need_kmap);
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
@@ -135,7 +134,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
 		    vi->xattr_isize, unit) + unit * chunknr;
 
-	kaddr = erofs_read_metabuf(&buf, sb, pos, EROFS_KMAP);
+	kaddr = erofs_read_metabuf(&buf, sb, pos, true);
 	if (IS_ERR(kaddr)) {
 		err = PTR_ERR(kaddr);
 		goto out;
@@ -312,7 +311,7 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 
 		iomap->type = IOMAP_INLINE;
-		ptr = erofs_read_metabuf(&buf, sb, mdev.m_pa, EROFS_KMAP);
+		ptr = erofs_read_metabuf(&buf, sb, mdev.m_pa, true);
 		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
 		iomap->inline_data = ptr;

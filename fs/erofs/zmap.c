@@ -31,7 +31,7 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,
 	struct z_erofs_lcluster_index *di;
 	unsigned int advise;
 
-	di = erofs_read_metabuf(&m->map->buf, inode->i_sb, pos, EROFS_KMAP);
+	di = erofs_read_metabuf(&m->map->buf, inode->i_sb, pos, true);
 	if (IS_ERR(di))
 		return PTR_ERR(di);
 	m->lcn = lcn;
@@ -146,7 +146,7 @@ static int z_erofs_load_compact_lcluster(struct z_erofs_maprecorder *m,
 	else
 		return -EOPNOTSUPP;
 
-	in = erofs_read_metabuf(&m->map->buf, m->inode->i_sb, pos, EROFS_KMAP);
+	in = erofs_read_metabuf(&m->map->buf, m->inode->i_sb, pos, true);
 	if (IS_ERR(in))
 		return PTR_ERR(in);
 
@@ -546,7 +546,7 @@ static int z_erofs_fill_inode_lazy(struct inode *inode)
 		goto out_unlock;
 
 	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize + vi->xattr_isize, 8);
-	h = erofs_read_metabuf(&buf, sb, pos, EROFS_KMAP);
+	h = erofs_read_metabuf(&buf, sb, pos, true);
 	if (IS_ERR(h)) {
 		err = PTR_ERR(h);
 		goto out_unlock;
