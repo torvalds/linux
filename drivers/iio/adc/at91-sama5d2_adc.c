@@ -9,6 +9,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -1814,19 +1815,10 @@ static int at91_adc_read_info_locked(struct iio_dev *indio_dev,
 				     struct iio_chan_spec const *chan, int *val)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
-	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	guard(mutex)(&st->lock);
 
-	mutex_lock(&st->lock);
-	ret = at91_adc_read_info_raw(indio_dev, chan, val);
-	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+	return at91_adc_read_info_raw(indio_dev, chan, val);
 }
 
 static void at91_adc_temp_sensor_configure(struct at91_adc_state *st,
@@ -1871,14 +1863,11 @@ static int at91_adc_read_temp(struct iio_dev *indio_dev,
 	u32 tmp;
 	int ret, vbg, vtemp;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = pm_runtime_resume_and_get(st->dev);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
 	at91_adc_temp_sensor_configure(st, true);
 
@@ -1900,9 +1889,6 @@ restore_config:
 	at91_adc_temp_sensor_configure(st, false);
 	pm_runtime_mark_last_busy(st->dev);
 	pm_runtime_put_autosuspend(st->dev);
-unlock:
-	mutex_unlock(&st->lock);
-	iio_device_release_direct_mode(indio_dev);
 	if (ret < 0)
 		return ret;
 
@@ -1924,10 +1910,17 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 			     int *val, int *val2, long mask)
 {
 	struct at91_adc_state *st = iio_priv(indio_dev);
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		return at91_adc_read_info_locked(indio_dev, chan, val);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		ret = at91_adc_read_info_locked(indio_dev, chan, val);
+		iio_device_release_direct_mode(indio_dev);
+		return ret;
 
 	case IIO_CHAN_INFO_SCALE:
 		*val = st->vref_uv / 1000;
@@ -1939,7 +1932,14 @@ static int at91_adc_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_PROCESSED:
 		if (chan->type != IIO_TEMP)
 			return -EINVAL;
-		return at91_adc_read_temp(indio_dev, chan, val);
+		ret = iio_device_claim_direct_mode(indio_dev);
+		if (ret)
+			return ret;
+
+		ret = at91_adc_read_temp(indio_dev, chan, val);
+		iio_device_release_direct_mode(indio_dev);
+
+		return ret;
 
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = at91_adc_get_sample_freq(st);
