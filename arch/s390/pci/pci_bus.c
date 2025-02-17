@@ -331,6 +331,17 @@ error:
 	return rc;
 }
 
+static bool zpci_bus_is_isolated_vf(struct zpci_bus *zbus, struct zpci_dev *zdev)
+{
+	struct pci_dev *pdev;
+
+	pdev = zpci_iov_find_parent_pf(zbus, zdev);
+	if (!pdev)
+		return true;
+	pci_dev_put(pdev);
+	return false;
+}
+
 int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 {
 	bool topo_is_tid = zdev->tid_avail;
@@ -345,6 +356,15 @@ int zpci_bus_device_register(struct zpci_dev *zdev, struct pci_ops *ops)
 
 	topo = topo_is_tid ? zdev->tid : zdev->pchid;
 	zbus = zpci_bus_get(topo, topo_is_tid);
+	/*
+	 * An isolated VF gets its own domain/bus even if there exists
+	 * a matching domain/bus already
+	 */
+	if (zbus && zpci_bus_is_isolated_vf(zbus, zdev)) {
+		zpci_bus_put(zbus);
+		zbus = NULL;
+	}
+
 	if (!zbus) {
 		zbus = zpci_bus_alloc(topo, topo_is_tid);
 		if (!zbus)

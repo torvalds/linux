@@ -2094,6 +2094,11 @@ static int __alloc_dma_rx_desc_resources(struct stmmac_priv *priv,
 	pp_params.offset = stmmac_rx_offset(priv);
 	pp_params.max_len = dma_conf->dma_buf_sz;
 
+	if (priv->sph) {
+		pp_params.offset = 0;
+		pp_params.max_len += stmmac_rx_offset(priv);
+	}
+
 	rx_q->page_pool = page_pool_create(&pp_params);
 	if (IS_ERR(rx_q->page_pool)) {
 		ret = PTR_ERR(rx_q->page_pool);
@@ -2423,6 +2428,11 @@ static void stmmac_dma_operation_mode(struct stmmac_priv *priv)
 	u32 rxmode = 0;
 	u32 chan = 0;
 	u8 qmode = 0;
+
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
 
 	/* Split up the shared Tx/Rx FIFO memory on DW QoS Eth and DW XGMAC */
 	if (priv->plat->has_gmac4 || priv->plat->has_xgmac) {
@@ -2891,6 +2901,11 @@ static void stmmac_set_dma_operation_mode(struct stmmac_priv *priv, u32 txmode,
 	u32 tx_channels_count = priv->plat->tx_queues_to_use;
 	int rxfifosz = priv->plat->rx_fifo_size;
 	int txfifosz = priv->plat->tx_fifo_size;
+
+	if (rxfifosz == 0)
+		rxfifosz = priv->dma_cap.rx_fifo_size;
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
 
 	/* Adjust for real per queue fifo size */
 	rxfifosz /= rx_channels_count;
@@ -5868,6 +5883,9 @@ static int stmmac_change_mtu(struct net_device *dev, int new_mtu)
 	const int mtu = new_mtu;
 	int ret;
 
+	if (txfifosz == 0)
+		txfifosz = priv->dma_cap.tx_fifo_size;
+
 	txfifosz /= priv->plat->tx_queues_to_use;
 
 	if (stmmac_xdp_is_enabled(priv) && new_mtu > ETH_DATA_LEN) {
@@ -7219,29 +7237,15 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		priv->plat->tx_queues_to_use = priv->dma_cap.number_tx_queues;
 	}
 
-	if (!priv->plat->rx_fifo_size) {
-		if (priv->dma_cap.rx_fifo_size) {
-			priv->plat->rx_fifo_size = priv->dma_cap.rx_fifo_size;
-		} else {
-			dev_err(priv->device, "Can't specify Rx FIFO size\n");
-			return -ENODEV;
-		}
-	} else if (priv->dma_cap.rx_fifo_size &&
-		   priv->plat->rx_fifo_size > priv->dma_cap.rx_fifo_size) {
+	if (priv->dma_cap.rx_fifo_size &&
+	    priv->plat->rx_fifo_size > priv->dma_cap.rx_fifo_size) {
 		dev_warn(priv->device,
 			 "Rx FIFO size (%u) exceeds dma capability\n",
 			 priv->plat->rx_fifo_size);
 		priv->plat->rx_fifo_size = priv->dma_cap.rx_fifo_size;
 	}
-	if (!priv->plat->tx_fifo_size) {
-		if (priv->dma_cap.tx_fifo_size) {
-			priv->plat->tx_fifo_size = priv->dma_cap.tx_fifo_size;
-		} else {
-			dev_err(priv->device, "Can't specify Tx FIFO size\n");
-			return -ENODEV;
-		}
-	} else if (priv->dma_cap.tx_fifo_size &&
-		   priv->plat->tx_fifo_size > priv->dma_cap.tx_fifo_size) {
+	if (priv->dma_cap.tx_fifo_size &&
+	    priv->plat->tx_fifo_size > priv->dma_cap.tx_fifo_size) {
 		dev_warn(priv->device,
 			 "Tx FIFO size (%u) exceeds dma capability\n",
 			 priv->plat->tx_fifo_size);

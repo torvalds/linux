@@ -100,9 +100,6 @@ SYM_FUNC_START(xen_hypercall_hvm)
 	push %r10
 	push %r9
 	push %r8
-#ifdef CONFIG_FRAME_POINTER
-	pushq $0	/* Dummy push for stack alignment. */
-#endif
 #endif
 	/* Set the vendor specific function. */
 	call __xen_hypercall_setfunc
@@ -117,11 +114,8 @@ SYM_FUNC_START(xen_hypercall_hvm)
 	pop %ebx
 	pop %eax
 #else
-	lea xen_hypercall_amd(%rip), %rbx
-	cmp %rax, %rbx
-#ifdef CONFIG_FRAME_POINTER
-	pop %rax	/* Dummy pop. */
-#endif
+	lea xen_hypercall_amd(%rip), %rcx
+	cmp %rax, %rcx
 	pop %r8
 	pop %r9
 	pop %r10
@@ -132,6 +126,7 @@ SYM_FUNC_START(xen_hypercall_hvm)
 	pop %rcx
 	pop %rax
 #endif
+	FRAME_END
 	/* Use correct hypercall function. */
 	jz xen_hypercall_amd
 	jmp xen_hypercall_intel

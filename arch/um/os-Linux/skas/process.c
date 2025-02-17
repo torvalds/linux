@@ -181,6 +181,10 @@ extern char __syscall_stub_start[];
 
 static int stub_exe_fd;
 
+#ifndef CLOSE_RANGE_CLOEXEC
+#define CLOSE_RANGE_CLOEXEC	(1U << 2)
+#endif
+
 static int userspace_tramp(void *stack)
 {
 	char *const argv[] = { "uml-userspace", NULL };
@@ -202,8 +206,12 @@ static int userspace_tramp(void *stack)
 	init_data.stub_data_fd = phys_mapping(uml_to_phys(stack), &offset);
 	init_data.stub_data_offset = MMAP_OFFSET(offset);
 
-	/* Set CLOEXEC on all FDs and then unset on all memory related FDs */
-	close_range(0, ~0U, CLOSE_RANGE_CLOEXEC);
+	/*
+	 * Avoid leaking unneeded FDs to the stub by setting CLOEXEC on all FDs
+	 * and then unsetting it on all memory related FDs.
+	 * This is not strictly necessary from a safety perspective.
+	 */
+	syscall(__NR_close_range, 0, ~0U, CLOSE_RANGE_CLOEXEC);
 
 	fcntl(init_data.stub_data_fd, F_SETFD, 0);
 	for (iomem = iomem_regions; iomem; iomem = iomem->next)
@@ -224,7 +232,9 @@ static int userspace_tramp(void *stack)
 	if (ret != sizeof(init_data))
 		exit(4);
 
-	execveat(stub_exe_fd, "", argv, NULL, AT_EMPTY_PATH);
+	/* Raw execveat for compatibility with older libc versions */
+	syscall(__NR_execveat, stub_exe_fd, (unsigned long)"",
+		(unsigned long)argv, NULL, AT_EMPTY_PATH);
 
 	exit(5);
 }
