@@ -10,12 +10,18 @@
 #ifndef __SDCA_REGMAP_H__
 #define __SDCA_REGMAP_H__
 
+struct device;
 struct sdca_function_data;
+struct reg_default;
 
 bool sdca_regmap_readable(struct sdca_function_data *function, unsigned int reg);
 bool sdca_regmap_writeable(struct sdca_function_data *function, unsigned int reg);
 bool sdca_regmap_volatile(struct sdca_function_data *function, unsigned int reg);
 bool sdca_regmap_deferrable(struct sdca_function_data *function, unsigned int reg);
 int sdca_regmap_mbq_size(struct sdca_function_data *function, unsigned int reg);
+
+int sdca_regmap_count_constants(struct device *dev, struct sdca_function_data *function);
+int sdca_regmap_populate_constants(struct device *dev, struct sdca_function_data *function,
+				   struct reg_default *consts);
 
 #endif // __SDCA_REGMAP_H__

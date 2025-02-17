@@ -10,8 +10,10 @@
 #include <linux/bitops.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
+#include <linux/regmap.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/types.h>
+#include <sound/sdca.h>
 #include <sound/sdca_function.h>
 #include <sound/sdca_regmap.h>
 
@@ -187,6 +189,84 @@ int sdca_regmap_mbq_size(struct sdca_function_data *function, unsigned int reg)
 	return clamp_val(control->nbits / BITS_PER_BYTE, sizeof(u8), sizeof(u32));
 }
 EXPORT_SYMBOL_NS(sdca_regmap_mbq_size, "SND_SOC_SDCA");
+
+/**
+ * sdca_regmap_count_constants - count the number of DisCo constant Controls
+ * @dev: Pointer to the device.
+ * @function: Pointer to the Function information, to be parsed.
+ *
+ * This function returns the number of DisCo constant Controls present
+ * in a function. Typically this information will be used to populate
+ * the regmap defaults array, allowing drivers to access the values of
+ * DisCo constants as any other physical register.
+ *
+ * Return: Returns number of DisCo constant controls, or a negative error
+ * code on failure.
+ */
+int sdca_regmap_count_constants(struct device *dev,
+				struct sdca_function_data *function)
+{
+	int nconsts = 0;
+	int i, j;
+
+	for (i = 0; i < function->num_entities; i++) {
+		struct sdca_entity *entity = &function->entities[i];
+
+		for (j = 0; j < entity->num_controls; j++) {
+			if (entity->controls[j].mode == SDCA_ACCESS_MODE_DC)
+				nconsts += hweight64(entity->controls[j].cn_list);
+		}
+	}
+
+	return nconsts;
+}
+EXPORT_SYMBOL_NS(sdca_regmap_count_constants, "SND_SOC_SDCA");
+
+/**
+ * sdca_regmap_populate_constants - fill an array with DisCo constant values
+ * @dev: Pointer to the device.
+ * @function: Pointer to the Function information, to be parsed.
+ * @consts: Pointer to the array which should be filled with the DisCo
+ * constant values.
+ *
+ * This function will populate a regmap struct reg_default array with
+ * the values of the DisCo constants for a given Function. This
+ * allows to access the values of DisCo constants the same as any
+ * other physical register.
+ *
+ * Return: Returns the number of constants populated on success, a negative
+ * error code on failure.
+ */
+int sdca_regmap_populate_constants(struct device *dev,
+				   struct sdca_function_data *function,
+				   struct reg_default *consts)
+{
+	int i, j, k;
+
+	for (i = 0, k = 0; i < function->num_entities; i++) {
+		struct sdca_entity *entity = &function->entities[i];
+
+		for (j = 0; j < entity->num_controls; j++) {
+			struct sdca_control *control = &entity->controls[j];
+			int cn;
+
+			if (control->mode != SDCA_ACCESS_MODE_DC)
+				continue;
+
+			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+					 BITS_PER_TYPE(control->cn_list)) {
+				consts[k].reg = SDW_SDCA_CTL(function->desc->adr,
+							     entity->id,
+							     control->sel, cn);
+				consts[k].def = control->value;
+				k++;
+			}
+		}
+	}
+
+	return k;
+}
+EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SDCA library");
