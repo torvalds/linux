@@ -43,17 +43,17 @@ kernel::pci_device_table!(
 impl SampleDriver {
     fn testdev(index: &TestIndex, bar: &Bar0) -> Result<u32> {
         // Select the test.
-        bar.writeb(index.0, Regs::TEST);
+        bar.write8(index.0, Regs::TEST);
 
-        let offset = u32::from_le(bar.readl(Regs::OFFSET)) as usize;
-        let data = bar.readb(Regs::DATA);
+        let offset = u32::from_le(bar.read32(Regs::OFFSET)) as usize;
+        let data = bar.read8(Regs::DATA);
 
         // Write `data` to `offset` to increase `count` by one.
         //
-        // Note that we need `try_writeb`, since `offset` can't be checked at compile-time.
-        bar.try_writeb(data, offset)?;
+        // Note that we need `try_write8`, since `offset` can't be checked at compile-time.
+        bar.try_write8(data, offset)?;
 
-        Ok(bar.readl(Regs::COUNT))
+        Ok(bar.read32(Regs::COUNT))
     }
 }
 
