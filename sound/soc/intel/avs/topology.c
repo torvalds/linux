@@ -857,6 +857,24 @@ static const struct avs_tplg_token_parser modcfg_ext_parsers[] = {
 		.offset = offsetof(struct avs_tplg_modcfg_ext, whm.blob_fmt),
 		.parse = avs_parse_audio_format_ptr,
 	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_VOLUME_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.target_volume),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_CURVE_TYPE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.curve_type),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_CURVE_DURATION_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.curve_duration),
+		.parse = avs_parse_word_token,
+	},
 };
 
 static const struct avs_tplg_token_parser pin_format_parsers[] = {

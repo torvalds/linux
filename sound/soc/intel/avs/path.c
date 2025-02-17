@@ -350,8 +350,8 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.audio_fmt = *t->in_fmt;
 	cfg->vols[0].target_volume = volume;
 	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
-	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_NONE;
-	cfg->vols[0].curve_duration = 0;
+	cfg->vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	cfg->vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
 
 	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
 				  t->domain, cfg, cfg_size, &mod->instance_id);

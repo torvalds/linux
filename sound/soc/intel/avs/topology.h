@@ -113,6 +113,11 @@ struct avs_tplg_modcfg_ext {
 		struct {
 			struct avs_audio_format *out_fmt;
 		} micsel;
+		struct {
+			u32 target_volume;
+			u32 curve_type;
+			u32 curve_duration;
+		} peakvol;
 	};
 };
 
