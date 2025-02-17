@@ -5058,7 +5058,7 @@ static void CalculateExtraLatency(
 	double HostVMInefficiencyFactorPrefetch,
 	unsigned int HostVMMinPageSize,
 	enum dml2_qos_param_type qos_type,
-	bool max_oustanding_when_urgent_expected,
+	bool max_outstanding_when_urgent_expected,
 	unsigned int max_outstanding_requests,
 	unsigned int request_size_bytes_luma[],
 	unsigned int request_size_bytes_chroma[],
@@ -5106,7 +5106,7 @@ static void CalculateExtraLatency(
 	if (qos_type == dml2_qos_param_type_dcn4x) {
 		*ExtraLatency_sr = dchub_arb_to_ret_delay / DCFCLK;
 		*ExtraLatency = *ExtraLatency_sr;
-		if (max_oustanding_when_urgent_expected)
+		if (max_outstanding_when_urgent_expected)
 			*ExtraLatency = *ExtraLatency + (ROBBufferSizeInKByte * 1024 - max_outstanding_requests * max_request_size_bytes) / ReturnBW;
 	} else {
 		*ExtraLatency_sr = dchub_arb_to_ret_delay / DCFCLK + RoundTripPingLatencyCycles / FabricClock + ReorderingBytes / ReturnBW;
@@ -5121,7 +5121,7 @@ static void CalculateExtraLatency(
 	dml2_printf("DML::%s: qos_type=%u\n", __func__, qos_type);
 	dml2_printf("DML::%s: hostvm_mode=%u\n", __func__, hostvm_mode);
 	dml2_printf("DML::%s: Tex_trips=%u\n", __func__, Tex_trips);
-	dml2_printf("DML::%s: max_oustanding_when_urgent_expected=%u\n", __func__, max_oustanding_when_urgent_expected);
+	dml2_printf("DML::%s: max_outstanding_when_urgent_expected=%u\n", __func__, max_outstanding_when_urgent_expected);
 	dml2_printf("DML::%s: FabricClock=%f\n", __func__, FabricClock);
 	dml2_printf("DML::%s: DCFCLK=%f\n", __func__, DCFCLK);
 	dml2_printf("DML::%s: ReturnBW=%f\n", __func__, ReturnBW);
