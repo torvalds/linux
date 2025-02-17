@@ -118,15 +118,6 @@ enum ast_config_mode {
 
 #define AST_HWC_SIGNATURE_SIZE	32
 
-/* define for signature structure */
-#define AST_HWC_SIGNATURE_CHECKSUM	0x00
-#define AST_HWC_SIGNATURE_SizeX		0x04
-#define AST_HWC_SIGNATURE_SizeY		0x08
-#define AST_HWC_SIGNATURE_X		0x0C
-#define AST_HWC_SIGNATURE_Y		0x10
-#define AST_HWC_SIGNATURE_HOTSPOTX	0x14
-#define AST_HWC_SIGNATURE_HOTSPOTY	0x18
-
 /*
  * Planes
  */
@@ -383,8 +374,6 @@ struct ast_crtc_state {
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
 
-int ast_mode_config_init(struct ast_device *ast);
-
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
@@ -450,6 +439,9 @@ void ast_patch_ahb_2500(void __iomem *regs);
 int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);
 
+/* ast_cursor.c */
+int ast_cursor_plane_init(struct ast_device *ast);
+
 /* ast dp501 */
 bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size);
 void ast_init_3rdtx(struct ast_device *ast);
@@ -458,5 +450,15 @@ int ast_dp501_output_init(struct ast_device *ast);
 /* aspeed DP */
 int ast_dp_launch(struct ast_device *ast);
 int ast_astdp_output_init(struct ast_device *ast);
+
+/* ast_mode.c */
+int ast_mode_config_init(struct ast_device *ast);
+int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
+		   void __iomem *vaddr, u64 offset, unsigned long size,
+		   uint32_t possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   const uint32_t *formats, unsigned int format_count,
+		   const uint64_t *format_modifiers,
+		   enum drm_plane_type type);
 
 #endif
