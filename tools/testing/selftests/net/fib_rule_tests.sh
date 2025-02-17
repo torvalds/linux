@@ -256,6 +256,14 @@ fib_rule6_test()
 		fib_rule6_test_match_n_redirect "$match" "$match" \
 			"$getnomatch" "sport and dport redirect to table" \
 			"sport and dport no redirect to table"
+
+		match="sport 100-200 dport 300-400"
+		getmatch="sport 100 dport 400"
+		getnomatch="sport 100 dport 401"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" \
+			"sport and dport range redirect to table" \
+			"sport and dport range no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
@@ -525,6 +533,14 @@ fib_rule4_test()
 		fib_rule4_test_match_n_redirect "$match" "$match" \
 			"$getnomatch" "sport and dport redirect to table" \
 			"sport and dport no redirect to table"
+
+		match="sport 100-200 dport 300-400"
+		getmatch="sport 100 dport 400"
+		getnomatch="sport 100 dport 401"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" \
+			"sport and dport range redirect to table" \
+			"sport and dport range no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
