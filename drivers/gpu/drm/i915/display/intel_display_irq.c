@@ -720,6 +720,39 @@ static void ibx_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		intel_pch_fifo_underrun_irq_handler(display, PIPE_B);
 }
 
+static u32 ivb_err_int_pipe_fault_mask(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+		return ERR_INT_SPRITE_A_FAULT |
+			ERR_INT_PRIMARY_A_FAULT |
+			ERR_INT_CURSOR_A_FAULT;
+	case PIPE_B:
+		return ERR_INT_SPRITE_B_FAULT |
+			ERR_INT_PRIMARY_B_FAULT |
+			ERR_INT_CURSOR_B_FAULT;
+	case PIPE_C:
+		return ERR_INT_SPRITE_C_FAULT |
+			ERR_INT_PRIMARY_C_FAULT |
+			ERR_INT_CURSOR_C_FAULT;
+	default:
+		return 0;
+	}
+}
+
+static const struct pipe_fault_handler ivb_pipe_fault_handlers[] = {
+	{ .fault = ERR_INT_SPRITE_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = ERR_INT_PRIMARY_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = ERR_INT_CURSOR_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{ .fault = ERR_INT_SPRITE_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = ERR_INT_PRIMARY_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = ERR_INT_CURSOR_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{ .fault = ERR_INT_SPRITE_C_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = ERR_INT_PRIMARY_C_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = ERR_INT_CURSOR_C_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
 static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = &dev_priv->display;
@@ -729,7 +762,15 @@ static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 	if (err_int & ERR_INT_POISON)
 		drm_err(&dev_priv->drm, "Poison interrupt\n");
 
+	if (err_int & ERR_INT_INVALID_GTT_PTE)
+		drm_err_ratelimited(display->drm, "Invalid GTT PTE\n");
+
+	if (err_int & ERR_INT_INVALID_PTE_DATA)
+		drm_err_ratelimited(display->drm, "Invalid PTE data\n");
+
 	for_each_pipe(dev_priv, pipe) {
+		u32 fault_errors;
+
 		if (err_int & ERR_INT_FIFO_UNDERRUN(pipe))
 			intel_cpu_fifo_underrun_irq_handler(display, pipe);
 
@@ -739,6 +780,11 @@ static void ivb_err_int_handler(struct drm_i915_private *dev_priv)
 			else
 				hsw_pipe_crc_irq_handler(dev_priv, pipe);
 		}
+
+		fault_errors = err_int & ivb_err_int_pipe_fault_mask(pipe);
+		if (fault_errors)
+			intel_pipe_fault_irq_handler(display, ivb_pipe_fault_handlers,
+						     pipe, fault_errors);
 	}
 
 	intel_de_write(display, GEN7_ERR_INT, err_int);
