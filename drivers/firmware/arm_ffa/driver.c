@@ -807,6 +807,13 @@ static int ffa_notification_bitmap_destroy(void)
 	return 0;
 }
 
+enum notify_type {
+	SECURE_PARTITION,
+	NON_SECURE_VM,
+	SPM_FRAMEWORK,
+	NS_HYP_FRAMEWORK,
+};
+
 #define NOTIFICATION_LOW_MASK		GENMASK(31, 0)
 #define NOTIFICATION_HIGH_MASK		GENMASK(63, 32)
 #define NOTIFICATION_BITMAP_HIGH(x)	\
@@ -830,10 +837,17 @@ static int ffa_notification_bitmap_destroy(void)
 #define MAX_IDS_32				10
 
 #define PER_VCPU_NOTIFICATION_FLAG		BIT(0)
-#define SECURE_PARTITION_BITMAP			BIT(0)
-#define NON_SECURE_VM_BITMAP			BIT(1)
-#define SPM_FRAMEWORK_BITMAP			BIT(2)
-#define NS_HYP_FRAMEWORK_BITMAP			BIT(3)
+#define SECURE_PARTITION_BITMAP_ENABLE		BIT(SECURE_PARTITION)
+#define NON_SECURE_VM_BITMAP_ENABLE		BIT(NON_SECURE_VM)
+#define SPM_FRAMEWORK_BITMAP_ENABLE		BIT(SPM_FRAMEWORK)
+#define NS_HYP_FRAMEWORK_BITMAP_ENABLE		BIT(NS_HYP_FRAMEWORK)
+#define FFA_BITMAP_ENABLE_MASK			\
+	(SECURE_PARTITION_BITMAP_ENABLE | SPM_FRAMEWORK_BITMAP_ENABLE)
+
+#define FFA_SECURE_PARTITION_ID_FLAG		BIT(15)
+
+#define SPM_FRAMEWORK_BITMAP(x)			NOTIFICATION_BITMAP_LOW(x)
+#define NS_HYP_FRAMEWORK_BITMAP(x)		NOTIFICATION_BITMAP_HIGH(x)
 
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
@@ -1098,15 +1112,7 @@ static int ffa_memory_lend(struct ffa_mem_ops_args *args)
 	return ffa_memory_ops(FFA_MEM_LEND, args);
 }
 
-#define FFA_SECURE_PARTITION_ID_FLAG	BIT(15)
-
 #define ffa_notifications_disabled()	(!drv_info->notif_enabled)
-
-enum notify_type {
-	NON_SECURE_VM,
-	SECURE_PARTITION,
-	FRAMEWORK,
-};
 
 struct notifier_cb_info {
 	struct hlist_node hnode;
@@ -1166,6 +1172,14 @@ static int ffa_notification_unbind(u16 dst_id, u64 bitmap)
 	return ffa_notification_bind_common(dst_id, bitmap, 0, false);
 }
 
+static enum notify_type ffa_notify_type_get(u16 vm_id)
+{
+	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
+		return SECURE_PARTITION;
+	else
+		return NON_SECURE_VM;
+}
+
 /* Should be called while the notify_lock is taken */
 static struct notifier_cb_info *
 notifier_hash_node_get(u16 notify_id, enum notify_type type)
@@ -1207,14 +1221,6 @@ update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
 	}
 
 	return 0;
-}
-
-static enum notify_type ffa_notify_type_get(u16 vm_id)
-{
-	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
-		return SECURE_PARTITION;
-	else
-		return NON_SECURE_VM;
 }
 
 static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
@@ -1299,6 +1305,9 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 	int notify_id;
 	struct notifier_cb_info *cb_info = NULL;
 
+	if (type == SPM_FRAMEWORK || type == NS_HYP_FRAMEWORK)
+		return;
+
 	for (notify_id = 0; notify_id <= FFA_MAX_NOTIFICATIONS && bitmap;
 	     notify_id++, bitmap >>= 1) {
 		if (!(bitmap & 1))
@@ -1318,16 +1327,18 @@ static void notif_get_and_handle(void *unused)
 	int rc;
 	struct ffa_notify_bitmaps bitmaps;
 
-	rc = ffa_notification_get(SECURE_PARTITION_BITMAP |
-				  SPM_FRAMEWORK_BITMAP, &bitmaps);
+	rc = ffa_notification_get(FFA_BITMAP_ENABLE_MASK, &bitmaps);
 	if (rc) {
 		pr_err("Failed to retrieve notifications with %d!\n", rc);
 		return;
 	}
 
+	handle_notif_callbacks(SPM_FRAMEWORK_BITMAP(bitmaps.arch_map),
+			       SPM_FRAMEWORK);
+	handle_notif_callbacks(NS_HYP_FRAMEWORK_BITMAP(bitmaps.arch_map),
+			       NS_HYP_FRAMEWORK);
 	handle_notif_callbacks(bitmaps.vm_map, NON_SECURE_VM);
 	handle_notif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
-	handle_notif_callbacks(bitmaps.arch_map, FRAMEWORK);
 }
 
 static void
