@@ -264,8 +264,8 @@ again:
 	file_ra_state_init(ra, inode->i_mapping);
 
 	sb_start_write(fs_info->sb);
-	ret = btrfs_defrag_file(inode, ra, &range, defrag->transid,
-				       BTRFS_DEFRAG_BATCH);
+	ret = btrfs_defrag_file(BTRFS_I(inode), ra, &range, defrag->transid,
+				BTRFS_DEFRAG_BATCH);
 	sb_end_write(fs_info->sb);
 	iput(inode);
 
@@ -1352,13 +1352,13 @@ out:
  * (Mostly for autodefrag, which sets @max_to_defrag thus we may exit early without
  *  defragging all the range).
  */
-int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
+int btrfs_defrag_file(struct btrfs_inode *inode, struct file_ra_state *ra,
 		      struct btrfs_ioctl_defrag_range_args *range,
 		      u64 newer_than, unsigned long max_to_defrag)
 {
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	unsigned long sectors_defragged = 0;
-	u64 isize = i_size_read(inode);
+	u64 isize = i_size_read(&inode->vfs_inode);
 	u64 cur;
 	u64 last_byte;
 	bool do_compress = (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS);
@@ -1402,8 +1402,8 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 	 * defrag range can be written sequentially.
 	 */
 	start_index = cur >> PAGE_SHIFT;
-	if (start_index < inode->i_mapping->writeback_index)
-		inode->i_mapping->writeback_index = start_index;
+	if (start_index < inode->vfs_inode.i_mapping->writeback_index)
+		inode->vfs_inode.i_mapping->writeback_index = start_index;
 
 	while (cur < last_byte) {
 		const unsigned long prev_sectors_defragged = sectors_defragged;
@@ -1420,27 +1420,27 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 			       (SZ_256K >> PAGE_SHIFT)) << PAGE_SHIFT) - 1;
 		cluster_end = min(cluster_end, last_byte);
 
-		btrfs_inode_lock(BTRFS_I(inode), 0);
-		if (IS_SWAPFILE(inode)) {
+		btrfs_inode_lock(inode, 0);
+		if (IS_SWAPFILE(&inode->vfs_inode)) {
 			ret = -ETXTBSY;
-			btrfs_inode_unlock(BTRFS_I(inode), 0);
+			btrfs_inode_unlock(inode, 0);
 			break;
 		}
-		if (!(inode->i_sb->s_flags & SB_ACTIVE)) {
-			btrfs_inode_unlock(BTRFS_I(inode), 0);
+		if (!(inode->vfs_inode.i_sb->s_flags & SB_ACTIVE)) {
+			btrfs_inode_unlock(inode, 0);
 			break;
 		}
 		if (do_compress)
-			BTRFS_I(inode)->defrag_compress = compress_type;
-		ret = defrag_one_cluster(BTRFS_I(inode), ra, cur,
+			inode->defrag_compress = compress_type;
+		ret = defrag_one_cluster(inode, ra, cur,
 				cluster_end + 1 - cur, extent_thresh,
 				newer_than, do_compress, &sectors_defragged,
 				max_to_defrag, &last_scanned);
 
 		if (sectors_defragged > prev_sectors_defragged)
-			balance_dirty_pages_ratelimited(inode->i_mapping);
+			balance_dirty_pages_ratelimited(inode->vfs_inode.i_mapping);
 
-		btrfs_inode_unlock(BTRFS_I(inode), 0);
+		btrfs_inode_unlock(inode, 0);
 		if (ret < 0)
 			break;
 		cur = max(cluster_end + 1, last_scanned);
@@ -1462,10 +1462,10 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		 * need to be written back immediately.
 		 */
 		if (range->flags & BTRFS_DEFRAG_RANGE_START_IO) {
-			filemap_flush(inode->i_mapping);
+			filemap_flush(inode->vfs_inode.i_mapping);
 			if (test_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-				     &BTRFS_I(inode)->runtime_flags))
-				filemap_flush(inode->i_mapping);
+				     &inode->runtime_flags))
+				filemap_flush(inode->vfs_inode.i_mapping);
 		}
 		if (range->compress_type == BTRFS_COMPRESS_LZO)
 			btrfs_set_fs_incompat(fs_info, COMPRESS_LZO);
@@ -1474,9 +1474,9 @@ int btrfs_defrag_file(struct inode *inode, struct file_ra_state *ra,
 		ret = sectors_defragged;
 	}
 	if (do_compress) {
-		btrfs_inode_lock(BTRFS_I(inode), 0);
-		BTRFS_I(inode)->defrag_compress = BTRFS_COMPRESS_NONE;
-		btrfs_inode_unlock(BTRFS_I(inode), 0);
+		btrfs_inode_lock(inode, 0);
+		inode->defrag_compress = BTRFS_COMPRESS_NONE;
+		btrfs_inode_unlock(inode, 0);
 	}
 	return ret;
 }
