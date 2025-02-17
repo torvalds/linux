@@ -5,7 +5,7 @@
 
 /dts-v1/;
 
-#include "qcom-msm8226.dtsi"
+#include "msm8926.dtsi"
 #include "pm8226.dtsi"
 
 /delete-node/ &adsp_region;
