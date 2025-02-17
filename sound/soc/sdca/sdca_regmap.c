@@ -268,5 +268,54 @@ int sdca_regmap_populate_constants(struct device *dev,
 }
 EXPORT_SYMBOL_NS(sdca_regmap_populate_constants, "SND_SOC_SDCA");
 
+/**
+ * sdca_regmap_write_defaults - write out DisCo defaults to device
+ * @dev: Pointer to the device.
+ * @regmap: Pointer to the Function register map.
+ * @function: Pointer to the Function information, to be parsed.
+ *
+ * This function will write out to the hardware all the DisCo default and
+ * fixed value controls. This will cause them to be populated into the cache,
+ * and subsequent handling can be done through a cache sync.
+ *
+ * Return: Returns zero on success, and a negative error code on failure.
+ */
+int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
+			       struct sdca_function_data *function)
+{
+	int i, j;
+	int ret;
+
+	for (i = 0; i < function->num_entities; i++) {
+		struct sdca_entity *entity = &function->entities[i];
+
+		for (j = 0; j < entity->num_controls; j++) {
+			struct sdca_control *control = &entity->controls[j];
+			int cn;
+
+			if (control->mode == SDCA_ACCESS_MODE_DC)
+				continue;
+
+			if (!control->has_default && !control->has_fixed)
+				continue;
+
+			for_each_set_bit(cn, (unsigned long *)&control->cn_list,
+					 BITS_PER_TYPE(control->cn_list)) {
+				unsigned int reg;
+
+				reg = SDW_SDCA_CTL(function->desc->adr, entity->id,
+						   control->sel, cn);
+
+				ret = regmap_write(regmap, reg, control->value);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(sdca_regmap_write_defaults, "SND_SOC_SDCA");
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SDCA library");

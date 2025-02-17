@@ -12,6 +12,7 @@
 
 struct device;
 struct sdca_function_data;
+struct regmap;
 struct reg_default;
 
 bool sdca_regmap_readable(struct sdca_function_data *function, unsigned int reg);
@@ -23,5 +24,8 @@ int sdca_regmap_mbq_size(struct sdca_function_data *function, unsigned int reg);
 int sdca_regmap_count_constants(struct device *dev, struct sdca_function_data *function);
 int sdca_regmap_populate_constants(struct device *dev, struct sdca_function_data *function,
 				   struct reg_default *consts);
+
+int sdca_regmap_write_defaults(struct device *dev, struct regmap *regmap,
+			       struct sdca_function_data *function);
 
 #endif // __SDCA_REGMAP_H__
