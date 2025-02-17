@@ -164,6 +164,7 @@
 #define AM65_CPSW_CPPI_TX_PKT_TYPE 0x7
 
 /* XDP */
+#define AM65_CPSW_XDP_TX       BIT(2)
 #define AM65_CPSW_XDP_CONSUMED BIT(1)
 #define AM65_CPSW_XDP_REDIRECT BIT(0)
 #define AM65_CPSW_XDP_PASS     0
@@ -1177,7 +1178,6 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 	int cpu = smp_processor_id();
 	struct xdp_frame *xdpf;
 	struct bpf_prog *prog;
-	struct page *page;
 	int pkt_len;
 	u32 act;
 	int err;
@@ -1212,7 +1212,7 @@ static int am65_cpsw_run_xdp(struct am65_cpsw_rx_flow *flow,
 			goto drop;
 
 		dev_sw_netstats_rx_add(ndev, pkt_len);
-		return AM65_CPSW_XDP_CONSUMED;
+		return AM65_CPSW_XDP_TX;
 	case XDP_REDIRECT:
 		if (unlikely(xdp_do_redirect(ndev, xdp, prog)))
 			goto drop;
@@ -1229,9 +1229,6 @@ drop:
 	case XDP_DROP:
 		ndev->stats.rx_dropped++;
 	}
-
-	page = virt_to_head_page(xdp->data);
-	am65_cpsw_put_page(flow, page, true);
 
 	return ret;
 }
@@ -1331,6 +1328,12 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_rx_flow *flow,
 		xdp_prepare_buff(&xdp, page_addr, AM65_CPSW_HEADROOM,
 				 pkt_len, false);
 		*xdp_state = am65_cpsw_run_xdp(flow, port, &xdp, &pkt_len);
+		if (*xdp_state == AM65_CPSW_XDP_CONSUMED) {
+			page = virt_to_head_page(xdp.data);
+			am65_cpsw_put_page(flow, page, true);
+			goto allocate;
+		}
+
 		if (*xdp_state != AM65_CPSW_XDP_PASS)
 			goto allocate;
 
