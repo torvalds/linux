@@ -127,3 +127,13 @@ void __irq_move_irq(struct irq_data *idata)
 	if (!masked)
 		idata->chip->irq_unmask(idata);
 }
+
+bool irq_can_move_in_process_context(struct irq_data *data)
+{
+	/*
+	 * Get the top level irq_data in the hierarchy, which is optimized
+	 * away when CONFIG_IRQ_DOMAIN_HIERARCHY is disabled.
+	 */
+	data = irq_desc_get_irq_data(irq_data_to_desc(data));
+	return irq_can_move_pcntxt(data);
+}
