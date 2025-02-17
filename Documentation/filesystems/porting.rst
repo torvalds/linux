@@ -1157,3 +1157,24 @@ in normal case it points into the pathname being looked up.
 NOTE: if you need something like full path from the root of filesystem,
 you are still on your own - this assists with simple cases, but it's not
 magic.
+
+---
+
+** recommended**
+
+kern_path_locked() and user_path_locked() no longer return a negative
+dentry so this doesn't need to be checked.  If the name cannot be found,
+ERR_PTR(-ENOENT) is returned.
+
+** recommend**
+
+lookup_one_qstr_excl() is changed to return errors in more cases, so
+these conditions don't require explicit checks:
+
+ - if LOOKUP_CREATE is NOT given, then the dentry won't be negative,
+   ERR_PTR(-ENOENT) is returned instead
+ - if LOOKUP_EXCL IS given, then the dentry won't be positive,
+   ERR_PTR(-EEXIST) is rreturned instread
+
+LOOKUP_EXCL now means "target must not exist".  It can be combined with
+LOOK_CREATE or LOOKUP_RENAME_TARGET.
