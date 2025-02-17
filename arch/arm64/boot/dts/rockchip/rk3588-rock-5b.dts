@@ -231,6 +231,10 @@
 	};
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &hdmi1 {
 	pinctrl-0 = <&hdmim0_tx1_cec &hdmim0_tx1_hpd
 		     &hdmim1_tx1_scl &hdmim1_tx1_sda>;
@@ -247,6 +251,10 @@
 	hdmi1_out_con: endpoint {
 		remote-endpoint = <&hdmi1_con_in>;
 	};
+};
+
+&hdmi1_sound {
+	status = "okay";
 };
 
 &hdptxphy0 {
@@ -349,6 +357,14 @@
 			remote-endpoint = <&es8316_p0_0>;
 		};
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
+};
+
+&i2s6_8ch {
+	status = "okay";
 };
 
 &package_thermal {
