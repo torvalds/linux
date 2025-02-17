@@ -444,7 +444,7 @@ struct io_ring_ctx {
 struct io_tw_state {
 };
 /* Alias to use in code that doesn't instantiate struct io_tw_state */
-typedef struct io_tw_state *io_tw_token_t;
+typedef struct io_tw_state io_tw_token_t;
 
 enum {
 	REQ_F_FIXED_FILE_BIT	= IOSQE_FIXED_FILE_BIT,
