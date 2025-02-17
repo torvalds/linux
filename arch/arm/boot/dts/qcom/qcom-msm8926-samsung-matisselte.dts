@@ -28,6 +28,10 @@
 	};
 };
 
+&modem {
+	mss-supply = <&pm8226_s5>;
+};
+
 &tlmm {
 	tsp_en1_default_state: tsp-en1-default-state {
 		pins = "gpio32";
