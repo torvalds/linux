@@ -425,8 +425,7 @@ static int imx_probe(struct snd_sof_dev *sdev)
 
 	ret = devm_clk_bulk_get_all(sdev->dev, &common->clks);
 	if (ret < 0)
-		return dev_err_probe(sdev->dev, common->clk_num,
-				     "failed to fetch clocks\n");
+		return dev_err_probe(sdev->dev, ret, "failed to fetch clocks\n");
 	common->clk_num = ret;
 
 	ret = clk_bulk_prepare_enable(common->clk_num, common->clks);
