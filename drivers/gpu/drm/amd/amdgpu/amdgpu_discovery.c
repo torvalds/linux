@@ -2950,6 +2950,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(12, 0, 0):
 	case IP_VERSION(12, 0, 1):
+	case IP_VERSION(12, 1, 0):
 		adev->family = AMDGPU_FAMILY_GC_12_0_0;
 		break;
 	default:
