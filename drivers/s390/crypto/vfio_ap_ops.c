@@ -2316,10 +2316,10 @@ int vfio_ap_mdev_register(void)
 
 	matrix_dev->mdev_type.sysfs_name = VFIO_AP_MDEV_TYPE_HWVIRT;
 	matrix_dev->mdev_type.pretty_name = VFIO_AP_MDEV_NAME_HWVIRT;
-	matrix_dev->mdev_types[0] = &matrix_dev->mdev_type;
+	matrix_dev->mdev_types = &matrix_dev->mdev_type;
 	ret = mdev_register_parent(&matrix_dev->parent, &matrix_dev->device,
 				   &vfio_ap_matrix_driver,
-				   matrix_dev->mdev_types, 1);
+				   &matrix_dev->mdev_types, 1);
 	if (ret)
 		goto err_driver;
 	return 0;
