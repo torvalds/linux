@@ -253,6 +253,7 @@ struct cifs_cred {
 struct cifs_open_info_data {
 	bool adjust_tz;
 	bool reparse_point;
+	bool contains_posix_file_info;
 	struct {
 		/* ioctl response buffer */
 		struct {
