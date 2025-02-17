@@ -841,8 +841,12 @@ enum notify_type {
 #define NON_SECURE_VM_BITMAP_ENABLE		BIT(NON_SECURE_VM)
 #define SPM_FRAMEWORK_BITMAP_ENABLE		BIT(SPM_FRAMEWORK)
 #define NS_HYP_FRAMEWORK_BITMAP_ENABLE		BIT(NS_HYP_FRAMEWORK)
-#define FFA_BITMAP_ENABLE_MASK			\
+#define FFA_BITMAP_SECURE_ENABLE_MASK		\
 	(SECURE_PARTITION_BITMAP_ENABLE | SPM_FRAMEWORK_BITMAP_ENABLE)
+#define FFA_BITMAP_NS_ENABLE_MASK		\
+	(NON_SECURE_VM_BITMAP_ENABLE | NS_HYP_FRAMEWORK_BITMAP_ENABLE)
+#define FFA_BITMAP_ALL_ENABLE_MASK		\
+	(FFA_BITMAP_SECURE_ENABLE_MASK | FFA_BITMAP_NS_ENABLE_MASK)
 
 #define FFA_SECURE_PARTITION_ID_FLAG		BIT(15)
 
@@ -914,9 +918,15 @@ static int ffa_notification_get(u32 flags, struct ffa_notify_bitmaps *notify)
 	else if (ret.a0 != FFA_SUCCESS)
 		return -EINVAL; /* Something else went wrong. */
 
-	notify->sp_map = PACK_NOTIFICATION_BITMAP(ret.a2, ret.a3);
-	notify->vm_map = PACK_NOTIFICATION_BITMAP(ret.a4, ret.a5);
-	notify->arch_map = PACK_NOTIFICATION_BITMAP(ret.a6, ret.a7);
+	if (flags & SECURE_PARTITION_BITMAP_ENABLE)
+		notify->sp_map = PACK_NOTIFICATION_BITMAP(ret.a2, ret.a3);
+	if (flags & NON_SECURE_VM_BITMAP_ENABLE)
+		notify->vm_map = PACK_NOTIFICATION_BITMAP(ret.a4, ret.a5);
+	if (flags & SPM_FRAMEWORK_BITMAP_ENABLE)
+		notify->arch_map = SPM_FRAMEWORK_BITMAP(ret.a6);
+	if (flags & NS_HYP_FRAMEWORK_BITMAP_ENABLE)
+		notify->arch_map = PACK_NOTIFICATION_BITMAP(notify->arch_map,
+							    ret.a7);
 
 	return 0;
 }
@@ -1444,12 +1454,19 @@ static void handle_fwk_notif_callbacks(u32 bitmap)
 	kfree(buf);
 }
 
-static void notif_get_and_handle(void *unused)
+static void notif_get_and_handle(void *cb_data)
 {
 	int rc;
-	struct ffa_notify_bitmaps bitmaps;
+	u32 flags;
+	struct ffa_drv_info *info = cb_data;
+	struct ffa_notify_bitmaps bitmaps = { 0 };
 
-	rc = ffa_notification_get(FFA_BITMAP_ENABLE_MASK, &bitmaps);
+	if (info->vm_id == 0) /* Non secure physical instance */
+		flags = FFA_BITMAP_SECURE_ENABLE_MASK;
+	else
+		flags = FFA_BITMAP_ALL_ENABLE_MASK;
+
+	rc = ffa_notification_get(flags, &bitmaps);
 	if (rc) {
 		pr_err("Failed to retrieve notifications with %d!\n", rc);
 		return;
