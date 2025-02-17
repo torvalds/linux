@@ -348,6 +348,7 @@ r535_gsp_msgq_recv(struct nvkm_gsp *gsp, u32 gsp_rpc_len, int *retries)
 	if (IS_ERR(buf)) {
 		kvfree(info.gsp_rpc_buf);
 		info.gsp_rpc_buf = NULL;
+		return buf;
 	}
 
 	if (expected <= max_rpc_size)
