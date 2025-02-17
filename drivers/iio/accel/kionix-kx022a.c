@@ -577,13 +577,12 @@ static int kx022a_write_raw(struct iio_dev *idev,
 	 * issues if users trust the watermark to be reached within known
 	 * time-limit).
 	 */
-	ret = iio_device_claim_direct_mode(idev);
-	if (ret)
-		return ret;
+	if (!iio_device_claim_direct(idev))
+		return -EBUSY;
 
 	ret = __kx022a_write_raw(idev, chan, val, val2, mask);
 
-	iio_device_release_direct_mode(idev);
+	iio_device_release_direct(idev);
 
 	return ret;
 }
@@ -624,15 +623,14 @@ static int kx022a_read_raw(struct iio_dev *idev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(idev);
-		if (ret)
-			return ret;
+		if (!iio_device_claim_direct(idev))
+			return -EBUSY;
 
 		mutex_lock(&data->mutex);
 		ret = kx022a_get_axis(data, chan, val);
 		mutex_unlock(&data->mutex);
 
-		iio_device_release_direct_mode(idev);
+		iio_device_release_direct(idev);
 
 		return ret;
 
