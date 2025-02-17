@@ -556,11 +556,18 @@ static inline int pm_runtime_set_suspended(struct device *dev)
  * pm_runtime_disable - Disable runtime PM for a device.
  * @dev: Target device.
  *
- * Prevent the runtime PM framework from working with @dev (by incrementing its
- * "blocking" counter).
+ * Prevent the runtime PM framework from working with @dev by incrementing its
+ * "disable" counter.
  *
- * For each invocation of this function for @dev there must be a matching
- * pm_runtime_enable() call in order for runtime PM to be enabled for it.
+ * If the counter is zero when this function runs and there is a pending runtime
+ * resume request for @dev, it will be resumed.  If the counter is still zero at
+ * that point, all of the pending runtime PM requests for @dev will be canceled
+ * and all runtime PM operations in progress involving it will be waited for to
+ * complete.
+ *
+ * For each invocation of this function for @dev, there must be a matching
+ * pm_runtime_enable() call, so that runtime PM is eventually enabled for it
+ * again.
  */
 static inline void pm_runtime_disable(struct device *dev)
 {
