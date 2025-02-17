@@ -43,6 +43,8 @@ struct fib_rule {
 	struct fib_kuid_range	uid_range;
 	struct fib_rule_port_range	sport_range;
 	struct fib_rule_port_range	dport_range;
+	u16			sport_mask;
+	u16			dport_mask;
 	struct rcu_head		rcu;
 };
 
@@ -157,6 +159,12 @@ static inline bool fib_rule_port_range_compare(struct fib_rule_port_range *a,
 {
 	return a->start == b->start &&
 		a->end == b->end;
+}
+
+static inline bool
+fib_rule_port_is_range(const struct fib_rule_port_range *range)
+{
+	return range->start != range->end;
 }
 
 static inline bool fib_rule_requires_fldissect(struct fib_rule *rule)
