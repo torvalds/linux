@@ -148,6 +148,17 @@ static inline bool fib_rule_port_inrange(const struct fib_rule_port_range *a,
 		ntohs(port) <= a->end;
 }
 
+static inline bool fib_rule_port_match(const struct fib_rule_port_range *range,
+				       u16 port_mask, __be16 port)
+{
+	if ((range->start ^ ntohs(port)) & port_mask)
+		return false;
+	if (!port_mask && fib_rule_port_range_set(range) &&
+	    !fib_rule_port_inrange(range, port))
+		return false;
+	return true;
+}
+
 static inline bool fib_rule_port_range_valid(const struct fib_rule_port_range *a)
 {
 	return a->start != 0 && a->end != 0 && a->end < 0xffff &&
