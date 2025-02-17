@@ -272,9 +272,9 @@ static u32 amd_asf_func(struct i2c_adapter *adapter)
 }
 
 static const struct i2c_algorithm amd_asf_smbus_algorithm = {
-	.master_xfer = amd_asf_xfer,
-	.reg_slave = amd_asf_reg_target,
-	.unreg_slave = amd_asf_unreg_target,
+	.xfer = amd_asf_xfer,
+	.reg_target = amd_asf_reg_target,
+	.unreg_target = amd_asf_unreg_target,
 	.functionality = amd_asf_func,
 };
 
