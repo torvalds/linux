@@ -182,8 +182,7 @@ static int apparmor_capget(const struct task_struct *target, kernel_cap_t *effec
 			struct aa_ruleset *rules;
 			kernel_cap_t allowed;
 
-			rules = list_first_entry(&profile->rules,
-						 typeof(*rules), list);
+			rules = profile->label.rules[0];
 			allowed = aa_profile_capget(profile);
 			*effective = cap_intersect(*effective, allowed);
 			*permitted = cap_intersect(*permitted, allowed);
@@ -636,7 +635,7 @@ static int profile_uring(struct aa_profile *profile, u32 request,
 
 	AA_BUG(!profile);
 
-	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules = profile->label.rules[0];
 	state = RULE_MEDIATES(rules, AA_CLASS_IO_URING);
 	if (state) {
 		struct aa_perms perms = { };

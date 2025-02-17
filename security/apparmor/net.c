@@ -251,8 +251,7 @@ int aa_profile_af_perm(struct aa_profile *profile,
 		       struct apparmor_audit_data *ad, u32 request, u16 family,
 		       int type, int protocol)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	struct aa_perms *p = NULL;
 	aa_state_t state;
 
@@ -362,8 +361,7 @@ static int aa_secmark_perm(struct aa_profile *profile, u32 request, u32 secid,
 {
 	int i, ret;
 	struct aa_perms perms = { };
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 
 	if (rules->secmark_count == 0)
 		return 0;

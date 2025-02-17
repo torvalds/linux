@@ -80,8 +80,7 @@ static int profile_signal_perm(const struct cred *cred,
 			       struct aa_label *peer, u32 request,
 			       struct apparmor_audit_data *ad)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	struct aa_perms perms;
 	aa_state_t state;
 

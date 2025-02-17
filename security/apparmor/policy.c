@@ -259,8 +259,6 @@ struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
 	struct aa_ruleset *rules;
 
 	rules = kzalloc(sizeof(*rules), gfp);
-	if (rules)
-		INIT_LIST_HEAD(&rules->list);
 
 	return rules;
 }
@@ -277,7 +275,6 @@ struct aa_ruleset *aa_alloc_ruleset(gfp_t gfp)
  */
 void aa_free_profile(struct aa_profile *profile)
 {
-	struct aa_ruleset *rule, *tmp;
 	struct rhashtable *rht;
 
 	AA_DEBUG(DEBUG_POLICY, "%s(%p)\n", __func__, profile);
@@ -299,10 +296,9 @@ void aa_free_profile(struct aa_profile *profile)
 	 * at this point there are no tasks that can have a reference
 	 * to rules
 	 */
-	list_for_each_entry_safe(rule, tmp, &profile->rules, list) {
-		list_del_init(&rule->list);
-		free_ruleset(rule);
-	}
+	for (int i = 0; i < profile->n_rules; i++)
+		free_ruleset(profile->label.rules[i]);
+
 	kfree_sensitive(profile->dirname);
 
 	if (profile->data) {
@@ -331,25 +327,25 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 				    gfp_t gfp)
 {
 	struct aa_profile *profile;
-	struct aa_ruleset *rules;
 
-	/* freed by free_profile - usually through aa_put_profile */
-	profile = kzalloc(struct_size(profile, label.vec, 2), gfp);
+	/* freed by free_profile - usually through aa_put_profile
+	 * this adds space for a single ruleset in the rules section of the
+	 * label
+	 */
+	profile = kzalloc(struct_size(profile, label.rules, 1), gfp);
 	if (!profile)
 		return NULL;
+	profile->n_rules = 1;
 
 	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
 	if (!aa_label_init(&profile->label, 1, gfp))
 		goto fail;
 
-	INIT_LIST_HEAD(&profile->rules);
-
 	/* allocate the first ruleset, but leave it empty */
-	rules = aa_alloc_ruleset(gfp);
-	if (!rules)
+	profile->label.rules[0] = aa_alloc_ruleset(gfp);
+	if (!profile->label.rules[0])
 		goto fail;
-	list_add(&rules->list, &profile->rules);
 
 	/* update being set needed by fs interface */
 	if (!proxy) {
@@ -374,6 +370,18 @@ fail:
 	return NULL;
 }
 
+static inline bool ANY_RULE_MEDIATES(struct aa_profile *profile,
+				     unsigned char class)
+{
+	int i;
+
+	for (i = 0; i < profile->n_rules; i++) {
+		if (RULE_MEDIATES(profile->label.rules[i], class))
+			return true;
+	}
+	return false;
+}
+
 /* set of rules that are mediated by unconfined */
 static int unconfined_mediates[] = { AA_CLASS_NS, AA_CLASS_IO_URING, 0 };
 
@@ -386,14 +394,13 @@ void aa_compute_profile_mediates(struct aa_profile *profile)
 		int *pos;
 
 		for (pos = unconfined_mediates; *pos; pos++) {
-			if (ANY_RULE_MEDIATES(&profile->rules, AA_CLASS_NS) !=
-			    DFA_NOMATCH)
+			if (ANY_RULE_MEDIATES(profile, *pos))
 				profile->label.mediates |= ((u64) 1) << AA_CLASS_NS;
 		}
 		return;
 	}
 	for (c = 0; c <= AA_CLASS_LAST; c++) {
-		if (ANY_RULE_MEDIATES(&profile->rules, c) != DFA_NOMATCH)
+		if (ANY_RULE_MEDIATES(profile, c))
 			profile->label.mediates |= ((u64) 1) << c;
 	}
 }
@@ -646,7 +653,7 @@ struct aa_profile *aa_alloc_null(struct aa_profile *parent, const char *name,
 	/* TODO: ideally we should inherit abi from parent */
 	profile->label.flags |= FLAG_NULL;
 	profile->attach.xmatch = aa_get_pdb(nullpdb);
-	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules = profile->label.rules[0];
 	rules->file = aa_get_pdb(nullpdb);
 	rules->policy = aa_get_pdb(nullpdb);
 	aa_compute_profile_mediates(profile);

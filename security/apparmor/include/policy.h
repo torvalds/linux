@@ -165,8 +165,6 @@ struct aa_data {
  * @secmark: secmark label match info
  */
 struct aa_ruleset {
-	struct list_head list;
-
 	int size;
 
 	/* TODO: merge policy and file */
@@ -179,6 +177,7 @@ struct aa_ruleset {
 	int secmark_count;
 	struct aa_secmark *secmark;
 };
+
 
 /* struct aa_attachment - data and rules for a profiles attachment
  * @list:
@@ -218,6 +217,7 @@ struct aa_attachment {
  * @dents: set of dentries associated with the profile
  * @data: hashtable for free-form policy aa_data
  * @label - label this profile is an extension of
+ * @rules - label with the rule vec on its end
  *
  * The AppArmor profile contains the basic confinement data.  Each profile
  * has a name, and exists in a namespace.  The @name and @exec_match are
@@ -245,7 +245,6 @@ struct aa_profile {
 	const char *disconnected;
 
 	struct aa_attachment attach;
-	struct list_head rules;
 
 	struct aa_loaddata *rawdata;
 	unsigned char *hash;
@@ -253,6 +252,7 @@ struct aa_profile {
 	struct dentry *dents[AAFS_PROF_SIZEOF];
 	struct rhashtable *data;
 
+	int n_rules;
 	/* special - variable length must be last entry in profile */
 	struct aa_label label;
 };
@@ -331,16 +331,6 @@ static inline aa_state_t RULE_MEDIATES_NET(struct aa_ruleset *rules)
 	return state;
 }
 
-
-static inline aa_state_t ANY_RULE_MEDIATES(struct list_head *head,
-					   unsigned char class)
-{
-	struct aa_ruleset *rule;
-
-	/* TODO: change to list walk */
-	rule = list_first_entry(head, typeof(*rule), list);
-	return RULE_MEDIATES(rule, class);
-}
 
 void aa_compute_profile_mediates(struct aa_profile *profile);
 static inline bool profile_mediates(struct aa_profile *profile,

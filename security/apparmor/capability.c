@@ -69,8 +69,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 {
 	const u64 AUDIT_CACHE_TIMEOUT_NS = 1000*1000*1000; /* 1 second */
 
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
 
@@ -122,8 +121,7 @@ static int audit_caps(struct apparmor_audit_data *ad, struct aa_profile *profile
 static int profile_capable(struct aa_profile *profile, int cap,
 			   unsigned int opts, struct apparmor_audit_data *ad)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	aa_state_t state;
 	int error;
 
@@ -195,8 +193,7 @@ int aa_capable(const struct cred *subj_cred, struct aa_label *label,
 
 kernel_cap_t aa_profile_capget(struct aa_profile *profile)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
 	aa_state_t state;
 
 	state = RULE_MEDIATES(rules, AA_CLASS_CAP);

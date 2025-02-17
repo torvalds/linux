@@ -885,7 +885,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		error = -ENOMEM;
 		goto fail;
 	}
-	rules = list_first_entry(&profile->rules, typeof(*rules), list);
+	rules = profile->label.rules[0];
 
 	/* profile renaming is optional */
 	(void) aa_unpack_str(e, &profile->rename, "rename");
@@ -1285,8 +1285,8 @@ static bool verify_perms(struct aa_policydb *pdb)
  */
 static int verify_profile(struct aa_profile *profile)
 {
-	struct aa_ruleset *rules = list_first_entry(&profile->rules,
-						    typeof(*rules), list);
+	struct aa_ruleset *rules = profile->label.rules[0];
+
 	if (!rules)
 		return 0;
 

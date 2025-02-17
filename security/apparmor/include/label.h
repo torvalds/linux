@@ -19,6 +19,7 @@
 #include "lib.h"
 
 struct aa_ns;
+struct aa_ruleset;
 
 #define LOCAL_VEC_ENTRIES 8
 #define DEFINE_VEC(T, V)						\
@@ -109,7 +110,7 @@ struct label_it {
 	int i, j;
 };
 
-/* struct aa_label - lazy labeling struct
+/* struct aa_label_base - base info of label
  * @count: ref count of active users
  * @node: rbtree position
  * @rcu: rcu callback struct
@@ -118,7 +119,10 @@ struct label_it {
  * @flags: stale and other flags - values may change under label set lock
  * @secid: secid that references this label
  * @size: number of entries in @ent[]
- * @ent: set of profiles for label, actual size determined by @size
+ * @mediates: bitmask for label_mediates
+ * profile: label vec when embedded in a profile FLAG_PROFILE is set
+ * rules: variable length rules in a profile FLAG_PROFILE is set
+ * vec: vector of profiles comprising the compound label
  */
 struct aa_label {
 	struct kref count;
@@ -130,7 +134,17 @@ struct aa_label {
 	u32 secid;
 	int size;
 	u64 mediates;
-	struct aa_profile *vec[];
+	union {
+		struct {
+			/* only used is the label is a profile, size of
+			 * rules[] is determined by the profile
+			 * profile[1] is poison or null as guard
+			 */
+			struct aa_profile *profile[2];
+			DECLARE_FLEX_ARRAY(struct aa_ruleset *, rules);
+		};
+		DECLARE_FLEX_ARRAY(struct aa_profile *, vec);
+	};
 };
 
 #define last_error(E, FN)				\
