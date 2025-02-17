@@ -838,10 +838,10 @@ static u32 i9xx_error_mask(struct drm_i915_private *i915)
 	 * so we just have to mask off all page table errors via EMR.
 	 */
 	if (HAS_FBC(i915))
-		return ~I915_ERROR_MEMORY_REFRESH;
+		return I915_ERROR_MEMORY_REFRESH;
 	else
-		return ~(I915_ERROR_PAGE_TABLE |
-			 I915_ERROR_MEMORY_REFRESH);
+		return I915_ERROR_PAGE_TABLE |
+			I915_ERROR_MEMORY_REFRESH;
 }
 
 static void i9xx_error_irq_ack(struct drm_i915_private *dev_priv,
@@ -900,7 +900,7 @@ static void i915_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 enable_mask;
 
-	gen2_error_init(uncore, GEN2_ERROR_REGS, i9xx_error_mask(dev_priv));
+	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i9xx_error_mask(dev_priv));
 
 	dev_priv->irq_mask =
 		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
@@ -1011,13 +1011,13 @@ static u32 i965_error_mask(struct drm_i915_private *i915)
 	 * so we can always enable the page table errors.
 	 */
 	if (IS_G4X(i915))
-		return ~(GM45_ERROR_PAGE_TABLE |
-			 GM45_ERROR_MEM_PRIV |
-			 GM45_ERROR_CP_PRIV |
-			 I915_ERROR_MEMORY_REFRESH);
+		return GM45_ERROR_PAGE_TABLE |
+			GM45_ERROR_MEM_PRIV |
+			GM45_ERROR_CP_PRIV |
+			I915_ERROR_MEMORY_REFRESH;
 	else
-		return ~(I915_ERROR_PAGE_TABLE |
-			 I915_ERROR_MEMORY_REFRESH);
+		return I915_ERROR_PAGE_TABLE |
+			I915_ERROR_MEMORY_REFRESH;
 }
 
 static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
@@ -1025,7 +1025,7 @@ static void i965_irq_postinstall(struct drm_i915_private *dev_priv)
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	u32 enable_mask;
 
-	gen2_error_init(uncore, GEN2_ERROR_REGS, i965_error_mask(dev_priv));
+	gen2_error_init(uncore, GEN2_ERROR_REGS, ~i965_error_mask(dev_priv));
 
 	dev_priv->irq_mask =
 		~(I915_ASLE_INTERRUPT |
