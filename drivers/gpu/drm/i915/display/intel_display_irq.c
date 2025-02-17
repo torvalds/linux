@@ -844,6 +844,56 @@ static void cpt_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		cpt_serr_int_handler(dev_priv);
 }
 
+static u32 ilk_gtt_fault_pipe_fault_mask(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+		return GTT_FAULT_SPRITE_A_FAULT |
+			GTT_FAULT_PRIMARY_A_FAULT |
+			GTT_FAULT_CURSOR_A_FAULT;
+	case PIPE_B:
+		return GTT_FAULT_SPRITE_B_FAULT |
+			GTT_FAULT_PRIMARY_B_FAULT |
+			GTT_FAULT_CURSOR_B_FAULT;
+	default:
+		return 0;
+	}
+}
+
+static const struct pipe_fault_handler ilk_pipe_fault_handlers[] = {
+	{ .fault = GTT_FAULT_SPRITE_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = GTT_FAULT_SPRITE_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = GTT_FAULT_PRIMARY_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = GTT_FAULT_PRIMARY_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = GTT_FAULT_CURSOR_A_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{ .fault = GTT_FAULT_CURSOR_B_FAULT, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR, },
+	{}
+};
+
+static void ilk_gtt_fault_irq_handler(struct intel_display *display)
+{
+	enum pipe pipe;
+	u32 gtt_fault;
+
+	gtt_fault = intel_de_read(display, ILK_GTT_FAULT);
+	intel_de_write(display, ILK_GTT_FAULT, gtt_fault);
+
+	if (gtt_fault & GTT_FAULT_INVALID_GTT_PTE)
+		drm_err_ratelimited(display->drm, "Invalid GTT PTE\n");
+
+	if (gtt_fault & GTT_FAULT_INVALID_PTE_DATA)
+		drm_err_ratelimited(display->drm, "Invalid PTE data\n");
+
+	for_each_pipe(display, pipe) {
+		u32 fault_errors;
+
+		fault_errors = gtt_fault & ilk_gtt_fault_pipe_fault_mask(pipe);
+		if (fault_errors)
+			intel_pipe_fault_irq_handler(display, ilk_pipe_fault_handlers,
+						     pipe, fault_errors);
+	}
+}
+
 void ilk_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 {
 	struct intel_display *display = &dev_priv->display;
@@ -861,6 +911,9 @@ void ilk_display_irq_handler(struct drm_i915_private *dev_priv, u32 de_iir)
 
 	if (de_iir & DE_POISON)
 		drm_err(&dev_priv->drm, "Poison interrupt\n");
+
+	if (de_iir & DE_GTT_FAULT)
+		ilk_gtt_fault_irq_handler(display);
 
 	for_each_pipe(dev_priv, pipe) {
 		if (de_iir & DE_PIPE_VBLANK(pipe))
@@ -1988,7 +2041,8 @@ void ilk_de_irq_postinstall(struct drm_i915_private *i915)
 			      DE_PLANE_FLIP_DONE_IVB(PLANE_A) |
 			      DE_DP_A_HOTPLUG_IVB);
 	} else {
-		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+		display_mask = (DE_MASTER_IRQ_CONTROL | DE_GSE |
+				DE_PCH_EVENT | DE_GTT_FAULT |
 				DE_AUX_CHANNEL_A | DE_PIPEB_CRC_DONE |
 				DE_PIPEA_CRC_DONE | DE_POISON);
 		extra_mask = (DE_PIPEA_VBLANK | DE_PIPEB_VBLANK |

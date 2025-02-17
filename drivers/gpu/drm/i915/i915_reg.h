@@ -372,6 +372,16 @@
 #define GEN7_MEDIA_MAX_REQ_COUNT	_MMIO(0x4070)
 #define GEN7_GFX_MAX_REQ_COUNT		_MMIO(0x4074)
 
+#define ILK_GTT_FAULT	_MMIO(0x44040) /* ilk/snb */
+#define   GTT_FAULT_INVALID_GTT_PTE	(1 << 7)
+#define   GTT_FAULT_INVALID_PTE_DATA	(1 << 6)
+#define   GTT_FAULT_CURSOR_B_FAULT	(1 << 5)
+#define   GTT_FAULT_CURSOR_A_FAULT	(1 << 4)
+#define   GTT_FAULT_SPRITE_B_FAULT	(1 << 3)
+#define   GTT_FAULT_SPRITE_A_FAULT	(1 << 2)
+#define   GTT_FAULT_PRIMARY_B_FAULT	(1 << 1)
+#define   GTT_FAULT_PRIMARY_A_FAULT	(1 << 0)
+
 #define GEN7_ERR_INT	_MMIO(0x44040)
 #define   ERR_INT_POISON		(1 << 31)
 #define   ERR_INT_INVALID_GTT_PTE	(1 << 29)
