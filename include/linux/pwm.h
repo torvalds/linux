@@ -379,7 +379,7 @@ static inline void pwmchip_set_drvdata(struct pwm_chip *chip, void *data)
 	dev_set_drvdata(&chip->dev, data);
 }
 
-#if IS_ENABLED(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 
 /* PWM consumer APIs */
 int pwm_round_waveform_might_sleep(struct pwm_device *pwm, struct pwm_waveform *wf);
@@ -661,7 +661,7 @@ struct pwm_lookup {
 	PWM_LOOKUP_WITH_MODULE(_provider, _index, _dev_id, _con_id, _period, \
 			       _polarity, NULL)
 
-#if IS_ENABLED(CONFIG_PWM)
+#if IS_REACHABLE(CONFIG_PWM)
 void pwm_add_table(struct pwm_lookup *table, size_t num);
 void pwm_remove_table(struct pwm_lookup *table, size_t num);
 #else
