@@ -113,11 +113,6 @@ static int ksmbd_vfs_path_lookup_locked(struct ksmbd_share_config *share_conf,
 	if (IS_ERR(d))
 		goto err_out;
 
-	if (d_is_negative(d)) {
-		dput(d);
-		goto err_out;
-	}
-
 	path->dentry = d;
 	path->mnt = mntget(parent_path->mnt);
 
@@ -693,6 +688,7 @@ int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
 	struct ksmbd_file *parent_fp;
 	int new_type;
 	int err, lookup_flags = LOOKUP_NO_SYMLINKS;
+	int target_lookup_flags = LOOKUP_RENAME_TARGET;
 
 	if (ksmbd_override_fsids(work))
 		return -ENOMEM;
@@ -702,6 +698,14 @@ int ksmbd_vfs_rename(struct ksmbd_work *work, const struct path *old_path,
 		err = PTR_ERR(to);
 		goto revert_fsids;
 	}
+
+	/*
+	 * explicitly handle file overwrite case, for compatibility with
+	 * filesystems that may not support rename flags (e.g: fuse)
+	 */
+	if (flags & RENAME_NOREPLACE)
+		target_lookup_flags |= LOOKUP_EXCL;
+	flags &= ~(RENAME_NOREPLACE);
 
 retry:
 	err = vfs_path_parent_lookup(to, lookup_flags | LOOKUP_BENEATH,
@@ -743,7 +747,7 @@ retry:
 	}
 
 	new_dentry = lookup_one_qstr_excl(&new_last, new_path.dentry,
-					  lookup_flags | LOOKUP_RENAME_TARGET);
+					  lookup_flags | target_lookup_flags);
 	if (IS_ERR(new_dentry)) {
 		err = PTR_ERR(new_dentry);
 		goto out3;
@@ -753,16 +757,6 @@ retry:
 		err = -EACCES;
 		goto out4;
 	}
-
-	/*
-	 * explicitly handle file overwrite case, for compatibility with
-	 * filesystems that may not support rename flags (e.g: fuse)
-	 */
-	if ((flags & RENAME_NOREPLACE) && d_is_positive(new_dentry)) {
-		err = -EEXIST;
-		goto out4;
-	}
-	flags &= ~(RENAME_NOREPLACE);
 
 	if (old_child == trap) {
 		err = -EINVAL;
