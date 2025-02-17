@@ -31,8 +31,11 @@ static struct avs_path_module *avs_get_volume_module(struct avs_dev *adev, u32 i
 	list_for_each_entry(path, &adev->path_list, node) {
 		list_for_each_entry(ppl, &path->ppl_list, node) {
 			list_for_each_entry(mod, &ppl->mod_list, node) {
-				if (guid_equal(&mod->template->cfg_ext->type, &AVS_PEAKVOL_MOD_UUID)
-				    && mod->template->ctl_id == id) {
+				guid_t *type = &mod->template->cfg_ext->type;
+
+				if ((guid_equal(type, &AVS_PEAKVOL_MOD_UUID) ||
+				     guid_equal(type, &AVS_GAIN_MOD_UUID)) &&
+				    mod->template->ctl_id == id) {
 					spin_unlock(&adev->path_list_lock);
 					return mod;
 				}
