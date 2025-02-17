@@ -266,6 +266,16 @@ fib_rule6_test()
 			"sport and dport range no redirect to table"
 	fi
 
+	ip rule help 2>&1 | grep sport | grep -q MASK
+	if [ $? -eq 0 ]; then
+		match="sport 0x0f00/0xff00 dport 0x000f/0x00ff"
+		getmatch="sport 0x0f11 dport 0x220f"
+		getnomatch="sport 0x1f11 dport 0x221f"
+		fib_rule6_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "sport and dport masked redirect to table" \
+			"sport and dport masked no redirect to table"
+	fi
+
 	fib_check_iproute_support "ipproto" "ipproto"
 	if [ $? -eq 0 ]; then
 		match="ipproto tcp"
@@ -541,6 +551,16 @@ fib_rule4_test()
 			"$getnomatch" \
 			"sport and dport range redirect to table" \
 			"sport and dport range no redirect to table"
+	fi
+
+	ip rule help 2>&1 | grep sport | grep -q MASK
+	if [ $? -eq 0 ]; then
+		match="sport 0x0f00/0xff00 dport 0x000f/0x00ff"
+		getmatch="sport 0x0f11 dport 0x220f"
+		getnomatch="sport 0x1f11 dport 0x221f"
+		fib_rule4_test_match_n_redirect "$match" "$getmatch" \
+			"$getnomatch" "sport and dport masked redirect to table" \
+			"sport and dport masked no redirect to table"
 	fi
 
 	fib_check_iproute_support "ipproto" "ipproto"
