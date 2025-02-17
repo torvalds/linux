@@ -654,10 +654,10 @@ static void rtw_print_rate(struct seq_file *m, u8 rate)
 	case DESC_RATE6M...DESC_RATE54M:
 		rtw_print_ofdm_rate_txt(m, rate);
 		break;
-	case DESC_RATEMCS0...DESC_RATEMCS15:
+	case DESC_RATEMCS0...DESC_RATEMCS31:
 		rtw_print_ht_rate_txt(m, rate);
 		break;
-	case DESC_RATEVHT1SS_MCS0...DESC_RATEVHT2SS_MCS9:
+	case DESC_RATEVHT1SS_MCS0...DESC_RATEVHT4SS_MCS9:
 		rtw_print_vht_rate_txt(m, rate);
 		break;
 	default:
@@ -849,20 +849,28 @@ static int rtw_debugfs_get_phy_info(struct seq_file *m, void *v)
 			   last_cnt->num_qry_pkt[rate_id + 9]);
 	}
 
-	seq_printf(m, "[RSSI(dBm)] = {%d, %d}\n",
+	seq_printf(m, "[RSSI(dBm)] = {%d, %d, %d, %d}\n",
 		   dm_info->rssi[RF_PATH_A] - 100,
-		   dm_info->rssi[RF_PATH_B] - 100);
-	seq_printf(m, "[Rx EVM(dB)] = {-%d, -%d}\n",
+		   dm_info->rssi[RF_PATH_B] - 100,
+		   dm_info->rssi[RF_PATH_C] - 100,
+		   dm_info->rssi[RF_PATH_D] - 100);
+	seq_printf(m, "[Rx EVM(dB)] = {-%d, -%d, -%d, -%d}\n",
 		   dm_info->rx_evm_dbm[RF_PATH_A],
-		   dm_info->rx_evm_dbm[RF_PATH_B]);
-	seq_printf(m, "[Rx SNR] = {%d, %d}\n",
+		   dm_info->rx_evm_dbm[RF_PATH_B],
+		   dm_info->rx_evm_dbm[RF_PATH_C],
+		   dm_info->rx_evm_dbm[RF_PATH_D]);
+	seq_printf(m, "[Rx SNR] = {%d, %d, %d, %d}\n",
 		   dm_info->rx_snr[RF_PATH_A],
-		   dm_info->rx_snr[RF_PATH_B]);
-	seq_printf(m, "[CFO_tail(KHz)] = {%d, %d}\n",
+		   dm_info->rx_snr[RF_PATH_B],
+		   dm_info->rx_snr[RF_PATH_C],
+		   dm_info->rx_snr[RF_PATH_D]);
+	seq_printf(m, "[CFO_tail(KHz)] = {%d, %d, %d, %d}\n",
 		   dm_info->cfo_tail[RF_PATH_A],
-		   dm_info->cfo_tail[RF_PATH_B]);
+		   dm_info->cfo_tail[RF_PATH_B],
+		   dm_info->cfo_tail[RF_PATH_C],
+		   dm_info->cfo_tail[RF_PATH_D]);
 
-	if (dm_info->curr_rx_rate >= DESC_RATE11M) {
+	if (dm_info->curr_rx_rate >= DESC_RATE6M) {
 		seq_puts(m, "[Rx Average Status]:\n");
 		seq_printf(m, " * OFDM, EVM: {-%d}, SNR: {%d}\n",
 			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_OFDM]),
@@ -875,6 +883,13 @@ static int rtw_debugfs_get_phy_info(struct seq_file *m, void *v)
 			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_2SS_B]),
 			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_2SS_A]),
 			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_2SS_B]));
+		seq_printf(m, " * 3SS, EVM: {-%d, -%d, -%d}, SNR: {%d, %d, %d}\n",
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_3SS_A]),
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_3SS_B]),
+			   (u8)ewma_evm_read(&ewma_evm[RTW_EVM_3SS_C]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_3SS_A]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_3SS_B]),
+			   (u8)ewma_snr_read(&ewma_snr[RTW_SNR_3SS_C]));
 	}
 
 	seq_puts(m, "[Rx Counter]:\n");
