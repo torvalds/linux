@@ -862,11 +862,10 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		val = (val * MICRO) + val2;
 		i = find_closest(val, scale_avail_uv, cs->num_scales);
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		ret = st->write_scale(indio_dev, ch, i + cs->reg_offset);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		cs->range = i;
@@ -878,11 +877,10 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 		i = find_closest(val, st->oversampling_avail,
 				 st->num_os_ratios);
 
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret < 0)
-			return ret;
+		if (!iio_device_claim_direct(indio_dev))
+			return -EBUSY;
 		ret = st->write_os(indio_dev, i);
-		iio_device_release_direct_mode(indio_dev);
+		iio_device_release_direct(indio_dev);
 		if (ret < 0)
 			return ret;
 		st->oversampling = st->oversampling_avail[i];
