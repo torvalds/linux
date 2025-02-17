@@ -472,6 +472,9 @@
 #define   GM45_ERROR_CP_PRIV				(1 << 3)
 #define   I915_ERROR_MEMORY_REFRESH			(1 << 1)
 #define   I915_ERROR_INSTRUCTION			(1 << 0)
+
+#define GEN2_ERROR_REGS		I915_ERROR_REGS(EMR, EIR)
+
 #define INSTPM	        _MMIO(0x20c0)
 #define   INSTPM_SELF_EN (1 << 12) /* 915GM only */
 #define   INSTPM_AGPBUSY_INT_EN (1 << 11) /* gen3: when disabled, pending interrupts
