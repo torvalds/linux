@@ -145,7 +145,8 @@ static int appletb_bl_probe(struct hid_device *hdev, const struct hid_device_id 
 		appletb_bl_brightness_map[(appletb_bl_def_brightness > 2) ? 2 : appletb_bl_def_brightness]);
 
 	if (ret) {
-		dev_err_probe(dev, ret, "Failed to set touch bar brightness to off\n");
+		dev_err_probe(dev, ret, "Failed to set default touch bar brightness to %d\n",
+			      appletb_bl_def_brightness);
 		goto close_hw;
 	}
 
@@ -199,5 +200,5 @@ module_hid_driver(appletb_bl_hid_driver);
 
 MODULE_AUTHOR("Ronald Tschalär");
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
-MODULE_DESCRIPTION("MacBookPro Touch Bar Backlight Driver");
+MODULE_DESCRIPTION("MacBook Pro Touch Bar Backlight driver");
 MODULE_LICENSE("GPL");
