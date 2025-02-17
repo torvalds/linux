@@ -1784,6 +1784,114 @@ void bdw_disable_vblank(struct drm_crtc *_crtc)
 		schedule_work(&display->irq.vblank_dc_work);
 }
 
+static u32 vlv_dpinvgtt_pipe_fault_mask(enum pipe pipe)
+{
+	switch (pipe) {
+	case PIPE_A:
+		return SPRITEB_INVALID_GTT_STATUS |
+			SPRITEA_INVALID_GTT_STATUS |
+			PLANEA_INVALID_GTT_STATUS |
+			CURSORA_INVALID_GTT_STATUS;
+	case PIPE_B:
+		return SPRITED_INVALID_GTT_STATUS |
+			SPRITEC_INVALID_GTT_STATUS |
+			PLANEB_INVALID_GTT_STATUS |
+			CURSORB_INVALID_GTT_STATUS;
+	case PIPE_C:
+		return SPRITEF_INVALID_GTT_STATUS |
+			SPRITEE_INVALID_GTT_STATUS |
+			PLANEC_INVALID_GTT_STATUS |
+			CURSORC_INVALID_GTT_STATUS;
+	default:
+		return 0;
+	}
+}
+
+static const struct pipe_fault_handler vlv_pipe_fault_handlers[] = {
+	{ .fault = SPRITEB_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE1, },
+	{ .fault = SPRITEA_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = PLANEA_INVALID_GTT_STATUS,  .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = CURSORA_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR,  },
+	{ .fault = SPRITED_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE1, },
+	{ .fault = SPRITEC_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = PLANEB_INVALID_GTT_STATUS,  .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = CURSORB_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR,  },
+	{ .fault = SPRITEF_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE1, },
+	{ .fault = SPRITEE_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_SPRITE0, },
+	{ .fault = PLANEC_INVALID_GTT_STATUS,  .handle = handle_plane_fault, .plane_id = PLANE_PRIMARY, },
+	{ .fault = CURSORC_INVALID_GTT_STATUS, .handle = handle_plane_fault, .plane_id = PLANE_CURSOR,  },
+	{}
+};
+
+static void vlv_page_table_error_irq_ack(struct intel_display *display, u32 *dpinvgtt)
+{
+	u32 status, enable, tmp;
+
+	tmp = intel_de_read(display, DPINVGTT);
+
+	enable = tmp >> 16;
+	status = tmp & 0xffff;
+
+	/*
+	 * Despite what the docs claim, the status bits seem to get
+	 * stuck permanently (similar the old PGTBL_ER register), so
+	 * we have to disable and ignore them once set. They do get
+	 * reset if the display power well goes down, so no need to
+	 * track the enable mask explicitly.
+	 */
+	*dpinvgtt = status & enable;
+	enable &= ~status;
+
+	/* customary ack+disable then re-enable to guarantee an edge */
+	intel_de_write(display, DPINVGTT, status);
+	intel_de_write(display, DPINVGTT, enable << 16);
+}
+
+static void vlv_page_table_error_irq_handler(struct intel_display *display, u32 dpinvgtt)
+{
+	enum pipe pipe;
+
+	for_each_pipe(display, pipe) {
+		u32 fault_errors;
+
+		fault_errors = dpinvgtt & vlv_dpinvgtt_pipe_fault_mask(pipe);
+		if (fault_errors)
+			intel_pipe_fault_irq_handler(display, vlv_pipe_fault_handlers,
+						     pipe, fault_errors);
+	}
+}
+
+void vlv_display_error_irq_ack(struct intel_display *display,
+			       u32 *eir, u32 *dpinvgtt)
+{
+	u32 emr;
+
+	*eir = intel_de_read(display, VLV_EIR);
+
+	if (*eir & VLV_ERROR_PAGE_TABLE)
+		vlv_page_table_error_irq_ack(display, dpinvgtt);
+
+	intel_de_write(display, VLV_EIR, *eir);
+
+	/*
+	 * Toggle all EMR bits to make sure we get an edge
+	 * in the ISR master error bit if we don't clear
+	 * all the EIR bits.
+	 */
+	emr = intel_de_read(display, VLV_EMR);
+	intel_de_write(display, VLV_EMR, 0xffffffff);
+	intel_de_write(display, VLV_EMR, emr);
+}
+
+void vlv_display_error_irq_handler(struct intel_display *display,
+				   u32 eir, u32 dpinvgtt)
+{
+	drm_dbg(display->drm, "Master Error, EIR 0x%08x\n", eir);
+
+	if (eir & VLV_ERROR_PAGE_TABLE)
+		vlv_page_table_error_irq_handler(display, dpinvgtt);
+}
+
 static void _vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = &dev_priv->display;
@@ -1792,6 +1900,9 @@ static void _vlv_display_irq_reset(struct drm_i915_private *dev_priv)
 		intel_de_write(display, DPINVGTT, DPINVGTT_STATUS_MASK_CHV);
 	else
 		intel_de_write(display, DPINVGTT, DPINVGTT_STATUS_MASK_VLV);
+
+	gen2_error_reset(to_intel_uncore(display->drm),
+			 VLV_ERROR_REGS);
 
 	i915_hotplug_interrupt_update_locked(dev_priv, 0xffffffff, 0);
 	intel_de_rmw(display, PORT_HOTPLUG_STAT(dev_priv), 0, 0);
@@ -1820,6 +1931,12 @@ void i9xx_display_irq_reset(struct drm_i915_private *i915)
 	i9xx_pipestat_irq_reset(i915);
 }
 
+static u32 vlv_error_mask(void)
+{
+	/* TODO enable other errors too? */
+	return VLV_ERROR_PAGE_TABLE;
+}
+
 void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 {
 	struct intel_display *display = &dev_priv->display;
@@ -1829,6 +1946,18 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 
 	if (!dev_priv->display.irq.vlv_display_irqs_enabled)
 		return;
+
+	if (IS_CHERRYVIEW(dev_priv))
+		intel_de_write(display, DPINVGTT,
+			       DPINVGTT_STATUS_MASK_CHV |
+			       DPINVGTT_EN_MASK_CHV);
+	else
+		intel_de_write(display, DPINVGTT,
+			       DPINVGTT_STATUS_MASK_VLV |
+			       DPINVGTT_EN_MASK_VLV);
+
+	gen2_error_init(to_intel_uncore(display->drm),
+			VLV_ERROR_REGS, ~vlv_error_mask());
 
 	pipestat_mask = PIPE_CRC_DONE_INTERRUPT_STATUS;
 
@@ -1840,7 +1969,8 @@ void vlv_display_irq_postinstall(struct drm_i915_private *dev_priv)
 		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 		I915_LPE_PIPE_A_INTERRUPT |
-		I915_LPE_PIPE_B_INTERRUPT;
+		I915_LPE_PIPE_B_INTERRUPT |
+		I915_MASTER_ERROR_INTERRUPT;
 
 	if (IS_CHERRYVIEW(dev_priv))
 		enable_mask |= I915_DISPLAY_PIPE_C_EVENT_INTERRUPT |

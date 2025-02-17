@@ -76,6 +76,9 @@ void i915_pipestat_irq_handler(struct drm_i915_private *i915, u32 iir, u32 pipe_
 void i965_pipestat_irq_handler(struct drm_i915_private *i915, u32 iir, u32 pipe_stats[I915_MAX_PIPES]);
 void valleyview_pipestat_irq_handler(struct drm_i915_private *i915, u32 pipe_stats[I915_MAX_PIPES]);
 
+void vlv_display_error_irq_ack(struct intel_display *display, u32 *eir, u32 *dpinvgtt);
+void vlv_display_error_irq_handler(struct intel_display *display, u32 eir, u32 dpinvgtt);
+
 void intel_display_irq_init(struct drm_i915_private *i915);
 
 void i915gm_irq_cstate_wa(struct drm_i915_private *i915, bool enable);

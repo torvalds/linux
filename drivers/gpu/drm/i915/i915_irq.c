@@ -241,6 +241,7 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 iir, gt_iir, pm_iir;
+		u32 eir = 0, dpinvgtt = 0;
 		u32 pipe_stats[I915_MAX_PIPES] = {};
 		u32 hotplug_status = 0;
 		u32 ier = 0;
@@ -278,6 +279,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			vlv_display_error_irq_ack(display, &eir, &dpinvgtt);
+
 		/* Call regardless, as some status bits might not be
 		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
@@ -304,6 +308,9 @@ static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			vlv_display_error_irq_handler(display, eir, dpinvgtt);
+
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
 
@@ -328,6 +335,7 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 	do {
 		u32 master_ctl, iir;
+		u32 eir = 0, dpinvgtt = 0;
 		u32 pipe_stats[I915_MAX_PIPES] = {};
 		u32 hotplug_status = 0;
 		u32 ier = 0;
@@ -361,6 +369,9 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 		if (iir & I915_DISPLAY_PORT_INTERRUPT)
 			hotplug_status = i9xx_hpd_irq_ack(dev_priv);
 
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			vlv_display_error_irq_ack(display, &eir, &dpinvgtt);
+
 		/* Call regardless, as some status bits might not be
 		 * signalled in IIR */
 		i9xx_pipestat_irq_ack(dev_priv, iir, pipe_stats);
@@ -382,6 +393,9 @@ static irqreturn_t cherryview_irq_handler(int irq, void *arg)
 
 		if (hotplug_status)
 			i9xx_hpd_irq_handler(dev_priv, hotplug_status);
+
+		if (iir & I915_MASTER_ERROR_INTERRUPT)
+			vlv_display_error_irq_handler(display, eir, dpinvgtt);
 
 		valleyview_pipestat_irq_handler(dev_priv, pipe_stats);
 	} while (0);
