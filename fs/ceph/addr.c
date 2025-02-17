@@ -1191,7 +1191,7 @@ void __ceph_allocate_page_array(struct ceph_writeback_ctl *ceph_wbc,
 static inline
 void ceph_allocate_page_array(struct address_space *mapping,
 			      struct ceph_writeback_ctl *ceph_wbc,
-			      struct page *page)
+			      struct folio *folio)
 {
 	struct inode *inode = mapping->host;
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -1200,13 +1200,13 @@ void ceph_allocate_page_array(struct address_space *mapping,
 	u32 xlen;
 
 	/* prepare async write request */
-	ceph_wbc->offset = (u64)page_offset(page);
+	ceph_wbc->offset = (u64)folio_pos(folio);
 	ceph_calc_file_object_mapping(&ci->i_layout,
 					ceph_wbc->offset, ceph_wbc->wsize,
 					&objnum, &objoff, &xlen);
 
 	ceph_wbc->num_ops = 1;
-	ceph_wbc->strip_unit_end = page->index + ((xlen - 1) >> PAGE_SHIFT);
+	ceph_wbc->strip_unit_end = folio->index + ((xlen - 1) >> PAGE_SHIFT);
 
 	BUG_ON(ceph_wbc->pages);
 	ceph_wbc->max_pages = calc_pages_for(0, (u64)xlen);
@@ -1338,7 +1338,7 @@ int ceph_process_folio_batch(struct address_space *mapping,
 		 * allocate a page array
 		 */
 		if (ceph_wbc->locked_pages == 0) {
-			ceph_allocate_page_array(mapping, ceph_wbc, &folio->page);
+			ceph_allocate_page_array(mapping, ceph_wbc, folio);
 		} else if (!is_folio_index_contiguous(ceph_wbc, folio)) {
 			if (is_num_ops_too_big(ceph_wbc)) {
 				folio_redirty_for_writepage(wbc, folio);
