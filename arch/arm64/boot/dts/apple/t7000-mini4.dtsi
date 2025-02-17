@@ -57,3 +57,7 @@
 &typhoon_opp06 {
 	status = "okay";
 };
+
+&typhoon_opp07 {
+	status = "okay";
+};

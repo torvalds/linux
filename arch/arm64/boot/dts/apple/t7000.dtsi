@@ -84,6 +84,12 @@
 			clock-latency-ns = <42000>;
 			status = "disabled"; /* Not available on N102 */
 		};
+		typhoon_opp07: opp07 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-level = <7>;
+			clock-latency-ns = <49000>;
+			status = "disabled"; /* J96 and J97 only */
+		};
 	};
 
 	soc {
