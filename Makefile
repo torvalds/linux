@@ -151,9 +151,6 @@ endif
 
 export KBUILD_EXTMOD
 
-# backward compatibility
-KBUILD_EXTRA_WARN ?= $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)
-
 ifeq ("$(origin W)", "command line")
   KBUILD_EXTRA_WARN := $(W)
 endif
