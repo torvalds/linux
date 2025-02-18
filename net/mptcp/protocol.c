@@ -496,7 +496,7 @@ static void mptcp_cleanup_rbuf(struct mptcp_sock *msk, int copied)
 	bool cleanup, rx_empty;
 
 	cleanup = (space > 0) && (space >= (old_space << 1)) && copied;
-	rx_empty = !__mptcp_rmem(sk) && copied;
+	rx_empty = !sk_rmem_alloc_get(sk) && copied;
 
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
@@ -645,7 +645,7 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		WRITE_ONCE(tp->copied_seq, seq);
 		more_data_avail = mptcp_subflow_data_available(ssk);
 
-		if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf) {
+		if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf) {
 			done = true;
 			break;
 		}
@@ -782,7 +782,7 @@ static void __mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	__mptcp_rcvbuf_update(sk, ssk);
 
 	/* over limit? can't append more skbs to msk, Also, no need to wake-up*/
-	if (__mptcp_rmem(sk) > sk->sk_rcvbuf)
+	if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
 		return;
 
 	/* Wake-up the reader only for in-sequence data */
@@ -2049,7 +2049,7 @@ static bool __mptcp_move_skbs(struct sock *sk)
 		mptcp_for_each_subflow(msk, subflow)
 			__mptcp_rcvbuf_update(sk, subflow->tcp_sock);
 
-	if (__mptcp_rmem(sk) > sk->sk_rcvbuf)
+	if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
 		return false;
 
 	do {

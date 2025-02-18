@@ -380,14 +380,6 @@ static inline void msk_owned_by_me(const struct mptcp_sock *msk)
 #define mptcp_sk(ptr) container_of_const(ptr, struct mptcp_sock, sk.icsk_inet.sk)
 #endif
 
-/* the msk socket don't use the backlog, also account for the bulk
- * free memory
- */
-static inline int __mptcp_rmem(const struct sock *sk)
-{
-	return atomic_read(&sk->sk_rmem_alloc);
-}
-
 static inline int mptcp_win_from_space(const struct sock *sk, int space)
 {
 	return __tcp_win_from_space(mptcp_sk(sk)->scaling_ratio, space);
@@ -400,7 +392,8 @@ static inline int mptcp_space_from_win(const struct sock *sk, int win)
 
 static inline int __mptcp_space(const struct sock *sk)
 {
-	return mptcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf) - __mptcp_rmem(sk));
+	return mptcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf) -
+				    sk_rmem_alloc_get(sk));
 }
 
 static inline struct mptcp_data_frag *mptcp_send_head(const struct sock *sk)
