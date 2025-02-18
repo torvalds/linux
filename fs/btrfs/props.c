@@ -273,12 +273,13 @@ static void inode_prop_iterator(void *ctx,
 		set_bit(BTRFS_INODE_HAS_PROPS, &BTRFS_I(inode)->runtime_flags);
 }
 
-int btrfs_load_inode_props(struct inode *inode, struct btrfs_path *path)
+int btrfs_load_inode_props(struct btrfs_inode *inode, struct btrfs_path *path)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	struct btrfs_root *root = inode->root;
+	u64 ino = btrfs_ino(inode);
 
-	return iterate_object_props(root, path, ino, inode_prop_iterator, inode);
+	return iterate_object_props(root, path, ino, inode_prop_iterator,
+				    &inode->vfs_inode);
 }
 
 static int prop_compression_validate(const struct btrfs_inode *inode,
