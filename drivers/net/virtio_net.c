@@ -1088,11 +1088,10 @@ static bool is_xdp_raw_buffer_queue(struct virtnet_info *vi, int q)
 		return false;
 }
 
-static void check_sq_full_and_disable(struct virtnet_info *vi,
-				      struct net_device *dev,
-				      struct send_queue *sq)
+static bool tx_may_stop(struct virtnet_info *vi,
+			struct net_device *dev,
+			struct send_queue *sq)
 {
-	bool use_napi = sq->napi.weight;
 	int qnum;
 
 	qnum = sq - vi->sq;
@@ -1114,6 +1113,25 @@ static void check_sq_full_and_disable(struct virtnet_info *vi,
 		u64_stats_update_begin(&sq->stats.syncp);
 		u64_stats_inc(&sq->stats.stop);
 		u64_stats_update_end(&sq->stats.syncp);
+
+		return true;
+	}
+
+	return false;
+}
+
+static void check_sq_full_and_disable(struct virtnet_info *vi,
+				      struct net_device *dev,
+				      struct send_queue *sq)
+{
+	bool use_napi = sq->napi.weight;
+	int qnum;
+
+	qnum = sq - vi->sq;
+
+	if (tx_may_stop(vi, dev, sq)) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, qnum);
+
 		if (use_napi) {
 			if (unlikely(!virtqueue_enable_cb_delayed(sq->vq)))
 				virtqueue_napi_schedule(&sq->napi, sq->vq);
@@ -3253,15 +3271,10 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 	bool use_napi = sq->napi.weight;
 	bool kick;
 
-	/* Free up any pending old buffers before queueing new ones. */
-	do {
-		if (use_napi)
-			virtqueue_disable_cb(sq->vq);
-
+	if (!use_napi)
 		free_old_xmit(sq, txq, false);
-
-	} while (use_napi && !xmit_more &&
-	       unlikely(!virtqueue_enable_cb_delayed(sq->vq)));
+	else
+		virtqueue_disable_cb(sq->vq);
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
@@ -3287,7 +3300,10 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 		nf_reset_ct(skb);
 	}
 
-	check_sq_full_and_disable(vi, dev, sq);
+	if (use_napi)
+		tx_may_stop(vi, dev, sq);
+	else
+		check_sq_full_and_disable(vi, dev,sq);
 
 	kick = use_napi ? __netdev_tx_sent_queue(txq, skb->len, xmit_more) :
 			  !xmit_more || netif_xmit_stopped(txq);
@@ -3298,6 +3314,9 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 			u64_stats_update_end(&sq->stats.syncp);
 		}
 	}
+
+	if (use_napi && kick && unlikely(!virtqueue_enable_cb_delayed(sq->vq)))
+		virtqueue_napi_schedule(&sq->napi, sq->vq);
 
 	return NETDEV_TX_OK;
 }
