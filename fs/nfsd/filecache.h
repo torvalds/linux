@@ -4,6 +4,12 @@
 #include <linux/fsnotify_backend.h>
 
 /*
+ * Limit the time that the list_lru_one lock is held during
+ * an LRU scan.
+ */
+#define NFSD_FILE_GC_BATCH     (16UL)
+
+/*
  * This is the fsnotify_mark container that nfsd attaches to the files that it
  * is holding open. Note that we have a separate refcount here aside from the
  * one in the fsnotify_mark. We only want a single fsnotify_mark attached to

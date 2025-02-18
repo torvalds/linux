@@ -544,6 +544,13 @@ nfsd_file_gc_cb(struct list_head *item, struct list_lru_one *lru,
 	return nfsd_file_lru_cb(item, lru, arg);
 }
 
+/* If the shrinker runs between calls to list_lru_walk_node() in
+ * nfsd_file_gc(), the "remaining" count will be wrong.  This could
+ * result in premature freeing of some files.  This may not matter much
+ * but is easy to fix with this spinlock which temporarily disables
+ * the shrinker.
+ */
+static DEFINE_SPINLOCK(nfsd_gc_lock);
 static void
 nfsd_file_gc(void)
 {
@@ -551,12 +558,22 @@ nfsd_file_gc(void)
 	LIST_HEAD(dispose);
 	int nid;
 
+	spin_lock(&nfsd_gc_lock);
 	for_each_node_state(nid, N_NORMAL_MEMORY) {
-		unsigned long nr = list_lru_count_node(&nfsd_file_lru, nid);
+		unsigned long remaining = list_lru_count_node(&nfsd_file_lru, nid);
 
-		ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_gc_cb,
-					  &dispose, &nr);
+		while (remaining > 0) {
+			unsigned long nr = min(remaining, NFSD_FILE_GC_BATCH);
+
+			remaining -= nr;
+			ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_gc_cb,
+						  &dispose, &nr);
+			if (nr)
+				/* walk aborted early */
+				remaining = 0;
+		}
 	}
+	spin_unlock(&nfsd_gc_lock);
 	trace_nfsd_file_gc_removed(ret, list_lru_count(&nfsd_file_lru));
 	nfsd_file_dispose_list_delayed(&dispose);
 }
@@ -581,8 +598,12 @@ nfsd_file_lru_scan(struct shrinker *s, struct shrink_control *sc)
 	LIST_HEAD(dispose);
 	unsigned long ret;
 
+	if (!spin_trylock(&nfsd_gc_lock))
+		return SHRINK_STOP;
+
 	ret = list_lru_shrink_walk(&nfsd_file_lru, sc,
 				   nfsd_file_lru_cb, &dispose);
+	spin_unlock(&nfsd_gc_lock);
 	trace_nfsd_file_shrinker_removed(ret, list_lru_count(&nfsd_file_lru));
 	nfsd_file_dispose_list_delayed(&dispose);
 	return ret;
