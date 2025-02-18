@@ -795,7 +795,7 @@ static int imx214_set_ctrl(struct v4l2_ctrl *ctrl)
 					     struct imx214, ctrls);
 	const struct v4l2_mbus_framefmt *format = NULL;
 	struct v4l2_subdev_state *state;
-	int ret;
+	int ret = 0;
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
 		int exposure_max, exposure_def;
