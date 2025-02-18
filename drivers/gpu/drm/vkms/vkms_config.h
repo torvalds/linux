@@ -99,6 +99,7 @@ struct vkms_config_encoder {
  *
  * @link: Link to the others connector in vkms_config
  * @config: The vkms_config this connector belongs to
+ * @possible_encoders: Array of encoders that can be used with this connector
  * @connector: Internal usage. This pointer should never be considered as valid.
  *             It can be used to store a temporary reference to a VKMS connector
  *             during device creation. This pointer is not managed by the
@@ -107,6 +108,8 @@ struct vkms_config_encoder {
 struct vkms_config_connector {
 	struct list_head link;
 	struct vkms_config *config;
+
+	struct xarray possible_encoders;
 
 	/* Internal usage */
 	struct vkms_connector *connector;
@@ -163,6 +166,16 @@ struct vkms_config_connector {
  */
 #define vkms_config_encoder_for_each_possible_crtc(encoder_cfg, idx, possible_crtc) \
 	xa_for_each(&(encoder_cfg)->possible_crtcs, idx, (possible_crtc))
+
+/**
+ * vkms_config_connector_for_each_possible_encoder - Iterate over the
+ * vkms_config_connector possible encoders
+ * @connector_cfg: &struct vkms_config_connector pointer
+ * @idx: Index of the cursor
+ * @possible_encoder: &struct vkms_config_encoder pointer used as cursor
+ */
+#define vkms_config_connector_for_each_possible_encoder(connector_cfg, idx, possible_encoder) \
+	xa_for_each(&(connector_cfg)->possible_encoders, idx, (possible_encoder))
 
 /**
  * vkms_config_create() - Create a new VKMS configuration
@@ -404,5 +417,21 @@ struct vkms_config_connector *vkms_config_create_connector(struct vkms_config *c
  * @connector_cfg: Connector configuration to destroy
  */
 void vkms_config_destroy_connector(struct vkms_config_connector *connector_cfg);
+
+/**
+ * vkms_config_connector_attach_encoder - Attach a connector to an encoder
+ * @connector_cfg: Connector to attach
+ * @encoder_cfg: Encoder to attach @connector_cfg to
+ */
+int __must_check vkms_config_connector_attach_encoder(struct vkms_config_connector *connector_cfg,
+						      struct vkms_config_encoder *encoder_cfg);
+
+/**
+ * vkms_config_connector_detach_encoder - Detach a connector from an encoder
+ * @connector_cfg: Connector to detach
+ * @encoder_cfg: Encoder to detach @connector_cfg from
+ */
+void vkms_config_connector_detach_encoder(struct vkms_config_connector *connector_cfg,
+					  struct vkms_config_encoder *encoder_cfg);
 
 #endif /* _VKMS_CONFIG_H_ */
