@@ -9,6 +9,7 @@
 
 #include <linux/regmap.h>
 #include <drm/drm_modes.h>
+#include <dt-bindings/soc/rockchip,vop2.h>
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 
@@ -57,6 +58,23 @@ enum vop2_scale_down_mode {
 #define VOP2_PD_DSC_8K		BIT(5)
 #define VOP2_PD_DSC_4K		BIT(6)
 #define VOP2_PD_ESMART		BIT(7)
+
+#define vop2_output_if_is_hdmi(x)	((x) == ROCKCHIP_VOP2_EP_HDMI0 || \
+					 (x) == ROCKCHIP_VOP2_EP_HDMI1)
+
+#define vop2_output_if_is_dp(x)		((x) == ROCKCHIP_VOP2_EP_DP0 || \
+					 (x) == ROCKCHIP_VOP2_EP_DP1)
+
+#define vop2_output_if_is_edp(x)	((x) == ROCKCHIP_VOP2_EP_EDP0 || \
+					 (x) == ROCKCHIP_VOP2_EP_EDP1)
+
+#define vop2_output_if_is_mipi(x)	((x) == ROCKCHIP_VOP2_EP_MIPI0 || \
+					 (x) == ROCKCHIP_VOP2_EP_MIPI1)
+
+#define vop2_output_if_is_lvds(x)	((x) == ROCKCHIP_VOP2_EP_LVDS0 || \
+					 (x) == ROCKCHIP_VOP2_EP_LVDS1)
+
+#define vop2_output_if_is_dpi(x)	((x) == ROCKCHIP_VOP2_EP_RGB0)
 
 enum vop2_win_regs {
 	VOP2_WIN_ENABLE,
@@ -162,6 +180,23 @@ struct vop2_win_data {
 	const u8 dly[VOP2_DLY_MODE_MAX];
 };
 
+struct vop2_win {
+	struct vop2 *vop2;
+	struct drm_plane base;
+	const struct vop2_win_data *data;
+	struct regmap_field *reg[VOP2_WIN_MAX_REG];
+
+	/**
+	 * @win_id: graphic window id, a cluster may be split into two
+	 * graphics windows.
+	 */
+	u8 win_id;
+	u8 delay;
+	u32 offset;
+
+	enum drm_plane_type type;
+};
+
 struct vop2_video_port_data {
 	unsigned int id;
 	u32 feature;
@@ -172,18 +207,106 @@ struct vop2_video_port_data {
 	unsigned int offset;
 };
 
+struct vop2_video_port {
+	struct drm_crtc crtc;
+	struct vop2 *vop2;
+	struct clk *dclk;
+	struct clk *dclk_src;
+	unsigned int id;
+	const struct vop2_video_port_data *data;
+
+	struct completion dsp_hold_completion;
+
+	/**
+	 * @win_mask: Bitmask of windows attached to the video port;
+	 */
+	u32 win_mask;
+
+	struct vop2_win *primary_plane;
+	struct drm_pending_vblank_event *event;
+
+	unsigned int nlayers;
+};
+
+/**
+ * struct vop2_ops - helper operations for vop2 hardware
+ *
+ * These hooks are used by the common part of the vop2 driver to
+ * implement the proper behaviour of different variants.
+ */
+struct vop2_ops {
+	unsigned long (*setup_intf_mux)(struct vop2_video_port *vp, int ep_id, u32 polflags);
+	void (*setup_bg_dly)(struct vop2_video_port *vp);
+	void (*setup_overlay)(struct vop2_video_port *vp);
+};
+
 struct vop2_data {
 	u8 nr_vps;
 	u64 feature;
+	const struct vop2_ops *ops;
 	const struct vop2_win_data *win;
 	const struct vop2_video_port_data *vp;
+	const struct reg_field *cluster_reg;
+	const struct reg_field *smart_reg;
 	const struct vop2_regs_dump *regs_dump;
 	struct vop_rect max_input;
 	struct vop_rect max_output;
 
+	unsigned int nr_cluster_regs;
+	unsigned int nr_smart_regs;
 	unsigned int win_size;
 	unsigned int regs_dump_size;
 	unsigned int soc_id;
+};
+
+struct vop2 {
+	struct device *dev;
+	struct drm_device *drm;
+	struct vop2_video_port vps[ROCKCHIP_MAX_CRTC];
+
+	const struct vop2_data *data;
+	const struct vop2_ops *ops;
+	/*
+	 * Number of windows that are registered as plane, may be less than the
+	 * total number of hardware windows.
+	 */
+	u32 registered_num_wins;
+
+	struct resource *res;
+	void __iomem *regs;
+	struct regmap *map;
+
+	struct regmap *sys_grf;
+	struct regmap *vop_grf;
+	struct regmap *vo1_grf;
+	struct regmap *sys_pmu;
+
+	/* physical map length of vop2 register */
+	u32 len;
+
+	void __iomem *lut_regs;
+
+	/* protects crtc enable/disable */
+	struct mutex vop2_lock;
+
+	int irq;
+
+	/*
+	 * Some global resources are shared between all video ports(crtcs), so
+	 * we need a ref counter here.
+	 */
+	unsigned int enable_count;
+	struct clk *hclk;
+	struct clk *aclk;
+	struct clk *pclk;
+	struct clk *pll_hdmiphy0;
+	struct clk *pll_hdmiphy1;
+
+	/* optional internal rgb encoder */
+	struct rockchip_rgb *rgb;
+
+	/* must be put at the end of the struct */
+	struct vop2_win win[];
 };
 
 /* interrupt define */
@@ -559,5 +682,53 @@ enum vop2_layer_phy_id {
 };
 
 extern const struct component_ops vop2_component_ops;
+
+static inline void vop2_writel(struct vop2 *vop2, u32 offset, u32 v)
+{
+	regmap_write(vop2->map, offset, v);
+}
+
+static inline void vop2_vp_write(struct vop2_video_port *vp, u32 offset, u32 v)
+{
+	regmap_write(vp->vop2->map, vp->data->offset + offset, v);
+}
+
+static inline u32 vop2_readl(struct vop2 *vop2, u32 offset)
+{
+	u32 val;
+
+	regmap_read(vop2->map, offset, &val);
+
+	return val;
+}
+
+static inline u32 vop2_vp_read(struct vop2_video_port *vp, u32 offset)
+{
+	u32 val;
+
+	regmap_read(vp->vop2->map, vp->data->offset + offset, &val);
+
+	return val;
+}
+
+static inline void vop2_win_write(const struct vop2_win *win, unsigned int reg, u32 v)
+{
+	regmap_field_write(win->reg[reg], v);
+}
+
+static inline bool vop2_cluster_window(const struct vop2_win *win)
+{
+	return win->data->feature & WIN_FEATURE_CLUSTER;
+}
+
+static inline struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
+{
+	return container_of(crtc, struct vop2_video_port, crtc);
+}
+
+static inline struct vop2_win *to_vop2_win(struct drm_plane *p)
+{
+	return container_of(p, struct vop2_win, base);
+}
 
 #endif /* _ROCKCHIP_DRM_VOP2_H */
