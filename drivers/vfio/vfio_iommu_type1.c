@@ -564,6 +564,8 @@ static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
 	if (ret > 0) {
 		*pfn = page_to_pfn(pages[0]);
 		goto done;
+	} else if (!ret) {
+		ret = -EFAULT;
 	}
 
 	vaddr = untagged_addr_remote(mm, vaddr);
