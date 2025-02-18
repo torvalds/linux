@@ -1568,7 +1568,7 @@ iput_out:
 	iput(inode);
 }
 
-static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
+static struct folio *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	pgoff_t index;
 	struct folio_batch fbatch;
@@ -1622,7 +1622,7 @@ continue_unlock:
 		folio_batch_release(&fbatch);
 		cond_resched();
 	}
-	return &last_folio->page;
+	return last_folio;
 }
 
 static int __write_node_page(struct page *page, bool atomic, bool *submitted,
@@ -1790,16 +1790,16 @@ int f2fs_fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
 	pgoff_t index;
 	struct folio_batch fbatch;
 	int ret = 0;
-	struct page *last_page = NULL;
+	struct folio *last_folio = NULL;
 	bool marked = false;
 	nid_t ino = inode->i_ino;
 	int nr_folios;
 	int nwritten = 0;
 
 	if (atomic) {
-		last_page = last_fsync_dnode(sbi, ino);
-		if (IS_ERR_OR_NULL(last_page))
-			return PTR_ERR_OR_ZERO(last_page);
+		last_folio = last_fsync_dnode(sbi, ino);
+		if (IS_ERR_OR_NULL(last_folio))
+			return PTR_ERR_OR_ZERO(last_folio);
 	}
 retry:
 	folio_batch_init(&fbatch);
@@ -1815,7 +1815,7 @@ retry:
 			bool submitted = false;
 
 			if (unlikely(f2fs_cp_error(sbi))) {
-				f2fs_put_page(last_page, 0);
+				f2fs_folio_put(last_folio, false);
 				folio_batch_release(&fbatch);
 				ret = -EIO;
 				goto out;
@@ -1836,7 +1836,7 @@ continue_unlock:
 			if (ino_of_node(&folio->page) != ino)
 				goto continue_unlock;
 
-			if (!folio_test_dirty(folio) && &folio->page != last_page) {
+			if (!folio_test_dirty(folio) && folio != last_folio) {
 				/* someone wrote it for us */
 				goto continue_unlock;
 			}
@@ -1846,7 +1846,7 @@ continue_unlock:
 			set_fsync_mark(&folio->page, 0);
 			set_dentry_mark(&folio->page, 0);
 
-			if (!atomic || &folio->page == last_page) {
+			if (!atomic || folio == last_folio) {
 				set_fsync_mark(&folio->page, 1);
 				percpu_counter_inc(&sbi->rf_node_block_count);
 				if (IS_INODE(&folio->page)) {
@@ -1865,18 +1865,18 @@ continue_unlock:
 				goto continue_unlock;
 
 			ret = __write_node_page(&folio->page, atomic &&
-						&folio->page == last_page,
+						folio == last_folio,
 						&submitted, wbc, true,
 						FS_NODE_IO, seq_id);
 			if (ret) {
 				folio_unlock(folio);
-				f2fs_put_page(last_page, 0);
+				f2fs_folio_put(last_folio, false);
 				break;
 			} else if (submitted) {
 				nwritten++;
 			}
 
-			if (&folio->page == last_page) {
+			if (folio == last_folio) {
 				f2fs_folio_put(folio, false);
 				marked = true;
 				break;
@@ -1890,11 +1890,11 @@ continue_unlock:
 	}
 	if (!ret && atomic && !marked) {
 		f2fs_debug(sbi, "Retry to write fsync mark: ino=%u, idx=%lx",
-			   ino, page_folio(last_page)->index);
-		lock_page(last_page);
-		f2fs_wait_on_page_writeback(last_page, NODE, true, true);
-		set_page_dirty(last_page);
-		unlock_page(last_page);
+			   ino, last_folio->index);
+		folio_lock(last_folio);
+		f2fs_folio_wait_writeback(last_folio, NODE, true, true);
+		folio_mark_dirty(last_folio);
+		folio_unlock(last_folio);
 		goto retry;
 	}
 out:
