@@ -4886,11 +4886,11 @@ static int send_remove_xattr(struct send_ctx *sctx,
 			  struct fs_path *path,
 			  const char *name, int name_len)
 {
-	int ret = 0;
+	int ret;
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_REMOVE_XATTR);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, path);
 	TLV_PUT_STRING(sctx, BTRFS_SEND_A_XATTR_NAME, name, name_len);
@@ -4898,7 +4898,6 @@ static int send_remove_xattr(struct send_ctx *sctx,
 	ret = send_cmd(sctx);
 
 tlv_put_failure:
-out:
 	return ret;
 }
 
