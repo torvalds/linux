@@ -1927,18 +1927,18 @@ static int f2fs_match_ino(struct inode *inode, unsigned long ino, void *data)
 	return 1;
 }
 
-static bool flush_dirty_inode(struct page *page)
+static bool flush_dirty_inode(struct folio *folio)
 {
-	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
+	struct f2fs_sb_info *sbi = F2FS_F_SB(folio);
 	struct inode *inode;
-	nid_t ino = ino_of_node(page);
+	nid_t ino = ino_of_node(&folio->page);
 
 	inode = find_inode_nowait(sbi->sb, ino, f2fs_match_ino, NULL);
 	if (!inode)
 		return false;
 
-	f2fs_update_inode(inode, page);
-	unlock_page(page);
+	f2fs_update_inode(inode, &folio->page);
+	folio_unlock(folio);
 
 	iput(inode);
 	return true;
@@ -2061,7 +2061,7 @@ continue_unlock:
 			}
 
 			/* flush dirty inode */
-			if (IS_INODE(&folio->page) && flush_dirty_inode(&folio->page))
+			if (IS_INODE(&folio->page) && flush_dirty_inode(folio))
 				goto lock_node;
 write_node:
 			f2fs_folio_wait_writeback(folio, NODE, true, true);
