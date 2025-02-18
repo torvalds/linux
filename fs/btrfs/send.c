@@ -4950,12 +4950,8 @@ out:
 
 static int process_new_xattr(struct send_ctx *sctx)
 {
-	int ret = 0;
-
-	ret = iterate_dir_item(sctx->send_root, sctx->left_path,
-			       __process_new_xattr, sctx);
-
-	return ret;
+	return iterate_dir_item(sctx->send_root, sctx->left_path,
+				__process_new_xattr, sctx);
 }
 
 static int process_deleted_xattr(struct send_ctx *sctx)
