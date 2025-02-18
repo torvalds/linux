@@ -3147,6 +3147,8 @@ static int dm_suspend(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_display_manager *dm = &adev->dm;
 
 	if (amdgpu_in_reset(adev)) {
+		enum dc_status res;
+
 		mutex_lock(&dm->dc_lock);
 
 		dc_allow_idle_optimizations(adev->dm.dc, false);
@@ -3156,7 +3158,11 @@ static int dm_suspend(struct amdgpu_ip_block *ip_block)
 		if (dm->cached_dc_state)
 			dm_gpureset_toggle_interrupts(adev, dm->cached_dc_state, false);
 
-		amdgpu_dm_commit_zero_streams(dm->dc);
+		res = amdgpu_dm_commit_zero_streams(dm->dc);
+		if (res != DC_OK) {
+			drm_err(adev_to_drm(adev), "Failed to commit zero streams: %d\n", res);
+			return -EINVAL;
+		}
 
 		amdgpu_dm_irq_suspend(adev);
 
