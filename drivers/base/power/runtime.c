@@ -1460,20 +1460,6 @@ int pm_runtime_barrier(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pm_runtime_barrier);
 
-/**
- * __pm_runtime_disable - Disable runtime PM of a device.
- * @dev: Device to handle.
- * @check_resume: If set, check if there's a resume request for the device.
- *
- * Increment power.disable_depth for the device and if it was zero previously,
- * cancel all pending runtime PM requests for the device and wait for all
- * operations in progress to complete.  The device can be either active or
- * suspended after its runtime PM has been disabled.
- *
- * If @check_resume is set and there's a resume request pending when
- * __pm_runtime_disable() is called and power.disable_depth is zero, the
- * function will wake up the device before disabling its runtime PM.
- */
 void __pm_runtime_disable(struct device *dev, bool check_resume)
 {
 	spin_lock_irq(&dev->power.lock);
