@@ -3825,7 +3825,7 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 	aconnector->timing_changed = false;
 
 	if (!dc_link_detect_connection_type(aconnector->dc_link, &new_connection_type))
-		DRM_ERROR("KMS: Failed to detect connector\n");
+		drm_err(adev_to_drm(adev), "KMS: Failed to detect connector\n");
 
 	if (aconnector->base.force && new_connection_type == dc_connection_none) {
 		emulated_link_detect(aconnector->dc_link);
