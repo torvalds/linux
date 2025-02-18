@@ -56,6 +56,9 @@
 #include <asm/unwind.h>
 #include <asm/vsyscall.h>
 #include <linux/vmalloc.h>
+#if defined(CONFIG_X86_LOCAL_APIC)
+#include <asm/nmi.h>
+#endif
 
 /*
  * max_low_pfn_mapped: highest directly mapped pfn < 4 GB
@@ -145,6 +148,69 @@ static size_t ima_kexec_buffer_size;
 
 /* Boot loader ID and version as integers, for the benefit of proc_dointvec */
 int bootloader_type, bootloader_version;
+
+static const struct ctl_table x86_sysctl_table[] = {
+	{
+		.procname	= "panic_on_unrecovered_nmi",
+		.data		= &panic_on_unrecovered_nmi,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "panic_on_io_nmi",
+		.data		= &panic_on_io_nmi,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "bootloader_type",
+		.data		= &bootloader_type,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "bootloader_version",
+		.data		= &bootloader_version,
+		.maxlen		= sizeof(int),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "io_delay_type",
+		.data		= &io_delay_type,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#if defined(CONFIG_X86_LOCAL_APIC)
+	{
+		.procname       = "unknown_nmi_panic",
+		.data           = &unknown_nmi_panic,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
+	},
+#endif
+#if defined(CONFIG_ACPI_SLEEP)
+	{
+		.procname	= "acpi_video_flags",
+		.data		= &acpi_realmode_flags,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= proc_doulongvec_minmax,
+	},
+#endif
+};
+
+static int __init init_x86_sysctl(void)
+{
+	register_sysctl_init("kernel", x86_sysctl_table);
+	return 0;
+}
+arch_initcall(init_x86_sysctl);
 
 /*
  * Setup options

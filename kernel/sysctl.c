@@ -1831,58 +1831,11 @@ static const struct ctl_table kern_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86)
-	{
-		.procname       = "unknown_nmi_panic",
-		.data           = &unknown_nmi_panic,
-		.maxlen         = sizeof (int),
-		.mode           = 0644,
-		.proc_handler   = proc_dointvec,
-	},
-#endif
-
 #if (defined(CONFIG_X86_32) || defined(CONFIG_PARISC)) && \
 	defined(CONFIG_DEBUG_STACKOVERFLOW)
 	{
 		.procname	= "panic_on_stackoverflow",
 		.data		= &sysctl_panic_on_stackoverflow,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-#endif
-#if defined(CONFIG_X86)
-	{
-		.procname	= "panic_on_unrecovered_nmi",
-		.data		= &panic_on_unrecovered_nmi,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "panic_on_io_nmi",
-		.data		= &panic_on_io_nmi,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "bootloader_type",
-		.data		= &bootloader_type,
-		.maxlen		= sizeof (int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "bootloader_version",
-		.data		= &bootloader_version,
-		.maxlen		= sizeof (int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "io_delay_type",
-		.data		= &io_delay_type,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1904,15 +1857,6 @@ static const struct ctl_table kern_table[] = {
 		.maxlen		= sizeof (int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
-	},
-#endif
-#if	defined(CONFIG_ACPI_SLEEP) && defined(CONFIG_X86)
-	{
-		.procname	= "acpi_video_flags",
-		.data		= &acpi_realmode_flags,
-		.maxlen		= sizeof (unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
 	},
 #endif
 #ifdef CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN
