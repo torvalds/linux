@@ -1459,7 +1459,7 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 					struct page *parent, int start)
 {
-	struct page *page;
+	struct folio *folio;
 	int err;
 
 	if (!nid)
@@ -1467,11 +1467,11 @@ static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 	if (f2fs_check_nid_range(sbi, nid))
 		return ERR_PTR(-EINVAL);
 repeat:
-	page = f2fs_grab_cache_page(NODE_MAPPING(sbi), nid, false);
-	if (!page)
-		return ERR_PTR(-ENOMEM);
+	folio = f2fs_grab_cache_folio(NODE_MAPPING(sbi), nid, false);
+	if (IS_ERR(folio))
+		return ERR_CAST(folio);
 
-	err = read_node_page(page, 0);
+	err = read_node_page(&folio->page, 0);
 	if (err < 0) {
 		goto out_put_err;
 	} else if (err == LOCKED_PAGE) {
@@ -1482,40 +1482,40 @@ repeat:
 	if (parent)
 		f2fs_ra_node_pages(parent, start + 1, MAX_RA_NODE);
 
-	lock_page(page);
+	folio_lock(folio);
 
-	if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
-		f2fs_put_page(page, 1);
+	if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
+		f2fs_folio_put(folio, true);
 		goto repeat;
 	}
 
-	if (unlikely(!PageUptodate(page))) {
+	if (unlikely(!folio_test_uptodate(folio))) {
 		err = -EIO;
 		goto out_err;
 	}
 
-	if (!f2fs_inode_chksum_verify(sbi, page)) {
+	if (!f2fs_inode_chksum_verify(sbi, &folio->page)) {
 		err = -EFSBADCRC;
 		goto out_err;
 	}
 page_hit:
-	if (likely(nid == nid_of_node(page)))
-		return page;
+	if (likely(nid == nid_of_node(&folio->page)))
+		return &folio->page;
 
 	f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
-			  nid, nid_of_node(page), ino_of_node(page),
-			  ofs_of_node(page), cpver_of_node(page),
-			  next_blkaddr_of_node(page));
+			  nid, nid_of_node(&folio->page), ino_of_node(&folio->page),
+			  ofs_of_node(&folio->page), cpver_of_node(&folio->page),
+			  next_blkaddr_of_node(&folio->page));
 	set_sbi_flag(sbi, SBI_NEED_FSCK);
 	f2fs_handle_error(sbi, ERROR_INCONSISTENT_FOOTER);
 	err = -EFSCORRUPTED;
 out_err:
-	ClearPageUptodate(page);
+	folio_clear_uptodate(folio);
 out_put_err:
 	/* ENOENT comes from read_node_page which is not an error. */
 	if (err != -ENOENT)
-		f2fs_handle_page_eio(sbi, page_folio(page), NODE);
-	f2fs_put_page(page, 1);
+		f2fs_handle_page_eio(sbi, folio, NODE);
+	f2fs_folio_put(folio, true);
 	return ERR_PTR(err);
 }
 
