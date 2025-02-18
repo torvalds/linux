@@ -58,12 +58,31 @@ struct ps883x_retimer {
 	unsigned int svid;
 };
 
-static void ps883x_configure(struct ps883x_retimer *retimer, int cfg0,
-			     int cfg1, int cfg2)
+static int ps883x_configure(struct ps883x_retimer *retimer, int cfg0,
+			    int cfg1, int cfg2)
 {
-	regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_0, cfg0);
-	regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_1, cfg1);
-	regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_2, cfg2);
+	struct device *dev = &retimer->client->dev;
+	int ret;
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_0, cfg0);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_0: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_1, cfg1);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_1: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(retimer->regmap, REG_USB_PORT_CONN_STATUS_2, cfg2);
+	if (ret) {
+		dev_err(dev, "failed to write conn_status_2: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int ps883x_set(struct ps883x_retimer *retimer)
@@ -74,8 +93,7 @@ static int ps883x_set(struct ps883x_retimer *retimer)
 
 	if (retimer->orientation == TYPEC_ORIENTATION_NONE ||
 	    retimer->mode == TYPEC_STATE_SAFE) {
-		ps883x_configure(retimer, cfg0, cfg1, cfg2);
-		return 0;
+		return ps883x_configure(retimer, cfg0, cfg1, cfg2);
 	}
 
 	if (retimer->mode != TYPEC_STATE_USB && retimer->svid != USB_TYPEC_DP_SID)
@@ -113,9 +131,7 @@ static int ps883x_set(struct ps883x_retimer *retimer)
 		return -EOPNOTSUPP;
 	}
 
-	ps883x_configure(retimer, cfg0, cfg1, cfg2);
-
-	return 0;
+	return ps883x_configure(retimer, cfg0, cfg1, cfg2);
 }
 
 static int ps883x_sw_set(struct typec_switch_dev *sw,
