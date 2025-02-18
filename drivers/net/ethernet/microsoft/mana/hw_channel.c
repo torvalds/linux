@@ -440,7 +440,8 @@ static int mana_hwc_alloc_dma_buf(struct hw_channel_context *hwc, u16 q_depth,
 	gmi = &dma_buf->mem_info;
 	err = mana_gd_alloc_memory(gc, buf_size, gmi);
 	if (err) {
-		dev_err(hwc->dev, "Failed to allocate DMA buffer: %d\n", err);
+		dev_err(hwc->dev, "Failed to allocate DMA buffer size: %u, err %d\n",
+			buf_size, err);
 		goto out;
 	}
 
@@ -529,6 +530,9 @@ static int mana_hwc_create_wq(struct hw_channel_context *hwc,
 out:
 	if (err)
 		mana_hwc_destroy_wq(hwc, hwc_wq);
+
+	dev_err(hwc->dev, "Failed to create HWC queue size= %u type= %d err= %d\n",
+		queue_size, q_type, err);
 	return err;
 }
 
