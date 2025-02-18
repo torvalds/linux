@@ -549,9 +549,9 @@ nfsd_file_gc(void)
 static void
 nfsd_file_gc_worker(struct work_struct *work)
 {
-	nfsd_file_gc();
 	if (list_lru_count(&nfsd_file_lru))
-		nfsd_file_schedule_laundrette();
+		nfsd_file_gc();
+	nfsd_file_schedule_laundrette();
 }
 
 static unsigned long
