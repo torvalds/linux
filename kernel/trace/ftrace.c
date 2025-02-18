@@ -7004,6 +7004,7 @@ static int ftrace_process_locs(struct module *mod,
 	unsigned long count;
 	unsigned long *p;
 	unsigned long addr;
+	unsigned long kaslr;
 	unsigned long flags = 0; /* Shut up gcc */
 	int ret = -ENOMEM;
 
@@ -7052,6 +7053,9 @@ static int ftrace_process_locs(struct module *mod,
 		ftrace_pages->next = start_pg;
 	}
 
+	/* For zeroed locations that were shifted for core kernel */
+	kaslr = !mod ? kaslr_offset() : 0;
+
 	p = start;
 	pg = start_pg;
 	while (p < end) {
@@ -7063,7 +7067,7 @@ static int ftrace_process_locs(struct module *mod,
 		 * object files to satisfy alignments.
 		 * Skip any NULL pointers.
 		 */
-		if (!addr) {
+		if (!addr || addr == kaslr) {
 			skipped++;
 			continue;
 		}
