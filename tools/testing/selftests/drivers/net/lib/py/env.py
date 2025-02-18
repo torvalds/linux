@@ -64,7 +64,7 @@ class NetDrvEnv(NetDrvEnvBase):
         self._ns = None
 
         if 'NETIF' in self.env:
-            self.dev = ip("link show dev " + self.env['NETIF'], json=True)[0]
+            self.dev = ip("-d link show dev " + self.env['NETIF'], json=True)[0]
         else:
             self._ns = NetdevSimDev(**kwargs)
             self.dev = self._ns.nsims[0].dev
@@ -118,7 +118,7 @@ class NetDrvEpEnv(NetDrvEnvBase):
                 raise KsftXfailEx("Test only works on netdevsim")
             self._check_env()
 
-            self.dev = ip("link show dev " + self.env['NETIF'], json=True)[0]
+            self.dev = ip("-d link show dev " + self.env['NETIF'], json=True)[0]
 
             self.v4 = self.env.get("LOCAL_V4")
             self.v6 = self.env.get("LOCAL_V6")
