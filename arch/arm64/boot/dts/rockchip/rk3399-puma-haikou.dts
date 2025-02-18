@@ -189,10 +189,6 @@
 	};
 };
 
-&i2c6 {
-	status = "okay";
-	clock-frequency = <400000>;
-};
 
 &i2s2 {
 	status = "okay";
