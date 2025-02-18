@@ -3145,7 +3145,6 @@ static int dm_suspend(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 	struct amdgpu_display_manager *dm = &adev->dm;
-	int ret = 0;
 
 	if (amdgpu_in_reset(adev)) {
 		mutex_lock(&dm->dc_lock);
@@ -3163,7 +3162,7 @@ static int dm_suspend(struct amdgpu_ip_block *ip_block)
 
 		hpd_rx_irq_work_suspend(dm);
 
-		return ret;
+		return 0;
 	}
 
 	WARN_ON(adev->dm.cached_state);
