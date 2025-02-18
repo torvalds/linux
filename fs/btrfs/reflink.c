@@ -617,12 +617,12 @@ out:
 	return ret;
 }
 
-static void btrfs_double_mmap_lock(struct inode *inode1, struct inode *inode2)
+static void btrfs_double_mmap_lock(struct btrfs_inode *inode1, struct btrfs_inode *inode2)
 {
 	if (inode1 < inode2)
 		swap(inode1, inode2);
-	down_write(&BTRFS_I(inode1)->i_mmap_lock);
-	down_write_nested(&BTRFS_I(inode2)->i_mmap_lock, SINGLE_DEPTH_NESTING);
+	down_write(&inode1->i_mmap_lock);
+	down_write_nested(&inode2->i_mmap_lock, SINGLE_DEPTH_NESTING);
 }
 
 static void btrfs_double_mmap_unlock(struct inode *inode1, struct inode *inode2)
@@ -875,7 +875,7 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		btrfs_inode_lock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
 	} else {
 		lock_two_nondirectories(src_inode, dst_inode);
-		btrfs_double_mmap_lock(src_inode, dst_inode);
+		btrfs_double_mmap_lock(BTRFS_I(src_inode), BTRFS_I(dst_inode));
 	}
 
 	ret = btrfs_remap_file_range_prep(src_file, off, dst_file, destoff,
