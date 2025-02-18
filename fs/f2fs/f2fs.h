@@ -2776,33 +2776,46 @@ static inline s64 valid_inode_count(struct f2fs_sb_info *sbi)
 	return percpu_counter_sum_positive(&sbi->total_valid_inode_count);
 }
 
-static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
-						pgoff_t index, bool for_write)
+static inline struct folio *f2fs_grab_cache_folio(struct address_space *mapping,
+		pgoff_t index, bool for_write)
 {
-	struct page *page;
+	struct folio *folio;
 	unsigned int flags;
 
 	if (IS_ENABLED(CONFIG_F2FS_FAULT_INJECTION)) {
+		fgf_t fgf_flags;
+
 		if (!for_write)
-			page = find_get_page_flags(mapping, index,
-							FGP_LOCK | FGP_ACCESSED);
+			fgf_flags = FGP_LOCK | FGP_ACCESSED;
 		else
-			page = find_lock_page(mapping, index);
-		if (page)
-			return page;
+			fgf_flags = FGP_LOCK;
+		folio = __filemap_get_folio(mapping, index, fgf_flags, 0);
+		if (!IS_ERR(folio))
+			return folio;
 
 		if (time_to_inject(F2FS_M_SB(mapping), FAULT_PAGE_ALLOC))
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 	}
 
 	if (!for_write)
-		return grab_cache_page(mapping, index);
+		return filemap_grab_folio(mapping, index);
 
 	flags = memalloc_nofs_save();
-	page = grab_cache_page_write_begin(mapping, index);
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
 	memalloc_nofs_restore(flags);
 
-	return page;
+	return folio;
+}
+
+static inline struct page *f2fs_grab_cache_page(struct address_space *mapping,
+						pgoff_t index, bool for_write)
+{
+	struct folio *folio = f2fs_grab_cache_folio(mapping, index, for_write);
+
+	if (IS_ERR(folio))
+		return NULL;
+	return &folio->page;
 }
 
 static inline struct page *f2fs_pagecache_get_page(
