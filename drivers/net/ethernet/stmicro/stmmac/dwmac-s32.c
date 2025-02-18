@@ -100,7 +100,7 @@ static void s32_gmac_exit(struct platform_device *pdev, void *priv)
 	clk_disable_unprepare(gmac->rx_clk);
 }
 
-static void s32_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
+static void s32_fix_mac_speed(void *priv, int speed, unsigned int mode)
 {
 	struct s32_priv_data *gmac = priv;
 	long tx_clk_rate;

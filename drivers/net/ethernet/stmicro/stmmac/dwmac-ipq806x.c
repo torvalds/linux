@@ -112,7 +112,7 @@ struct ipq806x_gmac {
 	phy_interface_t phy_mode;
 };
 
-static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
+static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, int speed)
 {
 	struct device *dev = &gmac->pdev->dev;
 	int div;
@@ -138,7 +138,7 @@ static int get_clk_div_sgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 	return div;
 }
 
-static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
+static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, int speed)
 {
 	struct device *dev = &gmac->pdev->dev;
 	int div;
@@ -164,7 +164,7 @@ static int get_clk_div_rgmii(struct ipq806x_gmac *gmac, unsigned int speed)
 	return div;
 }
 
-static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, unsigned int speed)
+static int ipq806x_gmac_set_speed(struct ipq806x_gmac *gmac, int speed)
 {
 	uint32_t clk_bits, val;
 	int div;
@@ -260,7 +260,7 @@ static int ipq806x_gmac_of_parse(struct ipq806x_gmac *gmac)
 	return PTR_ERR_OR_ZERO(gmac->qsgmii_csr);
 }
 
-static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
+static void ipq806x_gmac_fix_mac_speed(void *priv, int speed, unsigned int mode)
 {
 	struct ipq806x_gmac *gmac = priv;
 

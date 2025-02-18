@@ -31,7 +31,7 @@ struct starfive_dwmac {
 	const struct starfive_dwmac_data *data;
 };
 
-static void starfive_dwmac_fix_mac_speed(void *priv, unsigned int speed, unsigned int mode)
+static void starfive_dwmac_fix_mac_speed(void *priv, int speed, unsigned int mode)
 {
 	struct starfive_dwmac *dwmac = priv;
 	long rate;
@@ -39,7 +39,7 @@ static void starfive_dwmac_fix_mac_speed(void *priv, unsigned int speed, unsigne
 
 	rate = rgmii_clock(speed);
 	if (rate < 0) {
-		dev_err(dwmac->dev, "invalid speed %u\n", speed);
+		dev_err(dwmac->dev, "invalid speed %d\n", speed);
 		return;
 	}
 

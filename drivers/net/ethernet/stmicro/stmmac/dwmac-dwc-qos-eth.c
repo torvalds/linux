@@ -141,7 +141,7 @@ static int dwc_qos_probe(struct platform_device *pdev,
 #define AUTO_CAL_STATUS 0x880c
 #define  AUTO_CAL_STATUS_ACTIVE BIT(31)
 
-static void tegra_eqos_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static void tegra_eqos_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct tegra_eqos *eqos = priv;
 	bool needs_calibration = false;
@@ -160,7 +160,7 @@ static void tegra_eqos_fix_speed(void *priv, unsigned int speed, unsigned int mo
 		break;
 
 	default:
-		dev_err(eqos->dev, "invalid speed %u\n", speed);
+		dev_err(eqos->dev, "invalid speed %d\n", speed);
 		break;
 	}
 

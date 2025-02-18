@@ -99,12 +99,12 @@ struct sti_dwmac {
 	int clk_sel_reg;	/* GMAC ext clk selection register */
 	struct regmap *regmap;
 	bool gmac_en;
-	u32 speed;
-	void (*fix_retime_src)(void *priv, unsigned int speed, unsigned int mode);
+	int speed;
+	void (*fix_retime_src)(void *priv, int speed, unsigned int mode);
 };
 
 struct sti_dwmac_of_data {
-	void (*fix_retime_src)(void *priv, unsigned int speed, unsigned int mode);
+	void (*fix_retime_src)(void *priv, int speed, unsigned int mode);
 };
 
 static u32 phy_intf_sels[] = {
@@ -132,7 +132,7 @@ static u32 stih4xx_tx_retime_val[] = {
 				 | STIH4XX_ETH_SEL_INTERNAL_NOTEXT_PHYCLK,
 };
 
-static void stih4xx_fix_retime_src(void *priv, u32 spd, unsigned int mode)
+static void stih4xx_fix_retime_src(void *priv, int spd, unsigned int mode)
 {
 	struct sti_dwmac *dwmac = priv;
 	u32 src = dwmac->tx_retime_src;

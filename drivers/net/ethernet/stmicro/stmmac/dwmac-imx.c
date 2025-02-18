@@ -51,7 +51,7 @@ struct imx_dwmac_ops {
 
 	int (*fix_soc_reset)(void *priv, void __iomem *ioaddr);
 	int (*set_intf_mode)(struct plat_stmmacenet_data *plat_dat);
-	void (*fix_mac_speed)(void *priv, unsigned int speed, unsigned int mode);
+	void (*fix_mac_speed)(void *priv, int speed, unsigned int mode);
 };
 
 struct imx_priv_data {
@@ -192,7 +192,7 @@ static void imx_dwmac_exit(struct platform_device *pdev, void *priv)
 	/* nothing to do now */
 }
 
-static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static void imx_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct imx_priv_data *dwmac = priv;
@@ -208,7 +208,7 @@ static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mod
 
 	rate = rgmii_clock(speed);
 	if (rate < 0) {
-		dev_err(dwmac->dev, "invalid speed %u\n", speed);
+		dev_err(dwmac->dev, "invalid speed %d\n", speed);
 		return;
 	}
 
@@ -217,7 +217,7 @@ static void imx_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mod
 		dev_err(dwmac->dev, "failed to set tx rate %lu\n", rate);
 }
 
-static void imx93_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static void imx93_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct imx_priv_data *dwmac = priv;
 	unsigned int iface;
