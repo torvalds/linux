@@ -149,6 +149,10 @@
 	};
 };
 
+&gmac {
+	status = "okay";
+};
+
 &hdmi {
 	status = "okay";
 };
