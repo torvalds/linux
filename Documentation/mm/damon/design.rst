@@ -610,6 +610,9 @@ Below ``type`` of filters are currently supported.
     - Applied to pages that are accessed after the last access check from the
       scheme.
     - Handled by operations set layer.  Supported by only ``paddr`` set.
+- pages that managed in a given size range
+    - Applied to pages that managed in a given size range.
+    - Handled by operations set layer.  Supported by only ``paddr`` set.
 - address range
     - Applied to pages that belonging to a given address range.
     - Handled by the core logic.
