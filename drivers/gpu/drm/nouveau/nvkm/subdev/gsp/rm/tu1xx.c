@@ -16,4 +16,6 @@ tu1xx_gpu = {
 		.wimm = TU102_DISP_WINDOW_IMM_CHANNEL_DMA,
 		.curs = TU102_DISP_CURSOR,
 	},
+
+	.usermode.class = TURING_USERMODE_A,
 };

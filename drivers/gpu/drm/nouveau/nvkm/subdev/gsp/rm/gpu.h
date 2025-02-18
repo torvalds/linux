@@ -17,6 +17,10 @@ struct nvkm_rm_gpu {
 			u32 curs;
 		} class;
 	} disp;
+
+	struct {
+		u32 class;
+	} usermode;
 };
 
 extern const struct nvkm_rm_gpu tu1xx_gpu;

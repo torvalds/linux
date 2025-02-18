@@ -4,6 +4,9 @@
  */
 #include "gpu.h"
 
+#include <nvif/class.h>
+
 const struct nvkm_rm_gpu
 ga100_gpu = {
+	.usermode.class = AMPERE_USERMODE_A,
 };

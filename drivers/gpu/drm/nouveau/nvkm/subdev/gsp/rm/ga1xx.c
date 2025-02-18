@@ -16,4 +16,6 @@ ga1xx_gpu = {
 		.wimm = GA102_DISP_WINDOW_IMM_CHANNEL_DMA,
 		.curs = GA102_DISP_CURSOR,
 	},
+
+	.usermode.class = AMPERE_USERMODE_A,
 };
