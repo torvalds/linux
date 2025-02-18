@@ -1958,32 +1958,27 @@ void f2fs_flush_inline_data(struct f2fs_sb_info *sbi)
 		int i;
 
 		for (i = 0; i < nr_folios; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 
-			if (!IS_INODE(page))
+			if (!IS_INODE(&folio->page))
 				continue;
 
-			lock_page(page);
+			folio_lock(folio);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
-continue_unlock:
-				unlock_page(page);
-				continue;
-			}
-
-			if (!PageDirty(page)) {
-				/* someone wrote it for us */
-				goto continue_unlock;
-			}
+			if (unlikely(folio->mapping != NODE_MAPPING(sbi)))
+				goto unlock;
+			if (!folio_test_dirty(folio))
+				goto unlock;
 
 			/* flush inline_data, if it's async context. */
-			if (page_private_inline(page)) {
-				clear_page_private_inline(page);
-				unlock_page(page);
-				flush_inline_data(sbi, ino_of_node(page));
+			if (page_private_inline(&folio->page)) {
+				clear_page_private_inline(&folio->page);
+				folio_unlock(folio);
+				flush_inline_data(sbi, ino_of_node(&folio->page));
 				continue;
 			}
-			unlock_page(page);
+unlock:
+			folio_unlock(folio);
 		}
 		folio_batch_release(&fbatch);
 		cond_resched();
