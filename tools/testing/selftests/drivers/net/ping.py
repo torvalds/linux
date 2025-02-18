@@ -8,17 +8,17 @@ from lib.py import bkg, cmd, wait_port_listen, rand_port
 
 
 def test_v4(cfg) -> None:
-    cfg.require_v4()
+    cfg.require_ipver("4")
 
-    cmd(f"ping -c 1 -W0.5 {cfg.remote_v4}")
-    cmd(f"ping -c 1 -W0.5 {cfg.v4}", host=cfg.remote)
+    cmd("ping -c 1 -W0.5 " + cfg.remote_addr_v["4"])
+    cmd("ping -c 1 -W0.5 " + cfg.addr_v["4"], host=cfg.remote)
 
 
 def test_v6(cfg) -> None:
-    cfg.require_v6()
+    cfg.require_ipver("6")
 
-    cmd(f"ping -c 1 -W0.5 {cfg.remote_v6}")
-    cmd(f"ping -c 1 -W0.5 {cfg.v6}", host=cfg.remote)
+    cmd("ping -c 1 -W0.5 " + cfg.remote_addr_v["6"])
+    cmd("ping -c 1 -W0.5 " + cfg.addr_v["6"], host=cfg.remote)
 
 
 def test_tcp(cfg) -> None:

@@ -113,6 +113,9 @@ class NetDrvEpEnv(NetDrvEnvBase):
         self._ns = None
         self._ns_peer = None
 
+        self.addr_v        = { "4": None, "6": None }
+        self.remote_addr_v = { "4": None, "6": None }
+
         if "NETIF" in self.env:
             if nsim_test is True:
                 raise KsftXfailEx("Test only works on netdevsim")
@@ -120,10 +123,10 @@ class NetDrvEpEnv(NetDrvEnvBase):
 
             self.dev = ip("-d link show dev " + self.env['NETIF'], json=True)[0]
 
-            self.v4 = self.env.get("LOCAL_V4")
-            self.v6 = self.env.get("LOCAL_V6")
-            self.remote_v4 = self.env.get("REMOTE_V4")
-            self.remote_v6 = self.env.get("REMOTE_V6")
+            self.addr_v["4"] = self.env.get("LOCAL_V4")
+            self.addr_v["6"] = self.env.get("LOCAL_V6")
+            self.remote_addr_v["4"] = self.env.get("REMOTE_V4")
+            self.remote_addr_v["6"] = self.env.get("REMOTE_V6")
             kind = self.env["REMOTE_TYPE"]
             args = self.env["REMOTE_ARGS"]
         else:
@@ -134,22 +137,22 @@ class NetDrvEpEnv(NetDrvEnvBase):
 
             self.dev = self._ns.nsims[0].dev
 
-            self.v4 = self.nsim_v4_pfx + "1"
-            self.v6 = self.nsim_v6_pfx + "1"
-            self.remote_v4 = self.nsim_v4_pfx + "2"
-            self.remote_v6 = self.nsim_v6_pfx + "2"
+            self.addr_v["4"] = self.nsim_v4_pfx + "1"
+            self.addr_v["6"] = self.nsim_v6_pfx + "1"
+            self.remote_addr_v["4"] = self.nsim_v4_pfx + "2"
+            self.remote_addr_v["6"] = self.nsim_v6_pfx + "2"
             kind = "netns"
             args = self._netns.name
 
         self.remote = Remote(kind, args, src_path)
 
-        self.addr = self.v6 if self.v6 else self.v4
-        self.remote_addr = self.remote_v6 if self.remote_v6 else self.remote_v4
+        self.addr_ipver = "6" if self.addr_v["6"] else "4"
+        self.addr = self.addr_v[self.addr_ipver]
+        self.remote_addr = self.remote_addr_v[self.addr_ipver]
 
-        self.addr_ipver = "6" if self.v6 else "4"
         # Bracketed addresses, some commands need IPv6 to be inside []
-        self.baddr = f"[{self.v6}]" if self.v6 else self.v4
-        self.remote_baddr = f"[{self.remote_v6}]" if self.remote_v6 else self.remote_v4
+        self.baddr = f"[{self.addr_v['6']}]" if self.addr_v["6"] else self.addr_v["4"]
+        self.remote_baddr = f"[{self.remote_addr_v['6']}]" if self.remote_addr_v["6"] else self.remote_addr_v["4"]
 
         self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
@@ -205,10 +208,10 @@ class NetDrvEpEnv(NetDrvEnvBase):
 
     def resolve_remote_ifc(self):
         v4 = v6 = None
-        if self.remote_v4:
-            v4 = ip("addr show to " + self.remote_v4, json=True, host=self.remote)
-        if self.remote_v6:
-            v6 = ip("addr show to " + self.remote_v6, json=True, host=self.remote)
+        if self.remote_addr_v["4"]:
+            v4 = ip("addr show to " + self.remote_addr_v["4"], json=True, host=self.remote)
+        if self.remote_addr_v["6"]:
+            v6 = ip("addr show to " + self.remote_addr_v["6"], json=True, host=self.remote)
         if v4 and v6 and v4[0]["ifname"] != v6[0]["ifname"]:
             raise Exception("Can't resolve remote interface name, v4 and v6 don't match")
         if (v4 and len(v4) > 1) or (v6 and len(v6) > 1):
@@ -238,13 +241,9 @@ class NetDrvEpEnv(NetDrvEnvBase):
             del self.remote
             self.remote = None
 
-    def require_v4(self):
-        if not self.v4 or not self.remote_v4:
-            raise KsftSkipEx("Test requires IPv4 connectivity")
-
-    def require_v6(self):
-        if not self.v6 or not self.remote_v6:
-            raise KsftSkipEx("Test requires IPv6 connectivity")
+    def require_ipver(self, ipver):
+        if not self.addr_v[ipver] or not self.remote_addr_v[ipver]:
+            raise KsftSkipEx(f"Test requires IPv{ipver} connectivity")
 
     def _require_cmd(self, comm, key, host=None):
         cached = self._required_cmd.get(comm, {})
