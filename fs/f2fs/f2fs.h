@@ -3910,7 +3910,7 @@ struct folio *f2fs_get_read_data_folio(struct inode *inode, pgoff_t index,
 		blk_opf_t op_flags, bool for_write, pgoff_t *next_pgofs);
 struct page *f2fs_find_data_page(struct inode *inode, pgoff_t index,
 							pgoff_t *next_pgofs);
-struct page *f2fs_get_lock_data_page(struct inode *inode, pgoff_t index,
+struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
 			bool for_write);
 struct page *f2fs_get_new_data_page(struct inode *inode,
 			struct page *ipage, pgoff_t index, bool new_i_size);
@@ -3943,6 +3943,14 @@ static inline struct page *f2fs_get_read_data_page(struct inode *inode,
 {
 	struct folio *folio = f2fs_get_read_data_folio(inode, index, op_flags,
 			for_write, next_pgofs);
+
+	return &folio->page;
+}
+
+static inline struct page *f2fs_get_lock_data_page(struct inode *inode,
+		pgoff_t index, bool for_write)
+{
+	struct folio *folio = f2fs_get_lock_data_folio(inode, index, for_write);
 
 	return &folio->page;
 }

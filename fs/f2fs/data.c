@@ -1310,23 +1310,23 @@ struct page *f2fs_find_data_page(struct inode *inode, pgoff_t index,
  * Because, the callers, functions in dir.c and GC, should be able to know
  * whether this page exists or not.
  */
-struct page *f2fs_get_lock_data_page(struct inode *inode, pgoff_t index,
+struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
 							bool for_write)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct page *page;
+	struct folio *folio;
 
-	page = f2fs_get_read_data_page(inode, index, 0, for_write, NULL);
-	if (IS_ERR(page))
-		return page;
+	folio = f2fs_get_read_data_folio(inode, index, 0, for_write, NULL);
+	if (IS_ERR(folio))
+		return folio;
 
 	/* wait for read completion */
-	lock_page(page);
-	if (unlikely(page->mapping != mapping || !PageUptodate(page))) {
-		f2fs_put_page(page, 1);
+	folio_lock(folio);
+	if (unlikely(folio->mapping != mapping || !folio_test_uptodate(folio))) {
+		f2fs_folio_put(folio, true);
 		return ERR_PTR(-EIO);
 	}
-	return page;
+	return folio;
 }
 
 /*
