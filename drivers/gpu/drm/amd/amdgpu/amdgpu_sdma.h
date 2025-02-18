@@ -131,6 +131,7 @@ struct amdgpu_sdma {
 	uint32_t		*ip_dump;
 	uint32_t 		supported_reset;
 	struct list_head	reset_callback_list;
+	bool			no_user_submission;
 };
 
 /*
