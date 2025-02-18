@@ -104,7 +104,7 @@ static int universal_pidff_probe(struct hid_device *hdev,
 		goto err;
 	}
 
-	hid_info(hdev, "Universal pidff driver loaded sucessfully!");
+	hid_info(hdev, "Universal pidff driver loaded successfully!");
 
 	return 0;
 err:
