@@ -4,3 +4,4 @@ rtla-static
 fixdep
 feature
 FEATURE-DUMP
+*.skel.h
