@@ -154,6 +154,9 @@ class NetDrvEpEnv(NetDrvEnvBase):
         self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
 
+        # resolve remote interface name
+        self.remote_ifname = self.resolve_remote_ifc()
+
         self._required_cmd = {}
 
     def create_local(self):
@@ -199,6 +202,18 @@ class NetDrvEpEnv(NetDrvEnvBase):
         if missing:
             raise Exception("Invalid environment, missing configuration:", missing,
                             "Please see tools/testing/selftests/drivers/net/README.rst")
+
+    def resolve_remote_ifc(self):
+        v4 = v6 = None
+        if self.remote_v4:
+            v4 = ip("addr show to " + self.remote_v4, json=True, host=self.remote)
+        if self.remote_v6:
+            v6 = ip("addr show to " + self.remote_v6, json=True, host=self.remote)
+        if v4 and v6 and v4[0]["ifname"] != v6[0]["ifname"]:
+            raise Exception("Can't resolve remote interface name, v4 and v6 don't match")
+        if (v4 and len(v4) > 1) or (v6 and len(v6) > 1):
+            raise Exception("Can't resolve remote interface name, multiple interfaces match")
+        return v6[0]["ifname"] if v6 else v4[0]["ifname"]
 
     def __enter__(self):
         return self
