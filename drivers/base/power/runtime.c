@@ -1460,14 +1460,19 @@ int pm_runtime_barrier(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pm_runtime_barrier);
 
-void pm_runtime_block_if_disabled(struct device *dev)
+bool pm_runtime_block_if_disabled(struct device *dev)
 {
+	bool ret;
+
 	spin_lock_irq(&dev->power.lock);
 
-	if (dev->power.disable_depth && dev->power.last_status == RPM_INVALID)
+	ret = dev->power.disable_depth && dev->power.last_status == RPM_INVALID;
+	if (ret)
 		dev->power.last_status = RPM_BLOCKED;
 
 	spin_unlock_irq(&dev->power.lock);
+
+	return ret;
 }
 
 void pm_runtime_unblock(struct device *dev)

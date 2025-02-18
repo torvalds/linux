@@ -1796,16 +1796,14 @@ static void device_prepare_smart_suspend(struct device *dev)
 
 	/*
 	 * The "smart suspend" feature is enabled for devices whose drivers ask
-	 * for it and for devices without PM callbacks unless runtime PM is
-	 * disabled and enabling it is blocked for them.
+	 * for it and for devices without PM callbacks.
 	 *
 	 * However, if "smart suspend" is not enabled for the device's parent
 	 * or any of its suppliers that take runtime PM into account, it cannot
 	 * be enabled for the device either.
 	 */
-	dev->power.smart_suspend = (dev->power.no_pm_callbacks ||
-		dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND)) &&
-		!pm_runtime_blocked(dev);
+	dev->power.smart_suspend = dev->power.no_pm_callbacks ||
+		dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND);
 
 	if (!dev_pm_smart_suspend(dev))
 		return;
@@ -1843,6 +1841,7 @@ static void device_prepare_smart_suspend(struct device *dev)
 static int device_prepare(struct device *dev, pm_message_t state)
 {
 	int (*callback)(struct device *) = NULL;
+	bool no_runtime_pm;
 	int ret = 0;
 
 	/*
@@ -1858,7 +1857,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	 * suspend-resume cycle is complete, so prepare to trigger a warning on
 	 * subsequent attempts to enable it.
 	 */
-	pm_runtime_block_if_disabled(dev);
+	no_runtime_pm = pm_runtime_block_if_disabled(dev);
 
 	if (dev->power.syscore)
 		return 0;
@@ -1893,7 +1892,10 @@ unlock:
 		pm_runtime_put(dev);
 		return ret;
 	}
-	device_prepare_smart_suspend(dev);
+	/* Do not enable "smart suspend" for devices without runtime PM. */
+	if (!no_runtime_pm)
+		device_prepare_smart_suspend(dev);
+
 	/*
 	 * A positive return value from ->prepare() means "this device appears
 	 * to be runtime-suspended and its state is fine, so if it really is

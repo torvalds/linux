@@ -77,7 +77,7 @@ extern int pm_runtime_get_if_in_use(struct device *dev);
 extern int pm_schedule_suspend(struct device *dev, unsigned int delay);
 extern int __pm_runtime_set_status(struct device *dev, unsigned int status);
 extern int pm_runtime_barrier(struct device *dev);
-extern void pm_runtime_block_if_disabled(struct device *dev);
+extern bool pm_runtime_block_if_disabled(struct device *dev);
 extern void pm_runtime_unblock(struct device *dev);
 extern void pm_runtime_enable(struct device *dev);
 extern void __pm_runtime_disable(struct device *dev, bool check_resume);
@@ -274,7 +274,7 @@ static inline int pm_runtime_get_if_active(struct device *dev)
 static inline int __pm_runtime_set_status(struct device *dev,
 					    unsigned int status) { return 0; }
 static inline int pm_runtime_barrier(struct device *dev) { return 0; }
-static inline void pm_runtime_block_if_disabled(struct device *dev) {}
+static inline bool pm_runtime_block_if_disabled(struct device *dev) { return true; }
 static inline void pm_runtime_unblock(struct device *dev) {}
 static inline void pm_runtime_enable(struct device *dev) {}
 static inline void __pm_runtime_disable(struct device *dev, bool c) {}
