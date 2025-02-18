@@ -21,6 +21,7 @@
 			       <800000000>,
 			       <600000000>,
 			       <400000000>;
+	fsl,operating-mode = "nominal";
 };
 
 &pgc_hdmimix {
