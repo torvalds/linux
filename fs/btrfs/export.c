@@ -145,9 +145,9 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 
 struct dentry *btrfs_get_parent(struct dentry *child)
 {
-	struct inode *dir = d_inode(child);
-	struct btrfs_fs_info *fs_info = btrfs_sb(dir->i_sb);
-	struct btrfs_root *root = BTRFS_I(dir)->root;
+	struct btrfs_inode *dir = BTRFS_I(d_inode(child));
+	struct btrfs_root *root = dir->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_root_ref *ref;
@@ -159,13 +159,13 @@ struct dentry *btrfs_get_parent(struct dentry *child)
 	if (!path)
 		return ERR_PTR(-ENOMEM);
 
-	if (btrfs_ino(BTRFS_I(dir)) == BTRFS_FIRST_FREE_OBJECTID) {
+	if (btrfs_ino(dir) == BTRFS_FIRST_FREE_OBJECTID) {
 		key.objectid = btrfs_root_id(root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
 	} else {
-		key.objectid = btrfs_ino(BTRFS_I(dir));
+		key.objectid = btrfs_ino(dir);
 		key.type = BTRFS_INODE_REF_KEY;
 		key.offset = (u64)-1;
 	}
