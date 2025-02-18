@@ -3301,14 +3301,14 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 		struct dc_scaling_info scaling_infos[MAX_SURFACES];
 		struct dc_flip_addrs flip_addrs[MAX_SURFACES];
 		struct dc_stream_update stream_update;
-	} *bundle;
+	} *bundle __free(kfree);
 	int k, m;
 
 	bundle = kzalloc(sizeof(*bundle), GFP_KERNEL);
 
 	if (!bundle) {
 		drm_err(dm->ddev, "Failed to allocate update bundle\n");
-		goto cleanup;
+		return;
 	}
 
 	for (k = 0; k < dc_state->stream_count; k++) {
@@ -3328,9 +3328,6 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 					 &bundle->stream_update,
 					 bundle->surface_updates);
 	}
-
-cleanup:
-	kfree(bundle);
 }
 
 static int dm_resume(struct amdgpu_ip_block *ip_block)
