@@ -1817,44 +1817,43 @@ int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 
 static void fill_stack_inode_item(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode_item *inode_item,
-				  struct inode *inode)
+				  struct btrfs_inode *inode)
 {
+	struct inode *vfs_inode = &inode->vfs_inode;
 	u64 flags;
 
-	btrfs_set_stack_inode_uid(inode_item, i_uid_read(inode));
-	btrfs_set_stack_inode_gid(inode_item, i_gid_read(inode));
-	btrfs_set_stack_inode_size(inode_item, BTRFS_I(inode)->disk_i_size);
-	btrfs_set_stack_inode_mode(inode_item, inode->i_mode);
-	btrfs_set_stack_inode_nlink(inode_item, inode->i_nlink);
-	btrfs_set_stack_inode_nbytes(inode_item, inode_get_bytes(inode));
-	btrfs_set_stack_inode_generation(inode_item,
-					 BTRFS_I(inode)->generation);
+	btrfs_set_stack_inode_uid(inode_item, i_uid_read(vfs_inode));
+	btrfs_set_stack_inode_gid(inode_item, i_gid_read(vfs_inode));
+	btrfs_set_stack_inode_size(inode_item, inode->disk_i_size);
+	btrfs_set_stack_inode_mode(inode_item, vfs_inode->i_mode);
+	btrfs_set_stack_inode_nlink(inode_item, vfs_inode->i_nlink);
+	btrfs_set_stack_inode_nbytes(inode_item, inode_get_bytes(vfs_inode));
+	btrfs_set_stack_inode_generation(inode_item, inode->generation);
 	btrfs_set_stack_inode_sequence(inode_item,
-				       inode_peek_iversion(inode));
+				       inode_peek_iversion(vfs_inode));
 	btrfs_set_stack_inode_transid(inode_item, trans->transid);
-	btrfs_set_stack_inode_rdev(inode_item, inode->i_rdev);
-	flags = btrfs_inode_combine_flags(BTRFS_I(inode)->flags,
-					  BTRFS_I(inode)->ro_flags);
+	btrfs_set_stack_inode_rdev(inode_item, vfs_inode->i_rdev);
+	flags = btrfs_inode_combine_flags(inode->flags, inode->ro_flags);
 	btrfs_set_stack_inode_flags(inode_item, flags);
 	btrfs_set_stack_inode_block_group(inode_item, 0);
 
 	btrfs_set_stack_timespec_sec(&inode_item->atime,
-				     inode_get_atime_sec(inode));
+				     inode_get_atime_sec(vfs_inode));
 	btrfs_set_stack_timespec_nsec(&inode_item->atime,
-				      inode_get_atime_nsec(inode));
+				      inode_get_atime_nsec(vfs_inode));
 
 	btrfs_set_stack_timespec_sec(&inode_item->mtime,
-				     inode_get_mtime_sec(inode));
+				     inode_get_mtime_sec(vfs_inode));
 	btrfs_set_stack_timespec_nsec(&inode_item->mtime,
-				      inode_get_mtime_nsec(inode));
+				      inode_get_mtime_nsec(vfs_inode));
 
 	btrfs_set_stack_timespec_sec(&inode_item->ctime,
-				     inode_get_ctime_sec(inode));
+				     inode_get_ctime_sec(vfs_inode));
 	btrfs_set_stack_timespec_nsec(&inode_item->ctime,
-				      inode_get_ctime_nsec(inode));
+				      inode_get_ctime_nsec(vfs_inode));
 
-	btrfs_set_stack_timespec_sec(&inode_item->otime, BTRFS_I(inode)->i_otime_sec);
-	btrfs_set_stack_timespec_nsec(&inode_item->otime, BTRFS_I(inode)->i_otime_nsec);
+	btrfs_set_stack_timespec_sec(&inode_item->otime, inode->i_otime_sec);
+	btrfs_set_stack_timespec_nsec(&inode_item->otime, inode->i_otime_nsec);
 }
 
 int btrfs_fill_inode(struct inode *inode, u32 *rdev)
@@ -1928,8 +1927,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&delayed_node->mutex);
 	if (test_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags)) {
-		fill_stack_inode_item(trans, &delayed_node->inode_item,
-				      &inode->vfs_inode);
+		fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 		goto release_node;
 	}
 
@@ -1937,7 +1935,7 @@ int btrfs_delayed_update_inode(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto release_node;
 
-	fill_stack_inode_item(trans, &delayed_node->inode_item, &inode->vfs_inode);
+	fill_stack_inode_item(trans, &delayed_node->inode_item, inode);
 	set_bit(BTRFS_DELAYED_NODE_INODE_DIRTY, &delayed_node->flags);
 	delayed_node->count++;
 	atomic_inc(&root->fs_info->delayed_root->items);
