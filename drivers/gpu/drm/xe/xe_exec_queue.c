@@ -539,7 +539,7 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 	return 0;
 }
 
-static u32 calc_validate_logical_mask(struct xe_device *xe, struct xe_gt *gt,
+static u32 calc_validate_logical_mask(struct xe_device *xe,
 				      struct drm_xe_engine_class_instance *eci,
 				      u16 width, u16 num_placements)
 {
@@ -601,7 +601,6 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		u64_to_user_ptr(args->instances);
 	struct xe_hw_engine *hwe;
 	struct xe_vm *vm;
-	struct xe_gt *gt;
 	struct xe_tile *tile;
 	struct xe_exec_queue *q = NULL;
 	u32 logical_mask;
@@ -654,8 +653,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 					      &q->multi_gt_link);
 		}
 	} else {
-		gt = xe_device_get_gt(xe, eci[0].gt_id);
-		logical_mask = calc_validate_logical_mask(xe, gt, eci,
+		logical_mask = calc_validate_logical_mask(xe, eci,
 							  args->width,
 							  args->num_placements);
 		if (XE_IOCTL_DBG(xe, !logical_mask))
