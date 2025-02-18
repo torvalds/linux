@@ -6727,7 +6727,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 			void *buf, int len, int write)
 {
 	resource_size_t phys_addr;
-	unsigned long prot = 0;
+	pgprot_t prot = __pgprot(0);
 	void __iomem *maddr;
 	int offset = offset_in_page(addr);
 	int ret = -EINVAL;
@@ -6737,7 +6737,7 @@ int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
 retry:
 	if (follow_pfnmap_start(&args))
 		return -EINVAL;
-	prot = pgprot_val(args.pgprot);
+	prot = args.pgprot;
 	phys_addr = (resource_size_t)args.pfn << PAGE_SHIFT;
 	writable = args.writable;
 	follow_pfnmap_end(&args);
@@ -6752,7 +6752,7 @@ retry:
 	if (follow_pfnmap_start(&args))
 		goto out_unmap;
 
-	if ((prot != pgprot_val(args.pgprot)) ||
+	if ((pgprot_val(prot) != pgprot_val(args.pgprot)) ||
 	    (phys_addr != (args.pfn << PAGE_SHIFT)) ||
 	    (writable != args.writable)) {
 		follow_pfnmap_end(&args);

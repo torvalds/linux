@@ -131,7 +131,7 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 		       _PAGE_ACCESSED | _PAGE_NO_CACHE)
 
 #define ioremap_wc(addr, size)  \
-	ioremap_prot((addr), (size), _PAGE_IOREMAP)
+	ioremap_prot((addr), (size), __pgprot(_PAGE_IOREMAP))
 
 #define pci_iounmap			pci_iounmap
 

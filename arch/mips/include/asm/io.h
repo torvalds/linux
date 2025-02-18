@@ -126,7 +126,7 @@ static inline unsigned long isa_virt_to_bus(volatile void *address)
 }
 
 void __iomem *ioremap_prot(phys_addr_t offset, unsigned long size,
-		unsigned long prot_val);
+			   pgprot_t prot);
 void iounmap(const volatile void __iomem *addr);
 
 /*
@@ -141,7 +141,7 @@ void iounmap(const volatile void __iomem *addr);
  * address.
  */
 #define ioremap(offset, size)						\
-	ioremap_prot((offset), (size), _CACHE_UNCACHED)
+	ioremap_prot((offset), (size), __pgprot(_CACHE_UNCACHED))
 
 /*
  * ioremap_cache -	map bus memory into CPU space
@@ -159,7 +159,7 @@ void iounmap(const volatile void __iomem *addr);
  * memory-like regions on I/O busses.
  */
 #define ioremap_cache(offset, size)					\
-	ioremap_prot((offset), (size), _page_cachable_default)
+	ioremap_prot((offset), (size), __pgprot(_page_cachable_default))
 
 /*
  * ioremap_wc     -   map bus memory into CPU space
@@ -180,7 +180,7 @@ void iounmap(const volatile void __iomem *addr);
  * _CACHE_UNCACHED option (see cpu_probe() method).
  */
 #define ioremap_wc(offset, size)					\
-	ioremap_prot((offset), (size), boot_cpu_data.writecombine)
+	ioremap_prot((offset), (size), __pgprot(boot_cpu_data.writecombine))
 
 #if defined(CONFIG_CPU_CAVIUM_OCTEON)
 #define war_io_reorder_wmb()		wmb()

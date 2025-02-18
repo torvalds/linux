@@ -137,7 +137,7 @@ __io_writes_outs(outs, u64, q, __io_pbr(), __io_paw())
 
 #ifdef CONFIG_MMU
 #define arch_memremap_wb(addr, size)	\
-	((__force void *)ioremap_prot((addr), (size), _PAGE_KERNEL))
+	((__force void *)ioremap_prot((addr), (size), __pgprot(_PAGE_KERNEL)))
 #endif
 
 #endif /* _ASM_RISCV_IO_H */
