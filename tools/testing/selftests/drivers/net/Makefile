@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0
+CFLAGS += $(KHDR_INCLUDES)
 
 TEST_INCLUDES := $(wildcard lib/py/*.py) \
 		 $(wildcard lib/sh/*.sh) \
 		 ../../net/net_helper.sh \
 		 ../../net/lib.sh \
+
+TEST_GEN_FILES := xdp_helper
 
 TEST_PROGS := \
 	netcons_basic.sh \
