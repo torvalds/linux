@@ -768,12 +768,18 @@ static struct {
 	unsigned int		offset;
 	unsigned int		size;
 	unsigned int		size_x16;
+	unsigned int		num_inst;
 } rlc_autoload_info[SOC24_FIRMWARE_ID_MAX];
 
 #define RLC_TOC_OFFSET_DWUNIT   8
 #define RLC_SIZE_MULTIPLE       1024
 #define RLC_TOC_UMF_SIZE_inM	23ULL
 #define RLC_TOC_FORMAT_API	165ULL
+
+#define RLC_NUM_INS_CODE0   1
+#define RLC_NUM_INS_CODE1   8
+#define RLC_NUM_INS_CODE2   2
+#define RLC_NUM_INS_CODE3   16
 
 static void gfx_v12_1_parse_rlc_toc(struct amdgpu_device *adev, void *rlc_toc)
 {
@@ -786,6 +792,28 @@ static void gfx_v12_1_parse_rlc_toc(struct amdgpu_device *adev, void *rlc_toc)
 		rlc_autoload_info[ucode->id].size =
 			ucode->size_x16 ? ucode->size * RLC_SIZE_MULTIPLE * 4 :
 					  ucode->size * 4;
+		switch (ucode->vfflr_image_code) {
+		case 0:
+			rlc_autoload_info[ucode->id].num_inst =
+				RLC_NUM_INS_CODE0;
+			break;
+		case 1:
+			rlc_autoload_info[ucode->id].num_inst =
+				RLC_NUM_INS_CODE1;
+			break;
+		case 2:
+			rlc_autoload_info[ucode->id].num_inst =
+				RLC_NUM_INS_CODE2;
+			break;
+		case 3:
+			rlc_autoload_info[ucode->id].num_inst =
+				RLC_NUM_INS_CODE3;
+			break;
+		default:
+			dev_err(adev->dev,
+				"Invalid Instance number detected\n");
+			break;
+		}
 		ucode++;
 	}
 }
@@ -837,25 +865,31 @@ static void gfx_v12_1_rlc_backdoor_autoload_copy_ucode(struct amdgpu_device *ade
 						       uint32_t fw_size)
 {
 	uint32_t toc_offset;
-	uint32_t toc_fw_size;
+	uint32_t toc_fw_size, toc_fw_inst_size;
 	char *ptr = adev->gfx.rlc.rlc_autoload_ptr;
+	int i, num_inst;
 
 	if (id <= SOC24_FIRMWARE_ID_INVALID || id >= SOC24_FIRMWARE_ID_MAX)
 		return;
 
 	toc_offset = rlc_autoload_info[id].offset;
 	toc_fw_size = rlc_autoload_info[id].size;
+	num_inst = rlc_autoload_info[id].num_inst;
+	toc_fw_inst_size = toc_fw_size / num_inst;
 
 	if (fw_size == 0)
-		fw_size = toc_fw_size;
+		fw_size = toc_fw_inst_size;
 
-	if (fw_size > toc_fw_size)
-		fw_size = toc_fw_size;
+	if (fw_size > toc_fw_inst_size)
+		fw_size = toc_fw_inst_size;
 
-	memcpy(ptr + toc_offset, fw_data, fw_size);
+	for (i = 0; i < num_inst; i++) {
+		memcpy(ptr + toc_offset + i * toc_fw_inst_size, fw_data, fw_size);
 
-	if (fw_size < toc_fw_size)
-		memset(ptr + toc_offset + fw_size, 0, toc_fw_size - fw_size);
+		if (fw_size < toc_fw_inst_size)
+			memset(ptr + toc_offset + fw_size + i * toc_fw_inst_size,
+			       0, toc_fw_inst_size - fw_size);
+	}
 }
 
 static void
