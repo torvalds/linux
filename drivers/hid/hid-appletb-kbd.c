@@ -236,13 +236,13 @@ static void appletb_kbd_inp_event(struct input_handle *handle, unsigned int type
 
 	reset_inactivity_timer(kbd);
 
-	if (type == EV_KEY && code == KEY_FN && appletb_tb_fn_toggle) {
+	if (type == EV_KEY && code == KEY_FN && appletb_tb_fn_toggle &&
+		(kbd->current_mode == APPLETB_KBD_MODE_SPCL ||
+		 kbd->current_mode == APPLETB_KBD_MODE_FN)) {
 		if (value == 1) {
 			kbd->saved_mode = kbd->current_mode;
-			if (kbd->current_mode == APPLETB_KBD_MODE_SPCL)
-				appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_FN);
-			else if (kbd->current_mode == APPLETB_KBD_MODE_FN)
-				appletb_kbd_set_mode(kbd, APPLETB_KBD_MODE_SPCL);
+			appletb_kbd_set_mode(kbd, kbd->current_mode == APPLETB_KBD_MODE_SPCL
+						? APPLETB_KBD_MODE_FN : APPLETB_KBD_MODE_SPCL);
 		} else if (value == 0) {
 			if (kbd->saved_mode != kbd->current_mode)
 				appletb_kbd_set_mode(kbd, kbd->saved_mode);
@@ -402,13 +402,13 @@ static int appletb_kbd_probe(struct hid_device *hdev, const struct hid_device_id
 	}
 
 	kbd->backlight_dev = backlight_device_get_by_name("appletb_backlight");
-		if (!kbd->backlight_dev)
-			dev_err_probe(dev, ret, "Failed to get backlight device\n");
-		else {
-			backlight_device_set_brightness(kbd->backlight_dev, 2);
-			timer_setup(&kbd->inactivity_timer, appletb_inactivity_timer, 0);
-			mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
-		}
+	if (!kbd->backlight_dev) {
+		dev_err_probe(dev, -ENODEV, "Failed to get backlight device\n");
+	} else {
+		backlight_device_set_brightness(kbd->backlight_dev, 2);
+		timer_setup(&kbd->inactivity_timer, appletb_inactivity_timer, 0);
+		mod_timer(&kbd->inactivity_timer, jiffies + msecs_to_jiffies(appletb_tb_dim_timeout * 1000));
+	}
 
 	kbd->inp_handler.event = appletb_kbd_inp_event;
 	kbd->inp_handler.connect = appletb_kbd_inp_connect;
@@ -497,10 +497,11 @@ static struct hid_driver appletb_kbd_hid_driver = {
 };
 module_hid_driver(appletb_kbd_hid_driver);
 
-/* The backlight driver should be loaded before the keyboard driver is initialised*/
+/* The backlight driver should be loaded before the keyboard driver is initialised */
 MODULE_SOFTDEP("pre: hid_appletb_bl");
 
 MODULE_AUTHOR("Ronald Tschalär");
 MODULE_AUTHOR("Kerem Karabay <kekrby@gmail.com>");
-MODULE_DESCRIPTION("MacBookPro Touch Bar Keyboard Mode Driver");
+MODULE_AUTHOR("Aditya Garg <gargaditya08@live.com>");
+MODULE_DESCRIPTION("MacBook Pro Touch Bar Keyboard Mode driver");
 MODULE_LICENSE("GPL");
