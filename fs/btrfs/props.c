@@ -26,7 +26,7 @@ struct prop_handler {
 	const char *xattr_name;
 	int (*validate)(const struct btrfs_inode *inode, const char *value,
 			size_t len);
-	int (*apply)(struct inode *inode, const char *value, size_t len);
+	int (*apply)(struct btrfs_inode *inode, const char *value, size_t len);
 	const char *(*extract)(const struct inode *inode);
 	bool (*ignore)(const struct btrfs_inode *inode);
 	int inheritable;
@@ -121,7 +121,7 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
 		if (ret)
 			return ret;
 
-		ret = handler->apply(&inode->vfs_inode, NULL, 0);
+		ret = handler->apply(inode, NULL, 0);
 		ASSERT(ret == 0);
 
 		return ret;
@@ -131,7 +131,7 @@ int btrfs_set_prop(struct btrfs_trans_handle *trans, struct btrfs_inode *inode,
 			     value_len, flags);
 	if (ret)
 		return ret;
-	ret = handler->apply(&inode->vfs_inode, value, value_len);
+	ret = handler->apply(inode, value, value_len);
 	if (ret) {
 		btrfs_setxattr(trans, &inode->vfs_inode, handler->xattr_name, NULL,
 			       0, flags);
@@ -263,7 +263,7 @@ static void inode_prop_iterator(void *ctx,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
-	ret = handler->apply(inode, value, len);
+	ret = handler->apply(BTRFS_I(inode), value, len);
 	if (unlikely(ret))
 		btrfs_warn(root->fs_info,
 			   "error applying prop %s to ino %llu (root %llu): %d",
@@ -301,26 +301,26 @@ static int prop_compression_validate(const struct btrfs_inode *inode,
 	return -EINVAL;
 }
 
-static int prop_compression_apply(struct inode *inode, const char *value,
+static int prop_compression_apply(struct btrfs_inode *inode, const char *value,
 				  size_t len)
 {
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int type;
 
 	/* Reset to defaults */
 	if (len == 0) {
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
+		inode->flags &= ~BTRFS_INODE_COMPRESS;
+		inode->flags &= ~BTRFS_INODE_NOCOMPRESS;
+		inode->prop_compress = BTRFS_COMPRESS_NONE;
 		return 0;
 	}
 
 	/* Set NOCOMPRESS flag */
 	if ((len == 2 && strncmp("no", value, 2) == 0) ||
 	    (len == 4 && strncmp("none", value, 4) == 0)) {
-		BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
-		BTRFS_I(inode)->flags &= ~BTRFS_INODE_COMPRESS;
-		BTRFS_I(inode)->prop_compress = BTRFS_COMPRESS_NONE;
+		inode->flags |= BTRFS_INODE_NOCOMPRESS;
+		inode->flags &= ~BTRFS_INODE_COMPRESS;
+		inode->prop_compress = BTRFS_COMPRESS_NONE;
 
 		return 0;
 	}
@@ -337,9 +337,9 @@ static int prop_compression_apply(struct inode *inode, const char *value,
 		return -EINVAL;
 	}
 
-	BTRFS_I(inode)->flags &= ~BTRFS_INODE_NOCOMPRESS;
-	BTRFS_I(inode)->flags |= BTRFS_INODE_COMPRESS;
-	BTRFS_I(inode)->prop_compress = type;
+	inode->flags &= ~BTRFS_INODE_NOCOMPRESS;
+	inode->flags |= BTRFS_INODE_COMPRESS;
+	inode->prop_compress = type;
 
 	return 0;
 }
@@ -440,7 +440,7 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 		ret = btrfs_setxattr(trans, &inode->vfs_inode, h->xattr_name, value,
 				     strlen(value), 0);
 		if (!ret) {
-			ret = h->apply(&inode->vfs_inode, value, strlen(value));
+			ret = h->apply(inode, value, strlen(value));
 			if (ret)
 				btrfs_setxattr(trans, &inode->vfs_inode, h->xattr_name,
 					       NULL, 0, 0);
