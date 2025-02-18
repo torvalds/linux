@@ -127,8 +127,12 @@ timerlat_top_update(struct osnoise_tool *tool, int cpu,
 		    unsigned long long thread,
 		    unsigned long long latency)
 {
+	struct timerlat_params *params = tool->params;
 	struct timerlat_top_data *data = tool->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
+
+	if (params->output_divisor)
+		latency = latency / params->output_divisor;
 
 	if (!thread) {
 		cpu_data->irq_count++;
@@ -231,11 +235,7 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	struct timerlat_params *params = top->params;
 	struct timerlat_top_data *data = top->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
-	int divisor = params->output_divisor;
 	struct trace_seq *s = top->trace.seq;
-
-	if (divisor == 0)
-		return;
 
 	/*
 	 * Skip if no data is available: is this cpu offline?
@@ -251,20 +251,20 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	if (!cpu_data->irq_count) {
 		trace_seq_printf(s, "%s %s %s %s |", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", (cpu_data->sum_irq / cpu_data->irq_count) / divisor);
-		trace_seq_printf(s, "%9llu |", cpu_data->max_irq / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_irq);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_irq);
+		trace_seq_printf(s, "%9llu ", cpu_data->sum_irq / cpu_data->irq_count);
+		trace_seq_printf(s, "%9llu |", cpu_data->max_irq);
 	}
 
 	if (!cpu_data->thread_count) {
 		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_thread / divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_thread / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_thread);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_thread);
 		trace_seq_printf(s, "%9llu ",
-				(cpu_data->sum_thread / cpu_data->thread_count) / divisor);
-		trace_seq_printf(s, "%9llu", cpu_data->max_thread / divisor);
+				cpu_data->sum_thread / cpu_data->thread_count);
+		trace_seq_printf(s, "%9llu", cpu_data->max_thread);
 	}
 
 	if (!params->user_top) {
@@ -277,11 +277,11 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	if (!cpu_data->user_count) {
 		trace_seq_printf(s, "%s %s %s %s\n", no_value, no_value, no_value, no_value);
 	} else {
-		trace_seq_printf(s, "%9llu ", cpu_data->cur_user / divisor);
-		trace_seq_printf(s, "%9llu ", cpu_data->min_user / divisor);
+		trace_seq_printf(s, "%9llu ", cpu_data->cur_user);
+		trace_seq_printf(s, "%9llu ", cpu_data->min_user);
 		trace_seq_printf(s, "%9llu ",
-				(cpu_data->sum_user / cpu_data->user_count) / divisor);
-		trace_seq_printf(s, "%9llu\n", cpu_data->max_user / divisor);
+				cpu_data->sum_user / cpu_data->user_count);
+		trace_seq_printf(s, "%9llu\n", cpu_data->max_user);
 	}
 }
 
@@ -294,12 +294,8 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 	const char *split = "----------------------------------------";
 	struct timerlat_params *params = top->params;
 	unsigned long long count = summary->irq_count;
-	int divisor = params->output_divisor;
 	struct trace_seq *s = top->trace.seq;
 	int e = 0;
-
-	if (divisor == 0)
-		return;
 
 	/*
 	 * Skip if no data is available: is this cpu offline?
@@ -323,19 +319,19 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_irq / params->output_divisor);
-		trace_seq_printf(s, "%9llu ", (summary->sum_irq / summary->irq_count) / divisor);
-		trace_seq_printf(s, "%9llu |", summary->max_irq / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_irq);
+		trace_seq_printf(s, "%9llu ", summary->sum_irq / summary->irq_count);
+		trace_seq_printf(s, "%9llu |", summary->max_irq);
 	}
 
 	if (!summary->thread_count) {
 		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_thread / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_thread);
 		trace_seq_printf(s, "%9llu ",
-				(summary->sum_thread / summary->thread_count) / divisor);
-		trace_seq_printf(s, "%9llu", summary->max_thread / divisor);
+				summary->sum_thread / summary->thread_count);
+		trace_seq_printf(s, "%9llu", summary->max_thread);
 	}
 
 	if (!params->user_top) {
@@ -349,10 +345,10 @@ timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summar
 		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "          ");
-		trace_seq_printf(s, "%9llu ", summary->min_user / divisor);
+		trace_seq_printf(s, "%9llu ", summary->min_user);
 		trace_seq_printf(s, "%9llu ",
-				(summary->sum_user / summary->user_count) / divisor);
-		trace_seq_printf(s, "%9llu\n", summary->max_user / divisor);
+				summary->sum_user / summary->user_count);
+		trace_seq_printf(s, "%9llu\n", summary->max_user);
 	}
 }
 
