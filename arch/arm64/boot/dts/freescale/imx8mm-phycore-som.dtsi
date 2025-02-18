@@ -301,10 +301,6 @@
 	/* RTC */
 	rv3028: rtc@52 {
 		compatible = "microcrystal,rv3028";
-		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-parent = <&gpio1>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_rtc>;
 		reg = <0x52>;
 	};
 };
@@ -374,12 +370,6 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_I2C1_SDA_GPIO5_IO15		0x1e0
 			MX8MM_IOMUXC_I2C1_SCL_GPIO5_IO14		0x1e0
-		>;
-	};
-
-	pinctrl_rtc: rtcgrp {
-		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x1c0
 		>;
 	};
 
