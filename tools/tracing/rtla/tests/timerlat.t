@@ -4,7 +4,20 @@ source tests/engine.sh
 test_begin
 
 set_timeout 2m
+timerlat_sample_event='/sys/kernel/tracing/events/osnoise/timerlat_sample'
 
+if ldd $RTLA | grep libbpf >/dev/null && [ -d "$timerlat_sample_event" ]
+then
+	# rtla build with BPF and system supports BPF mode
+	no_bpf_options='0 1'
+else
+	no_bpf_options='1'
+fi
+
+# Do every test with and without BPF
+for option in $no_bpf_options
+do
+export RTLA_NO_BPF=$option
 check "verify help page" \
 	"timerlat --help"
 check "verify -s/--stack" \
@@ -23,5 +36,6 @@ check "verify -c/--cpus" \
 	"timerlat hist -c 0 -d 30s"
 check "hist test in nanoseconds" \
 	"timerlat hist -i 2 -c 0 -n -d 30s"
+done
 
 test_end
