@@ -346,6 +346,22 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 		goto err_vregs_disable;
 	}
 
+	/* skip resetting if already configured */
+	if (regmap_test_bits(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
+			     CONN_STATUS_0_CONNECTION_PRESENT) == 1) {
+		gpiod_direction_output(retimer->reset_gpio, 0);
+	} else {
+		gpiod_direction_output(retimer->reset_gpio, 1);
+
+		/* VDD IO supply enable to reset release delay */
+		usleep_range(4000, 14000);
+
+		gpiod_set_value(retimer->reset_gpio, 0);
+
+		/* firmware initialization delay */
+		msleep(60);
+	}
+
 	sw_desc.drvdata = retimer;
 	sw_desc.fwnode = dev_fwnode(dev);
 	sw_desc.set = ps883x_sw_set;
@@ -367,21 +383,6 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 		dev_err(dev, "failed to register typec retimer: %d\n", ret);
 		goto err_switch_unregister;
 	}
-
-	/* skip resetting if already configured */
-	if (regmap_test_bits(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
-			     CONN_STATUS_0_CONNECTION_PRESENT) == 1)
-		return gpiod_direction_output(retimer->reset_gpio, 0);
-
-	gpiod_direction_output(retimer->reset_gpio, 1);
-
-	/* VDD IO supply enable to reset release delay */
-	usleep_range(4000, 14000);
-
-	gpiod_set_value(retimer->reset_gpio, 0);
-
-	/* firmware initialization delay */
-	msleep(60);
 
 	return 0;
 
