@@ -1175,7 +1175,7 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*val = st->channels_cfg[chan->scan_index].oversampling_ratio;
+			*val = cfg->oversampling_ratio;
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
