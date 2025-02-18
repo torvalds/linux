@@ -35,4 +35,24 @@ extern struct kmem_cache *lsm_inode_cache;
 int lsm_cred_alloc(struct cred *cred, gfp_t gfp);
 int lsm_task_alloc(struct task_struct *task);
 
+/* LSM framework initializers */
+
+#ifdef CONFIG_MMU
+int min_addr_init(void);
+#else
+static inline int min_addr_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_MMU */
+
+#ifdef CONFIG_SECURITYFS
+int securityfs_init(void);
+#else
+static inline int securityfs_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_SECURITYFS */
+
 #endif /* _LSM_H_ */
