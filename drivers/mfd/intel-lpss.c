@@ -480,7 +480,7 @@ EXPORT_SYMBOL_NS_GPL(intel_lpss_remove, "INTEL_LPSS");
 
 static int resume_lpss_device(struct device *dev, void *data)
 {
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+	if (!dev_pm_smart_suspend(dev))
 		pm_runtime_resume(dev);
 
 	return 0;

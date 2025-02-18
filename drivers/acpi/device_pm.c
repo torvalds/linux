@@ -1161,7 +1161,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_complete);
  */
 int acpi_subsys_suspend(struct device *dev)
 {
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
+	if (!dev_pm_smart_suspend(dev) ||
 	    acpi_dev_needs_resume(dev, ACPI_COMPANION(dev)))
 		pm_runtime_resume(dev);
 
@@ -1320,7 +1320,7 @@ EXPORT_SYMBOL_GPL(acpi_subsys_restore_early);
  */
 int acpi_subsys_poweroff(struct device *dev)
 {
-	if (!dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) ||
+	if (!dev_pm_smart_suspend(dev) ||
 	    acpi_dev_needs_resume(dev, ACPI_COMPANION(dev)))
 		pm_runtime_resume(dev);
 

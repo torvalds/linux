@@ -656,15 +656,13 @@ static void device_resume_noirq(struct device *dev, pm_message_t state, bool asy
 	 * so change its status accordingly.
 	 *
 	 * Otherwise, the device is going to be resumed, so set its PM-runtime
-	 * status to "active" unless its power.set_active flag is clear, in
+	 * status to "active" unless its power.smart_suspend flag is clear, in
 	 * which case it is not necessary to update its PM-runtime status.
 	 */
-	if (skip_resume) {
+	if (skip_resume)
 		pm_runtime_set_suspended(dev);
-	} else if (dev->power.set_active) {
+	else if (dev_pm_smart_suspend(dev))
 		pm_runtime_set_active(dev);
-		dev->power.set_active = false;
-	}
 
 	if (dev->pm_domain) {
 		info = "noirq power domain ";
@@ -1282,14 +1280,8 @@ Skip:
 	      dev->power.may_skip_resume))
 		dev->power.must_resume = true;
 
-	if (dev->power.must_resume) {
-		if (dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND)) {
-			dev->power.set_active = true;
-			if (dev->parent && !dev->parent->power.ignore_children)
-				dev->parent->power.set_active = true;
-		}
+	if (dev->power.must_resume)
 		dpm_superior_set_must_resume(dev);
-	}
 
 Complete:
 	complete_all(&dev->power.completion);
@@ -1797,6 +1789,49 @@ int dpm_suspend(pm_message_t state)
 	return error;
 }
 
+static void device_prepare_smart_suspend(struct device *dev)
+{
+	struct device_link *link;
+	int idx;
+
+	/*
+	 * The "smart suspend" feature is enabled for devices whose drivers ask
+	 * for it and for devices without PM callbacks unless runtime PM is
+	 * disabled and enabling it is blocked for them.
+	 *
+	 * However, if "smart suspend" is not enabled for the device's parent
+	 * or any of its suppliers that take runtime PM into account, it cannot
+	 * be enabled for the device either.
+	 */
+	dev->power.smart_suspend = (dev->power.no_pm_callbacks ||
+		dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND)) &&
+		!pm_runtime_blocked(dev);
+
+	if (!dev_pm_smart_suspend(dev))
+		return;
+
+	if (dev->parent && !dev_pm_smart_suspend(dev->parent) &&
+	    !dev->parent->power.ignore_children && !pm_runtime_blocked(dev->parent)) {
+		dev->power.smart_suspend = false;
+		return;
+	}
+
+	idx = device_links_read_lock();
+
+	list_for_each_entry_rcu_locked(link, &dev->links.suppliers, c_node) {
+		if (!(link->flags | DL_FLAG_PM_RUNTIME))
+			continue;
+
+		if (!dev_pm_smart_suspend(link->supplier) &&
+		    !pm_runtime_blocked(link->supplier)) {
+			dev->power.smart_suspend = false;
+			break;
+		}
+	}
+
+	device_links_read_unlock(idx);
+}
+
 /**
  * device_prepare - Prepare a device for system power transition.
  * @dev: Device to handle.
@@ -1858,6 +1893,7 @@ unlock:
 		pm_runtime_put(dev);
 		return ret;
 	}
+	device_prepare_smart_suspend(dev);
 	/*
 	 * A positive return value from ->prepare() means "this device appears
 	 * to be runtime-suspended and its state is fine, so if it really is
@@ -2033,6 +2069,5 @@ void device_pm_check_callbacks(struct device *dev)
 
 bool dev_pm_skip_suspend(struct device *dev)
 {
-	return dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND) &&
-		pm_runtime_status_suspended(dev);
+	return dev_pm_smart_suspend(dev) && pm_runtime_status_suspended(dev);
 }
