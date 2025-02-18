@@ -1811,7 +1811,7 @@ retry:
 		int i;
 
 		for (i = 0; i < nr_folios; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 			bool submitted = false;
 
 			if (unlikely(f2fs_cp_error(sbi))) {
@@ -1821,63 +1821,63 @@ retry:
 				goto out;
 			}
 
-			if (!IS_DNODE(page) || !is_cold_node(page))
+			if (!IS_DNODE(&folio->page) || !is_cold_node(&folio->page))
 				continue;
-			if (ino_of_node(page) != ino)
+			if (ino_of_node(&folio->page) != ino)
 				continue;
 
-			lock_page(page);
+			folio_lock(folio);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
 continue_unlock:
-				unlock_page(page);
+				folio_unlock(folio);
 				continue;
 			}
-			if (ino_of_node(page) != ino)
+			if (ino_of_node(&folio->page) != ino)
 				goto continue_unlock;
 
-			if (!PageDirty(page) && page != last_page) {
+			if (!folio_test_dirty(folio) && &folio->page != last_page) {
 				/* someone wrote it for us */
 				goto continue_unlock;
 			}
 
-			f2fs_wait_on_page_writeback(page, NODE, true, true);
+			f2fs_folio_wait_writeback(folio, NODE, true, true);
 
-			set_fsync_mark(page, 0);
-			set_dentry_mark(page, 0);
+			set_fsync_mark(&folio->page, 0);
+			set_dentry_mark(&folio->page, 0);
 
-			if (!atomic || page == last_page) {
-				set_fsync_mark(page, 1);
+			if (!atomic || &folio->page == last_page) {
+				set_fsync_mark(&folio->page, 1);
 				percpu_counter_inc(&sbi->rf_node_block_count);
-				if (IS_INODE(page)) {
+				if (IS_INODE(&folio->page)) {
 					if (is_inode_flag_set(inode,
 								FI_DIRTY_INODE))
-						f2fs_update_inode(inode, page);
-					set_dentry_mark(page,
+						f2fs_update_inode(inode, &folio->page);
+					set_dentry_mark(&folio->page,
 						f2fs_need_dentry_mark(sbi, ino));
 				}
 				/* may be written by other thread */
-				if (!PageDirty(page))
-					set_page_dirty(page);
+				if (!folio_test_dirty(folio))
+					folio_mark_dirty(folio);
 			}
 
-			if (!clear_page_dirty_for_io(page))
+			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			ret = __write_node_page(page, atomic &&
-						page == last_page,
+			ret = __write_node_page(&folio->page, atomic &&
+						&folio->page == last_page,
 						&submitted, wbc, true,
 						FS_NODE_IO, seq_id);
 			if (ret) {
-				unlock_page(page);
+				folio_unlock(folio);
 				f2fs_put_page(last_page, 0);
 				break;
 			} else if (submitted) {
 				nwritten++;
 			}
 
-			if (page == last_page) {
-				f2fs_put_page(page, 0);
+			if (&folio->page == last_page) {
+				f2fs_folio_put(folio, false);
 				marked = true;
 				break;
 			}
