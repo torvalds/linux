@@ -190,8 +190,8 @@ static struct module *new_module(const char *name, size_t namelen)
 
 	/*
 	 * Set mod->is_gpl_compatible to true by default. If MODULE_LICENSE()
-	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() becasue
-	 * modpost will exit wiht error anyway.
+	 * is missing, do not check the use for EXPORT_SYMBOL_GPL() because
+	 * modpost will exit with an error anyway.
 	 */
 	mod->is_gpl_compatible = true;
 
