@@ -3875,7 +3875,7 @@ static int btrfs_read_locked_inode(struct btrfs_inode *inode, struct btrfs_path 
 	if (ret)
 		goto out;
 
-	ret = btrfs_fill_inode(vfs_inode, &rdev);
+	ret = btrfs_fill_inode(inode, &rdev);
 	if (!ret)
 		filled = true;
 
