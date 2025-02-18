@@ -2007,7 +2007,7 @@ next_step:
 		int i;
 
 		for (i = 0; i < nr_folios; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 			bool submitted = false;
 
 			/* give a priority to WB_SYNC threads */
@@ -2023,27 +2023,27 @@ next_step:
 			 * 1. dentry dnodes
 			 * 2. file dnodes
 			 */
-			if (step == 0 && IS_DNODE(page))
+			if (step == 0 && IS_DNODE(&folio->page))
 				continue;
-			if (step == 1 && (!IS_DNODE(page) ||
-						is_cold_node(page)))
+			if (step == 1 && (!IS_DNODE(&folio->page) ||
+						is_cold_node(&folio->page)))
 				continue;
-			if (step == 2 && (!IS_DNODE(page) ||
-						!is_cold_node(page)))
+			if (step == 2 && (!IS_DNODE(&folio->page) ||
+						!is_cold_node(&folio->page)))
 				continue;
 lock_node:
 			if (wbc->sync_mode == WB_SYNC_ALL)
-				lock_page(page);
-			else if (!trylock_page(page))
+				folio_lock(folio);
+			else if (!folio_trylock(folio))
 				continue;
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
 continue_unlock:
-				unlock_page(page);
+				folio_unlock(folio);
 				continue;
 			}
 
-			if (!PageDirty(page)) {
+			if (!folio_test_dirty(folio)) {
 				/* someone wrote it for us */
 				goto continue_unlock;
 			}
@@ -2053,29 +2053,29 @@ continue_unlock:
 				goto write_node;
 
 			/* flush inline_data */
-			if (page_private_inline(page)) {
-				clear_page_private_inline(page);
-				unlock_page(page);
-				flush_inline_data(sbi, ino_of_node(page));
+			if (page_private_inline(&folio->page)) {
+				clear_page_private_inline(&folio->page);
+				folio_unlock(folio);
+				flush_inline_data(sbi, ino_of_node(&folio->page));
 				goto lock_node;
 			}
 
 			/* flush dirty inode */
-			if (IS_INODE(page) && flush_dirty_inode(page))
+			if (IS_INODE(&folio->page) && flush_dirty_inode(&folio->page))
 				goto lock_node;
 write_node:
-			f2fs_wait_on_page_writeback(page, NODE, true, true);
+			f2fs_folio_wait_writeback(folio, NODE, true, true);
 
-			if (!clear_page_dirty_for_io(page))
+			if (!folio_clear_dirty_for_io(folio))
 				goto continue_unlock;
 
-			set_fsync_mark(page, 0);
-			set_dentry_mark(page, 0);
+			set_fsync_mark(&folio->page, 0);
+			set_dentry_mark(&folio->page, 0);
 
-			ret = __write_node_page(page, false, &submitted,
+			ret = __write_node_page(&folio->page, false, &submitted,
 						wbc, do_balance, io_type, NULL);
 			if (ret)
-				unlock_page(page);
+				folio_unlock(folio);
 			else if (submitted)
 				nwritten++;
 
