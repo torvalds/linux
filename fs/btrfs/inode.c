@@ -6461,11 +6461,13 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		if (IS_ERR(parent)) {
 			ret = PTR_ERR(parent);
 		} else {
-			ret = btrfs_inode_inherit_props(trans, inode, parent);
+			ret = btrfs_inode_inherit_props(trans, BTRFS_I(inode),
+							BTRFS_I(parent));
 			iput(parent);
 		}
 	} else {
-		ret = btrfs_inode_inherit_props(trans, inode, dir);
+		ret = btrfs_inode_inherit_props(trans, BTRFS_I(inode),
+						BTRFS_I(dir));
 	}
 	if (ret) {
 		btrfs_err(fs_info,

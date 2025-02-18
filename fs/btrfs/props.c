@@ -386,16 +386,16 @@ static struct prop_handler prop_handlers[] = {
 };
 
 int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode, const struct inode *parent)
+			      struct btrfs_inode *inode,
+			      const struct btrfs_inode *parent)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int i;
 	bool need_reserve = false;
 
-	if (!test_bit(BTRFS_INODE_HAS_PROPS,
-		      &BTRFS_I(parent)->runtime_flags))
+	if (!test_bit(BTRFS_INODE_HAS_PROPS, &parent->runtime_flags))
 		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(prop_handlers); i++) {
@@ -406,10 +406,10 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 		if (!h->inheritable)
 			continue;
 
-		if (h->ignore(BTRFS_I(inode)))
+		if (h->ignore(inode))
 			continue;
 
-		value = h->extract(parent);
+		value = h->extract(&parent->vfs_inode);
 		if (!value)
 			continue;
 
@@ -417,7 +417,7 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 		 * This is not strictly necessary as the property should be
 		 * valid, but in case it isn't, don't propagate it further.
 		 */
-		ret = h->validate(BTRFS_I(inode), value, strlen(value));
+		ret = h->validate(inode, value, strlen(value));
 		if (ret)
 			continue;
 
@@ -437,16 +437,15 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 				return ret;
 		}
 
-		ret = btrfs_setxattr(trans, inode, h->xattr_name, value,
+		ret = btrfs_setxattr(trans, &inode->vfs_inode, h->xattr_name, value,
 				     strlen(value), 0);
 		if (!ret) {
-			ret = h->apply(inode, value, strlen(value));
+			ret = h->apply(&inode->vfs_inode, value, strlen(value));
 			if (ret)
-				btrfs_setxattr(trans, inode, h->xattr_name,
+				btrfs_setxattr(trans, &inode->vfs_inode, h->xattr_name,
 					       NULL, 0, 0);
 			else
-				set_bit(BTRFS_INODE_HAS_PROPS,
-					&BTRFS_I(inode)->runtime_flags);
+				set_bit(BTRFS_INODE_HAS_PROPS, &inode->runtime_flags);
 		}
 
 		if (need_reserve) {
