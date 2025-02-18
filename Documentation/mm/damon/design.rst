@@ -569,11 +569,21 @@ number of filters for each scheme.  Each filter specifies
 - whether it is to allow (include) or reject (exclude) applying
   the scheme's action to the memory (``allow``).
 
-When multiple filters are installed, each filter is evaluated in the installed
-order.  If a part of memory is matched to one of the filter, next filters are
-ignored.  If the memory passes through the filters evaluation stage because it
-is not matched to any of the filters, applying the scheme's action to it is
-allowed, same to the behavior when no filter exists.
+For efficient handling of filters, some types of filters are handled by the
+core layer, while others are handled by operations set.  In the latter case,
+hence, support of the filter types depends on the DAMON operations set.  In
+case of the core layer-handled filters, the memory regions that excluded by the
+filter are not counted as the scheme has tried to the region.  In contrast, if
+a memory regions is filtered by an operations set layer-handled filter, it is
+counted as the scheme has tried.  This difference affects the statistics.
+
+When multiple filters are installed, the group of filters that handled by the
+core layer are evaluated first.  After that, the group of filters that handled
+by the operations layer are evaluated.  Filters in each of the groups are
+evaluated in the installed order.  If a part of memory is matched to one of the
+filter, next filters are ignored.  If the memory passes through the filters
+evaluation stage because it is not matched to any of the filters, applying the
+scheme's action to it is allowed, same to the behavior when no filter exists.
 
 For example, let's assume 1) a filter for allowing anonymous pages and 2)
 another filter for rejecting young pages are installed in the order.  If a page
@@ -589,14 +599,6 @@ Note that the action can equally be applied to memory that either explicitly
 filter-allowed or filters evaluation stage passed.  It means that installing
 allow-filters at the end of the list makes no practical change but only
 filters-checking overhead.
-
-For efficient handling of filters, some types of filters are handled by the
-core layer, while others are handled by operations set.  In the latter case,
-hence, support of the filter types depends on the DAMON operations set.  In
-case of the core layer-handled filters, the memory regions that excluded by the
-filter are not counted as the scheme has tried to the region.  In contrast, if
-a memory regions is filtered by an operations set layer-handled filter, it is
-counted as the scheme has tried.  This difference affects the statistics.
 
 Below ``type`` of filters are currently supported.
 
