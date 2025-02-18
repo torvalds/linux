@@ -17,6 +17,17 @@ static size_t vkms_config_get_num_planes(struct vkms_config *config)
 	return count;
 }
 
+static size_t vkms_config_get_num_encoders(struct vkms_config *config)
+{
+	struct vkms_config_encoder *encoder_cfg;
+	size_t count = 0;
+
+	vkms_config_for_each_encoder(config, encoder_cfg)
+		count++;
+
+	return count;
+}
+
 static struct vkms_config_plane *get_first_plane(struct vkms_config *config)
 {
 	struct vkms_config_plane *plane_cfg;
@@ -33,6 +44,16 @@ static struct vkms_config_crtc *get_first_crtc(struct vkms_config *config)
 
 	vkms_config_for_each_crtc(config, crtc_cfg)
 		return crtc_cfg;
+
+	return NULL;
+}
+
+static struct vkms_config_encoder *get_first_encoder(struct vkms_config *config)
+{
+	struct vkms_config_encoder *encoder_cfg;
+
+	vkms_config_for_each_encoder(config, encoder_cfg)
+		return encoder_cfg;
 
 	return NULL;
 }
@@ -57,6 +78,7 @@ static void vkms_config_test_empty_config(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, vkms_config_get_num_planes(config), 0);
 	KUNIT_EXPECT_EQ(test, vkms_config_get_num_crtcs(config), 0);
+	KUNIT_EXPECT_EQ(test, vkms_config_get_num_encoders(config), 0);
 
 	KUNIT_EXPECT_FALSE(test, vkms_config_is_valid(config));
 
@@ -129,6 +151,9 @@ static void vkms_config_test_default_config(struct kunit *test)
 		}
 		KUNIT_EXPECT_EQ(test, n_possible_crtcs, 1);
 	}
+
+	/* Encoders */
+	KUNIT_EXPECT_EQ(test, vkms_config_get_num_encoders(config), 1);
 
 	KUNIT_EXPECT_TRUE(test, vkms_config_is_valid(config));
 
@@ -211,6 +236,50 @@ static void vkms_config_test_get_crtcs(struct kunit *test)
 		if (crtc_cfg != crtc_cfg1)
 			KUNIT_FAIL(test, "Unexpected CRTC");
 	}
+
+	vkms_config_destroy(config);
+}
+
+static void vkms_config_test_get_encoders(struct kunit *test)
+{
+	struct vkms_config *config;
+	struct vkms_config_encoder *encoder_cfg;
+	struct vkms_config_encoder *encoder_cfg1, *encoder_cfg2;
+	int n_encoders = 0;
+
+	config = vkms_config_create("test");
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, config);
+
+	vkms_config_for_each_encoder(config, encoder_cfg)
+		n_encoders++;
+	KUNIT_ASSERT_EQ(test, n_encoders, 0);
+
+	encoder_cfg1 = vkms_config_create_encoder(config);
+	vkms_config_for_each_encoder(config, encoder_cfg) {
+		n_encoders++;
+		if (encoder_cfg != encoder_cfg1)
+			KUNIT_FAIL(test, "Unexpected encoder");
+	}
+	KUNIT_ASSERT_EQ(test, n_encoders, 1);
+	n_encoders = 0;
+
+	encoder_cfg2 = vkms_config_create_encoder(config);
+	vkms_config_for_each_encoder(config, encoder_cfg) {
+		n_encoders++;
+		if (encoder_cfg != encoder_cfg1 && encoder_cfg != encoder_cfg2)
+			KUNIT_FAIL(test, "Unexpected encoder");
+	}
+	KUNIT_ASSERT_EQ(test, n_encoders, 2);
+	n_encoders = 0;
+
+	vkms_config_destroy_encoder(config, encoder_cfg2);
+	vkms_config_for_each_encoder(config, encoder_cfg) {
+		n_encoders++;
+		if (encoder_cfg != encoder_cfg1)
+			KUNIT_FAIL(test, "Unexpected encoder");
+	}
+	KUNIT_ASSERT_EQ(test, n_encoders, 1);
+	n_encoders = 0;
 
 	vkms_config_destroy(config);
 }
@@ -344,6 +413,29 @@ static void vkms_config_test_invalid_crtc_number(struct kunit *test)
 	/* Invalid: Too many CRTCs */
 	for (n = 0; n <= 32; n++)
 		vkms_config_create_crtc(config);
+
+	KUNIT_EXPECT_FALSE(test, vkms_config_is_valid(config));
+
+	vkms_config_destroy(config);
+}
+
+static void vkms_config_test_invalid_encoder_number(struct kunit *test)
+{
+	struct vkms_config *config;
+	struct vkms_config_encoder *encoder_cfg;
+	int n;
+
+	config = vkms_config_default_create(false, false, false);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, config);
+
+	/* Invalid: No encoders */
+	encoder_cfg = get_first_encoder(config);
+	vkms_config_destroy_encoder(config, encoder_cfg);
+	KUNIT_EXPECT_FALSE(test, vkms_config_is_valid(config));
+
+	/* Invalid: Too many encoders */
+	for (n = 0; n <= 32; n++)
+		vkms_config_create_encoder(config);
 
 	KUNIT_EXPECT_FALSE(test, vkms_config_is_valid(config));
 
@@ -514,10 +606,12 @@ static struct kunit_case vkms_config_test_cases[] = {
 			 default_config_gen_params),
 	KUNIT_CASE(vkms_config_test_get_planes),
 	KUNIT_CASE(vkms_config_test_get_crtcs),
+	KUNIT_CASE(vkms_config_test_get_encoders),
 	KUNIT_CASE(vkms_config_test_invalid_plane_number),
 	KUNIT_CASE(vkms_config_test_valid_plane_type),
 	KUNIT_CASE(vkms_config_test_valid_plane_possible_crtcs),
 	KUNIT_CASE(vkms_config_test_invalid_crtc_number),
+	KUNIT_CASE(vkms_config_test_invalid_encoder_number),
 	KUNIT_CASE(vkms_config_test_attach_different_configs),
 	KUNIT_CASE(vkms_config_test_plane_attach_crtc),
 	KUNIT_CASE(vkms_config_test_plane_get_possible_crtcs),
