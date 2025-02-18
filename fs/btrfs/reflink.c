@@ -865,8 +865,8 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		struct file *dst_file, loff_t destoff, loff_t len,
 		unsigned int remap_flags)
 {
-	struct inode *src_inode = file_inode(src_file);
-	struct inode *dst_inode = file_inode(dst_file);
+	struct btrfs_inode *src_inode = BTRFS_I(file_inode(src_file));
+	struct btrfs_inode *dst_inode = BTRFS_I(file_inode(dst_file));
 	bool same_inode = dst_inode == src_inode;
 	int ret;
 
@@ -874,10 +874,10 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		return -EINVAL;
 
 	if (same_inode) {
-		btrfs_inode_lock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
+		btrfs_inode_lock(src_inode, BTRFS_ILOCK_MMAP);
 	} else {
-		lock_two_nondirectories(src_inode, dst_inode);
-		btrfs_double_mmap_lock(BTRFS_I(src_inode), BTRFS_I(dst_inode));
+		lock_two_nondirectories(&src_inode->vfs_inode, &dst_inode->vfs_inode);
+		btrfs_double_mmap_lock(src_inode, dst_inode);
 	}
 
 	ret = btrfs_remap_file_range_prep(src_file, off, dst_file, destoff,
@@ -886,16 +886,18 @@ loff_t btrfs_remap_file_range(struct file *src_file, loff_t off,
 		goto out_unlock;
 
 	if (remap_flags & REMAP_FILE_DEDUP)
-		ret = btrfs_extent_same(src_inode, off, len, dst_inode, destoff);
+		ret = btrfs_extent_same(&src_inode->vfs_inode, off, len,
+					&dst_inode->vfs_inode, destoff);
 	else
 		ret = btrfs_clone_files(dst_file, src_file, off, len, destoff);
 
 out_unlock:
 	if (same_inode) {
-		btrfs_inode_unlock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
+		btrfs_inode_unlock(src_inode, BTRFS_ILOCK_MMAP);
 	} else {
-		btrfs_double_mmap_unlock(BTRFS_I(src_inode), BTRFS_I(dst_inode));
-		unlock_two_nondirectories(src_inode, dst_inode);
+		btrfs_double_mmap_unlock(src_inode, dst_inode);
+		unlock_two_nondirectories(&src_inode->vfs_inode,
+					  &dst_inode->vfs_inode);
 	}
 
 	/*
