@@ -6648,7 +6648,7 @@ static void commit_pipe_post_planes(struct intel_atomic_state *state,
 	 */
 	if (DISPLAY_VER(dev_priv) >= 9 &&
 	    !intel_crtc_needs_modeset(new_crtc_state))
-		skl_detach_scalers(new_crtc_state);
+		skl_detach_scalers(NULL, new_crtc_state);
 
 	if (intel_crtc_vrr_enabling(state, crtc))
 		intel_vrr_enable(new_crtc_state);

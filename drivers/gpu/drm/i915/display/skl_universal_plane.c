@@ -1466,7 +1466,7 @@ skl_plane_update_arm(struct intel_dsb *dsb,
 	 * TODO: split into noarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
-		skl_program_plane_scaler(plane, crtc_state, plane_state);
+		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	/*
 	 * The control register self-arms if the plane was previously
@@ -1646,7 +1646,7 @@ icl_plane_update_arm(struct intel_dsb *dsb,
 	 * TODO: split into noarm+arm pair
 	 */
 	if (plane_state->scaler_id >= 0)
-		skl_program_plane_scaler(plane, crtc_state, plane_state);
+		skl_program_plane_scaler(dsb, plane, crtc_state, plane_state);
 
 	icl_plane_update_sel_fetch_arm(dsb, plane, crtc_state, plane_state);
 

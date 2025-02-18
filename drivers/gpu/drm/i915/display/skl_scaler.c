@@ -666,12 +666,14 @@ static u16 glk_nearest_filter_coef(int t)
  */
 
 static void glk_program_nearest_filter_coefs(struct intel_display *display,
+					     struct intel_dsb *dsb,
 					     enum pipe pipe, int id, int set)
 {
 	int i;
 
-	intel_de_write_fw(display, GLK_PS_COEF_INDEX_SET(pipe, id, set),
-			  PS_COEF_INDEX_AUTO_INC);
+	intel_de_write_dsb(display, dsb,
+			   GLK_PS_COEF_INDEX_SET(pipe, id, set),
+			   PS_COEF_INDEX_AUTO_INC);
 
 	for (i = 0; i < 17 * 7; i += 2) {
 		u32 tmp;
@@ -683,11 +685,12 @@ static void glk_program_nearest_filter_coefs(struct intel_display *display,
 		t = glk_coef_tap(i + 1);
 		tmp |= glk_nearest_filter_coef(t) << 16;
 
-		intel_de_write_fw(display, GLK_PS_COEF_DATA_SET(pipe, id, set),
-				  tmp);
+		intel_de_write_dsb(display, dsb,
+				   GLK_PS_COEF_DATA_SET(pipe, id, set), tmp);
 	}
 
-	intel_de_write_fw(display, GLK_PS_COEF_INDEX_SET(pipe, id, set), 0);
+	intel_de_write_dsb(display, dsb,
+			   GLK_PS_COEF_INDEX_SET(pipe, id, set), 0);
 }
 
 static u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
@@ -703,14 +706,15 @@ static u32 skl_scaler_get_filter_select(enum drm_scaling_filter filter, int set)
 	return PS_FILTER_MEDIUM;
 }
 
-static void skl_scaler_setup_filter(struct intel_display *display, enum pipe pipe,
+static void skl_scaler_setup_filter(struct intel_display *display,
+				    struct intel_dsb *dsb, enum pipe pipe,
 				    int id, int set, enum drm_scaling_filter filter)
 {
 	switch (filter) {
 	case DRM_SCALING_FILTER_DEFAULT:
 		break;
 	case DRM_SCALING_FILTER_NEAREST_NEIGHBOR:
-		glk_program_nearest_filter_coefs(display, pipe, id, set);
+		glk_program_nearest_filter_coefs(display, dsb, pipe, id, set);
 		break;
 	default:
 		MISSING_CASE(filter);
@@ -759,7 +763,7 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 
 	trace_intel_pipe_scaler_update_arm(crtc, id, x, y, width, height);
 
-	skl_scaler_setup_filter(display, pipe, id, 0,
+	skl_scaler_setup_filter(display, NULL, pipe, id, 0,
 				crtc_state->hw.scaling_filter);
 
 	intel_de_write_fw(display, SKL_PS_CTRL(pipe, id), ps_ctrl);
@@ -775,7 +779,8 @@ void skl_pfit_enable(const struct intel_crtc_state *crtc_state)
 }
 
 void
-skl_program_plane_scaler(struct intel_plane *plane,
+skl_program_plane_scaler(struct intel_dsb *dsb,
+			 struct intel_plane *plane,
 			 const struct intel_crtc_state *crtc_state,
 			 const struct intel_plane_state *plane_state)
 {
@@ -825,35 +830,38 @@ skl_program_plane_scaler(struct intel_plane *plane,
 	trace_intel_plane_scaler_update_arm(plane, scaler_id,
 					    crtc_x, crtc_y, crtc_w, crtc_h);
 
-	skl_scaler_setup_filter(display, pipe, scaler_id, 0,
+	skl_scaler_setup_filter(display, dsb, pipe, scaler_id, 0,
 				plane_state->hw.scaling_filter);
 
-	intel_de_write_fw(display, SKL_PS_CTRL(pipe, scaler_id), ps_ctrl);
-	intel_de_write_fw(display, SKL_PS_VPHASE(pipe, scaler_id),
-			  PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
-	intel_de_write_fw(display, SKL_PS_HPHASE(pipe, scaler_id),
-			  PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
-	intel_de_write_fw(display, SKL_PS_WIN_POS(pipe, scaler_id),
-			  PS_WIN_XPOS(crtc_x) | PS_WIN_YPOS(crtc_y));
-	intel_de_write_fw(display, SKL_PS_WIN_SZ(pipe, scaler_id),
-			  PS_WIN_XSIZE(crtc_w) | PS_WIN_YSIZE(crtc_h));
+	intel_de_write_dsb(display, dsb, SKL_PS_CTRL(pipe, scaler_id),
+			   ps_ctrl);
+	intel_de_write_dsb(display, dsb, SKL_PS_VPHASE(pipe, scaler_id),
+			   PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
+	intel_de_write_dsb(display, dsb, SKL_PS_HPHASE(pipe, scaler_id),
+			   PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
+	intel_de_write_dsb(display, dsb, SKL_PS_WIN_POS(pipe, scaler_id),
+			   PS_WIN_XPOS(crtc_x) | PS_WIN_YPOS(crtc_y));
+	intel_de_write_dsb(display, dsb, SKL_PS_WIN_SZ(pipe, scaler_id),
+			   PS_WIN_XSIZE(crtc_w) | PS_WIN_YSIZE(crtc_h));
 }
 
-static void skl_detach_scaler(struct intel_crtc *crtc, int id)
+static void skl_detach_scaler(struct intel_dsb *dsb,
+			      struct intel_crtc *crtc, int id)
 {
 	struct intel_display *display = to_intel_display(crtc);
 
 	trace_intel_scaler_disable_arm(crtc, id);
 
-	intel_de_write_fw(display, SKL_PS_CTRL(crtc->pipe, id), 0);
-	intel_de_write_fw(display, SKL_PS_WIN_POS(crtc->pipe, id), 0);
-	intel_de_write_fw(display, SKL_PS_WIN_SZ(crtc->pipe, id), 0);
+	intel_de_write_dsb(display, dsb, SKL_PS_CTRL(crtc->pipe, id), 0);
+	intel_de_write_dsb(display, dsb, SKL_PS_WIN_POS(crtc->pipe, id), 0);
+	intel_de_write_dsb(display, dsb, SKL_PS_WIN_SZ(crtc->pipe, id), 0);
 }
 
 /*
  * This function detaches (aka. unbinds) unused scalers in hardware
  */
-void skl_detach_scalers(const struct intel_crtc_state *crtc_state)
+void skl_detach_scalers(struct intel_dsb *dsb,
+			const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct intel_crtc_scaler_state *scaler_state =
@@ -863,7 +871,7 @@ void skl_detach_scalers(const struct intel_crtc_state *crtc_state)
 	/* loop through and disable scalers that aren't in use */
 	for (i = 0; i < crtc->num_scalers; i++) {
 		if (!scaler_state->scalers[i].in_use)
-			skl_detach_scaler(crtc, i);
+			skl_detach_scaler(dsb, crtc, i);
 	}
 }
 
@@ -873,7 +881,7 @@ void skl_scaler_disable(const struct intel_crtc_state *old_crtc_state)
 	int i;
 
 	for (i = 0; i < crtc->num_scalers; i++)
-		skl_detach_scaler(crtc, i);
+		skl_detach_scaler(NULL, crtc, i);
 }
 
 void skl_scaler_get_config(struct intel_crtc_state *crtc_state)
