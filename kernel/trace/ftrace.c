@@ -7006,12 +7006,15 @@ static int ftrace_process_locs(struct module *mod,
 	unsigned long addr;
 	unsigned long kaslr;
 	unsigned long flags = 0; /* Shut up gcc */
+	unsigned long pages;
 	int ret = -ENOMEM;
 
 	count = end - start;
 
 	if (!count)
 		return 0;
+
+	pages = DIV_ROUND_UP(count, ENTRIES_PER_PAGE);
 
 	/*
 	 * Sorting mcount in vmlinux at build time depend on
@@ -7124,6 +7127,8 @@ static int ftrace_process_locs(struct module *mod,
 			for (pg = pg_unuse; pg; pg = pg->next)
 				remaining += 1 << pg->order;
 
+			pages -= remaining;
+
 			skip = DIV_ROUND_UP(skip, ENTRIES_PER_PAGE);
 
 			/*
@@ -7137,6 +7142,13 @@ static int ftrace_process_locs(struct module *mod,
 		synchronize_rcu();
 		ftrace_free_pages(pg_unuse);
 	}
+
+	if (!mod) {
+		count -= skipped;
+		pr_info("ftrace: allocating %ld entries in %ld pages\n",
+			count, pages);
+	}
+
 	return ret;
 }
 
@@ -7781,9 +7793,6 @@ void __init ftrace_init(void)
 		pr_info("ftrace: No functions to be traced?\n");
 		goto failed;
 	}
-
-	pr_info("ftrace: allocating %ld entries in %ld pages\n",
-		count, DIV_ROUND_UP(count, ENTRIES_PER_PAGE));
 
 	ret = ftrace_process_locs(NULL,
 				  __start_mcount_loc,
