@@ -2815,16 +2815,23 @@ static inline struct page *f2fs_pagecache_get_page(
 	return pagecache_get_page(mapping, index, fgp_flags, gfp_mask);
 }
 
+static inline void f2fs_folio_put(struct folio *folio, bool unlock)
+{
+	if (!folio)
+		return;
+
+	if (unlock) {
+		f2fs_bug_on(F2FS_F_SB(folio), !folio_test_locked(folio));
+		folio_unlock(folio);
+	}
+	folio_put(folio);
+}
+
 static inline void f2fs_put_page(struct page *page, int unlock)
 {
 	if (!page)
 		return;
-
-	if (unlock) {
-		f2fs_bug_on(F2FS_P_SB(page), !PageLocked(page));
-		unlock_page(page);
-	}
-	put_page(page);
+	f2fs_folio_put(page_folio(page), unlock);
 }
 
 static inline void f2fs_put_dnode(struct dnode_of_data *dn)
