@@ -291,6 +291,7 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 	struct typec_switch_desc sw_desc = { };
 	struct typec_retimer_desc rtmr_desc = { };
 	struct ps883x_retimer *retimer;
+	unsigned int val;
 	int ret;
 
 	retimer = devm_kzalloc(dev, sizeof(*retimer), GFP_KERNEL);
@@ -360,6 +361,16 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 
 		/* firmware initialization delay */
 		msleep(60);
+
+		/* make sure device is accessible */
+		ret = regmap_read(retimer->regmap, REG_USB_PORT_CONN_STATUS_0,
+				  &val);
+		if (ret) {
+			dev_err(dev, "failed to read conn_status_0: %d\n", ret);
+			if (ret == -ENXIO)
+				ret = -EIO;
+			goto err_clk_disable;
+		}
 	}
 
 	sw_desc.drvdata = retimer;
