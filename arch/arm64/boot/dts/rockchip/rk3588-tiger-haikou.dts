@@ -310,8 +310,10 @@
 	status = "okay";
 };
 
+/* DB9 RS232/RS485 when SW2 in "UART1" mode */
 &uart5 {
 	rts-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 };
 
 &usbdp_phy0 {
