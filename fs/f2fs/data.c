@@ -358,7 +358,7 @@ static void f2fs_write_end_io(struct bio *bio)
 				folio->index != nid_of_node(&folio->page));
 
 		dec_page_count(sbi, type);
-		if (f2fs_in_warm_node_list(sbi, &folio->page))
+		if (f2fs_in_warm_node_list(sbi, folio))
 			f2fs_del_fsync_node_entry(sbi, &folio->page);
 		clear_page_private_gcing(&folio->page);
 		folio_end_writeback(folio);
