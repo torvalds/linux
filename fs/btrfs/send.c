@@ -5122,7 +5122,7 @@ static int send_verity(struct send_ctx *sctx, struct fs_path *path,
 
 	ret = begin_cmd(sctx, BTRFS_SEND_C_ENABLE_VERITY);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	TLV_PUT_PATH(sctx, BTRFS_SEND_A_PATH, path);
 	TLV_PUT_U8(sctx, BTRFS_SEND_A_VERITY_ALGORITHM,
@@ -5137,7 +5137,6 @@ static int send_verity(struct send_ctx *sctx, struct fs_path *path,
 	ret = send_cmd(sctx);
 
 tlv_put_failure:
-out:
 	return ret;
 }
 
