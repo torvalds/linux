@@ -4746,11 +4746,9 @@ static int record_new_ref(struct send_ctx *sctx)
 	ret = iterate_inode_ref(sctx->send_root, sctx->left_path,
 				sctx->cmp_key, 0, record_new_ref_if_needed, sctx);
 	if (ret < 0)
-		goto out;
-	ret = 0;
+		return ret;
 
-out:
-	return ret;
+	return 0;
 }
 
 static int record_deleted_ref(struct send_ctx *sctx)
