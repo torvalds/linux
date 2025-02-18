@@ -1572,7 +1572,7 @@ static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 {
 	pgoff_t index;
 	struct folio_batch fbatch;
-	struct page *last_page = NULL;
+	struct folio *last_folio = NULL;
 	int nr_folios;
 
 	folio_batch_init(&fbatch);
@@ -1584,45 +1584,45 @@ static struct page *last_fsync_dnode(struct f2fs_sb_info *sbi, nid_t ino)
 		int i;
 
 		for (i = 0; i < nr_folios; i++) {
-			struct page *page = &fbatch.folios[i]->page;
+			struct folio *folio = fbatch.folios[i];
 
 			if (unlikely(f2fs_cp_error(sbi))) {
-				f2fs_put_page(last_page, 0);
+				f2fs_folio_put(last_folio, false);
 				folio_batch_release(&fbatch);
 				return ERR_PTR(-EIO);
 			}
 
-			if (!IS_DNODE(page) || !is_cold_node(page))
+			if (!IS_DNODE(&folio->page) || !is_cold_node(&folio->page))
 				continue;
-			if (ino_of_node(page) != ino)
+			if (ino_of_node(&folio->page) != ino)
 				continue;
 
-			lock_page(page);
+			folio_lock(folio);
 
-			if (unlikely(page->mapping != NODE_MAPPING(sbi))) {
+			if (unlikely(folio->mapping != NODE_MAPPING(sbi))) {
 continue_unlock:
-				unlock_page(page);
+				folio_unlock(folio);
 				continue;
 			}
-			if (ino_of_node(page) != ino)
+			if (ino_of_node(&folio->page) != ino)
 				goto continue_unlock;
 
-			if (!PageDirty(page)) {
+			if (!folio_test_dirty(folio)) {
 				/* someone wrote it for us */
 				goto continue_unlock;
 			}
 
-			if (last_page)
-				f2fs_put_page(last_page, 0);
+			if (last_folio)
+				f2fs_folio_put(last_folio, false);
 
-			get_page(page);
-			last_page = page;
-			unlock_page(page);
+			folio_get(folio);
+			last_folio = folio;
+			folio_unlock(folio);
 		}
 		folio_batch_release(&fbatch);
 		cond_resched();
 	}
-	return last_page;
+	return &last_folio->page;
 }
 
 static int __write_node_page(struct page *page, bool atomic, bool *submitted,
