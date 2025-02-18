@@ -617,7 +617,7 @@ Below ``type`` of filters are currently supported.
     - Applied to pages that belonging to a given DAMON monitoring target.
     - Handled by the core logic.
 
-To know how user-space can set the watermarks via :ref:`DAMON sysfs interface
+To know how user-space can set the filters via :ref:`DAMON sysfs interface
 <sysfs_interface>`, refer to :ref:`filters <sysfs_filters>` part of the
 documentation.
 
