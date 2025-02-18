@@ -777,24 +777,24 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				       struct file *file_out, loff_t pos_out,
 				       loff_t *len, unsigned int remap_flags)
 {
-	struct inode *inode_in = file_inode(file_in);
-	struct inode *inode_out = file_inode(file_out);
-	u64 bs = BTRFS_I(inode_out)->root->fs_info->sectorsize;
+	struct btrfs_inode *inode_in = BTRFS_I(file_inode(file_in));
+	struct btrfs_inode *inode_out = BTRFS_I(file_inode(file_out));
+	u64 bs = inode_out->root->fs_info->sectorsize;
 	u64 wb_len;
 	int ret;
 
 	if (!(remap_flags & REMAP_FILE_DEDUP)) {
-		struct btrfs_root *root_out = BTRFS_I(inode_out)->root;
+		struct btrfs_root *root_out = inode_out->root;
 
 		if (btrfs_root_readonly(root_out))
 			return -EROFS;
 
-		ASSERT(inode_in->i_sb == inode_out->i_sb);
+		ASSERT(inode_in->vfs_inode.i_sb == inode_out->vfs_inode.i_sb);
 	}
 
 	/* Don't make the dst file partly checksummed */
-	if ((BTRFS_I(inode_in)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(inode_out)->flags & BTRFS_INODE_NODATASUM)) {
+	if ((inode_in->flags & BTRFS_INODE_NODATASUM) !=
+	    (inode_out->flags & BTRFS_INODE_NODATASUM)) {
 		return -EINVAL;
 	}
 
@@ -813,7 +813,7 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	 *    to complete so that new file extent items are in the fs tree.
 	 */
 	if (*len == 0 && !(remap_flags & REMAP_FILE_DEDUP))
-		wb_len = ALIGN(inode_in->i_size, bs) - ALIGN_DOWN(pos_in, bs);
+		wb_len = ALIGN(inode_in->vfs_inode.i_size, bs) - ALIGN_DOWN(pos_in, bs);
 	else
 		wb_len = ALIGN(*len, bs);
 
@@ -834,16 +834,14 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 	 * Also we don't need to check ASYNC_EXTENT, as async extent will be
 	 * CoWed anyway, not affecting nocow part.
 	 */
-	ret = filemap_flush(inode_in->i_mapping);
+	ret = filemap_flush(inode_in->vfs_inode.i_mapping);
 	if (ret < 0)
 		return ret;
 
-	ret = btrfs_wait_ordered_range(BTRFS_I(inode_in), ALIGN_DOWN(pos_in, bs),
-				       wb_len);
+	ret = btrfs_wait_ordered_range(inode_in, ALIGN_DOWN(pos_in, bs), wb_len);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_wait_ordered_range(BTRFS_I(inode_out), ALIGN_DOWN(pos_out, bs),
-				       wb_len);
+	ret = btrfs_wait_ordered_range(inode_out, ALIGN_DOWN(pos_out, bs), wb_len);
 	if (ret < 0)
 		return ret;
 
