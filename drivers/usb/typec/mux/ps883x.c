@@ -387,10 +387,11 @@ static int ps883x_retimer_probe(struct i2c_client *client)
 
 err_switch_unregister:
 	typec_switch_unregister(retimer->sw);
-err_vregs_disable:
-	ps883x_disable_vregs(retimer);
 err_clk_disable:
 	clk_disable_unprepare(retimer->xo_clk);
+err_vregs_disable:
+	gpiod_set_value(retimer->reset_gpio, 1);
+	ps883x_disable_vregs(retimer);
 err_mux_put:
 	typec_mux_put(retimer->typec_mux);
 err_switch_put:
