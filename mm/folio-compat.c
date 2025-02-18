@@ -84,11 +84,3 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t index,
 	return folio_file_page(folio, index);
 }
 EXPORT_SYMBOL(pagecache_get_page);
-
-struct page *grab_cache_page_write_begin(struct address_space *mapping,
-					pgoff_t index)
-{
-	return pagecache_get_page(mapping, index, FGP_WRITEBEGIN,
-			mapping_gfp_mask(mapping));
-}
-EXPORT_SYMBOL(grab_cache_page_write_begin);
