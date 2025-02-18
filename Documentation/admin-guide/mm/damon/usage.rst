@@ -408,21 +408,19 @@ in the numeric order.
 
 Each filter directory contains nine files, namely ``type``, ``matching``,
 ``allow``, ``memcg_path``, ``addr_start``, ``addr_end``, ``min``, ``max``
-and ``target_idx``.  To ``type`` file, you can write one of six special
-keywords: ``anon`` for anonymous pages, ``memcg`` for specific memory cgroup,
-``young`` for young pages, ``addr`` for specific address range (an open-ended
-interval), ``hugepage_size`` for large folios of a specific size range [``min``,
-``max``] or ``target`` for specific DAMON monitoring target filtering.  Meaning
-of the types are same to the description on the :ref:`design doc
-<damon_design_damos_filters>`.
+and ``target_idx``.  To ``type`` file, you can write the type of the filter.
+Refer to :ref:`the design doc <damon_design_damos_filters>` for available type
+names and their meanings.
 
-In case of the memory cgroup filtering, you can specify the memory cgroup of
-the interest by writing the path of the memory cgroup from the cgroups mount
-point to ``memcg_path`` file.  In case of the address range filtering, you can
-specify the start and end address of the range to ``addr_start`` and
-``addr_end`` files, respectively.  For the DAMON monitoring target filtering,
-you can specify the index of the target between the list of the DAMON context's
-monitoring targets list to ``target_idx`` file.
+For ``memcg`` type, you can specify the memory cgroup of the interest by
+writing the path of the memory cgroup from the cgroups mount point to
+``memcg_path`` file.  For ``addr`` type, you can specify the start and end
+address of the range (open-ended interval) to ``addr_start`` and ``addr_end``
+files, respectively.  For ``hugepage_size`` type, you can specify the minimum
+and maximum size of the range (closed interval) to ``min`` and ``max`` files,
+respectively.  For ``target`` type, you can specify the index of the target
+between the list of the DAMON context's monitoring targets list to
+``target_idx`` file.
 
 You can write ``Y`` or ``N`` to ``matching`` file to specify whether the filter
 is for memory that matches the ``type``.  You can write ``Y`` or ``N`` to

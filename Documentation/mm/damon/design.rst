@@ -600,23 +600,23 @@ counted as the scheme has tried.  This difference affects the statistics.
 
 Below ``type`` of filters are currently supported.
 
-- anonymous page
+- anon
     - Applied to pages that containing data that not stored in files.
     - Handled by operations set layer.  Supported by only ``paddr`` set.
-- memory cgroup
+- memcg
     - Applied to pages that belonging to a given cgroup.
     - Handled by operations set layer.  Supported by only ``paddr`` set.
-- young page
+- young
     - Applied to pages that are accessed after the last access check from the
       scheme.
     - Handled by operations set layer.  Supported by only ``paddr`` set.
-- pages that managed in a given size range
+- hugepage_size
     - Applied to pages that managed in a given size range.
     - Handled by operations set layer.  Supported by only ``paddr`` set.
-- address range
+- addr
     - Applied to pages that belonging to a given address range.
     - Handled by the core logic.
-- DAMON monitoring target
+- target
     - Applied to pages that belonging to a given DAMON monitoring target.
     - Handled by the core logic.
 
