@@ -282,7 +282,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 		struct inet_diag_meminfo minfo = {
 			.idiag_rmem = sk_rmem_alloc_get(sk),
 			.idiag_wmem = READ_ONCE(sk->sk_wmem_queued),
-			.idiag_fmem = sk_forward_alloc_get(sk),
+			.idiag_fmem = READ_ONCE(sk->sk_forward_alloc),
 			.idiag_tmem = sk_wmem_alloc_get(sk),
 		};
 
