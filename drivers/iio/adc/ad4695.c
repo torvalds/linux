@@ -1054,11 +1054,13 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
 	const struct iio_scan_type *scan_type;
-	struct ad4695_channel_config *cfg = &st->channels_cfg[chan->scan_index];
-	unsigned int osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
+	struct ad4695_channel_config *cfg;
 	unsigned int reg_val;
 	int ret, tmp;
 	u8 realbits;
+
+	if (chan->type == IIO_VOLTAGE)
+		cfg = &st->channels_cfg[chan->scan_index];
 
 	scan_type = iio_get_current_scan_type(indio_dev, chan);
 	if (IS_ERR(scan_type))
@@ -1140,7 +1142,7 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 
 			tmp = sign_extend32(reg_val, 15);
 
-			switch (osr) {
+			switch (cfg->oversampling_ratio) {
 			case 1:
 				*val = tmp / 4;
 				*val2 = abs(tmp) % 4 * MICRO / 4;
@@ -1180,6 +1182,10 @@ static int ad4695_read_raw(struct iio_dev *indio_dev,
 		}
 	case IIO_CHAN_INFO_SAMP_FREQ: {
 		struct pwm_state state;
+		unsigned int osr = 1;
+
+		if (chan->type == IIO_VOLTAGE)
+			osr = cfg->oversampling_ratio;
 
 		ret = pwm_get_state_hw(st->cnv_pwm, &state);
 		if (ret)
@@ -1272,7 +1278,10 @@ static int __ad4695_write_raw(struct iio_dev *indio_dev,
 {
 	struct ad4695_state *st = iio_priv(indio_dev);
 	unsigned int reg_val;
-	unsigned int osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
+	unsigned int osr = 1;
+
+	if (chan->type == IIO_VOLTAGE)
+		osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -1383,7 +1392,10 @@ static int ad4695_read_avail(struct iio_dev *indio_dev,
 		},
 	};
 	struct ad4695_state *st = iio_priv(indio_dev);
-	unsigned int osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
+	unsigned int osr = 1;
+
+	if (chan->type == IIO_VOLTAGE)
+		osr = st->channels_cfg[chan->scan_index].oversampling_ratio;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
@@ -1738,7 +1750,7 @@ static int ad4695_probe_spi_offload(struct iio_dev *indio_dev,
 
 	for (i = 0; i < indio_dev->num_channels; i++) {
 		struct iio_chan_spec *chan = &st->iio_chan[i];
-		struct ad4695_channel_config *cfg = &st->channels_cfg[i];
+		struct ad4695_channel_config *cfg;
 
 		/*
 		 * NB: When using offload support, all channels need to have the
@@ -1758,6 +1770,8 @@ static int ad4695_probe_spi_offload(struct iio_dev *indio_dev,
 		/* Add the oversampling properties only for voltage channels */
 		if (chan->type != IIO_VOLTAGE)
 			continue;
+
+		cfg = &st->channels_cfg[i];
 
 		chan->info_mask_separate |= BIT(IIO_CHAN_INFO_OVERSAMPLING_RATIO);
 		chan->info_mask_separate_available |=
