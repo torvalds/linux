@@ -1130,7 +1130,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	unsigned int nofs = 0;
 	struct f2fs_inode *ri;
 	struct dnode_of_data dn;
-	struct page *page;
+	struct folio *folio;
 
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
@@ -1147,16 +1147,16 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 		return level;
 	}
 
-	page = f2fs_get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(page)) {
-		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(page));
-		return PTR_ERR(page);
+	folio = f2fs_get_node_folio(sbi, inode->i_ino);
+	if (IS_ERR(folio)) {
+		trace_f2fs_truncate_inode_blocks_exit(inode, PTR_ERR(folio));
+		return PTR_ERR(folio);
 	}
 
-	set_new_dnode(&dn, inode, page, NULL, 0);
-	unlock_page(page);
+	set_new_dnode(&dn, inode, &folio->page, NULL, 0);
+	folio_unlock(folio);
 
-	ri = F2FS_INODE(page);
+	ri = F2FS_INODE(&folio->page);
 	switch (level) {
 	case 0:
 	case 1:
@@ -1185,7 +1185,7 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 
 skip_partial:
 	while (cont) {
-		dn.nid = get_nid(page, offset[0], true);
+		dn.nid = get_nid(&folio->page, offset[0], true);
 		switch (offset[0]) {
 		case NODE_DIR1_BLOCK:
 		case NODE_DIR2_BLOCK:
@@ -1206,7 +1206,7 @@ skip_partial:
 			BUG();
 		}
 		if (err == -ENOENT) {
-			set_sbi_flag(F2FS_P_SB(page), SBI_NEED_FSCK);
+			set_sbi_flag(F2FS_F_SB(folio), SBI_NEED_FSCK);
 			f2fs_handle_error(sbi, ERROR_INVALID_BLKADDR);
 			f2fs_err_ratelimited(sbi,
 				"truncate node fail, ino:%lu, nid:%u, "
@@ -1217,18 +1217,18 @@ skip_partial:
 		}
 		if (err < 0)
 			goto fail;
-		if (offset[1] == 0 && get_nid(page, offset[0], true)) {
-			lock_page(page);
-			BUG_ON(page->mapping != NODE_MAPPING(sbi));
-			set_nid(page, offset[0], 0, true);
-			unlock_page(page);
+		if (offset[1] == 0 && get_nid(&folio->page, offset[0], true)) {
+			folio_lock(folio);
+			BUG_ON(folio->mapping != NODE_MAPPING(sbi));
+			set_nid(&folio->page, offset[0], 0, true);
+			folio_unlock(folio);
 		}
 		offset[1] = 0;
 		offset[0]++;
 		nofs += err;
 	}
 fail:
-	f2fs_put_page(page, 0);
+	f2fs_folio_put(folio, false);
 	trace_f2fs_truncate_inode_blocks_exit(inode, err);
 	return err > 0 ? 0 : err;
 }
