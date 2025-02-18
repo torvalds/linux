@@ -1,8 +1,0 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
-
-#include "ep7209.dtsi"
-
-/ {
-	model = "Cirrus Logic EP7211";
-	compatible = "cirrus,ep7211", "cirrus,ep7209";
-};

@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-#
-# Generic DPLL drivers configuration
-#
-
-config DPLL
-	bool

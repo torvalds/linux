@@ -1,7 +1,0 @@
-# TEMPORARY
-# Alphabetical order
-get_stack_raw_tp    # spams with kernel warnings until next bpf -> bpf-next merge
-stacktrace_build_id
-stacktrace_build_id_nmi
-task_fd_query_rawtp
-varlen

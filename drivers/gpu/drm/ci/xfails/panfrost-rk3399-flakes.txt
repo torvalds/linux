@@ -1,6 +1,0 @@
-# Board Name: rk3399-gru-kevin
-# Bug Report: https://lore.kernel.org/dri-devel/5cc34a8b-c1fa-4744-9031-2d33ecf41011@collabora.com/T/#u
-# Failure Rate: 50
-# IGT Version: 1.28-g0df7b9b97
-# Linux Version: 6.9.0-rc7
-panfrost/panfrost_submit@pan-unhandled-pagefault

@@ -1,4 +1,0 @@
-boolean choice
-  1. choice 0 (BOOL_CHOICE0) (NEW)
-> 2. choice 1 (BOOL_CHOICE1) (NEW)
-choice[1-2?]: 

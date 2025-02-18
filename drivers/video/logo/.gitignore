@@ -1,6 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-*_mono.c
-*_vga16.c
-*_clut224.c
-*_gray256.c
-pnmtologo

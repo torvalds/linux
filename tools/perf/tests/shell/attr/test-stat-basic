@@ -1,7 +1,0 @@
-[config]
-command = stat
-args    = -e cycles kill >/dev/null 2>&1
-ret     = 1
-
-[event:base-stat]
-optional=1

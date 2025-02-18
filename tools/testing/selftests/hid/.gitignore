@@ -1,7 +1,0 @@
-bpftool
-*.skel.h
-/host-tools
-/tools
-hid_bpf
-hidraw
-results

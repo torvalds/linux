@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: GPL-2.0-only
-vsyscall.lds
-vsyscall_32.lds
-vmlinux.lds
