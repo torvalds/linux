@@ -220,12 +220,19 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 		return dentry;
 
 	root = kernfs_root(kn);
-	guard(rwsem_read)(&root->kernfs_rwsem);
-
-	knparent = find_next_ancestor(kn, NULL);
-	if (WARN_ON(!knparent)) {
-		dput(dentry);
+	/*
+	 * As long as kn is valid, its parent can not vanish. This is cgroup's
+	 * kn so it not have its parent replaced. Therefore it is safe to use
+	 * the ancestor node outside of the RCU or locked section.
+	 */
+	if (WARN_ON_ONCE(!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)))
 		return ERR_PTR(-EINVAL);
+	scoped_guard(rcu) {
+		knparent = find_next_ancestor(kn, NULL);
+		if (WARN_ON(!knparent)) {
+			dput(dentry);
+			return ERR_PTR(-EINVAL);
+		}
 	}
 
 	do {
@@ -235,14 +242,22 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 
 		if (kn == knparent)
 			return dentry;
-		kntmp = find_next_ancestor(kn, knparent);
-		if (WARN_ON(!kntmp)) {
-			dput(dentry);
-			return ERR_PTR(-EINVAL);
+
+		scoped_guard(rwsem_read, &root->kernfs_rwsem) {
+			kntmp = find_next_ancestor(kn, knparent);
+			if (WARN_ON(!kntmp)) {
+				dput(dentry);
+				return ERR_PTR(-EINVAL);
+			}
+			name = kstrdup(kernfs_rcu_name(kntmp), GFP_KERNEL);
 		}
-		name = rcu_dereference(kntmp->name);
+		if (!name) {
+			dput(dentry);
+			return ERR_PTR(-ENOMEM);
+		}
 		dtmp = lookup_positive_unlocked(name, dentry, strlen(name));
 		dput(dentry);
+		kfree(name);
 		if (IS_ERR(dtmp))
 			return dtmp;
 		knparent = kntmp;
