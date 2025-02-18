@@ -473,7 +473,7 @@ void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 	unregister_all_irq_handlers(adev);
 }
 
-int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
+void amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 {
 	int src;
 	struct list_head *hnd_list_h;
@@ -511,7 +511,6 @@ int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-	return 0;
 }
 
 int amdgpu_dm_irq_resume_early(struct amdgpu_device *adev)
