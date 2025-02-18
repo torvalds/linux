@@ -1452,6 +1452,16 @@ static bool access_arch_timer(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_hv_timer(struct kvm_vcpu *vcpu,
+			    struct sys_reg_params *p,
+			    const struct sys_reg_desc *r)
+{
+	if (!vcpu_el2_e2h_is_set(vcpu))
+		return undef_access(vcpu, p, r);
+
+	return access_arch_timer(vcpu, p, r);
+}
+
 static s64 kvm_arm64_ftr_safe_value(u32 id, const struct arm64_ftr_bits *ftrp,
 				    s64 new, s64 cur)
 {
@@ -3103,9 +3113,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	EL2_REG(CNTHP_CTL_EL2, access_arch_timer, reset_val, 0),
 	EL2_REG(CNTHP_CVAL_EL2, access_arch_timer, reset_val, 0),
 
-	{ SYS_DESC(SYS_CNTHV_TVAL_EL2), access_arch_timer },
-	EL2_REG(CNTHV_CTL_EL2, access_arch_timer, reset_val, 0),
-	EL2_REG(CNTHV_CVAL_EL2, access_arch_timer, reset_val, 0),
+	{ SYS_DESC(SYS_CNTHV_TVAL_EL2), access_hv_timer },
+	EL2_REG(CNTHV_CTL_EL2, access_hv_timer, reset_val, 0),
+	EL2_REG(CNTHV_CVAL_EL2, access_hv_timer, reset_val, 0),
 
 	{ SYS_DESC(SYS_CNTKCTL_EL12), access_cntkctl_el12 },
 

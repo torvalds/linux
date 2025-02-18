@@ -2904,9 +2904,9 @@ struct pcpu_sw_netstats {
 struct pcpu_dstats {
 	u64_stats_t		rx_packets;
 	u64_stats_t		rx_bytes;
-	u64_stats_t		rx_drops;
 	u64_stats_t		tx_packets;
 	u64_stats_t		tx_bytes;
+	u64_stats_t		rx_drops;
 	u64_stats_t		tx_drops;
 	struct u64_stats_sync	syncp;
 } __aligned(8 * sizeof(u64));
