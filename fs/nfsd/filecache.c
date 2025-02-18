@@ -319,15 +319,14 @@ nfsd_file_check_writeback(struct nfsd_file *nf)
 		mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK);
 }
 
-static bool nfsd_file_lru_add(struct nfsd_file *nf)
+static void nfsd_file_lru_add(struct nfsd_file *nf)
 {
-	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
-	set_bit(NFSD_FILE_RECENT, &nf->nf_flags);
-	if (list_lru_add_obj(&nfsd_file_lru, &nf->nf_lru)) {
+	refcount_inc(&nf->nf_ref);
+	if (list_lru_add_obj(&nfsd_file_lru, &nf->nf_lru))
 		trace_nfsd_file_lru_add(nf);
-		return true;
-	}
-	return false;
+	else
+		WARN_ON(1);
+	nfsd_file_schedule_laundrette();
 }
 
 static bool nfsd_file_lru_remove(struct nfsd_file *nf)
@@ -363,16 +362,10 @@ nfsd_file_put(struct nfsd_file *nf)
 
 	if (test_bit(NFSD_FILE_GC, &nf->nf_flags) &&
 	    test_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
-		/*
-		 * If this is the last reference (nf_ref == 1), then try to
-		 * transfer it to the LRU.
-		 */
-		if (refcount_dec_not_one(&nf->nf_ref))
-			return;
-
-		if (nfsd_file_lru_add(nf))
-			return;
+		set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+		set_bit(NFSD_FILE_RECENT, &nf->nf_flags);
 	}
+
 	if (refcount_dec_and_test(&nf->nf_ref))
 		nfsd_file_free(nf);
 }
@@ -516,13 +509,12 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	}
 
 	/*
-	 * Put the reference held on behalf of the LRU. If it wasn't the last
-	 * one, then just remove it from the LRU and ignore it.
+	 * Put the reference held on behalf of the LRU if it is the last
+	 * reference, else rotate.
 	 */
-	if (!refcount_dec_and_test(&nf->nf_ref)) {
+	if (!refcount_dec_if_one(&nf->nf_ref)) {
 		trace_nfsd_file_gc_in_use(nf);
-		list_lru_isolate(lru, &nf->nf_lru);
-		return LRU_REMOVED;
+		return LRU_ROTATE;
 	}
 
 	/* Refcount went to zero. Unhash it and queue it to the dispose list */
@@ -1062,16 +1054,8 @@ retry:
 	nf = nfsd_file_lookup_locked(net, current_cred(), inode, need, want_gc);
 	rcu_read_unlock();
 
-	if (nf) {
-		/*
-		 * If the nf is on the LRU then it holds an extra reference
-		 * that must be put if it's removed. It had better not be
-		 * the last one however, since we should hold another.
-		 */
-		if (nfsd_file_lru_remove(nf))
-			refcount_dec(&nf->nf_ref);
+	if (nf)
 		goto wait_for_construction;
-	}
 
 	new = nfsd_file_alloc(net, inode, need, want_gc);
 	if (!new) {
@@ -1165,6 +1149,9 @@ open_file:
 	 */
 	if (status != nfs_ok || inode->i_nlink == 0)
 		nfsd_file_unhash(nf);
+	else if (want_gc)
+		nfsd_file_lru_add(nf);
+
 	clear_and_wake_up_bit(NFSD_FILE_PENDING, &nf->nf_flags);
 	if (status == nfs_ok)
 		goto out;
