@@ -34,6 +34,8 @@
 #include <subdev/mmu.h>
 #include <subdev/vfn.h>
 
+#include <rm/gpu.h>
+
 #include <nvhw/drf.h>
 
 #include "nvrm/disp.h"
@@ -1676,6 +1678,7 @@ int
 r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
+	const struct nvkm_rm_gpu *gpu = device->gsp->rm->gpu;
 	struct nvkm_disp_func *rm;
 	int ret;
 
@@ -1691,20 +1694,26 @@ r535_disp_new(const struct nvkm_disp_func *hw, struct nvkm_device *device,
 	rm->sor.new = r535_sor_new;
 	rm->ramht_size = hw->ramht_size;
 
-	rm->root = hw->root;
+	rm->root.oclass = gpu->disp.class.root;
 
-	for (int i = 0; hw->user[i].ctor; i++) {
-		switch (hw->user[i].base.oclass & 0xff) {
-		case 0x73: rm->user[i] = hw->user[i]; break;
-		case 0x7d: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_core; break;
-		case 0x7e: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_wndw; break;
-		case 0x7b: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_wimm; break;
-		case 0x7a: rm->user[i] = hw->user[i]; rm->user[i].chan = &r535_curs; break;
-		default:
-			WARN_ON(1);
-			continue;
-		}
-	}
+	rm->user[0].base.oclass = gpu->disp.class.caps;
+	rm->user[0].ctor = gv100_disp_caps_new;
+
+	rm->user[1].base.oclass = gpu->disp.class.core;
+	rm->user[1].ctor = nvkm_disp_core_new;
+	rm->user[1].chan = &r535_core;
+
+	rm->user[2].base.oclass = gpu->disp.class.wndw;
+	rm->user[2].ctor = nvkm_disp_wndw_new;
+	rm->user[2].chan = &r535_wndw;
+
+	rm->user[3].base.oclass = gpu->disp.class.wimm;
+	rm->user[3].ctor = nvkm_disp_wndw_new;
+	rm->user[3].chan = &r535_wimm;
+
+	rm->user[4].base.oclass = gpu->disp.class.curs;
+	rm->user[4].ctor = nvkm_disp_chan_new;
+	rm->user[4].chan = &r535_curs;
 
 	ret = nvkm_disp_new_(rm, device, type, inst, pdisp);
 	if (ret)

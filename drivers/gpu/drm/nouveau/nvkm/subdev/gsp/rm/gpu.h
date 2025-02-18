@@ -7,6 +7,16 @@
 #include "rm.h"
 
 struct nvkm_rm_gpu {
+	struct {
+		struct {
+			u32 root;
+			u32 caps;
+			u32 core;
+			u32 wndw;
+			u32 wimm;
+			u32 curs;
+		} class;
+	} disp;
 };
 
 extern const struct nvkm_rm_gpu tu1xx_gpu;

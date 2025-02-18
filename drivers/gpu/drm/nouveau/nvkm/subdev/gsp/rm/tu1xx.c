@@ -4,6 +4,16 @@
  */
 #include "gpu.h"
 
+#include <nvif/class.h>
+
 const struct nvkm_rm_gpu
 tu1xx_gpu = {
+	.disp.class = {
+		.root = TU102_DISP,
+		.caps = GV100_DISP_CAPS,
+		.core = TU102_DISP_CORE_CHANNEL_DMA,
+		.wndw = TU102_DISP_WINDOW_CHANNEL_DMA,
+		.wimm = TU102_DISP_WINDOW_IMM_CHANNEL_DMA,
+		.curs = TU102_DISP_CURSOR,
+	},
 };
