@@ -4712,7 +4712,7 @@ static int record_new_ref_if_needed(u64 dir, struct fs_path *name, void *ctx)
 
 static int record_deleted_ref_if_needed(u64 dir, struct fs_path *name, void *ctx)
 {
-	int ret = 0;
+	int ret;
 	struct send_ctx *sctx = ctx;
 	struct rb_node *node = NULL;
 	struct recorded_ref data;
@@ -4721,7 +4721,7 @@ static int record_deleted_ref_if_needed(u64 dir, struct fs_path *name, void *ctx
 
 	ret = get_inode_gen(sctx->parent_root, dir, &dir_gen);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	data.dir = dir;
 	data.dir_gen = dir_gen;
@@ -4735,7 +4735,7 @@ static int record_deleted_ref_if_needed(u64 dir, struct fs_path *name, void *ctx
 					 &sctx->deleted_refs, name, dir,
 					 dir_gen, sctx);
 	}
-out:
+
 	return ret;
 }
 
