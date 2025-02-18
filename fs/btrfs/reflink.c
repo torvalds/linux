@@ -631,12 +631,12 @@ static void btrfs_double_mmap_unlock(struct btrfs_inode *inode1, struct btrfs_in
 	up_write(&inode2->i_mmap_lock);
 }
 
-static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
-				   struct inode *dst, u64 dst_loff)
+static int btrfs_extent_same_range(struct btrfs_inode *src, u64 loff, u64 len,
+				   struct btrfs_inode *dst, u64 dst_loff)
 {
 	const u64 end = dst_loff + len - 1;
 	struct extent_state *cached_state = NULL;
-	struct btrfs_fs_info *fs_info = BTRFS_I(src)->root->fs_info;
+	struct btrfs_fs_info *fs_info = src->root->fs_info;
 	const u64 bs = fs_info->sectorsize;
 	int ret;
 
@@ -646,9 +646,10 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 	 * because we have already locked the inode's i_mmap_lock in exclusive
 	 * mode.
 	 */
-	lock_extent(&BTRFS_I(dst)->io_tree, dst_loff, end, &cached_state);
-	ret = btrfs_clone(src, dst, loff, len, ALIGN(len, bs), dst_loff, 1);
-	unlock_extent(&BTRFS_I(dst)->io_tree, dst_loff, end, &cached_state);
+	lock_extent(&dst->io_tree, dst_loff, end, &cached_state);
+	ret = btrfs_clone(&src->vfs_inode, &dst->vfs_inode, loff, len,
+			  ALIGN(len, bs), dst_loff, 1);
+	unlock_extent(&dst->io_tree, dst_loff, end, &cached_state);
 
 	btrfs_btree_balance_dirty(fs_info);
 
@@ -678,8 +679,8 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
 
 	for (i = 0; i < chunk_count; i++) {
-		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
-					      dst, dst_loff);
+		ret = btrfs_extent_same_range(BTRFS_I(src), loff, BTRFS_MAX_DEDUPE_LEN,
+					      BTRFS_I(dst), dst_loff);
 		if (ret)
 			goto out;
 
@@ -688,7 +689,8 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	}
 
 	if (tail_len > 0)
-		ret = btrfs_extent_same_range(src, loff, tail_len, dst, dst_loff);
+		ret = btrfs_extent_same_range(BTRFS_I(src), loff, tail_len,
+					      BTRFS_I(dst), dst_loff);
 out:
 	spin_lock(&root_dst->root_item_lock);
 	root_dst->dedupe_in_progress--;
