@@ -189,6 +189,16 @@
 	};
 };
 
+&i2c7 {
+	eeprom@50 {
+		reg = <0x50>;
+		compatible = "atmel,24c01";
+		pagesize = <8>;
+		size = <128>;
+		vcc-supply = <&vcc3v3_baseboard>;
+	};
+};
+
 &i2s0 {
 	status = "okay";
 };
