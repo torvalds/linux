@@ -4766,20 +4766,18 @@ static int record_deleted_ref(struct send_ctx *sctx)
 
 static int record_changed_ref(struct send_ctx *sctx)
 {
-	int ret = 0;
+	int ret;
 
 	ret = iterate_inode_ref(sctx->send_root, sctx->left_path,
 			sctx->cmp_key, 0, record_new_ref_if_needed, sctx);
 	if (ret < 0)
-		goto out;
+		return ret;
 	ret = iterate_inode_ref(sctx->parent_root, sctx->right_path,
 			sctx->cmp_key, 0, record_deleted_ref_if_needed, sctx);
 	if (ret < 0)
-		goto out;
-	ret = 0;
+		return ret;
 
-out:
-	return ret;
+	return 0;
 }
 
 /*
