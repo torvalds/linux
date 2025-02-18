@@ -189,6 +189,9 @@
 	};
 };
 
+&i2s0 {
+	status = "okay";
+};
 
 &i2s2 {
 	status = "okay";
