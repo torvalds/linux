@@ -165,7 +165,7 @@ out:
  * the source inode to destination inode when possible. When not possible we
  * copy the inline extent's data into the respective page of the inode.
  */
-static int clone_copy_inline_extent(struct inode *dst,
+static int clone_copy_inline_extent(struct btrfs_inode *inode,
 				    struct btrfs_path *path,
 				    struct btrfs_key *new_key,
 				    const u64 drop_start,
@@ -175,8 +175,8 @@ static int clone_copy_inline_extent(struct inode *dst,
 				    char *inline_data,
 				    struct btrfs_trans_handle **trans_out)
 {
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(dst);
-	struct btrfs_root *root = BTRFS_I(dst)->root;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	const u64 aligned_end = ALIGN(new_key->offset + datal,
 				      fs_info->sectorsize);
 	struct btrfs_trans_handle *trans = NULL;
@@ -185,12 +185,12 @@ static int clone_copy_inline_extent(struct inode *dst,
 	struct btrfs_key key;
 
 	if (new_key->offset > 0) {
-		ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+		ret = copy_inline_to_page(inode, new_key->offset,
 					  inline_data, size, datal, comp_type);
 		goto out;
 	}
 
-	key.objectid = btrfs_ino(BTRFS_I(dst));
+	key.objectid = btrfs_ino(inode);
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = 0;
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -205,7 +205,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 				goto copy_inline_extent;
 		}
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		if (key.objectid == btrfs_ino(BTRFS_I(dst)) &&
+		if (key.objectid == btrfs_ino(inode) &&
 		    key.type == BTRFS_EXTENT_DATA_KEY) {
 			/*
 			 * There's an implicit hole at file offset 0, copy the
@@ -214,7 +214,7 @@ static int clone_copy_inline_extent(struct inode *dst,
 			ASSERT(key.offset > 0);
 			goto copy_to_page;
 		}
-	} else if (i_size_read(dst) <= datal) {
+	} else if (i_size_read(&inode->vfs_inode) <= datal) {
 		struct btrfs_file_extent_item *ei;
 
 		ei = btrfs_item_ptr(path->nodes[0], path->slots[0],
@@ -236,7 +236,7 @@ copy_inline_extent:
 	 * We have no extent items, or we have an extent at offset 0 which may
 	 * or may not be inlined. All these cases are dealt the same way.
 	 */
-	if (i_size_read(dst) > datal) {
+	if (i_size_read(&inode->vfs_inode) > datal) {
 		/*
 		 * At the destination offset 0 we have either a hole, a regular
 		 * extent or an inline extent larger then the one we want to
@@ -270,7 +270,7 @@ copy_inline_extent:
 	drop_args.start = drop_start;
 	drop_args.end = aligned_end;
 	drop_args.drop_cache = true;
-	ret = btrfs_drop_extents(trans, root, BTRFS_I(dst), &drop_args);
+	ret = btrfs_drop_extents(trans, root, inode, &drop_args);
 	if (ret)
 		goto out;
 	ret = btrfs_insert_empty_item(trans, root, path, new_key, size);
@@ -281,9 +281,9 @@ copy_inline_extent:
 			    btrfs_item_ptr_offset(path->nodes[0],
 						  path->slots[0]),
 			    size);
-	btrfs_update_inode_bytes(BTRFS_I(dst), datal, drop_args.bytes_found);
-	btrfs_set_inode_full_sync(BTRFS_I(dst));
-	ret = btrfs_inode_set_file_extent_range(BTRFS_I(dst), 0, aligned_end);
+	btrfs_update_inode_bytes(inode, datal, drop_args.bytes_found);
+	btrfs_set_inode_full_sync(inode);
+	ret = btrfs_inode_set_file_extent_range(inode, 0, aligned_end);
 out:
 	if (!ret && !trans) {
 		/*
@@ -318,7 +318,7 @@ copy_to_page:
 	 */
 	btrfs_release_path(path);
 
-	ret = copy_inline_to_page(BTRFS_I(dst), new_key->offset,
+	ret = copy_inline_to_page(inode, new_key->offset,
 				  inline_data, size, datal, comp_type);
 	goto out;
 }
@@ -526,7 +526,7 @@ process_slot:
 				goto out;
 			}
 
-			ret = clone_copy_inline_extent(inode, path, &new_key,
+			ret = clone_copy_inline_extent(BTRFS_I(inode), path, &new_key,
 						       drop_start, datal, size,
 						       comp, buf, &trans);
 			if (ret)
