@@ -319,10 +319,10 @@ nfsd_file_check_writeback(struct nfsd_file *nf)
 		mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK);
 }
 
-
 static bool nfsd_file_lru_add(struct nfsd_file *nf)
 {
 	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+	set_bit(NFSD_FILE_RECENT, &nf->nf_flags);
 	if (list_lru_add_obj(&nfsd_file_lru, &nf->nf_lru)) {
 		trace_nfsd_file_lru_add(nf);
 		return true;
@@ -534,6 +534,24 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	return LRU_REMOVED;
 }
 
+static enum lru_status
+nfsd_file_gc_cb(struct list_head *item, struct list_lru_one *lru,
+		 void *arg)
+{
+	struct nfsd_file *nf = list_entry(item, struct nfsd_file, nf_lru);
+
+	if (test_and_clear_bit(NFSD_FILE_RECENT, &nf->nf_flags)) {
+		/*
+		 * "REFERENCED" really means "should be at the end of the
+		 * LRU. As we are putting it there we can clear the flag.
+		 */
+		clear_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+		trace_nfsd_file_gc_aged(nf);
+		return LRU_ROTATE;
+	}
+	return nfsd_file_lru_cb(item, lru, arg);
+}
+
 static void
 nfsd_file_gc(void)
 {
@@ -544,7 +562,7 @@ nfsd_file_gc(void)
 	for_each_node_state(nid, N_NORMAL_MEMORY) {
 		unsigned long nr = list_lru_count_node(&nfsd_file_lru, nid);
 
-		ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_lru_cb,
+		ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_gc_cb,
 					  &dispose, &nr);
 	}
 	trace_nfsd_file_gc_removed(ret, list_lru_count(&nfsd_file_lru));
