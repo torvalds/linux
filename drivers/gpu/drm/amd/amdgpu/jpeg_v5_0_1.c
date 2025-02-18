@@ -326,11 +326,10 @@ static int jpeg_v5_0_1_resume(struct amdgpu_ip_block *ip_block)
 	return r;
 }
 
-static int jpeg_v5_0_1_disable_antihang(struct amdgpu_device *adev, int inst_idx)
+static void jpeg_v5_0_1_init_inst(struct amdgpu_device *adev, int i)
 {
-	int jpeg_inst;
+	int jpeg_inst = GET_INST(JPEG, i);
 
-	jpeg_inst = GET_INST(JPEG, inst_idx);
 	/* disable anti hang mechanism */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JPEG_POWER_STATUS), 0,
 		 ~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
@@ -339,20 +338,75 @@ static int jpeg_v5_0_1_disable_antihang(struct amdgpu_device *adev, int inst_idx
 	WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JPEG_POWER_STATUS), 0,
 		 ~UVD_JPEG_POWER_STATUS__JPEG_PG_MODE_MASK);
 
-	return 0;
+	/* MJPEG global tiling registers */
+	WREG32_SOC15(JPEG, 0, regJPEG_DEC_GFX10_ADDR_CONFIG,
+		     adev->gfx.config.gb_addr_config);
+
+	/* enable JMI channel */
+	WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JMI_CNTL), 0,
+		 ~UVD_JMI_CNTL__SOFT_RESET_MASK);
 }
 
-static int jpeg_v5_0_1_enable_antihang(struct amdgpu_device *adev, int inst_idx)
+static void jpeg_v5_0_1_deinit_inst(struct amdgpu_device *adev, int i)
 {
-	int jpeg_inst;
+	int jpeg_inst = GET_INST(JPEG, i);
+	/* reset JMI */
+	WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JMI_CNTL),
+		 UVD_JMI_CNTL__SOFT_RESET_MASK,
+		 ~UVD_JMI_CNTL__SOFT_RESET_MASK);
 
-	jpeg_inst = GET_INST(JPEG, inst_idx);
 	/* enable anti hang mechanism */
 	WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JPEG_POWER_STATUS),
 		 UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK,
-		~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+		 ~UVD_JPEG_POWER_STATUS__JPEG_POWER_STATUS_MASK);
+}
 
-	return 0;
+static void jpeg_v5_0_1_init_jrbc(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	u32 reg, data, mask;
+	int jpeg_inst = GET_INST(JPEG, ring->me);
+	int reg_offset = ring->pipe ? jpeg_v5_0_1_core_reg_offset(ring->pipe) : 0;
+
+	/* enable System Interrupt for JRBC */
+	reg = SOC15_REG_OFFSET(JPEG, jpeg_inst, regJPEG_SYS_INT_EN);
+	if (ring->pipe < AMDGPU_MAX_JPEG_RINGS_4_0_3) {
+		data = JPEG_SYS_INT_EN__DJRBC0_MASK << ring->pipe;
+		mask = ~(JPEG_SYS_INT_EN__DJRBC0_MASK << ring->pipe);
+		WREG32_P(reg, data, mask);
+	} else {
+		data = JPEG_SYS_INT_EN__DJRBC0_MASK << (ring->pipe+12);
+		mask = ~(JPEG_SYS_INT_EN__DJRBC0_MASK << (ring->pipe+12));
+		WREG32_P(reg, data, mask);
+	}
+
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_LMI_JRBC_RB_VMID,
+			    reg_offset, 0);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JRBC_RB_CNTL,
+			    reg_offset,
+			    (0x00000001L | 0x00000002L));
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
+			    reg_offset, lower_32_bits(ring->gpu_addr));
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
+			    reg_offset, upper_32_bits(ring->gpu_addr));
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JRBC_RB_RPTR,
+			    reg_offset, 0);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JRBC_RB_WPTR,
+			    reg_offset, 0);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JRBC_RB_CNTL,
+			    reg_offset, 0x00000002L);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JRBC_RB_SIZE,
+			    reg_offset, ring->ring_size / 4);
+	ring->wptr = RREG32_SOC15_OFFSET(JPEG, jpeg_inst, regUVD_JRBC_RB_WPTR,
+					 reg_offset);
 }
 
 /**
@@ -365,69 +419,13 @@ static int jpeg_v5_0_1_enable_antihang(struct amdgpu_device *adev, int inst_idx)
 static int jpeg_v5_0_1_start(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	int i, j, jpeg_inst, r;
+	int i, j;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		jpeg_inst = GET_INST(JPEG, i);
-
-		/* disable antihang */
-		r = jpeg_v5_0_1_disable_antihang(adev, i);
-		if (r)
-			return r;
-
-		/* MJPEG global tiling registers */
-		WREG32_SOC15(JPEG, 0, regJPEG_DEC_GFX10_ADDR_CONFIG,
-			     adev->gfx.config.gb_addr_config);
-
-		/* enable JMI channel */
-		WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JMI_CNTL), 0,
-			 ~UVD_JMI_CNTL__SOFT_RESET_MASK);
-
+		jpeg_v5_0_1_init_inst(adev, i);
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
-			int reg_offset = (j ? jpeg_v5_0_1_core_reg_offset(j) : 0);
-			u32 reg, data, mask;
-
 			ring = &adev->jpeg.inst[i].ring_dec[j];
-
-			/* enable System Interrupt for JRBC */
-			reg = SOC15_REG_OFFSET(JPEG, jpeg_inst, regJPEG_SYS_INT_EN);
-			if (j < AMDGPU_MAX_JPEG_RINGS_4_0_3) {
-				data = JPEG_SYS_INT_EN__DJRBC0_MASK << j;
-				mask = ~(JPEG_SYS_INT_EN__DJRBC0_MASK << j);
-				WREG32_P(reg, data, mask);
-			} else {
-				data = JPEG_SYS_INT_EN__DJRBC0_MASK << (j+12);
-				mask = ~(JPEG_SYS_INT_EN__DJRBC0_MASK << (j+12));
-				WREG32_P(reg, data, mask);
-			}
-
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_LMI_JRBC_RB_VMID,
-					    reg_offset, 0);
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_JRBC_RB_CNTL,
-					    reg_offset,
-					    (0x00000001L | 0x00000002L));
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_LMI_JRBC_RB_64BIT_BAR_LOW,
-					    reg_offset, lower_32_bits(ring->gpu_addr));
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_LMI_JRBC_RB_64BIT_BAR_HIGH,
-					    reg_offset, upper_32_bits(ring->gpu_addr));
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_JRBC_RB_RPTR,
-					    reg_offset, 0);
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_JRBC_RB_WPTR,
-					    reg_offset, 0);
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_JRBC_RB_CNTL,
-					    reg_offset, 0x00000002L);
-			WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-					    regUVD_JRBC_RB_SIZE,
-					    reg_offset, ring->ring_size / 4);
-			ring->wptr = RREG32_SOC15_OFFSET(JPEG, jpeg_inst, regUVD_JRBC_RB_WPTR,
-							 reg_offset);
+			jpeg_v5_0_1_init_jrbc(ring);
 		}
 	}
 
@@ -443,20 +441,10 @@ static int jpeg_v5_0_1_start(struct amdgpu_device *adev)
  */
 static int jpeg_v5_0_1_stop(struct amdgpu_device *adev)
 {
-	int i, jpeg_inst, r;
+	int i;
 
-	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		jpeg_inst = GET_INST(JPEG, i);
-		/* reset JMI */
-		WREG32_P(SOC15_REG_OFFSET(JPEG, jpeg_inst, regUVD_JMI_CNTL),
-			 UVD_JMI_CNTL__SOFT_RESET_MASK,
-			 ~UVD_JMI_CNTL__SOFT_RESET_MASK);
-
-		/* enable antihang */
-		r = jpeg_v5_0_1_enable_antihang(adev, i);
-		if (r)
-			return r;
-	}
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i)
+		jpeg_v5_0_1_deinit_inst(adev, i);
 
 	return 0;
 }
