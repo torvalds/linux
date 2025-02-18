@@ -32,6 +32,20 @@ struct vkms_config {
 struct vkms_config *vkms_config_create(void);
 
 /**
+ * vkms_config_default_create() - Create the configuration for the default device
+ * @enable_cursor: Create or not a cursor plane
+ * @enable_writeback: Create or not a writeback connector
+ * @enable_overlay: Create or not overlay planes
+ *
+ * Returns:
+ * The default vkms_config or an error. Call vkms_config_destroy() to free the
+ * returned configuration.
+ */
+struct vkms_config *vkms_config_default_create(bool enable_cursor,
+					       bool enable_writeback,
+					       bool enable_overlay);
+
+/**
  * vkms_config_destroy() - Free a VKMS configuration
  * @config: vkms_config to free
  */
