@@ -602,25 +602,21 @@ filters-checking overhead.
 
 Below ``type`` of filters are currently supported.
 
-- anon
-    - Applied to pages that containing data that not stored in files.
-    - Handled by operations set layer.  Supported by only ``paddr`` set.
-- memcg
-    - Applied to pages that belonging to a given cgroup.
-    - Handled by operations set layer.  Supported by only ``paddr`` set.
-- young
-    - Applied to pages that are accessed after the last access check from the
-      scheme.
-    - Handled by operations set layer.  Supported by only ``paddr`` set.
-- hugepage_size
-    - Applied to pages that managed in a given size range.
-    - Handled by operations set layer.  Supported by only ``paddr`` set.
-- addr
-    - Applied to pages that belonging to a given address range.
-    - Handled by the core logic.
-- target
-    - Applied to pages that belonging to a given DAMON monitoring target.
-    - Handled by the core logic.
+- Core layer handled
+    - addr
+        - Applied to pages that belonging to a given address range.
+    - target
+        - Applied to pages that belonging to a given DAMON monitoring target.
+- Operations layer handled, supported by only ``paddr`` operations set.
+    - anon
+        - Applied to pages that containing data that not stored in files.
+    - memcg
+        - Applied to pages that belonging to a given cgroup.
+    - young
+        - Applied to pages that are accessed after the last access check from the
+          scheme.
+    - hugepage_size
+        - Applied to pages that managed in a given size range.
 
 To know how user-space can set the filters via :ref:`DAMON sysfs interface
 <sysfs_interface>`, refer to :ref:`filters <sysfs_filters>` part of the
