@@ -31,6 +31,9 @@ struct fbnic_net;
 #define FBNIC_HPQ_SIZE_DEFAULT		256
 #define FBNIC_PPQ_SIZE_DEFAULT		256
 #define FBNIC_RCQ_SIZE_DEFAULT		1024
+#define FBNIC_TX_USECS_DEFAULT		35
+#define FBNIC_RX_USECS_DEFAULT		30
+#define FBNIC_RX_FRAMES_DEFAULT		0
 
 #define FBNIC_RX_TROOM \
 	SKB_DATA_ALIGN(sizeof(struct skb_shared_info))

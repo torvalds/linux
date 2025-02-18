@@ -2184,9 +2184,51 @@ static void fbnic_config_drop_mode_rcq(struct fbnic_napi_vector *nv,
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RDE_CTL0, rcq_ctl);
 }
 
+static void fbnic_config_rim_threshold(struct fbnic_ring *rcq, u16 nv_idx, u32 rx_desc)
+{
+	u32 threshold;
+
+	/* Set the threhsold to half the ring size if rx_frames
+	 * is not configured
+	 */
+	threshold = rx_desc ? : rcq->size_mask / 2;
+
+	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_CTL, nv_idx);
+	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_THRESHOLD, threshold);
+}
+
+void fbnic_config_txrx_usecs(struct fbnic_napi_vector *nv, u32 arm)
+{
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
+	struct fbnic_dev *fbd = nv->fbd;
+	u32 val = arm;
+
+	val |= FIELD_PREP(FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT, fbn->rx_usecs) |
+	       FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT_UPD_EN;
+	val |= FIELD_PREP(FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT, fbn->tx_usecs) |
+	       FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT_UPD_EN;
+
+	fbnic_wr32(fbd, FBNIC_INTR_CQ_REARM(nv->v_idx), val);
+}
+
+void fbnic_config_rx_frames(struct fbnic_napi_vector *nv)
+{
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
+	int i;
+
+	for (i = nv->txt_count; i < nv->rxt_count + nv->txt_count; i++) {
+		struct fbnic_q_triad *qt = &nv->qt[i];
+
+		fbnic_config_rim_threshold(&qt->cmpl, nv->v_idx,
+					   fbn->rx_max_frames *
+					   FBNIC_MIN_RXD_PER_FRAME);
+	}
+}
+
 static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 			     struct fbnic_ring *rcq)
 {
+	struct fbnic_net *fbn = netdev_priv(nv->napi.dev);
 	u32 log_size = fls(rcq->size_mask);
 	u32 rcq_ctl;
 
@@ -2214,8 +2256,8 @@ static void fbnic_enable_rcq(struct fbnic_napi_vector *nv,
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RCQ_SIZE, log_size & 0xf);
 
 	/* Store interrupt information for the completion queue */
-	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_CTL, nv->v_idx);
-	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_THRESHOLD, rcq->size_mask / 2);
+	fbnic_config_rim_threshold(rcq, nv->v_idx, fbn->rx_max_frames *
+						   FBNIC_MIN_RXD_PER_FRAME);
 	fbnic_ring_wr32(rcq, FBNIC_QUEUE_RIM_MASK, 0);
 
 	/* Enable queue */
@@ -2254,12 +2296,7 @@ void fbnic_enable(struct fbnic_net *fbn)
 
 static void fbnic_nv_irq_enable(struct fbnic_napi_vector *nv)
 {
-	struct fbnic_dev *fbd = nv->fbd;
-	u32 val;
-
-	val = FBNIC_INTR_CQ_REARM_INTR_UNMASK;
-
-	fbnic_wr32(fbd, FBNIC_INTR_CQ_REARM(nv->v_idx), val);
+	fbnic_config_txrx_usecs(nv, FBNIC_INTR_CQ_REARM_INTR_UNMASK);
 }
 
 void fbnic_napi_enable(struct fbnic_net *fbn)

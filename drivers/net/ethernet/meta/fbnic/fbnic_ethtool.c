@@ -136,6 +136,61 @@ static void fbnic_clone_free(struct fbnic_net *clone)
 	kfree(clone);
 }
 
+static int fbnic_get_coalesce(struct net_device *netdev,
+			      struct ethtool_coalesce *ec,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	ec->tx_coalesce_usecs = fbn->tx_usecs;
+	ec->rx_coalesce_usecs = fbn->rx_usecs;
+	ec->rx_max_coalesced_frames = fbn->rx_max_frames;
+
+	return 0;
+}
+
+static int fbnic_set_coalesce(struct net_device *netdev,
+			      struct ethtool_coalesce *ec,
+			      struct kernel_ethtool_coalesce *kernel_coal,
+			      struct netlink_ext_ack *extack)
+{
+	struct fbnic_net *fbn = netdev_priv(netdev);
+
+	/* Verify against hardware limits */
+	if (ec->rx_coalesce_usecs > FIELD_MAX(FBNIC_INTR_CQ_REARM_RCQ_TIMEOUT)) {
+		NL_SET_ERR_MSG_MOD(extack, "rx_usecs is above device max");
+		return -EINVAL;
+	}
+	if (ec->tx_coalesce_usecs > FIELD_MAX(FBNIC_INTR_CQ_REARM_TCQ_TIMEOUT)) {
+		NL_SET_ERR_MSG_MOD(extack, "tx_usecs is above device max");
+		return -EINVAL;
+	}
+	if (ec->rx_max_coalesced_frames >
+	    FIELD_MAX(FBNIC_QUEUE_RIM_THRESHOLD_RCD_MASK) /
+	    FBNIC_MIN_RXD_PER_FRAME) {
+		NL_SET_ERR_MSG_MOD(extack, "rx_frames is above device max");
+		return -EINVAL;
+	}
+
+	fbn->tx_usecs = ec->tx_coalesce_usecs;
+	fbn->rx_usecs = ec->rx_coalesce_usecs;
+	fbn->rx_max_frames = ec->rx_max_coalesced_frames;
+
+	if (netif_running(netdev)) {
+		int i;
+
+		for (i = 0; i < fbn->num_napi; i++) {
+			struct fbnic_napi_vector *nv = fbn->napi[i];
+
+			fbnic_config_txrx_usecs(nv, 0);
+			fbnic_config_rx_frames(nv);
+		}
+	}
+
+	return 0;
+}
+
 static void fbnic_get_strings(struct net_device *dev, u32 sset, u8 *data)
 {
 	int i;
@@ -1287,10 +1342,15 @@ fbnic_get_eth_mac_stats(struct net_device *netdev,
 }
 
 static const struct ethtool_ops fbnic_ethtool_ops = {
+	.supported_coalesce_params	=
+				  ETHTOOL_COALESCE_USECS |
+				  ETHTOOL_COALESCE_RX_MAX_FRAMES,
 	.rxfh_max_num_contexts	= FBNIC_RPC_RSS_TBL_COUNT,
 	.get_drvinfo		= fbnic_get_drvinfo,
 	.get_regs_len		= fbnic_get_regs_len,
 	.get_regs		= fbnic_get_regs,
+	.get_coalesce		= fbnic_get_coalesce,
+	.set_coalesce		= fbnic_set_coalesce,
 	.get_strings		= fbnic_get_strings,
 	.get_ethtool_stats	= fbnic_get_ethtool_stats,
 	.get_sset_count		= fbnic_get_sset_count,
