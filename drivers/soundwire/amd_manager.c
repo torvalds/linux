@@ -346,7 +346,7 @@ static enum sdw_command_response amd_sdw_fill_msg_resp(struct amd_sdw_manager *a
 					    msg->dev_num);
 			return SDW_CMD_FAIL;
 		}
-		dev_err_ratelimited(amd_manager->dev, "command is ignored for Slave %d\n",
+		dev_dbg_ratelimited(amd_manager->dev, "command is ignored for Slave %d\n",
 				    msg->dev_num);
 		return SDW_CMD_IGNORED;
 	}
