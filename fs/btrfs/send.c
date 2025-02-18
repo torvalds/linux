@@ -4759,11 +4759,9 @@ static int record_deleted_ref(struct send_ctx *sctx)
 				sctx->cmp_key, 0, record_deleted_ref_if_needed,
 				sctx);
 	if (ret < 0)
-		goto out;
-	ret = 0;
+		return ret;
 
-out:
-	return ret;
+	return 0;
 }
 
 static int record_changed_ref(struct send_ctx *sctx)
