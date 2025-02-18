@@ -485,6 +485,8 @@ struct amdgpu_gfx {
 	struct delayed_work		idle_work;
 	bool				workload_profile_active;
 	struct mutex                    workload_profile_mutex;
+
+	bool				disable_kq;
 };
 
 struct amdgpu_gfx_ras_reg_entry {

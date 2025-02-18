@@ -259,8 +259,9 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 	}
 
 	/* update the number of active graphics rings */
-	adev->gfx.num_gfx_rings =
-		bitmap_weight(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
+	if (adev->gfx.num_gfx_rings)
+		adev->gfx.num_gfx_rings =
+			bitmap_weight(adev->gfx.me.queue_bitmap, AMDGPU_MAX_GFX_QUEUES);
 }
 
 static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
@@ -1543,6 +1544,9 @@ static ssize_t amdgpu_gfx_set_run_cleaner_shader(struct device *dev,
 	if (amdgpu_in_reset(adev))
 		return -EPERM;
 	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	if (adev->gfx.disable_kq)
 		return -EPERM;
 
 	ret = kstrtol(buf, 0, &value);
