@@ -27,6 +27,7 @@
 #include "bxt_dpio_phy_regs.h"
 #include "i915_drv.h"
 #include "i915_reg.h"
+#include "intel_cx0_phy.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_dkl_phy.h"
@@ -4570,6 +4571,8 @@ void intel_dpll_sanitize_state(struct intel_display *display)
 {
 	struct intel_shared_dpll *pll;
 	int i;
+
+	intel_cx0_pll_power_save_wa(display);
 
 	for_each_shared_dpll(display, pll, i)
 		sanitize_dpll_state(display, pll);
