@@ -894,8 +894,8 @@ queue_work:
 		cmd_list = &lo->rootcg_cmd_list;
 	}
 	list_add_tail(&cmd->list_entry, cmd_list);
-	spin_unlock_irq(&lo->lo_work_lock);
 	queue_work(lo->workqueue, work);
+	spin_unlock_irq(&lo->lo_work_lock);
 }
 
 static void loop_set_timer(struct loop_device *lo)
