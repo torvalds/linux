@@ -625,10 +625,10 @@ static void btrfs_double_mmap_lock(struct btrfs_inode *inode1, struct btrfs_inod
 	down_write_nested(&inode2->i_mmap_lock, SINGLE_DEPTH_NESTING);
 }
 
-static void btrfs_double_mmap_unlock(struct inode *inode1, struct inode *inode2)
+static void btrfs_double_mmap_unlock(struct btrfs_inode *inode1, struct btrfs_inode *inode2)
 {
-	up_write(&BTRFS_I(inode1)->i_mmap_lock);
-	up_write(&BTRFS_I(inode2)->i_mmap_lock);
+	up_write(&inode1->i_mmap_lock);
+	up_write(&inode2->i_mmap_lock);
 }
 
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
@@ -892,7 +892,7 @@ out_unlock:
 	if (same_inode) {
 		btrfs_inode_unlock(BTRFS_I(src_inode), BTRFS_ILOCK_MMAP);
 	} else {
-		btrfs_double_mmap_unlock(src_inode, dst_inode);
+		btrfs_double_mmap_unlock(BTRFS_I(src_inode), BTRFS_I(dst_inode));
 		unlock_two_nondirectories(src_inode, dst_inode);
 	}
 
