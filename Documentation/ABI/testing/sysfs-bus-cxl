@@ -18,6 +18,24 @@ Description:
 		specification.
 
 
+What:		/sys/bus/cxl/devices/memX/payload_max
+Date:		December, 2020
+KernelVersion:	v5.12
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Maximum size (in bytes) of the mailbox command payload
+		registers. Linux caps this at 1MB if the device reports a
+		larger size.
+
+
+What:		/sys/bus/cxl/devices/memX/label_storage_size
+Date:		May, 2021
+KernelVersion:	v5.13
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Size (in bytes) of the Label Storage Area (LSA).
+
+
 What:		/sys/bus/cxl/devices/memX/ram/size
 Date:		December, 2020
 KernelVersion:	v5.12
