@@ -3908,8 +3908,8 @@ int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index);
 int f2fs_reserve_block(struct dnode_of_data *dn, pgoff_t index);
 struct folio *f2fs_get_read_data_folio(struct inode *inode, pgoff_t index,
 		blk_opf_t op_flags, bool for_write, pgoff_t *next_pgofs);
-struct page *f2fs_find_data_page(struct inode *inode, pgoff_t index,
-							pgoff_t *next_pgofs);
+struct folio *f2fs_find_data_folio(struct inode *inode, pgoff_t index,
+		pgoff_t *next_pgofs);
 struct folio *f2fs_get_lock_data_folio(struct inode *inode, pgoff_t index,
 			bool for_write);
 struct page *f2fs_get_new_data_page(struct inode *inode,
@@ -3937,12 +3937,10 @@ int f2fs_init_post_read_wq(struct f2fs_sb_info *sbi);
 void f2fs_destroy_post_read_wq(struct f2fs_sb_info *sbi);
 extern const struct iomap_ops f2fs_iomap_ops;
 
-static inline struct page *f2fs_get_read_data_page(struct inode *inode,
-		pgoff_t index, blk_opf_t op_flags, bool for_write,
-		pgoff_t *next_pgofs)
+static inline struct page *f2fs_find_data_page(struct inode *inode,
+		pgoff_t index, pgoff_t *next_pgofs)
 {
-	struct folio *folio = f2fs_get_read_data_folio(inode, index, op_flags,
-			for_write, next_pgofs);
+	struct folio *folio = f2fs_find_data_folio(inode, index, next_pgofs);
 
 	return &folio->page;
 }
