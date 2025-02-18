@@ -395,7 +395,6 @@
 
 &i2c6 {
 	clock-frequency = <400000>;
-	status = "okay";
 };
 
 &i2c7 {
