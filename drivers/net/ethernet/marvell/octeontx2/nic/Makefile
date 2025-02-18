@@ -9,7 +9,7 @@ obj-$(CONFIG_RVU_ESWITCH) += rvu_rep.o
 
 rvu_nicpf-y := otx2_pf.o otx2_common.o otx2_txrx.o otx2_ethtool.o \
                otx2_flows.o otx2_tc.o cn10k.o otx2_dmac_flt.o \
-               otx2_devlink.o qos_sq.o qos.o
+               otx2_devlink.o qos_sq.o qos.o otx2_xsk.o
 rvu_nicvf-y := otx2_vf.o
 rvu_rep-y := rep.o
 
