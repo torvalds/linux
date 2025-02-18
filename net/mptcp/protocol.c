@@ -569,15 +569,13 @@ static void mptcp_dss_corruption(struct mptcp_sock *msk, struct sock *ssk)
 }
 
 static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
-					   struct sock *ssk,
-					   unsigned int *bytes)
+					   struct sock *ssk)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
 	struct sock *sk = (struct sock *)msk;
-	unsigned int moved = 0;
 	bool more_data_avail;
 	struct tcp_sock *tp;
-	bool done = false;
+	bool ret = false;
 
 	pr_debug("msk=%p ssk=%p\n", msk, ssk);
 	tp = tcp_sk(ssk);
@@ -587,20 +585,16 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 		struct sk_buff *skb;
 		bool fin;
 
+		if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
+			break;
+
 		/* try to move as much data as available */
 		map_remaining = subflow->map_data_len -
 				mptcp_subflow_get_map_offset(subflow);
 
 		skb = skb_peek(&ssk->sk_receive_queue);
-		if (!skb) {
-			/* With racing move_skbs_to_msk() and __mptcp_move_skbs(),
-			 * a different CPU can have already processed the pending
-			 * data, stop here or we can enter an infinite loop
-			 */
-			if (!moved)
-				done = true;
+		if (unlikely(!skb))
 			break;
-		}
 
 		if (__mptcp_check_fallback(msk)) {
 			/* Under fallback skbs have no MPTCP extension and TCP could
@@ -613,19 +607,13 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 
 		offset = seq - TCP_SKB_CB(skb)->seq;
 		fin = TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN;
-		if (fin) {
-			done = true;
+		if (fin)
 			seq++;
-		}
 
 		if (offset < skb->len) {
 			size_t len = skb->len - offset;
 
-			if (tp->urg_data)
-				done = true;
-
-			if (__mptcp_move_skb(msk, ssk, skb, offset, len))
-				moved += len;
+			ret = __mptcp_move_skb(msk, ssk, skb, offset, len) || ret;
 			seq += len;
 
 			if (unlikely(map_remaining < len)) {
@@ -639,22 +627,16 @@ static bool __mptcp_move_skbs_from_subflow(struct mptcp_sock *msk,
 			}
 
 			sk_eat_skb(ssk, skb);
-			done = true;
 		}
 
 		WRITE_ONCE(tp->copied_seq, seq);
 		more_data_avail = mptcp_subflow_data_available(ssk);
 
-		if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf) {
-			done = true;
-			break;
-		}
 	} while (more_data_avail);
 
-	if (moved > 0)
+	if (ret)
 		msk->last_data_recv = tcp_jiffies32;
-	*bytes += moved;
-	return done;
+	return ret;
 }
 
 static bool __mptcp_ofo_queue(struct mptcp_sock *msk)
@@ -748,9 +730,9 @@ void __mptcp_error_report(struct sock *sk)
 static bool move_skbs_to_msk(struct mptcp_sock *msk, struct sock *ssk)
 {
 	struct sock *sk = (struct sock *)msk;
-	unsigned int moved = 0;
+	bool moved;
 
-	__mptcp_move_skbs_from_subflow(msk, ssk, &moved);
+	moved = __mptcp_move_skbs_from_subflow(msk, ssk);
 	__mptcp_ofo_queue(msk);
 	if (unlikely(ssk->sk_err)) {
 		if (!sock_owned_by_user(sk))
@@ -766,7 +748,7 @@ static bool move_skbs_to_msk(struct mptcp_sock *msk, struct sock *ssk)
 	 */
 	if (mptcp_pending_data_fin(sk, NULL))
 		mptcp_schedule_work(sk);
-	return moved > 0;
+	return moved;
 }
 
 static void __mptcp_rcvbuf_update(struct sock *sk, struct sock *ssk)
@@ -780,10 +762,6 @@ static void __mptcp_data_ready(struct sock *sk, struct sock *ssk)
 	struct mptcp_sock *msk = mptcp_sk(sk);
 
 	__mptcp_rcvbuf_update(sk, ssk);
-
-	/* over limit? can't append more skbs to msk, Also, no need to wake-up*/
-	if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
-		return;
 
 	/* Wake-up the reader only for in-sequence data */
 	if (move_skbs_to_msk(msk, ssk) && mptcp_epollin_ready(sk))
@@ -882,20 +860,6 @@ bool mptcp_schedule_work(struct sock *sk)
 		return true;
 	}
 	return false;
-}
-
-static struct sock *mptcp_subflow_recv_lookup(const struct mptcp_sock *msk)
-{
-	struct mptcp_subflow_context *subflow;
-
-	msk_owned_by_me(msk);
-
-	mptcp_for_each_subflow(msk, subflow) {
-		if (READ_ONCE(subflow->data_avail))
-			return mptcp_subflow_tcp_sock(subflow);
-	}
-
-	return NULL;
 }
 
 static bool mptcp_skb_can_collapse_to(u64 write_seq,
@@ -2037,37 +2001,62 @@ new_measure:
 	msk->rcvq_space.time = mstamp;
 }
 
+static struct mptcp_subflow_context *
+__mptcp_first_ready_from(struct mptcp_sock *msk,
+			 struct mptcp_subflow_context *subflow)
+{
+	struct mptcp_subflow_context *start_subflow = subflow;
+
+	while (!READ_ONCE(subflow->data_avail)) {
+		subflow = mptcp_next_subflow(msk, subflow);
+		if (subflow == start_subflow)
+			return NULL;
+	}
+	return subflow;
+}
+
 static bool __mptcp_move_skbs(struct sock *sk)
 {
 	struct mptcp_subflow_context *subflow;
 	struct mptcp_sock *msk = mptcp_sk(sk);
-	unsigned int moved = 0;
-	bool ret, done;
+	bool ret = false;
+
+	if (list_empty(&msk->conn_list))
+		return false;
 
 	/* verify we can move any data from the subflow, eventually updating */
 	if (!(sk->sk_userlocks & SOCK_RCVBUF_LOCK))
 		mptcp_for_each_subflow(msk, subflow)
 			__mptcp_rcvbuf_update(sk, subflow->tcp_sock);
 
-	if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
-		return false;
-
-	do {
-		struct sock *ssk = mptcp_subflow_recv_lookup(msk);
+	subflow = list_first_entry(&msk->conn_list,
+				   struct mptcp_subflow_context, node);
+	for (;;) {
+		struct sock *ssk;
 		bool slowpath;
 
-		if (unlikely(!ssk))
+		/*
+		 * As an optimization avoid traversing the subflows list
+		 * and ev. acquiring the subflow socket lock before baling out
+		 */
+		if (sk_rmem_alloc_get(sk) > sk->sk_rcvbuf)
 			break;
 
-		slowpath = lock_sock_fast(ssk);
-		done = __mptcp_move_skbs_from_subflow(msk, ssk, &moved);
+		subflow = __mptcp_first_ready_from(msk, subflow);
+		if (!subflow)
+			break;
 
+		ssk = mptcp_subflow_tcp_sock(subflow);
+		slowpath = lock_sock_fast(ssk);
+		ret = __mptcp_move_skbs_from_subflow(msk, ssk) || ret;
 		if (unlikely(ssk->sk_err))
 			__mptcp_error_report(sk);
 		unlock_sock_fast(ssk, slowpath);
-	} while (!done);
 
-	ret = moved > 0 || __mptcp_ofo_queue(msk);
+		subflow = mptcp_next_subflow(msk, subflow);
+	}
+
+	__mptcp_ofo_queue(msk);
 	if (ret)
 		mptcp_check_data_fin((struct sock *)msk);
 	return ret;

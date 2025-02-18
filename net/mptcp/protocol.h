@@ -354,6 +354,8 @@ struct mptcp_sock {
 	list_for_each_entry(__subflow, &((__msk)->conn_list), node)
 #define mptcp_for_each_subflow_safe(__msk, __subflow, __tmp)			\
 	list_for_each_entry_safe(__subflow, __tmp, &((__msk)->conn_list), node)
+#define mptcp_next_subflow(__msk, __subflow)				\
+	list_next_entry_circular(__subflow, &((__msk)->conn_list), node)
 
 extern struct genl_family mptcp_genl_family;
 
