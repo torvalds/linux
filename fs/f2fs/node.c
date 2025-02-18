@@ -1456,7 +1456,7 @@ void f2fs_ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	f2fs_put_page(apage, err ? 1 : 0);
 }
 
-static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
+static struct folio *__get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid,
 					struct page *parent, int start)
 {
 	struct folio *folio;
@@ -1469,7 +1469,7 @@ static struct page *__get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid,
 repeat:
 	folio = f2fs_grab_cache_folio(NODE_MAPPING(sbi), nid, false);
 	if (IS_ERR(folio))
-		return ERR_CAST(folio);
+		return folio;
 
 	err = read_node_page(&folio->page, 0);
 	if (err < 0) {
@@ -1500,7 +1500,7 @@ repeat:
 	}
 page_hit:
 	if (likely(nid == nid_of_node(&folio->page)))
-		return &folio->page;
+		return folio;
 
 	f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
 			  nid, nid_of_node(&folio->page), ino_of_node(&folio->page),
@@ -1519,17 +1519,25 @@ out_put_err:
 	return ERR_PTR(err);
 }
 
+struct folio *f2fs_get_node_folio(struct f2fs_sb_info *sbi, pgoff_t nid)
+{
+	return __get_node_folio(sbi, nid, NULL, 0);
+}
+
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
 {
-	return __get_node_page(sbi, nid, NULL, 0);
+	struct folio *folio = __get_node_folio(sbi, nid, NULL, 0);
+
+	return &folio->page;
 }
 
 struct page *f2fs_get_node_page_ra(struct page *parent, int start)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(parent);
 	nid_t nid = get_nid(parent, start, false);
+	struct folio *folio = __get_node_folio(sbi, nid, parent, start);
 
-	return __get_node_page(sbi, nid, parent, start);
+	return &folio->page;
 }
 
 static void flush_inline_data(struct f2fs_sb_info *sbi, nid_t ino)
