@@ -23,6 +23,7 @@ struct vkms_config *vkms_config_create(const char *dev_name)
 	}
 
 	INIT_LIST_HEAD(&config->planes);
+	INIT_LIST_HEAD(&config->crtcs);
 
 	return config;
 }
@@ -34,18 +35,22 @@ struct vkms_config *vkms_config_default_create(bool enable_cursor,
 {
 	struct vkms_config *config;
 	struct vkms_config_plane *plane_cfg;
+	struct vkms_config_crtc *crtc_cfg;
 	int n;
 
 	config = vkms_config_create(DEFAULT_DEVICE_NAME);
 	if (IS_ERR(config))
 		return config;
 
-	config->writeback = enable_writeback;
-
 	plane_cfg = vkms_config_create_plane(config);
 	if (IS_ERR(plane_cfg))
 		goto err_alloc;
 	vkms_config_plane_set_type(plane_cfg, DRM_PLANE_TYPE_PRIMARY);
+
+	crtc_cfg = vkms_config_create_crtc(config);
+	if (IS_ERR(crtc_cfg))
+		goto err_alloc;
+	vkms_config_crtc_set_writeback(crtc_cfg, enable_writeback);
 
 	if (enable_overlay) {
 		for (n = 0; n < NUM_OVERLAY_PLANES; n++) {
@@ -75,9 +80,13 @@ EXPORT_SYMBOL_IF_KUNIT(vkms_config_default_create);
 void vkms_config_destroy(struct vkms_config *config)
 {
 	struct vkms_config_plane *plane_cfg, *plane_tmp;
+	struct vkms_config_crtc *crtc_cfg, *crtc_tmp;
 
 	list_for_each_entry_safe(plane_cfg, plane_tmp, &config->planes, link)
 		vkms_config_destroy_plane(plane_cfg);
+
+	list_for_each_entry_safe(crtc_cfg, crtc_tmp, &config->crtcs, link)
+		vkms_config_destroy_crtc(config, crtc_cfg);
 
 	kfree_const(config->dev_name);
 	kfree(config);
@@ -135,9 +144,26 @@ static bool valid_plane_type(const struct vkms_config *config)
 	return true;
 }
 
+static bool valid_crtc_number(const struct vkms_config *config)
+{
+	struct drm_device *dev = config->dev ? &config->dev->drm : NULL;
+	size_t n_crtcs;
+
+	n_crtcs = list_count_nodes((struct list_head *)&config->crtcs);
+	if (n_crtcs <= 0 || n_crtcs >= 32) {
+		drm_info(dev, "The number of CRTCs must be between 1 and 31\n");
+		return false;
+	}
+
+	return true;
+}
+
 bool vkms_config_is_valid(const struct vkms_config *config)
 {
 	if (!valid_plane_number(config))
+		return false;
+
+	if (!valid_crtc_number(config))
 		return false;
 
 	if (!valid_plane_type(config))
@@ -154,15 +180,21 @@ static int vkms_config_show(struct seq_file *m, void *data)
 	struct vkms_device *vkmsdev = drm_device_to_vkms_device(dev);
 	const char *dev_name;
 	struct vkms_config_plane *plane_cfg;
+	struct vkms_config_crtc *crtc_cfg;
 
 	dev_name = vkms_config_get_device_name((struct vkms_config *)vkmsdev->config);
 	seq_printf(m, "dev_name=%s\n", dev_name);
-	seq_printf(m, "writeback=%d\n", vkmsdev->config->writeback);
 
 	vkms_config_for_each_plane(vkmsdev->config, plane_cfg) {
 		seq_puts(m, "plane:\n");
 		seq_printf(m, "\ttype=%d\n",
 			   vkms_config_plane_get_type(plane_cfg));
+	}
+
+	vkms_config_for_each_crtc(vkmsdev->config, crtc_cfg) {
+		seq_puts(m, "crtc:\n");
+		seq_printf(m, "\twriteback=%d\n",
+			   vkms_config_crtc_get_writeback(crtc_cfg));
 	}
 
 	return 0;
@@ -201,3 +233,28 @@ void vkms_config_destroy_plane(struct vkms_config_plane *plane_cfg)
 	kfree(plane_cfg);
 }
 EXPORT_SYMBOL_IF_KUNIT(vkms_config_destroy_plane);
+
+struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *config)
+{
+	struct vkms_config_crtc *crtc_cfg;
+
+	crtc_cfg = kzalloc(sizeof(*crtc_cfg), GFP_KERNEL);
+	if (!crtc_cfg)
+		return ERR_PTR(-ENOMEM);
+
+	crtc_cfg->config = config;
+	vkms_config_crtc_set_writeback(crtc_cfg, false);
+
+	list_add_tail(&crtc_cfg->link, &config->crtcs);
+
+	return crtc_cfg;
+}
+EXPORT_SYMBOL_IF_KUNIT(vkms_config_create_crtc);
+
+void vkms_config_destroy_crtc(struct vkms_config *config,
+			      struct vkms_config_crtc *crtc_cfg)
+{
+	list_del(&crtc_cfg->link);
+	kfree(crtc_cfg);
+}
+EXPORT_SYMBOL_IF_KUNIT(vkms_config_destroy_crtc);

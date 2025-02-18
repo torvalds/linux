@@ -14,12 +14,14 @@
  * @dev_name: Name of the device
  * @writeback: If true, a writeback buffer can be attached to the CRTC
  * @planes: List of planes configured for the device
+ * @crtcs: List of CRTCs configured for the device
  * @dev: Used to store the current VKMS device. Only set when the device is instantiated.
  */
 struct vkms_config {
 	const char *dev_name;
 	bool writeback;
 	struct list_head planes;
+	struct list_head crtcs;
 	struct vkms_device *dev;
 };
 
@@ -46,12 +48,41 @@ struct vkms_config_plane {
 };
 
 /**
+ * struct vkms_config_crtc
+ *
+ * @link: Link to the others CRTCs in vkms_config
+ * @config: The vkms_config this CRTC belongs to
+ * @writeback: If true, a writeback buffer can be attached to the CRTC
+ * @crtc: Internal usage. This pointer should never be considered as valid.
+ *        It can be used to store a temporary reference to a VKMS CRTC during
+ *        device creation. This pointer is not managed by the configuration and
+ *        must be managed by other means.
+ */
+struct vkms_config_crtc {
+	struct list_head link;
+	struct vkms_config *config;
+
+	bool writeback;
+
+	/* Internal usage */
+	struct vkms_output *crtc;
+};
+
+/**
  * vkms_config_for_each_plane - Iterate over the vkms_config planes
  * @config: &struct vkms_config pointer
  * @plane_cfg: &struct vkms_config_plane pointer used as cursor
  */
 #define vkms_config_for_each_plane(config, plane_cfg) \
 	list_for_each_entry((plane_cfg), &(config)->planes, link)
+
+/**
+ * vkms_config_for_each_crtc - Iterate over the vkms_config CRTCs
+ * @config: &struct vkms_config pointer
+ * @crtc_cfg: &struct vkms_config_crtc pointer used as cursor
+ */
+#define vkms_config_for_each_crtc(config, crtc_cfg) \
+	list_for_each_entry((crtc_cfg), &(config)->crtcs, link)
 
 /**
  * vkms_config_create() - Create a new VKMS configuration
@@ -94,6 +125,15 @@ static inline const char *
 vkms_config_get_device_name(struct vkms_config *config)
 {
 	return config->dev_name;
+}
+
+/**
+ * vkms_config_get_num_crtcs() - Return the number of CRTCs in the configuration
+ * @config: Configuration to get the number of CRTCs from
+ */
+static inline size_t vkms_config_get_num_crtcs(struct vkms_config *config)
+{
+	return list_count_nodes(&config->crtcs);
 }
 
 /**
@@ -149,6 +189,46 @@ vkms_config_plane_set_type(struct vkms_config_plane *plane_cfg,
 			   enum drm_plane_type type)
 {
 	plane_cfg->type = type;
+}
+
+/**
+ * vkms_config_create_crtc() - Add a new CRTC configuration
+ * @config: Configuration to add the CRTC to
+ *
+ * Returns:
+ * The new CRTC configuration or an error. Call vkms_config_destroy_crtc() to
+ * free the returned CRTC configuration.
+ */
+struct vkms_config_crtc *vkms_config_create_crtc(struct vkms_config *config);
+
+/**
+ * vkms_config_destroy_crtc() - Remove and free a CRTC configuration
+ * @config: Configuration to remove the CRTC from
+ * @crtc_cfg: CRTC configuration to destroy
+ */
+void vkms_config_destroy_crtc(struct vkms_config *config,
+			      struct vkms_config_crtc *crtc_cfg);
+
+/**
+ * vkms_config_crtc_get_writeback() - If a writeback connector will be created
+ * @crtc_cfg: CRTC with or without a writeback connector
+ */
+static inline bool
+vkms_config_crtc_get_writeback(struct vkms_config_crtc *crtc_cfg)
+{
+	return crtc_cfg->writeback;
+}
+
+/**
+ * vkms_config_crtc_set_writeback() - If a writeback connector will be created
+ * @crtc_cfg: Target CRTC
+ * @writeback: Enable or disable the writeback connector
+ */
+static inline void
+vkms_config_crtc_set_writeback(struct vkms_config_crtc *crtc_cfg,
+			       bool writeback)
+{
+	crtc_cfg->writeback = writeback;
 }
 
 #endif /* _VKMS_CONFIG_H_ */
