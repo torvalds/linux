@@ -190,6 +190,13 @@ static int jpeg_v5_0_1_sw_init(struct amdgpu_ip_block *ip_block)
 	if (r)
 		return r;
 
+	if (!amdgpu_sriov_vf(adev)) {
+		adev->jpeg.supported_reset = AMDGPU_RESET_TYPE_PER_QUEUE;
+		r = amdgpu_jpeg_sysfs_reset_mask_init(adev);
+		if (r)
+			return r;
+	}
+
 	return 0;
 }
 
@@ -208,6 +215,9 @@ static int jpeg_v5_0_1_sw_fini(struct amdgpu_ip_block *ip_block)
 	r = amdgpu_jpeg_suspend(adev);
 	if (r)
 		return r;
+
+	if (!amdgpu_sriov_vf(adev))
+		amdgpu_jpeg_sysfs_reset_mask_fini(adev);
 
 	r = amdgpu_jpeg_sw_fini(adev);
 
@@ -650,6 +660,45 @@ static int jpeg_v5_0_1_process_interrupt(struct amdgpu_device *adev,
 	return 0;
 }
 
+static void jpeg_v5_0_1_core_stall_reset(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	int jpeg_inst = GET_INST(JPEG, ring->me);
+	int reg_offset = ring->pipe ? jpeg_v5_0_1_core_reg_offset(ring->pipe) : 0;
+
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
+			    reg_offset, 0x1F);
+	SOC15_WAIT_ON_RREG(JPEG, jpeg_inst,
+			   regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS,
+			   0x1F, 0x1F);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JMI0_JPEG_LMI_DROP,
+			    reg_offset, 0x1F);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regJPEG_CORE_RST_CTRL,
+			    reg_offset, 1 << ring->pipe);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
+			    reg_offset, 0x00);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regUVD_JMI0_JPEG_LMI_DROP,
+			    reg_offset, 0x00);
+	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
+			    regJPEG_CORE_RST_CTRL,
+			    reg_offset, 0x00);
+}
+
+static int jpeg_v5_0_1_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
+{
+	if (amdgpu_sriov_vf(ring->adev))
+		return -EOPNOTSUPP;
+
+	jpeg_v5_0_1_core_stall_reset(ring);
+	jpeg_v5_0_1_init_jrbc(ring);
+	return amdgpu_ring_test_helper(ring);
+}
+
 static const struct amd_ip_funcs jpeg_v5_0_1_ip_funcs = {
 	.name = "jpeg_v5_0_1",
 	.early_init = jpeg_v5_0_1_early_init,
@@ -699,6 +748,7 @@ static const struct amdgpu_ring_funcs jpeg_v5_0_1_dec_ring_vm_funcs = {
 	.emit_wreg = jpeg_v4_0_3_dec_ring_emit_wreg,
 	.emit_reg_wait = jpeg_v4_0_3_dec_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
+	.reset = jpeg_v5_0_1_ring_reset,
 };
 
 static void jpeg_v5_0_1_set_dec_ring_funcs(struct amdgpu_device *adev)
