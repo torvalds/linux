@@ -9,4 +9,8 @@
 const struct nvkm_rm_gpu
 ga100_gpu = {
 	.usermode.class = AMPERE_USERMODE_A,
+
+	.fifo.chan = {
+		.class = AMPERE_CHANNEL_GPFIFO_A,
+	},
 };

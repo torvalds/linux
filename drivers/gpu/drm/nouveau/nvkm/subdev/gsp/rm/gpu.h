@@ -21,6 +21,12 @@ struct nvkm_rm_gpu {
 	struct {
 		u32 class;
 	} usermode;
+
+	struct {
+		struct {
+			u32 class;
+		} chan;
+	} fifo;
 };
 
 extern const struct nvkm_rm_gpu tu1xx_gpu;

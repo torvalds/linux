@@ -18,4 +18,8 @@ tu1xx_gpu = {
 	},
 
 	.usermode.class = TURING_USERMODE_A,
+
+	.fifo.chan = {
+		.class = TURING_CHANNEL_GPFIFO_A,
+	},
 };

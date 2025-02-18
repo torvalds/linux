@@ -31,6 +31,8 @@
 #include <subdev/vfn.h>
 #include <engine/gr.h>
 
+#include <rm/gpu.h>
+
 #include <nvhw/drf.h>
 
 #include "nvrm/fifo.h"
@@ -214,10 +216,6 @@ r535_chan = {
 	.start = r535_chan_start,
 	.stop = r535_chan_stop,
 	.doorbell_handle = r535_chan_doorbell_handle,
-};
-
-static const struct nvkm_cgrp_func
-r535_cgrp = {
 };
 
 static int
@@ -522,6 +520,7 @@ int
 r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 	      enum nvkm_subdev_type type, int inst, struct nvkm_fifo **pfifo)
 {
+	const struct nvkm_rm_gpu *gpu = device->gsp->rm->gpu;
 	struct nvkm_fifo_func *rm;
 
 	if (!(rm = kzalloc(sizeof(*rm), GFP_KERNEL)))
@@ -530,9 +529,7 @@ r535_fifo_new(const struct nvkm_fifo_func *hw, struct nvkm_device *device,
 	rm->dtor = r535_fifo_dtor;
 	rm->runl_ctor = r535_fifo_runl_ctor;
 	rm->runl = &r535_runl;
-	rm->cgrp = hw->cgrp;
-	rm->cgrp.func = &r535_cgrp;
-	rm->chan = hw->chan;
+	rm->chan.user.oclass = gpu->fifo.chan.class;
 	rm->chan.func = &r535_chan;
 	rm->nonstall = &ga100_fifo_nonstall;
 	rm->nonstall_ctor = ga100_fifo_nonstall_ctor;
