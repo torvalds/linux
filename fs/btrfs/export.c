@@ -219,11 +219,11 @@ fail:
 static int btrfs_get_name(struct dentry *parent, char *name,
 			  struct dentry *child)
 {
-	struct inode *inode = d_inode(child);
-	struct inode *dir = d_inode(parent);
-	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
+	struct btrfs_inode *inode = BTRFS_I(d_inode(child));
+	struct btrfs_inode *dir = BTRFS_I(d_inode(parent));
+	struct btrfs_root *root = dir->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_path *path;
-	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_inode_ref *iref;
 	struct btrfs_root_ref *rref;
 	struct extent_buffer *leaf;
@@ -233,24 +233,24 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 	int ret;
 	u64 ino;
 
-	if (!S_ISDIR(dir->i_mode))
+	if (!S_ISDIR(dir->vfs_inode.i_mode))
 		return -EINVAL;
 
-	ino = btrfs_ino(BTRFS_I(inode));
+	ino = btrfs_ino(inode);
 
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
 
 	if (ino == BTRFS_FIRST_FREE_OBJECTID) {
-		key.objectid = btrfs_root_id(BTRFS_I(inode)->root);
+		key.objectid = btrfs_root_id(inode->root);
 		key.type = BTRFS_ROOT_BACKREF_KEY;
 		key.offset = (u64)-1;
 		root = fs_info->tree_root;
 	} else {
 		key.objectid = ino;
 		key.type = BTRFS_INODE_REF_KEY;
-		key.offset = btrfs_ino(BTRFS_I(dir));
+		key.offset = btrfs_ino(dir);
 	}
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
