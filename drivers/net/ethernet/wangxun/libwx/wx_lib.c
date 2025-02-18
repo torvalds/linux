@@ -13,6 +13,7 @@
 
 #include "wx_type.h"
 #include "wx_lib.h"
+#include "wx_ptp.h"
 #include "wx_hw.h"
 
 /* Lookup table mapping the HW PTYPE to the bit field for decoding */
@@ -597,8 +598,17 @@ static void wx_process_skb_fields(struct wx_ring *rx_ring,
 				  union wx_rx_desc *rx_desc,
 				  struct sk_buff *skb)
 {
+	struct wx *wx = netdev_priv(rx_ring->netdev);
+
 	wx_rx_hash(rx_ring, rx_desc, skb);
 	wx_rx_checksum(rx_ring, rx_desc, skb);
+
+	if (unlikely(test_bit(WX_FLAG_RX_HWTSTAMP_ENABLED, wx->flags)) &&
+	    unlikely(wx_test_staterr(rx_desc, WX_RXD_STAT_TS))) {
+		wx_ptp_rx_hwtstamp(rx_ring->q_vector->wx, skb);
+		rx_ring->last_rx_timestamp = jiffies;
+	}
+
 	wx_rx_vlan(rx_ring, rx_desc, skb);
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
@@ -705,6 +715,7 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 {
 	unsigned int budget = q_vector->wx->tx_work_limit;
 	unsigned int total_bytes = 0, total_packets = 0;
+	struct wx *wx = netdev_priv(tx_ring->netdev);
 	unsigned int i = tx_ring->next_to_clean;
 	struct wx_tx_buffer *tx_buffer;
 	union wx_tx_desc *tx_desc;
@@ -736,6 +747,11 @@ static bool wx_clean_tx_irq(struct wx_q_vector *q_vector,
 		/* update the statistics for this packet */
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
+
+		/* schedule check for Tx timestamp */
+		if (unlikely(test_bit(WX_STATE_PTP_TX_IN_PROGRESS, wx->state)) &&
+		    skb_shinfo(tx_buffer->skb)->tx_flags & SKBTX_IN_PROGRESS)
+			ptp_schedule_worker(wx->ptp_clock, 0);
 
 		/* free the skb */
 		napi_consume_skb(tx_buffer->skb, napi_budget);
@@ -932,9 +948,9 @@ static void wx_tx_olinfo_status(union wx_tx_desc *tx_desc,
 	tx_desc->read.olinfo_status = cpu_to_le32(olinfo_status);
 }
 
-static void wx_tx_map(struct wx_ring *tx_ring,
-		      struct wx_tx_buffer *first,
-		      const u8 hdr_len)
+static int wx_tx_map(struct wx_ring *tx_ring,
+		     struct wx_tx_buffer *first,
+		     const u8 hdr_len)
 {
 	struct sk_buff *skb = first->skb;
 	struct wx_tx_buffer *tx_buffer;
@@ -1013,6 +1029,8 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 
 	netdev_tx_sent_queue(wx_txring_txq(tx_ring), first->bytecount);
 
+	/* set the timestamp */
+	first->time_stamp = jiffies;
 	skb_tx_timestamp(skb);
 
 	/* Force memory writes to complete before letting h/w know there
@@ -1038,7 +1056,7 @@ static void wx_tx_map(struct wx_ring *tx_ring,
 	if (netif_xmit_stopped(wx_txring_txq(tx_ring)) || !netdev_xmit_more())
 		writel(i, tx_ring->tail);
 
-	return;
+	return 0;
 dma_error:
 	dev_err(tx_ring->dev, "TX DMA map failed\n");
 
@@ -1062,6 +1080,8 @@ dma_error:
 	first->skb = NULL;
 
 	tx_ring->next_to_use = i;
+
+	return -ENOMEM;
 }
 
 static void wx_tx_ctxtdesc(struct wx_ring *tx_ring, u32 vlan_macip_lens,
@@ -1486,6 +1506,20 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= WX_TX_FLAGS_HW_VLAN;
 	}
 
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
+	    wx->ptp_clock) {
+		if (wx->tstamp_config.tx_type == HWTSTAMP_TX_ON &&
+		    !test_and_set_bit_lock(WX_STATE_PTP_TX_IN_PROGRESS,
+					   wx->state)) {
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+			tx_flags |= WX_TX_FLAGS_TSTAMP;
+			wx->ptp_tx_skb = skb_get(skb);
+			wx->ptp_tx_start = jiffies;
+		} else {
+			wx->tx_hwtstamp_skipped++;
+		}
+	}
+
 	/* record initial flags and protocol */
 	first->tx_flags = tx_flags;
 	first->protocol = vlan_get_protocol(skb);
@@ -1501,12 +1535,20 @@ static netdev_tx_t wx_xmit_frame_ring(struct sk_buff *skb,
 	if (test_bit(WX_FLAG_FDIR_CAPABLE, wx->flags) && tx_ring->atr_sample_rate)
 		wx->atr(tx_ring, first, ptype);
 
-	wx_tx_map(tx_ring, first, hdr_len);
+	if (wx_tx_map(tx_ring, first, hdr_len))
+		goto cleanup_tx_tstamp;
 
 	return NETDEV_TX_OK;
 out_drop:
 	dev_kfree_skb_any(first->skb);
 	first->skb = NULL;
+cleanup_tx_tstamp:
+	if (unlikely(tx_flags & WX_TX_FLAGS_TSTAMP)) {
+		dev_kfree_skb_any(wx->ptp_tx_skb);
+		wx->ptp_tx_skb = NULL;
+		wx->tx_hwtstamp_errors++;
+		clear_bit_unlock(WX_STATE_PTP_TX_IN_PROGRESS, wx->state);
+	}
 
 	return NETDEV_TX_OK;
 }

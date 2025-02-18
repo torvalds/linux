@@ -4,6 +4,8 @@
 #ifndef _WX_TYPE_H_
 #define _WX_TYPE_H_
 
+#include <linux/ptp_clock_kernel.h>
+#include <linux/timecounter.h>
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
@@ -180,6 +182,23 @@
 #define WX_PSR_VLAN_CTL              0x15088
 #define WX_PSR_VLAN_CTL_CFIEN        BIT(29)  /* bit 29 */
 #define WX_PSR_VLAN_CTL_VFE          BIT(30)  /* bit 30 */
+/* EType Queue Filter */
+#define WX_PSR_ETYPE_SWC(_i)         (0x15128 + ((_i) * 4))
+#define WX_PSR_ETYPE_SWC_FILTER_1588 3
+#define WX_PSR_ETYPE_SWC_FILTER_EN   BIT(31)
+#define WX_PSR_ETYPE_SWC_1588        BIT(30)
+/* 1588 */
+#define WX_PSR_1588_MSG                 0x15120
+#define WX_PSR_1588_MSG_V1_SYNC         FIELD_PREP(GENMASK(7, 0), 0)
+#define WX_PSR_1588_MSG_V1_DELAY_REQ    FIELD_PREP(GENMASK(7, 0), 1)
+#define WX_PSR_1588_STMPL               0x151E8
+#define WX_PSR_1588_STMPH               0x151A4
+#define WX_PSR_1588_CTL                 0x15188
+#define WX_PSR_1588_CTL_ENABLED         BIT(4)
+#define WX_PSR_1588_CTL_TYPE_MASK       GENMASK(3, 1)
+#define WX_PSR_1588_CTL_TYPE_L4_V1      FIELD_PREP(GENMASK(3, 1), 1)
+#define WX_PSR_1588_CTL_TYPE_EVENT_V2   FIELD_PREP(GENMASK(3, 1), 5)
+#define WX_PSR_1588_CTL_VALID           BIT(0)
 /* mcasst/ucast overflow tbl */
 #define WX_PSR_MC_TBL(_i)            (0x15200  + ((_i) * 4))
 #define WX_PSR_UC_TBL(_i)            (0x15400 + ((_i) * 4))
@@ -253,6 +272,15 @@
 #define WX_TSC_ST_SECTX_RDY          BIT(0)
 #define WX_TSC_BUF_AE                0x1D00C
 #define WX_TSC_BUF_AE_THR            GENMASK(9, 0)
+/* 1588 */
+#define WX_TSC_1588_CTL              0x11F00
+#define WX_TSC_1588_CTL_ENABLED      BIT(4)
+#define WX_TSC_1588_CTL_VALID        BIT(0)
+#define WX_TSC_1588_STMPL            0x11F04
+#define WX_TSC_1588_STMPH            0x11F08
+#define WX_TSC_1588_SYSTIML          0x11F0C
+#define WX_TSC_1588_SYSTIMH          0x11F10
+#define WX_TSC_1588_INC              0x11F14
 
 /************************************** MNG ********************************/
 #define WX_MNG_SWFW_SYNC             0x1E008
@@ -460,6 +488,7 @@ enum WX_MSCA_CMD_value {
 #define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
 #define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
 #define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
+#define WX_RXD_STAT_TS               BIT(14) /* IEEE1588 Time Stamp */
 
 #define WX_RXD_ERR_OUTERIPER         BIT(26) /* CRC IP Header error */
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
@@ -863,6 +892,7 @@ struct wx_tx_context_desc {
  */
 struct wx_tx_buffer {
 	union wx_tx_desc *next_to_watch;
+	unsigned long time_stamp;
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	unsigned short gso_segs;
@@ -924,6 +954,7 @@ struct wx_ring {
 	unsigned int size;              /* length in bytes */
 
 	u16 count;                      /* amount of descriptors */
+	unsigned long last_rx_timestamp;
 
 	u8 queue_index; /* needed for multiqueue queue management */
 	u8 reg_idx;                     /* holds the special value that gets
@@ -1026,6 +1057,8 @@ struct wx_hw_stats {
 
 enum wx_state {
 	WX_STATE_RESETTING,
+	WX_STATE_PTP_RUNNING,
+	WX_STATE_PTP_TX_IN_PROGRESS,
 	WX_STATE_NBITS,		/* must be last */
 };
 
@@ -1033,6 +1066,8 @@ enum wx_pf_flags {
 	WX_FLAG_FDIR_CAPABLE,
 	WX_FLAG_FDIR_HASH,
 	WX_FLAG_FDIR_PERFECT,
+	WX_FLAG_RX_HWTSTAMP_ENABLED,
+	WX_FLAG_RX_HWTSTAMP_IN_REGISTER,
 	WX_PF_FLAGS_NBITS               /* must be last */
 };
 
@@ -1133,6 +1168,21 @@ struct wx {
 	void (*atr)(struct wx_ring *ring, struct wx_tx_buffer *first, u8 ptype);
 	void (*configure_fdir)(struct wx *wx);
 	void (*do_reset)(struct net_device *netdev);
+
+	u32 base_incval;
+	u32 tx_hwtstamp_pkts;
+	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
+	u32 tx_hwtstamp_errors;
+	u32 rx_hwtstamp_cleared;
+	unsigned long ptp_tx_start;
+	seqlock_t hw_tc_lock; /* seqlock for ptp */
+	struct cyclecounter hw_cc;
+	struct timecounter hw_tc;
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	struct kernel_hwtstamp_config tstamp_config;
+	struct sk_buff *ptp_tx_skb;
 };
 
 #define WX_INTR_ALL (~0ULL)
@@ -1175,6 +1225,24 @@ rd64(struct wx *wx, u32 reg)
 	msb = rd32(wx, reg + 4);
 
 	return (lsb | msb << 32);
+}
+
+static inline u32
+rd32ptp(struct wx *wx, u32 reg)
+{
+	if (wx->mac.type == wx_mac_em)
+		return rd32(wx, reg);
+
+	return rd32(wx, reg + 0xB500);
+}
+
+static inline void
+wr32ptp(struct wx *wx, u32 reg, u32 value)
+{
+	if (wx->mac.type == wx_mac_em)
+		return wr32(wx, reg, value);
+
+	return wr32(wx, reg + 0xB500, value);
 }
 
 /* On some domestic CPU platforms, sometimes IO is not synchronized with

@@ -41,6 +41,9 @@ static const struct wx_stats wx_gstrings_stats[] = {
 	WX_STAT("rx_csum_offload_good_count", hw_csum_rx_good),
 	WX_STAT("rx_csum_offload_errors", hw_csum_rx_error),
 	WX_STAT("alloc_rx_buff_failed", alloc_rx_buff_failed),
+	WX_STAT("tx_hwtstamp_timeouts", tx_hwtstamp_timeouts),
+	WX_STAT("tx_hwtstamp_skipped", tx_hwtstamp_skipped),
+	WX_STAT("rx_hwtstamp_cleared", rx_hwtstamp_cleared),
 };
 
 static const struct wx_stats wx_gstrings_fdir_stats[] = {
