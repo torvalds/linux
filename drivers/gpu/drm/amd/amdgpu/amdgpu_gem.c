@@ -934,6 +934,14 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		bo_va = NULL;
 	}
 
+	r = amdgpu_gem_update_timeline_node(filp,
+					    args->vm_timeline_syncobj_out,
+					    args->vm_timeline_point,
+					    &timeline_syncobj,
+					    &timeline_chain);
+	if (r)
+		goto error;
+
 	switch (args->operation) {
 	case AMDGPU_VA_OP_MAP:
 		va_flags = amdgpu_gem_va_map_flags(adev, args->flags);
@@ -960,22 +968,18 @@ int amdgpu_gem_va_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	if (!r && !(args->flags & AMDGPU_VM_DELAY_UPDATE) && !adev->debug_vm) {
-
-		r = amdgpu_gem_update_timeline_node(filp,
-						    args->vm_timeline_syncobj_out,
-						    args->vm_timeline_point,
-						    &timeline_syncobj,
-						    &timeline_chain);
-
 		fence = amdgpu_gem_va_update_vm(adev, &fpriv->vm, bo_va,
 						args->operation);
 
-		if (!r)
+		if (timeline_syncobj)
 			amdgpu_gem_update_bo_mapping(filp, bo_va,
-						     args->operation,
-						     args->vm_timeline_point,
-						     fence, timeline_syncobj,
-						     timeline_chain);
+					     args->operation,
+					     args->vm_timeline_point,
+					     fence, timeline_syncobj,
+					     timeline_chain);
+		else
+			dma_fence_put(fence);
+
 	}
 
 error:
