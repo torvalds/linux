@@ -28,12 +28,6 @@ void wait_on_page_writeback(struct page *page)
 }
 EXPORT_SYMBOL_GPL(wait_on_page_writeback);
 
-void wait_for_stable_page(struct page *page)
-{
-	return folio_wait_stable(page_folio(page));
-}
-EXPORT_SYMBOL_GPL(wait_for_stable_page);
-
 void mark_page_accessed(struct page *page)
 {
 	folio_mark_accessed(page_folio(page));
