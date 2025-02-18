@@ -537,11 +537,16 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 static void
 nfsd_file_gc(void)
 {
+	unsigned long ret = 0;
 	LIST_HEAD(dispose);
-	unsigned long ret;
+	int nid;
 
-	ret = list_lru_walk(&nfsd_file_lru, nfsd_file_lru_cb,
-			    &dispose, list_lru_count(&nfsd_file_lru));
+	for_each_node_state(nid, N_NORMAL_MEMORY) {
+		unsigned long nr = list_lru_count_node(&nfsd_file_lru, nid);
+
+		ret += list_lru_walk_node(&nfsd_file_lru, nid, nfsd_file_lru_cb,
+					  &dispose, &nr);
+	}
 	trace_nfsd_file_gc_removed(ret, list_lru_count(&nfsd_file_lru));
 	nfsd_file_dispose_list_delayed(&dispose);
 }
