@@ -283,7 +283,7 @@ struct stmmac_priv {
 
 	int speed;
 	unsigned int flow_ctrl;
-	unsigned int pause;
+	unsigned int pause_time;
 	struct mii_bus *mii;
 
 	struct phylink_config phylink_config;
