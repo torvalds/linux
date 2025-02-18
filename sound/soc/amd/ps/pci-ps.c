@@ -129,7 +129,7 @@ static short int check_and_handle_sdw_dma_irq(struct acp63_dev_data *adata, u32 
 		if (ext_intr_stat1 & ACP63_P1_AUDIO1_RX_THRESHOLD) {
 			writel(ACP63_P1_AUDIO1_RX_THRESHOLD,
 			       adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		       adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
+			adata->acp63_sdw1_dma_intr_stat[ACP63_SDW1_AUDIO1_RX] = 1;
 			sdw_dma_irq_flag = 1;
 		}
 		if (ext_intr_stat1 & ACP63_P1_AUDIO1_TX_THRESHOLD) {
