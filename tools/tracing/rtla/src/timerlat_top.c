@@ -15,44 +15,9 @@
 #include <sched.h>
 #include <pthread.h>
 
-#include "utils.h"
-#include "osnoise.h"
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_u.h"
-
-struct timerlat_top_params {
-	char			*cpus;
-	cpu_set_t		monitored_cpus;
-	char			*trace_output;
-	char			*cgroup_name;
-	unsigned long long	runtime;
-	long long		stop_us;
-	long long		stop_total_us;
-	long long		timerlat_period_us;
-	long long		print_stack;
-	int			sleep_time;
-	int			output_divisor;
-	int			duration;
-	int			quiet;
-	int			set_sched;
-	int			dma_latency;
-	int			no_aa;
-	int			aa_only;
-	int			dump_tasks;
-	int			cgroup;
-	int			hk_cpus;
-	int			user_top;
-	int			user_workload;
-	int			kernel_workload;
-	int			pretty_output;
-	int			warmup;
-	int			buffer_size;
-	int			deepest_idle_state;
-	cpu_set_t		hk_cpu_set;
-	struct sched_attr	sched_param;
-	struct trace_events	*events;
-};
 
 struct timerlat_top_cpu {
 	unsigned long long	irq_count;
@@ -194,7 +159,7 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 		     struct tep_event *event, void *context)
 {
 	struct trace_instance *trace = context;
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	unsigned long long latency, thread;
 	struct osnoise_tool *top;
 	int cpu = record->cpu;
@@ -215,7 +180,7 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 /*
  * timerlat_top_header - print the header of the tool output
  */
-static void timerlat_top_header(struct timerlat_top_params *params, struct osnoise_tool *top)
+static void timerlat_top_header(struct timerlat_params *params, struct osnoise_tool *top)
 {
 	struct trace_seq *s = top->trace.seq;
 	char duration[26];
@@ -263,7 +228,7 @@ static const char *no_value = "        -";
 static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 {
 
-	struct timerlat_top_params *params = top->params;
+	struct timerlat_params *params = top->params;
 	struct timerlat_top_data *data = top->data;
 	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
 	int divisor = params->output_divisor;
@@ -327,7 +292,7 @@ static void
 timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summary)
 {
 	const char *split = "----------------------------------------";
-	struct timerlat_top_params *params = top->params;
+	struct timerlat_params *params = top->params;
 	unsigned long long count = summary->irq_count;
 	int divisor = params->output_divisor;
 	struct trace_seq *s = top->trace.seq;
@@ -404,7 +369,7 @@ static void clear_terminal(struct trace_seq *seq)
  * timerlat_print_stats - print data for all cpus
  */
 static void
-timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *top)
+timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *top)
 {
 	struct trace_instance *trace = &top->trace;
 	struct timerlat_top_cpu summary;
@@ -505,10 +470,10 @@ static void timerlat_top_usage(char *usage)
 /*
  * timerlat_top_parse_args - allocs, parse and fill the cmd line parameters
  */
-static struct timerlat_top_params
+static struct timerlat_params
 *timerlat_top_parse_args(int argc, char **argv)
 {
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	struct trace_events *tevent;
 	long long auto_thresh;
 	int retval;
@@ -765,7 +730,7 @@ static struct timerlat_top_params
  * timerlat_top_apply_config - apply the top configs to the initialized tool
  */
 static int
-timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *params)
+timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_params *params)
 {
 	int retval;
 	int i;
@@ -876,7 +841,7 @@ out_err:
  * timerlat_init_top - initialize a timerlat top tool with parameters
  */
 static struct osnoise_tool
-*timerlat_init_top(struct timerlat_top_params *params)
+*timerlat_init_top(struct timerlat_params *params)
 {
 	struct osnoise_tool *top;
 	int nr_cpus;
@@ -924,7 +889,7 @@ static void stop_top(int sig)
  * timerlat_top_set_signals - handles the signal to stop the tool
  */
 static void
-timerlat_top_set_signals(struct timerlat_top_params *params)
+timerlat_top_set_signals(struct timerlat_params *params)
 {
 	signal(SIGINT, stop_top);
 	if (params->duration) {
@@ -935,7 +900,7 @@ timerlat_top_set_signals(struct timerlat_top_params *params)
 
 int timerlat_top_main(int argc, char *argv[])
 {
-	struct timerlat_top_params *params;
+	struct timerlat_params *params;
 	struct osnoise_tool *record = NULL;
 	struct timerlat_u_params params_u;
 	struct osnoise_tool *top = NULL;

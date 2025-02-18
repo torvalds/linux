@@ -14,49 +14,9 @@
 #include <sched.h>
 #include <pthread.h>
 
-#include "utils.h"
-#include "osnoise.h"
 #include "timerlat.h"
 #include "timerlat_aa.h"
 #include "timerlat_u.h"
-
-struct timerlat_hist_params {
-	char			*cpus;
-	cpu_set_t		monitored_cpus;
-	char			*trace_output;
-	char			*cgroup_name;
-	unsigned long long	runtime;
-	long long		stop_us;
-	long long		stop_total_us;
-	long long		timerlat_period_us;
-	long long		print_stack;
-	int			sleep_time;
-	int			output_divisor;
-	int			duration;
-	int			set_sched;
-	int			dma_latency;
-	int			cgroup;
-	int			hk_cpus;
-	int			no_aa;
-	int			dump_tasks;
-	int			user_workload;
-	int			kernel_workload;
-	int			user_hist;
-	cpu_set_t		hk_cpu_set;
-	struct sched_attr	sched_param;
-	struct trace_events	*events;
-	char			no_irq;
-	char			no_thread;
-	char			no_header;
-	char			no_summary;
-	char			no_index;
-	char			with_zeros;
-	int			bucket_size;
-	int			entries;
-	int			warmup;
-	int			buffer_size;
-	int			deepest_idle_state;
-};
 
 struct timerlat_hist_cpu {
 	int			*irq;
@@ -174,7 +134,7 @@ timerlat_hist_update(struct osnoise_tool *tool, int cpu,
 		     unsigned long long context,
 		     unsigned long long latency)
 {
-	struct timerlat_hist_params *params = tool->params;
+	struct timerlat_params *params = tool->params;
 	struct timerlat_hist_data *data = tool->data;
 	int entries = data->entries;
 	int bucket;
@@ -238,7 +198,7 @@ timerlat_hist_handler(struct trace_seq *s, struct tep_record *record,
  */
 static void timerlat_hist_header(struct osnoise_tool *tool)
 {
-	struct timerlat_hist_params *params = tool->params;
+	struct timerlat_params *params = tool->params;
 	struct timerlat_hist_data *data = tool->data;
 	struct trace_seq *s = tool->trace.seq;
 	char duration[26];
@@ -300,7 +260,7 @@ static void format_summary_value(struct trace_seq *seq,
  * timerlat_print_summary - print the summary of the hist data to the output
  */
 static void
-timerlat_print_summary(struct timerlat_hist_params *params,
+timerlat_print_summary(struct timerlat_params *params,
 		       struct trace_instance *trace,
 		       struct timerlat_hist_data *data)
 {
@@ -427,7 +387,7 @@ timerlat_print_summary(struct timerlat_hist_params *params,
 }
 
 static void
-timerlat_print_stats_all(struct timerlat_hist_params *params,
+timerlat_print_stats_all(struct timerlat_params *params,
 			 struct trace_instance *trace,
 			 struct timerlat_hist_data *data)
 {
@@ -575,7 +535,7 @@ timerlat_print_stats_all(struct timerlat_hist_params *params,
  * timerlat_print_stats - print data for each CPUs
  */
 static void
-timerlat_print_stats(struct timerlat_hist_params *params, struct osnoise_tool *tool)
+timerlat_print_stats(struct timerlat_params *params, struct osnoise_tool *tool)
 {
 	struct timerlat_hist_data *data = tool->data;
 	struct trace_instance *trace = &tool->trace;
@@ -734,10 +694,10 @@ static void timerlat_hist_usage(char *usage)
 /*
  * timerlat_hist_parse_args - allocs, parse and fill the cmd line parameters
  */
-static struct timerlat_hist_params
+static struct timerlat_params
 *timerlat_hist_parse_args(int argc, char *argv[])
 {
-	struct timerlat_hist_params *params;
+	struct timerlat_params *params;
 	struct trace_events *tevent;
 	int auto_thresh;
 	int retval;
@@ -1017,7 +977,7 @@ static struct timerlat_hist_params
  * timerlat_hist_apply_config - apply the hist configs to the initialized tool
  */
 static int
-timerlat_hist_apply_config(struct osnoise_tool *tool, struct timerlat_hist_params *params)
+timerlat_hist_apply_config(struct osnoise_tool *tool, struct timerlat_params *params)
 {
 	int retval, i;
 
@@ -1122,7 +1082,7 @@ out_err:
  * timerlat_init_hist - initialize a timerlat hist tool with parameters
  */
 static struct osnoise_tool
-*timerlat_init_hist(struct timerlat_hist_params *params)
+*timerlat_init_hist(struct timerlat_params *params)
 {
 	struct osnoise_tool *tool;
 	int nr_cpus;
@@ -1170,7 +1130,7 @@ static void stop_hist(int sig)
  * timerlat_hist_set_signals - handles the signal to stop the tool
  */
 static void
-timerlat_hist_set_signals(struct timerlat_hist_params *params)
+timerlat_hist_set_signals(struct timerlat_params *params)
 {
 	signal(SIGINT, stop_hist);
 	if (params->duration) {
@@ -1181,7 +1141,7 @@ timerlat_hist_set_signals(struct timerlat_hist_params *params)
 
 int timerlat_hist_main(int argc, char *argv[])
 {
-	struct timerlat_hist_params *params;
+	struct timerlat_params *params;
 	struct osnoise_tool *record = NULL;
 	struct timerlat_u_params params_u;
 	struct osnoise_tool *tool = NULL;
