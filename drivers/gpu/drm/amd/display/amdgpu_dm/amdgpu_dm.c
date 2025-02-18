@@ -3086,10 +3086,11 @@ static void dm_gpureset_toggle_interrupts(struct amdgpu_device *adev,
 
 }
 
+DEFINE_FREE(state_release, struct dc_state *, if (_T) dc_state_release(_T))
+
 static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 {
-	struct dc_state *context = NULL;
-	enum dc_status res = DC_ERROR_UNEXPECTED;
+	struct dc_state *context __free(state_release) = NULL;
 	int i;
 	struct dc_stream_state *del_streams[MAX_PIPES];
 	int del_streams_count = 0;
@@ -3099,7 +3100,7 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 
 	context = dc_state_create_current_copy(dc);
 	if (context == NULL)
-		goto context_alloc_fail;
+		return DC_ERROR_UNEXPECTED;
 
 	/* First remove from context all streams */
 	for (i = 0; i < context->stream_count; i++) {
@@ -3110,25 +3111,20 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 
 	/* Remove all planes for removed streams and then remove the streams */
 	for (i = 0; i < del_streams_count; i++) {
-		if (!dc_state_rem_all_planes_for_stream(dc, del_streams[i], context)) {
-			res = DC_FAIL_DETACH_SURFACES;
-			goto fail;
-		}
+		enum dc_status res;
+
+		if (!dc_state_rem_all_planes_for_stream(dc, del_streams[i], context))
+			return DC_FAIL_DETACH_SURFACES;
 
 		res = dc_state_remove_stream(dc, context, del_streams[i]);
 		if (res != DC_OK)
-			goto fail;
+			return res;
 	}
 
 	params.streams = context->streams;
 	params.stream_count = context->stream_count;
-	res = dc_commit_streams(dc, &params);
 
-fail:
-	dc_state_release(context);
-
-context_alloc_fail:
-	return res;
+	return dc_commit_streams(dc, &params);
 }
 
 static void hpd_rx_irq_work_suspend(struct amdgpu_display_manager *dm)
