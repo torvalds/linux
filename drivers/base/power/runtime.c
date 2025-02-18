@@ -1555,6 +1555,23 @@ out:
 }
 EXPORT_SYMBOL_GPL(pm_runtime_enable);
 
+bool pm_runtime_blocked(struct device *dev)
+{
+	bool ret;
+
+	/*
+	 * dev->power.last_status is a bit field, so in case it is updated via
+	 * RMW, read it under the spin lock.
+	 */
+	spin_lock_irq(&dev->power.lock);
+
+	ret = dev->power.last_status == RPM_BLOCKED;
+
+	spin_unlock_irq(&dev->power.lock);
+
+	return ret;
+}
+
 static void pm_runtime_disable_action(void *data)
 {
 	pm_runtime_dont_use_autosuspend(data);
