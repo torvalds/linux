@@ -6,6 +6,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/thead,th1520-clk-ap.h>
+#include <dt-bindings/power/thead,th1520-power.h>
 
 / {
 	compatible = "thead,th1520";
@@ -227,6 +228,13 @@
 		snps,wr_osr_lmt = <15>;
 		snps,rd_osr_lmt = <15>;
 		snps,blen = <0 0 64 32 0 0 0>;
+	};
+
+	aon: aon {
+		compatible = "thead,th1520-aon";
+		mboxes = <&mbox_910t 1>;
+		mbox-names = "aon";
+		#power-domain-cells = <1>;
 	};
 
 	soc {
