@@ -1086,9 +1086,6 @@
 #define POR_ELx_PERM_GET(idx, reg)	(((reg) >> POR_ELx_PERM_SHIFT(idx)) & POE_MASK)
 #define POR_ELx_PERM_PREP(idx, perm)	(((perm) & POE_MASK) << POR_ELx_PERM_SHIFT(idx))
 
-/* Initial value for Permission Overlay Extension for EL0 */
-#define POR_EL0_INIT	POE_RWX
-
 /*
  * Definitions for Guarded Control Stack
  */

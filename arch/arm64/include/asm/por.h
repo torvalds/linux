@@ -8,6 +8,8 @@
 
 #include <asm/sysreg.h>
 
+#define POR_EL0_INIT	POR_ELx_PERM_PREP(0, POE_RWX)
+
 static inline bool por_elx_allows_read(u64 por, u8 pkey)
 {
 	u8 perm = POR_ELx_PERM_GET(pkey, por);
