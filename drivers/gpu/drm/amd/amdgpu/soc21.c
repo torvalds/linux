@@ -1002,9 +1002,9 @@ static int soc21_common_set_powergating_state(struct amdgpu_ip_block *ip_block,
 	return 0;
 }
 
-static void soc21_common_get_clockgating_state(void *handle, u64 *flags)
+static void soc21_common_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->nbio.funcs->get_clockgating_state(adev, flags);
 

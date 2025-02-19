@@ -2252,7 +2252,8 @@ void amdgpu_device_ip_get_clockgating_state(struct amdgpu_device *adev,
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		if (adev->ip_blocks[i].version->funcs->get_clockgating_state)
-			adev->ip_blocks[i].version->funcs->get_clockgating_state((void *)adev, flags);
+			adev->ip_blocks[i].version->funcs->get_clockgating_state(
+				&adev->ip_blocks[i], flags);
 	}
 }
 

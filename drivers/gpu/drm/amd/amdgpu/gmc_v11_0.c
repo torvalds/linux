@@ -1012,9 +1012,9 @@ static int gmc_v11_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	return athub_v3_0_set_clockgating(adev, state);
 }
 
-static void gmc_v11_0_get_clockgating_state(void *handle, u64 *flags)
+static void gmc_v11_0_get_clockgating_state(struct amdgpu_ip_block *ip_block, u64 *flags)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	adev->mmhub.funcs->get_clockgating(adev, flags);
 
