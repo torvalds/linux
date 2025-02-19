@@ -1130,7 +1130,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		i += len;
 		if (!value)
-			return len;
+			return -EINVAL;
 		pkt_dev->delay = NSEC_PER_SEC/value;
 		if (debug)
 			pr_info("Delay set at: %llu ns\n", pkt_dev->delay);
