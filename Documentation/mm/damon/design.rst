@@ -617,6 +617,8 @@ Below ``type`` of filters are currently supported.
           scheme.
     - hugepage_size
         - Applied to pages that managed in a given size range.
+    - unmapped
+        - Applied to pages that unmapped.
 
 To know how user-space can set the filters via :ref:`DAMON sysfs interface
 <sysfs_interface>`, refer to :ref:`filters <sysfs_filters>` part of the
