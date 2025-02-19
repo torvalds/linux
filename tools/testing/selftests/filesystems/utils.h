@@ -24,6 +24,7 @@ extern int get_userns_fd(unsigned long nsid, unsigned long hostid,
 			 unsigned long range);
 
 extern int caps_down(void);
+extern int cap_down(cap_value_t down);
 
 extern bool switch_ids(uid_t uid, gid_t gid);
 

@@ -472,3 +472,30 @@ out:
 	cap_free(caps);
 	return fret;
 }
+
+/* cap_down - lower an effective cap */
+int cap_down(cap_value_t down)
+{
+	bool fret = false;
+	cap_t caps = NULL;
+	cap_value_t cap = down;
+	int ret = -1;
+
+	caps = cap_get_proc();
+	if (!caps)
+		goto out;
+
+	ret = cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap, 0);
+	if (ret)
+		goto out;
+
+	ret = cap_set_proc(caps);
+	if (ret)
+		goto out;
+
+	fret = true;
+
+out:
+	cap_free(caps);
+	return fret;
+}
