@@ -427,11 +427,6 @@ struct bpf_verifier_state {
 	bool active_rcu_lock;
 
 	bool speculative;
-	/* If this state was ever pointed-to by other state's loop_entry field
-	 * this flag would be set to true. Used to avoid freeing such states
-	 * while they are still in use.
-	 */
-	bool used_as_loop_entry;
 	bool in_sleepable;
 
 	/* first and last insn idx of this verifier state */
@@ -458,6 +453,11 @@ struct bpf_verifier_state {
 	u32 dfs_depth;
 	u32 callback_unroll_depth;
 	u32 may_goto_depth;
+	/* If this state was ever pointed-to by other state's loop_entry field
+	 * this flag would be set to true. Used to avoid freeing such states
+	 * while they are still in use.
+	 */
+	u32 used_as_loop_entry;
 };
 
 #define bpf_get_spilled_reg(slot, frame, mask)				\
@@ -498,8 +498,10 @@ struct bpf_verifier_state {
 /* linked list of verifier states used to prune search */
 struct bpf_verifier_state_list {
 	struct bpf_verifier_state state;
-	struct bpf_verifier_state_list *next;
-	int miss_cnt, hit_cnt;
+	struct list_head node;
+	u32 miss_cnt;
+	u32 hit_cnt:31;
+	u32 in_free_list:1;
 };
 
 struct bpf_loop_inline_state {
@@ -710,8 +712,11 @@ struct bpf_verifier_env {
 	bool test_state_freq;		/* test verifier with different pruning frequency */
 	bool test_reg_invariants;	/* fail verification on register invariants violations */
 	struct bpf_verifier_state *cur_state; /* current verifier state */
-	struct bpf_verifier_state_list **explored_states; /* search pruning optimization */
-	struct bpf_verifier_state_list *free_list;
+	/* Search pruning optimization, array of list_heads for
+	 * lists of struct bpf_verifier_state_list.
+	 */
+	struct list_head *explored_states;
+	struct list_head free_list;	/* list of struct bpf_verifier_state_list */
 	struct bpf_map *used_maps[MAX_USED_MAPS]; /* array of map's used by eBPF program */
 	struct btf_mod_pair used_btfs[MAX_USED_BTFS]; /* array of BTF's used by BPF program */
 	u32 used_map_cnt;		/* number of used maps */
@@ -767,6 +772,8 @@ struct bpf_verifier_env {
 	u32 peak_states;
 	/* longest register parentage chain walked for liveness marking */
 	u32 longest_mark_read_walk;
+	u32 free_list_size;
+	u32 explored_states_size;
 	bpfptr_t fd_array;
 
 	/* bit mask to keep track of whether a register has been accessed
