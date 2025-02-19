@@ -26,6 +26,13 @@ static inline void scatterwalk_crypto_chain(struct scatterlist *head,
 		sg_mark_end(head);
 }
 
+static inline void scatterwalk_start(struct scatter_walk *walk,
+				     struct scatterlist *sg)
+{
+	walk->sg = sg;
+	walk->offset = sg->offset;
+}
+
 static inline unsigned int scatterwalk_pagelen(struct scatter_walk *walk)
 {
 	unsigned int len = walk->sg->offset + walk->sg->length - walk->offset;
@@ -36,8 +43,9 @@ static inline unsigned int scatterwalk_pagelen(struct scatter_walk *walk)
 static inline unsigned int scatterwalk_clamp(struct scatter_walk *walk,
 					     unsigned int nbytes)
 {
-	unsigned int len_this_page = scatterwalk_pagelen(walk);
-	return nbytes > len_this_page ? len_this_page : nbytes;
+	if (walk->offset >= walk->sg->offset + walk->sg->length)
+		scatterwalk_start(walk, sg_next(walk->sg));
+	return min(nbytes, scatterwalk_pagelen(walk));
 }
 
 static inline void scatterwalk_advance(struct scatter_walk *walk,
@@ -54,13 +62,6 @@ static inline struct page *scatterwalk_page(struct scatter_walk *walk)
 static inline void scatterwalk_unmap(void *vaddr)
 {
 	kunmap_local(vaddr);
-}
-
-static inline void scatterwalk_start(struct scatter_walk *walk,
-				     struct scatterlist *sg)
-{
-	walk->sg = sg;
-	walk->offset = sg->offset;
 }
 
 static inline void *scatterwalk_map(struct scatter_walk *walk)
