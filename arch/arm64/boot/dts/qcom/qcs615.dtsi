@@ -1825,7 +1825,7 @@
 			in-ports {
 				port {
 					replicator0_in: endpoint {
-						remote-endpoint= <&tmc_etf_out>;
+						remote-endpoint = <&tmc_etf_out>;
 					};
 				};
 			};
@@ -1838,7 +1838,7 @@
 					reg = <1>;
 
 					replicator0_out1: endpoint {
-						remote-endpoint= <&replicator1_in>;
+						remote-endpoint = <&replicator1_in>;
 					};
 				};
 			};
@@ -1878,7 +1878,7 @@
 			in-ports {
 				port {
 					replicator1_in: endpoint {
-						remote-endpoint= <&replicator0_out1>;
+						remote-endpoint = <&replicator0_out1>;
 					};
 				};
 			};
@@ -1886,7 +1886,7 @@
 			out-ports {
 				port {
 					replicator1_out: endpoint {
-						remote-endpoint= <&funnel_swao_in6>;
+						remote-endpoint = <&funnel_swao_in6>;
 					};
 				};
 			};
@@ -2317,7 +2317,7 @@
 					reg = <6>;
 
 					funnel_swao_in6: endpoint {
-						remote-endpoint= <&replicator1_out>;
+						remote-endpoint = <&replicator1_out>;
 					};
 				};
 
@@ -2325,7 +2325,7 @@
 					reg = <7>;
 
 					funnel_swao_in7: endpoint {
-						remote-endpoint= <&tpda_swao_out>;
+						remote-endpoint = <&tpda_swao_out>;
 					};
 				};
 			};
@@ -2349,7 +2349,7 @@
 			in-ports {
 				port {
 					tmc_etf_swao_in: endpoint {
-						remote-endpoint= <&funnel_swao_out>;
+						remote-endpoint = <&funnel_swao_out>;
 					};
 				};
 			};
@@ -2357,7 +2357,7 @@
 			out-ports {
 				port {
 					tmc_etf_swao_out: endpoint {
-						remote-endpoint= <&replicator_swao_in>;
+						remote-endpoint = <&replicator_swao_in>;
 					};
 				};
 			};

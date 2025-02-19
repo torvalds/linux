@@ -119,7 +119,7 @@
 		monitored-battery = <&battery>;
 	};
 
-	bq25601@6b{
+	bq25601@6b {
 		compatible = "ti,bq25601";
 		reg = <0x6b>;
 		interrupts-extended = <&tlmm 61 IRQ_TYPE_EDGE_FALLING>;
