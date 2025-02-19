@@ -1365,7 +1365,7 @@ void cfg80211_bss_age(struct cfg80211_registered_device *rdev,
                       unsigned long age_secs)
 {
 	struct cfg80211_internal_bss *bss;
-	unsigned long age_jiffies = msecs_to_jiffies(age_secs * MSEC_PER_SEC);
+	unsigned long age_jiffies = secs_to_jiffies(age_secs);
 
 	spin_lock_bh(&rdev->bss_lock);
 	list_for_each_entry(bss, &rdev->bss_list, list)
