@@ -61,6 +61,10 @@ class bkg(cmd):
         self.terminate = not exit_wait
         self.check_fail = fail
 
+        if shell and self.terminate:
+            print("# Warning: combining shell and terminate is risky!")
+            print("#          SIGTERM may not reach the child on zsh/ksh!")
+
     def __enter__(self):
         return self
 
