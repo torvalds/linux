@@ -1115,12 +1115,12 @@ static void get_supported(struct mlx5_core_dev *mdev, u32 eth_proto_cap,
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Pause);
 }
 
-static void get_advertising(u32 eth_proto_cap, u8 tx_pause, u8 rx_pause,
+static void get_advertising(u32 eth_proto_admin, u8 tx_pause, u8 rx_pause,
 			    struct ethtool_link_ksettings *link_ksettings,
 			    bool ext)
 {
 	unsigned long *advertising = link_ksettings->link_modes.advertising;
-	ptys2ethtool_process_link(eth_proto_cap, ext, true, advertising);
+	ptys2ethtool_process_link(eth_proto_admin, ext, true, advertising);
 	if (rx_pause)
 		ethtool_link_ksettings_add_link_mode(link_ksettings, advertising, Pause);
 	if (tx_pause ^ rx_pause)
