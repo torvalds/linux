@@ -1198,7 +1198,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if ((value > 0) &&
 		    ((pkt_dev->xmit_mode == M_NETIF_RECEIVE) ||
 		     !(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 		if (value > 0 && (pkt_dev->n_imix_entries > 0 ||
 				  !(pkt_dev->flags & F_SHARED)))
 			return -EINVAL;
@@ -1258,7 +1258,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		    ((pkt_dev->xmit_mode == M_QUEUE_XMIT) ||
 		     ((pkt_dev->xmit_mode == M_START_XMIT) &&
 		     (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 
 		if (value > 1 && !(pkt_dev->flags & F_SHARED))
 			return -EINVAL;
@@ -1303,7 +1303,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		} else if (strcmp(f, "netif_receive") == 0) {
 			/* clone_skb set earlier, not supported in this mode */
 			if (pkt_dev->clone_skb > 0)
-				return -ENOTSUPP;
+				return -EOPNOTSUPP;
 
 			pkt_dev->xmit_mode = M_NETIF_RECEIVE;
 
