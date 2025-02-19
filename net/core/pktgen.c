@@ -823,6 +823,7 @@ static int strn_len(const char __user * user_buffer, unsigned int maxlen)
 		case '\r':
 		case '\t':
 		case ' ':
+		case '=':
 			goto done_str;
 		default:
 			break;
