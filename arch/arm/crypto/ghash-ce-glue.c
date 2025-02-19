@@ -459,17 +459,12 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[], u32 len)
 	scatterwalk_start(&walk, req->src);
 
 	do {
-		u32 n = scatterwalk_clamp(&walk, len);
-		u8 *p;
+		unsigned int n;
+		const u8 *p;
 
-		if (!n) {
-			scatterwalk_start(&walk, sg_next(walk.sg));
-			n = scatterwalk_clamp(&walk, len);
-		}
-
-		p = scatterwalk_map(&walk);
+		p = scatterwalk_next(&walk, len, &n);
 		gcm_update_mac(dg, p, n, buf, &buf_count, ctx);
-		scatterwalk_unmap(p);
+		scatterwalk_done_src(&walk, p, n);
 
 		if (unlikely(len / SZ_4K > (len - n) / SZ_4K)) {
 			kernel_neon_end();
@@ -477,8 +472,6 @@ static void gcm_calculate_auth_mac(struct aead_request *req, u64 dg[], u32 len)
 		}
 
 		len -= n;
-		scatterwalk_advance(&walk, n);
-		scatterwalk_done(&walk, 0, len);
 	} while (len);
 
 	if (buf_count) {
