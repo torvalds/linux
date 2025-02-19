@@ -316,7 +316,7 @@ static inline void force_devcd_timeout(struct hci_dev *hdev,
 				       unsigned int timeout)
 {
 #ifdef CONFIG_DEV_COREDUMP
-	hdev->dump.timeout = msecs_to_jiffies(timeout * 1000);
+	hdev->dump.timeout = secs_to_jiffies(timeout);
 #endif
 }
 
@@ -645,7 +645,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 	file->private_data = data;
 	nonseekable_open(inode, file);
 
-	schedule_delayed_work(&data->open_timeout, msecs_to_jiffies(1000));
+	schedule_delayed_work(&data->open_timeout, secs_to_jiffies(1));
 
 	return 0;
 }
