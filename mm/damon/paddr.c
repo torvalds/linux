@@ -236,6 +236,9 @@ static bool damos_pa_filter_match(struct damos_filter *filter,
 		matched = filter->sz_range.min <= folio_sz &&
 			  folio_sz <= filter->sz_range.max;
 		break;
+	case DAMOS_FILTER_TYPE_UNMAPPED:
+		matched = !folio_mapped(folio) || !folio_raw_mapping(folio);
+		break;
 	default:
 		break;
 	}

@@ -331,6 +331,7 @@ static const char * const damon_sysfs_scheme_filter_type_strs[] = {
 	"memcg",
 	"young",
 	"hugepage_size",
+	"unmapped",
 	"addr",
 	"target",
 };
