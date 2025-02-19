@@ -206,8 +206,7 @@ To do so the class pps-gen has been added. PPS generators can be
 registered in the kernel by defining a struct pps_gen_source_info as
 follows::
 
-    static struct pps_gen_source_info pps_gen_dummy_info = {
-            .name                   = "dummy",
+    static const struct pps_gen_source_info pps_gen_dummy_info = {
             .use_system_clock       = true,
             .get_time               = pps_gen_dummy_get_time,
             .enable                 = pps_gen_dummy_enable,
