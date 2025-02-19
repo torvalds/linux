@@ -39,7 +39,6 @@ SYNOPSIS
 
   struct perf_cpu_map *perf_cpu_map__new_any_cpu(void);
   struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list);
-  struct perf_cpu_map *perf_cpu_map__read(FILE *file);
   struct perf_cpu_map *perf_cpu_map__get(struct perf_cpu_map *map);
   struct perf_cpu_map *perf_cpu_map__merge(struct perf_cpu_map *orig,
                                            struct perf_cpu_map *other);

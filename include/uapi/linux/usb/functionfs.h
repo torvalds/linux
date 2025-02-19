@@ -206,7 +206,7 @@ struct usb_ffs_dmabuf_transfer_req {
  * +-----+-----------------+------+--------------------------+
  * | off | name            | type | description              |
  * +-----+-----------------+------+--------------------------+
- * |   0 | inteface        | U8   | related interface number |
+ * |   0 | interface       | U8   | related interface number |
  * +-----+-----------------+------+--------------------------+
  * |   1 | dwLength        | U32  | length of the descriptor |
  * +-----+-----------------+------+--------------------------+
@@ -224,7 +224,7 @@ struct usb_ffs_dmabuf_transfer_req {
  * +-----+-----------------+------+--------------------------+
  * | off | name            | type | description              |
  * +-----+-----------------+------+--------------------------+
- * |   0 | inteface        | U8   | related interface number |
+ * |   0 | interface       | U8   | related interface number |
  * +-----+-----------------+------+--------------------------+
  * |   1 | dwLength        | U32  | length of the descriptor |
  * +-----+-----------------+------+--------------------------+
@@ -237,7 +237,7 @@ struct usb_ffs_dmabuf_transfer_req {
  * |  11 | ExtProp[]       |      | list of ext. prop. d.    |
  * +-----+-----------------+------+--------------------------+
  *
- * ExtCompat[] is an array of valid Extended Compatiblity descriptors
+ * ExtCompat[] is an array of valid Extended Compatibility descriptors
  * which have the following format:
  *
  * +-----+-----------------------+------+-------------------------------------+
@@ -295,7 +295,7 @@ struct usb_functionfs_strings_head {
  * |  16 | stringtab  | StringTab[lang_count] | table of strings per lang  |
  *
  * For each language there is one stringtab entry (ie. there are lang_count
- * stringtab entires).  Each StringTab has following format:
+ * stringtab entries).  Each StringTab has following format:
  *
  * | off | name    | type              | description                        |
  * |-----+---------+-------------------+------------------------------------|

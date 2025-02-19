@@ -1055,7 +1055,7 @@ xfs_rtfree_extent(
 	xfs_rtxlen_t		len)	/* length of extent freed */
 {
 	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_inode	*rbmip = rtg->rtg_inodes[XFS_RTGI_BITMAP];
+	struct xfs_inode	*rbmip = rtg_bitmap(rtg);
 	struct xfs_rtalloc_args	args = {
 		.mp		= mp,
 		.tp		= tp,

@@ -89,6 +89,13 @@ struct simple_util_priv {
 #define simple_props_to_dai_codec(props, i)	((props)->codec_dai + i)
 #define simple_props_to_codec_conf(props, i)	((props)->codec_conf + i)
 
+/* has the same effect as simple_priv_to_props(). Preferred over
+ * simple_priv_to_props() when dealing with PCM runtime data as
+ * the ID stored in rtd->id may not be a valid array index.
+ */
+#define runtime_simple_priv_to_props(priv, rtd)				\
+	((priv)->dai_props + ((rtd)->dai_link - (priv)->dai_link))
+
 #define for_each_prop_dlc_cpus(props, i, cpu)				\
 	for ((i) = 0;							\
 	     ((i) < (props)->num.cpus) &&				\
@@ -264,9 +271,13 @@ static inline void simple_util_debug_info(struct simple_util_priv *priv)
 			simple_util_debug_dai(priv, "codec", dai);
 
 		if (link->name)
-			dev_dbg(dev, "dai name = %s\n", link->name);
+			dev_dbg(dev, "link name = %s\n", link->name);
 		if (link->dai_fmt)
-			dev_dbg(dev, "dai format = %04x\n", link->dai_fmt);
+			dev_dbg(dev, "link format = %04x\n", link->dai_fmt);
+		if (link->playback_only)
+			dev_dbg(dev, "link has playback_only");
+		if (link->capture_only)
+			dev_dbg(dev, "link has capture_only");
 		if (props->adata.convert_rate)
 			dev_dbg(dev, "convert_rate = %d\n", props->adata.convert_rate);
 		if (props->adata.convert_channels)

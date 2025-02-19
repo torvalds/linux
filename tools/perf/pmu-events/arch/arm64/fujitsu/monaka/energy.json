@@ -1,0 +1,17 @@
+[
+    {
+        "EventCode": "0x01F0",
+        "EventName": "EA_CORE",
+        "BriefDescription": "This event counts energy consumption of core."
+    },
+    {
+        "EventCode": "0x03F0",
+        "EventName": "EA_L3",
+        "BriefDescription": "This event counts energy consumption of L3 cache."
+    },
+    {
+        "EventCode": "0x03F1",
+        "EventName": "EA_LDO_LOSS",
+        "BriefDescription": "This event counts energy consumption of LDO loss."
+    }
+]

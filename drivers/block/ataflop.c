@@ -746,6 +746,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	unsigned char	*p;
 	int sect, nsect;
 	unsigned long	flags;
+	unsigned int memflags;
 	int ret;
 
 	if (type) {
@@ -758,7 +759,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	}
 
 	q = unit[drive].disk[type]->queue;
-	blk_mq_freeze_queue(q);
+	memflags = blk_mq_freeze_queue(q);
 	blk_mq_quiesce_queue(q);
 
 	local_irq_save(flags);
@@ -817,7 +818,7 @@ static int do_format(int drive, int type, struct atari_format_descr *desc)
 	ret = FormatError ? -EIO : 0;
 out:
 	blk_mq_unquiesce_queue(q);
-	blk_mq_unfreeze_queue(q);
+	blk_mq_unfreeze_queue(q, memflags);
 	return ret;
 }
 

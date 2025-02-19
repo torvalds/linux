@@ -67,26 +67,27 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	if (!tmp)
 		return -ENOMEM;
 
+	swap(kvm->arch.nested_mmus, tmp);
+
 	/*
 	 * If we went through a realocation, adjust the MMU back-pointers in
 	 * the previously initialised kvm_pgtable structures.
 	 */
 	if (kvm->arch.nested_mmus != tmp)
 		for (int i = 0; i < kvm->arch.nested_mmus_size; i++)
-			tmp[i].pgt->mmu = &tmp[i];
+			kvm->arch.nested_mmus[i].pgt->mmu = &kvm->arch.nested_mmus[i];
 
 	for (int i = kvm->arch.nested_mmus_size; !ret && i < num_mmus; i++)
-		ret = init_nested_s2_mmu(kvm, &tmp[i]);
+		ret = init_nested_s2_mmu(kvm, &kvm->arch.nested_mmus[i]);
 
 	if (ret) {
 		for (int i = kvm->arch.nested_mmus_size; i < num_mmus; i++)
-			kvm_free_stage2_pgd(&tmp[i]);
+			kvm_free_stage2_pgd(&kvm->arch.nested_mmus[i]);
 
 		return ret;
 	}
 
 	kvm->arch.nested_mmus_size = num_mmus;
-	kvm->arch.nested_mmus = tmp;
 
 	return 0;
 }
@@ -830,8 +831,10 @@ static void limit_nv_id_regs(struct kvm *kvm)
 		 NV_FTR(PFR0, RAS)	|
 		 NV_FTR(PFR0, EL3)	|
 		 NV_FTR(PFR0, EL2)	|
-		 NV_FTR(PFR0, EL1));
-	/* 64bit EL1/EL2/EL3 only */
+		 NV_FTR(PFR0, EL1)	|
+		 NV_FTR(PFR0, EL0));
+	/* 64bit only at any EL */
+	val |= FIELD_PREP(NV_FTR(PFR0, EL0), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL1), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL2), 0b0001);
 	val |= FIELD_PREP(NV_FTR(PFR0, EL3), 0b0001);
@@ -963,14 +966,15 @@ static __always_inline void set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, 
 	kvm->arch.sysreg_masks->mask[i].res1 = res1;
 }
 
-int kvm_init_nv_sysregs(struct kvm *kvm)
+int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 {
+	struct kvm *kvm = vcpu->kvm;
 	u64 res0, res1;
 
 	lockdep_assert_held(&kvm->arch.config_lock);
 
 	if (kvm->arch.sysreg_masks)
-		return 0;
+		goto out;
 
 	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
 					 GFP_KERNEL_ACCOUNT);
@@ -1021,8 +1025,8 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 		res0 |= HCR_NV2;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, NV, IMP))
 		res0 |= (HCR_AT | HCR_NV1 | HCR_NV);
-	if (!(__vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
-	      __vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
+	if (!(kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
+	      kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
 		res0 |= (HCR_API | HCR_APK);
 	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TME, IMP))
 		res0 |= BIT(39);
@@ -1078,8 +1082,8 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 
 	/* HFG[RW]TR_EL2 */
 	res0 = res1 = 0;
-	if (!(__vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
-	      __vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
+	if (!(kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
+	      kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
 		res0 |= (HFGxTR_EL2_APDAKey | HFGxTR_EL2_APDBKey |
 			 HFGxTR_EL2_APGAKey | HFGxTR_EL2_APIAKey |
 			 HFGxTR_EL2_APIBKey);
@@ -1270,6 +1274,25 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 	if (!kvm_has_feat(kvm, ID_AA64DFR2_EL1, STEP, IMP))
 		res0 |= MDCR_EL2_EnSTEPOP;
 	set_sysreg_masks(kvm, MDCR_EL2, res0, res1);
+
+	/* CNTHCTL_EL2 */
+	res0 = GENMASK(63, 20);
+	res1 = 0;
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RME, IMP))
+		res0 |= CNTHCTL_CNTPMASK | CNTHCTL_CNTVMASK;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, CNTPOFF)) {
+		res0 |= CNTHCTL_ECV;
+		if (!kvm_has_feat(kvm, ID_AA64MMFR0_EL1, ECV, IMP))
+			res0 |= (CNTHCTL_EL1TVT | CNTHCTL_EL1TVCT |
+				 CNTHCTL_EL1NVPCT | CNTHCTL_EL1NVVCT);
+	}
+	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, VH, IMP))
+		res0 |= GENMASK(11, 8);
+	set_sysreg_masks(kvm, CNTHCTL_EL2, res0, res1);
+
+out:
+	for (enum vcpu_sysreg sr = __SANITISED_REG_START__; sr < NR_SYS_REGS; sr++)
+		(void)__vcpu_sys_reg(vcpu, sr);
 
 	return 0;
 }

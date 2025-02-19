@@ -692,7 +692,7 @@ config SND_SOC_AW88261
 	  the input amplitude.
 
 config SND_SOC_AW88081
-	tristate "Soc Audio for awinic aw88081"
+	tristate "Soc Audio for awinic aw88081/aw88083"
 	depends on I2C
 	select REGMAP_I2C
 	select SND_SOC_AW88395_LIB

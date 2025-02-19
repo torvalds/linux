@@ -147,7 +147,7 @@ DEFINE_LED_TRIGGER(ledtrig_gpib);
 			led_trigger_event(ledtrig_gpib, LED_OFF); }	\
 	while (0)
 
-struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
+static struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 
 #define D01 all_descriptors[0]
 #define D02 all_descriptors[1]
@@ -175,7 +175,7 @@ struct gpio_desc *all_descriptors[GPIB_PINS + SN7516X_PINS];
 /* YOGA dapter uses a global enable for the buffer chips, re-using the TE pin */
 #define YOGA_ENABLE TE
 
-int gpios_vector[] = {
+static int gpios_vector[] = {
 	D01_pin_nr,
 	D02_pin_nr,
 	D03_pin_nr,
@@ -265,7 +265,7 @@ static struct gpiod_lookup_table gpib_gpio_table_0 = {
 static struct gpiod_lookup_table *lookup_tables[] = {
 	&gpib_gpio_table_0,
 	&gpib_gpio_table_1,
-	0
+	NULL
 };
 
 /* struct which defines private_data for gpio driver */
@@ -1119,7 +1119,7 @@ static void release_gpios(void)
 	for (j = 0 ; j < NUM_PINS ; j++) {
 		if (all_descriptors[j]) {
 			gpiod_put(all_descriptors[j]);
-			all_descriptors[j] = 0;
+			all_descriptors[j] = NULL;
 		}
 	}
 }
@@ -1312,36 +1312,41 @@ bb_attach_out:
 	return retval;
 }
 
-gpib_interface_t bb_interface = {
-name:			  NAME,
-attach : bb_attach,
-detach : bb_detach,
-read : bb_read,
-write : bb_write,
-command : bb_command,
-take_control : bb_take_control,
-go_to_standby : bb_go_to_standby,
-request_system_control : bb_request_system_control,
-interface_clear : bb_interface_clear,
-remote_enable : bb_remote_enable,
-enable_eos : bb_enable_eos,
-disable_eos : bb_disable_eos,
-parallel_poll : bb_parallel_poll,
-parallel_poll_configure : bb_parallel_poll_configure,
-parallel_poll_response : bb_parallel_poll_response,
-line_status : bb_line_status,
-update_status : bb_update_status,
-primary_address : bb_primary_address,
-secondary_address : bb_secondary_address,
-serial_poll_response : bb_serial_poll_response,
-serial_poll_status : bb_serial_poll_status,
-t1_delay : bb_t1_delay,
-return_to_local : bb_return_to_local,
+static gpib_interface_t bb_interface = {
+	.name =	NAME,
+	.attach = bb_attach,
+	.detach = bb_detach,
+	.read = bb_read,
+	.write = bb_write,
+	.command = bb_command,
+	.take_control = bb_take_control,
+	.go_to_standby = bb_go_to_standby,
+	.request_system_control = bb_request_system_control,
+	.interface_clear = bb_interface_clear,
+	.remote_enable = bb_remote_enable,
+	.enable_eos = bb_enable_eos,
+	.disable_eos = bb_disable_eos,
+	.parallel_poll = bb_parallel_poll,
+	.parallel_poll_configure = bb_parallel_poll_configure,
+	.parallel_poll_response = bb_parallel_poll_response,
+	.line_status = bb_line_status,
+	.update_status = bb_update_status,
+	.primary_address = bb_primary_address,
+	.secondary_address = bb_secondary_address,
+	.serial_poll_response = bb_serial_poll_response,
+	.serial_poll_status = bb_serial_poll_status,
+	.t1_delay = bb_t1_delay,
+	.return_to_local = bb_return_to_local,
 };
 
 static int __init bb_init_module(void)
 {
-	gpib_register_driver(&bb_interface, THIS_MODULE);
+	int result = gpib_register_driver(&bb_interface, THIS_MODULE);
+
+	if (result) {
+		pr_err("gpib_bitbang: gpib_register_driver failed: error = %d\n", result);
+		return result;
+	}
 
 	dbg_printk(0, "module loaded with pin map \"%s\"%s\n",
 		   pin_map, (sn7516x_used) ? " and SN7516x driver support" : "");

@@ -134,6 +134,7 @@ typedef int (*device_match_t)(struct device *dev, const void *data);
 
 /* Generic device matching functions that all busses can use to match with */
 int device_match_name(struct device *dev, const void *name);
+int device_match_type(struct device *dev, const void *type);
 int device_match_of_node(struct device *dev, const void *np);
 int device_match_fwnode(struct device *dev, const void *fwnode);
 int device_match_devt(struct device *dev, const void *pdevt);
@@ -141,9 +142,12 @@ int device_match_acpi_dev(struct device *dev, const void *adev);
 int device_match_acpi_handle(struct device *dev, const void *handle);
 int device_match_any(struct device *dev, const void *unused);
 
+/* Device iterating function type for various driver core for_each APIs */
+typedef int (*device_iter_t)(struct device *dev, void *data);
+
 /* iterator helpers for buses */
-int bus_for_each_dev(const struct bus_type *bus, struct device *start, void *data,
-		     int (*fn)(struct device *dev, void *data));
+int bus_for_each_dev(const struct bus_type *bus, struct device *start,
+		     void *data, device_iter_t fn);
 struct device *bus_find_device(const struct bus_type *bus, struct device *start,
 			       const void *data, device_match_t match);
 /**

@@ -9,7 +9,7 @@ static struct autogroup autogroup_default;
 static atomic_t autogroup_seq_nr;
 
 #ifdef CONFIG_SYSCTL
-static struct ctl_table sched_autogroup_sysctls[] = {
+static const struct ctl_table sched_autogroup_sysctls[] = {
 	{
 		.procname       = "sched_autogroup_enabled",
 		.data           = &sysctl_sched_autogroup_enabled,

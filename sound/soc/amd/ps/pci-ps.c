@@ -83,6 +83,7 @@ static int acp63_init(void __iomem *acp_base, struct device *dev)
 		return ret;
 	}
 	acp63_enable_interrupts(acp_base);
+	writel(0, acp_base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
 
@@ -97,6 +98,7 @@ static int acp63_deinit(void __iomem *acp_base, struct device *dev)
 		return ret;
 	}
 	writel(0, acp_base + ACP_CONTROL);
+	writel(1, acp_base + ACP_ZSC_DSP_CTRL);
 	return 0;
 }
 
@@ -312,6 +314,7 @@ static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
 		if (mach && mach->link_mask) {
 			mach->mach_params.links = mach->links;
 			mach->mach_params.link_mask = mach->link_mask;
+			mach->mach_params.subsystem_rev = acp_data->acp_rev;
 			return mach;
 		}
 	}
@@ -669,8 +672,10 @@ static int __maybe_unused snd_acp63_suspend(struct device *dev)
 	adata = dev_get_drvdata(dev);
 	if (adata->is_sdw_dev) {
 		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
-		if (adata->sdw_en_stat)
+		if (adata->sdw_en_stat) {
+			writel(1, adata->acp63_base + ACP_ZSC_DSP_CTRL);
 			return 0;
+		}
 	}
 	ret = acp63_deinit(adata->acp63_base, dev);
 	if (ret)
@@ -685,9 +690,10 @@ static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
 	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->sdw_en_stat)
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
 		return 0;
-
+	}
 	ret = acp63_init(adata->acp63_base, dev);
 	if (ret) {
 		dev_err(dev, "ACP init failed\n");
@@ -705,8 +711,10 @@ static int __maybe_unused snd_acp63_resume(struct device *dev)
 	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->sdw_en_stat)
+	if (adata->sdw_en_stat) {
+		writel(0, adata->acp63_base + ACP_ZSC_DSP_CTRL);
 		return 0;
+	}
 
 	ret = acp63_init(adata->acp63_base, dev);
 	if (ret)

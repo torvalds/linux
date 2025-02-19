@@ -3699,7 +3699,7 @@ static void ingenic_gpio_irq_print_chip(struct irq_data *data, struct seq_file *
 {
 	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
 
-	seq_printf(p, "%s", gpio_chip->label);
+	seq_puts(p, gpio_chip->label);
 }
 
 static const struct irq_chip ingenic_gpio_irqchip = {

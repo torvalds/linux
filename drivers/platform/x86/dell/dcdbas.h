@@ -56,14 +56,6 @@
 #define DCDBAS_DEV_ATTR_WO(_name) \
 	DEVICE_ATTR(_name,0200,NULL,_name##_store);
 
-#define DCDBAS_BIN_ATTR_RW(_name) \
-struct bin_attribute bin_attr_##_name = { \
-	.attr =  { .name = __stringify(_name), \
-		   .mode = 0600 }, \
-	.read =  _name##_read, \
-	.write = _name##_write, \
-}
-
 struct smi_cmd {
 	__u32 magic;
 	__u32 ebx;

@@ -18,7 +18,6 @@ extern struct iscsi_portal_group *iscsit_get_tpg_from_np(struct iscsi_tiqn *,
 			struct iscsi_np *, struct iscsi_tpg_np **);
 extern int iscsit_get_tpg(struct iscsi_portal_group *);
 extern void iscsit_put_tpg(struct iscsi_portal_group *);
-extern void iscsit_tpg_dump_params(struct iscsi_portal_group *);
 extern int iscsit_tpg_add_portal_group(struct iscsi_tiqn *, struct iscsi_portal_group *);
 extern int iscsit_tpg_del_portal_group(struct iscsi_tiqn *, struct iscsi_portal_group *,
 			int);

@@ -57,7 +57,7 @@ u32 efi_kaslr_get_phys_seed(efi_handle_t image_handle)
  */
 static bool check_image_region(u64 base, u64 size)
 {
-	struct efi_boot_memmap *map;
+	struct efi_boot_memmap *map __free(efi_pool) = NULL;
 	efi_status_t status;
 	bool ret = false;
 	int map_offset;
@@ -79,8 +79,6 @@ static bool check_image_region(u64 base, u64 size)
 			break;
 		}
 	}
-
-	efi_bs_call(free_pool, map);
 
 	return ret;
 }

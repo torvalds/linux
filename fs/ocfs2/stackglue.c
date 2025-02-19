@@ -650,7 +650,7 @@ error:
  * and easier to preserve the name.
  */
 
-static struct ctl_table ocfs2_nm_table[] = {
+static const struct ctl_table ocfs2_nm_table[] = {
 	{
 		.procname	= "hb_ctl_path",
 		.data		= ocfs2_hb_ctl_path,

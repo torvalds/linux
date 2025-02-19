@@ -423,9 +423,6 @@ endif
 
 CLEAN_FILES += vmlinux.32 vmlinux.64
 
-# device-trees
-core-y += arch/mips/boot/dts/
-
 archprepare:
 ifdef CONFIG_MIPS32_N32
 	@$(kecho) '  Checking missing-syscalls for N32'

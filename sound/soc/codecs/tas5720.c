@@ -43,7 +43,6 @@ static const char * const tas5720_supply_names[] = {
 struct tas5720_data {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
-	struct i2c_client *tas5720_client;
 	enum tas572x_type devtype;
 	struct regulator_bulk_data supplies[TAS5720_NUM_SUPPLIES];
 	struct delayed_work fault_check_work;
@@ -729,7 +728,6 @@ static int tas5720_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct tas5720_data *data;
 	const struct regmap_config *regmap_config;
-	const struct i2c_device_id *id;
 	int ret;
 	int i;
 
@@ -737,11 +735,9 @@ static int tas5720_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	id = i2c_match_id(tas5720_id, client);
-	data->tas5720_client = client;
-	data->devtype = id->driver_data;
+	data->devtype = (uintptr_t)i2c_get_match_data(client);
 
-	switch (id->driver_data) {
+	switch (data->devtype) {
 	case TAS5720:
 		regmap_config = &tas5720_regmap_config;
 		break;
@@ -774,7 +770,7 @@ static int tas5720_probe(struct i2c_client *client)
 
 	dev_set_drvdata(dev, data);
 
-	switch (id->driver_data) {
+	switch (data->devtype) {
 	case TAS5720:
 		ret = devm_snd_soc_register_component(&client->dev,
 					&soc_component_dev_tas5720,

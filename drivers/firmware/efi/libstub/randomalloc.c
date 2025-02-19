@@ -59,9 +59,9 @@ efi_status_t efi_random_alloc(unsigned long size,
 			      unsigned long alloc_min,
 			      unsigned long alloc_max)
 {
+	struct efi_boot_memmap *map __free(efi_pool) = NULL;
 	unsigned long total_slots = 0, target_slot;
 	unsigned long total_mirrored_slots = 0;
-	struct efi_boot_memmap *map;
 	efi_status_t status;
 	int map_offset;
 
@@ -129,8 +129,6 @@ efi_status_t efi_random_alloc(unsigned long size,
 			*addr = target;
 		break;
 	}
-
-	efi_bs_call(free_pool, map);
 
 	return status;
 }

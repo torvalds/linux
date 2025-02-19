@@ -11,6 +11,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/nvmem-provider.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -75,6 +76,14 @@
 #define CUSTOMER_USE_OTP_SIZE		0x100
 /* OTP registers from sensor */
 #define OV2740_REG_OTP_CUSTOMER		0x7010
+
+static const char * const ov2740_supply_name[] = {
+	"AVDD",
+	"DOVDD",
+	"DVDD",
+};
+
+#define OV2740_NUM_SUPPLIES ARRAY_SIZE(ov2740_supply_name)
 
 struct nvm_data {
 	struct nvmem_device *nvmem;
@@ -523,9 +532,11 @@ struct ov2740 {
 	struct v4l2_ctrl *hblank;
 	struct v4l2_ctrl *exposure;
 
-	/* GPIOs, clocks */
+	/* GPIOs, clocks, regulators */
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *powerdown_gpio;
 	struct clk *clk;
+	struct regulator_bulk_data supplies[OV2740_NUM_SUPPLIES];
 
 	/* Current mode */
 	const struct ov2740_mode *cur_mode;
@@ -644,6 +655,8 @@ static int ov2740_identify_module(struct ov2740 *ov2740)
 		return -ENXIO;
 	}
 
+	dev_dbg(&client->dev, "chip id: %x\n", val);
+
 	ov2740->identified = true;
 
 	return 0;
@@ -753,15 +766,17 @@ static const struct v4l2_ctrl_ops ov2740_ctrl_ops = {
 
 static int ov2740_init_controls(struct ov2740 *ov2740)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr;
 	const struct ov2740_mode *cur_mode;
 	s64 exposure_max, h_blank, pixel_rate;
 	u32 vblank_min, vblank_max, vblank_default;
+	struct v4l2_fwnode_device_properties props;
 	int size;
 	int ret;
 
 	ctrl_hdlr = &ov2740->ctrl_handler;
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 10);
 	if (ret)
 		return ret;
 
@@ -811,6 +826,13 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 				     V4L2_CID_TEST_PATTERN,
 				     ARRAY_SIZE(ov2740_test_pattern_menu) - 1,
 				     0, 0, ov2740_test_pattern_menu);
+
+	ret = v4l2_fwnode_device_parse(&client->dev, &props);
+	if (ret)
+		return ret;
+
+	v4l2_ctrl_new_fwnode_properties(ctrl_hdlr, &ov2740_ctrl_ops, &props);
+
 	if (ctrl_hdlr->error) {
 		v4l2_ctrl_handler_free(ctrl_hdlr);
 		return ctrl_hdlr->error;
@@ -1295,7 +1317,9 @@ static int ov2740_suspend(struct device *dev)
 	struct ov2740 *ov2740 = to_ov2740(sd);
 
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 1);
+	gpiod_set_value_cansleep(ov2740->powerdown_gpio, 1);
 	clk_disable_unprepare(ov2740->clk);
+	regulator_bulk_disable(OV2740_NUM_SUPPLIES, ov2740->supplies);
 	return 0;
 }
 
@@ -1305,10 +1329,17 @@ static int ov2740_resume(struct device *dev)
 	struct ov2740 *ov2740 = to_ov2740(sd);
 	int ret;
 
-	ret = clk_prepare_enable(ov2740->clk);
+	ret = regulator_bulk_enable(OV2740_NUM_SUPPLIES, ov2740->supplies);
 	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(ov2740->clk);
+	if (ret) {
+		regulator_bulk_disable(OV2740_NUM_SUPPLIES, ov2740->supplies);
+		return ret;
+	}
+
+	gpiod_set_value_cansleep(ov2740->powerdown_gpio, 0);
 	gpiod_set_value_cansleep(ov2740->reset_gpio, 0);
 	msleep(20);
 
@@ -1320,7 +1351,7 @@ static int ov2740_probe(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	struct ov2740 *ov2740;
 	bool full_power;
-	int ret;
+	int i, ret;
 
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
@@ -1337,9 +1368,17 @@ static int ov2740_probe(struct i2c_client *client)
 	if (IS_ERR(ov2740->reset_gpio)) {
 		return dev_err_probe(dev, PTR_ERR(ov2740->reset_gpio),
 				     "failed to get reset GPIO\n");
-	} else if (ov2740->reset_gpio) {
+	}
+
+	ov2740->powerdown_gpio = devm_gpiod_get_optional(dev, "powerdown", GPIOD_OUT_HIGH);
+	if (IS_ERR(ov2740->powerdown_gpio)) {
+		return dev_err_probe(dev, PTR_ERR(ov2740->powerdown_gpio),
+				     "failed to get powerdown GPIO\n");
+	}
+
+	if (ov2740->reset_gpio || ov2740->powerdown_gpio) {
 		/*
-		 * Ensure reset is asserted for at least 20 ms before
+		 * Ensure reset/powerdown is asserted for at least 20 ms before
 		 * ov2740_resume() deasserts it.
 		 */
 		msleep(20);
@@ -1349,6 +1388,13 @@ static int ov2740_probe(struct i2c_client *client)
 	if (IS_ERR(ov2740->clk))
 		return dev_err_probe(dev, PTR_ERR(ov2740->clk),
 				     "failed to get clock\n");
+
+	for (i = 0; i < OV2740_NUM_SUPPLIES; i++)
+		ov2740->supplies[i].supply = ov2740_supply_name[i];
+
+	ret = devm_regulator_bulk_get(dev, OV2740_NUM_SUPPLIES, ov2740->supplies);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get regulators\n");
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {

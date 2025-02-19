@@ -50,7 +50,7 @@ static struct attribute *spi_nor_sysfs_entries[] = {
 };
 
 static ssize_t sfdp_read(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr, char *buf,
+			 const struct bin_attribute *bin_attr, char *buf,
 			 loff_t off, size_t count)
 {
 	struct spi_device *spi = to_spi_device(kobj_to_dev(kobj));
@@ -62,9 +62,9 @@ static ssize_t sfdp_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, nor->sfdp->dwords,
 				       sfdp_size);
 }
-static BIN_ATTR_RO(sfdp, 0);
+static const BIN_ATTR_RO(sfdp, 0);
 
-static struct bin_attribute *spi_nor_sysfs_bin_entries[] = {
+static const struct bin_attribute *const spi_nor_sysfs_bin_entries[] = {
 	&bin_attr_sfdp,
 	NULL
 };
@@ -104,7 +104,7 @@ static const struct attribute_group spi_nor_sysfs_group = {
 	.is_visible	= spi_nor_sysfs_is_visible,
 	.is_bin_visible	= spi_nor_sysfs_is_bin_visible,
 	.attrs		= spi_nor_sysfs_entries,
-	.bin_attrs	= spi_nor_sysfs_bin_entries,
+	.bin_attrs_new	= spi_nor_sysfs_bin_entries,
 };
 
 const struct attribute_group *spi_nor_sysfs_groups[] = {

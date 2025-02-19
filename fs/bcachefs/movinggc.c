@@ -215,7 +215,8 @@ static int bch2_copygc(struct moving_context *ctxt,
 	};
 	move_buckets buckets = { 0 };
 	struct move_bucket_in_flight *f;
-	u64 moved = atomic64_read(&ctxt->stats->sectors_moved);
+	u64 sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen);
+	u64 sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved);
 	int ret = 0;
 
 	ret = bch2_copygc_get_buckets(ctxt, buckets_in_flight, &buckets);
@@ -245,7 +246,6 @@ static int bch2_copygc(struct moving_context *ctxt,
 		*did_work = true;
 	}
 err:
-	darray_exit(&buckets);
 
 	/* no entries in LRU btree found, or got to end: */
 	if (bch2_err_matches(ret, ENOENT))
@@ -254,8 +254,11 @@ err:
 	if (ret < 0 && !bch2_err_matches(ret, EROFS))
 		bch_err_msg(c, ret, "from bch2_move_data()");
 
-	moved = atomic64_read(&ctxt->stats->sectors_moved) - moved;
-	trace_and_count(c, copygc, c, moved, 0, 0, 0);
+	sectors_seen	= atomic64_read(&ctxt->stats->sectors_seen) - sectors_seen;
+	sectors_moved	= atomic64_read(&ctxt->stats->sectors_moved) - sectors_moved;
+	trace_and_count(c, copygc, c, buckets.nr, sectors_seen, sectors_moved);
+
+	darray_exit(&buckets);
 	return ret;
 }
 

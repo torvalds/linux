@@ -10,9 +10,10 @@
 #include "header.h"
 #include "../perf-sys.h"
 
-/* hw: cycles, sw: context-switch, uncore: [arch dependent] */
+/* hw: cycles,instructions sw: context-switch, uncore: [arch dependent] */
 static int types[] = {0, 1, -1};
 static unsigned long configs[] = {0, 3, 0};
+static unsigned long configs_hw[] = {1};
 
 #define NR_UNCORE_PMUS 5
 
@@ -93,7 +94,18 @@ static int run_test(int i, int j, int k)
 		return erroneous ? 0 : -1;
 	}
 
-	sibling_fd2 = event_open(types[k], configs[k], group_fd);
+	/*
+	 * if all three events (leader and two sibling events)
+	 * are hardware events, use instructions as one of the
+	 * sibling event. There is event constraint in powerpc that
+	 * events using same counter cannot be programmed in a group.
+	 * Since PERF_COUNT_HW_INSTRUCTIONS is a generic hardware
+	 * event and present in all platforms, lets use that.
+	 */
+	if (!i && !j && !k)
+		sibling_fd2 = event_open(types[k], configs_hw[k], group_fd);
+	else
+		sibling_fd2 = event_open(types[k], configs[k], group_fd);
 	if (sibling_fd2 == -1) {
 		close(sibling_fd1);
 		close(group_fd);
@@ -124,9 +136,18 @@ static int test__event_groups(struct test_suite *text __maybe_unused, int subtes
 				if (r)
 					ret = TEST_FAIL;
 
-				pr_debug("0x%x 0x%lx, 0x%x 0x%lx, 0x%x 0x%lx: %s\n",
-					 types[i], configs[i], types[j], configs[j],
-					 types[k], configs[k], r ? "Fail" : "Pass");
+				/*
+				 * For all three events as HW events, second sibling
+				 * event is picked from configs_hw. So print accordingly
+				 */
+				if (!i && !j && !k)
+					pr_debug("0x%x 0x%lx, 0x%x 0x%lx, 0x%x 0x%lx: %s\n",
+						 types[i], configs[i], types[j], configs[j],
+						 types[k], configs_hw[k], r ? "Fail" : "Pass");
+				else
+					pr_debug("0x%x 0x%lx, 0x%x 0x%lx, 0x%x 0x%lx: %s\n",
+						 types[i], configs[i], types[j], configs[j],
+						 types[k], configs[k], r ? "Fail" : "Pass");
 			}
 		}
 	}

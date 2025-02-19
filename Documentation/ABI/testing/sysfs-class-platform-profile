@@ -1,0 +1,48 @@
+What:		/sys/class/platform-profile/platform-profile-X/name
+Date:		March 2025
+KernelVersion:	6.14
+Description:	Name of the class device given by the driver.
+
+		RO
+
+What:		/sys/class/platform-profile/platform-profile-X/choices
+Date:		March 2025
+KernelVersion:	6.14
+Description:	This file contains a space-separated list of profiles supported
+		for this device.
+
+		Drivers must use the following standard profile-names:
+
+		====================	========================================
+		low-power		Low power consumption
+		cool			Cooler operation
+		quiet			Quieter operation
+		balanced		Balance between low power consumption
+					and performance
+		balanced-performance	Balance between performance and low
+					power consumption with a slight bias
+					towards performance
+		performance		High performance operation
+		custom			Driver defined custom profile
+		====================	========================================
+
+		RO
+
+What:		/sys/class/platform-profile/platform-profile-X/profile
+Date:		March 2025
+KernelVersion:	6.14
+Description:	Reading this file gives the current selected profile for this
+		device. Writing this file with one of the strings from
+		platform_profile_choices changes the profile to the new value.
+
+		This file can be monitored for changes by polling for POLLPRI,
+		POLLPRI will be signaled on any changes, independent of those
+		changes coming from a userspace write; or coming from another
+		source such as e.g. a hotkey triggered profile change handled
+		either directly by the embedded-controller or fully handled
+		inside the kernel.
+
+		This file may also emit the string 'custom' to indicate
+		that the driver is using a driver defined custom profile.
+
+		RW

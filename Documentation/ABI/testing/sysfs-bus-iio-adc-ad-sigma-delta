@@ -1,0 +1,23 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_sys_calibration
+KernelVersion: 5.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute, if available, initiates the system calibration procedure. This is done on a
+		single channel at a time. Write '1' to start the calibration.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_sys_calibration_mode_available
+KernelVersion: 5.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute, if available, returns a list with the possible calibration modes.
+		There are two available options:
+		"zero_scale" - calibrate to zero scale
+		"full_scale" - calibrate to full scale
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageY_sys_calibration_mode
+KernelVersion: 5.5
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute, if available, sets up the calibration mode used in the system calibration
+		procedure. Reading returns the current calibration mode.
+		Writing sets the system calibration mode.

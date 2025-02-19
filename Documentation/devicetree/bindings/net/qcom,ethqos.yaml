@@ -22,12 +22,12 @@ properties:
     oneOf:
       - items:
           - enum:
-              - qcom,qcs8300-ethqos
-          - const: qcom,sa8775p-ethqos
+              - qcom,qcs615-ethqos
+          - const: qcom,qcs404-ethqos
       - items:
           - enum:
-              - qcom,qcs615-ethqos
-          - const: qcom,sm8150-ethqos
+              - qcom,qcs8300-ethqos
+          - const: qcom,sa8775p-ethqos
       - enum:
           - qcom,qcs404-ethqos
           - qcom,sa8775p-ethqos

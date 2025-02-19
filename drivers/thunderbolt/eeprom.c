@@ -435,6 +435,29 @@ static int tb_drom_parse_entries(struct tb_switch *sw, size_t header_size)
 	return 0;
 }
 
+static int tb_switch_drom_alloc(struct tb_switch *sw, size_t size)
+{
+	sw->drom = kzalloc(size, GFP_KERNEL);
+	if (!sw->drom)
+		return -ENOMEM;
+
+#ifdef CONFIG_DEBUG_FS
+	sw->drom_blob.data = sw->drom;
+	sw->drom_blob.size = size;
+#endif
+	return 0;
+}
+
+static void tb_switch_drom_free(struct tb_switch *sw)
+{
+#ifdef CONFIG_DEBUG_FS
+	sw->drom_blob.data = NULL;
+	sw->drom_blob.size = 0;
+#endif
+	kfree(sw->drom);
+	sw->drom = NULL;
+}
+
 /*
  * tb_drom_copy_efi - copy drom supplied by EFI to sw->drom if present
  */
@@ -447,9 +470,9 @@ static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 	if (len < 0 || len < sizeof(struct tb_drom_header))
 		return -EINVAL;
 
-	sw->drom = kmalloc(len, GFP_KERNEL);
-	if (!sw->drom)
-		return -ENOMEM;
+	res = tb_switch_drom_alloc(sw, len);
+	if (res)
+		return res;
 
 	res = device_property_read_u8_array(dev, "ThunderboltDROM", sw->drom,
 									len);
@@ -464,8 +487,7 @@ static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 	return 0;
 
 err:
-	kfree(sw->drom);
-	sw->drom = NULL;
+	tb_switch_drom_free(sw);
 	return -EINVAL;
 }
 
@@ -491,13 +513,15 @@ static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
 
 	/* Size includes CRC8 + UID + CRC32 */
 	*size += 1 + 8 + 4;
-	sw->drom = kzalloc(*size, GFP_KERNEL);
-	if (!sw->drom)
-		return -ENOMEM;
+	ret = tb_switch_drom_alloc(sw, *size);
+	if (ret)
+		return ret;
 
 	ret = dma_port_flash_read(sw->dma_port, drom_offset, sw->drom, *size);
-	if (ret)
-		goto err_free;
+	if (ret) {
+		tb_switch_drom_free(sw);
+		return ret;
+	}
 
 	/*
 	 * Read UID from the minimal DROM because the one in NVM is just
@@ -505,11 +529,6 @@ static int tb_drom_copy_nvm(struct tb_switch *sw, u16 *size)
 	 */
 	tb_drom_read_uid_only(sw, &sw->uid);
 	return 0;
-
-err_free:
-	kfree(sw->drom);
-	sw->drom = NULL;
-	return ret;
 }
 
 static int usb4_copy_drom(struct tb_switch *sw, u16 *size)
@@ -522,15 +541,13 @@ static int usb4_copy_drom(struct tb_switch *sw, u16 *size)
 
 	/* Size includes CRC8 + UID + CRC32 */
 	*size += 1 + 8 + 4;
-	sw->drom = kzalloc(*size, GFP_KERNEL);
-	if (!sw->drom)
-		return -ENOMEM;
+	ret = tb_switch_drom_alloc(sw, *size);
+	if (ret)
+		return ret;
 
 	ret = usb4_switch_drom_read(sw, 0, sw->drom, *size);
-	if (ret) {
-		kfree(sw->drom);
-		sw->drom = NULL;
-	}
+	if (ret)
+		tb_switch_drom_free(sw);
 
 	return ret;
 }
@@ -552,19 +569,14 @@ static int tb_drom_bit_bang(struct tb_switch *sw, u16 *size)
 		return -EIO;
 	}
 
-	sw->drom = kzalloc(*size, GFP_KERNEL);
-	if (!sw->drom)
-		return -ENOMEM;
+	ret = tb_switch_drom_alloc(sw, *size);
+	if (ret)
+		return ret;
 
 	ret = tb_eeprom_read_n(sw, 0, sw->drom, *size);
 	if (ret)
-		goto err;
+		tb_switch_drom_free(sw);
 
-	return 0;
-
-err:
-	kfree(sw->drom);
-	sw->drom = NULL;
 	return ret;
 }
 
@@ -646,9 +658,7 @@ static int tb_drom_parse(struct tb_switch *sw, u16 size)
 	return 0;
 
 err:
-	kfree(sw->drom);
-	sw->drom = NULL;
-
+	tb_switch_drom_free(sw);
 	return ret;
 }
 

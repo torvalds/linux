@@ -312,6 +312,7 @@ static inline void kunit_set_failure(struct kunit *test)
 }
 
 bool kunit_enabled(void);
+bool kunit_autorun(void);
 const char *kunit_action(void);
 const char *kunit_filter_glob(void);
 char *kunit_filter(void);
@@ -334,7 +335,8 @@ kunit_filter_suites(const struct kunit_suite_set *suite_set,
 		    int *err);
 void kunit_free_suite_set(struct kunit_suite_set suite_set);
 
-int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites);
+int __kunit_test_suites_init(struct kunit_suite * const * const suites, int num_suites,
+			     bool run_tests);
 
 void __kunit_test_suites_exit(struct kunit_suite **suites, int num_suites);
 

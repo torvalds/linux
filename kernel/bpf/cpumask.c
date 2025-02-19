@@ -91,9 +91,7 @@ __bpf_kfunc void bpf_cpumask_release(struct bpf_cpumask *cpumask)
 	if (!refcount_dec_and_test(&cpumask->usage))
 		return;
 
-	migrate_disable();
 	bpf_mem_cache_free_rcu(&bpf_cpumask_ma, cpumask);
-	migrate_enable();
 }
 
 __bpf_kfunc void bpf_cpumask_release_dtor(void *cpumask)

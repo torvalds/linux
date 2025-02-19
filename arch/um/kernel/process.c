@@ -213,14 +213,6 @@ int __uml_cant_sleep(void) {
 	/* Is in_interrupt() really needed? */
 }
 
-int user_context(unsigned long sp)
-{
-	unsigned long stack;
-
-	stack = sp & (PAGE_MASK << CONFIG_KERNEL_STACK_ORDER);
-	return stack != (unsigned long) current_thread_info();
-}
-
 extern exitcall_t __uml_exitcall_begin, __uml_exitcall_end;
 
 void do_uml_exitcalls(void)

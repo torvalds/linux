@@ -42,7 +42,7 @@ union sev_memory_acceptance_protocol {
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 {
-	struct pci_setup_rom *rom = NULL;
+	struct pci_setup_rom *rom __free(efi_pool) = NULL;
 	efi_status_t status;
 	unsigned long size;
 	uint64_t romsize;
@@ -75,14 +75,13 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	rom->data.len	= size - sizeof(struct setup_data);
 	rom->data.next	= 0;
 	rom->pcilen	= romsize;
-	*__rom = rom;
 
 	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
 				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to read rom->vendor\n");
-		goto free_struct;
+		return status;
 	}
 
 	status = efi_call_proto(pci, pci.read, EfiPciIoWidthUint16,
@@ -90,21 +89,18 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to read rom->devid\n");
-		goto free_struct;
+		return status;
 	}
 
 	status = efi_call_proto(pci, get_location, &rom->segment, &rom->bus,
 				&rom->device, &rom->function);
 
 	if (status != EFI_SUCCESS)
-		goto free_struct;
+		return status;
 
 	memcpy(rom->romdata, romimage, romsize);
-	return status;
-
-free_struct:
-	efi_bs_call(free_pool, rom);
-	return status;
+	*__rom = no_free_ptr(rom);
+	return EFI_SUCCESS;
 }
 
 /*
@@ -119,38 +115,23 @@ free_struct:
 static void setup_efi_pci(struct boot_params *params)
 {
 	efi_status_t status;
-	void **pci_handle = NULL;
+	efi_handle_t *pci_handle __free(efi_pool) = NULL;
 	efi_guid_t pci_proto = EFI_PCI_IO_PROTOCOL_GUID;
-	unsigned long size = 0;
 	struct setup_data *data;
+	unsigned long num;
 	efi_handle_t h;
-	int i;
 
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &pci_proto, NULL, &size, pci_handle);
-
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-				     (void **)&pci_handle);
-
-		if (status != EFI_SUCCESS) {
-			efi_err("Failed to allocate memory for 'pci_handle'\n");
-			return;
-		}
-
-		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-				     &pci_proto, NULL, &size, pci_handle);
-	}
-
+	status = efi_bs_call(locate_handle_buffer, EFI_LOCATE_BY_PROTOCOL,
+			     &pci_proto, NULL, &num, &pci_handle);
 	if (status != EFI_SUCCESS)
-		goto free_handle;
+		return;
 
 	data = (struct setup_data *)(unsigned long)params->hdr.setup_data;
 
 	while (data && data->next)
 		data = (struct setup_data *)(unsigned long)data->next;
 
-	for_each_efi_handle(h, pci_handle, size, i) {
+	for_each_efi_handle(h, pci_handle, num) {
 		efi_pci_io_protocol_t *pci = NULL;
 		struct pci_setup_rom *rom;
 
@@ -170,9 +151,6 @@ static void setup_efi_pci(struct boot_params *params)
 
 		data = (struct setup_data *)rom;
 	}
-
-free_handle:
-	efi_bs_call(free_pool, pci_handle);
 }
 
 static void retrieve_apple_device_properties(struct boot_params *boot_params)
@@ -405,115 +383,12 @@ static void setup_quirks(struct boot_params *boot_params)
 	}
 }
 
-/*
- * See if we have Universal Graphics Adapter (UGA) protocol
- */
-static efi_status_t
-setup_uga(struct screen_info *si, efi_guid_t *uga_proto, unsigned long size)
-{
-	efi_status_t status;
-	u32 width, height;
-	void **uga_handle = NULL;
-	efi_uga_draw_protocol_t *uga = NULL, *first_uga;
-	efi_handle_t handle;
-	int i;
-
-	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
-			     (void **)&uga_handle);
-	if (status != EFI_SUCCESS)
-		return status;
-
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     uga_proto, NULL, &size, uga_handle);
-	if (status != EFI_SUCCESS)
-		goto free_handle;
-
-	height = 0;
-	width = 0;
-
-	first_uga = NULL;
-	for_each_efi_handle(handle, uga_handle, size, i) {
-		efi_guid_t pciio_proto = EFI_PCI_IO_PROTOCOL_GUID;
-		u32 w, h, depth, refresh;
-		void *pciio;
-
-		status = efi_bs_call(handle_protocol, handle, uga_proto,
-				     (void **)&uga);
-		if (status != EFI_SUCCESS)
-			continue;
-
-		pciio = NULL;
-		efi_bs_call(handle_protocol, handle, &pciio_proto, &pciio);
-
-		status = efi_call_proto(uga, get_mode, &w, &h, &depth, &refresh);
-		if (status == EFI_SUCCESS && (!first_uga || pciio)) {
-			width = w;
-			height = h;
-
-			/*
-			 * Once we've found a UGA supporting PCIIO,
-			 * don't bother looking any further.
-			 */
-			if (pciio)
-				break;
-
-			first_uga = uga;
-		}
-	}
-
-	if (!width && !height)
-		goto free_handle;
-
-	/* EFI framebuffer */
-	si->orig_video_isVGA	= VIDEO_TYPE_EFI;
-
-	si->lfb_depth		= 32;
-	si->lfb_width		= width;
-	si->lfb_height		= height;
-
-	si->red_size		= 8;
-	si->red_pos		= 16;
-	si->green_size		= 8;
-	si->green_pos		= 8;
-	si->blue_size		= 8;
-	si->blue_pos		= 0;
-	si->rsvd_size		= 8;
-	si->rsvd_pos		= 24;
-
-free_handle:
-	efi_bs_call(free_pool, uga_handle);
-
-	return status;
-}
-
 static void setup_graphics(struct boot_params *boot_params)
 {
-	efi_guid_t graphics_proto = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-	struct screen_info *si;
-	efi_guid_t uga_proto = EFI_UGA_PROTOCOL_GUID;
-	efi_status_t status;
-	unsigned long size;
-	void **gop_handle = NULL;
-	void **uga_handle = NULL;
+	struct screen_info *si = memset(&boot_params->screen_info, 0, sizeof(*si));
 
-	si = &boot_params->screen_info;
-	memset(si, 0, sizeof(*si));
-
-	size = 0;
-	status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-			     &graphics_proto, NULL, &size, gop_handle);
-	if (status == EFI_BUFFER_TOO_SMALL)
-		status = efi_setup_gop(si, &graphics_proto, size);
-
-	if (status != EFI_SUCCESS) {
-		size = 0;
-		status = efi_bs_call(locate_handle, EFI_LOCATE_BY_PROTOCOL,
-				     &uga_proto, NULL, &size, uga_handle);
-		if (status == EFI_BUFFER_TOO_SMALL)
-			setup_uga(si, &uga_proto, size);
-	}
+	efi_setup_gop(si);
 }
-
 
 static void __noreturn efi_exit(efi_handle_t handle, efi_status_t status)
 {
@@ -737,7 +612,7 @@ static efi_status_t allocate_e820(struct boot_params *params,
 				  struct setup_data **e820ext,
 				  u32 *e820ext_size)
 {
-	struct efi_boot_memmap *map;
+	struct efi_boot_memmap *map __free(efi_pool) = NULL;
 	efi_status_t status;
 	__u32 nr_desc;
 
@@ -751,13 +626,14 @@ static efi_status_t allocate_e820(struct boot_params *params,
 				 EFI_MMAP_NR_SLACK_SLOTS;
 
 		status = alloc_e820ext(nr_e820ext, e820ext, e820ext_size);
+		if (status != EFI_SUCCESS)
+			return status;
 	}
 
-	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY) && status == EFI_SUCCESS)
-		status = allocate_unaccepted_bitmap(nr_desc, map);
+	if (IS_ENABLED(CONFIG_UNACCEPTED_MEMORY))
+		return allocate_unaccepted_bitmap(nr_desc, map);
 
-	efi_bs_call(free_pool, map);
-	return status;
+	return EFI_SUCCESS;
 }
 
 struct exit_boot_struct {

@@ -10,7 +10,7 @@
 
 #define MODULE_NAME "wip"
 
-#include <trace/events/rv.h>
+#include <rv_trace.h>
 #include <trace/events/sched.h>
 #include <trace/events/preemptirq.h>
 

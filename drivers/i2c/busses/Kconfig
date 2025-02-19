@@ -756,6 +756,7 @@ config I2C_IMX
 config I2C_IMX_LPI2C
 	tristate "IMX Low Power I2C interface"
 	depends on ARCH_MXC || COMPILE_TEST
+	select I2C_SLAVE
 	help
 	  Say Y here if you want to use the Low Power IIC bus controller
 	  on the Freescale i.MX processors.

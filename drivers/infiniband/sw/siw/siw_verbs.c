@@ -189,10 +189,9 @@ int siw_query_port(struct ib_device *base_dev, u32 port,
 	attr->max_msg_sz = -1;
 	attr->max_mtu = ib_mtu_int_to_enum(ndev->max_mtu);
 	attr->active_mtu = ib_mtu_int_to_enum(READ_ONCE(ndev->mtu));
-	attr->phys_state = (netif_running(ndev) && netif_carrier_ok(ndev)) ?
+	attr->state = ib_get_curr_port_state(ndev);
+	attr->phys_state = attr->state == IB_PORT_ACTIVE ?
 		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
-	attr->state = attr->phys_state == IB_PORT_PHYS_STATE_LINK_UP ?
-		IB_PORT_ACTIVE : IB_PORT_DOWN;
 	attr->port_cap_flags = IB_PORT_CM_SUP | IB_PORT_DEVICE_MGMT_SUP;
 	/*
 	 * All zero

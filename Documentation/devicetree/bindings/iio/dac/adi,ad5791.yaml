@@ -91,7 +91,7 @@ examples:
             vrefn-supply = <&dac_vrefn>;
             reset-gpios = <&gpio_bd 16 GPIO_ACTIVE_LOW>;
             clear-gpios = <&gpio_bd 17 GPIO_ACTIVE_LOW>;
-            ldac-gpios = <&gpio_bd 18 GPIO_ACTIVE_HIGH>;
+            ldac-gpios = <&gpio_bd 18 GPIO_ACTIVE_LOW>;
         };
     };
 ...

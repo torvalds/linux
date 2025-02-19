@@ -54,14 +54,15 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/gpio/gpio.h>
-   codec {
-       compatible = "everest,es7241";
-       #sound-dai-cells = <0>;
-       reset-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
-       VDDP-supply = <&vddp_supply>;
-       VDDA-supply = <&vdda_supply>;
-       VDDD-supply = <&vddd_supply>;
-   };
+    #include <dt-bindings/gpio/gpio.h>
+
+    codec {
+        compatible = "everest,es7241";
+        #sound-dai-cells = <0>;
+        reset-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
+        VDDP-supply = <&vddp_supply>;
+        VDDA-supply = <&vdda_supply>;
+        VDDD-supply = <&vddd_supply>;
+    };
 
 ...

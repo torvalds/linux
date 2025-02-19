@@ -555,7 +555,6 @@
 			     <GIC_SPI 367 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "eventq", "gerror", "priq", "cmdq-sync";
 		#iommu-cells = <1>;
-		status = "disabled";
 	};
 
 	mmu600_php: iommu@fcb00000 {
@@ -1686,6 +1685,7 @@
 		linux,pci-domain = <3>;
 		max-link-speed = <2>;
 		msi-map = <0x3000 &its0 0x3000 0x1000>;
+		iommu-map = <0x3000 &mmu600_pcie 0x3000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy2_psu PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
@@ -1737,6 +1737,7 @@
 		linux,pci-domain = <4>;
 		max-link-speed = <2>;
 		msi-map = <0x4000 &its0 0x4000 0x1000>;
+		iommu-map = <0x4000 &mmu600_pcie 0x4000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy0_ps PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";

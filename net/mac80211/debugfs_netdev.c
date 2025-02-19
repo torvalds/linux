@@ -1025,16 +1025,7 @@ void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	struct dentry *dir;
-	char buf[10 + IFNAMSIZ];
-
-	dir = sdata->vif.debugfs_dir;
-
-	if (IS_ERR_OR_NULL(dir))
-		return;
-
-	sprintf(buf, "netdev:%s", sdata->name);
-	debugfs_rename(dir->d_parent, dir, dir->d_parent, buf);
+	debugfs_change_name(sdata->vif.debugfs_dir, "netdev:%s", sdata->name);
 }
 
 void ieee80211_debugfs_recreate_netdev(struct ieee80211_sub_if_data *sdata,

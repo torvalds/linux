@@ -201,7 +201,8 @@ void nilfs_btnode_delete(struct buffer_head *bh)
  * Note that the current implementation does not support folio sizes larger
  * than the page size.
  *
- * Return: 0 on success, or the following negative error code on failure.
+ * Return: 0 on success, or one of the following negative error codes on
+ * failure:
  * * %-EIO	- I/O error (metadata corruption).
  * * %-ENOMEM	- Insufficient memory available.
  */

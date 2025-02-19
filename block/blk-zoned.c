@@ -1717,9 +1717,10 @@ int blk_revalidate_disk_zones(struct gendisk *disk)
 	else
 		pr_warn("%s: failed to revalidate zones\n", disk->disk_name);
 	if (ret) {
-		blk_mq_freeze_queue(q);
+		unsigned int memflags = blk_mq_freeze_queue(q);
+
 		disk_free_zone_resources(disk);
-		blk_mq_unfreeze_queue(q);
+		blk_mq_unfreeze_queue(q, memflags);
 	}
 
 	return ret;

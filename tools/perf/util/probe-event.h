@@ -58,6 +58,7 @@ struct probe_trace_event {
 	char				*group;	/* Group name */
 	struct probe_trace_point	point;	/* Trace point */
 	int				nargs;	/* Number of args */
+	int				lang;	/* Dwarf language code */
 	bool				uprobes;	/* uprobes only */
 	struct probe_trace_arg		*args;	/* Arguments */
 };

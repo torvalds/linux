@@ -140,7 +140,7 @@ struct bmc150_magn_data {
 	/* Ensure timestamp is naturally aligned */
 	struct {
 		s32 chans[3];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	struct iio_trigger *dready_trig;
 	bool dready_trigger_on;

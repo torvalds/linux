@@ -121,6 +121,7 @@ static struct hubp_funcs dcn201_hubp_funcs = {
 	.set_cursor_position	= hubp1_cursor_set_position,
 	.set_blank = hubp1_set_blank,
 	.dcc_control = hubp1_dcc_control,
+	.hubp_reset = hubp_reset,
 	.mem_program_viewport = min_set_viewport,
 	.hubp_clk_cntl = hubp1_clk_cntl,
 	.hubp_vtg_sel = hubp1_vtg_sel,

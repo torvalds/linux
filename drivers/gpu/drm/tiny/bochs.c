@@ -757,7 +757,6 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 
 	drm_dev_unplug(dev);
 	drm_atomic_helper_shutdown(dev);
-	drm_dev_put(dev);
 }
 
 static void bochs_pci_shutdown(struct pci_dev *pdev)

@@ -171,7 +171,6 @@ void zpci_bus_scan_busses(void)
 static bool zpci_bus_is_multifunction_root(struct zpci_dev *zdev)
 {
 	return !s390_pci_no_rid && zdev->rid_available &&
-		zpci_is_device_configured(zdev) &&
 		!zdev->vfn;
 }
 

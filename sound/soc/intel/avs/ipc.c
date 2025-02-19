@@ -184,10 +184,11 @@ static void avs_dsp_receive_rx(struct avs_dev *adev, u64 header)
 {
 	struct avs_ipc *ipc = adev->ipc;
 	union avs_reply_msg msg = AVS_MSG(header);
-	u64 reg;
+	u32 sts, lec;
 
-	reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
-	trace_avs_ipc_reply_msg(header, reg);
+	sts = snd_hdac_adsp_readl(adev, AVS_FW_REG_STATUS(adev));
+	lec = snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev));
+	trace_avs_ipc_reply_msg(header, sts, lec);
 
 	ipc->rx.header = header;
 	/* Abort copying payload if request processing was unsuccessful. */
@@ -209,10 +210,11 @@ static void avs_dsp_process_notification(struct avs_dev *adev, u64 header)
 	union avs_notify_msg msg = AVS_MSG(header);
 	size_t data_size = 0;
 	void *data = NULL;
-	u64 reg;
+	u32 sts, lec;
 
-	reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
-	trace_avs_ipc_notify_msg(header, reg);
+	sts = snd_hdac_adsp_readl(adev, AVS_FW_REG_STATUS(adev));
+	lec = snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev));
+	trace_avs_ipc_notify_msg(header, sts, lec);
 
 	/* Ignore spurious notifications until handshake is established. */
 	if (!adev->ipc->ready && msg.notify_msg_type != AVS_NOTIFY_FW_READY) {
@@ -367,13 +369,16 @@ static void avs_ipc_msg_init(struct avs_ipc *ipc, struct avs_ipc_msg *reply)
 static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx, bool read_fwregs)
 {
 	const struct avs_spec *const spec = adev->spec;
-	u64 reg = ULONG_MAX;
+	u32 sts = UINT_MAX;
+	u32 lec = UINT_MAX;
 
 	tx->header |= spec->hipc->req_busy_mask;
-	if (read_fwregs)
-		reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
+	if (read_fwregs) {
+		sts = snd_hdac_adsp_readl(adev, AVS_FW_REG_STATUS(adev));
+		lec = snd_hdac_adsp_readl(adev, AVS_FW_REG_ERROR(adev));
+	}
 
-	trace_avs_request(tx, reg);
+	trace_avs_request(tx, sts, lec);
 
 	if (tx->size)
 		memcpy_toio(avs_downlink_addr(adev), tx->data, tx->size);

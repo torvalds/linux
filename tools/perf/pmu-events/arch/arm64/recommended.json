@@ -318,6 +318,11 @@
         "BriefDescription": "Barrier speculatively executed, DMB"
     },
     {
+        "EventCode": "0x7F",
+        "EventName": "CSDB_SPEC",
+        "BriefDescription": "Barrier Speculatively executed, CSDB."
+    },
+    {
         "PublicDescription": "Exception taken, Other synchronous",
         "EventCode": "0x81",
         "EventName": "EXC_UNDEF",

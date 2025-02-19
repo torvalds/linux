@@ -2543,8 +2543,6 @@ MODULE_DEVICE_TABLE(i2c, max98090_i2c_id);
 static int max98090_i2c_probe(struct i2c_client *i2c)
 {
 	struct max98090_priv *max98090;
-	const struct acpi_device_id *acpi_id;
-	kernel_ulong_t driver_data = 0;
 	int ret;
 
 	pr_debug("max98090_i2c_probe\n");
@@ -2554,21 +2552,7 @@ static int max98090_i2c_probe(struct i2c_client *i2c)
 	if (max98090 == NULL)
 		return -ENOMEM;
 
-	if (ACPI_HANDLE(&i2c->dev)) {
-		acpi_id = acpi_match_device(i2c->dev.driver->acpi_match_table,
-					    &i2c->dev);
-		if (!acpi_id) {
-			dev_err(&i2c->dev, "No driver data\n");
-			return -EINVAL;
-		}
-		driver_data = acpi_id->driver_data;
-	} else {
-		const struct i2c_device_id *i2c_id =
-			i2c_match_id(max98090_i2c_id, i2c);
-		driver_data = i2c_id->driver_data;
-	}
-
-	max98090->devtype = driver_data;
+	max98090->devtype = (uintptr_t)i2c_get_match_data(i2c);
 	i2c_set_clientdata(i2c, max98090);
 	max98090->pdata = i2c->dev.platform_data;
 

@@ -10,10 +10,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/prctl.h>
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <fcntl.h>
 
+#include "vm_util.h"
 #include "../kselftest.h"
 
 /*
@@ -82,6 +84,24 @@ static void validate_addr(char *ptr, int high_addr)
 		ksft_exit_fail_msg("Bad address %lx\n", addr);
 }
 
+static void mark_range(char *ptr, size_t size)
+{
+	if (prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, ptr, size, "virtual_address_range") == -1) {
+		if (errno == EINVAL) {
+			/* Depends on CONFIG_ANON_VMA_NAME */
+			ksft_test_result_skip("prctl(PR_SET_VMA_ANON_NAME) not supported\n");
+			ksft_finished();
+		} else {
+			ksft_exit_fail_perror("prctl(PR_SET_VMA_ANON_NAME) failed\n");
+		}
+	}
+}
+
+static int is_marked_vma(const char *vma_name)
+{
+	return vma_name && !strcmp(vma_name, "[anon:virtual_address_range]\n");
+}
+
 static int validate_lower_address_hint(void)
 {
 	char *ptr;
@@ -116,11 +136,16 @@ static int validate_complete_va_space(void)
 
 	prev_end_addr = 0;
 	while (fgets(line, sizeof(line), file)) {
+		const char *vma_name = NULL;
+		int vma_name_start = 0;
 		unsigned long hop;
 
-		if (sscanf(line, "%lx-%lx %s[rwxp-]",
-			   &start_addr, &end_addr, prot) != 3)
+		if (sscanf(line, "%lx-%lx %4s %*s %*s %*s %n",
+			   &start_addr, &end_addr, prot, &vma_name_start) != 3)
 			ksft_exit_fail_msg("cannot parse /proc/self/maps\n");
+
+		if (vma_name_start)
+			vma_name = line + vma_name_start;
 
 		/* end of userspace mappings; ignore vsyscall mapping */
 		if (start_addr & (1UL << 63))
@@ -133,6 +158,9 @@ static int validate_complete_va_space(void)
 		prev_end_addr = end_addr;
 
 		if (prot[0] != 'r')
+			continue;
+
+		if (check_vmflag_io((void *)start_addr))
 			continue;
 
 		/*
@@ -148,6 +176,9 @@ static int validate_complete_va_space(void)
 			if (write(fd, (void *)(start_addr + hop), 1) != 1)
 				return 1;
 			lseek(fd, 0, SEEK_SET);
+
+			if (is_marked_vma(vma_name))
+				munmap((char *)(start_addr + hop), MAP_CHUNK_SIZE);
 
 			hop += MAP_CHUNK_SIZE;
 		}
@@ -166,7 +197,7 @@ int main(int argc, char *argv[])
 	ksft_set_plan(1);
 
 	for (i = 0; i < NR_CHUNKS_LOW; i++) {
-		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
+		ptr[i] = mmap(NULL, MAP_CHUNK_SIZE, PROT_READ,
 			      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		if (ptr[i] == MAP_FAILED) {
@@ -175,6 +206,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 
+		mark_range(ptr[i], MAP_CHUNK_SIZE);
 		validate_addr(ptr[i], 0);
 	}
 	lchunks = i;
@@ -186,12 +218,13 @@ int main(int argc, char *argv[])
 
 	for (i = 0; i < NR_CHUNKS_HIGH; i++) {
 		hint = hint_addr();
-		hptr[i] = mmap(hint, MAP_CHUNK_SIZE, PROT_READ | PROT_WRITE,
+		hptr[i] = mmap(hint, MAP_CHUNK_SIZE, PROT_READ,
 			       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 		if (hptr[i] == MAP_FAILED)
 			break;
 
+		mark_range(ptr[i], MAP_CHUNK_SIZE);
 		validate_addr(hptr[i], 1);
 	}
 	hchunks = i;

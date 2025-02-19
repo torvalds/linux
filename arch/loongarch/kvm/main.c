@@ -245,6 +245,24 @@ void kvm_check_vpid(struct kvm_vcpu *vcpu)
 		trace_kvm_vpid_change(vcpu, vcpu->arch.vpid);
 		vcpu->cpu = cpu;
 		kvm_clear_request(KVM_REQ_TLB_FLUSH_GPA, vcpu);
+
+		/*
+		 * LLBCTL is a separated guest CSR register from host, a general
+		 * exception ERET instruction clears the host LLBCTL register in
+		 * host mode, and clears the guest LLBCTL register in guest mode.
+		 * ERET in tlb refill exception does not clear LLBCTL register.
+		 *
+		 * When secondary mmu mapping is changed, guest OS does not know
+		 * even if the content is changed after mapping is changed.
+		 *
+		 * Here clear WCLLB of the guest LLBCTL register when mapping is
+		 * changed. Otherwise, if mmu mapping is changed while guest is
+		 * executing LL/SC pair, LL loads with the old address and set
+		 * the LLBCTL flag, SC checks the LLBCTL flag and will store the
+		 * new address successfully since LLBCTL_WCLLB is on, even if
+		 * memory with new address is changed on other VCPUs.
+		 */
+		set_gcsr_llbctl(CSR_LLBCTL_WCLLB);
 	}
 
 	/* Restore GSTAT(0x50).vpid */

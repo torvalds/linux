@@ -82,11 +82,6 @@ enum {
 	MASK_MCQ_SUPPORT			= 0x40000000,
 };
 
-/* MCQ capability mask */
-enum {
-	MASK_EXT_IID_SUPPORT = 0x00000400,
-};
-
 enum {
 	REG_SQATTR		= 0x0,
 	REG_SQLBA		= 0x4,

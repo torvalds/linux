@@ -1695,7 +1695,6 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 
 	mt7996_dma_reset(dev, true);
 
-	local_bh_disable();
 	mt76_for_each_q_rx(mdev, i) {
 		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
 		    mt76_queue_is_wed_rro(&mdev->q_rx[i]))
@@ -1703,10 +1702,11 @@ mt7996_mac_restart(struct mt7996_dev *dev)
 
 		if (mdev->q_rx[i].ndesc) {
 			napi_enable(&dev->mt76.napi[i]);
+			local_bh_disable();
 			napi_schedule(&dev->mt76.napi[i]);
+			local_bh_enable();
 		}
 	}
-	local_bh_enable();
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);
 	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 
@@ -1764,8 +1764,8 @@ out:
 	if (phy3)
 		clear_bit(MT76_RESET, &phy3->mt76->state);
 
-	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
+	local_bh_disable();
 	napi_schedule(&dev->mt76.tx_napi);
 	local_bh_enable();
 
@@ -1958,23 +1958,23 @@ void mt7996_mac_reset_work(struct work_struct *work)
 	if (phy3)
 		clear_bit(MT76_RESET, &phy3->mt76->state);
 
-	local_bh_disable();
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		if (mtk_wed_device_active(&dev->mt76.mmio.wed) &&
 		    mt76_queue_is_wed_rro(&dev->mt76.q_rx[i]))
 			continue;
 
 		napi_enable(&dev->mt76.napi[i]);
+		local_bh_disable();
 		napi_schedule(&dev->mt76.napi[i]);
+		local_bh_enable();
 	}
-	local_bh_enable();
 
 	tasklet_schedule(&dev->mt76.irq_tasklet);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
-	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
+	local_bh_disable();
 	napi_schedule(&dev->mt76.tx_napi);
 	local_bh_enable();
 

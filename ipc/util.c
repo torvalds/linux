@@ -615,11 +615,10 @@ void ipc64_perm_to_ipc_perm(struct ipc64_perm *in, struct ipc_perm *out)
 }
 
 /**
- * ipc_obtain_object_idr
+ * ipc_obtain_object_idr - Look for an id in the ipc ids idr and
+ *   return associated ipc object.
  * @ids: ipc identifier set
  * @id: ipc id to look for
- *
- * Look for an id in the ipc ids idr and return associated ipc object.
  *
  * Call inside the RCU critical section.
  * The ipc object is *not* locked on exit.
@@ -637,12 +636,10 @@ struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id)
 }
 
 /**
- * ipc_obtain_object_check
+ * ipc_obtain_object_check - Similar to ipc_obtain_object_idr() but
+ *   also checks the ipc object sequence number.
  * @ids: ipc identifier set
  * @id: ipc id to look for
- *
- * Similar to ipc_obtain_object_idr() but also checks the ipc object
- * sequence number.
  *
  * Call inside the RCU critical section.
  * The ipc object is *not* locked on exit.

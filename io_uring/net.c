@@ -137,7 +137,6 @@ static void io_netmsg_iovec_free(struct io_async_msghdr *kmsg)
 static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_async_msghdr *hdr = req->async_data;
-	struct iovec *iov;
 
 	/* can't recycle, ensure we free the iovec if we have one */
 	if (unlikely(issue_flags & IO_URING_F_UNLOCKED)) {
@@ -146,21 +145,11 @@ static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	/* Let normal cleanup path reap it if we fail adding to the cache */
-	iov = hdr->free_iov;
+	io_alloc_cache_kasan(&hdr->free_iov, &hdr->free_iov_nr);
 	if (io_alloc_cache_put(&req->ctx->netmsg_cache, hdr)) {
-		if (iov)
-			kasan_mempool_poison_object(iov);
 		req->async_data = NULL;
 		req->flags &= ~REQ_F_ASYNC_DATA;
 	}
-}
-
-static void io_msg_async_data_init(void *obj)
-{
-	struct io_async_msghdr *hdr = (struct io_async_msghdr *)obj;
-
-	hdr->free_iov = NULL;
-	hdr->free_iov_nr = 0;
 }
 
 static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)
@@ -168,22 +157,18 @@ static struct io_async_msghdr *io_msg_alloc_async(struct io_kiocb *req)
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_async_msghdr *hdr;
 
-	hdr = io_uring_alloc_async_data(&ctx->netmsg_cache, req,
-					io_msg_async_data_init);
+	hdr = io_uring_alloc_async_data(&ctx->netmsg_cache, req);
 	if (!hdr)
 		return NULL;
 
 	/* If the async data was cached, we might have an iov cached inside. */
-	if (hdr->free_iov) {
-		kasan_mempool_unpoison_object(hdr->free_iov,
-					      hdr->free_iov_nr * sizeof(struct iovec));
+	if (hdr->free_iov)
 		req->flags |= REQ_F_NEED_CLEANUP;
-	}
 	return hdr;
 }
 
 /* assign new iovec to kmsg, if we need to */
-static int io_net_vec_assign(struct io_kiocb *req, struct io_async_msghdr *kmsg,
+static void io_net_vec_assign(struct io_kiocb *req, struct io_async_msghdr *kmsg,
 			     struct iovec *iov)
 {
 	if (iov) {
@@ -193,7 +178,6 @@ static int io_net_vec_assign(struct io_kiocb *req, struct io_async_msghdr *kmsg,
 			kfree(kmsg->free_iov);
 		kmsg->free_iov = iov;
 	}
-	return 0;
 }
 
 static inline void io_mshot_prep_retry(struct io_kiocb *req,
@@ -255,7 +239,8 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 	if (unlikely(ret < 0))
 		return ret;
 
-	return io_net_vec_assign(req, iomsg, iov);
+	io_net_vec_assign(req, iomsg, iov);
+	return 0;
 }
 #endif
 
@@ -295,11 +280,12 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			ret = -EINVAL;
 			goto ua_end;
 		} else {
+			struct iovec __user *uiov = msg->msg_iov;
+
 			/* we only need the length for provided buffers */
-			if (!access_ok(&msg->msg_iov[0].iov_len, sizeof(__kernel_size_t)))
+			if (!access_ok(&uiov->iov_len, sizeof(uiov->iov_len)))
 				goto ua_end;
-			unsafe_get_user(iov->iov_len, &msg->msg_iov[0].iov_len,
-					ua_end);
+			unsafe_get_user(iov->iov_len, &uiov->iov_len, ua_end);
 			sr->len = iov->iov_len;
 		}
 		ret = 0;
@@ -314,7 +300,8 @@ ua_end:
 	if (unlikely(ret < 0))
 		return ret;
 
-	return io_net_vec_assign(req, iomsg, iov);
+	io_net_vec_assign(req, iomsg, iov);
+	return 0;
 }
 
 static int io_sendmsg_copy_hdr(struct io_kiocb *req,
@@ -579,6 +566,54 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	return IOU_OK;
 }
 
+static int io_send_select_buffer(struct io_kiocb *req, unsigned int issue_flags,
+				 struct io_async_msghdr *kmsg)
+{
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+
+	int ret;
+	struct buf_sel_arg arg = {
+		.iovs = &kmsg->fast_iov,
+		.max_len = min_not_zero(sr->len, INT_MAX),
+		.nr_iovs = 1,
+	};
+
+	if (kmsg->free_iov) {
+		arg.nr_iovs = kmsg->free_iov_nr;
+		arg.iovs = kmsg->free_iov;
+		arg.mode = KBUF_MODE_FREE;
+	}
+
+	if (!(sr->flags & IORING_RECVSEND_BUNDLE))
+		arg.nr_iovs = 1;
+	else
+		arg.mode |= KBUF_MODE_EXPAND;
+
+	ret = io_buffers_select(req, &arg, issue_flags);
+	if (unlikely(ret < 0))
+		return ret;
+
+	if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
+		kmsg->free_iov_nr = ret;
+		kmsg->free_iov = arg.iovs;
+		req->flags |= REQ_F_NEED_CLEANUP;
+	}
+	sr->len = arg.out_len;
+
+	if (ret == 1) {
+		sr->buf = arg.iovs[0].iov_base;
+		ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
+					&kmsg->msg.msg_iter);
+		if (unlikely(ret))
+			return ret;
+	} else {
+		iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE,
+				arg.iovs, ret, arg.out_len);
+	}
+
+	return 0;
+}
+
 int io_send(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -602,44 +637,9 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 
 retry_bundle:
 	if (io_do_buffer_select(req)) {
-		struct buf_sel_arg arg = {
-			.iovs = &kmsg->fast_iov,
-			.max_len = min_not_zero(sr->len, INT_MAX),
-			.nr_iovs = 1,
-		};
-
-		if (kmsg->free_iov) {
-			arg.nr_iovs = kmsg->free_iov_nr;
-			arg.iovs = kmsg->free_iov;
-			arg.mode = KBUF_MODE_FREE;
-		}
-
-		if (!(sr->flags & IORING_RECVSEND_BUNDLE))
-			arg.nr_iovs = 1;
-		else
-			arg.mode |= KBUF_MODE_EXPAND;
-
-		ret = io_buffers_select(req, &arg, issue_flags);
-		if (unlikely(ret < 0))
+		ret = io_send_select_buffer(req, issue_flags, kmsg);
+		if (ret)
 			return ret;
-
-		if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
-			kmsg->free_iov_nr = ret;
-			kmsg->free_iov = arg.iovs;
-			req->flags |= REQ_F_NEED_CLEANUP;
-		}
-		sr->len = arg.out_len;
-
-		if (ret == 1) {
-			sr->buf = arg.iovs[0].iov_base;
-			ret = import_ubuf(ITER_SOURCE, sr->buf, sr->len,
-						&kmsg->msg.msg_iter);
-			if (unlikely(ret))
-				return ret;
-		} else {
-			iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE,
-					arg.iovs, ret, arg.out_len);
-		}
 	}
 
 	/*
@@ -1710,6 +1710,11 @@ int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
+	if (unlikely(req->flags & REQ_F_FAIL)) {
+		ret = -ECONNRESET;
+		goto out;
+	}
+
 	file_flags = force_nonblock ? O_NONBLOCK : 0;
 
 	ret = __sys_connect_file(req->file, &io->addr, connect->addr_len,
@@ -1813,11 +1818,8 @@ void io_netmsg_cache_free(const void *entry)
 {
 	struct io_async_msghdr *kmsg = (struct io_async_msghdr *) entry;
 
-	if (kmsg->free_iov) {
-		kasan_mempool_unpoison_object(kmsg->free_iov,
-				kmsg->free_iov_nr * sizeof(struct iovec));
+	if (kmsg->free_iov)
 		io_netmsg_iovec_free(kmsg);
-	}
 	kfree(kmsg);
 }
 #endif

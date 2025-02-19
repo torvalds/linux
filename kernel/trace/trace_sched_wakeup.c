@@ -158,6 +158,7 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace,
 	struct trace_array_cpu *data;
 	unsigned int trace_ctx;
 	u64 *calltime;
+	u64 rettime;
 	int size;
 
 	ftrace_graph_addr_finish(gops, trace);
@@ -165,12 +166,13 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace,
 	if (!func_prolog_preempt_disable(tr, &data, &trace_ctx))
 		return;
 
+	rettime = trace_clock_local();
+
 	calltime = fgraph_retrieve_data(gops->idx, &size);
 	if (!calltime)
 		return;
-	trace->calltime = *calltime;
 
-	__trace_graph_return(tr, trace, trace_ctx);
+	__trace_graph_return(tr, trace, trace_ctx, *calltime, rettime);
 	atomic_dec(&data->disabled);
 
 	preempt_enable_notrace();

@@ -520,20 +520,18 @@ stack_trace_sysctl(const struct ctl_table *table, int write, void *buffer,
 	int was_enabled;
 	int ret;
 
-	mutex_lock(&stack_sysctl_mutex);
+	guard(mutex)(&stack_sysctl_mutex);
 	was_enabled = !!stack_tracer_enabled;
 
 	ret = proc_dointvec(table, write, buffer, lenp, ppos);
 
 	if (ret || !write || (was_enabled == !!stack_tracer_enabled))
-		goto out;
+		return ret;
 
 	if (stack_tracer_enabled)
 		register_ftrace_function(&trace_ops);
 	else
 		unregister_ftrace_function(&trace_ops);
- out:
-	mutex_unlock(&stack_sysctl_mutex);
 	return ret;
 }
 

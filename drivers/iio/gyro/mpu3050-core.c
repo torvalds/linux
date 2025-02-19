@@ -474,7 +474,7 @@ static irqreturn_t mpu3050_trigger_handler(int irq, void *p)
 	int ret;
 	struct {
 		__be16 chans[4];
-		s64 timestamp __aligned(8);
+		aligned_s64 timestamp;
 	} scan;
 	s64 timestamp;
 	unsigned int datums_from_fifo = 0;

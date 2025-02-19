@@ -302,7 +302,10 @@ int expect_syszr(int expr, int llen)
 {
 	int ret = 0;
 
-	if (expr) {
+	if (errno == ENOSYS) {
+		llen += printf(" = ENOSYS");
+		result(llen, SKIPPED);
+	} else if (expr) {
 		ret = 1;
 		llen += printf(" = %d %s ", expr, errorname(errno));
 		result(llen, FAIL);
@@ -342,7 +345,10 @@ int expect_sysne(int expr, int llen, int val)
 {
 	int ret = 0;
 
-	if (expr == val) {
+	if (errno == ENOSYS) {
+		llen += printf(" = ENOSYS");
+		result(llen, SKIPPED);
+	} else if (expr == val) {
 		ret = 1;
 		llen += printf(" = %d %s ", expr, errorname(errno));
 		result(llen, FAIL);
@@ -367,7 +373,9 @@ int expect_syserr2(int expr, int expret, int experr1, int experr2, int llen)
 	int _errno = errno;
 
 	llen += printf(" = %d %s ", expr, errorname(_errno));
-	if (expr != expret || (_errno != experr1 && _errno != experr2)) {
+	if (errno == ENOSYS) {
+		result(llen, SKIPPED);
+	} else if (expr != expret || (_errno != experr1 && _errno != experr2)) {
 		ret = 1;
 		if (experr2 == 0)
 			llen += printf(" != (%d %s) ", expret, errorname(experr1));
@@ -1229,19 +1237,20 @@ int run_stdlib(int min, int max)
 
 static int expect_vfprintf(int llen, int c, const char *expected, const char *fmt, ...)
 {
-	int ret, fd;
+	int ret, pipefd[2];
 	ssize_t w, r;
 	char buf[100];
 	FILE *memfile;
 	va_list args;
 
-	fd = open("/tmp", O_TMPFILE | O_EXCL | O_RDWR, 0600);
-	if (fd == -1) {
-		result(llen, SKIPPED);
-		return 0;
+	ret = pipe(pipefd);
+	if (ret == -1) {
+		llen += printf(" pipe() != %s", strerror(errno));
+		result(llen, FAIL);
+		return 1;
 	}
 
-	memfile = fdopen(fd, "w+");
+	memfile = fdopen(pipefd[1], "w");
 	if (!memfile) {
 		result(llen, FAIL);
 		return 1;
@@ -1257,12 +1266,9 @@ static int expect_vfprintf(int llen, int c, const char *expected, const char *fm
 		return 1;
 	}
 
-	fflush(memfile);
-	lseek(fd, 0, SEEK_SET);
-
-	r = read(fd, buf, sizeof(buf) - 1);
-
 	fclose(memfile);
+
+	r = read(pipefd[0], buf, sizeof(buf) - 1);
 
 	if (r != w) {
 		llen += printf(" written(%d) != read(%d)", (int)w, (int)r);
@@ -1323,7 +1329,8 @@ static int run_protection(int min __attribute__((unused)),
 			  int max __attribute__((unused)))
 {
 	pid_t pid;
-	int llen = 0, status;
+	int llen = 0, ret;
+	siginfo_t siginfo = {};
 	struct rlimit rlimit = { 0, 0 };
 
 	llen += printf("0 -fstackprotector ");
@@ -1361,10 +1368,11 @@ static int run_protection(int min __attribute__((unused)),
 		return 1;
 
 	default:
-		pid = waitpid(pid, &status, 0);
+		ret = waitid(P_PID, pid, &siginfo, WEXITED);
 
-		if (pid == -1 || !WIFSIGNALED(status) || WTERMSIG(status) != SIGABRT) {
-			llen += printf("waitpid()");
+		if (ret != 0 || siginfo.si_signo != SIGCHLD ||
+		    siginfo.si_code != CLD_KILLED || siginfo.si_status != SIGABRT) {
+			llen += printf("waitid()");
 			result(llen, FAIL);
 			return 1;
 		}

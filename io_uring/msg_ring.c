@@ -89,8 +89,7 @@ static void io_msg_tw_complete(struct io_kiocb *req, struct io_tw_state *ts)
 static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			      int res, u32 cflags, u64 user_data)
 {
-	req->tctx = READ_ONCE(ctx->submitter_task->io_uring);
-	if (!req->tctx) {
+	if (!READ_ONCE(ctx->submitter_task)) {
 		kmem_cache_free(req_cachep, req);
 		return -EOWNERDEAD;
 	}
@@ -98,6 +97,7 @@ static int io_msg_remote_post(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	io_req_set_res(req, res, cflags);
 	percpu_ref_get(&ctx->refs);
 	req->ctx = ctx;
+	req->tctx = NULL;
 	req->io_task_work.func = io_msg_tw_complete;
 	io_req_task_work_add_remote(req, ctx, IOU_F_TWQ_LAZY_WAKE);
 	return 0;

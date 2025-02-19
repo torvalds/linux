@@ -92,7 +92,7 @@ struct iowait_work {
  *
  * The lock field is used by waiters to record
  * the seqlock_t that guards the list head.
- * Waiters explicity know that, but the destroy
+ * Waiters explicitly know that, but the destroy
  * code that unwaits QPs does not.
  */
 struct iowait {

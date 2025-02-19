@@ -1786,7 +1786,7 @@ static unsigned short myrs_translate_ldev(struct myrs_hba *cs,
 	return ldev_num;
 }
 
-static int myrs_slave_alloc(struct scsi_device *sdev)
+static int myrs_sdev_init(struct scsi_device *sdev)
 {
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	unsigned char status;
@@ -1882,7 +1882,8 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 	return 0;
 }
 
-static int myrs_slave_configure(struct scsi_device *sdev)
+static int myrs_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim)
 {
 	struct myrs_hba *cs = shost_priv(sdev->host);
 	struct myrs_ldev_info *ldev_info;
@@ -1910,7 +1911,7 @@ static int myrs_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static void myrs_slave_destroy(struct scsi_device *sdev)
+static void myrs_sdev_destroy(struct scsi_device *sdev)
 {
 	kfree(sdev->hostdata);
 }
@@ -1921,9 +1922,9 @@ static const struct scsi_host_template myrs_template = {
 	.proc_name		= "myrs",
 	.queuecommand		= myrs_queuecommand,
 	.eh_host_reset_handler	= myrs_host_reset,
-	.slave_alloc		= myrs_slave_alloc,
-	.slave_configure	= myrs_slave_configure,
-	.slave_destroy		= myrs_slave_destroy,
+	.sdev_init		= myrs_sdev_init,
+	.sdev_configure		= myrs_sdev_configure,
+	.sdev_destroy		= myrs_sdev_destroy,
 	.cmd_size		= sizeof(struct myrs_cmdblk),
 	.shost_groups		= myrs_shost_groups,
 	.sdev_groups		= myrs_sdev_groups,

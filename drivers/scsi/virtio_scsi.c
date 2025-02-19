@@ -800,7 +800,7 @@ static const struct scsi_host_template virtscsi_host_template = {
 	.eh_abort_handler = virtscsi_abort,
 	.eh_device_reset_handler = virtscsi_device_reset,
 	.eh_timed_out = virtscsi_eh_timed_out,
-	.slave_alloc = virtscsi_device_alloc,
+	.sdev_init = virtscsi_device_alloc,
 
 	.dma_boundary = UINT_MAX,
 	.map_queues = virtscsi_map_queues,

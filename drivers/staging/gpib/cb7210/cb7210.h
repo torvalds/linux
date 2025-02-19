@@ -36,11 +36,6 @@ struct cb7210_priv {
 	unsigned in_fifo_half_full : 1;
 };
 
-// interfaces
-extern gpib_interface_t cb_pcmcia_interface;
-extern gpib_interface_t cb_pcmcia_accel_interface;
-extern gpib_interface_t cb_pcmcia_unaccel_interface;
-
 // interrupt service routines
 irqreturn_t cb_pci_interrupt(int irq, void *arg);
 irqreturn_t cb7210_interrupt(int irq, void *arg);

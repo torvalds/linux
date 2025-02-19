@@ -9,7 +9,7 @@
 
 #ifdef LSP
 #define __bpf__
-#include "../vmlinux/vmlinux.h"
+#include "../vmlinux.h"
 #else
 #include "vmlinux.h"
 #endif
@@ -23,6 +23,10 @@
 #define PF_KTHREAD			0x00200000	/* I am a kernel thread */
 #define PF_EXITING			0x00000004
 #define CLOCK_MONOTONIC			1
+
+extern int LINUX_KERNEL_VERSION __kconfig;
+extern const char CONFIG_CC_VERSION_TEXT[64] __kconfig __weak;
+extern const char CONFIG_LOCALVERSION[64] __kconfig __weak;
 
 /*
  * Earlier versions of clang/pahole lost upper 32bits in 64bit enums which can
@@ -72,6 +76,7 @@ bool scx_bpf_task_running(const struct task_struct *p) __ksym;
 s32 scx_bpf_task_cpu(const struct task_struct *p) __ksym;
 struct rq *scx_bpf_cpu_rq(s32 cpu) __ksym;
 struct cgroup *scx_bpf_task_cgroup(struct task_struct *p) __ksym __weak;
+u64 scx_bpf_now(void) __ksym __weak;
 
 /*
  * Use the following as @it__iter when calling scx_bpf_dsq_move[_vtime]() from
@@ -98,7 +103,7 @@ void ___scx_bpf_bstr_format_checker(const char *fmt, ...) {}
 	_Pragma("GCC diagnostic push")						\
 	_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")			\
 	___bpf_fill(___param, args);						\
-	_Pragma("GCC diagnostic pop")						\
+	_Pragma("GCC diagnostic pop")
 
 /*
  * scx_bpf_exit() wraps the scx_bpf_exit_bstr() kfunc with variadic arguments
@@ -134,6 +139,20 @@ void ___scx_bpf_bstr_format_checker(const char *fmt, ...) {}
 	scx_bpf_bstr_preamble(fmt, args)					\
 	scx_bpf_dump_bstr(___fmt, ___param, sizeof(___param));			\
 	___scx_bpf_bstr_format_checker(fmt, ##args);				\
+})
+
+/*
+ * scx_bpf_dump_header() is a wrapper around scx_bpf_dump that adds a header
+ * of system information for debugging.
+ */
+#define scx_bpf_dump_header()							\
+({										\
+	scx_bpf_dump("kernel: %d.%d.%d %s\ncc: %s\n",				\
+		     LINUX_KERNEL_VERSION >> 16,				\
+		     LINUX_KERNEL_VERSION >> 8 & 0xFF,				\
+		     LINUX_KERNEL_VERSION & 0xFF,				\
+		     CONFIG_LOCALVERSION,					\
+		     CONFIG_CC_VERSION_TEXT);					\
 })
 
 #define BPF_STRUCT_OPS(name, args...)						\
@@ -317,6 +336,66 @@ u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1,
 				   const struct cpumask *src2) __ksym;
 u32 bpf_cpumask_weight(const struct cpumask *cpumask) __ksym;
 
+int bpf_iter_bits_new(struct bpf_iter_bits *it, const u64 *unsafe_ptr__ign, u32 nr_words) __ksym;
+int *bpf_iter_bits_next(struct bpf_iter_bits *it) __ksym;
+void bpf_iter_bits_destroy(struct bpf_iter_bits *it) __ksym;
+
+#define def_iter_struct(name)							\
+struct bpf_iter_##name {							\
+    struct bpf_iter_bits it;							\
+    const struct cpumask *bitmap;						\
+};
+
+#define def_iter_new(name)							\
+static inline int bpf_iter_##name##_new(					\
+	struct bpf_iter_##name *it, const u64 *unsafe_ptr__ign, u32 nr_words)	\
+{										\
+	it->bitmap = scx_bpf_get_##name##_cpumask();				\
+	return bpf_iter_bits_new(&it->it, (const u64 *)it->bitmap,		\
+				 sizeof(struct cpumask) / 8);			\
+}
+
+#define def_iter_next(name)							\
+static inline int *bpf_iter_##name##_next(struct bpf_iter_##name *it) {		\
+	return bpf_iter_bits_next(&it->it);					\
+}
+
+#define def_iter_destroy(name)							\
+static inline void bpf_iter_##name##_destroy(struct bpf_iter_##name *it) {	\
+	scx_bpf_put_cpumask(it->bitmap);					\
+	bpf_iter_bits_destroy(&it->it);						\
+}
+#define def_for_each_cpu(cpu, name) for_each_##name##_cpu(cpu)
+
+/// Provides iterator for possible and online cpus.
+///
+/// # Example
+///
+/// ```
+/// static inline void example_use() {
+///     int *cpu;
+///
+///     for_each_possible_cpu(cpu){
+///         bpf_printk("CPU %d is possible", *cpu);
+///     }
+///
+///     for_each_online_cpu(cpu){
+///         bpf_printk("CPU %d is online", *cpu);
+///     }
+/// }
+/// ```
+def_iter_struct(possible);
+def_iter_new(possible);
+def_iter_next(possible);
+def_iter_destroy(possible);
+#define for_each_possible_cpu(cpu) bpf_for_each(possible, cpu, NULL, 0)
+
+def_iter_struct(online);
+def_iter_new(online);
+def_iter_next(online);
+def_iter_destroy(online);
+#define for_each_online_cpu(cpu) bpf_for_each(online, cpu, NULL, 0)
+
 /*
  * Access a cpumask in read-only mode (typically to check bits).
  */
@@ -328,6 +407,100 @@ static __always_inline const struct cpumask *cast_mask(struct bpf_cpumask *mask)
 /* rcu */
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
+
+/*
+ * Time helpers, most of which are from jiffies.h.
+ */
+
+/**
+ * time_delta - Calculate the delta between new and old time stamp
+ * @after: first comparable as u64
+ * @before: second comparable as u64
+ *
+ * Return: the time difference, which is >= 0
+ */
+static inline s64 time_delta(u64 after, u64 before)
+{
+	return (s64)(after - before) > 0 ? : 0;
+}
+
+/**
+ * time_after - returns true if the time a is after time b.
+ * @a: first comparable as u64
+ * @b: second comparable as u64
+ *
+ * Do this with "<0" and ">=0" to only test the sign of the result. A
+ * good compiler would generate better code (and a really good compiler
+ * wouldn't care). Gcc is currently neither.
+ *
+ * Return: %true is time a is after time b, otherwise %false.
+ */
+static inline bool time_after(u64 a, u64 b)
+{
+	 return (s64)(b - a) < 0;
+}
+
+/**
+ * time_before - returns true if the time a is before time b.
+ * @a: first comparable as u64
+ * @b: second comparable as u64
+ *
+ * Return: %true is time a is before time b, otherwise %false.
+ */
+static inline bool time_before(u64 a, u64 b)
+{
+	return time_after(b, a);
+}
+
+/**
+ * time_after_eq - returns true if the time a is after or the same as time b.
+ * @a: first comparable as u64
+ * @b: second comparable as u64
+ *
+ * Return: %true is time a is after or the same as time b, otherwise %false.
+ */
+static inline bool time_after_eq(u64 a, u64 b)
+{
+	 return (s64)(a - b) >= 0;
+}
+
+/**
+ * time_before_eq - returns true if the time a is before or the same as time b.
+ * @a: first comparable as u64
+ * @b: second comparable as u64
+ *
+ * Return: %true is time a is before or the same as time b, otherwise %false.
+ */
+static inline bool time_before_eq(u64 a, u64 b)
+{
+	return time_after_eq(b, a);
+}
+
+/**
+ * time_in_range - Calculate whether a is in the range of [b, c].
+ * @a: time to test
+ * @b: beginning of the range
+ * @c: end of the range
+ *
+ * Return: %true is time a is in the range [b, c], otherwise %false.
+ */
+static inline bool time_in_range(u64 a, u64 b, u64 c)
+{
+	return time_after_eq(a, b) && time_before_eq(a, c);
+}
+
+/**
+ * time_in_range_open - Calculate whether a is in the range of [b, c).
+ * @a: time to test
+ * @b: beginning of the range
+ * @c: end of the range
+ *
+ * Return: %true is time a is in the range [b, c), otherwise %false.
+ */
+static inline bool time_in_range_open(u64 a, u64 b, u64 c)
+{
+	return time_after_eq(a, b) && time_before(a, c);
+}
 
 
 /*
@@ -423,5 +596,6 @@ static inline u32 log2_u64(u64 v)
 }
 
 #include "compat.bpf.h"
+#include "enums.bpf.h"
 
 #endif	/* __SCX_COMMON_BPF_H */

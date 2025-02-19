@@ -531,6 +531,10 @@ are extra requirements for accessing them:
   new page table has been installed in the same location and filled with
   entries. Writers normally need to take the PTE lock and revalidate that the
   PMD entry still refers to the same PTE-level page table.
+  If the writer does not care whether it is the same PTE-level page table, it
+  can take the PMD lock and revalidate that the contents of pmd entry still meet
+  the requirements. In particular, this also happens in :c:func:`!retract_page_tables`
+  when handling :c:macro:`!MADV_COLLAPSE`.
 
 To access PTE-level page tables, a helper like :c:func:`!pte_offset_map_lock` or
 :c:func:`!pte_offset_map` can be used depending on stability requirements.

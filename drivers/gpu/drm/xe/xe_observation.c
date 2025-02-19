@@ -56,7 +56,7 @@ int xe_observation_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	}
 }
 
-static struct ctl_table observation_ctl_table[] = {
+static const struct ctl_table observation_ctl_table[] = {
 	{
 	 .procname = "observation_paranoid",
 	 .data = &xe_observation_paranoid,

@@ -348,7 +348,7 @@ static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 						      unsigned flags)
 {
 	return bch2_journal_res_get(&trans->c->journal, &trans->journal_res,
-				    trans->journal_u64s, flags);
+				    trans->journal_u64s, flags, trans);
 }
 
 #define JSET_ENTRY_LOG_U64s		4

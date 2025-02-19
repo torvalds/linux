@@ -806,8 +806,8 @@ static void msi_send_touchpad_key(struct work_struct *ignored)
 }
 static DECLARE_DELAYED_WORK(msi_touchpad_dwork, msi_send_touchpad_key);
 
-static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
-				struct serio *port)
+static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str, struct serio *port,
+				    void *context)
 {
 	static bool extended;
 
@@ -996,7 +996,7 @@ static int __init load_scm_model_init(struct platform_device *sdev)
 	if (result)
 		goto fail_input;
 
-	result = i8042_install_filter(msi_laptop_i8042_filter);
+	result = i8042_install_filter(msi_laptop_i8042_filter, NULL);
 	if (result) {
 		pr_err("Unable to install key filter\n");
 		goto fail_filter;

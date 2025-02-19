@@ -17,6 +17,7 @@
 #include "sb-clean.h"
 #include "trace.h"
 
+#include <linux/ioprio.h>
 #include <linux/string_choices.h>
 
 void bch2_journal_pos_from_member_info_set(struct bch_fs *c)
@@ -1763,6 +1764,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;
 		bio->bi_private		= ca;
+		bio->bi_ioprio		= IOPRIO_PRIO_VALUE(IOPRIO_CLASS_RT, 0);
 
 		BUG_ON(bio->bi_iter.bi_sector == ca->prev_journal_sector);
 		ca->prev_journal_sector = bio->bi_iter.bi_sector;

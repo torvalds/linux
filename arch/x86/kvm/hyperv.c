@@ -1352,7 +1352,7 @@ static void __kvm_hv_xsaves_xsavec_maybe_warn(struct kvm_vcpu *vcpu)
 		return;
 
 	if (guest_cpuid_has(vcpu, X86_FEATURE_XSAVES) ||
-	    !guest_cpuid_has(vcpu, X86_FEATURE_XSAVEC))
+	    !guest_cpu_cap_has(vcpu, X86_FEATURE_XSAVEC))
 		return;
 
 	pr_notice_ratelimited("Booting SMP Windows KVM VM with !XSAVES && XSAVEC. "

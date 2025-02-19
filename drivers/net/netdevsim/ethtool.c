@@ -74,7 +74,7 @@ static void nsim_get_ringparam(struct net_device *dev,
 	memcpy(ring, &ns->ethtool.ring, sizeof(ns->ethtool.ring));
 	kernel_ring->hds_thresh_max = NSIM_HDS_THRESHOLD_MAX;
 
-	if (kernel_ring->tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
+	if (dev->cfg->hds_config == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
 		kernel_ring->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_ENABLED;
 }
 

@@ -322,8 +322,10 @@ snd_rme96_playback_copy(struct snd_pcm_substream *substream,
 {
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 
-	return copy_from_iter_toio(rme96->iobase + RME96_IO_PLAY_BUFFER + pos,
-				   src, count);
+	if (copy_from_iter_toio(rme96->iobase + RME96_IO_PLAY_BUFFER + pos,
+				count, src) != count)
+		return -EFAULT;
+	return 0;
 }
 
 static int
@@ -333,9 +335,10 @@ snd_rme96_capture_copy(struct snd_pcm_substream *substream,
 {
 	struct rme96 *rme96 = snd_pcm_substream_chip(substream);
 
-	return copy_to_iter_fromio(dst,
-				   rme96->iobase + RME96_IO_REC_BUFFER + pos,
-				   count);
+	if (copy_to_iter_fromio(rme96->iobase + RME96_IO_REC_BUFFER + pos,
+				count, dst) != count)
+		return -EFAULT;
+	return 0;
 }
 
 /*

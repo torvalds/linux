@@ -140,9 +140,6 @@ extern const char *kdb_diemsg;
 
 extern unsigned int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
 
-extern void kdb_save_flags(void);
-extern void kdb_restore_flags(void);
-
 #define KDB_FLAG(flag)		(kdb_flags & KDB_FLAG_##flag)
 #define KDB_FLAG_SET(flag)	((void)(kdb_flags |= KDB_FLAG_##flag))
 #define KDB_FLAG_CLEAR(flag)	((void)(kdb_flags &= ~KDB_FLAG_##flag))

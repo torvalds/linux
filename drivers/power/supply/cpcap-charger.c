@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
@@ -515,7 +516,7 @@ static void cpcap_charger_vbus_work(struct work_struct *work)
 out_err:
 	cpcap_charger_update_state(ddata, POWER_SUPPLY_STATUS_UNKNOWN);
 	dev_err(ddata->dev, "%s could not %s vbus: %i\n", __func__,
-		ddata->vbus_enabled ? "enable" : "disable", error);
+		str_enable_disable(ddata->vbus_enabled), error);
 }
 
 static int cpcap_charger_set_vbus(struct phy_companion *comparator,

@@ -41,13 +41,11 @@ struct ltc2632_chip_info {
  * @spi_dev:			pointer to the spi_device struct
  * @powerdown_cache_mask:	used to show current channel powerdown state
  * @vref_mv:			used reference voltage (internal or external)
- * @vref_reg:		regulator for the reference voltage
  */
 struct ltc2632_state {
 	struct spi_device *spi_dev;
 	unsigned int powerdown_cache_mask;
 	int vref_mv;
-	struct regulator *vref_reg;
 };
 
 enum ltc2632_supported_device_ids {
@@ -310,6 +308,7 @@ static int ltc2632_probe(struct spi_device *spi)
 	struct ltc2632_state *st;
 	struct iio_dev *indio_dev;
 	struct ltc2632_chip_info *chip_info;
+	bool has_external_vref;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
@@ -318,49 +317,31 @@ static int ltc2632_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	spi_set_drvdata(spi, indio_dev);
 	st->spi_dev = spi;
 
 	chip_info = (struct ltc2632_chip_info *)
 			spi_get_device_id(spi)->driver_data;
 
-	st->vref_reg = devm_regulator_get_optional(&spi->dev, "vref");
-	if (PTR_ERR(st->vref_reg) == -ENODEV) {
-		/* use internal reference voltage */
-		st->vref_reg = NULL;
-		st->vref_mv = chip_info->vref_mv;
+	ret = devm_regulator_get_enable_read_voltage(&spi->dev, "vref");
+	if (ret < 0 && ret != -ENODEV)
+		return dev_err_probe(&spi->dev, ret,
+				     "Failed to get vref regulator voltage\n");
 
-		ret = ltc2632_spi_write(spi, LTC2632_CMD_INTERNAL_REFER,
-				0, 0, 0);
-		if (ret) {
-			dev_err(&spi->dev,
-				"Set internal reference command failed, %d\n",
-				ret);
-			return ret;
-		}
-	} else if (IS_ERR(st->vref_reg)) {
-		dev_err(&spi->dev,
-				"Error getting voltage reference regulator\n");
-		return PTR_ERR(st->vref_reg);
-	} else {
-		/* use external reference voltage */
-		ret = regulator_enable(st->vref_reg);
-		if (ret) {
-			dev_err(&spi->dev,
-				"enable reference regulator failed, %d\n",
-				ret);
-			return ret;
-		}
-		st->vref_mv = regulator_get_voltage(st->vref_reg) / 1000;
+	has_external_vref = ret != -ENODEV;
+	st->vref_mv = has_external_vref ? ret / 1000 : chip_info->vref_mv;
 
+	if (has_external_vref) {
 		ret = ltc2632_spi_write(spi, LTC2632_CMD_EXTERNAL_REFER,
-				0, 0, 0);
-		if (ret) {
-			dev_err(&spi->dev,
-				"Set external reference command failed, %d\n",
-				ret);
-			return ret;
-		}
+					0, 0, 0);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+				"Set external reference command failed\n");
+	} else {
+		ret = ltc2632_spi_write(spi, LTC2632_CMD_INTERNAL_REFER,
+					0, 0, 0);
+		if (ret)
+			return dev_err_probe(&spi->dev, ret,
+				"Set internal reference command failed\n");
 	}
 
 	indio_dev->name = fwnode_get_name(dev_fwnode(&spi->dev)) ?: spi_get_device_id(spi)->name;
@@ -369,18 +350,7 @@ static int ltc2632_probe(struct spi_device *spi)
 	indio_dev->channels = chip_info->channels;
 	indio_dev->num_channels = chip_info->num_channels;
 
-	return iio_device_register(indio_dev);
-}
-
-static void ltc2632_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ltc2632_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	if (st->vref_reg)
-		regulator_disable(st->vref_reg);
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id ltc2632_id[] = {
@@ -472,7 +442,6 @@ static struct spi_driver ltc2632_driver = {
 		.of_match_table = ltc2632_of_match,
 	},
 	.probe		= ltc2632_probe,
-	.remove		= ltc2632_remove,
 	.id_table	= ltc2632_id,
 };
 module_spi_driver(ltc2632_driver);

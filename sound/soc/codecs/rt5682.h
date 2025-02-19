@@ -22,6 +22,7 @@
 
 /* Info */
 #define RT5682_RESET				0x0000
+#define RT5682_INT_DEVICE_ID			0x00f9
 #define RT5682_VERSION_ID			0x00fd
 #define RT5682_VENDOR_ID			0x00fe
 #define RT5682_DEVICE_ID			0x00ff
@@ -1446,6 +1447,7 @@ struct rt5682_priv {
 	bool hw_init;
 	bool first_hw_init;
 	bool is_sdw;
+	bool ve_ic;
 
 #ifdef CONFIG_COMMON_CLK
 	struct clk_hw dai_clks_hw[RT5682_DAI_NUM_CLKS];

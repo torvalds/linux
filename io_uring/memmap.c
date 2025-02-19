@@ -170,8 +170,8 @@ static int io_region_allocate_pages(struct io_ring_ctx *ctx,
 		goto done;
 	}
 
-	nr_allocated = alloc_pages_bulk_array_node(gfp, NUMA_NO_NODE,
-						   mr->nr_pages, pages);
+	nr_allocated = alloc_pages_bulk_node(gfp, NUMA_NO_NODE,
+					     mr->nr_pages, pages);
 	if (nr_allocated != mr->nr_pages) {
 		if (nr_allocated)
 			release_pages(pages, nr_allocated);

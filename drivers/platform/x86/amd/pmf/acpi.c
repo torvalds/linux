@@ -321,17 +321,29 @@ int apmf_get_sbios_requests(struct amd_pmf_dev *pdev, struct apmf_sbios_req *req
 									 req, sizeof(*req));
 }
 
+static void apmf_event_handler_v2(acpi_handle handle, u32 event, void *data)
+{
+	struct amd_pmf_dev *pmf_dev = data;
+	int ret;
+
+	guard(mutex)(&pmf_dev->cb_mutex);
+
+	ret = apmf_get_sbios_requests_v2(pmf_dev, &pmf_dev->req);
+	if (ret)
+		dev_err(pmf_dev->dev, "Failed to get v2 SBIOS requests: %d\n", ret);
+}
+
 static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 {
 	struct amd_pmf_dev *pmf_dev = data;
 	struct apmf_sbios_req req;
 	int ret;
 
-	mutex_lock(&pmf_dev->update_mutex);
+	guard(mutex)(&pmf_dev->update_mutex);
 	ret = apmf_get_sbios_requests(pmf_dev, &req);
 	if (ret) {
 		dev_err(pmf_dev->dev, "Failed to get SBIOS requests:%d\n", ret);
-		goto out;
+		return;
 	}
 
 	if (req.pending_req & BIT(APMF_AMT_NOTIFICATION)) {
@@ -353,8 +365,6 @@ static void apmf_event_handler(acpi_handle handle, u32 event, void *data)
 		if (pmf_dev->amt_enabled)
 			amd_pmf_update_2_cql(pmf_dev, req.cql_event);
 	}
-out:
-	mutex_unlock(&pmf_dev->update_mutex);
 }
 
 static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
@@ -430,6 +440,15 @@ int apmf_install_handler(struct amd_pmf_dev *pmf_dev)
 		apmf_event_handler(ahandle, 0, pmf_dev);
 	}
 
+	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2) {
+		status = acpi_install_notify_handler(ahandle, ACPI_ALL_NOTIFY,
+						     apmf_event_handler_v2, pmf_dev);
+		if (ACPI_FAILURE(status)) {
+			dev_err(pmf_dev->dev, "failed to install notify handler for custom BIOS inputs\n");
+			return -ENODEV;
+		}
+	}
+
 	return 0;
 }
 
@@ -480,6 +499,9 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
 	    is_apmf_func_supported(pmf_dev, APMF_FUNC_SBIOS_REQUESTS))
 		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler);
+
+	if (pmf_dev->smart_pc_enabled && pmf_dev->pmf_if_version == PMF_IF_V2)
+		acpi_remove_notify_handler(ahandle, ACPI_ALL_NOTIFY, apmf_event_handler_v2);
 }
 
 int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)

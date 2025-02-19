@@ -2239,8 +2239,6 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	if (unlikely(ret))
 		return bkey_s_c_err(ret);
 
-	btree_path_set_should_be_locked(trans, trans->paths + iter->key_cache_path);
-
 	k = bch2_btree_path_peek_slot(trans->paths + iter->key_cache_path, &u);
 	if (!k.k)
 		return k;
@@ -2251,6 +2249,7 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 
 	iter->k = u;
 	k.k = &iter->k;
+	btree_path_set_should_be_locked(trans, trans->paths + iter->key_cache_path);
 	return k;
 }
 

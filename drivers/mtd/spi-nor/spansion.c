@@ -958,6 +958,11 @@ static const struct flash_info spansion_nor_parts[] = {
 		.mfr_flags = USE_CLPEF,
 		.fixups = &s25hx_t_fixups
 	}, {
+		/* S28HL256T */
+		.id = SNOR_ID(0x34, 0x5a, 0x19),
+		.mfr_flags = USE_CLPEF,
+		.fixups = &s28hx_t_fixups,
+	}, {
 		.id = SNOR_ID(0x34, 0x5a, 0x1a),
 		.name = "s28hl512t",
 		.mfr_flags = USE_CLPEF,
@@ -965,6 +970,11 @@ static const struct flash_info spansion_nor_parts[] = {
 	}, {
 		.id = SNOR_ID(0x34, 0x5a, 0x1b),
 		.name = "s28hl01gt",
+		.mfr_flags = USE_CLPEF,
+		.fixups = &s28hx_t_fixups,
+	}, {
+		/* S28HL02GT */
+		.id = SNOR_ID(0x34, 0x5a, 0x1c),
 		.mfr_flags = USE_CLPEF,
 		.fixups = &s28hx_t_fixups,
 	}, {

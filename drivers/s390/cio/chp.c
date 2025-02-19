@@ -128,7 +128,7 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
  * Channel measurement related functions
  */
 static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *bin_attr,
+				      const struct bin_attribute *bin_attr,
 				      char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
@@ -142,11 +142,11 @@ static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, &chp->cmg_chars,
 				       sizeof(chp->cmg_chars));
 }
-static BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
+static const BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
 
 static ssize_t measurement_chars_full_read(struct file *filp,
 					   struct kobject *kobj,
-					   struct bin_attribute *bin_attr,
+					   const struct bin_attribute *bin_attr,
 					   char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
@@ -196,22 +196,22 @@ static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
 }
 
 static ssize_t measurement_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
+				const struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
 	return chp_measurement_copy_block(buf, off, count, kobj, false);
 }
-static BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
+static const BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
 
 static ssize_t ext_measurement_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
+				    const struct bin_attribute *bin_attr,
 				    char *buf, loff_t off, size_t count)
 {
 	return chp_measurement_copy_block(buf, off, count, kobj, true);
 }
-static BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
+static const BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
 
-static struct bin_attribute *measurement_attrs[] = {
+static const struct bin_attribute *measurement_attrs[] = {
 	&bin_attr_measurement_chars,
 	&bin_attr_measurement_chars_full,
 	&bin_attr_measurement,
@@ -435,7 +435,7 @@ static ssize_t speed_bps_show(struct device *dev,
 static DEVICE_ATTR_RO(speed_bps);
 
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *attr, char *buf,
+				const struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
 {
 	struct channel_path *chp = to_channelpath(kobj_to_dev(kobj));
@@ -448,10 +448,10 @@ static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 
 	return rc;
 }
-static BIN_ATTR_RO(util_string,
-		   sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
+static const BIN_ATTR_RO(util_string,
+			 sizeof(((struct channel_path_desc_fmt3 *)0)->util_str));
 
-static struct bin_attribute *chp_bin_attrs[] = {
+static const struct bin_attribute *const chp_bin_attrs[] = {
 	&bin_attr_util_string,
 	NULL,
 };
@@ -468,9 +468,9 @@ static struct attribute *chp_attrs[] = {
 	&dev_attr_speed_bps.attr,
 	NULL,
 };
-static struct attribute_group chp_attr_group = {
+static const struct attribute_group chp_attr_group = {
 	.attrs = chp_attrs,
-	.bin_attrs = chp_bin_attrs,
+	.bin_attrs_new = chp_bin_attrs,
 };
 static const struct attribute_group *chp_attr_groups[] = {
 	&chp_attr_group,

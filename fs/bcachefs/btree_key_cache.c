@@ -291,8 +291,10 @@ static noinline int btree_key_cache_fill(struct btree_trans *trans,
 					 struct btree_path *ck_path,
 					 unsigned flags)
 {
-	if (flags & BTREE_ITER_cached_nofill)
+	if (flags & BTREE_ITER_cached_nofill) {
+		ck_path->l[0].b = NULL;
 		return 0;
+	}
 
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
@@ -746,7 +748,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 				rcu_read_unlock();
 				mutex_lock(&bc->table.mutex);
 				mutex_unlock(&bc->table.mutex);
-				rcu_read_lock();
 				continue;
 			}
 			for (i = 0; i < tbl->size; i++)

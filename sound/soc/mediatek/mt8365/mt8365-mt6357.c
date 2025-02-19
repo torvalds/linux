@@ -6,12 +6,19 @@
  * Authors: Nicolas Belin <nbelin@baylibre.com>
  */
 
+#include <linux/array_size.h>
+#include <linux/dev_printk.h>
+#include <linux/err.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
+
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+
 #include "mt8365-afe-common.h"
-#include <linux/pinctrl/consumer.h>
 #include "../common/mtk-soc-card.h"
 #include "../common/mtk-soundcard-driver.h"
 

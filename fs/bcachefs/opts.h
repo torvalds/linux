@@ -476,13 +476,13 @@ enum fsck_err_opts {
 	  NULL,		"Enable nocow mode: enables runtime locking in\n"\
 			"data move path needed if nocow will ever be in use\n")\
 	x(copygc_enabled,		u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,			true,			\
 	  NULL,		"Enable copygc: disable for debugging, or to\n"\
 			"quiet the system when doing performance testing\n")\
 	x(rebalance_enabled,		u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,			true,			\
 	  NULL,		"Enable rebalance: disable for debugging, or to\n"\
@@ -658,19 +658,5 @@ static inline void bch2_io_opts_fixups(struct bch_io_opts *opts)
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);
-
-/* rebalance opts: */
-
-static inline struct bch_extent_rebalance io_opts_to_rebalance_opts(struct bch_io_opts *opts)
-{
-	return (struct bch_extent_rebalance) {
-		.type = BIT(BCH_EXTENT_ENTRY_rebalance),
-#define x(_name)							\
-		._name = opts->_name,					\
-		._name##_from_inode = opts->_name##_from_inode,
-		BCH_REBALANCE_OPTS()
-#undef x
-	};
-};
 
 #endif /* _BCACHEFS_OPTS_H */

@@ -4,6 +4,8 @@
 Min Heap API
 ============
 
+:Author: Kuan-Wei Chiu <visitorckw@gmail.com>
+
 Introduction
 ============
 

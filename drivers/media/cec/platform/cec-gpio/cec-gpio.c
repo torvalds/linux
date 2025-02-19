@@ -3,11 +3,12 @@
  * Copyright 2017 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 
-#include <linux/module.h>
-#include <linux/interrupt.h>
 #include <linux/delay.h>
-#include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/seq_file.h>
 #include <media/cec-notifier.h>
 #include <media/cec-pin.h>
 

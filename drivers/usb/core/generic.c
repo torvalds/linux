@@ -21,13 +21,9 @@
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/string_choices.h>
 #include <uapi/linux/usb/audio.h>
 #include "usb.h"
-
-static inline const char *plural(int n)
-{
-	return (n == 1 ? "" : "s");
-}
 
 static int is_rndis(struct usb_interface_descriptor *desc)
 {
@@ -194,18 +190,18 @@ int usb_choose_configuration(struct usb_device *udev)
 	if (insufficient_power > 0)
 		dev_info(&udev->dev, "rejected %d configuration%s "
 			"due to insufficient available bus power\n",
-			insufficient_power, plural(insufficient_power));
+			insufficient_power, str_plural(insufficient_power));
 
 	if (best) {
 		i = best->desc.bConfigurationValue;
 		dev_dbg(&udev->dev,
 			"configuration #%d chosen from %d choice%s\n",
-			i, num_configs, plural(num_configs));
+			i, num_configs, str_plural(num_configs));
 	} else {
 		i = -1;
 		dev_warn(&udev->dev,
 			"no configuration chosen from %d choice%s\n",
-			num_configs, plural(num_configs));
+			num_configs, str_plural(num_configs));
 	}
 	return i;
 }
