@@ -988,8 +988,8 @@ err_out:
 
 static void macb_update_stats(struct macb *bp)
 {
-	u32 *p = &bp->hw_stats.macb.rx_pause_frames;
-	u32 *end = &bp->hw_stats.macb.tx_pause_frames + 1;
+	u64 *p = &bp->hw_stats.macb.rx_pause_frames;
+	u64 *end = &bp->hw_stats.macb.tx_pause_frames + 1;
 	int offset = MACB_PFR;
 
 	WARN_ON((unsigned long)(end - p - 1) != (MACB_TPF - MACB_PFR) / 4);
@@ -3069,7 +3069,7 @@ static void gem_update_stats(struct macb *bp)
 	unsigned int i, q, idx;
 	unsigned long *stat;
 
-	u32 *p = &bp->hw_stats.gem.tx_octets_31_0;
+	u64 *p = &bp->hw_stats.gem.tx_octets;
 
 	for (i = 0; i < GEM_STATS_LEN; ++i, ++p) {
 		u32 offset = gem_statistics[i].offset;
@@ -3082,7 +3082,7 @@ static void gem_update_stats(struct macb *bp)
 			/* Add GEM_OCTTXH, GEM_OCTRXH */
 			val = bp->macb_reg_readl(bp, offset + 4);
 			bp->ethtool_stats[i] += ((u64)val) << 32;
-			*(++p) += val;
+			*(p++) += ((u64)val) << 32;
 		}
 	}
 
@@ -3092,15 +3092,12 @@ static void gem_update_stats(struct macb *bp)
 			bp->ethtool_stats[idx++] = *stat;
 }
 
-static struct net_device_stats *gem_get_stats(struct macb *bp)
+static void gem_get_stats(struct macb *bp, struct rtnl_link_stats64 *nstat)
 {
 	struct gem_stats *hwstat = &bp->hw_stats.gem;
-	struct net_device_stats *nstat = &bp->dev->stats;
 
-	if (!netif_running(bp->dev))
-		return nstat;
-
-	gem_update_stats(bp);
+	if (netif_running(bp->dev))
+		gem_update_stats(bp);
 
 	nstat->rx_errors = (hwstat->rx_frame_check_sequence_errors +
 			    hwstat->rx_alignment_errors +
@@ -3129,8 +3126,6 @@ static struct net_device_stats *gem_get_stats(struct macb *bp)
 	nstat->tx_aborted_errors = hwstat->tx_excessive_collisions;
 	nstat->tx_carrier_errors = hwstat->tx_carrier_sense_errors;
 	nstat->tx_fifo_errors = hwstat->tx_underrun;
-
-	return nstat;
 }
 
 static void gem_get_ethtool_stats(struct net_device *dev,
@@ -3181,14 +3176,17 @@ static void gem_get_ethtool_strings(struct net_device *dev, u32 sset, u8 *p)
 	}
 }
 
-static struct net_device_stats *macb_get_stats(struct net_device *dev)
+static void macb_get_stats(struct net_device *dev,
+			   struct rtnl_link_stats64 *nstat)
 {
 	struct macb *bp = netdev_priv(dev);
-	struct net_device_stats *nstat = &bp->dev->stats;
 	struct macb_stats *hwstat = &bp->hw_stats.macb;
 
-	if (macb_is_gem(bp))
-		return gem_get_stats(bp);
+	netdev_stats_to_stats64(nstat, &bp->dev->stats);
+	if (macb_is_gem(bp)) {
+		gem_get_stats(bp, nstat);
+		return;
+	}
 
 	/* read stats from hardware */
 	macb_update_stats(bp);
@@ -3224,8 +3222,154 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 	nstat->tx_carrier_errors = hwstat->tx_carrier_errors;
 	nstat->tx_fifo_errors = hwstat->tx_underruns;
 	/* Don't know about heartbeat or window errors... */
+}
 
-	return nstat;
+static void macb_get_pause_stats(struct net_device *dev,
+				 struct ethtool_pause_stats *pause_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	macb_update_stats(bp);
+	pause_stats->tx_pause_frames = hwstat->tx_pause_frames;
+	pause_stats->rx_pause_frames = hwstat->rx_pause_frames;
+}
+
+static void gem_get_pause_stats(struct net_device *dev,
+				struct ethtool_pause_stats *pause_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+
+	gem_update_stats(bp);
+	pause_stats->tx_pause_frames = hwstat->tx_pause_frames;
+	pause_stats->rx_pause_frames = hwstat->rx_pause_frames;
+}
+
+static void macb_get_eth_mac_stats(struct net_device *dev,
+				   struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	macb_update_stats(bp);
+	mac_stats->FramesTransmittedOK = hwstat->tx_ok;
+	mac_stats->SingleCollisionFrames = hwstat->tx_single_cols;
+	mac_stats->MultipleCollisionFrames = hwstat->tx_multiple_cols;
+	mac_stats->FramesReceivedOK = hwstat->rx_ok;
+	mac_stats->FrameCheckSequenceErrors = hwstat->rx_fcs_errors;
+	mac_stats->AlignmentErrors = hwstat->rx_align_errors;
+	mac_stats->FramesWithDeferredXmissions = hwstat->tx_deferred;
+	mac_stats->LateCollisions = hwstat->tx_late_cols;
+	mac_stats->FramesAbortedDueToXSColls = hwstat->tx_excessive_cols;
+	mac_stats->FramesLostDueToIntMACXmitError = hwstat->tx_underruns;
+	mac_stats->CarrierSenseErrors = hwstat->tx_carrier_errors;
+	mac_stats->FramesLostDueToIntMACRcvError = hwstat->rx_overruns;
+	mac_stats->InRangeLengthErrors = hwstat->rx_length_mismatch;
+	mac_stats->FrameTooLongErrors = hwstat->rx_oversize_pkts;
+}
+
+static void gem_get_eth_mac_stats(struct net_device *dev,
+				  struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+
+	gem_update_stats(bp);
+	mac_stats->FramesTransmittedOK = hwstat->tx_frames;
+	mac_stats->SingleCollisionFrames = hwstat->tx_single_collision_frames;
+	mac_stats->MultipleCollisionFrames =
+		hwstat->tx_multiple_collision_frames;
+	mac_stats->FramesReceivedOK = hwstat->rx_frames;
+	mac_stats->FrameCheckSequenceErrors =
+		hwstat->rx_frame_check_sequence_errors;
+	mac_stats->AlignmentErrors = hwstat->rx_alignment_errors;
+	mac_stats->OctetsTransmittedOK = hwstat->tx_octets;
+	mac_stats->FramesWithDeferredXmissions = hwstat->tx_deferred_frames;
+	mac_stats->LateCollisions = hwstat->tx_late_collisions;
+	mac_stats->FramesAbortedDueToXSColls = hwstat->tx_excessive_collisions;
+	mac_stats->FramesLostDueToIntMACXmitError = hwstat->tx_underrun;
+	mac_stats->CarrierSenseErrors = hwstat->tx_carrier_sense_errors;
+	mac_stats->OctetsReceivedOK = hwstat->rx_octets;
+	mac_stats->MulticastFramesXmittedOK = hwstat->tx_multicast_frames;
+	mac_stats->BroadcastFramesXmittedOK = hwstat->tx_broadcast_frames;
+	mac_stats->MulticastFramesReceivedOK = hwstat->rx_multicast_frames;
+	mac_stats->BroadcastFramesReceivedOK = hwstat->rx_broadcast_frames;
+	mac_stats->InRangeLengthErrors = hwstat->rx_length_field_frame_errors;
+	mac_stats->FrameTooLongErrors = hwstat->rx_oversize_frames;
+}
+
+/* TODO: Report SQE test errors when added to phy_stats */
+static void macb_get_eth_phy_stats(struct net_device *dev,
+				   struct ethtool_eth_phy_stats *phy_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	macb_update_stats(bp);
+	phy_stats->SymbolErrorDuringCarrier = hwstat->rx_symbol_errors;
+}
+
+static void gem_get_eth_phy_stats(struct net_device *dev,
+				  struct ethtool_eth_phy_stats *phy_stats)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+
+	gem_update_stats(bp);
+	phy_stats->SymbolErrorDuringCarrier = hwstat->rx_symbol_errors;
+}
+
+static void macb_get_rmon_stats(struct net_device *dev,
+				struct ethtool_rmon_stats *rmon_stats,
+				const struct ethtool_rmon_hist_range **ranges)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct macb_stats *hwstat = &bp->hw_stats.macb;
+
+	macb_update_stats(bp);
+	rmon_stats->undersize_pkts = hwstat->rx_undersize_pkts;
+	rmon_stats->oversize_pkts = hwstat->rx_oversize_pkts;
+	rmon_stats->jabbers = hwstat->rx_jabbers;
+}
+
+static const struct ethtool_rmon_hist_range gem_rmon_ranges[] = {
+	{   64,    64 },
+	{   65,   127 },
+	{  128,   255 },
+	{  256,   511 },
+	{  512,  1023 },
+	{ 1024,  1518 },
+	{ 1519, 16384 },
+	{ },
+};
+
+static void gem_get_rmon_stats(struct net_device *dev,
+			       struct ethtool_rmon_stats *rmon_stats,
+			       const struct ethtool_rmon_hist_range **ranges)
+{
+	struct macb *bp = netdev_priv(dev);
+	struct gem_stats *hwstat = &bp->hw_stats.gem;
+
+	gem_update_stats(bp);
+	rmon_stats->undersize_pkts = hwstat->rx_undersized_frames;
+	rmon_stats->oversize_pkts = hwstat->rx_oversize_frames;
+	rmon_stats->jabbers = hwstat->rx_jabbers;
+	rmon_stats->hist[0] = hwstat->rx_64_byte_frames;
+	rmon_stats->hist[1] = hwstat->rx_65_127_byte_frames;
+	rmon_stats->hist[2] = hwstat->rx_128_255_byte_frames;
+	rmon_stats->hist[3] = hwstat->rx_256_511_byte_frames;
+	rmon_stats->hist[4] = hwstat->rx_512_1023_byte_frames;
+	rmon_stats->hist[5] = hwstat->rx_1024_1518_byte_frames;
+	rmon_stats->hist[6] = hwstat->rx_greater_than_1518_byte_frames;
+	rmon_stats->hist_tx[0] = hwstat->tx_64_byte_frames;
+	rmon_stats->hist_tx[1] = hwstat->tx_65_127_byte_frames;
+	rmon_stats->hist_tx[2] = hwstat->tx_128_255_byte_frames;
+	rmon_stats->hist_tx[3] = hwstat->tx_256_511_byte_frames;
+	rmon_stats->hist_tx[4] = hwstat->tx_512_1023_byte_frames;
+	rmon_stats->hist_tx[5] = hwstat->tx_1024_1518_byte_frames;
+	rmon_stats->hist_tx[6] = hwstat->tx_greater_than_1518_byte_frames;
+	*ranges = gem_rmon_ranges;
 }
 
 static int macb_get_regs_len(struct net_device *netdev)
@@ -3754,6 +3898,10 @@ static const struct ethtool_ops macb_ethtool_ops = {
 	.get_regs		= macb_get_regs,
 	.get_link		= ethtool_op_get_link,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_pause_stats	= macb_get_pause_stats,
+	.get_eth_mac_stats	= macb_get_eth_mac_stats,
+	.get_eth_phy_stats	= macb_get_eth_phy_stats,
+	.get_rmon_stats		= macb_get_rmon_stats,
 	.get_wol		= macb_get_wol,
 	.set_wol		= macb_set_wol,
 	.get_link_ksettings     = macb_get_link_ksettings,
@@ -3772,6 +3920,10 @@ static const struct ethtool_ops gem_ethtool_ops = {
 	.get_ethtool_stats	= gem_get_ethtool_stats,
 	.get_strings		= gem_get_ethtool_strings,
 	.get_sset_count		= gem_get_sset_count,
+	.get_pause_stats	= gem_get_pause_stats,
+	.get_eth_mac_stats	= gem_get_eth_mac_stats,
+	.get_eth_phy_stats	= gem_get_eth_phy_stats,
+	.get_rmon_stats		= gem_get_rmon_stats,
 	.get_link_ksettings     = macb_get_link_ksettings,
 	.set_link_ksettings     = macb_set_link_ksettings,
 	.get_ringparam		= macb_get_ringparam,
@@ -3908,7 +4060,7 @@ static const struct net_device_ops macb_netdev_ops = {
 	.ndo_stop		= macb_close,
 	.ndo_start_xmit		= macb_start_xmit,
 	.ndo_set_rx_mode	= macb_set_rx_mode,
-	.ndo_get_stats		= macb_get_stats,
+	.ndo_get_stats64	= macb_get_stats,
 	.ndo_eth_ioctl		= macb_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= macb_change_mtu,
@@ -4569,7 +4721,7 @@ static const struct net_device_ops at91ether_netdev_ops = {
 	.ndo_open		= at91ether_open,
 	.ndo_stop		= at91ether_close,
 	.ndo_start_xmit		= at91ether_start_xmit,
-	.ndo_get_stats		= macb_get_stats,
+	.ndo_get_stats64	= macb_get_stats,
 	.ndo_set_rx_mode	= macb_set_rx_mode,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_eth_ioctl		= macb_ioctl,
