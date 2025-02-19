@@ -1831,8 +1831,15 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 			__func__, ret);
 		goto err;
 	}
-	if (!ret)
+	if (!ret) {
 		msm_dsi->te_source = devm_kstrdup(dev, te_source, GFP_KERNEL);
+		if (!msm_dsi->te_source) {
+			DRM_DEV_ERROR(dev, "%s: failed to allocate te_source\n",
+				__func__);
+			ret = -ENOMEM;
+			goto err;
+		}
+	}
 	ret = 0;
 
 	if (of_property_present(np, "syscon-sfpb")) {
