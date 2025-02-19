@@ -24,7 +24,7 @@ else
 pahole-flags-$(call test-ge, $(pahole-ver), 126)  = -j$(JOBS) --btf_features=encode_force,var,float,enum64,decl_tag,type_tag,optimized_func,consistent_func,decl_tag_kfuncs
 
 ifneq ($(KBUILD_EXTMOD),)
-module-pahole-flags-$(call test-ge, $(pahole-ver), 126) += --btf_features=distilled_base
+module-pahole-flags-$(call test-ge, $(pahole-ver), 128) += --btf_features=distilled_base
 endif
 
 endif
