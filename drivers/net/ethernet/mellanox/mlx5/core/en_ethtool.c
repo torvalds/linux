@@ -1344,13 +1344,6 @@ static bool ext_link_mode_requested(const unsigned long *adver)
 	return bitmap_intersects(modes, adver, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
-static bool ext_requested(u8 autoneg, const unsigned long *adver, bool ext_supported)
-{
-	bool ext_link_mode = ext_link_mode_requested(adver);
-
-	return  autoneg == AUTONEG_ENABLE ? ext_link_mode : ext_supported;
-}
-
 static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 					    const struct ethtool_link_ksettings *link_ksettings)
 {
@@ -1360,6 +1353,7 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	bool an_changes = false;
 	u8 an_disable_admin;
 	bool ext_supported;
+	bool ext_requested;
 	u8 an_disable_cap;
 	bool an_disable;
 	u32 link_modes;
@@ -1376,10 +1370,11 @@ static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
 	speed = link_ksettings->base.speed;
 
 	ext_supported = mlx5_ptys_ext_supported(mdev);
-	ext = ext_requested(autoneg, adver, ext_supported);
-	if (!ext_supported && ext)
+	ext_requested = ext_link_mode_requested(adver);
+	if (!ext_supported && ext_requested)
 		return -EOPNOTSUPP;
 
+	ext = autoneg == AUTONEG_ENABLE ? ext_requested : ext_supported;
 	ethtool2ptys_adver_func = ext ? mlx5e_ethtool2ptys_ext_adver_link :
 				  mlx5e_ethtool2ptys_adver_link;
 	err = mlx5_port_query_eth_proto(mdev, 1, ext, &eproto);
