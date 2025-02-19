@@ -538,6 +538,9 @@ static int amdgpu_cper_ring_init(struct amdgpu_device *adev)
 
 int amdgpu_cper_init(struct amdgpu_device *adev)
 {
+	if (!amdgpu_aca_is_enabled(adev))
+		return 0;
+
 	mutex_init(&adev->cper.cper_lock);
 
 	adev->cper.enabled = true;
@@ -548,6 +551,9 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 
 int amdgpu_cper_fini(struct amdgpu_device *adev)
 {
+	if (!amdgpu_aca_is_enabled(adev))
+		return 0;
+
 	adev->cper.enabled = false;
 
 	amdgpu_ring_fini(&(adev->cper.ring_buf));

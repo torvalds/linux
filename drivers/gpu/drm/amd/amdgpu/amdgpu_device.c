@@ -3091,8 +3091,7 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	amdgpu_fru_get_product_info(adev);
 
-	if (amdgpu_aca_is_enabled(adev))
-		r = amdgpu_cper_init(adev);
+	r = amdgpu_cper_init(adev);
 
 init_failed:
 
@@ -3454,8 +3453,7 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 {
 	int i, r;
 
-	if (amdgpu_aca_is_enabled(adev))
-		amdgpu_cper_fini(adev);
+	amdgpu_cper_fini(adev);
 
 	if (amdgpu_sriov_vf(adev) && adev->virt.ras_init_done)
 		amdgpu_virt_release_ras_err_handler_data(adev);
