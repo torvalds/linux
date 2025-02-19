@@ -99,7 +99,6 @@ config DRM_AMDGPU_WERROR
 config DRM_AMDGPU_NAVI3X_USERQ
 	bool "Enable amdgpu usermode queues"
 	depends on DRM_AMDGPU
-	depends on BROKEN
 	default n
 	help
 	  Choose this option to enable GFX usermode queue support for GFX/SDMA/Compute
