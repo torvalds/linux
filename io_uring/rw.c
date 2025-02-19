@@ -23,6 +23,9 @@
 #include "poll.h"
 #include "rw.h"
 
+static void io_complete_rw(struct kiocb *kiocb, long res);
+static void io_complete_rw_iopoll(struct kiocb *kiocb, long res);
+
 struct io_rw {
 	/* NOTE: kiocb has the file as the first member, so don't do it here */
 	struct kiocb			kiocb;
@@ -288,6 +291,11 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	}
 	rw->kiocb.dio_complete = NULL;
 	rw->kiocb.ki_flags = 0;
+
+	if (req->ctx->flags & IORING_SETUP_IOPOLL)
+		rw->kiocb.ki_complete = io_complete_rw_iopoll;
+	else
+		rw->kiocb.ki_complete = io_complete_rw;
 
 	rw->addr = READ_ONCE(sqe->addr);
 	rw->len = READ_ONCE(sqe->len);
@@ -817,10 +825,8 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 	if (ctx->flags & IORING_SETUP_IOPOLL) {
 		if (!(kiocb->ki_flags & IOCB_DIRECT) || !file->f_op->iopoll)
 			return -EOPNOTSUPP;
-
 		kiocb->private = NULL;
 		kiocb->ki_flags |= IOCB_HIPRI;
-		kiocb->ki_complete = io_complete_rw_iopoll;
 		req->iopoll_completed = 0;
 		if (ctx->flags & IORING_SETUP_HYBRID_IOPOLL) {
 			/* make sure every req only blocks once*/
@@ -830,7 +836,6 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode, int rw_type)
 	} else {
 		if (kiocb->ki_flags & IOCB_HIPRI)
 			return -EINVAL;
-		kiocb->ki_complete = io_complete_rw;
 	}
 
 	if (req->flags & REQ_F_HAS_METADATA) {
