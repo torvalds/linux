@@ -189,9 +189,8 @@ static int st1202_channel_set(struct st1202_chip *chip, int led_num, bool active
 static int st1202_led_set(struct led_classdev *ldev, enum led_brightness value)
 {
 	struct st1202_led *led = cdev_to_st1202_led(ldev);
-	struct st1202_chip *chip = led->chip;
 
-	return st1202_channel_set(chip, led->led_num, value == LED_OFF ? false : true);
+	return st1202_channel_set(led->chip, led->led_num, !!value);
 }
 
 static int st1202_led_pattern_clear(struct led_classdev *ldev)
