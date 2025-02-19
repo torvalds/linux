@@ -3214,8 +3214,10 @@ static int otx2_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+#ifdef CONFIG_DCB
 err_free_zc_bmap:
 	bitmap_free(pf->af_xdp_zc_qidx);
+#endif
 err_sriov_cleannup:
 	otx2_sriov_vfcfg_cleanup(pf);
 err_pf_sriov_init:

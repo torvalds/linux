@@ -737,8 +737,10 @@ static int otx2vf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+#ifdef CONFIG_DCB
 err_free_zc_bmap:
 	bitmap_free(vf->af_xdp_zc_qidx);
+#endif
 err_unreg_devlink:
 	otx2_unregister_dl(vf);
 err_shutdown_tc:
