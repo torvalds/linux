@@ -7,6 +7,7 @@ Industrial I/O
 .. toctree::
    :maxdepth: 1
 
+   iio_adc
    iio_configfs
    iio_devbuf
    iio_dmabuf_api
