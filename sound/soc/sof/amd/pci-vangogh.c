@@ -27,7 +27,6 @@
 
 static const struct sof_amd_acp_desc vangogh_chip_info = {
 	.name		= "vangogh",
-	.host_bridge_id = HOST_BRIDGE_VGH,
 	.pgfsm_base	= ACP5X_PGFSM_BASE,
 	.ext_intr_stat	= ACP5X_EXT_INTR_STAT,
 	.dsp_intr_base	= ACP5X_DSP_SW_INTR_BASE,

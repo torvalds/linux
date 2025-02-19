@@ -345,24 +345,6 @@ int acp_deinit(struct acp_chip_info *chip)
 }
 EXPORT_SYMBOL_NS_GPL(acp_deinit, "SND_SOC_ACP_COMMON");
 
-int smn_write(struct pci_dev *dev, u32 smn_addr, u32 data)
-{
-	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_write_config_dword(dev, 0x64, data);
-	return 0;
-}
-EXPORT_SYMBOL_NS_GPL(smn_write, "SND_SOC_ACP_COMMON");
-
-int smn_read(struct pci_dev *dev, u32 smn_addr)
-{
-	u32 data;
-
-	pci_write_config_dword(dev, 0x60, smn_addr);
-	pci_read_config_dword(dev, 0x64, &data);
-	return data;
-}
-EXPORT_SYMBOL_NS_GPL(smn_read, "SND_SOC_ACP_COMMON");
-
 static void check_acp3x_config(struct acp_chip_info *chip)
 {
 	u32 val;
