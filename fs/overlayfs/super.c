@@ -1305,6 +1305,7 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 	struct ovl_fs_context *ctx = fc->fs_private;
+	const struct cred *old_cred = NULL;
 	struct dentry *root_dentry;
 	struct ovl_entry *oe;
 	struct ovl_layer *layers;
@@ -1318,9 +1319,14 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_d_op = &ovl_dentry_operations;
 
 	err = -ENOMEM;
-	ofs->creator_cred = cred = prepare_creds();
+	if (!ofs->creator_cred)
+		ofs->creator_cred = cred = prepare_creds();
+	else
+		cred = (struct cred *)ofs->creator_cred;
 	if (!cred)
 		goto out_err;
+
+	old_cred = ovl_override_creds(sb);
 
 	err = ovl_fs_params_verify(ctx, &ofs->config);
 	if (err)
@@ -1481,11 +1487,19 @@ int ovl_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_root = root_dentry;
 
+	ovl_revert_creds(old_cred);
 	return 0;
 
 out_free_oe:
 	ovl_free_entry(oe);
 out_err:
+	/*
+	 * Revert creds before calling ovl_free_fs() which will call
+	 * put_cred() and put_cred() requires that the cred's that are
+	 * put are not the caller's creds, i.e., current->cred.
+	 */
+	if (old_cred)
+		ovl_revert_creds(old_cred);
 	ovl_free_fs(ofs);
 	sb->s_fs_info = NULL;
 	return err;
