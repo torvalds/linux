@@ -489,9 +489,9 @@ void io_shutdown_zcrx_ifqs(struct io_ring_ctx *ctx)
 {
 	lockdep_assert_held(&ctx->uring_lock);
 
-	if (ctx->ifq)
-		io_zcrx_scrub(ctx->ifq);
-
+	if (!ctx->ifq)
+		return;
+	io_zcrx_scrub(ctx->ifq);
 	io_close_queue(ctx->ifq);
 }
 
