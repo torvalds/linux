@@ -1,4 +1,5 @@
-iris-objs += iris_buffer.o \
+qcom-iris-objs += \
+	     iris_buffer.o \
              iris_core.o \
              iris_ctrls.o \
              iris_firmware.o \
@@ -24,7 +25,7 @@ iris-objs += iris_buffer.o \
              iris_vpu_common.o \
 
 ifeq ($(CONFIG_VIDEO_QCOM_VENUS),)
-iris-objs += iris_platform_sm8250.o
+qcom-iris-objs += iris_platform_sm8250.o
 endif
 
-obj-$(CONFIG_VIDEO_QCOM_IRIS) += iris.o
+obj-$(CONFIG_VIDEO_QCOM_IRIS) += qcom-iris.o
