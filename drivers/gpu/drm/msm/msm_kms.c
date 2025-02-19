@@ -168,7 +168,10 @@ static int msm_kms_fault_handler(void *arg, unsigned long iova, int flags, void 
 {
 	struct msm_kms *kms = arg;
 
-	msm_disp_snapshot_state(kms->dev);
+	if (atomic_read(&kms->fault_snapshot_capture) == 0) {
+		msm_disp_snapshot_state(kms->dev);
+		atomic_inc(&kms->fault_snapshot_capture);
+	}
 
 	return -ENOSYS;
 }
