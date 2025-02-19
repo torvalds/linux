@@ -3767,7 +3767,13 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 			       struct netlink_ext_ack *extack)
 {
 	unsigned char name_assign_type = NET_NAME_USER;
-	struct net *net = sock_net(skb->sk);
+	struct rtnl_newlink_params params = {
+		.src_net = sock_net(skb->sk),
+		.link_net = link_net,
+		.peer_net = peer_net,
+		.tb = tb,
+		.data = data,
+	};
 	u32 portid = NETLINK_CB(skb).portid;
 	struct net_device *dev;
 	char ifname[IFNAMSIZ];
@@ -3792,13 +3798,14 @@ static int rtnl_newlink_create(struct sk_buff *skb, struct ifinfomsg *ifm,
 
 	dev->ifindex = ifm->ifi_index;
 
+	params.net = params.src_net;
 	if (link_net)
-		net = link_net;
+		params.net = link_net;
 	if (peer_net)
-		net = peer_net;
+		params.net = peer_net;
 
 	if (ops->newlink)
-		err = ops->newlink(net, dev, tb, data, extack);
+		err = ops->newlink(dev, &params, extack);
 	else
 		err = register_netdevice(dev);
 	if (err < 0) {

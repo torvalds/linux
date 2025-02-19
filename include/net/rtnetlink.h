@@ -70,6 +70,25 @@ static inline int rtnl_msg_family(const struct nlmsghdr *nlh)
 }
 
 /**
+ * struct rtnl_newlink_params - parameters of rtnl_link_ops::newlink()
+ *
+ * @net: Netns of interest
+ * @src_net: Source netns of rtnetlink socket
+ * @link_net: Link netns by IFLA_LINK_NETNSID, NULL if not specified
+ * @peer_net: Peer netns
+ * @tb: IFLA_* attributes
+ * @data: IFLA_INFO_DATA attributes
+ */
+struct rtnl_newlink_params {
+	struct net *net;
+	struct net *src_net;
+	struct net *link_net;
+	struct net *peer_net;
+	struct nlattr **tb;
+	struct nlattr **data;
+};
+
+/**
  *	struct rtnl_link_ops - rtnetlink link operations
  *
  *	@list: Used internally, protected by link_ops_mutex and SRCU
@@ -125,10 +144,8 @@ struct rtnl_link_ops {
 					    struct nlattr *data[],
 					    struct netlink_ext_ack *extack);
 
-	int			(*newlink)(struct net *src_net,
-					   struct net_device *dev,
-					   struct nlattr *tb[],
-					   struct nlattr *data[],
+	int			(*newlink)(struct net_device *dev,
+					   struct rtnl_newlink_params *params,
 					   struct netlink_ext_ack *extack);
 	int			(*changelink)(struct net_device *dev,
 					      struct nlattr *tb[],
