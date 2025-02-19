@@ -38,8 +38,8 @@
 #define L2CAP_DEFAULT_TX_WINDOW		63
 #define L2CAP_DEFAULT_EXT_WINDOW	0x3FFF
 #define L2CAP_DEFAULT_MAX_TX		3
-#define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
-#define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
+#define L2CAP_DEFAULT_RETRANS_TO	2    /* seconds */
+#define L2CAP_DEFAULT_MONITOR_TO	12   /* seconds */
 #define L2CAP_DEFAULT_MAX_PDU_SIZE	1492    /* Sized for AMP packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_DEFAULT_MAX_SDU_SIZE	0xFFFF
