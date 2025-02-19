@@ -78,6 +78,21 @@
 #define BMI260_INIT_DATA_FILE "bmi260-init-data.fw"
 #define BMI270_INIT_DATA_FILE "bmi270-init-data.fw"
 
+struct bmi270_data {
+	struct device *dev;
+	struct regmap *regmap;
+	const struct bmi270_chip_info *chip_info;
+
+	/*
+	 * Where IIO_DMA_MINALIGN may be larger than 8 bytes, align to
+	 * that to ensure a DMA safe buffer.
+	 */
+	struct {
+		__le16 channels[6];
+		aligned_s64 timestamp;
+	} data __aligned(IIO_DMA_MINALIGN);
+};
+
 enum bmi270_scan {
 	BMI270_SCAN_ACCEL_X,
 	BMI270_SCAN_ACCEL_Y,
