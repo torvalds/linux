@@ -1476,6 +1476,12 @@ const struct tdx_sys_info *tdx_get_sysinfo(void)
 }
 EXPORT_SYMBOL_GPL(tdx_get_sysinfo);
 
+u32 tdx_get_nr_guest_keyids(void)
+{
+	return tdx_nr_guest_keyids;
+}
+EXPORT_SYMBOL_GPL(tdx_get_nr_guest_keyids);
+
 int tdx_guest_keyid_alloc(void)
 {
 	return ida_alloc_range(&tdx_guest_keyid_pool, tdx_guest_keyid_start,

@@ -21,6 +21,7 @@ enum kvm_tdx_state {
 struct kvm_tdx {
 	struct kvm kvm;
 
+	struct misc_cg *misc_cg;
 	int hkid;
 	enum kvm_tdx_state state;
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/cpu.h>
 #include <asm/cpufeature.h>
+#include <linux/misc_cgroup.h>
 #include <asm/tdx.h>
 #include "capabilities.h"
 #include "mmu.h"
@@ -140,6 +141,9 @@ static inline void tdx_hkid_free(struct kvm_tdx *kvm_tdx)
 	tdx_guest_keyid_free(kvm_tdx->hkid);
 	kvm_tdx->hkid = -1;
 	atomic_dec(&nr_configured_hkid);
+	misc_cg_uncharge(MISC_CG_RES_TDX, kvm_tdx->misc_cg, 1);
+	put_misc_cg(kvm_tdx->misc_cg);
+	kvm_tdx->misc_cg = NULL;
 }
 
 static inline bool is_hkid_assigned(struct kvm_tdx *kvm_tdx)
@@ -675,6 +679,10 @@ static int __tdx_td_init(struct kvm *kvm, struct td_params *td_params,
 	if (ret < 0)
 		return ret;
 	kvm_tdx->hkid = ret;
+	kvm_tdx->misc_cg = get_current_misc_cg();
+	ret = misc_cg_try_charge(MISC_CG_RES_TDX, kvm_tdx->misc_cg, 1);
+	if (ret)
+		goto free_hkid;
 
 	ret = -ENOMEM;
 
@@ -1459,6 +1467,11 @@ static int __init __tdx_bringup(void)
 		goto get_sysinfo_err;
 	}
 
+	if (misc_cg_set_capacity(MISC_CG_RES_TDX, tdx_get_nr_guest_keyids())) {
+		r = -EINVAL;
+		goto get_sysinfo_err;
+	}
+
 	/*
 	 * Leave hardware virtualization enabled after TDX is enabled
 	 * successfully.  TDX CPU hotplug depends on this.
@@ -1475,6 +1488,7 @@ tdx_bringup_err:
 void tdx_cleanup(void)
 {
 	if (enable_tdx) {
+		misc_cg_set_capacity(MISC_CG_RES_TDX, 0);
 		__tdx_cleanup();
 		kvm_disable_virtualization();
 	}
