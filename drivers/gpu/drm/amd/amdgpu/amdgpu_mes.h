@@ -56,7 +56,7 @@ enum amdgpu_mes_priority_level {
 
 struct amdgpu_mes_funcs;
 
-enum admgpu_mes_pipe {
+enum amdgpu_mes_pipe {
 	AMDGPU_MES_SCHED_PIPE = 0,
 	AMDGPU_MES_KIQ_PIPE,
 	AMDGPU_MAX_MES_PIPES = 2,
