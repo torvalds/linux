@@ -388,8 +388,9 @@ int io_register_zcrx_ifq(struct io_ring_ctx *ctx,
 		goto err;
 
 	ifq->dev = ifq->netdev->dev.parent;
+	ret = -EOPNOTSUPP;
 	if (!ifq->dev)
-		return -EOPNOTSUPP;
+		goto err;
 	get_device(ifq->dev);
 
 	ret = io_zcrx_map_area(ifq, ifq->area);
