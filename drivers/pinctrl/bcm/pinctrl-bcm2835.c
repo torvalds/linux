@@ -346,14 +346,14 @@ static int bcm2835_gpio_get_direction(struct gpio_chip *chip, unsigned int offse
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
 	enum bcm2835_fsel fsel = bcm2835_pinctrl_fsel_get(pc, offset);
 
-	/* Alternative function doesn't clearly provide a direction */
-	if (fsel > BCM2835_FSEL_GPIO_OUT)
-		return -EINVAL;
+	if (fsel == BCM2835_FSEL_GPIO_OUT)
+		return GPIO_LINE_DIRECTION_OUT;
 
-	if (fsel == BCM2835_FSEL_GPIO_IN)
-		return GPIO_LINE_DIRECTION_IN;
-
-	return GPIO_LINE_DIRECTION_OUT;
+	/*
+	 * Alternative function doesn't clearly provide a direction. Default
+	 * to INPUT.
+	 */
+	return GPIO_LINE_DIRECTION_IN;
 }
 
 static void bcm2835_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
