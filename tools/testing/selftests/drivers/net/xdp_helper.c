@@ -50,6 +50,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	/* "Probing mode", just checking if AF_XDP sockets are supported */
+	if (!strcmp(argv[1], "-") && !strcmp(argv[2], "-")) {
+		printf("AF_XDP support detected\n");
+		close(sock_fd);
+		return 0;
+	}
+
 	ifindex = atoi(argv[1]);
 	queue = atoi(argv[2]);
 

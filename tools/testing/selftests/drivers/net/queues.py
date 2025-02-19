@@ -25,6 +25,13 @@ def nl_get_queues(cfg, nl, qtype='rx'):
     return None
 
 def check_xdp(cfg, nl, xdp_queue_id=0) -> None:
+    # Probe for support
+    xdp = cmd(cfg.rpath("xdp_helper") + ' - -', fail=False)
+    if xdp.ret == 255:
+        raise KsftSkipEx('AF_XDP unsupported')
+    elif xdp.ret > 0:
+        raise KsftFailEx('unable to create AF_XDP socket')
+
     xdp = subprocess.Popen([cfg.rpath("xdp_helper"), f"{cfg.ifindex}", f"{xdp_queue_id}"],
                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1,
                            text=True)
@@ -32,11 +39,6 @@ def check_xdp(cfg, nl, xdp_queue_id=0) -> None:
 
     stdout, stderr = xdp.communicate(timeout=10)
     rx = tx = False
-
-    if xdp.returncode == 255:
-        raise KsftSkipEx('AF_XDP unsupported')
-    elif xdp.returncode > 0:
-        raise KsftFailEx('unable to create AF_XDP socket')
 
     queues = nl.queue_get({'ifindex': cfg.ifindex}, dump=True)
     if not queues:
