@@ -65,6 +65,7 @@ struct qcom_uefi_rtc_info {
  * @rtc_info:		qcom uefi rtc-info structure
  * @nvmem_cell:		nvmem cell for offset
  * @offset:		offset from epoch in seconds
+ * @offset_dirty:	offset needs to be stored on shutdown
  */
 struct pm8xxx_rtc {
 	struct rtc_device *rtc;
@@ -77,6 +78,7 @@ struct pm8xxx_rtc {
 	struct qcom_uefi_rtc_info rtc_info;
 	struct nvmem_cell *nvmem_cell;
 	u32 offset;
+	bool offset_dirty;
 };
 
 #ifdef CONFIG_EFI
@@ -256,6 +258,15 @@ static int pm8xxx_rtc_update_offset(struct pm8xxx_rtc *rtc_dd, u32 secs)
 	if (offset == rtc_dd->offset)
 		return 0;
 
+	/*
+	 * Reduce flash wear by deferring updates due to clock drift until
+	 * shutdown.
+	 */
+	if (abs_diff(offset, rtc_dd->offset) < 30) {
+		rtc_dd->offset_dirty = true;
+		goto out;
+	}
+
 	if (rtc_dd->nvmem_cell)
 		rc = pm8xxx_rtc_write_nvmem_offset(rtc_dd, offset);
 	else
@@ -264,6 +275,8 @@ static int pm8xxx_rtc_update_offset(struct pm8xxx_rtc *rtc_dd, u32 secs)
 	if (rc)
 		return rc;
 
+	rtc_dd->offset_dirty = false;
+out:
 	rtc_dd->offset = offset;
 
 	return 0;
@@ -634,8 +647,21 @@ static int pm8xxx_rtc_probe(struct platform_device *pdev)
 	return devm_rtc_register_device(rtc_dd->rtc);
 }
 
+static void pm8xxx_shutdown(struct platform_device *pdev)
+{
+	struct pm8xxx_rtc *rtc_dd = platform_get_drvdata(pdev);
+
+	if (rtc_dd->offset_dirty) {
+		if (rtc_dd->nvmem_cell)
+			pm8xxx_rtc_write_nvmem_offset(rtc_dd, rtc_dd->offset);
+		else
+			pm8xxx_rtc_write_uefi_offset(rtc_dd, rtc_dd->offset);
+	}
+}
+
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
+	.shutdown	= pm8xxx_shutdown,
 	.driver	= {
 		.name		= "rtc-pm8xxx",
 		.of_match_table	= pm8xxx_id_table,
