@@ -525,7 +525,7 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 		ent->fill_to_high_water = false;
 		if (ent->pending)
 			queue_delayed_work(ent->dev->cache.wq, &ent->dwork,
-					   msecs_to_jiffies(1000));
+					   secs_to_jiffies(1));
 		else
 			mod_delayed_work(ent->dev->cache.wq, &ent->dwork, 0);
 	}
@@ -576,7 +576,7 @@ static void __cache_work_func(struct mlx5_cache_ent *ent)
 					"add keys command failed, err %d\n",
 					err);
 				queue_delayed_work(cache->wq, &ent->dwork,
-						   msecs_to_jiffies(1000));
+						   secs_to_jiffies(1));
 			}
 		}
 	} else if (ent->mkeys_queue.ci > 2 * ent->limit) {
@@ -2051,7 +2051,7 @@ static int mlx5_revoke_mr(struct mlx5_ib_mr *mr)
 			ent->in_use--;
 		if (ent->is_tmp && !ent->tmp_cleanup_scheduled) {
 			mod_delayed_work(ent->dev->cache.wq, &ent->dwork,
-					 msecs_to_jiffies(30 * 1000));
+					 secs_to_jiffies(30));
 			ent->tmp_cleanup_scheduled = true;
 		}
 		spin_unlock_irq(&ent->mkeys_queue.lock);
