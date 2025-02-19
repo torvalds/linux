@@ -451,7 +451,7 @@ static struct page_info * __must_check find_page(struct vdo_page_cache *cache,
  * select_lru_page() - Determine which page is least recently used.
  *
  * Picks the least recently used from among the non-busy entries at the front of each of the lru
- * ring. Since whenever we mark a page busy we also put it to the end of the ring it is unlikely
+ * list. Since whenever we mark a page busy we also put it to the end of the list it is unlikely
  * that the entries at the front are busy unless the queue is very short, but not impossible.
  *
  * Return: A pointer to the info structure for a relevant page, or NULL if no such page can be

@@ -226,7 +226,7 @@ struct hash_lock {
 	 * A list containing the data VIOs sharing this lock, all having the same record name and
 	 * data block contents, linked by their hash_lock_node fields.
 	 */
-	struct list_head duplicate_ring;
+	struct list_head duplicate_vios;
 
 	/* The number of data_vios sharing this lock instance */
 	data_vio_count_t reference_count;
@@ -343,7 +343,7 @@ static void return_hash_lock_to_pool(struct hash_zone *zone, struct hash_lock *l
 {
 	memset(lock, 0, sizeof(*lock));
 	INIT_LIST_HEAD(&lock->pool_node);
-	INIT_LIST_HEAD(&lock->duplicate_ring);
+	INIT_LIST_HEAD(&lock->duplicate_vios);
 	vdo_waitq_init(&lock->waiters);
 	list_add_tail(&lock->pool_node, &zone->lock_pool);
 }
@@ -441,7 +441,7 @@ static void set_hash_lock(struct data_vio *data_vio, struct hash_lock *new_lock)
 		VDO_ASSERT_LOG_ONLY(data_vio->hash_zone != NULL,
 				    "must have a hash zone when holding a hash lock");
 		VDO_ASSERT_LOG_ONLY(!list_empty(&data_vio->hash_lock_entry),
-				    "must be on a hash lock ring when holding a hash lock");
+				    "must be on a hash lock list when holding a hash lock");
 		VDO_ASSERT_LOG_ONLY(old_lock->reference_count > 0,
 				    "hash lock reference must be counted");
 
@@ -464,10 +464,10 @@ static void set_hash_lock(struct data_vio *data_vio, struct hash_lock *new_lock)
 
 	if (new_lock != NULL) {
 		/*
-		 * Keep all data_vios sharing the lock on a ring since they can complete in any
+		 * Keep all data_vios sharing the lock on a list since they can complete in any
 		 * order and we'll always need a pointer to one to compare data.
 		 */
-		list_move_tail(&data_vio->hash_lock_entry, &new_lock->duplicate_ring);
+		list_move_tail(&data_vio->hash_lock_entry, &new_lock->duplicate_vios);
 		new_lock->reference_count += 1;
 		if (new_lock->max_references < new_lock->reference_count)
 			new_lock->max_references = new_lock->reference_count;
@@ -1789,10 +1789,10 @@ static bool is_hash_collision(struct hash_lock *lock, struct data_vio *candidate
 	struct hash_zone *zone;
 	bool collides;
 
-	if (list_empty(&lock->duplicate_ring))
+	if (list_empty(&lock->duplicate_vios))
 		return false;
 
-	lock_holder = list_first_entry(&lock->duplicate_ring, struct data_vio,
+	lock_holder = list_first_entry(&lock->duplicate_vios, struct data_vio,
 				       hash_lock_entry);
 	zone = candidate->hash_zone;
 	collides = !blocks_equal(lock_holder->vio.data, candidate->vio.data);
@@ -1815,7 +1815,7 @@ static inline int assert_hash_lock_preconditions(const struct data_vio *data_vio
 		return result;
 
 	result = VDO_ASSERT(list_empty(&data_vio->hash_lock_entry),
-			    "must not already be a member of a hash lock ring");
+			    "must not already be a member of a hash lock list");
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1942,8 +1942,8 @@ void vdo_release_hash_lock(struct data_vio *data_vio)
 			    "returned hash lock must not be in use with state %s",
 			    get_hash_lock_state_name(lock->state));
 	VDO_ASSERT_LOG_ONLY(list_empty(&lock->pool_node),
-			    "hash lock returned to zone must not be in a pool ring");
-	VDO_ASSERT_LOG_ONLY(list_empty(&lock->duplicate_ring),
+			    "hash lock returned to zone must not be in a pool list");
+	VDO_ASSERT_LOG_ONLY(list_empty(&lock->duplicate_vios),
 			    "hash lock returned to zone must not reference DataVIOs");
 
 	return_hash_lock_to_pool(zone, lock);

@@ -139,7 +139,7 @@ static bool is_slab_journal_blank(const struct vdo_slab *slab)
 }
 
 /**
- * mark_slab_journal_dirty() - Put a slab journal on the dirty ring of its allocator in the correct
+ * mark_slab_journal_dirty() - Put a slab journal on the dirty list of its allocator in the correct
  *                             order.
  * @journal: The journal to be marked dirty.
  * @lock: The recovery journal lock held by the slab journal.
@@ -821,7 +821,7 @@ static void commit_tail(struct slab_journal *journal)
 
 	/*
 	 * Since we are about to commit the tail block, this journal no longer needs to be on the
-	 * ring of journals which the recovery journal might ask to commit.
+	 * list of journals which the recovery journal might ask to commit.
 	 */
 	mark_slab_journal_clean(journal);
 
@@ -1371,7 +1371,7 @@ static unsigned int calculate_slab_priority(struct vdo_slab *slab)
 static void prioritize_slab(struct vdo_slab *slab)
 {
 	VDO_ASSERT_LOG_ONLY(list_empty(&slab->allocq_entry),
-			    "a slab must not already be on a ring when prioritizing");
+			    "a slab must not already be on a list when prioritizing");
 	slab->priority = calculate_slab_priority(slab);
 	vdo_priority_table_enqueue(slab->allocator->prioritized_slabs,
 				   slab->priority, &slab->allocq_entry);
@@ -2562,7 +2562,7 @@ static void queue_slab(struct vdo_slab *slab)
 	int result;
 
 	VDO_ASSERT_LOG_ONLY(list_empty(&slab->allocq_entry),
-			"a requeued slab must not already be on a ring");
+			"a requeued slab must not already be on a list");
 
 	if (vdo_is_read_only(allocator->depot->vdo))
 		return;
@@ -3297,7 +3297,7 @@ int vdo_release_block_reference(struct block_allocator *allocator,
  * This is a min_heap callback function orders slab_status structures using the 'is_clean' field as
  * the primary key and the 'emptiness' field as the secondary key.
  *
- * Slabs need to be pushed onto the rings in the same order they are to be popped off. Popping
+ * Slabs need to be pushed onto the lists in the same order they are to be popped off. Popping
  * should always get the most empty first, so pushing should be from most empty to least empty.
  * Thus, the ordering is reversed from the usual sense since min_heap returns smaller elements
  * before larger ones.
