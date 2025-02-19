@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 	char byte;
 
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s ifindex queue_id", argv[0]);
+		fprintf(stderr, "Usage: %s ifindex queue_id\n", argv[0]);
 		return 1;
 	}
 
