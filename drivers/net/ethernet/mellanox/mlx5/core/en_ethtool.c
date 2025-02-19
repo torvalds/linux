@@ -260,12 +260,10 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_800000baseVR4_Full_BIT);
 }
 
-static void mlx5e_ethtool_get_speed_arr(struct mlx5_core_dev *mdev,
+static void mlx5e_ethtool_get_speed_arr(bool ext,
 					struct ptys2ethtool_config **arr,
 					u32 *size)
 {
-	bool ext = mlx5_ptys_ext_supported(mdev);
-
 	*arr = ext ? ptys2ext_ethtool_table : ptys2legacy_ethtool_table;
 	*size = ext ? ARRAY_SIZE(ptys2ext_ethtool_table) :
 		      ARRAY_SIZE(ptys2legacy_ethtool_table);
@@ -912,16 +910,15 @@ int mlx5e_set_per_queue_coalesce(struct net_device *dev, u32 queue,
 	return mlx5e_ethtool_set_per_queue_coalesce(priv, queue, coal);
 }
 
-static void ptys2ethtool_supported_link(struct mlx5_core_dev *mdev,
-					unsigned long *supported_modes,
-					u32 eth_proto_cap)
+static void ptys2ethtool_supported_link(unsigned long *supported_modes,
+					u32 eth_proto_cap, bool ext)
 {
 	unsigned long proto_cap = eth_proto_cap;
 	struct ptys2ethtool_config *table;
 	u32 max_size;
 	int proto;
 
-	mlx5e_ethtool_get_speed_arr(mdev, &table, &max_size);
+	mlx5e_ethtool_get_speed_arr(ext, &table, &max_size);
 	for_each_set_bit(proto, &proto_cap, max_size)
 		bitmap_or(supported_modes, supported_modes,
 			  table[proto].supported,
@@ -936,10 +933,7 @@ static void ptys2ethtool_adver_link(unsigned long *advertising_modes,
 	u32 max_size;
 	int proto;
 
-	table = ext ? ptys2ext_ethtool_table : ptys2legacy_ethtool_table;
-	max_size = ext ? ARRAY_SIZE(ptys2ext_ethtool_table) :
-			 ARRAY_SIZE(ptys2legacy_ethtool_table);
-
+	mlx5e_ethtool_get_speed_arr(ext, &table, &max_size);
 	for_each_set_bit(proto, &proto_cap, max_size)
 		bitmap_or(advertising_modes, advertising_modes,
 			  table[proto].advertised,
@@ -1128,7 +1122,9 @@ static void get_supported(struct mlx5_core_dev *mdev, u32 eth_proto_cap,
 			  struct ethtool_link_ksettings *link_ksettings)
 {
 	unsigned long *supported = link_ksettings->link_modes.supported;
-	ptys2ethtool_supported_link(mdev, supported, eth_proto_cap);
+	bool ext = mlx5_ptys_ext_supported(mdev);
+
+	ptys2ethtool_supported_link(supported, eth_proto_cap, ext);
 
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Pause);
 }
