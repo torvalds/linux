@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 from lib.py import ksft_disruptive, ksft_exit, ksft_run
-from lib.py import ksft_eq, ksft_raises, KsftSkipEx, KsftFailEx
+from lib.py import ksft_eq, ksft_not_in, ksft_raises, KsftSkipEx, KsftFailEx
 from lib.py import EthtoolFamily, NetdevFamily, NlError
 from lib.py import NetDrvEnv
 from lib.py import bkg, cmd, defer, ip
@@ -47,10 +47,11 @@ def check_xdp(cfg, nl, xdp_queue_id=0) -> None:
                 if q['type'] == 'tx':
                     tx = True
 
-                ksft_eq(q['xsk'], {})
+                ksft_eq(q.get('xsk', None), {},
+                        comment="xsk attr on queue we configured")
             else:
-                if 'xsk' in q:
-                    _fail("Check failed: xsk attribute set.")
+                ksft_not_in('xsk', q,
+                            comment="xsk attr on queue we didn't configure")
 
         ksft_eq(rx, True)
         ksft_eq(tx, True)
