@@ -1202,6 +1202,8 @@ static void dc_update_visual_confirm_color(struct dc *dc, struct dc_state *conte
 			get_surface_tile_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
 		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_HW_CURSOR)
 			get_cursor_visual_confirm_color(pipe_ctx, &(pipe_ctx->visual_confirm_color));
+		else if (dc->debug.visual_confirm == VISUAL_CONFIRM_DCC)
+			get_dcc_visual_confirm_color(dc, pipe_ctx, &(pipe_ctx->visual_confirm_color));
 		else {
 			if (dc->ctx->dce_version < DCN_VERSION_2_0)
 				color_space_to_black_color(
@@ -3956,6 +3958,9 @@ static void commit_planes_for_stream(struct dc *dc,
 	if (update_type == UPDATE_TYPE_FULL && dc->optimized_required)
 		hwss_process_outstanding_hw_updates(dc, dc->current_state);
 
+	if (update_type != UPDATE_TYPE_FAST && dc->res_pool->funcs->prepare_mcache_programming)
+		dc->res_pool->funcs->prepare_mcache_programming(dc, context);
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
@@ -4013,9 +4018,6 @@ static void commit_planes_for_stream(struct dc *dc,
 			for (odm_pipe = mpcc_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				odm_pipe->ttu_regs.min_ttu_vblank = MAX_TTU;
 	}
-
-	if (update_type != UPDATE_TYPE_FAST && dc->res_pool->funcs->prepare_mcache_programming)
-		dc->res_pool->funcs->prepare_mcache_programming(dc, context);
 
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program &&
