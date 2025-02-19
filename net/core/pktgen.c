@@ -517,21 +517,23 @@ static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	char data[128];
+	size_t max;
 	struct pktgen_net *pn = net_generic(current->nsproxy->net_ns, pg_net_id);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (count == 0)
+	if (count < 1)
 		return -EINVAL;
 
-	if (count > sizeof(data))
-		count = sizeof(data);
-
-	if (copy_from_user(data, buf, count))
+	max = min(count, sizeof(data) - 1);
+	if (copy_from_user(data, buf, max))
 		return -EFAULT;
 
-	data[count - 1] = 0;	/* Strip trailing '\n' and terminate string */
+	if (data[max - 1] == '\n')
+		data[max - 1] = 0; /* strip trailing '\n', terminate string */
+	else
+		data[max] = 0; /* terminate string */
 
 	if (!strcmp(data, "stop"))
 		pktgen_stop_all_threads(pn);
