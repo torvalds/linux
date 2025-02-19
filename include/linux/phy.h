@@ -1340,22 +1340,25 @@ void of_set_phy_timing_role(struct phy_device *phydev);
 int phy_speed_down_core(struct phy_device *phydev);
 
 /**
- * phy_disable_eee_mode - Don't advertise an EEE mode.
- * @phydev: The phy_device struct
- * @link_mode: The EEE mode to be disabled
- */
-static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode)
-{
-	linkmode_set_bit(link_mode, phydev->eee_disabled_modes);
-}
-
-/**
  * phy_is_started - Convenience function to check whether PHY is started
  * @phydev: The phy_device struct
  */
 static inline bool phy_is_started(struct phy_device *phydev)
 {
 	return phydev->state >= PHY_UP;
+}
+
+/**
+ * phy_disable_eee_mode - Don't advertise an EEE mode.
+ * @phydev: The phy_device struct
+ * @link_mode: The EEE mode to be disabled
+ */
+static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode)
+{
+	WARN_ON(phy_is_started(phydev));
+
+	linkmode_set_bit(link_mode, phydev->eee_disabled_modes);
+	linkmode_clear_bit(link_mode, phydev->advertising_eee);
 }
 
 void phy_resolve_aneg_pause(struct phy_device *phydev);
@@ -2029,8 +2032,7 @@ int genphy_c45_plca_set_cfg(struct phy_device *phydev,
 			    const struct phy_plca_cfg *plca_cfg);
 int genphy_c45_plca_get_status(struct phy_device *phydev,
 			       struct phy_plca_status *plca_st);
-int genphy_c45_eee_is_active(struct phy_device *phydev, unsigned long *adv,
-			     unsigned long *lp);
+int genphy_c45_eee_is_active(struct phy_device *phydev, unsigned long *lp);
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
