@@ -583,11 +583,11 @@ config HW_RANDOM_CN10K
 	depends on HW_RANDOM && PCI && (ARM64 || (64BIT && COMPILE_TEST))
 	default HW_RANDOM if ARCH_THUNDER
 	help
-	 This driver provides support for the True Random Number
-	 generator available in Marvell CN10K SoCs.
+	  This driver provides support for the True Random Number
+	  generator available in Marvell CN10K SoCs.
 
-	 To compile this driver as a module, choose M here.
-	 The module will be called cn10k_rng. If unsure, say Y.
+	  To compile this driver as a module, choose M here.
+	  The module will be called cn10k_rng. If unsure, say Y.
 
 config HW_RANDOM_JH7110
 	tristate "StarFive JH7110 Random Number Generator support"
