@@ -30,43 +30,6 @@ void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes)
 }
 EXPORT_SYMBOL_GPL(scatterwalk_skip);
 
-static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
-{
-	void *src = out ? buf : sgdata;
-	void *dst = out ? sgdata : buf;
-
-	memcpy(dst, src, nbytes);
-}
-
-void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
-			    size_t nbytes, int out)
-{
-	for (;;) {
-		unsigned int len_this_page = scatterwalk_pagelen(walk);
-		u8 *vaddr;
-
-		if (len_this_page > nbytes)
-			len_this_page = nbytes;
-
-		if (out != 2) {
-			vaddr = scatterwalk_map(walk);
-			memcpy_dir(buf, vaddr, len_this_page, out);
-			scatterwalk_unmap(vaddr);
-		}
-
-		scatterwalk_advance(walk, len_this_page);
-
-		if (nbytes == len_this_page)
-			break;
-
-		buf += len_this_page;
-		nbytes -= len_this_page;
-
-		scatterwalk_pagedone(walk, out & 1, 1);
-	}
-}
-EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
-
 inline void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
 				    unsigned int nbytes)
 {

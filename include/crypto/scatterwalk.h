@@ -115,28 +115,6 @@ static inline void *scatterwalk_next(struct scatter_walk *walk,
 	return scatterwalk_map(walk);
 }
 
-static inline void scatterwalk_pagedone(struct scatter_walk *walk, int out,
-					unsigned int more)
-{
-	if (out) {
-		struct page *page;
-
-		page = sg_page(walk->sg) + ((walk->offset - 1) >> PAGE_SHIFT);
-		flush_dcache_page(page);
-	}
-
-	if (more && walk->offset >= walk->sg->offset + walk->sg->length)
-		scatterwalk_start(walk, sg_next(walk->sg));
-}
-
-static inline void scatterwalk_done(struct scatter_walk *walk, int out,
-				    int more)
-{
-	if (!more || walk->offset >= walk->sg->offset + walk->sg->length ||
-	    !(walk->offset & (PAGE_SIZE - 1)))
-		scatterwalk_pagedone(walk, out, more);
-}
-
 static inline void scatterwalk_advance(struct scatter_walk *walk,
 				       unsigned int nbytes)
 {
@@ -183,9 +161,6 @@ static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 }
 
 void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes);
-
-void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
-			    size_t nbytes, int out);
 
 void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
 			     unsigned int nbytes);
