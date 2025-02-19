@@ -1360,7 +1360,7 @@ static int soc15_common_resume(struct amdgpu_ip_block *ip_block)
 	return soc15_common_hw_init(ip_block);
 }
 
-static bool soc15_common_is_idle(void *handle)
+static bool soc15_common_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return true;
 }

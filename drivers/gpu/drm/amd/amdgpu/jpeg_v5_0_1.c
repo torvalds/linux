@@ -516,9 +516,9 @@ static void jpeg_v5_0_1_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
-static bool jpeg_v5_0_1_is_idle(void *handle)
+static bool jpeg_v5_0_1_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	bool ret = false;
 	int i, j;
 
@@ -567,7 +567,7 @@ static int jpeg_v5_0_1_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 		return 0;
 
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
-		if (!jpeg_v5_0_1_is_idle(adev))
+		if (!jpeg_v5_0_1_is_idle(ip_block))
 			return -EBUSY;
 	}
 

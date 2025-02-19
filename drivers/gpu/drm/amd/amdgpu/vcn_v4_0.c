@@ -1968,9 +1968,9 @@ static void vcn_v4_0_set_unified_ring_funcs(struct amdgpu_device *adev)
  *
  * Check whether VCN block is idle
  */
-static bool vcn_v4_0_is_idle(void *handle)
+static bool vcn_v4_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, ret = 1;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {

@@ -470,9 +470,9 @@ static void jpeg_v3_0_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	}
 }
 
-static bool jpeg_v3_0_is_idle(void *handle)
+static bool jpeg_v3_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int ret = 1;
 
 	ret &= (((RREG32_SOC15(JPEG, 0, mmUVD_JRBC_STATUS) &
@@ -498,7 +498,7 @@ static int jpeg_v3_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 	bool enable = state == AMD_CG_STATE_GATE;
 
 	if (enable) {
-		if (!jpeg_v3_0_is_idle(adev))
+		if (!jpeg_v3_0_is_idle(ip_block))
 			return -EBUSY;
 		jpeg_v3_0_enable_clock_gating(adev);
 	} else {

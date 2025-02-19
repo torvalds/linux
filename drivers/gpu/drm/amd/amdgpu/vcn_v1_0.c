@@ -1377,9 +1377,9 @@ static int vcn_v1_0_pause_dpg_mode(struct amdgpu_device *adev,
 	return 0;
 }
 
-static bool vcn_v1_0_is_idle(void *handle)
+static bool vcn_v1_0_is_idle(struct amdgpu_ip_block *ip_block)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 
 	return (RREG32_SOC15(VCN, 0, mmUVD_STATUS) == UVD_STATUS__IDLE);
 }
@@ -1403,7 +1403,7 @@ static int vcn_v1_0_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 
 	if (enable) {
 		/* wait for STATUS to clear */
-		if (!vcn_v1_0_is_idle(adev))
+		if (!vcn_v1_0_is_idle(ip_block))
 			return -EBUSY;
 		vcn_v1_0_enable_clock_gating(adev);
 	} else {

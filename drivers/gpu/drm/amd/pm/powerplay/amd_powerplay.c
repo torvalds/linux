@@ -239,7 +239,7 @@ static void pp_late_fini(struct amdgpu_ip_block *ip_block)
 }
 
 
-static bool pp_is_idle(void *handle)
+static bool pp_is_idle(struct amdgpu_ip_block *ip_block)
 {
 	return false;
 }
