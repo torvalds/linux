@@ -1100,18 +1100,6 @@ static int pca9450_i2c_probe(struct i2c_client *i2c)
 		return ret;
 	}
 
-	/*
-	 * For LDO5 we need to be able to check the status of the SD_VSEL input in
-	 * order to know which control register is used. Most boards connect SD_VSEL
-	 * to the VSELECT signal, so we can use the GPIO that is internally routed
-	 * to this signal (if SION bit is set in IOMUX).
-	 */
-	pca9450->sd_vsel_gpio = gpiod_get_optional(&ldo5->dev, "sd-vsel", GPIOD_IN);
-	if (IS_ERR(pca9450->sd_vsel_gpio)) {
-		dev_err(&i2c->dev, "Failed to get SD_VSEL GPIO\n");
-		return ret;
-	}
-
 	dev_info(&i2c->dev, "%s probed.\n",
 		type == PCA9450_TYPE_PCA9450A ? "pca9450a" :
 		(type == PCA9450_TYPE_PCA9451A ? "pca9451a" : "pca9450bc"));
