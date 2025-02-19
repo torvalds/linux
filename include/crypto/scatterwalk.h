@@ -170,8 +170,28 @@ void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes);
 void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			    size_t nbytes, int out);
 
-void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
-			      unsigned int start, unsigned int nbytes, int out);
+void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
+			     unsigned int nbytes);
+
+void memcpy_to_scatterwalk(struct scatter_walk *walk, const void *buf,
+			   unsigned int nbytes);
+
+void memcpy_from_sglist(void *buf, struct scatterlist *sg,
+			unsigned int start, unsigned int nbytes);
+
+void memcpy_to_sglist(struct scatterlist *sg, unsigned int start,
+		      const void *buf, unsigned int nbytes);
+
+/* In new code, please use memcpy_{from,to}_sglist() directly instead. */
+static inline void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
+					    unsigned int start,
+					    unsigned int nbytes, int out)
+{
+	if (out)
+		memcpy_to_sglist(sg, start, buf, nbytes);
+	else
+		memcpy_from_sglist(buf, sg, start, nbytes);
+}
 
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,

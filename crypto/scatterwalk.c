@@ -67,22 +67,63 @@ void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 }
 EXPORT_SYMBOL_GPL(scatterwalk_copychunks);
 
-void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
-			      unsigned int start, unsigned int nbytes, int out)
+inline void memcpy_from_scatterwalk(void *buf, struct scatter_walk *walk,
+				    unsigned int nbytes)
+{
+	do {
+		const void *src_addr;
+		unsigned int to_copy;
+
+		src_addr = scatterwalk_next(walk, nbytes, &to_copy);
+		memcpy(buf, src_addr, to_copy);
+		scatterwalk_done_src(walk, src_addr, to_copy);
+		buf += to_copy;
+		nbytes -= to_copy;
+	} while (nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_from_scatterwalk);
+
+inline void memcpy_to_scatterwalk(struct scatter_walk *walk, const void *buf,
+				  unsigned int nbytes)
+{
+	do {
+		void *dst_addr;
+		unsigned int to_copy;
+
+		dst_addr = scatterwalk_next(walk, nbytes, &to_copy);
+		memcpy(dst_addr, buf, to_copy);
+		scatterwalk_done_dst(walk, dst_addr, to_copy);
+		buf += to_copy;
+		nbytes -= to_copy;
+	} while (nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_to_scatterwalk);
+
+void memcpy_from_sglist(void *buf, struct scatterlist *sg,
+			unsigned int start, unsigned int nbytes)
 {
 	struct scatter_walk walk;
-	struct scatterlist tmp[2];
 
-	if (!nbytes)
+	if (unlikely(nbytes == 0)) /* in case sg == NULL */
 		return;
 
-	sg = scatterwalk_ffwd(tmp, sg, start);
-
-	scatterwalk_start(&walk, sg);
-	scatterwalk_copychunks(buf, &walk, nbytes, out);
-	scatterwalk_done(&walk, out, 0);
+	scatterwalk_start_at_pos(&walk, sg, start);
+	memcpy_from_scatterwalk(buf, &walk, nbytes);
 }
-EXPORT_SYMBOL_GPL(scatterwalk_map_and_copy);
+EXPORT_SYMBOL_GPL(memcpy_from_sglist);
+
+void memcpy_to_sglist(struct scatterlist *sg, unsigned int start,
+		      const void *buf, unsigned int nbytes)
+{
+	struct scatter_walk walk;
+
+	if (unlikely(nbytes == 0)) /* in case sg == NULL */
+		return;
+
+	scatterwalk_start_at_pos(&walk, sg, start);
+	memcpy_to_scatterwalk(&walk, buf, nbytes);
+}
+EXPORT_SYMBOL_GPL(memcpy_to_sglist);
 
 struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 				     struct scatterlist *src,
