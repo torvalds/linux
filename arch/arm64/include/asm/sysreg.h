@@ -1062,8 +1062,11 @@
 #define PIE_RX		UL(0xa)
 #define PIE_RW		UL(0xc)
 #define PIE_RWX		UL(0xe)
+#define PIE_MASK	UL(0xf)
 
-#define PIRx_ELx_PERM(idx, perm)	((perm) << ((idx) * 4))
+#define PIRx_ELx_BITS_PER_IDX		4
+#define PIRx_ELx_PERM_SHIFT(idx)	((idx) * PIRx_ELx_BITS_PER_IDX)
+#define PIRx_ELx_PERM_PREP(idx, perm)	(((perm) & PIE_MASK) << PIRx_ELx_PERM_SHIFT(idx))
 
 /*
  * Permission Overlay Extension (POE) permission encodings.
@@ -1077,6 +1080,11 @@
 #define POE_XW		UL(0x6)
 #define POE_RXW		UL(0x7)
 #define POE_MASK	UL(0xf)
+
+#define POR_ELx_BITS_PER_IDX		4
+#define POR_ELx_PERM_SHIFT(idx)		((idx) * POR_ELx_BITS_PER_IDX)
+#define POR_ELx_PERM_GET(idx, reg)	(((reg) >> POR_ELx_PERM_SHIFT(idx)) & POE_MASK)
+#define POR_ELx_PERM_PREP(idx, perm)	(((perm) & POE_MASK) << POR_ELx_PERM_SHIFT(idx))
 
 /* Initial value for Permission Overlay Extension for EL0 */
 #define POR_EL0_INIT	POE_RXW
