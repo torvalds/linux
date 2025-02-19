@@ -885,6 +885,15 @@ static void gve_set_default_desc_cnt(struct gve_priv *priv,
 	priv->min_rx_desc_cnt = priv->rx_desc_cnt;
 }
 
+static void gve_set_default_rss_sizes(struct gve_priv *priv)
+{
+	if (!gve_is_gqi(priv)) {
+		priv->rss_key_size = GVE_RSS_KEY_SIZE;
+		priv->rss_lut_size = GVE_RSS_INDIR_SIZE;
+		priv->cache_rss_config = true;
+	}
+}
+
 static void gve_enable_supported_features(struct gve_priv *priv,
 					  u32 supported_features_mask,
 					  const struct gve_device_option_jumbo_frames
@@ -968,6 +977,10 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 			be16_to_cpu(dev_op_rss_config->hash_key_size);
 		priv->rss_lut_size =
 			be16_to_cpu(dev_op_rss_config->hash_lut_size);
+		priv->cache_rss_config = false;
+		dev_dbg(&priv->pdev->dev,
+			"RSS device option enabled with key size of %u, lut size of %u.\n",
+			priv->rss_key_size, priv->rss_lut_size);
 	}
 }
 
@@ -1051,6 +1064,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 
 	/* set default descriptor counts */
 	gve_set_default_desc_cnt(priv, descriptor);
+
+	gve_set_default_rss_sizes(priv);
 
 	/* DQO supports LRO. */
 	if (!gve_is_gqi(priv))
@@ -1276,8 +1291,9 @@ int gve_adminq_reset_flow_rules(struct gve_priv *priv)
 
 int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *rxfh)
 {
+	const u32 *hash_lut_to_config = NULL;
+	const u8 *hash_key_to_config = NULL;
 	dma_addr_t lut_bus = 0, key_bus = 0;
-	u16 key_size = 0, lut_size = 0;
 	union gve_adminq_command cmd;
 	__be32 *lut = NULL;
 	u8 hash_alg = 0;
@@ -1287,7 +1303,7 @@ int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *r
 
 	switch (rxfh->hfunc) {
 	case ETH_RSS_HASH_NO_CHANGE:
-		break;
+		fallthrough;
 	case ETH_RSS_HASH_TOP:
 		hash_alg = ETH_RSS_HASH_TOP;
 		break;
@@ -1296,27 +1312,46 @@ int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *r
 	}
 
 	if (rxfh->indir) {
-		lut_size = priv->rss_lut_size;
+		if (rxfh->indir_size != priv->rss_lut_size)
+			return -EINVAL;
+
+		hash_lut_to_config = rxfh->indir;
+	} else if (priv->cache_rss_config) {
+		hash_lut_to_config = priv->rss_config.hash_lut;
+	}
+
+	if (hash_lut_to_config) {
 		lut = dma_alloc_coherent(&priv->pdev->dev,
-					 lut_size * sizeof(*lut),
+					 priv->rss_lut_size * sizeof(*lut),
 					 &lut_bus, GFP_KERNEL);
 		if (!lut)
 			return -ENOMEM;
 
 		for (i = 0; i < priv->rss_lut_size; i++)
-			lut[i] = cpu_to_be32(rxfh->indir[i]);
+			lut[i] = cpu_to_be32(hash_lut_to_config[i]);
 	}
 
 	if (rxfh->key) {
-		key_size = priv->rss_key_size;
+		if (rxfh->key_size != priv->rss_key_size) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		hash_key_to_config = rxfh->key;
+	} else if (priv->cache_rss_config) {
+		hash_key_to_config = priv->rss_config.hash_key;
+	}
+
+	if (hash_key_to_config) {
 		key = dma_alloc_coherent(&priv->pdev->dev,
-					 key_size, &key_bus, GFP_KERNEL);
+					 priv->rss_key_size,
+					 &key_bus, GFP_KERNEL);
 		if (!key) {
 			err = -ENOMEM;
 			goto out;
 		}
 
-		memcpy(key, rxfh->key, key_size);
+		memcpy(key, hash_key_to_config, priv->rss_key_size);
 	}
 
 	/* Zero-valued fields in the cmd.configure_rss instruct the device to
@@ -1330,8 +1365,10 @@ int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *r
 					  BIT(GVE_RSS_HASH_TCPV6) |
 					  BIT(GVE_RSS_HASH_UDPV6)),
 		.hash_alg = hash_alg,
-		.hash_key_size = cpu_to_be16(key_size),
-		.hash_lut_size = cpu_to_be16(lut_size),
+		.hash_key_size =
+			cpu_to_be16((key_bus) ? priv->rss_key_size : 0),
+		.hash_lut_size =
+			cpu_to_be16((lut_bus) ? priv->rss_lut_size : 0),
 		.hash_key_addr = cpu_to_be64(key_bus),
 		.hash_lut_addr = cpu_to_be64(lut_bus),
 	};
@@ -1341,11 +1378,11 @@ int gve_adminq_configure_rss(struct gve_priv *priv, struct ethtool_rxfh_param *r
 out:
 	if (lut)
 		dma_free_coherent(&priv->pdev->dev,
-				  lut_size * sizeof(*lut),
+				  priv->rss_lut_size * sizeof(*lut),
 				  lut, lut_bus);
 	if (key)
 		dma_free_coherent(&priv->pdev->dev,
-				  key_size, key, key_bus);
+				  priv->rss_key_size, key, key_bus);
 	return err;
 }
 
@@ -1449,12 +1486,15 @@ static int gve_adminq_process_rss_query(struct gve_priv *priv,
 	rxfh->hfunc = descriptor->hash_alg;
 
 	rss_info_addr = (void *)(descriptor + 1);
-	if (rxfh->key)
+	if (rxfh->key) {
+		rxfh->key_size = priv->rss_key_size;
 		memcpy(rxfh->key, rss_info_addr, priv->rss_key_size);
+	}
 
 	rss_info_addr += priv->rss_key_size;
 	lut = (__be32 *)rss_info_addr;
 	if (rxfh->indir) {
+		rxfh->indir_size = priv->rss_lut_size;
 		for (i = 0; i < priv->rss_lut_size; i++)
 			rxfh->indir[i] = be32_to_cpu(lut[i]);
 	}

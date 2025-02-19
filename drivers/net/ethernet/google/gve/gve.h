@@ -68,6 +68,9 @@
 #define GVE_FLOW_RULE_IDS_CACHE_SIZE \
 	(GVE_ADMINQ_BUFFER_SIZE / sizeof(((struct gve_adminq_queried_flow_rule *)0)->location))
 
+#define GVE_RSS_KEY_SIZE	40
+#define GVE_RSS_INDIR_SIZE	128
+
 #define GVE_XDP_ACTIONS 5
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
@@ -672,6 +675,7 @@ struct gve_rx_alloc_rings_cfg {
 	u16 packet_buffer_size;
 	bool raw_addressing;
 	bool enable_header_split;
+	bool reset_rss;
 
 	/* Allocated resources are returned here */
 	struct gve_rx_ring *rx;
@@ -720,6 +724,11 @@ struct gve_flow_rules_cache {
 	/* The total number of queried rules that stored in the caches */
 	u32 rules_cache_num;
 	u32 rule_ids_cache_num;
+};
+
+struct gve_rss_config {
+	u8 *hash_key;
+	u32 *hash_lut;
 };
 
 struct gve_priv {
@@ -842,6 +851,8 @@ struct gve_priv {
 
 	u16 rss_key_size;
 	u16 rss_lut_size;
+	bool cache_rss_config;
+	struct gve_rss_config rss_config;
 };
 
 enum gve_service_task_flags_bit {
@@ -1220,13 +1231,16 @@ int gve_adjust_config(struct gve_priv *priv,
 		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
-		      struct gve_queue_config new_tx_config);
+		      struct gve_queue_config new_tx_config,
+		      bool reset_rss);
 /* flow steering rule */
 int gve_get_flow_rule_entry(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_get_flow_rule_ids(struct gve_priv *priv, struct ethtool_rxnfc *cmd, u32 *rule_locs);
 int gve_add_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_del_flow_rule(struct gve_priv *priv, struct ethtool_rxnfc *cmd);
 int gve_flow_rules_reset(struct gve_priv *priv);
+/* RSS config */
+int gve_init_rss_config(struct gve_priv *priv, u16 num_queues);
 /* report stats handling */
 void gve_handle_report_stats(struct gve_priv *priv);
 /* exported by ethtool.c */
