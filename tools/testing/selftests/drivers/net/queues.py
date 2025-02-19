@@ -25,8 +25,7 @@ def nl_get_queues(cfg, nl, qtype='rx'):
     return None
 
 def check_xdp(cfg, nl, xdp_queue_id=0) -> None:
-    test_dir = os.path.dirname(os.path.realpath(__file__))
-    xdp = subprocess.Popen([f"{test_dir}/xdp_helper", f"{cfg.ifindex}", f"{xdp_queue_id}"],
+    xdp = subprocess.Popen([cfg.rpath("xdp_helper"), f"{cfg.ifindex}", f"{xdp_queue_id}"],
                            stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1,
                            text=True)
     defer(xdp.kill)
