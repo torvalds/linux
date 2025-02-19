@@ -14,8 +14,6 @@
 
 #define EXFAT_ROOT_INO		1
 
-#define EXFAT_CLUSTERS_UNTRACKED (~0u)
-
 /*
  * exfat error flags
  */
