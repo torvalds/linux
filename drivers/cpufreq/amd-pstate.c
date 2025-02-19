@@ -1574,14 +1574,7 @@ static int amd_pstate_epp_cpu_online(struct cpufreq_policy *policy)
 
 static int amd_pstate_epp_cpu_offline(struct cpufreq_policy *policy)
 {
-	struct amd_cpudata *cpudata = policy->driver_data;
-	union perf_cached perf = READ_ONCE(cpudata->perf);
-
-	if (cpudata->suspended)
-		return 0;
-
-	return amd_pstate_update_perf(policy, perf.lowest_perf, 0, perf.lowest_perf,
-				      AMD_CPPC_EPP_BALANCE_POWERSAVE, false);
+	return 0;
 }
 
 static int amd_pstate_epp_suspend(struct cpufreq_policy *policy)
