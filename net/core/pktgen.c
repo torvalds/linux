@@ -753,14 +753,15 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
 	for (; i < maxlen; i++) {
 		int value;
 		char c;
-		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		value = hex_to_bin(c);
-		if (value >= 0)
+		if (value >= 0) {
+			*num <<= 4;
 			*num |= value;
-		else
+		} else {
 			break;
+		}
 	}
 	return i;
 }
