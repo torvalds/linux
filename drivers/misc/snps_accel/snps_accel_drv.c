@@ -601,3 +601,4 @@ module_exit(snps_accel_exit);
 MODULE_AUTHOR("Synopsys Inc.");
 MODULE_DESCRIPTION("NPX/VPX driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(DMA_BUF);
