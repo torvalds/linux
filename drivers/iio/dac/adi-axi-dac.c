@@ -728,6 +728,9 @@ static int axi_dac_bus_set_io_mode(struct iio_backend *back,
 	struct axi_dac_state *st = iio_backend_get_priv(back);
 	int ival, ret;
 
+	if (mode > AD3552R_IO_MODE_QSPI)
+		return -EINVAL;
+
 	guard(mutex)(&st->lock);
 
 	ret = regmap_update_bits(st->regmap, AXI_DAC_CUSTOM_CTRL_REG,
