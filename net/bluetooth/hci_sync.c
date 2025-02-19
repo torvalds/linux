@@ -1910,7 +1910,7 @@ int hci_schedule_adv_instance_sync(struct hci_dev *hdev, u8 instance,
 		hdev->adv_instance_timeout = timeout;
 		queue_delayed_work(hdev->req_workqueue,
 				   &hdev->adv_instance_expire,
-				   msecs_to_jiffies(timeout * 1000));
+				   secs_to_jiffies(timeout));
 	}
 
 	/* If we're just re-scheduling the same instance again then do not

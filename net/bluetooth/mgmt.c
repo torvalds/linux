@@ -1533,7 +1533,7 @@ static void mgmt_set_discoverable_complete(struct hci_dev *hdev, void *data,
 
 	if (hci_dev_test_flag(hdev, HCI_DISCOVERABLE) &&
 	    hdev->discov_timeout > 0) {
-		int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
+		int to = secs_to_jiffies(hdev->discov_timeout);
 		queue_delayed_work(hdev->req_workqueue, &hdev->discov_off, to);
 	}
 
@@ -1641,7 +1641,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 		hdev->discov_timeout = timeout;
 
 		if (cp->val && hdev->discov_timeout > 0) {
-			int to = msecs_to_jiffies(hdev->discov_timeout * 1000);
+			int to = secs_to_jiffies(hdev->discov_timeout);
 			queue_delayed_work(hdev->req_workqueue,
 					   &hdev->discov_off, to);
 		}
@@ -2534,7 +2534,7 @@ static int send_hci_cmd_sync(struct hci_dev *hdev, void *data)
 	skb = __hci_cmd_sync_ev(hdev, le16_to_cpu(cp->opcode),
 				le16_to_cpu(cp->params_len), cp->params,
 				cp->event, cp->timeout ?
-				msecs_to_jiffies(cp->timeout * 1000) :
+				secs_to_jiffies(cp->timeout) :
 				HCI_CMD_TIMEOUT);
 	if (IS_ERR(skb)) {
 		mgmt_cmd_status(cmd->sk, hdev->id, MGMT_OP_HCI_CMD_SYNC,
