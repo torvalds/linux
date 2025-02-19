@@ -563,8 +563,10 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
 	smp_store_release(&req->iopoll_completed, 1);
 }
 
-static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
+static inline void io_rw_done(struct io_kiocb *req, ssize_t ret)
 {
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+
 	/* IO was queued async, completion will happen later */
 	if (ret == -EIOCBQUEUED)
 		return;
@@ -586,8 +588,10 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 		}
 	}
 
-	INDIRECT_CALL_2(kiocb->ki_complete, io_complete_rw_iopoll,
-			io_complete_rw, kiocb, ret);
+	if (req->ctx->flags & IORING_SETUP_IOPOLL)
+		io_complete_rw_iopoll(&rw->kiocb, ret);
+	else
+		io_complete_rw(&rw->kiocb, ret);
 }
 
 static int kiocb_done(struct io_kiocb *req, ssize_t ret,
@@ -598,7 +602,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 
 	if (ret >= 0 && req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
-	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw)) {
+	if (ret >= 0 && !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
 		__io_complete_rw_common(req, ret);
 		/*
 		 * Safe to call io_end from here as we're inline
@@ -609,7 +613,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		io_req_rw_cleanup(req, issue_flags);
 		return IOU_OK;
 	} else {
-		io_rw_done(&rw->kiocb, ret);
+		io_rw_done(req, ret);
 	}
 
 	return IOU_ISSUE_SKIP_COMPLETE;
