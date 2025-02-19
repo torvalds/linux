@@ -50,6 +50,11 @@ properties:
     items:
       - const: offset
 
+  qcom,no-alarm:
+    type: boolean
+    description:
+      RTC alarm is not owned by the OS
+
   wakeup-source: true
 
 required:
