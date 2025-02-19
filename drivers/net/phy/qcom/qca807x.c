@@ -774,7 +774,7 @@ static int qca807x_config_init(struct phy_device *phydev)
 	control_dac &= ~QCA807X_CONTROL_DAC_MASK;
 	if (!priv->dac_full_amplitude)
 		control_dac |= QCA807X_CONTROL_DAC_DSP_AMPLITUDE;
-	if (!priv->dac_full_amplitude)
+	if (!priv->dac_full_bias_current)
 		control_dac |= QCA807X_CONTROL_DAC_DSP_BIAS_CURRENT;
 	if (!priv->dac_disable_bias_current_tweak)
 		control_dac |= QCA807X_CONTROL_DAC_BIAS_CURRENT_TWEAK;
