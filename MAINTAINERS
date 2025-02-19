@@ -18916,6 +18916,7 @@ S:	Maintained
 W:	http://wiki.enneenne.com/index.php/LinuxPPS_support
 F:	Documentation/ABI/testing/sysfs-pps
 F:	Documentation/ABI/testing/sysfs-pps-gen
+F:	Documentation/ABI/testing/sysfs-pps-gen-tio
 F:	Documentation/devicetree/bindings/pps/pps-gpio.yaml
 F:	Documentation/driver-api/pps.rst
 F:	drivers/pps/
