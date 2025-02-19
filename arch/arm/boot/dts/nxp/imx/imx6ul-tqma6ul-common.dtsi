@@ -169,6 +169,7 @@
 		spi-max-frequency = <33000000>;
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
+		vcc-supply = <&reg_vldo4>;
 	};
 };
 
