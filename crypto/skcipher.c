@@ -206,8 +206,8 @@ static int skcipher_next_fast(struct skcipher_walk *walk)
 
 	diff = offset_in_page(walk->in.offset) -
 	       offset_in_page(walk->out.offset);
-	diff |= (u8 *)scatterwalk_page(&walk->in) -
-		(u8 *)scatterwalk_page(&walk->out);
+	diff |= (u8 *)(sg_page(walk->in.sg) + (walk->in.offset >> PAGE_SHIFT)) -
+		(u8 *)(sg_page(walk->out.sg) + (walk->out.offset >> PAGE_SHIFT));
 
 	skcipher_map_src(walk);
 	walk->dst.virt.addr = walk->src.virt.addr;

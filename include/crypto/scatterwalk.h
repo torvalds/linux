@@ -49,24 +49,35 @@ static inline void scatterwalk_start_at_pos(struct scatter_walk *walk,
 	walk->offset = sg->offset + pos;
 }
 
-static inline unsigned int scatterwalk_pagelen(struct scatter_walk *walk)
-{
-	unsigned int len = walk->sg->offset + walk->sg->length - walk->offset;
-	unsigned int len_this_page = offset_in_page(~walk->offset) + 1;
-	return len_this_page > len ? len : len_this_page;
-}
-
 static inline unsigned int scatterwalk_clamp(struct scatter_walk *walk,
 					     unsigned int nbytes)
 {
+	unsigned int len_this_sg;
+	unsigned int limit;
+
 	if (walk->offset >= walk->sg->offset + walk->sg->length)
 		scatterwalk_start(walk, sg_next(walk->sg));
-	return min(nbytes, scatterwalk_pagelen(walk));
-}
+	len_this_sg = walk->sg->offset + walk->sg->length - walk->offset;
 
-static inline struct page *scatterwalk_page(struct scatter_walk *walk)
-{
-	return sg_page(walk->sg) + (walk->offset >> PAGE_SHIFT);
+	/*
+	 * HIGHMEM case: the page may have to be mapped into memory.  To avoid
+	 * the complexity of having to map multiple pages at once per sg entry,
+	 * clamp the returned length to not cross a page boundary.
+	 *
+	 * !HIGHMEM case: no mapping is needed; all pages of the sg entry are
+	 * already mapped contiguously in the kernel's direct map.  For improved
+	 * performance, allow the walker to return data segments that cross a
+	 * page boundary.  Do still cap the length to PAGE_SIZE, since some
+	 * users rely on that to avoid disabling preemption for too long when
+	 * using SIMD.  It's also needed for when skcipher_walk uses a bounce
+	 * page due to the data not being aligned to the algorithm's alignmask.
+	 */
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		limit = PAGE_SIZE - offset_in_page(walk->offset);
+	else
+		limit = PAGE_SIZE;
+
+	return min3(nbytes, len_this_sg, limit);
 }
 
 /*
@@ -86,15 +97,23 @@ static inline void scatterwalk_get_sglist(struct scatter_walk *walk,
 	scatterwalk_crypto_chain(sg_out, sg_next(walk->sg), 2);
 }
 
-static inline void scatterwalk_unmap(void *vaddr)
-{
-	kunmap_local(vaddr);
-}
-
 static inline void *scatterwalk_map(struct scatter_walk *walk)
 {
-	return kmap_local_page(scatterwalk_page(walk)) +
-	       offset_in_page(walk->offset);
+	struct page *base_page = sg_page(walk->sg);
+
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		return kmap_local_page(base_page + (walk->offset >> PAGE_SHIFT)) +
+		       offset_in_page(walk->offset);
+	/*
+	 * When !HIGHMEM we allow the walker to return segments that span a page
+	 * boundary; see scatterwalk_clamp().  To make it clear that in this
+	 * case we're working in the linear buffer of the whole sg entry in the
+	 * kernel's direct map rather than within the mapped buffer of a single
+	 * page, compute the address as an offset from the page_address() of the
+	 * first page of the sg entry.  Either way the result is the address in
+	 * the direct map, but this makes it clearer what is really going on.
+	 */
+	return page_address(base_page) + walk->offset;
 }
 
 /**
@@ -115,6 +134,12 @@ static inline void *scatterwalk_next(struct scatter_walk *walk,
 	return scatterwalk_map(walk);
 }
 
+static inline void scatterwalk_unmap(const void *vaddr)
+{
+	if (IS_ENABLED(CONFIG_HIGHMEM))
+		kunmap_local(vaddr);
+}
+
 static inline void scatterwalk_advance(struct scatter_walk *walk,
 				       unsigned int nbytes)
 {
@@ -133,7 +158,7 @@ static inline void scatterwalk_advance(struct scatter_walk *walk,
 static inline void scatterwalk_done_src(struct scatter_walk *walk,
 					const void *vaddr, unsigned int nbytes)
 {
-	scatterwalk_unmap((void *)vaddr);
+	scatterwalk_unmap(vaddr);
 	scatterwalk_advance(walk, nbytes);
 }
 
@@ -154,9 +179,19 @@ static inline void scatterwalk_done_dst(struct scatter_walk *walk,
 	 * Explicitly check ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE instead of just
 	 * relying on flush_dcache_page() being a no-op when not implemented,
 	 * since otherwise the BUG_ON in sg_page() does not get optimized out.
+	 * This also avoids having to consider whether the loop would get
+	 * reliably optimized out or not.
 	 */
-	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE)
-		flush_dcache_page(scatterwalk_page(walk));
+	if (ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE) {
+		struct page *base_page, *start_page, *end_page, *page;
+
+		base_page = sg_page(walk->sg);
+		start_page = base_page + (walk->offset >> PAGE_SHIFT);
+		end_page = base_page + ((walk->offset + nbytes +
+					 PAGE_SIZE - 1) >> PAGE_SHIFT);
+		for (page = start_page; page < end_page; page++)
+			flush_dcache_page(page);
+	}
 	scatterwalk_advance(walk, nbytes);
 }
 
