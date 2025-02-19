@@ -518,7 +518,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	if (!ret)
 		return NULL;
 
-	hash_heads = kvzalloc(size, GFP_ATOMIC);
+	hash_heads = kzalloc(size, GFP_ATOMIC);
 	if (!hash_heads) {
 		kfree(ret);
 		return NULL;
@@ -536,7 +536,7 @@ static void neigh_hash_free_rcu(struct rcu_head *head)
 						    struct neigh_hash_table,
 						    rcu);
 
-	kvfree(nht->hash_heads);
+	kfree(nht->hash_heads);
 	kfree(nht);
 }
 
