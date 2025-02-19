@@ -405,7 +405,6 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct ipcm_cookie ipc;
 	struct flowi4 fl4;
 	struct sock *sk;
-	struct inet_sock *inet;
 	__be32 daddr, saddr;
 	u32 mark = IP4_REPLY_MARK(net, skb->mark);
 	int type = icmp_param->data.icmph.type;
@@ -424,12 +423,11 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	sk = icmp_xmit_lock(net);
 	if (!sk)
 		goto out_bh_enable;
-	inet = inet_sk(sk);
 
 	icmp_param->data.icmph.checksum = 0;
 
 	ipcm_init(&ipc);
-	inet->tos = ip_hdr(skb)->tos;
+	ipc.tos = ip_hdr(skb)->tos;
 	ipc.sockc.mark = mark;
 	daddr = ipc.addr = ip_hdr(skb)->saddr;
 	saddr = fib_compute_spec_dst(skb);
@@ -737,8 +735,8 @@ void __icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info,
 	icmp_param.data.icmph.checksum	 = 0;
 	icmp_param.skb	  = skb_in;
 	icmp_param.offset = skb_network_offset(skb_in);
-	inet_sk(sk)->tos = tos;
 	ipcm_init(&ipc);
+	ipc.tos = tos;
 	ipc.addr = iph->saddr;
 	ipc.opt = &icmp_param.replyopts.opt;
 	ipc.sockc.mark = mark;

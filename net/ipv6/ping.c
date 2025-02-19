@@ -119,9 +119,6 @@ static int ping_v6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 		return -EINVAL;
 
 	ipcm6_init_sk(&ipc6, sk);
-	ipc6.sockc.priority = READ_ONCE(sk->sk_priority);
-	ipc6.sockc.tsflags = READ_ONCE(sk->sk_tsflags);
-	ipc6.sockc.mark = READ_ONCE(sk->sk_mark);
 
 	fl6.flowi6_oif = oif;
 

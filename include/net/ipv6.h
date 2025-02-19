@@ -363,15 +363,6 @@ struct ipcm6_cookie {
 	struct ipv6_txoptions *opt;
 };
 
-static inline void ipcm6_init(struct ipcm6_cookie *ipc6)
-{
-	*ipc6 = (struct ipcm6_cookie) {
-		.hlimit = -1,
-		.tclass = -1,
-		.dontfrag = -1,
-	};
-}
-
 static inline void ipcm6_init_sk(struct ipcm6_cookie *ipc6,
 				 const struct sock *sk)
 {
@@ -380,6 +371,8 @@ static inline void ipcm6_init_sk(struct ipcm6_cookie *ipc6,
 		.tclass = inet6_sk(sk)->tclass,
 		.dontfrag = inet6_test_bit(DONTFRAG, sk),
 	};
+
+	sockcm_init(&ipc6->sockc, sk);
 }
 
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
