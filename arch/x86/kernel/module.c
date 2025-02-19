@@ -278,10 +278,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	if (calls) {
 		struct callthunk_sites cs = {};
 
-		if (calls) {
-			cs.call_start = (void *)calls->sh_addr;
-			cs.call_end = (void *)calls->sh_addr + calls->sh_size;
-		}
+		cs.call_start = (void *)calls->sh_addr;
+		cs.call_end = (void *)calls->sh_addr + calls->sh_size;
 
 		callthunks_patch_module_calls(&cs, me);
 	}
