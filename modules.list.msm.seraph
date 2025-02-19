@@ -5,6 +5,7 @@ qcom-pdc.ko
 pinctrl-msm.ko
 pinctrl-seraph.ko
 qcom_hwspinlock.ko
+qrtr.ko
 smem.ko
 socinfo.ko
 clk-dummy.ko
