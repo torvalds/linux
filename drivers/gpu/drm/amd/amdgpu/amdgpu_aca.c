@@ -392,7 +392,7 @@ static void aca_banks_generate_cper(struct amdgpu_device *adev,
 	struct aca_bank_node *node;
 	struct aca_bank *bank;
 
-	if (!adev || !banks || !count) {
+	if (!banks || !count) {
 		dev_warn(adev->dev, "fail to generate cper records\n");
 		return;
 	}
