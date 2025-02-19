@@ -427,7 +427,7 @@ static void _get_random_bytes(void *buf, size_t len)
 
 /*
  * This returns random bytes in arbitrary quantities. The quality of the
- * random bytes is good as /dev/urandom. In order to ensure that the
+ * random bytes is as good as /dev/urandom. In order to ensure that the
  * randomness provided by this function is okay, the function
  * wait_for_random_bytes() should be called and return 0 at least once
  * at any point prior.
@@ -491,7 +491,7 @@ out_zero_chacha:
 
 /*
  * Batched entropy returns random integers. The quality of the random
- * number is good as /dev/urandom. In order to ensure that the randomness
+ * number is as good as /dev/urandom. In order to ensure that the randomness
  * provided by this function is okay, the function wait_for_random_bytes()
  * should be called and return 0 at least once at any point prior.
  */
