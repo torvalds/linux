@@ -33,6 +33,22 @@ static inline void scatterwalk_start(struct scatter_walk *walk,
 	walk->offset = sg->offset;
 }
 
+/*
+ * This is equivalent to scatterwalk_start(walk, sg) followed by
+ * scatterwalk_skip(walk, pos).
+ */
+static inline void scatterwalk_start_at_pos(struct scatter_walk *walk,
+					    struct scatterlist *sg,
+					    unsigned int pos)
+{
+	while (pos > sg->length) {
+		pos -= sg->length;
+		sg = sg_next(sg);
+	}
+	walk->sg = sg;
+	walk->offset = sg->offset + pos;
+}
+
 static inline unsigned int scatterwalk_pagelen(struct scatter_walk *walk)
 {
 	unsigned int len = walk->sg->offset + walk->sg->length - walk->offset;
@@ -91,6 +107,8 @@ static inline void scatterwalk_done(struct scatter_walk *walk, int out,
 	    !(walk->offset & (PAGE_SIZE - 1)))
 		scatterwalk_pagedone(walk, out, more);
 }
+
+void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes);
 
 void scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			    size_t nbytes, int out);

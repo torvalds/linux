@@ -15,6 +15,21 @@
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 
+void scatterwalk_skip(struct scatter_walk *walk, unsigned int nbytes)
+{
+	struct scatterlist *sg = walk->sg;
+
+	nbytes += walk->offset - sg->offset;
+
+	while (nbytes > sg->length) {
+		nbytes -= sg->length;
+		sg = sg_next(sg);
+	}
+	walk->sg = sg;
+	walk->offset = sg->offset + nbytes;
+}
+EXPORT_SYMBOL_GPL(scatterwalk_skip);
+
 static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 {
 	void *src = out ? buf : sgdata;
