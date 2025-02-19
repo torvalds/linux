@@ -104,7 +104,6 @@ struct snps_accel_rproc_ctrl {
  * @rproc: rproc handle
  * @device: rproc device struct
  * @num_mems: number of mem regions to map before loading elf
- * @first_load: flag that indicates first start of processors
  * @cluster_id: cluster id of the processor to start as it seen by ARCSync
  * @num_cores_start: number of cores to work with (power up/reset/start)
  * @core_id: core number (or array of core numbers) inside the cluster to start
@@ -118,7 +117,6 @@ struct snps_accel_rproc {
 	struct rproc *rproc;
 	struct device *device;
 	u32 num_mems;
-	u32 first_load;
 	u32 cluster_id;
 	s32 num_cores_start;
 	u32 *core_id;

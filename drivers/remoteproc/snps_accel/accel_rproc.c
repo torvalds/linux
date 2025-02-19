@@ -27,11 +27,8 @@ static int snps_accel_rproc_prepare(struct rproc *rproc)
 	 * If npu-cfg property is specified, setup NPU Cluster Network and
 	 * powerup/reset cluster groups
 	 */
-	if (aproc->first_load) {
-		if (aproc->data->setup_cluster)
-			aproc->data->setup_cluster(aproc);
-		aproc->first_load = 0;
-	}
+	if (aproc->data->setup_cluster)
+		aproc->data->setup_cluster(aproc);
 
 	/* Prepare code memory */
 	for (i = 0; i < aproc->num_mems; i++) {
@@ -386,7 +383,6 @@ static int snps_accel_rproc_probe(struct platform_device *pdev)
 	aproc->device = dev;
 	aproc->data = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, aproc);
-	aproc->first_load = 1;
 
 	/* Turns on/off auto_boot depending on snps,auto-boot property */
 	rproc->auto_boot = of_property_read_bool(of_node, "snps,auto-boot");
@@ -488,6 +484,9 @@ arcsync_start_core(struct snps_accel_rproc *aproc)
 	for (i = 0; i < aproc->num_cores_start; i++) {
 		fn->reset(ctrl, aproc->cluster_id, aproc->core_id[i], ARCSYNC_RESET_ASSERT);
 		fn->set_ivt(ctrl, aproc->cluster_id, aproc->core_id[i], aproc->ivt_base);
+	}
+
+        for (i = 0; i < aproc->num_cores_start; i++) {
 		status = fn->get_status(ctrl, aproc->cluster_id, aproc->core_id[i]);
 		if (aproc->ctrl.has_pmu && (status & ARCSYNC_CORE_POWERDOWN)) {
 			fn->clk_ctrl(ctrl, aproc->cluster_id,
@@ -501,9 +500,9 @@ arcsync_start_core(struct snps_accel_rproc *aproc)
 		} else {
 			fn->clk_ctrl(ctrl, aproc->cluster_id, aproc->core_id[i], ARCSYNC_CLK_EN);
 		}
-		fn->reset(ctrl, aproc->cluster_id, aproc->core_id[i], ARCSYNC_RESET_DEASSERT);
-		fn->start(ctrl, aproc->cluster_id, aproc->core_id[i]);
-	}
+                fn->reset(ctrl, aproc->cluster_id, aproc->core_id[i], ARCSYNC_RESET_DEASSERT);
+                fn->start(ctrl, aproc->cluster_id, aproc->core_id[i]);
+        }
 
 	return 0;
 }
