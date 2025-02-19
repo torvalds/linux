@@ -69,6 +69,23 @@ static inline struct page *scatterwalk_page(struct scatter_walk *walk)
 	return sg_page(walk->sg) + (walk->offset >> PAGE_SHIFT);
 }
 
+/*
+ * Create a scatterlist that represents the remaining data in a walk.  Uses
+ * chaining to reference the original scatterlist, so this uses at most two
+ * entries in @sg_out regardless of the number of entries in the original list.
+ * Assumes that sg_init_table() was already done.
+ */
+static inline void scatterwalk_get_sglist(struct scatter_walk *walk,
+					  struct scatterlist sg_out[2])
+{
+	if (walk->offset >= walk->sg->offset + walk->sg->length)
+		scatterwalk_start(walk, sg_next(walk->sg));
+	sg_set_page(sg_out, sg_page(walk->sg),
+		    walk->sg->offset + walk->sg->length - walk->offset,
+		    walk->offset);
+	scatterwalk_crypto_chain(sg_out, sg_next(walk->sg), 2);
+}
+
 static inline void scatterwalk_unmap(void *vaddr)
 {
 	kunmap_local(vaddr);
