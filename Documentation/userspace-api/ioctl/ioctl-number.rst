@@ -371,7 +371,7 @@ Code  Seq#    Include File                                           Comments
 0xB7  all    uapi/linux/nsfs.h                                       <mailto:Andrei Vagin <avagin@openvz.org>>
 0xB8  01-02  uapi/misc/mrvl_cn10k_dpi.h                              Marvell CN10K DPI driver
 0xC0  00-0F  linux/usb/iowarrior.h
-0xCA  00-0F  uapi/misc/cxl.h
+0xCA  00-0F  uapi/misc/cxl.h                                         Dead since 6.14
 0xCA  10-2F  uapi/misc/ocxl.h
 0xCA  80-BF  uapi/scsi/cxlflash_ioctl.h                              Dead since 6.14
 0xCB  00-1F                                                          CBM serial IEC bus in development:

@@ -39,8 +39,6 @@
 #include <asm/mmzone.h>
 #include <asm/xive.h>
 
-#include <misc/cxl-base.h>
-
 #include "powernv.h"
 #include "pci.h"
 #include "../../../../drivers/pci/pci.h"
@@ -1634,47 +1632,6 @@ int64_t pnv_opal_pci_msi_eoi(struct irq_data *d)
 	struct pnv_phb *phb = hose->private_data;
 
 	return opal_pci_msi_eoi(phb->opal_id, d->parent_data->hwirq);
-}
-
-/*
- * The IRQ data is mapped in the XICS domain, with OPAL HW IRQ numbers
- */
-static void pnv_ioda2_msi_eoi(struct irq_data *d)
-{
-	int64_t rc;
-	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
-	struct pci_controller *hose = irq_data_get_irq_chip_data(d);
-	struct pnv_phb *phb = hose->private_data;
-
-	rc = opal_pci_msi_eoi(phb->opal_id, hw_irq);
-	WARN_ON_ONCE(rc);
-
-	icp_native_eoi(d);
-}
-
-/* P8/CXL only */
-void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq)
-{
-	struct irq_data *idata;
-	struct irq_chip *ichip;
-
-	/* The MSI EOI OPAL call is only needed on PHB3 */
-	if (phb->model != PNV_PHB_MODEL_PHB3)
-		return;
-
-	if (!phb->ioda.irq_chip_init) {
-		/*
-		 * First time we setup an MSI IRQ, we need to setup the
-		 * corresponding IRQ chip to route correctly.
-		 */
-		idata = irq_get_irq_data(virq);
-		ichip = irq_data_get_irq_chip(idata);
-		phb->ioda.irq_chip_init = 1;
-		phb->ioda.irq_chip = *ichip;
-		phb->ioda.irq_chip.irq_eoi = pnv_ioda2_msi_eoi;
-	}
-	irq_set_chip(virq, &phb->ioda.irq_chip);
-	irq_set_chip_data(virq, phb->hose);
 }
 
 static struct irq_chip pnv_pci_msi_irq_chip;
