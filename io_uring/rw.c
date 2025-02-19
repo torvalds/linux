@@ -889,15 +889,7 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(ret))
 		return ret;
 
-	if (unlikely(req->opcode == IORING_OP_READ_MULTISHOT)) {
-		void *cb_copy = rw->kiocb.ki_complete;
-
-		rw->kiocb.ki_complete = NULL;
-		ret = io_iter_do_read(rw, &io->iter);
-		rw->kiocb.ki_complete = cb_copy;
-	} else {
-		ret = io_iter_do_read(rw, &io->iter);
-	}
+	ret = io_iter_do_read(rw, &io->iter);
 
 	/*
 	 * Some file systems like to return -EOPNOTSUPP for an IOCB_NOWAIT
@@ -995,6 +987,8 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	if (!io_file_can_poll(req))
 		return -EBADFD;
 
+	/* make it sync, multishot doesn't support async execution */
+	rw->kiocb.ki_complete = NULL;
 	ret = __io_read(req, issue_flags);
 
 	/*
