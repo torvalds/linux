@@ -256,6 +256,9 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (skb_cow_head(skb, MANA_HEADROOM))
 		goto tx_drop_count;
 
+	if (unlikely(ipv6_hopopt_jumbo_remove(skb)))
+		goto tx_drop_count;
+
 	txq = &apc->tx_qp[txq_idx].txq;
 	gdma_sq = txq->gdma_sq;
 	cq = &apc->tx_qp[txq_idx].tx_cq;
@@ -2872,6 +2875,8 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	ndev->needed_headroom = MANA_HEADROOM;
 	ndev->dev_port = port_idx;
 	SET_NETDEV_DEV(ndev, gc->dev);
+
+	netif_set_tso_max_size(ndev, GSO_MAX_SIZE);
 
 	netif_carrier_off(ndev);
 
