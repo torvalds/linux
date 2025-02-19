@@ -910,33 +910,19 @@ int mlx5e_set_per_queue_coalesce(struct net_device *dev, u32 queue,
 	return mlx5e_ethtool_set_per_queue_coalesce(priv, queue, coal);
 }
 
-static void ptys2ethtool_supported_link(unsigned long *supported_modes,
-					u32 eth_proto_cap, bool ext)
+static void ptys2ethtool_process_link(u32 eth_eproto, bool ext, bool advertised,
+				      unsigned long *modes)
 {
-	unsigned long proto_cap = eth_proto_cap;
+	unsigned long eproto = eth_eproto;
 	struct ptys2ethtool_config *table;
 	u32 max_size;
 	int proto;
 
 	mlx5e_ethtool_get_speed_arr(ext, &table, &max_size);
-	for_each_set_bit(proto, &proto_cap, max_size)
-		bitmap_or(supported_modes, supported_modes,
-			  table[proto].supported,
-			  __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
-static void ptys2ethtool_adver_link(unsigned long *advertising_modes,
-				    u32 eth_proto_cap, bool ext)
-{
-	unsigned long proto_cap = eth_proto_cap;
-	struct ptys2ethtool_config *table;
-	u32 max_size;
-	int proto;
-
-	mlx5e_ethtool_get_speed_arr(ext, &table, &max_size);
-	for_each_set_bit(proto, &proto_cap, max_size)
-		bitmap_or(advertising_modes, advertising_modes,
-			  table[proto].advertised,
+	for_each_set_bit(proto, &eproto, max_size)
+		bitmap_or(modes, modes,
+			  advertised ?
+			  table[proto].advertised : table[proto].supported,
 			  __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
@@ -1124,7 +1110,7 @@ static void get_supported(struct mlx5_core_dev *mdev, u32 eth_proto_cap,
 	unsigned long *supported = link_ksettings->link_modes.supported;
 	bool ext = mlx5_ptys_ext_supported(mdev);
 
-	ptys2ethtool_supported_link(supported, eth_proto_cap, ext);
+	ptys2ethtool_process_link(eth_proto_cap, ext, false, supported);
 
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported, Pause);
 }
@@ -1134,8 +1120,7 @@ static void get_advertising(u32 eth_proto_cap, u8 tx_pause, u8 rx_pause,
 			    bool ext)
 {
 	unsigned long *advertising = link_ksettings->link_modes.advertising;
-	ptys2ethtool_adver_link(advertising, eth_proto_cap, ext);
-
+	ptys2ethtool_process_link(eth_proto_cap, ext, true, advertising);
 	if (rx_pause)
 		ethtool_link_ksettings_add_link_mode(link_ksettings, advertising, Pause);
 	if (tx_pause ^ rx_pause)
@@ -1191,7 +1176,7 @@ static void get_lp_advertising(struct mlx5_core_dev *mdev, u32 eth_proto_lp,
 	unsigned long *lp_advertising = link_ksettings->link_modes.lp_advertising;
 	bool ext = mlx5_ptys_ext_supported(mdev);
 
-	ptys2ethtool_adver_link(lp_advertising, eth_proto_lp, ext);
+	ptys2ethtool_process_link(eth_proto_lp, ext, true, lp_advertising);
 }
 
 static int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
