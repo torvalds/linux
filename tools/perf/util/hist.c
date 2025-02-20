@@ -991,8 +991,6 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	if (he == NULL)
 		return -ENOMEM;
 
-	hists__inc_nr_samples(hists, he->filtered);
-
 out:
 	iter->he = he;
 	iter->curr++;
@@ -1011,8 +1009,14 @@ static int
 iter_finish_branch_entry(struct hist_entry_iter *iter,
 			 struct addr_location *al __maybe_unused)
 {
+	struct evsel *evsel = iter->evsel;
+	struct hists *hists = evsel__hists(evsel);
+
 	for (int i = 0; i < iter->total; i++)
 		branch_info__exit(&iter->bi[i]);
+
+	if (iter->he)
+		hists__inc_nr_samples(hists, iter->he->filtered);
 
 	zfree(&iter->bi);
 	iter->he = NULL;
