@@ -1802,7 +1802,8 @@ static void bch2_vfs_inode_init(struct btree_trans *trans,
 		break;
 	}
 
-	mapping_set_large_folios(inode->v.i_mapping);
+	mapping_set_folio_min_order(inode->v.i_mapping,
+				    get_order(trans->c->opts.block_size));
 }
 
 static void bch2_free_inode(struct inode *vinode)

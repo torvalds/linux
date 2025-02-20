@@ -372,7 +372,6 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	struct bch_sb *sb = disk_sb->sb;
 	struct bch_sb_field_members_v1 *mi;
 	enum bch_opt_id opt_id;
-	u16 block_size;
 	int ret;
 
 	ret = bch2_sb_compatible(sb, out);
@@ -389,14 +388,6 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 	    BCH_SB_VERSION_INCOMPAT(sb) > bcachefs_metadata_version_current) {
 		prt_printf(out, "Filesystem has incompatible version");
 		return -BCH_ERR_invalid_sb_features;
-	}
-
-	block_size = le16_to_cpu(sb->block_size);
-
-	if (block_size > PAGE_SECTORS) {
-		prt_printf(out, "Block size too big (got %u, max %u)",
-		       block_size, PAGE_SECTORS);
-		return -BCH_ERR_invalid_sb_block_size;
 	}
 
 	if (bch2_is_zero(sb->user_uuid.b, sizeof(sb->user_uuid))) {
