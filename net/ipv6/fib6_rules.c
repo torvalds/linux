@@ -340,12 +340,12 @@ INDIRECT_CALLABLE_SCOPE int fib6_rule_match(struct fib_rule *rule,
 	if (rule->ip_proto && (rule->ip_proto != fl6->flowi6_proto))
 		return 0;
 
-	if (fib_rule_port_range_set(&rule->sport_range) &&
-	    !fib_rule_port_inrange(&rule->sport_range, fl6->fl6_sport))
+	if (!fib_rule_port_match(&rule->sport_range, rule->sport_mask,
+				 fl6->fl6_sport))
 		return 0;
 
-	if (fib_rule_port_range_set(&rule->dport_range) &&
-	    !fib_rule_port_inrange(&rule->dport_range, fl6->fl6_dport))
+	if (!fib_rule_port_match(&rule->dport_range, rule->dport_mask,
+				 fl6->fl6_dport))
 		return 0;
 
 	return 1;
