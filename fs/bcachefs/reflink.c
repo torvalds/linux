@@ -172,7 +172,7 @@ static int bch2_indirect_extent_missing_error(struct btree_trans *trans,
 					      bool should_commit)
 {
 	if (REFLINK_P_ERROR(p.v))
-		return -BCH_ERR_missing_indirect_extent;
+		return 0;
 
 	struct bch_fs *c = trans->c;
 	u64 live_start	= REFLINK_P_IDX(p.v);
@@ -259,8 +259,6 @@ struct bkey_s_c bch2_lookup_indirect_extent(struct btree_trans *trans,
 		return k;
 
 	if (unlikely(!bkey_extent_is_reflink_data(k.k))) {
-		bch2_trans_iter_exit(trans, iter);
-
 		unsigned size = min((u64) k.k->size,
 				    REFLINK_P_IDX(p.v) + p.k->size + le32_to_cpu(p.v->back_pad) -
 				    reflink_offset);
@@ -268,14 +266,16 @@ struct bkey_s_c bch2_lookup_indirect_extent(struct btree_trans *trans,
 
 		int ret = bch2_indirect_extent_missing_error(trans, p, reflink_offset,
 							     k.k->p.offset, should_commit);
-		if (ret)
+		if (ret) {
+			bch2_trans_iter_exit(trans, iter);
 			return bkey_s_c_err(ret);
+		}
 	} else if (unlikely(REFLINK_P_ERROR(p.v))) {
-		bch2_trans_iter_exit(trans, iter);
-
 		int ret = bch2_indirect_extent_not_missing(trans, p, should_commit);
-		if (ret)
+		if (ret) {
+			bch2_trans_iter_exit(trans, iter);
 			return bkey_s_c_err(ret);
+		}
 	}
 
 	*offset_into_extent = reflink_offset - bkey_start_offset(k.k);
@@ -300,7 +300,7 @@ static int trans_trigger_reflink_p_segment(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (bkey_deleted(k.k)) {
+	if (!bkey_refcount_c(k)) {
 		if (!(flags & BTREE_TRIGGER_overwrite))
 			ret = -BCH_ERR_missing_indirect_extent;
 		goto next;
@@ -381,8 +381,6 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 not_found:
 	if (flags & BTREE_TRIGGER_check_repair) {
 		ret = bch2_indirect_extent_missing_error(trans, p, *idx, next_idx, false);
-		if (ret == -BCH_ERR_missing_indirect_extent)
-			ret = 0;
 		if (ret)
 			goto err;
 	}
