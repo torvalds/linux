@@ -1,0 +1,25 @@
+[Unit]
+Description=EXPERIMENTAL: Mount a storage device via lklfuse
+ConditionPathExists=/dev/%I
+After=modprobe@fuse.service
+Requires=modprobe@fuse.service
+
+[Service]
+RuntimeDirectory=lklfuse-%i
+# The "allow_other" mount option permits fuse mount access by users other than
+# the lklfuse user, and requires a "user_allow_other" setting in fuse3.conf
+Environment=LKLFUSE_ARGS="-s -oallow_other"
+# Override LKLFUSE_ARGS in the EnvironmentFile if desired. See lklfuse --help
+EnvironmentFile=-/etc/lklfuse.conf
+# The following sandboxing works, but the mountpoint is in a new mount namespace
+#ProtectSystem=strict
+#ProtectHome=true
+#PrivateNetwork=true
+# run as unprivileged user
+User=lklfuse
+Group=lklfuse
+ExecCondition=/bin/bash -c "udevadm info -q env -x --property=ID_FS_TYPE -n \"%I\" > ${RUNTIME_DIRECTORY}/udev.env"
+ExecStart=/bin/bash -c ". ${RUNTIME_DIRECTORY}/udev.env; rm ${RUNTIME_DIRECTORY}/udev.env; /usr/bin/lklfuse -f -ofsname=\"/dev/%I\",subtype=\"lkl.$ID_FS_TYPE\",type=\"$ID_FS_TYPE\" $LKLFUSE_ARGS \"/dev/%I\" $RUNTIME_DIRECTORY"
+
+[Install]
+WantedBy=default.target

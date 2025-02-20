@@ -1,0 +1,18 @@
+SUBSYSTEM!="block", SUBSYSTEMS!="usb", GOTO="lklfuse_end"
+#TAG+="lklfuse-dbg-block-filter"
+# XXX remove should be handled by systemd service ConditionPathExists for %k
+# device node, but it doesn't appear to work, so manually stop.
+ACTION=="remove", TAG+="lklfuse-dbg-got-remove", \
+  RUN+="/usr/bin/systemctl stop lklfuse-mount@%k", GOTO="lklfuse_end"
+#TAG+="lklfuse-dbg-remove-filter"
+
+# only support a subset of filesystems on USB devices for now. Btrfs omitted
+# from the default set, as lklfuse lacks multi-device support.
+ENV{ID_FS_TYPE}!="vfat|exfat|xfs|ext4|ext3|ext2", GOTO="lklfuse_end"
+#TAG+="lklfuse-dbg-fs-filter"
+
+ACTION=="add", TAG+="systemd", \
+  OWNER="lklfuse", GROUP="lklfuse", ENV{UDISKS_IGNORE}="1", \
+  ENV{SYSTEMD_WANTS}+="lklfuse-mount@%k.service"
+
+LABEL="lklfuse_end"
