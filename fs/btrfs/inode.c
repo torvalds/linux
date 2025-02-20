@@ -7297,7 +7297,7 @@ static void wait_subpage_spinlock(struct folio *folio)
 static int btrfs_launder_folio(struct folio *folio)
 {
 	return btrfs_qgroup_free_data(folio_to_inode(folio), NULL, folio_pos(folio),
-				      PAGE_SIZE, NULL);
+				      folio_size(folio), NULL);
 }
 
 static bool __btrfs_release_folio(struct folio *folio, gfp_t gfp_flags)
