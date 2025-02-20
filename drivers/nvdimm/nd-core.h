@@ -127,8 +127,6 @@ resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 				      struct nd_mapping *nd_mapping);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
-int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
-		resource_size_t size);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
 int nvdimm_num_label_slots(struct nvdimm_drvdata *ndd);
