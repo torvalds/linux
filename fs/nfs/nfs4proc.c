@@ -133,6 +133,7 @@ nfs4_label_init_security(struct inode *dir, struct dentry *dentry,
 	if (err)
 		return NULL;
 
+	label->lsmid = shim.id;
 	label->label = shim.context;
 	label->len = shim.len;
 	return label;
@@ -145,7 +146,7 @@ nfs4_label_release_security(struct nfs4_label *label)
 	if (label) {
 		shim.context = label->label;
 		shim.len = label->len;
-		shim.id = LSM_ID_UNDEF;
+		shim.id = label->lsmid;
 		security_release_secctx(&shim);
 	}
 }
@@ -6272,7 +6273,7 @@ static int _nfs4_get_security_label(struct inode *inode, void *buf,
 					size_t buflen)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs4_label label = {0, 0, buflen, buf};
+	struct nfs4_label label = {0, 0, 0, buflen, buf};
 
 	u32 bitmask[3] = { 0, 0, FATTR4_WORD2_SECURITY_LABEL };
 	struct nfs_fattr fattr = {
@@ -6377,7 +6378,7 @@ static int nfs4_do_set_security_label(struct inode *inode,
 static int
 nfs4_set_security_label(struct inode *inode, const void *buf, size_t buflen)
 {
-	struct nfs4_label ilabel = {0, 0, buflen, (char *)buf };
+	struct nfs4_label ilabel = {0, 0, 0, buflen, (char *)buf };
 	struct nfs_fattr *fattr;
 	int status;
 
