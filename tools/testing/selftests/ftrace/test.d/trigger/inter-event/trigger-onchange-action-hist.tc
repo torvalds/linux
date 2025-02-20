@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger onchange action
 # requires: set_event "onchange(var)":README ping:program
+# flags: instance
 
 fail() { #msg
     echo $1

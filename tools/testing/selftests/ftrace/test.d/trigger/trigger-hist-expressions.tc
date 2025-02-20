@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test histogram expression parsing
 # requires: set_event events/sched/sched_process_fork/trigger events/sched/sched_process_fork/hist error_log "<var1>=<field|var_ref|numeric_literal>":README
+# flags: instance
 
 
 fail() { #msg
