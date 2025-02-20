@@ -20,7 +20,6 @@ struct fuse_iqueue;
 struct fuse_forget_link;
 
 struct fuse_copy_state {
-	int write;
 	struct fuse_req *req;
 	struct iov_iter *iter;
 	struct pipe_buffer *pipebufs;
@@ -30,6 +29,7 @@ struct fuse_copy_state {
 	struct page *pg;
 	unsigned int len;
 	unsigned int offset;
+	unsigned int write:1;
 	unsigned int move_pages:1;
 	unsigned int is_uring:1;
 	struct {
