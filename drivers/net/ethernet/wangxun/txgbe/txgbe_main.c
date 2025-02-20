@@ -13,6 +13,7 @@
 
 #include "../libwx/wx_type.h"
 #include "../libwx/wx_lib.h"
+#include "../libwx/wx_ptp.h"
 #include "../libwx/wx_hw.h"
 #include "txgbe_type.h"
 #include "txgbe_hw.h"
@@ -116,6 +117,9 @@ static void txgbe_reset(struct wx *wx)
 	memcpy(old_addr, &wx->mac_table[0].addr, netdev->addr_len);
 	wx_flush_sw_mac_table(wx);
 	wx_mac_set_default_filter(wx, old_addr);
+
+	if (test_bit(WX_STATE_PTP_RUNNING, wx->state))
+		wx_ptp_reset(wx);
 }
 
 static void txgbe_disable_device(struct wx *wx)
@@ -176,6 +180,7 @@ void txgbe_down(struct wx *wx)
 void txgbe_up(struct wx *wx)
 {
 	wx_configure(wx);
+	wx_ptp_init(wx);
 	txgbe_up_complete(wx);
 }
 
@@ -321,6 +326,8 @@ static int txgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_free_irq;
 
+	wx_ptp_init(wx);
+
 	txgbe_up_complete(wx);
 
 	return 0;
@@ -344,6 +351,7 @@ err_reset:
  */
 static void txgbe_close_suspend(struct wx *wx)
 {
+	wx_ptp_suspend(wx);
 	txgbe_disable_device(wx);
 	wx_free_resources(wx);
 }
@@ -363,6 +371,7 @@ static int txgbe_close(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	wx_ptp_stop(wx);
 	txgbe_down(wx);
 	wx_free_irq(wx);
 	wx_free_resources(wx);
@@ -479,6 +488,8 @@ static const struct net_device_ops txgbe_netdev_ops = {
 	.ndo_get_stats64        = wx_get_stats64,
 	.ndo_vlan_rx_add_vid    = wx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = wx_vlan_rx_kill_vid,
+	.ndo_hwtstamp_set       = wx_hwtstamp_set,
+	.ndo_hwtstamp_get       = wx_hwtstamp_get,
 };
 
 /**
