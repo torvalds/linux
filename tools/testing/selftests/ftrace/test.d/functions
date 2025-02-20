@@ -156,7 +156,13 @@ check_requires() { # Check required files and tracers
                 exit_unsupported
             fi
         elif [ "$r" != "$i" ]; then
-            if ! grep -Fq "$r" README ; then
+	    # If this is an instance, check the top directory
+	    if echo $TRACING_DIR | grep -q "/instances/"; then
+		test="$TRACING_DIR/../.."
+	    else
+		test=$TRACING_DIR
+	    fi
+            if ! grep -Fq "$r" $test/README ; then
                 echo "Required feature pattern \"$r\" is not in README."
                 exit_unsupported
             fi
