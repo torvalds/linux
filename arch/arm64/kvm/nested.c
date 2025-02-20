@@ -848,13 +848,15 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64MMFR0_EL1:
-		/* Hide ECV, ExS, Secure Memory */
-		val &= ~(ID_AA64MMFR0_EL1_ECV		|
-			 ID_AA64MMFR0_EL1_EXS		|
+		/* Hide ExS, Secure Memory */
+		val &= ~(ID_AA64MMFR0_EL1_EXS		|
 			 ID_AA64MMFR0_EL1_TGRAN4_2	|
 			 ID_AA64MMFR0_EL1_TGRAN16_2	|
 			 ID_AA64MMFR0_EL1_TGRAN64_2	|
 			 ID_AA64MMFR0_EL1_SNSMEM);
+
+		/* Hide CNTPOFF if present */
+		val = ID_REG_LIMIT_FIELD_ENUM(val, ID_AA64MMFR0_EL1, ECV, IMP);
 
 		/* Disallow unsupported S2 page sizes */
 		switch (PAGE_SIZE) {
