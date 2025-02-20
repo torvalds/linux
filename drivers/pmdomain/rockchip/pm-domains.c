@@ -607,26 +607,29 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		rockchip_pmu_save_qos(pd);
 
 		/* if powering down, idle request to NIU first */
-		rockchip_pmu_set_idle_request(pd, true);
+		ret = rockchip_pmu_set_idle_request(pd, true);
+		if (ret < 0)
+			goto out;
 	}
 
 	ret = rockchip_do_pmu_set_power_domain(pd, power_on);
-	if (ret < 0) {
-		clk_bulk_disable(pd->num_clks, pd->clks);
-		return ret;
-	}
+	if (ret < 0)
+		goto out;
 
 	if (power_on) {
 		/* if powering up, leave idle mode */
-		rockchip_pmu_set_idle_request(pd, false);
+		ret = rockchip_pmu_set_idle_request(pd, false);
+		if (ret < 0)
+			goto out;
 
 		rockchip_pmu_restore_qos(pd);
 	}
 
+out:
 	rockchip_pmu_ungate_clk(pd, false);
 	clk_bulk_disable(pd->num_clks, pd->clks);
 
-	return 0;
+	return ret;
 }
 
 static int rockchip_pd_power_on(struct generic_pm_domain *domain)
