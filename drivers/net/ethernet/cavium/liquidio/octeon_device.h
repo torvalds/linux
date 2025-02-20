@@ -705,13 +705,6 @@ octeon_get_dispatch(struct octeon_device *octeon_dev, u16 opcode,
  */
 struct octeon_device *lio_get_device(u32 octeon_id);
 
-/** Get the octeon id assigned to the octeon device passed as argument.
- *  This function is exported to other modules.
- *  @param dev - octeon device pointer passed as a void *.
- *  @return octeon device id
- */
-int lio_get_device_id(void *dev);
-
 /** Read windowed register.
  *  @param  oct   -  pointer to the Octeon device.
  *  @param  addr  -  Address of the register to read.

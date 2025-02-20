@@ -10,6 +10,40 @@
 
 static struct dentry *fbnic_dbg_root;
 
+static void fbnic_dbg_desc_break(struct seq_file *s, int i)
+{
+	while (i--)
+		seq_putc(s, '-');
+
+	seq_putc(s, '\n');
+}
+
+static int fbnic_dbg_mac_addr_show(struct seq_file *s, void *v)
+{
+	struct fbnic_dev *fbd = s->private;
+	char hdr[80];
+	int i;
+
+	/* Generate Header */
+	snprintf(hdr, sizeof(hdr), "%3s %s %-17s %s\n",
+		 "Idx", "S", "TCAM Bitmap", "Addr/Mask");
+	seq_puts(s, hdr);
+	fbnic_dbg_desc_break(s, strnlen(hdr, sizeof(hdr)));
+
+	for (i = 0; i < FBNIC_RPC_TCAM_MACDA_NUM_ENTRIES; i++) {
+		struct fbnic_mac_addr *mac_addr = &fbd->mac_addr[i];
+
+		seq_printf(s, "%02d  %d %64pb %pm\n",
+			   i, mac_addr->state, mac_addr->act_tcam,
+			   mac_addr->value.addr8);
+		seq_printf(s, "                        %pm\n",
+			   mac_addr->mask.addr8);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(fbnic_dbg_mac_addr);
+
 static int fbnic_dbg_pcie_stats_show(struct seq_file *s, void *v)
 {
 	struct fbnic_dev *fbd = s->private;
@@ -48,6 +82,8 @@ void fbnic_dbg_fbd_init(struct fbnic_dev *fbd)
 	fbd->dbg_fbd = debugfs_create_dir(name, fbnic_dbg_root);
 	debugfs_create_file("pcie_stats", 0400, fbd->dbg_fbd, fbd,
 			    &fbnic_dbg_pcie_stats_fops);
+	debugfs_create_file("mac_addr", 0400, fbd->dbg_fbd, fbd,
+			    &fbnic_dbg_mac_addr_fops);
 }
 
 void fbnic_dbg_fbd_exit(struct fbnic_dev *fbd)

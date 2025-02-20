@@ -289,9 +289,9 @@ static u64 mlx5e_xsk_fill_timestamp(void *_priv)
 	ts = get_cqe_ts(priv->cqe);
 
 	if (mlx5_is_real_time_rq(priv->cq->mdev) || mlx5_is_real_time_sq(priv->cq->mdev))
-		return mlx5_real_time_cyc2time(&priv->cq->mdev->clock, ts);
+		return mlx5_real_time_cyc2time(priv->cq->mdev->clock, ts);
 
-	return  mlx5_timecounter_cyc2time(&priv->cq->mdev->clock, ts);
+	return  mlx5_timecounter_cyc2time(priv->cq->mdev->clock, ts);
 }
 
 static void mlx5e_xsk_request_checksum(u16 csum_start, u16 csum_offset, void *priv)

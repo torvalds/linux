@@ -1478,12 +1478,6 @@ void mlx4_zone_allocator_destroy(struct mlx4_zone_allocator *zone_alloc);
 u32 mlx4_zone_alloc_entries(struct mlx4_zone_allocator *zones, u32 uid, int count,
 			    int align, u32 skip_mask, u32 *puid);
 
-/* Free <count> objects, start from <obj> of the uid <uid> from zone_allocator
- * <zones>.
- */
-u32 mlx4_zone_free_entries(struct mlx4_zone_allocator *zones,
-			   u32 uid, u32 obj, u32 count);
-
 /* If <zones> was allocated with MLX4_ZONE_ALLOC_FLAGS_NO_OVERLAP, instead of
  * specifying the uid when freeing an object, zone allocator could figure it by
  * itself. Other parameters are similar to mlx4_zone_free.

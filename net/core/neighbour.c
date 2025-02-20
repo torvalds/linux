@@ -832,12 +832,10 @@ static int pneigh_ifdown_and_unlock(struct neigh_table *tbl,
 	return -ENOENT;
 }
 
-static void neigh_parms_destroy(struct neigh_parms *parms);
-
 static inline void neigh_parms_put(struct neigh_parms *parms)
 {
 	if (refcount_dec_and_test(&parms->refcnt))
-		neigh_parms_destroy(parms);
+		kfree(parms);
 }
 
 /*
@@ -1712,11 +1710,6 @@ void neigh_parms_release(struct neigh_table *tbl, struct neigh_parms *parms)
 	call_rcu(&parms->rcu_head, neigh_rcu_free_parms);
 }
 EXPORT_SYMBOL(neigh_parms_release);
-
-static void neigh_parms_destroy(struct neigh_parms *parms)
-{
-	kfree(parms);
-}
 
 static struct lock_class_key neigh_table_proxy_queue_class;
 

@@ -3,6 +3,7 @@
 #include <linux/netdevice.h>
 #include <net/netdev_queues.h>
 #include <net/netdev_rx_queue.h>
+#include <net/page_pool/memory_provider.h>
 
 #include "page_pool_priv.h"
 
@@ -80,3 +81,71 @@ err_free_new_mem:
 	return err;
 }
 EXPORT_SYMBOL_NS_GPL(netdev_rx_queue_restart, "NETDEV_INTERNAL");
+
+static int __net_mp_open_rxq(struct net_device *dev, unsigned ifq_idx,
+			     struct pp_memory_provider_params *p)
+{
+	struct netdev_rx_queue *rxq;
+	int ret;
+
+	if (ifq_idx >= dev->real_num_rx_queues)
+		return -EINVAL;
+	ifq_idx = array_index_nospec(ifq_idx, dev->real_num_rx_queues);
+
+	rxq = __netif_get_rx_queue(dev, ifq_idx);
+	if (rxq->mp_params.mp_ops)
+		return -EEXIST;
+
+	rxq->mp_params = *p;
+	ret = netdev_rx_queue_restart(dev, ifq_idx);
+	if (ret) {
+		rxq->mp_params.mp_ops = NULL;
+		rxq->mp_params.mp_priv = NULL;
+	}
+	return ret;
+}
+
+int net_mp_open_rxq(struct net_device *dev, unsigned ifq_idx,
+		    struct pp_memory_provider_params *p)
+{
+	int ret;
+
+	rtnl_lock();
+	ret = __net_mp_open_rxq(dev, ifq_idx, p);
+	rtnl_unlock();
+	return ret;
+}
+
+static void __net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
+			      struct pp_memory_provider_params *old_p)
+{
+	struct netdev_rx_queue *rxq;
+
+	if (WARN_ON_ONCE(ifq_idx >= dev->real_num_rx_queues))
+		return;
+
+	rxq = __netif_get_rx_queue(dev, ifq_idx);
+
+	/* Callers holding a netdev ref may get here after we already
+	 * went thru shutdown via dev_memory_provider_uninstall().
+	 */
+	if (dev->reg_state > NETREG_REGISTERED &&
+	    !rxq->mp_params.mp_ops)
+		return;
+
+	if (WARN_ON_ONCE(rxq->mp_params.mp_ops != old_p->mp_ops ||
+			 rxq->mp_params.mp_priv != old_p->mp_priv))
+		return;
+
+	rxq->mp_params.mp_ops = NULL;
+	rxq->mp_params.mp_priv = NULL;
+	WARN_ON(netdev_rx_queue_restart(dev, ifq_idx));
+}
+
+void net_mp_close_rxq(struct net_device *dev, unsigned ifq_idx,
+		      struct pp_memory_provider_params *old_p)
+{
+	rtnl_lock();
+	__net_mp_close_rxq(dev, ifq_idx, old_p);
+	rtnl_unlock();
+}
