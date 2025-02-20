@@ -21,8 +21,32 @@ struct hisi_sas_internal_abort_data {
 	bool rst_ha_timeout; /* reset the HA for timeout */
 };
 
-u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
+static u8 hisi_sas_get_ata_protocol_from_tf(struct ata_queued_cmd *qc)
 {
+	if (!qc)
+		return HISI_SAS_SATA_PROTOCOL_PIO;
+
+	switch (qc->tf.protocol) {
+	case ATA_PROT_NODATA:
+		return HISI_SAS_SATA_PROTOCOL_NONDATA;
+	case ATA_PROT_PIO:
+		return HISI_SAS_SATA_PROTOCOL_PIO;
+	case ATA_PROT_DMA:
+		return HISI_SAS_SATA_PROTOCOL_DMA;
+	case ATA_PROT_NCQ_NODATA:
+	case ATA_PROT_NCQ:
+		return HISI_SAS_SATA_PROTOCOL_FPDMA;
+	default:
+		return HISI_SAS_SATA_PROTOCOL_PIO;
+	}
+}
+
+u8 hisi_sas_get_ata_protocol(struct sas_task *task)
+{
+	struct host_to_dev_fis *fis = &task->ata_task.fis;
+	struct ata_queued_cmd *qc = task->uldd_task;
+	int direction = task->data_dir;
+
 	switch (fis->command) {
 	case ATA_CMD_FPDMA_WRITE:
 	case ATA_CMD_FPDMA_READ:
@@ -93,7 +117,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	{
 		if (direction == DMA_NONE)
 			return HISI_SAS_SATA_PROTOCOL_NONDATA;
-		return HISI_SAS_SATA_PROTOCOL_PIO;
+		return hisi_sas_get_ata_protocol_from_tf(qc);
 	}
 	}
 }
