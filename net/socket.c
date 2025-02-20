@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
 int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 		  int __user *upeer_addrlen, int flags)
 {
+	printk(KERN_INFO "accept");
 	int ret = -EBADF;
 	struct fd f;
 
@@ -2053,6 +2054,7 @@ out:
 
 int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 {
+	printk(KERN_INFO "connect");
 	int ret = -EBADF;
 	struct fd f;
 

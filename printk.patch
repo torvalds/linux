@@ -1,0 +1,60 @@
+diff --git a/README b/README
+index 669ac7c32292..e28367d153f4 100644
+--- a/README
++++ b/README
+@@ -1,4 +1,4 @@
+-Linux kernel
++Linux kernel-Adrian
+ ============
+ 
+ There are several guides for kernel developers and users. These guides can
+diff --git a/net/socket.c b/net/socket.c
+index ed3df2f749bf..c8f551549b74 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
+ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
+ 		  int __user *upeer_addrlen, int flags)
+ {
++	printk(KERN_INFO "accept");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
+@@ -2053,6 +2054,7 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
+ 
+ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+ {
++	printk(KERN_INFO "connect");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
+diff --git a/README b/README
+index 669ac7c32292..e28367d153f4 100644
+--- a/README
++++ b/README
+@@ -1,4 +1,4 @@
+-Linux kernel
++Linux kernel-Adrian
+ ============
+ 
+ There are several guides for kernel developers and users. These guides can
+diff --git a/net/socket.c b/net/socket.c
+index ed3df2f749bf..c8f551549b74 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
+ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
+ 		  int __user *upeer_addrlen, int flags)
+ {
++	printk(KERN_INFO "accept");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
+@@ -2053,6 +2054,7 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
+ 
+ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+ {
++	printk(KERN_INFO "connect");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
