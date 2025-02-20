@@ -196,22 +196,22 @@ static int get_family_id(int sd)
 
 static void print_delayacct(struct taskstats *t)
 {
-	printf("\n\nCPU   %15s%15s%15s%15s%15s%15s\n"
-	       "      %15llu%15llu%15llu%15llu%15.3fms%13.6fms\n"
-	       "IO    %15s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "SWAP  %15s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "RECLAIM  %12s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "THRASHING%12s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "COMPACT  %12s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "WPCOPY   %12s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n"
-	       "IRQ   %15s%15s%15s%15s\n"
-	       "      %15llu%15llu%15.3fms%13.6fms\n",
+	printf("\n\nCPU   %15s%15s%15s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "IO    %15s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "SWAP  %15s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "RECLAIM  %12s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "THRASHING%12s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "COMPACT  %12s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "WPCOPY   %12s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n"
+	       "IRQ   %15s%15s%15s%15s%15s\n"
+	       "      %15llu%15llu%15.3fms%13.6fms%13.6fms\n",
 	       "count", "real total", "virtual total",
 	       "delay total", "delay average", "delay max", "delay min",
 	       (unsigned long long)t->cpu_count,
