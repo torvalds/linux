@@ -51,6 +51,10 @@ int kvm_vcpu_init_nested(struct kvm_vcpu *vcpu)
 	struct kvm_s2_mmu *tmp;
 	int num_mmus, ret = 0;
 
+	if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features) &&
+	    !cpus_have_final_cap(ARM64_HAS_HCR_NV1))
+		return -EINVAL;
+
 	/*
 	 * Let's treat memory allocation failures as benign: If we fail to
 	 * allocate anything, return an error and keep the allocated array
@@ -894,6 +898,9 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 			ID_AA64MMFR1_EL1_HPDS	|
 			ID_AA64MMFR1_EL1_VH	|
 			ID_AA64MMFR1_EL1_VMIDBits);
+		/* FEAT_E2H0 implies no VHE */
+		if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features))
+			val &= ~ID_AA64MMFR1_EL1_VH;
 		break;
 
 	case SYS_ID_AA64MMFR2_EL1:
@@ -909,8 +916,25 @@ u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 		break;
 
 	case SYS_ID_AA64MMFR4_EL1:
-		val = SYS_FIELD_PREP_ENUM(ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY);
-		val |= SYS_FIELD_PREP_ENUM(ID_AA64MMFR4_EL1, E2H0, NI_NV1);
+		/*
+		 * You get EITHER
+		 *
+		 * - FEAT_VHE without FEAT_E2H0
+		 * - FEAT_NV limited to FEAT_NV2
+		 * - HCR_EL2.NV1 being RES0
+		 *
+		 * OR
+		 *
+		 * - FEAT_E2H0 without FEAT_VHE nor FEAT_NV
+		 *
+		 * Life is too short for anything else.
+		 */
+		if (test_bit(KVM_ARM_VCPU_HAS_EL2_E2H0, kvm->arch.vcpu_features)) {
+			val = 0;
+		} else {
+			val = SYS_FIELD_PREP_ENUM(ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY);
+			val |= SYS_FIELD_PREP_ENUM(ID_AA64MMFR4_EL1, E2H0, NI_NV1);
+		}
 		break;
 
 	case SYS_ID_AA64DFR0_EL1:
