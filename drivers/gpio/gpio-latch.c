@@ -73,7 +73,7 @@ static int gpio_latch_get_direction(struct gpio_chip *gc, unsigned int offset)
 }
 
 static void gpio_latch_set_unlocked(struct gpio_latch_priv *priv,
-				    void (*set)(struct gpio_desc *desc, int value),
+				    int (*set)(struct gpio_desc *desc, int value),
 				    unsigned int offset, bool val)
 {
 	int latch = offset / priv->n_latched_gpios;
