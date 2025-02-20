@@ -104,7 +104,7 @@ static int thead_dwmac_set_txclk_dir(struct plat_stmmacenet_data *plat)
 	return 0;
 }
 
-static void thead_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int mode)
+static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 {
 	struct plat_stmmacenet_data *plat;
 	struct thead_dwmac *dwmac = priv;
@@ -142,7 +142,7 @@ static void thead_dwmac_fix_speed(void *priv, unsigned int speed, unsigned int m
 			div = rate * 10 / GMAC_MII_RATE;
 			break;
 		default:
-			dev_err(dwmac->dev, "invalid speed %u\n", speed);
+			dev_err(dwmac->dev, "invalid speed %d\n", speed);
 			return;
 		}
 
