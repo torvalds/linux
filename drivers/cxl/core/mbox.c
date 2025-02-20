@@ -706,6 +706,35 @@ static int cxl_xfer_log(struct cxl_memdev_state *mds, uuid_t *uuid,
 	return 0;
 }
 
+static int check_features_opcodes(u16 opcode, int *ro_cmds, int *wr_cmds)
+{
+	switch (opcode) {
+	case CXL_MBOX_OP_GET_SUPPORTED_FEATURES:
+	case CXL_MBOX_OP_GET_FEATURE:
+		(*ro_cmds)++;
+		return 1;
+	case CXL_MBOX_OP_SET_FEATURE:
+		(*wr_cmds)++;
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+/* 'Get Supported Features' and 'Get Feature' */
+#define MAX_FEATURES_READ_CMDS	2
+static void set_features_cap(struct cxl_mailbox *cxl_mbox,
+			     int ro_cmds, int wr_cmds)
+{
+	/* Setting up Features capability while walking the CEL */
+	if (ro_cmds == MAX_FEATURES_READ_CMDS) {
+		if (wr_cmds)
+			cxl_mbox->feat_cap = CXL_FEATURES_RW;
+		else
+			cxl_mbox->feat_cap = CXL_FEATURES_RO;
+	}
+}
+
 /**
  * cxl_walk_cel() - Walk through the Command Effects Log.
  * @mds: The driver data for the operation
@@ -721,7 +750,7 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 	struct cxl_cel_entry *cel_entry;
 	const int cel_entries = size / sizeof(*cel_entry);
 	struct device *dev = mds->cxlds.dev;
-	int i;
+	int i, ro_cmds = 0, wr_cmds = 0;
 
 	cel_entry = (struct cxl_cel_entry *) cel;
 
@@ -734,6 +763,9 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 			set_bit(cmd->info.id, cxl_mbox->enabled_cmds);
 			enabled++;
 		}
+
+		enabled += check_features_opcodes(opcode, &ro_cmds,
+						  &wr_cmds);
 
 		if (cxl_is_poison_command(opcode)) {
 			cxl_set_poison_cmd_enabled(&mds->poison, opcode);
@@ -748,6 +780,8 @@ static void cxl_walk_cel(struct cxl_memdev_state *mds, size_t size, u8 *cel)
 		dev_dbg(dev, "Opcode 0x%04x %s\n", opcode,
 			enabled ? "enabled" : "unsupported by driver");
 	}
+
+	set_features_cap(cxl_mbox, ro_cmds, wr_cmds);
 }
 
 static struct cxl_mbox_get_supported_logs *cxl_get_gsl(struct cxl_memdev_state *mds)
