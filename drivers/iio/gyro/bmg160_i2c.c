@@ -58,6 +58,7 @@ MODULE_DEVICE_TABLE(i2c, bmg160_i2c_id);
 static const struct of_device_id bmg160_of_match[] = {
 	{ .compatible = "bosch,bmg160" },
 	{ .compatible = "bosch,bmi055_gyro" },
+	{ .compatible = "bosch,bmi088_gyro" },
 	{ }
 };
 
