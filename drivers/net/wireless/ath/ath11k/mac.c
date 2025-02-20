@@ -9052,12 +9052,10 @@ static int ath11k_mac_get_fw_stats(struct ath11k *ar, u32 pdev_id,
 	struct stats_request_params req_param;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
-	if (ar->state != ATH11K_STATE_ON) {
-		ret = -ENETDOWN;
-		goto err_unlock;
-	}
+	if (ar->state != ATH11K_STATE_ON)
+		return -ENETDOWN;
 
 	req_param.pdev_id = pdev_id;
 	req_param.vdev_id = vdev_id;
@@ -9070,9 +9068,6 @@ static int ath11k_mac_get_fw_stats(struct ath11k *ar, u32 pdev_id,
 	ath11k_dbg(ab, ATH11K_DBG_WMI,
 		   "debug get fw stat pdev id %d vdev id %d stats id 0x%x\n",
 		   pdev_id, vdev_id, stats_id);
-
-err_unlock:
-	mutex_unlock(&ar->conf_mutex);
 
 	return ret;
 }
@@ -9111,6 +9106,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 
 	ath11k_mac_put_chain_rssi(sinfo, arsta, "ppdu", false);
 
+	mutex_lock(&ar->conf_mutex);
 	if (!(sinfo->filled & BIT_ULL(NL80211_STA_INFO_CHAIN_SIGNAL)) &&
 	    arsta->arvif->vdev_type == WMI_VDEV_TYPE_STA &&
 	    ar->ab->hw_params.supports_rssi_stats &&
@@ -9126,6 +9122,7 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 	    !(ath11k_mac_get_fw_stats(ar, ar->pdev->pdev_id, 0,
 				      WMI_REQUEST_VDEV_STAT)))
 		signal = arsta->rssi_beacon;
+	mutex_unlock(&ar->conf_mutex);
 
 	ath11k_dbg(ar->ab, ATH11K_DBG_MAC,
 		   "sta statistics db2dbm %u rssi comb %d rssi beacon %d\n",
