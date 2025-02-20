@@ -233,6 +233,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		       const struct bch_hash_info *hash_info,
 		       u8 type, const struct qstr *name, u64 dst_inum,
 		       u64 *dir_offset,
+		       u64 *i_size,
 		       enum btree_iter_update_trigger_flags flags)
 {
 	struct bkey_i_dirent *dirent;
@@ -242,6 +243,8 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 	ret = PTR_ERR_OR_ZERO(dirent);
 	if (ret)
 		return ret;
+
+	*i_size += bkey_bytes(&dirent->k);
 
 	ret = bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
 			    dir, &dirent->k_i, flags);
