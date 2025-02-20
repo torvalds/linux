@@ -260,6 +260,22 @@
 	pinctrl-0 = <&i2c1_pins>;
 	clock-frequency = <400000>;
 	status = "okay";
+
+	typec-mux@48 {
+		compatible = "ite,it5205";
+		reg = <0x48>;
+
+		mode-switch;
+		orientation-switch;
+
+		vcc-supply = <&mt6359_vcn33_1_bt_ldo_reg>;
+
+		port {
+			it5205_sbu_mux: endpoint {
+				remote-endpoint = <&typec_sbu_out>;
+			};
+		};
+	};
 };
 
 &i2c2 {
@@ -281,6 +297,66 @@
 	pinctrl-0 = <&i2c4_pins>;
 	clock-frequency = <1000000>;
 	status = "okay";
+
+	rt1715@4e {
+		compatible = "richtek,rt1715";
+		reg = <0x4e>;
+		interrupts-extended = <&pio 12 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tcpci_int_pins>;
+		vbus-supply = <&usb_p1_vbus>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			data-role = "dual";
+			op-sink-microwatt = <10000000>;
+			power-role = "dual";
+			try-power-role  = "sink";
+			pd-revision = /bits/ 8 <0x03 0x00 0x01 0x08>;
+
+			sink-pdos = <PDO_FIXED(5000, 2000,
+					       PDO_FIXED_DUAL_ROLE |
+					       PDO_FIXED_DATA_SWAP)>;
+			source-pdos = <PDO_FIXED(5000, 2000,
+						 PDO_FIXED_DUAL_ROLE |
+						 PDO_FIXED_DATA_SWAP)>;
+
+			altmodes {
+				displayport {
+					svid = /bits/ 16 <0xff01>;
+					vdo = <0x001c1c47>;
+				};
+			};
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					typec_con_hs: endpoint {
+						remote-endpoint = <&mtu3_hs1_role_sw>;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					typec_con_ss: endpoint {
+						remote-endpoint = <&xhci_ss_ep>;
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+					typec_sbu_out: endpoint {
+						remote-endpoint = <&it5205_sbu_mux>;
+					};
+
+				};
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -849,6 +925,14 @@
 		};
 	};
 
+	tcpci_int_pins: tcpci-int-pins {
+		pins-int-n {
+			pinmux = <PINMUX_GPIO12__FUNC_B_GPIO12>;
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
 	uart0_pins: uart0-pins {
 		pins {
 			pinmux = <PINMUX_GPIO31__FUNC_O_UTXD0>,
@@ -901,6 +985,14 @@
 		pins-usb-hub-3v3-en {
 			pinmux = <PINMUX_GPIO112__FUNC_B_GPIO112>;
 			output-high;
+		};
+	};
+
+	usb2_default_pins: usb2-default-pins {
+		pins-iddig {
+			pinmux = <PINMUX_GPIO89__FUNC_B_GPIO89>;
+			input-enable;
+			bias-pull-up;
 		};
 	};
 
@@ -1012,9 +1104,21 @@
 };
 
 &ssusb0 {
-	dr_mode = "host";
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
+	usb-role-switch;
+	wakeup-source;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	pinctrl-0 = <&usb_default_pins>;
+	pinctrl-names = "default";
 	status = "okay";
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		id-gpios = <&pio 83 GPIO_ACTIVE_HIGH>;
+		vbus-supply = <&usb_p0_vbus>;
+	};
 };
 
 &xhci0 {
@@ -1022,14 +1126,23 @@
 };
 
 &ssusb1 {
-	dr_mode = "host";
+	dr_mode = "otg";
+	usb-role-switch;
+	wakeup-source;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	pinctrl-0 = <&usb1_default_pins>;
+	pinctrl-names = "default";
 	status = "okay";
+
+	port {
+		mtu3_hs1_role_sw: endpoint {
+			remote-endpoint = <&typec_con_hs>;
+		};
+	};
 };
 
 &xhci1 {
 	status = "okay";
-	vdd-supply = <&usb_hub_fixed_3v3>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -1058,17 +1171,25 @@
 };
 
 &ssusb2 {
-	interrupts-extended = <&gic GIC_SPI 536 IRQ_TYPE_LEVEL_HIGH 0>,
-			      <&pio 220 IRQ_TYPE_LEVEL_HIGH>;
-	interrupt-names = "host", "wakeup";
-
-	dr_mode = "host";
+	dr_mode = "otg";
+	maximum-speed = "high-speed";
+	usb-role-switch;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	wakeup-source;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb2_default_pins>;
 	status = "okay";
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		id-gpios = <&pio 89 GPIO_ACTIVE_HIGH>;
+		vbus-supply = <&usb_p2_vbus>;
+	};
 };
 
 &xhci2 {
-	status = "okay";
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	vbus-supply = <&sdio_fixed_3v3>; /* wifi_3v3 */
+	status = "okay";
 };
