@@ -4285,6 +4285,7 @@ struct rtw89_chip_info {
 	bool ul_tb_pwr_diff;
 	bool hw_sec_hdr;
 	bool hw_mgmt_tx_encrypt;
+	bool hw_tkip_crypto;
 	u8 rf_path_num;
 	u8 tx_nss;
 	u8 rx_nss;

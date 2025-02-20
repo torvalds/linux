@@ -2774,6 +2774,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.ul_tb_pwr_diff		= false,
 	.hw_sec_hdr		= true,
 	.hw_mgmt_tx_encrypt	= true,
+	.hw_tkip_crypto		= true,
 	.rf_path_num		= 2,
 	.tx_nss			= 2,
 	.rx_nss			= 2,

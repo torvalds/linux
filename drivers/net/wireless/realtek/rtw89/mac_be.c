@@ -708,8 +708,8 @@ static int sec_eng_init_be(struct rtw89_dev *rtwdev)
 	val32 |= B_BE_CLK_EN_CGCMP | B_BE_CLK_EN_WAPI | B_BE_CLK_EN_WEP_TKIP |
 		 B_BE_SEC_TX_ENC | B_BE_SEC_RX_DEC |
 		 B_BE_MC_DEC | B_BE_BC_DEC |
-		 B_BE_BMC_MGNT_DEC | B_BE_UC_MGNT_DEC;
-	val32 &= ~B_BE_SEC_PRE_ENQUE_TX;
+		 B_BE_BMC_MGNT_DEC | B_BE_UC_MGNT_DEC |
+		 B_BE_SEC_PRE_ENQUE_TX;
 	rtw89_write32(rtwdev, R_BE_SEC_ENG_CTRL, val32);
 
 	rtw89_write32_set(rtwdev, R_BE_SEC_MPDU_PROC, B_BE_APPEND_ICV | B_BE_APPEND_MIC);
