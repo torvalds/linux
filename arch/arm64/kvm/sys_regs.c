@@ -1627,6 +1627,7 @@ static u64 __kvm_read_sanitised_id_reg(const struct kvm_vcpu *vcpu,
 		break;
 	case SYS_ID_AA64MMFR2_EL1:
 		val &= ~ID_AA64MMFR2_EL1_CCIDX_MASK;
+		val &= ~ID_AA64MMFR2_EL1_NV;
 		break;
 	case SYS_ID_AA64MMFR3_EL1:
 		val &= ID_AA64MMFR3_EL1_TCRX | ID_AA64MMFR3_EL1_S1POE |
@@ -1941,6 +1942,22 @@ static int set_id_aa64pfr1_el1(struct kvm_vcpu *vcpu,
 	/* See set_id_aa64pfr0_el1 for comment about MPAM */
 	if ((hw_val & mpam_mask) == (user_val & mpam_mask))
 		user_val &= ~ID_AA64PFR1_EL1_MPAM_frac_MASK;
+
+	return set_id_reg(vcpu, rd, user_val);
+}
+
+static int set_id_aa64mmfr2_el1(struct kvm_vcpu *vcpu,
+				const struct sys_reg_desc *rd, u64 user_val)
+{
+	u64 hw_val = read_sanitised_ftr_reg(SYS_ID_AA64MMFR2_EL1);
+	u64 nv_mask = ID_AA64MMFR2_EL1_NV_MASK;
+
+	/*
+	 * We made the mistake to expose the now deprecated NV field,
+	 * so allow userspace to write it, but silently ignore it.
+	 */
+	if ((hw_val & nv_mask) == (user_val & nv_mask))
+		user_val &= ~nv_mask;
 
 	return set_id_reg(vcpu, rd, user_val);
 }
@@ -2671,7 +2688,8 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 					ID_AA64MMFR1_EL1_XNX |
 					ID_AA64MMFR1_EL1_VH |
 					ID_AA64MMFR1_EL1_VMIDBits)),
-	ID_WRITABLE(ID_AA64MMFR2_EL1, ~(ID_AA64MMFR2_EL1_RES0 |
+	ID_FILTERED(ID_AA64MMFR2_EL1,
+		    id_aa64mmfr2_el1, ~(ID_AA64MMFR2_EL1_RES0 |
 					ID_AA64MMFR2_EL1_EVT |
 					ID_AA64MMFR2_EL1_FWB |
 					ID_AA64MMFR2_EL1_IDS |
