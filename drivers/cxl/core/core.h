@@ -122,6 +122,10 @@ size_t cxl_get_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
 		       enum cxl_get_feat_selection selection,
 		       void *feat_out, size_t feat_out_size, u16 offset,
 		       u16 *return_code);
+int cxl_set_feature(struct cxl_mailbox *cxl_mbox, const uuid_t *feat_uuid,
+		    u8 feat_version, const void *feat_data,
+		    size_t feat_data_size, u32 feat_flag, u16 offset,
+		    u16 *return_code);
 #endif
 
 #endif /* __CXL_CORE_H__ */
