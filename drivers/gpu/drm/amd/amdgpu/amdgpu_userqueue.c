@@ -415,11 +415,11 @@ amdgpu_userqueue_resume_all(struct amdgpu_userq_mgr *uq_mgr)
 	int queue_id;
 	int ret = 0;
 
-	userq_funcs = adev->userq_funcs[AMDGPU_HW_IP_GFX];
-
 	/* Resume all the queues for this process */
-	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id)
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id) {
+		userq_funcs = adev->userq_funcs[queue->queue_type];
 		ret = userq_funcs->resume(uq_mgr, queue);
+	}
 
 	if (ret)
 		DRM_ERROR("Failed to resume all the queue\n");
@@ -570,11 +570,11 @@ amdgpu_userqueue_suspend_all(struct amdgpu_userq_mgr *uq_mgr)
 	int queue_id;
 	int ret = 0;
 
-	userq_funcs = adev->userq_funcs[AMDGPU_HW_IP_GFX];
-
 	/* Try to suspend all the queues in this process ctx */
-	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id)
+	idr_for_each_entry(&uq_mgr->userq_idr, queue, queue_id) {
+		userq_funcs = adev->userq_funcs[queue->queue_type];
 		ret += userq_funcs->suspend(uq_mgr, queue);
+	}
 
 	if (ret)
 		DRM_ERROR("Couldn't suspend all the queues\n");
