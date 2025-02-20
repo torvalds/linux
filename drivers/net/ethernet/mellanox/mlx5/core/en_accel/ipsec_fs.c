@@ -16,6 +16,8 @@
 #define MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE 16
 #define IPSEC_TUNNEL_DEFAULT_TTL 0x40
 
+#define MLX5_IPSEC_FS_SA_SELECTOR_MAX_NUM_GROUPS 16
+
 enum {
 	MLX5_IPSEC_ASO_OK,
 	MLX5_IPSEC_ASO_BAD_REPLY,
@@ -52,6 +54,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_ft ft;
 	struct mlx5e_ipsec_miss pol;
 	struct mlx5e_ipsec_miss sa;
+	struct mlx5e_ipsec_miss sa_sel;
 	struct mlx5e_ipsec_status_checks status_checks;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
@@ -689,6 +692,16 @@ static void ipsec_rx_policy_destroy(struct mlx5e_ipsec_rx *rx)
 	}
 }
 
+static void ipsec_rx_sa_selector_destroy(struct mlx5_core_dev *mdev,
+					 struct mlx5e_ipsec_rx *rx)
+{
+	mlx5_del_flow_rules(rx->sa_sel.rule);
+	mlx5_fc_destroy(mdev, rx->sa_sel.fc);
+	rx->sa_sel.fc = NULL;
+	mlx5_destroy_flow_group(rx->sa_sel.group);
+	mlx5_destroy_flow_table(rx->ft.sa_sel);
+}
+
 static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		       struct mlx5e_ipsec_rx *rx, u32 family)
 {
@@ -703,6 +716,8 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		mlx5_eswitch_unblock_encap(mdev);
 	mlx5_ipsec_rx_status_destroy(ipsec, rx);
 	mlx5_destroy_flow_table(rx->ft.status);
+
+	ipsec_rx_sa_selector_destroy(mdev, rx);
 
 	ipsec_rx_policy_destroy(rx);
 
@@ -892,6 +907,115 @@ err_out:
 	return err;
 }
 
+static int ipsec_rx_sa_selector_create(struct mlx5e_ipsec *ipsec,
+				       struct mlx5e_ipsec_rx *rx,
+				       struct mlx5e_ipsec_rx_create_attr *attr)
+{
+	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_destination dest;
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_table *ft;
+	struct mlx5_flow_group *fg;
+	u32 *flow_group_in;
+	struct mlx5_fc *fc;
+	int err;
+
+	flow_group_in = kvzalloc(inlen, GFP_KERNEL);
+	if (!flow_group_in)
+		return -ENOMEM;
+
+	ft = ipsec_ft_create(attr->ns, attr->status_level, attr->prio, 1,
+			     MLX5_IPSEC_FS_SA_SELECTOR_MAX_NUM_GROUPS, 0);
+	if (IS_ERR(ft)) {
+		err = PTR_ERR(ft);
+		mlx5_core_err(mdev, "Failed to create RX SA selector flow table, err=%d\n",
+			      err);
+		goto err_ft;
+	}
+
+	MLX5_SET(create_flow_group_in, flow_group_in, start_flow_index,
+		 ft->max_fte - 1);
+	MLX5_SET(create_flow_group_in, flow_group_in, end_flow_index,
+		 ft->max_fte - 1);
+	fg = mlx5_create_flow_group(ft, flow_group_in);
+	if (IS_ERR(fg)) {
+		err = PTR_ERR(fg);
+		mlx5_core_err(mdev, "Failed to create RX SA selector miss group, err=%d\n",
+			      err);
+		goto err_fg;
+	}
+
+	fc = mlx5_fc_create(mdev, false);
+	if (IS_ERR(fc)) {
+		err = PTR_ERR(fc);
+		mlx5_core_err(mdev,
+			      "Failed to create ipsec RX SA selector miss rule counter, err=%d\n",
+			      err);
+		goto err_cnt;
+	}
+
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest.counter = fc;
+	flow_act.action =
+		MLX5_FLOW_CONTEXT_ACTION_COUNT | MLX5_FLOW_CONTEXT_ACTION_DROP;
+
+	rule = mlx5_add_flow_rules(ft, NULL, &flow_act, &dest, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev, "Failed to create RX SA selector miss drop rule, err=%d\n",
+			      err);
+		goto err_rule;
+	}
+
+	rx->ft.sa_sel = ft;
+	rx->sa_sel.group = fg;
+	rx->sa_sel.fc = fc;
+	rx->sa_sel.rule = rule;
+
+	kvfree(flow_group_in);
+
+	return 0;
+
+err_rule:
+	mlx5_fc_destroy(mdev, fc);
+err_cnt:
+	mlx5_destroy_flow_group(fg);
+err_fg:
+	mlx5_destroy_flow_table(ft);
+err_ft:
+	kvfree(flow_group_in);
+	return err;
+}
+
+/* The decryption processing is as follows:
+ *
+ *   +----------+                         +-------------+
+ *   |          |                         |             |
+ *   |  Kernel  <--------------+----------+ policy miss <------------+
+ *   |          |              ^          |             |            ^
+ *   +----^-----+              |          +-------------+            |
+ *        |                  crypto                                  |
+ *      miss                offload ok                         allow/default
+ *        ^                    ^                                     ^
+ *        |                    |                  packet             |
+ *   +----+---------+     +----+-------------+   offload ok   +------+---+
+ *   |              |     |                  |   (no UPSPEC)  |          |
+ *   | SA (decrypt) +----->      status      +--->------->----+  policy  |
+ *   |              |     |                  |                |          |
+ *   +--------------+     ++---------+-------+                +-^----+---+
+ *                         |         |                          |    |
+ *                         v        packet             +-->->---+    v
+ *                         |       offload ok        match           |
+ *                       fails    (with UPSPEC)        |           block
+ *                         |         |   +-------------+-+           |
+ *                         v         v   |               |  miss     v
+ *                        drop       +--->    SA sel     +--------->drop
+ *                                       |               |
+ *                                       +---------------+
+ */
+
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		     struct mlx5e_ipsec_rx *rx, u32 family)
 {
@@ -907,12 +1031,16 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (err)
 		return err;
 
-	ft = ipsec_ft_create(attr.ns, attr.status_level, attr.prio, 3, 3, 0);
+	ft = ipsec_ft_create(attr.ns, attr.status_level, attr.prio, 3, 4, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft_status;
 	}
 	rx->ft.status = ft;
+
+	err = ipsec_rx_sa_selector_create(ipsec, rx, &attr);
+	if (err)
+		goto err_fs_ft_sa_sel;
 
 	/* Create FT */
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
@@ -956,6 +1084,8 @@ err_fs:
 	if (rx->allow_tunnel_mode)
 		mlx5_eswitch_unblock_encap(mdev);
 err_fs_ft:
+	ipsec_rx_sa_selector_destroy(mdev, rx);
+err_fs_ft_sa_sel:
 	mlx5_destroy_flow_table(rx->ft.status);
 err_fs_ft_status:
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, mdev);
@@ -1781,6 +1911,85 @@ static int setup_pkt_reformat(struct mlx5e_ipsec *ipsec,
 	return 0;
 }
 
+static int rx_add_rule_sa_selector(struct mlx5e_ipsec_sa_entry *sa_entry,
+				   struct mlx5e_ipsec_rx *rx,
+				   struct upspec *upspec)
+{
+	struct mlx5e_ipsec *ipsec = sa_entry->ipsec;
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5_flow_destination dest[2];
+	struct mlx5_flow_act flow_act = {};
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
+	int err = 0;
+
+	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+			 misc_parameters_2.ipsec_syndrome);
+	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
+			 misc_parameters_2.metadata_reg_c_4);
+	MLX5_SET(fte_match_param, spec->match_value,
+		 misc_parameters_2.ipsec_syndrome, 0);
+	MLX5_SET(fte_match_param, spec->match_value,
+		 misc_parameters_2.metadata_reg_c_4, 0);
+	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
+
+	ipsec_rx_rule_add_match_obj(sa_entry, rx, spec);
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	flow_act.flags = FLOW_ACT_IGNORE_FLOW_LEVEL;
+	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest[0].ft = rx->ft.sa_sel;
+	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest[1].counter = rx->fc->cnt;
+
+	rule = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act, dest, 2);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev,
+			      "Failed to add ipsec rx pass rule, err=%d\n",
+			      err);
+		goto err_add_status_pass_rule;
+	}
+
+	sa_entry->ipsec_rule.status_pass = rule;
+
+	MLX5_SET(fte_match_param, spec->match_criteria,
+		 misc_parameters_2.ipsec_syndrome, 0);
+	MLX5_SET(fte_match_param, spec->match_criteria,
+		 misc_parameters_2.metadata_reg_c_4, 0);
+
+	setup_fte_upper_proto_match(spec, upspec);
+
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest[0].ft = rx->ft.pol;
+
+	rule = mlx5_add_flow_rules(rx->ft.sa_sel, spec, &flow_act, &dest[0], 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		mlx5_core_err(mdev,
+			      "Failed to add ipsec rx sa selector rule, err=%d\n",
+			      err);
+		goto err_add_sa_sel_rule;
+	}
+
+	sa_entry->ipsec_rule.sa_sel = rule;
+
+	kvfree(spec);
+	return 0;
+
+err_add_sa_sel_rule:
+	mlx5_del_flow_rules(sa_entry->ipsec_rule.status_pass);
+err_add_status_pass_rule:
+	kvfree(spec);
+	return err;
+}
+
 static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 {
 	struct mlx5_accel_esp_xfrm_attrs *attrs = &sa_entry->attrs;
@@ -1813,7 +2022,6 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (!attrs->encap)
 		setup_fte_esp(spec);
 	setup_fte_no_frags(spec);
-	setup_fte_upper_proto_match(spec, &attrs->upspec);
 
 	if (!attrs->drop) {
 		if (rx != ipsec->rx_esw)
@@ -1861,6 +2069,13 @@ static int rx_add_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 		mlx5_core_err(mdev, "fail to add RX ipsec rule err=%d\n", err);
 		goto err_add_flow;
 	}
+
+	if (attrs->upspec.proto && attrs->type == XFRM_DEV_OFFLOAD_PACKET) {
+		err = rx_add_rule_sa_selector(sa_entry, rx, &attrs->upspec);
+		if (err)
+			goto err_add_sa_sel;
+	}
+
 	if (attrs->type == XFRM_DEV_OFFLOAD_PACKET)
 		err = rx_add_rule_drop_replay(sa_entry, rx);
 	if (err)
@@ -1884,6 +2099,11 @@ err_drop_reason:
 		mlx5_fc_destroy(mdev, sa_entry->ipsec_rule.replay.fc);
 	}
 err_add_replay:
+	if (sa_entry->ipsec_rule.sa_sel) {
+		mlx5_del_flow_rules(sa_entry->ipsec_rule.sa_sel);
+		mlx5_del_flow_rules(sa_entry->ipsec_rule.status_pass);
+	}
+err_add_sa_sel:
 	mlx5_del_flow_rules(rule);
 err_add_flow:
 	mlx5_fc_destroy(mdev, counter);
@@ -2265,6 +2485,7 @@ void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv, void *ipsec_stats)
 	stats->ipsec_rx_bytes = 0;
 	stats->ipsec_rx_drop_pkts = 0;
 	stats->ipsec_rx_drop_bytes = 0;
+	stats->ipsec_rx_drop_mismatch_sa_sel = 0;
 	stats->ipsec_tx_pkts = 0;
 	stats->ipsec_tx_bytes = 0;
 	stats->ipsec_tx_drop_pkts = 0;
@@ -2274,6 +2495,9 @@ void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv, void *ipsec_stats)
 	mlx5_fc_query(mdev, fc->cnt, &stats->ipsec_rx_pkts, &stats->ipsec_rx_bytes);
 	mlx5_fc_query(mdev, fc->drop, &stats->ipsec_rx_drop_pkts,
 		      &stats->ipsec_rx_drop_bytes);
+	if (ipsec->rx_ipv4->sa_sel.fc)
+		mlx5_fc_query(mdev, ipsec->rx_ipv4->sa_sel.fc,
+			      &stats->ipsec_rx_drop_mismatch_sa_sel, &bytes);
 
 	fc = ipsec->tx->fc;
 	mlx5_fc_query(mdev, fc->cnt, &stats->ipsec_tx_pkts, &stats->ipsec_tx_bytes);
@@ -2302,6 +2526,11 @@ void mlx5e_accel_ipsec_fs_read_stats(struct mlx5e_priv *priv, void *ipsec_stats)
 			stats->ipsec_tx_drop_pkts += packets;
 			stats->ipsec_tx_drop_bytes += bytes;
 		}
+
+		if (ipsec->rx_esw->sa_sel.fc &&
+		    !mlx5_fc_query(mdev, ipsec->rx_esw->sa_sel.fc,
+				   &packets, &bytes))
+			stats->ipsec_rx_drop_mismatch_sa_sel += packets;
 	}
 }
 
@@ -2398,6 +2627,11 @@ void mlx5e_accel_ipsec_fs_del_rule(struct mlx5e_ipsec_sa_entry *sa_entry)
 
 	mlx5_del_flow_rules(ipsec_rule->auth.rule);
 	mlx5_fc_destroy(mdev, ipsec_rule->auth.fc);
+
+	if (ipsec_rule->sa_sel) {
+		mlx5_del_flow_rules(ipsec_rule->sa_sel);
+		mlx5_del_flow_rules(ipsec_rule->status_pass);
+	}
 
 	if (ipsec_rule->replay.rule) {
 		mlx5_del_flow_rules(ipsec_rule->replay.rule);
