@@ -437,9 +437,13 @@ static ssize_t show_val(struct device *dev,
 			ret = update_cap(resource);
 			if (ret)
 				return ret;
+			resource->power_alarm = resource->power > resource->cap;
+			val = resource->power_alarm;
+		} else {
+			val = resource->power_alarm ||
+				 resource->power > resource->cap;
+			resource->power_alarm = resource->power > resource->cap;
 		}
-		val = resource->power_alarm || resource->power > resource->cap;
-		resource->power_alarm = resource->power > resource->cap;
 		break;
 	case 7:
 	case 8:
