@@ -249,6 +249,9 @@ static int jpeg_v5_0_1_hw_init(struct amdgpu_ip_block *ip_block)
 		}
 		return 0;
 	}
+	if (RREG32_SOC15(VCN, GET_INST(VCN, 0), regVCN_RRMT_CNTL) & 0x100)
+		adev->jpeg.caps |= AMDGPU_JPEG_CAPS(RRMT_ENABLED);
+
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		jpeg_inst = GET_INST(JPEG, i);
 		ring = adev->jpeg.inst[i].ring_dec;

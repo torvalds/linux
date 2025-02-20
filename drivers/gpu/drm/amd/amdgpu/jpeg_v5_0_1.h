@@ -95,4 +95,7 @@ extern const struct amdgpu_ip_block_version jpeg_v5_0_1_ip_block;
 #define regJPEG_CORE_RST_CTRL                                                                 0x072e
 #define regJPEG_CORE_RST_CTRL_BASE_IDX                                                        1
 
-#endif /* __JPEG_V5_0_0_H__ */
+#define regVCN_RRMT_CNTL                          0x0940
+#define regVCN_RRMT_CNTL_BASE_IDX                 1
+
+#endif /* __JPEG_V5_0_1_H__ */
