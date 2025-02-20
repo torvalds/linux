@@ -7,6 +7,28 @@
 #include "core.h"
 #include "cxlmem.h"
 
+/* All the features below are exclusive to the kernel */
+static const uuid_t cxl_exclusive_feats[] = {
+	CXL_FEAT_PATROL_SCRUB_UUID,
+	CXL_FEAT_ECS_UUID,
+	CXL_FEAT_SPPR_UUID,
+	CXL_FEAT_HPPR_UUID,
+	CXL_FEAT_CACHELINE_SPARING_UUID,
+	CXL_FEAT_ROW_SPARING_UUID,
+	CXL_FEAT_BANK_SPARING_UUID,
+	CXL_FEAT_RANK_SPARING_UUID,
+};
+
+static bool is_cxl_feature_exclusive(struct cxl_feat_entry *entry)
+{
+	for (int i = 0; i < ARRAY_SIZE(cxl_exclusive_feats); i++) {
+		if (uuid_equal(&entry->uuid, &cxl_exclusive_feats[i]))
+			return true;
+	}
+
+	return false;
+}
+
 inline struct cxl_features_state *to_cxlfs(struct cxl_dev_state *cxlds)
 {
 	return cxlds->cxlfs;
@@ -47,6 +69,7 @@ get_supported_features(struct cxl_features_state *cxlfs)
 	struct cxl_mbox_get_sup_feats_in mbox_in;
 	struct cxl_feat_entry *entry;
 	struct cxl_mbox_cmd mbox_cmd;
+	int user_feats = 0;
 	int count;
 
 	count = cxl_get_supported_features_count(cxl_mbox);
@@ -121,6 +144,10 @@ get_supported_features(struct cxl_features_state *cxlfs)
 			return NULL;
 
 		memcpy(entry, mbox_out->ents, retrieved);
+		for (int i = 0; i < num_entries; i++) {
+			if (!is_cxl_feature_exclusive(entry + i))
+				user_feats++;
+		}
 		entry += num_entries;
 		/*
 		 * If the number of output entries is less than expected, add the
@@ -131,6 +158,7 @@ get_supported_features(struct cxl_features_state *cxlfs)
 	} while (remain_feats);
 
 	entries->num_features = count;
+	entries->num_user_features = user_feats;
 
 	return no_free_ptr(entries);
 }
