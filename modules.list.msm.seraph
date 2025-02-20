@@ -5,6 +5,7 @@ qcom-pdc.ko
 pinctrl-msm.ko
 pinctrl-seraph.ko
 qcom_hwspinlock.ko
+qrtr.ko
 smem.ko
 socinfo.ko
 clk-dummy.ko
@@ -42,6 +43,7 @@ tmecom-intf.ko
 msm_qmp.ko
 qcom_aoss.ko
 qcom-ipcc.ko
+qcom_ipc_logging.ko
 qcom_wdt_core.ko
 gh_virt_wdt.ko
 qcom-cpufreq-hw.ko
