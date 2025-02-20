@@ -83,7 +83,7 @@ static inline struct io_rsrc_node *io_rsrc_node_lookup(struct io_rsrc_data *data
 static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
 	lockdep_assert_held(&ctx->uring_lock);
-	if (node && !--node->refs)
+	if (!--node->refs)
 		io_free_rsrc_node(ctx, node);
 }
 
