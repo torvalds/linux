@@ -1616,7 +1616,7 @@ DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
 		__entry->cl_id = clp->cl_clientid.cl_id;
 		__entry->cb = cb;
 		__entry->opcode = cb->cb_ops ? cb->cb_ops->opcode : _CB_NULL;
-		__entry->need_restart = cb->cb_need_restart;
+		__entry->need_restart = test_bit(NFSD4_CALLBACK_REQUEUE, &cb->cb_flags);
 		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
 				  clp->cl_cb_conn.cb_addrlen)
 	),
