@@ -1692,6 +1692,10 @@ static bool force_use_acpi __read_mostly; /* No effect if no_acpi is set. */
 module_param_named(use_acpi, force_use_acpi, bool, 0444);
 MODULE_PARM_DESC(use_acpi, "Use ACPI _CST for building the idle states list");
 
+static bool no_native __read_mostly; /* No effect if no_acpi is set. */
+module_param_named(no_native, no_native, bool, 0444);
+MODULE_PARM_DESC(no_native, "Ignore cpu specific (native) idle states in lieu of ACPI idle states");
+
 static struct acpi_processor_power acpi_state_table __initdata;
 
 /**
@@ -1831,6 +1835,11 @@ static bool __init intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
 	}
 	return true;
 }
+
+static inline bool ignore_native(void)
+{
+	return no_native && !no_acpi;
+}
 #else /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 #define force_use_acpi	(false)
 
@@ -1840,6 +1849,7 @@ static inline bool intel_idle_off_by_default(unsigned int flags, u32 mwait_hint)
 {
 	return false;
 }
+static inline bool ignore_native(void) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
 /**
@@ -2333,6 +2343,10 @@ static int __init intel_idle_init(void)
 	pr_debug("MWAIT substates: 0x%x\n", mwait_substates);
 
 	icpu = (const struct idle_cpu *)id->driver_data;
+	if (icpu && ignore_native()) {
+		pr_debug("ignoring native CPU idle states\n");
+		icpu = NULL;
+	}
 	if (icpu) {
 		if (icpu->state_table)
 			cpuidle_state_table = icpu->state_table;
