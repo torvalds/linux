@@ -5,6 +5,10 @@
  *    copyright            : (C) 2001, 2002 by Frank Mori Hess
  ***************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#define dev_fmt pr_fmt
+#define DRV_NAME KBUILD_MODNAME
+
 #include <linux/ioport.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -97,7 +101,6 @@ static inline unsigned short tnt_readb(struct tnt4882_priv *priv, unsigned long 
 			retval = 0;
 			break;
 		default:
-			pr_err("tnt4882: bug! unsupported ni_chipset\n");
 			retval = 0;
 			break;
 		}
@@ -132,7 +135,6 @@ static inline void tnt_writeb(struct tnt4882_priv *priv, unsigned short value, u
 		case NEC7210:
 			break;
 		default:
-			pr_err("tnt4882: bug! unsupported ni_chipset\n");
 			break;
 		}
 		break;
@@ -326,22 +328,18 @@ static int tnt4882_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 					     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 					     test_bit(ADR_CHANGE_BN, &nec_priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			pr_err("tnt4882: read interrupted\n");
 			retval = -ERESTARTSYS;
 			break;
 		}
 		if (test_bit(TIMO_NUM, &board->status))	{
-			//pr_info("tnt4882: minor %i read timed out\n", board->minor);
 			retval = -ETIMEDOUT;
 			break;
 		}
 		if (test_bit(DEV_CLEAR_BN, &nec_priv->state)) {
-			pr_err("tnt4882: device clear interrupted read\n");
 			retval = -EINTR;
 			break;
 		}
 		if (test_bit(ADR_CHANGE_BN, &nec_priv->state)) {
-			pr_err("tnt4882: address change interrupted read\n");
 			retval = -EINTR;
 			break;
 		}
@@ -368,20 +366,14 @@ static int tnt4882_accel_read(gpib_board_t *board, uint8_t *buffer, size_t lengt
 					     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
 					     test_bit(ADR_CHANGE_BN, &nec_priv->state) ||
 					     test_bit(TIMO_NUM, &board->status))) {
-			pr_err("tnt4882: read interrupted\n");
 			retval = -ERESTARTSYS;
 		}
 		if (test_bit(TIMO_NUM, &board->status))
-			//pr_info("tnt4882: read timed out\n");
 			retval = -ETIMEDOUT;
-		if (test_bit(DEV_CLEAR_BN, &nec_priv->state)) {
-			pr_err("tnt4882: device clear interrupted read\n");
+		if (test_bit(DEV_CLEAR_BN, &nec_priv->state))
 			retval = -EINTR;
-		}
-		if (test_bit(ADR_CHANGE_BN, &nec_priv->state)) {
-			pr_err("tnt4882: address change interrupted read\n");
+		if (test_bit(ADR_CHANGE_BN, &nec_priv->state))
 			retval = -EINTR;
-		}
 		count += drain_fifo_words(tnt_priv, &buffer[count], length - count);
 		if (fifo_byte_available(tnt_priv) && count < length)
 			buffer[count++] = tnt_readb(tnt_priv, FIFOB);
@@ -444,22 +436,15 @@ static int write_wait(gpib_board_t *board, struct tnt4882_priv *tnt_priv,
 				     fifo_xfer_done(tnt_priv) ||
 				     test_bit(BUS_ERROR_BN, &nec_priv->state) ||
 				     test_bit(DEV_CLEAR_BN, &nec_priv->state) ||
-				     test_bit(TIMO_NUM, &board->status))) {
-		dev_dbg(board->gpib_dev, "gpib write interrupted\n");
+				     test_bit(TIMO_NUM, &board->status)))
 		return -ERESTARTSYS;
-	}
-	if (test_bit(TIMO_NUM, &board->status))	{
-		pr_info("tnt4882: write timed out\n");
+
+	if (test_bit(TIMO_NUM, &board->status))
 		return -ETIMEDOUT;
-	}
-	if (test_and_clear_bit(BUS_ERROR_BN, &nec_priv->state))	{
-		pr_err("tnt4882: write bus error\n");
+	if (test_and_clear_bit(BUS_ERROR_BN, &nec_priv->state))
 		return (send_commands) ? -ENOTCONN : -ECOMM;
-	}
-	if (test_bit(DEV_CLEAR_BN, &nec_priv->state)) {
-		pr_err("tnt4882: device clear interrupted write\n");
+	if (test_bit(DEV_CLEAR_BN, &nec_priv->state))
 		return -EINTR;
-	}
 	return 0;
 }
 
@@ -592,7 +577,7 @@ static irqreturn_t tnt4882_internal_interrupt(gpib_board_t *board)
 	if (isr3_bits & HR_DONE)
 		priv->imr3_bits &= ~HR_DONE;
 	if (isr3_bits & (HR_INTR | HR_TLCI)) {
-		dev_dbg(board->gpib_dev, "tnt4882: minor %i isr0 0x%x imr0 0x%x isr3 0x%x imr3 0x%x\n",
+		dev_dbg(board->gpib_dev, "minor %i isr0 0x%x imr0 0x%x isr3 0x%x imr3 0x%x\n",
 			board->minor, isr0_bits, priv->imr0_bits, isr3_bits, imr3_bits);
 		tnt_writeb(priv, priv->imr3_bits, IMR3);
 		wake_up_interruptible(&board->wait);
@@ -932,10 +917,8 @@ static int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 	nec_priv->write_byte = nec7210_locking_iomem_write_byte;
 	nec_priv->offset = atgpib_reg_offset;
 
-	if (!mite_devices) {
-		pr_err("no National Instruments PCI boards found\n");
-		return -1;
-	}
+	if (!mite_devices)
+		return -ENODEV;
 
 	for (mite = mite_devices; mite; mite = mite->next) {
 		short found_board;
@@ -966,37 +949,32 @@ static int ni_pci_attach(gpib_board_t *board, const gpib_board_config_t *config)
 		if (found_board)
 			break;
 	}
-	if (!mite) {
-		pr_err("no NI PCI-GPIB boards found\n");
-		return -1;
-	}
+	if (!mite)
+		return -ENODEV;
+
 	tnt_priv->mite = mite;
 	retval = mite_setup(tnt_priv->mite);
-	if (retval < 0)	{
-		pr_err("tnt4882: error setting up mite.\n");
+	if (retval < 0)
 		return retval;
-	}
 
 	nec_priv->mmiobase = tnt_priv->mite->daq_io_addr;
 
 	// get irq
-	if (request_irq(mite_irq(tnt_priv->mite), tnt4882_interrupt, isr_flags,
-			"ni-pci-gpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", mite_irq(tnt_priv->mite));
-		return -1;
+	retval = request_irq(mite_irq(tnt_priv->mite), tnt4882_interrupt, isr_flags, "ni-pci-gpib",
+			     board);
+	if (retval) {
+		dev_err(board->gpib_dev, "failed to obtain pci irq %d\n", mite_irq(tnt_priv->mite));
+		return retval;
 	}
 	tnt_priv->irq = mite_irq(tnt_priv->mite);
-	pr_info("tnt4882: irq %i\n", tnt_priv->irq);
 
 	// TNT5004 detection
 	switch (tnt_readb(tnt_priv, CSR) & 0xf0) {
 	case 0x30:
 		nec_priv->type = TNT4882;
-		pr_info("tnt4882: TNT4882 chipset detected\n");
 		break;
 	case 0x40:
 		nec_priv->type = TNT5004;
-		pr_info("tnt4882: TNT5004 chipset detected\n");
 		break;
 	}
 	tnt4882_init(tnt_priv, board);
@@ -1026,23 +1004,17 @@ static int ni_isapnp_find(struct pnp_dev **dev)
 {
 	*dev = pnp_find_dev(NULL, ISAPNP_VENDOR_ID_NI,
 			    ISAPNP_FUNCTION(ISAPNP_ID_NI_ATGPIB_TNT), NULL);
-	if (!*dev || !(*dev)->card) {
-		pr_err("tnt4882: failed to find isapnp board\n");
+	if (!*dev || !(*dev)->card)
 		return -ENODEV;
-	}
-	if (pnp_device_attach(*dev) < 0) {
-		pr_err("tnt4882: atgpib/tnt board already active, skipping\n");
+	if (pnp_device_attach(*dev) < 0)
 		return -EBUSY;
-	}
 	if (pnp_activate_dev(*dev) < 0)	{
 		pnp_device_detach(*dev);
-		pr_err("tnt4882: failed to activate() atgpib/tnt, aborting\n");
 		return -EAGAIN;
 	}
 	if (!pnp_port_valid(*dev, 0) || !pnp_irq_valid(*dev, 0)) {
 		pnp_device_detach(*dev);
-		pr_err("tnt4882: invalid port or irq for atgpib/tnt, aborting\n");
-		return -ENOMEM;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -1055,6 +1027,7 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 	int isr_flags = 0;
 	u32 iobase;
 	int irq;
+	int retval;
 
 	board->status = 0;
 
@@ -1070,7 +1043,6 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 	// look for plug-n-play board
 	if (config->ibbase == 0) {
 		struct pnp_dev *dev;
-		int retval;
 
 		retval = ni_isapnp_find(&dev);
 		if (retval < 0)
@@ -1083,18 +1055,18 @@ static int ni_isa_attach_common(gpib_board_t *board, const gpib_board_config_t *
 		irq = config->ibirq;
 	}
 	// allocate ioports
-	if (!request_region(iobase, atgpib_iosize, "atgpib")) {
-		pr_err("tnt4882: failed to allocate ioports\n");
-		return -1;
-	}
+	if (!request_region(iobase, atgpib_iosize, "atgpib"))
+		return -EBUSY;
+
 	nec_priv->mmiobase = ioport_map(iobase, atgpib_iosize);
 	if (!nec_priv->mmiobase)
-		return -1;
+		return -EBUSY;
 
 	// get irq
-	if (request_irq(irq, tnt4882_interrupt, isr_flags, "atgpib", board)) {
-		pr_err("gpib: can't request IRQ %d\n", irq);
-		return -1;
+	retval = request_irq(irq, tnt4882_interrupt, isr_flags, "atgpib", board);
+	if (retval) {
+		dev_err(board->gpib_dev, "failed to request ISA irq %d\n", irq);
+		return retval;
 	}
 	tnt_priv->irq = irq;
 
@@ -1384,7 +1356,7 @@ static const struct pci_device_id tnt4882_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, tnt4882_pci_table);
 
 static struct pci_driver tnt4882_pci_driver = {
-	.name = "tnt4882",
+	.name = DRV_NAME,
 	.id_table = tnt4882_pci_table,
 	.probe = &tnt4882_pci_probe
 };
@@ -1411,80 +1383,79 @@ static int __init tnt4882_init_module(void)
 
 	result = pci_register_driver(&tnt4882_pci_driver);
 	if (result) {
-		pr_err("tnt4882_gpib: pci_register_driver failed: error = %d\n", result);
+		pr_err("pci_register_driver failed: error = %d\n", result);
 		return result;
 	}
 
 	result = gpib_register_driver(&ni_isa_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_isa;
 	}
 
 	result = gpib_register_driver(&ni_isa_accel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_isa_accel;
 	}
 
 	result = gpib_register_driver(&ni_nat4882_isa_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_nat4882_isa;
 	}
 
 	result = gpib_register_driver(&ni_nat4882_isa_accel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_nat4882_isa_accel;
 	}
 
 	result = gpib_register_driver(&ni_nec_isa_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_nec_isa;
 	}
 
 	result = gpib_register_driver(&ni_nec_isa_accel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_nec_isa_accel;
 	}
 
 	result = gpib_register_driver(&ni_pci_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_pci;
 	}
 
 	result = gpib_register_driver(&ni_pci_accel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_pci_accel;
 	}
 
 #ifdef CONFIG_GPIB_PCMCIA
 	result = gpib_register_driver(&ni_pcmcia_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_pcmcia;
 	}
 
 	result = gpib_register_driver(&ni_pcmcia_accel_interface, THIS_MODULE);
 	if (result) {
-		pr_err("tnt4882_gpib: gpib_register_driver failed: error = %d\n", result);
+		pr_err("gpib_register_driver failed: error = %d\n", result);
 		goto err_pcmcia_accel;
 	}
 
 	result = init_ni_gpib_cs();
 	if (result) {
-		pr_err("tnt4882_gpib: pcmcia_register_driver failed: error = %d\n", result);
+		pr_err("pcmcia_register_driver failed: error = %d\n", result);
 		goto err_pcmcia_driver;
 	}
 #endif
 
 	mite_init();
-	mite_list_devices();
 
 	return 0;
 
@@ -1550,25 +1521,6 @@ static void __exit tnt4882_exit_module(void)
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-/*
- * All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
- * you do not define PCMCIA_DEBUG at all, all the debug code will be
- * left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
- * be present but disabled -- but it can then be enabled for specific
- * modules at load time with a 'pc_debug=#' option to insmod.
- */
-#define PCMCIA_DEBUG 1
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
-module_param(pc_debug, int, 0);
-#define DEBUG(n, args...)			\
-	do {if (pc_debug > (n))			\
-			pr_debug(args); }	\
-	while (0)
-#else
-#define DEBUG(args...)
-#endif
-
 static int ni_gpib_config(struct pcmcia_device  *link);
 static void ni_gpib_release(struct pcmcia_device *link);
 static void ni_pcmcia_detach(gpib_board_t *board);
@@ -1606,8 +1558,6 @@ static int ni_gpib_probe(struct pcmcia_device *link)
 	struct local_info_t *info;
 	//struct gpib_board_t *dev;
 
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
-
 	/* Allocate space for private device-specific data */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1641,8 +1591,6 @@ static void ni_gpib_remove(struct pcmcia_device *link)
 	struct local_info_t *info = link->priv;
 	//struct gpib_board_t *dev = info->dev;
 
-	DEBUG(0, "%s(%p)\n", __func__, link);
-
 	if (info->dev)
 		ni_pcmcia_detach(info->dev);
 	ni_gpib_release(link);
@@ -1673,8 +1621,6 @@ static int ni_gpib_config(struct pcmcia_device *link)
 	//gpib_board_t *dev = info->dev;
 	int last_ret;
 
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
-
 	last_ret = pcmcia_loop_config(link, &ni_gpib_config_iteration, NULL);
 	if (last_ret) {
 		dev_warn(&link->dev, "no configuration found\n");
@@ -1697,7 +1643,6 @@ static int ni_gpib_config(struct pcmcia_device *link)
  */
 static void ni_gpib_release(struct pcmcia_device *link)
 {
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
 	pcmcia_disable_device(link);
 } /* ni_gpib_release */
 
@@ -1705,10 +1650,9 @@ static int ni_gpib_suspend(struct pcmcia_device *link)
 {
 	//struct local_info_t *info = link->priv;
 	//struct gpib_board_t *dev = info->dev;
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
 
 	if (link->open)
-		pr_err("Device still open ???\n");
+		dev_warn(&link->dev, "Device still open\n");
 	//netif_device_detach(dev);
 
 	return 0;
@@ -1718,11 +1662,9 @@ static int ni_gpib_resume(struct pcmcia_device *link)
 {
 	//struct local_info_t *info = link->priv;
 	//struct gpib_board_t *dev = info->dev;
-	DEBUG(0, "%s(0x%p)\n", __func__, link);
 
 	/*if (link->open) {
 	 *	ni_gpib_probe(dev);	/ really?
-	 *	printk("Gpib resumed ???\n");
 	 *	//netif_device_attach(dev);
 	 *}
 	 */
@@ -1755,7 +1697,6 @@ static int __init init_ni_gpib_cs(void)
 
 static void __exit exit_ni_gpib_cs(void)
 {
-	DEBUG(0, "ni_gpib_cs: unloading\n");
 	pcmcia_unregister_driver(&ni_gpib_cs_driver);
 }
 
@@ -1767,13 +1708,10 @@ static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *conf
 	struct tnt4882_priv *tnt_priv;
 	struct nec7210_priv *nec_priv;
 	int isr_flags = IRQF_SHARED;
+	int retval;
 
-	DEBUG(0, "%s(0x%p)\n", __func__, board);
-
-	if (!curr_dev) {
-		pr_err("gpib: no NI PCMCIA board found\n");
-		return -1;
-	}
+	if (!curr_dev)
+		return -ENODEV;
 
 	info = curr_dev->priv;
 	info->dev = board;
@@ -1782,6 +1720,7 @@ static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *conf
 
 	if (tnt4882_allocate_private(board))
 		return -ENOMEM;
+
 	tnt_priv = board->private_data;
 	nec_priv = &tnt_priv->nec7210_priv;
 	nec_priv->type = TNT4882;
@@ -1789,23 +1728,20 @@ static int ni_pcmcia_attach(gpib_board_t *board, const gpib_board_config_t *conf
 	nec_priv->write_byte = nec7210_locking_ioport_write_byte;
 	nec_priv->offset = atgpib_reg_offset;
 
-	DEBUG(0, "ioport1 window attributes: 0x%lx\n", curr_dev->resource[0]->flags);
 	if (!request_region(curr_dev->resource[0]->start, resource_size(curr_dev->resource[0]),
-			    "tnt4882")) {
-		pr_err("gpib: ioports starting at 0x%lx are already in use\n",
-		       (unsigned long)curr_dev->resource[0]->start);
-		return -EIO;
-	}
+			    DRV_NAME))
+		return -ENOMEM;
 
 	nec_priv->mmiobase = ioport_map(curr_dev->resource[0]->start,
 					resource_size(curr_dev->resource[0]));
 	if (!nec_priv->mmiobase)
-		return -1;
+		return -ENOMEM;
 
 	// get irq
-	if (request_irq(curr_dev->irq, tnt4882_interrupt, isr_flags, "tnt4882", board))	{
-		pr_err("gpib: can't request IRQ %d\n", curr_dev->irq);
-		return -1;
+	retval = request_irq(curr_dev->irq, tnt4882_interrupt, isr_flags, DRV_NAME, board);
+	if (retval) {
+		dev_err(board->gpib_dev, "failed to obtain PCMCIA irq %d\n", curr_dev->irq);
+		return retval;
 	}
 	tnt_priv->irq = curr_dev->irq;
 
@@ -1818,8 +1754,6 @@ static void ni_pcmcia_detach(gpib_board_t *board)
 {
 	struct tnt4882_priv *tnt_priv = board->private_data;
 	struct nec7210_priv *nec_priv;
-
-	DEBUG(0, "%s(0x%p)\n", __func__, board);
 
 	if (tnt_priv) {
 		nec_priv = &tnt_priv->nec7210_priv;
