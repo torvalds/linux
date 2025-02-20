@@ -403,11 +403,9 @@ static void fprobe_graph_remove_ips(unsigned long *addrs, int num)
 	lockdep_assert_held(&fprobe_mutex);
 
 	fprobe_graph_active--;
-	if (!fprobe_graph_active) {
-		/* Q: should we unregister it ? */
+	/* Q: should we unregister it ? */
+	if (!fprobe_graph_active)
 		unregister_ftrace_graph(&fprobe_graph_ops);
-		return;
-	}
 
 	ftrace_set_filter_ips(&fprobe_graph_ops.ops, addrs, num, 1, 0);
 }
