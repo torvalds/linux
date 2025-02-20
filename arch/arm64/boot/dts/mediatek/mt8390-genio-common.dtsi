@@ -177,6 +177,8 @@
 		gpio = <&pio 119 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&reg_vsys>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_vreg_pins>;
 	};
 
 	usb_hub_fixed_3v3: regulator-6 {
@@ -909,6 +911,13 @@
 				<PINMUX_GPIO81__FUNC_B0_SPIM2_MOSI>,
 				<PINMUX_GPIO82__FUNC_B0_SPIM2_MISO>;
 			bias-disable;
+		};
+	};
+
+	touch_vreg_pins: touch-avdd-pins {
+		pins-power {
+			pinmux = <PINMUX_GPIO120__FUNC_B_GPIO120>;
+			output-high;
 		};
 	};
 
