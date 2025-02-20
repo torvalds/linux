@@ -187,6 +187,9 @@ static int venus_write_queue(struct venus_hfi_device *hdev,
 	/* ensure rd/wr indices's are read from memory */
 	rmb();
 
+	if (qsize > IFACEQ_QUEUE_SIZE / 4)
+		return -EINVAL;
+
 	if (wr_idx >= rd_idx)
 		empty_space = qsize - (wr_idx - rd_idx);
 	else
@@ -254,6 +257,9 @@ static int venus_read_queue(struct venus_hfi_device *hdev,
 	rd_idx = qhdr->read_idx;
 	wr_idx = qhdr->write_idx;
 	qsize = qhdr->q_size;
+
+	if (qsize > IFACEQ_QUEUE_SIZE / 4)
+		return -EINVAL;
 
 	/* make sure data is valid before using it */
 	rmb();
