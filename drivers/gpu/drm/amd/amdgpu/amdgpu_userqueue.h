@@ -111,4 +111,7 @@ uint64_t amdgpu_userqueue_get_doorbell_index(struct amdgpu_userq_mgr *uq_mgr,
 					     struct amdgpu_db_info *db_info,
 					     struct drm_file *filp);
 
+int amdgpu_userq_suspend(struct amdgpu_device *adev);
+int amdgpu_userq_resume(struct amdgpu_device *adev);
+
 #endif
