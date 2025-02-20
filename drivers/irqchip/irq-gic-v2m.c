@@ -87,9 +87,6 @@ static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct v2m_data *v2m = irq_data_get_irq_chip_data(data);
 	phys_addr_t addr = gicv2m_get_msi_addr(v2m, data->hwirq);
 
-	msg->address_hi = upper_32_bits(addr);
-	msg->address_lo = lower_32_bits(addr);
-
 	if (v2m->flags & GICV2M_GRAVITON_ADDRESS_ONLY)
 		msg->data = 0;
 	else
@@ -97,7 +94,7 @@ static void gicv2m_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	if (v2m->flags & GICV2M_NEEDS_SPI_OFFSET)
 		msg->data -= v2m->spi_offset;
 
-	iommu_dma_compose_msi_msg(irq_data_get_msi_desc(data), msg);
+	msi_msg_set_addr(irq_data_get_msi_desc(data), msg, addr);
 }
 
 static struct irq_chip gicv2m_irq_chip = {

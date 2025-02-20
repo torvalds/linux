@@ -1836,24 +1836,6 @@ int iommu_dma_prepare_msi(struct msi_desc *desc, phys_addr_t msi_addr)
 	return 0;
 }
 
-/**
- * iommu_dma_compose_msi_msg() - Apply translation to an MSI message
- * @desc: MSI descriptor prepared by iommu_dma_prepare_msi()
- * @msg: MSI message containing target physical address
- */
-void iommu_dma_compose_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
-{
-#ifdef CONFIG_IRQ_MSI_IOMMU
-	if (desc->iommu_msi_shift) {
-		u64 msi_iova = desc->iommu_msi_iova << desc->iommu_msi_shift;
-
-		msg->address_hi = upper_32_bits(msi_iova);
-		msg->address_lo = lower_32_bits(msi_iova) |
-				  (msg->address_lo & ((1 << desc->iommu_msi_shift) - 1));
-	}
-#endif
-}
-
 static int iommu_dma_init(void)
 {
 	if (is_kdump_kernel())
