@@ -493,6 +493,14 @@ out:
 	return err;
 }
 
+static void ipsec_rx_update_default_dest(struct mlx5e_ipsec_rx *rx,
+					 struct mlx5_flow_destination *old_dest,
+					 struct mlx5_flow_destination *new_dest)
+{
+	mlx5_modify_rule_destination(rx->status.rule, new_dest, old_dest);
+	mlx5_modify_rule_destination(rx->sa.rule, new_dest, old_dest);
+}
+
 static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
 {
 	struct mlx5e_ipsec_rx *rx = ipsec_rx(ipsec, family, XFRM_DEV_OFFLOAD_PACKET);
@@ -507,8 +515,7 @@ static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
 
 	new_dest.ft = mlx5_ipsec_fs_roce_ft_get(ipsec->roce, family);
 	new_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	mlx5_modify_rule_destination(rx->status.rule, &new_dest, &old_dest);
-	mlx5_modify_rule_destination(rx->sa.rule, &new_dest, &old_dest);
+	ipsec_rx_update_default_dest(rx, &old_dest, &new_dest);
 }
 
 static void handle_ipsec_rx_cleanup(struct mlx5e_ipsec *ipsec, u32 family)
@@ -520,8 +527,7 @@ static void handle_ipsec_rx_cleanup(struct mlx5e_ipsec *ipsec, u32 family)
 	old_dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	new_dest = mlx5_ttc_get_default_dest(mlx5e_fs_get_ttc(ipsec->fs, false),
 					     family2tt(family));
-	mlx5_modify_rule_destination(rx->sa.rule, &new_dest, &old_dest);
-	mlx5_modify_rule_destination(rx->status.rule, &new_dest, &old_dest);
+	ipsec_rx_update_default_dest(rx, &old_dest, &new_dest);
 
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, ipsec->mdev);
 }
