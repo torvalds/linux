@@ -16,6 +16,14 @@
 #define MLX5_REFORMAT_TYPE_ADD_ESP_TRANSPORT_SIZE 16
 #define IPSEC_TUNNEL_DEFAULT_TTL 0x40
 
+enum {
+	MLX5_IPSEC_ASO_OK,
+	MLX5_IPSEC_ASO_BAD_REPLY,
+
+	/* For crypto offload, set by driver */
+	MLX5_IPSEC_ASO_SW_CRYPTO_OFFLOAD = 0xAA,
+};
+
 struct mlx5e_ipsec_fc {
 	struct mlx5_fc *cnt;
 	struct mlx5_fc *drop;
@@ -33,6 +41,8 @@ struct mlx5e_ipsec_tx {
 };
 
 struct mlx5e_ipsec_status_checks {
+	struct mlx5_flow_handle *packet_offload_pass_rule;
+	struct mlx5_flow_handle *crypto_offload_pass_rule;
 	struct mlx5_flow_group *drop_all_group;
 	struct mlx5e_ipsec_drop all;
 };
@@ -41,8 +51,7 @@ struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_ft ft;
 	struct mlx5e_ipsec_miss pol;
 	struct mlx5e_ipsec_miss sa;
-	struct mlx5e_ipsec_rule status;
-	struct mlx5e_ipsec_status_checks status_drops;
+	struct mlx5e_ipsec_status_checks status_checks;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
 	struct mlx5_flow_table *pol_miss_ft;
@@ -149,15 +158,16 @@ static struct mlx5_flow_table *ipsec_ft_create(struct mlx5_flow_namespace *ns,
 static void ipsec_rx_status_drop_destroy(struct mlx5e_ipsec *ipsec,
 					 struct mlx5e_ipsec_rx *rx)
 {
-	mlx5_del_flow_rules(rx->status_drops.all.rule);
-	mlx5_fc_destroy(ipsec->mdev, rx->status_drops.all.fc);
-	mlx5_destroy_flow_group(rx->status_drops.drop_all_group);
+	mlx5_del_flow_rules(rx->status_checks.all.rule);
+	mlx5_fc_destroy(ipsec->mdev, rx->status_checks.all.fc);
+	mlx5_destroy_flow_group(rx->status_checks.drop_all_group);
 }
 
 static void ipsec_rx_status_pass_destroy(struct mlx5e_ipsec *ipsec,
 					 struct mlx5e_ipsec_rx *rx)
 {
-	mlx5_del_flow_rules(rx->status.rule);
+	mlx5_del_flow_rules(rx->status_checks.packet_offload_pass_rule);
+	mlx5_del_flow_rules(rx->status_checks.crypto_offload_pass_rule);
 }
 
 static void ipsec_rx_rule_add_match_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
@@ -368,9 +378,9 @@ static int ipsec_rx_status_drop_all_create(struct mlx5e_ipsec *ipsec,
 		goto err_rule;
 	}
 
-	rx->status_drops.drop_all_group = g;
-	rx->status_drops.all.rule = rule;
-	rx->status_drops.all.fc = flow_counter;
+	rx->status_checks.drop_all_group = g;
+	rx->status_checks.all.rule = rule;
+	rx->status_checks.all.fc = flow_counter;
 
 	kvfree(flow_group_in);
 	kvfree(spec);
@@ -386,9 +396,11 @@ err_out:
 	return err;
 }
 
-static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
-				       struct mlx5e_ipsec_rx *rx,
-				       struct mlx5_flow_destination *dest)
+static struct mlx5_flow_handle *
+ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
+			    struct mlx5e_ipsec_rx *rx,
+			    struct mlx5_flow_destination *dest,
+			    u8 aso_ok)
 {
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
@@ -397,7 +409,7 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	MLX5_SET_TO_ONES(fte_match_param, spec->match_criteria,
 			 misc_parameters_2.ipsec_syndrome);
@@ -406,7 +418,7 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 	MLX5_SET(fte_match_param, spec->match_value,
 		 misc_parameters_2.ipsec_syndrome, 0);
 	MLX5_SET(fte_match_param, spec->match_value,
-		 misc_parameters_2.metadata_reg_c_4, 0);
+		 misc_parameters_2.metadata_reg_c_4, aso_ok);
 	if (rx == ipsec->rx_esw)
 		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
@@ -421,13 +433,12 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 		goto err_rule;
 	}
 
-	rx->status.rule = rule;
 	kvfree(spec);
-	return 0;
+	return rule;
 
 err_rule:
 	kvfree(spec);
-	return err;
+	return ERR_PTR(err);
 }
 
 static void mlx5_ipsec_rx_status_destroy(struct mlx5e_ipsec *ipsec,
@@ -441,19 +452,38 @@ static int mlx5_ipsec_rx_status_create(struct mlx5e_ipsec *ipsec,
 				       struct mlx5e_ipsec_rx *rx,
 				       struct mlx5_flow_destination *dest)
 {
+	struct mlx5_flow_destination pol_dest[2];
+	struct mlx5_flow_handle *rule;
 	int err;
 
 	err = ipsec_rx_status_drop_all_create(ipsec, rx);
 	if (err)
 		return err;
 
-	err = ipsec_rx_status_pass_create(ipsec, rx, dest);
-	if (err)
-		goto err_pass_create;
+	rule = ipsec_rx_status_pass_create(ipsec, rx, dest,
+					   MLX5_IPSEC_ASO_SW_CRYPTO_OFFLOAD);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto err_crypto_offload_pass_create;
+	}
+	rx->status_checks.crypto_offload_pass_rule = rule;
+
+	pol_dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	pol_dest[0].ft = rx->ft.pol;
+	pol_dest[1] = dest[1];
+	rule = ipsec_rx_status_pass_create(ipsec, rx, pol_dest,
+					   MLX5_IPSEC_ASO_OK);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto err_packet_offload_pass_create;
+	}
+	rx->status_checks.packet_offload_pass_rule = rule;
 
 	return 0;
 
-err_pass_create:
+err_packet_offload_pass_create:
+	mlx5_del_flow_rules(rx->status_checks.crypto_offload_pass_rule);
+err_crypto_offload_pass_create:
 	ipsec_rx_status_drop_destroy(ipsec, rx);
 	return err;
 }
@@ -506,7 +536,9 @@ static void ipsec_rx_update_default_dest(struct mlx5e_ipsec_rx *rx,
 					 struct mlx5_flow_destination *old_dest,
 					 struct mlx5_flow_destination *new_dest)
 {
-	mlx5_modify_rule_destination(rx->status.rule, new_dest, old_dest);
+	mlx5_modify_rule_destination(rx->pol_miss_rule, new_dest, old_dest);
+	mlx5_modify_rule_destination(rx->status_checks.crypto_offload_pass_rule,
+				     new_dest, old_dest);
 }
 
 static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
@@ -853,8 +885,6 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (err)
 		goto err_policy;
 
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[0].ft = rx->ft.pol;
 	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 	dest[1].counter = rx->fc->cnt;
 	err = mlx5_ipsec_rx_status_create(ipsec, rx, dest);
@@ -1464,7 +1494,8 @@ static int setup_modify_header(struct mlx5e_ipsec *ipsec, int type, u32 val, u8 
 				 MLX5_ACTION_TYPE_SET);
 			MLX5_SET(set_action_in, action[2], field,
 				 MLX5_ACTION_IN_FIELD_METADATA_REG_C_4);
-			MLX5_SET(set_action_in, action[2], data, 0);
+			MLX5_SET(set_action_in, action[2], data,
+				 MLX5_IPSEC_ASO_SW_CRYPTO_OFFLOAD);
 			MLX5_SET(set_action_in, action[2], offset, 0);
 			MLX5_SET(set_action_in, action[2], length, 32);
 		}
