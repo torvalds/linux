@@ -275,8 +275,8 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 }
 
 int bch2_dirent_rename(struct btree_trans *trans,
-		subvol_inum src_dir, struct bch_hash_info *src_hash,
-		subvol_inum dst_dir, struct bch_hash_info *dst_hash,
+		subvol_inum src_dir, struct bch_hash_info *src_hash, u64 *src_dir_i_size,
+		subvol_inum dst_dir, struct bch_hash_info *dst_hash, u64 *dst_dir_i_size,
 		const struct qstr *src_name, subvol_inum *src_inum, u64 *src_offset,
 		const struct qstr *dst_name, subvol_inum *dst_inum, u64 *dst_offset,
 		enum bch_rename_mode mode)
@@ -405,6 +405,14 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	if ((mode == BCH_RENAME_EXCHANGE) &&
 	    new_src->v.d_type == DT_SUBVOL)
 		new_src->v.d_parent_subvol = cpu_to_le32(src_dir.subvol);
+
+	if (old_dst.k)
+		*dst_dir_i_size -= bkey_bytes(old_dst.k);
+	*src_dir_i_size -= bkey_bytes(old_src.k);
+
+	if (mode == BCH_RENAME_EXCHANGE)
+		*src_dir_i_size += bkey_bytes(&new_src->k);
+	*dst_dir_i_size += bkey_bytes(&new_dst->k);
 
 	ret = bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
 	if (ret)

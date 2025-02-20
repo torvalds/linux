@@ -62,8 +62,8 @@ enum bch_rename_mode {
 };
 
 int bch2_dirent_rename(struct btree_trans *,
-		       subvol_inum, struct bch_hash_info *,
-		       subvol_inum, struct bch_hash_info *,
+		       subvol_inum, struct bch_hash_info *, u64 *,
+		       subvol_inum, struct bch_hash_info *, u64 *,
 		       const struct qstr *, subvol_inum *, u64 *,
 		       const struct qstr *, subvol_inum *, u64 *,
 		       enum bch_rename_mode);

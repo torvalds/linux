@@ -417,8 +417,8 @@ int bch2_rename_trans(struct btree_trans *trans,
 	}
 
 	ret = bch2_dirent_rename(trans,
-				 src_dir, &src_hash,
-				 dst_dir, &dst_hash,
+				 src_dir, &src_hash, &src_dir_u->bi_size,
+				 dst_dir, &dst_hash, &dst_dir_u->bi_size,
 				 src_name, &src_inum, &src_offset,
 				 dst_name, &dst_inum, &dst_offset,
 				 mode);
