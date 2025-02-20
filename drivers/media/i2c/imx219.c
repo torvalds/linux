@@ -947,10 +947,9 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_selection *sel)
 {
 	switch (sel->target) {
-	case V4L2_SEL_TGT_CROP: {
+	case V4L2_SEL_TGT_CROP:
 		sel->r = *v4l2_subdev_state_get_crop(state, 0);
 		return 0;
-	}
 
 	case V4L2_SEL_TGT_NATIVE_SIZE:
 		sel->r.top = 0;
