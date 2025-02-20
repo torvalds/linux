@@ -107,8 +107,7 @@ static int adxl345_set_interrupts(struct adxl345_state *st)
 	 * interrupts to the INT1 pin, whereas bits set to 1 send their respective
 	 * interrupts to the INT2 pin. The intio shall convert this accordingly.
 	 */
-	int_map = FIELD_GET(ADXL345_REG_INT_SOURCE_MSK,
-			    st->intio ? st->int_map : ~st->int_map);
+	int_map = st->intio ? st->int_map : ~st->int_map;
 
 	ret = regmap_write(st->regmap, ADXL345_REG_INT_MAP, int_map);
 	if (ret)
@@ -404,18 +403,6 @@ static const struct iio_buffer_setup_ops adxl345_buffer_ops = {
 	.predisable = adxl345_buffer_predisable,
 };
 
-static int adxl345_get_status(struct adxl345_state *st)
-{
-	int ret;
-	unsigned int regval;
-
-	ret = regmap_read(st->regmap, ADXL345_REG_INT_SOURCE, &regval);
-	if (ret < 0)
-		return ret;
-
-	return FIELD_GET(ADXL345_REG_INT_SOURCE_MSK, regval);
-}
-
 static int adxl345_fifo_push(struct iio_dev *indio_dev,
 			     int samples)
 {
@@ -449,14 +436,10 @@ static irqreturn_t adxl345_irq_handler(int irq, void *p)
 	int int_stat;
 	int samples;
 
-	int_stat = adxl345_get_status(st);
-	if (int_stat <= 0)
+	if (regmap_read(st->regmap, ADXL345_REG_INT_SOURCE, &int_stat))
 		return IRQ_NONE;
 
-	if (int_stat & ADXL345_INT_OVERRUN)
-		goto err;
-
-	if (int_stat & ADXL345_INT_WATERMARK) {
+	if (FIELD_GET(ADXL345_INT_WATERMARK, int_stat)) {
 		samples = adxl345_get_samples(st);
 		if (samples < 0)
 			goto err;
@@ -464,6 +447,10 @@ static irqreturn_t adxl345_irq_handler(int irq, void *p)
 		if (adxl345_fifo_push(indio_dev, samples) < 0)
 			goto err;
 	}
+
+	if (FIELD_GET(ADXL345_INT_OVERRUN, int_stat))
+		goto err;
+
 	return IRQ_HANDLED;
 
 err:
