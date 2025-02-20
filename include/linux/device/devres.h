@@ -165,4 +165,6 @@ static inline int __devm_add_action_or_reset(struct device *dev, void (*action)(
 #define devm_add_action_or_reset(dev, action, data) \
 	__devm_add_action_or_reset(dev, action, data, #action)
 
+bool devm_is_action_added(struct device *dev, void (*action)(void *), void *data);
+
 #endif /* _DEVICE_DEVRES_H_ */
