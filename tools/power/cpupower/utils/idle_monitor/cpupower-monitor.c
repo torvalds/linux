@@ -6,6 +6,7 @@
  */
 
 
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -294,7 +295,10 @@ int fork_it(char **argv)
 
 	if (!child_pid) {
 		/* child */
-		execvp(argv[0], argv);
+		if (execvp(argv[0], argv) == -1) {
+			printf("Invalid monitor command %s\n", argv[0]);
+			exit(errno);
+		}
 	} else {
 		/* parent */
 		if (child_pid == -1) {
