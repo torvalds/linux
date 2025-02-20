@@ -425,7 +425,7 @@ static void end_folio_read(struct folio *folio, bool uptodate, u64 start, u32 le
 	struct btrfs_fs_info *fs_info = folio_to_fs_info(folio);
 
 	ASSERT(folio_pos(folio) <= start &&
-	       start + len <= folio_pos(folio) + PAGE_SIZE);
+	       start + len <= folio_pos(folio) + folio_size(folio));
 
 	if (uptodate && btrfs_verify_folio(folio, start, len))
 		btrfs_folio_set_uptodate(fs_info, folio, start, len);
@@ -492,7 +492,7 @@ static void begin_folio_read(struct btrfs_fs_info *fs_info, struct folio *folio)
 		return;
 
 	ASSERT(folio_test_private(folio));
-	btrfs_folio_set_lock(fs_info, folio, folio_pos(folio), PAGE_SIZE);
+	btrfs_folio_set_lock(fs_info, folio, folio_pos(folio), folio_size(folio));
 }
 
 /*
@@ -753,7 +753,7 @@ static void submit_extent_folio(struct btrfs_bio_ctrl *bio_ctrl,
 {
 	struct btrfs_inode *inode = folio_to_inode(folio);
 
-	ASSERT(pg_offset + size <= PAGE_SIZE);
+	ASSERT(pg_offset + size <= folio_size(folio));
 	ASSERT(bio_ctrl->end_io_func);
 
 	if (bio_ctrl->bbio &&
@@ -935,7 +935,7 @@ static int btrfs_do_readpage(struct folio *folio, struct extent_map **em_cached,
 	struct inode *inode = folio->mapping->host;
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	u64 start = folio_pos(folio);
-	const u64 end = start + PAGE_SIZE - 1;
+	const u64 end = start + folio_size(folio) - 1;
 	u64 extent_offset;
 	u64 last_byte = i_size_read(inode);
 	struct extent_map *em;
@@ -1275,7 +1275,7 @@ static void set_delalloc_bitmap(struct folio *folio, unsigned long *delalloc_bit
 	unsigned int start_bit;
 	unsigned int nbits;
 
-	ASSERT(start >= folio_start && start + len <= folio_start + PAGE_SIZE);
+	ASSERT(start >= folio_start && start + len <= folio_start + folio_size(folio));
 	start_bit = (start - folio_start) >> fs_info->sectorsize_bits;
 	nbits = len >> fs_info->sectorsize_bits;
 	ASSERT(bitmap_test_range_all_zero(delalloc_bitmap, start_bit, nbits));
@@ -1293,7 +1293,7 @@ static bool find_next_delalloc_bitmap(struct folio *folio,
 	unsigned int first_zero;
 	unsigned int first_set;
 
-	ASSERT(start >= folio_start && start < folio_start + PAGE_SIZE);
+	ASSERT(start >= folio_start && start < folio_start + folio_size(folio));
 
 	start_bit = (start - folio_start) >> fs_info->sectorsize_bits;
 	first_set = find_next_bit(delalloc_bitmap, bitmap_size, start_bit);
@@ -1495,7 +1495,7 @@ out:
 		delalloc_end = page_end;
 	/*
 	 * delalloc_end is already one less than the total length, so
-	 * we don't subtract one from PAGE_SIZE
+	 * we don't subtract one from PAGE_SIZE.
 	 */
 	delalloc_to_write +=
 		DIV_ROUND_UP(delalloc_end + 1 - page_start, PAGE_SIZE);
@@ -1761,7 +1761,7 @@ static int extent_writepage(struct folio *folio, struct btrfs_bio_ctrl *bio_ctrl
 		goto done;
 
 	ret = extent_writepage_io(inode, folio, folio_pos(folio),
-				  PAGE_SIZE, bio_ctrl, i_size);
+				  folio_size(folio), bio_ctrl, i_size);
 	if (ret == 1)
 		return 0;
 	if (ret < 0)
@@ -2488,8 +2488,8 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 	ASSERT(IS_ALIGNED(start, sectorsize) && IS_ALIGNED(end + 1, sectorsize));
 
 	while (cur <= end) {
-		u64 cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
-		u32 cur_len = cur_end + 1 - cur;
+		u64 cur_end;
+		u32 cur_len;
 		struct folio *folio;
 
 		folio = filemap_get_folio(mapping, cur >> PAGE_SHIFT);
@@ -2499,12 +2499,17 @@ void extent_write_locked_range(struct inode *inode, const struct folio *locked_f
 		 * code is just in case, but shouldn't actually be run.
 		 */
 		if (IS_ERR(folio)) {
+			cur_end = min(round_down(cur, PAGE_SIZE) + PAGE_SIZE - 1, end);
+			cur_len = cur_end + 1 - cur;
 			btrfs_mark_ordered_io_finished(BTRFS_I(inode), NULL,
 						       cur, cur_len, false);
 			mapping_set_error(mapping, PTR_ERR(folio));
-			cur = cur_end + 1;
+			cur = cur_end;
 			continue;
 		}
+
+		cur_end = min_t(u64, folio_pos(folio) + folio_size(folio) - 1, end);
+		cur_len = cur_end + 1 - cur;
 
 		ASSERT(folio_test_locked(folio));
 		if (pages_dirty && folio != locked_folio)
@@ -2617,7 +2622,7 @@ static bool try_release_extent_state(struct extent_io_tree *tree,
 				     struct folio *folio)
 {
 	u64 start = folio_pos(folio);
-	u64 end = start + PAGE_SIZE - 1;
+	u64 end = start + folio_size(folio) - 1;
 	bool ret;
 
 	if (test_range_bit_exists(tree, start, end, EXTENT_LOCKED)) {
@@ -2655,7 +2660,7 @@ static bool try_release_extent_state(struct extent_io_tree *tree,
 bool try_release_extent_mapping(struct folio *folio, gfp_t mask)
 {
 	u64 start = folio_pos(folio);
-	u64 end = start + PAGE_SIZE - 1;
+	u64 end = start + folio_size(folio) - 1;
 	struct btrfs_inode *inode = folio_to_inode(folio);
 	struct extent_io_tree *io_tree = &inode->io_tree;
 
