@@ -569,6 +569,20 @@ void component_master_del(struct device *parent,
 }
 EXPORT_SYMBOL_GPL(component_master_del);
 
+bool component_master_is_bound(struct device *parent,
+	const struct component_master_ops *ops)
+{
+	struct aggregate_device *adev;
+
+	guard(mutex)(&component_mutex);
+	adev = __aggregate_find(parent, ops);
+	if (!adev)
+		return 0;
+
+	return adev->bound;
+}
+EXPORT_SYMBOL_GPL(component_master_is_bound);
+
 static void component_unbind(struct component *component,
 	struct aggregate_device *adev, void *data)
 {
