@@ -51,6 +51,7 @@ struct ep_device;
  * @desc: descriptor for this endpoint, wMaxPacketSize in native byteorder
  * @ss_ep_comp: SuperSpeed companion descriptor for this endpoint
  * @ssp_isoc_ep_comp: SuperSpeedPlus isoc companion descriptor for this endpoint
+ * @eusb2_isoc_ep_comp: eUSB2 isoc companion descriptor for this endpoint
  * @urb_list: urbs queued to this endpoint; maintained by usbcore
  * @hcpriv: for use by HCD; typically holds hardware dma queue head (QH)
  *	with one or more transfer descriptors (TDs) per urb
@@ -64,9 +65,10 @@ struct ep_device;
  * descriptor within an active interface in a given USB configuration.
  */
 struct usb_host_endpoint {
-	struct usb_endpoint_descriptor		desc;
-	struct usb_ss_ep_comp_descriptor	ss_ep_comp;
-	struct usb_ssp_isoc_ep_comp_descriptor	ssp_isoc_ep_comp;
+	struct usb_endpoint_descriptor			desc;
+	struct usb_ss_ep_comp_descriptor		ss_ep_comp;
+	struct usb_ssp_isoc_ep_comp_descriptor		ssp_isoc_ep_comp;
+	struct usb_eusb2_isoc_ep_comp_descriptor	eusb2_isoc_ep_comp;
 	struct list_head		urb_list;
 	void				*hcpriv;
 	struct ep_device		*ep_dev;	/* For sysfs info */
