@@ -8238,8 +8238,8 @@ static void ath11k_update_stats_event(struct ath11k_base *ab, struct sk_buff *sk
 
 complete:
 	complete(&ar->fw_stats_complete);
-	rcu_read_unlock();
 	spin_unlock_bh(&ar->data_lock);
+	rcu_read_unlock();
 
 	/* Since the stats's pdev, vdev and beacon list are spliced and reinitialised
 	 * at this point, no need to free the individual list.
