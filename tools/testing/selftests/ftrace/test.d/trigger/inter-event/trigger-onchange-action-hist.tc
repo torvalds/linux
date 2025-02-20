@@ -19,4 +19,6 @@ if ! grep -q "changed:" events/sched/sched_waking/hist; then
     fail "Failed to create onchange action inter-event histogram"
 fi
 
+echo '!hist:keys=comm:newprio=prio:onchange($newprio).save(comm,prio) if comm=="ping"' >> events/sched/sched_waking/trigger
+
 exit 0

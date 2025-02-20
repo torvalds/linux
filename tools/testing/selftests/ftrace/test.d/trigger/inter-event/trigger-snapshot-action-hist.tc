@@ -27,4 +27,6 @@ if ! grep -q "comm=ping" snapshot; then
     fail "Failed to create snapshot action inter-event histogram"
 fi
 
+echo '!hist:keys=comm:newprio=prio:onchange($newprio).save(comm,prio):onchange($newprio).snapshot() if comm=="ping"' >> events/sched/sched_waking/trigger
+
 exit 0
