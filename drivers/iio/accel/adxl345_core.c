@@ -76,6 +76,26 @@ static const unsigned long adxl345_scan_masks[] = {
 	0
 };
 
+/**
+ * adxl345_set_measure_en() - Enable and disable measuring.
+ *
+ * @st: The device data.
+ * @en: Enable measurements, else standby mode.
+ *
+ * For lowest power operation, standby mode can be used. In standby mode,
+ * current consumption is supposed to be reduced to 0.1uA (typical). In this
+ * mode no measurements are made. Placing the device into standby mode
+ * preserves the contents of FIFO.
+ *
+ * Return: Returns 0 if successful, or a negative error value.
+ */
+static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
+{
+	unsigned int val = en ? ADXL345_POWER_CTL_MEASURE : ADXL345_POWER_CTL_STANDBY;
+
+	return regmap_write(st->regmap, ADXL345_REG_POWER_CTL, val);
+}
+
 static int adxl345_set_interrupts(struct adxl345_state *st)
 {
 	int ret;
@@ -212,26 +232,6 @@ static int adxl345_write_raw_get_fmt(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-}
-
-/**
- * adxl345_set_measure_en() - Enable and disable measuring.
- *
- * @st: The device data.
- * @en: Enable measurements, else standby mode.
- *
- * For lowest power operation, standby mode can be used. In standby mode,
- * current consumption is supposed to be reduced to 0.1uA (typical). In this
- * mode no measurements are made. Placing the device into standby mode
- * preserves the contents of FIFO.
- *
- * Return: Returns 0 if successful, or a negative error value.
- */
-static int adxl345_set_measure_en(struct adxl345_state *st, bool en)
-{
-	unsigned int val = en ? ADXL345_POWER_CTL_MEASURE : ADXL345_POWER_CTL_STANDBY;
-
-	return regmap_write(st->regmap, ADXL345_REG_POWER_CTL, val);
 }
 
 static void adxl345_powerdown(void *ptr)
