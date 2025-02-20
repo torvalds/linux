@@ -577,8 +577,8 @@ static int fuse_uring_copy_from_ring(struct fuse_ring *ring,
 	if (err)
 		return err;
 
-	fuse_copy_init(&cs, 0, &iter);
-	cs.is_uring = 1;
+	fuse_copy_init(&cs, false, &iter);
+	cs.is_uring = true;
 	cs.req = req;
 
 	return fuse_copy_out_args(&cs, args, ring_in_out.payload_sz);
@@ -607,8 +607,8 @@ static int fuse_uring_args_to_ring(struct fuse_ring *ring, struct fuse_req *req,
 		return err;
 	}
 
-	fuse_copy_init(&cs, 1, &iter);
-	cs.is_uring = 1;
+	fuse_copy_init(&cs, true, &iter);
+	cs.is_uring = true;
 	cs.req = req;
 
 	if (num_args > 0) {
