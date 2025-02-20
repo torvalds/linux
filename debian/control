@@ -120,6 +120,7 @@ Provides: wireguard-modules (= 1.0.0)
 Depends:
  ${misc:Depends},
  linux-image-6.12.10-76061203-generic (= ${source:Version}),
+ gcc-14,
  linux-firmware,
  intel-microcode [amd64],
  amd64-microcode [amd64]
@@ -199,8 +200,8 @@ Architecture: all
 Multi-Arch: foreign
 Section: kernel
 Priority: optional
-Provides: 
- bpftool, 
+Provides:
+ bpftool,
  linux-cpupower,
 Depends: ${misc:Depends}, lsb-release, hwdata
 Description: Linux kernel version specific tools for version 6.12.10
@@ -559,4 +560,3 @@ Description: Linux kernel buildinfo for version 6.12.10 on 64 bit x86 SMP
  64 bit x86 SMP.
  .
  You likely do not want to install this package.
-
