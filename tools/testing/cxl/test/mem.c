@@ -1558,6 +1558,10 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+	rc = devm_cxl_setup_features(cxlds);
+	if (rc)
+		dev_dbg(dev, "No CXL Features discovered\n");
+
 	cxl_mock_add_event_logs(&mdata->mes);
 
 	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlds);

@@ -102,6 +102,17 @@ config CXL_MEM
 
 	  If unsure say 'm'.
 
+config CXL_FEATURES
+	bool "CXL: Features"
+	depends on CXL_PCI
+	help
+	  Enable support for CXL Features. A CXL device that includes a mailbox
+	  supports commands that allows listing, getting, and setting of
+	  optionally defined features such as memory sparing or post package
+	  sparing. Vendors may define custom features for the device.
+
+	  If unsure say 'n'
+
 config CXL_PORT
 	default CXL_BUS
 	tristate
