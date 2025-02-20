@@ -68,6 +68,7 @@ struct nfsd4_callback {
 	struct nfs4_client *cb_clp;
 	struct rpc_message cb_msg;
 #define NFSD4_CALLBACK_RUNNING		(0)
+#define NFSD4_CALLBACK_WAKE		(1)
 	unsigned long cb_flags;
 	const struct nfsd4_callback_ops *cb_ops;
 	struct work_struct cb_work;
@@ -164,14 +165,10 @@ struct nfs4_cb_fattr {
 	struct timespec64 ncf_cb_mtime;
 	struct timespec64 ncf_cb_atime;
 
-	unsigned long ncf_cb_flags;
 	bool ncf_file_modified;
 	u64 ncf_initial_cinfo;
 	u64 ncf_cur_fsize;
 };
-
-/* bits for ncf_cb_flags */
-#define	CB_GETATTR_BUSY		0
 
 /*
  * Represents a delegation stateid. The nfs4_client holds references to these
