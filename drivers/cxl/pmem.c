@@ -90,7 +90,7 @@ static int cxl_nvdimm_probe(struct device *dev)
 	 * clear it upon a successful GPF flow. The exception to this
 	 * is upon Viral detection, per CXL 3.2 section 12.4.2.
 	 */
-	if (cxl_dirty_shutdown_state(mds))
+	if (cxl_arm_dirty_shutdown(mds))
 		dev_warn(dev, "GPF: could not dirty shutdown state\n");
 
 	dev_set_drvdata(dev, nvdimm);
