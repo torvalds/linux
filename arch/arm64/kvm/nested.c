@@ -1021,10 +1021,11 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 		res0 |= HCR_FIEN;
 	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, FWB, IMP))
 		res0 |= HCR_FWB;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, NV, NV2))
-		res0 |= HCR_NV2;
-	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, NV, IMP))
-		res0 |= (HCR_AT | HCR_NV1 | HCR_NV);
+	/* Implementation choice: NV2 is the only supported config */
+	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, NV_frac, NV2_ONLY))
+		res0 |= (HCR_NV2 | HCR_NV | HCR_AT);
+	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, E2H0, NI))
+		res0 |= HCR_NV1;
 	if (!(kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
 	      kvm_vcpu_has_feature(kvm, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
 		res0 |= (HCR_API | HCR_APK);
