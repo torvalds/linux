@@ -449,8 +449,10 @@ void iommu_put_dma_cookie(struct iommu_domain *domain)
 	struct iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iommu_dma_msi_page *msi, *tmp;
 
+#if IS_ENABLED(CONFIG_IRQ_MSI_IOMMU)
 	if (domain->sw_msi != iommu_dma_sw_msi)
 		return;
+#endif
 
 	if (!cookie)
 		return;
