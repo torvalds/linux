@@ -41,7 +41,7 @@
  * the  C state is required to actually break even on this cost. CPUIDLE
  * provides us this duration in the "target_residency" field. So all that we
  * need is a good prediction of how long we'll be idle. Like the traditional
- * menu governor, we start with the actual known "next timer event" time.
+ * menu governor, we take the actual known "next timer event" time.
  *
  * Since there are other source of wakeups (interrupts for example) than
  * the next timer event, this estimation is rather optimistic. To get a
@@ -50,30 +50,21 @@
  * duration always was 50% of the next timer tick, the correction factor will
  * be 0.5.
  *
- * menu uses a running average for this correction factor, however it uses a
- * set of factors, not just a single factor. This stems from the realization
- * that the ratio is dependent on the order of magnitude of the expected
- * duration; if we expect 500 milliseconds of idle time the likelihood of
- * getting an interrupt very early is much higher than if we expect 50 micro
- * seconds of idle time. A second independent factor that has big impact on
- * the actual factor is if there is (disk) IO outstanding or not.
- * (as a special twist, we consider every sleep longer than 50 milliseconds
- * as perfect; there are no power gains for sleeping longer than this)
- *
- * For these two reasons we keep an array of 12 independent factors, that gets
- * indexed based on the magnitude of the expected duration as well as the
- * "is IO outstanding" property.
+ * menu uses a running average for this correction factor, but it uses a set of
+ * factors, not just a single factor. This stems from the realization that the
+ * ratio is dependent on the order of magnitude of the expected duration; if we
+ * expect 500 milliseconds of idle time the likelihood of getting an interrupt
+ * very early is much higher than if we expect 50 micro seconds of idle time.
+ * For this reason, menu keeps an array of 6 independent factors, that gets
+ * indexed based on the magnitude of the expected duration.
  *
  * Repeatable-interval-detector
  * ----------------------------
  * There are some cases where "next timer" is a completely unusable predictor:
  * Those cases where the interval is fixed, for example due to hardware
- * interrupt mitigation, but also due to fixed transfer rate devices such as
- * mice.
+ * interrupt mitigation, but also due to fixed transfer rate devices like mice.
  * For this, we use a different predictor: We track the duration of the last 8
- * intervals and if the stand deviation of these 8 intervals is below a
- * threshold value, we use the average of these intervals as prediction.
- *
+ * intervals and use them to estimate the duration of the next one.
  */
 
 struct menu_device {
