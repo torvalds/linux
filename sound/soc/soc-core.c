@@ -32,6 +32,7 @@
 #include <linux/of_graph.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
+#include <linux/string_choices.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -430,7 +431,7 @@ void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 		codec_dai->driver->playback.stream_name,
 		snd_soc_dai_stream_active(codec_dai, playback) ?
 		"active" : "inactive",
-		rtd->pop_wait ? "yes" : "no");
+		str_yes_no(rtd->pop_wait));
 
 	/* are we waiting on this codec DAI stream */
 	if (rtd->pop_wait == 1) {
