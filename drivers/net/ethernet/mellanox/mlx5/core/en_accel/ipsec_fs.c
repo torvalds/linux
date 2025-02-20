@@ -141,11 +141,12 @@ static void ipsec_chains_put_table(struct mlx5_fs_chains *chains, u32 prio)
 
 static struct mlx5_flow_table *ipsec_ft_create(struct mlx5_flow_namespace *ns,
 					       int level, int prio,
+					       int num_reserved_entries,
 					       int max_num_groups, u32 flags)
 {
 	struct mlx5_flow_table_attr ft_attr = {};
 
-	ft_attr.autogroup.num_reserved_entries = 1;
+	ft_attr.autogroup.num_reserved_entries = num_reserved_entries;
 	ft_attr.autogroup.max_num_groups = max_num_groups;
 	ft_attr.max_fte = NUM_IPSEC_FTE;
 	ft_attr.level = level;
@@ -818,7 +819,7 @@ static int ipsec_rx_policy_create(struct mlx5e_ipsec *ipsec,
 			err = PTR_ERR(rx->chains);
 	} else {
 		ft = ipsec_ft_create(attr->ns, attr->pol_level,
-				     attr->prio, 2, 0);
+				     attr->prio, 1, 2, 0);
 		if (IS_ERR(ft)) {
 			err = PTR_ERR(ft);
 			goto err_out;
@@ -857,7 +858,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (err)
 		return err;
 
-	ft = ipsec_ft_create(attr.ns, attr.status_level, attr.prio, 3, 0);
+	ft = ipsec_ft_create(attr.ns, attr.status_level, attr.prio, 1, 3, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft_status;
@@ -869,7 +870,7 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (rx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft = ipsec_ft_create(attr.ns, attr.sa_level, attr.prio, 2, flags);
+	ft = ipsec_ft_create(attr.ns, attr.sa_level, attr.prio, 1, 2, flags);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_fs_ft;
@@ -1095,7 +1096,7 @@ static int tx_create(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 	int err;
 
 	ipsec_tx_create_attr_set(ipsec, tx, &attr);
-	ft = ipsec_ft_create(tx->ns, attr.cnt_level, attr.prio, 1, 0);
+	ft = ipsec_ft_create(tx->ns, attr.cnt_level, attr.prio, 1, 1, 0);
 	if (IS_ERR(ft))
 		return PTR_ERR(ft);
 	tx->ft.status = ft;
@@ -1108,7 +1109,7 @@ static int tx_create(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 		tx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
 	if (tx->allow_tunnel_mode)
 		flags = MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT;
-	ft = ipsec_ft_create(tx->ns, attr.sa_level, attr.prio, 4, flags);
+	ft = ipsec_ft_create(tx->ns, attr.sa_level, attr.prio, 1, 4, flags);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_sa_ft;
@@ -1136,7 +1137,7 @@ static int tx_create(struct mlx5e_ipsec *ipsec, struct mlx5e_ipsec_tx *tx,
 		goto connect_roce;
 	}
 
-	ft = ipsec_ft_create(tx->ns, attr.pol_level, attr.prio, 2, 0);
+	ft = ipsec_ft_create(tx->ns, attr.pol_level, attr.prio, 1, 2, 0);
 	if (IS_ERR(ft)) {
 		err = PTR_ERR(ft);
 		goto err_pol_ft;
