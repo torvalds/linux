@@ -26,7 +26,7 @@ gcc)
 	fi
 	;;
 llvm)
-	if [ "$SRCARCH" = s390 ]; then
+	if [ "$SRCARCH" = s390 -o "$SRCARCH" = x86 ]; then
 		echo 15.0.0
 	elif [ "$SRCARCH" = loongarch ]; then
 		echo 18.0.0
