@@ -134,8 +134,6 @@ void get_ndd(struct nvdimm_drvdata *ndd);
 resource_size_t __nvdimm_namespace_capacity(struct nd_namespace_common *ndns);
 void nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns);
 void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns);
-bool nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
-		struct nd_namespace_common **_ndns);
 bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 		struct nd_namespace_common **_ndns);
 ssize_t nd_namespace_store(struct device *dev,
