@@ -507,6 +507,13 @@ static const struct dpu_dsc_sub_blks dsc_sblk_1 = {
 /*************************************************************
  * CDM block config
  *************************************************************/
+static const struct dpu_cdm_cfg dpu_cdm_1_x_4_x = {
+	.name = "cdm_0",
+	.id = CDM_0,
+	.len = 0x224,
+	.base = 0x79200,
+};
+
 static const struct dpu_cdm_cfg dpu_cdm_5_x = {
 	.name = "cdm_0",
 	.id = CDM_0,
