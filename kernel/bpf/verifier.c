@@ -22542,10 +22542,11 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 	const struct bpf_struct_ops *st_ops;
 	const struct btf_member *member;
 	struct bpf_prog *prog = env->prog;
+	bool has_refcounted_arg = false;
 	u32 btf_id, member_idx;
 	struct btf *btf;
 	const char *mname;
-	int err;
+	int i, err;
 
 	if (!prog->gpl_compatible) {
 		verbose(env, "struct ops programs must have a GPL compatible license\n");
@@ -22613,6 +22614,23 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 	if (prog->aux->priv_stack_requested && !bpf_jit_supports_private_stack()) {
 		verbose(env, "Private stack not supported by jit\n");
 		return -EACCES;
+	}
+
+	for (i = 0; i < st_ops_desc->arg_info[member_idx].cnt; i++) {
+		if (st_ops_desc->arg_info[member_idx].info->refcounted) {
+			has_refcounted_arg = true;
+			break;
+		}
+	}
+
+	/* Tail call is not allowed for programs with refcounted arguments since we
+	 * cannot guarantee that valid refcounted kptrs will be passed to the callee.
+	 */
+	for (i = 0; i < env->subprog_cnt; i++) {
+		if (has_refcounted_arg && env->subprog_info[i].has_tail_call) {
+			verbose(env, "program with __ref argument cannot tail call\n");
+			return -EINVAL;
+		}
 	}
 
 	prog->aux->attach_func_proto = func_proto;
