@@ -498,7 +498,6 @@ static void ipsec_rx_update_default_dest(struct mlx5e_ipsec_rx *rx,
 					 struct mlx5_flow_destination *new_dest)
 {
 	mlx5_modify_rule_destination(rx->status.rule, new_dest, old_dest);
-	mlx5_modify_rule_destination(rx->sa.rule, new_dest, old_dest);
 }
 
 static void handle_ipsec_rx_bringup(struct mlx5e_ipsec *ipsec, u32 family)
@@ -658,6 +657,20 @@ static int ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
 	return 0;
 }
 
+static void ipsec_rx_sa_miss_dest_get(struct mlx5e_ipsec *ipsec,
+				      struct mlx5e_ipsec_rx *rx,
+				      struct mlx5e_ipsec_rx_create_attr *attr,
+				      struct mlx5_flow_destination *dest,
+				      struct mlx5_flow_destination *miss_dest)
+{
+	if (rx == ipsec->rx_esw)
+		*miss_dest = *dest;
+	else
+		*miss_dest =
+			mlx5_ttc_get_default_dest(attr->ttc,
+						  family2tt(attr->family));
+}
+
 static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 				struct mlx5e_ipsec_rx *rx,
 				struct mlx5e_ipsec_rx_create_attr *attr)
@@ -672,8 +685,8 @@ static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		     struct mlx5e_ipsec_rx *rx, u32 family)
 {
+	struct mlx5_flow_destination dest[2], miss_dest;
 	struct mlx5e_ipsec_rx_create_attr attr;
-	struct mlx5_flow_destination dest[2];
 	struct mlx5_flow_table *ft;
 	u32 flags = 0;
 	int err;
@@ -709,7 +722,8 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	}
 	rx->ft.sa = ft;
 
-	err = ipsec_miss_create(mdev, rx->ft.sa, &rx->sa, dest);
+	ipsec_rx_sa_miss_dest_get(ipsec, rx, &attr, &dest[0], &miss_dest);
+	err = ipsec_miss_create(mdev, rx->ft.sa, &rx->sa, &miss_dest);
 	if (err)
 		goto err_fs;
 
