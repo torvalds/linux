@@ -2283,35 +2283,33 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
  * from userspace.
  */
 
+#define ID_DESC_DEFAULT_CALLBACKS		\
+	.access	= access_id_reg,		\
+	.get_user = get_id_reg,			\
+	.set_user = set_id_reg,			\
+	.visibility = id_visibility,		\
+	.reset = kvm_read_sanitised_id_reg
+
 #define ID_DESC(name)				\
 	SYS_DESC(SYS_##name),			\
-	.access	= access_id_reg,		\
-	.get_user = get_id_reg			\
+	ID_DESC_DEFAULT_CALLBACKS
 
 /* sys_reg_desc initialiser for known cpufeature ID registers */
 #define ID_SANITISED(name) {			\
 	ID_DESC(name),				\
-	.set_user = set_id_reg,			\
-	.visibility = id_visibility,		\
-	.reset = kvm_read_sanitised_id_reg,	\
 	.val = 0,				\
 }
 
 /* sys_reg_desc initialiser for known cpufeature ID registers */
 #define AA32_ID_SANITISED(name) {		\
 	ID_DESC(name),				\
-	.set_user = set_id_reg,			\
 	.visibility = aa32_id_visibility,	\
-	.reset = kvm_read_sanitised_id_reg,	\
 	.val = 0,				\
 }
 
 /* sys_reg_desc initialiser for writable ID registers */
 #define ID_WRITABLE(name, mask) {		\
 	ID_DESC(name),				\
-	.set_user = set_id_reg,			\
-	.visibility = id_visibility,		\
-	.reset = kvm_read_sanitised_id_reg,	\
 	.val = mask,				\
 }
 
@@ -2319,8 +2317,6 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
 #define ID_FILTERED(sysreg, name, mask) {	\
 	ID_DESC(sysreg),				\
 	.set_user = set_##name,				\
-	.visibility = id_visibility,			\
-	.reset = kvm_read_sanitised_id_reg,		\
 	.val = (mask),					\
 }
 
@@ -2330,12 +2326,10 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
  * (1 <= crm < 8, 0 <= Op2 < 8).
  */
 #define ID_UNALLOCATED(crm, op2) {			\
+	.name = "S3_0_0_" #crm "_" #op2,		\
 	Op0(3), Op1(0), CRn(0), CRm(crm), Op2(op2),	\
-	.access = access_id_reg,			\
-	.get_user = get_id_reg,				\
-	.set_user = set_id_reg,				\
+	ID_DESC_DEFAULT_CALLBACKS,			\
 	.visibility = raz_visibility,			\
-	.reset = kvm_read_sanitised_id_reg,		\
 	.val = 0,					\
 }
 
@@ -2346,9 +2340,7 @@ static bool bad_redir_trap(struct kvm_vcpu *vcpu,
  */
 #define ID_HIDDEN(name) {			\
 	ID_DESC(name),				\
-	.set_user = set_id_reg,			\
 	.visibility = raz_visibility,		\
-	.reset = kvm_read_sanitised_id_reg,	\
 	.val = 0,				\
 }
 
