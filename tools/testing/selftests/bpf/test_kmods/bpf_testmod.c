@@ -1130,6 +1130,7 @@ static const struct btf_kfunc_id_set bpf_testmod_kfunc_set = {
 };
 
 static const struct bpf_verifier_ops bpf_testmod_verifier_ops = {
+	.get_func_proto	 = bpf_base_func_proto,
 	.is_valid_access = bpf_testmod_ops_is_valid_access,
 };
 
