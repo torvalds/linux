@@ -224,8 +224,10 @@ struct iommu_domain {
 		      phys_addr_t msi_addr);
 #endif
 
-	void *fault_data;
-	union {
+	union { /* Pointer usable by owner of the domain */
+		struct iommufd_hw_pagetable *iommufd_hwpt; /* iommufd */
+	};
+	union { /* Fault handler */
 		struct {
 			iommu_fault_handler_t handler;
 			void *handler_token;

@@ -329,7 +329,7 @@ int iommufd_fault_iopf_handler(struct iopf_group *group)
 	struct iommufd_hw_pagetable *hwpt;
 	struct iommufd_fault *fault;
 
-	hwpt = group->attach_handle->domain->fault_data;
+	hwpt = group->attach_handle->domain->iommufd_hwpt;
 	fault = hwpt->fault;
 
 	spin_lock(&fault->lock);
