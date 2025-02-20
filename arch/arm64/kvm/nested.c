@@ -804,7 +804,7 @@ void kvm_arch_flush_shadow_all(struct kvm *kvm)
  * This list should get updated as new features get added to the NV
  * support, and new extension to the architecture.
  */
-static u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
+u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 {
 	switch (reg) {
 	case SYS_ID_AA64ISAR0_EL1:
@@ -929,47 +929,6 @@ static u64 limit_nv_id_reg(struct kvm *kvm, u32 reg, u64 val)
 	return val;
 }
 
-static void limit_nv_id_regs(struct kvm *kvm)
-{
-	u64 val;
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64ISAR0_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64ISAR0_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64ISAR0_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64ISAR1_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64ISAR1_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64ISAR1_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64PFR0_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR0_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64PFR1_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64PFR1_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64PFR1_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR0_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64MMFR0_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR0_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR1_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64MMFR1_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR1_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR2_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64MMFR2_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR2_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64MMFR4_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64MMFR4_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64MMFR4_EL1, val);
-
-	val = kvm_read_vm_id_reg(kvm, SYS_ID_AA64DFR0_EL1);
-	val = limit_nv_id_reg(kvm, SYS_ID_AA64DFR0_EL1, val);
-	kvm_set_vm_id_reg(kvm, SYS_ID_AA64DFR0_EL1, val);
-}
-
 u64 kvm_vcpu_apply_reg_masks(const struct kvm_vcpu *vcpu,
 			     enum vcpu_sysreg sr, u64 v)
 {
@@ -1013,8 +972,6 @@ int kvm_init_nv_sysregs(struct kvm_vcpu *vcpu)
 					 GFP_KERNEL_ACCOUNT);
 	if (!kvm->arch.sysreg_masks)
 		return -ENOMEM;
-
-	limit_nv_id_regs(kvm);
 
 	/* VTTBR_EL2 */
 	res0 = res1 = 0;
