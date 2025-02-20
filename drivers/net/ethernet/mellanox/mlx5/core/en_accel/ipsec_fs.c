@@ -45,6 +45,8 @@ struct mlx5e_ipsec_rx {
 	struct mlx5e_ipsec_status_checks status_drops;
 	struct mlx5e_ipsec_fc *fc;
 	struct mlx5_fs_chains *chains;
+	struct mlx5_flow_table *pol_miss_ft;
+	struct mlx5_flow_handle *pol_miss_rule;
 	u8 allow_tunnel_mode : 1;
 };
 
@@ -156,13 +158,6 @@ static void ipsec_rx_status_pass_destroy(struct mlx5e_ipsec *ipsec,
 					 struct mlx5e_ipsec_rx *rx)
 {
 	mlx5_del_flow_rules(rx->status.rule);
-
-	if (rx != ipsec->rx_esw)
-		return;
-
-#ifdef CONFIG_MLX5_ESWITCH
-	mlx5_chains_put_table(esw_chains(ipsec->mdev->priv.eswitch), 0, 1, 0);
-#endif
 }
 
 static void ipsec_rx_rule_add_match_obj(struct mlx5e_ipsec_sa_entry *sa_entry,
@@ -415,7 +410,7 @@ static int ipsec_rx_status_pass_create(struct mlx5e_ipsec *ipsec,
 	if (rx == ipsec->rx_esw)
 		spec->flow_context.flow_source = MLX5_FLOW_CONTEXT_FLOW_SOURCE_UPLINK;
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2;
-	flow_act.flags = FLOW_ACT_NO_APPEND;
+	flow_act.flags = FLOW_ACT_NO_APPEND | FLOW_ACT_IGNORE_FLOW_LEVEL;
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	rule = mlx5_add_flow_rules(rx->ft.status, spec, &flow_act, dest, 2);
@@ -596,13 +591,8 @@ static void ipsec_rx_ft_disconnect(struct mlx5e_ipsec *ipsec, u32 family)
 	mlx5_ttc_fwd_default_dest(ttc, family2tt(family));
 }
 
-static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
-		       struct mlx5e_ipsec_rx *rx, u32 family)
+static void ipsec_rx_policy_destroy(struct mlx5e_ipsec_rx *rx)
 {
-	/* disconnect */
-	if (rx != ipsec->rx_esw)
-		ipsec_rx_ft_disconnect(ipsec, family);
-
 	if (rx->chains) {
 		ipsec_chains_destroy(rx->chains);
 	} else {
@@ -610,6 +600,19 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 		mlx5_destroy_flow_group(rx->pol.group);
 		mlx5_destroy_flow_table(rx->ft.pol);
 	}
+
+	if (rx->pol_miss_rule) {
+		mlx5_del_flow_rules(rx->pol_miss_rule);
+		mlx5_destroy_flow_table(rx->pol_miss_ft);
+	}
+}
+
+static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
+		       struct mlx5e_ipsec_rx *rx, u32 family)
+{
+	/* disconnect */
+	if (rx != ipsec->rx_esw)
+		ipsec_rx_ft_disconnect(ipsec, family);
 
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
@@ -619,7 +622,15 @@ static void rx_destroy(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	mlx5_ipsec_rx_status_destroy(ipsec, rx);
 	mlx5_destroy_flow_table(rx->ft.status);
 
+	ipsec_rx_policy_destroy(rx);
+
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, mdev);
+
+#ifdef CONFIG_MLX5_ESWITCH
+	if (rx == ipsec->rx_esw)
+		mlx5_chains_put_table(esw_chains(ipsec->mdev->priv.eswitch),
+				      0, 1, 0);
+#endif
 }
 
 static void ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
@@ -685,6 +696,14 @@ static void ipsec_rx_sa_miss_dest_get(struct mlx5e_ipsec *ipsec,
 						  family2tt(attr->family));
 }
 
+static void ipsec_rx_default_dest_get(struct mlx5e_ipsec *ipsec,
+				      struct mlx5e_ipsec_rx *rx,
+				      struct mlx5_flow_destination *dest)
+{
+	dest->type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest->ft = rx->pol_miss_ft;
+}
+
 static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 				struct mlx5e_ipsec_rx *rx,
 				struct mlx5e_ipsec_rx_create_attr *attr)
@@ -692,8 +711,103 @@ static void ipsec_rx_ft_connect(struct mlx5e_ipsec *ipsec,
 	struct mlx5_flow_destination dest = {};
 
 	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest.ft = rx->ft.pol;
+	dest.ft = rx->ft.sa;
 	mlx5_ttc_fwd_dest(attr->ttc, family2tt(attr->family), &dest);
+}
+
+static int ipsec_rx_chains_create_miss(struct mlx5e_ipsec *ipsec,
+				       struct mlx5e_ipsec_rx *rx,
+				       struct mlx5e_ipsec_rx_create_attr *attr,
+				       struct mlx5_flow_destination *dest)
+{
+	struct mlx5_flow_table_attr ft_attr = {};
+	MLX5_DECLARE_FLOW_ACT(flow_act);
+	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_table *ft;
+	int err;
+
+	if (rx == ipsec->rx_esw) {
+		/* No need to create miss table for switchdev mode,
+		 * just set it to the root chain table.
+		 */
+		rx->pol_miss_ft = dest->ft;
+		return 0;
+	}
+
+	ft_attr.max_fte = 1;
+	ft_attr.autogroup.max_num_groups = 1;
+	ft_attr.level = attr->pol_level;
+	ft_attr.prio = attr->prio;
+
+	ft = mlx5_create_auto_grouped_flow_table(attr->ns, &ft_attr);
+	if (IS_ERR(ft))
+		return PTR_ERR(ft);
+
+	rule = mlx5_add_flow_rules(ft, NULL, &flow_act, dest, 1);
+	if (IS_ERR(rule)) {
+		err = PTR_ERR(rule);
+		goto err_rule;
+	}
+
+	rx->pol_miss_ft = ft;
+	rx->pol_miss_rule = rule;
+
+	return 0;
+
+err_rule:
+	mlx5_destroy_flow_table(ft);
+	return err;
+}
+
+static int ipsec_rx_policy_create(struct mlx5e_ipsec *ipsec,
+				  struct mlx5e_ipsec_rx *rx,
+				  struct mlx5e_ipsec_rx_create_attr *attr,
+				  struct mlx5_flow_destination *dest)
+{
+	struct mlx5_flow_destination default_dest;
+	struct mlx5_core_dev *mdev = ipsec->mdev;
+	struct mlx5_flow_table *ft;
+	int err;
+
+	err = ipsec_rx_chains_create_miss(ipsec, rx, attr, dest);
+	if (err)
+		return err;
+
+	ipsec_rx_default_dest_get(ipsec, rx, &default_dest);
+
+	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO) {
+		rx->chains = ipsec_chains_create(mdev,
+						 default_dest.ft,
+						 attr->chains_ns,
+						 attr->prio,
+						 attr->sa_level,
+						 &rx->ft.pol);
+		if (IS_ERR(rx->chains))
+			err = PTR_ERR(rx->chains);
+	} else {
+		ft = ipsec_ft_create(attr->ns, attr->pol_level,
+				     attr->prio, 2, 0);
+		if (IS_ERR(ft)) {
+			err = PTR_ERR(ft);
+			goto err_out;
+		}
+		rx->ft.pol = ft;
+
+		err = ipsec_miss_create(mdev, rx->ft.pol, &rx->pol,
+					&default_dest);
+		if (err)
+			mlx5_destroy_flow_table(rx->ft.pol);
+	}
+
+	if (!err)
+		return 0;
+
+err_out:
+	if (rx->pol_miss_rule) {
+		mlx5_del_flow_rules(rx->pol_miss_rule);
+		mlx5_destroy_flow_table(rx->pol_miss_ft);
+	}
+	return err;
 }
 
 static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
@@ -718,12 +832,6 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	}
 	rx->ft.status = ft;
 
-	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
-	dest[1].counter = rx->fc->cnt;
-	err = mlx5_ipsec_rx_status_create(ipsec, rx, dest);
-	if (err)
-		goto err_add;
-
 	/* Create FT */
 	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_TUNNEL)
 		rx->allow_tunnel_mode = mlx5_eswitch_block_encap(mdev);
@@ -741,51 +849,33 @@ static int rx_create(struct mlx5_core_dev *mdev, struct mlx5e_ipsec *ipsec,
 	if (err)
 		goto err_fs;
 
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PRIO) {
-		rx->chains = ipsec_chains_create(mdev, rx->ft.sa,
-						 attr.chains_ns,
-						 attr.prio,
-						 attr.pol_level,
-						 &rx->ft.pol);
-		if (IS_ERR(rx->chains)) {
-			err = PTR_ERR(rx->chains);
-			goto err_pol_ft;
-		}
-
-		goto connect;
-	}
-
-	ft = ipsec_ft_create(attr.ns, attr.pol_level, attr.prio, 2, 0);
-	if (IS_ERR(ft)) {
-		err = PTR_ERR(ft);
-		goto err_pol_ft;
-	}
-	rx->ft.pol = ft;
-	memset(dest, 0x00, 2 * sizeof(*dest));
-	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[0].ft = rx->ft.sa;
-	err = ipsec_miss_create(mdev, rx->ft.pol, &rx->pol, dest);
+	err = ipsec_rx_policy_create(ipsec, rx, &attr, &dest[0]);
 	if (err)
-		goto err_pol_miss;
+		goto err_policy;
 
-connect:
+	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest[0].ft = rx->ft.pol;
+	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest[1].counter = rx->fc->cnt;
+	err = mlx5_ipsec_rx_status_create(ipsec, rx, dest);
+	if (err)
+		goto err_add;
+
 	/* connect */
 	if (rx != ipsec->rx_esw)
 		ipsec_rx_ft_connect(ipsec, rx, &attr);
 	return 0;
 
-err_pol_miss:
-	mlx5_destroy_flow_table(rx->ft.pol);
-err_pol_ft:
+err_add:
+	ipsec_rx_policy_destroy(rx);
+err_policy:
 	mlx5_del_flow_rules(rx->sa.rule);
 	mlx5_destroy_flow_group(rx->sa.group);
 err_fs:
 	mlx5_destroy_flow_table(rx->ft.sa);
-err_fs_ft:
 	if (rx->allow_tunnel_mode)
 		mlx5_eswitch_unblock_encap(mdev);
-	mlx5_ipsec_rx_status_destroy(ipsec, rx);
-err_add:
+err_fs_ft:
 	mlx5_destroy_flow_table(rx->ft.status);
 err_fs_ft_status:
 	mlx5_ipsec_fs_roce_rx_destroy(ipsec->roce, family, mdev);
@@ -1957,8 +2047,7 @@ static int rx_add_policy(struct mlx5e_ipsec_pol_entry *pol_entry)
 	flow_act.flags |= FLOW_ACT_NO_APPEND;
 	if (rx == ipsec->rx_esw && rx->chains)
 		flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
-	dest[dstn].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest[dstn].ft = rx->ft.sa;
+	ipsec_rx_default_dest_get(ipsec, rx, &dest[dstn]);
 	dstn++;
 	rule = mlx5_add_flow_rules(ft, spec, &flow_act, dest, dstn);
 	if (IS_ERR(rule)) {
