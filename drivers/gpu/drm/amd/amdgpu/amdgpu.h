@@ -1237,6 +1237,9 @@ struct amdgpu_device {
 	 * in KFD: VRAM or GTT.
 	 */
 	bool                            apu_prefer_gtt;
+
+	struct list_head		userq_mgr_list;
+	struct mutex                    userq_mutex;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,

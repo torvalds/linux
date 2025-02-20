@@ -76,6 +76,7 @@ struct amdgpu_userq_mgr {
 	struct mutex			userq_mutex;
 	struct amdgpu_device		*adev;
 	struct delayed_work		resume_work;
+	struct list_head		list;
 };
 
 struct amdgpu_db_info {

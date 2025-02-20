@@ -658,20 +658,34 @@ int amdgpu_userq_mgr_init(struct amdgpu_userq_mgr *userq_mgr, struct amdgpu_devi
 	idr_init_base(&userq_mgr->userq_idr, 1);
 	userq_mgr->adev = adev;
 
+	mutex_lock(&adev->userq_mutex);
+	list_add(&userq_mgr->list, &adev->userq_mgr_list);
+	mutex_unlock(&adev->userq_mutex);
+
 	INIT_DELAYED_WORK(&userq_mgr->resume_work, amdgpu_userqueue_resume_worker);
 	return 0;
 }
 
 void amdgpu_userq_mgr_fini(struct amdgpu_userq_mgr *userq_mgr)
 {
-	uint32_t queue_id;
+	struct amdgpu_device *adev = userq_mgr->adev;
 	struct amdgpu_usermode_queue *queue;
+	struct amdgpu_userq_mgr *uqm, *tmp;
+	uint32_t queue_id;
 
 	cancel_delayed_work(&userq_mgr->resume_work);
 
 	mutex_lock(&userq_mgr->userq_mutex);
 	idr_for_each_entry(&userq_mgr->userq_idr, queue, queue_id)
 		amdgpu_userqueue_cleanup(userq_mgr, queue, queue_id);
+	mutex_lock(&adev->userq_mutex);
+	list_for_each_entry_safe(uqm, tmp, &adev->userq_mgr_list, list) {
+		if (uqm == userq_mgr) {
+			list_del(&uqm->list);
+			break;
+		}
+	}
+	mutex_unlock(&adev->userq_mutex);
 	idr_destroy(&userq_mgr->userq_idr);
 	mutex_unlock(&userq_mgr->userq_mutex);
 	mutex_destroy(&userq_mgr->userq_mutex);
