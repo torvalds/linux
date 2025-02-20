@@ -171,9 +171,10 @@ static irqreturn_t idma64_irq(int irq, void *dev)
 	u32 status_err;
 	unsigned short i;
 
+	/* Commented to restore ELAN1206 Touchpad functionality */
 	/* Since IRQ may be shared, check if DMA controller is powered on */
-	if (status == GENMASK(31, 0))
-		return IRQ_NONE;
+	// if (status == GENMASK(31, 0))
+	// 	return IRQ_NONE;
 
 	dev_vdbg(idma64->dma.dev, "%s: status=%#x\n", __func__, status);
 
