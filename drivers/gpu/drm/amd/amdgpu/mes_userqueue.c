@@ -26,6 +26,7 @@
 #include "mes_userqueue.h"
 #include "amdgpu_userq_fence.h"
 #include "v11_structs.h"
+#include <linux/pm_runtime.h>
 
 #define AMDGPU_USERQ_PROC_CTX_SZ PAGE_SIZE
 #define AMDGPU_USERQ_GANG_CTX_SZ PAGE_SIZE
@@ -287,6 +288,12 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 
 	queue->userq_prop = userq_props;
 
+	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
+	if (r < 0) {
+		dev_err(adev->dev, "pm_runtime_get_sync() failed for userqueue mqd create\n");
+		goto deference_pm;
+	}
+
 	r = mqd_hw_default->init_mqd(adev, (void *)queue->mqd.cpu_ptr, userq_props);
 	if (r) {
 		DRM_ERROR("Failed to initialize MQD for userqueue\n");
@@ -321,6 +328,9 @@ free_ctx:
 
 free_mqd:
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
+	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+deference_pm:
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
 free_props:
 	kfree(userq_props);
@@ -330,14 +340,19 @@ free_props:
 
 static void
 mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
-			    struct amdgpu_usermode_queue *queue)
+		      struct amdgpu_usermode_queue *queue)
 {
+	struct amdgpu_device *adev = uq_mgr->adev;
+
 	if (queue->queue_active)
 		mes_userq_unmap(uq_mgr, queue);
 
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->mqd);
+
+	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
+	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 }
 
 static int mes_userq_suspend(struct amdgpu_userq_mgr *uq_mgr,
