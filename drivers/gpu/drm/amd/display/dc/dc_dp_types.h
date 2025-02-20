@@ -300,6 +300,19 @@ union lane_align_status_updated {
 	uint8_t raw;
 };
 
+union link_service_irq_vector_esi0 {
+	struct {
+		uint8_t DP_LINK_RX_CAP_CHANGED:1;
+		uint8_t DP_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_STREAM_STATUS_CHANGED:1;
+		uint8_t DP_LINK_HDMI_LINK_STATUS_CHANGED:1;
+		uint8_t DP_LINK_CONNECTED_OFF_ENTRY_REQUESTED:1;
+		uint8_t DP_LINK_TUNNELING_IRQ:1;
+		uint8_t reserved:2;
+	} bits;
+	uint8_t raw;
+};
+
 union lane_adjust {
 	struct {
 		uint8_t VOLTAGE_SWING_LANE:2;
@@ -462,8 +475,10 @@ union sink_status {
 	uint8_t raw;
 };
 
-/*6-byte structure corresponding to 6 registers (200h-205h)
-read during handling of HPD-IRQ*/
+/* 7-byte structure corresponding to 6 registers (200h-205h)
+ * and LINK_SERVICE_IRQ_ESI0 (2005h) for tunneling IRQ
+ * read during handling of HPD-IRQ
+ */
 union hpd_irq_data {
 	struct {
 		union sink_count sink_cnt;/* 200h */
@@ -471,9 +486,10 @@ union hpd_irq_data {
 		union lane_status lane01_status;/* 202h */
 		union lane_status lane23_status;/* 203h */
 		union lane_align_status_updated lane_status_updated;/* 204h */
-		union sink_status sink_status;
+		union sink_status sink_status;/* 205h */
+		union link_service_irq_vector_esi0 link_service_irq_esi0;/* 2005h */
 	} bytes;
-	uint8_t raw[6];
+	uint8_t raw[7];
 };
 
 union down_stream_port_count {
@@ -1430,4 +1446,20 @@ struct dp_trace {
 #ifndef REQUESTED_BW
 #define REQUESTED_BW					0xE0031 /* 1.4a */
 #endif
+# ifndef DP_TUNNELING_BW_ALLOC_BITS_MASK
+# define DP_TUNNELING_BW_ALLOC_BITS_MASK		(0x0F << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_FAILED
+# define DP_TUNNELING_BW_REQUEST_FAILED			(1 << 0)
+# endif
+# ifndef DP_TUNNELING_BW_REQUEST_SUCCEEDED
+# define DP_TUNNELING_BW_REQUEST_SUCCEEDED		(1 << 1)
+# endif
+# ifndef DP_TUNNELING_ESTIMATED_BW_CHANGED
+# define DP_TUNNELING_ESTIMATED_BW_CHANGED		(1 << 2)
+# endif
+# ifndef DP_TUNNELING_BW_ALLOC_CAP_CHANGED
+# define DP_TUNNELING_BW_ALLOC_CAP_CHANGED		(1 << 3)
+# endif
+
 #endif /* DC_DP_TYPES_H */
