@@ -571,8 +571,8 @@ static void tunnel_key_release(struct tc_action *a)
 static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 				       const struct ip_tunnel_info *info)
 {
+	const u8 *src = ip_tunnel_info_opts(info);
 	int len = info->options_len;
-	u8 *src = (u8 *)(info + 1);
 	struct nlattr *start;
 
 	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_GENEVE);
@@ -580,7 +580,7 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	while (len > 0) {
-		struct geneve_opt *opt = (struct geneve_opt *)src;
+		const struct geneve_opt *opt = (const struct geneve_opt *)src;
 
 		if (nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_OPT_GENEVE_CLASS,
 				 opt->opt_class) ||
@@ -603,7 +603,7 @@ static int tunnel_key_geneve_opts_dump(struct sk_buff *skb,
 static int tunnel_key_vxlan_opts_dump(struct sk_buff *skb,
 				      const struct ip_tunnel_info *info)
 {
-	struct vxlan_metadata *md = (struct vxlan_metadata *)(info + 1);
+	const struct vxlan_metadata *md = ip_tunnel_info_opts(info);
 	struct nlattr *start;
 
 	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_VXLAN);
@@ -622,7 +622,7 @@ static int tunnel_key_vxlan_opts_dump(struct sk_buff *skb,
 static int tunnel_key_erspan_opts_dump(struct sk_buff *skb,
 				       const struct ip_tunnel_info *info)
 {
-	struct erspan_metadata *md = (struct erspan_metadata *)(info + 1);
+	const struct erspan_metadata *md = ip_tunnel_info_opts(info);
 	struct nlattr *start;
 
 	start = nla_nest_start_noflag(skb, TCA_TUNNEL_KEY_ENC_OPTS_ERSPAN);
