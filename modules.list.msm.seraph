@@ -48,3 +48,5 @@ qcom-cpufreq-hw.ko
 clk-rpmh.ko
 sched-walt.ko
 gic_intr_routing.ko
+crypto-qti.ko
+hwkm.ko
