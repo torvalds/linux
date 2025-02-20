@@ -1789,24 +1789,12 @@ static int mes_v12_0_hw_fini(struct amdgpu_ip_block *ip_block)
 
 static int mes_v12_0_suspend(struct amdgpu_ip_block *ip_block)
 {
-	int r;
-
-	r = amdgpu_mes_suspend(ip_block->adev);
-	if (r)
-		return r;
-
 	return mes_v12_0_hw_fini(ip_block);
 }
 
 static int mes_v12_0_resume(struct amdgpu_ip_block *ip_block)
 {
-	int r;
-
-	r = mes_v12_0_hw_init(ip_block);
-	if (r)
-		return r;
-
-	return amdgpu_mes_resume(ip_block->adev);
+	return mes_v12_0_hw_init(ip_block);
 }
 
 static int mes_v12_0_early_init(struct amdgpu_ip_block *ip_block)
