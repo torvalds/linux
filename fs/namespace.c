@@ -2246,22 +2246,57 @@ struct vfsmount *collect_mounts(const struct path *path)
 static void free_mnt_ns(struct mnt_namespace *);
 static struct mnt_namespace *alloc_mnt_ns(struct user_namespace *, bool);
 
+static inline bool must_dissolve(struct mnt_namespace *mnt_ns)
+{
+	/*
+        * This mount belonged to an anonymous mount namespace
+        * but was moved to a non-anonymous mount namespace and
+        * then unmounted.
+        */
+	if (unlikely(!mnt_ns))
+		return false;
+
+	/*
+        * This mount belongs to a non-anonymous mount namespace
+        * and we know that such a mount can never transition to
+        * an anonymous mount namespace again.
+        */
+	if (!is_anon_ns(mnt_ns)) {
+		/*
+		 * A detached mount either belongs to an anonymous mount
+		 * namespace or a non-anonymous mount namespace. It
+		 * should never belong to something purely internal.
+		 */
+		VFS_WARN_ON_ONCE(mnt_ns == MNT_NS_INTERNAL);
+		return false;
+	}
+
+	return true;
+}
+
 void dissolve_on_fput(struct vfsmount *mnt)
 {
 	struct mnt_namespace *ns;
-	namespace_lock();
-	lock_mount_hash();
-	ns = real_mount(mnt)->mnt_ns;
-	if (ns) {
-		if (is_anon_ns(ns))
-			umount_tree(real_mount(mnt), UMOUNT_CONNECTED);
-		else
-			ns = NULL;
+	struct mount *m = real_mount(mnt);
+
+	scoped_guard(rcu) {
+		if (!must_dissolve(READ_ONCE(m->mnt_ns)))
+			return;
 	}
-	unlock_mount_hash();
-	namespace_unlock();
-	if (ns)
-		free_mnt_ns(ns);
+
+	scoped_guard(rwsem_write, &namespace_sem) {
+		ns = m->mnt_ns;
+		if (!must_dissolve(ns))
+			return;
+
+		lock_mount_hash();
+		umount_tree(m, UMOUNT_CONNECTED);
+		unlock_mount_hash();
+	}
+
+	/* Make sure we notice when we leak mounts. */
+	VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
+	free_mnt_ns(ns);
 }
 
 void drop_collected_mounts(struct vfsmount *mnt)
