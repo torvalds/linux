@@ -5449,6 +5449,52 @@ err:
 }
 EXPORT_SYMBOL_GPL(skb_complete_tx_timestamp);
 
+static bool skb_tstamp_tx_report_so_timestamping(struct sk_buff *skb,
+						 struct skb_shared_hwtstamps *hwtstamps,
+						 int tstype)
+{
+	switch (tstype) {
+	case SCM_TSTAMP_SCHED:
+		return skb_shinfo(skb)->tx_flags & SKBTX_SCHED_TSTAMP;
+	case SCM_TSTAMP_SND:
+		return skb_shinfo(skb)->tx_flags & (hwtstamps ? SKBTX_HW_TSTAMP_NOBPF :
+						    SKBTX_SW_TSTAMP);
+	case SCM_TSTAMP_ACK:
+		return TCP_SKB_CB(skb)->txstamp_ack & TSTAMP_ACK_SK;
+	}
+
+	return false;
+}
+
+static void skb_tstamp_tx_report_bpf_timestamping(struct sk_buff *skb,
+						  struct skb_shared_hwtstamps *hwtstamps,
+						  struct sock *sk,
+						  int tstype)
+{
+	int op;
+
+	switch (tstype) {
+	case SCM_TSTAMP_SCHED:
+		op = BPF_SOCK_OPS_TSTAMP_SCHED_CB;
+		break;
+	case SCM_TSTAMP_SND:
+		if (hwtstamps) {
+			op = BPF_SOCK_OPS_TSTAMP_SND_HW_CB;
+			*skb_hwtstamps(skb) = *hwtstamps;
+		} else {
+			op = BPF_SOCK_OPS_TSTAMP_SND_SW_CB;
+		}
+		break;
+	case SCM_TSTAMP_ACK:
+		op = BPF_SOCK_OPS_TSTAMP_ACK_CB;
+		break;
+	default:
+		return;
+	}
+
+	bpf_skops_tx_timestamping(sk, skb, op);
+}
+
 void __skb_tstamp_tx(struct sk_buff *orig_skb,
 		     const struct sk_buff *ack_skb,
 		     struct skb_shared_hwtstamps *hwtstamps,
@@ -5459,6 +5505,13 @@ void __skb_tstamp_tx(struct sk_buff *orig_skb,
 	u32 tsflags;
 
 	if (!sk)
+		return;
+
+	if (skb_shinfo(orig_skb)->tx_flags & SKBTX_BPF)
+		skb_tstamp_tx_report_bpf_timestamping(orig_skb, hwtstamps,
+						      sk, tstype);
+
+	if (!skb_tstamp_tx_report_so_timestamping(orig_skb, hwtstamps, tstype))
 		return;
 
 	tsflags = READ_ONCE(sk->sk_tsflags);
