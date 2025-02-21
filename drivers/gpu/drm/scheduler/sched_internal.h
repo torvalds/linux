@@ -45,4 +45,17 @@ drm_sched_entity_queue_peek(struct drm_sched_entity *entity)
 	return container_of(node, struct drm_sched_job, queue_node);
 }
 
+/* Return true if entity could provide a job. */
+static inline bool
+drm_sched_entity_is_ready(struct drm_sched_entity *entity)
+{
+	if (!spsc_queue_count(&entity->job_queue))
+		return false;
+
+	if (READ_ONCE(entity->dependency))
+		return false;
+
+	return true;
+}
+
 #endif
