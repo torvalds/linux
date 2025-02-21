@@ -87,7 +87,7 @@ static int mtk_socinfo_create_socinfo_node(struct mtk_socinfo *mtk_socinfop)
 	if (IS_ERR(mtk_socinfop->soc_dev))
 		return PTR_ERR(mtk_socinfop->soc_dev);
 
-	dev_info(mtk_socinfop->dev, "%s %s SoC detected.\n", soc_manufacturer, attrs->machine);
+	dev_info(mtk_socinfop->dev, "%s (%s) SoC detected.\n", attrs->family, attrs->soc_id);
 	return 0;
 }
 
