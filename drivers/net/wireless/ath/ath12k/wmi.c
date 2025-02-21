@@ -8442,6 +8442,10 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 	}
 
 	tpc_stats = ar->debug.tpc_stats;
+	if (!tpc_stats) {
+		ath12k_warn(ab, "tpc stats memory unavailable\n");
+		goto unlock;
+	}
 
 	if (!(event_count == 0)) {
 		if (event_count != tpc_stats->event_count + 1) {
@@ -8460,13 +8464,12 @@ static void ath12k_wmi_process_tpc_stats(struct ath12k_base *ab,
 				  ath12k_wmi_tpc_stats_event_parser,
 				  tpc_stats);
 	if (ret) {
-		if (tpc_stats)
-			ath12k_wmi_free_tpc_stats_mem(ar);
+		ath12k_wmi_free_tpc_stats_mem(ar);
 		ath12k_warn(ab, "failed to parse tpc_stats tlv: %d\n", ret);
 		goto unlock;
 	}
 
-	if (tpc_stats && tpc_stats->end_of_event)
+	if (tpc_stats->end_of_event)
 		complete(&ar->debug.tpc_complete);
 
 unlock:
