@@ -75,6 +75,9 @@ properties:
       - const: doorbell
       - const: dma
 
+  iommus:
+    maxItems: 1
+
   reset-gpios:
     description: GPIO used as PERST# input signal
     maxItems: 1
@@ -162,6 +165,7 @@ allOf:
           maxItems: 2
         interrupt-names:
           maxItems: 2
+        iommus: false
 
   - if:
       properties:
@@ -234,6 +238,8 @@ allOf:
         interrupt-names:
           minItems: 3
           maxItems: 3
+      required:
+        - iommus
 
 unevaluatedProperties: false
 
