@@ -360,7 +360,6 @@ struct rxrpc_peer {
 	u8			pmtud_jumbo;	/* Max jumbo packets for the MTU */
 	bool			ackr_adv_pmtud;	/* T if the peer advertises path-MTU */
 	unsigned int		ackr_max_data;	/* Maximum data advertised by peer */
-	seqcount_t		mtu_lock;	/* Lockless MTU access management */
 	unsigned int		if_mtu;		/* Local interface MTU (- hdrsize) for this peer */
 	unsigned int		max_data;	/* Maximum packet data capacity for this peer */
 	unsigned short		hdrsize;	/* header size (IP + UDP + RxRPC) */
