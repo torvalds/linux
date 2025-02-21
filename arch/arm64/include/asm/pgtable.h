@@ -585,7 +585,18 @@ static inline int pmd_trans_huge(pmd_t pmd)
 
 #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
 
-#define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	/*
+	 * It's possible that the pmd is present-invalid on entry
+	 * and in that case it needs to remain present-invalid on
+	 * exit. So ensure the VALID bit does not get modified.
+	 */
+	pmdval_t mask = PMD_TYPE_MASK & ~PTE_VALID;
+	pmdval_t val = PMD_TYPE_SECT & ~PTE_VALID;
+
+	return __pmd((pmd_val(pmd) & ~mask) | val);
+}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_devmap(pmd)		pte_devmap(pmd_pte(pmd))
@@ -613,7 +624,18 @@ static inline pmd_t pmd_mkspecial(pmd_t pmd)
 #define pud_mkyoung(pud)	pte_pud(pte_mkyoung(pud_pte(pud)))
 #define pud_write(pud)		pte_write(pud_pte(pud))
 
-#define pud_mkhuge(pud)		(__pud(pud_val(pud) & ~PUD_TABLE_BIT))
+static inline pud_t pud_mkhuge(pud_t pud)
+{
+	/*
+	 * It's possible that the pud is present-invalid on entry
+	 * and in that case it needs to remain present-invalid on
+	 * exit. So ensure the VALID bit does not get modified.
+	 */
+	pudval_t mask = PUD_TYPE_MASK & ~PTE_VALID;
+	pudval_t val = PUD_TYPE_SECT & ~PTE_VALID;
+
+	return __pud((pud_val(pud) & ~mask) | val);
+}
 
 #define __pud_to_phys(pud)	__pte_to_phys(pud_pte(pud))
 #define __phys_to_pud_val(phys)	__phys_to_pte_val(phys)
