@@ -4360,6 +4360,11 @@ enum dmub_cmd_abm_type {
 	 * Get the current ACE curve.
 	 */
 	DMUB_CMD__ABM_GET_ACE_CURVE = 10,
+
+	/**
+	 * Get current histogram data
+	 */
+	DMUB_CMD__ABM_GET_HISTOGRAM_DATA = 11,
 };
 
 struct abm_ace_curve {
@@ -4954,6 +4959,20 @@ enum dmub_abm_ace_curve_type {
 };
 
 /**
+ * enum dmub_abm_histogram_type - Histogram type.
+ */
+enum dmub_abm_histogram_type {
+	/**
+	 * ACE curve as defined by the SW layer.
+	 */
+	ABM_HISTOGRAM_TYPE__SW = 0,
+	/**
+	 * ACE curve as defined by the SW to HW translation interface layer.
+	 */
+	ABM_HISTOGRAM_TYPE__SW_IF = 1,
+};
+
+/**
  * Definition of a DMUB_CMD__ABM_GET_ACE_CURVE command.
  */
 struct dmub_rb_cmd_abm_get_ace_curve {
@@ -4971,6 +4990,41 @@ struct dmub_rb_cmd_abm_get_ace_curve {
 	 * Type of ACE curve being queried.
 	 */
 	enum dmub_abm_ace_curve_type ace_type;
+
+	/**
+	 * Indirect buffer length.
+	 */
+	uint16_t bytes;
+
+	/**
+	 * eDP panel instance.
+	 */
+	uint8_t panel_inst;
+
+	/**
+	 * Explicit padding to 4 byte boundary.
+	 */
+	uint8_t pad;
+};
+
+/**
+ * Definition of a DMUB_CMD__ABM_GET_HISTOGRAM command.
+ */
+struct dmub_rb_cmd_abm_get_histogram {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Address where Histogram should be copied.
+	 */
+	union dmub_addr dest;
+
+	/**
+	 * Type of Histogram being queried.
+	 */
+	enum dmub_abm_histogram_type histogram_type;
 
 	/**
 	 * Indirect buffer length.
@@ -5685,6 +5739,11 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__ABM_GET_ACE_CURVE command.
 	 */
 	struct dmub_rb_cmd_abm_get_ace_curve abm_get_ace_curve;
+
+	/**
+	 * Definition of a DMUB_CMD__ABM_GET_HISTOGRAM command.
+	 */
+	struct dmub_rb_cmd_abm_get_histogram abm_get_histogram;
 
 	/**
 	 * Definition of a DMUB_CMD__ABM_SET_EVENT command.
