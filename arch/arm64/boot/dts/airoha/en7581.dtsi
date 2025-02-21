@@ -173,7 +173,7 @@
 			};
 		};
 
-		scuclk: clock-controller@1fa20000 {
+		scuclk: clock-controller@1fb00000 {
 			compatible = "airoha,en7581-scu";
 			reg = <0x0 0x1fb00000 0x0 0x970>;
 			#clock-cells = <1>;
