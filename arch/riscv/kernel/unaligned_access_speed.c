@@ -356,21 +356,6 @@ static void check_vector_unaligned_access(struct work_struct *work __always_unus
 	per_cpu(vector_misaligned_access, cpu) = speed;
 }
 
-static int riscv_online_cpu_vec(unsigned int cpu)
-{
-	if (!has_vector()) {
-		per_cpu(vector_misaligned_access, cpu) = RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED;
-		return 0;
-	}
-
-	if (per_cpu(vector_misaligned_access, cpu) != RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN)
-		return 0;
-
-	check_vector_unaligned_access_emulated(NULL);
-	check_vector_unaligned_access(NULL);
-	return 0;
-}
-
 /* Measure unaligned access speed on all CPUs present at boot in parallel. */
 static int __init vec_check_unaligned_access_speed_all_cpus(void *unused __always_unused)
 {
@@ -384,6 +369,24 @@ static int __init vec_check_unaligned_access_speed_all_cpus(void *unused __alway
 	return 0;
 }
 #endif
+
+static int riscv_online_cpu_vec(unsigned int cpu)
+{
+	if (!has_vector()) {
+		per_cpu(vector_misaligned_access, cpu) = RISCV_HWPROBE_MISALIGNED_VECTOR_UNSUPPORTED;
+		return 0;
+	}
+
+#ifdef CONFIG_RISCV_PROBE_VECTOR_UNALIGNED_ACCESS
+	if (per_cpu(vector_misaligned_access, cpu) != RISCV_HWPROBE_MISALIGNED_VECTOR_UNKNOWN)
+		return 0;
+
+	check_vector_unaligned_access_emulated(NULL);
+	check_vector_unaligned_access(NULL);
+#endif
+
+	return 0;
+}
 
 static int __init check_unaligned_access_all_cpus(void)
 {
@@ -409,10 +412,8 @@ static int __init check_unaligned_access_all_cpus(void)
 	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "riscv:online",
 				  riscv_online_cpu, riscv_offline_cpu);
 #endif
-#ifdef CONFIG_RISCV_PROBE_VECTOR_UNALIGNED_ACCESS
 	cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "riscv:online",
 				  riscv_online_cpu_vec, NULL);
-#endif
 
 	return 0;
 }
