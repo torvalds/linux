@@ -1276,9 +1276,6 @@ void bdev_statx(struct path *path, struct kstat *stat,
 	struct inode *backing_inode;
 	struct block_device *bdev;
 
-	if (!(request_mask & (STATX_DIOALIGN | STATX_WRITE_ATOMIC)))
-		return;
-
 	backing_inode = d_backing_inode(path->dentry);
 
 	/*
@@ -1304,6 +1301,8 @@ void bdev_statx(struct path *path, struct kstat *stat,
 			queue_atomic_write_unit_min_bytes(bd_queue),
 			queue_atomic_write_unit_max_bytes(bd_queue));
 	}
+
+	stat->blksize = bdev_io_min(bdev);
 
 	blkdev_put_no_open(bdev);
 }
