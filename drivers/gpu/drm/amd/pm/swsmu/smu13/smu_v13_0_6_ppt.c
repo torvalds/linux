@@ -1940,7 +1940,7 @@ static int smu_v13_0_6_set_performance_level(struct smu_context *smu,
 		break;
 	}
 
-	return -EINVAL;
+	return -EOPNOTSUPP;
 }
 
 static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,

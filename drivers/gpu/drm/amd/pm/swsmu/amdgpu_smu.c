@@ -2315,7 +2315,12 @@ static int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	if (smu_dpm_ctx->dpm_level != level) {
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
-			dev_err(smu->adev->dev, "Failed to set performance level!");
+			if (ret == -EOPNOTSUPP)
+				dev_info(smu->adev->dev, "set performance level %d not supported",
+						level);
+			else
+				dev_err(smu->adev->dev, "Failed to set performance level %d",
+						level);
 			return ret;
 		}
 
