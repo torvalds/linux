@@ -383,12 +383,6 @@ struct drm_sched_job {
 	struct xarray			dependencies;
 };
 
-static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
-					    int threshold)
-{
-	return s_job && atomic_inc_return(&s_job->karma) > threshold;
-}
-
 enum drm_gpu_sched_stat {
 	DRM_GPU_SCHED_STAT_NONE, /* Reserve 0 */
 	DRM_GPU_SCHED_STAT_NOMINAL,
@@ -566,14 +560,36 @@ struct drm_sched_init_args {
 	struct device *dev;
 };
 
+/* Scheduler operations */
+
 int drm_sched_init(struct drm_gpu_scheduler *sched,
 		   const struct drm_sched_init_args *args);
 
 void drm_sched_fini(struct drm_gpu_scheduler *sched);
+
+unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
+void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
+			      unsigned long remaining);
+void drm_sched_tdr_queue_imm(struct drm_gpu_scheduler *sched);
+bool drm_sched_wqueue_ready(struct drm_gpu_scheduler *sched);
+void drm_sched_wqueue_stop(struct drm_gpu_scheduler *sched);
+void drm_sched_wqueue_start(struct drm_gpu_scheduler *sched);
+void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
+void drm_sched_start(struct drm_gpu_scheduler *sched, int errno);
+void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
+void drm_sched_fault(struct drm_gpu_scheduler *sched);
+
+struct drm_gpu_scheduler *
+drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
+		    unsigned int num_sched_list);
+
+/* Jobs */
+
 int drm_sched_job_init(struct drm_sched_job *job,
 		       struct drm_sched_entity *entity,
 		       u32 credits, void *owner);
 void drm_sched_job_arm(struct drm_sched_job *job);
+void drm_sched_entity_push_job(struct drm_sched_job *sched_job);
 int drm_sched_job_add_dependency(struct drm_sched_job *job,
 				 struct dma_fence *fence);
 int drm_sched_job_add_syncobj_dependency(struct drm_sched_job *job,
@@ -588,21 +604,16 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    bool write);
 bool drm_sched_job_has_dependency(struct drm_sched_job *job,
 				  struct dma_fence *fence);
-
-void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
-				    struct drm_gpu_scheduler **sched_list,
-                                   unsigned int num_sched_list);
-
-void drm_sched_tdr_queue_imm(struct drm_gpu_scheduler *sched);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
-bool drm_sched_wqueue_ready(struct drm_gpu_scheduler *sched);
-void drm_sched_wqueue_stop(struct drm_gpu_scheduler *sched);
-void drm_sched_wqueue_start(struct drm_gpu_scheduler *sched);
-void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
-void drm_sched_start(struct drm_gpu_scheduler *sched, int errno);
-void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
 void drm_sched_increase_karma(struct drm_sched_job *bad);
-void drm_sched_fault(struct drm_gpu_scheduler *sched);
+
+static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
+					    int threshold)
+{
+	return s_job && atomic_inc_return(&s_job->karma) > threshold;
+}
+
+/* Entities */
 
 int drm_sched_entity_init(struct drm_sched_entity *entity,
 			  enum drm_sched_priority priority,
@@ -612,16 +623,11 @@ int drm_sched_entity_init(struct drm_sched_entity *entity,
 long drm_sched_entity_flush(struct drm_sched_entity *entity, long timeout);
 void drm_sched_entity_fini(struct drm_sched_entity *entity);
 void drm_sched_entity_destroy(struct drm_sched_entity *entity);
-void drm_sched_entity_push_job(struct drm_sched_job *sched_job);
 void drm_sched_entity_set_priority(struct drm_sched_entity *entity,
 				   enum drm_sched_priority priority);
 int drm_sched_entity_error(struct drm_sched_entity *entity);
-
-unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
-void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
-		                unsigned long remaining);
-struct drm_gpu_scheduler *
-drm_sched_pick_best(struct drm_gpu_scheduler **sched_list,
-		     unsigned int num_sched_list);
+void drm_sched_entity_modify_sched(struct drm_sched_entity *entity,
+				   struct drm_gpu_scheduler **sched_list,
+				   unsigned int num_sched_list);
 
 #endif
