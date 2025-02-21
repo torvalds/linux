@@ -382,35 +382,27 @@ int cxl_dpa_free(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_port *port = cxled_to_port(cxled);
 	struct device *dev = &cxled->cxld.dev;
-	int rc;
 
-	down_write(&cxl_dpa_rwsem);
-	if (!cxled->dpa_res) {
-		rc = 0;
-		goto out;
-	}
+	guard(rwsem_write)(&cxl_dpa_rwsem);
+	if (!cxled->dpa_res)
+		return 0;
 	if (cxled->cxld.region) {
 		dev_dbg(dev, "decoder assigned to: %s\n",
 			dev_name(&cxled->cxld.region->dev));
-		rc = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
 		dev_dbg(dev, "decoder enabled\n");
-		rc = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 	if (cxled->cxld.id != port->hdm_end) {
 		dev_dbg(dev, "expected decoder%d.%d\n", port->id,
 			port->hdm_end);
-		rc = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
+
 	devm_cxl_dpa_release(cxled);
-	rc = 0;
-out:
-	up_write(&cxl_dpa_rwsem);
-	return rc;
+	return 0;
 }
 
 int cxl_dpa_set_mode(struct cxl_endpoint_decoder *cxled,
