@@ -309,6 +309,10 @@
 #define WX_MNG_MBOX_CTL_FWRDY        BIT(2)
 #define WX_MNG_BMC2OS_CNT            0x1E090
 #define WX_MNG_OS2BMC_CNT            0x1E094
+#define WX_SW2FW_MBOX_CMD            0x1E0A0
+#define WX_SW2FW_MBOX_CMD_VLD        BIT(31)
+#define WX_SW2FW_MBOX                0x1E200
+#define WX_FW2SW_MBOX                0x1E300
 
 /************************************* ETH MAC *****************************/
 #define WX_MAC_TX_CFG                0x11000
@@ -372,6 +376,7 @@ enum WX_MSCA_CMD_value {
 #define WX_12K_ITR                   336
 #define WX_20K_ITR                   200
 #define WX_SP_MAX_EITR               0x00000FF8U
+#define WX_AML_MAX_EITR              0x00000FFFU
 #define WX_EM_MAX_EITR               0x00007FFCU
 
 /* transmit DMA Registers */
@@ -415,6 +420,7 @@ enum WX_MSCA_CMD_value {
 /****************** Manageablility Host Interface defines ********************/
 #define WX_HI_MAX_BLOCK_BYTE_LENGTH  256 /* Num of bytes in range */
 #define WX_HI_COMMAND_TIMEOUT        1000 /* Process HI command limit */
+#define WX_HIC_HDR_INDEX_MAX         255
 
 #define FW_READ_SHADOW_RAM_CMD       0x31
 #define FW_READ_SHADOW_RAM_LEN       0x6
@@ -711,21 +717,30 @@ struct wx_hic_hdr {
 		u8 cmd_resv;
 		u8 ret_status;
 	} cmd_or_resp;
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 struct wx_hic_hdr2_req {
 	u8 cmd;
 	u8 buf_lenh;
 	u8 buf_lenl;
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 struct wx_hic_hdr2_rsp {
 	u8 cmd;
 	u8 buf_lenl;
 	u8 buf_lenh_status;     /* 7-5: high bits of buf_len, 4-0: status */
-	u8 checksum;
+	union {
+		u8 checksum;
+		u8 index;
+	};
 };
 
 union wx_hic_hdr2 {
@@ -773,7 +788,8 @@ struct wx_thermal_sensor_data {
 enum wx_mac_type {
 	wx_mac_unknown = 0,
 	wx_mac_sp,
-	wx_mac_em
+	wx_mac_em,
+	wx_mac_aml,
 };
 
 enum sp_media_type {
@@ -1085,12 +1101,14 @@ struct wx_hw_stats {
 
 enum wx_state {
 	WX_STATE_RESETTING,
+	WX_STATE_SWFW_BUSY,
 	WX_STATE_PTP_RUNNING,
 	WX_STATE_PTP_TX_IN_PROGRESS,
-	WX_STATE_NBITS,		/* must be last */
+	WX_STATE_NBITS		/* must be last */
 };
 
 enum wx_pf_flags {
+	WX_FLAG_SWFW_RING,
 	WX_FLAG_FDIR_CAPABLE,
 	WX_FLAG_FDIR_HASH,
 	WX_FLAG_FDIR_PERFECT,
@@ -1130,6 +1148,7 @@ struct wx {
 	char eeprom_id[32];
 	char *driver_name;
 	enum wx_reset_type reset_type;
+	u8 swfw_index;
 
 	/* PHY stuff */
 	unsigned int link;

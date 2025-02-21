@@ -197,6 +197,12 @@ int txgbe_reset_hw(struct wx *wx)
 
 	txgbe_reset_misc(wx);
 
+	if (wx->mac.type != wx_mac_sp) {
+		wr32(wx, TXGBE_PX_PF_BME, 0x1);
+		wr32m(wx, TXGBE_RDM_RSC_CTL, TXGBE_RDM_RSC_CTL_FREE_CTL,
+		      TXGBE_RDM_RSC_CTL_FREE_CTL);
+	}
+
 	wx_clear_hw_cntrs(wx);
 
 	/* Store the permanent mac address */

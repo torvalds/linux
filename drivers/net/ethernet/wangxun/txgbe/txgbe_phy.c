@@ -567,6 +567,9 @@ int txgbe_init_phy(struct txgbe *txgbe)
 	struct wx *wx = txgbe->wx;
 	int ret;
 
+	if (wx->mac.type == wx_mac_aml)
+		return 0;
+
 	if (txgbe->wx->media_type == sp_media_copper)
 		return txgbe_ext_phy_init(txgbe);
 
@@ -631,6 +634,9 @@ err_unregister_swnode:
 
 void txgbe_remove_phy(struct txgbe *txgbe)
 {
+	if (txgbe->wx->mac.type == wx_mac_aml)
+		return;
+
 	if (txgbe->wx->media_type == sp_media_copper) {
 		phylink_disconnect_phy(txgbe->wx->phylink);
 		phylink_destroy(txgbe->wx->phylink);

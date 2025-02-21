@@ -219,6 +219,9 @@ int wx_nway_reset(struct net_device *netdev)
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
+
 	return phylink_ethtool_nway_reset(wx->phylink);
 }
 EXPORT_SYMBOL(wx_nway_reset);
@@ -227,6 +230,9 @@ int wx_get_link_ksettings(struct net_device *netdev,
 			  struct ethtool_link_ksettings *cmd)
 {
 	struct wx *wx = netdev_priv(netdev);
+
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
 
 	return phylink_ethtool_ksettings_get(wx->phylink, cmd);
 }
@@ -237,6 +243,9 @@ int wx_set_link_ksettings(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
+
 	return phylink_ethtool_ksettings_set(wx->phylink, cmd);
 }
 EXPORT_SYMBOL(wx_set_link_ksettings);
@@ -246,6 +255,9 @@ void wx_get_pauseparam(struct net_device *netdev,
 {
 	struct wx *wx = netdev_priv(netdev);
 
+	if (wx->mac.type == wx_mac_aml)
+		return;
+
 	phylink_ethtool_get_pauseparam(wx->phylink, pause);
 }
 EXPORT_SYMBOL(wx_get_pauseparam);
@@ -254,6 +266,9 @@ int wx_set_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
 	struct wx *wx = netdev_priv(netdev);
+
+	if (wx->mac.type == wx_mac_aml)
+		return -EOPNOTSUPP;
 
 	return phylink_ethtool_set_pauseparam(wx->phylink, pause);
 }
@@ -325,10 +340,17 @@ int wx_set_coalesce(struct net_device *netdev,
 	if (ec->tx_max_coalesced_frames_irq)
 		wx->tx_work_limit = ec->tx_max_coalesced_frames_irq;
 
-	if (wx->mac.type == wx_mac_sp)
+	switch (wx->mac.type) {
+	case wx_mac_sp:
 		max_eitr = WX_SP_MAX_EITR;
-	else
+		break;
+	case wx_mac_aml:
+		max_eitr = WX_AML_MAX_EITR;
+		break;
+	default:
 		max_eitr = WX_EM_MAX_EITR;
+		break;
+	}
 
 	if ((ec->rx_coalesce_usecs > (max_eitr >> 2)) ||
 	    (ec->tx_coalesce_usecs > (max_eitr >> 2)))
@@ -350,10 +372,15 @@ int wx_set_coalesce(struct net_device *netdev,
 		wx->tx_itr_setting = ec->tx_coalesce_usecs;
 
 	if (wx->tx_itr_setting == 1) {
-		if (wx->mac.type == wx_mac_sp)
+		switch (wx->mac.type) {
+		case wx_mac_sp:
+		case wx_mac_aml:
 			tx_itr_param = WX_12K_ITR;
-		else
+			break;
+		default:
 			tx_itr_param = WX_20K_ITR;
+			break;
+		}
 	} else {
 		tx_itr_param = wx->tx_itr_setting;
 	}
@@ -386,10 +413,15 @@ static unsigned int wx_max_channels(struct wx *wx)
 		max_combined = 1;
 	} else {
 		/* support up to max allowed queues with RSS */
-		if (wx->mac.type == wx_mac_sp)
+		switch (wx->mac.type) {
+		case wx_mac_sp:
+		case wx_mac_aml:
 			max_combined = 63;
-		else
+			break;
+		default:
 			max_combined = 8;
+			break;
+		}
 	}
 
 	return max_combined;

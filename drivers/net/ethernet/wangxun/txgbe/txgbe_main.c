@@ -35,6 +35,12 @@ char txgbe_driver_name[] = "txgbe";
 static const struct pci_device_id txgbe_pci_tbl[] = {
 	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_SP1000), 0},
 	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_WX1820), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5010), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5110), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5025), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5125), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5040), 0},
+	{ PCI_VDEVICE(WANGXUN, TXGBE_DEV_ID_AML5140), 0},
 	/* required last entry */
 	{ .device = 0 }
 };
@@ -90,7 +96,18 @@ static void txgbe_up_complete(struct wx *wx)
 	smp_mb__before_atomic();
 	wx_napi_enable_all(wx);
 
-	phylink_start(wx->phylink);
+	if (wx->mac.type == wx_mac_aml) {
+		u32 reg;
+
+		reg = rd32(wx, TXGBE_AML_MAC_TX_CFG);
+		reg &= ~TXGBE_AML_MAC_TX_CFG_SPEED_MASK;
+		reg |= TXGBE_AML_MAC_TX_CFG_SPEED_25G;
+		wr32(wx, WX_MAC_TX_CFG, reg);
+		txgbe_enable_sec_tx_path(wx);
+		netif_carrier_on(wx->netdev);
+	} else {
+		phylink_start(wx->phylink);
+	}
 
 	/* clear any pending interrupts, may auto mask */
 	rd32(wx, WX_PX_IC(0));
@@ -171,7 +188,10 @@ void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
-	phylink_stop(wx->phylink);
+	if (wx->mac.type == wx_mac_aml)
+		netif_carrier_off(wx->netdev);
+	else
+		phylink_stop(wx->phylink);
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
@@ -196,6 +216,14 @@ static void txgbe_init_type_code(struct wx *wx)
 	case TXGBE_DEV_ID_SP1000:
 	case TXGBE_DEV_ID_WX1820:
 		wx->mac.type = wx_mac_sp;
+		break;
+	case TXGBE_DEV_ID_AML5010:
+	case TXGBE_DEV_ID_AML5110:
+	case TXGBE_DEV_ID_AML5025:
+	case TXGBE_DEV_ID_AML5125:
+	case TXGBE_DEV_ID_AML5040:
+	case TXGBE_DEV_ID_AML5140:
+		wx->mac.type = wx_mac_aml;
 		break;
 	default:
 		wx->mac.type = wx_mac_unknown;
@@ -283,6 +311,17 @@ static int txgbe_sw_init(struct wx *wx)
 	wx->rx_work_limit = TXGBE_DEFAULT_RX_WORK;
 
 	wx->do_reset = txgbe_do_reset;
+
+	switch (wx->mac.type) {
+	case wx_mac_sp:
+		break;
+	case wx_mac_aml:
+		set_bit(WX_FLAG_SWFW_RING, wx->flags);
+		wx->swfw_index = 0;
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }
