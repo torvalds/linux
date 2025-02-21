@@ -17,6 +17,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - allwinner,sun50i-h616-mali
               - amlogic,meson-g12a-mali
               - mediatek,mt8183-mali
               - mediatek,mt8183b-mali
