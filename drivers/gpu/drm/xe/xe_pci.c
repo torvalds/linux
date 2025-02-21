@@ -559,9 +559,14 @@ static void handle_pre_gmdid(struct xe_device *xe,
 			     const struct xe_media_desc *media)
 {
 	xe->info.graphics_verx100 = graphics->ver * 100 + graphics->rel;
+	xe->info.graphics_name = graphics->name;
 
-	if (media)
+	if (media) {
 		xe->info.media_verx100 = media->ver * 100 + media->rel;
+		xe->info.media_name = media->name;
+	} else {
+		xe->info.media_name = "none";
+	}
 
 }
 
@@ -583,6 +588,7 @@ static void handle_gmdid(struct xe_device *xe,
 		if (ver == graphics_ip_map[i].ver) {
 			xe->info.graphics_verx100 = ver;
 			*graphics = graphics_ip_map[i].ip;
+			xe->info.graphics_name = (*graphics)->name;
 
 			break;
 		}
@@ -593,8 +599,9 @@ static void handle_gmdid(struct xe_device *xe,
 			ver / 100, ver % 100);
 	}
 
-	read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
+	xe->info.media_name = "none";
 
+	read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
 	/* Media may legitimately be fused off / not present */
 	if (ver == 0)
 		return;
@@ -603,6 +610,7 @@ static void handle_gmdid(struct xe_device *xe,
 		if (ver == media_ip_map[i].ver) {
 			xe->info.media_verx100 = ver;
 			*media = media_ip_map[i].ip;
+			xe->info.media_name = (*media)->name;
 
 			break;
 		}
@@ -692,9 +700,6 @@ static int xe_info_init(struct xe_device *xe,
 	 */
 	if (!graphics_desc)
 		return -ENODEV;
-
-	xe->info.graphics_name = graphics_desc->name;
-	xe->info.media_name = media_desc ? media_desc->name : "none";
 
 	xe->info.vram_flags = graphics_desc->vram_flags;
 	xe->info.va_bits = graphics_desc->va_bits;
