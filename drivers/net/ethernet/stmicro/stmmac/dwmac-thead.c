@@ -45,9 +45,6 @@
 #define  TXCLK_DIR_OUTPUT		FIELD_PREP(TXCLK_DIR_MASK, 0)
 #define  TXCLK_DIR_INPUT		FIELD_PREP(TXCLK_DIR_MASK, 1)
 
-#define GMAC_GMII_RGMII_RATE	125000000
-#define GMAC_MII_RATE		25000000
-
 struct thead_dwmac {
 	struct plat_stmmacenet_data *plat;
 	void __iomem *apb_base;
@@ -124,11 +121,6 @@ static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	case PHY_INTERFACE_MODE_RGMII_RXID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
 		rate = clk_get_rate(plat->stmmac_clk);
-		if (!rate || rate % GMAC_GMII_RGMII_RATE != 0 ||
-		    rate % GMAC_MII_RATE != 0) {
-			dev_err(dwmac->dev, "invalid gmac rate %ld\n", rate);
-			return;
-		}
 
 		writel(0, dwmac->apb_base + GMAC_PLLCLK_DIV);
 
@@ -139,6 +131,10 @@ static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 		}
 
 		div = rate / tx_rate;
+		if (rate != tx_rate * div) {
+			dev_err(dwmac->dev, "invalid gmac rate %lu\n", rate);
+			return;
+		}
 
 		reg = FIELD_PREP(GMAC_PLLCLK_DIV_EN, 1) |
 		      FIELD_PREP(GMAC_PLLCLK_DIV_NUM, div);
