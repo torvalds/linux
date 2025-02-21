@@ -2061,4 +2061,40 @@ TEST_F(mount_setattr, two_detached_mounts_referring_to_same_anonymous_mount_name
 	ASSERT_NE(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
 }
 
+TEST_F(mount_setattr, two_detached_subtrees_of_same_anonymous_mount_namespace)
+{
+	int fd_tree1 = -EBADF, fd_tree2 = -EBADF;
+
+	/*
+	 * Copy the following mount tree:
+	 *
+	 * |-/mnt/A               testing tmpfs
+	 *   `-/mnt/A/AA          testing tmpfs
+	 *     `-/mnt/A/AA/B      testing tmpfs
+	 *       `-/mnt/A/AA/B/BB testing tmpfs
+	 */
+	fd_tree1 = sys_open_tree(-EBADF, "/mnt/A",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree1, 0);
+
+	/*
+	 * Create an O_PATH file descriptors with a separate struct file that
+	 * refers to a subtree of the same detached mount tree as @fd_tree1
+	 */
+	fd_tree2 = sys_open_tree(fd_tree1, "AA",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_EMPTY_PATH | OPEN_TREE_CLOEXEC);
+	ASSERT_GE(fd_tree2, 0);
+
+	/*
+	 * This must fail as it is only possible to attach the root of a
+	 * detached mount tree.
+	 */
+	ASSERT_NE(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+}
+
 TEST_HARNESS_MAIN
