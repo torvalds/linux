@@ -6051,19 +6051,10 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 
 /* check access to 'struct bpf_context' fields.  Supports fixed offsets only */
 static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off, int size,
-			    enum bpf_access_type t, enum bpf_reg_type *reg_type,
-			    struct btf **btf, u32 *btf_id, bool *is_retval, bool is_ldsx,
-			    u32 *ref_obj_id)
+			    enum bpf_access_type t, struct bpf_insn_access_aux *info)
 {
-	struct bpf_insn_access_aux info = {
-		.reg_type = *reg_type,
-		.log = &env->log,
-		.is_retval = false,
-		.is_ldsx = is_ldsx,
-	};
-
 	if (env->ops->is_valid_access &&
-	    env->ops->is_valid_access(off, size, t, env->prog, &info)) {
+	    env->ops->is_valid_access(off, size, t, env->prog, info)) {
 		/* A non zero info.ctx_field_size indicates that this field is a
 		 * candidate for later verifier transformation to load the whole
 		 * field and then apply a mask when accessed with a narrower
@@ -6071,22 +6062,15 @@ static int check_ctx_access(struct bpf_verifier_env *env, int insn_idx, int off,
 		 * will only allow for whole field access and rejects any other
 		 * type of narrower access.
 		 */
-		*reg_type = info.reg_type;
-		*is_retval = info.is_retval;
-
-		if (base_type(*reg_type) == PTR_TO_BTF_ID) {
-			if (info.ref_obj_id &&
-			    !find_reference_state(env->cur_state, info.ref_obj_id)) {
+		if (base_type(info->reg_type) == PTR_TO_BTF_ID) {
+			if (info->ref_obj_id &&
+			    !find_reference_state(env->cur_state, info->ref_obj_id)) {
 				verbose(env, "invalid bpf_context access off=%d. Reference may already be released\n",
 					off);
 				return -EACCES;
 			}
-
-			*btf = info.btf;
-			*btf_id = info.btf_id;
-			*ref_obj_id = info.ref_obj_id;
 		} else {
-			env->insn_aux_data[insn_idx].ctx_field_size = info.ctx_field_size;
+			env->insn_aux_data[insn_idx].ctx_field_size = info->ctx_field_size;
 		}
 		/* remember the offset of last byte accessed in ctx */
 		if (env->prog->aux->max_ctx_offset < off + size)
@@ -7443,11 +7427,12 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (!err && value_regno >= 0 && (t == BPF_READ || rdonly_mem))
 			mark_reg_unknown(env, regs, value_regno);
 	} else if (reg->type == PTR_TO_CTX) {
-		bool is_retval = false;
 		struct bpf_retval_range range;
-		enum bpf_reg_type reg_type = SCALAR_VALUE;
-		struct btf *btf = NULL;
-		u32 btf_id = 0, ref_obj_id = 0;
+		struct bpf_insn_access_aux info = {
+			.reg_type = SCALAR_VALUE,
+			.is_ldsx = is_ldsx,
+			.log = &env->log,
+		};
 
 		if (t == BPF_WRITE && value_regno >= 0 &&
 		    is_pointer_value(env, value_regno)) {
@@ -7459,8 +7444,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 		if (err < 0)
 			return err;
 
-		err = check_ctx_access(env, insn_idx, off, size, t, &reg_type, &btf,
-				       &btf_id, &is_retval, is_ldsx, &ref_obj_id);
+		err = check_ctx_access(env, insn_idx, off, size, t, &info);
 		if (err)
 			verbose_linfo(env, insn_idx, "; ");
 		if (!err && t == BPF_READ && value_regno >= 0) {
@@ -7468,8 +7452,8 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			 * PTR_TO_PACKET[_META,_END]. In the latter
 			 * case, we know the offset is zero.
 			 */
-			if (reg_type == SCALAR_VALUE) {
-				if (is_retval && get_func_retval_range(env->prog, &range)) {
+			if (info.reg_type == SCALAR_VALUE) {
+				if (info.is_retval && get_func_retval_range(env->prog, &range)) {
 					err = __mark_reg_s32_range(env, regs, value_regno,
 								   range.minval, range.maxval);
 					if (err)
@@ -7480,7 +7464,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 			} else {
 				mark_reg_known_zero(env, regs,
 						    value_regno);
-				if (type_may_be_null(reg_type))
+				if (type_may_be_null(info.reg_type))
 					regs[value_regno].id = ++env->id_gen;
 				/* A load of ctx field could have different
 				 * actual load size with the one encoded in the
@@ -7488,13 +7472,13 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 				 * a sub-register.
 				 */
 				regs[value_regno].subreg_def = DEF_NOT_SUBREG;
-				if (base_type(reg_type) == PTR_TO_BTF_ID) {
-					regs[value_regno].btf = btf;
-					regs[value_regno].btf_id = btf_id;
-					regs[value_regno].ref_obj_id = ref_obj_id;
+				if (base_type(info.reg_type) == PTR_TO_BTF_ID) {
+					regs[value_regno].btf = info.btf;
+					regs[value_regno].btf_id = info.btf_id;
+					regs[value_regno].ref_obj_id = info.ref_obj_id;
 				}
 			}
-			regs[value_regno].type = reg_type;
+			regs[value_regno].type = info.reg_type;
 		}
 
 	} else if (reg->type == PTR_TO_STACK) {
