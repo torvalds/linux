@@ -517,21 +517,23 @@ static ssize_t pgctrl_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
 	char data[128];
+	size_t max;
 	struct pktgen_net *pn = net_generic(current->nsproxy->net_ns, pg_net_id);
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (count == 0)
+	if (count < 1)
 		return -EINVAL;
 
-	if (count > sizeof(data))
-		count = sizeof(data);
-
-	if (copy_from_user(data, buf, count))
+	max = min(count, sizeof(data) - 1);
+	if (copy_from_user(data, buf, max))
 		return -EFAULT;
 
-	data[count - 1] = 0;	/* Strip trailing '\n' and terminate string */
+	if (data[max - 1] == '\n')
+		data[max - 1] = 0; /* strip trailing '\n', terminate string */
+	else
+		data[max] = 0; /* terminate string */
 
 	if (!strcmp(data, "stop"))
 		pktgen_stop_all_threads(pn);
@@ -753,14 +755,15 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
 	for (; i < maxlen; i++) {
 		int value;
 		char c;
-		*num <<= 4;
 		if (get_user(c, &user_buffer[i]))
 			return -EFAULT;
 		value = hex_to_bin(c);
-		if (value >= 0)
+		if (value >= 0) {
+			*num <<= 4;
 			*num |= value;
-		else
+		} else {
 			break;
+		}
 	}
 	return i;
 }
@@ -823,6 +826,7 @@ static int strn_len(const char __user * user_buffer, unsigned int maxlen)
 		case '\r':
 		case '\t':
 		case ' ':
+		case '=':
 			goto done_str;
 		default:
 			break;
@@ -1113,7 +1117,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		i += len;
 		if (!value)
-			return len;
+			return -EINVAL;
 		pkt_dev->delay = pkt_dev->min_pkt_size*8*NSEC_PER_USEC/value;
 		if (debug)
 			pr_info("Delay set at: %llu ns\n", pkt_dev->delay);
@@ -1128,7 +1132,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		i += len;
 		if (!value)
-			return len;
+			return -EINVAL;
 		pkt_dev->delay = NSEC_PER_SEC/value;
 		if (debug)
 			pr_info("Delay set at: %llu ns\n", pkt_dev->delay);
@@ -1198,7 +1202,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		if ((value > 0) &&
 		    ((pkt_dev->xmit_mode == M_NETIF_RECEIVE) ||
 		     !(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 		if (value > 0 && (pkt_dev->n_imix_entries > 0 ||
 				  !(pkt_dev->flags & F_SHARED)))
 			return -EINVAL;
@@ -1258,7 +1262,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		    ((pkt_dev->xmit_mode == M_QUEUE_XMIT) ||
 		     ((pkt_dev->xmit_mode == M_START_XMIT) &&
 		     (!(pkt_dev->odev->priv_flags & IFF_TX_SKB_SHARING)))))
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 
 		if (value > 1 && !(pkt_dev->flags & F_SHARED))
 			return -EINVAL;
@@ -1303,7 +1307,7 @@ static ssize_t pktgen_if_write(struct file *file,
 		} else if (strcmp(f, "netif_receive") == 0) {
 			/* clone_skb set earlier, not supported in this mode */
 			if (pkt_dev->clone_skb > 0)
-				return -ENOTSUPP;
+				return -EOPNOTSUPP;
 
 			pkt_dev->xmit_mode = M_NETIF_RECEIVE;
 
@@ -1896,8 +1900,8 @@ static ssize_t pktgen_thread_write(struct file *file,
 	i = len;
 
 	/* Read variable name */
-
-	len = strn_len(&user_buffer[i], sizeof(name) - 1);
+	max = min(sizeof(name) - 1, count - i);
+	len = strn_len(&user_buffer[i], max);
 	if (len < 0)
 		return len;
 
@@ -1927,7 +1931,8 @@ static ssize_t pktgen_thread_write(struct file *file,
 	if (!strcmp(name, "add_device")) {
 		char f[32];
 		memset(f, 0, 32);
-		len = strn_len(&user_buffer[i], sizeof(f) - 1);
+		max = min(sizeof(f) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0) {
 			ret = len;
 			goto out;
