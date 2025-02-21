@@ -1948,3 +1948,6 @@ config GPIO_VIRTUSER
 endmenu
 
 endif
+
+config DEV_SYNC_PROBE
+	tristate
