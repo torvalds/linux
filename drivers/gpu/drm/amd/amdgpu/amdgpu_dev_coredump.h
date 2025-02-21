@@ -35,12 +35,19 @@ struct amdgpu_coredump_info {
 	struct amdgpu_device            *adev;
 	struct amdgpu_task_info         reset_task_info;
 	struct timespec64               reset_time;
+
 	bool                            skip_vram_check;
 	bool                            reset_vram_lost;
 	struct amdgpu_ring              *ring;
+	/* Readable form of coredevdump, generate once to speed up
+	 * reading it (see drm_coredump_printer's documentation).
+	 */
+	ssize_t				formatted_size;
+	char				*formatted;
 };
 #endif
 
 void amdgpu_coredump(struct amdgpu_device *adev, bool skip_vram_check,
 		     bool vram_lost, struct amdgpu_job *job);
+void amdgpu_coredump_init(struct amdgpu_device *adev);
 #endif
