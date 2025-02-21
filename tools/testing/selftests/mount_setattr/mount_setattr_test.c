@@ -1909,4 +1909,34 @@ TEST_F(mount_setattr, move_mount_detached_fail)
 	EXPECT_EQ(close(fd_tree_subdir), 0);
 }
 
+TEST_F(mount_setattr, attach_detached_mount_then_umount_then_close)
+{
+	int fd_tree = -EBADF;
+	struct statx stx;
+
+	fd_tree = sys_open_tree(-EBADF, "/mnt",
+				AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx), 0);
+	/* We copied with AT_RECURSIVE so /mnt/A must be a mountpoint. */
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/* Attach the mount to the caller's mount namespace. */
+	ASSERT_EQ(move_mount(fd_tree, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(statx(-EBADF, "/tmp/target1", 0, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_EQ(umount2("/tmp/target1", MNT_DETACH), 0);
+
+	/*
+	 * This tests whether dissolve_on_fput() handles a NULL mount
+	 * namespace correctly, i.e., that it doesn't splat.
+	 */
+	EXPECT_EQ(close(fd_tree), 0);
+}
+
 TEST_HARNESS_MAIN
