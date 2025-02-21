@@ -88,13 +88,6 @@ static const struct xe_graphics_desc graphics_xelp = {
 	.vm_max_level = 3,
 };
 
-static const struct xe_graphics_desc graphics_xelpp = {
-	.hw_engine_mask = BIT(XE_HW_ENGINE_RCS0) | BIT(XE_HW_ENGINE_BCS0),
-
-	.va_bits = 48,
-	.vm_max_level = 3,
-};
-
 #define XE_HP_FEATURES \
 	.has_range_tlb_invalidation = true, \
 	.va_bits = 48, \
@@ -164,12 +157,6 @@ static const struct xe_media_desc media_xem = {
 		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0),
 };
 
-static const struct xe_media_desc media_xehpm = {
-	.hw_engine_mask =
-		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
-		GENMASK(XE_HW_ENGINE_VECS3, XE_HW_ENGINE_VECS0),
-};
-
 static const struct xe_media_desc media_xelpmp = {
 	.hw_engine_mask =
 		GENMASK(XE_HW_ENGINE_VCS7, XE_HW_ENGINE_VCS0) |
@@ -179,7 +166,7 @@ static const struct xe_media_desc media_xelpmp = {
 
 /* Pre-GMDID Graphics IPs */
 static const struct xe_ip graphics_ip_xelp = { 1200, "Xe_LP", &graphics_xelp };
-static const struct xe_ip graphics_ip_xelpp = { 1210, "Xe_LP+", &graphics_xelpp };
+static const struct xe_ip graphics_ip_xelpp = { 1210, "Xe_LP+", &graphics_xelp };
 static const struct xe_ip graphics_ip_xehpg = { 1255, "Xe_HPG", &graphics_xehpg };
 static const struct xe_ip graphics_ip_xehpc = { 1260, "Xe_HPC", &graphics_xehpc };
 
@@ -196,7 +183,7 @@ static const struct xe_ip graphics_ips[] = {
 
 /* Pre-GMDID Media IPs */
 static const struct xe_ip media_ip_xem = { 1200, "Xe_M", &media_xem };
-static const struct xe_ip media_ip_xehpm = { 1255, "Xe_HPM", &media_xehpm };
+static const struct xe_ip media_ip_xehpm = { 1255, "Xe_HPM", &media_xem };
 
 /* GMDID-based Media IPs */
 static const struct xe_ip media_ips[] = {
