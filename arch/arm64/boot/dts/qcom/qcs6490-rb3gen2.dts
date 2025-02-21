@@ -1264,3 +1264,8 @@
 		bias-pull-up;
 	};
 };
+
+&lpass_audiocc {
+	compatible = "qcom,qcm6490-lpassaudiocc";
+	/delete-property/ power-domains;
+};
