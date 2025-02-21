@@ -1116,11 +1116,6 @@ rzg2l_cpg_register_core_clk(const struct cpg_core_clk *core,
 	WARN_DEBUG(id >= priv->num_core_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
 
-	if (!core->name) {
-		/* Skip NULLified clock */
-		return;
-	}
-
 	switch (core->type) {
 	case CLK_TYPE_IN:
 		clk = of_clk_get_by_name(priv->dev->of_node, core->name);
@@ -1354,11 +1349,6 @@ rzg2l_cpg_register_mod_clk(const struct rzg2l_mod_clk *mod,
 	WARN_DEBUG(id >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(mod->parent >= priv->num_core_clks + priv->num_mod_clks);
 	WARN_DEBUG(PTR_ERR(priv->clks[id]) != -ENOENT);
-
-	if (!mod->name) {
-		/* Skip NULLified clock */
-		return;
-	}
 
 	parent = priv->clks[mod->parent];
 	if (IS_ERR(parent)) {
