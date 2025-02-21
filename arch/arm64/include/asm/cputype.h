@@ -276,20 +276,7 @@ static inline bool midr_is_cpu_model_range(u32 midr, u32 model, u32 rv_min,
 	return _model == model && rv >= rv_min && rv <= rv_max;
 }
 
-static inline bool is_midr_in_range(struct midr_range const *range)
-{
-	return midr_is_cpu_model_range(read_cpuid_id(), range->model,
-				       range->rv_min, range->rv_max);
-}
-
-static inline bool
-is_midr_in_range_list(struct midr_range const *ranges)
-{
-	while (ranges->model)
-		if (is_midr_in_range(ranges++))
-			return true;
-	return false;
-}
+bool is_midr_in_range_list(struct midr_range const *ranges);
 
 static inline u64 __attribute_const__ read_cpuid_mpidr(void)
 {

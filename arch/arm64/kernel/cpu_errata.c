@@ -14,6 +14,21 @@
 #include <asm/kvm_asm.h>
 #include <asm/smp_plat.h>
 
+static inline bool is_midr_in_range(struct midr_range const *range)
+{
+	return midr_is_cpu_model_range(read_cpuid_id(), range->model,
+				       range->rv_min, range->rv_max);
+}
+
+bool is_midr_in_range_list(struct midr_range const *ranges)
+{
+	while (ranges->model)
+		if (is_midr_in_range(ranges++))
+			return true;
+	return false;
+}
+EXPORT_SYMBOL_GPL(is_midr_in_range_list);
+
 static bool __maybe_unused
 __is_affected_midr_range(const struct arm64_cpu_capabilities *entry,
 			 u32 midr, u32 revidr)
