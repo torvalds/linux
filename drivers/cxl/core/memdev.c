@@ -668,15 +668,13 @@ static long cxl_memdev_ioctl(struct file *file, unsigned int cmd,
 {
 	struct cxl_memdev *cxlmd = file->private_data;
 	struct cxl_dev_state *cxlds;
-	int rc = -ENXIO;
 
-	down_read(&cxl_memdev_rwsem);
+	guard(rwsem_read)(&cxl_memdev_rwsem);
 	cxlds = cxlmd->cxlds;
 	if (cxlds && cxlds->type == CXL_DEVTYPE_CLASSMEM)
-		rc = __cxl_memdev_ioctl(cxlmd, cmd, arg);
-	up_read(&cxl_memdev_rwsem);
+		return __cxl_memdev_ioctl(cxlmd, cmd, arg);
 
-	return rc;
+	return -ENXIO;
 }
 
 static int cxl_memdev_open(struct inode *inode, struct file *file)
