@@ -25,7 +25,6 @@ config SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_ACP_PROBES
 	select SND_SOC_ACPI_AMD_MATCH
 	select SND_SOC_ACPI if ACPI
-	depends on AMD_NODE
 	help
 	  This option is not user-selectable but automatically handled by
 	  'select' statements at a higher level
@@ -33,7 +32,7 @@ config SND_SOC_SOF_AMD_COMMON
 config SND_SOC_SOF_AMD_RENOIR
 	tristate "SOF support for RENOIR"
 	depends on SND_SOC_SOF_PCI
-	depends on CPU_SUP_AMD
+	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support on AMD Renoir platform
@@ -41,7 +40,7 @@ config SND_SOC_SOF_AMD_RENOIR
 config SND_SOC_SOF_AMD_VANGOGH
 	tristate "SOF support for VANGOGH"
 	depends on SND_SOC_SOF_PCI
-	depends on CPU_SUP_AMD
+	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support
@@ -52,7 +51,7 @@ config SND_SOC_SOF_AMD_VANGOGH
 config SND_SOC_SOF_AMD_REMBRANDT
 	tristate "SOF support for REMBRANDT"
 	depends on SND_SOC_SOF_PCI
-	depends on CPU_SUP_AMD
+	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support on AMD Rembrandt platform
@@ -85,7 +84,7 @@ config SND_SOC_SOF_AMD_SOUNDWIRE
 config SND_SOC_SOF_AMD_ACP63
 	tristate "SOF support for ACP6.3 platform"
 	depends on SND_SOC_SOF_PCI
-	depends on CPU_SUP_AMD
+	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	select SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE
 	help
@@ -97,7 +96,7 @@ config SND_SOC_SOF_AMD_ACP63
 config SND_SOC_SOF_AMD_ACP70
 	tristate "SOF support for ACP7.0 platform"
 	depends on SND_SOC_SOF_PCI
-	depends on CPU_SUP_AMD
+	depends on AMD_NODE
 	select SND_SOC_SOF_AMD_COMMON
 	help
 	  Select this option for SOF support on
