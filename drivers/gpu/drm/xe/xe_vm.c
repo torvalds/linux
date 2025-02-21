@@ -660,7 +660,6 @@ int xe_vm_userptr_pin(struct xe_vm *vm)
 {
 	struct xe_userptr_vma *uvma, *next;
 	int err = 0;
-	LIST_HEAD(tmp_evict);
 
 	xe_assert(vm->xe, !xe_vm_in_fault_mode(vm));
 	lockdep_assert_held_write(&vm->lock);
