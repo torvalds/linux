@@ -441,12 +441,11 @@ static int i801_check_post(struct i801_priv *priv, int status)
 	if (unlikely(status < 0)) {
 		/* try to stop the current command */
 		outb_p(SMBHSTCNT_KILL, SMBHSTCNT(priv));
-		usleep_range(1000, 2000);
+		status = i801_wait_intr(priv);
 		outb_p(0, SMBHSTCNT(priv));
 
 		/* Check if it worked */
-		status = inb_p(SMBHSTSTS(priv));
-		if ((status & SMBHSTSTS_HOST_BUSY) || !(status & SMBHSTSTS_FAILED))
+		if (status < 0 || !(status & SMBHSTSTS_FAILED))
 			pci_dbg(priv->pci_dev, "Failed terminating the transaction\n");
 		return -ETIMEDOUT;
 	}
