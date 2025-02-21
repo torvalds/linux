@@ -237,7 +237,8 @@ struct kvm_arch_memory_slot {
 struct kvm_smccc_features {
 	unsigned long std_bmap;
 	unsigned long std_hyp_bmap;
-	unsigned long vendor_hyp_bmap;
+	unsigned long vendor_hyp_bmap; /* Function numbers 0-63 */
+	unsigned long vendor_hyp_bmap_2; /* Function numbers 64-127 */
 };
 
 typedef unsigned int pkvm_handle_t;
