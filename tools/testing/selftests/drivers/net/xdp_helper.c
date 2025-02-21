@@ -14,6 +14,54 @@
 #define UMEM_SZ (1U << 16)
 #define NUM_DESC (UMEM_SZ / 2048)
 
+/* Move this to a common header when reused! */
+static void ksft_ready(void)
+{
+	const char msg[7] = "ready\n";
+	char *env_str;
+	int fd;
+
+	env_str = getenv("KSFT_READY_FD");
+	if (env_str) {
+		fd = atoi(env_str);
+		if (!fd) {
+			fprintf(stderr, "invalid KSFT_READY_FD = '%s'\n",
+				env_str);
+			return;
+		}
+	} else {
+		fd = STDOUT_FILENO;
+	}
+
+	write(fd, msg, sizeof(msg));
+	if (fd != STDOUT_FILENO)
+		close(fd);
+}
+
+static void ksft_wait(void)
+{
+	char *env_str;
+	char byte;
+	int fd;
+
+	env_str = getenv("KSFT_WAIT_FD");
+	if (env_str) {
+		fd = atoi(env_str);
+		if (!fd) {
+			fprintf(stderr, "invalid KSFT_WAIT_FD = '%s'\n",
+				env_str);
+			return;
+		}
+	} else {
+		/* Not running in KSFT env, wait for input from STDIN instead */
+		fd = STDIN_FILENO;
+	}
+
+	read(fd, &byte, sizeof(byte));
+	if (fd != STDIN_FILENO)
+		close(fd);
+}
+
 /* this is a simple helper program that creates an XDP socket and does the
  * minimum necessary to get bind() to succeed.
  *
@@ -32,10 +80,9 @@ int main(int argc, char **argv)
 	int ifindex;
 	int sock_fd;
 	int queue;
-	char byte;
 
 	if (argc != 3) {
-		fprintf(stderr, "Usage: %s ifindex queue_id", argv[0]);
+		fprintf(stderr, "Usage: %s ifindex queue_id\n", argv[0]);
 		return 1;
 	}
 
@@ -48,6 +95,13 @@ int main(int argc, char **argv)
 		if (errno == EAFNOSUPPORT)
 			return -1;
 		return 1;
+	}
+
+	/* "Probing mode", just checking if AF_XDP sockets are supported */
+	if (!strcmp(argv[1], "-") && !strcmp(argv[2], "-")) {
+		printf("AF_XDP support detected\n");
+		close(sock_fd);
+		return 0;
 	}
 
 	ifindex = atoi(argv[1]);
@@ -85,13 +139,12 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	/* give the parent program some data when the socket is ready*/
-	fprintf(stdout, "%d\n", sock_fd);
+	ksft_ready();
+	ksft_wait();
 
 	/* parent program will write a byte to stdin when its ready for this
 	 * helper to exit
 	 */
-	read(STDIN_FILENO, &byte, 1);
 
 	close(sock_fd);
 	return 0;

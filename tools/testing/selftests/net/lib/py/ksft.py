@@ -71,6 +71,11 @@ def ksft_in(a, b, comment=""):
         _fail("Check failed", a, "not in", b, comment)
 
 
+def ksft_not_in(a, b, comment=""):
+    if a in b:
+        _fail("Check failed", a, "in", b, comment)
+
+
 def ksft_is(a, b, comment=""):
     if a is not b:
         _fail("Check failed", a, "is not", b, comment)
