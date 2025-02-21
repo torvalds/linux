@@ -1571,3 +1571,36 @@ Description:	Report the number of times a critical health event has been
 		bWriteBoosterBufferLifeTimeEst, and bRPMBLifeTimeEst.
 
 		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkscale_enable
+What:		/sys/bus/platform/devices/*.ufs/clkscale_enable
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows whether the UFS clock scaling is enabled or not.
+		And it can be used to enable/disable the clock scaling by writing
+		1 or 0 to this attribute.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkgate_enable
+What:		/sys/bus/platform/devices/*.ufs/clkgate_enable
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows whether the UFS clock gating is enabled or not.
+		And it can be used to enable/disable the clock gating by writing
+		1 or 0 to this attribute.
+
+		The attribute is read/write.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/clkgate_delay_ms
+What:		/sys/bus/platform/devices/*.ufs/clkgate_delay_ms
+Date:		January 2025
+Contact:	Ziqi Chen <quic_ziqichen@quicinc.com>
+Description:
+		This attribute shows and sets the number of milliseconds of idle time
+		before the UFS driver starts to perform clock gating. This can
+		prevent the UFS from frequently performing clock gating/ungating.
+
+		The attribute is read/write.
