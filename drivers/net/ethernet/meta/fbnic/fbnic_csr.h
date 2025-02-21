@@ -788,6 +788,11 @@ enum {
 #define FBNIC_MAC_STAT_TX_MULTICAST_H	0x11a4b		/* 0x4692c */
 #define FBNIC_MAC_STAT_TX_BROADCAST_L	0x11a4c		/* 0x46930 */
 #define FBNIC_MAC_STAT_TX_BROADCAST_H	0x11a4d		/* 0x46934 */
+
+/* PCIE Comphy Registers */
+#define FBNIC_CSR_START_PCIE_SS_COMPHY	0x2442e /* CSR section delimiter */
+#define FBNIC_CSR_END_PCIE_SS_COMPHY	0x279d7	/* CSR section delimiter */
+
 /* PUL User Registers */
 #define FBNIC_CSR_START_PUL_USER	0x31000	/* CSR section delimiter */
 #define FBNIC_PUL_OB_TLP_HDR_AW_CFG	0x3103d		/* 0xc40f4 */
