@@ -998,6 +998,12 @@ static inline int check_mnt(struct mount *mnt)
 	return mnt->mnt_ns == current->nsproxy->mnt_ns;
 }
 
+static inline bool check_anonymous_mnt(struct mount *mnt)
+{
+	return is_anon_ns(mnt->mnt_ns) &&
+	       mnt->mnt_ns->seq_origin == current->nsproxy->mnt_ns->seq;
+}
+
 /*
  * vfsmount lock must be held for write
  */
@@ -2822,6 +2828,32 @@ static int do_change_type(struct path *path, int ms_flags)
  *     namespace, i.e., the caller is trying to copy a mount namespace
  *     entry from nsfs.
  * (3) The caller tries to copy a pidfs mount referring to a pidfd.
+ * (4) The caller is trying to copy a mount tree that belongs to an
+ *     anonymous mount namespace.
+ *
+ *     For that to be safe, this helper enforces that the origin mount
+ *     namespace the anonymous mount namespace was created from is the
+ *     same as the caller's mount namespace by comparing the sequence
+ *     numbers.
+ *
+ *     This is not strictly necessary. The current semantics of the new
+ *     mount api enforce that the caller must be located in the same
+ *     mount namespace as the mount tree it interacts with. Using the
+ *     origin sequence number preserves these semantics even for
+ *     anonymous mount namespaces. However, one could envision extending
+ *     the api to directly operate across mount namespace if needed.
+ *
+ *     The ownership of a non-anonymous mount namespace such as the
+ *     caller's cannot change.
+ *     => We know that the caller's mount namespace is stable.
+ *
+ *     If the origin sequence number of the anonymous mount namespace is
+ *     the same as the sequence number of the caller's mount namespace.
+ *     => The owning namespaces are the same.
+ *
+ *     ==> The earlier capability check on the owning namespace of the
+ *         caller's mount namespace ensures that the caller has the
+ *         ability to copy the mount tree.
  *
  * Returns true if the mount tree can be copied, false otherwise.
  */
@@ -2840,8 +2872,12 @@ static inline bool may_copy_tree(struct path *path)
 	if (d_op == &pidfs_dentry_operations)
 		return true;
 
-	return false;
+	if (!is_mounted(path->mnt))
+		return false;
+
+	return check_anonymous_mnt(mnt);
 }
+
 
 static struct mount *__do_loopback(struct path *old_path, int recurse)
 {
