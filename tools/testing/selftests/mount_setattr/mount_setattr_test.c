@@ -1939,4 +1939,82 @@ TEST_F(mount_setattr, attach_detached_mount_then_umount_then_close)
 	EXPECT_EQ(close(fd_tree), 0);
 }
 
+TEST_F(mount_setattr, mount_detached1_onto_detached2_then_close_detached1_then_mount_detached2_onto_attached)
+{
+	int fd_tree1 = -EBADF, fd_tree2 = -EBADF;
+
+	/*
+	 * |-/mnt/A               testing tmpfs
+	 *   `-/mnt/A/AA          testing tmpfs
+	 *     `-/mnt/A/AA/B      testing tmpfs
+	 *       `-/mnt/A/AA/B/BB testing tmpfs
+	 */
+	fd_tree1 = sys_open_tree(-EBADF, "/mnt/A",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree1, 0);
+
+	/*
+	 * `-/mnt/B testing ramfs
+	 */
+	fd_tree2 = sys_open_tree(-EBADF, "/mnt/B",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_EMPTY_PATH | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree2, 0);
+
+	/*
+	 * Move the source detached mount tree to the target detached
+	 * mount tree. This will move all the mounts in the source mount
+	 * tree from the source anonymous mount namespace to the target
+	 * anonymous mount namespace.
+	 *
+	 * The source detached mount tree and the target detached mount
+	 * tree now both refer to the same anonymous mount namespace.
+	 *
+	 * |-""                 testing ramfs
+	 *   `-""               testing tmpfs
+	 *     `-""/AA          testing tmpfs
+	 *       `-""/AA/B      testing tmpfs
+	 *         `-""/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree1, "", fd_tree2, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+
+	/*
+	 * The source detached mount tree @fd_tree1 is now an attached
+	 * mount, i.e., it has a parent. Specifically, it now has the
+	 * root mount of the mount tree of @fd_tree2 as its parent.
+	 *
+	 * That means we are no longer allowed to attach it as we only
+	 * allow attaching the root of an anonymous mount tree, not
+	 * random bits and pieces. Verify that the kernel enforces this.
+	 */
+	ASSERT_NE(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	/*
+	 * Closing the source detached mount tree must not unmount and
+	 * free the shared anonymous mount namespace. The kernel will
+	 * quickly yell at us because the anonymous mount namespace
+	 * won't be empty when it's freed.
+	 */
+	EXPECT_EQ(close(fd_tree1), 0);
+
+	/*
+	 * Attach the mount tree to a non-anonymous mount namespace.
+	 * This can only succeed if closing fd_tree1 had proper
+	 * semantics and didn't cause the anonymous mount namespace to
+	 * be freed. If it did this will trigger a UAF which will be
+	 * visible on any KASAN enabled kernel.
+	 *
+	 * |-/tmp/target1                 testing ramfs
+	 *   `-/tmp/target1               testing tmpfs
+	 *     `-/tmp/target1/AA          testing tmpfs
+	 *       `-/tmp/target1/AA/B      testing tmpfs
+	 *         `-/tmp/target1/AA/B/BB testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+	EXPECT_EQ(close(fd_tree2), 0);
+}
+
 TEST_HARNESS_MAIN
