@@ -31,6 +31,17 @@
 
 #define ERR_INJ_ENABLE_REG		0x30
 
+#define RAS_DES_EVENT_COUNTER_DATA_REG	0xc
+
+#define RAS_DES_EVENT_COUNTER_CTRL_REG	0x8
+#define EVENT_COUNTER_GROUP_SELECT	GENMASK(27, 24)
+#define EVENT_COUNTER_EVENT_SELECT	GENMASK(23, 16)
+#define EVENT_COUNTER_LANE_SELECT	GENMASK(11, 8)
+#define EVENT_COUNTER_STATUS		BIT(7)
+#define EVENT_COUNTER_ENABLE		GENMASK(4, 2)
+#define PER_EVENT_ON			0x3
+#define PER_EVENT_OFF			0x1
+
 #define DWC_DEBUGFS_BUF_MAX		128
 
 /**
@@ -113,6 +124,63 @@ static const u32 err_inj_type_mask[] = {
 	EINJ3_TYPE,
 	EINJ4_TYPE,
 	EINJ5_TYPE,
+};
+
+/**
+ * struct dwc_pcie_event_counter - Store details about each event counter
+ *				   supported in DWC RAS DES
+ * @name: Name of the error counter
+ * @group_no: Group number that the event belongs to. The value can range
+ *	      from 0 to 4
+ * @event_no: Event number of the particular event. The value ranges are:
+ *		Group 0: 0 - 10
+ *		Group 1: 5 - 13
+ *		Group 2: 0 - 7
+ *		Group 3: 0 - 5
+ *		Group 4: 0 - 1
+ */
+struct dwc_pcie_event_counter {
+	const char *name;
+	u32 group_no;
+	u32 event_no;
+};
+
+static const struct dwc_pcie_event_counter event_list[] = {
+	{"ebuf_overflow", 0x0, 0x0},
+	{"ebuf_underrun", 0x0, 0x1},
+	{"decode_err", 0x0, 0x2},
+	{"running_disparity_err", 0x0, 0x3},
+	{"skp_os_parity_err", 0x0, 0x4},
+	{"sync_header_err", 0x0, 0x5},
+	{"rx_valid_deassertion", 0x0, 0x6},
+	{"ctl_skp_os_parity_err", 0x0, 0x7},
+	{"retimer_parity_err_1st", 0x0, 0x8},
+	{"retimer_parity_err_2nd", 0x0, 0x9},
+	{"margin_crc_parity_err", 0x0, 0xA},
+	{"detect_ei_infer", 0x1, 0x5},
+	{"receiver_err", 0x1, 0x6},
+	{"rx_recovery_req", 0x1, 0x7},
+	{"n_fts_timeout", 0x1, 0x8},
+	{"framing_err", 0x1, 0x9},
+	{"deskew_err", 0x1, 0xa},
+	{"framing_err_in_l0", 0x1, 0xc},
+	{"deskew_uncompleted_err", 0x1, 0xd},
+	{"bad_tlp", 0x2, 0x0},
+	{"lcrc_err", 0x2, 0x1},
+	{"bad_dllp", 0x2, 0x2},
+	{"replay_num_rollover", 0x2, 0x3},
+	{"replay_timeout", 0x2, 0x4},
+	{"rx_nak_dllp", 0x2, 0x5},
+	{"tx_nak_dllp", 0x2, 0x6},
+	{"retry_tlp", 0x2, 0x7},
+	{"fc_timeout", 0x3, 0x0},
+	{"poisoned_tlp", 0x3, 0x1},
+	{"ecrc_error", 0x3, 0x2},
+	{"unsupported_request", 0x3, 0x3},
+	{"completer_abort", 0x3, 0x4},
+	{"completion_timeout", 0x3, 0x5},
+	{"ebuf_skp_add", 0x4, 0x0},
+	{"ebuf_skp_del", 0x4, 0x1},
 };
 
 static ssize_t lane_detect_read(struct file *file, char __user *buf,
@@ -236,6 +304,145 @@ static ssize_t err_inj_write(struct file *file, const char __user *buf,
 	return count;
 }
 
+static void set_event_number(struct dwc_pcie_rasdes_priv *pdata,
+			     struct dw_pcie *pci, struct dwc_pcie_rasdes_info *rinfo)
+{
+	u32 val;
+
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG);
+	val &= ~EVENT_COUNTER_ENABLE;
+	val &= ~(EVENT_COUNTER_GROUP_SELECT | EVENT_COUNTER_EVENT_SELECT);
+	val |= FIELD_PREP(EVENT_COUNTER_GROUP_SELECT, event_list[pdata->idx].group_no);
+	val |= FIELD_PREP(EVENT_COUNTER_EVENT_SELECT, event_list[pdata->idx].event_no);
+	dw_pcie_writel_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG, val);
+}
+
+static ssize_t counter_enable_read(struct file *file, char __user *buf,
+				   size_t count, loff_t *ppos)
+{
+	struct dwc_pcie_rasdes_priv *pdata = file->private_data;
+	struct dw_pcie *pci = pdata->pci;
+	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
+	char debugfs_buf[DWC_DEBUGFS_BUF_MAX];
+	ssize_t pos;
+	u32 val;
+
+	mutex_lock(&rinfo->reg_event_lock);
+	set_event_number(pdata, pci, rinfo);
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG);
+	mutex_unlock(&rinfo->reg_event_lock);
+	val = FIELD_GET(EVENT_COUNTER_STATUS, val);
+	if (val)
+		pos = scnprintf(debugfs_buf, DWC_DEBUGFS_BUF_MAX, "Counter Enabled\n");
+	else
+		pos = scnprintf(debugfs_buf, DWC_DEBUGFS_BUF_MAX, "Counter Disabled\n");
+
+	return simple_read_from_buffer(buf, count, ppos, debugfs_buf, pos);
+}
+
+static ssize_t counter_enable_write(struct file *file, const char __user *buf,
+				    size_t count, loff_t *ppos)
+{
+	struct dwc_pcie_rasdes_priv *pdata = file->private_data;
+	struct dw_pcie *pci = pdata->pci;
+	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
+	u32 val, enable;
+
+	val = kstrtou32_from_user(buf, count, 0, &enable);
+	if (val)
+		return val;
+
+	mutex_lock(&rinfo->reg_event_lock);
+	set_event_number(pdata, pci, rinfo);
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG);
+	if (enable)
+		val |= FIELD_PREP(EVENT_COUNTER_ENABLE, PER_EVENT_ON);
+	else
+		val |= FIELD_PREP(EVENT_COUNTER_ENABLE, PER_EVENT_OFF);
+
+	dw_pcie_writel_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG, val);
+
+	/*
+	 * While enabling the counter, always read the status back to check if
+	 * it is enabled or not. Return error if it is not enabled to let the
+	 * users know that the counter is not supported on the platform.
+	 */
+	if (enable) {
+		val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset +
+					RAS_DES_EVENT_COUNTER_CTRL_REG);
+		if (!FIELD_GET(EVENT_COUNTER_STATUS, val)) {
+			mutex_unlock(&rinfo->reg_event_lock);
+			return -EOPNOTSUPP;
+		}
+	}
+
+	mutex_unlock(&rinfo->reg_event_lock);
+
+	return count;
+}
+
+static ssize_t counter_lane_read(struct file *file, char __user *buf,
+				 size_t count, loff_t *ppos)
+{
+	struct dwc_pcie_rasdes_priv *pdata = file->private_data;
+	struct dw_pcie *pci = pdata->pci;
+	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
+	char debugfs_buf[DWC_DEBUGFS_BUF_MAX];
+	ssize_t pos;
+	u32 val;
+
+	mutex_lock(&rinfo->reg_event_lock);
+	set_event_number(pdata, pci, rinfo);
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG);
+	mutex_unlock(&rinfo->reg_event_lock);
+	val = FIELD_GET(EVENT_COUNTER_LANE_SELECT, val);
+	pos = scnprintf(debugfs_buf, DWC_DEBUGFS_BUF_MAX, "Lane: %d\n", val);
+
+	return simple_read_from_buffer(buf, count, ppos, debugfs_buf, pos);
+}
+
+static ssize_t counter_lane_write(struct file *file, const char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct dwc_pcie_rasdes_priv *pdata = file->private_data;
+	struct dw_pcie *pci = pdata->pci;
+	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
+	u32 val, lane;
+
+	val = kstrtou32_from_user(buf, count, 0, &lane);
+	if (val)
+		return val;
+
+	mutex_lock(&rinfo->reg_event_lock);
+	set_event_number(pdata, pci, rinfo);
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG);
+	val &= ~(EVENT_COUNTER_LANE_SELECT);
+	val |= FIELD_PREP(EVENT_COUNTER_LANE_SELECT, lane);
+	dw_pcie_writel_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_CTRL_REG, val);
+	mutex_unlock(&rinfo->reg_event_lock);
+
+	return count;
+}
+
+static ssize_t counter_value_read(struct file *file, char __user *buf,
+				  size_t count, loff_t *ppos)
+{
+	struct dwc_pcie_rasdes_priv *pdata = file->private_data;
+	struct dw_pcie *pci = pdata->pci;
+	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
+	char debugfs_buf[DWC_DEBUGFS_BUF_MAX];
+	ssize_t pos;
+	u32 val;
+
+	mutex_lock(&rinfo->reg_event_lock);
+	set_event_number(pdata, pci, rinfo);
+	val = dw_pcie_readl_dbi(pci, rinfo->ras_cap_offset + RAS_DES_EVENT_COUNTER_DATA_REG);
+	mutex_unlock(&rinfo->reg_event_lock);
+	pos = scnprintf(debugfs_buf, DWC_DEBUGFS_BUF_MAX, "Counter value: %d\n", val);
+
+	return simple_read_from_buffer(buf, count, ppos, debugfs_buf, pos);
+}
+
 #define dwc_debugfs_create(name)			\
 debugfs_create_file(#name, 0644, rasdes_debug, pci,	\
 			&dbg_ ## name ## _fops)
@@ -255,6 +462,23 @@ static const struct file_operations dwc_pcie_err_inj_ops = {
 	.write = err_inj_write,
 };
 
+static const struct file_operations dwc_pcie_counter_enable_ops = {
+	.open = simple_open,
+	.read = counter_enable_read,
+	.write = counter_enable_write,
+};
+
+static const struct file_operations dwc_pcie_counter_lane_ops = {
+	.open = simple_open,
+	.read = counter_lane_read,
+	.write = counter_lane_write,
+};
+
+static const struct file_operations dwc_pcie_counter_value_ops = {
+	.open = simple_open,
+	.read = counter_value_read,
+};
+
 static void dwc_pcie_rasdes_debugfs_deinit(struct dw_pcie *pci)
 {
 	struct dwc_pcie_rasdes_info *rinfo = pci->debugfs->rasdes_info;
@@ -265,6 +489,7 @@ static void dwc_pcie_rasdes_debugfs_deinit(struct dw_pcie *pci)
 static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 {
 	struct dentry *rasdes_debug, *rasdes_err_inj;
+	struct dentry *rasdes_event_counter, *rasdes_events;
 	struct dwc_pcie_rasdes_info *rasdes_info;
 	struct dwc_pcie_rasdes_priv *priv_tmp;
 	struct device *dev = pci->dev;
@@ -288,6 +513,7 @@ static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 	/* Create subdirectories for Debug, Error Injection, Statistics. */
 	rasdes_debug = debugfs_create_dir("rasdes_debug", dir);
 	rasdes_err_inj = debugfs_create_dir("rasdes_err_inj", dir);
+	rasdes_event_counter = debugfs_create_dir("rasdes_event_counter", dir);
 
 	mutex_init(&rasdes_info->reg_event_lock);
 	rasdes_info->ras_cap_offset = ras_cap;
@@ -310,6 +536,28 @@ static int dwc_pcie_rasdes_debugfs_init(struct dw_pcie *pci, struct dentry *dir)
 		debugfs_create_file(err_inj_list[i].name, 0200, rasdes_err_inj, priv_tmp,
 				    &dwc_pcie_err_inj_ops);
 	}
+
+	/* Create debugfs files for Statistical Counter subdirectory. */
+	for (i = 0; i < ARRAY_SIZE(event_list); i++) {
+		priv_tmp = devm_kzalloc(dev, sizeof(*priv_tmp), GFP_KERNEL);
+		if (!priv_tmp) {
+			ret = -ENOMEM;
+			goto err_deinit;
+		}
+
+		priv_tmp->idx = i;
+		priv_tmp->pci = pci;
+		rasdes_events = debugfs_create_dir(event_list[i].name, rasdes_event_counter);
+		if (event_list[i].group_no == 0 || event_list[i].group_no == 4) {
+			debugfs_create_file("lane_select", 0644, rasdes_events,
+					    priv_tmp, &dwc_pcie_counter_lane_ops);
+		}
+		debugfs_create_file("counter_value", 0444, rasdes_events, priv_tmp,
+				    &dwc_pcie_counter_value_ops);
+		debugfs_create_file("counter_enable", 0644, rasdes_events, priv_tmp,
+				    &dwc_pcie_counter_enable_ops);
+	}
+
 	return 0;
 
 err_deinit:
