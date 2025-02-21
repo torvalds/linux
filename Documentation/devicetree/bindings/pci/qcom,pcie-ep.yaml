@@ -176,9 +176,11 @@ allOf:
     then:
       properties:
         reg:
-          maxItems: 6
+          minItems: 7
+          maxItems: 7
         reg-names:
-          maxItems: 6
+          minItems: 7
+          maxItems: 7
         clocks:
           items:
             - description: PCIe Auxiliary clock
@@ -200,9 +202,13 @@ allOf:
             - const: ddrss_sf_tbu
             - const: aggre_noc_axi
         interrupts:
-          maxItems: 2
+          minItems: 3
+          maxItems: 3
         interrupt-names:
-          maxItems: 2
+          minItems: 3
+          maxItems: 3
+      required:
+        - iommus
 
   - if:
       properties:
