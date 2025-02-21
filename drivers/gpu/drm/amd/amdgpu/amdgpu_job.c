@@ -130,29 +130,45 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		amdgpu_vm_put_task_info(ti);
 	}
 
-	dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
-
 	/* attempt a per ring reset */
 	if (amdgpu_gpu_recovery &&
 	    ring->funcs->reset) {
+		bool is_guilty;
+
 		dev_err(adev->dev, "Starting %s ring reset\n", s_job->sched->name);
 		/* stop the scheduler, but don't mess with the
 		 * bad job yet because if ring reset fails
 		 * we'll fall back to full GPU reset.
 		 */
 		drm_sched_wqueue_stop(&ring->sched);
+
+		/* for engine resets, we need to reset the engine,
+		 * but individual queues may be unaffected.
+		 * check here to make sure the accounting is correct.
+		 */
+		if (ring->funcs->is_guilty)
+			is_guilty = ring->funcs->is_guilty(ring);
+		else
+			is_guilty = true;
+
+		if (is_guilty)
+			dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
+
 		r = amdgpu_ring_reset(ring, job->vmid);
 		if (!r) {
 			if (amdgpu_ring_sched_ready(ring))
 				drm_sched_stop(&ring->sched, s_job);
-			atomic_inc(&ring->adev->gpu_reset_counter);
-			amdgpu_fence_driver_force_completion(ring);
+			if (is_guilty) {
+				atomic_inc(&ring->adev->gpu_reset_counter);
+				amdgpu_fence_driver_force_completion(ring);
+			}
 			if (amdgpu_ring_sched_ready(ring))
 				drm_sched_start(&ring->sched, 0);
 			goto exit;
 		}
 		dev_err(adev->dev, "Ring %s reset failure\n", ring->sched.name);
 	}
+	dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
 
 	if (amdgpu_device_should_recover_gpu(ring->adev)) {
 		struct amdgpu_reset_context reset_context;
