@@ -417,6 +417,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		aop_cmd_db_mem: aop-cmd-db@85f20000 {
+			compatible = "qcom,cmd-db";
+			reg = <0x0 0x85f20000 0x0 0x20000>;
+			no-map;
+		};
+
 		smem_region: smem@86000000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86000000 0x0 0x200000>;
