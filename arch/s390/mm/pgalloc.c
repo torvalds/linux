@@ -176,8 +176,6 @@ unsigned long *page_table_alloc(struct mm_struct *mm)
 	}
 	table = ptdesc_to_virt(ptdesc);
 	__arch_set_page_dat(table, 1);
-	/* pt_list is used by gmap only */
-	INIT_LIST_HEAD(&ptdesc->pt_list);
 	memset64((u64 *)table, _PAGE_INVALID, PTRS_PER_PTE);
 	memset64((u64 *)table + PTRS_PER_PTE, 0, PTRS_PER_PTE);
 	return table;

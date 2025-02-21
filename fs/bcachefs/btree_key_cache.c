@@ -748,7 +748,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 				rcu_read_unlock();
 				mutex_lock(&bc->table.mutex);
 				mutex_unlock(&bc->table.mutex);
-				rcu_read_lock();
 				continue;
 			}
 			for (i = 0; i < tbl->size; i++)

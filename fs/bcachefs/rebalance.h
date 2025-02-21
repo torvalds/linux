@@ -4,7 +4,27 @@
 
 #include "compress.h"
 #include "disk_groups.h"
+#include "opts.h"
 #include "rebalance_types.h"
+
+static inline struct bch_extent_rebalance io_opts_to_rebalance_opts(struct bch_fs *c,
+								    struct bch_io_opts *opts)
+{
+	struct bch_extent_rebalance r = {
+		.type = BIT(BCH_EXTENT_ENTRY_rebalance),
+#define x(_name)							\
+		._name = opts->_name,					\
+		._name##_from_inode = opts->_name##_from_inode,
+		BCH_REBALANCE_OPTS()
+#undef x
+	};
+
+	if (r.background_target &&
+	    !bch2_target_accepts_data(c, BCH_DATA_user, r.background_target))
+		r.background_target = 0;
+
+	return r;
+};
 
 u64 bch2_bkey_sectors_need_rebalance(struct bch_fs *, struct bkey_s_c);
 int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bch_io_opts *, struct bkey_i *);
