@@ -320,13 +320,6 @@ static int mes_userq_mqd_create(struct amdgpu_userq_mgr *uq_mgr,
 		goto free_ctx;
 	}
 
-	/* Map userqueue into FW using MES */
-	r = mes_userq_map(uq_mgr, queue);
-	if (r) {
-		DRM_ERROR("Failed to init MQD\n");
-		goto free_ctx;
-	}
-
 	return 0;
 
 free_ctx:
@@ -349,9 +342,6 @@ mes_userq_mqd_destroy(struct amdgpu_userq_mgr *uq_mgr,
 		      struct amdgpu_usermode_queue *queue)
 {
 	struct amdgpu_device *adev = uq_mgr->adev;
-
-	if (queue->queue_active)
-		mes_userq_unmap(uq_mgr, queue);
 
 	amdgpu_userqueue_destroy_object(uq_mgr, &queue->fw_obj);
 	kfree(queue->userq_prop);
