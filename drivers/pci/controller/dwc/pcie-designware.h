@@ -437,6 +437,11 @@ struct dw_pcie_ops {
 	void	(*stop_link)(struct dw_pcie *pcie);
 };
 
+struct debugfs_info {
+	struct dentry		*debug_dir;
+	void			*rasdes_info;
+};
+
 struct dw_pcie {
 	struct device		*dev;
 	void __iomem		*dbi_base;
@@ -465,6 +470,7 @@ struct dw_pcie {
 	struct reset_control_bulk_data	core_rsts[DW_PCIE_NUM_CORE_RSTS];
 	struct gpio_desc		*pe_rst;
 	bool			suspended;
+	struct debugfs_info	*debugfs;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)
@@ -478,6 +484,7 @@ void dw_pcie_version_detect(struct dw_pcie *pci);
 
 u8 dw_pcie_find_capability(struct dw_pcie *pci, u8 cap);
 u16 dw_pcie_find_ext_capability(struct dw_pcie *pci, u8 cap);
+u16 dw_pcie_find_rasdes_capability(struct dw_pcie *pci);
 
 int dw_pcie_read(void __iomem *addr, int size, u32 *val);
 int dw_pcie_write(void __iomem *addr, int size, u32 val);
@@ -806,4 +813,17 @@ dw_pcie_ep_get_func_from_ep(struct dw_pcie_ep *ep, u8 func_no)
 	return NULL;
 }
 #endif
+
+#ifdef CONFIG_PCIE_DW_DEBUGFS
+void dwc_pcie_debugfs_init(struct dw_pcie *pci);
+void dwc_pcie_debugfs_deinit(struct dw_pcie *pci);
+#else
+static inline void dwc_pcie_debugfs_init(struct dw_pcie *pci)
+{
+}
+static inline void dwc_pcie_debugfs_deinit(struct dw_pcie *pci)
+{
+}
+#endif
+
 #endif /* _PCIE_DESIGNWARE_H */

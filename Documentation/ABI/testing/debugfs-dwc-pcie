@@ -1,0 +1,13 @@
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_debug/lane_detect
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RW) Write the lane number to be checked for detection.	Read
+		will return whether PHY indicates receiver detection on the
+		selected lane. The default selected lane is Lane0.
+
+What:		/sys/kernel/debug/dwc_pcie_<dev>/rasdes_debug/rx_valid
+Date:		February 2025
+Contact:	Shradha Todi <shradha.t@samsung.com>
+Description:	(RW) Write the lane number to be checked as valid or invalid.
+		Read will return the status of PIPE RXVALID signal of the
+		selected lane. The default selected lane is Lane0.
