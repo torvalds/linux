@@ -1014,9 +1014,8 @@ static int sc27xx_fgu_hw_init(struct sc27xx_fgu_data *data)
 	if (!table)
 		return -EINVAL;
 
-	data->cap_table = devm_kmemdup(data->dev, table,
-				       data->table_len * sizeof(*table),
-				       GFP_KERNEL);
+	data->cap_table = devm_kmemdup_array(data->dev, table, data->table_len,
+					     sizeof(*table), GFP_KERNEL);
 	if (!data->cap_table) {
 		power_supply_put_battery_info(data->battery, info);
 		return -ENOMEM;
