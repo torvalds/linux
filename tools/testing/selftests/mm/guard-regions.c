@@ -19,6 +19,7 @@
 #include <sys/syscall.h>
 #include <sys/uio.h>
 #include <unistd.h>
+#include "vm_util.h"
 
 /*
  * Ignore the checkpatch warning, as per the C99 standard, section 7.14.1.1:
@@ -2029,6 +2030,52 @@ TEST_F(guard_regions, anon_zeropage)
 	/* Ensure zero page...*/
 	ASSERT_TRUE(is_buf_eq(ptr, 10 * page_size, '\0'));
 
+	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
+}
+
+/*
+ * Assert that /proc/$pid/pagemap correctly identifies guard region ranges.
+ */
+TEST_F(guard_regions, pagemap)
+{
+	const unsigned long page_size = self->page_size;
+	int proc_fd;
+	char *ptr;
+	int i;
+
+	proc_fd = open("/proc/self/pagemap", O_RDONLY);
+	ASSERT_NE(proc_fd, -1);
+
+	ptr = mmap_(self, variant, NULL, 10 * page_size,
+		    PROT_READ | PROT_WRITE, 0, 0);
+	ASSERT_NE(ptr, MAP_FAILED);
+
+	/* Read from pagemap, and assert no guard regions are detected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+		unsigned long entry = pagemap_get_entry(proc_fd, ptr_p);
+		unsigned long masked = entry & PM_GUARD_REGION;
+
+		ASSERT_EQ(masked, 0);
+	}
+
+	/* Install a guard region in every other page. */
+	for (i = 0; i < 10; i += 2) {
+		char *ptr_p = &ptr[i * page_size];
+
+		ASSERT_EQ(madvise(ptr_p, page_size, MADV_GUARD_INSTALL), 0);
+	}
+
+	/* Re-read from pagemap, and assert guard regions are detected. */
+	for (i = 0; i < 10; i++) {
+		char *ptr_p = &ptr[i * page_size];
+		unsigned long entry = pagemap_get_entry(proc_fd, ptr_p);
+		unsigned long masked = entry & PM_GUARD_REGION;
+
+		ASSERT_EQ(masked, i % 2 == 0 ? PM_GUARD_REGION : 0);
+	}
+
+	ASSERT_EQ(close(proc_fd), 0);
 	ASSERT_EQ(munmap(ptr, 10 * page_size), 0);
 }
 
