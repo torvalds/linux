@@ -718,6 +718,15 @@ static int start_lkl(void)
 	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.part, lklfuse.type,
 			    mount_flags, remaining_mopts,
 			    mpoint, sizeof(mpoint));
+	if (ret == -LKL_EACCES && !(mount_flags & LKL_MS_RDONLY)) {
+		ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.part, lklfuse.type,
+				    mount_flags | LKL_MS_RDONLY,
+				    remaining_mopts, mpoint, sizeof(mpoint));
+		if (!ret)
+			fprintf(stderr,
+				"device write-protected, mounted read-only\n");
+	}
+
 	if (ret) {
 		fprintf(stderr, "can't mount disk: %s\n", lkl_strerror(ret));
 		goto out_halt;
