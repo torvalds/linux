@@ -337,6 +337,40 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
 	"\t\t  0x10  don't use interrupts\n"
 	"\t\t  0x20  disable SMBus Host Notify ");
 
+/* Wait for BUSY being cleared and either INTR or an error flag being set */
+static int i801_wait_intr(struct i801_priv *priv)
+{
+	unsigned long timeout = jiffies + priv->adapter.timeout;
+	int status, busy;
+
+	do {
+		usleep_range(250, 500);
+		status = inb_p(SMBHSTSTS(priv));
+		busy = status & SMBHSTSTS_HOST_BUSY;
+		status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
+		if (!busy && status)
+			return status & STATUS_ERROR_FLAGS;
+	} while (time_is_after_eq_jiffies(timeout));
+
+	return -ETIMEDOUT;
+}
+
+/* Wait for either BYTE_DONE or an error flag being set */
+static int i801_wait_byte_done(struct i801_priv *priv)
+{
+	unsigned long timeout = jiffies + priv->adapter.timeout;
+	int status;
+
+	do {
+		usleep_range(250, 500);
+		status = inb_p(SMBHSTSTS(priv));
+		if (status & (STATUS_ERROR_FLAGS | SMBHSTSTS_BYTE_DONE))
+			return status & STATUS_ERROR_FLAGS;
+	} while (time_is_after_eq_jiffies(timeout));
+
+	return -ETIMEDOUT;
+}
+
 static int i801_get_block_len(struct i801_priv *priv)
 {
 	u8 len = inb_p(SMBHSTDAT0(priv));
@@ -451,40 +485,6 @@ static int i801_check_post(struct i801_priv *priv, int status)
 	}
 
 	return result;
-}
-
-/* Wait for BUSY being cleared and either INTR or an error flag being set */
-static int i801_wait_intr(struct i801_priv *priv)
-{
-	unsigned long timeout = jiffies + priv->adapter.timeout;
-	int status, busy;
-
-	do {
-		usleep_range(250, 500);
-		status = inb_p(SMBHSTSTS(priv));
-		busy = status & SMBHSTSTS_HOST_BUSY;
-		status &= STATUS_ERROR_FLAGS | SMBHSTSTS_INTR;
-		if (!busy && status)
-			return status & STATUS_ERROR_FLAGS;
-	} while (time_is_after_eq_jiffies(timeout));
-
-	return -ETIMEDOUT;
-}
-
-/* Wait for either BYTE_DONE or an error flag being set */
-static int i801_wait_byte_done(struct i801_priv *priv)
-{
-	unsigned long timeout = jiffies + priv->adapter.timeout;
-	int status;
-
-	do {
-		usleep_range(250, 500);
-		status = inb_p(SMBHSTSTS(priv));
-		if (status & (STATUS_ERROR_FLAGS | SMBHSTSTS_BYTE_DONE))
-			return status & STATUS_ERROR_FLAGS;
-	} while (time_is_after_eq_jiffies(timeout));
-
-	return -ETIMEDOUT;
 }
 
 static int i801_transaction(struct i801_priv *priv, int xact)
