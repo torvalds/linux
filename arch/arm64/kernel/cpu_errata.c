@@ -15,22 +15,26 @@
 #include <asm/smp_plat.h>
 
 static bool __maybe_unused
-is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
+__is_affected_midr_range(const struct arm64_cpu_capabilities *entry,
+			 u32 midr, u32 revidr)
 {
 	const struct arm64_midr_revidr *fix;
-	u32 midr = read_cpuid_id(), revidr;
-
-	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	if (!is_midr_in_range(midr, &entry->midr_range))
+	if (!is_midr_in_range(&entry->midr_range))
 		return false;
 
 	midr &= MIDR_REVISION_MASK | MIDR_VARIANT_MASK;
-	revidr = read_cpuid(REVIDR_EL1);
 	for (fix = entry->fixed_revs; fix && fix->revidr_mask; fix++)
 		if (midr == fix->midr_rv && (revidr & fix->revidr_mask))
 			return false;
-
 	return true;
+}
+
+static bool __maybe_unused
+is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
+	return __is_affected_midr_range(entry, read_cpuid_id(),
+					read_cpuid(REVIDR_EL1));
 }
 
 static bool __maybe_unused
@@ -38,7 +42,7 @@ is_affected_midr_range_list(const struct arm64_cpu_capabilities *entry,
 			    int scope)
 {
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return is_midr_in_range_list(read_cpuid_id(), entry->midr_range_list);
+	return is_midr_in_range_list(entry->midr_range_list);
 }
 
 static bool __maybe_unused
@@ -186,12 +190,11 @@ static bool __maybe_unused
 has_neoverse_n1_erratum_1542419(const struct arm64_cpu_capabilities *entry,
 				int scope)
 {
-	u32 midr = read_cpuid_id();
 	bool has_dic = read_cpuid_cachetype() & BIT(CTR_EL0_DIC_SHIFT);
 	const struct midr_range range = MIDR_ALL_VERSIONS(MIDR_NEOVERSE_N1);
 
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return is_midr_in_range(midr, &range) && has_dic;
+	return is_midr_in_range(&range) && has_dic;
 }
 
 #ifdef CONFIG_ARM64_WORKAROUND_REPEAT_TLBI

@@ -1792,7 +1792,7 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	char const *str = "kpti command line option";
 	bool meltdown_safe;
 
-	meltdown_safe = is_midr_in_range_list(read_cpuid_id(), kpti_safe_list);
+	meltdown_safe = is_midr_in_range_list(kpti_safe_list);
 
 	/* Defer to CPU feature registers */
 	if (has_cpuid_feature(entry, scope))
@@ -1862,7 +1862,7 @@ static bool has_nv1(const struct arm64_cpu_capabilities *entry, int scope)
 
 	return (__system_matches_cap(ARM64_HAS_NESTED_VIRT) &&
 		!(has_cpuid_feature(entry, scope) ||
-		  is_midr_in_range_list(read_cpuid_id(), nv1_ni_list)));
+		  is_midr_in_range_list(nv1_ni_list)));
 }
 
 #if defined(ID_AA64MMFR0_EL1_TGRAN_LPA2) && defined(ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_LPA2)
@@ -2045,7 +2045,7 @@ static bool cpu_has_broken_dbm(void)
 		{},
 	};
 
-	return is_midr_in_range_list(read_cpuid_id(), cpus);
+	return is_midr_in_range_list(cpus);
 }
 
 static bool cpu_can_use_dbm(const struct arm64_cpu_capabilities *cap)

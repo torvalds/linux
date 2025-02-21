@@ -633,7 +633,7 @@ static const struct midr_range broken_seis[] = {
 static bool vgic_v3_broken_seis(void)
 {
 	return ((kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_SEIS_MASK) &&
-		is_midr_in_range_list(read_cpuid_id(), broken_seis));
+		is_midr_in_range_list(broken_seis));
 }
 
 /**
