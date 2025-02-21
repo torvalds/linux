@@ -39,6 +39,7 @@ struct xe_media_desc {
 
 struct gmdid_map {
 	unsigned int ver;
+	const char *name;
 	const void *ip;
 };
 
