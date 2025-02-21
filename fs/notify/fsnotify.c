@@ -648,7 +648,7 @@ EXPORT_SYMBOL_GPL(fsnotify);
  * Later, fsnotify permission hooks do not check if there are permission event
  * watches, but that there were permission event watches at open time.
  */
-void file_set_fsnotify_mode(struct file *file)
+void file_set_fsnotify_mode_from_watchers(struct file *file)
 {
 	struct dentry *dentry = file->f_path.dentry, *parent;
 	struct super_block *sb = dentry->d_sb;
@@ -665,7 +665,7 @@ void file_set_fsnotify_mode(struct file *file)
 	 */
 	if (likely(!fsnotify_sb_has_priority_watchers(sb,
 						FSNOTIFY_PRIO_CONTENT))) {
-		file->f_mode |= FMODE_NONOTIFY_PERM;
+		file_set_fsnotify_mode(file, FMODE_NONOTIFY_PERM);
 		return;
 	}
 
@@ -676,7 +676,7 @@ void file_set_fsnotify_mode(struct file *file)
 	if ((!d_is_dir(dentry) && !d_is_reg(dentry)) ||
 	    likely(!fsnotify_sb_has_priority_watchers(sb,
 						FSNOTIFY_PRIO_PRE_CONTENT))) {
-		file->f_mode |= FMODE_NONOTIFY | FMODE_NONOTIFY_PERM;
+		file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
 		return;
 	}
 
@@ -686,19 +686,25 @@ void file_set_fsnotify_mode(struct file *file)
 	 */
 	mnt_mask = READ_ONCE(real_mount(file->f_path.mnt)->mnt_fsnotify_mask);
 	if (unlikely(fsnotify_object_watched(d_inode(dentry), mnt_mask,
-				     FSNOTIFY_PRE_CONTENT_EVENTS)))
+				     FSNOTIFY_PRE_CONTENT_EVENTS))) {
+		/* Enable pre-content events */
+		file_set_fsnotify_mode(file, 0);
 		return;
+	}
 
 	/* Is parent watching for pre-content events on this file? */
 	if (dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED) {
 		parent = dget_parent(dentry);
 		p_mask = fsnotify_inode_watches_children(d_inode(parent));
 		dput(parent);
-		if (p_mask & FSNOTIFY_PRE_CONTENT_EVENTS)
+		if (p_mask & FSNOTIFY_PRE_CONTENT_EVENTS) {
+			/* Enable pre-content events */
+			file_set_fsnotify_mode(file, 0);
 			return;
+		}
 	}
 	/* Nobody watching for pre-content events from this file */
-	file->f_mode |= FMODE_NONOTIFY | FMODE_NONOTIFY_PERM;
+	file_set_fsnotify_mode(file, FMODE_NONOTIFY | FMODE_NONOTIFY_PERM);
 }
 #endif
 

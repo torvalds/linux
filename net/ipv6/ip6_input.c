@@ -477,9 +477,7 @@ discard:
 static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	skb_clear_delivery_time(skb);
-	rcu_read_lock();
 	ip6_protocol_deliver_rcu(net, skb, 0, false);
-	rcu_read_unlock();
 
 	return 0;
 }
@@ -487,9 +485,15 @@ static int ip6_input_finish(struct net *net, struct sock *sk, struct sk_buff *sk
 
 int ip6_input(struct sk_buff *skb)
 {
-	return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_IN,
-		       dev_net(skb->dev), NULL, skb, skb->dev, NULL,
-		       ip6_input_finish);
+	int res;
+
+	rcu_read_lock();
+	res = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_IN,
+		      dev_net_rcu(skb->dev), NULL, skb, skb->dev, NULL,
+		      ip6_input_finish);
+	rcu_read_unlock();
+
+	return res;
 }
 EXPORT_SYMBOL_GPL(ip6_input);
 

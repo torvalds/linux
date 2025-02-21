@@ -106,6 +106,8 @@ static int winwing_init_led(struct hid_device *hdev,
 						"%s::%s",
 						dev_name(&input->dev),
 						info->led_name);
+		if (!led->cdev.name)
+			return -ENOMEM;
 
 		ret = devm_led_classdev_register(&hdev->dev, &led->cdev);
 		if (ret)

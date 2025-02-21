@@ -57,38 +57,6 @@ bool xe_ttm_stolen_cpu_access_needs_ggtt(struct xe_device *xe)
 	return GRAPHICS_VERx100(xe) < 1270 && !IS_DGFX(xe);
 }
 
-static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
-{
-	struct xe_tile *tile = xe_device_get_root_tile(xe);
-	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	u64 stolen_size;
-	u64 tile_offset;
-	u64 tile_size;
-
-	tile_offset = tile->mem.vram.io_start - xe->mem.vram.io_start;
-	tile_size = tile->mem.vram.actual_physical_size;
-
-	/* Use DSM base address instead for stolen memory */
-	mgr->stolen_base = (xe_mmio_read64_2x32(mmio, DSMBASE) & BDSM_MASK) - tile_offset;
-	if (drm_WARN_ON(&xe->drm, tile_size < mgr->stolen_base))
-		return 0;
-
-	stolen_size = tile_size - mgr->stolen_base;
-
-	/* Verify usage fits in the actual resource available */
-	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, LMEM_BAR))
-		mgr->io_base = tile->mem.vram.io_start + mgr->stolen_base;
-
-	/*
-	 * There may be few KB of platform dependent reserved memory at the end
-	 * of vram which is not part of the DSM. Such reserved memory portion is
-	 * always less then DSM granularity so align down the stolen_size to DSM
-	 * granularity to accommodate such reserve vram portion.
-	 */
-	return ALIGN_DOWN(stolen_size, SZ_1M);
-}
-
 static u32 get_wopcm_size(struct xe_device *xe)
 {
 	u32 wopcm_size;
@@ -110,6 +78,44 @@ static u32 get_wopcm_size(struct xe_device *xe)
 	}
 
 	return wopcm_size;
+}
+
+static s64 detect_bar2_dgfx(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
+{
+	struct xe_tile *tile = xe_device_get_root_tile(xe);
+	struct xe_mmio *mmio = xe_root_tile_mmio(xe);
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	u64 stolen_size, wopcm_size;
+	u64 tile_offset;
+	u64 tile_size;
+
+	tile_offset = tile->mem.vram.io_start - xe->mem.vram.io_start;
+	tile_size = tile->mem.vram.actual_physical_size;
+
+	/* Use DSM base address instead for stolen memory */
+	mgr->stolen_base = (xe_mmio_read64_2x32(mmio, DSMBASE) & BDSM_MASK) - tile_offset;
+	if (drm_WARN_ON(&xe->drm, tile_size < mgr->stolen_base))
+		return 0;
+
+	/* Carve out the top of DSM as it contains the reserved WOPCM region */
+	wopcm_size = get_wopcm_size(xe);
+	if (drm_WARN_ON(&xe->drm, !wopcm_size))
+		return 0;
+
+	stolen_size = tile_size - mgr->stolen_base;
+	stolen_size -= wopcm_size;
+
+	/* Verify usage fits in the actual resource available */
+	if (mgr->stolen_base + stolen_size <= pci_resource_len(pdev, LMEM_BAR))
+		mgr->io_base = tile->mem.vram.io_start + mgr->stolen_base;
+
+	/*
+	 * There may be few KB of platform dependent reserved memory at the end
+	 * of vram which is not part of the DSM. Such reserved memory portion is
+	 * always less then DSM granularity so align down the stolen_size to DSM
+	 * granularity to accommodate such reserve vram portion.
+	 */
+	return ALIGN_DOWN(stolen_size, SZ_1M);
 }
 
 static u32 detect_bar2_integrated(struct xe_device *xe, struct xe_ttm_stolen_mgr *mgr)
