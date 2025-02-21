@@ -358,8 +358,8 @@ static const struct xe_device_desc ptl_desc = {
 #undef PLATFORM
 __diag_pop();
 
-/* Map of GMD_ID values to graphics IP */
-static const struct gmdid_map graphics_ip_map[] = {
+/* GMDID-based Graphics IPs */
+static const struct xe_ip graphics_ips[] = {
 	{ 1270, "Xe_LPG", &graphics_xelpg },
 	{ 1271, "Xe_LPG", &graphics_xelpg },
 	{ 1274, "Xe_LPG+", &graphics_xelpg },
@@ -369,8 +369,8 @@ static const struct gmdid_map graphics_ip_map[] = {
 	{ 3001, "Xe3_LPG", &graphics_xe2 },
 };
 
-/* Map of GMD_ID values to media IP */
-static const struct gmdid_map media_ip_map[] = {
+/* GMDID-based Media IPs */
+static const struct xe_ip media_ips[] = {
 	{ 1300, "Xe_LPM+", &media_xelpmp },
 	{ 1301, "Xe2_HPM", &media_xelpmp },
 	{ 2000, "Xe2_LPM", &media_xelpmp },
@@ -572,11 +572,11 @@ static void handle_gmdid(struct xe_device *xe,
 
 	read_gmdid(xe, GMDID_GRAPHICS, &ver, graphics_revid);
 
-	for (int i = 0; i < ARRAY_SIZE(graphics_ip_map); i++) {
-		if (ver == graphics_ip_map[i].ver) {
+	for (int i = 0; i < ARRAY_SIZE(graphics_ips); i++) {
+		if (ver == graphics_ips[i].verx100) {
 			xe->info.graphics_verx100 = ver;
-			xe->info.graphics_name = graphics_ip_map[i].name;
-			*graphics = graphics_ip_map[i].ip;
+			xe->info.graphics_name = graphics_ips[i].name;
+			*graphics = graphics_ips[i].desc;
 
 			break;
 		}
@@ -594,11 +594,11 @@ static void handle_gmdid(struct xe_device *xe,
 	if (ver == 0)
 		return;
 
-	for (int i = 0; i < ARRAY_SIZE(media_ip_map); i++) {
-		if (ver == media_ip_map[i].ver) {
+	for (int i = 0; i < ARRAY_SIZE(media_ips); i++) {
+		if (ver == media_ips[i].verx100) {
 			xe->info.media_verx100 = ver;
-			xe->info.media_name = media_ip_map[i].name;
-			*media = media_ip_map[i].ip;
+			xe->info.media_name = media_ips[i].name;
+			*media = media_ips[i].desc;
 
 			break;
 		}

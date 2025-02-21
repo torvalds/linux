@@ -37,10 +37,10 @@ struct xe_media_desc {
 	u8 has_indirect_ring_state:1;
 };
 
-struct gmdid_map {
-	unsigned int ver;
+struct xe_ip {
+	unsigned int verx100;
 	const char *name;
-	const void *ip;
+	const void *desc;
 };
 
 #endif
