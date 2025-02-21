@@ -9,10 +9,6 @@
 #include <linux/types.h>
 
 struct xe_graphics_desc {
-	const char *name;
-	u8 ver;
-	u8 rel;
-
 	u8 va_bits;
 	u8 vm_max_level;
 	u8 vram_flags;
@@ -28,10 +24,6 @@ struct xe_graphics_desc {
 };
 
 struct xe_media_desc {
-	const char *name;
-	u8 ver;
-	u8 rel;
-
 	u64 hw_engine_mask;	/* hardware engines provided by media IP */
 
 	u8 has_indirect_ring_state:1;

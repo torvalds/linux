@@ -110,7 +110,7 @@ done:
 	kunit_activate_static_stub(test, read_gmdid, fake_read_gmdid);
 
 	xe_info_init_early(xe, desc, subplatform_desc);
-	xe_info_init(xe, desc->graphics, desc->media);
+	xe_info_init(xe, desc);
 
 	return 0;
 }
