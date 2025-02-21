@@ -2853,15 +2853,30 @@ out:
 
 static struct file *open_detached_copy(struct path *path, bool recursive)
 {
-	struct user_namespace *user_ns = current->nsproxy->mnt_ns->user_ns;
-	struct mnt_namespace *ns = alloc_mnt_ns(user_ns, true);
+	struct mnt_namespace *ns, *mnt_ns = current->nsproxy->mnt_ns, *src_mnt_ns;
+	struct user_namespace *user_ns = mnt_ns->user_ns;
 	struct mount *mnt, *p;
 	struct file *file;
 
+	ns = alloc_mnt_ns(user_ns, true);
 	if (IS_ERR(ns))
 		return ERR_CAST(ns);
 
 	namespace_lock();
+
+	/*
+	 * Record the sequence number of the source mount namespace.
+	 * This needs to hold namespace_sem to ensure that the mount
+	 * doesn't get attached.
+	 */
+	if (is_mounted(path->mnt)) {
+		src_mnt_ns = real_mount(path->mnt)->mnt_ns;
+		if (is_anon_ns(src_mnt_ns))
+			ns->seq_origin = src_mnt_ns->seq_origin;
+		else
+			ns->seq_origin = src_mnt_ns->seq;
+	}
+
 	mnt = __do_loopback(path, recursive);
 	if (IS_ERR(mnt)) {
 		namespace_unlock();

@@ -20,6 +20,7 @@ struct mnt_namespace {
 		wait_queue_head_t	poll;
 		struct rcu_head		mnt_ns_rcu;
 	};
+	u64			seq_origin; /* Sequence number of origin mount namespace */
 	u64 event;
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
