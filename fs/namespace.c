@@ -3423,10 +3423,13 @@ static int do_move_mount(struct path *old_path, struct path *new_path,
 out:
 	unlock_mount(mp);
 	if (!err) {
-		if (attached)
+		if (attached) {
 			mntput_no_expire(parent);
-		else
+		} else {
+			/* Make sure we notice when we leak mounts. */
+			VFS_WARN_ON_ONCE(!mnt_ns_empty(ns));
 			free_mnt_ns(ns);
+		}
 	}
 	return err;
 }
