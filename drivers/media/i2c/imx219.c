@@ -145,12 +145,6 @@
 #define IMX219_PIXEL_ARRAY_WIDTH	3280U
 #define IMX219_PIXEL_ARRAY_HEIGHT	2464U
 
-enum binning_mode {
-	BINNING_NONE = IMX219_BINNING_NONE,
-	BINNING_X2 = IMX219_BINNING_X2,
-	BINNING_ANALOG_X2 = IMX219_BINNING_X2_ANALOG,
-};
-
 /* Mode : resolution and related config&values */
 struct imx219_mode {
 	/* Frame width */
@@ -405,39 +399,43 @@ static u32 imx219_get_format_bpp(const struct v4l2_mbus_framefmt *format)
 	}
 }
 
-static enum binning_mode imx219_get_binning(struct imx219 *imx219, u8 *bin_h,
-					    u8 *bin_v)
+static void imx219_get_binning(struct imx219 *imx219, u8 *bin_h, u8 *bin_v)
 {
 	struct v4l2_subdev_state *state =
 		v4l2_subdev_get_locked_active_state(&imx219->sd);
 	const struct v4l2_mbus_framefmt *format =
 		v4l2_subdev_state_get_format(state, 0);
 	const struct v4l2_rect *crop = v4l2_subdev_state_get_crop(state, 0);
+	u32 hbin = crop->width / format->width;
+	u32 vbin = crop->height / format->height;
 
-	*bin_h = crop->width / format->width;
-	*bin_v = crop->height / format->height;
+	*bin_h = IMX219_BINNING_NONE;
+	*bin_v = IMX219_BINNING_NONE;
 
-	if (*bin_h == 2 && *bin_v == 2)
-		return BINNING_ANALOG_X2;
-	else if (*bin_h == 2 || *bin_v == 2)
-		/*
-		 * Don't use analog binning if only one dimension
-		 * is binned, as it crops the other dimension
-		 */
-		return BINNING_X2;
-	else
-		return BINNING_NONE;
+	/*
+	 * Use analog binning only if both dimensions are binned, as it crops
+	 * the other dimension.
+	 */
+	if (hbin == 2 && vbin == 2) {
+		*bin_h = IMX219_BINNING_X2_ANALOG;
+		*bin_v = IMX219_BINNING_X2_ANALOG;
+
+		return;
+	}
+
+	if (hbin == 2)
+		*bin_h = IMX219_BINNING_X2;
+	if (vbin == 2)
+		*bin_v = IMX219_BINNING_X2;
 }
 
 static inline u32 imx219_get_rate_factor(struct imx219 *imx219)
 {
 	u8 bin_h, bin_v;
-	enum binning_mode binning = imx219_get_binning(imx219, &bin_h, &bin_v);
 
-	if (binning == BINNING_ANALOG_X2)
-		return 2;
+	imx219_get_binning(imx219, &bin_h, &bin_v);
 
-	return 1;
+	return (bin_h & bin_v) == IMX219_BINNING_X2_ANALOG ? 2 : 1;
 }
 
 /* -----------------------------------------------------------------------------
@@ -673,7 +671,6 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 {
 	const struct v4l2_mbus_framefmt *format;
 	const struct v4l2_rect *crop;
-	enum binning_mode binning;
 	u8 bin_h, bin_v;
 	u32 bpp;
 	int ret = 0;
@@ -691,11 +688,9 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_END_A,
 		  crop->top - IMX219_PIXEL_ARRAY_TOP + crop->height - 1, &ret);
 
-	binning = imx219_get_binning(imx219, &bin_h, &bin_v);
-	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_H,
-		  (bin_h == 2) ? binning : BINNING_NONE, &ret);
-	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_V,
-		  (bin_v == 2) ? binning : BINNING_NONE, &ret);
+	imx219_get_binning(imx219, &bin_h, &bin_v);
+	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_H, bin_h, &ret);
+	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_V, bin_v, &ret);
 
 	cci_write(imx219->regmap, IMX219_REG_X_OUTPUT_SIZE,
 		  format->width, &ret);
