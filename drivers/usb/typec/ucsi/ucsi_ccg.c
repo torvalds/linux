@@ -1387,13 +1387,19 @@ static ssize_t do_flash_store(struct device *dev,
 	if (!flash)
 		return n;
 
-	if (uc->fw_build == 0x0) {
-		dev_err(dev, "fail to flash FW due to missing FW build info\n");
-		return -EINVAL;
-	}
-
 	schedule_work(&uc->work);
 	return n;
+}
+
+static umode_t ucsi_ccg_attrs_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct ucsi_ccg *uc = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (!uc->fw_build)
+		return 0;
+
+	return attr->mode;
 }
 
 static DEVICE_ATTR_WO(do_flash);
@@ -1402,7 +1408,14 @@ static struct attribute *ucsi_ccg_attrs[] = {
 	&dev_attr_do_flash.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(ucsi_ccg);
+static struct attribute_group ucsi_ccg_attr_group = {
+	.attrs = ucsi_ccg_attrs,
+	.is_visible = ucsi_ccg_attrs_is_visible,
+};
+static const struct attribute_group *ucsi_ccg_groups[] = {
+	&ucsi_ccg_attr_group,
+	NULL,
+};
 
 static int ucsi_ccg_probe(struct i2c_client *client)
 {
