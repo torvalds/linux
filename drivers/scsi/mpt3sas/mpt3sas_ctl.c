@@ -2959,7 +2959,7 @@ int mpt3sas_send_mctp_passthru_req(struct mpt3_passthru_command *command)
 
 	mpi_request = (MPI2RequestHeader_t *)command->mpi_request;
 	if (mpi_request->Function != MPI2_FUNCTION_MCTP_PASSTHROUGH) {
-		ioc_err(ioc, "%s: Invalid request receveid, Function 0x%x\n",
+		ioc_err(ioc, "%s: Invalid request received, Function 0x%x\n",
 			__func__, mpi_request->Function);
 		ret = -EINVAL;
 		goto unlock_ctl_cmds;
