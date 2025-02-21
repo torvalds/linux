@@ -1202,6 +1202,11 @@ _base_sas_ioc_info(struct MPT3SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 		    ioc->sge_size;
 		func_str = "nvme_encapsulated";
 		break;
+	case MPI2_FUNCTION_MCTP_PASSTHROUGH:
+		frame_sz = sizeof(Mpi26MctpPassthroughRequest_t) +
+		    ioc->sge_size;
+		func_str = "mctp_passthru";
+		break;
 	default:
 		frame_sz = 32;
 		func_str = "unknown";
@@ -4871,6 +4876,12 @@ _base_display_ioc_capabilities(struct MPT3SAS_ADAPTER *ioc)
 	if (ioc->facts.IOCCapabilities &
 	    MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING) {
 		pr_cont("%sTask Set Full", i ? "," : "");
+		i++;
+	}
+
+	if (ioc->facts.IOCCapabilities &
+	    MPI26_IOCFACTS_CAPABILITY_MCTP_PASSTHRU) {
+		pr_cont("%sMCTP Passthru", i ? "," : "");
 		i++;
 	}
 
