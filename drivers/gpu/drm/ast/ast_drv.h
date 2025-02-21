@@ -113,17 +113,10 @@ enum ast_config_mode {
 #define AST_MAX_HWC_WIDTH	64
 #define AST_MAX_HWC_HEIGHT	64
 
-#define AST_HWC_SIZE		(AST_MAX_HWC_WIDTH * AST_MAX_HWC_HEIGHT * 2)
-#define AST_HWC_SIGNATURE_SIZE	32
+#define AST_HWC_PITCH		(AST_MAX_HWC_WIDTH * SZ_2)
+#define AST_HWC_SIZE		(AST_MAX_HWC_HEIGHT * AST_HWC_PITCH)
 
-/* define for signature structure */
-#define AST_HWC_SIGNATURE_CHECKSUM	0x00
-#define AST_HWC_SIGNATURE_SizeX		0x04
-#define AST_HWC_SIGNATURE_SizeY		0x08
-#define AST_HWC_SIGNATURE_X		0x0C
-#define AST_HWC_SIGNATURE_Y		0x10
-#define AST_HWC_SIGNATURE_HOTSPOTX	0x14
-#define AST_HWC_SIGNATURE_HOTSPOTY	0x18
+#define AST_HWC_SIGNATURE_SIZE	32
 
 /*
  * Planes
@@ -140,6 +133,17 @@ struct ast_plane {
 static inline struct ast_plane *to_ast_plane(struct drm_plane *plane)
 {
 	return container_of(plane, struct ast_plane, base);
+}
+
+struct ast_cursor_plane {
+	struct ast_plane base;
+
+	u8 argb4444[AST_HWC_SIZE];
+};
+
+static inline struct ast_cursor_plane *to_ast_cursor_plane(struct drm_plane *plane)
+{
+	return container_of(to_ast_plane(plane), struct ast_cursor_plane, base);
 }
 
 /*
@@ -186,7 +190,7 @@ struct ast_device {
 	enum ast_tx_chip tx_chip;
 
 	struct ast_plane primary_plane;
-	struct ast_plane cursor_plane;
+	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
 	union {
 		struct {
@@ -370,8 +374,6 @@ struct ast_crtc_state {
 
 #define to_ast_crtc_state(state) container_of(state, struct ast_crtc_state, base)
 
-int ast_mode_config_init(struct ast_device *ast);
-
 #define AST_MM_ALIGN_SHIFT 4
 #define AST_MM_ALIGN_MASK ((1 << AST_MM_ALIGN_SHIFT) - 1)
 
@@ -437,6 +439,9 @@ void ast_patch_ahb_2500(void __iomem *regs);
 int ast_vga_output_init(struct ast_device *ast);
 int ast_sil164_output_init(struct ast_device *ast);
 
+/* ast_cursor.c */
+int ast_cursor_plane_init(struct ast_device *ast);
+
 /* ast dp501 */
 bool ast_backup_fw(struct ast_device *ast, u8 *addr, u32 size);
 void ast_init_3rdtx(struct ast_device *ast);
@@ -445,5 +450,15 @@ int ast_dp501_output_init(struct ast_device *ast);
 /* aspeed DP */
 int ast_dp_launch(struct ast_device *ast);
 int ast_astdp_output_init(struct ast_device *ast);
+
+/* ast_mode.c */
+int ast_mode_config_init(struct ast_device *ast);
+int ast_plane_init(struct drm_device *dev, struct ast_plane *ast_plane,
+		   void __iomem *vaddr, u64 offset, unsigned long size,
+		   uint32_t possible_crtcs,
+		   const struct drm_plane_funcs *funcs,
+		   const uint32_t *formats, unsigned int format_count,
+		   const uint64_t *format_modifiers,
+		   enum drm_plane_type type);
 
 #endif

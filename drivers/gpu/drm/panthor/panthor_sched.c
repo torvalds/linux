@@ -3289,6 +3289,22 @@ static struct panthor_queue *
 group_create_queue(struct panthor_group *group,
 		   const struct drm_panthor_queue_create *args)
 {
+	const struct drm_sched_init_args sched_args = {
+		.ops = &panthor_queue_sched_ops,
+		.submit_wq = group->ptdev->scheduler->wq,
+		.num_rqs = 1,
+		/*
+		 * The credit limit argument tells us the total number of
+		 * instructions across all CS slots in the ringbuffer, with
+		 * some jobs requiring twice as many as others, depending on
+		 * their profiling status.
+		 */
+		.credit_limit = args->ringbuf_size / sizeof(u64),
+		.timeout = msecs_to_jiffies(JOB_TIMEOUT_MS),
+		.timeout_wq = group->ptdev->reset.wq,
+		.name = "panthor-queue",
+		.dev = group->ptdev->base.dev,
+	};
 	struct drm_gpu_scheduler *drm_sched;
 	struct panthor_queue *queue;
 	int ret;
@@ -3359,17 +3375,7 @@ group_create_queue(struct panthor_group *group,
 	if (ret)
 		goto err_free_queue;
 
-	/*
-	 * Credit limit argument tells us the total number of instructions
-	 * across all CS slots in the ringbuffer, with some jobs requiring
-	 * twice as many as others, depending on their profiling status.
-	 */
-	ret = drm_sched_init(&queue->scheduler, &panthor_queue_sched_ops,
-			     group->ptdev->scheduler->wq, 1,
-			     args->ringbuf_size / sizeof(u64),
-			     0, msecs_to_jiffies(JOB_TIMEOUT_MS),
-			     group->ptdev->reset.wq,
-			     NULL, "panthor-queue", group->ptdev->base.dev);
+	ret = drm_sched_init(&queue->scheduler, &sched_args);
 	if (ret)
 		goto err_free_queue;
 

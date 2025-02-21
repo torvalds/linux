@@ -283,7 +283,7 @@ static void drm_test_check_valid_clones(struct kunit *test)
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, state);
 
 	crtc_state = drm_atomic_get_crtc_state(state, priv->crtc);
-	KUNIT_ASSERT_NOT_NULL(test, crtc_state);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, crtc_state);
 
 	crtc_state->encoder_mask = param->encoder_mask;
 

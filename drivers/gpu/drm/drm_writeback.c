@@ -360,8 +360,8 @@ static void drm_writeback_connector_cleanup(struct drm_device *dev,
 
 	spin_lock_irqsave(&wb_connector->job_lock, flags);
 	list_for_each_entry_safe(pos, n, &wb_connector->job_queue, list_entry) {
-		drm_writeback_cleanup_job(pos);
 		list_del(&pos->list_entry);
+		drm_writeback_cleanup_job(pos);
 	}
 	spin_unlock_irqrestore(&wb_connector->job_lock, flags);
 }

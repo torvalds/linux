@@ -1400,13 +1400,18 @@ struct drm_plane_helper_funcs {
 	 * given update can be committed asynchronously, that is, if it can
 	 * jump ahead of the state currently queued for update.
 	 *
+	 * This function is also used by drm_atomic_set_property() to determine
+	 * if the plane can be flipped in async. The flip flag is used to
+	 * distinguish if the function is used for just the plane state or for a
+	 * flip.
+	 *
 	 * RETURNS:
 	 *
 	 * Return 0 on success and any error returned indicates that the update
 	 * can not be applied in asynchronous manner.
 	 */
 	int (*atomic_async_check)(struct drm_plane *plane,
-				  struct drm_atomic_state *state);
+				  struct drm_atomic_state *state, bool flip);
 
 	/**
 	 * @atomic_async_update:

@@ -1309,7 +1309,7 @@ static bool mtk_hdmi_bridge_mode_fixup(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
-					   struct drm_bridge_state *old_bridge_state)
+					   struct drm_atomic_state *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1326,7 +1326,7 @@ static void mtk_hdmi_bridge_atomic_disable(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_bridge_atomic_post_disable(struct drm_bridge *bridge,
-						struct drm_bridge_state *old_state)
+						struct drm_atomic_state *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1362,7 +1362,7 @@ static void mtk_hdmi_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void mtk_hdmi_bridge_atomic_pre_enable(struct drm_bridge *bridge,
-					      struct drm_bridge_state *old_state)
+					      struct drm_atomic_state *state)
 {
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
@@ -1383,9 +1383,8 @@ static void mtk_hdmi_send_infoframe(struct mtk_hdmi *hdmi,
 }
 
 static void mtk_hdmi_bridge_atomic_enable(struct drm_bridge *bridge,
-					  struct drm_bridge_state *old_state)
+					  struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = old_state->base.state;
 	struct mtk_hdmi *hdmi = hdmi_ctx_from_bridge(bridge);
 
 	/* Retrieve the connector through the atomic state. */
