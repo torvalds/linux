@@ -399,10 +399,9 @@ static u32 imx219_get_format_bpp(const struct v4l2_mbus_framefmt *format)
 	}
 }
 
-static void imx219_get_binning(struct imx219 *imx219, u8 *bin_h, u8 *bin_v)
+static void imx219_get_binning(struct v4l2_subdev_state *state, u8 *bin_h,
+			       u8 *bin_v)
 {
-	struct v4l2_subdev_state *state =
-		v4l2_subdev_get_locked_active_state(&imx219->sd);
 	const struct v4l2_mbus_framefmt *format =
 		v4l2_subdev_state_get_format(state, 0);
 	const struct v4l2_rect *crop = v4l2_subdev_state_get_crop(state, 0);
@@ -429,11 +428,11 @@ static void imx219_get_binning(struct imx219 *imx219, u8 *bin_h, u8 *bin_v)
 		*bin_v = IMX219_BINNING_X2;
 }
 
-static inline u32 imx219_get_rate_factor(struct imx219 *imx219)
+static inline u32 imx219_get_rate_factor(struct v4l2_subdev_state *state)
 {
 	u8 bin_h, bin_v;
 
-	imx219_get_binning(imx219, &bin_h, &bin_v);
+	imx219_get_binning(state, &bin_h, &bin_v);
 
 	return (bin_h & bin_v) == IMX219_BINNING_X2_ANALOG ? 2 : 1;
 }
@@ -454,7 +453,7 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 
 	state = v4l2_subdev_get_locked_active_state(&imx219->sd);
 	format = v4l2_subdev_state_get_format(state, 0);
-	rate_factor = imx219_get_rate_factor(imx219);
+	rate_factor = imx219_get_rate_factor(state);
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
 		int exposure_max, exposure_def;
@@ -688,7 +687,7 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	cci_write(imx219->regmap, IMX219_REG_Y_ADD_END_A,
 		  crop->top - IMX219_PIXEL_ARRAY_TOP + crop->height - 1, &ret);
 
-	imx219_get_binning(imx219, &bin_h, &bin_v);
+	imx219_get_binning(state, &bin_h, &bin_v);
 	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_H, bin_h, &ret);
 	cci_write(imx219->regmap, IMX219_REG_BINNING_MODE_V, bin_v, &ret);
 
@@ -929,7 +928,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 
 		/* Scale the pixel rate based on the mode specific factor */
 		pixel_rate = imx219_get_pixel_rate(imx219) *
-			     imx219_get_rate_factor(imx219);
+			     imx219_get_rate_factor(state);
 		__v4l2_ctrl_modify_range(imx219->pixel_rate, pixel_rate,
 					 pixel_rate, 1, pixel_rate);
 	}
