@@ -222,17 +222,17 @@ struct dentry *kernfs_node_dentry(struct kernfs_node *kn,
 	root = kernfs_root(kn);
 	/*
 	 * As long as kn is valid, its parent can not vanish. This is cgroup's
-	 * kn so it not have its parent replaced. Therefore it is safe to use
+	 * kn so it can't have its parent replaced. Therefore it is safe to use
 	 * the ancestor node outside of the RCU or locked section.
 	 */
 	if (WARN_ON_ONCE(!(root->flags & KERNFS_ROOT_INVARIANT_PARENT)))
 		return ERR_PTR(-EINVAL);
 	scoped_guard(rcu) {
 		knparent = find_next_ancestor(kn, NULL);
-		if (WARN_ON(!knparent)) {
-			dput(dentry);
-			return ERR_PTR(-EINVAL);
-		}
+	}
+	if (WARN_ON(!knparent)) {
+		dput(dentry);
+		return ERR_PTR(-EINVAL);
 	}
 
 	do {
