@@ -157,6 +157,11 @@ static inline bool mnt_ns_attached(const struct mount *mnt)
 	return !RB_EMPTY_NODE(&mnt->mnt_node);
 }
 
+static inline bool mnt_ns_empty(const struct mnt_namespace *ns)
+{
+	return RB_EMPTY_ROOT(&ns->mounts);
+}
+
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
 {
 	struct mnt_namespace *ns = mnt->mnt_ns;

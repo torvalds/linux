@@ -5315,7 +5315,7 @@ static int grab_requested_root(struct mnt_namespace *ns, struct path *root)
 	 * We have to find the first mount in our ns and use that, however it
 	 * may not exist, so handle that properly.
 	 */
-	if (RB_EMPTY_ROOT(&ns->mounts))
+	if (mnt_ns_empty(ns))
 		return -ENOENT;
 
 	first = child = ns->root;
@@ -5340,7 +5340,7 @@ static int do_statmount(struct kstatmount *s, u64 mnt_id, u64 mnt_ns_id,
 	int err;
 
 	/* Has the namespace already been emptied? */
-	if (mnt_ns_id && RB_EMPTY_ROOT(&ns->mounts))
+	if (mnt_ns_id && mnt_ns_empty(ns))
 		return -ENOENT;
 
 	s->mnt = lookup_mnt_in_ns(mnt_id, ns);
