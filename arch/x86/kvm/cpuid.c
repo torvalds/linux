@@ -1093,6 +1093,7 @@ void kvm_set_cpu_caps(void)
 		F(AMD_SSB_NO),
 		F(AMD_STIBP),
 		F(AMD_STIBP_ALWAYS_ON),
+		F(AMD_IBRS_SAME_MODE),
 		F(AMD_PSFD),
 		F(AMD_IBPB_RET),
 	);
