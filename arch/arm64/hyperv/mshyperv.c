@@ -61,6 +61,8 @@ static int __init hyperv_init(void)
 		ms_hyperv.features, ms_hyperv.priv_high, ms_hyperv.hints,
 		ms_hyperv.misc_features);
 
+	hv_identify_partition_type();
+
 	ret = hv_common_init();
 	if (ret)
 		return ret;

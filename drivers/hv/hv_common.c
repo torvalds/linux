@@ -34,8 +34,11 @@
 u64 hv_current_partition_id = HV_PARTITION_ID_SELF;
 EXPORT_SYMBOL_GPL(hv_current_partition_id);
 
+enum hv_partition_type hv_curr_partition_type;
+EXPORT_SYMBOL_GPL(hv_curr_partition_type);
+
 /*
- * hv_root_partition, ms_hyperv and hv_nested are defined here with other
+ * ms_hyperv and hv_nested are defined here with other
  * Hyper-V specific globals so they are shared across all architectures and are
  * built only when CONFIG_HYPERV is defined.  But on x86,
  * ms_hyperv_init_platform() is built even when CONFIG_HYPERV is not
@@ -43,9 +46,6 @@ EXPORT_SYMBOL_GPL(hv_current_partition_id);
  * here, allowing for an overriding definition in the module containing
  * ms_hyperv_init_platform().
  */
-bool __weak hv_root_partition;
-EXPORT_SYMBOL_GPL(hv_root_partition);
-
 bool __weak hv_nested;
 EXPORT_SYMBOL_GPL(hv_nested);
 
@@ -283,7 +283,7 @@ static void hv_kmsg_dump_register(void)
 
 static inline bool hv_output_page_exists(void)
 {
-	return hv_root_partition || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
+	return hv_root_partition() || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
 }
 
 void __init hv_get_partition_id(void)
@@ -594,7 +594,7 @@ EXPORT_SYMBOL_GPL(hv_setup_dma_ops);
 
 bool hv_is_hibernation_supported(void)
 {
-	return !hv_root_partition && acpi_sleep_state_supported(ACPI_STATE_S4);
+	return !hv_root_partition() && acpi_sleep_state_supported(ACPI_STATE_S4);
 }
 EXPORT_SYMBOL_GPL(hv_is_hibernation_supported);
 
@@ -716,4 +716,24 @@ int hv_result_to_errno(u64 status)
 		break;
 	}
 	return -EIO;
+}
+
+void hv_identify_partition_type(void)
+{
+	/* Assume guest role */
+	hv_curr_partition_type = HV_PARTITION_TYPE_GUEST;
+	/*
+	 * Check partition creation and cpu management privileges
+	 *
+	 * Hyper-V should never specify running as root and as a Confidential
+	 * VM. But to protect against a compromised/malicious Hyper-V trying
+	 * to exploit root behavior to expose Confidential VM memory, ignore
+	 * the root partition setting if also a Confidential VM.
+	 */
+	if ((ms_hyperv.priv_high & HV_CREATE_PARTITIONS) &&
+	    (ms_hyperv.priv_high & HV_CPU_MANAGEMENT) &&
+	    !(ms_hyperv.priv_high & HV_ISOLATION)) {
+		pr_info("Hyper-V: running as root partition\n");
+		hv_curr_partition_type = HV_PARTITION_TYPE_ROOT;
+	}
 }

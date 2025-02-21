@@ -90,7 +90,7 @@ static int hv_cpu_init(unsigned int cpu)
 		return 0;
 
 	hvp = &hv_vp_assist_page[cpu];
-	if (hv_root_partition) {
+	if (hv_root_partition()) {
 		/*
 		 * For root partition we get the hypervisor provided VP assist
 		 * page, instead of allocating a new page.
@@ -242,7 +242,7 @@ static int hv_cpu_die(unsigned int cpu)
 
 	if (hv_vp_assist_page && hv_vp_assist_page[cpu]) {
 		union hv_vp_assist_msr_contents msr = { 0 };
-		if (hv_root_partition) {
+		if (hv_root_partition()) {
 			/*
 			 * For root partition the VP assist page is mapped to
 			 * hypervisor provided page, and thus we unmap the
@@ -317,7 +317,7 @@ static int hv_suspend(void)
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 	int ret;
 
-	if (hv_root_partition)
+	if (hv_root_partition())
 		return -EPERM;
 
 	/*
@@ -518,7 +518,7 @@ void __init hyperv_init(void)
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 	hypercall_msr.enable = 1;
 
-	if (hv_root_partition) {
+	if (hv_root_partition()) {
 		struct page *pg;
 		void *src;
 
@@ -592,7 +592,7 @@ skip_hypercall_pg_init:
 	 * If we're running as root, we want to create our own PCI MSI domain.
 	 * We can't set this in hv_pci_init because that would be too late.
 	 */
-	if (hv_root_partition)
+	if (hv_root_partition())
 		x86_init.irqs.create_pci_msi_domain = hv_create_pci_msi_domain;
 #endif
 

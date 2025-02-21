@@ -28,6 +28,11 @@
 
 #define VTPM_BASE_ADDRESS 0xfed40000
 
+enum hv_partition_type {
+	HV_PARTITION_TYPE_GUEST,
+	HV_PARTITION_TYPE_ROOT,
+};
+
 struct ms_hyperv_info {
 	u32 features;
 	u32 priv_high;
@@ -59,6 +64,7 @@ struct ms_hyperv_info {
 extern struct ms_hyperv_info ms_hyperv;
 extern bool hv_nested;
 extern u64 hv_current_partition_id;
+extern enum hv_partition_type hv_curr_partition_type;
 
 extern void * __percpu *hyperv_pcpu_input_arg;
 extern void * __percpu *hyperv_pcpu_output_arg;
@@ -190,8 +196,6 @@ void hv_remove_crash_handler(void);
 extern int vmbus_interrupt;
 extern int vmbus_irq;
 
-extern bool hv_root_partition;
-
 #if IS_ENABLED(CONFIG_HYPERV)
 /*
  * Hypervisor's notion of virtual processor ID is different from
@@ -213,6 +217,7 @@ void __init hv_common_free(void);
 void __init ms_hyperv_late_init(void);
 int hv_common_cpu_init(unsigned int cpu);
 int hv_common_cpu_die(unsigned int cpu);
+void hv_identify_partition_type(void);
 
 void *hv_alloc_hyperv_page(void);
 void *hv_alloc_hyperv_zeroed_page(void);
@@ -310,6 +315,7 @@ void hyperv_cleanup(void);
 bool hv_query_ext_cap(u64 cap_query);
 void hv_setup_dma_ops(struct device *dev, bool coherent);
 #else /* CONFIG_HYPERV */
+static inline void hv_identify_partition_type(void) {}
 static inline bool hv_is_hyperv_initialized(void) { return false; }
 static inline bool hv_is_hibernation_supported(void) { return false; }
 static inline void hyperv_cleanup(void) {}
@@ -320,5 +326,10 @@ static inline enum hv_isolation_type hv_get_isolation_type(void)
 	return HV_ISOLATION_TYPE_NONE;
 }
 #endif /* CONFIG_HYPERV */
+
+static inline bool hv_root_partition(void)
+{
+	return hv_curr_partition_type == HV_PARTITION_TYPE_ROOT;
+}
 
 #endif
