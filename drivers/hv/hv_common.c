@@ -734,6 +734,9 @@ void hv_identify_partition_type(void)
 	    (ms_hyperv.priv_high & HV_CPU_MANAGEMENT) &&
 	    !(ms_hyperv.priv_high & HV_ISOLATION)) {
 		pr_info("Hyper-V: running as root partition\n");
-		hv_curr_partition_type = HV_PARTITION_TYPE_ROOT;
+		if (IS_ENABLED(CONFIG_MSHV_ROOT))
+			hv_curr_partition_type = HV_PARTITION_TYPE_ROOT;
+		else
+			pr_crit("Hyper-V: CONFIG_MSHV_ROOT not enabled!\n");
 	}
 }
