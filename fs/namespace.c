@@ -2295,6 +2295,24 @@ void dissolve_on_fput(struct vfsmount *mnt)
 		if (!must_dissolve(ns))
 			return;
 
+		/*
+		 * After must_dissolve() we know that this is a detached
+		 * mount in an anonymous mount namespace.
+		 *
+		 * Now when mnt_has_parent() reports that this mount
+		 * tree has a parent, we know that this anonymous mount
+		 * tree has been moved to another anonymous mount
+		 * namespace.
+		 *
+		 * So when closing this file we cannot unmount the mount
+		 * tree. This will be done when the file referring to
+		 * the root of the anonymous mount namespace will be
+		 * closed (It could already be closed but it would sync
+		 * on @namespace_sem and wait for us to finish.).
+		 */
+		if (mnt_has_parent(m))
+			return;
+
 		lock_mount_hash();
 		umount_tree(m, UMOUNT_CONNECTED);
 		unlock_mount_hash();
@@ -3437,6 +3455,54 @@ static int can_move_mount_beneath(const struct path *from,
 	return 0;
 }
 
+/* may_use_mount() - check if a mount tree can be used
+ * @mnt: vfsmount to be used
+ *
+ * This helper checks if the caller may use the mount tree starting
+ * from @path->mnt. The caller may use the mount tree under the
+ * following circumstances:
+ *
+ * (1) The caller is located in the mount namespace of the mount tree.
+ *     This also implies that the mount does not belong to an anonymous
+ *     mount namespace.
+ * (2) The caller is trying to use a mount tree that belongs to an
+ *     anonymous mount namespace.
+ *
+ *     For that to be safe, this helper enforces that the origin mount
+ *     namespace the anonymous mount namespace was created from is the
+ *     same as the caller's mount namespace by comparing the sequence
+ *     numbers.
+ *
+ *     The ownership of a non-anonymous mount namespace such as the
+ *     caller's cannot change.
+ *     => We know that the caller's mount namespace is stable.
+ *
+ *     If the origin sequence number of the anonymous mount namespace is
+ *     the same as the sequence number of the caller's mount namespace.
+ *     => The owning namespaces are the same.
+ *
+ *     ==> The earlier capability check on the owning namespace of the
+ *         caller's mount namespace ensures that the caller has the
+ *         ability to use the mount tree.
+ *
+ * Returns true if the mount tree can be used, false otherwise.
+ */
+static inline bool may_use_mount(struct mount *mnt)
+{
+	if (check_mnt(mnt))
+		return true;
+
+	/*
+	 * Make sure that noone unmounted the target path or somehow
+	 * managed to get their hands on something purely kernel
+	 * internal.
+	 */
+	if (!is_mounted(&mnt->mnt))
+		return false;
+
+	return check_anonymous_mnt(mnt);
+}
+
 static int do_move_mount(struct path *old_path,
 			 struct path *new_path, enum mnt_tree_flags_t flags)
 {
@@ -3462,8 +3528,14 @@ static int do_move_mount(struct path *old_path,
 	ns = old->mnt_ns;
 
 	err = -EINVAL;
-	/* The mountpoint must be in our namespace. */
-	if (!check_mnt(p))
+	if (!may_use_mount(p))
+		goto out;
+
+	/*
+	 * Don't allow moving an attached mount tree to an anonymous
+	 * mount tree.
+	 */
+	if (!is_anon_ns(ns) && is_anon_ns(p->mnt_ns))
 		goto out;
 
 	/* The thing moved must be mounted... */
@@ -3472,6 +3544,16 @@ static int do_move_mount(struct path *old_path,
 
 	/* ... and either ours or the root of anon namespace */
 	if (!(attached ? check_mnt(old) : is_anon_ns(ns)))
+		goto out;
+
+	/*
+	 * Ending up with two files referring to the root of the same
+	 * anonymous mount namespace would cause an error as this would
+	 * mean trying to move the same mount twice into the mount tree
+	 * which would be rejected later. But be explicit about it right
+	 * here.
+	 */
+	if (is_anon_ns(ns) && is_anon_ns(p->mnt_ns) && ns == p->mnt_ns)
 		goto out;
 
 	if (old->mnt.mnt_flags & MNT_LOCKED)
