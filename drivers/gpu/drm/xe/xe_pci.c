@@ -201,6 +201,25 @@ static const struct xe_media_desc media_xelpmp = {
 		BIT(XE_HW_ENGINE_GSCCS0)
 };
 
+/* GMDID-based Graphics IPs */
+static const struct xe_ip graphics_ips[] = {
+	{ 1270, "Xe_LPG", &graphics_xelpg },
+	{ 1271, "Xe_LPG", &graphics_xelpg },
+	{ 1274, "Xe_LPG+", &graphics_xelpg },
+	{ 2001, "Xe2_HPG", &graphics_xe2 },
+	{ 2004, "Xe2_LPG", &graphics_xe2 },
+	{ 3000, "Xe3_LPG", &graphics_xe2 },
+	{ 3001, "Xe3_LPG", &graphics_xe2 },
+};
+
+/* GMDID-based Media IPs */
+static const struct xe_ip media_ips[] = {
+	{ 1300, "Xe_LPM+", &media_xelpmp },
+	{ 1301, "Xe2_HPM", &media_xelpmp },
+	{ 2000, "Xe2_LPM", &media_xelpmp },
+	{ 3000, "Xe3_LPM", &media_xelpmp },
+};
+
 static const struct xe_device_desc tgl_desc = {
 	.graphics = &graphics_xelp,
 	.media = &media_xem,
@@ -357,25 +376,6 @@ static const struct xe_device_desc ptl_desc = {
 
 #undef PLATFORM
 __diag_pop();
-
-/* GMDID-based Graphics IPs */
-static const struct xe_ip graphics_ips[] = {
-	{ 1270, "Xe_LPG", &graphics_xelpg },
-	{ 1271, "Xe_LPG", &graphics_xelpg },
-	{ 1274, "Xe_LPG+", &graphics_xelpg },
-	{ 2001, "Xe2_HPG", &graphics_xe2 },
-	{ 2004, "Xe2_LPG", &graphics_xe2 },
-	{ 3000, "Xe3_LPG", &graphics_xe2 },
-	{ 3001, "Xe3_LPG", &graphics_xe2 },
-};
-
-/* GMDID-based Media IPs */
-static const struct xe_ip media_ips[] = {
-	{ 1300, "Xe_LPM+", &media_xelpmp },
-	{ 1301, "Xe2_HPM", &media_xelpmp },
-	{ 2000, "Xe2_LPM", &media_xelpmp },
-	{ 3000, "Xe3_LPM", &media_xelpmp },
-};
 
 /*
  * Make sure any device matches here are from most specific to most
