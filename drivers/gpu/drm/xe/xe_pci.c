@@ -510,61 +510,34 @@ static void read_gmdid(struct xe_device *xe, enum xe_gmdid_type type, u32 *ver, 
 }
 
 /*
- * Pre-GMD_ID platform: device descriptor already points to the appropriate
- * graphics descriptor. Simply forward the description and calculate the version
- * appropriately. "graphics" should be present in all such platforms, while
- * media is optional.
- */
-static void handle_pre_gmdid(struct xe_device *xe,
-			     const struct xe_device_desc *desc,
-			     const struct xe_graphics_desc **graphics,
-			     const struct xe_media_desc **media)
-{
-	xe->info.graphics_verx100 = desc->pre_gmdid_graphics_ip->verx100;
-	xe->info.graphics_name = desc->pre_gmdid_graphics_ip->name;
-	*graphics = desc->pre_gmdid_graphics_ip->desc;
-
-	if (desc->pre_gmdid_media_ip) {
-		xe->info.media_verx100 = desc->pre_gmdid_media_ip->verx100;
-		xe->info.media_name = desc->pre_gmdid_media_ip->name;
-		*media = desc->pre_gmdid_media_ip->desc;
-	} else {
-		xe->info.media_name = "none";
-		*media = NULL;
-	}
-
-}
-
-/*
- * GMD_ID platform: read IP version from hardware and select graphics descriptor
+ * Read IP version from hardware and select graphics/media IP descriptors
  * based on the result.
  */
 static void handle_gmdid(struct xe_device *xe,
-			 const struct xe_graphics_desc **graphics,
-			 const struct xe_media_desc **media,
+			 const struct xe_ip **graphics_ip,
+			 const struct xe_ip **media_ip,
 			 u32 *graphics_revid,
 			 u32 *media_revid)
 {
 	u32 ver;
 
+	*graphics_ip = NULL;
+	*media_ip = NULL;
+
 	read_gmdid(xe, GMDID_GRAPHICS, &ver, graphics_revid);
 
 	for (int i = 0; i < ARRAY_SIZE(graphics_ips); i++) {
 		if (ver == graphics_ips[i].verx100) {
-			xe->info.graphics_verx100 = ver;
-			xe->info.graphics_name = graphics_ips[i].name;
-			*graphics = graphics_ips[i].desc;
+			*graphics_ip = &graphics_ips[i];
 
 			break;
 		}
 	}
 
-	if (!xe->info.graphics_verx100) {
+	if (!*graphics_ip) {
 		drm_err(&xe->drm, "Hardware reports unknown graphics version %u.%02u\n",
 			ver / 100, ver % 100);
 	}
-
-	xe->info.media_name = "none";
 
 	read_gmdid(xe, GMDID_MEDIA, &ver, media_revid);
 	/* Media may legitimately be fused off / not present */
@@ -573,15 +546,13 @@ static void handle_gmdid(struct xe_device *xe,
 
 	for (int i = 0; i < ARRAY_SIZE(media_ips); i++) {
 		if (ver == media_ips[i].verx100) {
-			xe->info.media_verx100 = ver;
-			xe->info.media_name = media_ips[i].name;
-			*media = media_ips[i].desc;
+			*media_ip = &media_ips[i];
 
 			break;
 		}
 	}
 
-	if (!xe->info.media_verx100) {
+	if (!*media_ip) {
 		drm_err(&xe->drm, "Hardware reports unknown media version %u.%02u\n",
 			ver / 100, ver % 100);
 	}
@@ -635,6 +606,8 @@ static int xe_info_init(struct xe_device *xe,
 			const struct xe_device_desc *desc)
 {
 	u32 graphics_gmdid_revid = 0, media_gmdid_revid = 0;
+	const struct xe_ip *graphics_ip;
+	const struct xe_ip *media_ip;
 	const struct xe_graphics_desc *graphics_desc;
 	const struct xe_media_desc *media_desc;
 	struct xe_tile *tile;
@@ -649,11 +622,12 @@ static int xe_info_init(struct xe_device *xe,
 	 * versions are simply derived from that.
 	 */
 	if (desc->pre_gmdid_graphics_ip) {
-		handle_pre_gmdid(xe, desc, &graphics_desc, &media_desc);
+		graphics_ip = desc->pre_gmdid_graphics_ip;
+		media_ip = desc->pre_gmdid_media_ip;
 		xe->info.step = xe_step_pre_gmdid_get(xe);
 	} else {
 		xe_assert(xe, !desc->pre_gmdid_media_ip);
-		handle_gmdid(xe, &graphics_desc, &media_desc,
+		handle_gmdid(xe, &graphics_ip, &media_ip,
 			     &graphics_gmdid_revid, &media_gmdid_revid);
 		xe->info.step = xe_step_gmdid_get(xe,
 						  graphics_gmdid_revid,
@@ -665,8 +639,21 @@ static int xe_info_init(struct xe_device *xe,
 	 * error and we should abort driver load.  Failing to detect media
 	 * IP is non-fatal; we'll just proceed without enabling media support.
 	 */
-	if (!graphics_desc)
+	if (!graphics_ip)
 		return -ENODEV;
+
+	xe->info.graphics_verx100 = graphics_ip->verx100;
+	xe->info.graphics_name = graphics_ip->name;
+	graphics_desc = graphics_ip->desc;
+
+	if (media_ip) {
+		xe->info.media_verx100 = media_ip->verx100;
+		xe->info.media_name = media_ip->name;
+		media_desc = media_ip->desc;
+	} else {
+		xe->info.media_name = "none";
+		media_desc = NULL;
+	}
 
 	xe->info.vram_flags = graphics_desc->vram_flags;
 	xe->info.va_bits = graphics_desc->va_bits;
