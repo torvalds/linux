@@ -121,6 +121,24 @@ static inline void kvm_leave_nested(struct kvm_vcpu *vcpu)
 	kvm_x86_ops.nested_ops->leave_nested(vcpu);
 }
 
+/*
+ * If IBRS is advertised to the vCPU, KVM must flush the indirect branch
+ * predictors when transitioning from L2 to L1, as L1 expects hardware (KVM in
+ * this case) to provide separate predictor modes.  Bare metal isolates the host
+ * from the guest, but doesn't isolate different guests from one another (in
+ * this case L1 and L2). The exception is if bare metal supports same mode IBRS,
+ * which offers protection within the same mode, and hence protects L1 from L2.
+ */
+static inline void kvm_nested_vmexit_handle_ibrs(struct kvm_vcpu *vcpu)
+{
+	if (cpu_feature_enabled(X86_FEATURE_AMD_IBRS_SAME_MODE))
+		return;
+
+	if (guest_cpu_cap_has(vcpu, X86_FEATURE_SPEC_CTRL) ||
+	    guest_cpu_cap_has(vcpu, X86_FEATURE_AMD_IBRS))
+		indirect_branch_prediction_barrier();
+}
+
 static inline bool kvm_vcpu_has_run(struct kvm_vcpu *vcpu)
 {
 	return vcpu->arch.last_vmentry_cpu != -1;

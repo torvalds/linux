@@ -1041,6 +1041,8 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
+	kvm_nested_vmexit_handle_ibrs(vcpu);
+
 	svm_switch_vmcb(svm, &svm->vmcb01);
 
 	/*
