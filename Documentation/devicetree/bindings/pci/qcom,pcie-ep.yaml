@@ -91,6 +91,8 @@ properties:
       - const: pcie-mem
       - const: cpu-pcie
 
+  dma-coherent: true
+
   resets:
     maxItems: 1
 
