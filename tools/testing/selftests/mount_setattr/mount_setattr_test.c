@@ -1878,4 +1878,35 @@ TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_and_attach)
 	EXPECT_EQ(close(fd_tree_subdir), 0);
 }
 
+TEST_F(mount_setattr, move_mount_detached_fail)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+
+	/* Attach the mount to the caller's mount namespace. */
+	ASSERT_EQ(move_mount(fd_tree_base, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(-EBADF, "/tmp/B",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	ASSERT_EQ(statx(fd_tree_subdir, "BB", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/* Not allowed to move an attached mount to a detached mount. */
+	ASSERT_NE(move_mount(fd_tree_base, "", fd_tree_subdir, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+	ASSERT_EQ(errno, EINVAL);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
 TEST_HARNESS_MAIN
