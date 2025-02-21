@@ -213,13 +213,12 @@ void cxl_dpa_debug(struct seq_file *file, struct cxl_dev_state *cxlds)
 {
 	struct resource *p1, *p2;
 
-	down_read(&cxl_dpa_rwsem);
+	guard(rwsem_read)(&cxl_dpa_rwsem);
 	for (p1 = cxlds->dpa_res.child; p1; p1 = p1->sibling) {
 		__cxl_dpa_debug(file, p1, 0);
 		for (p2 = p1->child; p2; p2 = p2->sibling)
 			__cxl_dpa_debug(file, p2, 1);
 	}
-	up_read(&cxl_dpa_rwsem);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_dpa_debug, "CXL");
 
@@ -250,9 +249,8 @@ static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 
 static void cxl_dpa_release(void *cxled)
 {
-	down_write(&cxl_dpa_rwsem);
+	guard(rwsem_write)(&cxl_dpa_rwsem);
 	__cxl_dpa_release(cxled);
-	up_write(&cxl_dpa_rwsem);
 }
 
 /*
@@ -362,14 +360,11 @@ EXPORT_SYMBOL_NS_GPL(devm_cxl_dpa_reserve, "CXL");
 
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled)
 {
-	resource_size_t size = 0;
-
-	down_read(&cxl_dpa_rwsem);
+	guard(rwsem_read)(&cxl_dpa_rwsem);
 	if (cxled->dpa_res)
-		size = resource_size(cxled->dpa_res);
-	up_read(&cxl_dpa_rwsem);
+		return resource_size(cxled->dpa_res);
 
-	return size;
+	return 0;
 }
 
 resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled)
