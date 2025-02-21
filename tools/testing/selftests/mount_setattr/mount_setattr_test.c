@@ -1789,4 +1789,44 @@ TEST_F(mount_setattr, open_tree_detached_fail3)
 	ASSERT_EQ(errno, EINVAL);
 }
 
+TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_then_close)
+{
+	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
+	struct statx stx;
+
+	fd_tree_base = sys_open_tree(-EBADF, "/mnt",
+				     AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				     OPEN_TREE_CLOEXEC | OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_base, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_base, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	fd_tree_subdir = sys_open_tree(fd_tree_base, "",
+				       AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				       AT_EMPTY_PATH | OPEN_TREE_CLOEXEC |
+				       OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree_subdir, 0);
+	/*
+	 * /mnt testing tmpfs
+	 */
+	ASSERT_EQ(statx(fd_tree_subdir, "A", 0, 0, &stx), 0);
+	ASSERT_FALSE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	/*
+	 * /mnt   testing tmpfs
+	 * `-/mnt testing tmpfs
+	 */
+	ASSERT_EQ(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+	ASSERT_EQ(statx(fd_tree_subdir, "", AT_EMPTY_PATH, 0, &stx), 0);
+	ASSERT_TRUE(stx.stx_attributes & STATX_ATTR_MOUNT_ROOT);
+
+	ASSERT_NE(move_mount(fd_tree_subdir, "", fd_tree_base, "", MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH), 0);
+
+	EXPECT_EQ(close(fd_tree_base), 0);
+	EXPECT_EQ(close(fd_tree_subdir), 0);
+}
+
 TEST_HARNESS_MAIN
