@@ -820,7 +820,6 @@ out:
 	return found;
 }
 
-/* Return true if reclaimed a whole cluster */
 static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 {
 	long to_scan = 1;
