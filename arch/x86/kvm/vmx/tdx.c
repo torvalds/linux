@@ -978,6 +978,23 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	return tdx_exit_handlers_fastpath(vcpu);
 }
 
+static int complete_hypercall_exit(struct kvm_vcpu *vcpu)
+{
+	tdvmcall_set_return_code(vcpu, vcpu->run->hypercall.ret);
+	return 1;
+}
+
+static int tdx_emulate_vmcall(struct kvm_vcpu *vcpu)
+{
+	kvm_rax_write(vcpu, to_tdx(vcpu)->vp_enter_args.r10);
+	kvm_rbx_write(vcpu, to_tdx(vcpu)->vp_enter_args.r11);
+	kvm_rcx_write(vcpu, to_tdx(vcpu)->vp_enter_args.r12);
+	kvm_rdx_write(vcpu, to_tdx(vcpu)->vp_enter_args.r13);
+	kvm_rsi_write(vcpu, to_tdx(vcpu)->vp_enter_args.r14);
+
+	return __kvm_emulate_hypercall(vcpu, 0, complete_hypercall_exit);
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
@@ -1349,6 +1366,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return 0;
 	case EXIT_REASON_TDCALL:
 		return handle_tdvmcall(vcpu);
+	case EXIT_REASON_VMCALL:
+		return tdx_emulate_vmcall(vcpu);
 	default:
 		break;
 	}
