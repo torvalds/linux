@@ -479,15 +479,6 @@ static void move_cluster(struct swap_info_struct *si,
 static void swap_cluster_schedule_discard(struct swap_info_struct *si,
 		struct swap_cluster_info *ci)
 {
-	unsigned int idx = cluster_index(si, ci);
-	/*
-	 * If scan_swap_map_slots() can't find a free cluster, it will check
-	 * si->swap_map directly. To make sure the discarding cluster isn't
-	 * taken by scan_swap_map_slots(), mark the swap entries bad (occupied).
-	 * It will be cleared after discard
-	 */
-	memset(si->swap_map + idx * SWAPFILE_CLUSTER,
-			SWAP_MAP_BAD, SWAPFILE_CLUSTER);
 	VM_BUG_ON(ci->flags == CLUSTER_FLAG_FREE);
 	move_cluster(si, ci, &si->discard_clusters, CLUSTER_FLAG_DISCARD);
 	schedule_work(&si->discard_work);
@@ -571,8 +562,6 @@ static bool swap_do_scheduled_discard(struct swap_info_struct *si)
 		 * return the cluster to allocation list.
 		 */
 		ci->flags = CLUSTER_FLAG_NONE;
-		memset(si->swap_map + idx * SWAPFILE_CLUSTER,
-				0, SWAPFILE_CLUSTER);
 		__free_cluster(si, ci);
 		spin_unlock(&ci->lock);
 		ret = true;
