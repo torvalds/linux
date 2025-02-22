@@ -91,10 +91,11 @@
 };
 
 &hsusb_phy {
-	status = "okay";
 	vdd-supply = <&pm8953_l3>;
 	vdda-pll-supply = <&pm8953_l7>;
 	vdda-phy-dpdm-supply = <&pm8953_l13>;
+
+	status = "okay";
 };
 
 &i2c_3 {
@@ -131,8 +132,8 @@
 };
 
 &pm8953_resin {
-	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
 };
 
 &pmi632_lpg {
@@ -194,17 +195,19 @@
 };
 
 &sdhc_1 {
-	status = "okay";
 	vmmc-supply = <&pm8953_l8>;
 	vqmmc-supply = <&pm8953_l5>;
+
+	status = "okay";
 };
 
 &sdhc_2 {
-	status = "okay";
 	vmmc-supply = <&pm8953_l11>;
 	vqmmc-supply = <&pm8953_l12>;
 
 	cd-gpios = <&tlmm 133 GPIO_ACTIVE_LOW>;
+
+	status = "okay";
 };
 
 &rpm_requests {
@@ -322,9 +325,9 @@
 };
 
 &wcnss {
-	status = "okay";
-
 	vddpx-supply = <&pm8953_l5>;
+
+	status = "okay";
 };
 
 &wcnss_iris {
