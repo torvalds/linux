@@ -128,6 +128,8 @@
 };
 
 &lpass {
+	firmware-name = "qcom/msm8953/fairphone/fp3/adsp.mbn";
+
 	status = "okay";
 };
 
@@ -343,9 +345,14 @@
 };
 
 &wcnss {
+	firmware-name = "qcom/msm8953/fairphone/fp3/wcnss.mbn";
 	vddpx-supply = <&pm8953_l5>;
 
 	status = "okay";
+};
+
+&wcnss_ctrl {
+	firmware-name = "qcom/msm8953/fairphone/fp3/WCNSS_qcom_wlan_nv.bin";
 };
 
 &wcnss_iris {
