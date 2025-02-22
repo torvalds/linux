@@ -177,4 +177,6 @@ static inline void __vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu,
 	kvm_vcpu_trigger_posted_interrupt(vcpu, POSTED_INTR_VECTOR);
 }
 
+noinstr void vmx_handle_nmi(struct kvm_vcpu *vcpu);
+
 #endif /* __KVM_X86_VMX_COMMON_H */
