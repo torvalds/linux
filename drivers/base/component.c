@@ -574,6 +574,9 @@ static void component_unbind(struct component *component,
 {
 	WARN_ON(!component->bound);
 
+	dev_dbg(adev->parent, "unbinding %s component %p (ops %ps)\n",
+		dev_name(component->dev), component, component->ops);
+
 	if (component->ops && component->ops->unbind)
 		component->ops->unbind(component->dev, adev->parent, data);
 	component->bound = false;
