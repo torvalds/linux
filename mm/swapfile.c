@@ -653,7 +653,8 @@ static void relocate_cluster(struct swap_info_struct *si,
 		return;
 
 	if (!ci->count) {
-		free_cluster(si, ci);
+		if (ci->flags != CLUSTER_FLAG_FREE)
+			free_cluster(si, ci);
 	} else if (ci->count != SWAPFILE_CLUSTER) {
 		if (ci->flags != CLUSTER_FLAG_FRAG)
 			move_cluster(si, ci, &si->frag_clusters[ci->order],
