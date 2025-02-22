@@ -3,10 +3,10 @@
 #include <linux/list_sort.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <api/io_dir.h>
 #include <subcmd/pager.h>
 #include <sys/types.h>
 #include <ctype.h>
-#include <dirent.h>
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
@@ -235,20 +235,16 @@ static void pmu_read_sysfs(unsigned int to_read_types)
 
 	if (to_read_types & (PERF_TOOL_PMU_TYPE_PE_CORE_MASK | PERF_TOOL_PMU_TYPE_PE_OTHER_MASK)) {
 		int fd = perf_pmu__event_source_devices_fd();
-		DIR *dir;
-		struct dirent *dent;
+		struct io_dir dir;
+		struct io_dirent64 *dent;
 		bool core_only = (to_read_types & PERF_TOOL_PMU_TYPE_PE_OTHER_MASK) == 0;
 
 		if (fd < 0)
 			goto skip_pe_pmus;
 
-		dir = fdopendir(fd);
-		if (!dir) {
-			close(fd);
-			goto skip_pe_pmus;
-		}
+		io_dir__init(&dir, fd);
 
-		while ((dent = readdir(dir))) {
+		while ((dent = io_dir__readdir(&dir)) != NULL) {
 			if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
 				continue;
 			if (core_only && !is_pmu_core(dent->d_name))
@@ -257,7 +253,7 @@ static void pmu_read_sysfs(unsigned int to_read_types)
 			perf_pmu__find2(fd, dent->d_name);
 		}
 
-		closedir(dir);
+		close(fd);
 	}
 skip_pe_pmus:
 	if ((to_read_types & PERF_TOOL_PMU_TYPE_PE_CORE_MASK) && list_empty(&core_pmus)) {
@@ -721,8 +717,8 @@ bool perf_pmus__supports_extended_type(void)
 char *perf_pmus__default_pmu_name(void)
 {
 	int fd;
-	DIR *dir;
-	struct dirent *dent;
+	struct io_dir dir;
+	struct io_dirent64 *dent;
 	char *result = NULL;
 
 	if (!list_empty(&core_pmus))
@@ -732,13 +728,9 @@ char *perf_pmus__default_pmu_name(void)
 	if (fd < 0)
 		return strdup("cpu");
 
-	dir = fdopendir(fd);
-	if (!dir) {
-		close(fd);
-		return strdup("cpu");
-	}
+	io_dir__init(&dir, fd);
 
-	while ((dent = readdir(dir))) {
+	while ((dent = io_dir__readdir(&dir)) != NULL) {
 		if (!strcmp(dent->d_name, ".") || !strcmp(dent->d_name, ".."))
 			continue;
 		if (is_pmu_core(dent->d_name)) {
@@ -747,7 +739,7 @@ char *perf_pmus__default_pmu_name(void)
 		}
 	}
 
-	closedir(dir);
+	close(fd);
 	return result ?: strdup("cpu");
 }
 
