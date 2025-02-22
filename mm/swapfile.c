@@ -1098,7 +1098,7 @@ static void swap_usage_sub(struct swap_info_struct *si, unsigned int nr_entries)
 
 	/*
 	 * If device is not full, and SWAP_USAGE_OFFLIST_BIT is set,
-	 * remove it from the plist.
+	 * add it to the plist.
 	 */
 	if (unlikely(val & SWAP_USAGE_OFFLIST_BIT))
 		add_to_avail_list(si, false);
