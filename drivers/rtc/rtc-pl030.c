@@ -148,7 +148,7 @@ static void pl030_remove(struct amba_device *dev)
 	amba_release_regions(dev);
 }
 
-static struct amba_id pl030_ids[] = {
+static const struct amba_id pl030_ids[] = {
 	{
 		.id	= 0x00041030,
 		.mask	= 0x000fffff,
