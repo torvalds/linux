@@ -73,15 +73,17 @@ any encodings than a single UTF-8 version. When future encodings are desirable,
 they will be added trivially using the opts mechanism.
 
 dentry/dcache considerations
----------
+----------------------------
 
 Currently, in casefolded directories, bcachefs (like other filesystems) will not cache
 negative dentry's.
 
 This is because currently doing so presents a problem in the following scenario:
+
  - Lookup file "blAH" in a casefolded directory
  - Creation of file "BLAH" in a casefolded directory
  - Lookup file "blAH" in a casefolded directory
+
 This would fail if negative dentry's were cached.
 
 This is slightly suboptimal, but could be fixed in future with some vfs work.
