@@ -120,6 +120,10 @@ struct nf_conn {
 	u_int32_t secmark;
 #endif
 
+#if IS_ENABLED(CONFIG_ENABLE_SFE)
+	void *sfe_entry;
+#endif
+
 	/* Extensions */
 	struct nf_ct_ext *ext;
 
