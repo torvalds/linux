@@ -181,13 +181,6 @@ static inline void phy_interface_set_rgmii(unsigned long *intf)
 	__set_bit(PHY_INTERFACE_MODE_RGMII_TXID, intf);
 }
 
-/*
- * phy_supported_speeds - return all speeds currently supported by a PHY device
- */
-unsigned int phy_supported_speeds(struct phy_device *phy,
-				      unsigned int *speeds,
-				      unsigned int size);
-
 /**
  * phy_modes - map phy_interface_t enum to device tree binding of phy-mode
  * @interface: enum phy_interface_t value
@@ -1331,10 +1324,6 @@ phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
 		   bool exact);
 size_t phy_speeds(unsigned int *speeds, size_t size,
 		  unsigned long *mask);
-void of_set_phy_supported(struct phy_device *phydev);
-void of_set_phy_eee_broken(struct phy_device *phydev);
-void of_set_phy_timing_role(struct phy_device *phydev);
-int phy_speed_down_core(struct phy_device *phydev);
 
 /**
  * phy_is_started - Convenience function to check whether PHY is started
@@ -1360,7 +1349,6 @@ static inline void phy_disable_eee_mode(struct phy_device *phydev, u32 link_mode
 
 void phy_resolve_aneg_pause(struct phy_device *phydev);
 void phy_resolve_aneg_linkmode(struct phy_device *phydev);
-void phy_check_downshift(struct phy_device *phydev);
 
 /**
  * phy_read - Convenience function for reading a given PHY register
@@ -2035,7 +2023,6 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 			       struct ethtool_keee *data);
 int genphy_c45_an_config_eee_aneg(struct phy_device *phydev);
-int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv);
 
 /* Generic C45 PHY driver */
 extern struct phy_driver genphy_c45_driver;

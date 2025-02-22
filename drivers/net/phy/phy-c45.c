@@ -9,6 +9,7 @@
 #include <linux/phy.h>
 
 #include "mdio-open-alliance.h"
+#include "phylib-internal.h"
 
 /**
  * genphy_c45_baset1_able - checks if the PMA has BASE-T1 extended abilities

@@ -6,6 +6,8 @@
 #include <linux/phy.h>
 #include <linux/of.h>
 
+#include "phylib-internal.h"
+
 /**
  * phy_speed_to_str - Return a string representing the PHY link speed
  *
@@ -544,7 +546,6 @@ void phy_check_downshift(struct phy_device *phydev)
 
 	phydev->downshifted_rate = 1;
 }
-EXPORT_SYMBOL_GPL(phy_check_downshift);
 
 static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
 {

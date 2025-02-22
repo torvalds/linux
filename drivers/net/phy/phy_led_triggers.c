@@ -5,6 +5,8 @@
 #include <linux/phy_led_triggers.h>
 #include <linux/netdevice.h>
 
+#include "phylib-internal.h"
+
 static struct phy_led_trigger *phy_speed_to_led_trigger(struct phy_device *phy,
 							unsigned int speed)
 {
