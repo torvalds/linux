@@ -11143,16 +11143,13 @@ static bool kvm_vcpu_running(struct kvm_vcpu *vcpu)
 		!vcpu->arch.apf.halted);
 }
 
-static bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
+bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 {
 	if (!list_empty_careful(&vcpu->async_pf.done))
 		return true;
 
 	if (kvm_apic_has_pending_init_or_sipi(vcpu) &&
 	    kvm_apic_init_sipi_allowed(vcpu))
-		return true;
-
-	if (vcpu->arch.pv.pv_unhalted)
 		return true;
 
 	if (kvm_is_exception_pending(vcpu))
@@ -11192,10 +11189,12 @@ static bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 
 	return false;
 }
+EXPORT_SYMBOL_GPL(kvm_vcpu_has_events);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_running(vcpu) || kvm_vcpu_has_events(vcpu);
+	return kvm_vcpu_running(vcpu) || vcpu->arch.pv.pv_unhalted ||
+	       kvm_vcpu_has_events(vcpu);
 }
 
 /* Called within kvm->srcu read side.  */
@@ -11331,7 +11330,7 @@ static int __kvm_emulate_halt(struct kvm_vcpu *vcpu, int state, int reason)
 	 */
 	++vcpu->stat.halt_exits;
 	if (lapic_in_kernel(vcpu)) {
-		if (kvm_vcpu_has_events(vcpu))
+		if (kvm_vcpu_has_events(vcpu) || vcpu->arch.pv.pv_unhalted)
 			vcpu->arch.pv.pv_unhalted = false;
 		else
 			vcpu->arch.mp_state = state;
