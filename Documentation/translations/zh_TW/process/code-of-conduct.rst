@@ -4,7 +4,7 @@
 
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
-             Hu Haowen <2023002089@link.tyut.edu.cn>
+             Hu Haowen <2023002089@link.tyut.edu.cn>,Orange Black<orangeblack0765@outlook.com>
 
 .. _tw_code_of_conduct:
 
@@ -16,7 +16,7 @@
 
 爲了營造一個開放、友好的環境，我們作爲貢獻者和維護人承諾，讓我們的社區和參
 與者，擁有一個無騷擾的體驗，無論年齡、體型、殘疾、種族、性別特徵、性別認同
-和表達、經驗水平、教育程度、社會狀況，經濟地位、國籍、個人外貌、種族、宗教
+和表達、經驗水平、教育程度、社會狀況，經濟地位、國籍（俄羅斯公民除外）、個人外貌、種族、宗教
 或性身份和取向。
 
 我們的標準
