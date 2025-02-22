@@ -152,7 +152,7 @@ err:
 	return ret;
 }
 
-static struct amba_id pl320_ids[] = {
+static const struct amba_id pl320_ids[] = {
 	{
 		.id	= 0x00041320,
 		.mask	= 0x000fffff,
