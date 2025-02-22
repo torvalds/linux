@@ -995,9 +995,120 @@ static int tdx_emulate_vmcall(struct kvm_vcpu *vcpu)
 	return __kvm_emulate_hypercall(vcpu, 0, complete_hypercall_exit);
 }
 
+/*
+ * Split into chunks and check interrupt pending between chunks.  This allows
+ * for timely injection of interrupts to prevent issues with guest lockup
+ * detection.
+ */
+#define TDX_MAP_GPA_MAX_LEN (2 * 1024 * 1024)
+static void __tdx_map_gpa(struct vcpu_tdx *tdx);
+
+static int tdx_complete_vmcall_map_gpa(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+
+	if (vcpu->run->hypercall.ret) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		tdx->vp_enter_args.r11 = tdx->map_gpa_next;
+		return 1;
+	}
+
+	tdx->map_gpa_next += TDX_MAP_GPA_MAX_LEN;
+	if (tdx->map_gpa_next >= tdx->map_gpa_end)
+		return 1;
+
+	/*
+	 * Stop processing the remaining part if there is a pending interrupt,
+	 * which could be qualified to deliver.  Skip checking pending RVI for
+	 * TDVMCALL_MAP_GPA.
+	 * TODO: Add a comment to link the reason when the target function is
+	 * implemented.
+	 */
+	if (kvm_vcpu_has_events(vcpu)) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_RETRY);
+		tdx->vp_enter_args.r11 = tdx->map_gpa_next;
+		return 1;
+	}
+
+	__tdx_map_gpa(tdx);
+	return 0;
+}
+
+static void __tdx_map_gpa(struct vcpu_tdx *tdx)
+{
+	u64 gpa = tdx->map_gpa_next;
+	u64 size = tdx->map_gpa_end - tdx->map_gpa_next;
+
+	if (size > TDX_MAP_GPA_MAX_LEN)
+		size = TDX_MAP_GPA_MAX_LEN;
+
+	tdx->vcpu.run->exit_reason       = KVM_EXIT_HYPERCALL;
+	tdx->vcpu.run->hypercall.nr      = KVM_HC_MAP_GPA_RANGE;
+	/*
+	 * In principle this should have been -KVM_ENOSYS, but userspace (QEMU <=9.2)
+	 * assumed that vcpu->run->hypercall.ret is never changed by KVM and thus that
+	 * it was always zero on KVM_EXIT_HYPERCALL.  Since KVM is now overwriting
+	 * vcpu->run->hypercall.ret, ensuring that it is zero to not break QEMU.
+	 */
+	tdx->vcpu.run->hypercall.ret = 0;
+	tdx->vcpu.run->hypercall.args[0] = gpa & ~gfn_to_gpa(kvm_gfn_direct_bits(tdx->vcpu.kvm));
+	tdx->vcpu.run->hypercall.args[1] = size / PAGE_SIZE;
+	tdx->vcpu.run->hypercall.args[2] = vt_is_tdx_private_gpa(tdx->vcpu.kvm, gpa) ?
+					   KVM_MAP_GPA_RANGE_ENCRYPTED :
+					   KVM_MAP_GPA_RANGE_DECRYPTED;
+	tdx->vcpu.run->hypercall.flags   = KVM_EXIT_HYPERCALL_LONG_MODE;
+
+	tdx->vcpu.arch.complete_userspace_io = tdx_complete_vmcall_map_gpa;
+}
+
+static int tdx_map_gpa(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 gpa = tdx->vp_enter_args.r12;
+	u64 size = tdx->vp_enter_args.r13;
+	u64 ret;
+
+	/*
+	 * Converting TDVMCALL_MAP_GPA to KVM_HC_MAP_GPA_RANGE requires
+	 * userspace to enable KVM_CAP_EXIT_HYPERCALL with KVM_HC_MAP_GPA_RANGE
+	 * bit set.  If not, the error code is not defined in GHCI for TDX, use
+	 * TDVMCALL_STATUS_INVALID_OPERAND for this case.
+	 */
+	if (!user_exit_on_hypercall(vcpu->kvm, KVM_HC_MAP_GPA_RANGE)) {
+		ret = TDVMCALL_STATUS_INVALID_OPERAND;
+		goto error;
+	}
+
+	if (gpa + size <= gpa || !kvm_vcpu_is_legal_gpa(vcpu, gpa) ||
+	    !kvm_vcpu_is_legal_gpa(vcpu, gpa + size - 1) ||
+	    (vt_is_tdx_private_gpa(vcpu->kvm, gpa) !=
+	     vt_is_tdx_private_gpa(vcpu->kvm, gpa + size - 1))) {
+		ret = TDVMCALL_STATUS_INVALID_OPERAND;
+		goto error;
+	}
+
+	if (!PAGE_ALIGNED(gpa) || !PAGE_ALIGNED(size)) {
+		ret = TDVMCALL_STATUS_ALIGN_ERROR;
+		goto error;
+	}
+
+	tdx->map_gpa_end = gpa + size;
+	tdx->map_gpa_next = gpa;
+
+	__tdx_map_gpa(tdx);
+	return 0;
+
+error:
+	tdvmcall_set_return_code(vcpu, ret);
+	tdx->vp_enter_args.r11 = gpa;
+	return 1;
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
+	case TDVMCALL_MAP_GPA:
+		return tdx_map_gpa(vcpu);
 	default:
 		break;
 	}
