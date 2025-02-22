@@ -1338,22 +1338,23 @@ static int maps__set_module_path(struct maps *maps, const char *path, struct kmo
 	return 0;
 }
 
-static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, int depth)
+static int maps__set_modules_path_dir(struct maps *maps, char *path, size_t path_size, int depth)
 {
 	struct io_dirent64 *dent;
 	struct io_dir iod;
+	size_t root_len = strlen(path);
 	int ret = 0;
 
-	io_dir__init(&iod, open(dir_name, O_CLOEXEC | O_DIRECTORY | O_RDONLY));
+	io_dir__init(&iod, open(path, O_CLOEXEC | O_DIRECTORY | O_RDONLY));
 	if (iod.dirfd < 0) {
-		pr_debug("%s: cannot open %s dir\n", __func__, dir_name);
+		pr_debug("%s: cannot open %s dir\n", __func__, path);
 		return -1;
 	}
-
+	/* Bounds check, should never happen. */
+	if (root_len >= path_size)
+		return -1;
+	path[root_len++] = '/';
 	while ((dent = io_dir__readdir(&iod)) != NULL) {
-		char path[PATH_MAX];
-
-		path__join(path, sizeof(path), dir_name, dent->d_name);
 		if (io_dir__is_dir(&iod, dent)) {
 			if (!strcmp(dent->d_name, ".") ||
 			    !strcmp(dent->d_name, ".."))
@@ -1366,7 +1367,12 @@ static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, i
 					continue;
 			}
 
-			ret = maps__set_modules_path_dir(maps, path, depth + 1);
+			/* Bounds check, should never happen. */
+			if (root_len + strlen(dent->d_name) >= path_size)
+				continue;
+
+			strcpy(path + root_len, dent->d_name);
+			ret = maps__set_modules_path_dir(maps, path, path_size, depth + 1);
 			if (ret < 0)
 				goto out;
 		} else {
@@ -1376,9 +1382,14 @@ static int maps__set_modules_path_dir(struct maps *maps, const char *dir_name, i
 			if (ret)
 				goto out;
 
-			if (m.kmod)
-				ret = maps__set_module_path(maps, path, &m);
+			if (m.kmod) {
+				/* Bounds check, should never happen. */
+				if (root_len + strlen(dent->d_name) < path_size) {
+					strcpy(path + root_len, dent->d_name);
+					ret = maps__set_module_path(maps, path, &m);
 
+				}
+			}
 			zfree(&m.name);
 
 			if (ret)
@@ -1404,7 +1415,8 @@ static int machine__set_modules_path(struct machine *machine)
 		 machine->root_dir, version);
 	free(version);
 
-	return maps__set_modules_path_dir(machine__kernel_maps(machine), modules_path, 0);
+	return maps__set_modules_path_dir(machine__kernel_maps(machine),
+					  modules_path, sizeof(modules_path), 0);
 }
 int __weak arch__fix_module_text_start(u64 *start __maybe_unused,
 				u64 *size __maybe_unused,
