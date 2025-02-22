@@ -748,6 +748,7 @@ int xe_device_probe(struct xe_device *xe)
 		return err;
 
 	xe->info.mem_region_mask = 1;
+
 	err = xe_set_dma_info(xe);
 	if (err)
 		return err;
@@ -756,7 +757,9 @@ int xe_device_probe(struct xe_device *xe)
 	if (err)
 		return err;
 
-	xe_ttm_sys_mgr_init(xe);
+	err = xe_ttm_sys_mgr_init(xe);
+	if (err)
+		return err;
 
 	for_each_gt(gt, xe, id) {
 		err = xe_gt_init_early(gt);
