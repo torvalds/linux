@@ -144,10 +144,10 @@ static struct quirk_entry quirk_amd_7k62 = {
 
 static inline u8 freq_to_perf(struct amd_cpudata *cpudata, unsigned int freq_val)
 {
-	u8 perf_val = DIV_ROUND_UP_ULL((u64)freq_val * cpudata->nominal_perf,
+	u32 perf_val = DIV_ROUND_UP_ULL((u64)freq_val * cpudata->nominal_perf,
 					cpudata->nominal_freq);
 
-	return clamp_t(u8, perf_val, cpudata->lowest_perf, cpudata->highest_perf);
+	return (u8)clamp(perf_val, cpudata->lowest_perf, cpudata->highest_perf);
 }
 
 static inline u32 perf_to_freq(struct amd_cpudata *cpudata, u8 perf_val)
