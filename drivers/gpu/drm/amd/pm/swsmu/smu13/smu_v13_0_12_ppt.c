@@ -208,12 +208,20 @@ int smu_v13_0_12_setup_driver_pptable(struct smu_context *smu)
 	StaticMetricsTable_t *static_metrics = (StaticMetricsTable_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
+	uint32_t table_version;
 	int ret, i;
 
 	if (!pptable->Init) {
 		ret = smu_v13_0_12_get_static_metrics_table(smu);
 		if (ret)
 			return ret;
+
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_GetMetricsVersion,
+					   &table_version);
+		if (ret)
+			return ret;
+		smu_table->tables[SMU_TABLE_SMU_METRICS].version =
+			table_version;
 
 		pptable->MaxSocketPowerLimit =
 			SMUQ10_ROUND(static_metrics->MaxSocketPowerLimit);
