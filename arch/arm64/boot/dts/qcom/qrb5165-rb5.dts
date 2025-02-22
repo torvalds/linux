@@ -1032,6 +1032,12 @@
 	no-mmc;
 };
 
+&slpi {
+	firmware-name = "qcom/sm8250/Thundercomm/RB5/slpi.mbn";
+
+	status = "okay";
+};
+
 &sound {
 	compatible = "qcom,qrb5165-rb5-sndcard";
 	pinctrl-0 = <&tert_mi2s_active>;
