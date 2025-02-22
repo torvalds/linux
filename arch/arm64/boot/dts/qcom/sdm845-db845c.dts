@@ -756,6 +756,12 @@
 	cd-gpios = <&tlmm 126 GPIO_ACTIVE_LOW>;
 };
 
+&slpi_pas {
+	firmware-name = "qcom/sdm845/Thundercomm/db845c/slpi.mbn";
+
+	status = "okay";
+};
+
 &sound {
 	compatible = "qcom,db845c-sndcard", "qcom,sdm845-sndcard";
 	pinctrl-0 = <&quat_mi2s_active
