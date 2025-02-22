@@ -876,7 +876,7 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 
 	tz_dbg->tz = tz;
 
-	tz_dbg->trips_crossed = kzalloc(sizeof(int) * tz->num_trips, GFP_KERNEL);
+	tz_dbg->trips_crossed = kcalloc(tz->num_trips, sizeof(int), GFP_KERNEL);
 	if (!tz_dbg->trips_crossed) {
 		thermal_debugfs_remove_id(thermal_dbg);
 		return;
