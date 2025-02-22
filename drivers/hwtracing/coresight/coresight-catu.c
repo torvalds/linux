@@ -594,7 +594,7 @@ static void catu_remove(struct amba_device *adev)
 	__catu_remove(&adev->dev);
 }
 
-static struct amba_id catu_ids[] = {
+static const struct amba_id catu_ids[] = {
 	CS_AMBA_ID(0x000bb9ee),
 	{},
 };
