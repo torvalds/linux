@@ -331,7 +331,7 @@ static void tpda_remove(struct amba_device *adev)
  * Different TPDA has different periph id.
  * The difference is 0-7 bits' value. So ignore 0-7 bits.
  */
-static struct amba_id tpda_ids[] = {
+static const struct amba_id tpda_ids[] = {
 	{
 		.id     = 0x000f0f00,
 		.mask   = 0x000fff00,
