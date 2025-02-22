@@ -184,7 +184,7 @@ int xe_display_init(struct xe_device *xe)
 	if (err)
 		return err;
 
-	return xe_device_add_action_or_reset(xe, xe_display_fini, xe);
+	return devm_add_action_or_reset(xe->drm.dev, xe_display_fini, xe);
 }
 
 void xe_display_register(struct xe_device *xe)
