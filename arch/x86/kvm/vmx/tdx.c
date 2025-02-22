@@ -810,6 +810,8 @@ static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 	switch (tdvmcall_leaf(vcpu)) {
 	case EXIT_REASON_IO_INSTRUCTION:
 		return tdvmcall_leaf(vcpu);
+	case EXIT_REASON_EPT_VIOLATION:
+		return EXIT_REASON_EPT_MISCONFIG;
 	default:
 		break;
 	}
@@ -1188,6 +1190,107 @@ static int tdx_emulate_io(struct kvm_vcpu *vcpu)
 		tdvmcall_set_return_val(vcpu, val);
 
 	return ret;
+}
+
+static int tdx_complete_mmio_read(struct kvm_vcpu *vcpu)
+{
+	unsigned long val = 0;
+	gpa_t gpa;
+	int size;
+
+	gpa = vcpu->mmio_fragments[0].gpa;
+	size = vcpu->mmio_fragments[0].len;
+
+	memcpy(&val, vcpu->run->mmio.data, size);
+	tdvmcall_set_return_val(vcpu, val);
+	trace_kvm_mmio(KVM_TRACE_MMIO_READ, size, gpa, &val);
+	return 1;
+}
+
+static inline int tdx_mmio_write(struct kvm_vcpu *vcpu, gpa_t gpa, int size,
+				 unsigned long val)
+{
+	if (!kvm_io_bus_write(vcpu, KVM_FAST_MMIO_BUS, gpa, 0, NULL)) {
+		trace_kvm_fast_mmio(gpa);
+		return 0;
+	}
+
+	trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, size, gpa, &val);
+	if (kvm_io_bus_write(vcpu, KVM_MMIO_BUS, gpa, size, &val))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static inline int tdx_mmio_read(struct kvm_vcpu *vcpu, gpa_t gpa, int size)
+{
+	unsigned long val;
+
+	if (kvm_io_bus_read(vcpu, KVM_MMIO_BUS, gpa, size, &val))
+		return -EOPNOTSUPP;
+
+	tdvmcall_set_return_val(vcpu, val);
+	trace_kvm_mmio(KVM_TRACE_MMIO_READ, size, gpa, &val);
+	return 0;
+}
+
+static int tdx_emulate_mmio(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	int size, write, r;
+	unsigned long val;
+	gpa_t gpa;
+
+	size = tdx->vp_enter_args.r12;
+	write = tdx->vp_enter_args.r13;
+	gpa = tdx->vp_enter_args.r14;
+	val = write ? tdx->vp_enter_args.r15 : 0;
+
+	if (size != 1 && size != 2 && size != 4 && size != 8)
+		goto error;
+	if (write != 0 && write != 1)
+		goto error;
+
+	/*
+	 * TDG.VP.VMCALL<MMIO> allows only shared GPA, it makes no sense to
+	 * do MMIO emulation for private GPA.
+	 */
+	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa) ||
+	    vt_is_tdx_private_gpa(vcpu->kvm, gpa + size - 1))
+		goto error;
+
+	gpa = gpa & ~gfn_to_gpa(kvm_gfn_direct_bits(vcpu->kvm));
+
+	if (write)
+		r = tdx_mmio_write(vcpu, gpa, size, val);
+	else
+		r = tdx_mmio_read(vcpu, gpa, size);
+	if (!r)
+		/* Kernel completed device emulation. */
+		return 1;
+
+	/* Request the device emulation to userspace device model. */
+	vcpu->mmio_is_write = write;
+	if (!write)
+		vcpu->arch.complete_userspace_io = tdx_complete_mmio_read;
+
+	vcpu->run->mmio.phys_addr = gpa;
+	vcpu->run->mmio.len = size;
+	vcpu->run->mmio.is_write = write;
+	vcpu->run->exit_reason = KVM_EXIT_MMIO;
+
+	if (write) {
+		memcpy(vcpu->run->mmio.data, &val, size);
+	} else {
+		vcpu->mmio_fragments[0].gpa = gpa;
+		vcpu->mmio_fragments[0].len = size;
+		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, size, gpa, NULL);
+	}
+	return 0;
+
+error:
+	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+	return 1;
 }
 
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
@@ -1569,6 +1672,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return tdx_emulate_vmcall(vcpu);
 	case EXIT_REASON_IO_INSTRUCTION:
 		return tdx_emulate_io(vcpu);
+	case EXIT_REASON_EPT_MISCONFIG:
+		return tdx_emulate_mmio(vcpu);
 	default:
 		break;
 	}
