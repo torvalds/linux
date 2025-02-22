@@ -170,6 +170,7 @@ static void xe_display_fini(void *arg)
 	intel_hpd_poll_fini(xe);
 	intel_hdcp_component_fini(display);
 	intel_audio_deinit(xe);
+	intel_display_driver_remove(display);
 }
 
 int xe_display_init(struct xe_device *xe)
@@ -207,16 +208,6 @@ void xe_display_unregister(struct xe_device *xe)
 
 	intel_power_domains_disable(display);
 	intel_display_driver_unregister(display);
-}
-
-void xe_display_driver_remove(struct xe_device *xe)
-{
-	struct intel_display *display = &xe->display;
-
-	if (!xe->info.probe_display)
-		return;
-
-	intel_display_driver_remove(display);
 }
 
 /* IRQ-related functions */
