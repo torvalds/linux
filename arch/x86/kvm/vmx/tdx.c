@@ -1758,6 +1758,27 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return tdx_emulate_io(vcpu);
 	case EXIT_REASON_EPT_MISCONFIG:
 		return tdx_emulate_mmio(vcpu);
+	case EXIT_REASON_OTHER_SMI:
+		/*
+		 * Unlike VMX, SMI in SEAM non-root mode (i.e. when
+		 * TD guest vCPU is running) will cause VM exit to TDX module,
+		 * then SEAMRET to KVM.  Once it exits to KVM, SMI is delivered
+		 * and handled by kernel handler right away.
+		 *
+		 * The Other SMI exit can also be caused by the SEAM non-root
+		 * machine check delivered via Machine Check System Management
+		 * Interrupt (MSMI), but it has already been handled by the
+		 * kernel machine check handler, i.e., the memory page has been
+		 * marked as poisoned and it won't be freed to the free list
+		 * when the TDX guest is terminated (the TDX module marks the
+		 * guest as dead and prevent it from further running when
+		 * machine check happens in SEAM non-root).
+		 *
+		 * - A MSMI will not reach here, it's handled as non_recoverable
+		 *   case above.
+		 * - If it's not an MSMI, no need to do anything here.
+		 */
+		return 1;
 	default:
 		break;
 	}
