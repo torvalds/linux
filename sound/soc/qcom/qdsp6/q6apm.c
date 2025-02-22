@@ -230,7 +230,7 @@ int q6apm_map_memory_regions(struct q6apm_graph *graph, unsigned int dir, phys_a
 		return 0;
 	}
 
-	buf = kzalloc(((sizeof(struct audio_buffer)) * periods), GFP_KERNEL);
+	buf = kcalloc(periods, sizeof(struct audio_buffer), GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&graph->lock);
 		return -ENOMEM;
