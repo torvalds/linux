@@ -1104,11 +1104,39 @@ error:
 	return 1;
 }
 
+static int tdx_report_fatal_error(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u64 *regs = vcpu->run->system_event.data;
+	u64 *module_regs = &tdx->vp_enter_args.r8;
+	int index = VCPU_REGS_RAX;
+
+	vcpu->run->exit_reason = KVM_EXIT_SYSTEM_EVENT;
+	vcpu->run->system_event.type = KVM_SYSTEM_EVENT_TDX_FATAL;
+	vcpu->run->system_event.ndata = 16;
+
+	/* Dump 16 general-purpose registers to userspace in ascending order. */
+	regs[index++] = tdx->vp_enter_ret;
+	regs[index++] = tdx->vp_enter_args.rcx;
+	regs[index++] = tdx->vp_enter_args.rdx;
+	regs[index++] = tdx->vp_enter_args.rbx;
+	regs[index++] = 0;
+	regs[index++] = 0;
+	regs[index++] = tdx->vp_enter_args.rsi;
+	regs[index] = tdx->vp_enter_args.rdi;
+	for (index = 0; index < 8; index++)
+		regs[VCPU_REGS_R8 + index] = module_regs[index];
+
+	return 0;
+}
+
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
 	case TDVMCALL_MAP_GPA:
 		return tdx_map_gpa(vcpu);
+	case TDVMCALL_REPORT_FATAL_ERROR:
+		return tdx_report_fatal_error(vcpu);
 	default:
 		break;
 	}
