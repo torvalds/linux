@@ -33,8 +33,9 @@ The structure looks like this:
 Regular:    [dirent data][regular name][nul][nul]...
 Casefolded: [dirent data][reg len][cf len][regular name][casefolded name][nul][nul]...
 
-(Do note, the number of `NUL`s here is merely for illustration, they count can vary
- per-key, and they may not even be present if the key is aligned to `sizeof(u64)`.)
+(Do note, the number of NULs here is merely for illustration; their count can
+vary per-key, and they may not even be present if the key is aligned to
+`sizeof(u64)`.)
 
 This is efficient as it means that for all file lookups that require casefolding,
 it has identical performance to a regular lookup:
