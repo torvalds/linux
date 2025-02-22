@@ -6961,9 +6961,7 @@ static void handle_external_interrupt_irqoff(struct kvm_vcpu *vcpu,
 
 void vmx_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	if (vmx->vt.emulation_required)
+	if (to_vt(vcpu)->emulation_required)
 		return;
 
 	if (vmx_get_exit_reason(vcpu).basic == EXIT_REASON_EXTERNAL_INTERRUPT)

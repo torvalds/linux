@@ -882,6 +882,8 @@ static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
 	tdx->exit_gpa = tdx->vp_enter_args.r8;
 	vt->exit_intr_info = tdx->vp_enter_args.r9;
 
+	vmx_handle_nmi(vcpu);
+
 	guest_state_exit_irqoff();
 }
 
@@ -1026,6 +1028,25 @@ void tdx_inject_nmi(struct kvm_vcpu *vcpu)
 	 * when handling the first vNMI.
 	 */
 	vcpu->arch.nmi_pending = 0;
+}
+
+static int tdx_handle_exception_nmi(struct kvm_vcpu *vcpu)
+{
+	u32 intr_info = vmx_get_intr_info(vcpu);
+
+	/*
+	 * Machine checks are handled by handle_exception_irqoff(), or by
+	 * tdx_handle_exit() with TDX_NON_RECOVERABLE set if a #MC occurs on
+	 * VM-Entry.  NMIs are handled by tdx_vcpu_enter_exit().
+	 */
+	if (is_nmi(intr_info) || is_machine_check(intr_info))
+		return 1;
+
+	vcpu->run->exit_reason = KVM_EXIT_EXCEPTION;
+	vcpu->run->ex.exception = intr_info & INTR_INFO_VECTOR_MASK;
+	vcpu->run->ex.error_code = 0;
+
+	return 0;
 }
 
 static int complete_hypercall_exit(struct kvm_vcpu *vcpu)
@@ -1724,6 +1745,11 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 		vcpu->mmio_needed = 0;
 		return 0;
+	case EXIT_REASON_EXCEPTION_NMI:
+		return tdx_handle_exception_nmi(vcpu);
+	case EXIT_REASON_EXTERNAL_INTERRUPT:
+		++vcpu->stat.irq_exits;
+		return 1;
 	case EXIT_REASON_TDCALL:
 		return handle_tdvmcall(vcpu);
 	case EXIT_REASON_VMCALL:
