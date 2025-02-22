@@ -48,6 +48,7 @@ struct vcpu_vt {
 	 * hardware.
 	 */
 	bool		guest_state_loaded;
+	bool		emulation_required;
 
 #ifdef CONFIG_X86_64
 	u64		msr_host_kernel_gs_base;

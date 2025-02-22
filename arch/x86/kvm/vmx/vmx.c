@@ -1580,7 +1580,7 @@ void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	vmcs_writel(GUEST_RFLAGS, rflags);
 
 	if ((old_rflags ^ vmx->rflags) & X86_EFLAGS_VM)
-		vmx->emulation_required = vmx_emulation_required(vcpu);
+		vmx->vt.emulation_required = vmx_emulation_required(vcpu);
 }
 
 bool vmx_get_if_flag(struct kvm_vcpu *vcpu)
@@ -1862,7 +1862,7 @@ void vmx_inject_exception(struct kvm_vcpu *vcpu)
 		return;
 	}
 
-	WARN_ON_ONCE(vmx->emulation_required);
+	WARN_ON_ONCE(vmx->vt.emulation_required);
 
 	if (kvm_exception_is_soft(ex->vector)) {
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
@@ -3391,7 +3391,7 @@ void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 
 	/* depends on vcpu->arch.cr0 to be set to a new value */
-	vmx->emulation_required = vmx_emulation_required(vcpu);
+	vmx->vt.emulation_required = vmx_emulation_required(vcpu);
 }
 
 static int vmx_get_max_ept_level(void)
@@ -3654,7 +3654,7 @@ void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 {
 	__vmx_set_segment(vcpu, var, seg);
 
-	to_vmx(vcpu)->emulation_required = vmx_emulation_required(vcpu);
+	to_vmx(vcpu)->vt.emulation_required = vmx_emulation_required(vcpu);
 }
 
 void vmx_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
@@ -5800,7 +5800,7 @@ static bool vmx_emulation_required_with_pending_exception(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	return vmx->emulation_required && !vmx->rmode.vm86_active &&
+	return vmx->vt.emulation_required && !vmx->rmode.vm86_active &&
 	       (kvm_is_exception_pending(vcpu) || vcpu->arch.exception.injected);
 }
 
@@ -5813,7 +5813,7 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	intr_window_requested = exec_controls_get(vmx) &
 				CPU_BASED_INTR_WINDOW_EXITING;
 
-	while (vmx->emulation_required && count-- != 0) {
+	while (vmx->vt.emulation_required && count-- != 0) {
 		if (intr_window_requested && !vmx_interrupt_blocked(vcpu))
 			return handle_interrupt_window(&vmx->vcpu);
 
@@ -6460,7 +6460,7 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		 * the least awful solution for the userspace case without
 		 * risking false positives.
 		 */
-		if (vmx->emulation_required) {
+		if (vmx->vt.emulation_required) {
 			nested_vmx_vmexit(vcpu, EXIT_REASON_TRIPLE_FAULT, 0, 0);
 			return 1;
 		}
@@ -6470,7 +6470,7 @@ static int __vmx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	}
 
 	/* If guest state is invalid, start emulating.  L2 is handled above. */
-	if (vmx->emulation_required)
+	if (vmx->vt.emulation_required)
 		return handle_invalid_guest_state(vcpu);
 
 	if (exit_reason.failed_vmentry) {
@@ -6963,7 +6963,7 @@ void vmx_handle_exit_irqoff(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vmx->emulation_required)
+	if (vmx->vt.emulation_required)
 		return;
 
 	if (vmx_get_exit_reason(vcpu).basic == EXIT_REASON_EXTERNAL_INTERRUPT)
@@ -7286,7 +7286,7 @@ fastpath_t vmx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	 * start emulation until we arrive back to a valid state.  Synthesize a
 	 * consistency check VM-Exit due to invalid guest state and bail.
 	 */
-	if (unlikely(vmx->emulation_required)) {
+	if (unlikely(vmx->vt.emulation_required)) {
 		vmx->fail = 0;
 
 		vmx->vt.exit_reason.full = EXIT_REASON_INVALID_STATE;
