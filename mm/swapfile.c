@@ -2645,7 +2645,6 @@ static void wait_for_allocation(struct swap_info_struct *si)
 	for (offset = 0; offset < end; offset += SWAPFILE_CLUSTER) {
 		ci = lock_cluster(si, offset);
 		unlock_cluster(ci);
-		offset += SWAPFILE_CLUSTER;
 	}
 }
 
