@@ -133,6 +133,14 @@
 	status = "okay";
 };
 
+&mpss {
+	firmware-name = "qcom/msm8953/fairphone/fp3/mba.mbn",
+			"qcom/msm8953/fairphone/fp3/modem.mbn";
+	pll-supply = <&pm8953_l7>;
+
+	status = "okay";
+};
+
 &pm8953_resin {
 	linux,code = <KEY_VOLUMEDOWN>;
 	status = "okay";
