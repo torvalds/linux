@@ -808,6 +808,8 @@ int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
 static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
+	case EXIT_REASON_IO_INSTRUCTION:
+		return tdvmcall_leaf(vcpu);
 	default:
 		break;
 	}
@@ -1128,6 +1130,64 @@ static int tdx_report_fatal_error(struct kvm_vcpu *vcpu)
 		regs[VCPU_REGS_R8 + index] = module_regs[index];
 
 	return 0;
+}
+
+static int tdx_complete_pio_out(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.pio.count = 0;
+	return 1;
+}
+
+static int tdx_complete_pio_in(struct kvm_vcpu *vcpu)
+{
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
+	unsigned long val = 0;
+	int ret;
+
+	ret = ctxt->ops->pio_in_emulated(ctxt, vcpu->arch.pio.size,
+					 vcpu->arch.pio.port, &val, 1);
+
+	WARN_ON_ONCE(!ret);
+
+	tdvmcall_set_return_val(vcpu, val);
+
+	return 1;
+}
+
+static int tdx_emulate_io(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	struct x86_emulate_ctxt *ctxt = vcpu->arch.emulate_ctxt;
+	unsigned long val = 0;
+	unsigned int port;
+	u64 size, write;
+	int ret;
+
+	++vcpu->stat.io_exits;
+
+	size = tdx->vp_enter_args.r12;
+	write = tdx->vp_enter_args.r13;
+	port = tdx->vp_enter_args.r14;
+
+	if ((write != 0 && write != 1) || (size != 1 && size != 2 && size != 4)) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	if (write) {
+		val = tdx->vp_enter_args.r15;
+		ret = ctxt->ops->pio_out_emulated(ctxt, size, port, &val, 1);
+	} else {
+		ret = ctxt->ops->pio_in_emulated(ctxt, size, port, &val, 1);
+	}
+
+	if (!ret)
+		vcpu->arch.complete_userspace_io = write ? tdx_complete_pio_out :
+							   tdx_complete_pio_in;
+	else if (!write)
+		tdvmcall_set_return_val(vcpu, val);
+
+	return ret;
 }
 
 static int handle_tdvmcall(struct kvm_vcpu *vcpu)
@@ -1507,6 +1567,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return handle_tdvmcall(vcpu);
 	case EXIT_REASON_VMCALL:
 		return tdx_emulate_vmcall(vcpu);
+	case EXIT_REASON_IO_INSTRUCTION:
+		return tdx_emulate_io(vcpu);
 	default:
 		break;
 	}
