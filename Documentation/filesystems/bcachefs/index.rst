@@ -10,4 +10,5 @@ bcachefs Documentation
 
    CodingStyle
    SubmittingPatches
+   casefolding
    errorcodes
