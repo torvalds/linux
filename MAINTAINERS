@@ -21923,10 +21923,13 @@ F:	sound/soc/uniphier/
 
 SOCKET TIMESTAMPING
 M:	Willem de Bruijn <willemdebruijn.kernel@gmail.com>
+R:	Jason Xing <kernelxing@tencent.com>
 S:	Maintained
 F:	Documentation/networking/timestamping.rst
 F:	include/linux/net_tstamp.h
 F:	include/uapi/linux/net_tstamp.h
+F:	tools/testing/selftests/bpf/*/net_timestamping*
+F:	tools/testing/selftests/net/*timestamp*
 F:	tools/testing/selftests/net/so_txtime.c
 
 SOEKRIS NET48XX LED SUPPORT
