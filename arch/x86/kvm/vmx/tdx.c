@@ -15,6 +15,7 @@
 #include "mmu/spte.h"
 #include "common.h"
 #include "posted_intr.h"
+#include "irq.h"
 #include <trace/events/kvm.h>
 #include "trace.h"
 
@@ -644,8 +645,12 @@ int tdx_vcpu_create(struct kvm_vcpu *vcpu)
 	if (kvm_tdx->state != TD_STATE_INITIALIZED)
 		return -EIO;
 
-	/* TDX module mandates APICv, which requires an in-kernel local APIC. */
-	if (!lapic_in_kernel(vcpu))
+	/*
+	 * TDX module mandates APICv, which requires an in-kernel local APIC.
+	 * Disallow an in-kernel I/O APIC, because level-triggered interrupts
+	 * and thus the I/O APIC as a whole can't be faithfully emulated in KVM.
+	 */
+	if (!irqchip_split(vcpu->kvm))
 		return -EINVAL;
 
 	fpstate_set_confidential(&vcpu->arch.guest_fpu);
