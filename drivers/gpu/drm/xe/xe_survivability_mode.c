@@ -127,40 +127,54 @@ static ssize_t survivability_mode_show(struct device *dev,
 
 static DEVICE_ATTR_ADMIN_RO(survivability_mode);
 
-static void enable_survivability_mode(struct pci_dev *pdev)
+static void xe_survivability_mode_fini(void *arg)
+{
+	struct xe_device *xe = arg;
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	struct device *dev = &pdev->dev;
+
+	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
+	xe_heci_gsc_fini(xe);
+}
+
+static int enable_survivability_mode(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct xe_device *xe = pdev_to_xe_device(pdev);
 	struct xe_survivability *survivability = &xe->survivability;
 	int ret = 0;
 
-	/* set survivability mode */
-	survivability->mode = true;
-	dev_info(dev, "In Survivability Mode\n");
-
 	/* create survivability mode sysfs */
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_survivability_mode.attr);
 	if (ret) {
 		dev_warn(dev, "Failed to create survivability sysfs files\n");
-		return;
+		return ret;
 	}
+
+	ret = devm_add_action_or_reset(xe->drm.dev,
+				       xe_survivability_mode_fini, xe);
+	if (ret)
+		return ret;
 
 	xe_heci_gsc_init(xe);
 
 	xe_vsec_init(xe);
+
+	survivability->mode = true;
+	dev_err(dev, "In Survivability Mode\n");
+
+	return 0;
 }
 
 /**
- * xe_survivability_mode_enabled - check if survivability mode is enabled
+ * xe_survivability_mode_is_enabled - check if survivability mode is enabled
  * @xe: xe device instance
  *
  * Returns true if in survivability mode, false otherwise
  */
-bool xe_survivability_mode_enabled(struct xe_device *xe)
+bool xe_survivability_mode_is_enabled(struct xe_device *xe)
 {
-	struct xe_survivability *survivability = &xe->survivability;
-
-	return survivability->mode;
+	return xe->survivability.mode;
 }
 
 /**
@@ -183,34 +197,19 @@ bool xe_survivability_mode_required(struct xe_device *xe)
 	data = xe_mmio_read32(mmio, PCODE_SCRATCH(0));
 	survivability->boot_status = REG_FIELD_GET(BOOT_STATUS, data);
 
-	return (survivability->boot_status == NON_CRITICAL_FAILURE ||
-		survivability->boot_status == CRITICAL_FAILURE);
+	return survivability->boot_status == NON_CRITICAL_FAILURE ||
+		survivability->boot_status == CRITICAL_FAILURE;
 }
 
 /**
- * xe_survivability_mode_remove - remove survivability mode
+ * xe_survivability_mode_enable - Initialize and enable the survivability mode
  * @xe: xe device instance
  *
- * clean up sysfs entries of survivability mode
- */
-void xe_survivability_mode_remove(struct xe_device *xe)
-{
-	struct xe_survivability *survivability = &xe->survivability;
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	struct device *dev = &pdev->dev;
-
-	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
-	xe_heci_gsc_fini(xe);
-	kfree(survivability->info);
-}
-
-/**
- * xe_survivability_mode_init - Initialize the survivability mode
- * @xe: xe device instance
+ * Initialize survivability information and enable survivability mode
  *
- * Initializes survivability information and enables survivability mode
+ * Return: 0 for success, negative error code otherwise.
  */
-void xe_survivability_mode_init(struct xe_device *xe)
+int xe_survivability_mode_enable(struct xe_device *xe)
 {
 	struct xe_survivability *survivability = &xe->survivability;
 	struct xe_survivability_info *info;
@@ -218,9 +217,10 @@ void xe_survivability_mode_init(struct xe_device *xe)
 
 	survivability->size = MAX_SCRATCH_MMIO;
 
-	info = kcalloc(survivability->size, sizeof(*info), GFP_KERNEL);
+	info = devm_kcalloc(xe->drm.dev, survivability->size, sizeof(*info),
+			    GFP_KERNEL);
 	if (!info)
-		return;
+		return -ENOMEM;
 
 	survivability->info = info;
 
@@ -229,9 +229,8 @@ void xe_survivability_mode_init(struct xe_device *xe)
 	/* Only log debug information and exit if it is a critical failure */
 	if (survivability->boot_status == CRITICAL_FAILURE) {
 		log_survivability_info(pdev);
-		kfree(survivability->info);
-		return;
+		return -ENXIO;
 	}
 
-	enable_survivability_mode(pdev);
+	return enable_survivability_mode(pdev);
 }

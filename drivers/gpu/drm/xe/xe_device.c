@@ -53,7 +53,6 @@
 #include "xe_pxp.h"
 #include "xe_query.h"
 #include "xe_sriov.h"
-#include "xe_survivability_mode.h"
 #include "xe_tile.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
@@ -695,12 +694,8 @@ int xe_device_probe_early(struct xe_device *xe)
 	update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
-	if (err) {
-		if (xe_survivability_mode_required(xe))
-			xe_survivability_mode_init(xe);
-
+	if (err)
 		return err;
-	}
 
 	err = wait_for_lmem_ready(xe);
 	if (err)
