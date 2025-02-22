@@ -2626,6 +2626,19 @@ static int tdx_vcpu_init(struct kvm_vcpu *vcpu, struct kvm_tdx_cmd *cmd)
 	return 0;
 }
 
+void tdx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
+{
+	/*
+	 * Yell on INIT, as TDX doesn't support INIT, i.e. KVM should drop all
+	 * INIT events.
+	 *
+	 * Defer initializing vCPU for RESET state until KVM_TDX_INIT_VCPU, as
+	 * userspace needs to define the vCPU model before KVM can initialize
+	 * vCPU state, e.g. to enable x2APIC.
+	 */
+	WARN_ON_ONCE(init_event);
+}
+
 struct tdx_gmem_post_populate_arg {
 	struct kvm_vcpu *vcpu;
 	__u32 flags;
