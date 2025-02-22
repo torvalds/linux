@@ -222,6 +222,28 @@ static bool tdx_operand_busy(u64 err)
  */
 static DEFINE_PER_CPU(struct list_head, associated_tdvcpus);
 
+static __always_inline unsigned long tdvmcall_exit_type(struct kvm_vcpu *vcpu)
+{
+	return to_tdx(vcpu)->vp_enter_args.r10;
+}
+
+static __always_inline unsigned long tdvmcall_leaf(struct kvm_vcpu *vcpu)
+{
+	return to_tdx(vcpu)->vp_enter_args.r11;
+}
+
+static __always_inline void tdvmcall_set_return_code(struct kvm_vcpu *vcpu,
+						     long val)
+{
+	to_tdx(vcpu)->vp_enter_args.r10 = val;
+}
+
+static __always_inline void tdvmcall_set_return_val(struct kvm_vcpu *vcpu,
+						    unsigned long val)
+{
+	to_tdx(vcpu)->vp_enter_args.r11 = val;
+}
+
 static inline void tdx_hkid_free(struct kvm_tdx *kvm_tdx)
 {
 	tdx_guest_keyid_free(kvm_tdx->hkid);
@@ -783,9 +805,20 @@ int tdx_vcpu_pre_run(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
+{
+	switch (tdvmcall_leaf(vcpu)) {
+	default:
+		break;
+	}
+
+	return EXIT_REASON_TDCALL;
+}
+
 static __always_inline u32 tdx_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
+	u32 exit_reason;
 
 	switch (tdx->vp_enter_ret & TDX_SEAMCALL_STATUS_MASK) {
 	case TDX_SUCCESS:
@@ -798,7 +831,19 @@ static __always_inline u32 tdx_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 		return -1u;
 	}
 
-	return tdx->vp_enter_ret;
+	exit_reason = tdx->vp_enter_ret;
+
+	switch (exit_reason) {
+	case EXIT_REASON_TDCALL:
+		if (tdvmcall_exit_type(vcpu))
+			return EXIT_REASON_VMCALL;
+
+		return tdcall_to_vmx_exit_reason(vcpu);
+	default:
+		break;
+	}
+
+	return exit_reason;
 }
 
 static noinstr void tdx_vcpu_enter_exit(struct kvm_vcpu *vcpu)
@@ -931,6 +976,17 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 		return EXIT_FASTPATH_NONE;
 
 	return tdx_exit_handlers_fastpath(vcpu);
+}
+
+static int handle_tdvmcall(struct kvm_vcpu *vcpu)
+{
+	switch (tdvmcall_leaf(vcpu)) {
+	default:
+		break;
+	}
+
+	tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+	return 1;
 }
 
 void tdx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa, int pgd_level)
@@ -1291,6 +1347,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		vcpu->run->exit_reason = KVM_EXIT_SHUTDOWN;
 		vcpu->mmio_needed = 0;
 		return 0;
+	case EXIT_REASON_TDCALL:
+		return handle_tdvmcall(vcpu);
 	default:
 		break;
 	}
