@@ -72,6 +72,7 @@ enum {
 	FRA_FLOWLABEL_MASK,	/* flowlabel mask */
 	FRA_SPORT_MASK,	/* sport mask */
 	FRA_DPORT_MASK,	/* dport mask */
+	FRA_DSCP_MASK,	/* dscp mask */
 	__FRA_MAX
 };
 
