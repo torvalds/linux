@@ -134,7 +134,6 @@ static void xe_survivability_mode_fini(void *arg)
 	struct device *dev = &pdev->dev;
 
 	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
-	xe_heci_gsc_fini(xe);
 }
 
 static int enable_survivability_mode(struct pci_dev *pdev)
@@ -156,7 +155,9 @@ static int enable_survivability_mode(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
-	xe_heci_gsc_init(xe);
+	ret = xe_heci_gsc_init(xe);
+	if (ret)
+		return ret;
 
 	xe_vsec_init(xe);
 
