@@ -660,7 +660,7 @@ static int wait_for_lmem_ready(struct xe_device *xe)
 }
 ALLOW_ERROR_INJECTION(wait_for_lmem_ready, ERRNO); /* See xe_pci_probe() */
 
-static void update_device_info(struct xe_device *xe)
+static void sriov_update_device_info(struct xe_device *xe)
 {
 	/* disable features that are not available/applicable to VFs */
 	if (IS_SRIOV_VF(xe)) {
@@ -691,7 +691,7 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	xe_sriov_probe_early(xe);
 
-	update_device_info(xe);
+	sriov_update_device_info(xe);
 
 	err = xe_pcode_probe_early(xe);
 	if (err)
