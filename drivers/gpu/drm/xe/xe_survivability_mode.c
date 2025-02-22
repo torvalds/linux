@@ -202,7 +202,6 @@ void xe_survivability_mode_remove(struct xe_device *xe)
 	sysfs_remove_file(&dev->kobj, &dev_attr_survivability_mode.attr);
 	xe_heci_gsc_fini(xe);
 	kfree(survivability->info);
-	pci_set_drvdata(pdev, NULL);
 }
 
 /**
