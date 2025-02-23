@@ -238,7 +238,6 @@ struct sctp_idatahdr {
 		__u32 ppid;
 		__be32 fsn;
 	};
-	__u8 payload[0];
 };
 
 struct sctp_idata_chunk {
