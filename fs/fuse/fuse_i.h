@@ -1109,7 +1109,6 @@ static inline void fuse_sync_bucket_dec(struct fuse_sync_bucket *bucket)
 extern const struct file_operations fuse_dev_operations;
 
 extern const struct dentry_operations fuse_dentry_operations;
-extern const struct dentry_operations fuse_root_dentry_operations;
 
 /**
  * Get a filled in inode
