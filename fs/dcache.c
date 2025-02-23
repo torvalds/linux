@@ -1837,33 +1837,40 @@ struct dentry *d_alloc_name(struct dentry *parent, const char *name)
 }
 EXPORT_SYMBOL(d_alloc_name);
 
+#define DCACHE_OP_FLAGS \
+	(DCACHE_OP_HASH | DCACHE_OP_COMPARE | DCACHE_OP_REVALIDATE | \
+	 DCACHE_OP_WEAK_REVALIDATE | DCACHE_OP_DELETE | DCACHE_OP_REAL)
+
+static unsigned int d_op_flags(const struct dentry_operations *op)
+{
+	unsigned int flags = 0;
+	if (op) {
+		if (op->d_hash)
+			flags |= DCACHE_OP_HASH;
+		if (op->d_compare)
+			flags |= DCACHE_OP_COMPARE;
+		if (op->d_revalidate)
+			flags |= DCACHE_OP_REVALIDATE;
+		if (op->d_weak_revalidate)
+			flags |= DCACHE_OP_WEAK_REVALIDATE;
+		if (op->d_delete)
+			flags |= DCACHE_OP_DELETE;
+		if (op->d_prune)
+			flags |= DCACHE_OP_PRUNE;
+		if (op->d_real)
+			flags |= DCACHE_OP_REAL;
+	}
+	return flags;
+}
+
 void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 {
+	unsigned int flags = d_op_flags(op);
 	WARN_ON_ONCE(dentry->d_op);
-	WARN_ON_ONCE(dentry->d_flags & (DCACHE_OP_HASH	|
-				DCACHE_OP_COMPARE	|
-				DCACHE_OP_REVALIDATE	|
-				DCACHE_OP_WEAK_REVALIDATE	|
-				DCACHE_OP_DELETE	|
-				DCACHE_OP_REAL));
+	WARN_ON_ONCE(dentry->d_flags & DCACHE_OP_FLAGS);
 	dentry->d_op = op;
-	if (!op)
-		return;
-	if (op->d_hash)
-		dentry->d_flags |= DCACHE_OP_HASH;
-	if (op->d_compare)
-		dentry->d_flags |= DCACHE_OP_COMPARE;
-	if (op->d_revalidate)
-		dentry->d_flags |= DCACHE_OP_REVALIDATE;
-	if (op->d_weak_revalidate)
-		dentry->d_flags |= DCACHE_OP_WEAK_REVALIDATE;
-	if (op->d_delete)
-		dentry->d_flags |= DCACHE_OP_DELETE;
-	if (op->d_prune)
-		dentry->d_flags |= DCACHE_OP_PRUNE;
-	if (op->d_real)
-		dentry->d_flags |= DCACHE_OP_REAL;
-
+	if (flags)
+		dentry->d_flags |= flags;
 }
 EXPORT_SYMBOL(d_set_d_op);
 
