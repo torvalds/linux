@@ -81,6 +81,33 @@ void ext2_error(struct super_block *sb, const char *function,
 	}
 }
 
+static void ext2_msg_fc(struct fs_context *fc, const char *prefix,
+			const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	const char *s_id;
+
+	if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
+		s_id = fc->root->d_sb->s_id;
+	} else {
+		/* get last path component of source */
+		s_id = strrchr(fc->source, '/');
+		if (s_id)
+			s_id++;
+		else
+			s_id = fc->source;
+	}
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	printk("%sEXT2-fs (%s): %pV\n", prefix, s_id, &vaf);
+
+	va_end(args);
+}
+
 void ext2_msg(struct super_block *sb, const char *prefix,
 		const char *fmt, ...)
 {
@@ -92,10 +119,7 @@ void ext2_msg(struct super_block *sb, const char *prefix,
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	if (sb)
-		printk("%sEXT2-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
-	else
-		printk("%sEXT2-fs: %pV\n", prefix, &vaf);
+	printk("%sEXT2-fs (%s): %pV\n", prefix, sb->s_id, &vaf);
 
 	va_end(args);
 }
@@ -544,7 +568,7 @@ static int ext2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx_clear_mount_opt(ctx, EXT2_MOUNT_OLDALLOC);
 		break;
 	case Opt_nobh:
-		ext2_msg(NULL, KERN_INFO, "nobh option not supported\n");
+		ext2_msg_fc(fc, KERN_INFO, "nobh option not supported\n");
 		break;
 #ifdef CONFIG_EXT2_FS_XATTR
 	case Opt_user_xattr:
@@ -555,7 +579,7 @@ static int ext2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 #else
 	case Opt_user_xattr:
-		ext2_msg(NULL, KERN_INFO, "(no)user_xattr options not supported");
+		ext2_msg_fc(fc, KERN_INFO, "(no)user_xattr options not supported");
 		break;
 #endif
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
@@ -567,20 +591,20 @@ static int ext2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 #else
 	case Opt_acl:
-		ext2_msg(NULL, KERN_INFO, "(no)acl options not supported");
+		ext2_msg_fc(fc, KERN_INFO, "(no)acl options not supported");
 		break;
 #endif
 	case Opt_xip:
-		ext2_msg(NULL, KERN_INFO, "use dax instead of xip");
+		ext2_msg_fc(fc, KERN_INFO, "use dax instead of xip");
 		ctx_set_mount_opt(ctx, EXT2_MOUNT_XIP);
 		fallthrough;
 	case Opt_dax:
 #ifdef CONFIG_FS_DAX
-		ext2_msg(NULL, KERN_WARNING,
+		ext2_msg_fc(fc, KERN_WARNING,
 		    "DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
 		ctx_set_mount_opt(ctx, EXT2_MOUNT_DAX);
 #else
-		ext2_msg(NULL, KERN_INFO, "dax option not supported");
+		ext2_msg_fc(fc, KERN_INFO, "dax option not supported");
 #endif
 		break;
 
@@ -597,16 +621,16 @@ static int ext2_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	case Opt_quota:
 	case Opt_usrquota:
 	case Opt_grpquota:
-		ext2_msg(NULL, KERN_INFO, "quota operations not supported");
+		ext2_msg_fc(fc, KERN_INFO, "quota operations not supported");
 		break;
 #endif
 	case Opt_reservation:
 		if (!result.negated) {
 			ctx_set_mount_opt(ctx, EXT2_MOUNT_RESERVATION);
-			ext2_msg(NULL, KERN_INFO, "reservations ON");
+			ext2_msg_fc(fc, KERN_INFO, "reservations ON");
 		} else {
 			ctx_clear_mount_opt(ctx, EXT2_MOUNT_RESERVATION);
-			ext2_msg(NULL, KERN_INFO, "reservations OFF");
+			ext2_msg_fc(fc, KERN_INFO, "reservations OFF");
 		}
 		break;
 	case Opt_ignore:
