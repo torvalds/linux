@@ -197,13 +197,15 @@ int lskcipher_register_instance(struct crypto_template *tmpl,
 				struct lskcipher_instance *inst);
 
 int skcipher_walk_done(struct skcipher_walk *walk, int res);
-int skcipher_walk_virt(struct skcipher_walk *walk,
-		       struct skcipher_request *req,
+int skcipher_walk_virt(struct skcipher_walk *__restrict walk,
+		       struct skcipher_request *__restrict req,
 		       bool atomic);
-int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
-int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
-			       struct aead_request *req, bool atomic);
+int skcipher_walk_aead_encrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
+int skcipher_walk_aead_decrypt(struct skcipher_walk *__restrict walk,
+			       struct aead_request *__restrict req,
+			       bool atomic);
 
 static inline void skcipher_walk_abort(struct skcipher_walk *walk)
 {
