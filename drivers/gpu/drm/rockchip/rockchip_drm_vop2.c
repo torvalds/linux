@@ -3273,10 +3273,9 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 
 		snprintf(dclk_name, sizeof(dclk_name), "dclk_vp%d", vp->id);
 		vp->dclk = devm_clk_get(vop2->dev, dclk_name);
-		if (IS_ERR(vp->dclk)) {
-			drm_err(vop2->drm, "failed to get %s\n", dclk_name);
-			return PTR_ERR(vp->dclk);
-		}
+		if (IS_ERR(vp->dclk))
+			return dev_err_probe(drm->dev, PTR_ERR(vp->dclk),
+					     "failed to get %s\n", dclk_name);
 
 		np = of_graph_get_remote_node(dev->of_node, i, -1);
 		if (!np) {
@@ -3286,11 +3285,9 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 		of_node_put(np);
 
 		port = of_graph_get_port_by_id(dev->of_node, i);
-		if (!port) {
-			drm_err(vop2->drm, "no port node found for video_port%d\n", i);
-			return -ENOENT;
-		}
-
+		if (!port)
+			return dev_err_probe(drm->dev, -ENOENT,
+					     "no port node found for video_port%d\n", i);
 		vp->crtc.port = port;
 		nvps++;
 	}
@@ -3330,11 +3327,9 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 			possible_crtcs = (1 << nvps) - 1;
 
 		ret = vop2_plane_init(vop2, win, possible_crtcs);
-		if (ret) {
-			drm_err(vop2->drm, "failed to init plane %s: %d\n",
-				win->data->name, ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(drm->dev, ret, "failed to init plane %s\n",
+					     win->data->name);
 	}
 
 	for (i = 0; i < vop2_data->nr_vps; i++) {
@@ -3348,10 +3343,9 @@ static int vop2_create_crtcs(struct vop2 *vop2)
 		ret = drm_crtc_init_with_planes(drm, &vp->crtc, plane, NULL,
 						&vop2_crtc_funcs,
 						"video_port%d", vp->id);
-		if (ret) {
-			drm_err(vop2->drm, "crtc init for video_port%d failed\n", i);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(drm->dev, ret,
+					     "crtc init for video_port%d failed\n", i);
 
 		drm_crtc_helper_add(&vp->crtc, &vop2_crtc_helper_funcs);
 		if (vop2->lut_regs) {
@@ -3678,10 +3672,9 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	dev_set_drvdata(dev, vop2);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vop");
-	if (!res) {
-		drm_err(vop2->drm, "failed to get vop2 register byname\n");
-		return -EINVAL;
-	}
+	if (!res)
+		return dev_err_probe(drm->dev, -EINVAL,
+				     "failed to get vop2 register byname\n");
 
 	vop2->res = res;
 	vop2->regs = devm_ioremap_resource(dev, res);
@@ -3706,50 +3699,50 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_GRF) {
 		vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
 		if (IS_ERR(vop2->sys_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->sys_grf), "cannot get sys_grf");
+			return dev_err_probe(drm->dev, PTR_ERR(vop2->sys_grf),
+					     "cannot get sys_grf\n");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_VOP_GRF) {
 		vop2->vop_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
 		if (IS_ERR(vop2->vop_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->vop_grf), "cannot get vop_grf");
+			return dev_err_probe(drm->dev, PTR_ERR(vop2->vop_grf),
+					     "cannot get vop_grf\n");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_VO1_GRF) {
 		vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
 		if (IS_ERR(vop2->vo1_grf))
-			return dev_err_probe(dev, PTR_ERR(vop2->vo1_grf), "cannot get vo1_grf");
+			return dev_err_probe(drm->dev, PTR_ERR(vop2->vo1_grf),
+					     "cannot get vo1_grf\n");
 	}
 
 	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_PMU) {
 		vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
 		if (IS_ERR(vop2->sys_pmu))
-			return dev_err_probe(dev, PTR_ERR(vop2->sys_pmu), "cannot get sys_pmu");
+			return dev_err_probe(drm->dev, PTR_ERR(vop2->sys_pmu),
+					     "cannot get sys_pmu\n");
 	}
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk");
-	if (IS_ERR(vop2->hclk)) {
-		drm_err(vop2->drm, "failed to get hclk source\n");
-		return PTR_ERR(vop2->hclk);
-	}
+	if (IS_ERR(vop2->hclk))
+		return dev_err_probe(drm->dev, PTR_ERR(vop2->hclk),
+				     "failed to get hclk source\n");
 
 	vop2->aclk = devm_clk_get(vop2->dev, "aclk");
-	if (IS_ERR(vop2->aclk)) {
-		drm_err(vop2->drm, "failed to get aclk source\n");
-		return PTR_ERR(vop2->aclk);
-	}
+	if (IS_ERR(vop2->aclk))
+		return dev_err_probe(drm->dev, PTR_ERR(vop2->aclk),
+				     "failed to get aclk source\n");
 
 	vop2->pclk = devm_clk_get_optional(vop2->dev, "pclk_vop");
-	if (IS_ERR(vop2->pclk)) {
-		drm_err(vop2->drm, "failed to get pclk source\n");
-		return PTR_ERR(vop2->pclk);
-	}
+	if (IS_ERR(vop2->pclk))
+		return dev_err_probe(drm->dev, PTR_ERR(vop2->pclk),
+				     "failed to get pclk source\n");
 
 	vop2->pll_hdmiphy0 = devm_clk_get_optional(vop2->dev, "pll_hdmiphy0");
-	if (IS_ERR(vop2->pll_hdmiphy0)) {
-		drm_err(vop2->drm, "failed to get pll_hdmiphy0\n");
-		return PTR_ERR(vop2->pll_hdmiphy0);
-	}
+	if (IS_ERR(vop2->pll_hdmiphy0))
+		return dev_err_probe(drm->dev, PTR_ERR(vop2->pll_hdmiphy0),
+				     "failed to get pll_hdmiphy0\n");
 
 	vop2->pll_hdmiphy1 = devm_clk_get_optional(vop2->dev, "pll_hdmiphy1");
 	if (IS_ERR(vop2->pll_hdmiphy1))
@@ -3757,10 +3750,8 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 				     "failed to get pll_hdmiphy1\n");
 
 	vop2->irq = platform_get_irq(pdev, 0);
-	if (vop2->irq < 0) {
-		drm_err(vop2->drm, "cannot find irq for vop2\n");
-		return vop2->irq;
-	}
+	if (vop2->irq < 0)
+		return dev_err_probe(drm->dev, vop2->irq, "cannot find irq for vop2\n");
 
 	mutex_init(&vop2->vop2_lock);
 
