@@ -978,30 +978,6 @@ static int uvc_ioctl_query_ext_ctrl(struct file *file, void *fh,
 	return uvc_query_v4l2_ctrl(chain, qec);
 }
 
-static int uvc_ioctl_queryctrl(struct file *file, void *fh,
-			       struct v4l2_queryctrl *qc)
-{
-	struct uvc_fh *handle = fh;
-	struct uvc_video_chain *chain = handle->chain;
-	struct v4l2_query_ext_ctrl qec = { qc->id };
-	int ret;
-
-	ret = uvc_query_v4l2_ctrl(chain, &qec);
-	if (ret)
-		return ret;
-
-	qc->id = qec.id;
-	qc->type = qec.type;
-	strscpy(qc->name, qec.name, sizeof(qc->name));
-	qc->minimum = qec.minimum;
-	qc->maximum = qec.maximum;
-	qc->step = qec.step;
-	qc->default_value = qec.default_value;
-	qc->flags = qec.flags;
-
-	return 0;
-}
-
 static int uvc_ctrl_check_access(struct uvc_video_chain *chain,
 				 struct v4l2_ext_controls *ctrls,
 				 unsigned long ioctl)
@@ -1494,7 +1470,6 @@ const struct v4l2_ioctl_ops uvc_ioctl_ops = {
 	.vidioc_enum_input = uvc_ioctl_enum_input,
 	.vidioc_g_input = uvc_ioctl_g_input,
 	.vidioc_s_input = uvc_ioctl_s_input,
-	.vidioc_queryctrl = uvc_ioctl_queryctrl,
 	.vidioc_query_ext_ctrl = uvc_ioctl_query_ext_ctrl,
 	.vidioc_g_ext_ctrls = uvc_ioctl_g_ext_ctrls,
 	.vidioc_s_ext_ctrls = uvc_ioctl_s_ext_ctrls,
