@@ -1567,7 +1567,7 @@ void __init batadv_netlink_register(void)
 
 	ret = genl_register_family(&batadv_netlink_family);
 	if (ret)
-		pr_warn("unable to register netlink family");
+		pr_warn("unable to register netlink family\n");
 }
 
 /**
