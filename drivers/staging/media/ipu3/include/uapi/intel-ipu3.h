@@ -322,7 +322,8 @@ struct ipu3_uapi_ae_config {
  *			0: positive, 1: negative, default 0.
  * @y_calc:	Pre-processing that converts Bayer quad to RGB+Y values to be
  *		used for building histogram. Range [0, 32], default 8.
- * Rule:
+ *
+ *		Rule:
  *		y_gen_rate_gr + y_gen_rate_r + y_gen_rate_b + y_gen_rate_gb = 32
  *		A single Y is calculated based on sum of Gr/R/B/Gb based on
  *		their contribution ratio.
