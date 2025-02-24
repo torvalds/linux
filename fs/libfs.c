@@ -75,9 +75,11 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, unsigned 
 {
 	if (dentry->d_name.len > NAME_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
-	if (!dentry->d_op)
-		d_set_d_op(dentry, &simple_dentry_operations);
-
+	if (!dentry->d_op && !(dentry->d_flags & DCACHE_DONTCACHE)) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags |= DCACHE_DONTCACHE;
+		spin_unlock(&dentry->d_lock);
+	}
 	if (IS_ENABLED(CONFIG_UNICODE) && IS_CASEFOLDED(dir))
 		return NULL;
 
