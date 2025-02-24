@@ -100,6 +100,7 @@ enum cfi_mode {
 };
 
 extern enum cfi_mode cfi_mode;
+extern bool cfi_bhi;
 
 typedef u8 bhi_thunk[32];
 extern bhi_thunk __bhi_args[];
@@ -129,6 +130,7 @@ static inline int cfi_get_offset(void)
 #define cfi_get_offset cfi_get_offset
 
 extern u32 cfi_get_func_hash(void *func);
+extern int cfi_get_func_arity(void *func);
 
 #ifdef CONFIG_FINEIBT
 extern bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type);
@@ -149,6 +151,10 @@ static inline enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 #define cfi_bpf_hash 0U
 #define cfi_bpf_subprog_hash 0U
 static inline u32 cfi_get_func_hash(void *func)
+{
+	return 0;
+}
+static inline int cfi_get_func_arity(void *func)
 {
 	return 0;
 }
