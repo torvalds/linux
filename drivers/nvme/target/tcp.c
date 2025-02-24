@@ -1072,10 +1072,11 @@ static int nvmet_tcp_done_recv_pdu(struct nvmet_tcp_queue *queue)
 
 	if (unlikely(!nvmet_req_init(req, &queue->nvme_cq,
 			&queue->nvme_sq, &nvmet_tcp_ops))) {
-		pr_err("failed cmd %p id %d opcode %d, data_len: %d\n",
+		pr_err("failed cmd %p id %d opcode %d, data_len: %d, status: %04x\n",
 			req->cmd, req->cmd->common.command_id,
 			req->cmd->common.opcode,
-			le32_to_cpu(req->cmd->common.dptr.sgl.length));
+			le32_to_cpu(req->cmd->common.dptr.sgl.length),
+			le16_to_cpu(req->cqe->status));
 
 		nvmet_tcp_handle_req_failure(queue, queue->cmd, req);
 		return 0;
@@ -1601,6 +1602,7 @@ static void nvmet_tcp_release_queue_work(struct work_struct *w)
 	/* stop accepting incoming data */
 	queue->rcv_state = NVMET_TCP_RECV_ERR;
 
+	nvmet_sq_put_tls_key(&queue->nvme_sq);
 	nvmet_tcp_uninit_data_in_cmds(queue);
 	nvmet_sq_destroy(&queue->nvme_sq);
 	cancel_work_sync(&queue->io_work);
@@ -1786,6 +1788,27 @@ static int nvmet_tcp_try_peek_pdu(struct nvmet_tcp_queue *queue)
 	return 0;
 }
 
+static int nvmet_tcp_tls_key_lookup(struct nvmet_tcp_queue *queue,
+				    key_serial_t peerid)
+{
+	struct key *tls_key = nvme_tls_key_lookup(peerid);
+	int status = 0;
+
+	if (IS_ERR(tls_key)) {
+		pr_warn("%s: queue %d failed to lookup key %x\n",
+			__func__, queue->idx, peerid);
+		spin_lock_bh(&queue->state_lock);
+		queue->state = NVMET_TCP_Q_FAILED;
+		spin_unlock_bh(&queue->state_lock);
+		status = PTR_ERR(tls_key);
+	} else {
+		pr_debug("%s: queue %d using TLS PSK %x\n",
+			 __func__, queue->idx, peerid);
+		queue->nvme_sq.tls_key = tls_key;
+	}
+	return status;
+}
+
 static void nvmet_tcp_tls_handshake_done(void *data, int status,
 					 key_serial_t peerid)
 {
@@ -1806,6 +1829,10 @@ static void nvmet_tcp_tls_handshake_done(void *data, int status,
 	spin_unlock_bh(&queue->state_lock);
 
 	cancel_delayed_work_sync(&queue->tls_handshake_tmo_work);
+
+	if (!status)
+		status = nvmet_tcp_tls_key_lookup(queue, peerid);
+
 	if (status)
 		nvmet_tcp_schedule_release_queue(queue);
 	else

@@ -236,8 +236,22 @@ err:
 
 static u32 nvmet_connect_result(struct nvmet_ctrl *ctrl, struct nvmet_sq *sq)
 {
-	bool needs_auth = nvmet_has_auth(ctrl);
+	bool needs_auth = nvmet_has_auth(ctrl, sq);
+	key_serial_t keyid = nvmet_queue_tls_keyid(sq);
 
+	/* Do not authenticate I/O queues for secure concatenation */
+	if (ctrl->concat && sq->qid)
+		needs_auth = false;
+
+	if (keyid)
+		pr_debug("%s: ctrl %d qid %d should %sauthenticate, tls psk %08x\n",
+			 __func__, ctrl->cntlid, sq->qid,
+			 needs_auth ? "" : "not ", keyid);
+	else
+		pr_debug("%s: ctrl %d qid %d should %sauthenticate%s\n",
+			 __func__, ctrl->cntlid, sq->qid,
+			 needs_auth ? "" : "not ",
+			 ctrl->concat ? ", secure concatenation" : "");
 	return (u32)ctrl->cntlid |
 		(needs_auth ? NVME_CONNECT_AUTHREQ_ATR : 0);
 }
