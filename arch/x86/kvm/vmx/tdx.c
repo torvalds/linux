@@ -625,6 +625,7 @@ int tdx_vm_init(struct kvm *kvm)
 
 	kvm->arch.has_protected_state = true;
 	kvm->arch.has_private_mem = true;
+	kvm->arch.disabled_quirks |= KVM_X86_QUIRK_IGNORE_GUEST_PAT;
 
 	/*
 	 * Because guest TD is protected, VMM can't parse the instruction in TD.
@@ -3472,6 +3473,11 @@ int __init tdx_bringup(void)
 
 	if (!cpu_feature_enabled(X86_FEATURE_MOVDIR64B)) {
 		pr_err("tdx: MOVDIR64B is required for TDX\n");
+		goto success_disable_tdx;
+	}
+
+	if (!cpu_feature_enabled(X86_FEATURE_SELFSNOOP)) {
+		pr_err("Self-snoop is required for TDX\n");
 		goto success_disable_tdx;
 	}
 
