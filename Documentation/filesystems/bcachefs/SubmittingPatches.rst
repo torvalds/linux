@@ -7,7 +7,7 @@ Submission checklist
 --------------------
 
 Patches must be tested before being submitted, either with the xfstests suite
-[0], or the full bcachefs test suite in ktest [1], depending on what's being
+[0]_, or the full bcachefs test suite in ktest [1]_, depending on what's being
 touched. Note that ktest wraps xfstests and will be an easier method to running
 it for most users; it includes single-command wrappers for all the mainstream
 in-kernel local filesystems.
@@ -39,7 +39,7 @@ prefereable to let a server farm do it in parallel, and then have the results
 in a nice test dashboard (which can tell you which failures are new, and
 presents results in a git log view, avoiding the need for most bisecting).
 
-That exists [2], and community members may request an account. If you work for
+That exists [2]_, and community members may request an account. If you work for
 a big tech company, you'll need to help out with server costs to get access -
 but the CI is not restricted to running bcachefs tests: it runs any ktest test
 (which generally makes it easy to wrap other tests that can run in qemu).
@@ -87,17 +87,19 @@ Other things to think about
 Mailing list, IRC
 -----------------
 
-Patches should hit the list [3], but much discussion and code review happens on
-IRC as well [4]; many people appreciate the more conversational approach and
-quicker feedback.
+Patches should hit the list [3]_, but much discussion and code review happens
+on IRC as well [4]_; many people appreciate the more conversational approach
+and quicker feedback.
 
 Additionally, we have a lively user community doing excellent QA work, which
 exists primarily on IRC. Please make use of that resource; user feedback is
 important for any nontrivial feature, and documenting it in commit messages
 would be a good idea.
 
-[0]: git://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git
-[1]: https://evilpiepirate.org/git/ktest.git/
-[2]: https://evilpiepirate.org/~testdashboard/ci/
-[3]: linux-bcachefs@vger.kernel.org
-[4]: irc.oftc.net#bcache, #bcachefs-dev
+.. rubric:: References
+
+.. [0] git://git.kernel.org/pub/scm/fs/xfs/xfstests-dev.git
+.. [1] https://evilpiepirate.org/git/ktest.git/
+.. [2] https://evilpiepirate.org/~testdashboard/ci/
+.. [3] linux-bcachefs@vger.kernel.org
+.. [4] irc.oftc.net#bcache, #bcachefs-dev
