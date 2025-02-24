@@ -147,30 +147,17 @@ static void detect_facilities(void)
 
 static int cmma_test_essa(void)
 {
-	unsigned long reg1, reg2, tmp = 0;
+	unsigned long tmp = 0;
 	int rc = 1;
-	psw_t old;
 
 	/* Test ESSA_GET_STATE */
 	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	.insn	rrf,0xb9ab0000,%[tmp],%[tmp],%[cmd],0\n"
-		"	la	%[rc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [rc] "+&d" (rc),
-		  [tmp] "=&d" (tmp),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [cmd] "i" (ESSA_GET_STATE)
+		"0:	lhi	%[rc],0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [rc] "+d" (rc), [tmp] "+d" (tmp)
+		: [cmd] "i" (ESSA_GET_STATE)
 		: "cc", "memory");
 	return rc;
 }
