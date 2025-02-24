@@ -293,12 +293,6 @@ SYM_CODE_END(startup_normal)
 
 #include "head_kdump.S"
 
-#
-# This program check is active immediately after kernel start
-# and until early_pgm_check_handler is set in kernel/early.c
-# It simply saves general/control registers and psw in
-# the save area and does disabled wait with a faulty address.
-#
 SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	stmg	%r8,%r15,__LC_SAVE_AREA
 	la	%r8,4095
@@ -318,7 +312,12 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	mvc	__PT_R0(128,%r2),__LC_GPREGS_SAVE_AREA-4095(%r8)
 	mvc	__PT_LAST_BREAK(8,%r2),__LC_PGM_LAST_BREAK
 	mvc	__PT_INT_CODE(4,%r2),__LC_PGM_INT_CODE
-	brasl	%r14,print_pgm_check_info
+	brasl	%r14,do_pgm_check
+	larl	%r9,startup_pgm_check_handler
+	stg	%r9,__LC_PGM_NEW_PSW+8
+	mvc	__LC_RETURN_PSW(16),STACK_FRAME_OVERHEAD+__PT_PSW(%r15)
+	lmg	%r0,%r15,STACK_FRAME_OVERHEAD+__PT_R0(%r15)
+	lpswe	__LC_RETURN_PSW
 .Lold_psw_disabled_wait:
 	la	%r8,4095
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r8)

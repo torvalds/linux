@@ -32,11 +32,36 @@ void print_stacktrace(unsigned long sp)
 	}
 }
 
-void print_pgm_check_info(struct pt_regs *regs)
+extern struct exception_table_entry __start___ex_table[];
+extern struct exception_table_entry __stop___ex_table[];
+
+static inline unsigned long extable_insn(const struct exception_table_entry *x)
+{
+	return (unsigned long)&x->insn + x->insn;
+}
+
+static bool ex_handler(struct pt_regs *regs)
+{
+	const struct exception_table_entry *ex;
+
+	for (ex = __start___ex_table; ex < __stop___ex_table; ex++) {
+		if (extable_insn(ex) != regs->psw.addr)
+			continue;
+		if (ex->type != EX_TYPE_FIXUP)
+			return false;
+		regs->psw.addr = extable_fixup(ex);
+		return true;
+	}
+	return false;
+}
+
+void do_pgm_check(struct pt_regs *regs)
 {
 	struct psw_bits *psw = &psw_bits(regs->psw);
 	unsigned long *gpregs = regs->gprs;
 
+	if (ex_handler(regs))
+		return;
 	if (bootdebug)
 		boot_rb_dump();
 	boot_emerg("Linux version %s\n", kernel_version);
@@ -60,4 +85,8 @@ void print_pgm_check_info(struct pt_regs *regs)
 	print_stacktrace(gpregs[15]);
 	boot_emerg("Last Breaking-Event-Address:\n");
 	boot_emerg(" [<%016lx>] %pS\n", regs->last_break, (void *)regs->last_break);
+	/* Convert to disabled wait PSW */
+	psw->io = 0;
+	psw->ext = 0;
+	psw->wait = 1;
 }
