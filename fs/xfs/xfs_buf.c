@@ -794,18 +794,13 @@ out_put_perag:
 
 int
 _xfs_buf_read(
-	struct xfs_buf		*bp,
-	xfs_buf_flags_t		flags)
+	struct xfs_buf		*bp)
 {
-	ASSERT(!(flags & XBF_WRITE));
 	ASSERT(bp->b_maps[0].bm_bn != XFS_BUF_DADDR_NULL);
 
 	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD | XBF_DONE);
-	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
-
+	bp->b_flags |= XBF_READ;
 	xfs_buf_submit(bp);
-	if (flags & XBF_ASYNC)
-		return 0;
 	return xfs_buf_iowait(bp);
 }
 
@@ -857,6 +852,8 @@ xfs_buf_read_map(
 	struct xfs_buf		*bp;
 	int			error;
 
+	ASSERT(!(flags & (XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD)));
+
 	flags |= XBF_READ;
 	*bpp = NULL;
 
@@ -870,20 +867,10 @@ xfs_buf_read_map(
 		/* Initiate the buffer read and wait. */
 		XFS_STATS_INC(target->bt_mount, xb_get_read);
 		bp->b_ops = ops;
-		error = _xfs_buf_read(bp, flags);
-
-		/* Readahead iodone already dropped the buffer, so exit. */
-		if (flags & XBF_ASYNC)
-			return 0;
+		error = _xfs_buf_read(bp);
 	} else {
 		/* Buffer already read; all we need to do is check it. */
 		error = xfs_buf_reverify(bp, ops);
-
-		/* Readahead already finished; drop the buffer and exit. */
-		if (flags & XBF_ASYNC) {
-			xfs_buf_relse(bp);
-			return 0;
-		}
 
 		/* We do not want read in the flags */
 		bp->b_flags &= ~XBF_READ;
@@ -936,6 +923,7 @@ xfs_buf_readahead_map(
 	int			nmaps,
 	const struct xfs_buf_ops *ops)
 {
+	const xfs_buf_flags_t	flags = XBF_READ | XBF_ASYNC | XBF_READ_AHEAD;
 	struct xfs_buf		*bp;
 
 	/*
@@ -945,9 +933,20 @@ xfs_buf_readahead_map(
 	if (xfs_buftarg_is_mem(target))
 		return;
 
-	xfs_buf_read_map(target, map, nmaps,
-		     XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD, &bp, ops,
-		     __this_address);
+	if (xfs_buf_get_map(target, map, nmaps, flags | XBF_TRYLOCK, &bp))
+		return;
+	trace_xfs_buf_readahead(bp, 0, _RET_IP_);
+
+	if (bp->b_flags & XBF_DONE) {
+		xfs_buf_reverify(bp, ops);
+		xfs_buf_relse(bp);
+		return;
+	}
+	XFS_STATS_INC(target->bt_mount, xb_get_read);
+	bp->b_ops = ops;
+	bp->b_flags &= ~(XBF_WRITE | XBF_DONE);
+	bp->b_flags |= flags;
+	xfs_buf_submit(bp);
 }
 
 /*
