@@ -858,6 +858,10 @@ static void swap_reclaim_full_clusters(struct swap_info_struct *si, bool force)
 			offset++;
 		}
 
+		/* in case no swap cache is reclaimed */
+		if (ci->flags == CLUSTER_FLAG_NONE)
+			relocate_cluster(si, ci);
+
 		unlock_cluster(ci);
 		if (to_scan <= 0)
 			break;
