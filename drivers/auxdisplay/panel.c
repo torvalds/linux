@@ -837,7 +837,7 @@ static void lcd_init(void)
 
 	charlcd = charlcd_alloc(0);
 	if (!charlcd) {
-		kfree(hdc);
+		hd44780_common_free(hdc);
 		return;
 	}
 
@@ -1691,7 +1691,7 @@ static void panel_detach(struct parport *port)
 	if (lcd.enabled) {
 		charlcd_unregister(lcd.charlcd);
 		lcd.initialized = false;
-		kfree(lcd.charlcd->drvdata);
+		hd44780_common_free(lcd.charlcd->drvdata);
 		charlcd_free(lcd.charlcd);
 		lcd.charlcd = NULL;
 	}
