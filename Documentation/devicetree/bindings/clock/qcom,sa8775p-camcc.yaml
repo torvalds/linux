@@ -8,16 +8,20 @@ title: Qualcomm Camera Clock & Reset Controller on SA8775P
 
 maintainers:
   - Taniya Das <quic_tdas@quicinc.com>
+  - Imran Shaik <quic_imrashai@quicinc.com>
 
 description: |
   Qualcomm camera clock control module provides the clocks, resets and power
   domains on SA8775p.
 
-  See also: include/dt-bindings/clock/qcom,sa8775p-camcc.h
+  See also:
+    include/dt-bindings/clock/qcom,qcs8300-camcc.h
+    include/dt-bindings/clock/qcom,sa8775p-camcc.h
 
 properties:
   compatible:
     enum:
+      - qcom,qcs8300-camcc
       - qcom,sa8775p-camcc
 
   clocks:

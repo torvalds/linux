@@ -319,6 +319,16 @@ void bch2_journal_halt(struct journal *j)
 	spin_unlock(&j->lock);
 }
 
+void bch2_journal_halt_locked(struct journal *j)
+{
+	lockdep_assert_held(&j->lock);
+
+	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL, true);
+	if (!j->err_seq)
+		j->err_seq = journal_cur_seq(j);
+	journal_wake(j);
+}
+
 static bool journal_entry_want_write(struct journal *j)
 {
 	bool ret = !journal_entry_is_open(j) ||
@@ -381,9 +391,12 @@ static int journal_entry_open(struct journal *j)
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf))
 		return JOURNAL_ERR_max_in_flight;
 
-	if (bch2_fs_fatal_err_on(journal_cur_seq(j) >= JOURNAL_SEQ_MAX,
-				 c, "cannot start: journal seq overflow"))
+	if (journal_cur_seq(j) >= JOURNAL_SEQ_MAX) {
+		bch_err(c, "cannot start: journal seq overflow");
+		if (bch2_fs_emergency_read_only_locked(c))
+			bch_err(c, "fatal error - emergency read only");
 		return JOURNAL_ERR_insufficient_devices; /* -EROFS */
+	}
 
 	BUG_ON(!j->cur_entry_sectors);
 
@@ -783,6 +796,7 @@ recheck_need_open:
 	}
 
 	buf->must_flush = true;
+	j->flushing_seq = max(j->flushing_seq, seq);
 
 	if (parent && !closure_wait(&buf->wait, parent))
 		BUG();

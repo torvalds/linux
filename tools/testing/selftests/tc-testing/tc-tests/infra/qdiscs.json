@@ -94,5 +94,37 @@
             "$TC qdisc del dev $DUMMY ingress",
             "$IP addr del 10.10.10.10/24 dev $DUMMY"
         ]
-    }
+    },
+    {
+	"id": "a4b9",
+	"name": "Test class qlen notification",
+	"category": [
+	    "qdisc"
+	],
+	"plugins": {
+	    "requires": "nsPlugin"
+	},
+	"setup": [
+            "$IP link set dev $DUMMY up || true",
+            "$IP addr add 10.10.10.10/24 dev $DUMMY || true",
+            "$TC qdisc add dev $DUMMY root handle 1: drr",
+            "$TC filter add dev $DUMMY parent 1: basic classid 1:1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 drr",
+            "$TC qdisc add dev $DUMMY parent 1:1 handle 2: netem",
+            "$TC qdisc add dev $DUMMY parent 2: handle 3: drr",
+            "$TC filter add dev $DUMMY parent 3: basic action drop",
+            "$TC class add dev $DUMMY parent 3: classid 3:1 drr",
+            "$TC class del dev $DUMMY classid 1:1",
+            "$TC class add dev $DUMMY parent 1: classid 1:1 drr"
+        ],
+        "cmdUnderTest": "ping -c1 -W0.01 -I $DUMMY 10.10.10.1",
+        "expExitCode": "1",
+        "verifyCmd": "$TC qdisc ls dev $DUMMY",
+        "matchPattern": "drr 1: root",
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DUMMY root handle 1: drr",
+            "$IP addr del 10.10.10.10/24 dev $DUMMY"
+        ]
+   }
 ]

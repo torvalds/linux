@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/ccp.h>
 
+#include "sev-dev.h"
 #include "ccp-dev.h"
 #include "sp-dev.h"
 
@@ -253,7 +254,11 @@ unlock:
 static int __init sp_mod_init(void)
 {
 #ifdef CONFIG_X86
+	static bool initialized;
 	int ret;
+
+	if (initialized)
+		return 0;
 
 	ret = sp_pci_init();
 	if (ret)
@@ -262,6 +267,8 @@ static int __init sp_mod_init(void)
 #ifdef CONFIG_CRYPTO_DEV_SP_PSP
 	psp_pci_init();
 #endif
+
+	initialized = true;
 
 	return 0;
 #endif
@@ -278,6 +285,13 @@ static int __init sp_mod_init(void)
 
 	return -ENODEV;
 }
+
+#if IS_BUILTIN(CONFIG_KVM_AMD) && IS_ENABLED(CONFIG_KVM_AMD_SEV)
+int __init sev_module_init(void)
+{
+	return sp_mod_init();
+}
+#endif
 
 static void __exit sp_mod_exit(void)
 {

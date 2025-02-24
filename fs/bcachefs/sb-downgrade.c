@@ -92,7 +92,7 @@
 	  BCH_FSCK_ERR_accounting_key_replicas_nr_devs_0,	\
 	  BCH_FSCK_ERR_accounting_key_junk_at_end)		\
 	x(directory_size,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_dirents),		\
 	  BCH_FSCK_ERR_directory_size_mismatch)			\
 
 #define DOWNGRADE_TABLE()					\
