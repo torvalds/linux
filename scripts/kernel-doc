@@ -760,6 +760,10 @@ sub output_highlight_rst {
     if ($block) {
         $output .= highlight_block($block);
     }
+
+    $output =~ s/^\n+//g;
+    $output =~ s/\n+$//g;
+
     foreach $line (split "\n", $output) {
         print $lineprefix . $line . "\n";
     }
