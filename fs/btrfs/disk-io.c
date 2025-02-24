@@ -2196,8 +2196,8 @@ static int load_global_roots_objectid(struct btrfs_root *tree_root,
 
 static int load_global_roots(struct btrfs_root *tree_root)
 {
-	struct btrfs_path *path;
-	int ret = 0;
+	BTRFS_PATH_AUTO_FREE(path);
+	int ret;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2206,18 +2206,17 @@ static int load_global_roots(struct btrfs_root *tree_root)
 	ret = load_global_roots_objectid(tree_root, path,
 					 BTRFS_EXTENT_TREE_OBJECTID, "extent");
 	if (ret)
-		goto out;
+		return ret;
 	ret = load_global_roots_objectid(tree_root, path,
 					 BTRFS_CSUM_TREE_OBJECTID, "csum");
 	if (ret)
-		goto out;
+		return ret;
 	if (!btrfs_fs_compat_ro(tree_root->fs_info, FREE_SPACE_TREE))
-		goto out;
+		return ret;
 	ret = load_global_roots_objectid(tree_root, path,
 					 BTRFS_FREE_SPACE_TREE_OBJECTID,
 					 "free space");
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
