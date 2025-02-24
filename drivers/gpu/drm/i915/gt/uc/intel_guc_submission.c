@@ -3008,7 +3008,7 @@ static int __guc_context_pin(struct intel_context *ce,
 
 	/*
 	 * GuC context gets pinned in guc_request_alloc. See that function for
-	 * explaination of why.
+	 * explanation of why.
 	 */
 
 	return lrc_pin(ce, engine, vaddr);
