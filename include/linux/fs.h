@@ -1413,7 +1413,7 @@ struct super_block {
 	 */
 	const char *s_subtype;
 
-	const struct dentry_operations *s_d_op; /* default d_op for dentries */
+	const struct dentry_operations *__s_d_op; /* default d_op for dentries */
 
 	struct shrinker *s_shrink;	/* per-sb shrinker handle */
 

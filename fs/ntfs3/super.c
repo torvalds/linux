@@ -1223,7 +1223,8 @@ static int ntfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_export_op = &ntfs_export_ops;
 	sb->s_time_gran = NTFS_TIME_GRAN; // 100 nsec
 	sb->s_xattr = ntfs_xattr_handlers;
-	sb->s_d_op = options->nocase ? &ntfs_dentry_ops : NULL;
+	if (options->nocase)
+		set_default_d_op(sb, &ntfs_dentry_ops);
 
 	options->nls = ntfs_load_nls(options->nls_name);
 	if (IS_ERR(options->nls)) {

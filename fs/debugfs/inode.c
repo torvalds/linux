@@ -273,7 +273,7 @@ static int debugfs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return err;
 
 	sb->s_op = &debugfs_super_operations;
-	sb->s_d_op = &debugfs_dops;
+	set_default_d_op(sb, &debugfs_dops);
 
 	debugfs_apply_options(sb);
 

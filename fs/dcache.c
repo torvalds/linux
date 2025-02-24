@@ -1738,7 +1738,7 @@ static struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 	INIT_HLIST_HEAD(&dentry->d_children);
 	INIT_HLIST_NODE(&dentry->d_u.d_alias);
 	INIT_HLIST_NODE(&dentry->d_sib);
-	d_set_d_op(dentry, dentry->d_sb->s_d_op);
+	d_set_d_op(dentry, dentry->d_sb->__s_d_op);
 
 	if (dentry->d_op && dentry->d_op->d_init) {
 		err = dentry->d_op->d_init(dentry);
@@ -1821,7 +1821,7 @@ struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
 	struct dentry *dentry = __d_alloc(sb, name);
 	if (likely(dentry)) {
 		dentry->d_flags |= DCACHE_NORCU;
-		if (!sb->s_d_op)
+		if (!dentry->d_op)
 			d_set_d_op(dentry, &anon_ops);
 	}
 	return dentry;
@@ -1866,6 +1866,12 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 
 }
 EXPORT_SYMBOL(d_set_d_op);
+
+void set_default_d_op(struct super_block *s, const struct dentry_operations *ops)
+{
+	s->__s_d_op = ops;
+}
+EXPORT_SYMBOL(set_default_d_op);
 
 static unsigned d_flags_for_inode(struct inode *inode)
 {

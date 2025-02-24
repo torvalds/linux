@@ -350,7 +350,7 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	sb->s_blocksize_bits    = PAGE_SHIFT;
 	sb->s_magic             = EFIVARFS_MAGIC;
 	sb->s_op                = &efivarfs_ops;
-	sb->s_d_op		= &efivarfs_d_ops;
+	set_default_d_op(sb, &efivarfs_d_ops);
 	sb->s_time_gran         = 1;
 
 	if (!efivar_supports_writes())

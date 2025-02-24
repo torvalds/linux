@@ -480,7 +480,7 @@ static int tracefs_fill_super(struct super_block *sb, struct fs_context *fc)
 		return err;
 
 	sb->s_op = &tracefs_super_operations;
-	sb->s_d_op = &tracefs_dentry_operations;
+	set_default_d_op(sb, &tracefs_dentry_operations);
 
 	return 0;
 }

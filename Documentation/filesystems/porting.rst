@@ -1249,3 +1249,10 @@ Using try_lookup_noperm() will require linux/namei.h to be included.
 
 Calling conventions for ->d_automount() have changed; we should *not* grab
 an extra reference to new mount - it should be returned with refcount 1.
+
+---
+
+**mandatory**
+
+If your filesystem sets the default dentry_operations, use set_default_d_op()
+rather than manually setting sb->s_d_op.

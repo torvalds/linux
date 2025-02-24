@@ -607,4 +607,6 @@ static inline struct dentry *d_next_sibling(const struct dentry *dentry)
 	return hlist_entry_safe(dentry->d_sib.next, struct dentry, d_sib);
 }
 
+void set_default_d_op(struct super_block *, const struct dentry_operations *);
+
 #endif	/* __LINUX_DCACHE_H */
