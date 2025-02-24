@@ -22,6 +22,10 @@ icc-debug.ko
 qnoc-qos.ko
 qnoc-seraph.ko
 spmi-pmic-arb.ko
+debug-regulator.ko
+proxy-consumer.ko
+qti-fixed-regulator.ko
+rpmh-regulator.ko
 stub-regulator.ko
 arm_smmu.ko
 iommu-logger.ko
