@@ -208,4 +208,11 @@ static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int n
 static void __maybe_unused of_dump_addr(const char *s, const __be32 *addr, int na) { }
 #endif
 
+static inline bool is_pseudo_property(const char *prop_name)
+{
+	return !of_prop_cmp(prop_name, "name") ||
+		!of_prop_cmp(prop_name, "phandle") ||
+		!of_prop_cmp(prop_name, "linux,phandle");
+}
+
 #endif /* _LINUX_OF_PRIVATE_H */

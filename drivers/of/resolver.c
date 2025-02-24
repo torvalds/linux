@@ -161,9 +161,7 @@ static int adjust_local_phandle_references(const struct device_node *local_fixup
 	for_each_property_of_node(local_fixups, prop_fix) {
 
 		/* skip properties added automatically */
-		if (!of_prop_cmp(prop_fix->name, "name") ||
-		    !of_prop_cmp(prop_fix->name, "phandle") ||
-		    !of_prop_cmp(prop_fix->name, "linux,phandle"))
+		if (is_pseudo_property(prop_fix->name))
 			continue;
 
 		if ((prop_fix->length % 4) != 0 || prop_fix->length == 0)
