@@ -28,6 +28,7 @@
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v12_0.h"
+#include "gmc_v12_1.h"
 #include "athub/athub_4_1_0_sh_mask.h"
 #include "athub/athub_4_1_0_offset.h"
 #include "oss/osssys_7_0_0_offset.h"
@@ -652,9 +653,16 @@ static int gmc_v12_0_early_init(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
 
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
+	case IP_VERSION(12, 1, 0):
+		gmc_v12_1_set_gmc_funcs(adev);
+		break;
+	default:
+		gmc_v12_0_set_gmc_funcs(adev);
+		break;
+	}
 	gmc_v12_0_set_gfxhub_funcs(adev);
 	gmc_v12_0_set_mmhub_funcs(adev);
-	gmc_v12_0_set_gmc_funcs(adev);
 	gmc_v12_0_set_irq_funcs(adev);
 	gmc_v12_0_set_umc_funcs(adev);
 
