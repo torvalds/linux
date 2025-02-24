@@ -351,24 +351,26 @@ int hd44780_common_redefine_char(struct charlcd *lcd, char *esc)
 }
 EXPORT_SYMBOL_GPL(hd44780_common_redefine_char);
 
-struct hd44780_common *hd44780_common_alloc(void)
+struct charlcd *hd44780_common_alloc(void)
 {
 	struct hd44780_common *hd;
+	struct charlcd *lcd;
 
-	hd = kzalloc(sizeof(*hd), GFP_KERNEL);
-	if (!hd)
+	lcd = charlcd_alloc(sizeof(*hd));
+	if (!lcd)
 		return NULL;
 
+	hd = lcd->drvdata;
 	hd->ifwidth = 8;
 	hd->bwidth = DEFAULT_LCD_BWIDTH;
 	hd->hwidth = DEFAULT_LCD_HWIDTH;
-	return hd;
+	return lcd;
 }
 EXPORT_SYMBOL_GPL(hd44780_common_alloc);
 
-void hd44780_common_free(struct hd44780_common *hd)
+void hd44780_common_free(struct charlcd *lcd)
 {
-	kfree(hd);
+	charlcd_free(lcd);
 }
 EXPORT_SYMBOL_GPL(hd44780_common_free);
 
