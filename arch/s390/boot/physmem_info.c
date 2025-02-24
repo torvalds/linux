@@ -137,31 +137,17 @@ static int diag500_storage_limit(unsigned long *max_physmem_end)
 
 static int tprot(unsigned long addr)
 {
-	unsigned long reg1, reg2;
 	int cc, exception;
-	psw_t old;
 
 	exception = 1;
 	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	tprot	0(%[addr]),0\n"
-		"	lhi	%[exc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		"0:	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		: CC_OUT(cc, cc),
-		  [exc] "+d" (exception),
-		  [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  "=Q" (get_lowcore()->program_new_psw.addr),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [addr] "a" (addr)
+		EX_TABLE(0b, 1b)
+		: CC_OUT(cc, cc), [exc] "+d" (exception)
+		: [addr] "a" (addr)
 		: CC_CLOBBER_LIST("memory"));
 	cc = exception ? -EFAULT : CC_TRANSFORM(cc);
 	return cc;
