@@ -700,7 +700,6 @@ struct afs_vnode {
 #define AFS_VNODE_ZAP_DATA	3		/* set if vnode's data should be invalidated */
 #define AFS_VNODE_DELETED	4		/* set if vnode deleted on server */
 #define AFS_VNODE_MOUNTPOINT	5		/* set if vnode is a mountpoint symlink */
-#define AFS_VNODE_AUTOCELL	6		/* set if Vnode is an auto mount point */
 #define AFS_VNODE_PSEUDODIR	7 		/* set if Vnode is a pseudo directory */
 #define AFS_VNODE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
 #define AFS_VNODE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
@@ -1111,7 +1110,6 @@ extern int afs_silly_iput(struct dentry *, struct inode *);
 extern const struct inode_operations afs_dynroot_inode_operations;
 extern const struct dentry_operations afs_dynroot_dentry_operations;
 
-extern struct inode *afs_try_auto_mntpt(struct dentry *, struct inode *);
 extern int afs_dynroot_mkdir(struct afs_net *, struct afs_cell *);
 extern void afs_dynroot_rmdir(struct afs_net *, struct afs_cell *);
 extern int afs_dynroot_populate(struct super_block *);

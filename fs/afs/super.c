@@ -194,8 +194,6 @@ static int afs_show_options(struct seq_file *m, struct dentry *root)
 
 	if (as->dyn_root)
 		seq_puts(m, ",dyn");
-	if (test_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(d_inode(root))->flags))
-		seq_puts(m, ",autocell");
 	switch (as->flock_mode) {
 	case afs_flock_mode_unset:	break;
 	case afs_flock_mode_local:	p = "local";	break;
@@ -477,9 +475,6 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
-
-	if (ctx->autocell || as->dyn_root)
-		set_bit(AFS_VNODE_AUTOCELL, &AFS_FS_I(inode)->flags);
 
 	ret = -ENOMEM;
 	sb->s_root = d_make_root(inode);

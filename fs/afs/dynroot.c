@@ -155,7 +155,7 @@ static int afs_probe_cell_name(struct dentry *dentry)
  * Try to auto mount the mountpoint with pseudo directory, if the autocell
  * operation is setted.
  */
-struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
+static struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 {
 	struct afs_vnode *vnode = AFS_FS_I(dir);
 	struct inode *inode;
@@ -163,9 +163,6 @@ struct inode *afs_try_auto_mntpt(struct dentry *dentry, struct inode *dir)
 
 	_enter("%p{%pd}, {%llx:%llu}",
 	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
-
-	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
-		goto out;
 
 	ret = afs_probe_cell_name(dentry);
 	if (ret < 0)
