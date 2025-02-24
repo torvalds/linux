@@ -59,7 +59,7 @@ $(obj)/vdso.o: $(obj)/vdso.so
 $(obj)/vdso.so.dbg: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold_and_check)
 LDFLAGS_vdso.so.dbg = -shared -soname=linux-vdso.so.1 \
-	--build-id=sha1 --hash-style=both --eh-frame-hdr
+	--build-id=sha1 --eh-frame-hdr
 
 # strip rule for the .so file
 $(obj)/%.so: OBJCOPYFLAGS := -S
