@@ -77,6 +77,8 @@ set_debarch() {
 			debarch=i386
 		fi
 		;;
+	loongarch64)
+		debarch=loong64 ;;
 	esac
 	if [ -z "$debarch" ]; then
 		debarch=$(dpkg-architecture -qDEB_HOST_ARCH)
