@@ -48,18 +48,12 @@ static bool io_file_supports_nowait(struct io_kiocb *req, __poll_t mask)
 
 static int io_iov_compat_buffer_select_prep(struct io_rw *rw)
 {
-	struct compat_iovec __user *uiov;
-	compat_ssize_t clen;
+	struct compat_iovec __user *uiov = u64_to_user_ptr(rw->addr);
+	struct compat_iovec iov;
 
-	uiov = u64_to_user_ptr(rw->addr);
-	if (!access_ok(uiov, sizeof(*uiov)))
+	if (copy_from_user(&iov, uiov, sizeof(iov)))
 		return -EFAULT;
-	if (__get_user(clen, &uiov->iov_len))
-		return -EFAULT;
-	if (clen < 0)
-		return -EINVAL;
-
-	rw->len = clen;
+	rw->len = iov.iov_len;
 	return 0;
 }
 
