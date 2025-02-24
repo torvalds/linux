@@ -1824,6 +1824,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 	while (!list_empty(&fs_info->reclaim_bgs)) {
 		u64 zone_unusable;
 		u64 used;
+		u64 reserved;
 		int ret = 0;
 
 		bg = list_first_entry(&fs_info->reclaim_bgs,
@@ -1920,21 +1921,32 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			goto next;
 
 		/*
-		 * Grab the used bytes counter while holding the block group's
-		 * spinlock to prevent races with tasks concurrently updating it
-		 * due to extent allocation and deallocation (running
-		 * btrfs_update_block_group()) - we have set the block group to
-		 * RO but that only prevents extent reservation, allocation
-		 * happens after reservation.
+		 * The amount of bytes reclaimed corresponds to the sum of the
+		 * "used" and "reserved" counters. We have set the block group
+		 * to RO above, which prevents reservations from happening but
+		 * we may have existing reservations for which allocation has
+		 * not yet been done - btrfs_update_block_group() was not yet
+		 * called, which is where we will transfer a reserved extent's
+		 * size from the "reserved" counter to the "used" counter - this
+		 * happens when running delayed references. When we relocate the
+		 * chunk below, relocation first flushes dellaloc, waits for
+		 * ordered extent completion (which is where we create delayed
+		 * references for data extents) and commits the current
+		 * transaction (which runs delayed references), and only after
+		 * it does the actual work to move extents out of the block
+		 * group. So the reported amount of reclaimed bytes is
+		 * effectively the sum of the 'used' and 'reserved' counters.
 		 */
 		spin_lock(&bg->lock);
 		used = bg->used;
+		reserved = bg->reserved;
 		spin_unlock(&bg->lock);
 
 		btrfs_info(fs_info,
-			"reclaiming chunk %llu with %llu%% used %llu%% unusable",
+	"reclaiming chunk %llu with %llu%% used %llu%% reserved %llu%% unusable",
 				bg->start,
 				div64_u64(used * 100, bg->length),
+				div64_u64(reserved * 100, bg->length),
 				div64_u64(zone_unusable * 100, bg->length));
 		trace_btrfs_reclaim_block_group(bg);
 		ret = btrfs_relocate_chunk(fs_info, bg->start);
@@ -1943,6 +1955,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 			btrfs_err(fs_info, "error relocating chunk %llu",
 				  bg->start);
 			used = 0;
+			reserved = 0;
 			spin_lock(&space_info->lock);
 			space_info->reclaim_errors++;
 			if (READ_ONCE(space_info->periodic_reclaim))
@@ -1952,6 +1965,7 @@ void btrfs_reclaim_bgs_work(struct work_struct *work)
 		spin_lock(&space_info->lock);
 		space_info->reclaim_count++;
 		space_info->reclaim_bytes += used;
+		space_info->reclaim_bytes += reserved;
 		spin_unlock(&space_info->lock);
 
 next:
