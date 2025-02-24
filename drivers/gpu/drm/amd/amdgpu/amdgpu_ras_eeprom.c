@@ -727,11 +727,9 @@ amdgpu_ras_eeprom_append_table(struct amdgpu_ras_eeprom_control *control,
 				     - control->ras_fri)
 		% control->ras_max_record_count;
 
-	if (control->rec_type == AMDGPU_RAS_EEPROM_REC_PA)
-		control->ras_num_bad_pages = control->ras_num_recs;
-	else
-		control->ras_num_bad_pages =
-			control->ras_num_recs * adev->umc.retire_unit;
+	control->ras_num_mca_recs += num;
+	control->ras_num_bad_pages += num * adev->umc.retire_unit;
+
 Out:
 	kfree(buf);
 	return res;
@@ -1396,6 +1394,8 @@ int amdgpu_ras_eeprom_init(struct amdgpu_ras_eeprom_control *control)
 	}
 	control->ras_fri = RAS_OFFSET_TO_INDEX(control, hdr->first_rec_offset);
 
+	control->ras_num_mca_recs = 0;
+	control->ras_num_pa_recs = 0;
 	return 0;
 }
 
@@ -1416,11 +1416,8 @@ int amdgpu_ras_eeprom_check(struct amdgpu_ras_eeprom_control *control)
 	if (!__get_eeprom_i2c_addr(adev, control))
 		return -EINVAL;
 
-	if (control->rec_type == AMDGPU_RAS_EEPROM_REC_PA)
-		control->ras_num_bad_pages = control->ras_num_recs;
-	else
-		control->ras_num_bad_pages =
-			control->ras_num_recs * adev->umc.retire_unit;
+	control->ras_num_bad_pages = control->ras_num_pa_recs +
+			control->ras_num_mca_recs * adev->umc.retire_unit;
 
 	if (hdr->header == RAS_TABLE_HDR_VAL) {
 		DRM_DEBUG_DRIVER("Found existing EEPROM table with %d records",

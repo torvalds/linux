@@ -2981,24 +2981,14 @@ int amdgpu_ras_save_bad_pages(struct amdgpu_device *adev,
 
 	/* only new entries are saved */
 	if (save_count > 0) {
-		if (control->rec_type == AMDGPU_RAS_EEPROM_REC_PA) {
+		for (i = 0; i < unit_num; i++) {
 			if (amdgpu_ras_eeprom_append(control,
-						     &data->bps[control->ras_num_recs],
-						     save_count)) {
+					&data->bps[bad_page_num + i * adev->umc.retire_unit],
+					1)) {
 				dev_err(adev->dev, "Failed to save EEPROM table data!");
 				return -EIO;
 			}
-		} else {
-			for (i = 0; i < unit_num; i++) {
-				if (amdgpu_ras_eeprom_append(control,
-						&data->bps[bad_page_num + i * adev->umc.retire_unit],
-						1)) {
-					dev_err(adev->dev, "Failed to save EEPROM table data!");
-					return -EIO;
-				}
-			}
 		}
-
 		dev_info(adev->dev, "Saved %d pages to EEPROM table.\n", save_count);
 	}
 
@@ -3014,7 +3004,7 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	struct amdgpu_ras_eeprom_control *control =
 		&adev->psp.ras_context.ras->eeprom_control;
 	struct eeprom_table_record *bps;
-	int ret;
+	int ret, i = 0;
 
 	/* no bad page record, skip eeprom access */
 	if (control->ras_num_recs == 0 || amdgpu_bad_page_threshold == 0)
@@ -3028,13 +3018,23 @@ static int amdgpu_ras_load_bad_pages(struct amdgpu_device *adev)
 	if (ret) {
 		dev_err(adev->dev, "Failed to load EEPROM table records!");
 	} else {
-		if (control->ras_num_recs > 1 &&
-		    adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
-			if ((bps[0].address == bps[1].address) &&
-			    (bps[0].mem_channel == bps[1].mem_channel))
-				control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
-			else
-				control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+		if (adev->umc.ras && adev->umc.ras->convert_ras_err_addr) {
+			for (i = 0; i < control->ras_num_recs; i++) {
+				if ((control->ras_num_recs - i) >= adev->umc.retire_unit) {
+					if ((bps[i].address == bps[i + 1].address) &&
+						(bps[i].mem_channel == bps[i + 1].mem_channel)) {
+						control->ras_num_pa_recs += adev->umc.retire_unit;
+						i += (adev->umc.retire_unit - 1);
+					} else {
+						control->ras_num_mca_recs +=
+									(control->ras_num_recs - i);
+						break;
+					}
+				} else {
+					control->ras_num_mca_recs += (control->ras_num_recs - i);
+					break;
+				}
+			}
 		}
 
 		ret = amdgpu_ras_eeprom_check(control);
@@ -3440,12 +3440,7 @@ int amdgpu_ras_init_badpage_info(struct amdgpu_device *adev)
 		return ret;
 
 	if (!adev->umc.ras || !adev->umc.ras->convert_ras_err_addr)
-		control->rec_type = AMDGPU_RAS_EEPROM_REC_PA;
-
-	/* default status is MCA storage */
-	if (control->ras_num_recs <= 1 &&
-	    adev->umc.ras && adev->umc.ras->convert_ras_err_addr)
-		control->rec_type = AMDGPU_RAS_EEPROM_REC_MCA;
+		control->ras_num_pa_recs = control->ras_num_recs;
 
 	if (control->ras_num_recs) {
 		ret = amdgpu_ras_load_bad_pages(adev);
