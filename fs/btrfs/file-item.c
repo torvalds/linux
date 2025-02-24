@@ -341,7 +341,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	struct btrfs_inode *inode = bbio->inode;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio = &bbio->bio;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	const u32 sectorsize = fs_info->sectorsize;
 	const u32 csum_size = fs_info->csum_size;
 	u32 orig_len = bio->bi_iter.bi_size;
@@ -373,10 +373,8 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 
 	if (nblocks * csum_size > BTRFS_BIO_INLINE_CSUM_SIZE) {
 		bbio->csum = kmalloc_array(nblocks, csum_size, GFP_NOFS);
-		if (!bbio->csum) {
-			btrfs_free_path(path);
+		if (!bbio->csum)
 			return BLK_STS_RESOURCE;
-		}
 	} else {
 		bbio->csum = bbio->csum_inline;
 	}
@@ -444,7 +442,6 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 		bio_offset += count * sectorsize;
 	}
 
-	btrfs_free_path(path);
 	return ret;
 }
 
