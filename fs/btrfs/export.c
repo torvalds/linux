@@ -223,7 +223,7 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 	struct btrfs_inode *dir = BTRFS_I(d_inode(parent));
 	struct btrfs_root *root = dir->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_inode_ref *iref;
 	struct btrfs_root_ref *rref;
 	struct extent_buffer *leaf;
@@ -255,15 +255,12 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0) {
-		btrfs_free_path(path);
 		return ret;
 	} else if (ret > 0) {
-		if (ino == BTRFS_FIRST_FREE_OBJECTID) {
+		if (ino == BTRFS_FIRST_FREE_OBJECTID)
 			path->slots[0]--;
-		} else {
-			btrfs_free_path(path);
+		else
 			return -ENOENT;
-		}
 	}
 	leaf = path->nodes[0];
 
@@ -280,7 +277,6 @@ static int btrfs_get_name(struct dentry *parent, char *name,
 	}
 
 	read_extent_buffer(leaf, name, name_ptr, name_len);
-	btrfs_free_path(path);
 
 	/*
 	 * have to add the null termination to make sure that reconnect_path
