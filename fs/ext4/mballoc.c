@@ -187,7 +187,7 @@
  * /sys/fs/ext4/<partition>/mb_min_to_scan
  * /sys/fs/ext4/<partition>/mb_max_to_scan
  * /sys/fs/ext4/<partition>/mb_order2_req
- * /sys/fs/ext4/<partition>/mb_linear_limit
+ * /sys/fs/ext4/<partition>/mb_max_linear_groups
  *
  * The regular allocator uses buddy scan only if the request len is power of
  * 2 blocks and the order of allocation is >= sbi->s_mb_order2_reqs. The
@@ -209,7 +209,7 @@
  * get traversed linearly. That may result in subsequent allocations being not
  * close to each other. And so, the underlying device may get filled up in a
  * non-linear fashion. While that may not matter on non-rotational devices, for
- * rotational devices that may result in higher seek times. "mb_linear_limit"
+ * rotational devices that may result in higher seek times. "mb_max_linear_groups"
  * tells mballoc how many groups mballoc should search linearly before
  * performing consulting above data structures for more efficient lookups. For
  * non rotational devices, this value defaults to 0 and for rotational devices
