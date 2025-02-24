@@ -42,7 +42,7 @@
 #include <drm/intel/i915_hdcp_interface.h>
 #include <uapi/drm/i915_drm.h>
 
-#include "i915_vma_types.h"
+#include "i915_gtt_view_types.h"
 #include "intel_bios.h"
 #include "intel_display.h"
 #include "intel_display_conversion.h"
