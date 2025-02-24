@@ -95,6 +95,29 @@ static void free_engine_activity_buffers(struct engine_activity_buffer *buffer)
 	xe_bo_unpin_map_no_vm(buffer->activity_bo);
 }
 
+static bool is_engine_activity_supported(struct xe_guc *guc)
+{
+	struct xe_uc_fw_version *version = &guc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
+	struct xe_uc_fw_version required = { 1, 14, 1 };
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (IS_SRIOV_VF(gt_to_xe(gt))) {
+		xe_gt_info(gt, "engine activity stats not supported on VFs\n");
+		return false;
+	}
+
+	/* engine activity stats is supported from GuC interface version (1.14.1) */
+	if (GUC_SUBMIT_VER(guc) < MAKE_GUC_VER_STRUCT(required)) {
+		xe_gt_info(gt,
+			   "engine activity stats unsupported in GuC interface v%u.%u.%u, need v%u.%u.%u or higher\n",
+			   version->major, version->minor, version->patch, required.major,
+			   required.minor, required.patch);
+		return false;
+	}
+
+	return true;
+}
+
 static struct engine_activity *hw_engine_to_engine_activity(struct xe_hw_engine *hwe)
 {
 	struct xe_guc *guc = &hwe->gt->uc.guc;
@@ -251,6 +274,9 @@ static u32 gpm_timestamp_shift(struct xe_gt *gt)
  */
 u64 xe_guc_engine_activity_active_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
 {
+	if (!xe_guc_engine_activity_supported(guc))
+		return 0;
+
 	return get_engine_active_ticks(guc, hwe);
 }
 
@@ -263,7 +289,25 @@ u64 xe_guc_engine_activity_active_ticks(struct xe_guc *guc, struct xe_hw_engine 
  */
 u64 xe_guc_engine_activity_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
 {
+	if (!xe_guc_engine_activity_supported(guc))
+		return 0;
+
 	return get_engine_total_ticks(guc, hwe);
+}
+
+/**
+ * xe_guc_engine_activity_supported - Check support for engine activity stats
+ * @guc: The GuC object
+ *
+ * Engine activity stats is supported from GuC interface version (1.14.1)
+ *
+ * Return: true if engine activity stats supported, false otherwise
+ */
+bool xe_guc_engine_activity_supported(struct xe_guc *guc)
+{
+	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
+
+	return engine_activity->supported;
 }
 
 /**
@@ -275,6 +319,9 @@ u64 xe_guc_engine_activity_total_ticks(struct xe_guc *guc, struct xe_hw_engine *
 void xe_guc_engine_activity_enable_stats(struct xe_guc *guc)
 {
 	int ret;
+
+	if (!xe_guc_engine_activity_supported(guc))
+		return;
 
 	ret = enable_engine_activity_stats(guc);
 	if (ret)
@@ -301,10 +348,10 @@ int xe_guc_engine_activity_init(struct xe_guc *guc)
 {
 	struct xe_guc_engine_activity *engine_activity = &guc->engine_activity;
 	struct xe_gt *gt = guc_to_gt(guc);
-	struct xe_device *xe = gt_to_xe(gt);
 	int ret;
 
-	if (IS_SRIOV_VF(xe))
+	engine_activity->supported = is_engine_activity_supported(guc);
+	if (!engine_activity->supported)
 		return 0;
 
 	ret = allocate_engine_activity_group(guc);
