@@ -1821,8 +1821,9 @@ struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
 	struct dentry *dentry = __d_alloc(sb, name);
 	if (likely(dentry)) {
 		dentry->d_flags |= DCACHE_NORCU;
+		/* d_op_flags(&anon_ops) is 0 */
 		if (!dentry->d_op)
-			d_set_d_op(dentry, &anon_ops);
+			dentry->d_op = &anon_ops;
 	}
 	return dentry;
 }
@@ -1864,7 +1865,7 @@ static unsigned int d_op_flags(const struct dentry_operations *op)
 	return flags;
 }
 
-void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
+static void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 {
 	unsigned int flags = d_op_flags(op);
 	WARN_ON_ONCE(dentry->d_op);
@@ -1873,7 +1874,6 @@ void d_set_d_op(struct dentry *dentry, const struct dentry_operations *op)
 	if (flags)
 		dentry->d_flags |= flags;
 }
-EXPORT_SYMBOL(d_set_d_op);
 
 void set_default_d_op(struct super_block *s, const struct dentry_operations *ops)
 {
