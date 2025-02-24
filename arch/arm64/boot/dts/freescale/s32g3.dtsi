@@ -391,6 +391,34 @@
 			clock-names = "dmamux0", "dmamux1";
 		};
 
+		can0: can@401b4000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x401b4000 0xa000>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
+		can1: can@401be000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x401be000 0xa000>;
+			interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
 		uart0: serial@401c8000 {
 			compatible = "nxp,s32g3-linflexuart",
 				     "fsl,s32v234-linflexuart";
@@ -458,6 +486,34 @@
 					  "err";
 			clocks = <&clks 63>, <&clks 64>;
 			clock-names = "dmamux0", "dmamux1";
+		};
+
+		can2: can@402a8000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x402a8000 0xa000>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
+		};
+
+		can3: can@402b2000 {
+			compatible = "nxp,s32g3-flexcan",
+					   "nxp,s32g2-flexcan";
+			reg = <0x402b2000 0xa000>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "mb-0", "state", "berr", "mb-1";
+			clocks = <&clks 9>, <&clks 11>;
+			clock-names = "ipg", "per";
+			status = "disabled";
 		};
 
 		uart2: serial@402bc000 {

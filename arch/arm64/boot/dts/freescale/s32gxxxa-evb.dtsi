@@ -8,6 +8,60 @@
  */
 
 &pinctrl {
+	can0_pins: can0-pins {
+		can0-grp0 {
+			pinmux = <0x2c1>;
+			output-enable;
+			slew-rate = <133>;
+		};
+
+		can0-grp1 {
+			pinmux = <0x2b0>;
+			input-enable;
+			slew-rate = <133>;
+		};
+
+		can0-grp2 {
+			pinmux = <0x2012>;
+		};
+	};
+
+	can2_pins: can2-pins {
+		can2-grp0 {
+			pinmux = <0x1b2>;
+			output-enable;
+			slew-rate = <133>;
+		};
+
+		can2-grp1 {
+			pinmux = <0x1c0>;
+			input-enable;
+			slew-rate = <133>;
+		};
+
+		can2-grp2 {
+			pinmux = <0x2782>;
+		};
+	};
+
+	can3_pins: can3-pins {
+		can3-grp0 {
+			pinmux = <0x192>;
+			output-enable;
+			slew-rate = <133>;
+		};
+
+		can3-grp1 {
+			pinmux = <0x1a0>;
+			input-enable;
+			slew-rate = <133>;
+		};
+
+		can3-grp2 {
+			pinmux = <0x2792>;
+		};
+	};
+
 	i2c0_pins: i2c0-pins {
 		i2c0-grp0 {
 			pinmux = <0x101>, <0x111>;
@@ -119,6 +173,24 @@
 			pinmux = <0x2d40>, <0x2d30>;
 		};
 	};
+};
+
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0_pins>;
+	status = "okay";
+};
+
+&can2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can2_pins>;
+	status = "okay";
+};
+
+&can3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can3_pins>;
+	status = "okay";
 };
 
 &i2c0 {

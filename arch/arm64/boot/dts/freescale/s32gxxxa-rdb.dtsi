@@ -8,6 +8,42 @@
  */
 
 &pinctrl {
+	can0_pins: can0-pins {
+		can0-grp0 {
+			pinmux = <0x112>;
+			output-enable;
+			slew-rate = <133>;
+		};
+
+		can0-grp1 {
+			pinmux = <0x120>;
+			input-enable;
+			slew-rate = <133>;
+		};
+
+		can0-grp2 {
+			pinmux = <0x2013>;
+		};
+	};
+
+	can1_pins: can1-pins {
+		can1-grp0 {
+			pinmux = <0x132>;
+			output-enable;
+			slew-rate = <133>;
+		};
+
+		can1-grp1 {
+			pinmux = <0x140>;
+			input-enable;
+			slew-rate = <133>;
+		};
+
+		can1-grp2 {
+			pinmux = <0x2772>;
+		};
+	};
+
 	i2c0_pins: i2c0-pins {
 		i2c0-grp0 {
 			pinmux = <0x1f2>, <0x201>;
@@ -91,6 +127,18 @@
 			pinmux = <0x2d40>, <0x2d30>;
 		};
 	};
+};
+
+&can0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can0_pins>;
+	status = "okay";
+};
+
+&can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1_pins>;
+	status = "okay";
 };
 
 &i2c0 {
