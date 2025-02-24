@@ -467,9 +467,10 @@ static const struct ctl_table nlm_sysctls[] = {
 	{
 		.procname	= "nsm_local_state",
 		.data		= &nsm_local_state,
-		.maxlen		= sizeof(int),
+		.maxlen		= sizeof(nsm_local_state),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_douintvec,
+		.extra1		= SYSCTL_ZERO,
 	},
 };
 
