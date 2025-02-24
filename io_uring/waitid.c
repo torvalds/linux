@@ -42,7 +42,6 @@ static void io_waitid_free(struct io_kiocb *req)
 	req->flags &= ~REQ_F_ASYNC_DATA;
 }
 
-#ifdef CONFIG_COMPAT
 static bool io_waitid_compat_copy_si(struct io_waitid *iw, int signo)
 {
 	struct compat_siginfo __user *infop;
@@ -67,7 +66,6 @@ Efault:
 	ret = false;
 	goto done;
 }
-#endif
 
 static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
 {
@@ -77,10 +75,8 @@ static bool io_waitid_copy_si(struct io_kiocb *req, int signo)
 	if (!iw->infop)
 		return true;
 
-#ifdef CONFIG_COMPAT
-	if (req->ctx->compat)
+	if (io_is_compat(req->ctx))
 		return io_waitid_compat_copy_si(iw, signo);
-#endif
 
 	if (!user_write_access_begin(iw->infop, sizeof(*iw->infop)))
 		return false;
