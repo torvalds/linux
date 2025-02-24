@@ -148,6 +148,8 @@ static void set_init_blocksize(struct block_device *bdev)
 		bsize <<= 1;
 	}
 	BD_INODE(bdev)->i_blkbits = blksize_bits(bsize);
+	mapping_set_folio_min_order(BD_INODE(bdev)->i_mapping,
+				    get_order(bsize));
 }
 
 int set_blocksize(struct file *file, int size)
@@ -169,6 +171,7 @@ int set_blocksize(struct file *file, int size)
 	if (inode->i_blkbits != blksize_bits(size)) {
 		sync_blockdev(bdev);
 		inode->i_blkbits = blksize_bits(size);
+		mapping_set_folio_min_order(inode->i_mapping, get_order(size));
 		kill_bdev(bdev);
 	}
 	return 0;
@@ -180,8 +183,7 @@ int sb_set_blocksize(struct super_block *sb, int size)
 {
 	if (set_blocksize(sb->s_bdev_file, size))
 		return 0;
-	/* If we get here, we know size is power of two
-	 * and it's value is between 512 and PAGE_SIZE */
+	/* If we get here, we know size is validated */
 	sb->s_blocksize = size;
 	sb->s_blocksize_bits = blksize_bits(size);
 	return sb->s_blocksize;
@@ -1274,9 +1276,6 @@ void bdev_statx(struct path *path, struct kstat *stat,
 	struct inode *backing_inode;
 	struct block_device *bdev;
 
-	if (!(request_mask & (STATX_DIOALIGN | STATX_WRITE_ATOMIC)))
-		return;
-
 	backing_inode = d_backing_inode(path->dentry);
 
 	/*
@@ -1302,6 +1301,8 @@ void bdev_statx(struct path *path, struct kstat *stat,
 			queue_atomic_write_unit_min_bytes(bd_queue),
 			queue_atomic_write_unit_max_bytes(bd_queue));
 	}
+
+	stat->blksize = bdev_io_min(bdev);
 
 	blkdev_put_no_open(bdev);
 }
