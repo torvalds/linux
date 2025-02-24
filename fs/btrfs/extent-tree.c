@@ -70,9 +70,8 @@ static int block_group_bits(struct btrfs_block_group *cache, u64 bits)
 int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
 {
 	struct btrfs_root *root = btrfs_extent_root(fs_info, start);
-	int ret;
 	struct btrfs_key key;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -81,9 +80,7 @@ int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
 	key.objectid = start;
 	key.type = BTRFS_EXTENT_ITEM_KEY;
 	key.offset = len;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	btrfs_free_path(path);
-	return ret;
+	return btrfs_search_slot(NULL, root, &key, path, 0, 0);
 }
 
 /*
@@ -1487,7 +1484,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_delayed_ref_node *node,
 				  struct btrfs_delayed_extent_op *extent_op)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct extent_buffer *leaf;
 	struct btrfs_extent_item *item;
 	struct btrfs_key key;
@@ -1508,7 +1505,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 					   node->parent, node->ref_root, owner,
 					   offset, refs_to_add, extent_op);
 	if ((ret < 0 && ret != -EAGAIN) || !ret)
-		goto out;
+		return ret;
 
 	/*
 	 * Ok we had -EAGAIN which means we didn't have space to insert and
@@ -1533,8 +1530,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
@@ -5465,7 +5461,7 @@ static int check_ref_exists(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_head *head;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_extent_inline_ref *iref;
 	int ret;
 	bool exists = false;
@@ -5482,7 +5478,6 @@ again:
 		 * If we get 0 then we found our reference, return 1, else
 		 * return the error if it's not -ENOENT;
 		 */
-		btrfs_free_path(path);
 		return (ret < 0 ) ? ret : 1;
 	}
 
@@ -5517,7 +5512,6 @@ again:
 	mutex_unlock(&head->mutex);
 out:
 	spin_unlock(&delayed_refs->lock);
-	btrfs_free_path(path);
 	return exists ? 1 : 0;
 }
 
@@ -6285,7 +6279,7 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 			struct extent_buffer *parent)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct walk_control *wc;
 	int level;
 	int parent_level;
@@ -6298,10 +6292,8 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 
 	wc = kzalloc(sizeof(*wc), GFP_NOFS);
-	if (!wc) {
-		btrfs_free_path(path);
+	if (!wc)
 		return -ENOMEM;
-	}
 
 	btrfs_assert_tree_write_locked(parent);
 	parent_level = btrfs_header_level(parent);
@@ -6338,7 +6330,6 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 	}
 
 	kfree(wc);
-	btrfs_free_path(path);
 	return ret;
 }
 

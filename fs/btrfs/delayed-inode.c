@@ -1211,7 +1211,7 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 				     struct btrfs_inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_block_rsv *block_rsv;
 	int ret;
 
@@ -1238,7 +1238,6 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 	ret = __btrfs_commit_inode_delayed_items(trans, path, delayed_node);
 
 	btrfs_release_delayed_node(delayed_node);
-	btrfs_free_path(path);
 	trans->block_rsv = block_rsv;
 
 	return ret;
