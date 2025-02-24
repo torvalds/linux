@@ -8,7 +8,7 @@ ACTION=="remove", TAG+="lklfuse-dbg-got-remove", \
 
 # only support a subset of filesystems on USB devices for now. Btrfs omitted
 # from the default set, as lklfuse lacks multi-device support.
-ENV{ID_FS_TYPE}!="vfat|exfat|xfs|ext4|ext3|ext2", GOTO="lklfuse_end"
+ENV{ID_FS_TYPE}!="vfat|exfat|iso9660|udf|xfs|ext4|ext3|ext2", GOTO="lklfuse_end"
 #TAG+="lklfuse-dbg-fs-filter"
 
 ACTION=="add", TAG+="systemd", \
