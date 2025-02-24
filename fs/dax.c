@@ -1431,8 +1431,7 @@ int dax_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 }
 EXPORT_SYMBOL_GPL(dax_truncate_page);
 
-static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
-		struct iov_iter *iter)
+static int dax_iomap_iter(struct iomap_iter *iomi, struct iov_iter *iter)
 {
 	const struct iomap *iomap = &iomi->iomap;
 	const struct iomap *srcmap = iomap_iter_srcmap(iomi);
@@ -1451,8 +1450,10 @@ static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
 		if (pos >= end)
 			return 0;
 
-		if (iomap->type == IOMAP_HOLE || iomap->type == IOMAP_UNWRITTEN)
-			return iov_iter_zero(min(length, end - pos), iter);
+		if (iomap->type == IOMAP_HOLE || iomap->type == IOMAP_UNWRITTEN) {
+			done = iov_iter_zero(min(length, end - pos), iter);
+			return iomap_iter_advance(iomi, &done);
+		}
 	}
 
 	/*
@@ -1485,7 +1486,7 @@ static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
 	}
 
 	id = dax_read_lock();
-	while (pos < end) {
+	while ((pos = iomi->pos) < end) {
 		unsigned offset = pos & (PAGE_SIZE - 1);
 		const size_t size = ALIGN(length + offset, PAGE_SIZE);
 		pgoff_t pgoff = dax_iomap_pgoff(iomap, pos);
@@ -1535,18 +1536,16 @@ static loff_t dax_iomap_iter(const struct iomap_iter *iomi,
 			xfer = dax_copy_to_iter(dax_dev, pgoff, kaddr,
 					map_len, iter);
 
-		pos += xfer;
-		length -= xfer;
-		done += xfer;
-
-		if (xfer == 0)
+		length = xfer;
+		ret = iomap_iter_advance(iomi, &length);
+		if (!ret && xfer == 0)
 			ret = -EFAULT;
 		if (xfer < map_len)
 			break;
 	}
 	dax_read_unlock(id);
 
-	return done ? done : ret;
+	return ret;
 }
 
 /**
@@ -1585,12 +1584,8 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 	if (iocb->ki_flags & IOCB_NOWAIT)
 		iomi.flags |= IOMAP_NOWAIT;
 
-	while ((ret = iomap_iter(&iomi, ops)) > 0) {
+	while ((ret = iomap_iter(&iomi, ops)) > 0)
 		iomi.processed = dax_iomap_iter(&iomi, iter);
-		if (iomi.processed > 0)
-			iomi.processed = iomap_iter_advance(&iomi,
-							    &iomi.processed);
-	}
 
 	done = iomi.pos - iocb->ki_pos;
 	iocb->ki_pos = iomi.pos;
