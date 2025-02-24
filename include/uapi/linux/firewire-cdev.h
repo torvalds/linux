@@ -449,7 +449,8 @@ struct fw_cdev_event_phy_packet {
  *		which the packet arrived. For %FW_CDEV_EVENT_PHY_PACKET_SENT2 and non-ping packet,
  *		the time stamp of isochronous cycle at which the packet was sent. For ping packet,
  *		the tick count for round-trip time measured by 1394 OHCI controller.
- * The time stamp of isochronous cycle at which either the response was sent for
+ *
+ *		The time stamp of isochronous cycle at which either the response was sent for
  *		%FW_CDEV_EVENT_PHY_PACKET_SENT2 or the request arrived for
  *		%FW_CDEV_EVENT_PHY_PACKET_RECEIVED2.
  * @data:	Incoming data
