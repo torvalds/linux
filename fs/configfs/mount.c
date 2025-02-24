@@ -93,6 +93,7 @@ static int configfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	root->d_fsdata = &configfs_root;
 	sb->s_root = root;
 	set_default_d_op(sb, &configfs_dentry_ops); /* the rest get that */
+	sb->s_d_flags |= DCACHE_DONTCACHE;
 	return 0;
 }
 

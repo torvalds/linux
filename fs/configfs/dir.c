@@ -67,7 +67,6 @@ static void configfs_d_iput(struct dentry * dentry,
 
 const struct dentry_operations configfs_dentry_ops = {
 	.d_iput		= configfs_d_iput,
-	.d_delete	= always_delete_dentry,
 };
 
 #ifdef CONFIG_LOCKDEP
