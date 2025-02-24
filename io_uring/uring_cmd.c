@@ -257,7 +257,8 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 }
 
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
-			      struct iov_iter *iter, void *ioucmd)
+			      struct iov_iter *iter, void *ioucmd,
+			      unsigned int issue_flags)
 {
 	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 	struct io_rsrc_node *node = req->buf_node;

@@ -39,7 +39,8 @@ static inline void io_uring_cmd_private_sz_check(size_t cmd_sz)
 
 #if defined(CONFIG_IO_URING)
 int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
-			      struct iov_iter *iter, void *ioucmd);
+			      struct iov_iter *iter, void *ioucmd,
+			      unsigned int issue_flags);
 
 /*
  * Completes the request, i.e. posts an io_uring CQE and deallocates @ioucmd
@@ -67,7 +68,8 @@ void io_uring_cmd_issue_blocking(struct io_uring_cmd *ioucmd);
 
 #else
 static inline int io_uring_cmd_import_fixed(u64 ubuf, unsigned long len, int rw,
-			      struct iov_iter *iter, void *ioucmd)
+			      struct iov_iter *iter, void *ioucmd,
+			      unsigned int issue_flags)
 {
 	return -EOPNOTSUPP;
 }
