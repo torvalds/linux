@@ -7,21 +7,22 @@
  * This file is the bootloader for the Linux/AXP kernel
  */
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <generated/utsrelease.h>
-#include <linux/mm.h>
-
 #include <asm/console.h>
 #include <asm/hwrpb.h>
-
-#include <linux/stdarg.h>
-
 #include "ksize.h"
 
+#define VPTB ((unsigned long *)0x200000000)
+#define L1   ((unsigned long *)0x200802000)
+#define EXPECTED_PAGE_SIZE 8192
+#define ENV_BUF_SIZE 256
+
 extern unsigned long switch_to_osf_pal(unsigned long nr,
-	struct pcb_struct * pcb_va, struct pcb_struct * pcb_pa,
-	unsigned long *vptb);
+                                      struct pcb_struct *pcb_va,
+                                      struct pcb_struct *pcb_pa,
+                                      unsigned long *vptb);
+
 struct hwrpb_struct *hwrpb = INIT_HWRPB;
 static struct pcb_struct pcb_va[1];
 
@@ -30,19 +31,14 @@ static struct pcb_struct pcb_va[1];
  *
  * This is easy using the virtual page table address.
  */
+#define find_pa(ptr) ((void *)(((VPTB[((unsigned long)(ptr)) >> 13] >> 32) << 13) | \
+                              (((unsigned long)(ptr)) & 0x1fff)))
 
-static inline void *
-find_pa(unsigned long *vptb, void *ptr)
-{
-	unsigned long address = (unsigned long) ptr;
-	unsigned long result;
-
-	result = vptb[address >> 13];
-	result >>= 32;
-	result <<= 13;
-	result |= address & 0x1fff;
-	return (void *) result;
-}	
+#define get_env(var, buf) ({ \
+    long _r = callback_getenv(var, buf, ENV_BUF_SIZE - 1); \
+    if (_r >= 0) buf[_r & 0xff] = '\0'; \
+    _r; \
+})
 
 /*
  * This function moves into OSF/1 pal-code, and has a temporary
@@ -54,84 +50,39 @@ find_pa(unsigned long *vptb, void *ptr)
  * in the L1 page table. Thus the L1-page is virtually addressable
  * itself (through three levels) at virtual address 0x200802000.
  */
-
-#define VPTB	((unsigned long *) 0x200000000)
-#define L1	((unsigned long *) 0x200802000)
-
-void
-pal_init(void)
+static void pal_init(void)
 {
-	unsigned long i, rev;
-	struct percpu_struct * percpu;
-	struct pcb_struct * pcb_pa;
-
-	/* Create the dummy PCB.  */
-	pcb_va->ksp = 0;
-	pcb_va->usp = 0;
-	pcb_va->ptbr = L1[1] >> 32;
-	pcb_va->asn = 0;
-	pcb_va->pcc = 0;
-	pcb_va->unique = 0;
-	pcb_va->flags = 1;
-	pcb_va->res1 = 0;
-	pcb_va->res2 = 0;
-	pcb_pa = find_pa(VPTB, pcb_va);
-
-	/*
-	 * a0 = 2 (OSF)
-	 * a1 = return address, but we give the asm the vaddr of the PCB
-	 * a2 = physical addr of PCB
-	 * a3 = new virtual page table pointer
-	 * a4 = KSP (but the asm sets it)
-	 */
-	srm_printk("Switching to OSF PAL-code .. ");
-
-	i = switch_to_osf_pal(2, pcb_va, pcb_pa, VPTB);
-	if (i) {
-		srm_printk("failed, code %ld\n", i);
-		__halt();
-	}
-
-	percpu = (struct percpu_struct *)
-		(INIT_HWRPB->processor_offset + (unsigned long) INIT_HWRPB);
-	rev = percpu->pal_revision = percpu->palcode_avail[2];
-
-	srm_printk("Ok (rev %lx)\n", rev);
-
-	tbia(); /* do it directly in case we are SMP */
+    struct percpu_struct *percpu = (struct percpu_struct *)
+        (INIT_HWRPB->processor_offset + (unsigned long)INIT_HWRPB);
+    pcb_va->ptbr = L1[1] >> 32;
+    pcb_va->flags = 1;
+    srm_printk("Switching to OSF PAL-code .. ");
+    long i = switch_to_osf_pal(2, pcb_va, find_pa(pcb_va), VPTB);
+    if (i) {
+        srm_printk("failed, code %ld\n", i);
+        __halt();
+    }
+    percpu->pal_revision = percpu->palcode_avail[2];
+    srm_printk("Ok (rev %lx)\n", percpu->pal_revision);
+    tbia();
 }
 
-static inline long openboot(void)
+static long boot_device_open(char *buf)
 {
-	char bootdev[256];
-	long result;
-
-	result = callback_getenv(ENV_BOOTED_DEV, bootdev, 255);
-	if (result < 0)
-		return result;
-	return callback_open(bootdev, result & 255);
+    long len = get_env(ENV_BOOTED_DEV, buf);
+    return len < 0 ? len : callback_open(buf, len & 0xff);
 }
 
-static inline long close(long dev)
+static long load_kernel(long dev, char *buf)
 {
-	return callback_close(dev);
-}
-
-static inline long load(long dev, unsigned long addr, unsigned long count)
-{
-	char bootfile[256];
-	extern char _end;
-	long result, boot_size = &_end - (char *) BOOT_ADDR;
-
-	result = callback_getenv(ENV_BOOTED_FILE, bootfile, 255);
-	if (result < 0)
-		return result;
-	result &= 255;
-	bootfile[result] = '\0';
-	if (result)
-		srm_printk("Boot file specification (%s) not implemented\n",
-		       bootfile);
-	return callback_read(dev, count, (void *)addr, boot_size/512 + 1);
+    extern char _end;
+    long boot_size = &_end - (char *)BOOT_ADDR;
+    long len = get_env(ENV_BOOTED_FILE, buf);
+    if (len > 0)
+        srm_printk("Boot file specification (%s) not implemented\n", buf);
+    return len < 0 ? len :
+           callback_read(dev, KERNEL_SIZE, (void *)START_ADDR,
+                        boot_size/512 + 1);
 }
 
 /*
@@ -139,52 +90,45 @@ static inline long load(long dev, unsigned long addr, unsigned long count)
  */
 static void runkernel(void)
 {
-	__asm__ __volatile__(
-		"bis %1,%1,$30\n\t"
-		"bis %0,%0,$26\n\t"
-		"ret ($26)"
-		: /* no outputs: it doesn't even return */
-		: "r" (START_ADDR),
-		  "r" (PAGE_SIZE + INIT_STACK));
+    __asm__ __volatile__(
+        "bis %1,%1,$30\n\t"
+        "bis %0,%0,$26\n\t"
+        "ret ($26)"
+        : : "r" (START_ADDR),
+            "r" (PAGE_SIZE + INIT_STACK)
+        : "$30", "$26", "memory"
+    );
 }
 
 void start_kernel(void)
 {
-	long i;
-	long dev;
-	int nbytes;
-	char envval[256];
-
-	srm_printk("Linux/AXP bootloader for Linux " UTS_RELEASE "\n");
-	if (INIT_HWRPB->pagesize != 8192) {
-		srm_printk("Expected 8kB pages, got %ldkB\n", INIT_HWRPB->pagesize >> 10);
-		return;
-	}
-	pal_init();
-	dev = openboot();
-	if (dev < 0) {
-		srm_printk("Unable to open boot device: %016lx\n", dev);
-		return;
-	}
-	dev &= 0xffffffff;
-	srm_printk("Loading vmlinux ...");
-	i = load(dev, START_ADDR, KERNEL_SIZE);
-	close(dev);
-	if (i != KERNEL_SIZE) {
-		srm_printk("Failed (%lx)\n", i);
-		return;
-	}
-
-	nbytes = callback_getenv(ENV_BOOTED_OSFLAGS, envval, sizeof(envval));
-	if (nbytes < 0) {
-		nbytes = 0;
-	}
-	envval[nbytes] = '\0';
-	strcpy((char*)ZERO_PGE, envval);
-
-	srm_printk(" Ok\nNow booting the kernel\n");
-	runkernel();
-	for (i = 0 ; i < 0x100000000 ; i++)
-		/* nothing */;
-	__halt();
+    char buf[ENV_BUF_SIZE];
+    long dev;
+    srm_printk("Linux/AXP bootloader for Linux " UTS_RELEASE "\n");
+    if (INIT_HWRPB->pagesize != EXPECTED_PAGE_SIZE) {
+        srm_printk("Expected 8kB pages, got %ldkB\n",
+                   INIT_HWRPB->pagesize >> 10);
+        __halt();
+    }
+    pal_init();
+    dev = boot_device_open(buf);
+    if (dev < 0) {
+        srm_printk("Unable to open boot device: %016lx\n", dev);
+        __halt();
+    }
+    dev &= 0xffffffff;
+    srm_printk("Loading vmlinux ...");
+    long i = load_kernel(dev, buf);
+    if (i != KERNEL_SIZE) {
+        srm_printk("Failed (%lx)\n", i);
+        goto cleanup;
+    }
+    if (get_env(ENV_BOOTED_OSFLAGS, buf) >= 0)
+        strcpy((char *)ZERO_PGE, buf);
+    srm_printk(" Ok\nNow booting the kernel\n");
+    callback_close(dev);
+    runkernel();
+cleanup:
+    callback_close(dev);
+    __halt();
 }
