@@ -9,7 +9,7 @@
 
 static inline void iomap_iter_reset_iomap(struct iomap_iter *iter)
 {
-	iter->processed = 0;
+	iter->status = 0;
 	memset(&iter->iomap, 0, sizeof(iter->iomap));
 	memset(&iter->srcmap, 0, sizeof(iter->srcmap));
 }
@@ -54,7 +54,7 @@ static inline void iomap_iter_done(struct iomap_iter *iter)
  * function must be called in a loop that continues as long it returns a
  * positive value.  If 0 or a negative value is returned, the caller must not
  * return to the loop body.  Within a loop body, there are two ways to break out
- * of the loop body:  leave @iter.processed unchanged, or set it to a negative
+ * of the loop body:  leave @iter.status unchanged, or set it to a negative
  * errno.
  */
 int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
@@ -86,8 +86,8 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 	}
 
 	/* detect old return semantics where this would advance */
-	if (WARN_ON_ONCE(iter->processed > 0))
-		iter->processed = -EIO;
+	if (WARN_ON_ONCE(iter->status > 0))
+		iter->status = -EIO;
 
 	/*
 	 * Use iter->len to determine whether to continue onto the next mapping.
@@ -95,8 +95,8 @@ int iomap_iter(struct iomap_iter *iter, const struct iomap_ops *ops)
 	 * advanced at all (i.e. no work was done for some reason) unless the
 	 * mapping has been marked stale and needs to be reprocessed.
 	 */
-	if (iter->processed < 0)
-		ret = iter->processed;
+	if (iter->status < 0)
+		ret = iter->status;
 	else if (iter->len == 0 || (!advanced && !stale))
 		ret = 0;
 	else

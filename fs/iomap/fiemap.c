@@ -39,7 +39,7 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 			iomap->length, flags);
 }
 
-static loff_t iomap_fiemap_iter(struct iomap_iter *iter,
+static int iomap_fiemap_iter(struct iomap_iter *iter,
 		struct fiemap_extent_info *fi, struct iomap *prev)
 {
 	u64 length = iomap_length(iter);
@@ -78,7 +78,7 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 		return ret;
 
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = iomap_fiemap_iter(&iter, fi, &prev);
+		iter.status = iomap_fiemap_iter(&iter, fi, &prev);
 
 	if (prev.type != IOMAP_HOLE) {
 		ret = iomap_to_fiemap(fi, &prev, FIEMAP_EXTENT_LAST);
@@ -114,7 +114,7 @@ iomap_bmap(struct address_space *mapping, sector_t bno,
 	while ((ret = iomap_iter(&iter, ops)) > 0) {
 		if (iter.iomap.type == IOMAP_MAPPED)
 			bno = iomap_sector(&iter.iomap, iter.pos) >> blkshift;
-		/* leave iter.processed unset to abort loop */
+		/* leave iter.status unset to abort loop */
 	}
 	if (ret)
 		return 0;

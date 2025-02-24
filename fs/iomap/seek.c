@@ -10,7 +10,7 @@
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 
-static loff_t iomap_seek_hole_iter(struct iomap_iter *iter,
+static int iomap_seek_hole_iter(struct iomap_iter *iter,
 		loff_t *hole_pos)
 {
 	loff_t length = iomap_length(iter);
@@ -47,7 +47,7 @@ iomap_seek_hole(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
 
 	iter.len = size - pos;
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = iomap_seek_hole_iter(&iter, &pos);
+		iter.status = iomap_seek_hole_iter(&iter, &pos);
 	if (ret < 0)
 		return ret;
 	if (iter.len) /* found hole before EOF */
@@ -56,7 +56,7 @@ iomap_seek_hole(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
 }
 EXPORT_SYMBOL_GPL(iomap_seek_hole);
 
-static loff_t iomap_seek_data_iter(struct iomap_iter *iter,
+static int iomap_seek_data_iter(struct iomap_iter *iter,
 		loff_t *hole_pos)
 {
 	loff_t length = iomap_length(iter);
@@ -93,7 +93,7 @@ iomap_seek_data(struct inode *inode, loff_t pos, const struct iomap_ops *ops)
 
 	iter.len = size - pos;
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = iomap_seek_data_iter(&iter, &pos);
+		iter.status = iomap_seek_data_iter(&iter, &pos);
 	if (ret < 0)
 		return ret;
 	if (iter.len) /* found data before EOF */

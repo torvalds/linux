@@ -1258,7 +1258,7 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
 }
 #endif /* CONFIG_FS_DAX_PMD */
 
-static s64 dax_unshare_iter(struct iomap_iter *iter)
+static int dax_unshare_iter(struct iomap_iter *iter)
 {
 	struct iomap *iomap = &iter->iomap;
 	const struct iomap *srcmap = iomap_iter_srcmap(iter);
@@ -1328,7 +1328,7 @@ int dax_file_unshare(struct inode *inode, loff_t pos, loff_t len,
 
 	iter.len = min(len, size - pos);
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = dax_unshare_iter(&iter);
+		iter.status = dax_unshare_iter(&iter);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dax_file_unshare);
@@ -1356,12 +1356,12 @@ static int dax_memzero(struct iomap_iter *iter, loff_t pos, size_t size)
 	return ret;
 }
 
-static s64 dax_zero_iter(struct iomap_iter *iter, bool *did_zero)
+static int dax_zero_iter(struct iomap_iter *iter, bool *did_zero)
 {
 	const struct iomap *iomap = &iter->iomap;
 	const struct iomap *srcmap = iomap_iter_srcmap(iter);
 	u64 length = iomap_length(iter);
-	s64 ret;
+	int ret;
 
 	/* already zeroed?  we're done. */
 	if (srcmap->type == IOMAP_HOLE || srcmap->type == IOMAP_UNWRITTEN)
@@ -1416,7 +1416,7 @@ int dax_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
 	int ret;
 
 	while ((ret = iomap_iter(&iter, ops)) > 0)
-		iter.processed = dax_zero_iter(&iter, did_zero);
+		iter.status = dax_zero_iter(&iter, did_zero);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dax_zero_range);
@@ -1588,7 +1588,7 @@ dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
 		iomi.flags |= IOMAP_NOWAIT;
 
 	while ((ret = iomap_iter(&iomi, ops)) > 0)
-		iomi.processed = dax_iomap_iter(&iomi, iter);
+		iomi.status = dax_iomap_iter(&iomi, iter);
 
 	done = iomi.pos - iocb->ki_pos;
 	iocb->ki_pos = iomi.pos;
@@ -1759,7 +1759,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 
 	while ((error = iomap_iter(&iter, ops)) > 0) {
 		if (WARN_ON_ONCE(iomap_length(&iter) < PAGE_SIZE)) {
-			iter.processed = -EIO;	/* fs corruption? */
+			iter.status = -EIO;	/* fs corruption? */
 			continue;
 		}
 
@@ -1773,7 +1773,7 @@ static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 
 		if (!(ret & VM_FAULT_ERROR)) {
 			u64 length = PAGE_SIZE;
-			iter.processed = iomap_iter_advance(&iter, &length);
+			iter.status = iomap_iter_advance(&iter, &length);
 		}
 	}
 
@@ -1889,7 +1889,7 @@ static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
 		ret = dax_fault_iter(vmf, &iter, pfnp, &xas, &entry, true);
 		if (ret != VM_FAULT_FALLBACK) {
 			u64 length = PMD_SIZE;
-			iter.processed = iomap_iter_advance(&iter, &length);
+			iter.status = iomap_iter_advance(&iter, &length);
 		}
 	}
 
@@ -2079,7 +2079,7 @@ int dax_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
 				min(src_iter.len, dst_iter.len), same);
 		if (status < 0)
 			return ret;
-		src_iter.processed = dst_iter.processed = status;
+		src_iter.status = dst_iter.status = status;
 	}
 	return ret;
 }
