@@ -1400,6 +1400,7 @@ struct super_block {
 	char			s_sysfs_name[UUID_STRING_LEN + 1];
 
 	unsigned int		s_max_links;
+	unsigned int		s_d_flags;	/* default d_flags for dentries */
 
 	/*
 	 * The next field is for VFS *only*. No filesystems have any business
