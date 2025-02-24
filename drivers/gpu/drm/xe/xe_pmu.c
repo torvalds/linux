@@ -7,6 +7,7 @@
 #include <linux/device.h>
 
 #include "xe_device.h"
+#include "xe_force_wake.h"
 #include "xe_gt_idle.h"
 #include "xe_guc_engine_activity.h"
 #include "xe_hw_engine.h"
@@ -102,6 +103,41 @@ static struct xe_hw_engine *event_to_hwe(struct perf_event *event)
 	return hwe;
 }
 
+static bool is_engine_event(u64 config)
+{
+	unsigned int event_id = config_to_event_id(config);
+
+	return (event_id == XE_PMU_EVENT_ENGINE_TOTAL_TICKS ||
+		event_id == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);
+}
+
+static bool event_gt_forcewake(struct perf_event *event)
+{
+	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
+	u64 config = event->attr.config;
+	struct xe_gt *gt;
+	unsigned int *fw_ref;
+
+	if (!is_engine_event(config))
+		return true;
+
+	gt = xe_device_get_gt(xe, config_to_gt_id(config));
+
+	fw_ref = kzalloc(sizeof(*fw_ref), GFP_KERNEL);
+	if (!fw_ref)
+		return false;
+
+	*fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!*fw_ref) {
+		kfree(fw_ref);
+		return false;
+	}
+
+	event->pmu_private = fw_ref;
+
+	return true;
+}
+
 static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
 			    unsigned int id)
 {
@@ -144,6 +180,15 @@ static bool event_param_valid(struct perf_event *event)
 static void xe_pmu_event_destroy(struct perf_event *event)
 {
 	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
+	struct xe_gt *gt;
+	unsigned int *fw_ref = event->pmu_private;
+
+	if (fw_ref) {
+		gt = xe_device_get_gt(xe, config_to_gt_id(event->attr.config));
+		xe_force_wake_put(gt_to_fw(gt), *fw_ref);
+		kfree(fw_ref);
+		event->pmu_private = NULL;
+	}
 
 	drm_WARN_ON(&xe->drm, event->parent);
 	xe_pm_runtime_put(xe);
@@ -183,6 +228,11 @@ static int xe_pmu_event_init(struct perf_event *event)
 	if (!event->parent) {
 		drm_dev_get(&xe->drm);
 		xe_pm_runtime_get(xe);
+		if (!event_gt_forcewake(event)) {
+			xe_pm_runtime_put(xe);
+			drm_dev_put(&xe->drm);
+			return -EINVAL;
+		}
 		event->destroy = xe_pmu_event_destroy;
 	}
 
