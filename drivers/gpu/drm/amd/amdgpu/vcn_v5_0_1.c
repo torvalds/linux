@@ -927,7 +927,7 @@ static void vcn_v5_0_1_set_unified_ring_funcs(struct amdgpu_device *adev)
 /**
  * vcn_v5_0_1_is_idle - check VCN block is idle
  *
- * @handle: amdgpu_device pointer
+ * @ip_block: Pointer to the amdgpu_ip_block structure
  *
  * Check whether VCN block is idle
  */
