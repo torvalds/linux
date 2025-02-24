@@ -7114,6 +7114,16 @@ __bpf_kfunc void scx_bpf_cpuperf_set(s32 cpu, u32 perf)
 }
 
 /**
+ * scx_bpf_nr_node_ids - Return the number of possible node IDs
+ *
+ * All valid node IDs in the system are smaller than the returned value.
+ */
+__bpf_kfunc u32 scx_bpf_nr_node_ids(void)
+{
+	return nr_node_ids;
+}
+
+/**
  * scx_bpf_nr_cpu_ids - Return the number of possible CPU IDs
  *
  * All valid CPU IDs in the system are smaller than the returned value.
@@ -7325,6 +7335,7 @@ BTF_ID_FLAGS(func, scx_bpf_dump_bstr, KF_TRUSTED_ARGS)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cap)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_cur)
 BTF_ID_FLAGS(func, scx_bpf_cpuperf_set)
+BTF_ID_FLAGS(func, scx_bpf_nr_node_ids)
 BTF_ID_FLAGS(func, scx_bpf_nr_cpu_ids)
 BTF_ID_FLAGS(func, scx_bpf_get_possible_cpumask, KF_ACQUIRE)
 BTF_ID_FLAGS(func, scx_bpf_get_online_cpumask, KF_ACQUIRE)

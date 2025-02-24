@@ -70,6 +70,7 @@ void scx_bpf_dump_bstr(char *fmt, unsigned long long *data, u32 data_len) __ksym
 u32 scx_bpf_cpuperf_cap(s32 cpu) __ksym __weak;
 u32 scx_bpf_cpuperf_cur(s32 cpu) __ksym __weak;
 void scx_bpf_cpuperf_set(s32 cpu, u32 perf) __ksym __weak;
+u32 scx_bpf_nr_node_ids(void) __ksym __weak;
 u32 scx_bpf_nr_cpu_ids(void) __ksym __weak;
 int scx_bpf_cpu_node(s32 cpu) __ksym __weak;
 const struct cpumask *scx_bpf_get_possible_cpumask(void) __ksym __weak;

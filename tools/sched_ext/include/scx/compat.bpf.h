@@ -189,6 +189,10 @@ static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
  *
  * Preserve the following __COMPAT_scx_*_node macros until v6.17.
  */
+#define __COMPAT_scx_bpf_nr_node_ids()						\
+	(bpf_ksym_exists(scx_bpf_nr_node_ids) ?					\
+	 scx_bpf_nr_node_ids() : 1U)
+
 #define __COMPAT_scx_bpf_cpu_node(cpu)						\
 	(bpf_ksym_exists(scx_bpf_cpu_node) ?					\
 	 scx_bpf_cpu_node(cpu) : 0)
