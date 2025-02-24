@@ -67,16 +67,16 @@ static bool decode_cfi_insn(struct pt_regs *regs, unsigned long *target,
  */
 enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 {
-	unsigned long target;
+	unsigned long target, addr = regs->ip;
 	u32 type;
 
 	switch (cfi_mode) {
 	case CFI_KCFI:
-		if (!is_cfi_trap(regs->ip))
+		if (!is_cfi_trap(addr))
 			return BUG_TRAP_TYPE_NONE;
 
 		if (!decode_cfi_insn(regs, &target, &type))
-			return report_cfi_failure_noaddr(regs, regs->ip);
+			return report_cfi_failure_noaddr(regs, addr);
 
 		break;
 
@@ -90,7 +90,7 @@ enum bug_trap_type handle_cfi_failure(struct pt_regs *regs)
 		return BUG_TRAP_TYPE_NONE;
 	}
 
-	return report_cfi_failure(regs, regs->ip, &target, type);
+	return report_cfi_failure(regs, addr, &target, type);
 }
 
 /*
