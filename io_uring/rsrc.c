@@ -103,19 +103,16 @@ static int io_buffer_validate(struct iovec *iov)
 
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 {
+	struct io_mapped_ubuf *imu = node->buf;
 	unsigned int i;
 
-	if (node->buf) {
-		struct io_mapped_ubuf *imu = node->buf;
-
-		if (!refcount_dec_and_test(&imu->refs))
-			return;
-		for (i = 0; i < imu->nr_bvecs; i++)
-			unpin_user_page(imu->bvec[i].bv_page);
-		if (imu->acct_pages)
-			io_unaccount_mem(ctx, imu->acct_pages);
-		kvfree(imu);
-	}
+	if (!refcount_dec_and_test(&imu->refs))
+		return;
+	for (i = 0; i < imu->nr_bvecs; i++)
+		unpin_user_page(imu->bvec[i].bv_page);
+	if (imu->acct_pages)
+		io_unaccount_mem(ctx, imu->acct_pages);
+	kvfree(imu);
 }
 
 struct io_rsrc_node *io_rsrc_node_alloc(int type)
