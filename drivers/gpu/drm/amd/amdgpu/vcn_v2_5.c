@@ -1414,13 +1414,15 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev, int i)
 
 	if (adev->vcn.harvest_config & (1 << i))
 		return 0;
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
-		return vcn_v2_5_stop_dpg_mode(adev, i);
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
+		r = vcn_v2_5_stop_dpg_mode(adev, i);
+		goto done;
+	}
 
 	/* wait for vcn idle */
 	r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE, 0x7);
 	if (r)
-		return r;
+		goto done;
 
 	tmp = UVD_LMI_STATUS__VCPU_LMI_WRITE_CLEAN_MASK |
 		UVD_LMI_STATUS__READ_CLEAN_MASK |
@@ -1428,7 +1430,7 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev, int i)
 		UVD_LMI_STATUS__WRITE_CLEAN_RAW_MASK;
 	r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp);
 	if (r)
-		return r;
+		goto done;
 
 	/* block LMI UMC channel */
 	tmp = RREG32_SOC15(VCN, i, mmUVD_LMI_CTRL2);
@@ -1439,7 +1441,7 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev, int i)
 		UVD_LMI_STATUS__UMC_WRITE_CLEAN_RAW_MASK;
 	r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp);
 	if (r)
-		return r;
+		goto done;
 
 	/* block VCPU register access */
 	WREG32_P(SOC15_REG_OFFSET(VCN, i, mmUVD_RB_ARB_CTRL),
@@ -1465,10 +1467,11 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev, int i)
 		 UVD_POWER_STATUS__UVD_POWER_STATUS_MASK,
 		 ~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 
+done:
 	if (adev->pm.dpm_enabled)
 		amdgpu_dpm_enable_vcn(adev, false, i);
 
-	return 0;
+	return r;
 }
 
 static int vcn_v2_5_pause_dpg_mode(struct amdgpu_device *adev,
