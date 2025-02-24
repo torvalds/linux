@@ -133,8 +133,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	if (ACPI_SUCCESS(status))
 		int34x_zone->aux_trip_nr = trip_cnt;
 
-	zone_trips = kzalloc(sizeof(*zone_trips) * (trip_cnt + INT340X_THERMAL_MAX_TRIP_COUNT),
-			     GFP_KERNEL);
+	zone_trips = kcalloc(trip_cnt + INT340X_THERMAL_MAX_TRIP_COUNT,
+			     sizeof(*zone_trips), GFP_KERNEL);
 	if (!zone_trips) {
 		ret = -ENOMEM;
 		goto err_trips_alloc;
