@@ -1855,9 +1855,9 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 		int id, len;
 
 		/* Skip those we do not want to proceed */
-		if (!strcmp(pp->name, "name") ||
-		    !strcmp(pp->name, "phandle") ||
-		    !strcmp(pp->name, "linux,phandle"))
+		if (!of_prop_cmp(pp->name, "name") ||
+		    !of_prop_cmp(pp->name, "phandle") ||
+		    !of_prop_cmp(pp->name, "linux,phandle"))
 			continue;
 
 		np = of_find_node_by_path(pp->value);
