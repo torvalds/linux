@@ -61,6 +61,9 @@ static int cfg_port = 8000;
 static int cfg_payload_len;
 static const char *cfg_ifname;
 static int cfg_queue_id = -1;
+static bool cfg_oneshot;
+static int cfg_oneshot_recvs;
+static int cfg_send_size = SEND_SIZE;
 static struct sockaddr_in6 cfg_addr;
 
 static char payload[SEND_SIZE] __attribute__((aligned(PAGE_SIZE)));
@@ -196,6 +199,17 @@ static void add_recvzc(struct io_uring *ring, int sockfd)
 	sqe->user_data = 2;
 }
 
+static void add_recvzc_oneshot(struct io_uring *ring, int sockfd, size_t len)
+{
+	struct io_uring_sqe *sqe;
+
+	sqe = io_uring_get_sqe(ring);
+
+	io_uring_prep_rw(IORING_OP_RECV_ZC, sqe, sockfd, NULL, len, 0);
+	sqe->ioprio |= IORING_RECV_MULTISHOT;
+	sqe->user_data = 2;
+}
+
 static void process_accept(struct io_uring *ring, struct io_uring_cqe *cqe)
 {
 	if (cqe->res < 0)
@@ -204,7 +218,10 @@ static void process_accept(struct io_uring *ring, struct io_uring_cqe *cqe)
 		error(1, 0, "Unexpected second connection");
 
 	connfd = cqe->res;
-	add_recvzc(ring, connfd);
+	if (cfg_oneshot)
+		add_recvzc_oneshot(ring, connfd, PAGE_SIZE);
+	else
+		add_recvzc(ring, connfd);
 }
 
 static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
@@ -218,7 +235,7 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 	ssize_t n;
 	int i;
 
-	if (cqe->res == 0 && cqe->flags == 0) {
+	if (cqe->res == 0 && cqe->flags == 0 && cfg_oneshot_recvs == 0) {
 		stop = true;
 		return;
 	}
@@ -226,8 +243,14 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 	if (cqe->res < 0)
 		error(1, 0, "recvzc(): %d", cqe->res);
 
-	if (!(cqe->flags & IORING_CQE_F_MORE))
+	if (cfg_oneshot) {
+		if (cqe->res == 0 && cqe->flags == 0 && cfg_oneshot_recvs) {
+			add_recvzc_oneshot(ring, connfd, PAGE_SIZE);
+			cfg_oneshot_recvs--;
+		}
+	} else if (!(cqe->flags & IORING_CQE_F_MORE)) {
 		add_recvzc(ring, connfd);
+	}
 
 	rcqe = (struct io_uring_zcrx_cqe *)(cqe + 1);
 
@@ -237,7 +260,7 @@ static void process_recvzc(struct io_uring *ring, struct io_uring_cqe *cqe)
 
 	for (i = 0; i < n; i++) {
 		if (*(data + i) != payload[(received + i)])
-			error(1, 0, "payload mismatch");
+			error(1, 0, "payload mismatch at ", i);
 	}
 	received += n;
 
@@ -313,7 +336,7 @@ static void run_server(void)
 
 static void run_client(void)
 {
-	ssize_t to_send = SEND_SIZE;
+	ssize_t to_send = cfg_send_size;
 	ssize_t sent = 0;
 	ssize_t chunk, res;
 	int fd;
@@ -360,7 +383,7 @@ static void parse_opts(int argc, char **argv)
 		usage(argv[0]);
 	cfg_payload_len = max_payload_len;
 
-	while ((c = getopt(argc, argv, "46sch:p:l:i:q:")) != -1) {
+	while ((c = getopt(argc, argv, "sch:p:l:i:q:o:z:")) != -1) {
 		switch (c) {
 		case 's':
 			if (cfg_client)
@@ -386,6 +409,14 @@ static void parse_opts(int argc, char **argv)
 			break;
 		case 'q':
 			cfg_queue_id = strtoul(optarg, NULL, 0);
+			break;
+		case 'o': {
+			cfg_oneshot = true;
+			cfg_oneshot_recvs = strtoul(optarg, NULL, 0);
+			break;
+		}
+		case 'z':
+			cfg_send_size = strtoul(optarg, NULL, 0);
 			break;
 		}
 	}
