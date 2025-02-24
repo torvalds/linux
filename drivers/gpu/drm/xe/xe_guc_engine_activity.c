@@ -17,6 +17,7 @@
 #include "xe_hw_engine.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_trace_guc.h"
 
 #define TOTAL_QUANTA 0x8000
 
@@ -165,6 +166,8 @@ update:
 		ea->active = lower_32_bits(gpm_ts) - cached_activity->last_update_tick;
 	}
 
+	trace_xe_guc_engine_activity(xe, ea, hwe->name, hwe->instance);
+
 	return ea->total + ea->active;
 }
 
@@ -197,6 +200,8 @@ static u64 get_engine_total_ticks(struct xe_guc *guc, struct xe_hw_engine *hwe)
 	ea->quanta_ns += numerator / TOTAL_QUANTA;
 	ea->quanta_remainder_ns = numerator % TOTAL_QUANTA;
 	ea->quanta = cpu_ns_to_guc_tsc_tick(ea->quanta_ns, cached_metadata->guc_tsc_frequency_hz);
+
+	trace_xe_guc_engine_activity(xe, ea, hwe->name, hwe->instance);
 
 	return ea->quanta;
 }
