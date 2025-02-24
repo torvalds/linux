@@ -1101,7 +1101,7 @@ static bool handle_plane_ats_fault(struct intel_crtc *crtc, enum plane_id plane_
 			    "[CRTC:%d:%s] PLANE ATS fault\n",
 			    crtc->base.base.id, crtc->base.name);
 
-	return false;
+	return true;
 }
 
 static bool handle_pipedmc_ats_fault(struct intel_crtc *crtc, enum plane_id plane_id)
@@ -1112,7 +1112,7 @@ static bool handle_pipedmc_ats_fault(struct intel_crtc *crtc, enum plane_id plan
 			    "[CRTC:%d:%s] PIPEDMC ATS fault\n",
 			    crtc->base.base.id, crtc->base.name);
 
-	return false;
+	return true;
 }
 
 static bool handle_pipedmc_fault(struct intel_crtc *crtc, enum plane_id plane_id)
@@ -1123,7 +1123,7 @@ static bool handle_pipedmc_fault(struct intel_crtc *crtc, enum plane_id plane_id
 			    "[CRTC:%d:%s] PIPEDMC fault\n",
 			    crtc->base.base.id, crtc->base.name);
 
-	return false;
+	return true;
 }
 
 static const struct pipe_fault_handler mtl_pipe_fault_handlers[] = {
