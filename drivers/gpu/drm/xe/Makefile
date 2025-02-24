@@ -60,6 +60,7 @@ xe-y += xe_bb.o \
 	xe_guc_capture.o \
 	xe_guc_ct.o \
 	xe_guc_db_mgr.o \
+	xe_guc_engine_activity.o \
 	xe_guc_hwconfig.o \
 	xe_guc_id_mgr.o \
 	xe_guc_klv_helpers.o \
