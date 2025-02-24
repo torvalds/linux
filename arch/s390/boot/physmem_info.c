@@ -59,36 +59,22 @@ void add_physmem_online_range(u64 start, u64 end)
 
 static int __diag260(unsigned long rx1, unsigned long rx2)
 {
-	unsigned long reg1, reg2, ry;
 	union register_pair rx;
 	int cc, exception;
-	psw_t old;
+	unsigned long ry;
 
 	rx.even = rx1;
 	rx.odd	= rx2;
 	ry = 0x10; /* storage configuration */
 	exception = 1;
 	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
 		"	diag	%[rx],%[ry],0x260\n"
-		"	lhi	%[exc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
+		"0:	lhi	%[exc],0\n"
+		"1:\n"
 		CC_IPM(cc)
-		: CC_OUT(cc, cc),
-		  [exc] "+d" (exception),
-		  [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [ry] "+&d" (ry),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [rx] "d" (rx.pair),
-		  [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw)
+		EX_TABLE(0b, 1b)
+		: CC_OUT(cc, cc), [exc] "+d" (exception), [ry] "+d" (ry)
+		: [rx] "d" (rx.pair)
 		: CC_CLOBBER_LIST("memory"));
 	cc = exception ? -1 : CC_TRANSFORM(cc);
 	return cc == 0 ? ry : -1;
