@@ -1057,9 +1057,9 @@ early_param("cfi", cfi_parse_cmdline);
  * __cfi_\func:					__cfi_\func:
  *	movl   $0x12345678,%eax		// 5	     endbr64			// 4
  *	nop					     subl   $0x12345678,%r10d   // 7
- *	nop					     jz     1f			// 2
- *	nop					     ud2			// 2
- *	nop					1:   nop			// 1
+ *	nop					     jne    __cfi_\func+6	// 2
+ *	nop					     nop3			// 3
+ *	nop
  *	nop
  *	nop
  *	nop
@@ -1071,37 +1071,50 @@ early_param("cfi", cfi_parse_cmdline);
  *
  * caller:					caller:
  *	movl	$(-0x12345678),%r10d	 // 6	     movl   $0x12345678,%r10d	// 6
- *	addl	$-15(%r11),%r10d	 // 4	     sub    $16,%r11		// 4
+ *	addl	$-15(%r11),%r10d	 // 4	     lea    -0x10(%r11),%r11	// 4
  *	je	1f			 // 2	     nop4			// 4
  *	ud2				 // 2
- * 1:	call	__x86_indirect_thunk_r11 // 5	     call   *%r11; nop2;	// 5
+ * 1:	cs call	__x86_indirect_thunk_r11 // 6	     call   *%r11; nop3;	// 6
  *
  */
 
-asm(	".pushsection .rodata			\n"
-	"fineibt_preamble_start:		\n"
-	"	endbr64				\n"
-	"	subl	$0x12345678, %r10d	\n"
-	"	je	fineibt_preamble_end	\n"
-	"fineibt_preamble_ud2:			\n"
-	"	ud2				\n"
-	"	nop				\n"
-	"fineibt_preamble_end:			\n"
+/*
+ * <fineibt_preamble_start>:
+ *  0:   f3 0f 1e fa             endbr64
+ *  4:   41 81 <ea> 78 56 34 12  sub    $0x12345678, %r10d
+ *  b:   75 f9                   jne    6 <fineibt_preamble_start+0x6>
+ *  d:   0f 1f 00                nopl   (%rax)
+ *
+ * Note that the JNE target is the 0xEA byte inside the SUB, this decodes as
+ * (bad) on x86_64 and raises #UD.
+ */
+asm(	".pushsection .rodata				\n"
+	"fineibt_preamble_start:			\n"
+	"	endbr64					\n"
+	"	subl	$0x12345678, %r10d		\n"
+	"	jne	fineibt_preamble_start+6	\n"
+	ASM_NOP3
+	"fineibt_preamble_end:				\n"
 	".popsection\n"
 );
 
 extern u8 fineibt_preamble_start[];
-extern u8 fineibt_preamble_ud2[];
 extern u8 fineibt_preamble_end[];
 
 #define fineibt_preamble_size (fineibt_preamble_end - fineibt_preamble_start)
-#define fineibt_preamble_ud2  (fineibt_preamble_ud2 - fineibt_preamble_start)
+#define fineibt_preamble_ud   6
 #define fineibt_preamble_hash 7
 
+/*
+ * <fineibt_caller_start>:
+ *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
+ *  6:   4d 8d 5b f0             lea    -0x10(%r11), %r11
+ *  a:   0f 1f 40 00             nopl   0x0(%rax)
+ */
 asm(	".pushsection .rodata			\n"
 	"fineibt_caller_start:			\n"
 	"	movl	$0x12345678, %r10d	\n"
-	"	sub	$16, %r11		\n"
+	"	lea	-0x10(%r11), %r11	\n"
 	ASM_NOP4
 	"fineibt_caller_end:			\n"
 	".popsection				\n"
@@ -1432,15 +1445,15 @@ static void poison_cfi(void *addr)
 }
 
 /*
- * regs->ip points to a UD2 instruction, return true and fill out target and
- * type when this UD2 is from a FineIBT preamble.
+ * When regs->ip points to a 0xEA byte in the FineIBT preamble,
+ * return true and fill out target and type.
  *
  * We check the preamble by checking for the ENDBR instruction relative to the
- * UD2 instruction.
+ * 0xEA instruction.
  */
 bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
 {
-	unsigned long addr = regs->ip - fineibt_preamble_ud2;
+	unsigned long addr = regs->ip - fineibt_preamble_ud;
 	u32 hash;
 
 	if (!exact_endbr((void *)addr))
@@ -1450,6 +1463,12 @@ bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
 
 	__get_kernel_nofault(&hash, addr + fineibt_preamble_hash, u32, Efault);
 	*type = (u32)regs->r10 + hash;
+
+	/*
+	 * Since regs->ip points to the middle of an instruction; it cannot
+	 * continue with the normal fixup.
+	 */
+	regs->ip = *target;
 
 	return true;
 

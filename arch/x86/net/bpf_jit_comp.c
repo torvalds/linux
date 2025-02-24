@@ -417,9 +417,8 @@ static void emit_fineibt(u8 **pprog, u32 hash)
 
 	EMIT_ENDBR();
 	EMIT3_off32(0x41, 0x81, 0xea, hash);		/* subl $hash, %r10d	*/
-	EMIT2(0x74, 0x07);				/* jz.d8 +7		*/
-	EMIT2(0x0f, 0x0b);				/* ud2			*/
-	EMIT1(0x90);					/* nop			*/
+	EMIT2(0x75, 0xf9);				/* jne.d8 .-7		*/
+	EMIT3(0x0f, 0x1f, 0x00);			/* nop3			*/
 	EMIT_ENDBR_POISON();
 
 	*pprog = prog;
