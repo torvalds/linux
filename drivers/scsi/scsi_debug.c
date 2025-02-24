@@ -6655,7 +6655,7 @@ static void scsi_debug_sdev_destroy(struct scsi_device *sdp)
 	sdp->hostdata = NULL;
 }
 
-/* Returns true if it is safe to complete @cmnd. */
+/* Returns true if cancelled or not running callback. */
 static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd)
 {
 	struct sdebug_scsi_cmd *sdsc = scsi_cmd_priv(cmnd);
@@ -6668,18 +6668,18 @@ static bool scsi_debug_stop_cmnd(struct scsi_cmnd *cmnd)
 		int res = hrtimer_try_to_cancel(&sd_dp->hrt);
 
 		switch (res) {
-		case 0: /* Not active, it must have already run */
 		case -1: /* -1 It's executing the CB */
 			return false;
+		case 0: /* Not active, it must have already run */
 		case 1: /* Was active, we've now cancelled */
 		default:
 			return true;
 		}
 	} else if (defer_t == SDEB_DEFER_WQ) {
 		/* Cancel if pending */
-		if (cancel_work_sync(&sd_dp->ew.work))
+		if (cancel_work(&sd_dp->ew.work))
 			return true;
-		/* Was not pending, so it must have run */
+		/* callback may be running, so return false */
 		return false;
 	} else if (defer_t == SDEB_DEFER_POLL) {
 		return true;
@@ -6759,7 +6759,7 @@ static int sdebug_fail_abort(struct scsi_cmnd *cmnd)
 
 static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
 {
-	bool ok = scsi_debug_abort_cmnd(SCpnt);
+	bool aborted = scsi_debug_abort_cmnd(SCpnt);
 	u8 *cmd = SCpnt->cmnd;
 	u8 opcode = cmd[0];
 
@@ -6768,13 +6768,17 @@ static int scsi_debug_abort(struct scsi_cmnd *SCpnt)
 	if (SDEBUG_OPT_ALL_NOISE & sdebug_opts)
 		sdev_printk(KERN_INFO, SCpnt->device,
 			    "%s: command%s found\n", __func__,
-			    ok ? "" : " not");
+			    aborted ? "" : " not");
+
 
 	if (sdebug_fail_abort(SCpnt)) {
 		scmd_printk(KERN_INFO, SCpnt, "fail abort command 0x%x\n",
 			    opcode);
 		return FAILED;
 	}
+
+	if (aborted == false)
+		return FAILED;
 
 	return SUCCESS;
 }
