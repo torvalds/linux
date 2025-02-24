@@ -342,6 +342,9 @@
 #define SE_MAX_KEYSLOT				15
 #define SE_MAX_MEM_ALLOC			SZ_4M
 
+#define TEGRA_AES_RESERVED_KSLT			14
+#define TEGRA_XTS_RESERVED_KSLT			15
+
 #define SHA_FIRST	BIT(0)
 #define SHA_INIT	BIT(1)
 #define SHA_UPDATE	BIT(2)
@@ -502,8 +505,33 @@ void tegra_deinit_aes(struct tegra_se *se);
 void tegra_deinit_hash(struct tegra_se *se);
 int tegra_key_submit(struct tegra_se *se, const u8 *key,
 		     u32 keylen, u32 alg, u32 *keyid);
+
+int tegra_key_submit_reserved(struct tegra_se *se, const u8 *key,
+			      u32 keylen, u32 alg, u32 *keyid);
+
 void tegra_key_invalidate(struct tegra_se *se, u32 keyid, u32 alg);
+void tegra_key_invalidate_reserved(struct tegra_se *se, u32 keyid, u32 alg);
 int tegra_se_host1x_submit(struct tegra_se *se, struct tegra_se_cmdbuf *cmdbuf, u32 size);
+
+static inline int tegra_key_submit_reserved_aes(struct tegra_se *se, const u8 *key,
+						u32 keylen, u32 alg, u32 *keyid)
+{
+	*keyid = TEGRA_AES_RESERVED_KSLT;
+	return tegra_key_submit_reserved(se, key, keylen, alg, keyid);
+}
+
+static inline int tegra_key_submit_reserved_xts(struct tegra_se *se, const u8 *key,
+						u32 keylen, u32 alg, u32 *keyid)
+{
+	*keyid = TEGRA_XTS_RESERVED_KSLT;
+	return tegra_key_submit_reserved(se, key, keylen, alg, keyid);
+}
+
+static inline bool tegra_key_is_reserved(u32 keyid)
+{
+	return ((keyid == TEGRA_AES_RESERVED_KSLT) ||
+		(keyid == TEGRA_XTS_RESERVED_KSLT));
+}
 
 /* HOST1x OPCODES */
 static inline u32 host1x_opcode_setpayload(unsigned int payload)
