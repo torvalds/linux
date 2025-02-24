@@ -112,7 +112,6 @@ static int amdgpu_cper_entry_fill_section_desc(struct amdgpu_device *adev,
 	section_desc->revision_major		= CPER_SEC_MAJOR_REV_22;
 	section_desc->sec_offset		= section_offset;
 	section_desc->sec_length		= section_length;
-	section_desc->valid_bits.fru_id		= 1;
 	section_desc->valid_bits.fru_text	= 1;
 	section_desc->flag_bits.primary		= 1;
 	section_desc->severity			= sev;
@@ -122,8 +121,6 @@ static int amdgpu_cper_entry_fill_section_desc(struct amdgpu_device *adev,
 	    adev->smuio.funcs->get_socket_id)
 		snprintf(section_desc->fru_text, 20, "OAM%d",
 			 adev->smuio.funcs->get_socket_id(adev));
-	/* TODO: fru_id is 16 bytes in CPER spec, but driver defines it as 20 bytes */
-	snprintf(section_desc->fru_id, 16, "%llx", adev->unique_id);
 
 	if (bp_threshold)
 		section_desc->flag_bits.exceed_err_threshold = 1;
@@ -376,7 +373,7 @@ int amdgpu_cper_generate_ce_records(struct amdgpu_device *adev,
 
 	amdgpu_cper_entry_fill_hdr(adev, corrected, AMDGPU_CPER_TYPE_RUNTIME, sev);
 
-	/* Combine CE and UE in cper record */
+	/* Combine CE and DE in cper record */
 	list_for_each_entry(node, &banks->list, node) {
 		bank = &node->bank;
 		reg_data[CPER_ACA_REG_CTL_LO]    = lower_32_bits(bank->regs[ACA_REG_IDX_CTL]);
