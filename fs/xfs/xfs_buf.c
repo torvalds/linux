@@ -1345,6 +1345,7 @@ xfs_buf_ioend_handle_error(
 resubmit:
 	xfs_buf_ioerror(bp, 0);
 	bp->b_flags |= (XBF_DONE | XBF_WRITE_FAIL);
+	reinit_completion(&bp->b_iowait);
 	xfs_buf_submit(bp);
 	return true;
 out_stale:
@@ -1355,8 +1356,9 @@ out_stale:
 	return false;
 }
 
-static void
-xfs_buf_ioend(
+/* returns false if the caller needs to resubmit the I/O, else true */
+static bool
+__xfs_buf_ioend(
 	struct xfs_buf	*bp)
 {
 	trace_xfs_buf_iodone(bp, _RET_IP_);
@@ -1376,7 +1378,7 @@ xfs_buf_ioend(
 		}
 
 		if (unlikely(bp->b_error) && xfs_buf_ioend_handle_error(bp))
-			return;
+			return false;
 
 		/* clear the retry state */
 		bp->b_last_error = 0;
@@ -1397,7 +1399,15 @@ xfs_buf_ioend(
 
 	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD |
 			 _XBF_LOGRECOVERY);
+	return true;
+}
 
+static void
+xfs_buf_ioend(
+	struct xfs_buf	*bp)
+{
+	if (!__xfs_buf_ioend(bp))
+		return;
 	if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
 	else
@@ -1411,15 +1421,8 @@ xfs_buf_ioend_work(
 	struct xfs_buf		*bp =
 		container_of(work, struct xfs_buf, b_ioend_work);
 
-	xfs_buf_ioend(bp);
-}
-
-static void
-xfs_buf_ioend_async(
-	struct xfs_buf	*bp)
-{
-	INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
-	queue_work(bp->b_mount->m_buf_workqueue, &bp->b_ioend_work);
+	if (__xfs_buf_ioend(bp))
+		xfs_buf_relse(bp);
 }
 
 void
@@ -1491,7 +1494,13 @@ xfs_buf_bio_end_io(
 		 XFS_TEST_ERROR(false, bp->b_mount, XFS_ERRTAG_BUF_IOERROR))
 		xfs_buf_ioerror(bp, -EIO);
 
-	xfs_buf_ioend_async(bp);
+	if (bp->b_flags & XBF_ASYNC) {
+		INIT_WORK(&bp->b_ioend_work, xfs_buf_ioend_work);
+		queue_work(bp->b_mount->m_buf_workqueue, &bp->b_ioend_work);
+	} else {
+		complete(&bp->b_iowait);
+	}
+
 	bio_put(bio);
 }
 
@@ -1568,9 +1577,11 @@ xfs_buf_iowait(
 {
 	ASSERT(!(bp->b_flags & XBF_ASYNC));
 
-	trace_xfs_buf_iowait(bp, _RET_IP_);
-	wait_for_completion(&bp->b_iowait);
-	trace_xfs_buf_iowait_done(bp, _RET_IP_);
+	do {
+		trace_xfs_buf_iowait(bp, _RET_IP_);
+		wait_for_completion(&bp->b_iowait);
+		trace_xfs_buf_iowait_done(bp, _RET_IP_);
+	} while (!__xfs_buf_ioend(bp));
 
 	return bp->b_error;
 }
