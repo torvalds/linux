@@ -76,7 +76,7 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 	struct extent_buffer *eb;
 	int slot;
 	int ret = 0;
-	struct btrfs_path *path = NULL;
+	BTRFS_PATH_AUTO_FREE(path);
 	int item_size;
 	struct btrfs_dev_replace_item *ptr;
 	u64 src_devid;
@@ -85,10 +85,8 @@ int btrfs_init_dev_replace(struct btrfs_fs_info *fs_info)
 		return 0;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!path)
+		return -ENOMEM;
 
 	key.objectid = 0;
 	key.type = BTRFS_DEV_REPLACE_KEY;
@@ -103,8 +101,7 @@ no_valid_dev_replace_entry_found:
 		if (btrfs_find_device(fs_info->fs_devices, &args)) {
 			btrfs_err(fs_info,
 			"found replace target device without a valid replace item");
-			ret = -EUCLEAN;
-			goto out;
+			return -EUCLEAN;
 		}
 		ret = 0;
 		dev_replace->replace_state =
@@ -123,7 +120,7 @@ no_valid_dev_replace_entry_found:
 		dev_replace->tgtdev = NULL;
 		dev_replace->is_valid = 0;
 		dev_replace->item_needs_writeback = 0;
-		goto out;
+		return ret;
 	}
 	slot = path->slots[0];
 	eb = path->nodes[0];
@@ -226,8 +223,6 @@ no_valid_dev_replace_entry_found:
 		break;
 	}
 
-out:
-	btrfs_free_path(path);
 	return ret;
 }
 
