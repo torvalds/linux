@@ -1,5 +1,10 @@
-Submitting patches to bcachefs:
-===============================
+Submitting patches to bcachefs
+==============================
+
+Here are suggestions for submitting patches to bcachefs subsystem.
+
+Submission checklist
+--------------------
 
 Patches must be tested before being submitted, either with the xfstests suite
 [0], or the full bcachefs test suite in ktest [1], depending on what's being
@@ -26,8 +31,8 @@ considered out of date), but try not to deviate too much without reason.
 Focus on writing code that reads well and is organized well; code should be
 aesthetically pleasing.
 
-CI:
-===
+CI
+--
 
 Instead of running your tests locally, when running the full test suite it's
 prefereable to let a server farm do it in parallel, and then have the results
@@ -39,8 +44,8 @@ a big tech company, you'll need to help out with server costs to get access -
 but the CI is not restricted to running bcachefs tests: it runs any ktest test
 (which generally makes it easy to wrap other tests that can run in qemu).
 
-Other things to think about:
-============================
+Other things to think about
+---------------------------
 
 - How will we debug this code? Is there sufficient introspection to diagnose
   when something starts acting wonky on a user machine?
@@ -79,8 +84,8 @@ Other things to think about:
   tested? (Automated tests exists but aren't in the CI, due to the hassle of
   disk image management; coordinate to have them run.)
 
-Mailing list, IRC:
-==================
+Mailing list, IRC
+-----------------
 
 Patches should hit the list [3], but much discussion and code review happens on
 IRC as well [4]; many people appreciate the more conversational approach and
