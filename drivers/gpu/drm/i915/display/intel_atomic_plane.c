@@ -40,8 +40,9 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 
-#include "i915_drv.h"
 #include "i915_config.h"
+#include "i915_drv.h"
+#include "i915_vma.h"
 #include "i9xx_plane_regs.h"
 #include "intel_atomic_plane.h"
 #include "intel_cdclk.h"
@@ -1531,4 +1532,9 @@ int intel_atomic_check_planes(struct intel_atomic_state *state)
 	}
 
 	return 0;
+}
+
+u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
+{
+	return i915_ggtt_offset(plane_state->ggtt_vma);
 }

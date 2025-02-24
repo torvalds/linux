@@ -59,6 +59,7 @@
 
 #include "i915_active.h"
 #include "i915_drv.h"
+#include "i915_vma.h"
 #include "intel_bo.h"
 #include "intel_display_trace.h"
 #include "intel_display_types.h"

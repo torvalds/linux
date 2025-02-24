@@ -40,8 +40,8 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank_work.h>
 #include <drm/intel/i915_hdcp_interface.h>
+#include <uapi/drm/i915_drm.h>
 
-#include "i915_vma.h"
 #include "i915_vma_types.h"
 #include "intel_bios.h"
 #include "intel_display.h"
@@ -2102,11 +2102,6 @@ intel_crtc_needs_color_update(const struct intel_crtc_state *crtc_state)
 	return crtc_state->uapi.color_mgmt_changed ||
 		intel_crtc_needs_fastset(crtc_state) ||
 		intel_crtc_needs_modeset(crtc_state);
-}
-
-static inline u32 intel_plane_ggtt_offset(const struct intel_plane_state *plane_state)
-{
-	return i915_ggtt_offset(plane_state->ggtt_vma);
 }
 
 static inline struct intel_frontbuffer *

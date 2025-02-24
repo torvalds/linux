@@ -3,6 +3,8 @@
  * Copyright © 2024 Intel Corporation
  */
 
+#include <drm/drm_print.h>
+
 #include "i915_reg.h"
 #include "i915_utils.h"
 #include "intel_de.h"

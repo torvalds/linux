@@ -43,8 +43,10 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_print.h>
 
 #include "i915_drv.h"
+#include "i915_vma.h"
 #include "intel_bo.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
