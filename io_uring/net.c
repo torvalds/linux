@@ -94,6 +94,7 @@ struct io_recvzc {
 	struct file			*file;
 	unsigned			msg_flags;
 	u16				flags;
+	u32				len;
 	struct io_zcrx_ifq		*ifq;
 };
 
@@ -1241,7 +1242,7 @@ int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	unsigned ifq_idx;
 
 	if (unlikely(sqe->file_index || sqe->addr2 || sqe->addr ||
-		     sqe->len || sqe->addr3))
+		     sqe->addr3))
 		return -EINVAL;
 
 	ifq_idx = READ_ONCE(sqe->zcrx_ifq_idx);
@@ -1250,7 +1251,7 @@ int io_recvzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	zc->ifq = req->ctx->ifq;
 	if (!zc->ifq)
 		return -EINVAL;
-
+	zc->len = READ_ONCE(sqe->len);
 	zc->flags = READ_ONCE(sqe->ioprio);
 	zc->msg_flags = READ_ONCE(sqe->msg_flags);
 	if (zc->msg_flags)
@@ -1270,6 +1271,7 @@ int io_recvzc(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_recvzc *zc = io_kiocb_to_cmd(req, struct io_recvzc);
 	struct socket *sock;
+	unsigned int len;
 	int ret;
 
 	if (!(req->flags & REQ_F_POLLED) &&
@@ -1280,8 +1282,16 @@ int io_recvzc(struct io_kiocb *req, unsigned int issue_flags)
 	if (unlikely(!sock))
 		return -ENOTSOCK;
 
+	len = zc->len;
 	ret = io_zcrx_recv(req, zc->ifq, sock, zc->msg_flags | MSG_DONTWAIT,
-			   issue_flags);
+			   issue_flags, &zc->len);
+	if (len && zc->len == 0) {
+		io_req_set_res(req, 0, 0);
+
+		if (issue_flags & IO_URING_F_MULTISHOT)
+			return IOU_STOP_MULTISHOT;
+		return IOU_OK;
+	}
 	if (unlikely(ret <= 0) && ret != -EAGAIN) {
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;

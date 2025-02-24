@@ -817,6 +817,7 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 	int i, copy, end, off;
 	int ret = 0;
 
+	len = min_t(size_t, len, desc->count);
 	if (unlikely(args->nr_skbs++ > IO_SKBS_PER_CALL_LIMIT))
 		return -EAGAIN;
 
@@ -894,26 +895,30 @@ io_zcrx_recv_skb(read_descriptor_t *desc, struct sk_buff *skb,
 out:
 	if (offset == start_off)
 		return ret;
+	desc->count -= (offset - start_off);
 	return offset - start_off;
 }
 
 static int io_zcrx_tcp_recvmsg(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 				struct sock *sk, int flags,
-				unsigned issue_flags)
+				unsigned issue_flags, unsigned int *outlen)
 {
+	unsigned int len = *outlen;
 	struct io_zcrx_args args = {
 		.req = req,
 		.ifq = ifq,
 		.sock = sk->sk_socket,
 	};
 	read_descriptor_t rd_desc = {
-		.count = 1,
+		.count = len ? len : UINT_MAX,
 		.arg.data = &args,
 	};
 	int ret;
 
 	lock_sock(sk);
 	ret = tcp_read_sock(sk, &rd_desc, io_zcrx_recv_skb);
+	if (len && ret > 0)
+		*outlen = len - ret;
 	if (ret <= 0) {
 		if (ret < 0 || sock_flag(sk, SOCK_DONE))
 			goto out;
@@ -942,7 +947,7 @@ out:
 
 int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		 struct socket *sock, unsigned int flags,
-		 unsigned issue_flags)
+		 unsigned issue_flags, unsigned int *len)
 {
 	struct sock *sk = sock->sk;
 	const struct proto *prot = READ_ONCE(sk->sk_prot);
@@ -951,5 +956,5 @@ int io_zcrx_recv(struct io_kiocb *req, struct io_zcrx_ifq *ifq,
 		return -EPROTONOSUPPORT;
 
 	sock_rps_record_flow(sk);
-	return io_zcrx_tcp_recvmsg(req, ifq, sk, flags, issue_flags);
+	return io_zcrx_tcp_recvmsg(req, ifq, sk, flags, issue_flags, len);
 }
