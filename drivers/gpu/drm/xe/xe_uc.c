@@ -14,6 +14,7 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_guc.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_engine_activity.h"
 #include "xe_huc.h"
 #include "xe_sriov.h"
 #include "xe_uc_fw.h"
@@ -209,6 +210,8 @@ int xe_uc_init_hw(struct xe_uc *uc)
 	ret = xe_guc_pc_start(&uc->guc.pc);
 	if (ret)
 		return ret;
+
+	xe_guc_engine_activity_enable_stats(&uc->guc);
 
 	/* We don't fail the driver load if HuC fails to auth, but let's warn */
 	ret = xe_huc_auth(&uc->huc, XE_HUC_AUTH_VIA_GUC);

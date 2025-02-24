@@ -8,15 +8,16 @@
 
 #include "xe_device.h"
 #include "xe_gt_idle.h"
+#include "xe_guc_engine_activity.h"
+#include "xe_hw_engine.h"
 #include "xe_pm.h"
 #include "xe_pmu.h"
 
 /**
  * DOC: Xe PMU (Performance Monitoring Unit)
  *
- * Expose events/counters like GT-C6 residency and GT frequency to user land via
- * the perf interface. Events are per device. The GT can be selected with an
- * extra config sub-field (bits 60-63).
+ * Expose events/counters like GT-C6 residency, GT frequency and per-class-engine
+ * activity to user land via the perf interface. Events are per device.
  *
  * All events are listed in sysfs:
  *
@@ -24,7 +25,18 @@
  *     $ ls /sys/bus/event_source/devices/xe_0000_00_02.0/events/
  *     $ ls /sys/bus/event_source/devices/xe_0000_00_02.0/format/
  *
- * The format directory has info regarding the configs that can be used.
+ * The following format parameters are available to read events,
+ * but only few are valid with each event:
+ *
+ *	gt[60:63]		Selects gt for the event
+ *	engine_class[20:27]	Selects engine-class for event
+ *	engine_instance[12:19]	Selects the engine-instance for the event
+ *
+ * For engine specific events (engine-*), gt, engine_class and engine_instance parameters must be
+ * set as populated by DRM_XE_DEVICE_QUERY_ENGINES.
+ *
+ * For gt specific events (gt-*) gt parameter must be passed. All other parameters will be 0.
+ *
  * The standard perf tool can be used to grep for a certain event as well.
  * Example:
  *
@@ -35,12 +47,24 @@
  *     $ perf stat -e <event_name,gt=> -I <interval>
  */
 
-#define XE_PMU_EVENT_GT_MASK		GENMASK_ULL(63, 60)
-#define XE_PMU_EVENT_ID_MASK		GENMASK_ULL(11, 0)
+#define XE_PMU_EVENT_GT_MASK			GENMASK_ULL(63, 60)
+#define XE_PMU_EVENT_ENGINE_CLASS_MASK		GENMASK_ULL(27, 20)
+#define XE_PMU_EVENT_ENGINE_INSTANCE_MASK	GENMASK_ULL(19, 12)
+#define XE_PMU_EVENT_ID_MASK			GENMASK_ULL(11, 0)
 
 static unsigned int config_to_event_id(u64 config)
 {
 	return FIELD_GET(XE_PMU_EVENT_ID_MASK, config);
+}
+
+static unsigned int config_to_engine_class(u64 config)
+{
+	return FIELD_GET(XE_PMU_EVENT_ENGINE_CLASS_MASK, config);
+}
+
+static unsigned int config_to_engine_instance(u64 config)
+{
+	return FIELD_GET(XE_PMU_EVENT_ENGINE_INSTANCE_MASK, config);
 }
 
 static unsigned int config_to_gt_id(u64 config)
@@ -48,7 +72,9 @@ static unsigned int config_to_gt_id(u64 config)
 	return FIELD_GET(XE_PMU_EVENT_GT_MASK, config);
 }
 
-#define XE_PMU_EVENT_GT_C6_RESIDENCY	0x01
+#define XE_PMU_EVENT_GT_C6_RESIDENCY		0x01
+#define XE_PMU_EVENT_ENGINE_ACTIVE_TICKS	0x02
+#define XE_PMU_EVENT_ENGINE_TOTAL_TICKS		0x03
 
 static struct xe_gt *event_to_gt(struct perf_event *event)
 {
@@ -56,6 +82,24 @@ static struct xe_gt *event_to_gt(struct perf_event *event)
 	u64 gt = config_to_gt_id(event->attr.config);
 
 	return xe_device_get_gt(xe, gt);
+}
+
+static struct xe_hw_engine *event_to_hwe(struct perf_event *event)
+{
+	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
+	struct drm_xe_engine_class_instance eci;
+	u64 config = event->attr.config;
+	struct xe_hw_engine *hwe;
+
+	eci.engine_class = config_to_engine_class(config);
+	eci.engine_instance = config_to_engine_instance(config);
+	eci.gt_id = config_to_gt_id(config);
+
+	hwe = xe_hw_engine_lookup(xe, eci);
+	if (!hwe || xe_hw_engine_is_reserved(hwe))
+		return NULL;
+
+	return hwe;
 }
 
 static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
@@ -66,6 +110,35 @@ static bool event_supported(struct xe_pmu *pmu, unsigned int gt,
 
 	return id < sizeof(pmu->supported_events) * BITS_PER_BYTE &&
 		pmu->supported_events & BIT_ULL(id);
+}
+
+static bool event_param_valid(struct perf_event *event)
+{
+	struct xe_device *xe = container_of(event->pmu, typeof(*xe), pmu.base);
+	unsigned int engine_class, engine_instance;
+	u64 config = event->attr.config;
+	struct xe_gt *gt;
+
+	gt = xe_device_get_gt(xe, config_to_gt_id(config));
+	if (!gt)
+		return false;
+
+	engine_class = config_to_engine_class(config);
+	engine_instance = config_to_engine_instance(config);
+
+	switch (config_to_event_id(config)) {
+	case XE_PMU_EVENT_GT_C6_RESIDENCY:
+		if (engine_class || engine_instance)
+			return false;
+		break;
+	case XE_PMU_EVENT_ENGINE_ACTIVE_TICKS:
+	case XE_PMU_EVENT_ENGINE_TOTAL_TICKS:
+		if (!event_to_hwe(event))
+			return false;
+		break;
+	}
+
+	return true;
 }
 
 static void xe_pmu_event_destroy(struct perf_event *event)
@@ -104,6 +177,9 @@ static int xe_pmu_event_init(struct perf_event *event)
 	if (has_branch_stack(event))
 		return -EOPNOTSUPP;
 
+	if (!event_param_valid(event))
+		return -ENOENT;
+
 	if (!event->parent) {
 		drm_dev_get(&xe->drm);
 		xe_pm_runtime_get(xe);
@@ -111,6 +187,20 @@ static int xe_pmu_event_init(struct perf_event *event)
 	}
 
 	return 0;
+}
+
+static u64 read_engine_events(struct xe_gt *gt, struct perf_event *event)
+{
+	struct xe_hw_engine *hwe;
+	u64 val = 0;
+
+	hwe = event_to_hwe(event);
+	if (config_to_event_id(event->attr.config) == XE_PMU_EVENT_ENGINE_ACTIVE_TICKS)
+		val = xe_guc_engine_activity_active_ticks(&gt->uc.guc, hwe);
+	else
+		val = xe_guc_engine_activity_total_ticks(&gt->uc.guc, hwe);
+
+	return val;
 }
 
 static u64 __xe_pmu_event_read(struct perf_event *event)
@@ -123,6 +213,9 @@ static u64 __xe_pmu_event_read(struct perf_event *event)
 	switch (config_to_event_id(event->attr.config)) {
 	case XE_PMU_EVENT_GT_C6_RESIDENCY:
 		return xe_gt_idle_residency_msec(&gt->gtidle);
+	case XE_PMU_EVENT_ENGINE_ACTIVE_TICKS:
+	case XE_PMU_EVENT_ENGINE_TOTAL_TICKS:
+		return read_engine_events(gt, event);
 	}
 
 	return 0;
@@ -207,11 +300,15 @@ static void xe_pmu_event_del(struct perf_event *event, int flags)
 	xe_pmu_event_stop(event, PERF_EF_UPDATE);
 }
 
-PMU_FORMAT_ATTR(gt,	"config:60-63");
-PMU_FORMAT_ATTR(event,	"config:0-11");
+PMU_FORMAT_ATTR(gt,			"config:60-63");
+PMU_FORMAT_ATTR(engine_class,		"config:20-27");
+PMU_FORMAT_ATTR(engine_instance,	"config:12-19");
+PMU_FORMAT_ATTR(event,			"config:0-11");
 
 static struct attribute *pmu_format_attrs[] = {
 	&format_attr_event.attr,
+	&format_attr_engine_class.attr,
+	&format_attr_engine_instance.attr,
 	&format_attr_gt.attr,
 	NULL,
 };
@@ -270,6 +367,8 @@ static ssize_t event_attr_show(struct device *dev,
 	XE_EVENT_ATTR_GROUP(v_, id_, &pmu_event_ ##v_.attr.attr)
 
 XE_EVENT_ATTR_SIMPLE(gt-c6-residency, gt_c6_residency, XE_PMU_EVENT_GT_C6_RESIDENCY, "ms");
+XE_EVENT_ATTR_NOUNIT(engine-active-ticks, engine_active_ticks, XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);
+XE_EVENT_ATTR_NOUNIT(engine-total-ticks, engine_total_ticks, XE_PMU_EVENT_ENGINE_TOTAL_TICKS);
 
 static struct attribute *pmu_empty_event_attrs[] = {
 	/* Empty - all events are added as groups with .attr_update() */
@@ -283,15 +382,23 @@ static const struct attribute_group pmu_events_attr_group = {
 
 static const struct attribute_group *pmu_events_attr_update[] = {
 	&pmu_group_gt_c6_residency,
+	&pmu_group_engine_active_ticks,
+	&pmu_group_engine_total_ticks,
 	NULL,
 };
 
 static void set_supported_events(struct xe_pmu *pmu)
 {
 	struct xe_device *xe = container_of(pmu, typeof(*xe), pmu);
+	struct xe_gt *gt = xe_device_get_gt(xe, 0);
 
 	if (!xe->info.skip_guc_pc)
 		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_GT_C6_RESIDENCY);
+
+	if (xe_guc_engine_activity_supported(&gt->uc.guc)) {
+		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_ENGINE_ACTIVE_TICKS);
+		pmu->supported_events |= BIT_ULL(XE_PMU_EVENT_ENGINE_TOTAL_TICKS);
+	}
 }
 
 /**
