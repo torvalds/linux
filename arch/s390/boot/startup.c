@@ -73,30 +73,17 @@ static void detect_machine_type(void)
 
 static void detect_diag9c(void)
 {
-	unsigned long reg1, reg2;
 	unsigned int cpu;
 	int rc = 1;
-	psw_t old;
 
 	cpu = stap();
 	asm volatile(
-		"	mvc	0(16,%[psw_old]),0(%[psw_pgm])\n"
-		"	epsw	%[reg1],%[reg2]\n"
-		"	st	%[reg1],0(%[psw_pgm])\n"
-		"	st	%[reg2],4(%[psw_pgm])\n"
-		"	larl	%[reg1],1f\n"
-		"	stg	%[reg1],8(%[psw_pgm])\n"
-		"	diag	%[cpu],0,0x9c\n"
-		"	lhi	%[rc],0\n"
-		"1:	mvc	0(16,%[psw_pgm]),0(%[psw_old])\n"
-		: [reg1] "=&d" (reg1),
-		  [reg2] "=&a" (reg2),
-		  [rc] "+&d" (rc),
-		  "+Q" (get_lowcore()->program_new_psw),
-		  "=Q" (old)
-		: [psw_old] "a" (&old),
-		  [psw_pgm] "a" (&get_lowcore()->program_new_psw),
-		  [cpu] "d" (cpu)
+		"	diag	%[cpu],%%r0,0x9c\n"
+		"0:	lhi	%[rc],0\n"
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: [rc] "+d" (rc)
+		: [cpu] "d" (cpu)
 		: "cc", "memory");
 	if (!rc)
 		set_machine_feature(MFEATURE_DIAG9C);
