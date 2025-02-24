@@ -258,7 +258,6 @@ static struct vfsmount *debugfs_automount(struct path *path)
 }
 
 static const struct dentry_operations debugfs_dops = {
-	.d_delete = always_delete_dentry,
 	.d_release = debugfs_release_dentry,
 	.d_automount = debugfs_automount,
 };
@@ -274,6 +273,7 @@ static int debugfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_op = &debugfs_super_operations;
 	set_default_d_op(sb, &debugfs_dops);
+	sb->s_d_flags |= DCACHE_DONTCACHE;
 
 	debugfs_apply_options(sb);
 
