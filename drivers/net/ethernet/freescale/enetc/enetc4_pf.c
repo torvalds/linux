@@ -684,6 +684,7 @@ static void enetc4_pf_netdev_destroy(struct enetc_si *si)
 	struct net_device *ndev = si->ndev;
 
 	unregister_netdev(ndev);
+	enetc4_link_deinit(priv);
 	enetc_free_msix(priv);
 	free_netdev(ndev);
 }
