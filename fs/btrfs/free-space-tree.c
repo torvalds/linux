@@ -1062,7 +1062,8 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 				    struct btrfs_block_group *block_group)
 {
 	struct btrfs_root *extent_root;
-	struct btrfs_path *path, *path2;
+	BTRFS_PATH_AUTO_FREE(path);
+	BTRFS_PATH_AUTO_FREE(path2);
 	struct btrfs_key key;
 	u64 start, end;
 	int ret;
@@ -1070,17 +1071,16 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	path->reada = READA_FORWARD;
 
 	path2 = btrfs_alloc_path();
-	if (!path2) {
-		btrfs_free_path(path);
+	if (!path2)
 		return -ENOMEM;
-	}
+
+	path->reada = READA_FORWARD;
 
 	ret = add_new_free_space_info(trans, block_group, path2);
 	if (ret)
-		goto out;
+		return ret;
 
 	mutex_lock(&block_group->free_space_lock);
 
@@ -1146,9 +1146,7 @@ static int populate_free_space_tree(struct btrfs_trans_handle *trans,
 	ret = 0;
 out_locked:
 	mutex_unlock(&block_group->free_space_lock);
-out:
-	btrfs_free_path(path2);
-	btrfs_free_path(path);
+
 	return ret;
 }
 
