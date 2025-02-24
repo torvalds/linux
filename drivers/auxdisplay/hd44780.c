@@ -315,7 +315,7 @@ fail3:
 fail2:
 	charlcd_free(lcd);
 fail1:
-	kfree(hdc);
+	hd44780_common_free(hdc);
 	return ret;
 }
 
@@ -326,8 +326,7 @@ static void hd44780_remove(struct platform_device *pdev)
 
 	charlcd_unregister(lcd);
 	kfree(hdc->hd44780);
-	kfree(lcd->drvdata);
-
+	hd44780_common_free(hdc);
 	charlcd_free(lcd);
 }
 
