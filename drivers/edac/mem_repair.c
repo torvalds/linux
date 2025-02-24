@@ -22,6 +22,13 @@ enum edac_mem_repair_attributes {
 	MR_MIN_DPA,
 	MR_MAX_DPA,
 	MR_NIBBLE_MASK,
+	MR_BANK_GROUP,
+	MR_BANK,
+	MR_RANK,
+	MR_ROW,
+	MR_COLUMN,
+	MR_CHANNEL,
+	MR_SUB_CHANNEL,
 	MEM_DO_REPAIR,
 	MR_MAX_ATTRS
 };
@@ -70,6 +77,13 @@ MR_ATTR_SHOW(dpa, get_dpa, u64, "0x%llx\n")
 MR_ATTR_SHOW(min_dpa, get_min_dpa, u64, "0x%llx\n")
 MR_ATTR_SHOW(max_dpa, get_max_dpa, u64, "0x%llx\n")
 MR_ATTR_SHOW(nibble_mask, get_nibble_mask, u32, "0x%x\n")
+MR_ATTR_SHOW(bank_group, get_bank_group, u32, "%u\n")
+MR_ATTR_SHOW(bank, get_bank, u32, "%u\n")
+MR_ATTR_SHOW(rank, get_rank, u32, "%u\n")
+MR_ATTR_SHOW(row, get_row, u32, "0x%x\n")
+MR_ATTR_SHOW(column, get_column, u32, "%u\n")
+MR_ATTR_SHOW(channel, get_channel, u32, "%u\n")
+MR_ATTR_SHOW(sub_channel, get_sub_channel, u32, "%u\n")
 
 #define MR_ATTR_STORE(attrib, cb, type, conv_func)			\
 static ssize_t attrib##_store(struct device *ras_feat_dev,			\
@@ -99,6 +113,13 @@ MR_ATTR_STORE(persist_mode, set_persist_mode, unsigned long, kstrtoul)
 MR_ATTR_STORE(hpa, set_hpa, u64, kstrtou64)
 MR_ATTR_STORE(dpa, set_dpa, u64, kstrtou64)
 MR_ATTR_STORE(nibble_mask, set_nibble_mask, unsigned long, kstrtoul)
+MR_ATTR_STORE(bank_group, set_bank_group, unsigned long, kstrtoul)
+MR_ATTR_STORE(bank, set_bank, unsigned long, kstrtoul)
+MR_ATTR_STORE(rank, set_rank, unsigned long, kstrtoul)
+MR_ATTR_STORE(row, set_row, unsigned long, kstrtoul)
+MR_ATTR_STORE(column, set_column, unsigned long, kstrtoul)
+MR_ATTR_STORE(channel, set_channel, unsigned long, kstrtoul)
+MR_ATTR_STORE(sub_channel, set_sub_channel, unsigned long, kstrtoul)
 
 #define MR_DO_OP(attrib, cb)						\
 static ssize_t attrib##_store(struct device *ras_feat_dev,				\
@@ -189,6 +210,62 @@ static umode_t mem_repair_attr_visible(struct kobject *kobj, struct attribute *a
 				return 0444;
 		}
 		break;
+	case MR_BANK_GROUP:
+		if (ops->get_bank_group) {
+			if (ops->set_bank_group)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_BANK:
+		if (ops->get_bank) {
+			if (ops->set_bank)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_RANK:
+		if (ops->get_rank) {
+			if (ops->set_rank)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_ROW:
+		if (ops->get_row) {
+			if (ops->set_row)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_COLUMN:
+		if (ops->get_column) {
+			if (ops->set_column)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_CHANNEL:
+		if (ops->get_channel) {
+			if (ops->set_channel)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
+	case MR_SUB_CHANNEL:
+		if (ops->get_sub_channel) {
+			if (ops->set_sub_channel)
+				return a->mode;
+			else
+				return 0444;
+		}
+		break;
 	case MEM_DO_REPAIR:
 		if (ops->do_repair)
 			return a->mode;
@@ -230,6 +307,13 @@ static int mem_repair_create_desc(struct device *dev,
 		[MR_MIN_DPA]	  = MR_ATTR_RO(min_dpa, instance),
 		[MR_MAX_DPA]	  = MR_ATTR_RO(max_dpa, instance),
 		[MR_NIBBLE_MASK]  = MR_ATTR_RW(nibble_mask, instance),
+		[MR_BANK_GROUP]   = MR_ATTR_RW(bank_group, instance),
+		[MR_BANK]	  = MR_ATTR_RW(bank, instance),
+		[MR_RANK]	  = MR_ATTR_RW(rank, instance),
+		[MR_ROW]	  = MR_ATTR_RW(row, instance),
+		[MR_COLUMN]	  = MR_ATTR_RW(column, instance),
+		[MR_CHANNEL]	  = MR_ATTR_RW(channel, instance),
+		[MR_SUB_CHANNEL]  = MR_ATTR_RW(sub_channel, instance),
 		[MEM_DO_REPAIR]	  = MR_ATTR_WO(repair, instance)
 	};
 

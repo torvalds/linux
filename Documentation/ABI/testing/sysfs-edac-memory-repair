@@ -42,6 +42,14 @@ Description:
 
 		- ppr - Post package repair.
 
+		- cacheline-sparing
+
+		- row-sparing
+
+		- bank-sparing
+
+		- rank-sparing
+
 		- All other values are reserved.
 
 What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/persist_mode
@@ -133,6 +141,55 @@ Description:
 		to use for a repair operation from the memory device via
 		related error records and trace events, for eg. CXL DRAM
 		and CXL general media error records in CXL memory devices.
+
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank_group
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/bank
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/rank
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/row
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/column
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/channel
+What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/sub_channel
+Date:		March 2025
+KernelVersion:	6.15
+Contact:	linux-edac@vger.kernel.org
+Description:
+		(RW) The control attributes for the memory to be repaired.
+		The specific value of attributes to use depends on the
+		portion of memory to repair and will be reported to the host
+		in related error records and be available to userspace
+		in trace events, such as CXL DRAM and CXL general media
+		error records of CXL memory devices.
+
+		When readng back these attributes, it returns the current
+		value of memory requested to be repaired.
+
+		bank_group - The bank group of the memory to repair.
+
+		bank - The bank number of the memory to repair.
+
+		rank - The rank of the memory to repair. Rank is defined as a
+		set of memory devices on a channel that together execute a
+		transaction.
+
+		row - The row number of the memory to repair.
+
+		column - The column number of the memory to repair.
+
+		channel - The channel of the memory to repair. Channel is
+		defined as an interface that can be independently accessed
+		for a transaction.
+
+		sub_channel - The subchannel of the memory to repair.
+
+		The requirement to set these attributes varies based on the
+		repair function. The attributes in sysfs are not present
+		unless required for a repair function.
+
+		For example, CXL spec ver 3.1, Section 8.2.9.7.1.2 Table 8-103
+		soft PPR and Section 8.2.9.7.1.3 Table 8-104 hard PPR operations,
+		these attributes are not required to set. CXL spec ver 3.1,
+		Section 8.2.9.7.1.4 Table 8-105 memory sparing, these attributes
+		are required to set based on memory sparing granularity.
 
 What:		/sys/bus/edac/devices/<dev-name>/mem_repairX/repair
 Date:		March 2025

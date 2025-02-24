@@ -780,6 +780,20 @@ enum edac_mem_repair_cmd {
  * @get_max_dpa: get the maximum supported device physical address (DPA).
  * @get_nibble_mask: get current nibble mask of memory to repair.
  * @set_nibble_mask: set nibble mask of memory to repair.
+ * @get_bank_group: get current bank group of memory to repair.
+ * @set_bank_group: set bank group of memory to repair.
+ * @get_bank: get current bank of memory to repair.
+ * @set_bank: set bank of memory to repair.
+ * @get_rank: get current rank of memory to repair.
+ * @set_rank: set rank of memory to repair.
+ * @get_row: get current row of memory to repair.
+ * @set_row: set row of memory to repair.
+ * @get_column: get current column of memory to repair.
+ * @set_column: set column of memory to repair.
+ * @get_channel: get current channel of memory to repair.
+ * @set_channel: set channel of memory to repair.
+ * @get_sub_channel: get current subchannel of memory to repair.
+ * @set_sub_channel: set subchannel of memory to repair.
  * @do_repair: Issue memory repair operation for the HPA/DPA and
  *	       other control attributes set for the memory to repair.
  *
@@ -800,6 +814,20 @@ struct edac_mem_repair_ops {
 	int (*get_max_dpa)(struct device *dev, void *drv_data, u64 *dpa);
 	int (*get_nibble_mask)(struct device *dev, void *drv_data, u32 *val);
 	int (*set_nibble_mask)(struct device *dev, void *drv_data, u32 val);
+	int (*get_bank_group)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_bank_group)(struct device *dev, void *drv_data, u32 val);
+	int (*get_bank)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_bank)(struct device *dev, void *drv_data, u32 val);
+	int (*get_rank)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_rank)(struct device *dev, void *drv_data, u32 val);
+	int (*get_row)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_row)(struct device *dev, void *drv_data, u32 val);
+	int (*get_column)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_column)(struct device *dev, void *drv_data, u32 val);
+	int (*get_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_channel)(struct device *dev, void *drv_data, u32 val);
+	int (*get_sub_channel)(struct device *dev, void *drv_data, u32 *val);
+	int (*set_sub_channel)(struct device *dev, void *drv_data, u32 val);
 	int (*do_repair)(struct device *dev, void *drv_data, u32 val);
 };
 
