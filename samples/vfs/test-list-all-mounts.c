@@ -149,7 +149,7 @@ next:
 				const char *idmap = stmnt->str + stmnt->mnt_uidmap;
 
 				for (size_t idx = 0; idx < stmnt->mnt_uidmap_num; idx++) {
-					printf("mnt_uidmap[%lu]:\t%s\n", idx, idmap);
+					printf("mnt_uidmap[%zu]:\t%s\n", idx, idmap);
 					idmap += strlen(idmap) + 1;
 				}
 			}
@@ -158,7 +158,7 @@ next:
 				const char *idmap = stmnt->str + stmnt->mnt_gidmap;
 
 				for (size_t idx = 0; idx < stmnt->mnt_gidmap_num; idx++) {
-					printf("mnt_gidmap[%lu]:\t%s\n", idx, idmap);
+					printf("mnt_gidmap[%zu]:\t%s\n", idx, idmap);
 					idmap += strlen(idmap) + 1;
 				}
 			}
