@@ -42,7 +42,6 @@ static int iomap_to_fiemap(struct fiemap_extent_info *fi,
 static int iomap_fiemap_iter(struct iomap_iter *iter,
 		struct fiemap_extent_info *fi, struct iomap *prev)
 {
-	u64 length = iomap_length(iter);
 	int ret;
 
 	if (iter->iomap.type == IOMAP_HOLE)
@@ -56,7 +55,7 @@ static int iomap_fiemap_iter(struct iomap_iter *iter,
 		return 0;
 
 advance:
-	return iomap_iter_advance(iter, &length);
+	return iomap_iter_advance_full(iter);
 }
 
 int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,

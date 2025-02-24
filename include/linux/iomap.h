@@ -272,6 +272,16 @@ static inline u64 iomap_length(const struct iomap_iter *iter)
 }
 
 /**
+ * iomap_iter_advance_full - advance by the full length of current map
+ */
+static inline int iomap_iter_advance_full(struct iomap_iter *iter)
+{
+	u64 length = iomap_length(iter);
+
+	return iomap_iter_advance(iter, &length);
+}
+
+/**
  * iomap_iter_srcmap - return the source map for the current iomap iteration
  * @i: iteration structure
  *

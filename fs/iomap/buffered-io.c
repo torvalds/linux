@@ -1433,8 +1433,7 @@ iomap_zero_range(struct inode *inode, loff_t pos, loff_t len, bool *did_zero,
 				range_dirty = false;
 				status = iomap_zero_iter_flush_and_stale(&iter);
 			} else {
-				u64 length = iomap_length(&iter);
-				status = iomap_iter_advance(&iter, &length);
+				status = iomap_iter_advance_full(&iter);
 			}
 			iter.status = status;
 			continue;

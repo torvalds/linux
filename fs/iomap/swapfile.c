@@ -97,8 +97,6 @@ static int iomap_swapfile_fail(struct iomap_swapfile_info *isi, const char *str)
 static int iomap_swapfile_iter(struct iomap_iter *iter,
 		struct iomap *iomap, struct iomap_swapfile_info *isi)
 {
-	u64 length = iomap_length(iter);
-
 	switch (iomap->type) {
 	case IOMAP_MAPPED:
 	case IOMAP_UNWRITTEN:
@@ -135,7 +133,7 @@ static int iomap_swapfile_iter(struct iomap_iter *iter,
 		memcpy(&isi->iomap, iomap, sizeof(isi->iomap));
 	}
 
-	return iomap_iter_advance(iter, &length);
+	return iomap_iter_advance_full(iter);
 }
 
 /*
