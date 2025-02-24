@@ -48,8 +48,7 @@ void __init prom_init_machtype(void)
 		return;
 	}
 	p += strlen("machtype=");
-	strncpy(str, p, MACHTYPE_LEN);
-	str[MACHTYPE_LEN] = '\0';
+	strscpy(str, p);
 	p = strstr(str, " ");
 	if (p)
 		*p = '\0';
