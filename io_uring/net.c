@@ -75,7 +75,6 @@ struct io_sr_msg {
 	u16				flags;
 	/* initialised and used only by !msg send variants */
 	u16				buf_group;
-	u16				buf_index;
 	bool				retry;
 	void __user			*msg_control;
 	/* used only for send zerocopy */
@@ -1287,7 +1286,7 @@ int io_send_zc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	zc->len = READ_ONCE(sqe->len);
 	zc->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL | MSG_ZEROCOPY;
-	zc->buf_index = READ_ONCE(sqe->buf_index);
+	req->buf_index = READ_ONCE(sqe->buf_index);
 	if (zc->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
 
@@ -1363,7 +1362,7 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret = -EFAULT;
 		io_ring_submit_lock(ctx, issue_flags);
-		node = io_rsrc_node_lookup(&ctx->buf_table, sr->buf_index);
+		node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
 		if (node) {
 			io_req_assign_buf_node(sr->notif, node);
 			ret = 0;
