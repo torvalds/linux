@@ -538,15 +538,23 @@ static int amdgpu_cper_ring_init(struct amdgpu_device *adev)
 
 int amdgpu_cper_init(struct amdgpu_device *adev)
 {
+	int r;
+
 	if (!amdgpu_aca_is_enabled(adev))
 		return 0;
+
+	r = amdgpu_cper_ring_init(adev);
+	if (r) {
+		dev_err(adev->dev, "fail to initiailize cper ring, r = %d\n", r);
+		return r;
+	}
 
 	mutex_init(&adev->cper.cper_lock);
 
 	adev->cper.enabled = true;
 	adev->cper.max_count = CPER_MAX_ALLOWED_COUNT;
 
-	return amdgpu_cper_ring_init(adev);
+	return 0;
 }
 
 int amdgpu_cper_fini(struct amdgpu_device *adev)
