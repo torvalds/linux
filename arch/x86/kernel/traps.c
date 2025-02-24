@@ -96,6 +96,7 @@ __always_inline int is_valid_bugaddr(unsigned long addr)
  * Check for UD1 or UD2, accounting for Address Size Override Prefixes.
  * If it's a UD1, further decode to determine its use:
  *
+ * FineIBT:      ea                      (bad)
  * UBSan{0}:     67 0f b9 00             ud1    (%eax),%eax
  * UBSan{10}:    67 0f b9 40 10          ud1    0x10(%eax),%eax
  * static_call:  0f b9 cc                ud1    %esp,%ecx
@@ -113,6 +114,10 @@ __always_inline int decode_bug(unsigned long addr, s32 *imm, int *len)
 	v = *(u8 *)(addr++);
 	if (v == INSN_ASOP)
 		v = *(u8 *)(addr++);
+	if (v == 0xea) {
+		*len = addr - start;
+		return BUG_EA;
+	}
 	if (v != OPCODE_ESCAPE)
 		return BUG_NONE;
 
@@ -309,10 +314,16 @@ static noinstr bool handle_bug(struct pt_regs *regs)
 
 	switch (ud_type) {
 	case BUG_UD2:
-		if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN ||
-		    handle_cfi_failure(regs) == BUG_TRAP_TYPE_WARN) {
-			regs->ip += ud_len;
+		if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN) {
 			handled = true;
+			break;
+		}
+		fallthrough;
+
+	case BUG_EA:
+		if (handle_cfi_failure(regs) == BUG_TRAP_TYPE_WARN) {
+			handled = true;
+			break;
 		}
 		break;
 
@@ -327,6 +338,9 @@ static noinstr bool handle_bug(struct pt_regs *regs)
 	default:
 		break;
 	}
+
+	if (handled)
+		regs->ip += ud_len;
 
 	if (regs->flags & X86_EFLAGS_IF)
 		raw_local_irq_disable();
