@@ -1357,24 +1357,10 @@ static int io_send_zc_import(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	if (sr->flags & IORING_RECVSEND_FIXED_BUF) {
-		struct io_ring_ctx *ctx = req->ctx;
-		struct io_rsrc_node *node;
-
-		ret = -EFAULT;
-		io_ring_submit_lock(ctx, issue_flags);
-		node = io_rsrc_node_lookup(&ctx->buf_table, req->buf_index);
-		if (node) {
-			io_req_assign_buf_node(sr->notif, node);
-			ret = 0;
-		}
-		io_ring_submit_unlock(ctx, issue_flags);
-
-		if (unlikely(ret))
-			return ret;
-
-		ret = io_import_fixed(ITER_SOURCE, &kmsg->msg.msg_iter,
-					node->buf, (u64)(uintptr_t)sr->buf,
-					sr->len);
+		sr->notif->buf_index = req->buf_index;
+		ret = io_import_reg_buf(sr->notif, &kmsg->msg.msg_iter,
+					(u64)(uintptr_t)sr->buf, sr->len,
+					ITER_SOURCE, issue_flags);
 		if (unlikely(ret))
 			return ret;
 		kmsg->msg.sg_from_iter = io_sg_from_iter;
