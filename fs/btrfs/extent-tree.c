@@ -1626,7 +1626,7 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_extent_item *ei;
 	struct extent_buffer *leaf;
 	u32 item_size;
@@ -1657,7 +1657,7 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 again:
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {
-		goto out;
+		return ret;
 	} else if (ret > 0) {
 		if (metadata) {
 			if (path->slots[0] > 0) {
@@ -1683,7 +1683,7 @@ again:
 			btrfs_err(fs_info,
 		  "missing extent item for extent %llu num_bytes %llu level %d",
 				  head->bytenr, head->num_bytes, head->level);
-			goto out;
+			return ret;
 		}
 	}
 
@@ -1696,13 +1696,12 @@ again:
 			  "unexpected extent item size, has %u expect >= %zu",
 			  item_size, sizeof(*ei));
 		btrfs_abort_transaction(trans, ret);
-		goto out;
+		return ret;
 	}
 
 	ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
 	__run_delayed_extent_op(extent_op, leaf, ei);
-out:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
