@@ -334,7 +334,7 @@ static int of_platform_bus_create(struct device_node *bus,
 	int rc = 0;
 
 	/* Make sure it has a compatible property */
-	if (strict && (!of_get_property(bus, "compatible", NULL))) {
+	if (strict && (!of_property_present(bus, "compatible"))) {
 		pr_debug("%s() - skipping %pOF, no compatible prop\n",
 			 __func__, bus);
 		return 0;
