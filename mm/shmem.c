@@ -4980,7 +4980,6 @@ static void shmem_put_super(struct super_block *sb)
 static const struct dentry_operations shmem_ci_dentry_ops = {
 	.d_hash = generic_ci_d_hash,
 	.d_compare = generic_ci_d_compare,
-	.d_delete = always_delete_dentry,
 };
 #endif
 
@@ -5037,6 +5036,7 @@ static int shmem_fill_super(struct super_block *sb, struct fs_context *fc)
 #else
 	sb->s_flags |= SB_NOUSER;
 #endif /* CONFIG_TMPFS */
+	sb->s_d_flags |= DCACHE_DONTCACHE;
 	sbinfo->max_blocks = ctx->blocks;
 	sbinfo->max_inodes = ctx->inodes;
 	sbinfo->free_ispace = sbinfo->max_inodes * BOGO_INODE_SIZE;
