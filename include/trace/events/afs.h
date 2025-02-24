@@ -127,7 +127,6 @@ enum yfs_cm_operation {
 	E_(afs_call_trace_work,			"QUEUE")
 
 #define afs_server_traces \
-	EM(afs_server_trace_alloc,		"ALLOC    ") \
 	EM(afs_server_trace_callback,		"CALLBACK ") \
 	EM(afs_server_trace_destroy,		"DESTROY  ") \
 	EM(afs_server_trace_free,		"FREE     ") \
@@ -137,12 +136,14 @@ enum yfs_cm_operation {
 	EM(afs_server_trace_purging,		"PURGE    ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
 	EM(afs_server_trace_put_probe,		"PUT probe") \
+	EM(afs_server_trace_see_destroyer,	"SEE destr") \
 	EM(afs_server_trace_see_expired,	"SEE expd ") \
+	EM(afs_server_trace_see_purge,		"SEE purge") \
+	EM(afs_server_trace_see_timer,		"SEE timer") \
 	EM(afs_server_trace_unuse_call,		"UNU call ") \
 	EM(afs_server_trace_unuse_create_fail,	"UNU cfail") \
 	EM(afs_server_trace_unuse_slist,	"UNU slist") \
 	EM(afs_server_trace_unuse_slist_isort,	"UNU isort") \
-	EM(afs_server_trace_unuse_uuid_rsq,	"PUT u-req") \
 	EM(afs_server_trace_update,		"UPDATE   ") \
 	EM(afs_server_trace_use_by_uuid,	"USE uuid ") \
 	EM(afs_server_trace_use_cm_call,	"USE cm-cl") \
@@ -229,7 +230,7 @@ enum yfs_cm_operation {
 	EM(afs_alist_trace_put_getaddru,	"PUT GtAdrU") \
 	EM(afs_alist_trace_put_parse_empty,	"PUT p-empt") \
 	EM(afs_alist_trace_put_parse_error,	"PUT p-err ") \
-	EM(afs_alist_trace_put_server_dup,	"PUT sv-dup") \
+	EM(afs_alist_trace_put_server_create,	"PUT sv-crt") \
 	EM(afs_alist_trace_put_server_oom,	"PUT sv-oom") \
 	EM(afs_alist_trace_put_server_update,	"PUT sv-upd") \
 	EM(afs_alist_trace_put_vlgetcaps,	"PUT vgtcap") \
