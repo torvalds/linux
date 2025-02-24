@@ -1102,7 +1102,7 @@ static int bq2515x_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, bq2515x);
 
 	charger_cfg.drv_data = bq2515x;
-	charger_cfg.of_node = dev->of_node;
+	charger_cfg.fwnode = dev_fwnode(dev);
 
 	ret = bq2515x_read_properties(bq2515x);
 	if (ret) {

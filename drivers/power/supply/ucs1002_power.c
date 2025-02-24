@@ -560,7 +560,7 @@ static int ucs1002_probe(struct i2c_client *client)
 	irq_a_det = of_irq_get_byname(dev->of_node, "a_det");
 	irq_alert = of_irq_get_byname(dev->of_node, "alert");
 
-	charger_config.of_node = dev->of_node;
+	charger_config.fwnode = dev_fwnode(dev);
 	charger_config.drv_data = info;
 
 	ret = regmap_read(info->regmap, UCS1002_REG_PRODUCT_ID, &regval);

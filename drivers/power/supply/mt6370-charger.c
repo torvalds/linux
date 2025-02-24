@@ -752,7 +752,7 @@ static int mt6370_chg_init_psy(struct mt6370_priv *priv)
 {
 	struct power_supply_config cfg = {
 		.drv_data = priv,
-		.of_node = dev_of_node(priv->dev),
+		.fwnode = dev_fwnode(priv->dev),
 	};
 
 	priv->psy = devm_power_supply_register(priv->dev, &mt6370_chg_psy_desc,

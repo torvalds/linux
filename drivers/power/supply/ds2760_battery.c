@@ -651,11 +651,10 @@ static int w1_ds2760_add_slave(struct w1_slave *sl)
 				  ds2760_battery_external_power_changed;
 
 	psy_cfg.drv_data = di;
+	psy_cfg.fwnode = dev_fwnode(dev);
 
 	if (dev->of_node) {
 		u32 tmp;
-
-		psy_cfg.of_node = dev->of_node;
 
 		if (!of_property_read_bool(dev->of_node, "maxim,pmod-enabled"))
 			pmod_enabled = true;

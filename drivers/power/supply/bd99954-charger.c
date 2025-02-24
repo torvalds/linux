@@ -982,7 +982,7 @@ static int bd9995x_probe(struct i2c_client *client)
 	bd->client = client;
 	bd->dev = dev;
 	psy_cfg.drv_data = bd;
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 
 	mutex_init(&bd->lock);
 

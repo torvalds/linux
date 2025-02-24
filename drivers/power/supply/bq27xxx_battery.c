@@ -2248,7 +2248,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 {
 	struct power_supply_desc *psy_desc;
 	struct power_supply_config psy_cfg = {
-		.of_node = di->dev->of_node,
+		.fwnode = dev_fwnode(di->dev),
 		.drv_data = di,
 		.no_wakeup_source = true,
 	};

@@ -1057,7 +1057,7 @@ static int bq25980_power_supply_init(struct bq25980_device *bq,
 							struct device *dev)
 {
 	struct power_supply_config psy_cfg = { .drv_data = bq,
-						.of_node = dev->of_node, };
+						.fwnode = dev_fwnode(dev), };
 
 	psy_cfg.supplied_to = bq25980_charger_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(bq25980_charger_supplied_to);

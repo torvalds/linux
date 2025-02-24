@@ -1553,7 +1553,7 @@ static int smb347_probe(struct i2c_client *client)
 		return PTR_ERR(smb->regmap);
 
 	mains_usb_cfg.drv_data = smb;
-	mains_usb_cfg.of_node = dev->of_node;
+	mains_usb_cfg.fwnode = dev_fwnode(dev);
 	if (smb->use_mains) {
 		smb->mains = devm_power_supply_register(dev, &smb347_mains_desc,
 							&mains_usb_cfg);

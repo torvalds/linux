@@ -1185,7 +1185,7 @@ static int ltc4162l_probe(struct i2c_client *client)
 	if (!device_property_read_u32(dev, "lltc,cell-count", &value))
 		info->cell_count = value;
 
-	ltc4162l_config.of_node = dev->of_node;
+	ltc4162l_config.fwnode = dev_fwnode(dev);
 	ltc4162l_config.drv_data = info;
 	ltc4162l_config.attr_grp = ltc4162l_attr_groups;
 
