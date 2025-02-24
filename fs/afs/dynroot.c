@@ -293,8 +293,8 @@ static int afs_dynroot_readdir_cells(struct afs_net *net, struct dir_context *ct
 		cell = idr_get_next(&net->cells_dyn_ino, &ix);
 		if (!cell)
 			return 0;
-		if (READ_ONCE(cell->state) == AFS_CELL_FAILED ||
-		    READ_ONCE(cell->state) == AFS_CELL_REMOVED) {
+		if (READ_ONCE(cell->state) == AFS_CELL_REMOVING ||
+		    READ_ONCE(cell->state) == AFS_CELL_DEAD) {
 			ctx->pos += 2;
 			ctx->pos &= ~1;
 			continue;

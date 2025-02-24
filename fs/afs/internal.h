@@ -289,8 +289,6 @@ struct afs_net {
 	struct rb_root		cells;
 	struct idr		cells_dyn_ino;	/* cell->dynroot_ino mapping */
 	struct afs_cell __rcu	*ws_cell;
-	struct work_struct	cells_manager;
-	struct timer_list	cells_timer;
 	atomic_t		cells_outstanding;
 	struct rw_semaphore	cells_lock;
 	struct mutex		cells_alias_lock;
@@ -339,13 +337,10 @@ struct afs_net {
 extern const char afs_init_sysname[];
 
 enum afs_cell_state {
-	AFS_CELL_UNSET,
-	AFS_CELL_ACTIVATING,
+	AFS_CELL_SETTING_UP,
 	AFS_CELL_ACTIVE,
-	AFS_CELL_DEACTIVATING,
-	AFS_CELL_INACTIVE,
-	AFS_CELL_FAILED,
-	AFS_CELL_REMOVED,
+	AFS_CELL_REMOVING,
+	AFS_CELL_DEAD,
 };
 
 /*
@@ -376,7 +371,9 @@ struct afs_cell {
 	struct afs_cell		*alias_of;	/* The cell this is an alias of */
 	struct afs_volume	*root_volume;	/* The root.cell volume if there is one */
 	struct key		*anonymous_key;	/* anonymous user key for this cell */
+	struct work_struct	destroyer;	/* Destroyer for cell */
 	struct work_struct	manager;	/* Manager for init/deinit/dns */
+	struct timer_list	management_timer; /* General management timer */
 	struct hlist_node	proc_link;	/* /proc cell list link */
 	time64_t		dns_expiry;	/* Time AFSDB/SRV record expires */
 	time64_t		last_inactive;	/* Time of last drop of usage count */
@@ -1053,8 +1050,7 @@ extern struct afs_cell *afs_get_cell(struct afs_cell *, enum afs_cell_trace);
 extern void afs_see_cell(struct afs_cell *, enum afs_cell_trace);
 extern void afs_put_cell(struct afs_cell *, enum afs_cell_trace);
 extern void afs_queue_cell(struct afs_cell *, enum afs_cell_trace);
-extern void afs_manage_cells(struct work_struct *);
-extern void afs_cells_timer(struct timer_list *);
+void afs_set_cell_timer(struct afs_cell *cell, unsigned int delay_secs);
 extern void __net_exit afs_cell_purge(struct afs_net *);
 
 /*

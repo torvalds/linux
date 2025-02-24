@@ -131,7 +131,6 @@ enum yfs_cm_operation {
 	EM(afs_server_trace_destroy,		"DESTROY  ") \
 	EM(afs_server_trace_free,		"FREE     ") \
 	EM(afs_server_trace_gc,			"GC       ") \
-	EM(afs_server_trace_get_install,	"GET inst ") \
 	EM(afs_server_trace_get_probe,		"GET probe") \
 	EM(afs_server_trace_purging,		"PURGE    ") \
 	EM(afs_server_trace_put_cbi,		"PUT cbi  ") \
@@ -149,6 +148,7 @@ enum yfs_cm_operation {
 	EM(afs_server_trace_use_cm_call,	"USE cm-cl") \
 	EM(afs_server_trace_use_get_caps,	"USE gcaps") \
 	EM(afs_server_trace_use_give_up_cb,	"USE gvupc") \
+	EM(afs_server_trace_use_install,	"USE inst ") \
 	E_(afs_server_trace_wait_create,	"WAIT crt ")
 
 #define afs_volume_traces \
@@ -171,37 +171,36 @@ enum yfs_cm_operation {
 
 #define afs_cell_traces \
 	EM(afs_cell_trace_alloc,		"ALLOC     ") \
+	EM(afs_cell_trace_destroy,		"DESTROY   ") \
 	EM(afs_cell_trace_free,			"FREE      ") \
 	EM(afs_cell_trace_get_atcell,		"GET atcell") \
-	EM(afs_cell_trace_get_queue_dns,	"GET q-dns ") \
-	EM(afs_cell_trace_get_queue_manage,	"GET q-mng ") \
-	EM(afs_cell_trace_get_queue_new,	"GET q-new ") \
 	EM(afs_cell_trace_get_server,		"GET server") \
 	EM(afs_cell_trace_get_vol,		"GET vol   ") \
-	EM(afs_cell_trace_insert,		"INSERT    ") \
-	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_purge,		"PURGE     ") \
 	EM(afs_cell_trace_put_atcell,		"PUT atcell") \
 	EM(afs_cell_trace_put_candidate,	"PUT candid") \
-	EM(afs_cell_trace_put_destroy,		"PUT destry") \
-	EM(afs_cell_trace_put_queue_work,	"PUT q-work") \
-	EM(afs_cell_trace_put_queue_fail,	"PUT q-fail") \
+	EM(afs_cell_trace_put_final,		"PUT final ") \
 	EM(afs_cell_trace_put_server,		"PUT server") \
 	EM(afs_cell_trace_put_vol,		"PUT vol   ") \
+	EM(afs_cell_trace_queue_again,		"QUE again ") \
+	EM(afs_cell_trace_queue_dns,		"QUE dns   ") \
+	EM(afs_cell_trace_queue_new,		"QUE new   ") \
+	EM(afs_cell_trace_queue_purge,		"QUE purge ") \
+	EM(afs_cell_trace_manage,		"MANAGE    ") \
+	EM(afs_cell_trace_managed,		"MANAGED   ") \
 	EM(afs_cell_trace_see_source,		"SEE source") \
-	EM(afs_cell_trace_see_ws,		"SEE ws    ") \
+	EM(afs_cell_trace_see_mgmt_timer,	"SEE mtimer") \
 	EM(afs_cell_trace_unuse_alias,		"UNU alias ") \
 	EM(afs_cell_trace_unuse_check_alias,	"UNU chk-al") \
 	EM(afs_cell_trace_unuse_delete,		"UNU delete") \
 	EM(afs_cell_trace_unuse_dynroot_mntpt,	"UNU dyn-mp") \
 	EM(afs_cell_trace_unuse_fc,		"UNU fc    ") \
-	EM(afs_cell_trace_unuse_lookup,		"UNU lookup") \
 	EM(afs_cell_trace_unuse_lookup_dynroot,	"UNU lu-dyn") \
 	EM(afs_cell_trace_unuse_lookup_error,	"UNU lu-err") \
 	EM(afs_cell_trace_unuse_mntpt,		"UNU mntpt ") \
 	EM(afs_cell_trace_unuse_no_pin,		"UNU no-pin") \
 	EM(afs_cell_trace_unuse_parse,		"UNU parse ") \
 	EM(afs_cell_trace_unuse_pin,		"UNU pin   ") \
-	EM(afs_cell_trace_unuse_probe,		"UNU probe ") \
 	EM(afs_cell_trace_unuse_sbi,		"UNU sbi   ") \
 	EM(afs_cell_trace_unuse_ws,		"UNU ws    ") \
 	EM(afs_cell_trace_use_alias,		"USE alias ") \

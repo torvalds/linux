@@ -103,7 +103,7 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 	afs_get_cell(cell, afs_cell_trace_get_server);
 
 exists:
-	afs_use_server(server, true, afs_server_trace_get_install);
+	afs_use_server(server, true, afs_server_trace_use_install);
 	return server;
 }
 
@@ -356,7 +356,7 @@ void afs_unuse_server_notime(struct afs_net *net, struct afs_server *server,
 
 	if (atomic_dec_and_test(&server->active)) {
 		if (test_bit(AFS_SERVER_FL_EXPIRED, &server->flags) ||
-		    READ_ONCE(server->cell->state) >= AFS_CELL_FAILED)
+		    READ_ONCE(server->cell->state) >= AFS_CELL_REMOVING)
 			schedule_work(&server->destroyer);
 	}
 
@@ -374,7 +374,7 @@ void afs_unuse_server(struct afs_net *net, struct afs_server *server,
 
 	if (atomic_dec_and_test(&server->active)) {
 		if (!test_bit(AFS_SERVER_FL_EXPIRED, &server->flags) &&
-		    READ_ONCE(server->cell->state) < AFS_CELL_FAILED) {
+		    READ_ONCE(server->cell->state) < AFS_CELL_REMOVING) {
 			time64_t unuse_time = ktime_get_real_seconds();
 
 			server->unuse_time = unuse_time;
@@ -424,7 +424,7 @@ static bool afs_has_server_expired(const struct afs_server *server)
 		return false;
 
 	if (server->cell->net->live ||
-	    server->cell->state >= AFS_CELL_FAILED) {
+	    server->cell->state >= AFS_CELL_REMOVING) {
 		trace_afs_server(server->debug_id, refcount_read(&server->ref),
 				 0, afs_server_trace_purging);
 		return true;
