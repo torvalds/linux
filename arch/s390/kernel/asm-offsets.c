@@ -49,6 +49,7 @@ int main(void)
 	OFFSET(__PT_R14, pt_regs, gprs[14]);
 	OFFSET(__PT_R15, pt_regs, gprs[15]);
 	OFFSET(__PT_ORIG_GPR2, pt_regs, orig_gpr2);
+	OFFSET(__PT_INT_CODE, pt_regs, int_code);
 	OFFSET(__PT_FLAGS, pt_regs, flags);
 	OFFSET(__PT_CR1, pt_regs, cr1);
 	OFFSET(__PT_LAST_BREAK, pt_regs, last_break);
@@ -77,6 +78,7 @@ int main(void)
 	OFFSET(__LC_EXT_INT_CODE, lowcore, ext_int_code);
 	OFFSET(__LC_PGM_ILC, lowcore, pgm_ilc);
 	OFFSET(__LC_PGM_CODE, lowcore, pgm_code);
+	OFFSET(__LC_PGM_INT_CODE, lowcore, pgm_int_code);
 	OFFSET(__LC_DATA_EXC_CODE, lowcore, data_exc_code);
 	OFFSET(__LC_MON_CLASS_NR, lowcore, mon_class_num);
 	OFFSET(__LC_PER_CODE, lowcore, per_code);

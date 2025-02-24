@@ -312,7 +312,12 @@ SYM_CODE_START_LOCAL(startup_pgm_check_handler)
 	oi	__LC_RETURN_PSW+1,0x2	# set wait state bit
 	larl	%r9,.Lold_psw_disabled_wait
 	stg	%r9,__LC_PGM_NEW_PSW+8
-	larl	%r15,_dump_info_stack_end-STACK_FRAME_OVERHEAD
+	larl	%r15,_dump_info_stack_end-(STACK_FRAME_OVERHEAD+__PT_SIZE)
+	la	%r2,STACK_FRAME_OVERHEAD(%r15)
+	mvc	__PT_PSW(16,%r2),__LC_PSW_SAVE_AREA-4095(%r8)
+	mvc	__PT_R0(128,%r2),__LC_GPREGS_SAVE_AREA-4095(%r8)
+	mvc	__PT_LAST_BREAK(8,%r2),__LC_PGM_LAST_BREAK
+	mvc	__PT_INT_CODE(4,%r2),__LC_PGM_INT_CODE
 	brasl	%r14,print_pgm_check_info
 .Lold_psw_disabled_wait:
 	la	%r8,4095

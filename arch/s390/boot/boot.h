@@ -65,7 +65,7 @@ void verify_facilities(void);
 void print_missing_facilities(void);
 void sclp_early_setup_buffer(void);
 void alt_debug_setup(char *str);
-void print_pgm_check_info(void);
+void print_pgm_check_info(struct pt_regs *regs);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
 void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
