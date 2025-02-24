@@ -203,9 +203,6 @@ static int io_prep_rw_setup(struct io_kiocb *req, int ddir, bool do_import)
 {
 	struct io_async_rw *rw;
 
-	if (io_rw_alloc_async(req))
-		return -ENOMEM;
-
 	if (!do_import || io_do_buffer_select(req))
 		return 0;
 
@@ -261,6 +258,9 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	unsigned ioprio;
 	u64 attr_type_mask;
 	int ret;
+
+	if (io_rw_alloc_async(req))
+		return -ENOMEM;
 
 	rw->kiocb.ki_pos = READ_ONCE(sqe->off);
 	/* used for fixed read/write too - just read unconditionally */
