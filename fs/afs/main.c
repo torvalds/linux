@@ -76,6 +76,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	mutex_init(&net->socket_mutex);
 
 	net->cells = RB_ROOT;
+	idr_init(&net->cells_dyn_ino);
 	init_rwsem(&net->cells_lock);
 	INIT_WORK(&net->cells_manager, afs_manage_cells);
 	timer_setup(&net->cells_timer, afs_cells_timer, 0);
@@ -137,6 +138,7 @@ error_cell_init:
 error_proc:
 	afs_put_sysnames(net->sysnames);
 error_sysnames:
+	idr_destroy(&net->cells_dyn_ino);
 	net->live = false;
 	return ret;
 }
@@ -155,6 +157,7 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 	afs_put_sysnames(net->sysnames);
+	idr_destroy(&net->cells_dyn_ino);
 	kfree_rcu(rcu_access_pointer(net->address_prefs), rcu);
 }
 

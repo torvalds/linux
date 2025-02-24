@@ -466,7 +466,7 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 
 	/* allocate the root inode and dentry */
 	if (as->dyn_root) {
-		inode = afs_iget_pseudo_dir(sb, true);
+		inode = afs_dynroot_iget_root(sb);
 	} else {
 		sprintf(sb->s_id, "%llu", as->volume->vid);
 		afs_activate_volume(as->volume);
@@ -483,9 +483,6 @@ static int afs_fill_super(struct super_block *sb, struct afs_fs_context *ctx)
 
 	if (as->dyn_root) {
 		sb->s_d_op = &afs_dynroot_dentry_operations;
-		ret = afs_dynroot_populate(sb);
-		if (ret < 0)
-			goto error;
 	} else {
 		sb->s_d_op = &afs_fs_dentry_operations;
 		rcu_assign_pointer(as->volume->sb, sb);
@@ -533,9 +530,6 @@ static void afs_destroy_sbi(struct afs_super_info *as)
 static void afs_kill_super(struct super_block *sb)
 {
 	struct afs_super_info *as = AFS_FS_S(sb);
-
-	if (as->dyn_root)
-		afs_dynroot_depopulate(sb);
 
 	/* Clear the callback interests (which will do ilookup5) before
 	 * deactivating the superblock.
