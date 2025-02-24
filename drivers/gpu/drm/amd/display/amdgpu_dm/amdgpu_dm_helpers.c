@@ -55,11 +55,16 @@ static u32 edid_extract_panel_id(struct edid *edid)
 	       (u32)EDID_PRODUCT_ID(edid);
 }
 
-static void apply_edid_quirks(struct edid *edid, struct dc_edid_caps *edid_caps)
+static void apply_edid_quirks(struct drm_device *dev, struct edid *edid, struct dc_edid_caps *edid_caps)
 {
 	uint32_t panel_id = edid_extract_panel_id(edid);
 
 	switch (panel_id) {
+	/* Workaround for monitors that need a delay after detecting the link */
+	case drm_edid_encode_panel_id('G', 'B', 'T', 0x3215):
+		drm_dbg_driver(dev, "Add 10s delay for link detection for panel id %X\n", panel_id);
+		edid_caps->panel_patch.wait_after_dpcd_poweroff_ms = 10000;
+		break;
 	/* Workaround for some monitors which does not work well with FAMS */
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x0E5E):
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x7053):
@@ -101,6 +106,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 {
 	struct amdgpu_dm_connector *aconnector = link->priv;
 	struct drm_connector *connector = &aconnector->base;
+	struct drm_device *dev = connector->dev;
 	struct edid *edid_buf = edid ? (struct edid *) edid->raw_edid : NULL;
 	struct cea_sad *sads;
 	int sad_count = -1;
@@ -130,7 +136,7 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 
 	edid_caps->edid_hdmi = connector->display_info.is_hdmi;
 
-	apply_edid_quirks(edid_buf, edid_caps);
+	apply_edid_quirks(dev, edid_buf, edid_caps);
 
 	sad_count = drm_edid_to_sad((struct edid *) edid->raw_edid, &sads);
 	if (sad_count <= 0)

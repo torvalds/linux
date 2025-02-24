@@ -3330,6 +3330,24 @@ static void dm_gpureset_commit_state(struct dc_state *dc_state,
 	}
 }
 
+static void apply_delay_after_dpcd_poweroff(struct amdgpu_device *adev,
+					    struct dc_sink *sink)
+{
+	struct dc_panel_patch *ppatch = NULL;
+
+	if (!sink)
+		return;
+
+	ppatch = &sink->edid_caps.panel_patch;
+	if (ppatch->wait_after_dpcd_poweroff_ms) {
+		msleep(ppatch->wait_after_dpcd_poweroff_ms);
+		drm_dbg_driver(adev_to_drm(adev),
+			       "%s: adding a %ds delay as w/a for panel\n",
+			       __func__,
+			       ppatch->wait_after_dpcd_poweroff_ms / 1000);
+	}
+}
+
 static int dm_resume(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
@@ -3451,6 +3469,7 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 	/* Do detection*/
 	drm_connector_list_iter_begin(ddev, &iter);
 	drm_for_each_connector_iter(connector, &iter) {
+		bool ret;
 
 		if (connector->connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
 			continue;
@@ -3476,7 +3495,11 @@ static int dm_resume(struct amdgpu_ip_block *ip_block)
 		} else {
 			guard(mutex)(&dm->dc_lock);
 			dc_exit_ips_for_hw_access(dm->dc);
-			dc_link_detect(aconnector->dc_link, DETECT_REASON_RESUMEFROMS3S4);
+			ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_RESUMEFROMS3S4);
+			if (ret) {
+				/* w/a delay for certain panels */
+				apply_delay_after_dpcd_poweroff(adev, aconnector->dc_sink);
+			}
 		}
 
 		if (aconnector->fake_enable && aconnector->dc_link->local_sink)
@@ -3842,6 +3865,8 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 			ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
 		}
 		if (ret) {
+			/* w/a delay for certain panels */
+			apply_delay_after_dpcd_poweroff(adev, aconnector->dc_sink);
 			amdgpu_dm_update_connector_after_detect(aconnector);
 
 			drm_modeset_lock_all(dev);
