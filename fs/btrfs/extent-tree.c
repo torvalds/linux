@@ -100,7 +100,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 	struct btrfs_root *extent_root;
 	struct btrfs_delayed_ref_head *head;
 	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	u64 num_refs;
 	u64 extent_flags;
@@ -131,7 +131,7 @@ search_again:
 	extent_root = btrfs_extent_root(fs_info, bytenr);
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
-		goto out_free;
+		return ret;
 
 	if (ret > 0 && key.type == BTRFS_METADATA_ITEM_KEY) {
 		if (path->slots[0]) {
@@ -156,7 +156,7 @@ search_again:
 			"unexpected extent item size, has %u expect >= %zu",
 				  item_size, sizeof(*ei));
 			btrfs_abort_transaction(trans, ret);
-			goto out_free;
+			return ret;
 		}
 
 		ei = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_extent_item);
@@ -167,7 +167,7 @@ search_again:
 		"unexpected zero reference count for extent item (%llu %u %llu)",
 				  key.objectid, key.type, key.offset);
 			btrfs_abort_transaction(trans, ret);
-			goto out_free;
+			return ret;
 		}
 		extent_flags = btrfs_extent_flags(leaf, ei);
 		owner = btrfs_get_extent_owner_root(fs_info, leaf, path->slots[0]);
@@ -213,8 +213,7 @@ search_again:
 		*flags = extent_flags;
 	if (owning_root)
 		*owning_root = owner;
-out_free:
-	btrfs_free_path(path);
+
 	return ret;
 }
 
