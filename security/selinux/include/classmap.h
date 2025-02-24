@@ -8,7 +8,7 @@
 	COMMON_FILE_SOCK_PERMS, "unlink", "link", "rename", "execute",   \
 		"quotaon", "mounton", "audit_access", "open", "execmod", \
 		"watch", "watch_mount", "watch_sb", "watch_with_perm",   \
-		"watch_reads"
+		"watch_reads", "watch_mountns"
 
 #define COMMON_SOCK_PERMS                                              \
 	COMMON_FILE_SOCK_PERMS, "bind", "connect", "listen", "accept", \
