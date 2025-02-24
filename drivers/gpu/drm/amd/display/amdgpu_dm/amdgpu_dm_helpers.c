@@ -69,7 +69,7 @@ static void apply_edid_quirks(struct drm_device *dev, struct edid *edid, struct 
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x0E5E):
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x7053):
 	case drm_edid_encode_panel_id('S', 'A', 'M', 0x71AC):
-		DRM_DEBUG_DRIVER("Disabling FAMS on monitor with panel id %X\n", panel_id);
+		drm_dbg_driver(dev, "Disabling FAMS on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.disable_fams = true;
 		break;
 	/* Workaround for some monitors that do not clear DPCD 0x317 if FreeSync is unsupported */
@@ -78,11 +78,11 @@ static void apply_edid_quirks(struct drm_device *dev, struct edid *edid, struct 
 	case drm_edid_encode_panel_id('B', 'O', 'E', 0x092A):
 	case drm_edid_encode_panel_id('L', 'G', 'D', 0x06D1):
 	case drm_edid_encode_panel_id('M', 'S', 'F', 0x1003):
-		DRM_DEBUG_DRIVER("Clearing DPCD 0x317 on monitor with panel id %X\n", panel_id);
+		drm_dbg_driver(dev, "Clearing DPCD 0x317 on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.remove_sink_ext_caps = true;
 		break;
 	case drm_edid_encode_panel_id('S', 'D', 'C', 0x4154):
-		DRM_DEBUG_DRIVER("Disabling VSC on monitor with panel id %X\n", panel_id);
+		drm_dbg_driver(dev, "Disabling VSC on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.disable_colorimetry = true;
 		break;
 	default:
