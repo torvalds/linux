@@ -147,6 +147,11 @@ static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
 #endif
 }
 
+static inline bool io_is_compat(struct io_ring_ctx *ctx)
+{
+	return IS_ENABLED(CONFIG_COMPAT) && unlikely(ctx->compat);
+}
+
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
 	__io_req_task_work_add(req, 0);
