@@ -62,11 +62,6 @@ int always_delete_dentry(const struct dentry *dentry)
 }
 EXPORT_SYMBOL(always_delete_dentry);
 
-const struct dentry_operations simple_dentry_operations = {
-	.d_delete = always_delete_dentry,
-};
-EXPORT_SYMBOL(simple_dentry_operations);
-
 /*
  * Lookup the data. This is trivial - if the dentry didn't already
  * exist, we know it is negative.  Set d_op to delete negative dentries.
