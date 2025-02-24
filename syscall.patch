@@ -1,0 +1,194 @@
+diff --git a/README b/README
+index 669ac7c32292..e28367d153f4 100644
+--- a/README
++++ b/README
+@@ -1,4 +1,4 @@
+-Linux kernel
++Linux kernel-Adrian
+ ============
+ 
+ There are several guides for kernel developers and users. These guides can
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index 7e8d46f4147f..02242cdf779c 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -428,3 +428,4 @@
+ 547	x32	pwritev2		compat_sys_pwritev64v2
+ # This is the end of the legacy x32 range.  Numbers 548 and above are
+ # not special and are not to be used for x32-specific syscalls.
++548	common	s2_encrypt		sys_s2_encrypt
+diff --git a/include/linux/encrypt.h b/include/linux/encrypt.h
+new file mode 100644
+index 000000000000..ba4850101ef9
+--- /dev/null
++++ b/include/linux/encrypt.h
+@@ -0,0 +1,16 @@
++#ifndef _ENCRYPT_H
++#define _ENCRYPT_H
++
++#include <linux/unistd.h>
++#include <sys/syscall.h>
++#include <stdio.h>
++#include <unistd.h>
++
++
++#define SYS_s2_encrypt 548
++
++static inline long s2_encrypt(const char *str, int key){
++	return syscall(SYS_s2_encrypt, str, key);
++}
++
++#endif
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 77eb9b0e7685..92a15ef5e1a3 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -301,6 +301,7 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
+  * include the prototypes if CONFIG_ARCH_HAS_SYSCALL_WRAPPER is enabled.
+  */
+ #ifndef CONFIG_ARCH_HAS_SYSCALL_WRAPPER
++asmlinkage long sys_s2_encrypt(char __user *str, int key);
+ asmlinkage long sys_io_setup(unsigned nr_reqs, aio_context_t __user *ctx);
+ asmlinkage long sys_io_destroy(aio_context_t ctx);
+ asmlinkage long sys_io_submit(aio_context_t, long,
+diff --git a/kernel/Makefile b/kernel/Makefile
+index ce105a5558fc..406c621a8b6e 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -10,7 +10,8 @@ obj-y     = fork.o exec_domain.o panic.o \
+ 	    extable.o params.o \
+ 	    kthread.o sys_ni.o nsproxy.o \
+ 	    notifier.o ksysfs.o cred.o reboot.o \
+-	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o
++	    async.o range.o smpboot.o ucount.o regset.o ksyms_common.o \
++	    encrypt.o
+ 
+ obj-$(CONFIG_USERMODE_DRIVER) += usermode_driver.o
+ obj-$(CONFIG_MULTIUSER) += groups.o
+diff --git a/kernel/encrypt.c b/kernel/encrypt.c
+new file mode 100644
+index 000000000000..4acab1683e7b
+--- /dev/null
++++ b/kernel/encrypt.c
+@@ -0,0 +1,35 @@
++#include <linux/kernel.h>
++#include <linux/syscalls.h>
++#include <linux/uaccess.h>
++#include <linux/slab.h>
++
++#define MAX_BUF_SIZE 256
++
++SYSCALL_DEFINE2(s2_encrypt, char __user *, str, int, key){
++	//printk(KERN_INFO "Entry s2_encrypt\n");
++	char * buf = kmalloc(MAX_BUF_SIZE, GFP_KERNEL);
++	buf[MAX_BUF_SIZE-1] = '\0';
++	if(!buf){
++		printk(KERN_INFO "Memory Allocation Failed\n");
++		return -ENOMEM;
++	}
++	long copied = strncpy_from_user(buf, str, MAX_BUF_SIZE);
++	//printk(KERN_INFO "Copied %ld bytes, buf is now %s\n", copied, buf);
++	if(copied<0||copied==MAX_BUF_SIZE){
++		printk(KERN_INFO "String copy failed\n");
++		return -EFAULT;
++	}
++
++	if(key<1||key>5){
++		printk(KERN_INFO "Key value out of bounds\n");
++		return -EINVAL;
++	}
++	char* index = buf;
++	for(int i=0;i<copied;i++){
++		index[i] = index[i]+key;
++		//printk(KERN_INFO "index[%d] is now %c\n", i, index[i]);
++	}
++	printk(KERN_INFO "Encrypted Msg: \"%s\"\n", buf);
++	return 0L;	
++
++}
+diff --git a/net/socket.c b/net/socket.c
+index ed3df2f749bf..c8f551549b74 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
+ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
+ 		  int __user *upeer_addrlen, int flags)
+ {
++	printk(KERN_INFO "accept");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
+@@ -2053,6 +2054,7 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
+ 
+ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
+ {
++	printk(KERN_INFO "connect");
+ 	int ret = -EBADF;
+ 	struct fd f;
+ 
+diff --git a/printk.patch b/printk.patch
+new file mode 100644
+index 000000000000..d498058344b8
+--- /dev/null
++++ b/printk.patch
+@@ -0,0 +1,60 @@
++diff --git a/README b/README
++index 669ac7c32292..e28367d153f4 100644
++--- a/README
+++++ b/README
++@@ -1,4 +1,4 @@
++-Linux kernel
+++Linux kernel-Adrian
++ ============
++ 
++ There are several guides for kernel developers and users. These guides can
++diff --git a/net/socket.c b/net/socket.c
++index ed3df2f749bf..c8f551549b74 100644
++--- a/net/socket.c
+++++ b/net/socket.c
++@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
++ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
++ 		  int __user *upeer_addrlen, int flags)
++ {
+++	printk(KERN_INFO "accept");
++ 	int ret = -EBADF;
++ 	struct fd f;
++ 
++@@ -2053,6 +2054,7 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
++ 
++ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
++ {
+++	printk(KERN_INFO "connect");
++ 	int ret = -EBADF;
++ 	struct fd f;
++ 
++diff --git a/README b/README
++index 669ac7c32292..e28367d153f4 100644
++--- a/README
+++++ b/README
++@@ -1,4 +1,4 @@
++-Linux kernel
+++Linux kernel-Adrian
++ ============
++ 
++ There are several guides for kernel developers and users. These guides can
++diff --git a/net/socket.c b/net/socket.c
++index ed3df2f749bf..c8f551549b74 100644
++--- a/net/socket.c
+++++ b/net/socket.c
++@@ -1991,6 +1991,7 @@ static int __sys_accept4_file(struct file *file, struct sockaddr __user *upeer_s
++ int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
++ 		  int __user *upeer_addrlen, int flags)
++ {
+++	printk(KERN_INFO "accept");
++ 	int ret = -EBADF;
++ 	struct fd f;
++ 
++@@ -2053,6 +2054,7 @@ int __sys_connect_file(struct file *file, struct sockaddr_storage *address,
++ 
++ int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
++ {
+++	printk(KERN_INFO "connect");
++ 	int ret = -EBADF;
++ 	struct fd f;
++ 
