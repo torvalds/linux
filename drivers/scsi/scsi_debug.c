@@ -7575,7 +7575,7 @@ static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
 		blk_mq_tagset_busy_iter(&host->tag_set, sdebug_submit_queue_iter,
 					&data);
 		if (f >= 0) {
-			seq_printf(m, "    in_use_bm BUSY: %s: %d,%d\n",
+			seq_printf(m, "    BUSY: %s: %d,%d\n",
 				   "first,last bits", f, l);
 		}
 	}
