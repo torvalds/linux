@@ -185,11 +185,11 @@ def ethtool(args, json=None, ns=None, host=None):
     return tool('ethtool', args, json=json, ns=ns, host=host)
 
 
-def rand_port():
+def rand_port(type=socket.SOCK_STREAM):
     """
     Get a random unprivileged port.
     """
-    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    with socket.socket(socket.AF_INET6, type) as s:
         s.bind(("", 0))
         return s.getsockname()[1]
 
