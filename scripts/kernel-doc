@@ -137,7 +137,6 @@ my $verbose = 0;
 my $Werror = 0;
 my $Wreturn = 0;
 my $Wshort_desc = 0;
-my $Wcontents_before_sections = 0;
 my $output_mode = "rst";
 my $output_preformatted = 0;
 my $no_doc_sections = 0;
@@ -223,7 +222,6 @@ use constant {
     STATE_INLINE        => 7,        # gathering doc outside main block
 };
 my $state;
-my $in_doc_sect;
 my $leading_space;
 
 # Inline documentation state
@@ -332,12 +330,9 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
         $Wreturn = 1;
     } elsif ($cmd eq "Wshort-desc" or $cmd eq "Wshort-description") {
         $Wshort_desc = 1;
-    } elsif ($cmd eq "Wcontents-before-sections") {
-        $Wcontents_before_sections = 1;
     } elsif ($cmd eq "Wall") {
         $Wreturn = 1;
         $Wshort_desc = 1;
-        $Wcontents_before_sections = 1;
     } elsif (($cmd eq "h") || ($cmd eq "help")) {
         pod2usage(-exitval => 0, -verbose => 2);
     } elsif ($cmd eq 'no-doc-sections') {
@@ -1963,7 +1958,6 @@ sub process_export_file($) {
 sub process_normal() {
     if (/$doc_start/o) {
         $state = STATE_NAME;        # next line is always the function name
-        $in_doc_sect = 0;
         $declaration_start_line = $. + 1;
     }
 }
@@ -2068,7 +2062,6 @@ sub process_body($$) {
     }
 
     if (/$doc_sect/i) { # case insensitive for supported section names
-        $in_doc_sect = 1;
         $newsection = $1;
         $newcontents = $2;
 
@@ -2085,14 +2078,10 @@ sub process_body($$) {
         }
 
         if (($contents ne "") && ($contents ne "\n")) {
-            if (!$in_doc_sect && $Wcontents_before_sections) {
-                emit_warning("${file}:$.", "contents before sections\n");
-            }
             dump_section($file, $section, $contents);
             $section = $section_default;
         }
 
-        $in_doc_sect = 1;
         $state = STATE_BODY;
         $contents = $newcontents;
         $new_start_line = $.;
