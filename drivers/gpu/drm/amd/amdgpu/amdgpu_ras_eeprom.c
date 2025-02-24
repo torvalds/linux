@@ -852,6 +852,7 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res, i;
+	uint64_t nps = AMDGPU_NPS1_PARTITION_MODE;
 
 	if (!__is_ras_eeprom_supported(adev))
 		return 0;
@@ -865,9 +866,12 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 		return -EINVAL;
 	}
 
+	if (adev->gmc.gmc_funcs->query_mem_partition_mode)
+		nps = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
+
 	/* set the new channel index flag */
 	for (i = 0; i < num; i++)
-		record[i].retired_page |= UMC_CHANNEL_IDX_V2;
+		record[i].retired_page |= (nps << UMC_NPS_SHIFT);
 
 	mutex_lock(&control->ras_tbl_mutex);
 
@@ -881,7 +885,7 @@ int amdgpu_ras_eeprom_append(struct amdgpu_ras_eeprom_control *control,
 
 	/* clear channel index flag, the flag is only saved on eeprom */
 	for (i = 0; i < num; i++)
-		record[i].retired_page &= ~UMC_CHANNEL_IDX_V2;
+		record[i].retired_page &= ~(nps << UMC_NPS_SHIFT);
 
 	return res;
 }
