@@ -244,7 +244,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 				  struct inode *inode,
 				  struct btrfs_block_group *block_group)
 {
-	struct btrfs_path *path;
+	BTRFS_PATH_AUTO_FREE(path);
 	struct btrfs_key key;
 	int ret = 0;
 
@@ -257,12 +257,12 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	if (IS_ERR(inode)) {
 		if (PTR_ERR(inode) != -ENOENT)
 			ret = PTR_ERR(inode);
-		goto out;
+		return ret;
 	}
 	ret = btrfs_orphan_add(trans, BTRFS_I(inode));
 	if (ret) {
 		btrfs_add_delayed_iput(BTRFS_I(inode));
-		goto out;
+		return ret;
 	}
 	clear_nlink(inode);
 	/* One for the block groups ref */
@@ -285,12 +285,9 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	if (ret) {
 		if (ret > 0)
 			ret = 0;
-		goto out;
+		return ret;
 	}
-	ret = btrfs_del_item(trans, trans->fs_info->tree_root, path);
-out:
-	btrfs_free_path(path);
-	return ret;
+	return btrfs_del_item(trans, trans->fs_info->tree_root, path);
 }
 
 int btrfs_truncate_free_space_cache(struct btrfs_trans_handle *trans,
