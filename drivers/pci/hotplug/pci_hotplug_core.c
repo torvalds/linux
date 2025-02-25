@@ -14,7 +14,7 @@
  *   Scott Murray <scottm@somanetworks.com>
  */
 
-#include <linux/module.h>	/* try_module_get & module_put */
+#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -46,11 +46,8 @@ static int get_##name(struct hotplug_slot *slot, type *value)		\
 {									\
 	const struct hotplug_slot_ops *ops = slot->ops;			\
 	int retval = 0;							\
-	if (!try_module_get(slot->owner))				\
-		return -ENODEV;						\
 	if (ops->get_##name)						\
 		retval = ops->get_##name(slot, value);			\
-	module_put(slot->owner);					\
 	return retval;							\
 }
 
@@ -83,10 +80,6 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 	power = (u8)(lpower & 0xff);
 	dbg("power = %d\n", power);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	switch (power) {
 	case 0:
 		if (slot->ops->disable_slot)
@@ -102,9 +95,7 @@ static ssize_t power_write_file(struct pci_slot *pci_slot, const char *buf,
 		err("Illegal value specified for power\n");
 		retval = -EINVAL;
 	}
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
@@ -141,15 +132,9 @@ static ssize_t attention_write_file(struct pci_slot *pci_slot, const char *buf,
 	attention = (u8)(lattention & 0xff);
 	dbg(" - attention = %d\n", attention);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	if (ops->set_attention_status)
 		retval = ops->set_attention_status(slot, attention);
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
@@ -207,15 +192,9 @@ static ssize_t test_write_file(struct pci_slot *pci_slot, const char *buf,
 	test = (u32)(ltest & 0xffffffff);
 	dbg("test = %d\n", test);
 
-	if (!try_module_get(slot->owner)) {
-		retval = -ENODEV;
-		goto exit;
-	}
 	if (slot->ops->hardware_test)
 		retval = slot->ops->hardware_test(slot, test);
-	module_put(slot->owner);
 
-exit:
 	if (retval)
 		return retval;
 	return count;
