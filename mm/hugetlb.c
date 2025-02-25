@@ -3407,7 +3407,7 @@ static void __init hugetlb_bootmem_free_invalid_page(int nid, struct page *page,
 
 	while (npages--) {
 		pfn = page_to_pfn(page);
-		__init_reserved_page_zone(pfn, nid);
+		__init_page_from_nid(pfn, nid);
 		free_reserved_page(page);
 		page++;
 	}

@@ -668,7 +668,7 @@ static inline void fixup_hashdist(void) {}
 /*
  * Initialize a reserved page unconditionally, finding its zone first.
  */
-void __meminit __init_reserved_page_zone(unsigned long pfn, int nid)
+void __meminit __init_page_from_nid(unsigned long pfn, int nid)
 {
 	pg_data_t *pgdat;
 	int zid;
@@ -748,7 +748,7 @@ static void __meminit init_reserved_page(unsigned long pfn, int nid)
 	if (early_page_initialised(pfn, nid))
 		return;
 
-	__init_reserved_page_zone(pfn, nid);
+	__init_page_from_nid(pfn, nid);
 }
 #else
 static inline void pgdat_set_deferred_range(pg_data_t *pgdat) {}
