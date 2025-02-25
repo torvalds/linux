@@ -21,6 +21,11 @@
 
 #define AMDXDNA_AUTOSUSPEND_DELAY	5000 /* milliseconds */
 
+MODULE_FIRMWARE("amdnpu/1502_00/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_10/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_11/npu.sbin");
+MODULE_FIRMWARE("amdnpu/17f0_20/npu.sbin");
+
 /*
  * Bind the driver base on (vendor_id, device_id) pair and later use the
  * (device_id, rev_id) pair as a key to select the devices. The devices with
