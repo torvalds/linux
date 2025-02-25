@@ -448,8 +448,19 @@ static int rpm_callback(int (*cb)(struct device *), struct device *dev)
 		retval = __rpm_callback(cb, dev);
 	}
 
-	dev->power.runtime_error = retval;
-	return retval != -EACCES ? retval : -EIO;
+	/*
+	 * Since -EACCES means that runtime PM is disabled for the given device,
+	 * it should not be returned by runtime PM callbacks.  If it is returned
+	 * nevertheless, assume it to be a transient error and convert it to
+	 * -EAGAIN.
+	 */
+	if (retval == -EACCES)
+		retval = -EAGAIN;
+
+	if (retval != -EAGAIN && retval != -EBUSY)
+		dev->power.runtime_error = retval;
+
+	return retval;
 }
 
 /**
@@ -725,21 +736,18 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	dev->power.deferred_resume = false;
 	wake_up_all(&dev->power.wait_queue);
 
-	if (retval == -EAGAIN || retval == -EBUSY) {
-		dev->power.runtime_error = 0;
+	/*
+	 * On transient errors, if the callback routine failed an autosuspend,
+	 * and if the last_busy time has been updated so that there is a new
+	 * autosuspend expiration time, automatically reschedule another
+	 * autosuspend.
+	 */
+	if (!dev->power.runtime_error && (rpmflags & RPM_AUTO) &&
+	    pm_runtime_autosuspend_expiration(dev) != 0)
+		goto repeat;
 
-		/*
-		 * If the callback routine failed an autosuspend, and
-		 * if the last_busy time has been updated so that there
-		 * is a new autosuspend expiration time, automatically
-		 * reschedule another autosuspend.
-		 */
-		if ((rpmflags & RPM_AUTO) &&
-		    pm_runtime_autosuspend_expiration(dev) != 0)
-			goto repeat;
-	} else {
-		pm_runtime_cancel_pending(dev);
-	}
+	pm_runtime_cancel_pending(dev);
+
 	goto out;
 }
 
