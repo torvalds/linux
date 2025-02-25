@@ -1075,7 +1075,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	intel_encoder_suspend_all(&dev_priv->display);
 
 	/* Must be called before GGTT is suspended. */
-	intel_dpt_suspend(dev_priv);
+	intel_dpt_suspend(display);
 	i915_ggtt_suspend(to_gt(dev_priv)->ggtt);
 
 	i9xx_display_sr_save(display);
@@ -1192,7 +1192,7 @@ static int i915_drm_resume(struct drm_device *dev)
 			setup_private_pat(gt);
 
 	/* Must be called after GGTT is resumed. */
-	intel_dpt_resume(dev_priv);
+	intel_dpt_resume(display);
 
 	intel_dmc_resume(display);
 
