@@ -114,7 +114,6 @@ static const struct xe_reg tgl_runtime_regs[] = {
 	GT_VEBOX_VDBOX_DISABLE,		/* _MMIO(0x9140) */
 	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
-	TIMESTAMP_OVERRIDE,		/* _MMIO(0x44074) */
 };
 
 static const struct xe_reg ats_m_runtime_regs[] = {
@@ -127,7 +126,6 @@ static const struct xe_reg ats_m_runtime_regs[] = {
 	XEHP_GT_COMPUTE_DSS_ENABLE,	/* _MMIO(0x9144) */
 	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
-	TIMESTAMP_OVERRIDE,		/* _MMIO(0x44074) */
 };
 
 static const struct xe_reg pvc_runtime_regs[] = {
@@ -140,7 +138,6 @@ static const struct xe_reg pvc_runtime_regs[] = {
 	XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,/* _MMIO(0x9148) */
 	CTC_MODE,			/* _MMIO(0xA26C) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
-	TIMESTAMP_OVERRIDE,		/* _MMIO(0x44074) */
 };
 
 static const struct xe_reg ver_1270_runtime_regs[] = {
@@ -155,7 +152,6 @@ static const struct xe_reg ver_1270_runtime_regs[] = {
 	XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,/* _MMIO(0x9148) */
 	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
-	TIMESTAMP_OVERRIDE,		/* _MMIO(0x44074) */
 };
 
 static const struct xe_reg ver_2000_runtime_regs[] = {
@@ -173,7 +169,6 @@ static const struct xe_reg ver_2000_runtime_regs[] = {
 	XE2_GT_GEOMETRY_DSS_2,		/* _MMIO(0x9154) */
 	CTC_MODE,			/* _MMIO(0xa26c) */
 	HUC_KERNEL_LOAD_INFO,		/* _MMIO(0xc1dc) */
-	TIMESTAMP_OVERRIDE,		/* _MMIO(0x44074) */
 };
 
 static const struct xe_reg ver_3000_runtime_regs[] = {
