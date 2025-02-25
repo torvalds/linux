@@ -1196,7 +1196,7 @@
 
 &wifi {
 	memory-region = <&wlan_fw_mem>;
-	qcom,ath11k-calibration-variant = "Qualcomm_rb3gen2";
+	qcom,calibration-variant = "Qualcomm_rb3gen2";
 
 	status = "okay";
 };

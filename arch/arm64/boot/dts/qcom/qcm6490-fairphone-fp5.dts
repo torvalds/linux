@@ -1282,6 +1282,6 @@
 };
 
 &wifi {
-	qcom,ath11k-calibration-variant = "Fairphone_5";
+	qcom,calibration-variant = "Fairphone_5";
 	status = "okay";
 };
