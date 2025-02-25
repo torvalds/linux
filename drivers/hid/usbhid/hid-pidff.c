@@ -118,7 +118,9 @@ static const u8 pidff_pool[] = { 0x80, 0x83, 0xa9 };
 #define PID_DISABLE_ACTUATORS	1
 #define PID_STOP_ALL_EFFECTS	2
 #define PID_RESET		3
-static const u8 pidff_device_control[] = { 0x97, 0x98, 0x99, 0x9a };
+#define PID_PAUSE		4
+#define PID_CONTINUE		5
+static const u8 pidff_device_control[] = { 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9c };
 
 #define PID_CONSTANT	0
 #define PID_RAMP	1
@@ -551,21 +553,29 @@ static void pidff_set_gain_report(struct pidff_device *pidff, u16 gain)
 }
 
 /*
- * Clear device control report
+ * Send device control report to the device
  */
 static void pidff_set_device_control(struct pidff_device *pidff, int field)
 {
-	int i, tmp;
+	int i, index;
 	int field_index = pidff->control_id[field];
+
+	if (field_index < 1)
+		return;
 
 	/* Detect if the field is a bitmask variable or an array */
 	if (pidff->device_control->flags & HID_MAIN_ITEM_VARIABLE) {
 		hid_dbg(pidff->hid, "DEVICE_CONTROL is a bitmask\n");
+
 		/* Clear current bitmask */
 		for(i = 0; i < sizeof(pidff_device_control); i++) {
-			tmp = pidff->control_id[i];
-			pidff->device_control->value[tmp] = 0;
+			index = pidff->control_id[i];
+			if (index < 1)
+				continue;
+
+			pidff->device_control->value[index - 1] = 0;
 		}
+
 		pidff->device_control->value[field_index - 1] = 1;
 	} else {
 		hid_dbg(pidff->hid, "DEVICE_CONTROL is an array\n");
