@@ -4,6 +4,8 @@
  */
 #include "gpu.h"
 
+#include <engine/fifo/priv.h>
+
 #include <nvif/class.h>
 
 const struct nvkm_rm_gpu
@@ -21,6 +23,7 @@ tu1xx_gpu = {
 
 	.fifo.chan = {
 		.class = TURING_CHANNEL_GPFIFO_A,
+		.doorbell_handle = tu102_chan_doorbell_handle,
 	},
 
 	.ce.class = TURING_DMA_COPY_A,

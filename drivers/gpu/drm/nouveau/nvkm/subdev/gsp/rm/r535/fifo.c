@@ -41,7 +41,9 @@
 static u32
 r535_chan_doorbell_handle(struct nvkm_chan *chan)
 {
-	return (chan->cgrp->runl->id << 16) | chan->id;
+	struct nvkm_gsp *gsp = chan->rm.object.client->gsp;
+
+	return gsp->rm->gpu->fifo.chan.doorbell_handle(chan);
 }
 
 static void

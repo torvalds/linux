@@ -25,6 +25,7 @@ struct nvkm_rm_gpu {
 	struct {
 		struct {
 			u32 class;
+			u32 (*doorbell_handle)(struct nvkm_chan *);
 		} chan;
 	} fifo;
 

@@ -4,6 +4,8 @@
  */
 #include "gpu.h"
 
+#include <engine/fifo/priv.h>
+
 #include <nvif/class.h>
 
 const struct nvkm_rm_gpu
@@ -12,6 +14,7 @@ gh100_gpu = {
 
 	.fifo.chan = {
 		.class = HOPPER_CHANNEL_GPFIFO_A,
+		.doorbell_handle = tu102_chan_doorbell_handle,
 	},
 
 	.ce.class = HOPPER_DMA_COPY_A,

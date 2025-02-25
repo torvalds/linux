@@ -4,6 +4,8 @@
  */
 #include "gpu.h"
 
+#include <engine/fifo/priv.h>
+
 #include <nvif/class.h>
 
 const struct nvkm_rm_gpu
@@ -12,6 +14,7 @@ gb10x_gpu = {
 
 	.fifo.chan = {
 		.class = BLACKWELL_CHANNEL_GPFIFO_A,
+		.doorbell_handle = tu102_chan_doorbell_handle,
 	},
 
 	.ce.class = BLACKWELL_DMA_COPY_A,

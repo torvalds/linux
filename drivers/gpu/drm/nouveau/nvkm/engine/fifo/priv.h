@@ -6,6 +6,7 @@
 #include <core/enum.h>
 struct nvkm_cctx;
 struct nvkm_cgrp;
+struct nvkm_chan;
 struct nvkm_engn;
 struct nvkm_memory;
 struct nvkm_runl;
@@ -195,6 +196,7 @@ extern const struct nvkm_chan_func_ramfc gv100_chan_ramfc;
 
 void tu102_fifo_intr_ctxsw_timeout_info(struct nvkm_engn *, u32 info);
 extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;
+u32 tu102_chan_doorbell_handle(struct nvkm_chan *);
 
 int ga100_fifo_runl_ctor(struct nvkm_fifo *);
 int ga100_fifo_nonstall_ctor(struct nvkm_fifo *);
