@@ -34,7 +34,6 @@
 #define SE_I2C_TX_TRANS_LEN		(0x26C)
 #define SE_I2C_RX_TRANS_LEN		(0x270)
 #define SE_I2C_SCL_COUNTERS		(0x278)
-#define SE_GENI_M_GP_LENGTH		(0x910)
 
 /* M_CMD OP codes for I2C */
 #define I2C_WRITE		(0x1)

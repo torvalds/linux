@@ -1,0 +1,139 @@
+# How to use this file: http://go/approve-abi-break
+# ABI freeze commit: 35fe0d393f80627879e12d457ca44d0112703a68
+
+type 'struct kvm_cpu_context' changed
+  member changed from 'struct kvm_vcpu* __hyp_running_vcpu' to 'void* __hyp_running_vcpu'
+    type changed from 'struct kvm_vcpu*' to 'void*'
+      pointed-to type changed from 'struct kvm_vcpu' to 'void'
+
+type 'struct xhci_hcd' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { struct xhci_vendor_ops* vendor_ops; struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct size_class' changed
+  byte size changed from 136 to 128
+  member 'spinlock_t lock' was removed
+  6 members ('struct list_head fullness_list[4]' .. 'struct zs_size_stat stats') changed
+    offset changed by -64
+
+type 'struct zs_pool' changed
+  member 'rwlock_t migrate_lock' was removed
+  member 'spinlock_t lock' was added
+  member 'atomic_t compaction_in_progress' was added
+
+type 'struct zs_pool' changed
+  member 'atomic_t compaction_in_progress' was added
+
+type 'struct task_struct' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { unsigned int saved_state; struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct hid_device' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { struct { __s32 battery_charge_status; u32 padding; }; struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct trace_buffer' changed
+  byte size changed from 224 to 216
+  member 'atomic_t resizing' was added
+  2 members ('bool time_stamp_abs' .. 'struct ring_buffer_ext_cb* ext_cb') changed
+    offset changed by -64
+
+type 'struct fscrypt_policy_v2' changed
+  member '__u8 log2_data_unit_size' was added
+  member changed from '__u8 __reserved[4]' to '__u8 __reserved[3]'
+    offset changed from 32 to 40
+    type changed from '__u8[4]' to '__u8[3]'
+      number of elements changed from 4 to 3
+
+type 'struct fscrypt_info' changed
+  member 'u8 ci_data_unit_bits' was added
+  member 'u8 ci_data_units_per_block_bits' was added
+
+type 'struct pkvm_module_ops' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { int(* host_stage2_mod_prot_range)(u64, enum kvm_pgtable_prot, u64); struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+type 'struct perf_event' changed
+  member 'unsigned int group_generation' was added
+
+type 'struct tcpm_port' changed
+  byte size changed from 12536 to 12552
+  member 'struct usb_power_delivery* pd' was removed
+  member 'struct usb_power_delivery** pds' was added
+  member 'struct pd_data** pd_list' was added
+  5 members ('struct usb_power_delivery_capabilities* port_source_caps' .. 'struct usb_power_delivery_capabilities* partner_sink_caps') changed
+    offset changed by 64
+  member 'struct usb_power_delivery* selected_pd' was added
+  5 members ('u32 sink_request' .. 'unsigned int nr_sink_caps') changed
+    offset changed by 128
+  member 'unsigned int pd_count' was added
+  14 members ('u32 src_pdo[7]' .. 'u32 supply_voltage') changed
+    offset changed by 160
+  32 members ('struct power_supply* psy' .. 'u8* logbuffer[1024]') changed
+    offset changed by 128
+
+type 'struct ipv6_devconf' changed
+  member 'u64 android_kabi_reserved1' was removed
+  member 'union { struct { __s32 accept_ra_min_lft; u32 padding; }; struct { u64 android_kabi_reserved1; }; union { }; }' was added
+
+1 variable symbol(s) removed
+  'struct tracepoint __tracepoint_android_vh_binder_detect_low_async_space_locked'
+
+1 function symbol(s) removed
+  'int __traceiter_android_vh_binder_detect_low_async_space_locked(void*, int, size_t*, int, bool*)'
+
+type 'struct queue_limits' changed
+  member 'bool sub_page_limits' was added
+
+type 'struct prefix_info' changed
+  member '__u8 reserved:6' was removed
+  member '__u8 autoconf:1' was removed
+  member '__u8 onlink:1' was removed
+  member 'union { __u8 flags; struct { __u8 reserved:6; __u8 autoconf:1; __u8 onlink:1; }; }' was added
+
+type 'struct userfaultfd_ctx' changed
+  byte size changed from 128 to 208
+  member 'struct rw_semaphore map_changing_lock' was added
+  member 'atomic_t mmap_changing' changed
+    offset changed by 544
+  member 'struct mm_struct* mm' changed
+    offset changed by 576
+  member 'u64 android_kabi_reserved1' was added
+
+type 'struct rb_irq_work' changed
+  byte size changed from 96 to 88
+  member 'long wait_index' was removed
+  3 members ('bool waiters_pending' .. 'bool wakeup_full') changed
+    offset changed by -64
+
+type 'struct ring_buffer_per_cpu' changed
+  byte size changed from 496 to 488
+
+type 'struct trace_buffer' changed
+  byte size changed from 224 to 216
+  2 members ('bool time_stamp_abs' .. 'struct ring_buffer_ext_cb* ext_cb') changed
+    offset changed by -64
+
+type 'struct sk_buff' changed
+  member 'union { struct sock* sk; int ip_defrag_offset; }' was removed
+  member 'struct sock* sk' was added
+
+type 'struct ufs_clk_scaling' changed
+  member 'bool suspend_on_no_request' was added
+
+type 'struct clk_core' changed
+  byte size changed from 248 to 264
+  member 'struct hlist_node rpm_node' was added
+  30 members ('struct device_node* of_node' .. 'struct kref ref') changed
+    offset changed by 128
+
+type 'enum binder_work_type' changed
+  enumerator 'BINDER_WORK_FROZEN_BINDER' (9) was added
+  ... 1 other enumerator(s) added
+
+type 'struct geni_wrapper' changed
+  byte size changed from 48 to 56
+  member 'struct clk_bulk_data ahb_clks[2]' was removed
+  member 'struct clk_bulk_data clks[2]' was added
+  member 'unsigned int num_clks' was added
+

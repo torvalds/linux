@@ -445,11 +445,6 @@ struct bpf_verifier_log {
 	u32 len_total;
 };
 
-static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
-{
-	return log->len_used >= log->len_total - 1;
-}
-
 #define BPF_LOG_LEVEL1	1
 #define BPF_LOG_LEVEL2	2
 #define BPF_LOG_STATS	4
@@ -459,18 +454,16 @@ static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 #define BPF_LOG_MIN_ALIGNMENT 8U
 #define BPF_LOG_ALIGNMENT 40U
 
+static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
+{
+	return log->len_used >= log->len_total - 1;
+}
+
 static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 {
 	return log &&
 		((log->level && log->ubuf && !bpf_verifier_log_full(log)) ||
 		 log->level == BPF_LOG_KERNEL);
-}
-
-static inline bool
-bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log)
-{
-	return log->len_total >= 128 && log->len_total <= UINT_MAX >> 2 &&
-	       log->level && log->ubuf && !(log->level & ~BPF_LOG_MASK);
 }
 
 #define BPF_MAX_SUBPROGS 256
@@ -561,12 +554,14 @@ struct bpf_verifier_env {
 	ANDROID_KABI_RESERVE(2);
 };
 
+bool bpf_verifier_log_attr_valid(const struct bpf_verifier_log *log);
 __printf(2, 0) void bpf_verifier_vlog(struct bpf_verifier_log *log,
 				      const char *fmt, va_list args);
 __printf(2, 3) void bpf_verifier_log_write(struct bpf_verifier_env *env,
 					   const char *fmt, ...);
 __printf(2, 3) void bpf_log(struct bpf_verifier_log *log,
 			    const char *fmt, ...);
+void bpf_vlog_reset(struct bpf_verifier_log *log, u32 new_pos);
 
 static inline struct bpf_func_state *cur_func(struct bpf_verifier_env *env)
 {
@@ -650,8 +645,8 @@ static inline u32 type_flag(u32 type)
 /* only use after check_attach_btf_id() */
 static inline enum bpf_prog_type resolve_prog_type(const struct bpf_prog *prog)
 {
-	return prog->type == BPF_PROG_TYPE_EXT ?
-		prog->aux->dst_prog->type : prog->type;
+	return (prog->type == BPF_PROG_TYPE_EXT && prog->aux->saved_dst_prog_type) ?
+		prog->aux->saved_dst_prog_type : prog->type;
 }
 
 static inline bool bpf_prog_check_recur(const struct bpf_prog *prog)

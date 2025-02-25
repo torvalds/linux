@@ -2121,13 +2121,127 @@ exit:
 	return rc;
 }
 
+static void nix_smq_flush_fill_ctx(struct rvu *rvu, int blkaddr, int smq,
+				   struct nix_smq_flush_ctx *smq_flush_ctx)
+{
+	struct nix_smq_tree_ctx *smq_tree_ctx;
+	u64 parent_off, regval;
+	u16 schq;
+	int lvl;
+
+	smq_flush_ctx->smq = smq;
+
+	schq = smq;
+	for (lvl = NIX_TXSCH_LVL_SMQ; lvl <= NIX_TXSCH_LVL_TL1; lvl++) {
+		smq_tree_ctx = &smq_flush_ctx->smq_tree_ctx[lvl];
+		smq_tree_ctx->schq = schq;
+		if (lvl == NIX_TXSCH_LVL_TL1) {
+			smq_tree_ctx->cir_off = NIX_AF_TL1X_CIR(schq);
+			smq_tree_ctx->pir_off = 0;
+			smq_tree_ctx->pir_val = 0;
+			parent_off = 0;
+		} else if (lvl == NIX_TXSCH_LVL_TL2) {
+			smq_tree_ctx->cir_off = NIX_AF_TL2X_CIR(schq);
+			smq_tree_ctx->pir_off = NIX_AF_TL2X_PIR(schq);
+			parent_off = NIX_AF_TL2X_PARENT(schq);
+		} else if (lvl == NIX_TXSCH_LVL_TL3) {
+			smq_tree_ctx->cir_off = NIX_AF_TL3X_CIR(schq);
+			smq_tree_ctx->pir_off = NIX_AF_TL3X_PIR(schq);
+			parent_off = NIX_AF_TL3X_PARENT(schq);
+		} else if (lvl == NIX_TXSCH_LVL_TL4) {
+			smq_tree_ctx->cir_off = NIX_AF_TL4X_CIR(schq);
+			smq_tree_ctx->pir_off = NIX_AF_TL4X_PIR(schq);
+			parent_off = NIX_AF_TL4X_PARENT(schq);
+		} else if (lvl == NIX_TXSCH_LVL_MDQ) {
+			smq_tree_ctx->cir_off = NIX_AF_MDQX_CIR(schq);
+			smq_tree_ctx->pir_off = NIX_AF_MDQX_PIR(schq);
+			parent_off = NIX_AF_MDQX_PARENT(schq);
+		}
+		/* save cir/pir register values */
+		smq_tree_ctx->cir_val = rvu_read64(rvu, blkaddr, smq_tree_ctx->cir_off);
+		if (smq_tree_ctx->pir_off)
+			smq_tree_ctx->pir_val = rvu_read64(rvu, blkaddr, smq_tree_ctx->pir_off);
+
+		/* get parent txsch node */
+		if (parent_off) {
+			regval = rvu_read64(rvu, blkaddr, parent_off);
+			schq = (regval >> 16) & 0x1FF;
+		}
+	}
+}
+
+static void nix_smq_flush_enadis_xoff(struct rvu *rvu, int blkaddr,
+				      struct nix_smq_flush_ctx *smq_flush_ctx, bool enable)
+{
+	struct nix_txsch *txsch;
+	struct nix_hw *nix_hw;
+	int tl2, tl2_schq;
+	u64 regoff;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return;
+
+	/* loop through all TL2s with matching PF_FUNC */
+	txsch = &nix_hw->txsch[NIX_TXSCH_LVL_TL2];
+	tl2_schq = smq_flush_ctx->smq_tree_ctx[NIX_TXSCH_LVL_TL2].schq;
+	for (tl2 = 0; tl2 < txsch->schq.max; tl2++) {
+		/* skip the smq(flush) TL2 */
+		if (tl2 == tl2_schq)
+			continue;
+		/* skip unused TL2s */
+		if (TXSCH_MAP_FLAGS(txsch->pfvf_map[tl2]) & NIX_TXSCHQ_FREE)
+			continue;
+		/* skip if PF_FUNC doesn't match */
+		if ((TXSCH_MAP_FUNC(txsch->pfvf_map[tl2]) & ~RVU_PFVF_FUNC_MASK) !=
+		    (TXSCH_MAP_FUNC(txsch->pfvf_map[tl2_schq] &
+				    ~RVU_PFVF_FUNC_MASK)))
+			continue;
+		/* enable/disable XOFF */
+		regoff = NIX_AF_TL2X_SW_XOFF(tl2);
+		if (enable)
+			rvu_write64(rvu, blkaddr, regoff, 0x1);
+		else
+			rvu_write64(rvu, blkaddr, regoff, 0x0);
+	}
+}
+
+static void nix_smq_flush_enadis_rate(struct rvu *rvu, int blkaddr,
+				      struct nix_smq_flush_ctx *smq_flush_ctx, bool enable)
+{
+	u64 cir_off, pir_off, cir_val, pir_val;
+	struct nix_smq_tree_ctx *smq_tree_ctx;
+	int lvl;
+
+	for (lvl = NIX_TXSCH_LVL_SMQ; lvl <= NIX_TXSCH_LVL_TL1; lvl++) {
+		smq_tree_ctx = &smq_flush_ctx->smq_tree_ctx[lvl];
+		cir_off = smq_tree_ctx->cir_off;
+		cir_val = smq_tree_ctx->cir_val;
+		pir_off = smq_tree_ctx->pir_off;
+		pir_val = smq_tree_ctx->pir_val;
+
+		if (enable) {
+			rvu_write64(rvu, blkaddr, cir_off, cir_val);
+			if (lvl != NIX_TXSCH_LVL_TL1)
+				rvu_write64(rvu, blkaddr, pir_off, pir_val);
+		} else {
+			rvu_write64(rvu, blkaddr, cir_off, 0x0);
+			if (lvl != NIX_TXSCH_LVL_TL1)
+				rvu_write64(rvu, blkaddr, pir_off, 0x0);
+		}
+	}
+}
+
 static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 			 int smq, u16 pcifunc, int nixlf)
 {
+	struct nix_smq_flush_ctx *smq_flush_ctx;
+	int err, restore_tx_en = 0, i;
 	int pf = rvu_get_pf(pcifunc);
 	u8 cgx_id = 0, lmac_id = 0;
-	int err, restore_tx_en = 0;
-	u64 cfg;
+	u16 tl2_tl3_link_schq;
+	u8 link, link_level;
+	u64 cfg, bmap = 0;
 
 	/* enable cgx tx if disabled */
 	if (is_pf_cgxmapped(rvu, pf)) {
@@ -2136,22 +2250,69 @@ static int nix_smq_flush(struct rvu *rvu, int blkaddr,
 						   lmac_id, true);
 	}
 
-	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq));
-	/* Do SMQ flush and set enqueue xoff */
-	cfg |= BIT_ULL(50) | BIT_ULL(49);
-	rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq), cfg);
+	/* XOFF all TL2s whose parent TL1 matches SMQ tree TL1 */
+	smq_flush_ctx = kzalloc(sizeof(*smq_flush_ctx), GFP_KERNEL);
+	if (!smq_flush_ctx)
+		return -ENOMEM;
+	nix_smq_flush_fill_ctx(rvu, blkaddr, smq, smq_flush_ctx);
+	nix_smq_flush_enadis_xoff(rvu, blkaddr, smq_flush_ctx, true);
+	nix_smq_flush_enadis_rate(rvu, blkaddr, smq_flush_ctx, false);
 
 	/* Disable backpressure from physical link,
 	 * otherwise SMQ flush may stall.
 	 */
 	rvu_cgx_enadis_rx_bp(rvu, pf, false);
 
+	link_level = rvu_read64(rvu, blkaddr, NIX_AF_PSE_CHANNEL_LEVEL) & 0x01 ?
+			NIX_TXSCH_LVL_TL3 : NIX_TXSCH_LVL_TL2;
+	tl2_tl3_link_schq = smq_flush_ctx->smq_tree_ctx[link_level].schq;
+	link = smq_flush_ctx->smq_tree_ctx[NIX_TXSCH_LVL_TL1].schq;
+
+	/* SMQ set enqueue xoff */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq));
+	cfg |= BIT_ULL(50);
+	rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq), cfg);
+
+	/* Clear all NIX_AF_TL3_TL2_LINK_CFG[ENA] for the TL3/TL2 queue */
+	for (i = 0; i < (rvu->hw->cgx_links + rvu->hw->lbk_links); i++) {
+		cfg = rvu_read64(rvu, blkaddr,
+				 NIX_AF_TL3_TL2X_LINKX_CFG(tl2_tl3_link_schq, link));
+		if (!(cfg & BIT_ULL(12)))
+			continue;
+		bmap |= BIT_ULL(i);
+		cfg &= ~BIT_ULL(12);
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_TL3_TL2X_LINKX_CFG(tl2_tl3_link_schq, link), cfg);
+	}
+
+	/* Do SMQ flush and set enqueue xoff */
+	cfg = rvu_read64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq));
+	cfg |= BIT_ULL(50) | BIT_ULL(49);
+	rvu_write64(rvu, blkaddr, NIX_AF_SMQX_CFG(smq), cfg);
+
 	/* Wait for flush to complete */
 	err = rvu_poll_reg(rvu, blkaddr,
 			   NIX_AF_SMQX_CFG(smq), BIT_ULL(49), true);
 	if (err)
-		dev_err(rvu->dev,
-			"NIXLF%d: SMQ%d flush failed\n", nixlf, smq);
+		dev_info(rvu->dev,
+			 "NIXLF%d: SMQ%d flush failed, txlink might be busy\n",
+			 nixlf, smq);
+
+	/* Set NIX_AF_TL3_TL2_LINKX_CFG[ENA] for the TL3/TL2 queue */
+	for (i = 0; i < (rvu->hw->cgx_links + rvu->hw->lbk_links); i++) {
+		if (!(bmap & BIT_ULL(i)))
+			continue;
+		cfg = rvu_read64(rvu, blkaddr,
+				 NIX_AF_TL3_TL2X_LINKX_CFG(tl2_tl3_link_schq, link));
+		cfg |= BIT_ULL(12);
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_TL3_TL2X_LINKX_CFG(tl2_tl3_link_schq, link), cfg);
+	}
+
+	/* clear XOFF on TL2s */
+	nix_smq_flush_enadis_rate(rvu, blkaddr, smq_flush_ctx, true);
+	nix_smq_flush_enadis_xoff(rvu, blkaddr, smq_flush_ctx, false);
+	kfree(smq_flush_ctx);
 
 	rvu_cgx_enadis_rx_bp(rvu, pf, true);
 	/* restore cgx tx state */
@@ -3354,6 +3515,11 @@ static int get_flowkey_alg_idx(struct nix_hw *nix_hw, u32 flow_cfg)
 	return -ERANGE;
 }
 
+/* Mask to match ipv6(NPC_LT_LC_IP6) and ipv6 ext(NPC_LT_LC_IP6_EXT) */
+#define NPC_LT_LC_IP6_MATCH_MSK ((~(NPC_LT_LC_IP6 ^ NPC_LT_LC_IP6_EXT)) & 0xf)
+/* Mask to match both ipv4(NPC_LT_LC_IP) and ipv4 ext(NPC_LT_LC_IP_OPT) */
+#define NPC_LT_LC_IP_MATCH_MSK  ((~(NPC_LT_LC_IP ^ NPC_LT_LC_IP_OPT)) & 0xf)
+
 static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 {
 	int idx, nr_field, key_off, field_marker, keyoff_marker;
@@ -3361,6 +3527,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 	struct nix_rx_flowkey_alg *field;
 	struct nix_rx_flowkey_alg tmp;
 	u32 key_type, valid_key;
+	u32 l3_l4_src_dst;
 	int l4_key_offset = 0;
 
 	if (!alg)
@@ -3388,6 +3555,15 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 	 * group_member - Enabled when protocol is part of a group.
 	 */
 
+	/* Last 4 bits (31:28) are reserved to specify SRC, DST
+	 * selection for L3, L4 i.e IPV[4,6]_SRC, IPV[4,6]_DST,
+	 * [TCP,UDP,SCTP]_SRC, [TCP,UDP,SCTP]_DST
+	 * 31 => L3_SRC, 30 => L3_DST, 29 => L4_SRC, 28 => L4_DST
+	 */
+	l3_l4_src_dst = flow_cfg;
+	/* Reset these 4 bits, so that these won't be part of key */
+	flow_cfg &= NIX_FLOW_KEY_TYPE_L3_L4_MASK;
+
 	keyoff_marker = 0; max_key_off = 0; group_member = 0;
 	nr_field = 0; key_off = 0; field_marker = 1;
 	field = &tmp; max_bit_pos = fls(flow_cfg);
@@ -3413,7 +3589,7 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			field->hdr_offset = 9; /* offset */
 			field->bytesm1 = 0; /* 1 byte */
 			field->ltype_match = NPC_LT_LC_IP;
-			field->ltype_mask = 0xF;
+			field->ltype_mask = NPC_LT_LC_IP_MATCH_MSK;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV4:
 		case NIX_FLOW_KEY_TYPE_INNR_IPV4:
@@ -3425,7 +3601,22 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			}
 			field->hdr_offset = 12; /* SIP offset */
 			field->bytesm1 = 7; /* SIP + DIP, 8 bytes */
-			field->ltype_mask = 0xF; /* Match only IPv4 */
+
+			/* Only SIP */
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L3_SRC_ONLY)
+				field->bytesm1 = 3; /* SIP, 4 bytes */
+
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L3_DST_ONLY) {
+				/* Both SIP + DIP */
+				if (field->bytesm1 == 3) {
+					field->bytesm1 = 7; /* SIP + DIP, 8B */
+				} else {
+					/* Only DIP */
+					field->hdr_offset = 16; /* DIP off */
+					field->bytesm1 = 3; /* DIP, 4 bytes */
+				}
+			}
+			field->ltype_mask = NPC_LT_LC_IP_MATCH_MSK;
 			keyoff_marker = false;
 			break;
 		case NIX_FLOW_KEY_TYPE_IPV6:
@@ -3438,7 +3629,23 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			}
 			field->hdr_offset = 8; /* SIP offset */
 			field->bytesm1 = 31; /* SIP + DIP, 32 bytes */
-			field->ltype_mask = 0xF; /* Match only IPv6 */
+
+			/* Only SIP */
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L3_SRC_ONLY)
+				field->bytesm1 = 15; /* SIP, 16 bytes */
+
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L3_DST_ONLY) {
+				/* Both SIP + DIP */
+				if (field->bytesm1 == 15) {
+					/* SIP + DIP, 32 bytes */
+					field->bytesm1 = 31;
+				} else {
+					/* Only DIP */
+					field->hdr_offset = 24; /* DIP off */
+					field->bytesm1 = 15; /* DIP,16 bytes */
+				}
+			}
+			field->ltype_mask = NPC_LT_LC_IP6_MATCH_MSK;
 			break;
 		case NIX_FLOW_KEY_TYPE_TCP:
 		case NIX_FLOW_KEY_TYPE_UDP:
@@ -3452,6 +3659,21 @@ static int set_flowkey_fields(struct nix_rx_flowkey_alg *alg, u32 flow_cfg)
 			    key_type == NIX_FLOW_KEY_TYPE_INNR_SCTP)
 				field->lid = NPC_LID_LH;
 			field->bytesm1 = 3; /* Sport + Dport, 4 bytes */
+
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L4_SRC_ONLY)
+				field->bytesm1 = 1; /* SRC, 2 bytes */
+
+			if (l3_l4_src_dst & NIX_FLOW_KEY_TYPE_L4_DST_ONLY) {
+				/* Both SRC + DST */
+				if (field->bytesm1 == 1) {
+					/* SRC + DST, 4 bytes */
+					field->bytesm1 = 3;
+				} else {
+					/* Only DIP */
+					field->hdr_offset = 2; /* DST off */
+					field->bytesm1 = 1; /* DST, 2 bytes */
+				}
+			}
 
 			/* Enum values for NPC_LID_LD and NPC_LID_LG are same,
 			 * so no need to change the ltype_match, just change

@@ -4093,11 +4093,16 @@ static inline void ufshcd_add_delay_before_dme_cmd(struct ufs_hba *hba)
 			min_sleep_time_us =
 				MIN_DELAY_BEFORE_DME_CMDS_US - delta;
 		else
-			return; /* no more delay required */
+			min_sleep_time_us = 0; /* no more delay required */
 	}
 
-	/* allow sleep for extra 50us if needed */
-	usleep_range(min_sleep_time_us, min_sleep_time_us + 50);
+	if (min_sleep_time_us > 0) {
+		/* allow sleep for extra 50us if needed */
+		usleep_range(min_sleep_time_us, min_sleep_time_us + 50);
+	}
+
+	/* update the last_dme_cmd_tstamp */
+	hba->last_dme_cmd_tstamp = ktime_get();
 }
 
 /**
@@ -5415,10 +5420,12 @@ ufshcd_transfer_rsp_status(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 		}
 		break;
 	case OCS_ABORTED:
-		result |= DID_ABORT << 16;
-		break;
 	case OCS_INVALID_COMMAND_STATUS:
 		result |= DID_REQUEUE << 16;
+		dev_warn(hba->dev,
+				"OCS %s from controller for tag %d\n",
+				(ocs == OCS_ABORTED? "aborted" : "invalid"),
+				lrbp->task_tag);
 		break;
 	case OCS_INVALID_CMD_TABLE_ATTR:
 	case OCS_INVALID_PRDT_ATTR:
@@ -6491,9 +6498,6 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 
 	if (is_mcq_enabled(hba)) {
 		struct ufshcd_lrb *lrbp;
-		int tag;
-		struct ufs_hw_queue *hwq;
-		unsigned long flags;
 
 		for (tag = 0; tag < hba->nutrs; tag++) {
 			lrbp = &hba->lrb[tag];
@@ -6507,13 +6511,6 @@ static bool ufshcd_abort_all(struct ufs_hba *hba)
 				needs_reset = true;
 				goto out;
 			}
-			hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(lrbp->cmd));
-			if (!hwq)
-				return 0;
-			spin_lock_irqsave(&hwq->cq_lock, flags);
-			if (ufshcd_cmd_inflight(lrbp->cmd))
-				ufshcd_release_scsi_cmd(hba, lrbp);
-			spin_unlock_irqrestore(&hwq->cq_lock, flags);
 		}
 	} else {
 		/* Clear pending transfer requests */
@@ -10015,7 +10012,9 @@ static void ufshcd_wl_shutdown(struct device *dev)
 	shost_for_each_device(sdev, hba->host) {
 		if (sdev == hba->ufs_device_wlun)
 			continue;
-		scsi_device_quiesce(sdev);
+		mutex_lock(&sdev->state_mutex);
+		scsi_device_set_state(sdev, SDEV_OFFLINE);
+		mutex_unlock(&sdev->state_mutex);
 	}
 	__ufshcd_wl_suspend(hba, UFS_SHUTDOWN_PM);
 }
@@ -10282,9 +10281,6 @@ int ufshcd_system_restore(struct device *dev)
 	 * updating these addresses, we can queue the new commands.
 	 */
 	ufshcd_readl(hba, REG_UTP_TASK_REQ_LIST_BASE_H);
-
-	/* Resuming from hibernate, assume that link was OFF */
-	ufshcd_set_link_off(hba);
 
 	return 0;
 

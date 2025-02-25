@@ -4608,7 +4608,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, u8 len)
 	bool check_common_len = false;
 	u16 control;
 
-	if (len < fixed)
+	if (!data || len < fixed)
 		return false;
 
 	control = le16_to_cpu(mle->control);

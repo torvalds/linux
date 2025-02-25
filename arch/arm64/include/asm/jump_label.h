@@ -13,6 +13,7 @@
 #include <linux/types.h>
 #include <asm/insn.h>
 
+#define HAVE_JUMP_LABEL_BATCH
 #define JUMP_LABEL_NOP_SIZE		AARCH64_INSN_SIZE
 
 static __always_inline bool arch_static_branch(struct static_key *key,

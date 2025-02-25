@@ -139,16 +139,6 @@ static inline void sanity_check_seg_type(struct f2fs_sb_info *sbi,
 	((sectors) >> F2FS_LOG_SECTORS_PER_BLOCK)
 
 /*
- * indicate a block allocation direction: RIGHT and LEFT.
- * RIGHT means allocating new sections towards the end of volume.
- * LEFT means the opposite direction.
- */
-enum {
-	ALLOC_RIGHT = 0,
-	ALLOC_LEFT
-};
-
-/*
  * In the victim_sel_policy->alloc_mode, there are three block allocation modes.
  * LFS writes data sequentially with cleaning operations.
  * SSR (Slack Space Recycle) reuses obsolete space without cleaning operations.
@@ -360,7 +350,8 @@ static inline unsigned int get_ckpt_valid_blocks(struct f2fs_sb_info *sbi,
 				unsigned int segno, bool use_section)
 {
 	if (use_section && __is_large_section(sbi)) {
-		unsigned int start_segno = START_SEGNO(segno);
+		unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+		unsigned int start_segno = GET_SEG_FROM_SEC(sbi, secno);
 		unsigned int blocks = 0;
 		int i;
 

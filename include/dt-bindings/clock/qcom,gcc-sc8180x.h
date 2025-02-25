@@ -262,6 +262,8 @@
 #define GCC_VIDEO_AHB_CLK					251
 #define GCC_VIDEO_XO_CLK					252
 #define GCC_UFS_MEM_CLKREF_CLK					254
+#define GCC_UFS_MEM_CLKREF_EN					239
+#define GCC_UFS_CARD_CLKREF_EN					240
 
 #define GCC_EMAC_BCR						0
 #define GCC_GPU_BCR						1

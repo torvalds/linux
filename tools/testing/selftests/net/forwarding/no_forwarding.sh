@@ -202,7 +202,7 @@ one_bridge_two_pvids()
 	ip link set $swp2 master br0
 
 	bridge vlan add dev $swp1 vid 1 pvid untagged
-	bridge vlan add dev $swp1 vid 2 pvid untagged
+	bridge vlan add dev $swp2 vid 2 pvid untagged
 
 	run_test "Switch ports in VLAN-aware bridge with different PVIDs"
 
@@ -232,6 +232,9 @@ h2_destroy()
 cleanup()
 {
 	pre_cleanup
+
+	ip link set dev $swp2 down
+	ip link set dev $swp1 down
 
 	h2_destroy
 	h1_destroy

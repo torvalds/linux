@@ -1007,26 +1007,21 @@ static int pppoe_recvmsg(struct socket *sock, struct msghdr *m,
 	struct sk_buff *skb;
 	int error = 0;
 
-	if (sk->sk_state & PPPOX_BOUND) {
-		error = -EIO;
-		goto end;
-	}
+	if (sk->sk_state & PPPOX_BOUND)
+		return -EIO;
 
 	skb = skb_recv_datagram(sk, flags, &error);
-	if (error < 0)
-		goto end;
+	if (!skb)
+		return error;
 
-	if (skb) {
-		total_len = min_t(size_t, total_len, skb->len);
-		error = skb_copy_datagram_msg(skb, 0, m, total_len);
-		if (error == 0) {
-			consume_skb(skb);
-			return total_len;
-		}
+	total_len = min_t(size_t, total_len, skb->len);
+	error = skb_copy_datagram_msg(skb, 0, m, total_len);
+	if (error == 0) {
+		consume_skb(skb);
+		return total_len;
 	}
 
 	kfree_skb(skb);
-end:
 	return error;
 }
 

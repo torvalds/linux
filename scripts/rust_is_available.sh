@@ -38,10 +38,21 @@ fi
 # Check that the Rust compiler version is suitable.
 #
 # Non-stable and distributions' versions may have a version suffix, e.g. `-dev`.
+rust_compiler_output=$( \
+	LC_ALL=C "$RUSTC" --version 2>/dev/null
+) || rust_compiler_code=$?
+if [ -n "$rust_compiler_code" ]; then
+	echo >&2 "***"
+	echo >&2 "*** Running '$RUSTC' to check the Rust compiler version failed with"
+	echo >&2 "*** code $rust_compiler_code. See output and docs below for details:"
+	echo >&2 "***"
+	echo >&2 "$rust_compiler_output"
+	echo >&2 "***"
+	exit 1
+fi
 rust_compiler_version=$( \
-	LC_ALL=C "$RUSTC" --version 2>/dev/null \
-		| head -n 1 \
-		| grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
+	echo "$rust_compiler_output" \
+		| sed -nE '1s:.*rustc ([0-9]+\.[0-9]+\.[0-9]+).*:\1:p'
 )
 rust_compiler_min_version=$($min_tool_version rustc)
 rust_compiler_cversion=$(get_canonical_version $rust_compiler_version)
@@ -65,10 +76,25 @@ fi
 # Check that the Rust bindings generator is suitable.
 #
 # Non-stable and distributions' versions may have a version suffix, e.g. `-dev`.
+#
+# The dummy parameter `workaround-for-0.69.0` is required to support 0.69.0
+# (https://github.com/rust-lang/rust-bindgen/pull/2678). It can be removed when
+# the minimum version is upgraded past that (0.69.1 already fixed the issue).
+rust_bindings_generator_output=$( \
+	LC_ALL=C "$BINDGEN" --version workaround-for-0.69.0 2>/dev/null
+) || rust_bindings_generator_code=$?
+if [ -n "$rust_bindings_generator_code" ]; then
+	echo >&2 "***"
+	echo >&2 "*** Running '$BINDGEN' to check the Rust bindings generator version failed with"
+	echo >&2 "*** code $rust_bindings_generator_code. See output and docs below for details:"
+	echo >&2 "***"
+	echo >&2 "$rust_bindings_generator_output"
+	echo >&2 "***"
+	exit 1
+fi
 rust_bindings_generator_version=$( \
-	LC_ALL=C "$BINDGEN" --version 2>/dev/null \
-		| head -n 1 \
-		| grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
+	echo "$rust_bindings_generator_output" \
+		| sed -nE '1s:.*bindgen ([0-9]+\.[0-9]+\.[0-9]+).*:\1:p'
 )
 rust_bindings_generator_min_version=$($min_tool_version bindgen)
 rust_bindings_generator_cversion=$(get_canonical_version $rust_bindings_generator_version)
@@ -110,6 +136,9 @@ fi
 
 # `bindgen` returned successfully, thus use the output to check that the version
 # of the `libclang` found by the Rust bindings generator is suitable.
+#
+# Unlike other version checks, note that this one does not necessarily appear
+# in the first line of the output, thus no `sed` address is provided.
 bindgen_libclang_version=$( \
 	echo "$bindgen_libclang_output" \
 		| sed -nE 's:.*clang version ([0-9]+\.[0-9]+\.[0-9]+).*:\1:p'

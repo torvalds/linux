@@ -670,6 +670,7 @@ HPAGEFLAG(RawHwpUnreliable, raw_hwp_unreliable)
 /* Defines one hugetlb page size */
 struct hstate {
 	struct mutex resize_lock;
+	struct lock_class_key resize_key;
 	int next_nid_to_alloc;
 	int next_nid_to_free;
 	unsigned int order;

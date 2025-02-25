@@ -27,11 +27,6 @@ enum win_dly_mode {
 	VOP2_DLY_MODE_MAX,
 };
 
-struct vop_rect {
-	int width;
-	int height;
-};
-
 enum vop2_scale_up_mode {
 	VOP2_SCALE_UP_NRST_NBOR,
 	VOP2_SCALE_UP_BIL,

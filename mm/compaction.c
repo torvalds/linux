@@ -3070,6 +3070,7 @@ static int kcompactd_cpu_online(unsigned int cpu)
 			if (pgdat->kcompactd)
 				set_cpus_allowed_ptr(pgdat->kcompactd, mask);
 	}
+	trace_android_vh_mm_kcompactd_cpu_online(cpu);
 	return 0;
 }
 

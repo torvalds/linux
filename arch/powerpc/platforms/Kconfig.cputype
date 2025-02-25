@@ -176,6 +176,7 @@ config POWER10_CPU
 	bool "POWER10"
 	depends on PPC_BOOK3S_64
 	select ARCH_HAS_FAST_MULTIPLIER
+	select PPC_HAVE_PREFIXED_SUPPORT
 
 config E5500_CPU
 	bool "Freescale e5500"
@@ -449,6 +450,22 @@ config PPC_RADIX_MMU_DEFAULT
 
 	  If you're unsure, say Y.
 
+config PPC_KERNEL_PREFIXED
+	depends on PPC_HAVE_PREFIXED_SUPPORT
+	depends on CC_HAS_PREFIXED
+	default n
+	bool "Build Kernel with Prefixed Instructions"
+	help
+	  POWER10 and later CPUs support prefixed instructions, 8 byte
+	  instructions that include large immediate, pc relative addressing,
+	  and various floating point, vector, MMA.
+
+	  This option builds the kernel with prefixed instructions, and
+	  allows a pc relative addressing option to be selected.
+
+	  Kernel support for prefixed instructions in applications and guests
+	  is not affected by this option.
+
 config PPC_KUEP
 	bool "Kernel Userspace Execution Prevention" if !40x
 	default y if !40x
@@ -483,6 +500,9 @@ config PPC_MMU_NOHASH
 	depends on !PPC_BOOK3S
 
 config PPC_HAVE_PMU_SUPPORT
+	bool
+
+config PPC_HAVE_PREFIXED_SUPPORT
 	bool
 
 config PMU_SYSFS
@@ -585,10 +605,10 @@ config CPU_LITTLE_ENDIAN
 endchoice
 
 config PPC64_ELF_ABI_V1
-	def_bool PPC64 && CPU_BIG_ENDIAN
+	def_bool PPC64 && (CPU_BIG_ENDIAN && !PPC64_BIG_ENDIAN_ELF_ABI_V2)
 
 config PPC64_ELF_ABI_V2
-	def_bool PPC64 && CPU_LITTLE_ENDIAN
+	def_bool PPC64 && !PPC64_ELF_ABI_V1
 
 config PPC64_BOOT_WRAPPER
 	def_bool n

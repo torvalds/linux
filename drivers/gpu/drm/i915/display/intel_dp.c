@@ -390,6 +390,10 @@ bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
 	struct intel_encoder *encoder = &intel_dig_port->base;
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
+	/* eDP MSO is not compatible with joiner */
+	if (intel_dp->mso_link_count)
+		return false;
+
 	return DISPLAY_VER(dev_priv) >= 12 ||
 		(DISPLAY_VER(dev_priv) == 11 &&
 		 encoder->port != PORT_A);
@@ -4084,6 +4088,8 @@ int intel_dp_retrain_link(struct intel_encoder *encoder,
 		    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DP_MST) &&
 		    !intel_dp_mst_is_master_trans(crtc_state))
 			continue;
+
+		intel_dp->link_trained = false;
 
 		intel_dp_check_frl_training(intel_dp);
 		intel_dp_pcon_dsc_configure(intel_dp, crtc_state);
