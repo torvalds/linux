@@ -1779,7 +1779,6 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct btrfs_bio *bbio;
-	const int num_folios = num_extent_folios(eb);
 
 	prepare_eb_write(eb);
 
@@ -1791,7 +1790,7 @@ static noinline_for_stack void write_one_eb(struct extent_buffer *eb,
 	wbc_init_bio(wbc, &bbio->bio);
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio = eb->folios[i];
 		u64 range_start = max_t(u64, eb->start, folio_pos(folio));
 		u32 range_len = min_t(u64, folio_pos(folio) + folio_size(folio),
@@ -2667,7 +2666,6 @@ static struct extent_buffer *__alloc_extent_buffer(struct btrfs_fs_info *fs_info
 struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 {
 	struct extent_buffer *new;
-	int num_folios = num_extent_folios(src);
 	int ret;
 
 	new = __alloc_extent_buffer(src->fs_info, src->start);
@@ -2687,7 +2685,7 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 		return NULL;
 	}
 
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(src); i++) {
 		struct folio *folio = new->folios[i];
 
 		ret = attach_extent_buffer_folio(new, folio, NULL);
@@ -2707,7 +2705,6 @@ struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 						u64 start)
 {
 	struct extent_buffer *eb;
-	int num_folios = 0;
 	int ret;
 
 	eb = __alloc_extent_buffer(fs_info, start);
@@ -2716,13 +2713,12 @@ struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 
 	ret = alloc_eb_folio_array(eb, false);
 	if (ret)
-		goto err;
+		goto out;
 
-	num_folios = num_extent_folios(eb);
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		ret = attach_extent_buffer_folio(eb, eb->folios[i], NULL);
 		if (ret < 0)
-			goto err;
+			goto out_detach;
 	}
 
 	set_extent_buffer_uptodate(eb);
@@ -2730,13 +2726,15 @@ struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
 	set_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags);
 
 	return eb;
-err:
-	for (int i = 0; i < num_folios; i++) {
+
+out_detach:
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		if (eb->folios[i]) {
 			detach_extent_buffer_folio(eb, eb->folios[i]);
 			folio_put(eb->folios[i]);
 		}
 	}
+out:
 	kmem_cache_free(extent_buffer_cache, eb);
 	return NULL;
 }
@@ -2779,11 +2777,9 @@ static void check_buffer_tree_ref(struct extent_buffer *eb)
 
 static void mark_extent_buffer_accessed(struct extent_buffer *eb)
 {
-	int num_folios= num_extent_folios(eb);
-
 	check_buffer_tree_ref(eb);
 
-	for (int i = 0; i < num_folios; i++)
+	for (int i = 0; i < num_extent_folios(eb); i++)
 		folio_mark_accessed(eb->folios[i]);
 }
 
@@ -3015,7 +3011,6 @@ finish:
 struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 					  u64 start, u64 owner_root, int level)
 {
-	int num_folios;
 	int attached = 0;
 	struct extent_buffer *eb;
 	struct extent_buffer *existing_eb = NULL;
@@ -3079,9 +3074,8 @@ reallocate:
 		goto out;
 	}
 
-	num_folios = num_extent_folios(eb);
 	/* Attach all pages to the filemap. */
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio;
 
 		ret = attach_eb_folio_to_filemap(eb, i, prealloc, &existing_eb);
@@ -3175,7 +3169,7 @@ again:
 	 * btree_release_folio will correctly detect that a page belongs to a
 	 * live buffer and won't free them prematurely.
 	 */
-	for (int i = 0; i < num_folios; i++)
+	for (int i = 0; i < num_extent_folios(eb); i++)
 		folio_unlock(eb->folios[i]);
 	return eb;
 
@@ -3321,7 +3315,6 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *eb)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	const int num_folios = num_extent_folios(eb);
 
 	btrfs_assert_tree_write_locked(eb);
 
@@ -3348,7 +3341,7 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 	percpu_counter_add_batch(&fs_info->dirty_metadata_bytes, -eb->len,
 				 fs_info->dirty_metadata_batch);
 
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio = eb->folios[i];
 		bool last;
 
@@ -3365,14 +3358,12 @@ void btrfs_clear_buffer_dirty(struct btrfs_trans_handle *trans,
 
 void set_extent_buffer_dirty(struct extent_buffer *eb)
 {
-	int num_folios;
 	bool was_dirty;
 
 	check_buffer_tree_ref(eb);
 
 	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
 
-	num_folios = num_extent_folios(eb);
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
 	WARN_ON(test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags));
@@ -3393,7 +3384,7 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 		 */
 		if (subpage)
 			folio_lock(eb->folios[0]);
-		for (int i = 0; i < num_folios; i++)
+		for (int i = 0; i < num_extent_folios(eb); i++)
 			btrfs_meta_folio_set_dirty(eb->folios[i], eb);
 		if (subpage)
 			folio_unlock(eb->folios[0]);
@@ -3402,17 +3393,16 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 					 eb->fs_info->dirty_metadata_batch);
 	}
 #ifdef CONFIG_BTRFS_DEBUG
-	for (int i = 0; i < num_folios; i++)
+	for (int i = 0; i < num_extent_folios(eb); i++)
 		ASSERT(folio_test_dirty(eb->folios[i]));
 #endif
 }
 
 void clear_extent_buffer_uptodate(struct extent_buffer *eb)
 {
-	int num_folios = num_extent_folios(eb);
 
 	clear_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio = eb->folios[i];
 
 		if (!folio)
@@ -3424,10 +3414,9 @@ void clear_extent_buffer_uptodate(struct extent_buffer *eb)
 
 void set_extent_buffer_uptodate(struct extent_buffer *eb)
 {
-	int num_folios = num_extent_folios(eb);
 
 	set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-	for (int i = 0; i < num_folios; i++)
+	for (int i = 0; i < num_extent_folios(eb); i++)
 		btrfs_meta_folio_set_uptodate(eb->folios[i], eb);
 }
 
@@ -3472,7 +3461,6 @@ static void end_bbio_meta_read(struct btrfs_bio *bbio)
 int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 				    const struct btrfs_tree_parent_check *check)
 {
-	const int num_folios = num_extent_folios(eb);
 	struct btrfs_bio *bbio;
 
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
@@ -3513,7 +3501,7 @@ int read_extent_buffer_pages_nowait(struct extent_buffer *eb, int mirror_num,
 	bbio->inode = BTRFS_I(eb->fs_info->btree_inode);
 	bbio->file_offset = eb->start;
 	memcpy(&bbio->parent_check, check, sizeof(*check));
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio = eb->folios[i];
 		u64 range_start = max_t(u64, eb->start, folio_pos(folio));
 		u32 range_len = min_t(u64, folio_pos(folio) + folio_size(folio),

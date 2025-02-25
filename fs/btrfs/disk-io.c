@@ -182,13 +182,12 @@ static int btrfs_repair_eb_io_failure(const struct extent_buffer *eb,
 				      int mirror_num)
 {
 	struct btrfs_fs_info *fs_info = eb->fs_info;
-	int num_folios = num_extent_folios(eb);
 	int ret = 0;
 
 	if (sb_rdonly(fs_info->sb))
 		return -EROFS;
 
-	for (int i = 0; i < num_folios; i++) {
+	for (int i = 0; i < num_extent_folios(eb); i++) {
 		struct folio *folio = eb->folios[i];
 		u64 start = max_t(u64, eb->start, folio_pos(folio));
 		u64 end = min_t(u64, eb->start + eb->len,
