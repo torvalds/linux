@@ -8,15 +8,15 @@
 
 #include <linux/types.h>
 
-struct drm_i915_private;
+enum phy;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_encoder;
 struct intel_mpllb_state;
-enum phy;
 
-void intel_snps_phy_wait_for_calibration(struct drm_i915_private *dev_priv);
+void intel_snps_phy_wait_for_calibration(struct intel_display *display);
 void intel_snps_phy_update_psr_power_state(struct intel_encoder *encoder,
 					   bool enable);
 

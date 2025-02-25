@@ -5135,7 +5135,7 @@ void intel_ddi_init(struct intel_display *display,
 		return;
 	}
 
-	if (intel_phy_is_snps(dev_priv, phy) &&
+	if (intel_phy_is_snps(display, phy) &&
 	    dev_priv->display.snps.phy_failed_calibration & BIT(phy)) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "SNPS PHY %c failed to calibrate, proceeding anyway\n",

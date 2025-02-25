@@ -1925,13 +1925,13 @@ bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy)
 }
 
 /* Prefer intel_encoder_is_snps() */
-bool intel_phy_is_snps(struct drm_i915_private *dev_priv, enum phy phy)
+bool intel_phy_is_snps(struct intel_display *display, enum phy phy)
 {
 	/*
 	 * For DG2, and for DG2 only, all four "combo" ports and the TC1 port
 	 * (PHY E) use Synopsis PHYs. See intel_phy_is_tc().
 	 */
-	return IS_DG2(dev_priv) && phy > PHY_NONE && phy <= PHY_E;
+	return display->platform.dg2 && phy > PHY_NONE && phy <= PHY_E;
 }
 
 /* Prefer intel_encoder_to_phy() */
@@ -1980,9 +1980,9 @@ bool intel_encoder_is_combo(struct intel_encoder *encoder)
 
 bool intel_encoder_is_snps(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	struct intel_display *display = to_intel_display(encoder);
 
-	return intel_phy_is_snps(i915, intel_encoder_to_phy(encoder));
+	return intel_phy_is_snps(display, intel_encoder_to_phy(encoder));
 }
 
 bool intel_encoder_is_tc(struct intel_encoder *encoder)
