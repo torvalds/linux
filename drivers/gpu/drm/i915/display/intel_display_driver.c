@@ -550,7 +550,7 @@ void intel_display_driver_register(struct intel_display *display)
 
 	intel_audio_register(display);
 
-	intel_display_debugfs_register(i915);
+	intel_display_debugfs_register(display);
 
 	/*
 	 * We need to coordinate the hotplugs with the asynchronous

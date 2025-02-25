@@ -49,11 +49,6 @@ static struct intel_display *node_to_intel_display(struct drm_info_node *node)
 	return to_intel_display(node->minor->dev);
 }
 
-static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
-{
-	return to_i915(node->minor->dev);
-}
-
 static int intel_display_caps(struct seq_file *m, void *data)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
@@ -85,8 +80,8 @@ static int i915_frontbuffer_tracking(struct seq_file *m, void *unused)
 
 static int i915_sr_status(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_display *display = node_to_intel_display(m->private);
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	intel_wakeref_t wakeref;
 	bool sr_enabled = false;
 
@@ -102,7 +97,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	else if (display->platform.i915gm)
 		sr_enabled = intel_de_read(display, INSTPM) & INSTPM_SELF_EN;
 	else if (display->platform.pineview)
-		sr_enabled = intel_de_read(display, DSPFW3(dev_priv)) & PINEVIEW_SELF_REFRESH_EN;
+		sr_enabled = intel_de_read(display, DSPFW3(display)) & PINEVIEW_SELF_REFRESH_EN;
 	else if (display->platform.valleyview || display->platform.cherryview)
 		sr_enabled = intel_de_read(display, FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 
@@ -157,8 +152,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 static int i915_power_domain_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_display *display = &i915->display;
+	struct intel_display *display = node_to_intel_display(m->private);
 
 	intel_display_power_debug(display, m);
 
@@ -588,7 +582,7 @@ static void intel_crtc_info(struct seq_file *m, struct intel_crtc *crtc)
 static int i915_display_info(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_i915_private *dev_priv = to_i915(display->drm);
 	struct intel_crtc *crtc;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
@@ -713,14 +707,13 @@ intel_lpsp_power_well_enabled(struct intel_display *display,
 static int i915_lpsp_status(struct seq_file *m, void *unused)
 {
 	struct intel_display *display = node_to_intel_display(m->private);
-	struct drm_i915_private *i915 = node_to_i915(m->private);
 	bool lpsp_enabled = false;
 
 	if (DISPLAY_VER(display) >= 13 || IS_DISPLAY_VER(display, 9, 10)) {
 		lpsp_enabled = !intel_lpsp_power_well_enabled(display, SKL_DISP_PW_2);
 	} else if (IS_DISPLAY_VER(display, 11, 12)) {
 		lpsp_enabled = !intel_lpsp_power_well_enabled(display, ICL_DISP_PW_3);
-	} else if (IS_HASWELL(i915) || IS_BROADWELL(i915)) {
+	} else if (display->platform.haswell || display->platform.broadwell) {
 		lpsp_enabled = !intel_lpsp_power_well_enabled(display, HSW_DISP_PW_GLOBAL);
 	} else {
 		seq_puts(m, "LPSP: not supported\n");
@@ -836,10 +829,10 @@ static const struct drm_info_list intel_display_debugfs_list[] = {
 	{"i915_lpsp_status", i915_lpsp_status, 0},
 };
 
-void intel_display_debugfs_register(struct drm_i915_private *i915)
+void intel_display_debugfs_register(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-	struct drm_minor *minor = i915->drm.primary;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct drm_minor *minor = display->drm->primary;
 
 	debugfs_create_file("i915_fifo_underrun_reset", 0644, minor->debugfs_root,
 			    display, &i915_fifo_underrun_reset_ops);
@@ -865,7 +858,6 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 	struct intel_connector *connector = m->private;
 	struct intel_display *display = to_intel_display(connector);
 	struct intel_encoder *encoder = intel_attached_encoder(connector);
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	int connector_type = connector->base.connector_type;
 	bool lpsp_capable = false;
 
@@ -892,7 +884,7 @@ static int i915_lpsp_capability_show(struct seq_file *m, void *data)
 				(connector_type == DRM_MODE_CONNECTOR_DSI ||
 				 connector_type == DRM_MODE_CONNECTOR_eDP ||
 				 connector_type == DRM_MODE_CONNECTOR_DisplayPort));
-	else if (IS_HASWELL(i915) || IS_BROADWELL(i915))
+	else if (display->platform.haswell || display->platform.broadwell)
 		lpsp_capable = connector_type == DRM_MODE_CONNECTOR_eDP;
 
 	seq_printf(m, "LPSP: %s\n", lpsp_capable ? "capable" : "incapable");
