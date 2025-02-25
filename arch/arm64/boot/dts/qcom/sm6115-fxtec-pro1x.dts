@@ -566,7 +566,7 @@
 	vdd-1.3-rfa-supply = <&pm6125_l17a>;
 	vdd-3.3-ch0-supply = <&pm6125_l23a>;
 
-	qcom,ath10k-calibration-variant = "Fxtec_QX1050";
+	qcom,calibration-variant = "Fxtec_QX1050";
 
 	status = "okay";
 };
