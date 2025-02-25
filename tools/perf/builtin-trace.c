@@ -4589,6 +4589,7 @@ static int trace__replay(struct trace *trace)
 	struct evsel *evsel;
 	int err = -1;
 
+	perf_tool__init(&trace->tool, /*ordered_events=*/true);
 	trace->tool.sample	  = trace__process_sample;
 	trace->tool.mmap	  = perf_event__process_mmap;
 	trace->tool.mmap2	  = perf_event__process_mmap2;
