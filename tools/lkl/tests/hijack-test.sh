@@ -33,6 +33,11 @@ run_hijack_cfg()
     lkl_test_cmd LKL_HIJACK_CONFIG_FILE=$cfgjson $hijack $@
 }
 
+run_hijack_cfg_env()
+{
+    lkl_test_cmd $envcfg $hijack $@
+}
+
 run_hijack()
 {
     lkl_test_cmd $hijack $@
@@ -626,6 +631,80 @@ test_tap_multitable_ipv6_rule_table_7()
     echo "$addr" | grep $(ip6_host 1)
 }
 
+test_tap_setup_env()
+{
+    set -e
+
+    # Set up the TAP device we'd like to use
+    tap_setup
+
+    envcfg="LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=$(tap_ifname) \
+            LKL_HIJACK_NET_IP=$(ip_lkl) LKL_HIJACK_NET_NETMASK_LEN=$TEST_IP_NETMASK \
+            LKL_HIJACK_NET_IPV6=$(ip6_lkl) LKL_HIJACK_NET_NETMASK6_LEN=$TEST_IP6_NETMASK \
+            LKL_HIJACK_NET_MAC=$TEST_MAC0"
+
+    export_vars envcfg
+
+    # Make sure our device has the addresses we expect
+    addr=$(run_hijack_cfg_env ip addr)
+
+    echo "$addr" | grep eth0
+    echo "$addr" | grep $(ip_lkl)
+    echo "$addr" | grep "$TEST_MAC0"
+    echo "$addr" | grep "$(ip6_lkl)"
+    ! echo "$addr" | grep "WARN: failed to free"
+}
+
+test_tap_ping_host_env()
+{
+    set -e
+
+    envcfg="LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=$(tap_ifname) \
+            LKL_HIJACK_NET_IP=$(ip_lkl) LKL_HIJACK_NET_NETMASK_LEN=$TEST_IP_NETMASK \
+            LKL_HIJACK_NET_IPV6=$(ip6_lkl) LKL_HIJACK_NET_NETMASK6_LEN=$TEST_IP6_NETMASK \
+            LKL_HIJACK_NET_MAC=$TEST_MAC0"
+
+    export_vars envcfg
+
+    # Make sure we can ping the host from inside LKL
+    run_hijack_cfg_env ${ping} -c 1 $(ip_host)
+    run_hijack_cfg_env ${ping6} -c 1 $(ip6_host)
+}
+
+test_tap_ping_lkl_env()
+{
+    # Flush the neighbour cache and without reporting errors since there might
+    # not be any entries present.
+    lkl_test_cmd sudo ip -6 neigh del $(ip6_lkl) dev $(tap_ifname)
+    lkl_test_cmd sudo ip neigh del $(ip_lkl) dev $(tap_ifname)
+
+    # no errors beyond this point
+    set -e
+
+    envcfg="LKL_HIJACK_NET_IFTYPE=tap LKL_HIJACK_NET_IFPARAMS=$(tap_ifname) \
+            LKL_HIJACK_NET_IP=$(ip_lkl) LKL_HIJACK_NET_NETMASK_LEN=$TEST_IP_NETMASK \
+            LKL_HIJACK_NET_IPV6=$(ip6_lkl) LKL_HIJACK_NET_NETMASK6_LEN=$TEST_IP6_NETMASK \
+            LKL_HIJACK_NET_MAC=$TEST_MAC0"
+
+    export_vars envcfg
+
+    # start LKL and wait a bit so the host can ping
+    run_hijack_cfg_env $(QUIET=1 lkl_test_cmd which sleep) 3 &
+
+    # wait for LKL to boot
+    sleep 2
+
+    # check if LKL is alive
+    if ! kill -0 $!; then
+      wait $!
+      exit $?
+    fi
+
+    # Now let's check that the host can see LKL.
+    lkl_test_cmd sudo ping -i 0.01 -c 65 $(ip_lkl)
+    lkl_test_cmd sudo ping6 -i 0.01 -c 65 $(ip6_lkl)
+}
+
 test_vde_setup()
 {
     set_cfgjson << EOF
@@ -775,6 +854,10 @@ else
     lkl_test_run 22 test_tap_multitable_ipv6_rule_table_6
     lkl_test_run 23 test_tap_multitable_ipv6_rule_table_7
     lkl_test_run 24 test_tap_cleanup
+    lkl_test_run 25 test_tap_setup_env
+    lkl_test_run 26 test_tap_ping_host_env
+    lkl_test_run 27 test_tap_ping_lkl_env
+    lkl_test_run 28 test_tap_cleanup
 fi
 
 if [ -z "$LKL_HOST_CONFIG_VIRTIO_NET_VDE" ]; then

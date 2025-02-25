@@ -275,11 +275,14 @@ int lkl_load_config_env(struct lkl_config *cfg)
 
 	if (!cfg)
 		return -1;
-	if (envtap || enviftype)
-		cfg->ifnum = 1;
 
 	iface = malloc(sizeof(struct lkl_config_iface));
 	memset(iface, 0, sizeof(struct lkl_config_iface));
+
+	if (envtap || enviftype) {
+		cfg->ifnum = 1;
+		cfg->ifaces = iface;
+	}
 
 	ret = cfgcpy(&iface->iftap, envtap);
 	if (ret < 0)
