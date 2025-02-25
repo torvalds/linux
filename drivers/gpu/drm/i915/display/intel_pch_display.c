@@ -259,8 +259,8 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 	assert_shared_dpll_enabled(display, crtc_state->shared_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
-	assert_fdi_tx_enabled(dev_priv, pipe);
-	assert_fdi_rx_enabled(dev_priv, pipe);
+	assert_fdi_tx_enabled(display, pipe);
+	assert_fdi_rx_enabled(display, pipe);
 
 	if (HAS_PCH_CPT(dev_priv)) {
 		reg = TRANS_CHICKEN2(pipe);
@@ -316,13 +316,14 @@ static void ilk_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 
 static void ilk_disable_pch_transcoder(struct intel_crtc *crtc)
 {
+	struct intel_display *display = to_intel_display(crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 
 	/* FDI relies on the transcoder */
-	assert_fdi_tx_disabled(dev_priv, pipe);
-	assert_fdi_rx_disabled(dev_priv, pipe);
+	assert_fdi_tx_disabled(display, pipe);
+	assert_fdi_rx_disabled(display, pipe);
 
 	/* Ports must be off as well */
 	assert_pch_ports_disabled(dev_priv, pipe);
@@ -479,8 +480,7 @@ void ilk_pch_post_disable(struct intel_atomic_state *state,
 
 static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc_state);
 
 	/* read out port_clock from the DPLL */
 	i9xx_crtc_clock_get(crtc_state);
@@ -491,7 +491,7 @@ static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 	 * Calculate one based on the FDI configuration.
 	 */
 	crtc_state->hw.adjusted_mode.crtc_clock =
-		intel_dotclock_calculate(intel_fdi_link_freq(dev_priv, crtc_state),
+		intel_dotclock_calculate(intel_fdi_link_freq(display, crtc_state),
 					 &crtc_state->fdi_m_n);
 }
 
@@ -549,14 +549,15 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 
 static void lpt_enable_pch_transcoder(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 val, pipeconf_val;
 
 	/* FDI must be feeding us bits for PCH ports */
-	assert_fdi_tx_enabled(dev_priv, (enum pipe) cpu_transcoder);
-	assert_fdi_rx_enabled(dev_priv, PIPE_A);
+	assert_fdi_tx_enabled(display, (enum pipe)cpu_transcoder);
+	assert_fdi_rx_enabled(display, PIPE_A);
 
 	val = intel_de_read(dev_priv, TRANS_CHICKEN2(PIPE_A));
 	/* Workaround: set timing override bit. */

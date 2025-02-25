@@ -1568,8 +1568,8 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	if (new_crtc_state->has_pch_encoder) {
 		ilk_pch_pre_enable(state, crtc);
 	} else {
-		assert_fdi_tx_disabled(dev_priv, pipe);
-		assert_fdi_rx_disabled(dev_priv, pipe);
+		assert_fdi_tx_disabled(display, pipe);
+		assert_fdi_rx_disabled(display, pipe);
 	}
 
 	ilk_pfit_enable(new_crtc_state);
