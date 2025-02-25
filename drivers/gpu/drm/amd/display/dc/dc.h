@@ -2354,19 +2354,6 @@ unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 void dc_link_set_usb4_req_bw_req(struct dc_link *link, int req_bw);
 
 /*
- * Handle function for when the status of the Request above is complete.
- * We will find out the result of allocating on CM and update structs.
- *
- * @link: pointer to the dc_link struct instance
- * @bw: Allocated or Estimated BW depending on the result
- * @result: Response type
- *
- * return: none
- */
-void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
-		uint8_t bw, uint8_t result);
-
-/*
  * Handle the USB4 BW Allocation related functionality here:
  * Plug => Try to allocate max bw from timing parameters supported by the sink
  * Unplug => de-allocate bw
@@ -2374,9 +2361,8 @@ void dc_link_handle_usb4_bw_alloc_response(struct dc_link *link,
  * @link: pointer to the dc_link struct instance
  * @peak_bw: Peak bw used by the link/sink
  *
- * return: allocated bw else return 0
  */
-int dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
+void dc_link_dp_dpia_handle_usb4_bandwidth_allocation_for_link(
 		struct dc_link *link, int peak_bw);
 
 /*
