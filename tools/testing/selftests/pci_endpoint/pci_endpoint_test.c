@@ -25,7 +25,7 @@
 #define pci_ep_ioctl(cmd, arg)			\
 ({						\
 	ret = ioctl(self->fd, cmd, arg);	\
-	ret = ret < 0 ? -errno : 0;		\
+	ret = ret < 0 ? -errno : ret;		\
 })
 
 static const char *test_device = "/dev/pci-endpoint-test.0";
@@ -102,6 +102,9 @@ TEST_F(pci_ep_basic, LEGACY_IRQ_TEST)
 	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 0);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set Legacy IRQ type");
 
+	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
+	ASSERT_EQ(0, ret) TH_LOG("Can't get Legacy IRQ type");
+
 	pci_ep_ioctl(PCITEST_LEGACY_IRQ, 0);
 	EXPECT_FALSE(ret) TH_LOG("Test failed for Legacy IRQ");
 }
@@ -112,6 +115,9 @@ TEST_F(pci_ep_basic, MSI_TEST)
 
 	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 1);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI IRQ type");
+
+	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
+	ASSERT_EQ(1, ret) TH_LOG("Can't get MSI IRQ type");
 
 	for (i = 1; i <= 32; i++) {
 		pci_ep_ioctl(PCITEST_MSI, i);
@@ -125,6 +131,9 @@ TEST_F(pci_ep_basic, MSIX_TEST)
 
 	pci_ep_ioctl(PCITEST_SET_IRQTYPE, 2);
 	ASSERT_EQ(0, ret) TH_LOG("Can't set MSI-X IRQ type");
+
+	pci_ep_ioctl(PCITEST_GET_IRQTYPE, 0);
+	ASSERT_EQ(2, ret) TH_LOG("Can't get MSI-X IRQ type");
 
 	for (i = 1; i <= 2048; i++) {
 		pci_ep_ioctl(PCITEST_MSIX, i);
