@@ -19,7 +19,6 @@ use core::ptr::{addr_of_mut, null, null_mut, NonNull};
 /// `self.0` always holds a valid pointer to an initialized and registered [`struct faux_device`].
 ///
 /// [`struct faux_device`]: srctree/include/linux/device/faux.h
-#[repr(transparent)]
 pub struct Registration(NonNull<bindings::faux_device>);
 
 impl Registration {
