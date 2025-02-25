@@ -3653,7 +3653,7 @@ static struct platform_driver hisi_sas_v2_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = sas_v2_of_match,
-		.acpi_match_table = ACPI_PTR(sas_v2_acpi_match),
+		.acpi_match_table = sas_v2_acpi_match,
 	},
 };
 
