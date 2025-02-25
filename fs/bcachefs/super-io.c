@@ -25,9 +25,6 @@
 #include <linux/sort.h>
 #include <linux/string_choices.h>
 
-static const struct blk_holder_ops bch2_sb_handle_bdev_ops = {
-};
-
 struct bch2_metadata_version {
 	u16		version;
 	const char	*name;
