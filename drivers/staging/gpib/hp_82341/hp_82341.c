@@ -396,7 +396,7 @@ static int hp_82341_line_status(const struct gpib_board *board)
 	return tms9914_line_status(board, &priv->tms9914_priv);
 }
 
-static unsigned int hp_82341_t1_delay(struct gpib_board *board, unsigned int nano_sec)
+static int hp_82341_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct hp_82341_priv *priv = board->private_data;
 

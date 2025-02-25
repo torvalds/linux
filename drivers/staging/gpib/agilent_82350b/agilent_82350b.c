@@ -455,8 +455,7 @@ static int agilent_82350b_line_status(const struct gpib_board *board)
 	return tms9914_line_status(board, &priv->tms9914_priv);
 }
 
-static unsigned int agilent_82350b_t1_delay(struct gpib_board *board,
-					    unsigned int nanosec)
+static int agilent_82350b_t1_delay(struct gpib_board *board, unsigned int nanosec)
 {
 	struct agilent_82350b_priv *a_priv = board->private_data;
 	static const int nanosec_per_clock = 30;

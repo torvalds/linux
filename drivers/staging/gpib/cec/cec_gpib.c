@@ -174,7 +174,7 @@ static uint8_t cec_serial_poll_status(struct gpib_board *board)
 	return nec7210_serial_poll_status(board, &priv->nec7210_priv);
 }
 
-static unsigned int cec_t1_delay(struct gpib_board *board, unsigned int nano_sec)
+static int cec_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct cec_priv *priv = board->private_data;
 

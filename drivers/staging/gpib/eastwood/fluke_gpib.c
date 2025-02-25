@@ -224,7 +224,7 @@ static int fluke_line_status(const struct gpib_board *board)
 	return status;
 }
 
-static unsigned int fluke_t1_delay(struct gpib_board *board, unsigned int nano_sec)
+static int fluke_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	struct fluke_priv *e_priv = board->private_data;
 	struct nec7210_priv *nec_priv = &e_priv->nec7210_priv;

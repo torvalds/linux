@@ -1009,7 +1009,7 @@ static uint8_t bb_serial_poll_status(struct gpib_board *board)
 	return 0; // -ENOENT;
 }
 
-static unsigned int bb_t1_delay(struct gpib_board *board,  unsigned int nano_sec)
+static int bb_t1_delay(struct gpib_board *board,  unsigned int nano_sec)
 {
 	struct bb_priv *priv = board->private_data;
 

@@ -1044,7 +1044,7 @@ static uint8_t usb_gpib_serial_poll_status(struct gpib_board *board)
 
 /* t1_delay */
 
-static unsigned int usb_gpib_t1_delay(struct gpib_board *board, unsigned int nano_sec)
+static int usb_gpib_t1_delay(struct gpib_board *board, unsigned int nano_sec)
 {
 	return 0;
 }
