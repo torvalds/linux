@@ -64,76 +64,85 @@ for ovr in setsock cmsg both diff; do
 done
 
 # IPV6_TCLASS
-TOS=0x10
-TOS2=0x20
 
-ip -6 -netns $NS rule add tos $TOS lookup 300
-ip -6 -netns $NS route add table 300 prohibit any
+test_dscp() {
+    local -r TOS=0x10
+    local -r TOS2=0x20
 
-for ovr in setsock cmsg both diff; do
-    for p in u i r; do
-	[ $p == "u" ] && prot=UDP
-	[ $p == "i" ] && prot=ICMP
-	[ $p == "r" ] && prot=RAW
+    ip -6 -netns $NS rule add tos $TOS lookup 300
+    ip -6 -netns $NS route add table 300 prohibit any
 
-	[ $ovr == "setsock" ] && m="-C"
-	[ $ovr == "cmsg" ]    && m="-c"
-	[ $ovr == "both" ]    && m="-C $((TOS2)) -c"
-	[ $ovr == "diff" ]    && m="-C $((TOS )) -c"
+    for ovr in setsock cmsg both diff; do
+	for p in u i r; do
+	    [ $p == "u" ] && prot=UDP
+	    [ $p == "i" ] && prot=ICMP
+	    [ $p == "r" ] && prot=RAW
 
-	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
-	BG=$!
-	sleep 0.05
+	    [ $ovr == "setsock" ] && m="-C"
+	    [ $ovr == "cmsg" ]    && m="-c"
+	    [ $ovr == "both" ]    && m="-C $((TOS2)) -c"
+	    [ $ovr == "diff" ]    && m="-C $((TOS )) -c"
 
-	$NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
-	check_result $? 0 "TCLASS $prot $ovr - pass"
+	    $NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	    BG=$!
+	    sleep 0.05
 
-	while [ -d /proc/$BG ]; do
 	    $NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
+	    check_result $? 0 "TCLASS $prot $ovr - pass"
+
+	    while [ -d /proc/$BG ]; do
+	        $NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
+	    done
+
+	    tcpdump -r $TMPF -v 2>&1 | grep "class $TOS2" >> /dev/null
+	    check_result $? 0 "TCLASS $prot $ovr - packet data"
+	    rm $TMPF
+
+	    [ $ovr == "both" ]    && m="-C $((TOS )) -c"
+	    [ $ovr == "diff" ]    && m="-C $((TOS2)) -c"
+
+	    $NSEXE ./cmsg_sender -6 -p $p $m $((TOS)) -s $TGT6 1234
+	    check_result $? 1 "TCLASS $prot $ovr - rejection"
 	done
-
-	tcpdump -r $TMPF -v 2>&1 | grep "class $TOS2" >> /dev/null
-	check_result $? 0 "TCLASS $prot $ovr - packet data"
-	rm $TMPF
-
-	[ $ovr == "both" ]    && m="-C $((TOS )) -c"
-	[ $ovr == "diff" ]    && m="-C $((TOS2)) -c"
-
-	$NSEXE ./cmsg_sender -6 -p $p $m $((TOS)) -s $TGT6 1234
-	check_result $? 1 "TCLASS $prot $ovr - rejection"
     done
-done
+}
+
+test_dscp
 
 # IPV6_HOPLIMIT
-LIM=4
+test_hoplimit() {
+    local -r LIM=4
 
-for ovr in setsock cmsg both diff; do
-    for p in u i r; do
-	[ $p == "u" ] && prot=UDP
-	[ $p == "i" ] && prot=ICMP
-	[ $p == "r" ] && prot=RAW
+    for ovr in setsock cmsg both diff; do
+	for p in u i r; do
+	    [ $p == "u" ] && prot=UDP
+	    [ $p == "i" ] && prot=ICMP
+	    [ $p == "r" ] && prot=RAW
 
-	[ $ovr == "setsock" ] && m="-L"
-	[ $ovr == "cmsg" ]    && m="-l"
-	[ $ovr == "both" ]    && m="-L $LIM -l"
-	[ $ovr == "diff" ]    && m="-L $((LIM + 1)) -l"
+	    [ $ovr == "setsock" ] && m="-L"
+	    [ $ovr == "cmsg" ]    && m="-l"
+	    [ $ovr == "both" ]    && m="-L $LIM -l"
+	    [ $ovr == "diff" ]    && m="-L $((LIM + 1)) -l"
 
-	$NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
-	BG=$!
-	sleep 0.05
+	    $NSEXE nohup tcpdump --immediate-mode -p -ni dummy0 -w $TMPF -c 4 2> /dev/null &
+	    BG=$!
+	    sleep 0.05
 
-	$NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
-	check_result $? 0 "HOPLIMIT $prot $ovr - pass"
-
-	while [ -d /proc/$BG ]; do
 	    $NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
-	done
+	    check_result $? 0 "HOPLIMIT $prot $ovr - pass"
 
-	tcpdump -r $TMPF -v 2>&1 | grep "hlim $LIM[^0-9]" >> /dev/null
-	check_result $? 0 "HOPLIMIT $prot $ovr - packet data"
-	rm $TMPF
+	    while [ -d /proc/$BG ]; do
+	        $NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
+	    done
+
+	    tcpdump -r $TMPF -v 2>&1 | grep "hlim $LIM[^0-9]" >> /dev/null
+	    check_result $? 0 "HOPLIMIT $prot $ovr - packet data"
+	    rm $TMPF
+	done
     done
-done
+}
+
+test_hoplimit
 
 # IPV6 exthdr
 for p in u i r; do
