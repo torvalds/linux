@@ -1119,11 +1119,11 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 {
 	struct i915_sched_attr attr = { .priority = I915_PRIORITY_DISPLAY };
 	struct intel_plane *plane = to_intel_plane(_plane);
+	struct intel_display *display = to_intel_display(plane);
 	struct intel_plane_state *new_plane_state =
 		to_intel_plane_state(_new_plane_state);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(new_plane_state->uapi.state);
-	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_plane_state *old_plane_state =
 		intel_atomic_get_old_plane_state(state, plane);
 	struct drm_gem_object *obj = intel_fb_bo(new_plane_state->hw.fb);
@@ -1181,7 +1181,7 @@ intel_prepare_plane_fb(struct drm_plane *_plane,
 	 * that are not quite steady state without resorting to forcing
 	 * maximum clocks following a vblank miss (see do_rps_boost()).
 	 */
-	intel_display_rps_mark_interactive(dev_priv, state, true);
+	intel_display_rps_mark_interactive(display, state, true);
 
 	return 0;
 
@@ -1202,17 +1202,17 @@ static void
 intel_cleanup_plane_fb(struct drm_plane *plane,
 		       struct drm_plane_state *_old_plane_state)
 {
+	struct intel_display *display = to_intel_display(plane->dev);
 	struct intel_plane_state *old_plane_state =
 		to_intel_plane_state(_old_plane_state);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(old_plane_state->uapi.state);
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_gem_object *obj = intel_fb_bo(old_plane_state->hw.fb);
 
 	if (!obj)
 		return;
 
-	intel_display_rps_mark_interactive(dev_priv, state, false);
+	intel_display_rps_mark_interactive(display, state, false);
 
 	intel_plane_unpin_fb(old_plane_state);
 }
