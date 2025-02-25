@@ -3095,6 +3095,7 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 			if (!page)
 				continue;
 
+			size = max(pageblock_nr_pages, 1UL << order);
 			/*
 			 * It should never happen but changes to
 			 * locking could inadvertently allow a per-cpu
@@ -3102,8 +3103,8 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 			 * while unreserving so be safe and watch for
 			 * underflows.
 			 */
-			size = max(pageblock_nr_pages, 1UL << order);
-			size = min(size, zone->nr_reserved_highatomic);
+			if (WARN_ON_ONCE(size > zone->nr_reserved_highatomic))
+				size = zone->nr_reserved_highatomic;
 			zone->nr_reserved_highatomic -= size;
 
 			/*
