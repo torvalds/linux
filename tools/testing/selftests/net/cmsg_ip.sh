@@ -3,6 +3,8 @@
 
 source lib.sh
 
+IP4=172.16.0.1/24
+TGT4=172.16.0.2
 IP6=2001:db8:1::1/64
 TGT6=2001:db8:1::2
 TMPF=$(mktemp --suffix ".pcap")
@@ -30,6 +32,7 @@ $NSEXE sysctl -w net.ipv4.ping_group_range='0 2147483647' > /dev/null
 # Connectivity
 ip -netns $NS link add type dummy
 ip -netns $NS link set dev dummy0 up
+ip -netns $NS addr add $IP4 dev dummy0
 ip -netns $NS addr add $IP6 dev dummy0
 
 # Test
@@ -63,14 +66,19 @@ for ovr in setsock cmsg both diff; do
     done
 done
 
-# IPV6_TCLASS
+# IP_TOS + IPV6_TCLASS
 
 test_dscp() {
+    local -r IPVER=$1
+    local -r TGT=$2
+    local -r MATCH=$3
+
     local -r TOS=0x10
     local -r TOS2=0x20
+    local -r ECN=0x3
 
-    ip -6 -netns $NS rule add tos $TOS lookup 300
-    ip -6 -netns $NS route add table 300 prohibit any
+    ip $IPVER -netns $NS rule add tos $TOS lookup 300
+    ip $IPVER -netns $NS route add table 300 prohibit any
 
     for ovr in setsock cmsg both diff; do
 	for p in u i r; do
@@ -87,30 +95,42 @@ test_dscp() {
 	    BG=$!
 	    sleep 0.05
 
-	    $NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
-	    check_result $? 0 "TCLASS $prot $ovr - pass"
+	    $NSEXE ./cmsg_sender $IPVER -p $p $m $((TOS2)) $TGT 1234
+	    check_result $? 0 "$MATCH $prot $ovr - pass"
 
 	    while [ -d /proc/$BG ]; do
-	        $NSEXE ./cmsg_sender -6 -p $p $m $((TOS2)) $TGT6 1234
+	        $NSEXE ./cmsg_sender $IPVER -p $p $m $((TOS2)) $TGT 1234
 	    done
 
-	    tcpdump -r $TMPF -v 2>&1 | grep "class $TOS2" >> /dev/null
-	    check_result $? 0 "TCLASS $prot $ovr - packet data"
+	    tcpdump -r $TMPF -v 2>&1 | grep "$MATCH $TOS2" >> /dev/null
+	    check_result $? 0 "$MATCH $prot $ovr - packet data"
 	    rm $TMPF
 
 	    [ $ovr == "both" ]    && m="-C $((TOS )) -c"
 	    [ $ovr == "diff" ]    && m="-C $((TOS2)) -c"
 
-	    $NSEXE ./cmsg_sender -6 -p $p $m $((TOS)) -s $TGT6 1234
-	    check_result $? 1 "TCLASS $prot $ovr - rejection"
+	    # Match prohibit rule: expect failure
+	    $NSEXE ./cmsg_sender $IPVER -p $p $m $((TOS)) -s $TGT 1234
+	    check_result $? 1 "$MATCH $prot $ovr - rejection"
+
+	    # Match prohibit rule: IPv4 masks ECN: expect failure
+	    if [[ "$IPVER" == "-4" ]]; then
+		$NSEXE ./cmsg_sender $IPVER -p $p $m "$((TOS | ECN))" -s $TGT 1234
+		check_result $? 1 "$MATCH $prot $ovr - rejection (ECN)"
+	    fi
 	done
     done
 }
 
-test_dscp
+test_dscp -4 $TGT4 tos
+test_dscp -6 $TGT6 class
 
-# IPV6_HOPLIMIT
-test_hoplimit() {
+# IP_TTL + IPV6_HOPLIMIT
+test_ttl_hoplimit() {
+    local -r IPVER=$1
+    local -r TGT=$2
+    local -r MATCH=$3
+
     local -r LIM=4
 
     for ovr in setsock cmsg both diff; do
@@ -128,21 +148,22 @@ test_hoplimit() {
 	    BG=$!
 	    sleep 0.05
 
-	    $NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
-	    check_result $? 0 "HOPLIMIT $prot $ovr - pass"
+	    $NSEXE ./cmsg_sender $IPVER -p $p $m $LIM $TGT 1234
+	    check_result $? 0 "$MATCH $prot $ovr - pass"
 
 	    while [ -d /proc/$BG ]; do
-	        $NSEXE ./cmsg_sender -6 -p $p $m $LIM $TGT6 1234
+		$NSEXE ./cmsg_sender $IPVER -p $p $m $LIM $TGT 1234
 	    done
 
-	    tcpdump -r $TMPF -v 2>&1 | grep "hlim $LIM[^0-9]" >> /dev/null
-	    check_result $? 0 "HOPLIMIT $prot $ovr - packet data"
+	    tcpdump -r $TMPF -v 2>&1 | grep "$MATCH $LIM[^0-9]" >> /dev/null
+	    check_result $? 0 "$MATCH $prot $ovr - packet data"
 	    rm $TMPF
 	done
     done
 }
 
-test_hoplimit
+test_ttl_hoplimit -4 $TGT4 ttl
+test_ttl_hoplimit -6 $TGT6 hlim
 
 # IPV6 exthdr
 for p in u i r; do
