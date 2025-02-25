@@ -1524,13 +1524,16 @@ int vmcore_add_device_dump(struct vmcoredd_data *data)
 		pr_warn_once("Unexpected adding of device dump\n");
 	if (vmcore_open) {
 		ret = -EBUSY;
-		goto out_err;
+		goto unlock;
 	}
 
 	list_add_tail(&dump->list, &vmcoredd_list);
 	vmcoredd_update_size(data_size);
 	mutex_unlock(&vmcore_mutex);
 	return 0;
+
+unlock:
+	mutex_unlock(&vmcore_mutex);
 
 out_err:
 	vfree(buf);
