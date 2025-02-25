@@ -253,7 +253,7 @@ static void cpu_map_bpf_prog_run(struct bpf_cpu_map_entry *rcpu, void **frames,
 	if (!rcpu->prog)
 		goto out;
 
-	rcu_read_lock_bh();
+	rcu_read_lock();
 	bpf_net_ctx = bpf_net_ctx_set(&__bpf_net_ctx);
 
 	ret->xdp_n = cpu_map_bpf_prog_run_xdp(rcpu, frames, ret->xdp_n, stats);
@@ -265,7 +265,7 @@ static void cpu_map_bpf_prog_run(struct bpf_cpu_map_entry *rcpu, void **frames,
 		xdp_do_flush();
 
 	bpf_net_ctx_clear(bpf_net_ctx);
-	rcu_read_unlock_bh(); /* resched point, may call do_softirq() */
+	rcu_read_unlock();
 
 out:
 	if (unlikely(ret->skb_n) && ret->xdp_n)
@@ -303,7 +303,6 @@ static int cpu_map_kthread_run(void *data)
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
 		struct xdp_cpumap_stats stats = {}; /* zero stats */
 		unsigned int kmem_alloc_drops = 0, sched = 0;
-		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
 		struct cpu_map_ret ret = { };
 		void *frames[CPUMAP_BATCH];
 		void *skbs[CPUMAP_BATCH];
@@ -355,15 +354,14 @@ static int cpu_map_kthread_run(void *data)
 			prefetchw(page);
 		}
 
+		local_bh_disable();
+
 		/* Support running another XDP prog on this CPU */
 		cpu_map_bpf_prog_run(rcpu, frames, skbs, &ret, &stats);
-		if (!ret.xdp_n) {
-			local_bh_disable();
+		if (!ret.xdp_n)
 			goto stats;
-		}
 
-		m = kmem_cache_alloc_bulk(net_hotdata.skbuff_cache, gfp,
-					  ret.xdp_n, skbs);
+		m = napi_skb_cache_get_bulk(skbs, ret.xdp_n);
 		if (unlikely(m < ret.xdp_n)) {
 			for (i = m; i < ret.xdp_n; i++)
 				xdp_return_frame(frames[i]);
@@ -376,7 +374,6 @@ static int cpu_map_kthread_run(void *data)
 			ret.xdp_n = m;
 		}
 
-		local_bh_disable();
 		for (i = 0; i < ret.xdp_n; i++) {
 			struct xdp_frame *xdpf = frames[i];
 
