@@ -445,7 +445,7 @@ int hp_convert_hexstr_to_str(const char *input, u32 input_len, char **str, int *
 		return -ENOMEM;
 
 	for (i = 0; i < input_len; i += 5) {
-		strncpy(tmp, input + i, strlen(tmp));
+		strscpy(tmp, input + i);
 		if (kstrtol(tmp, 16, &ch) == 0) {
 			// escape char
 			if (ch == '\\' ||
