@@ -499,7 +499,7 @@
 			power-domains = <&ps_spi3>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disabled";
+			status = "disabled"; /* only used in J493 */
 		};
 
 		serial0: serial@235200000 {
