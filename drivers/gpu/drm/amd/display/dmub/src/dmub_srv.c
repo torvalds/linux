@@ -1099,11 +1099,11 @@ bool dmub_srv_get_outbox0_msg(struct dmub_srv *dmub, struct dmcub_trace_buf_entr
 	return dmub_rb_out_trace_buffer_front(&dmub->outbox0_rb, (void *)entry);
 }
 
-bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_data *diag_data)
+bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub)
 {
-	if (!dmub || !dmub->hw_funcs.get_diagnostic_data || !diag_data)
+	if (!dmub || !dmub->hw_funcs.get_diagnostic_data)
 		return false;
-	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
+	dmub->hw_funcs.get_diagnostic_data(dmub);
 	return true;
 }
 
