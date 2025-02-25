@@ -1029,8 +1029,9 @@ __bpf_kfunc s32 scx_bpf_pick_idle_cpu(const struct cpumask *cpus_allowed,
  * empty.
  *
  * The search starts from @node and proceeds to other online NUMA nodes in
- * order of increasing distance (unless SCX_PICK_IDLE_IN_NODE is specified,
- * in which case the search is limited to the target @node).
+ * order of increasing distance (unless %SCX_PICK_IDLE_IN_NODE is specified,
+ * in which case the search is limited to the target @node, regardless of
+ * the CPU idle state).
  *
  * If ops.update_idle() is implemented and %SCX_OPS_KEEP_BUILTIN_IDLE is not
  * set, this function can't tell which CPUs are idle and will always pick any
@@ -1049,7 +1050,10 @@ __bpf_kfunc s32 scx_bpf_pick_any_cpu_node(const struct cpumask *cpus_allowed,
 	if (cpu >= 0)
 		return cpu;
 
-	cpu = cpumask_any_distribute(cpus_allowed);
+	if (flags & SCX_PICK_IDLE_IN_NODE)
+		cpu = cpumask_any_and_distribute(cpumask_of_node(node), cpus_allowed);
+	else
+		cpu = cpumask_any_distribute(cpus_allowed);
 	if (cpu < nr_cpu_ids)
 		return cpu;
 	else
