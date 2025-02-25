@@ -33,7 +33,9 @@ properties:
     description: Reference to the regulator powering the panel VCC pins.
 
   data-mapping:
-    const: jeida-24
+    enum:
+      - jeida-18
+      - jeida-24
 
   width-mm:
     const: 210
