@@ -323,10 +323,6 @@ void fdls_schedule_oxid_free_retry_work(struct work_struct *work)
 		spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 
 		if (!reclaim_entry) {
-			FNIC_FCS_DBG(KERN_WARNING, fnic->host, fnic->fnic_num,
-				"Failed to allocate memory for reclaim struct for oxid idx: 0x%x\n",
-				idx);
-
 			schedule_delayed_work(&oxid_pool->schedule_oxid_free_retry,
 				msecs_to_jiffies(SCHEDULE_OXID_FREE_RETRY_TIME));
 			spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
