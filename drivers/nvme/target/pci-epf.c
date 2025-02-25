@@ -46,7 +46,7 @@ static DEFINE_MUTEX(nvmet_pci_epf_ports_mutex);
 /*
  * BAR CC register and SQ polling intervals.
  */
-#define NVMET_PCI_EPF_CC_POLL_INTERVAL	msecs_to_jiffies(5)
+#define NVMET_PCI_EPF_CC_POLL_INTERVAL	msecs_to_jiffies(10)
 #define NVMET_PCI_EPF_SQ_POLL_INTERVAL	msecs_to_jiffies(5)
 #define NVMET_PCI_EPF_SQ_POLL_IDLE	msecs_to_jiffies(5000)
 
@@ -1694,6 +1694,7 @@ static void nvmet_pci_epf_poll_sqs_work(struct work_struct *work)
 	struct nvmet_pci_epf_ctrl *ctrl =
 		container_of(work, struct nvmet_pci_epf_ctrl, poll_sqs.work);
 	struct nvmet_pci_epf_queue *sq;
+	unsigned long limit = jiffies;
 	unsigned long last = 0;
 	int i, nr_sqs;
 
@@ -1706,6 +1707,16 @@ static void nvmet_pci_epf_poll_sqs_work(struct work_struct *work)
 				continue;
 			if (nvmet_pci_epf_process_sq(ctrl, sq))
 				nr_sqs++;
+		}
+
+		/*
+		 * If we have been running for a while, reschedule to let other
+		 * tasks run and to avoid RCU stalls.
+		 */
+		if (time_is_before_jiffies(limit + secs_to_jiffies(1))) {
+			cond_resched();
+			limit = jiffies;
+			continue;
 		}
 
 		if (nr_sqs) {
@@ -1822,14 +1833,14 @@ static int nvmet_pci_epf_enable_ctrl(struct nvmet_pci_epf_ctrl *ctrl)
 	if (ctrl->io_sqes < sizeof(struct nvme_command)) {
 		dev_err(ctrl->dev, "Unsupported I/O SQES %zu (need %zu)\n",
 			ctrl->io_sqes, sizeof(struct nvme_command));
-		return -EINVAL;
+		goto err;
 	}
 
 	ctrl->io_cqes = 1UL << nvmet_cc_iocqes(ctrl->cc);
 	if (ctrl->io_cqes < sizeof(struct nvme_completion)) {
 		dev_err(ctrl->dev, "Unsupported I/O CQES %zu (need %zu)\n",
 			ctrl->io_sqes, sizeof(struct nvme_completion));
-		return -EINVAL;
+		goto err;
 	}
 
 	/* Create the admin queue. */
@@ -1844,7 +1855,7 @@ static int nvmet_pci_epf_enable_ctrl(struct nvmet_pci_epf_ctrl *ctrl)
 				qsize, pci_addr, 0);
 	if (status != NVME_SC_SUCCESS) {
 		dev_err(ctrl->dev, "Failed to create admin completion queue\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	qsize = aqa & 0x00000fff;
@@ -1854,17 +1865,22 @@ static int nvmet_pci_epf_enable_ctrl(struct nvmet_pci_epf_ctrl *ctrl)
 	if (status != NVME_SC_SUCCESS) {
 		dev_err(ctrl->dev, "Failed to create admin submission queue\n");
 		nvmet_pci_epf_delete_cq(ctrl->tctrl, 0);
-		return -EINVAL;
+		goto err;
 	}
 
 	ctrl->sq_ab = NVMET_PCI_EPF_SQ_AB;
 	ctrl->irq_vector_threshold = NVMET_PCI_EPF_IV_THRESHOLD;
 	ctrl->enabled = true;
+	ctrl->csts = NVME_CSTS_RDY;
 
 	/* Start polling the controller SQs. */
 	schedule_delayed_work(&ctrl->poll_sqs, 0);
 
 	return 0;
+
+err:
+	ctrl->csts = 0;
+	return -EINVAL;
 }
 
 static void nvmet_pci_epf_disable_ctrl(struct nvmet_pci_epf_ctrl *ctrl)
@@ -1889,6 +1905,8 @@ static void nvmet_pci_epf_disable_ctrl(struct nvmet_pci_epf_ctrl *ctrl)
 	/* Delete the admin queue last. */
 	nvmet_pci_epf_delete_sq(ctrl->tctrl, 0);
 	nvmet_pci_epf_delete_cq(ctrl->tctrl, 0);
+
+	ctrl->csts &= ~NVME_CSTS_RDY;
 }
 
 static void nvmet_pci_epf_poll_cc_work(struct work_struct *work)
@@ -1903,19 +1921,19 @@ static void nvmet_pci_epf_poll_cc_work(struct work_struct *work)
 
 	old_cc = ctrl->cc;
 	new_cc = nvmet_pci_epf_bar_read32(ctrl, NVME_REG_CC);
+	if (new_cc == old_cc)
+		goto reschedule_work;
+
 	ctrl->cc = new_cc;
 
 	if (nvmet_cc_en(new_cc) && !nvmet_cc_en(old_cc)) {
 		ret = nvmet_pci_epf_enable_ctrl(ctrl);
 		if (ret)
-			return;
-		ctrl->csts |= NVME_CSTS_RDY;
+			goto reschedule_work;
 	}
 
-	if (!nvmet_cc_en(new_cc) && nvmet_cc_en(old_cc)) {
+	if (!nvmet_cc_en(new_cc) && nvmet_cc_en(old_cc))
 		nvmet_pci_epf_disable_ctrl(ctrl);
-		ctrl->csts &= ~NVME_CSTS_RDY;
-	}
 
 	if (nvmet_cc_shn(new_cc) && !nvmet_cc_shn(old_cc)) {
 		nvmet_pci_epf_disable_ctrl(ctrl);
@@ -1928,6 +1946,7 @@ static void nvmet_pci_epf_poll_cc_work(struct work_struct *work)
 	nvmet_update_cc(ctrl->tctrl, ctrl->cc);
 	nvmet_pci_epf_bar_write32(ctrl, NVME_REG_CSTS, ctrl->csts);
 
+reschedule_work:
 	schedule_delayed_work(&ctrl->poll_cc, NVMET_PCI_EPF_CC_POLL_INTERVAL);
 }
 

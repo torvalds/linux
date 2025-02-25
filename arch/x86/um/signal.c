@@ -187,7 +187,12 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	 * Put magic/size values for userspace. We do not bother to verify them
 	 * later on, however, userspace needs them should it try to read the
 	 * XSTATE data. And ptrace does not fill in these parts.
+	 *
+	 * Skip this if we do not have an XSTATE frame.
 	 */
+	if (host_fp_size <= sizeof(to_fp64->fpstate))
+		return 0;
+
 	BUILD_BUG_ON(sizeof(int) != FP_XSTATE_MAGIC2_SIZE);
 #ifdef CONFIG_X86_32
 	__put_user(offsetof(struct _fpstate_32, _fxsr_env) +
@@ -367,11 +372,13 @@ int setup_signal_stack_si(unsigned long stack_top, struct ksignal *ksig,
 	int err = 0, sig = ksig->sig;
 	unsigned long fp_to;
 
-	frame = (struct rt_sigframe __user *)
-		round_down(stack_top - sizeof(struct rt_sigframe), 16);
+	frame = (void __user *)stack_top - sizeof(struct rt_sigframe);
 
 	/* Add required space for math frame */
-	frame = (struct rt_sigframe __user *)((unsigned long)frame - math_size);
+	frame = (void __user *)((unsigned long)frame - math_size);
+
+	/* ABI requires 16 byte boundary alignment */
+	frame = (void __user *)round_down((unsigned long)frame, 16);
 
 	/* Subtract 128 for a red zone and 8 for proper alignment */
 	frame = (struct rt_sigframe __user *) ((unsigned long) frame - 128 - 8);

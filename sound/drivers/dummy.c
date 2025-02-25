@@ -457,8 +457,7 @@ static int dummy_hrtimer_create(struct snd_pcm_substream *substream)
 	if (!dpcm)
 		return -ENOMEM;
 	substream->runtime->private_data = dpcm;
-	hrtimer_init(&dpcm->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
-	dpcm->timer.function = dummy_hrtimer_callback;
+	hrtimer_setup(&dpcm->timer, dummy_hrtimer_callback, CLOCK_MONOTONIC, HRTIMER_MODE_REL_SOFT);
 	dpcm->substream = substream;
 	atomic_set(&dpcm->running, 0);
 	return 0;
