@@ -3032,7 +3032,7 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	case 0xf:	/* Compression Mode Page (tape) */
 		if (!is_tape)
 			goto bad_pcode;
-		len += resp_compression_m_pg(ap, pcontrol, target, devip->tape_dce);
+		len = resp_compression_m_pg(ap, pcontrol, target, devip->tape_dce);
 		offset += len;
 		break;
 	case 0x11:	/* Partition Mode Page (tape) */
