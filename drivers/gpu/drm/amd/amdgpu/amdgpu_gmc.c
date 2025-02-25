@@ -573,6 +573,7 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	unsigned vm_inv_engs[AMDGPU_MAX_VMHUBS] = {0};
 	unsigned i;
 	unsigned vmhub, inv_eng;
+	struct amdgpu_ring *shared_ring;
 
 	/* init the vm inv eng for all vmhubs */
 	for_each_set_bit(i, adev->vmhubs_mask, AMDGPU_MAX_VMHUBS) {
@@ -595,6 +596,10 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 		    ring == &adev->cper.ring_buf)
 			continue;
 
+		/* Skip if the ring is a shared ring */
+		if (amdgpu_sdma_is_shared_inv_eng(adev, ring))
+			continue;
+
 		inv_eng = ffs(vm_inv_engs[vmhub]);
 		if (!inv_eng) {
 			dev_err(adev->dev, "no VM inv eng for ring %s\n",
@@ -607,6 +612,21 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 
 		dev_info(adev->dev, "ring %s uses VM inv eng %u on hub %u\n",
 			 ring->name, ring->vm_inv_eng, ring->vm_hub);
+		/* SDMA has a special packet which allows it to use the same
+		 * invalidation engine for all the rings in one instance.
+		 * Therefore, we do not allocate a separate VM invalidation engine
+		 * for SDMA page rings. Instead, they share the VM invalidation
+		 * engine with the SDMA gfx ring. This change ensures efficient
+		 * resource management and avoids the issue of insufficient VM
+		 * invalidation engines.
+		 */
+		shared_ring = amdgpu_sdma_get_shared_ring(adev, ring);
+		if (shared_ring) {
+			shared_ring->vm_inv_eng = ring->vm_inv_eng;
+			dev_info(adev->dev, "ring %s shares VM invalidation engine %u with ring %s on hub %u\n",
+					ring->name, ring->vm_inv_eng, shared_ring->name, ring->vm_hub);
+			continue;
+		}
 	}
 
 	return 0;
