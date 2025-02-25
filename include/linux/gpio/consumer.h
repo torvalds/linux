@@ -3,10 +3,7 @@
 #define __LINUX_GPIO_CONSUMER_H
 
 #include <linux/bits.h>
-#include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/errno.h>
-#include <linux/kernel.h>
 #include <linux/types.h>
 
 struct acpi_device;
@@ -184,6 +181,9 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 					      const char *label);
 
 #else /* CONFIG_GPIOLIB */
+
+#include <linux/bug.h>
+#include <linux/kernel.h>
 
 static inline int gpiod_count(struct device *dev, const char *con_id)
 {
@@ -549,6 +549,9 @@ struct gpio_desc *devm_fwnode_gpiod_get_index(struct device *dev,
 int gpiod_enable_hw_timestamp_ns(struct gpio_desc *desc, unsigned long flags);
 int gpiod_disable_hw_timestamp_ns(struct gpio_desc *desc, unsigned long flags);
 #else
+
+#include <linux/bug.h>
+
 static inline int gpiod_enable_hw_timestamp_ns(struct gpio_desc *desc,
 					       unsigned long flags)
 {
