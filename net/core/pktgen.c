@@ -158,9 +158,7 @@
 #include <net/udp.h>
 #include <net/ip6_checksum.h>
 #include <net/addrconf.h>
-#ifdef CONFIG_XFRM
 #include <net/xfrm.h>
-#endif
 #include <net/netns/generic.h>
 #include <asm/byteorder.h>
 #include <linux/rcupdate.h>
@@ -2363,13 +2361,13 @@ static inline int f_pick(struct pktgen_dev *pkt_dev)
 }
 
 
-#ifdef CONFIG_XFRM
 /* If there was already an IPSEC SA, we keep it as is, else
  * we go look for it ...
 */
 #define DUMMY_MARK 0
 static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 {
+#ifdef CONFIG_XFRM
 	struct xfrm_state *x = pkt_dev->flows[flow].x;
 	struct pktgen_net *pn = net_generic(dev_net(pkt_dev->odev), pg_net_id);
 	if (!x) {
@@ -2395,11 +2393,10 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 		}
 
 	}
-}
 #endif
+}
 static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
 {
-
 	if (pkt_dev->flags & F_QUEUE_MAP_CPU)
 		pkt_dev->cur_queue_map = smp_processor_id();
 
@@ -2574,10 +2571,8 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 				pkt_dev->flows[flow].flags |= F_INIT;
 				pkt_dev->flows[flow].cur_daddr =
 				    pkt_dev->cur_daddr;
-#ifdef CONFIG_XFRM
 				if (pkt_dev->flags & F_IPSEC)
 					get_ipsec_sa(pkt_dev, flow);
-#endif
 				pkt_dev->nflows++;
 			}
 		}
