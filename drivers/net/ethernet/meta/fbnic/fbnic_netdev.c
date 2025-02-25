@@ -611,7 +611,7 @@ void fbnic_netdev_free(struct fbnic_dev *fbd)
  * Allocate and initialize the netdev and netdev private structure. Bind
  * together the hardware, netdev, and pci data structures.
  *
- *  Return: 0 on success, negative on failure
+ *  Return: Pointer to net_device on success, NULL on failure
  **/
 struct net_device *fbnic_netdev_alloc(struct fbnic_dev *fbd)
 {
