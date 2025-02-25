@@ -690,7 +690,8 @@ struct bch_sb_field_ext {
 	x(cached_backpointers,		BCH_VERSION(1, 21))		\
 	x(stripe_backpointers,		BCH_VERSION(1, 22))		\
 	x(stripe_lru,			BCH_VERSION(1, 23))		\
-	x(casefolding,			BCH_VERSION(1, 24))
+	x(casefolding,			BCH_VERSION(1, 24))		\
+	x(extent_flags,			BCH_VERSION(1, 25))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,

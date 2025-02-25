@@ -271,6 +271,7 @@
 	x(EIO,				mark_stripe)				\
 	x(EIO,				stripe_reconstruct)			\
 	x(EIO,				key_type_error)				\
+	x(EIO,				extent_poisened)			\
 	x(EIO,				no_device_to_read_from)			\
 	x(EIO,				missing_indirect_extent)		\
 	x(EIO,				invalidate_stripe_to_dev)		\

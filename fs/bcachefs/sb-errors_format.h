@@ -179,6 +179,7 @@ enum bch_fsck_flags {
 	x(ptr_crc_redundant,					160,	0)		\
 	x(ptr_crc_nonce_mismatch,				162,	0)		\
 	x(ptr_stripe_redundant,					163,	0)		\
+	x(extent_flags_not_at_start,				306,	0)		\
 	x(reservation_key_nr_replicas_invalid,			164,	0)		\
 	x(reflink_v_refcount_wrong,				165,	FSCK_AUTOFIX)	\
 	x(reflink_v_pos_bad,					292,	0)		\
@@ -316,7 +317,7 @@ enum bch_fsck_flags {
 	x(directory_size_mismatch,				303,	FSCK_AUTOFIX)	\
 	x(dirent_cf_name_too_big,				304,	0)		\
 	x(dirent_stray_data_after_cf_name,			305,	0)		\
-	x(MAX,							306,	0)
+	x(MAX,							307,	0)
 
 enum bch_sb_error_id {
 #define x(t, n, ...) BCH_FSCK_ERR_##t = n,

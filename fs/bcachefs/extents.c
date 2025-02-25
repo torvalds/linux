@@ -28,6 +28,13 @@
 #include "trace.h"
 #include "util.h"
 
+static const char * const bch2_extent_flags_strs[] = {
+#define x(n, v)	[BCH_EXTENT_FLAG_##n] = #n,
+	BCH_EXTENT_FLAGS()
+#undef x
+	NULL,
+};
+
 static unsigned bch2_crc_field_size_max[] = {
 	[BCH_EXTENT_ENTRY_crc32] = CRC32_SIZE_MAX,
 	[BCH_EXTENT_ENTRY_crc64] = CRC64_SIZE_MAX,
@@ -126,6 +133,9 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 
 	if (k.k->type == KEY_TYPE_error)
 		return -BCH_ERR_key_type_error;
+
+	if (bch2_bkey_extent_ptrs_flags(ptrs) & BIT_ULL(BCH_EXTENT_FLAG_poisoned))
+		return -BCH_ERR_extent_poisened;
 
 	rcu_read_lock();
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
@@ -1225,6 +1235,10 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			bch2_extent_rebalance_to_text(out, c, &entry->rebalance);
 			break;
 
+		case BCH_EXTENT_ENTRY_flags:
+			prt_bitflags(out, bch2_extent_flags_strs, entry->flags.flags);
+			break;
+
 		default:
 			prt_printf(out, "(invalid extent entry %.16llx)", *((u64 *) entry));
 			return;
@@ -1386,6 +1400,11 @@ int bch2_bkey_ptrs_validate(struct bch_fs *c, struct bkey_s_c k,
 #endif
 			break;
 		}
+		case BCH_EXTENT_ENTRY_flags:
+			bkey_fsck_err_on(entry != ptrs.start,
+					 c, extent_flags_not_at_start,
+					 "extent flags entry not at start");
+			break;
 		}
 	}
 
@@ -1452,6 +1471,28 @@ void bch2_ptr_swab(struct bkey_s k)
 	}
 }
 
+int bch2_bkey_extent_flags_set(struct bch_fs *c, struct bkey_i *k, u64 flags)
+{
+	int ret = bch2_request_incompat_feature(c, bcachefs_metadata_version_extent_flags);
+	if (ret)
+		return ret;
+
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(k));
+
+	if (ptrs.start != ptrs.end &&
+	    extent_entry_type(ptrs.start) == BCH_EXTENT_ENTRY_flags) {
+		ptrs.start->flags.flags = flags;
+	} else {
+		struct bch_extent_flags f = {
+			.type	= BIT(BCH_EXTENT_ENTRY_flags),
+			.flags	= flags,
+		};
+		__extent_entry_insert(k, ptrs.start, (union bch_extent_entry *) &f);
+	}
+
+	return 0;
+}
+
 /* Generic extent code: */
 
 int bch2_cut_front_s(struct bpos where, struct bkey_s k)
@@ -1497,8 +1538,8 @@ int bch2_cut_front_s(struct bpos where, struct bkey_s k)
 				entry->crc128.offset += sub;
 				break;
 			case BCH_EXTENT_ENTRY_stripe_ptr:
-				break;
 			case BCH_EXTENT_ENTRY_rebalance:
+			case BCH_EXTENT_ENTRY_flags:
 				break;
 			}
 
