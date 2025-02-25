@@ -340,8 +340,6 @@ void pci_hp_create_module_link(struct pci_slot *pci_slot)
 	struct kobject *kobj = NULL;
 	int ret;
 
-	if (!slot || !slot->ops)
-		return;
 	kobj = kset_find_obj(module_kset, slot->mod_name);
 	if (!kobj)
 		return;

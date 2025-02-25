@@ -209,8 +209,6 @@ static bool has_power_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 
-	if ((!slot) || (!slot->ops))
-		return false;
 	if ((slot->ops->enable_slot) ||
 	    (slot->ops->disable_slot) ||
 	    (slot->ops->get_power_status))
@@ -222,8 +220,6 @@ static bool has_attention_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 
-	if ((!slot) || (!slot->ops))
-		return false;
 	if ((slot->ops->set_attention_status) ||
 	    (slot->ops->get_attention_status))
 		return true;
@@ -234,8 +230,6 @@ static bool has_latch_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->get_latch_status)
 		return true;
 	return false;
@@ -245,8 +239,6 @@ static bool has_adapter_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->get_adapter_status)
 		return true;
 	return false;
@@ -256,8 +248,6 @@ static bool has_test_file(struct pci_slot *pci_slot)
 {
 	struct hotplug_slot *slot = pci_slot->hotplug;
 
-	if ((!slot) || (!slot->ops))
-		return false;
 	if (slot->ops->hardware_test)
 		return true;
 	return false;
@@ -439,8 +429,13 @@ EXPORT_SYMBOL_GPL(__pci_hp_initialize);
  */
 int pci_hp_add(struct hotplug_slot *slot)
 {
-	struct pci_slot *pci_slot = slot->pci_slot;
+	struct pci_slot *pci_slot;
 	int result;
+
+	if (WARN_ON(!slot))
+		return -EINVAL;
+
+	pci_slot = slot->pci_slot;
 
 	result = fs_add_slot(pci_slot);
 	if (result)
