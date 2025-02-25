@@ -245,10 +245,18 @@ static bool has_test_file(struct hotplug_slot *slot)
 
 static int fs_add_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 {
+	struct kobject *kobj;
 	int retval = 0;
 
 	/* Create symbolic link to the hotplug driver module */
-	pci_hp_create_module_link(pci_slot);
+	kobj = kset_find_obj(module_kset, slot->mod_name);
+	if (kobj) {
+		retval = sysfs_create_link(&pci_slot->kobj, kobj, "module");
+		if (retval)
+			dev_err(&pci_slot->bus->dev,
+				"Error creating sysfs link (%d)\n", retval);
+		kobject_put(kobj);
+	}
 
 	if (has_power_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
@@ -302,7 +310,7 @@ exit_attention:
 	if (has_power_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_power.attr);
 exit_power:
-	pci_hp_remove_module_link(pci_slot);
+	sysfs_remove_link(&pci_slot->kobj, "module");
 exit:
 	return retval;
 }
@@ -326,7 +334,7 @@ static void fs_remove_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 	if (has_test_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_test.attr);
 
-	pci_hp_remove_module_link(pci_slot);
+	sysfs_remove_link(&pci_slot->kobj, "module");
 }
 
 /**
