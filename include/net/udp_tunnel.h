@@ -325,7 +325,7 @@ udp_tunnel_nic_get_port(struct net_device *dev, unsigned int table,
 	 * by zero'ed @ti. Drivers which need to know the details of a port
 	 * when it gets deleted should use the .set_port / .unset_port
 	 * callbacks.
-	 * Zero out here, otherwise !CONFIG_INET causes uninitilized warnings.
+	 * Zero out here, otherwise !CONFIG_INET causes uninitialized warnings.
 	 */
 	memset(ti, 0, sizeof(*ti));
 
