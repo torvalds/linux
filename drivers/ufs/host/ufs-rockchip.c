@@ -307,7 +307,7 @@ static int ufs_rockchip_system_suspend(struct device *dev)
 
 	err = ufshcd_system_suspend(dev);
 	if (err) {
-		dev_err(hba->dev, "UFSHCD system susped failed %d\n", err);
+		dev_err(hba->dev, "UFSHCD system suspend failed %d\n", err);
 		return err;
 	}
 
