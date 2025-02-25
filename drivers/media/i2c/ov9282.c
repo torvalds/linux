@@ -44,6 +44,15 @@
 #define OV9282_EXPOSURE_STEP	1
 #define OV9282_EXPOSURE_DEFAULT	0x0282
 
+/* AEC/AGC manual */
+#define OV9282_REG_AEC_MANUAL		0x3503
+#define OV9282_DIGFRAC_GAIN_DELAY	BIT(6)
+#define OV9282_GAIN_CHANGE_DELAY	BIT(5)
+#define OV9282_GAIN_DELAY		BIT(4)
+#define OV9282_GAIN_PREC16_EN		BIT(3)
+#define OV9282_GAIN_MANUAL_AS_SENSGAIN	BIT(2)
+#define OV9282_AEC_MANUAL_DEFAULT	0x00
+
 /* Analog gain control */
 #define OV9282_REG_AGAIN	0x3509
 #define OV9282_AGAIN_MIN	0x10
@@ -214,7 +223,7 @@ static const struct ov9282_reg common_regs[] = {
 	{0x3030, 0x10},
 	{0x3039, 0x32},
 	{0x303a, 0x00},
-	{0x3503, 0x08},
+	{OV9282_REG_AEC_MANUAL, OV9282_GAIN_PREC16_EN},
 	{0x3505, 0x8c},
 	{0x3507, 0x03},
 	{0x3508, 0x00},
