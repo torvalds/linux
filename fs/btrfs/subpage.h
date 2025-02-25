@@ -164,12 +164,9 @@ void btrfs_folio_clamp_clear_##name(const struct btrfs_fs_info *fs_info,	\
 		struct folio *folio, u64 start, u32 len);			\
 bool btrfs_folio_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
 		struct folio *folio, u64 start, u32 len);		\
-void btrfs_meta_folio_set_##name(const struct btrfs_fs_info *fs_info,	\
-		struct folio *folio, u64 start, u32 len);		\
-void btrfs_meta_folio_clear_##name(const struct btrfs_fs_info *fs_info,	\
-		struct folio *folio, u64 start, u32 len);		\
-bool btrfs_meta_folio_test_##name(const struct btrfs_fs_info *fs_info,	\
-		struct folio *folio, u64 start, u32 len);		\
+void btrfs_meta_folio_set_##name(struct folio *folio, const struct extent_buffer *eb); \
+void btrfs_meta_folio_clear_##name(struct folio *folio, const struct extent_buffer *eb); \
+bool btrfs_meta_folio_test_##name(struct folio *folio, const struct extent_buffer *eb);
 
 DECLARE_BTRFS_SUBPAGE_OPS(uptodate);
 DECLARE_BTRFS_SUBPAGE_OPS(dirty);
@@ -195,8 +192,7 @@ bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 
 void btrfs_folio_assert_not_dirty(const struct btrfs_fs_info *fs_info,
 				  struct folio *folio, u64 start, u32 len);
-bool btrfs_meta_folio_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
-					   struct folio *folio, u64 start, u32 len);
+bool btrfs_meta_folio_clear_and_test_dirty(struct folio *folio, const struct extent_buffer *eb);
 void btrfs_get_subpage_dirty_bitmap(struct btrfs_fs_info *fs_info,
 				    struct folio *folio,
 				    unsigned long *ret_bitmap);

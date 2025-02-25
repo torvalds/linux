@@ -627,30 +627,27 @@ bool btrfs_folio_clamp_test_##name(const struct btrfs_fs_info *fs_info,	\
 	btrfs_subpage_clamp_range(folio, &start, &len);			\
 	return btrfs_subpage_test_##name(fs_info, folio, start, len);	\
 }									\
-void btrfs_meta_folio_set_##name(const struct btrfs_fs_info *fs_info,   \
-				 struct folio *folio, u64 start, u32 len) \
+void btrfs_meta_folio_set_##name(struct folio *folio, const struct extent_buffer *eb) \
 {									\
-	if (!btrfs_meta_is_subpage(fs_info)) {				\
+	if (!btrfs_meta_is_subpage(eb->fs_info)) {			\
 		folio_set_func(folio);					\
 		return;							\
 	}								\
-	btrfs_subpage_set_##name(fs_info, folio, start, len);		\
+	btrfs_subpage_set_##name(eb->fs_info, folio, eb->start, eb->len); \
 }									\
-void btrfs_meta_folio_clear_##name(const struct btrfs_fs_info *fs_info, \
-				   struct folio *folio, u64 start, u32 len) \
+void btrfs_meta_folio_clear_##name(struct folio *folio, const struct extent_buffer *eb) \
 {									\
-	if (!btrfs_meta_is_subpage(fs_info)) {				\
+	if (!btrfs_meta_is_subpage(eb->fs_info)) {			\
 		folio_clear_func(folio);				\
 		return;							\
 	}								\
-	btrfs_subpage_clear_##name(fs_info, folio, start, len);		\
+	btrfs_subpage_clear_##name(eb->fs_info, folio, eb->start, eb->len); \
 }									\
-bool btrfs_meta_folio_test_##name(const struct btrfs_fs_info *fs_info,	\
-				  struct folio *folio, u64 start, u32 len) \
+bool btrfs_meta_folio_test_##name(struct folio *folio, const struct extent_buffer *eb) \
 {									\
-	if (!btrfs_meta_is_subpage(fs_info))				\
+	if (!btrfs_meta_is_subpage(eb->fs_info))			\
 		return folio_test_func(folio);				\
-	return btrfs_subpage_test_##name(fs_info, folio, start, len);	\
+	return btrfs_subpage_test_##name(eb->fs_info, folio, eb->start, eb->len); \
 }
 IMPLEMENT_BTRFS_PAGE_OPS(uptodate, folio_mark_uptodate, folio_clear_uptodate,
 			 folio_test_uptodate);
@@ -761,17 +758,16 @@ void btrfs_folio_set_lock(const struct btrfs_fs_info *fs_info,
  *
  * If the affected folio is no longer dirty, return true. Otherwise return false.
  */
-bool btrfs_meta_folio_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
-					   struct folio *folio, u64 start, u32 len)
+bool btrfs_meta_folio_clear_and_test_dirty(struct folio *folio, const struct extent_buffer *eb)
 {
 	bool last;
 
-	if (!btrfs_meta_is_subpage(fs_info)) {
+	if (!btrfs_meta_is_subpage(eb->fs_info)) {
 		folio_clear_dirty_for_io(folio);
 		return true;
 	}
 
-	last = btrfs_subpage_clear_and_test_dirty(fs_info, folio, start, len);
+	last = btrfs_subpage_clear_and_test_dirty(eb->fs_info, folio, eb->start, eb->len);
 	if (last) {
 		folio_clear_dirty_for_io(folio);
 		return true;
