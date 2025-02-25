@@ -141,7 +141,7 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 			struct ttm_resource *mem);
 void vmw_bo_swap_notify(struct ttm_buffer_object *bo);
 
-void vmw_bo_add_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res);
+int vmw_bo_add_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res);
 void vmw_bo_del_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res);
 struct vmw_surface *vmw_bo_surface(struct vmw_bo *vbo);
 

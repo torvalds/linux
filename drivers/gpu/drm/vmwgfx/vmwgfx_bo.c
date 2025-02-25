@@ -848,9 +848,9 @@ void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo)
 	vmw_bo_placement_set(bo, domain, domain);
 }
 
-void vmw_bo_add_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res)
+int vmw_bo_add_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res)
 {
-	xa_store(&vbo->detached_resources, (unsigned long)res, res, GFP_KERNEL);
+	return xa_err(xa_store(&vbo->detached_resources, (unsigned long)res, res, GFP_KERNEL));
 }
 
 void vmw_bo_del_detached_resource(struct vmw_bo *vbo, struct vmw_resource *res)

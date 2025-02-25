@@ -838,7 +838,12 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			vmw_resource_unreference(&res);
 			goto out_unlock;
 		}
-		vmw_bo_add_detached_resource(res->guest_memory_bo, res);
+
+		ret = vmw_bo_add_detached_resource(res->guest_memory_bo, res);
+		if (unlikely(ret != 0)) {
+			vmw_resource_unreference(&res);
+			goto out_unlock;
+		}
 	}
 
 	tmp = vmw_resource_reference(&srf->res);
@@ -1637,6 +1642,14 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 
 	}
 
+	if (res->guest_memory_bo) {
+		ret = vmw_bo_add_detached_resource(res->guest_memory_bo, res);
+		if (unlikely(ret != 0)) {
+			vmw_resource_unreference(&res);
+			goto out_unlock;
+		}
+	}
+
 	tmp = vmw_resource_reference(res);
 	ret = ttm_prime_object_init(tfile, res->guest_memory_size, &user_srf->prime,
 				    VMW_RES_SURFACE,
@@ -1651,7 +1664,6 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 	rep->handle      = user_srf->prime.base.handle;
 	rep->backup_size = res->guest_memory_size;
 	if (res->guest_memory_bo) {
-		vmw_bo_add_detached_resource(res->guest_memory_bo, res);
 		rep->buffer_map_handle =
 			drm_vma_node_offset_addr(&res->guest_memory_bo->tbo.base.vma_node);
 		rep->buffer_size = res->guest_memory_bo->tbo.base.size;
