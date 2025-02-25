@@ -3035,6 +3035,28 @@ Field	31:16	PhyPARTID29
 Field	15:0	PhyPARTID28
 EndSysreg
 
+Sysreg	ICH_HCR_EL2	3	4	12	11	0
+Res0	63:32
+Field	31:27	EOIcount
+Res0	26:16
+Field	15	DVIM
+Field	14	TDIR
+Field	13	TSEI
+Field	12	TALL1
+Field	11	TALL0
+Field	10	TC
+Res0	9
+Field	8	vSGIEOICount
+Field	7	VGrp1DIE
+Field	6	VGrp1EIE
+Field	5	VGrp0DIE
+Field	4	VGrp0EIE
+Field	3	NPIE
+Field	2	LRENPIE
+Field	1	UIE
+Field	0	En
+EndSysreg
+
 Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
 Fields	CONTEXTIDR_ELx
 EndSysreg
