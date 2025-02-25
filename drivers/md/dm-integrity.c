@@ -3790,20 +3790,18 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 		break;
 
 	case STATUSTYPE_TABLE: {
-		__u64 watermark_percentage = (__u64)(ic->journal_entries - ic->free_sectors_threshold) * 100;
-
-		watermark_percentage += ic->journal_entries / 2;
-		do_div(watermark_percentage, ic->journal_entries);
-		arg_count = 3;
+		arg_count = 1; /* buffer_sectors */
 		arg_count += !!ic->meta_dev;
 		arg_count += ic->sectors_per_block != 1;
 		arg_count += !!(ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING));
 		arg_count += ic->reset_recalculate_flag;
 		arg_count += ic->discard;
-		arg_count += ic->mode == 'J';
-		arg_count += ic->mode == 'J';
-		arg_count += ic->mode == 'B';
-		arg_count += ic->mode == 'B';
+		arg_count += ic->mode != 'I'; /* interleave_sectors */
+		arg_count += ic->mode == 'J'; /* journal_sectors */
+		arg_count += ic->mode == 'J'; /* journal_watermark */
+		arg_count += ic->mode == 'J'; /* commit_time */
+		arg_count += ic->mode == 'B'; /* sectors_per_bit */
+		arg_count += ic->mode == 'B'; /* bitmap_flush_interval */
 		arg_count += !!ic->internal_hash_alg.alg_string;
 		arg_count += !!ic->journal_crypt_alg.alg_string;
 		arg_count += !!ic->journal_mac_alg.alg_string;
@@ -3822,10 +3820,15 @@ static void dm_integrity_status(struct dm_target *ti, status_type_t type,
 			DMEMIT(" reset_recalculate");
 		if (ic->discard)
 			DMEMIT(" allow_discards");
-		DMEMIT(" journal_sectors:%u", ic->initial_sectors - SB_SECTORS);
-		DMEMIT(" interleave_sectors:%u", 1U << ic->sb->log2_interleave_sectors);
+		if (ic->mode != 'I')
+			DMEMIT(" interleave_sectors:%u", 1U << ic->sb->log2_interleave_sectors);
 		DMEMIT(" buffer_sectors:%u", 1U << ic->log2_buffer_sectors);
 		if (ic->mode == 'J') {
+			__u64 watermark_percentage = (__u64)(ic->journal_entries - ic->free_sectors_threshold) * 100;
+
+			watermark_percentage += ic->journal_entries / 2;
+			do_div(watermark_percentage, ic->journal_entries);
+			DMEMIT(" journal_sectors:%u", ic->initial_sectors - SB_SECTORS);
 			DMEMIT(" journal_watermark:%u", (unsigned int)watermark_percentage);
 			DMEMIT(" commit_time:%u", ic->autocommit_msec);
 		}
