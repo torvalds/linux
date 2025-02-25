@@ -20,6 +20,7 @@ struct mnt_namespace {
 		wait_queue_head_t	poll;
 		struct rcu_head		mnt_ns_rcu;
 	};
+	u64			seq_origin; /* Sequence number of origin mount namespace */
 	u64 event;
 	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
@@ -154,6 +155,11 @@ static inline bool is_anon_ns(struct mnt_namespace *ns)
 static inline bool mnt_ns_attached(const struct mount *mnt)
 {
 	return !RB_EMPTY_NODE(&mnt->mnt_node);
+}
+
+static inline bool mnt_ns_empty(const struct mnt_namespace *ns)
+{
+	return RB_EMPTY_ROOT(&ns->mounts);
 }
 
 static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
