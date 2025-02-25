@@ -573,6 +573,16 @@ config DRM_PANEL_RAYDIUM_RM67191
 	  Say Y here if you want to enable support for Raydium RM67191 FHD
 	  (1080x1920) DSI panel.
 
+config DRM_PANEL_RAYDIUM_RM67200
+	tristate "Raydium RM67200-based DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	help
+	  Say Y here if you want to enable support for Raydium RM67200-based
+	  DSI video mode panels. This panel controller can be found in the
+	  Wanchanglong W552793BAA panel found on the Rockchip RK3588 EVB1
+	  evaluation boards.
+
 config DRM_PANEL_RAYDIUM_RM68200
 	tristate "Raydium RM68200 720x1280 DSI video mode panel"
 	depends on OF
