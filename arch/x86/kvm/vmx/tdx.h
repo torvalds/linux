@@ -13,7 +13,9 @@ extern bool enable_tdx;
 
 struct kvm_tdx {
 	struct kvm kvm;
-	/* TDX specific members follow. */
+	int hkid;
+
+	struct tdx_td td;
 };
 
 struct vcpu_tdx {
