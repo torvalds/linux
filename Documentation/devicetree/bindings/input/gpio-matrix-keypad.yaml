@@ -51,6 +51,12 @@ properties:
       before we can scan keypad after activating column gpio.
     default: 0
 
+  all-cols-on-delay-us:
+    description:
+      Delay, measured in microseconds, that is needed
+      after activating all column gpios.
+    default: 0
+
   drive-inactive-cols:
     type: boolean
     description:
