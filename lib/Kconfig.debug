@@ -1260,6 +1260,17 @@ config BOOTPARAM_HUNG_TASK_PANIC
 
 	  Say N if unsure.
 
+config DETECT_HUNG_TASK_BLOCKER
+	bool "Dump Hung Tasks Blocker"
+	depends on DETECT_HUNG_TASK
+	depends on !PREEMPT_RT
+	default y
+	help
+	  Say Y here to show the blocker task's stacktrace who acquires
+	  the mutex lock which "hung tasks" are waiting.
+	  This will add overhead a bit but shows suspicious tasks and
+	  call trace if it comes from waiting a mutex.
+
 config WQ_WATCHDOG
 	bool "Detect Workqueue Stalls"
 	depends on DEBUG_KERNEL
