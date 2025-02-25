@@ -446,8 +446,10 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
 	u16 threshold_comps = 0;
 	struct mpi3_default_reply_descriptor *reply_desc;
 
-	if (!atomic_add_unless(&mrioc->admin_reply_q_in_use, 1, 1))
+	if (!atomic_add_unless(&mrioc->admin_reply_q_in_use, 1, 1)) {
+		atomic_inc(&mrioc->admin_pend_isr);
 		return 0;
+	}
 
 	reply_desc = (struct mpi3_default_reply_descriptor *)mrioc->admin_reply_base +
 	    admin_reply_ci;
@@ -2757,7 +2759,16 @@ static void mpi3mr_watchdog_work(struct work_struct *work)
 		return;
 	}
 
-	if (mrioc->ts_update_counter++ >= mrioc->ts_update_interval) {
+	if (atomic_read(&mrioc->admin_pend_isr)) {
+		ioc_err(mrioc, "Unprocessed admin ISR instance found\n"
+				"flush admin replies\n");
+		mpi3mr_process_admin_reply_q(mrioc);
+	}
+
+	if (!(mrioc->facts.ioc_capabilities &
+		MPI3_IOCFACTS_CAPABILITY_NON_SUPERVISOR_IOC) &&
+		(mrioc->ts_update_counter++ >= mrioc->ts_update_interval)) {
+
 		mrioc->ts_update_counter = 0;
 		mpi3mr_sync_timestamp(mrioc);
 	}

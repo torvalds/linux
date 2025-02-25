@@ -56,8 +56,8 @@ extern struct list_head mrioc_list;
 extern int prot_mask;
 extern atomic64_t event_counter;
 
-#define MPI3MR_DRIVER_VERSION	"8.12.1.0.50"
-#define MPI3MR_DRIVER_RELDATE	"28-January-2025"
+#define MPI3MR_DRIVER_VERSION	"8.13.0.5.50"
+#define MPI3MR_DRIVER_RELDATE	"20-February-2025"
 
 #define MPI3MR_DRIVER_NAME	"mpi3mr"
 #define MPI3MR_DRIVER_LICENSE	"GPL"
@@ -1032,6 +1032,8 @@ struct scmd_priv {
  * @admin_reply_base: Admin reply queue base virtual address
  * @admin_reply_dma: Admin reply queue base dma address
  * @admin_reply_q_in_use: Queue is handled by poll/ISR
+ * @admin_pend_isr: Count of unprocessed admin ISR/poll calls
+ * due to another thread processing replies
  * @ready_timeout: Controller ready timeout
  * @intr_info: Interrupt cookie pointer
  * @intr_info_count: Number of interrupt cookies
@@ -1206,6 +1208,7 @@ struct mpi3mr_ioc {
 	void *admin_reply_base;
 	dma_addr_t admin_reply_dma;
 	atomic_t admin_reply_q_in_use;
+	atomic_t admin_pend_isr;
 
 	u32 ready_timeout;
 
