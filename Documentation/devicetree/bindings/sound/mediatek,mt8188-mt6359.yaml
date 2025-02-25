@@ -62,6 +62,7 @@ patternProperties:
             - PCM1_BE
             - DL_SRC_BE
             - UL_SRC_BE
+            - DMIC_BE
 
       codec:
         description: Holds subnode which indicates codec dai.
