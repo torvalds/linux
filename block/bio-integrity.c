@@ -7,13 +7,12 @@
  */
 
 #include <linux/blk-integrity.h>
-#include <linux/mempool.h>
-#include <linux/export.h>
-#include <linux/bio.h>
-#include <linux/slab.h>
 #include "blk.h"
 
-static struct kmem_cache *bip_slab;
+struct bio_integrity_alloc {
+	struct bio_integrity_payload	bip;
+	struct bio_vec			bvecs[];
+};
 
 /**
  * bio_integrity_free - Free bio integrity payload
@@ -23,19 +22,21 @@ static struct kmem_cache *bip_slab;
  */
 void bio_integrity_free(struct bio *bio)
 {
-	struct bio_integrity_payload *bip = bio_integrity(bio);
-	struct bio_set *bs = bio->bi_pool;
-
-	if (bs && mempool_initialized(&bs->bio_integrity_pool)) {
-		if (bip->bip_vec)
-			bvec_free(&bs->bvec_integrity_pool, bip->bip_vec,
-				  bip->bip_max_vcnt);
-		mempool_free(bip, &bs->bio_integrity_pool);
-	} else {
-		kfree(bip);
-	}
+	kfree(bio_integrity(bio));
 	bio->bi_integrity = NULL;
 	bio->bi_opf &= ~REQ_INTEGRITY;
+}
+
+void bio_integrity_init(struct bio *bio, struct bio_integrity_payload *bip,
+		struct bio_vec *bvecs, unsigned int nr_vecs)
+{
+	memset(bip, 0, sizeof(*bip));
+	bip->bip_max_vcnt = nr_vecs;
+	if (nr_vecs)
+		bip->bip_vec = bvecs;
+
+	bio->bi_integrity = bip;
+	bio->bi_opf |= REQ_INTEGRITY;
 }
 
 /**
@@ -52,48 +53,16 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 						  gfp_t gfp_mask,
 						  unsigned int nr_vecs)
 {
-	struct bio_integrity_payload *bip;
-	struct bio_set *bs = bio->bi_pool;
-	unsigned inline_vecs;
+	struct bio_integrity_alloc *bia;
 
 	if (WARN_ON_ONCE(bio_has_crypt_ctx(bio)))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	if (!bs || !mempool_initialized(&bs->bio_integrity_pool)) {
-		bip = kmalloc(struct_size(bip, bip_inline_vecs, nr_vecs), gfp_mask);
-		inline_vecs = nr_vecs;
-	} else {
-		bip = mempool_alloc(&bs->bio_integrity_pool, gfp_mask);
-		inline_vecs = BIO_INLINE_VECS;
-	}
-
-	if (unlikely(!bip))
+	bia = kmalloc(struct_size(bia, bvecs, nr_vecs), gfp_mask);
+	if (unlikely(!bia))
 		return ERR_PTR(-ENOMEM);
-
-	memset(bip, 0, sizeof(*bip));
-
-	/* always report as many vecs as asked explicitly, not inline vecs */
-	bip->bip_max_vcnt = nr_vecs;
-	if (nr_vecs > inline_vecs) {
-		bip->bip_vec = bvec_alloc(&bs->bvec_integrity_pool,
-					  &bip->bip_max_vcnt, gfp_mask);
-		if (!bip->bip_vec)
-			goto err;
-	} else if (nr_vecs) {
-		bip->bip_vec = bip->bip_inline_vecs;
-	}
-
-	bip->bip_bio = bio;
-	bio->bi_integrity = bip;
-	bio->bi_opf |= REQ_INTEGRITY;
-
-	return bip;
-err:
-	if (bs && mempool_initialized(&bs->bio_integrity_pool))
-		mempool_free(bip, &bs->bio_integrity_pool);
-	else
-		kfree(bip);
-	return ERR_PTR(-ENOMEM);
+	bio_integrity_init(bio, &bia->bip, bia->bvecs, nr_vecs);
+	return &bia->bip;
 }
 EXPORT_SYMBOL(bio_integrity_alloc);
 
@@ -466,36 +435,4 @@ int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 	bip->app_tag = bip_src->app_tag;
 
 	return 0;
-}
-
-int bioset_integrity_create(struct bio_set *bs, int pool_size)
-{
-	if (mempool_initialized(&bs->bio_integrity_pool))
-		return 0;
-
-	if (mempool_init_slab_pool(&bs->bio_integrity_pool,
-				   pool_size, bip_slab))
-		return -1;
-
-	if (biovec_init_pool(&bs->bvec_integrity_pool, pool_size)) {
-		mempool_exit(&bs->bio_integrity_pool);
-		return -1;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(bioset_integrity_create);
-
-void bioset_integrity_free(struct bio_set *bs)
-{
-	mempool_exit(&bs->bio_integrity_pool);
-	mempool_exit(&bs->bvec_integrity_pool);
-}
-
-void __init bio_integrity_init(void)
-{
-	bip_slab = kmem_cache_create("bio_integrity_payload",
-				     sizeof(struct bio_integrity_payload) +
-				     sizeof(struct bio_vec) * BIO_INLINE_VECS,
-				     0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 }

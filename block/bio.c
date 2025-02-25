@@ -1657,7 +1657,6 @@ void bioset_exit(struct bio_set *bs)
 	mempool_exit(&bs->bio_pool);
 	mempool_exit(&bs->bvec_pool);
 
-	bioset_integrity_free(bs);
 	if (bs->bio_slab)
 		bio_put_slab(bs);
 	bs->bio_slab = NULL;
@@ -1737,8 +1736,6 @@ static int __init init_bio(void)
 
 	BUILD_BUG_ON(BIO_FLAG_LAST > 8 * sizeof_field(struct bio, bi_flags));
 
-	bio_integrity_init();
-
 	for (i = 0; i < ARRAY_SIZE(bvec_slabs); i++) {
 		struct biovec_slab *bvs = bvec_slabs + i;
 
@@ -1753,9 +1750,6 @@ static int __init init_bio(void)
 	if (bioset_init(&fs_bio_set, BIO_POOL_SIZE, 0,
 			BIOSET_NEED_BVECS | BIOSET_PERCPU_CACHE))
 		panic("bio: can't allocate bios\n");
-
-	if (bioset_integrity_create(&fs_bio_set, BIO_POOL_SIZE))
-		panic("bio: can't create integrity pool\n");
 
 	return 0;
 }

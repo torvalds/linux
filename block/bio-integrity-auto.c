@@ -12,18 +12,34 @@
 #include <linux/workqueue.h>
 #include "blk.h"
 
+struct bio_integrity_data {
+	struct bio			*bio;
+	struct bvec_iter		saved_bio_iter;
+	struct work_struct		work;
+	struct bio_integrity_payload	bip;
+	struct bio_vec			bvec;
+};
+
+static struct kmem_cache *bid_slab;
+static mempool_t bid_pool;
 static struct workqueue_struct *kintegrityd_wq;
+
+static void bio_integrity_finish(struct bio_integrity_data *bid)
+{
+	bid->bio->bi_integrity = NULL;
+	bid->bio->bi_opf &= ~REQ_INTEGRITY;
+	kfree(bvec_virt(bid->bip.bip_vec));
+	mempool_free(bid, &bid_pool);
+}
 
 static void bio_integrity_verify_fn(struct work_struct *work)
 {
-	struct bio_integrity_payload *bip =
-		container_of(work, struct bio_integrity_payload, bip_work);
-	struct bio *bio = bip->bip_bio;
+	struct bio_integrity_data *bid =
+		container_of(work, struct bio_integrity_data, work);
+	struct bio *bio = bid->bio;
 
-	blk_integrity_verify(bio);
-
-	kfree(bvec_virt(bip->bip_vec));
-	bio_integrity_free(bio);
+	blk_integrity_verify_iter(bio, &bid->saved_bio_iter);
+	bio_integrity_finish(bid);
 	bio_endio(bio);
 }
 
@@ -40,15 +56,16 @@ bool __bio_integrity_endio(struct bio *bio)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
+	struct bio_integrity_data *bid =
+		container_of(bip, struct bio_integrity_data, bip);
 
 	if (bio_op(bio) == REQ_OP_READ && !bio->bi_status && bi->csum_type) {
-		INIT_WORK(&bip->bip_work, bio_integrity_verify_fn);
-		queue_work(kintegrityd_wq, &bip->bip_work);
+		INIT_WORK(&bid->work, bio_integrity_verify_fn);
+		queue_work(kintegrityd_wq, &bid->work);
 		return false;
 	}
 
-	kfree(bvec_virt(bip->bip_vec));
-	bio_integrity_free(bio);
+	bio_integrity_finish(bid);
 	return true;
 }
 
@@ -65,8 +82,8 @@ bool __bio_integrity_endio(struct bio *bio)
  */
 bool bio_integrity_prep(struct bio *bio)
 {
-	struct bio_integrity_payload *bip;
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
+	struct bio_integrity_data *bid;
 	gfp_t gfp = GFP_NOIO;
 	unsigned int len;
 	void *buf;
@@ -102,27 +119,30 @@ bool bio_integrity_prep(struct bio *bio)
 		return true;
 	}
 
+	if (WARN_ON_ONCE(bio_has_crypt_ctx(bio)))
+		return true;
+
 	/* Allocate kernel buffer for protection data */
 	len = bio_integrity_bytes(bi, bio_sectors(bio));
 	buf = kmalloc(len, gfp);
 	if (!buf)
 		goto err_end_io;
+	bid = mempool_alloc(&bid_pool, GFP_NOIO);
+	if (!bid)
+		goto err_free_buf;
+	bio_integrity_init(bio, &bid->bip, &bid->bvec, 1);
 
-	bip = bio_integrity_alloc(bio, GFP_NOIO, 1);
-	if (IS_ERR(bip)) {
-		kfree(buf);
-		goto err_end_io;
-	}
+	bid->bio = bio;
 
-	bip->bip_flags |= BIP_BLOCK_INTEGRITY;
-	bip_set_seed(bip, bio->bi_iter.bi_sector);
+	bid->bip.bip_flags |= BIP_BLOCK_INTEGRITY;
+	bip_set_seed(&bid->bip, bio->bi_iter.bi_sector);
 
 	if (bi->csum_type == BLK_INTEGRITY_CSUM_IP)
-		bip->bip_flags |= BIP_IP_CHECKSUM;
+		bid->bip.bip_flags |= BIP_IP_CHECKSUM;
 	if (bi->csum_type)
-		bip->bip_flags |= BIP_CHECK_GUARD;
+		bid->bip.bip_flags |= BIP_CHECK_GUARD;
 	if (bi->flags & BLK_INTEGRITY_REF_TAG)
-		bip->bip_flags |= BIP_CHECK_REFTAG;
+		bid->bip.bip_flags |= BIP_CHECK_REFTAG;
 
 	if (bio_integrity_add_page(bio, virt_to_page(buf), len,
 			offset_in_page(buf)) < len)
@@ -132,9 +152,11 @@ bool bio_integrity_prep(struct bio *bio)
 	if (bio_data_dir(bio) == WRITE)
 		blk_integrity_generate(bio);
 	else
-		bip->bio_iter = bio->bi_iter;
+		bid->saved_bio_iter = bio->bi_iter;
 	return true;
 
+err_free_buf:
+	kfree(buf);
 err_end_io:
 	bio->bi_status = BLK_STS_RESOURCE;
 	bio_endio(bio);
@@ -149,6 +171,13 @@ void blk_flush_integrity(void)
 
 static int __init blk_integrity_auto_init(void)
 {
+	bid_slab = kmem_cache_create("bio_integrity_data",
+			sizeof(struct bio_integrity_data), 0,
+			SLAB_HWCACHE_ALIGN | SLAB_PANIC, NULL);
+
+	if (mempool_init_slab_pool(&bid_pool, BIO_POOL_SIZE, bid_slab))
+		panic("bio: can't create integrity pool\n");
+
 	/*
 	 * kintegrityd won't block much but may burn a lot of CPU cycles.
 	 * Make it highpri CPU intensive wq with max concurrency of 1.

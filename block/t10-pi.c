@@ -404,7 +404,7 @@ void blk_integrity_generate(struct bio *bio)
 	}
 }
 
-void blk_integrity_verify(struct bio *bio)
+void blk_integrity_verify_iter(struct bio *bio, struct bvec_iter *saved_iter)
 {
 	struct blk_integrity *bi = blk_get_integrity(bio->bi_bdev->bd_disk);
 	struct bio_integrity_payload *bip = bio_integrity(bio);
@@ -418,9 +418,9 @@ void blk_integrity_verify(struct bio *bio)
 	 */
 	iter.disk_name = bio->bi_bdev->bd_disk->disk_name;
 	iter.interval = 1 << bi->interval_exp;
-	iter.seed = bip->bio_iter.bi_sector;
+	iter.seed = saved_iter->bi_sector;
 	iter.prot_buf = bvec_virt(bip->bip_vec);
-	__bio_for_each_segment(bv, bio, bviter, bip->bio_iter) {
+	__bio_for_each_segment(bv, bio, bviter, *saved_iter) {
 		void *kaddr = bvec_kmap_local(&bv);
 		blk_status_t ret = BLK_STS_OK;
 

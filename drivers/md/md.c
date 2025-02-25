@@ -2359,19 +2359,6 @@ int md_integrity_register(struct mddev *mddev)
 		return 0; /* shouldn't register */
 
 	pr_debug("md: data integrity enabled on %s\n", mdname(mddev));
-	if (bioset_integrity_create(&mddev->bio_set, BIO_POOL_SIZE) ||
-	    (mddev->level != 1 && mddev->level != 10 &&
-	     bioset_integrity_create(&mddev->io_clone_set, BIO_POOL_SIZE))) {
-		/*
-		 * No need to handle the failure of bioset_integrity_create,
-		 * because the function is called by md_run() -> pers->run(),
-		 * md_run calls bioset_exit -> bioset_integrity_free in case
-		 * of failure case.
-		 */
-		pr_err("md: failed to create integrity pool for %s\n",
-		       mdname(mddev));
-		return -EINVAL;
-	}
 	return 0;
 }
 EXPORT_SYMBOL(md_integrity_register);

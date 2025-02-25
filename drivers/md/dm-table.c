@@ -1081,14 +1081,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 		__alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
 	if (bioset_init(&pools->io_bs, pool_size, io_front_pad, bioset_flags))
 		goto out_free_pools;
-	if (mempool_needs_integrity &&
-	    bioset_integrity_create(&pools->io_bs, pool_size))
-		goto out_free_pools;
 init_bs:
 	if (bioset_init(&pools->bs, pool_size, front_pad, 0))
-		goto out_free_pools;
-	if (mempool_needs_integrity &&
-	    bioset_integrity_create(&pools->bs, pool_size))
 		goto out_free_pools;
 
 	t->mempools = pools;
