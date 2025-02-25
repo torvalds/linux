@@ -58,7 +58,7 @@ Building LKL on FreeBSD
 Building LKL on Ubuntu
 -----------------------
 
-    $ sudo apt-get install libfuse-dev libarchive-dev xfsprogs
+    $ sudo apt-get install libfuse-dev libarchive-dev xfsprogs libjsmn-dev
     
     # Optional, if you would like to be able to run tests
     $ sudo apt-get install btrfs-tools
@@ -126,6 +126,28 @@ and run:
 
     $ make -C tools/lkl
 
+LKL kernel configure
+==================
+
+You can configure LKL kernel just like you configured linux kernel source code by setting ARCH=lkl.
+For example,the default configuration in defconfig may set "CONFIG_DEBUG_INFO=y".This option will
+increase output size to about 130M. This is not negligible in some resource-constrained envirmonments.
+
+    $ make ARCH=lkl menuconfig
+
+Set Kernel hacking --->Compile-time checks and compiler options --->Debug information
+(Disable debug information),this should shrink size to about 15M.
+
+    $ make clean -C tools/lkl
+    $ make -C tools/lkl
+
+
+As external lib/header detection only happens at a first build if the compilation environment changed
+you may need to clean the configuration of build.
+
+    $ make clean-conf -C tools/lkl
+
+This will also remove your configuration in .config,backup it as needed.
 
 LKL hijack library
 ==================
