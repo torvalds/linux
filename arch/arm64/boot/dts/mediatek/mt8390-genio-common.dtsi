@@ -38,6 +38,13 @@
 		stdout-path = "serial0:921600n8";
 	};
 
+	dmic_codec: dmic-codec {
+		#sound-dai-cells = <0>;
+		compatible = "dmic-codec";
+		num-channels = <2>;
+		wakeup-delay-ms = <30>;
+	};
+
 	firmware {
 		optee {
 			compatible = "linaro,optee-tz";
@@ -1073,6 +1080,14 @@
 
 		codec {
 			sound-dai = <&pmic 0>;
+		};
+	};
+
+	dai-link-1 {
+		link-name = "DMIC_BE";
+
+		codec {
+			sound-dai = <&dmic_codec>;
 		};
 	};
 };
