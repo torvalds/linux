@@ -190,6 +190,7 @@ enum {
 struct btintel_data {
 	DECLARE_BITMAP(flags, __INTEL_NUM_FLAGS);
 	int (*acpi_reset_method)(struct hci_dev *hdev);
+	u32	cnvi_top;
 };
 
 #define btintel_set_flag(hdev, nr)					\
