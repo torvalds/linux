@@ -622,7 +622,7 @@ SYM_DATA_END(daton_psw)
 	.balign	8
 #define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 SYM_DATA_START(sys_call_table)
-#include "asm/syscall_table.h"
+#include <asm/syscall_table.h>
 SYM_DATA_END(sys_call_table)
 #undef SYSCALL
 
@@ -630,7 +630,7 @@ SYM_DATA_END(sys_call_table)
 
 #define SYSCALL(esame,emu)	.quad __s390_ ## emu
 SYM_DATA_START(sys_call_table_emu)
-#include "asm/syscall_table.h"
+#include <asm/syscall_table.h>
 SYM_DATA_END(sys_call_table_emu)
 #undef SYSCALL
 #endif

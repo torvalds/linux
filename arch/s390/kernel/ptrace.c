@@ -7,7 +7,6 @@
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-#include "asm/ptrace.h"
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
@@ -33,6 +32,7 @@
 #include <asm/runtime_instr.h>
 #include <asm/facility.h>
 #include <asm/machine.h>
+#include <asm/ptrace.h>
 #include <asm/fpu.h>
 
 #include "entry.h"

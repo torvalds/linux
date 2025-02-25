@@ -13,8 +13,6 @@
  * 'Traps.c' handles hardware traps and faults after we have saved some
  * state in 'asm.s'.
  */
-#include "asm/irqflags.h"
-#include "asm/ptrace.h"
 #include <linux/cpufeature.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -30,6 +28,8 @@
 #include <linux/entry-common.h>
 #include <linux/kmsan.h>
 #include <asm/asm-extable.h>
+#include <asm/irqflags.h>
+#include <asm/ptrace.h>
 #include <asm/vtime.h>
 #include <asm/fpu.h>
 #include <asm/fault.h>
