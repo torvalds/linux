@@ -748,7 +748,7 @@ retry:
 	memset(sb, 0, sizeof(*sb));
 	sb->mode	= BLK_OPEN_READ;
 	sb->have_bio	= true;
-	sb->holder	= kmalloc(1, GFP_KERNEL);
+	sb->holder	= kzalloc(sizeof(*sb->holder), GFP_KERNEL);
 	if (!sb->holder)
 		return -ENOMEM;
 

@@ -1431,6 +1431,13 @@ static int __bch2_dev_attach_bdev(struct bch_dev *ca, struct bch_sb_handle *sb)
 	ca->disk_sb = *sb;
 	memset(sb, 0, sizeof(*sb));
 
+	/*
+	 * Stash pointer to the filesystem for blk_holder_ops - note that once
+	 * attached to a filesystem, we will always close the block device
+	 * before tearing down the filesystem object.
+	 */
+	ca->disk_sb.holder->c = ca->fs;
+
 	ca->dev = ca->disk_sb.bdev->bd_dev;
 
 	percpu_ref_reinit(&ca->io_ref);
