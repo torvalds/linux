@@ -17,6 +17,7 @@
 #include <linux/sched/mm.h>
 #include <linux/mmu_notifier.h>
 #include "kvm-s390.h"
+#include "gmap.h"
 
 bool kvm_s390_pv_is_protected(struct kvm *kvm)
 {
@@ -638,9 +639,27 @@ static int unpack_one(struct kvm *kvm, unsigned long addr, u64 tweak,
 		.tweak[1] = offset,
 	};
 	int ret = gmap_make_secure(kvm->arch.gmap, addr, &uvcb);
+	unsigned long vmaddr;
+	bool unlocked;
 
 	*rc = uvcb.header.rc;
 	*rrc = uvcb.header.rrc;
+
+	if (ret == -ENXIO) {
+		mmap_read_lock(kvm->mm);
+		vmaddr = gfn_to_hva(kvm, gpa_to_gfn(addr));
+		if (kvm_is_error_hva(vmaddr)) {
+			ret = -EFAULT;
+		} else {
+			ret = fixup_user_fault(kvm->mm, vmaddr, FAULT_FLAG_WRITE, &unlocked);
+			if (!ret)
+				ret = __gmap_link(kvm->arch.gmap, addr, vmaddr);
+		}
+		mmap_read_unlock(kvm->mm);
+		if (!ret)
+			return -EAGAIN;
+		return ret;
+	}
 
 	if (ret && ret != -EAGAIN)
 		KVM_UV_EVENT(kvm, 3, "PROTVIRT VM UNPACK: failed addr %llx with rc %x rrc %x",
@@ -659,6 +678,8 @@ int kvm_s390_pv_unpack(struct kvm *kvm, unsigned long addr, unsigned long size,
 
 	KVM_UV_EVENT(kvm, 3, "PROTVIRT VM UNPACK: start addr %lx size %lx",
 		     addr, size);
+
+	guard(srcu)(&kvm->srcu);
 
 	while (offset < size) {
 		ret = unpack_one(kvm, addr, tweak, offset, rc, rrc);

@@ -119,9 +119,10 @@
  * - 3.57.0 - Compute tunneling on GFX10+
  * - 3.58.0 - Add GFX12 DCC support
  * - 3.59.0 - Cleared VRAM
+ * - 3.60.0 - Add AMDGPU_TILING_GFX12_DCC_WRITE_COMPRESS_DISABLE (Vulkan requirement)
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	59
+#define KMS_DRIVER_MINOR	60
 #define KMS_DRIVER_PATCHLEVEL	0
 
 /*

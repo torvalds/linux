@@ -749,6 +749,15 @@ static bool seccomp_is_const_allow(struct sock_fprog_kern *fprog,
 	if (WARN_ON_ONCE(!fprog))
 		return false;
 
+	/* Our single exception to filtering. */
+#ifdef __NR_uretprobe
+#ifdef SECCOMP_ARCH_COMPAT
+	if (sd->arch == SECCOMP_ARCH_NATIVE)
+#endif
+		if (sd->nr == __NR_uretprobe)
+			return true;
+#endif
+
 	for (pc = 0; pc < fprog->len; pc++) {
 		struct sock_filter *insn = &fprog->filter[pc];
 		u16 code = insn->code;
@@ -1023,6 +1032,9 @@ static inline void seccomp_log(unsigned long syscall, long signr, u32 action,
  */
 static const int mode1_syscalls[] = {
 	__NR_seccomp_read, __NR_seccomp_write, __NR_seccomp_exit, __NR_seccomp_sigreturn,
+#ifdef __NR_uretprobe
+	__NR_uretprobe,
+#endif
 	-1, /* negative terminated */
 };
 
