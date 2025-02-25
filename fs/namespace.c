@@ -1000,8 +1000,13 @@ static inline int check_mnt(struct mount *mnt)
 
 static inline bool check_anonymous_mnt(struct mount *mnt)
 {
-	return is_anon_ns(mnt->mnt_ns) &&
-	       mnt->mnt_ns->seq_origin == current->nsproxy->mnt_ns->seq;
+	u64 seq;
+
+	if (!is_anon_ns(mnt->mnt_ns))
+		return false;
+
+	seq = mnt->mnt_ns->seq_origin;
+	return !seq || (seq == current->nsproxy->mnt_ns->seq);
 }
 
 /*
