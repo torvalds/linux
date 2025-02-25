@@ -318,8 +318,7 @@ void fdls_schedule_oxid_free_retry_work(struct work_struct *work)
 			"Schedule oxid free. oxid idx: %d\n", idx);
 
 		spin_unlock_irqrestore(&fnic->fnic_lock, fnic->lock_flags);
-		reclaim_entry = (struct reclaim_entry_s *)
-						kzalloc(sizeof(struct reclaim_entry_s), GFP_KERNEL);
+		reclaim_entry = kzalloc(sizeof(*reclaim_entry), GFP_KERNEL);
 		spin_lock_irqsave(&fnic->fnic_lock, fnic->lock_flags);
 
 		if (!reclaim_entry) {
