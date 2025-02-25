@@ -9,10 +9,10 @@
 #include <linux/types.h>
 
 enum fb_op_origin;
-struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_display;
 struct intel_fbc;
 struct intel_plane;
@@ -38,10 +38,10 @@ void intel_fbc_sanitize(struct intel_display *display);
 void intel_fbc_update(struct intel_atomic_state *state,
 		      struct intel_crtc *crtc);
 void intel_fbc_disable(struct intel_crtc *crtc);
-void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
+void intel_fbc_invalidate(struct intel_display *display,
 			  unsigned int frontbuffer_bits,
 			  enum fb_op_origin origin);
-void intel_fbc_flush(struct drm_i915_private *dev_priv,
+void intel_fbc_flush(struct intel_display *display,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 void intel_fbc_add_plane(struct intel_fbc *fbc, struct intel_plane *plane);
 void intel_fbc_handle_fifo_underrun_irq(struct intel_display *display);
