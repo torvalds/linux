@@ -47,8 +47,7 @@ config SGI_NEWPORT_CONSOLE
 	  card of your Indy.  Most people say Y here.
 
 config DUMMY_CONSOLE
-	bool
-	default y
+	def_bool VT || VGA_CONSOLE || FRAMEBUFFER_CONSOLE
 
 config DUMMY_CONSOLE_COLUMNS
 	int "Initial number of console screen columns"
