@@ -275,20 +275,25 @@ values and, when predicting the idle duration next time, it computes the average
 and variance of them.  If the variance is small (smaller than 400 square
 milliseconds) or it is small relative to the average (the average is greater
 that 6 times the standard deviation), the average is regarded as the "typical
-interval" value.  Otherwise, the longest of the saved observed idle duration
+interval" value.  Otherwise, either the longest or the shortest (depending on
+which one is farther from the average) of the saved observed idle duration
 values is discarded and the computation is repeated for the remaining ones.
+
 Again, if the variance of them is small (in the above sense), the average is
 taken as the "typical interval" value and so on, until either the "typical
-interval" is determined or too many data points are disregarded, in which case
-the "typical interval" is assumed to equal "infinity" (the maximum unsigned
-integer value).
+interval" is determined or too many data points are disregarded.  In the latter
+case, if the size of the set of data points still under consideration is
+sufficiently large, the next idle duration is not likely to be above the largest
+idle duration value still in that set, so that value is taken as the predicted
+next idle duration.  Finally, if the set of data points still under
+consideration is too small, no prediction is made.
 
-If the "typical interval" computed this way is long enough, the governor obtains
-the time until the closest timer event with the assumption that the scheduler
-tick will be stopped.  That time, referred to as the *sleep length* in what follows,
-is the upper bound on the time before the next CPU wakeup.  It is used to determine
-the sleep length range, which in turn is needed to get the sleep length correction
-factor.
+If the preliminary prediction of the next idle duration computed this way is
+long enough, the governor obtains the time until the closest timer event with
+the assumption that the scheduler tick will be stopped.  That time, referred to
+as the *sleep length* in what follows, is the upper bound on the time before the
+next CPU wakeup.  It is used to determine the sleep length range, which in turn
+is needed to get the sleep length correction factor.
 
 The ``menu`` governor maintains an array containing several correction factor
 values that correspond to different sleep length ranges organized so that each
@@ -302,7 +307,7 @@ to 1 the correction factor becomes (it must fall between 0 and 1 inclusive).
 The sleep length is multiplied by the correction factor for the range that it
 falls into to obtain an approximation of the predicted idle duration that is
 compared to the "typical interval" determined previously and the minimum of
-the two is taken as the idle duration prediction.
+the two is taken as the final idle duration prediction.
 
 If the "typical interval" value is small, which means that the CPU is likely
 to be woken up soon enough, the sleep length computation is skipped as it may
