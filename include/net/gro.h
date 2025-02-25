@@ -546,6 +546,9 @@ static inline void gro_normal_one(struct gro_node *gro, struct sk_buff *skb,
 		gro_normal_list(gro);
 }
 
+void gro_init(struct gro_node *gro);
+void gro_cleanup(struct gro_node *gro);
+
 /* This function is the alternative of 'inet_iif' and 'inet_sdif'
  * functions in case we can not rely on fields of IPCB.
  *
