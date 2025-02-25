@@ -98,7 +98,7 @@ static void frontbuffer_flush(struct drm_i915_private *i915,
 	trace_intel_frontbuffer_flush(display, frontbuffer_bits, origin);
 
 	might_sleep();
-	intel_td_flush(i915);
+	intel_td_flush(display);
 	intel_drrs_flush(i915, frontbuffer_bits);
 	intel_psr_flush(display, frontbuffer_bits, origin);
 	intel_fbc_flush(i915, frontbuffer_bits, origin);

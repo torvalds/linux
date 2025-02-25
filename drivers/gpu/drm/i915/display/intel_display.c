@@ -7425,7 +7425,7 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	intel_atomic_commit_fence_wait(state);
 
-	intel_td_flush(dev_priv);
+	intel_td_flush(display);
 
 	intel_atomic_prepare_plane_clear_colors(state);
 
