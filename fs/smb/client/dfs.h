@@ -188,4 +188,11 @@ static inline void dfs_put_root_smb_sessions(struct list_head *head)
 	}
 }
 
+static inline const char *dfs_ses_refpath(struct cifs_ses *ses)
+{
+	const char *path = ses->server->leaf_fullpath;
+
+	return path ? path + 1 : ERR_PTR(-ENOENT);
+}
+
 #endif /* _CIFS_DFS_H */

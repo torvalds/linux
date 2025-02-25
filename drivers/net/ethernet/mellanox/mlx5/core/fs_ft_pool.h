@@ -7,8 +7,6 @@
 #include <linux/mlx5/driver.h>
 #include "fs_core.h"
 
-#define POOL_NEXT_SIZE 0
-
 int mlx5_ft_pool_init(struct mlx5_core_dev *dev);
 void mlx5_ft_pool_destroy(struct mlx5_core_dev *dev);
 

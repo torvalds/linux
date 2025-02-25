@@ -414,7 +414,8 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  * must be discoverable by the compiler.
  */
 #define strtomem_pad(dest, src, pad)	do {				\
-	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _dest_len = __must_be_byte_array(dest) +		\
+				 ARRAY_SIZE(dest);			\
 	const size_t _src_len = __builtin_object_size(src, 1);		\
 									\
 	BUILD_BUG_ON(!__builtin_constant_p(_dest_len) ||		\
@@ -437,7 +438,8 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  * must be discoverable by the compiler.
  */
 #define strtomem(dest, src)	do {					\
-	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _dest_len = __must_be_byte_array(dest) +		\
+				 ARRAY_SIZE(dest);			\
 	const size_t _src_len = __builtin_object_size(src, 1);		\
 									\
 	BUILD_BUG_ON(!__builtin_constant_p(_dest_len) ||		\
@@ -456,7 +458,8 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  * Note that sizes of @dest and @src must be known at compile-time.
  */
 #define memtostr(dest, src)	do {					\
-	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _dest_len = __must_be_byte_array(dest) +		\
+				 ARRAY_SIZE(dest);			\
 	const size_t _src_len = __builtin_object_size(src, 1);		\
 	const size_t _src_chars = strnlen(src, _src_len);		\
 	const size_t _copy_len = min(_dest_len - 1, _src_chars);	\
@@ -481,7 +484,8 @@ void memcpy_and_pad(void *dest, size_t dest_len, const void *src, size_t count,
  * Note that sizes of @dest and @src must be known at compile-time.
  */
 #define memtostr_pad(dest, src)		do {				\
-	const size_t _dest_len = __builtin_object_size(dest, 1);	\
+	const size_t _dest_len = __must_be_byte_array(dest) +		\
+				 ARRAY_SIZE(dest);			\
 	const size_t _src_len = __builtin_object_size(src, 1);		\
 	const size_t _src_chars = strnlen(src, _src_len);		\
 	const size_t _copy_len = min(_dest_len - 1, _src_chars);	\

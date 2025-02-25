@@ -194,6 +194,11 @@ static int init_file(struct file *f, int flags, const struct cred *cred)
 	 * refcount bumps we should reinitialize the reused file first.
 	 */
 	file_ref_init(&f->f_ref, 1);
+	/*
+	 * Disable permission and pre-content events for all files by default.
+	 * They may be enabled later by file_set_fsnotify_mode_from_watchers().
+	 */
+	file_set_fsnotify_mode(f, FMODE_NONOTIFY_PERM);
 	return 0;
 }
 
@@ -375,7 +380,13 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 	if (IS_ERR(file)) {
 		ihold(inode);
 		path_put(&path);
+		return file;
 	}
+	/*
+	 * Disable all fsnotify events for pseudo files by default.
+	 * They may be enabled by caller with file_set_fsnotify_mode().
+	 */
+	file_set_fsnotify_mode(file, FMODE_NONOTIFY);
 	return file;
 }
 EXPORT_SYMBOL(alloc_file_pseudo);
@@ -400,6 +411,11 @@ struct file *alloc_file_pseudo_noaccount(struct inode *inode,
 		return file;
 	}
 	file_init_path(file, &path, fops);
+	/*
+	 * Disable all fsnotify events for pseudo files by default.
+	 * They may be enabled by caller with file_set_fsnotify_mode().
+	 */
+	file_set_fsnotify_mode(file, FMODE_NONOTIFY);
 	return file;
 }
 EXPORT_SYMBOL_GPL(alloc_file_pseudo_noaccount);

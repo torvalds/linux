@@ -538,6 +538,7 @@ struct mlx5_cmd_layout {
 };
 
 enum mlx5_rfr_severity_bit_offsets {
+	MLX5_CRR_BIT_OFFSET = 0x6,
 	MLX5_RFR_BIT_OFFSET = 0x7,
 };
 

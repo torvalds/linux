@@ -13,6 +13,7 @@
 #include <linux/log2.h>
 #include <linux/dma-map-ops.h>
 #include <linux/iommu-helper.h>
+#include <linux/string_choices.h>
 
 #include <asm/io.h>
 #include <asm/hwrpb.h>
@@ -212,7 +213,7 @@ static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
 
 	/* If both conditions above are met, we are fine. */
 	DBGA("pci_dac_dma_supported %s from %ps\n",
-	     ok ? "yes" : "no", __builtin_return_address(0));
+	     str_yes_no(ok), __builtin_return_address(0));
 
 	return ok;
 }
