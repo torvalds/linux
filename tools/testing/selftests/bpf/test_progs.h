@@ -427,6 +427,14 @@ void hexdump(const char *prefix, const void *buf, size_t len);
 			goto goto_label;				\
 	})
 
+#define SYS_FAIL(goto_label, fmt, ...)					\
+	({								\
+		char cmd[1024];						\
+		snprintf(cmd, sizeof(cmd), fmt, ##__VA_ARGS__);		\
+		if (!ASSERT_NEQ(0, system(cmd), cmd))			\
+			goto goto_label;				\
+	})
+
 #define ALL_TO_DEV_NULL " >/dev/null 2>&1"
 
 #define SYS_NOFAIL(fmt, ...)						\
