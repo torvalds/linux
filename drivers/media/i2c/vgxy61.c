@@ -892,8 +892,8 @@ static u32 vgxy61_get_expo_long_max(struct vgxy61_dev *sensor,
 	third_rot_max_expo = (sensor->frame_length / 71) * short_expo_ratio;
 
 	/* Take the minimum from all rules */
-	return min(min(first_rot_max_expo, second_rot_max_expo),
-		   third_rot_max_expo);
+	return min3(first_rot_max_expo, second_rot_max_expo,
+		    third_rot_max_expo);
 }
 
 static int vgxy61_update_exposure(struct vgxy61_dev *sensor, u16 new_expo_long,
