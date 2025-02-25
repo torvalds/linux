@@ -317,14 +317,6 @@ static int erofs_read_superblock(struct super_block *sb)
 
 	super_set_uuid(sb, (void *)dsb->uuid, sizeof(dsb->uuid));
 
-	ret = strscpy(sbi->volume_name, dsb->volume_name,
-		      sizeof(dsb->volume_name));
-	if (ret < 0) {	/* -E2BIG */
-		erofs_err(sb, "bad volume name without NIL terminator");
-		ret = -EFSCORRUPTED;
-		goto out;
-	}
-
 	/* parse on-disk compression configurations */
 	ret = z_erofs_parse_cfgs(sb, dsb);
 	if (ret < 0)
