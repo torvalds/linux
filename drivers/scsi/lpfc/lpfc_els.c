@@ -8045,8 +8045,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
 				tmo = ((phba->fc_ratov * 3) + 3);
 				mod_timer(&vport->fc_disctmo,
-					  jiffies +
-					  msecs_to_jiffies(1000 * tmo));
+					  jiffies + secs_to_jiffies(tmo));
 			}
 			return 0;
 		}
@@ -8081,7 +8080,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if (test_bit(FC_DISC_TMO, &vport->fc_flag)) {
 			tmo = ((phba->fc_ratov * 3) + 3);
 			mod_timer(&vport->fc_disctmo,
-				  jiffies + msecs_to_jiffies(1000 * tmo));
+				  jiffies + secs_to_jiffies(tmo));
 		}
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !test_bit(FC_RSCN_DISCOVERY, &vport->fc_flag)) {
@@ -9511,7 +9510,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	if (!list_empty(&pring->txcmplq))
 		if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			mod_timer(&vport->els_tmofunc,
-				  jiffies + msecs_to_jiffies(1000 * timeout));
+				  jiffies + secs_to_jiffies(timeout));
 }
 
 /**
@@ -10899,7 +10898,7 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 				 "3334 Delay fc port discovery for %d secs\n",
 				 phba->fc_ratov);
 		mod_timer(&vport->delayed_disc_tmo,
-			jiffies + msecs_to_jiffies(1000 * phba->fc_ratov));
+			jiffies + secs_to_jiffies(phba->fc_ratov));
 		return;
 	}
 
@@ -11156,7 +11155,7 @@ lpfc_retry_pport_discovery(struct lpfc_hba *phba)
 	if (!ndlp)
 		return;
 
-	mod_timer(&ndlp->nlp_delayfunc, jiffies + msecs_to_jiffies(1000));
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + secs_to_jiffies(1));
 	set_bit(NLP_DELAY_TMO, &ndlp->nlp_flag);
 	ndlp->nlp_last_elscmd = ELS_CMD_FLOGI;
 	phba->pport->port_state = LPFC_FLOGI;
