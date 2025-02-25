@@ -334,6 +334,8 @@ struct kvm_arch {
 #define KVM_ARCH_FLAG_FGU_INITIALIZED			8
 	/* SVE exposed to guest */
 #define KVM_ARCH_FLAG_GUEST_HAS_SVE			9
+	/* MIDR_EL1, REVIDR_EL1, and AIDR_EL1 are writable from userspace */
+#define KVM_ARCH_FLAG_WRITABLE_IMP_ID_REGS		10
 	unsigned long flags;
 
 	/* VM-wide vCPU feature set */

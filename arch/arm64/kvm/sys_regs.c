@@ -2524,6 +2524,17 @@ static bool access_imp_id_reg(struct kvm_vcpu *vcpu,
 	if (p->is_write)
 		return write_to_read_only(vcpu, p, r);
 
+	/*
+	 * Return the VM-scoped implementation ID register values if userspace
+	 * has made them writable.
+	 */
+	if (test_bit(KVM_ARCH_FLAG_WRITABLE_IMP_ID_REGS, &vcpu->kvm->arch.flags))
+		return access_id_reg(vcpu, p, r);
+
+	/*
+	 * Otherwise, fall back to the old behavior of returning the value of
+	 * the current CPU.
+	 */
 	switch (reg_to_encoding(r)) {
 	case SYS_REVIDR_EL1:
 		p->regval = read_sysreg(revidr_el1);
@@ -2567,19 +2578,43 @@ static u64 reset_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 			  u64 val)
 {
+	struct kvm *kvm = vcpu->kvm;
 	u64 expected;
 
-	expected = read_id_reg(vcpu, r);
+	guard(mutex)(&kvm->arch.config_lock);
 
-	return (expected == val) ? 0 : -EINVAL;
+	expected = read_id_reg(vcpu, r);
+	if (expected == val)
+		return 0;
+
+	if (!test_bit(KVM_ARCH_FLAG_WRITABLE_IMP_ID_REGS, &kvm->arch.flags))
+		return -EINVAL;
+
+	/*
+	 * Once the VM has started the ID registers are immutable. Reject the
+	 * write if userspace tries to change it.
+	 */
+	if (kvm_vm_has_ran_once(kvm))
+		return -EBUSY;
+
+	/*
+	 * Any value is allowed for the implementation ID registers so long as
+	 * it is within the writable mask.
+	 */
+	if ((val & r->val) != val)
+		return -EINVAL;
+
+	kvm_set_vm_id_reg(kvm, reg_to_encoding(r), val);
+	return 0;
 }
 
-#define IMPLEMENTATION_ID(reg) {			\
+#define IMPLEMENTATION_ID(reg, mask) {			\
 	SYS_DESC(SYS_##reg),				\
 	.access = access_imp_id_reg,			\
 	.get_user = get_id_reg,				\
 	.set_user = set_imp_id_reg,			\
 	.reset = reset_imp_id_reg,			\
+	.val = mask,					\
 }
 
 /*
@@ -2630,9 +2665,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_DBGVCR32_EL2), undef_access, reset_val, DBGVCR32_EL2, 0 },
 
-	IMPLEMENTATION_ID(MIDR_EL1),
+	IMPLEMENTATION_ID(MIDR_EL1, GENMASK_ULL(31, 0)),
 	{ SYS_DESC(SYS_MPIDR_EL1), NULL, reset_mpidr, MPIDR_EL1 },
-	IMPLEMENTATION_ID(REVIDR_EL1),
+	IMPLEMENTATION_ID(REVIDR_EL1, GENMASK_ULL(63, 0)),
 
 	/*
 	 * ID regs: all ID_SANITISED() entries here must have corresponding
@@ -2904,7 +2939,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .set_user = set_clidr, .val = ~CLIDR_EL1_RES0 },
 	{ SYS_DESC(SYS_CCSIDR2_EL1), undef_access },
 	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
-	IMPLEMENTATION_ID(AIDR_EL1),
+	IMPLEMENTATION_ID(AIDR_EL1, GENMASK_ULL(63, 0)),
 	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
 	ID_FILTERED(CTR_EL0, ctr_el0,
 		    CTR_EL0_DIC_MASK |
