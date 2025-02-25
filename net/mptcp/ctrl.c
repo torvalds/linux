@@ -401,26 +401,30 @@ void mptcp_active_enable(struct sock *sk)
 void mptcp_active_detect_blackhole(struct sock *ssk, bool expired)
 {
 	struct mptcp_subflow_context *subflow;
+	u8 timeouts, to_max;
+	struct net *net;
 
-	if (!sk_is_mptcp(ssk))
+	/* Only check MPTCP SYN ... */
+	if (likely(!sk_is_mptcp(ssk) || ssk->sk_state != TCP_SYN_SENT))
 		return;
 
 	subflow = mptcp_subflow_ctx(ssk);
 
-	if (subflow->request_mptcp && ssk->sk_state == TCP_SYN_SENT) {
-		struct net *net = sock_net(ssk);
-		u8 timeouts, to_max;
-
-		timeouts = inet_csk(ssk)->icsk_retransmits;
-		to_max = mptcp_get_pernet(net)->syn_retrans_before_tcp_fallback;
-
-		if (timeouts == to_max || (timeouts < to_max && expired)) {
-			MPTCP_INC_STATS(net, MPTCP_MIB_MPCAPABLEACTIVEDROP);
-			subflow->mpc_drop = 1;
-			mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
-		}
-	} else if (ssk->sk_state == TCP_SYN_SENT) {
+	/* ... + MP_CAPABLE */
+	if (!subflow->request_mptcp) {
+		/* Mark as blackhole iif the 1st non-MPTCP SYN is accepted */
 		subflow->mpc_drop = 0;
+		return;
+	}
+
+	net = sock_net(ssk);
+	timeouts = inet_csk(ssk)->icsk_retransmits;
+	to_max = mptcp_get_pernet(net)->syn_retrans_before_tcp_fallback;
+
+	if (timeouts == to_max || (timeouts < to_max && expired)) {
+		MPTCP_INC_STATS(net, MPTCP_MIB_MPCAPABLEACTIVEDROP);
+		subflow->mpc_drop = 1;
+		mptcp_subflow_early_fallback(mptcp_sk(subflow->conn), subflow);
 	}
 }
 

@@ -64,7 +64,7 @@ bool mptcp_addresses_equal(const struct mptcp_addr_info *a,
 			addr_equals = a->addr.s_addr == b->addr.s_addr;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 		else
-			addr_equals = !ipv6_addr_cmp(&a->addr6, &b->addr6);
+			addr_equals = ipv6_addr_equal(&a->addr6, &b->addr6);
 	} else if (a->family == AF_INET) {
 		if (ipv6_addr_v4mapped(&b->addr6))
 			addr_equals = a->addr.s_addr == b->addr6.s6_addr32[3];
@@ -1798,7 +1798,6 @@ int mptcp_pm_nl_dump_addr(struct sk_buff *msg,
 	struct mptcp_pm_addr_entry *entry;
 	struct pm_nl_pernet *pernet;
 	int id = cb->args[0];
-	void *hdr;
 	int i;
 
 	pernet = pm_nl_get_pernet(net);
@@ -1813,19 +1812,10 @@ int mptcp_pm_nl_dump_addr(struct sk_buff *msg,
 			if (entry->addr.id <= id)
 				continue;
 
-			hdr = genlmsg_put(msg, NETLINK_CB(cb->skb).portid,
-					  cb->nlh->nlmsg_seq, &mptcp_genl_family,
-					  NLM_F_MULTI, MPTCP_PM_CMD_GET_ADDR);
-			if (!hdr)
+			if (mptcp_pm_genl_fill_addr(msg, cb, entry) < 0)
 				break;
-
-			if (mptcp_nl_fill_addr(msg, entry) < 0) {
-				genlmsg_cancel(msg, hdr);
-				break;
-			}
 
 			id = entry->addr.id;
-			genlmsg_end(msg, hdr);
 		}
 	}
 	rcu_read_unlock();
@@ -1922,13 +1912,16 @@ static void mptcp_pm_nl_fullmesh(struct mptcp_sock *msk,
 	spin_unlock_bh(&msk->pm.lock);
 }
 
-static int mptcp_nl_set_flags(struct net *net,
-			      struct mptcp_addr_info *addr,
-			      u8 bkup, u8 changed)
+static void mptcp_nl_set_flags(struct net *net, struct mptcp_addr_info *addr,
+			       u8 flags, u8 changed)
 {
+	u8 is_subflow = !!(flags & MPTCP_PM_ADDR_FLAG_SUBFLOW);
+	u8 bkup = !!(flags & MPTCP_PM_ADDR_FLAG_BACKUP);
 	long s_slot = 0, s_num = 0;
 	struct mptcp_sock *msk;
-	int ret = -EINVAL;
+
+	if (changed == MPTCP_PM_ADDR_FLAG_FULLMESH && !is_subflow)
+		return;
 
 	while ((msk = mptcp_token_iter_next(net, &s_slot, &s_num)) != NULL) {
 		struct sock *sk = (struct sock *)msk;
@@ -1938,8 +1931,9 @@ static int mptcp_nl_set_flags(struct net *net,
 
 		lock_sock(sk);
 		if (changed & MPTCP_PM_ADDR_FLAG_BACKUP)
-			ret = mptcp_pm_nl_mp_prio_send_ack(msk, addr, NULL, bkup);
-		if (changed & MPTCP_PM_ADDR_FLAG_FULLMESH)
+			mptcp_pm_nl_mp_prio_send_ack(msk, addr, NULL, bkup);
+		/* Subflows will only be recreated if the SUBFLOW flag is set */
+		if (is_subflow && (changed & MPTCP_PM_ADDR_FLAG_FULLMESH))
 			mptcp_pm_nl_fullmesh(msk, addr);
 		release_sock(sk);
 
@@ -1948,7 +1942,7 @@ next:
 		cond_resched();
 	}
 
-	return ret;
+	return;
 }
 
 int mptcp_pm_nl_set_flags(struct mptcp_pm_addr_entry *local,
@@ -1961,7 +1955,6 @@ int mptcp_pm_nl_set_flags(struct mptcp_pm_addr_entry *local,
 	struct mptcp_pm_addr_entry *entry;
 	struct pm_nl_pernet *pernet;
 	u8 lookup_by_id = 0;
-	u8 bkup = 0;
 
 	pernet = pm_nl_get_pernet(net);
 
@@ -1973,9 +1966,6 @@ int mptcp_pm_nl_set_flags(struct mptcp_pm_addr_entry *local,
 			return -EOPNOTSUPP;
 		}
 	}
-
-	if (local->flags & MPTCP_PM_ADDR_FLAG_BACKUP)
-		bkup = 1;
 
 	spin_lock_bh(&pernet->lock);
 	entry = lookup_by_id ? __lookup_addr_by_id(pernet, local->addr.id) :
@@ -1998,7 +1988,7 @@ int mptcp_pm_nl_set_flags(struct mptcp_pm_addr_entry *local,
 	*local = *entry;
 	spin_unlock_bh(&pernet->lock);
 
-	mptcp_nl_set_flags(net, &local->addr, bkup, changed);
+	mptcp_nl_set_flags(net, &local->addr, entry->flags, changed);
 	return 0;
 }
 
@@ -2032,9 +2022,7 @@ static int mptcp_event_add_subflow(struct sk_buff *skb, const struct sock *ssk)
 		break;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	case AF_INET6: {
-		const struct ipv6_pinfo *np = inet6_sk(ssk);
-
-		if (nla_put_in6_addr(skb, MPTCP_ATTR_SADDR6, &np->saddr))
+		if (nla_put_in6_addr(skb, MPTCP_ATTR_SADDR6, &issk->pinet6->saddr))
 			return -EMSGSIZE;
 		if (nla_put_in6_addr(skb, MPTCP_ATTR_DADDR6, &ssk->sk_v6_daddr))
 			return -EMSGSIZE;
@@ -2261,9 +2249,7 @@ void mptcp_event_pm_listener(const struct sock *ssk,
 		break;
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	case AF_INET6: {
-		const struct ipv6_pinfo *np = inet6_sk(ssk);
-
-		if (nla_put_in6_addr(skb, MPTCP_ATTR_SADDR6, &np->saddr))
+		if (nla_put_in6_addr(skb, MPTCP_ATTR_SADDR6, &issk->pinet6->saddr))
 			goto nla_put_failure;
 		break;
 	}
