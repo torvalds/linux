@@ -496,6 +496,7 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HW_CURSOR = 20,
 	VISUAL_CONFIRM_VABC = 21,
 	VISUAL_CONFIRM_DCC = 22,
+	VISUAL_CONFIRM_EXPLICIT = 0x80000000,
 };
 
 enum dc_psr_power_opts {
