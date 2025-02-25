@@ -32,7 +32,6 @@
 
 #include "gc/gc_12_1_0_offset.h"
 #include "gc/gc_12_1_0_sh_mask.h"
-#include "hdp/hdp_6_0_0_offset.h"
 #include "ivsrcid/gfx/irqsrcs_gfx_11_0_0.h"
 
 #include "soc15_common.h"
@@ -311,33 +310,6 @@ static void sdma_v7_1_ring_emit_mem_sync(struct amdgpu_ring *ring)
 			  SDMA_PKT_GCR_REQ_PAYLOAD5_VMID(0));
 }
 
-
-/**
- * sdma_v7_1_ring_emit_hdp_flush - emit an hdp flush on the DMA ring
- *
- * @ring: amdgpu ring pointer
- *
- * Emit an hdp flush packet on the requested DMA ring.
- */
-static void sdma_v7_1_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	u32 ref_and_mask = 0;
-	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio.hdp_flush_reg;
-
-	ref_and_mask = nbio_hf_reg->ref_and_mask_sdma0
-				<< (ring->me % adev->sdma.num_inst_per_xcc);
-
-	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(1) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* == */
-	amdgpu_ring_write(ring, (adev->nbio.funcs->get_hdp_flush_done_offset(adev)) << 2);
-	amdgpu_ring_write(ring, (adev->nbio.funcs->get_hdp_flush_req_offset(adev)) << 2);
-	amdgpu_ring_write(ring, ref_and_mask); /* reference */
-	amdgpu_ring_write(ring, ref_and_mask); /* mask */
-	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
-			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10)); /* retry count, poll interval */
-}
 
 /**
  * sdma_v7_1_ring_emit_fence - emit a fence on the DMA ring
@@ -1215,7 +1187,6 @@ static void sdma_v7_1_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 
 	/* wait for idle */
 	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3) | /* equal */
 			  SDMA_PKT_POLL_REGMEM_HEADER_MEM_POLL(1));
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
@@ -1257,7 +1228,6 @@ static void sdma_v7_1_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 					 uint32_t val, uint32_t mask)
 {
 	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* equal */
 	amdgpu_ring_write(ring, reg << 2);
 	amdgpu_ring_write(ring, 0);
@@ -1667,7 +1637,6 @@ static const struct amdgpu_ring_funcs sdma_v7_1_ring_funcs = {
 	.set_wptr = sdma_v7_1_ring_set_wptr,
 	.emit_frame_size =
 		5 + /* sdma_v7_1_ring_init_cond_exec */
-		6 + /* sdma_v7_1_ring_emit_hdp_flush */
 		6 + /* sdma_v7_1_ring_emit_pipeline_sync */
 		/* sdma_v7_1_ring_emit_vm_flush */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
@@ -1679,7 +1648,6 @@ static const struct amdgpu_ring_funcs sdma_v7_1_ring_funcs = {
 	.emit_fence = sdma_v7_1_ring_emit_fence,
 	.emit_pipeline_sync = sdma_v7_1_ring_emit_pipeline_sync,
 	.emit_vm_flush = sdma_v7_1_ring_emit_vm_flush,
-	.emit_hdp_flush = sdma_v7_1_ring_emit_hdp_flush,
 	.test_ring = sdma_v7_1_ring_test_ring,
 	.test_ib = sdma_v7_1_ring_test_ib,
 	.insert_nop = sdma_v7_1_ring_insert_nop,

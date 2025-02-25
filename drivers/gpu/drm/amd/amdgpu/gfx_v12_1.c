@@ -2427,13 +2427,11 @@ static int gfx_v12_1_gfxhub_enable(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	adev->hdp.funcs->flush_hdp(adev, NULL);
-
 	value = (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS) ?
 		false : true;
 
 	adev->gfxhub.funcs->set_fault_enable_default(adev, value);
-	/* TODO investigate why this and the hdp flush above is needed,
+	/* TODO investigate why TLB flush is needed,
 	 * are we missing a flush somewhere else? */
 	adev->gmc.gmc_funcs->flush_gpu_tlb(adev, 0, AMDGPU_GFXHUB(0), 0);
 
@@ -3145,35 +3143,6 @@ static void gfx_v12_1_ring_set_wptr_compute(struct amdgpu_ring *ring)
 	}
 }
 
-static void gfx_v12_1_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	u32 ref_and_mask, reg_mem_engine;
-	const struct nbio_hdp_flush_reg *nbio_hf_reg = adev->nbio.hdp_flush_reg;
-
-	if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE) {
-		switch (ring->me) {
-		case 1:
-			ref_and_mask = nbio_hf_reg->ref_and_mask_cp2 << ring->pipe;
-			break;
-		case 2:
-			ref_and_mask = nbio_hf_reg->ref_and_mask_cp6 << ring->pipe;
-			break;
-		default:
-			return;
-		}
-		reg_mem_engine = 0;
-	} else {
-		ref_and_mask = nbio_hf_reg->ref_and_mask_cp0;
-		reg_mem_engine = 1; /* pfp */
-	}
-
-	gfx_v12_1_wait_reg_mem(ring, reg_mem_engine, 0, 1,
-			       adev->nbio.funcs->get_hdp_flush_req_offset(adev),
-			       adev->nbio.funcs->get_hdp_flush_done_offset(adev),
-			       ref_and_mask, ref_and_mask, 0x20);
-}
-
 static void gfx_v12_1_ring_emit_ib_compute(struct amdgpu_ring *ring,
 					   struct amdgpu_job *job,
 					   struct amdgpu_ib *ib,
@@ -3658,8 +3627,6 @@ static const struct amdgpu_ring_funcs gfx_v12_1_ring_funcs_compute = {
 	.get_wptr = gfx_v12_1_ring_get_wptr_compute,
 	.set_wptr = gfx_v12_1_ring_set_wptr_compute,
 	.emit_frame_size =
-		7 + /* gfx_v12_1_ring_emit_hdp_flush */
-		5 + /* hdp invalidate */
 		7 + /* gfx_v12_1_ring_emit_pipeline_sync */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 5 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
@@ -3671,7 +3638,6 @@ static const struct amdgpu_ring_funcs gfx_v12_1_ring_funcs_compute = {
 	.emit_fence = gfx_v12_1_ring_emit_fence,
 	.emit_pipeline_sync = gfx_v12_1_ring_emit_pipeline_sync,
 	.emit_vm_flush = gfx_v12_1_ring_emit_vm_flush,
-	.emit_hdp_flush = gfx_v12_1_ring_emit_hdp_flush,
 	.test_ring = gfx_v12_1_ring_test_ring,
 	.test_ib = gfx_v12_1_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
@@ -3691,8 +3657,6 @@ static const struct amdgpu_ring_funcs gfx_v12_1_ring_funcs_kiq = {
 	.get_wptr = gfx_v12_1_ring_get_wptr_compute,
 	.set_wptr = gfx_v12_1_ring_set_wptr_compute,
 	.emit_frame_size =
-		7 + /* gfx_v12_1_ring_emit_hdp_flush */
-		5 + /*hdp invalidate */
 		7 + /* gfx_v12_1_ring_emit_pipeline_sync */
 		SOC15_FLUSH_GPU_TLB_NUM_WREG * 5 +
 		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 7 +
