@@ -1290,6 +1290,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 	uint16_t die_offset;
 	uint16_t ip_offset;
 	uint16_t num_dies;
+	uint32_t wafl_ver;
 	uint16_t num_ips;
 	uint16_t hw_id;
 	uint8_t inst;
@@ -1303,6 +1304,7 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	wafl_ver = 0;
 	adev->gfx.xcc_mask = 0;
 	adev->sdma.sdma_mask = 0;
 	adev->vcn.inst_mask = 0;
@@ -1403,6 +1405,10 @@ static int amdgpu_discovery_reg_base_init(struct amdgpu_device *adev)
 				adev->gfx.xcc_mask |=
 					(1U << ip->instance_number);
 
+			if (!wafl_ver && le16_to_cpu(ip->hw_id) == WAFLC_HWID)
+				wafl_ver = IP_VERSION_FULL(ip->major, ip->minor,
+							   ip->revision, 0, 0);
+
 			for (k = 0; k < num_base_address; k++) {
 				/*
 				 * convert the endianness of base addresses in place,
@@ -1467,6 +1473,9 @@ next_ip:
 				ip_offset += struct_size(ip, base_address, ip->num_base_address);
 		}
 	}
+
+	if (wafl_ver && !adev->ip_versions[XGMI_HWIP][0])
+		adev->ip_versions[XGMI_HWIP][0] = wafl_ver;
 
 	return 0;
 }
@@ -2771,10 +2780,6 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))
-		adev->ip_versions[XGMI_HWIP][0] = IP_VERSION(6, 4, 0);
 
 	/* set NBIO version */
 	switch (amdgpu_ip_version(adev, NBIO_HWIP, 0)) {
