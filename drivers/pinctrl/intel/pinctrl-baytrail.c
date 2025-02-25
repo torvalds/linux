@@ -1560,15 +1560,13 @@ static int byt_set_soc_data(struct intel_pinctrl *vg,
 	vg->soc = soc;
 
 	vg->ncommunities = vg->soc->ncommunities;
-	vg->communities = devm_kcalloc(vg->dev, vg->ncommunities,
-				       sizeof(*vg->communities), GFP_KERNEL);
+	vg->communities = devm_kmemdup_array(vg->dev, vg->soc->communities, vg->ncommunities,
+					     sizeof(*vg->soc->communities), GFP_KERNEL);
 	if (!vg->communities)
 		return -ENOMEM;
 
 	for (i = 0; i < vg->soc->ncommunities; i++) {
 		struct intel_community *comm = vg->communities + i;
-
-		*comm = vg->soc->communities[i];
 
 		comm->pad_regs = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(comm->pad_regs))
