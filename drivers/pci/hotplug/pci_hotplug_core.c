@@ -205,10 +205,8 @@ static struct pci_slot_attribute hotplug_slot_attr_test = {
 	.store = test_write_file
 };
 
-static bool has_power_file(struct pci_slot *pci_slot)
+static bool has_power_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
 	if ((slot->ops->enable_slot) ||
 	    (slot->ops->disable_slot) ||
 	    (slot->ops->get_power_status))
@@ -216,79 +214,71 @@ static bool has_power_file(struct pci_slot *pci_slot)
 	return false;
 }
 
-static bool has_attention_file(struct pci_slot *pci_slot)
+static bool has_attention_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
 	if ((slot->ops->set_attention_status) ||
 	    (slot->ops->get_attention_status))
 		return true;
 	return false;
 }
 
-static bool has_latch_file(struct pci_slot *pci_slot)
+static bool has_latch_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
 	if (slot->ops->get_latch_status)
 		return true;
 	return false;
 }
 
-static bool has_adapter_file(struct pci_slot *pci_slot)
+static bool has_adapter_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
 	if (slot->ops->get_adapter_status)
 		return true;
 	return false;
 }
 
-static bool has_test_file(struct pci_slot *pci_slot)
+static bool has_test_file(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *slot = pci_slot->hotplug;
-
 	if (slot->ops->hardware_test)
 		return true;
 	return false;
 }
 
-static int fs_add_slot(struct pci_slot *pci_slot)
+static int fs_add_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 {
 	int retval = 0;
 
 	/* Create symbolic link to the hotplug driver module */
 	pci_hp_create_module_link(pci_slot);
 
-	if (has_power_file(pci_slot)) {
+	if (has_power_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_power.attr);
 		if (retval)
 			goto exit_power;
 	}
 
-	if (has_attention_file(pci_slot)) {
+	if (has_attention_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_attention.attr);
 		if (retval)
 			goto exit_attention;
 	}
 
-	if (has_latch_file(pci_slot)) {
+	if (has_latch_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_latch.attr);
 		if (retval)
 			goto exit_latch;
 	}
 
-	if (has_adapter_file(pci_slot)) {
+	if (has_adapter_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_presence.attr);
 		if (retval)
 			goto exit_adapter;
 	}
 
-	if (has_test_file(pci_slot)) {
+	if (has_test_file(slot)) {
 		retval = sysfs_create_file(&pci_slot->kobj,
 					   &hotplug_slot_attr_test.attr);
 		if (retval)
@@ -298,18 +288,18 @@ static int fs_add_slot(struct pci_slot *pci_slot)
 	goto exit;
 
 exit_test:
-	if (has_adapter_file(pci_slot))
+	if (has_adapter_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
 exit_adapter:
-	if (has_latch_file(pci_slot))
+	if (has_latch_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_latch.attr);
 exit_latch:
-	if (has_attention_file(pci_slot))
+	if (has_attention_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_attention.attr);
 exit_attention:
-	if (has_power_file(pci_slot))
+	if (has_power_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_power.attr);
 exit_power:
 	pci_hp_remove_module_link(pci_slot);
@@ -317,23 +307,23 @@ exit:
 	return retval;
 }
 
-static void fs_remove_slot(struct pci_slot *pci_slot)
+static void fs_remove_slot(struct hotplug_slot *slot, struct pci_slot *pci_slot)
 {
-	if (has_power_file(pci_slot))
+	if (has_power_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_power.attr);
 
-	if (has_attention_file(pci_slot))
+	if (has_attention_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_attention.attr);
 
-	if (has_latch_file(pci_slot))
+	if (has_latch_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_latch.attr);
 
-	if (has_adapter_file(pci_slot))
+	if (has_adapter_file(slot))
 		sysfs_remove_file(&pci_slot->kobj,
 				  &hotplug_slot_attr_presence.attr);
 
-	if (has_test_file(pci_slot))
+	if (has_test_file(slot))
 		sysfs_remove_file(&pci_slot->kobj, &hotplug_slot_attr_test.attr);
 
 	pci_hp_remove_module_link(pci_slot);
@@ -437,7 +427,7 @@ int pci_hp_add(struct hotplug_slot *slot)
 
 	pci_slot = slot->pci_slot;
 
-	result = fs_add_slot(pci_slot);
+	result = fs_add_slot(slot, pci_slot);
 	if (result)
 		return result;
 
@@ -471,7 +461,7 @@ void pci_hp_del(struct hotplug_slot *slot)
 	if (WARN_ON(!slot))
 		return;
 
-	fs_remove_slot(slot->pci_slot);
+	fs_remove_slot(slot, slot->pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_del);
 
