@@ -1475,43 +1475,6 @@ void omap3isp_put(struct isp_device *isp)
  * Platform device driver
  */
 
-/*
- * omap3isp_print_status - Prints the values of the ISP Control Module registers
- * @isp: OMAP3 ISP device
- */
-#define ISP_PRINT_REGISTER(isp, name)\
-	dev_dbg(isp->dev, "###ISP " #name "=0x%08x\n", \
-		isp_reg_readl(isp, OMAP3_ISP_IOMEM_MAIN, ISP_##name))
-#define SBL_PRINT_REGISTER(isp, name)\
-	dev_dbg(isp->dev, "###SBL " #name "=0x%08x\n", \
-		isp_reg_readl(isp, OMAP3_ISP_IOMEM_SBL, ISPSBL_##name))
-
-void omap3isp_print_status(struct isp_device *isp)
-{
-	dev_dbg(isp->dev, "-------------ISP Register dump--------------\n");
-
-	ISP_PRINT_REGISTER(isp, SYSCONFIG);
-	ISP_PRINT_REGISTER(isp, SYSSTATUS);
-	ISP_PRINT_REGISTER(isp, IRQ0ENABLE);
-	ISP_PRINT_REGISTER(isp, IRQ0STATUS);
-	ISP_PRINT_REGISTER(isp, TCTRL_GRESET_LENGTH);
-	ISP_PRINT_REGISTER(isp, TCTRL_PSTRB_REPLAY);
-	ISP_PRINT_REGISTER(isp, CTRL);
-	ISP_PRINT_REGISTER(isp, TCTRL_CTRL);
-	ISP_PRINT_REGISTER(isp, TCTRL_FRAME);
-	ISP_PRINT_REGISTER(isp, TCTRL_PSTRB_DELAY);
-	ISP_PRINT_REGISTER(isp, TCTRL_STRB_DELAY);
-	ISP_PRINT_REGISTER(isp, TCTRL_SHUT_DELAY);
-	ISP_PRINT_REGISTER(isp, TCTRL_PSTRB_LENGTH);
-	ISP_PRINT_REGISTER(isp, TCTRL_STRB_LENGTH);
-	ISP_PRINT_REGISTER(isp, TCTRL_SHUT_LENGTH);
-
-	SBL_PRINT_REGISTER(isp, PCR);
-	SBL_PRINT_REGISTER(isp, SDR_REQ_EXP);
-
-	dev_dbg(isp->dev, "--------------------------------------------\n");
-}
-
 #ifdef CONFIG_PM
 
 /*
