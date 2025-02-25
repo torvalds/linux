@@ -1663,15 +1663,24 @@ static bool is_feature_id_reg(u32 encoding)
  * Return true if the register's (Op0, Op1, CRn, CRm, Op2) is
  * (3, 0, 0, crm, op2), where 1<=crm<8, 0<=op2<8, which is the range of ID
  * registers KVM maintains on a per-VM basis.
+ *
+ * Additionally, the implementation ID registers and CTR_EL0 are handled as
+ * per-VM registers.
  */
 static inline bool is_vm_ftr_id_reg(u32 id)
 {
-	if (id == SYS_CTR_EL0)
+	switch (id) {
+	case SYS_CTR_EL0:
+	case SYS_MIDR_EL1:
+	case SYS_REVIDR_EL1:
+	case SYS_AIDR_EL1:
 		return true;
+	default:
+		return (sys_reg_Op0(id) == 3 && sys_reg_Op1(id) == 0 &&
+			sys_reg_CRn(id) == 0 && sys_reg_CRm(id) >= 1 &&
+			sys_reg_CRm(id) < 8);
 
-	return (sys_reg_Op0(id) == 3 && sys_reg_Op1(id) == 0 &&
-		sys_reg_CRn(id) == 0 && sys_reg_CRm(id) >= 1 &&
-		sys_reg_CRm(id) < 8);
+	}
 }
 
 static inline bool is_vcpu_ftr_id_reg(u32 id)
@@ -2540,36 +2549,27 @@ static void init_imp_id_regs(void)
 	boot_cpu_aidr_val = read_sysreg(aidr_el1);
 }
 
-static int get_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
-			  u64 *val)
+static u64 reset_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r)
 {
 	switch (reg_to_encoding(r)) {
 	case SYS_MIDR_EL1:
-		*val = boot_cpu_midr_val;
-		break;
+		return boot_cpu_midr_val;
 	case SYS_REVIDR_EL1:
-		*val = boot_cpu_revidr_val;
-		break;
+		return boot_cpu_revidr_val;
 	case SYS_AIDR_EL1:
-		*val = boot_cpu_aidr_val;
-		break;
+		return boot_cpu_aidr_val;
 	default:
-		WARN_ON_ONCE(1);
-		return -EINVAL;
+		KVM_BUG_ON(1, vcpu->kvm);
+		return 0;
 	}
-
-	return 0;
 }
 
 static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 			  u64 val)
 {
 	u64 expected;
-	int ret;
 
-	ret = get_imp_id_reg(vcpu, r, &expected);
-	if (ret)
-		return ret;
+	expected = read_id_reg(vcpu, r);
 
 	return (expected == val) ? 0 : -EINVAL;
 }
@@ -2577,8 +2577,9 @@ static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 #define IMPLEMENTATION_ID(reg) {			\
 	SYS_DESC(SYS_##reg),				\
 	.access = access_imp_id_reg,			\
-	.get_user = get_imp_id_reg,			\
+	.get_user = get_id_reg,				\
 	.set_user = set_imp_id_reg,			\
+	.reset = reset_imp_id_reg,			\
 }
 
 /*
