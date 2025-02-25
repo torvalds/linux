@@ -300,7 +300,8 @@ static int avs_whm_create(struct avs_dev *adev, struct avs_path_module *mod)
 	return ret;
 }
 
-static struct avs_control_data *avs_get_module_control(struct avs_path_module *mod)
+static struct soc_mixer_control *avs_get_module_control(struct avs_path_module *mod,
+							const char *name)
 {
 	struct avs_tplg_module *t = mod->template;
 	struct avs_tplg_path_template *path_tmpl;
@@ -316,27 +317,93 @@ static struct avs_control_data *avs_get_module_control(struct avs_path_module *m
 
 		mc = (struct soc_mixer_control *)w->kcontrols[i]->private_value;
 		ctl_data = (struct avs_control_data *)mc->dobj.private;
-		if (ctl_data->id == t->ctl_id)
-			return ctl_data;
+		if (ctl_data->id == t->ctl_id && strstr(w->kcontrols[i]->id.name, name))
+			return mc;
 	}
 
 	return NULL;
 }
 
+int avs_peakvol_set_volume(struct avs_dev *adev, struct avs_path_module *mod,
+			   struct soc_mixer_control *mc, long *input)
+{
+	struct avs_volume_cfg vols[SND_SOC_TPLG_MAX_CHAN] = {{0}};
+	struct avs_control_data *ctl_data;
+	struct avs_tplg_module *t;
+	int ret, i;
+
+	ctl_data = mc->dobj.private;
+	t = mod->template;
+	if (!input)
+		input = ctl_data->values;
+
+	if (mc->num_channels) {
+		for (i = 0; i < mc->num_channels; i++) {
+			vols[i].channel_id = i;
+			vols[i].target_volume = input[i];
+			vols[i].curve_type = t->cfg_ext->peakvol.curve_type;
+			vols[i].curve_duration = t->cfg_ext->peakvol.curve_duration;
+		}
+
+		ret = avs_ipc_peakvol_set_volumes(adev, mod->module_id, mod->instance_id, vols,
+						  mc->num_channels);
+		return AVS_IPC_RET(ret);
+	}
+
+	/* Target all channels if no individual selected. */
+	vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	vols[0].target_volume = input[0];
+	vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
+
+	ret = avs_ipc_peakvol_set_volume(adev, mod->module_id, mod->instance_id, &vols[0]);
+	return AVS_IPC_RET(ret);
+}
+
+int avs_peakvol_set_mute(struct avs_dev *adev, struct avs_path_module *mod,
+			 struct soc_mixer_control *mc, long *input)
+{
+	struct avs_mute_cfg mutes[SND_SOC_TPLG_MAX_CHAN] = {{0}};
+	struct avs_control_data *ctl_data;
+	struct avs_tplg_module *t;
+	int ret, i;
+
+	ctl_data = mc->dobj.private;
+	t = mod->template;
+	if (!input)
+		input = ctl_data->values;
+
+	if (mc->num_channels) {
+		for (i = 0; i < mc->num_channels; i++) {
+			mutes[i].channel_id = i;
+			mutes[i].mute = !input[i];
+			mutes[i].curve_type = t->cfg_ext->peakvol.curve_type;
+			mutes[i].curve_duration = t->cfg_ext->peakvol.curve_duration;
+		}
+
+		ret = avs_ipc_peakvol_set_mutes(adev, mod->module_id, mod->instance_id, mutes,
+						mc->num_channels);
+		return AVS_IPC_RET(ret);
+	}
+
+	/* Target all channels if no individual selected. */
+	mutes[0].channel_id = AVS_ALL_CHANNELS_MASK;
+	mutes[0].mute = !input[0];
+	mutes[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	mutes[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
+
+	ret = avs_ipc_peakvol_set_mute(adev, mod->module_id, mod->instance_id, &mutes[0]);
+	return AVS_IPC_RET(ret);
+}
+
 static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
 	struct avs_tplg_module *t = mod->template;
-	struct avs_control_data *ctl_data;
+	struct soc_mixer_control *mc;
 	struct avs_peakvol_cfg *cfg;
-	int volume = S32_MAX;
 	size_t cfg_size;
 	int ret;
 
-	ctl_data = avs_get_module_control(mod);
-	if (ctl_data)
-		volume = ctl_data->volume;
-
-	/* As 2+ channels controls are unsupported, have a single block for all channels. */
 	cfg_size = struct_size(cfg, vols, 1);
 	if (cfg_size > AVS_MAILBOX_SIZE)
 		return -EINVAL;
@@ -348,15 +415,28 @@ static int avs_peakvol_create(struct avs_dev *adev, struct avs_path_module *mod)
 	cfg->base.obs = t->cfg_base->obs;
 	cfg->base.is_pages = t->cfg_base->is_pages;
 	cfg->base.audio_fmt = *t->in_fmt;
-	cfg->vols[0].target_volume = volume;
 	cfg->vols[0].channel_id = AVS_ALL_CHANNELS_MASK;
-	cfg->vols[0].curve_type = AVS_AUDIO_CURVE_NONE;
-	cfg->vols[0].curve_duration = 0;
+	cfg->vols[0].target_volume = S32_MAX;
+	cfg->vols[0].curve_type = t->cfg_ext->peakvol.curve_type;
+	cfg->vols[0].curve_duration = t->cfg_ext->peakvol.curve_duration;
 
 	ret = avs_dsp_init_module(adev, mod->module_id, mod->owner->instance_id, t->core_id,
 				  t->domain, cfg, cfg_size, &mod->instance_id);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Now configure both VOLUME and MUTE parameters. */
+	mc = avs_get_module_control(mod, "Volume");
+	if (mc) {
+		ret = avs_peakvol_set_volume(adev, mod, mc, NULL);
+		if (ret)
+			return ret;
+	}
+
+	mc = avs_get_module_control(mod, "Switch");
+	if (mc)
+		return avs_peakvol_set_mute(adev, mod, mc, NULL);
+	return 0;
 }
 
 static int avs_updown_mix_create(struct avs_dev *adev, struct avs_path_module *mod)

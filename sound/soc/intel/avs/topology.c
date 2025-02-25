@@ -857,6 +857,24 @@ static const struct avs_tplg_token_parser modcfg_ext_parsers[] = {
 		.offset = offsetof(struct avs_tplg_modcfg_ext, whm.blob_fmt),
 		.parse = avs_parse_audio_format_ptr,
 	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_VOLUME_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.target_volume),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_CURVE_TYPE_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.curve_type),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_MODCFG_PEAKVOL_CURVE_DURATION_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_modcfg_ext, peakvol.curve_duration),
+		.parse = avs_parse_word_token,
+	},
 };
 
 static const struct avs_tplg_token_parser pin_format_parsers[] = {
@@ -1887,13 +1905,23 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 	return 0;
 }
 
-#define AVS_CONTROL_OPS_VOLUME	257
+enum {
+	AVS_CONTROL_OPS_VOLUME = 257,
+	AVS_CONTROL_OPS_MUTE,
+};
 
 static const struct snd_soc_tplg_kcontrol_ops avs_control_ops[] = {
 	{
 		.id = AVS_CONTROL_OPS_VOLUME,
 		.get = avs_control_volume_get,
 		.put = avs_control_volume_put,
+		.info = avs_control_volume_info,
+	},
+	{
+		.id = AVS_CONTROL_OPS_MUTE,
+		.get = avs_control_mute_get,
+		.put = avs_control_mute_put,
+		.info = avs_control_mute_info,
 	},
 };
 
@@ -1915,17 +1943,19 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	struct avs_control_data *ctl_data;
 	struct soc_mixer_control *mc;
 	size_t block_size;
-	int ret;
+	int ret, i;
 
 	switch (le32_to_cpu(hdr->type)) {
 	case SND_SOC_TPLG_TYPE_MIXER:
-		tmc = container_of(hdr, typeof(*tmc), hdr);
-		tuples = tmc->priv.array;
-		block_size = le32_to_cpu(tmc->priv.size);
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	mc = (struct soc_mixer_control *)ctmpl->private_value;
+	tmc = container_of(hdr, typeof(*tmc), hdr);
+	tuples = tmc->priv.array;
+	block_size = le32_to_cpu(tmc->priv.size);
 
 	ctl_data = devm_kzalloc(comp->card->dev, sizeof(*ctl_data), GFP_KERNEL);
 	if (!ctl_data)
@@ -1937,8 +1967,13 @@ avs_control_load(struct snd_soc_component *comp, int index, struct snd_kcontrol_
 	if (ret)
 		return ret;
 
-	mc = (struct soc_mixer_control *)ctmpl->private_value;
 	mc->dobj.private = ctl_data;
+	if (tmc->invert) {
+		ctl_data->values[0] = mc->max;
+		for (i = 1; i < mc->num_channels; i++)
+			ctl_data->values[i] = mc->max;
+	}
+
 	return 0;
 }
 
