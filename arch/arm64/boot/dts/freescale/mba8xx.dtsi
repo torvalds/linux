@@ -328,7 +328,6 @@
 	pinctrl-0 = <&pinctrl_pcieb>;
 	pinctrl-names = "default";
 	reset-gpios = <&lsio_gpio4 0 GPIO_ACTIVE_LOW>;
-	disable-gpio = <&expander 7 GPIO_ACTIVE_LOW>;
 	vpcie-supply = <&reg_pcie_1v5>;
 	status = "okay";
 };
