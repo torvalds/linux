@@ -187,6 +187,7 @@ properties:
       - description: ST STM32MP257 based Boards
         items:
           - enum:
+              - st,stm32mp257f-dk
               - st,stm32mp257f-ev1
           - const: st,stm32mp257
 
