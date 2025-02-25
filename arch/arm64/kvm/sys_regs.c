@@ -2493,6 +2493,93 @@ static bool access_mdcr(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+/*
+ * For historical (ahem ABI) reasons, KVM treated MIDR_EL1, REVIDR_EL1, and
+ * AIDR_EL1 as "invariant" registers, meaning userspace cannot change them.
+ * The values made visible to userspace were the register values of the boot
+ * CPU.
+ *
+ * At the same time, reads from these registers at EL1 previously were not
+ * trapped, allowing the guest to read the actual hardware value. On big-little
+ * machines, this means the VM can see different values depending on where a
+ * given vCPU got scheduled.
+ *
+ * These registers are now trapped as collateral damage from SME, and what
+ * follows attempts to give a user / guest view consistent with the existing
+ * ABI.
+ */
+static bool access_imp_id_reg(struct kvm_vcpu *vcpu,
+			      struct sys_reg_params *p,
+			      const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		return write_to_read_only(vcpu, p, r);
+
+	switch (reg_to_encoding(r)) {
+	case SYS_REVIDR_EL1:
+		p->regval = read_sysreg(revidr_el1);
+		break;
+	case SYS_AIDR_EL1:
+		p->regval = read_sysreg(aidr_el1);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+	}
+
+	return true;
+}
+
+static u64 __ro_after_init boot_cpu_midr_val;
+static u64 __ro_after_init boot_cpu_revidr_val;
+static u64 __ro_after_init boot_cpu_aidr_val;
+
+static void init_imp_id_regs(void)
+{
+	boot_cpu_midr_val = read_sysreg(midr_el1);
+	boot_cpu_revidr_val = read_sysreg(revidr_el1);
+	boot_cpu_aidr_val = read_sysreg(aidr_el1);
+}
+
+static int get_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
+			  u64 *val)
+{
+	switch (reg_to_encoding(r)) {
+	case SYS_MIDR_EL1:
+		*val = boot_cpu_midr_val;
+		break;
+	case SYS_REVIDR_EL1:
+		*val = boot_cpu_revidr_val;
+		break;
+	case SYS_AIDR_EL1:
+		*val = boot_cpu_aidr_val;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int set_imp_id_reg(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
+			  u64 val)
+{
+	u64 expected;
+	int ret;
+
+	ret = get_imp_id_reg(vcpu, r, &expected);
+	if (ret)
+		return ret;
+
+	return (expected == val) ? 0 : -EINVAL;
+}
+
+#define IMPLEMENTATION_ID(reg) {			\
+	SYS_DESC(SYS_##reg),				\
+	.access = access_imp_id_reg,			\
+	.get_user = get_imp_id_reg,			\
+	.set_user = set_imp_id_reg,			\
+}
 
 /*
  * Architected system registers.
@@ -2542,7 +2629,9 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 
 	{ SYS_DESC(SYS_DBGVCR32_EL2), undef_access, reset_val, DBGVCR32_EL2, 0 },
 
+	IMPLEMENTATION_ID(MIDR_EL1),
 	{ SYS_DESC(SYS_MPIDR_EL1), NULL, reset_mpidr, MPIDR_EL1 },
+	IMPLEMENTATION_ID(REVIDR_EL1),
 
 	/*
 	 * ID regs: all ID_SANITISED() entries here must have corresponding
@@ -2814,6 +2903,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  .set_user = set_clidr, .val = ~CLIDR_EL1_RES0 },
 	{ SYS_DESC(SYS_CCSIDR2_EL1), undef_access },
 	{ SYS_DESC(SYS_SMIDR_EL1), undef_access },
+	IMPLEMENTATION_ID(AIDR_EL1),
 	{ SYS_DESC(SYS_CSSELR_EL1), access_csselr, reset_unknown, CSSELR_EL1 },
 	ID_FILTERED(CTR_EL0, ctr_el0,
 		    CTR_EL0_DIC_MASK |
@@ -4272,9 +4362,13 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu)
 	 * Certain AArch32 ID registers are handled by rerouting to the AArch64
 	 * system register table. Registers in the ID range where CRm=0 are
 	 * excluded from this scheme as they do not trivially map into AArch64
-	 * system register encodings.
+	 * system register encodings, except for AIDR/REVIDR.
 	 */
-	if (params.Op1 == 0 && params.CRn == 0 && params.CRm)
+	if (params.Op1 == 0 && params.CRn == 0 &&
+	    (params.CRm || params.Op2 == 6 /* REVIDR */))
+		return kvm_emulate_cp15_id_reg(vcpu, &params);
+	if (params.Op1 == 1 && params.CRn == 0 &&
+	    params.CRm == 0 && params.Op2 == 7 /* AIDR */)
 		return kvm_emulate_cp15_id_reg(vcpu, &params);
 
 	return kvm_handle_cp_32(vcpu, &params, cp15_regs, ARRAY_SIZE(cp15_regs));
@@ -4578,65 +4672,6 @@ id_to_sys_reg_desc(struct kvm_vcpu *vcpu, u64 id,
 	return r;
 }
 
-/*
- * These are the invariant sys_reg registers: we let the guest see the
- * host versions of these, so they're part of the guest state.
- *
- * A future CPU may provide a mechanism to present different values to
- * the guest, or a future kvm may trap them.
- */
-
-#define FUNCTION_INVARIANT(reg)						\
-	static u64 reset_##reg(struct kvm_vcpu *v,			\
-			       const struct sys_reg_desc *r)		\
-	{								\
-		((struct sys_reg_desc *)r)->val = read_sysreg(reg);	\
-		return ((struct sys_reg_desc *)r)->val;			\
-	}
-
-FUNCTION_INVARIANT(midr_el1)
-FUNCTION_INVARIANT(revidr_el1)
-FUNCTION_INVARIANT(aidr_el1)
-
-/* ->val is filled in by kvm_sys_reg_table_init() */
-static struct sys_reg_desc invariant_sys_regs[] __ro_after_init = {
-	{ SYS_DESC(SYS_MIDR_EL1), NULL, reset_midr_el1 },
-	{ SYS_DESC(SYS_REVIDR_EL1), NULL, reset_revidr_el1 },
-	{ SYS_DESC(SYS_AIDR_EL1), NULL, reset_aidr_el1 },
-};
-
-static int get_invariant_sys_reg(u64 id, u64 __user *uaddr)
-{
-	const struct sys_reg_desc *r;
-
-	r = get_reg_by_id(id, invariant_sys_regs,
-			  ARRAY_SIZE(invariant_sys_regs));
-	if (!r)
-		return -ENOENT;
-
-	return put_user(r->val, uaddr);
-}
-
-static int set_invariant_sys_reg(u64 id, u64 __user *uaddr)
-{
-	const struct sys_reg_desc *r;
-	u64 val;
-
-	r = get_reg_by_id(id, invariant_sys_regs,
-			  ARRAY_SIZE(invariant_sys_regs));
-	if (!r)
-		return -ENOENT;
-
-	if (get_user(val, uaddr))
-		return -EFAULT;
-
-	/* This is what we mean by invariant: you can't change it. */
-	if (r->val != val)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int demux_c15_get(struct kvm_vcpu *vcpu, u64 id, void __user *uaddr)
 {
 	u32 val;
@@ -4718,14 +4753,9 @@ int kvm_sys_reg_get_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	void __user *uaddr = (void __user *)(unsigned long)reg->addr;
-	int err;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(vcpu, reg->id, uaddr);
-
-	err = get_invariant_sys_reg(reg->id, uaddr);
-	if (err != -ENOENT)
-		return err;
 
 	return kvm_sys_reg_get_user(vcpu, reg,
 				    sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
@@ -4762,14 +4792,9 @@ int kvm_sys_reg_set_user(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg,
 int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 {
 	void __user *uaddr = (void __user *)(unsigned long)reg->addr;
-	int err;
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(vcpu, reg->id, uaddr);
-
-	err = set_invariant_sys_reg(reg->id, uaddr);
-	if (err != -ENOENT)
-		return err;
 
 	return kvm_sys_reg_set_user(vcpu, reg,
 				    sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
@@ -4859,22 +4884,13 @@ static int walk_sys_regs(struct kvm_vcpu *vcpu, u64 __user *uind)
 
 unsigned long kvm_arm_num_sys_reg_descs(struct kvm_vcpu *vcpu)
 {
-	return ARRAY_SIZE(invariant_sys_regs)
-		+ num_demux_regs()
+	return num_demux_regs()
 		+ walk_sys_regs(vcpu, (u64 __user *)NULL);
 }
 
 int kvm_arm_copy_sys_reg_indices(struct kvm_vcpu *vcpu, u64 __user *uindices)
 {
-	unsigned int i;
 	int err;
-
-	/* Then give them all the invariant registers' indices. */
-	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++) {
-		if (put_user(sys_reg_to_index(&invariant_sys_regs[i]), uindices))
-			return -EFAULT;
-		uindices++;
-	}
 
 	err = walk_sys_regs(vcpu, uindices);
 	if (err < 0)
@@ -5101,15 +5117,12 @@ int __init kvm_sys_reg_table_init(void)
 	valid &= check_sysreg_table(cp14_64_regs, ARRAY_SIZE(cp14_64_regs), true);
 	valid &= check_sysreg_table(cp15_regs, ARRAY_SIZE(cp15_regs), true);
 	valid &= check_sysreg_table(cp15_64_regs, ARRAY_SIZE(cp15_64_regs), true);
-	valid &= check_sysreg_table(invariant_sys_regs, ARRAY_SIZE(invariant_sys_regs), false);
 	valid &= check_sysreg_table(sys_insn_descs, ARRAY_SIZE(sys_insn_descs), false);
 
 	if (!valid)
 		return -EINVAL;
 
-	/* We abuse the reset function to overwrite the table itself. */
-	for (i = 0; i < ARRAY_SIZE(invariant_sys_regs); i++)
-		invariant_sys_regs[i].reset(NULL, &invariant_sys_regs[i]);
+	init_imp_id_regs();
 
 	ret = populate_nv_trap_config();
 
