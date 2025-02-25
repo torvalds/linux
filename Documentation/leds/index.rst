@@ -28,5 +28,5 @@ LEDs
    leds-mlxcpld
    leds-mt6370-rgb
    leds-sc27xx
-   leds-st1202.rst
+   leds-st1202
    leds-qcom-lpg
