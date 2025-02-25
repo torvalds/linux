@@ -18,14 +18,12 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
 #include <linux/uaccess.h>
@@ -41,9 +39,6 @@
 
 /* local variables */
 static bool debug;
-
-static LIST_HEAD(pci_hotplug_slot_list);
-static DEFINE_MUTEX(pci_hp_mutex);
 
 /* Weee, fun with macros... */
 #define GET_STATUS(name, type)	\
@@ -375,17 +370,6 @@ static void fs_remove_slot(struct pci_slot *pci_slot)
 	pci_hp_remove_module_link(pci_slot);
 }
 
-static struct hotplug_slot *get_slot_from_name(const char *name)
-{
-	struct hotplug_slot *slot;
-
-	list_for_each_entry(slot, &pci_hotplug_slot_list, slot_list) {
-		if (strcmp(hotplug_slot_name(slot), name) == 0)
-			return slot;
-	}
-	return NULL;
-}
-
 /**
  * __pci_hp_register - register a hotplug_slot with the PCI hotplug subsystem
  * @slot: pointer to the &struct hotplug_slot to register
@@ -484,10 +468,6 @@ int pci_hp_add(struct hotplug_slot *slot)
 		return result;
 
 	kobject_uevent(&pci_slot->kobj, KOBJ_ADD);
-	mutex_lock(&pci_hp_mutex);
-	list_add(&slot->slot_list, &pci_hotplug_slot_list);
-	mutex_unlock(&pci_hp_mutex);
-	dbg("Added slot %s to the list\n", hotplug_slot_name(slot));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_hp_add);
@@ -514,21 +494,9 @@ EXPORT_SYMBOL_GPL(pci_hp_deregister);
  */
 void pci_hp_del(struct hotplug_slot *slot)
 {
-	struct hotplug_slot *temp;
-
 	if (WARN_ON(!slot))
 		return;
 
-	mutex_lock(&pci_hp_mutex);
-	temp = get_slot_from_name(hotplug_slot_name(slot));
-	if (WARN_ON(temp != slot)) {
-		mutex_unlock(&pci_hp_mutex);
-		return;
-	}
-
-	list_del(&slot->slot_list);
-	mutex_unlock(&pci_hp_mutex);
-	dbg("Removed slot %s from the list\n", hotplug_slot_name(slot));
 	fs_remove_slot(slot->pci_slot);
 }
 EXPORT_SYMBOL_GPL(pci_hp_del);
