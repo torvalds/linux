@@ -599,25 +599,32 @@ static bool is_async(struct device *dev)
 
 static bool dpm_async_fn(struct device *dev, async_func_t func)
 {
-	reinit_completion(&dev->power.completion);
+	if (!is_async(dev))
+		return false;
 
-	if (is_async(dev)) {
-		dev->power.work_in_progress = true;
+	dev->power.work_in_progress = true;
 
-		get_device(dev);
+	get_device(dev);
 
-		if (async_schedule_dev_nocall(func, dev))
-			return true;
+	if (async_schedule_dev_nocall(func, dev))
+		return true;
 
-		put_device(dev);
-	}
+	put_device(dev);
+
 	/*
-	 * Because async_schedule_dev_nocall() above has returned false or it
-	 * has not been called at all, func() is not running and it is safe to
-	 * update the work_in_progress flag without extra synchronization.
+	 * async_schedule_dev_nocall() above has returned false, so func() is
+	 * not running and it is safe to update power.work_in_progress without
+	 * extra synchronization.
 	 */
 	dev->power.work_in_progress = false;
+
 	return false;
+}
+
+static void dpm_clear_async_state(struct device *dev)
+{
+	reinit_completion(&dev->power.completion);
+	dev->power.work_in_progress = false;
 }
 
 /**
@@ -729,8 +736,10 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 	 * Trigger the resume of "async" devices upfront so they don't have to
 	 * wait for the "non-async" ones they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_noirq_list, power.entry)
+	list_for_each_entry(dev, &dpm_noirq_list, power.entry) {
+		dpm_clear_async_state(dev);
 		dpm_async_fn(dev, async_resume_noirq);
+	}
 
 	while (!list_empty(&dpm_noirq_list)) {
 		dev = to_device(dpm_noirq_list.next);
@@ -869,8 +878,10 @@ void dpm_resume_early(pm_message_t state)
 	 * Trigger the resume of "async" devices upfront so they don't have to
 	 * wait for the "non-async" ones they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_late_early_list, power.entry)
+	list_for_each_entry(dev, &dpm_late_early_list, power.entry) {
+		dpm_clear_async_state(dev);
 		dpm_async_fn(dev, async_resume_early);
+	}
 
 	while (!list_empty(&dpm_late_early_list)) {
 		dev = to_device(dpm_late_early_list.next);
@@ -1042,8 +1053,10 @@ void dpm_resume(pm_message_t state)
 	 * Trigger the resume of "async" devices upfront so they don't have to
 	 * wait for the "non-async" ones they don't depend on.
 	 */
-	list_for_each_entry(dev, &dpm_suspended_list, power.entry)
+	list_for_each_entry(dev, &dpm_suspended_list, power.entry) {
+		dpm_clear_async_state(dev);
 		dpm_async_fn(dev, async_resume);
+	}
 
 	while (!list_empty(&dpm_suspended_list)) {
 		dev = to_device(dpm_suspended_list.next);
@@ -1320,6 +1333,7 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 
 		list_move(&dev->power.entry, &dpm_noirq_list);
 
+		dpm_clear_async_state(dev);
 		if (dpm_async_fn(dev, async_suspend_noirq))
 			continue;
 
@@ -1497,6 +1511,7 @@ int dpm_suspend_late(pm_message_t state)
 
 		list_move(&dev->power.entry, &dpm_late_early_list);
 
+		dpm_clear_async_state(dev);
 		if (dpm_async_fn(dev, async_suspend_late))
 			continue;
 
@@ -1764,6 +1779,7 @@ int dpm_suspend(pm_message_t state)
 
 		list_move(&dev->power.entry, &dpm_suspended_list);
 
+		dpm_clear_async_state(dev);
 		if (dpm_async_fn(dev, async_suspend))
 			continue;
 
