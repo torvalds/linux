@@ -70,7 +70,7 @@ enum btrfs_subpage_type {
 	BTRFS_SUBPAGE_DATA,
 };
 
-#if PAGE_SIZE > SZ_4K
+#if PAGE_SIZE > BTRFS_MIN_BLOCKSIZE
 /*
  * Subpage support for metadata is more complex, as we can have dummy extent
  * buffers, where folios have no mapping to determine the owning inode.

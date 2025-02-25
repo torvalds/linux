@@ -411,7 +411,8 @@ static ssize_t supported_sectorsizes_show(struct kobject *kobj,
 {
 	ssize_t ret = 0;
 
-	/* An artificial limit to only support 4K and PAGE_SIZE */
+	if (BTRFS_MIN_BLOCKSIZE != SZ_4K && BTRFS_MIN_BLOCKSIZE != PAGE_SIZE)
+		ret += sysfs_emit_at(buf, ret, "%u ", BTRFS_MIN_BLOCKSIZE);
 	if (PAGE_SIZE > SZ_4K)
 		ret += sysfs_emit_at(buf, ret, "%u ", SZ_4K);
 	ret += sysfs_emit_at(buf, ret, "%lu\n", PAGE_SIZE);
