@@ -2912,7 +2912,7 @@ static bool can_enable_drrs(struct intel_connector *connector,
 			    const struct intel_crtc_state *pipe_config,
 			    const struct drm_display_mode *downclock_mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct intel_display *display = to_intel_display(connector);
 
 	if (pipe_config->vrr.enable)
 		return false;
@@ -2930,7 +2930,7 @@ static bool can_enable_drrs(struct intel_connector *connector,
 	if (pipe_config->has_pch_encoder)
 		return false;
 
-	if (!intel_cpu_transcoder_has_drrs(i915, pipe_config->cpu_transcoder))
+	if (!intel_cpu_transcoder_has_drrs(display, pipe_config->cpu_transcoder))
 		return false;
 
 	return downclock_mode &&
