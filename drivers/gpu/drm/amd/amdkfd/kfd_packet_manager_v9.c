@@ -298,13 +298,14 @@ static int pm_map_queues_v9(struct packet_manager *pm, uint32_t *buffer,
 }
 
 static inline void pm_build_dequeue_wait_counts_packet_info(struct packet_manager *pm,
-			uint32_t sch_value, uint32_t *reg_offset,
+			uint32_t sch_value, uint32_t que_sleep, uint32_t *reg_offset,
 			uint32_t *reg_data)
 {
-	pm->dqm->dev->kfd2kgd->build_grace_period_packet_info(
+	pm->dqm->dev->kfd2kgd->build_dequeue_wait_counts_packet_info(
 		pm->dqm->dev->adev,
 		pm->dqm->wait_times,
 		sch_value,
+		que_sleep,
 		reg_offset,
 		reg_data);
 }
@@ -319,27 +320,43 @@ static int pm_config_dequeue_wait_counts_v9(struct packet_manager *pm,
 	uint32_t reg_data = 0;
 
 	switch (cmd) {
-	case KFD_DEQUEUE_WAIT_INIT:
-		/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
-		if (amdgpu_emu_mode == 0 && pm->dqm->dev->adev->gmc.is_app_apu &&
-		   (KFD_GC_VERSION(pm->dqm->dev) == IP_VERSION(9, 4, 3)))
-			pm_build_dequeue_wait_counts_packet_info(pm, 1, &reg_offset, &reg_data);
-		else
+	case KFD_DEQUEUE_WAIT_INIT: {
+		uint32_t sch_wave = 0, que_sleep = 0;
+		/* Reduce CP_IQ_WAIT_TIME2.QUE_SLEEP to 0x1 from default 0x40.
+		 * On a 1GHz machine this is roughly 1 microsecond, which is
+		 * about how long it takes to load data out of memory during
+		 * queue connect
+		 * QUE_SLEEP: Wait Count for Dequeue Retry.
+		 */
+		if (KFD_GC_VERSION(pm->dqm->dev) >= IP_VERSION(9, 4, 1) &&
+		    KFD_GC_VERSION(pm->dqm->dev) < IP_VERSION(10, 0, 0)) {
+			que_sleep = 1;
+
+			/* Set CWSR grace period to 1x1000 cycle for GFX9.4.3 APU */
+			if (amdgpu_emu_mode == 0 && pm->dqm->dev->adev->gmc.is_app_apu &&
+			(KFD_GC_VERSION(pm->dqm->dev) == IP_VERSION(9, 4, 3)))
+				sch_wave = 1;
+		} else {
 			return 0;
+		}
+		pm_build_dequeue_wait_counts_packet_info(pm, sch_wave, que_sleep,
+			&reg_offset, &reg_data);
+
 		break;
+	}
 	case KFD_DEQUEUE_WAIT_RESET:
-		/* function called only to get reg_offset */
-		pm_build_dequeue_wait_counts_packet_info(pm, 0, &reg_offset, &reg_data);
-		reg_data = pm->dqm->wait_times;
+		/* reg_data would be set to dqm->wait_times */
+		pm_build_dequeue_wait_counts_packet_info(pm, 0, 0, &reg_offset, &reg_data);
 		break;
 
 	case KFD_DEQUEUE_WAIT_SET_SCH_WAVE:
 		/* The CP cannot handle value 0 and it will result in
-		 * an infinite grace period being set so set to 1 to prevent this.
+		 * an infinite grace period being set so set to 1 to prevent this. Also
+		 * avoid debugger API breakage as it sets 0 and expects a low value.
 		 */
 		if (!value)
 			value = 1;
-		pm_build_dequeue_wait_counts_packet_info(pm, value, &reg_offset, &reg_data);
+		pm_build_dequeue_wait_counts_packet_info(pm, value, 0, &reg_offset, &reg_data);
 		break;
 	default:
 		pr_err("Invalid dequeue wait cmd\n");
