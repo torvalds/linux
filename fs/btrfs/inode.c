@@ -570,6 +570,10 @@ static bool can_cow_file_range_inline(struct btrfs_inode *inode,
 	if (size > fs_info->sectorsize)
 		return false;
 
+	/* We do not allow a non-compressed extent to be as large as block size. */
+	if (data_len >= fs_info->sectorsize)
+		return false;
+
 	/* We cannot exceed the maximum inline data size. */
 	if (data_len > BTRFS_MAX_INLINE_DATA_SIZE(fs_info))
 		return false;
@@ -8670,7 +8674,12 @@ static int btrfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	struct extent_buffer *leaf;
 
 	name_len = strlen(symname);
-	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(fs_info))
+	/*
+	 * Symlinks utilize uncompressed inline extent data, which should not
+	 * reach block size.
+	 */
+	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(fs_info) ||
+	    name_len >= fs_info->sectorsize)
 		return -ENAMETOOLONG;
 
 	inode = new_inode(dir->i_sb);
