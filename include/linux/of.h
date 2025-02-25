@@ -67,7 +67,7 @@ struct device_node {
 #endif
 };
 
-#define MAX_PHANDLE_ARGS 16
+#define MAX_PHANDLE_ARGS NR_FWNODE_REFERENCE_ARGS
 struct of_phandle_args {
 	struct device_node *np;
 	int args_count;
