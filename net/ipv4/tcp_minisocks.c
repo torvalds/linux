@@ -663,6 +663,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	struct sock *child;
 	const struct tcphdr *th = tcp_hdr(skb);
 	__be32 flg = tcp_flag_word(th) & (TCP_FLAG_RST|TCP_FLAG_SYN|TCP_FLAG_ACK);
+	bool tsecr_reject = false;
 	bool paws_reject = false;
 	bool own_req;
 
@@ -672,8 +673,13 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 
 		if (tmp_opt.saw_tstamp) {
 			tmp_opt.ts_recent = READ_ONCE(req->ts_recent);
-			if (tmp_opt.rcv_tsecr)
+			if (tmp_opt.rcv_tsecr) {
+				if (inet_rsk(req)->tstamp_ok && !fastopen)
+					tsecr_reject = !between(tmp_opt.rcv_tsecr,
+							tcp_rsk(req)->snt_tsval_first,
+							READ_ONCE(tcp_rsk(req)->snt_tsval_last));
 				tmp_opt.rcv_tsecr -= tcp_rsk(req)->ts_off;
+			}
 			/* We do not store true stamp, but it is not required,
 			 * it can be estimated (approximately)
 			 * from another data.
@@ -788,18 +794,14 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 	     tcp_rsk(req)->snt_isn + 1))
 		return sk;
 
-	/* Also, it would be not so bad idea to check rcv_tsecr, which
-	 * is essentially ACK extension and too early or too late values
-	 * should cause reset in unsynchronized states.
-	 */
-
 	/* RFC793: "first check sequence number". */
 
-	if (paws_reject || !tcp_in_window(TCP_SKB_CB(skb)->seq,
-					  TCP_SKB_CB(skb)->end_seq,
-					  tcp_rsk(req)->rcv_nxt,
-					  tcp_rsk(req)->rcv_nxt +
-					  tcp_synack_window(req))) {
+	if (paws_reject || tsecr_reject ||
+	    !tcp_in_window(TCP_SKB_CB(skb)->seq,
+			   TCP_SKB_CB(skb)->end_seq,
+			   tcp_rsk(req)->rcv_nxt,
+			   tcp_rsk(req)->rcv_nxt +
+			   tcp_synack_window(req))) {
 		/* Out of window: send ACK and drop. */
 		if (!(flg & TCP_FLAG_RST) &&
 		    !tcp_oow_rate_limited(sock_net(sk), skb,
@@ -808,6 +810,8 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			req->rsk_ops->send_ack(sk, skb, req);
 		if (paws_reject)
 			NET_INC_STATS(sock_net(sk), LINUX_MIB_PAWSESTABREJECTED);
+		else if (tsecr_reject)
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TSECRREJECTED);
 		return NULL;
 	}
 
