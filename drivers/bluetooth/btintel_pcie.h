@@ -48,6 +48,21 @@
 #define BTINTEL_PCIE_CSR_MSIX_IVAR_BASE		(BTINTEL_PCIE_CSR_MSIX_BASE + 0x0880)
 #define BTINTEL_PCIE_CSR_MSIX_IVAR(cause)	(BTINTEL_PCIE_CSR_MSIX_IVAR_BASE + (cause))
 
+/* The DRAM buffer count, each buffer size, and
+ * fragment buffer size
+ */
+#define BTINTEL_PCIE_DBGC_BUFFER_COUNT		16
+#define BTINTEL_PCIE_DBGC_BUFFER_SIZE		(256 * 1024) /* 256 KB */
+
+#define BTINTEL_PCIE_DBGC_FRAG_VERSION		1
+#define BTINTEL_PCIE_DBGC_FRAG_BUFFER_COUNT	BTINTEL_PCIE_DBGC_BUFFER_COUNT
+
+/* Magic number(4), version(4), size of payload length(4) */
+#define BTINTEL_PCIE_DBGC_FRAG_HEADER_SIZE	12
+
+/* Num of alloc Dbg buff (4) + (LSB(4), MSB(4), Size(4)) for each buffer */
+#define BTINTEL_PCIE_DBGC_FRAG_PAYLOAD_SIZE	196
+
 /* Causes for the FH register interrupts */
 enum msix_fh_int_causes {
 	BTINTEL_PCIE_MSIX_FH_INT_CAUSES_0	= BIT(0),	/* cause 0 */
@@ -325,6 +340,22 @@ struct rxq {
 	struct data_buf	*bufs;
 };
 
+/* Structure for DRAM Buffer
+ * @count: Number of descriptors
+ * @buf: Array of data_buf structure
+ */
+struct btintel_pcie_dbgc {
+	u16		count;
+
+	void		*frag_v_addr;
+	dma_addr_t	frag_p_addr;
+	u16		frag_size;
+
+	dma_addr_t	buf_p_addr;
+	void		*buf_v_addr;
+	struct data_buf *bufs;
+};
+
 /* struct btintel_pcie_data
  * @pdev: pci device
  * @hdev: hdev device
@@ -405,6 +436,7 @@ struct btintel_pcie_data {
 	struct txq	txq;
 	struct rxq	rxq;
 	u32	alive_intr_ctxt;
+	struct btintel_pcie_dbgc	dbgc;
 };
 
 static inline u32 btintel_pcie_rd_reg32(struct btintel_pcie_data *data,
