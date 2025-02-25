@@ -37,7 +37,6 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 }
 
 const struct dentry_operations ns_dentry_operations = {
-	.d_delete	= always_delete_dentry,
 	.d_dname	= ns_dname,
 	.d_prune	= stashed_dentry_prune,
 };

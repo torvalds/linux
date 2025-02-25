@@ -548,8 +548,6 @@ int folio_unmap_invalidate(struct address_space *mapping, struct folio *folio,
 
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 
-	if (folio_test_dirty(folio))
-		return 0;
 	if (folio_mapped(folio))
 		unmap_mapping_folio(folio);
 	BUG_ON(folio_mapped(folio));
