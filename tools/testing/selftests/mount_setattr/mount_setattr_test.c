@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <linux/mount.h>
 
+#include "../filesystems/overlayfs/wrappers.h"
 #include "../kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
@@ -175,51 +176,6 @@ static inline int sys_mount_setattr(int dfd, const char *path, unsigned int flag
 static inline int sys_open_tree(int dfd, const char *filename, unsigned int flags)
 {
 	return syscall(__NR_open_tree, dfd, filename, flags);
-}
-
-/* move_mount() flags */
-#ifndef MOVE_MOUNT_F_SYMLINKS
-#define MOVE_MOUNT_F_SYMLINKS 0x00000001 /* Follow symlinks on from path */
-#endif
-
-#ifndef MOVE_MOUNT_F_AUTOMOUNTS
-#define MOVE_MOUNT_F_AUTOMOUNTS 0x00000002 /* Follow automounts on from path */
-#endif
-
-#ifndef MOVE_MOUNT_F_EMPTY_PATH
-#define MOVE_MOUNT_F_EMPTY_PATH 0x00000004 /* Empty from path permitted */
-#endif
-
-#ifndef MOVE_MOUNT_T_SYMLINKS
-#define MOVE_MOUNT_T_SYMLINKS 0x00000010 /* Follow symlinks on to path */
-#endif
-
-#ifndef MOVE_MOUNT_T_AUTOMOUNTS
-#define MOVE_MOUNT_T_AUTOMOUNTS 0x00000020 /* Follow automounts on to path */
-#endif
-
-#ifndef MOVE_MOUNT_T_EMPTY_PATH
-#define MOVE_MOUNT_T_EMPTY_PATH 0x00000040 /* Empty to path permitted */
-#endif
-
-#ifndef MOVE_MOUNT_SET_GROUP
-#define MOVE_MOUNT_SET_GROUP 0x00000100 /* Set sharing group instead */
-#endif
-
-#ifndef MOVE_MOUNT_BENEATH
-#define MOVE_MOUNT_BENEATH 0x00000200 /* Mount beneath top mount */
-#endif
-
-#ifndef MOVE_MOUNT__MASK
-#define MOVE_MOUNT__MASK 0x00000377
-#endif
-
-static inline int sys_move_mount(int from_dfd, const char *from_pathname,
-				 int to_dfd, const char *to_pathname,
-				 unsigned int flags)
-{
-	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd,
-		       to_pathname, flags);
 }
 
 static ssize_t write_nointr(int fd, const void *buf, size_t count)
@@ -1787,6 +1743,41 @@ TEST_F(mount_setattr, open_tree_detached_fail3)
 				       OPEN_TREE_CLONE);
 	ASSERT_LT(fd_tree_subdir, 0);
 	ASSERT_EQ(errno, EINVAL);
+}
+
+TEST_F(mount_setattr, open_tree_subfolder)
+{
+	int fd_context, fd_tmpfs, fd_tree;
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
+
+	fd_tmpfs = sys_fsmount(fd_context, 0, 0);
+	ASSERT_GE(fd_tmpfs, 0);
+
+	EXPECT_EQ(close(fd_context), 0);
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "subdir", 0755), 0);
+
+	fd_tree = sys_open_tree(fd_tmpfs, "subdir",
+				AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	EXPECT_EQ(close(fd_tmpfs), 0);
+
+	ASSERT_EQ(mkdirat(-EBADF, "/mnt/open_tree_subfolder", 0755), 0);
+
+	ASSERT_EQ(sys_move_mount(fd_tree, "", -EBADF, "/mnt/open_tree_subfolder", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	EXPECT_EQ(close(fd_tree), 0);
+
+	ASSERT_EQ(umount2("/mnt/open_tree_subfolder", 0), 0);
+
+	EXPECT_EQ(rmdir("/mnt/open_tree_subfolder"), 0);
 }
 
 TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_then_close)
