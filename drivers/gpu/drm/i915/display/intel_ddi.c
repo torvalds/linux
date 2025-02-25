@@ -187,11 +187,8 @@ static i915_reg_t intel_ddi_buf_status_reg(struct intel_display *display, enum p
 		return DDI_BUF_CTL(port);
 }
 
-void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
-			     enum port port)
+void intel_wait_ddi_buf_idle(struct intel_display *display, enum port port)
 {
-	struct intel_display *display = &dev_priv->display;
-
 	/*
 	 * Bspec's platform specific timeouts:
 	 * MTL+   : 100 us
@@ -3092,7 +3089,7 @@ static void intel_ddi_buf_disable(struct intel_encoder *encoder,
 	intel_de_rmw(dev_priv, DDI_BUF_CTL(port), DDI_BUF_CTL_ENABLE, 0);
 
 	if (DISPLAY_VER(display) >= 14)
-		intel_wait_ddi_buf_idle(dev_priv, port);
+		intel_wait_ddi_buf_idle(display, port);
 
 	mtl_ddi_disable_d2d(encoder);
 
@@ -3104,7 +3101,7 @@ static void intel_ddi_buf_disable(struct intel_encoder *encoder,
 	intel_ddi_disable_fec(encoder, crtc_state);
 
 	if (DISPLAY_VER(display) < 14)
-		intel_wait_ddi_buf_idle(dev_priv, port);
+		intel_wait_ddi_buf_idle(display, port);
 
 	intel_ddi_wait_for_fec_status(encoder, crtc_state, false);
 }

@@ -886,6 +886,7 @@ train_done:
 void hsw_fdi_link_train(struct intel_encoder *encoder,
 			const struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 temp, i, rx_ctl_val;
@@ -992,7 +993,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		intel_de_rmw(dev_priv, DP_TP_CTL(PORT_E), DP_TP_CTL_ENABLE, 0);
 		intel_de_posting_read(dev_priv, DP_TP_CTL(PORT_E));
 
-		intel_wait_ddi_buf_idle(dev_priv, PORT_E);
+		intel_wait_ddi_buf_idle(display, PORT_E);
 
 		/* Reset FDI_RX_MISC pwrdn lanes */
 		intel_de_rmw(dev_priv, FDI_RX_MISC(PIPE_A),
@@ -1011,6 +1012,7 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 
 void hsw_fdi_disable(struct intel_encoder *encoder)
 {
+	struct intel_display *display = to_intel_display(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	/*
@@ -1021,7 +1023,7 @@ void hsw_fdi_disable(struct intel_encoder *encoder)
 	 */
 	intel_de_rmw(dev_priv, FDI_RX_CTL(PIPE_A), FDI_RX_ENABLE, 0);
 	intel_de_rmw(dev_priv, DDI_BUF_CTL(PORT_E), DDI_BUF_CTL_ENABLE, 0);
-	intel_wait_ddi_buf_idle(dev_priv, PORT_E);
+	intel_wait_ddi_buf_idle(display, PORT_E);
 	intel_ddi_disable_clock(encoder);
 	intel_de_rmw(dev_priv, FDI_RX_MISC(PIPE_A),
 		     FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK,
