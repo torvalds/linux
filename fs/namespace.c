@@ -3536,13 +3536,6 @@ static int do_move_mount(struct path *old_path,
 	if (!may_use_mount(p))
 		goto out;
 
-	/*
-	 * Don't allow moving an attached mount tree to an anonymous
-	 * mount tree.
-	 */
-	if (!is_anon_ns(ns) && is_anon_ns(p->mnt_ns))
-		goto out;
-
 	/* The thing moved must be mounted... */
 	if (!is_mounted(&old->mnt))
 		goto out;
@@ -3551,15 +3544,31 @@ static int do_move_mount(struct path *old_path,
 	if (!(attached ? check_mnt(old) : is_anon_ns(ns)))
 		goto out;
 
-	/*
-	 * Ending up with two files referring to the root of the same
-	 * anonymous mount namespace would cause an error as this would
-	 * mean trying to move the same mount twice into the mount tree
-	 * which would be rejected later. But be explicit about it right
-	 * here.
-	 */
-	if (is_anon_ns(ns) && is_anon_ns(p->mnt_ns) && ns == p->mnt_ns)
+	if (is_anon_ns(ns)) {
+		/*
+		 * Ending up with two files referring to the root of the
+		 * same anonymous mount namespace would cause an error
+		 * as this would mean trying to move the same mount
+		 * twice into the mount tree which would be rejected
+		 * later. But be explicit about it right here.
+		 */
+		if ((is_anon_ns(p->mnt_ns) && ns == p->mnt_ns))
+			goto out;
+
+		/*
+		 * If this is an anonymous mount tree ensure that mount
+		 * propagation can detect mounts that were just
+		 * propagated to the target mount tree so we don't
+		 * propagate onto them.
+		 */
+		ns->mntns_flags |= MNTNS_PROPAGATING;
+	} else if (is_anon_ns(p->mnt_ns)) {
+		/*
+		 * Don't allow moving an attached mount tree to an
+		 * anonymous mount tree.
+		 */
 		goto out;
+	}
 
 	if (old->mnt.mnt_flags & MNT_LOCKED)
 		goto out;
@@ -3602,6 +3611,9 @@ static int do_move_mount(struct path *old_path,
 	err = attach_recursive_mnt(old, real_mount(new_path->mnt), mp, flags);
 	if (err)
 		goto out;
+
+	if (is_anon_ns(ns))
+		ns->mntns_flags &= ~MNTNS_PROPAGATING;
 
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
