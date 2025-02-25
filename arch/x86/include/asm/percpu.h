@@ -22,6 +22,7 @@
 
 #else /* !__ASSEMBLY__: */
 
+#include <linux/args.h>
 #include <linux/build_bug.h>
 #include <linux/stringify.h>
 #include <asm/asm.h>
@@ -35,12 +36,7 @@
 # define __seg_fs		__attribute__((address_space(__seg_fs)))
 #endif
 
-#ifdef CONFIG_X86_64
-# define __percpu_seg_override	__seg_gs
-#else
-# define __percpu_seg_override	__seg_fs
-#endif
-
+#define __percpu_seg_override	CONCATENATE(__seg_, __percpu_seg)
 #define __percpu_prefix		""
 
 #else /* !CONFIG_CC_HAS_NAMED_AS: */
