@@ -65,7 +65,6 @@ static void netkit_prep_forward(struct sk_buff *skb,
 	skb_reset_mac_header(skb);
 	if (!xnet)
 		return;
-	ipvs_reset(skb);
 	skb_clear_tstamp(skb);
 	if (xnet_scrub)
 		netkit_xnet(skb);
