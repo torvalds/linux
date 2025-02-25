@@ -602,7 +602,7 @@ static bool dpm_async_fn(struct device *dev, async_func_t func)
 	reinit_completion(&dev->power.completion);
 
 	if (is_async(dev)) {
-		dev->power.async_in_progress = true;
+		dev->power.work_in_progress = true;
 
 		get_device(dev);
 
@@ -614,9 +614,9 @@ static bool dpm_async_fn(struct device *dev, async_func_t func)
 	/*
 	 * Because async_schedule_dev_nocall() above has returned false or it
 	 * has not been called at all, func() is not running and it is safe to
-	 * update the async_in_progress flag without extra synchronization.
+	 * update the work_in_progress flag without extra synchronization.
 	 */
-	dev->power.async_in_progress = false;
+	dev->power.work_in_progress = false;
 	return false;
 }
 
@@ -736,7 +736,7 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 		dev = to_device(dpm_noirq_list.next);
 		list_move_tail(&dev->power.entry, &dpm_late_early_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dev->power.work_in_progress) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
@@ -876,7 +876,7 @@ void dpm_resume_early(pm_message_t state)
 		dev = to_device(dpm_late_early_list.next);
 		list_move_tail(&dev->power.entry, &dpm_suspended_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dev->power.work_in_progress) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
@@ -1049,7 +1049,7 @@ void dpm_resume(pm_message_t state)
 		dev = to_device(dpm_suspended_list.next);
 		list_move_tail(&dev->power.entry, &dpm_prepared_list);
 
-		if (!dev->power.async_in_progress) {
+		if (!dev->power.work_in_progress) {
 			get_device(dev);
 
 			mutex_unlock(&dpm_list_mtx);
