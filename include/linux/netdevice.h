@@ -340,10 +340,26 @@ struct gro_list {
 };
 
 /*
- * size of gro hash buckets, must less than bit number of
- * napi_struct::gro_bitmask
+ * size of gro hash buckets, must be <= the number of bits in
+ * gro_node::bitmask
  */
 #define GRO_HASH_BUCKETS	8
+
+/**
+ * struct gro_node - structure to support Generic Receive Offload
+ * @bitmask: bitmask to indicate used buckets in @hash
+ * @hash: hashtable of pending aggregated skbs, separated by flows
+ * @rx_list: list of pending ``GRO_NORMAL`` skbs
+ * @rx_count: cached current length of @rx_list
+ * @cached_napi_id: napi_struct::napi_id cached for hotpath, 0 for standalone
+ */
+struct gro_node {
+	unsigned long		bitmask;
+	struct gro_list		hash[GRO_HASH_BUCKETS];
+	struct list_head	rx_list;
+	u32			rx_count;
+	u32			cached_napi_id;
+};
 
 /*
  * Structure for per-NAPI config
@@ -371,7 +387,6 @@ struct napi_struct {
 	unsigned long		state;
 	int			weight;
 	u32			defer_hard_irqs_count;
-	unsigned long		gro_bitmask;
 	int			(*poll)(struct napi_struct *, int);
 #ifdef CONFIG_NETPOLL
 	/* CPU actively polling if netpoll is configured */
@@ -380,11 +395,8 @@ struct napi_struct {
 	/* CPU on which NAPI has been scheduled for processing */
 	int			list_owner;
 	struct net_device	*dev;
-	struct gro_list		gro_hash[GRO_HASH_BUCKETS];
 	struct sk_buff		*skb;
-	struct list_head	rx_list; /* Pending GRO_NORMAL skbs */
-	int			rx_count; /* length of rx_list */
-	unsigned int		napi_id; /* protected by netdev_lock */
+	struct gro_node		gro;
 	struct hrtimer		timer;
 	/* all fields past this point are write-protected by netdev_lock */
 	struct task_struct	*thread;
@@ -392,6 +404,7 @@ struct napi_struct {
 	unsigned long		irq_suspend_timeout;
 	u32			defer_hard_irqs;
 	/* control-path-only fields follow */
+	u32			napi_id;
 	struct list_head	dev_list;
 	struct hlist_node	napi_hash_node;
 	int			irq;
@@ -4131,8 +4144,14 @@ int netif_receive_skb(struct sk_buff *skb);
 int netif_receive_skb_core(struct sk_buff *skb);
 void netif_receive_skb_list_internal(struct list_head *head);
 void netif_receive_skb_list(struct list_head *head);
-gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb);
-void napi_gro_flush(struct napi_struct *napi, bool flush_old);
+gro_result_t gro_receive_skb(struct gro_node *gro, struct sk_buff *skb);
+
+static inline gro_result_t napi_gro_receive(struct napi_struct *napi,
+					    struct sk_buff *skb)
+{
+	return gro_receive_skb(&napi->gro, skb);
+}
+
 struct sk_buff *napi_get_frags(struct napi_struct *napi);
 gro_result_t napi_gro_frags(struct napi_struct *napi);
 
