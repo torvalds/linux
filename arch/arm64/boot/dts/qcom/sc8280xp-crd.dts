@@ -686,7 +686,7 @@
 		vddrfa1p2-supply = <&vreg_pmu_rfa_1p2>;
 		vddrfa1p8-supply = <&vreg_pmu_rfa_1p7>;
 
-		qcom,ath11k-calibration-variant = "QC_8280XP_CRD";
+		qcom,calibration-variant = "QC_8280XP_CRD";
 	};
 };
 
