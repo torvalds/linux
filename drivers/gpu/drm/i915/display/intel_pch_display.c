@@ -181,10 +181,10 @@ static void ibx_sanitize_pch_ports(struct drm_i915_private *dev_priv)
 static void intel_pch_transcoder_set_m1_n1(struct intel_crtc *crtc,
 					   const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_set_m_n(dev_priv, m_n,
+	intel_set_m_n(display, m_n,
 		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
 		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
@@ -192,10 +192,10 @@ static void intel_pch_transcoder_set_m1_n1(struct intel_crtc *crtc,
 static void intel_pch_transcoder_set_m2_n2(struct intel_crtc *crtc,
 					   const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_set_m_n(dev_priv, m_n,
+	intel_set_m_n(display, m_n,
 		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
 		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
 }
@@ -203,10 +203,10 @@ static void intel_pch_transcoder_set_m2_n2(struct intel_crtc *crtc,
 void intel_pch_transcoder_get_m1_n1(struct intel_crtc *crtc,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_get_m_n(dev_priv, m_n,
+	intel_get_m_n(display, m_n,
 		      PCH_TRANS_DATA_M1(pipe), PCH_TRANS_DATA_N1(pipe),
 		      PCH_TRANS_LINK_M1(pipe), PCH_TRANS_LINK_N1(pipe));
 }
@@ -214,10 +214,10 @@ void intel_pch_transcoder_get_m1_n1(struct intel_crtc *crtc,
 void intel_pch_transcoder_get_m2_n2(struct intel_crtc *crtc,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	intel_get_m_n(dev_priv, m_n,
+	intel_get_m_n(display, m_n,
 		      PCH_TRANS_DATA_M2(pipe), PCH_TRANS_DATA_N2(pipe),
 		      PCH_TRANS_LINK_M2(pipe), PCH_TRANS_LINK_N2(pipe));
 }

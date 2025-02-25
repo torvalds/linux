@@ -2662,45 +2662,45 @@ void intel_zero_m_n(struct intel_link_m_n *m_n)
 	m_n->tu = 1;
 }
 
-void intel_set_m_n(struct drm_i915_private *i915,
+void intel_set_m_n(struct intel_display *display,
 		   const struct intel_link_m_n *m_n,
 		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
 		   i915_reg_t link_m_reg, i915_reg_t link_n_reg)
 {
-	intel_de_write(i915, data_m_reg, TU_SIZE(m_n->tu) | m_n->data_m);
-	intel_de_write(i915, data_n_reg, m_n->data_n);
-	intel_de_write(i915, link_m_reg, m_n->link_m);
+	intel_de_write(display, data_m_reg, TU_SIZE(m_n->tu) | m_n->data_m);
+	intel_de_write(display, data_n_reg, m_n->data_n);
+	intel_de_write(display, link_m_reg, m_n->link_m);
 	/*
 	 * On BDW+ writing LINK_N arms the double buffered update
 	 * of all the M/N registers, so it must be written last.
 	 */
-	intel_de_write(i915, link_n_reg, m_n->link_n);
+	intel_de_write(display, link_n_reg, m_n->link_n);
 }
 
-bool intel_cpu_transcoder_has_m2_n2(struct drm_i915_private *dev_priv,
+bool intel_cpu_transcoder_has_m2_n2(struct intel_display *display,
 				    enum transcoder transcoder)
 {
-	if (IS_HASWELL(dev_priv))
+	if (display->platform.haswell)
 		return transcoder == TRANSCODER_EDP;
 
-	return IS_DISPLAY_VER(dev_priv, 5, 7) || IS_CHERRYVIEW(dev_priv);
+	return IS_DISPLAY_VER(display, 5, 7) || display->platform.cherryview;
 }
 
 void intel_cpu_transcoder_set_m1_n1(struct intel_crtc *crtc,
 				    enum transcoder transcoder,
 				    const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	if (DISPLAY_VER(dev_priv) >= 5)
-		intel_set_m_n(dev_priv, m_n,
-			      PIPE_DATA_M1(dev_priv, transcoder),
-			      PIPE_DATA_N1(dev_priv, transcoder),
-			      PIPE_LINK_M1(dev_priv, transcoder),
-			      PIPE_LINK_N1(dev_priv, transcoder));
+	if (DISPLAY_VER(display) >= 5)
+		intel_set_m_n(display, m_n,
+			      PIPE_DATA_M1(display, transcoder),
+			      PIPE_DATA_N1(display, transcoder),
+			      PIPE_LINK_M1(display, transcoder),
+			      PIPE_LINK_N1(display, transcoder));
 	else
-		intel_set_m_n(dev_priv, m_n,
+		intel_set_m_n(display, m_n,
 			      PIPE_DATA_M_G4X(pipe), PIPE_DATA_N_G4X(pipe),
 			      PIPE_LINK_M_G4X(pipe), PIPE_LINK_N_G4X(pipe));
 }
@@ -2709,16 +2709,16 @@ void intel_cpu_transcoder_set_m2_n2(struct intel_crtc *crtc,
 				    enum transcoder transcoder,
 				    const struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
-	if (!intel_cpu_transcoder_has_m2_n2(dev_priv, transcoder))
+	if (!intel_cpu_transcoder_has_m2_n2(display, transcoder))
 		return;
 
-	intel_set_m_n(dev_priv, m_n,
-		      PIPE_DATA_M2(dev_priv, transcoder),
-		      PIPE_DATA_N2(dev_priv, transcoder),
-		      PIPE_LINK_M2(dev_priv, transcoder),
-		      PIPE_LINK_N2(dev_priv, transcoder));
+	intel_set_m_n(display, m_n,
+		      PIPE_DATA_M2(display, transcoder),
+		      PIPE_DATA_N2(display, transcoder),
+		      PIPE_LINK_M2(display, transcoder),
+		      PIPE_LINK_N2(display, transcoder));
 }
 
 static void intel_set_transcoder_timings(const struct intel_crtc_state *crtc_state)
@@ -3404,33 +3404,33 @@ int ilk_get_lanes_required(int target_clock, int link_bw, int bpp)
 	return DIV_ROUND_UP(bps, link_bw * 8);
 }
 
-void intel_get_m_n(struct drm_i915_private *i915,
+void intel_get_m_n(struct intel_display *display,
 		   struct intel_link_m_n *m_n,
 		   i915_reg_t data_m_reg, i915_reg_t data_n_reg,
 		   i915_reg_t link_m_reg, i915_reg_t link_n_reg)
 {
-	m_n->link_m = intel_de_read(i915, link_m_reg) & DATA_LINK_M_N_MASK;
-	m_n->link_n = intel_de_read(i915, link_n_reg) & DATA_LINK_M_N_MASK;
-	m_n->data_m = intel_de_read(i915, data_m_reg) & DATA_LINK_M_N_MASK;
-	m_n->data_n = intel_de_read(i915, data_n_reg) & DATA_LINK_M_N_MASK;
-	m_n->tu = REG_FIELD_GET(TU_SIZE_MASK, intel_de_read(i915, data_m_reg)) + 1;
+	m_n->link_m = intel_de_read(display, link_m_reg) & DATA_LINK_M_N_MASK;
+	m_n->link_n = intel_de_read(display, link_n_reg) & DATA_LINK_M_N_MASK;
+	m_n->data_m = intel_de_read(display, data_m_reg) & DATA_LINK_M_N_MASK;
+	m_n->data_n = intel_de_read(display, data_n_reg) & DATA_LINK_M_N_MASK;
+	m_n->tu = REG_FIELD_GET(TU_SIZE_MASK, intel_de_read(display, data_m_reg)) + 1;
 }
 
 void intel_cpu_transcoder_get_m1_n1(struct intel_crtc *crtc,
 				    enum transcoder transcoder,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 	enum pipe pipe = crtc->pipe;
 
-	if (DISPLAY_VER(dev_priv) >= 5)
-		intel_get_m_n(dev_priv, m_n,
-			      PIPE_DATA_M1(dev_priv, transcoder),
-			      PIPE_DATA_N1(dev_priv, transcoder),
-			      PIPE_LINK_M1(dev_priv, transcoder),
-			      PIPE_LINK_N1(dev_priv, transcoder));
+	if (DISPLAY_VER(display) >= 5)
+		intel_get_m_n(display, m_n,
+			      PIPE_DATA_M1(display, transcoder),
+			      PIPE_DATA_N1(display, transcoder),
+			      PIPE_LINK_M1(display, transcoder),
+			      PIPE_LINK_N1(display, transcoder));
 	else
-		intel_get_m_n(dev_priv, m_n,
+		intel_get_m_n(display, m_n,
 			      PIPE_DATA_M_G4X(pipe), PIPE_DATA_N_G4X(pipe),
 			      PIPE_LINK_M_G4X(pipe), PIPE_LINK_N_G4X(pipe));
 }
@@ -3439,16 +3439,16 @@ void intel_cpu_transcoder_get_m2_n2(struct intel_crtc *crtc,
 				    enum transcoder transcoder,
 				    struct intel_link_m_n *m_n)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
-	if (!intel_cpu_transcoder_has_m2_n2(dev_priv, transcoder))
+	if (!intel_cpu_transcoder_has_m2_n2(display, transcoder))
 		return;
 
-	intel_get_m_n(dev_priv, m_n,
-		      PIPE_DATA_M2(dev_priv, transcoder),
-		      PIPE_DATA_N2(dev_priv, transcoder),
-		      PIPE_LINK_M2(dev_priv, transcoder),
-		      PIPE_LINK_N2(dev_priv, transcoder));
+	intel_get_m_n(display, m_n,
+		      PIPE_DATA_M2(display, transcoder),
+		      PIPE_DATA_N2(display, transcoder),
+		      PIPE_LINK_M2(display, transcoder),
+		      PIPE_LINK_N2(display, transcoder));
 }
 
 static void ilk_get_pfit_config(struct intel_crtc_state *crtc_state)

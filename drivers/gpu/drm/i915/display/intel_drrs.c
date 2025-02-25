@@ -68,12 +68,10 @@ const char *intel_drrs_type_str(enum drrs_type drrs_type)
 bool intel_cpu_transcoder_has_drrs(struct intel_display *display,
 				   enum transcoder cpu_transcoder)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (HAS_DOUBLE_BUFFERED_M_N(display))
 		return true;
 
-	return intel_cpu_transcoder_has_m2_n2(i915, cpu_transcoder);
+	return intel_cpu_transcoder_has_m2_n2(display, cpu_transcoder);
 }
 
 static void
@@ -110,12 +108,12 @@ bool intel_drrs_is_active(struct intel_crtc *crtc)
 static void intel_drrs_set_state(struct intel_crtc *crtc,
 				 enum drrs_refresh_rate refresh_rate)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_display *display = to_intel_display(crtc);
 
 	if (refresh_rate == crtc->drrs.refresh_rate)
 		return;
 
-	if (intel_cpu_transcoder_has_m2_n2(dev_priv, crtc->drrs.cpu_transcoder))
+	if (intel_cpu_transcoder_has_m2_n2(display, crtc->drrs.cpu_transcoder))
 		intel_drrs_set_refresh_rate_pipeconf(crtc, refresh_rate);
 	else
 		intel_drrs_set_refresh_rate_m_n(crtc, refresh_rate);
