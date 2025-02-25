@@ -269,7 +269,6 @@ struct device_queue_manager {
 	/* hw exception  */
 	bool			is_hws_hang;
 	bool			is_resetting;
-	struct work_struct	hw_exception_work;
 	struct kfd_mem_obj	hiq_sdma_mqd;
 	bool			sched_running;
 	bool			sched_halt;
