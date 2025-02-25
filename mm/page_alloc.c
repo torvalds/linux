@@ -1991,20 +1991,10 @@ static inline bool boost_watermark(struct zone *zone)
 static struct page *
 try_to_steal_block(struct zone *zone, struct page *page,
 		   int current_order, int order, int start_type,
-		   unsigned int alloc_flags)
+		   int block_type, unsigned int alloc_flags)
 {
 	int free_pages, movable_pages, alike_pages;
 	unsigned long start_pfn;
-	int block_type;
-
-	block_type = get_pageblock_migratetype(page);
-
-	/*
-	 * This can happen due to races and we want to prevent broken
-	 * highatomic accounting.
-	 */
-	if (is_migrate_highatomic(block_type))
-		return NULL;
 
 	/* Take ownership for orders >= pageblock_order */
 	if (current_order >= pageblock_order) {
@@ -2179,33 +2169,22 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < NR_PAGE_ORDERS; order++) {
 			struct free_area *area = &(zone->free_area[order]);
-			int mt;
+			unsigned long size;
 
 			page = get_page_from_free_area(area, MIGRATE_HIGHATOMIC);
 			if (!page)
 				continue;
 
-			mt = get_pageblock_migratetype(page);
 			/*
-			 * In page freeing path, migratetype change is racy so
-			 * we can counter several free pages in a pageblock
-			 * in this loop although we changed the pageblock type
-			 * from highatomic to ac->migratetype. So we should
-			 * adjust the count once.
+			 * It should never happen but changes to
+			 * locking could inadvertently allow a per-cpu
+			 * drain to add pages to MIGRATE_HIGHATOMIC
+			 * while unreserving so be safe and watch for
+			 * underflows.
 			 */
-			if (is_migrate_highatomic(mt)) {
-				unsigned long size;
-				/*
-				 * It should never happen but changes to
-				 * locking could inadvertently allow a per-cpu
-				 * drain to add pages to MIGRATE_HIGHATOMIC
-				 * while unreserving so be safe and watch for
-				 * underflows.
-				 */
-				size = max(pageblock_nr_pages, 1UL << order);
-				size = min(size, zone->nr_reserved_highatomic);
-				zone->nr_reserved_highatomic -= size;
-			}
+			size = max(pageblock_nr_pages, 1UL << order);
+			size = min(size, zone->nr_reserved_highatomic);
+			zone->nr_reserved_highatomic -= size;
 
 			/*
 			 * Convert to ac->migratetype and avoid the normal
@@ -2217,10 +2196,12 @@ static bool unreserve_highatomic_pageblock(const struct alloc_context *ac,
 			 * may increase.
 			 */
 			if (order < pageblock_order)
-				ret = move_freepages_block(zone, page, mt,
+				ret = move_freepages_block(zone, page,
+							   MIGRATE_HIGHATOMIC,
 							   ac->migratetype);
 			else {
-				move_to_free_list(page, zone, order, mt,
+				move_to_free_list(page, zone, order,
+						  MIGRATE_HIGHATOMIC,
 						  ac->migratetype);
 				change_pageblock_range(page, order,
 						       ac->migratetype);
@@ -2294,7 +2275,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype,
 
 		page = get_page_from_free_area(area, fallback_mt);
 		page = try_to_steal_block(zone, page, current_order, order,
-					  start_migratetype, alloc_flags);
+					  start_migratetype, fallback_mt,
+					  alloc_flags);
 		if (page)
 			goto got_one;
 	}
