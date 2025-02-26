@@ -241,6 +241,24 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 }
 #endif
 
+static int io_copy_msghdr_from_user(struct user_msghdr *msg,
+				    struct user_msghdr __user *umsg)
+{
+	if (!user_access_begin(umsg, sizeof(*umsg)))
+		return -EFAULT;
+	unsafe_get_user(msg->msg_name, &umsg->msg_name, ua_end);
+	unsafe_get_user(msg->msg_namelen, &umsg->msg_namelen, ua_end);
+	unsafe_get_user(msg->msg_iov, &umsg->msg_iov, ua_end);
+	unsafe_get_user(msg->msg_iovlen, &umsg->msg_iovlen, ua_end);
+	unsafe_get_user(msg->msg_control, &umsg->msg_control, ua_end);
+	unsafe_get_user(msg->msg_controllen, &umsg->msg_controllen, ua_end);
+	user_access_end();
+	return 0;
+ua_end:
+	user_access_end();
+	return -EFAULT;
+}
+
 static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			   struct user_msghdr *msg, int ddir)
 {
@@ -257,16 +275,10 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 		nr_segs = 1;
 	}
 
-	if (!user_access_begin(umsg, sizeof(*umsg)))
-		return -EFAULT;
+	ret = io_copy_msghdr_from_user(msg, umsg);
+	if (unlikely(ret))
+		return ret;
 
-	ret = -EFAULT;
-	unsafe_get_user(msg->msg_name, &umsg->msg_name, ua_end);
-	unsafe_get_user(msg->msg_namelen, &umsg->msg_namelen, ua_end);
-	unsafe_get_user(msg->msg_iov, &umsg->msg_iov, ua_end);
-	unsafe_get_user(msg->msg_iovlen, &umsg->msg_iovlen, ua_end);
-	unsafe_get_user(msg->msg_control, &umsg->msg_control, ua_end);
-	unsafe_get_user(msg->msg_controllen, &umsg->msg_controllen, ua_end);
 	msg->msg_flags = 0;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
@@ -274,24 +286,17 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			sr->len = iov->iov_len = 0;
 			iov->iov_base = NULL;
 		} else if (msg->msg_iovlen > 1) {
-			ret = -EINVAL;
-			goto ua_end;
+			return -EINVAL;
 		} else {
 			struct iovec __user *uiov = msg->msg_iov;
 
-			/* we only need the length for provided buffers */
-			if (!access_ok(&uiov->iov_len, sizeof(uiov->iov_len)))
-				goto ua_end;
-			unsafe_get_user(iov->iov_len, &uiov->iov_len, ua_end);
+			if (copy_from_user(iov, uiov, sizeof(*iov)))
+				return -EFAULT;
 			sr->len = iov->iov_len;
 		}
-		ret = 0;
-ua_end:
-		user_access_end();
-		return ret;
+		return 0;
 	}
 
-	user_access_end();
 	ret = __import_iovec(ddir, msg->msg_iov, msg->msg_iovlen, nr_segs,
 				&iov, &iomsg->msg.msg_iter, false);
 	if (unlikely(ret < 0))
