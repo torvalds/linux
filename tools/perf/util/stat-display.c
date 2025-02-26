@@ -1688,6 +1688,12 @@ static void evsel__set_needs_uniquify(struct evsel *counter, const struct perf_s
 		return;
 	}
 
+	if (!config->hybrid_merge && evsel__is_hybrid(counter)) {
+		/* Unique hybrid counters necessary. */
+		counter->needs_uniquify = true;
+		return;
+	}
+
 	if  (counter->core.attr.type < PERF_TYPE_MAX && counter->core.attr.type != PERF_TYPE_RAW) {
 		/* Legacy event, don't uniquify. */
 		return;
@@ -1701,12 +1707,6 @@ static void evsel__set_needs_uniquify(struct evsel *counter, const struct perf_s
 
 	if (config->aggr_mode == AGGR_NONE) {
 		/* Always unique with no aggregation. */
-		counter->needs_uniquify = true;
-		return;
-	}
-
-	if (!config->hybrid_merge && evsel__is_hybrid(counter)) {
-		/* Unique hybrid counters necessary. */
 		counter->needs_uniquify = true;
 		return;
 	}
