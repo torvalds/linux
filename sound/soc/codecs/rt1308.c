@@ -781,15 +781,15 @@ static const struct regmap_config rt1308_regmap = {
 #ifdef CONFIG_OF
 static const struct of_device_id rt1308_of_match[] = {
 	{ .compatible = "realtek,rt1308", },
-	{ },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1308_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1308_acpi_match[] = {
-	{ "10EC1308", 0, },
-	{ },
+	{ "10EC1308" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1308_acpi_match);
 #endif
