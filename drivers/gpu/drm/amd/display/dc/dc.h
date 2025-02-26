@@ -2590,6 +2590,11 @@ unsigned int dc_get_det_buffer_size_from_state(const struct dc_state *context);
 /* DSC Interfaces */
 #include "dc_dsc.h"
 
+void dc_get_visual_confirm_for_stream(
+	struct dc *dc,
+	struct dc_stream_state *stream_state,
+	struct tg_color *color);
+
 /* Disable acc mode Interfaces */
 void dc_disable_accelerated_mode(struct dc *dc);
 

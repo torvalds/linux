@@ -2664,7 +2664,6 @@ void dcn10_update_visual_confirm_color(struct dc *dc,
 	struct mpc *mpc = dc->res_pool->mpc;
 
 	if (mpc->funcs->set_bg_color) {
-		memcpy(&pipe_ctx->plane_state->visual_confirm_color, &(pipe_ctx->visual_confirm_color), sizeof(struct tg_color));
 		mpc->funcs->set_bg_color(mpc, &(pipe_ctx->visual_confirm_color), mpcc_id);
 	}
 }
