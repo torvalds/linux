@@ -3,7 +3,6 @@
 #define _GNU_SOURCE
 #include <err.h>
 #include <errno.h>
-#include <pthread.h>
 #include <setjmp.h>
 #include <stdio.h>
 #include <string.h>
@@ -434,14 +433,6 @@ static inline bool __validate_tiledata_regs(struct xsave_buffer *xbuf1)
 	return true;
 }
 
-static inline void validate_tiledata_regs_same(struct xsave_buffer *xbuf)
-{
-	int ret = __validate_tiledata_regs(xbuf);
-
-	if (ret != 0)
-		fatal_error("TILEDATA registers changed");
-}
-
 static inline void validate_tiledata_regs_changed(struct xsave_buffer *xbuf)
 {
 	int ret = __validate_tiledata_regs(xbuf);
@@ -496,158 +487,6 @@ static void test_fork(void)
 	validate_tiledata_regs_changed(stashed_xsave);
 
 	_exit(0);
-}
-
-/* Context switching test */
-
-static struct _ctxtswtest_cfg {
-	unsigned int iterations;
-	unsigned int num_threads;
-} ctxtswtest_config;
-
-struct futex_info {
-	pthread_t thread;
-	int nr;
-	pthread_mutex_t mutex;
-	struct futex_info *next;
-};
-
-static void *check_tiledata(void *info)
-{
-	struct futex_info *finfo = (struct futex_info *)info;
-	struct xsave_buffer *xbuf;
-	int i;
-
-	xbuf = alloc_xbuf();
-	if (!xbuf)
-		fatal_error("unable to allocate XSAVE buffer");
-
-	/*
-	 * Load random data into 'xbuf' and then restore
-	 * it to the tile registers themselves.
-	 */
-	load_rand_tiledata(xbuf);
-	for (i = 0; i < ctxtswtest_config.iterations; i++) {
-		pthread_mutex_lock(&finfo->mutex);
-
-		/*
-		 * Ensure the register values have not
-		 * diverged from those recorded in 'xbuf'.
-		 */
-		validate_tiledata_regs_same(xbuf);
-
-		/* Load new, random values into xbuf and registers */
-		load_rand_tiledata(xbuf);
-
-		/*
-		 * The last thread's last unlock will be for
-		 * thread 0's mutex.  However, thread 0 will
-		 * have already exited the loop and the mutex
-		 * will already be unlocked.
-		 *
-		 * Because this is not an ERRORCHECK mutex,
-		 * that inconsistency will be silently ignored.
-		 */
-		pthread_mutex_unlock(&finfo->next->mutex);
-	}
-
-	free(xbuf);
-	/*
-	 * Return this thread's finfo, which is
-	 * a unique value for this thread.
-	 */
-	return finfo;
-}
-
-static int create_threads(int num, struct futex_info *finfo)
-{
-	int i;
-
-	for (i = 0; i < num; i++) {
-		int next_nr;
-
-		finfo[i].nr = i;
-		/*
-		 * Thread 'i' will wait on this mutex to
-		 * be unlocked.  Lock it immediately after
-		 * initialization:
-		 */
-		pthread_mutex_init(&finfo[i].mutex, NULL);
-		pthread_mutex_lock(&finfo[i].mutex);
-
-		next_nr = (i + 1) % num;
-		finfo[i].next = &finfo[next_nr];
-
-		if (pthread_create(&finfo[i].thread, NULL, check_tiledata, &finfo[i]))
-			fatal_error("pthread_create()");
-	}
-	return 0;
-}
-
-static void affinitize_cpu0(void)
-{
-	cpu_set_t cpuset;
-
-	CPU_ZERO(&cpuset);
-	CPU_SET(0, &cpuset);
-
-	if (sched_setaffinity(0, sizeof(cpuset), &cpuset) != 0)
-		fatal_error("sched_setaffinity to CPU 0");
-}
-
-static void test_context_switch(void)
-{
-	struct futex_info *finfo;
-	int i;
-
-	/* Affinitize to one CPU to force context switches */
-	affinitize_cpu0();
-
-	req_xtiledata_perm();
-
-	printf("[RUN]\tCheck tiledata context switches, %d iterations, %d threads.\n",
-	       ctxtswtest_config.iterations,
-	       ctxtswtest_config.num_threads);
-
-
-	finfo = malloc(sizeof(*finfo) * ctxtswtest_config.num_threads);
-	if (!finfo)
-		fatal_error("malloc()");
-
-	create_threads(ctxtswtest_config.num_threads, finfo);
-
-	/*
-	 * This thread wakes up thread 0
-	 * Thread 0 will wake up 1
-	 * Thread 1 will wake up 2
-	 * ...
-	 * the last thread will wake up 0
-	 *
-	 * ... this will repeat for the configured
-	 * number of iterations.
-	 */
-	pthread_mutex_unlock(&finfo[0].mutex);
-
-	/* Wait for all the threads to finish: */
-	for (i = 0; i < ctxtswtest_config.num_threads; i++) {
-		void *thread_retval;
-		int rc;
-
-		rc = pthread_join(finfo[i].thread, &thread_retval);
-
-		if (rc)
-			fatal_error("pthread_join() failed for thread %d err: %d\n",
-					i, rc);
-
-		if (thread_retval != &finfo[i])
-			fatal_error("unexpected thread retval for thread %d: %p\n",
-					i, thread_retval);
-
-	}
-
-	printf("[OK]\tNo incorrect case was found.\n");
-
-	free(finfo);
 }
 
 /* Ptrace test */
@@ -745,6 +584,7 @@ static void test_ptrace(void)
 
 int main(void)
 {
+	const unsigned int ctxtsw_num_threads = 5, ctxtsw_iterations = 10;
 	unsigned long features;
 	long rc;
 
@@ -772,9 +612,7 @@ int main(void)
 
 	test_fork();
 
-	ctxtswtest_config.iterations = 10;
-	ctxtswtest_config.num_threads = 5;
-	test_context_switch();
+	test_context_switch(XFEATURE_XTILEDATA, ctxtsw_num_threads, ctxtsw_iterations);
 
 	test_ptrace();
 
