@@ -2828,9 +2828,9 @@ static int esw_set_master_egress_rule(struct mlx5_core_dev *master,
 	if (IS_ERR(vport))
 		return PTR_ERR(vport);
 
-	egress_ns = mlx5_get_flow_vport_acl_namespace(master,
-						      MLX5_FLOW_NAMESPACE_ESW_EGRESS,
-						      vport->index);
+	egress_ns = mlx5_get_flow_vport_namespace(master,
+						  MLX5_FLOW_NAMESPACE_ESW_EGRESS,
+						  vport->index);
 	if (!egress_ns)
 		return -EINVAL;
 
