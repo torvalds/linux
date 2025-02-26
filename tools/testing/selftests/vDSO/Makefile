@@ -19,6 +19,9 @@ LDLIBS += -lgcc_s
 endif
 
 include ../lib.mk
+
+CFLAGS += $(TOOLS_INCLUDES)
+
 $(OUTPUT)/vdso_test_gettimeofday: parse_vdso.c vdso_test_gettimeofday.c
 $(OUTPUT)/vdso_test_getcpu: parse_vdso.c vdso_test_getcpu.c
 $(OUTPUT)/vdso_test_abi: parse_vdso.c vdso_test_abi.c
