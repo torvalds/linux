@@ -1091,7 +1091,7 @@ static const struct regmap_config rt274_regmap = {
 #ifdef CONFIG_OF
 static const struct of_device_id rt274_of_match[] = {
 	{.compatible = "realtek,rt274"},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt274_of_match);
 #endif
@@ -1104,9 +1104,9 @@ MODULE_DEVICE_TABLE(i2c, rt274_i2c_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt274_acpi_match[] = {
-	{ "10EC0274", 0 },
-	{ "INT34C2", 0 },
-	{},
+	{ "10EC0274" },
+	{ "INT34C2" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt274_acpi_match);
 #endif
