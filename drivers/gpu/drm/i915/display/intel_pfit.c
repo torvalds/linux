@@ -3,8 +3,10 @@
  * Copyright © 2024 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_utils.h"
+#include "intel_de.h"
 #include "intel_display_core.h"
 #include "intel_display_driver.h"
 #include "intel_display_types.h"
@@ -551,4 +553,162 @@ int intel_pfit_compute_config(struct intel_crtc_state *crtc_state,
 		return gmch_panel_fitting(crtc_state, conn_state);
 	else
 		return pch_panel_fitting(crtc_state, conn_state);
+}
+
+void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	const struct drm_rect *dst = &crtc_state->pch_pfit.dst;
+	enum pipe pipe = crtc->pipe;
+	int width = drm_rect_width(dst);
+	int height = drm_rect_height(dst);
+	int x = dst->x1;
+	int y = dst->y1;
+
+	if (!crtc_state->pch_pfit.enabled)
+		return;
+
+	/* Force use of hard-coded filter coefficients
+	 * as some pre-programmed values are broken,
+	 * e.g. x201.
+	 */
+	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
+		intel_de_write_fw(dev_priv, PF_CTL(pipe), PF_ENABLE |
+				  PF_FILTER_MED_3x3 | PF_PIPE_SEL_IVB(pipe));
+	else
+		intel_de_write_fw(dev_priv, PF_CTL(pipe), PF_ENABLE |
+				  PF_FILTER_MED_3x3);
+	intel_de_write_fw(dev_priv, PF_WIN_POS(pipe),
+			  PF_WIN_XPOS(x) | PF_WIN_YPOS(y));
+	intel_de_write_fw(dev_priv, PF_WIN_SZ(pipe),
+			  PF_WIN_XSIZE(width) | PF_WIN_YSIZE(height));
+}
+
+void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
+
+	/* To avoid upsetting the power well on haswell only disable the pfit if
+	 * it's in use. The hw state code will make sure we get this right. */
+	if (!old_crtc_state->pch_pfit.enabled)
+		return;
+
+	intel_de_write_fw(dev_priv, PF_CTL(pipe), 0);
+	intel_de_write_fw(dev_priv, PF_WIN_POS(pipe), 0);
+	intel_de_write_fw(dev_priv, PF_WIN_SZ(pipe), 0);
+}
+
+void ilk_pfit_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 ctl, pos, size;
+	enum pipe pipe;
+
+	ctl = intel_de_read(dev_priv, PF_CTL(crtc->pipe));
+	if ((ctl & PF_ENABLE) == 0)
+		return;
+
+	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
+		pipe = REG_FIELD_GET(PF_PIPE_SEL_MASK_IVB, ctl);
+	else
+		pipe = crtc->pipe;
+
+	crtc_state->pch_pfit.enabled = true;
+
+	pos = intel_de_read(dev_priv, PF_WIN_POS(crtc->pipe));
+	size = intel_de_read(dev_priv, PF_WIN_SZ(crtc->pipe));
+
+	drm_rect_init(&crtc_state->pch_pfit.dst,
+		      REG_FIELD_GET(PF_WIN_XPOS_MASK, pos),
+		      REG_FIELD_GET(PF_WIN_YPOS_MASK, pos),
+		      REG_FIELD_GET(PF_WIN_XSIZE_MASK, size),
+		      REG_FIELD_GET(PF_WIN_YSIZE_MASK, size));
+
+	/*
+	 * We currently do not free assignments of panel fitters on
+	 * ivb/hsw (since we don't use the higher upscaling modes which
+	 * differentiates them) so just WARN about this case for now.
+	 */
+	drm_WARN_ON(&dev_priv->drm, pipe != crtc->pipe);
+}
+
+void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_display *display = to_intel_display(crtc_state);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+
+	if (!crtc_state->gmch_pfit.control)
+		return;
+
+	/*
+	 * The panel fitter should only be adjusted whilst the pipe is disabled,
+	 * according to register description and PRM.
+	 */
+	drm_WARN_ON(display->drm,
+		    intel_de_read(display, PFIT_CONTROL(display)) & PFIT_ENABLE);
+	assert_transcoder_disabled(display, crtc_state->cpu_transcoder);
+
+	intel_de_write(display, PFIT_PGM_RATIOS(display),
+		       crtc_state->gmch_pfit.pgm_ratios);
+	intel_de_write(display, PFIT_CONTROL(display),
+		       crtc_state->gmch_pfit.control);
+
+	/* Border color in case we don't scale up to the full screen. Black by
+	 * default, change to something else for debugging. */
+	intel_de_write(display, BCLRPAT(display, crtc->pipe), 0);
+}
+
+void i9xx_pfit_disable(const struct intel_crtc_state *old_crtc_state)
+{
+	struct intel_display *display = to_intel_display(old_crtc_state);
+
+	if (!old_crtc_state->gmch_pfit.control)
+		return;
+
+	assert_transcoder_disabled(display, old_crtc_state->cpu_transcoder);
+
+	drm_dbg_kms(display->drm, "disabling pfit, current: 0x%08x\n",
+		    intel_de_read(display, PFIT_CONTROL(display)));
+	intel_de_write(display, PFIT_CONTROL(display), 0);
+}
+
+static bool i9xx_has_pfit(struct drm_i915_private *dev_priv)
+{
+	if (IS_I830(dev_priv))
+		return false;
+
+	return DISPLAY_VER(dev_priv) >= 4 ||
+		IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+}
+
+void i9xx_pfit_get_config(struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe;
+	u32 tmp;
+
+	if (!i9xx_has_pfit(dev_priv))
+		return;
+
+	tmp = intel_de_read(dev_priv, PFIT_CONTROL(dev_priv));
+	if (!(tmp & PFIT_ENABLE))
+		return;
+
+	/* Check whether the pfit is attached to our pipe. */
+	if (DISPLAY_VER(dev_priv) >= 4)
+		pipe = REG_FIELD_GET(PFIT_PIPE_MASK, tmp);
+	else
+		pipe = PIPE_B;
+
+	if (pipe != crtc->pipe)
+		return;
+
+	crtc_state->gmch_pfit.control = tmp;
+	crtc_state->gmch_pfit.pgm_ratios =
+		intel_de_read(dev_priv, PFIT_PGM_RATIOS(dev_priv));
 }

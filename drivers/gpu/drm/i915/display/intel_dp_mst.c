@@ -49,6 +49,7 @@
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
 #include "intel_link_bw.h"
+#include "intel_pfit.h"
 #include "intel_psr.h"
 #include "intel_vdsc.h"
 #include "skl_scaler.h"

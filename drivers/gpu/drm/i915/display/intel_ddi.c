@@ -70,6 +70,7 @@
 #include "intel_lspcon.h"
 #include "intel_mg_phy_regs.h"
 #include "intel_modeset_lock.h"
+#include "intel_pfit.h"
 #include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_quirks.h"

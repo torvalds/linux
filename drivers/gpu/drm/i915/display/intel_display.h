@@ -510,8 +510,6 @@ enum intel_display_power_domain
 intel_aux_power_domain(struct intel_digital_port *dig_port);
 void intel_crtc_arm_fifo_underrun(struct intel_crtc *crtc,
 				  struct intel_crtc_state *crtc_state);
-void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state);
-
 int bdw_get_pipe_misc_bpp(struct intel_crtc *crtc);
 unsigned int intel_plane_fence_y_offset(const struct intel_plane_state *plane_state);
 
