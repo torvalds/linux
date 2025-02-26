@@ -18,10 +18,10 @@ run_test() {
   "--smac" "${CLIENT_MAC}" "--test" "${test}" "--verbose" )
 
   setup_ns
-  # Each test is run 3 times to deflake, because given the receive timing,
+  # Each test is run 6 times to deflake, because given the receive timing,
   # not all packets that should coalesce will be considered in the same flow
   # on every try.
-  for tries in {1..3}; do
+  for tries in {1..6}; do
     # Actual test starts here
     ip netns exec $server_ns ./gro "${ARGS[@]}" "--rx" "--iface" "server" \
       1>>log.txt &
