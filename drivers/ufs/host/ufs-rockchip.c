@@ -265,7 +265,7 @@ static int ufs_rockchip_runtime_suspend(struct device *dev)
 	clk_disable_unprepare(host->ref_out_clk);
 
 	/* Do not power down the genpd if rpm_lvl is less than level 5 */
-	dev_pm_genpd_rpm_always_on(dev, hba->rpm_lvl < UFS_PM_LVL_5 ? true : false);
+	dev_pm_genpd_rpm_always_on(dev, hba->rpm_lvl < UFS_PM_LVL_5);
 
 	return ufshcd_runtime_suspend(dev);
 }
