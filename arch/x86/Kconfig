@@ -1462,7 +1462,6 @@ config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	depends on X86_32 && X86_HAVE_PAE
 	select PHYS_ADDR_T_64BIT
-	select SWIOTLB
 	help
 	  PAE is required for NX support, and furthermore enables
 	  larger swapspace support for non-overcommit purposes. It
