@@ -11,6 +11,7 @@
 #include "intel_display_types.h"
 #include "intel_lvds_regs.h"
 #include "intel_pfit.h"
+#include "intel_pfit_regs.h"
 
 static int intel_pch_pfit_check_dst_window(const struct intel_crtc_state *crtc_state)
 {
