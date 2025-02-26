@@ -108,6 +108,27 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	adev->mes.vmid_mask_mmhub = 0xffffff00;
 	adev->mes.vmid_mask_gfxhub = 0xffffff00;
 
+	for (i = 0; i < AMDGPU_MES_MAX_GFX_PIPES; i++) {
+		if (i >= adev->gfx.me.num_pipe_per_me * adev->gfx.me.num_me)
+			break;
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) >=
+		    IP_VERSION(12, 0, 0))
+			/*
+			 * GFX V12 has only one GFX pipe, but 8 queues in it.
+			 * GFX pipe 0 queue 0 is being used by Kernel queue.
+			 * Set GFX pipe 0 queue 1-7 for MES scheduling
+			 * mask = 1111 1110b
+			 */
+			adev->mes.gfx_hqd_mask[i] = 0xFE;
+		else
+			/*
+			 * GFX pipe 0 queue 0 is being used by Kernel queue.
+			 * Set GFX pipe 0 queue 1 for MES scheduling
+			 * mask = 10b
+			 */
+			adev->mes.gfx_hqd_mask[i] = 0x2;
+	}
+
 	for (i = 0; i < AMDGPU_MES_MAX_COMPUTE_PIPES; i++) {
 		if (i >= (adev->gfx.mec.num_pipe_per_mec * adev->gfx.mec.num_mec))
 			break;
