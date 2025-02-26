@@ -399,7 +399,7 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->in.op) {
 	case AMDGPU_USERQ_OP_CREATE:
-		if (args->in._pad)
+		if (args->in.flags)
 			return -EINVAL;
 		r = amdgpu_userqueue_create(filp, args);
 		if (r)
@@ -410,7 +410,7 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 		if (args->in.ip_type ||
 		    args->in.doorbell_handle ||
 		    args->in.doorbell_offset ||
-		    args->in._pad ||
+		    args->in.flags ||
 		    args->in.queue_va ||
 		    args->in.queue_size ||
 		    args->in.rptr_va ||
