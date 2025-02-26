@@ -2770,6 +2770,61 @@ __bpf_kfunc int bpf_dynptr_clone(const struct bpf_dynptr *p,
 	return 0;
 }
 
+/**
+ * bpf_dynptr_copy() - Copy data from one dynptr to another.
+ * @dst_ptr: Destination dynptr - where data should be copied to
+ * @dst_off: Offset into the destination dynptr
+ * @src_ptr: Source dynptr - where data should be copied from
+ * @src_off: Offset into the source dynptr
+ * @size: Length of the data to copy from source to destination
+ *
+ * Copies data from source dynptr to destination dynptr.
+ * Returns 0 on success; negative error, otherwise.
+ */
+__bpf_kfunc int bpf_dynptr_copy(struct bpf_dynptr *dst_ptr, u32 dst_off,
+				struct bpf_dynptr *src_ptr, u32 src_off, u32 size)
+{
+	struct bpf_dynptr_kern *dst = (struct bpf_dynptr_kern *)dst_ptr;
+	struct bpf_dynptr_kern *src = (struct bpf_dynptr_kern *)src_ptr;
+	void *src_slice, *dst_slice;
+	char buf[256];
+	u32 off;
+
+	src_slice = bpf_dynptr_slice(src_ptr, src_off, NULL, size);
+	dst_slice = bpf_dynptr_slice_rdwr(dst_ptr, dst_off, NULL, size);
+
+	if (src_slice && dst_slice) {
+		memmove(dst_slice, src_slice, size);
+		return 0;
+	}
+
+	if (src_slice)
+		return __bpf_dynptr_write(dst, dst_off, src_slice, size, 0);
+
+	if (dst_slice)
+		return __bpf_dynptr_read(dst_slice, size, src, src_off, 0);
+
+	if (bpf_dynptr_check_off_len(dst, dst_off, size) ||
+	    bpf_dynptr_check_off_len(src, src_off, size))
+		return -E2BIG;
+
+	off = 0;
+	while (off < size) {
+		u32 chunk_sz = min_t(u32, sizeof(buf), size - off);
+		int err;
+
+		err = __bpf_dynptr_read(buf, chunk_sz, src, src_off + off, 0);
+		if (err)
+			return err;
+		err = __bpf_dynptr_write(dst, dst_off + off, buf, chunk_sz, 0);
+		if (err)
+			return err;
+
+		off += chunk_sz;
+	}
+	return 0;
+}
+
 __bpf_kfunc void *bpf_cast_to_kern_ctx(void *obj)
 {
 	return obj;
@@ -3218,6 +3273,7 @@ BTF_ID_FLAGS(func, bpf_dynptr_is_null)
 BTF_ID_FLAGS(func, bpf_dynptr_is_rdonly)
 BTF_ID_FLAGS(func, bpf_dynptr_size)
 BTF_ID_FLAGS(func, bpf_dynptr_clone)
+BTF_ID_FLAGS(func, bpf_dynptr_copy)
 #ifdef CONFIG_NET
 BTF_ID_FLAGS(func, bpf_modify_return_test_tp)
 #endif
