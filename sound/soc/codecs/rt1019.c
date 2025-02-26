@@ -547,14 +547,14 @@ MODULE_DEVICE_TABLE(i2c, rt1019_i2c_id);
 
 static const struct of_device_id rt1019_of_match[] __maybe_unused = {
 	{ .compatible = "realtek,rt1019", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1019_of_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1019_acpi_match[] = {
-	{ "10EC1019", 0},
-	{ },
+	{ "10EC1019" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1019_acpi_match);
 #endif
