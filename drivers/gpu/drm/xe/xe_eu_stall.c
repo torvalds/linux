@@ -120,7 +120,46 @@ struct xe_eu_stall_data_xe2 {
 	__u64 unused[6];
 } __packed;
 
-static size_t xe_eu_stall_data_record_size(struct xe_device *xe)
+const u64 eu_stall_sampling_rates[] = {251, 251 * 2, 251 * 3, 251 * 4, 251 * 5, 251 * 6, 251 * 7};
+
+/**
+ * xe_eu_stall_get_sampling_rates - get EU stall sampling rates information.
+ *
+ * @num_rates: Pointer to a u32 to return the number of sampling rates.
+ * @rates: double u64 pointer to point to an array of sampling rates.
+ *
+ * Stores the number of sampling rates and pointer to the array of
+ * sampling rates in the input pointers.
+ *
+ * Returns: Size of the EU stall sampling rates array.
+ */
+size_t xe_eu_stall_get_sampling_rates(u32 *num_rates, const u64 **rates)
+{
+	*num_rates = ARRAY_SIZE(eu_stall_sampling_rates);
+	*rates = eu_stall_sampling_rates;
+
+	return sizeof(eu_stall_sampling_rates);
+}
+
+/**
+ * xe_eu_stall_get_per_xecore_buf_size - get per XeCore buffer size.
+ *
+ * Returns: The per XeCore buffer size used to allocate the per GT
+ *	    EU stall data buffer.
+ */
+size_t xe_eu_stall_get_per_xecore_buf_size(void)
+{
+	return per_xecore_buf_size;
+}
+
+/**
+ * xe_eu_stall_data_record_size - get EU stall data record size.
+ *
+ * @xe: Pointer to a Xe device.
+ *
+ * Returns: EU stall data record size.
+ */
+size_t xe_eu_stall_data_record_size(struct xe_device *xe)
 {
 	size_t record_size = 0;
 
@@ -812,11 +851,6 @@ static const struct file_operations fops_eu_stall = {
 	.compat_ioctl   = xe_eu_stall_stream_ioctl,
 };
 
-static inline bool has_eu_stall_sampling_support(struct xe_device *xe)
-{
-	return xe->info.platform == XE_PVC || GRAPHICS_VER(xe) >= 20;
-}
-
 static int xe_eu_stall_stream_open_locked(struct drm_device *dev,
 					  struct eu_stall_open_properties *props,
 					  struct drm_file *file)
@@ -885,7 +919,7 @@ int xe_eu_stall_stream_open(struct drm_device *dev, u64 data, struct drm_file *f
 	struct eu_stall_open_properties props = {};
 	int ret;
 
-	if (!has_eu_stall_sampling_support(xe)) {
+	if (!xe_eu_stall_supported_on_platform(xe)) {
 		drm_dbg(&xe->drm, "EU stall monitoring is not supported on this platform\n");
 		return -ENODEV;
 	}
