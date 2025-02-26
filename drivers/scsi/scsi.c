@@ -510,22 +510,34 @@ void scsi_attach_vpd(struct scsi_device *sdev)
 		return;
 
 	for (i = 4; i < vpd_buf->len; i++) {
-		if (vpd_buf->data[i] == 0x0)
+		switch (vpd_buf->data[i]) {
+		case 0x0:
 			scsi_update_vpd_page(sdev, 0x0, &sdev->vpd_pg0);
-		if (vpd_buf->data[i] == 0x80)
+			break;
+		case 0x80:
 			scsi_update_vpd_page(sdev, 0x80, &sdev->vpd_pg80);
-		if (vpd_buf->data[i] == 0x83)
+			break;
+		case 0x83:
 			scsi_update_vpd_page(sdev, 0x83, &sdev->vpd_pg83);
-		if (vpd_buf->data[i] == 0x89)
+			break;
+		case 0x89:
 			scsi_update_vpd_page(sdev, 0x89, &sdev->vpd_pg89);
-		if (vpd_buf->data[i] == 0xb0)
+			break;
+		case 0xb0:
 			scsi_update_vpd_page(sdev, 0xb0, &sdev->vpd_pgb0);
-		if (vpd_buf->data[i] == 0xb1)
+			break;
+		case 0xb1:
 			scsi_update_vpd_page(sdev, 0xb1, &sdev->vpd_pgb1);
-		if (vpd_buf->data[i] == 0xb2)
+			break;
+		case 0xb2:
 			scsi_update_vpd_page(sdev, 0xb2, &sdev->vpd_pgb2);
-		if (vpd_buf->data[i] == 0xb7)
+			break;
+		case 0xb7:
 			scsi_update_vpd_page(sdev, 0xb7, &sdev->vpd_pgb7);
+			break;
+		default:
+			break;
+		}
 	}
 	kfree(vpd_buf);
 }
