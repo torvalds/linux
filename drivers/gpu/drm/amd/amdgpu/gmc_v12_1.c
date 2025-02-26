@@ -308,6 +308,9 @@ static void gmc_v12_1_get_vm_pte(struct amdgpu_device *adev,
 
 	if (bo && bo->flags & AMDGPU_GEM_CREATE_UNCACHED)
 		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_UC);
+
+	if (adev->have_atomics_support)
+		*flags |= AMDGPU_PTE_BUS_ATOMICS;
 }
 
 static const struct amdgpu_gmc_funcs gmc_v12_1_gmc_funcs = {

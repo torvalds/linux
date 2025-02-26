@@ -1305,6 +1305,11 @@ svm_range_get_pte_flags(struct kfd_node *node, struct amdgpu_vm *vm,
 	pte_flags |= AMDGPU_PTE_READABLE;
 	if (!(flags & KFD_IOCTL_SVM_FLAG_GPU_RO))
 		pte_flags |= AMDGPU_PTE_WRITEABLE;
+
+	if ((gc_ip_version == IP_VERSION(12, 1, 0)) &&
+	    node->adev->have_atomics_support)
+		pte_flags |= AMDGPU_PTE_BUS_ATOMICS;
+
 	return pte_flags;
 }
 
