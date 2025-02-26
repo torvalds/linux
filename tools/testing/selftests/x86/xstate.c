@@ -15,6 +15,24 @@
 #include "helpers.h"
 #include "xstate.h"
 
+/*
+ * The userspace xstate test suite is designed to be generic and operates
+ * with randomized xstate data. However, some states require special handling:
+ *
+ * - PKRU and XTILECFG need specific adjustments, such as modifying
+ *   randomization behavior or using fixed values.
+ * - But, PKRU already has a dedicated test suite in /tools/selftests/mm.
+ * - Legacy states (FP and SSE) are excluded, as they are not considered
+ *   part of extended states (xstates) and their usage is already deeply
+ *   integrated into user-space libraries.
+ */
+#define XFEATURE_MASK_TEST_SUPPORTED	\
+	((1 << XFEATURE_YMM) |		\
+	 (1 << XFEATURE_OPMASK)	|	\
+	 (1 << XFEATURE_ZMM_Hi256) |	\
+	 (1 << XFEATURE_Hi16_ZMM) |	\
+	 (1 << XFEATURE_XTILEDATA))
+
 static inline uint64_t xgetbv(uint32_t index)
 {
 	uint32_t eax, edx;
@@ -434,6 +452,12 @@ void test_xstate(uint32_t feature_num)
 	const unsigned int ctxtsw_num_threads = 5, ctxtsw_iterations = 10;
 	unsigned long features;
 	long rc;
+
+	if (!(XFEATURE_MASK_TEST_SUPPORTED & (1 << feature_num))) {
+		ksft_print_msg("The xstate test does not fully support the component %u, yet.\n",
+			       feature_num);
+		return;
+	}
 
 	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_SUPP, &features);
 	if (rc || !(features & (1 << feature_num))) {
