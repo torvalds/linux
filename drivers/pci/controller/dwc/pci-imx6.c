@@ -108,7 +108,6 @@ enum imx_pcie_variants {
 
 #define imx_check_flag(pci, val)	(pci->drvdata->flags & val)
 
-#define IMX_PCIE_MAX_CLKS	6
 #define IMX_PCIE_MAX_INSTANCES	2
 
 struct imx_pcie;
@@ -119,9 +118,6 @@ struct imx_pcie_drvdata {
 	u32 flags;
 	int dbi_length;
 	const char *gpr;
-	const char * const *clk_names;
-	const u32 clks_cnt;
-	const u32 clks_optional_cnt;
 	const u32 ltssm_off;
 	const u32 ltssm_mask;
 	const u32 mode_off[IMX_PCIE_MAX_INSTANCES];
@@ -136,7 +132,8 @@ struct imx_pcie_drvdata {
 struct imx_pcie {
 	struct dw_pcie		*pci;
 	struct gpio_desc	*reset_gpiod;
-	struct clk_bulk_data	clks[IMX_PCIE_MAX_CLKS];
+	struct clk_bulk_data	*clks;
+	int			num_clks;
 	struct regmap		*iomuxc_gpr;
 	u16			msi_ctrl;
 	u32			controller_id;
@@ -469,13 +466,14 @@ static int imx_setup_phy_mpll(struct imx_pcie *imx_pcie)
 	int mult, div;
 	u16 val;
 	int i;
+	struct clk_bulk_data *clks = imx_pcie->clks;
 
 	if (!(imx_pcie->drvdata->flags & IMX_PCIE_FLAG_IMX_PHY))
 		return 0;
 
-	for (i = 0; i < imx_pcie->drvdata->clks_cnt; i++)
-		if (strncmp(imx_pcie->clks[i].id, "pcie_phy", 8) == 0)
-			phy_rate = clk_get_rate(imx_pcie->clks[i].clk);
+	for (i = 0; i < imx_pcie->num_clks; i++)
+		if (strncmp(clks[i].id, "pcie_phy", 8) == 0)
+			phy_rate = clk_get_rate(clks[i].clk);
 
 	switch (phy_rate) {
 	case 125000000:
@@ -667,7 +665,7 @@ static int imx_pcie_clk_enable(struct imx_pcie *imx_pcie)
 	struct device *dev = pci->dev;
 	int ret;
 
-	ret = clk_bulk_prepare_enable(imx_pcie->drvdata->clks_cnt, imx_pcie->clks);
+	ret = clk_bulk_prepare_enable(imx_pcie->num_clks, imx_pcie->clks);
 	if (ret)
 		return ret;
 
@@ -684,7 +682,7 @@ static int imx_pcie_clk_enable(struct imx_pcie *imx_pcie)
 	return 0;
 
 err_ref_clk:
-	clk_bulk_disable_unprepare(imx_pcie->drvdata->clks_cnt, imx_pcie->clks);
+	clk_bulk_disable_unprepare(imx_pcie->num_clks, imx_pcie->clks);
 
 	return ret;
 }
@@ -693,7 +691,7 @@ static void imx_pcie_clk_disable(struct imx_pcie *imx_pcie)
 {
 	if (imx_pcie->drvdata->enable_ref_clk)
 		imx_pcie->drvdata->enable_ref_clk(imx_pcie, false);
-	clk_bulk_disable_unprepare(imx_pcie->drvdata->clks_cnt, imx_pcie->clks);
+	clk_bulk_disable_unprepare(imx_pcie->num_clks, imx_pcie->clks);
 }
 
 static int imx6sx_pcie_core_reset(struct imx_pcie *imx_pcie, bool assert)
@@ -1474,7 +1472,7 @@ static int imx_pcie_probe(struct platform_device *pdev)
 	struct imx_pcie *imx_pcie;
 	struct device_node *np;
 	struct device_node *node = dev->of_node;
-	int i, ret, req_cnt, domain;
+	int ret, domain;
 	u16 val;
 
 	imx_pcie = devm_kzalloc(dev, sizeof(*imx_pcie), GFP_KERNEL);
@@ -1520,20 +1518,11 @@ static int imx_pcie_probe(struct platform_device *pdev)
 				     "unable to get reset gpio\n");
 	gpiod_set_consumer_name(imx_pcie->reset_gpiod, "PCIe reset");
 
-	if (imx_pcie->drvdata->clks_cnt >= IMX_PCIE_MAX_CLKS)
-		return dev_err_probe(dev, -ENOMEM, "clks_cnt is too big\n");
-
-	for (i = 0; i < imx_pcie->drvdata->clks_cnt; i++)
-		imx_pcie->clks[i].id = imx_pcie->drvdata->clk_names[i];
-
 	/* Fetch clocks */
-	req_cnt = imx_pcie->drvdata->clks_cnt - imx_pcie->drvdata->clks_optional_cnt;
-	ret = devm_clk_bulk_get(dev, req_cnt, imx_pcie->clks);
-	if (ret)
-		return ret;
-	imx_pcie->clks[req_cnt].clk = devm_clk_get_optional(dev, "ref");
-	if (IS_ERR(imx_pcie->clks[req_cnt].clk))
-		return PTR_ERR(imx_pcie->clks[req_cnt].clk);
+	imx_pcie->num_clks = devm_clk_bulk_get_all(dev, &imx_pcie->clks);
+	if (imx_pcie->num_clks < 0)
+		return dev_err_probe(dev, imx_pcie->num_clks,
+				     "failed to get clocks\n");
 
 	if (imx_check_flag(imx_pcie, IMX_PCIE_FLAG_HAS_PHYDRV)) {
 		imx_pcie->phy = devm_phy_get(dev, "pcie-phy");
@@ -1672,13 +1661,6 @@ static void imx_pcie_shutdown(struct platform_device *pdev)
 	imx_pcie_assert_core_reset(imx_pcie);
 }
 
-static const char * const imx6q_clks[] = {"pcie_bus", "pcie", "pcie_phy"};
-static const char * const imx8mm_clks[] = {"pcie_bus", "pcie", "pcie_aux"};
-static const char * const imx8mq_clks[] = {"pcie_bus", "pcie", "pcie_phy", "pcie_aux"};
-static const char * const imx6sx_clks[] = {"pcie_bus", "pcie", "pcie_phy", "pcie_inbound_axi"};
-static const char * const imx8q_clks[] = {"mstr", "slv", "dbi"};
-static const char * const imx95_clks[] = {"pcie_bus", "pcie", "pcie_phy", "pcie_aux", "ref"};
-
 static const struct imx_pcie_drvdata drvdata[] = {
 	[IMX6Q] = {
 		.variant = IMX6Q,
@@ -1688,8 +1670,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
 		.dbi_length = 0x200,
 		.gpr = "fsl,imx6q-iomuxc-gpr",
-		.clk_names = imx6q_clks,
-		.clks_cnt = ARRAY_SIZE(imx6q_clks),
 		.ltssm_off = IOMUXC_GPR12,
 		.ltssm_mask = IMX6Q_GPR12_PCIE_CTL_2,
 		.mode_off[0] = IOMUXC_GPR12,
@@ -1704,8 +1684,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_IMX_SPEED_CHANGE |
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
 		.gpr = "fsl,imx6q-iomuxc-gpr",
-		.clk_names = imx6sx_clks,
-		.clks_cnt = ARRAY_SIZE(imx6sx_clks),
 		.ltssm_off = IOMUXC_GPR12,
 		.ltssm_mask = IMX6Q_GPR12_PCIE_CTL_2,
 		.mode_off[0] = IOMUXC_GPR12,
@@ -1722,8 +1700,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
 		.dbi_length = 0x200,
 		.gpr = "fsl,imx6q-iomuxc-gpr",
-		.clk_names = imx6q_clks,
-		.clks_cnt = ARRAY_SIZE(imx6q_clks),
 		.ltssm_off = IOMUXC_GPR12,
 		.ltssm_mask = IMX6Q_GPR12_PCIE_CTL_2,
 		.mode_off[0] = IOMUXC_GPR12,
@@ -1739,8 +1715,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_APP_RESET |
 			 IMX_PCIE_FLAG_HAS_PHY_RESET,
 		.gpr = "fsl,imx7d-iomuxc-gpr",
-		.clk_names = imx6q_clks,
-		.clks_cnt = ARRAY_SIZE(imx6q_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.enable_ref_clk = imx7d_pcie_enable_ref_clk,
@@ -1752,8 +1726,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHY_RESET |
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
 		.gpr = "fsl,imx8mq-iomuxc-gpr",
-		.clk_names = imx8mq_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mq_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.mode_off[1] = IOMUXC_GPR12,
@@ -1767,8 +1739,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHYDRV |
 			 IMX_PCIE_FLAG_HAS_APP_RESET,
 		.gpr = "fsl,imx8mm-iomuxc-gpr",
-		.clk_names = imx8mm_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mm_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.enable_ref_clk = imx8mm_pcie_enable_ref_clk,
@@ -1779,8 +1749,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHYDRV |
 			 IMX_PCIE_FLAG_HAS_APP_RESET,
 		.gpr = "fsl,imx8mp-iomuxc-gpr",
-		.clk_names = imx8mm_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mm_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.enable_ref_clk = imx8mm_pcie_enable_ref_clk,
@@ -1790,17 +1758,12 @@ static const struct imx_pcie_drvdata drvdata[] = {
 		.flags = IMX_PCIE_FLAG_HAS_PHYDRV |
 			 IMX_PCIE_FLAG_CPU_ADDR_FIXUP |
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
-		.clk_names = imx8q_clks,
-		.clks_cnt = ARRAY_SIZE(imx8q_clks),
 	},
 	[IMX95] = {
 		.variant = IMX95,
 		.flags = IMX_PCIE_FLAG_HAS_SERDES |
 			 IMX_PCIE_FLAG_HAS_LUT |
 			 IMX_PCIE_FLAG_SUPPORTS_SUSPEND,
-		.clk_names = imx95_clks,
-		.clks_cnt = ARRAY_SIZE(imx95_clks),
-		.clks_optional_cnt = 1,
 		.ltssm_off = IMX95_PE0_GEN_CTRL_3,
 		.ltssm_mask = IMX95_PCIE_LTSSM_EN,
 		.mode_off[0]  = IMX95_PE0_GEN_CTRL_1,
@@ -1813,8 +1776,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHY_RESET,
 		.mode = DW_PCIE_EP_TYPE,
 		.gpr = "fsl,imx8mq-iomuxc-gpr",
-		.clk_names = imx8mq_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mq_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.mode_off[1] = IOMUXC_GPR12,
@@ -1829,8 +1790,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHYDRV,
 		.mode = DW_PCIE_EP_TYPE,
 		.gpr = "fsl,imx8mm-iomuxc-gpr",
-		.clk_names = imx8mm_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mm_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.epc_features = &imx8m_pcie_epc_features,
@@ -1842,8 +1801,6 @@ static const struct imx_pcie_drvdata drvdata[] = {
 			 IMX_PCIE_FLAG_HAS_PHYDRV,
 		.mode = DW_PCIE_EP_TYPE,
 		.gpr = "fsl,imx8mp-iomuxc-gpr",
-		.clk_names = imx8mm_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mm_clks),
 		.mode_off[0] = IOMUXC_GPR12,
 		.mode_mask[0] = IMX6Q_GPR12_DEVICE_TYPE,
 		.epc_features = &imx8m_pcie_epc_features,
@@ -1854,15 +1811,11 @@ static const struct imx_pcie_drvdata drvdata[] = {
 		.flags = IMX_PCIE_FLAG_HAS_PHYDRV,
 		.mode = DW_PCIE_EP_TYPE,
 		.epc_features = &imx8q_pcie_epc_features,
-		.clk_names = imx8q_clks,
-		.clks_cnt = ARRAY_SIZE(imx8q_clks),
 	},
 	[IMX95_EP] = {
 		.variant = IMX95_EP,
 		.flags = IMX_PCIE_FLAG_HAS_SERDES |
 			 IMX_PCIE_FLAG_SUPPORT_64BIT,
-		.clk_names = imx8mq_clks,
-		.clks_cnt = ARRAY_SIZE(imx8mq_clks),
 		.ltssm_off = IMX95_PE0_GEN_CTRL_3,
 		.ltssm_mask = IMX95_PCIE_LTSSM_EN,
 		.mode_off[0]  = IMX95_PE0_GEN_CTRL_1,
