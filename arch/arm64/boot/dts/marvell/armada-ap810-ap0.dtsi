@@ -12,6 +12,7 @@
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
+	interrupt-parent = <&gic>;
 
 	aliases {
 		serial0 = &uart0_ap0;
@@ -23,11 +24,18 @@
 		method = "smc";
 	};
 
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+				<GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	ap810-ap0 {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		compatible = "simple-bus";
-		interrupt-parent = <&gic>;
 		ranges;
 
 		config-space@e8000000 {
@@ -58,14 +66,6 @@
 					#msi-cells = <1>;
 					reg = <0x3040000 0x20000>;
 				};
-			};
-
-			timer {
-				compatible = "arm,armv8-timer";
-				interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
-					     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 			};
 
 			xor@400000 {
