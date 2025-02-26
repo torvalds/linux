@@ -380,12 +380,26 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->in.op) {
 	case AMDGPU_USERQ_OP_CREATE:
+		if (args->in._pad)
+			return -EINVAL;
 		r = amdgpu_userqueue_create(filp, args);
 		if (r)
 			DRM_ERROR("Failed to create usermode queue\n");
 		break;
 
 	case AMDGPU_USERQ_OP_FREE:
+		if (args->in.ip_type ||
+		    args->in.doorbell_handle ||
+		    args->in.doorbell_offset ||
+		    args->in._pad ||
+		    args->in.queue_va ||
+		    args->in.queue_size ||
+		    args->in.rptr_va ||
+		    args->in.wptr_va ||
+		    args->in.wptr_va ||
+		    args->in.mqd ||
+		    args->in.mqd_size)
+			return -EINVAL;
 		r = amdgpu_userqueue_destroy(filp, args->in.queue_id);
 		if (r)
 			DRM_ERROR("Failed to destroy usermode queue\n");
