@@ -193,19 +193,21 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 }
 
 /*
- * Someone wants to read @bytes from a HWPOISON hugetlb @page from @offset.
+ * Someone wants to read @bytes from a HWPOISON hugetlb @folio from @offset.
  * Returns the maximum number of bytes one can read without touching the 1st raw
- * HWPOISON subpage.
+ * HWPOISON page.
  *
  * The implementation borrows the iteration logic from copy_page_to_iter*.
  */
-static size_t adjust_range_hwpoison(struct page *page, size_t offset, size_t bytes)
+static size_t adjust_range_hwpoison(struct folio *folio, size_t offset,
+		size_t bytes)
 {
+	struct page *page;
 	size_t n = 0;
 	size_t res = 0;
 
-	/* First subpage to start the loop. */
-	page = nth_page(page, offset / PAGE_SIZE);
+	/* First page to start the loop. */
+	page = folio_page(folio, offset / PAGE_SIZE);
 	offset %= PAGE_SIZE;
 	while (1) {
 		if (is_raw_hwpoison_page_in_hugepage(page))
@@ -278,10 +280,10 @@ static ssize_t hugetlbfs_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			else {
 				/*
 				 * Adjust how many bytes safe to read without
-				 * touching the 1st raw HWPOISON subpage after
+				 * touching the 1st raw HWPOISON page after
 				 * offset.
 				 */
-				want = adjust_range_hwpoison(&folio->page, offset, nr);
+				want = adjust_range_hwpoison(folio, offset, nr);
 				if (want == 0) {
 					folio_put(folio);
 					retval = -EIO;
