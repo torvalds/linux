@@ -154,23 +154,23 @@ static void translation_specification_exception(struct pt_regs *regs)
 
 static void illegal_op(struct pt_regs *regs)
 {
-        __u8 opcode[6];
-	__u16 __user *location;
 	int is_uprobe_insn = 0;
+	u16 __user *location;
 	int signal = 0;
+	u16 opcode;
 
 	location = get_trap_ip(regs);
 
 	if (user_mode(regs)) {
-		if (get_user(*((__u16 *) opcode), (__u16 __user *) location))
+		if (get_user(opcode, location))
 			return;
-		if (*((__u16 *) opcode) == S390_BREAKPOINT_U16) {
+		if (opcode == S390_BREAKPOINT_U16) {
 			if (current->ptrace)
 				force_sig_fault(SIGTRAP, TRAP_BRKPT, location);
 			else
 				signal = SIGILL;
 #ifdef CONFIG_UPROBES
-		} else if (*((__u16 *) opcode) == UPROBE_SWBP_INSN) {
+		} else if (opcode == UPROBE_SWBP_INSN) {
 			is_uprobe_insn = 1;
 #endif
 		} else
