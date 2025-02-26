@@ -297,17 +297,3 @@ void *vdso_sym(const char *version, const char *name)
 
 	return 0;
 }
-
-void vdso_init_from_auxv(void *auxv)
-{
-	ELF(auxv_t) *elf_auxv = auxv;
-	for (int i = 0; elf_auxv[i].a_type != AT_NULL; i++)
-	{
-		if (elf_auxv[i].a_type == AT_SYSINFO_EHDR) {
-			vdso_init_from_sysinfo_ehdr(elf_auxv[i].a_un.a_val);
-			return;
-		}
-	}
-
-	vdso_info.valid = false;
-}
