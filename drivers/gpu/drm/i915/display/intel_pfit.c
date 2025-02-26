@@ -569,9 +569,9 @@ void ilk_pfit_enable(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->pch_pfit.enabled)
 		return;
 
-	/* Force use of hard-coded filter coefficients
-	 * as some pre-programmed values are broken,
-	 * e.g. x201.
+	/*
+	 * Force use of hard-coded filter coefficients as some pre-programmed
+	 * values are broken, e.g. x201.
 	 */
 	if (IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv))
 		intel_de_write_fw(dev_priv, PF_CTL(pipe), PF_ENABLE |
@@ -591,8 +591,10 @@ void ilk_pfit_disable(const struct intel_crtc_state *old_crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	/* To avoid upsetting the power well on haswell only disable the pfit if
-	 * it's in use. The hw state code will make sure we get this right. */
+	/*
+	 * To avoid upsetting the power well on haswell only disable the pfit if
+	 * it's in use. The hw state code will make sure we get this right.
+	 */
 	if (!old_crtc_state->pch_pfit.enabled)
 		return;
 
@@ -657,8 +659,10 @@ void i9xx_pfit_enable(const struct intel_crtc_state *crtc_state)
 	intel_de_write(display, PFIT_CONTROL(display),
 		       crtc_state->gmch_pfit.control);
 
-	/* Border color in case we don't scale up to the full screen. Black by
-	 * default, change to something else for debugging. */
+	/*
+	 * Border color in case we don't scale up to the full screen. Black by
+	 * default, change to something else for debugging.
+	 */
 	intel_de_write(display, BCLRPAT(display, crtc->pipe), 0);
 }
 
