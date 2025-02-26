@@ -442,7 +442,7 @@ static const struct constant_table ext2_param_errors[] = {
 	{}
 };
 
-const struct fs_parameter_spec ext2_param_spec[] = {
+static const struct fs_parameter_spec ext2_param_spec[] = {
 	fsparam_flag	("bsddf", Opt_bsd_df),
 	fsparam_flag	("minixdf", Opt_minix_df),
 	fsparam_flag	("grpid", Opt_grpid),
