@@ -1388,15 +1388,11 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-choice
-	prompt "High Memory Support"
-	default HIGHMEM4G
+config HIGHMEM4G
+	bool "High Memory Support"
 	depends on X86_32
-
-config NOHIGHMEM
-	bool "off"
 	help
-	  Linux can use up to 64 Gigabytes of physical memory on x86 systems.
+	  Linux can use up to 4 Gigabytes of physical memory on x86 systems.
 	  However, the address space of 32-bit x86 processors is only 4
 	  Gigabytes large. That means that, if you have a large amount of
 	  physical memory, not all of it can be "permanently mapped" by the
@@ -1412,38 +1408,9 @@ config NOHIGHMEM
 	  possible.
 
 	  If the machine has between 1 and 4 Gigabytes physical RAM, then
-	  answer "4GB" here.
+	  answer "Y" here.
 
-	  If more than 4 Gigabytes is used then answer "64GB" here. This
-	  selection turns Intel PAE (Physical Address Extension) mode on.
-	  PAE implements 3-level paging on IA32 processors. PAE is fully
-	  supported by Linux, PAE mode is implemented on all recent Intel
-	  processors (Pentium Pro and better). NOTE: If you say "64GB" here,
-	  then the kernel will not boot on CPUs that don't support PAE!
-
-	  The actual amount of total physical memory will either be
-	  auto detected or can be forced by using a kernel command line option
-	  such as "mem=256M". (Try "man bootparam" or see the documentation of
-	  your boot loader (lilo or loadlin) about how to pass options to the
-	  kernel at boot time.)
-
-	  If unsure, say "off".
-
-config HIGHMEM4G
-	bool "4GB"
-	help
-	  Select this if you have a 32-bit processor and between 1 and 4
-	  gigabytes of physical RAM.
-
-config HIGHMEM64G
-	bool "64GB"
-	depends on X86_HAVE_PAE
-	select X86_PAE
-	help
-	  Select this if you have a 32-bit processor and more than 4
-	  gigabytes of physical RAM.
-
-endchoice
+	  If unsure, say N.
 
 choice
 	prompt "Memory split" if EXPERT
@@ -1489,8 +1456,7 @@ config PAGE_OFFSET
 	depends on X86_32
 
 config HIGHMEM
-	def_bool y
-	depends on X86_32 && (HIGHMEM64G || HIGHMEM4G)
+	def_bool HIGHMEM4G
 
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
