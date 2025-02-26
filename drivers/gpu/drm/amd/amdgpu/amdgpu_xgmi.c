@@ -315,6 +315,7 @@ int amdgpu_get_xgmi_link_status(struct amdgpu_device *adev, int global_link_num)
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		xgmi_state_reg_val = xgmi_v6_4_get_link_status(adev, global_link_num);
 		break;
 	default:
@@ -1205,6 +1206,7 @@ static int amdgpu_xgmi_ras_late_init(struct amdgpu_device *adev, struct ras_comm
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		r = amdgpu_ras_bind_aca(adev, AMDGPU_RAS_BLOCK__XGMI_WAFL,
 					&xgmi_v6_4_0_aca_info, NULL);
 		if (r)
@@ -1264,6 +1266,7 @@ static void amdgpu_xgmi_legacy_reset_ras_error_count(struct amdgpu_device *adev)
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_v6_4); i++)
 			pcs_clear_status(adev,
 					xgmi3x16_pcs_err_status_reg_v6_4[i]);
@@ -1298,6 +1301,7 @@ static void amdgpu_xgmi_reset_ras_error_count(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		xgmi_v6_4_0_reset_ras_error_count(adev);
 		break;
 	default:
@@ -1323,7 +1327,9 @@ static int amdgpu_xgmi_query_pcs_error_status(struct amdgpu_device *adev,
 		if (amdgpu_ip_version(adev, XGMI_HWIP, 0) ==
 		    IP_VERSION(6, 1, 0) ||
 		    amdgpu_ip_version(adev, XGMI_HWIP, 0) ==
-		    IP_VERSION(6, 4, 0)) {
+		    IP_VERSION(6, 4, 0) ||
+		    amdgpu_ip_version(adev, XGMI_HWIP, 0) ==
+		    IP_VERSION(6, 4, 1)) {
 			pcs_ras_fields = &xgmi3x16_pcs_ras_fields[0];
 			field_array_size = ARRAY_SIZE(xgmi3x16_pcs_ras_fields);
 		} else {
@@ -1431,6 +1437,7 @@ static void amdgpu_xgmi_legacy_query_ras_error_count(struct amdgpu_device *adev,
 
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		/* check xgmi3x16 pcs error */
 		for (i = 0; i < ARRAY_SIZE(xgmi3x16_pcs_err_status_reg_v6_4); i++) {
 			data = RREG32_PCIE(xgmi3x16_pcs_err_status_reg_v6_4[i]);
@@ -1527,6 +1534,7 @@ static void amdgpu_xgmi_query_ras_error_count(struct amdgpu_device *adev,
 {
 	switch (amdgpu_ip_version(adev, XGMI_HWIP, 0)) {
 	case IP_VERSION(6, 4, 0):
+	case IP_VERSION(6, 4, 1):
 		xgmi_v6_4_0_query_ras_error_count(adev, ras_error_status);
 		break;
 	default:
