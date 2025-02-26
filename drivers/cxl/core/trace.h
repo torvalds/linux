@@ -392,9 +392,10 @@ TRACE_EVENT(cxl_generic_event,
 TRACE_EVENT(cxl_general_media,
 
 	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
-		 struct cxl_region *cxlr, u64 hpa, struct cxl_event_gen_media *rec),
+		 struct cxl_region *cxlr, u64 hpa, u64 hpa_alias0,
+		 struct cxl_event_gen_media *rec),
 
-	TP_ARGS(cxlmd, log, cxlr, hpa, rec),
+	TP_ARGS(cxlmd, log, cxlr, hpa, hpa_alias0, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -408,6 +409,7 @@ TRACE_EVENT(cxl_general_media,
 		__array(u8, comp_id, CXL_EVENT_GEN_MED_COMP_ID_SIZE)
 		/* Following are out of order to pack trace record */
 		__field(u64, hpa)
+		__field(u64, hpa_alias0)
 		__field_struct(uuid_t, region_uuid)
 		__field(u16, validity_flags)
 		__field(u8, rank)
@@ -438,6 +440,7 @@ TRACE_EVENT(cxl_general_media,
 			CXL_EVENT_GEN_MED_COMP_ID_SIZE);
 		__entry->validity_flags = get_unaligned_le16(&rec->media_hdr.validity_flags);
 		__entry->hpa = hpa;
+		__entry->hpa_alias0 = hpa_alias0;
 		if (cxlr) {
 			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
@@ -455,7 +458,7 @@ TRACE_EVENT(cxl_general_media,
 		"device=%x validity_flags='%s' " \
 		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
 		"pldm_entity_id=%s pldm_resource_id=%s " \
-		"hpa=%llx region=%s region_uuid=%pUb " \
+		"hpa=%llx hpa_alias0=%llx region=%s region_uuid=%pUb " \
 		"cme_threshold_ev_flags='%s' cme_count=%u",
 		__entry->dpa, show_dpa_flags(__entry->dpa_flags),
 		show_event_desc_flags(__entry->descriptor),
@@ -470,7 +473,7 @@ TRACE_EVENT(cxl_general_media,
 				    CXL_GMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
 		show_pldm_resource_id(__entry->validity_flags, CXL_GMER_VALID_COMPONENT,
 				      CXL_GMER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
-		__entry->hpa, __get_str(region_name), &__entry->region_uuid,
+		__entry->hpa, __entry->hpa_alias0, __get_str(region_name), &__entry->region_uuid,
 		show_cme_threshold_ev_flags(__entry->cme_threshold_ev_flags), __entry->cme_count
 	)
 );
@@ -529,9 +532,10 @@ TRACE_EVENT(cxl_general_media,
 TRACE_EVENT(cxl_dram,
 
 	TP_PROTO(const struct cxl_memdev *cxlmd, enum cxl_event_log_type log,
-		 struct cxl_region *cxlr, u64 hpa, struct cxl_event_dram *rec),
+		 struct cxl_region *cxlr, u64 hpa, u64 hpa_alias0,
+		 struct cxl_event_dram *rec),
 
-	TP_ARGS(cxlmd, log, cxlr, hpa, rec),
+	TP_ARGS(cxlmd, log, cxlr, hpa, hpa_alias0, rec),
 
 	TP_STRUCT__entry(
 		CXL_EVT_TP_entry
@@ -547,6 +551,7 @@ TRACE_EVENT(cxl_dram,
 		__field(u32, row)
 		__array(u8, cor_mask, CXL_EVENT_DER_CORRECTION_MASK_SIZE)
 		__field(u64, hpa)
+		__field(u64, hpa_alias0)
 		__field_struct(uuid_t, region_uuid)
 		__field(u8, rank)	/* Out of order to pack trace record */
 		__field(u8, bank_group)	/* Out of order to pack trace record */
@@ -584,6 +589,7 @@ TRACE_EVENT(cxl_dram,
 		memcpy(__entry->cor_mask, &rec->correction_mask,
 			CXL_EVENT_DER_CORRECTION_MASK_SIZE);
 		__entry->hpa = hpa;
+		__entry->hpa_alias0 = hpa_alias0;
 		if (cxlr) {
 			__assign_str(region_name);
 			uuid_copy(&__entry->region_uuid, &cxlr->params.uuid);
@@ -604,7 +610,7 @@ TRACE_EVENT(cxl_dram,
 		"validity_flags='%s' " \
 		"comp_id=%s comp_id_pldm_valid_flags='%s' " \
 		"pldm_entity_id=%s pldm_resource_id=%s " \
-		"hpa=%llx region=%s region_uuid=%pUb " \
+		"hpa=%llx hpa_alias0=%llx region=%s region_uuid=%pUb " \
 		"sub_channel=%u cme_threshold_ev_flags='%s' cvme_count=%u",
 		__entry->dpa, show_dpa_flags(__entry->dpa_flags),
 		show_event_desc_flags(__entry->descriptor),
@@ -622,7 +628,7 @@ TRACE_EVENT(cxl_dram,
 				    CXL_DER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
 		show_pldm_resource_id(__entry->validity_flags, CXL_DER_VALID_COMPONENT,
 				      CXL_DER_VALID_COMPONENT_ID_FORMAT, __entry->comp_id),
-		__entry->hpa, __get_str(region_name), &__entry->region_uuid,
+		__entry->hpa, __entry->hpa_alias0, __get_str(region_name), &__entry->region_uuid,
 		__entry->sub_channel, show_cme_threshold_ev_flags(__entry->cme_threshold_ev_flags),
 		__entry->cvme_count
 	)
@@ -870,6 +876,7 @@ TRACE_EVENT(cxl_poison,
 		__string(region, cxlr ? dev_name(&cxlr->dev) : "")
 		__field(u64, overflow_ts)
 		__field(u64, hpa)
+		__field(u64, hpa_alias0)
 		__field(u64, dpa)
 		__field(u32, dpa_length)
 		__array(char, uuid, 16)
@@ -892,16 +899,22 @@ TRACE_EVENT(cxl_poison,
 			memcpy(__entry->uuid, &cxlr->params.uuid, 16);
 			__entry->hpa = cxl_dpa_to_hpa(cxlr, cxlmd,
 						      __entry->dpa);
+			if (__entry->hpa != ULLONG_MAX && cxlr->params.cache_size)
+				__entry->hpa_alias0 = __entry->hpa +
+						      cxlr->params.cache_size;
+			else
+				__entry->hpa_alias0 = ULLONG_MAX;
 		} else {
 			__assign_str(region);
 			memset(__entry->uuid, 0, 16);
 			__entry->hpa = ULLONG_MAX;
+			__entry->hpa_alias0 = ULLONG_MAX;
 		}
 	    ),
 
 	TP_printk("memdev=%s host=%s serial=%lld trace_type=%s region=%s "  \
-		"region_uuid=%pU hpa=0x%llx dpa=0x%llx dpa_length=0x%x "    \
-		"source=%s flags=%s overflow_time=%llu",
+		"region_uuid=%pU hpa=0x%llx hpa_alias0=0x%llx dpa=0x%llx " \
+		"dpa_length=0x%x source=%s flags=%s overflow_time=%llu",
 		__get_str(memdev),
 		__get_str(host),
 		__entry->serial,
@@ -909,6 +922,7 @@ TRACE_EVENT(cxl_poison,
 		__get_str(region),
 		__entry->uuid,
 		__entry->hpa,
+		__entry->hpa_alias0,
 		__entry->dpa,
 		__entry->dpa_length,
 		show_poison_source(__entry->source),
