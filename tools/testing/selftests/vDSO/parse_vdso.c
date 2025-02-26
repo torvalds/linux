@@ -26,7 +26,7 @@
 
 /* And here's the code. */
 #ifndef ELF_BITS
-# if ULONG_MAX > 0xffffffffUL
+# if __SIZEOF_LONG__ >= 8
 #  define ELF_BITS 64
 # else
 #  define ELF_BITS 32
