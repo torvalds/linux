@@ -21,6 +21,11 @@ static inline uint64_t xgetbv(uint32_t index)
 	return eax + ((uint64_t)edx << 32);
 }
 
+static inline uint64_t get_xstatebv(struct xsave_buffer *xbuf)
+{
+	return *(uint64_t *)(&xbuf->header);
+}
+
 static struct xstate_info xstate;
 
 struct futex_info {
@@ -324,4 +329,107 @@ void test_ptrace(uint32_t feature_num)
 	wait(&status);
 	if (!WIFEXITED(status) || WEXITSTATUS(status))
 		ksft_exit_fail_msg("ptracee exit error\n");
+}
+
+/*
+ * Test signal delivery for the ABI compatibility.
+ * See the ABI format: arch/x86/include/uapi/asm/sigcontext.h
+ */
+
+/*
+ * Avoid using printf() in signal handlers as it is not
+ * async-signal-safe.
+ */
+#define SIGNAL_BUF_LEN 1000
+static char signal_message_buffer[SIGNAL_BUF_LEN];
+static void sig_print(char *msg)
+{
+	int left = SIGNAL_BUF_LEN - strlen(signal_message_buffer) - 1;
+
+	strncat(signal_message_buffer, msg, left);
+}
+
+static struct xsave_buffer *stashed_xbuf;
+
+static void validate_sigfpstate(int sig, siginfo_t *si, void *ctx_void)
+{
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
+	void *xbuf = ctx->uc_mcontext.fpregs;
+	struct _fpx_sw_bytes *sw_bytes;
+	uint32_t magic2;
+
+	/* Reset the signal message buffer: */
+	signal_message_buffer[0] = '\0';
+
+	sw_bytes = get_fpx_sw_bytes(xbuf);
+	if (sw_bytes->magic1 == FP_XSTATE_MAGIC1)
+		sig_print("[OK]\t'magic1' is valid\n");
+	else
+		sig_print("[FAIL]\t'magic1' is not valid\n");
+
+	if (get_fpx_sw_bytes_features(xbuf) & xstate.mask)
+		sig_print("[OK]\t'xfeatures' in SW reserved area is valid\n");
+	else
+		sig_print("[FAIL]\t'xfeatures' in SW reserved area is not valid\n");
+
+	if (get_xstatebv(xbuf) & xstate.mask)
+		sig_print("[OK]\t'xfeatures' in XSAVE header is valid\n");
+	else
+		sig_print("[FAIL]\t'xfeatures' in XSAVE hader is not valid\n");
+
+	if (validate_xstate_same(stashed_xbuf, xbuf))
+		sig_print("[OK]\txstate delivery was successful\n");
+	else
+		sig_print("[FAIL]\txstate delivery was not successful\n");
+
+	magic2 = *(uint32_t *)(xbuf + sw_bytes->xstate_size);
+	if (magic2 == FP_XSTATE_MAGIC2)
+		sig_print("[OK]\t'magic2' is valid\n");
+	else
+		sig_print("[FAIL]\t'magic2' is not valid\n");
+
+	set_rand_data(&xstate, xbuf);
+	copy_xstate(stashed_xbuf, xbuf);
+}
+
+void test_signal(uint32_t feature_num)
+{
+	bool valid_xstate;
+
+	xstate = get_xstate_info(feature_num);
+
+	/*
+	 * The signal handler will access this to verify xstate context
+	 * preservation.
+	 */
+
+	stashed_xbuf = alloc_xbuf();
+	if (!stashed_xbuf)
+		ksft_exit_fail_msg("unable to allocate XSAVE buffer\n");
+
+	printf("[RUN]\t%s: load xstate and raise SIGUSR1\n", xstate.name);
+
+	sethandler(SIGUSR1, validate_sigfpstate, 0);
+
+	load_rand_xstate(&xstate, stashed_xbuf);
+
+	raise(SIGUSR1);
+
+	/*
+	 * Immediately record the test result, deferring printf() to
+	 * prevent unintended state contamination by that.
+	 */
+	valid_xstate = validate_xregs_same(stashed_xbuf);
+	printf("%s", signal_message_buffer);
+
+	printf("[RUN]\t%s: load new xstate from sighandler and check it after sigreturn\n",
+	       xstate.name);
+
+	if (valid_xstate)
+		printf("[OK]\txstate was restored correctly\n");
+	else
+		printf("[FAIL]\txstate restoration failed\n");
+
+	clearhandler(SIGUSR1);
+	free(stashed_xbuf);
 }

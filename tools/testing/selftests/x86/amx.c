@@ -510,6 +510,8 @@ int main(void)
 
 	test_ptrace(XFEATURE_XTILEDATA);
 
+	test_signal(XFEATURE_XTILEDATA);
+
 	clearhandler(SIGILL);
 	free_stashed_xsave();
 
