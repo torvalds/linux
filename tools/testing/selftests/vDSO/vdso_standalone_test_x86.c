@@ -15,6 +15,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <linux/auxvec.h>
 
 #include "parse_vdso.h"
 
@@ -84,6 +85,30 @@ void to_base10(char *lastdig, time_t n)
 	}
 }
 
+unsigned long getauxval(const unsigned long *auxv, unsigned long type)
+{
+	unsigned long ret;
+
+	if (!auxv)
+		return 0;
+
+	while (1) {
+		if (!auxv[0] && !auxv[1]) {
+			ret = 0;
+			break;
+		}
+
+		if (auxv[0] == type) {
+			ret = auxv[1];
+			break;
+		}
+
+		auxv += 2;
+	}
+
+	return ret;
+}
+
 void c_main(void **stack)
 {
 	/* Parse the stack */
@@ -96,7 +121,7 @@ void c_main(void **stack)
 	stack++;
 
 	/* Now we're pointing at auxv.  Initialize the vDSO parser. */
-	vdso_init_from_auxv((void *)stack);
+	vdso_init_from_sysinfo_ehdr(getauxval((unsigned long *)stack, AT_SYSINFO_EHDR));
 
 	/* Find gettimeofday. */
 	typedef long (*gtod_t)(struct timeval *tv, struct timezone *tz);
