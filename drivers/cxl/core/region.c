@@ -3447,6 +3447,34 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(cxl_add_to_region, "CXL");
 
+u64 cxl_port_get_spa_cache_alias(struct cxl_port *endpoint, u64 spa)
+{
+	struct cxl_region_ref *iter;
+	unsigned long index;
+
+	if (!endpoint)
+		return ~0ULL;
+
+	guard(rwsem_write)(&cxl_region_rwsem);
+
+	xa_for_each(&endpoint->regions, index, iter) {
+		struct cxl_region_params *p = &iter->region->params;
+
+		if (p->res->start <= spa && spa <= p->res->end) {
+			if (!p->cache_size)
+				return ~0ULL;
+
+			if (spa > p->res->start + p->cache_size)
+				return spa - p->cache_size;
+
+			return spa + p->cache_size;
+		}
+	}
+
+	return ~0ULL;
+}
+EXPORT_SYMBOL_NS_GPL(cxl_port_get_spa_cache_alias, "CXL");
+
 static int is_system_ram(struct resource *res, void *arg)
 {
 	struct cxl_region *cxlr = arg;
