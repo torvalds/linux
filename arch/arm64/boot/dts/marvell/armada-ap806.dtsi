@@ -5,7 +5,6 @@
  * Device Tree file for Marvell Armada AP806.
  */
 
-#define AP_NAME		ap806
 #include "armada-ap80x.dtsi"
 
 &ap_syscon0 {

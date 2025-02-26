@@ -32,13 +32,13 @@
 				<GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
 	};
 
-	ap810-ap0 {
+	soc {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		compatible = "simple-bus";
 		ranges;
 
-		config-space@e8000000 {
+		bus@e8000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";

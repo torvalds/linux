@@ -5,7 +5,6 @@
  * Copyright (C) 2019 Marvell Technology Group Ltd.
  */
 
-#define AP_NAME		ap807
 #include "armada-ap80x.dtsi"
 
 &ap_syscon0 {
