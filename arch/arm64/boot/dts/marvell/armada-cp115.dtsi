@@ -5,8 +5,4 @@
  * Device Tree file for Marvell Armada CP115.
  */
 
-#define CP11X_TYPE cp115
-
 #include "armada-cp11x.dtsi"
-
-#undef CP11X_TYPE
