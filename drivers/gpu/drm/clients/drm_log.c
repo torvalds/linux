@@ -332,7 +332,7 @@ static int drm_log_client_resume(struct drm_client_dev *client, bool _console_lo
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 
-	console_start(&dlog->con);
+	console_resume(&dlog->con);
 
 	return 0;
 }
