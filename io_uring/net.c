@@ -215,21 +215,17 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 
 	uiov = compat_ptr(msg->msg_iov);
 	if (req->flags & REQ_F_BUFFER_SELECT) {
-		compat_ssize_t clen;
-
 		if (msg->msg_iovlen == 0) {
 			sr->len = iov->iov_len = 0;
 			iov->iov_base = NULL;
 		} else if (msg->msg_iovlen > 1) {
 			return -EINVAL;
 		} else {
-			if (!access_ok(uiov, sizeof(*uiov)))
+			struct compat_iovec tmp_iov;
+
+			if (copy_from_user(&tmp_iov, uiov, sizeof(tmp_iov)))
 				return -EFAULT;
-			if (__get_user(clen, &uiov->iov_len))
-				return -EFAULT;
-			if (clen < 0)
-				return -EINVAL;
-			sr->len = clen;
+			sr->len = tmp_iov.iov_len;
 		}
 
 		return 0;
