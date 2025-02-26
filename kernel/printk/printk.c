@@ -2760,7 +2760,7 @@ void console_suspend_all(void)
 	synchronize_srcu(&console_srcu);
 }
 
-void resume_console(void)
+void console_resume_all(void)
 {
 	struct console_flush_type ft;
 	struct console *con;

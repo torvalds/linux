@@ -437,7 +437,7 @@ int hibernation_snapshot(int platform_mode)
 	if (error || !in_suspend)
 		pm_restore_gfp_mask();
 
-	resume_console();
+	console_resume_all();
 	dpm_complete(msg);
 
  Close:
@@ -561,7 +561,7 @@ int hibernation_restore(int platform_mode)
 	}
 	dpm_resume_end(PMSG_RECOVER);
 	pm_restore_gfp_mask();
-	resume_console();
+	console_resume_all();
 	pm_restore_console();
 	return error;
 }
@@ -634,7 +634,7 @@ int hibernation_platform_enter(void)
  Resume_devices:
 	entering_platform_hibernation = false;
 	dpm_resume_end(PMSG_RESTORE);
-	resume_console();
+	console_resume_all();
 
  Close:
 	hibernation_ops->end();
@@ -920,7 +920,7 @@ skip:
 dpm_resume:
 	dpm_resume(PMSG_THAW);
 
-	resume_console();
+	console_resume_all();
 
 dpm_complete:
 	dpm_complete(PMSG_THAW);
