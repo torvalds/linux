@@ -10,8 +10,6 @@
  * Tested on x86, 32-bit and 64-bit.  It may work on other architectures, too.
  */
 
-#include <stdint.h>
-#include <elf.h>
 #include <stdio.h>
 #include <sys/auxv.h>
 #include <sys/time.h>
