@@ -338,8 +338,8 @@ static void hugetlb_delete_from_page_cache(struct folio *folio)
  * mutex for the page in the mapping.  So, we can not race with page being
  * faulted into the vma.
  */
-static bool hugetlb_vma_maps_page(struct vm_area_struct *vma,
-				unsigned long addr, struct page *page)
+static bool hugetlb_vma_maps_pfn(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn)
 {
 	pte_t *ptep, pte;
 
@@ -351,7 +351,7 @@ static bool hugetlb_vma_maps_page(struct vm_area_struct *vma,
 	if (huge_pte_none(pte) || !pte_present(pte))
 		return false;
 
-	if (pte_page(pte) == page)
+	if (pte_pfn(pte) == pfn)
 		return true;
 
 	return false;
@@ -396,7 +396,7 @@ static void hugetlb_unmap_file_folio(struct hstate *h,
 {
 	struct rb_root_cached *root = &mapping->i_mmap;
 	struct hugetlb_vma_lock *vma_lock;
-	struct page *page = &folio->page;
+	unsigned long pfn = folio_pfn(folio);
 	struct vm_area_struct *vma;
 	unsigned long v_start;
 	unsigned long v_end;
@@ -412,7 +412,7 @@ retry:
 		v_start = vma_offset_start(vma, start);
 		v_end = vma_offset_end(vma, end);
 
-		if (!hugetlb_vma_maps_page(vma, v_start, page))
+		if (!hugetlb_vma_maps_pfn(vma, v_start, pfn))
 			continue;
 
 		if (!hugetlb_vma_trylock_write(vma)) {
@@ -462,7 +462,7 @@ retry:
 		 */
 		v_start = vma_offset_start(vma, start);
 		v_end = vma_offset_end(vma, end);
-		if (hugetlb_vma_maps_page(vma, v_start, page))
+		if (hugetlb_vma_maps_pfn(vma, v_start, pfn))
 			unmap_hugepage_range(vma, v_start, v_end, NULL,
 					     ZAP_FLAG_DROP_MARKER);
 
