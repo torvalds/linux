@@ -81,7 +81,6 @@ required:
   - clocks
   - clock-names
   - power-domains
-  - dais
 
 unevaluatedProperties: false
 
