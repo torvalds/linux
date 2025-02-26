@@ -2594,3 +2594,17 @@ bool evlist__has_bpf_output(struct evlist *evlist)
 
 	return false;
 }
+
+bool evlist__needs_bpf_sb_event(struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel) {
+		if (evsel__is_dummy_event(evsel))
+			continue;
+		if (!evsel->core.attr.exclude_kernel)
+			return true;
+	}
+
+	return false;
+}

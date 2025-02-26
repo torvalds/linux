@@ -2535,6 +2535,9 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 		goto out_free_threads;
 	}
 
+	if (!evlist__needs_bpf_sb_event(rec->evlist))
+		opts->no_bpf_event = true;
+
 	err = record__setup_sb_evlist(rec);
 	if (err)
 		goto out_free_threads;

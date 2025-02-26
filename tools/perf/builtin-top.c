@@ -1822,6 +1822,9 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
+	if (!evlist__needs_bpf_sb_event(top.evlist))
+		top.record_opts.no_bpf_event = true;
+
 #ifdef HAVE_LIBBPF_SUPPORT
 	if (!top.record_opts.no_bpf_event) {
 		top.sb_evlist = evlist__new();
