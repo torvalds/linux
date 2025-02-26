@@ -172,6 +172,7 @@ auto-test-targets :=			\
 	maximal				\
 	maybe_null			\
 	minimal				\
+	numa				\
 	prog_run			\
 	reload_loop			\
 	select_cpu_dfl			\
