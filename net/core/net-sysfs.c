@@ -568,7 +568,7 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	struct net_device *netdev = to_net_dev(dev);
 	struct net *net = dev_net(netdev);
 	size_t count = len;
-	ssize_t ret = 0;
+	ssize_t ret;
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
@@ -597,7 +597,7 @@ static ssize_t ifalias_show(struct device *dev,
 {
 	const struct net_device *netdev = to_net_dev(dev);
 	char tmp[IFALIASZ];
-	ssize_t ret = 0;
+	ssize_t ret;
 
 	ret = dev_get_alias(netdev, tmp, sizeof(tmp));
 	if (ret > 0)
@@ -638,7 +638,7 @@ static ssize_t phys_port_id_show(struct device *dev,
 {
 	struct net_device *netdev = to_net_dev(dev);
 	struct netdev_phys_item_id ppid;
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
 
 	/* The check is also done in dev_get_phys_port_id; this helps returning
 	 * early without hitting the locking section below.
@@ -664,8 +664,8 @@ static ssize_t phys_port_name_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct net_device *netdev = to_net_dev(dev);
-	ssize_t ret = -EINVAL;
 	char name[IFNAMSIZ];
+	ssize_t ret;
 
 	/* The checks are also done in dev_get_phys_port_name; this helps
 	 * returning early without hitting the locking section below.
@@ -693,7 +693,7 @@ static ssize_t phys_switch_id_show(struct device *dev,
 {
 	struct net_device *netdev = to_net_dev(dev);
 	struct netdev_phys_item_id ppid = { };
-	ssize_t ret = -EINVAL;
+	ssize_t ret;
 
 	/* The checks are also done in dev_get_phys_port_name; this helps
 	 * returning early without hitting the locking section below. This works
