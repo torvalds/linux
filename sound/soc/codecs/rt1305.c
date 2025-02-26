@@ -966,16 +966,16 @@ static const struct regmap_config rt1305_regmap = {
 static const struct of_device_id rt1305_of_match[] = {
 	{ .compatible = "realtek,rt1305", },
 	{ .compatible = "realtek,rt1306", },
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt1305_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt1305_acpi_match[] = {
-	{"10EC1305", 0,},
-	{"10EC1306", 0,},
-	{},
+	{ "10EC1305" },
+	{ "10EC1306" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt1305_acpi_match);
 #endif
