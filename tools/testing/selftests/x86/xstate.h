@@ -189,8 +189,7 @@ static inline void set_rand_data(struct xstate_info *xstate, struct xsave_buffer
 		*ptr = data;
 }
 
-void test_context_switch(uint32_t feature_num, uint32_t num_threads, uint32_t iterations);
-void test_ptrace(uint32_t feature_num);
-void test_signal(uint32_t feature_num);
+/* Testing kernel's context switching and ABI support for the xstate. */
+void test_xstate(uint32_t feature_num);
 
 #endif /* __SELFTESTS_X86_XSTATE_H */

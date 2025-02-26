@@ -6,7 +6,9 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#include <asm/prctl.h>
 #include <sys/ptrace.h>
+#include <sys/syscall.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
 
@@ -189,14 +191,12 @@ static void affinitize_cpu0(void)
 		ksft_exit_fail_msg("sched_setaffinity to CPU 0 failed\n");
 }
 
-void test_context_switch(uint32_t feature_num, uint32_t num_threads, uint32_t iterations)
+static void test_context_switch(uint32_t num_threads, uint32_t iterations)
 {
 	struct futex_info *finfo;
 
 	/* Affinitize to one CPU to force context switches */
 	affinitize_cpu0();
-
-	xstate = get_xstate_info(feature_num);
 
 	printf("[RUN]\t%s: check context switches, %d iterations, %d threads.\n",
 	       xstate.name, iterations, num_threads);
@@ -299,12 +299,10 @@ static void ptracer_inject_xstate(pid_t target)
 	free(xbuf2);
 }
 
-void test_ptrace(uint32_t feature_num)
+static void test_ptrace(void)
 {
 	pid_t child;
 	int status;
-
-	xstate = get_xstate_info(feature_num);
 
 	child = fork();
 	if (child < 0) {
@@ -392,17 +390,14 @@ static void validate_sigfpstate(int sig, siginfo_t *si, void *ctx_void)
 	copy_xstate(stashed_xbuf, xbuf);
 }
 
-void test_signal(uint32_t feature_num)
+static void test_signal(void)
 {
 	bool valid_xstate;
-
-	xstate = get_xstate_info(feature_num);
 
 	/*
 	 * The signal handler will access this to verify xstate context
 	 * preservation.
 	 */
-
 	stashed_xbuf = alloc_xbuf();
 	if (!stashed_xbuf)
 		ksft_exit_fail_msg("unable to allocate XSAVE buffer\n");
@@ -432,4 +427,27 @@ void test_signal(uint32_t feature_num)
 
 	clearhandler(SIGUSR1);
 	free(stashed_xbuf);
+}
+
+void test_xstate(uint32_t feature_num)
+{
+	const unsigned int ctxtsw_num_threads = 5, ctxtsw_iterations = 10;
+	unsigned long features;
+	long rc;
+
+	rc = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_SUPP, &features);
+	if (rc || !(features & (1 << feature_num))) {
+		ksft_print_msg("The kernel does not support feature number: %u\n", feature_num);
+		return;
+	}
+
+	xstate = get_xstate_info(feature_num);
+	if (!xstate.size || !xstate.xbuf_offset) {
+		ksft_exit_fail_msg("invalid state size/offset (%d/%d)\n",
+				   xstate.size, xstate.xbuf_offset);
+	}
+
+	test_context_switch(ctxtsw_num_threads, ctxtsw_iterations);
+	test_ptrace();
+	test_signal();
 }

@@ -480,7 +480,6 @@ static void test_fork(void)
 
 int main(void)
 {
-	const unsigned int ctxtsw_num_threads = 5, ctxtsw_iterations = 10;
 	unsigned long features;
 	long rc;
 
@@ -506,11 +505,11 @@ int main(void)
 
 	test_fork();
 
-	test_context_switch(XFEATURE_XTILEDATA, ctxtsw_num_threads, ctxtsw_iterations);
-
-	test_ptrace(XFEATURE_XTILEDATA);
-
-	test_signal(XFEATURE_XTILEDATA);
+	/*
+	 * Perform generic xstate tests for context switching, ptrace,
+	 * and signal.
+	 */
+	test_xstate(XFEATURE_XTILEDATA);
 
 	clearhandler(SIGILL);
 	free_stashed_xsave();
