@@ -19,45 +19,12 @@
 #include <sys/wait.h>
 #include <sys/uio.h>
 
-#include "../kselftest.h" /* For __cpuid_count() */
 #include "helpers.h"
+#include "xstate.h"
 
 #ifndef __x86_64__
 # error This test is 64-bit only
 #endif
-
-#define XSAVE_HDR_OFFSET	512
-#define XSAVE_HDR_SIZE		64
-
-struct xsave_buffer {
-	union {
-		struct {
-			char legacy[XSAVE_HDR_OFFSET];
-			char header[XSAVE_HDR_SIZE];
-			char extended[0];
-		};
-		char bytes[0];
-	};
-};
-
-static inline void xsave(struct xsave_buffer *xbuf, uint64_t rfbm)
-{
-	uint32_t rfbm_lo = rfbm;
-	uint32_t rfbm_hi = rfbm >> 32;
-
-	asm volatile("xsave (%%rdi)"
-		     : : "D" (xbuf), "a" (rfbm_lo), "d" (rfbm_hi)
-		     : "memory");
-}
-
-static inline void xrstor(struct xsave_buffer *xbuf, uint64_t rfbm)
-{
-	uint32_t rfbm_lo = rfbm;
-	uint32_t rfbm_hi = rfbm >> 32;
-
-	asm volatile("xrstor (%%rdi)"
-		     : : "D" (xbuf), "a" (rfbm_lo), "d" (rfbm_hi));
-}
 
 /* err() exits and will not return */
 #define fatal_error(msg, ...)	err(1, "[FAIL]\t" msg, ##__VA_ARGS__)
@@ -68,91 +35,11 @@ static inline void xrstor(struct xsave_buffer *xbuf, uint64_t rfbm)
 #define XFEATURE_MASK_XTILEDATA	(1 << XFEATURE_XTILEDATA)
 #define XFEATURE_MASK_XTILE	(XFEATURE_MASK_XTILECFG | XFEATURE_MASK_XTILEDATA)
 
-#define CPUID_LEAF1_ECX_XSAVE_MASK	(1 << 26)
-#define CPUID_LEAF1_ECX_OSXSAVE_MASK	(1 << 27)
-
 static uint32_t xbuf_size;
 
-static struct {
-	uint32_t xbuf_offset;
-	uint32_t size;
-} xtiledata;
-
-#define CPUID_LEAF_XSTATE		0xd
-#define CPUID_SUBLEAF_XSTATE_USER	0x0
-#define TILE_CPUID			0x1d
-#define TILE_PALETTE_ID			0x1
-
-static void check_cpuid_xtiledata(void)
-{
-	uint32_t eax, ebx, ecx, edx;
-
-	__cpuid_count(CPUID_LEAF_XSTATE, CPUID_SUBLEAF_XSTATE_USER,
-		      eax, ebx, ecx, edx);
-
-	/*
-	 * EBX enumerates the size (in bytes) required by the XSAVE
-	 * instruction for an XSAVE area containing all the user state
-	 * components corresponding to bits currently set in XCR0.
-	 *
-	 * Stash that off so it can be used to allocate buffers later.
-	 */
-	xbuf_size = ebx;
-
-	__cpuid_count(CPUID_LEAF_XSTATE, XFEATURE_XTILEDATA,
-		      eax, ebx, ecx, edx);
-	/*
-	 * eax: XTILEDATA state component size
-	 * ebx: XTILEDATA state component offset in user buffer
-	 */
-	if (!eax || !ebx)
-		fatal_error("xstate cpuid: invalid tile data size/offset: %d/%d",
-				eax, ebx);
-
-	xtiledata.size	      = eax;
-	xtiledata.xbuf_offset = ebx;
-}
+struct xstate_info xtiledata;
 
 /* The helpers for managing XSAVE buffer and tile states: */
-
-struct xsave_buffer *alloc_xbuf(void)
-{
-	struct xsave_buffer *xbuf;
-
-	/* XSAVE buffer should be 64B-aligned. */
-	xbuf = aligned_alloc(64, xbuf_size);
-	if (!xbuf)
-		fatal_error("aligned_alloc()");
-	return xbuf;
-}
-
-static inline void clear_xstate_header(struct xsave_buffer *buffer)
-{
-	memset(&buffer->header, 0, sizeof(buffer->header));
-}
-
-static inline void set_xstatebv(struct xsave_buffer *buffer, uint64_t bv)
-{
-	/* XSTATE_BV is at the beginning of the header: */
-	*(uint64_t *)(&buffer->header) = bv;
-}
-
-static void set_rand_tiledata(struct xsave_buffer *xbuf)
-{
-	int *ptr = (int *)&xbuf->bytes[xtiledata.xbuf_offset];
-	int data;
-	int i;
-
-	/*
-	 * Ensure that 'data' is never 0.  This ensures that
-	 * the registers are never in their initial configuration
-	 * and thus never tracked as being in the init state.
-	 */
-	data = rand() | 1;
-
-	for (i = 0; i < xtiledata.size / sizeof(int); i++, ptr++)
-		*ptr = data;
-}
 
 struct xsave_buffer *stashed_xsave;
 
@@ -167,21 +54,6 @@ static void init_stashed_xsave(void)
 static void free_stashed_xsave(void)
 {
 	free(stashed_xsave);
-}
-
-/* See 'struct _fpx_sw_bytes' at sigcontext.h */
-#define SW_BYTES_OFFSET		464
-/* N.B. The struct's field name varies so read from the offset. */
-#define SW_BYTES_BV_OFFSET	(SW_BYTES_OFFSET + 8)
-
-static inline struct _fpx_sw_bytes *get_fpx_sw_bytes(void *buffer)
-{
-	return (struct _fpx_sw_bytes *)(buffer + SW_BYTES_OFFSET);
-}
-
-static inline uint64_t get_fpx_sw_bytes_features(void *buffer)
-{
-	return *(uint64_t *)(buffer + SW_BYTES_BV_OFFSET);
 }
 
 /* Work around printf() being unsafe in signals: */
@@ -281,7 +153,7 @@ static inline bool load_rand_tiledata(struct xsave_buffer *xbuf)
 {
 	clear_xstate_header(xbuf);
 	set_xstatebv(xbuf, XFEATURE_MASK_XTILEDATA);
-	set_rand_tiledata(xbuf);
+	set_rand_data(&xtiledata, xbuf);
 	return xrstor_safe(xbuf, XFEATURE_MASK_XTILEDATA);
 }
 
@@ -884,7 +756,13 @@ int main(void)
 		return KSFT_SKIP;
 	}
 
-	check_cpuid_xtiledata();
+	xbuf_size = get_xbuf_size();
+
+	xtiledata = get_xstate_info(XFEATURE_XTILEDATA);
+	if (!xtiledata.size || !xtiledata.xbuf_offset) {
+		fatal_error("xstate cpuid: invalid tile data size/offset: %d/%d",
+			    xtiledata.size, xtiledata.xbuf_offset);
+	}
 
 	init_stashed_xsave();
 	sethandler(SIGILL, handle_noperm, 0);

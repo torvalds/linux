@@ -1,0 +1,132 @@
+// SPDX-License-Identifier: GPL-2.0-only
+#ifndef __SELFTESTS_X86_XSTATE_H
+#define __SELFTESTS_X86_XSTATE_H
+
+#include <stdint.h>
+
+#include "../kselftest.h"
+
+#define XSAVE_HDR_OFFSET	512
+#define XSAVE_HDR_SIZE		64
+
+struct xsave_buffer {
+	union {
+		struct {
+			char legacy[XSAVE_HDR_OFFSET];
+			char header[XSAVE_HDR_SIZE];
+			char extended[0];
+		};
+		char bytes[0];
+	};
+};
+
+static inline void xsave(struct xsave_buffer *xbuf, uint64_t rfbm)
+{
+	uint32_t rfbm_hi = rfbm >> 32;
+	uint32_t rfbm_lo = rfbm;
+
+	asm volatile("xsave (%%rdi)"
+		     : : "D" (xbuf), "a" (rfbm_lo), "d" (rfbm_hi)
+		     : "memory");
+}
+
+static inline void xrstor(struct xsave_buffer *xbuf, uint64_t rfbm)
+{
+	uint32_t rfbm_hi = rfbm >> 32;
+	uint32_t rfbm_lo = rfbm;
+
+	asm volatile("xrstor (%%rdi)"
+		     : : "D" (xbuf), "a" (rfbm_lo), "d" (rfbm_hi));
+}
+
+#define CPUID_LEAF_XSTATE		0xd
+#define CPUID_SUBLEAF_XSTATE_USER	0x0
+
+static inline uint32_t get_xbuf_size(void)
+{
+	uint32_t eax, ebx, ecx, edx;
+
+	__cpuid_count(CPUID_LEAF_XSTATE, CPUID_SUBLEAF_XSTATE_USER,
+		      eax, ebx, ecx, edx);
+
+	/*
+	 * EBX enumerates the size (in bytes) required by the XSAVE
+	 * instruction for an XSAVE area containing all the user state
+	 * components corresponding to bits currently set in XCR0.
+	 */
+	return ebx;
+}
+
+struct xstate_info {
+	uint32_t num;
+	uint32_t mask;
+	uint32_t xbuf_offset;
+	uint32_t size;
+};
+
+static inline struct xstate_info get_xstate_info(uint32_t xfeature_num)
+{
+	struct xstate_info xstate = { };
+	uint32_t eax, ebx, ecx, edx;
+
+	xstate.num  = xfeature_num;
+	xstate.mask = 1 << xfeature_num;
+
+	__cpuid_count(CPUID_LEAF_XSTATE, xfeature_num,
+		      eax, ebx, ecx, edx);
+	xstate.size        = eax;
+	xstate.xbuf_offset = ebx;
+	return xstate;
+}
+
+static inline struct xsave_buffer *alloc_xbuf(void)
+{
+	uint32_t xbuf_size = get_xbuf_size();
+
+	/* XSAVE buffer should be 64B-aligned. */
+	return aligned_alloc(64, xbuf_size);
+}
+
+static inline void clear_xstate_header(struct xsave_buffer *xbuf)
+{
+	memset(&xbuf->header, 0, sizeof(xbuf->header));
+}
+
+static inline void set_xstatebv(struct xsave_buffer *xbuf, uint64_t bv)
+{
+	/* XSTATE_BV is at the beginning of the header: */
+	*(uint64_t *)(&xbuf->header) = bv;
+}
+
+/* See 'struct _fpx_sw_bytes' at sigcontext.h */
+#define SW_BYTES_OFFSET		464
+/* N.B. The struct's field name varies so read from the offset. */
+#define SW_BYTES_BV_OFFSET	(SW_BYTES_OFFSET + 8)
+
+static inline struct _fpx_sw_bytes *get_fpx_sw_bytes(void *xbuf)
+{
+	return xbuf + SW_BYTES_OFFSET;
+}
+
+static inline uint64_t get_fpx_sw_bytes_features(void *buffer)
+{
+	return *(uint64_t *)(buffer + SW_BYTES_BV_OFFSET);
+}
+
+static inline void set_rand_data(struct xstate_info *xstate, struct xsave_buffer *xbuf)
+{
+	int *ptr = (int *)&xbuf->bytes[xstate->xbuf_offset];
+	int data, i;
+
+	/*
+	 * Ensure that 'data' is never 0.  This ensures that
+	 * the registers are never in their initial configuration
+	 * and thus never tracked as being in the init state.
+	 */
+	data = rand() | 1;
+
+	for (i = 0; i < xstate->size / sizeof(int); i++, ptr++)
+		*ptr = data;
+}
+
+#endif /* __SELFTESTS_X86_XSTATE_H */
