@@ -198,11 +198,6 @@ static void vector_exception(struct pt_regs *regs)
 {
 	int si_code, vic;
 
-	if (!cpu_has_vx()) {
-		do_trap(regs, SIGILL, ILL_ILLOPN, "illegal operation");
-		return;
-	}
-
 	/* get vector interrupt code from fpc */
 	save_user_fpu_regs();
 	vic = (current->thread.ufpu.fpc & 0xf00) >> 8;
