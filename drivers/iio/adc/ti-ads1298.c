@@ -613,6 +613,8 @@ static int ads1298_init(struct iio_dev *indio_dev)
 	}
 	indio_dev->name = devm_kasprintf(dev, GFP_KERNEL, "ads129%u%s",
 					 indio_dev->num_channels, suffix);
+	if (!indio_dev->name)
+		return -ENOMEM;
 
 	/* Enable internal test signal, double amplitude, double frequency */
 	ret = regmap_write(priv->regmap, ADS1298_REG_CONFIG2,

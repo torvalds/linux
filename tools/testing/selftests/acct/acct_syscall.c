@@ -24,7 +24,7 @@ int main(void)
 
 	// Check if test is run a root
 	if (geteuid()) {
-		ksft_test_result_skip("This test needs root to run!\n");
+		ksft_exit_skip("This test needs root to run!\n");
 		return 1;
 	}
 

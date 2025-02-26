@@ -10,11 +10,18 @@
 #include <net/page_pool/helpers.h>
 #include <net/tso.h>
 #include <linux/bitfield.h>
+#include <linux/dcbnl.h>
+#include <net/xfrm.h>
 
 #include "otx2_reg.h"
 #include "otx2_common.h"
 #include "otx2_struct.h"
 #include "cn10k.h"
+
+static bool otx2_is_pfc_enabled(struct otx2_nic *pfvf)
+{
+	return IS_ENABLED(CONFIG_DCB) && !!pfvf->pfc_en;
+}
 
 static void otx2_nix_rq_op_stats(struct queue_stats *stats,
 				 struct otx2_nic *pfvf, int qidx)
@@ -964,6 +971,29 @@ int otx2_sq_init(struct otx2_nic *pfvf, u16 qidx, u16 sqb_aura)
 	if (err)
 		return err;
 
+	/* Allocate memory for NIX SQE (which includes NIX SG) and CPT SG.
+	 * SG of NIX and CPT are same in size. Allocate memory for CPT SG
+	 * same as NIX SQE for base address alignment.
+	 * Layout of a NIX SQE and CPT SG entry:
+	 *      -----------------------------
+	 *     |     CPT Scatter Gather      |
+	 *     |       (SQE SIZE)            |
+	 *     |                             |
+	 *      -----------------------------
+	 *     |       NIX SQE               |
+	 *     |       (SQE SIZE)            |
+	 *     |                             |
+	 *      -----------------------------
+	 */
+	err = qmem_alloc(pfvf->dev, &sq->sqe_ring, qset->sqe_cnt,
+			 sq->sqe_size * 2);
+	if (err)
+		return err;
+
+	err = qmem_alloc(pfvf->dev, &sq->cpt_resp, qset->sqe_cnt, 64);
+	if (err)
+		return err;
+
 	if (qidx < pfvf->hw.tx_queues) {
 		err = qmem_alloc(pfvf->dev, &sq->tso_hdrs, qset->sqe_cnt,
 				 TSO_HEADER_SIZE);
@@ -1722,17 +1752,42 @@ int otx2_nix_config_bp(struct otx2_nic *pfvf, bool enable)
 		return -ENOMEM;
 
 	req->chan_base = 0;
-#ifdef CONFIG_DCB
-	req->chan_cnt = pfvf->pfc_en ? IEEE_8021QAZ_MAX_TCS : 1;
-	req->bpid_per_chan = pfvf->pfc_en ? 1 : 0;
-#else
-	req->chan_cnt =  1;
-	req->bpid_per_chan = 0;
-#endif
+	if (otx2_is_pfc_enabled(pfvf)) {
+		req->chan_cnt = IEEE_8021QAZ_MAX_TCS;
+		req->bpid_per_chan = 1;
+	} else {
+		req->chan_cnt = 1;
+		req->bpid_per_chan = 0;
+	}
 
 	return otx2_sync_mbox_msg(&pfvf->mbox);
 }
 EXPORT_SYMBOL(otx2_nix_config_bp);
+
+int otx2_nix_cpt_config_bp(struct otx2_nic *pfvf, bool enable)
+{
+	struct nix_bp_cfg_req *req;
+
+	if (enable)
+		req = otx2_mbox_alloc_msg_nix_cpt_bp_enable(&pfvf->mbox);
+	else
+		req = otx2_mbox_alloc_msg_nix_cpt_bp_disable(&pfvf->mbox);
+
+	if (!req)
+		return -ENOMEM;
+
+	req->chan_base = 0;
+	if (otx2_is_pfc_enabled(pfvf)) {
+		req->chan_cnt = IEEE_8021QAZ_MAX_TCS;
+		req->bpid_per_chan = 1;
+	} else {
+		req->chan_cnt = 1;
+		req->bpid_per_chan = 0;
+	}
+
+	return otx2_sync_mbox_msg(&pfvf->mbox);
+}
+EXPORT_SYMBOL(otx2_nix_cpt_config_bp);
 
 /* Mbox message handlers */
 void mbox_handler_cgx_stats(struct otx2_nic *pfvf,
@@ -1947,3 +2002,48 @@ EXPORT_SYMBOL(otx2_mbox_up_handler_ ## _fn_name);
 MBOX_UP_CGX_MESSAGES
 MBOX_UP_MCS_MESSAGES
 #undef M
+
+dma_addr_t otx2_dma_map_skb_frag(struct otx2_nic *pfvf,
+				 struct sk_buff *skb, int seg, int *len)
+{
+	enum dma_data_direction dir = DMA_TO_DEVICE;
+	const skb_frag_t *frag;
+	struct page *page;
+	int offset;
+
+	/* Crypto hardware need write permission for ipsec crypto offload */
+	if (unlikely(xfrm_offload(skb))) {
+		dir = DMA_BIDIRECTIONAL;
+		skb = skb_unshare(skb, GFP_ATOMIC);
+	}
+
+	/* First segment is always skb->data */
+	if (!seg) {
+		page = virt_to_page(skb->data);
+		offset = offset_in_page(skb->data);
+		*len = skb_headlen(skb);
+	} else {
+		frag = &skb_shinfo(skb)->frags[seg - 1];
+		page = skb_frag_page(frag);
+		offset = skb_frag_off(frag);
+		*len = skb_frag_size(frag);
+	}
+	return otx2_dma_map_page(pfvf, page, offset, *len, dir);
+}
+
+void otx2_dma_unmap_skb_frags(struct otx2_nic *pfvf, struct sg_list *sg)
+{
+	enum dma_data_direction dir = DMA_TO_DEVICE;
+	struct sk_buff *skb = NULL;
+	int seg;
+
+	skb = (struct sk_buff *)sg->skb;
+	if (unlikely(xfrm_offload(skb)))
+		dir = DMA_BIDIRECTIONAL;
+
+	for (seg = 0; seg < sg->num_segs; seg++) {
+		otx2_dma_unmap_page(pfvf, sg->dma_addr[seg],
+				    sg->size[seg], dir);
+	}
+	sg->num_segs = 0;
+}

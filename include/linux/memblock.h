@@ -378,6 +378,10 @@ static inline int memblock_get_region_node(const struct memblock_region *r)
 /* Flags for memblock allocation APIs */
 #define MEMBLOCK_ALLOC_ANYWHERE	(~(phys_addr_t)0)
 #define MEMBLOCK_ALLOC_ACCESSIBLE	0
+/*
+ *  MEMBLOCK_ALLOC_NOLEAKTRACE avoids kmemleak tracing. It implies
+ *  MEMBLOCK_ALLOC_ACCESSIBLE
+ */
 #define MEMBLOCK_ALLOC_NOLEAKTRACE	1
 
 /* We are using top down, so it is safe to use 0 here */
@@ -416,6 +420,12 @@ static __always_inline void *memblock_alloc(phys_addr_t size, phys_addr_t align)
 	return memblock_alloc_try_nid(size, align, MEMBLOCK_LOW_LIMIT,
 				      MEMBLOCK_ALLOC_ACCESSIBLE, NUMA_NO_NODE);
 }
+
+void *__memblock_alloc_or_panic(phys_addr_t size, phys_addr_t align,
+				const char *func);
+
+#define memblock_alloc_or_panic(size, align)    \
+	 __memblock_alloc_or_panic(size, align, __func__)
 
 static inline void *memblock_alloc_raw(phys_addr_t size,
 					       phys_addr_t align)

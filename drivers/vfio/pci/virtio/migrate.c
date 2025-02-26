@@ -77,8 +77,8 @@ static int virtiovf_add_migration_pages(struct virtiovf_data_buffer *buf,
 		return -ENOMEM;
 
 	do {
-		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT, to_fill,
-						page_list);
+		filled = alloc_pages_bulk(GFP_KERNEL_ACCOUNT, to_fill,
+					  page_list);
 		if (!filled) {
 			ret = -ENOMEM;
 			goto err;
@@ -112,7 +112,7 @@ static void virtiovf_free_data_buffer(struct virtiovf_data_buffer *buf)
 {
 	struct sg_page_iter sg_iter;
 
-	/* Undo alloc_pages_bulk_array() */
+	/* Undo alloc_pages_bulk() */
 	for_each_sgtable_page(&buf->table.sgt, &sg_iter, 0)
 		__free_page(sg_page_iter_page(&sg_iter));
 	sg_free_append_table(&buf->table);

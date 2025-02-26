@@ -274,10 +274,7 @@ static long ns_ioctl(struct file *filp, unsigned int ioctl,
 		if (usize < MNT_NS_INFO_SIZE_VER0)
 			return -EINVAL;
 
-		if (previous)
-			mnt_ns = lookup_prev_mnt_ns(to_mnt_ns(ns));
-		else
-			mnt_ns = lookup_next_mnt_ns(to_mnt_ns(ns));
+		mnt_ns = get_sequential_mnt_ns(to_mnt_ns(ns), previous);
 		if (IS_ERR(mnt_ns))
 			return PTR_ERR(mnt_ns);
 

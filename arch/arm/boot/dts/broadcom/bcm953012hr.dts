@@ -74,7 +74,6 @@
 &spi_nor {
 	status = "okay";
 	spi-max-frequency = <62500000>;
-	m25p,default-addr-width = <3>;
 
 	#address-cells = <1>;
 	#size-cells = <1>;

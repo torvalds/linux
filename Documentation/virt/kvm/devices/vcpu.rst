@@ -142,8 +142,8 @@ the cpu field to the processor id.
 
 :Architectures: ARM64
 
-2.1. ATTRIBUTES: KVM_ARM_VCPU_TIMER_IRQ_VTIMER, KVM_ARM_VCPU_TIMER_IRQ_PTIMER
------------------------------------------------------------------------------
+2.1. ATTRIBUTES: KVM_ARM_VCPU_TIMER_IRQ_{VTIMER,PTIMER,HVTIMER,HPTIMER}
+-----------------------------------------------------------------------
 
 :Parameters: in kvm_device_attr.addr the address for the timer interrupt is a
 	     pointer to an int
@@ -159,10 +159,12 @@ A value describing the architected timer interrupt number when connected to an
 in-kernel virtual GIC.  These must be a PPI (16 <= intid < 32).  Setting the
 attribute overrides the default values (see below).
 
-=============================  ==========================================
-KVM_ARM_VCPU_TIMER_IRQ_VTIMER  The EL1 virtual timer intid (default: 27)
-KVM_ARM_VCPU_TIMER_IRQ_PTIMER  The EL1 physical timer intid (default: 30)
-=============================  ==========================================
+==============================  ==========================================
+KVM_ARM_VCPU_TIMER_IRQ_VTIMER   The EL1 virtual timer intid (default: 27)
+KVM_ARM_VCPU_TIMER_IRQ_PTIMER   The EL1 physical timer intid (default: 30)
+KVM_ARM_VCPU_TIMER_IRQ_HVTIMER  The EL2 virtual timer intid (default: 28)
+KVM_ARM_VCPU_TIMER_IRQ_HPTIMER  The EL2 physical timer intid (default: 26)
+==============================  ==========================================
 
 Setting the same PPI for different timers will prevent the VCPUs from running.
 Setting the interrupt number on a VCPU configures all VCPUs created at that

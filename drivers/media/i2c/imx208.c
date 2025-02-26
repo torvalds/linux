@@ -814,7 +814,7 @@ out_unlock:
 }
 
 static ssize_t otp_read(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(kobj_to_dev(kobj));

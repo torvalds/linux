@@ -1087,13 +1087,9 @@ int usb_stor_Bulk_max_lun(struct us_data *us)
 	usb_stor_dbg(us, "GetMaxLUN command result is %d, data is %d\n",
 		     result, us->iobuf[0]);
 
-	/*
-	 * If we have a successful request, return the result if valid. The
-	 * CBW LUN field is 4 bits wide, so the value reported by the device
-	 * should fit into that.
-	 */
+	/* If we have a successful request, return the result if valid. */
 	if (result > 0) {
-		if (us->iobuf[0] < 16) {
+		if (us->iobuf[0] <= US_BULK_MAX_LUN_LIMIT) {
 			return us->iobuf[0];
 		} else {
 			dev_info(&us->pusb_intf->dev,

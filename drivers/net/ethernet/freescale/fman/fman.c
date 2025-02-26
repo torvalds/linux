@@ -2690,13 +2690,12 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 {
 	struct fman *fman;
 	struct device_node *fm_node, *muram_node;
+	void __iomem *base_addr;
 	struct resource *res;
 	u32 val, range[2];
 	int err, irq;
 	struct clk *clk;
 	u32 clk_rate;
-	phys_addr_t phys_base_addr;
-	resource_size_t mem_size;
 
 	fman = kzalloc(sizeof(*fman), GFP_KERNEL);
 	if (!fman)
@@ -2723,18 +2722,6 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 	if (err < 0)
 		goto fman_node_put;
 	fman->dts_params.err_irq = err;
-
-	/* Get the FM address */
-	res = platform_get_resource(of_dev, IORESOURCE_MEM, 0);
-	if (!res) {
-		err = -EINVAL;
-		dev_err(&of_dev->dev, "%s: Can't get FMan memory resource\n",
-			__func__);
-		goto fman_node_put;
-	}
-
-	phys_base_addr = res->start;
-	mem_size = resource_size(res);
 
 	clk = of_clk_get(fm_node, 0);
 	if (IS_ERR(clk)) {
@@ -2803,23 +2790,15 @@ static struct fman *read_dts_node(struct platform_device *of_dev)
 		}
 	}
 
-	fman->dts_params.res =
-		devm_request_mem_region(&of_dev->dev, phys_base_addr,
-					mem_size, "fman");
-	if (!fman->dts_params.res) {
-		err = -EBUSY;
-		dev_err(&of_dev->dev, "%s: request_mem_region() failed\n",
-			__func__);
-		goto fman_free;
-	}
-
-	fman->dts_params.base_addr =
-		devm_ioremap(&of_dev->dev, phys_base_addr, mem_size);
-	if (!fman->dts_params.base_addr) {
-		err = -ENOMEM;
+	base_addr = devm_platform_get_and_ioremap_resource(of_dev, 0, &res);
+	if (IS_ERR(base_addr)) {
+		err = PTR_ERR(base_addr);
 		dev_err(&of_dev->dev, "%s: devm_ioremap() failed\n", __func__);
 		goto fman_free;
 	}
+
+	fman->dts_params.base_addr = base_addr;
+	fman->dts_params.res = res;
 
 	fman->dev = &of_dev->dev;
 

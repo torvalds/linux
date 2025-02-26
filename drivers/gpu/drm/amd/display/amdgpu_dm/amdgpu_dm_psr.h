@@ -34,8 +34,9 @@
 void amdgpu_dm_set_psr_caps(struct dc_link *link);
 void amdgpu_dm_psr_enable(struct dc_stream_state *stream);
 bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream);
-bool amdgpu_dm_psr_disable(struct dc_stream_state *stream);
+bool amdgpu_dm_psr_disable(struct dc_stream_state *stream, bool wait);
 bool amdgpu_dm_psr_disable_all(struct amdgpu_display_manager *dm);
 bool amdgpu_dm_psr_is_active_allowed(struct amdgpu_display_manager *dm);
+bool amdgpu_dm_psr_wait_disable(struct dc_stream_state *stream);
 
 #endif /* AMDGPU_DM_AMDGPU_DM_PSR_H_ */

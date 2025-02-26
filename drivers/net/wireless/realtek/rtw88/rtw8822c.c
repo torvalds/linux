@@ -4537,6 +4537,24 @@ static void rtw8822c_adaptivity(struct rtw_dev *rtwdev)
 	rtw_phy_set_edcca_th(rtwdev, l2h, h2l);
 }
 
+static void rtw8822c_led_set(struct led_classdev *led,
+			     enum led_brightness brightness)
+{
+	struct rtw_dev *rtwdev = container_of(led, struct rtw_dev, led_cdev);
+	u32 ledcfg;
+
+	ledcfg = rtw_read32(rtwdev, REG_LED_CFG);
+	u32p_replace_bits(&ledcfg, BIT_LED_MODE_SW_CTRL, BIT_LED2_CM);
+	ledcfg &= ~BIT_GPIO13_14_WL_CTRL_EN;
+
+	if (brightness == LED_OFF)
+		ledcfg |= BIT_LED2_SV;
+	else
+		ledcfg &= ~BIT_LED2_SV;
+
+	rtw_write32(rtwdev, REG_LED_CFG, ledcfg);
+}
+
 static void rtw8822c_fill_txdesc_checksum(struct rtw_dev *rtwdev,
 					  struct rtw_tx_pkt_info *pkt_info,
 					  u8 *txdesc)
@@ -4964,6 +4982,7 @@ static const struct rtw_chip_ops rtw8822c_ops = {
 	.cfo_track		= rtw8822c_cfo_track,
 	.config_tx_path		= rtw8822c_config_tx_path,
 	.config_txrx_mode	= rtw8822c_config_trx_mode,
+	.led_set		= rtw8822c_led_set,
 	.fill_txdesc_checksum	= rtw8822c_fill_txdesc_checksum,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,

@@ -3,6 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
@@ -108,13 +109,13 @@ void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
 
 	intel_de_write(dev_priv, PIXCLK_GATE, PIXCLK_GATE_GATE);
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
 	temp |= SBI_SSCCTL_DISABLE;
 	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 }
 
 struct iclkip_params {
@@ -195,7 +196,7 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 		    "iCLKIP clock: found settings for %dKHz refresh rate: auxdiv=%x, divsel=%x, phasedir=%x, phaseinc=%x\n",
 		    clock, p.auxdiv, p.divsel, p.phasedir, p.phaseinc);
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	/* Program SSCDIVINTPHASE6 */
 	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6, SBI_ICLK);
@@ -218,7 +219,7 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 	temp &= ~SBI_SSCCTL_DISABLE;
 	intel_sbi_write(dev_priv, SBI_SSCCTL6, temp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 
 	/* Wait for initialization time */
 	udelay(24);
@@ -236,11 +237,11 @@ int lpt_get_iclkip(struct drm_i915_private *dev_priv)
 
 	iclkip_params_init(&p);
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6, SBI_ICLK);
 	if (temp & SBI_SSCCTL_DISABLE) {
-		mutex_unlock(&dev_priv->sb_lock);
+		intel_sbi_unlock(dev_priv);
 		return 0;
 	}
 
@@ -254,7 +255,7 @@ int lpt_get_iclkip(struct drm_i915_private *dev_priv)
 	p.auxdiv = (temp & SBI_SSCAUXDIV_FINALDIV2SEL_MASK) >>
 		SBI_SSCAUXDIV_FINALDIV2SEL_SHIFT;
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 
 	p.desired_divisor = (p.divsel + 2) * p.iclk_pi_range + p.phaseinc;
 
@@ -279,7 +280,7 @@ static void lpt_enable_clkout_dp(struct drm_i915_private *dev_priv,
 		     with_fdi, "LP PCH doesn't have FDI\n"))
 		with_fdi = false;
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	tmp = intel_sbi_read(dev_priv, SBI_SSCCTL, SBI_ICLK);
 	tmp &= ~SBI_SSCCTL_DISABLE;
@@ -302,7 +303,7 @@ static void lpt_enable_clkout_dp(struct drm_i915_private *dev_priv,
 	tmp |= SBI_GEN0_CFG_BUFFENABLE_DISABLE;
 	intel_sbi_write(dev_priv, reg, tmp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 }
 
 /* Sequence to disable CLKOUT_DP */
@@ -310,7 +311,7 @@ void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv)
 {
 	u32 reg, tmp;
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	reg = HAS_PCH_LPT_LP(dev_priv) ? SBI_GEN0 : SBI_DBUFF0;
 	tmp = intel_sbi_read(dev_priv, reg, SBI_ICLK);
@@ -328,7 +329,7 @@ void lpt_disable_clkout_dp(struct drm_i915_private *dev_priv)
 		intel_sbi_write(dev_priv, SBI_SSCCTL, tmp, SBI_ICLK);
 	}
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 }
 
 #define BEND_IDX(steps) ((50 + (steps)) / 5)
@@ -374,7 +375,7 @@ static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
 	if (drm_WARN_ON(&dev_priv->drm, idx >= ARRAY_SIZE(sscdivintphase)))
 		return;
 
-	mutex_lock(&dev_priv->sb_lock);
+	intel_sbi_lock(dev_priv);
 
 	if (steps % 10 != 0)
 		tmp = 0xAAAAAAAB;
@@ -387,7 +388,7 @@ static void lpt_bend_clkout_dp(struct drm_i915_private *dev_priv, int steps)
 	tmp |= sscdivintphase[idx];
 	intel_sbi_write(dev_priv, SBI_SSCDIVINTPHASE, tmp, SBI_ICLK);
 
-	mutex_unlock(&dev_priv->sb_lock);
+	intel_sbi_unlock(dev_priv);
 }
 
 #undef BEND_IDX

@@ -78,7 +78,19 @@
 #define BIT_PAPE_SEL_EN		BIT(25)
 #define BIT_DPDT_WL_SEL		BIT(24)
 #define BIT_DPDT_SEL_EN		BIT(23)
+#define BIT_GPIO13_14_WL_CTRL_EN	BIT(22)
+#define BIT_LED2_SV		BIT(19)
+#define BIT_LED2_CM		GENMASK(18, 16)
+#define BIT_LED1_SV		BIT(11)
+#define BIT_LED1_CM		GENMASK(10, 8)
+#define BIT_LED0_SV		BIT(3)
+#define BIT_LED0_CM		GENMASK(2, 0)
+#define BIT_LED_MODE_SW_CTRL	0
+#define BIT_LED_MODE_RX		6
+#define BIT_LED_MODE_TX		4
+#define BIT_LED_MODE_TRX	2
 #define REG_LEDCFG2		0x004E
+#define REG_GPIO_PIN_CTRL_2	0x0060
 #define REG_PAD_CTRL1		0x0064
 #define BIT_BT_BTG_SEL		BIT(31)
 #define BIT_PAPE_WLBT_SEL	BIT(29)
@@ -871,7 +883,17 @@
 
 #define REG_USB_MOD	0xf008
 #define REG_USB3_RXITV	0xf050
+#define REG_USB2_PHY_ADR	0xfe40
+#define REG_USB2_PHY_DAT	0xfe41
+#define REG_USB2_PHY_CMD	0xfe42
+#define BIT_USB2_PHY_CMD_TRG	0x81
 #define REG_USB_HRPWM	0xfe58
+#define REG_USB3_PHY_ADR	0xff0c
+#define REG_USB3_PHY_DAT_L	0xff0d
+#define REG_USB3_PHY_DAT_H	0xff0e
+#define BIT_USB3_PHY_ADR_WR	BIT(7)
+#define BIT_USB3_PHY_ADR_RD	BIT(6)
+#define BIT_USB3_PHY_ADR_MASK	GENMASK(5, 0)
 
 #define RF_MODE		0x00
 #define RF_MODOPT	0x01

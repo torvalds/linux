@@ -2,7 +2,7 @@
 /* Copyright (c) 2024 Google LLC */
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-#include "../bpf_testmod/bpf_testmod_kfunc.h"
+#include "../test_kmods/bpf_testmod_kfunc.h"
 
 SEC("syscall")
 int init_sock(struct init_sock_args *args)

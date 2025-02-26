@@ -422,7 +422,12 @@ static int suspend_common(struct device *dev, pm_message_t msg)
 	bool			do_wakeup;
 	int			retval;
 
-	do_wakeup = PMSG_IS_AUTO(msg) ? true : device_may_wakeup(dev);
+	if (PMSG_IS_AUTO(msg))
+		do_wakeup = true;
+	else if (PMSG_NO_WAKEUP(msg))
+		do_wakeup = false;
+	else
+		do_wakeup = device_may_wakeup(dev);
 
 	/* Root hub suspend should have stopped all downstream traffic,
 	 * and all bus master traffic.  And done so for both the interface
@@ -521,6 +526,11 @@ static int hcd_pci_suspend(struct device *dev)
 	return suspend_common(dev, PMSG_SUSPEND);
 }
 
+static int hcd_pci_freeze(struct device *dev)
+{
+	return suspend_common(dev, PMSG_FREEZE);
+}
+
 static int hcd_pci_suspend_noirq(struct device *dev)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
@@ -590,6 +600,7 @@ static int hcd_pci_restore(struct device *dev)
 #else
 
 #define hcd_pci_suspend		NULL
+#define hcd_pci_freeze			NULL
 #define hcd_pci_suspend_noirq	NULL
 #define hcd_pci_poweroff_late	NULL
 #define hcd_pci_resume_noirq	NULL
@@ -624,7 +635,7 @@ const struct dev_pm_ops usb_hcd_pci_pm_ops = {
 	.suspend_noirq	= hcd_pci_suspend_noirq,
 	.resume_noirq	= hcd_pci_resume_noirq,
 	.resume		= hcd_pci_resume,
-	.freeze		= hcd_pci_suspend,
+	.freeze		= hcd_pci_freeze,
 	.freeze_noirq	= check_root_hub_suspended,
 	.thaw_noirq	= NULL,
 	.thaw		= hcd_pci_resume,

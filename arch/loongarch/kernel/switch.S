@@ -12,7 +12,7 @@
 
 /*
  * task_struct *__switch_to(task_struct *prev, task_struct *next,
- *			    struct thread_info *next_ti)
+ *			    struct thread_info *next_ti, void *sched_ra, void *sched_cfa)
  */
 	.align	5
 SYM_FUNC_START(__switch_to)

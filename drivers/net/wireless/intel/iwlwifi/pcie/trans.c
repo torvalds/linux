@@ -24,6 +24,7 @@
 #include "fw/error-dump.h"
 #include "fw/dbg.h"
 #include "fw/api/tx.h"
+#include "fw/acpi.h"
 #include "mei/iwl-mei.h"
 #include "internal.h"
 #include "iwl-fh.h"
@@ -311,7 +312,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	 * wake device's PCI Express link L1a -> L0s
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+		    CSR_HW_IF_CONFIG_REG_HAP_WAKE);
 
 	iwl_pcie_apm_config(trans);
 
@@ -439,7 +440,7 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	 * SHRD_HW_RST is applied in S3.
 	 */
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+		    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -508,8 +509,8 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				    CSR_RESET_LINK_PWR_MGMT_DISABLED);
 			iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-				    CSR_HW_IF_CONFIG_REG_PREPARE |
-				    CSR_HW_IF_CONFIG_REG_ENABLE_PME);
+				    CSR_HW_IF_CONFIG_REG_WAKE_ME |
+				    CSR_HW_IF_CONFIG_REG_WAKE_ME_PCIE_OWNER_EN);
 			mdelay(1);
 			iwl_clear_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				      CSR_RESET_LINK_PWR_MGMT_DISABLED);
@@ -581,12 +582,12 @@ static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 	int ret;
 
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
+		    CSR_HW_IF_CONFIG_REG_PCI_OWN_SET);
 
 	/* See if we got it */
 	ret = iwl_poll_bit(trans, CSR_HW_IF_CONFIG_REG,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
-			   CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
+			   CSR_HW_IF_CONFIG_REG_PCI_OWN_SET,
 			   HW_READY_TIMEOUT);
 
 	if (ret >= 0)
@@ -620,7 +621,7 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		/* If HW is not ready, prepare the conditions to check again */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PREPARE);
+			    CSR_HW_IF_CONFIG_REG_WAKE_ME);
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
@@ -1488,8 +1489,8 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq)
 		_iwl_trans_pcie_stop_device(trans, from_irq);
 }
 
-void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
-				  bool test, bool reset)
+static void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
+					 bool test, bool reset)
 {
 	iwl_disable_interrupts(trans);
 
@@ -1566,7 +1567,7 @@ int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test, bool reset)
 	if (!reset)
 		/* Enable persistence mode to avoid reset */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
-			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
+			    CSR_HW_IF_CONFIG_REG_PERSISTENCE);
 
 	ret = iwl_pcie_d3_handshake(trans, true);
 	if (ret)
@@ -2105,10 +2106,157 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	iwl_trans_free(trans);
 }
 
+static union acpi_object *
+iwl_trans_pcie_call_prod_reset_dsm(struct pci_dev *pdev, u16 cmd, u16 value)
+{
+#ifdef CONFIG_ACPI
+	struct iwl_dsm_internal_product_reset_cmd pldr_arg = {
+		.cmd = cmd,
+		.value = value,
+	};
+	union acpi_object arg = {
+		.buffer.type = ACPI_TYPE_BUFFER,
+		.buffer.length = sizeof(pldr_arg),
+		.buffer.pointer = (void *)&pldr_arg,
+	};
+	static const guid_t dsm_guid = GUID_INIT(0x7266172C, 0x220B, 0x4B29,
+						 0x81, 0x4F, 0x75, 0xE4,
+						 0xDD, 0x26, 0xB5, 0xFD);
+
+	if (!acpi_check_dsm(ACPI_HANDLE(&pdev->dev), &dsm_guid, ACPI_DSM_REV,
+			    DSM_INTERNAL_FUNC_PRODUCT_RESET))
+		return ERR_PTR(-ENODEV);
+
+	return iwl_acpi_get_dsm_object(&pdev->dev, ACPI_DSM_REV,
+				       DSM_INTERNAL_FUNC_PRODUCT_RESET,
+				       &arg, &dsm_guid);
+#else
+	return ERR_PTR(-EOPNOTSUPP);
+#endif
+}
+
+void iwl_trans_pcie_check_product_reset_mode(struct pci_dev *pdev)
+{
+	union acpi_object *res;
+
+	res = iwl_trans_pcie_call_prod_reset_dsm(pdev,
+						 DSM_INTERNAL_PLDR_CMD_GET_MODE,
+						 0);
+	if (IS_ERR(res))
+		return;
+
+	if (res->type != ACPI_TYPE_INTEGER)
+		IWL_ERR_DEV(&pdev->dev,
+			    "unexpected return type from product reset DSM\n");
+	else
+		IWL_DEBUG_DEV_POWER(&pdev->dev,
+				    "product reset mode is 0x%llx\n",
+				    res->integer.value);
+
+	ACPI_FREE(res);
+}
+
+static void iwl_trans_pcie_set_product_reset(struct pci_dev *pdev, bool enable,
+					     bool integrated)
+{
+	union acpi_object *res;
+	u16 mode = enable ? DSM_INTERNAL_PLDR_MODE_EN_PROD_RESET : 0;
+
+	if (!integrated)
+		mode |= DSM_INTERNAL_PLDR_MODE_EN_WIFI_FLR |
+			DSM_INTERNAL_PLDR_MODE_EN_BT_OFF_ON;
+
+	res = iwl_trans_pcie_call_prod_reset_dsm(pdev,
+						 DSM_INTERNAL_PLDR_CMD_SET_MODE,
+						 mode);
+	if (IS_ERR(res)) {
+		if (enable)
+			IWL_ERR_DEV(&pdev->dev,
+				    "ACPI _DSM not available (%d), cannot do product reset\n",
+				    (int)PTR_ERR(res));
+		return;
+	}
+
+	ACPI_FREE(res);
+	IWL_DEBUG_DEV_POWER(&pdev->dev, "%sabled product reset via DSM\n",
+			    enable ? "En" : "Dis");
+	iwl_trans_pcie_check_product_reset_mode(pdev);
+}
+
+void iwl_trans_pcie_check_product_reset_status(struct pci_dev *pdev)
+{
+	union acpi_object *res;
+
+	res = iwl_trans_pcie_call_prod_reset_dsm(pdev,
+						 DSM_INTERNAL_PLDR_CMD_GET_STATUS,
+						 0);
+	if (IS_ERR(res))
+		return;
+
+	if (res->type != ACPI_TYPE_INTEGER)
+		IWL_ERR_DEV(&pdev->dev,
+			    "unexpected return type from product reset DSM\n");
+	else
+		IWL_DEBUG_DEV_POWER(&pdev->dev,
+				    "product reset status is 0x%llx\n",
+				    res->integer.value);
+
+	ACPI_FREE(res);
+}
+
+static void iwl_trans_pcie_call_reset(struct pci_dev *pdev)
+{
+#ifdef CONFIG_ACPI
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *p, *ref;
+	acpi_status status;
+	int ret = -EINVAL;
+
+	status = acpi_evaluate_object(ACPI_HANDLE(&pdev->dev),
+				      "_PRR", NULL, &buffer);
+	if (ACPI_FAILURE(status)) {
+		IWL_DEBUG_DEV_POWER(&pdev->dev, "No _PRR method found\n");
+		goto out;
+	}
+	p = buffer.pointer;
+
+	if (p->type != ACPI_TYPE_PACKAGE || p->package.count != 1) {
+		pci_err(pdev, "Bad _PRR return type\n");
+		goto out;
+	}
+
+	ref = &p->package.elements[0];
+	if (ref->type != ACPI_TYPE_LOCAL_REFERENCE) {
+		pci_err(pdev, "_PRR wasn't a reference\n");
+		goto out;
+	}
+
+	status = acpi_evaluate_object(ref->reference.handle,
+				      "_RST", NULL, NULL);
+	if (ACPI_FAILURE(status)) {
+		pci_err(pdev,
+			"Failed to call _RST on object returned by _PRR (%d)\n",
+			status);
+		goto out;
+	}
+	ret = 0;
+out:
+	kfree(buffer.pointer);
+	if (!ret) {
+		IWL_DEBUG_DEV_POWER(&pdev->dev, "called _RST on _PRR object\n");
+		return;
+	}
+	IWL_DEBUG_DEV_POWER(&pdev->dev,
+			    "No BIOS support, using pci_reset_function()\n");
+#endif
+	pci_reset_function(pdev);
+}
+
 struct iwl_trans_pcie_removal {
 	struct pci_dev *pdev;
 	struct work_struct work;
-	bool rescan;
+	enum iwl_reset_mode mode;
+	bool integrated;
 };
 
 static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
@@ -2126,14 +2274,66 @@ static void iwl_trans_pcie_removal_wk(struct work_struct *wk)
 	if (!bus)
 		goto out;
 
-	dev_err(&pdev->dev, "Device gone - attempting removal\n");
-
 	kobject_uevent_env(&pdev->dev.kobj, KOBJ_CHANGE, prop);
+
+	if (removal->mode == IWL_RESET_MODE_PROD_RESET) {
+		struct pci_dev *bt = NULL;
+
+		if (!removal->integrated) {
+			/* discrete devices have WiFi/BT at function 0/1 */
+			int slot = PCI_SLOT(pdev->devfn);
+			int func = PCI_FUNC(pdev->devfn);
+
+			if (func == 0)
+				bt = pci_get_slot(bus, PCI_DEVFN(slot, 1));
+			else
+				pci_info(pdev, "Unexpected function %d\n",
+					 func);
+		} else {
+			/* on integrated we have to look up by ID (same bus) */
+			static const struct pci_device_id bt_device_ids[] = {
+#define BT_DEV(_id) { PCI_DEVICE(PCI_VENDOR_ID_INTEL, _id) }
+				BT_DEV(0xA876), /* LNL */
+				BT_DEV(0xE476), /* PTL-P */
+				BT_DEV(0xE376), /* PTL-H */
+				BT_DEV(0xD346), /* NVL-H */
+				BT_DEV(0x6E74), /* NVL-S */
+				BT_DEV(0x4D76), /* WCL */
+				BT_DEV(0xD246), /* RZL-H */
+				BT_DEV(0x6C46), /* RZL-M */
+				{}
+			};
+			struct pci_dev *tmp = NULL;
+
+			for_each_pci_dev(tmp) {
+				if (tmp->bus != bus)
+					continue;
+
+				if (pci_match_id(bt_device_ids, tmp)) {
+					bt = tmp;
+					break;
+				}
+			}
+		}
+
+		if (bt) {
+			pci_info(bt, "Removal by WiFi due to product reset\n");
+			pci_stop_and_remove_bus_device(bt);
+			pci_dev_put(bt);
+		}
+	}
+
+	iwl_trans_pcie_set_product_reset(pdev,
+					 removal->mode ==
+						IWL_RESET_MODE_PROD_RESET,
+					 removal->integrated);
+	if (removal->mode >= IWL_RESET_MODE_FUNC_RESET)
+		iwl_trans_pcie_call_reset(pdev);
 
 	pci_stop_and_remove_bus_device(pdev);
 	pci_dev_put(pdev);
 
-	if (removal->rescan) {
+	if (removal->mode >= IWL_RESET_MODE_RESCAN) {
 		if (bus->parent)
 			bus = bus->parent;
 		pci_rescan_bus(bus);
@@ -2146,14 +2346,27 @@ out:
 	module_put(THIS_MODULE);
 }
 
-void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan)
+void iwl_trans_pcie_reset(struct iwl_trans *trans, enum iwl_reset_mode mode)
 {
 	struct iwl_trans_pcie_removal *removal;
+	char _msg = 0, *msg = &_msg;
+
+	if (WARN_ON(mode < IWL_RESET_MODE_REMOVE_ONLY))
+		return;
 
 	if (test_bit(STATUS_TRANS_DEAD, &trans->status))
 		return;
 
-	IWL_ERR(trans, "Device gone - scheduling removal!\n");
+	if (trans->me_present && mode == IWL_RESET_MODE_PROD_RESET) {
+		mode = IWL_RESET_MODE_FUNC_RESET;
+		if (trans->me_present < 0)
+			msg = " instead of product reset as ME may be present";
+		else
+			msg = " instead of product reset as ME is present";
+	}
+
+	IWL_INFO(trans, "scheduling reset (mode=%d%s)\n", mode, msg);
+
 	iwl_pcie_dump_csr(trans);
 
 	/*
@@ -2180,12 +2393,13 @@ void iwl_trans_pcie_remove(struct iwl_trans *trans, bool rescan)
 	set_bit(STATUS_TRANS_DEAD, &trans->status);
 
 	removal->pdev = to_pci_dev(trans->dev);
-	removal->rescan = rescan;
+	removal->mode = mode;
+	removal->integrated = trans->trans_cfg->integrated;
 	INIT_WORK(&removal->work, iwl_trans_pcie_removal_wk);
 	pci_dev_get(removal->pdev);
 	schedule_work(&removal->work);
 }
-EXPORT_SYMBOL(iwl_trans_pcie_remove);
+EXPORT_SYMBOL(iwl_trans_pcie_reset);
 
 /*
  * This version doesn't disable BHs but rather assumes they're
@@ -2250,7 +2464,8 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans)
 		iwl_trans_pcie_dump_regs(trans);
 
 		if (iwlwifi_mod_params.remove_when_gone && cntrl == ~0U)
-			iwl_trans_pcie_remove(trans, false);
+			iwl_trans_pcie_reset(trans,
+					     IWL_RESET_MODE_REMOVE_ONLY);
 		else
 			iwl_write32(trans, CSR_RESET,
 				    CSR_RESET_REG_FLAG_FORCE_NMI);
@@ -3037,12 +3252,47 @@ static ssize_t iwl_dbgfs_rf_read(struct file *file,
 				       strlen(trans_pcie->rf_name));
 }
 
+static ssize_t iwl_dbgfs_reset_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+	static const char * const modes[] = {
+		[IWL_RESET_MODE_SW_RESET] = "n/a",
+		[IWL_RESET_MODE_REPROBE] = "n/a",
+		[IWL_RESET_MODE_REMOVE_ONLY] = "remove",
+		[IWL_RESET_MODE_RESCAN] = "rescan",
+		[IWL_RESET_MODE_FUNC_RESET] = "function",
+		[IWL_RESET_MODE_PROD_RESET] = "product",
+	};
+	char buf[10] = {};
+	int mode;
+
+	if (count > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	mode = sysfs_match_string(modes, buf);
+	if (mode < 0)
+		return mode;
+
+	if (mode < IWL_RESET_MODE_REMOVE_ONLY)
+		return -EINVAL;
+
+	iwl_trans_pcie_reset(trans, mode);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
 DEBUGFS_READ_WRITE_FILE_OPS(rfkill);
 DEBUGFS_READ_FILE_OPS(rf);
+DEBUGFS_WRITE_FILE_OPS(reset);
 
 static const struct file_operations iwl_dbgfs_tx_queue_ops = {
 	.owner = THIS_MODULE,
@@ -3071,6 +3321,7 @@ void iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans)
 	DEBUGFS_ADD_FILE(rfkill, dir, 0600);
 	DEBUGFS_ADD_FILE(monitor_data, dir, 0400);
 	DEBUGFS_ADD_FILE(rf, dir, 0400);
+	DEBUGFS_ADD_FILE(reset, dir, 0200);
 }
 
 void iwl_trans_pcie_debugfs_cleanup(struct iwl_trans *trans)

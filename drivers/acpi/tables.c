@@ -56,7 +56,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 			    (struct acpi_madt_local_apic *)header;
 			pr_debug("LAPIC (acpi_id[0x%02x] lapic_id[0x%02x] %s)\n",
 				 p->processor_id, p->id,
-				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->lapic_flags & ACPI_MADT_ENABLED));
 		}
 		break;
 
@@ -66,7 +66,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 			    (struct acpi_madt_local_x2apic *)header;
 			pr_debug("X2APIC (apic_id[0x%02x] uid[0x%02x] %s)\n",
 				 p->local_apic_id, p->uid,
-				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->lapic_flags & ACPI_MADT_ENABLED));
 		}
 		break;
 
@@ -160,7 +160,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 			    (struct acpi_madt_local_sapic *)header;
 			pr_debug("LSAPIC (acpi_id[0x%02x] lsapic_id[0x%02x] lsapic_eid[0x%02x] %s)\n",
 				 p->processor_id, p->id, p->eid,
-				 (p->lapic_flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->lapic_flags & ACPI_MADT_ENABLED));
 		}
 		break;
 
@@ -183,7 +183,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 			pr_debug("GICC (acpi_id[0x%04x] address[%llx] MPIDR[0x%llx] %s)\n",
 				 p->uid, p->base_address,
 				 p->arm_mpidr,
-				 (p->flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_MADT_ENABLED));
 
 		}
 		break;
@@ -218,7 +218,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 
 			pr_debug("CORE PIC (processor_id[0x%02x] core_id[0x%02x] %s)\n",
 				 p->processor_id, p->core_id,
-				 (p->flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_MADT_ENABLED));
 		}
 		break;
 
@@ -228,7 +228,7 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
 
 			pr_debug("RISC-V INTC (acpi_uid[0x%04x] hart_id[0x%llx] %s)\n",
 				 p->uid, p->hart_id,
-				 (p->flags & ACPI_MADT_ENABLED) ? "enabled" : "disabled");
+				 str_enabled_disabled(p->flags & ACPI_MADT_ENABLED));
 		}
 		break;
 

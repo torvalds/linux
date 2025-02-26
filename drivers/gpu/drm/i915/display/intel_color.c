@@ -22,6 +22,7 @@
  *
  */
 
+#include "i915_drv.h"
 #include "i9xx_plane_regs.h"
 #include "intel_color.h"
 #include "intel_color_regs.h"

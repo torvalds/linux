@@ -338,7 +338,10 @@ static void cdx_shutdown(struct device *dev)
 {
 	struct cdx_driver *cdx_drv = to_cdx_driver(dev->driver);
 	struct cdx_device *cdx_dev = to_cdx_device(dev);
+	struct cdx_controller *cdx = cdx_dev->cdx;
 
+	if (cdx_dev->is_bus && cdx_dev->enabled && cdx->ops->bus_disable)
+		cdx->ops->bus_disable(cdx, cdx_dev->bus_num);
 	if (cdx_drv && cdx_drv->shutdown)
 		cdx_drv->shutdown(cdx_dev);
 }

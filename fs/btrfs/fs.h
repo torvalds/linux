@@ -14,10 +14,10 @@
 #include <linux/lockdep.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
-#include <linux/rwlock_types.h>
 #include <linux/rwsem.h>
 #include <linux/semaphore.h>
 #include <linux/list.h>
+#include <linux/pagemap.h>
 #include <linux/radix-tree.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
@@ -627,6 +627,9 @@ struct btrfs_fs_info {
 	struct kobject *qgroups_kobj;
 	struct kobject *discard_kobj;
 
+	/* Track the number of blocks (sectors) read by the filesystem. */
+	struct percpu_counter stats_read_blocks;
+
 	/* Used to keep from writing metadata until there is a nice batch */
 	struct percpu_counter dirty_metadata_bytes;
 	struct percpu_counter delalloc_bytes;
@@ -887,6 +890,11 @@ struct btrfs_fs_info {
 #define inode_to_fs_info(_inode) (BTRFS_I(_Generic((_inode),			\
 					   struct inode *: (_inode)))->root->fs_info)
 
+static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
+{
+	return mapping_gfp_constraint(mapping, ~__GFP_FS);
+}
+
 static inline u64 btrfs_get_fs_generation(const struct btrfs_fs_info *fs_info)
 {
 	return READ_ONCE(fs_info->generation);
@@ -953,6 +961,8 @@ static inline u64 btrfs_calc_metadata_size(const struct btrfs_fs_info *fs_info,
 #define BTRFS_MAX_EXTENT_ITEM_SIZE(r) ((BTRFS_LEAF_DATA_SIZE(r->fs_info) >> 4) - \
 					sizeof(struct btrfs_item))
 
+#define BTRFS_BYTES_TO_BLKS(fs_info, bytes) ((bytes) >> (fs_info)->sectorsize_bits)
+
 static inline bool btrfs_is_zoned(const struct btrfs_fs_info *fs_info)
 {
 	return IS_ENABLED(CONFIG_BLK_DEV_ZONED) && fs_info->zone_size > 0;
@@ -981,6 +991,17 @@ void btrfs_exclop_balance(struct btrfs_fs_info *fs_info,
 			  enum btrfs_exclusive_operation op);
 
 int btrfs_check_ioctl_vol_args_path(const struct btrfs_ioctl_vol_args *vol_args);
+
+u16 btrfs_csum_type_size(u16 type);
+int btrfs_super_csum_size(const struct btrfs_super_block *s);
+const char *btrfs_super_csum_name(u16 csum_type);
+const char *btrfs_super_csum_driver(u16 csum_type);
+size_t __attribute_const__ btrfs_get_num_csums(void);
+
+static inline bool btrfs_is_empty_uuid(const u8 *uuid)
+{
+	return uuid_is_null((const uuid_t *)uuid);
+}
 
 /* Compatibility and incompatibility defines */
 void __btrfs_set_fs_incompat(struct btrfs_fs_info *fs_info, u64 flag,
@@ -1057,6 +1078,14 @@ static inline void btrfs_wake_unfinished_drop(struct btrfs_fs_info *fs_info)
 #define BTRFS_FS_LOG_CLEANUP_ERROR(fs_info)				\
 	(unlikely(test_bit(BTRFS_FS_STATE_LOG_CLEANUP_ERROR,		\
 			   &(fs_info)->fs_state)))
+
+/*
+ * We use folio flag owner_2 to indicate there is an ordered extent with
+ * unfinished IO.
+ */
+#define folio_test_ordered(folio)	folio_test_owner_2(folio)
+#define folio_set_ordered(folio)	folio_set_owner_2(folio)
+#define folio_clear_ordered(folio)	folio_clear_owner_2(folio)
 
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 

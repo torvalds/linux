@@ -231,7 +231,7 @@ static int cros_ec_rpmsg_probe(struct rpmsg_device *rpdev)
 	ec_dev->phys_name = dev_name(&rpdev->dev);
 	ec_dev->din_size = sizeof(struct ec_host_response) +
 			   sizeof(struct ec_response_get_protocol_info);
-	ec_dev->dout_size = sizeof(struct ec_host_request);
+	ec_dev->dout_size = sizeof(struct ec_host_request) + sizeof(struct ec_params_rwsig_action);
 	dev_set_drvdata(dev, ec_dev);
 
 	ec_rpmsg->rpdev = rpdev;

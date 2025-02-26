@@ -307,7 +307,7 @@ static inline bool dst_hold_safe(struct dst_entry *dst)
  * @skb: buffer
  *
  * If dst is not yet refcounted and not destroyed, grab a ref on it.
- * Returns true if dst is refcounted.
+ * Returns: true if dst is refcounted.
  */
 static inline bool skb_dst_force(struct sk_buff *skb)
 {
@@ -438,6 +438,15 @@ static inline void dst_set_expires(struct dst_entry *dst, int timeout)
 
 	if (dst->expires == 0 || time_before(expires, dst->expires))
 		dst->expires = expires;
+}
+
+static inline unsigned int dst_dev_overhead(struct dst_entry *dst,
+					    struct sk_buff *skb)
+{
+	if (likely(dst))
+		return LL_RESERVED_SPACE(dst->dev);
+
+	return skb->mac_len;
 }
 
 INDIRECT_CALLABLE_DECLARE(int ip6_output(struct net *, struct sock *,

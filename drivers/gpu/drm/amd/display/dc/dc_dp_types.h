@@ -969,6 +969,21 @@ union dp_sink_video_fallback_formats {
 	uint8_t raw;
 };
 
+union dp_receive_port0_cap {
+	struct {
+		uint8_t RESERVED					:1;
+		uint8_t LOCAL_EDID_PRESENT			:1;
+		uint8_t ASSOCIATED_TO_PRECEDING_PORT:1;
+		uint8_t HBLANK_EXPANSION_CAPABLE	:1;
+		uint8_t BUFFER_SIZE_UNIT			:1;
+		uint8_t BUFFER_SIZE_PER_PORT		:1;
+		uint8_t HBLANK_REDUCTION_CAPABLE	:1;
+		uint8_t RESERVED2:1;
+		uint8_t BUFFER_SIZE:8;
+	} bits;
+	uint8_t raw[2];
+};
+
 union dpcd_max_uncompressed_pixel_rate_cap {
 	struct {
 		uint16_t max_uncompressed_pixel_rate_cap	:15;
@@ -1193,6 +1208,7 @@ struct dpcd_caps {
 
 	struct replay_info pr_info;
 	uint16_t edp_oled_emission_rate;
+	union dp_receive_port0_cap receive_port0_cap;
 };
 
 union dpcd_sink_ext_caps {

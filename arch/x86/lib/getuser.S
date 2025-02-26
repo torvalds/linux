@@ -44,9 +44,8 @@
   .pushsection runtime_ptr_USER_PTR_MAX,"a"
 	.long 1b - 8 - .
   .popsection
-	cmp %rax, %rdx
-	sbb %rdx, %rdx
-	or %rdx, %rax
+	cmp %rdx, %rax
+	cmova %rdx, %rax
 .else
 	cmp $TASK_SIZE_MAX-\size+1, %eax
 	jae .Lbad_get_user

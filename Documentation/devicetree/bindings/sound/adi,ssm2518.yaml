@@ -36,12 +36,14 @@ unevaluatedProperties: false
 
 examples:
   - |
-   i2c {
-     #address-cells = <1>;
-     #size-cells = <0>;
-     codec@34 {
-       compatible = "adi,ssm2518";
-       reg = <0x34>;
-       gpios = <&gpio 5 0>;
-     };
-   };
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        codec@34 {
+            compatible = "adi,ssm2518";
+            reg = <0x34>;
+            gpios = <&gpio 5 GPIO_ACTIVE_HIGH>;
+        };
+    };

@@ -36,6 +36,21 @@ Invoke test binaries in both directions as follows:
                        --control-port=1234 \
                        --peer-cid=3
 
+Some tests are designed to produce kernel memory leaks. Leaks detection,
+however, is deferred to Kernel Memory Leak Detector. It is recommended to enable
+kmemleak (CONFIG_DEBUG_KMEMLEAK=y) and explicitly trigger a scan after each test
+suite run, e.g.
+
+  # echo clear > /sys/kernel/debug/kmemleak
+  # $TEST_BINARY ...
+  # echo "wait for any grace periods" && sleep 2
+  # echo scan > /sys/kernel/debug/kmemleak
+  # echo "wait for kmemleak" && sleep 5
+  # echo scan > /sys/kernel/debug/kmemleak
+  # cat /sys/kernel/debug/kmemleak
+
+For more information see Documentation/dev-tools/kmemleak.rst.
+
 vsock_perf utility
 -------------------
 'vsock_perf' is a simple tool to measure vsock performance. It works in

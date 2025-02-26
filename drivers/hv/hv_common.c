@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
 #include <linux/set_memory.h>
-#include <asm/hyperv-tlfs.h>
+#include <hyperv/hvhdk.h>
 #include <asm/mshyperv.h>
 
 /*
@@ -141,7 +141,7 @@ static int sysctl_record_panic_msg = 1;
  * sysctl option to allow the user to control whether kmsg data should be
  * reported to Hyper-V on panic.
  */
-static struct ctl_table hv_ctl_table[] = {
+static const struct ctl_table hv_ctl_table[] = {
 	{
 		.procname	= "hyperv_record_panic_msg",
 		.data		= &sysctl_record_panic_msg,
@@ -278,6 +278,11 @@ static void hv_kmsg_dump_register(void)
 	}
 }
 
+static inline bool hv_output_page_exists(void)
+{
+	return hv_root_partition || IS_ENABLED(CONFIG_HYPERV_VTL_MODE);
+}
+
 int __init hv_common_init(void)
 {
 	int i;
@@ -340,19 +345,19 @@ int __init hv_common_init(void)
 	BUG_ON(!hyperv_pcpu_input_arg);
 
 	/* Allocate the per-CPU state for output arg for root */
-	if (hv_root_partition) {
+	if (hv_output_page_exists()) {
 		hyperv_pcpu_output_arg = alloc_percpu(void *);
 		BUG_ON(!hyperv_pcpu_output_arg);
 	}
 
-	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
+	hv_vp_index = kmalloc_array(nr_cpu_ids, sizeof(*hv_vp_index),
 				    GFP_KERNEL);
 	if (!hv_vp_index) {
 		hv_common_free();
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < num_possible_cpus(); i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		hv_vp_index[i] = VP_INVAL;
 
 	return 0;
@@ -435,7 +440,7 @@ int hv_common_cpu_init(unsigned int cpu)
 	void **inputarg, **outputarg;
 	u64 msr_vp_index;
 	gfp_t flags;
-	int pgcount = hv_root_partition ? 2 : 1;
+	const int pgcount = hv_output_page_exists() ? 2 : 1;
 	void *mem;
 	int ret;
 
@@ -453,7 +458,7 @@ int hv_common_cpu_init(unsigned int cpu)
 		if (!mem)
 			return -ENOMEM;
 
-		if (hv_root_partition) {
+		if (hv_output_page_exists()) {
 			outputarg = (void **)this_cpu_ptr(hyperv_pcpu_output_arg);
 			*outputarg = (char *)mem + HV_HYP_PAGE_SIZE;
 		}

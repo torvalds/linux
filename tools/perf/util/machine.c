@@ -1003,7 +1003,7 @@ static int machine__get_running_kernel_start(struct machine *machine,
 
 	err = kallsyms__get_symbol_start(filename, "_edata", &addr);
 	if (err)
-		err = kallsyms__get_function_start(filename, "_etext", &addr);
+		err = kallsyms__get_symbol_start(filename, "_etext", &addr);
 	if (!err)
 		*end = addr;
 
@@ -1467,6 +1467,8 @@ static int machine__create_modules(struct machine *machine)
 
 	if (modules__parse(modules, machine, machine__create_module))
 		return -1;
+
+	maps__fixup_end(machine__kernel_maps(machine));
 
 	if (!machine__set_modules_path(machine))
 		return 0;

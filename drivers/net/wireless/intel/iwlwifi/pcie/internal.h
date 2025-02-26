@@ -563,6 +563,9 @@ bool __iwl_trans_pcie_grab_nic_access(struct iwl_trans *trans);
 	__cond_lock(nic_access_nobh,				\
 		    likely(__iwl_trans_pcie_grab_nic_access(trans)))
 
+void iwl_trans_pcie_check_product_reset_status(struct pci_dev *pdev);
+void iwl_trans_pcie_check_product_reset_mode(struct pci_dev *pdev);
+
 /*****************************************************
 * RX
 ******************************************************/
@@ -1134,9 +1137,6 @@ void iwl_trans_pcie_gen2_fw_alive(struct iwl_trans *trans);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);
 void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
-void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans);
-void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
-				  bool test, bool reset);
 int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 			       struct iwl_host_cmd *cmd);
 int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,

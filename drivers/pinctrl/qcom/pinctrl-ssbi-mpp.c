@@ -13,6 +13,7 @@
 #include <linux/regmap.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/string_choices.h>
 
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinconf.h>
@@ -576,8 +577,7 @@ static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
 			seq_puts(s, "out ");
 
 			if (!pin->paired) {
-				seq_puts(s, pin->output_value ?
-					 "high" : "low");
+				seq_puts(s, str_high_low(pin->output_value));
 			} else {
 				seq_puts(s, pin->output_value ?
 					 "inverted" : "follow");
@@ -589,8 +589,7 @@ static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
 		if (pin->output) {
 			seq_printf(s, "out %s ", aout_lvls[pin->aout_level]);
 			if (!pin->paired) {
-				seq_puts(s, pin->output_value ?
-					 "high" : "low");
+				seq_puts(s, str_high_low(pin->output_value));
 			} else {
 				seq_puts(s, pin->output_value ?
 					 "inverted" : "follow");
@@ -605,8 +604,7 @@ static void pm8xxx_mpp_dbg_show_one(struct seq_file *s,
 			seq_printf(s, "dtest%d", pin->dtest);
 		} else {
 			if (!pin->paired) {
-				seq_puts(s, pin->output_value ?
-					 "high" : "low");
+				seq_puts(s, str_high_low(pin->output_value));
 			} else {
 				seq_puts(s, pin->output_value ?
 					 "inverted" : "follow");

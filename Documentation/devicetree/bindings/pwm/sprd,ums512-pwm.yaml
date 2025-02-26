@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pwm/sprd,ums512-pwm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Spreadtrum/Unisoc UMS512 PWM Controller
+
+maintainers:
+  - Orson Zhai <orsonzhai@gmail.com>
+  - Baolin Wang <baolin.wang@linux.alibaba.com>
+  - Chunyan Zhang <zhang.lyra@gmail.com>
+
+properties:
+  compatible:
+    const: sprd,ums512-pwm
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 8
+
+  clock-names:
+    items:
+      - const: pwm0
+      - const: enable0
+      - const: pwm1
+      - const: enable1
+      - const: pwm2
+      - const: enable2
+      - const: pwm3
+      - const: enable3
+
+  '#pwm-cells':
+    const: 2
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+allOf:
+  - $ref: pwm.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/sprd,ums512-clk.h>
+
+    pwm@32260000 {
+      compatible = "sprd,ums512-pwm";
+      reg = <0x32260000 0x10000>;
+      clocks = <&aon_clk CLK_PWM0>, <&aonapb_gate CLK_PWM0_EB>,
+               <&aon_clk CLK_PWM1>, <&aonapb_gate CLK_PWM1_EB>,
+               <&aon_clk CLK_PWM2>, <&aonapb_gate CLK_PWM2_EB>,
+               <&aon_clk CLK_PWM3>, <&aonapb_gate CLK_PWM3_EB>;
+      clock-names = "pwm0", "enable0",
+                    "pwm1", "enable1",
+                    "pwm2", "enable2",
+                    "pwm3", "enable3";
+      #pwm-cells = <2>;
+    };
+...

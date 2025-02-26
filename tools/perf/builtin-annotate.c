@@ -7,6 +7,7 @@
  * a histogram of results, along various sorting keys.
  */
 #include "builtin.h"
+#include "perf.h"
 
 #include "util/color.h"
 #include <linux/list.h>

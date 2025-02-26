@@ -550,7 +550,6 @@ static inline void kvm_machine_check(void)
 void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu);
 void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
 int kvm_spec_ctrl_test_value(u64 value);
-bool __kvm_is_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 int kvm_handle_memory_failure(struct kvm_vcpu *vcpu, int r,
 			      struct x86_exception *e);
 int kvm_handle_invpcid(struct kvm_vcpu *vcpu, unsigned long type, gva_t gva);
@@ -576,6 +575,11 @@ enum kvm_msr_access {
  */
 #define  KVM_MSR_RET_UNSUPPORTED	2
 #define  KVM_MSR_RET_FILTERED		3
+
+static inline bool __kvm_is_valid_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+{
+	return !(cr4 & vcpu->arch.cr4_guest_rsvd_bits);
+}
 
 #define __cr4_reserved_bits(__cpu_has, __c)             \
 ({                                                      \
@@ -611,5 +615,33 @@ int kvm_sev_es_mmio_read(struct kvm_vcpu *vcpu, gpa_t src, unsigned int bytes,
 int kvm_sev_es_string_io(struct kvm_vcpu *vcpu, unsigned int size,
 			 unsigned int port, void *data,  unsigned int count,
 			 int in);
+
+static inline bool user_exit_on_hypercall(struct kvm *kvm, unsigned long hc_nr)
+{
+	return kvm->arch.hypercall_exit_enabled & BIT(hc_nr);
+}
+
+int ____kvm_emulate_hypercall(struct kvm_vcpu *vcpu, unsigned long nr,
+			      unsigned long a0, unsigned long a1,
+			      unsigned long a2, unsigned long a3,
+			      int op_64_bit, int cpl,
+			      int (*complete_hypercall)(struct kvm_vcpu *));
+
+#define __kvm_emulate_hypercall(_vcpu, nr, a0, a1, a2, a3, op_64_bit, cpl, complete_hypercall)	\
+({												\
+	int __ret;										\
+												\
+	__ret = ____kvm_emulate_hypercall(_vcpu,						\
+					  kvm_##nr##_read(_vcpu), kvm_##a0##_read(_vcpu),	\
+					  kvm_##a1##_read(_vcpu), kvm_##a2##_read(_vcpu),	\
+					  kvm_##a3##_read(_vcpu), op_64_bit, cpl,		\
+					  complete_hypercall);					\
+												\
+	if (__ret > 0)										\
+		__ret = complete_hypercall(_vcpu);						\
+	__ret;											\
+})
+
+int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 
 #endif

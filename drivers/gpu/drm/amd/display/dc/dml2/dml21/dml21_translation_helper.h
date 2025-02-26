@@ -21,8 +21,6 @@ void dml21_initialize_soc_bb_params(struct dml2_initialize_instance_in_out *dml_
 void dml21_initialize_ip_params(struct dml2_initialize_instance_in_out *dml_init, const struct dml2_configuration_options *config, const struct dc *in_dc);
 bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml_ctx);
 void dml21_copy_clocks_to_dc_state(struct dml2_context *in_ctx, struct dc_state *context);
-void dml21_populate_pipe_ctx_dlg_params(struct dml2_context *dml_ctx, struct dc_state *context, struct pipe_ctx *pipe_ctx, struct dml2_per_stream_programming *stream_programming);
-void dml21_extract_legacy_watermark_set(const struct dc *in_dc, struct dcn_watermarks *watermark, enum dml2_dchub_watermark_reg_set_index reg_set_idx, struct dml2_context *in_ctx);
 void dml21_extract_watermark_sets(const struct dc *in_dc, union dcn_watermark_set *watermarks, struct dml2_context *in_ctx);
 void dml21_map_hw_resources(struct dml2_context *dml_ctx);
 void dml21_get_pipe_mcache_config(struct dc_state *context, struct pipe_ctx *pipe_ctx, struct dml2_per_plane_programming *pln_prog, struct dml2_pipe_configuration_descriptor *mcache_pipe_config);

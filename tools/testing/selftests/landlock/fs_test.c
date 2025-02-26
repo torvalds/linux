@@ -37,6 +37,10 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 
+/* Defines AT_EXECVE_CHECK without type conflicts. */
+#define _ASM_GENERIC_FCNTL_H
+#include <linux/fcntl.h>
+
 #include "common.h"
 
 #ifndef renameat2
@@ -55,11 +59,17 @@ int open_tree(int dfd, const char *filename, unsigned int flags)
 }
 #endif
 
+static int sys_execveat(int dirfd, const char *pathname, char *const argv[],
+			char *const envp[], int flags)
+{
+	return syscall(__NR_execveat, dirfd, pathname, argv, envp, flags);
+}
+
 #ifndef RENAME_EXCHANGE
 #define RENAME_EXCHANGE (1 << 1)
 #endif
 
-#define BINARY_PATH "./true"
+static const char bin_true[] = "./true";
 
 /* Paths (sibling number and depth) */
 static const char dir_s1d1[] = TMP_DIR "/s1d1";
@@ -85,6 +95,9 @@ static const char file1_s3d1[] = TMP_DIR "/s3d1/f1";
 /* dir_s3d2 is a mount point. */
 static const char dir_s3d2[] = TMP_DIR "/s3d1/s3d2";
 static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
+static const char file1_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3/f1";
+static const char dir_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4";
+static const char file1_s3d4[] = TMP_DIR "/s3d1/s3d2/s3d4/f1";
 
 /*
  * layout1 hierarchy:
@@ -108,8 +121,11 @@ static const char dir_s3d3[] = TMP_DIR "/s3d1/s3d2/s3d3";
  * │           └── f2
  * └── s3d1
  *     ├── f1
- *     └── s3d2
- *         └── s3d3
+ *     └── s3d2 [mount point]
+ *         ├── s3d3
+ *         │   └── f1
+ *         └── s3d4
+ *             └── f1
  */
 
 static bool fgrep(FILE *const inf, const char *const str)
@@ -358,7 +374,8 @@ static void create_layout1(struct __test_metadata *const _metadata)
 	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s3d2));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 
-	ASSERT_EQ(0, mkdir(dir_s3d3, 0700));
+	create_file(_metadata, file1_s3d3);
+	create_file(_metadata, file1_s3d4);
 }
 
 static void remove_layout1(struct __test_metadata *const _metadata)
@@ -378,7 +395,8 @@ static void remove_layout1(struct __test_metadata *const _metadata)
 	EXPECT_EQ(0, remove_path(dir_s2d2));
 
 	EXPECT_EQ(0, remove_path(file1_s3d1));
-	EXPECT_EQ(0, remove_path(dir_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d3));
+	EXPECT_EQ(0, remove_path(file1_s3d4));
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	umount(dir_s3d2);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
@@ -1957,8 +1975,8 @@ TEST_F_FORK(layout1, relative_chroot_chdir)
 	test_relative_path(_metadata, REL_CHROOT_CHDIR);
 }
 
-static void copy_binary(struct __test_metadata *const _metadata,
-			const char *const dst_path)
+static void copy_file(struct __test_metadata *const _metadata,
+		      const char *const src_path, const char *const dst_path)
 {
 	int dst_fd, src_fd;
 	struct stat statbuf;
@@ -1968,11 +1986,10 @@ static void copy_binary(struct __test_metadata *const _metadata,
 	{
 		TH_LOG("Failed to open \"%s\": %s", dst_path, strerror(errno));
 	}
-	src_fd = open(BINARY_PATH, O_RDONLY | O_CLOEXEC);
+	src_fd = open(src_path, O_RDONLY | O_CLOEXEC);
 	ASSERT_LE(0, src_fd)
 	{
-		TH_LOG("Failed to open \"" BINARY_PATH "\": %s",
-		       strerror(errno));
+		TH_LOG("Failed to open \"%s\": %s", src_path, strerror(errno));
 	}
 	ASSERT_EQ(0, fstat(src_fd, &statbuf));
 	ASSERT_EQ(statbuf.st_size,
@@ -2003,9 +2020,24 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 	ASSERT_EQ(1, WIFEXITED(status));
 	ASSERT_EQ(err ? 2 : 0, WEXITSTATUS(status))
 	{
-		TH_LOG("Unexpected return code for \"%s\": %s", path,
-		       strerror(errno));
+		TH_LOG("Unexpected return code for \"%s\"", path);
 	};
+}
+
+static void test_check_exec(struct __test_metadata *const _metadata,
+			    const int err, const char *const path)
+{
+	int ret;
+	char *const argv[] = { (char *)path, NULL };
+
+	ret = sys_execveat(AT_FDCWD, path, argv, NULL,
+			   AT_EMPTY_PATH | AT_EXECVE_CHECK);
+	if (err) {
+		EXPECT_EQ(-1, ret);
+		EXPECT_EQ(errno, err);
+	} else {
+		EXPECT_EQ(0, ret);
+	}
 }
 
 TEST_F_FORK(layout1, execute)
@@ -2021,9 +2053,13 @@ TEST_F_FORK(layout1, execute)
 		create_ruleset(_metadata, rules[0].access, rules);
 
 	ASSERT_LE(0, ruleset_fd);
-	copy_binary(_metadata, file1_s1d1);
-	copy_binary(_metadata, file1_s1d2);
-	copy_binary(_metadata, file1_s1d3);
+	copy_file(_metadata, bin_true, file1_s1d1);
+	copy_file(_metadata, bin_true, file1_s1d2);
+	copy_file(_metadata, bin_true, file1_s1d3);
+
+	/* Checks before file1_s1d1 being denied. */
+	test_execute(_metadata, 0, file1_s1d1);
+	test_check_exec(_metadata, 0, file1_s1d1);
 
 	enforce_ruleset(_metadata, ruleset_fd);
 	ASSERT_EQ(0, close(ruleset_fd));
@@ -2031,14 +2067,94 @@ TEST_F_FORK(layout1, execute)
 	ASSERT_EQ(0, test_open(dir_s1d1, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d1, O_RDONLY));
 	test_execute(_metadata, EACCES, file1_s1d1);
+	test_check_exec(_metadata, EACCES, file1_s1d1);
 
 	ASSERT_EQ(0, test_open(dir_s1d2, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d2, O_RDONLY));
 	test_execute(_metadata, 0, file1_s1d2);
+	test_check_exec(_metadata, 0, file1_s1d2);
 
 	ASSERT_EQ(0, test_open(dir_s1d3, O_RDONLY));
 	ASSERT_EQ(0, test_open(file1_s1d3, O_RDONLY));
 	test_execute(_metadata, 0, file1_s1d3);
+	test_check_exec(_metadata, 0, file1_s1d3);
+}
+
+TEST_F_FORK(layout1, umount_sandboxer)
+{
+	int pipe_child[2], pipe_parent[2];
+	char buf_parent;
+	pid_t child;
+	int status;
+
+	copy_file(_metadata, bin_sandbox_and_launch, file1_s3d3);
+	ASSERT_EQ(0, pipe2(pipe_child, 0));
+	ASSERT_EQ(0, pipe2(pipe_parent, 0));
+
+	child = fork();
+	ASSERT_LE(0, child);
+	if (child == 0) {
+		char pipe_child_str[12], pipe_parent_str[12];
+		char *const argv[] = { (char *)file1_s3d3,
+				       (char *)bin_wait_pipe, pipe_child_str,
+				       pipe_parent_str, NULL };
+
+		/* Passes the pipe FDs to the executed binary and its child. */
+		EXPECT_EQ(0, close(pipe_child[0]));
+		EXPECT_EQ(0, close(pipe_parent[1]));
+		snprintf(pipe_child_str, sizeof(pipe_child_str), "%d",
+			 pipe_child[1]);
+		snprintf(pipe_parent_str, sizeof(pipe_parent_str), "%d",
+			 pipe_parent[0]);
+
+		/*
+		 * We need bin_sandbox_and_launch (copied inside the mount as
+		 * file1_s3d3) to execute bin_wait_pipe (outside the mount) to
+		 * make sure the mount point will not be EBUSY because of
+		 * file1_s3d3 being in use.  This avoids a potential race
+		 * condition between the following read() and umount() calls.
+		 */
+		ASSERT_EQ(0, execve(argv[0], argv, NULL))
+		{
+			TH_LOG("Failed to execute \"%s\": %s", argv[0],
+			       strerror(errno));
+		};
+		_exit(1);
+		return;
+	}
+
+	EXPECT_EQ(0, close(pipe_child[1]));
+	EXPECT_EQ(0, close(pipe_parent[0]));
+
+	/* Waits for the child to sandbox itself. */
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the sandboxer is tied to its mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	EXPECT_EQ(-1, umount(dir_s3d2));
+	EXPECT_EQ(EBUSY, errno);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Signals the child to launch a grandchild. */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+
+	/* Waits for the grandchild. */
+	EXPECT_EQ(1, read(pipe_child[0], &buf_parent, 1));
+
+	/* Tests that the domain's sandboxer is not tied to its mount point. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	EXPECT_EQ(0, umount(dir_s3d2))
+	{
+		TH_LOG("Failed to umount \"%s\": %s", dir_s3d2,
+		       strerror(errno));
+	};
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	/* Signals the grandchild to terminate. */
+	EXPECT_EQ(1, write(pipe_parent[1], ".", 1));
+	ASSERT_EQ(child, waitpid(child, &status, 0));
+	ASSERT_EQ(1, WIFEXITED(status));
+	ASSERT_EQ(0, WEXITSTATUS(status));
 }
 
 TEST_F_FORK(layout1, link)
@@ -2442,6 +2558,44 @@ TEST_F_FORK(layout1, refer_mount_root_deny)
 	EXPECT_EQ(EBUSY, errno);
 
 	EXPECT_EQ(0, close(root_fd));
+}
+
+TEST_F_FORK(layout1, refer_part_mount_tree_is_allowed)
+{
+	const struct rule layer1[] = {
+		{
+			/* Parent mount point. */
+			.path = dir_s3d1,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG,
+		},
+		{
+			/*
+			 * Removing the source file is allowed because its
+			 * access rights are already a superset of the
+			 * destination.
+			 */
+			.path = dir_s3d4,
+			.access = LANDLOCK_ACCESS_FS_REFER |
+				  LANDLOCK_ACCESS_FS_MAKE_REG |
+				  LANDLOCK_ACCESS_FS_REMOVE_FILE,
+		},
+		{},
+	};
+	int ruleset_fd;
+
+	ASSERT_EQ(0, unlink(file1_s3d3));
+	ruleset_fd = create_ruleset(_metadata,
+				    LANDLOCK_ACCESS_FS_REFER |
+					    LANDLOCK_ACCESS_FS_MAKE_REG |
+					    LANDLOCK_ACCESS_FS_REMOVE_FILE,
+				    layer1);
+
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	ASSERT_EQ(0, rename(file1_s3d4, file1_s3d3));
 }
 
 TEST_F_FORK(layout1, reparent_link)

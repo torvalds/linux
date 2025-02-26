@@ -38,6 +38,7 @@
 
 #define FREQ_INFO_REC	XE_REG(MCHBAR_MIRROR_BASE_SNB + 0x5ef0)
 #define   RPE_MASK		REG_GENMASK(15, 8)
+#define   RPA_MASK		REG_GENMASK(31, 16)
 
 #define GT_PERF_STATUS		XE_REG(0x1381b4)
 #define   CAGF_MASK	REG_GENMASK(19, 11)
@@ -328,6 +329,19 @@ static int pc_set_max_freq(struct xe_guc_pc *pc, u32 freq)
 				   freq);
 }
 
+static void mtl_update_rpa_value(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	u32 reg;
+
+	if (xe_gt_is_media_type(gt))
+		reg = xe_mmio_read32(&gt->mmio, MTL_MPA_FREQUENCY);
+	else
+		reg = xe_mmio_read32(&gt->mmio, MTL_GT_RPA_FREQUENCY);
+
+	pc->rpa_freq = decode_freq(REG_FIELD_GET(MTL_RPA_MASK, reg));
+}
+
 static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 {
 	struct xe_gt *gt = pc_to_gt(pc);
@@ -339,6 +353,25 @@ static void mtl_update_rpe_value(struct xe_guc_pc *pc)
 		reg = xe_mmio_read32(&gt->mmio, MTL_GT_RPE_FREQUENCY);
 
 	pc->rpe_freq = decode_freq(REG_FIELD_GET(MTL_RPE_MASK, reg));
+}
+
+static void tgl_update_rpa_value(struct xe_guc_pc *pc)
+{
+	struct xe_gt *gt = pc_to_gt(pc);
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 reg;
+
+	/*
+	 * For PVC we still need to use fused RP1 as the approximation for RPe
+	 * For other platforms than PVC we get the resolved RPe directly from
+	 * PCODE at a different register
+	 */
+	if (xe->info.platform == XE_PVC)
+		reg = xe_mmio_read32(&gt->mmio, PVC_RP_STATE_CAP);
+	else
+		reg = xe_mmio_read32(&gt->mmio, FREQ_INFO_REC);
+
+	pc->rpa_freq = REG_FIELD_GET(RPA_MASK, reg) * GT_FREQUENCY_MULTIPLIER;
 }
 
 static void tgl_update_rpe_value(struct xe_guc_pc *pc)
@@ -365,10 +398,13 @@ static void pc_update_rp_values(struct xe_guc_pc *pc)
 	struct xe_gt *gt = pc_to_gt(pc);
 	struct xe_device *xe = gt_to_xe(gt);
 
-	if (GRAPHICS_VERx100(xe) >= 1270)
+	if (GRAPHICS_VERx100(xe) >= 1270) {
+		mtl_update_rpa_value(pc);
 		mtl_update_rpe_value(pc);
-	else
+	} else {
+		tgl_update_rpa_value(pc);
 		tgl_update_rpe_value(pc);
+	}
 
 	/*
 	 * RPe is decided at runtime by PCODE. In the rare case where that's
@@ -421,8 +457,8 @@ int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 	 * GuC SLPC plays with cur freq request when GuCRC is enabled
 	 * Block RC6 for a more reliable read.
 	 */
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 		return -ETIMEDOUT;
 	}
@@ -445,6 +481,19 @@ int xe_guc_pc_get_cur_freq(struct xe_guc_pc *pc, u32 *freq)
 u32 xe_guc_pc_get_rp0_freq(struct xe_guc_pc *pc)
 {
 	return pc->rp0_freq;
+}
+
+/**
+ * xe_guc_pc_get_rpa_freq - Get the RPa freq
+ * @pc: The GuC PC
+ *
+ * Returns: RPa freq.
+ */
+u32 xe_guc_pc_get_rpa_freq(struct xe_guc_pc *pc)
+{
+	pc_update_rp_values(pc);
+
+	return pc->rpa_freq;
 }
 
 /**
@@ -481,9 +530,9 @@ u32 xe_guc_pc_get_rpn_freq(struct xe_guc_pc *pc)
  */
 int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 {
-	struct xe_gt *gt = pc_to_gt(pc);
-	unsigned int fw_ref;
 	int ret;
+
+	xe_device_assert_mem_access(pc_to_xe(pc));
 
 	mutex_lock(&pc->freq_lock);
 	if (!pc->freq_ready) {
@@ -492,24 +541,12 @@ int xe_guc_pc_get_min_freq(struct xe_guc_pc *pc, u32 *freq)
 		goto out;
 	}
 
-	/*
-	 * GuC SLPC plays with min freq request when GuCRC is enabled
-	 * Block RC6 for a more reliable read.
-	 */
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
-		ret = -ETIMEDOUT;
-		goto fw;
-	}
-
 	ret = pc_action_query_task_state(pc);
 	if (ret)
-		goto fw;
+		goto out;
 
 	*freq = pc_get_min_freq(pc);
 
-fw:
-	xe_force_wake_put(gt_to_fw(gt), fw_ref);
 out:
 	mutex_unlock(&pc->freq_lock);
 	return ret;
@@ -969,8 +1006,8 @@ int xe_guc_pc_start(struct xe_guc_pc *pc)
 
 	xe_gt_assert(gt, xe_device_uc_enabled(xe));
 
-	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FORCEWAKE_ALL);
-	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FORCEWAKE_ALL)) {
+	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (!xe_force_wake_ref_has_domain(fw_ref, XE_FW_GT)) {
 		xe_force_wake_put(gt_to_fw(gt), fw_ref);
 		return -ETIMEDOUT;
 	}

@@ -998,9 +998,13 @@ static void __team_compute_features(struct team *team)
 	unsigned int dst_release_flag = IFF_XMIT_DST_RELEASE |
 					IFF_XMIT_DST_RELEASE_PERM;
 
-	vlan_features = netdev_base_features(vlan_features);
-
 	rcu_read_lock();
+	if (list_empty(&team->port_list))
+		goto done;
+
+	vlan_features = netdev_base_features(vlan_features);
+	enc_features = netdev_base_features(enc_features);
+
 	list_for_each_entry_rcu(port, &team->port_list, list) {
 		vlan_features = netdev_increment_features(vlan_features,
 					port->dev->vlan_features,
@@ -1010,11 +1014,11 @@ static void __team_compute_features(struct team *team)
 						  port->dev->hw_enc_features,
 						  TEAM_ENC_FEATURES);
 
-
 		dst_release_flag &= port->dev->priv_flags;
 		if (port->dev->hard_header_len > max_hard_header_len)
 			max_hard_header_len = port->dev->hard_header_len;
 	}
+done:
 	rcu_read_unlock();
 
 	team->dev->vlan_features = vlan_features;
@@ -1167,6 +1171,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 	if (netdev_has_upper_dev(dev, port_dev)) {
 		NL_SET_ERR_MSG(extack, "Device is already an upper device of the team interface");
 		netdev_err(dev, "Device %s is already an upper device of the team interface\n",
+			   portname);
+		return -EBUSY;
+	}
+
+	if (netdev_has_upper_dev(port_dev, dev)) {
+		NL_SET_ERR_MSG(extack, "Device is already a lower device of the team interface");
+		netdev_err(dev, "Device %s is already a lower device of the team interface\n",
 			   portname);
 		return -EBUSY;
 	}
@@ -2628,7 +2639,9 @@ int team_nl_options_set_doit(struct sk_buff *skb, struct genl_info *info)
 				ctx.data.u32_val = nla_get_u32(attr_data);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
-				if (nla_len(attr_data) > TEAM_STRING_MAX_LEN) {
+				if (nla_len(attr_data) > TEAM_STRING_MAX_LEN ||
+				    !memchr(nla_data(attr_data), '\0',
+					    nla_len(attr_data))) {
 					err = -EINVAL;
 					goto team_put;
 				}

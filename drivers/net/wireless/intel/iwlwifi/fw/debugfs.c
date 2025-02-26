@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -122,6 +122,24 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 	} while (0)
 #define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
 	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
+
+static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_fw_runtime *fwrt,
+					      char *buf, size_t count)
+{
+	if (count == 0)
+		return 0;
+
+	if (!iwl_trans_fw_running(fwrt->trans))
+		return count;
+
+	iwl_dbg_tlv_time_point(fwrt, IWL_FW_INI_TIME_POINT_USER_TRIGGER, NULL);
+
+	iwl_fw_dbg_collect(fwrt, FW_DBG_TRIGGER_USER, buf, (count - 1), NULL);
+
+	return count;
+}
+
+FWRT_DEBUGFS_WRITE_FILE_OPS(fw_dbg_collect, 16);
 
 static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
 					      char *buf, size_t count)
@@ -282,6 +300,26 @@ static ssize_t iwl_dbgfs_fw_dbg_domain_read(struct iwl_fw_runtime *fwrt,
 
 FWRT_DEBUGFS_READ_FILE_OPS(fw_dbg_domain, 20);
 
+static ssize_t iwl_dbgfs_fw_ver_read(struct iwl_fw_runtime *fwrt,
+				     size_t size, char *buf)
+{
+	char *pos = buf;
+	char *endpos = buf + size;
+
+	pos += scnprintf(pos, endpos - pos, "FW id: %s\n",
+			 fwrt->fw->fw_version);
+	pos += scnprintf(pos, endpos - pos, "FW: %s\n",
+			 fwrt->fw->human_readable);
+	pos += scnprintf(pos, endpos - pos, "Device: %s\n",
+			 fwrt->trans->name);
+	pos += scnprintf(pos, endpos - pos, "Bus: %s\n",
+			 fwrt->dev->bus->name);
+
+	return pos - buf;
+}
+
+FWRT_DEBUGFS_READ_FILE_OPS(fw_ver, 1024);
+
 struct iwl_dbgfs_fw_info_priv {
 	struct iwl_fw_runtime *fwrt;
 };
@@ -403,5 +441,7 @@ void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 	FWRT_DEBUGFS_ADD_FILE(fw_info, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(send_hcmd, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(enabled_severities, dbgfs_dir, 0200);
+	FWRT_DEBUGFS_ADD_FILE(fw_dbg_collect, dbgfs_dir, 0200);
 	FWRT_DEBUGFS_ADD_FILE(fw_dbg_domain, dbgfs_dir, 0400);
+	FWRT_DEBUGFS_ADD_FILE(fw_ver, dbgfs_dir, 0400);
 }

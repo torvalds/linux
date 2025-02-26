@@ -332,6 +332,9 @@ void rtw_fw_c2h_cmd_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 	case C2H_RA_RPT:
 		rtw_fw_ra_report_handle(rtwdev, c2h->payload, len);
 		break;
+	case C2H_ADAPTIVITY:
+		rtw_fw_adaptivity_result(rtwdev, c2h->payload, len);
+		break;
 	default:
 		rtw_dbg(rtwdev, RTW_DBG_FW, "C2H 0x%x isn't handled\n", c2h->id);
 		break;
@@ -365,10 +368,6 @@ void rtw_fw_c2h_cmd_rx_irqsafe(struct rtw_dev *rtwdev, u32 pkt_offset,
 	case C2H_SCAN_RESULT:
 		complete(&rtwdev->fw_scan_density);
 		rtw_fw_scan_result(rtwdev, c2h->payload, len);
-		dev_kfree_skb_any(skb);
-		break;
-	case C2H_ADAPTIVITY:
-		rtw_fw_adaptivity_result(rtwdev, c2h->payload, len);
 		dev_kfree_skb_any(skb);
 		break;
 	default:

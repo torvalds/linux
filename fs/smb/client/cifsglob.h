@@ -151,6 +151,7 @@ enum securityEnum {
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */
 	Kerberos,		/* Kerberos via SPNEGO */
+	IAKerb,			/* Kerberos proxy */
 };
 
 enum upcall_target_enum {
@@ -160,6 +161,7 @@ enum upcall_target_enum {
 };
 
 enum cifs_reparse_type {
+	CIFS_REPARSE_TYPE_NONE,
 	CIFS_REPARSE_TYPE_NFS,
 	CIFS_REPARSE_TYPE_WSL,
 	CIFS_REPARSE_TYPE_DEFAULT = CIFS_REPARSE_TYPE_NFS,
@@ -168,9 +170,44 @@ enum cifs_reparse_type {
 static inline const char *cifs_reparse_type_str(enum cifs_reparse_type type)
 {
 	switch (type) {
+	case CIFS_REPARSE_TYPE_NONE:
+		return "none";
 	case CIFS_REPARSE_TYPE_NFS:
 		return "nfs";
 	case CIFS_REPARSE_TYPE_WSL:
+		return "wsl";
+	default:
+		return "unknown";
+	}
+}
+
+enum cifs_symlink_type {
+	CIFS_SYMLINK_TYPE_DEFAULT,
+	CIFS_SYMLINK_TYPE_NONE,
+	CIFS_SYMLINK_TYPE_NATIVE,
+	CIFS_SYMLINK_TYPE_UNIX,
+	CIFS_SYMLINK_TYPE_MFSYMLINKS,
+	CIFS_SYMLINK_TYPE_SFU,
+	CIFS_SYMLINK_TYPE_NFS,
+	CIFS_SYMLINK_TYPE_WSL,
+};
+
+static inline const char *cifs_symlink_type_str(enum cifs_symlink_type type)
+{
+	switch (type) {
+	case CIFS_SYMLINK_TYPE_NONE:
+		return "none";
+	case CIFS_SYMLINK_TYPE_NATIVE:
+		return "native";
+	case CIFS_SYMLINK_TYPE_UNIX:
+		return "unix";
+	case CIFS_SYMLINK_TYPE_MFSYMLINKS:
+		return "mfsymlinks";
+	case CIFS_SYMLINK_TYPE_SFU:
+		return "sfu";
+	case CIFS_SYMLINK_TYPE_NFS:
+		return "nfs";
+	case CIFS_SYMLINK_TYPE_WSL:
 		return "wsl";
 	default:
 		return "unknown";
@@ -215,10 +252,8 @@ struct cifs_cred {
 
 struct cifs_open_info_data {
 	bool adjust_tz;
-	union {
-		bool reparse_point;
-		bool symlink;
-	};
+	bool reparse_point;
+	bool contains_posix_file_info;
 	struct {
 		/* ioctl response buffer */
 		struct {
@@ -226,10 +261,7 @@ struct cifs_open_info_data {
 			struct kvec iov;
 		} io;
 		__u32 tag;
-		union {
-			struct reparse_data_buffer *buf;
-			struct reparse_posix_data *posix;
-		};
+		struct reparse_data_buffer *buf;
 	} reparse;
 	struct {
 		__u8		eas[SMB2_WSL_MAX_QUERY_EA_RESP_SIZE];
@@ -326,7 +358,7 @@ struct smb_version_operations {
 	int (*handle_cancelled_mid)(struct mid_q_entry *, struct TCP_Server_Info *);
 	void (*downgrade_oplock)(struct TCP_Server_Info *server,
 				 struct cifsInodeInfo *cinode, __u32 oplock,
-				 unsigned int epoch, bool *purge_cache);
+				 __u16 epoch, bool *purge_cache);
 	/* process transaction2 response */
 	bool (*check_trans2)(struct mid_q_entry *, struct TCP_Server_Info *,
 			     char *, int);
@@ -521,12 +553,12 @@ struct smb_version_operations {
 	/* if we can do cache read operations */
 	bool (*is_read_op)(__u32);
 	/* set oplock level for the inode */
-	void (*set_oplock_level)(struct cifsInodeInfo *, __u32, unsigned int,
-				 bool *);
+	void (*set_oplock_level)(struct cifsInodeInfo *cinode, __u32 oplock, __u16 epoch,
+				 bool *purge_cache);
 	/* create lease context buffer for CREATE request */
 	char * (*create_lease_buf)(u8 *lease_key, u8 oplock);
 	/* parse lease context buffer and return oplock/epoch info */
-	__u8 (*parse_lease_buf)(void *buf, unsigned int *epoch, char *lkey);
+	__u8 (*parse_lease_buf)(void *buf, __u16 *epoch, char *lkey);
 	ssize_t (*copychunk_range)(const unsigned int,
 			struct cifsFileInfo *src_file,
 			struct cifsFileInfo *target_file,
@@ -751,6 +783,7 @@ struct TCP_Server_Info {
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_kerberos;		/* supports plain Kerberos */
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
+	bool	sec_iakerb;		/* supports pass-through auth for Kerberos (krb5 proxy) */
 	bool	large_buf;		/* is current buffer large? */
 	/* use SMBD connection instead of socket */
 	bool	rdma;
@@ -811,23 +844,15 @@ struct TCP_Server_Info {
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
-	struct mutex refpath_lock; /* protects leaf_fullpath */
 	/*
-	 * leaf_fullpath: Canonical DFS referral path related to this
-	 *                connection.
-	 *                It is used in DFS cache refresher, reconnect and may
-	 *                change due to nested DFS links.
-	 *
-	 * Protected by @refpath_lock and @srv_lock.  The @refpath_lock is
-	 * mostly used for not requiring a copy of @leaf_fullpath when getting
-	 * cached or new DFS referrals (which might also sleep during I/O).
-	 * While @srv_lock is held for making string and NULL comparisons against
-	 * both fields as in mount(2) and cache refresh.
+	 * Canonical DFS referral path used in cifs_reconnect() for failover as
+	 * well as in DFS cache refresher.
 	 *
 	 * format: \\HOST\SHARE[\OPTIONAL PATH]
 	 */
 	char *leaf_fullpath;
 	bool dfs_conn:1;
+	char dns_dom[CIFS_MAX_DOMAINNAME_LEN + 1];
 };
 
 static inline bool is_smb1(struct TCP_Server_Info *server)
@@ -1154,6 +1179,7 @@ struct cifs_ses {
 	/* ========= end: protected by chan_lock ======== */
 	struct cifs_ses *dfs_root_ses;
 	struct nls_table *local_nls;
+	char *dns_dom; /* FQDN of the domain */
 };
 
 static inline bool
@@ -1422,7 +1448,7 @@ struct cifs_fid {
 	__u8 create_guid[16];
 	__u32 access;
 	struct cifs_pending_open *pending_open;
-	unsigned int epoch;
+	__u16 epoch;
 #ifdef CONFIG_CIFS_DEBUG2
 	__u64 mid;
 #endif /* CIFS_DEBUG2 */
@@ -1455,7 +1481,7 @@ struct cifsFileInfo {
 	bool oplock_break_cancelled:1;
 	bool status_file_deleted:1; /* file has been deleted */
 	bool offload:1; /* offload final part of _put to a wq */
-	unsigned int oplock_epoch; /* epoch from the lease break */
+	__u16 oplock_epoch; /* epoch from the lease break */
 	__u32 oplock_level; /* oplock/lease level from the lease break */
 	int count;
 	spinlock_t file_info_lock; /* protects four flag/count fields above */
@@ -1483,7 +1509,6 @@ struct cifs_io_parms {
 struct cifs_io_request {
 	struct netfs_io_request		rreq;
 	struct cifsFileInfo		*cfile;
-	struct TCP_Server_Info		*server;
 	pid_t				pid;
 };
 
@@ -1552,7 +1577,7 @@ struct cifsInodeInfo {
 	spinlock_t	open_file_lock;	/* protects openFileList */
 	__u32 cifsAttrs; /* e.g. DOS archive bit, sparse, compressed, system */
 	unsigned int oplock;		/* oplock/lease level we have */
-	unsigned int epoch;		/* used to track lease state changes */
+	__u16 epoch;		/* used to track lease state changes */
 #define CIFS_INODE_PENDING_OPLOCK_BREAK   (0) /* oplock break in progress */
 #define CIFS_INODE_PENDING_WRITERS	  (1) /* Writes in progress */
 #define CIFS_INODE_FLAG_UNUSED		  (2) /* Unused flag */
@@ -2125,6 +2150,8 @@ static inline char *get_security_type_str(enum securityEnum sectype)
 		return "Kerberos";
 	case NTLMv2:
 		return "NTLMv2";
+	case IAKerb:
+		return "IAKerb";
 	default:
 		return "Unknown";
 	}
@@ -2180,11 +2207,13 @@ static inline size_t ntlmssp_workstation_name_size(const struct cifs_ses *ses)
 
 static inline void move_cifs_info_to_smb2(struct smb2_file_all_info *dst, const FILE_ALL_INFO *src)
 {
-	memcpy(dst, src, (size_t)((u8 *)&src->AccessFlags - (u8 *)src));
-	dst->AccessFlags = src->AccessFlags;
-	dst->CurrentByteOffset = src->CurrentByteOffset;
-	dst->Mode = src->Mode;
-	dst->AlignmentRequirement = src->AlignmentRequirement;
+	memcpy(dst, src, (size_t)((u8 *)&src->EASize - (u8 *)src));
+	dst->IndexNumber = 0;
+	dst->EASize = src->EASize;
+	dst->AccessFlags = 0;
+	dst->CurrentByteOffset = 0;
+	dst->Mode = 0;
+	dst->AlignmentRequirement = 0;
 	dst->FileNameLength = src->FileNameLength;
 }
 
@@ -2296,8 +2325,8 @@ struct smb2_compound_vars {
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
 	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
 	struct kvec close_iov;
-	struct smb2_file_rename_info rename_info;
-	struct smb2_file_link_info link_info;
+	struct smb2_file_rename_info_hdr rename_info;
+	struct smb2_file_link_info_hdr link_info;
 	struct kvec ea_iov;
 };
 
@@ -2308,6 +2337,26 @@ static inline bool cifs_ses_exiting(struct cifs_ses *ses)
 	spin_lock(&ses->ses_lock);
 	ret = ses->ses_status == SES_EXITING;
 	spin_unlock(&ses->ses_lock);
+	return ret;
+}
+
+static inline bool cifs_netbios_name(const char *name, size_t namelen)
+{
+	bool ret = false;
+	size_t i;
+
+	if (namelen >= 1 && namelen <= RFC1001_NAME_LEN) {
+		for (i = 0; i < namelen; i++) {
+			const unsigned char c = name[i];
+
+			if (c == '\\' || c == '/' || c == ':' || c == '*' ||
+			    c == '?' || c == '"' || c == '<' || c == '>' ||
+			    c == '|' || c == '.')
+				return false;
+			if (!ret && isalpha(c))
+				ret = true;
+		}
+	}
 	return ret;
 }
 

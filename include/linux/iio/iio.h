@@ -611,7 +611,7 @@ struct iio_dev {
 	const unsigned long		*available_scan_masks;
 	unsigned int			__private masklength;
 	const unsigned long		*active_scan_mask;
-	bool				scan_timestamp;
+	bool				__private scan_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 	struct iio_poll_func		*pollfunc_event;

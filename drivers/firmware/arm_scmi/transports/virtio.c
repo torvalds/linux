@@ -921,6 +921,7 @@ static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_SCMI, VIRTIO_DEV_ANY_ID },
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(virtio, id_table);
 
 static struct virtio_driver virtio_scmi_driver = {
 	.driver.name = "scmi-virtio",

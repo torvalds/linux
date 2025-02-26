@@ -6,6 +6,23 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Generic 8-bit shift register
 
+description: |
+  NOTE: These chips nominally don't have a chip select pin. They do however
+  have a rising-edge triggered latch clock (or storage register clock) pin,
+  which behaves like an active-low chip select.
+
+  After the bits are shifted into the shift register, CS# is driven high, which
+  the 74HC595 sees as a rising edge on the latch clock that results in a
+  transfer of the bits from the shift register to the storage register and thus
+  to the output pins.
+                      _   _       _   _
+  shift clock    ____| |_| |_..._| |_| |_________
+
+  latch clock                           * trigger
+                 ___                     ________
+  chip select#      |___________________|
+
+
 maintainers:
   - Maxime Ripard <mripard@kernel.org>
 

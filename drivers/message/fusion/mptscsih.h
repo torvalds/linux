@@ -116,8 +116,9 @@ extern const char * mptscsih_info(struct Scsi_Host *SChost);
 extern int mptscsih_qcmd(struct scsi_cmnd *SCpnt);
 extern int mptscsih_IssueTaskMgmt(MPT_SCSI_HOST *hd, u8 type, u8 channel,
 	u8 id, u64 lun, int ctx2abort, ulong timeout);
-extern void mptscsih_slave_destroy(struct scsi_device *device);
-extern int mptscsih_slave_configure(struct scsi_device *device);
+extern void mptscsih_sdev_destroy(struct scsi_device *device);
+extern int mptscsih_sdev_configure(struct scsi_device *device,
+				   struct queue_limits *lim);
 extern int mptscsih_abort(struct scsi_cmnd * SCpnt);
 extern int mptscsih_dev_reset(struct scsi_cmnd * SCpnt);
 extern int mptscsih_target_reset(struct scsi_cmnd * SCpnt);

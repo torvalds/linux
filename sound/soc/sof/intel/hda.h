@@ -1038,8 +1038,6 @@ const struct hda_dai_widget_dma_ops *
 hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget);
 int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 		   struct snd_sof_dai_config_data *data);
-int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_stream *hext_stream,
-			 struct snd_soc_dai *cpu_dai);
 
 static inline struct snd_sof_dev *widget_to_sdev(struct snd_soc_dapm_widget *w)
 {

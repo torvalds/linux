@@ -2059,7 +2059,6 @@ static char *str_to_upper(char *str)
 
 static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 {
-	const struct i2c_device_id *id = i2c_match_id(pcmdevice_i2c_id, i2c);
 	struct pcmdevice_priv *pcm_dev;
 	struct device_node *np;
 	unsigned int dev_addrs[PCMDEVICE_MAX_I2C_DEVICES];
@@ -2069,7 +2068,7 @@ static int pcmdevice_i2c_probe(struct i2c_client *i2c)
 	if (!pcm_dev)
 		return -ENOMEM;
 
-	pcm_dev->chip_id = (id != NULL) ? id->driver_data : 0;
+	pcm_dev->chip_id = (uintptr_t)i2c_get_match_data(i2c);
 
 	pcm_dev->dev = &i2c->dev;
 	pcm_dev->client = i2c;

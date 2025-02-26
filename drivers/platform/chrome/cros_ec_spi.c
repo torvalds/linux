@@ -715,7 +715,7 @@ static int cros_ec_spi_devm_high_pri_alloc(struct device *dev,
 	int err;
 
 	ec_spi->high_pri_worker =
-		kthread_create_worker(0, "cros_ec_spi_high_pri");
+		kthread_run_worker(0, "cros_ec_spi_high_pri");
 
 	if (IS_ERR(ec_spi->high_pri_worker)) {
 		err = PTR_ERR(ec_spi->high_pri_worker);
@@ -766,7 +766,7 @@ static int cros_ec_spi_probe(struct spi_device *spi)
 	ec_dev->din_size = EC_MSG_PREAMBLE_COUNT +
 			   sizeof(struct ec_host_response) +
 			   sizeof(struct ec_response_get_protocol_info);
-	ec_dev->dout_size = sizeof(struct ec_host_request);
+	ec_dev->dout_size = sizeof(struct ec_host_request) + sizeof(struct ec_params_rwsig_action);
 
 	ec_spi->last_transfer_ns = ktime_get_ns();
 

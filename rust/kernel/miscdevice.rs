@@ -10,17 +10,16 @@
 
 use crate::{
     bindings,
+    device::Device,
     error::{to_result, Error, Result, VTABLE_DEFAULT_ERROR},
+    ffi::{c_int, c_long, c_uint, c_ulong},
+    fs::File,
     prelude::*,
+    seq_file::SeqFile,
     str::CStr,
     types::{ForeignOwnable, Opaque},
 };
-use core::{
-    ffi::{c_int, c_long, c_uint, c_ulong},
-    marker::PhantomData,
-    mem::MaybeUninit,
-    pin::Pin,
-};
+use core::{marker::PhantomData, mem::MaybeUninit, pin::Pin};
 
 /// Options for creating a misc device.
 #[derive(Copy, Clone)]
@@ -84,6 +83,16 @@ impl<T: MiscDevice> MiscDeviceRegistration<T> {
     pub fn as_raw(&self) -> *mut bindings::miscdevice {
         self.inner.get()
     }
+
+    /// Access the `this_device` field.
+    pub fn device(&self) -> &Device {
+        // SAFETY: This can only be called after a successful register(), which always
+        // initialises `this_device` with a valid device. Furthermore, the signature of this
+        // function tells the borrow-checker that the `&Device` reference must not outlive the
+        // `&MiscDeviceRegistration<T>` used to obtain it, so the last use of the reference must be
+        // before the underlying `struct miscdevice` is destroyed.
+        unsafe { Device::as_ref((*self.as_raw()).this_device) }
+    }
 }
 
 #[pinned_drop]
@@ -96,17 +105,17 @@ impl<T> PinnedDrop for MiscDeviceRegistration<T> {
 
 /// Trait implemented by the private data of an open misc device.
 #[vtable]
-pub trait MiscDevice {
+pub trait MiscDevice: Sized {
     /// What kind of pointer should `Self` be wrapped in.
     type Ptr: ForeignOwnable + Send + Sync;
 
     /// Called when the misc device is opened.
     ///
     /// The returned pointer will be stored as the private data for the file.
-    fn open() -> Result<Self::Ptr>;
+    fn open(_file: &File, _misc: &MiscDeviceRegistration<Self>) -> Result<Self::Ptr>;
 
     /// Called when the misc device is released.
-    fn release(device: Self::Ptr) {
+    fn release(device: Self::Ptr, _file: &File) {
         drop(device);
     }
 
@@ -117,10 +126,11 @@ pub trait MiscDevice {
     /// [`kernel::ioctl`]: mod@crate::ioctl
     fn ioctl(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
+        _file: &File,
         _cmd: u32,
         _arg: usize,
     ) -> Result<isize> {
-        kernel::build_error(VTABLE_DEFAULT_ERROR)
+        build_error!(VTABLE_DEFAULT_ERROR)
     }
 
     /// Handler for ioctls.
@@ -133,10 +143,20 @@ pub trait MiscDevice {
     #[cfg(CONFIG_COMPAT)]
     fn compat_ioctl(
         _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
+        _file: &File,
         _cmd: u32,
         _arg: usize,
     ) -> Result<isize> {
-        kernel::build_error(VTABLE_DEFAULT_ERROR)
+        build_error!(VTABLE_DEFAULT_ERROR)
+    }
+
+    /// Show info for this fd.
+    fn show_fdinfo(
+        _device: <Self::Ptr as ForeignOwnable>::Borrowed<'_>,
+        _m: &SeqFile,
+        _file: &File,
+    ) {
+        build_error!(VTABLE_DEFAULT_ERROR)
     }
 }
 
@@ -165,6 +185,7 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
             } else {
                 None
             },
+            show_fdinfo: maybe_fn(T::HAS_SHOW_FDINFO, fops_show_fdinfo::<T>),
             // SAFETY: All zeros is a valid value for `bindings::file_operations`.
             ..unsafe { MaybeUninit::zeroed().assume_init() }
         };
@@ -179,21 +200,38 @@ const fn create_vtable<T: MiscDevice>() -> &'static bindings::file_operations {
 /// The file must be associated with a `MiscDeviceRegistration<T>`.
 unsafe extern "C" fn fops_open<T: MiscDevice>(
     inode: *mut bindings::inode,
-    file: *mut bindings::file,
+    raw_file: *mut bindings::file,
 ) -> c_int {
     // SAFETY: The pointers are valid and for a file being opened.
-    let ret = unsafe { bindings::generic_file_open(inode, file) };
+    let ret = unsafe { bindings::generic_file_open(inode, raw_file) };
     if ret != 0 {
         return ret;
     }
 
-    let ptr = match T::open() {
+    // SAFETY: The open call of a file can access the private data.
+    let misc_ptr = unsafe { (*raw_file).private_data };
+
+    // SAFETY: This is a miscdevice, so `misc_open()` set the private data to a pointer to the
+    // associated `struct miscdevice` before calling into this method. Furthermore, `misc_open()`
+    // ensures that the miscdevice can't be unregistered and freed during this call to `fops_open`.
+    let misc = unsafe { &*misc_ptr.cast::<MiscDeviceRegistration<T>>() };
+
+    // SAFETY:
+    // * This underlying file is valid for (much longer than) the duration of `T::open`.
+    // * There is no active fdget_pos region on the file on this thread.
+    let file = unsafe { File::from_raw_file(raw_file) };
+
+    let ptr = match T::open(file, misc) {
         Ok(ptr) => ptr,
         Err(err) => return err.to_errno(),
     };
 
-    // SAFETY: The open call of a file owns the private data.
-    unsafe { (*file).private_data = ptr.into_foreign().cast_mut() };
+    // This overwrites the private data with the value specified by the user, changing the type of
+    // this file's private data. All future accesses to the private data is performed by other
+    // fops_* methods in this file, which all correctly cast the private data to the new type.
+    //
+    // SAFETY: The open call of a file can access the private data.
+    unsafe { (*raw_file).private_data = ptr.into_foreign() };
 
     0
 }
@@ -211,7 +249,10 @@ unsafe extern "C" fn fops_release<T: MiscDevice>(
     // SAFETY: The release call of a file owns the private data.
     let ptr = unsafe { <T::Ptr as ForeignOwnable>::from_foreign(private) };
 
-    T::release(ptr);
+    // SAFETY:
+    // * The file is valid for the duration of this call.
+    // * There is no active fdget_pos region on the file on this thread.
+    T::release(ptr, unsafe { File::from_raw_file(file) });
 
     0
 }
@@ -229,7 +270,12 @@ unsafe extern "C" fn fops_ioctl<T: MiscDevice>(
     // SAFETY: Ioctl calls can borrow the private data of the file.
     let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
 
-    match T::ioctl(device, cmd, arg as usize) {
+    // SAFETY:
+    // * The file is valid for the duration of this call.
+    // * There is no active fdget_pos region on the file on this thread.
+    let file = unsafe { File::from_raw_file(file) };
+
+    match T::ioctl(device, file, cmd, arg) {
         Ok(ret) => ret as c_long,
         Err(err) => err.to_errno() as c_long,
     }
@@ -249,8 +295,36 @@ unsafe extern "C" fn fops_compat_ioctl<T: MiscDevice>(
     // SAFETY: Ioctl calls can borrow the private data of the file.
     let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
 
-    match T::compat_ioctl(device, cmd, arg as usize) {
+    // SAFETY:
+    // * The file is valid for the duration of this call.
+    // * There is no active fdget_pos region on the file on this thread.
+    let file = unsafe { File::from_raw_file(file) };
+
+    match T::compat_ioctl(device, file, cmd, arg) {
         Ok(ret) => ret as c_long,
         Err(err) => err.to_errno() as c_long,
     }
+}
+
+/// # Safety
+///
+/// - `file` must be a valid file that is associated with a `MiscDeviceRegistration<T>`.
+/// - `seq_file` must be a valid `struct seq_file` that we can write to.
+unsafe extern "C" fn fops_show_fdinfo<T: MiscDevice>(
+    seq_file: *mut bindings::seq_file,
+    file: *mut bindings::file,
+) {
+    // SAFETY: The release call of a file owns the private data.
+    let private = unsafe { (*file).private_data };
+    // SAFETY: Ioctl calls can borrow the private data of the file.
+    let device = unsafe { <T::Ptr as ForeignOwnable>::borrow(private) };
+    // SAFETY:
+    // * The file is valid for the duration of this call.
+    // * There is no active fdget_pos region on the file on this thread.
+    let file = unsafe { File::from_raw_file(file) };
+    // SAFETY: The caller ensures that the pointer is valid and exclusive for the duration in which
+    // this method is called.
+    let m = unsafe { SeqFile::from_raw(seq_file) };
+
+    T::show_fdinfo(device, m, file);
 }

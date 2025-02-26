@@ -126,7 +126,7 @@ Manage scsi_dev_info_list, which tracks blacklisted and whitelisted
 devices.
 
 .. kernel-doc:: drivers/scsi/scsi_devinfo.c
-   :internal:
+   :export:
 
 drivers/scsi/scsi_ioctl.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -162,7 +162,6 @@ statistics and to pass information directly to the lowlevel driver. I.E.
 plumbing to manage /proc/scsi/\*
 
 .. kernel-doc:: drivers/scsi/scsi_proc.c
-   :internal:
 
 drivers/scsi/scsi_netlink.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -193,7 +192,7 @@ else, sequentially scan LUNs up until some maximum is reached, or a LUN
 is seen that cannot have a device attached to it.
 
 .. kernel-doc:: drivers/scsi/scsi_scan.c
-   :internal:
+   :export:
 
 drivers/scsi/scsi_sysctl.c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~

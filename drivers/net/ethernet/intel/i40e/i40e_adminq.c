@@ -1016,16 +1016,6 @@ i40e_asq_send_command_atomic_v2(struct i40e_hw *hw,
 	return status;
 }
 
-int
-i40e_asq_send_command_v2(struct i40e_hw *hw, struct i40e_aq_desc *desc,
-			 void *buff, /* can be NULL */ u16  buff_size,
-			 struct i40e_asq_cmd_details *cmd_details,
-			 enum i40e_admin_queue_err *aq_status)
-{
-	return i40e_asq_send_command_atomic_v2(hw, desc, buff, buff_size,
-					       cmd_details, true, aq_status);
-}
-
 /**
  *  i40e_fill_default_direct_cmd_desc - AQ descriptor helper function
  *  @desc:     pointer to the temp descriptor (non DMA mem)

@@ -157,7 +157,7 @@ struct tsc2046_adc_priv {
 		/* Scan data for each channel */
 		u16 data[TI_TSC2046_MAX_CHAN];
 		/* Timestamp */
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan_buf;
 
 	/*

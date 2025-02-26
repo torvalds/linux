@@ -137,6 +137,19 @@ DECLARE_BTRFS_SUBPAGE_OPS(writeback);
 DECLARE_BTRFS_SUBPAGE_OPS(ordered);
 DECLARE_BTRFS_SUBPAGE_OPS(checked);
 
+/*
+ * Helper for error cleanup, where a folio will have its dirty flag cleared,
+ * with writeback started and finished.
+ */
+static inline void btrfs_folio_clamp_finish_io(struct btrfs_fs_info *fs_info,
+					       struct folio *locked_folio,
+					       u64 start, u32 len)
+{
+	btrfs_folio_clamp_clear_dirty(fs_info, locked_folio, start, len);
+	btrfs_folio_clamp_set_writeback(fs_info, locked_folio, start, len);
+	btrfs_folio_clamp_clear_writeback(fs_info, locked_folio, start, len);
+}
+
 bool btrfs_subpage_clear_and_test_dirty(const struct btrfs_fs_info *fs_info,
 					struct folio *folio, u64 start, u32 len);
 

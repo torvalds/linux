@@ -282,6 +282,21 @@ static void timerlat_hist_header(struct osnoise_tool *tool)
 }
 
 /*
+ * format_summary_value - format a line of summary value (min, max or avg)
+ * of hist data
+ */
+static void format_summary_value(struct trace_seq *seq,
+				 int count,
+				 unsigned long long val,
+				 bool avg)
+{
+	if (count)
+		trace_seq_printf(seq, "%9llu ", avg ? val / count : val);
+	else
+		trace_seq_printf(seq, "%9c ", '-');
+}
+
+/*
  * timerlat_print_summary - print the summary of the hist data to the output
  */
 static void
@@ -328,29 +343,23 @@ timerlat_print_summary(struct timerlat_hist_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq) {
-			if (data->hist[cpu].irq_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						data->hist[cpu].min_irq);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_irq)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].irq_count,
+					     data->hist[cpu].min_irq,
+					     false);
 
-		if (!params->no_thread) {
-			if (data->hist[cpu].thread_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						data->hist[cpu].min_thread);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_thread)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].thread_count,
+					     data->hist[cpu].min_thread,
+					     false);
 
-		if (params->user_hist) {
-			if (data->hist[cpu].user_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						data->hist[cpu].min_user);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (params->user_hist)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].user_count,
+					     data->hist[cpu].min_user,
+					     false);
 	}
 	trace_seq_printf(trace->seq, "\n");
 
@@ -364,29 +373,23 @@ timerlat_print_summary(struct timerlat_hist_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq) {
-			if (data->hist[cpu].irq_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						 data->hist[cpu].sum_irq / data->hist[cpu].irq_count);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_irq)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].irq_count,
+					     data->hist[cpu].sum_irq,
+					     true);
 
-		if (!params->no_thread) {
-			if (data->hist[cpu].thread_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						 data->hist[cpu].sum_thread / data->hist[cpu].thread_count);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_thread)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].thread_count,
+					     data->hist[cpu].sum_thread,
+					     true);
 
-		if (params->user_hist) {
-			if (data->hist[cpu].user_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						 data->hist[cpu].sum_user / data->hist[cpu].user_count);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (params->user_hist)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].user_count,
+					     data->hist[cpu].sum_user,
+					     true);
 	}
 	trace_seq_printf(trace->seq, "\n");
 
@@ -400,29 +403,23 @@ timerlat_print_summary(struct timerlat_hist_params *params,
 		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
 			continue;
 
-		if (!params->no_irq) {
-			if (data->hist[cpu].irq_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						 data->hist[cpu].max_irq);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_irq)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].irq_count,
+					     data->hist[cpu].max_irq,
+					     false);
 
-		if (!params->no_thread) {
-			if (data->hist[cpu].thread_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						data->hist[cpu].max_thread);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (!params->no_thread)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].thread_count,
+					     data->hist[cpu].max_thread,
+					     false);
 
-		if (params->user_hist) {
-			if (data->hist[cpu].user_count)
-				trace_seq_printf(trace->seq, "%9llu ",
-						data->hist[cpu].max_user);
-			else
-				trace_seq_printf(trace->seq, "        - ");
-		}
+		if (params->user_hist)
+			format_summary_value(trace->seq,
+					     data->hist[cpu].user_count,
+					     data->hist[cpu].max_user,
+					     false);
 	}
 	trace_seq_printf(trace->seq, "\n");
 	trace_seq_do_printf(trace->seq);
@@ -506,16 +503,22 @@ timerlat_print_stats_all(struct timerlat_hist_params *params,
 		trace_seq_printf(trace->seq, "min:  ");
 
 	if (!params->no_irq)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.min_irq);
+		format_summary_value(trace->seq,
+				     sum.irq_count,
+				     sum.min_irq,
+				     false);
 
 	if (!params->no_thread)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.min_thread);
+		format_summary_value(trace->seq,
+				     sum.thread_count,
+				     sum.min_thread,
+				     false);
 
 	if (params->user_hist)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.min_user);
+		format_summary_value(trace->seq,
+				     sum.user_count,
+				     sum.min_user,
+				     false);
 
 	trace_seq_printf(trace->seq, "\n");
 
@@ -523,16 +526,22 @@ timerlat_print_stats_all(struct timerlat_hist_params *params,
 		trace_seq_printf(trace->seq, "avg:  ");
 
 	if (!params->no_irq)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.sum_irq / sum.irq_count);
+		format_summary_value(trace->seq,
+				     sum.irq_count,
+				     sum.sum_irq,
+				     true);
 
 	if (!params->no_thread)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.sum_thread / sum.thread_count);
+		format_summary_value(trace->seq,
+				     sum.thread_count,
+				     sum.sum_thread,
+				     true);
 
 	if (params->user_hist)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.sum_user / sum.user_count);
+		format_summary_value(trace->seq,
+				     sum.user_count,
+				     sum.sum_user,
+				     true);
 
 	trace_seq_printf(trace->seq, "\n");
 
@@ -540,16 +549,22 @@ timerlat_print_stats_all(struct timerlat_hist_params *params,
 		trace_seq_printf(trace->seq, "max:  ");
 
 	if (!params->no_irq)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.max_irq);
+		format_summary_value(trace->seq,
+				     sum.irq_count,
+				     sum.max_irq,
+				     false);
 
 	if (!params->no_thread)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.max_thread);
+		format_summary_value(trace->seq,
+				     sum.thread_count,
+				     sum.max_thread,
+				     false);
 
 	if (params->user_hist)
-		trace_seq_printf(trace->seq, "%9llu ",
-				 sum.max_user);
+		format_summary_value(trace->seq,
+				     sum.user_count,
+				     sum.max_user,
+				     false);
 
 	trace_seq_printf(trace->seq, "\n");
 	trace_seq_do_printf(trace->seq);
@@ -641,6 +656,7 @@ timerlat_print_stats(struct timerlat_hist_params *params, struct osnoise_tool *t
 
 	timerlat_print_summary(params, trace, data);
 	timerlat_print_stats_all(params, trace, data);
+	osnoise_report_missed_events(tool);
 }
 
 /*
@@ -1085,12 +1101,15 @@ timerlat_hist_apply_config(struct osnoise_tool *tool, struct timerlat_hist_param
 		}
 	}
 
-	if (params->user_hist) {
-		retval = osnoise_set_workload(tool->context, 0);
-		if (retval) {
-			err_msg("Failed to set OSNOISE_WORKLOAD option\n");
-			goto out_err;
-		}
+	/*
+	* Set workload according to type of thread if the kernel supports it.
+	* On kernels without support, user threads will have already failed
+	* on missing timerlat_fd, and kernel threads do not need it.
+	*/
+	retval = osnoise_set_workload(tool->context, params->kernel_workload);
+	if (retval < -1) {
+		err_msg("Failed to set OSNOISE_WORKLOAD option\n");
+		goto out_err;
 	}
 
 	return 0;
@@ -1131,9 +1150,20 @@ out_err:
 }
 
 static int stop_tracing;
+static struct trace_instance *hist_inst = NULL;
 static void stop_hist(int sig)
 {
+	if (stop_tracing) {
+		/*
+		 * Stop requested twice in a row; abort event processing and
+		 * exit immediately
+		 */
+		tracefs_iterate_stop(hist_inst->inst);
+		return;
+	}
 	stop_tracing = 1;
+	if (hist_inst)
+		trace_instance_stop(hist_inst);
 }
 
 /*
@@ -1180,6 +1210,12 @@ int timerlat_hist_main(int argc, char *argv[])
 	}
 
 	trace = &tool->trace;
+	/*
+	 * Save trace instance into global variable so that SIGINT can stop
+	 * the timerlat tracer.
+	 * Otherwise, rtla could loop indefinitely when overloaded.
+	 */
+	hist_inst = trace;
 
 	retval = enable_timerlat(trace);
 	if (retval) {
@@ -1327,7 +1363,7 @@ int timerlat_hist_main(int argc, char *argv[])
 			goto out_hist;
 		}
 
-		if (trace_is_off(&tool->trace, &record->trace))
+		if (osnoise_trace_is_off(tool, record))
 			break;
 
 		/* is there still any user-threads ? */
@@ -1348,7 +1384,7 @@ int timerlat_hist_main(int argc, char *argv[])
 
 	return_value = 0;
 
-	if (trace_is_off(&tool->trace, &record->trace)) {
+	if (osnoise_trace_is_off(tool, record) && !stop_tracing) {
 		printf("rtla timerlat hit stop tracing\n");
 
 		if (!params->no_aa)

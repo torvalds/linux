@@ -60,4 +60,8 @@ void dcn35_clk_mgr_construct(struct dc_context *ctx,
 
 void dcn35_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr_int);
 
+void dcn351_clk_mgr_construct(struct dc_context *ctx,
+		struct clk_mgr_dcn35 *clk_mgr,
+		struct pp_smu_funcs *pp_smu,
+		struct dccg *dccg);
 #endif //__DCN35_CLK_MGR_H__

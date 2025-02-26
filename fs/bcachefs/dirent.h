@@ -4,10 +4,10 @@
 
 #include "str_hash.h"
 
-enum bch_validate_flags;
 extern const struct bch_hash_desc bch2_dirent_hash_desc;
 
-int bch2_dirent_validate(struct bch_fs *, struct bkey_s_c, enum bch_validate_flags);
+int bch2_dirent_validate(struct bch_fs *, struct bkey_s_c,
+			 struct bkey_validate_context);
 void bch2_dirent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 #define bch2_bkey_ops_dirent ((struct bkey_ops) {	\
@@ -29,6 +29,11 @@ static inline unsigned dirent_val_u64s(unsigned len)
 {
 	return DIV_ROUND_UP(offsetof(struct bch_dirent, d_name) + len,
 			    sizeof(u64));
+}
+
+static inline unsigned int dirent_occupied_size(const struct qstr *name)
+{
+	return (BKEY_U64s + dirent_val_u64s(name->len)) * sizeof(u64);
 }
 
 int bch2_dirent_read_target(struct btree_trans *, subvol_inum,

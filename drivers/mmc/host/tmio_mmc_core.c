@@ -297,7 +297,6 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host,
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE: c |= RESP_NONE; break;
 	case MMC_RSP_R1:
-	case MMC_RSP_R1_NO_CRC:
 			   c |= RESP_R1;   break;
 	case MMC_RSP_R1B:  c |= RESP_R1B;  break;
 	case MMC_RSP_R2:   c |= RESP_R2;   break;

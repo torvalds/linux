@@ -377,9 +377,9 @@ EXPORT_SYMBOL(rpmsg_get_mtu);
  * this is used to make sure we're not creating rpmsg devices for channels
  * that already exist.
  */
-static int rpmsg_device_match(struct device *dev, void *data)
+static int rpmsg_device_match(struct device *dev, const void *data)
 {
-	struct rpmsg_channel_info *chinfo = data;
+	const struct rpmsg_channel_info *chinfo = data;
 	struct rpmsg_device *rpdev = to_rpmsg_device(dev);
 
 	if (chinfo->src != RPMSG_ADDR_ANY && chinfo->src != rpdev->src)

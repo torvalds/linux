@@ -72,7 +72,14 @@ struct mlxsw_tx_info {
 	bool is_emad;
 };
 
+struct mlxsw_txhdr_info {
+	struct mlxsw_tx_info tx_info;
+	bool data;
+	u16 max_fid; /* Used for PTP packets which are sent as data. */
+};
+
 struct mlxsw_rx_md_info {
+	struct napi_struct *napi;
 	u32 cookie_index;
 	u32 latency;
 	u32 tx_congestion;
@@ -94,7 +101,7 @@ struct mlxsw_rx_md_info {
 bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
-			    const struct mlxsw_tx_info *tx_info);
+			    const struct mlxsw_txhdr_info *txhdr_info);
 void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
 				struct sk_buff *skb, u16 local_port);
 
@@ -425,8 +432,6 @@ struct mlxsw_driver {
 	int (*trap_policer_counter_get)(struct mlxsw_core *mlxsw_core,
 					const struct devlink_trap_policer *policer,
 					u64 *p_drops);
-	void (*txhdr_construct)(struct sk_buff *skb,
-				const struct mlxsw_tx_info *tx_info);
 	int (*resources_register)(struct mlxsw_core *mlxsw_core);
 	int (*kvd_sizes_get)(struct mlxsw_core *mlxsw_core,
 			     const struct mlxsw_config_profile *profile,
@@ -439,7 +444,6 @@ struct mlxsw_driver {
 	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
 				struct sk_buff *skb, u16 local_port);
 
-	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 	bool sdq_supports_cqe_v2;
 };
@@ -486,7 +490,7 @@ struct mlxsw_bus {
 	bool (*skb_transmit_busy)(void *bus_priv,
 				  const struct mlxsw_tx_info *tx_info);
 	int (*skb_transmit)(void *bus_priv, struct sk_buff *skb,
-			    const struct mlxsw_tx_info *tx_info);
+			    const struct mlxsw_txhdr_info *txhdr_info);
 	int (*cmd_exec)(void *bus_priv, u16 opcode, u8 opcode_mod,
 			u32 in_mod, bool out_mbox_direct,
 			char *in_mbox, size_t in_mbox_size,

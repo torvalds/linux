@@ -43,6 +43,7 @@
 #include <net/addrconf.h>
 #include <net/inet_common.h>
 #include <net/inet_ecn.h>
+#include <net/inet_sock.h>
 #include <net/udp_tunnel.h>
 #include <net/inet_dscp.h>
 
@@ -427,16 +428,19 @@ static void sctp_v4_get_dst(struct sctp_transport *t, union sctp_addr *saddr,
 	struct dst_entry *dst = NULL;
 	union sctp_addr *daddr = &t->ipaddr;
 	union sctp_addr dst_saddr;
-	u8 tos = READ_ONCE(inet_sk(sk)->tos);
+	dscp_t dscp;
 
 	if (t->dscp & SCTP_DSCP_SET_MASK)
-		tos = t->dscp & SCTP_DSCP_VAL_MASK;
+		dscp = inet_dsfield_to_dscp(t->dscp);
+	else
+		dscp = inet_sk_dscp(inet_sk(sk));
+
 	memset(&_fl, 0x0, sizeof(_fl));
 	fl4->daddr  = daddr->v4.sin_addr.s_addr;
 	fl4->fl4_dport = daddr->v4.sin_port;
 	fl4->flowi4_proto = IPPROTO_SCTP;
 	if (asoc) {
-		fl4->flowi4_tos = tos & INET_DSCP_MASK;
+		fl4->flowi4_tos = inet_dscp_to_dsfield(dscp);
 		fl4->flowi4_scope = ip_sock_rt_scope(asoc->base.sk);
 		fl4->flowi4_oif = asoc->base.sk->sk_bound_dev_if;
 		fl4->fl4_sport = htons(asoc->base.bind_addr.port);

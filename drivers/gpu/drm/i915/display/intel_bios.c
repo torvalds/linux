@@ -1402,12 +1402,21 @@ parse_power_conservation_features(struct intel_display *display,
 					    panel_type);
 }
 
+static void vbt_edp_to_pps_delays(struct intel_pps_delays *pps,
+				  const struct edp_power_seq *edp_pps)
+{
+	pps->power_up = edp_pps->t1_t3;
+	pps->backlight_on = edp_pps->t8;
+	pps->backlight_off = edp_pps->t9;
+	pps->power_down = edp_pps->t10;
+	pps->power_cycle = edp_pps->t11_t12;
+}
+
 static void
 parse_edp(struct intel_display *display,
 	  struct intel_panel *panel)
 {
 	const struct bdb_edp *edp;
-	const struct edp_power_seq *edp_pps;
 	const struct edp_fast_link_params *edp_link_params;
 	int panel_type = panel->vbt.panel_type;
 
@@ -1428,10 +1437,10 @@ parse_edp(struct intel_display *display,
 	}
 
 	/* Get the eDP sequencing and link info */
-	edp_pps = &edp->power_seqs[panel_type];
 	edp_link_params = &edp->fast_link_params[panel_type];
 
-	panel->vbt.edp.pps = *edp_pps;
+	vbt_edp_to_pps_delays(&panel->vbt.edp.pps,
+			      &edp->power_seqs[panel_type]);
 
 	if (display->vbt.version >= 224) {
 		panel->vbt.edp.rate =

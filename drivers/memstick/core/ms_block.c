@@ -2094,8 +2094,7 @@ static int msb_init_disk(struct memstick_dev *card)
 	if (msb->disk_id  < 0)
 		return msb->disk_id;
 
-	rc = blk_mq_alloc_sq_tag_set(&msb->tag_set, &msb_mq_ops, 2,
-				     BLK_MQ_F_SHOULD_MERGE);
+	rc = blk_mq_alloc_sq_tag_set(&msb->tag_set, &msb_mq_ops, 2, 0);
 	if (rc)
 		goto out_release_id;
 

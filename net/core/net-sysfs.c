@@ -36,7 +36,7 @@ static const char fmt_uint[] = "%u\n";
 static const char fmt_ulong[] = "%lu\n";
 static const char fmt_u64[] = "%llu\n";
 
-/* Caller holds RTNL or RCU */
+/* Caller holds RTNL, netdev->lock or RCU */
 static inline int dev_isalive(const struct net_device *dev)
 {
 	return READ_ONCE(dev->reg_state) <= NETREG_REGISTERED;
@@ -105,6 +105,36 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 	}
 	rtnl_unlock();
  err:
+	return ret;
+}
+
+/* Same as netdev_store() but takes netdev_lock() instead of rtnl_lock() */
+static ssize_t
+netdev_lock_store(struct device *dev, struct device_attribute *attr,
+		  const char *buf, size_t len,
+		  int (*set)(struct net_device *, unsigned long))
+{
+	struct net_device *netdev = to_net_dev(dev);
+	struct net *net = dev_net(netdev);
+	unsigned long new;
+	int ret;
+
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	ret = kstrtoul(buf, 0, &new);
+	if (ret)
+		return ret;
+
+	netdev_lock(netdev);
+
+	if (dev_isalive(netdev)) {
+		ret = (*set)(netdev, new);
+		if (ret == 0)
+			ret = len;
+	}
+	netdev_unlock(netdev);
+
 	return ret;
 }
 
@@ -420,7 +450,7 @@ static ssize_t gro_flush_timeout_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	return netdev_store(dev, attr, buf, len, change_gro_flush_timeout);
+	return netdev_lock_store(dev, attr, buf, len, change_gro_flush_timeout);
 }
 NETDEVICE_SHOW_RW(gro_flush_timeout, fmt_ulong);
 
@@ -440,7 +470,8 @@ static ssize_t napi_defer_hard_irqs_store(struct device *dev,
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	return netdev_store(dev, attr, buf, len, change_napi_defer_hard_irqs);
+	return netdev_lock_store(dev, attr, buf, len,
+				 change_napi_defer_hard_irqs);
 }
 NETDEVICE_SHOW_RW(napi_defer_hard_irqs, fmt_uint);
 
@@ -638,7 +669,7 @@ static ssize_t threaded_store(struct device *dev,
 			      struct device_attribute *attr,
 			      const char *buf, size_t len)
 {
-	return netdev_store(dev, attr, buf, len, modify_napi_threaded);
+	return netdev_lock_store(dev, attr, buf, len, modify_napi_threaded);
 }
 static DEVICE_ATTR_RW(threaded);
 

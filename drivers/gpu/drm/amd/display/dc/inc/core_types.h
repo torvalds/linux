@@ -45,9 +45,6 @@
 #define MAX_SVP_PHANTOM_STREAMS 2
 #define MAX_SVP_PHANTOM_PLANES 2
 
-void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
-		uint32_t controller_id);
-
 #include "grph_object_id.h"
 #include "link_encoder.h"
 #include "stream_encoder.h"
@@ -220,6 +217,7 @@ struct resource_funcs {
 	 */
 	int (*get_power_profile)(const struct dc_state *context);
 	unsigned int (*get_det_buffer_size)(const struct dc_state *context);
+	unsigned int (*get_vstartup_for_pipe)(struct pipe_ctx *pipe_ctx);
 };
 
 struct audio_support{
@@ -468,6 +466,7 @@ struct pipe_ctx {
 	unsigned int surface_size_in_mall_bytes;
 	struct dml2_dchub_per_pipe_register_set hubp_regs;
 	struct dml2_hubp_pipe_mcache_regs mcache_regs;
+	union dml2_global_sync_programming global_sync;
 
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
@@ -542,7 +541,8 @@ struct dcn_bw_output {
 	bool legacy_svp_drr_stream_index_valid;
 	struct dml2_mcache_surface_allocation mcache_allocations[DML2_MAX_PLANES];
 	struct dmub_cmd_fams2_global_config fams2_global_config;
-	struct dmub_fams2_stream_static_state fams2_stream_params[DML2_MAX_PLANES];
+	union dmub_cmd_fams2_config fams2_stream_base_params[DML2_MAX_PLANES];
+	union dmub_cmd_fams2_config fams2_stream_sub_params[DML2_MAX_PLANES];
 	struct dml2_display_arb_regs arb_regs;
 };
 

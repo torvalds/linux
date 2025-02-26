@@ -51,12 +51,10 @@ static ssize_t
 mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
 			size_t count, loff_t *ppos)
 {
-	struct mt7996_phy *phy = file->private_data;
-	struct mt7996_dev *dev = phy->dev;
-	bool band = phy->mt76->band_idx;
-	char buf[16];
+	struct mt7996_dev *dev = file->private_data;
+	char buf[16], *sep;
 	int ret = 0;
-	u16 val;
+	u16 band, val;
 
 	if (count >= sizeof(buf))
 		return -EINVAL;
@@ -69,21 +67,26 @@ mt7996_sys_recovery_set(struct file *file, const char __user *user_buf,
 	else
 		buf[count] = '\0';
 
-	if (kstrtou16(buf, 0, &val))
+	sep = strchr(buf, ',');
+	if (!sep)
+		return -EINVAL;
+
+	*sep = 0;
+	if (kstrtou16(buf, 0, &band) || kstrtou16(sep + 1, 0, &val))
 		return -EINVAL;
 
 	switch (val) {
 	/*
-	 * 0: grab firmware current SER state.
-	 * 1: trigger & enable system error L1 recovery.
-	 * 2: trigger & enable system error L2 recovery.
-	 * 3: trigger & enable system error L3 rx abort.
-	 * 4: trigger & enable system error L3 tx abort
-	 * 5: trigger & enable system error L3 tx disable.
-	 * 6: trigger & enable system error L3 bf recovery.
-	 * 7: trigger & enable system error L4 mdp recovery.
-	 * 8: trigger & enable system error full recovery.
-	 * 9: trigger firmware crash.
+	 * <band>,0: grab firmware current SER state.
+	 * <band>,1: trigger & enable system error L1 recovery.
+	 * <band>,2: trigger & enable system error L2 recovery.
+	 * <band>,3: trigger & enable system error L3 rx abort.
+	 * <band>,4: trigger & enable system error L3 tx abort
+	 * <band>,5: trigger & enable system error L3 tx disable.
+	 * <band>,6: trigger & enable system error L3 bf recovery.
+	 * <band>,7: trigger & enable system error L4 mdp recovery.
+	 * <band>,8: trigger & enable system error full recovery.
+	 * <band>,9: trigger firmware crash.
 	 */
 	case UNI_CMD_SER_QUERY:
 		ret = mt7996_mcu_set_ser(dev, UNI_CMD_SER_QUERY, 0, band);
@@ -126,8 +129,7 @@ static ssize_t
 mt7996_sys_recovery_get(struct file *file, char __user *user_buf,
 			size_t count, loff_t *ppos)
 {
-	struct mt7996_phy *phy = file->private_data;
-	struct mt7996_dev *dev = phy->dev;
+	struct mt7996_dev *dev = file->private_data;
 	char *buff;
 	int desc = 0;
 	ssize_t ret;
@@ -141,25 +143,25 @@ mt7996_sys_recovery_get(struct file *file, char __user *user_buf,
 	desc += scnprintf(buff + desc, bufsz - desc,
 			  "Please echo the correct value ...\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "0: grab firmware transient SER state\n");
+			  "<band>,0: grab firmware transient SER state\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "1: trigger system error L1 recovery\n");
+			  "<band>,1: trigger system error L1 recovery\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "2: trigger system error L2 recovery\n");
+			  "<band>,2: trigger system error L2 recovery\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "3: trigger system error L3 rx abort\n");
+			  "<band>,3: trigger system error L3 rx abort\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "4: trigger system error L3 tx abort\n");
+			  "<band>,4: trigger system error L3 tx abort\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "5: trigger system error L3 tx disable\n");
+			  "<band>,5: trigger system error L3 tx disable\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "6: trigger system error L3 bf recovery\n");
+			  "<band>,6: trigger system error L3 bf recovery\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "7: trigger system error L4 mdp recovery\n");
+			  "<band>,7: trigger system error L4 mdp recovery\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "8: trigger system error full recovery\n");
+			  "<band>,8: trigger system error full recovery\n");
 	desc += scnprintf(buff + desc, bufsz - desc,
-			  "9: trigger firmware crash\n");
+			  "<band>,9: trigger firmware crash\n");
 
 	/* SER statistics */
 	desc += scnprintf(buff + desc, bufsz - desc,
@@ -524,16 +526,12 @@ mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 	seq_puts(s, "\n");
 }
 
-static int
-mt7996_tx_stats_show(struct seq_file *file, void *data)
+static void
+mt7996_tx_stats_show_phy(struct seq_file *file, struct mt7996_phy *phy)
 {
-	struct mt7996_phy *phy = file->private;
-	struct mt7996_dev *dev = phy->dev;
 	struct mt76_mib_stats *mib = &phy->mib;
-	int i;
 	u32 attempts, success, per;
-
-	mutex_lock(&dev->mt76.mutex);
+	int i;
 
 	mt7996_mac_update_stats(phy);
 	mt7996_ampdu_stat_read_phy(phy, file);
@@ -558,6 +556,23 @@ mt7996_tx_stats_show(struct seq_file *file, void *data)
 		else
 			seq_puts(file, "\n");
 	}
+}
+
+static int
+mt7996_tx_stats_show(struct seq_file *file, void *data)
+{
+	struct mt7996_dev *dev = file->private;
+	struct mt7996_phy *phy = &dev->phy;
+
+	mutex_lock(&dev->mt76.mutex);
+
+	mt7996_tx_stats_show_phy(file, phy);
+	phy = mt7996_phy2(dev);
+	if (phy)
+		mt7996_tx_stats_show_phy(file, phy);
+	phy = mt7996_phy3(dev);
+	if (phy)
+		mt7996_tx_stats_show_phy(file, phy);
 
 	mutex_unlock(&dev->mt76.mutex);
 
@@ -601,7 +616,7 @@ static void
 mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 {
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_dev *dev = msta->vif->phy->dev;
+	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
 	struct seq_file *s = data;
 	u8 ac;
 
@@ -621,15 +636,15 @@ mt7996_sta_hw_queue_read(void *data, struct ieee80211_sta *sta)
 				      GENMASK(11, 0));
 		seq_printf(s, "\tSTA %pM wcid %d: AC%d%d queued:%d\n",
 			   sta->addr, msta->wcid.idx,
-			   msta->vif->mt76.wmm_idx, ac, qlen);
+			   msta->vif->deflink.mt76.wmm_idx, ac, qlen);
 	}
 }
 
 static int
 mt7996_hw_queues_show(struct seq_file *file, void *data)
 {
-	struct mt7996_phy *phy = file->private;
-	struct mt7996_dev *dev = phy->dev;
+	struct mt7996_dev *dev = file->private;
+	struct mt7996_phy *phy = &dev->phy;
 	static const struct hw_queue_map ple_queue_map[] = {
 		{ "CPU_Q0",  0,  1, MT_CTX0	      },
 		{ "CPU_Q1",  1,  1, MT_CTX0 + 1	      },
@@ -685,6 +700,15 @@ mt7996_hw_queues_show(struct seq_file *file, void *data)
 	/* iterate per-sta ple queue */
 	ieee80211_iterate_stations_atomic(phy->mt76->hw,
 					  mt7996_sta_hw_queue_read, file);
+	phy = mt7996_phy2(dev);
+	if (phy)
+		ieee80211_iterate_stations_atomic(phy->mt76->hw,
+						  mt7996_sta_hw_queue_read, file);
+	phy = mt7996_phy3(dev);
+	if (phy)
+		ieee80211_iterate_stations_atomic(phy->mt76->hw,
+						  mt7996_sta_hw_queue_read, file);
+
 	/* pse queue */
 	seq_puts(file, "PSE non-empty queue info:\n");
 	mt7996_hw_queue_read(file, ARRAY_SIZE(pse_queue_map),
@@ -698,18 +722,28 @@ DEFINE_SHOW_ATTRIBUTE(mt7996_hw_queues);
 static int
 mt7996_xmit_queues_show(struct seq_file *file, void *data)
 {
-	struct mt7996_phy *phy = file->private;
-	struct mt7996_dev *dev = phy->dev;
+	struct mt7996_dev *dev = file->private;
+	struct mt7996_phy *phy;
 	struct {
 		struct mt76_queue *q;
 		char *queue;
 	} queue_map[] = {
-		{ phy->mt76->q_tx[MT_TXQ_BE],	 "   MAIN"  },
+		{ dev->mphy.q_tx[MT_TXQ_BE],	 "  MAIN0"  },
+		{ NULL,				 "  MAIN1"  },
+		{ NULL,				 "  MAIN2"  },
 		{ dev->mt76.q_mcu[MT_MCUQ_WM],	 "  MCUWM"  },
 		{ dev->mt76.q_mcu[MT_MCUQ_WA],	 "  MCUWA"  },
 		{ dev->mt76.q_mcu[MT_MCUQ_FWDL], "MCUFWDL" },
 	};
 	int i;
+
+	phy = mt7996_phy2(dev);
+	if (phy)
+		queue_map[1].q = phy->mt76->q_tx[MT_TXQ_BE];
+
+	phy = mt7996_phy3(dev);
+	if (phy)
+		queue_map[2].q = phy->mt76->q_tx[MT_TXQ_BE];
 
 	seq_puts(file, "     queue | hw-queued |      head |      tail |\n");
 	for (i = 0; i < ARRAY_SIZE(queue_map); i++) {
@@ -785,20 +819,20 @@ mt7996_rf_regval_set(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_regval, mt7996_rf_regval_get,
 			 mt7996_rf_regval_set, "0x%08llx\n");
 
-int mt7996_init_debugfs(struct mt7996_phy *phy)
+int mt7996_init_debugfs(struct mt7996_dev *dev)
 {
-	struct mt7996_dev *dev = phy->dev;
 	struct dentry *dir;
 
-	dir = mt76_register_debugfs_fops(phy->mt76, NULL);
+	dir = mt76_register_debugfs_fops(&dev->mphy, NULL);
 	if (!dir)
 		return -ENOMEM;
-	debugfs_create_file("hw-queues", 0400, dir, phy,
+
+	debugfs_create_file("hw-queues", 0400, dir, dev,
 			    &mt7996_hw_queues_fops);
-	debugfs_create_file("xmit-queues", 0400, dir, phy,
+	debugfs_create_file("xmit-queues", 0400, dir, dev,
 			    &mt7996_xmit_queues_fops);
-	debugfs_create_file("tx_stats", 0400, dir, phy, &mt7996_tx_stats_fops);
-	debugfs_create_file("sys_recovery", 0600, dir, phy,
+	debugfs_create_file("tx_stats", 0400, dir, dev, &mt7996_tx_stats_fops);
+	debugfs_create_file("sys_recovery", 0600, dir, dev,
 			    &mt7996_sys_recovery_ops);
 	debugfs_create_file("fw_debug_wm", 0600, dir, dev, &fops_fw_debug_wm);
 	debugfs_create_file("fw_debug_wa", 0600, dir, dev, &fops_fw_debug_wa);
@@ -812,17 +846,13 @@ int mt7996_init_debugfs(struct mt7996_phy *phy)
 				    mt7996_twt_stats);
 	debugfs_create_file("rf_regval", 0600, dir, dev, &fops_rf_regval);
 
-	if (phy->mt76->cap.has_5ghz) {
-		debugfs_create_u32("dfs_hw_pattern", 0400, dir,
-				   &dev->hw_pattern);
-		debugfs_create_file("radar_trigger", 0200, dir, dev,
-				    &fops_radar_trigger);
-		debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
-					    mt7996_rdd_monitor);
-	}
+	debugfs_create_u32("dfs_hw_pattern", 0400, dir, &dev->hw_pattern);
+	debugfs_create_file("radar_trigger", 0200, dir, dev,
+			    &fops_radar_trigger);
+	debugfs_create_devm_seqfile(dev->mt76.dev, "rdd_monitor", dir,
+				    mt7996_rdd_monitor);
 
-	if (phy == &dev->phy)
-		dev->debugfs_dir = dir;
+	dev->debugfs_dir = dir;
 
 	return 0;
 }
@@ -899,7 +929,7 @@ static ssize_t mt7996_sta_fixed_rate_set(struct file *file,
 #define LONG_PREAMBLE 1
 	struct ieee80211_sta *sta = file->private_data;
 	struct mt7996_sta *msta = (struct mt7996_sta *)sta->drv_priv;
-	struct mt7996_dev *dev = msta->vif->phy->dev;
+	struct mt7996_dev *dev = msta->vif->deflink.phy->dev;
 	struct ra_rate phy = {};
 	char buf[100];
 	int ret;

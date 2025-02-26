@@ -17,3 +17,12 @@ config DRM_ZYNQMP_DPSUB
 	  This is a DRM/KMS driver for ZynqMP DisplayPort controller. Choose
 	  this option if you have a Xilinx ZynqMP SoC with DisplayPort
 	  subsystem.
+
+config DRM_ZYNQMP_DPSUB_AUDIO
+	bool "ZynqMP DisplayPort Audio Support"
+	depends on DRM_ZYNQMP_DPSUB
+	depends on SND && SND_SOC
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Choose this option to enable DisplayPort audio support in the ZynqMP
+	  DisplayPort driver.

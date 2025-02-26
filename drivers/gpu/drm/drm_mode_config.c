@@ -150,6 +150,15 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	count = 0;
 	connector_id = u64_to_user_ptr(card_res->connector_id_ptr);
+	/*
+	 * FIXME: the connectors on the list may not be fully initialized yet,
+	 * if the ioctl is called before the connectors are registered. (See
+	 * drm_dev_register()->drm_modeset_register_all() for static and
+	 * drm_connector_dynamic_register() for dynamic connectors.)
+	 * The driver should only get registered after static connectors are
+	 * fully initialized and dynamic connectors should be added to the
+	 * connector list only after fully initializing them.
+	 */
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		/* only expose writeback connectors if userspace understands them */
 		if (!file_priv->writeback_connectors &&

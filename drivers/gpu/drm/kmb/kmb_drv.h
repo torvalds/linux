@@ -16,7 +16,6 @@
 #define KMB_MIN_WIDTH                   1920 /*Max width in pixels */
 #define KMB_MIN_HEIGHT                  1080 /*Max height in pixels */
 
-#define DRIVER_DATE			"20210223"
 #define DRIVER_MAJOR			1
 #define DRIVER_MINOR			1
 

@@ -160,6 +160,7 @@ static struct device_node *of_thermal_zone_find(struct device_node *sensor, int 
 				return ERR_PTR(ret);
 			}
 
+			of_node_put(sensor_specs.np);
 			if ((sensor == sensor_specs.np) && id == (sensor_specs.args_count ?
 								  sensor_specs.args[0] : 0)) {
 				pr_debug("sensor %pOFn id=%d belongs to %pOFn\n", sensor, id, child);

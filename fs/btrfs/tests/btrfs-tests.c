@@ -30,6 +30,7 @@ const char *test_error[] = {
 	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
 	[TEST_ALLOC_CHUNK_MAP]       = "cannot allocate chunk map",
 	[TEST_ALLOC_IO_CONTEXT]	     = "cannot allocate io context",
+	[TEST_ALLOC_TRANSACTION]     = "cannot allocate transaction",
 };
 
 static const struct super_operations btrfs_test_super_ops = {
@@ -142,6 +143,11 @@ struct btrfs_fs_info *btrfs_alloc_dummy_fs_info(u32 nodesize, u32 sectorsize)
 	fs_info->nodesize = nodesize;
 	fs_info->sectorsize = sectorsize;
 	fs_info->sectorsize_bits = ilog2(sectorsize);
+
+	/* CRC32C csum size. */
+	fs_info->csum_size = 4;
+	fs_info->csums_per_leaf = BTRFS_MAX_ITEM_SIZE(fs_info) /
+		fs_info->csum_size;
 	set_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
 
 	test_mnt->mnt_sb->s_fs_info = fs_info;
@@ -247,6 +253,15 @@ void btrfs_free_dummy_block_group(struct btrfs_block_group *cache)
 	kfree(cache);
 }
 
+void btrfs_init_dummy_transaction(struct btrfs_transaction *trans, struct btrfs_fs_info *fs_info)
+{
+	memset(trans, 0, sizeof(*trans));
+	trans->fs_info = fs_info;
+	xa_init(&trans->delayed_refs.head_refs);
+	xa_init(&trans->delayed_refs.dirty_extents);
+	spin_lock_init(&trans->delayed_refs.lock);
+}
+
 void btrfs_init_dummy_trans(struct btrfs_trans_handle *trans,
 			    struct btrfs_fs_info *fs_info)
 {
@@ -293,6 +308,9 @@ int btrfs_run_sanity_tests(void)
 			if (ret)
 				goto out;
 			ret = btrfs_test_raid_stripe_tree(sectorsize, nodesize);
+			if (ret)
+				goto out;
+			ret = btrfs_test_delayed_refs(sectorsize, nodesize);
 			if (ret)
 				goto out;
 		}

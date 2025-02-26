@@ -283,7 +283,4 @@ int ib_ud_header_init(int		    payload_bytes,
 int ib_ud_header_pack(struct ib_ud_header *header,
 		      void                *buf);
 
-int ib_ud_header_unpack(void                *buf,
-			struct ib_ud_header *header);
-
 #endif /* IB_PACK_H */

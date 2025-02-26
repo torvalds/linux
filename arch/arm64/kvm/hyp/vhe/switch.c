@@ -77,12 +77,12 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 	 * VHE (HCR.E2H == 1) which allows us to use here the CPTR_EL2.TAM
 	 * shift value for trapping the AMU accesses.
 	 */
-	u64 val = CPACR_ELx_TTA | CPTR_EL2_TAM;
+	u64 val = CPACR_EL1_TTA | CPTR_EL2_TAM;
 
 	if (guest_owns_fp_regs()) {
-		val |= CPACR_ELx_FPEN;
+		val |= CPACR_EL1_FPEN;
 		if (vcpu_has_sve(vcpu))
-			val |= CPACR_ELx_ZEN;
+			val |= CPACR_EL1_ZEN;
 	} else {
 		__activate_traps_fpsimd32(vcpu);
 	}
@@ -122,17 +122,27 @@ static void __activate_cptr_traps(struct kvm_vcpu *vcpu)
 	 * hypervisor has traps enabled to dispel any illusion of something more
 	 * complicated taking place.
 	 */
-	if (!(SYS_FIELD_GET(CPACR_ELx, FPEN, cptr) & BIT(0)))
-		val &= ~CPACR_ELx_FPEN;
-	if (!(SYS_FIELD_GET(CPACR_ELx, ZEN, cptr) & BIT(0)))
-		val &= ~CPACR_ELx_ZEN;
+	if (!(SYS_FIELD_GET(CPACR_EL1, FPEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_FPEN;
+	if (!(SYS_FIELD_GET(CPACR_EL1, ZEN, cptr) & BIT(0)))
+		val &= ~CPACR_EL1_ZEN;
 
 	if (kvm_has_feat(vcpu->kvm, ID_AA64MMFR3_EL1, S2POE, IMP))
-		val |= cptr & CPACR_ELx_E0POE;
+		val |= cptr & CPACR_EL1_E0POE;
 
 	val |= cptr & CPTR_EL2_TCPAC;
 
 write:
+	write_sysreg(val, cpacr_el1);
+}
+
+static void __deactivate_cptr_traps(struct kvm_vcpu *vcpu)
+{
+	u64 val = CPACR_EL1_FPEN | CPACR_EL1_ZEN_EL1EN;
+
+	if (cpus_have_final_cap(ARM64_SME))
+		val |= CPACR_EL1_SMEN_EL1EN;
+
 	write_sysreg(val, cpacr_el1);
 }
 
@@ -207,7 +217,7 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 	 */
 	asm(ALTERNATIVE("nop", "isb", ARM64_WORKAROUND_SPECULATIVE_AT));
 
-	kvm_reset_cptr_el2(vcpu);
+	__deactivate_cptr_traps(vcpu);
 
 	if (!arm64_kernel_unmapped_at_el0())
 		host_vectors = __this_cpu_read(this_cpu_vector);
@@ -254,6 +264,110 @@ void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
 	__vcpu_put_switch_sysregs(vcpu);
 
 	host_data_ptr(host_ctxt)->__hyp_running_vcpu = NULL;
+}
+
+static u64 compute_emulated_cntx_ctl_el0(struct kvm_vcpu *vcpu,
+					 enum vcpu_sysreg reg)
+{
+	unsigned long ctl;
+	u64 cval, cnt;
+	bool stat;
+
+	switch (reg) {
+	case CNTP_CTL_EL0:
+		cval = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		ctl  = __vcpu_sys_reg(vcpu, CNTP_CTL_EL0);
+		cnt  = compute_counter_value(vcpu_ptimer(vcpu));
+		break;
+	case CNTV_CTL_EL0:
+		cval = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		ctl  = __vcpu_sys_reg(vcpu, CNTV_CTL_EL0);
+		cnt  = compute_counter_value(vcpu_vtimer(vcpu));
+		break;
+	default:
+		BUG();
+	}
+
+	stat = cval <= cnt;
+	__assign_bit(__ffs(ARCH_TIMER_CTRL_IT_STAT), &ctl, stat);
+
+	return ctl;
+}
+
+static bool kvm_hyp_handle_timer(struct kvm_vcpu *vcpu, u64 *exit_code)
+{
+	u64 esr, val;
+
+	/*
+	 * Having FEAT_ECV allows for a better quality of timer emulation.
+	 * However, this comes at a huge cost in terms of traps. Try and
+	 * satisfy the reads from guest's hypervisor context without
+	 * returning to the kernel if we can.
+	 */
+	if (!is_hyp_ctxt(vcpu))
+		return false;
+
+	esr = kvm_vcpu_get_esr(vcpu);
+	if ((esr & ESR_ELx_SYS64_ISS_DIR_MASK) != ESR_ELx_SYS64_ISS_DIR_READ)
+		return false;
+
+	switch (esr_sys64_to_sysreg(esr)) {
+	case SYS_CNTP_CTL_EL02:
+		val = compute_emulated_cntx_ctl_el0(vcpu, CNTP_CTL_EL0);
+		break;
+	case SYS_CNTP_CTL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTP_CTL);
+		else
+			val = compute_emulated_cntx_ctl_el0(vcpu, CNTP_CTL_EL0);
+		break;
+	case SYS_CNTP_CVAL_EL02:
+		val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		break;
+	case SYS_CNTP_CVAL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu)) {
+			val = read_sysreg_el0(SYS_CNTP_CVAL);
+
+			if (!has_cntpoff())
+				val -= timer_get_offset(vcpu_hptimer(vcpu));
+		} else {
+			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		}
+		break;
+	case SYS_CNTPCT_EL0:
+	case SYS_CNTPCTSS_EL0:
+		val = compute_counter_value(vcpu_hptimer(vcpu));
+		break;
+	case SYS_CNTV_CTL_EL02:
+		val = compute_emulated_cntx_ctl_el0(vcpu, CNTV_CTL_EL0);
+		break;
+	case SYS_CNTV_CTL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTV_CTL);
+		else
+			val = compute_emulated_cntx_ctl_el0(vcpu, CNTV_CTL_EL0);
+		break;
+	case SYS_CNTV_CVAL_EL02:
+		val = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		break;
+	case SYS_CNTV_CVAL_EL0:
+		if (vcpu_el2_e2h_is_set(vcpu))
+			val = read_sysreg_el0(SYS_CNTV_CVAL);
+		else
+			val = __vcpu_sys_reg(vcpu, CNTV_CVAL_EL0);
+		break;
+	case SYS_CNTVCT_EL0:
+	case SYS_CNTVCTSS_EL0:
+		val = compute_counter_value(vcpu_hvtimer(vcpu));
+		break;
+	default:
+		return false;
+	}
+
+	vcpu_set_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu), val);
+	__kvm_skip_instr(vcpu);
+
+	return true;
 }
 
 static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
@@ -307,14 +421,6 @@ static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 	write_sysreg_el2(elr, SYS_ELR);
 
 	return true;
-}
-
-static void kvm_hyp_save_fpsimd_host(struct kvm_vcpu *vcpu)
-{
-	__fpsimd_save_state(*host_data_ptr(fpsimd_state));
-
-	if (kvm_has_fpmr(vcpu->kvm))
-		**host_data_ptr(fpmr_ptr) = read_sysreg_s(SYS_FPMR);
 }
 
 static bool kvm_hyp_handle_tlbi_el2(struct kvm_vcpu *vcpu, u64 *exit_code)
@@ -409,6 +515,9 @@ static bool kvm_hyp_handle_sysreg_vhe(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (kvm_hyp_handle_tlbi_el2(vcpu, exit_code))
 		return true;
 
+	if (kvm_hyp_handle_timer(vcpu, exit_code))
+		return true;
+
 	if (kvm_hyp_handle_cpacr_el1(vcpu, exit_code))
 		return true;
 
@@ -431,13 +540,10 @@ static const exit_handler_fn hyp_exit_handlers[] = {
 	[ESR_ELx_EC_MOPS]		= kvm_hyp_handle_mops,
 };
 
-static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu)
+static inline bool fixup_guest_exit(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
-	return hyp_exit_handlers;
-}
+	synchronize_vcpu_pstate(vcpu, exit_code);
 
-static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
-{
 	/*
 	 * If we were in HYP context on entry, adjust the PSTATE view
 	 * so that the usual helpers work correctly.
@@ -457,6 +563,8 @@ static void early_exit_filter(struct kvm_vcpu *vcpu, u64 *exit_code)
 		*vcpu_cpsr(vcpu) &= ~(PSR_MODE_MASK | PSR_MODE32_BIT);
 		*vcpu_cpsr(vcpu) |= mode;
 	}
+
+	return __fixup_guest_exit(vcpu, exit_code, hyp_exit_handlers);
 }
 
 /* Switch to the guest for VHE systems running in EL2 */
@@ -470,6 +578,8 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	guest_ctxt = &vcpu->arch.ctxt;
 
 	sysreg_save_host_state_vhe(host_ctxt);
+
+	fpsimd_lazy_switch_to_guest(vcpu);
 
 	/*
 	 * Note that ARM erratum 1165522 requires us to configure both stage 1
@@ -494,6 +604,8 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	sysreg_save_guest_state_vhe(guest_ctxt);
 
 	__deactivate_traps(vcpu);
+
+	fpsimd_lazy_switch_to_host(vcpu);
 
 	sysreg_restore_host_state_vhe(host_ctxt);
 

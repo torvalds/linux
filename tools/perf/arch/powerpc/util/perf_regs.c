@@ -16,6 +16,7 @@
 
 #define PVR_POWER9		0x004E
 #define PVR_POWER10		0x0080
+#define PVR_POWER11		0x0082
 
 static const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(r0, PERF_REG_POWERPC_R0),
@@ -207,7 +208,7 @@ uint64_t arch__intr_reg_mask(void)
 	version = (((mfspr(SPRN_PVR)) >>  16) & 0xFFFF);
 	if (version == PVR_POWER9)
 		extended_mask = PERF_REG_PMU_MASK_300;
-	else if (version == PVR_POWER10)
+	else if ((version == PVR_POWER10) || (version == PVR_POWER11))
 		extended_mask = PERF_REG_PMU_MASK_31;
 	else
 		return mask;

@@ -23,6 +23,7 @@
 #include "xfs_ag.h"
 #include "xfs_btree.h"
 #include "xfs_trace.h"
+#include "xfs_rtgroup.h"
 
 struct kmem_cache	*xfs_cui_cache;
 struct kmem_cache	*xfs_cud_cache;
@@ -94,8 +95,9 @@ xfs_cui_item_format(
 
 	ASSERT(atomic_read(&cuip->cui_next_extent) ==
 			cuip->cui_format.cui_nextents);
+	ASSERT(lip->li_type == XFS_LI_CUI || lip->li_type == XFS_LI_CUI_RT);
 
-	cuip->cui_format.cui_type = XFS_LI_CUI;
+	cuip->cui_format.cui_type = lip->li_type;
 	cuip->cui_format.cui_size = 1;
 
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_CUI_FORMAT, &cuip->cui_format,
@@ -138,12 +140,14 @@ xfs_cui_item_release(
 STATIC struct xfs_cui_log_item *
 xfs_cui_init(
 	struct xfs_mount		*mp,
+	unsigned short			item_type,
 	uint				nextents)
-
 {
 	struct xfs_cui_log_item		*cuip;
 
 	ASSERT(nextents > 0);
+	ASSERT(item_type == XFS_LI_CUI || item_type == XFS_LI_CUI_RT);
+
 	if (nextents > XFS_CUI_MAX_FAST_EXTENTS)
 		cuip = kzalloc(xfs_cui_log_item_sizeof(nextents),
 				GFP_KERNEL | __GFP_NOFAIL);
@@ -151,7 +155,7 @@ xfs_cui_init(
 		cuip = kmem_cache_zalloc(xfs_cui_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
 
-	xfs_log_item_init(mp, &cuip->cui_item, XFS_LI_CUI, &xfs_cui_item_ops);
+	xfs_log_item_init(mp, &cuip->cui_item, item_type, &xfs_cui_item_ops);
 	cuip->cui_format.cui_nextents = nextents;
 	cuip->cui_format.cui_id = (uintptr_t)(void *)cuip;
 	atomic_set(&cuip->cui_next_extent, 0);
@@ -190,7 +194,9 @@ xfs_cud_item_format(
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 	struct xfs_log_iovec	*vecp = NULL;
 
-	cudp->cud_format.cud_type = XFS_LI_CUD;
+	ASSERT(lip->li_type == XFS_LI_CUD || lip->li_type == XFS_LI_CUD_RT);
+
+	cudp->cud_format.cud_type = lip->li_type;
 	cudp->cud_format.cud_size = 1;
 
 	xlog_copy_iovec(lv, &vecp, XLOG_REG_TYPE_CUD_FORMAT, &cudp->cud_format,
@@ -232,6 +238,14 @@ static const struct xfs_item_ops xfs_cud_item_ops = {
 static inline struct xfs_refcount_intent *ci_entry(const struct list_head *e)
 {
 	return list_entry(e, struct xfs_refcount_intent, ri_list);
+}
+
+static inline bool
+xfs_cui_item_isrt(const struct xfs_log_item *lip)
+{
+	ASSERT(lip->li_type == XFS_LI_CUI || lip->li_type == XFS_LI_CUI_RT);
+
+	return lip->li_type == XFS_LI_CUI_RT;
 }
 
 /* Sort refcount intents by AG. */
@@ -282,23 +296,42 @@ xfs_refcount_update_log_item(
 }
 
 static struct xfs_log_item *
+__xfs_refcount_update_create_intent(
+	struct xfs_trans		*tp,
+	struct list_head		*items,
+	unsigned int			count,
+	bool				sort,
+	unsigned short			item_type)
+{
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_cui_log_item		*cuip;
+	struct xfs_refcount_intent	*ri;
+
+	ASSERT(count > 0);
+
+	cuip = xfs_cui_init(mp, item_type, count);
+	if (sort)
+		list_sort(mp, items, xfs_refcount_update_diff_items);
+	list_for_each_entry(ri, items, ri_list)
+		xfs_refcount_update_log_item(tp, cuip, ri);
+	return &cuip->cui_item;
+}
+
+static struct xfs_log_item *
 xfs_refcount_update_create_intent(
 	struct xfs_trans		*tp,
 	struct list_head		*items,
 	unsigned int			count,
 	bool				sort)
 {
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_cui_log_item		*cuip = xfs_cui_init(mp, count);
-	struct xfs_refcount_intent	*ri;
+	return __xfs_refcount_update_create_intent(tp, items, count, sort,
+			XFS_LI_CUI);
+}
 
-	ASSERT(count > 0);
-
-	if (sort)
-		list_sort(mp, items, xfs_refcount_update_diff_items);
-	list_for_each_entry(ri, items, ri_list)
-		xfs_refcount_update_log_item(tp, cuip, ri);
-	return &cuip->cui_item;
+static inline unsigned short
+xfs_cud_type_from_cui(const struct xfs_cui_log_item *cuip)
+{
+	return xfs_cui_item_isrt(&cuip->cui_item) ? XFS_LI_CUD_RT : XFS_LI_CUD;
 }
 
 /* Get an CUD so we can process all the deferred refcount updates. */
@@ -312,8 +345,8 @@ xfs_refcount_update_create_done(
 	struct xfs_cud_log_item		*cudp;
 
 	cudp = kmem_cache_zalloc(xfs_cud_cache, GFP_KERNEL | __GFP_NOFAIL);
-	xfs_log_item_init(tp->t_mountp, &cudp->cud_item, XFS_LI_CUD,
-			  &xfs_cud_item_ops);
+	xfs_log_item_init(tp->t_mountp, &cudp->cud_item,
+			xfs_cud_type_from_cui(cuip), &xfs_cud_item_ops);
 	cudp->cud_cuip = cuip;
 	cudp->cud_format.cud_cui_id = cuip->cui_format.cui_id;
 
@@ -328,10 +361,20 @@ xfs_refcount_defer_add(
 {
 	struct xfs_mount		*mp = tp->t_mountp;
 
-	trace_xfs_refcount_defer(mp, ri);
+	/*
+	 * Deferred refcount updates for the realtime and data sections must
+	 * use separate transactions to finish deferred work because updates to
+	 * realtime metadata files can lock AGFs to allocate btree blocks and
+	 * we don't want that mixing with the AGF locks taken to finish data
+	 * section updates.
+	 */
+	ri->ri_group = xfs_group_intent_get(mp, ri->ri_startblock,
+			ri->ri_realtime ? XG_TYPE_RTG : XG_TYPE_AG);
 
-	ri->ri_group = xfs_group_intent_get(mp, ri->ri_startblock, XG_TYPE_AG);
-	xfs_defer_add(tp, &ri->ri_list, &xfs_refcount_update_defer_type);
+	trace_xfs_refcount_defer(mp, ri);
+	xfs_defer_add(tp, &ri->ri_list, ri->ri_realtime ?
+			&xfs_rtrefcount_update_defer_type :
+			&xfs_refcount_update_defer_type);
 }
 
 /* Cancel a deferred refcount update. */
@@ -381,7 +424,7 @@ xfs_refcount_finish_one_cleanup(
 		return;
 	agbp = rcur->bc_ag.agbp;
 	xfs_btree_del_cursor(rcur, error);
-	if (error)
+	if (error && agbp)
 		xfs_trans_brelse(tp, agbp);
 }
 
@@ -397,6 +440,7 @@ xfs_refcount_update_abort_intent(
 static inline bool
 xfs_cui_validate_phys(
 	struct xfs_mount		*mp,
+	bool				isrt,
 	struct xfs_phys_extent		*pmap)
 {
 	if (!xfs_has_reflink(mp))
@@ -415,6 +459,9 @@ xfs_cui_validate_phys(
 		return false;
 	}
 
+	if (isrt)
+		return xfs_verify_rtbext(mp, pmap->pe_startblock, pmap->pe_len);
+
 	return xfs_verify_fsbext(mp, pmap->pe_startblock, pmap->pe_len);
 }
 
@@ -422,6 +469,7 @@ static inline void
 xfs_cui_recover_work(
 	struct xfs_mount		*mp,
 	struct xfs_defer_pending	*dfp,
+	bool				isrt,
 	struct xfs_phys_extent		*pmap)
 {
 	struct xfs_refcount_intent	*ri;
@@ -432,7 +480,8 @@ xfs_cui_recover_work(
 	ri->ri_startblock = pmap->pe_startblock;
 	ri->ri_blockcount = pmap->pe_len;
 	ri->ri_group = xfs_group_intent_get(mp, pmap->pe_startblock,
-			XG_TYPE_AG);
+			isrt ? XG_TYPE_RTG : XG_TYPE_AG);
+	ri->ri_realtime = isrt;
 
 	xfs_defer_add_item(dfp, &ri->ri_list);
 }
@@ -451,6 +500,7 @@ xfs_refcount_recover_work(
 	struct xfs_cui_log_item		*cuip = CUI_ITEM(lip);
 	struct xfs_trans		*tp;
 	struct xfs_mount		*mp = lip->li_log->l_mp;
+	bool				isrt = xfs_cui_item_isrt(lip);
 	int				i;
 	int				error = 0;
 
@@ -460,7 +510,7 @@ xfs_refcount_recover_work(
 	 * just toss the CUI.
 	 */
 	for (i = 0; i < cuip->cui_format.cui_nextents; i++) {
-		if (!xfs_cui_validate_phys(mp,
+		if (!xfs_cui_validate_phys(mp, isrt,
 					&cuip->cui_format.cui_extents[i])) {
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 					&cuip->cui_format,
@@ -468,7 +518,8 @@ xfs_refcount_recover_work(
 			return -EFSCORRUPTED;
 		}
 
-		xfs_cui_recover_work(mp, dfp, &cuip->cui_format.cui_extents[i]);
+		xfs_cui_recover_work(mp, dfp, isrt,
+				&cuip->cui_format.cui_extents[i]);
 	}
 
 	/*
@@ -515,10 +566,13 @@ xfs_refcount_relog_intent(
 	struct xfs_phys_extent		*pmap;
 	unsigned int			count;
 
+	ASSERT(intent->li_type == XFS_LI_CUI ||
+	       intent->li_type == XFS_LI_CUI_RT);
+
 	count = CUI_ITEM(intent)->cui_format.cui_nextents;
 	pmap = CUI_ITEM(intent)->cui_format.cui_extents;
 
-	cuip = xfs_cui_init(tp->t_mountp, count);
+	cuip = xfs_cui_init(tp->t_mountp, intent->li_type, count);
 	memcpy(cuip->cui_format.cui_extents, pmap, count * sizeof(*pmap));
 	atomic_set(&cuip->cui_next_extent, count);
 
@@ -537,6 +591,71 @@ const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
 	.recover_work	= xfs_refcount_recover_work,
 	.relog_intent	= xfs_refcount_relog_intent,
 };
+
+#ifdef CONFIG_XFS_RT
+static struct xfs_log_item *
+xfs_rtrefcount_update_create_intent(
+	struct xfs_trans		*tp,
+	struct list_head		*items,
+	unsigned int			count,
+	bool				sort)
+{
+	return __xfs_refcount_update_create_intent(tp, items, count, sort,
+			XFS_LI_CUI_RT);
+}
+
+/* Process a deferred realtime refcount update. */
+STATIC int
+xfs_rtrefcount_update_finish_item(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*done,
+	struct list_head		*item,
+	struct xfs_btree_cur		**state)
+{
+	struct xfs_refcount_intent	*ri = ci_entry(item);
+	int				error;
+
+	error = xfs_rtrefcount_finish_one(tp, ri, state);
+
+	/* Did we run out of reservation?  Requeue what we didn't finish. */
+	if (!error && ri->ri_blockcount > 0) {
+		ASSERT(ri->ri_type == XFS_REFCOUNT_INCREASE ||
+		       ri->ri_type == XFS_REFCOUNT_DECREASE);
+		return -EAGAIN;
+	}
+
+	xfs_refcount_update_cancel_item(item);
+	return error;
+}
+
+/* Clean up after calling xfs_rtrefcount_finish_one. */
+STATIC void
+xfs_rtrefcount_finish_one_cleanup(
+	struct xfs_trans	*tp,
+	struct xfs_btree_cur	*rcur,
+	int			error)
+{
+	if (rcur)
+		xfs_btree_del_cursor(rcur, error);
+}
+
+const struct xfs_defer_op_type xfs_rtrefcount_update_defer_type = {
+	.name		= "rtrefcount",
+	.max_items	= XFS_CUI_MAX_FAST_EXTENTS,
+	.create_intent	= xfs_rtrefcount_update_create_intent,
+	.abort_intent	= xfs_refcount_update_abort_intent,
+	.create_done	= xfs_refcount_update_create_done,
+	.finish_item	= xfs_rtrefcount_update_finish_item,
+	.finish_cleanup = xfs_rtrefcount_finish_one_cleanup,
+	.cancel_item	= xfs_refcount_update_cancel_item,
+	.recover_work	= xfs_refcount_recover_work,
+	.relog_intent	= xfs_refcount_relog_intent,
+};
+#else
+const struct xfs_defer_op_type xfs_rtrefcount_update_defer_type = {
+	.name		= "rtrefcount",
+};
+#endif /* CONFIG_XFS_RT */
 
 STATIC bool
 xfs_cui_item_match(
@@ -603,7 +722,7 @@ xlog_recover_cui_commit_pass2(
 		return -EFSCORRUPTED;
 	}
 
-	cuip = xfs_cui_init(mp, cui_formatp->cui_nextents);
+	cuip = xfs_cui_init(mp, ITEM_TYPE(item), cui_formatp->cui_nextents);
 	xfs_cui_copy_format(&cuip->cui_format, cui_formatp);
 	atomic_set(&cuip->cui_next_extent, cui_formatp->cui_nextents);
 
@@ -615,6 +734,61 @@ xlog_recover_cui_commit_pass2(
 const struct xlog_recover_item_ops xlog_cui_item_ops = {
 	.item_type		= XFS_LI_CUI,
 	.commit_pass2		= xlog_recover_cui_commit_pass2,
+};
+
+#ifdef CONFIG_XFS_RT
+STATIC int
+xlog_recover_rtcui_commit_pass2(
+	struct xlog			*log,
+	struct list_head		*buffer_list,
+	struct xlog_recover_item	*item,
+	xfs_lsn_t			lsn)
+{
+	struct xfs_mount		*mp = log->l_mp;
+	struct xfs_cui_log_item		*cuip;
+	struct xfs_cui_log_format	*cui_formatp;
+	size_t				len;
+
+	cui_formatp = item->ri_buf[0].i_addr;
+
+	if (item->ri_buf[0].i_len < xfs_cui_log_format_sizeof(0)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
+
+	len = xfs_cui_log_format_sizeof(cui_formatp->cui_nextents);
+	if (item->ri_buf[0].i_len != len) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
+
+	cuip = xfs_cui_init(mp, ITEM_TYPE(item), cui_formatp->cui_nextents);
+	xfs_cui_copy_format(&cuip->cui_format, cui_formatp);
+	atomic_set(&cuip->cui_next_extent, cui_formatp->cui_nextents);
+
+	xlog_recover_intent_item(log, &cuip->cui_item, lsn,
+			&xfs_rtrefcount_update_defer_type);
+	return 0;
+}
+#else
+STATIC int
+xlog_recover_rtcui_commit_pass2(
+	struct xlog			*log,
+	struct list_head		*buffer_list,
+	struct xlog_recover_item	*item,
+	xfs_lsn_t			lsn)
+{
+	XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, log->l_mp,
+			item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
+	return -EFSCORRUPTED;
+}
+#endif
+
+const struct xlog_recover_item_ops xlog_rtcui_item_ops = {
+	.item_type		= XFS_LI_CUI_RT,
+	.commit_pass2		= xlog_recover_rtcui_commit_pass2,
 };
 
 /*
@@ -647,4 +821,34 @@ xlog_recover_cud_commit_pass2(
 const struct xlog_recover_item_ops xlog_cud_item_ops = {
 	.item_type		= XFS_LI_CUD,
 	.commit_pass2		= xlog_recover_cud_commit_pass2,
+};
+
+#ifdef CONFIG_XFS_RT
+STATIC int
+xlog_recover_rtcud_commit_pass2(
+	struct xlog			*log,
+	struct list_head		*buffer_list,
+	struct xlog_recover_item	*item,
+	xfs_lsn_t			lsn)
+{
+	struct xfs_cud_log_format	*cud_formatp;
+
+	cud_formatp = item->ri_buf[0].i_addr;
+	if (item->ri_buf[0].i_len != sizeof(struct xfs_cud_log_format)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, log->l_mp,
+				item->ri_buf[0].i_addr, item->ri_buf[0].i_len);
+		return -EFSCORRUPTED;
+	}
+
+	xlog_recover_release_intent(log, XFS_LI_CUI_RT,
+			cud_formatp->cud_cui_id);
+	return 0;
+}
+#else
+# define xlog_recover_rtcud_commit_pass2	xlog_recover_rtcui_commit_pass2
+#endif
+
+const struct xlog_recover_item_ops xlog_rtcud_item_ops = {
+	.item_type		= XFS_LI_CUD_RT,
+	.commit_pass2		= xlog_recover_rtcud_commit_pass2,
 };

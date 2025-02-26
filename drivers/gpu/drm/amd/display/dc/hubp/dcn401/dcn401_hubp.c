@@ -40,7 +40,7 @@
 #define FN(reg_name, field_name) \
 	hubp2->hubp_shift->field_name, hubp2->hubp_mask->field_name
 
-static void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
+void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
 	const struct dc_plane_address address)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
@@ -49,14 +49,14 @@ static void hubp401_program_3dlut_fl_addr(struct hubp *hubp,
 	REG_WRITE(HUBP_3DLUT_ADDRESS_LOW, address.lut3d.addr.low_part);
 }
 
-static void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group)
+void hubp401_program_3dlut_fl_dlg_param(struct hubp *hubp, int refcyc_per_3dlut_group)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_DLG_PARAM, REFCYC_PER_3DLUT_GROUP, refcyc_per_3dlut_group);
 }
 
-static void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable)
+void hubp401_enable_3dlut_fl(struct hubp *hubp, bool enable)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -72,28 +72,28 @@ int hubp401_get_3dlut_fl_done(struct hubp *hubp)
 	return ret;
 }
 
-static void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode)
+void hubp401_program_3dlut_fl_addressing_mode(struct hubp *hubp, enum hubp_3dlut_fl_addressing_mode addr_mode)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_ADDRESSING_MODE, addr_mode);
 }
 
-static void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width)
+void hubp401_program_3dlut_fl_width(struct hubp *hubp, enum hubp_3dlut_fl_width width)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_WIDTH, width);
 }
 
-static void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled)
+void hubp401_program_3dlut_fl_tmz_protected(struct hubp *hubp, bool protection_enabled)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(HUBP_3DLUT_CONTROL, HUBP_3DLUT_TMZ, protection_enabled ? 1 : 0);
 }
 
-static void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
+void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_y_g,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cb_b,
 			enum hubp_3dlut_fl_crossbar_bit_slice bit_slice_cr_r)
@@ -106,21 +106,21 @@ static void hubp401_program_3dlut_fl_crossbar(struct hubp *hubp,
 			HUBP_3DLUT_CROSSBAR_SELECT_CR_R, bit_slice_cr_r);
 }
 
-static void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale)
+void hubp401_update_3dlut_fl_bias_scale(struct hubp *hubp, uint16_t bias, uint16_t scale)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE_2(_3DLUT_FL_BIAS_SCALE, HUBP0_3DLUT_FL_BIAS, bias, HUBP0_3DLUT_FL_SCALE, scale);
 }
 
-static void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode)
+void hubp401_program_3dlut_fl_mode(struct hubp *hubp, enum hubp_3dlut_fl_mode mode)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_UPDATE(_3DLUT_FL_CONFIG, HUBP0_3DLUT_FL_MODE, mode);
 }
 
-static void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format)
+void hubp401_program_3dlut_fl_format(struct hubp *hubp, enum hubp_3dlut_fl_format format)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -141,34 +141,48 @@ void hubp401_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor
 
 void hubp401_init(struct hubp *hubp)
 {
-	//For now nothing to do, HUBPREQ_DEBUG_DB register is removed on DCN4x.
+	hubp_reset(hubp);
 }
 
 void hubp401_vready_at_or_After_vsync(struct hubp *hubp,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
+	union dml2_global_sync_programming *pipe_global_sync,
+	struct dc_crtc_timing *timing)
 {
-	uint32_t value = 0;
+	unsigned int vstartup_lines = pipe_global_sync->dcn4x.vstartup_lines;
+	unsigned int vupdate_offset_pixels = pipe_global_sync->dcn4x.vupdate_offset_pixels;
+	unsigned int vupdate_width_pixels = pipe_global_sync->dcn4x.vupdate_vupdate_width_pixels;
+	unsigned int vready_offset_pixels = pipe_global_sync->dcn4x.vready_offset_pixels;
+	unsigned int htotal = timing->h_total;
+	unsigned int vblank_start = 0;
+	unsigned int vblank_end = 0;
+	unsigned int pixel_width = 0;
+	uint32_t reg_value = 0;
+	bool is_vready_at_or_after_vsync = false;
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
 	/*
 	 * if (VSTARTUP_START - (VREADY_OFFSET+VUPDATE_WIDTH+VUPDATE_OFFSET)/htotal) <= OTG_V_BLANK_END
 	 *	Set HUBP_VREADY_AT_OR_AFTER_VSYNC = 1
 	 * else
 	 *	Set HUBP_VREADY_AT_OR_AFTER_VSYNC = 0
 	 */
-	if (pipe_dest->htotal != 0) {
-		if ((pipe_dest->vstartup_start - (pipe_dest->vready_offset+pipe_dest->vupdate_width
-			+ pipe_dest->vupdate_offset) / pipe_dest->htotal) <= pipe_dest->vblank_end) {
-			value = 1;
-		} else
-			value = 0;
+	if (htotal != 0) {
+		vblank_start = timing->v_total - timing->v_front_porch;
+		vblank_end = vblank_start - timing->v_addressable - timing->v_border_top - timing->v_border_bottom;
+		pixel_width = vready_offset_pixels + vupdate_width_pixels + vupdate_offset_pixels;
+
+		is_vready_at_or_after_vsync = (vstartup_lines - pixel_width / htotal) <= vblank_end;
+
+		if (is_vready_at_or_after_vsync)
+			reg_value = 1;
 	}
 
-	REG_UPDATE(DCHUBP_CNTL, HUBP_VREADY_AT_OR_AFTER_VSYNC, value);
+	REG_UPDATE(DCHUBP_CNTL, HUBP_VREADY_AT_OR_AFTER_VSYNC, reg_value);
 }
 
 void hubp401_program_requestor(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs)
+		struct dml2_display_rq_regs *rq_regs)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -196,8 +210,8 @@ void hubp401_program_requestor(
 
 void hubp401_program_deadline(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
+		struct dml2_display_dlg_regs *dlg_attr,
+		struct dml2_display_ttu_regs *ttu_attr)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -294,66 +308,64 @@ void hubp401_program_deadline(
 
 void hubp401_setup(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs,
-		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest)
+	    struct dml2_dchub_per_pipe_register_set *pipe_regs,
+		union dml2_global_sync_programming *pipe_global_sync,
+		struct dc_crtc_timing *timing)
 {
 	/* otg is locked when this func is called. Register are double buffered.
 	 * disable the requestors is not needed
 	 */
-	hubp401_vready_at_or_After_vsync(hubp, pipe_dest);
-	hubp401_program_requestor(hubp, rq_regs);
-	hubp401_program_deadline(hubp, dlg_attr, ttu_attr);
+	hubp401_vready_at_or_After_vsync(hubp, pipe_global_sync, timing);
+	hubp401_program_requestor(hubp, &pipe_regs->rq_regs);
+	hubp401_program_deadline(hubp, &pipe_regs->dlg_regs, &pipe_regs->ttu_regs);
 }
 
 void hubp401_setup_interdependent(
 		struct hubp *hubp,
-		struct _vcs_dpi_display_dlg_regs_st *dlg_attr,
-		struct _vcs_dpi_display_ttu_regs_st *ttu_attr)
+		struct dml2_dchub_per_pipe_register_set *pipe_regs)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	REG_SET_2(PREFETCH_SETTINGS, 0,
-			DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
-			VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
+			DST_Y_PREFETCH, pipe_regs->dlg_regs.dst_y_prefetch,
+			VRATIO_PREFETCH, pipe_regs->dlg_regs.vratio_prefetch);
 
 	REG_SET(PREFETCH_SETTINGS_C, 0,
-			VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
+			VRATIO_PREFETCH_C, pipe_regs->dlg_regs.vratio_prefetch_c);
 
 	REG_SET_2(VBLANK_PARAMETERS_0, 0,
-		DST_Y_PER_VM_VBLANK, dlg_attr->dst_y_per_vm_vblank,
-		DST_Y_PER_ROW_VBLANK, dlg_attr->dst_y_per_row_vblank);
+		DST_Y_PER_VM_VBLANK, pipe_regs->dlg_regs.dst_y_per_vm_vblank,
+		DST_Y_PER_ROW_VBLANK, pipe_regs->dlg_regs.dst_y_per_row_vblank);
 
 	REG_SET_2(FLIP_PARAMETERS_0, 0,
-		DST_Y_PER_VM_FLIP, dlg_attr->dst_y_per_vm_flip,
-		DST_Y_PER_ROW_FLIP, dlg_attr->dst_y_per_row_flip);
+		DST_Y_PER_VM_FLIP, pipe_regs->dlg_regs.dst_y_per_vm_flip,
+		DST_Y_PER_ROW_FLIP, pipe_regs->dlg_regs.dst_y_per_row_flip);
 
 	REG_SET(VBLANK_PARAMETERS_3, 0,
-		REFCYC_PER_META_CHUNK_VBLANK_L, dlg_attr->refcyc_per_meta_chunk_vblank_l);
+		REFCYC_PER_META_CHUNK_VBLANK_L, pipe_regs->dlg_regs.refcyc_per_meta_chunk_vblank_l);
 
 	REG_SET(VBLANK_PARAMETERS_4, 0,
-		REFCYC_PER_META_CHUNK_VBLANK_C, dlg_attr->refcyc_per_meta_chunk_vblank_c);
+		REFCYC_PER_META_CHUNK_VBLANK_C, pipe_regs->dlg_regs.refcyc_per_meta_chunk_vblank_c);
 
 	REG_SET(FLIP_PARAMETERS_2, 0,
-		REFCYC_PER_META_CHUNK_FLIP_L, dlg_attr->refcyc_per_meta_chunk_flip_l);
+		REFCYC_PER_META_CHUNK_FLIP_L, pipe_regs->dlg_regs.refcyc_per_meta_chunk_flip_l);
 
 	REG_SET_2(PER_LINE_DELIVERY_PRE, 0,
-		REFCYC_PER_LINE_DELIVERY_PRE_L, dlg_attr->refcyc_per_line_delivery_pre_l,
-		REFCYC_PER_LINE_DELIVERY_PRE_C, dlg_attr->refcyc_per_line_delivery_pre_c);
+		REFCYC_PER_LINE_DELIVERY_PRE_L, pipe_regs->dlg_regs.refcyc_per_line_delivery_pre_l,
+		REFCYC_PER_LINE_DELIVERY_PRE_C, pipe_regs->dlg_regs.refcyc_per_line_delivery_pre_c);
 
 	REG_SET(DCN_SURF0_TTU_CNTL1, 0,
 		REFCYC_PER_REQ_DELIVERY_PRE,
-		ttu_attr->refcyc_per_req_delivery_pre_l);
+		pipe_regs->ttu_regs.refcyc_per_req_delivery_pre_l);
 	REG_SET(DCN_SURF1_TTU_CNTL1, 0,
 		REFCYC_PER_REQ_DELIVERY_PRE,
-		ttu_attr->refcyc_per_req_delivery_pre_c);
+		pipe_regs->ttu_regs.refcyc_per_req_delivery_pre_c);
 	REG_SET(DCN_CUR0_TTU_CNTL1, 0,
-		REFCYC_PER_REQ_DELIVERY_PRE, ttu_attr->refcyc_per_req_delivery_pre_cur0);
+		REFCYC_PER_REQ_DELIVERY_PRE, pipe_regs->ttu_regs.refcyc_per_req_delivery_pre_cur0);
 
 	REG_SET_2(DCN_GLOBAL_TTU_CNTL, 0,
-		MIN_TTU_VBLANK, ttu_attr->min_ttu_vblank,
-		QoS_LEVEL_FLIP, ttu_attr->qos_level_flip);
+		MIN_TTU_VBLANK, pipe_regs->ttu_regs.min_ttu_vblank,
+		QoS_LEVEL_FLIP, pipe_regs->ttu_regs.qos_level_flip);
 }
 
 
@@ -508,6 +520,18 @@ bool hubp401_program_surface_flip_and_addr(
 	return true;
 }
 
+void hubp401_clear_tiling(struct hubp *hubp)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_UPDATE(DCHUBP_REQ_SIZE_CONFIG, SWATH_HEIGHT, 0);
+	REG_UPDATE(DCSURF_TILING_CONFIG, SW_MODE, DC_SW_LINEAR);
+
+	REG_UPDATE_2(DCSURF_SURFACE_CONTROL,
+		     PRIMARY_SURFACE_DCC_EN, 0,
+		     SECONDARY_SURFACE_DCC_EN, 0);
+}
+
 void hubp401_dcc_control(struct hubp *hubp,
 		struct dc_plane_dcc_param *dcc)
 {
@@ -520,7 +544,7 @@ void hubp401_dcc_control(struct hubp *hubp,
 
 void hubp401_program_tiling(
 	struct dcn20_hubp *hubp2,
-	const union dc_tiling_info *info,
+	const struct dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
 {
 	/* DCSURF_ADDR_CONFIG still shows up in reg spec, but does not need to be programmed for DCN4x
@@ -568,7 +592,7 @@ void hubp401_program_size(
 void hubp401_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	union dc_tiling_info *tiling_info,
+	struct dc_tiling_info *tiling_info,
 	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
@@ -718,11 +742,13 @@ void hubp401_cursor_set_position(
 			dc_fixpt_from_int(dst_x_offset),
 			param->h_scale_ratio));
 
-	if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
-		hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
+	if (hubp->pos.cur_ctl.bits.cur_enable != cur_en) {
+		if (cur_en && REG_READ(CURSOR_SURFACE_ADDRESS) == 0)
+			hubp->funcs->set_cursor_attributes(hubp, &hubp->curs_attr);
 
-	REG_UPDATE(CURSOR_CONTROL,
-		CURSOR_ENABLE, cur_en);
+		REG_UPDATE(CURSOR_CONTROL,
+			CURSOR_ENABLE, cur_en);
+	}
 
 	REG_SET_2(CURSOR_POSITION, 0,
 		CURSOR_X_POSITION, x_pos,
@@ -969,11 +995,12 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_program_surface_flip_and_addr = hubp401_program_surface_flip_and_addr,
 	.hubp_program_surface_config = hubp401_program_surface_config,
 	.hubp_is_flip_pending = hubp2_is_flip_pending,
-	.hubp_setup = hubp401_setup,
-	.hubp_setup_interdependent = hubp401_setup_interdependent,
+	.hubp_setup2 = hubp401_setup,
+	.hubp_setup_interdependent2 = hubp401_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp3_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
 	.set_blank_regs = hubp2_set_blank_regs,
+	.hubp_reset = hubp_reset,
 	.mem_program_viewport = hubp401_set_viewport,
 	.set_cursor_attributes	= hubp32_cursor_set_attributes,
 	.set_cursor_position	= hubp401_cursor_set_position,
@@ -1004,7 +1031,8 @@ static struct hubp_funcs dcn401_hubp_funcs = {
 	.hubp_program_3dlut_fl_width = hubp401_program_3dlut_fl_width,
 	.hubp_program_3dlut_fl_tmz_protected = hubp401_program_3dlut_fl_tmz_protected,
 	.hubp_program_3dlut_fl_crossbar = hubp401_program_3dlut_fl_crossbar,
-	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done
+	.hubp_get_3dlut_fl_done = hubp401_get_3dlut_fl_done,
+	.hubp_clear_tiling = hubp2_clear_tiling,
 };
 
 bool hubp401_construct(

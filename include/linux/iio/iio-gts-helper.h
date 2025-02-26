@@ -188,6 +188,9 @@ int iio_gts_total_gain_to_scale(struct iio_gts *gts, int total_gain,
 int iio_gts_find_gain_sel_for_scale_using_time(struct iio_gts *gts, int time_sel,
 					       int scale_int, int scale_nano,
 					       int *gain_sel);
+int iio_gts_find_gain_time_sel_for_scale(struct iio_gts *gts, int scale_int,
+					 int scale_nano, int *gain_sel,
+					 int *time_sel);
 int iio_gts_get_scale(struct iio_gts *gts, int gain, int time, int *scale_int,
 		      int *scale_nano);
 int iio_gts_find_new_gain_sel_by_old_gain_time(struct iio_gts *gts,
@@ -196,6 +199,9 @@ int iio_gts_find_new_gain_sel_by_old_gain_time(struct iio_gts *gts,
 int iio_gts_find_new_gain_by_old_gain_time(struct iio_gts *gts, int old_gain,
 					   int old_time, int new_time,
 					   int *new_gain);
+int iio_gts_find_new_gain_by_gain_time_min(struct iio_gts *gts, int old_gain,
+					   int old_time, int new_time,
+					   int *new_gain, bool *in_range);
 int iio_gts_avail_times(struct iio_gts *gts,  const int **vals, int *type,
 			int *length);
 int iio_gts_all_avail_scales(struct iio_gts *gts, const int **vals, int *type,

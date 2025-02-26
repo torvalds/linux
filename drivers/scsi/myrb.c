@@ -1619,7 +1619,7 @@ static int myrb_queuecommand(struct Scsi_Host *shost,
 	return myrb_pthru_queuecommand(shost, scmd);
 }
 
-static int myrb_ldev_slave_alloc(struct scsi_device *sdev)
+static int myrb_ldev_sdev_init(struct scsi_device *sdev)
 {
 	struct myrb_hba *cb = shost_priv(sdev->host);
 	struct myrb_ldev_info *ldev_info;
@@ -1627,8 +1627,6 @@ static int myrb_ldev_slave_alloc(struct scsi_device *sdev)
 	enum raid_level level;
 
 	ldev_info = cb->ldev_info_buf + ldev_num;
-	if (!ldev_info)
-		return -ENXIO;
 
 	sdev->hostdata = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 	if (!sdev->hostdata)
@@ -1665,7 +1663,7 @@ static int myrb_ldev_slave_alloc(struct scsi_device *sdev)
 	return 0;
 }
 
-static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
+static int myrb_pdev_sdev_init(struct scsi_device *sdev)
 {
 	struct myrb_hba *cb = shost_priv(sdev->host);
 	struct myrb_pdev_state *pdev_info;
@@ -1701,7 +1699,7 @@ static int myrb_pdev_slave_alloc(struct scsi_device *sdev)
 	return 0;
 }
 
-static int myrb_slave_alloc(struct scsi_device *sdev)
+static int myrb_sdev_init(struct scsi_device *sdev)
 {
 	if (sdev->channel > myrb_logical_channel(sdev->host))
 		return -ENXIO;
@@ -1710,12 +1708,13 @@ static int myrb_slave_alloc(struct scsi_device *sdev)
 		return -ENXIO;
 
 	if (sdev->channel == myrb_logical_channel(sdev->host))
-		return myrb_ldev_slave_alloc(sdev);
+		return myrb_ldev_sdev_init(sdev);
 
-	return myrb_pdev_slave_alloc(sdev);
+	return myrb_pdev_sdev_init(sdev);
 }
 
-static int myrb_slave_configure(struct scsi_device *sdev)
+static int myrb_sdev_configure(struct scsi_device *sdev,
+			       struct queue_limits *lim)
 {
 	struct myrb_ldev_info *ldev_info;
 
@@ -1741,7 +1740,7 @@ static int myrb_slave_configure(struct scsi_device *sdev)
 	return 0;
 }
 
-static void myrb_slave_destroy(struct scsi_device *sdev)
+static void myrb_sdev_destroy(struct scsi_device *sdev)
 {
 	kfree(sdev->hostdata);
 }
@@ -2208,9 +2207,9 @@ static const struct scsi_host_template myrb_template = {
 	.proc_name		= "myrb",
 	.queuecommand		= myrb_queuecommand,
 	.eh_host_reset_handler	= myrb_host_reset,
-	.slave_alloc		= myrb_slave_alloc,
-	.slave_configure	= myrb_slave_configure,
-	.slave_destroy		= myrb_slave_destroy,
+	.sdev_init		= myrb_sdev_init,
+	.sdev_configure		= myrb_sdev_configure,
+	.sdev_destroy		= myrb_sdev_destroy,
 	.bios_param		= myrb_biosparam,
 	.cmd_size		= sizeof(struct myrb_cmdblk),
 	.shost_groups		= myrb_shost_groups,

@@ -99,7 +99,7 @@ static bool afs_start_fs_iteration(struct afs_operation *op,
 		write_seqlock(&vnode->cb_lock);
 		ASSERTCMP(cb_server, ==, vnode->cb_server);
 		vnode->cb_server = NULL;
-		if (atomic64_xchg(&vnode->cb_expires_at, AFS_NO_CB_PROMISE) != AFS_NO_CB_PROMISE)
+		if (afs_clear_cb_promise(vnode, afs_cb_promise_clear_rotate_server))
 			vnode->cb_break++;
 		write_sequnlock(&vnode->cb_lock);
 	}
@@ -583,7 +583,7 @@ selected_server:
 	if (vnode->cb_server != server) {
 		vnode->cb_server = server;
 		vnode->cb_v_check = atomic_read(&vnode->volume->cb_v_break);
-		atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
+		afs_clear_cb_promise(vnode, afs_cb_promise_clear_server_change);
 	}
 
 retry_server:

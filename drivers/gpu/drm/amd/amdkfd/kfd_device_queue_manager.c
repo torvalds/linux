@@ -2325,9 +2325,9 @@ static int unmap_queues_cpsch(struct device_queue_manager *dqm,
 	 */
 	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
 	if (mqd_mgr->check_preemption_failed(mqd_mgr, dqm->packet_mgr.priv_queue->queue->mqd)) {
+		while (halt_if_hws_hang)
+			schedule();
 		if (reset_queues_on_hws_hang(dqm)) {
-			while (halt_if_hws_hang)
-				schedule();
 			dqm->is_hws_hang = true;
 			kfd_hws_hang(dqm);
 			retval = -ETIME;
@@ -2387,6 +2387,9 @@ static int wait_on_destroy_queue(struct device_queue_manager *dqm,
 	struct kfd_process_device *pdd = kfd_get_process_device_data(q->device,
 								q->process);
 	int ret = 0;
+
+	if (WARN_ON(!pdd))
+		return ret;
 
 	if (pdd->qpd.is_debug)
 		return ret;

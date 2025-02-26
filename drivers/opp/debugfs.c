@@ -217,7 +217,7 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 {
 	struct opp_device *new_dev = NULL, *iter;
 	const struct device *dev;
-	struct dentry *dentry;
+	int err;
 
 	/* Look for next opp-dev */
 	list_for_each_entry(iter, &opp_table->dev_list, node)
@@ -234,16 +234,14 @@ static void opp_migrate_dentry(struct opp_device *opp_dev,
 
 	opp_set_dev_name(dev, opp_table->dentry_name);
 
-	dentry = debugfs_rename(rootdir, opp_dev->dentry, rootdir,
-				opp_table->dentry_name);
-	if (IS_ERR(dentry)) {
+	err = debugfs_change_name(opp_dev->dentry, "%s", opp_table->dentry_name);
+	if (err) {
 		dev_err(dev, "%s: Failed to rename link from: %s to %s\n",
 			__func__, dev_name(opp_dev->dev), dev_name(dev));
 		return;
 	}
 
-	new_dev->dentry = dentry;
-	opp_table->dentry = dentry;
+	new_dev->dentry = opp_table->dentry = opp_dev->dentry;
 }
 
 /**

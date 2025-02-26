@@ -27,7 +27,8 @@
 #include "amdgpu_ras.h"
 
 #define AMDGPU_MAX_JPEG_INSTANCES	4
-#define AMDGPU_MAX_JPEG_RINGS		8
+#define AMDGPU_MAX_JPEG_RINGS           10
+#define AMDGPU_MAX_JPEG_RINGS_4_0_3     8
 
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
 #define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)

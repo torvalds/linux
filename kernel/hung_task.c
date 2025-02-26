@@ -147,6 +147,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 			print_tainted(), init_utsname()->release,
 			(int)strcspn(init_utsname()->version, " "),
 			init_utsname()->version);
+		if (t->flags & PF_POSTCOREDUMP)
+			pr_err("      Blocked by coredump.\n");
 		pr_err("\"echo 0 > /proc/sys/kernel/hung_task_timeout_secs\""
 			" disables this message.\n");
 		sched_show_task(t);
@@ -272,7 +274,7 @@ static int proc_dohung_task_timeout_secs(const struct ctl_table *table, int writ
  * and hung_task_check_interval_secs
  */
 static const unsigned long hung_task_timeout_max = (LONG_MAX / HZ);
-static struct ctl_table hung_task_sysctls[] = {
+static const struct ctl_table hung_task_sysctls[] = {
 #ifdef CONFIG_SMP
 	{
 		.procname	= "hung_task_all_cpu_backtrace",

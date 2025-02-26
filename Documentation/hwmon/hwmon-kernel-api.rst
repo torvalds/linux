@@ -64,7 +64,8 @@ hwmon_device_register_with_info.
 
 All supported hwmon device registration functions only accept valid device
 names. Device names including invalid characters (whitespace, '*', or '-')
-will be rejected. The 'name' parameter is mandatory.
+will be rejected. If NULL is passed as name parameter, the hardware monitoring
+device name will be derived from the parent device name.
 
 If the driver doesn't use a static device name (for example it uses
 dev_name()), and therefore cannot make sure the name only contains valid

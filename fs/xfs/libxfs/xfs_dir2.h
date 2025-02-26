@@ -58,7 +58,6 @@ extern void xfs_dir_startup(void);
 extern int xfs_da_mount(struct xfs_mount *mp);
 extern void xfs_da_unmount(struct xfs_mount *mp);
 
-extern int xfs_dir_isempty(struct xfs_inode *dp);
 extern int xfs_dir_init(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_inode *pdp);
 extern int xfs_dir_createname(struct xfs_trans *tp, struct xfs_inode *dp,

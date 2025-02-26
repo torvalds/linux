@@ -13,14 +13,14 @@ try:
         SPEC_PATH = KSFT_DIR / "net/lib/specs"
 
         sys.path.append(tools_full_path.as_posix())
-        from net.lib.ynl.lib import YnlFamily, NlError
+        from net.lib.ynl.pyynl.lib import YnlFamily, NlError
     else:
         # Running in tree
         tools_full_path = KSRC / "tools"
         SPEC_PATH = KSRC / "Documentation/netlink/specs"
 
         sys.path.append(tools_full_path.as_posix())
-        from net.ynl.lib import YnlFamily, NlError
+        from net.ynl.pyynl.lib import YnlFamily, NlError
 except ModuleNotFoundError as e:
     ksft_pr("Failed importing `ynl` library from kernel sources")
     ksft_pr(str(e))
@@ -32,23 +32,23 @@ except ModuleNotFoundError as e:
 # Set schema='' to avoid jsonschema validation, it's slow
 #
 class EthtoolFamily(YnlFamily):
-    def __init__(self):
+    def __init__(self, recv_size=0):
         super().__init__((SPEC_PATH / Path('ethtool.yaml')).as_posix(),
-                         schema='')
+                         schema='', recv_size=recv_size)
 
 
 class RtnlFamily(YnlFamily):
-    def __init__(self):
+    def __init__(self, recv_size=0):
         super().__init__((SPEC_PATH / Path('rt_link.yaml')).as_posix(),
-                         schema='')
+                         schema='', recv_size=recv_size)
 
 
 class NetdevFamily(YnlFamily):
-    def __init__(self):
+    def __init__(self, recv_size=0):
         super().__init__((SPEC_PATH / Path('netdev.yaml')).as_posix(),
-                         schema='')
+                         schema='', recv_size=recv_size)
 
 class NetshaperFamily(YnlFamily):
-    def __init__(self):
+    def __init__(self, recv_size=0):
         super().__init__((SPEC_PATH / Path('net_shaper.yaml')).as_posix(),
-                         schema='')
+                         schema='', recv_size=recv_size)

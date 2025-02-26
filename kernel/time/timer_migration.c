@@ -534,8 +534,13 @@ static void __walk_groups(up_f up, struct tmigr_walk *data,
 			break;
 
 		child = group;
-		group = group->parent;
+		/*
+		 * Pairs with the store release on group connection
+		 * to make sure group initialization is visible.
+		 */
+		group = READ_ONCE(group->parent);
 		data->childmask = child->groupmask;
+		WARN_ON_ONCE(!data->childmask);
 	} while (group);
 }
 
@@ -564,7 +569,7 @@ static struct tmigr_event *tmigr_next_groupevt(struct tmigr_group *group)
 	while ((node = timerqueue_getnext(&group->events))) {
 		evt = container_of(node, struct tmigr_event, nextevt);
 
-		if (!evt->ignore) {
+		if (!READ_ONCE(evt->ignore)) {
 			WRITE_ONCE(group->next_expiry, evt->nextevt.expires);
 			return evt;
 		}
@@ -660,7 +665,7 @@ static bool tmigr_active_up(struct tmigr_group *group,
 	 * lock is held while updating the ignore flag in idle path. So this
 	 * state change will not be lost.
 	 */
-	group->groupevt.ignore = true;
+	WRITE_ONCE(group->groupevt.ignore, true);
 
 	return walk_done;
 }
@@ -721,6 +726,7 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 	union tmigr_state childstate, groupstate;
 	bool remote = data->remote;
 	bool walk_done = false;
+	bool ignore;
 	u64 nextexp;
 
 	if (child) {
@@ -739,11 +745,19 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 		nextexp = child->next_expiry;
 		evt = &child->groupevt;
 
-		evt->ignore = (nextexp == KTIME_MAX) ? true : false;
+		/*
+		 * This can race with concurrent idle exit (activate).
+		 * If the current writer wins, a useless remote expiration may
+		 * be scheduled. If the activate wins, the event is properly
+		 * ignored.
+		 */
+		ignore = (nextexp == KTIME_MAX) ? true : false;
+		WRITE_ONCE(evt->ignore, ignore);
 	} else {
 		nextexp = data->nextexp;
 
 		first_childevt = evt = data->evt;
+		ignore = evt->ignore;
 
 		/*
 		 * Walking the hierarchy is required in any case when a
@@ -769,7 +783,7 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 		 * first event information of the group is updated properly and
 		 * also handled properly, so skip this fast return path.
 		 */
-		if (evt->ignore && !remote && group->parent)
+		if (ignore && !remote && group->parent)
 			return true;
 
 		raw_spin_lock(&group->lock);
@@ -783,7 +797,7 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 	 * queue when the expiry time changed only or when it could be ignored.
 	 */
 	if (timerqueue_node_queued(&evt->nextevt)) {
-		if ((evt->nextevt.expires == nextexp) && !evt->ignore) {
+		if ((evt->nextevt.expires == nextexp) && !ignore) {
 			/* Make sure not to miss a new CPU event with the same expiry */
 			evt->cpu = first_childevt->cpu;
 			goto check_toplvl;
@@ -793,7 +807,7 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 			WRITE_ONCE(group->next_expiry, KTIME_MAX);
 	}
 
-	if (evt->ignore) {
+	if (ignore) {
 		/*
 		 * When the next child event could be ignored (nextexp is
 		 * KTIME_MAX) and there was no remote timer handling before or
@@ -1487,6 +1501,21 @@ static void tmigr_init_group(struct tmigr_group *group, unsigned int lvl,
 	s.seq = 0;
 	atomic_set(&group->migr_state, s.state);
 
+	/*
+	 * If this is a new top-level, prepare its groupmask in advance.
+	 * This avoids accidents where yet another new top-level is
+	 * created in the future and made visible before the current groupmask.
+	 */
+	if (list_empty(&tmigr_level_list[lvl])) {
+		group->groupmask = BIT(0);
+		/*
+		 * The previous top level has prepared its groupmask already,
+		 * simply account it as the first child.
+		 */
+		if (lvl > 0)
+			group->num_children = 1;
+	}
+
 	timerqueue_init_head(&group->events);
 	timerqueue_init(&group->groupevt.nextevt);
 	group->groupevt.nextevt.expires = KTIME_MAX;
@@ -1550,8 +1579,25 @@ static void tmigr_connect_child_parent(struct tmigr_group *child,
 	raw_spin_lock_irq(&child->lock);
 	raw_spin_lock_nested(&parent->lock, SINGLE_DEPTH_NESTING);
 
-	child->parent = parent;
-	child->groupmask = BIT(parent->num_children++);
+	if (activate) {
+		/*
+		 * @child is the old top and @parent the new one. In this
+		 * case groupmask is pre-initialized and @child already
+		 * accounted, along with its new sibling corresponding to the
+		 * CPU going up.
+		 */
+		WARN_ON_ONCE(child->groupmask != BIT(0) || parent->num_children != 2);
+	} else {
+		/* Adding @child for the CPU going up to @parent. */
+		child->groupmask = BIT(parent->num_children++);
+	}
+
+	/*
+	 * Make sure parent initialization is visible before publishing it to a
+	 * racing CPU entering/exiting idle. This RELEASE barrier enforces an
+	 * address dependency that pairs with the READ_ONCE() in __walk_groups().
+	 */
+	smp_store_release(&child->parent, parent);
 
 	raw_spin_unlock(&parent->lock);
 	raw_spin_unlock_irq(&child->lock);
@@ -1624,12 +1670,13 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 		 * be different from tmigr_hierarchy_levels, contains only a
 		 * single group.
 		 */
-		if (group->parent || i == tmigr_hierarchy_levels ||
-		    (list_empty(&tmigr_level_list[i]) &&
-		     list_is_singular(&tmigr_level_list[i - 1])))
+		if (group->parent || list_is_singular(&tmigr_level_list[i - 1]))
 			break;
 
 	} while (i < tmigr_hierarchy_levels);
+
+	/* Assert single root */
+	WARN_ON_ONCE(!err && !group->parent && !list_is_singular(&tmigr_level_list[top]));
 
 	while (i > 0) {
 		group = stack[--i];
@@ -1672,7 +1719,12 @@ static int tmigr_setup_groups(unsigned int cpu, unsigned int node)
 		WARN_ON_ONCE(top == 0);
 
 		lvllist = &tmigr_level_list[top];
-		if (group->num_children == 1 && list_is_singular(lvllist)) {
+
+		/*
+		 * Newly created root level should have accounted the upcoming
+		 * CPU's child group and pre-accounted the old root.
+		 */
+		if (group->num_children == 2 && list_is_singular(lvllist)) {
 			/*
 			 * The target CPU must never do the prepare work, except
 			 * on early boot when the boot CPU is the target. Otherwise

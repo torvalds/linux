@@ -2,11 +2,12 @@
 /*
  * Copyright (C) 2024 Raspberry Pi
  */
+
 #ifndef V3D_PERFORMANCE_COUNTERS_H
 #define V3D_PERFORMANCE_COUNTERS_H
 
-/* Holds a description of a given performance counter. The index of performance
- * counter is given by the array on v3d_performance_counter.h
+/* Holds a description of a given performance counter. The index of
+ * performance counter is given by the array on `v3d_performance_counter.c`.
  */
 struct v3d_perf_counter_desc {
 	/* Category of the counter */
@@ -20,15 +21,12 @@ struct v3d_perf_counter_desc {
 };
 
 struct v3d_perfmon_info {
-	/*
-	 * Different revisions of V3D have different total number of
+	/* Different revisions of V3D have different total number of
 	 * performance counters.
 	 */
 	unsigned int max_counters;
 
-	/*
-	 * Array of counters valid for the platform.
-	 */
+	/* Array of counters valid for the platform. */
 	const struct v3d_perf_counter_desc *counters;
 };
 

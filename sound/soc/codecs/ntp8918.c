@@ -371,7 +371,7 @@ static int ntp8918_i2c_probe(struct i2c_client *i2c)
 }
 
 static const struct i2c_device_id ntp8918_i2c_id[] = {
-	{ "ntp8918", 0 },
+	{ "ntp8918" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ntp8918_i2c_id);

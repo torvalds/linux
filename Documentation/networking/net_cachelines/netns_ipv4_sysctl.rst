@@ -79,6 +79,7 @@ u8                              sysctl_tcp_retries1
 u8                              sysctl_tcp_retries2
 u8                              sysctl_tcp_orphan_retries
 u8                              sysctl_tcp_tw_reuse                                                                  timewait_sock_ops
+unsigned_int                    sysctl_tcp_tw_reuse_delay                                                            timewait_sock_ops
 int                             sysctl_tcp_fin_timeout                                                               TCP_LAST_ACK/tcp_rcv_state_process
 unsigned_int                    sysctl_tcp_notsent_lowat                     read_mostly                             tcp_notsent_lowat/tcp_stream_memory_free
 u8                              sysctl_tcp_sack                                                                      tcp_syn_options

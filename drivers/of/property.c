@@ -32,6 +32,32 @@
 #include "of_private.h"
 
 /**
+ * of_property_read_bool - Find a property
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a boolean property in a device node. Usage on non-boolean
+ * property types is deprecated.
+ *
+ * Return: true if the property exists false otherwise.
+ */
+bool of_property_read_bool(const struct device_node *np, const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	/*
+	 * Boolean properties should not have a value. Testing for property
+	 * presence should either use of_property_present() or just read the
+	 * property value and check the returned error code.
+	 */
+	if (prop && prop->length)
+		pr_warn("%pOF: Read of boolean property '%s' with a value.\n", np, propname);
+
+	return prop ? true : false;
+}
+EXPORT_SYMBOL(of_property_read_bool);
+
+/**
  * of_graph_is_present() - check graph's presence
  * @node: pointer to device_node containing graph port
  *
@@ -966,6 +992,12 @@ of_fwnode_device_get_dma_attr(const struct fwnode_handle *fwnode)
 static bool of_fwnode_property_present(const struct fwnode_handle *fwnode,
 				       const char *propname)
 {
+	return of_property_present(to_of_node(fwnode), propname);
+}
+
+static bool of_fwnode_property_read_bool(const struct fwnode_handle *fwnode,
+					 const char *propname)
+{
 	return of_property_read_bool(to_of_node(fwnode), propname);
 }
 
@@ -1286,7 +1318,6 @@ DEFINE_SIMPLE_PROP(iommus, "iommus", "#iommu-cells")
 DEFINE_SIMPLE_PROP(mboxes, "mboxes", "#mbox-cells")
 DEFINE_SIMPLE_PROP(io_channels, "io-channels", "#io-channel-cells")
 DEFINE_SIMPLE_PROP(io_backends, "io-backends", "#io-backend-cells")
-DEFINE_SIMPLE_PROP(interrupt_parent, "interrupt-parent", NULL)
 DEFINE_SIMPLE_PROP(dmas, "dmas", "#dma-cells")
 DEFINE_SIMPLE_PROP(power_domains, "power-domains", "#power-domain-cells")
 DEFINE_SIMPLE_PROP(hwlocks, "hwlocks", "#hwlock-cells")
@@ -1391,9 +1422,9 @@ static struct device_node *parse_interrupt_map(struct device_node *np,
 	addrcells = of_bus_n_addr_cells(np);
 
 	imap = of_get_property(np, "interrupt-map", &imaplen);
-	imaplen /= sizeof(*imap);
 	if (!imap)
 		return NULL;
+	imaplen /= sizeof(*imap);
 
 	imap_end = imap + imaplen;
 
@@ -1432,7 +1463,6 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_mboxes, },
 	{ .parse_prop = parse_io_channels, },
 	{ .parse_prop = parse_io_backends, },
-	{ .parse_prop = parse_interrupt_parent, },
 	{ .parse_prop = parse_dmas, .optional = true, },
 	{ .parse_prop = parse_power_domains, },
 	{ .parse_prop = parse_hwlocks, },
@@ -1562,6 +1592,7 @@ const struct fwnode_operations of_fwnode_ops = {
 	.device_dma_supported = of_fwnode_device_dma_supported,
 	.device_get_dma_attr = of_fwnode_device_get_dma_attr,
 	.property_present = of_fwnode_property_present,
+	.property_read_bool = of_fwnode_property_read_bool,
 	.property_read_int_array = of_fwnode_property_read_int_array,
 	.property_read_string_array = of_fwnode_property_read_string_array,
 	.get_name = of_fwnode_get_name,

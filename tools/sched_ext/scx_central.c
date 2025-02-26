@@ -58,6 +58,7 @@ restart:
 
 	skel->rodata->central_cpu = 0;
 	skel->rodata->nr_cpu_ids = libbpf_num_possible_cpus();
+	skel->rodata->slice_ns = __COMPAT_ENUM_OR_ZERO("scx_public_consts", "SCX_SLICE_DFL");
 
 	while ((opt = getopt(argc, argv, "s:c:pvh")) != -1) {
 		switch (opt) {
@@ -97,7 +98,7 @@ restart:
 	SCX_BUG_ON(!cpuset, "Failed to allocate cpuset");
 	CPU_ZERO(cpuset);
 	CPU_SET(skel->rodata->central_cpu, cpuset);
-	SCX_BUG_ON(sched_setaffinity(0, sizeof(cpuset), cpuset),
+	SCX_BUG_ON(sched_setaffinity(0, sizeof(*cpuset), cpuset),
 		   "Failed to affinitize to central CPU %d (max %d)",
 		   skel->rodata->central_cpu, skel->rodata->nr_cpu_ids - 1);
 	CPU_FREE(cpuset);

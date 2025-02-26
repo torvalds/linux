@@ -1,0 +1,6 @@
+config RV_MON_%%MODEL_NAME_UP%%
+	depends on RV
+	select %%MONITOR_CLASS_TYPE%%
+	bool "%%MODEL_NAME%% monitor"
+	help
+	  %%DESCRIPTION%%

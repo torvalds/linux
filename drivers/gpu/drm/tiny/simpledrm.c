@@ -10,9 +10,9 @@
 #include <linux/pm_domain.h>
 #include <linux/regulator/consumer.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_state_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_damage_helper.h>
@@ -31,7 +31,6 @@
 
 #define DRIVER_NAME	"simpledrm"
 #define DRIVER_DESC	"DRM driver for simple-framebuffer platform devices"
-#define DRIVER_DATE	"20200625"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
 
@@ -1015,7 +1014,6 @@ static struct drm_driver simpledrm_driver = {
 	DRM_FBDEV_SHMEM_DRIVER_OPS,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= DRIVER_DATE,
 	.major			= DRIVER_MAJOR,
 	.minor			= DRIVER_MINOR,
 	.driver_features	= DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,

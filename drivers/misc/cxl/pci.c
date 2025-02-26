@@ -1726,6 +1726,8 @@ static int cxl_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int slice;
 	int rc;
 
+	dev_err_once(&dev->dev, "DEPRECATED: cxl is deprecated and will be removed in a future kernel release\n");
+
 	if (cxl_pci_is_vphb_device(dev)) {
 		dev_dbg(&dev->dev, "cxl_init_adapter: Ignoring cxl vphb device\n");
 		return -ENODEV;

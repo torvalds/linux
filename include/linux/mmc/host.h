@@ -590,6 +590,14 @@ static inline struct mmc_host *mmc_from_priv(void *priv)
 	return container_of(priv, struct mmc_host, private);
 }
 
+#ifdef CONFIG_MMC_CRYPTO
+static inline struct mmc_host *
+mmc_from_crypto_profile(struct blk_crypto_profile *profile)
+{
+	return container_of(profile, struct mmc_host, crypto_profile);
+}
+#endif
+
 #define mmc_host_is_spi(host)	((host)->caps & MMC_CAP_SPI)
 
 #define mmc_dev(x)	((x)->parent)

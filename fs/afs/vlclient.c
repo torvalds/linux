@@ -370,6 +370,7 @@ static const struct afs_call_type afs_RXVLGetCapabilities = {
 	.name		= "VL.GetCapabilities",
 	.op		= afs_VL_GetCapabilities,
 	.deliver	= afs_deliver_vl_get_capabilities,
+	.immediate_cancel = afs_vlserver_probe_result,
 	.done		= afs_vlserver_probe_result,
 	.destructor	= afs_destroy_vl_get_capabilities,
 };
@@ -697,7 +698,7 @@ static int afs_deliver_yfsvl_get_cell_name(struct afs_call *call)
 			return ret;
 
 		namesz = ntohl(call->tmp);
-		if (namesz > AFS_MAXCELLNAME)
+		if (namesz > YFS_VL_MAXCELLNAME)
 			return afs_protocol_error(call, afs_eproto_cellname_len);
 		paddedsz = (namesz + 3) & ~3;
 		call->count = namesz;

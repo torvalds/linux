@@ -20,7 +20,7 @@
 
 static int dir_notify_enable __read_mostly = 1;
 #ifdef CONFIG_SYSCTL
-static struct ctl_table dnotify_sysctls[] = {
+static const struct ctl_table dnotify_sysctls[] = {
 	{
 		.procname	= "dir-notify-enable",
 		.data		= &dir_notify_enable,

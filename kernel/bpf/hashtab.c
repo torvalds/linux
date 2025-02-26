@@ -824,13 +824,14 @@ static bool htab_lru_map_delete_node(void *arg, struct bpf_lru_node *node)
 	hlist_nulls_for_each_entry_rcu(l, n, head, hash_node)
 		if (l == tgt_l) {
 			hlist_nulls_del_rcu(&l->hash_node);
-			check_and_free_fields(htab, l);
 			bpf_map_dec_elem_count(&htab->map);
 			break;
 		}
 
 	htab_unlock_bucket(htab, b, tgt_l->hash, flags);
 
+	if (l == tgt_l)
+		check_and_free_fields(htab, l);
 	return l == tgt_l;
 }
 
@@ -897,11 +898,9 @@ static void htab_elem_free(struct bpf_htab *htab, struct htab_elem *l)
 {
 	check_and_free_fields(htab, l);
 
-	migrate_disable();
 	if (htab->map.map_type == BPF_MAP_TYPE_PERCPU_HASH)
 		bpf_mem_cache_free(&htab->pcpu_ma, l->ptr_to_pptr);
 	bpf_mem_cache_free(&htab->ma, l);
-	migrate_enable();
 }
 
 static void htab_put_fd_value(struct bpf_htab *htab, struct htab_elem *l)
@@ -1502,10 +1501,9 @@ static void delete_all_elements(struct bpf_htab *htab)
 {
 	int i;
 
-	/* It's called from a worker thread, so disable migration here,
-	 * since bpf_mem_cache_free() relies on that.
+	/* It's called from a worker thread and migration has been disabled,
+	 * therefore, it is OK to invoke bpf_mem_cache_free() directly.
 	 */
-	migrate_disable();
 	for (i = 0; i < htab->n_buckets; i++) {
 		struct hlist_nulls_head *head = select_bucket(htab, i);
 		struct hlist_nulls_node *n;
@@ -1517,7 +1515,6 @@ static void delete_all_elements(struct bpf_htab *htab)
 		}
 		cond_resched();
 	}
-	migrate_enable();
 }
 
 static void htab_free_malloced_timers_and_wq(struct bpf_htab *htab)
@@ -1638,41 +1635,44 @@ static int __htab_map_lookup_and_delete_elem(struct bpf_map *map, void *key,
 	l = lookup_elem_raw(head, hash, key, key_size);
 	if (!l) {
 		ret = -ENOENT;
-	} else {
-		if (is_percpu) {
-			u32 roundup_value_size = round_up(map->value_size, 8);
-			void __percpu *pptr;
-			int off = 0, cpu;
-
-			pptr = htab_elem_get_ptr(l, key_size);
-			for_each_possible_cpu(cpu) {
-				copy_map_value_long(&htab->map, value + off, per_cpu_ptr(pptr, cpu));
-				check_and_init_map_value(&htab->map, value + off);
-				off += roundup_value_size;
-			}
-		} else {
-			u32 roundup_key_size = round_up(map->key_size, 8);
-
-			if (flags & BPF_F_LOCK)
-				copy_map_value_locked(map, value, l->key +
-						      roundup_key_size,
-						      true);
-			else
-				copy_map_value(map, value, l->key +
-					       roundup_key_size);
-			/* Zeroing special fields in the temp buffer */
-			check_and_init_map_value(map, value);
-		}
-
-		hlist_nulls_del_rcu(&l->hash_node);
-		if (!is_lru_map)
-			free_htab_elem(htab, l);
+		goto out_unlock;
 	}
 
+	if (is_percpu) {
+		u32 roundup_value_size = round_up(map->value_size, 8);
+		void __percpu *pptr;
+		int off = 0, cpu;
+
+		pptr = htab_elem_get_ptr(l, key_size);
+		for_each_possible_cpu(cpu) {
+			copy_map_value_long(&htab->map, value + off, per_cpu_ptr(pptr, cpu));
+			check_and_init_map_value(&htab->map, value + off);
+			off += roundup_value_size;
+		}
+	} else {
+		u32 roundup_key_size = round_up(map->key_size, 8);
+
+		if (flags & BPF_F_LOCK)
+			copy_map_value_locked(map, value, l->key +
+					      roundup_key_size,
+					      true);
+		else
+			copy_map_value(map, value, l->key +
+				       roundup_key_size);
+		/* Zeroing special fields in the temp buffer */
+		check_and_init_map_value(map, value);
+	}
+	hlist_nulls_del_rcu(&l->hash_node);
+
+out_unlock:
 	htab_unlock_bucket(htab, b, hash, bflags);
 
-	if (is_lru_map && l)
-		htab_lru_push_free(htab, l);
+	if (l) {
+		if (is_lru_map)
+			htab_lru_push_free(htab, l);
+		else
+			free_htab_elem(htab, l);
+	}
 
 	return ret;
 }
@@ -2208,17 +2208,18 @@ static long bpf_for_each_hash_elem(struct bpf_map *map, bpf_callback_t callback_
 	bool is_percpu;
 	u64 ret = 0;
 
+	cant_migrate();
+
 	if (flags != 0)
 		return -EINVAL;
 
 	is_percpu = htab_is_percpu(htab);
 
 	roundup_key_size = round_up(map->key_size, 8);
-	/* disable migration so percpu value prepared here will be the
-	 * same as the one seen by the bpf program with bpf_map_lookup_elem().
+	/* migration has been disabled, so percpu value prepared here will be
+	 * the same as the one seen by the bpf program with
+	 * bpf_map_lookup_elem().
 	 */
-	if (is_percpu)
-		migrate_disable();
 	for (i = 0; i < htab->n_buckets; i++) {
 		b = &htab->buckets[i];
 		rcu_read_lock();
@@ -2244,8 +2245,6 @@ static long bpf_for_each_hash_elem(struct bpf_map *map, bpf_callback_t callback_
 		rcu_read_unlock();
 	}
 out:
-	if (is_percpu)
-		migrate_enable();
 	return num_elems;
 }
 

@@ -299,6 +299,9 @@ struct target_type {
 #define dm_target_supports_mixed_zoned_model(type) (false)
 #endif
 
+#define DM_TARGET_ATOMIC_WRITES		0x00000400
+#define dm_target_supports_atomic_writes(type) ((type)->features & DM_TARGET_ATOMIC_WRITES)
+
 struct dm_target {
 	struct dm_table *table;
 	struct target_type *type;

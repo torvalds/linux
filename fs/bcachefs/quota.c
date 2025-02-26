@@ -60,7 +60,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_quota = {
 };
 
 int bch2_quota_validate(struct bch_fs *c, struct bkey_s_c k,
-			enum bch_validate_flags flags)
+			struct bkey_validate_context from)
 {
 	int ret = 0;
 

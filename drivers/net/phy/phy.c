@@ -616,6 +616,49 @@ int phy_ethtool_get_stats(struct phy_device *phydev,
 EXPORT_SYMBOL(phy_ethtool_get_stats);
 
 /**
+ * __phy_ethtool_get_phy_stats - Retrieve standardized PHY statistics
+ * @phydev: Pointer to the PHY device
+ * @phy_stats: Pointer to ethtool_eth_phy_stats structure
+ * @phydev_stats: Pointer to ethtool_phy_stats structure
+ *
+ * Fetches PHY statistics using a kernel-defined interface for consistent
+ * diagnostics. Unlike phy_ethtool_get_stats(), which allows custom stats,
+ * this function enforces a standardized format for better interoperability.
+ */
+void __phy_ethtool_get_phy_stats(struct phy_device *phydev,
+				 struct ethtool_eth_phy_stats *phy_stats,
+				 struct ethtool_phy_stats *phydev_stats)
+{
+	if (!phydev->drv || !phydev->drv->get_phy_stats)
+		return;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_phy_stats(phydev, phy_stats, phydev_stats);
+	mutex_unlock(&phydev->lock);
+}
+
+/**
+ * __phy_ethtool_get_link_ext_stats - Retrieve extended link statistics for a PHY
+ * @phydev: Pointer to the PHY device
+ * @link_stats: Pointer to the structure to store extended link statistics
+ *
+ * Populates the ethtool_link_ext_stats structure with link down event counts
+ * and additional driver-specific link statistics, if available.
+ */
+void __phy_ethtool_get_link_ext_stats(struct phy_device *phydev,
+				      struct ethtool_link_ext_stats *link_stats)
+{
+	link_stats->link_down_events = READ_ONCE(phydev->link_down_events);
+
+	if (!phydev->drv || !phydev->drv->get_link_stats)
+		return;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_link_stats(phydev, link_stats);
+	mutex_unlock(&phydev->lock);
+}
+
+/**
  * phy_ethtool_get_plca_cfg - Get PLCA RS configuration
  * @phydev: the phy_device struct
  * @plca_cfg: where to store the retrieved configuration
@@ -988,8 +1031,7 @@ static int phy_check_link_status(struct phy_device *phydev)
 	if (phydev->link && phydev->state != PHY_RUNNING) {
 		phy_check_downshift(phydev);
 		phydev->state = PHY_RUNNING;
-		err = genphy_c45_eee_is_active(phydev,
-					       NULL, NULL, NULL);
+		err = genphy_c45_eee_is_active(phydev, NULL, NULL);
 		phydev->eee_active = err > 0;
 		phydev->enable_tx_lpi = phydev->eee_cfg.tx_lpi_enabled &&
 					phydev->eee_active;
@@ -1004,6 +1046,59 @@ static int phy_check_link_status(struct phy_device *phydev)
 
 	return 0;
 }
+
+/**
+ * phy_inband_caps - query which in-band signalling modes are supported
+ * @phydev: a pointer to a &struct phy_device
+ * @interface: the interface mode for the PHY
+ *
+ * Returns zero if it is unknown what in-band signalling is supported by the
+ * PHY (e.g. because the PHY driver doesn't implement the method.) Otherwise,
+ * returns a bit mask of the LINK_INBAND_* values from
+ * &enum link_inband_signalling to describe which inband modes are supported
+ * by the PHY for this interface mode.
+ */
+unsigned int phy_inband_caps(struct phy_device *phydev,
+			     phy_interface_t interface)
+{
+	if (phydev->drv && phydev->drv->inband_caps)
+		return phydev->drv->inband_caps(phydev, interface);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(phy_inband_caps);
+
+/**
+ * phy_config_inband - configure the desired PHY in-band mode
+ * @phydev: the phy_device struct
+ * @modes: in-band modes to configure
+ *
+ * Description: disables, enables or enables-with-bypass in-band signalling
+ *   between the PHY and host system.
+ *
+ * Returns: zero on success, or negative errno value.
+ */
+int phy_config_inband(struct phy_device *phydev, unsigned int modes)
+{
+	int err;
+
+	if (!!(modes & LINK_INBAND_DISABLE) +
+	    !!(modes & LINK_INBAND_ENABLE) +
+	    !!(modes & LINK_INBAND_BYPASS) != 1)
+		return -EINVAL;
+
+	mutex_lock(&phydev->lock);
+	if (!phydev->drv)
+		err = -EIO;
+	else if (!phydev->drv->config_inband)
+		err = -EOPNOTSUPP;
+	else
+		err = phydev->drv->config_inband(phydev, modes);
+	mutex_unlock(&phydev->lock);
+
+	return err;
+}
+EXPORT_SYMBOL(phy_config_inband);
 
 /**
  * _phy_start_aneg - start auto-negotiation for this PHY device
@@ -1347,6 +1442,23 @@ static int phy_enable_interrupts(struct phy_device *phydev)
 }
 
 /**
+ * phy_update_stats - Update PHY device statistics if supported.
+ * @phydev: Pointer to the PHY device structure.
+ *
+ * If the PHY driver provides an update_stats callback, this function
+ * invokes it to update the PHY statistics. If not, it returns 0.
+ *
+ * Return: 0 on success, or a negative error code if the callback fails.
+ */
+static int phy_update_stats(struct phy_device *phydev)
+{
+	if (!phydev->drv->update_stats)
+		return 0;
+
+	return phydev->drv->update_stats(phydev);
+}
+
+/**
  * phy_request_interrupt - request and enable interrupt for a PHY device
  * @phydev: target phy_device struct
  *
@@ -1415,6 +1527,9 @@ static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
 	case PHY_RUNNING:
 		err = phy_check_link_status(phydev);
 		func = &phy_check_link_status;
+
+		if (!err)
+			err = phy_update_stats(phydev);
 		break;
 	case PHY_CABLETEST:
 		err = phydev->drv->cable_test_get_status(phydev, &finished);
@@ -1589,6 +1704,47 @@ void phy_mac_interrupt(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_mac_interrupt);
 
 /**
+ * phy_eee_tx_clock_stop_capable() - indicate whether the MAC can stop tx clock
+ * @phydev: target phy_device struct
+ *
+ * Indicate whether the MAC can disable the transmit xMII clock while in LPI
+ * state. Returns 1 if the MAC may stop the transmit clock, 0 if the MAC must
+ * not stop the transmit clock, or negative error.
+ */
+int phy_eee_tx_clock_stop_capable(struct phy_device *phydev)
+{
+	int stat1;
+
+	stat1 = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_STAT1);
+	if (stat1 < 0)
+		return stat1;
+
+	return !!(stat1 & MDIO_PCS_STAT1_CLKSTOP_CAP);
+}
+EXPORT_SYMBOL_GPL(phy_eee_tx_clock_stop_capable);
+
+/**
+ * phy_eee_rx_clock_stop() - configure PHY receive clock in LPI
+ * @phydev: target phy_device struct
+ * @clk_stop_enable: flag to indicate whether the clock can be stopped
+ *
+ * Configure whether the PHY can disable its receive clock during LPI mode,
+ * See IEEE 802.3 sections 22.2.2.2, 35.2.2.10, and 45.2.3.1.4.
+ *
+ * Returns: 0 or negative error.
+ */
+int phy_eee_rx_clock_stop(struct phy_device *phydev, bool clk_stop_enable)
+{
+	/* Configure the PHY to stop receiving xMII
+	 * clock while it is signaling LPI.
+	 */
+	return phy_modify_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
+			      MDIO_PCS_CTRL1_CLKSTOP_EN,
+			      clk_stop_enable ? MDIO_PCS_CTRL1_CLKSTOP_EN : 0);
+}
+EXPORT_SYMBOL_GPL(phy_eee_rx_clock_stop);
+
+/**
  * phy_init_eee - init and check the EEE feature
  * @phydev: target phy_device struct
  * @clk_stop_enable: PHY may stop the clock during LPI
@@ -1605,18 +1761,14 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable)
 	if (!phydev->drv)
 		return -EIO;
 
-	ret = genphy_c45_eee_is_active(phydev, NULL, NULL, NULL);
+	ret = genphy_c45_eee_is_active(phydev, NULL, NULL);
 	if (ret < 0)
 		return ret;
 	if (!ret)
 		return -EPROTONOSUPPORT;
 
 	if (clk_stop_enable)
-		/* Configure the PHY to stop receiving xMII
-		 * clock while it is signaling LPI.
-		 */
-		ret = phy_set_bits_mmd(phydev, MDIO_MMD_PCS, MDIO_CTRL1,
-				       MDIO_PCS_CTRL1_CLKSTOP_EN);
+		ret = phy_eee_rx_clock_stop(phydev, true);
 
 	return ret < 0 ? ret : 0;
 }
@@ -1649,8 +1801,8 @@ EXPORT_SYMBOL(phy_get_eee_err);
  * @phydev: target phy_device struct
  * @data: ethtool_keee data
  *
- * Description: reports the Supported/Advertisement/LP Advertisement
- * capabilities, etc.
+ * Description: get the current EEE settings, filling in all members of
+ * @data.
  */
 int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_keee *data)
 {

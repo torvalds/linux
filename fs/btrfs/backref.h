@@ -318,6 +318,12 @@ struct btrfs_backref_node {
 		u64 bytenr;
 	}; /* Use rb_simple_node for search/insert */
 
+	/*
+	 * This is a sanity check, whenever we COW a block we will update
+	 * new_bytenr with it's current location, and we will check this in
+	 * various places to validate that the cache makes sense, it shouldn't
+	 * be used for anything else.
+	 */
 	u64 new_bytenr;
 	/* Objectid of tree block owner, can be not uptodate */
 	u64 owner;
@@ -335,10 +341,6 @@ struct btrfs_backref_node {
 	struct extent_buffer *eb;
 	/* Level of the tree block */
 	unsigned int level:8;
-	/* Is the block in a non-shareable tree */
-	unsigned int cowonly:1;
-	/* 1 if no child node is in the cache */
-	unsigned int lowest:1;
 	/* Is the extent buffer locked */
 	unsigned int locked:1;
 	/* Has the block been processed */
@@ -391,12 +393,6 @@ struct btrfs_backref_cache {
 	 * level blocks may not reflect the new location
 	 */
 	struct list_head pending[BTRFS_MAX_LEVEL];
-	/* List of backref nodes with no child node */
-	struct list_head leaves;
-	/* List of blocks that have been COWed in current transaction */
-	struct list_head changed;
-	/* List of detached backref node. */
-	struct list_head detached;
 
 	u64 last_trans;
 

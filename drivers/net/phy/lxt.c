@@ -348,7 +348,7 @@ static struct phy_driver lxt97x_driver[] = {
 
 module_phy_driver(lxt97x_driver);
 
-static struct mdio_device_id __maybe_unused lxt_tbl[] = {
+static const struct mdio_device_id __maybe_unused lxt_tbl[] = {
 	{ 0x78100000, 0xfffffff0 },
 	{ 0x001378e0, 0xfffffff0 },
 	{ 0x00137a10, 0xfffffff0 },

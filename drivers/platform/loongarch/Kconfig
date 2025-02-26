@@ -18,7 +18,7 @@ if LOONGARCH_PLATFORM_DEVICES
 
 config LOONGSON_LAPTOP
 	tristate "Generic Loongson-3 Laptop Driver"
-	depends on ACPI
+	depends on ACPI_EC
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on INPUT
 	depends on MACH_LOONGSON64

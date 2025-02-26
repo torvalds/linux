@@ -420,7 +420,7 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	if (ret & WM831X_RTC_ALM_ENA)
 		wm831x_rtc->alarm_enabled = 1;
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	wm831x_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(wm831x_rtc->rtc))

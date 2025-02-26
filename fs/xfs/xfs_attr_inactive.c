@@ -305,11 +305,6 @@ xfs_attr3_root_inactive(
 			XFS_FSB_TO_BB(mp, mp->m_attr_geo->fsbcount), 0, &bp);
 	if (error)
 		return error;
-	error = bp->b_error;
-	if (error) {
-		xfs_trans_brelse(*trans, bp);
-		return error;
-	}
 	xfs_trans_binval(*trans, bp);	/* remove from cache */
 	/*
 	 * Commit the invalidate and start the next transaction.

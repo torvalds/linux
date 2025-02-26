@@ -2,7 +2,7 @@
 /*
  * Rockchip SoC DP (Display Port) interface driver.
  *
- * Copyright (C) Fuzhou Rockchip Electronics Co., Ltd.
+ * Copyright (C) Rockchip Electronics Co., Ltd.
  * Author: Andy Yan <andy.yan@rock-chips.com>
  *         Yakir Yang <ykk@rock-chips.com>
  *         Jeff Chen <jeff.chen@rock-chips.com>
@@ -386,7 +386,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, NULL);
-	if (ret < 0)
+	if (ret < 0 && ret != -ENODEV)
 		return ret;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);

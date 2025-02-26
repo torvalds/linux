@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Advanced Micro Devices, Inc.
+ * Copyright 2016-2024 Advanced Micro Devices, Inc. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -163,19 +163,29 @@
 #define SOC24_DPG_MODE_OFFSET(ip, inst_idx, reg)						\
 	({											\
 		uint32_t internal_reg_offset, addr;						\
-		bool video_range, aon_range;				\
+		bool video_range, video1_range, aon_range, aon1_range;				\
 												\
 		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
 		addr <<= 2;									\
 		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS)) &&			\
 				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS + 0x2600)))));	\
+		video1_range = ((((0xFFFFF & addr) >= (VCN1_VID_SOC_ADDRESS)) &&		\
+				((0xFFFFF & addr) < ((VCN1_VID_SOC_ADDRESS + 0x2600)))));	\
 		aon_range   = ((((0xFFFFF & addr) >= (VCN_AON_SOC_ADDRESS)) &&			\
 				((0xFFFFF & addr) < ((VCN_AON_SOC_ADDRESS + 0x600)))));		\
+		aon1_range   = ((((0xFFFFF & addr) >= (VCN1_AON_SOC_ADDRESS)) &&		\
+				((0xFFFFF & addr) < ((VCN1_AON_SOC_ADDRESS + 0x600)))));	\
 		if (video_range)								\
 			internal_reg_offset = ((0xFFFFF & addr) - (VCN_VID_SOC_ADDRESS) +	\
 				(VCN_VID_IP_ADDRESS));						\
 		else if (aon_range)								\
 			internal_reg_offset = ((0xFFFFF & addr) - (VCN_AON_SOC_ADDRESS) +	\
+				(VCN_AON_IP_ADDRESS));						\
+		else if (video1_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN1_VID_SOC_ADDRESS) +	\
+				(VCN_VID_IP_ADDRESS));						\
+		else if (aon1_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN1_AON_SOC_ADDRESS) +	\
 				(VCN_AON_IP_ADDRESS));						\
 		else										\
 			internal_reg_offset = (0xFFFFF & addr);					\
@@ -297,6 +307,9 @@ struct amdgpu_vcn_inst {
 	atomic_t		dpg_enc_submission_cnt;
 	struct amdgpu_vcn_fw_shared fw_shared;
 	uint8_t			aid_id;
+	const struct firmware	*fw; /* VCN firmware */
+	uint8_t			vcn_config;
+	uint32_t		vcn_codec_disable_mask;
 };
 
 struct amdgpu_vcn_ras {
@@ -306,15 +319,12 @@ struct amdgpu_vcn_ras {
 struct amdgpu_vcn {
 	unsigned		fw_version;
 	struct delayed_work	idle_work;
-	const struct firmware	*fw[AMDGPU_MAX_VCN_INSTANCES];	/* VCN firmware */
 	unsigned		num_enc_rings;
 	enum amd_powergating_state cur_state;
 	bool			indirect_sram;
 
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
-	uint8_t			 vcn_config[AMDGPU_MAX_VCN_INSTANCES];
-	uint32_t		 vcn_codec_disable_mask[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
 	struct mutex		 vcn_pg_lock;
 	struct mutex		vcn1_jpeg1_workaround;
@@ -523,5 +533,6 @@ int amdgpu_vcn_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
 int amdgpu_vcn_save_vcpu_bo(struct amdgpu_device *adev);
 int amdgpu_vcn_sysfs_reset_mask_init(struct amdgpu_device *adev);
 void amdgpu_vcn_sysfs_reset_mask_fini(struct amdgpu_device *adev);
+void amdgpu_debugfs_vcn_sched_mask_init(struct amdgpu_device *adev);
 
 #endif

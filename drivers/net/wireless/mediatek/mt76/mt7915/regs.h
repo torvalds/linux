@@ -66,6 +66,7 @@ enum offs_rev {
 	AGG_ACR0,
 	AGG_ACR4,
 	AGG_MRCR,
+	AGG_ATCR0,
 	AGG_ATCR1,
 	AGG_ATCR3,
 	LPON_UTTR0,
@@ -253,6 +254,9 @@ enum offs_rev {
 #define MT_WTBLOFF_TOP_RSCR(_band)	MT_WTBLOFF_TOP(_band, 0x008)
 #define MT_WTBLOFF_TOP_RSCR_RCPI_MODE	GENMASK(31, 30)
 #define MT_WTBLOFF_TOP_RSCR_RCPI_PARAM	GENMASK(25, 24)
+
+#define MT_WTBLOFF_TOP_ACR(_band)	MT_WTBLOFF_TOP(_band, 0x010)
+#define MT_WTBLOFF_TOP_ADM_BACKOFFTIME	BIT(29)
 
 /* ETBF: band 0(0x820ea000), band 1(0x820fa000) */
 #define MT_WF_ETBF_BASE(_band)		((_band) ? 0x820fa000 : 0x820ea000)
@@ -504,6 +508,9 @@ enum offs_rev {
 #define MT_AGG_MRCR_LAST_RTS_CTS_RN		BIT(6)
 #define MT_AGG_MRCR_RTS_FAIL_LIMIT		GENMASK(11, 7)
 #define MT_AGG_MRCR_TXCMD_RTS_FAIL_LIMIT	GENMASK(28, 24)
+
+#define MT_AGG_ATCR0(_band)			MT_WF_AGG(_band, __OFFS(AGG_ATCR0))
+#define MT_AGG_ATCR_MAC_BFF_TIME_EN	BIT(30)
 
 #define MT_AGG_ATCR1(_band)		MT_WF_AGG(_band, __OFFS(AGG_ATCR1))
 #define MT_AGG_ATCR3(_band)		MT_WF_AGG(_band, __OFFS(AGG_ATCR3))

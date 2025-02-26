@@ -1702,7 +1702,7 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 
 	/* The STATUS_FW_ERROR bit is set in this function. This must happen
 	 * before we wake up the command caller, to ensure a proper cleanup. */
-	iwl_trans_fw_error(trans, false);
+	iwl_trans_fw_error(trans, IWL_ERR_TYPE_IRQ);
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans->wait_command_queue);
@@ -2297,7 +2297,9 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_TOP_FATAL_ERR) {
 		IWL_ERR(trans, "TOP Fatal error detected, inta_hw=0x%x.\n",
 			inta_hw);
-		/* TODO: PLDR flow required here for >= Bz */
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+			iwl_trans_pcie_reset(trans,
+					     IWL_RESET_MODE_PROD_RESET);
 	}
 
 	/* Error detected by uCode */

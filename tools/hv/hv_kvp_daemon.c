@@ -725,7 +725,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 	 * .
 	 */
 
-	sprintf(cmd, KVP_SCRIPTS_PATH "%s",  "hv_get_dns_info");
+	sprintf(cmd, "exec %s %s", KVP_SCRIPTS_PATH "hv_get_dns_info", if_name);
 
 	/*
 	 * Execute the command to gather DNS info.
@@ -742,7 +742,7 @@ static void kvp_get_ipconfig_info(char *if_name,
 	 * Enabled: DHCP enabled.
 	 */
 
-	sprintf(cmd, KVP_SCRIPTS_PATH "%s %s", "hv_get_dhcp_info", if_name);
+	sprintf(cmd, "exec %s %s", KVP_SCRIPTS_PATH "hv_get_dhcp_info", if_name);
 
 	file = popen(cmd, "r");
 	if (file == NULL)
@@ -1606,8 +1606,9 @@ static int kvp_set_ip_info(char *if_name, struct hv_kvp_ipaddr_value *new_val)
 	 * invoke the external script to do its magic.
 	 */
 
-	str_len = snprintf(cmd, sizeof(cmd), KVP_SCRIPTS_PATH "%s %s %s",
-			   "hv_set_ifconfig", if_filename, nm_filename);
+	str_len = snprintf(cmd, sizeof(cmd), "exec %s %s %s",
+			   KVP_SCRIPTS_PATH "hv_set_ifconfig",
+			   if_filename, nm_filename);
 	/*
 	 * This is a little overcautious, but it's necessary to suppress some
 	 * false warnings from gcc 8.0.1.

@@ -114,10 +114,10 @@ found:
 	if (conn->state == RXRPC_CONN_CLIENT_UNSECURED) {
 		ret = conn->security->init_connection_security(conn, token);
 		if (ret == 0) {
-			spin_lock(&conn->state_lock);
+			spin_lock_irq(&conn->state_lock);
 			if (conn->state == RXRPC_CONN_CLIENT_UNSECURED)
 				conn->state = RXRPC_CONN_CLIENT;
-			spin_unlock(&conn->state_lock);
+			spin_unlock_irq(&conn->state_lock);
 		}
 	}
 	mutex_unlock(&conn->security_lock);

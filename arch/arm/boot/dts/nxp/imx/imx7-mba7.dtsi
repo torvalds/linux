@@ -87,34 +87,6 @@
 			      <&adc2 0>, <&adc2 1>, <&adc2 2>, <&adc2 3>;
 	};
 
-	reg_sd1_vmmc: regulator-sd1-vmmc {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC3V3_SD1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-	};
-
-	reg_fec1_pwdn: regulator-fec1-pwdn {
-		compatible = "regulator-fixed";
-		regulator-name = "PWDN_FEC1";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
-	reg_fec2_pwdn: regulator-fec2-pwdn {
-		compatible = "regulator-fixed";
-		regulator-name = "PWDN_FEC2";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
-		gpio = <&gpio2 31 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-
 	reg_usb_otg1_vbus: regulator-usb-otg1-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "VBUS_USBOTG1";
@@ -141,6 +113,7 @@
 		gpio = <&pca9555 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+		vin-supply = <&reg_mba_5v>;
 	};
 
 	reg_mpcie_3v3: regulator-mpcie-3v3 {
@@ -151,6 +124,7 @@
 		gpio = <&pca9555 10 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
+		vin-supply = <&reg_mba_3v3>;
 	};
 
 	reg_mba_12v0: regulator-mba-12v0 {
@@ -162,13 +136,18 @@
 		enable-active-high;
 	};
 
-	reg_lvds_transmitter: regulator-lvds-transmitter {
+	reg_mba_5v: regulator-mba-5v {
 		compatible = "regulator-fixed";
-		regulator-name = "#SHTDN_LVDS";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
+	reg_mba_3v3: regulator-mba-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&pca9555 1 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
 	};
 
 	reg_vref_1v8: regulator-vref-1v8 {
@@ -186,14 +165,7 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
-	};
-
-	reg_vcc_3v3: regulator-vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VCC3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
+		vin-supply = <&reg_mba_3v3>;
 	};
 
 	sound {
@@ -239,7 +211,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet1>;
 	phy-mode = "rgmii-id";
-	phy-supply = <&reg_fec1_pwdn>;
 	phy-handle = <&ethphy1_0>;
 	fsl,magic-packet;
 	status = "okay";
@@ -260,6 +231,8 @@
 			reset-gpios = <&gpio7 15 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <1000>;
 			reset-deassert-us = <500>;
+			interrupt-parent = <&gpio1>;
+			interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
 		};
 	};
 };
@@ -318,7 +291,7 @@
 	lm75: temperature-sensor@49 {
 		compatible = "national,lm75a";
 		reg = <0x49>;
-		vs-supply = <&reg_vcc_3v3>;
+		vs-supply = <&reg_mba_3v3>;
 	};
 };
 
@@ -351,7 +324,7 @@
 		interrupts = <12 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-		vcc-supply = <&reg_vcc_3v3>;
+		vcc-supply = <&reg_mba_3v3>;
 	};
 };
 
@@ -668,7 +641,7 @@
 	pinctrl-2 = <&pinctrl_usdhc1_200mhz>, <&pinctrl_usdhc1_gpio>;
 	cd-gpios = <&gpio5 0 GPIO_ACTIVE_LOW>;
 	wp-gpios = <&gpio5 1 GPIO_ACTIVE_HIGH>;
-	vmmc-supply = <&reg_sd1_vmmc>;
+	vmmc-supply = <&reg_mba_3v3>;
 	bus-width = <4>;
 	no-1-8-v;
 	no-sdio;

@@ -2,6 +2,7 @@
 #include "bcachefs.h"
 #include "checksum.h"
 #include "errcode.h"
+#include "error.h"
 #include "super.h"
 #include "super-io.h"
 
@@ -252,6 +253,10 @@ int bch2_encrypt(struct bch_fs *c, unsigned type,
 	if (!bch2_csum_type_is_encryption(type))
 		return 0;
 
+	if (bch2_fs_inconsistent_on(!c->chacha20,
+				    c, "attempting to encrypt without encryption key"))
+		return -BCH_ERR_no_encryption_key;
+
 	return do_encrypt(c->chacha20, nonce, data, len);
 }
 
@@ -337,8 +342,9 @@ int __bch2_encrypt_bio(struct bch_fs *c, unsigned type,
 	size_t sgl_len = 0;
 	int ret = 0;
 
-	if (!bch2_csum_type_is_encryption(type))
-		return 0;
+	if (bch2_fs_inconsistent_on(!c->chacha20,
+				    c, "attempting to encrypt without encryption key"))
+		return -BCH_ERR_no_encryption_key;
 
 	darray_init(&sgl);
 

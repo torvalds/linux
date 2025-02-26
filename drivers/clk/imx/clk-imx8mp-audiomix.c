@@ -278,7 +278,8 @@ static int clk_imx8mp_audiomix_reset_controller_register(struct device *dev,
 
 #else /* !CONFIG_RESET_CONTROLLER */
 
-static int clk_imx8mp_audiomix_reset_controller_register(struct clk_imx8mp_audiomix_priv *priv)
+static int clk_imx8mp_audiomix_reset_controller_register(struct device *dev,
+							 struct clk_imx8mp_audiomix_priv *priv)
 {
 	return 0;
 }

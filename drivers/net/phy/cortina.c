@@ -87,7 +87,7 @@ static struct phy_driver cortina_driver[] = {
 
 module_phy_driver(cortina_driver);
 
-static struct mdio_device_id __maybe_unused cortina_tbl[] = {
+static const struct mdio_device_id __maybe_unused cortina_tbl[] = {
 	{ PHY_ID_CS4340, 0xffffffff},
 	{},
 };

@@ -18,12 +18,6 @@ description: |
     include/dt-bindings/clock/qcom,lpassaudiocc-sc7280.h
 
 properties:
-  clocks: true
-
-  clock-names: true
-
-  reg: true
-
   compatible:
     enum:
       - qcom,sc7280-lpassaoncc
@@ -31,11 +25,23 @@ properties:
       - qcom,sc7280-lpasscorecc
       - qcom,sc7280-lpasshm
 
-  power-domains:
-    maxItems: 1
+  reg:
+    minItems: 1
+    maxItems: 2
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  clock-names:
+    minItems: 1
+    maxItems: 3
 
   '#clock-cells':
     const: 1
+
+  power-domains:
+    maxItems: 1
 
   '#power-domain-cells':
     const: 1
@@ -56,8 +62,6 @@ required:
   - clock-names
   - '#clock-cells'
   - '#power-domain-cells'
-
-additionalProperties: false
 
 allOf:
   - if:
@@ -125,6 +129,9 @@ allOf:
 
         reg:
           maxItems: 1
+
+additionalProperties: false
+
 examples:
   - |
     #include <dt-bindings/clock/qcom,rpmh.h>

@@ -11,7 +11,6 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/cipher.h>
 #include <crypto/skcipher.h>
-#include <linux/list.h>
 #include <linux/types.h>
 
 /*
@@ -58,12 +57,6 @@ struct crypto_lskcipher_spawn {
 struct skcipher_walk {
 	union {
 		struct {
-			struct page *page;
-			unsigned long offset;
-		} phys;
-
-		struct {
-			u8 *page;
 			void *addr;
 		} virt;
 	} src, dst;
@@ -73,8 +66,6 @@ struct skcipher_walk {
 
 	struct scatter_walk out;
 	unsigned int total;
-
-	struct list_head buffers;
 
 	u8 *page;
 	u8 *buffer;
@@ -205,17 +196,14 @@ void crypto_unregister_lskciphers(struct lskcipher_alg *algs, int count);
 int lskcipher_register_instance(struct crypto_template *tmpl,
 				struct lskcipher_instance *inst);
 
-int skcipher_walk_done(struct skcipher_walk *walk, int err);
+int skcipher_walk_done(struct skcipher_walk *walk, int res);
 int skcipher_walk_virt(struct skcipher_walk *walk,
 		       struct skcipher_request *req,
 		       bool atomic);
-int skcipher_walk_async(struct skcipher_walk *walk,
-			struct skcipher_request *req);
 int skcipher_walk_aead_encrypt(struct skcipher_walk *walk,
 			       struct aead_request *req, bool atomic);
 int skcipher_walk_aead_decrypt(struct skcipher_walk *walk,
 			       struct aead_request *req, bool atomic);
-void skcipher_walk_complete(struct skcipher_walk *walk, int err);
 
 static inline void skcipher_walk_abort(struct skcipher_walk *walk)
 {

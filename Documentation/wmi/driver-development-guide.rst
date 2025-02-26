@@ -41,6 +41,10 @@ helps in understanding how the WMI device is supposed to work. The path of the A
 method associated with a given WMI device can be retrieved using the ``lswmi`` utility
 as mentioned above.
 
+If you are attempting to port a driver to Linux and are working on a Windows
+system, `WMIExplorer <https://github.com/vinaypamnani/wmie2>`_ can be useful
+for inspecting available WMI methods and invoking them directly.
+
 Basic WMI driver structure
 --------------------------
 

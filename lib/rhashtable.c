@@ -584,10 +584,6 @@ static struct bucket_table *rhashtable_insert_one(
 	 */
 	rht_assign_locked(bkt, obj);
 
-	atomic_inc(&ht->nelems);
-	if (rht_grow_above_75(ht, tbl))
-		schedule_work(&ht->run_work);
-
 	return NULL;
 }
 
@@ -615,15 +611,23 @@ static void *rhashtable_try_insert(struct rhashtable *ht, const void *key,
 			new_tbl = rht_dereference_rcu(tbl->future_tbl, ht);
 			data = ERR_PTR(-EAGAIN);
 		} else {
+			bool inserted;
+
 			flags = rht_lock(tbl, bkt);
 			data = rhashtable_lookup_one(ht, bkt, tbl,
 						     hash, key, obj);
 			new_tbl = rhashtable_insert_one(ht, bkt, tbl,
 							hash, obj, data);
+			inserted = data && !new_tbl;
+			if (inserted)
+				atomic_inc(&ht->nelems);
 			if (PTR_ERR(new_tbl) != -EEXIST)
 				data = ERR_CAST(new_tbl);
 
 			rht_unlock(tbl, bkt, flags);
+
+			if (inserted && rht_grow_above_75(ht, tbl))
+				schedule_work(&ht->run_work);
 		}
 	} while (!IS_ERR_OR_NULL(new_tbl));
 
@@ -665,7 +669,7 @@ EXPORT_SYMBOL_GPL(rhashtable_insert_slow);
  * structure outside the hash table.
  *
  * This function may be called from any process context, including
- * non-preemptable context, but cannot be called from softirq or
+ * non-preemptible context, but cannot be called from softirq or
  * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.

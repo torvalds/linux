@@ -12,6 +12,29 @@
 #define NXP_ENETC_VENDOR_ID		0x1131
 #define NXP_ENETC_PF_DEV_ID		0xe101
 
+/**********************Station interface registers************************/
+/* Station interface LSO segmentation flag mask register 0/1 */
+#define ENETC4_SILSOSFMR0		0x1300
+#define  SILSOSFMR0_TCP_MID_SEG		GENMASK(27, 16)
+#define  SILSOSFMR0_TCP_1ST_SEG		GENMASK(11, 0)
+#define  SILSOSFMR0_VAL_SET(first, mid)	(FIELD_PREP(SILSOSFMR0_TCP_MID_SEG, mid) | \
+					 FIELD_PREP(SILSOSFMR0_TCP_1ST_SEG, first))
+
+#define ENETC4_SILSOSFMR1		0x1304
+#define  SILSOSFMR1_TCP_LAST_SEG	GENMASK(11, 0)
+#define   ENETC4_TCP_FLAGS_FIN		BIT(0)
+#define   ENETC4_TCP_FLAGS_SYN		BIT(1)
+#define   ENETC4_TCP_FLAGS_RST		BIT(2)
+#define   ENETC4_TCP_FLAGS_PSH		BIT(3)
+#define   ENETC4_TCP_FLAGS_ACK		BIT(4)
+#define   ENETC4_TCP_FLAGS_URG		BIT(5)
+#define   ENETC4_TCP_FLAGS_ECE		BIT(6)
+#define   ENETC4_TCP_FLAGS_CWR		BIT(7)
+#define   ENETC4_TCP_FLAGS_NS		BIT(8)
+/* According to tso_build_hdr(), clear all special flags for not last packet. */
+#define ENETC4_TCP_NL_SEG_FLAGS_DMASK	(ENETC4_TCP_FLAGS_FIN | \
+					 ENETC4_TCP_FLAGS_RST | ENETC4_TCP_FLAGS_PSH)
+
 /***************************ENETC port registers**************************/
 #define ENETC4_ECAPR0			0x0
 #define  ECAPR0_RFS			BIT(2)

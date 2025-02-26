@@ -129,27 +129,18 @@ static void hws_rule_gen_comp(struct mlx5hws_send_engine *queue,
 
 static void
 hws_rule_save_resize_info(struct mlx5hws_rule *rule,
-			  struct mlx5hws_send_ste_attr *ste_attr,
-			  bool is_update)
+			  struct mlx5hws_send_ste_attr *ste_attr)
 {
 	if (!mlx5hws_matcher_is_resizable(rule->matcher))
 		return;
 
-	if (likely(!is_update)) {
+	/* resize_info might already exist (if we're in update flow) */
+	if (likely(!rule->resize_info)) {
 		rule->resize_info = kzalloc(sizeof(*rule->resize_info), GFP_KERNEL);
 		if (unlikely(!rule->resize_info)) {
 			pr_warn("HWS: resize info isn't allocated for rule\n");
 			return;
 		}
-
-		rule->resize_info->max_stes =
-			rule->matcher->action_ste[MLX5HWS_ACTION_STE_IDX_ANY].max_stes;
-		rule->resize_info->action_ste_pool[0] = rule->matcher->action_ste[0].max_stes ?
-							rule->matcher->action_ste[0].pool :
-							NULL;
-		rule->resize_info->action_ste_pool[1] = rule->matcher->action_ste[1].max_stes ?
-							rule->matcher->action_ste[1].pool :
-							NULL;
 	}
 
 	memcpy(rule->resize_info->ctrl_seg, ste_attr->wqe_ctrl,
@@ -204,15 +195,14 @@ hws_rule_load_delete_info(struct mlx5hws_rule *rule,
 	}
 }
 
-static int hws_rule_alloc_action_ste_idx(struct mlx5hws_rule *rule,
-					 u8 action_ste_selector)
+static int hws_rule_alloc_action_ste(struct mlx5hws_rule *rule)
 {
 	struct mlx5hws_matcher *matcher = rule->matcher;
 	struct mlx5hws_matcher_action_ste *action_ste;
 	struct mlx5hws_pool_chunk ste = {0};
 	int ret;
 
-	action_ste = &matcher->action_ste[action_ste_selector];
+	action_ste = &matcher->action_ste;
 	ste.order = ilog2(roundup_pow_of_two(action_ste->max_stes));
 	ret = mlx5hws_pool_chunk_alloc(action_ste->pool, &ste);
 	if (unlikely(ret)) {
@@ -220,68 +210,29 @@ static int hws_rule_alloc_action_ste_idx(struct mlx5hws_rule *rule,
 			    "Failed to allocate STE for rule actions");
 		return ret;
 	}
-	rule->action_ste_idx = ste.offset;
+
+	rule->action_ste.pool = matcher->action_ste.pool;
+	rule->action_ste.num_stes = matcher->action_ste.max_stes;
+	rule->action_ste.index = ste.offset;
 
 	return 0;
 }
 
-static void hws_rule_free_action_ste_idx(struct mlx5hws_rule *rule,
-					 u8 action_ste_selector)
+void mlx5hws_rule_free_action_ste(struct mlx5hws_rule_action_ste_info *action_ste)
 {
-	struct mlx5hws_matcher *matcher = rule->matcher;
 	struct mlx5hws_pool_chunk ste = {0};
-	struct mlx5hws_pool *pool;
-	u8 max_stes;
 
-	if (mlx5hws_matcher_is_resizable(matcher)) {
-		/* Free the original action pool if rule was resized */
-		max_stes = rule->resize_info->max_stes;
-		pool = rule->resize_info->action_ste_pool[action_ste_selector];
-	} else {
-		max_stes = matcher->action_ste[action_ste_selector].max_stes;
-		pool = matcher->action_ste[action_ste_selector].pool;
-	}
+	if (!action_ste->num_stes)
+		return;
 
-	/* This release is safe only when the rule match part was deleted */
-	ste.order = ilog2(roundup_pow_of_two(max_stes));
-	ste.offset = rule->action_ste_idx;
+	ste.order = ilog2(roundup_pow_of_two(action_ste->num_stes));
+	ste.offset = action_ste->index;
 
-	mlx5hws_pool_chunk_free(pool, &ste);
-}
-
-static int hws_rule_alloc_action_ste(struct mlx5hws_rule *rule,
-				     struct mlx5hws_rule_attr *attr)
-{
-	int action_ste_idx;
-	int ret;
-
-	ret = hws_rule_alloc_action_ste_idx(rule, 0);
-	if (unlikely(ret))
-		return ret;
-
-	action_ste_idx = rule->action_ste_idx;
-
-	ret = hws_rule_alloc_action_ste_idx(rule, 1);
-	if (unlikely(ret)) {
-		hws_rule_free_action_ste_idx(rule, 0);
-		return ret;
-	}
-
-	/* Both pools have to return the same index */
-	if (unlikely(rule->action_ste_idx != action_ste_idx)) {
-		pr_warn("HWS: allocation of action STE failed - pool indexes mismatch\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-void mlx5hws_rule_free_action_ste(struct mlx5hws_rule *rule)
-{
-	if (rule->action_ste_idx > -1) {
-		hws_rule_free_action_ste_idx(rule, 1);
-		hws_rule_free_action_ste_idx(rule, 0);
-	}
+	/* This release is safe only when the rule match STE was deleted
+	 * (when the rule is being deleted) or replaced with the new STE that
+	 * isn't pointing to old action STEs (when the rule is being updated).
+	 */
+	mlx5hws_pool_chunk_free(action_ste->pool, &ste);
 }
 
 static void hws_rule_create_init(struct mlx5hws_rule *rule,
@@ -298,14 +249,24 @@ static void hws_rule_create_init(struct mlx5hws_rule *rule,
 		/* In update we use these rtc's */
 		rule->rtc_0 = 0;
 		rule->rtc_1 = 0;
-		rule->action_ste_selector = 0;
+
+		rule->action_ste.pool = NULL;
+		rule->action_ste.num_stes = 0;
+		rule->action_ste.index = -1;
+
+		rule->status = MLX5HWS_RULE_STATUS_CREATING;
 	} else {
-		rule->action_ste_selector = !rule->action_ste_selector;
+		rule->status = MLX5HWS_RULE_STATUS_UPDATING;
 	}
 
+	/* Initialize the old action STE info - shallow-copy action_ste.
+	 * In create flow this will set old_action_ste fields to initial values.
+	 * In update flow this will save the existing action STE info,
+	 * so that we will later use it to free old STEs.
+	 */
+	rule->old_action_ste = rule->action_ste;
+
 	rule->pending_wqes = 0;
-	rule->action_ste_idx = -1;
-	rule->status = MLX5HWS_RULE_STATUS_CREATING;
 
 	/* Init default send STE attributes */
 	ste_attr->gta_opcode = MLX5HWS_WQE_GTA_OP_ACTIVATE;
@@ -315,8 +276,8 @@ static void hws_rule_create_init(struct mlx5hws_rule *rule,
 
 	/* Init default action apply */
 	apply->tbl_type = tbl->type;
-	apply->common_res = &ctx->common_res[tbl->type];
-	apply->jump_to_action_stc = matcher->action_ste[0].stc.offset;
+	apply->common_res = &ctx->common_res;
+	apply->jump_to_action_stc = matcher->action_ste.stc.offset;
 	apply->require_dep = 0;
 }
 
@@ -332,8 +293,6 @@ static void hws_rule_move_init(struct mlx5hws_rule *rule,
 	rule->rtc_1 = 0;
 
 	rule->pending_wqes = 0;
-	rule->action_ste_idx = -1;
-	rule->action_ste_selector = 0;
 	rule->status = MLX5HWS_RULE_STATUS_CREATING;
 	rule->resize_info->state = MLX5HWS_RULE_RESIZE_STATE_WRITING;
 }
@@ -394,21 +353,17 @@ static int hws_rule_create_hws(struct mlx5hws_rule *rule,
 
 	if (action_stes) {
 		/* Allocate action STEs for rules that need more than match STE */
-		if (!is_update) {
-			ret = hws_rule_alloc_action_ste(rule, attr);
-			if (ret) {
-				mlx5hws_err(ctx, "Failed to allocate action memory %d", ret);
-				mlx5hws_send_abort_new_dep_wqe(queue);
-				return ret;
-			}
+		ret = hws_rule_alloc_action_ste(rule);
+		if (ret) {
+			mlx5hws_err(ctx, "Failed to allocate action memory %d", ret);
+			mlx5hws_send_abort_new_dep_wqe(queue);
+			return ret;
 		}
 		/* Skip RX/TX based on the dep_wqe init */
-		ste_attr.rtc_0 = dep_wqe->rtc_0 ?
-				 matcher->action_ste[rule->action_ste_selector].rtc_0_id : 0;
-		ste_attr.rtc_1 = dep_wqe->rtc_1 ?
-				 matcher->action_ste[rule->action_ste_selector].rtc_1_id : 0;
+		ste_attr.rtc_0 = dep_wqe->rtc_0 ? matcher->action_ste.rtc_0_id : 0;
+		ste_attr.rtc_1 = dep_wqe->rtc_1 ? matcher->action_ste.rtc_1_id : 0;
 		/* Action STEs are written to a specific index last to first */
-		ste_attr.direct_index = rule->action_ste_idx + action_stes;
+		ste_attr.direct_index = rule->action_ste.index + action_stes;
 		apply.next_direct_idx = ste_attr.direct_index;
 	} else {
 		apply.next_direct_idx = 0;
@@ -459,7 +414,7 @@ static int hws_rule_create_hws(struct mlx5hws_rule *rule,
 	if (!is_update)
 		hws_rule_save_delete_info(rule, &ste_attr);
 
-	hws_rule_save_resize_info(rule, &ste_attr, is_update);
+	hws_rule_save_resize_info(rule, &ste_attr);
 	mlx5hws_send_engine_inc_rule(queue);
 
 	if (!attr->burst)
@@ -480,7 +435,10 @@ static void hws_rule_destroy_failed_hws(struct mlx5hws_rule *rule,
 			  attr->user_data, MLX5HWS_RULE_STATUS_DELETED);
 
 	/* Rule failed now we can safely release action STEs */
-	mlx5hws_rule_free_action_ste(rule);
+	mlx5hws_rule_free_action_ste(&rule->action_ste);
+
+	/* Perhaps the rule failed updating - release old action STEs as well */
+	mlx5hws_rule_free_action_ste(&rule->old_action_ste);
 
 	/* Clear complex tag */
 	hws_rule_clear_delete_info(rule);
@@ -517,7 +475,8 @@ static int hws_rule_destroy_hws(struct mlx5hws_rule *rule,
 	}
 
 	/* Rule is not completed yet */
-	if (rule->status == MLX5HWS_RULE_STATUS_CREATING)
+	if (rule->status == MLX5HWS_RULE_STATUS_CREATING ||
+	    rule->status == MLX5HWS_RULE_STATUS_UPDATING)
 		return -EBUSY;
 
 	/* Rule failed and doesn't require cleanup */
@@ -534,7 +493,7 @@ static int hws_rule_destroy_hws(struct mlx5hws_rule *rule,
 		hws_rule_gen_comp(queue, rule, false,
 				  attr->user_data, MLX5HWS_RULE_STATUS_DELETED);
 
-		mlx5hws_rule_free_action_ste(rule);
+		mlx5hws_rule_free_action_ste(&rule->action_ste);
 		mlx5hws_rule_clear_resize_info(rule);
 		return 0;
 	}

@@ -17,7 +17,7 @@ static int qla24xx_vport_disable(struct fc_vport *, bool);
 
 static ssize_t
 qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr,
+			   const struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -58,7 +58,7 @@ qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 
 static ssize_t
 qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
-			    struct bin_attribute *bin_attr,
+			    const struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -168,19 +168,19 @@ qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_fw_dump_attr = {
+static const struct bin_attribute sysfs_fw_dump_attr = {
 	.attr = {
 		.name = "fw_dump",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read = qla2x00_sysfs_read_fw_dump,
-	.write = qla2x00_sysfs_write_fw_dump,
+	.read_new = qla2x00_sysfs_read_fw_dump,
+	.write_new = qla2x00_sysfs_write_fw_dump,
 };
 
 static ssize_t
 qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
-			 struct bin_attribute *bin_attr,
+			 const struct bin_attribute *bin_attr,
 			 char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -220,7 +220,7 @@ skip:
 
 static ssize_t
 qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr,
+			  const struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -282,19 +282,19 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_nvram_attr = {
+static const struct bin_attribute sysfs_nvram_attr = {
 	.attr = {
 		.name = "nvram",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 512,
-	.read = qla2x00_sysfs_read_nvram,
-	.write = qla2x00_sysfs_write_nvram,
+	.read_new = qla2x00_sysfs_read_nvram,
+	.write_new = qla2x00_sysfs_write_nvram,
 };
 
 static ssize_t
 qla2x00_sysfs_read_optrom(struct file *filp, struct kobject *kobj,
-			  struct bin_attribute *bin_attr,
+			  const struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -318,7 +318,7 @@ out:
 
 static ssize_t
 qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
-			   struct bin_attribute *bin_attr,
+			   const struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -344,19 +344,19 @@ qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_optrom_attr = {
+static const struct bin_attribute sysfs_optrom_attr = {
 	.attr = {
 		.name = "optrom",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read = qla2x00_sysfs_read_optrom,
-	.write = qla2x00_sysfs_write_optrom,
+	.read_new = qla2x00_sysfs_read_optrom,
+	.write_new = qla2x00_sysfs_write_optrom,
 };
 
 static ssize_t
 qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
+			       const struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -529,18 +529,18 @@ out:
 	return rval;
 }
 
-static struct bin_attribute sysfs_optrom_ctl_attr = {
+static const struct bin_attribute sysfs_optrom_ctl_attr = {
 	.attr = {
 		.name = "optrom_ctl",
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write = qla2x00_sysfs_write_optrom_ctl,
+	.write_new = qla2x00_sysfs_write_optrom_ctl,
 };
 
 static ssize_t
 qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *bin_attr,
+		       const struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -587,7 +587,7 @@ skip:
 
 static ssize_t
 qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -642,19 +642,19 @@ qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_vpd_attr = {
+static const struct bin_attribute sysfs_vpd_attr = {
 	.attr = {
 		.name = "vpd",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = 0,
-	.read = qla2x00_sysfs_read_vpd,
-	.write = qla2x00_sysfs_write_vpd,
+	.read_new = qla2x00_sysfs_read_vpd,
+	.write_new = qla2x00_sysfs_write_vpd,
 };
 
 static ssize_t
 qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *bin_attr,
+		       const struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -679,18 +679,18 @@ qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_sfp_attr = {
+static const struct bin_attribute sysfs_sfp_attr = {
 	.attr = {
 		.name = "sfp",
 		.mode = S_IRUSR | S_IWUSR,
 	},
 	.size = SFP_DEV_SIZE,
-	.read = qla2x00_sysfs_read_sfp,
+	.read_new = qla2x00_sysfs_read_sfp,
 };
 
 static ssize_t
 qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
+			const struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -823,19 +823,19 @@ qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_reset_attr = {
+static const struct bin_attribute sysfs_reset_attr = {
 	.attr = {
 		.name = "reset",
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write = qla2x00_sysfs_write_reset,
+	.write_new = qla2x00_sysfs_write_reset,
 };
 
 static ssize_t
 qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
-			struct bin_attribute *bin_attr,
-			char *buf, loff_t off, size_t count)
+		   const struct bin_attribute *bin_attr,
+		   char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
@@ -866,18 +866,18 @@ qla2x00_issue_logo(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute sysfs_issue_logo_attr = {
+static const struct bin_attribute sysfs_issue_logo_attr = {
 	.attr = {
 		.name = "issue_logo",
 		.mode = S_IWUSR,
 	},
 	.size = 0,
-	.write = qla2x00_issue_logo,
+	.write_new = qla2x00_issue_logo,
 };
 
 static ssize_t
 qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *bin_attr,
+		       const struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -929,18 +929,18 @@ do_read:
 	return count;
 }
 
-static struct bin_attribute sysfs_xgmac_stats_attr = {
+static const struct bin_attribute sysfs_xgmac_stats_attr = {
 	.attr = {
 		.name = "xgmac_stats",
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read = qla2x00_sysfs_read_xgmac_stats,
+	.read_new = qla2x00_sysfs_read_xgmac_stats,
 };
 
 static ssize_t
 qla2x00_sysfs_read_dcbx_tlv(struct file *filp, struct kobject *kobj,
-		       struct bin_attribute *bin_attr,
+		       const struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
@@ -987,18 +987,18 @@ do_read:
 	return count;
 }
 
-static struct bin_attribute sysfs_dcbx_tlv_attr = {
+static const struct bin_attribute sysfs_dcbx_tlv_attr = {
 	.attr = {
 		.name = "dcbx_tlv",
 		.mode = S_IRUSR,
 	},
 	.size = 0,
-	.read = qla2x00_sysfs_read_dcbx_tlv,
+	.read_new = qla2x00_sysfs_read_dcbx_tlv,
 };
 
 static struct sysfs_entry {
 	char *name;
-	struct bin_attribute *attr;
+	const struct bin_attribute *attr;
 	int type;
 } bin_file_entries[] = {
 	{ "fw_dump", &sysfs_fw_dump_attr, },

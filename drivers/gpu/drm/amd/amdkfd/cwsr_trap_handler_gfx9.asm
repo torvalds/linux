@@ -37,16 +37,27 @@
  * gc_9_4_3:
  *   cpp -DASIC_FAMILY=GC_9_4_3 cwsr_trap_handler_gfx9.asm -P -o gc_9_4_3.sp3
  *   sp3 gc_9_4_3.sp3 -hex gc_9_4_3.hex
+ *
+ * gc_9_5_0:
+ *   cpp -DASIC_FAMILY=GC_9_5_0 cwsr_trap_handler_gfx9.asm -P -o gc_9_5_0.sp3
+ *   sp3 gc_9_5_0.sp3 -hex gc_9_5_0.hex
  */
 
 #define CHIP_VEGAM 18
 #define CHIP_ARCTURUS 23
 #define CHIP_ALDEBARAN 25
 #define CHIP_GC_9_4_3 26
+#define CHIP_GC_9_5_0 27
 
 var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing incorrect stores under concurrency
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
 var SINGLE_STEP_MISSED_WORKAROUND   =	(ASIC_FAMILY <= CHIP_ALDEBARAN)	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
+
+#if ASIC_FAMILY < CHIP_GC_9_4_3
+#define VMEM_MODIFIERS slc:1 glc:1
+#else
+#define VMEM_MODIFIERS sc0:1 nt:1
+#endif
 
 /**************************************************************************/
 /*			variables					  */
@@ -62,7 +73,13 @@ var SQ_WAVE_STATUS_ALLOW_REPLAY_MASK    = 0x400000
 var SQ_WAVE_STATUS_ECC_ERR_MASK         = 0x20000
 
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT	= 12
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 11
+var LDS_RESTORE_GRANULARITY_BYTES	= 1280
+#else
 var SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE	= 9
+var LDS_RESTORE_GRANULARITY_BYTES	= 512
+#endif
 var SQ_WAVE_GPR_ALLOC_VGPR_SIZE_SIZE	= 6
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SIZE	= 3			//FIXME	 sq.blk still has 4 bits at this time while SQ programming guide has 3 bits
 var SQ_WAVE_GPR_ALLOC_SGPR_SIZE_SHIFT	= 24
@@ -430,7 +447,9 @@ L_SAVE:
     s_getreg_b32    s_save_m0, hwreg(HW_REG_MODE)						    //MODE
     write_hwreg_to_mem(s_save_m0, s_save_buf_rsrc0, s_save_mem_offset)
 
-
+    // Clear VSKIP state now that MODE.VSKIP has been saved.
+    // If user shader set it then vector instructions would be skipped.
+    s_setvskip	0,0
 
     /*	    the first wave in the threadgroup	 */
     s_and_b32	    s_save_tmp, s_save_spi_init_hi, S_SAVE_SPI_INIT_FIRST_WAVE_MASK	// extract fisrt wave bit
@@ -557,12 +576,21 @@ if SAVE_AFTER_XNACK_ERROR
 
 	v_lshlrev_b32 v2, 2, v3
 L_SAVE_LDS_LOOP_SQC:
+#if ASIC_FAMILY < CHIP_GC_9_5_0
 	ds_read2_b32 v[0:1], v2 offset0:0 offset1:0x40
 	s_waitcnt lgkmcnt(0)
-
 	write_vgprs_to_mem_with_sqc(v0, 2, s_save_buf_rsrc0, s_save_mem_offset)
 
 	v_add_u32 v2, 0x200, v2
+#else
+	// gfx950 needs to save in multiple of 256 bytes.
+	ds_read_b32 v0, v2
+	s_waitcnt lgkmcnt(0)
+	write_vgprs_to_mem_with_sqc(v0, 1, s_save_buf_rsrc0, s_save_mem_offset)
+
+	v_add_u32 v2, 0x100, v2
+#endif
+
 	v_cmp_lt_u32 vcc[0:1], v2, s_save_alloc_size
 	s_cbranch_vccnz L_SAVE_LDS_LOOP_SQC
 
@@ -581,11 +609,14 @@ end
 L_SAVE_LDS_LOOP_VECTOR:
       ds_read_b64 v[0:1], v2	//x =LDS[a], byte address
       s_waitcnt lgkmcnt(0)
-      buffer_store_dwordx2  v[0:1], v2, s_save_buf_rsrc0, s_save_mem_offset offen:1  glc:1  slc:1
+      buffer_store_dwordx2  v[0:1], v2, s_save_buf_rsrc0, s_save_mem_offset VMEM_MODIFIERS offen:1
 //	s_waitcnt vmcnt(0)
 //	v_add_u32 v2, vcc[0:1], v2, v3
       v_add_u32 v2, v2, v3
       v_cmp_lt_u32 vcc[0:1], v2, s_save_alloc_size
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+      s_mov_b64 exec, vcc
+#endif
       s_cbranch_vccnz L_SAVE_LDS_LOOP_VECTOR
 
       // restore rsrc3
@@ -748,8 +779,13 @@ L_RESTORE:
   L_RESTORE_LDS_LOOP:
 	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1		       // first 64DW
 	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:256	       // second 64DW
-    s_add_u32	    m0, m0, 256*2						// 128 DW
-    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, 256*2		//mem offset increased by 128DW
+#if ASIC_FAMILY >= CHIP_GC_9_5_0
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:512	// third 64DW
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:768	// forth 64DW
+	buffer_load_dword   v0, v0, s_restore_buf_rsrc0, s_restore_mem_offset lds:1 offset:1024	// fifth 64DW
+#endif
+    s_add_u32	    m0, m0, LDS_RESTORE_GRANULARITY_BYTES					// 128/320 DW
+    s_add_u32	    s_restore_mem_offset, s_restore_mem_offset, LDS_RESTORE_GRANULARITY_BYTES	//mem offset increased by 128/320 DW
     s_cmp_lt_u32    m0, s_restore_alloc_size					//scc=(m0 < s_restore_alloc_size) ? 1 : 0
     s_cbranch_scc1  L_RESTORE_LDS_LOOP							    //LDS restore is complete?
 
@@ -979,17 +1015,17 @@ L_TCP_STORE_CHECK_DONE:
 end
 
 function write_4vgprs_to_mem(s_rsrc, s_mem_offset)
-	buffer_store_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
-	buffer_store_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256
-	buffer_store_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*2
-	buffer_store_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*3
+	buffer_store_dword v0, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS
+	buffer_store_dword v1, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256
+	buffer_store_dword v2, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*2
+	buffer_store_dword v3, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*3
 end
 
 function read_4vgprs_from_mem(s_rsrc, s_mem_offset)
-	buffer_load_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
-	buffer_load_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*3
+	buffer_load_dword v0, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS
+	buffer_load_dword v1, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256
+	buffer_load_dword v2, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*2
+	buffer_load_dword v3, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*3
 	s_waitcnt vmcnt(0)
 end
 

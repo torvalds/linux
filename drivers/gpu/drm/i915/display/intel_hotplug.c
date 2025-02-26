@@ -813,8 +813,10 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
  */
 void intel_hpd_poll_enable(struct drm_i915_private *dev_priv)
 {
+	struct intel_display *display = &dev_priv->display;
+
 	if (!HAS_DISPLAY(dev_priv) ||
-	    !intel_display_device_enabled(dev_priv))
+	    !intel_display_device_enabled(display))
 		return;
 
 	WRITE_ONCE(dev_priv->display.hotplug.poll_enabled, true);

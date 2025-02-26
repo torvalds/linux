@@ -45,7 +45,7 @@ struct mb1232_data {
 	/* Ensure correct alignment of data to push to IIO buffer */
 	struct {
 		s16 distance;
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} scan;
 };
 

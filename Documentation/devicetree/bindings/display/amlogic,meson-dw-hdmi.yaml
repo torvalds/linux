@@ -148,10 +148,10 @@ examples:
 
         /* TMDS Output */
         hdmi_tx_tmds_port: port@1 {
-             reg = <1>;
+            reg = <1>;
 
-             hdmi_tx_tmds_out: endpoint {
-                 remote-endpoint = <&hdmi_connector_in>;
-             };
+            hdmi_tx_tmds_out: endpoint {
+                remote-endpoint = <&hdmi_connector_in>;
+            };
         };
     };

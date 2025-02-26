@@ -381,7 +381,7 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 	set->queue_depth = 128;
 	set->numa_node = NUMA_NO_NODE;
 	set->cmd_size = sizeof(struct bsg_job) + dd_job_size;
-	set->flags = BLK_MQ_F_NO_SCHED | BLK_MQ_F_BLOCKING;
+	set->flags = BLK_MQ_F_BLOCKING;
 	if (blk_mq_alloc_tag_set(set))
 		goto out_tag_set;
 

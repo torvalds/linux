@@ -232,7 +232,7 @@ static ssize_t mlxreg_hotplug_attr_show(struct device *dev,
 			regval = !!(regval & data->mask);
 	}
 
-	return sprintf(buf, "%u\n", regval);
+	return sysfs_emit(buf, "%u\n", regval);
 }
 
 #define PRIV_ATTR(i) priv->mlxreg_hotplug_attr[i]

@@ -180,20 +180,18 @@ MODULE_DEVICE_TABLE(acpi, hisi_cpa_pmu_acpi_match);
 static int hisi_cpa_pmu_init_data(struct platform_device *pdev,
 				  struct hisi_pmu *cpa_pmu)
 {
-	if (device_property_read_u32(&pdev->dev, "hisilicon,scl-id",
-				     &cpa_pmu->sicl_id)) {
+	hisi_uncore_pmu_init_topology(cpa_pmu, &pdev->dev);
+
+	if (cpa_pmu->topo.sicl_id < 0) {
 		dev_err(&pdev->dev, "Can not read sicl-id\n");
 		return -EINVAL;
 	}
 
-	if (device_property_read_u32(&pdev->dev, "hisilicon,idx-id",
-				     &cpa_pmu->index_id)) {
+	if (cpa_pmu->topo.index_id < 0) {
 		dev_err(&pdev->dev, "Cannot read idx-id\n");
 		return -EINVAL;
 	}
 
-	cpa_pmu->ccl_id = -1;
-	cpa_pmu->sccl_id = -1;
 	cpa_pmu->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cpa_pmu->base))
 		return PTR_ERR(cpa_pmu->base);
@@ -227,34 +225,11 @@ static const struct attribute_group hisi_cpa_pmu_events_group = {
 	.attrs = hisi_cpa_pmu_events_attr,
 };
 
-static DEVICE_ATTR(cpumask, 0444, hisi_cpumask_sysfs_show, NULL);
-
-static struct attribute *hisi_cpa_pmu_cpumask_attrs[] = {
-	&dev_attr_cpumask.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_cpa_pmu_cpumask_attr_group = {
-	.attrs = hisi_cpa_pmu_cpumask_attrs,
-};
-
-static struct device_attribute hisi_cpa_pmu_identifier_attr =
-	__ATTR(identifier, 0444, hisi_uncore_pmu_identifier_attr_show, NULL);
-
-static struct attribute *hisi_cpa_pmu_identifier_attrs[] = {
-	&hisi_cpa_pmu_identifier_attr.attr,
-	NULL
-};
-
-static const struct attribute_group hisi_cpa_pmu_identifier_group = {
-	.attrs = hisi_cpa_pmu_identifier_attrs,
-};
-
 static const struct attribute_group *hisi_cpa_pmu_attr_groups[] = {
 	&hisi_cpa_pmu_format_group,
 	&hisi_cpa_pmu_events_group,
-	&hisi_cpa_pmu_cpumask_attr_group,
-	&hisi_cpa_pmu_identifier_group,
+	&hisi_pmu_cpumask_attr_group,
+	&hisi_pmu_identifier_group,
 	NULL
 };
 
@@ -311,8 +286,8 @@ static int hisi_cpa_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_cpa%u",
-			      cpa_pmu->sicl_id, cpa_pmu->index_id);
+	name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "hisi_sicl%d_cpa%d",
+			      cpa_pmu->topo.sicl_id, cpa_pmu->topo.index_id);
 	if (!name)
 		return -ENOMEM;
 
@@ -389,6 +364,7 @@ static void __exit hisi_cpa_pmu_module_exit(void)
 }
 module_exit(hisi_cpa_pmu_module_exit);
 
+MODULE_IMPORT_NS("HISI_PMU");
 MODULE_DESCRIPTION("HiSilicon SoC CPA PMU driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Qi Liu <liuqi115@huawei.com>");

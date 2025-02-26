@@ -1263,11 +1263,9 @@ static int amdgpu_virt_cache_host_error_counts(struct amdgpu_device *adev,
 	if (used_size > (AMD_SRIOV_RAS_TELEMETRY_SIZE_KB << 10))
 		return 0;
 
-	tmp = kmalloc(used_size, GFP_KERNEL);
+	tmp = kmemdup(&host_telemetry->body.error_count, used_size, GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
-
-	memcpy(tmp, &host_telemetry->body.error_count, used_size);
 
 	if (checksum != amd_sriov_msg_checksum(tmp, used_size, 0, 0))
 		goto out;

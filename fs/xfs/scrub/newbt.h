@@ -63,6 +63,7 @@ void xrep_newbt_init_ag(struct xrep_newbt *xnr, struct xfs_scrub *sc,
 		enum xfs_ag_resv_type resv);
 int xrep_newbt_init_inode(struct xrep_newbt *xnr, struct xfs_scrub *sc,
 		int whichfork, const struct xfs_owner_info *oinfo);
+int xrep_newbt_init_metadir_inode(struct xrep_newbt *xnr, struct xfs_scrub *sc);
 int xrep_newbt_alloc_blocks(struct xrep_newbt *xnr, uint64_t nr_blocks);
 int xrep_newbt_add_extent(struct xrep_newbt *xnr, struct xfs_perag *pag,
 		xfs_agblock_t agbno, xfs_extlen_t len);

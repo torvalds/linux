@@ -68,6 +68,7 @@ declare -A NETIFS=(
 : "${REQUIRE_JQ:=yes}"
 : "${REQUIRE_MZ:=yes}"
 : "${REQUIRE_MTOOLS:=no}"
+: "${REQUIRE_TEAMD:=no}"
 
 # Whether to override MAC addresses on interfaces participating in the test.
 : "${STABLE_MAC_ADDRS:=no}"
@@ -320,6 +321,9 @@ if [[ "$REQUIRE_JQ" = "yes" ]]; then
 fi
 if [[ "$REQUIRE_MZ" = "yes" ]]; then
 	require_command $MZ
+fi
+if [[ "$REQUIRE_TEAMD" = "yes" ]]; then
+	require_command $TEAMD
 fi
 if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
 	# https://github.com/troglobit/mtools
@@ -930,13 +934,6 @@ packets_rate()
 	local interval=$1; shift
 
 	echo $(((t1 - t0) / interval))
-}
-
-mac_get()
-{
-	local if_name=$1
-
-	ip -j link show dev $if_name | jq -r '.[]["address"]'
 }
 
 ether_addr_to_u64()

@@ -248,8 +248,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		len = min(len, em->len - (start - em->start));
 		block_start = extent_map_block_start(em) + (start - em->start);
 
-		if (can_nocow_extent(inode, start, &len,
-				     &file_extent, false, false) == 1) {
+		if (can_nocow_extent(inode, start, &len, &file_extent, false) == 1) {
 			bg = btrfs_inc_nocow_writers(fs_info, block_start);
 			if (bg)
 				can_nocow = true;

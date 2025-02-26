@@ -64,13 +64,14 @@ v1 is available under :ref:`Documentation/admin-guide/cgroup-v1/index.rst <cgrou
      5-6. Device
      5-7. RDMA
        5-7-1. RDMA Interface Files
-     5-8. HugeTLB
-       5.8-1. HugeTLB Interface Files
-     5-9. Misc
-       5.9-1 Miscellaneous cgroup Interface Files
-       5.9-2 Migration and Ownership
-     5-10. Others
-       5-10-1. perf_event
+     5-8. DMEM
+     5-9. HugeTLB
+       5.9-1. HugeTLB Interface Files
+     5-10. Misc
+       5.10-1 Miscellaneous cgroup Interface Files
+       5.10-2 Migration and Ownership
+     5-11. Others
+       5-11-1. perf_event
      5-N. Non-normative information
        5-N-1. CPU controller root cgroup process behaviour
        5-N-2. IO controller root cgroup process behaviour
@@ -2625,6 +2626,49 @@ RDMA Interface Files
 
 	  mlx4_0 hca_handle=1 hca_object=20
 	  ocrdma1 hca_handle=1 hca_object=23
+
+DMEM
+----
+
+The "dmem" controller regulates the distribution and accounting of
+device memory regions. Because each memory region may have its own page size,
+which does not have to be equal to the system page size, the units are always bytes.
+
+DMEM Interface Files
+~~~~~~~~~~~~~~~~~~~~
+
+  dmem.max, dmem.min, dmem.low
+	A readwrite nested-keyed file that exists for all the cgroups
+	except root that describes current configured resource limit
+	for a region.
+
+	An example for xe follows::
+
+	  drm/0000:03:00.0/vram0 1073741824
+	  drm/0000:03:00.0/stolen max
+
+	The semantics are the same as for the memory cgroup controller, and are
+	calculated in the same way.
+
+  dmem.capacity
+	A read-only file that describes maximum region capacity.
+	It only exists on the root cgroup. Not all memory can be
+	allocated by cgroups, as the kernel reserves some for
+	internal use.
+
+	An example for xe follows::
+
+	  drm/0000:03:00.0/vram0 8514437120
+	  drm/0000:03:00.0/stolen 67108864
+
+  dmem.current
+	A read-only file that describes current resource usage.
+	It exists for all the cgroup except root.
+
+	An example for xe follows::
+
+	  drm/0000:03:00.0/vram0 12550144
+	  drm/0000:03:00.0/stolen 8650752
 
 HugeTLB
 -------

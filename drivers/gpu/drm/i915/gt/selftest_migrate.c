@@ -262,7 +262,7 @@ static int clear(struct intel_migrate *migrate,
 {
 	struct drm_i915_private *i915 = migrate->context->engine->i915;
 	struct drm_i915_gem_object *obj;
-	struct i915_request *rq;
+	struct i915_request *rq = NULL;
 	struct i915_gem_ww_ctx ww;
 	u32 *vaddr, val = 0;
 	bool ccs_cap = false;

@@ -1681,6 +1681,7 @@
 		assigned-clocks = <&pmucru CLK_PCIEPHY1_REF>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_PIPEPHY1>;
+		reset-names = "phy";
 		rockchip,pipe-grf = <&pipegrf>;
 		rockchip,pipe-phy-grf = <&pipe_phy_grf1>;
 		#phy-cells = <1>;
@@ -1697,6 +1698,7 @@
 		assigned-clocks = <&pmucru CLK_PCIEPHY2_REF>;
 		assigned-clock-rates = <100000000>;
 		resets = <&cru SRST_PIPEPHY2>;
+		reset-names = "phy";
 		rockchip,pipe-grf = <&pipegrf>;
 		rockchip,pipe-phy-grf = <&pipe_phy_grf2>;
 		#phy-cells = <1>;

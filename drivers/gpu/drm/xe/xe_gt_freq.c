@@ -115,6 +115,20 @@ static ssize_t rpe_freq_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(rpe_freq);
 
+static ssize_t rpa_freq_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct xe_guc_pc *pc = dev_to_pc(dev);
+	u32 freq;
+
+	xe_pm_runtime_get(dev_to_xe(dev));
+	freq = xe_guc_pc_get_rpa_freq(pc);
+	xe_pm_runtime_put(dev_to_xe(dev));
+
+	return sysfs_emit(buf, "%d\n", freq);
+}
+static DEVICE_ATTR_RO(rpa_freq);
+
 static ssize_t rpn_freq_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
@@ -202,6 +216,7 @@ static const struct attribute *freq_attrs[] = {
 	&dev_attr_act_freq.attr,
 	&dev_attr_cur_freq.attr,
 	&dev_attr_rp0_freq.attr,
+	&dev_attr_rpa_freq.attr,
 	&dev_attr_rpe_freq.attr,
 	&dev_attr_rpn_freq.attr,
 	&dev_attr_min_freq.attr,

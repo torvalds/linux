@@ -277,7 +277,7 @@ static void tegra234_lookup_slave_timeout(struct seq_file *file, struct tegra234
 	 *    which timed out.
 	 *	a) Get block number from the index of set bit in
 	 *	   <FABRIC>_SN_AXI2APB_<>_BLOCK_TMO_STATUS_0 register.
-	 *	b) Get address of register repective to block number i.e.
+	 *	b) Get address of register respective to block number i.e.
 	 *	   <FABRIC>_SN_AXI2APB_<>_BLOCK<index-set-bit>_TMO_0.
 	 *	c) Read the register in above step to get client_id which
 	 *	   timed out as per the set bits.

@@ -47,7 +47,7 @@ ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(stored_lights, 0x17, 0x0566);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_W(custom_lights, 0x18, 0x14);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(light_macro, 0x19, 0x07d2);
 
-static struct bin_attribute *ryos_bin_attrs[] = {
+static const struct bin_attribute *const ryos_bin_attrs[] = {
 	&bin_attr_control,
 	&bin_attr_profile,
 	&bin_attr_keys_primary,
@@ -70,7 +70,7 @@ static struct bin_attribute *ryos_bin_attrs[] = {
 };
 
 static const struct attribute_group ryos_group = {
-	.bin_attrs = ryos_bin_attrs,
+	.bin_attrs_new = ryos_bin_attrs,
 };
 
 static const struct attribute_group *ryos_groups[] = {

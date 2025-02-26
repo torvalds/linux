@@ -438,21 +438,21 @@ struct fsl_mc_device *fsl_mc_get_endpoint(struct fsl_mc_device *mc_dev,
 
 extern const struct bus_type fsl_mc_bus_type;
 
-extern struct device_type fsl_mc_bus_dprc_type;
-extern struct device_type fsl_mc_bus_dpni_type;
-extern struct device_type fsl_mc_bus_dpio_type;
-extern struct device_type fsl_mc_bus_dpsw_type;
-extern struct device_type fsl_mc_bus_dpbp_type;
-extern struct device_type fsl_mc_bus_dpcon_type;
-extern struct device_type fsl_mc_bus_dpmcp_type;
-extern struct device_type fsl_mc_bus_dpmac_type;
-extern struct device_type fsl_mc_bus_dprtc_type;
-extern struct device_type fsl_mc_bus_dpseci_type;
-extern struct device_type fsl_mc_bus_dpdmux_type;
-extern struct device_type fsl_mc_bus_dpdcei_type;
-extern struct device_type fsl_mc_bus_dpaiop_type;
-extern struct device_type fsl_mc_bus_dpci_type;
-extern struct device_type fsl_mc_bus_dpdmai_type;
+extern const struct device_type fsl_mc_bus_dprc_type;
+extern const struct device_type fsl_mc_bus_dpni_type;
+extern const struct device_type fsl_mc_bus_dpio_type;
+extern const struct device_type fsl_mc_bus_dpsw_type;
+extern const struct device_type fsl_mc_bus_dpbp_type;
+extern const struct device_type fsl_mc_bus_dpcon_type;
+extern const struct device_type fsl_mc_bus_dpmcp_type;
+extern const struct device_type fsl_mc_bus_dpmac_type;
+extern const struct device_type fsl_mc_bus_dprtc_type;
+extern const struct device_type fsl_mc_bus_dpseci_type;
+extern const struct device_type fsl_mc_bus_dpdmux_type;
+extern const struct device_type fsl_mc_bus_dpdcei_type;
+extern const struct device_type fsl_mc_bus_dpaiop_type;
+extern const struct device_type fsl_mc_bus_dpci_type;
+extern const struct device_type fsl_mc_bus_dpdmai_type;
 
 static inline bool is_fsl_mc_bus_dprc(const struct fsl_mc_device *mc_dev)
 {

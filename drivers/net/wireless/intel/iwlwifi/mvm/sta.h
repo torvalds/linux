@@ -133,7 +133,7 @@ struct iwl_mvm_vif;
  * and no TID data as this is also not needed.
  * One thing to note, is that these stations have an ID in the fw, but not
  * in mac80211. In order to "reserve" them a sta_id in %fw_id_to_mac_id
- * we fill ERR_PTR(EINVAL) in this mapping and all other dereferencing of
+ * we fill ERR_PTR(-EINVAL) in this mapping and all other dereferencing of
  * pointers from this mapping need to check that the value is not error
  * or NULL.
  *
@@ -507,9 +507,9 @@ void iwl_mvm_realloc_queues_after_restart(struct iwl_mvm *mvm,
 					  struct ieee80211_sta *sta);
 int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
 				  struct iwl_mvm_sta *mvm_sta);
-bool iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+void iwl_mvm_sta_del(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_sta *sta,
-		     struct ieee80211_link_sta *link_sta, int *ret);
+		     struct ieee80211_link_sta *link_sta);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
@@ -665,8 +665,7 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 void iwl_mvm_mld_free_sta_link(struct iwl_mvm *mvm,
 			       struct iwl_mvm_sta *mvm_sta,
 			       struct iwl_mvm_link_sta *mvm_sta_link,
-			       unsigned int link_id,
-			       bool is_in_fw);
+			       unsigned int link_id);
 int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, u8 sta_id);
 int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif,

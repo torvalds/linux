@@ -66,7 +66,7 @@ void fbnic_hwmon_register(struct fbnic_dev *fbd)
 	if (IS_ERR(fbd->hwmon)) {
 		dev_notice(fbd->dev,
 			   "Failed to register hwmon device %pe\n",
-			fbd->hwmon);
+			   fbd->hwmon);
 		fbd->hwmon = NULL;
 	}
 }

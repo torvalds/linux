@@ -244,6 +244,8 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 {
 	int ret;
 
+	rseq_signal_deliver(ksig, regs);
+
 	ret = setup_rt_frame(ksig, sigmask_to_save(), regs);
 
 	signal_setup_done(ret, ksig, test_thread_flag(TIF_SINGLESTEP));

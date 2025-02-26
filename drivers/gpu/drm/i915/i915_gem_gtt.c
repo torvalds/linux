@@ -71,7 +71,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
  * i915_gem_gtt_reserve - reserve a node in an address_space (GTT)
  * @vm: the &struct i915_address_space
  * @ww: An optional struct i915_gem_ww_ctx.
- * @node: the &struct drm_mm_node (typically i915_vma.mode)
+ * @node: the &struct drm_mm_node (typically i915_vma.node)
  * @size: how much space to allocate inside the GTT,
  *        must be #I915_GTT_PAGE_SIZE aligned
  * @offset: where to insert inside the GTT,

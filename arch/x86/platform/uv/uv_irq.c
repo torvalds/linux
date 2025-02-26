@@ -92,8 +92,6 @@ static int uv_domain_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret >= 0) {
 		if (info->uv.limit == UV_AFFINITY_CPU)
 			irq_set_status_flags(virq, IRQ_NO_BALANCING);
-		else
-			irq_set_status_flags(virq, IRQ_MOVE_PCNTXT);
 
 		chip_data->pnode = uv_blade_to_pnode(info->uv.blade);
 		chip_data->offset = info->uv.offset;
@@ -113,7 +111,6 @@ static void uv_domain_free(struct irq_domain *domain, unsigned int virq,
 
 	BUG_ON(nr_irqs != 1);
 	kfree(irq_data->chip_data);
-	irq_clear_status_flags(virq, IRQ_MOVE_PCNTXT);
 	irq_clear_status_flags(virq, IRQ_NO_BALANCING);
 	irq_domain_free_irqs_top(domain, virq, nr_irqs);
 }

@@ -46,10 +46,11 @@
 #define POLICYDB_VERSION_INFINIBAND	     31
 #define POLICYDB_VERSION_GLBLUB		     32
 #define POLICYDB_VERSION_COMP_FTRANS	     33 /* compressed filename transitions */
+#define POLICYDB_VERSION_COND_XPERMS	     34 /* extended permissions in conditional policies */
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN POLICYDB_VERSION_BASE
-#define POLICYDB_VERSION_MAX POLICYDB_VERSION_COMP_FTRANS
+#define POLICYDB_VERSION_MAX POLICYDB_VERSION_COND_XPERMS
 
 /* Mask for just the mount related flags */
 #define SE_MNTMASK 0x0f
@@ -239,6 +240,7 @@ struct extended_perms_data {
 struct extended_perms_decision {
 	u8 used;
 	u8 driver;
+	u8 base_perm;
 	struct extended_perms_data *allowed;
 	struct extended_perms_data *auditallow;
 	struct extended_perms_data *dontaudit;
@@ -246,6 +248,7 @@ struct extended_perms_decision {
 
 struct extended_perms {
 	u16 len; /* length associated decision chain */
+	u8 base_perms; /* which base permissions are covered */
 	struct extended_perms_data drivers; /* flag drivers that are used */
 };
 
@@ -257,6 +260,7 @@ void security_compute_av(u32 ssid, u32 tsid, u16 tclass,
 			 struct extended_perms *xperms);
 
 void security_compute_xperms_decision(u32 ssid, u32 tsid, u16 tclass, u8 driver,
+				      u8 base_perm,
 				      struct extended_perms_decision *xpermd);
 
 void security_compute_av_user(u32 ssid, u32 tsid, u16 tclass,
@@ -289,7 +293,7 @@ int security_context_to_sid_default(const char *scontext, u32 scontext_len,
 int security_context_to_sid_force(const char *scontext, u32 scontext_len,
 				  u32 *sid);
 
-int security_get_user_sids(u32 callsid, char *username, u32 **sids, u32 *nel);
+int security_get_user_sids(u32 fromsid, const char *username, u32 **sids, u32 *nel);
 
 int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 
@@ -307,7 +311,7 @@ int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 int security_validate_transition_user(u32 oldsid, u32 newsid, u32 tasksid,
 				      u16 tclass);
 
-int security_bounded_transition(u32 oldsid, u32 newsid);
+int security_bounded_transition(u32 old_sid, u32 new_sid);
 
 int security_sid_mls_copy(u32 sid, u32 mls_sid, u32 *new_sid);
 

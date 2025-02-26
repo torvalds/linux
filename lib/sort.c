@@ -200,6 +200,13 @@ static size_t parent(size_t i, unsigned int lsbit, size_t size)
  * copy (e.g. fix up pointers or auxiliary data), but the built-in swap
  * avoids a slow retpoline and so is significantly faster.
  *
+ * The comparison function must adhere to specific mathematical
+ * properties to ensure correct and stable sorting:
+ * - Antisymmetry: cmp_func(a, b) must return the opposite sign of
+ * cmp_func(b, a).
+ * - Transitivity: if cmp_func(a, b) <= 0 and cmp_func(b, c) <= 0, then
+ * cmp_func(a, c) <= 0.
+ *
  * Sorting time is O(n log n) both on average and worst-case. While
  * quicksort is slightly faster on average, it suffers from exploitable
  * O(n*n) worst-case behavior and extra memory requirements that make

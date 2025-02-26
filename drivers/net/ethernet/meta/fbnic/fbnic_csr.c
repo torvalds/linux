@@ -64,7 +64,7 @@ static void fbnic_csr_get_regs_rpc_ram(struct fbnic_dev *fbd, u32 **data_p)
 	u32 i, j;
 
 	*(data++) = start;
-	*(data++) = end - 1;
+	*(data++) = end;
 
 	/* FBNIC_RPC_TCAM_ACT */
 	for (i = 0; i < FBNIC_RPC_TCAM_ACT_NUM_ENTRIES; i++) {

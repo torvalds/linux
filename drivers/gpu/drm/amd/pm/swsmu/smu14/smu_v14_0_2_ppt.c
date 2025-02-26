@@ -2096,7 +2096,7 @@ static int smu_v14_0_2_enable_gfx_features(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(14, 0, 2))
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 2))
 		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableAllSmuFeatures,
 										   FEATURE_PWR_GFX, NULL);
 	else

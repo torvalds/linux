@@ -184,29 +184,30 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 	return vcpu_is_el2_ctxt(&vcpu->arch.ctxt);
 }
 
-static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
-		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
-}
-
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_e2h_is_set(&vcpu->arch.ctxt);
-}
-
-static inline bool __vcpu_el2_tge_is_set(const struct kvm_cpu_context *ctxt)
-{
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_TGE;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_tge_is_set(const struct kvm_vcpu *vcpu)
 {
-	return __vcpu_el2_tge_is_set(&vcpu->arch.ctxt);
+	return ctxt_sys_reg(&vcpu->arch.ctxt, HCR_EL2) & HCR_TGE;
 }
 
-static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
+static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 {
+	bool e2h, tge;
+	u64 hcr;
+
+	if (!vcpu_has_nv(vcpu))
+		return false;
+
+	hcr = __vcpu_sys_reg(vcpu, HCR_EL2);
+
+	e2h = (hcr & HCR_E2H);
+	tge = (hcr & HCR_TGE);
+
 	/*
 	 * We are in a hypervisor context if the vcpu mode is EL2 or
 	 * E2H and TGE bits are set. The latter means we are in the user space
@@ -215,14 +216,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 	 * Note that the HCR_EL2.{E2H,TGE}={0,1} isn't really handled in the
 	 * rest of the KVM code, and will result in a misbehaving guest.
 	 */
-	return vcpu_is_el2_ctxt(ctxt) ||
-		(__vcpu_el2_e2h_is_set(ctxt) && __vcpu_el2_tge_is_set(ctxt)) ||
-		__vcpu_el2_tge_is_set(ctxt);
-}
-
-static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
-{
-	return vcpu_has_nv(vcpu) && __is_hyp_ctxt(&vcpu->arch.ctxt);
+	return vcpu_is_el2(vcpu) || (e2h && tge) || tge;
 }
 
 static inline bool vcpu_is_host_el0(const struct kvm_vcpu *vcpu)
@@ -556,13 +550,13 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 	({								\
 		u64 cptr = 0;						\
 									\
-		if ((set) & CPACR_ELx_FPEN)				\
+		if ((set) & CPACR_EL1_FPEN)				\
 			cptr |= CPTR_EL2_TFP;				\
-		if ((set) & CPACR_ELx_ZEN)				\
+		if ((set) & CPACR_EL1_ZEN)				\
 			cptr |= CPTR_EL2_TZ;				\
-		if ((set) & CPACR_ELx_SMEN)				\
+		if ((set) & CPACR_EL1_SMEN)				\
 			cptr |= CPTR_EL2_TSM;				\
-		if ((clr) & CPACR_ELx_TTA)				\
+		if ((clr) & CPACR_EL1_TTA)				\
 			cptr |= CPTR_EL2_TTA;				\
 		if ((clr) & CPTR_EL2_TAM)				\
 			cptr |= CPTR_EL2_TAM;				\
@@ -576,13 +570,13 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 	({								\
 		u64 cptr = 0;						\
 									\
-		if ((clr) & CPACR_ELx_FPEN)				\
+		if ((clr) & CPACR_EL1_FPEN)				\
 			cptr |= CPTR_EL2_TFP;				\
-		if ((clr) & CPACR_ELx_ZEN)				\
+		if ((clr) & CPACR_EL1_ZEN)				\
 			cptr |= CPTR_EL2_TZ;				\
-		if ((clr) & CPACR_ELx_SMEN)				\
+		if ((clr) & CPACR_EL1_SMEN)				\
 			cptr |= CPTR_EL2_TSM;				\
-		if ((set) & CPACR_ELx_TTA)				\
+		if ((set) & CPACR_EL1_TTA)				\
 			cptr |= CPTR_EL2_TTA;				\
 		if ((set) & CPTR_EL2_TAM)				\
 			cptr |= CPTR_EL2_TAM;				\
@@ -595,13 +589,13 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 #define cpacr_clear_set(clr, set)					\
 	do {								\
 		BUILD_BUG_ON((set) & CPTR_VHE_EL2_RES0);		\
-		BUILD_BUG_ON((clr) & CPACR_ELx_E0POE);			\
-		__build_check_all_or_none((clr), CPACR_ELx_FPEN);	\
-		__build_check_all_or_none((set), CPACR_ELx_FPEN);	\
-		__build_check_all_or_none((clr), CPACR_ELx_ZEN);	\
-		__build_check_all_or_none((set), CPACR_ELx_ZEN);	\
-		__build_check_all_or_none((clr), CPACR_ELx_SMEN);	\
-		__build_check_all_or_none((set), CPACR_ELx_SMEN);	\
+		BUILD_BUG_ON((clr) & CPACR_EL1_E0POE);			\
+		__build_check_all_or_none((clr), CPACR_EL1_FPEN);	\
+		__build_check_all_or_none((set), CPACR_EL1_FPEN);	\
+		__build_check_all_or_none((clr), CPACR_EL1_ZEN);	\
+		__build_check_all_or_none((set), CPACR_EL1_ZEN);	\
+		__build_check_all_or_none((clr), CPACR_EL1_SMEN);	\
+		__build_check_all_or_none((set), CPACR_EL1_SMEN);	\
 									\
 		if (has_vhe() || has_hvhe())				\
 			sysreg_clear_set(cpacr_el1, clr, set);		\
@@ -610,48 +604,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 					 __cpacr_to_cptr_clr(clr, set),	\
 					 __cpacr_to_cptr_set(clr, set));\
 	} while (0)
-
-static __always_inline void kvm_write_cptr_el2(u64 val)
-{
-	if (has_vhe() || has_hvhe())
-		write_sysreg(val, cpacr_el1);
-	else
-		write_sysreg(val, cptr_el2);
-}
-
-static __always_inline u64 kvm_get_reset_cptr_el2(struct kvm_vcpu *vcpu)
-{
-	u64 val;
-
-	if (has_vhe()) {
-		val = (CPACR_ELx_FPEN | CPACR_EL1_ZEN_EL1EN);
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_EL1_SMEN_EL1EN;
-	} else if (has_hvhe()) {
-		val = CPACR_ELx_FPEN;
-
-		if (!vcpu_has_sve(vcpu) || !guest_owns_fp_regs())
-			val |= CPACR_ELx_ZEN;
-		if (cpus_have_final_cap(ARM64_SME))
-			val |= CPACR_ELx_SMEN;
-	} else {
-		val = CPTR_NVHE_EL2_RES1;
-
-		if (vcpu_has_sve(vcpu) && guest_owns_fp_regs())
-			val |= CPTR_EL2_TZ;
-		if (cpus_have_final_cap(ARM64_SME))
-			val &= ~CPTR_EL2_TSM;
-	}
-
-	return val;
-}
-
-static __always_inline void kvm_reset_cptr_el2(struct kvm_vcpu *vcpu)
-{
-	u64 val = kvm_get_reset_cptr_el2(vcpu);
-
-	kvm_write_cptr_el2(val);
-}
 
 /*
  * Returns a 'sanitised' view of CPTR_EL2, translating from nVHE to the VHE
@@ -685,7 +637,7 @@ static inline bool ____cptr_xen_trap_enabled(const struct kvm_vcpu *vcpu,
 #define __guest_hyp_cptr_xen_trap_enabled(vcpu, xen)				\
 	(!vcpu_has_nv(vcpu) ? false :						\
 	 ____cptr_xen_trap_enabled(vcpu,					\
-				   SYS_FIELD_GET(CPACR_ELx, xen,		\
+				   SYS_FIELD_GET(CPACR_EL1, xen,		\
 						 vcpu_sanitised_cptr_el2(vcpu))))
 
 static inline bool guest_hyp_fpsimd_traps_enabled(const struct kvm_vcpu *vcpu)
@@ -696,10 +648,5 @@ static inline bool guest_hyp_fpsimd_traps_enabled(const struct kvm_vcpu *vcpu)
 static inline bool guest_hyp_sve_traps_enabled(const struct kvm_vcpu *vcpu)
 {
 	return __guest_hyp_cptr_xen_trap_enabled(vcpu, ZEN);
-}
-
-static inline void kvm_vcpu_enable_ptrauth(struct kvm_vcpu *vcpu)
-{
-	vcpu_set_flag(vcpu, GUEST_HAS_PTRAUTH);
 }
 #endif /* __ARM64_KVM_EMULATE_H__ */

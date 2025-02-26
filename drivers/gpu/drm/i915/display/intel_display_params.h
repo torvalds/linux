@@ -47,7 +47,7 @@ struct drm_printer;
 	param(int, enable_psr, -1, 0600) \
 	param(bool, psr_safest_params, false, 0400) \
 	param(bool, enable_psr2_sel_fetch, true, 0400) \
-	param(bool, enable_dmc_wl, false, 0400) \
+	param(int, enable_dmc_wl, -1, 0400) \
 
 #define MEMBER(T, member, ...) T member;
 struct intel_display_params {

@@ -404,6 +404,8 @@ struct ieee80211_mgd_auth_data {
 	int tries;
 	u16 algorithm, expected_transaction;
 
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
+
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 key_len, key_idx;
 	bool done, waiting;
@@ -443,6 +445,8 @@ struct ieee80211_mgd_assoc_data {
 	/* this is for a workaround, so we use it only for non-MLO */
 	const u8 *supp_rates;
 	u8 supp_rates_len;
+
+	unsigned long userspace_selectors[BITS_TO_LONGS(128)];
 
 	unsigned long timeout;
 	int tries;
@@ -602,6 +606,15 @@ struct ieee80211_if_managed {
 	/* dialog token enumerator for neg TTLM request */
 	u8 dialog_token_alloc;
 	struct wiphy_delayed_work neg_ttlm_timeout_work;
+
+	/* Locally initiated multi-link reconfiguration */
+	struct {
+		struct ieee80211_mgd_assoc_data *add_links_data;
+		struct wiphy_delayed_work wk;
+		u16 removed_links;
+		u16 added_links;
+		u8 dialog_token;
+	} reconf;
 };
 
 struct ieee80211_if_ibss {
@@ -1204,7 +1217,7 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 	for (int ___link_id = 0;					\
 	     ___link_id < ARRAY_SIZE(___sdata->link);			\
 	     ___link_id++)						\
-	if ((_link = wiphy_dereference((local)->hw.wiphy,		\
+	if ((_link = wiphy_dereference((_local)->hw.wiphy,		\
 				       ___sdata->link[___link_id])))
 
 static inline int
@@ -1749,6 +1762,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_eht_operation *eht_operation;
 	const struct ieee80211_multi_link_elem *ml_basic;
 	const struct ieee80211_multi_link_elem *ml_reconf;
+	const struct ieee80211_multi_link_elem *ml_epcs;
 	const struct ieee80211_bandwidth_indication *bandwidth_indication;
 	const struct ieee80211_ttlm_elem *ttlm[IEEE80211_TTLM_MAX_CNT];
 
@@ -1779,6 +1793,7 @@ struct ieee802_11_elems {
 	/* mult-link element can be de-fragmented and thus u8 is not sufficient */
 	size_t ml_basic_len;
 	size_t ml_reconf_len;
+	size_t ml_epcs_len;
 
 	u8 ttlm_num;
 
@@ -2109,8 +2124,6 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid, int link_id);
-bool ieee80211_smps_is_restrictive(enum ieee80211_smps_mode smps_mode_old,
-				   enum ieee80211_smps_mode smps_mode_new);
 void ieee80211_add_addbaext(struct sk_buff *skb,
 			    const u8 req_addba_ext_data,
 			    u16 buf_size);
@@ -2766,6 +2779,12 @@ void ieee80211_check_wbrf_support(struct ieee80211_local *local);
 void ieee80211_add_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 
+int ieee80211_mgd_assoc_ml_reconf(struct ieee80211_sub_if_data *sdata,
+				  struct cfg80211_assoc_link *add_links,
+				  u16 rem_links);
+
+void ieee80211_process_ml_reconf_resp(struct ieee80211_sub_if_data *sdata,
+				      struct ieee80211_mgmt *mgmt, size_t len);
 #if IS_ENABLED(CONFIG_MAC80211_KUNIT_TEST)
 #define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
 #define VISIBLE_IF_MAC80211_KUNIT

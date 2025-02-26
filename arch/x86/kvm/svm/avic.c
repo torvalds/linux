@@ -1199,6 +1199,12 @@ bool avic_hardware_setup(void)
 		return false;
 	}
 
+	if (cc_platform_has(CC_ATTR_HOST_SEV_SNP) &&
+	    !boot_cpu_has(X86_FEATURE_HV_INUSE_WR_ALLOWED)) {
+		pr_warn("AVIC disabled: missing HvInUseWrAllowed on SNP-enabled system\n");
+		return false;
+	}
+
 	if (boot_cpu_has(X86_FEATURE_AVIC)) {
 		pr_info("AVIC enabled\n");
 	} else if (force_avic) {

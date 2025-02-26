@@ -1,7 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
-ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding"
+ALL_TESTS="ping_ipv4 ping_ipv6 learning flooding pvid_change"
 NUM_NETIFS=4
 source lib.sh
 
@@ -77,12 +77,16 @@ cleanup()
 
 ping_ipv4()
 {
-	ping_test $h1 192.0.2.2
+	local msg=$1
+
+	ping_test $h1 192.0.2.2 "$msg"
 }
 
 ping_ipv6()
 {
-	ping6_test $h1 2001:db8:1::2
+	local msg=$1
+
+	ping6_test $h1 2001:db8:1::2 "$msg"
 }
 
 learning()
@@ -93,6 +97,21 @@ learning()
 flooding()
 {
 	flood_test $swp2 $h1 $h2
+}
+
+pvid_change()
+{
+	# Test that the changing of the VLAN-aware PVID does not affect
+	# VLAN-unaware forwarding
+	bridge vlan add vid 3 dev $swp1 pvid untagged
+
+	ping_ipv4 " with bridge port $swp1 PVID changed"
+	ping_ipv6 " with bridge port $swp1 PVID changed"
+
+	bridge vlan del vid 3 dev $swp1
+
+	ping_ipv4 " with bridge port $swp1 PVID deleted"
+	ping_ipv6 " with bridge port $swp1 PVID deleted"
 }
 
 trap cleanup EXIT

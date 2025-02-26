@@ -20,6 +20,7 @@ properties:
       - qcom,dsi-phy-14nm-660
       - qcom,dsi-phy-14nm-8953
       - qcom,sm6125-dsi-phy-14nm
+      - qcom,sm6150-dsi-phy-14nm
 
   reg:
     items:
@@ -55,24 +56,24 @@ unevaluatedProperties: false
 
 examples:
   - |
-     #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
-     #include <dt-bindings/clock/qcom,rpmh.h>
+    #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+    #include <dt-bindings/clock/qcom,rpmh.h>
 
-     dsi-phy@ae94400 {
-         compatible = "qcom,dsi-phy-14nm";
-         reg = <0x0ae94400 0x200>,
-               <0x0ae94600 0x280>,
-               <0x0ae94a00 0x1e0>;
-         reg-names = "dsi_phy",
-                     "dsi_phy_lane",
-                     "dsi_pll";
+    dsi-phy@ae94400 {
+        compatible = "qcom,dsi-phy-14nm";
+        reg = <0x0ae94400 0x200>,
+              <0x0ae94600 0x280>,
+              <0x0ae94a00 0x1e0>;
+        reg-names = "dsi_phy",
+                    "dsi_phy_lane",
+                    "dsi_pll";
 
-         #clock-cells = <1>;
-         #phy-cells = <0>;
+        #clock-cells = <1>;
+        #phy-cells = <0>;
 
-         vcca-supply = <&vcca_reg>;
-         clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
-                  <&rpmhcc RPMH_CXO_CLK>;
-         clock-names = "iface", "ref";
-     };
+        vcca-supply = <&vcca_reg>;
+        clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+                 <&rpmhcc RPMH_CXO_CLK>;
+        clock-names = "iface", "ref";
+    };
 ...

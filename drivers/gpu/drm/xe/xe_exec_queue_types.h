@@ -41,7 +41,7 @@ struct xe_exec_queue {
 	/** @xef: Back pointer to xe file if this is user created exec queue */
 	struct xe_file *xef;
 
-	/** @gt: graphics tile this exec queue can submit to */
+	/** @gt: GT structure this exec queue can submit to */
 	struct xe_gt *gt;
 	/**
 	 * @hwe: A hardware of the same class. May (physical engine) or may not
@@ -63,6 +63,8 @@ struct xe_exec_queue {
 	char name[MAX_FENCE_NAME_LEN];
 	/** @width: width (number BB submitted per exec) of this exec queue */
 	u16 width;
+	/** @msix_vec: MSI-X vector (for platforms that support it) */
+	u16 msix_vec;
 	/** @fence_irq: fence IRQ used to signal job completion */
 	struct xe_hw_fence_irq *fence_irq;
 

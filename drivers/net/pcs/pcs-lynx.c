@@ -35,6 +35,27 @@ enum sgmii_speed {
 #define phylink_pcs_to_lynx(pl_pcs) container_of((pl_pcs), struct lynx_pcs, pcs)
 #define lynx_to_phylink_pcs(lynx) (&(lynx)->pcs)
 
+static unsigned int lynx_pcs_inband_caps(struct phylink_pcs *pcs,
+					 phy_interface_t interface)
+{
+	switch (interface) {
+	case PHY_INTERFACE_MODE_1000BASEX:
+	case PHY_INTERFACE_MODE_SGMII:
+	case PHY_INTERFACE_MODE_QSGMII:
+		return LINK_INBAND_DISABLE | LINK_INBAND_ENABLE;
+
+	case PHY_INTERFACE_MODE_10GBASER:
+	case PHY_INTERFACE_MODE_2500BASEX:
+		return LINK_INBAND_DISABLE;
+
+	case PHY_INTERFACE_MODE_USXGMII:
+		return LINK_INBAND_ENABLE;
+
+	default:
+		return 0;
+	}
+}
+
 static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 				       struct phylink_link_state *state)
 {
@@ -79,7 +100,7 @@ static void lynx_pcs_get_state_2500basex(struct mdio_device *pcs,
 	state->duplex = DUPLEX_FULL;
 }
 
-static void lynx_pcs_get_state(struct phylink_pcs *pcs,
+static void lynx_pcs_get_state(struct phylink_pcs *pcs, unsigned int neg_mode,
 			       struct phylink_link_state *state)
 {
 	struct lynx_pcs *lynx = phylink_pcs_to_lynx(pcs);
@@ -88,7 +109,7 @@ static void lynx_pcs_get_state(struct phylink_pcs *pcs,
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_QSGMII:
-		phylink_mii_c22_pcs_get_state(lynx->mdio, state);
+		phylink_mii_c22_pcs_get_state(lynx->mdio, neg_mode, state);
 		break;
 	case PHY_INTERFACE_MODE_2500BASEX:
 		lynx_pcs_get_state_2500basex(lynx->mdio, state);
@@ -306,15 +327,26 @@ static void lynx_pcs_link_up(struct phylink_pcs *pcs, unsigned int neg_mode,
 }
 
 static const struct phylink_pcs_ops lynx_pcs_phylink_ops = {
+	.pcs_inband_caps = lynx_pcs_inband_caps,
 	.pcs_get_state = lynx_pcs_get_state,
 	.pcs_config = lynx_pcs_config,
 	.pcs_an_restart = lynx_pcs_an_restart,
 	.pcs_link_up = lynx_pcs_link_up,
 };
 
+static const phy_interface_t lynx_interfaces[] = {
+	PHY_INTERFACE_MODE_SGMII,
+	PHY_INTERFACE_MODE_QSGMII,
+	PHY_INTERFACE_MODE_1000BASEX,
+	PHY_INTERFACE_MODE_2500BASEX,
+	PHY_INTERFACE_MODE_10GBASER,
+	PHY_INTERFACE_MODE_USXGMII,
+};
+
 static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 {
 	struct lynx_pcs *lynx;
+	int i;
 
 	lynx = kzalloc(sizeof(*lynx), GFP_KERNEL);
 	if (!lynx)
@@ -325,6 +357,9 @@ static struct phylink_pcs *lynx_pcs_create(struct mdio_device *mdio)
 	lynx->pcs.ops = &lynx_pcs_phylink_ops;
 	lynx->pcs.neg_mode = true;
 	lynx->pcs.poll = true;
+
+	for (i = 0; i < ARRAY_SIZE(lynx_interfaces); i++)
+		__set_bit(lynx_interfaces[i], lynx->pcs.supported_interfaces);
 
 	return lynx_to_phylink_pcs(lynx);
 }

@@ -148,6 +148,7 @@ enum ath11k_hw_rev {
 	ATH11K_HW_WCN6750_HW10,
 	ATH11K_HW_IPQ5018_HW10,
 	ATH11K_HW_QCA2066_HW21,
+	ATH11K_HW_QCA6698AQ_HW21,
 };
 
 enum ath11k_firmware_mode {
@@ -340,7 +341,6 @@ struct ath11k_chan_power_info {
  * @ap_power_type: type of power (SP/LPI/VLP)
  * @num_pwr_levels: number of power levels
  * @reg_max: Array of maximum TX power (dBm) per PSD value
- * @ap_constraint_power: AP constraint power (dBm)
  * @tpe: TPE values processed from TPE IE
  * @chan_power_info: power info to send to firmware
  */
@@ -350,7 +350,6 @@ struct ath11k_reg_tpc_power_info {
 	enum wmi_reg_6ghz_ap_type ap_power_type;
 	u8 num_pwr_levels;
 	u8 reg_max[ATH11K_NUM_PWR_LEVELS];
-	u8 ap_constraint_power;
 	s8 tpe[ATH11K_NUM_PWR_LEVELS];
 	struct ath11k_chan_power_info chan_power_info[ATH11K_NUM_PWR_LEVELS];
 };
@@ -370,7 +369,6 @@ struct ath11k_vif {
 	struct ath11k *ar;
 	struct ieee80211_vif *vif;
 
-	u16 tx_seq_no;
 	struct wmi_wmm_params_all_arg wmm_params;
 	struct list_head list;
 	union {

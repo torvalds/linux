@@ -137,10 +137,8 @@ int ocfs2_inode_lock_full_nested(struct inode *inode,
 			 int ex,
 			 int arg_flags,
 			 int subclass);
-int ocfs2_inode_lock_with_page(struct inode *inode,
-			      struct buffer_head **ret_bh,
-			      int ex,
-			      struct page *page);
+int ocfs2_inode_lock_with_folio(struct inode *inode,
+		struct buffer_head **ret_bh, int ex, struct folio *folio);
 /* Variants without special locking class or flags */
 #define ocfs2_inode_lock_full(i, r, e, f)\
 		ocfs2_inode_lock_full_nested(i, r, e, f, OI_LS_NORMAL)

@@ -187,7 +187,7 @@ static const struct link_hwss dio_fixed_vs_pe_retimer_link_hwss = {
 
 bool requires_fixed_vs_pe_retimer_dio_link_hwss(const struct dc_link *link)
 {
-	return (link->chip_caps & EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN);
+	return ((link->chip_caps & AMD_EXT_DISPLAY_PATH_CAPS__EXT_CHIP_MASK) == AMD_EXT_DISPLAY_PATH_CAPS__DP_FIXED_VS_EN);
 }
 
 const struct link_hwss *get_dio_fixed_vs_pe_retimer_link_hwss(void)

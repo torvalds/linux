@@ -8,6 +8,7 @@ title: MSM Display Port Controller
 
 maintainers:
   - Kuogee Hsieh <quic_khsieh@quicinc.com>
+  - Abhinav Kumar <quic_abhinavk@quicinc.com>
 
 description: |
   Device tree bindings for DisplayPort host controller for MSM targets

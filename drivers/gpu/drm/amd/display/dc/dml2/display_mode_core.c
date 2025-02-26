@@ -1736,7 +1736,7 @@ static void CalculateBytePerPixelAndBlockSizes(
 #endif
 } // CalculateBytePerPixelAndBlockSizes
 
-static dml_float_t CalculateTWait(
+static noinline_for_stack dml_float_t CalculateTWait(
 		dml_uint_t PrefetchMode,
 		enum dml_use_mall_for_pstate_change_mode UseMALLForPStateChange,
 		dml_bool_t SynchronizeDRRDisplaysForUCLKPStateChangeFinal,
@@ -4458,7 +4458,7 @@ static void CalculateSwathWidth(
 	}
 } // CalculateSwathWidth
 
-static  dml_float_t CalculateExtraLatency(
+static noinline_for_stack dml_float_t CalculateExtraLatency(
 		dml_uint_t RoundTripPingLatencyCycles,
 		dml_uint_t ReorderingBytes,
 		dml_float_t DCFCLK,
@@ -5915,7 +5915,7 @@ static dml_uint_t DSCDelayRequirement(
 	return DSCDelayRequirement_val;
 }
 
-static dml_bool_t CalculateVActiveBandwithSupport(dml_uint_t NumberOfActiveSurfaces,
+static noinline_for_stack dml_bool_t CalculateVActiveBandwithSupport(dml_uint_t NumberOfActiveSurfaces,
 										dml_float_t ReturnBW,
 										dml_bool_t NotUrgentLatencyHiding[],
 										dml_float_t ReadBandwidthLuma[],
@@ -6019,7 +6019,7 @@ static void CalculatePrefetchBandwithSupport(
 #endif
 }
 
-static dml_float_t CalculateBandwidthAvailableForImmediateFlip(
+static noinline_for_stack dml_float_t CalculateBandwidthAvailableForImmediateFlip(
 													dml_uint_t NumberOfActiveSurfaces,
 													dml_float_t ReturnBW,
 													dml_float_t ReadBandwidthLuma[],
@@ -6213,7 +6213,7 @@ static dml_uint_t CalculateMaxVStartup(
 	return max_vstartup_lines;
 }
 
-static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
+static noinline_for_stack void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *mode_lib,
 						   struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params,
 						   dml_uint_t j,
 						   dml_uint_t k)
@@ -6265,7 +6265,7 @@ static void set_calculate_prefetch_schedule_params(struct display_mode_lib_st *m
 				CalculatePrefetchSchedule_params->Tno_bw = &mode_lib->ms.Tno_bw[k];
 }
 
-static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
+static noinline_for_stack void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 {
 	struct dml_core_mode_support_locals_st *s = &mode_lib->scratch.dml_core_mode_support_locals;
 	struct CalculatePrefetchSchedule_params_st *CalculatePrefetchSchedule_params = &mode_lib->scratch.CalculatePrefetchSchedule_params;
@@ -6301,9 +6301,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 			mode_lib->ms.meta_row_bandwidth_this_state,
 			mode_lib->ms.dpte_row_bandwidth_this_state,
 			mode_lib->ms.NoOfDPPThisState,
-			mode_lib->ms.UrgentBurstFactorLuma,
-			mode_lib->ms.UrgentBurstFactorChroma,
-			mode_lib->ms.UrgentBurstFactorCursor);
+			mode_lib->ms.UrgentBurstFactorLuma[j],
+			mode_lib->ms.UrgentBurstFactorChroma[j],
+			mode_lib->ms.UrgentBurstFactorCursor[j]);
 
 		s->VMDataOnlyReturnBWPerState = dml_get_return_bw_mbps_vm_only(
 																	&mode_lib->ms.soc,
@@ -6434,7 +6434,7 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 							/* Output */
 							&mode_lib->ms.UrgentBurstFactorCursorPre[k],
 							&mode_lib->ms.UrgentBurstFactorLumaPre[k],
-							&mode_lib->ms.UrgentBurstFactorChroma[k],
+							&mode_lib->ms.UrgentBurstFactorChromaPre[k],
 							&mode_lib->ms.NotUrgentLatencyHidingPre[k]);
 
 					mode_lib->ms.cursor_bw_pre[k] = mode_lib->ms.cache_display_cfg.plane.NumberOfCursors[k] * mode_lib->ms.cache_display_cfg.plane.CursorWidth[k] *
@@ -6458,9 +6458,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 				mode_lib->ms.cursor_bw_pre,
 				mode_lib->ms.prefetch_vmrow_bw,
 				mode_lib->ms.NoOfDPPThisState,
-				mode_lib->ms.UrgentBurstFactorLuma,
-				mode_lib->ms.UrgentBurstFactorChroma,
-				mode_lib->ms.UrgentBurstFactorCursor,
+				mode_lib->ms.UrgentBurstFactorLuma[j],
+				mode_lib->ms.UrgentBurstFactorChroma[j],
+				mode_lib->ms.UrgentBurstFactorCursor[j],
 				mode_lib->ms.UrgentBurstFactorLumaPre,
 				mode_lib->ms.UrgentBurstFactorChromaPre,
 				mode_lib->ms.UrgentBurstFactorCursorPre,
@@ -6517,9 +6517,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 						mode_lib->ms.cursor_bw,
 						mode_lib->ms.cursor_bw_pre,
 						mode_lib->ms.NoOfDPPThisState,
-						mode_lib->ms.UrgentBurstFactorLuma,
-						mode_lib->ms.UrgentBurstFactorChroma,
-						mode_lib->ms.UrgentBurstFactorCursor,
+						mode_lib->ms.UrgentBurstFactorLuma[j],
+						mode_lib->ms.UrgentBurstFactorChroma[j],
+						mode_lib->ms.UrgentBurstFactorCursor[j],
 						mode_lib->ms.UrgentBurstFactorLumaPre,
 						mode_lib->ms.UrgentBurstFactorChromaPre,
 						mode_lib->ms.UrgentBurstFactorCursorPre);
@@ -6586,9 +6586,9 @@ static void dml_prefetch_check(struct display_mode_lib_st *mode_lib)
 													mode_lib->ms.cursor_bw_pre,
 													mode_lib->ms.prefetch_vmrow_bw,
 													mode_lib->ms.NoOfDPP[j], // VBA_ERROR DPPPerSurface is not assigned at this point, should use NoOfDpp here
-													mode_lib->ms.UrgentBurstFactorLuma,
-													mode_lib->ms.UrgentBurstFactorChroma,
-													mode_lib->ms.UrgentBurstFactorCursor,
+													mode_lib->ms.UrgentBurstFactorLuma[j],
+													mode_lib->ms.UrgentBurstFactorChroma[j],
+													mode_lib->ms.UrgentBurstFactorCursor[j],
 													mode_lib->ms.UrgentBurstFactorLumaPre,
 													mode_lib->ms.UrgentBurstFactorChromaPre,
 													mode_lib->ms.UrgentBurstFactorCursorPre,
@@ -7809,9 +7809,9 @@ dml_bool_t dml_core_mode_support(struct display_mode_lib_st *mode_lib)
 				mode_lib->ms.DETBufferSizeYThisState[k],
 				mode_lib->ms.DETBufferSizeCThisState[k],
 				/* Output */
-				&mode_lib->ms.UrgentBurstFactorCursor[k],
-				&mode_lib->ms.UrgentBurstFactorLuma[k],
-				&mode_lib->ms.UrgentBurstFactorChroma[k],
+				&mode_lib->ms.UrgentBurstFactorCursor[j][k],
+				&mode_lib->ms.UrgentBurstFactorLuma[j][k],
+				&mode_lib->ms.UrgentBurstFactorChroma[j][k],
 				&mode_lib->ms.NotUrgentLatencyHiding[k]);
 		}
 
@@ -8318,7 +8318,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dcfclk_option != dml_use_override_freq)
 		locals->Dcfclk = mode_lib->ms.DCFCLK;
 	else
-		locals->Dcfclk = clk_cfg->dcfclk_freq_mhz;
+		locals->Dcfclk = clk_cfg->dcfclk_mhz;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print_dml_policy(&mode_lib->ms.policy);
@@ -8371,7 +8371,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 	if (clk_cfg->dispclk_option == dml_use_required_freq)
 		locals->Dispclk = locals->Dispclk_calculated;
 	else if (clk_cfg->dispclk_option == dml_use_override_freq)
-		locals->Dispclk = clk_cfg->dispclk_freq_mhz;
+		locals->Dispclk = clk_cfg->dispclk_mhz;
 	else
 		locals->Dispclk = mode_lib->ms.state.dispclk_mhz;
 #ifdef __DML_VBA_DEBUG__
@@ -8412,7 +8412,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 		if (clk_cfg->dppclk_option[k] == dml_use_required_freq)
 			locals->Dppclk[k] = locals->Dppclk_calculated[k];
 		else if (clk_cfg->dppclk_option[k] == dml_use_override_freq)
-			locals->Dppclk[k] = clk_cfg->dppclk_freq_mhz[k];
+			locals->Dppclk[k] = clk_cfg->dppclk_mhz[k];
 		else
 			locals->Dppclk[k] = mode_lib->ms.state.dppclk_mhz;
 #ifdef __DML_VBA_DEBUG__
@@ -9190,6 +9190,8 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 			&locals->FractionOfUrgentBandwidth,
 			&s->dummy_boolean[0]); // dml_bool_t *PrefetchBandwidthSupport
 
+
+
 		if (s->VRatioPrefetchMoreThanMax != false || s->DestinationLineTimesForPrefetchLessThan2 != false) {
 			dml_print("DML::%s: VRatioPrefetchMoreThanMax                   = %u\n", __func__, s->VRatioPrefetchMoreThanMax);
 			dml_print("DML::%s: DestinationLineTimesForPrefetchLessThan2    = %u\n", __func__, s->DestinationLineTimesForPrefetchLessThan2);
@@ -9203,6 +9205,7 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 				locals->PrefetchModeSupported = false;
 			}
 		}
+
 
 		if (locals->PrefetchModeSupported == true && mode_lib->ms.support.ImmediateFlipSupport == true) {
 			locals->BandwidthAvailableForImmediateFlip = CalculateBandwidthAvailableForImmediateFlip(

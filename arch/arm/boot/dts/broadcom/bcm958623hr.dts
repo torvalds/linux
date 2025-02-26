@@ -143,7 +143,6 @@
 
 &qspi {
 	status = "okay";
-	bspi-sel = <0>;
 	flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;

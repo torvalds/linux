@@ -43,8 +43,10 @@
 
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_5_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_5_0_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_sjt_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_sjt_mec.bin");
 
@@ -53,10 +55,6 @@ MODULE_FIRMWARE("amdgpu/gc_9_4_4_sjt_mec.bin");
 
 #define GOLDEN_GB_ADDR_CONFIG 0x2a114042
 #define CP_HQD_PERSISTENT_STATE_DEFAULT 0xbe05301
-
-#define mmSMNAID_XCD0_MCA_SMU 0x36430400	/* SMN AID XCD0 */
-#define mmSMNAID_XCD1_MCA_SMU 0x38430400	/* SMN AID XCD1 */
-#define mmSMNXCD_XCD0_MCA_SMU 0x40430400	/* SMN XCD XCD0 */
 
 #define XCC_REG_RANGE_0_LOW  0x2000     /* XCC gfxdec0 lower Bound */
 #define XCC_REG_RANGE_0_HIGH 0x3400     /* XCC gfxdec0 upper Bound */
@@ -351,13 +349,17 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 
 		WREG32_SOC15(GC, dev_inst, regGB_ADDR_CONFIG,
 			     GOLDEN_GB_ADDR_CONFIG);
-		/* Golden settings applied by driver for ASIC with rev_id 0 */
-		if (adev->rev_id == 0) {
-			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
-					      REDUCE_FIFO_DEPTH_BY_2, 2);
+		if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0)) {
+			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2, SPARE, 0x1);
 		} else {
-			WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
-						SPARE, 0x1);
+			/* Golden settings applied by driver for ASIC with rev_id 0 */
+			if (adev->rev_id == 0) {
+				WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL1,
+						      REDUCE_FIFO_DEPTH_BY_2, 2);
+			} else {
+				WREG32_FIELD15_PREREG(GC, dev_inst, TCP_UTCL1_CNTL2,
+						      SPARE, 0x1);
+			}
 		}
 	}
 }
@@ -501,7 +503,7 @@ static int gfx_v9_4_3_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		r = -EINVAL;
 
 err2:
-	amdgpu_ib_free(adev, &ib, NULL);
+	amdgpu_ib_free(&ib, NULL);
 	dma_fence_put(f);
 err1:
 	amdgpu_device_wb_free(adev, index);
@@ -545,6 +547,7 @@ static int gfx_v9_4_3_init_rlc_microcode(struct amdgpu_device *adev,
 
 
 	err = amdgpu_ucode_request(adev, &adev->gfx.rlc_fw,
+				   AMDGPU_UCODE_REQUIRED,
 				   "amdgpu/%s_rlc.bin", chip_name);
 	if (err)
 		goto out;
@@ -576,12 +579,19 @@ static int gfx_v9_4_3_init_cp_compute_microcode(struct amdgpu_device *adev,
 {
 	int err;
 
-	if (amdgpu_sriov_vf(adev))
+	if (amdgpu_sriov_vf(adev)) {
 		err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
-				"amdgpu/%s_sjt_mec.bin", chip_name);
-	else
+					   AMDGPU_UCODE_REQUIRED,
+					   "amdgpu/%s_sjt_mec.bin", chip_name);
+
+		if (err)
+			err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
+							AMDGPU_UCODE_REQUIRED,
+							"amdgpu/%s_mec.bin", chip_name);
+	} else
 		err = amdgpu_ucode_request(adev, &adev->gfx.mec_fw,
-				"amdgpu/%s_mec.bin", chip_name);
+					   AMDGPU_UCODE_REQUIRED,
+					   "amdgpu/%s_mec.bin", chip_name);
 	if (err)
 		goto out;
 	amdgpu_gfx_cp_init_microcode(adev, AMDGPU_UCODE_ID_CP_MEC1);
@@ -935,6 +945,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1785,9 +1796,7 @@ static void gfx_v9_4_3_xcc_kiq_setting(struct amdgpu_ring *ring, int xcc_id)
 	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS);
 	tmp &= 0xffffff00;
 	tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
-	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS, tmp);
-	tmp |= 0x80;
-	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS, tmp);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS, tmp | 0x80);
 }
 
 static void gfx_v9_4_3_mqd_set_priority(struct amdgpu_ring *ring, struct v9_mqd *mqd)
@@ -2770,16 +2779,16 @@ static const struct amdgpu_rlc_funcs gfx_v9_4_3_rlc_funcs = {
 	.is_rlcg_access_range = gfx_v9_4_3_is_rlcg_access_range,
 };
 
-static int gfx_v9_4_3_set_powergating_state(void *handle,
+static int gfx_v9_4_3_set_powergating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_powergating_state state)
 {
 	return 0;
 }
 
-static int gfx_v9_4_3_set_clockgating_state(void *handle,
+static int gfx_v9_4_3_set_clockgating_state(struct amdgpu_ip_block *ip_block,
 					  enum amd_clockgating_state state)
 {
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_device *adev = ip_block->adev;
 	int i, num_xcc;
 
 	if (amdgpu_sriov_vf(adev))
@@ -4659,7 +4668,6 @@ static void gfx_v9_4_3_ip_dump(struct amdgpu_ip_block *ip_block)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
-	amdgpu_gfx_off_ctrl(adev, false);
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		xcc_offset = xcc_id * reg_count;
 		for (i = 0; i < reg_count; i++)
@@ -4667,7 +4675,6 @@ static void gfx_v9_4_3_ip_dump(struct amdgpu_ip_block *ip_block)
 				RREG32(SOC15_REG_ENTRY_OFFSET_INST(gc_reg_list_9_4_3[i],
 								   GET_INST(GC, xcc_id)));
 	}
-	amdgpu_gfx_off_ctrl(adev, true);
 
 	/* dump compute queue registers for all instances */
 	if (!adev->gfx.ip_dump_compute_queues)
@@ -4676,7 +4683,6 @@ static void gfx_v9_4_3_ip_dump(struct amdgpu_ip_block *ip_block)
 	num_inst = adev->gfx.mec.num_mec * adev->gfx.mec.num_pipe_per_mec *
 		adev->gfx.mec.num_queue_per_pipe;
 	reg_count = ARRAY_SIZE(gc_cp_reg_list_9_4_3);
-	amdgpu_gfx_off_ctrl(adev, false);
 	mutex_lock(&adev->srbm_mutex);
 	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		xcc_offset = xcc_id * reg_count * num_inst;
@@ -4703,7 +4709,6 @@ static void gfx_v9_4_3_ip_dump(struct amdgpu_ip_block *ip_block)
 	}
 	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
-	amdgpu_gfx_off_ctrl(adev, true);
 }
 
 static void gfx_v9_4_3_ring_emit_cleaner_shader(struct amdgpu_ring *ring)
@@ -4866,6 +4871,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		/* 9.4.3 removed all the GDS internal memory,
 		 * only support GWS opcode in kernel, like barrier
 		 * semaphore.etc */
@@ -4879,6 +4885,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		/* deprecated for 9.4.3, no usage at all */
 		adev->gds.gds_compute_max_wave_id = 0;
 		break;

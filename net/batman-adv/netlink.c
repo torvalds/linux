@@ -158,8 +158,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
  *
  * Return: interface index, or 0.
  */
-int
-batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype)
+static int batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype)
 {
 	struct nlattr *attr = nlmsg_find_attr(nlh, GENL_HDRLEN, attrtype);
 
@@ -881,14 +880,14 @@ static int batadv_netlink_notify_hardif(struct batadv_priv *bat_priv,
 }
 
 /**
- * batadv_netlink_get_hardif() - Get hardif attributes
+ * batadv_netlink_cmd_get_hardif() - Get hardif attributes
  * @skb: Netlink message with request data
  * @info: receiver information
  *
  * Return: 0 on success or negative error number in case of failure
  */
-static int batadv_netlink_get_hardif(struct sk_buff *skb,
-				     struct genl_info *info)
+static int batadv_netlink_cmd_get_hardif(struct sk_buff *skb,
+					 struct genl_info *info)
 {
 	struct batadv_hard_iface *hard_iface = info->user_ptr[1];
 	struct batadv_priv *bat_priv = info->user_ptr[0];
@@ -964,28 +963,16 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 static int
 batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(cb->skb->sk);
 	struct net_device *soft_iface;
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_priv *bat_priv;
-	int ifindex;
 	int portid = NETLINK_CB(cb->skb).portid;
 	int skip = cb->args[0];
 	int i = 0;
 
-	ifindex = batadv_netlink_get_ifindex(cb->nlh,
-					     BATADV_ATTR_MESH_IFINDEX);
-	if (!ifindex)
-		return -EINVAL;
-
-	soft_iface = dev_get_by_index(net, ifindex);
-	if (!soft_iface)
-		return -ENODEV;
-
-	if (!batadv_softif_is_valid(soft_iface)) {
-		dev_put(soft_iface);
-		return -ENODEV;
-	}
+	soft_iface = batadv_netlink_get_softif(cb);
+	if (IS_ERR(soft_iface))
+		return PTR_ERR(soft_iface);
 
 	bat_priv = netdev_priv(soft_iface);
 
@@ -1150,23 +1137,17 @@ static int batadv_netlink_set_vlan(struct sk_buff *skb, struct genl_info *info)
 }
 
 /**
- * batadv_get_softif_from_info() - Retrieve soft interface from genl attributes
+ * batadv_netlink_get_softif_from_ifindex() - Get soft-iface from ifindex
  * @net: the applicable net namespace
- * @info: receiver information
+ * @ifindex: index of the soft interface
  *
  * Return: Pointer to soft interface (with increased refcnt) on success, error
  *  pointer on error
  */
 static struct net_device *
-batadv_get_softif_from_info(struct net *net, struct genl_info *info)
+batadv_netlink_get_softif_from_ifindex(struct net *net, int ifindex)
 {
 	struct net_device *soft_iface;
-	int ifindex;
-
-	if (!info->attrs[BATADV_ATTR_MESH_IFINDEX])
-		return ERR_PTR(-EINVAL);
-
-	ifindex = nla_get_u32(info->attrs[BATADV_ATTR_MESH_IFINDEX]);
 
 	soft_iface = dev_get_by_index(net, ifindex);
 	if (!soft_iface)
@@ -1184,28 +1165,61 @@ err_put_softif:
 }
 
 /**
- * batadv_get_hardif_from_info() - Retrieve hardif from genl attributes
- * @bat_priv: the bat priv with all the soft interface information
+ * batadv_netlink_get_softif_from_info() - Get soft-iface from genl attributes
  * @net: the applicable net namespace
  * @info: receiver information
+ *
+ * Return: Pointer to soft interface (with increased refcnt) on success, error
+ *  pointer on error
+ */
+static struct net_device *
+batadv_netlink_get_softif_from_info(struct net *net, struct genl_info *info)
+{
+	int ifindex;
+
+	if (!info->attrs[BATADV_ATTR_MESH_IFINDEX])
+		return ERR_PTR(-EINVAL);
+
+	ifindex = nla_get_u32(info->attrs[BATADV_ATTR_MESH_IFINDEX]);
+
+	return batadv_netlink_get_softif_from_ifindex(net, ifindex);
+}
+
+/**
+ * batadv_netlink_get_softif() - Retrieve soft interface from netlink callback
+ * @cb: callback structure containing arguments
+ *
+ * Return: Pointer to soft interface (with increased refcnt) on success, error
+ *  pointer on error
+ */
+struct net_device *batadv_netlink_get_softif(struct netlink_callback *cb)
+{
+	int ifindex = batadv_netlink_get_ifindex(cb->nlh,
+						 BATADV_ATTR_MESH_IFINDEX);
+	if (!ifindex)
+		return ERR_PTR(-ENONET);
+
+	return batadv_netlink_get_softif_from_ifindex(sock_net(cb->skb->sk),
+						      ifindex);
+}
+
+/**
+ * batadv_netlink_get_hardif_from_ifindex() - Get hard-iface from ifindex
+ * @bat_priv: the bat priv with all the soft interface information
+ * @net: the applicable net namespace
+ * @ifindex: index of the hard interface
  *
  * Return: Pointer to hard interface (with increased refcnt) on success, error
  *  pointer on error
  */
 static struct batadv_hard_iface *
-batadv_get_hardif_from_info(struct batadv_priv *bat_priv, struct net *net,
-			    struct genl_info *info)
+batadv_netlink_get_hardif_from_ifindex(struct batadv_priv *bat_priv,
+				       struct net *net, int ifindex)
 {
 	struct batadv_hard_iface *hard_iface;
 	struct net_device *hard_dev;
-	unsigned int hardif_index;
 
-	if (!info->attrs[BATADV_ATTR_HARD_IFINDEX])
-		return ERR_PTR(-EINVAL);
-
-	hardif_index = nla_get_u32(info->attrs[BATADV_ATTR_HARD_IFINDEX]);
-
-	hard_dev = dev_get_by_index(net, hardif_index);
+	hard_dev = dev_get_by_index(net, ifindex);
 	if (!hard_dev)
 		return ERR_PTR(-ENODEV);
 
@@ -1227,6 +1241,51 @@ err_put_harddev:
 	dev_put(hard_dev);
 
 	return ERR_PTR(-EINVAL);
+}
+
+/**
+ * batadv_netlink_get_hardif_from_info() - Get hard-iface from genl attributes
+ * @bat_priv: the bat priv with all the soft interface information
+ * @net: the applicable net namespace
+ * @info: receiver information
+ *
+ * Return: Pointer to hard interface (with increased refcnt) on success, error
+ *  pointer on error
+ */
+static struct batadv_hard_iface *
+batadv_netlink_get_hardif_from_info(struct batadv_priv *bat_priv,
+				    struct net *net, struct genl_info *info)
+{
+	int ifindex;
+
+	if (!info->attrs[BATADV_ATTR_HARD_IFINDEX])
+		return ERR_PTR(-EINVAL);
+
+	ifindex = nla_get_u32(info->attrs[BATADV_ATTR_HARD_IFINDEX]);
+
+	return batadv_netlink_get_hardif_from_ifindex(bat_priv, net, ifindex);
+}
+
+/**
+ * batadv_netlink_get_hardif() - Retrieve hard interface from netlink callback
+ * @bat_priv: the bat priv with all the soft interface information
+ * @cb: callback structure containing arguments
+ *
+ * Return: Pointer to hard interface (with increased refcnt) on success, error
+ *  pointer on error
+ */
+struct batadv_hard_iface *
+batadv_netlink_get_hardif(struct batadv_priv *bat_priv,
+			  struct netlink_callback *cb)
+{
+	int ifindex = batadv_netlink_get_ifindex(cb->nlh,
+						 BATADV_ATTR_HARD_IFINDEX);
+	if (!ifindex)
+		return ERR_PTR(-ENONET);
+
+	return batadv_netlink_get_hardif_from_ifindex(bat_priv,
+						      sock_net(cb->skb->sk),
+						      ifindex);
 }
 
 /**
@@ -1288,7 +1347,7 @@ static int batadv_pre_doit(const struct genl_split_ops *ops,
 		return -EINVAL;
 
 	if (ops->internal_flags & BATADV_FLAG_NEED_MESH) {
-		soft_iface = batadv_get_softif_from_info(net, info);
+		soft_iface = batadv_netlink_get_softif_from_info(net, info);
 		if (IS_ERR(soft_iface))
 			return PTR_ERR(soft_iface);
 
@@ -1297,7 +1356,8 @@ static int batadv_pre_doit(const struct genl_split_ops *ops,
 	}
 
 	if (ops->internal_flags & BATADV_FLAG_NEED_HARDIF) {
-		hard_iface = batadv_get_hardif_from_info(bat_priv, net, info);
+		hard_iface = batadv_netlink_get_hardif_from_info(bat_priv, net,
+								 info);
 		if (IS_ERR(hard_iface)) {
 			ret = PTR_ERR(hard_iface);
 			goto err_put_softif;
@@ -1390,7 +1450,7 @@ static const struct genl_small_ops batadv_netlink_ops[] = {
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		/* can be retrieved by unprivileged users */
 		.dumpit = batadv_netlink_dump_hardif,
-		.doit = batadv_netlink_get_hardif,
+		.doit = batadv_netlink_cmd_get_hardif,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
 				  BATADV_FLAG_NEED_HARDIF,
 	},

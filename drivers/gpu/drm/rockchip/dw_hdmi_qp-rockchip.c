@@ -28,20 +28,26 @@
 #define RK3588_GRF_SOC_CON2		0x0308
 #define RK3588_HDMI0_HPD_INT_MSK	BIT(13)
 #define RK3588_HDMI0_HPD_INT_CLR	BIT(12)
+#define RK3588_HDMI1_HPD_INT_MSK	BIT(15)
+#define RK3588_HDMI1_HPD_INT_CLR	BIT(14)
 #define RK3588_GRF_SOC_CON7		0x031c
 #define RK3588_SET_HPD_PATH_MASK	GENMASK(13, 12)
 #define RK3588_GRF_SOC_STATUS1		0x0384
 #define RK3588_HDMI0_LEVEL_INT		BIT(16)
+#define RK3588_HDMI1_LEVEL_INT		BIT(24)
 #define RK3588_GRF_VO1_CON3		0x000c
+#define RK3588_GRF_VO1_CON6		0x0018
 #define RK3588_SCLIN_MASK		BIT(9)
 #define RK3588_SDAIN_MASK		BIT(10)
 #define RK3588_MODE_MASK		BIT(11)
 #define RK3588_I2S_SEL_MASK		BIT(13)
 #define RK3588_GRF_VO1_CON9		0x0024
 #define RK3588_HDMI0_GRANT_SEL		BIT(10)
+#define RK3588_HDMI1_GRANT_SEL		BIT(12)
 
 #define HIWORD_UPDATE(val, mask)	((val) | (mask) << 16)
 #define HOTPLUG_DEBOUNCE_MS		150
+#define MAX_HDMI_PORT_NUM		2
 
 struct rockchip_hdmi_qp {
 	struct device *dev;
@@ -53,6 +59,7 @@ struct rockchip_hdmi_qp {
 	struct phy *phy;
 	struct gpio_desc *enable_gpio;
 	struct delayed_work hpd_work;
+	int port_id;
 };
 
 static struct rockchip_hdmi_qp *to_rockchip_hdmi_qp(struct drm_encoder *encoder)
@@ -127,20 +134,24 @@ dw_hdmi_qp_rk3588_read_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 	u32 val;
 
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &val);
+	val &= hdmi->port_id ? RK3588_HDMI1_LEVEL_INT : RK3588_HDMI0_LEVEL_INT;
 
-	return val & RK3588_HDMI0_LEVEL_INT ?
-		connector_status_connected : connector_status_disconnected;
+	return val ? connector_status_connected : connector_status_disconnected;
 }
 
 static void dw_hdmi_qp_rk3588_setup_hpd(struct dw_hdmi_qp *dw_hdmi, void *data)
 {
 	struct rockchip_hdmi_qp *hdmi = (struct rockchip_hdmi_qp *)data;
+	u32 val;
 
-	regmap_write(hdmi->regmap,
-		     RK3588_GRF_SOC_CON2,
-		     HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
-				   RK3588_HDMI0_HPD_INT_CLR |
-				   RK3588_HDMI0_HPD_INT_MSK));
+	if (hdmi->port_id)
+		val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_CLR,
+				    RK3588_HDMI1_HPD_INT_CLR | RK3588_HDMI1_HPD_INT_MSK);
+	else
+		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
+				    RK3588_HDMI0_HPD_INT_CLR | RK3588_HDMI0_HPD_INT_MSK);
+
+	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 }
 
 static const struct dw_hdmi_qp_phy_ops rk3588_hdmi_phy_ops = {
@@ -173,8 +184,12 @@ static irqreturn_t dw_hdmi_qp_rk3588_hardirq(int irq, void *dev_id)
 	regmap_read(hdmi->regmap, RK3588_GRF_SOC_STATUS1, &intr_stat);
 
 	if (intr_stat) {
-		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK,
-				    RK3588_HDMI0_HPD_INT_MSK);
+		if (hdmi->port_id)
+			val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_MSK,
+					    RK3588_HDMI1_HPD_INT_MSK);
+		else
+			val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK,
+					    RK3588_HDMI0_HPD_INT_MSK);
 		regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 		return IRQ_WAKE_THREAD;
 	}
@@ -191,22 +206,44 @@ static irqreturn_t dw_hdmi_qp_rk3588_irq(int irq, void *dev_id)
 	if (!intr_stat)
 		return IRQ_NONE;
 
-	val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
-			    RK3588_HDMI0_HPD_INT_CLR);
+	if (hdmi->port_id)
+		val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_CLR,
+				    RK3588_HDMI1_HPD_INT_CLR);
+	else
+		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_CLR,
+				    RK3588_HDMI0_HPD_INT_CLR);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
 	mod_delayed_work(system_wq, &hdmi->hpd_work,
 			 msecs_to_jiffies(HOTPLUG_DEBOUNCE_MS));
 
-	val |= HIWORD_UPDATE(0, RK3588_HDMI0_HPD_INT_MSK);
+	if (hdmi->port_id)
+		val |= HIWORD_UPDATE(0, RK3588_HDMI1_HPD_INT_MSK);
+	else
+		val |= HIWORD_UPDATE(0, RK3588_HDMI0_HPD_INT_MSK);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
 	return IRQ_HANDLED;
 }
 
+struct rockchip_hdmi_qp_cfg {
+	unsigned int num_ports;
+	unsigned int port_ids[MAX_HDMI_PORT_NUM];
+	const struct dw_hdmi_qp_phy_ops *phy_ops;
+};
+
+static const struct rockchip_hdmi_qp_cfg rk3588_hdmi_cfg = {
+	.num_ports = 2,
+	.port_ids = {
+		0xfde80000,
+		0xfdea0000,
+	},
+	.phy_ops = &rk3588_hdmi_phy_ops,
+};
+
 static const struct of_device_id dw_hdmi_qp_rockchip_dt_ids[] = {
 	{ .compatible = "rockchip,rk3588-dw-hdmi-qp",
-	  .data = &rk3588_hdmi_phy_ops },
+	  .data = &rk3588_hdmi_cfg },
 	{},
 };
 MODULE_DEVICE_TABLE(of, dw_hdmi_qp_rockchip_dt_ids);
@@ -214,17 +251,15 @@ MODULE_DEVICE_TABLE(of, dw_hdmi_qp_rockchip_dt_ids);
 static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 				    void *data)
 {
-	static const char * const clk_names[] = {
-		"pclk", "earc", "aud", "hdp", "hclk_vo1",
-		"ref" /* keep "ref" last */
-	};
 	struct platform_device *pdev = to_platform_device(dev);
+	const struct rockchip_hdmi_qp_cfg *cfg;
 	struct dw_hdmi_qp_plat_data plat_data;
 	struct drm_device *drm = data;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	struct rockchip_hdmi_qp *hdmi;
-	struct clk *clk;
+	struct resource *res;
+	struct clk_bulk_data *clks;
 	int ret, irq, i;
 	u32 val;
 
@@ -235,12 +270,31 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 	if (!hdmi)
 		return -ENOMEM;
 
-	plat_data.phy_ops = of_device_get_match_data(dev);
-	if (!plat_data.phy_ops)
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
 		return -ENODEV;
 
-	plat_data.phy_data = hdmi;
+	cfg = of_device_get_match_data(dev);
+	if (!cfg)
+		return -ENODEV;
+
 	hdmi->dev = &pdev->dev;
+	hdmi->port_id = -ENODEV;
+
+	/* Identify port ID by matching base IO address */
+	for (i = 0; i < cfg->num_ports; i++) {
+		if (res->start == cfg->port_ids[i]) {
+			hdmi->port_id = i;
+			break;
+		}
+	}
+	if (hdmi->port_id < 0) {
+		drm_err(hdmi, "Failed to match HDMI port ID\n");
+		return hdmi->port_id;
+	}
+
+	plat_data.phy_ops = cfg->phy_ops;
+	plat_data.phy_data = hdmi;
 
 	encoder = &hdmi->encoder.encoder;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
@@ -270,18 +324,22 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 		return PTR_ERR(hdmi->vo_regmap);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(clk_names); i++) {
-		clk = devm_clk_get_enabled(hdmi->dev, clk_names[i]);
+	ret = devm_clk_bulk_get_all_enabled(hdmi->dev, &clks);
+	if (ret < 0) {
+		drm_err(hdmi, "Failed to get clocks: %d\n", ret);
+		return ret;
+	}
 
-		if (IS_ERR(clk)) {
-			ret = PTR_ERR(clk);
-			if (ret != -EPROBE_DEFER)
-				drm_err(hdmi, "Failed to get %s clock: %d\n",
-					clk_names[i], ret);
-			return ret;
+	for (i = 0; i < ret; i++) {
+		if (!strcmp(clks[i].id, "ref")) {
+			hdmi->ref_clk = clks[1].clk;
+			break;
 		}
 	}
-	hdmi->ref_clk = clk;
+	if (!hdmi->ref_clk) {
+		drm_err(hdmi, "Missing ref clock\n");
+		return -EINVAL;
+	}
 
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
 						    GPIOD_OUT_HIGH);
@@ -303,17 +361,26 @@ static int dw_hdmi_qp_rockchip_bind(struct device *dev, struct device *master,
 	      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
 	      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
 	      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
-	regmap_write(hdmi->vo_regmap, RK3588_GRF_VO1_CON3, val);
+	regmap_write(hdmi->vo_regmap,
+		     hdmi->port_id ? RK3588_GRF_VO1_CON6 : RK3588_GRF_VO1_CON3,
+		     val);
 
 	val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
 			    RK3588_SET_HPD_PATH_MASK);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON7, val);
 
-	val = HIWORD_UPDATE(RK3588_HDMI0_GRANT_SEL,
-			    RK3588_HDMI0_GRANT_SEL);
+	if (hdmi->port_id)
+		val = HIWORD_UPDATE(RK3588_HDMI1_GRANT_SEL,
+				    RK3588_HDMI1_GRANT_SEL);
+	else
+		val = HIWORD_UPDATE(RK3588_HDMI0_GRANT_SEL,
+				    RK3588_HDMI0_GRANT_SEL);
 	regmap_write(hdmi->vo_regmap, RK3588_GRF_VO1_CON9, val);
 
-	val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK, RK3588_HDMI0_HPD_INT_MSK);
+	if (hdmi->port_id)
+		val = HIWORD_UPDATE(RK3588_HDMI1_HPD_INT_MSK, RK3588_HDMI1_HPD_INT_MSK);
+	else
+		val = HIWORD_UPDATE(RK3588_HDMI0_HPD_INT_MSK, RK3588_HDMI0_HPD_INT_MSK);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON2, val);
 
 	INIT_DELAYED_WORK(&hdmi->hpd_work, dw_hdmi_qp_rk3588_hpd_work);
@@ -391,14 +458,20 @@ static int __maybe_unused dw_hdmi_qp_rockchip_resume(struct device *dev)
 	      HIWORD_UPDATE(RK3588_SDAIN_MASK, RK3588_SDAIN_MASK) |
 	      HIWORD_UPDATE(RK3588_MODE_MASK, RK3588_MODE_MASK) |
 	      HIWORD_UPDATE(RK3588_I2S_SEL_MASK, RK3588_I2S_SEL_MASK);
-	regmap_write(hdmi->vo_regmap, RK3588_GRF_VO1_CON3, val);
+	regmap_write(hdmi->vo_regmap,
+		     hdmi->port_id ? RK3588_GRF_VO1_CON6 : RK3588_GRF_VO1_CON3,
+		     val);
 
 	val = HIWORD_UPDATE(RK3588_SET_HPD_PATH_MASK,
 			    RK3588_SET_HPD_PATH_MASK);
 	regmap_write(hdmi->regmap, RK3588_GRF_SOC_CON7, val);
 
-	val = HIWORD_UPDATE(RK3588_HDMI0_GRANT_SEL,
-			    RK3588_HDMI0_GRANT_SEL);
+	if (hdmi->port_id)
+		val = HIWORD_UPDATE(RK3588_HDMI1_GRANT_SEL,
+				    RK3588_HDMI1_GRANT_SEL);
+	else
+		val = HIWORD_UPDATE(RK3588_HDMI0_GRANT_SEL,
+				    RK3588_HDMI0_GRANT_SEL);
 	regmap_write(hdmi->vo_regmap, RK3588_GRF_VO1_CON9, val);
 
 	dw_hdmi_qp_resume(dev, hdmi->hdmi);

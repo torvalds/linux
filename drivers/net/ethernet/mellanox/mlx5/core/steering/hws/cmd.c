@@ -257,6 +257,12 @@ int mlx5hws_cmd_set_fte(struct mlx5_core_dev *mdev,
 						 dest->ext_reformat_id);
 				}
 				break;
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_SAMPLER:
+				MLX5_SET(dest_format, in_dests,
+					 destination_type, ifc_dest_type);
+				MLX5_SET(dest_format, in_dests, destination_id,
+					 dest->destination_id);
+				break;
 			default:
 				ret = -EOPNOTSUPP;
 				goto out;
@@ -359,7 +365,7 @@ void mlx5hws_cmd_set_attr_connect_miss_tbl(struct mlx5hws_context *ctx,
 	ft_attr->type = fw_ft_type;
 	ft_attr->table_miss_action = MLX5_IFC_MODIFY_FLOW_TABLE_MISS_ACTION_GOTO_TBL;
 
-	default_miss_tbl = ctx->common_res[type].default_miss->ft_id;
+	default_miss_tbl = ctx->common_res.default_miss->ft_id;
 	if (!default_miss_tbl) {
 		pr_warn("HWS: no flow table ID for default miss\n");
 		return;
@@ -622,12 +628,12 @@ int mlx5hws_cmd_arg_create(struct mlx5_core_dev *mdev,
 			   u32 pd,
 			   u32 *arg_id)
 {
+	u32 in[MLX5_ST_SZ_DW(create_modify_header_arg_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
-	u32 in[MLX5_ST_SZ_DW(create_arg_in)] = {0};
 	void *attr;
 	int ret;
 
-	attr = MLX5_ADDR_OF(create_arg_in, in, hdr);
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, hdr);
 	MLX5_SET(general_obj_in_cmd_hdr,
 		 attr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr,
@@ -635,8 +641,8 @@ int mlx5hws_cmd_arg_create(struct mlx5_core_dev *mdev,
 	MLX5_SET(general_obj_in_cmd_hdr,
 		 attr, op_param.create.log_obj_range, log_obj_range);
 
-	attr = MLX5_ADDR_OF(create_arg_in, in, arg);
-	MLX5_SET(arg, attr, access_pd, pd);
+	attr = MLX5_ADDR_OF(create_modify_header_arg_in, in, arg);
+	MLX5_SET(modify_header_arg, attr, access_pd, pd);
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 	if (ret) {
@@ -812,7 +818,7 @@ int mlx5hws_cmd_packet_reformat_create(struct mlx5_core_dev *mdev,
 				       struct mlx5hws_cmd_packet_reformat_create_attr *attr,
 				       u32 *reformat_id)
 {
-	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_out)] = {0};
+	u32 out[MLX5_ST_SZ_DW(alloc_packet_reformat_context_out)] = {0};
 	size_t insz, cmd_data_sz, cmd_total_sz;
 	void *prctx;
 	void *pdata;
@@ -845,7 +851,7 @@ int mlx5hws_cmd_packet_reformat_create(struct mlx5_core_dev *mdev,
 		goto out;
 	}
 
-	*reformat_id = MLX5_GET(alloc_packet_reformat_out, out, packet_reformat_id);
+	*reformat_id = MLX5_GET(alloc_packet_reformat_context_out, out, packet_reformat_id);
 out:
 	kfree(in);
 	return ret;
@@ -854,13 +860,13 @@ out:
 int mlx5hws_cmd_packet_reformat_destroy(struct mlx5_core_dev *mdev,
 					u32 reformat_id)
 {
-	u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_in)] = {0};
+	u32 out[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_out)] = {0};
+	u32 in[MLX5_ST_SZ_DW(dealloc_packet_reformat_context_in)] = {0};
 	int ret;
 
-	MLX5_SET(dealloc_packet_reformat_in, in, opcode,
+	MLX5_SET(dealloc_packet_reformat_context_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT);
-	MLX5_SET(dealloc_packet_reformat_in, in,
+	MLX5_SET(dealloc_packet_reformat_context_in, in,
 		 packet_reformat_id, reformat_id);
 
 	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
@@ -887,73 +893,6 @@ int mlx5hws_cmd_sq_modify_rdy(struct mlx5_core_dev *mdev, u32 sqn)
 		mlx5_core_err(mdev, "Failed to modify SQ\n");
 
 	return ret;
-}
-
-int mlx5hws_cmd_allow_other_vhca_access(struct mlx5_core_dev *mdev,
-					struct mlx5hws_cmd_allow_other_vhca_access_attr *attr)
-{
-	u32 out[MLX5_ST_SZ_DW(allow_other_vhca_access_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(allow_other_vhca_access_in)] = {0};
-	void *key;
-	int ret;
-
-	MLX5_SET(allow_other_vhca_access_in,
-		 in, opcode, MLX5_CMD_OP_ALLOW_OTHER_VHCA_ACCESS);
-	MLX5_SET(allow_other_vhca_access_in,
-		 in, object_type_to_be_accessed, attr->obj_type);
-	MLX5_SET(allow_other_vhca_access_in,
-		 in, object_id_to_be_accessed, attr->obj_id);
-
-	key = MLX5_ADDR_OF(allow_other_vhca_access_in, in, access_key);
-	memcpy(key, attr->access_key, sizeof(attr->access_key));
-
-	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
-	if (ret)
-		mlx5_core_err(mdev, "Failed to execute ALLOW_OTHER_VHCA_ACCESS command\n");
-
-	return ret;
-}
-
-int mlx5hws_cmd_alias_obj_create(struct mlx5_core_dev *mdev,
-				 struct mlx5hws_cmd_alias_obj_create_attr *alias_attr,
-				 u32 *obj_id)
-{
-	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
-	u32 in[MLX5_ST_SZ_DW(create_alias_obj_in)] = {0};
-	void *attr;
-	void *key;
-	int ret;
-
-	attr = MLX5_ADDR_OF(create_alias_obj_in, in, hdr);
-	MLX5_SET(general_obj_in_cmd_hdr,
-		 attr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
-	MLX5_SET(general_obj_in_cmd_hdr,
-		 attr, obj_type, alias_attr->obj_type);
-	MLX5_SET(general_obj_in_cmd_hdr, attr, op_param.create.alias_object, 1);
-
-	attr = MLX5_ADDR_OF(create_alias_obj_in, in, alias_ctx);
-	MLX5_SET(alias_context, attr, vhca_id_to_be_accessed, alias_attr->vhca_id);
-	MLX5_SET(alias_context, attr, object_id_to_be_accessed, alias_attr->obj_id);
-
-	key = MLX5_ADDR_OF(alias_context, attr, access_key);
-	memcpy(key, alias_attr->access_key, sizeof(alias_attr->access_key));
-
-	ret = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
-	if (ret) {
-		mlx5_core_err(mdev, "Failed to create ALIAS OBJ\n");
-		goto out;
-	}
-
-	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
-out:
-	return ret;
-}
-
-int mlx5hws_cmd_alias_obj_destroy(struct mlx5_core_dev *mdev,
-				  u16 obj_type,
-				  u32 obj_id)
-{
-	return hws_cmd_general_obj_destroy(mdev, obj_type, obj_id);
 }
 
 int mlx5hws_cmd_generate_wqe(struct mlx5_core_dev *mdev,

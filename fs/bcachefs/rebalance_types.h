@@ -30,8 +30,6 @@ struct bch_fs_rebalance {
 	struct bbpos			scan_start;
 	struct bbpos			scan_end;
 	struct bch_move_stats		scan_stats;
-
-	unsigned			enabled:1;
 };
 
 #endif /* _BCACHEFS_REBALANCE_TYPES_H */

@@ -28,6 +28,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
+#include "i915_drv.h"
 #include "i915_irq.h"
 #include "i915_reg.h"
 #include "intel_atomic.h"

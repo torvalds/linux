@@ -157,7 +157,7 @@ static struct gpiod_lookup_table * const *gpiod_lookup_tables;
 static const struct software_node *bat_swnode;
 static void (*exit_handler)(void);
 
-static struct i2c_adapter *
+static __init struct i2c_adapter *
 get_i2c_adap_by_handle(const struct x86_i2c_client_info *client_info)
 {
 	acpi_handle handle;
@@ -177,7 +177,7 @@ static __init int match_parent(struct device *dev, const void *data)
 	return dev->parent == data;
 }
 
-static struct i2c_adapter *
+static __init struct i2c_adapter *
 get_i2c_adap_by_pci_parent(const struct x86_i2c_client_info *client_info)
 {
 	struct i2c_adapter *adap = NULL;
@@ -212,7 +212,7 @@ static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info
 	if (board_info.irq < 0)
 		return board_info.irq;
 
-	if (dev_info->use_pci_devname)
+	if (dev_info->use_pci)
 		adap = get_i2c_adap_by_pci_parent(client_info);
 	else
 		adap = get_i2c_adap_by_handle(client_info);
@@ -271,15 +271,32 @@ static __init int x86_instantiate_spi_dev(const struct x86_dev_info *dev_info, i
 	return 0;
 }
 
-static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int idx)
+static __init struct device *
+get_serdev_controller_by_pci_parent(const struct x86_serdev_info *info)
 {
+	struct pci_dev *pdev;
+
+	pdev = pci_get_domain_bus_and_slot(0, 0, info->ctrl.pci.devfn);
+	if (!pdev)
+		return ERR_PTR(-EPROBE_DEFER);
+
+	/* This puts our reference on pdev and returns a ref on the ctrl */
+	return get_serdev_controller_from_parent(&pdev->dev, 0, info->ctrl_devname);
+}
+
+static __init int x86_instantiate_serdev(const struct x86_dev_info *dev_info, int idx)
+{
+	const struct x86_serdev_info *info = &dev_info->serdev_info[idx];
 	struct acpi_device *serdev_adev;
 	struct serdev_device *serdev;
 	struct device *ctrl_dev;
 	int ret = -ENODEV;
 
-	ctrl_dev = get_serdev_controller(info->ctrl_hid, info->ctrl_uid, 0,
-					 info->ctrl_devname);
+	if (dev_info->use_pci)
+		ctrl_dev = get_serdev_controller_by_pci_parent(info);
+	else
+		ctrl_dev = get_serdev_controller(info->ctrl.acpi.hid, info->ctrl.acpi.uid,
+						 0, info->ctrl_devname);
 	if (IS_ERR(ctrl_dev))
 		return PTR_ERR(ctrl_dev);
 
@@ -446,7 +463,7 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 
 	serdev_count = dev_info->serdev_count;
 	for (i = 0; i < serdev_count; i++) {
-		ret = x86_instantiate_serdev(&dev_info->serdev_info[i], i);
+		ret = x86_instantiate_serdev(dev_info, i);
 		if (ret < 0) {
 			x86_android_tablet_remove(pdev);
 			return ret;

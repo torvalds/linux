@@ -1526,6 +1526,14 @@ config HAVE_ARCH_COMPILER_H
 	  linux/compiler-*.h in order to override macro definitions that those
 	  headers generally provide.
 
+config HAVE_ARCH_LIBGCC_H
+	bool
+	help
+	  An architecture can select this if it provides an
+	  asm/libgcc.h header that should be included after
+	  linux/libgcc.h in order to override macro definitions that
+	  header generally provides.
+
 config HAVE_ARCH_PREL32_RELOCATIONS
 	bool
 	help

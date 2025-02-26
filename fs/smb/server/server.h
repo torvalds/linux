@@ -42,9 +42,11 @@ struct ksmbd_server_config {
 	struct smb_sid		domain_sid;
 	unsigned int		auth_mechs;
 	unsigned int		max_connections;
+	unsigned int		max_inflight_req;
 
 	char			*conf[SERVER_CONF_WORK_GROUP + 1];
 	struct task_struct	*dh_task;
+	bool			bind_interfaces_only;
 };
 
 extern struct ksmbd_server_config server_conf;

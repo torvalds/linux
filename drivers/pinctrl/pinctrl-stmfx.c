@@ -380,7 +380,7 @@ static void stmfx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		seq_printf(s, "input %s ", str_high_low(val));
 		if (type)
 			seq_printf(s, "with internal pull-%s ",
-				   pupd ? "up" : "down");
+				   str_up_down(pupd));
 		else
 			seq_printf(s, "%s ", pupd ? "floating" : "analog");
 	}

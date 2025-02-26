@@ -18,7 +18,7 @@ enum {
 };
 
 #define NO_THRESHOLD (-1)
-#define DFT_THRESHOLD (32)
+#define DEFAULT_THRESHOLD (32)
 
 struct btrfs_workqueue {
 	struct workqueue_struct *normal_wq;
@@ -94,9 +94,9 @@ struct btrfs_workqueue *btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info,
 
 	ret->limit_active = limit_active;
 	if (thresh == 0)
-		thresh = DFT_THRESHOLD;
+		thresh = DEFAULT_THRESHOLD;
 	/* For low threshold, disabling threshold is a better choice */
-	if (thresh < DFT_THRESHOLD) {
+	if (thresh < DEFAULT_THRESHOLD) {
 		ret->current_active = limit_active;
 		ret->thresh = NO_THRESHOLD;
 	} else {

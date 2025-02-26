@@ -22,7 +22,6 @@ license=(GPL-2.0-only)
 makedepends=(
 	bc
 	bison
-	cpio
 	flex
 	gettext
 	kmod
@@ -103,7 +102,7 @@ _package-headers() {
 
 _package-api-headers() {
 	pkgdesc="Kernel headers sanitized for use in userspace"
-	provides=(linux-api-headers)
+	provides=(linux-api-headers="${pkgver}")
 	conflicts=(linux-api-headers)
 
 	_prologue

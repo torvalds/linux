@@ -1541,6 +1541,10 @@ static int scrub_find_fill_first_stripe(struct btrfs_block_group *bg,
 	u64 extent_gen;
 	int ret;
 
+	if (unlikely(!extent_root)) {
+		btrfs_err(fs_info, "no valid extent root for scrub");
+		return -EUCLEAN;
+	}
 	memset(stripe->sectors, 0, sizeof(struct scrub_sector_verification) *
 				   stripe->nr_sectors);
 	scrub_stripe_reset_bitmaps(stripe);

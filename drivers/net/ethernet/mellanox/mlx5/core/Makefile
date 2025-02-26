@@ -17,7 +17,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		fs_counters.o fs_ft_pool.o rl.o lag/debugfs.o lag/lag.o dev.o events.o wq.o lib/gid.o \
 		lib/devcom.o lib/pci_vsc.o lib/dm.o lib/fs_ttc.o diag/fs_tracepoint.o \
 		diag/fw_tracer.o diag/crdump.o devlink.o diag/rsc_dump.o diag/reporter_vnic.o \
-		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o
+		fw_reset.o qos.o lib/tout.o lib/aso.o wc.o fs_pool.o
 
 #
 # Netdev basic
@@ -60,6 +60,7 @@ mlx5_core-$(CONFIG_MLX5_CLS_ACT)     += en/tc/act/act.o en/tc/act/drop.o en/tc/a
 ifneq ($(CONFIG_MLX5_TC_CT),)
 	mlx5_core-y			     += en/tc_ct.o en/tc/ct_fs_dmfs.o
 	mlx5_core-$(CONFIG_MLX5_SW_STEERING) += en/tc/ct_fs_smfs.o
+	mlx5_core-$(CONFIG_MLX5_HW_STEERING) += en/tc/ct_fs_hmfs.o
 endif
 
 mlx5_core-$(CONFIG_MLX5_TC_SAMPLE)   += en/tc/sample.o
@@ -123,6 +124,7 @@ mlx5_core-$(CONFIG_MLX5_SW_STEERING) += steering/sws/dr_domain.o \
 					steering/sws/dr_ste_v0.o \
 					steering/sws/dr_ste_v1.o \
 					steering/sws/dr_ste_v2.o \
+					steering/sws/dr_ste_v3.o \
 					steering/sws/dr_cmd.o \
 					steering/sws/dr_fw.o \
 					steering/sws/dr_action.o \
@@ -150,8 +152,9 @@ mlx5_core-$(CONFIG_MLX5_HW_STEERING) += steering/hws/cmd.o \
 					steering/hws/bwc.o \
 					steering/hws/debug.o \
 					steering/hws/vport.o \
-					steering/hws/bwc_complex.o
-
+					steering/hws/bwc_complex.o \
+					steering/hws/fs_hws_pools.o \
+					steering/hws/fs_hws.o
 
 #
 # SF device

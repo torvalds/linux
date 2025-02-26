@@ -176,6 +176,7 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	vdev->dev.parent = dev;
 	priv->vdev = vdev;
 
+	device_set_of_node_from_dev(&vdev->dev, dev);
 	error = platform_device_add(vdev);
 	if (error)
 		goto err_device_put;

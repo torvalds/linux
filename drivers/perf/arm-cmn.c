@@ -1713,8 +1713,8 @@ static int arm_cmn_validate_group(struct arm_cmn *cmn, struct perf_event *event)
 		goto done;
 	}
 
-	for (i = 0; i < CMN_MAX_DTCS; i++)
-		if (val->dtc_count[i] == CMN_DT_NUM_COUNTERS)
+	for_each_hw_dtc_idx(hw, dtc, idx)
+		if (val->dtc_count[dtc] == CMN_DT_NUM_COUNTERS)
 			goto done;
 
 	for_each_hw_dn(hw, dn, i) {

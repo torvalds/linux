@@ -36,7 +36,7 @@ impl SeqFile {
             bindings::seq_printf(
                 self.inner.get(),
                 c_str!("%pA").as_char_ptr(),
-                &args as *const _ as *const core::ffi::c_void,
+                &args as *const _ as *const crate::ffi::c_void,
             );
         }
     }

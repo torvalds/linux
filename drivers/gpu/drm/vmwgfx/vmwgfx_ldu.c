@@ -479,7 +479,6 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	}
 
 	drm_connector_helper_add(connector, &vmw_ldu_connector_helper_funcs);
-	connector->status = vmw_du_connector_detect(connector, true);
 
 	ret = drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);

@@ -2065,10 +2065,19 @@ mlx5_tc_ct_fs_init(struct mlx5_tc_ct_priv *ct_priv)
 	struct mlx5_ct_fs_ops *fs_ops = mlx5_ct_fs_dmfs_ops_get();
 	int err;
 
-	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB &&
-	    ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
-		ct_dbg("Using SMFS ct flow steering provider");
-		fs_ops = mlx5_ct_fs_smfs_ops_get();
+	if (ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB) {
+		if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_HMFS) {
+			ct_dbg("Using HMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_hmfs_ops_get();
+		} else if (ct_priv->dev->priv.steering->mode == MLX5_FLOW_STEERING_MODE_SMFS) {
+			ct_dbg("Using SMFS ct flow steering provider");
+			fs_ops = mlx5_ct_fs_smfs_ops_get();
+		}
+
+		if (!fs_ops) {
+			ct_dbg("Requested flow steering mode is not enabled.");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	ct_priv->fs = kzalloc(sizeof(*ct_priv->fs) + fs_ops->priv_size, GFP_KERNEL);
@@ -2420,4 +2429,75 @@ mlx5e_tc_ct_restore_flow(struct mlx5_tc_ct_priv *ct_priv,
 out_inc_drop:
 	atomic_inc(&ct_priv->debugfs.stats.rx_dropped);
 	return false;
+}
+
+static bool mlx5e_tc_ct_valid_used_dissector_keys(const u64 used_keys)
+{
+#define DISS_BIT(name) BIT_ULL(FLOW_DISSECTOR_KEY_ ## name)
+	const u64 basic_keys = DISS_BIT(BASIC) | DISS_BIT(CONTROL) |
+				DISS_BIT(META);
+	const u64 ipv4_tcp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv6_tcp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				DISS_BIT(PORTS) | DISS_BIT(TCP);
+	const u64 ipv4_udp = basic_keys | DISS_BIT(IPV4_ADDRS) |
+				DISS_BIT(PORTS);
+	const u64 ipv6_udp = basic_keys | DISS_BIT(IPV6_ADDRS) |
+				 DISS_BIT(PORTS);
+	const u64 ipv4_gre = basic_keys | DISS_BIT(IPV4_ADDRS);
+	const u64 ipv6_gre = basic_keys | DISS_BIT(IPV6_ADDRS);
+
+	return (used_keys == ipv4_tcp || used_keys == ipv4_udp || used_keys == ipv6_tcp ||
+		used_keys == ipv6_udp || used_keys == ipv4_gre || used_keys == ipv6_gre);
+}
+
+bool mlx5e_tc_ct_is_valid_flow_rule(const struct net_device *dev, struct flow_rule *flow_rule)
+{
+	struct flow_match_ipv4_addrs ipv4_addrs;
+	struct flow_match_ipv6_addrs ipv6_addrs;
+	struct flow_match_control control;
+	struct flow_match_basic basic;
+	struct flow_match_ports ports;
+	struct flow_match_tcp tcp;
+
+	if (!mlx5e_tc_ct_valid_used_dissector_keys(flow_rule->match.dissector->used_keys)) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected dissectors (0x%016llx)",
+			   flow_rule->match.dissector->used_keys);
+		return false;
+	}
+
+	flow_rule_match_basic(flow_rule, &basic);
+	flow_rule_match_control(flow_rule, &control);
+	flow_rule_match_ipv4_addrs(flow_rule, &ipv4_addrs);
+	flow_rule_match_ipv6_addrs(flow_rule, &ipv6_addrs);
+	if (basic.key->ip_proto != IPPROTO_GRE)
+		flow_rule_match_ports(flow_rule, &ports);
+	if (basic.key->ip_proto == IPPROTO_TCP)
+		flow_rule_match_tcp(flow_rule, &tcp);
+
+	if (basic.mask->n_proto != htons(0xFFFF) ||
+	    (basic.key->n_proto != htons(ETH_P_IP) && basic.key->n_proto != htons(ETH_P_IPV6)) ||
+	    basic.mask->ip_proto != 0xFF ||
+	    (basic.key->ip_proto != IPPROTO_UDP && basic.key->ip_proto != IPPROTO_TCP &&
+	     basic.key->ip_proto != IPPROTO_GRE)) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected basic match (n_proto 0x%04x/0x%04x, ip_proto 0x%02x/0x%02x)",
+			   ntohs(basic.key->n_proto), ntohs(basic.mask->n_proto),
+			   basic.key->ip_proto, basic.mask->ip_proto);
+		return false;
+	}
+
+	if (basic.key->ip_proto != IPPROTO_GRE &&
+	    (ports.mask->src != htons(0xFFFF) || ports.mask->dst != htons(0xFFFF))) {
+		netdev_dbg(dev, "ct_debug: rule uses ports match (src 0x%04x, dst 0x%04x)",
+			   ports.mask->src, ports.mask->dst);
+		return false;
+	}
+
+	if (basic.key->ip_proto == IPPROTO_TCP && tcp.mask->flags != MLX5_CT_TCP_FLAGS_MASK) {
+		netdev_dbg(dev, "ct_debug: rule uses unexpected tcp match (flags 0x%02x)",
+			   tcp.mask->flags);
+		return false;
+	}
+
+	return true;
 }

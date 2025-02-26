@@ -227,11 +227,119 @@ Intended use
 
 Drivers that opt to use this API first need to identify which of the above 3
 quirk combinations (for a total of 8) match what the hardware documentation
-describes. Then they should wrap the packing() function, creating a new
-xxx_packing() that calls it using the proper QUIRK_* one-hot bits set.
+describes.
+
+There are 3 supported usage patterns, detailed below.
+
+packing()
+^^^^^^^^^
+
+This API function is deprecated.
 
 The packing() function returns an int-encoded error code, which protects the
 programmer against incorrect API use.  The errors are not expected to occur
-during runtime, therefore it is reasonable for xxx_packing() to return void
-and simply swallow those errors. Optionally it can dump stack or print the
-error description.
+during runtime, therefore it is reasonable to wrap packing() into a custom
+function which returns void and swallows those errors. Optionally it can
+dump stack or print the error description.
+
+.. code-block:: c
+
+  void my_packing(void *buf, u64 *val, int startbit, int endbit,
+                  size_t len, enum packing_op op)
+  {
+          int err;
+
+          /* Adjust quirks accordingly */
+          err = packing(buf, val, startbit, endbit, len, op, QUIRK_LSW32_IS_FIRST);
+          if (likely(!err))
+                  return;
+
+          if (err == -EINVAL) {
+                  pr_err("Start bit (%d) expected to be larger than end (%d)\n",
+                         startbit, endbit);
+          } else if (err == -ERANGE) {
+                  if ((startbit - endbit + 1) > 64)
+                          pr_err("Field %d-%d too large for 64 bits!\n",
+                                 startbit, endbit);
+                  else
+                          pr_err("Cannot store %llx inside bits %d-%d (would truncate)\n",
+                                 *val, startbit, endbit);
+          }
+          dump_stack();
+  }
+
+pack() and unpack()
+^^^^^^^^^^^^^^^^^^^
+
+These are const-correct variants of packing(), and eliminate the last "enum
+packing_op op" argument.
+
+Calling pack(...) is equivalent, and preferred, to calling packing(..., PACK).
+
+Calling unpack(...) is equivalent, and preferred, to calling packing(..., UNPACK).
+
+pack_fields() and unpack_fields()
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The library exposes optimized functions for the scenario where there are many
+fields represented in a buffer, and it encourages consumer drivers to avoid
+repetitive calls to pack() and unpack() for each field, but instead use
+pack_fields() and unpack_fields(), which reduces the code footprint.
+
+These APIs use field definitions in arrays of ``struct packed_field_u8`` or
+``struct packed_field_u16``, allowing consumer drivers to minimize the size
+of these arrays according to their custom requirements.
+
+The pack_fields() and unpack_fields() API functions are actually macros which
+automatically select the appropriate function at compile time, based on the
+type of the fields array passed in.
+
+An additional benefit over pack() and unpack() is that sanity checks on the
+field definitions are handled at compile time with ``BUILD_BUG_ON`` rather
+than only when the offending code is executed. These functions return void and
+wrapping them to handle unexpected errors is not necessary.
+
+It is recommended, but not required, that you wrap your packed buffer into a
+structured type with a fixed size. This generally makes it easier for the
+compiler to enforce that the correct size buffer is used.
+
+Here is an example of how to use the fields APIs:
+
+.. code-block:: c
+
+   /* Ordering inside the unpacked structure is flexible and can be different
+    * from the packed buffer. Here, it is optimized to reduce padding.
+    */
+   struct data {
+        u64 field3;
+        u32 field4;
+        u16 field1;
+        u8 field2;
+   };
+
+   #define SIZE 13
+
+   typdef struct __packed { u8 buf[SIZE]; } packed_buf_t;
+
+   static const struct packed_field_u8 fields[] = {
+           PACKED_FIELD(100, 90, struct data, field1),
+           PACKED_FIELD(90, 87, struct data, field2),
+           PACKED_FIELD(86, 30, struct data, field3),
+           PACKED_FIELD(29, 0, struct data, field4),
+   };
+
+   void unpack_your_data(const packed_buf_t *buf, struct data *unpacked)
+   {
+           BUILD_BUG_ON(sizeof(*buf) != SIZE;
+
+           unpack_fields(buf, sizeof(*buf), unpacked, fields,
+                         QUIRK_LITTLE_ENDIAN);
+   }
+
+   void pack_your_data(const struct data *unpacked, packed_buf_t *buf)
+   {
+           BUILD_BUG_ON(sizeof(*buf) != SIZE;
+
+           pack_fields(buf, sizeof(*buf), unpacked, fields,
+                       QUIRK_LITTLE_ENDIAN);
+   }

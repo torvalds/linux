@@ -865,7 +865,6 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->tag_set.ops = &ubd_mq_ops;
 	ubd_dev->tag_set.queue_depth = 64;
 	ubd_dev->tag_set.numa_node = NUMA_NO_NODE;
-	ubd_dev->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ubd_dev->tag_set.driver_data = ubd_dev;
 	ubd_dev->tag_set.nr_hw_queues = 1;
 

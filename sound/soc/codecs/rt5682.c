@@ -395,6 +395,7 @@ bool rt5682_volatile_register(struct device *dev, unsigned int reg)
 	case RT5682_4BTN_IL_CMD_1:
 	case RT5682_AJD1_CTRL:
 	case RT5682_HP_CALIB_CTRL_1:
+	case RT5682_INT_DEVICE_ID:
 	case RT5682_DEVICE_ID:
 	case RT5682_I2C_MODE:
 	case RT5682_HP_CALIB_CTRL_10:
@@ -419,6 +420,7 @@ bool rt5682_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
 	case RT5682_RESET:
+	case RT5682_INT_DEVICE_ID:
 	case RT5682_VERSION_ID:
 	case RT5682_VENDOR_ID:
 	case RT5682_DEVICE_ID:
@@ -3139,7 +3141,10 @@ void rt5682_calibrate(struct rt5682_priv *rt5682)
 	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0100);
 	regmap_write(rt5682->regmap, RT5682_HP_IMP_SENS_CTRL_19, 0x3800);
 	regmap_write(rt5682->regmap, RT5682_CHOP_DAC, 0x3000);
-	regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x7005);
+	if (rt5682->ve_ic)
+		regmap_write(rt5682->regmap, RT5682_CHOP_ADC, 0x7005);
+	else
+		regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x7005);
 	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0x686c);
 	regmap_write(rt5682->regmap, RT5682_CAL_REC, 0x0d0d);
 	regmap_write(rt5682->regmap, RT5682_HP_CALIB_CTRL_2, 0x0321);
@@ -3168,7 +3173,10 @@ void rt5682_calibrate(struct rt5682_priv *rt5682)
 	regmap_write(rt5682->regmap, RT5682_GLB_CLK, 0x0000);
 	regmap_write(rt5682->regmap, RT5682_PWR_DIG_1, 0x0000);
 	regmap_write(rt5682->regmap, RT5682_CHOP_DAC, 0x2000);
-	regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x2005);
+	if (rt5682->ve_ic)
+		regmap_write(rt5682->regmap, RT5682_CHOP_ADC, 0x2005);
+	else
+		regmap_write(rt5682->regmap, RT5682_CALIB_ADC_CTRL, 0x2005);
 	regmap_write(rt5682->regmap, RT5682_STO1_ADC_MIXER, 0xc0c4);
 	regmap_write(rt5682->regmap, RT5682_CAL_REC, 0x0c0c);
 

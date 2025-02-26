@@ -433,6 +433,9 @@ void kgd2kfd_unlock_kfd(void);
 int kgd2kfd_start_sched(struct kfd_dev *kfd, uint32_t node_id);
 int kgd2kfd_stop_sched(struct kfd_dev *kfd, uint32_t node_id);
 bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id);
+bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
+			       bool retry_fault);
+
 #else
 static inline int kgd2kfd_init(void)
 {
@@ -518,5 +521,12 @@ static inline bool kgd2kfd_compute_active(struct kfd_dev *kfd, uint32_t node_id)
 {
 	return false;
 }
+
+static inline bool kgd2kfd_vmfault_fast_path(struct amdgpu_device *adev, struct amdgpu_iv_entry *entry,
+				      bool retry_fault)
+{
+	return false;
+}
+
 #endif
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */

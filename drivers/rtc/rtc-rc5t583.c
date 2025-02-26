@@ -245,7 +245,7 @@ static int rc5t583_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "IRQ is not free.\n");
 		return ret;
 	}
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	ricoh_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 		&rc5t583_rtc_ops, THIS_MODULE);

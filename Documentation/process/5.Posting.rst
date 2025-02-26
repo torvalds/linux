@@ -261,6 +261,10 @@ The tags in common use are:
    can be used instead of Closes: if the patch fixes a part of the issue(s)
    being reported.
 
+ - A Suggested-by: tag indicates that the patch idea is suggested by the person
+   named and ensures credit to the person for the idea. This will, hopefully,
+   inspire them to help us again in the future.
+
  - Cc: the named person received a copy of the patch and had the
    opportunity to comment on it.
 

@@ -914,7 +914,6 @@ bool dwb3_ogam_set_input_transfer_func(
 	struct dwbc *dwbc,
 	const struct dc_transfer_func *in_transfer_func_dwb_ogam);
 
-void dwb3_set_host_read_rate_control(struct dwbc *dwbc, bool host_read_delay);
 #endif
 
 

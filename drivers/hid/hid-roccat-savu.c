@@ -30,7 +30,7 @@ ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(macro, 0x8, 0x0823);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(info, 0x9, 0x08);
 ROCCAT_COMMON2_BIN_ATTRIBUTE_RW(sensor, 0xc, 0x04);
 
-static struct bin_attribute *savu_bin_attrs[] = {
+static const struct bin_attribute *const savu_bin_attrs[] = {
 	&bin_attr_control,
 	&bin_attr_profile,
 	&bin_attr_general,
@@ -42,7 +42,7 @@ static struct bin_attribute *savu_bin_attrs[] = {
 };
 
 static const struct attribute_group savu_group = {
-	.bin_attrs = savu_bin_attrs,
+	.bin_attrs_new = savu_bin_attrs,
 };
 
 static const struct attribute_group *savu_groups[] = {

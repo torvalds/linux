@@ -115,7 +115,7 @@ int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 	timer->kms = kms;
 	timer->crtc_idx = crtc_idx;
 
-	timer->worker = kthread_create_worker(0, "atomic-worker-%d", crtc_idx);
+	timer->worker = kthread_run_worker(0, "atomic-worker-%d", crtc_idx);
 	if (IS_ERR(timer->worker)) {
 		int ret = PTR_ERR(timer->worker);
 		timer->worker = NULL;

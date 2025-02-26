@@ -456,7 +456,7 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "s3c2410_rtc: RTCCON=%02x\n",
 		readw(info->base + S3C2410_RTCCON));
 
-	device_init_wakeup(&pdev->dev, 1);
+	device_init_wakeup(&pdev->dev, true);
 
 	info->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(info->rtc)) {

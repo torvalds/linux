@@ -7,9 +7,9 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
 
-#include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
+#include "intel_display_core.h"
 #include "intel_display_types.h"
 #include "intel_load_detect.h"
 

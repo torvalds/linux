@@ -693,7 +693,7 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 	free_vmemmap_page_list(&vmemmap_pages);
 }
 
-static struct ctl_table hugetlb_vmemmap_sysctls[] = {
+static const struct ctl_table hugetlb_vmemmap_sysctls[] = {
 	{
 		.procname	= "hugetlb_optimize_vmemmap",
 		.data		= &vmemmap_optimize_enabled,

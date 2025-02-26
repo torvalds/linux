@@ -274,8 +274,10 @@ loop:
 	cur_trans = fs_info->running_transaction;
 	if (cur_trans) {
 		if (TRANS_ABORTED(cur_trans)) {
+			const int abort_error = cur_trans->aborted;
+
 			spin_unlock(&fs_info->trans_lock);
-			return cur_trans->aborted;
+			return abort_error;
 		}
 		if (btrfs_blocked_trans_types[cur_trans->state] & type) {
 			spin_unlock(&fs_info->trans_lock);
@@ -795,8 +797,7 @@ alloc_fail:
 	if (num_bytes)
 		btrfs_block_rsv_release(fs_info, trans_rsv, num_bytes, NULL);
 	if (delayed_refs_bytes)
-		btrfs_space_info_free_bytes_may_use(fs_info, trans_rsv->space_info,
-						    delayed_refs_bytes);
+		btrfs_space_info_free_bytes_may_use(trans_rsv->space_info, delayed_refs_bytes);
 reserve_fail:
 	btrfs_qgroup_free_meta_prealloc(root, qgroup_reserved);
 	return ERR_PTR(ret);

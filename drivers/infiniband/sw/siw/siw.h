@@ -46,6 +46,9 @@
  */
 #define SIW_IRQ_MAXBURST_SQ_ACTIVE 4
 
+/* There is always only a port 1 per siw device */
+#define SIW_PORT 1
+
 struct siw_dev_cap {
 	int max_qp;
 	int max_qp_wr;
@@ -69,15 +72,11 @@ struct siw_pd {
 
 struct siw_device {
 	struct ib_device base_dev;
-	struct net_device *netdev;
 	struct siw_dev_cap attrs;
 
 	u32 vendor_part_id;
 	int numa_node;
 	char raw_gid[ETH_ALEN];
-
-	/* physical port state (only one port per device) */
-	enum ib_port_state state;
 
 	spinlock_t lock;
 

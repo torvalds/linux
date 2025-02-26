@@ -26,6 +26,7 @@
 #include <linux/io-mapping.h>
 #include <linux/iosys-map.h>
 #include <linux/scatterlist.h>
+#include <linux/cgroup_dmem.h>
 
 #include <drm/ttm/ttm_bo.h>
 #include <drm/ttm/ttm_placement.h>
@@ -350,15 +351,28 @@ EXPORT_SYMBOL(ttm_resource_fini);
 
 int ttm_resource_alloc(struct ttm_buffer_object *bo,
 		       const struct ttm_place *place,
-		       struct ttm_resource **res_ptr)
+		       struct ttm_resource **res_ptr,
+		       struct dmem_cgroup_pool_state **ret_limit_pool)
 {
 	struct ttm_resource_manager *man =
 		ttm_manager_type(bo->bdev, place->mem_type);
+	struct dmem_cgroup_pool_state *pool = NULL;
 	int ret;
 
+	if (man->cg) {
+		ret = dmem_cgroup_try_charge(man->cg, bo->base.size, &pool, ret_limit_pool);
+		if (ret)
+			return ret;
+	}
+
 	ret = man->func->alloc(man, bo, place, res_ptr);
-	if (ret)
+	if (ret) {
+		if (pool)
+			dmem_cgroup_uncharge(pool, bo->base.size);
 		return ret;
+	}
+
+	(*res_ptr)->css = pool;
 
 	spin_lock(&bo->bdev->lru_lock);
 	ttm_resource_add_bulk_move(*res_ptr, bo);
@@ -370,6 +384,7 @@ EXPORT_SYMBOL_FOR_TESTS_ONLY(ttm_resource_alloc);
 void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 {
 	struct ttm_resource_manager *man;
+	struct dmem_cgroup_pool_state *pool;
 
 	if (!*res)
 		return;
@@ -377,9 +392,13 @@ void ttm_resource_free(struct ttm_buffer_object *bo, struct ttm_resource **res)
 	spin_lock(&bo->bdev->lru_lock);
 	ttm_resource_del_bulk_move(*res, bo);
 	spin_unlock(&bo->bdev->lru_lock);
+
+	pool = (*res)->css;
 	man = ttm_manager_type(bo->bdev, (*res)->mem_type);
 	man->func->free(man, *res);
 	*res = NULL;
+	if (man->cg)
+		dmem_cgroup_uncharge(pool, bo->base.size);
 }
 EXPORT_SYMBOL(ttm_resource_free);
 

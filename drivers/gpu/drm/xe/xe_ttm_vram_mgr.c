@@ -5,6 +5,7 @@
  */
 
 #include <drm/drm_managed.h>
+#include <drm/drm_drv.h>
 
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
@@ -52,7 +53,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
 	struct xe_ttm_vram_mgr_resource *vres;
 	struct drm_buddy *mm = &mgr->mm;
-	u64 size, remaining_size, min_page_size;
+	u64 size, min_page_size;
 	unsigned long lpfn;
 	int err;
 
@@ -98,17 +99,6 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 		goto error_fini;
 	}
 
-	if (WARN_ON(min_page_size > SZ_2G)) { /* FIXME: sg limit */
-		err = -EINVAL;
-		goto error_fini;
-	}
-
-	if (WARN_ON((size > SZ_2G &&
-		     (vres->base.placement & TTM_PL_FLAG_CONTIGUOUS)))) {
-		err = -EINVAL;
-		goto error_fini;
-	}
-
 	if (WARN_ON(!IS_ALIGNED(size, min_page_size))) {
 		err = -EINVAL;
 		goto error_fini;
@@ -116,12 +106,11 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 
 	mutex_lock(&mgr->lock);
 	if (lpfn <= mgr->visible_size >> PAGE_SHIFT && size > mgr->visible_avail) {
-		mutex_unlock(&mgr->lock);
 		err = -ENOSPC;
-		goto error_fini;
+		goto error_unlock;
 	}
 
-	if (place->fpfn + (size >> PAGE_SHIFT) != place->lpfn &&
+	if (place->fpfn + (size >> PAGE_SHIFT) != lpfn &&
 	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		size = roundup_pow_of_two(size);
 		min_page_size = size;
@@ -129,25 +118,11 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 		lpfn = max_t(unsigned long, place->fpfn + (size >> PAGE_SHIFT), lpfn);
 	}
 
-	remaining_size = size;
-	do {
-		/*
-		 * Limit maximum size to 2GiB due to SG table limitations.
-		 * FIXME: Should maybe be handled as part of sg construction.
-		 */
-		u64 alloc_size = min_t(u64, remaining_size, SZ_2G);
-
-		err = drm_buddy_alloc_blocks(mm, (u64)place->fpfn << PAGE_SHIFT,
-					     (u64)lpfn << PAGE_SHIFT,
-					     alloc_size,
-					     min_page_size,
-					     &vres->blocks,
-					     vres->flags);
-		if (err)
-			goto error_free_blocks;
-
-		remaining_size -= alloc_size;
-	} while (remaining_size);
+	err = drm_buddy_alloc_blocks(mm, (u64)place->fpfn << PAGE_SHIFT,
+				     (u64)lpfn << PAGE_SHIFT, size,
+				     min_page_size, &vres->blocks, vres->flags);
+	if (err)
+		goto error_unlock;
 
 	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		if (!drm_buddy_block_trim(mm, NULL, vres->base.size, &vres->blocks))
@@ -194,9 +169,7 @@ static int xe_ttm_vram_mgr_new(struct ttm_resource_manager *man,
 
 	*res = &vres->base;
 	return 0;
-
-error_free_blocks:
-	drm_buddy_free_list(mm, &vres->blocks, 0);
+error_unlock:
 	mutex_unlock(&mgr->lock);
 error_fini:
 	ttm_resource_fini(man, &vres->base);
@@ -339,6 +312,13 @@ int __xe_ttm_vram_mgr_init(struct xe_device *xe, struct xe_ttm_vram_mgr *mgr,
 	struct ttm_resource_manager *man = &mgr->manager;
 	int err;
 
+	if (mem_type != XE_PL_STOLEN) {
+		const char *name = mem_type == XE_PL_VRAM0 ? "vram0" : "vram1";
+		man->cg = drmm_cgroup_register_region(&xe->drm, name, size);
+		if (IS_ERR(man->cg))
+			return PTR_ERR(man->cg);
+	}
+
 	man->func = &xe_ttm_vram_mgr_func;
 	mgr->mem_type = mem_type;
 	mutex_init(&mgr->lock);
@@ -393,7 +373,8 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	xe_res_first(res, offset, length, &cursor);
 	while (cursor.remaining) {
 		num_entries++;
-		xe_res_next(&cursor, cursor.size);
+		/* Limit maximum size to 2GiB due to SG table limitations. */
+		xe_res_next(&cursor, min_t(u64, cursor.size, SZ_2G));
 	}
 
 	r = sg_alloc_table(*sgt, num_entries, GFP_KERNEL);
@@ -413,7 +394,7 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 	xe_res_first(res, offset, length, &cursor);
 	for_each_sgtable_sg((*sgt), sg, i) {
 		phys_addr_t phys = cursor.start + tile->mem.vram.io_start;
-		size_t size = cursor.size;
+		size_t size = min_t(u64, cursor.size, SZ_2G);
 		dma_addr_t addr;
 
 		addr = dma_map_resource(dev, phys, size, dir,
@@ -426,7 +407,7 @@ int xe_ttm_vram_mgr_alloc_sgt(struct xe_device *xe,
 		sg_dma_address(sg) = addr;
 		sg_dma_len(sg) = size;
 
-		xe_res_next(&cursor, cursor.size);
+		xe_res_next(&cursor, size);
 	}
 
 	return 0;

@@ -183,17 +183,19 @@ struct rcar_csi2;
 #define V4H_CORE_DIG_IOCTRL_RW_AFE_CB_CTRL_2_REG(n)	(0x23840 + ((n) * 2)) /* n = 0 - 11 */
 #define V4H_CORE_DIG_RW_COMMON_REG(n)			(0x23880 + ((n) * 2)) /* n = 0 - 15 */
 #define V4H_CORE_DIG_ANACTRL_RW_COMMON_ANACTRL_REG(n)	(0x239e0 + ((n) * 2)) /* n = 0 - 3 */
-#define V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG		0x2a400
 #define V4H_CORE_DIG_CLANE_1_RW_HS_TX_6_REG		0x2a60c
 
 /* V4H C-PHY */
 #define V4H_CORE_DIG_RW_TRIO0_REG(n)			(0x22100 + ((n) * 2)) /* n = 0 - 3 */
 #define V4H_CORE_DIG_RW_TRIO1_REG(n)			(0x22500 + ((n) * 2)) /* n = 0 - 3 */
 #define V4H_CORE_DIG_RW_TRIO2_REG(n)			(0x22900 + ((n) * 2)) /* n = 0 - 3 */
+#define V4H_CORE_DIG_CLANE_0_RW_CFG_0_REG		0x2a000
 #define V4H_CORE_DIG_CLANE_0_RW_LP_0_REG		0x2a080
 #define V4H_CORE_DIG_CLANE_0_RW_HS_RX_REG(n)		(0x2a100 + ((n) * 2)) /* n = 0 - 6 */
+#define V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG		0x2a400
 #define V4H_CORE_DIG_CLANE_1_RW_LP_0_REG		0x2a480
 #define V4H_CORE_DIG_CLANE_1_RW_HS_RX_REG(n)		(0x2a500 + ((n) * 2)) /* n = 0 - 6 */
+#define V4H_CORE_DIG_CLANE_2_RW_CFG_0_REG		0x2a800
 #define V4H_CORE_DIG_CLANE_2_RW_LP_0_REG		0x2a880
 #define V4H_CORE_DIG_CLANE_2_RW_HS_RX_REG(n)		(0x2a900 + ((n) * 2)) /* n = 0 - 6 */
 
@@ -672,6 +674,21 @@ static const struct rcar_csi2_format *rcsi2_code_to_fmt(unsigned int code)
 	return NULL;
 }
 
+struct rcsi2_cphy_line_order {
+	enum v4l2_mbus_csi2_cphy_line_orders_type order;
+	u16 cfg;
+	u16 ctrl29;
+};
+
+static const struct rcsi2_cphy_line_order rcsi2_cphy_line_orders[] = {
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ABC, .cfg = 0x0, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_ACB, .cfg = 0xa, .ctrl29 = 0x1 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_BAC, .cfg = 0xc, .ctrl29 = 0x1 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_BCA, .cfg = 0x5, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_CAB, .cfg = 0x3, .ctrl29 = 0x0 },
+	{ .order = V4L2_MBUS_CSI2_CPHY_LINE_ORDER_CBA, .cfg = 0x9, .ctrl29 = 0x1 }
+};
+
 enum rcar_csi2_pads {
 	RCAR_CSI2_SINK,
 	RCAR_CSI2_SOURCE_VC0,
@@ -722,6 +739,7 @@ struct rcar_csi2 {
 	bool cphy;
 	unsigned short lanes;
 	unsigned char lane_swap[4];
+	enum v4l2_mbus_csi2_cphy_line_orders_type line_orders[3];
 };
 
 static inline struct rcar_csi2 *sd_to_csi2(struct v4l2_subdev *sd)
@@ -754,9 +772,22 @@ static void rcsi2_write(struct rcar_csi2 *priv, unsigned int reg, u32 data)
 	iowrite32(data, priv->base + reg);
 }
 
+static u16 rcsi2_read16(struct rcar_csi2 *priv, unsigned int reg)
+{
+	return ioread16(priv->base + reg);
+}
+
 static void rcsi2_write16(struct rcar_csi2 *priv, unsigned int reg, u16 data)
 {
 	iowrite16(data, priv->base + reg);
+}
+
+static void rcsi2_modify16(struct rcar_csi2 *priv, unsigned int reg, u16 data, u16 mask)
+{
+	u16 val;
+
+	val = rcsi2_read16(priv, reg) & ~mask;
+	rcsi2_write16(priv, reg, val | data);
 }
 
 static int rcsi2_phtw_write(struct rcar_csi2 *priv, u8 data, u8 code)
@@ -1112,6 +1143,26 @@ static int rcsi2_start_receiver_gen3(struct rcar_csi2 *priv,
 	return 0;
 }
 
+static void rsci2_set_line_order(struct rcar_csi2 *priv,
+				 enum v4l2_mbus_csi2_cphy_line_orders_type order,
+				 unsigned int cfgreg, unsigned int ctrlreg)
+{
+	const struct rcsi2_cphy_line_order *info = NULL;
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(rcsi2_cphy_line_orders); i++) {
+		if (rcsi2_cphy_line_orders[i].order == order) {
+			info = &rcsi2_cphy_line_orders[i];
+			break;
+		}
+	}
+
+	if (!info)
+		return;
+
+	rcsi2_modify16(priv, cfgreg, info->cfg, 0x000f);
+	rcsi2_modify16(priv, ctrlreg, info->ctrl29, 0x0100);
+}
+
 static int rcsi2_wait_phy_start_v4h(struct rcar_csi2 *priv, u32 match)
 {
 	unsigned int timeout;
@@ -1189,12 +1240,18 @@ static int rcsi2_c_phy_setting_v4h(struct rcar_csi2 *priv, int msps)
 	rcsi2_write16(priv, V4H_CORE_DIG_RW_TRIO1_REG(1), conf->trio1);
 	rcsi2_write16(priv, V4H_CORE_DIG_RW_TRIO2_REG(1), conf->trio1);
 
-	/*
-	 * Configure pin-swap.
-	 * TODO: This registers is not documented yet, the values should depend
-	 * on the 'clock-lanes' and 'data-lanes' devicetree properties.
-	 */
-	rcsi2_write16(priv, V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG, 0xf5);
+	/* Configure data line order. */
+	rsci2_set_line_order(priv, priv->line_orders[0],
+			     V4H_CORE_DIG_CLANE_0_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE0_CTRL_2_REG(9));
+	rsci2_set_line_order(priv, priv->line_orders[1],
+			     V4H_CORE_DIG_CLANE_1_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE1_CTRL_2_REG(9));
+	rsci2_set_line_order(priv, priv->line_orders[2],
+			     V4H_CORE_DIG_CLANE_2_RW_CFG_0_REG,
+			     V4H_CORE_DIG_IOCTRL_RW_AFE_LANE2_CTRL_2_REG(9));
+
+	/* TODO: This registers is not documented. */
 	rcsi2_write16(priv, V4H_CORE_DIG_CLANE_1_RW_HS_TX_6_REG, 0x5000);
 
 	/* Leave Shutdown mode */
@@ -1349,15 +1406,15 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 	static const struct phtw_value step2[] = {
 		{ .data = 0x00, .code = 0x00 },
 		{ .data = 0x80, .code = 0xe0 },
-		{ .data = 0x01, .code = 0xe1 },
+		{ .data = 0x31, .code = 0xe1 },
 		{ .data = 0x06, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x08, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x0a, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x0c, .code = 0x00 },
-		{ .data = 0x0f, .code = 0x11 },
+		{ .data = 0x11, .code = 0x11 },
 		{ .data = 0x01, .code = 0x00 },
 		{ .data = 0x31, .code = 0xaa },
 		{ .data = 0x05, .code = 0x00 },
@@ -1368,6 +1425,11 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 		{ .data = 0x05, .code = 0x09 },
 		{ .data = 0x0b, .code = 0x00 },
 		{ .data = 0x05, .code = 0x09 },
+	};
+
+	static const struct phtw_value step3[] = {
+		{ .data = 0x01, .code = 0x00 },
+		{ .data = 0x06, .code = 0xab },
 	};
 
 	if (priv->info->hsfreqrange) {
@@ -1400,7 +1462,7 @@ static int rcsi2_init_common_v4m(struct rcar_csi2 *priv, unsigned int mbps)
 			return ret;
 	}
 
-	return ret;
+	return rcsi2_phtw_write_array(priv, step3, ARRAY_SIZE(step3));
 }
 
 static int rcsi2_start_receiver_v4m(struct rcar_csi2 *priv,
@@ -1731,6 +1793,9 @@ static int rcsi2_parse_v4l2(struct rcar_csi2 *priv,
 			return -EINVAL;
 		}
 	}
+
+	for (i = 0; i < ARRAY_SIZE(priv->line_orders); i++)
+		priv->line_orders[i] = vep->bus.mipi_csi2.line_orders[i];
 
 	return 0;
 }

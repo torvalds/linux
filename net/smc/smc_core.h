@@ -122,10 +122,14 @@ struct smc_link {
 	} ____cacheline_aligned_in_smp;
 	struct completion	tx_ref_comp;
 
-	struct smc_wr_buf	*wr_rx_bufs;	/* WR recv payload buffers */
+	u8			*wr_rx_bufs;	/* WR recv payload buffers */
 	struct ib_recv_wr	*wr_rx_ibs;	/* WR recv meta data */
 	struct ib_sge		*wr_rx_sges;	/* WR recv scatter meta data */
 	/* above three vectors have wr_rx_cnt elements and use the same index */
+	int			wr_rx_sge_cnt; /* rx sge, V1 is 1, V2 is either 2 or 1 */
+	int			wr_rx_buflen;	/* buffer len for the first sge, len for the
+						 * second sge is lgr shared if rx sge is 2.
+						 */
 	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
 	dma_addr_t		wr_rx_v2_dma_addr; /* DMA address of v2 rx buf*/
 	u64			wr_rx_id;	/* seq # of last recv WR */
@@ -504,6 +508,11 @@ static inline bool smc_link_sendable(struct smc_link *lnk)
 static inline bool smc_link_active(struct smc_link *lnk)
 {
 	return lnk->state == SMC_LNK_ACTIVE;
+}
+
+static inline bool smc_link_shared_v2_rxbuf(struct smc_link *lnk)
+{
+	return lnk->wr_rx_sge_cnt > 1;
 }
 
 static inline void smc_gid_be16_convert(__u8 *buf, u8 *gid_raw)

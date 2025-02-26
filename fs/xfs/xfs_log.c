@@ -2744,8 +2744,6 @@ xfs_log_ticket_regrant(
 	if (!ticket->t_cnt) {
 		xlog_grant_add_space(&log->l_reserve_head, ticket->t_unit_res);
 		trace_xfs_log_ticket_regrant_exit(log, ticket);
-
-		ticket->t_curr_res = ticket->t_unit_res;
 	}
 
 	xfs_log_ticket_put(ticket);

@@ -22,6 +22,7 @@
 #include "iwl-modparams.h"
 #include "fw/api/alive.h"
 #include "fw/api/mac.h"
+#include "fw/api/mac-cfg.h"
 
 /******************************************************************************
  *
@@ -137,8 +138,7 @@ static void iwl_dealloc_ucode(struct iwl_drv *drv)
 	memset(&drv->fw, 0, sizeof(drv->fw));
 }
 
-static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
-			     struct fw_sec *sec)
+static int iwl_alloc_fw_desc(struct fw_desc *desc, struct fw_sec *sec)
 {
 	void *data;
 
@@ -318,17 +318,6 @@ struct iwl_firmware_pieces {
 	size_t n_mem_tlv;
 };
 
-/*
- * These functions are just to extract uCode section data from the pieces
- * structure.
- */
-static struct fw_sec *get_sec(struct iwl_firmware_pieces *pieces,
-			      enum iwl_ucode_type type,
-			      int  sec)
-{
-	return &pieces->img[type].sec[sec];
-}
-
 static void alloc_sec_data(struct iwl_firmware_pieces *pieces,
 			   enum iwl_ucode_type type,
 			   int sec)
@@ -389,21 +378,17 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 /*
  * Gets uCode section from tlv.
  */
-static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
-			       const void *data, enum iwl_ucode_type type,
-			       int size)
+static int iwl_store_ucode_sec(struct fw_img_parsing *img,
+			       const void *data, int size)
 {
-	struct fw_img_parsing *img;
 	struct fw_sec *sec;
 	const struct fw_sec_parsing *sec_parse;
 	size_t alloc_size;
 
-	if (WARN_ON(!pieces || !data || type >= IWL_UCODE_TYPE_MAX))
-		return -1;
+	if (WARN_ON(!img || !data))
+		return -EINVAL;
 
 	sec_parse = (const struct fw_sec_parsing *)data;
-
-	img = &pieces->img[type];
 
 	alloc_size = sizeof(*img->sec) * (img->sec_counter + 1);
 	sec = krealloc(img->sec, alloc_size, GFP_KERNEL);
@@ -900,18 +885,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 					le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_SEC_RT:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_REGULAR],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SEC_INIT:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_INIT],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SEC_WOWLAN:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_WOWLAN],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_DEF_CALIB:
@@ -932,18 +917,18 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 						FW_PHY_CFG_RX_CHAIN_POS;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_RT:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_REGULAR],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_INIT:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_INIT],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_SECURE_SEC_WOWLAN:
-			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_WOWLAN],
+					    tlv_data, tlv_len);
 			drv->fw.type = IWL_FW_MVM;
 			break;
 		case IWL_UCODE_TLV_NUM_OF_CPU:
@@ -1110,9 +1095,8 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			}
 		case IWL_UCODE_TLV_SEC_RT_USNIFFER:
 			*usniffer_images = true;
-			iwl_store_ucode_sec(pieces, tlv_data,
-					    IWL_UCODE_REGULAR_USNIFFER,
-					    tlv_len);
+			iwl_store_ucode_sec(&pieces->img[IWL_UCODE_REGULAR_USNIFFER],
+					    tlv_data, tlv_len);
 			break;
 		case IWL_UCODE_TLV_PAGING:
 			if (tlv_len != sizeof(u32))
@@ -1212,6 +1196,19 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				goto tlv_error;
 			}
 			capa->num_stations =
+				le32_to_cpup((const __le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_FW_NUM_LINKS:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			if (le32_to_cpup((const __le32 *)tlv_data) >
+			    IWL_FW_MAX_LINK_ID + 1) {
+				IWL_ERR(drv,
+					"%d is an invalid number of links\n",
+					le32_to_cpup((const __le32 *)tlv_data));
+				goto tlv_error;
+			}
+			capa->num_links =
 				le32_to_cpup((const __le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_FW_NUM_BEACONS:
@@ -1337,24 +1334,29 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	return -EINVAL;
 }
 
+static int iwl_alloc_ucode_mem(struct fw_img *out, struct fw_img_parsing *img)
+{
+	struct fw_desc *sec;
+
+	sec = kcalloc(img->sec_counter, sizeof(*sec), GFP_KERNEL);
+	if (!sec)
+		return -ENOMEM;
+
+	out->sec = sec;
+	out->num_sec = img->sec_counter;
+
+	for (int i = 0; i < out->num_sec; i++)
+		if (iwl_alloc_fw_desc(&sec[i], &img->sec[i]))
+			return -ENOMEM;
+
+	return 0;
+}
+
 static int iwl_alloc_ucode(struct iwl_drv *drv,
 			   struct iwl_firmware_pieces *pieces,
 			   enum iwl_ucode_type type)
 {
-	int i;
-	struct fw_desc *sec;
-
-	sec = kcalloc(pieces->img[type].sec_counter, sizeof(*sec), GFP_KERNEL);
-	if (!sec)
-		return -ENOMEM;
-	drv->fw.img[type].sec = sec;
-	drv->fw.img[type].num_sec = pieces->img[type].sec_counter;
-
-	for (i = 0; i < pieces->img[type].sec_counter; i++)
-		if (iwl_alloc_fw_desc(drv, &sec[i], get_sec(pieces, type, i)))
-			return -ENOMEM;
-
-	return 0;
+	return iwl_alloc_ucode_mem(&drv->fw.img[type], &pieces->img[type]);
 }
 
 static int validate_sec_sizes(struct iwl_drv *drv,
@@ -1429,18 +1431,21 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 		op_mode = ops->start(drv->trans, drv->trans->cfg,
 				     &drv->fw, dbgfs_dir);
 
-		if (op_mode)
+		if (!IS_ERR(op_mode))
 			return op_mode;
 
 		if (test_bit(STATUS_TRANS_DEAD, &drv->trans->status))
 			break;
 
-		IWL_ERR(drv, "retry init count %d\n", retry);
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		debugfs_remove_recursive(drv->dbgfs_op_mode);
 		drv->dbgfs_op_mode = NULL;
 #endif
+
+		if (PTR_ERR(op_mode) != -ETIMEDOUT)
+			break;
+
+		IWL_ERR(drv, "retry init count %d\n", retry);
 	}
 
 	return NULL;
@@ -1944,6 +1949,7 @@ module_init(iwl_drv_init);
 static void __exit iwl_drv_exit(void)
 {
 	iwl_pci_unregister_driver();
+	iwl_trans_free_restart_list();
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	debugfs_remove_recursive(iwl_dbgfs_root);

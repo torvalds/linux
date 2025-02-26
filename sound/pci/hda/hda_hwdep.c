@@ -84,10 +84,8 @@ static int hda_hwdep_ioctl_compat(struct snd_hwdep *hw, struct file *file,
 
 static int hda_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
-#ifndef CONFIG_SND_DEBUG_VERBOSE
 	if (!capable(CAP_SYS_RAWIO))
 		return -EACCES;
-#endif
 	return 0;
 }
 

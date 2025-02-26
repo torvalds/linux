@@ -745,6 +745,23 @@ void intel_dsi_log_params(struct intel_dsi *intel_dsi)
 		    str_enabled_disabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 }
 
+static enum mipi_dsi_pixel_format vbt_to_dsi_pixel_format(unsigned int format)
+{
+	switch (format) {
+	case PIXEL_FORMAT_RGB888:
+		return MIPI_DSI_FMT_RGB888;
+	case PIXEL_FORMAT_RGB666_LOOSELY_PACKED:
+		return MIPI_DSI_FMT_RGB666;
+	case PIXEL_FORMAT_RGB666:
+		return MIPI_DSI_FMT_RGB666_PACKED;
+	case PIXEL_FORMAT_RGB565:
+		return MIPI_DSI_FMT_RGB565;
+	default:
+		MISSING_CASE(format);
+		return MIPI_DSI_FMT_RGB666;
+	}
+}
+
 bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -762,8 +779,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
 	intel_dsi->pixel_format =
-			pixel_format_from_register_bits(
-				mipi_config->videomode_color_format << 7);
+		vbt_to_dsi_pixel_format(mipi_config->videomode_color_format);
 
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;

@@ -190,7 +190,7 @@ Toshiba Portege 3020CT		s3_mode (3)
 Toshiba Satellite 4030CDT	s3_mode (3) (S1 also works OK)
 Toshiba Satellite 4080XCDT      s3_mode (3) (S1 also works OK)
 Toshiba Satellite 4090XCDT      ??? [#f1]_
-Toshiba Satellite P10-554       s3_bios,s3_mode (4)[#f3]_
+Toshiba Satellite P10-554       s3_bios,s3_mode (4) [#f3]_
 Toshiba M30                     (2) xor X with nvidia driver using internal AGP
 Uniwill 244IIO			??? [#f1]_
 =============================== ===============================================

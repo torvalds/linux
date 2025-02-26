@@ -6,6 +6,7 @@
 snd-usb-audio-y := 	card.o \
 			clock.o \
 			endpoint.o \
+			fcp.o \
 			format.o \
 			helper.o \
 			implicit.o \

@@ -421,7 +421,7 @@ irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 static inline bool irq_can_move_pcntxt(struct irq_data *data)
 {
-	return irqd_can_move_in_process_context(data);
+	return !(data->chip->flags & IRQCHIP_MOVE_DEFERRED);
 }
 static inline bool irq_move_pending(struct irq_data *data)
 {
@@ -440,10 +440,6 @@ irq_get_pending(struct cpumask *mask, struct irq_desc *desc)
 static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 {
 	return desc->pending_mask;
-}
-static inline bool handle_enforce_irqctx(struct irq_data *data)
-{
-	return irqd_is_handle_enforce_irqctx(data);
 }
 bool irq_fixup_move_pending(struct irq_desc *desc, bool force_clear);
 #else /* CONFIG_GENERIC_PENDING_IRQ */
@@ -468,10 +464,6 @@ static inline struct cpumask *irq_desc_get_pending_mask(struct irq_desc *desc)
 	return NULL;
 }
 static inline bool irq_fixup_move_pending(struct irq_desc *desc, bool fclear)
-{
-	return false;
-}
-static inline bool handle_enforce_irqctx(struct irq_data *data)
 {
 	return false;
 }

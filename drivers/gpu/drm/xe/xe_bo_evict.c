@@ -152,11 +152,17 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 		}
 
 		if (bo->flags & XE_BO_FLAG_GGTT) {
-			struct xe_tile *tile = bo->tile;
+			struct xe_tile *tile;
+			u8 id;
 
-			mutex_lock(&tile->mem.ggtt->lock);
-			xe_ggtt_map_bo(tile->mem.ggtt, bo);
-			mutex_unlock(&tile->mem.ggtt->lock);
+			for_each_tile(tile, xe, id) {
+				if (tile != bo->tile && !(bo->flags & XE_BO_FLAG_GGTTx(tile)))
+					continue;
+
+				mutex_lock(&tile->mem.ggtt->lock);
+				xe_ggtt_map_bo(tile->mem.ggtt, bo);
+				mutex_unlock(&tile->mem.ggtt->lock);
+			}
 		}
 
 		/*

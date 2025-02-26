@@ -37,6 +37,7 @@
 #include "arch/common.h"
 #include "units.h"
 #include "annotate.h"
+#include "perf.h"
 #include <internal/lib.h>
 
 static int perf_session__deliver_event(struct perf_session *session,

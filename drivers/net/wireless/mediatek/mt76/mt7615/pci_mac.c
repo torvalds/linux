@@ -48,7 +48,7 @@ mt7615_write_fw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 		txp->flags |= cpu_to_le16(MT_CT_INFO_MGMT_FRAME);
 
 	if (vif) {
-		struct mt76_vif *mvif = (struct mt76_vif *)vif->drv_priv;
+		struct mt76_vif_link *mvif = (struct mt76_vif_link *)vif->drv_priv;
 
 		txp->bss_idx = mvif->idx;
 	}
@@ -262,12 +262,14 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
 
-	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
-	napi_schedule(&dev->mt76.tx_napi);
-
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
+	}
+
+	local_bh_disable();
+	napi_schedule(&dev->mt76.tx_napi);
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_schedule(&dev->mt76.napi[i]);
 	}
 	local_bh_enable();

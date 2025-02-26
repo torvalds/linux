@@ -2699,7 +2699,7 @@ static struct phy_driver vsc85xx_driver[] = {
 
 module_phy_driver(vsc85xx_driver);
 
-static struct mdio_device_id __maybe_unused vsc85xx_tbl[] = {
+static const struct mdio_device_id __maybe_unused vsc85xx_tbl[] = {
 	{ PHY_ID_MATCH_VENDOR(PHY_VENDOR_MSCC) },
 	{ }
 };

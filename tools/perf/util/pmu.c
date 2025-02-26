@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <api/fs/fs.h>
+#include <api/io.h>
 #include <locale.h>
 #include <fnmatch.h>
 #include <math.h>
@@ -748,26 +749,35 @@ static int pmu_alias_terms(struct perf_pmu_alias *alias, int err_loc, struct lis
  * Uncore PMUs have a "cpumask" file under sysfs. CPU PMUs (e.g. on arm/arm64)
  * may have a "cpus" file.
  */
-static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *name, bool is_core)
+static struct perf_cpu_map *pmu_cpumask(int dirfd, const char *pmu_name, bool is_core)
 {
-	struct perf_cpu_map *cpus;
 	const char *templates[] = {
 		"cpumask",
 		"cpus",
 		NULL
 	};
 	const char **template;
-	char pmu_name[PATH_MAX];
-	struct perf_pmu pmu = {.name = pmu_name};
-	FILE *file;
 
-	strlcpy(pmu_name, name, sizeof(pmu_name));
 	for (template = templates; *template; template++) {
-		file = perf_pmu__open_file_at(&pmu, dirfd, *template);
-		if (!file)
+		struct io io;
+		char buf[128];
+		char *cpumask = NULL;
+		size_t cpumask_len;
+		ssize_t ret;
+		struct perf_cpu_map *cpus;
+
+		io.fd = perf_pmu__pathname_fd(dirfd, pmu_name, *template, O_RDONLY);
+		if (io.fd < 0)
 			continue;
-		cpus = perf_cpu_map__read(file);
-		fclose(file);
+
+		io__init(&io, io.fd, buf, sizeof(buf));
+		ret = io__getline(&io, &cpumask, &cpumask_len);
+		close(io.fd);
+		if (ret < 0)
+			continue;
+
+		cpus = perf_cpu_map__new(cpumask);
+		free(cpumask);
 		if (cpus)
 			return cpus;
 	}
@@ -1763,6 +1773,7 @@ int perf_pmu__for_each_format(struct perf_pmu *pmu, void *state, pmu_format_call
 		"no-overwrite",
 		"percore",
 		"aux-output",
+		"aux-action=(pause|resume|start-paused)",
 		"aux-sample-size=number",
 	};
 	struct perf_pmu_format *format;

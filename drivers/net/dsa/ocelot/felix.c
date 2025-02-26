@@ -1316,6 +1316,14 @@ static void felix_get_eth_phy_stats(struct dsa_switch *ds, int port,
 	ocelot_port_get_eth_phy_stats(ocelot, port, phy_stats);
 }
 
+static void felix_get_ts_stats(struct dsa_switch *ds, int port,
+			       struct ethtool_ts_stats *ts_stats)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	ocelot_port_get_ts_stats(ocelot, port, ts_stats);
+}
+
 static void felix_get_strings(struct dsa_switch *ds, int port,
 			      u32 stringset, u8 *data)
 {
@@ -2237,6 +2245,7 @@ static const struct dsa_switch_ops felix_switch_ops = {
 	.get_stats64			= felix_get_stats64,
 	.get_pause_stats		= felix_get_pause_stats,
 	.get_rmon_stats			= felix_get_rmon_stats,
+	.get_ts_stats			= felix_get_ts_stats,
 	.get_eth_ctrl_stats		= felix_get_eth_ctrl_stats,
 	.get_eth_mac_stats		= felix_get_eth_mac_stats,
 	.get_eth_phy_stats		= felix_get_eth_phy_stats,

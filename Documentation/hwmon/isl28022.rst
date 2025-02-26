@@ -33,7 +33,7 @@ details.
 
 The shunt value in micro-ohms, shunt voltage range and averaging can be set
 with device properties.
-Please refer to the Documentation/devicetree/bindings/hwmon/isl,isl28022.yaml
+Please refer to the Documentation/devicetree/bindings/hwmon/renesas,isl28022.yaml
 for bindings if the device tree is used.
 
 The driver supports only shunt and bus continuous ADC mode at 15bit resolution.
@@ -48,6 +48,7 @@ The following attributes are supported. All attributes are read-only.
 
 ======================= =======================================================
 in0_input		bus voltage (milli Volt)
+in1_input		shunt voltage (milli Volt)
 
 curr1_input		current (milli Ampere)
 power1_input		power (micro Watt)

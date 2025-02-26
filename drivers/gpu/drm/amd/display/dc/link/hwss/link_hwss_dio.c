@@ -164,7 +164,9 @@ void disable_dio_link_output(struct dc_link *link,
 {
 	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(link);
 
-	link_enc->funcs->disable_output(link_enc, signal);
+	if (link_enc != NULL)
+		link_enc->funcs->disable_output(link_enc, signal);
+
 	link->dc->link_srv->dp_trace_source_sequence(link,
 			DPCD_SOURCE_SEQ_AFTER_DISABLE_LINK_PHY);
 }

@@ -71,8 +71,14 @@ static inline void xe_sched_add_pending_job(struct xe_gpu_scheduler *sched,
 static inline
 struct xe_sched_job *xe_sched_first_pending_job(struct xe_gpu_scheduler *sched)
 {
-	return list_first_entry_or_null(&sched->base.pending_list,
-					struct xe_sched_job, drm.list);
+	struct xe_sched_job *job;
+
+	spin_lock(&sched->base.job_list_lock);
+	job = list_first_entry_or_null(&sched->base.pending_list,
+				       struct xe_sched_job, drm.list);
+	spin_unlock(&sched->base.job_list_lock);
+
+	return job;
 }
 
 static inline int

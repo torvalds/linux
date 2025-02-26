@@ -24,16 +24,6 @@
 
 #include "of_private.h"
 
-const struct of_device_id of_default_bus_match_table[] = {
-	{ .compatible = "simple-bus", },
-	{ .compatible = "simple-mfd", },
-	{ .compatible = "isa", },
-#ifdef CONFIG_ARM_AMBA
-	{ .compatible = "arm,amba-bus", },
-#endif /* CONFIG_ARM_AMBA */
-	{} /* Empty terminated list */
-};
-
 /**
  * of_find_device_by_node - Find the platform_device associated with a node
  * @np: Pointer to device tree node
@@ -484,8 +474,17 @@ int of_platform_default_populate(struct device_node *root,
 				 const struct of_dev_auxdata *lookup,
 				 struct device *parent)
 {
-	return of_platform_populate(root, of_default_bus_match_table, lookup,
-				    parent);
+	static const struct of_device_id match_table[] = {
+		{ .compatible = "simple-bus", },
+		{ .compatible = "simple-mfd", },
+		{ .compatible = "isa", },
+#ifdef CONFIG_ARM_AMBA
+		{ .compatible = "arm,amba-bus", },
+#endif /* CONFIG_ARM_AMBA */
+		{} /* Empty terminated list */
+	};
+
+	return of_platform_populate(root, match_table, lookup, parent);
 }
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
 

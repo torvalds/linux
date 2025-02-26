@@ -402,10 +402,10 @@ static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 		return -EIO;
 
 	/*
-	 * Bit 5 of byte 1 is "UL_Auto Update" & if it is set, Auto Update is
+	 * Bit 5 of byte 1 is "UL_IAP" & if it is set, Auto Update is
 	 * not possible.
 	 */
-	if (response_msg[1] & AUTO_UPDATE_FEATURE_ENABLED)
+	if ((((u8 *)response_msg)[1] & AUTO_UPDATE_FEATURE_ENABLED))
 		return -EPERM;
 
 	return 0;

@@ -133,31 +133,25 @@ static inline int lru_hist_from_seq(unsigned long seq)
 	return seq % NR_HIST_GENS;
 }
 
-static inline int lru_tier_from_refs(int refs)
+static inline int lru_tier_from_refs(int refs, bool workingset)
 {
 	VM_WARN_ON_ONCE(refs > BIT(LRU_REFS_WIDTH));
 
-	/* see the comment in folio_lru_refs() */
-	return order_base_2(refs + 1);
+	/* see the comment on MAX_NR_TIERS */
+	return workingset ? MAX_NR_TIERS - 1 : order_base_2(refs);
 }
 
 static inline int folio_lru_refs(struct folio *folio)
 {
 	unsigned long flags = READ_ONCE(folio->flags);
-	bool workingset = flags & BIT(PG_workingset);
 
+	if (!(flags & BIT(PG_referenced)))
+		return 0;
 	/*
-	 * Return the number of accesses beyond PG_referenced, i.e., N-1 if the
-	 * total number of accesses is N>1, since N=0,1 both map to the first
-	 * tier. lru_tier_from_refs() will account for this off-by-one. Also see
-	 * the comment on MAX_NR_TIERS.
+	 * Return the total number of accesses including PG_referenced. Also see
+	 * the comment on LRU_REFS_FLAGS.
 	 */
-	return ((flags & LRU_REFS_MASK) >> LRU_REFS_PGOFF) + workingset;
-}
-
-static inline void folio_clear_lru_refs(struct folio *folio)
-{
-	set_mask_bits(&folio->flags, LRU_REFS_MASK | LRU_REFS_FLAGS, 0);
+	return ((flags & LRU_REFS_MASK) >> LRU_REFS_PGOFF) + 1;
 }
 
 static inline int folio_lru_gen(struct folio *folio)
@@ -223,11 +217,43 @@ static inline void lru_gen_update_size(struct lruvec *lruvec, struct folio *foli
 	VM_WARN_ON_ONCE(lru_gen_is_active(lruvec, old_gen) && !lru_gen_is_active(lruvec, new_gen));
 }
 
+static inline unsigned long lru_gen_folio_seq(struct lruvec *lruvec, struct folio *folio,
+					      bool reclaiming)
+{
+	int gen;
+	int type = folio_is_file_lru(folio);
+	struct lru_gen_folio *lrugen = &lruvec->lrugen;
+
+	/*
+	 * +-----------------------------------+-----------------------------------+
+	 * | Accessed through page tables and  | Accessed through file descriptors |
+	 * | promoted by folio_update_gen()    | and protected by folio_inc_gen()  |
+	 * +-----------------------------------+-----------------------------------+
+	 * | PG_active (set while isolated)    |                                   |
+	 * +-----------------+-----------------+-----------------+-----------------+
+	 * |  PG_workingset  |  PG_referenced  |  PG_workingset  |  LRU_REFS_FLAGS |
+	 * +-----------------------------------+-----------------------------------+
+	 * |<---------- MIN_NR_GENS ---------->|                                   |
+	 * |<---------------------------- MAX_NR_GENS ---------------------------->|
+	 */
+	if (folio_test_active(folio))
+		gen = MIN_NR_GENS - folio_test_workingset(folio);
+	else if (reclaiming)
+		gen = MAX_NR_GENS;
+	else if ((!folio_is_file_lru(folio) && !folio_test_swapcache(folio)) ||
+		 (folio_test_reclaim(folio) &&
+		  (folio_test_dirty(folio) || folio_test_writeback(folio))))
+		gen = MIN_NR_GENS;
+	else
+		gen = MAX_NR_GENS - folio_test_workingset(folio);
+
+	return max(READ_ONCE(lrugen->max_seq) - gen + 1, READ_ONCE(lrugen->min_seq[type]));
+}
+
 static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio, bool reclaiming)
 {
 	unsigned long seq;
 	unsigned long flags;
-	unsigned long mask;
 	int gen = folio_lru_gen(folio);
 	int type = folio_is_file_lru(folio);
 	int zone = folio_zonenum(folio);
@@ -237,40 +263,12 @@ static inline bool lru_gen_add_folio(struct lruvec *lruvec, struct folio *folio,
 
 	if (folio_test_unevictable(folio) || !lrugen->enabled)
 		return false;
-	/*
-	 * There are four common cases for this page:
-	 * 1. If it's hot, i.e., freshly faulted in, add it to the youngest
-	 *    generation, and it's protected over the rest below.
-	 * 2. If it can't be evicted immediately, i.e., a dirty page pending
-	 *    writeback, add it to the second youngest generation.
-	 * 3. If it should be evicted first, e.g., cold and clean from
-	 *    folio_rotate_reclaimable(), add it to the oldest generation.
-	 * 4. Everything else falls between 2 & 3 above and is added to the
-	 *    second oldest generation if it's considered inactive, or the
-	 *    oldest generation otherwise. See lru_gen_is_active().
-	 */
-	if (folio_test_active(folio))
-		seq = lrugen->max_seq;
-	else if ((type == LRU_GEN_ANON && !folio_test_swapcache(folio)) ||
-		 (folio_test_reclaim(folio) &&
-		  (folio_test_dirty(folio) || folio_test_writeback(folio))))
-		seq = lrugen->max_seq - 1;
-	else if (reclaiming || lrugen->min_seq[type] + MIN_NR_GENS >= lrugen->max_seq)
-		seq = lrugen->min_seq[type];
-	else
-		seq = lrugen->min_seq[type] + 1;
 
+	seq = lru_gen_folio_seq(lruvec, folio, reclaiming);
 	gen = lru_gen_from_seq(seq);
 	flags = (gen + 1UL) << LRU_GEN_PGOFF;
 	/* see the comment on MIN_NR_GENS about PG_active */
-	mask = LRU_GEN_MASK;
-	/*
-	 * Don't clear PG_workingset here because it can affect PSI accounting
-	 * if the activation is due to workingset refault.
-	 */
-	if (folio_test_active(folio))
-		mask |= LRU_REFS_MASK | BIT(PG_referenced) | BIT(PG_active);
-	set_mask_bits(&folio->flags, mask, flags);
+	set_mask_bits(&folio->flags, LRU_GEN_MASK | BIT(PG_active), flags);
 
 	lru_gen_update_size(lruvec, folio, -1, gen);
 	/* for folio_rotate_reclaimable() */
@@ -564,9 +562,9 @@ static inline pte_marker copy_pte_marker(
  * Must be called with pgtable lock held so that no thread will see the none
  * pte, and if they see it, they'll fault and serialize at the pgtable lock.
  *
- * This function is a no-op if PTE_MARKER_UFFD_WP is not enabled.
+ * Returns true if an uffd-wp pte was installed, false otherwise.
  */
-static inline void
+static inline bool
 pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 			      pte_t *pte, pte_t pteval)
 {
@@ -583,7 +581,7 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	 * with a swap pte.  There's no way of leaking the bit.
 	 */
 	if (vma_is_anonymous(vma) || !userfaultfd_wp(vma))
-		return;
+		return false;
 
 	/* A uffd-wp wr-protected normal pte */
 	if (unlikely(pte_present(pteval) && pte_uffd_wp(pteval)))
@@ -596,10 +594,13 @@ pte_install_uffd_wp_if_needed(struct vm_area_struct *vma, unsigned long addr,
 	if (unlikely(pte_swp_uffd_wp_any(pteval)))
 		arm_uffd_pte = true;
 
-	if (unlikely(arm_uffd_pte))
+	if (unlikely(arm_uffd_pte)) {
 		set_pte_at(vma->vm_mm, addr, pte,
 			   make_pte_marker(PTE_MARKER_UFFD_WP));
+		return true;
+	}
 #endif
+	return false;
 }
 
 static inline bool vma_has_recency(struct vm_area_struct *vma)

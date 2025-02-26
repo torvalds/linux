@@ -574,11 +574,10 @@ EXPORT_SYMBOL_GPL(fscrypt_fname_siphash);
  * Validate dentries in encrypted directories to make sure we aren't potentially
  * caching stale dentries after a key has been added.
  */
-int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
+int fscrypt_d_revalidate(struct inode *dir, const struct qstr *name,
+			 struct dentry *dentry, unsigned int flags)
 {
-	struct dentry *dir;
 	int err;
-	int valid;
 
 	/*
 	 * Plaintext names are always valid, since fscrypt doesn't support
@@ -591,30 +590,21 @@ int fscrypt_d_revalidate(struct dentry *dentry, unsigned int flags)
 	/*
 	 * No-key name; valid if the directory's key is still unavailable.
 	 *
-	 * Although fscrypt forbids rename() on no-key names, we still must use
-	 * dget_parent() here rather than use ->d_parent directly.  That's
-	 * because a corrupted fs image may contain directory hard links, which
-	 * the VFS handles by moving the directory's dentry tree in the dcache
-	 * each time ->lookup() finds the directory and it already has a dentry
-	 * elsewhere.  Thus ->d_parent can be changing, and we must safely grab
-	 * a reference to some ->d_parent to prevent it from being freed.
+	 * Note in RCU mode we have to bail if we get here -
+	 * fscrypt_get_encryption_info() may block.
 	 */
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	dir = dget_parent(dentry);
 	/*
 	 * Pass allow_unsupported=true, so that files with an unsupported
 	 * encryption policy can be deleted.
 	 */
-	err = fscrypt_get_encryption_info(d_inode(dir), true);
-	valid = !fscrypt_has_encryption_key(d_inode(dir));
-	dput(dir);
-
+	err = fscrypt_get_encryption_info(dir, true);
 	if (err < 0)
 		return err;
 
-	return valid;
+	return !fscrypt_has_encryption_key(dir);
 }
 EXPORT_SYMBOL_GPL(fscrypt_d_revalidate);

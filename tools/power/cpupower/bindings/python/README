@@ -48,6 +48,31 @@ To run the test script:
 $ python test_raw_pylibcpupower.py
 
 
+developing/using the bindings directly
+--------------------------------------
+
+You need to add the Python bindings directory to your $PYTHONPATH.
+
+You would set the path in the Bash terminal or in the Bash profile:
+
+PYTHONPATH=~/linux/tools/power/cpupower/bindings/python:$PYTHONPATH
+
+This allows you to set a specific repo of the bindings to use.
+
+
+installing/uninstalling
+-----------------------
+
+Python uses a system specific site-packages folder to look up modules to import
+by default. You do not need to install cpupower to use the SWIG bindings.
+
+You can install and uninstall the bindings to the site-packages with:
+
+sudo make install
+
+sudo make uninstall
+
+
 credits
 -------
 

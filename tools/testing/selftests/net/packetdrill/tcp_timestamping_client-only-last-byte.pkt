@@ -1,0 +1,92 @@
+// SPDX-License-Identifier: GPL-2.0
+// Test that tx timestamping sends timestamps only for
+// the last byte of each sendmsg.
+`./defaults.sh
+`
+
+// Create a socket and set it to non-blocking.
+    0	socket(..., SOCK_STREAM, IPPROTO_TCP) = 3
+   +0	fcntl(3, F_GETFL) = 0x2 (flags O_RDWR)
+   +0	fcntl(3, F_SETFL, O_RDWR|O_NONBLOCK) = 0
+
+// Establish connection and verify that there was no error.
+   +0	connect(3, ..., ...) = -1 EINPROGRESS (Operation now in progress)
+   +0 > S 0:0(0) <mss 1460,sackOK,TS val 100 ecr 0,nop,wscale 8>
+ +.01 < S. 0:0(0) ack 1 win 20000 <mss 1000,nop,nop,sackOK>
+   +0 > . 1:1(0) ack 1
+   +0	getsockopt(3, SOL_SOCKET, SO_ERROR, [0], [4]) = 0
+   +0	fcntl(3, F_SETFL, O_RDWR) = 0   // set back to blocking
+
+   +0	setsockopt(3, SOL_SOCKET, SO_TIMESTAMPING,
+		   [SOF_TIMESTAMPING_TX_SCHED | SOF_TIMESTAMPING_TX_SOFTWARE |
+		    SOF_TIMESTAMPING_TX_ACK | SOF_TIMESTAMPING_SOFTWARE |
+		    SOF_TIMESTAMPING_OPT_ID], 4) = 0
+
+   +0	write(3, ..., 11000) = 11000
+   +0	> P. 1:10001(10000) ack 1
+ +.01	< . 1:1(0) ack 10001 win 4000
+   +0	> P. 10001:11001(1000) ack 1
+ +.01	< . 1:1(0) ack 11001 win 4000
+
+// Make sure that internal TCP timestamps are not overwritten and we have sane
+// RTT measurement.
+   +0	%{
+assert 5000 <= tcpi_rtt <= 20000, 'srtt=%d us' % tcpi_rtt
+}%
+
+// SCM_TSTAMP_SCHED for the last byte should be received almost immediately
+// once 10001 is acked at t=20ms.
+// setsockopt(..., [SOF_TIMESTAMPING_SOFTWARE | SOF_TIMESTAMPING_OPT_ID], ...)
+// is called after when SYN is acked. So, we expect the last byte of the first
+// chunk to have a timestamp key of 10999 (i.e., 11000 - 1).
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=20000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_SCHED,
+				    ee_data=10999}}
+		    ]}, MSG_ERRQUEUE) = 0
+// SCM_TSTAMP_SND for the last byte should be received almost immediately
+// once 10001 is acked at t=20ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=20000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_SND,
+				    ee_data=10999}}
+		    ]}, MSG_ERRQUEUE) = 0
+// SCM_TSTAMP_ACK for the last byte should be received at t=30ms.
+   +0	recvmsg(3, {msg_name(...)=...,
+		    msg_iov(1)=[{...,0}],
+                    msg_flags=MSG_ERRQUEUE|MSG_TRUNC,
+                    msg_control=[
+			{cmsg_level=SOL_SOCKET,
+			 cmsg_type=SCM_TIMESTAMPING,
+			 cmsg_data={scm_sec=0,scm_nsec=30000000}},
+			{cmsg_level=CMSG_LEVEL_IP,
+			 cmsg_type=CMSG_TYPE_RECVERR,
+			 cmsg_data={ee_errno=ENOMSG,
+				    ee_origin=SO_EE_ORIGIN_TIMESTAMPING,
+				    ee_type=0,
+				    ee_code=0,
+				    ee_info=SCM_TSTAMP_ACK,
+				    ee_data=10999}}
+		    ]}, MSG_ERRQUEUE) = 0

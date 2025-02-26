@@ -211,18 +211,16 @@ seq_file content.
 
 There are a couple of other directory-oriented helper functions::
 
-    struct dentry *debugfs_rename(struct dentry *old_dir,
-    				  struct dentry *old_dentry,
-		                  struct dentry *new_dir,
-				  const char *new_name);
+    struct dentry *debugfs_change_name(struct dentry *dentry,
+					  const char *fmt, ...);
 
     struct dentry *debugfs_create_symlink(const char *name,
                                           struct dentry *parent,
 				      	  const char *target);
 
-A call to debugfs_rename() will give a new name to an existing debugfs
-file, possibly in a different directory.  The new_name must not exist prior
-to the call; the return value is old_dentry with updated information.
+A call to debugfs_change_name() will give a new name to an existing debugfs
+file, always in the same directory.  The new_name must not exist prior
+to the call; the return value is 0 on success and -E... on failuer.
 Symbolic links can be created with debugfs_create_symlink().
 
 There is one important thing that all debugfs users must take into account:

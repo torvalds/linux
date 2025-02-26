@@ -109,8 +109,5 @@ static inline bool kaslr_requires_kpti(void)
 	return true;
 }
 
-#define INIT_MM_CONTEXT(name)	\
-	.pgd = swapper_pg_dir,
-
 #endif	/* !__ASSEMBLY__ */
 #endif

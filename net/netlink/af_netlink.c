@@ -1287,6 +1287,7 @@ static struct sk_buff *netlink_trim(struct sk_buff *skb, gfp_t allocation)
 {
 	int delta;
 
+	skb_assert_len(skb);
 	WARN_ON(skb->sk != NULL);
 	delta = skb->end - skb->tail;
 	if (is_vmalloc_addr(skb->head) || delta * 2 < skb->truesize)

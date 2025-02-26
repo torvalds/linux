@@ -58,9 +58,12 @@ for root in mq mqprio; do
     ethtool -L $NDEV combined 4
     n_child_assert 4 "One real queue, rest default"
 
-    # Graft some
-    tcq replace parent 100:1 handle 204:
-    n_child_assert 3 "Grafted"
+    # Remove real one
+    tcq del parent 100:4 handle 204:
+
+    # Replace default with pfifo
+    tcq replace parent 100:1 handle 205: pfifo limit 1000
+    n_child_assert 3 "Deleting real one, replacing default one with pfifo"
 
     ethtool -L $NDEV combined 1
     n_child_assert 1 "Grafted, one"

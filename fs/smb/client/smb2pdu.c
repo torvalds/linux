@@ -1429,7 +1429,7 @@ smb2_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		if (server->sec_ntlmssp &&
 			(global_secflags & CIFSSEC_MAY_NTLMSSP))
 			return RawNTLMSSP;
-		if ((server->sec_kerberos || server->sec_mskerberos) &&
+		if ((server->sec_kerberos || server->sec_mskerberos || server->sec_iakerb) &&
 			(global_secflags & CIFSSEC_MAY_KRB5))
 			return Kerberos;
 		fallthrough;
@@ -2169,7 +2169,7 @@ tcon_exit:
 
 tcon_error_exit:
 	if (rsp && rsp->hdr.Status == STATUS_BAD_NETWORK_NAME)
-		cifs_tcon_dbg(VFS, "BAD_NETWORK_NAME: %s\n", tree);
+		cifs_dbg(VFS | ONCE, "BAD_NETWORK_NAME: %s\n", tree);
 	goto tcon_exit;
 }
 
@@ -2329,7 +2329,7 @@ parse_posix_ctxt(struct create_context *cc, struct smb2_file_all_info *info,
 
 int smb2_parse_contexts(struct TCP_Server_Info *server,
 			struct kvec *rsp_iov,
-			unsigned int *epoch,
+			__u16 *epoch,
 			char *lease_key, __u8 *oplock,
 			struct smb2_file_all_info *buf,
 			struct create_posix_rsp *posix)
@@ -4500,14 +4500,6 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	return rc;
 }
 
-static void smb2_readv_worker(struct work_struct *work)
-{
-	struct cifs_io_subrequest *rdata =
-		container_of(work, struct cifs_io_subrequest, subreq.work);
-
-	netfs_read_subreq_terminated(&rdata->subreq, rdata->result, false);
-}
-
 static void
 smb2_readv_callback(struct mid_q_entry *mid)
 {
@@ -4615,15 +4607,17 @@ smb2_readv_callback(struct mid_q_entry *mid)
 			__set_bit(NETFS_SREQ_HIT_EOF, &rdata->subreq.flags);
 			rdata->result = 0;
 		}
+		if (rdata->got_bytes)
+			__set_bit(NETFS_SREQ_MADE_PROGRESS, &rdata->subreq.flags);
 	}
 	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, rdata->credits.value,
 			      server->credits, server->in_flight,
 			      0, cifs_trace_rw_credits_read_response_clear);
 	rdata->credits.value = 0;
+	rdata->subreq.error = rdata->result;
 	rdata->subreq.transferred += rdata->got_bytes;
 	trace_netfs_sreq(&rdata->subreq, netfs_sreq_trace_io_progress);
-	INIT_WORK(&rdata->subreq.work, smb2_readv_worker);
-	queue_work(cifsiod_wq, &rdata->subreq.work);
+	netfs_read_subreq_terminated(&rdata->subreq);
 	release_mid(mid);
 	trace_smb3_rw_credits(rreq_debug_id, subreq_debug_index, 0,
 			      server->credits, server->in_flight,
@@ -4840,10 +4834,14 @@ smb2_writev_callback(struct mid_q_entry *mid)
 		if (written > wdata->subreq.len)
 			written &= 0xFFFF;
 
-		if (written < wdata->subreq.len)
+		cifs_stats_bytes_written(tcon, written);
+
+		if (written < wdata->subreq.len) {
 			wdata->result = -ENOSPC;
-		else
+		} else if (written > 0) {
 			wdata->subreq.len = written;
+			__set_bit(NETFS_SREQ_MADE_PROGRESS, &wdata->subreq.flags);
+		}
 		break;
 	case MID_REQUEST_SUBMITTED:
 	case MID_RETRY_NEEDED:
@@ -5012,7 +5010,7 @@ smb2_async_writev(struct cifs_io_subrequest *wdata)
 	}
 #endif
 
-	if (test_bit(NETFS_SREQ_RETRYING, &wdata->subreq.flags))
+	if (wdata->subreq.retry_count > 0)
 		smb2_set_replay(server, &rqst);
 
 	cifs_dbg(FYI, "async write at %llu %u bytes iter=%zx\n",
@@ -5156,6 +5154,7 @@ replay_again:
 		cifs_dbg(VFS, "Send error in write = %d\n", rc);
 	} else {
 		*nbytes = le32_to_cpu(rsp->DataLength);
+		cifs_stats_bytes_written(io_parms->tcon, *nbytes);
 		trace_smb3_write_done(0, 0, xid,
 				      req->PersistentFileId,
 				      io_parms->tcon->tid,
@@ -6204,7 +6203,7 @@ SMB2_lease_break(const unsigned int xid, struct cifs_tcon *tcon,
 	req->StructureSize = cpu_to_le16(36);
 	total_len += 12;
 
-	memcpy(req->LeaseKey, lease_key, 16);
+	memcpy(req->LeaseKey, lease_key, SMB2_LEASE_KEY_SIZE);
 	req->LeaseState = lease_state;
 
 	flags |= CIFS_NO_RSP_BUF;

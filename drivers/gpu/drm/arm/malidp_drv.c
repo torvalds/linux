@@ -16,9 +16,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/debugfs.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_dma.h>
@@ -570,7 +570,6 @@ static const struct drm_driver malidp_driver = {
 	.fops = &fops,
 	.name = "mali-dp",
 	.desc = "ARM Mali Display Processor driver",
-	.date = "20160106",
 	.major = 1,
 	.minor = 0,
 };

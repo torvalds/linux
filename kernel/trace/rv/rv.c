@@ -145,7 +145,7 @@
 
 #ifdef CONFIG_DA_MON_EVENTS
 #define CREATE_TRACE_POINTS
-#include <trace/events/rv.h>
+#include <rv_trace.h>
 #endif
 
 #include "rv.h"

@@ -4,9 +4,10 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
-use crate::{alloc::AllocError, str::CStr};
-
-use core::alloc::LayoutError;
+use crate::{
+    alloc::{layout::LayoutError, AllocError},
+    str::CStr,
+};
 
 use core::fmt;
 use core::num::NonZeroI32;
@@ -101,19 +102,16 @@ impl Error {
     /// It is a bug to pass an out-of-range `errno`. `EINVAL` would
     /// be returned in such a case.
     pub fn from_errno(errno: crate::ffi::c_int) -> Error {
-        if errno < -(bindings::MAX_ERRNO as i32) || errno >= 0 {
+        if let Some(error) = Self::try_from_errno(errno) {
+            error
+        } else {
             // TODO: Make it a `WARN_ONCE` once available.
             crate::pr_warn!(
                 "attempted to create `Error` with out of range `errno`: {}",
                 errno
             );
-            return code::EINVAL;
+            code::EINVAL
         }
-
-        // INVARIANT: The check above ensures the type invariant
-        // will hold.
-        // SAFETY: `errno` is checked above to be in a valid range.
-        unsafe { Error::from_errno_unchecked(errno) }
     }
 
     /// Creates an [`Error`] from a kernel error code.
@@ -153,11 +151,8 @@ impl Error {
 
     /// Returns the error encoded as a pointer.
     pub fn to_ptr<T>(self) -> *mut T {
-        #[cfg_attr(target_pointer_width = "32", allow(clippy::useless_conversion))]
         // SAFETY: `self.0` is a valid error due to its invariant.
-        unsafe {
-            bindings::ERR_PTR(self.0.get().into()) as *mut _
-        }
+        unsafe { bindings::ERR_PTR(self.0.get() as _) as *mut _ }
     }
 
     /// Returns a string representing the error, if one exists.

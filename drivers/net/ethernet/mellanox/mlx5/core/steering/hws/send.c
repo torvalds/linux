@@ -377,17 +377,25 @@ static void hws_send_engine_update_rule(struct mlx5hws_send_engine *queue,
 
 			*status = MLX5HWS_FLOW_OP_ERROR;
 		} else {
-			/* Increase the status, this only works on good flow as the enum
-			 * is arrange it away creating -> created -> deleting -> deleted
+			/* Increase the status, this only works on good flow as
+			 * the enum is arranged this way:
+			 *  - creating -> created
+			 *  - updating -> updated
+			 *  - deleting -> deleted
 			 */
 			priv->rule->status++;
 			*status = MLX5HWS_FLOW_OP_SUCCESS;
-			/* Rule was deleted now we can safely release action STEs
-			 * and clear resize info
-			 */
 			if (priv->rule->status == MLX5HWS_RULE_STATUS_DELETED) {
-				mlx5hws_rule_free_action_ste(priv->rule);
+				/* Rule was deleted, now we can safely release
+				 * action STEs and clear resize info
+				 */
+				mlx5hws_rule_free_action_ste(&priv->rule->action_ste);
 				mlx5hws_rule_clear_resize_info(priv->rule);
+			} else if (priv->rule->status == MLX5HWS_RULE_STATUS_UPDATED) {
+				/* Rule was updated, free the old action STEs */
+				mlx5hws_rule_free_action_ste(&priv->rule->old_action_ste);
+				/* Update completed - move the rule back to "created" */
+				priv->rule->status = MLX5HWS_RULE_STATUS_CREATED;
 			}
 		}
 	}
@@ -633,6 +641,7 @@ static int hws_send_ring_create_sq(struct mlx5_core_dev *mdev, u32 pdn,
 
 	MLX5_SET(sqc, sqc, state, MLX5_SQC_STATE_RST);
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
+	MLX5_SET(sqc, sqc, non_wire, 1);
 
 	ts_format = mlx5_is_real_time_sq(mdev) ? MLX5_TIMESTAMP_FORMAT_REAL_TIME :
 						 MLX5_TIMESTAMP_FORMAT_FREE_RUNNING;
@@ -896,15 +905,18 @@ close_cq:
 	return err;
 }
 
-void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue)
+static void mlx5hws_send_queue_close(struct mlx5hws_send_engine *queue)
 {
+	if (!queue->num_entries)
+		return; /* this queue wasn't initialized */
+
 	hws_send_ring_close(queue);
 	kfree(queue->completed.entries);
 }
 
-int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
-			    struct mlx5hws_send_engine *queue,
-			    u16 queue_size)
+static int mlx5hws_send_queue_open(struct mlx5hws_context *ctx,
+				   struct mlx5hws_send_engine *queue,
+				   u16 queue_size)
 {
 	int err;
 
@@ -1005,7 +1017,7 @@ int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,
 			     u16 queue_size)
 {
 	int err = 0;
-	u32 i;
+	int i = 0;
 
 	/* Open one extra queue for control path */
 	ctx->queues = queues + 1;
@@ -1021,7 +1033,13 @@ int mlx5hws_send_queues_open(struct mlx5hws_context *ctx,
 		goto free_bwc_locks;
 	}
 
-	for (i = 0; i < ctx->queues; i++) {
+	/* If native API isn't supported, skip the unused native queues:
+	 * initialize BWC queues and control queue only.
+	 */
+	if (!mlx5hws_context_native_supported(ctx))
+		i = mlx5hws_bwc_get_queue_id(ctx, 0);
+
+	for (; i < ctx->queues; i++) {
 		err = mlx5hws_send_queue_open(ctx, &ctx->send_queue[i], queue_size);
 		if (err)
 			goto close_send_queues;

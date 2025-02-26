@@ -397,15 +397,19 @@ int ivpu_boot(struct ivpu_device *vdev)
 	if (ivpu_fw_is_cold_boot(vdev)) {
 		ret = ivpu_pm_dct_init(vdev);
 		if (ret)
-			goto err_diagnose_failure;
+			goto err_disable_ipc;
 
 		ret = ivpu_hw_sched_init(vdev);
 		if (ret)
-			goto err_diagnose_failure;
+			goto err_disable_ipc;
 	}
 
 	return 0;
 
+err_disable_ipc:
+	ivpu_ipc_disable(vdev);
+	ivpu_hw_irq_disable(vdev);
+	disable_irq(vdev->irq);
 err_diagnose_failure:
 	ivpu_hw_diagnose_failure(vdev);
 	ivpu_mmu_evtq_dump(vdev);
@@ -458,15 +462,7 @@ static const struct drm_driver driver = {
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 
-#ifdef DRIVER_DATE
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
-#else
-	.date = UTS_RELEASE,
 	.major = 1,
-#endif
 };
 
 static void ivpu_context_abort_invalid(struct ivpu_device *vdev)

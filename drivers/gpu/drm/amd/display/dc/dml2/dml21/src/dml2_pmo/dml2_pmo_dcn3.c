@@ -195,11 +195,11 @@ static int count_planes_with_stream_index(const struct dml2_display_cfg *display
 
 static bool are_timings_trivially_synchronizable(struct display_configuation_with_meta *display_config, int mask)
 {
-	unsigned char i;
+	unsigned int i;
 	bool identical = true;
 	bool contains_drr = false;
-	unsigned char remap_array[DML2_MAX_PLANES];
-	unsigned char remap_array_size = 0;
+	unsigned int remap_array[DML2_MAX_PLANES];
+	unsigned int remap_array_size = 0;
 
 	// Create a remap array to enable simple iteration through only masked stream indicies
 	for (i = 0; i < display_config->display_config.num_streams; i++) {
@@ -347,8 +347,12 @@ static int find_highest_odm_load_stream_index(
 	int odm_load, highest_odm_load = -1, highest_odm_load_index = -1;
 
 	for (i = 0; i < display_config->num_streams; i++) {
-		odm_load = display_config->stream_descriptors[i].timing.pixel_clock_khz
+		if (mode_support_result->cfg_support_info.stream_support_info[i].odms_used > 0)
+			odm_load = display_config->stream_descriptors[i].timing.pixel_clock_khz
 				/ mode_support_result->cfg_support_info.stream_support_info[i].odms_used;
+		else
+			odm_load = 0;
+
 		if (odm_load > highest_odm_load) {
 			highest_odm_load_index = i;
 			highest_odm_load = odm_load;

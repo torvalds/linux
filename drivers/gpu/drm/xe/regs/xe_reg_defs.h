@@ -13,7 +13,7 @@
 /**
  * struct xe_reg - Register definition
  *
- * Register defintion to be used by the individual register. Although the same
+ * Register definition to be used by the individual register. Although the same
  * definition is used for xe_reg and xe_reg_mcr, they use different internal
  * APIs for accesses.
  */

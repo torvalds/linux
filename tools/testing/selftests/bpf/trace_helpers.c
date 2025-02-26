@@ -293,6 +293,10 @@ static int procmap_query(int fd, const void *addr, __u32 query_flags, size_t *st
 	return 0;
 }
 #else
+# ifndef PROCMAP_QUERY_VMA_EXECUTABLE
+#  define PROCMAP_QUERY_VMA_EXECUTABLE 0x04
+# endif
+
 static int procmap_query(int fd, const void *addr, __u32 query_flags, size_t *start, size_t *offset, int *flags)
 {
 	return -EOPNOTSUPP;

@@ -342,7 +342,7 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 		return -ENOMEM;
 
 	pages = (struct page **)(bv + npages);
-	npages = alloc_pages_bulk_array(GFP_USER, npages, pages);
+	npages = alloc_pages_bulk(GFP_USER, npages, pages);
 	if (!npages) {
 		kfree(bv);
 		return -ENOMEM;

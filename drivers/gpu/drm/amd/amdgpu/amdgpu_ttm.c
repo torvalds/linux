@@ -309,7 +309,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 	mutex_lock(&adev->mman.gtt_window_lock);
 	while (src_mm.remaining) {
 		uint64_t from, to, cur_size, tiling_flags;
-		uint32_t num_type, data_format, max_com;
+		uint32_t num_type, data_format, max_com, write_compress_disable;
 		struct dma_fence *next;
 
 		/* Never copy more than 256MiB at once to avoid a timeout */
@@ -340,9 +340,13 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			max_com = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_MAX_COMPRESSED_BLOCK);
 			num_type = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_NUMBER_TYPE);
 			data_format = AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_DATA_FORMAT);
+			write_compress_disable =
+				AMDGPU_TILING_GET(tiling_flags, GFX12_DCC_WRITE_COMPRESS_DISABLE);
 			copy_flags |= (AMDGPU_COPY_FLAGS_SET(MAX_COMPRESSED, max_com) |
 				       AMDGPU_COPY_FLAGS_SET(NUMBER_TYPE, num_type) |
-				       AMDGPU_COPY_FLAGS_SET(DATA_FORMAT, data_format));
+				       AMDGPU_COPY_FLAGS_SET(DATA_FORMAT, data_format) |
+				       AMDGPU_COPY_FLAGS_SET(WRITE_COMPRESS_DISABLE,
+							     write_compress_disable));
 		}
 
 		r = amdgpu_copy_buffer(ring, from, to, cur_size, resv,
@@ -1762,7 +1766,8 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 
 	if (!adev->bios &&
 	    (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)))
+	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
+	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 5, 0)))
 		reserve_size = max(reserve_size, (uint32_t)280 << 20);
 	else if (!reserve_size)
 		reserve_size = DISCOVERY_TMR_OFFSET;
@@ -2065,6 +2070,7 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_GDS);
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_GWS);
 	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_OA);
+	ttm_range_man_fini(&adev->mman.bdev, AMDGPU_PL_DOORBELL);
 	ttm_device_fini(&adev->mman.bdev);
 	adev->mman.initialized = false;
 	DRM_INFO("amdgpu: ttm finalized\n");

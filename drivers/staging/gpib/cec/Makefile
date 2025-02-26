@@ -1,3 +1,3 @@
 
-obj-m += cec_gpib.o
+obj-$(CONFIG_GPIB_CEC_PCI) += cec_gpib.o
 

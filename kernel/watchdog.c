@@ -190,7 +190,7 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 		 * with printk_cpu_sync_get_irqsave() that we can still at least
 		 * get the message about the lockup out.
 		 */
-		pr_emerg("Watchdog detected hard LOCKUP on cpu %d\n", cpu);
+		pr_emerg("CPU%u: Watchdog detected hard LOCKUP on cpu %u\n", this_cpu, cpu);
 		printk_cpu_sync_get_irqsave(flags);
 
 		print_modules();
@@ -1094,7 +1094,7 @@ static int proc_watchdog_cpumask(const struct ctl_table *table, int write,
 
 static const int sixty = 60;
 
-static struct ctl_table watchdog_sysctls[] = {
+static const struct ctl_table watchdog_sysctls[] = {
 	{
 		.procname       = "watchdog",
 		.data		= &watchdog_user_enabled,

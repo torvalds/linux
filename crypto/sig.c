@@ -15,8 +15,6 @@
 
 #include "internal.h"
 
-#define CRYPTO_ALG_TYPE_SIG_MASK	0x0000000e
-
 static void crypto_sig_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_sig *sig = __crypto_sig_tfm(tfm);
@@ -73,7 +71,7 @@ static const struct crypto_type crypto_sig_type = {
 	.report = crypto_sig_report,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
-	.maskset = CRYPTO_ALG_TYPE_SIG_MASK,
+	.maskset = CRYPTO_ALG_TYPE_MASK,
 	.type = CRYPTO_ALG_TYPE_SIG,
 	.tfmsize = offsetof(struct crypto_sig, base),
 };

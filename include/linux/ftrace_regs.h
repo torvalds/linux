@@ -30,6 +30,8 @@ struct ftrace_regs;
 	override_function_with_return(&arch_ftrace_regs(fregs)->regs)
 #define ftrace_regs_query_register_offset(name) \
 	regs_query_register_offset(name)
+#define ftrace_regs_get_frame_pointer(fregs) \
+	frame_pointer(&arch_ftrace_regs(fregs)->regs)
 
 #endif /* HAVE_ARCH_FTRACE_REGS */
 

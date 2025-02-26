@@ -26,6 +26,7 @@ properties:
           - qcom,scm-ipq4019
           - qcom,scm-ipq5018
           - qcom,scm-ipq5332
+          - qcom,scm-ipq5424
           - qcom,scm-ipq6018
           - qcom,scm-ipq806x
           - qcom,scm-ipq8074
@@ -42,6 +43,7 @@ properties:
           - qcom,scm-msm8996
           - qcom,scm-msm8998
           - qcom,scm-qcm2290
+          - qcom,scm-qcs615
           - qcom,scm-qcs8300
           - qcom,scm-qdu1000
           - qcom,scm-sa8255p

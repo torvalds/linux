@@ -445,7 +445,8 @@ static int coda_readdir(struct file *coda_file, struct dir_context *ctx)
 }
 
 /* called when a cache lookup succeeds */
-static int coda_dentry_revalidate(struct dentry *de, unsigned int flags)
+static int coda_dentry_revalidate(struct inode *dir, const struct qstr *name,
+				  struct dentry *de, unsigned int flags)
 {
 	struct inode *inode;
 	struct coda_inode_info *cii;

@@ -83,13 +83,22 @@ static unsigned int
 vc4_crtc_get_cob_allocation(struct vc4_dev *vc4, unsigned int channel)
 {
 	struct vc4_hvs *hvs = vc4->hvs;
-	u32 dispbase = HVS_READ(SCALER_DISPBASEX(channel));
+	u32 dispbase, top, base;
+
 	/* Top/base are supposed to be 4-pixel aligned, but the
 	 * Raspberry Pi firmware fills the low bits (which are
 	 * presumably ignored).
 	 */
-	u32 top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
-	u32 base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+
+	if (vc4->gen >= VC4_GEN_6_C) {
+		dispbase = HVS_READ(SCALER6_DISPX_COB(channel));
+		top = VC4_GET_FIELD(dispbase, SCALER6_DISPX_COB_TOP) & ~3;
+		base = VC4_GET_FIELD(dispbase, SCALER6_DISPX_COB_BASE) & ~3;
+	} else {
+		dispbase = HVS_READ(SCALER_DISPBASEX(channel));
+		top = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_TOP) & ~3;
+		base = VC4_GET_FIELD(dispbase, SCALER_DISPBASEX_BASE) & ~3;
+	}
 
 	return top - base + 4;
 }
@@ -122,7 +131,10 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	 * Read vertical scanline which is currently composed for our
 	 * pixelvalve by the HVS, and also the scaler status.
 	 */
-	val = HVS_READ(SCALER_DISPSTATX(channel));
+	if (vc4->gen >= VC4_GEN_6_C)
+		val = HVS_READ(SCALER6_DISPX_STATUS(channel));
+	else
+		val = HVS_READ(SCALER_DISPSTATX(channel));
 
 	/* Get optional system timestamp after query. */
 	if (etime)
@@ -131,7 +143,12 @@ static bool vc4_crtc_get_scanout_position(struct drm_crtc *crtc,
 	/* preempt_enable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Vertical position of hvs composed scanline. */
-	*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+
+	if (vc4->gen >= VC4_GEN_6_C)
+		*vpos = VC4_GET_FIELD(val, SCALER6_DISPX_STATUS_YLINE);
+	else
+		*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+
 	*hpos = 0;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
@@ -223,6 +240,11 @@ static u32 vc4_get_fifo_full_level(struct vc4_crtc *vc4_crtc, u32 format)
 	const struct vc4_crtc_data *crtc_data = vc4_crtc_to_vc4_crtc_data(vc4_crtc);
 	const struct vc4_pv_data *pv_data = vc4_crtc_to_vc4_pv_data(vc4_crtc);
 	struct vc4_dev *vc4 = to_vc4_dev(vc4_crtc->base.dev);
+
+	/*
+	 * NOTE: Could we use register 0x68 (PV_HW_CFG1) to get the FIFO
+	 * size?
+	 */
 	u32 fifo_len_bytes = pv_data->fifo_depth;
 
 	/*
@@ -404,6 +426,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 		 */
 		CRTC_WRITE(PV_V_CONTROL,
 			   PV_VCONTROL_CONTINUOUS |
+			   (vc4->gen >= VC4_GEN_6_C ? PV_VCONTROL_ODD_TIMING : 0) |
 			   (is_dsi ? PV_VCONTROL_DSI : 0) |
 			   PV_VCONTROL_INTERLACE |
 			   (odd_field_first
@@ -415,6 +438,7 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	} else {
 		CRTC_WRITE(PV_V_CONTROL,
 			   PV_VCONTROL_CONTINUOUS |
+			   (vc4->gen >= VC4_GEN_6_C ? PV_VCONTROL_ODD_TIMING : 0) |
 			   (is_dsi ? PV_VCONTROL_DSI : 0));
 		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
 	}
@@ -429,10 +453,16 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	if (is_dsi)
 		CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	if (vc4->gen == VC4_GEN_5)
+	if (vc4->gen >= VC4_GEN_5)
 		CRTC_WRITE(PV_MUX_CFG,
 			   VC4_SET_FIELD(PV_MUX_CFG_RGB_PIXEL_MUX_MODE_NO_SWAP,
 					 PV_MUX_CFG_RGB_PIXEL_MUX_MODE));
+
+	if (vc4->gen >= VC4_GEN_6_C)
+		CRTC_WRITE(PV_PIPE_INIT_CTRL,
+			   VC4_SET_FIELD(1, PV_PIPE_INIT_CTRL_PV_INIT_WIDTH) |
+			   VC4_SET_FIELD(1, PV_PIPE_INIT_CTRL_PV_INIT_IDLE) |
+			   PV_PIPE_INIT_CTRL_PV_INIT_EN);
 
 	CRTC_WRITE(PV_CONTROL, PV_CONTROL_FIFO_CLR |
 		   vc4_crtc_get_fifo_full_level_bits(vc4_crtc, format) |
@@ -459,8 +489,10 @@ static void require_hvs_enabled(struct drm_device *dev)
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
 
-	WARN_ON_ONCE((HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE) !=
-		     SCALER_DISPCTRL_ENABLE);
+	if (vc4->gen >= VC4_GEN_6_C)
+		WARN_ON_ONCE(!(HVS_READ(SCALER6_CONTROL) & SCALER6_CONTROL_HVS_EN));
+	else
+		WARN_ON_ONCE(!(HVS_READ(SCALER_DISPCTRL) & SCALER_DISPCTRL_ENABLE));
 }
 
 static int vc4_crtc_disable(struct drm_crtc *crtc,
@@ -530,7 +562,11 @@ int vc4_crtc_disable_at_boot(struct drm_crtc *crtc)
 	if (!(of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
 				      "brcm,bcm2711-pixelvalve2") ||
 	      of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
-				      "brcm,bcm2711-pixelvalve4")))
+				      "brcm,bcm2711-pixelvalve4") ||
+	      of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+				      "brcm,bcm2712-pixelvalve0") ||
+	      of_device_is_compatible(vc4_crtc->pdev->dev.of_node,
+				      "brcm,bcm2712-pixelvalve1")))
 		return 0;
 
 	if (!(CRTC_READ(PV_CONTROL) & PV_CONTROL_EN))
@@ -789,14 +825,21 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_hvs *hvs = vc4->hvs;
+	unsigned int current_dlist;
 	u32 chan = vc4_crtc->current_hvs_channel;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	spin_lock(&vc4_crtc->irq_lock);
+
+	if (vc4->gen >= VC4_GEN_6_C)
+		current_dlist = VC4_GET_FIELD(HVS_READ(SCALER6_DISPX_DL(chan)),
+					      SCALER6_DISPX_DL_LACT);
+	else
+		current_dlist = HVS_READ(SCALER_DISPLACTX(chan));
+
 	if (vc4_crtc->event &&
-	    (vc4_crtc->current_dlist == HVS_READ(SCALER_DISPLACTX(chan)) ||
-	     vc4_crtc->feeds_txp)) {
+	    (vc4_crtc->current_dlist == current_dlist || vc4_crtc->feeds_txp)) {
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
@@ -807,7 +850,8 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		 * the CRTC and encoder already reconfigured, leading to
 		 * underruns. This can be seen when reconfiguring the CRTC.
 		 */
-		vc4_hvs_unmask_underrun(hvs, chan);
+		if (vc4->gen < VC4_GEN_6_C)
+			vc4_hvs_unmask_underrun(hvs, chan);
 	}
 	spin_unlock(&vc4_crtc->irq_lock);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
@@ -1265,6 +1309,32 @@ const struct vc4_pv_data bcm2711_pv4_data = {
 	},
 };
 
+const struct vc4_pv_data bcm2712_pv0_data = {
+	.base = {
+		.debugfs_name = "crtc0_regs",
+		.hvs_available_channels = BIT(0),
+		.hvs_output = 0,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_HDMI0,
+	},
+};
+
+const struct vc4_pv_data bcm2712_pv1_data = {
+	.base = {
+		.debugfs_name = "crtc1_regs",
+		.hvs_available_channels = BIT(1),
+		.hvs_output = 1,
+	},
+	.fifo_depth = 64,
+	.pixels_per_clock = 1,
+	.encoder_types = {
+		[0] = VC4_ENCODER_TYPE_HDMI1,
+	},
+};
+
 static const struct of_device_id vc4_crtc_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-pixelvalve0", .data = &bcm2835_pv0_data },
 	{ .compatible = "brcm,bcm2835-pixelvalve1", .data = &bcm2835_pv1_data },
@@ -1274,6 +1344,8 @@ static const struct of_device_id vc4_crtc_dt_match[] = {
 	{ .compatible = "brcm,bcm2711-pixelvalve2", .data = &bcm2711_pv2_data },
 	{ .compatible = "brcm,bcm2711-pixelvalve3", .data = &bcm2711_pv3_data },
 	{ .compatible = "brcm,bcm2711-pixelvalve4", .data = &bcm2711_pv4_data },
+	{ .compatible = "brcm,bcm2712-pixelvalve0", .data = &bcm2712_pv0_data },
+	{ .compatible = "brcm,bcm2712-pixelvalve1", .data = &bcm2712_pv1_data },
 	{}
 };
 

@@ -130,6 +130,7 @@ static const struct pci_device_id sky2_id_table[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436C) }, /* 88E8072 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x436D) }, /* 88E8055 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4370) }, /* 88E8075 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4373) }, /* 88E8075 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4380) }, /* 88E8057 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4381) }, /* 88E8059 */
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x4382) }, /* 88E8079 */
@@ -4493,10 +4494,7 @@ static int sky2_device_event(struct notifier_block *unused,
 
 	switch (event) {
 	case NETDEV_CHANGENAME:
-		if (sky2->debugfs) {
-			sky2->debugfs = debugfs_rename(sky2_debug, sky2->debugfs,
-						       sky2_debug, dev->name);
-		}
+		debugfs_change_name(sky2->debugfs, "%s", dev->name);
 		break;
 
 	case NETDEV_GOING_DOWN:

@@ -23,11 +23,10 @@ EXPORT_SYMBOL(tlb_virt_to_page);
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *init, *ret = NULL;
-	struct ptdesc *ptdesc = pagetable_alloc(GFP_KERNEL & ~__GFP_HIGHMEM, 0);
+	pgd_t *init, *ret;
 
-	if (ptdesc) {
-		ret = (pgd_t *)ptdesc_address(ptdesc);
+	ret = __pgd_alloc(mm, 0);
+	if (ret) {
 		init = pgd_offset(&init_mm, 0UL);
 		pgd_init(ret);
 		memcpy(ret + USER_PTRS_PER_PGD, init + USER_PTRS_PER_PGD,

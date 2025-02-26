@@ -195,7 +195,7 @@ void __iomem *ecardm_iomap(struct expansion_card *ec, unsigned int res,
 			   unsigned long offset, unsigned long maxsize);
 #define ecardm_iounmap(__ec, __addr)	devm_iounmap(&(__ec)->dev, __addr)
 
-extern struct bus_type ecard_bus_type;
+extern const struct bus_type ecard_bus_type;
 
 #define ECARD_DEV(_d)	container_of((_d), struct expansion_card, dev)
 

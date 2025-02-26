@@ -3,15 +3,13 @@
 #define IOU_KBUF_H
 
 #include <uapi/linux/io_uring.h>
+#include <linux/io_uring_types.h>
 
 enum {
 	/* ring mapped provided buffers */
 	IOBL_BUF_RING	= 1,
-	/* ring mapped provided buffers, but mmap'ed by application */
-	IOBL_MMAP	= 2,
 	/* buffers are consumed incrementally rather than always fully */
-	IOBL_INC	= 4,
-
+	IOBL_INC	= 2,
 };
 
 struct io_buffer_list {
@@ -21,11 +19,7 @@ struct io_buffer_list {
 	 */
 	union {
 		struct list_head buf_list;
-		struct {
-			struct page **buf_pages;
-			struct io_uring_buf_ring *buf_ring;
-		};
-		struct rcu_head rcu;
+		struct io_uring_buf_ring *buf_ring;
 	};
 	__u16 bgid;
 
@@ -37,7 +31,7 @@ struct io_buffer_list {
 
 	__u16 flags;
 
-	atomic_t refs;
+	struct io_mapped_region region;
 };
 
 struct io_buffer {
@@ -84,10 +78,8 @@ void __io_put_kbuf(struct io_kiocb *req, int len, unsigned issue_flags);
 
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
-void io_put_bl(struct io_ring_ctx *ctx, struct io_buffer_list *bl);
-struct io_buffer_list *io_pbuf_get_bl(struct io_ring_ctx *ctx,
-				      unsigned long bgid);
-int io_pbuf_mmap(struct file *file, struct vm_area_struct *vma);
+struct io_mapped_region *io_pbuf_get_region(struct io_ring_ctx *ctx,
+					    unsigned int bgid);
 
 static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 {

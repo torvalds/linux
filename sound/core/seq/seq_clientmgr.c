@@ -678,12 +678,18 @@ static int snd_seq_deliver_single_event(struct snd_seq_client *client,
 					  dest_port->time_real);
 
 #if IS_ENABLED(CONFIG_SND_SEQ_UMP)
-	if (!(dest->filter & SNDRV_SEQ_FILTER_NO_CONVERT)) {
-		if (snd_seq_ev_is_ump(event)) {
+	if (snd_seq_ev_is_ump(event)) {
+		if (!(dest->filter & SNDRV_SEQ_FILTER_NO_CONVERT)) {
 			result = snd_seq_deliver_from_ump(client, dest, dest_port,
 							  event, atomic, hop);
 			goto __skip;
-		} else if (snd_seq_client_is_ump(dest)) {
+		} else if (dest->type == USER_CLIENT &&
+			   !snd_seq_client_is_ump(dest)) {
+			result = 0; // drop the event
+			goto __skip;
+		}
+	} else if (snd_seq_client_is_ump(dest)) {
+		if (!(dest->filter & SNDRV_SEQ_FILTER_NO_CONVERT)) {
 			result = snd_seq_deliver_to_ump(client, dest, dest_port,
 							event, atomic, hop);
 			goto __skip;
@@ -1275,10 +1281,16 @@ static int snd_seq_ioctl_set_client_info(struct snd_seq_client *client,
 	if (client->type != client_info->type)
 		return -EINVAL;
 
-	/* check validity of midi_version field */
-	if (client->user_pversion >= SNDRV_PROTOCOL_VERSION(1, 0, 3) &&
-	    client_info->midi_version > SNDRV_SEQ_CLIENT_UMP_MIDI_2_0)
-		return -EINVAL;
+	if (client->user_pversion >= SNDRV_PROTOCOL_VERSION(1, 0, 3)) {
+		/* check validity of midi_version field */
+		if (client_info->midi_version > SNDRV_SEQ_CLIENT_UMP_MIDI_2_0)
+			return -EINVAL;
+
+		/* check if UMP is supported in kernel */
+		if (!IS_ENABLED(CONFIG_SND_SEQ_UMP) &&
+		    client_info->midi_version > 0)
+			return -EINVAL;
+	}
 
 	/* fill the info fields */
 	if (client_info->name[0])
@@ -1290,6 +1302,10 @@ static int snd_seq_ioctl_set_client_info(struct snd_seq_client *client,
 		client->midi_version = client_info->midi_version;
 	memcpy(client->event_filter, client_info->event_filter, 32);
 	client->group_filter = client_info->group_filter;
+
+	/* notify the change */
+	snd_seq_system_client_ev_client_change(client->number);
+
 	return 0;
 }
 
@@ -1413,6 +1429,9 @@ static int snd_seq_ioctl_set_port_info(struct snd_seq_client *client, void *arg)
 	if (port) {
 		snd_seq_set_port_info(port, info);
 		snd_seq_port_unlock(port);
+		/* notify the change */
+		snd_seq_system_client_ev_port_change(info->addr.client,
+						     info->addr.port);
 	}
 	return 0;
 }
@@ -1469,7 +1488,7 @@ int snd_seq_client_notify_subscription(int client, int port,
 	event.data.connect.dest = info->dest;
 	event.data.connect.sender = info->sender;
 
-	return snd_seq_system_notify(client, port, &event);  /* non-atomic */
+	return snd_seq_system_notify(client, port, &event, false);  /* non-atomic */
 }
 
 
@@ -2223,6 +2242,16 @@ static int snd_seq_ioctl_client_ump_info(struct snd_seq_client *caller,
  error:
 	mutex_unlock(&cptr->ioctl_mutex);
 	snd_seq_client_unlock(cptr);
+	if (!err && cmd == SNDRV_SEQ_IOCTL_SET_CLIENT_UMP_INFO) {
+		if (type == SNDRV_SEQ_CLIENT_UMP_INFO_ENDPOINT)
+			snd_seq_system_ump_notify(client, 0,
+						  SNDRV_SEQ_EVENT_UMP_EP_CHANGE,
+						  false);
+		else
+			snd_seq_system_ump_notify(client, type - 1,
+						  SNDRV_SEQ_EVENT_UMP_BLOCK_CHANGE,
+						  false);
+	}
 	return err;
 }
 #endif

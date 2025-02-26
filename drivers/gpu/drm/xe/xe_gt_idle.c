@@ -122,10 +122,12 @@ void xe_gt_idle_enable_pg(struct xe_gt *gt)
 	if (!xe_gt_is_media_type(gt))
 		gtidle->powergate_enable |= RENDER_POWERGATE_ENABLE;
 
-	for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
-		if ((gt->info.engine_mask & BIT(i)))
-			gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
-						     VDN_MFXVDENC_POWERGATE_ENABLE(j));
+	if (xe->info.platform != XE_DG1) {
+		for (i = XE_HW_ENGINE_VCS0, j = 0; i <= XE_HW_ENGINE_VCS7; ++i, ++j) {
+			if ((gt->info.engine_mask & BIT(i)))
+				gtidle->powergate_enable |= (VDN_HCP_POWERGATE_ENABLE(j) |
+							     VDN_MFXVDENC_POWERGATE_ENABLE(j));
+		}
 	}
 
 	fw_ref = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);

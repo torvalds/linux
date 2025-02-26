@@ -15,8 +15,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_client_setup.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -27,6 +27,10 @@
 
 #include "hibmc_drm_drv.h"
 #include "hibmc_drm_regs.h"
+
+#define HIBMC_DP_HOST_SERDES_CTRL		0x1f001c
+#define HIBMC_DP_HOST_SERDES_CTRL_VAL		0x8a00
+#define HIBMC_DP_HOST_SERDES_CTRL_MASK		0x7ffff
 
 DEFINE_DRM_GEM_FOPS(hibmc_fops);
 
@@ -57,7 +61,6 @@ static const struct drm_driver hibmc_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &hibmc_fops,
 	.name			= "hibmc",
-	.date			= "20160828",
 	.desc			= "hibmc drm driver",
 	.major			= 1,
 	.minor			= 0,
@@ -116,6 +119,14 @@ static int hibmc_kms_init(struct hibmc_drm_private *priv)
 	if (ret) {
 		drm_err(dev, "failed to init de: %d\n", ret);
 		return ret;
+	}
+
+	/* if DP existed, init DP */
+	if ((readl(priv->mmio + HIBMC_DP_HOST_SERDES_CTRL) &
+	     HIBMC_DP_HOST_SERDES_CTRL_MASK) == HIBMC_DP_HOST_SERDES_CTRL_VAL) {
+		ret = hibmc_dp_init(priv);
+		if (ret)
+			drm_err(dev, "failed to init dp: %d\n", ret);
 	}
 
 	ret = hibmc_vdac_init(priv);
@@ -327,6 +338,8 @@ static int hibmc_pci_probe(struct pci_dev *pdev,
 		drm_err(dev, "failed to enable pci device: %d\n", ret);
 		goto err_return;
 	}
+
+	pci_set_master(pdev);
 
 	ret = hibmc_load(dev);
 	if (ret) {

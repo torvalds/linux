@@ -7,7 +7,6 @@
 
 #define DRIVER_NAME		"nouveau"
 #define DRIVER_DESC		"nVidia Riva/TNT/GeForce/Quadro/Tesla/Tegra K1+"
-#define DRIVER_DATE		"20120801"
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		4

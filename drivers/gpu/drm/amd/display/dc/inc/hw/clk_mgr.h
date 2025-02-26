@@ -306,6 +306,9 @@ struct clk_mgr_funcs {
 	 */
 	void (*set_hard_min_memclk)(struct clk_mgr *clk_mgr, bool current_mode);
 
+	int (*get_hard_min_memclk)(struct clk_mgr *clk_mgr);
+	int (*get_hard_min_fclk)(struct clk_mgr *clk_mgr);
+
 	/* Send message to PMFW to set hard max memclk frequency to highest DPM */
 	void (*set_hard_max_memclk)(struct clk_mgr *clk_mgr);
 

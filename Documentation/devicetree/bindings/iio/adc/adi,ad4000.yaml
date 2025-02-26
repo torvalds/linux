@@ -19,49 +19,82 @@ description: |
     https://www.analog.com/media/en/technical-documentation/data-sheets/ad4020-4021-4022.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4001.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4003.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7685.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7686.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7687.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7688.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7690.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7691.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7693.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7942.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7946.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7980.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7982.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7983.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7984.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/ad7988-1_7988-5.pdf
 
 $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:
     oneOf:
-      - const: adi,ad4000
+      - enum:
+          - adi,ad4000
+          - adi,ad4001
+          - adi,ad4002
+          - adi,ad4003
+          - adi,ad4020
+          - adi,adaq4001
+          - adi,adaq4003
+          - adi,ad7687
+          - adi,ad7691
+          - adi,ad7942
+          - adi,ad7946
+          - adi,ad7983
       - items:
           - enum:
               - adi,ad4004
               - adi,ad4008
           - const: adi,ad4000
-
-      - const: adi,ad4001
       - items:
           - enum:
               - adi,ad4005
           - const: adi,ad4001
-
-      - const: adi,ad4002
       - items:
           - enum:
               - adi,ad4006
               - adi,ad4010
           - const: adi,ad4002
-
-      - const: adi,ad4003
       - items:
           - enum:
               - adi,ad4007
               - adi,ad4011
           - const: adi,ad4003
-
-      - const: adi,ad4020
       - items:
           - enum:
               - adi,ad4021
               - adi,ad4022
           - const: adi,ad4020
-
-      - const: adi,adaq4001
-
-      - const: adi,adaq4003
+      - items:
+          - enum:
+              - adi,ad7685
+              - adi,ad7686
+              - adi,ad7980
+              - adi,ad7988-1
+              - adi,ad7988-5
+          - const: adi,ad7983
+      - items:
+          - enum:
+              - adi,ad7688
+              - adi,ad7693
+          - const: adi,ad7687
+      - items:
+          - enum:
+              - adi,ad7690
+              - adi,ad7982
+              - adi,ad7984
+          - const: adi,ad7691
 
   reg:
     maxItems: 1
@@ -133,6 +166,22 @@ required:
   - ref-supply
 
 allOf:
+  # Single-channel PulSAR devices have SDI either tied to VIO, GND, or host CS.
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - adi,ad7687
+              - adi,ad7691
+              - adi,ad7942
+              - adi,ad7946
+              - adi,ad7983
+    then:
+      properties:
+        adi,sdi-pin:
+          enum: [ high, low, cs ]
+          default: cs
   # The configuration register can only be accessed if SDI is connected to MOSI
   - if:
       required:

@@ -629,8 +629,44 @@ static int sdw_notify_config(struct sdw_master_runtime *m_rt)
 static int sdw_program_params(struct sdw_bus *bus, bool prepare)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_slave *slave;
 	int ret = 0;
+	u32 addr1;
 
+	/* Check if all Peripherals comply with SDCA */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		if (!slave->dev_num_sticky)
+			continue;
+		if (!is_clock_scaling_supported_by_slave(slave)) {
+			dev_dbg(&slave->dev, "The Peripheral doesn't comply with SDCA\n");
+			goto manager_runtime;
+		}
+	}
+
+	if (bus->params.next_bank)
+		addr1 = SDW_SCP_BUSCLOCK_SCALE_B1;
+	else
+		addr1 = SDW_SCP_BUSCLOCK_SCALE_B0;
+
+	/* Program SDW_SCP_BUSCLOCK_SCALE if all Peripherals comply with SDCA */
+	list_for_each_entry(slave, &bus->slaves, node) {
+		int scale_index;
+		u8 base;
+
+		if (!slave->dev_num_sticky)
+			continue;
+		scale_index = sdw_slave_get_scale_index(slave, &base);
+		if (scale_index < 0)
+			return scale_index;
+
+		ret = sdw_write_no_pm(slave, addr1, scale_index);
+		if (ret < 0) {
+			dev_err(&slave->dev, "SDW_SCP_BUSCLOCK_SCALE register write failed\n");
+			return ret;
+		}
+	}
+
+manager_runtime:
 	list_for_each_entry(m_rt, &bus->m_rt_list, bus_node) {
 
 		/*
@@ -1383,7 +1419,7 @@ static int _sdw_prepare_stream(struct sdw_stream_runtime *stream,
 
 			/* Compute params */
 			if (bus->compute_params) {
-				ret = bus->compute_params(bus);
+				ret = bus->compute_params(bus, stream);
 				if (ret < 0) {
 					dev_err(bus->dev, "Compute params failed: %d\n",
 						ret);
@@ -1642,8 +1678,18 @@ EXPORT_SYMBOL(sdw_disable_stream);
 static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 {
 	struct sdw_master_runtime *m_rt;
+	struct sdw_port_runtime *p_rt;
+	unsigned int multi_lane_bandwidth;
+	unsigned int bandwidth;
 	struct sdw_bus *bus;
+	int state = stream->state;
 	int ret = 0;
+
+	/*
+	 * first mark the state as DEPREPARED so that it is not taken into account
+	 * for bit allocation
+	 */
+	stream->state = SDW_STREAM_DEPREPARED;
 
 	list_for_each_entry(m_rt, &stream->master_list, stream_node) {
 		bus = m_rt->bus;
@@ -1652,19 +1698,34 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		if (ret < 0) {
 			dev_err(bus->dev,
 				"De-prepare port(s) failed: %d\n", ret);
+			stream->state = state;
 			return ret;
 		}
 
+		multi_lane_bandwidth = 0;
+
+		list_for_each_entry(p_rt, &m_rt->port_list, port_node) {
+			if (!p_rt->lane)
+				continue;
+
+			bandwidth = m_rt->stream->params.rate * hweight32(p_rt->ch_mask) *
+				    m_rt->stream->params.bps;
+			multi_lane_bandwidth += bandwidth;
+			bus->lane_used_bandwidth[p_rt->lane] -= bandwidth;
+			if (!bus->lane_used_bandwidth[p_rt->lane])
+				p_rt->lane = 0;
+		}
 		/* TODO: Update this during Device-Device support */
-		bus->params.bandwidth -= m_rt->stream->params.rate *
-			m_rt->ch_count * m_rt->stream->params.bps;
+		bandwidth = m_rt->stream->params.rate * m_rt->ch_count * m_rt->stream->params.bps;
+		bus->params.bandwidth -= bandwidth - multi_lane_bandwidth;
 
 		/* Compute params */
 		if (bus->compute_params) {
-			ret = bus->compute_params(bus);
+			ret = bus->compute_params(bus, stream);
 			if (ret < 0) {
 				dev_err(bus->dev, "Compute params failed: %d\n",
 					ret);
+				stream->state = state;
 				return ret;
 			}
 		}
@@ -1673,11 +1734,11 @@ static int _sdw_deprepare_stream(struct sdw_stream_runtime *stream)
 		ret = sdw_program_params(bus, false);
 		if (ret < 0) {
 			dev_err(bus->dev, "%s: Program params failed: %d\n", __func__, ret);
+			stream->state = state;
 			return ret;
 		}
 	}
 
-	stream->state = SDW_STREAM_DEPREPARED;
 	return do_bank_switch(stream);
 }
 

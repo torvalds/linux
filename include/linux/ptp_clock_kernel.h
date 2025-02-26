@@ -307,7 +307,7 @@ static inline u64 adjust_by_scaled_ppm(u64 base, long scaled_ppm)
  * @info:   Structure describing the new clock.
  * @parent: Pointer to the parent device of the new clock.
  *
- * Returns a valid pointer on success or PTR_ERR on failure.  If PHC
+ * Returns: a valid pointer on success or PTR_ERR on failure.  If PHC
  * support is missing at the configuration level, this function
  * returns NULL, and drivers are expected to gracefully handle that
  * case separately.
@@ -445,7 +445,7 @@ int ptp_get_vclocks_index(int pclock_index, int **vclock_index);
  * @hwtstamp:     timestamp
  * @vclock_index: phc index of ptp vclock.
  *
- * Returns converted timestamp, or 0 on error.
+ * Returns: converted timestamp, or 0 on error.
  */
 ktime_t ptp_convert_timestamp(const ktime_t *hwtstamp, int vclock_index);
 #else

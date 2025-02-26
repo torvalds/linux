@@ -299,6 +299,8 @@ struct ceph_mds_request {
 	struct inode *r_target_inode;       /* resulting inode */
 	struct inode *r_new_inode;	    /* new inode (for creates) */
 
+	const struct qstr *r_dname;	    /* stable name (for ->d_revalidate) */
+
 #define CEPH_MDS_R_DIRECT_IS_HASH	(1) /* r_direct_hash is valid */
 #define CEPH_MDS_R_ABORTED		(2) /* call was aborted */
 #define CEPH_MDS_R_GOT_UNSAFE		(3) /* got an unsafe reply */

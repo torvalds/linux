@@ -2085,7 +2085,7 @@ sub process_name($$) {
         # Look for foo() or static void foo() - description; or misspelt
         # identifier
         elsif (/^$decl_start$fn_type?(\w+)\s*$parenthesis?\s*$decl_end?$/ ||
-            /^$decl_start$fn_type?(\w+.*)$parenthesis?\s*$decl_end$/) {
+            /^$decl_start$fn_type?(\w+[^-:]*)$parenthesis?\s*$decl_end$/) {
             $identifier = $1;
             $decl_type = 'function';
             $identifier =~ s/^define\s+//;

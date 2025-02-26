@@ -1085,6 +1085,13 @@ bool mpc3_is_dwb_idle(
 	struct mpc *mpc,
 	int dwb_id);
 
+void mpc3_set_out_rate_control(
+	struct mpc *mpc,
+	int opp_id,
+	bool enable,
+	bool rate_2x_mode,
+	struct mpc_dwb_flow_control *flow_control);
+
 void mpc3_power_on_ogam_lut(
 	struct mpc *mpc, int mpcc_id,
 	bool power_on);

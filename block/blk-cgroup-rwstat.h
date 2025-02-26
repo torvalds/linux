@@ -52,7 +52,7 @@ void blkg_rwstat_recursive_sum(struct blkcg_gq *blkg, struct blkcg_policy *pol,
 /**
  * blkg_rwstat_add - add a value to a blkg_rwstat
  * @rwstat: target blkg_rwstat
- * @op: REQ_OP and flags
+ * @opf: REQ_OP and flags
  * @val: value to add
  *
  * Add @val to @rwstat.  The counters are chosen according to @rw.  The
@@ -83,8 +83,9 @@ static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
 /**
  * blkg_rwstat_read - read the current values of a blkg_rwstat
  * @rwstat: blkg_rwstat to read
+ * @result: where to put the current values
  *
- * Read the current snapshot of @rwstat and return it in the aux counts.
+ * Read the current snapshot of @rwstat and return it in the @result counts.
  */
 static inline void blkg_rwstat_read(struct blkg_rwstat *rwstat,
 		struct blkg_rwstat_sample *result)

@@ -27,31 +27,6 @@ static int
 cifs_ses_add_channel(struct cifs_ses *ses,
 		     struct cifs_server_iface *iface);
 
-bool
-is_server_using_iface(struct TCP_Server_Info *server,
-		      struct cifs_server_iface *iface)
-{
-	struct sockaddr_in *i4 = (struct sockaddr_in *)&iface->sockaddr;
-	struct sockaddr_in6 *i6 = (struct sockaddr_in6 *)&iface->sockaddr;
-	struct sockaddr_in *s4 = (struct sockaddr_in *)&server->dstaddr;
-	struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)&server->dstaddr;
-
-	if (server->dstaddr.ss_family != iface->sockaddr.ss_family)
-		return false;
-	if (server->dstaddr.ss_family == AF_INET) {
-		if (s4->sin_addr.s_addr != i4->sin_addr.s_addr)
-			return false;
-	} else if (server->dstaddr.ss_family == AF_INET6) {
-		if (memcmp(&s6->sin6_addr, &i6->sin6_addr,
-			   sizeof(i6->sin6_addr)) != 0)
-			return false;
-	} else {
-		/* unknown family.. */
-		return false;
-	}
-	return true;
-}
-
 bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 {
 	int i;
@@ -1260,12 +1235,13 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 		switch (requested) {
 		case Kerberos:
 		case RawNTLMSSP:
+		case IAKerb:
 			return requested;
 		case Unspecified:
 			if (server->sec_ntlmssp &&
 			    (global_secflags & CIFSSEC_MAY_NTLMSSP))
 				return RawNTLMSSP;
-			if ((server->sec_kerberos || server->sec_mskerberos) &&
+			if ((server->sec_kerberos || server->sec_mskerberos || server->sec_iakerb) &&
 			    (global_secflags & CIFSSEC_MAY_KRB5))
 				return Kerberos;
 			fallthrough;

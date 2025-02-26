@@ -50,7 +50,36 @@ reset:
 		"tx hung, resetting the chip\n");
 	ath9k_queue_reset(sc, RESET_TYPE_TX_HANG);
 	return false;
+}
 
+#define RX_INACTIVE_CHECK_INTERVAL (4 * MSEC_PER_SEC)
+
+static bool ath_hw_rx_inactive_check(struct ath_softc *sc)
+{
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	u32 interval, count;
+
+	interval = jiffies_to_msecs(jiffies - sc->rx_active_check_time);
+	count = sc->rx_active_count;
+
+	if (interval < RX_INACTIVE_CHECK_INTERVAL)
+		return true; /* too soon to check */
+
+	sc->rx_active_count = 0;
+	sc->rx_active_check_time = jiffies;
+
+	/* Need at least one interrupt per second, and we should only react if
+	 * we are within a factor two of the expected interval
+	 */
+	if (interval > RX_INACTIVE_CHECK_INTERVAL * 2 ||
+	    count >= interval / MSEC_PER_SEC)
+		return true;
+
+	ath_dbg(common, RESET,
+		"RX inactivity detected. Schedule chip reset\n");
+	ath9k_queue_reset(sc, RESET_TYPE_RX_INACTIVE);
+
+	return false;
 }
 
 void ath_hw_check_work(struct work_struct *work)
@@ -58,8 +87,8 @@ void ath_hw_check_work(struct work_struct *work)
 	struct ath_softc *sc = container_of(work, struct ath_softc,
 					    hw_check_work.work);
 
-	if (!ath_hw_check(sc) ||
-	    !ath_tx_complete_check(sc))
+	if (!ath_hw_check(sc) || !ath_tx_complete_check(sc) ||
+	    !ath_hw_rx_inactive_check(sc))
 		return;
 
 	ieee80211_queue_delayed_work(sc->hw, &sc->hw_check_work,

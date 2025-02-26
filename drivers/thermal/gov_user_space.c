@@ -23,16 +23,16 @@ static int user_space_bind(struct thermal_zone_device *tz)
 }
 
 /**
- * notify_user_space - Notifies user space about thermal events
+ * user_space_trip_crossed - Notify user space about trip crossing events
  * @tz: thermal_zone_device
  * @trip: trip point
- * @crossed_up: whether or not the trip has been crossed on the way up
+ * @upward: whether or not the trip has been crossed on the way up
  *
  * This function notifies the user space through UEvents.
  */
-static void notify_user_space(struct thermal_zone_device *tz,
-			      const struct thermal_trip *trip,
-			      bool crossed_up)
+static void user_space_trip_crossed(struct thermal_zone_device *tz,
+				    const struct thermal_trip *trip,
+				    bool upward)
 {
 	char *thermal_prop[5];
 	int i;
@@ -52,7 +52,7 @@ static void notify_user_space(struct thermal_zone_device *tz,
 
 static struct thermal_governor thermal_gov_user_space = {
 	.name		= "user_space",
-	.trip_crossed	= notify_user_space,
+	.trip_crossed	= user_space_trip_crossed,
 	.bind_to_tz	= user_space_bind,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_user_space);

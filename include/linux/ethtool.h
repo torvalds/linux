@@ -78,6 +78,9 @@ enum {
  * @cqe_size: Size of TX/RX completion queue event
  * @tx_push_buf_len: Size of TX push buffer
  * @tx_push_buf_max_len: Maximum allowed size of TX push buffer
+ * @hds_thresh: Packet size threshold for header data split (HDS)
+ * @hds_thresh_max: Maximum supported setting for @hds_threshold
+ *
  */
 struct kernel_ethtool_ringparam {
 	u32	rx_buf_len;
@@ -87,6 +90,8 @@ struct kernel_ethtool_ringparam {
 	u32	cqe_size;
 	u32	tx_push_buf_len;
 	u32	tx_push_buf_max_len;
+	u32	hds_thresh;
+	u32	hds_thresh_max;
 };
 
 /**
@@ -97,6 +102,7 @@ struct kernel_ethtool_ringparam {
  * @ETHTOOL_RING_USE_RX_PUSH: capture for setting rx_push
  * @ETHTOOL_RING_USE_TX_PUSH_BUF_LEN: capture for setting tx_push_buf_len
  * @ETHTOOL_RING_USE_TCP_DATA_SPLIT: capture for setting tcp_data_split
+ * @ETHTOOL_RING_USE_HDS_THRS: capture for setting header-data-split-thresh
  */
 enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_RX_BUF_LEN		= BIT(0),
@@ -105,6 +111,7 @@ enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_RX_PUSH		= BIT(3),
 	ETHTOOL_RING_USE_TX_PUSH_BUF_LEN	= BIT(4),
 	ETHTOOL_RING_USE_TCP_DATA_SPLIT		= BIT(5),
+	ETHTOOL_RING_USE_HDS_THRS		= BIT(6),
 };
 
 #define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
@@ -257,7 +264,7 @@ struct ethtool_link_ksettings {
  *   @mode : one of the ETHTOOL_LINK_MODE_*_BIT
  * (not atomic, no bound checking)
  *
- * Returns true/false.
+ * Returns: true/false.
  */
 #define ethtool_link_ksettings_test_link_mode(ptr, name, mode)		\
 	test_bit(ETHTOOL_LINK_MODE_ ## mode ## _BIT, (ptr)->link_modes.name)
@@ -412,6 +419,29 @@ struct ethtool_eth_phy_stats {
 	);
 };
 
+/**
+ * struct ethtool_phy_stats - PHY-level statistics counters
+ * @rx_packets: Total successfully received frames
+ * @rx_bytes: Total successfully received bytes
+ * @rx_errors: Total received frames with errors (e.g., CRC errors)
+ * @tx_packets: Total successfully transmitted frames
+ * @tx_bytes: Total successfully transmitted bytes
+ * @tx_errors: Total transmitted frames with errors
+ *
+ * This structure provides a standardized interface for reporting
+ * PHY-level statistics counters. It is designed to expose statistics
+ * commonly provided by PHYs but not explicitly defined in the IEEE
+ * 802.3 standard.
+ */
+struct ethtool_phy_stats {
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_errors;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_errors;
+};
+
 /* Basic IEEE 802.3 MAC Ctrl statistics (30.3.3.*), not otherwise exposed
  * via a more targeted API.
  */
@@ -529,6 +559,12 @@ struct ethtool_rmon_stats {
 /**
  * struct ethtool_ts_stats - HW timestamping statistics
  * @pkts: Number of packets successfully timestamped by the hardware.
+ * @onestep_pkts_unconfirmed: Number of PTP packets with one-step TX
+ *			      timestamping that were sent, but for which the
+ *			      device offers no confirmation whether they made
+ *			      it onto the wire and the timestamp was inserted
+ *			      in the originTimestamp or correctionField, or
+ *			      not.
  * @lost: Number of hardware timestamping requests where the timestamping
  *	information from the hardware never arrived for submission with
  *	the skb.
@@ -541,6 +577,7 @@ struct ethtool_rmon_stats {
 struct ethtool_ts_stats {
 	struct_group(tx_stats,
 		u64 pkts;
+		u64 onestep_pkts_unconfirmed;
 		u64 lost;
 		u64 err;
 	);
@@ -711,6 +748,7 @@ struct ethtool_rxfh_param {
  * @cmd: command number = %ETHTOOL_GET_TS_INFO
  * @so_timestamping: bit mask of the sum of the supported SO_TIMESTAMPING flags
  * @phc_index: device index of the associated PHC, or -1 if there is none
+ * @phc_qualifier: qualifier of the associated PHC
  * @tx_types: bit mask of the supported hwtstamp_tx_types enumeration values
  * @rx_filters: bit mask of the supported hwtstamp_rx_filters enumeration values
  */
@@ -718,6 +756,7 @@ struct kernel_ethtool_ts_info {
 	u32 cmd;
 	u32 so_timestamping;
 	int phc_index;
+	enum hwtstamp_provider_qualifier phc_qualifier;
 	enum hwtstamp_tx_types tx_types;
 	enum hwtstamp_rx_filters rx_filters;
 };
@@ -749,6 +788,7 @@ struct kernel_ethtool_ts_info {
  *	@rss_context argument to @create_rxfh_context and friends.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
+ * @supported_hwtstamp_qualifiers: bitfield of supported hwtstamp qualifier.
  * @get_drvinfo: Report driver/device information. Modern drivers no
  *	longer have to implement this callback. Most fields are
  *	correctly filled in by the core using system information, or
@@ -966,6 +1006,7 @@ struct ethtool_ops {
 	u32	rxfh_max_num_contexts;
 	u32	supported_coalesce_params;
 	u32	supported_ring_params;
+	u32	supported_hwtstamp_qualifiers;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -1199,7 +1240,7 @@ ethtool_params_from_link_mode(struct ethtool_link_ksettings *link_ksettings,
  * @dev: pointer to net_device structure
  * @vclock_index: pointer to pointer of vclock index
  *
- * Return number of phc vclocks
+ * Return: number of phc vclocks
  */
 int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index);
 
@@ -1253,7 +1294,7 @@ static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
  * ethtool_get_ts_info_by_layer - Obtains time stamping capabilities from the MAC or PHY layer.
  * @dev: pointer to net_device structure
  * @info: buffer to hold the result
- * Returns zero on success, non-zero otherwise.
+ * Returns: zero on success, non-zero otherwise.
  */
 int ethtool_get_ts_info_by_layer(struct net_device *dev,
 				 struct kernel_ethtool_ts_info *info);
@@ -1299,24 +1340,4 @@ struct ethtool_forced_speed_map {
 
 void
 ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size);
-
-/* C33 PSE extended state and substate. */
-struct ethtool_c33_pse_ext_state_info {
-	enum ethtool_c33_pse_ext_state c33_pse_ext_state;
-	union {
-		enum ethtool_c33_pse_ext_substate_error_condition error_condition;
-		enum ethtool_c33_pse_ext_substate_mr_pse_enable mr_pse_enable;
-		enum ethtool_c33_pse_ext_substate_option_detect_ted option_detect_ted;
-		enum ethtool_c33_pse_ext_substate_option_vport_lim option_vport_lim;
-		enum ethtool_c33_pse_ext_substate_ovld_detected ovld_detected;
-		enum ethtool_c33_pse_ext_substate_power_not_available power_not_available;
-		enum ethtool_c33_pse_ext_substate_short_detected short_detected;
-		u32 __c33_pse_ext_substate;
-	};
-};
-
-struct ethtool_c33_pse_pw_limit_range {
-	u32 min;
-	u32 max;
-};
 #endif /* _LINUX_ETHTOOL_H */

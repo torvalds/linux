@@ -590,7 +590,6 @@ insert:
 		}
 	}
 no_copy:
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 	btrfs_release_path(path);
 	return 0;
 }
@@ -3588,7 +3587,6 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 		last_offset = max(last_offset, curr_end);
 	}
 	btrfs_set_dir_log_end(path->nodes[0], item, last_offset);
-	btrfs_mark_buffer_dirty(trans, path->nodes[0]);
 	btrfs_release_path(path);
 	return 0;
 }
@@ -4566,7 +4564,6 @@ copy_item:
 		dst_index++;
 	}
 
-	btrfs_mark_buffer_dirty(trans, dst_path->nodes[0]);
 	btrfs_release_path(dst_path);
 out:
 	kfree(ins_data);
@@ -4776,7 +4773,6 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	write_extent_buffer(leaf, &fi,
 			    btrfs_item_ptr_offset(leaf, path->slots[0]),
 			    sizeof(fi));
-	btrfs_mark_buffer_dirty(trans, leaf);
 
 	btrfs_release_path(path);
 

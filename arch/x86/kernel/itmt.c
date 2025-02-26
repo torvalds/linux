@@ -19,6 +19,7 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <linux/cpuset.h>
+#include <linux/debugfs.h>
 #include <linux/mutex.h>
 #include <linux/sysctl.h>
 #include <linux/nodemask.h>
@@ -34,49 +35,38 @@ static bool __read_mostly sched_itmt_capable;
  * of higher turbo frequency for cpus supporting Intel Turbo Boost Max
  * Technology 3.0.
  *
- * It can be set via /proc/sys/kernel/sched_itmt_enabled
+ * It can be set via /sys/kernel/debug/x86/sched_itmt_enabled
  */
-unsigned int __read_mostly sysctl_sched_itmt_enabled;
+bool __read_mostly sysctl_sched_itmt_enabled;
 
-static int sched_itmt_update_handler(const struct ctl_table *table, int write,
-				     void *buffer, size_t *lenp, loff_t *ppos)
+static ssize_t sched_itmt_enabled_write(struct file *filp,
+					const char __user *ubuf,
+					size_t cnt, loff_t *ppos)
 {
-	unsigned int old_sysctl;
-	int ret;
+	ssize_t result;
+	bool orig;
 
-	mutex_lock(&itmt_update_mutex);
+	guard(mutex)(&itmt_update_mutex);
 
-	if (!sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
-		return -EINVAL;
-	}
+	orig = sysctl_sched_itmt_enabled;
+	result = debugfs_write_file_bool(filp, ubuf, cnt, ppos);
 
-	old_sysctl = sysctl_sched_itmt_enabled;
-	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
-
-	if (!ret && write && old_sysctl != sysctl_sched_itmt_enabled) {
+	if (sysctl_sched_itmt_enabled != orig) {
 		x86_topology_update = true;
 		rebuild_sched_domains();
 	}
 
-	mutex_unlock(&itmt_update_mutex);
-
-	return ret;
+	return result;
 }
 
-static struct ctl_table itmt_kern_table[] = {
-	{
-		.procname	= "sched_itmt_enabled",
-		.data		= &sysctl_sched_itmt_enabled,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= sched_itmt_update_handler,
-		.extra1		= SYSCTL_ZERO,
-		.extra2		= SYSCTL_ONE,
-	},
+static const struct file_operations dfs_sched_itmt_fops = {
+	.read =         debugfs_read_file_bool,
+	.write =        sched_itmt_enabled_write,
+	.open =         simple_open,
+	.llseek =       default_llseek,
 };
 
-static struct ctl_table_header *itmt_sysctl_header;
+static struct dentry *dfs_sched_itmt;
 
 /**
  * sched_set_itmt_support() - Indicate platform supports ITMT
@@ -97,16 +87,18 @@ static struct ctl_table_header *itmt_sysctl_header;
  */
 int sched_set_itmt_support(void)
 {
-	mutex_lock(&itmt_update_mutex);
+	guard(mutex)(&itmt_update_mutex);
 
-	if (sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
+	if (sched_itmt_capable)
 		return 0;
-	}
 
-	itmt_sysctl_header = register_sysctl("kernel", itmt_kern_table);
-	if (!itmt_sysctl_header) {
-		mutex_unlock(&itmt_update_mutex);
+	dfs_sched_itmt = debugfs_create_file_unsafe("sched_itmt_enabled",
+						    0644,
+						    arch_debugfs_dir,
+						    &sysctl_sched_itmt_enabled,
+						    &dfs_sched_itmt_fops);
+	if (IS_ERR_OR_NULL(dfs_sched_itmt)) {
+		dfs_sched_itmt = NULL;
 		return -ENOMEM;
 	}
 
@@ -116,8 +108,6 @@ int sched_set_itmt_support(void)
 
 	x86_topology_update = true;
 	rebuild_sched_domains();
-
-	mutex_unlock(&itmt_update_mutex);
 
 	return 0;
 }
@@ -134,18 +124,15 @@ int sched_set_itmt_support(void)
  */
 void sched_clear_itmt_support(void)
 {
-	mutex_lock(&itmt_update_mutex);
+	guard(mutex)(&itmt_update_mutex);
 
-	if (!sched_itmt_capable) {
-		mutex_unlock(&itmt_update_mutex);
+	if (!sched_itmt_capable)
 		return;
-	}
+
 	sched_itmt_capable = false;
 
-	if (itmt_sysctl_header) {
-		unregister_sysctl_table(itmt_sysctl_header);
-		itmt_sysctl_header = NULL;
-	}
+	debugfs_remove(dfs_sched_itmt);
+	dfs_sched_itmt = NULL;
 
 	if (sysctl_sched_itmt_enabled) {
 		/* disable sched_itmt if we are no longer ITMT capable */
@@ -153,8 +140,6 @@ void sched_clear_itmt_support(void)
 		x86_topology_update = true;
 		rebuild_sched_domains();
 	}
-
-	mutex_unlock(&itmt_update_mutex);
 }
 
 int arch_asym_cpu_priority(int cpu)

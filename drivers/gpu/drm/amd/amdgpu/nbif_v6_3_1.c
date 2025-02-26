@@ -28,6 +28,7 @@
 #include "nbif/nbif_6_3_1_sh_mask.h"
 #include "pcie/pcie_6_1_0_offset.h"
 #include "pcie/pcie_6_1_0_sh_mask.h"
+#include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
 
 static void nbif_v6_3_1_remap_hdp_registers(struct amdgpu_device *adev)
@@ -517,4 +518,84 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_sriov_funcs = {
 	.remap_hdp_registers = nbif_v6_3_1_remap_hdp_registers,
 	.get_rom_offset = nbif_v6_3_1_get_rom_offset,
 	.set_reg_remap = nbif_v6_3_1_set_reg_remap,
+};
+
+static int nbif_v6_3_1_set_ras_err_event_athub_irq_state(struct amdgpu_device *adev,
+						       struct amdgpu_irq_src *src,
+						       unsigned type,
+						       enum amdgpu_interrupt_state state)
+{
+	/* The ras_controller_irq enablement should be done in psp bl when it
+	 * tries to enable ras feature. Driver only need to set the correct interrupt
+	 * vector for bare-metal and sriov use case respectively
+	 */
+	uint32_t bif_doorbell_int_cntl;
+
+	bif_doorbell_int_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL);
+	bif_doorbell_int_cntl = REG_SET_FIELD(bif_doorbell_int_cntl,
+					      BIF_BX0_BIF_DOORBELL_INT_CNTL,
+					      RAS_ATHUB_ERR_EVENT_INTERRUPT_DISABLE,
+					      (state == AMDGPU_IRQ_STATE_ENABLE) ? 0 : 1);
+	WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL, bif_doorbell_int_cntl);
+
+	return 0;
+}
+
+static int nbif_v6_3_1_process_err_event_athub_irq(struct amdgpu_device *adev,
+						 struct amdgpu_irq_src *source,
+						 struct amdgpu_iv_entry *entry)
+{
+	/* By design, the ih cookie for err_event_athub_irq should be written
+	 * to bif ring. since bif ring is not enabled, just leave process callback
+	 * as a dummy one.
+	 */
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs nbif_v6_3_1_ras_err_event_athub_irq_funcs = {
+	.set = nbif_v6_3_1_set_ras_err_event_athub_irq_state,
+	.process = nbif_v6_3_1_process_err_event_athub_irq,
+};
+
+static void nbif_v6_3_1_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)
+{
+	uint32_t bif_doorbell_int_cntl;
+
+	bif_doorbell_int_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL);
+	if (REG_GET_FIELD(bif_doorbell_int_cntl,
+			  BIF_BX0_BIF_DOORBELL_INT_CNTL,
+			  RAS_ATHUB_ERR_EVENT_INTERRUPT_STATUS)) {
+		/* driver has to clear the interrupt status when bif ring is disabled */
+		bif_doorbell_int_cntl = REG_SET_FIELD(bif_doorbell_int_cntl,
+						BIF_BX0_BIF_DOORBELL_INT_CNTL,
+						RAS_ATHUB_ERR_EVENT_INTERRUPT_CLEAR, 1);
+		WREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL, bif_doorbell_int_cntl);
+		amdgpu_ras_global_ras_isr(adev);
+	}
+}
+
+static int nbif_v6_3_1_init_ras_err_event_athub_interrupt(struct amdgpu_device *adev)
+{
+	int r;
+
+	/* init the irq funcs */
+	adev->nbio.ras_err_event_athub_irq.funcs =
+		&nbif_v6_3_1_ras_err_event_athub_irq_funcs;
+	adev->nbio.ras_err_event_athub_irq.num_types = 1;
+
+	/* register ras err event athub interrupt
+	 * nbif v6_3_1 uses the same irq source as nbio v7_4
+	 */
+	r = amdgpu_irq_add_id(adev, SOC21_IH_CLIENTID_BIF,
+			      NBIF_7_4__SRCID__ERREVENT_ATHUB_INTERRUPT,
+			      &adev->nbio.ras_err_event_athub_irq);
+
+	return r;
+}
+
+struct amdgpu_nbio_ras nbif_v6_3_1_ras = {
+	.handle_ras_err_event_athub_intr_no_bifring =
+		nbif_v6_3_1_handle_ras_err_event_athub_intr_no_bifring,
+	.init_ras_err_event_athub_interrupt =
+		nbif_v6_3_1_init_ras_err_event_athub_interrupt,
 };

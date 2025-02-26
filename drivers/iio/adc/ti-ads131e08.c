@@ -102,7 +102,7 @@ struct ads131e08_state {
 	struct completion completion;
 	struct {
 		u8 data[ADS131E08_NUM_DATA_BYTES_MAX];
-		s64 ts __aligned(8);
+		aligned_s64 ts;
 	} tmp_buf;
 
 	u8 tx_buf[3] __aligned(IIO_DMA_MINALIGN);

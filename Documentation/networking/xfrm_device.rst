@@ -169,7 +169,8 @@ the stack in xfrm_input().
 
 	hand the packet to napi_gro_receive() as usual
 
-In ESN mode, xdo_dev_state_advance_esn() is called from xfrm_replay_advance_esn().
+In ESN mode, xdo_dev_state_advance_esn() is called from
+xfrm_replay_advance_esn() for RX, and xfrm_replay_overflow_offload_esn for TX.
 Driver will check packet seq number and update HW ESN state machine if needed.
 
 Packet offload mode:

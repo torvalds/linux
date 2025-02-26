@@ -162,6 +162,7 @@
 		linux,pci-domain = <0>;
 		max-link-speed = <3>;
 		msi-map = <0x0000 &its1 0x0000 0x1000>;
+		iommu-map = <0x0000 &mmu600_pcie 0x0000 0x1000>;
 		num-lanes = <4>;
 		phys = <&pcie30phy>;
 		phy-names = "pcie-phy";
@@ -248,6 +249,7 @@
 		linux,pci-domain = <1>;
 		max-link-speed = <3>;
 		msi-map = <0x1000 &its1 0x1000 0x1000>;
+		iommu-map = <0x1000 &mmu600_pcie 0x1000 0x1000>;
 		num-lanes = <2>;
 		phys = <&pcie30phy>;
 		phy-names = "pcie-phy";
@@ -297,6 +299,7 @@
 		linux,pci-domain = <2>;
 		max-link-speed = <2>;
 		msi-map = <0x2000 &its0 0x2000 0x1000>;
+		iommu-map = <0x2000 &mmu600_pcie 0x2000 0x1000>;
 		num-lanes = <1>;
 		phys = <&combphy1_ps PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy";
