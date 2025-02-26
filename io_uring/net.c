@@ -192,6 +192,29 @@ static inline void io_mshot_prep_retry(struct io_kiocb *req,
 	req->buf_index = sr->buf_group;
 }
 
+static int io_net_import_vec(struct io_kiocb *req, struct io_async_msghdr *iomsg,
+			     const struct iovec __user *uiov, unsigned uvec_seg,
+			     int ddir)
+{
+	struct iovec *iov;
+	int ret, nr_segs;
+
+	if (iomsg->free_iov) {
+		nr_segs = iomsg->free_iov_nr;
+		iov = iomsg->free_iov;
+	} else {
+		nr_segs = 1;
+		iov = &iomsg->fast_iov;
+	}
+
+	ret = __import_iovec(ddir, uiov, uvec_seg, nr_segs, &iov,
+			     &iomsg->msg.msg_iter, io_is_compat(req->ctx));
+	if (unlikely(ret < 0))
+		return ret;
+	io_net_vec_assign(req, iomsg, iov);
+	return 0;
+}
+
 #ifdef CONFIG_COMPAT
 static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 				  struct io_async_msghdr *iomsg,
@@ -200,8 +223,7 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct compat_iovec __user *uiov;
-	struct iovec *iov;
-	int ret, nr_segs;
+	int ret;
 
 	if (copy_from_user(msg, sr->umsg_compat, sizeof(*msg)))
 		return -EFAULT;
@@ -227,21 +249,8 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 		return 0;
 	}
 
-	if (iomsg->free_iov) {
-		nr_segs = iomsg->free_iov_nr;
-		iov = iomsg->free_iov;
-	} else {
-		iov = &iomsg->fast_iov;
-		nr_segs = 1;
-	}
-
-	ret = __import_iovec(ddir, (struct iovec __user *)uiov, msg->msg_iovlen,
-				nr_segs, &iov, &iomsg->msg.msg_iter, true);
-	if (unlikely(ret < 0))
-		return ret;
-
-	io_net_vec_assign(req, iomsg, iov);
-	return 0;
+	return io_net_import_vec(req, iomsg, (struct iovec __user *)uiov,
+				 msg->msg_iovlen, ddir);
 }
 #endif
 
@@ -269,8 +278,7 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct user_msghdr __user *umsg = sr->umsg;
-	struct iovec *iov;
-	int ret, nr_segs;
+	int ret;
 
 	ret = io_copy_msghdr_from_user(msg, umsg);
 	if (unlikely(ret))
@@ -298,21 +306,7 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 		return 0;
 	}
 
-	if (iomsg->free_iov) {
-		nr_segs = iomsg->free_iov_nr;
-		iov = iomsg->free_iov;
-	} else {
-		iov = &iomsg->fast_iov;
-		nr_segs = 1;
-	}
-
-	ret = __import_iovec(ddir, msg->msg_iov, msg->msg_iovlen, nr_segs,
-				&iov, &iomsg->msg.msg_iter, false);
-	if (unlikely(ret < 0))
-		return ret;
-
-	io_net_vec_assign(req, iomsg, iov);
-	return 0;
+	return io_net_import_vec(req, iomsg, msg->msg_iov, msg->msg_iovlen, ddir);
 }
 
 static int io_sendmsg_copy_hdr(struct io_kiocb *req,
