@@ -3130,7 +3130,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	if ((intel_dp_is_edp(intel_dp) && fixed_mode) ||
 	    pipe_config->output_format == INTEL_OUTPUT_FORMAT_YCBCR420) {
-		ret = intel_panel_fitting(pipe_config, conn_state);
+		ret = intel_pfit_compute_config(pipe_config, conn_state);
 		if (ret)
 			return ret;
 	}

@@ -542,8 +542,8 @@ out:
 	return intel_gmch_pfit_check_timings(crtc_state);
 }
 
-int intel_panel_fitting(struct intel_crtc_state *crtc_state,
-			const struct drm_connector_state *conn_state)
+int intel_pfit_compute_config(struct intel_crtc_state *crtc_state,
+			      const struct drm_connector_state *conn_state)
 {
 	struct intel_display *display = to_intel_display(crtc_state);
 

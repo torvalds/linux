@@ -468,7 +468,7 @@ static int intel_lvds_compute_config(struct intel_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	ret = intel_panel_fitting(crtc_state, conn_state);
+	ret = intel_pfit_compute_config(crtc_state, conn_state);
 	if (ret)
 		return ret;
 

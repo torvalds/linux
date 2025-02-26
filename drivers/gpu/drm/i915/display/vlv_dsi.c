@@ -283,7 +283,7 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	if (ret)
 		return ret;
 
-	ret = intel_panel_fitting(pipe_config, conn_state);
+	ret = intel_pfit_compute_config(pipe_config, conn_state);
 	if (ret)
 		return ret;
 
