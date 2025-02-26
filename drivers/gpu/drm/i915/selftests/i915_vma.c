@@ -159,7 +159,8 @@ static int igt_vma_create(void *arg)
 	LIST_HEAD(objects);
 	int err = -ENOMEM;
 
-	/* Exercise creating many vma amonst many objections, checking the
+	/*
+	 * Exercise creating many vma amongst many objections, checking the
 	 * vma creation and lookup routines.
 	 */
 
@@ -292,7 +293,8 @@ static int igt_vma_pin1(void *arg)
 		VALID(8192, PIN_GLOBAL | PIN_OFFSET_BIAS | (ggtt->mappable_end - 4096)),
 
 #if !IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)
-		/* Misusing BIAS is a programming error (it is not controllable
+		/*
+		 * Misusing BIAS is a programming error (it is not controllable
 		 * from userspace) so when debugging is enabled, it explodes.
 		 * However, the tests are still quite interesting for checking
 		 * variable start, end and size.
@@ -312,7 +314,8 @@ static int igt_vma_pin1(void *arg)
 	struct i915_vma *vma;
 	int err = -EINVAL;
 
-	/* Exercise all the weird and wonderful i915_vma_pin requests,
+	/*
+	 * Exercise all the weird and wonderful i915_vma_pin requests,
 	 * focusing on error handling of boundary conditions.
 	 */
 
@@ -577,7 +580,8 @@ static int igt_vma_rotate_remap(void *arg)
 	const unsigned int max_pages = 64;
 	int err = -ENOMEM;
 
-	/* Create VMA for many different combinations of planes and check
+	/*
+	 * Create VMA for many different combinations of planes and check
 	 * that the page layout within the rotated VMA match our expectations.
 	 */
 
@@ -804,7 +808,8 @@ static int igt_vma_partial(void *arg)
 	struct i915_vma *vma;
 	int err = -ENOMEM;
 
-	/* Create lots of different VMA for the object and check that
+	/*
+	 * Create lots of different VMA for the object and check that
 	 * we are returned the same VMA when we later request the same range.
 	 */
 

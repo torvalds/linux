@@ -66,6 +66,13 @@ intel_vdsc_set_min_max_qp(struct drm_dsc_config *vdsc_cfg, int buf,
 		intel_lookup_range_max_qp(bpc, buf, bpp, vdsc_cfg->native_420);
 }
 
+static int
+get_range_bpg_offset(int bpp_low, int offset_low, int bpp_high, int offset_high, int bpp)
+{
+	return offset_low + DIV_ROUND_UP((offset_high - offset_low) * (bpp - bpp_low),
+					 (bpp_low - bpp_high));
+}
+
 /*
  * We are using the method provided in DSC 1.2a C-Model in codec_main.c
  * Above method use a common formula to derive values for any combination of DSC
@@ -83,7 +90,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	int qp_bpc_modifier = (bpc - 8) * 2;
 	int uncompressed_bpg_rate;
 	int first_line_bpg_offset;
-	u32 res, buf_i, bpp_i;
+	u32 buf_i, bpp_i;
 
 	if (vdsc_cfg->slice_height >= 8)
 		first_line_bpg_offset =
@@ -99,7 +106,7 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 	 * According to DSC 1.2 spec in Section 4.1 if native_420 is set:
 	 * -second_line_bpg_offset is 12 in general and equal to 2*(slice_height-1) if slice
 	 * height < 8.
-	 * -second_line_offset_adj is 512 as shown by emperical values to yield best chroma
+	 * -second_line_offset_adj is 512 as shown by empirical values to yield best chroma
 	 * preservation in second line.
 	 * -nsl_bpg_offset is calculated as second_line_offset/slice_height -1 then rounded
 	 * up to 16 fractional bits, we left shift second line offset by 11 to preserve 11
@@ -117,7 +124,6 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 							vdsc_cfg->slice_height - 1);
 	}
 
-	/* Our hw supports only 444 modes as of today */
 	if (bpp >= 12)
 		vdsc_cfg->initial_offset = 2048;
 	else if (bpp >= 10)
@@ -163,23 +169,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 			intel_vdsc_set_min_max_qp(vdsc_cfg, buf_i, bpp_i);
 
 			/* Calculate range_bpg_offset */
-			if (bpp <= 8) {
+			if (bpp <= 8)
 				range_bpg_offset = ofs_und4[buf_i];
-			} else if (bpp <= 10) {
-				res = DIV_ROUND_UP(((bpp - 8) *
-						    (ofs_und5[buf_i] - ofs_und4[buf_i])), 2);
-				range_bpg_offset = ofs_und4[buf_i] + res;
-			} else if (bpp <= 12) {
-				res = DIV_ROUND_UP(((bpp - 10) *
-						    (ofs_und6[buf_i] - ofs_und5[buf_i])), 2);
-				range_bpg_offset = ofs_und5[buf_i] + res;
-			} else if (bpp <= 16) {
-				res = DIV_ROUND_UP(((bpp - 12) *
-						    (ofs_und8[buf_i] - ofs_und6[buf_i])), 4);
-				range_bpg_offset = ofs_und6[buf_i] + res;
-			} else {
+			else if (bpp <= 10)
+				range_bpg_offset = get_range_bpg_offset(8, ofs_und4[buf_i],
+									10, ofs_und5[buf_i], bpp);
+			else if (bpp <= 12)
+				range_bpg_offset = get_range_bpg_offset(10, ofs_und5[buf_i],
+									12, ofs_und6[buf_i], bpp);
+			else if (bpp <= 16)
+				range_bpg_offset = get_range_bpg_offset(12, ofs_und6[buf_i],
+									16, ofs_und8[buf_i], bpp);
+			else
 				range_bpg_offset = ofs_und8[buf_i];
-			}
 
 			vdsc_cfg->rc_range_params[buf_i].range_bpg_offset =
 				range_bpg_offset & DSC_RANGE_BPG_OFFSET_MASK;
@@ -215,21 +217,19 @@ calculate_rc_params(struct drm_dsc_config *vdsc_cfg)
 			intel_vdsc_set_min_max_qp(vdsc_cfg, buf_i, bpp_i);
 
 			/* Calculate range_bpg_offset */
-			if (bpp <= 6) {
+			if (bpp <= 6)
 				range_bpg_offset = ofs_und6[buf_i];
-			} else if (bpp <= 8) {
-				res = DIV_ROUND_UP(((bpp - 6) *
-						    (ofs_und8[buf_i] - ofs_und6[buf_i])), 2);
-				range_bpg_offset = ofs_und6[buf_i] + res;
-			} else if (bpp <= 12) {
-				range_bpg_offset = ofs_und8[buf_i];
-			} else if (bpp <= 15) {
-				res = DIV_ROUND_UP(((bpp - 12) *
-						    (ofs_und15[buf_i] - ofs_und12[buf_i])), 3);
-				range_bpg_offset = ofs_und12[buf_i] + res;
-			} else {
+			else if (bpp <= 8)
+				range_bpg_offset = get_range_bpg_offset(6, ofs_und6[buf_i],
+									8, ofs_und8[buf_i], bpp);
+			else if (bpp <= 12)
+				range_bpg_offset = get_range_bpg_offset(8, ofs_und8[buf_i],
+									12, ofs_und12[buf_i], bpp);
+			else if (bpp <= 15)
+				range_bpg_offset = get_range_bpg_offset(12, ofs_und12[buf_i],
+									15, ofs_und15[buf_i], bpp);
+			else
 				range_bpg_offset = ofs_und15[buf_i];
-			}
 
 			vdsc_cfg->rc_range_params[buf_i].range_bpg_offset =
 				range_bpg_offset & DSC_RANGE_BPG_OFFSET_MASK;
@@ -962,6 +962,7 @@ static void intel_dsc_get_pps_config(struct intel_crtc_state *crtc_state)
 
 void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 {
+	struct intel_display *display = to_intel_display(crtc_state);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
@@ -974,7 +975,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	power_domain = intel_dsc_power_domain(crtc, cpu_transcoder);
 
-	wakeref = intel_display_power_get_if_enabled(dev_priv, power_domain);
+	wakeref = intel_display_power_get_if_enabled(display, power_domain);
 	if (!wakeref)
 		return;
 
@@ -994,7 +995,7 @@ void intel_dsc_get_config(struct intel_crtc_state *crtc_state)
 
 	intel_dsc_get_pps_config(crtc_state);
 out:
-	intel_display_power_put(dev_priv, power_domain, wakeref);
+	intel_display_power_put(display, power_domain, wakeref);
 }
 
 static void intel_vdsc_dump_state(struct drm_printer *p, int indent,

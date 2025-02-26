@@ -1781,7 +1781,7 @@ static int igt_tmpfs_fallback(void *arg)
 
 	/*
 	 * Make sure that we don't burst into a ball of flames upon falling back
-	 * to tmpfs, which we rely on if on the off-chance we encouter a failure
+	 * to tmpfs, which we rely on if on the off-chance we encounter a failure
 	 * when setting up gemfs.
 	 */
 

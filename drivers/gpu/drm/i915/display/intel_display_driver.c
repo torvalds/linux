@@ -197,7 +197,7 @@ void intel_display_driver_early_probe(struct intel_display *display)
 	intel_dkl_phy_init(i915);
 	intel_color_init_hooks(display);
 	intel_init_cdclk_hooks(display);
-	intel_audio_hooks_init(i915);
+	intel_audio_hooks_init(display);
 	intel_dpll_init_clock_hook(i915);
 	intel_init_display_hooks(i915);
 	intel_fdi_init_hook(i915);
@@ -442,18 +442,18 @@ int intel_display_driver_probe_nogem(struct intel_display *display)
 		    INTEL_NUM_PIPES(display) > 1 ? "s" : "");
 
 	for_each_pipe(display, pipe) {
-		ret = intel_crtc_init(i915, pipe);
+		ret = intel_crtc_init(display, pipe);
 		if (ret)
 			goto err_mode_config;
 	}
 
 	intel_plane_possible_crtcs_init(display);
-	intel_shared_dpll_init(i915);
+	intel_shared_dpll_init(display);
 	intel_fdi_pll_freq_update(i915);
 
 	intel_update_czclk(i915);
 	intel_display_driver_init_hw(display);
-	intel_dpll_update_ref_clks(i915);
+	intel_dpll_update_ref_clks(display);
 
 	if (display->cdclk.max_cdclk_freq == 0)
 		intel_update_max_cdclk(display);
@@ -544,11 +544,11 @@ void intel_display_driver_register(struct intel_display *display)
 	intel_opregion_register(display);
 	intel_acpi_video_register(display);
 
-	intel_audio_init(i915);
+	intel_audio_init(display);
 
 	intel_display_driver_enable_user_access(display);
 
-	intel_audio_register(i915);
+	intel_audio_register(display);
 
 	intel_display_debugfs_register(i915);
 
@@ -636,8 +636,6 @@ void intel_display_driver_remove_nogem(struct intel_display *display)
 
 void intel_display_driver_unregister(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
-
 	if (!HAS_DISPLAY(display))
 		return;
 
@@ -652,7 +650,7 @@ void intel_display_driver_unregister(struct intel_display *display)
 
 	intel_display_driver_disable_user_access(display);
 
-	intel_audio_deinit(i915);
+	intel_audio_deinit(display);
 
 	drm_atomic_helper_shutdown(display->drm);
 

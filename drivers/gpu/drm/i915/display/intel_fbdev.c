@@ -177,9 +177,6 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct intel_framebuffer *fb = ifbdev->fb;
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	const struct i915_gtt_view view = {
-		.type = I915_GTT_VIEW_NORMAL,
-	};
 	intel_wakeref_t wakeref;
 	struct fb_info *info;
 	struct i915_vma *vma;
@@ -226,8 +223,10 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_fb_pin_to_ggtt(&fb->base, &view,
+	vma = intel_fb_pin_to_ggtt(&fb->base, &fb->normal_view.gtt,
 				   fb->min_alignment, 0,
+				   intel_fb_view_vtd_guard(&fb->base, &fb->normal_view,
+							   DRM_MODE_ROTATE_0),
 				   false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
@@ -694,4 +693,9 @@ struct intel_framebuffer *intel_fbdev_framebuffer(struct intel_fbdev *fbdev)
 		return NULL;
 
 	return to_intel_framebuffer(fbdev->helper.fb);
+}
+
+struct i915_vma *intel_fbdev_vma_pointer(struct intel_fbdev *fbdev)
+{
+	return fbdev ? fbdev->vma : NULL;
 }

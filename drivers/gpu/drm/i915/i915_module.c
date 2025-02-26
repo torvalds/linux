@@ -24,7 +24,7 @@ static int i915_check_nomodeset(void)
 	bool use_kms = true;
 
 	/*
-	 * Enable KMS by default, unless explicitly overriden by
+	 * Enable KMS by default, unless explicitly overridden by
 	 * either the i915.modeset parameter or by the
 	 * nomodeset boot option.
 	 */

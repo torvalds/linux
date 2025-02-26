@@ -548,7 +548,7 @@ static int igt_reset_fail_engine(void *arg)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	/* Check that we can recover from engine-reset failues */
+	/* Check that we can recover from engine-reset failures */
 
 	if (!intel_has_reset_engine(gt))
 		return 0;

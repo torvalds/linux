@@ -22,7 +22,7 @@
 #include "selftests/igt_spinner.h"
 #include "selftests/librapl.h"
 
-/* Try to isolate the impact of cstates from determing frequency response */
+/* Try to isolate the impact of cstates from determining frequency response */
 #define CPU_LATENCY 0 /* -1 to disable pm_qos, 0 to disable cstates */
 
 static void dummy_rps_work(struct work_struct *wrk)

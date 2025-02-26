@@ -3,20 +3,20 @@
  * Copyright © 2018 Intel Corporation
  */
 
-#include "i915_drv.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 
-#define for_each_combo_phy(__dev_priv, __phy) \
+#define for_each_combo_phy(__display, __phy) \
 	for ((__phy) = PHY_A; (__phy) < I915_MAX_PHYS; (__phy)++)	\
-		for_each_if(intel_phy_is_combo(__dev_priv, __phy))
+		for_each_if(intel_phy_is_combo(__display, __phy))
 
-#define for_each_combo_phy_reverse(__dev_priv, __phy) \
+#define for_each_combo_phy_reverse(__display, __phy) \
 	for ((__phy) = I915_MAX_PHYS; (__phy)-- > PHY_A;) \
-		for_each_if(intel_phy_is_combo(__dev_priv, __phy))
+		for_each_if(intel_phy_is_combo(__display, __phy))
 
 enum {
 	PROCMON_0_85V_DOT_0,
@@ -53,11 +53,11 @@ static const struct icl_procmon {
 };
 
 static const struct icl_procmon *
-icl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum phy phy)
+icl_get_procmon_ref_values(struct intel_display *display, enum phy phy)
 {
 	u32 val;
 
-	val = intel_de_read(dev_priv, ICL_PORT_COMP_DW3(phy));
+	val = intel_de_read(display, ICL_PORT_COMP_DW3(phy));
 	switch (val & (PROCESS_INFO_MASK | VOLTAGE_INFO_MASK)) {
 	default:
 		MISSING_CASE(val);
@@ -75,57 +75,57 @@ icl_get_procmon_ref_values(struct drm_i915_private *dev_priv, enum phy phy)
 	}
 }
 
-static void icl_set_procmon_ref_values(struct drm_i915_private *dev_priv,
+static void icl_set_procmon_ref_values(struct intel_display *display,
 				       enum phy phy)
 {
 	const struct icl_procmon *procmon;
 
-	procmon = icl_get_procmon_ref_values(dev_priv, phy);
+	procmon = icl_get_procmon_ref_values(display, phy);
 
-	intel_de_rmw(dev_priv, ICL_PORT_COMP_DW1(phy),
+	intel_de_rmw(display, ICL_PORT_COMP_DW1(phy),
 		     (0xff << 16) | 0xff, procmon->dw1);
 
-	intel_de_write(dev_priv, ICL_PORT_COMP_DW9(phy), procmon->dw9);
-	intel_de_write(dev_priv, ICL_PORT_COMP_DW10(phy), procmon->dw10);
+	intel_de_write(display, ICL_PORT_COMP_DW9(phy), procmon->dw9);
+	intel_de_write(display, ICL_PORT_COMP_DW10(phy), procmon->dw10);
 }
 
-static bool check_phy_reg(struct drm_i915_private *dev_priv,
+static bool check_phy_reg(struct intel_display *display,
 			  enum phy phy, i915_reg_t reg, u32 mask,
 			  u32 expected_val)
 {
-	u32 val = intel_de_read(dev_priv, reg);
+	u32 val = intel_de_read(display, reg);
 
 	if ((val & mask) != expected_val) {
-		drm_dbg(&dev_priv->drm,
-			"Combo PHY %c reg %08x state mismatch: "
-			"current %08x mask %08x expected %08x\n",
-			phy_name(phy),
-			reg.reg, val, mask, expected_val);
+		drm_dbg_kms(display->drm,
+			    "Combo PHY %c reg %08x state mismatch: "
+			    "current %08x mask %08x expected %08x\n",
+			    phy_name(phy),
+			    reg.reg, val, mask, expected_val);
 		return false;
 	}
 
 	return true;
 }
 
-static bool icl_verify_procmon_ref_values(struct drm_i915_private *dev_priv,
+static bool icl_verify_procmon_ref_values(struct intel_display *display,
 					  enum phy phy)
 {
 	const struct icl_procmon *procmon;
 	bool ret;
 
-	procmon = icl_get_procmon_ref_values(dev_priv, phy);
+	procmon = icl_get_procmon_ref_values(display, phy);
 
-	ret = check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW1(phy),
+	ret = check_phy_reg(display, phy, ICL_PORT_COMP_DW1(phy),
 			    (0xff << 16) | 0xff, procmon->dw1);
-	ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW9(phy),
+	ret &= check_phy_reg(display, phy, ICL_PORT_COMP_DW9(phy),
 			     -1U, procmon->dw9);
-	ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW10(phy),
+	ret &= check_phy_reg(display, phy, ICL_PORT_COMP_DW10(phy),
 			     -1U, procmon->dw10);
 
 	return ret;
 }
 
-static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
+static bool has_phy_misc(struct intel_display *display, enum phy phy)
 {
 	/*
 	 * Some platforms only expect PHY_MISC to be programmed for PHY-A and
@@ -136,32 +136,30 @@ static bool has_phy_misc(struct drm_i915_private *i915, enum phy phy)
 	 * that we program it for PHY A.
 	 */
 
-	if (IS_ALDERLAKE_S(i915))
+	if (display->platform.alderlake_s)
 		return phy == PHY_A;
-	else if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) ||
-		 IS_ROCKETLAKE(i915) ||
-		 IS_DG1(i915))
+	else if ((display->platform.jasperlake || display->platform.elkhartlake) ||
+		 display->platform.rocketlake ||
+		 display->platform.dg1)
 		return phy < PHY_C;
 
 	return true;
 }
 
-static bool icl_combo_phy_enabled(struct drm_i915_private *dev_priv,
+static bool icl_combo_phy_enabled(struct intel_display *display,
 				  enum phy phy)
 {
 	/* The PHY C added by EHL has no PHY_MISC register */
-	if (!has_phy_misc(dev_priv, phy))
-		return intel_de_read(dev_priv, ICL_PORT_COMP_DW0(phy)) & COMP_INIT;
+	if (!has_phy_misc(display, phy))
+		return intel_de_read(display, ICL_PORT_COMP_DW0(phy)) & COMP_INIT;
 	else
-		return !(intel_de_read(dev_priv, ICL_PHY_MISC(phy)) &
+		return !(intel_de_read(display, ICL_PHY_MISC(phy)) &
 			 ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN) &&
-			(intel_de_read(dev_priv, ICL_PORT_COMP_DW0(phy)) & COMP_INIT);
+			(intel_de_read(display, ICL_PORT_COMP_DW0(phy)) & COMP_INIT);
 }
 
-static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
+static bool ehl_vbt_ddi_d_present(struct intel_display *display)
 {
-	struct intel_display *display = &i915->display;
-
 	bool ddi_a_present = intel_bios_is_port_present(display, PORT_A);
 	bool ddi_d_present = intel_bios_is_port_present(display, PORT_D);
 	bool dsi_present = intel_bios_is_dsi_present(display, NULL);
@@ -181,13 +179,13 @@ static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
 	 * in the log and let the internal display win.
 	 */
 	if (ddi_d_present)
-		drm_err(&i915->drm,
+		drm_err(display->drm,
 			"VBT claims to have both internal and external displays on PHY A.  Configuring for internal.\n");
 
 	return false;
 }
 
-static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
+static bool phy_is_master(struct intel_display *display, enum phy phy)
 {
 	/*
 	 * Certain PHYs are connected to compensation resistors and act
@@ -207,64 +205,64 @@ static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
 	 */
 	if (phy == PHY_A)
 		return true;
-	else if (IS_ALDERLAKE_S(dev_priv))
+	else if (display->platform.alderlake_s)
 		return phy == PHY_D;
-	else if (IS_DG1(dev_priv) || IS_ROCKETLAKE(dev_priv))
+	else if (display->platform.dg1 || display->platform.rocketlake)
 		return phy == PHY_C;
 
 	return false;
 }
 
-static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
+static bool icl_combo_phy_verify_state(struct intel_display *display,
 				       enum phy phy)
 {
 	bool ret = true;
 	u32 expected_val = 0;
 
-	if (!icl_combo_phy_enabled(dev_priv, phy))
+	if (!icl_combo_phy_enabled(display, phy))
 		return false;
 
-	if (DISPLAY_VER(dev_priv) >= 12) {
-		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_TX_DW8_LN(0, phy),
+	if (DISPLAY_VER(display) >= 12) {
+		ret &= check_phy_reg(display, phy, ICL_PORT_TX_DW8_LN(0, phy),
 				     ICL_PORT_TX_DW8_ODCC_CLK_SEL |
 				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK,
 				     ICL_PORT_TX_DW8_ODCC_CLK_SEL |
 				     ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_DIV2);
 
-		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_PCS_DW1_LN(0, phy),
+		ret &= check_phy_reg(display, phy, ICL_PORT_PCS_DW1_LN(0, phy),
 				     DCC_MODE_SELECT_MASK, RUN_DCC_ONCE);
 	}
 
-	ret &= icl_verify_procmon_ref_values(dev_priv, phy);
+	ret &= icl_verify_procmon_ref_values(display, phy);
 
-	if (phy_is_master(dev_priv, phy)) {
-		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
+	if (phy_is_master(display, phy)) {
+		ret &= check_phy_reg(display, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
 
-		if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) {
-			if (ehl_vbt_ddi_d_present(dev_priv))
+		if (display->platform.jasperlake || display->platform.elkhartlake) {
+			if (ehl_vbt_ddi_d_present(display))
 				expected_val = ICL_PHY_MISC_MUX_DDID;
 
-			ret &= check_phy_reg(dev_priv, phy, ICL_PHY_MISC(phy),
+			ret &= check_phy_reg(display, phy, ICL_PHY_MISC(phy),
 					     ICL_PHY_MISC_MUX_DDID,
 					     expected_val);
 		}
 	}
 
-	ret &= check_phy_reg(dev_priv, phy, ICL_PORT_CL_DW5(phy),
+	ret &= check_phy_reg(display, phy, ICL_PORT_CL_DW5(phy),
 			     CL_POWER_DOWN_ENABLE, CL_POWER_DOWN_ENABLE);
 
 	return ret;
 }
 
-void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
+void intel_combo_phy_power_up_lanes(struct intel_display *display,
 				    enum phy phy, bool is_dsi,
 				    int lane_count, bool lane_reversal)
 {
 	u8 lane_mask;
 
 	if (is_dsi) {
-		drm_WARN_ON(&dev_priv->drm, lane_reversal);
+		drm_WARN_ON(display->drm, lane_reversal);
 
 		switch (lane_count) {
 		case 1:
@@ -302,28 +300,28 @@ void intel_combo_phy_power_up_lanes(struct drm_i915_private *dev_priv,
 		}
 	}
 
-	intel_de_rmw(dev_priv, ICL_PORT_CL_DW10(phy),
+	intel_de_rmw(display, ICL_PORT_CL_DW10(phy),
 		     PWR_DOWN_LN_MASK, lane_mask);
 }
 
-static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
+static void icl_combo_phys_init(struct intel_display *display)
 {
 	enum phy phy;
 
-	for_each_combo_phy(dev_priv, phy) {
+	for_each_combo_phy(display, phy) {
 		const struct icl_procmon *procmon;
 		u32 val;
 
-		if (icl_combo_phy_verify_state(dev_priv, phy))
+		if (icl_combo_phy_verify_state(display, phy))
 			continue;
 
-		procmon = icl_get_procmon_ref_values(dev_priv, phy);
+		procmon = icl_get_procmon_ref_values(display, phy);
 
-		drm_dbg(&dev_priv->drm,
-			"Initializing combo PHY %c (Voltage/Process Info : %s)\n",
-			phy_name(phy), procmon->name);
+		drm_dbg_kms(display->drm,
+			    "Initializing combo PHY %c (Voltage/Process Info : %s)\n",
+			    phy_name(phy), procmon->name);
 
-		if (!has_phy_misc(dev_priv, phy))
+		if (!has_phy_misc(display, phy))
 			goto skip_phy_misc;
 
 		/*
@@ -334,84 +332,84 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 		 * based on whether our VBT indicates the presence of any
 		 * "internal" child devices.
 		 */
-		val = intel_de_read(dev_priv, ICL_PHY_MISC(phy));
-		if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
+		val = intel_de_read(display, ICL_PHY_MISC(phy));
+		if ((display->platform.jasperlake || display->platform.elkhartlake) &&
 		    phy == PHY_A) {
 			val &= ~ICL_PHY_MISC_MUX_DDID;
 
-			if (ehl_vbt_ddi_d_present(dev_priv))
+			if (ehl_vbt_ddi_d_present(display))
 				val |= ICL_PHY_MISC_MUX_DDID;
 		}
 
 		val &= ~ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN;
-		intel_de_write(dev_priv, ICL_PHY_MISC(phy), val);
+		intel_de_write(display, ICL_PHY_MISC(phy), val);
 
 skip_phy_misc:
-		if (DISPLAY_VER(dev_priv) >= 12) {
-			val = intel_de_read(dev_priv, ICL_PORT_TX_DW8_LN(0, phy));
+		if (DISPLAY_VER(display) >= 12) {
+			val = intel_de_read(display, ICL_PORT_TX_DW8_LN(0, phy));
 			val &= ~ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_MASK;
 			val |= ICL_PORT_TX_DW8_ODCC_CLK_SEL;
 			val |= ICL_PORT_TX_DW8_ODCC_CLK_DIV_SEL_DIV2;
-			intel_de_write(dev_priv, ICL_PORT_TX_DW8_GRP(phy), val);
+			intel_de_write(display, ICL_PORT_TX_DW8_GRP(phy), val);
 
-			val = intel_de_read(dev_priv, ICL_PORT_PCS_DW1_LN(0, phy));
+			val = intel_de_read(display, ICL_PORT_PCS_DW1_LN(0, phy));
 			val &= ~DCC_MODE_SELECT_MASK;
 			val |= RUN_DCC_ONCE;
-			intel_de_write(dev_priv, ICL_PORT_PCS_DW1_GRP(phy), val);
+			intel_de_write(display, ICL_PORT_PCS_DW1_GRP(phy), val);
 		}
 
-		icl_set_procmon_ref_values(dev_priv, phy);
+		icl_set_procmon_ref_values(display, phy);
 
-		if (phy_is_master(dev_priv, phy))
-			intel_de_rmw(dev_priv, ICL_PORT_COMP_DW8(phy),
+		if (phy_is_master(display, phy))
+			intel_de_rmw(display, ICL_PORT_COMP_DW8(phy),
 				     0, IREFGEN);
 
-		intel_de_rmw(dev_priv, ICL_PORT_COMP_DW0(phy), 0, COMP_INIT);
-		intel_de_rmw(dev_priv, ICL_PORT_CL_DW5(phy),
+		intel_de_rmw(display, ICL_PORT_COMP_DW0(phy), 0, COMP_INIT);
+		intel_de_rmw(display, ICL_PORT_CL_DW5(phy),
 			     0, CL_POWER_DOWN_ENABLE);
 	}
 }
 
-static void icl_combo_phys_uninit(struct drm_i915_private *dev_priv)
+static void icl_combo_phys_uninit(struct intel_display *display)
 {
 	enum phy phy;
 
-	for_each_combo_phy_reverse(dev_priv, phy) {
+	for_each_combo_phy_reverse(display, phy) {
 		if (phy == PHY_A &&
-		    !icl_combo_phy_verify_state(dev_priv, phy)) {
-			if (IS_TIGERLAKE(dev_priv) || IS_DG1(dev_priv)) {
+		    !icl_combo_phy_verify_state(display, phy)) {
+			if (display->platform.tigerlake || display->platform.dg1) {
 				/*
 				 * A known problem with old ifwi:
 				 * https://gitlab.freedesktop.org/drm/intel/-/issues/2411
 				 * Suppress the warning for CI. Remove ASAP!
 				 */
-				drm_dbg_kms(&dev_priv->drm,
+				drm_dbg_kms(display->drm,
 					    "Combo PHY %c HW state changed unexpectedly\n",
 					    phy_name(phy));
 			} else {
-				drm_warn(&dev_priv->drm,
+				drm_warn(display->drm,
 					 "Combo PHY %c HW state changed unexpectedly\n",
 					 phy_name(phy));
 			}
 		}
 
-		if (!has_phy_misc(dev_priv, phy))
+		if (!has_phy_misc(display, phy))
 			goto skip_phy_misc;
 
-		intel_de_rmw(dev_priv, ICL_PHY_MISC(phy), 0,
+		intel_de_rmw(display, ICL_PHY_MISC(phy), 0,
 			     ICL_PHY_MISC_DE_IO_COMP_PWR_DOWN);
 
 skip_phy_misc:
-		intel_de_rmw(dev_priv, ICL_PORT_COMP_DW0(phy), COMP_INIT, 0);
+		intel_de_rmw(display, ICL_PORT_COMP_DW0(phy), COMP_INIT, 0);
 	}
 }
 
-void intel_combo_phy_init(struct drm_i915_private *i915)
+void intel_combo_phy_init(struct intel_display *display)
 {
-	icl_combo_phys_init(i915);
+	icl_combo_phys_init(display);
 }
 
-void intel_combo_phy_uninit(struct drm_i915_private *i915)
+void intel_combo_phy_uninit(struct intel_display *display)
 {
-	icl_combo_phys_uninit(i915);
+	icl_combo_phys_uninit(display);
 }

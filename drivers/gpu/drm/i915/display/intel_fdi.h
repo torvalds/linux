@@ -13,6 +13,7 @@ struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
+struct intel_display;
 struct intel_encoder;
 struct intel_link_bw_limits;
 
@@ -41,8 +42,8 @@ void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe);
 void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe);
 void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe);
 void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe);
-void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
-void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
-void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe);
+void assert_fdi_tx_pll_enabled(struct intel_display *display, enum pipe pipe);
+void assert_fdi_rx_pll_enabled(struct intel_display *display, enum pipe pipe);
+void assert_fdi_rx_pll_disabled(struct intel_display *display, enum pipe pipe);
 
 #endif
