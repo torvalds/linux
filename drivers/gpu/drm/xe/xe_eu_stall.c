@@ -99,12 +99,35 @@ struct xe_eu_stall_data_pvc {
 	__u64 unused[6];
 } __packed;
 
+/*
+ * EU stall data format for Xe2 arch GPUs (LNL, BMG).
+ */
+struct xe_eu_stall_data_xe2 {
+	__u64 ip_addr:29;	  /* Bits 0  to 28  */
+	__u64 tdr_count:8;	  /* Bits 29 to 36  */
+	__u64 other_count:8;	  /* Bits 37 to 44  */
+	__u64 control_count:8;	  /* Bits 45 to 52  */
+	__u64 pipestall_count:8;  /* Bits 53 to 60  */
+	__u64 send_count:8;	  /* Bits 61 to 68  */
+	__u64 dist_acc_count:8;   /* Bits 69 to 76  */
+	__u64 sbid_count:8;	  /* Bits 77 to 84  */
+	__u64 sync_count:8;	  /* Bits 85 to 92  */
+	__u64 inst_fetch_count:8; /* Bits 93 to 100 */
+	__u64 active_count:8;	  /* Bits 101 to 108 */
+	__u64 ex_id:3;		  /* Bits 109 to 111 */
+	__u64 end_flag:1;	  /* Bit  112 */
+	__u64 unused_bits:15;
+	__u64 unused[6];
+} __packed;
+
 static size_t xe_eu_stall_data_record_size(struct xe_device *xe)
 {
 	size_t record_size = 0;
 
 	if (xe->info.platform == XE_PVC)
 		record_size = sizeof(struct xe_eu_stall_data_pvc);
+	else if (GRAPHICS_VER(xe) >= 20)
+		record_size = sizeof(struct xe_eu_stall_data_xe2);
 
 	xe_assert(xe, is_power_of_2(record_size));
 
@@ -345,10 +368,16 @@ static bool eu_stall_data_buf_poll(struct xe_eu_stall_data_stream *stream)
 
 static void clear_dropped_eviction_line_bit(struct xe_gt *gt, u16 group, u16 instance)
 {
+	struct xe_device *xe = gt_to_xe(gt);
 	u32 write_ptr_reg;
 
-	/* On PVC, the overflow bit has to be cleared by writing 1 to it. */
-	write_ptr_reg = _MASKED_BIT_ENABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
+	/* On PVC, the overflow bit has to be cleared by writing 1 to it.
+	 * On Xe2 and later GPUs, the bit has to be cleared by writing 0 to it.
+	 */
+	if (GRAPHICS_VER(xe) >= 20)
+		write_ptr_reg = _MASKED_BIT_DISABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
+	else
+		write_ptr_reg = _MASKED_BIT_ENABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
 
 	xe_gt_mcr_unicast_write(gt, XEHPC_EUSTALL_REPORT, write_ptr_reg, group, instance);
 }
@@ -785,7 +814,7 @@ static const struct file_operations fops_eu_stall = {
 
 static inline bool has_eu_stall_sampling_support(struct xe_device *xe)
 {
-	return xe->info.platform == XE_PVC;
+	return xe->info.platform == XE_PVC || GRAPHICS_VER(xe) >= 20;
 }
 
 static int xe_eu_stall_stream_open_locked(struct drm_device *dev,
