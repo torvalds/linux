@@ -24,7 +24,7 @@ ifeq (,$(srctree))
 endif
 export srctree
 
--include ../scripts/Makefile.include
+include ../scripts/Makefile.include
 
 # OUTPUT fixup should be *after* include ../scripts/Makefile.include
 ifneq ($(OUTPUT),)
@@ -42,13 +42,13 @@ conf: $(OUTPUT)Makefile.conf
 $(OUTPUT)Makefile.conf $(OUTPUT)include/kernel_config.h $(OUTPUT)/kernel.config: Makefile.autoconf
 	$(call QUIET_AUTOCONF, headers)$(MAKE) -f Makefile.autoconf -s
 
--include $(OUTPUT)Makefile.conf
+include $(OUTPUT)Makefile.conf
 
 export CFLAGS += -I$(OUTPUT)/include -Iinclude -Wall -g -O2 -Wextra \
 	 -Wno-unused-parameter \
 	 -Wno-missing-field-initializers -fno-strict-aliasing
 
--include Targets
+include Targets
 
 # Expand targets to output location and suffix but preserve special
 # targets (e.g. .WAIT)
