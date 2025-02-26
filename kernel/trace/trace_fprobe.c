@@ -1230,6 +1230,11 @@ static int trace_fprobe_create_internal(int argc, const char *argv[],
 	if (is_return && tf->tp.entry_arg) {
 		tf->fp.entry_handler = trace_fprobe_entry_handler;
 		tf->fp.entry_data_size = traceprobe_get_entry_data_size(&tf->tp);
+		if (ALIGN(tf->fp.entry_data_size, sizeof(long)) > MAX_FPROBE_DATA_SIZE) {
+			trace_probe_log_set_index(2);
+			trace_probe_log_err(0, TOO_MANY_EARGS);
+			return -E2BIG;
+		}
 	}
 
 	ret = traceprobe_set_print_fmt(&tf->tp,
