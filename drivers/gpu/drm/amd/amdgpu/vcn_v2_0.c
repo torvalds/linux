@@ -368,7 +368,7 @@ static int vcn_v2_0_resume(struct amdgpu_ip_block *ip_block)
 /**
  * vcn_v2_0_mc_resume - memory controller programming
  *
- * @adev: amdgpu_device pointer
+ * @vinst: Pointer to the VCN instance structure
  *
  * Let the VCN memory controller know it's offsets
  */

@@ -767,8 +767,7 @@ static void vcn_v3_0_enable_static_power_gating(struct amdgpu_vcn_inst *vinst)
 /**
  * vcn_v3_0_disable_clock_gating - disable VCN clock gating
  *
- * @adev: amdgpu_device pointer
- * @inst: instance number
+ * @vinst: Pointer to the VCN instance structure
  *
  * Disable clock gating for VCN block
  */
@@ -956,8 +955,7 @@ static void vcn_v3_0_clock_gating_dpg_mode(struct amdgpu_vcn_inst *vinst,
 /**
  * vcn_v3_0_enable_clock_gating - enable VCN clock gating
  *
- * @adev: amdgpu_device pointer
- * @inst: instance number
+ * @vinst: Pointer to the VCN instance structure
  *
  * Enable clock gating for VCN block
  */
