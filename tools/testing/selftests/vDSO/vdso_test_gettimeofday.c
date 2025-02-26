@@ -11,8 +11,10 @@
  */
 
 #include <stdio.h>
+#ifndef NOLIBC
 #include <sys/auxv.h>
 #include <sys/time.h>
+#endif
 
 #include "../kselftest.h"
 #include "parse_vdso.h"
