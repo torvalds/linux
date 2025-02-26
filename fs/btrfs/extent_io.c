@@ -2706,8 +2706,8 @@ struct extent_buffer *btrfs_clone_extent_buffer(const struct extent_buffer *src)
 	return new;
 }
 
-struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-						  u64 start)
+struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
+						u64 start)
 {
 	struct extent_buffer *eb;
 	int num_folios = 0;
@@ -2742,12 +2742,6 @@ err:
 	}
 	kmem_cache_free(extent_buffer_cache, eb);
 	return NULL;
-}
-
-struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-						u64 start)
-{
-	return __alloc_dummy_extent_buffer(fs_info, start);
 }
 
 static void check_buffer_tree_ref(struct extent_buffer *eb)
