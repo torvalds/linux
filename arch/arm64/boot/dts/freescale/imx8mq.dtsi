@@ -1828,6 +1828,7 @@
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "dma";
 			fsl,max-link-speed = <2>;
+			linux,pci-domain = <1>;
 			clocks = <&clk IMX8MQ_CLK_PCIE2_ROOT>,
 				 <&clk IMX8MQ_CLK_PCIE2_PHY>,
 				 <&clk IMX8MQ_CLK_PCIE2_PHY>,
