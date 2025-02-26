@@ -16,7 +16,7 @@ skip_if_no_mem_event() {
 
 skip_if_no_mem_event || exit 2
 
-skip_test_missing_symbol buf1
+skip_test_missing_symbol workload_datasym_buf1
 
 TEST_PROGRAM="perf test -w datasym"
 PERF_DATA=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
@@ -24,18 +24,19 @@ ERR_FILE=$(mktemp /tmp/__perf_test.stderr.XXXXX)
 
 check_result() {
 	# The memory report format is as below:
-	#    99.92%  ...  [.] buf1+0x38
+	#    99.92%  ...  [.] workload_datasym_buf1+0x38
 	result=$(perf mem report -i ${PERF_DATA} -s symbol_daddr -q 2>&1 |
-		 awk '/buf1/ { print $4 }')
+		 awk '/workload_datasym_buf1/ { print $4 }')
 
-	# Testing is failed if has no any sample for "buf1"
+	# Testing is failed if has no any sample for "workload_datasym_buf1"
 	[ -z "$result" ] && return 1
 
 	while IFS= read -r line; do
-		# The "data1" and "data2" fields in structure "buf1" have
-		# offset "0x0" and "0x38", returns failure if detect any
-		# other offset value.
-		if [ "$line" != "buf1+0x0" ] && [ "$line" != "buf1+0x38" ]; then
+		# The "data1" and "data2" fields in structure
+		# "workload_datasym_buf1" have offset "0x0" and "0x38", returns
+		# failure if detect any other offset value.
+		if [ "$line" != "workload_datasym_buf1+0x0" ] && \
+		   [ "$line" != "workload_datasym_buf1+0x38" ]; then
 			return 1
 		fi
 	done <<< "$result"
