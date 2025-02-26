@@ -9,6 +9,59 @@
 #define XSAVE_HDR_OFFSET	512
 #define XSAVE_HDR_SIZE		64
 
+/*
+ * List of XSAVE features Linux knows about. Copied from
+ * arch/x86/include/asm/fpu/types.h
+ */
+enum xfeature {
+	XFEATURE_FP,
+	XFEATURE_SSE,
+	XFEATURE_YMM,
+	XFEATURE_BNDREGS,
+	XFEATURE_BNDCSR,
+	XFEATURE_OPMASK,
+	XFEATURE_ZMM_Hi256,
+	XFEATURE_Hi16_ZMM,
+	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
+	XFEATURE_PKRU,
+	XFEATURE_PASID,
+	XFEATURE_CET_USER,
+	XFEATURE_CET_KERNEL_UNUSED,
+	XFEATURE_RSRVD_COMP_13,
+	XFEATURE_RSRVD_COMP_14,
+	XFEATURE_LBR,
+	XFEATURE_RSRVD_COMP_16,
+	XFEATURE_XTILECFG,
+	XFEATURE_XTILEDATA,
+
+	XFEATURE_MAX,
+};
+
+/* Copied from arch/x86/kernel/fpu/xstate.c */
+static const char *xfeature_names[] =
+{
+	"x87 floating point registers",
+	"SSE registers",
+	"AVX registers",
+	"MPX bounds registers",
+	"MPX CSR",
+	"AVX-512 opmask",
+	"AVX-512 Hi256",
+	"AVX-512 ZMM_Hi256",
+	"Processor Trace (unused)",
+	"Protection Keys User registers",
+	"PASID state",
+	"Control-flow User registers",
+	"Control-flow Kernel registers (unused)",
+	"unknown xstate feature",
+	"unknown xstate feature",
+	"unknown xstate feature",
+	"unknown xstate feature",
+	"AMX Tile config",
+	"AMX Tile data",
+	"unknown xstate feature",
+};
+
 struct xsave_buffer {
 	union {
 		struct {
@@ -58,6 +111,7 @@ static inline uint32_t get_xbuf_size(void)
 }
 
 struct xstate_info {
+	const char *name;
 	uint32_t num;
 	uint32_t mask;
 	uint32_t xbuf_offset;
@@ -69,6 +123,12 @@ static inline struct xstate_info get_xstate_info(uint32_t xfeature_num)
 	struct xstate_info xstate = { };
 	uint32_t eax, ebx, ecx, edx;
 
+	if (xfeature_num >= XFEATURE_MAX) {
+		ksft_print_msg("unknown state\n");
+		return xstate;
+	}
+
+	xstate.name = xfeature_names[xfeature_num];
 	xstate.num  = xfeature_num;
 	xstate.mask = 1 << xfeature_num;
 
