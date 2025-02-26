@@ -2021,6 +2021,19 @@ static int fuse_notify_resend(struct fuse_conn *fc)
 	return 0;
 }
 
+/*
+ * Increments the fuse connection epoch.  This will result of dentries from
+ * previous epochs to be invalidated.
+ *
+ * XXX optimization: add call to shrink_dcache_sb()?
+ */
+static int fuse_notify_inc_epoch(struct fuse_conn *fc)
+{
+	atomic_inc(&fc->epoch);
+
+	return 0;
+}
+
 static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		       unsigned int size, struct fuse_copy_state *cs)
 {
@@ -2048,6 +2061,9 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 
 	case FUSE_NOTIFY_RESEND:
 		return fuse_notify_resend(fc);
+
+	case FUSE_NOTIFY_INC_EPOCH:
+		return fuse_notify_inc_epoch(fc);
 
 	default:
 		fuse_copy_finish(cs);

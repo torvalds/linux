@@ -200,8 +200,13 @@ static int fuse_dentry_revalidate(struct inode *dir, const struct qstr *name,
 {
 	struct inode *inode;
 	struct fuse_mount *fm;
+	struct fuse_conn *fc;
 	struct fuse_inode *fi;
 	int ret;
+
+	fc = get_fuse_conn_super(dir->i_sb);
+	if (entry->d_time < atomic_read(&fc->epoch))
+		goto invalid;
 
 	inode = d_inode_rcu(entry);
 	if (inode && fuse_is_bad(inode))
@@ -415,15 +420,19 @@ int fuse_lookup_name(struct super_block *sb, u64 nodeid, const struct qstr *name
 static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 				  unsigned int flags)
 {
-	int err;
 	struct fuse_entry_out outarg;
+	struct fuse_conn *fc;
 	struct inode *inode;
 	struct dentry *newent;
+	int err, epoch;
 	bool outarg_valid = true;
 	bool locked;
 
 	if (fuse_is_bad(dir))
 		return ERR_PTR(-EIO);
+
+	fc = get_fuse_conn_super(dir->i_sb);
+	epoch = atomic_read(&fc->epoch);
 
 	locked = fuse_lock_inode(dir);
 	err = fuse_lookup_name(dir->i_sb, get_node_id(dir), &entry->d_name,
@@ -446,6 +455,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 		goto out_err;
 
 	entry = newent ? newent : entry;
+	entry->d_time = epoch;
 	if (outarg_valid)
 		fuse_change_entry_timeout(entry, &outarg);
 	else
@@ -619,7 +629,6 @@ static int fuse_create_open(struct mnt_idmap *idmap, struct inode *dir,
 			    struct dentry *entry, struct file *file,
 			    unsigned int flags, umode_t mode, u32 opcode)
 {
-	int err;
 	struct inode *inode;
 	struct fuse_mount *fm = get_fuse_mount(dir);
 	FUSE_ARGS(args);
@@ -629,11 +638,13 @@ static int fuse_create_open(struct mnt_idmap *idmap, struct inode *dir,
 	struct fuse_entry_out outentry;
 	struct fuse_inode *fi;
 	struct fuse_file *ff;
+	int epoch, err;
 	bool trunc = flags & O_TRUNC;
 
 	/* Userspace expects S_IFREG in create mode */
 	BUG_ON((mode & S_IFMT) != S_IFREG);
 
+	epoch = atomic_read(&fm->fc->epoch);
 	forget = fuse_alloc_forget();
 	err = -ENOMEM;
 	if (!forget)
@@ -702,6 +713,7 @@ static int fuse_create_open(struct mnt_idmap *idmap, struct inode *dir,
 	}
 	kfree(forget);
 	d_instantiate(entry, inode);
+	entry->d_time = epoch;
 	fuse_change_entry_timeout(entry, &outentry);
 	fuse_dir_changed(dir);
 	err = generic_file_open(inode, file);
@@ -788,11 +800,13 @@ static struct dentry *create_new_entry(struct mnt_idmap *idmap, struct fuse_moun
 	struct fuse_entry_out outarg;
 	struct inode *inode;
 	struct dentry *d;
-	int err;
 	struct fuse_forget_link *forget;
+	int epoch, err;
 
 	if (fuse_is_bad(dir))
 		return ERR_PTR(-EIO);
+
+	epoch = atomic_read(&fm->fc->epoch);
 
 	forget = fuse_alloc_forget();
 	if (!forget)
@@ -835,10 +849,13 @@ static struct dentry *create_new_entry(struct mnt_idmap *idmap, struct fuse_moun
 	if (IS_ERR(d))
 		return d;
 
-	if (d)
+	if (d) {
+		d->d_time = epoch;
 		fuse_change_entry_timeout(d, &outarg);
-	else
+	} else {
+		entry->d_time = epoch;
 		fuse_change_entry_timeout(entry, &outarg);
+	}
 	fuse_dir_changed(dir);
 	return d;
 
