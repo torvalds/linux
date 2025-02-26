@@ -631,16 +631,16 @@ static void build_ksm_umr(struct mlx5e_icosq *sq, struct mlx5e_umr_wqe *umr_wqe,
 			  __be32 key, u16 offset, u16 ksm_len)
 {
 	memset(umr_wqe, 0, offsetof(struct mlx5e_umr_wqe, inline_ksms));
-	umr_wqe->ctrl.opmod_idx_opcode =
+	umr_wqe->hdr.ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			     MLX5_OPCODE_UMR);
-	umr_wqe->ctrl.umr_mkey = key;
-	umr_wqe->ctrl.qpn_ds = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT)
+	umr_wqe->hdr.ctrl.umr_mkey = key;
+	umr_wqe->hdr.ctrl.qpn_ds = cpu_to_be32((sq->sqn << MLX5_WQE_CTRL_QPN_SHIFT)
 					    | MLX5E_KSM_UMR_DS_CNT(ksm_len));
-	umr_wqe->uctrl.flags = MLX5_UMR_TRANSLATION_OFFSET_EN | MLX5_UMR_INLINE;
-	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
-	umr_wqe->uctrl.xlt_octowords = cpu_to_be16(ksm_len);
-	umr_wqe->uctrl.mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
+	umr_wqe->hdr.uctrl.flags = MLX5_UMR_TRANSLATION_OFFSET_EN | MLX5_UMR_INLINE;
+	umr_wqe->hdr.uctrl.xlt_offset = cpu_to_be16(offset);
+	umr_wqe->hdr.uctrl.xlt_octowords = cpu_to_be16(ksm_len);
+	umr_wqe->hdr.uctrl.mkey_mask     = cpu_to_be64(MLX5_MKEY_MASK_FREE);
 }
 
 static struct mlx5e_frag_page *mlx5e_shampo_hd_to_frag_page(struct mlx5e_rq *rq, int header_index)
@@ -704,7 +704,7 @@ static int mlx5e_build_shampo_hd_umr(struct mlx5e_rq *rq,
 
 	shampo->pi = (shampo->pi + ksm_entries) & (shampo->hd_per_wq - 1);
 	sq->pc += wqe_bbs;
-	sq->doorbell_cseg = &umr_wqe->ctrl;
+	sq->doorbell_cseg = &umr_wqe->hdr.ctrl;
 
 	return 0;
 
@@ -814,12 +814,12 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 	bitmap_zero(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 	wi->consumed_strides = 0;
 
-	umr_wqe->ctrl.opmod_idx_opcode =
+	umr_wqe->hdr.ctrl.opmod_idx_opcode =
 		cpu_to_be32((sq->pc << MLX5_WQE_CTRL_WQE_INDEX_SHIFT) |
 			    MLX5_OPCODE_UMR);
 
 	offset = (ix * rq->mpwqe.mtts_per_wqe) * sizeof(struct mlx5_mtt) / MLX5_OCTWORD;
-	umr_wqe->uctrl.xlt_offset = cpu_to_be16(offset);
+	umr_wqe->hdr.uctrl.xlt_offset = cpu_to_be16(offset);
 
 	sq->db.wqe_info[pi] = (struct mlx5e_icosq_wqe_info) {
 		.wqe_type   = MLX5E_ICOSQ_WQE_UMR_RX,
@@ -829,7 +829,7 @@ static int mlx5e_alloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 
 	sq->pc += rq->mpwqe.umr_wqebbs;
 
-	sq->doorbell_cseg = &umr_wqe->ctrl;
+	sq->doorbell_cseg = &umr_wqe->hdr.ctrl;
 
 	return 0;
 

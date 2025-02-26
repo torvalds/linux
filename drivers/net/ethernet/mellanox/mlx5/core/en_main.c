@@ -311,8 +311,8 @@ static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
 				       struct mlx5e_icosq *sq,
 				       struct mlx5e_umr_wqe *wqe)
 {
-	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->ctrl;
-	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
+	struct mlx5_wqe_ctrl_seg      *cseg = &wqe->hdr.ctrl;
+	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->hdr.uctrl;
 	u16 octowords;
 	u8 ds_cnt;
 
@@ -393,7 +393,9 @@ static int mlx5e_rq_alloc_mpwqe_info(struct mlx5e_rq *rq, int node)
 		bitmap_fill(wi->skip_release_bitmap, rq->mpwqe.pages_per_wqe);
 	}
 
-	mlx5e_build_umr_wqe(rq, rq->icosq, &rq->mpwqe.umr_wqe);
+	mlx5e_build_umr_wqe(rq, rq->icosq,
+			    container_of(&rq->mpwqe.umr_wqe,
+					 struct mlx5e_umr_wqe, hdr));
 
 	return 0;
 }
