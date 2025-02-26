@@ -714,20 +714,20 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 	iomsg->msg.msg_name = &iomsg->addr;
 	iomsg->msg.msg_iter.nr_segs = 0;
 
-#ifdef CONFIG_COMPAT
 	if (io_is_compat(req->ctx)) {
+#ifdef CONFIG_COMPAT
 		struct compat_msghdr cmsg;
 
 		ret = io_compat_msg_copy_hdr(req, iomsg, &cmsg, ITER_DEST,
 					     &iomsg->uaddr);
-		if (unlikely(ret))
-			return ret;
-		return io_recvmsg_mshot_prep(req, iomsg, cmsg.msg_namelen,
-						cmsg.msg_controllen);
-	}
+		memset(&msg, 0, sizeof(msg));
+		msg.msg_namelen = cmsg.msg_namelen;
+		msg.msg_controllen = cmsg.msg_controllen;
 #endif
+	} else {
+		ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_DEST, &iomsg->uaddr);
+	}
 
-	ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_DEST, &iomsg->uaddr);
 	if (unlikely(ret))
 		return ret;
 	return io_recvmsg_mshot_prep(req, iomsg, msg.msg_namelen,
