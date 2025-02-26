@@ -3099,7 +3099,8 @@ static int amdgpu_device_ip_init(struct amdgpu_device *adev)
 
 	amdgpu_fru_get_product_info(adev);
 
-	r = amdgpu_cper_init(adev);
+	if (!amdgpu_sriov_vf(adev) || amdgpu_sriov_ras_cper_en(adev))
+		r = amdgpu_cper_init(adev);
 
 init_failed:
 
@@ -4333,10 +4334,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * for throttling interrupt) = 60 seconds.
 	 */
 	ratelimit_state_init(&adev->throttling_logging_rs, (60 - 1) * HZ, 1);
-	ratelimit_state_init(&adev->virt.ras_telemetry_rs, 5 * HZ, 1);
 
 	ratelimit_set_flags(&adev->throttling_logging_rs, RATELIMIT_MSG_ON_RELEASE);
-	ratelimit_set_flags(&adev->virt.ras_telemetry_rs, RATELIMIT_MSG_ON_RELEASE);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
@@ -4368,7 +4367,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		return -ENOMEM;
 
 	/* detect hw virtualization here */
-	amdgpu_detect_virtualization(adev);
+	amdgpu_virt_init(adev);
 
 	amdgpu_device_get_pcie_info(adev);
 
