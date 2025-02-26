@@ -672,24 +672,20 @@ static void jpeg_v5_0_1_core_stall_reset(struct amdgpu_ring *ring)
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
 			    reg_offset, 0x1F);
-	SOC15_WAIT_ON_RREG(JPEG, jpeg_inst,
-			   regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS,
-			   0x1F, 0x1F);
+	SOC15_WAIT_ON_RREG_OFFSET(JPEG, jpeg_inst,
+				  regUVD_JMI0_UVD_JMI_CLIENT_CLEAN_STATUS,
+				  reg_offset, 0x1F, 0x1F);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_JPEG_LMI_DROP,
 			    reg_offset, 0x1F);
-	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-			    regJPEG_CORE_RST_CTRL,
-			    reg_offset, 1 << ring->pipe);
+	WREG32_SOC15(JPEG, jpeg_inst, regJPEG_CORE_RST_CTRL, 1 << ring->pipe);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_UVD_JMI_CLIENT_STALL,
 			    reg_offset, 0x00);
 	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
 			    regUVD_JMI0_JPEG_LMI_DROP,
 			    reg_offset, 0x00);
-	WREG32_SOC15_OFFSET(JPEG, jpeg_inst,
-			    regJPEG_CORE_RST_CTRL,
-			    reg_offset, 0x00);
+	WREG32_SOC15(JPEG, jpeg_inst, regJPEG_CORE_RST_CTRL, 0x00);
 }
 
 static int jpeg_v5_0_1_ring_reset(struct amdgpu_ring *ring, unsigned int vmid)
