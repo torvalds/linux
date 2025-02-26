@@ -648,7 +648,7 @@ static inline void console_sysfs_notify(void)
 extern bool console_suspend_enabled;
 
 /* Suspend and resume console messages over PM events */
-extern void suspend_console(void);
+extern void console_suspend_all(void);
 extern void resume_console(void);
 
 int mda_console_init(void);
