@@ -352,7 +352,10 @@ static int gpiochip_get_direction(struct gpio_chip *gc, unsigned int offset)
 		return -EOPNOTSUPP;
 
 	ret = gc->get_direction(gc, offset);
-	if (ret > 1)
+	if (ret < 0)
+		return ret;
+
+	if (ret != GPIO_LINE_DIRECTION_OUT && ret != GPIO_LINE_DIRECTION_IN)
 		ret = -EBADE;
 
 	return ret;
