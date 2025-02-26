@@ -218,7 +218,7 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach,
+			drm_fb_swab(&dst_map, NULL, src, fb, clip, !drm_gem_is_imported(gem),
 				    fmtcnv_state);
 		else
 			drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
