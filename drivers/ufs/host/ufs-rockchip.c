@@ -171,7 +171,7 @@ static int ufs_rockchip_common_init(struct ufs_hba *hba)
 				"failed to get reset gpio\n");
 
 	err = devm_clk_bulk_get_all_enabled(dev, &host->clks);
-	if (err)
+	if (err < 0)
 		return dev_err_probe(dev, err, "failed to enable clocks\n");
 
 	host->hba = hba;
