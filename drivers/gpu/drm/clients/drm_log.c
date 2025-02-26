@@ -323,7 +323,7 @@ static int drm_log_client_suspend(struct drm_client_dev *client, bool _console_l
 {
 	struct drm_log *dlog = client_to_drm_log(client);
 
-	console_stop(&dlog->con);
+	console_suspend(&dlog->con);
 
 	return 0;
 }
