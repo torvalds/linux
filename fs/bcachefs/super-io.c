@@ -454,6 +454,9 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb,
 
 		if (le16_to_cpu(sb->version) <= bcachefs_metadata_version_disk_accounting_v2)
 			SET_BCH_SB_PROMOTE_WHOLE_EXTENTS(sb, true);
+
+		if (!BCH_SB_WRITE_ERROR_TIMEOUT(sb))
+			SET_BCH_SB_WRITE_ERROR_TIMEOUT(sb, 30);
 	}
 
 #ifdef __KERNEL__

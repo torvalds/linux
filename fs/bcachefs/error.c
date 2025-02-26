@@ -54,25 +54,41 @@ void bch2_io_error_work(struct work_struct *work)
 {
 	struct bch_dev *ca = container_of(work, struct bch_dev, io_error_work);
 	struct bch_fs *c = ca->fs;
-	bool dev;
+
+	/* XXX: if it's reads or checksums that are failing, set it to failed */
 
 	down_write(&c->state_lock);
-	dev = bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_ro,
-				    BCH_FORCE_IF_DEGRADED);
-	if (dev
-	    ? __bch2_dev_set_state(c, ca, BCH_MEMBER_STATE_ro,
-				  BCH_FORCE_IF_DEGRADED)
-	    : bch2_fs_emergency_read_only(c))
+	unsigned long write_errors_start = READ_ONCE(ca->write_errors_start);
+
+	if (write_errors_start &&
+	    time_after(jiffies,
+		       write_errors_start + c->opts.write_error_timeout * HZ)) {
+		if (ca->mi.state >= BCH_MEMBER_STATE_ro)
+			goto out;
+
+		bool dev = !__bch2_dev_set_state(c, ca, BCH_MEMBER_STATE_ro,
+						 BCH_FORCE_IF_DEGRADED);
+
 		bch_err(ca,
-			"too many IO errors, setting %s RO",
+			"writes erroring for %u seconds, setting %s ro",
+			c->opts.write_error_timeout,
 			dev ? "device" : "filesystem");
+		if (!dev)
+			bch2_fs_emergency_read_only(c);
+
+	}
+out:
 	up_write(&c->state_lock);
 }
 
 void bch2_io_error(struct bch_dev *ca, enum bch_member_error_type type)
 {
 	atomic64_inc(&ca->errors[type]);
-	//queue_work(system_long_wq, &ca->io_error_work);
+
+	if (type == BCH_MEMBER_ERROR_write && !ca->write_errors_start)
+		ca->write_errors_start = jiffies;
+
+	queue_work(system_long_wq, &ca->io_error_work);
 }
 
 enum ask_yn {

@@ -226,8 +226,13 @@ static inline void bch2_account_io_success_fail(struct bch_dev *ca,
 						enum bch_member_error_type type,
 						bool success)
 {
-	if (!success)
+	if (likely(success)) {
+		if (type == BCH_MEMBER_ERROR_write &&
+		    ca->write_errors_start)
+			ca->write_errors_start = 0;
+	} else {
 		bch2_io_error(ca, type);
+	}
 }
 
 static inline void bch2_account_io_completion(struct bch_dev *ca,

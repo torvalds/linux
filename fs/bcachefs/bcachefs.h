@@ -536,6 +536,7 @@ struct bch_dev {
 	 */
 	struct bch_member_cpu	mi;
 	atomic64_t		errors[BCH_MEMBER_ERROR_NR];
+	unsigned long		write_errors_start;
 
 	__uuid_t		uuid;
 	char			name[BDEVNAME_SIZE];

@@ -145,6 +145,11 @@ enum fsck_err_opts {
 	  OPT_STR(bch2_error_actions),					\
 	  BCH_SB_ERROR_ACTION,		BCH_ON_ERROR_fix_safe,		\
 	  NULL,		"Action to take on filesystem error")		\
+	x(write_error_timeout,		u16,				\
+	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
+	  OPT_UINT(1, 300),						\
+	  BCH_SB_WRITE_ERROR_TIMEOUT,	30,				\
+	  NULL,		"Number of consecutive write errors allowed before kicking out a device")\
 	x(metadata_replicas,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(1, BCH_REPLICAS_MAX),				\
