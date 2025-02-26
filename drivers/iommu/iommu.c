@@ -3388,13 +3388,29 @@ int iommu_attach_device_pasid(struct iommu_domain *domain,
 
 	entry = iommu_make_pasid_array_entry(domain, handle);
 
-	ret = xa_insert(&group->pasid_array, pasid, entry, GFP_KERNEL);
+	/*
+	 * Entry present is a failure case. Use xa_insert() instead of
+	 * xa_reserve().
+	 */
+	ret = xa_insert(&group->pasid_array, pasid, XA_ZERO_ENTRY, GFP_KERNEL);
 	if (ret)
 		goto out_unlock;
 
 	ret = __iommu_set_group_pasid(domain, group, pasid);
-	if (ret)
-		xa_erase(&group->pasid_array, pasid);
+	if (ret) {
+		xa_release(&group->pasid_array, pasid);
+		goto out_unlock;
+	}
+
+	/*
+	 * The xa_insert() above reserved the memory, and the group->mutex is
+	 * held, this cannot fail. The new domain cannot be visible until the
+	 * operation succeeds as we cannot tolerate PRIs becoming concurrently
+	 * queued and then failing attach.
+	 */
+	WARN_ON(xa_is_err(xa_store(&group->pasid_array,
+				   pasid, entry, GFP_KERNEL)));
+
 out_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
@@ -3509,19 +3525,27 @@ int iommu_attach_group_handle(struct iommu_domain *domain,
 
 	mutex_lock(&group->mutex);
 	entry = iommu_make_pasid_array_entry(domain, handle);
-	ret = xa_insert(&group->pasid_array, IOMMU_NO_PASID, entry, GFP_KERNEL);
+	ret = xa_insert(&group->pasid_array,
+			IOMMU_NO_PASID, XA_ZERO_ENTRY, GFP_KERNEL);
 	if (ret)
-		goto err_unlock;
+		goto out_unlock;
 
 	ret = __iommu_attach_group(domain, group);
-	if (ret)
-		goto err_erase;
-	mutex_unlock(&group->mutex);
+	if (ret) {
+		xa_release(&group->pasid_array, IOMMU_NO_PASID);
+		goto out_unlock;
+	}
 
-	return 0;
-err_erase:
-	xa_erase(&group->pasid_array, IOMMU_NO_PASID);
-err_unlock:
+	/*
+	 * The xa_insert() above reserved the memory, and the group->mutex is
+	 * held, this cannot fail. The new domain cannot be visible until the
+	 * operation succeeds as we cannot tolerate PRIs becoming concurrently
+	 * queued and then failing attach.
+	 */
+	WARN_ON(xa_is_err(xa_store(&group->pasid_array,
+				   IOMMU_NO_PASID, entry, GFP_KERNEL)));
+
+out_unlock:
 	mutex_unlock(&group->mutex);
 	return ret;
 }
