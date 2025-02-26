@@ -20,6 +20,7 @@
 #include <stdarg.h>
 #include <linux/mount.h>
 
+#include "../filesystems/overlayfs/wrappers.h"
 #include "../kselftest_harness.h"
 
 #ifndef CLONE_NEWNS
@@ -175,51 +176,6 @@ static inline int sys_mount_setattr(int dfd, const char *path, unsigned int flag
 static inline int sys_open_tree(int dfd, const char *filename, unsigned int flags)
 {
 	return syscall(__NR_open_tree, dfd, filename, flags);
-}
-
-/* move_mount() flags */
-#ifndef MOVE_MOUNT_F_SYMLINKS
-#define MOVE_MOUNT_F_SYMLINKS 0x00000001 /* Follow symlinks on from path */
-#endif
-
-#ifndef MOVE_MOUNT_F_AUTOMOUNTS
-#define MOVE_MOUNT_F_AUTOMOUNTS 0x00000002 /* Follow automounts on from path */
-#endif
-
-#ifndef MOVE_MOUNT_F_EMPTY_PATH
-#define MOVE_MOUNT_F_EMPTY_PATH 0x00000004 /* Empty from path permitted */
-#endif
-
-#ifndef MOVE_MOUNT_T_SYMLINKS
-#define MOVE_MOUNT_T_SYMLINKS 0x00000010 /* Follow symlinks on to path */
-#endif
-
-#ifndef MOVE_MOUNT_T_AUTOMOUNTS
-#define MOVE_MOUNT_T_AUTOMOUNTS 0x00000020 /* Follow automounts on to path */
-#endif
-
-#ifndef MOVE_MOUNT_T_EMPTY_PATH
-#define MOVE_MOUNT_T_EMPTY_PATH 0x00000040 /* Empty to path permitted */
-#endif
-
-#ifndef MOVE_MOUNT_SET_GROUP
-#define MOVE_MOUNT_SET_GROUP 0x00000100 /* Set sharing group instead */
-#endif
-
-#ifndef MOVE_MOUNT_BENEATH
-#define MOVE_MOUNT_BENEATH 0x00000200 /* Mount beneath top mount */
-#endif
-
-#ifndef MOVE_MOUNT__MASK
-#define MOVE_MOUNT__MASK 0x00000377
-#endif
-
-static inline int sys_move_mount(int from_dfd, const char *from_pathname,
-				 int to_dfd, const char *to_pathname,
-				 unsigned int flags)
-{
-	return syscall(__NR_move_mount, from_dfd, from_pathname, to_dfd,
-		       to_pathname, flags);
 }
 
 static ssize_t write_nointr(int fd, const void *buf, size_t count)
@@ -1789,6 +1745,41 @@ TEST_F(mount_setattr, open_tree_detached_fail3)
 	ASSERT_EQ(errno, EINVAL);
 }
 
+TEST_F(mount_setattr, open_tree_subfolder)
+{
+	int fd_context, fd_tmpfs, fd_tree;
+
+	fd_context = sys_fsopen("tmpfs", 0);
+	ASSERT_GE(fd_context, 0);
+
+	ASSERT_EQ(sys_fsconfig(fd_context, FSCONFIG_CMD_CREATE, NULL, NULL, 0), 0);
+
+	fd_tmpfs = sys_fsmount(fd_context, 0, 0);
+	ASSERT_GE(fd_tmpfs, 0);
+
+	EXPECT_EQ(close(fd_context), 0);
+
+	ASSERT_EQ(mkdirat(fd_tmpfs, "subdir", 0755), 0);
+
+	fd_tree = sys_open_tree(fd_tmpfs, "subdir",
+				AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	EXPECT_EQ(close(fd_tmpfs), 0);
+
+	ASSERT_EQ(mkdirat(-EBADF, "/mnt/open_tree_subfolder", 0755), 0);
+
+	ASSERT_EQ(sys_move_mount(fd_tree, "", -EBADF, "/mnt/open_tree_subfolder", MOVE_MOUNT_F_EMPTY_PATH), 0);
+
+	EXPECT_EQ(close(fd_tree), 0);
+
+	ASSERT_EQ(umount2("/mnt/open_tree_subfolder", 0), 0);
+
+	EXPECT_EQ(rmdir("/mnt/open_tree_subfolder"), 0);
+}
+
 TEST_F(mount_setattr, mount_detached_mount_on_detached_mount_then_close)
 {
 	int fd_tree_base = -EBADF, fd_tree_subdir = -EBADF;
@@ -2095,6 +2086,76 @@ TEST_F(mount_setattr, two_detached_subtrees_of_same_anonymous_mount_namespace)
 	ASSERT_NE(move_mount(fd_tree2, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
 
 	ASSERT_EQ(move_mount(fd_tree1, "", -EBADF, "/tmp/target1", MOVE_MOUNT_F_EMPTY_PATH), 0);
+}
+
+TEST_F(mount_setattr, detached_tree_propagation)
+{
+	int fd_tree = -EBADF;
+	struct statx stx1, stx2, stx3, stx4;
+
+	ASSERT_EQ(unshare(CLONE_NEWNS), 0);
+	ASSERT_EQ(mount(NULL, "/mnt", NULL, MS_REC | MS_SHARED, NULL), 0);
+
+	/*
+	 * Copy the following mount tree:
+	 *
+         * /mnt                   testing tmpfs
+         * |-/mnt/A               testing tmpfs
+         * | `-/mnt/A/AA          testing tmpfs
+         * |   `-/mnt/A/AA/B      testing tmpfs
+         * |     `-/mnt/A/AA/B/BB testing tmpfs
+         * `-/mnt/B               testing ramfs
+	 */
+	fd_tree = sys_open_tree(-EBADF, "/mnt",
+				 AT_NO_AUTOMOUNT | AT_SYMLINK_NOFOLLOW |
+				 AT_RECURSIVE | OPEN_TREE_CLOEXEC |
+				 OPEN_TREE_CLONE);
+	ASSERT_GE(fd_tree, 0);
+
+	ASSERT_EQ(statx(-EBADF, "/mnt/A", 0, 0, &stx1), 0);
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx2), 0);
+
+	/*
+	 * Copying the mount namespace like done above doesn't alter the
+	 * mounts in any way so the filesystem mounted on /mnt must be
+	 * identical even though the mounts will differ. Use the device
+	 * information to verify that. Note that tmpfs will have a 0
+	 * major number so comparing the major number is misleading.
+	 */
+	ASSERT_EQ(stx1.stx_dev_minor, stx2.stx_dev_minor);
+
+	/* Mount a tmpfs filesystem over /mnt/A. */
+	ASSERT_EQ(mount(NULL, "/mnt/A", "tmpfs", 0, NULL), 0);
+
+
+	ASSERT_EQ(statx(-EBADF, "/mnt/A", 0, 0, &stx3), 0);
+	ASSERT_EQ(statx(fd_tree, "A", 0, 0, &stx4), 0);
+
+	/*
+	 * A new filesystem has been mounted on top of /mnt/A which
+	 * means that the device information will be different for any
+	 * statx() that was taken from /mnt/A before the mount compared
+	 * to one after the mount.
+	 *
+	 * Since we already now that the device information between the
+	 * stx1 and stx2 samples are identical we also now that stx2 and
+	 * stx3 device information will necessarily differ.
+	 */
+	ASSERT_NE(stx1.stx_dev_minor, stx3.stx_dev_minor);
+
+	/*
+	 * If mount propagation worked correctly then the tmpfs mount
+	 * that was created after the mount namespace was unshared will
+	 * have propagated onto /mnt/A in the detached mount tree.
+	 *
+	 * Verify that the device information for stx3 and stx4 are
+	 * identical. It is already established that stx3 is different
+	 * from both stx1 and stx2 sampled before the tmpfs mount was
+	 * done so if stx3 and stx4 are identical the proof is done.
+	 */
+	ASSERT_EQ(stx3.stx_dev_minor, stx4.stx_dev_minor);
+
+	EXPECT_EQ(close(fd_tree), 0);
 }
 
 TEST_HARNESS_MAIN
