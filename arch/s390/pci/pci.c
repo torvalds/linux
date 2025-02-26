@@ -590,6 +590,7 @@ int pcibios_device_add(struct pci_dev *pdev)
 	zpci_zdev_get(zdev);
 	if (pdev->is_physfn)
 		pdev->no_vf_scan = 1;
+	pdev->non_mappable_bars = 1;
 
 	zpci_map_resources(pdev);
 
