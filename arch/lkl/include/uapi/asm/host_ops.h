@@ -184,6 +184,7 @@ struct lkl_host_operations {
 
 	void* (*memcpy)(void *dest, const void *src, unsigned long count);
 	void* (*memset)(void *s, int c, unsigned long count);
+	void* (*memmove)(void *dest, const void *src, unsigned long count);
 
 	void* (*mmap)(void *addr, unsigned long size, enum lkl_prot prot);
 	int (*munmap)(void *addr, unsigned long size);
