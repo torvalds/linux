@@ -51,6 +51,10 @@ struct xe_eu_stall_data_stream {
 	struct xe_gt *gt;
 	struct xe_bo *bo;
 	struct per_xecore_buf *xecore_buf;
+	struct {
+		bool reported_to_user;
+		xe_dss_mask_t mask;
+	} data_drop;
 	struct delayed_work buf_poll_work;
 };
 
@@ -330,11 +334,23 @@ static bool eu_stall_data_buf_poll(struct xe_eu_stall_data_stream *stream)
 			if (num_data_rows(total_data) >= stream->wait_num_reports)
 				min_data_present = true;
 		}
+		if (write_ptr_reg & XEHPC_EUSTALL_REPORT_OVERFLOW_DROP)
+			set_bit(xecore, stream->data_drop.mask);
 		xecore_buf->write = write_ptr;
 	}
 	mutex_unlock(&gt->eu_stall->stream_lock);
 
 	return min_data_present;
+}
+
+static void clear_dropped_eviction_line_bit(struct xe_gt *gt, u16 group, u16 instance)
+{
+	u32 write_ptr_reg;
+
+	/* On PVC, the overflow bit has to be cleared by writing 1 to it. */
+	write_ptr_reg = _MASKED_BIT_ENABLE(XEHPC_EUSTALL_REPORT_OVERFLOW_DROP);
+
+	xe_gt_mcr_unicast_write(gt, XEHPC_EUSTALL_REPORT, write_ptr_reg, group, instance);
 }
 
 static int xe_eu_stall_data_buf_read(struct xe_eu_stall_data_stream *stream,
@@ -365,7 +381,7 @@ static int xe_eu_stall_data_buf_read(struct xe_eu_stall_data_stream *stream,
 	/* Read only the data that the user space buffer can accommodate */
 	read_data_size = min_t(size_t, count - *total_data_size, read_data_size);
 	if (read_data_size == 0)
-		return 0;
+		goto exit_drop;
 
 	read_offset = read_ptr & (buf_size - 1);
 	write_offset = write_ptr & (buf_size - 1);
@@ -397,6 +413,15 @@ static int xe_eu_stall_data_buf_read(struct xe_eu_stall_data_stream *stream,
 	xecore_buf->read = read_ptr;
 	trace_xe_eu_stall_data_read(group, instance, read_ptr, write_ptr,
 				    read_data_size, *total_data_size);
+exit_drop:
+	/* Clear drop bit (if set) after any data was read or if the buffer was empty.
+	 * Drop bit can be set even if the buffer is empty as the buffer may have been emptied
+	 * in the previous read() and the data drop bit was set during the previous read().
+	 */
+	if (test_bit(xecore, stream->data_drop.mask)) {
+		clear_dropped_eviction_line_bit(gt, group, instance);
+		clear_bit(xecore, stream->data_drop.mask);
+	}
 	return 0;
 }
 
@@ -422,6 +447,16 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 	unsigned int xecore;
 	int ret = 0;
 
+	if (bitmap_weight(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS)) {
+		if (!stream->data_drop.reported_to_user) {
+			stream->data_drop.reported_to_user = true;
+			xe_gt_dbg(gt, "EU stall data dropped in XeCores: %*pb\n",
+				  XE_MAX_DSS_FUSE_BITS, stream->data_drop.mask);
+			return -EIO;
+		}
+		stream->data_drop.reported_to_user = false;
+	}
+
 	for_each_dss_steering(xecore, gt, group, instance) {
 		ret = xe_eu_stall_data_buf_read(stream, buf, count, &total_size,
 						gt, group, instance, xecore);
@@ -434,6 +469,9 @@ static ssize_t xe_eu_stall_stream_read_locked(struct xe_eu_stall_data_stream *st
 /*
  * Userspace must enable the EU stall stream with DRM_XE_OBSERVATION_IOCTL_ENABLE
  * before calling read().
+ *
+ * Returns: The number of bytes copied or a negative error code on failure.
+ *	    -EIO if HW drops any EU stall data when the buffer is full.
  */
 static ssize_t xe_eu_stall_stream_read(struct file *file, char __user *buf,
 				       size_t count, loff_t *ppos)
@@ -538,6 +576,9 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 
 	for_each_dss_steering(xecore, gt, group, instance) {
 		write_ptr_reg = xe_gt_mcr_unicast_read(gt, XEHPC_EUSTALL_REPORT, group, instance);
+		/* Clear any drop bits set and not cleared in the previous session. */
+		if (write_ptr_reg & XEHPC_EUSTALL_REPORT_OVERFLOW_DROP)
+			clear_dropped_eviction_line_bit(gt, group, instance);
 		write_ptr = REG_FIELD_GET(XEHPC_EUSTALL_REPORT_WRITE_PTR_MASK, write_ptr_reg);
 		read_ptr_reg = REG_FIELD_PREP(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, write_ptr);
 		read_ptr_reg = _MASKED_FIELD(XEHPC_EUSTALL_REPORT1_READ_PTR_MASK, read_ptr_reg);
@@ -549,6 +590,9 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 		xecore_buf->write = write_ptr;
 		xecore_buf->read = write_ptr;
 	}
+	stream->data_drop.reported_to_user = false;
+	bitmap_zero(stream->data_drop.mask, XE_MAX_DSS_FUSE_BITS);
+
 	reg_value = _MASKED_FIELD(EUSTALL_MOCS | EUSTALL_SAMPLE_RATE,
 				  REG_FIELD_PREP(EUSTALL_MOCS, gt->mocs.uc_index << 1) |
 				  REG_FIELD_PREP(EUSTALL_SAMPLE_RATE,
