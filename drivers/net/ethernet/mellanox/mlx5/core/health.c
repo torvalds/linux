@@ -806,8 +806,10 @@ static void poll_health(struct timer_list *t)
 
 	prev_synd = health->synd;
 	health->synd = ioread8(&h->synd);
-	if (health->synd && health->synd != prev_synd)
+	if (health->synd && health->synd != prev_synd) {
+		print_health_info(dev);
 		queue_work(health->wq, &health->report_work);
+	}
 
 out:
 	mod_timer(&health->timer, get_next_poll_jiffies(dev));
