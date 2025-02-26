@@ -4628,7 +4628,6 @@ static int rbtree_ref_comp(const void *k, const struct rb_node *node)
 {
 	const struct recorded_ref *data = k;
 	const struct recorded_ref *ref = rb_entry(node, struct recorded_ref, node);
-	int result;
 
 	if (data->dir > ref->dir)
 		return 1;
@@ -4642,12 +4641,7 @@ static int rbtree_ref_comp(const void *k, const struct rb_node *node)
 		return 1;
 	if (data->name_len < ref->name_len)
 		return -1;
-	result = strcmp(data->name, ref->name);
-	if (result > 0)
-		return 1;
-	if (result < 0)
-		return -1;
-	return 0;
+	return strcmp(data->name, ref->name);
 }
 
 static bool rbtree_ref_less(struct rb_node *node, const struct rb_node *parent)
