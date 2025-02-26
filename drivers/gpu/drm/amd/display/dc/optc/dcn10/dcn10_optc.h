@@ -168,13 +168,21 @@ struct dcn_optc_registers {
 	uint32_t OTG_CRC_CNTL;
 	uint32_t OTG_CRC_CNTL2;
 	uint32_t OTG_CRC0_DATA_RG;
+	uint32_t OTG_CRC1_DATA_RG;
+	uint32_t OTG_CRC2_DATA_RG;
+	uint32_t OTG_CRC3_DATA_RG;
 	uint32_t OTG_CRC0_DATA_B;
 	uint32_t OTG_CRC1_DATA_B;
 	uint32_t OTG_CRC2_DATA_B;
 	uint32_t OTG_CRC3_DATA_B;
-	uint32_t OTG_CRC1_DATA_RG;
-	uint32_t OTG_CRC2_DATA_RG;
-	uint32_t OTG_CRC3_DATA_RG;
+	uint32_t OTG_CRC0_DATA_R;
+	uint32_t OTG_CRC1_DATA_R;
+	uint32_t OTG_CRC2_DATA_R;
+	uint32_t OTG_CRC3_DATA_R;
+	uint32_t OTG_CRC0_DATA_G;
+	uint32_t OTG_CRC1_DATA_G;
+	uint32_t OTG_CRC2_DATA_G;
+	uint32_t OTG_CRC3_DATA_G;
 	uint32_t OTG_CRC0_WINDOWA_X_CONTROL;
 	uint32_t OTG_CRC0_WINDOWA_Y_CONTROL;
 	uint32_t OTG_CRC0_WINDOWB_X_CONTROL;
@@ -209,6 +217,7 @@ struct dcn_optc_registers {
 	uint32_t OPTC_WIDTH_CONTROL2;
 	uint32_t OTG_PSTATE_REGISTER;
 	uint32_t OTG_PIPE_UPDATE_STATUS;
+	uint32_t INTERRUPT_DEST;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -591,6 +600,7 @@ struct dcn_optc_registers {
 	type OTG_DC_REG_UPDATE_PENDING;\
 	type OTG_CURSOR_UPDATE_PENDING;\
 	type OTG_VUPDATE_KEEPOUT_STATUS;\
+	type OTG0_IHC_OTG_VERTICAL_INTERRUPT2_DEST;
 
 #define TG_REG_FIELD_LIST_DCN3_2(type) \
 	type OTG_H_TIMING_DIV_MODE_MANUAL;

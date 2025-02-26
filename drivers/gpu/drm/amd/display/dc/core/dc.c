@@ -276,6 +276,7 @@ static bool create_links(
 		link->link_id.type = OBJECT_TYPE_CONNECTOR;
 		link->link_id.id = CONNECTOR_ID_VIRTUAL;
 		link->link_id.enum_id = ENUM_ID_1;
+		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
 		link->link_enc = kzalloc(sizeof(*link->link_enc), GFP_KERNEL);
 
 		if (!link->link_enc) {
@@ -513,33 +514,6 @@ bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
 	}
 
 	return status;
-}
-
-bool dc_stream_get_crtc_position(struct dc *dc,
-		struct dc_stream_state **streams, int num_streams,
-		unsigned int *v_pos, unsigned int *nom_v_pos)
-{
-	/* TODO: Support multiple streams */
-	const struct dc_stream_state *stream = streams[0];
-	int i;
-	bool ret = false;
-	struct crtc_position position;
-
-	dc_exit_ips_for_hw_access(dc);
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *pipe =
-				&dc->current_state->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream == stream && pipe->stream_res.stream_enc) {
-			dc->hwss.get_position(&pipe, 1, &position);
-
-			*v_pos = position.vertical_count;
-			*nom_v_pos = position.nominal_vcount;
-			ret = true;
-		}
-	}
-	return ret;
 }
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
@@ -1720,17 +1694,23 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		return false;
 	}
 
-	if (dc->debug.force_odm_combine)
+	if (dc->debug.force_odm_combine) {
+		DC_LOG_DEBUG("boot timing validation failed due to force_odm_combine\n");
 		return false;
+	}
 
 	/* Check for enabled DIG to identify enabled display */
-	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc))
+	if (!link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
+		DC_LOG_DEBUG("boot timing validation failed due to disabled DIG\n");
 		return false;
+	}
 
 	enc_inst = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
-	if (enc_inst == ENGINE_ID_UNKNOWN)
+	if (enc_inst == ENGINE_ID_UNKNOWN) {
+		DC_LOG_DEBUG("boot timing validation failed due to unknown DIG engine ID\n");
 		return false;
+	}
 
 	for (i = 0; i < dc->res_pool->stream_enc_count; i++) {
 		if (dc->res_pool->stream_enc[i]->id == enc_inst) {
@@ -1744,62 +1724,98 @@ bool dc_validate_boot_timing(const struct dc *dc,
 	}
 
 	// tg_inst not found
-	if (i == dc->res_pool->stream_enc_count)
+	if (i == dc->res_pool->stream_enc_count) {
+		DC_LOG_DEBUG("boot timing validation failed due to timing generator instance not found\n");
 		return false;
+	}
 
-	if (tg_inst >= dc->res_pool->timing_generator_count)
+	if (tg_inst >= dc->res_pool->timing_generator_count) {
+		DC_LOG_DEBUG("boot timing validation failed due to invalid timing generator count\n");
 		return false;
+	}
 
-	if (tg_inst != link->link_enc->preferred_engine)
+	if (tg_inst != link->link_enc->preferred_engine) {
+		DC_LOG_DEBUG("boot timing validation failed due to non-preferred timing generator\n");
 		return false;
+	}
 
 	tg = dc->res_pool->timing_generators[tg_inst];
 
-	if (!tg->funcs->get_hw_timing)
+	if (!tg->funcs->get_hw_timing) {
+		DC_LOG_DEBUG("boot timing validation failed due to missing get_hw_timing callback\n");
 		return false;
+	}
 
-	if (!tg->funcs->get_hw_timing(tg, &hw_crtc_timing))
+	if (!tg->funcs->get_hw_timing(tg, &hw_crtc_timing)) {
+		DC_LOG_DEBUG("boot timing validation failed due to failed get_hw_timing return\n");
 		return false;
+	}
 
-	if (crtc_timing->h_total != hw_crtc_timing.h_total)
+	if (crtc_timing->h_total != hw_crtc_timing.h_total) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_total mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->h_border_left != hw_crtc_timing.h_border_left)
+	if (crtc_timing->h_border_left != hw_crtc_timing.h_border_left) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_border_left mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->h_addressable != hw_crtc_timing.h_addressable)
+	if (crtc_timing->h_addressable != hw_crtc_timing.h_addressable) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_addressable mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->h_border_right != hw_crtc_timing.h_border_right)
+	if (crtc_timing->h_border_right != hw_crtc_timing.h_border_right) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_border_right mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->h_front_porch != hw_crtc_timing.h_front_porch)
+	if (crtc_timing->h_front_porch != hw_crtc_timing.h_front_porch) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_front_porch mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->h_sync_width != hw_crtc_timing.h_sync_width)
+	if (crtc_timing->h_sync_width != hw_crtc_timing.h_sync_width) {
+		DC_LOG_DEBUG("boot timing validation failed due to h_sync_width mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_total != hw_crtc_timing.v_total)
+	if (crtc_timing->v_total != hw_crtc_timing.v_total) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_total mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_border_top != hw_crtc_timing.v_border_top)
+	if (crtc_timing->v_border_top != hw_crtc_timing.v_border_top) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_border_top mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_addressable != hw_crtc_timing.v_addressable)
+	if (crtc_timing->v_addressable != hw_crtc_timing.v_addressable) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_addressable mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_border_bottom != hw_crtc_timing.v_border_bottom)
+	if (crtc_timing->v_border_bottom != hw_crtc_timing.v_border_bottom) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_border_bottom mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_front_porch != hw_crtc_timing.v_front_porch)
+	if (crtc_timing->v_front_porch != hw_crtc_timing.v_front_porch) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_front_porch mismatch\n");
 		return false;
+	}
 
-	if (crtc_timing->v_sync_width != hw_crtc_timing.v_sync_width)
+	if (crtc_timing->v_sync_width != hw_crtc_timing.v_sync_width) {
+		DC_LOG_DEBUG("boot timing validation failed due to v_sync_width mismatch\n");
 		return false;
+	}
 
 	/* block DSC for now, as VBIOS does not currently support DSC timings */
-	if (crtc_timing->flags.DSC)
+	if (crtc_timing->flags.DSC) {
+		DC_LOG_DEBUG("boot timing validation failed due to DSC\n");
 		return false;
+	}
 
 	if (dc_is_dp_signal(link->connector_signal)) {
 		unsigned int pix_clk_100hz = 0;
@@ -1821,39 +1837,55 @@ bool dc_validate_boot_timing(const struct dc *dc,
 		} else if (se && se->funcs->get_pixels_per_cycle) {
 			uint32_t pixels_per_cycle = se->funcs->get_pixels_per_cycle(se);
 
-			if (pixels_per_cycle != 1 && !dc->debug.enable_dp_dig_pixel_rate_div_policy)
+			if (pixels_per_cycle != 1 && !dc->debug.enable_dp_dig_pixel_rate_div_policy) {
+				DC_LOG_DEBUG("boot timing validation failed due to pixels_per_cycle\n");
 				return false;
+			}
 
 			pix_clk_100hz *= pixels_per_cycle;
 		}
 
 		// Note: In rare cases, HW pixclk may differ from crtc's pixclk
 		// slightly due to rounding issues in 10 kHz units.
-		if (crtc_timing->pix_clk_100hz != pix_clk_100hz)
+		if (crtc_timing->pix_clk_100hz != pix_clk_100hz) {
+			DC_LOG_DEBUG("boot timing validation failed due to pix_clk_100hz mismatch\n");
 			return false;
+		}
 
-		if (!se || !se->funcs->dp_get_pixel_format)
+		if (!se || !se->funcs->dp_get_pixel_format) {
+			DC_LOG_DEBUG("boot timing validation failed due to missing dp_get_pixel_format\n");
 			return false;
+		}
 
 		if (!se->funcs->dp_get_pixel_format(
 			se,
 			&hw_crtc_timing.pixel_encoding,
-			&hw_crtc_timing.display_color_depth))
+			&hw_crtc_timing.display_color_depth)) {
+			DC_LOG_DEBUG("boot timing validation failed due to dp_get_pixel_format failure\n");
 			return false;
+		}
 
-		if (hw_crtc_timing.display_color_depth != crtc_timing->display_color_depth)
+		if (hw_crtc_timing.display_color_depth != crtc_timing->display_color_depth) {
+			DC_LOG_DEBUG("boot timing validation failed due to display_color_depth mismatch\n");
 			return false;
+		}
 
-		if (hw_crtc_timing.pixel_encoding != crtc_timing->pixel_encoding)
+		if (hw_crtc_timing.pixel_encoding != crtc_timing->pixel_encoding) {
+			DC_LOG_DEBUG("boot timing validation failed due to pixel_encoding mismatch\n");
 			return false;
+		}
 	}
+
 
 	if (link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+		DC_LOG_DEBUG("boot timing validation failed due to VSC SDP colorimetry\n");
 		return false;
 	}
 
-	if (link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)
+	if (link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
+		DC_LOG_DEBUG("boot timing validation failed due to DP 128b/132b\n");
 		return false;
+	}
 
 	if (dc->link_srv->edp_is_ilr_optimization_required(link, crtc_timing)) {
 		DC_LOG_EVENT_LINK_TRAINING("Seamless boot disabled to optimize eDP link rate\n");
@@ -2266,7 +2298,7 @@ enum dc_status dc_commit_streams(struct dc *dc, struct dc_commit_streams_params 
 	/*
 	 * Only update link encoder to stream assignment after bandwidth validation passed.
 	 */
-	if (res == DC_OK && dc->res_pool->funcs->link_encs_assign)
+	if (res == DC_OK && dc->res_pool->funcs->link_encs_assign && !dc->config.unify_link_enc_assignment)
 		dc->res_pool->funcs->link_encs_assign(
 			dc, context, context->streams, context->stream_count);
 
@@ -2834,10 +2866,13 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->sharpening_required)
 			su_flags->bits.sharpening_required = 1;
 
+		if (stream_update->output_color_space)
+			su_flags->bits.out_csc = 1;
+
 		if (su_flags->raw != 0)
 			overall_type = UPDATE_TYPE_FULL;
 
-		if (stream_update->output_csc_transform || stream_update->output_color_space)
+		if (stream_update->output_csc_transform)
 			su_flags->bits.out_csc = 1;
 
 		/* Output transfer function changes do not require bandwidth recalculation,
@@ -5414,18 +5449,6 @@ bool dc_is_dmcu_initialized(struct dc *dc)
 	return false;
 }
 
-void get_clock_requirements_for_state(struct dc_state *state, struct AsicStateEx *info)
-{
-	info->displayClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dispclk_khz;
-	info->engineClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_khz;
-	info->memoryClock				= (unsigned int)state->bw_ctx.bw.dcn.clk.dramclk_khz;
-	info->maxSupportedDppClock		= (unsigned int)state->bw_ctx.bw.dcn.clk.max_supported_dppclk_khz;
-	info->dppClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.dppclk_khz;
-	info->socClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.socclk_khz;
-	info->dcfClockDeepSleep			= (unsigned int)state->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz;
-	info->fClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.fclk_khz;
-	info->phyClock					= (unsigned int)state->bw_ctx.bw.dcn.clk.phyclk_khz;
-}
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping)
 {
 	if (dc->hwss.set_clock)
@@ -5549,9 +5572,11 @@ void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const 
 	if (dc->clk_mgr != NULL && dc->clk_mgr->funcs->get_hard_min_memclk)
 		idle_dramclk_khz = dc->clk_mgr->funcs->get_hard_min_memclk(dc->clk_mgr);
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		pipe = &context->res_ctx.pipe_ctx[i];
-		subvp_pipe_type[i] = dc_state_get_pipe_subvp_type(context, pipe);
+	if (dc->res_pool && context) {
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			pipe = &context->res_ctx.pipe_ctx[i];
+			subvp_pipe_type[i] = dc_state_get_pipe_subvp_type(context, pipe);
+		}
 	}
 
 	DC_LOG_DC("%s: allow_idle=%d\n HardMinUClk_Khz=%d HardMinDramclk_Khz=%d\n Pipe_0=%d Pipe_1=%d Pipe_2=%d Pipe_3=%d Pipe_4=%d Pipe_5=%d (caller=%s)\n",

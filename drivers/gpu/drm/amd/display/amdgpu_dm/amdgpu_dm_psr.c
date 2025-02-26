@@ -30,6 +30,23 @@
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
 
+static bool is_specific_oled_panel(struct dc_link *link)
+{
+	if (!link->dpcd_sink_ext_caps.bits.oled)
+		return false;
+
+	/* Disable PSR-SU for some OLED panels to avoid glitches */
+	if (link->dpcd_caps.sink_dev_id == 0xBA4159) {
+		uint8_t sink_dev_id_str1[] = {'4', '0', 'C', 'U', '1'};
+
+		if (!memcmp(link->dpcd_caps.sink_dev_id_str, sink_dev_id_str1,
+		    sizeof(sink_dev_id_str1)))
+			return true;
+	}
+
+	return false;
+}
+
 static bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
@@ -38,6 +55,9 @@ static bool link_supports_psrsu(struct dc_link *link)
 		return false;
 
 	if (dc->ctx->dce_version < DCN_VERSION_3_1)
+		return false;
+
+	if (is_specific_oled_panel(link))
 		return false;
 
 	if (!is_psr_su_specific_panel(link))

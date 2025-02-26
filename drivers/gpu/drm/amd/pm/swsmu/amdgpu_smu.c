@@ -694,6 +694,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		renoir_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 		vangogh_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(13, 0, 1):
@@ -739,6 +740,7 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
 	case IP_VERSION(14, 0, 4):
+	case IP_VERSION(14, 0, 5):
 		smu_v14_0_0_set_ppt_funcs(smu);
 		break;
 	case IP_VERSION(14, 0, 2):
@@ -1252,26 +1254,11 @@ static void smu_init_xgmi_plpd_mode(struct smu_context *smu)
 	}
 }
 
-static bool smu_is_workload_profile_available(struct smu_context *smu,
-					      u32 profile)
-{
-	if (profile >= PP_SMC_POWER_PROFILE_COUNT)
-		return false;
-	return smu->workload_map && smu->workload_map[profile].valid_mapping;
-}
-
 static void smu_init_power_profile(struct smu_context *smu)
 {
-	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_UNKNOWN) {
-		if (smu->is_apu ||
-		    !smu_is_workload_profile_available(
-			    smu, PP_SMC_POWER_PROFILE_FULLSCREEN3D))
-			smu->power_profile_mode =
-				PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
-		else
-			smu->power_profile_mode =
-				PP_SMC_POWER_PROFILE_FULLSCREEN3D;
-	}
+	if (smu->power_profile_mode == PP_SMC_POWER_PROFILE_UNKNOWN)
+		smu->power_profile_mode =
+			PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu_power_profile_mode_get(smu, smu->power_profile_mode);
 }
 
@@ -1580,6 +1567,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	case IP_VERSION(11, 0, 7):
 	case IP_VERSION(11, 0, 11):
 	case IP_VERSION(11, 5, 0):
+	case IP_VERSION(11, 5, 2):
 	case IP_VERSION(11, 0, 12):
 		if (adev->in_suspend && smu_is_dpm_running(smu)) {
 			dev_info(adev->dev, "dpm has been enabled\n");
@@ -1933,6 +1921,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 7):
 		case IP_VERSION(11, 0, 11):
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 2):
 		case IP_VERSION(11, 0, 12):
 		case IP_VERSION(11, 0, 13):
 			return 0;
@@ -2802,6 +2791,7 @@ int smu_get_power_limit(void *handle,
 			switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 			case IP_VERSION(13, 0, 2):
 			case IP_VERSION(13, 0, 6):
+			case IP_VERSION(13, 0, 12):
 			case IP_VERSION(13, 0, 14):
 			case IP_VERSION(11, 0, 7):
 			case IP_VERSION(11, 0, 11):

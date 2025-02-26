@@ -21,7 +21,6 @@
  *
  */
 #include "amdgpu.h"
-#include "amdgpu_atombios.h"
 #include "nbif_v6_3_1.h"
 
 #include "nbif/nbif_6_3_1_offset.h"

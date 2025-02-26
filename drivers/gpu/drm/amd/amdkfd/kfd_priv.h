@@ -851,6 +851,8 @@ struct kfd_process_device {
 
 	/* Tracks queue reset status */
 	bool has_reset_queue;
+
+	u32 pasid;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -909,8 +911,6 @@ struct kfd_process {
 
 	/* We want to receive a notification when the mm_struct is destroyed */
 	struct mmu_notifier mmu_notifier;
-
-	u32 pasid;
 
 	/*
 	 * Array of kfd_process_device pointers,
@@ -1039,7 +1039,8 @@ void kfd_process_destroy_wq(void);
 void kfd_cleanup_processes(void);
 struct kfd_process *kfd_create_process(struct task_struct *thread);
 struct kfd_process *kfd_get_process(const struct task_struct *task);
-struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
+struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid,
+						 struct kfd_process_device **pdd);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
@@ -1091,8 +1092,6 @@ struct kfd_process *kfd_lookup_process_by_pid(struct pid *pid);
 /* PASIDs */
 int kfd_pasid_init(void);
 void kfd_pasid_exit(void);
-bool kfd_set_pasid_limit(unsigned int new_limit);
-unsigned int kfd_get_pasid_limit(void);
 u32 kfd_pasid_alloc(void);
 void kfd_pasid_free(u32 pasid);
 
@@ -1142,7 +1141,6 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain_no_lock(
 						uint32_t proximity_domain);
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
-struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t node_id,
 					uint32_t vmid)
 {
@@ -1337,7 +1335,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq);
-int kfd_dqm_evict_pasid(struct device_queue_manager *dqm, u32 pasid);
+int kfd_evict_process_device(struct kfd_process_device *pdd);
 int kfd_dqm_suspend_bad_queue_mes(struct kfd_node *knode, u32 pasid, u32 doorbell_id);
 
 /* Process Queue Manager */
@@ -1492,7 +1490,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
-void kfd_signal_vm_fault_event(struct kfd_node *dev, u32 pasid,
+void kfd_signal_vm_fault_event(struct kfd_process_device *pdd,
 				struct kfd_vm_fault_info *info,
 				struct kfd_hsa_memory_exception_data *data);
 

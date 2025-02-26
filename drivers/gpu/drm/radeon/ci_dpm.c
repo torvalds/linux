@@ -3405,11 +3405,7 @@ static int ci_setup_default_dpm_tables(struct radeon_device *rdev)
 		&rdev->pm.dpm.dyn_state.cac_leakage_table;
 	u32 i;
 
-	if (allowed_sclk_vddc_table == NULL)
-		return -EINVAL;
 	if (allowed_sclk_vddc_table->count < 1)
-		return -EINVAL;
-	if (allowed_mclk_table == NULL)
 		return -EINVAL;
 	if (allowed_mclk_table->count < 1)
 		return -EINVAL;
@@ -3468,24 +3464,20 @@ static int ci_setup_default_dpm_tables(struct radeon_device *rdev)
 	pi->dpm_table.vddc_table.count = allowed_sclk_vddc_table->count;
 
 	allowed_mclk_table = &rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk;
-	if (allowed_mclk_table) {
-		for (i = 0; i < allowed_mclk_table->count; i++) {
-			pi->dpm_table.vddci_table.dpm_levels[i].value =
-				allowed_mclk_table->entries[i].v;
-			pi->dpm_table.vddci_table.dpm_levels[i].enabled = true;
-		}
-		pi->dpm_table.vddci_table.count = allowed_mclk_table->count;
+	for (i = 0; i < allowed_mclk_table->count; i++) {
+		pi->dpm_table.vddci_table.dpm_levels[i].value =
+			allowed_mclk_table->entries[i].v;
+		pi->dpm_table.vddci_table.dpm_levels[i].enabled = true;
 	}
+	pi->dpm_table.vddci_table.count = allowed_mclk_table->count;
 
 	allowed_mclk_table = &rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk;
-	if (allowed_mclk_table) {
-		for (i = 0; i < allowed_mclk_table->count; i++) {
-			pi->dpm_table.mvdd_table.dpm_levels[i].value =
-				allowed_mclk_table->entries[i].v;
-			pi->dpm_table.mvdd_table.dpm_levels[i].enabled = true;
-		}
-		pi->dpm_table.mvdd_table.count = allowed_mclk_table->count;
+	for (i = 0; i < allowed_mclk_table->count; i++) {
+		pi->dpm_table.mvdd_table.dpm_levels[i].value =
+			allowed_mclk_table->entries[i].v;
+		pi->dpm_table.mvdd_table.dpm_levels[i].enabled = true;
 	}
+	pi->dpm_table.mvdd_table.count = allowed_mclk_table->count;
 
 	ci_setup_default_pcie_tables(rdev);
 
@@ -4880,15 +4872,9 @@ static int ci_set_private_data_variables_based_on_pptable(struct radeon_device *
 	struct radeon_clock_voltage_dependency_table *allowed_mclk_vddci_table =
 		&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk;
 
-	if (allowed_sclk_vddc_table == NULL)
-		return -EINVAL;
 	if (allowed_sclk_vddc_table->count < 1)
 		return -EINVAL;
-	if (allowed_mclk_vddc_table == NULL)
-		return -EINVAL;
 	if (allowed_mclk_vddc_table->count < 1)
-		return -EINVAL;
-	if (allowed_mclk_vddci_table == NULL)
 		return -EINVAL;
 	if (allowed_mclk_vddci_table->count < 1)
 		return -EINVAL;

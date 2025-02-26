@@ -606,6 +606,13 @@ struct amdgpu_display_manager {
 	 * Bounding box data read from dmub during early initialization for DCN4+
 	 */
 	struct dml2_soc_bb *bb_from_dmub;
+
+	/**
+	 * @oem_i2c:
+	 *
+	 * OEM i2c bus
+	 */
+	struct amdgpu_i2c_adapter *oem_i2c;
 };
 
 enum dsc_clock_force_state {
@@ -989,7 +996,7 @@ int amdgpu_dm_process_dmub_set_config_sync(struct dc_context *ctx, unsigned int 
 					struct set_config_cmd_payload *payload, enum set_config_status *operation_result);
 
 struct dc_stream_state *
-	create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
+	create_validate_stream_for_sink(struct drm_connector *connector,
 					const struct drm_display_mode *drm_mode,
 					const struct dm_connector_state *dm_state,
 					const struct dc_stream_state *old_stream);

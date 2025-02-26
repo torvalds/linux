@@ -155,6 +155,9 @@ MODULE_FIRMWARE(FIRMWARE_DCN_35_DMUB);
 #define FIRMWARE_DCN_351_DMUB "amdgpu/dcn_3_5_1_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
 
+#define FIRMWARE_DCN_36_DMUB "amdgpu/dcn_3_6_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_36_DMUB);
+
 #define FIRMWARE_DCN_401_DMUB "amdgpu/dcn_4_0_1_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_401_DMUB);
 
@@ -179,6 +182,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev);
 static void amdgpu_dm_fini(struct amdgpu_device *adev);
 static bool is_freesync_video_mode(const struct drm_display_mode *mode, struct amdgpu_dm_connector *aconnector);
 static void reset_freesync_config_for_crtc(struct dm_crtc_state *new_crtc_state);
+static struct amdgpu_i2c_adapter *
+create_i2c(struct ddc_service *ddc_service, bool oem);
 
 static enum drm_mode_subconnector get_subconnector_type(struct dc_link *link)
 {
@@ -1267,6 +1272,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 1, 4):
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(3, 6, 0):
 	case IP_VERSION(4, 0, 1):
 		hw_params.dpia_supported = true;
 		hw_params.disable_dpia = adev->dm.dc->debug.dpia_debug.bits.disable_dpia;
@@ -1278,6 +1284,7 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(3, 6, 0):
 		hw_params.ips_sequential_ono = adev->external_rev_id > 0x10;
 		break;
 	default:
@@ -1832,6 +1839,7 @@ static enum dmub_ips_disable_type dm_get_default_ips_mode(
 
 	switch (amdgpu_ip_version(adev, DCE_HWIP, 0)) {
 	case IP_VERSION(3, 5, 0):
+	case IP_VERSION(3, 6, 0):
 		/*
 		 * On DCN35 systems with Z8 enabled, it's possible for IPS2 + Z8 to
 		 * cause a hard hang. A fix exists for newer PMFW.
@@ -1968,7 +1976,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_device_seamless_boot_supported(adev)) {
 		init_data.flags.seamless_boot_edp_requested = true;
 		init_data.flags.allow_seamless_boot_optimization = true;
-		DRM_INFO("Seamless boot condition check passed\n");
+		drm_dbg(adev->dm.ddev, "Seamless boot requested\n");
 	}
 
 	init_data.flags.enable_mipi_converter_optimization = true;
@@ -2335,6 +2343,7 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 0, 1):
 			return 0;
 		default:
@@ -2459,6 +2468,9 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
 		dmub_asic = DMUB_ASIC_DCN35;
+		break;
+	case IP_VERSION(3, 6, 0):
+		dmub_asic = DMUB_ASIC_DCN36;
 		break;
 	case IP_VERSION(4, 0, 1):
 		dmub_asic = DMUB_ASIC_DCN401;
@@ -2893,6 +2905,33 @@ static int amdgpu_dm_smu_write_watermarks_table(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int dm_oem_i2c_hw_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_display_manager *dm = &adev->dm;
+	struct amdgpu_i2c_adapter *oem_i2c;
+	struct ddc_service *oem_ddc_service;
+	int r;
+
+	oem_ddc_service = dc_get_oem_i2c_device(adev->dm.dc);
+	if (oem_ddc_service) {
+		oem_i2c = create_i2c(oem_ddc_service, true);
+		if (!oem_i2c) {
+			dev_info(adev->dev, "Failed to create oem i2c adapter data\n");
+			return -ENOMEM;
+		}
+
+		r = i2c_add_adapter(&oem_i2c->base);
+		if (r) {
+			dev_info(adev->dev, "Failed to register oem i2c\n");
+			kfree(oem_i2c);
+			return r;
+		}
+		dm->oem_i2c = oem_i2c;
+	}
+
+	return 0;
+}
+
 /**
  * dm_hw_init() - Initialize DC device
  * @ip_block: Pointer to the amdgpu_ip_block for this hw instance.
@@ -2924,6 +2963,10 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
 		return r;
 	amdgpu_dm_hpd_init(adev);
 
+	r = dm_oem_i2c_hw_init(adev);
+	if (r)
+		dev_info(adev->dev, "Failed to add OEM i2c bus\n");
+
 	return 0;
 }
 
@@ -2938,6 +2981,8 @@ static int dm_hw_init(struct amdgpu_ip_block *ip_block)
 static int dm_hw_fini(struct amdgpu_ip_block *ip_block)
 {
 	struct amdgpu_device *adev = ip_block->adev;
+
+	kfree(adev->dm.oem_i2c);
 
 	amdgpu_dm_hpd_fini(adev);
 
@@ -5034,6 +5079,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case IP_VERSION(2, 1, 0):
 	case IP_VERSION(3, 5, 0):
 	case IP_VERSION(3, 5, 1):
+	case IP_VERSION(3, 6, 0):
 	case IP_VERSION(4, 0, 1):
 		if (register_outbox_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -5057,6 +5103,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 0, 1):
 			psr_feature_enabled = true;
 			break;
@@ -5074,6 +5121,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(3, 6, 0):
 			replay_feature_enabled = true;
 			break;
 
@@ -5223,6 +5271,7 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 0, 1):
 			if (dcn10_register_irq_handlers(dm->adev)) {
 				DRM_ERROR("DM: Failed to initialize IRQ\n");
@@ -5365,6 +5414,9 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 	case IP_VERSION(3, 5, 1):
 		fw_name_dmub = FIRMWARE_DCN_351_DMUB;
 		break;
+	case IP_VERSION(3, 6, 0):
+		fw_name_dmub = FIRMWARE_DCN_36_DMUB;
+		break;
 	case IP_VERSION(4, 0, 1):
 		fw_name_dmub = FIRMWARE_DCN_401_DMUB;
 		break;
@@ -5493,6 +5545,7 @@ static int dm_early_init(struct amdgpu_ip_block *ip_block)
 		case IP_VERSION(3, 2, 1):
 		case IP_VERSION(3, 5, 0):
 		case IP_VERSION(3, 5, 1):
+		case IP_VERSION(3, 6, 0):
 		case IP_VERSION(4, 0, 1):
 			adev->mode_info.num_crtc = 4;
 			adev->mode_info.num_hpd = 4;
@@ -5571,9 +5624,9 @@ fill_plane_color_attributes(const struct drm_plane_state *plane_state,
 
 	case DRM_COLOR_YCBCR_BT2020:
 		if (full_range)
-			*color_space = COLOR_SPACE_2020_YCBCR;
+			*color_space = COLOR_SPACE_2020_YCBCR_FULL;
 		else
-			return -EINVAL;
+			*color_space = COLOR_SPACE_2020_YCBCR_LIMITED;
 		break;
 
 	default:
@@ -6069,12 +6122,14 @@ get_output_color_space(const struct dc_crtc_timing *dc_crtc_timing,
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB)
 			color_space = COLOR_SPACE_2020_RGB_FULLRANGE;
 		else
-			color_space = COLOR_SPACE_2020_YCBCR;
+			color_space = COLOR_SPACE_2020_YCBCR_LIMITED;
 		break;
 	case DRM_MODE_COLORIMETRY_DEFAULT: // ITU601
 	default:
 		if (dc_crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB) {
 			color_space = COLOR_SPACE_SRGB;
+			if (connector_state->hdmi.broadcast_rgb == DRM_HDMI_BROADCAST_RGB_LIMITED)
+				color_space = COLOR_SPACE_SRGB_LIMITED;
 		/*
 		 * 27030khz is the separation point between HDTV and SDTV
 		 * according to HDMI spec, we use YCbCr709 and YCbCr601
@@ -7401,12 +7456,12 @@ cleanup:
 }
 
 struct dc_stream_state *
-create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
+create_validate_stream_for_sink(struct drm_connector *connector,
 				const struct drm_display_mode *drm_mode,
 				const struct dm_connector_state *dm_state,
 				const struct dc_stream_state *old_stream)
 {
-	struct drm_connector *connector = &aconnector->base;
+	struct amdgpu_dm_connector *aconnector = NULL;
 	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct dc_stream_state *stream;
 	const struct drm_connector_state *drm_state = dm_state ? &dm_state->base : NULL;
@@ -7417,8 +7472,12 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	if (!dm_state)
 		return NULL;
 
-	if (aconnector->dc_link->connector_signal == SIGNAL_TYPE_HDMI_TYPE_A ||
-	    aconnector->dc_link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER)
+	if (connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK)
+		aconnector = to_amdgpu_dm_connector(connector);
+
+	if (aconnector &&
+	    (aconnector->dc_link->connector_signal == SIGNAL_TYPE_HDMI_TYPE_A ||
+	     aconnector->dc_link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_HDMI_CONVERTER))
 		bpc_limit = 8;
 
 	do {
@@ -7430,10 +7489,11 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			break;
 		}
 
-		if (aconnector->base.connector_type == DRM_MODE_CONNECTOR_WRITEBACK)
+		dc_result = dc_validate_stream(adev->dm.dc, stream);
+
+		if (!aconnector) /* writeback connector */
 			return stream;
 
-		dc_result = dc_validate_stream(adev->dm.dc, stream);
 		if (dc_result == DC_OK && stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 			dc_result = dm_dp_mst_is_port_support_mode(aconnector, stream);
 
@@ -7463,7 +7523,7 @@ create_validate_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				     __func__, __LINE__);
 
 		aconnector->force_yuv420_output = true;
-		stream = create_validate_stream_for_sink(aconnector, drm_mode,
+		stream = create_validate_stream_for_sink(connector, drm_mode,
 						dm_state, old_stream);
 		aconnector->force_yuv420_output = false;
 	}
@@ -7479,6 +7539,9 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 	struct drm_display_mode *test_mode;
 	/* TODO: Unhardcode stream count */
 	struct dc_stream_state *stream;
+	/* we always have an amdgpu_dm_connector here since we got
+	 * here via the amdgpu_dm_connector_helper_funcs
+	 */
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
@@ -7507,7 +7570,7 @@ enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connec
 
 	drm_mode_set_crtcinfo(test_mode, 0);
 
-	stream = create_validate_stream_for_sink(aconnector, test_mode,
+	stream = create_validate_stream_for_sink(connector, test_mode,
 						 to_dm_connector_state(connector->state),
 						 NULL);
 	drm_mode_destroy(connector->dev, test_mode);
@@ -8236,6 +8299,10 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 				dm->ddev->mode_config.scaling_mode_property,
 				DRM_MODE_SCALE_NONE);
 
+	if (connector_type == DRM_MODE_CONNECTOR_HDMIA
+		|| (connector_type == DRM_MODE_CONNECTOR_DisplayPort && !aconnector->mst_root))
+		drm_connector_attach_broadcast_rgb_property(&aconnector->base);
+
 	drm_object_attach_property(&aconnector->base.base,
 				adev->mode_info.underscan_property,
 				UNDERSCAN_OFF);
@@ -8288,7 +8355,7 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 	int i;
 	int result = -EIO;
 
-	if (!ddc_service->ddc_pin || !ddc_service->ddc_pin->hw_info.hw_supported)
+	if (!ddc_service->ddc_pin)
 		return result;
 
 	cmd.payloads = kcalloc(num, sizeof(struct i2c_payload), GFP_KERNEL);
@@ -8307,11 +8374,18 @@ static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
 		cmd.payloads[i].data = msgs[i].buf;
 	}
 
-	if (dc_submit_i2c(
-			ddc_service->ctx->dc,
-			ddc_service->link->link_index,
-			&cmd))
-		result = num;
+	if (i2c->oem) {
+		if (dc_submit_i2c_oem(
+			    ddc_service->ctx->dc,
+			    &cmd))
+			result = num;
+	} else {
+		if (dc_submit_i2c(
+			    ddc_service->ctx->dc,
+			    ddc_service->link->link_index,
+			    &cmd))
+			result = num;
+	}
 
 	kfree(cmd.payloads);
 	return result;
@@ -8328,9 +8402,7 @@ static const struct i2c_algorithm amdgpu_dm_i2c_algo = {
 };
 
 static struct amdgpu_i2c_adapter *
-create_i2c(struct ddc_service *ddc_service,
-	   int link_index,
-	   int *res)
+create_i2c(struct ddc_service *ddc_service, bool oem)
 {
 	struct amdgpu_device *adev = ddc_service->ctx->driver_context;
 	struct amdgpu_i2c_adapter *i2c;
@@ -8341,9 +8413,14 @@ create_i2c(struct ddc_service *ddc_service,
 	i2c->base.owner = THIS_MODULE;
 	i2c->base.dev.parent = &adev->pdev->dev;
 	i2c->base.algo = &amdgpu_dm_i2c_algo;
-	snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c hw bus %d", link_index);
+	if (oem)
+		snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c OEM bus");
+	else
+		snprintf(i2c->base.name, sizeof(i2c->base.name), "AMDGPU DM i2c hw bus %d",
+			 ddc_service->link->link_index);
 	i2c_set_adapdata(&i2c->base, i2c);
 	i2c->ddc_service = ddc_service;
+	i2c->oem = oem;
 
 	return i2c;
 }
@@ -8389,7 +8466,7 @@ static int amdgpu_dm_connector_init(struct amdgpu_display_manager *dm,
 	link->priv = aconnector;
 
 
-	i2c = create_i2c(link->ddc, link->link_index, &res);
+	i2c = create_i2c(link->ddc, false);
 	if (!i2c) {
 		DRM_ERROR("Failed to create i2c adapter data\n");
 		return -ENOMEM;
@@ -9996,7 +10073,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct dc_stream_update stream_update;
 		struct dc_info_packet hdr_packet;
 		struct dc_stream_status *status = NULL;
-		bool abm_changed, hdr_changed, scaling_changed;
+		bool abm_changed, hdr_changed, scaling_changed, output_color_space_changed = false;
 
 		memset(&stream_update, 0, sizeof(stream_update));
 
@@ -10015,13 +10092,18 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		scaling_changed = is_scaling_state_different(dm_new_con_state,
 							     dm_old_con_state);
 
+		if ((new_con_state->hdmi.broadcast_rgb != old_con_state->hdmi.broadcast_rgb) &&
+			(dm_old_crtc_state->stream->output_color_space !=
+				get_output_color_space(&dm_new_crtc_state->stream->timing, new_con_state)))
+			output_color_space_changed = true;
+
 		abm_changed = dm_new_crtc_state->abm_level !=
 			      dm_old_crtc_state->abm_level;
 
 		hdr_changed =
 			!drm_connector_atomic_hdr_metadata_equal(old_con_state, new_con_state);
 
-		if (!scaling_changed && !abm_changed && !hdr_changed)
+		if (!scaling_changed && !abm_changed && !hdr_changed && !output_color_space_changed)
 			continue;
 
 		stream_update.stream = dm_new_crtc_state->stream;
@@ -10031,6 +10113,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 			stream_update.src = dm_new_crtc_state->stream->src;
 			stream_update.dst = dm_new_crtc_state->stream->dst;
+		}
+
+		if (output_color_space_changed) {
+			dm_new_crtc_state->stream->output_color_space
+				= get_output_color_space(&dm_new_crtc_state->stream->timing, new_con_state);
+
+			stream_update.output_color_space = &dm_new_crtc_state->stream->output_color_space;
 		}
 
 		if (abm_changed) {
@@ -10533,7 +10622,7 @@ static int dm_update_crtc_state(struct amdgpu_display_manager *dm,
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
 			goto skip_modeset;
 
-		new_stream = create_validate_stream_for_sink(aconnector,
+		new_stream = create_validate_stream_for_sink(connector,
 							     &new_crtc_state->mode,
 							     dm_new_conn_state,
 							     dm_old_crtc_state->stream);

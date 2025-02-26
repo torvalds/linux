@@ -972,52 +972,6 @@ void dcn401_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
 	REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, enable);
 }
 
-static bool dcn401_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
-{
-	struct pipe_ctx *test_pipe, *split_pipe;
-	const struct scaler_data *scl_data = &pipe_ctx->plane_res.scl_data;
-	struct rect r1 = scl_data->recout, r2, r2_half;
-	int r1_r = r1.x + r1.width, r1_b = r1.y + r1.height, r2_r, r2_b;
-	int cur_layer = pipe_ctx->plane_state->layer_index;
-
-	/**
-	 * Disable the cursor if there's another pipe above this with a
-	 * plane that contains this pipe's viewport to prevent double cursor
-	 * and incorrect scaling artifacts.
-	 */
-	for (test_pipe = pipe_ctx->top_pipe; test_pipe;
-		test_pipe = test_pipe->top_pipe) {
-		// Skip invisible layer and pipe-split plane on same layer
-		if (!test_pipe->plane_state ||
-			!test_pipe->plane_state->visible ||
-			test_pipe->plane_state->layer_index == cur_layer)
-			continue;
-
-		r2 = test_pipe->plane_res.scl_data.recout;
-		r2_r = r2.x + r2.width;
-		r2_b = r2.y + r2.height;
-
-		/**
-		 * There is another half plane on same layer because of
-		 * pipe-split, merge together per same height.
-		 */
-		for (split_pipe = pipe_ctx->top_pipe; split_pipe;
-			split_pipe = split_pipe->top_pipe)
-			if (split_pipe->plane_state->layer_index == test_pipe->plane_state->layer_index) {
-				r2_half = split_pipe->plane_res.scl_data.recout;
-				r2.x = (r2_half.x < r2.x) ? r2_half.x : r2.x;
-				r2.width = r2.width + r2_half.width;
-				r2_r = r2.x + r2.width;
-				break;
-			}
-
-		if (r1.x >= r2.x && r1.y >= r2.y && r1_r <= r2_r && r1_b <= r2_b)
-			return true;
-	}
-
-	return false;
-}
-
 void adjust_hotspot_between_slices_for_2x_magnify(uint32_t cursor_width, struct dc_cursor_position *pos_cpy)
 {
 	if (cursor_width <= 128) {
@@ -1208,7 +1162,7 @@ void dcn401_set_cursor_position(struct pipe_ctx *pipe_ctx)
 	pos_cpy.x = (uint32_t)x_pos;
 	pos_cpy.y = (uint32_t)y_pos;
 
-	if (pos_cpy.enable && dcn401_can_pipe_disable_cursor(pipe_ctx))
+	if (pos_cpy.enable && resource_can_pipe_disable_cursor(pipe_ctx))
 		pos_cpy.enable = false;
 
 	x_pos = pos_cpy.x - param.recout.x;
@@ -1980,7 +1934,7 @@ static void dcn401_program_tg(
 		hws->funcs.setup_vupdate_interrupt(dc, pipe_ctx);
 }
 
-static void dcn401_program_pipe(
+void dcn401_program_pipe(
 	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct dc_state *context)
@@ -2655,4 +2609,38 @@ void dcn401_detect_pipe_changes(struct dc_state *old_state,
 		&new_pipe->stream_res.test_pattern_params, sizeof(struct test_pattern_params))) {
 		new_pipe->update_flags.bits.test_pattern_changed = 1;
 	}
+}
+
+void dcn401_plane_atomic_power_down(struct dc *dc,
+		struct dpp *dpp,
+		struct hubp *hubp)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	uint32_t org_ip_request_cntl = 0;
+
+	DC_LOGGER_INIT(dc->ctx->logger);
+
+	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 1);
+
+	if (hws->funcs.dpp_pg_control)
+		hws->funcs.dpp_pg_control(hws, dpp->inst, false);
+
+	if (hws->funcs.hubp_pg_control)
+		hws->funcs.hubp_pg_control(hws, hubp->inst, false);
+
+	hubp->funcs->hubp_reset(hubp);
+	dpp->funcs->dpp_reset(dpp);
+
+	if (org_ip_request_cntl == 0)
+		REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 0);
+
+	DC_LOG_DEBUG(
+			"Power gated front end %d\n", hubp->inst);
+
+	if (hws->funcs.dpp_root_clock_control)
+		hws->funcs.dpp_root_clock_control(hws, dpp->inst, false);
 }

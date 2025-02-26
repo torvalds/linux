@@ -70,35 +70,7 @@ struct optc {
 	enum signal_type signal;
 };
 
-struct dcn_otg_state {
-	uint32_t v_blank_start;
-	uint32_t v_blank_end;
-	uint32_t v_sync_a_pol;
-	uint32_t v_total;
-	uint32_t v_total_max;
-	uint32_t v_total_min;
-	uint32_t v_total_min_sel;
-	uint32_t v_total_max_sel;
-	uint32_t v_sync_a_start;
-	uint32_t v_sync_a_end;
-	uint32_t h_blank_start;
-	uint32_t h_blank_end;
-	uint32_t h_sync_a_start;
-	uint32_t h_sync_a_end;
-	uint32_t h_sync_a_pol;
-	uint32_t h_total;
-	uint32_t underflow_occurred_status;
-	uint32_t otg_enabled;
-	uint32_t blank_enabled;
-	uint32_t vertical_interrupt1_en;
-	uint32_t vertical_interrupt1_line;
-	uint32_t vertical_interrupt2_en;
-	uint32_t vertical_interrupt2_line;
-	uint32_t otg_master_update_lock;
-	uint32_t otg_double_buffer_control;
-};
-
-void optc1_read_otg_state(struct optc *optc1, struct dcn_otg_state *s);
+void optc1_read_otg_state(struct timing_generator *optc, struct dcn_otg_state *s);
 
 bool optc1_get_hw_timing(struct timing_generator *tg, struct dc_crtc_timing *hw_crtc_timing);
 
