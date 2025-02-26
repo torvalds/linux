@@ -2218,9 +2218,10 @@ static int bch2_fs_get_tree(struct fs_context *fc)
 
 	bch2_opts_apply(&c->opts, opts);
 
-	ret = bch2_fs_start(c);
-	if (ret)
-		goto err_stop_fs;
+	/*
+	 * need to initialise sb and set c->vfs_sb _before_ starting fs,
+	 * for blk_holder_ops
+	 */
 
 	sb = sget(fc->fs_type, NULL, bch2_set_super, fc->sb_flags|SB_NOSEC, c);
 	ret = PTR_ERR_OR_ZERO(sb);
@@ -2281,6 +2282,10 @@ got_sb:
 #endif
 
 	sb->s_shrink->seeks = 0;
+
+	ret = bch2_fs_start(c);
+	if (ret)
+		goto err_put_super;
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
 	ret = PTR_ERR_OR_ZERO(vinode);
