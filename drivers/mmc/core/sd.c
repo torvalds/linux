@@ -11,6 +11,7 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/string.h>
 #include <linux/pm_runtime.h>
 #include <linux/random.h>
 #include <linux/scatterlist.h>
@@ -95,6 +96,9 @@ void mmc_decode_cid(struct mmc_card *card)
 	card->cid.month			= unstuff_bits(resp, 8, 4);
 
 	card->cid.year += 2000; /* SD cards year offset */
+
+	/* some product names may include trailing whitespace */
+	strim(card->cid.prod_name);
 }
 
 /*
