@@ -203,14 +203,6 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 	struct iovec *iov;
 	int ret, nr_segs;
 
-	if (iomsg->free_iov) {
-		nr_segs = iomsg->free_iov_nr;
-		iov = iomsg->free_iov;
-	} else {
-		iov = &iomsg->fast_iov;
-		nr_segs = 1;
-	}
-
 	if (copy_from_user(msg, sr->umsg_compat, sizeof(*msg)))
 		return -EFAULT;
 
@@ -221,8 +213,7 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 	uiov = compat_ptr(msg->msg_iov);
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		if (msg->msg_iovlen == 0) {
-			sr->len = iov->iov_len = 0;
-			iov->iov_base = NULL;
+			sr->len = 0;
 		} else if (msg->msg_iovlen > 1) {
 			return -EINVAL;
 		} else {
@@ -234,6 +225,14 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 		}
 
 		return 0;
+	}
+
+	if (iomsg->free_iov) {
+		nr_segs = iomsg->free_iov_nr;
+		iov = iomsg->free_iov;
+	} else {
+		iov = &iomsg->fast_iov;
+		nr_segs = 1;
 	}
 
 	ret = __import_iovec(ddir, (struct iovec __user *)uiov, msg->msg_iovlen,
@@ -273,14 +272,6 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 	struct iovec *iov;
 	int ret, nr_segs;
 
-	if (iomsg->free_iov) {
-		nr_segs = iomsg->free_iov_nr;
-		iov = iomsg->free_iov;
-	} else {
-		iov = &iomsg->fast_iov;
-		nr_segs = 1;
-	}
-
 	ret = io_copy_msghdr_from_user(msg, umsg);
 	if (unlikely(ret))
 		return ret;
@@ -293,18 +284,26 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		if (msg->msg_iovlen == 0) {
-			sr->len = iov->iov_len = 0;
-			iov->iov_base = NULL;
+			sr->len = 0;
 		} else if (msg->msg_iovlen > 1) {
 			return -EINVAL;
 		} else {
 			struct iovec __user *uiov = msg->msg_iov;
+			struct iovec tmp_iov;
 
-			if (copy_from_user(iov, uiov, sizeof(*iov)))
+			if (copy_from_user(&tmp_iov, uiov, sizeof(tmp_iov)))
 				return -EFAULT;
-			sr->len = iov->iov_len;
+			sr->len = tmp_iov.iov_len;
 		}
 		return 0;
+	}
+
+	if (iomsg->free_iov) {
+		nr_segs = iomsg->free_iov_nr;
+		iov = iomsg->free_iov;
+	} else {
+		iov = &iomsg->fast_iov;
+		nr_segs = 1;
 	}
 
 	ret = __import_iovec(ddir, msg->msg_iov, msg->msg_iovlen, nr_segs,
