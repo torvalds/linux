@@ -13,10 +13,8 @@
 #include <sys/auxv.h>
 #include <sys/mman.h>
 #include <sys/shm.h>
-#include <sys/ptrace.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
-#include <sys/uio.h>
 
 #include "helpers.h"
 #include "xstate.h"
@@ -31,8 +29,6 @@
 #define XFEATURE_MASK_XTILECFG	(1 << XFEATURE_XTILECFG)
 #define XFEATURE_MASK_XTILEDATA	(1 << XFEATURE_XTILEDATA)
 #define XFEATURE_MASK_XTILE	(XFEATURE_MASK_XTILECFG | XFEATURE_MASK_XTILEDATA)
-
-static uint32_t xbuf_size;
 
 struct xstate_info xtiledata;
 
@@ -152,13 +148,6 @@ static inline bool load_rand_tiledata(struct xsave_buffer *xbuf)
 	set_xstatebv(xbuf, XFEATURE_MASK_XTILEDATA);
 	set_rand_data(&xtiledata, xbuf);
 	return xrstor_safe(xbuf, XFEATURE_MASK_XTILEDATA);
-}
-
-/* Return XTILEDATA to its initial configuration. */
-static inline void init_xtiledata(void)
-{
-	clear_xstate_header(stashed_xsave);
-	xrstor_safe(stashed_xsave, XFEATURE_MASK_XTILEDATA);
 }
 
 enum expected_result { FAIL_EXPECTED, SUCCESS_EXPECTED };
@@ -489,99 +478,6 @@ static void test_fork(void)
 	_exit(0);
 }
 
-/* Ptrace test */
-
-/*
- * Make sure the ptracee has the expanded kernel buffer on the first
- * use. Then, initialize the state before performing the state
- * injection from the ptracer.
- */
-static inline void ptracee_firstuse_tiledata(void)
-{
-	load_rand_tiledata(stashed_xsave);
-	init_xtiledata();
-}
-
-/*
- * Ptracer injects the randomized tile data state. It also reads
- * before and after that, which will execute the kernel's state copy
- * functions. So, the tester is advised to double-check any emitted
- * kernel messages.
- */
-static void ptracer_inject_tiledata(pid_t target)
-{
-	struct xsave_buffer *xbuf;
-	struct iovec iov;
-
-	xbuf = alloc_xbuf();
-	if (!xbuf)
-		fatal_error("unable to allocate XSAVE buffer");
-
-	printf("\tRead the init'ed tiledata via ptrace().\n");
-
-	iov.iov_base = xbuf;
-	iov.iov_len = xbuf_size;
-
-	memset(stashed_xsave, 0, xbuf_size);
-
-	if (ptrace(PTRACE_GETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
-		fatal_error("PTRACE_GETREGSET");
-
-	if (!__compare_tiledata_state(stashed_xsave, xbuf))
-		printf("[OK]\tThe init'ed tiledata was read from ptracee.\n");
-	else
-		printf("[FAIL]\tThe init'ed tiledata was not read from ptracee.\n");
-
-	printf("\tInject tiledata via ptrace().\n");
-
-	load_rand_tiledata(xbuf);
-
-	memcpy(&stashed_xsave->bytes[xtiledata.xbuf_offset],
-	       &xbuf->bytes[xtiledata.xbuf_offset],
-	       xtiledata.size);
-
-	if (ptrace(PTRACE_SETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
-		fatal_error("PTRACE_SETREGSET");
-
-	if (ptrace(PTRACE_GETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
-		fatal_error("PTRACE_GETREGSET");
-
-	if (!__compare_tiledata_state(stashed_xsave, xbuf))
-		printf("[OK]\tTiledata was correctly written to ptracee.\n");
-	else
-		printf("[FAIL]\tTiledata was not correctly written to ptracee.\n");
-}
-
-static void test_ptrace(void)
-{
-	pid_t child;
-	int status;
-
-	child = fork();
-	if (child < 0) {
-		err(1, "fork");
-	} else if (!child) {
-		if (ptrace(PTRACE_TRACEME, 0, NULL, NULL))
-			err(1, "PTRACE_TRACEME");
-
-		ptracee_firstuse_tiledata();
-
-		raise(SIGTRAP);
-		_exit(0);
-	}
-
-	do {
-		wait(&status);
-	} while (WSTOPSIG(status) != SIGTRAP);
-
-	ptracer_inject_tiledata(child);
-
-	ptrace(PTRACE_DETACH, child, NULL, NULL);
-	wait(&status);
-	if (!WIFEXITED(status) || WEXITSTATUS(status))
-		err(1, "ptrace test");
-}
-
 int main(void)
 {
 	const unsigned int ctxtsw_num_threads = 5, ctxtsw_iterations = 10;
@@ -593,8 +489,6 @@ int main(void)
 		ksft_print_msg("no AMX support\n");
 		return KSFT_SKIP;
 	}
-
-	xbuf_size = get_xbuf_size();
 
 	xtiledata = get_xstate_info(XFEATURE_XTILEDATA);
 	if (!xtiledata.size || !xtiledata.xbuf_offset) {
@@ -614,7 +508,7 @@ int main(void)
 
 	test_context_switch(XFEATURE_XTILEDATA, ctxtsw_num_threads, ctxtsw_iterations);
 
-	test_ptrace();
+	test_ptrace(XFEATURE_XTILEDATA);
 
 	clearhandler(SIGILL);
 	free_stashed_xsave();

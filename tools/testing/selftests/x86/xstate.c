@@ -2,11 +2,24 @@
 
 #define _GNU_SOURCE
 
+#include <elf.h>
 #include <pthread.h>
 #include <stdbool.h>
 
+#include <sys/ptrace.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+
 #include "helpers.h"
 #include "xstate.h"
+
+static inline uint64_t xgetbv(uint32_t index)
+{
+	uint32_t eax, edx;
+
+	asm volatile("xgetbv" : "=a" (eax), "=d" (edx) : "c" (index));
+	return eax + ((uint64_t)edx << 32);
+}
 
 static struct xstate_info xstate;
 
@@ -25,6 +38,19 @@ static inline void load_rand_xstate(struct xstate_info *xstate, struct xsave_buf
 	set_xstatebv(xbuf, xstate->mask);
 	set_rand_data(xstate, xbuf);
 	xrstor(xbuf, xstate->mask);
+}
+
+static inline void load_init_xstate(struct xstate_info *xstate, struct xsave_buffer *xbuf)
+{
+	clear_xstate_header(xbuf);
+	xrstor(xbuf, xstate->mask);
+}
+
+static inline void copy_xstate(struct xsave_buffer *xbuf_dst, struct xsave_buffer *xbuf_src)
+{
+	memcpy(&xbuf_dst->bytes[xstate.xbuf_offset],
+	       &xbuf_src->bytes[xstate.xbuf_offset],
+	       xstate.size);
 }
 
 static inline bool validate_xstate_same(struct xsave_buffer *xbuf1, struct xsave_buffer *xbuf2)
@@ -195,4 +221,107 @@ void test_context_switch(uint32_t feature_num, uint32_t num_threads, uint32_t it
 		printf("[FAIL]\tFailed with context switching test.\n");
 
 	free(finfo);
+}
+
+/*
+ * Ptrace test for the ABI format as described in arch/x86/include/asm/user.h
+ */
+
+/*
+ * Make sure the ptracee has the expanded kernel buffer on the first use.
+ * Then, initialize the state before performing the state injection from
+ * the ptracer. For non-dynamic states, this is benign.
+ */
+static inline void ptracee_touch_xstate(void)
+{
+	struct xsave_buffer *xbuf;
+
+	xbuf = alloc_xbuf();
+
+	load_rand_xstate(&xstate, xbuf);
+	load_init_xstate(&xstate, xbuf);
+
+	free(xbuf);
+}
+
+/*
+ * Ptracer injects the randomized xstate data. It also reads before and
+ * after that, which will execute the kernel's state copy functions.
+ */
+static void ptracer_inject_xstate(pid_t target)
+{
+	uint32_t xbuf_size = get_xbuf_size();
+	struct xsave_buffer *xbuf1, *xbuf2;
+	struct iovec iov;
+
+	/*
+	 * Allocate buffers to keep data while ptracer can write the
+	 * other buffer
+	 */
+	xbuf1 = alloc_xbuf();
+	xbuf2 = alloc_xbuf();
+	if (!xbuf1 || !xbuf2)
+		ksft_exit_fail_msg("unable to allocate XSAVE buffer\n");
+
+	iov.iov_base = xbuf1;
+	iov.iov_len  = xbuf_size;
+
+	if (ptrace(PTRACE_GETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
+		ksft_exit_fail_msg("PTRACE_GETREGSET failed\n");
+
+	printf("[RUN]\t%s: inject xstate via ptrace().\n", xstate.name);
+
+	load_rand_xstate(&xstate, xbuf1);
+	copy_xstate(xbuf2, xbuf1);
+
+	if (ptrace(PTRACE_SETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
+		ksft_exit_fail_msg("PTRACE_SETREGSET failed\n");
+
+	if (ptrace(PTRACE_GETREGSET, target, (uint32_t)NT_X86_XSTATE, &iov))
+		ksft_exit_fail_msg("PTRACE_GETREGSET failed\n");
+
+	if (*(uint64_t *)get_fpx_sw_bytes(xbuf1) == xgetbv(0))
+		printf("[OK]\t'xfeatures' in SW reserved area was correctly written\n");
+	else
+		printf("[FAIL]\t'xfeatures' in SW reserved area was not correctly written\n");
+
+	if (validate_xstate_same(xbuf2, xbuf1))
+		printf("[OK]\txstate was correctly updated.\n");
+	else
+		printf("[FAIL]\txstate was not correctly updated.\n");
+
+	free(xbuf1);
+	free(xbuf2);
+}
+
+void test_ptrace(uint32_t feature_num)
+{
+	pid_t child;
+	int status;
+
+	xstate = get_xstate_info(feature_num);
+
+	child = fork();
+	if (child < 0) {
+		ksft_exit_fail_msg("fork() failed\n");
+	} else if (!child) {
+		if (ptrace(PTRACE_TRACEME, 0, NULL, NULL))
+			ksft_exit_fail_msg("PTRACE_TRACEME failed\n");
+
+		ptracee_touch_xstate();
+
+		raise(SIGTRAP);
+		_exit(0);
+	}
+
+	do {
+		wait(&status);
+	} while (WSTOPSIG(status) != SIGTRAP);
+
+	ptracer_inject_xstate(child);
+
+	ptrace(PTRACE_DETACH, child, NULL, NULL);
+	wait(&status);
+	if (!WIFEXITED(status) || WEXITSTATUS(status))
+		ksft_exit_fail_msg("ptracee exit error\n");
 }
