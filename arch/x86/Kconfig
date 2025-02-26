@@ -549,12 +549,12 @@ config X86_EXTENDED_PLATFORM
 		RDC R-321x SoC
 		SGI 320/540 (Visual Workstation)
 		STA2X11-based (e.g. Northville)
-		Moorestown MID devices
 
 	  64-bit platforms (CONFIG_64BIT=y):
 		Numascale NumaChip
 		ScaleMP vSMP
 		SGI Ultraviolet
+		Merrifield/Moorefield MID devices
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
@@ -599,8 +599,31 @@ config X86_UV
 	  This option is needed in order to support SGI Ultraviolet systems.
 	  If you don't have one of these, you should say N here.
 
-# Following is an alphabetically sorted list of 32 bit extended platforms
-# Please maintain the alphabetic order if and when there are additions
+config X86_INTEL_MID
+	bool "Intel Z34xx/Z35xx MID platform support"
+	depends on X86_EXTENDED_PLATFORM
+	depends on X86_PLATFORM_DEVICES
+	depends on PCI
+	depends on X86_64 || (EXPERT && PCI_GOANY)
+	depends on X86_IO_APIC
+	select I2C
+	select DW_APB_TIMER
+	select INTEL_SCU_PCI
+	help
+	  Select to build a kernel capable of supporting 64-bit Intel MID
+	  (Mobile Internet Device) platform systems which do not have
+	  the PCI legacy interfaces.
+
+	  The only supported devices are the 22nm Merrified (Z34xx)
+	  and Moorefield (Z35xx) SoC used in the Intel Edison board and
+	  a small number of Android devices such as the Asus Zenfone 2,
+	  Asus FonePad 8 and Dell Venue 7.
+
+	  If you are building for a PC class system or non-MID tablet
+	  SoCs like Bay Trail (Z36xx/Z37xx), say N here.
+
+	  Intel MID platforms are based on an Intel processor and chipset which
+	  consume less power than most of the x86 derivatives.
 
 config X86_GOLDFISH
 	bool "Goldfish (Virtual Platform)"
@@ -609,6 +632,9 @@ config X86_GOLDFISH
 	  Enable support for the Goldfish virtual platform used primarily
 	  for Android development. Unless you are building for the Android
 	  Goldfish emulator say N here.
+
+# Following is an alphabetically sorted list of 32 bit extended platforms
+# Please maintain the alphabetic order if and when there are additions
 
 config X86_INTEL_CE
 	bool "CE4100 TV platform"
@@ -624,24 +650,6 @@ config X86_INTEL_CE
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
 	  boxes and media devices.
-
-config X86_INTEL_MID
-	bool "Intel MID platform support"
-	depends on X86_EXTENDED_PLATFORM
-	depends on X86_PLATFORM_DEVICES
-	depends on PCI
-	depends on X86_64 || (PCI_GOANY && X86_32)
-	depends on X86_IO_APIC
-	select I2C
-	select DW_APB_TIMER
-	select INTEL_SCU_PCI
-	help
-	  Select to build a kernel capable of supporting Intel MID (Mobile
-	  Internet Device) platform systems which do not have the PCI legacy
-	  interfaces. If you are building for a PC class system say N here.
-
-	  Intel MID platforms are based on an Intel processor and chipset which
-	  consume less power than most of the x86 derivatives.
 
 config X86_INTEL_QUARK
 	bool "Intel Quark platform support"
