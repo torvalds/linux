@@ -40,6 +40,31 @@ properties:
           - const: atmel,at91sam9260
           - const: atmel,at91sam9
 
+      - description: Calao USB A9260
+        items:
+          - const: calao,usb-a9260
+          - const: atmel,at91sam9260
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9263
+        items:
+          - const: calao,usb-a9263
+          - const: atmel,at91sam9263
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9G20
+        items:
+          - const: calao,usb-a9g20
+          - const: atmel,at91sam9g20
+          - const: atmel,at91sam9
+
+      - description: Calao USB A9G20-LPW
+        items:
+          - const: calao,usb-a9g20-lpw
+          - const: calao,usb-a9g20
+          - const: atmel,at91sam9g20
+          - const: atmel,at91sam9
+
       - items:
           - enum:
               - overkiz,kizboxmini-base # Overkiz kizbox Mini Base Board
