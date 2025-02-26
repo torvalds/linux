@@ -738,9 +738,6 @@ static void restore_exclusive_pte(struct vm_area_struct *vma,
 			pte = pte_mkdirty(pte);
 		pte = pte_mkwrite(pte, vma);
 	}
-
-	VM_BUG_ON_FOLIO(pte_write(pte) && (!folio_test_anon(folio) &&
-					   PageAnonExclusive(page)), folio);
 	set_pte_at(vma->vm_mm, address, ptep, pte);
 
 	/*
