@@ -7,9 +7,10 @@
 static struct lock_class_key bch2_btree_node_lock_key;
 
 void bch2_btree_lock_init(struct btree_bkey_cached_common *b,
-			  enum six_lock_init_flags flags)
+			  enum six_lock_init_flags flags,
+			  gfp_t gfp)
 {
-	__six_lock_init(&b->lock, "b->c.lock", &bch2_btree_node_lock_key, flags);
+	__six_lock_init(&b->lock, "b->c.lock", &bch2_btree_node_lock_key, flags, gfp);
 	lockdep_set_notrack_class(&b->lock);
 }
 
