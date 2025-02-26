@@ -8,6 +8,7 @@
 
 #include "xe_gt_types.h"
 
+int xe_eu_stall_init(struct xe_gt *gt);
 int xe_eu_stall_stream_open(struct drm_device *dev,
 			    u64 data,
 			    struct drm_file *file);

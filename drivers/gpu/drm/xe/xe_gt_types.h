@@ -430,6 +430,9 @@ struct xe_gt {
 
 	/** @oa: oa observation subsystem per gt info */
 	struct xe_oa_gt oa;
+
+	/** @eu_stall: EU stall counters subsystem per gt info */
+	struct xe_eu_stall_gt *eu_stall;
 };
 
 #endif
