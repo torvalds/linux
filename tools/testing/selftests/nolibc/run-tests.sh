@@ -25,6 +25,7 @@ all_archs=(
 	riscv32 riscv64
 	s390x s390
 	loongarch
+	sparc32 sparc64
 )
 archs="${all_archs[@]}"
 
@@ -111,6 +112,7 @@ crosstool_arch() {
 	loongarch) echo loongarch64;;
 	mips*) echo mips;;
 	s390*) echo s390;;
+	sparc*) echo sparc64;;
 	*) echo "$1";;
 	esac
 }
