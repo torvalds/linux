@@ -2598,15 +2598,15 @@ static void rt5668_i2c_shutdown(struct i2c_client *client)
 #ifdef CONFIG_OF
 static const struct of_device_id rt5668_of_match[] = {
 	{.compatible = "realtek,rt5668b"},
-	{},
+	{ }
 };
 MODULE_DEVICE_TABLE(of, rt5668_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id rt5668_acpi_match[] = {
-	{"10EC5668", 0,},
-	{},
+	{ "10EC5668" },
+	{ }
 };
 MODULE_DEVICE_TABLE(acpi, rt5668_acpi_match);
 #endif
