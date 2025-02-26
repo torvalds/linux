@@ -30,6 +30,7 @@ all_files := \
 		crt.h \
 		ctype.h \
 		errno.h \
+		limits.h \
 		nolibc.h \
 		signal.h \
 		stackprotector.h \
