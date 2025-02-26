@@ -15,6 +15,8 @@
 #include <asm/ptrace-abi.h>
 #include <sys/auxv.h>
 
+#include "helpers.h"
+
 /* Bitness-agnostic defines for user_regs_struct fields. */
 #ifdef __x86_64__
 # define user_syscall_nr	orig_rax
@@ -93,34 +95,12 @@ static siginfo_t wait_trap(pid_t chld)
 	return si;
 }
 
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
 static void setsigign(int sig, int flags)
 {
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_sigaction = (void *)SIG_IGN;
 	sa.sa_flags = flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
-
-static void clearhandler(int sig)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
 	sigemptyset(&sa.sa_mask);
 	if (sigaction(sig, &sa, 0))
 		err(1, "sigaction");

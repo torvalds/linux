@@ -18,6 +18,7 @@
 #include <sys/wait.h>
 
 #include "../kselftest.h" /* For __cpuid_count() */
+#include "helpers.h"
 
 static inline int xsave_enabled(void)
 {
@@ -27,19 +28,6 @@ static inline int xsave_enabled(void)
 
 	/* Is CR4.OSXSAVE enabled ? */
 	return ecx & (1U << 27);
-}
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
 }
 
 static void sigusr1(int sig, siginfo_t *info, void *uc_void)

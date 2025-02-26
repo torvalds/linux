@@ -20,6 +20,7 @@
 #include <sys/uio.h>
 
 #include "../kselftest.h" /* For __cpuid_count() */
+#include "helpers.h"
 
 #ifndef __x86_64__
 # error This test is 64-bit only
@@ -60,30 +61,6 @@ static inline void xrstor(struct xsave_buffer *xbuf, uint64_t rfbm)
 
 /* err() exits and will not return */
 #define fatal_error(msg, ...)	err(1, "[FAIL]\t" msg, ##__VA_ARGS__)
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		fatal_error("sigaction");
-}
-
-static void clearhandler(int sig)
-{
-	struct sigaction sa;
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_handler = SIG_DFL;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		fatal_error("sigaction");
-}
 
 #define XFEATURE_XTILECFG	17
 #define XFEATURE_XTILEDATA	18
