@@ -824,6 +824,21 @@ static int match_free_decoder(struct device *dev, const void *data)
 	return 1;
 }
 
+static bool region_res_match_cxl_range(const struct cxl_region_params *p,
+				       struct range *range)
+{
+	if (!p->res)
+		return false;
+
+	/*
+	 * If an extended linear cache region then the CXL range is assumed
+	 * to be fronted by the DRAM range in current known implementation.
+	 * This assumption will be made until a variant implementation exists.
+	 */
+	return p->res->start + p->cache_size == range->start &&
+		p->res->end == range->end;
+}
+
 static int match_auto_decoder(struct device *dev, const void *data)
 {
 	const struct cxl_region_params *p = data;
@@ -836,7 +851,7 @@ static int match_auto_decoder(struct device *dev, const void *data)
 	cxld = to_cxl_decoder(dev);
 	r = &cxld->hpa_range;
 
-	if (p->res && p->res->start == r->start && p->res->end == r->end)
+	if (region_res_match_cxl_range(p, r))
 		return 1;
 
 	return 0;
@@ -1424,8 +1439,7 @@ static int cxl_port_setup_targets(struct cxl_port *port,
 	if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 		if (cxld->interleave_ways != iw ||
 		    cxld->interleave_granularity != ig ||
-		    cxld->hpa_range.start != p->res->start ||
-		    cxld->hpa_range.end != p->res->end ||
+		    !region_res_match_cxl_range(p, &cxld->hpa_range) ||
 		    ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)) {
 			dev_err(&cxlr->dev,
 				"%s:%s %s expected iw: %d ig: %d %pr\n",
@@ -1951,13 +1965,13 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		return -ENXIO;
 	}
 
-	if (resource_size(cxled->dpa_res) * p->interleave_ways !=
+	if (resource_size(cxled->dpa_res) * p->interleave_ways + p->cache_size !=
 	    resource_size(p->res)) {
 		dev_dbg(&cxlr->dev,
-			"%s:%s: decoder-size-%#llx * ways-%d != region-size-%#llx\n",
+			"%s:%s-size-%#llx * ways-%d + cache-%#llx != region-size-%#llx\n",
 			dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
 			(u64)resource_size(cxled->dpa_res), p->interleave_ways,
-			(u64)resource_size(p->res));
+			(u64)p->cache_size, (u64)resource_size(p->res));
 		return -EINVAL;
 	}
 
@@ -2921,7 +2935,7 @@ u64 cxl_dpa_to_hpa(struct cxl_region *cxlr, const struct cxl_memdev *cxlmd,
 	hpa_offset |= dpa_offset & GENMASK_ULL(eig + 7, 0);
 
 	/* Apply the hpa_offset to the region base address */
-	hpa = hpa_offset + p->res->start;
+	hpa = hpa_offset + p->res->start + p->cache_size;
 
 	/* Root decoder translation overrides typical modulo decode */
 	if (cxlrd->hpa_to_spa)
@@ -3224,6 +3238,52 @@ static int match_region_by_range(struct device *dev, const void *data)
 	return rc;
 }
 
+static int cxl_extended_linear_cache_resize(struct cxl_region *cxlr,
+					    struct resource *res)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(cxlr->dev.parent);
+	struct cxl_region_params *p = &cxlr->params;
+	int nid = phys_to_target_node(res->start);
+	resource_size_t size, cache_size, start;
+	int rc;
+
+	size = resource_size(res);
+	if (!size)
+		return -EINVAL;
+
+	rc = cxl_acpi_get_extended_linear_cache_size(res, nid, &cache_size);
+	if (rc)
+		return rc;
+
+	if (!cache_size)
+		return 0;
+
+	if (size != cache_size) {
+		dev_warn(&cxlr->dev,
+			 "Extended Linear Cache size %#lld != CXL size %#lld. No Support!",
+			 cache_size, size);
+		return -EOPNOTSUPP;
+	}
+
+	/*
+	 * Move the start of the range to where the cache range starts. The
+	 * implementation assumes that the cache range is in front of the
+	 * CXL range. This is not dictated by the HMAT spec but is how the
+	 * current known implementation is configured.
+	 *
+	 * The cache range is expected to be within the CFMWS. The adjusted
+	 * res->start should not be less than cxlrd->res->start.
+	 */
+	start = res->start - cache_size;
+	if (start < cxlrd->res->start)
+		return -ENXIO;
+
+	res->start = start;
+	p->cache_size = cache_size;
+
+	return 0;
+}
+
 /* Establish an empty region covering the given HPA range */
 static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 					   struct cxl_endpoint_decoder *cxled)
@@ -3270,6 +3330,18 @@ static struct cxl_region *construct_region(struct cxl_root_decoder *cxlrd,
 
 	*res = DEFINE_RES_MEM_NAMED(hpa->start, range_len(hpa),
 				    dev_name(&cxlr->dev));
+
+	rc = cxl_extended_linear_cache_resize(cxlr, res);
+	if (rc) {
+		/*
+		 * Failing to support extended linear cache region resize does not
+		 * prevent the region from functioning. Only causes cxl list showing
+		 * incorrect region size.
+		 */
+		dev_warn(cxlmd->dev.parent,
+			 "Extended linear cache calculation failed.\n");
+	}
+
 	rc = insert_resource(cxlrd->res, res);
 	if (rc) {
 		/*
