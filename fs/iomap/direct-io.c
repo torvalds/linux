@@ -335,8 +335,7 @@ static inline blk_opf_t iomap_dio_bio_opflags(struct iomap_dio *dio,
 	return opflags;
 }
 
-static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
-		struct iomap_dio *dio)
+static int iomap_dio_bio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iter->iomap;
 	struct inode *inode = iter->inode;
@@ -349,7 +348,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	bool need_zeroout = false;
 	bool use_fua = false;
 	int nr_pages, ret = 0;
-	size_t copied = 0;
+	u64 copied = 0;
 	size_t orig_count;
 
 	if (atomic && length != fs_block_size)
@@ -513,30 +512,28 @@ out:
 	/* Undo iter limitation to current extent */
 	iov_iter_reexpand(dio->submit.iter, orig_count - copied);
 	if (copied)
-		return copied;
+		return iomap_iter_advance(iter, &copied);
 	return ret;
 }
 
-static loff_t iomap_dio_hole_iter(const struct iomap_iter *iter,
-		struct iomap_dio *dio)
+static int iomap_dio_hole_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	loff_t length = iov_iter_zero(iomap_length(iter), dio->submit.iter);
 
 	dio->size += length;
 	if (!length)
 		return -EFAULT;
-	return length;
+	return iomap_iter_advance(iter, &length);
 }
 
-static loff_t iomap_dio_inline_iter(const struct iomap_iter *iomi,
-		struct iomap_dio *dio)
+static int iomap_dio_inline_iter(struct iomap_iter *iomi, struct iomap_dio *dio)
 {
 	const struct iomap *iomap = &iomi->iomap;
 	struct iov_iter *iter = dio->submit.iter;
 	void *inline_data = iomap_inline_data(iomap, iomi->pos);
 	loff_t length = iomap_length(iomi);
 	loff_t pos = iomi->pos;
-	size_t copied;
+	u64 copied;
 
 	if (WARN_ON_ONCE(!iomap_inline_data_valid(iomap)))
 		return -EIO;
@@ -558,11 +555,10 @@ static loff_t iomap_dio_inline_iter(const struct iomap_iter *iomi,
 	dio->size += copied;
 	if (!copied)
 		return -EFAULT;
-	return copied;
+	return iomap_iter_advance(iomi, &copied);
 }
 
-static loff_t iomap_dio_iter(const struct iomap_iter *iter,
-		struct iomap_dio *dio)
+static int iomap_dio_iter(struct iomap_iter *iter, struct iomap_dio *dio)
 {
 	switch (iter->iomap.type) {
 	case IOMAP_HOLE:
@@ -746,7 +742,7 @@ __iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	blk_start_plug(&plug);
 	while ((ret = iomap_iter(&iomi, ops)) > 0) {
-		iomi.processed = iomap_dio_iter(&iomi, dio);
+		iomi.status = iomap_dio_iter(&iomi, dio);
 
 		/*
 		 * We can only poll for single bio I/Os.

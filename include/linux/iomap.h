@@ -220,9 +220,8 @@ struct iomap_ops {
  *	It is updated at the same time as @pos.
  * @iter_start_pos: The original start pos for the current iomap. Used for
  *	incremental iter advance.
- * @processed: The number of bytes the most recent iteration needs iomap_iter()
- *	to advance the iter, zero if the iter was already advanced, or a
- *	negative errno for an error during the operation.
+ * @status: Status of the most recent iteration. Zero on success or a negative
+ *	errno on error.
  * @flags: Zero or more of the iomap_begin flags above.
  * @iomap: Map describing the I/O iteration
  * @srcmap: Source map for COW operations
@@ -232,7 +231,7 @@ struct iomap_iter {
 	loff_t pos;
 	u64 len;
 	loff_t iter_start_pos;
-	s64 processed;
+	int status;
 	unsigned flags;
 	struct iomap iomap;
 	struct iomap srcmap;
@@ -270,6 +269,16 @@ static inline u64 iomap_length_trim(const struct iomap_iter *iter, loff_t pos,
 static inline u64 iomap_length(const struct iomap_iter *iter)
 {
 	return iomap_length_trim(iter, iter->pos, iter->len);
+}
+
+/**
+ * iomap_iter_advance_full - advance by the full length of current map
+ */
+static inline int iomap_iter_advance_full(struct iomap_iter *iter)
+{
+	u64 length = iomap_length(iter);
+
+	return iomap_iter_advance(iter, &length);
 }
 
 /**
