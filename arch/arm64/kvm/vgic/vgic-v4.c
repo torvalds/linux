@@ -512,7 +512,7 @@ int kvm_vgic_v4_unset_forwarding(struct kvm *kvm, int virq,
 	if (ret)
 		goto out;
 
-	WARN_ON(!(irq->hw && irq->host_irq == virq));
+	WARN_ON(irq->hw && irq->host_irq != virq);
 	if (irq->hw) {
 		atomic_dec(&irq->target_vcpu->arch.vgic_cpu.vgic_v3.its_vpe.vlpi_count);
 		irq->hw = false;
