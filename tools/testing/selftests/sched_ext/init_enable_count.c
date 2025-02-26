@@ -15,22 +15,6 @@
 
 #define SCHED_EXT 7
 
-static struct init_enable_count *
-open_load_prog(bool global)
-{
-	struct init_enable_count *skel;
-
-	skel = init_enable_count__open();
-	SCX_BUG_ON(!skel, "Failed to open skel");
-
-	if (!global)
-		skel->struct_ops.init_enable_count_ops->flags |= SCX_OPS_SWITCH_PARTIAL;
-
-	SCX_BUG_ON(init_enable_count__load(skel), "Failed to load skel");
-
-	return skel;
-}
-
 static enum scx_test_status run_test(bool global)
 {
 	struct init_enable_count *skel;
@@ -40,7 +24,14 @@ static enum scx_test_status run_test(bool global)
 	struct sched_param param = {};
 	pid_t pids[num_pre_forks];
 
-	skel = open_load_prog(global);
+	skel = init_enable_count__open();
+	SCX_FAIL_IF(!skel, "Failed to open");
+	SCX_ENUM_INIT(skel);
+
+	if (!global)
+		skel->struct_ops.init_enable_count_ops->flags |= SCX_OPS_SWITCH_PARTIAL;
+
+	SCX_FAIL_IF(init_enable_count__load(skel), "Failed to load skel");
 
 	/*
 	 * Fork a bunch of children before we attach the scheduler so that we
@@ -159,7 +150,7 @@ static enum scx_test_status run(void *ctx)
 
 struct scx_test init_enable_count = {
 	.name = "init_enable_count",
-	.description = "Verify we do the correct amount of counting of init, "
+	.description = "Verify we correctly count the occurrences of init, "
 		       "enable, etc callbacks.",
 	.run = run,
 };

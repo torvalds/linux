@@ -4166,6 +4166,7 @@ static ssize_t memory_max_write(struct kernfs_open_file *of,
 		memcg_memory_event(memcg, MEMCG_OOM);
 		if (!mem_cgroup_out_of_memory(memcg, GFP_KERNEL, 0))
 			break;
+		cond_resched();
 	}
 
 	memcg_wb_domain_size_changed(memcg);

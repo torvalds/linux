@@ -3153,9 +3153,7 @@ static int _nfs4_open_and_get_state(struct nfs4_opendata *opendata,
 	if (d_really_is_negative(dentry)) {
 		struct dentry *alias;
 		d_drop(dentry);
-		alias = d_exact_alias(dentry, state->inode);
-		if (!alias)
-			alias = d_splice_alias(igrab(state->inode), dentry);
+		alias = d_splice_alias(igrab(state->inode), dentry);
 		/* d_splice_alias() can't fail here - it's a non-directory */
 		if (alias) {
 			dput(ctx->dentry);

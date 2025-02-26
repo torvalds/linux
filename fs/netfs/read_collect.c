@@ -470,7 +470,8 @@ void netfs_read_collection_worker(struct work_struct *work)
  */
 void netfs_wake_read_collector(struct netfs_io_request *rreq)
 {
-	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags)) {
+	if (test_bit(NETFS_RREQ_OFFLOAD_COLLECTION, &rreq->flags) &&
+	    !test_bit(NETFS_RREQ_RETRYING, &rreq->flags)) {
 		if (!work_pending(&rreq->work)) {
 			netfs_get_request(rreq, netfs_rreq_trace_get_work);
 			if (!queue_work(system_unbound_wq, &rreq->work))
@@ -586,7 +587,8 @@ void netfs_read_subreq_terminated(struct netfs_io_subrequest *subreq)
 	smp_mb__after_atomic(); /* Clear IN_PROGRESS before task state */
 
 	/* If we are at the head of the queue, wake up the collector. */
-	if (list_is_first(&subreq->rreq_link, &stream->subrequests))
+	if (list_is_first(&subreq->rreq_link, &stream->subrequests) ||
+	    test_bit(NETFS_RREQ_RETRYING, &rreq->flags))
 		netfs_wake_read_collector(rreq);
 
 	netfs_put_subrequest(subreq, true, netfs_sreq_trace_put_terminated);
