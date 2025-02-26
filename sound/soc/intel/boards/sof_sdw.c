@@ -803,7 +803,9 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 			      int *be_id, struct snd_soc_codec_conf **codec_conf)
 {
 	struct device *dev = card->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(card->dev);
 	struct asoc_sdw_mc_private *ctx = snd_soc_card_get_drvdata(card);
+	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
 	struct intel_mc_ctx *intel_ctx = (struct intel_mc_ctx *)ctx->private;
 	struct asoc_sdw_endpoint *sof_end;
 	int stream;
@@ -900,6 +902,11 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 
 			codecs[j].name = sof_end->codec_name;
 			codecs[j].dai_name = sof_end->dai_info->dai_name;
+			if (sof_end->dai_info->dai_type == SOC_SDW_DAI_TYPE_MIC &&
+			    mach_params->dmic_num > 0) {
+				dev_warn(dev,
+					 "Both SDW DMIC and PCH DMIC are present, if incorrect, please set kernel params snd_sof_intel_hda_generic dmic_num=0 to disable PCH DMIC\n");
+			}
 			j++;
 		}
 
