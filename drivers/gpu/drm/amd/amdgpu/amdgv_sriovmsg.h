@@ -97,11 +97,12 @@ union amd_sriov_msg_feature_flags {
 		uint32_t pp_one_vf_mode		: 1;
 		uint32_t reg_indirect_acc	: 1;
 		uint32_t av1_support		: 1;
-		uint32_t vcn_rb_decouple 	: 1;
+		uint32_t vcn_rb_decouple	: 1;
 		uint32_t mes_info_dump_enable	: 1;
 		uint32_t ras_caps		: 1;
 		uint32_t ras_telemetry		: 1;
-		uint32_t reserved		: 21;
+		uint32_t ras_cper		: 1;
+		uint32_t reserved		: 20;
 	} flags;
 	uint32_t all;
 };
@@ -328,21 +329,25 @@ enum amd_sriov_mailbox_request_message {
 	MB_REQ_MSG_READY_TO_RESET = 201,
 	MB_REQ_MSG_RAS_POISON = 202,
 	MB_REQ_RAS_ERROR_COUNT = 203,
+	MB_REQ_RAS_CPER_DUMP = 204,
 };
 
 /* mailbox message send from host to guest  */
 enum amd_sriov_mailbox_response_message {
-	MB_RES_MSG_CLR_MSG_BUF = 0,
-	MB_RES_MSG_READY_TO_ACCESS_GPU = 1,
-	MB_RES_MSG_FLR_NOTIFICATION,
-	MB_RES_MSG_FLR_NOTIFICATION_COMPLETION,
-	MB_RES_MSG_SUCCESS,
-	MB_RES_MSG_FAIL,
-	MB_RES_MSG_QUERY_ALIVE,
-	MB_RES_MSG_GPU_INIT_DATA_READY,
-	MB_RES_MSG_RAS_ERROR_COUNT_READY = 11,
-
-	MB_RES_MSG_TEXT_MESSAGE = 255
+	MB_RES_MSG_CLR_MSG_BUF			= 0,
+	MB_RES_MSG_READY_TO_ACCESS_GPU		= 1,
+	MB_RES_MSG_FLR_NOTIFICATION		= 2,
+	MB_RES_MSG_FLR_NOTIFICATION_COMPLETION  = 3,
+	MB_RES_MSG_SUCCESS			= 4,
+	MB_RES_MSG_FAIL				= 5,
+	MB_RES_MSG_QUERY_ALIVE			= 6,
+	MB_RES_MSG_GPU_INIT_DATA_READY		= 7,
+	MB_RES_MSG_RAS_POISON_READY		= 8,
+	MB_RES_MSG_PF_SOFT_FLR_NOTIFICATION	= 9,
+	MB_RES_MSG_GPU_RMA			= 10,
+	MB_RES_MSG_RAS_ERROR_COUNT_READY	= 11,
+	MB_REQ_RAS_CPER_DUMP_READY		= 14,
+	MB_RES_MSG_TEXT_MESSAGE			= 255
 };
 
 enum amd_sriov_ras_telemetry_gpu_block {
@@ -386,11 +391,20 @@ struct amd_sriov_ras_telemetry_error_count {
 	} block[RAS_TELEMETRY_GPU_BLOCK_COUNT];
 };
 
+struct amd_sriov_ras_cper_dump {
+	uint32_t more;
+	uint64_t overflow_count;
+	uint64_t count;
+	uint64_t wptr;
+	uint32_t buf[];
+};
+
 struct amdsriov_ras_telemetry {
 	struct amd_sriov_ras_telemetry_header header;
 
 	union {
 		struct amd_sriov_ras_telemetry_error_count error_count;
+		struct amd_sriov_ras_cper_dump cper_dump;
 	} body;
 };
 
