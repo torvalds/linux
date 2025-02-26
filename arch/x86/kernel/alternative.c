@@ -741,6 +741,11 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 		op2 = insn.opcode.bytes[1];
 
 		switch (op1) {
+		case 0x70 ... 0x7f:	/* Jcc.d8 */
+			/* See cfi_paranoid. */
+			WARN_ON_ONCE(cfi_mode != CFI_FINEIBT);
+			continue;
+
 		case CALL_INSN_OPCODE:
 		case JMP32_INSN_OPCODE:
 			break;
@@ -998,6 +1003,8 @@ u32 cfi_get_func_hash(void *func)
 static bool cfi_rand __ro_after_init = true;
 static u32  cfi_seed __ro_after_init;
 
+static bool cfi_paranoid __ro_after_init = false;
+
 /*
  * Re-hash the CFI hash with a boot-time seed while making sure the result is
  * not a valid ENDBR instruction.
@@ -1040,6 +1047,12 @@ static __init int cfi_parse_cmdline(char *str)
 		} else if (!strcmp(str, "warn")) {
 			pr_alert("CFI mismatch non-fatal!\n");
 			cfi_warn = true;
+		} else if (!strcmp(str, "paranoid")) {
+			if (cfi_mode == CFI_FINEIBT) {
+				cfi_paranoid = true;
+			} else {
+				pr_err("Ignoring paranoid; depends on fineibt.\n");
+			}
 		} else {
 			pr_err("Ignoring unknown cfi option (%s).", str);
 		}
@@ -1127,6 +1140,52 @@ extern u8 fineibt_caller_end[];
 #define fineibt_caller_hash 2
 
 #define fineibt_caller_jmp (fineibt_caller_size - 2)
+
+/*
+ * Since FineIBT does hash validation on the callee side it is prone to
+ * circumvention attacks where a 'naked' ENDBR instruction exists that
+ * is not part of the fineibt_preamble sequence.
+ *
+ * Notably the x86 entry points must be ENDBR and equally cannot be
+ * fineibt_preamble.
+ *
+ * The fineibt_paranoid caller sequence adds additional caller side
+ * hash validation. This stops such circumvention attacks dead, but at the cost
+ * of adding a load.
+ *
+ * <fineibt_paranoid_start>:
+ *  0:   41 ba 78 56 34 12       mov    $0x12345678, %r10d
+ *  6:   45 3b 53 f7             cmp    -0x9(%r11), %r10d
+ *  a:   4d 8d 5b <f0>           lea    -0x10(%r11), %r11
+ *  e:   75 fd                   jne    d <fineibt_paranoid_start+0xd>
+ * 10:   41 ff d3                call   *%r11
+ * 13:   90                      nop
+ *
+ * Notably LEA does not modify flags and can be reordered with the CMP,
+ * avoiding a dependency. Again, using a non-taken (backwards) branch
+ * for the failure case, abusing LEA's immediate 0xf0 as LOCK prefix for the
+ * Jcc.d8, causing #UD.
+ */
+asm(	".pushsection .rodata				\n"
+	"fineibt_paranoid_start:			\n"
+	"	movl	$0x12345678, %r10d		\n"
+	"	cmpl	-9(%r11), %r10d			\n"
+	"	lea	-0x10(%r11), %r11		\n"
+	"	jne	fineibt_paranoid_start+0xd	\n"
+	"fineibt_paranoid_ind:				\n"
+	"	call	*%r11				\n"
+	"	nop					\n"
+	"fineibt_paranoid_end:				\n"
+	".popsection					\n"
+);
+
+extern u8 fineibt_paranoid_start[];
+extern u8 fineibt_paranoid_ind[];
+extern u8 fineibt_paranoid_end[];
+
+#define fineibt_paranoid_size (fineibt_paranoid_end - fineibt_paranoid_start)
+#define fineibt_paranoid_ind  (fineibt_paranoid_ind - fineibt_paranoid_start)
+#define fineibt_paranoid_ud   0xd
 
 static u32 decode_preamble_hash(void *addr)
 {
@@ -1291,18 +1350,48 @@ static int cfi_rewrite_callers(s32 *start, s32 *end)
 {
 	s32 *s;
 
+	BUG_ON(fineibt_paranoid_size != 20);
+
 	for (s = start; s < end; s++) {
 		void *addr = (void *)s + *s;
+		struct insn insn;
+		u8 bytes[20];
 		u32 hash;
+		int ret;
+		u8 op;
 
 		addr -= fineibt_caller_size;
 		hash = decode_caller_hash(addr);
-		if (hash) {
+		if (!hash)
+			continue;
+
+		if (!cfi_paranoid) {
 			text_poke_early(addr, fineibt_caller_start, fineibt_caller_size);
 			WARN_ON(*(u32 *)(addr + fineibt_caller_hash) != 0x12345678);
 			text_poke_early(addr + fineibt_caller_hash, &hash, 4);
+			/* rely on apply_retpolines() */
+			continue;
 		}
-		/* rely on apply_retpolines() */
+
+		/* cfi_paranoid */
+		ret = insn_decode_kernel(&insn, addr + fineibt_caller_size);
+		if (WARN_ON_ONCE(ret < 0))
+			continue;
+
+		op = insn.opcode.bytes[0];
+		if (op != CALL_INSN_OPCODE && op != JMP32_INSN_OPCODE) {
+			WARN_ON_ONCE(1);
+			continue;
+		}
+
+		memcpy(bytes, fineibt_paranoid_start, fineibt_paranoid_size);
+		memcpy(bytes + fineibt_caller_hash, &hash, 4);
+
+		ret = emit_indirect(op, 11, bytes + fineibt_paranoid_ind);
+		if (WARN_ON_ONCE(ret != 3))
+			continue;
+
+		text_poke_early(addr, bytes, fineibt_paranoid_size);
 	}
 
 	return 0;
@@ -1319,8 +1408,15 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 
 	if (cfi_mode == CFI_AUTO) {
 		cfi_mode = CFI_KCFI;
-		if (HAS_KERNEL_IBT && cpu_feature_enabled(X86_FEATURE_IBT))
+		if (HAS_KERNEL_IBT && cpu_feature_enabled(X86_FEATURE_IBT)) {
+			/*
+			 * FRED has much saner context on exception entry and
+			 * is less easy to take advantage of.
+			 */
+			if (!cpu_feature_enabled(X86_FEATURE_FRED))
+				cfi_paranoid = true;
 			cfi_mode = CFI_FINEIBT;
+		}
 	}
 
 	/*
@@ -1377,8 +1473,10 @@ static void __apply_fineibt(s32 *start_retpoline, s32 *end_retpoline,
 		/* now that nobody targets func()+0, remove ENDBR there */
 		cfi_rewrite_endbr(start_cfi, end_cfi);
 
-		if (builtin)
-			pr_info("Using FineIBT CFI\n");
+		if (builtin) {
+			pr_info("Using %sFineIBT CFI\n",
+				cfi_paranoid ? "paranoid " : "");
+		}
 		return;
 
 	default:
@@ -1451,7 +1549,7 @@ static void poison_cfi(void *addr)
  * We check the preamble by checking for the ENDBR instruction relative to the
  * 0xEA instruction.
  */
-bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
+static bool decode_fineibt_preamble(struct pt_regs *regs, unsigned long *target, u32 *type)
 {
 	unsigned long addr = regs->ip - fineibt_preamble_ud;
 	u32 hash;
@@ -1474,6 +1572,40 @@ bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
 
 Efault:
 	return false;
+}
+
+/*
+ * regs->ip points to a LOCK Jcc.d8 instruction from the fineibt_paranoid_start[]
+ * sequence.
+ */
+static bool decode_fineibt_paranoid(struct pt_regs *regs, unsigned long *target, u32 *type)
+{
+	unsigned long addr = regs->ip - fineibt_paranoid_ud;
+	u32 hash;
+
+	if (!cfi_paranoid || !is_cfi_trap(addr + fineibt_caller_size - LEN_UD2))
+		return false;
+
+	__get_kernel_nofault(&hash, addr + fineibt_caller_hash, u32, Efault);
+	*target = regs->r11 + fineibt_preamble_size;
+	*type = regs->r10;
+
+	/*
+	 * Since the trapping instruction is the exact, but LOCK prefixed,
+	 * Jcc.d8 that got us here, the normal fixup will work.
+	 */
+	return true;
+
+Efault:
+	return false;
+}
+
+bool decode_fineibt_insn(struct pt_regs *regs, unsigned long *target, u32 *type)
+{
+	if (decode_fineibt_paranoid(regs, target, type))
+		return true;
+
+	return decode_fineibt_preamble(regs, target, type);
 }
 
 #else /* !CONFIG_FINEIBT: */
