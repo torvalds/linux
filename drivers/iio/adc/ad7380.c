@@ -15,6 +15,7 @@
  * ad7386/7/8-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/ad7386-4-7387-4-7388-4.pdf
  * adaq4370-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4370-4.pdf
  * adaq4380-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4380-4.pdf
+ * adaq4381-4 : https://www.analog.com/media/en/technical-documentation/data-sheets/adaq4381-4.pdf
  */
 
 #include <linux/align.h>
@@ -287,6 +288,7 @@ DEFINE_AD7380_2_CHANNEL(ad7381_channels, 14, 1, s);
 DEFINE_AD7380_4_CHANNEL(ad7380_4_channels, 16, 1, s);
 DEFINE_AD7380_4_CHANNEL(ad7381_4_channels, 14, 1, s);
 DEFINE_ADAQ4380_4_CHANNEL(adaq4380_4_channels, 16, 1, s);
+DEFINE_ADAQ4380_4_CHANNEL(adaq4381_4_channels, 14, 1, s);
 /* pseudo differential */
 DEFINE_AD7380_2_CHANNEL(ad7383_channels, 16, 0, s);
 DEFINE_AD7380_2_CHANNEL(ad7384_channels, 14, 0, s);
@@ -590,6 +592,19 @@ static const struct ad7380_chip_info adaq4380_4_chip_info = {
 	.name = "adaq4380-4",
 	.channels = adaq4380_4_channels,
 	.num_channels = ARRAY_SIZE(adaq4380_4_channels),
+	.num_simult_channels = 4,
+	.supplies = adaq4380_supplies,
+	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
+	.adaq_internal_ref_only = true,
+	.has_hardware_gain = true,
+	.available_scan_masks = ad7380_4_channel_scan_masks,
+	.timing_specs = &ad7380_4_timing,
+};
+
+static const struct ad7380_chip_info adaq4381_4_chip_info = {
+	.name = "adaq4381-4",
+	.channels = adaq4381_4_channels,
+	.num_channels = ARRAY_SIZE(adaq4381_4_channels),
 	.num_simult_channels = 4,
 	.supplies = adaq4380_supplies,
 	.num_supplies = ARRAY_SIZE(adaq4380_supplies),
@@ -1582,6 +1597,7 @@ static const struct of_device_id ad7380_of_match_table[] = {
 	{ .compatible = "adi,ad7388-4", .data = &ad7388_4_chip_info },
 	{ .compatible = "adi,adaq4370-4", .data = &adaq4370_4_chip_info },
 	{ .compatible = "adi,adaq4380-4", .data = &adaq4380_4_chip_info },
+	{ .compatible = "adi,adaq4381-4", .data = &adaq4381_4_chip_info },
 	{ }
 };
 
@@ -1602,6 +1618,7 @@ static const struct spi_device_id ad7380_id_table[] = {
 	{ "ad7388-4", (kernel_ulong_t)&ad7388_4_chip_info },
 	{ "adaq4370-4", (kernel_ulong_t)&adaq4370_4_chip_info },
 	{ "adaq4380-4", (kernel_ulong_t)&adaq4380_4_chip_info },
+	{ "adaq4381-4", (kernel_ulong_t)&adaq4381_4_chip_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7380_id_table);
