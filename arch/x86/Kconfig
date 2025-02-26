@@ -531,12 +531,6 @@ config X86_FRED
 	  ring transitions and exception/interrupt handling if the
 	  system supports it.
 
-config X86_BIGSMP
-	bool "Support for big SMP systems with more than 8 CPUs"
-	depends on SMP && X86_32
-	help
-	  This option is needed for the systems that have more than 8 CPUs.
-
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
 	default y
@@ -735,8 +729,8 @@ config X86_32_NON_STANDARD
 	depends on X86_32 && SMP
 	depends on X86_EXTENDED_PLATFORM
 	help
-	  This option compiles in the bigsmp and STA2X11 default
-	  subarchitectures.  It is intended for a generic binary
+	  This option compiles in the STA2X11 default
+	  subarchitecture.  It is intended for a generic binary
 	  kernel. If you select them all, kernel will probe it one by
 	  one and will fallback to default.
 
@@ -1013,8 +1007,7 @@ config NR_CPUS_RANGE_BEGIN
 config NR_CPUS_RANGE_END
 	int
 	depends on X86_32
-	default   64 if  SMP &&  X86_BIGSMP
-	default    8 if  SMP && !X86_BIGSMP
+	default    8 if  SMP
 	default    1 if !SMP
 
 config NR_CPUS_RANGE_END
@@ -1027,7 +1020,6 @@ config NR_CPUS_RANGE_END
 config NR_CPUS_DEFAULT
 	int
 	depends on X86_32
-	default   32 if  X86_BIGSMP
 	default    8 if  SMP
 	default    1 if !SMP
 
@@ -1574,8 +1566,7 @@ config AMD_MEM_ENCRYPT
 config NUMA
 	bool "NUMA Memory Allocation and Scheduler Support"
 	depends on SMP
-	depends on X86_64 || (X86_32 && HIGHMEM64G && X86_BIGSMP)
-	default y if X86_BIGSMP
+	depends on X86_64
 	select USE_PERCPU_NUMA_NODE_ID
 	select OF_NUMA if OF
 	help
@@ -1587,9 +1578,6 @@ config NUMA
 
 	  For 64-bit this is recommended if the system is Intel Core i7
 	  (or later), AMD Opteron, or EM64T NUMA.
-
-	  For 32-bit this is only needed if you boot a 32-bit
-	  kernel on a 64-bit NUMA platform.
 
 	  Otherwise, you should say N.
 

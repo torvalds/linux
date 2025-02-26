@@ -65,17 +65,4 @@ void default_send_IPI_self(int vector);
 void default_send_IPI_mask_sequence_logical(const struct cpumask *mask, int vector);
 void default_send_IPI_mask_allbutself_logical(const struct cpumask *mask, int vector);
 void default_send_IPI_mask_logical(const struct cpumask *mask, int vector);
-void x86_32_probe_bigsmp_early(void);
-void x86_32_install_bigsmp(void);
-#else
-static inline void x86_32_probe_bigsmp_early(void) { }
-static inline void x86_32_install_bigsmp(void) { }
-#endif
-
-#ifdef CONFIG_X86_BIGSMP
-bool apic_bigsmp_possible(bool cmdline_selected);
-void apic_bigsmp_force(void);
-#else
-static inline bool apic_bigsmp_possible(bool cmdline_selected) { return false; };
-static inline void apic_bigsmp_force(void) { }
 #endif
