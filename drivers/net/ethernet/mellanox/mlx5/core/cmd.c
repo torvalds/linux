@@ -1881,7 +1881,7 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 {
 	struct mlx5_cmd_msg *inb, *outb;
 	u16 opcode = in_to_opcode(in);
-	bool throttle_op;
+	bool throttle_locked = false;
 	int pages_queue;
 	gfp_t gfp;
 	u8 token;
@@ -1890,12 +1890,12 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	if (mlx5_cmd_is_down(dev) || !opcode_allowed(&dev->cmd, opcode))
 		return -ENXIO;
 
-	throttle_op = mlx5_cmd_is_throttle_opcode(opcode);
-	if (throttle_op) {
-		if (callback) {
-			if (down_trylock(&dev->cmd.vars.throttle_sem))
-				return -EBUSY;
-		} else {
+	if (!callback) {
+		/* The semaphore is already held for callback commands. It was
+		 * acquired in mlx5_cmd_exec_cb()
+		 */
+		if (mlx5_cmd_is_throttle_opcode(opcode)) {
+			throttle_locked = true;
 			down(&dev->cmd.vars.throttle_sem);
 		}
 	}
@@ -1941,7 +1941,7 @@ out_out:
 out_in:
 	free_msg(dev, inb);
 out_up:
-	if (throttle_op)
+	if (throttle_locked)
 		up(&dev->cmd.vars.throttle_sem);
 	return err;
 }
@@ -2104,17 +2104,17 @@ static void mlx5_cmd_exec_cb_handler(int status, void *_work)
 	struct mlx5_async_work *work = _work;
 	struct mlx5_async_ctx *ctx;
 	struct mlx5_core_dev *dev;
-	u16 opcode;
+	bool throttle_locked;
 
 	ctx = work->ctx;
 	dev = ctx->dev;
-	opcode = work->opcode;
+	throttle_locked = work->throttle_locked;
 	status = cmd_status_err(dev, status, work->opcode, work->op_mod, work->out);
 	work->user_callback(status, work);
 	/* Can't access "work" from this point on. It could have been freed in
 	 * the callback.
 	 */
-	if (mlx5_cmd_is_throttle_opcode(opcode))
+	if (throttle_locked)
 		up(&dev->cmd.vars.throttle_sem);
 	if (atomic_dec_and_test(&ctx->num_inflight))
 		complete(&ctx->inflight_done);
@@ -2131,11 +2131,30 @@ int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
 	work->opcode = in_to_opcode(in);
 	work->op_mod = MLX5_GET(mbox_in, in, op_mod);
 	work->out = out;
+	work->throttle_locked = false;
 	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
 		return -EIO;
+
+	if (mlx5_cmd_is_throttle_opcode(in_to_opcode(in))) {
+		if (down_trylock(&ctx->dev->cmd.vars.throttle_sem)) {
+			ret = -EBUSY;
+			goto dec_num_inflight;
+		}
+		work->throttle_locked = true;
+	}
+
 	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
 		       mlx5_cmd_exec_cb_handler, work, false);
-	if (ret && atomic_dec_and_test(&ctx->num_inflight))
+	if (ret)
+		goto sem_up;
+
+	return 0;
+
+sem_up:
+	if (work->throttle_locked)
+		up(&ctx->dev->cmd.vars.throttle_sem);
+dec_num_inflight:
+	if (atomic_dec_and_test(&ctx->num_inflight))
 		complete(&ctx->inflight_done);
 
 	return ret;
