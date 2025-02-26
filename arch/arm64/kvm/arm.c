@@ -2717,6 +2717,14 @@ int kvm_arch_irq_bypass_add_producer(struct irq_bypass_consumer *cons,
 {
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
+	struct kvm_kernel_irq_routing_entry *irq_entry = &irqfd->irq_entry;
+
+	/*
+	 * The only thing we have a chance of directly-injecting is LPIs. Maybe
+	 * one day...
+	 */
+	if (irq_entry->type != KVM_IRQ_ROUTING_MSI)
+		return 0;
 
 	return kvm_vgic_v4_set_forwarding(irqfd->kvm, prod->irq,
 					  &irqfd->irq_entry);
@@ -2726,6 +2734,10 @@ void kvm_arch_irq_bypass_del_producer(struct irq_bypass_consumer *cons,
 {
 	struct kvm_kernel_irqfd *irqfd =
 		container_of(cons, struct kvm_kernel_irqfd, consumer);
+	struct kvm_kernel_irq_routing_entry *irq_entry = &irqfd->irq_entry;
+
+	if (irq_entry->type != KVM_IRQ_ROUTING_MSI)
+		return;
 
 	kvm_vgic_v4_unset_forwarding(irqfd->kvm, prod->irq,
 				     &irqfd->irq_entry);
