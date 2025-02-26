@@ -41,7 +41,6 @@
 #define IMX8MQ_GPR_PCIE_CLK_REQ_OVERRIDE	BIT(11)
 #define IMX8MQ_GPR_PCIE_VREG_BYPASS		BIT(12)
 #define IMX8MQ_GPR12_PCIE2_CTRL_DEVICE_TYPE	GENMASK(11, 8)
-#define IMX8MQ_PCIE2_BASE_ADDR			0x33c00000
 
 #define IMX95_PCIE_PHY_GEN_CTRL			0x0
 #define IMX95_PCIE_REF_USE_PAD			BIT(17)
@@ -1474,9 +1473,8 @@ static int imx_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct imx_pcie *imx_pcie;
 	struct device_node *np;
-	struct resource *dbi_base;
 	struct device_node *node = dev->of_node;
-	int i, ret, req_cnt;
+	int i, ret, req_cnt, domain;
 	u16 val;
 
 	imx_pcie = devm_kzalloc(dev, sizeof(*imx_pcie), GFP_KERNEL);
@@ -1514,10 +1512,6 @@ static int imx_pcie_probe(struct platform_device *pdev)
 		if (IS_ERR(imx_pcie->phy_base))
 			return PTR_ERR(imx_pcie->phy_base);
 	}
-
-	pci->dbi_base = devm_platform_get_and_ioremap_resource(pdev, 0, &dbi_base);
-	if (IS_ERR(pci->dbi_base))
-		return PTR_ERR(pci->dbi_base);
 
 	/* Fetch GPIOs */
 	imx_pcie->reset_gpiod = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
@@ -1565,8 +1559,11 @@ static int imx_pcie_probe(struct platform_device *pdev)
 	switch (imx_pcie->drvdata->variant) {
 	case IMX8MQ:
 	case IMX8MQ_EP:
-		if (dbi_base->start == IMX8MQ_PCIE2_BASE_ADDR)
-			imx_pcie->controller_id = 1;
+		domain = of_get_pci_domain_nr(node);
+		if (domain < 0 || domain > 1)
+			return dev_err_probe(dev, -ENODEV, "no \"linux,pci-domain\" property in devicetree\n");
+
+		imx_pcie->controller_id = domain;
 		break;
 	default:
 		break;
