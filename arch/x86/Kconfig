@@ -1628,15 +1628,6 @@ config X86_PMEM_LEGACY
 
 	  Say Y if unsure.
 
-config HIGHPTE
-	bool "Allocate 3rd-level pagetables from highmem"
-	depends on HIGHMEM
-	help
-	  The VM uses one page table entry for each page of physical memory.
-	  For systems with a lot of RAM, this can be wasteful of precious
-	  low memory.  Setting this option will put user-space page table
-	  entries in high memory.
-
 config X86_CHECK_BIOS_CORRUPTION
 	bool "Check for low memory corruption"
 	help
