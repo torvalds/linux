@@ -542,7 +542,7 @@ int amdgpu_cper_init(struct amdgpu_device *adev)
 
 	r = amdgpu_cper_ring_init(adev);
 	if (r) {
-		dev_err(adev->dev, "fail to initiailize cper ring, r = %d\n", r);
+		dev_err(adev->dev, "failed to initialize cper ring, r = %d\n", r);
 		return r;
 	}
 
