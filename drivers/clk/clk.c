@@ -4397,6 +4397,13 @@ fail_ops:
 fail_name:
 	kref_put(&core->ref, __clk_release);
 fail_out:
+	if (dev) {
+		dev_err_probe(dev, ret, "failed to register clk '%s' (%pS)\n",
+			      init->name, hw);
+	} else {
+		pr_err("%pOF: error %pe: failed to register clk '%s' (%pS)\n",
+		       np, ERR_PTR(ret), init->name, hw);
+	}
 	return ERR_PTR(ret);
 }
 
