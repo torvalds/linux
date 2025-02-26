@@ -261,6 +261,14 @@ static inline u16 mm_global_asid(struct mm_struct *mm)
 	return asid;
 }
 
+static inline void mm_init_global_asid(struct mm_struct *mm)
+{
+	if (cpu_feature_enabled(X86_FEATURE_INVLPGB)) {
+		mm->context.global_asid = 0;
+		mm->context.asid_transition = false;
+	}
+}
+
 static inline void mm_assign_global_asid(struct mm_struct *mm, u16 asid)
 {
 	/*
@@ -281,6 +289,7 @@ static inline bool mm_in_asid_transition(struct mm_struct *mm)
 }
 #else
 static inline u16 mm_global_asid(struct mm_struct *mm) { return 0; }
+static inline void mm_init_global_asid(struct mm_struct *mm) { }
 static inline void mm_assign_global_asid(struct mm_struct *mm, u16 asid) { }
 static inline bool mm_in_asid_transition(struct mm_struct *mm) { return false; }
 #endif /* CONFIG_BROADCAST_TLB_FLUSH */
