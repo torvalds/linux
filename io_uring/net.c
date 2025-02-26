@@ -388,14 +388,10 @@ static int io_sendmsg_setup(struct io_kiocb *req, const struct io_uring_sqe *sqe
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
-	int ret;
 
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 
-	ret = io_sendmsg_copy_hdr(req, kmsg);
-	if (!ret)
-		req->flags |= REQ_F_NEED_CLEANUP;
-	return ret;
+	return io_sendmsg_copy_hdr(req, kmsg);
 }
 
 #define SENDMSG_FLAGS (IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_BUNDLE)
@@ -774,10 +770,7 @@ static int io_recvmsg_prep_setup(struct io_kiocb *req)
 		return 0;
 	}
 
-	ret = io_recvmsg_copy_hdr(req, kmsg);
-	if (!ret)
-		req->flags |= REQ_F_NEED_CLEANUP;
-	return ret;
+	return io_recvmsg_copy_hdr(req, kmsg);
 }
 
 #define RECVMSG_FLAGS (IORING_RECVSEND_POLL_FIRST | IORING_RECV_MULTISHOT | \
