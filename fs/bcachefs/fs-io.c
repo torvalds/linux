@@ -466,6 +466,7 @@ int bchfs_truncate(struct mnt_idmap *idmap,
 	ret = bch2_truncate_folio(inode, iattr->ia_size);
 	if (unlikely(ret < 0))
 		goto err;
+	ret = 0;
 
 	truncate_setsize(&inode->v, iattr->ia_size);
 
