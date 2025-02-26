@@ -29,6 +29,7 @@ The following chips are supported by this driver:
 * `AD7388-4 <https://www.analog.com/en/products/ad7388-4.html>`_
 * `ADAQ4370-4 <https://www.analog.com/en/products/adaq4370-4.html>`_
 * `ADAQ4380-4 <https://www.analog.com/en/products/adaq4380-4.html>`_
+* `ADAQ4381-4 <https://www.analog.com/en/products/adaq4381-4.html>`_
 
 
 Supported features
@@ -52,8 +53,8 @@ declared in the device tree as ``refin-supply``.
 ADAQ devices
 ~~~~~~~~~~~~
 
-adaq4370-4 and adaq4380-4 don't have an external reference, but use a 3.3V
-internal reference derived from one of its supplies (``refin-supply``)
+ADAQ devices don't have an external reference, but use a 3.3V internal reference
+derived from one of its supplies (``refin-supply``)
 
 All other devices from ad738x family
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
