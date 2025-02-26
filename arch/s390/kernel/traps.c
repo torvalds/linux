@@ -271,10 +271,10 @@ void kernel_stack_overflow(struct pt_regs *regs)
 	 */
 	kmsan_unpoison_entry_regs(regs);
 	bust_spinlocks(1);
-	printk("Kernel stack overflow.\n");
+	pr_emerg("Kernel stack overflow\n");
 	show_regs(regs);
 	bust_spinlocks(0);
-	panic("Corrupt kernel stack, can't continue.");
+	panic("Corrupt kernel stack, cannot continue");
 }
 NOKPROBE_SYMBOL(kernel_stack_overflow);
 
