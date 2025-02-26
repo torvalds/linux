@@ -1570,6 +1570,8 @@ enum {
 enum {
 	MLX5_UCTX_CAP_RAW_TX = 1UL << 0,
 	MLX5_UCTX_CAP_INTERNAL_DEV_RES = 1UL << 1,
+	MLX5_UCTX_CAP_RDMA_CTRL = 1UL << 3,
+	MLX5_UCTX_CAP_RDMA_CTRL_OTHER_VHCA = 1UL << 4,
 };
 
 #define MLX5_FC_BULK_SIZE_FACTOR 128
@@ -2140,7 +2142,8 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   log_min_mkey_entity_size[0x5];
 	u8	   reserved_at_1b0[0x10];
 
-	u8	   reserved_at_1c0[0x60];
+	u8	   general_obj_types_127_64[0x40];
+	u8	   reserved_at_200[0x20];
 
 	u8	   reserved_at_220[0x1];
 	u8	   sw_vhca_id_valid[0x1];
@@ -12495,12 +12498,17 @@ enum {
 };
 
 enum {
+	MLX5_HCA_CAP_2_GENERAL_OBJECT_TYPES_RDMA_CTRL = BIT_ULL(0x13),
+};
+
+enum {
 	MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY = 0xc,
 	MLX5_GENERAL_OBJECT_TYPES_IPSEC = 0x13,
 	MLX5_GENERAL_OBJECT_TYPES_SAMPLER = 0x20,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_METER_ASO = 0x24,
 	MLX5_GENERAL_OBJECT_TYPES_MACSEC = 0x27,
 	MLX5_GENERAL_OBJECT_TYPES_INT_KEK = 0x47,
+	MLX5_GENERAL_OBJECT_TYPES_RDMA_CTRL = 0x53,
 	MLX5_GENERAL_OBJECT_TYPES_FLOW_TABLE_ALIAS = 0xff15,
 };
 
