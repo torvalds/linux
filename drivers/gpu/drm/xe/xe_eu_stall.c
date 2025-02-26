@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 #include <drm/drm_drv.h>
+#include <generated/xe_wa_oob.h>
 #include <uapi/drm/xe_drm.h>
 
 #include "xe_bo.h"
@@ -22,6 +23,7 @@
 #include "xe_observation.h"
 #include "xe_pm.h"
 #include "xe_trace.h"
+#include "xe_wa.h"
 
 #include "regs/xe_eu_stall_regs.h"
 #include "regs/xe_gt_regs.h"
@@ -642,6 +644,10 @@ static int xe_eu_stall_stream_enable(struct xe_eu_stall_data_stream *stream)
 		return -ETIMEDOUT;
 	}
 
+	if (XE_WA(gt, 22016596838))
+		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
+					  _MASKED_BIT_ENABLE(DISABLE_DOP_GATING));
+
 	for_each_dss_steering(xecore, gt, group, instance) {
 		write_ptr_reg = xe_gt_mcr_unicast_read(gt, XEHPC_EUSTALL_REPORT, group, instance);
 		/* Clear any drop bits set and not cleared in the previous session. */
@@ -792,6 +798,10 @@ static int xe_eu_stall_disable_locked(struct xe_eu_stall_data_stream *stream)
 	xe_gt_mcr_multicast_write(gt, XEHPC_EUSTALL_BASE, 0);
 
 	cancel_delayed_work_sync(&stream->buf_poll_work);
+
+	if (XE_WA(gt, 22016596838))
+		xe_gt_mcr_multicast_write(gt, ROW_CHICKEN2,
+					  _MASKED_BIT_DISABLE(DISABLE_DOP_GATING));
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_RENDER);
 	xe_pm_runtime_put(gt_to_xe(gt));
