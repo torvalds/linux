@@ -380,6 +380,8 @@ static const char *hsynd_str(u8 synd)
 		return "High temperature";
 	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PCI_POISONED_ERR:
 		return "ICM fetch PCI data poisoned error";
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_TRUST_LOCKDOWN_ERR:
+		return "Trust lockdown error";
 	default:
 		return "unrecognized error";
 	}
