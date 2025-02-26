@@ -2509,22 +2509,18 @@ static void gfx_v12_1_xcc_disable_gpa_mode(struct amdgpu_device *adev,
 
 static void gfx_v12_1_init_golden_registers(struct amdgpu_device *adev)
 {
-	int i, num_xcc;
 	uint32_t val;
 
-	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
-	for (i = 0; i < num_xcc; i++) {
-		/* Setup the TCP Thrashing control register */
-		val = RREG32_SOC15(GC, GET_INST(GC, i), regTCP_UTCL0_THRASHING_CTRL);
+	/* Setup the TCP Thrashing control register */
+	val = RREG32_SOC15(GC, 0, regTCP_UTCL0_THRASHING_CTRL);
 
-		val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL, THRASHING_EN, 0x2);
-		val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-					RETRY_FRAGMENT_THRESHOLD_DOWN_EN, 0x0);
-		val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
-					RETRY_FRAGMENT_THRESHOLD_UP_EN, 0x0);
+	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL, THRASHING_EN, 0x2);
+	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
+				RETRY_FRAGMENT_THRESHOLD_DOWN_EN, 0x0);
+	val = REG_SET_FIELD(val, TCP_UTCL0_THRASHING_CTRL,
+				RETRY_FRAGMENT_THRESHOLD_UP_EN, 0x0);
 
-		WREG32_SOC15(GC, GET_INST(GC, i), regTCP_UTCL0_THRASHING_CTRL, val);
-	}
+	WREG32_SOC15(GC, 0, regTCP_UTCL0_THRASHING_CTRL, val);
 }
 
 static int gfx_v12_1_hw_init(struct amdgpu_ip_block *ip_block)
