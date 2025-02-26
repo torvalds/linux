@@ -38,9 +38,8 @@ static void __init sbf_write(u8 v)
 	unsigned long flags;
 
 	if (sbf_port != -1) {
-		v &= ~SBF_PARITY;
 		if (!parity(v))
-			v |= SBF_PARITY;
+			v ^= SBF_PARITY;
 
 		printk(KERN_INFO "Simple Boot Flag at 0x%x set to 0x%x\n",
 			sbf_port, v);
