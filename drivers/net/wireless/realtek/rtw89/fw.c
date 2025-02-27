@@ -372,7 +372,7 @@ static int __check_secure_blacklist(struct rtw89_dev *rtwdev,
 		return 0;
 
 	if (!chip_blacklist) {
-		rtw89_err(rtwdev, "chip no blacklist for secure firmware\n");
+		rtw89_warn(rtwdev, "chip no blacklist for secure firmware\n");
 		return -ENOENT;
 	}
 
@@ -380,14 +380,14 @@ static int __check_secure_blacklist(struct rtw89_dev *rtwdev,
 	bit_mask = BIT(section_content->blacklist.bit_in_chip_list & 0x7);
 
 	if (section_content->blacklist.ver > chip_blacklist->ver) {
-		rtw89_err(rtwdev, "chip blacklist out of date (%u, %u)\n",
-			  section_content->blacklist.ver, chip_blacklist->ver);
+		rtw89_warn(rtwdev, "chip blacklist out of date (%u, %u)\n",
+			   section_content->blacklist.ver, chip_blacklist->ver);
 		return -EINVAL;
 	}
 
 	if (chip_blacklist->list[byte_idx] & bit_mask) {
-		rtw89_err(rtwdev, "firmware %u in chip blacklist\n",
-			  section_content->blacklist.ver);
+		rtw89_warn(rtwdev, "firmware %u in chip blacklist\n",
+			   section_content->blacklist.ver);
 		return -EPERM;
 	}
 
@@ -427,7 +427,10 @@ static int __parse_security_section(struct rtw89_dev *rtwdev,
 		info->secure_section_exist = true;
 	}
 
-	return __check_secure_blacklist(rtwdev, info, section_info, content);
+	ret = __check_secure_blacklist(rtwdev, info, section_info, content);
+	WARN_ONCE(ret, "Current firmware in blacklist. Please update firmware.\n");
+
+	return 0;
 }
 
 static int rtw89_fw_hdr_parser_v1(struct rtw89_dev *rtwdev, const u8 *fw, u32 len,
