@@ -144,7 +144,7 @@ void acomp_request_free(struct acomp_req *req)
 	if (tfm->__crt_alg->cra_type != &crypto_acomp_type)
 		crypto_acomp_scomp_free_ctx(req);
 
-	if (req->flags & CRYPTO_ACOMP_ALLOC_OUTPUT) {
+	if (req->base.flags & CRYPTO_ACOMP_ALLOC_OUTPUT) {
 		acomp->dst_free(req->dst);
 		req->dst = NULL;
 	}

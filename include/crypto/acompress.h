@@ -24,7 +24,6 @@
  * @dst:	Destination data
  * @slen:	Size of the input buffer
  * @dlen:	Size of the output buffer and number of bytes produced
- * @flags:	Internal flags
  * @__ctx:	Start of private context data
  */
 struct acomp_req {
@@ -33,7 +32,6 @@ struct acomp_req {
 	struct scatterlist *dst;
 	unsigned int slen;
 	unsigned int dlen;
-	u32 flags;
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
@@ -232,9 +230,9 @@ static inline void acomp_request_set_params(struct acomp_req *req,
 	req->slen = slen;
 	req->dlen = dlen;
 
-	req->flags &= ~CRYPTO_ACOMP_ALLOC_OUTPUT;
+	req->base.flags &= ~CRYPTO_ACOMP_ALLOC_OUTPUT;
 	if (!req->dst)
-		req->flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
+		req->base.flags |= CRYPTO_ACOMP_ALLOC_OUTPUT;
 }
 
 /**
