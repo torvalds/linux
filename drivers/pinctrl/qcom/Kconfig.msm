@@ -437,4 +437,14 @@ config PINCTRL_X1E80100
 	  Say Y here to compile statically, or M here to compile it as a module.
 	  If unsure, say N.
 
+config PINCTRL_TLMM_TEST
+	tristate "Qualcomm TLMM test driver"
+	depends on ARM64 || COMPILE_TEST
+	depends on KUNIT
+	help
+	  This driver provides test cases for the interrupt capabilities of
+	  TLMM driver (pinctrl-msm). Specify a floating gpio to use for testing
+	  using the module parameter "gpio" and execute the kunit suite.
+	  If unsure, say N.
+
 endif
