@@ -391,7 +391,7 @@ static void validate_sigfpstate(int sig, siginfo_t *si, void *ctx_void)
 	if (get_xstatebv(xbuf) & xstate.mask)
 		sig_print("[OK]\t'xfeatures' in XSAVE header is valid\n");
 	else
-		sig_print("[FAIL]\t'xfeatures' in XSAVE hader is not valid\n");
+		sig_print("[FAIL]\t'xfeatures' in XSAVE header is not valid\n");
 
 	if (validate_xstate_same(stashed_xbuf, xbuf))
 		sig_print("[OK]\txstate delivery was successful\n");
