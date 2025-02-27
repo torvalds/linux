@@ -34,8 +34,9 @@ static const char *const sg2002_power_domain_desc[] = {
 	[VDDIO_SD1]		= "VDDIO_SD1",
 };
 
-static int sg2002_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
+static int sg2002_get_pull_up(const struct sophgo_pin *sp, const u32 *psmap)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	u32 pstate = psmap[pin->power_domain];
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 
@@ -54,8 +55,9 @@ static int sg2002_get_pull_up(struct cv1800_pin *pin, const u32 *psmap)
 	return -ENOTSUPP;
 }
 
-static int sg2002_get_pull_down(struct cv1800_pin *pin, const u32 *psmap)
+static int sg2002_get_pull_down(const struct sophgo_pin *sp, const u32 *psmap)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	u32 pstate = psmap[pin->power_domain];
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 
@@ -108,9 +110,10 @@ static const u32 sg2002_eth_oc_map[] = {
 	17800
 };
 
-static int sg2002_get_oc_map(struct cv1800_pin *pin, const u32 *psmap,
+static int sg2002_get_oc_map(const struct sophgo_pin *sp, const u32 *psmap,
 			     const u32 **map)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 	u32 pstate = psmap[pin->power_domain];
 
@@ -153,9 +156,10 @@ static const u32 sg2002_18od33_3v3_schmitt_map[] = {
 	1100000
 };
 
-static int sg2002_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
+static int sg2002_get_schmitt_map(const struct sophgo_pin *sp, const u32 *psmap,
 				  const u32 **map)
 {
+	const struct cv1800_pin *pin = sophgo_to_cv1800_pin(sp);
 	enum cv1800_pin_io_type type = cv1800_pin_io_type(pin);
 	u32 pstate = psmap[pin->power_domain];
 
@@ -177,11 +181,11 @@ static int sg2002_get_schmitt_map(struct cv1800_pin *pin, const u32 *psmap,
 	return -ENOTSUPP;
 }
 
-static const struct cv1800_vddio_cfg_ops sg2002_vddio_cfg_ops = {
+static const struct sophgo_vddio_cfg_ops sg2002_vddio_cfg_ops = {
 	.get_pull_up		= sg2002_get_pull_up,
 	.get_pull_down		= sg2002_get_pull_down,
 	.get_oc_map		= sg2002_get_oc_map,
-	.get_schmitt_map		= sg2002_get_schmitt_map,
+	.get_schmitt_map	= sg2002_get_schmitt_map,
 };
 
 static const struct pinctrl_pin_desc sg2002_pins[] = {
@@ -513,13 +517,18 @@ static const struct cv1800_pin sg2002_pin_data[ARRAY_SIZE(sg2002_pins)] = {
 			   CV1800_PINCONF_AREA_SYS, 0xc84),
 };
 
-static const struct cv1800_pinctrl_data sg2002_pindata = {
+static const struct sophgo_pinctrl_data sg2002_pindata = {
 	.pins		= sg2002_pins,
 	.pindata	= sg2002_pin_data,
 	.pdnames	= sg2002_power_domain_desc,
 	.vddio_ops	= &sg2002_vddio_cfg_ops,
+	.cfg_ops	= &cv1800_cfg_ops,
+	.pctl_ops	= &cv1800_pctrl_ops,
+	.pmx_ops	= &cv1800_pmx_ops,
+	.pconf_ops	= &cv1800_pconf_ops,
 	.npins		= ARRAY_SIZE(sg2002_pins),
-	.npd		= ARRAY_SIZE(sg2002_power_domain_desc),
+	.npds		= ARRAY_SIZE(sg2002_power_domain_desc),
+	.pinsize	= sizeof(struct cv1800_pin),
 };
 
 static const struct of_device_id sg2002_pinctrl_ids[] = {
@@ -529,7 +538,7 @@ static const struct of_device_id sg2002_pinctrl_ids[] = {
 MODULE_DEVICE_TABLE(of, sg2002_pinctrl_ids);
 
 static struct platform_driver sg2002_pinctrl_driver = {
-	.probe	= cv1800_pinctrl_probe,
+	.probe	= sophgo_pinctrl_probe,
 	.driver	= {
 		.name			= "sg2002-pinctrl",
 		.suppress_bind_attrs	= true,
