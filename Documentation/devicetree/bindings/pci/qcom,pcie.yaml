@@ -589,6 +589,8 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pcie-ipq8074
+              - qcom,pcie-ipq8074-gen3
               - qcom,pcie-msm8996
               - qcom,pcie-msm8998
               - qcom,pcie-sdm845
@@ -628,8 +630,6 @@ allOf:
               - qcom,pcie-ipq6018
               - qcom,pcie-ipq8064
               - qcom,pcie-ipq8064-v2
-              - qcom,pcie-ipq8074
-              - qcom,pcie-ipq8074-gen3
               - qcom,pcie-qcs404
     then:
       properties:
