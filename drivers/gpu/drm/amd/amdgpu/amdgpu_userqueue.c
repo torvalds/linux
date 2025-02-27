@@ -311,6 +311,14 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	if (r)
 		return r;
 
+	if ((args->in.flags & AMDGPU_USERQ_CREATE_FLAGS_QUEUE_SECURE) &&
+	    (args->in.ip_type != AMDGPU_HW_IP_GFX) &&
+	    (args->in.ip_type != AMDGPU_HW_IP_COMPUTE) &&
+	    !amdgpu_is_tmz(adev)) {
+		drm_err(adev_to_drm(adev), "Secure only supported on GFX/Compute queues\n");
+		return -EINVAL;
+	}
+
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
 		dev_err(adev->dev, "pm_runtime_get_sync() failed for userqueue create\n");
@@ -424,7 +432,8 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->in.op) {
 	case AMDGPU_USERQ_OP_CREATE:
-		if (args->in.flags & ~AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK)
+		if (args->in.flags & ~(AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK |
+				       AMDGPU_USERQ_CREATE_FLAGS_QUEUE_SECURE))
 			return -EINVAL;
 		r = amdgpu_userqueue_create(filp, args);
 		if (r)
