@@ -37,6 +37,17 @@ enum tdx_tdcs_execution_control {
 	TD_TDCS_EXEC_TSC_MULTIPLIER = 11,
 };
 
+enum tdx_vcpu_guest_other_state {
+	TD_VCPU_STATE_DETAILS_NON_ARCH = 0x100,
+};
+
+#define TDX_VCPU_STATE_DETAILS_INTR_PENDING	BIT_ULL(0)
+
+static inline bool tdx_vcpu_state_details_intr_pending(u64 vcpu_state_details)
+{
+	return !!(vcpu_state_details & TDX_VCPU_STATE_DETAILS_INTR_PENDING);
+}
+
 /* @field is any of enum tdx_tdcs_execution_control */
 #define TDCS_EXEC(field)		BUILD_TDX_FIELD(TD_CLASS_EXECUTION_CONTROLS, (field))
 

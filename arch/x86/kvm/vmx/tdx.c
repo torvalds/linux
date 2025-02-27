@@ -726,9 +726,39 @@ void tdx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	local_irq_enable();
 }
 
+bool tdx_interrupt_allowed(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * KVM can't get the interrupt status of TDX guest and it assumes
+	 * interrupt is always allowed unless TDX guest calls TDVMCALL with HLT,
+	 * which passes the interrupt blocked flag.
+	 */
+	return vmx_get_exit_reason(vcpu).basic != EXIT_REASON_HLT ||
+	       !to_tdx(vcpu)->vp_enter_args.r12;
+}
+
 bool tdx_protected_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
-	return pi_has_pending_interrupt(vcpu);
+	u64 vcpu_state_details;
+
+	if (pi_has_pending_interrupt(vcpu))
+		return true;
+
+	/*
+	 * Only check RVI pending for HALTED case with IRQ enabled.
+	 * For non-HLT cases, KVM doesn't care about STI/SS shadows.  And if the
+	 * interrupt was pending before TD exit, then it _must_ be blocked,
+	 * otherwise the interrupt would have been serviced at the instruction
+	 * boundary.
+	 */
+	if (vmx_get_exit_reason(vcpu).basic != EXIT_REASON_HLT ||
+	    to_tdx(vcpu)->vp_enter_args.r12)
+		return false;
+
+	vcpu_state_details =
+		td_state_non_arch_read64(to_tdx(vcpu), TD_VCPU_STATE_DETAILS_NON_ARCH);
+
+	return tdx_vcpu_state_details_intr_pending(vcpu_state_details);
 }
 
 /*
@@ -845,6 +875,7 @@ static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 {
 	switch (tdvmcall_leaf(vcpu)) {
 	case EXIT_REASON_CPUID:
+	case EXIT_REASON_HLT:
 	case EXIT_REASON_IO_INSTRUCTION:
 		return tdvmcall_leaf(vcpu);
 	case EXIT_REASON_EPT_VIOLATION:
@@ -1129,9 +1160,7 @@ static int tdx_complete_vmcall_map_gpa(struct kvm_vcpu *vcpu)
 	/*
 	 * Stop processing the remaining part if there is a pending interrupt,
 	 * which could be qualified to deliver.  Skip checking pending RVI for
-	 * TDVMCALL_MAP_GPA.
-	 * TODO: Add a comment to link the reason when the target function is
-	 * implemented.
+	 * TDVMCALL_MAP_GPA, see comments in tdx_protected_apic_has_interrupt().
 	 */
 	if (kvm_vcpu_has_events(vcpu)) {
 		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_RETRY);
@@ -1934,6 +1963,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return 1;
 	case EXIT_REASON_CPUID:
 		return tdx_emulate_cpuid(vcpu);
+	case EXIT_REASON_HLT:
+		return kvm_emulate_halt_noskip(vcpu);
 	case EXIT_REASON_TDCALL:
 		return handle_tdvmcall(vcpu);
 	case EXIT_REASON_VMCALL:

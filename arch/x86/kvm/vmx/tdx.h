@@ -123,6 +123,7 @@ static __always_inline void tdvps_vmcs_check(u32 field, u8 bits)
 }
 
 static __always_inline void tdvps_management_check(u64 field, u8 bits) {}
+static __always_inline void tdvps_state_non_arch_check(u64 field, u8 bits) {}
 
 #define TDX_BUILD_TDVPS_ACCESSORS(bits, uclass, lclass)				\
 static __always_inline u##bits td_##lclass##_read##bits(struct vcpu_tdx *tdx,	\
@@ -170,11 +171,15 @@ static __always_inline void td_##lclass##_clearbit##bits(struct vcpu_tdx *tdx,	\
 		tdh_vp_wr_failed(tdx, #uclass, " &= ~", field, bit, err);\
 }
 
+
+bool tdx_interrupt_allowed(struct kvm_vcpu *vcpu);
+
 TDX_BUILD_TDVPS_ACCESSORS(16, VMCS, vmcs);
 TDX_BUILD_TDVPS_ACCESSORS(32, VMCS, vmcs);
 TDX_BUILD_TDVPS_ACCESSORS(64, VMCS, vmcs);
 
 TDX_BUILD_TDVPS_ACCESSORS(8, MANAGEMENT, management);
+TDX_BUILD_TDVPS_ACCESSORS(64, STATE_NON_ARCH, state_non_arch);
 
 #else
 static inline int tdx_bringup(void) { return 0; }
@@ -189,6 +194,8 @@ struct kvm_tdx {
 struct vcpu_tdx {
 	struct kvm_vcpu	vcpu;
 };
+
+static inline bool tdx_interrupt_allowed(struct kvm_vcpu *vcpu) { return false; }
 
 #endif
 

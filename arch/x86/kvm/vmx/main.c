@@ -418,7 +418,7 @@ static void vt_cancel_injection(struct kvm_vcpu *vcpu)
 static int vt_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	if (is_td_vcpu(vcpu))
-		return true;
+		return tdx_interrupt_allowed(vcpu);
 
 	return vmx_interrupt_allowed(vcpu, for_injection);
 }
