@@ -1110,10 +1110,20 @@ static int vdec_start_output(struct venus_inst *inst)
 
 	if (inst->codec_state == VENUS_DEC_STATE_SEEK) {
 		ret = venus_helper_process_initial_out_bufs(inst);
-		if (inst->next_buf_last)
+		if (ret)
+			return ret;
+
+		if (inst->next_buf_last) {
 			inst->codec_state = VENUS_DEC_STATE_DRC;
-		else
+		} else {
 			inst->codec_state = VENUS_DEC_STATE_DECODING;
+
+			if (inst->streamon_cap) {
+				ret = venus_helper_queue_dpb_bufs(inst);
+				if (ret)
+					return ret;
+			}
+		}
 		goto done;
 	}
 
