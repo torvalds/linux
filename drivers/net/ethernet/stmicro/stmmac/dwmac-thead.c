@@ -101,10 +101,11 @@ static int thead_dwmac_set_txclk_dir(struct plat_stmmacenet_data *plat)
 	return 0;
 }
 
-static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
+static int thead_set_clk_tx_rate(void *bsp_priv, struct clk *clk_tx_i,
+				 phy_interface_t interface, int speed)
 {
+	struct thead_dwmac *dwmac = bsp_priv;
 	struct plat_stmmacenet_data *plat;
-	struct thead_dwmac *dwmac = priv;
 	unsigned long rate;
 	long tx_rate;
 	u32 div, reg;
@@ -114,7 +115,7 @@ static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 	switch (plat->mac_interface) {
 	/* For MII, rxc/txc is provided by phy */
 	case PHY_INTERFACE_MODE_MII:
-		return;
+		return 0;
 
 	case PHY_INTERFACE_MODE_RGMII:
 	case PHY_INTERFACE_MODE_RGMII_ID:
@@ -127,23 +128,24 @@ static void thead_dwmac_fix_speed(void *priv, int speed, unsigned int mode)
 		tx_rate = rgmii_clock(speed);
 		if (tx_rate < 0) {
 			dev_err(dwmac->dev, "invalid speed %d\n", speed);
-			return;
+			return tx_rate;
 		}
 
 		div = rate / tx_rate;
 		if (rate != tx_rate * div) {
 			dev_err(dwmac->dev, "invalid gmac rate %lu\n", rate);
-			return;
+			return -EINVAL;
 		}
 
 		reg = FIELD_PREP(GMAC_PLLCLK_DIV_EN, 1) |
 		      FIELD_PREP(GMAC_PLLCLK_DIV_NUM, div);
 		writel(reg, dwmac->apb_base + GMAC_PLLCLK_DIV);
-		break;
+		return 0;
+
 	default:
 		dev_err(dwmac->dev, "unsupported phy interface %d\n",
 			plat->mac_interface);
-		return;
+		return -EINVAL;
 	}
 }
 
@@ -235,7 +237,7 @@ static int thead_dwmac_probe(struct platform_device *pdev)
 	dwmac->plat = plat;
 	dwmac->apb_base = apb;
 	plat->bsp_priv = dwmac;
-	plat->fix_mac_speed = thead_dwmac_fix_speed;
+	plat->set_clk_tx_rate = thead_set_clk_tx_rate;
 	plat->init = thead_dwmac_init;
 
 	return devm_stmmac_pltfr_probe(pdev, plat, &stmmac_res);
