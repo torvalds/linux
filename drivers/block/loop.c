@@ -45,8 +45,6 @@ enum {
 	Lo_deleting,
 };
 
-struct loop_func_table;
-
 struct loop_device {
 	int		lo_number;
 	loff_t		lo_offset;
