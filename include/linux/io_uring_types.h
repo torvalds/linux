@@ -292,6 +292,8 @@ struct io_ring_ctx {
 
 		struct io_file_table	file_table;
 		struct io_rsrc_data	buf_table;
+		struct io_alloc_cache	node_cache;
+		struct io_alloc_cache	imu_cache;
 
 		struct io_submit_state	submit_state;
 

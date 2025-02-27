@@ -33,6 +33,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 #define IORING_MAX_FIXED_FILES	(1U << 20)
 #define IORING_MAX_REG_BUFFERS	(1U << 14)
 
+#define IO_CACHED_BVECS_SEGS	32
+
 int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
@@ -111,6 +113,22 @@ static void io_release_ubuf(void *priv)
 		unpin_user_page(imu->bvec[i].bv_page);
 }
 
+static struct io_mapped_ubuf *io_alloc_imu(struct io_ring_ctx *ctx,
+					   int nr_bvecs)
+{
+	if (nr_bvecs <= IO_CACHED_BVECS_SEGS)
+		return io_cache_alloc(&ctx->imu_cache, GFP_KERNEL);
+	return kvmalloc(struct_size_t(struct io_mapped_ubuf, bvec, nr_bvecs),
+			GFP_KERNEL);
+}
+
+static void io_free_imu(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
+{
+	if (imu->nr_bvecs > IO_CACHED_BVECS_SEGS ||
+	    !io_alloc_cache_put(&ctx->imu_cache, imu))
+		kvfree(imu);
+}
+
 static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 {
 	if (!refcount_dec_and_test(&imu->refs))
@@ -119,22 +137,45 @@ static void io_buffer_unmap(struct io_ring_ctx *ctx, struct io_mapped_ubuf *imu)
 	if (imu->acct_pages)
 		io_unaccount_mem(ctx, imu->acct_pages);
 	imu->release(imu->priv);
-	kvfree(imu);
+	io_free_imu(ctx, imu);
 }
 
-struct io_rsrc_node *io_rsrc_node_alloc(int type)
+struct io_rsrc_node *io_rsrc_node_alloc(struct io_ring_ctx *ctx, int type)
 {
 	struct io_rsrc_node *node;
 
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	node = io_cache_alloc(&ctx->node_cache, GFP_KERNEL);
 	if (node) {
 		node->type = type;
 		node->refs = 1;
+		node->tag = 0;
+		node->file_ptr = 0;
 	}
 	return node;
 }
 
-__cold void io_rsrc_data_free(struct io_ring_ctx *ctx, struct io_rsrc_data *data)
+bool io_rsrc_cache_init(struct io_ring_ctx *ctx)
+{
+	const int imu_cache_size = struct_size_t(struct io_mapped_ubuf, bvec,
+						 IO_CACHED_BVECS_SEGS);
+	const int node_size = sizeof(struct io_rsrc_node);
+	bool ret;
+
+	ret = io_alloc_cache_init(&ctx->node_cache, IO_ALLOC_CACHE_MAX,
+				  node_size, 0);
+	ret |= io_alloc_cache_init(&ctx->imu_cache, IO_ALLOC_CACHE_MAX,
+				   imu_cache_size, 0);
+	return ret;
+}
+
+void io_rsrc_cache_free(struct io_ring_ctx *ctx)
+{
+	io_alloc_cache_free(&ctx->node_cache, kfree);
+	io_alloc_cache_free(&ctx->imu_cache, kfree);
+}
+
+__cold void io_rsrc_data_free(struct io_ring_ctx *ctx,
+			      struct io_rsrc_data *data)
 {
 	if (!data->nr)
 		return;
@@ -207,7 +248,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 				err = -EBADF;
 				break;
 			}
-			node = io_rsrc_node_alloc(IORING_RSRC_FILE);
+			node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
 			if (!node) {
 				err = -ENOMEM;
 				fput(file);
@@ -465,7 +506,8 @@ void io_free_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node *node)
 		break;
 	}
 
-	kfree(node);
+	if (!io_alloc_cache_put(&ctx->node_cache, node))
+		kvfree(node);
 }
 
 int io_sqe_files_unregister(struct io_ring_ctx *ctx)
@@ -527,7 +569,7 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 			goto fail;
 		}
 		ret = -ENOMEM;
-		node = io_rsrc_node_alloc(IORING_RSRC_FILE);
+		node = io_rsrc_node_alloc(ctx, IORING_RSRC_FILE);
 		if (!node) {
 			fput(file);
 			goto fail;
@@ -732,7 +774,7 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	if (!iov->iov_base)
 		return NULL;
 
-	node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 	if (!node)
 		return ERR_PTR(-ENOMEM);
 	node->buf = NULL;
@@ -752,10 +794,11 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 			coalesced = io_coalesce_buffer(&pages, &nr_pages, &data);
 	}
 
-	imu = kvmalloc(struct_size(imu, bvec, nr_pages), GFP_KERNEL);
+	imu = io_alloc_imu(ctx, nr_pages);
 	if (!imu)
 		goto done;
 
+	imu->nr_bvecs = nr_pages;
 	ret = io_buffer_account_pin(ctx, pages, nr_pages, imu, last_hpage);
 	if (ret) {
 		unpin_user_pages(pages, nr_pages);
@@ -766,7 +809,6 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	/* store original address for later verification */
 	imu->ubuf = (unsigned long) iov->iov_base;
 	imu->len = iov->iov_len;
-	imu->nr_bvecs = nr_pages;
 	imu->folio_shift = PAGE_SHIFT;
 	imu->release = io_release_ubuf;
 	imu->priv = imu;
@@ -789,7 +831,8 @@ static struct io_rsrc_node *io_sqe_buffer_register(struct io_ring_ctx *ctx,
 	}
 done:
 	if (ret) {
-		kvfree(imu);
+		if (imu)
+			io_free_imu(ctx, imu);
 		if (node)
 			io_put_rsrc_node(ctx, node);
 		node = ERR_PTR(ret);
@@ -893,14 +936,14 @@ int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
 		goto unlock;
 	}
 
-	node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
+	node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 	if (!node) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
 
 	nr_bvecs = blk_rq_nr_phys_segments(rq);
-	imu = kvmalloc(struct_size(imu, bvec, nr_bvecs), GFP_KERNEL);
+	imu = io_alloc_imu(ctx, nr_bvecs);
 	if (!imu) {
 		kfree(node);
 		ret = -ENOMEM;
@@ -1137,7 +1180,7 @@ static int io_clone_buffers(struct io_ring_ctx *ctx, struct io_ring_ctx *src_ctx
 		if (!src_node) {
 			dst_node = NULL;
 		} else {
-			dst_node = io_rsrc_node_alloc(IORING_RSRC_BUFFER);
+			dst_node = io_rsrc_node_alloc(ctx, IORING_RSRC_BUFFER);
 			if (!dst_node) {
 				ret = -ENOMEM;
 				goto out_free;

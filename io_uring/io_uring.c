@@ -291,6 +291,7 @@ static void io_free_alloc_caches(struct io_ring_ctx *ctx)
 	io_alloc_cache_free(&ctx->uring_cache, kfree);
 	io_alloc_cache_free(&ctx->msg_cache, kfree);
 	io_futex_cache_free(ctx);
+	io_rsrc_cache_free(ctx);
 }
 
 static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
@@ -338,6 +339,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	ret |= io_alloc_cache_init(&ctx->msg_cache, IO_ALLOC_CACHE_MAX,
 			    sizeof(struct io_kiocb), 0);
 	ret |= io_futex_cache_init(ctx);
+	ret |= io_rsrc_cache_init(ctx);
 	if (ret)
 		goto free_ref;
 	init_completion(&ctx->ref_comp);
