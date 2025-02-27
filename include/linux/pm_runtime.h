@@ -82,7 +82,6 @@ extern bool pm_runtime_block_if_disabled(struct device *dev);
 extern void pm_runtime_unblock(struct device *dev);
 extern void pm_runtime_enable(struct device *dev);
 extern void __pm_runtime_disable(struct device *dev, bool check_resume);
-extern bool pm_runtime_blocked(struct device *dev);
 extern void pm_runtime_allow(struct device *dev);
 extern void pm_runtime_forbid(struct device *dev);
 extern void pm_runtime_no_callbacks(struct device *dev);
@@ -198,6 +197,17 @@ static inline bool pm_runtime_status_suspended(struct device *dev)
 static inline bool pm_runtime_enabled(struct device *dev)
 {
 	return !dev->power.disable_depth;
+}
+
+/**
+ * pm_runtime_blocked - Check if runtime PM enabling is blocked.
+ * @dev: Target device.
+ *
+ * Do not call this function outside system suspend/resume code paths.
+ */
+static inline bool pm_runtime_blocked(struct device *dev)
+{
+	return dev->power.last_status == RPM_BLOCKED;
 }
 
 /**
