@@ -37,6 +37,13 @@ struct kvm_tdx {
 
 	/* For KVM_TDX_INIT_MEM_REGION. */
 	atomic64_t nr_premapped;
+
+	/*
+	 * Prevent vCPUs from TD entry to ensure SEPT zap related SEAMCALLs do
+	 * not contend with tdh_vp_enter() and TDCALLs.
+	 * Set/unset is protected with kvm->mmu_lock.
+	 */
+	bool wait_for_sept_zap;
 };
 
 /* TDX module vCPU states */
