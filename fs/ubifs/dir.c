@@ -1002,8 +1002,8 @@ out_fname:
 	return err;
 }
 
-static int ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		       struct dentry *dentry, umode_t mode)
+static struct dentry *ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				  struct dentry *dentry, umode_t mode)
 {
 	struct inode *inode;
 	struct ubifs_inode *dir_ui = ubifs_inode(dir);
@@ -1023,7 +1023,7 @@ static int ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	err = ubifs_prepare_create(dir, dentry, &nm);
 	if (err)
@@ -1060,7 +1060,7 @@ static int ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	ubifs_release_budget(c, &req);
 	d_instantiate(dentry, inode);
 	fscrypt_free_filename(&nm);
-	return 0;
+	return NULL;
 
 out_cancel:
 	dir->i_size -= sz_change;
@@ -1074,7 +1074,7 @@ out_fname:
 	fscrypt_free_filename(&nm);
 out_budg:
 	ubifs_release_budget(c, &req);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int ubifs_mknod(struct mnt_idmap *idmap, struct inode *dir,

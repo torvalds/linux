@@ -1092,19 +1092,20 @@ out:
 	return err;
 }
 
-static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(dir->i_sb);
 	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_mds_request *req;
 	struct ceph_acl_sec_ctx as_ctx = {};
+	struct dentry *ret;
 	int err;
 	int op;
 
 	err = ceph_wait_on_conflict_unlink(dentry);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* mkdir .snap/foo is a MKSNAP */
@@ -1116,32 +1117,32 @@ static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 		      ceph_vinop(dir), dentry, dentry, mode);
 		op = CEPH_MDS_OP_MKDIR;
 	} else {
-		err = -EROFS;
+		ret = ERR_PTR(-EROFS);
 		goto out;
 	}
 
 	if (op == CEPH_MDS_OP_MKDIR &&
 	    ceph_quota_is_max_files_exceeded(dir)) {
-		err = -EDQUOT;
+		ret = ERR_PTR(-EDQUOT);
 		goto out;
 	}
 	if ((op == CEPH_MDS_OP_MKSNAP) && IS_ENCRYPTED(dir) &&
 	    !fscrypt_has_encryption_key(dir)) {
-		err = -ENOKEY;
+		ret = ERR_PTR(-ENOKEY);
 		goto out;
 	}
 
 
 	req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 	if (IS_ERR(req)) {
-		err = PTR_ERR(req);
+		ret = ERR_CAST(req);
 		goto out;
 	}
 
 	mode |= S_IFDIR;
 	req->r_new_inode = ceph_new_inode(dir, dentry, &mode, &as_ctx);
 	if (IS_ERR(req->r_new_inode)) {
-		err = PTR_ERR(req->r_new_inode);
+		ret = ERR_CAST(req->r_new_inode);
 		req->r_new_inode = NULL;
 		goto out_req;
 	}
@@ -1165,15 +1166,22 @@ static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	    !req->r_reply_info.head->is_target &&
 	    !req->r_reply_info.head->is_dentry)
 		err = ceph_handle_notrace_create(dir, dentry);
+	ret = ERR_PTR(err);
 out_req:
+	if (!IS_ERR(ret) && req->r_dentry != dentry)
+		/* Some other dentry was spliced in */
+		ret = dget(req->r_dentry);
 	ceph_mdsc_put_request(req);
 out:
-	if (!err)
+	if (!IS_ERR(ret)) {
+		if (ret)
+			dentry = ret;
 		ceph_init_inode_acls(d_inode(dentry), &as_ctx);
-	else
+	} else {
 		d_drop(dentry);
+	}
 	ceph_release_acl_sec_ctx(&as_ctx);
-	return err;
+	return ret;
 }
 
 static int ceph_link(struct dentry *old_dentry, struct inode *dir,

@@ -858,10 +858,10 @@ err:
 	return bch2_err_class(ret);
 }
 
-static int bch2_mkdir(struct mnt_idmap *idmap,
-		      struct inode *vdir, struct dentry *dentry, umode_t mode)
+static struct dentry *bch2_mkdir(struct mnt_idmap *idmap,
+				 struct inode *vdir, struct dentry *dentry, umode_t mode)
 {
-	return bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0);
+	return ERR_PTR(bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0));
 }
 
 static int bch2_rename2(struct mnt_idmap *idmap,
