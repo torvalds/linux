@@ -1625,7 +1625,7 @@ config SENSORS_NTC_THERMISTOR
 	  B57891S0103 from EPCOS.
 
 	  This driver can also be built as a module. If so, the module
-	  will be called ntc-thermistor.
+	  will be called ntc_thermistor.
 
 config SENSORS_NCT6683
 	tristate "Nuvoton NCT6683D"
