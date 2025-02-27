@@ -1920,9 +1920,10 @@ static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 	gmac_clk_enable(gmac, false);
 }
 
-static void rk_fix_speed(void *priv, int speed, unsigned int mode)
+static int rk_set_clk_tx_rate(void *bsp_priv_, struct clk *clk_tx_i,
+			      phy_interface_t interface, int speed)
 {
-	struct rk_priv_data *bsp_priv = priv;
+	struct rk_priv_data *bsp_priv = bsp_priv_;
 	struct device *dev = &bsp_priv->pdev->dev;
 
 	switch (bsp_priv->phy_iface) {
@@ -1940,6 +1941,8 @@ static void rk_fix_speed(void *priv, int speed, unsigned int mode)
 	default:
 		dev_err(dev, "unsupported interface %d", bsp_priv->phy_iface);
 	}
+
+	return 0;
 }
 
 static int rk_gmac_probe(struct platform_device *pdev)
@@ -1968,7 +1971,8 @@ static int rk_gmac_probe(struct platform_device *pdev)
 	 */
 	if (!plat_dat->has_gmac4)
 		plat_dat->has_gmac = true;
-	plat_dat->fix_mac_speed = rk_fix_speed;
+
+	plat_dat->set_clk_tx_rate = rk_set_clk_tx_rate;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, plat_dat, data);
 	if (IS_ERR(plat_dat->bsp_priv))
