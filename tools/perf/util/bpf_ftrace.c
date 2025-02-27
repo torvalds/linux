@@ -128,7 +128,7 @@ int perf_ftrace__latency_stop_bpf(struct perf_ftrace *ftrace __maybe_unused)
 	return 0;
 }
 
-int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace __maybe_unused,
+int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace,
 				  int buckets[], struct stats *stats)
 {
 	int i, fd, err;
@@ -158,6 +158,12 @@ int perf_ftrace__latency_read_bpf(struct perf_ftrace *ftrace __maybe_unused,
 		stats->n = skel->bss->count;
 		stats->max = skel->bss->max;
 		stats->min = skel->bss->min;
+
+		if (!ftrace->use_nsec) {
+			stats->mean /= 1000;
+			stats->max /= 1000;
+			stats->min /= 1000;
+		}
 	}
 
 	free(hist);
