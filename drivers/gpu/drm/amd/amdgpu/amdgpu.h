@@ -266,6 +266,7 @@ extern int amdgpu_umsch_mm_fwlog;
 
 extern int amdgpu_user_partt_mode;
 extern int amdgpu_agp;
+extern int amdgpu_rebar;
 
 extern int amdgpu_wbrf;
 

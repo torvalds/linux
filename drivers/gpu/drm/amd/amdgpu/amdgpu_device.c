@@ -1680,6 +1680,9 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	if (!amdgpu_rebar)
+		return 0;
+
 	/* resizing on Dell G5 SE platforms causes problems with runtime pm */
 	if ((amdgpu_runtime_pm != 0) &&
 	    adev->pdev->vendor == PCI_VENDOR_ID_ATI &&
