@@ -131,6 +131,8 @@ These ``struct kiocb`` flags are significant for buffered I/O with iomap:
 
  * ``IOCB_NOWAIT``: Turns on ``IOMAP_NOWAIT``.
 
+ * ``IOCB_DONTCACHE``: Turns on ``IOMAP_DONTCACHE``.
+
 Internal per-Folio State
 ------------------------
 
