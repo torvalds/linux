@@ -58,10 +58,10 @@ static int bad_inode_symlink(struct mnt_idmap *idmap,
 	return -EIO;
 }
 
-static int bad_inode_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-			   struct dentry *dentry, umode_t mode)
+static struct dentry *bad_inode_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				      struct dentry *dentry, umode_t mode)
 {
-	return -EIO;
+	return ERR_PTR(-EIO);
 }
 
 static int bad_inode_rmdir (struct inode *dir, struct dentry *dentry)

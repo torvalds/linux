@@ -2207,8 +2207,8 @@ posix_mkdir_get_info:
 }
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
 
-int cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
-	       struct dentry *direntry, umode_t mode)
+struct dentry *cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
+			  struct dentry *direntry, umode_t mode)
 {
 	int rc = 0;
 	unsigned int xid;
@@ -2224,10 +2224,10 @@ int cifs_mkdir(struct mnt_idmap *idmap, struct inode *inode,
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 	if (unlikely(cifs_forced_shutdown(cifs_sb)))
-		return -EIO;
+		return ERR_PTR(-EIO);
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
-		return PTR_ERR(tlink);
+		return ERR_CAST(tlink);
 	tcon = tlink_tcon(tlink);
 
 	xid = get_xid();
@@ -2283,7 +2283,7 @@ mkdir_out:
 	free_dentry_path(page);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
-	return rc;
+	return ERR_PTR(rc);
 }
 
 int cifs_rmdir(struct inode *inode, struct dentry *direntry)

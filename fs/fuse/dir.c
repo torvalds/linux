@@ -898,8 +898,8 @@ static int fuse_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	return err;
 }
 
-static int fuse_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *entry, umode_t mode)
+static struct dentry *fuse_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *entry, umode_t mode)
 {
 	struct fuse_mkdir_in inarg;
 	struct fuse_mount *fm = get_fuse_mount(dir);
@@ -917,7 +917,7 @@ static int fuse_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	args.in_args[0].value = &inarg;
 	args.in_args[1].size = entry->d_name.len + 1;
 	args.in_args[1].value = entry->d_name.name;
-	return create_new_entry(idmap, fm, &args, dir, entry, S_IFDIR);
+	return ERR_PTR(create_new_entry(idmap, fm, &args, dir, entry, S_IFDIR));
 }
 
 static int fuse_symlink(struct mnt_idmap *idmap, struct inode *dir,

@@ -1178,3 +1178,22 @@ these conditions don't require explicit checks:
 
 LOOKUP_EXCL now means "target must not exist".  It can be combined with
 LOOK_CREATE or LOOKUP_RENAME_TARGET.
+
+---
+
+** mandatory**
+
+->mkdir() now returns a 'struct dentry *'.  If the created inode is
+found to already be in cache and have a dentry (often IS_ROOT()), it will
+need to be spliced into the given name in place of the given dentry.
+That dentry now needs to be returned.  If the original dentry is used,
+NULL should be returned.  Any error should be returned with
+ERR_PTR().
+
+In general, filesystems which use d_instantiate_new() to install the new
+inode can safely return NULL.  Filesystems which may not have an I_NEW inode
+should use d_drop();d_splice_alias() and return the result of the latter.
+
+If a positive dentry cannot be returned for some reason, in-kernel
+clients such as cachefiles, nfsd, smb/server may not perform ideally but
+will fail-safe.

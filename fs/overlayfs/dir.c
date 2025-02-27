@@ -282,7 +282,8 @@ static int ovl_instantiate(struct dentry *dentry, struct inode *inode,
 		 * XXX: if we ever use ovl_obtain_alias() to decode directory
 		 * file handles, need to use ovl_get_inode_locked() and
 		 * d_instantiate_new() here to prevent from creating two
-		 * hashed directory inode aliases.
+		 * hashed directory inode aliases.  We then need to return
+		 * the obtained alias to ovl_mkdir().
 		 */
 		inode = ovl_get_inode(dentry->d_sb, &oip);
 		if (IS_ERR(inode))
@@ -687,10 +688,10 @@ static int ovl_create(struct mnt_idmap *idmap, struct inode *dir,
 	return ovl_create_object(dentry, (mode & 07777) | S_IFREG, 0, NULL);
 }
 
-static int ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		     struct dentry *dentry, umode_t mode)
+static struct dentry *ovl_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				struct dentry *dentry, umode_t mode)
 {
-	return ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL);
+	return ERR_PTR(ovl_create_object(dentry, (mode & 07777) | S_IFDIR, 0, NULL));
 }
 
 static int ovl_mknod(struct mnt_idmap *idmap, struct inode *dir,

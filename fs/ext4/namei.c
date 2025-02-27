@@ -3004,19 +3004,19 @@ out:
 	return err;
 }
 
-static int ext4_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *ext4_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	handle_t *handle;
 	struct inode *inode;
 	int err, err2 = 0, credits, retries = 0;
 
 	if (EXT4_DIR_LINK_MAX(dir))
-		return -EMLINK;
+		return ERR_PTR(-EMLINK);
 
 	err = dquot_initialize(dir);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	credits = (EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
 		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3);
@@ -3066,7 +3066,7 @@ out_stop:
 out_retry:
 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
 		goto retry;
-	return err;
+	return ERR_PTR(err);
 }
 
 /*

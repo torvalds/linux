@@ -2422,8 +2422,8 @@ EXPORT_SYMBOL_GPL(nfs_mknod);
 /*
  * See comments for nfs_proc_create regarding failed operations.
  */
-int nfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-	      struct dentry *dentry, umode_t mode)
+struct dentry *nfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+			 struct dentry *dentry, umode_t mode)
 {
 	struct iattr attr;
 	int error;
@@ -2439,10 +2439,10 @@ int nfs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	trace_nfs_mkdir_exit(dir, dentry, error);
 	if (error != 0)
 		goto out_err;
-	return 0;
+	return NULL;
 out_err:
 	d_drop(dentry);
-	return error;
+	return ERR_PTR(error);
 }
 EXPORT_SYMBOL_GPL(nfs_mkdir);
 

@@ -2211,8 +2211,8 @@ struct inode_operations {
 	int (*unlink) (struct inode *,struct dentry *);
 	int (*symlink) (struct mnt_idmap *, struct inode *,struct dentry *,
 			const char *);
-	int (*mkdir) (struct mnt_idmap *, struct inode *,struct dentry *,
-		      umode_t);
+	struct dentry *(*mkdir) (struct mnt_idmap *, struct inode *,
+				 struct dentry *, umode_t);
 	int (*rmdir) (struct inode *,struct dentry *);
 	int (*mknod) (struct mnt_idmap *, struct inode *,struct dentry *,
 		      umode_t,dev_t);

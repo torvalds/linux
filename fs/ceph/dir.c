@@ -1092,8 +1092,8 @@ out:
 	return err;
 }
 
-static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
-		      struct dentry *dentry, umode_t mode)
+static struct dentry *ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+				 struct dentry *dentry, umode_t mode)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_mdsc(dir->i_sb);
 	struct ceph_client *cl = mdsc->fsc->client;
@@ -1104,7 +1104,7 @@ static int ceph_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 
 	err = ceph_wait_on_conflict_unlink(dentry);
 	if (err)
-		return err;
+		return ERR_PTR(err);
 
 	if (ceph_snap(dir) == CEPH_SNAPDIR) {
 		/* mkdir .snap/foo is a MKSNAP */
@@ -1173,7 +1173,7 @@ out:
 	else
 		d_drop(dentry);
 	ceph_release_acl_sec_ctx(&as_ctx);
-	return err;
+	return ERR_PTR(err);
 }
 
 static int ceph_link(struct dentry *old_dentry, struct inode *dir,
