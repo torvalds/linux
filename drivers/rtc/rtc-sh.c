@@ -72,12 +72,6 @@
 /* ALARM Bits - or with BCD encoded value */
 #define AR_ENB		0x80	/* Enable for alarm cmp   */
 
-/* Period Bits */
-#define PF_HP		0x100	/* Enable Half Period to support 8,32,128Hz */
-#define PF_COUNT	0x200	/* Half periodic counter */
-#define PF_KOU		0x800	/* Kernel or User periodic request 1=kernel */
-#define PF_MASK		0xf00
-
 /* RCR1 Bits */
 #define RCR1_CF		0x80	/* Carry Flag             */
 #define RCR1_CIE	0x10	/* Carry Interrupt Enable */
@@ -85,8 +79,6 @@
 #define RCR1_AF		0x01	/* Alarm Flag             */
 
 /* RCR2 Bits */
-#define RCR2_PEF	0x80	/* PEriodic interrupt Flag */
-#define RCR2_PESMASK	0x70	/* Periodic interrupt Set  */
 #define RCR2_RTCEN	0x08	/* ENable RTC              */
 #define RCR2_ADJ	0x04	/* ADJustment (30-second)  */
 #define RCR2_RESET	0x02	/* Reset bit               */
@@ -103,7 +95,6 @@ struct sh_rtc {
 	struct rtc_device	*rtc_dev;
 	spinlock_t		lock;
 	unsigned long		capabilities;	/* See asm/rtc.h for cap bits */
-	unsigned short		periodic_freq;
 };
 
 static int __sh_rtc_alarm(struct sh_rtc *rtc)
@@ -121,30 +112,6 @@ static int __sh_rtc_alarm(struct sh_rtc *rtc)
 	return pending;
 }
 
-static int __sh_rtc_periodic(struct sh_rtc *rtc)
-{
-	unsigned int tmp, pending;
-
-	tmp = readb(rtc->regbase + RCR2);
-	pending = tmp & RCR2_PEF;
-	tmp &= ~RCR2_PEF;
-	writeb(tmp, rtc->regbase + RCR2);
-
-	if (!pending)
-		return 0;
-
-	/* Half period enabled than one skipped and the next notified */
-	if ((rtc->periodic_freq & PF_HP) && (rtc->periodic_freq & PF_COUNT))
-		rtc->periodic_freq &= ~PF_COUNT;
-	else {
-		if (rtc->periodic_freq & PF_HP)
-			rtc->periodic_freq |= PF_COUNT;
-		rtc_update_irq(rtc->rtc_dev, 1, RTC_PF | RTC_IRQF);
-	}
-
-	return pending;
-}
-
 static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
 {
 	struct sh_rtc *rtc = dev_id;
@@ -157,18 +124,6 @@ static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
 	return IRQ_RETVAL(ret);
 }
 
-static irqreturn_t sh_rtc_periodic(int irq, void *dev_id)
-{
-	struct sh_rtc *rtc = dev_id;
-	int ret;
-
-	spin_lock(&rtc->lock);
-	ret = __sh_rtc_periodic(rtc);
-	spin_unlock(&rtc->lock);
-
-	return IRQ_RETVAL(ret);
-}
-
 static irqreturn_t sh_rtc_shared(int irq, void *dev_id)
 {
 	struct sh_rtc *rtc = dev_id;
@@ -176,7 +131,6 @@ static irqreturn_t sh_rtc_shared(int irq, void *dev_id)
 
 	spin_lock(&rtc->lock);
 	ret = __sh_rtc_alarm(rtc);
-	ret |= __sh_rtc_periodic(rtc);
 	spin_unlock(&rtc->lock);
 
 	return IRQ_RETVAL(ret);
@@ -199,18 +153,6 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 	writeb(tmp, rtc->regbase + RCR1);
 
 	spin_unlock_irq(&rtc->lock);
-}
-
-static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
-{
-	struct sh_rtc *rtc = dev_get_drvdata(dev);
-	unsigned int tmp;
-
-	tmp = readb(rtc->regbase + RCR2);
-	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		   (tmp & RCR2_PESMASK) ? "yes" : "no");
-
-	return 0;
 }
 
 static int sh_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
@@ -405,7 +347,6 @@ static const struct rtc_class_ops sh_rtc_ops = {
 	.set_time	= sh_rtc_set_time,
 	.read_alarm	= sh_rtc_read_alarm,
 	.set_alarm	= sh_rtc_set_alarm,
-	.proc		= sh_rtc_proc,
 	.alarm_irq_enable = sh_rtc_alarm_irq_enable,
 };
 
@@ -512,16 +453,6 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 			goto err_unmap;
 		}
 	} else {
-		/* register periodic/carry/alarm irqs */
-		ret = devm_request_irq(&pdev->dev, rtc->periodic_irq,
-				sh_rtc_periodic, 0, "sh-rtc period", rtc);
-		if (unlikely(ret)) {
-			dev_err(&pdev->dev,
-				"request period IRQ failed with %d, IRQ %d\n",
-				ret, rtc->periodic_irq);
-			goto err_unmap;
-		}
-
 		ret = devm_request_irq(&pdev->dev, rtc->alarm_irq,
 				sh_rtc_alarm, 0, "sh-rtc alarm", rtc);
 		if (unlikely(ret)) {
