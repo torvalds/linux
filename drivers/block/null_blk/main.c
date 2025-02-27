@@ -1339,8 +1339,7 @@ blk_status_t null_handle_badblocks(struct nullb_cmd *cmd, sector_t sector,
 	struct badblocks *bb = &cmd->nq->dev->badblocks;
 	struct nullb_device *dev = cmd->nq->dev;
 	unsigned int block_sectors = dev->blocksize >> SECTOR_SHIFT;
-	sector_t first_bad;
-	int bad_sectors;
+	sector_t first_bad, bad_sectors;
 	unsigned int partial_io_sectors = 0;
 
 	if (!badblocks_check(bb, sector, *nr_sectors, &first_bad, &bad_sectors))

@@ -836,7 +836,7 @@ static bool try_adjacent_combine(struct badblocks *bb, int prev)
 }
 
 /* Do exact work to set bad block range into the bad block table */
-static bool _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
+static bool _badblocks_set(struct badblocks *bb, sector_t s, sector_t sectors,
 			   int acknowledged)
 {
 	int len = 0, added = 0;
@@ -956,8 +956,6 @@ update_sectors:
 	if (sectors > 0)
 		goto re_insert;
 
-	WARN_ON(sectors < 0);
-
 	/*
 	 * Check whether the following already set range can be
 	 * merged. (prev < 0) condition is not handled here,
@@ -1048,7 +1046,7 @@ static int front_splitting_clear(struct badblocks *bb, int prev,
 }
 
 /* Do the exact work to clear bad block range from the bad block table */
-static bool _badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
+static bool _badblocks_clear(struct badblocks *bb, sector_t s, sector_t sectors)
 {
 	struct badblocks_context bad;
 	int prev = -1, hint = -1;
@@ -1171,8 +1169,6 @@ update_sectors:
 	if (sectors > 0)
 		goto re_clear;
 
-	WARN_ON(sectors < 0);
-
 	if (cleared) {
 		badblocks_update_acked(bb);
 		set_changed(bb);
@@ -1187,8 +1183,8 @@ update_sectors:
 }
 
 /* Do the exact work to check bad blocks range from the bad block table */
-static int _badblocks_check(struct badblocks *bb, sector_t s, int sectors,
-			    sector_t *first_bad, int *bad_sectors)
+static int _badblocks_check(struct badblocks *bb, sector_t s, sector_t sectors,
+			    sector_t *first_bad, sector_t *bad_sectors)
 {
 	int prev = -1, hint = -1, set = 0;
 	struct badblocks_context bad;
@@ -1298,8 +1294,8 @@ update_sectors:
  * -1: there are bad blocks which have not yet been acknowledged in metadata.
  * plus the start/length of the first bad section we overlap.
  */
-int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
-			sector_t *first_bad, int *bad_sectors)
+int badblocks_check(struct badblocks *bb, sector_t s, sector_t sectors,
+			sector_t *first_bad, sector_t *bad_sectors)
 {
 	unsigned int seq;
 	int rv;
@@ -1341,7 +1337,7 @@ EXPORT_SYMBOL_GPL(badblocks_check);
  *  false: failed to set badblocks (out of space). Parital setting will be
  *  treated as failure.
  */
-bool badblocks_set(struct badblocks *bb, sector_t s, int sectors,
+bool badblocks_set(struct badblocks *bb, sector_t s, sector_t sectors,
 		   int acknowledged)
 {
 	return _badblocks_set(bb, s, sectors, acknowledged);
@@ -1362,7 +1358,7 @@ EXPORT_SYMBOL_GPL(badblocks_set);
  *  true: success
  *  false: failed to clear badblocks
  */
-bool badblocks_clear(struct badblocks *bb, sector_t s, int sectors)
+bool badblocks_clear(struct badblocks *bb, sector_t s, sector_t sectors)
 {
 	return _badblocks_clear(bb, s, sectors);
 }

@@ -367,9 +367,10 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	void *zero_page = page_address(ZERO_PAGE(0));
 	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
-	int num_bad, meta_num, rc, bb_present;
+	int meta_num, rc, bb_present;
 	sector_t first_bad, meta_start;
 	struct nd_namespace_io *nsio;
+	sector_t num_bad;
 
 	if (nd_pfn->mode != PFN_MODE_PMEM)
 		return 0;
@@ -394,7 +395,7 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
 		bb_present = badblocks_check(&nd_region->bb, meta_start,
 				meta_num, &first_bad, &num_bad);
 		if (bb_present) {
-			dev_dbg(&nd_pfn->dev, "meta: %x badblocks at %llx\n",
+			dev_dbg(&nd_pfn->dev, "meta: %llx badblocks at %llx\n",
 					num_bad, first_bad);
 			nsoff = ALIGN_DOWN((nd_region->ndr_start
 					+ (first_bad << 9)) - nsio->res.start,
@@ -413,7 +414,7 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
 			}
 			if (rc) {
 				dev_err(&nd_pfn->dev,
-					"error clearing %x badblocks at %llx\n",
+					"error clearing %llx badblocks at %llx\n",
 					num_bad, first_bad);
 				return rc;
 			}

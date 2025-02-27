@@ -1537,7 +1537,7 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 		atomic_inc(&rdev->nr_pending);
 		if (test_bit(WriteErrorSeen, &rdev->flags)) {
 			sector_t first_bad;
-			int bad_sectors;
+			sector_t bad_sectors;
 			int is_bad;
 
 			is_bad = is_badblock(rdev, r1_bio->sector, max_sectors,
@@ -2886,7 +2886,7 @@ static sector_t raid1_sync_request(struct mddev *mddev, sector_t sector_nr,
 		} else {
 			/* may need to read from here */
 			sector_t first_bad = MaxSector;
-			int bad_sectors;
+			sector_t bad_sectors;
 
 			if (is_badblock(rdev, sector_nr, good_sectors,
 					&first_bad, &bad_sectors)) {

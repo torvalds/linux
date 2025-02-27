@@ -247,7 +247,7 @@ static inline int raid1_check_read_range(struct md_rdev *rdev,
 					 sector_t this_sector, int *len)
 {
 	sector_t first_bad;
-	int bad_sectors;
+	sector_t bad_sectors;
 
 	/* no bad block overlap */
 	if (!is_badblock(rdev, this_sector, *len, &first_bad, &bad_sectors))
