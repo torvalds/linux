@@ -2221,6 +2221,7 @@ addr_err:
 	kfree(oa_regs);
 	return ERR_PTR(err);
 }
+ALLOW_ERROR_INJECTION(xe_oa_alloc_regs, ERRNO);
 
 static ssize_t show_dynamic_id(struct kobject *kobj,
 			       struct kobj_attribute *attr,
