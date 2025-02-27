@@ -469,7 +469,7 @@ ssize_t smu_v13_0_12_get_gpu_metrics(struct smu_context *smu, void **table)
 				SMUQ10_ROUND(metrics->GfxBusy[inst]);
 			gpu_metrics->xcp_stats[i].gfx_busy_acc[idx] =
 				SMUQ10_ROUND(metrics->GfxBusyAcc[inst]);
-				idx++;
+			idx++;
 		}
 	}
 
