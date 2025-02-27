@@ -3938,6 +3938,7 @@ unlock:
 
 static int sev_snp_ap_creation(struct vcpu_svm *svm)
 {
+	struct kvm_sev_info *sev = to_kvm_sev_info(svm->vcpu.kvm);
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct kvm_vcpu *target_vcpu;
 	struct vcpu_svm *target_svm;
@@ -3969,26 +3970,18 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 
 	mutex_lock(&target_svm->sev_es.snp_vmsa_mutex);
 
-	/* Interrupt injection mode shouldn't change for AP creation */
-	if (request < SVM_VMGEXIT_AP_DESTROY) {
-		u64 sev_features;
-
-		sev_features = vcpu->arch.regs[VCPU_REGS_RAX];
-		sev_features ^= to_kvm_sev_info(svm->vcpu.kvm)->vmsa_features;
-
-		if (sev_features & SVM_SEV_FEAT_INT_INJ_MODES) {
-			vcpu_unimpl(vcpu, "vmgexit: invalid AP injection mode [%#lx] from guest\n",
-				    vcpu->arch.regs[VCPU_REGS_RAX]);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
 	switch (request) {
 	case SVM_VMGEXIT_AP_CREATE_ON_INIT:
 		kick = false;
 		fallthrough;
 	case SVM_VMGEXIT_AP_CREATE:
+		if (vcpu->arch.regs[VCPU_REGS_RAX] != sev->vmsa_features) {
+			vcpu_unimpl(vcpu, "vmgexit: mismatched AP sev_features [%#lx] != [%#llx] from guest\n",
+				    vcpu->arch.regs[VCPU_REGS_RAX], sev->vmsa_features);
+			ret = -EINVAL;
+			goto out;
+		}
+
 		if (!page_address_valid(vcpu, svm->vmcb->control.exit_info_2)) {
 			vcpu_unimpl(vcpu, "vmgexit: invalid AP VMSA address [%#llx] from guest\n",
 				    svm->vmcb->control.exit_info_2);
