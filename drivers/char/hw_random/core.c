@@ -166,7 +166,7 @@ skip_init:
 	return 0;
 }
 
-static int rng_dev_open(struct inode *inode, struct file *filp)
+static int rng_dev_chk_perm(struct inode *inode, struct file *filp)
 {
 	/* enforce read-only access to this chrdev */
 	if ((filp->f_mode & FMODE_READ) == 0)
@@ -286,7 +286,7 @@ out_put:
 
 static const struct file_operations rng_chrdev_ops = {
 	.owner		= THIS_MODULE,
-	.open		= rng_dev_open,
+	.open		= rng_dev_chk_perm,
 	.read		= rng_dev_read,
 	.llseek		= noop_llseek,
 };
