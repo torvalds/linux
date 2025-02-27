@@ -2178,6 +2178,7 @@ static int initialize_index(struct vdo *vdo, struct hash_zones *zones)
 
 	vdo_set_dedupe_index_timeout_interval(vdo_dedupe_index_timeout_interval);
 	vdo_set_dedupe_index_min_timer_interval(vdo_dedupe_index_min_timer_interval);
+	spin_lock_init(&zones->lock);
 
 	/*
 	 * Since we will save up the timeouts that would have been reported but were ratelimited,

@@ -427,12 +427,10 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 			bio_put(bio);
 			goto zero_tail;
 		}
-		if (dio->flags & IOMAP_DIO_WRITE) {
+		if (dio->flags & IOMAP_DIO_WRITE)
 			task_io_account_write(n);
-		} else {
-			if (dio->flags & IOMAP_DIO_DIRTY)
-				bio_set_pages_dirty(bio);
-		}
+		else if (dio->flags & IOMAP_DIO_DIRTY)
+			bio_set_pages_dirty(bio);
 
 		dio->size += n;
 		copied += n;

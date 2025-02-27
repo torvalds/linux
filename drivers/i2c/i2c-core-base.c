@@ -2506,7 +2506,7 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 {
 	const unsigned short *address_list;
-	struct i2c_client temp_client;
+	struct i2c_client *temp_client;
 	int i, err = 0;
 
 	address_list = driver->address_list;
@@ -2527,18 +2527,23 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		return 0;
 
 	/* Set up a temporary client to help detect callback */
-	memset(&temp_client, 0, sizeof(temp_client));
-	temp_client.adapter = adapter;
+	temp_client = kzalloc(sizeof(*temp_client), GFP_KERNEL);
+	if (!temp_client)
+		return -ENOMEM;
+
+	temp_client->adapter = adapter;
 
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev,
 			"found normal entry for adapter %d, addr 0x%02x\n",
 			i2c_adapter_id(adapter), address_list[i]);
-		temp_client.addr = address_list[i];
-		err = i2c_detect_address(&temp_client, driver);
+		temp_client->addr = address_list[i];
+		err = i2c_detect_address(temp_client, driver);
 		if (unlikely(err))
 			break;
 	}
+
+	kfree(temp_client);
 
 	return err;
 }

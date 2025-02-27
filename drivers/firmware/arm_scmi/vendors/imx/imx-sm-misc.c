@@ -254,8 +254,8 @@ static int scmi_imx_misc_ctrl_set(const struct scmi_protocol_handle *ph,
 	if (num > max_num)
 		return -EINVAL;
 
-	ret = ph->xops->xfer_get_init(ph, SCMI_IMX_MISC_CTRL_SET, sizeof(*in),
-				      0, &t);
+	ret = ph->xops->xfer_get_init(ph, SCMI_IMX_MISC_CTRL_SET,
+				      sizeof(*in) + num * sizeof(__le32), 0, &t);
 	if (ret)
 		return ret;
 
