@@ -125,8 +125,7 @@ int BPF_PROG(func_end)
 			// than the min latency desired.
 			if (val > 0) { // 1st entry: [ 1 unit .. bucket_range units )
 				key = val / bucket_range + 1;
-				if (key >= bucket_num ||
-					val >= max_latency - min_latency)
+				if (key >= bucket_num)
 					key = bucket_num - 1;
 			}
 
