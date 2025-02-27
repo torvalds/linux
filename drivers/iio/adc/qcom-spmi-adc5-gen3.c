@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2025, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -58,7 +58,7 @@ static LIST_HEAD(adc_tm_device_list);
 #define ADC5_GEN3_SID				0x4f
 #define ADC5_GEN3_SID_MASK			GENMASK(3, 0)
 #define ADC5_GEN4_SID_MASK			GENMASK(4, 0)
-#define ADC5_GEN4_BUS_INDEX_MASK		GENMASK(6, 5)
+#define ADC5_GEN4_BUS_INDEX			0x00
 
 #define ADC5_GEN3_PERPH_CH			0x50
 #define ADC5_GEN3_CHAN_CONV_REQ			BIT(7)
@@ -113,9 +113,8 @@ static LIST_HEAD(adc_tm_device_list);
 
 #define ADC5_GEN4_V_CHAN_CHANNEL_MASK		GENMASK(7, 0)
 #define ADC5_GEN4_V_CHAN_SID_MASK		GENMASK(12, 8)
-#define ADC5_GEN4_V_CHAN_BUS_INDEX_MASK		GENMASK(14, 13)
 #define V_CHAN(x) \
-	(FIELD_PREP(ADC5_GEN4_V_CHAN_BUS_INDEX_MASK, (x).bus_index) | \
+	(ADC5_GEN4_BUS_INDEX | \
 	 FIELD_PREP(ADC5_GEN4_V_CHAN_SID_MASK, (x).sid) | \
 	 FIELD_PREP(ADC5_GEN4_V_CHAN_CHANNEL_MASK, (x).channel))
 
@@ -416,7 +415,7 @@ static int adc5_gen3_configure(struct adc5_chip *adc,
 		return ret;
 
 	/* Write SID */
-	buf[0] = FIELD_PREP(ADC5_GEN4_BUS_INDEX_MASK, prop->bus_index) |
+	buf[0] = ADC5_GEN4_BUS_INDEX |
 		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
@@ -884,7 +883,7 @@ static int adc_tm5_gen3_configure(struct adc5_channel_prop *prop)
 		return ret;
 
 	/* Write SID */
-	buf[0] = FIELD_PREP(ADC5_GEN4_BUS_INDEX_MASK, prop->bus_index) |
+	buf[0] = ADC5_GEN4_BUS_INDEX |
 		 FIELD_PREP(ADC5_GEN4_SID_MASK, prop->sid);
 
 	/*
@@ -1571,7 +1570,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 	 * ADC5 GEN3 channels bus index = 0
 	 */
 
-	bus_index = FIELD_GET(ADC5_GEN4_V_CHAN_BUS_INDEX_MASK, chan);
+	bus_index = ADC5_GEN4_BUS_INDEX;
 	sid = FIELD_GET(ADC5_GEN4_V_CHAN_SID_MASK, chan);
 	chan = FIELD_GET(ADC5_GEN4_V_CHAN_CHANNEL_MASK, chan);
 
