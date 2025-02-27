@@ -3944,7 +3944,6 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 	struct vcpu_svm *target_svm;
 	unsigned int request;
 	unsigned int apic_id;
-	bool kick;
 	int ret;
 
 	request = lower_32_bits(svm->vmcb->control.exit_info_1);
@@ -3962,18 +3961,10 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 
 	target_svm = to_svm(target_vcpu);
 
-	/*
-	 * The target vCPU is valid, so the vCPU will be kicked unless the
-	 * request is for CREATE_ON_INIT.
-	 */
-	kick = true;
-
 	mutex_lock(&target_svm->sev_es.snp_vmsa_mutex);
 
 	switch (request) {
 	case SVM_VMGEXIT_AP_CREATE_ON_INIT:
-		kick = false;
-		fallthrough;
 	case SVM_VMGEXIT_AP_CREATE:
 		if (vcpu->arch.regs[VCPU_REGS_RAX] != sev->vmsa_features) {
 			vcpu_unimpl(vcpu, "vmgexit: mismatched AP sev_features [%#lx] != [%#llx] from guest\n",
@@ -4018,7 +4009,11 @@ static int sev_snp_ap_creation(struct vcpu_svm *svm)
 
 	target_svm->sev_es.snp_ap_waiting_for_reset = true;
 
-	if (kick) {
+	/*
+	 * Unless Creation is deferred until INIT, signal the vCPU to update
+	 * its state.
+	 */
+	if (request != SVM_VMGEXIT_AP_CREATE_ON_INIT) {
 		kvm_make_request(KVM_REQ_UPDATE_PROTECTED_GUEST_STATE, target_vcpu);
 		kvm_vcpu_kick(target_vcpu);
 	}
