@@ -363,6 +363,9 @@ static const u32 a6xx_gmu_cx_registers[] = {
 	0x51e0, 0x51e2, 0x51f0, 0x51f0, 0x5200, 0x5201,
 	/* GMU AO */
 	0x9300, 0x9316, 0x9400, 0x9400,
+};
+
+static const u32 a6xx_gmu_gpucc_registers[] = {
 	/* GPU CC */
 	0x9800, 0x9812, 0x9840, 0x9852, 0x9c00, 0x9c04, 0x9c07, 0x9c0b,
 	0x9c15, 0x9c1c, 0x9c1e, 0x9c2d, 0x9c3c, 0x9c3d, 0x9c3f, 0x9c40,
@@ -385,6 +388,8 @@ static const struct a6xx_registers a6xx_gmu_reglist[] = {
 	REGS(a6xx_gmu_cx_rscc_registers, 0, 0),
 	REGS(a6xx_gmu_gx_registers, 0, 0),
 };
+
+static const struct a6xx_registers a6xx_gpucc_reg = REGS(a6xx_gmu_gpucc_registers, 0, 0);
 
 static u32 a6xx_get_cp_roq_size(struct msm_gpu *gpu);
 static u32 a7xx_get_cp_roq_size(struct msm_gpu *gpu);
