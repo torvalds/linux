@@ -58,14 +58,20 @@ class NetDrvEnv(NetDrvEnvBase):
     """
     Class for a single NIC / host env, with no remote end
     """
-    def __init__(self, src_path, **kwargs):
+    def __init__(self, src_path, nsim_test=None, **kwargs):
         super().__init__(src_path)
 
         self._ns = None
 
         if 'NETIF' in self.env:
+            if nsim_test is True:
+                raise KsftXfailEx("Test only works on netdevsim")
+
             self.dev = ip("-d link show dev " + self.env['NETIF'], json=True)[0]
         else:
+            if nsim_test is False:
+                raise KsftXfailEx("Test does not work on netdevsim")
+
             self._ns = NetdevSimDev(**kwargs)
             self.dev = self._ns.nsims[0].dev
         self.ifname = self.dev['ifname']

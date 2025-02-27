@@ -10,6 +10,7 @@ TEST_PROGS = \
 	ethtool_rmon.sh \
 	hw_stats_l3.sh \
 	hw_stats_l3_gre.sh \
+	irq.py \
 	loopback.sh \
 	nic_link_layer.py \
 	nic_performance.py \
@@ -34,9 +35,12 @@ TEST_INCLUDES := \
 # YNL files, must be before "include ..lib.mk"
 YNL_GEN_FILES := ncdevmem
 TEST_GEN_FILES += $(YNL_GEN_FILES)
+TEST_GEN_FILES += $(patsubst %.c,%.o,$(wildcard *.bpf.c))
 
 include ../../../lib.mk
 
 # YNL build
 YNL_GENS := ethtool netdev
 include ../../../net/ynl.mk
+
+include ../../../net/bpf.mk
