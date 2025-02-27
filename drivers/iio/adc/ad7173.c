@@ -345,6 +345,9 @@ static ssize_t ad7173_write_syscalib(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	mode = st->channels[chan->channel].syscalib_mode;
 	if (sys_calib) {
 		if (mode == AD7173_SYSCALIB_ZERO_SCALE)
@@ -354,6 +357,8 @@ static ssize_t ad7173_write_syscalib(struct iio_dev *indio_dev,
 			ret = ad_sd_calibrate(&st->sd, AD7173_MODE_CAL_SYS_FULL,
 					      chan->address);
 	}
+
+	iio_device_release_direct(indio_dev);
 
 	return ret ? : len;
 }
