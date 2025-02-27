@@ -840,10 +840,10 @@ done_str:
  * "size1,weight_1 size2,weight_2 ... size_n,weight_n" for example.
  */
 static ssize_t get_imix_entries(const char __user *buffer,
+				size_t maxlen,
 				struct pktgen_dev *pkt_dev)
 {
-	const size_t max_digits = 10;
-	size_t i = 0;
+	size_t i = 0, max;
 	ssize_t len;
 	char c;
 
@@ -856,10 +856,13 @@ static ssize_t get_imix_entries(const char __user *buffer,
 		if (pkt_dev->n_imix_entries >= MAX_IMIX_ENTRIES)
 			return -E2BIG;
 
-		len = num_arg(&buffer[i], max_digits, &size);
+		max = min(10, maxlen - i);
+		len = num_arg(&buffer[i], max, &size);
 		if (len < 0)
 			return len;
 		i += len;
+		if (i >= maxlen)
+			return -EINVAL;
 		if (get_user(c, &buffer[i]))
 			return -EFAULT;
 		/* Check for comma between size_i and weight_i */
@@ -870,7 +873,8 @@ static ssize_t get_imix_entries(const char __user *buffer,
 		if (size < 14 + 20 + 8)
 			size = 14 + 20 + 8;
 
-		len = num_arg(&buffer[i], max_digits, &weight);
+		max = min(10, maxlen - i);
+		len = num_arg(&buffer[i], max, &weight);
 		if (len < 0)
 			return len;
 		if (weight <= 0)
@@ -880,20 +884,23 @@ static ssize_t get_imix_entries(const char __user *buffer,
 		pkt_dev->imix_entries[pkt_dev->n_imix_entries].weight = weight;
 
 		i += len;
+		pkt_dev->n_imix_entries++;
+
+		if (i >= maxlen)
+			break;
 		if (get_user(c, &buffer[i]))
 			return -EFAULT;
-
 		i++;
-		pkt_dev->n_imix_entries++;
 	} while (c == ' ');
 
 	return i;
 }
 
-static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
+static ssize_t get_labels(const char __user *buffer,
+			  size_t maxlen, struct pktgen_dev *pkt_dev)
 {
 	unsigned int n = 0;
-	size_t i = 0;
+	size_t i = 0, max;
 	ssize_t len;
 	char c;
 
@@ -904,17 +911,20 @@ static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
 		if (n >= MAX_MPLS_LABELS)
 			return -E2BIG;
 
-		len = hex32_arg(&buffer[i], 8, &tmp);
+		max = min(8, maxlen - i);
+		len = hex32_arg(&buffer[i], max, &tmp);
 		if (len <= 0)
 			return len;
 		pkt_dev->labels[n] = htonl(tmp);
 		if (pkt_dev->labels[n] & MPLS_STACK_BOTTOM)
 			pkt_dev->flags |= F_MPLS_RND;
 		i += len;
+		n++;
+		if (i >= maxlen)
+			break;
 		if (get_user(c, &buffer[i]))
 			return -EFAULT;
 		i++;
-		n++;
 	} while (c == ',');
 
 	pkt_dev->nr_labels = n;
@@ -979,8 +989,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	i = len;
 
 	/* Read variable name */
-
-	len = strn_len(&user_buffer[i], sizeof(name) - 1);
+	max = min(sizeof(name) - 1, count - i);
+	len = strn_len(&user_buffer[i], max);
 	if (len < 0)
 		return len;
 
@@ -1008,7 +1018,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "min_pkt_size")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1025,7 +1036,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "max_pkt_size")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1044,7 +1056,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	/* Shortcut for min = max */
 
 	if (!strcmp(name, "pkt_size")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1064,7 +1077,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		if (pkt_dev->clone_skb > 0)
 			return -EINVAL;
 
-		len = get_imix_entries(&user_buffer[i], pkt_dev);
+		max = count - i;
+		len = get_imix_entries(&user_buffer[i], max, pkt_dev);
 		if (len < 0)
 			return len;
 
@@ -1075,7 +1089,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "debug")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1086,7 +1101,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "frags")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1096,7 +1112,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "delay")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1111,7 +1128,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "rate")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1126,7 +1144,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "ratep")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1141,7 +1160,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "udp_src_min")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1154,7 +1174,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "udp_dst_min")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1167,7 +1188,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "udp_src_max")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1180,7 +1202,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "udp_dst_max")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1193,7 +1216,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "clone_skb")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 		/* clone_skb is not supported for netif_receive xmit_mode and
@@ -1214,7 +1238,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "count")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1225,7 +1250,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "src_mac_count")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1239,7 +1265,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst_mac_count")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1253,7 +1280,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "burst")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1272,7 +1300,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "node")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1293,11 +1322,12 @@ static ssize_t pktgen_if_write(struct file *file,
 	if (!strcmp(name, "xmit_mode")) {
 		char f[32];
 
-		memset(f, 0, 32);
-		len = strn_len(&user_buffer[i], sizeof(f) - 1);
+		max = min(sizeof(f) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
+		memset(f, 0, sizeof(f));
 		if (copy_from_user(f, &user_buffer[i], len))
 			return -EFAULT;
 		i += len;
@@ -1333,11 +1363,12 @@ static ssize_t pktgen_if_write(struct file *file,
 		char f[32];
 		char *end;
 
-		memset(f, 0, 32);
-		len = strn_len(&user_buffer[i], sizeof(f) - 1);
+		max = min(sizeof(f) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
+		memset(f, 0, 32);
 		if (copy_from_user(f, &user_buffer[i], len))
 			return -EFAULT;
 		i += len;
@@ -1382,7 +1413,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst_min") || !strcmp(name, "dst")) {
-		len = strn_len(&user_buffer[i], sizeof(pkt_dev->dst_min) - 1);
+		max = min(sizeof(pkt_dev->dst_min) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1402,7 +1434,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst_max")) {
-		len = strn_len(&user_buffer[i], sizeof(pkt_dev->dst_max) - 1);
+		max = min(sizeof(pkt_dev->dst_max) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1422,7 +1455,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst6")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
+		max = min(sizeof(buf) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1445,7 +1479,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst6_min")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
+		max = min(sizeof(buf) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1467,7 +1502,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst6_max")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
+		max = min(sizeof(buf) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1488,7 +1524,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "src6")) {
-		len = strn_len(&user_buffer[i], sizeof(buf) - 1);
+		max = min(sizeof(buf) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1511,7 +1548,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "src_min")) {
-		len = strn_len(&user_buffer[i], sizeof(pkt_dev->src_min) - 1);
+		max = min(sizeof(pkt_dev->src_min) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1531,7 +1569,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "src_max")) {
-		len = strn_len(&user_buffer[i], sizeof(pkt_dev->src_max) - 1);
+		max = min(sizeof(pkt_dev->src_max) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1551,7 +1590,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "dst_mac")) {
-		len = strn_len(&user_buffer[i], sizeof(valstr) - 1);
+		max = min(sizeof(valstr) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1568,7 +1608,8 @@ static ssize_t pktgen_if_write(struct file *file,
 		return count;
 	}
 	if (!strcmp(name, "src_mac")) {
-		len = strn_len(&user_buffer[i], sizeof(valstr) - 1);
+		max = min(sizeof(valstr) - 1, count - i);
+		len = strn_len(&user_buffer[i], max);
 		if (len < 0)
 			return len;
 
@@ -1592,7 +1633,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "flows")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1606,7 +1648,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 #ifdef CONFIG_XFRM
 	if (!strcmp(name, "spi")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1617,7 +1660,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 #endif
 	if (!strcmp(name, "flowlen")) {
-		len = num_arg(&user_buffer[i], 10, &value);
+		max = min(10, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1628,7 +1672,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "queue_map_min")) {
-		len = num_arg(&user_buffer[i], 5, &value);
+		max = min(5, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1639,7 +1684,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "queue_map_max")) {
-		len = num_arg(&user_buffer[i], 5, &value);
+		max = min(5, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1652,7 +1698,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	if (!strcmp(name, "mpls")) {
 		unsigned int n, cnt;
 
-		len = get_labels(&user_buffer[i], pkt_dev);
+		max = count - i;
+		len = get_labels(&user_buffer[i], max, pkt_dev);
 		if (len < 0)
 			return len;
 		i += len;
@@ -1673,7 +1720,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "vlan_id")) {
-		len = num_arg(&user_buffer[i], 4, &value);
+		max = min(4, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1700,7 +1748,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "vlan_p")) {
-		len = num_arg(&user_buffer[i], 1, &value);
+		max = min(1, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1715,7 +1764,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "vlan_cfi")) {
-		len = num_arg(&user_buffer[i], 1, &value);
+		max = min(1, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1730,7 +1780,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "svlan_id")) {
-		len = num_arg(&user_buffer[i], 4, &value);
+		max = min(4, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1757,7 +1808,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "svlan_p")) {
-		len = num_arg(&user_buffer[i], 1, &value);
+		max = min(1, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1772,7 +1824,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "svlan_cfi")) {
-		len = num_arg(&user_buffer[i], 1, &value);
+		max = min(1, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
@@ -1788,7 +1841,9 @@ static ssize_t pktgen_if_write(struct file *file,
 
 	if (!strcmp(name, "tos")) {
 		__u32 tmp_value;
-		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
+
+		max = min(2, count - i);
+		len = hex32_arg(&user_buffer[i], max, &tmp_value);
 		if (len < 0)
 			return len;
 
@@ -1804,7 +1859,9 @@ static ssize_t pktgen_if_write(struct file *file,
 
 	if (!strcmp(name, "traffic_class")) {
 		__u32 tmp_value;
-		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
+
+		max = min(2, count - i);
+		len = hex32_arg(&user_buffer[i], max, &tmp_value);
 		if (len < 0)
 			return len;
 
@@ -1819,7 +1876,8 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "skb_priority")) {
-		len = num_arg(&user_buffer[i], 9, &value);
+		max = min(9, count - i);
+		len = num_arg(&user_buffer[i], max, &value);
 		if (len < 0)
 			return len;
 
