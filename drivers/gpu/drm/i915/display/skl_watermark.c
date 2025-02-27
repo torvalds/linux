@@ -2314,6 +2314,7 @@ cdclk_prefill_adjustment(const struct intel_crtc_state *crtc_state)
 static int
 dsc_prefill_latency(const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	const struct intel_crtc_scaler_state *scaler_state =
 					&crtc_state->scaler_state;
 	int linetime = DIV_ROUND_UP(1000 * crtc_state->hw.adjusted_mode.htotal,
@@ -2323,7 +2324,9 @@ dsc_prefill_latency(const struct intel_crtc_state *crtc_state)
 		crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ? 2 : 1;
 	u32 dsc_prefill_latency = 0;
 
-	if (!crtc_state->dsc.compression_enable || !num_scaler_users)
+	if (!crtc_state->dsc.compression_enable ||
+	    !num_scaler_users ||
+	    num_scaler_users > crtc->num_scalers)
 		return dsc_prefill_latency;
 
 	dsc_prefill_latency = DIV_ROUND_UP(15 * linetime * chroma_downscaling_factor, 10);
