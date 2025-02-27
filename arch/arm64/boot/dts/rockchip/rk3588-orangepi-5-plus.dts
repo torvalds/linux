@@ -124,6 +124,10 @@
 	status = "okay";
 };
 
+&hdmi0_sound {
+	status = "okay";
+};
+
 &hdmi0_in {
 	hdmi0_in_vp0: endpoint {
 		remote-endpoint = <&vp0_out_hdmi0>;
@@ -150,6 +154,10 @@
 	hdmi1_out_con: endpoint {
 		remote-endpoint = <&hdmi1_con_in>;
 	};
+};
+
+&hdmi1_sound {
+	status = "okay";
 };
 
 &hdptxphy0 {
@@ -218,6 +226,14 @@
 			};
 		};
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
+};
+
+&i2s6_8ch {
+	status = "okay";
 };
 
 &led_blue_gpio {
