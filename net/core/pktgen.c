@@ -959,7 +959,6 @@ static ssize_t pktgen_if_write(struct file *file,
 	char name[16], valstr[32];
 	unsigned long value = 0;
 	char *pg_result = NULL;
-	int tmp = 0;
 	char buf[128];
 
 	pg_result = &(pkt_dev->result[0]);
@@ -970,12 +969,12 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	max = count;
-	tmp = count_trail_chars(user_buffer, max);
-	if (tmp < 0) {
+	len = count_trail_chars(user_buffer, max);
+	if (len < 0) {
 		pr_warn("illegal format\n");
-		return tmp;
+		return len;
 	}
-	i = tmp;
+	i = len;
 
 	/* Read variable name */
 
