@@ -1836,11 +1836,10 @@ static void clean_up_dsc_blocks(struct dc *dc)
 	struct pg_cntl *pg_cntl = dc->res_pool->pg_cntl;
 	int i;
 
-	if (dc->ctx->dce_version != DCN_VERSION_3_5 &&
-		dc->ctx->dce_version != DCN_VERSION_3_6 &&
-		dc->ctx->dce_version != DCN_VERSION_3_51)
+	if (!dc->caps.is_apu ||
+		dc->ctx->dce_version < DCN_VERSION_3_15)
 		return;
-
+	/*VBIOS supports dsc starts from dcn315*/
 	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		struct dcn_dsc_state s  = {0};
 
