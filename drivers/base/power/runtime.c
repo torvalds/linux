@@ -1466,8 +1466,8 @@ bool pm_runtime_block_if_disabled(struct device *dev)
 
 	spin_lock_irq(&dev->power.lock);
 
-	ret = dev->power.disable_depth && dev->power.last_status == RPM_INVALID;
-	if (ret)
+	ret = !pm_runtime_enabled(dev);
+	if (ret && dev->power.last_status == RPM_INVALID)
 		dev->power.last_status = RPM_BLOCKED;
 
 	spin_unlock_irq(&dev->power.lock);

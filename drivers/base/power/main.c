@@ -1897,7 +1897,7 @@ unlock:
 		pm_runtime_put(dev);
 		return ret;
 	}
-	/* Do not enable "smart suspend" for devices without runtime PM. */
+	/* Do not enable "smart suspend" for devices with disabled runtime PM. */
 	if (smart_suspend)
 		smart_suspend = device_prepare_smart_suspend(dev);
 
