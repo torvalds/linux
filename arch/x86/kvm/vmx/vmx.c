@@ -1477,7 +1477,8 @@ void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu,
 		 * performs IBPB on nested VM-Exit (a single nested transition
 		 * may switch the active VMCS multiple times).
 		 */
-		if (!buddy || WARN_ON_ONCE(buddy->vmcs != prev))
+		if (cpu_feature_enabled(X86_FEATURE_USE_IBPB) &&
+		    (!buddy || WARN_ON_ONCE(buddy->vmcs != prev)))
 			indirect_branch_prediction_barrier();
 	}
 

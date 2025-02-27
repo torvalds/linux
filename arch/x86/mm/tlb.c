@@ -437,7 +437,8 @@ static void cond_mitigation(struct task_struct *next)
 		 * both have the IBPB bit set.
 		 */
 		if (next_mm != prev_mm &&
-		    (next_mm | prev_mm) & LAST_USER_MM_IBPB)
+		    (next_mm | prev_mm) & LAST_USER_MM_IBPB &&
+		    cpu_feature_enabled(X86_FEATURE_USE_IBPB))
 			indirect_branch_prediction_barrier();
 	}
 
@@ -447,8 +448,8 @@ static void cond_mitigation(struct task_struct *next)
 		 * different context than the user space task which ran
 		 * last on this CPU.
 		 */
-		if ((prev_mm & ~LAST_USER_MM_SPEC_MASK) !=
-					(unsigned long)next->mm)
+		if ((prev_mm & ~LAST_USER_MM_SPEC_MASK) != (unsigned long)next->mm &&
+		    cpu_feature_enabled(X86_FEATURE_USE_IBPB))
 			indirect_branch_prediction_barrier();
 	}
 
