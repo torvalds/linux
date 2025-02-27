@@ -774,7 +774,7 @@ static int monitor_timerfn(void *map, int *key, struct bpf_timer *timer)
 	if (print_shared_dsq)
 		dump_shared_dsq();
 
-	scx_bpf_events(&events, sizeof(events));
+	__COMPAT_scx_bpf_events(&events, sizeof(events));
 
 	bpf_printk("%35s: %llu", "SCX_EV_SELECT_CPU_FALLBACK",
 		   scx_read_event(&events, SCX_EV_SELECT_CPU_FALLBACK));

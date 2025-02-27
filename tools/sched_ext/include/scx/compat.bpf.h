@@ -183,7 +183,15 @@ static inline bool __COMPAT_is_enq_cpu_selected(u64 enq_flags)
 	 bpf_ktime_get_ns())
 
 /*
+ * v6.15: Introduce event counters.
  *
+ * Preserve the following macro until v6.17.
+ */
+#define __COMPAT_scx_bpf_events(events, size)					\
+	(bpf_ksym_exists(scx_bpf_events) ?					\
+	 scx_bpf_events(events, size) : ({}))
+
+/*
  * v6.15: Introduce NUMA-aware kfuncs to operate with per-node idle
  * cpumasks.
  *
