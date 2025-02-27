@@ -589,6 +589,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pcie-ipq6018
               - qcom,pcie-ipq8074
               - qcom,pcie-ipq8074-gen3
               - qcom,pcie-msm8996
@@ -627,7 +628,6 @@ allOf:
               - qcom,pcie-apq8064
               - qcom,pcie-apq8084
               - qcom,pcie-ipq4019
-              - qcom,pcie-ipq6018
               - qcom,pcie-ipq8064
               - qcom,pcie-ipq8064-v2
               - qcom,pcie-qcs404
