@@ -96,6 +96,21 @@ mes_userq_create_wptr_mapping(struct amdgpu_userq_mgr *uq_mgr,
 	return 0;
 }
 
+static int convert_to_mes_priority(int priority)
+{
+	switch (priority) {
+	case AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_NORMAL_LOW:
+	default:
+		return AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+	case AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_LOW:
+		return AMDGPU_MES_PRIORITY_LEVEL_LOW;
+	case AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_NORMAL_HIGH:
+		return AMDGPU_MES_PRIORITY_LEVEL_MEDIUM;
+	case AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_HIGH:
+		return AMDGPU_MES_PRIORITY_LEVEL_HIGH;
+	}
+}
+
 static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 			 struct amdgpu_usermode_queue *queue)
 {
@@ -121,7 +136,7 @@ static int mes_userq_map(struct amdgpu_userq_mgr *uq_mgr,
 	queue_input.process_context_addr = ctx->gpu_addr;
 	queue_input.gang_context_addr = ctx->gpu_addr + AMDGPU_USERQ_PROC_CTX_SZ;
 	queue_input.inprocess_gang_priority = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
-	queue_input.gang_global_priority_level = AMDGPU_MES_PRIORITY_LEVEL_NORMAL;
+	queue_input.gang_global_priority_level = convert_to_mes_priority(queue->priority);
 
 	queue_input.process_id = queue->vm->pasid;
 	queue_input.queue_type = queue->queue_type;
