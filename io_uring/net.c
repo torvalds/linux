@@ -215,7 +215,6 @@ static int io_net_import_vec(struct io_kiocb *req, struct io_async_msghdr *iomsg
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT
 static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 				  struct io_async_msghdr *iomsg,
 				  struct compat_msghdr *msg, int ddir,
@@ -252,7 +251,6 @@ static int io_compat_msg_copy_hdr(struct io_kiocb *req,
 	return io_net_import_vec(req, iomsg, (struct iovec __user *)uiov,
 				 msg->msg_iovlen, ddir);
 }
-#endif
 
 static int io_copy_msghdr_from_user(struct user_msghdr *msg,
 				    struct user_msghdr __user *umsg)
@@ -319,7 +317,6 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 	iomsg->msg.msg_name = &iomsg->addr;
 	iomsg->msg.msg_iter.nr_segs = 0;
 
-#ifdef CONFIG_COMPAT
 	if (io_is_compat(req->ctx)) {
 		struct compat_msghdr cmsg;
 
@@ -328,7 +325,6 @@ static int io_sendmsg_copy_hdr(struct io_kiocb *req,
 		sr->msg_control = iomsg->msg.msg_control_user;
 		return ret;
 	}
-#endif
 
 	ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_SOURCE, NULL);
 	/* save msg_control as sys_sendmsg() overwrites it */
@@ -709,7 +705,6 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 	iomsg->msg.msg_iter.nr_segs = 0;
 
 	if (io_is_compat(req->ctx)) {
-#ifdef CONFIG_COMPAT
 		struct compat_msghdr cmsg;
 
 		ret = io_compat_msg_copy_hdr(req, iomsg, &cmsg, ITER_DEST,
@@ -717,7 +712,6 @@ static int io_recvmsg_copy_hdr(struct io_kiocb *req,
 		memset(&msg, 0, sizeof(msg));
 		msg.msg_namelen = cmsg.msg_namelen;
 		msg.msg_controllen = cmsg.msg_controllen;
-#endif
 	} else {
 		ret = io_msg_copy_hdr(req, iomsg, &msg, ITER_DEST, &iomsg->uaddr);
 	}
