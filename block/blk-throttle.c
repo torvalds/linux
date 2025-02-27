@@ -599,14 +599,23 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 	 * sooner, then we need to reduce slice_end. A high bogus slice_end
 	 * is bad because it does not allow new slice to start.
 	 */
-
 	throtl_set_slice_end(tg, rw, jiffies + tg->td->throtl_slice);
 
 	time_elapsed = rounddown(jiffies - tg->slice_start[rw],
 				 tg->td->throtl_slice);
-	if (!time_elapsed)
+	/* Don't trim slice until at least 2 slices are used */
+	if (time_elapsed < tg->td->throtl_slice * 2)
 		return;
 
+	/*
+	 * The bio submission time may be a few jiffies more than the expected
+	 * waiting time, due to 'extra_bytes' can't be divided in
+	 * tg_within_bps_limit(), and also due to timer wakeup delay. In this
+	 * case, adjust slice_start will discard the extra wait time, causing
+	 * lower rate than expected. Therefore, other than the above rounddown,
+	 * one extra slice is preserved for deviation.
+	 */
+	time_elapsed -= tg->td->throtl_slice;
 	bytes_trim = calculate_bytes_allowed(tg_bps_limit(tg, rw),
 					     time_elapsed) +
 		     tg->carryover_bytes[rw];
