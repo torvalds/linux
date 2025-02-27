@@ -459,6 +459,11 @@
 			};
 		};
 
+		rng@793000 {
+			compatible = "qcom,qcs615-trng", "qcom,trng";
+			reg = <0x0 0x00793000 0x0 0x1000>;
+		};
+
 		sdhc_1: mmc@7c4000 {
 			compatible = "qcom,qcs615-sdhci", "qcom,sdhci-msm-v5";
 			reg = <0x0 0x007c4000 0x0 0x1000>,
