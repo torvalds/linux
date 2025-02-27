@@ -70,7 +70,8 @@
 /* All UBLK_PARAM_TYPE_* should be included here */
 #define UBLK_PARAM_TYPE_ALL                                \
 	(UBLK_PARAM_TYPE_BASIC | UBLK_PARAM_TYPE_DISCARD | \
-	 UBLK_PARAM_TYPE_DEVT | UBLK_PARAM_TYPE_ZONED)
+	 UBLK_PARAM_TYPE_DEVT | UBLK_PARAM_TYPE_ZONED |    \
+	 UBLK_PARAM_TYPE_DMA_ALIGN)
 
 struct ublk_rq_data {
 	struct llist_node node;
@@ -567,6 +568,16 @@ static int ublk_validate_params(const struct ublk_device *ub)
 		return ublk_dev_param_zoned_validate(ub);
 	else if (ublk_dev_is_zoned(ub))
 		return -EINVAL;
+
+	if (ub->params.types & UBLK_PARAM_TYPE_DMA_ALIGN) {
+		const struct ublk_param_dma_align *p = &ub->params.dma;
+
+		if (p->alignment >= PAGE_SIZE)
+			return -EINVAL;
+
+		if (!is_power_of_2(p->alignment + 1))
+			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -2299,6 +2310,9 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 
 	if (ub->params.basic.attrs & UBLK_ATTR_ROTATIONAL)
 		lim.features |= BLK_FEAT_ROTATIONAL;
+
+	if (ub->params.types & UBLK_PARAM_TYPE_DMA_ALIGN)
+		lim.dma_alignment = ub->params.dma.alignment;
 
 	if (wait_for_completion_interruptible(&ub->completion) != 0)
 		return -EINTR;

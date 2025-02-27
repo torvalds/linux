@@ -401,6 +401,11 @@ struct ublk_param_zoned {
 	__u8	reserved[20];
 };
 
+struct ublk_param_dma_align {
+	__u32	alignment;
+	__u8	pad[4];
+};
+
 struct ublk_params {
 	/*
 	 * Total length of parameters, userspace has to set 'len' for both
@@ -413,12 +418,14 @@ struct ublk_params {
 #define UBLK_PARAM_TYPE_DISCARD         (1 << 1)
 #define UBLK_PARAM_TYPE_DEVT            (1 << 2)
 #define UBLK_PARAM_TYPE_ZONED           (1 << 3)
+#define UBLK_PARAM_TYPE_DMA_ALIGN       (1 << 4)
 	__u32	types;			/* types of parameter included */
 
 	struct ublk_param_basic		basic;
 	struct ublk_param_discard	discard;
 	struct ublk_param_devt		devt;
 	struct ublk_param_zoned	zoned;
+	struct ublk_param_dma_align	dma;
 };
 
 #endif
