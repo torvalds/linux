@@ -270,11 +270,6 @@
 .Lskip_gcs_\@:
 .endm
 
-.macro __init_el2_nvhe_prepare_eret
-	mov	x0, #INIT_PSTATE_EL1
-	msr	spsr_el2, x0
-.endm
-
 .macro __init_el2_mpam
 	/* Memory Partitioning And Monitoring: disable EL2 traps */
 	mrs	x1, id_aa64pfr0_el1
