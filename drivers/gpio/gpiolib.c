@@ -3604,9 +3604,6 @@ static int gpiochip_set_multiple(struct gpio_chip *gc,
 
 	lockdep_assert_held(&gc->gpiodev->srcu);
 
-	if (WARN_ON(unlikely(!gc->set_multiple && !gc->set_multiple_rv)))
-		return -EOPNOTSUPP;
-
 	if (gc->set_multiple_rv) {
 		ret = gc->set_multiple_rv(gc, mask, bits);
 		if (ret > 0)
