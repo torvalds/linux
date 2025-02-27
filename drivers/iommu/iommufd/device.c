@@ -1349,7 +1349,7 @@ int iommufd_access_rw(struct iommufd_access *access, unsigned long iova,
 	struct io_pagetable *iopt;
 	struct iopt_area *area;
 	unsigned long last_iova;
-	int rc;
+	int rc = -EINVAL;
 
 	if (!length)
 		return -EINVAL;
