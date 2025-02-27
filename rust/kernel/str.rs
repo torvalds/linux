@@ -125,6 +125,18 @@ where
     }
 }
 
+impl AsRef<BStr> for [u8] {
+    fn as_ref(&self) -> &BStr {
+        BStr::from_bytes(self)
+    }
+}
+
+impl AsRef<BStr> for BStr {
+    fn as_ref(&self) -> &BStr {
+        self
+    }
+}
+
 /// Creates a new [`BStr`] from a string literal.
 ///
 /// `b_str!` converts the supplied string literal to byte string, so non-ASCII
