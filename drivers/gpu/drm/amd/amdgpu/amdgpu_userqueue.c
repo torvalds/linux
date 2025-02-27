@@ -22,6 +22,7 @@
  *
  */
 
+#include <drm/drm_auth.h>
 #include <drm/drm_exec.h>
 #include <linux/pm_runtime.h>
 
@@ -266,6 +267,21 @@ amdgpu_userqueue_destroy(struct drm_file *filp, int queue_id)
 	return r;
 }
 
+static int amdgpu_userq_priority_permit(struct drm_file *filp,
+					int priority)
+{
+	if (priority < AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_HIGH)
+		return 0;
+
+	if (capable(CAP_SYS_NICE))
+		return 0;
+
+	if (drm_is_current_master(filp))
+		return 0;
+
+	return -EACCES;
+}
+
 static int
 amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 {
@@ -278,6 +294,9 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	bool skip_map_queue;
 	uint64_t index;
 	int qid, r = 0;
+	int priority =
+		(args->in.flags & AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK) >>
+		AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_SHIFT;
 
 	/* Usermode queues are only supported for GFX IP as of now */
 	if (args->in.ip_type != AMDGPU_HW_IP_GFX &&
@@ -286,6 +305,10 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 		DRM_ERROR("Usermode queue doesn't support IP type %u\n", args->in.ip_type);
 		return -EINVAL;
 	}
+
+	r = amdgpu_userq_priority_permit(filp, priority);
+	if (r)
+		return r;
 
 	r = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (r < 0) {
@@ -319,6 +342,7 @@ amdgpu_userqueue_create(struct drm_file *filp, union drm_amdgpu_userq *args)
 	queue->doorbell_handle = args->in.doorbell_handle;
 	queue->queue_type = args->in.ip_type;
 	queue->vm = &fpriv->vm;
+	queue->priority = priority;
 
 	db_info.queue_type = queue->queue_type;
 	db_info.doorbell_handle = queue->doorbell_handle;
@@ -399,7 +423,7 @@ int amdgpu_userq_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->in.op) {
 	case AMDGPU_USERQ_OP_CREATE:
-		if (args->in.flags)
+		if (args->in.flags & ~AMDGPU_USERQ_CREATE_FLAGS_QUEUE_PRIORITY_MASK)
 			return -EINVAL;
 		r = amdgpu_userqueue_create(filp, args);
 		if (r)
