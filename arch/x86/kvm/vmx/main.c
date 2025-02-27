@@ -235,6 +235,14 @@ static void vt_msr_filter_changed(struct kvm_vcpu *vcpu)
 	vmx_msr_filter_changed(vcpu);
 }
 
+static int vt_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
+{
+	if (is_td_vcpu(vcpu))
+		return tdx_complete_emulated_msr(vcpu, err);
+
+	return kvm_complete_insn_gp(vcpu, err);
+}
+
 #ifdef CONFIG_KVM_SMM
 static int vt_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
@@ -686,7 +694,7 @@ struct kvm_x86_ops vt_x86_ops __initdata = {
 	.migrate_timers = vmx_migrate_timers,
 
 	.msr_filter_changed = vt_msr_filter_changed,
-	.complete_emulated_msr = kvm_complete_insn_gp,
+	.complete_emulated_msr = vt_complete_emulated_msr,
 
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
 

@@ -877,6 +877,8 @@ static __always_inline u32 tdcall_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 	case EXIT_REASON_CPUID:
 	case EXIT_REASON_HLT:
 	case EXIT_REASON_IO_INSTRUCTION:
+	case EXIT_REASON_MSR_READ:
+	case EXIT_REASON_MSR_WRITE:
 		return tdvmcall_leaf(vcpu);
 	case EXIT_REASON_EPT_VIOLATION:
 		return EXIT_REASON_EPT_MISCONFIG;
@@ -1906,6 +1908,20 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+int tdx_complete_emulated_msr(struct kvm_vcpu *vcpu, int err)
+{
+	if (err) {
+		tdvmcall_set_return_code(vcpu, TDVMCALL_STATUS_INVALID_OPERAND);
+		return 1;
+	}
+
+	if (vmx_get_exit_reason(vcpu).basic == EXIT_REASON_MSR_READ)
+		tdvmcall_set_return_val(vcpu, kvm_read_edx_eax(vcpu));
+
+	return 1;
+}
+
+
 int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
@@ -1971,6 +1987,14 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return tdx_emulate_vmcall(vcpu);
 	case EXIT_REASON_IO_INSTRUCTION:
 		return tdx_emulate_io(vcpu);
+	case EXIT_REASON_MSR_READ:
+		kvm_rcx_write(vcpu, tdx->vp_enter_args.r12);
+		return kvm_emulate_rdmsr(vcpu);
+	case EXIT_REASON_MSR_WRITE:
+		kvm_rcx_write(vcpu, tdx->vp_enter_args.r12);
+		kvm_rax_write(vcpu, tdx->vp_enter_args.r13 & -1u);
+		kvm_rdx_write(vcpu, tdx->vp_enter_args.r13 >> 32);
+		return kvm_emulate_wrmsr(vcpu);
 	case EXIT_REASON_EPT_MISCONFIG:
 		return tdx_emulate_mmio(vcpu);
 	case EXIT_REASON_EPT_VIOLATION:
