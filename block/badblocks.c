@@ -528,51 +528,6 @@ out:
 }
 
 /*
- * Return 'true' if the range indicated by 'bad' can be backward merged
- * with the bad range (from the bad table) index by 'behind'.
- */
-static bool can_merge_behind(struct badblocks *bb,
-			     struct badblocks_context *bad, int behind)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-
-	if ((s < BB_OFFSET(p[behind])) &&
-	    ((s + sectors) >= BB_OFFSET(p[behind])) &&
-	    ((BB_END(p[behind]) - s) <= BB_MAX_LEN) &&
-	    BB_ACK(p[behind]) == bad->ack)
-		return true;
-	return false;
-}
-
-/*
- * Do backward merge for range indicated by 'bad' and the bad range
- * (from the bad table) indexed by 'behind'. The return value is merged
- * sectors from bad->len.
- */
-static int behind_merge(struct badblocks *bb, struct badblocks_context *bad,
-			int behind)
-{
-	sector_t sectors = bad->len;
-	sector_t s = bad->start;
-	u64 *p = bb->page;
-	int merged = 0;
-
-	WARN_ON(s >= BB_OFFSET(p[behind]));
-	WARN_ON((s + sectors) < BB_OFFSET(p[behind]));
-
-	if (s < BB_OFFSET(p[behind])) {
-		merged = BB_OFFSET(p[behind]) - s;
-		p[behind] =  BB_MAKE(s, BB_LEN(p[behind]) + merged, bad->ack);
-
-		WARN_ON((BB_LEN(p[behind]) + merged) >= BB_MAX_LEN);
-	}
-
-	return merged;
-}
-
-/*
  * Return 'true' if the range indicated by 'bad' can be forward
  * merged with the bad range (from the bad table) indexed by 'prev'.
  */
@@ -884,11 +839,9 @@ static bool try_adjacent_combine(struct badblocks *bb, int prev)
 static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 			  int acknowledged)
 {
-	int retried = 0, space_desired = 0;
-	int orig_len, len = 0, added = 0;
+	int len = 0, added = 0;
 	struct badblocks_context bad;
 	int prev = -1, hint = -1;
-	sector_t orig_start;
 	unsigned long flags;
 	int rv = 0;
 	u64 *p;
@@ -912,8 +865,6 @@ static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 
 	write_seqlock_irqsave(&bb->lock, flags);
 
-	orig_start = s;
-	orig_len = sectors;
 	bad.ack = acknowledged;
 	p = bb->page;
 
@@ -921,6 +872,11 @@ re_insert:
 	bad.start = s;
 	bad.len = sectors;
 	len = 0;
+
+	if (badblocks_full(bb)) {
+		rv = 1;
+		goto out;
+	}
 
 	if (badblocks_empty(bb)) {
 		len = insert_at(bb, 0, &bad);
@@ -933,32 +889,14 @@ re_insert:
 
 	/* start before all badblocks */
 	if (prev < 0) {
-		if (!badblocks_full(bb)) {
-			/* insert on the first */
-			if (bad.len > (BB_OFFSET(p[0]) - bad.start))
-				bad.len = BB_OFFSET(p[0]) - bad.start;
-			len = insert_at(bb, 0, &bad);
-			bb->count++;
-			added++;
-			hint = 0;
-			goto update_sectors;
-		}
-
-		/* No sapce, try to merge */
-		if (overlap_behind(bb, &bad, 0)) {
-			if (can_merge_behind(bb, &bad, 0)) {
-				len = behind_merge(bb, &bad, 0);
-				added++;
-			} else {
-				len = BB_OFFSET(p[0]) - s;
-				space_desired = 1;
-			}
-			hint = 0;
-			goto update_sectors;
-		}
-
-		/* no table space and give up */
-		goto out;
+		/* insert on the first */
+		if (bad.len > (BB_OFFSET(p[0]) - bad.start))
+			bad.len = BB_OFFSET(p[0]) - bad.start;
+		len = insert_at(bb, 0, &bad);
+		bb->count++;
+		added++;
+		hint = 0;
+		goto update_sectors;
 	}
 
 	/* in case p[prev-1] can be merged with p[prev] */
@@ -978,6 +916,11 @@ re_insert:
 			int extra = 0;
 
 			if (!can_front_overwrite(bb, prev, &bad, &extra)) {
+				if (extra > 0) {
+					rv = 1;
+					goto out;
+				}
+
 				len = min_t(sector_t,
 					    BB_END(p[prev]) - s, sectors);
 				hint = prev;
@@ -1001,24 +944,6 @@ re_insert:
 		len = front_merge(bb, prev, &bad);
 		added++;
 		hint = prev;
-		goto update_sectors;
-	}
-
-	/* if no space in table, still try to merge in the covered range */
-	if (badblocks_full(bb)) {
-		/* skip the cannot-merge range */
-		if (((prev + 1) < bb->count) &&
-		    overlap_behind(bb, &bad, prev + 1) &&
-		    ((s + sectors) >= BB_END(p[prev + 1]))) {
-			len = BB_END(p[prev + 1]) - s;
-			hint = prev + 1;
-			goto update_sectors;
-		}
-
-		/* no retry any more */
-		len = sectors;
-		space_desired = 1;
-		hint = -1;
 		goto update_sectors;
 	}
 
@@ -1048,14 +973,6 @@ update_sectors:
 	 * because it's already complicated enough.
 	 */
 	try_adjacent_combine(bb, prev);
-
-	if (space_desired && !badblocks_full(bb)) {
-		s = orig_start;
-		sectors = orig_len;
-		space_desired = 0;
-		if (retried++ < 3)
-			goto re_insert;
-	}
 
 out:
 	if (added) {
