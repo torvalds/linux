@@ -630,11 +630,6 @@ static void ps_init(struct hci_dev *hdev)
 
 	psdata->cur_psmode = PS_MODE_DISABLE;
 	psdata->target_ps_mode = DEFAULT_PS_MODE;
-
-	if (psdata->cur_h2c_wakeupmode != psdata->h2c_wakeupmode)
-		hci_cmd_sync_queue(hdev, send_wakeup_method_cmd, NULL, NULL);
-	if (psdata->cur_psmode != psdata->target_ps_mode)
-		hci_cmd_sync_queue(hdev, send_ps_cmd, NULL, NULL);
 }
 
 /* NXP Firmware Download Feature */
@@ -1228,16 +1223,27 @@ static int nxp_setup(struct hci_dev *hdev)
 	serdev_device_set_baudrate(nxpdev->serdev, nxpdev->fw_init_baudrate);
 	nxpdev->current_baudrate = nxpdev->fw_init_baudrate;
 
-	if (nxpdev->current_baudrate != HCI_NXP_SEC_BAUDRATE) {
-		nxpdev->new_baudrate = HCI_NXP_SEC_BAUDRATE;
-		hci_cmd_sync_queue(hdev, nxp_set_baudrate_cmd, NULL, NULL);
-	}
-
 	ps_init(hdev);
 
 	if (test_and_clear_bit(BTNXPUART_IR_IN_PROGRESS, &nxpdev->tx_state))
 		hci_dev_clear_flag(hdev, HCI_SETUP);
 
+	return 0;
+}
+
+static int nxp_post_init(struct hci_dev *hdev)
+{
+	struct btnxpuart_dev *nxpdev = hci_get_drvdata(hdev);
+	struct ps_data *psdata = &nxpdev->psdata;
+
+	if (nxpdev->current_baudrate != HCI_NXP_SEC_BAUDRATE) {
+		nxpdev->new_baudrate = HCI_NXP_SEC_BAUDRATE;
+		nxp_set_baudrate_cmd(hdev, NULL);
+	}
+	if (psdata->cur_h2c_wakeupmode != psdata->h2c_wakeupmode)
+		send_wakeup_method_cmd(hdev, NULL);
+	if (psdata->cur_psmode != psdata->target_ps_mode)
+		send_ps_cmd(hdev, NULL);
 	return 0;
 }
 
@@ -1273,6 +1279,9 @@ static int nxp_shutdown(struct hci_dev *hdev)
 			set_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 		}
 		kfree_skb(skb);
+	} else if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
+		nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
+		nxp_set_baudrate_cmd(hdev, NULL);
 	}
 
 	return 0;
@@ -1566,6 +1575,7 @@ static int nxp_serdev_probe(struct serdev_device *serdev)
 	hdev->close = btnxpuart_close;
 	hdev->flush = btnxpuart_flush;
 	hdev->setup = nxp_setup;
+	hdev->post_init = nxp_post_init;
 	hdev->send  = nxp_enqueue;
 	hdev->hw_error = nxp_hw_err;
 	hdev->shutdown = nxp_shutdown;
@@ -1597,16 +1607,15 @@ static void nxp_serdev_remove(struct serdev_device *serdev)
 		clear_bit(BTNXPUART_FW_DOWNLOADING, &nxpdev->tx_state);
 		wake_up_interruptible(&nxpdev->check_boot_sign_wait_q);
 		wake_up_interruptible(&nxpdev->fw_dnld_done_wait_q);
-	} else {
-		/* Restore FW baudrate to fw_init_baudrate if changed.
-		 * This will ensure FW baudrate is in sync with
-		 * driver baudrate in case this driver is re-inserted.
-		 */
-		if (nxpdev->current_baudrate != nxpdev->fw_init_baudrate) {
-			nxpdev->new_baudrate = nxpdev->fw_init_baudrate;
-			nxp_set_baudrate_cmd(hdev, NULL);
-		}
 	}
+
+	if (test_bit(HCI_RUNNING, &hdev->flags)) {
+		/* Ensure shutdown callback is executed before unregistering, so
+		 * that baudrate is reset to initial value.
+		 */
+		nxp_shutdown(hdev);
+	}
+
 	ps_cleanup(nxpdev);
 	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
