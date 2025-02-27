@@ -227,8 +227,13 @@ static int vcn_v5_0_1_hw_fini(struct amdgpu_ip_block *ip_block)
 	struct amdgpu_device *adev = ip_block->adev;
 	int i;
 
-	for (i = 0; i < adev->vcn.num_vcn_inst; ++i)
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[i];
+
 		cancel_delayed_work_sync(&adev->vcn.inst[i].idle_work);
+		if (vinst->cur_state != AMD_PG_STATE_GATE)
+			vinst->set_pg_state(vinst, AMD_PG_STATE_GATE);
+	}
 
 	return 0;
 }
@@ -271,6 +276,11 @@ static int vcn_v5_0_1_resume(struct amdgpu_ip_block *ip_block)
 	int r, i;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		struct amdgpu_vcn_inst *vinst = &adev->vcn.inst[i];
+
+		if (amdgpu_in_reset(adev))
+			vinst->cur_state = AMD_PG_STATE_GATE;
+
 		r = amdgpu_vcn_resume(ip_block->adev, i);
 		if (r)
 			return r;
