@@ -1473,7 +1473,9 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
 
 	rc = devm_cxl_register_mce_notifier(dev, &mds->mce_notifier);
-	if (rc)
+	if (rc == -EOPNOTSUPP)
+		dev_warn(dev, "CXL MCE unsupported\n");
+	else if (rc)
 		return ERR_PTR(rc);
 
 	return mds;
