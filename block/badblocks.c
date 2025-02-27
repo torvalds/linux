@@ -1191,31 +1191,12 @@ update_sectors:
 static int _badblocks_check(struct badblocks *bb, sector_t s, int sectors,
 			    sector_t *first_bad, int *bad_sectors)
 {
-	int unacked_badblocks, acked_badblocks;
 	int prev = -1, hint = -1, set = 0;
 	struct badblocks_context bad;
-	unsigned int seq;
+	int unacked_badblocks = 0;
+	int acked_badblocks = 0;
+	u64 *p = bb->page;
 	int len, rv;
-	u64 *p;
-
-	WARN_ON(bb->shift < 0 || sectors == 0);
-
-	if (bb->shift > 0) {
-		sector_t target;
-
-		/* round the start down, and the end up */
-		target = s + sectors;
-		rounddown(s, 1 << bb->shift);
-		roundup(target, 1 << bb->shift);
-		sectors = target - s;
-	}
-
-retry:
-	seq = read_seqbegin(&bb->lock);
-
-	p = bb->page;
-	unacked_badblocks = 0;
-	acked_badblocks = 0;
 
 re_check:
 	bad.start = s;
@@ -1281,9 +1262,6 @@ update_sectors:
 	else
 		rv = 0;
 
-	if (read_seqretry(&bb->lock, seq))
-		goto retry;
-
 	return rv;
 }
 
@@ -1324,7 +1302,27 @@ update_sectors:
 int badblocks_check(struct badblocks *bb, sector_t s, int sectors,
 			sector_t *first_bad, int *bad_sectors)
 {
-	return _badblocks_check(bb, s, sectors, first_bad, bad_sectors);
+	unsigned int seq;
+	int rv;
+
+	WARN_ON(bb->shift < 0 || sectors == 0);
+
+	if (bb->shift > 0) {
+		/* round the start down, and the end up */
+		sector_t target = s + sectors;
+
+		rounddown(s, 1 << bb->shift);
+		roundup(target, 1 << bb->shift);
+		sectors = target - s;
+	}
+
+retry:
+	seq = read_seqbegin(&bb->lock);
+	rv = _badblocks_check(bb, s, sectors, first_bad, bad_sectors);
+	if (read_seqretry(&bb->lock, seq))
+		goto retry;
+
+	return rv;
 }
 EXPORT_SYMBOL_GPL(badblocks_check);
 
