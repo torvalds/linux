@@ -40,6 +40,19 @@ struct arm_spe_recording {
 	bool			*wrapped;
 };
 
+/* Iterate config list to detect if the "freq" parameter is set */
+static bool arm_spe_is_set_freq(struct evsel *evsel)
+{
+	struct evsel_config_term *term;
+
+	list_for_each_entry(term, &evsel->config_terms, list) {
+		if (term->type == EVSEL__CONFIG_TERM_FREQ)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * arm_spe_find_cpus() returns a new cpu map, and the caller should invoke
  * perf_cpu_map__put() to release the map after use.
@@ -389,6 +402,14 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 				return -EINVAL;
 			}
 			opts->full_auxtrace = true;
+
+			if (opts->user_freq != UINT_MAX ||
+			    arm_spe_is_set_freq(evsel)) {
+				pr_err("Arm SPE: Frequency is not supported. "
+				       "Set period with -c option or PMU parameter (-e %s/period=NUM/).\n",
+				       evsel->pmu->name);
+				return -EINVAL;
+			}
 		}
 	}
 
