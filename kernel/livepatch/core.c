@@ -6,6 +6,8 @@
  * Copyright (C) 2014 SUSE
  */
 
+#include <linux>
+
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
