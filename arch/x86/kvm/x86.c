@@ -4968,7 +4968,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	/* Save host pkru register if supported */
 	vcpu->arch.host_pkru = read_pkru();
-	vcpu->arch.host_debugctl = get_debugctlmsr();
 
 	/* Apply any externally detected TSC adjustments (due to suspend) */
 	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
@@ -10968,6 +10967,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	} else if (unlikely(hw_breakpoint_active())) {
 		set_debugreg(0, 7);
 	}
+
+	vcpu->arch.host_debugctl = get_debugctlmsr();
 
 	guest_timing_enter_irqoff();
 
