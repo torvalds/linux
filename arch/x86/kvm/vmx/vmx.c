@@ -2582,6 +2582,34 @@ static u64 adjust_vmx_controls64(u64 ctl_opt, u32 msr)
 	return  ctl_opt & allowed;
 }
 
+#define vmx_check_entry_exit_pairs(pairs, entry_controls, exit_controls)	\
+({										\
+	int i, r = 0;								\
+										\
+	BUILD_BUG_ON(sizeof(pairs[0].entry_control) != sizeof(entry_controls));	\
+	BUILD_BUG_ON(sizeof(pairs[0].exit_control)  != sizeof(exit_controls));	\
+										\
+	for (i = 0; i < ARRAY_SIZE(pairs); i++) {				\
+		typeof(entry_controls) n_ctrl = pairs[i].entry_control;		\
+		typeof(exit_controls) x_ctrl = pairs[i].exit_control;		\
+										\
+		if (!(entry_controls & n_ctrl) == !(exit_controls & x_ctrl))	\
+			continue;						\
+										\
+		pr_warn_once("Inconsistent VM-Entry/VM-Exit pair, "		\
+			     "entry = %llx (%llx), exit = %llx (%llx)\n",	\
+			     (u64)(entry_controls & n_ctrl), (u64)n_ctrl,	\
+			     (u64)(exit_controls & x_ctrl), (u64)x_ctrl);	\
+										\
+		if (error_on_inconsistent_vmcs_config)				\
+			r = -EIO;						\
+										\
+		entry_controls &= ~n_ctrl;					\
+		exit_controls &= ~x_ctrl;					\
+	}									\
+	r;									\
+})
+
 static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 			     struct vmx_capability *vmx_cap)
 {
@@ -2593,7 +2621,6 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	u32 _vmentry_control = 0;
 	u64 basic_msr;
 	u64 misc_msr;
-	int i;
 
 	/*
 	 * LOAD/SAVE_DEBUG_CONTROLS are absent because both are mandatory.
@@ -2697,22 +2724,9 @@ static int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 				&_vmentry_control))
 		return -EIO;
 
-	for (i = 0; i < ARRAY_SIZE(vmcs_entry_exit_pairs); i++) {
-		u32 n_ctrl = vmcs_entry_exit_pairs[i].entry_control;
-		u32 x_ctrl = vmcs_entry_exit_pairs[i].exit_control;
-
-		if (!(_vmentry_control & n_ctrl) == !(_vmexit_control & x_ctrl))
-			continue;
-
-		pr_warn_once("Inconsistent VM-Entry/VM-Exit pair, entry = %x, exit = %x\n",
-			     _vmentry_control & n_ctrl, _vmexit_control & x_ctrl);
-
-		if (error_on_inconsistent_vmcs_config)
-			return -EIO;
-
-		_vmentry_control &= ~n_ctrl;
-		_vmexit_control &= ~x_ctrl;
-	}
+	if (vmx_check_entry_exit_pairs(vmcs_entry_exit_pairs,
+				       _vmentry_control, _vmexit_control))
+		return -EIO;
 
 	/*
 	 * Some cpus support VM_{ENTRY,EXIT}_IA32_PERF_GLOBAL_CTRL but they
