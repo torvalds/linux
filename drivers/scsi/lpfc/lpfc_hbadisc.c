@@ -3524,7 +3524,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	if (phba->fc_topology &&
 	    phba->fc_topology != bf_get(lpfc_mbx_read_top_topology, la)) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
-				"3314 Toplogy changed was 0x%x is 0x%x\n",
+				"3314 Topology changed was 0x%x is 0x%x\n",
 				phba->fc_topology,
 				bf_get(lpfc_mbx_read_top_topology, la));
 		phba->fc_topology_changed = 1;
