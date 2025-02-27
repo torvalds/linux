@@ -744,10 +744,11 @@ static int pktgen_if_show(struct seq_file *seq, void *v)
 }
 
 
-static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
-		     __u32 *num)
+static ssize_t hex32_arg(const char __user *user_buffer, size_t maxlen,
+			 __u32 *num)
 {
-	int i = 0;
+	size_t i = 0;
+
 	*num = 0;
 
 	for (; i < maxlen; i++) {
@@ -766,10 +767,9 @@ static int hex32_arg(const char __user *user_buffer, unsigned long maxlen,
 	return i;
 }
 
-static int count_trail_chars(const char __user * user_buffer,
-			     unsigned int maxlen)
+static ssize_t count_trail_chars(const char __user *user_buffer, size_t maxlen)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < maxlen; i++) {
 		char c;
@@ -791,10 +791,10 @@ done:
 	return i;
 }
 
-static long num_arg(const char __user *user_buffer, unsigned long maxlen,
-				unsigned long *num)
+static ssize_t num_arg(const char __user *user_buffer, size_t maxlen,
+		       unsigned long *num)
 {
-	int i;
+	size_t i;
 	*num = 0;
 
 	for (i = 0; i < maxlen; i++) {
@@ -810,9 +810,9 @@ static long num_arg(const char __user *user_buffer, unsigned long maxlen,
 	return i;
 }
 
-static int strn_len(const char __user * user_buffer, unsigned int maxlen)
+static ssize_t strn_len(const char __user *user_buffer, size_t maxlen)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < maxlen; i++) {
 		char c;
@@ -842,9 +842,9 @@ done_str:
 static ssize_t get_imix_entries(const char __user *buffer,
 				struct pktgen_dev *pkt_dev)
 {
-	const int max_digits = 10;
-	int i = 0;
-	long len;
+	const size_t max_digits = 10;
+	size_t i = 0;
+	ssize_t len;
 	char c;
 
 	pkt_dev->n_imix_entries = 0;
@@ -893,9 +893,9 @@ static ssize_t get_imix_entries(const char __user *buffer,
 static ssize_t get_labels(const char __user *buffer, struct pktgen_dev *pkt_dev)
 {
 	unsigned int n = 0;
+	size_t i = 0;
+	ssize_t len;
 	char c;
-	ssize_t i = 0;
-	int len;
 
 	pkt_dev->nr_labels = 0;
 	do {
@@ -954,7 +954,8 @@ static ssize_t pktgen_if_write(struct file *file,
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_dev *pkt_dev = seq->private;
-	int i, max, len;
+	size_t i, max;
+	ssize_t len;
 	char name[16], valstr[32];
 	unsigned long value = 0;
 	char *pg_result = NULL;
@@ -1881,7 +1882,8 @@ static ssize_t pktgen_thread_write(struct file *file,
 {
 	struct seq_file *seq = file->private_data;
 	struct pktgen_thread *t = seq->private;
-	int i, max, len, ret;
+	size_t i, max;
+	ssize_t len, ret;
 	char name[40];
 	char *pg_result;
 
