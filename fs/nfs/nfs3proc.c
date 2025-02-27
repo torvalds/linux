@@ -578,13 +578,13 @@ out:
 	return status;
 }
 
-static int
+static struct dentry *
 nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 {
 	struct posix_acl *default_acl, *acl;
 	struct nfs3_createdata *data;
-	struct dentry *d_alias;
-	int status = -ENOMEM;
+	struct dentry *ret = ERR_PTR(-ENOMEM);
+	int status;
 
 	dprintk("NFS call  mkdir %pd\n", dentry);
 
@@ -592,8 +592,9 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	if (data == NULL)
 		goto out;
 
-	status = posix_acl_create(dir, &sattr->ia_mode, &default_acl, &acl);
-	if (status)
+	ret = ERR_PTR(posix_acl_create(dir, &sattr->ia_mode,
+				       &default_acl, &acl));
+	if (IS_ERR(ret))
 		goto out;
 
 	data->msg.rpc_proc = &nfs3_procedures[NFS3PROC_MKDIR];
@@ -602,25 +603,27 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	data->arg.mkdir.len = dentry->d_name.len;
 	data->arg.mkdir.sattr = sattr;
 
-	d_alias = nfs3_do_create(dir, dentry, data);
-	status = PTR_ERR_OR_ZERO(d_alias);
+	ret = nfs3_do_create(dir, dentry, data);
 
-	if (status != 0)
+	if (IS_ERR(ret))
 		goto out_release_acls;
 
-	if (d_alias)
-		dentry = d_alias;
+	if (ret)
+		dentry = ret;
 
 	status = nfs3_proc_setacls(d_inode(dentry), acl, default_acl);
+	if (status) {
+		dput(ret);
+		ret = ERR_PTR(status);
+	}
 
-	dput(d_alias);
 out_release_acls:
 	posix_acl_release(acl);
 	posix_acl_release(default_acl);
 out:
 	nfs3_free_createdata(data);
-	dprintk("NFS reply mkdir: %d\n", status);
-	return status;
+	dprintk("NFS reply mkdir: %d\n", PTR_ERR_OR_ZERO(ret));
+	return ret;
 }
 
 static int
