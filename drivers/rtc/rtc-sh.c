@@ -75,7 +75,6 @@
 /* Period Bits */
 #define PF_HP		0x100	/* Enable Half Period to support 8,32,128Hz */
 #define PF_COUNT	0x200	/* Half periodic counter */
-#define PF_OXS		0x400	/* Periodic One x Second */
 #define PF_KOU		0x800	/* Kernel or User periodic request 1=kernel */
 #define PF_MASK		0xf00
 
@@ -106,22 +105,6 @@ struct sh_rtc {
 	unsigned long		capabilities;	/* See asm/rtc.h for cap bits */
 	unsigned short		periodic_freq;
 };
-
-static int __sh_rtc_interrupt(struct sh_rtc *rtc)
-{
-	unsigned int tmp, pending;
-
-	tmp = readb(rtc->regbase + RCR1);
-	pending = tmp & RCR1_CF;
-	tmp &= ~RCR1_CF;
-	writeb(tmp, rtc->regbase + RCR1);
-
-	/* Users have requested One x Second IRQ */
-	if (pending && rtc->periodic_freq & PF_OXS)
-		rtc_update_irq(rtc->rtc_dev, 1, RTC_UF | RTC_IRQF);
-
-	return pending;
-}
 
 static int __sh_rtc_alarm(struct sh_rtc *rtc)
 {
@@ -162,18 +145,6 @@ static int __sh_rtc_periodic(struct sh_rtc *rtc)
 	return pending;
 }
 
-static irqreturn_t sh_rtc_interrupt(int irq, void *dev_id)
-{
-	struct sh_rtc *rtc = dev_id;
-	int ret;
-
-	spin_lock(&rtc->lock);
-	ret = __sh_rtc_interrupt(rtc);
-	spin_unlock(&rtc->lock);
-
-	return IRQ_RETVAL(ret);
-}
-
 static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
 {
 	struct sh_rtc *rtc = dev_id;
@@ -204,8 +175,7 @@ static irqreturn_t sh_rtc_shared(int irq, void *dev_id)
 	int ret;
 
 	spin_lock(&rtc->lock);
-	ret = __sh_rtc_interrupt(rtc);
-	ret |= __sh_rtc_alarm(rtc);
+	ret = __sh_rtc_alarm(rtc);
 	ret |= __sh_rtc_periodic(rtc);
 	spin_unlock(&rtc->lock);
 
@@ -235,9 +205,6 @@ static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int tmp;
-
-	tmp = readb(rtc->regbase + RCR1);
-	seq_printf(seq, "carry_IRQ\t: %s\n", (tmp & RCR1_CIE) ? "yes" : "no");
 
 	tmp = readb(rtc->regbase + RCR2);
 	seq_printf(seq, "periodic_IRQ\t: %s\n",
@@ -319,10 +286,6 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if ((sec128 & RTC_BIT_INVERTED))
 		tm->tm_sec--;
 #endif
-
-	/* only keep the carry interrupt enabled if UIE is on */
-	if (!(rtc->periodic_freq & PF_OXS))
-		sh_rtc_setcie(dev, 0);
 
 	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
 		"mday=%d, mon=%d, year=%d, wday=%d\n",
@@ -574,15 +537,6 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"request period IRQ failed with %d, IRQ %d\n",
 				ret, rtc->periodic_irq);
-			goto err_unmap;
-		}
-
-		ret = devm_request_irq(&pdev->dev, rtc->carry_irq,
-				sh_rtc_interrupt, 0, "sh-rtc carry", rtc);
-		if (unlikely(ret)) {
-			dev_err(&pdev->dev,
-				"request carry IRQ failed with %d, IRQ %d\n",
-				ret, rtc->carry_irq);
 			goto err_unmap;
 		}
 
