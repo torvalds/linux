@@ -1508,6 +1508,7 @@ extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v9_4_3;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v10;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v11;
+extern const struct kfd_event_interrupt_class event_interrupt_class_v12_1;
 
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 

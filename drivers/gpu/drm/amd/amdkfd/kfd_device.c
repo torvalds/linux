@@ -171,6 +171,10 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		/* GFX12_TODO: Change to v12 version. */
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v11;
 		break;
+	case IP_VERSION(12, 1, 0):
+		kfd->device_info.event_interrupt_class =
+						&event_interrupt_class_v12_1;
+		break;
 	default:
 		dev_warn(kfd_device, "v9 event interrupt handler is set due to "
 			"mismatch of gc ip block(GC_HWIP:0x%x).\n", gc_version);
@@ -667,6 +671,7 @@ static void kfd_setup_interrupt_bitmap(struct kfd_node *node,
 	struct amdgpu_device *adev = node->adev;
 	uint32_t xcc_mask = node->xcc_mask;
 	uint32_t xcc, mapped_xcc;
+	uint32_t bitmap;
 	/*
 	 * Interrupt bitmap is setup for processing interrupts from
 	 * different XCDs and AIDs.
@@ -688,9 +693,22 @@ static void kfd_setup_interrupt_bitmap(struct kfd_node *node,
 	 * - AND VMID reported in the interrupt lies within the
 	 *   VMID range of the node.
 	 */
-	for_each_inst(xcc, xcc_mask) {
-		mapped_xcc = GET_INST(GC, xcc);
-		node->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
+	switch (KFD_GC_VERSION(node)) {
+	case IP_VERSION(12, 1, 0):
+		for_each_inst(xcc, xcc_mask) {
+			mapped_xcc = GET_INST(GC, xcc);
+			bitmap = 0x2 | (0x4 << (mapped_xcc % 4));
+			if (mapped_xcc/4)
+				bitmap = bitmap << 8;
+			node->interrupt_bitmap |= bitmap;
+		}
+		break;
+	default:
+		for_each_inst(xcc, xcc_mask) {
+			mapped_xcc = GET_INST(GC, xcc);
+			node->interrupt_bitmap |= (mapped_xcc % 2 ? 5 : 3) << (4 * (mapped_xcc / 2));
+		}
+		break;
 	}
 	dev_info(kfd_device, "Node: %d, interrupt_bitmap: %x\n", kfd_node_idx,
 							node->interrupt_bitmap);

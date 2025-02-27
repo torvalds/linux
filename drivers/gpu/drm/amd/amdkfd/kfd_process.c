@@ -2279,7 +2279,8 @@ int kfd_process_drain_interrupts(struct kfd_process_device *pdd)
 	 */
 	if (KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 3) ||
 	    KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 4, 4) ||
-	    KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 5, 0)) {
+	    KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(9, 5, 0) ||
+	    KFD_GC_VERSION(pdd->dev->kfd) == IP_VERSION(12, 1, 0)) {
 		node_id = ffs(pdd->dev->interrupt_bitmap) - 1;
 		irq_drain_fence[3] |= node_id << 16;
 	}
