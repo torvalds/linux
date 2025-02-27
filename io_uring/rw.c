@@ -357,31 +357,30 @@ int io_prep_writev(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return io_prep_rwv(req, sqe, ITER_SOURCE);
 }
 
-static int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe,
+static int io_init_rw_fixed(struct io_kiocb *req, unsigned int issue_flags,
 			    int ddir)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
-	struct io_async_rw *io;
+	struct io_async_rw *io = req->async_data;
 	int ret;
 
-	ret = __io_prep_rw(req, sqe, ddir);
-	if (unlikely(ret))
-		return ret;
+	if (io->bytes_done)
+		return 0;
 
-	io = req->async_data;
-	ret = io_import_reg_buf(req, &io->iter, rw->addr, rw->len, ddir, 0);
+	ret = io_import_reg_buf(req, &io->iter, rw->addr, rw->len, ddir,
+				issue_flags);
 	iov_iter_save_state(&io->iter, &io->iter_state);
 	return ret;
 }
 
 int io_prep_read_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	return io_prep_rw_fixed(req, sqe, ITER_DEST);
+	return __io_prep_rw(req, sqe, ITER_DEST);
 }
 
 int io_prep_write_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	return io_prep_rw_fixed(req, sqe, ITER_SOURCE);
+	return __io_prep_rw(req, sqe, ITER_SOURCE);
 }
 
 /*
@@ -1145,6 +1144,28 @@ ret_eagain:
 			io_req_end_write(req);
 		return -EAGAIN;
 	}
+}
+
+int io_read_fixed(struct io_kiocb *req, unsigned int issue_flags)
+{
+	int ret;
+
+	ret = io_init_rw_fixed(req, issue_flags, ITER_DEST);
+	if (unlikely(ret))
+		return ret;
+
+	return io_read(req, issue_flags);
+}
+
+int io_write_fixed(struct io_kiocb *req, unsigned int issue_flags)
+{
+	int ret;
+
+	ret = io_init_rw_fixed(req, issue_flags, ITER_SOURCE);
+	if (unlikely(ret))
+		return ret;
+
+	return io_write(req, issue_flags);
 }
 
 void io_rw_fail(struct io_kiocb *req)
