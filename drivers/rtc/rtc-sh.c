@@ -115,7 +115,7 @@ static irqreturn_t sh_rtc_alarm(int irq, void *dev_id)
 	return IRQ_RETVAL(pending);
 }
 
-static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
+static int sh_rtc_alarm_irq_enable(struct device *dev, unsigned int enable)
 {
 	struct sh_rtc *rtc = dev_get_drvdata(dev);
 	unsigned int tmp;
@@ -132,11 +132,7 @@ static inline void sh_rtc_setaie(struct device *dev, unsigned int enable)
 	writeb(tmp, rtc->regbase + RCR1);
 
 	spin_unlock_irq(&rtc->lock);
-}
 
-static int sh_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
-{
-	sh_rtc_setaie(dev, enabled);
 	return 0;
 }
 
@@ -457,7 +453,7 @@ static void __exit sh_rtc_remove(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
-	sh_rtc_setaie(&pdev->dev, 0);
+	sh_rtc_alarm_irq_enable(&pdev->dev, 0);
 
 	clk_disable(rtc->clk);
 }
