@@ -1339,6 +1339,7 @@ struct pmc_info {
 	unsigned long uhp_udp_mask;
 	unsigned long mckr;
 	unsigned long version;
+	unsigned long mcks;
 };
 
 static const struct pmc_info pmc_infos[] __initconst = {
@@ -1370,11 +1371,13 @@ static const struct pmc_info pmc_infos[] __initconst = {
 	{
 		.mckr = 0x28,
 		.version = AT91_PMC_V2,
+		.mcks = 4,
 	},
 	{
 		.uhp_udp_mask = AT91SAM926x_PMC_UHP,
 		.mckr = 0x28,
 		.version = AT91_PMC_V2,
+		.mcks = 9,
 	},
 };
 
@@ -1463,6 +1466,7 @@ static void __init at91_pm_init(void (*pm_idle)(void))
 	soc_pm.data.uhp_udp_mask = pmc->uhp_udp_mask;
 	soc_pm.data.pmc_mckr_offset = pmc->mckr;
 	soc_pm.data.pmc_version = pmc->version;
+	soc_pm.data.pmc_mcks = pmc->mcks;
 
 	if (pm_idle)
 		arm_pm_idle = pm_idle;
