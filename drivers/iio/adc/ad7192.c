@@ -257,6 +257,9 @@ static ssize_t ad7192_write_syscalib(struct iio_dev *indio_dev,
 	if (ret)
 		return ret;
 
+	if (!iio_device_claim_direct(indio_dev))
+		return -EBUSY;
+
 	temp = st->syscalib_mode[chan->channel];
 	if (sys_calib) {
 		if (temp == AD7192_SYSCALIB_ZERO_SCALE)
@@ -266,6 +269,8 @@ static ssize_t ad7192_write_syscalib(struct iio_dev *indio_dev,
 			ret = ad_sd_calibrate(&st->sd, AD7192_MODE_CAL_SYS_FULL,
 					      chan->address);
 	}
+
+	iio_device_release_direct(indio_dev);
 
 	return ret ? ret : len;
 }
