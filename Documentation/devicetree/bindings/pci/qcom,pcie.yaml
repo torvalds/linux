@@ -602,8 +602,9 @@ allOf:
         - properties:
             interrupts:
               minItems: 8
-              maxItems: 8
+              maxItems: 9
             interrupt-names:
+              minItems: 8
               items:
                 - const: msi0
                 - const: msi1
@@ -613,6 +614,7 @@ allOf:
                 - const: msi5
                 - const: msi6
                 - const: msi7
+                - const: global
 
   - if:
       properties:
