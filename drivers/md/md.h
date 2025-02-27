@@ -289,10 +289,10 @@ static inline int rdev_has_badblock(struct md_rdev *rdev, sector_t s,
 	return is_badblock(rdev, s, sectors, &first_bad, &bad_sectors);
 }
 
-extern int rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
-			      int is_new);
-extern int rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
-				int is_new);
+extern bool rdev_set_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+			       int is_new);
+extern void rdev_clear_badblocks(struct md_rdev *rdev, sector_t s, int sectors,
+				 int is_new);
 struct md_cluster_info;
 
 /**
