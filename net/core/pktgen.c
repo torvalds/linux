@@ -913,8 +913,13 @@ static ssize_t get_labels(const char __user *buffer,
 
 		max = min(8, maxlen - i);
 		len = hex32_arg(&buffer[i], max, &tmp);
-		if (len <= 0)
+		if (len < 0)
 			return len;
+
+		/* return empty list in case of invalid input or zero value */
+		if (len == 0 || tmp == 0)
+			return maxlen;
+
 		pkt_dev->labels[n] = htonl(tmp);
 		if (pkt_dev->labels[n] & MPLS_STACK_BOTTOM)
 			pkt_dev->flags |= F_MPLS_RND;
