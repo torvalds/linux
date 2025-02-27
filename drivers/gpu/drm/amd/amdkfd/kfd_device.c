@@ -445,6 +445,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			gfx_target_version = 120001;
 			f2g = &gfx_v12_kfd2kgd;
 			break;
+		case IP_VERSION(12, 1, 0):
+			gfx_target_version = 120500;
+			f2g = &gfx_v12_kfd2kgd;
+			break;
 		default:
 			break;
 		}
@@ -749,7 +753,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * If the VMID range changes for multi-partition capable GPUs, then
 	 * this code MUST be revisited.
 	 */
-	if (kfd->adev->xcp_mgr) {
+	if (kfd->adev->xcp_mgr && (KFD_GC_VERSION(kfd) != IP_VERSION(12, 1, 0))) {
 		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
 								 AMDGPU_XCP_FL_LOCKED);
 		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
