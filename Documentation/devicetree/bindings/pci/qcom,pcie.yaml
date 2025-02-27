@@ -590,6 +590,7 @@ allOf:
           contains:
             enum:
               - qcom,pcie-msm8996
+              - qcom,pcie-msm8998
               - qcom,pcie-sdm845
     then:
       oneOf:
