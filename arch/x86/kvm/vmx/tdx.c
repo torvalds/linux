@@ -1709,12 +1709,29 @@ void tdx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
 	trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode, trig_mode, vector);
 }
 
+static inline bool tdx_is_sept_violation_unexpected_pending(struct kvm_vcpu *vcpu)
+{
+	u64 eeq_type = to_tdx(vcpu)->ext_exit_qualification & TDX_EXT_EXIT_QUAL_TYPE_MASK;
+	u64 eq = vmx_get_exit_qual(vcpu);
+
+	if (eeq_type != TDX_EXT_EXIT_QUAL_TYPE_PENDING_EPT_VIOLATION)
+		return false;
+
+	return !(eq & EPT_VIOLATION_RWX_MASK) && !(eq & EPT_VIOLATION_EXEC_FOR_RING3_LIN);
+}
+
 static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qual;
 	gpa_t gpa = to_tdx(vcpu)->exit_gpa;
 
 	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa)) {
+		if (tdx_is_sept_violation_unexpected_pending(vcpu)) {
+			pr_warn("Guest access before accepting 0x%llx on vCPU %d\n",
+				gpa, vcpu->vcpu_id);
+			kvm_vm_dead(vcpu->kvm);
+			return -EIO;
+		}
 		/*
 		 * Always treat SEPT violations as write faults.  Ignore the
 		 * EXIT_QUALIFICATION reported by TDX-SEAM for SEPT violations.
