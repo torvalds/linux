@@ -236,7 +236,7 @@ static void monitor_event_exception(struct pt_regs *regs)
 	}
 }
 
-void kernel_stack_overflow(struct pt_regs *regs)
+void kernel_stack_invalid(struct pt_regs *regs)
 {
 	/*
 	 * Normally regs are unpoisoned by the generic entry code, but
@@ -244,12 +244,12 @@ void kernel_stack_overflow(struct pt_regs *regs)
 	 */
 	kmsan_unpoison_entry_regs(regs);
 	bust_spinlocks(1);
-	pr_emerg("Kernel stack overflow\n");
+	pr_emerg("Kernel stack pointer invalid\n");
 	show_regs(regs);
 	bust_spinlocks(0);
-	panic("Corrupt kernel stack, cannot continue");
+	panic("Invalid kernel stack pointer, cannot continue");
 }
-NOKPROBE_SYMBOL(kernel_stack_overflow);
+NOKPROBE_SYMBOL(kernel_stack_invalid);
 
 static void __init test_monitor_call(void)
 {
