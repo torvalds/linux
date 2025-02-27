@@ -67,10 +67,10 @@ static int siw_rx_umem(struct siw_rx_stream *srx, struct siw_umem *umem,
 
 			return -EFAULT;
 		}
-		if (srx->mpa_crc_hd) {
+		if (srx->mpa_crc_enabled) {
 			if (rdma_is_kernel_res(&rx_qp(srx)->base_qp.res)) {
-				crypto_shash_update(srx->mpa_crc_hd,
-					(u8 *)(dest + pg_off), bytes);
+				siw_crc_update(&srx->mpa_crc, dest + pg_off,
+					       bytes);
 				kunmap_atomic(dest);
 			} else {
 				kunmap_atomic(dest);
@@ -114,8 +114,8 @@ static int siw_rx_kva(struct siw_rx_stream *srx, void *kva, int len)
 
 		return rv;
 	}
-	if (srx->mpa_crc_hd)
-		crypto_shash_update(srx->mpa_crc_hd, (u8 *)kva, len);
+	if (srx->mpa_crc_enabled)
+		siw_crc_update(&srx->mpa_crc, kva, len);
 
 	srx->skb_offset += len;
 	srx->skb_copied += len;
@@ -966,16 +966,16 @@ static int siw_get_trailer(struct siw_qp *qp, struct siw_rx_stream *srx)
 	if (srx->fpdu_part_rem)
 		return -EAGAIN;
 
-	if (!srx->mpa_crc_hd)
+	if (!srx->mpa_crc_enabled)
 		return 0;
 
 	if (srx->pad)
-		crypto_shash_update(srx->mpa_crc_hd, tbuf, srx->pad);
+		siw_crc_update(&srx->mpa_crc, tbuf, srx->pad);
 	/*
 	 * CRC32 is computed, transmitted and received directly in NBO,
 	 * so there's never a reason to convert byte order.
 	 */
-	crypto_shash_final(srx->mpa_crc_hd, (u8 *)&crc_own);
+	siw_crc_final(&srx->mpa_crc, (u8 *)&crc_own);
 	crc_in = (__force __wsum)srx->trailer.crc;
 
 	if (unlikely(crc_in != crc_own)) {
@@ -1093,13 +1093,12 @@ static int siw_get_hdr(struct siw_rx_stream *srx)
 	 * (tagged/untagged). E.g., a WRITE can get intersected by a SEND,
 	 * but not by a READ RESPONSE etc.
 	 */
-	if (srx->mpa_crc_hd) {
+	if (srx->mpa_crc_enabled) {
 		/*
 		 * Restart CRC computation
 		 */
-		crypto_shash_init(srx->mpa_crc_hd);
-		crypto_shash_update(srx->mpa_crc_hd, (u8 *)c_hdr,
-				    srx->fpdu_part_rcvd);
+		siw_crc_init(&srx->mpa_crc);
+		siw_crc_update(&srx->mpa_crc, c_hdr, srx->fpdu_part_rcvd);
 	}
 	if (frx->more_ddp_segs) {
 		frx->first_ddp_seg = 0;
