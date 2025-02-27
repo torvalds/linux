@@ -855,6 +855,31 @@ static void badblocks_update_acked(struct badblocks *bb)
 		bb->unacked_exist = 0;
 }
 
+/*
+ * Return 'true' if the range indicated by 'bad' is exactly backward
+ * overlapped with the bad range (from bad table) indexed by 'behind'.
+ */
+static bool try_adjacent_combine(struct badblocks *bb, int prev)
+{
+	u64 *p = bb->page;
+
+	if (prev >= 0 && (prev + 1) < bb->count &&
+	    BB_END(p[prev]) == BB_OFFSET(p[prev + 1]) &&
+	    (BB_LEN(p[prev]) + BB_LEN(p[prev + 1])) <= BB_MAX_LEN &&
+	    BB_ACK(p[prev]) == BB_ACK(p[prev + 1])) {
+		p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
+				  BB_LEN(p[prev]) + BB_LEN(p[prev + 1]),
+				  BB_ACK(p[prev]));
+
+		if ((prev + 2) < bb->count)
+			memmove(p + prev + 1, p + prev + 2,
+				(bb->count -  (prev + 2)) * 8);
+		bb->count--;
+		return true;
+	}
+	return false;
+}
+
 /* Do exact work to set bad block range into the bad block table */
 static int _badblocks_set(struct badblocks *bb, sector_t s, int sectors,
 			  int acknowledged)
@@ -1022,20 +1047,7 @@ update_sectors:
 	 * merged. (prev < 0) condition is not handled here,
 	 * because it's already complicated enough.
 	 */
-	if (prev >= 0 &&
-	    (prev + 1) < bb->count &&
-	    BB_END(p[prev]) == BB_OFFSET(p[prev + 1]) &&
-	    (BB_LEN(p[prev]) + BB_LEN(p[prev + 1])) <= BB_MAX_LEN &&
-	    BB_ACK(p[prev]) == BB_ACK(p[prev + 1])) {
-		p[prev] = BB_MAKE(BB_OFFSET(p[prev]),
-				  BB_LEN(p[prev]) + BB_LEN(p[prev + 1]),
-				  BB_ACK(p[prev]));
-
-		if ((prev + 2) < bb->count)
-			memmove(p + prev + 1, p + prev + 2,
-				(bb->count -  (prev + 2)) * 8);
-		bb->count--;
-	}
+	try_adjacent_combine(bb, prev);
 
 	if (space_desired && !badblocks_full(bb)) {
 		s = orig_start;
