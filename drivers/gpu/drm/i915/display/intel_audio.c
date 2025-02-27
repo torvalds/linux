@@ -190,7 +190,8 @@ static const struct hdmi_aud_ncts hdmi_aud_ncts_36bpp[] = {
  */
 static bool needs_wa_14020863754(struct intel_display *display)
 {
-	return DISPLAY_VERx100(display) == 2000 ||
+	return DISPLAY_VERx100(display) == 3000 ||
+		DISPLAY_VERx100(display) == 2000 ||
 		DISPLAY_VERx100(display) == 1401;
 }
 
