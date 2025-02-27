@@ -441,7 +441,7 @@ snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *memblk)
 		unmap_memblk(emu, blk);
 	spin_unlock_irqrestore(&emu->memblk_lock, flags);
 	synth_free_pages(emu, blk);
-	 __snd_util_mem_free(hdr, memblk);
+	__snd_util_mem_free(hdr, memblk);
 	mutex_unlock(&hdr->block_mutex);
 	return 0;
 }
