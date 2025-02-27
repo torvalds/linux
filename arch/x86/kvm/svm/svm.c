@@ -3599,7 +3599,7 @@ static int svm_handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 	return svm_invoke_exit_handler(vcpu, exit_code);
 }
 
-static void pre_svm_run(struct kvm_vcpu *vcpu)
+static int pre_svm_run(struct kvm_vcpu *vcpu)
 {
 	struct svm_cpu_data *sd = per_cpu_ptr(&svm_data, vcpu->cpu);
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3621,6 +3621,8 @@ static void pre_svm_run(struct kvm_vcpu *vcpu)
 	/* FIXME: handle wraparound of asid_generation */
 	if (svm->current_vmcb->asid_generation != sd->asid_generation)
 		new_asid(svm, sd);
+
+	return 0;
 }
 
 static void svm_inject_nmi(struct kvm_vcpu *vcpu)
@@ -4243,7 +4245,12 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu,
 	if (force_immediate_exit)
 		smp_send_reschedule(vcpu->cpu);
 
-	pre_svm_run(vcpu);
+	if (pre_svm_run(vcpu)) {
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		vcpu->run->fail_entry.hardware_entry_failure_reason = SVM_EXIT_ERR;
+		vcpu->run->fail_entry.cpu = vcpu->cpu;
+		return EXIT_FASTPATH_EXIT_USERSPACE;
+	}
 
 	sync_lapic_to_cr8(vcpu);
 
