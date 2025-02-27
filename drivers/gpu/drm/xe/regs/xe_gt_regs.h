@@ -364,10 +364,12 @@
 #define FORCEWAKE_MEDIA_VEBOX(n)		XE_REG(0xa560 + (n) * 4)
 #define FORCEWAKE_GSC				XE_REG(0xa618)
 
+#define XELP_GARBCNTL				XE_REG(0xb004)
+#define   XELP_BUS_HASH_CTL_BIT_EXC		REG_BIT(7)
+
 #define XEHPC_LNCFMISCCFGREG0			XE_REG_MCR(0xb01c, XE_REG_OPTION_MASKED)
 #define   XEHPC_OVRLSCCC			REG_BIT(0)
 
-/* L3 Cache Control */
 #define LNCFCMOCS_REG_COUNT			32
 #define XELP_LNCFCMOCS(i)			XE_REG(0xb020 + (i) * 4)
 #define XEHP_LNCFCMOCS(i)			XE_REG_MCR(0xb020 + (i) * 4)

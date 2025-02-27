@@ -88,6 +88,11 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 };
 
 static const struct xe_rtp_entry_sr engine_tunings[] = {
+	{ XE_RTP_NAME("Tuning: L3 Hashing Mask"),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1210),
+		       FUNC(xe_rtp_match_first_render_or_compute)),
+	  XE_RTP_ACTIONS(CLR(XELP_GARBCNTL, XELP_BUS_HASH_CTL_BIT_EXC))
+	},
 	{ XE_RTP_NAME("Tuning: Set Indirect State Override"),
 	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
 		       ENGINE_CLASS(RENDER)),
