@@ -1795,9 +1795,10 @@ int dpm_suspend(pm_message_t state)
 	return error;
 }
 
-static void device_prepare_smart_suspend(struct device *dev)
+static bool device_prepare_smart_suspend(struct device *dev)
 {
 	struct device_link *link;
+	bool ret = true;
 	int idx;
 
 	/*
@@ -1808,17 +1809,13 @@ static void device_prepare_smart_suspend(struct device *dev)
 	 * or any of its suppliers that take runtime PM into account, it cannot
 	 * be enabled for the device either.
 	 */
-	dev->power.smart_suspend = dev->power.no_pm_callbacks ||
-		dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND);
-
-	if (!dev_pm_smart_suspend(dev))
-		return;
+	if (!dev->power.no_pm_callbacks &&
+	    !dev_pm_test_driver_flags(dev, DPM_FLAG_SMART_SUSPEND))
+		return false;
 
 	if (dev->parent && !dev_pm_smart_suspend(dev->parent) &&
-	    !dev->parent->power.ignore_children && !pm_runtime_blocked(dev->parent)) {
-		dev->power.smart_suspend = false;
-		return;
-	}
+	    !dev->parent->power.ignore_children && !pm_runtime_blocked(dev->parent))
+		return false;
 
 	idx = device_links_read_lock();
 
@@ -1828,12 +1825,14 @@ static void device_prepare_smart_suspend(struct device *dev)
 
 		if (!dev_pm_smart_suspend(link->supplier) &&
 		    !pm_runtime_blocked(link->supplier)) {
-			dev->power.smart_suspend = false;
+			ret = false;
 			break;
 		}
 	}
 
 	device_links_read_unlock(idx);
+
+	return ret;
 }
 
 /**
@@ -1847,7 +1846,7 @@ static void device_prepare_smart_suspend(struct device *dev)
 static int device_prepare(struct device *dev, pm_message_t state)
 {
 	int (*callback)(struct device *) = NULL;
-	bool no_runtime_pm;
+	bool smart_suspend;
 	int ret = 0;
 
 	/*
@@ -1863,7 +1862,7 @@ static int device_prepare(struct device *dev, pm_message_t state)
 	 * suspend-resume cycle is complete, so prepare to trigger a warning on
 	 * subsequent attempts to enable it.
 	 */
-	no_runtime_pm = pm_runtime_block_if_disabled(dev);
+	smart_suspend = !pm_runtime_block_if_disabled(dev);
 
 	if (dev->power.syscore)
 		return 0;
@@ -1899,9 +1898,12 @@ unlock:
 		return ret;
 	}
 	/* Do not enable "smart suspend" for devices without runtime PM. */
-	if (!no_runtime_pm)
-		device_prepare_smart_suspend(dev);
+	if (smart_suspend)
+		smart_suspend = device_prepare_smart_suspend(dev);
 
+	spin_lock_irq(&dev->power.lock);
+
+	dev->power.smart_suspend = smart_suspend;
 	/*
 	 * A positive return value from ->prepare() means "this device appears
 	 * to be runtime-suspended and its state is fine, so if it really is
@@ -1909,11 +1911,12 @@ unlock:
 	 * will do the same thing with all of its descendants".  This only
 	 * applies to suspend transitions, however.
 	 */
-	spin_lock_irq(&dev->power.lock);
 	dev->power.direct_complete = state.event == PM_EVENT_SUSPEND &&
 		(ret > 0 || dev->power.no_pm_callbacks) &&
 		!dev_pm_test_driver_flags(dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+
 	spin_unlock_irq(&dev->power.lock);
+
 	return 0;
 }
 
