@@ -909,7 +909,7 @@ static const u32 hainan_mgcg_cgcg_init[] =
 
 /* XXX: update when we support VCE */
 #if 0
-/* tahiti, pitcarin, verde */
+/* tahiti, pitcairn, verde */
 static const struct amdgpu_video_codec_info tahiti_video_codecs_encode_array[] =
 {
 	{
@@ -940,7 +940,7 @@ static const struct amdgpu_video_codecs hainan_video_codecs_encode =
 	.codec_array = NULL,
 };
 
-/* tahiti, pitcarin, verde, oland */
+/* tahiti, pitcairn, verde, oland */
 static const struct amdgpu_video_codec_info tahiti_video_codecs_decode_array[] =
 {
 	{
@@ -1888,7 +1888,7 @@ static int si_vce_send_vcepll_ctlreq(struct amdgpu_device *adev)
 	WREG32_SMC_P(CG_VCEPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
 
 	if (i == SI_MAX_CTLACKS_ASSERTION_WAIT) {
-		DRM_ERROR("Timeout setting UVD clocks!\n");
+		DRM_ERROR("Timeout setting VCE clocks!\n");
 		return -ETIMEDOUT;
 	}
 
