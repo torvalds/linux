@@ -616,6 +616,14 @@ static void a6xx_calc_ubwc_config(struct adreno_gpu *gpu)
 		gpu->ubwc_config.uavflagprd_inv = 2;
 	}
 
+	if (adreno_is_a623(gpu)) {
+		gpu->ubwc_config.highest_bank_bit = 16;
+		gpu->ubwc_config.amsbc = 1;
+		gpu->ubwc_config.rgb565_predicator = 1;
+		gpu->ubwc_config.uavflagprd_inv = 2;
+		gpu->ubwc_config.macrotile_mode = 1;
+	}
+
 	if (adreno_is_a640_family(gpu))
 		gpu->ubwc_config.amsbc = 1;
 
