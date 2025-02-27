@@ -20,6 +20,11 @@ struct io_rsrc_node {
 	};
 };
 
+enum {
+	IO_IMU_DEST	= 1 << ITER_DEST,
+	IO_IMU_SOURCE	= 1 << ITER_SOURCE,
+};
+
 struct io_mapped_ubuf {
 	u64		ubuf;
 	unsigned int	len;
@@ -27,6 +32,10 @@ struct io_mapped_ubuf {
 	unsigned int    folio_shift;
 	refcount_t	refs;
 	unsigned long	acct_pages;
+	void		(*release)(void *);
+	void		*priv;
+	bool		is_kbuf;
+	u8		dir;
 	struct bio_vec	bvec[] __counted_by(nr_bvecs);
 };
 

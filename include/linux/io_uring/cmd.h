@@ -4,6 +4,7 @@
 
 #include <uapi/linux/io_uring.h>
 #include <linux/io_uring_types.h>
+#include <linux/blk-mq.h>
 
 /* only top 8 bits of sqe->uring_cmd_flags for kernel internal use */
 #define IORING_URING_CMD_CANCELABLE	(1U << 30)
@@ -124,5 +125,11 @@ static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_ur
 {
 	return cmd_to_io_kiocb(cmd)->async_data;
 }
+
+int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
+			    void (*release)(void *), unsigned int index,
+			    unsigned int issue_flags);
+void io_buffer_unregister_bvec(struct io_uring_cmd *cmd, unsigned int index,
+			       unsigned int issue_flags);
 
 #endif /* _LINUX_IO_URING_CMD_H */
