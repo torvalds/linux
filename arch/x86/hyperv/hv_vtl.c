@@ -44,6 +44,15 @@ static void  __noreturn hv_vtl_emergency_restart(void)
 	}
 }
 
+/*
+ * The only way to restart in the VTL mode is to triple fault as the kernel runs
+ * as firmware.
+ */
+static void  __noreturn hv_vtl_restart(char __maybe_unused *cmd)
+{
+	hv_vtl_emergency_restart();
+}
+
 void __init hv_vtl_init_platform(void)
 {
 	pr_info("Linux runs in Hyper-V Virtual Trust Level\n");
@@ -258,6 +267,8 @@ static int hv_vtl_wakeup_secondary_cpu(u32 apicid, unsigned long start_eip)
 int __init hv_vtl_early_init(void)
 {
 	machine_ops.emergency_restart = hv_vtl_emergency_restart;
+	machine_ops.restart = hv_vtl_restart;
+
 	/*
 	 * `boot_cpu_has` returns the runtime feature support,
 	 * and here is the earliest it can be used.
