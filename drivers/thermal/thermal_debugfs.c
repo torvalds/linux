@@ -319,7 +319,7 @@ static int cdev_tt_seq_show(struct seq_file *s, void *v)
 	int i = *(loff_t *)v;
 
 	if (!i)
-		seq_puts(s, "Transition\tOccurences\n");
+		seq_puts(s, "Transition\tOccurrences\n");
 
 	list_for_each_entry(entry, &transitions[i], node) {
 		/*
