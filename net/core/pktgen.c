@@ -1785,7 +1785,7 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "tos")) {
-		__u32 tmp_value = 0;
+		__u32 tmp_value;
 		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
 		if (len < 0)
 			return len;
@@ -1801,7 +1801,7 @@ static ssize_t pktgen_if_write(struct file *file,
 	}
 
 	if (!strcmp(name, "traffic_class")) {
-		__u32 tmp_value = 0;
+		__u32 tmp_value;
 		len = hex32_arg(&user_buffer[i], 2, &tmp_value);
 		if (len < 0)
 			return len;
