@@ -817,7 +817,14 @@ void hwss_build_fast_sequence(struct dc *dc,
 				block_sequence[*num_steps].func = DPP_SET_OUTPUT_TRANSFER_FUNC;
 				(*num_steps)++;
 			}
-
+			if (dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE &&
+				dc->hwss.update_visual_confirm_color) {
+				block_sequence[*num_steps].params.update_visual_confirm_params.dc = dc;
+				block_sequence[*num_steps].params.update_visual_confirm_params.pipe_ctx = current_mpc_pipe;
+				block_sequence[*num_steps].params.update_visual_confirm_params.mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
+				block_sequence[*num_steps].func = MPC_UPDATE_VISUAL_CONFIRM;
+				(*num_steps)++;
+			}
 			if (current_mpc_pipe->stream->update_flags.bits.out_csc) {
 				block_sequence[*num_steps].params.power_on_mpc_mem_pwr_params.mpc = dc->res_pool->mpc;
 				block_sequence[*num_steps].params.power_on_mpc_mem_pwr_params.mpcc_id = current_mpc_pipe->plane_res.hubp->inst;
