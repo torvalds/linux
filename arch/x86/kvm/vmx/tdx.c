@@ -859,6 +859,12 @@ static __always_inline u32 tdx_to_vmx_exit_reason(struct kvm_vcpu *vcpu)
 			return EXIT_REASON_VMCALL;
 
 		return tdcall_to_vmx_exit_reason(vcpu);
+	case EXIT_REASON_EPT_MISCONFIG:
+		/*
+		 * Defer KVM_BUG_ON() until tdx_handle_exit() because this is in
+		 * non-instrumentable code with interrupts disabled.
+		 */
+		return -1u;
 	default:
 		break;
 	}
@@ -993,6 +999,9 @@ fastpath_t tdx_vcpu_run(struct kvm_vcpu *vcpu, bool force_immediate_exit)
 	tdx->guest_entered = true;
 
 	vcpu->arch.regs_avail &= TDX_REGS_AVAIL_SET;
+
+	if (unlikely(tdx->vp_enter_ret == EXIT_REASON_EPT_MISCONFIG))
+		return EXIT_FASTPATH_NONE;
 
 	if (unlikely((tdx->vp_enter_ret & TDX_SW_ERROR) == TDX_SW_ERROR))
 		return EXIT_FASTPATH_NONE;
@@ -1700,6 +1709,37 @@ void tdx_deliver_interrupt(struct kvm_lapic *apic, int delivery_mode,
 	trace_kvm_apicv_accept_irq(vcpu->vcpu_id, delivery_mode, trig_mode, vector);
 }
 
+static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
+{
+	unsigned long exit_qual;
+	gpa_t gpa = to_tdx(vcpu)->exit_gpa;
+
+	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa)) {
+		/*
+		 * Always treat SEPT violations as write faults.  Ignore the
+		 * EXIT_QUALIFICATION reported by TDX-SEAM for SEPT violations.
+		 * TD private pages are always RWX in the SEPT tables,
+		 * i.e. they're always mapped writable.  Just as importantly,
+		 * treating SEPT violations as write faults is necessary to
+		 * avoid COW allocations, which will cause TDAUGPAGE failures
+		 * due to aliasing a single HPA to multiple GPAs.
+		 */
+		exit_qual = EPT_VIOLATION_ACC_WRITE;
+	} else {
+		exit_qual = vmx_get_exit_qual(vcpu);
+		/*
+		 * EPT violation due to instruction fetch should never be
+		 * triggered from shared memory in TDX guest.  If such EPT
+		 * violation occurs, treat it as broken hardware.
+		 */
+		if (KVM_BUG_ON(exit_qual & EPT_VIOLATION_ACC_INSTR, vcpu->kvm))
+			return -EIO;
+	}
+
+	trace_kvm_page_fault(vcpu, gpa, exit_qual);
+	return __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
+}
+
 int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 {
 	struct vcpu_tdx *tdx = to_tdx(vcpu);
@@ -1708,6 +1748,11 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 
 	if (fastpath != EXIT_FASTPATH_NONE)
 		return 1;
+
+	if (unlikely(vp_enter_ret == EXIT_REASON_EPT_MISCONFIG)) {
+		KVM_BUG_ON(1, vcpu->kvm);
+		return -EIO;
+	}
 
 	/*
 	 * Handle TDX SW errors, including TDX_SEAMCALL_UD, TDX_SEAMCALL_GP and
@@ -1758,6 +1803,8 @@ int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
 		return tdx_emulate_io(vcpu);
 	case EXIT_REASON_EPT_MISCONFIG:
 		return tdx_emulate_mmio(vcpu);
+	case EXIT_REASON_EPT_VIOLATION:
+		return tdx_handle_ept_violation(vcpu);
 	case EXIT_REASON_OTHER_SMI:
 		/*
 		 * Unlike VMX, SMI in SEAM non-root mode (i.e. when
