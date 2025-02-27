@@ -56,7 +56,7 @@ r535_bar_bar2_update_pde(struct nvkm_gsp *gsp, u64 addr)
 	rpc->info.entryValue = addr ? ((addr >> 4) | 2) : 0; /* PD3 entry format! */
 	rpc->info.entryLevelShift = 47; //XXX: probably fetch this from mmu!
 
-	return nvkm_gsp_rpc_wr(gsp, rpc, true);
+	return nvkm_gsp_rpc_wr(gsp, rpc, NVKM_GSP_RPC_REPLY_RECV);
 }
 
 static void
