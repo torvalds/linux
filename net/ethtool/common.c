@@ -6,6 +6,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/phy_link_topology.h>
+#include <net/netdev_queues.h>
 
 #include "netlink.h"
 #include "common.h"
@@ -769,6 +770,21 @@ int ethtool_check_ops(const struct ethtool_ops *ops)
 	 * mean the ops attached to a netdev later on are sane.
 	 */
 	return 0;
+}
+
+void ethtool_ringparam_get_cfg(struct net_device *dev,
+			       struct ethtool_ringparam *param,
+			       struct kernel_ethtool_ringparam *kparam,
+			       struct netlink_ext_ack *extack)
+{
+	memset(param, 0, sizeof(*param));
+	memset(kparam, 0, sizeof(*kparam));
+
+	param->cmd = ETHTOOL_GRINGPARAM;
+	dev->ethtool_ops->get_ringparam(dev, param, kparam, extack);
+
+	/* Driver gives us current state, we want to return current config */
+	kparam->tcp_data_split = dev->cfg->hds_config;
 }
 
 static void ethtool_init_tsinfo(struct kernel_ethtool_ts_info *info)
