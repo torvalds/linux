@@ -72,7 +72,7 @@ struct options {
 		struct option_cmsg_u32 tclass;
 		struct option_cmsg_u32 hlimit;
 		struct option_cmsg_u32 exthdr;
-	} v6;
+	} cmsg;
 } opt = {
 	.size = 13,
 	.num_pkt = 1,
@@ -104,10 +104,10 @@ static void __attribute__((noreturn)) cs_usage(const char *bin)
 	       "\t\t-t      Enable time stamp reporting\n"
 	       "\t\t-f val  Set don't fragment via cmsg\n"
 	       "\t\t-F val  Set don't fragment via setsockopt\n"
-	       "\t\t-c val  Set TCLASS via cmsg\n"
-	       "\t\t-C val  Set TCLASS via setsockopt\n"
-	       "\t\t-l val  Set HOPLIMIT via cmsg\n"
-	       "\t\t-L val  Set HOPLIMIT via setsockopt\n"
+	       "\t\t-c val  Set TOS/TCLASS via cmsg\n"
+	       "\t\t-C val  Set TOS/TCLASS via setsockopt\n"
+	       "\t\t-l val  Set TTL/HOPLIMIT via cmsg\n"
+	       "\t\t-L val  Set TTL/HOPLIMIT via setsockopt\n"
 	       "\t\t-H type Add an IPv6 header option\n"
 	       "\t\t        (h = HOP; d = DST; r = RTDST)"
 	       "");
@@ -169,37 +169,37 @@ static void cs_parse_args(int argc, char *argv[])
 			opt.ts.ena = true;
 			break;
 		case 'f':
-			opt.v6.dontfrag.ena = true;
-			opt.v6.dontfrag.val = atoi(optarg);
+			opt.cmsg.dontfrag.ena = true;
+			opt.cmsg.dontfrag.val = atoi(optarg);
 			break;
 		case 'F':
 			opt.sockopt.dontfrag = atoi(optarg);
 			break;
 		case 'c':
-			opt.v6.tclass.ena = true;
-			opt.v6.tclass.val = atoi(optarg);
+			opt.cmsg.tclass.ena = true;
+			opt.cmsg.tclass.val = atoi(optarg);
 			break;
 		case 'C':
 			opt.sockopt.tclass = atoi(optarg);
 			break;
 		case 'l':
-			opt.v6.hlimit.ena = true;
-			opt.v6.hlimit.val = atoi(optarg);
+			opt.cmsg.hlimit.ena = true;
+			opt.cmsg.hlimit.val = atoi(optarg);
 			break;
 		case 'L':
 			opt.sockopt.hlimit = atoi(optarg);
 			break;
 		case 'H':
-			opt.v6.exthdr.ena = true;
+			opt.cmsg.exthdr.ena = true;
 			switch (optarg[0]) {
 			case 'h':
-				opt.v6.exthdr.val = IPV6_HOPOPTS;
+				opt.cmsg.exthdr.val = IPV6_HOPOPTS;
 				break;
 			case 'd':
-				opt.v6.exthdr.val = IPV6_DSTOPTS;
+				opt.cmsg.exthdr.val = IPV6_DSTOPTS;
 				break;
 			case 'r':
-				opt.v6.exthdr.val = IPV6_RTHDRDSTOPTS;
+				opt.cmsg.exthdr.val = IPV6_RTHDRDSTOPTS;
 				break;
 			default:
 				printf("Error: hdr type: %s\n", optarg);
@@ -261,12 +261,20 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 			  SOL_SOCKET, SO_MARK, &opt.mark);
 	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
 			  SOL_SOCKET, SO_PRIORITY, &opt.priority);
-	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
-			  SOL_IPV6, IPV6_DONTFRAG, &opt.v6.dontfrag);
-	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
-			  SOL_IPV6, IPV6_TCLASS, &opt.v6.tclass);
-	ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
-			  SOL_IPV6, IPV6_HOPLIMIT, &opt.v6.hlimit);
+
+	if (opt.sock.family == AF_INET) {
+		ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+				  SOL_IP, IP_TOS, &opt.cmsg.tclass);
+		ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+				  SOL_IP, IP_TTL, &opt.cmsg.hlimit);
+	} else {
+		ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+				  SOL_IPV6, IPV6_DONTFRAG, &opt.cmsg.dontfrag);
+		ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+				  SOL_IPV6, IPV6_TCLASS, &opt.cmsg.tclass);
+		ca_write_cmsg_u32(cbuf, cbuf_sz, &cmsg_len,
+				  SOL_IPV6, IPV6_HOPLIMIT, &opt.cmsg.hlimit);
+	}
 
 	if (opt.txtime.ena) {
 		__u64 txtime;
@@ -297,14 +305,14 @@ cs_write_cmsg(int fd, struct msghdr *msg, char *cbuf, size_t cbuf_sz)
 		*(__u32 *)CMSG_DATA(cmsg) = SOF_TIMESTAMPING_TX_SCHED |
 					    SOF_TIMESTAMPING_TX_SOFTWARE;
 	}
-	if (opt.v6.exthdr.ena) {
+	if (opt.cmsg.exthdr.ena) {
 		cmsg = (struct cmsghdr *)(cbuf + cmsg_len);
 		cmsg_len += CMSG_SPACE(8);
 		if (cbuf_sz < cmsg_len)
 			error(ERN_CMSG_WR, EFAULT, "cmsg buffer too small");
 
 		cmsg->cmsg_level = SOL_IPV6;
-		cmsg->cmsg_type = opt.v6.exthdr.val;
+		cmsg->cmsg_type = opt.cmsg.exthdr.val;
 		cmsg->cmsg_len = CMSG_LEN(8);
 		*(__u64 *)CMSG_DATA(cmsg) = 0;
 	}
@@ -405,22 +413,34 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_SOCKET, SO_MARK,
 		       &opt.sockopt.mark, sizeof(opt.sockopt.mark)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_MARK");
-	if (opt.sockopt.dontfrag &&
-	    setsockopt(fd, SOL_IPV6, IPV6_DONTFRAG,
-		       &opt.sockopt.dontfrag, sizeof(opt.sockopt.dontfrag)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_DONTFRAG");
-	if (opt.sockopt.tclass &&
-	    setsockopt(fd, SOL_IPV6, IPV6_TCLASS,
-		       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_TCLASS");
-	if (opt.sockopt.hlimit &&
-	    setsockopt(fd, SOL_IPV6, IPV6_UNICAST_HOPS,
-		       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
-		error(ERN_SOCKOPT, errno, "setsockopt IPV6_HOPLIMIT");
 	if (opt.sockopt.priority &&
 	    setsockopt(fd, SOL_SOCKET, SO_PRIORITY,
 		       &opt.sockopt.priority, sizeof(opt.sockopt.priority)))
 		error(ERN_SOCKOPT, errno, "setsockopt SO_PRIORITY");
+
+	if (opt.sock.family == AF_INET) {
+		if (opt.sockopt.tclass &&
+		    setsockopt(fd, SOL_IP, IP_TOS,
+			       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
+			error(ERN_SOCKOPT, errno, "setsockopt IP_TOS");
+		if (opt.sockopt.hlimit &&
+		    setsockopt(fd, SOL_IP, IP_TTL,
+			       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
+			error(ERN_SOCKOPT, errno, "setsockopt IP_TTL");
+	} else {
+		if (opt.sockopt.dontfrag &&
+		    setsockopt(fd, SOL_IPV6, IPV6_DONTFRAG,
+			       &opt.sockopt.dontfrag, sizeof(opt.sockopt.dontfrag)))
+			error(ERN_SOCKOPT, errno, "setsockopt IPV6_DONTFRAG");
+		if (opt.sockopt.tclass &&
+		    setsockopt(fd, SOL_IPV6, IPV6_TCLASS,
+			       &opt.sockopt.tclass, sizeof(opt.sockopt.tclass)))
+			error(ERN_SOCKOPT, errno, "setsockopt IPV6_TCLASS");
+		if (opt.sockopt.hlimit &&
+		    setsockopt(fd, SOL_IPV6, IPV6_UNICAST_HOPS,
+			       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
+			error(ERN_SOCKOPT, errno, "setsockopt IPV6_HOPLIMIT");
+	}
 
 	if (opt.txtime.ena) {
 		struct sock_txtime so_txtime = {
