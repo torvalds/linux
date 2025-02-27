@@ -86,8 +86,6 @@
 
 struct sh_rtc {
 	void __iomem		*regbase;
-	unsigned long		regsize;
-	struct resource		*res;
 	int			alarm_irq;
 	struct clk		*clk;
 	struct rtc_device	*rtc_dev;
@@ -328,10 +326,11 @@ static const struct rtc_class_ops sh_rtc_ops = {
 static int __init sh_rtc_probe(struct platform_device *pdev)
 {
 	struct sh_rtc *rtc;
-	struct resource *res;
+	struct resource *res, *req_res;
 	char clk_name[14];
 	int clk_id, ret;
 	unsigned int tmp;
+	resource_size_t regsize;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
@@ -353,20 +352,18 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	if (!res)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(res == NULL)) {
+	if (!res) {
 		dev_err(&pdev->dev, "No IO resource\n");
 		return -ENOENT;
 	}
 
-	rtc->regsize = resource_size(res);
-
-	rtc->res = devm_request_mem_region(&pdev->dev, res->start,
-					rtc->regsize, pdev->name);
-	if (unlikely(!rtc->res))
+	regsize = resource_size(res);
+	req_res = devm_request_mem_region(&pdev->dev, res->start, regsize, pdev->name);
+	if (!req_res)
 		return -EBUSY;
 
-	rtc->regbase = devm_ioremap(&pdev->dev, rtc->res->start, rtc->regsize);
-	if (unlikely(!rtc->regbase))
+	rtc->regbase = devm_ioremap(&pdev->dev, req_res->start, regsize);
+	if (!rtc->regbase)
 		return -EINVAL;
 
 	if (!pdev->dev.of_node) {
