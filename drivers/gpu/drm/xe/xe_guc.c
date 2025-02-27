@@ -23,6 +23,7 @@
 #include "xe_gt_sriov_vf.h"
 #include "xe_gt_throttle.h"
 #include "xe_guc_ads.h"
+#include "xe_guc_buf.h"
 #include "xe_guc_capture.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_db_mgr.h"
@@ -740,6 +741,10 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 		return ret;
 
 	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		return ret;
+
+	ret = xe_guc_buf_cache_init(&guc->buf);
 	if (ret)
 		return ret;
 

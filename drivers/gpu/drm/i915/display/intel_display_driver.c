@@ -564,6 +564,8 @@ void intel_display_driver_register(struct intel_display *display)
 
 	intel_display_device_info_print(DISPLAY_INFO(display),
 					DISPLAY_RUNTIME_INFO(display), &p);
+
+	intel_register_dsm_handler();
 }
 
 /* part #1: call before irq uninstall */
@@ -638,6 +640,8 @@ void intel_display_driver_unregister(struct intel_display *display)
 {
 	if (!HAS_DISPLAY(display))
 		return;
+
+	intel_unregister_dsm_handler();
 
 	drm_client_dev_unregister(display->drm);
 

@@ -50,10 +50,10 @@ int intel_fb_bo_framebuffer_init(struct drm_framebuffer *fb,
 		/*
 		 * XE_BO_FLAG_SCANOUT should ideally be set at creation, or is
 		 * automatically set when creating FB. We cannot change caching
-		 * mode when the boect is VM_BINDed, so we can only set
+		 * mode when the bo is VM_BINDed, so we can only set
 		 * coherency with display when unbound.
 		 */
-		if (XE_IOCTL_DBG(xe, !list_empty(&bo->ttm.base.gpuva.list))) {
+		if (XE_IOCTL_DBG(xe, xe_bo_is_vm_bound(bo))) {
 			ttm_bo_unreserve(&bo->ttm);
 			ret = -EINVAL;
 			goto err;

@@ -45,6 +45,9 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 				   const struct pci_device_id *ent);
 int xe_device_probe_early(struct xe_device *xe);
 int xe_device_probe(struct xe_device *xe);
+int xe_device_add_action_or_reset(struct xe_device *xe,
+				  void (*action)(void *), void *data);
+void xe_device_call_remove_actions(struct xe_device *xe);
 void xe_device_remove(struct xe_device *xe);
 void xe_device_shutdown(struct xe_device *xe);
 
@@ -168,6 +171,11 @@ static inline bool xe_device_has_memirq(struct xe_device *xe)
 static inline bool xe_device_uses_memirq(struct xe_device *xe)
 {
 	return xe_device_has_memirq(xe) && (IS_SRIOV_VF(xe) || xe_device_has_msix(xe));
+}
+
+static inline bool xe_device_has_lmtt(struct xe_device *xe)
+{
+	return IS_DGFX(xe);
 }
 
 u32 xe_device_ccs_bytes(struct xe_device *xe, u64 size);

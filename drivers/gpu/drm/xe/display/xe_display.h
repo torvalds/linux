@@ -20,11 +20,8 @@ int xe_display_create(struct xe_device *xe);
 
 int xe_display_probe(struct xe_device *xe);
 
-int xe_display_init_nommio(struct xe_device *xe);
-int xe_display_init_noirq(struct xe_device *xe);
-int xe_display_init_noaccel(struct xe_device *xe);
+int xe_display_init_early(struct xe_device *xe);
 int xe_display_init(struct xe_device *xe);
-void xe_display_fini(struct xe_device *xe);
 
 void xe_display_register(struct xe_device *xe);
 void xe_display_unregister(struct xe_device *xe);
@@ -54,11 +51,8 @@ static inline int xe_display_create(struct xe_device *xe) { return 0; }
 
 static inline int xe_display_probe(struct xe_device *xe) { return 0; }
 
-static inline int xe_display_init_nommio(struct xe_device *xe) { return 0; }
-static inline int xe_display_init_noirq(struct xe_device *xe) { return 0; }
-static inline int xe_display_init_noaccel(struct xe_device *xe) { return 0; }
+static inline int xe_display_init_early(struct xe_device *xe) { return 0; }
 static inline int xe_display_init(struct xe_device *xe) { return 0; }
-static inline void xe_display_fini(struct xe_device *xe) {}
 
 static inline void xe_display_register(struct xe_device *xe) {}
 static inline void xe_display_unregister(struct xe_device *xe) {}
