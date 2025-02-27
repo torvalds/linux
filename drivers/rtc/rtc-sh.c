@@ -5,6 +5,7 @@
  * Copyright (C) 2006 - 2009  Paul Mundt
  * Copyright (C) 2006  Jamie Lenehan
  * Copyright (C) 2008  Angelo Castello
+ * Copyright (C) 2025  Wolfram Sang, Renesas Electronics Corporation
  *
  * Based on the old arch/sh/kernel/cpu/rtc.c by:
  *
@@ -31,7 +32,7 @@
 /* Default values for RZ/A RTC */
 #define rtc_reg_size		sizeof(u16)
 #define RTC_BIT_INVERTED        0	/* no chip bugs */
-#define RTC_CAP_4_DIGIT_YEAR    (1 << 0)
+#define RTC_CAP_4_DIGIT_YEAR    BIT(0)
 #define RTC_DEF_CAPABILITIES    RTC_CAP_4_DIGIT_YEAR
 #endif
 
@@ -70,26 +71,26 @@
  */
 
 /* ALARM Bits - or with BCD encoded value */
-#define AR_ENB		0x80	/* Enable for alarm cmp   */
+#define AR_ENB		BIT(7)	/* Enable for alarm cmp   */
 
 /* RCR1 Bits */
-#define RCR1_CF		0x80	/* Carry Flag             */
-#define RCR1_CIE	0x10	/* Carry Interrupt Enable */
-#define RCR1_AIE	0x08	/* Alarm Interrupt Enable */
-#define RCR1_AF		0x01	/* Alarm Flag             */
+#define RCR1_CF		BIT(7)	/* Carry Flag             */
+#define RCR1_CIE	BIT(4)	/* Carry Interrupt Enable */
+#define RCR1_AIE	BIT(3)	/* Alarm Interrupt Enable */
+#define RCR1_AF		BIT(0)	/* Alarm Flag             */
 
 /* RCR2 Bits */
-#define RCR2_RTCEN	0x08	/* ENable RTC              */
-#define RCR2_ADJ	0x04	/* ADJustment (30-second)  */
-#define RCR2_RESET	0x02	/* Reset bit               */
-#define RCR2_START	0x01	/* Start bit               */
+#define RCR2_RTCEN	BIT(3)	/* ENable RTC              */
+#define RCR2_ADJ	BIT(2)	/* ADJustment (30-second)  */
+#define RCR2_RESET	BIT(1)	/* Reset bit               */
+#define RCR2_START	BIT(0)	/* Start bit               */
 
 struct sh_rtc {
 	void __iomem		*regbase;
 	int			alarm_irq;
 	struct clk		*clk;
 	struct rtc_device	*rtc_dev;
-	spinlock_t		lock;
+	spinlock_t		lock;		/* protecting register access */
 	unsigned long		capabilities;	/* See asm/rtc.h for cap bits */
 };
 
@@ -183,10 +184,8 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_sec--;
 #endif
 
-	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, "
-		"mday=%d, mon=%d, year=%d, wday=%d\n",
-		__func__,
-		tm->tm_sec, tm->tm_min, tm->tm_hour,
+	dev_dbg(dev, "%s: tm is secs=%d, mins=%d, hours=%d, mday=%d, mon=%d, year=%d, wday=%d\n",
+		__func__, tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
 	return 0;
@@ -373,8 +372,9 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 			clk_id = 0;
 
 		snprintf(clk_name, sizeof(clk_name), "rtc%d", clk_id);
-	} else
+	} else {
 		snprintf(clk_name, sizeof(clk_name), "fck");
+	}
 
 	rtc->clk = devm_clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(rtc->clk)) {
@@ -501,8 +501,8 @@ static struct platform_driver sh_rtc_platform_driver __refdata = {
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
-MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, "
-	      "Jamie Lenehan <lenehan@twibble.org>, "
-	      "Angelo Castello <angelo.castello@st.com>");
+MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
+MODULE_AUTHOR("Jamie Lenehan <lenehan@twibble.org>");
+MODULE_AUTHOR("Angelo Castello <angelo.castello@st.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
