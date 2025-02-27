@@ -213,25 +213,6 @@ static int sh_rtc_proc(struct device *dev, struct seq_file *seq)
 	return 0;
 }
 
-static inline void sh_rtc_setcie(struct device *dev, unsigned int enable)
-{
-	struct sh_rtc *rtc = dev_get_drvdata(dev);
-	unsigned int tmp;
-
-	spin_lock_irq(&rtc->lock);
-
-	tmp = readb(rtc->regbase + RCR1);
-
-	if (!enable)
-		tmp &= ~RCR1_CIE;
-	else
-		tmp |= RCR1_CIE;
-
-	writeb(tmp, rtc->regbase + RCR1);
-
-	spin_unlock_irq(&rtc->lock);
-}
-
 static int sh_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	sh_rtc_setaie(dev, enabled);
@@ -434,6 +415,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	char clk_name[14];
 	int clk_id, ret;
+	unsigned int tmp;
 
 	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (unlikely(!rtc))
@@ -553,8 +535,9 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rtc);
 
 	/* everything disabled by default */
-	sh_rtc_setaie(&pdev->dev, 0);
-	sh_rtc_setcie(&pdev->dev, 0);
+	tmp = readb(rtc->regbase + RCR1);
+	tmp &= ~(RCR1_CIE | RCR1_AIE);
+	writeb(tmp, rtc->regbase + RCR1);
 
 	rtc->rtc_dev->ops = &sh_rtc_ops;
 	rtc->rtc_dev->max_user_freq = 256;
@@ -585,7 +568,6 @@ static void __exit sh_rtc_remove(struct platform_device *pdev)
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 
 	sh_rtc_setaie(&pdev->dev, 0);
-	sh_rtc_setcie(&pdev->dev, 0);
 
 	clk_disable(rtc->clk);
 }
