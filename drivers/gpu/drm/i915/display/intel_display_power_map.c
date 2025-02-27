@@ -1696,6 +1696,7 @@ I915_DECL_PW_DOMAINS(xe3lpd_pwdoms_dc_off,
 	XE3LPD_PW_C_POWER_DOMAINS,
 	XE3LPD_PW_D_POWER_DOMAINS,
 	POWER_DOMAIN_AUDIO_MMIO,
+	POWER_DOMAIN_AUDIO_PLAYBACK,
 	POWER_DOMAIN_INIT);
 
 static const struct i915_power_well_desc xe3lpd_power_wells_dcoff[] = {
