@@ -928,9 +928,6 @@ struct unity_map_entry {
  * Data structures for device handling
  */
 
-/* size of the dma_ops aperture as power of 2 */
-extern unsigned amd_iommu_aperture_order;
-
 extern bool amd_iommu_force_isolation;
 
 /* Max levels of glxval supported */
