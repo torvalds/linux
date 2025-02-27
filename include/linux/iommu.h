@@ -1099,7 +1099,6 @@ struct iommu_mm_data {
 };
 
 int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode);
-void iommu_fwspec_free(struct device *dev);
 int iommu_fwspec_add_ids(struct device *dev, const u32 *ids, int num_ids);
 
 static inline struct iommu_fwspec *dev_iommu_fwspec_get(struct device *dev)
@@ -1408,10 +1407,6 @@ static inline int iommu_fwspec_init(struct device *dev,
 				    struct fwnode_handle *iommu_fwnode)
 {
 	return -ENODEV;
-}
-
-static inline void iommu_fwspec_free(struct device *dev)
-{
 }
 
 static inline int iommu_fwspec_add_ids(struct device *dev, u32 *ids,
