@@ -164,18 +164,19 @@ enum six_lock_init_flags {
 };
 
 void __six_lock_init(struct six_lock *lock, const char *name,
-		     struct lock_class_key *key, enum six_lock_init_flags flags);
+		     struct lock_class_key *key, enum six_lock_init_flags flags,
+		     gfp_t gfp);
 
 /**
  * six_lock_init - initialize a six lock
  * @lock:	lock to initialize
  * @flags:	optional flags, i.e. SIX_LOCK_INIT_PCPU
  */
-#define six_lock_init(lock, flags)					\
+#define six_lock_init(lock, flags, gfp)					\
 do {									\
 	static struct lock_class_key __key;				\
 									\
-	__six_lock_init((lock), #lock, &__key, flags);			\
+	__six_lock_init((lock), #lock, &__key, flags, gfp);			\
 } while (0)
 
 /**

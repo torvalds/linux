@@ -340,6 +340,7 @@ restart_drop_extra_replicas:
 			struct printbuf buf = PRINTBUF;
 
 			prt_str(&buf, "about to insert invalid key in data update path");
+			prt_printf(&buf, "\nop.nonce: %u", m->op.nonce);
 			prt_str(&buf, "\nold: ");
 			bch2_bkey_val_to_text(&buf, c, old);
 			prt_str(&buf, "\nk:   ");
