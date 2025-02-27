@@ -1724,6 +1724,8 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qual;
 	gpa_t gpa = to_tdx(vcpu)->exit_gpa;
+	bool local_retry = false;
+	int ret;
 
 	if (vt_is_tdx_private_gpa(vcpu->kvm, gpa)) {
 		if (tdx_is_sept_violation_unexpected_pending(vcpu)) {
@@ -1742,6 +1744,9 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 		 * due to aliasing a single HPA to multiple GPAs.
 		 */
 		exit_qual = EPT_VIOLATION_ACC_WRITE;
+
+		/* Only private GPA triggers zero-step mitigation */
+		local_retry = true;
 	} else {
 		exit_qual = vmx_get_exit_qual(vcpu);
 		/*
@@ -1754,7 +1759,57 @@ static int tdx_handle_ept_violation(struct kvm_vcpu *vcpu)
 	}
 
 	trace_kvm_page_fault(vcpu, gpa, exit_qual);
-	return __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
+
+	/*
+	 * To minimize TDH.VP.ENTER invocations, retry locally for private GPA
+	 * mapping in TDX.
+	 *
+	 * KVM may return RET_PF_RETRY for private GPA due to
+	 * - contentions when atomically updating SPTEs of the mirror page table
+	 * - in-progress GFN invalidation or memslot removal.
+	 * - TDX_OPERAND_BUSY error from TDH.MEM.PAGE.AUG or TDH.MEM.SEPT.ADD,
+	 *   caused by contentions with TDH.VP.ENTER (with zero-step mitigation)
+	 *   or certain TDCALLs.
+	 *
+	 * If TDH.VP.ENTER is invoked more times than the threshold set by the
+	 * TDX module before KVM resolves the private GPA mapping, the TDX
+	 * module will activate zero-step mitigation during TDH.VP.ENTER. This
+	 * process acquires an SEPT tree lock in the TDX module, leading to
+	 * further contentions with TDH.MEM.PAGE.AUG or TDH.MEM.SEPT.ADD
+	 * operations on other vCPUs.
+	 *
+	 * Breaking out of local retries for kvm_vcpu_has_events() is for
+	 * interrupt injection. kvm_vcpu_has_events() should not see pending
+	 * events for TDX. Since KVM can't determine if IRQs (or NMIs) are
+	 * blocked by TDs, false positives are inevitable i.e., KVM may re-enter
+	 * the guest even if the IRQ/NMI can't be delivered.
+	 *
+	 * Note: even without breaking out of local retries, zero-step
+	 * mitigation may still occur due to
+	 * - invoking of TDH.VP.ENTER after KVM_EXIT_MEMORY_FAULT,
+	 * - a single RIP causing EPT violations for more GFNs than the
+	 *   threshold count.
+	 * This is safe, as triggering zero-step mitigation only introduces
+	 * contentions to page installation SEAMCALLs on other vCPUs, which will
+	 * handle retries locally in their EPT violation handlers.
+	 */
+	while (1) {
+		ret = __vmx_handle_ept_violation(vcpu, gpa, exit_qual);
+
+		if (ret != RET_PF_RETRY || !local_retry)
+			break;
+
+		if (kvm_vcpu_has_events(vcpu) || signal_pending(current))
+			break;
+
+		if (kvm_check_request(KVM_REQ_VM_DEAD, vcpu)) {
+			ret = -EIO;
+			break;
+		}
+
+		cond_resched();
+	}
+	return ret;
 }
 
 int tdx_handle_exit(struct kvm_vcpu *vcpu, fastpath_t fastpath)
