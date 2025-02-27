@@ -142,7 +142,7 @@ do_lookup:
 		if (!hist)
 			return 0;
 
-		*hist += 1;
+		__sync_fetch_and_add(hist, 1);
 
 		__sync_fetch_and_add(&total, delta); // always in nsec
 		__sync_fetch_and_add(&count, 1);
