@@ -905,39 +905,35 @@ re_insert:
 		goto update_sectors;
 	}
 
-	if (overlap_front(bb, prev, &bad)) {
-		if (can_merge_front(bb, prev, &bad)) {
-			len = front_merge(bb, prev, &bad);
-			added++;
-		} else {
-			int extra = 0;
-
-			if (!can_front_overwrite(bb, prev, &bad, &extra)) {
-				if (extra > 0)
-					goto out;
-
-				len = min_t(sector_t,
-					    BB_END(p[prev]) - s, sectors);
-				hint = prev;
-				goto update_sectors;
-			}
-
-			len = front_overwrite(bb, prev, &bad, extra);
-			added++;
-			bb->count += extra;
-
-			if (can_combine_front(bb, prev, &bad)) {
-				front_combine(bb, prev);
-				bb->count--;
-			}
-		}
+	if (can_merge_front(bb, prev, &bad)) {
+		len = front_merge(bb, prev, &bad);
+		added++;
 		hint = prev;
 		goto update_sectors;
 	}
 
-	if (can_merge_front(bb, prev, &bad)) {
-		len = front_merge(bb, prev, &bad);
+	if (overlap_front(bb, prev, &bad)) {
+		int extra = 0;
+
+		if (!can_front_overwrite(bb, prev, &bad, &extra)) {
+			if (extra > 0)
+				goto out;
+
+			len = min_t(sector_t,
+				    BB_END(p[prev]) - s, sectors);
+			hint = prev;
+			goto update_sectors;
+		}
+
+		len = front_overwrite(bb, prev, &bad, extra);
 		added++;
+		bb->count += extra;
+
+		if (can_combine_front(bb, prev, &bad)) {
+			front_combine(bb, prev);
+			bb->count--;
+		}
+
 		hint = prev;
 		goto update_sectors;
 	}
