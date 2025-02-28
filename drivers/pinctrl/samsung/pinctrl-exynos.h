@@ -112,6 +112,25 @@
 		.pctl_res_idx   = pctl_idx,			\
 	}							\
 
+#define EXYNOS7870_PIN_BANK_EINTN(pins, reg, id)		\
+	{							\
+		.type		= &exynos7870_bank_type_alive,	\
+		.pctl_offset	= reg,				\
+		.nr_pins	= pins,				\
+		.eint_type	= EINT_TYPE_NONE,		\
+		.name		= id				\
+	}
+
+#define EXYNOS7870_PIN_BANK_EINTW(pins, reg, id, offs)		\
+	{							\
+		.type		= &exynos7870_bank_type_alive,	\
+		.pctl_offset	= reg,				\
+		.nr_pins	= pins,				\
+		.eint_type	= EINT_TYPE_WKUP,		\
+		.eint_offset	= offs,				\
+		.name		= id				\
+	}
+
 #define EXYNOS850_PIN_BANK_EINTN(pins, reg, id)			\
 	{							\
 		.type		= &exynos850_bank_type_alive,	\
