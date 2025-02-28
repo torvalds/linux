@@ -11,13 +11,12 @@ description:
   connected. For each device that exists on this bus, a child node should be
   created.
 
-  As of this writing, every TSEC is associated with an internal Ten-Bit
-  Interface (TBI) PHY. This PHY is accessed through the local MDIO bus. These
-  buses are defined similarly to the mdio buses, except they are compatible
-  with "fsl,gianfar-tbi". The TBI PHYs underneath them are similar to normal
-  PHYs, but the reg property is considered instructive, rather than
-  descriptive. The reg property should be chosen so it doesn't interfere with
-  other PHYs on the bus.
+  Some TSECs are associated with an internal Ten-Bit Interface (TBI) PHY. This
+  PHY is accessed through the local MDIO bus. These buses are defined similarly
+  to the mdio buses, except they are compatible with "fsl,gianfar-tbi". The TBI
+  PHYs underneath them are similar to normal PHYs, but the reg property is
+  considered instructive, rather than descriptive. The reg property should be
+  chosen so it doesn't interfere with other PHYs on the bus.
 
 maintainers:
   - J. Neuschäfer <j.ne@posteo.net>
