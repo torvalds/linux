@@ -97,13 +97,13 @@ config DRM_AMDGPU_WERROR
 	  Only enable this if you are warning code for amdgpu.ko.
 
 config DRM_AMDGPU_NAVI3X_USERQ
-	bool "Enable Navi 3x gfx usermode queues"
+	bool "Enable amdgpu usermode queues"
 	depends on DRM_AMDGPU
 	depends on BROKEN
 	default n
 	help
 	  Choose this option to enable GFX usermode queue support for GFX/SDMA/Compute
-          workload submission. This feature is experimental and supported on Navi 3X only.
+          workload submission. This feature is experimental and supported on GFX11+.
 
 source "drivers/gpu/drm/amd/acp/Kconfig"
 source "drivers/gpu/drm/amd/display/Kconfig"
