@@ -51,7 +51,6 @@
 #include "fib_lookup.h"
 
 static struct hlist_head *fib_info_hash;
-static unsigned int fib_info_hash_size;
 static unsigned int fib_info_hash_bits;
 static unsigned int fib_info_cnt;
 
@@ -1255,17 +1254,15 @@ int fib_check_nh(struct net *net, struct fib_nh *nh, u32 table, u8 scope,
 	return err;
 }
 
-static void fib_info_hash_move(struct hlist_head *new_info_hash,
-			       unsigned int new_size)
+static void fib_info_hash_move(struct hlist_head *new_info_hash)
 {
-	unsigned int old_size = fib_info_hash_size;
+	unsigned int old_size = 1 << fib_info_hash_bits;
 	struct hlist_head *old_info_hash;
 	unsigned int i;
 
 	ASSERT_RTNL();
 	old_info_hash = fib_info_hash;
-	fib_info_hash_size = new_size;
-	fib_info_hash_bits = ilog2(new_size);
+	fib_info_hash_bits += 1;
 	fib_info_hash = new_info_hash;
 
 	for (i = 0; i < old_size; i++) {
@@ -1406,13 +1403,12 @@ struct fib_info *fib_create_info(struct fib_config *cfg,
 	}
 #endif
 
-	if (fib_info_cnt >= fib_info_hash_size) {
-		unsigned int new_hash_bits = fib_info_hash_bits + 1;
+	if (fib_info_cnt >= (1 << fib_info_hash_bits)) {
 		struct hlist_head *new_info_hash;
 
-		new_info_hash = fib_info_hash_alloc(new_hash_bits);
+		new_info_hash = fib_info_hash_alloc(fib_info_hash_bits + 1);
 		if (new_info_hash)
-			fib_info_hash_move(new_info_hash, 1 << new_hash_bits);
+			fib_info_hash_move(new_info_hash);
 	}
 
 	fi = kzalloc(struct_size(fi, fib_nh, nhs), GFP_KERNEL);
@@ -2256,7 +2252,6 @@ int __net_init fib4_semantics_init(struct net *net)
 		return -ENOMEM;
 
 	fib_info_hash_bits = hash_bits;
-	fib_info_hash_size = 1 << hash_bits;
 
 	return 0;
 }
