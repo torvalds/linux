@@ -40,6 +40,9 @@ static inline int __init cma_declare_contiguous(phys_addr_t base,
 	return cma_declare_contiguous_nid(base, size, limit, alignment,
 			order_per_bit, fixed, name, res_cma, NUMA_NO_NODE);
 }
+extern int __init cma_declare_contiguous_multi(phys_addr_t size,
+			phys_addr_t align, unsigned int order_per_bit,
+			const char *name, struct cma **res_cma, int nid);
 extern int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 					unsigned int order_per_bit,
 					const char *name,

@@ -10,19 +10,35 @@ struct cma_kobject {
 	struct cma *cma;
 };
 
+/*
+ * Multi-range support. This can be useful if the size of the allocation
+ * is not expected to be larger than the alignment (like with hugetlb_cma),
+ * and the total amount of memory requested, while smaller than the total
+ * amount of memory available, is large enough that it doesn't fit in a
+ * single physical memory range because of memory holes.
+ */
+struct cma_memrange {
+	unsigned long base_pfn;
+	unsigned long count;
+	unsigned long *bitmap;
+#ifdef CONFIG_CMA_DEBUGFS
+	struct debugfs_u32_array dfs_bitmap;
+#endif
+};
+#define CMA_MAX_RANGES 8
+
 struct cma {
-	unsigned long   base_pfn;
 	unsigned long   count;
 	unsigned long	available_count;
-	unsigned long   *bitmap;
 	unsigned int order_per_bit; /* Order of pages represented by one bit */
 	spinlock_t	lock;
 #ifdef CONFIG_CMA_DEBUGFS
 	struct hlist_head mem_head;
 	spinlock_t mem_head_lock;
-	struct debugfs_u32_array dfs_bitmap;
 #endif
 	char name[CMA_MAX_NAME];
+	int nranges;
+	struct cma_memrange ranges[CMA_MAX_RANGES];
 #ifdef CONFIG_CMA_SYSFS
 	/* the number of CMA page successful allocations */
 	atomic64_t nr_pages_succeeded;
@@ -39,9 +55,10 @@ struct cma {
 extern struct cma cma_areas[MAX_CMA_AREAS];
 extern unsigned int cma_area_count;
 
-static inline unsigned long cma_bitmap_maxno(struct cma *cma)
+static inline unsigned long cma_bitmap_maxno(struct cma *cma,
+		struct cma_memrange *cmr)
 {
-	return cma->count >> cma->order_per_bit;
+	return cmr->count >> cma->order_per_bit;
 }
 
 #ifdef CONFIG_CMA_SYSFS
