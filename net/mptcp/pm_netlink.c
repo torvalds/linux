@@ -1983,7 +1983,7 @@ int mptcp_pm_nl_set_flags(struct mptcp_pm_addr_entry *local,
 	*local = *entry;
 	spin_unlock_bh(&pernet->lock);
 
-	mptcp_nl_set_flags(net, &local->addr, entry->flags, changed);
+	mptcp_nl_set_flags(net, &local->addr, local->flags, changed);
 	return 0;
 }
 
