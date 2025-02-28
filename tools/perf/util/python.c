@@ -1028,6 +1028,20 @@ static PyObject *pyrf_evlist__open(struct pyrf_evlist *pevlist,
 	return Py_None;
 }
 
+static PyObject *pyrf_evlist__disable(struct pyrf_evlist *pevlist)
+{
+	evlist__disable(&pevlist->evlist);
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+static PyObject *pyrf_evlist__enable(struct pyrf_evlist *pevlist)
+{
+	evlist__enable(&pevlist->evlist);
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 static PyMethodDef pyrf_evlist__methods[] = {
 	{
 		.ml_name  = "mmap",
@@ -1064,6 +1078,18 @@ static PyMethodDef pyrf_evlist__methods[] = {
 		.ml_meth  = (PyCFunction)pyrf_evlist__read_on_cpu,
 		.ml_flags = METH_VARARGS | METH_KEYWORDS,
 		.ml_doc	  = PyDoc_STR("reads an event.")
+	},
+	{
+		.ml_name  = "disable",
+		.ml_meth  = (PyCFunction)pyrf_evlist__disable,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("Disable the evsels in the evlist.")
+	},
+	{
+		.ml_name  = "enable",
+		.ml_meth  = (PyCFunction)pyrf_evlist__enable,
+		.ml_flags = METH_NOARGS,
+		.ml_doc	  = PyDoc_STR("Enable the evsels in the evlist.")
 	},
 	{ .ml_name = NULL, }
 };
