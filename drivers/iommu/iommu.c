@@ -417,9 +417,21 @@ static int iommu_init_device(struct device *dev)
 	if (!dev_iommu_get(dev))
 		return -ENOMEM;
 	/*
-	 * For FDT-based systems and ACPI IORT/VIOT, drivers register IOMMU
-	 * instances with non-NULL fwnodes, and client devices should have been
-	 * identified with a fwspec by this point. Otherwise, we can currently
+	 * For FDT-based systems and ACPI IORT/VIOT, the common firmware parsing
+	 * is buried in the bus dma_configure path. Properly unpicking that is
+	 * still a big job, so for now just invoke the whole thing. The device
+	 * already having a driver bound means dma_configure has already run and
+	 * either found no IOMMU to wait for, or we're in its replay call right
+	 * now, so either way there's no point calling it again.
+	 */
+	if (!dev->driver && dev->bus->dma_configure) {
+		mutex_unlock(&iommu_probe_device_lock);
+		dev->bus->dma_configure(dev);
+		mutex_lock(&iommu_probe_device_lock);
+	}
+	/*
+	 * At this point, relevant devices either now have a fwspec which will
+	 * match ops registered with a non-NULL fwnode, or we can reasonably
 	 * assume that only one of Intel, AMD, s390, PAMU or legacy SMMUv2 can
 	 * be present, and that any of their registered instances has suitable
 	 * ops for probing, and thus cheekily co-opt the same mechanism.
@@ -429,6 +441,12 @@ static int iommu_init_device(struct device *dev)
 		ret = -ENODEV;
 		goto err_free;
 	}
+	/*
+	 * And if we do now see any replay calls, they would indicate someone
+	 * misusing the dma_configure path outside bus code.
+	 */
+	if (dev->driver)
+		dev_WARN(dev, "late IOMMU probe at driver bind, something fishy here!\n");
 
 	if (!try_module_get(ops->owner)) {
 		ret = -EINVAL;
