@@ -129,7 +129,7 @@ static int amd_sfh_hpd_info(u8 *user_present)
 	if (!user_present)
 		return -EINVAL;
 
-	if (!emp2 || !emp2->dev_en.is_hpd_present)
+	if (!emp2 || !emp2->dev_en.is_hpd_present || !emp2->dev_en.is_hpd_enabled)
 		return -ENODEV;
 
 	hpdstatus.val = readl(emp2->mmio + amd_get_c2p_val(emp2, 4));
