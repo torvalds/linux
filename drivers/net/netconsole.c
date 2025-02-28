@@ -426,6 +426,20 @@ static ssize_t sysdata_cpu_nr_enabled_show(struct config_item *item, char *buf)
 	return sysfs_emit(buf, "%d\n", cpu_nr_enabled);
 }
 
+/* configfs helper to display if taskname sysdata feature is enabled */
+static ssize_t sysdata_taskname_enabled_show(struct config_item *item,
+					     char *buf)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool taskname_enabled;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	taskname_enabled = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	mutex_unlock(&dynamic_netconsole_mutex);
+
+	return sysfs_emit(buf, "%d\n", taskname_enabled);
+}
+
 /*
  * This one is special -- targets created through the configfs interface
  * are not enabled (and the corresponding netpoll activated) by default.
@@ -841,6 +855,40 @@ static void disable_sysdata_feature(struct netconsole_target *nt,
 	nt->extradata_complete[nt->userdata_length] = 0;
 }
 
+static ssize_t sysdata_taskname_enabled_store(struct config_item *item,
+					      const char *buf, size_t count)
+{
+	struct netconsole_target *nt = to_target(item->ci_parent);
+	bool taskname_enabled, curr;
+	ssize_t ret;
+
+	ret = kstrtobool(buf, &taskname_enabled);
+	if (ret)
+		return ret;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	curr = !!(nt->sysdata_fields & SYSDATA_TASKNAME);
+	if (taskname_enabled == curr)
+		goto unlock_ok;
+
+	if (taskname_enabled &&
+	    count_extradata_entries(nt) >= MAX_EXTRADATA_ITEMS) {
+		ret = -ENOSPC;
+		goto unlock;
+	}
+
+	if (taskname_enabled)
+		nt->sysdata_fields |= SYSDATA_TASKNAME;
+	else
+		disable_sysdata_feature(nt, SYSDATA_TASKNAME);
+
+unlock_ok:
+	ret = strnlen(buf, count);
+unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return ret;
+}
+
 /* configfs helper to sysdata cpu_nr feature */
 static ssize_t sysdata_cpu_nr_enabled_store(struct config_item *item,
 					    const char *buf, size_t count)
@@ -886,6 +934,7 @@ unlock:
 
 CONFIGFS_ATTR(userdatum_, value);
 CONFIGFS_ATTR(sysdata_, cpu_nr_enabled);
+CONFIGFS_ATTR(sysdata_, taskname_enabled);
 
 static struct configfs_attribute *userdatum_attrs[] = {
 	&userdatum_attr_value,
@@ -946,6 +995,7 @@ static void userdatum_drop(struct config_group *group, struct config_item *item)
 
 static struct configfs_attribute *userdata_attrs[] = {
 	&sysdata_attr_cpu_nr_enabled,
+	&sysdata_attr_taskname_enabled,
 	NULL,
 };
 
