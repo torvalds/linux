@@ -948,6 +948,8 @@ static int __maps__fixup_overlap_and_insert(struct maps *maps, struct map *new)
 					maps_by_name[ni] = map__get(new);
 				}
 
+				map__set_kmap_maps(new, maps);
+
 				check_invariants(maps);
 				return err;
 			}
