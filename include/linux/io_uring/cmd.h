@@ -131,7 +131,7 @@ static inline struct io_uring_cmd_data *io_uring_cmd_get_async_data(struct io_ur
 int io_buffer_register_bvec(struct io_uring_cmd *cmd, struct request *rq,
 			    void (*release)(void *), unsigned int index,
 			    unsigned int issue_flags);
-void io_buffer_unregister_bvec(struct io_uring_cmd *cmd, unsigned int index,
-			       unsigned int issue_flags);
+int io_buffer_unregister_bvec(struct io_uring_cmd *cmd, unsigned int index,
+			      unsigned int issue_flags);
 
 #endif /* _LINUX_IO_URING_CMD_H */

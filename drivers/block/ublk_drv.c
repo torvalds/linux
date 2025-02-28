@@ -1787,8 +1787,7 @@ static int ublk_unregister_io_buf(struct io_uring_cmd *cmd,
 				  const struct ublksrv_io_cmd *ub_cmd,
 				  unsigned int issue_flags)
 {
-	io_buffer_unregister_bvec(cmd, ub_cmd->addr, issue_flags);
-	return 0;
+	return io_buffer_unregister_bvec(cmd, ub_cmd->addr, issue_flags);
 }
 
 static int __ublk_ch_uring_cmd(struct io_uring_cmd *cmd,
