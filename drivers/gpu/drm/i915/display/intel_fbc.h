@@ -13,7 +13,6 @@ struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
 struct intel_display;
-struct intel_display;
 struct intel_fbc;
 struct intel_plane;
 struct intel_plane_state;
