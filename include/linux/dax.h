@@ -209,7 +209,7 @@ int dax_truncate_page(struct inode *inode, loff_t pos, bool *did_zero,
 
 static inline bool dax_page_is_idle(struct page *page)
 {
-	return page && page_ref_count(page) == 1;
+	return page && page_ref_count(page) == 0;
 }
 
 #if IS_ENABLED(CONFIG_DAX)
