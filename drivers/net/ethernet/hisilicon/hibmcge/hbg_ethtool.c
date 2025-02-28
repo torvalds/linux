@@ -69,6 +69,7 @@ static const struct hbg_ethtool_stats hbg_ethtool_stats_info[] = {
 			HBG_REG_RX_LENGTHFIELD_ERR_CNT_ADDR),
 	HBG_STATS_REG_I(rx_fail_comma_cnt, HBG_REG_RX_FAIL_COMMA_CNT_ADDR),
 	HBG_STATS_I(rx_dma_err_cnt),
+	HBG_STATS_I(rx_fifo_less_empty_thrsld_cnt),
 
 	HBG_STATS_REG_I(tx_uc_pkt_cnt, HBG_REG_TX_UC_PKTS_ADDR),
 	HBG_STATS_REG_I(tx_vlan_pkt_cnt, HBG_REG_TX_TAGGED_ADDR),

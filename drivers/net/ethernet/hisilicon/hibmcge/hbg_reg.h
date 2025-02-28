@@ -148,6 +148,7 @@
 #define HBG_INT_MSK_MAC_PCS_TX_FIFO_ERR_B	BIT(17)
 #define HBG_INT_MSK_MAC_PCS_RX_FIFO_ERR_B	BIT(16)
 #define HBG_INT_MSK_MAC_MII_FIFO_ERR_B		BIT(15)
+#define HBG_INT_MSK_TX_PKT_CPL_B		BIT(14)
 #define HBG_INT_MSK_TX_B			BIT(1) /* just used in driver */
 #define HBG_INT_MSK_RX_B			BIT(0) /* just used in driver */
 #define HBG_REG_CF_INTRPT_STAT_ADDR		(HBG_REG_SGMII_BASE + 0x0434)

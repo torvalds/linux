@@ -36,6 +36,7 @@ enum hbg_nic_state {
 	HBG_NIC_STATE_EVENT_HANDLING = 0,
 	HBG_NIC_STATE_RESETTING,
 	HBG_NIC_STATE_RESET_FAIL,
+	HBG_NIC_STATE_NEED_RESET, /* trigger a reset in scheduled task */
 };
 
 enum hbg_reset_type {
@@ -104,6 +105,7 @@ struct hbg_irq_info {
 	u32 mask;
 	bool re_enable;
 	bool need_print;
+	bool need_reset;
 	u64 count;
 
 	void (*irq_handle)(struct hbg_priv *priv, struct hbg_irq_info *info);
@@ -220,6 +222,7 @@ struct hbg_stats {
 	u64 rx_fail_comma_cnt;
 
 	u64 rx_dma_err_cnt;
+	u64 rx_fifo_less_empty_thrsld_cnt;
 
 	u64 tx_octets_total_ok_cnt;
 	u64 tx_uc_pkt_cnt;
@@ -267,5 +270,7 @@ struct hbg_priv {
 	struct hbg_stats stats;
 	struct delayed_work service_task;
 };
+
+void hbg_err_reset_task_schedule(struct hbg_priv *priv);
 
 #endif

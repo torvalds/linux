@@ -283,6 +283,9 @@ static void hbg_service_task(struct work_struct *work)
 	struct hbg_priv *priv = container_of(work, struct hbg_priv,
 					     service_task.work);
 
+	if (test_and_clear_bit(HBG_NIC_STATE_NEED_RESET, &priv->state))
+		hbg_err_reset(priv);
+
 	/* The type of statistics register is u32,
 	 * To prevent the statistics register from overflowing,
 	 * the driver dumps the statistics every 30 seconds.
@@ -290,6 +293,12 @@ static void hbg_service_task(struct work_struct *work)
 	hbg_update_stats(priv);
 	schedule_delayed_work(&priv->service_task,
 			      msecs_to_jiffies(30 * MSEC_PER_SEC));
+}
+
+void hbg_err_reset_task_schedule(struct hbg_priv *priv)
+{
+	set_bit(HBG_NIC_STATE_NEED_RESET, &priv->state);
+	schedule_delayed_work(&priv->service_task, 0);
 }
 
 static void hbg_cancel_delayed_work_sync(void *data)
