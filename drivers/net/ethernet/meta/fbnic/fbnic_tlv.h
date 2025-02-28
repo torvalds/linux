@@ -116,8 +116,8 @@ static inline bool fbnic_tlv_attr_get_bool(struct fbnic_tlv_msg *attr)
 
 u64 fbnic_tlv_attr_get_unsigned(struct fbnic_tlv_msg *attr);
 s64 fbnic_tlv_attr_get_signed(struct fbnic_tlv_msg *attr);
-size_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *str,
-				 size_t max_size);
+ssize_t fbnic_tlv_attr_get_string(struct fbnic_tlv_msg *attr, char *dst,
+				  size_t dstsize);
 
 #define get_unsigned_result(id, location) \
 do { \
