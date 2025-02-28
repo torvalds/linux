@@ -239,9 +239,9 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 	return enable;
 }
 
-static void drm_client_connectors_enabled(struct drm_connector **connectors,
+static void drm_client_connectors_enabled(struct drm_connector *connectors[],
 					  unsigned int connector_count,
-					  bool *enabled)
+					  bool enabled[])
 {
 	bool any_enabled = false;
 	struct drm_connector *connector;
@@ -266,11 +266,11 @@ static void drm_client_connectors_enabled(struct drm_connector **connectors,
 }
 
 static bool drm_client_target_cloned(struct drm_device *dev,
-				     struct drm_connector **connectors,
+				     struct drm_connector *connectors[],
 				     unsigned int connector_count,
-				     const struct drm_display_mode **modes,
-				     struct drm_client_offset *offsets,
-				     bool *enabled, int width, int height)
+				     const struct drm_display_mode *modes[],
+				     struct drm_client_offset offsets[],
+				     bool enabled[], int width, int height)
 {
 	int count, i, j;
 	bool can_clone = false;
@@ -352,10 +352,10 @@ fail:
 }
 
 static int drm_client_get_tile_offsets(struct drm_device *dev,
-				       struct drm_connector **connectors,
+				       struct drm_connector *connectors[],
 				       unsigned int connector_count,
-				       const struct drm_display_mode **modes,
-				       struct drm_client_offset *offsets,
+				       const struct drm_display_mode *modes[],
+				       struct drm_client_offset offsets[],
 				       int idx,
 				       int h_idx, int v_idx)
 {
@@ -387,11 +387,11 @@ static int drm_client_get_tile_offsets(struct drm_device *dev,
 }
 
 static bool drm_client_target_preferred(struct drm_device *dev,
-					struct drm_connector **connectors,
+					struct drm_connector *connectors[],
 					unsigned int connector_count,
-					const struct drm_display_mode **modes,
-					struct drm_client_offset *offsets,
-					bool *enabled, int width, int height)
+					const struct drm_display_mode *modes[],
+					struct drm_client_offset offsets[],
+					bool enabled[], int width, int height)
 {
 	const u64 mask = BIT_ULL(connector_count) - 1;
 	struct drm_connector *connector;
@@ -505,10 +505,10 @@ static bool connector_has_possible_crtc(struct drm_connector *connector,
 }
 
 static int drm_client_pick_crtcs(struct drm_client_dev *client,
-				 struct drm_connector **connectors,
+				 struct drm_connector *connectors[],
 				 unsigned int connector_count,
-				 struct drm_crtc **best_crtcs,
-				 const struct drm_display_mode **modes,
+				 struct drm_crtc *best_crtcs[],
+				 const struct drm_display_mode *modes[],
 				 int n, int width, int height)
 {
 	struct drm_device *dev = client->dev;
@@ -580,12 +580,12 @@ static int drm_client_pick_crtcs(struct drm_client_dev *client,
 
 /* Try to read the BIOS display configuration and use it for the initial config */
 static bool drm_client_firmware_config(struct drm_client_dev *client,
-				       struct drm_connector **connectors,
+				       struct drm_connector *connectors[],
 				       unsigned int connector_count,
-				       struct drm_crtc **crtcs,
-				       const struct drm_display_mode **modes,
-				       struct drm_client_offset *offsets,
-				       bool *enabled, int width, int height)
+				       struct drm_crtc *crtcs[],
+				       const struct drm_display_mode *modes[],
+				       struct drm_client_offset offsets[],
+				       bool enabled[], int width, int height)
 {
 	const int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
 	unsigned long conn_configured, conn_seq, mask;
