@@ -798,6 +798,9 @@ static int __maps__insert_sorted(struct maps *maps, unsigned int first_after_ind
 	}
 	RC_CHK_ACCESS(maps)->nr_maps = nr_maps + to_add;
 	maps__set_maps_by_name_sorted(maps, false);
+	map__set_kmap_maps(new1, maps);
+	map__set_kmap_maps(new2, maps);
+
 	check_invariants(maps);
 	return 0;
 }
